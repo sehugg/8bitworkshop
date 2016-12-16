@@ -1,0 +1,117 @@
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+	seg.u   Variables
+	org	$80
+
+Cycle0Lo	byte
+Cycle1Lo	byte
+Cycle2Lo	byte
+Cycle3Lo	byte
+Cycle0Hi	byte
+Cycle1Hi	byte
+Cycle2Hi	byte
+Cycle3Hi	byte
+Delta0Lo	byte
+Delta1Lo	byte
+Delta2Lo	byte
+Delta3Lo	byte
+Delta0Hi	byte
+Delta1Hi	byte
+Delta2Hi	byte
+Delta3Hi	byte
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	seg Code
+	org  $f000
+
+Start
+	CLEAN_START
+	lda #0
+        sta Delta0Hi
+        lda #137
+        sta Delta0Lo
+	lda #0
+        sta Delta1Hi
+        lda #172
+        sta Delta1Lo
+	lda #0
+        sta Delta2Hi
+        lda #217
+        sta Delta2Lo
+	lda #1
+        sta Delta2Hi
+        lda #273-256
+        sta Delta2Lo
+NextFrame
+	sta WSYNC
+	jsr NextSamples
+        jmp NextFrame
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Macro that mixes two software voices
+; and sets the volume for one TIA audio channel.
+; Usage: NEXTSAMPLEPAIR {audiochannel} {voice1} {voice2}
+	MAC NEXTSAMPLEPAIR
+; Get first channel phase, put in X
+        lda Cycle0Lo+{2}
+        clc
+        adc Delta0Lo+{2}
+	sta Cycle0Lo+{2}
+        lda Cycle0Hi+{2}
+        adc Delta0Hi+{2}
+        and #$1F
+	sta Cycle0Hi+{2}
+        tax
+; Get second channel phase, put in Y
+        lda Cycle0Lo+{3}
+        clc
+        adc Delta0Lo+{3}
+	sta Cycle0Lo+{3}
+        lda Cycle0Hi+{3}
+        adc Delta0Hi+{3}
+        and #$1F
+	sta Cycle0Hi+{3}
+        tay
+; Lookup wavetable entry and sum
+        lda Wavetable,y
+        clc
+        adc Wavetable,x
+; Divide by 2 and store to volume register
+        lsr
+        sta AUDV0+{1}
+        ENDM
+
+NextSamples
+	NEXTSAMPLEPAIR 0,0,1	; mix voices 0 and 1
+	NEXTSAMPLEPAIR 1,2,3	; mix voices 2 and 3
+        rts
+
+; 32-byte wavetable
+Wavetable
+	hex 00010203 04050607 08090a0b 0c0d0e0f
+	hex 0f0e0d0c 0b0a0908 07060504 03020100
+
+; Table of note periods
+	align $100
+NoteDeltas
+	word 9, 9, 10, 10, 11, 11, 12, 13, 14, 14, 15, 16
+	word 17, 18, 19, 20, 22, 23, 24, 26, 27, 29, 30, 32
+	word 34, 36, 38, 41, 43, 46, 48, 51, 54, 57, 61, 65 
+	word 68, 72, 77, 81, 86, 91, 97, 102, 108, 115, 122, 129
+	word 137, 145, 153, 163, 172, 182, 193, 205, 217, 230, 244, 258
+	word 273, 290, 307, 325, 344, 365, 387, 410, 434, 460, 487, 516 
+	word 547, 579, 614, 650, 689, 730, 773, 819, 868, 920, 974, 1032 
+	word 1093, 1159, 1227, 1300, 1378, 1460, 1546, 1638, 1736, 1839, 1948, 2064
+	word 2187, 2317, 2455, 2601, 2755, 2919, 3093, 3277, 3472, 3678, 3897, 4128 
+	word 4374, 4634, 4910, 5202, 5511, 5839, 6186, 6554, 6943, 7356, 7793, 8257 
+	word 8748, 9268, 9819, 10403, 11022, 11677, 12371, 13107
+
+; Epilogue
+	org $fffc
+        .word Start
+        .word Start

@@ -1,0 +1,177 @@
+	processor 6502
+	include "vcs.h"
+	include "macro.h"
+
+	org  $f000
+
+; We're going to use a more clever way to position sprites
+; ("players") which relies on additional TIA features.
+; Because the CPU timing is 3 times as coarse as the TIA's,
+; we can only access 1 out of 3 possible positions using
+; CPU delays alone.
+; Additional TIA registers let us nudge the final position
+; by discrete TIA clocks and thus target all 160 positions.
+
+counter	equ $81
+
+start	CLEAN_START
+
+nextframe
+	VERTICAL_SYNC
+	
+; 37 lines of VBLANK
+	ldx #35
+lvblank	sta WSYNC
+	dex
+	bne lvblank
+
+; Instead of representing the horizontal position in CPU clocks,
+; we're going to use TIA clocks.
+
+	lda counter	; load the counter as horizontal position
+	and #$7f	; force range to (0-127)
+	
+; We're going to divide the horizontal position by 15.
+; The easy way on the 6502 is to subtract in a loop.
+; Note that this also conveniently adds 5 CPU cycles
+; (15 TIA clocks) per iteration.
+	sta WSYNC	; 36th line
+	sta HMCLR	; reset the old horizontal position
+DivideLoop
+	sbc #15		; subtract 15
+	bcs DivideLoop	; branch until negative
+; A now contains (the remainder - 15).
+; We'll convert that into a fine adjustment, which has
+; the range -8 to +7.
+	eor #7
+	asl		; HMOVE only uses the top 4 bits, so shift by 4
+	asl
+	asl
+	asl
+; The fine offset goes into HMP0
+	sta HMP0
+; Now let's fix the coarse position of the player, which as you
+; remember is solely based on timing. If you rearrange any of the
+; previous instructions, position 0 won't be exactly on the left side.
+	sta RESP0
+; Finally we'll do a WSYNC followed by HMOVE to apply the fine offset.
+	sta WSYNC	; 37th line
+	sta HMOVE	; apply offset
+
+; We'll see this method again, and it can be made into a subroutine
+; that works on multiple objects.
+
+; Now draw the 192 scanlines, drawing the sprite.
+; We've already set its horizontal position for the entire frame,
+; but we'll try to draw something real this time, some digits
+; lifted from another game.
+	ldx #192
+	lda #0		; changes every scanline
+	ldy #0		; sprite data index
+lvscan
+	sta WSYNC	; wait for next scanline
+	sty COLUBK	; set the background color
+	lda NUMBERS,y
+	sta GRP0	; set sprite 0 pixels
+	iny
+	cpy #60
+	bcc wrap1
+	ldy #0
+wrap1
+	dex
+	bne lvscan
+	
+; Clear the background color and sprites before overscan
+	stx COLUBK
+	stx GRP0
+; 30 lines of overscan
+	ldx #30
+lvover	sta WSYNC
+	dex
+	bne lvover
+	
+; Cycle the sprite colors for the next frame
+	inc counter
+	lda counter
+	sta COLUP0
+	jmp nextframe
+
+; Bitmap pattern for digits
+
+NUMBERS	.byte $0E ; |    XXX | $F5C5   Leading zero is not drawn
+	.byte $0A ; |    X X | $F5C6   because it's never used.
+	.byte $0A ; |    X X | $F5C7
+	.byte $0A ; |    X X | $F5C8
+	.byte $0E ; |    XXX | $F5C9
+	.byte $00
+	
+	.byte $22 ; |  X   X | $F5CA
+	.byte $22 ; |  X   X | $F5CB
+	.byte $22 ; |  X   X | $F5CC
+	.byte $22 ; |  X   X | $F5CD
+	.byte $22 ; |  X   X | $F5CE
+	.byte $00
+	
+	.byte $EE ; |XXX XXX | $F5CF
+	.byte $22 ; |  X   X | $F5D0
+	.byte $EE ; |XXX XXX | $F5D1
+	.byte $88 ; |X   X   | $F5D2
+	.byte $EE ; |XXX XXX | $F5D3
+	.byte $00
+	
+	.byte $EE ; |XXX XXX | $F5D4
+	.byte $22 ; |  X   X | $F5D5
+	.byte $66 ; | XX  XX | $F5D6
+	.byte $22 ; |  X   X | $F5D7
+	.byte $EE ; |XXX XXX | $F5D8
+	.byte $00
+
+	.byte $AA ; |X X X X | $F5D9
+	.byte $AA ; |X X X X | $F5DA
+	.byte $EE ; |XXX XXX | $F5DB
+	.byte $22 ; |  X   X | $F5DC
+	.byte $22 ; |  X   X | $F5DD
+	.byte $00
+
+	.byte $EE ; |XXX XXX | $F5DE
+	.byte $88 ; |X   X   | $F5DF
+	.byte $EE ; |XXX XXX | $F5E0
+	.byte $22 ; |  X   X | $F5E1
+	.byte $EE ; |XXX XXX | $F5E2
+	.byte $00
+	
+	.byte $EE ; |XXX XXX | $F5E3
+	.byte $88 ; |X   X   | $F5E4
+	.byte $EE ; |XXX XXX | $F5E5
+	.byte $AA ; |X X X X | $F5E6
+	.byte $EE ; |XXX XXX | $F5E7
+	.byte $00
+	
+	.byte $EE ; |XXX XXX | $F5E8
+	.byte $22 ; |  X   X | $F5E9
+	.byte $22 ; |  X   X | $F5EA
+	.byte $22 ; |  X   X | $F5EB
+	.byte $22 ; |  X   X | $F5EC
+	.byte $00
+	
+	.byte $EE ; |XXX XXX | $F5ED
+	.byte $AA ; |X X X X | $F5EE
+	.byte $EE ; |XXX XXX | $F5EF
+	.byte $AA ; |X X X X | $F5F0
+	.byte $EE ; |XXX XXX | $F5F1
+	.byte $00
+	
+	.byte $EE ; |XXX XXX | $F5F2
+	.byte $AA ; |X X X X | $F5F3
+	.byte $EE ; |XXX XXX | $F5F4
+	.byte $22 ; |  X   X | $F5F5
+	.byte $EE ; |XXX XXX | $F5F6	
+	.byte $00
+
+; Epilogue
+	org $fffc
+	.word start
+	.word start
+
+; QUESTION: What if you don't set the fine offset?
+; QUESTION: What if you don't set the coarse offset?

@@ -1,0 +1,580 @@
+	processor 6502
+	include "vcs.h"
+	include "macro.h"
+	include "xmacro.h"
+
+; For lots of games, we'd like to display more than two sprites.
+; There are lots of different ways to tackle this on the VCS,
+; but we're going to try for a generalized approach that lets
+; use have N different sprites at any X-Y coordinate, each with
+; its own bitmap and color table. This is tricky because we can
+; only do so much on each scanline.
+
+; Our approach is to separate the problem into three phases.
+; In the sort phase, we sort all sprites by Y coordinate.
+; We do one sort pass per frame, so it may take several frames
+; for the sort to stabilize.
+; In the positioning phase, we look at the sprites in Y-sorted
+; order, looking several lines ahead to see if a sprite is
+; coming up. We then allocate it to one of the two player
+; objects in hardware and set its position using the SetHorizPos
+; method. We can set one or both of the player objects this way.
+
+; In the display phase, we display the objects which we previously
+; assigned and positioned. First we figure out how many scanlines are
+; required. If only one object is scheduled, we just use its height.
+; If two objects are scheduled, we go until the bottommost line has
+; been displayed. We then loop through, fetching pixels and colors
+; for one or both objects (up to four lookup tables) and setting
+; registers at the appropriate time. We don't have time to do much
+; else, so we don't look for any new objects to schedule until
+; we're done with this loop.
+
+; This scheme can only display up to two objects on a given
+; scanline, so if the system tries to schedule a third, it will 
+; be ignored. Also, the positioning routine takes a few scanlines
+; to complete, so if the top of a sprite is too close to the
+; bottom of another sprite, the latter may not be displayed.
+;
+; To mitigate this, we increment a priority counter when a
+; sprite entry is missed. In the sort phase, we move those sprites
+; ahead of lower priority sprites in the sort order. This makes
+; overlapping sprites flicker instead of randomly disappear.
+
+	seg.u Variables
+        org $80
+
+Scanline byte	; current scanline
+CurIndex byte	; current sprite # to try to schedule
+
+PData0	word	; pointer (lo/hi) to player 0 bitmap data
+PData1	word	; pointer to player 1 bitmap data
+PColr0	word	; pointer to player 0 color data
+PColr1	word	; pointer to player 1 color data
+SIndx0	byte	; next y-position to draw player 0
+		; or during draw, index into sprite
+                ; zero means not assigned
+SIndx1	byte	; ... for player 1
+SSize0	byte	; sprite size for player 0
+SSize1	byte	; sprite size for player 1
+
+NSprites	equ 8       ; max # of sprites
+XPos0		ds NSprites ; x coord for each sprite
+YPos0		ds NSprites ; y coord for each sprite
+Sorted0		ds NSprites ; sorted list of sprite indices
+Priority0	ds NSprites ; sprite priority list, if missed
+
+MinYDist	equ 7	; min. Y distance to consider sprite
+
+; Fetchs the approximate scanline (could be off by +/- 1)
+; into A. Takes 11 or 14 cycles.
+	MAC GET_APPROX_SCANLINE
+        ldy INTIM
+        lda Timer2Scanline,y
+        bne .Ok
+        lda Timer2Scanline-1,y
+.Ok
+        ENDM
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	seg Code
+        org $f000
+
+; Initialize and set initial X and Y offsets of objects.
+Start
+	CLEAN_START
+	ldx #0
+        lda #10
+        ldy #40
+InitLoop
+        sty XPos0,x
+        sta YPos0,x
+        clc
+        adc #19
+        iny
+        iny
+        iny
+        iny
+        iny
+        iny
+        inx
+        cpx #NSprites
+        bne InitLoop
+; Initialize initial sort order
+        ldx #0
+InitLoop2
+	txa
+	sta Sorted0,x
+        inx
+        cpx #NSprites
+        bne InitLoop2
+
+; Next frame loop
+NextFrame
+; VSYNC and VBLANK periods
+	VERTICAL_SYNC
+	TIMER_SETUP 24
+; Do joystick movement
+        jsr MoveJoystick
+; Do one iteration of bubble sort on sprite indices
+	ldx #NSprites-2
+SortLoop
+	jsr SwapSprites
+        dex
+        bpl SortLoop	; loop until <= 0
+; Reset scanline counter and sprite objects
+	ldx #0
+        stx CurIndex
+        stx SIndx0
+        stx SIndx1
+        stx SSize0
+        stx SSize1
+        TIMER_WAIT
+; end of VBLANK
+
+; Scanline loop
+        TIMER_SETUP 216	; timer <- #$ff
+        lda #$90
+        sta COLUBK
+NextFindSprite
+; Try to schedule sprites to both players
+	jsr FindAnotherSprite
+	jsr FindAnotherSprite
+; Apply fine offsets
+	sta WSYNC	; start next scanline
+	sta HMOVE	; apply the previous fine position(s)
+; See if time to draw
+	jsr DrawSprites
+; Repeat until all scanlines drawn
+	sta HMCLR	; reset the old horizontal position(s)
+	lda INTIM
+        cmp #$14	; scanline 198
+        bcs NextFindSprite
+        lda #201	; + 9 lines, end exactly
+        jsr WaitForScanline
+; end of Scanline loop
+
+NoMoreScanlines
+; Clear all colors to black before overscan
+	ldx #0
+	stx COLUBK
+	stx COLUP0
+	stx COLUP1
+	stx COLUPF
+; 30-2 lines of overscan
+	TIMER_SETUP 28
+        TIMER_WAIT
+; Go to next frame
+	jmp NextFrame
+
+; We were too late to display a sprite.
+; Put it earlier in the sort order and try next frame.
+; X = sort index
+.MissedSprite subroutine
+; Have we already looked at all the sprites?
+; Increment priority for this sort entry
+	inc Priority0,x
+; Go to next sort index, until we get to the end
+        inx
+        stx CurIndex
+.OutOfSprites
+        rts
+; Try to assign the next sprite in the sort order into
+; one of the two player slots.
+; If sprite found, uses at least 3 scanlines for SetHorizPos.
+FindAnotherSprite ; subroutine entry point
+; Get the approximate scanline
+	GET_APPROX_SCANLINE
+        clc
+        adc #MinYDist
+        sta Scanline
+; Calculate the distance to next sprite 
+	ldx CurIndex
+	cpx #NSprites
+        bcs .OutOfSprites
+        ldy Sorted0,x	; get sprite index # in Y-sorted order
+        lda YPos0,y	; get Y position of sprite
+        cmp Scanline	; SpriteY - Scanline
+; Don't schedule the sprite if it's too soon or its scanline
+; has already passed -- mark it missed
+	bmi .MissedSprite ; passed it? (or > 127 lines away)
+; A sprite is starting soon, now we need to schedule it
+; to either one of the player objects
+        lda XPos0,y
+; Is player 1 available?
+        ldx SIndx1
+	bne .Plyr1NotReady
+; Due to timing issues, we have artifacts if player 1 is
+; too close to the left edge of the screen. So we'd prefer to
+; put those sprites in the player 0 slot.
+        cmp #34		; X < 34
+        bcc .Plyr1NotReady
+; First let's set its horizontal offset
+        ldx #1
+        jsr SetHorizPos	; set horizontal position (does WSYNC)
+; Assign the sprite's Y position to player 1 
+	lda YPos0,y
+        sta SIndx1
+; Get index into SpriteDataMap (index * 4)
+	ldx MultBy4,y
+; Copy addresses of pixel/color maps to player 1
+        lda SpriteDataMap,x
+        sta PData1
+        lda SpriteDataMap+1,x
+        sta PData1+1
+        lda SpriteDataMap+2,x
+        sta PColr1
+        lda SpriteDataMap+3,x
+        sta PColr1+1
+; Get the sprite height as the first byte of the color map
+        ldy #0
+        lda (PColr1),y
+        sta SSize1
+        jmp .SetupDone
+.Plyr1NotReady
+        ldx SIndx0
+        bne .NoNearSprite	; both players in use
+; Player 0 is available
+; This is essentially the same as the player 1 routine
+        ldx #0
+        jsr SetHorizPos
+	lda YPos0,y
+	sta SIndx0
+	ldx MultBy4,y
+        lda SpriteDataMap,x
+        sta PData0
+        lda SpriteDataMap+1,x
+        sta PData0+1
+        lda SpriteDataMap+2,x
+        sta PColr0
+        lda SpriteDataMap+3,x
+        sta PColr0+1
+        ldy #0
+        lda (PColr0),y
+        sta SSize0
+.SetupDone
+	inc CurIndex	; go to next sprite in sort order
+.NoNearSprite
+	rts
+
+; Draw any scheduled sprites.
+DrawSprites subroutine
+; Wait for next precise scanline
+	lda #0		     ; 0 = wait for next
+        jsr WaitForScanline
+        lda Timer2Scanline,y ; lookup scanline #
+        sta Scanline         ; save it
+; Calculate # of lines to draw for each sprite
+; Sprite Y - current scanline + sprite height
+	lda SIndx0
+        beq .Empty0	; sprite 0 is inactive?
+	sec
+	sbc Scanline
+        clc
+        adc SSize0
+        sta SIndx0	; SIndx0 += SSize0 - Scanline
+.Empty0
+	lda SIndx1
+        beq .Empty1	; sprite 1 is inactive?
+	sec
+	sbc Scanline
+        clc
+        adc SSize1
+        sta SIndx1	; SIndx1 += SSize1 - Scanline
+.Empty1
+; Find out the maximum # of lines to draw
+; by taking the maximum of the two sprite heights
+	cmp SIndx0
+        bpl .Cmp1	; sindx0 < sindx1?
+        lda SIndx0
+.Cmp1
+	tax		; X = # of lines left to draw
+        beq .NoSprites	; X = 0? we're done
+        sta WSYNC	; next scanline
+.DrawNextScanline
+; Make sure player 0 index is within bounds
+	ldy SIndx0
+        cpy SSize0
+        bcs .Inactive0	; index >= size? (or index < 0)
+; Lookup pixels for player 0
+        lda (PData0),y
+; Do WSYNC and then quickly store pixels for player 0
+        sta WSYNC
+	sta GRP0
+; Lookup/store colors for player 0
+        lda (PColr0),y
+        sta COLUP0
+.DrawSprite1
+; Make sure player 1 index is within bounds
+	ldy SIndx1
+        cpy SSize1
+        bcs .Inactive1	; index >= size? (or index < 0)
+; Lookup/store pixels and colors for player 1
+; Note that we are already 30-40 pixels into the scanline
+; by this point...
+        lda (PData1),y
+        sta GRP1
+        lda (PColr1),y
+        sta COLUP1
+.Inactive1
+; Decrement the two sprite indices
+        dey
+        sty SIndx1
+        dec SIndx0
+; Repeat until we've drawn all the scanlines for this job
+	dex
+        bne .DrawNextScanline
+; Free up both player objects by zeroing them out
+	stx SIndx0
+        stx SIndx1
+        stx SSize0
+        stx SSize1
+	sta WSYNC
+	stx GRP0
+	stx GRP1
+; No sprites were drawn; just exit
+.NoSprites
+	rts
+.Inactive0
+; Alternate player 0 path when it is inactive
+	sta WSYNC
+	lda #0
+	sta GRP0
+        sta COLUP0
+        beq .DrawSprite1 ; always taken due to lda #0
+
+; Perform one sort iteration
+; X register contains sort index (0 to NSprites-1)
+SwapSprites subroutine
+; First compare Priority[i] and Priority[i+1]
+	lda Priority0,x
+        cmp Priority0+1,x
+        bcs .CompareYPos
+; If Priority[i] < Priority[i+1], do the swap
+; anyway after resetting priorities
+        lda #0
+	sta Priority0,x
+        sta Priority0+1,x	; reset
+        ldy Sorted0+1,x
+        bcc .DoSwap	; swap due to priority
+.CompareYPos
+; Compare Y[i] and Y[i+1]
+        ldy Sorted0,x
+        lda YPos0,y
+        ldy Sorted0+1,x
+        cmp YPos0,y
+        bcc .NoSwap	; Y[i] < Y[i+1]? don't swap
+.DoSwap
+; Swap Sorted[i] and Sorted[i+1]
+	lda Sorted0,x	; A <- Sorted[i]
+        sty Sorted0,x	; Y -> Sorted[i]
+        sta Sorted0+1,x ; A -> Sorted[i+1]
+.NoSwap
+	rts
+
+; Read joystick movement and apply to object 0
+MoveJoystick subroutine
+; Move vertically
+	ldx YPos0
+	lda #%00010000	;Up?
+	bit SWCHA
+	bne .SkipMoveUp
+        cpx #8
+        bcc .SkipMoveUp
+        dex
+.SkipMoveUp
+	lda #%00100000	;Down?
+	bit SWCHA 
+	bne .SkipMoveDown
+        cpx #170
+        bcs .SkipMoveDown
+        inx
+.SkipMoveDown
+	stx YPos0
+; Move horizontally
+        ldx XPos0
+	lda #%01000000	;Left?
+	bit SWCHA
+	bne .SkipMoveLeft
+        cpx #5
+        bcc .SkipMoveLeft
+        dex
+.SkipMoveLeft
+	lda #%10000000	;Right?
+	bit SWCHA 
+	bne .SkipMoveRight
+        cpx #140
+        bcs .SkipMoveRight
+        inx
+.SkipMoveRight
+	stx XPos0
+	rts
+
+
+; SetHorizPos - Sets the horizontal position of an object.
+; The X register contains the index of the desired object:
+;  X=0: player 0
+;  X=1: player 1
+;  X=2: missile 0
+;  X=3: missile 1
+;  X=4: ball
+; NOTE: This version of the routine does a NEWLINE after executing
+; because when the beam is at the far right side of the screen
+; there is little time to do so before wrapping to the next line.
+; It does NOT do a HMOVE and HCLR.
+SetHorizPos subroutine
+	sta WSYNC	; start a new line
+	sec		; set carry flag
+.DivideLoop
+	sbc #15		; subtract 15
+	bcs .DivideLoop	; branch until negative
+	eor #7		; calculate fine offset
+	asl
+	asl
+	asl
+	asl
+	sta HMP0,x	; set fine offset
+	sta RESP0,x	; fix coarse position
+	rts		; return to caller
+
+;    Pass: A = desired scanline
+; Returns: Y = timer value - 1
+        align $10
+WaitForScanline subroutine
+        ldy INTIM       ; Fetch timer value
+.Wait
+        cpy INTIM
+        beq .Wait       ; Wait for it to change
+        sta WSYNC       ; Sync with scan line
+        cmp Timer2Scanline,y ; lookup scanline
+        bcs WaitForScanline  ; repeat until >=
+        rts
+
+; Bitmap data "standing" position
+Frame0
+	.byte #0
+	.byte #%01101100;$F6
+	.byte #%00101000;$86
+	.byte #%00101000;$86
+	.byte #%00111000;$86
+	.byte #%10111010;$C2
+	.byte #%10111010;$C2
+	.byte #%01111100;$C2
+	.byte #%00111000;$C2
+	.byte #%00111000;$16
+	.byte #%01000100;$16
+	.byte #%01111100;$16
+	.byte #%01111100;$18
+	.byte #%01010100;$18
+	.byte #%01111100;$18
+	.byte #%11111110;$F2
+	.byte #%00111000;$F4
+
+; Bitmap data "throwing" position
+Frame1
+	.byte #0
+	.byte #%01101100;$F6
+	.byte #%01000100;$86
+	.byte #%00101000;$86
+	.byte #%00111000;$86
+	.byte #%10111010;$C2
+	.byte #%10111101;$C2
+	.byte #%01111101;$C2
+	.byte #%00111001;$C2
+	.byte #%00111000;$16
+	.byte #%01101100;$16
+	.byte #%01111100;$16
+	.byte #%01111100;$18
+	.byte #%01010100;$18
+	.byte #%01111100;$18
+	.byte #%11111110;$F2
+	.byte #%00111000;$F4
+
+; Color data for each line of sprite
+ColorFrame0
+	.byte #17	; height
+	.byte #$F6;
+	.byte #$86;
+	.byte #$86;
+	.byte #$86;
+	.byte #$C2;
+	.byte #$C2;
+	.byte #$C2;
+	.byte #$C2;
+	.byte #$16;
+	.byte #$16;
+	.byte #$16;
+	.byte #$18;
+	.byte #$18;
+	.byte #$18;
+	.byte #$F2;
+	.byte #$F4;
+
+; Enemy cat-head graphics data
+EnemyFrame0
+	.byte #0
+        .byte #%00111100;$AE
+        .byte #%01000010;$AE
+        .byte #%11100111;$AE
+        .byte #%11111111;$AC
+        .byte #%10011001;$8E
+        .byte #%01111110;$8E
+        .byte #%11000011;$98
+        .byte #%10000001;$98
+
+; Enemy cat-head color data
+EnemyColorFrame0
+	.byte #9	; height
+        .byte #$AE;
+        .byte #$AC;
+        .byte #$A8;
+        .byte #$AC;
+        .byte #$8E;
+        .byte #$8E;
+        .byte #$98;
+        .byte #$94;
+
+; Mapping of sprite objects (0-7) to sprite data
+SpriteDataMap
+	.word Frame0,ColorFrame0
+	.word EnemyFrame0,EnemyColorFrame0
+	.word EnemyFrame0,EnemyColorFrame0
+	.word EnemyFrame0,EnemyColorFrame0
+	.word EnemyFrame0,EnemyColorFrame0
+	.word EnemyFrame0,EnemyColorFrame0
+	.word EnemyFrame0,EnemyColorFrame0
+	.word Frame1,ColorFrame0
+
+; Multiplication by 4 table
+; faster than tya/asl/asl/tay
+MultBy4
+	.byte #$00,#$04,#$08,#$0c
+	.byte #$10,#$14,#$18,#$1c
+	.byte #$20,#$24,#$28,#$2c
+	.byte #$30,#$34,#$38,#$3c
+
+; Timer -> Scanline table
+        align $100
+Timer2Scanline
+	.byte 215,  0,214,213,212,211,210,  0,209,208,207,206,205,204,  0,203 
+	.byte 202,201,200,199,  0,198,197,196,195,194,  0,193,192,191,190,189 
+	.byte 188,  0,187,186,185,184,183,  0,182,181,180,179,178,  0,177,176 
+	.byte 175,174,173,172,  0,171,170,169,168,167,  0,166,165,164,163,162 
+	.byte   0,161,160,159,158,157,156,  0,155,154,153,152,151,  0,150,149 
+	.byte 148,147,146,  0,145,144,143,142,141,140,  0,139,138,137,136,135 
+	.byte   0,134,133,132,131,130,  0,129,128,127,126,125,124,  0,123,122 
+	.byte 121,120,119,  0,118,117,116,115,114,  0,113,112,111,110,109,108 
+	.byte   0,107,106,105,104,103,  0,102,101,100, 99, 98,  0, 97, 96, 95 
+	.byte  94, 93, 92,  0, 91, 90, 89, 88, 87,  0, 86, 85, 84, 83, 82,  0 
+	.byte  81, 80, 79, 78, 77, 76,  0, 75, 74, 73, 72, 71,  0, 70, 69, 68 
+	.byte  67, 66,  0, 65, 64, 63, 62, 61, 60,  0, 59, 58, 57, 56, 55,  0 
+	.byte  54, 53, 52, 51, 50,  0, 49, 48, 47, 46, 45, 44,  0, 43, 42, 41 
+	.byte  40, 39,  0, 38, 37, 36, 35, 34,  0, 33, 32, 31, 30, 29, 28,  0 
+	.byte  27, 26, 25, 24, 23,  0, 22, 21, 20, 19, 18,  0, 17, 16, 15, 14 
+	.byte  13, 12,  0, 11, 10,  9,  8,  7,  0,  6,  5,  4,  3,  2,  0,  1
+
+; Epilogue
+	org $fffc
+	.word Start
+	.word Start

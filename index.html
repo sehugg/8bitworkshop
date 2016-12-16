@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>8bitworkshop IDE</title>
+<style type="text/css" media="screen">
+body {
+  overflow: hidden;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+}
+.dbg_info {
+  font-size: 0.8em;
+}
+#controls_top {
+  padding: 0.5em;
+}
+.gutter-offset {
+  width: 3em;
+}
+.gutter-bytes {
+  width: 6em;
+}
+.gutter-clock {
+  width: 0.5em;
+}
+.gutter-info {
+  width: 1em;
+}
+.tooltip {
+    position: relative;
+    display: inline-block;
+    border-bottom: 1px dotted black;
+}
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 120px;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 0;
+
+    /* Position the tooltip */
+    position: absolute;
+    z-index: 10;
+}
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
+#notebook {
+  height: 100%;
+  width: 100%;
+}
+div.editor {
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  right:0;
+  width:50%;
+  height:100vh;
+  background-color:#999;
+}
+div.emulator {
+  position:absolute;
+  left:50%;
+  top:0;
+  width:50%;
+  height:100vh;
+  overflow-y: scroll;
+  background-color: #666;
+}
+div.mem_info {
+  position: absolute;
+  bottom: 10px;
+  background-color: #333;
+  color: #66ff66;
+  left: 20px;
+  white-space: pre;
+  padding: 20px;
+  z-index: 2;
+}
+span.hilite {
+  color: #ff66ff;
+}
+div.has-errors {
+  background-color: #ff6666 !important;
+}
+div.menu_div {
+  position: absolute;
+  width: 200px;
+}
+div.booklink {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  padding: 6px;
+  background-color: #ffffff;
+}
+a {
+  color:#333399;
+  font-weight: bold;
+}
+</style>
+</head>
+<body>
+
+<div id="notebook">
+  <div id="editor" class="editor">
+    <div id="controls_top">
+<!--      <a id="file_new" href="#" title="New File">+</a> -->
+<!--      <a id="preset_prev" href="#">&lt;&lt;</a> -->
+      <button id="btn_share" title="Share File"><img src="images/share.png"></button>
+      <select id="preset_select" name="">
+      </select>
+      <button id="dbg_pause" type="button" title="Pause"><img src="images/pause.png"></button>
+      <button id="dbg_go" type="button" title="Run"><img src="images/play.png"></button>
+      <button id="dbg_toline" type="submit" title="Run To Line"><img src="images/runtoline.png"></button>
+      <button id="dbg_step" type="submit" title="Step"><img src="images/singlestep.png"></button>
+      <button id="dbg_reset" type="submit" title="Reset and Run To Line"><img src="images/resetandrun.png"></button>
+      <button id="dbg_timing" type="submit" title="See Timing"><img src="images/timing.png"></button>
+      <span class="dbg_info" id="dbg_info"></span>
+    </div>
+  </div>
+  <div style="margin-top: 30px auto 0; min-height: 594px;" class="emulator">
+    <div id="javatari-screen" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
+    <div id="javatari-console-panel" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
+    <div id="mem_info" class="mem_info" style="display:none">
+    </div>
+  </div>
+</div>
+<div class="booklink">
+  <!--
+  <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0"
+  src="http://ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=pzp-20&marketplace=amazon&region=US&placement=B01N4DSRIZ&asins=B01N4DSRIZ&linkId=67b114b83ce0b13ceaf715ee86833626&show_border=true&link_opens_in_new_window=false&price_color=333333&title_color=0066c0&bg_color=7d6d6d">
+    </iframe>
+  -->
+  <img src="https://images-na.ssl-images-amazon.com/images/I/5153Bd8oWeL._AC_AC_SR98,95_.jpg" style="float:right"/>
+  Want to learn more?<br>
+  Get the new book<br>
+  <a target="_new" href="https://www.amazon.com/gp/product/B01N4DSRIZ/ref=as_li_qf_sp_asin_il_tl?ie=UTF8&tag=pzp-20&camp=1789&creative=9325&linkCode=as2&creativeASIN=B01N4DSRIZ&linkId=04d39e274c06e6c93b93d20a9a977111">
+    Making Games For The Atari 2600</a>
+</div>
+
+<script src="jquery/jquery-2.2.3.min.js"></script>
+
+<script src="codemirror/lib/codemirror.js"></script>
+<script src="codemirror/mode/6502/6502.js"></script>
+<link rel="stylesheet" href="css/codemirror.css">
+<link rel="stylesheet" href="codemirror/theme/mbo.css">
+<script src="codemirror/addon/search/search.js"></script>
+<script src="codemirror/addon/search/searchcursor.js"></script>
+<script src="codemirror/addon/search/jumpToLine.js"></script>
+<script src="codemirror/addon/dialog/dialog.js"></script>
+<link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
+
+<script src="javatari.js/release/javatari/javatari.js"></script>
+
+<script src="src/jsdiff.js"></script>
+<script src="src/ui.js"></script>
+
+</body>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-54497476-9', 'auto');
+  ga('send', 'pageview');
+
+</script>
+</html>

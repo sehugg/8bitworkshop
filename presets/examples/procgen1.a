@@ -1,0 +1,518 @@
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+	seg.u   Variables
+	org	$80
+
+PFOfs		.byte	; offset into PFData (0-20)
+SpritePtr0	.word	; pointer to bitmap for sprite 0
+SpritePtr1	.word	; pointer to bitmap for sprite 1
+ColorPtr0	.word	; pointer to colors for sprite 0
+ColorPtr1	.word	; pointer to colors for sprite 1
+
+YPos0		.byte	; current Y position of sprite 0
+YPos1		.byte	; current Y position of sprite 1
+XPos0		.byte	; current X position of sprite 0
+XPos1		.byte	; current X position of sprite 1
+XPosPrev	.byte	; previous X position of sprite 0
+YPosPrev	.byte	; previous X position of sprite 1
+
+RoomType	.byte	; current room definition byte
+
+; these are modified line-by-line by the sprite kernel
+Colp0		.byte	; temp. colors for player 0
+YP0		.byte	; counts y-position for player 0
+YP1		.byte	; counts y-position for player 1
+tmpPF0		.byte	; temp. PF0
+tmpPF1		.byte	; temp. PF1
+tmpPF2		.byte	; temp. PF2
+
+Temp		.byte
+
+PFData	equ	$c0	; 21-byte array of playfield bytes
+
+SpriteHeight	equ 16	; hard-coded height of sprites
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	seg Code
+	org  $f000
+
+Start
+	CLEAN_START
+Data0        
+        lda #<Frame0
+        sta SpritePtr0
+        lda #>Frame0
+        sta SpritePtr0+1
+        lda #<ColorFrame0
+        sta ColorPtr0
+        lda #>ColorFrame0
+        sta ColorPtr0+1
+        lda #<Frame0
+        sta SpritePtr1
+        lda #>Frame0
+        sta SpritePtr1+1
+        lda #<ColorFrame1
+        sta ColorPtr1
+        lda #>ColorFrame1
+        sta ColorPtr1+1
+        lda #242
+        sta YPos0
+        lda #200
+        sta YPos1
+        lda #58
+        sta XPos0
+        sta XPos1
+        lda #1
+        sta VDELP0	; updates to GRP0 will be delayed
+        lda #1
+        sta RoomType
+        jsr BuildRoom
+
+NextFrame
+	VERTICAL_SYNC
+
+; Set up VBLANK timer
+; We'll do four fewer lines than usual, so we can
+; load the playfield registers in the first four lines.
+	TIMER_SETUP 33
+        lda #$68
+        sta COLUP0	; player color
+        lda #1
+        sta CTRLPF	; symmetry
+        lda #72
+        sta PFOfs	; reset playfield offset
+; Set temporary Y counter and set horizontal position
+        lda YPos0
+        sta YP0		; yp0 = temporary counter
+        lda YPos1
+        sta YP1	; yp0 = temporary counter
+        lda XPos0
+        ldx #0
+        jsr SetHorizPos
+        lda XPos1
+        ldx #1
+        jsr SetHorizPos
+        sta WSYNC
+        sta HMOVE	; gotta apply HMOVE
+        sta CXCLR	; clear collisions
+; Wait for end of VBLANK
+	TIMER_WAIT
+        sta WSYNC
+
+KernelLoop
+; Phase 0: Fetch PF0 byte
+        jsr DrawSprites
+        jsr FetchPlayfield
+        sta tmpPF0
+; Phase 1: Fetch PF1 byte
+        jsr DrawSprites
+        jsr FetchPlayfield
+        sta tmpPF1
+; Phase 2: Fetch PF2 byte
+        jsr DrawSprites
+        jsr FetchPlayfield
+        sta tmpPF2
+; Phase 3: Write PF0/PF1/PF2 registers
+        jsr DrawSprites
+	lda tmpPF0
+        sta PF0
+        lda tmpPF1
+        sta PF1
+        lda tmpPF2
+        sta PF2
+; Go to next scanline?
+	lda PFOfs
+	bne KernelLoop
+
+NoMoreLines
+
+; Set up overscan timer
+; We'll take back those four lines we skipped earlier.
+	TIMER_SETUP 34
+        lda #0
+        sta PF0
+        sta PF1
+        sta PF2
+; Did the player collide with the wall?
+	bit CXP0FB
+        bpl NoCollision
+; Yes, load previous position
+        lda YPosPrev
+        sta YPos0
+        lda XPosPrev
+        sta XPos0
+        jmp NoMoveJoy
+NoCollision
+; No collision, update previous position and move player
+        lda YPos0
+        sta YPosPrev
+        lda XPos0
+        sta XPosPrev
+        jsr MoveJoystick
+NoMoveJoy
+        TIMER_WAIT
+        jmp NextFrame
+
+; DrawSprite subroutine called by kernel
+DrawSprites subroutine
+; Fetch sprite 0 values
+        lda #SpriteHeight	; height in 2xlines
+        sec
+        isb YP0			; INC yp0, then SBC yp0
+        bcs DoDraw0		; inside bounds?
+        lda #0			; no, load the padding offset (0)
+DoDraw0
+        tay			; -> Y
+        lda (ColorPtr0),y	; color for both lines
+        sta Colp0		; -> colp0
+	lda (SpritePtr0),y	; bitmap for first line
+        sta GRP0		; -> [GRP0] (delayed due to VDEL)
+; Fetch sprite 1 values
+        lda #SpriteHeight	; height in 2xlines
+        sec
+        isb YP1			; INC yp0, then SBC yp0
+        bcs DoDraw1		; inside bounds?
+        lda #0			; no, load the padding offset (0)
+DoDraw1
+        tay			; -> Y
+        lda (ColorPtr1),y	; color for both lines
+        tax
+	lda (SpritePtr1),y	; bitmap for first line
+        tay
+; WSYNC and store sprite values
+        lda Colp0
+	sta WSYNC
+        sty GRP1		; GRP0 is also updated due to VDELP0 flag
+        stx COLUP1
+        sta COLUP0
+; Return to caller
+	rts
+
+; Fetch the next playfield byte.
+FetchPlayfield subroutine
+        dec PFOfs
+        ldx PFOfs
+        ldy PFOffsets,x	; get index into PFData array
+        lda PFData,y	; load playfield byte
+        rts
+
+SetHorizPos subroutine
+	sta WSYNC	; start a new line
+        bit 0		; waste 3 cycles
+	sec		; set carry flag
+DivideLoop
+	sbc #15		; subtract 15
+	bcs DivideLoop	; branch until negative
+	eor #7		; calculate fine offset
+	asl
+	asl
+	asl
+	asl
+	sta RESP0,x	; fix coarse position
+	sta HMP0,x	; set fine offset
+	rts		; return to caller
+
+; Read joystick movement and apply to object 0
+MoveJoystick subroutine
+; Move vertically
+	ldx YPos0
+	lda #%00100000	;Down?
+	bit SWCHA
+	bne SkipMoveDown
+        dex
+        cpx #175
+        bcs SkipMoveDown
+; If we move off the top of the screen,
+; go to the next room in the sequence
+        ldy #1
+        jsr MoveNextRoom
+        jsr BuildRoom
+        ldx #254
+        bne SkipMoveUp
+SkipMoveDown
+	lda #%00010000	;Up?
+	bit SWCHA 
+	bne SkipMoveUp
+        inx
+        cpx #254
+        bcc SkipMoveUp
+; If we move off the top of the screen,
+; go to the previous room in the sequence
+        ldy #1
+        jsr MovePrevRoom
+        jsr BuildRoom
+        ldx #174
+        bne SkipMoveUp
+SkipMoveUp
+	stx YPos0
+; Move horizontally
+        ldx XPos0
+	lda #%01000000	;Left?
+	bit SWCHA
+	bne SkipMoveLeft
+        dex
+        cpx #1
+        bcs SkipMoveLeft
+; If we move off the left of the screen,
+; go back 7 rooms
+	ldy #7
+        jsr MovePrevRoom
+        jsr BuildRoom
+        ldx #152
+SkipMoveLeft
+	lda #%10000000	;Right?
+	bit SWCHA 
+	bne SkipMoveRight
+        inx
+        cpx #153
+        bcc SkipMoveRight
+; If we move off the right of the screen,
+; go forward 7 rooms
+	ldy #7
+        jsr MoveNextRoom
+        jsr BuildRoom
+        ldx #1
+SkipMoveRight
+	stx XPos0
+	rts
+
+; Build a room based on the RoomType byte.
+; Bits 0-1 = top walls
+; Bits 2-3 = middle walls
+BuildRoom subroutine
+; First fill in the top section.
+	lda RoomType
+        and #3
+        jsr MulBy3ToX
+        lda PFRoomTop0+0,x
+        sta PFData+0
+        lda PFRoomTop0+1,x
+        sta PFData+1
+        lda PFRoomTop0+2,x
+        sta PFData+2
+        lda PFRoomTop1+0,x
+        sta PFData+3
+        lda PFRoomTop1+1,x
+        sta PFData+4
+        lda PFRoomTop1+2,x
+        sta PFData+5
+; Now the middle section.
+	lda RoomType
+        ror
+        ror
+        and #3
+        jsr MulBy3ToX
+        lda PFRoomMid0+0,x
+        sta PFData+6
+        lda PFRoomMid0+1,x
+        sta PFData+7
+        lda PFRoomMid0+2,x
+        sta PFData+8
+        lda PFRoomMid1+0,x
+        sta PFData+9
+        lda PFRoomMid1+1,x
+        sta PFData+10
+        lda PFRoomMid1+2,x
+        sta PFData+11
+        lda PFRoomMid2+0,x
+        sta PFData+12
+        lda PFRoomMid2+1,x
+        sta PFData+13
+        lda PFRoomMid2+2,x
+        sta PFData+14
+; And finally, the bottom.
+	lda RoomType
+        jsr NextRandom
+        pha
+        and #3
+        jsr MulBy3ToX
+        lda PFRoomTop1+0,x
+        sta PFData+15
+        lda PFRoomTop1+1,x
+        sta PFData+16
+        lda PFRoomTop1+2,x
+        sta PFData+17
+        lda PFRoomTop0+0,x
+        sta PFData+18
+        lda PFRoomTop0+1,x
+        sta PFData+19
+        lda PFRoomTop0+2,x
+        sta PFData+20
+; Set the room colors and position the Green Man
+	lda RoomType
+        and #$f0
+        sta COLUBK
+        and #$7f
+        sta XPos1
+        pla		; next random value, stored
+        ora #$08
+        sta COLUPF	; fg color
+        ora #$80
+        sta YPos1
+        rts
+; Helper function that computes X <- A*3
+MulBy3ToX
+	sta Temp
+	asl
+        clc
+        adc Temp
+        tax
+        rts
+
+; Get next random value
+NextRandom subroutine
+	lsr
+	bcc .NoEor
+	eor #$d4
+.NoEor:
+        rts
+; Get previous random value
+PrevRandom subroutine
+	asl
+	bcc .NoEor
+	eor #$a9
+.NoEor:
+        rts
+; Move to next room(s)
+; Y = number of iterations
+MoveNextRoom subroutine
+	lda RoomType
+	jsr NextRandom
+        dey
+        sta RoomType
+        bne MoveNextRoom
+        rts
+; Move to previous room(s)
+; Y = number of iterations
+MovePrevRoom subroutine
+	lda RoomType
+	jsr PrevRandom
+        dey
+        sta RoomType
+        bne MovePrevRoom
+        rts
+
+; Table used to get offsets to playfield bytes in memory
+; 24 3-byte entries, one for each 8-pixel section
+; in reverse order
+PFOffsets
+	.byte 20,19,18
+	.byte 20,19,18
+	.byte 17,16,15
+	.byte 17,16,15
+	.byte 17,16,15
+	.byte 17,16,15
+	.byte 17,16,15
+	.byte 17,16,15
+        .byte 14,13,12
+	.byte 11,10,9
+	.byte 11,10,9
+	.byte 11,10,9
+	.byte 11,10,9
+	.byte 11,10,9
+	.byte 11,10,9
+	.byte 11,10,9
+	.byte 8,7,6
+	.byte 5,4,3
+	.byte 5,4,3
+	.byte 5,4,3
+	.byte 5,4,3
+	.byte 5,4,3
+	.byte 5,4,3
+	.byte 2,1,0
+
+; Playfield components for rooms
+PFRoomTop0
+	.byte #%11110000,#%11111111,#%00000111
+	.byte #%00110000,#%00001111,#%11111111
+	.byte #%00110000,#%00001111,#%11111111
+	.byte #%00110000,#%00000000,#%10000000
+PFRoomTop1
+	.byte #%00110000,#%00000000,#%00000000
+	.byte #%00110000,#%00000000,#%00000000
+	.byte #%00110000,#%00000000,#%10000000
+	.byte #%00110000,#%00001111,#%11111111
+PFRoomMid0
+	.byte #%00110000,#%00000000,#%00000000
+	.byte #%11110000,#%11111111,#%00000000
+	.byte #%11110000,#%11111111,#%00000000
+	.byte #%11110000,#%11111111,#%00000000
+PFRoomMid1
+	.byte #%00000000,#%00000001,#%00000000
+	.byte #%00000000,#%00000001,#%00000000
+	.byte #%00000000,#%00000000,#%00000000
+	.byte #%00000000,#%00000000,#%00000000
+PFRoomMid2
+	.byte #%11110000,#%11111111,#%00000000
+	.byte #%00110000,#%00000000,#%00000000
+	.byte #%00110000,#%00000000,#%00000000
+	.byte #%00110000,#%00000000,#%00000000
+
+; Bitmap data "standing" position
+Frame0
+	.byte #0
+        .byte #%01101100;$F6
+        .byte #%00101000;$86
+        .byte #%00101000;$86
+        .byte #%00111000;$86
+        .byte #%10111010;$C2
+        .byte #%10111010;$C2
+        .byte #%01111100;$C2
+        .byte #%00111000;$C2
+        .byte #%00111000;$16
+        .byte #%01000100;$16
+        .byte #%01111100;$16
+        .byte #%01111100;$18
+        .byte #%01010100;$18
+        .byte #%01111100;$18
+        .byte #%11111110;$F2
+        .byte #%00111000;$F4
+
+; Color data for each line of sprite
+ColorFrame0
+	.byte #$FF;
+	.byte #$F6;
+	.byte #$86;
+	.byte #$86;
+	.byte #$86;
+	.byte #$C2;
+	.byte #$C2;
+	.byte #$C2;
+	.byte #$C2;
+	.byte #$16;
+	.byte #$16;
+	.byte #$16;
+	.byte #$18;
+	.byte #$18;
+	.byte #$18;
+	.byte #$F2;
+	.byte #$F4;
+
+; Color data for each line of sprite
+ColorFrame1
+	.byte #$5F;
+	.byte #$56;
+	.byte #$36;
+	.byte #$36;
+	.byte #$36;
+	.byte #$32;
+	.byte #$32;
+	.byte #$32;
+	.byte #$32;
+	.byte #$c6;
+	.byte #$c6;
+	.byte #$c6;
+	.byte #$c8;
+	.byte #$c8;
+	.byte #$c8;
+	.byte #$02;
+	.byte #$02;
+
+; Epilogue
+	org $fffc
+        .word Start
+        .word Start

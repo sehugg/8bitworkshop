@@ -1,0 +1,10 @@
+{
+  "name": "RetroConsole",
+  "version": "0.0.1",
+  "author": "Steven Hugg",
+  "dependencies": {
+  },
+  "devDependencies": {
+    "browserify": "^13.0.0"
+  }
+}
