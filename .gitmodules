@@ -1,9 +1,9 @@
 [submodule "javatari.js"]
 	path = javatari.js
-	url = https://github.com/sehugg/javatari.js
+	url = git@github.com:sehugg/javatari.js
 [submodule "dasm"]
 	path = dasm
-	url = https://github.com/sehugg/dasm
+	url = git@github.com:sehugg/dasm
 [submodule "codemirror"]
 	path = codemirror
-	url = https://github.com/sehugg/codemirror
+	url = git@github.com:sehugg/codemirror
