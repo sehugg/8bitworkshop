@@ -9,24 +9,24 @@ var trace_pending_at_pc;
 
 var PRESETS = [
   {id:'examples/hello', chapter:4, name:'Hello 6502 and TIA'},
-  {id:'examples/vsync', chapter:5, name:'VSYNC and Color Bars', title:'Color Bars'},
-  {id:'examples/playfield', chapter:6, name:'The Playfield'},
-  {id:'examples/sprite', chapter:7, name:'Sprite Basics'},
-  {id:'examples/timing2', chapter:9, name:'Sprite Positioning', title:'Sprite Position'},
-  {id:'examples/missiles', chapter:10, name:'Two Missiles and a Ball', title:'Missles and Ball'},
-  {id:'examples/complexscene', chapter:15, name:'Playfield + Sprite I', title:'PF+Sprite 1'},
-  {id:'examples/complexscene2', chapter:16, name:'Playfield + Sprite II', title:'PF+Sprite 2'},
+  {id:'examples/vsync', chapter:5, name:'Painting on the CRT', title:'Color Bars'},
+  {id:'examples/playfield', chapter:6, name:'Playfield Graphics'},
+  {id:'examples/sprite', chapter:7, name:'Players and Sprites'},
+  {id:'examples/timing2', chapter:9, name:'Fine Positioning', title:'Fine Position'},
+  {id:'examples/missiles', chapter:10, name:'Player/Missile Graphics', title:'Player/Missile'},
+  {id:'examples/complexscene', chapter:15, name:'Complex Scene I'},
+  {id:'examples/complexscene2', chapter:16, name:'Complex Scene II'},
   {id:'examples/scoreboard', chapter:18, name:'Scoreboard'},
   {id:'examples/collisions', chapter:19, name:'Collisions'},
-  {id:'examples/bitmap', chapter:20, name:'Fullscreen Bitmap'},
-  {id:'examples/brickgame', chapter:21, name:'Brick Game'},
+  {id:'examples/bitmap', chapter:20, name:'Async Playfield: Bitmap', title:'Async PF Bitmap'},
+  {id:'examples/brickgame', chapter:21, name:'Async Playfield: Bricks', title:'Async PF Bricks'},
 //  {id:'examples/multisprite1', chapter:8, name:'Sprite Kernel'},
-  {id:'examples/bigsprite', chapter:22, name:'48-Pixel Sprite'},
-  {id:'examples/tinyfonts2', chapter:23, name:'Tiny Fonts'},
+  {id:'examples/bigsprite', chapter:22, name:'A Big 48-Pixel Sprite', title:'48-Pixel Sprite'},
+  {id:'examples/tinyfonts2', chapter:23, name:'Tiny Text'},
   {id:'examples/score6', chapter:24, name:'6-Digit Score'},
-  {id:'examples/retrigger', chapter:26, name:'Formation Flying'},
+  {id:'examples/retrigger', chapter:26, name:'Sprite Formations'},
 //  {id:'examples/tinyfonts', chapter:23, name:'Tiny Fonts, Slow'},
-  {id:'examples/multisprite3', chapter:28, name:'Multple Sprites'},
+  {id:'examples/multisprite3', chapter:28, name:'Multisprites'},
   {id:'examples/procgen1', chapter:30, name:'Procedural Generation'},
   {id:'examples/lines', chapter:31, name:'Drawing Lines'},
 //  {id:'examples/piatable', name:'Timer Table'},
@@ -197,7 +197,7 @@ function _resetPreset(e) {
 }
 
 function populateExamples(sel) {
-  sel.append($("<option />").text("--------- Examples ---------"));
+  sel.append($("<option />").text("--------- Chapters ---------"));
   for (var i=0; i<PRESETS.length; i++) {
     var preset = PRESETS[i];
     var name = preset.chapter + ". " + preset.name;
