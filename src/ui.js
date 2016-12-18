@@ -699,6 +699,20 @@ function setupDebugControls(){
   $("#btn_share").click(_shareFile);
 }
 
+function showWelcomeMessage() {
+  if (!localStorage.getItem("8bitworkshop.hello"))
+  {
+          $('#dlg_intro').dialog({
+                  title: 'Welcome!',
+                  buttons: [{
+                          text: "Continue",
+                          click: function() { $(this).dialog("close"); },
+                          beforeClose: function() { localStorage.setItem("8bitworkshop.hello","true"); }
+                  }]
+          });
+  }
+}
+
 ///////////////////////////////////////////////////
 
 var qs = (function (a) {
@@ -716,6 +730,9 @@ var qs = (function (a) {
 })(window.location.search.substr(1).split('&'));
 
 setupDebugControls();
+setTimeout(function() {
+  showWelcomeMessage();
+}, 3000);
 try {
   // is this a share URL?
   if (qs['sharekey']) {
@@ -747,7 +764,7 @@ try {
     } else {
       // try to load last file
       var lastid = localStorage.getItem("__lastid");
-      gotoPresetNamed(lastid || PRESETS[1].id);
+      gotoPresetNamed(lastid || PRESETS[0].id);
     }
   }
 } catch (e) {

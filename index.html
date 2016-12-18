@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<title>8bitworkshop IDE</title>
+<title>8bitworkshop ~ Atari 2600</title>
 <style type="text/css" media="screen">
 body {
   overflow: hidden;
@@ -142,7 +142,17 @@ a {
     Making Games For The Atari 2600</a>
 </div>
 
+<div id="dlg_intro" style="display:none">
+        <p>Welcome to <b>8bitworkshop.com</b>!</p>
+        <p>This is an IDE for 8-bit retro game consoles. Right now it supports the Atari 2600/VCS.</p>
+        <p>Enter 6502 source code on the left, and we'll compile it and show you the result on the right.</p>
+        <p>You can also select a sample program from the pulldown at the top-left of the page. Have fun!</p>
+</div>
+
 <script src="jquery/jquery-2.2.3.min.js"></script>
+
+<link rel="stylesheet" href="jquery-ui/jquery-ui.min.css">
+<script src="jquery-ui/jquery-ui.min.js"></script>
 
 <script src="codemirror/lib/codemirror.js"></script>
 <script src="codemirror/mode/6502/6502.js"></script>
