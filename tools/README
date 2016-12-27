@@ -1,0 +1,17 @@
+
+This directory contains tools for bitmap conversion.
+
+Requires ImageMagick (convert) and Python 2.x.
+
+make <filename>.pf.hex
+
+	Converts a .jpg into a 40-pixel wide playfield bitmap.
+	Cut-and-paste output into program.
+	(See Chapter 20, Asynchronous Bitmaps)
+
+make <filename>.48.hex
+
+	Converts a .jpg into a 48-pixel wide sprite bitmap.
+	Cut-and-paste output into program.
+	(See Chapter 22, A Big 48-Pixel Sprite)
+
