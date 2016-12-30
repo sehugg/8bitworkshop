@@ -20,4 +20,5 @@ TODO:
 - some units test maybe
 - can't step after reset (or when funky frame; TIA frame is out of sync)
 - break on BRK/illegal opcode?
+- start analysis from vector address
 

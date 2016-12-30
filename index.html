@@ -5,6 +5,7 @@
 <style type="text/css" media="screen">
 body {
   overflow: hidden;
+  font-size: 11px;
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
 }
 .dbg_info {
@@ -59,6 +60,8 @@ div.editor {
   width:50%;
   height:100vh;
   background-color:#999;
+  line-height:1.25;
+  font-size:12pt;
 }
 div.emulator {
   position:absolute;
@@ -106,6 +109,10 @@ a {
   color:#333399;
   font-weight: bold;
 }
+a.dropdown-toggle {
+  color:#66ee66;
+  padding:3px;
+}
 </style>
 </head>
 <body>
@@ -113,21 +120,30 @@ a {
 <div id="notebook">
   <div id="editor" class="editor">
     <div id="controls_top">
-<!--      <a id="file_new" href="#" title="New File">+</a> -->
-<!--      <a id="preset_prev" href="#">&lt;&lt;</a> -->
-      <button id="btn_share" title="Share File"><img src="images/share.png"></button>
+      <span class="dropdown">
+        <a class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          &#9776; <span class="caret"></span>
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+          <li><a class="dropdown-item" href="#" id="item_new_file">New File...</a></li>
+          <li><a class="dropdown-item" href="#" id="item_share_file">Share File...</a></li>
+          <li><a class="dropdown-item" href="#" id="item_reset_file">Reset to Original...</a></li>
+        </ul>
+      </span>
       <select id="preset_select" name="">
       </select>
-      <button id="dbg_pause" type="button" title="Pause"><img src="images/pause.png"></button>
-      <button id="dbg_go" type="button" title="Run"><img src="images/play.png"></button>
-      <button id="dbg_toline" type="submit" title="Run To Line"><img src="images/runtoline.png"></button>
-      <button id="dbg_step" type="submit" title="Step"><img src="images/singlestep.png"></button>
-      <button id="dbg_reset" type="submit" title="Reset and Run To Line"><img src="images/resetandrun.png"></button>
-      <button id="dbg_timing" type="submit" title="See Timing"><img src="images/timing.png"></button>
+      <span id="debug_bar">
+        <button id="dbg_pause" type="button" title="Pause"><img src="images/pause.png"></button>
+        <button id="dbg_go" type="button" title="Run"><img src="images/play.png"></button>
+        <button id="dbg_toline" type="submit" title="Run To Line"><img src="images/runtoline.png"></button>
+        <button id="dbg_step" type="submit" title="Step"><img src="images/singlestep.png"></button>
+        <button id="dbg_reset" type="submit" title="Reset and Run To Line"><img src="images/resetandrun.png"></button>
+        <button id="dbg_timing" type="submit" title="See Timing"><img src="images/timing.png"></button>
+      </span>
       <span class="dbg_info" id="dbg_info"></span>
     </div>
   </div>
-  <div style="margin-top: 30px auto 0; min-height: 594px;" class="emulator">
+  <div style="margin-top: 30px auto 0; min-height: 594px;" class="emulator" id="emulator">
     <div id="javatari-screen" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
     <div id="javatari-console-panel" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
     <div id="mem_info" class="mem_info" style="display:none">
@@ -151,17 +167,12 @@ a {
     Making Games For The Atari 2600</a>
 </div>
 
-<div id="dlg_intro" style="display:none">
-        <p>Welcome to <b>8bitworkshop.com</b>!</p>
-        <p>This is an IDE for 8-bit retro game consoles. Right now it supports the Atari 2600/VCS.</p>
-        <p>Enter 6502 source code on the left, and we'll assemble it and show you the result on the right.</p>
-        <p>You can also select a sample program from the pulldown at the top-left of the page. Have fun!</p>
-</div>
-
 <script src="jquery/jquery-2.2.3.min.js"></script>
 
-<link rel="stylesheet" href="jquery-ui/jquery-ui.min.css">
-<script src="jquery-ui/jquery-ui.min.js"></script>
+<link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="bootstrap/css/bootstrap-tour.min.css">
+<script src="bootstrap/js/bootstrap.min.js"></script>
+<script src="bootstrap/js/bootstrap-tour.min.js"></script>
 
 <script src="codemirror/lib/codemirror.js"></script>
 <script src="codemirror/mode/6502/6502.js"></script>

@@ -149,16 +149,18 @@ function _createNewFile(e) {
     }
     qs['file'] = "local/" + filename;
     window.location = "?" + $.param(qs);
-    return true;
-  } else {
-    return false;
   }
+  return true;
 }
 
 function _shareFile(e) {
   if (current_output == null) {
-    alert("Cannot share until errors are fixed.");
-    return false;
+    alert("Please fix errors before sharing.");
+    return true;
+  }
+  if (current_preset_idx < 0) {
+    alert("Can only reset built-in file examples.")
+    return true;
   }
   var text = editor.getValue();
   console.log("POST",text.length,'bytes');
@@ -174,15 +176,12 @@ function _shareFile(e) {
       alert("Error sharing file.");
     },
     success: function(result) {
-      if (confirm("Share link to file?")) {
-        console.log(result);
-        var sharekey = result['key'];
-        var url = "http://8bitworkshop.com/?sharekey=" + sharekey;
-        alert("Copy this link to your clipboard:\n\n" + url);
-      }
+      var sharekey = result['key'];
+      var url = "http://8bitworkshop.com/?sharekey=" + sharekey;
+      window.prompt("Copy link to clipboard (Ctrl+C, Enter)", url);
     }
   });
-  return false;
+  return true;
 }
 
 function _resetPreset(e) {
@@ -190,10 +189,8 @@ function _resetPreset(e) {
     && confirm("Reset '" + PRESETS[current_preset_idx].name + "' to default?")) {
     qs['reset'] = '1';
     window.location = "?" + $.param(qs);
-    return true;
-  } else {
-    return false;
   }
+  return true;
 }
 
 function populateExamples(sel) {
@@ -203,7 +200,6 @@ function populateExamples(sel) {
     var name = preset.chapter + ". " + preset.name;
     sel.append($("<option />").val(preset.id).text(name).attr('selected',preset.id==current_preset_id));
   }
-  sel.append($("<option />").val("_resetPreset").text("<< Reset to Default >>"));
 }
 
 function populateLocalFiles(sel) {
@@ -215,8 +211,6 @@ function populateLocalFiles(sel) {
       sel.append($("<option />").val("local/"+name).text(name).attr('selected',key==current_preset_id));
     }
   }
-  sel.append($("<option />").val("_createNewFile").text("<< Create New File >>"));
-  //sel.append($("<option />").val("_shareFile").text("<< Share File >>"));
 }
 
 function populateSharedFiles(sel) {
@@ -696,20 +690,53 @@ function setupDebugControls(){
   $("#dbg_step").click(singleStep);
   $("#dbg_toline").click(runToCursor);
   $("#dbg_timing").click(traceTiming);
-  $("#btn_share").click(_shareFile);
+  $(".dropdown-menu").collapse({toggle: false});
+  $("#item_new_file").click(_createNewFile);
+  $("#item_share_file").click(_shareFile);
+  $("#item_reset_file").click(_resetPreset);
 }
 
 function showWelcomeMessage() {
   if (!localStorage.getItem("8bitworkshop.hello"))
   {
-          $('#dlg_intro').dialog({
-                  title: 'Welcome!',
-                  buttons: [{
-                          text: "Continue",
-                          click: function() { $(this).dialog("close"); },
-                          beforeClose: function() { localStorage.setItem("8bitworkshop.hello","true"); }
-                  }]
-          });
+    // Instance the tour
+    var tour = new Tour({
+      //storage:false,
+      steps: [
+        {
+          element: "#editor",
+          title: "Welcome to 8bitworkshop!",
+          content: "Type your 6502 code on the left side, and it'll be assembled in real-time. All changes are saved to browser local storage.",
+        },
+        {
+          element: "#emulator",
+          placement: 'left',
+          title: "Atari VCS Emulator",
+          content: "This is an emulator for the Atari VCS/2600. We'll load your assembled code into the emulator whenever you make changes.",
+        },
+        {
+          element: "#preset_select",
+          title: "File Selector",
+          content: "Pick a code example from the book, or access your own files and files shared by others."
+        },
+        {
+          element: "#debug_bar",
+          placement: 'bottom',
+          title: "Debug Tools",
+          content: "Use these buttons to set breakpoints, single step through code, pause/resume, and perform timing analysis."
+        },
+        {
+          element: "#dropdownMenuButton",
+          title: "Main Menu",
+          content: "Click the menu to create new files and share your work with others."
+        },
+    ]});
+
+    // Initialize the tour
+    tour.init();
+
+    // Start the tour
+    tour.start();
   }
 }
 
@@ -730,9 +757,7 @@ var qs = (function (a) {
 })(window.location.search.substr(1).split('&'));
 
 setupDebugControls();
-setTimeout(function() {
-  showWelcomeMessage();
-}, 3000);
+showWelcomeMessage();
 try {
   // is this a share URL?
   if (qs['sharekey']) {
