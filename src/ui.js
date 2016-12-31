@@ -7,40 +7,7 @@ var offset2line = null;
 var line2offset = null;
 var trace_pending_at_pc;
 
-var PRESETS = [
-  {id:'examples/hello', chapter:4, name:'Hello 6502 and TIA'},
-  {id:'examples/vsync', chapter:5, name:'Painting on the CRT', title:'Color Bars'},
-  {id:'examples/playfield', chapter:6, name:'Playfield Graphics'},
-  {id:'examples/sprite', chapter:7, name:'Players and Sprites'},
-  {id:'examples/timing2', chapter:9, name:'Fine Positioning', title:'Fine Position'},
-  {id:'examples/missiles', chapter:10, name:'Player/Missile Graphics', title:'Player/Missile'},
-  {id:'examples/complexscene', chapter:15, name:'Complex Scene I'},
-  {id:'examples/complexscene2', chapter:16, name:'Complex Scene II'},
-  {id:'examples/scoreboard', chapter:18, name:'Scoreboard'},
-  {id:'examples/collisions', chapter:19, name:'Collisions'},
-  {id:'examples/bitmap', chapter:20, name:'Async Playfield: Bitmap', title:'Async PF Bitmap'},
-  {id:'examples/brickgame', chapter:21, name:'Async Playfield: Bricks', title:'Async PF Bricks'},
-//  {id:'examples/multisprite1', chapter:8, name:'Sprite Kernel'},
-  {id:'examples/bigsprite', chapter:22, name:'A Big 48-Pixel Sprite', title:'48-Pixel Sprite'},
-  {id:'examples/tinyfonts2', chapter:23, name:'Tiny Text'},
-  {id:'examples/score6', chapter:24, name:'6-Digit Score'},
-  {id:'examples/retrigger', chapter:26, name:'Sprite Formations'},
-//  {id:'examples/tinyfonts', chapter:23, name:'Tiny Fonts, Slow'},
-  {id:'examples/multisprite3', chapter:28, name:'Multisprites'},
-  {id:'examples/procgen1', chapter:30, name:'Procedural Generation'},
-  {id:'examples/lines', chapter:31, name:'Drawing Lines'},
-//  {id:'examples/piatable', name:'Timer Table'},
-  {id:'examples/musicplayer', chapter:32, name:'Music Player'},
-  {id:'examples/road', chapter:33, name:'Pseudo 3D Road'},
-  {id:'examples/bankswitching', chapter:35, name:'Bankswitching'},
-  {id:'examples/wavetable', chapter:36, name:'Wavetable Sound'},
-//  {id:'examples/fullgame', name:'Thru Hike: The Game', title:'Thru Hike'},
-];
-
-Javatari.SHOW_ERRORS = false;
-Javatari.CARTRIDGE_CHANGE_DISABLED = true;
-Javatari.DEBUG_SCANLINE_OVERFLOW = false; // TODO: make a switch
-Javatari.AUDIO_BUFFER_SIZE = 256;
+// vars: PRESETS, platform
 
 var CODE = 'code1';
 var editor = CodeMirror(document.getElementById('editor'), {
@@ -285,7 +252,7 @@ worker.onmessage = function(e) {
       try {
         resume();
         //console.log("Loading ROM length", rom.length);
-        Javatari.loadROM(getCurrentPresetTitle(), rom);
+        platform.loadROM(getCurrentPresetTitle(), rom);
         current_output = rom;
       } catch (e) {
         console.log(e); // TODO
@@ -313,7 +280,7 @@ worker.onmessage = function(e) {
           editor.setGutterMarker(info.line-1, "gutter-bytes", textel);
           if (info.iscode) {
             var opcode = parseInt(info.insns.split()[0], 16);
-            var meta = Javatari.getOpcodeMetadata(opcode, info.offset);
+            var meta = platform.getOpcodeMetadata(opcode, info.offset);
             var clockstr = meta.minCycles+"";
             var textel = document.createTextNode(clockstr);
             editor.setGutterMarker(info.line-1, "gutter-clock", textel);
@@ -373,10 +340,8 @@ function cpuStateToLongString(c) {
        + " Y " + hex(c.Y)    + "     " + "SP " + hex(c.SP) + "\n";
 }
 function getTIAPosString() {
-  var clkfs = Javatari.room.console.getClocksFromFrameStart() - 1;
-  var row = Math.floor(clkfs/76);
-  var col = clkfs - row*76;
-  return "V" + (row-39) + " H" + (col*3-68);
+  var pos = platform.getRasterPosition();
+  return "V" + pos.y + " H" + pos.x;
 }
 
 var lastDebugInfo;
@@ -413,6 +378,7 @@ function showMemory(state) {
     s = cpuStateToLongString(state.c);
     s += "\n";
     var ram = jt.Util.byteStringToUInt8Array(atob(state.r.b));
+    // TODO: show entire RAM for other platforms
     for (var ofs=0; ofs<0x80; ofs+=0x10) {
       s += '$' + hex(ofs+0x80) + ':';
       for (var i=0; i<0x10; i++) {
@@ -432,7 +398,7 @@ function showMemory(state) {
 
 function setupBreakpoint() {
   // TODO
-  Javatari.room.console.onBreakpointHit = function(state) {
+  platform.setupDebug(function(state) {
     var PC = state.c.PC;
     var line = findLineForOffset(PC);
     if (line) {
@@ -440,27 +406,27 @@ function setupBreakpoint() {
       setCurrentLine(line);
     }
     showMemory(state);
-  }
+  });
 }
 
 function pause() {
   clearBreakpoint();
-  if (Javatari.room.console.isRunning()) {
-    Javatari.room.console.pause();
+  if (platform.isRunning()) {
+    platform.pause();
   }
 }
 
 function resume() {
   clearBreakpoint();
-  if (! Javatari.room.console.isRunning()) {
-    Javatari.room.console.go();
+  if (! platform.isRunning()) {
+    platform.resume();
     editor.setSelection(editor.getCursor());
   }
 }
 
 function singleStep() {
   setupBreakpoint();
-  Javatari.room.console.debugSingleStepCPUClock();
+  platform.step();
 }
 
 function getCurrentLine() {
@@ -473,21 +439,19 @@ function runToCursor() {
   var pc = line2offset[line];
   if (pc) {
     console.log("Run to", line, pc.toString(16));
-    Javatari.room.console.debugToPC(pc);
+    platform.runToPC(pc);
   }
 }
 
 function clearBreakpoint() {
-  Javatari.room.console.disableDebug();
-  Javatari.room.console.onBreakpointHit = null;
+  platform.clearDebug();
   $("#dbg_info").empty();
   showMemory();
 }
 
 function getClockCountsAtPC(pc) {
-  // TODO
-  var opcode = current_output[pc - 0xf000];
-  var meta = Javatari.getOpcodeMetadata(opcode, pc);
+  var opcode = platform.readAddress(pc);
+  var meta = platform.getOpcodeMetadata(opcode, pc);
   return meta; // minCycles, maxCycles
 }
 
@@ -537,8 +501,8 @@ function _traceInstructions(pc, minclocks, maxclocks, subaddr, constraints) {
   for (var i=0; i<1000 && modified && !abort; i++) {
     modified = false;
     var meta = getClockCountsAtPC(pc);
-    var lob = current_output[pc - 0xf000 + 1];
-    var hib = current_output[pc - 0xf000 + 2];
+    var lob = platform.readAddress(pc+1);
+    var hib = platform.readAddress(pc+2);
     var addr = lob + (hib << 8);
     var pc0 = pc;
     if (!pc2minclocks[pc0] || minclocks < pc2minclocks[pc0]) {
@@ -637,7 +601,7 @@ function showLoopTimingForPC(pc) {
   pc2maxclocks = {};
   jsrresult = {};
   // recurse through all traces
-  _traceInstructions(pc | 0xf000, MAX_CLOCKS, MAX_CLOCKS);
+  _traceInstructions(pc | platform.getOriginPC(), MAX_CLOCKS, MAX_CLOCKS);
   // show the lines
   for (var line in line2offset) {
     var pc = line2offset[line];
@@ -658,7 +622,7 @@ function showLoopTimingForPC(pc) {
 }
 
 function traceTiming() {
-  trace_pending_at_pc = 0xf000;
+  trace_pending_at_pc = platform.getOriginPC();
   setCode(editor.getValue());
 }
 
@@ -673,9 +637,7 @@ function showLoopTimingForCurrentLine() {
 */
 
 function reset() {
-  Javatari.room.console.powerOff();
-  Javatari.room.console.resetDebug();
-  Javatari.room.console.powerOn();
+  platform.reset();
 }
 
 function resetAndDebug() {

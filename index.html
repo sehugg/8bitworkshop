@@ -6,7 +6,6 @@
 body {
   overflow: hidden;
   font-size: 11px;
-  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
 }
 .dbg_info {
   font-size: 0.8em;
@@ -81,6 +80,8 @@ div.mem_info {
   white-space: pre;
   padding: 20px;
   z-index: 2;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+  font-size: 12pt;
 }
 span.hilite {
   color: #ff66ff;
@@ -185,8 +186,8 @@ a.dropdown-toggle {
 <link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
 
 <script src="javatari.js/release/javatari/javatari.js"></script>
+<script src="src/platform/vcs.js"></script>
 
-<script src="src/jsdiff.js"></script>
 <script src="src/ui.js"></script>
 
 </body>
