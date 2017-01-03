@@ -1,4 +1,6 @@
 
+// 8bitworkshop IDE user interface
+
 var worker = new Worker("./src/worker/workermain.js");
 var current_output = null;
 var current_preset_idx = -1; // TODO: use URL
@@ -125,10 +127,6 @@ function _shareFile(e) {
     alert("Please fix errors before sharing.");
     return true;
   }
-  if (current_preset_idx < 0) {
-    alert("Can only reset built-in file examples.")
-    return true;
-  }
   var text = editor.getValue();
   console.log("POST",text.length,'bytes');
   $.post({
@@ -152,8 +150,9 @@ function _shareFile(e) {
 }
 
 function _resetPreset(e) {
-  if (current_preset_idx >= 0
-    && confirm("Reset '" + PRESETS[current_preset_idx].name + "' to default?")) {
+  if (current_preset_idx < 0) {
+    alert("Can only reset built-in file examples.")
+  } else if (confirm("Reset '" + PRESETS[current_preset_idx].name + "' to default?")) {
     qs['reset'] = '1';
     window.location = "?" + $.param(qs);
   }
@@ -232,7 +231,7 @@ worker.onmessage = function(e) {
     editor.clearGutter("gutter-info");
     for (info of e.data.listing.errors) {
       var div = document.createElement("div");
-      div.setAttribute("class", "tooltip tooltiperror");
+      div.setAttribute("class", "tooltipbox tooltiperror");
       div.style.color = '#ff3333'; // TODO
       div.appendChild(document.createTextNode("\u24cd"));
       var tooltip = document.createElement("span");
@@ -377,8 +376,8 @@ function showMemory(state) {
   if (state) {
     s = cpuStateToLongString(state.c);
     s += "\n";
-    var ram = jt.Util.byteStringToUInt8Array(atob(state.r.b));
-    // TODO: show entire RAM for other platforms
+    var ram = platform.getRAMForState(state);
+    // TODO: show scrollable RAM for other platforms
     for (var ofs=0; ofs<0x80; ofs+=0x10) {
       s += '$' + hex(ofs+0x80) + ':';
       for (var i=0; i<0x10; i++) {
@@ -636,15 +635,11 @@ function showLoopTimingForCurrentLine() {
 }
 */
 
-function reset() {
-  platform.reset();
-}
-
 function resetAndDebug() {
-  reset();
+  platform.reset();
   runToCursor();
-}
 
+}
 function setupDebugControls(){
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
@@ -718,8 +713,10 @@ var qs = (function (a) {
     return b;
 })(window.location.search.substr(1).split('&'));
 
+// start
 setupDebugControls();
 showWelcomeMessage();
+// parse query string
 try {
   // is this a share URL?
   if (qs['sharekey']) {
@@ -752,6 +749,19 @@ try {
       // try to load last file
       var lastid = localStorage.getItem("__lastid");
       gotoPresetNamed(lastid || PRESETS[0].id);
+    }
+    // load and start platform object
+    if (qs['platform'] == 'vcs') {
+      platform = new VCSPlatform();
+      platform.start();
+    } else if (qs['platform'] == 'apple2') {
+      platform = new Apple2Platform($("#emulator")[0]);
+      platform.start();
+    } else if (qs['platform'] == 'atarivec') {
+      platform = new AtariVectorPlatform($("#emulator")[0]);
+      platform.start();
+    } else {
+      alert("Platform " + qs['platform'] + " not recognized");
     }
   }
 } catch (e) {

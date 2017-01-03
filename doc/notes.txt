@@ -22,3 +22,4 @@ TODO:
 - break on BRK/illegal opcode?
 - start analysis from vector address
 
+cat ~/Downloads/appleiigo.rom | hexdump -v -e '"\n" 32/1 "%u,"' ; echo

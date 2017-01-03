@@ -29,6 +29,7 @@ var PRESETS = [
 //  {id:'examples/fullgame', name:'Thru Hike: The Game', title:'Thru Hike'},
 ];
 
+Javatari.AUTO_START = false;
 Javatari.SHOW_ERRORS = false;
 Javatari.CARTRIDGE_CHANGE_DISABLED = true;
 Javatari.DEBUG_SCANLINE_OVERFLOW = false; // TODO: make a switch
@@ -36,6 +37,10 @@ Javatari.AUDIO_BUFFER_SIZE = 256;
 
 VCSPlatform = function() {
   var self = this;
+
+  this.start = function() {
+    Javatari.start();
+  }
 
   this.loadROM = function(title, data) {
     Javatari.loadROM(title, data);
@@ -74,11 +79,12 @@ VCSPlatform = function() {
     Javatari.room.console.powerOn();
   }
   this.getOriginPC = function() {
-    return 0xf000; // TODO: read from vector
+    return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
   }
   this.readAddress = function(addr) {
     return current_output[addr - 0xf000]; // TODO: use bus to read
   }
+  this.getRAMForState = function(state) {
+    return jt.Util.byteStringToUInt8Array(atob(state.r.b));
+  }
 };
-
-platform = new VCSPlatform();

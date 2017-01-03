@@ -25,12 +25,12 @@ body {
 .gutter-info {
   width: 1em;
 }
-.tooltip {
+.tooltipbox {
     position: relative;
     display: inline-block;
     border-bottom: 1px dotted black;
 }
-.tooltip .tooltiptext {
+.tooltipbox .tooltiptext {
     visibility: hidden;
     width: 120px;
     background-color: black;
@@ -43,7 +43,7 @@ body {
     position: absolute;
     z-index: 10;
 }
-.tooltip:hover .tooltiptext {
+.tooltipbox:hover .tooltiptext {
     visibility: visible;
 }
 #notebook {
@@ -57,7 +57,7 @@ div.editor {
   bottom:0;
   right:0;
   width:50%;
-  height:100vh;
+  height:120vh;
   background-color:#999;
   line-height:1.25;
   font-size:12pt;
@@ -67,16 +67,17 @@ div.emulator {
   left:50%;
   top:0;
   width:50%;
-  height:100vh;
+  height:120vh;
   overflow-y: scroll;
   background-color: #666;
+  margin-top: 20px auto 0;
 }
 div.mem_info {
-  position: absolute;
+  position: fixed;
+  left: 51%;
   bottom: 10px;
   background-color: #333;
   color: #66ff66;
-  left: 20px;
   white-space: pre;
   padding: 20px;
   z-index: 2;
@@ -144,7 +145,7 @@ a.dropdown-toggle {
       <span class="dbg_info" id="dbg_info"></span>
     </div>
   </div>
-  <div style="margin-top: 30px auto 0; min-height: 594px;" class="emulator" id="emulator">
+  <div class="emulator" id="emulator">
     <div id="javatari-screen" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
     <div id="javatari-console-panel" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
     <div id="mem_info" class="mem_info" style="display:none">
@@ -186,8 +187,11 @@ a.dropdown-toggle {
 <link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
 
 <script src="javatari.js/release/javatari/javatari.js"></script>
+<script src="src/emu.js"></script>
 <script src="src/platform/vcs.js"></script>
-
+<script src="src/platform/apple2.js"></script>
+<script src="src/platform/atarivec.js"></script>
+<script src="local/vecrom.js"></script>
 <script src="src/ui.js"></script>
 
 </body>
