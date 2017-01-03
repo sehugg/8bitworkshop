@@ -1,5 +1,6 @@
+"use strict";
 
-var PRESETS = [
+var VCS_PRESETS = [
   {id:'examples/hello', chapter:4, name:'Hello 6502 and TIA'},
   {id:'examples/vsync', chapter:5, name:'Painting on the CRT', title:'Color Bars'},
   {id:'examples/playfield', chapter:6, name:'Playfield Graphics'},
@@ -35,8 +36,10 @@ Javatari.CARTRIDGE_CHANGE_DISABLED = true;
 Javatari.DEBUG_SCANLINE_OVERFLOW = false; // TODO: make a switch
 Javatari.AUDIO_BUFFER_SIZE = 256;
 
-VCSPlatform = function() {
+var VCSPlatform = function() {
   var self = this;
+
+  this.getPresets = function() { return VCS_PRESETS; }
 
   this.start = function() {
     Javatari.start();

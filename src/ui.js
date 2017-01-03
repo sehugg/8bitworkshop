@@ -1,3 +1,4 @@
+"use strict";
 
 // 8bitworkshop IDE user interface
 
@@ -9,7 +10,7 @@ var offset2line = null;
 var line2offset = null;
 var trace_pending_at_pc;
 
-// vars: PRESETS, platform
+var PRESETS, platform;
 
 var CODE = 'code1';
 var editor = CodeMirror(document.getElementById('editor'), {
@@ -21,7 +22,7 @@ var editor = CodeMirror(document.getElementById('editor'), {
 });
 //editor.setSize("100%", "95%"); // TODO
 editor.on('changes', function(ed, changeobj) {
-  text = editor.getValue() || "";
+  var text = editor.getValue() || "";
   setCode(text);
 });
 
@@ -243,7 +244,7 @@ worker.onmessage = function(e) {
     current_output = null;
   } else {
     gutters.removeClass("has-errors");
-    updatePreset(current_preset_id, text);
+    updatePreset(current_preset_id, editor.getValue()); // update persisted entry
     // load ROM
     var rom = e.data.output.slice(2);
     var rom_changed = rom && !arrayCompare(rom, current_output);
@@ -266,7 +267,7 @@ worker.onmessage = function(e) {
       editor.clearGutter("gutter-clock");
       offset2line = {};
       line2offset = {};
-      for (info of e.data.listing.lines) {
+      for (var info of e.data.listing.lines) {
         if (info.offset) {
           var textel = document.createTextNode(info.offset.toString(16));
           editor.setGutterMarker(info.line-1, "gutter-offset", textel);
@@ -658,6 +659,7 @@ function showWelcomeMessage() {
   {
     // Instance the tour
     var tour = new Tour({
+      autoscroll:false,
       //storage:false,
       steps: [
         {
@@ -688,12 +690,8 @@ function showWelcomeMessage() {
           content: "Click the menu to create new files and share your work with others."
         },
     ]});
-
-    // Initialize the tour
     tour.init();
-
-    // Start the tour
-    tour.start();
+    setTimeout(function() { tour.start(); }, 2000);
   }
 }
 
@@ -735,6 +733,18 @@ try {
     if (!qs['platform']) {
       qs['platform'] = 'vcs';
     }
+    // load and start platform object
+    if (qs['platform'] == 'vcs') {
+      platform = new VCSPlatform();
+    } else if (qs['platform'] == 'apple2') {
+      platform = new Apple2Platform($("#emulator")[0]);
+    } else if (qs['platform'] == 'atarivec') {
+      platform = new AtariVectorPlatform($("#emulator")[0]);
+    } else {
+      alert("Platform " + qs['platform'] + " not recognized");
+    }
+    PRESETS = platform.getPresets();
+    platform.start();
     // reset file?
     if (qs['file'] && qs['reset']) {
       localStorage.removeItem(qs['file']);
@@ -749,19 +759,6 @@ try {
       // try to load last file
       var lastid = localStorage.getItem("__lastid");
       gotoPresetNamed(lastid || PRESETS[0].id);
-    }
-    // load and start platform object
-    if (qs['platform'] == 'vcs') {
-      platform = new VCSPlatform();
-      platform.start();
-    } else if (qs['platform'] == 'apple2') {
-      platform = new Apple2Platform($("#emulator")[0]);
-      platform.start();
-    } else if (qs['platform'] == 'atarivec') {
-      platform = new AtariVectorPlatform($("#emulator")[0]);
-      platform.start();
-    } else {
-      alert("Platform " + qs['platform'] + " not recognized");
     }
   }
 } catch (e) {

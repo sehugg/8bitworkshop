@@ -1,13 +1,18 @@
+"use strict";
 
-var PRESETS = [
-]
+var APPLE2_PRESETS = [
+];
 
-Apple2Platform = function(mainElement) {
+var Apple2Platform = function(mainElement) {
   var self = this;
   var cpuFrequency = 1.023;
   var cpuCyclesPerLine = 65;
   var cpu, ram, rom, bus;
   var video, audio, timer;
+
+  this.getPresets = function() {
+    return APPLE2_PRESETS;
+  }
 
   this.start = function() {
     cpu = new jt.M6502();
@@ -185,7 +190,7 @@ Apple2Platform = function(mainElement) {
   }
 };
 
-APPLEIIGO_LZG = [
+var APPLEIIGO_LZG = [
   76,90,71,0,0,48,0,0,0,5,159,47,60,46,159,1,21,25,30,52,65,80,80,76,69,73,73,71,79,32,82,79,
   77,49,46,48,0,52,31,52,31,52,31,52,31,52,31,52,31,52,31,52,31,52,28,52,6,32,0,224,25,30,67,52,
   30,52,28,25,31,174,52,31,52,30,52,28,52,6,25,63,107,52,31,52,30,52,28,25,63,101,52,19,25,31,139,52,

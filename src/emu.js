@@ -1,7 +1,8 @@
+"use strict";
 
 // Emulator classes
 
-RasterVideo = function(mainElement, width, height, options) {
+var RasterVideo = function(mainElement, width, height, options) {
   var self = this;
   var canvas, ctx;
   var imageData, buf8, datau32;
@@ -85,7 +86,7 @@ mainElement.appendChild(borderElement);
 */
 }
 
-VectorVideo = function(mainElement, width, height) {
+var VectorVideo = function(mainElement, width, height) {
   var self = this;
   var canvas, ctx;
   var persistenceAlpha = 0.5;
@@ -151,17 +152,17 @@ VectorVideo = function(mainElement, width, height) {
   }
 }
 
-SampleAudio = function(clockfreq) {
+var SampleAudio = function(clockfreq) {
 
 }
 
-RAM = function(size) {
+var RAM = function(size) {
   var memArray = new ArrayBuffer(size);
   this.mem = new Uint8Array(memArray);
 }
 
 // TODO
-AnimationTimer = function(frequencyHz, callback) {
+var AnimationTimer = function(frequencyHz, callback) {
   var intervalMsec = 1000.0 / frequencyHz;
   var curTime = 0;
   var running;

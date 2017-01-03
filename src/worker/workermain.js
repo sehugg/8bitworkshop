@@ -1,3 +1,5 @@
+"use strict";
+
 // set up require.js for worker
 importScripts("../../dasm.js");
 
@@ -17,9 +19,9 @@ var document = noop();
 document.documentElement = noop();
 document.documentElement.style = noop();
 
-MAIN_FILENAME = "main.a";
-PREAMBLE = "\tprocessor 6502\n";
-PREAMBLE_LINES = 1;
+var MAIN_FILENAME = "main.a";
+var PREAMBLE = "\tprocessor 6502\n";
+var PREAMBLE_LINES = 1;
 
 function parseListing(code, unresolved) {
   var errorMatch = /main.a [(](\d+)[)]: error: (.+)/;
@@ -60,7 +62,7 @@ function parseListing(code, unresolved) {
       }
       // TODO: check filename too
       // TODO: better symbol test (word boundaries)
-      for (key in unresolved) {
+      for (var key in unresolved) {
         var pos = restline ? restline.indexOf(key) : line.indexOf(key);
         if (pos >= 0) {
           errors.push({

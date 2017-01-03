@@ -1,8 +1,9 @@
+"use strict";
 
-var PRESETS = [
+var ATARIVEC_PRESETS = [
 ]
 
-AtariVectorPlatform = function(mainElement) {
+var AtariVectorPlatform = function(mainElement) {
   var self = this;
   var cpuFrequency = 1500000.0;
   var cpuCyclesPerNMI = 6000;
@@ -13,11 +14,14 @@ AtariVectorPlatform = function(mainElement) {
   var switches = new RAM(16).mem;
   var nmicount = cpuCyclesPerNMI;
 
+  this.getPresets = function() {
+    return ATARIVEC_PRESETS;
+  }
+
   this.start = function() {
     cpu = new jt.M6502();
     cpuram = new RAM(0x400);
     dvgram = new RAM(0x2000);
-    vecrom = VECROM;
     //switches[5] = 0xff;
     //switches[7] = 0xff;
     // bus
@@ -79,6 +83,7 @@ AtariVectorPlatform = function(mainElement) {
           //console.log(n, clock, nmicount);
         }
         cpu.clockPulse();
+        //cpu.executeInstruction();
       }
     });
     video.setKeyboardEvents(function(key,flags) {
@@ -107,10 +112,11 @@ AtariVectorPlatform = function(mainElement) {
   }
 
   this.loadROM = function(title, data) {
-    if(data.length != 0x1800) {
-      throw "ROM length must be == 0x1800";
+    if(data.length != 0x2000) {
+      throw "ROM length must be == 0x2000";
     }
-    rom = data;
+    rom = data.slice(0,0x1800);
+    vecrom = data.slice(0x1800,0x2000);
     this.reset();
   }
 
@@ -230,7 +236,7 @@ AtariVectorPlatform = function(mainElement) {
   }
 }
 
-DVGStateMachine = function(bus, video) {
+var DVGStateMachine = function(bus, video) {
   var self = this;
   var pc = 0;
   var x = 0;
@@ -246,7 +252,7 @@ DVGStateMachine = function(bus, video) {
   }
 
   function decodeSigned(w, o2) {
-    s = w & (1<<o2);
+    var s = w & (1<<o2);
     w = w & ((1<<o2)-1);
     if (s)
       return -w;
@@ -269,7 +275,7 @@ DVGStateMachine = function(bus, video) {
     //console.log('DVG',i);
   }
 
-  GSCALES = [7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8];
+  var GSCALES = [7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8];
 
   this.nextInstruction = function() {
     if (!running) return;
