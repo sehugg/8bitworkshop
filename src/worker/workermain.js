@@ -1,7 +1,7 @@
 "use strict";
 
 // set up require.js for worker
-importScripts("../../dasm.js");
+importScripts("../../js/dasm.js");
 
 // shim out window and document objects
 // https://github.com/mbostock/d3/issues/1053

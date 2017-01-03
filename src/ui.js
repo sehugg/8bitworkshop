@@ -4,13 +4,13 @@
 
 var worker = new Worker("./src/worker/workermain.js");
 var current_output = null;
-var current_preset_idx = -1; // TODO: use URL
+var current_preset_index = -1; // TODO: use URL
 var current_preset_id = null;
 var offset2line = null;
 var line2offset = null;
 var trace_pending_at_pc;
 
-var PRESETS, platform;
+var PRESETS, platform, platform_id;
 
 var CODE = 'code1';
 var editor = CodeMirror(document.getElementById('editor'), {
@@ -27,14 +27,15 @@ editor.on('changes', function(ed, changeobj) {
 });
 
 function getCurrentPresetTitle() {
-  if (current_preset_idx < 0)
+  if (current_preset_index < 0)
     return "ROM";
   else
-    return PRESETS[current_preset_idx].title || PRESETS[current_preset_idx].name || "ROM";
+    return PRESETS[current_preset_index].title || PRESETS[current_preset_index].name || "ROM";
 }
 
 function setLastPreset(id) {
   localStorage.setItem("__lastid", id);
+  localStorage.setItem("__lastplatform", platform_id);
 }
 
 function updatePreset(current_preset_id, text) {
@@ -51,8 +52,8 @@ function loadCode(text) {
 
 function loadFile(fileid, filename, index) {
   current_preset_id = fileid;
-  current_preset_idx = index;
-  var text = (localStorage.getItem(fileid) || "");
+  current_preset_index = index;
+  var text = localStorage.getItem(fileid) || localStorage.getItem(fileid.replace(platform_id+"/","")) || "";
   if (text) {
     loadCode(text);
     setLastPreset(fileid);
@@ -68,7 +69,7 @@ function loadFile(fileid, filename, index) {
       }, 'text');
     }
   } else {
-    $.get( "presets/skeleton.a", function( text ) {
+    $.get( "presets/"+platform_id+"/skeleton.a", function( text ) {
       loadCode(text);
       setLastPreset(fileid);
       updatePreset(fileid, text);
@@ -85,10 +86,10 @@ function loadPreset(preset_id) {
   index = (index + PRESETS.length) % PRESETS.length;
   if (index >= 0) {
     // load the preset
-    loadFile(preset_id, "presets/" + PRESETS[index].id, index);
+    loadFile(preset_id, "presets/" + platform_id + "/" + PRESETS[index].id, index);
   } else {
     // no preset found? load local
-    loadFile(preset_id, "local/" + preset_id, -1);
+    loadFile(preset_id, "local/" + platform_id + "/" + preset_id, -1);
   }
 }
 
@@ -117,7 +118,7 @@ function _createNewFile(e) {
     if (filename.indexOf(".") < 0) {
       filename += ".a";
     }
-    qs['file'] = "local/" + filename;
+    qs['file'] = "local/" + platform_id + "/" + filename;
     window.location = "?" + $.param(qs);
   }
   return true;
@@ -151,9 +152,9 @@ function _shareFile(e) {
 }
 
 function _resetPreset(e) {
-  if (current_preset_idx < 0) {
+  if (current_preset_index < 0) {
     alert("Can only reset built-in file examples.")
-  } else if (confirm("Reset '" + PRESETS[current_preset_idx].name + "' to default?")) {
+  } else if (confirm("Reset '" + PRESETS[current_preset_index].name + "' to default?")) {
     qs['reset'] = '1';
     window.location = "?" + $.param(qs);
   }
@@ -201,10 +202,10 @@ function updateSelector() {
     gotoPresetNamed($(this).val());
   });
   $("#preset_prev").off('click').click(function() {
-    gotoPresetAt(current_preset_idx - 1);
+    gotoPresetAt(current_preset_index - 1);
   });
   $("#preset_next").off('click').click(function() {
-    gotoPresetAt(current_preset_idx + 1);
+    gotoPresetAt(current_preset_index + 1);
   });
 }
 
@@ -730,18 +731,19 @@ try {
     }, 'text');
   } else {
     // add default platform?
-    if (!qs['platform']) {
-      qs['platform'] = 'vcs';
+    platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
+    if (!platform_id) {
+      platform_id = qs['platform'] = "vcs";
     }
     // load and start platform object
-    if (qs['platform'] == 'vcs') {
+    if (platform_id == 'vcs') {
       platform = new VCSPlatform();
-    } else if (qs['platform'] == 'apple2') {
+    } else if (platform_id == 'apple2') {
       platform = new Apple2Platform($("#emulator")[0]);
-    } else if (qs['platform'] == 'atarivec') {
+    } else if (platform_id == 'atarivec') {
       platform = new AtariVectorPlatform($("#emulator")[0]);
     } else {
-      alert("Platform " + qs['platform'] + " not recognized");
+      alert("Platform " + platform_id + " not recognized");
     }
     PRESETS = platform.getPresets();
     platform.start();
