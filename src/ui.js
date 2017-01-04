@@ -1,5 +1,34 @@
 "use strict";
 
+var FileStore = function(storage, prefix) {
+  var self = this;
+  this.saveFile = function(name, text) {
+    storage.setItem(prefix + name, text);
+  }
+  this.loadFile = function(name) {
+    return storage.getItem(prefix + name) || storage.getItem(name);
+  }
+  this.getFiles = function(prefix2) {
+    var files = [];
+    for (var i = 0; i < storage.length; i++) {
+      var key = storage.key(i);
+      if (key.startsWith(prefix + prefix2)) {
+        var name = key.substring(prefix.length + prefix2.length);
+        files.push(name);
+      }
+      else if (key.startsWith(prefix2)) {
+        var name = key.substring(prefix2.length);
+        files.push(name);
+      }
+    }
+    return files;
+  }
+  this.deleteFile = function(name) {
+    storage.removeItem(name);
+    storage.removeItem('local/' + name);
+  }
+}
+
 // 8bitworkshop IDE user interface
 
 var worker = new Worker("./src/worker/workermain.js");
@@ -9,6 +38,7 @@ var current_preset_id = null;
 var offset2line = null;
 var line2offset = null;
 var trace_pending_at_pc;
+var store;
 
 var PRESETS, platform, platform_id;
 
@@ -40,7 +70,7 @@ function setLastPreset(id) {
 
 function updatePreset(current_preset_id, text) {
   if (text.trim().length) {
-    localStorage.setItem(current_preset_id, text);
+    store.saveFile(current_preset_id, text);
   }
 }
 
@@ -53,7 +83,7 @@ function loadCode(text) {
 function loadFile(fileid, filename, index) {
   current_preset_id = fileid;
   current_preset_index = index;
-  var text = localStorage.getItem(fileid) || localStorage.getItem(fileid.replace(platform_id+"/","")) || "";
+  var text = store.loadFile(fileid)|| "";
   if (text) {
     loadCode(text);
     setLastPreset(fileid);
@@ -107,6 +137,7 @@ function gotoPresetNamed(id) {
       updateSelector();
     }
   } else {
+    qs['platform'] = platform_id;
     qs['file'] = id;
     window.location = "?" + $.param(qs);
   }
@@ -118,7 +149,7 @@ function _createNewFile(e) {
     if (filename.indexOf(".") < 0) {
       filename += ".a";
     }
-    qs['file'] = "local/" + platform_id + "/" + filename;
+    qs['file'] = "local/" + filename;
     window.location = "?" + $.param(qs);
   }
   return true;
@@ -172,23 +203,21 @@ function populateExamples(sel) {
 
 function populateLocalFiles(sel) {
   sel.append($("<option />").text("------- Local Files -------"));
-  for (var i = 0; i < localStorage.length; i++) {
-    var key = localStorage.key(i);
-    if (key.startsWith("local/")) {
-      var name = key.substring(6);
-      sel.append($("<option />").val("local/"+name).text(name).attr('selected',key==current_preset_id));
-    }
+  var filenames = store.getFiles("local/");
+  for (var i = 0; i < filenames.length; i++) {
+    var name = filenames[i];
+    var key = "local/" + name;
+    sel.append($("<option />").val(key).text(name).attr('selected',key==current_preset_id));
   }
 }
 
 function populateSharedFiles(sel) {
   sel.append($("<option />").text("--------- Shared ---------"));
-  for (var i = 0; i < localStorage.length; i++) {
-    var key = localStorage.key(i);
-    if (key.startsWith("shared/")) {
-      var name = key.substring(6);
-      sel.append($("<option />").val("shared/"+name).text(name).attr('selected',key==current_preset_id));
-    }
+  var filenames = store.getFiles("shared/");
+  for (var i = 0; i < filenames.length; i++) {
+    var name = filenames[i];
+    var key = "shared/" + name;
+    sel.append($("<option />").val(key).text(name).attr('selected',key==current_preset_id));
   }
 }
 
@@ -210,7 +239,10 @@ function updateSelector() {
 }
 
 function setCode(text) {
-  worker.postMessage({code:text});
+  if (current_preset_id.endsWith(".pla"))
+    worker.postMessage({code:text, tool:'plasm'});
+  else
+    worker.postMessage({code:text, tool:'dasm'});
 }
 
 function arrayCompare(a,b) {
@@ -738,6 +770,7 @@ try {
     // load and start platform object
     if (platform_id == 'vcs') {
       platform = new VCSPlatform();
+      $("#booklink_vcs").show();
     } else if (platform_id == 'apple2') {
       platform = new Apple2Platform($("#emulator")[0]);
     } else if (platform_id == 'atarivec') {
@@ -745,12 +778,12 @@ try {
     } else {
       alert("Platform " + platform_id + " not recognized");
     }
+    store = new FileStore(localStorage, platform_id + '/');
     PRESETS = platform.getPresets();
     platform.start();
     // reset file?
     if (qs['file'] && qs['reset']) {
-      localStorage.removeItem(qs['file']);
-      localStorage.removeItem('local/' + qs['file']);
+      store.deleteFile(qs['file']);
       qs['reset'] = '';
       window.location = "?" + $.param(qs);
     } else if (qs['file']) {

@@ -100,6 +100,7 @@ div.booklink {
   right: 0;
   padding: 6px;
   background-color: #ffffff;
+  display:none;
 }
 div.twitbtn {
   position: fixed;
@@ -114,6 +115,48 @@ a {
 a.dropdown-toggle {
   color:#66ee66;
   padding:3px;
+}
+// http://stackoverflow.com/questions/18023493/bootstrap-3-dropdown-sub-menu-missing
+.dropdown-submenu {
+    position:relative;
+}
+.dropdown-submenu>.dropdown-menu {
+    top:0;
+    left:100%;
+    margin-top:-6px;
+    margin-left:-1px;
+    -webkit-border-radius:0 6px 6px 6px;
+    -moz-border-radius:0 6px 6px 6px;
+    border-radius:0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+    display:block;
+}
+.dropdown-submenu>a:after {
+    display:block;
+    content:" ";
+    float:right;
+    width:0;
+    height:0;
+    border-color:transparent;
+    border-style:solid;
+    border-width:5px 0 5px 5px;
+    border-left-color:#cccccc;
+    margin-top:5px;
+    margin-right:-10px;
+}
+.dropdown-submenu:hover>a:after {
+    border-left-color:#ffffff;
+}
+.dropdown-submenu.pull-left {
+    float:none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+    left:-100%;
+    margin-left:10px;
+    -webkit-border-radius:6px 0 6px 6px;
+    -moz-border-radius:6px 0 6px 6px;
+    border-radius:6px 0 6px 6px;
 }
 </style>
 </head>
@@ -130,6 +173,14 @@ a.dropdown-toggle {
           <li><a class="dropdown-item" href="#" id="item_new_file">New File...</a></li>
           <li><a class="dropdown-item" href="#" id="item_share_file">Share File...</a></li>
           <li><a class="dropdown-item" href="#" id="item_reset_file">Reset to Original...</a></li>
+          <li class="dropdown dropdown-submenu">
+              <a tabindex="-1" href="#">Platform</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="?platform=vcs" id="item_platform_vcs">Atari VCS</a></li>
+                <li><a class="dropdown-item" href="?platform=apple2" id="item_platform_apple2">Apple ][</a></li>
+                <li><a class="dropdown-item" href="?platform=atarivec" id="item_platform_atarivec">Asteroids</a></li>
+              </ul>
+          </li>
         </ul>
       </span>
       <select id="preset_select" name="">
@@ -155,7 +206,7 @@ a.dropdown-toggle {
 <div class="twitbtn">
   <a href="https://twitter.com/8bitworkshop" class="twitter-follow-button" data-show-count="false">Follow @8bitworkshop</a><script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
 </div>
-<div class="booklink">
+<div class="booklink" id="booklink_vcs">
   <!--
   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0"
   src="http://ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=pzp-20&marketplace=amazon&region=US&placement=B01N4DSRIZ&asins=B01N4DSRIZ&linkId=67b114b83ce0b13ceaf715ee86833626&show_border=true&link_opens_in_new_window=false&price_color=333333&title_color=0066c0&bg_color=7d6d6d">
@@ -172,8 +223,8 @@ a.dropdown-toggle {
 <script src="jquery/jquery-2.2.3.min.js"></script>
 
 <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
-<link rel="stylesheet" href="bootstrap/css/bootstrap-tour.min.css">
 <script src="bootstrap/js/bootstrap.min.js"></script>
+<link rel="stylesheet" href="bootstrap/css/bootstrap-tour.min.css">
 <script src="bootstrap/js/bootstrap-tour.min.js"></script>
 
 <script src="codemirror/lib/codemirror.js"></script>
@@ -188,6 +239,7 @@ a.dropdown-toggle {
 
 <script src="javatari.js/release/javatari/javatari.js"></script>
 <script src="src/emu.js"></script>
+<script src="src/util.js"></script>
 <script src="src/platform/vcs.js"></script>
 <script src="src/platform/apple2.js"></script>
 <script src="src/platform/atarivec.js"></script>
@@ -202,6 +254,5 @@ a.dropdown-toggle {
 
   ga('create', 'UA-54497476-9', 'auto');
   ga('send', 'pageview');
-
 </script>
 </html>
