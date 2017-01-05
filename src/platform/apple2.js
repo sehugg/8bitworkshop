@@ -12,13 +12,20 @@ var Apple2Platform = function(mainElement) {
   var self = this;
   var cpuFrequency = 1023000;
   var cpuCyclesPerLine = 65;
-  var cpu, ram, rom, bus;
+  var cpu, ram, bus;
   var video, ap2disp, audio, timer;
-  var grdirty = [];
+  var grdirty = new Array(0xc000 >> 7);
   var grswitch = GR_TXMODE;
   var kbdlatch = 0;
   var soundstate = 0;
-  var PGM_BASE = 0x6000;
+  var PGM_BASE = 0x6000; // where to JMP after pr#6
+  // language card switches
+  var auxRAMselected = false;
+  var auxRAMbank = 1;
+  var writeinhibit = true;
+  // value to add when reading & writing each of these banks
+  // bank 1 is E000-FFFF, bank 2 is D000-DFFF
+  var bank2rdoffset=0, bank2wroffset=0;
 
   this.getPresets = function() {
     return APPLE2_PRESETS;
@@ -30,16 +37,25 @@ var Apple2Platform = function(mainElement) {
 
   this.start = function() {
     cpu = new jt.M6502();
-    ram = new RAM(0xc000);
-    rom = new lzgmini().decode(APPLEIIGO_LZG).slice(0,12288);
+    ram = new RAM(0x13000); // 64K + 16K LC RAM - 4K hardware
+    // ROM
+    var rom = new lzgmini().decode(APPLEIIGO_LZG).slice(0,0x3000);
+    ram.mem.set(rom, 0xd000);
     // bus
     bus = {
       read: function(address) {
         address &= 0xffff;
-        if (address >= 0xd000 && address <= 0xffff) {
-          return rom[address - 0xd000];
-        } else if (address < 0xc000) {
+        if (address < 0xc000) {
           return ram.mem[address];
+        } else if (address >= 0xd000) {
+          //return rom[address - 0xd000] & 0xff;
+          //console.log(hex(address), rom[address-0xd000], ram.mem[address]);
+          if (!auxRAMselected)
+            return rom[address - 0xd000];
+          else if (address >= 0xe000)
+            return ram.mem[address];
+          else
+            return ram.mem[address + bank2rdoffset];
         } else if (address < 0xc100) {
           var slot = (address >> 4) & 0x0f;
           switch (slot)
@@ -81,9 +97,9 @@ var Apple2Platform = function(mainElement) {
                 if (address == 0xc070)
                    return noise() | 0x80;
              case 8:
-                return doLanguageCardIO(address, value);
+                return 0; // TODO doLanguageCardIO(address, value);
              case 9: case 10: case 11: case 12: case 13: case 14: case 15:
-                return slots[slot-8].doIO(address, value);
+                return noise(); // return slots[slot-8].doIO(address, value);
           }
         } else {
           switch (address) {
@@ -98,11 +114,17 @@ var Apple2Platform = function(mainElement) {
       },
       write: function(address, val) {
         address &= 0xffff;
+        val &= 0xff;
         if (address < 0xc000) {
           ram.mem[address] = val;
           grdirty[address>>7] = 1;
         } else if (address < 0xc100) {
-          this.read(address); // strobe address
+          this.read(address); // strobe address, discard result
+        } else if (address >= 0xd000 && !writeinhibit) {
+          if (address >= 0xe000)
+            ram.mem[address] = val;
+          else
+            ram.mem[address + bank2wroffset] = val;
         }
       }
     };
@@ -137,15 +159,79 @@ var Apple2Platform = function(mainElement) {
     });
   }
 
+  function doLanguageCardIO(address, value)
+  {
+     switch (address & 0x0f) {
+         // Select aux RAM bank 2, write protected.
+        case 0x0:
+        case 0x4:
+           auxRAMselected = true;
+           auxRAMbank = 2;
+           writeinhibit = true;
+           break;
+        // Select ROM, write enable aux RAM bank 2.
+        case 0x1:
+        case 0x5:
+           auxRAMselected = false;
+           auxRAMbank = 2;
+           writeinhibit = false;
+           break;
+        // Select ROM, write protect aux RAM (either bank).
+        case 0x2:
+        case 0x6:
+        case 0xA:
+        case 0xE:
+           auxRAMselected = false;
+           writeinhibit = true;
+           break;
+        // Select aux RAM bank 2, write enabled.
+        case 0x3:
+        case 0x7:
+           auxRAMselected = true;
+           auxRAMbank = 2;
+           writeinhibit = false;
+           break;
+        // Select aux RAM bank 1, write protected.
+        case 0x8:
+        case 0xC:
+           auxRAMselected = true;
+           auxRAMbank = 1;
+           writeinhibit = true;
+           break;
+        // Select ROM, write enable aux RAM bank 1.
+        case 0x9:
+        case 0xD:
+           auxRAMselected = false;
+           auxRAMbank = 1;
+           writeinhibit = false;
+           break;
+       // Select aux RAM bank 1, write enabled.
+        case 0xB:
+        case 0xF:
+           auxRAMselected = true;
+           auxRAMbank = 1;
+           writeinhibit = false;
+           break;
+     }
+     // reset language card constants
+      if (auxRAMbank == 2)
+         bank2rdoffset = -0x1000;   // map 0xd000-0xdfff -> 0xc000-0xcfff
+      else
+         bank2rdoffset = 0x3000; // map 0xd000-0xdfff -> 0x10000-0x10fff
+      if (auxRAMbank == 2)
+         bank2wroffset = -0x1000;   // map 0xd000-0xdfff -> 0xc000-0xcfff
+      else
+         bank2wroffset = 0x3000; // map 0xd000-0xdfff -> 0x10000-0x10fff
+     return noise();
+  }
+
   this.getOpcodeMetadata = function(opcode, offset) {
     return Javatari.getOpcodeMetadata(opcode, offset); // TODO
   }
 
   this.loadROM = function(title, data) {
     this.reset();
-    for (var i=0; i<data.length; i++) {
-      ram.mem[i+PGM_BASE] = data[i];
-    }
+    ram.mem.set(data, PGM_BASE);
     /*
     if(data.length != 0x3000) {
       throw "ROM length must be == 0x3000";
@@ -272,7 +358,7 @@ var Apple2Display = function(pixels, apple) {
   var PIXELOFF = 0xff000000;
 
   var oldgrmode = -1;
-  var textbuf = [];
+  var textbuf = new Array(40*24);
 
   var flashInterval = 500;
 
@@ -326,7 +412,7 @@ var Apple2Display = function(pixels, apple) {
     * for odd and even addresses (2) and each byte displays 7 pixels.
     */
   {
-     colors_lut = []; //new int[256*4*2*7];
+     colors_lut = new Array(256*4*2*7);
      var i,j;
      var c1,c2,c3 = 15;
      var base = 0;
