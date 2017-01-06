@@ -86,18 +86,18 @@ var AtariVectorPlatform = function(mainElement) {
         //cpu.executeInstruction();
       }
     });
-    video.setKeyboardEvents(function(key,flags) {
+    video.setKeyboardEvents(function(key,code,flags) {
       var KEY2ADDR = {
-        "Shift": 3,
-        " ": 4,
-        "5": 8+0,
-        "6": 8+1,
-        "7": 8+2,
-        "1": 8+3,
-        "2": 8+4,
-        ArrowUp: 8+5,
-        ArrowRight: 8+6,
-        ArrowLeft: 8+7,
+        16: 3, // shift
+        32: 4, // space
+        53: 8+0, // 5
+        54: 8+1, // 6
+        55: 8+2, // 7
+        49: 8+3, // 1
+        50: 8+4, // 2
+        38: 8+5,
+        39: 8+6,
+        37: 8+7,
       };
       var addr = KEY2ADDR[key];
       console.log(key,flags,addr);

@@ -20,7 +20,7 @@ var fsMeta, fsBlob;
   xhr.open("GET", "fs65.js.metadata", false);  // synchronous request
   xhr.send(null);
   fsMeta = xhr.response;
-  console.log("Fetched", fsMeta, fsBlob);
+  console.log("Loaded filesystem", fsMeta.files.length, 'files', fsBlob.size, 'bytes');
 }
 
 function setupFS(FS) {
@@ -133,7 +133,7 @@ function assembleDASM(code) {
   var alst = FS.readFile("a.lst", {'encoding':'utf8'});
   //console.log(alst);
   var listing = parseDASMListing(alst, unresolved);
-  return {exitstatus:Module.EXITSTATUS, output:aout, listing:listing};
+  return {exitstatus:Module.EXITSTATUS, output:aout.slice(2), listing:listing};
 }
 
 // TODO: not quite done
@@ -160,7 +160,7 @@ function assembleACME(code) {
   console.log(alst);
   console.log(asym);
   var listing = parseDASMListing(alst, unresolved);
-  return {exitstatus:Module.EXITSTATUS, output:aout, listing:listing};
+  return {exitstatus:Module.EXITSTATUS, output:aout.slice(2), listing:listing};
 }
 
 function compilePLASMA(code) {
@@ -196,7 +196,7 @@ function parseCA65Listing(code, unresolved) {
       var linenum = parseInt(linem[4]);
       lines.push({
         line:linenum,
-        offset:offset + 0x6000, //TODO
+        offset:offset + 0x6048, //TODO: use map file
         insns:null
       });
       //console.log(linem, lastlinenum, lines[lines.length-1]);
@@ -239,6 +239,7 @@ function assemblelinkCA65(code, platform) {
       '-t', platform, '-o', 'main', '-m', 'main.map', 'main.o', platform+'.lib']);
     var aout = FS.readFile("main", {encoding:'binary'});
     var mapout = FS.readFile("main.map", {encoding:'utf8'});
+    // CODE                  00603E  00637C  00033F  00001
     console.log(lstout);
     console.log(mapout);
     return {exitstatus:LD65.EXITSTATUS, output:aout.slice(4), listing:parseCA65Listing(lstout)};

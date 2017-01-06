@@ -37,6 +37,7 @@ var current_preset_index = -1; // TODO: use URL
 var current_preset_id = null;
 var offset2line = null;
 var line2offset = null;
+var pcvisits;
 var trace_pending_at_pc;
 var store;
 
@@ -238,15 +239,15 @@ function updateSelector() {
   });
 }
 
+function getToolForFilename(fn) {
+  if (fn.endsWith(".pla")) return "plasm";
+  if (fn.endsWith(".c")) return "cc65";
+  if (fn.endsWith(".s")) return "ca65";
+  return "dasm";
+}
+
 function setCode(text) {
-  if (current_preset_id.endsWith(".pla"))
-    worker.postMessage({code:text, tool:'plasm'});
-  else if (current_preset_id.endsWith(".c"))
-    worker.postMessage({code:text, tool:'cc65'});
-  else if (current_preset_id.endsWith(".s"))
-    worker.postMessage({code:text, tool:'ca65'});
-  else
-    worker.postMessage({code:text, tool:'dasm'});
+  worker.postMessage({code:text, tool:getToolForFilename(current_preset_id)});
 }
 
 function arrayCompare(a,b) {
@@ -261,11 +262,10 @@ function arrayCompare(a,b) {
 }
 
 worker.onmessage = function(e) {
-  //console.log(e.data);
   // errors?
-  var gutters = $("#editor"); //.find(".CodeMirror-linenumber");
+  var toolbar = $("#notebook");
   if (e.data.listing.errors.length > 0) {
-    gutters.addClass("has-errors");
+    toolbar.addClass("has-errors");
     editor.clearGutter("gutter-info");
     for (info of e.data.listing.errors) {
       var div = document.createElement("div");
@@ -280,10 +280,10 @@ worker.onmessage = function(e) {
     }
     current_output = null;
   } else {
-    gutters.removeClass("has-errors");
+    toolbar.removeClass("has-errors");
     updatePreset(current_preset_id, editor.getValue()); // update persisted entry
     // load ROM
-    var rom = e.data.output.slice(2);
+    var rom = e.data.output;
     var rom_changed = rom && !arrayCompare(rom, current_output);
     if (rom_changed) {
       try {
@@ -291,6 +291,7 @@ worker.onmessage = function(e) {
         //console.log("Loading ROM length", rom.length);
         platform.loadROM(getCurrentPresetTitle(), rom);
         current_output = rom;
+        pcvisits = {};
       } catch (e) {
         console.log(e); // TODO
         current_output = null;
@@ -382,6 +383,7 @@ function getTIAPosString() {
 }
 
 var lastDebugInfo;
+var lastDebugState;
 
 function highlightDifferences(s1, s2) {
   var split1 = s1.split(/(\S+\s+)/).filter(function(n) {return n});
@@ -436,13 +438,16 @@ function showMemory(state) {
 function setupBreakpoint() {
   // TODO
   platform.setupDebug(function(state) {
+    lastDebugState = state;
     var PC = state.c.PC;
     var line = findLineForOffset(PC);
     if (line) {
       console.log("BREAKPOINT", hex(PC), line);
       setCurrentLine(line);
     }
+    pcvisits[PC] = pcvisits[PC] ? pcvisits[PC]+1 : 1;
     showMemory(state);
+    updateDisassembly();
   });
 }
 
@@ -481,6 +486,7 @@ function runToCursor() {
 }
 
 function clearBreakpoint() {
+  lastDebugState = null;
   platform.clearDebug();
   $("#dbg_info").empty();
   showMemory();
@@ -673,6 +679,29 @@ function showLoopTimingForCurrentLine() {
 }
 */
 
+function updateDisassembly() {
+  var div = $("#disassembly");
+  if (div.is(':visible')) {
+    div.empty();
+    var state = lastDebugState || platform.saveState();
+    var mem = state.b;
+    var pc = state.c.PC;
+    var disasm = new Disassembler6502().disassemble(mem, pc, pc+128, pcvisits);
+    var s = "";
+    for (a in disasm) {
+      var line = hex(parseInt(a)) + " " + disasm[a] + "\n";
+      s += line;
+    }
+    $("<pre></pre>").appendTo(div).text(s);
+  }
+}
+
+function toggleDisassembly() {
+  $("#disassembly").toggle();
+  $("#editor").toggle();
+  updateDisassembly();
+}
+
 function resetAndDebug() {
   platform.reset();
   runToCursor();
@@ -685,6 +714,8 @@ function setupDebugControls(){
   $("#dbg_step").click(singleStep);
   $("#dbg_toline").click(runToCursor);
   $("#dbg_timing").click(traceTiming);
+  $("#dbg_disasm").click(toggleDisassembly);
+  $("#disassembly").hide();
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
   $("#item_share_file").click(_shareFile);

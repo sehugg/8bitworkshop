@@ -2,6 +2,10 @@
 
 // Emulator classes
 
+function _metakeyflags(e) {
+  return (e.shiftKey?2:0) | (e.ctrlKey?4:0) | (e.altKey?8:0) | (e.metaKey?16:0);
+}
+
 function __createCanvas(mainElement, width, height) {
   // TODO
   var fsElement = document.createElement('div');
@@ -34,6 +38,18 @@ var RasterVideo = function(mainElement, width, height, options) {
     var buf = new ArrayBuffer(imageData.data.length);
     buf8 = new Uint8ClampedArray(buf);
     datau32 = new Uint32Array(buf);
+  }
+
+  this.setKeyboardEvents = function(callback) {
+    canvas.onkeydown = function(e) {
+      callback(e.which, 0, 1|_metakeyflags(e));
+    };
+    canvas.onkeyup = function(e) {
+      callback(e.which, 0, 0|_metakeyflags(e));
+    };
+    canvas.onkeypress = function(e) {
+      callback(e.which, e.charCode, 1|_metakeyflags(e));
+    };
   }
 
   this.getFrameData = function() {
@@ -104,10 +120,13 @@ var VectorVideo = function(mainElement, width, height) {
 
   this.setKeyboardEvents = function(callback) {
     canvas.onkeydown = function(e) {
-      callback(e.key, 1);
+      callback(e.which, 0, 1|_metakeyflags(e));
     };
     canvas.onkeyup = function(e) {
-      callback(e.key, 0);
+      callback(e.which, 0, 0|_metakeyflags(e));
+    };
+    canvas.onkeypress = function(e) {
+      callback(e.which, e.charCode, 1|_metakeyflags(e));
     };
   }
 
@@ -257,6 +276,13 @@ var SampleAudio = function(clockfreq) {
       bufferlist[i] = new Float32Array(arrbuf);
     }
     buffer = bufferlist[0];
+  }
+
+  this.stop = function() {
+    if (this.context) {
+      this.context.close();
+      this.context = null;
+    }
   }
 
   this.feedSample = function(value, count) {

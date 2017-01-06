@@ -42,6 +42,8 @@ var VCSPlatform = function() {
   this.getPresets = function() { return VCS_PRESETS; }
 
   this.start = function() {
+    $("#dbg_timing").show();
+    $("#dbg_disasm").show();
     Javatari.start();
   }
 
