@@ -241,6 +241,10 @@ function updateSelector() {
 function setCode(text) {
   if (current_preset_id.endsWith(".pla"))
     worker.postMessage({code:text, tool:'plasm'});
+  else if (current_preset_id.endsWith(".c"))
+    worker.postMessage({code:text, tool:'cc65'});
+  else if (current_preset_id.endsWith(".s"))
+    worker.postMessage({code:text, tool:'ca65'});
   else
     worker.postMessage({code:text, tool:'dasm'});
 }
