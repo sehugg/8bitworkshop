@@ -69,7 +69,7 @@ var VCSPlatform = function() {
   this.pause = function() { Javatari.room.console.pause(); }
   this.resume = function() { Javatari.room.console.go(); }
   this.step = function() { Javatari.room.console.debugSingleStepCPUClock(); }
-  this.runToPC = function(pc) { Javatari.room.console.debugToPC(pc); }
+  this.runEval = function(evalfunc) { Javatari.room.console.debugEval(evalfunc); }
 
   this.setupDebug = function(callback) {
     Javatari.room.console.onBreakpointHit = callback;

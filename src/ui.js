@@ -481,7 +481,9 @@ function runToCursor() {
   var pc = line2offset[line];
   if (pc) {
     console.log("Run to", line, pc.toString(16));
-    platform.runToPC(pc);
+    platform.runEval(function(c) {
+      return c.PC == pc;
+    });
   }
 }
 
@@ -703,10 +705,11 @@ function toggleDisassembly() {
 }
 
 function resetAndDebug() {
+  clearBreakpoint();
   platform.reset();
   runToCursor();
-
 }
+
 function setupDebugControls(){
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
