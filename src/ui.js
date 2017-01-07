@@ -417,9 +417,11 @@ function showMemory(state) {
     s = cpuStateToLongString(state.c);
     s += "\n";
     var ram = platform.getRAMForState(state);
+    var ramlen = ram.length <= 128 ? 128 : 256; // TODO
+    var ramofs = ram.length == 128 ? 0x80 : 0;
     // TODO: show scrollable RAM for other platforms
-    for (var ofs=0; ofs<0x80; ofs+=0x10) {
-      s += '$' + hex(ofs+0x80) + ':';
+    for (var ofs=0; ofs<ramlen; ofs+=0x10) {
+      s += '$' + hex(ofs+ramofs) + ':';
       for (var i=0; i<0x10; i++) {
         if (i == 8) s += " ";
         s += " " + hex(ram[ofs+i]);
@@ -485,6 +487,25 @@ function runToCursor() {
       return c.PC == pc;
     });
   }
+}
+
+function runUntilReturn() {
+  setupBreakpoint();
+  var depth = 1;
+  platform.runEval(function(c) {
+    if (depth <= 0 && c.T == 0)
+      return true;
+    if (c.o == 0x20)
+      depth++;
+    else if (c.o == 0x60 || c.o == 0x40)
+      --depth;
+    return false;
+  });
+}
+
+function runStepBackwards() {
+  setupBreakpoint();
+  platform.stepBack();
 }
 
 function clearBreakpoint() {
@@ -710,12 +731,23 @@ function resetAndDebug() {
   runToCursor();
 }
 
+function _breakExpression() {
+  var exprs = window.prompt("Enter break expression", "c.PC == 0x6000");
+  if (exprs) {
+    var fn = new Function('c', 'return (' + exprs + ');');
+    setupBreakpoint();
+    platform.runEval(fn);
+  }
+}
+
 function setupDebugControls(){
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
   $("#dbg_go").click(resume);
   $("#dbg_step").click(singleStep);
   $("#dbg_toline").click(runToCursor);
+  $("#dbg_stepout").click(runUntilReturn);
+  $("#dbg_stepback").click(runStepBackwards);
   $("#dbg_timing").click(traceTiming);
   $("#dbg_disasm").click(toggleDisassembly);
   $("#disassembly").hide();
@@ -723,6 +755,7 @@ function setupDebugControls(){
   $("#item_new_file").click(_createNewFile);
   $("#item_share_file").click(_shareFile);
   $("#item_reset_file").click(_resetPreset);
+  $("#item_debug_expr").click(_breakExpression);
 }
 
 function showWelcomeMessage() {

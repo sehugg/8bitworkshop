@@ -157,10 +157,11 @@ function assembleACME(code) {
   var alst = FS.readFile("a.rpt", {'encoding':'utf8'}); // TODO
   var asym = FS.readFile("a.sym", {'encoding':'utf8'}); // TODO
   console.log("acme", code.length, "->", aout.length);
+  //console.log(aout);
   console.log(alst);
   console.log(asym);
   var listing = parseDASMListing(alst, unresolved);
-  return {exitstatus:Module.EXITSTATUS, output:aout.slice(2), listing:listing};
+  return {exitstatus:Module.EXITSTATUS, output:aout, listing:listing};
 }
 
 function compilePLASMA(code) {

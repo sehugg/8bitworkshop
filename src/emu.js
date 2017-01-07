@@ -302,3 +302,112 @@ var SampleAudio = function(clockfreq) {
     }
   }
 }
+
+var Base6502Platform = function() {
+
+  this.getOpcodeMetadata = function(opcode, offset) {
+    return Javatari.getOpcodeMetadata(opcode, offset); // TODO
+  }
+
+  this.getOriginPC = function() {
+    return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
+  }
+
+  var onBreakpointHit;
+  var debugCondition;
+  var debugSavedState = null;
+  var debugBreakState = null;
+  var debugTargetClock = 0;
+  var debugClock = 0;
+  var debugFrameStartClock = 0;
+
+  this.setDebugCondition = function(debugCond) {
+    if (debugSavedState) {
+      this.loadState(debugSavedState);
+    } else {
+      debugSavedState = this.saveState();
+    }
+    debugClock = 0;
+    debugCondition = debugCond;
+    this.resume();
+  }
+  this.getDebugCallback = function() {
+    return debugCondition;
+  }
+  this.setupDebug = function(callback) {
+    onBreakpointHit = callback;
+  }
+  this.clearDebug = function() {
+    debugSavedState = null;
+    debugTargetClock = 0;
+    debugClock = 0;
+    debugFrameStartClock = 0;
+    onBreakpointHit = null;
+    debugCondition = null;
+  }
+  this.breakpointHit = function() {
+    debugBreakState = this.saveState();
+    debugBreakState.c.PC = (debugBreakState.c.PC-1) & 0xffff;
+    console.log("Breakpoint at clk", debugClock, "PC", debugBreakState.c.PC.toString(16));
+    this.pause();
+    if (onBreakpointHit) {
+      onBreakpointHit(debugBreakState);
+    }
+  }
+  this.step = function() {
+    var self = this;
+    var previousPC = -1;
+    this.setDebugCondition(function() {
+      if (debugClock++ > debugTargetClock) {
+        var thisState = self.getCPUState();
+        if (previousPC < 0) {
+          previousPC = thisState.PC;
+        } else {
+          if (thisState.PC != previousPC && thisState.T == 0) {
+            //console.log(previousPC.toString(16), thisPC.toString(16));
+            debugTargetClock = debugClock-1;
+            self.breakpointHit();
+            return true;
+          }
+        }
+      }
+      return false;
+    });
+  }
+  this.stepBack = function() {
+    var self = this;
+    var prevState;
+    var prevClock;
+    this.setDebugCondition(function() {
+      if (debugClock++ >= debugTargetClock && prevState) {
+        self.loadState(prevState);
+        debugTargetClock = prevClock-1;
+        self.breakpointHit();
+        return true;
+      } else if (debugClock > debugTargetClock-10 && debugClock < debugTargetClock) {
+        if (self.getCPUState().T == 0) {
+          console.log(debugClock, self.getCPUState());
+          prevState = self.saveState();
+          prevClock = debugClock;
+        }
+      }
+      return false;
+    });
+  }
+  this.runEval = function(evalfunc) {
+    var self = this;
+    this.setDebugCondition(function() {
+      if (debugClock++ > debugTargetClock) {
+        var cpuState = self.getCPUState();
+        cpuState.PC = (cpuState.PC-1)&0xffff;
+        if (evalfunc(cpuState)) {
+          self.breakpointHit();
+          debugTargetClock = debugClock-1;
+          return true;
+        } else {
+          return false;
+        }
+      }
+    });
+  }
+}

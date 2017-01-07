@@ -187,6 +187,12 @@ a.dropdown-toggle {
             <li><a class="dropdown-item" href="?platform=exidy" id="item_platform_exidy">Exidy</a></li>
           </ul>
       </li>
+      <li class="dropdown dropdown-submenu">
+        <a tabindex="-1" href="#">Debug</a>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="#" id="item_debug_expr">Break Expression...</a></li>
+        </ul>
+    </li>
     </ul>
   </span>
   <select id="preset_select" name="">
@@ -197,7 +203,8 @@ a.dropdown-toggle {
     <button id="dbg_step" type="submit" title="Step"><img src="images/singlestep.png"></button>
     <button id="dbg_toline" type="submit" title="Run To Line"><img src="images/runtoline.png"></button>
     <button id="dbg_reset" type="submit" title="Reset and Run To Line"><img src="images/resetandrun.png"></button>
-<!--      <button id="dbg_stepout" type="submit" title="Step Out of Subroutine">O</button>-->
+    <button id="dbg_stepout" type="submit" title="Step Out of Subroutine">RTS</button>
+    <button id="dbg_stepback" type="submit" title="Step Backwards">&lt;&lt;</button>
     <button id="dbg_timing" type="submit" title="See Timing" style="display:none"><img src="images/timing.png"></button>
     <button id="dbg_disasm" type="submit" title="Toggle Disassembly">#</button>
   </span>

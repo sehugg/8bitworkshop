@@ -14,6 +14,8 @@ var AtariVectorPlatform = function(mainElement) {
   var switches = new RAM(16).mem;
   var nmicount = cpuCyclesPerNMI;
 
+  this.__proto__ = new Base6502Platform();
+
   this.getPresets = function() {
     return ATARIVEC_PRESETS;
   }
@@ -70,10 +72,10 @@ var AtariVectorPlatform = function(mainElement) {
       // 262.5 scanlines per frame
       var iaddr = 0x4000;
       var iofs = 0;
-      breakClock = -1;
+      var debugCond = self.getDebugCallback();
       clock = 0;
       for (var i=0; i<cpuCyclesPerFrame; i++) {
-        if (debugCondition && breakClock < 0 && debugCondition()) { breakClock = clock; }
+        if (debugCond && debugCond()) { debugCond = null; }
         clock++;
         if (--nmicount == 0)  {
           //console.log("NMI", cpu.saveState());
@@ -100,15 +102,11 @@ var AtariVectorPlatform = function(mainElement) {
         37: 8+7,
       };
       var addr = KEY2ADDR[key];
-      console.log(key,flags,addr);
+      //console.log(key,flags,addr);
       if (addr >= 0) {
         switches[addr] = (flags&1) ? 0xff : 0x00;
       }
     });
-  }
-
-  this.getOpcodeMetadata = function(opcode, offset) {
-    return Javatari.getOpcodeMetadata(opcode, offset); // TODO
   }
 
   this.loadROM = function(title, data) {
@@ -137,85 +135,8 @@ var AtariVectorPlatform = function(mainElement) {
     this.clearDebug();
     cpu.reset();
   }
-  this.getOriginPC = function() {
-    return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
-  }
   this.readAddress = function(addr) {
     return bus.read(addr);
-  }
-
-  var onBreakpointHit;
-  var debugCondition;
-  var debugSavedState = null;
-  var debugBreakState = null;
-  var debugTargetClock = 0;
-  var debugClock = 0;
-  var debugFrameStartClock = 0;
-  var breakClock;
-
-  this.setDebugCondition = function(debugCond) {
-    if (debugSavedState) {
-      self.loadState(debugSavedState);
-    } else {
-      debugSavedState = self.saveState();
-    }
-    debugClock = 0;
-    debugCondition = debugCond;
-    self.resume();
-  }
-  this.setupDebug = function(callback) {
-    onBreakpointHit = callback;
-  }
-  this.clearDebug = function() {
-    debugSavedState = null;
-    debugTargetClock = 0;
-    debugClock = 0;
-    debugFrameStartClock = 0;
-    onBreakpointHit = null;
-    debugCondition = null;
-  }
-  this.breakpointHit = function() {
-    debugBreakState = self.saveState();
-    console.log("Breakpoint at clk", debugClock, "PC", debugBreakState.c.PC.toString(16));
-    this.pause();
-    if (onBreakpointHit) {
-      onBreakpointHit(debugBreakState);
-    }
-  }
-  this.step = function() {
-    var previousPC = -1;
-    self.setDebugCondition(function() {
-      if (debugClock++ >= debugTargetClock) {
-        var thisState = cpu.saveState();
-        if (previousPC < 0) {
-          previousPC = thisState.PC;
-        } else {
-          if (thisState.PC != previousPC && thisState.T == 0) {
-            //console.log(previousPC.toString(16), thisPC.toString(16));
-            debugTargetClock = debugClock-1;
-            self.breakpointHit();
-            return true;
-          }
-        }
-      }
-      return false;
-    });
-  }
-  this.runEval = function(evalfunc) {
-    var self = this;
-    self.setDebugCondition(function() {
-      if (debugClock++ > debugTargetClock) {
-        var cpuState = cpu.saveState();
-        cpuState.PC = (cpuState.PC-1)&0xffff;
-        if (evalfunc(cpuState)) {
-          self.breakpointHit();
-          debugTargetClock = debugClock;
-          return true;
-        } else {
-          return false;
-        }
-      }
-    });
   }
 
   this.loadState = function(state) {
@@ -234,6 +155,9 @@ var AtariVectorPlatform = function(mainElement) {
   }
   this.getRAMForState = function(state) {
     return state.cb;
+  }
+  this.getCPUState = function() {
+    return cpu.saveState();
   }
 }
 

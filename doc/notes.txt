@@ -20,5 +20,9 @@ TODO:
 - some units test maybe
 - can't step after reset (or when funky frame; TIA frame is out of sync)
 - break on BRK/illegal opcode?
-- start analysis from vector address
+- last used filename for each platform
+- skeleton for each platform/tool
+- disassembler/debugger
+- multiple breakpoints, expression breakpoints
+
 
