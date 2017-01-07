@@ -263,7 +263,7 @@ function arrayCompare(a,b) {
 
 worker.onmessage = function(e) {
   // errors?
-  var toolbar = $("#notebook");
+  var toolbar = $("#controls_top");
   if (e.data.listing.errors.length > 0) {
     toolbar.addClass("has-errors");
     editor.clearGutter("gutter-info");
@@ -806,6 +806,7 @@ try {
       platform_id = qs['platform'] = "vcs";
     }
     // load and start platform object
+    // TODO: self-register platforms
     if (platform_id == 'vcs') {
       platform = new VCSPlatform();
       $("#booklink_vcs").show();
@@ -813,6 +814,8 @@ try {
       platform = new Apple2Platform($("#emulator")[0]);
     } else if (platform_id == 'atarivec') {
       platform = new AtariVectorPlatform($("#emulator")[0]);
+    } else if (platform_id == 'exidy') {
+      platform = new ExidyPlatform($("#emulator")[0]);
     } else {
       alert("Platform " + platform_id + " not recognized");
     }
