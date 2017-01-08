@@ -51,7 +51,15 @@ var editor = CodeMirror(document.getElementById('editor'), {
   tabSize: 8,
   gutters: ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"],
 });
-//editor.setSize("100%", "95%"); // TODO
+var disasmview = CodeMirror(document.getElementById('disassembly'), {
+  mode: '6502',
+  theme: 'cobalt',
+  tabSize: 8,
+  readOnly: true,
+  styleActiveLine: true,
+  gutters: ["gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"],
+});
+
 editor.on('changes', function(ed, changeobj) {
   var text = editor.getValue() || "";
   setCode(text);
@@ -705,17 +713,49 @@ function showLoopTimingForCurrentLine() {
 function updateDisassembly() {
   var div = $("#disassembly");
   if (div.is(':visible')) {
-    div.empty();
+    disasmview.clearGutter("gutter-info");
+    disasmview.clearGutter("gutter-bytes");
+    disasmview.clearGutter("gutter-offset");
+    disasmview.clearGutter("gutter-clock");
     var state = lastDebugState || platform.saveState();
     var mem = state.b;
     var pc = state.c.PC;
-    var disasm = new Disassembler6502().disassemble(mem, pc, pc+128, pcvisits);
-    var s = "";
-    for (a in disasm) {
-      var line = hex(parseInt(a)) + " " + disasm[a] + "\n";
-      s += line;
+    var gutters = [];
+    var selline = 0;
+    // TODO: not perfect disassembler
+    function disassemble(start, end) {
+      if (start < 0) start = 0;
+      if (end > mem.length) end = mem.length;
+      var disasm = new Disassembler6502().disassemble(mem, start, end, pcvisits);
+      var s = "";
+      for (a in disasm) {
+        var srclinenum = offset2line[a];
+        if (srclinenum) {
+          var srcline = editor.getLine(srclinenum-1);
+          if (srcline && srcline.trim().length) {
+            s += "; " + srclinenum + ":\t" + srcline + "\n";
+            gutters.push([a]);
+          }
+        }
+        var dline = hex(parseInt(a)) + "\t" + disasm[a] + "\n";
+        s += dline;
+        if (a == pc) selline = gutters.length;
+        gutters.push([]);
+      }
+      return s;
     }
-    $("<pre></pre>").appendTo(div).text(s);
+    var text = disassemble(pc-96, pc) + disassemble(pc, pc+96);
+    disasmview.setValue(text);
+    /*
+    for (var i=0; i<gutters.length; i++) {
+      var g = gutters[i];
+      if (g[0]) disasmview.setGutterMarker(i, "gutter-offset", hex(g[0]));
+    }
+    */
+    disasmview.setCursor(selline, 0);
+    // TODO: need to refresh when viewport changes
+    var scrinfo = disasmview.getScrollInfo();
+    disasmview.scrollTo(0, (scrinfo.height-scrinfo.clientHeight)/2);
   }
 }
 

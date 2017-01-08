@@ -181,6 +181,7 @@ function compilePLASMA(code) {
   FS.writeFile("main.pla", code);
   Module.callMain(["-A"]);
   //console.log("plasm", code.length, "->", outstr.length);
+  console.log(outstr);
   return assembleACME(outstr);
 }
 
@@ -260,7 +261,7 @@ function compileCC65(code, platform) {
   var FS = CC65['FS'];
   setupFS(FS);
   FS.writeFile("main.c", code, {encoding:'utf8'});
-  CC65.callMain(['-v', '-T', '-g', '-Oirs', '-I', '/share/include', '-t', platform, "main.c"]);
+  CC65.callMain(['-v', '-T', '-g', '-Cl', '-Oirs', '-I', '/share/include', '-t', platform, "main.c"]);
   var asmout = FS.readFile("main.s", {encoding:'utf8'});
   return assemblelinkCA65(asmout, platform);
 }
