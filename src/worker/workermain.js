@@ -1,5 +1,5 @@
-
 "use strict";
+
 // set up require.js for worker
 importScripts("dasm.js");
 importScripts("acme.js");
@@ -158,8 +158,8 @@ function assembleACME(code) {
   var asym = FS.readFile("a.sym", {'encoding':'utf8'}); // TODO
   console.log("acme", code.length, "->", aout.length);
   //console.log(aout);
-  console.log(alst);
-  console.log(asym);
+  console.log(alst); // TODO
+  console.log(asym); // TODO
   var listing = parseDASMListing(alst, unresolved);
   return {exitstatus:Module.EXITSTATUS, output:aout, listing:listing};
 }
@@ -181,7 +181,8 @@ function compilePLASMA(code) {
   FS.writeFile("main.pla", code);
   Module.callMain(["-A"]);
   //console.log("plasm", code.length, "->", outstr.length);
-  console.log(outstr);
+  outstr = "INTERP = $e044\n" + outstr; // TODO
+  console.log(outstr); // TODO
   return assembleACME(outstr);
 }
 
