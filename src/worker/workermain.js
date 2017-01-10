@@ -8,6 +8,22 @@ importScripts("cc65.js");
 importScripts("ca65.js");
 importScripts("ld65.js");
 
+// shim out window and document objects for security
+// https://github.com/mbostock/d3/issues/1053
+var noop = function() { return new Function(); };
+var window = noop();
+window.CSSStyleDeclaration = noop();
+window.CSSStyleDeclaration.setProperty = noop();
+window.Element = noop();
+window.Element.setAttribute = noop();
+window.Element.setAttributeNS = noop();
+window.navigator = noop();
+var document = noop();
+document.documentElement = noop();
+document.documentElement.style = noop();
+
+
+// load filesystems for CC65 and others asynchronously
 var fsMeta, fsBlob;
 {
   var xhr = new XMLHttpRequest();
@@ -23,6 +39,7 @@ var fsMeta, fsBlob;
   console.log("Loaded filesystem", fsMeta.files.length, 'files', fsBlob.size, 'bytes');
 }
 
+// mount the filesystem at /share
 function setupFS(FS) {
   FS.mkdir('/share');
   FS.mount(FS.filesystems['WORKERFS'], {
@@ -30,21 +47,7 @@ function setupFS(FS) {
   }, '/share');
 }
 
-// shim out window and document objects
-// https://github.com/mbostock/d3/issues/1053
-var noop = function() { return new Function(); };
-
-var window = noop();
-window.CSSStyleDeclaration = noop();
-window.CSSStyleDeclaration.setProperty = noop();
-window.Element = noop();
-window.Element.setAttribute = noop();
-window.Element.setAttributeNS = noop();
-window.navigator = noop();
-
-var document = noop();
-document.documentElement = noop();
-document.documentElement.style = noop();
+// main worker start
 
 var DASM_MAIN_FILENAME = "main.a";
 var DASM_PREAMBLE = "\tprocessor 6502\n";
@@ -129,48 +132,81 @@ function assembleDASM(code) {
   FS.writeFile(DASM_MAIN_FILENAME, DASM_PREAMBLE + code);
   Module.callMain([DASM_MAIN_FILENAME, "-v3", "-la.lst"]);
   var aout = FS.readFile("a.out");
-  //console.log(aout);
   var alst = FS.readFile("a.lst", {'encoding':'utf8'});
-  //console.log(alst);
   var listing = parseDASMListing(alst, unresolved);
-  return {exitstatus:Module.EXITSTATUS, output:aout.slice(2), listing:listing};
+  return {
+    exitstatus:Module.EXITSTATUS,
+    output:aout.slice(2),
+    listing:listing,
+    intermediate:{listing:alst},
+  };
 }
 
 // TODO: not quite done
 function assembleACME(code) {
-  var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/; // TODO: modify for acme
-  var unresolved = {};
+  // stderr
+  var re_err2 = /(Error|Warning) - File (.+?), line (\d+) ([^:]+) (.*)/;
+  var errors = [];
+  var errline = 0;
   function match_fn(s) {
-    var matches = re_usl.exec(s);
+    var matches = re_err2.exec(s);
     if (matches) {
-      unresolved[matches[1]] = 0;
+      errors.push({
+        line:1, // TODO: parseInt(matches[3]),
+        msg:matches[0] // TODO: matches[5]
+      });
     }
   }
   var Module = ACME({
     noInitialRun:true,
-    print:match_fn
+    print:match_fn,
+    printErr:match_fn
   });
   var FS = Module['FS'];
   FS.writeFile("main.a", code);
   Module.callMain(["-o", "a.out", "-r", "a.rpt", "-l", "a.sym", "--setpc", "24576", "main.a"]);
+  if (errors.length) {
+    return {listing:{errors:errors}};
+  }
   var aout = FS.readFile("a.out");
   var alst = FS.readFile("a.rpt", {'encoding':'utf8'}); // TODO
   var asym = FS.readFile("a.sym", {'encoding':'utf8'}); // TODO
-  console.log("acme", code.length, "->", aout.length);
-  //console.log(aout);
-  console.log(alst); // TODO
-  console.log(asym); // TODO
-  var listing = parseDASMListing(alst, unresolved);
-  return {exitstatus:Module.EXITSTATUS, output:aout, listing:listing};
+  var listing = parseDASMListing(alst, {}); // TODO
+  return {
+    exitstatus:Module.EXITSTATUS,
+    output:aout,
+    listing:listing,
+    intermediate:{listing:alst, symbols:asym},
+  };
 }
 
 function compilePLASMA(code) {
+  // stdout
   var outstr = "";
   function out_fn(s) { outstr += s; outstr += "\n"; }
+  // stderr
+  var re_err1 = /\s*(\d+):.*/;
+  var re_err2 = /Error: (.*)/;
+  var errors = [];
+  var errline = 0;
+  function match_fn(s) {
+    var matches = re_err1.exec(s);
+    if (matches) {
+      errline = parseInt(matches[1]);
+    }
+    matches = re_err2.exec(s);
+    if (matches) {
+      errors.push({
+        line:errline,
+        msg:matches[1]
+      });
+    }
+  }
   var Module = PLASM({
     noInitialRun:true,
     noFSInit:true,
-    print:out_fn
+    print:out_fn,
+    printErr:match_fn,
   });
   var FS = Module['FS'];
   var i = 0;
@@ -180,13 +216,20 @@ function compilePLASMA(code) {
   );
   FS.writeFile("main.pla", code);
   Module.callMain(["-A"]);
-  //console.log("plasm", code.length, "->", outstr.length);
   outstr = "INTERP = $e044\n" + outstr; // TODO
-  console.log(outstr); // TODO
+  if (errors.length) {
+    return {listing:{errors:errors}};
+  }
   return assembleACME(outstr);
 }
 
-function parseCA65Listing(code, unresolved) {
+function parseCA65Listing(code, mapfile) {
+  // CODE                  00603E  00637C  00033F  00001
+  var mapMatch = /^CODE\s+([0-9A-F]+)/m.exec(mapfile);
+  var codeofs = 0x6000;
+  if (mapMatch) {
+    var codeofs = parseInt(mapMatch[1], 16);
+  }
   // .dbg	line, "main.c", 1
   var dbgLineMatch = /([0-9a-fA-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+line,\s+\S+,\s+(\d+)/;
   var errors = [];
@@ -199,7 +242,7 @@ function parseCA65Listing(code, unresolved) {
       var linenum = parseInt(linem[4]);
       lines.push({
         line:linenum,
-        offset:offset + 0x6048, //TODO: use map file
+        offset:offset + codeofs,
         insns:null
       });
       //console.log(linem, lastlinenum, lines[lines.length-1]);
@@ -208,14 +251,14 @@ function parseCA65Listing(code, unresolved) {
   return {lines:lines, errors:errors};
 }
 
-function assemblelinkCA65(code, platform) {
+function assemblelinkCA65(code, platform, warnings) {
   if (!platform)
     platform = 'apple2'; // TODO
   var objout, lstout;
   {
     var CA65 = ca65({
       noInitialRun:true,
-      logReadFiles:true,
+      //logReadFiles:true,
       print:print_fn,
       printErr:print_fn,
       //locateFile: function(s) { return "" + s; },
@@ -229,7 +272,7 @@ function assemblelinkCA65(code, platform) {
   }{
     var LD65 = ld65({
       noInitialRun:true,
-      logReadFiles:true,
+      //logReadFiles:true,
       print:print_fn,
       printErr:print_fn,
       //locateFile: function(s) { return "" + s; },
@@ -242,29 +285,49 @@ function assemblelinkCA65(code, platform) {
       '-t', platform, '-o', 'main', '-m', 'main.map', 'main.o', platform+'.lib']);
     var aout = FS.readFile("main", {encoding:'binary'});
     var mapout = FS.readFile("main.map", {encoding:'utf8'});
-    // CODE                  00603E  00637C  00033F  00001
-    console.log(lstout);
-    console.log(mapout);
-    return {exitstatus:LD65.EXITSTATUS, output:aout.slice(4), listing:parseCA65Listing(lstout)};
+    return {
+      exitstatus:LD65.EXITSTATUS,
+      output:aout.slice(4),
+      listing:parseCA65Listing(lstout, mapout),
+      intermediate:{listing:lstout, map:mapout},
+    };
   }
 }
 
 function compileCC65(code, platform) {
   if (!platform)
     platform = 'apple2'; // TODO
+  // stderr
+  var re_err1 = /.*?(\d+).*?: (.+)/;
+  var errors = [];
+  var errline = 0;
+  function match_fn(s) {
+    var matches = re_err1.exec(s);
+    if (matches) {
+      errline = parseInt(matches[1]);
+      errors.push({
+        line:errline,
+        msg:matches[2]
+      });
+    }
+  }
   var CC65 = cc65({
     noInitialRun:true,
-    logReadFiles:true,
+    //logReadFiles:true,
     print:print_fn,
-    printErr:print_fn,
+    printErr:match_fn,
     //locateFile: function(s) { return "" + s; },
   });
   var FS = CC65['FS'];
   setupFS(FS);
   FS.writeFile("main.c", code, {encoding:'utf8'});
-  CC65.callMain(['-v', '-T', '-g', '-Cl', '-Oirs', '-I', '/share/include', '-t', platform, "main.c"]);
-  var asmout = FS.readFile("main.s", {encoding:'utf8'});
-  return assemblelinkCA65(asmout, platform);
+  CC65.callMain(['-v', '-T', '-g', /*'-Cl',*/ '-Oirs', '-I', '/share/include', '-t', platform, "main.c"]);
+  try {
+    var asmout = FS.readFile("main.s", {encoding:'utf8'});
+    return assemblelinkCA65(asmout, platform, errors);
+  } catch(e) {
+    return {listing:{errors:errors}};
+  }
 }
 
 var tools = {
@@ -279,7 +342,6 @@ onmessage = function(e) {
   var toolfn = tools[e.data.tool];
   if (!toolfn) throw "no tool named " + e.data.tool;
   var result = toolfn(code);
-  //console.log("RESULT", result);
   if (result) {
     postMessage(result);
   }
