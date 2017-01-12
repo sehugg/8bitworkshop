@@ -36,7 +36,7 @@ var fsMeta, fsBlob;
   xhr.open("GET", "fs65.js.metadata", false);  // synchronous request
   xhr.send(null);
   fsMeta = xhr.response;
-  console.log("Loaded filesystem", fsMeta.files.length, 'files', fsBlob.size||fsBlob.length, 'bytes');
+  console.log("Loaded filesystem", fsMeta.files.length, 'files', fsBlob.size, 'bytes');
 }
 
 // mount the filesystem at /share
@@ -53,7 +53,10 @@ var DASM_MAIN_FILENAME = "main.a";
 var DASM_PREAMBLE = "\tprocessor 6502\n";
 var DASM_PREAMBLE_LINES = 1;
 
-var print_fn = function(s) { console.log(s); }
+var print_fn = function(s) {
+  console.log(s);
+  //console.log(new Error().stack);
+}
 
 function parseDASMListing(code, unresolved) {
   var errorMatch = /main.a [(](\d+)[)]: error: (.+)/;
