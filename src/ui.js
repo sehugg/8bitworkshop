@@ -73,8 +73,8 @@ function getCurrentPresetTitle() {
 }
 
 function setLastPreset(id) {
-  localStorage.setItem("__lastid", id);
   localStorage.setItem("__lastplatform", platform_id);
+  localStorage.setItem("__lastid_"+platform_id, id);
 }
 
 function updatePreset(current_preset_id, text) {
@@ -906,7 +906,8 @@ try {
       updateSelector();
     } else {
       // try to load last file
-      var lastid = localStorage.getItem("__lastid");
+      var lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
+      localStorage.removeItem("__lastid");
       gotoPresetNamed(lastid || PRESETS[0].id);
     }
   }
