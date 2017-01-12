@@ -175,7 +175,7 @@ var Apple2Platform = function(mainElement) {
       ap2disp.updateScreen();
       video.updateFrame();
       soundstate = 0; // to prevent clicking
-      // TODO: reset debug state
+      self.restartDebugState(); // reset debug start state
     });
   }
 

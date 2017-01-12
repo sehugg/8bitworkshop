@@ -36,7 +36,7 @@ var fsMeta, fsBlob;
   xhr.open("GET", "fs65.js.metadata", false);  // synchronous request
   xhr.send(null);
   fsMeta = xhr.response;
-  console.log("Loaded filesystem", fsMeta.files.length, 'files', fsBlob.size, 'bytes');
+  console.log("Loaded filesystem", fsMeta.files.length, 'files', fsBlob.size||fsBlob.length, 'bytes');
 }
 
 // mount the filesystem at /share
@@ -339,9 +339,10 @@ var tools = {
 
 onmessage = function(e) {
   var code = e.data.code;
+  var platform = e.data.platform;
   var toolfn = tools[e.data.tool];
   if (!toolfn) throw "no tool named " + e.data.tool;
-  var result = toolfn(code);
+  var result = toolfn(code, platform);
   if (result) {
     postMessage(result);
   }

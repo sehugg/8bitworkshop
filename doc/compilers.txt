@@ -1,0 +1,56 @@
+
+cc65 - A fairly mature C compiler + toolchain for the 6502 family with lots of target
+platforms and an extensive library. The code generation is
+not great, using the AX register pair and a parameter stack for local variables that has to be
+indirect-indexed (you can make locals static with an option, but I found
+this introduced compiler bugs.)
+
+LCC - A small retargetable C compiler released in 1994, most notoriously
+used to compile bytecode for the QuakeC language. It doesn't generate 6502
+code, but it probably could -- although optimizations are weak.
+There's an older port to the 65C816.
+
+ACK - This ancient compiler used for Minix has a lot of frontends and backends, and is designed
+for small-register CISC CPUs. There's a 6500 backend but I couldn't get it
+working. Looks like it could be resurrected though. There's an intermediate
+file for each step of the pipeline.
+
+PCC - An early C compiler from the days of UNIX, now updated to C99.
+There's a 16-bit target (x86) and the backends looks pretty simple.
+http://pcc.ludd.ltu.se/internals/pass2/
+
+SDCC - A mature compiler that supports lots of microcontrollers including
+the Z80. This is probably the best candidate for porting to 6502,
+but the backends are bespoke works of evil genius and there's precious little documentation.
+(I wonder if you could post-process the HC08 output to 6502, since they're similar in some ways.)
+
+LLVM-6502 - Someone uploaded this to Github. I got it to build, but the code
+generated wasn't comprehensible.
+
+osXdk - A fork of the Oric SDK. The C compiler has a weird design which
+emits bytecode and then uses a C preprocessor to expand the macros
+into 6502 assembler.
+
+PLASMA - Language + VM, sort of like SWEET16 meets
+Java. Simple, concise code base. Pretty fast too, in the same ballpark as
+CC65. Focused on the Apple I/II/III family.
+
+Atalan - Rule-based language/assembler with support for multiple 8-bit
+platforms. Looks promising, but I had problems with it crashing, and it
+lacks documentation/test cases. Atari-focused.
+
+Macross/Slinky - A macro cross-assembler developed by Chip Morningstar at
+Lucasfilm Ltd.  for use in the game Habitat.  Billed as "An assembler for
+people who hate assembly language."
+
+NESHLA - A high-level assembler in the same spirit as Macross, but with
+NES-specific features.
+
+WLA-DX - Some other weird cross-assembler with lots of CPU targets.
+
+z88dk - A Small C-derived cross-compiler for the Z80, supporting 20 target
+machines.
+
+SWEET16 - Woz's tiny bytecode interpreter on the Apple ][ integer BASIC ROM.
+Still emcumbered by Apple's copyright for the foreseeable future.
+http://6502.org/source/interpreters/sweet16.htm

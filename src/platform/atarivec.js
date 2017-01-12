@@ -87,6 +87,7 @@ var AtariVectorPlatform = function(mainElement) {
         cpu.clockPulse();
         //cpu.executeInstruction();
       }
+      self.restartDebugState();
     });
     video.setKeyboardEvents(function(key,code,flags) {
       var KEY2ADDR = {

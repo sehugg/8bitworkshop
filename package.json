@@ -1,10 +1,30 @@
 {
-  "name": "RetroConsole",
+  "name": "8bitworkshop",
   "version": "0.0.1",
   "author": "Steven Hugg",
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
-    "browserify": "^13.0.0"
-  }
+    "mocha": "^3.2.0"
+  },
+  "description": "8bitworkshop.com",
+  "main": "main.js",
+  "directories": {
+    "doc": "doc",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sehugg/8bitworkshop.git"
+  },
+  "keywords": [
+    "8bit"
+  ],
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/sehugg/8bitworkshop/issues"
+  },
+  "homepage": "https://github.com/sehugg/8bitworkshop#readme"
 }

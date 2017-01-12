@@ -319,7 +319,6 @@ var Base6502Platform = function() {
   var debugBreakState = null;
   var debugTargetClock = 0;
   var debugClock = 0;
-  var debugFrameStartClock = 0;
 
   this.setDebugCondition = function(debugCond) {
     if (debugSavedState) {
@@ -331,6 +330,13 @@ var Base6502Platform = function() {
     debugCondition = debugCond;
     this.resume();
   }
+  this.restartDebugState = function() {
+    if (debugCondition && !debugBreakState) {
+      debugSavedState = this.saveState();
+      debugTargetClock -= debugClock;
+      debugClock = 0;
+    }
+  }
   this.getDebugCallback = function() {
     return debugCondition;
   }
@@ -341,7 +347,6 @@ var Base6502Platform = function() {
     debugSavedState = null;
     debugTargetClock = 0;
     debugClock = 0;
-    debugFrameStartClock = 0;
     onBreakpointHit = null;
     debugCondition = null;
   }
@@ -354,6 +359,7 @@ var Base6502Platform = function() {
       onBreakpointHit(debugBreakState);
     }
   }
+  // TODO: lower bound of clock value
   this.step = function() {
     var self = this;
     var previousPC = -1;
