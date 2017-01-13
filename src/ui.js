@@ -1,5 +1,11 @@
 "use strict";
 
+// 8bitworkshop IDE user interface
+
+var PRESETS; // presets array
+var platform_id;
+var platform; // platform object
+
 var FileStore = function(storage, prefix) {
   var self = this;
   this.saveFile = function(name, text) {
@@ -9,15 +15,22 @@ var FileStore = function(storage, prefix) {
     return storage.getItem(prefix + name) || storage.getItem(name);
   }
   this.getFiles = function(prefix2) {
+    // rename items for compatibility
+    for (var i = 0; i < storage.length; i++) {
+      var key = storage.key(i);
+      if (key.startsWith(prefix2) && platform_id == 'vcs') {
+        this.saveFile(key, storage.getItem(key));
+        storage.removeItem(key);
+        console.log("Renamed",key,'to',prefix+key);
+        i=-1; // reset loop
+      }
+    }
+    // iterate over files with <platform>/<dir> prefix
     var files = [];
     for (var i = 0; i < storage.length; i++) {
       var key = storage.key(i);
       if (key.startsWith(prefix + prefix2)) {
         var name = key.substring(prefix.length + prefix2.length);
-        files.push(name);
-      }
-      else if (key.startsWith(prefix2)) {
-        var name = key.substring(prefix2.length);
         files.push(name);
       }
     }
@@ -29,8 +42,6 @@ var FileStore = function(storage, prefix) {
   }
 }
 
-// 8bitworkshop IDE user interface
-
 var worker = new Worker("./src/worker/workermain.js");
 var current_output = null;
 var current_preset_index = -1; // TODO: use URL
@@ -40,8 +51,6 @@ var line2offset = null;
 var pcvisits;
 var trace_pending_at_pc;
 var store;
-
-var PRESETS, platform, platform_id;
 
 var CODE = 'code1';
 var editor = CodeMirror(document.getElementById('editor'), {

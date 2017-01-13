@@ -7,6 +7,8 @@ importScripts("plasm.js");
 importScripts("cc65.js");
 importScripts("ca65.js");
 importScripts("ld65.js");
+importScripts("z80asm.js");
+importScripts("sdcc.js");
 
 // shim out window and document objects for security
 // https://github.com/mbostock/d3/issues/1053
@@ -56,6 +58,22 @@ var DASM_PREAMBLE_LINES = 1;
 var print_fn = function(s) {
   console.log(s);
   //console.log(new Error().stack);
+}
+
+// test.c(6) : warning 85: in function main unreferenced local variable : 'x'
+var re_msvc = /(.*?)[(](\d+)[)]\s*:\s*(\w+)\s*(\d+):\s*(.*)/;
+var msvc_errors;
+
+function match_msvc(s) {
+  var matches = re_msvc.exec(s);
+  console.log(s, matches);
+  if (matches) {
+    errline = parseInt(matches[1]);
+    errors.push({
+      line:errline,
+      msg:matches[2]
+    });
+  }
 }
 
 function parseDASMListing(code, unresolved) {
@@ -167,20 +185,28 @@ function assembleACME(code) {
   });
   var FS = Module['FS'];
   FS.writeFile("main.a", code);
+  // TODO: --msvc
   Module.callMain(["-o", "a.out", "-r", "a.rpt", "-l", "a.sym", "--setpc", "24576", "main.a"]);
   if (errors.length) {
     return {listing:{errors:errors}};
   }
   var aout = FS.readFile("a.out");
-  var alst = FS.readFile("a.rpt", {'encoding':'utf8'}); // TODO
-  var asym = FS.readFile("a.sym", {'encoding':'utf8'}); // TODO
-  var listing = parseDASMListing(alst, {}); // TODO
+  var alst = FS.readFile("a.rpt", {'encoding':'utf8'});
+  var asym = FS.readFile("a.sym", {'encoding':'utf8'});
+  var listing = parseDASMListing(alst, {});
   return {
     exitstatus:Module.EXITSTATUS,
     output:aout,
     listing:listing,
     intermediate:{listing:alst, symbols:asym},
   };
+}
+
+function setupStdin(fs, code) {
+  var i = 0;
+  fs.init(
+    function() { return i<code.length ? code.charCodeAt(i++) : null; }
+  );
 }
 
 function compilePLASMA(code) {
@@ -212,12 +238,9 @@ function compilePLASMA(code) {
     printErr:match_fn,
   });
   var FS = Module['FS'];
-  var i = 0;
   var output = [];
-  FS.init(
-    function() { return i<code.length ? code.charCodeAt(i++) : null; }
-  );
-  FS.writeFile("main.pla", code);
+  setupStdin(FS, code);
+  //FS.writeFile("main.pla", code);
   Module.callMain(["-A"]);
   outstr = "INTERP = $e044\n" + outstr; // TODO
   if (errors.length) {
@@ -333,11 +356,85 @@ function compileCC65(code, platform) {
   }
 }
 
+function assembleZ80ASM(code, platform) {
+  if (!platform)
+    platform = 'apple2'; // TODO
+  var Module = z80asm({
+    noInitialRun:true,
+    //logReadFiles:true,
+    print:print_fn,
+    printErr:print_fn,
+    //locateFile: function(s) { return "" + s; },
+  });
+  var FS = Module['FS'];
+  //setupFS(FS);
+  // changes for dialect
+  code = code.replace(".optsdcc -mz80","");
+  code = code.replace(/\tXREF /gi,"\tEXTERN ");
+  code = code.replace(/\tXDEF /gi,"\tPUBLIC ");
+  FS.writeFile("main.asm", code);
+  try {
+    Module.callMain(["-b", "-s", "-l", "-m", "main.asm"]);
+    try {
+      var aerr = FS.readFile("main.err", {'encoding':'utf8'}); // TODO
+      console.log("ERRORS", aerr); // TODO
+      // Warning at file 'test.asm' line 9: 'XREF' is deprecated, use 'EXTERN' instead
+    } catch (e) {
+    }
+/*
+77    0000              ;test.c:5: return 0;
+78    0000  21 00 00    	ld	hl,$0000
+*/
+    var alst = FS.readFile("main.lst", {'encoding':'utf8'}); // TODO
+/*
+_main                           = 0000, G: test
+l_main00101                     = 0003, L: test
+*/
+    var amap = FS.readFile("main.map", {'encoding':'utf8'}); // TODO
+    var aout = FS.readFile("main.bin", {'encoding':'binary'});
+    var listing = parseDASMListing(alst, {}); // TODO
+    return {
+      exitstatus:Module.EXITSTATUS,
+      output:aout,
+      listing:listing,
+      intermediate:{listing:alst, mapfile:amap},
+    };
+  } catch (e) {
+    throw Error(e);
+  }
+}
+
+function compileSDCC(code, platform) {
+  var SDCC = sdcc({
+    noInitialRun:true,
+    noFSInit:true,
+    //logReadFiles:true,
+    print:print_fn,
+    printErr:match_msvc,
+    //locateFile: function(s) { return "" + s; },
+  });
+  var FS = SDCC['FS'];
+  setupStdin(FS, code);
+  setupFS(FS);
+  //FS.writeFile("main.c", code, {encoding:'utf8'});
+  msvc_errors = [];
+  SDCC.callMain(['--vc', '--c1mode', '--std-sdcc99', '--fomit-frame-pointer',
+    '-mz80', '--asm=z80asm', '-o', 'test.asm']);
+  try {
+    var asmout = FS.readFile("test.asm", {encoding:'utf8'});
+    return assembleZ80ASM(asmout, platform, msvc_errors);
+  } catch(e) {
+    return {listing:{errors:msvc_errors}};
+  }
+}
+
 var tools = {
   'dasm': assembleDASM,
   'plasm': compilePLASMA,
   'cc65': compileCC65,
   'ca65': assemblelinkCA65,
+  'z80asm': assembleZ80ASM,
+  'sdcc': compileSDCC,
 }
 
 onmessage = function(e) {

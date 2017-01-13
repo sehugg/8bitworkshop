@@ -73,7 +73,7 @@ function compile(tool, code, callback, outlen) {
 }
 
 describe('Worker', function() {
-  it('should compile DASM', function(done) {
+  it('should assemble DASM', function(done) {
     compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo lda #0\n', done, 2);
   });
   it('should compile PLASMA', function(done) {
@@ -81,5 +81,11 @@ describe('Worker', function() {
   });
   it('should compile CC65', function(done) {
     compile('cc65', '#include <stdio.h>\nint main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', done, 2947);
+  });
+  it('should assemble Z80ASM', function(done) {
+    compile('z80asm', '\tMODULE test\n\tXREF _puts\n\tld	hl,$0000\n\tret\n', done, 4);
+  });
+  it('should compile SDCC', function(done) {
+    compile('sdcc', 'int main(int argc) {\nint x=1; int y=2;\nreturn x+y+argc;\n}', done, 16);
   });
 });

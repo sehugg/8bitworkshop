@@ -1,0 +1,5 @@
+This is a test harness for the z80 unit tests shipped with Fuse.
+
+Pasting the contents of tests.in into the top input box and clicking 'run tests'
+should (after hanging your browser for a few seconds) yield something
+approximating to tests.expected in the second box.
