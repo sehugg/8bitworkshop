@@ -1,6 +1,6 @@
 "use strict";
 
-require('../../src/cpu/z80.js');
+require('../../../src/cpu/z80.js');
 
 var _global = window;
 
@@ -196,8 +196,8 @@ function hexWord(num) {
 
 var fs = require('fs');
 var assert = require('assert');
-var testsIn = fs.readFileSync('test/z80/tests.in', {encoding:'utf8'}).split('\n\n');
-var testsExpected = fs.readFileSync('test/z80/tests.expected', {encoding:'utf8'}).split('\n\n');
+var testsIn = fs.readFileSync('test/cli/z80/tests.in', {encoding:'utf8'}).split('\n\n');
+var testsExpected = fs.readFileSync('test/cli/z80/tests.expected', {encoding:'utf8'}).split('\n\n');
 assert(testsIn.length == testsExpected.length);
 
 describe('Z80 CPU', function() {

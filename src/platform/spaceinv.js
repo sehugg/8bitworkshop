@@ -15,7 +15,7 @@ var SpaceInvadersPlatform = function(mainElement) {
   this.__proto__ = new BaseZ80Platform();
 
   var cpu, ram, membus, iobus, rom;
-  var video, audio, timer, pixels;
+  var video, audio, timer, pixels, displayPCs;
   var inputs = [0xe,0x8,0x0];
   var bitshift_offset = 0;
   var bitshift_register = 0;
@@ -54,6 +54,7 @@ var SpaceInvadersPlatform = function(mainElement) {
 
   this.start = function() {
     ram = new RAM(0x2000);
+    displayPCs = new Uint16Array(new ArrayBuffer(0x2000*2));
     membus = {
       read: function(address) {
         if (address < 0x2000) {
@@ -74,6 +75,7 @@ var SpaceInvadersPlatform = function(mainElement) {
             var ofs = (address - 0x400)*8;
             for (var i=0; i<8; i++)
               pixels[ofs+i] = (value & (1<<i)) ? PIXEL_ON : PIXEL_OFF;
+            displayPCs[address] = cpu.getPC(); // save program counter
           }
         }
       },
@@ -137,15 +139,20 @@ var SpaceInvadersPlatform = function(mainElement) {
     timer = new AnimationTimer(60, function() {
 			if (!self.isRunning())
 				return;
-      cpu.setTstates(0);
       var debugCond = self.getDebugCallback();
+      var targetTstates = cpu.getTstates();
       for (var sl=0; sl<224; sl++) {
-        var targetTstates = cpu.getTstates() + cpuCyclesPerLine;
+        targetTstates += cpuCyclesPerLine;
         if (debugCond) {
           while (cpu.getTstates() < targetTstates) {
-            if (debugCond && debugCond()) { debugCond = null; }
+            if (debugCond && debugCond()) {
+              debugCond = null;
+              break;
+            }
             cpu.runFrame(cpu.getTstates() + 1);
           }
+          if (!debugCond)
+            break;
         } else {
           cpu.runFrame(targetTstates);
         }
@@ -159,7 +166,7 @@ var SpaceInvadersPlatform = function(mainElement) {
         console.log("WATCHDOG FIRED"); // TODO: alert on video
         self.reset();
       }
-      //self.restartDebugState();
+      self.restartDebugState();
     });
   }
 

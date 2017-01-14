@@ -47,7 +47,7 @@ var RasterVideo = function(mainElement, width, height, options) {
     ctx = canvas.getContext('2d');
     imageData = ctx.createImageData(width, height);
     var buf = new ArrayBuffer(imageData.data.length);
-    buf8 = new Uint8ClampedArray(buf);
+    buf8 = new Uint8Array(buf); // TODO: Uint8ClampedArray
     datau32 = new Uint32Array(buf);
   }
 
@@ -235,8 +235,10 @@ var SampleAudio = function(clockfreq) {
   function createContext() {
     if ( typeof AudioContext !== 'undefined') {
       self.context = new AudioContext();
-    } else {
+    } else if (typeof webkitAudioContext !== 'undefined' ){
       self.context = new webkitAudioContext();
+    } else {
+      return;
     }
     self.sr=self.context.sampleRate;
     self.bufferlen=(self.sr > 44100) ? 4096 : 2048;
@@ -514,15 +516,14 @@ var BaseZ80Platform = function() {
     debugCondition = debugCond;
     this.resume();
   }
-  /*
   this.restartDebugState = function() {
     if (debugCondition && !debugBreakState) {
-      debugTargetClock -= cpu.getTstates();
-      cpu.setTstates(0);
       debugSavedState = this.saveState();
+      debugTargetClock -= debugSavedState.tstates;
+      debugSavedState.tstates = 0;
+      this.loadState(debugSavedState);
     }
   }
-  */
   this.getDebugCallback = function() {
     return debugCondition;
   }

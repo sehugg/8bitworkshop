@@ -14,7 +14,9 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "mocha --recursive"
+    "test": "npm run test-node && npm run test-browser",
+    "test-node": "mocha --recursive test/cli",
+    "test-browser": "mocha-phantomjs ./testemu.html"
   },
   "repository": {
     "type": "git",
