@@ -264,3 +264,5 @@ var DVGStateMachine = function(bus, video) {
     }
   }
 }
+
+PLATFORMS['atarivec'] = AtariVectorPlatform;

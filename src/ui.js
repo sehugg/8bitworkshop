@@ -16,6 +16,9 @@ if (typeof window.onerror == "object") {
     };
 }
 
+// make sure VCS doesn't start
+Javatari.AUTO_START = false;
+
 // 8bitworkshop IDE user interface
 
 var PRESETS; // presets array
@@ -860,44 +863,35 @@ if (qs['sharekey']) {
     window.location = "?" + $.param(qs);
   }, 'text');
 } else {
-  // add default platform?
-  platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
-  if (!platform_id) {
-    platform_id = qs['platform'] = "vcs";
-  }
-  // load and start platform object
-  // TODO: self-register platforms
-  if (platform_id == 'vcs') {
-    platform = new VCSPlatform();
-    $("#booklink_vcs").show();
-  } else if (platform_id == 'apple2') {
-    platform = new Apple2Platform($("#emulator")[0]);
-  } else if (platform_id == 'atarivec') {
-    platform = new AtariVectorPlatform($("#emulator")[0]);
-  } else if (platform_id == 'exidy') {
-    platform = new ExidyPlatform($("#emulator")[0]);
-  } else if (platform_id == 'spaceinv') {
-    platform = new SpaceInvadersPlatform($("#emulator")[0]);
-  } else {
-    alert("Platform " + platform_id + " not recognized");
-  }
-  store = new FileStore(localStorage, platform_id + '/');
-  PRESETS = platform.getPresets();
-  setupDebugControls();
-  platform.start();
   // reset file?
   if (qs['file'] && qs['reset']) {
     store.deleteFile(qs['file']);
     qs['reset'] = '';
     window.location = "?" + $.param(qs);
-  } else if (qs['file']) {
-    // load file
-    loadPreset(qs['file']);
-    updateSelector();
   } else {
-    // try to load last file
-    var lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
-    localStorage.removeItem("__lastid");
-    gotoPresetNamed(lastid || PRESETS[0].id);
+    // add default platform?
+    platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
+    if (!platform_id) {
+      platform_id = qs['platform'] = "vcs";
+    }
+    // load and start platform object
+    $.getScript('src/platform/' + platform_id + '.js', function() {
+      platform = new PLATFORMS[platform_id]($("#emulator")[0]);
+      console.log("loaded platform", platform_id);
+      store = new FileStore(localStorage, platform_id + '/');
+      PRESETS = platform.getPresets();
+      setupDebugControls();
+      platform.start();
+      if (qs['file']) {
+        // load file
+        loadPreset(qs['file']);
+        updateSelector();
+      } else {
+        // try to load last file
+        var lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
+        localStorage.removeItem("__lastid");
+        gotoPresetNamed(lastid || PRESETS[0].id);
+      }
+    });
   }
 }

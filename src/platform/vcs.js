@@ -114,3 +114,5 @@ var VCSPlatform = function() {
     return "\n" + dumpRAM(ram, 0x80, 0x80);
   }
 };
+
+PLATFORMS['vcs'] = VCSPlatform;

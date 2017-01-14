@@ -2,6 +2,8 @@
 
 // Emulator classes
 
+var PLATFORMS = {};
+
 function noise() {
   return (Math.random() * 256) & 0xff;
 }
@@ -39,7 +41,7 @@ var RasterVideo = function(mainElement, width, height, options) {
 
   this.create = function() {
     canvas = __createCanvas(mainElement, width, height);
-    if (options.rotate) {
+    if (options && options.rotate) {
       canvas.style.transform = "rotate("+options.rotate+"deg)";
     }
     ctx = canvas.getContext('2d');

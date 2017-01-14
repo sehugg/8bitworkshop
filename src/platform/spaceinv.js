@@ -222,3 +222,5 @@ var SpaceInvadersPlatform = function(mainElement) {
     return "\n" + dumpRAM(stack, state.c.SP, stack.length);
   }
 }
+
+PLATFORMS['spaceinv'] = SpaceInvadersPlatform;

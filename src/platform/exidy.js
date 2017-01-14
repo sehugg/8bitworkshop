@@ -192,3 +192,5 @@ var ExidyPlatform = function(mainElement) {
     return ram.mem;
   }
 };
+
+PLATFORMS['exidy'] = ExidyPlatform;
