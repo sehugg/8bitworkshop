@@ -25,6 +25,7 @@ function __createCanvas(mainElement, width, height) {
   var canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
+  canvas.style.class = "emuvideo";
   canvas.style.width = "100%";
   canvas.style.height = "100%";
   canvas.tabIndex = "-1";               // Make it focusable
@@ -40,7 +41,7 @@ var RasterVideo = function(mainElement, width, height, options) {
   var imageData, buf8, datau32;
 
   this.create = function() {
-    canvas = __createCanvas(mainElement, width, height);
+    self.canvas = canvas = __createCanvas(mainElement, width, height);
     if (options && options.rotate) {
       canvas.style.transform = "rotate("+options.rotate+"deg)";
     }
@@ -333,6 +334,8 @@ function cpuStateToLongString_6502(c) {
        + " Y " + hex(c.Y)    + "     " + "SP " + hex(c.SP) + "\n";
 }
 
+////// 6502
+
 var Base6502Platform = function() {
 
   this.getOpcodeMetadata = function(opcode, offset) {
@@ -358,6 +361,7 @@ var Base6502Platform = function() {
     }
     debugClock = 0;
     debugCondition = debugCond;
+    debugBreakState = null;
     this.resume();
   }
   this.restartDebugState = function() {
@@ -499,6 +503,8 @@ function cpuStateToLongString_Z80(c) {
        ;
 }
 
+////// Z80
+
 var BaseZ80Platform = function() {
 
   var onBreakpointHit;
@@ -514,13 +520,14 @@ var BaseZ80Platform = function() {
       debugSavedState = this.saveState();
     }
     debugCondition = debugCond;
+    debugBreakState = null;
     this.resume();
   }
   this.restartDebugState = function() {
-    if (debugCondition && !debugBreakState) {
+    if (debugCondition && !debugBreakState && debugTargetClock > 0) {
       debugSavedState = this.saveState();
-      debugTargetClock -= debugSavedState.tstates;
-      debugSavedState.tstates = 0;
+      debugTargetClock -= debugSavedState.c.tstates;
+      debugSavedState.c.tstates = 0;
       this.loadState(debugSavedState);
     }
   }

@@ -91,7 +91,7 @@ var SpaceInvadersPlatform = function(mainElement) {
           case 2:
             return inputs[addr];
           case 3:
-            return (bitshift_register << bitshift_offset) & 0xff;
+            return (bitshift_register >> (8-bitshift_offset)) & 0xff;
         }
         return 0;
     	},
@@ -124,6 +124,12 @@ var SpaceInvadersPlatform = function(mainElement) {
     video = new RasterVideo(mainElement,256,224,{rotate:-90});
     audio = new SampleAudio(cpuFrequency);
     video.create();
+		$(video.canvas).click(function(e) {
+			var x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
+			var y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height());
+			var addr = (x>>3) + (y*32) + 0x400;
+			console.log(x, y, hex(addr,4), "PC", hex(displayPCs[addr],4));
+		});
     var idata = video.getFrameData();
     video.setKeyboardEvents(function(key,code,flags) {
       var o = KEYCODE_MAP[key];
