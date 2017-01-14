@@ -35,10 +35,6 @@ var Apple2Platform = function(mainElement) {
     return APPLE2_PRESETS;
   }
 
-  function noise() {
-    return (Math.random() * 256) & 0xff;
-  }
-
   this.start = function() {
     cpu = new jt.M6502();
     ram = new RAM(0x13000); // 64K + 16K LC RAM - 4K hardware
@@ -138,8 +134,7 @@ var Apple2Platform = function(mainElement) {
     // create video/audio
     video = new RasterVideo(mainElement,280,192);
     audio = new SampleAudio(cpuFrequency);
-    video.start();
-    audio.start();
+    video.create();
     video.setKeyboardEvents(function(key,code,flags) {
       // since we're an Apple II+, we don't do lowercase
       if (flags & 1) {
@@ -158,8 +153,6 @@ var Apple2Platform = function(mainElement) {
     var colors = [0xffff0000, 0xff00ff00];
     timer = new AnimationTimer(60, function() {
       // 262.5 scanlines per frame
-      var iaddr = 0x2000;
-      var iofs = 0;
       var clock = 0;
       var debugCond = self.getDebugCallback();
       for (var sl=0; sl<262; sl++) {
@@ -252,10 +245,6 @@ var Apple2Platform = function(mainElement) {
   this.loadROM = function(title, data) {
     pgmbin = data;
     this.reset();
-  }
-
-  this.getRasterPosition = function() {
-    return {x:0, y:0};
   }
 
   this.isRunning = function() {

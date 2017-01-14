@@ -165,6 +165,14 @@ a.dropdown-toggle {
     -moz-border-radius:6px 0 6px 6px;
     border-radius:6px 0 6px 6px;
 }
+canvas {
+  image-rendering: optimizeSpeed;             /* Older versions of FF          */
+  image-rendering: -moz-crisp-edges;          /* FF 6.0+                       */
+  image-rendering: -webkit-optimize-contrast; /* Safari                        */
+  image-rendering: -o-crisp-edges;            /* OS X & Windows Opera (12.02+) */
+  image-rendering: pixelated;                 /* Awesome future-browsers       */
+  -ms-interpolation-mode: nearest-neighbor;   /* IE                            */
+}
 </style>
 </head>
 <body>
@@ -177,14 +185,14 @@ a.dropdown-toggle {
     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
       <li><a class="dropdown-item" href="#" id="item_new_file">New File...</a></li>
       <li><a class="dropdown-item" href="#" id="item_share_file">Share File...</a></li>
-      <li><a class="dropdown-item" href="#" id="item_reset_file">Reset to Original...</a></li>
+      <li><a class="dropdown-item" href="#" id="item_reset_file">Revert to Original...</a></li>
       <li class="dropdown dropdown-submenu">
           <a tabindex="-1" href="#">Platform</a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="?platform=vcs" id="item_platform_vcs">Atari VCS</a></li>
             <li><a class="dropdown-item" href="?platform=apple2" id="item_platform_apple2">Apple ][</a></li>
             <li><a class="dropdown-item" href="?platform=atarivec" id="item_platform_atarivec">Asteroids</a></li>
-            <li><a class="dropdown-item" href="?platform=exidy" id="item_platform_exidy">Exidy</a></li>
+            <li><a class="dropdown-item" href="?platform=spaceinv" id="item_platform_spaceinv">Space Invaders</a></li>
           </ul>
       </li>
       <li class="dropdown dropdown-submenu">
@@ -202,9 +210,9 @@ a.dropdown-toggle {
     <button id="dbg_go" type="button" title="Run"><img src="images/play.png"></button>
     <button id="dbg_step" type="submit" title="Step"><img src="images/singlestep.png"></button>
     <button id="dbg_toline" type="submit" title="Run To Line"><img src="images/runtoline.png"></button>
-    <button id="dbg_reset" type="submit" title="Reset and Run To Line"><img src="images/resetandrun.png"></button>
     <button id="dbg_stepout" type="submit" title="Step Out of Subroutine">RTS</button>
     <button id="dbg_stepback" type="submit" title="Step Backwards">&lt;&lt;</button>
+    <button id="dbg_reset" type="submit" title="Reset and Break"><img src="images/resetandrun.png"></button>
     <button id="dbg_timing" type="submit" title="See Timing" style="display:none"><img src="images/timing.png"></button>
     <button id="dbg_disasm" type="submit" title="Toggle Disassembly">#</button>
   </span>
@@ -261,13 +269,14 @@ a.dropdown-toggle {
 <link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
 
 <script src="javatari.js/release/javatari/javatari.js"></script>
+<script src="src/cpu/z80.js"></script>
 <script src="src/emu.js"></script>
 <script src="src/util.js"></script>
 <script src="src/disasm.js"></script>
 <script src="src/platform/vcs.js"></script>
 <script src="src/platform/apple2.js"></script>
 <script src="src/platform/atarivec.js"></script>
-<script src="src/platform/exidy.js"></script>
+<script src="src/platform/spaceinv.js"></script>
 <script src="src/ui.js"></script>
 
 </body>

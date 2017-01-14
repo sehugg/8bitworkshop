@@ -88,9 +88,29 @@ var VCSPlatform = function() {
     return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
   }
   this.readAddress = function(addr) {
-    return current_output[addr - 0xf000]; // TODO: use bus to read
+    return current_output[addr & 0xfff]; // TODO: use bus to read
+  }
+  this.runUntilReturn = function() {
+    var depth = 1;
+    self.runEval(function(c) {
+      if (depth <= 0 && c.T == 0)
+        return true;
+      if (c.o == 0x20)
+        depth++;
+      else if (c.o == 0x60 || c.o == 0x40)
+        --depth;
+      return false;
+    });
+  }
+  this.cpuStateToLongString = function(c) {
+    return cpuStateToLongString_6502(c);
   }
   this.getRAMForState = function(state) {
     return jt.Util.byteStringToUInt8Array(atob(state.r.b));
+  }
+  this.ramStateToLongString = function(state) {
+    // TODO: customize RAM dump per-platform
+    var ram = self.getRAMForState(state);
+    return "\n" + dumpRAM(ram, 0x80, 0x80);
   }
 };

@@ -1,4 +1,16 @@
 
+function hex(v, nd) {
+  try {
+    if (!nd) nd = 2;
+    var s = v.toString(16).toUpperCase();
+    while (s.length < nd)
+      s = "0" + s;
+    return s;
+  } catch (e) {
+    return v+"";
+  }
+}
+
 function lzgmini() {
 
   // Constants

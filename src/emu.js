@@ -2,6 +2,10 @@
 
 // Emulator classes
 
+function noise() {
+  return (Math.random() * 256) & 0xff;
+}
+
 function _metakeyflags(e) {
   return (e.shiftKey?2:0) | (e.ctrlKey?4:0) | (e.altKey?8:0) | (e.metaKey?16:0);
 }
@@ -11,6 +15,8 @@ function __createCanvas(mainElement, width, height) {
   var fsElement = document.createElement('div');
   fsElement.style.position = "relative";
   fsElement.style.padding = "20px";
+  if (height > width)
+    fsElement.style.margin = "20%"; // TODO
   fsElement.style.overflow = "hidden";
   fsElement.style.background = "black";
 
@@ -31,8 +37,11 @@ var RasterVideo = function(mainElement, width, height, options) {
   var canvas, ctx;
   var imageData, buf8, datau32;
 
-  this.start = function() {
+  this.create = function() {
     canvas = __createCanvas(mainElement, width, height);
+    if (options.rotate) {
+      canvas.style.transform = "rotate("+options.rotate+"deg)";
+    }
     ctx = canvas.getContext('2d');
     imageData = ctx.createImageData(width, height);
     var buf = new ArrayBuffer(imageData.data.length);
@@ -303,6 +312,23 @@ var SampleAudio = function(clockfreq) {
   }
 }
 
+function cpuStateToLongString_6502(c) {
+  function decodeFlags(c, flags) {
+    var s = "";
+    s += c.N ? " N" : " -";
+    s += c.V ? " V" : " -";
+    s += c.D ? " D" : " -";
+    s += c.Z ? " Z" : " -";
+    s += c.C ? " C" : " -";
+  //  s += c.I ? " I" : " -";
+    return s;
+  }
+  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c) + "  " + getTIAPosString() + "\n"
+       + " A " + hex(c.A)    + "     " + (c.R ? "" : "BUSY") + "\n"
+       + " X " + hex(c.X)    + "\n"
+       + " Y " + hex(c.Y)    + "     " + "SP " + hex(c.SP) + "\n";
+}
+
 var Base6502Platform = function() {
 
   this.getOpcodeMetadata = function(opcode, offset) {
@@ -345,6 +371,7 @@ var Base6502Platform = function() {
   }
   this.clearDebug = function() {
     debugSavedState = null;
+    debugBreakState = null;
     debugTargetClock = 0;
     debugClock = 0;
     onBreakpointHit = null;
@@ -415,5 +442,171 @@ var Base6502Platform = function() {
         }
       }
     });
+  }
+  this.runUntilReturn = function() {
+    var depth = 1;
+    self.runEval(function(c) {
+      if (depth <= 0 && c.T == 0)
+        return true;
+      if (c.o == 0x20)
+        depth++;
+      else if (c.o == 0x60 || c.o == 0x40)
+        --depth;
+      return false;
+    });
+  }
+  this.disassemble = function(mem, start, end, pcvisits) {
+    return new Disassembler6502().disassemble(mem, start, end, pcvisits);
+  }
+  this.cpuStateToLongString = function(c) {
+    return cpuStateToLongString_6502(c);
+  }
+}
+
+function dumpRAM(ram, ramofs, ramlen) {
+  var s = "";
+  // TODO: show scrollable RAM for other platforms
+  for (var ofs=0; ofs<ramlen; ofs+=0x10) {
+    s += '$' + hex(ofs+ramofs) + ':';
+    for (var i=0; i<0x10; i++) {
+      if (ofs+i < ram.length) {
+        if (i == 8) s += " ";
+        s += " " + hex(ram[ofs+i]);
+      }
+    }
+    s += "\n";
+  }
+  return s;
+}
+
+function cpuStateToLongString_Z80(c) {
+  function decodeFlags(flags) {
+    var flagspec = "SZ-H-VNC";
+    var s = "";
+    for (var i=0; i<8; i++)
+      s += (flags & (128>>i)) ? flagspec.slice(i,i+1) : "-";
+    return s; // TODO
+  }
+  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.AF) + "  " + getTIAPosString() + "\n"
+       + "SP " + hex(c.SP,4) + "  IR " + hex(c.IR,4) + "\n"
+       + "IX " + hex(c.IX,4) + "  IY " + hex(c.IY,4) + "\n"
+       + "AF " + hex(c.AF,4) + "  BC " + hex(c.BC,4) + "\n"
+       + "DE " + hex(c.DE,4) + "  HL " + hex(c.HL,4) + "\n"
+       ;
+}
+
+var BaseZ80Platform = function() {
+
+  var onBreakpointHit;
+  var debugCondition;
+  var debugSavedState = null;
+  var debugBreakState = null;
+  var debugTargetClock = 0;
+
+  this.setDebugCondition = function(debugCond) {
+    if (debugSavedState) {
+      this.loadState(debugSavedState);
+    } else {
+      debugSavedState = this.saveState();
+    }
+    debugCondition = debugCond;
+    this.resume();
+  }
+  /*
+  this.restartDebugState = function() {
+    if (debugCondition && !debugBreakState) {
+      debugTargetClock -= cpu.getTstates();
+      cpu.setTstates(0);
+      debugSavedState = this.saveState();
+    }
+  }
+  */
+  this.getDebugCallback = function() {
+    return debugCondition;
+  }
+  this.setupDebug = function(callback) {
+    onBreakpointHit = callback;
+  }
+  this.clearDebug = function() {
+    debugSavedState = null;
+    debugBreakState = null;
+    debugTargetClock = 0;
+    onBreakpointHit = null;
+    debugCondition = null;
+  }
+  this.breakpointHit = function() {
+    debugBreakState = this.saveState();
+    //debugBreakState.c.PC = (debugBreakState.c.PC-1) & 0xffff;
+    console.log("Breakpoint at clk", debugBreakState.c.tstates, "PC", debugBreakState.c.PC.toString(16));
+    this.pause();
+    if (onBreakpointHit) {
+      onBreakpointHit(debugBreakState);
+    }
+  }
+  // TODO: lower bound of clock value
+  this.step = function() {
+    var self = this;
+    this.setDebugCondition(function() {
+      var cpuState = self.getCPUState();
+      if (cpuState.tstates > debugTargetClock) {
+        debugTargetClock = cpuState.tstates;
+        self.breakpointHit();
+        return true;
+      }
+      return false;
+    });
+  }
+  this.stepBack = function() {
+    var self = this;
+    var prevState;
+    var prevClock;
+    this.setDebugCondition(function() {
+      var cpuState = self.getCPUState();
+      var debugClock = cpuState.tstates;
+      if (debugClock >= debugTargetClock && prevState) {
+        self.loadState(prevState);
+        debugTargetClock = prevClock;
+        self.breakpointHit();
+        return true;
+      } else if (debugClock > debugTargetClock-20 && debugClock < debugTargetClock) {
+        prevState = self.saveState();
+        prevClock = debugClock;
+      }
+      return false;
+    });
+  }
+  this.runEval = function(evalfunc) {
+    var self = this;
+    this.setDebugCondition(function() {
+      var cpuState = self.getCPUState();
+			if (cpuState.tstates > debugTargetClock) {
+        if (evalfunc(cpuState)) {
+					debugTargetClock = cpuState.tstates;
+          self.breakpointHit();
+          return true;
+        }
+      }
+			return false;
+    });
+  }
+	this.runUntilReturn = function() {
+    var self = this;
+    var depth = 1;
+    self.runEval(function(c) {
+      if (depth <= 0)
+        return true;
+			var op = self.readAddress(c.PC);
+      if (op == 0xcd) // CALL
+        depth++;
+      else if (op == 0xc0 || op == 0xc8 || op == 0xc9 || op == 0xd0) // RET (TODO?)
+        --depth;
+      return false;
+    });
+  }
+  this.disassemble = function(mem, start, end, pcvisits) {
+    return new Disassembler6502().disassemble(mem, start, end, pcvisits);
+  }
+	this.cpuStateToLongString = function(c) {
+    return cpuStateToLongString_Z80(c);
   }
 }

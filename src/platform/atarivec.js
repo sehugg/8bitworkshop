@@ -66,7 +66,7 @@ var AtariVectorPlatform = function(mainElement) {
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGStateMachine(bus, video);
     audio = new SampleAudio(cpuFrequency);
-    video.start();
+    video.create();
     timer = new AnimationTimer(60, function() {
       video.clear();
       // 262.5 scanlines per frame

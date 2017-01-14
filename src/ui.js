@@ -1,5 +1,21 @@
 "use strict";
 
+// catch errors
+if (typeof window.onerror == "object") {
+    window.onerror = function (msgevent, url, line, col, error) {
+      console.log(msgevent, url, line, col);
+      console.log(error);
+      //$("#editor").hide();
+      if (window.location.host.endsWith('8bitworkshop.com')) {
+        ga('send', 'exception', {
+          'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
+          'exFatal': true
+        });
+      }
+      alert(msgevent+"");
+    };
+}
+
 // 8bitworkshop IDE user interface
 
 var PRESETS; // presets array
@@ -260,6 +276,7 @@ function getToolForFilename(fn) {
   if (fn.endsWith(".pla")) return "plasm";
   if (fn.endsWith(".c")) return "cc65";
   if (fn.endsWith(".s")) return "ca65";
+  if (fn.endsWith(".asm")) return "z80asm";
   return "dasm";
 }
 
@@ -323,8 +340,8 @@ worker.onmessage = function(e) {
       offset2line = {};
       line2offset = {};
       for (var info of e.data.listing.lines) {
-        if (info.offset) {
-          var textel = document.createTextNode(info.offset.toString(16));
+        if (info.offset >= 0) {
+          var textel = document.createTextNode(hex(info.offset,4));
           editor.setGutterMarker(info.line-1, "gutter-offset", textel);
           offset2line[info.offset] = info.line;
           line2offset[info.line] = info.offset;
@@ -354,7 +371,7 @@ function findLineForOffset(PC) {
   if (offset2line) {
     for (var i=0; i<256; i++) {
       var line = offset2line[PC];
-      if (line) {
+      if (line >= 0) {
         return line;
       }
       PC--;
@@ -367,36 +384,11 @@ function setCurrentLine(line) {
   editor.setSelection({line:line,ch:0}, {line:line-1,ch:0}, {scroll:true});
 }
 
-function hex(v, nd) {
-  try {
-    if (!nd) nd = 2;
-    var s = v.toString(16).toUpperCase();
-    while (s.length < nd)
-      s = "0" + s;
-    return s;
-  } catch (e) {
-    return v+"";
-  }
-}
-function decodeFlags(c, flags) {
-  var s = "";
-  s += c.N ? " N" : " -";
-  s += c.V ? " V" : " -";
-  s += c.D ? " D" : " -";
-  s += c.Z ? " Z" : " -";
-  s += c.C ? " C" : " -";
-//  s += c.I ? " I" : " -";
-  return s;
-}
-function cpuStateToLongString(c) {
-  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c) + "  " + getTIAPosString() + "\n"
-       + " A " + hex(c.A)    + "     " + (c.R ? "" : "BUSY") + "\n"
-       + " X " + hex(c.X)    + "\n"
-       + " Y " + hex(c.Y)    + "     " + "SP " + hex(c.SP) + "\n";
-}
 function getTIAPosString() {
-  var pos = platform.getRasterPosition();
-  return "V" + pos.y + " H" + pos.x;
+  if (platform.getRasterPosition) {
+    var pos = platform.getRasterPosition();
+    return "V" + pos.y + " H" + pos.x;
+  } else return "";
 }
 
 var lastDebugInfo;
@@ -431,19 +423,9 @@ function highlightDifferences(s1, s2) {
 function showMemory(state) {
   var s = "";
   if (state) {
-    s = cpuStateToLongString(state.c);
-    s += "\n";
-    var ram = platform.getRAMForState(state);
-    var ramlen = ram.length <= 128 ? 128 : 256; // TODO
-    var ramofs = ram.length == 128 ? 0x80 : 0;
-    // TODO: show scrollable RAM for other platforms
-    for (var ofs=0; ofs<ramlen; ofs+=0x10) {
-      s += '$' + hex(ofs+ramofs) + ':';
-      for (var i=0; i<0x10; i++) {
-        if (i == 8) s += " ";
-        s += " " + hex(ram[ofs+i]);
-      }
-      s += "\n";
+    s = platform.cpuStateToLongString(state.c);
+    if (platform.ramStateToLongString) {
+      s += platform.ramStateToLongString(state);
     }
     var hs = lastDebugInfo ? highlightDifferences(lastDebugInfo, s) : s;
     $("#mem_info").show().html(hs);
@@ -460,9 +442,12 @@ function setupBreakpoint() {
     lastDebugState = state;
     var PC = state.c.PC;
     var line = findLineForOffset(PC);
-    if (line) {
+    if (line >= 0) {
       console.log("BREAKPOINT", hex(PC), line);
       setCurrentLine(line);
+    } else {
+      console.log("BREAKPOINT", hex(PC));
+      // TODO: switch to disasm
     }
     pcvisits[PC] = pcvisits[PC] ? pcvisits[PC]+1 : 1;
     showMemory(state);
@@ -498,7 +483,7 @@ function runToCursor() {
   setupBreakpoint();
   var line = getCurrentLine();
   var pc = line2offset[line];
-  if (pc) {
+  if (pc >= 0) {
     console.log("Run to", line, pc.toString(16));
     platform.runEval(function(c) {
       return c.PC == pc;
@@ -508,16 +493,7 @@ function runToCursor() {
 
 function runUntilReturn() {
   setupBreakpoint();
-  var depth = 1;
-  platform.runEval(function(c) {
-    if (depth <= 0 && c.T == 0)
-      return true;
-    if (c.o == 0x20)
-      depth++;
-    else if (c.o == 0x60 || c.o == 0x40)
-      --depth;
-    return false;
-  });
+  platform.runUntilReturn();
 }
 
 function runStepBackwards() {
@@ -735,7 +711,8 @@ function updateDisassembly() {
     function disassemble(start, end) {
       if (start < 0) start = 0;
       if (end > mem.length) end = mem.length;
-      var disasm = new Disassembler6502().disassemble(mem, start, end, pcvisits);
+      // TODO: use platform.readMemory()
+      var disasm = platform.disassemble(mem, start, end, pcvisits);
       var s = "";
       for (a in disasm) {
         var srclinenum = offset2line[a];
@@ -777,11 +754,11 @@ function toggleDisassembly() {
 function resetAndDebug() {
   clearBreakpoint();
   platform.reset();
-  runToCursor();
+  platform.breakpointHit();
 }
 
 function _breakExpression() {
-  var exprs = window.prompt("Enter break expression", "c.PC == 0x6000");
+  var exprs = window.prompt("Enter break expression", "c.PC == 0x6000"); // TODO
   if (exprs) {
     var fn = new Function('c', 'return (' + exprs + ');');
     setupBreakpoint();
@@ -798,7 +775,10 @@ function setupDebugControls(){
   $("#dbg_stepout").click(runUntilReturn);
   $("#dbg_stepback").click(runStepBackwards);
   $("#dbg_timing").click(traceTiming);
-  $("#dbg_disasm").click(toggleDisassembly);
+  if (platform.disassemble)
+    $("#dbg_disasm").click(toggleDisassembly);
+  else
+    $("#dbg_disasm").hide();
   $("#disassembly").hide();
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
@@ -865,61 +845,59 @@ var qs = (function (a) {
 })(window.location.search.substr(1).split('&'));
 
 // start
-setupDebugControls();
 showWelcomeMessage();
 // parse query string
-try {
-  // is this a share URL?
-  if (qs['sharekey']) {
-    var sharekey = qs['sharekey'];
-    console.log("Loading shared file ", sharekey);
-    $.getJSON( ".storage/" + sharekey, function( result ) {
-      console.log(result);
-      var newid = 'shared/' + result['filename'];
-      updatePreset(newid, result['text']);
-      qs['file'] = newid;
-      delete qs['sharekey'];
-      window.location = "?" + $.param(qs);
-    }, 'text');
-  } else {
-    // add default platform?
-    platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
-    if (!platform_id) {
-      platform_id = qs['platform'] = "vcs";
-    }
-    // load and start platform object
-    // TODO: self-register platforms
-    if (platform_id == 'vcs') {
-      platform = new VCSPlatform();
-      $("#booklink_vcs").show();
-    } else if (platform_id == 'apple2') {
-      platform = new Apple2Platform($("#emulator")[0]);
-    } else if (platform_id == 'atarivec') {
-      platform = new AtariVectorPlatform($("#emulator")[0]);
-    } else if (platform_id == 'exidy') {
-      platform = new ExidyPlatform($("#emulator")[0]);
-    } else {
-      alert("Platform " + platform_id + " not recognized");
-    }
-    store = new FileStore(localStorage, platform_id + '/');
-    PRESETS = platform.getPresets();
-    platform.start();
-    // reset file?
-    if (qs['file'] && qs['reset']) {
-      store.deleteFile(qs['file']);
-      qs['reset'] = '';
-      window.location = "?" + $.param(qs);
-    } else if (qs['file']) {
-      // load file
-      loadPreset(qs['file']);
-      updateSelector();
-    } else {
-      // try to load last file
-      var lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
-      localStorage.removeItem("__lastid");
-      gotoPresetNamed(lastid || PRESETS[0].id);
-    }
+// is this a share URL?
+if (qs['sharekey']) {
+  var sharekey = qs['sharekey'];
+  console.log("Loading shared file ", sharekey);
+  $.getJSON( ".storage/" + sharekey, function( result ) {
+    console.log(result);
+    var newid = 'shared/' + result['filename'];
+    updatePreset(newid, result['text']);
+    qs['file'] = newid;
+    delete qs['sharekey'];
+    window.location = "?" + $.param(qs);
+  }, 'text');
+} else {
+  // add default platform?
+  platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
+  if (!platform_id) {
+    platform_id = qs['platform'] = "vcs";
   }
-} catch (e) {
-  alert(e+""); // TODO?
+  // load and start platform object
+  // TODO: self-register platforms
+  if (platform_id == 'vcs') {
+    platform = new VCSPlatform();
+    $("#booklink_vcs").show();
+  } else if (platform_id == 'apple2') {
+    platform = new Apple2Platform($("#emulator")[0]);
+  } else if (platform_id == 'atarivec') {
+    platform = new AtariVectorPlatform($("#emulator")[0]);
+  } else if (platform_id == 'exidy') {
+    platform = new ExidyPlatform($("#emulator")[0]);
+  } else if (platform_id == 'spaceinv') {
+    platform = new SpaceInvadersPlatform($("#emulator")[0]);
+  } else {
+    alert("Platform " + platform_id + " not recognized");
+  }
+  store = new FileStore(localStorage, platform_id + '/');
+  PRESETS = platform.getPresets();
+  setupDebugControls();
+  platform.start();
+  // reset file?
+  if (qs['file'] && qs['reset']) {
+    store.deleteFile(qs['file']);
+    qs['reset'] = '';
+    window.location = "?" + $.param(qs);
+  } else if (qs['file']) {
+    // load file
+    loadPreset(qs['file']);
+    updateSelector();
+  } else {
+    // try to load last file
+    var lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
+    localStorage.removeItem("__lastid");
+    gotoPresetNamed(lastid || PRESETS[0].id);
+  }
 }

@@ -2,7 +2,9 @@
 
 require('../../src/cpu/z80.js');
 
-global.buildZ80({
+var _global = window;
+
+_global.buildZ80({
 	applyContention: true
 });
 
@@ -92,7 +94,7 @@ function runTest(input, expected) {
 
 	var memory = Memory(dump);
 	var ioBus = IOBus();
-	var z80 = global.Z80({
+	var z80 = _global.Z80({
 		display: {},
 		memory: memory,
 		ioBus: ioBus

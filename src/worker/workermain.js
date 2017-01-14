@@ -1,15 +1,12 @@
 "use strict";
 
-// set up require.js for worker
-importScripts("dasm.js");
-importScripts("acme.js");
-importScripts("plasm.js");
-importScripts("cc65.js");
-importScripts("ca65.js");
-importScripts("ld65.js");
-importScripts("z80asm.js");
-importScripts("sdcc.js");
-
+var loaded = {}
+function load(modulename) {
+  if (!loaded[modulename]) {
+    importScripts(modulename+".js");
+    loaded[modulename] = 1;
+  }
+}
 // shim out window and document objects for security
 // https://github.com/mbostock/d3/issues/1053
 var noop = function() { return new Function(); };
@@ -49,6 +46,20 @@ function setupFS(FS) {
   }, '/share');
 }
 
+function extractErrors(strings, regex) {
+  var errors = [];
+  for (var i=0; i<strings.length; i++) {
+    var m = regex.exec(strings[i]);
+    if (m) {
+      errors.push({
+        line: m[1],
+        msg: m[2]
+      });
+    }
+  }
+  return errors;
+}
+
 // main worker start
 
 var DASM_MAIN_FILENAME = "main.a";
@@ -69,11 +80,34 @@ function match_msvc(s) {
   console.log(s, matches);
   if (matches) {
     errline = parseInt(matches[1]);
-    errors.push({
+    msvc_errors.push({
       line:errline,
       msg:matches[2]
     });
   }
+}
+
+function parseListing(code, lineMatch) {
+  var lines = [];
+  for (var line of code.split(/\r?\n/)) {
+    var linem = lineMatch.exec(line);
+    if (linem && linem[1]) {
+      var linenum = parseInt(linem[1]);
+      var filename = linem[2];
+      var offset = parseInt(linem[3], 16);
+      var insns = linem[4];
+      var restline = linem[5];
+      if (insns) {
+        lines.push({
+          line:linenum,
+          offset:offset,
+          insns:insns,
+          iscode:restline[0] != '.'
+        });
+      }
+    }
+  }
+  return lines;
 }
 
 function parseDASMListing(code, unresolved) {
@@ -137,6 +171,7 @@ function parseDASMListing(code, unresolved) {
 }
 
 function assembleDASM(code) {
+  load("dasm");
   var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
   var unresolved = {};
   function match_fn(s) {
@@ -165,6 +200,7 @@ function assembleDASM(code) {
 
 // TODO: not quite done
 function assembleACME(code) {
+  load("acme");
   // stderr
   var re_err2 = /(Error|Warning) - File (.+?), line (\d+) ([^:]+) (.*)/;
   var errors = [];
@@ -210,6 +246,7 @@ function setupStdin(fs, code) {
 }
 
 function compilePLASMA(code) {
+  load("plasm");
   // stdout
   var outstr = "";
   function out_fn(s) { outstr += s; outstr += "\n"; }
@@ -278,6 +315,8 @@ function parseCA65Listing(code, mapfile) {
 }
 
 function assemblelinkCA65(code, platform, warnings) {
+  load("ca65");
+  load("ld65");
   if (!platform)
     platform = 'apple2'; // TODO
   var objout, lstout;
@@ -321,6 +360,7 @@ function assemblelinkCA65(code, platform, warnings) {
 }
 
 function compileCC65(code, platform) {
+  load("cc65");
   if (!platform)
     platform = 'apple2'; // TODO
   // stderr
@@ -357,6 +397,7 @@ function compileCC65(code, platform) {
 }
 
 function assembleZ80ASM(code, platform) {
+  load("z80asm");
   if (!platform)
     platform = 'apple2'; // TODO
   var Module = z80asm({
@@ -364,6 +405,7 @@ function assembleZ80ASM(code, platform) {
     //logReadFiles:true,
     print:print_fn,
     printErr:print_fn,
+    TOTAL_MEMORY:64*1024*1024,
     //locateFile: function(s) { return "" + s; },
   });
   var FS = Module['FS'];
@@ -377,7 +419,9 @@ function assembleZ80ASM(code, platform) {
     Module.callMain(["-b", "-s", "-l", "-m", "main.asm"]);
     try {
       var aerr = FS.readFile("main.err", {'encoding':'utf8'}); // TODO
-      console.log("ERRORS", aerr); // TODO
+      if (aerr.length) {
+        return {listing:{errors:extractErrors(aerr.split("\n"), /.+? line (\d+): (.+)/)}};
+      }
       // Warning at file 'test.asm' line 9: 'XREF' is deprecated, use 'EXTERN' instead
     } catch (e) {
     }
@@ -396,15 +440,19 @@ l_main00101                     = 0003, L: test
     return {
       exitstatus:Module.EXITSTATUS,
       output:aout,
-      listing:listing,
+      listing:{
+        errors:[],
+        lines:parseListing(alst, /(\d+)(\s+)([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+([A-Z_.].+)/i)
+      },
       intermediate:{listing:alst, mapfile:amap},
     };
   } catch (e) {
-    throw Error(e);
+    throw (e);
   }
 }
 
 function compileSDCC(code, platform) {
+  load("sdcc");
   var SDCC = sdcc({
     noInitialRun:true,
     noFSInit:true,

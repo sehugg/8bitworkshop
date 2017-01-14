@@ -47,9 +47,8 @@ var ExidyPlatform = function(mainElement) {
     cpu.connectBus(bus);
     // create video/audio
     video = new RasterVideo(mainElement,256,256);
-    video.start();
+    video.create();
     audio = new SampleAudio(cpuFrequency); // TODO
-    audio.start();
     var idata = video.getFrameData();
     timer = new AnimationTimer(60, function() {
       var clock = 0;
