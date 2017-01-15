@@ -109,7 +109,6 @@ var VCSPlatform = function() {
     return jt.Util.byteStringToUInt8Array(atob(state.r.b));
   }
   this.ramStateToLongString = function(state) {
-    // TODO: customize RAM dump per-platform
     var ram = self.getRAMForState(state);
     return "\n" + dumpRAM(ram, 0x80, 0x80);
   }

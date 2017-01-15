@@ -107,6 +107,28 @@ function parseListing(code, lineMatch, iline, ioffset, iinsns) {
   return lines;
 }
 
+function parseSourceLines(code, lineMatch, offsetMatch) {
+  var lines = [];
+  var lastlinenum = 0;
+  for (var line of code.split(/\r?\n/)) {
+    var linem = lineMatch.exec(line);
+    if (linem && linem[1]) {
+      lastlinenum = parseInt(linem[1]);
+    } else if (lastlinenum) {
+      var linem = offsetMatch.exec(line);
+      if (linem && linem[1]) {
+        var offset = parseInt(linem[1], 16);
+        lines.push({
+          line:lastlinenum,
+          offset:offset,
+        });
+        lastlinenum = 0;
+      }
+    }
+  }
+  return lines;
+}
+
 function parseDASMListing(code, unresolved) {
   var errorMatch = /main.a [(](\d+)[)]: error: (.+)/;
   //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
@@ -323,7 +345,6 @@ function assemblelinkCA65(code, platform, warnings) {
       //logReadFiles:true,
       print:print_fn,
       printErr:print_fn,
-      //locateFile: function(s) { return "" + s; },
     });
     var FS = CA65['FS'];
     setupFS(FS);
@@ -337,7 +358,6 @@ function assemblelinkCA65(code, platform, warnings) {
       //logReadFiles:true,
       print:print_fn,
       printErr:print_fn,
-      //locateFile: function(s) { return "" + s; },
     });
     var FS = LD65['FS'];
     setupFS(FS);
@@ -379,7 +399,6 @@ function compileCC65(code, platform) {
     //logReadFiles:true,
     print:print_fn,
     printErr:match_fn,
-    //locateFile: function(s) { return "" + s; },
   });
   var FS = CC65['FS'];
   setupFS(FS);
@@ -395,13 +414,13 @@ function compileCC65(code, platform) {
 
 function assembleZ80ASM(code, platform, ccompile) {
   load("z80asm");
+  var origin = 0; // TODO: configurable
   var Module = z80asm({
     noInitialRun:true,
     //logReadFiles:true,
     print:print_fn,
     printErr:print_fn,
     TOTAL_MEMORY:64*1024*1024,
-    //locateFile: function(s) { return "" + s; },
   });
   var FS = Module['FS'];
   //setupFS(FS);
@@ -410,10 +429,9 @@ function assembleZ80ASM(code, platform, ccompile) {
   code = code.replace(/^(\w+)\s*=/gim,"DEFC $1 =");
   code = code.replace(/\tXREF /gi,"\tEXTERN ");
   code = code.replace(/\tXDEF /gi,"\tPUBLIC ");
-  //console.log(code.split("\n"));
   FS.writeFile("main.asm", code);
   try {
-    Module.callMain(["-b", "-s", "-l", "-m", "main.asm"]);
+    Module.callMain(["-b", "-s", "-l", "-m", "-g", "--origin=" + origin.toString(16), "main.asm"]);
     try {
       var aerr = FS.readFile("main.err", {'encoding':'utf8'}); // TODO
       if (aerr.length) {
@@ -433,13 +451,14 @@ l_main00101                     = 0003, L: test
 */
     var amap = FS.readFile("main.map", {'encoding':'utf8'}); // TODO
     var aout = FS.readFile("main.bin", {'encoding':'binary'});
-    var asmlines = parseListing(alst, /(\d+)(\s+)([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+([A-Z_.].+)/i, 1, 2, 3);
-    var srclines = parseListing(alst, /(\d+)\s+([0-9A-F]+)\s+;[(]null[)]:(\d+)/i, 3, 2, 1);
+    var asmlines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/i, 1, 2, 3, 4);
+    var srclines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+;[(]null[)]:(\d+)/i, 3, 2, 1);
     return {
       exitstatus:Module.EXITSTATUS,
       output:aout,
       errors:[],
       lines:ccompile ? srclines : asmlines,
+      listing:ccompile ? asmlines : null,
       intermediate:{listing:alst, mapfile:amap},
     };
   } catch (e) {
@@ -447,31 +466,142 @@ l_main00101                     = 0003, L: test
   }
 }
 
+var PLATFORM_PARAMS = {
+  'spaceinv': {
+    code_start: 0x0,
+    code_size: 0x2000,
+    data_start: 0x2000,
+    data_size: 0x400,
+  },
+};
+
+function hexToArray(s, ofs) {
+  var buf = new ArrayBuffer(s.length/2);
+  var arr = new Uint8Array(buf);
+  for (var i=0; i<arr.length; i++) {
+    arr[i] = parseInt(s.slice(i*2+ofs,i*2+ofs+2), 16);
+  }
+  return arr;
+}
+
+function parseIHX(ihx, code_start, code_size) {
+  var output = new Uint8Array(new ArrayBuffer(code_size));
+  for (var s of ihx.split("\n")) {
+    if (s[0] == ':') {
+      var arr = hexToArray(s, 1);
+      var count = arr[0];
+      var address = (arr[1]<<8) + arr[2] - code_start;
+      var rectype = arr[3];
+      if (rectype == 0) {
+        for (var i=0; i<count; i++) {
+          var b = arr[4+i];
+          output[i+address] = b;
+        }
+      } else if (rectype == 1) {
+        return output;
+      }
+    }
+  }
+}
+
+function assemblelinkSDASZ80(code, platform, ccompile) {
+  load("sdasz80");
+  load("sdldz80");
+  var objout, lstout, symout;
+  var params = PLATFORM_PARAMS[platform];
+  if (!params) throw Error("Platform not supported: " + platform);
+  {
+    msvc_errors = [];
+    //var match_re = /in line (\d+) of (.+)/; // TODO
+    var match_re = / <\w> (.+)/; // TODO
+    function match_fn(s) {
+      var matches = match_re.exec(s);
+      if (matches) {
+        var errline = parseInt(matches[1]);
+        msvc_errors.push({
+          line:1, // TODO: errline,
+          msg:matches[1]
+        });
+      }
+    }
+    var ASZ80 = sdasz80({
+      noInitialRun:true,
+      //logReadFiles:true,
+      print:match_fn,
+      printErr:match_fn,
+    });
+    var FS = ASZ80['FS'];
+    FS.writeFile("main.asm", code, {encoding:'utf8'});
+    ASZ80.callMain(['-plosgffwy', 'main.asm']);
+    if (msvc_errors.length) {
+      return {errors:msvc_errors};
+    }
+    objout = FS.readFile("main.rel", {encoding:'utf8'});
+    lstout = FS.readFile("main.lst", {encoding:'utf8'});
+    symout = FS.readFile("main.sym", {encoding:'utf8'});
+  }{
+    var LDZ80 = sdldz80({
+      noInitialRun:true,
+      //logReadFiles:true,
+      print:match_msvc,
+      printErr:function() { },
+    });
+    var FS = LDZ80['FS'];
+    FS.writeFile("main.rel", objout, {encoding:'utf8'});
+    //FS.writeFile("main.lst", lstout, {encoding:'utf8'});
+    LDZ80.callMain(['-mjwx', '-i', 'main.ihx', '-y',
+      '-b', '_CODE=0x'+params.code_start.toString(16),
+      '-b', '_DATA=0x'+params.data_start.toString(16),
+      //'-k', '/usr/share/sdcc/lib/z80',
+      //'-l', 'z80',
+      'main.rel']);
+    var hexout = FS.readFile("main.ihx", {encoding:'utf8'});
+    var mapout = FS.readFile("main.noi", {encoding:'utf8'});
+    var dbgout = FS.readFile("main.cdb", {encoding:'utf8'});
+    //   0000 21 02 00      [10]   52 	ld	hl, #2
+    // TODO: offset by start address?
+    var asmlines = parseListing(lstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2, 5, 3);
+    var srclines = parseSourceLines(lstout, /^\s+\d+ ;\(null\):(\d+):/i, /^\s*([0-9A-F]{4})/i);
+    console.log(lstout); // TODO
+    return {
+      exitstatus:LDZ80.EXITSTATUS,
+      output:parseIHX(hexout, params.code_start, params.code_size),
+      lines:ccompile ? srclines : asmlines,
+      listing:ccompile ? asmlines : null,
+      errors:msvc_errors, // TODO?
+      intermediate:{listing:lstout, map:mapout, symbols:symout, debug:dbgout},
+    };
+  }
+}
+
 function compileSDCC(code, platform) {
   load("sdcc");
+  var params = PLATFORM_PARAMS[platform];
+  if (!params) throw Error("Platform not supported: " + platform);
   var SDCC = sdcc({
     noInitialRun:true,
     noFSInit:true,
-    //logReadFiles:true,
     print:print_fn,
     printErr:match_msvc,
-    //locateFile: function(s) { return "" + s; },
   });
   var FS = SDCC['FS'];
   setupStdin(FS, code);
   setupFS(FS);
   //FS.writeFile("main.c", code, {encoding:'utf8'});
   msvc_errors = [];
-  SDCC.callMain(['--vc', '--c1mode', '--std-sdcc99', '--fomit-frame-pointer',
-    '-mz80', '--asm=z80asm', '-o', 'test.asm']);
+  SDCC.callMain(['--vc', '--c1mode', '--std-sdcc99', '-mz80',
+    '--debug',
+    //'--asm=z80asm',
+    '--fomit-frame-pointer', '--opt-code-speed',
+    '-o', 'test.asm']);
   try {
     var asmout = FS.readFile("test.asm", {encoding:'utf8'});
-    var result = assembleZ80ASM(asmout, platform, true);
-    result.errors = result.errors.concat(msvc_errors);
-    return result;
   } catch(e) {
     return {errors:msvc_errors};
   }
+  var result = assemblelinkSDASZ80(asmout, platform, true);
+  result.errors = result.errors.concat(msvc_errors);
+  return result;
 }
 
 var TOOLS = {
@@ -481,6 +611,7 @@ var TOOLS = {
   'cc65': compileCC65,
   'ca65': assemblelinkCA65,
   'z80asm': assembleZ80ASM,
+  'sdasz80': assemblelinkSDASZ80,
   'sdcc': compileSDCC,
 }
 

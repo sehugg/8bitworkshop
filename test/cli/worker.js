@@ -93,12 +93,15 @@ describe('Worker', function() {
     compile('z80asm', 'ddwiuweq', 'none', done, 0, 0, 1);
   });
   it('should assemble Z80ASM', function(done) {
-    compile('z80asm', '\tMODULE test\n\tXREF _puts\n\tld	hl,$0000\n\tret\n', 'none', done, 4, 2, 0);
+    compile('z80asm', '\tMODULE test\n\tXREF _puts\n\tld	hl,$0000\n\tret\n', 'spaceinv', done, 4, 2, 0);
   });
   it('should NOT compile SDCC', function(done) {
-    compile('sdcc', 'foobar', 'none', done, 0, 0, 1);
+    compile('sdcc', 'foobar', 'spaceinv', done, 0, 0, 1);
+  });
+  it('should assemble SDASZ80', function(done) {
+    compile('sdcc', '\tMODULE test\n\tXREF _puts\n\tld	hl,$0000\n\tret\n', 'spaceinv', done, 8192, 2, 1);
   });
   it('should compile SDCC', function(done) {
-    compile('sdcc', 'int main(int argc) {\nint x=1; int y=2;\nreturn x+y+argc;\n}', 'none', done, 16, 2, 0);
+    compile('sdcc', 'int foo=0;\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}', 'spaceinv', done, 8192, 3, 0);
   });
 });

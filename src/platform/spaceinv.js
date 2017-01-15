@@ -231,8 +231,9 @@ var SpaceInvadersPlatform = function(mainElement) {
   }
 
 	this.ramStateToLongString = function(state) {
-		var stack = state.b.slice(state.c.SP & 0x1fff, 0x400);
-    return "\n" + dumpRAM(stack, state.c.SP, stack.length);
+		return "";
+		//var stack = state.b.slice(state.c.SP & 0x1fff, 0x400);
+    //return "\n" + dumpRAM(stack, state.c.SP, stack.length);
   }
 }
 
