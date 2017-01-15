@@ -202,7 +202,7 @@ function _shareFile(e) {
   $.post({
     url: 'share.php',
     data: {
-      'platform':'vcs', /// TODO
+      'platform':platform_id,
       'filename':current_preset_id.split('/').pop(),
       'text':text,
     },
@@ -275,16 +275,9 @@ function updateSelector() {
   });
 }
 
-function getToolForFilename(fn) {
-  if (fn.endsWith(".pla")) return "plasm";
-  if (fn.endsWith(".c")) return "cc65";
-  if (fn.endsWith(".s")) return "ca65";
-  if (fn.endsWith(".asm")) return "z80asm";
-  return "dasm";
-}
-
 function setCode(text) {
-  worker.postMessage({code:text, tool:getToolForFilename(current_preset_id)});
+  worker.postMessage({code:text, platform:platform_id,
+    tool:platform.getToolForFilename(current_preset_id)});
 }
 
 function arrayCompare(a,b) {
@@ -301,10 +294,10 @@ function arrayCompare(a,b) {
 worker.onmessage = function(e) {
   // errors?
   var toolbar = $("#controls_top");
-  if (e.data.listing.errors.length > 0) {
+  if (e.data.errors.length > 0) {
     toolbar.addClass("has-errors");
     editor.clearGutter("gutter-info");
-    for (info of e.data.listing.errors) {
+    for (info of e.data.errors) {
       var div = document.createElement("div");
       div.setAttribute("class", "tooltipbox tooltiperror");
       div.style.color = '#ff3333'; // TODO
@@ -342,7 +335,7 @@ worker.onmessage = function(e) {
       editor.clearGutter("gutter-clock");
       offset2line = {};
       line2offset = {};
-      for (var info of e.data.listing.lines) {
+      for (var info of e.data.lines) {
         if (info.offset >= 0) {
           var textel = document.createTextNode(hex(info.offset,4));
           editor.setGutterMarker(info.line-1, "gutter-offset", textel);

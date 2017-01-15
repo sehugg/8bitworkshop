@@ -72,14 +72,14 @@ var print_fn = function(s) {
 }
 
 // test.c(6) : warning 85: in function main unreferenced local variable : 'x'
-var re_msvc = /(.*?)[(](\d+)[)]\s*:\s*(\w+)\s*(\d+):\s*(.*)/;
+var re_msvc  = /(.*?)[(](\d+)[)]\s*:\s*(\w+)\s*(\d+):\s*(.*)/;
+var re_msvc2 = /\s*at\s+(\d+)\s*:\s*(.*)/;
 var msvc_errors;
 
 function match_msvc(s) {
-  var matches = re_msvc.exec(s);
-  console.log(s, matches);
+  var matches = re_msvc.exec(s) || re_msvc2.exec(s);
   if (matches) {
-    errline = parseInt(matches[1]);
+    var errline = parseInt(matches[1]);
     msvc_errors.push({
       line:errline,
       msg:matches[2]
@@ -87,22 +87,19 @@ function match_msvc(s) {
   }
 }
 
-function parseListing(code, lineMatch) {
+function parseListing(code, lineMatch, iline, ioffset, iinsns) {
   var lines = [];
   for (var line of code.split(/\r?\n/)) {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
-      var linenum = parseInt(linem[1]);
-      var filename = linem[2];
-      var offset = parseInt(linem[3], 16);
-      var insns = linem[4];
-      var restline = linem[5];
+      var linenum = parseInt(linem[iline]);
+      var offset = parseInt(linem[ioffset], 16);
+      var insns = linem[iinsns];
       if (insns) {
         lines.push({
           line:linenum,
           offset:offset,
           insns:insns,
-          iscode:restline[0] != '.'
         });
       }
     }
@@ -193,7 +190,8 @@ function assembleDASM(code) {
   return {
     exitstatus:Module.EXITSTATUS,
     output:aout.slice(2),
-    listing:listing,
+    lines:listing.lines,
+    errors:listing.errors,
     intermediate:{listing:alst},
   };
 }
@@ -224,16 +222,17 @@ function assembleACME(code) {
   // TODO: --msvc
   Module.callMain(["-o", "a.out", "-r", "a.rpt", "-l", "a.sym", "--setpc", "24576", "main.a"]);
   if (errors.length) {
-    return {listing:{errors:errors}};
+    return {errors:errors};
   }
   var aout = FS.readFile("a.out");
   var alst = FS.readFile("a.rpt", {'encoding':'utf8'});
   var asym = FS.readFile("a.sym", {'encoding':'utf8'});
-  var listing = parseDASMListing(alst, {});
+  var listing = parseDASMListing(alst, {}); // TODO
   return {
     exitstatus:Module.EXITSTATUS,
     output:aout,
-    listing:listing,
+    lines:listing.lines,
+    errors:listing.errors,
     intermediate:{listing:alst, symbols:asym},
   };
 }
@@ -281,7 +280,7 @@ function compilePLASMA(code) {
   Module.callMain(["-A"]);
   outstr = "INTERP = $e044\n" + outstr; // TODO
   if (errors.length) {
-    return {listing:{errors:errors}};
+    return {errors:errors};
   }
   return assembleACME(outstr);
 }
@@ -317,8 +316,6 @@ function parseCA65Listing(code, mapfile) {
 function assemblelinkCA65(code, platform, warnings) {
   load("ca65");
   load("ld65");
-  if (!platform)
-    platform = 'apple2'; // TODO
   var objout, lstout;
   {
     var CA65 = ca65({
@@ -350,10 +347,12 @@ function assemblelinkCA65(code, platform, warnings) {
       '-t', platform, '-o', 'main', '-m', 'main.map', 'main.o', platform+'.lib']);
     var aout = FS.readFile("main", {encoding:'binary'});
     var mapout = FS.readFile("main.map", {encoding:'utf8'});
+    var listing = parseCA65Listing(lstout, mapout);
     return {
       exitstatus:LD65.EXITSTATUS,
       output:aout.slice(4),
-      listing:parseCA65Listing(lstout, mapout),
+      lines:listing.lines,
+      errors:listing.errors,
       intermediate:{listing:lstout, map:mapout},
     };
   }
@@ -361,8 +360,6 @@ function assemblelinkCA65(code, platform, warnings) {
 
 function compileCC65(code, platform) {
   load("cc65");
-  if (!platform)
-    platform = 'apple2'; // TODO
   // stderr
   var re_err1 = /.*?(\d+).*?: (.+)/;
   var errors = [];
@@ -392,14 +389,12 @@ function compileCC65(code, platform) {
     var asmout = FS.readFile("main.s", {encoding:'utf8'});
     return assemblelinkCA65(asmout, platform, errors);
   } catch(e) {
-    return {listing:{errors:errors}};
+    return {errors:errors};
   }
 }
 
-function assembleZ80ASM(code, platform) {
+function assembleZ80ASM(code, platform, ccompile) {
   load("z80asm");
-  if (!platform)
-    platform = 'apple2'; // TODO
   var Module = z80asm({
     noInitialRun:true,
     //logReadFiles:true,
@@ -412,15 +407,17 @@ function assembleZ80ASM(code, platform) {
   //setupFS(FS);
   // changes for dialect
   code = code.replace(".optsdcc -mz80","");
+  code = code.replace(/^(\w+)\s*=/gim,"DEFC $1 =");
   code = code.replace(/\tXREF /gi,"\tEXTERN ");
   code = code.replace(/\tXDEF /gi,"\tPUBLIC ");
+  //console.log(code.split("\n"));
   FS.writeFile("main.asm", code);
   try {
     Module.callMain(["-b", "-s", "-l", "-m", "main.asm"]);
     try {
       var aerr = FS.readFile("main.err", {'encoding':'utf8'}); // TODO
       if (aerr.length) {
-        return {listing:{errors:extractErrors(aerr.split("\n"), /.+? line (\d+): (.+)/)}};
+        return {errors:extractErrors(aerr.split("\n"), /.+? line (\d+): (.+)/)};
       }
       // Warning at file 'test.asm' line 9: 'XREF' is deprecated, use 'EXTERN' instead
     } catch (e) {
@@ -436,14 +433,13 @@ l_main00101                     = 0003, L: test
 */
     var amap = FS.readFile("main.map", {'encoding':'utf8'}); // TODO
     var aout = FS.readFile("main.bin", {'encoding':'binary'});
-    var listing = parseDASMListing(alst, {}); // TODO
+    var asmlines = parseListing(alst, /(\d+)(\s+)([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+([A-Z_.].+)/i, 1, 2, 3);
+    var srclines = parseListing(alst, /(\d+)\s+([0-9A-F]+)\s+;[(]null[)]:(\d+)/i, 3, 2, 1);
     return {
       exitstatus:Module.EXITSTATUS,
       output:aout,
-      listing:{
-        errors:[],
-        lines:parseListing(alst, /(\d+)(\s+)([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+([A-Z_.].+)/i)
-      },
+      errors:[],
+      lines:ccompile ? srclines : asmlines,
       intermediate:{listing:alst, mapfile:amap},
     };
   } catch (e) {
@@ -470,14 +466,17 @@ function compileSDCC(code, platform) {
     '-mz80', '--asm=z80asm', '-o', 'test.asm']);
   try {
     var asmout = FS.readFile("test.asm", {encoding:'utf8'});
-    return assembleZ80ASM(asmout, platform, msvc_errors);
+    var result = assembleZ80ASM(asmout, platform, true);
+    result.errors = result.errors.concat(msvc_errors);
+    return result;
   } catch(e) {
-    return {listing:{errors:msvc_errors}};
+    return {errors:msvc_errors};
   }
 }
 
-var tools = {
+var TOOLS = {
   'dasm': assembleDASM,
+  'acme': assembleACME,
   'plasm': compilePLASMA,
   'cc65': compileCC65,
   'ca65': assemblelinkCA65,
@@ -488,7 +487,7 @@ var tools = {
 onmessage = function(e) {
   var code = e.data.code;
   var platform = e.data.platform;
-  var toolfn = tools[e.data.tool];
+  var toolfn = TOOLS[e.data.tool];
   if (!toolfn) throw "no tool named " + e.data.tool;
   var result = toolfn(code, platform);
   if (result) {

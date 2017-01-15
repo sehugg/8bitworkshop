@@ -113,6 +113,9 @@ var VCSPlatform = function() {
     var ram = self.getRAMForState(state);
     return "\n" + dumpRAM(ram, 0x80, 0x80);
   }
+  this.getToolForFilename = function(fn) {
+    return "dasm";
+  }
 };
 
 PLATFORMS['vcs'] = VCSPlatform;

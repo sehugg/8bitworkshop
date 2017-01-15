@@ -469,6 +469,12 @@ var Base6502Platform = function() {
   this.cpuStateToLongString = function(c) {
     return cpuStateToLongString_6502(c);
   }
+  this.getToolForFilename = function(fn) {
+    if (fn.endsWith(".pla")) return "plasm";
+    if (fn.endsWith(".c")) return "cc65";
+    if (fn.endsWith(".s")) return "ca65";
+    return "dasm";
+  }
 }
 
 function dumpRAM(ram, ramofs, ramlen) {
@@ -619,4 +625,14 @@ var BaseZ80Platform = function() {
 	this.cpuStateToLongString = function(c) {
     return cpuStateToLongString_Z80(c);
   }
+  this.getToolForFilename = function(fn) {
+    if (fn.endsWith(".c")) return "sdcc";
+    return "z80asm";
+  }
+}
+
+function padBytes(data, len) {
+  var r = new RAM(len);
+  r.mem.set(data);
+  return r.mem;
 }

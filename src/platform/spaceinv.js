@@ -177,7 +177,7 @@ var SpaceInvadersPlatform = function(mainElement) {
   }
 
   this.loadROM = function(title, data) {
-    rom = data;
+    rom = padBytes(data, 0x2000);
     self.reset();
   }
 
