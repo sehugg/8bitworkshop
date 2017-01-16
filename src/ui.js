@@ -74,7 +74,7 @@ var SourceFile = function(lines, text) {
   }
   this.findLineForOffset = function(PC) {
     if (this.offset2line) {
-      for (var i=0; i<256; i++) {
+      for (var i=0; i<16; i++) {
         var line = this.offset2line[PC];
         if (line >= 0) {
           return line;
@@ -200,17 +200,9 @@ function gotoPresetAt(index) {
 }
 
 function gotoPresetNamed(id) {
-  if (id.startsWith("_")) {
-    var result = eval(id+"()");
-    console.log(id, result);
-    if (!result) {
-      updateSelector();
-    }
-  } else {
-    qs['platform'] = platform_id;
-    qs['file'] = id;
-    window.location = "?" + $.param(qs);
-  }
+  qs['platform'] = platform_id;
+  qs['file'] = id;
+  window.location = "?" + $.param(qs);
 }
 
 function _createNewFile(e) {
@@ -263,7 +255,7 @@ function _resetPreset(e) {
 }
 
 function populateExamples(sel) {
-  sel.append($("<option />").text("--------- Chapters ---------"));
+  sel.append($("<option />").text("--------- Chapters ---------").attr('disabled',true));
   for (var i=0; i<PRESETS.length; i++) {
     var preset = PRESETS[i];
     var name = preset.chapter + ". " + preset.name;
@@ -272,7 +264,7 @@ function populateExamples(sel) {
 }
 
 function populateLocalFiles(sel) {
-  sel.append($("<option />").text("------- Local Files -------"));
+  sel.append($("<option />").text("------- Local Files -------").attr('disabled',true));
   var filenames = store.getFiles("local/");
   for (var i = 0; i < filenames.length; i++) {
     var name = filenames[i];
@@ -282,7 +274,7 @@ function populateLocalFiles(sel) {
 }
 
 function populateSharedFiles(sel) {
-  sel.append($("<option />").text("--------- Shared ---------"));
+  sel.append($("<option />").text("--------- Shared ---------").attr('disabled',true));
   var filenames = store.getFiles("shared/");
   for (var i = 0; i < filenames.length; i++) {
     var name = filenames[i];
@@ -354,13 +346,15 @@ worker.onmessage = function(e) {
     var rom_changed = rom && !arrayCompare(rom, current_output);
     if (rom_changed) {
       try {
-        resume();
         //console.log("Loading ROM length", rom.length);
         platform.loadROM(getCurrentPresetTitle(), rom);
+        resume();
+        // TODO: what if loadROM fails?
         current_output = rom;
         pcvisits = {};
       } catch (e) {
-        console.log(e); // TODO
+        console.log(e); // TODO: show error
+        alert("Could not load ROM: " + e);
         current_output = null;
       }
     }
@@ -381,10 +375,12 @@ worker.onmessage = function(e) {
           editor.setGutterMarker(info.line-1, "gutter-bytes", textel);
           if (info.iscode) {
             var opcode = parseInt(info.insns.split()[0], 16);
-            var meta = platform.getOpcodeMetadata(opcode, info.offset);
-            var clockstr = meta.minCycles+"";
-            var textel = document.createTextNode(clockstr);
-            editor.setGutterMarker(info.line-1, "gutter-clock", textel);
+            if (platform.getOpcodeMetadata) {
+              var meta = platform.getOpcodeMetadata(opcode, info.offset);
+              var clockstr = meta.minCycles+"";
+              var textel = document.createTextNode(clockstr);
+              editor.setGutterMarker(info.line-1, "gutter-clock", textel);
+            }
           }
         }
       }
@@ -497,8 +493,8 @@ function getCurrentLine() {
 
 function runToCursor() {
   setupBreakpoint();
-  var line = sourcefile.getCurrentLine();
-  var pc = line2offset[line];
+  var line = getCurrentLine();
+  var pc = sourcefile.line2offset[line];
   if (pc >= 0) {
     console.log("Run to", line, pc.toString(16));
     platform.runEval(function(c) {
@@ -678,8 +674,8 @@ function showLoopTimingForPC(pc) {
   // recurse through all traces
   _traceInstructions(pc | platform.getOriginPC(), MAX_CLOCKS, MAX_CLOCKS);
   // show the lines
-  for (var line in line2offset) {
-    var pc = line2offset[line];
+  for (var line in sourcefile.line2offset) {
+    var pc = sourcefile.line2offset[line];
     var minclocks = pc2minclocks[pc];
     var maxclocks = pc2maxclocks[pc];
     if (minclocks>=0 && maxclocks>=0) {
@@ -774,8 +770,10 @@ function toggleDisassembly() {
 
 function resetAndDebug() {
   clearBreakpoint();
+  platform.resume();
   platform.reset();
-  platform.breakpointHit();
+  setupBreakpoint();
+  platform.runEval(function(c) { return true; });
 }
 
 function _breakExpression() {
@@ -795,11 +793,13 @@ function setupDebugControls(){
   $("#dbg_toline").click(runToCursor);
   $("#dbg_stepout").click(runUntilReturn);
   $("#dbg_stepback").click(runStepBackwards);
-  $("#dbg_timing").click(traceTiming);
-  if (platform.disassemble)
-    $("#dbg_disasm").click(toggleDisassembly);
-  else
-    $("#dbg_disasm").hide();
+  // TODO: vcs platform seems to show them regardless
+  if (platform_id == 'vcs') {
+    $("#dbg_timing").click(traceTiming).show();
+  }
+  if (platform.disassemble) {
+    $("#dbg_disasm").click(toggleDisassembly).show();
+  }
   $("#disassembly").hide();
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
@@ -869,17 +869,19 @@ function startPlatform() {
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
   store = new FileStore(localStorage, platform_id + '/');
   PRESETS = platform.getPresets();
-  setupDebugControls();
-  platform.start();
   if (qs['file']) {
-    // load file
+    // start platform and load file
+    setupDebugControls();
+    platform.start();
     loadPreset(qs['file']);
     updateSelector();
+    return true;
   } else {
-    // try to load last file
+    // try to load last file (redirect)
     var lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
     localStorage.removeItem("__lastid");
     gotoPresetNamed(lastid || PRESETS[0].id);
+    return false;
   }
 }
 

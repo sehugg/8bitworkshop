@@ -71,17 +71,18 @@ var print_fn = function(s) {
 }
 
 // test.c(6) : warning 85: in function main unreferenced local variable : 'x'
-var re_msvc  = /(.*?)[(](\d+)[)]\s*:\s*(\w+)\s*(\d+):\s*(.*)/;
-var re_msvc2 = /\s*at\s+(\d+)\s*:\s*(.*)/;
+// main.a (4): error: Unknown Mnemonic 'xxx'.
+var re_msvc  = /([^(]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
+var re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
 var msvc_errors;
 
 function match_msvc(s) {
   var matches = re_msvc.exec(s) || re_msvc2.exec(s);
   if (matches) {
-    var errline = parseInt(matches[1]);
+    var errline = parseInt(matches[2]);
     msvc_errors.push({
       line:errline,
-      msg:matches[2]
+      msg:matches[4]
     });
   }
 }
@@ -129,9 +130,8 @@ function parseSourceLines(code, lineMatch, offsetMatch) {
 }
 
 function parseDASMListing(code, unresolved) {
-  var errorMatch = /main.a [(](\d+)[)]: error: (.+)/;
   //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
-  var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([0-9a-f][0-9a-f ]+)\s+(.+)/;
+  var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([0-9a-f][0-9a-f ]+)?\s+(.+)?/;
   var equMatch = /\bequ\b/;
   var errors = [];
   var lines = [];
@@ -157,7 +157,7 @@ function parseDASMListing(code, unresolved) {
         lastline = linenum;
       } else {
         // inside of macro or include file
-        if (linenum == -DASM_PREAMBLE_LINES) { // start of macro?
+        if (insns && linem[3] && lastline>0) {
           lines.push({
             line:lastline+1,
             offset:offset,
@@ -177,11 +177,11 @@ function parseDASMListing(code, unresolved) {
         }
       }
     }
-    var errm = errorMatch.exec(line);
+    var errm = re_msvc.exec(line);
     if (errm) {
       errors.push({
-        line:parseInt(errm[1]),
-        msg:errm[2]
+        line:parseInt(errm[2]),
+        msg:errm[4]
       })
     }
   }
@@ -204,9 +204,10 @@ function assembleDASM(code) {
   });
   var FS = Module['FS'];
   FS.writeFile(DASM_MAIN_FILENAME, DASM_PREAMBLE + code);
-  Module.callMain([DASM_MAIN_FILENAME, "-v3", "-la.lst"]);
+  Module.callMain([DASM_MAIN_FILENAME, "-la.lst"/*, "-v3", "-sa.sym"*/]);
   var aout = FS.readFile("a.out");
   var alst = FS.readFile("a.lst", {'encoding':'utf8'});
+  //var asym = FS.readFile("a.sym", {'encoding':'utf8'});
   var listing = parseDASMListing(alst, unresolved);
   return {
     output:aout.slice(2),

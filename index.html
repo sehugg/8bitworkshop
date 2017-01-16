@@ -186,6 +186,7 @@ canvas.pixelated {
       <li><a class="dropdown-item" href="#" id="item_new_file">New File...</a></li>
       <li><a class="dropdown-item" href="#" id="item_share_file">Share File...</a></li>
       <li><a class="dropdown-item" href="#" id="item_reset_file">Revert to Original...</a></li>
+      <!--
       <li class="dropdown dropdown-submenu">
           <a tabindex="-1" href="#">Platform</a>
           <ul class="dropdown-menu">
@@ -195,6 +196,7 @@ canvas.pixelated {
             <li><a class="dropdown-item" href="?platform=spaceinv" id="item_platform_spaceinv">Space Invaders</a></li>
           </ul>
       </li>
+      -->
       <li class="dropdown dropdown-submenu">
         <a tabindex="-1" href="#">Debug</a>
         <ul class="dropdown-menu">
@@ -206,15 +208,15 @@ canvas.pixelated {
   <select id="preset_select" name="">
   </select>
   <span id="debug_bar">
-    <button id="dbg_pause" type="button" title="Pause"><img src="images/pause.png"></button>
-    <button id="dbg_go" type="button" title="Run"><img src="images/play.png"></button>
-    <button id="dbg_step" type="submit" title="Step"><img src="images/singlestep.png"></button>
-    <button id="dbg_toline" type="submit" title="Run To Line"><img src="images/runtoline.png"></button>
-    <button id="dbg_stepout" type="submit" title="Step Out of Subroutine">RTS</button>
-    <button id="dbg_stepback" type="submit" title="Step Backwards">&lt;&lt;</button>
-    <button id="dbg_reset" type="submit" title="Reset and Break"><img src="images/resetandrun.png"></button>
-    <button id="dbg_timing" type="submit" title="See Timing" style="display:none"><img src="images/timing.png"></button>
-    <button id="dbg_disasm" type="submit" title="Toggle Disassembly">#</button>
+    <button id="dbg_reset" type="submit" title="Reset and Break"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></button>
+    <button id="dbg_pause" type="button" title="Pause"><span class="glyphicon glyphicon-pause" aria-hidden="true"></span></button>
+    <button id="dbg_go" type="button" title="Run"><span class="glyphicon glyphicon-play" aria-hidden="true"></span></button>
+    <button id="dbg_step" type="submit" title="Step"><span class="glyphicon glyphicon-step-forward" aria-hidden="true"></span></button>
+    <button id="dbg_toline" type="submit" title="Run To Line"><span class="glyphicon glyphicon-save" aria-hidden="true"></span></button>
+    <button id="dbg_stepout" type="submit" title="Step Out of Subroutine"><span class="glyphicon glyphicon-hand-left" aria-hidden="true"></span></button>
+    <button id="dbg_stepback" type="submit" title="Step Backwards"><span class="glyphicon glyphicon-step-backward" aria-hidden="true"></span></button>
+    <button id="dbg_timing" type="submit" title="See Timing" style="display:none"><span class="glyphicon glyphicon-time" aria-hidden="true"></span></button>
+    <button id="dbg_disasm" type="submit" title="Toggle Disassembly" style="display:none"><span class="glyphicon glyphicon-list" aria-hidden="true"></span></button>
   </span>
   <span class="dbg_info" id="dbg_info"></span>
 </div>

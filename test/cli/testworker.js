@@ -80,28 +80,43 @@ describe('Worker', function() {
   it('should assemble DASM', function(done) {
     compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo lda #0\n', 'vcs', done, 2, 1);
   });
+  it('should NOT assemble DASM', function(done) {
+    compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo xxx #0\n', 'vcs', done, 0, 0, 1);
+  });
   it('should assemble ACME', function(done) {
     compile('acme', 'foo: lda #0\n', 'vcs', done, 2, 0); // TODO
+  });
+  it('should NOT assemble ACME', function(done) {
+    compile('acme', 'foo: xxx #0\n', 'vcs', done, 0, 0, 2); // TODO
   });
   it('should compile PLASMA', function(done) {
     compile('plasm', 'word x = 0', 'apple2', done, 5, 0);
   });
+  it('should NOT compile PLASMA', function(done) {
+    compile('plasm', 'word x = ', 'apple2', done, 0, 0, 1);
+  });
   it('should compile CC65', function(done) {
     compile('cc65', '#include <stdio.h>\nint main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'apple2', done, 2947, 4);
   });
-  it('should NOT assemble Z80ASM', function(done) {
-    compile('z80asm', 'ddwiuweq', 'none', done, 0, 0, 1);
+  it('should NOT compile CC65', function(done) {
+    compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'apple2', done, 0, 0, 1);
   });
   it('should assemble Z80ASM', function(done) {
     compile('z80asm', '\tMODULE test\n\tXREF _puts\n\tld	hl,$0000\n\tret\n', 'spaceinv', done, 4, 2, 0);
   });
-  it('should NOT compile SDCC', function(done) {
-    compile('sdcc', 'foobar', 'spaceinv', done, 0, 0, 1);
+  it('should NOT assemble Z80ASM', function(done) {
+    compile('z80asm', 'ddwiuweq', 'none', done, 0, 0, 1);
   });
   it('should assemble SDASZ80', function(done) {
-    compile('sdcc', '\tMODULE test\n\tXREF _puts\n\tld	hl,$0000\n\tret\n', 'spaceinv', done, 8192, 2, 1);
+    compile('sdasz80', '\tld	hl,#0\n\tret\n', 'spaceinv', done, 8192, 2);
+  });
+  it('should NOT assemble SDASZ80', function(done) {
+    compile('sdasz80', '\txxx hl,#0\n\tret\n', 'spaceinv', done, 0, 0, 1);
   });
   it('should compile SDCC', function(done) {
     compile('sdcc', 'int foo=0;\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}', 'spaceinv', done, 8192, 3, 0);
+  });
+  it('should NOT compile SDCC', function(done) {
+    compile('sdcc', 'foobar', 'spaceinv', done, 0, 0, 1);
   });
 });

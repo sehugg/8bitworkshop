@@ -366,7 +366,7 @@ span.CodeMirror-selectedtext { background: none; }
 
 .cm-s-mbo span.cm-comment { color: #95958a; }
 .cm-s-mbo span.cm-atom { color: #00a8c6; }
-.cm-s-mbo span.cm-number { color: #00a8c6; }
+.cm-s-mbo span.cm-number { color: #33aadd; }
 
 .cm-s-mbo span.cm-property, .cm-s-mbo span.cm-attribute { color: #9ddfe9; }
 .cm-s-mbo span.cm-keyword { color: #ffb928; }
@@ -376,7 +376,7 @@ span.CodeMirror-selectedtext { background: none; }
 .cm-s-mbo span.cm-variable { color: #ffffec; }
 .cm-s-mbo span.cm-variable-2 { color: #00a8c6; }
 .cm-s-mbo span.cm-variable-3 { color: #ffb928; }
-.cm-s-mbo span.cm-def { color: #ffff88; }
+.cm-s-mbo span.cm-def { color: #88eeff; }
 .cm-s-mbo span.cm-bracket { color: #fffffc; font-weight: bold; }
 .cm-s-mbo span.cm-tag { color: #9ddfe9; }
 .cm-s-mbo span.cm-link { color: #f54b07; }
@@ -414,3 +414,7 @@ span.CodeMirror-selectedtext { background: none; }
 
 .cm-s-cobalt .CodeMirror-activeline-background { background: #003399; }
 .cm-s-cobalt .CodeMirror-matchingbracket { outline:1px solid grey;color:white !important; }
+
+/*** FIXES FOR BOOTSTRAP ***/
+
+.CodeMirror-dialog > button { background-color: #333 !important; }

@@ -15,7 +15,7 @@ var SpaceInvadersPlatform = function(mainElement) {
   this.__proto__ = new BaseZ80Platform();
 
   var cpu, ram, membus, iobus, rom;
-  var video, audio, timer, pixels, displayPCs;
+  var video, timer, pixels, displayPCs;
   var inputs = [0xe,0x8,0x0];
   var bitshift_offset = 0;
   var bitshift_register = 0;
@@ -38,16 +38,6 @@ var SpaceInvadersPlatform = function(mainElement) {
     50:{i:1,b:1}, // 2
   }
 
-  this.getOpcodeMetadata = function() {
-    return {
-      opcode:0,
-      mnenomic:'?',
-      minCycles:0,
-      maxCycles:0,
-      insnlength:1
-    };
-  }
-
   this.getPresets = function() {
     return SPACEINV_PRESETS;
   }
@@ -58,10 +48,10 @@ var SpaceInvadersPlatform = function(mainElement) {
     membus = {
       read: function(address) {
         if (address < 0x2000) {
-          return rom ? rom[address] : 0;
+          return (rom ? rom[address] : 0) & 0xff;
         } else {
           address &= 0x1fff;
-          return ram.mem[address];
+          return ram.mem[address] & 0xff;
         }
       },
       write: function(address, value) {
@@ -122,7 +112,6 @@ var SpaceInvadersPlatform = function(mainElement) {
   		ioBus: iobus
   	});
     video = new RasterVideo(mainElement,256,224,{rotate:-90});
-    audio = new SampleAudio(cpuFrequency);
     video.create();
 		$(video.canvas).click(function(e) {
 			var x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
@@ -215,11 +204,9 @@ var SpaceInvadersPlatform = function(mainElement) {
   }
   this.pause = function() {
     timer.stop();
-    audio.stop();
   }
   this.resume = function() {
     timer.start();
-    audio.start();
   }
   this.reset = function() {
     cpu.reset();

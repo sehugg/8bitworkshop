@@ -630,6 +630,8 @@ var BaseZ80Platform = function() {
     if (fn.endsWith(".s")) return "sdasz80";
     return "z80asm";
   }
+  // TODO
+  //this.getOpcodeMetadata = function() { }
 }
 
 function padBytes(data, len) {
