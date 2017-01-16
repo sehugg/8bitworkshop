@@ -61,31 +61,64 @@ var FileStore = function(storage, prefix) {
   }
 }
 
+var SourceFile = function(lines, text) {
+  lines = lines || [];
+  this.text = text;
+  this.offset2line = {};
+  this.line2offset = {};
+  for (var info of lines) {
+    if (info.offset >= 0) {
+      this.offset2line[info.offset] = info.line;
+      this.line2offset[info.line] = info.offset;
+    }
+  }
+  this.findLineForOffset = function(PC) {
+    if (this.offset2line) {
+      for (var i=0; i<256; i++) {
+        var line = this.offset2line[PC];
+        if (line >= 0) {
+          return line;
+        }
+        PC--;
+      }
+    }
+    return 0;
+  }
+}
+
+var TOOL_TO_SOURCE_STYLE = {
+  'dasm': '6502',
+  'acme': '6502',
+  'cc65': 'text/x-csrc',
+  'ca65': '6502',
+  'z80asm': 'z80',
+  'sdasz80': 'z80',
+  'sdcc': 'text/x-csrc',
+}
+
 var worker = new Worker("./src/worker/workermain.js");
 var current_output = null;
 var current_preset_index = -1; // TODO: use URL
 var current_preset_id = null;
-var offset2line = null;
-var line2offset = null;
+var assemblyfile = null;
+var sourcefile = null;
 var pcvisits;
 var trace_pending_at_pc;
 var store;
 
-var CODE = 'code1';
 var editor = CodeMirror(document.getElementById('editor'), {
-  mode: '6502',
   theme: 'mbo',
   lineNumbers: true,
+  matchBrackets: true,
   tabSize: 8,
   gutters: ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"],
 });
 var disasmview = CodeMirror(document.getElementById('disassembly'), {
-  mode: '6502',
+  mode: 'z80',
   theme: 'cobalt',
   tabSize: 8,
   readOnly: true,
-  styleActiveLine: true,
-  gutters: ["gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"],
+  styleActiveLine: true
 });
 
 editor.on('changes', function(ed, changeobj) {
@@ -111,10 +144,13 @@ function updatePreset(current_preset_id, text) {
   }
 }
 
-function loadCode(text) {
+function loadCode(text, fileid) {
   editor.setValue(text);
   current_output = null;
   setCode(text);
+  setLastPreset(fileid);
+  var tool = platform.getToolForFilename(fileid);
+  editor.setOption("mode", tool && TOOL_TO_SOURCE_STYLE[tool]);
 }
 
 function loadFile(fileid, filename, index) {
@@ -122,8 +158,7 @@ function loadFile(fileid, filename, index) {
   current_preset_index = index;
   var text = store.loadFile(fileid)|| "";
   if (text) {
-    loadCode(text);
-    setLastPreset(fileid);
+    loadCode(text, fileid);
   } else if (!text && index >= 0) {
     filename += ".a";
     console.log("Loading preset", fileid, filename, index, PRESETS[index]);
@@ -131,14 +166,12 @@ function loadFile(fileid, filename, index) {
       console.log("Fetching", filename);
       $.get( filename, function( text ) {
         console.log("GET",text.length,'bytes');
-        loadCode(text);
-        setLastPreset(fileid);
+        loadCode(text, fileid);
       }, 'text');
     }
   } else {
     $.get( "presets/"+platform_id+"/skeleton.a", function( text ) {
-      loadCode(text);
-      setLastPreset(fileid);
+      loadCode(text, fileid);
       updatePreset(fileid, text);
     }, 'text');
   }
@@ -294,6 +327,10 @@ function arrayCompare(a,b) {
 worker.onmessage = function(e) {
   // errors?
   var toolbar = $("#controls_top");
+  sourcefile = new SourceFile(e.data.lines);
+  if (e.data.asmlines) {
+    assemblyfile = new SourceFile(e.data.asmlines, e.data.intermediate.listing);
+  }
   if (e.data.errors.length > 0) {
     toolbar.addClass("has-errors");
     editor.clearGutter("gutter-info");
@@ -333,14 +370,10 @@ worker.onmessage = function(e) {
       editor.clearGutter("gutter-bytes");
       editor.clearGutter("gutter-offset");
       editor.clearGutter("gutter-clock");
-      offset2line = {};
-      line2offset = {};
       for (var info of e.data.lines) {
         if (info.offset >= 0) {
           var textel = document.createTextNode(hex(info.offset,4));
           editor.setGutterMarker(info.line-1, "gutter-offset", textel);
-          offset2line[info.offset] = info.line;
-          line2offset[info.line] = info.offset;
         }
         if (info.insns) {
           var insnstr = info.insns.length > 8 ? ("...") : info.insns;
@@ -361,19 +394,6 @@ worker.onmessage = function(e) {
     }
   }
   trace_pending_at_pc = null;
-}
-
-function findLineForOffset(PC) {
-  if (offset2line) {
-    for (var i=0; i<256; i++) {
-      var line = offset2line[PC];
-      if (line >= 0) {
-        return line;
-      }
-      PC--;
-    }
-  }
-  return 0;
 }
 
 function setCurrentLine(line) {
@@ -437,7 +457,7 @@ function setupBreakpoint() {
   platform.setupDebug(function(state) {
     lastDebugState = state;
     var PC = state.c.PC;
-    var line = findLineForOffset(PC);
+    var line = sourcefile.findLineForOffset(PC);
     if (line >= 0) {
       console.log("BREAKPOINT", hex(PC), line);
       setCurrentLine(line);
@@ -477,7 +497,7 @@ function getCurrentLine() {
 
 function runToCursor() {
   setupBreakpoint();
-  var line = getCurrentLine();
+  var line = sourcefile.getCurrentLine();
   var pc = line2offset[line];
   if (pc >= 0) {
     console.log("Run to", line, pc.toString(16));
@@ -691,16 +711,29 @@ function showLoopTimingForCurrentLine() {
 }
 */
 
+function jumpToLine(ed, i) {
+    var t = ed.charCoords({line: i, ch: 0}, "local").top;
+    var middleHeight = ed.getScrollerElement().offsetHeight / 2;
+    ed.scrollTo(null, t - middleHeight - 5);
+}
+
 function updateDisassembly() {
   var div = $("#disassembly");
   if (div.is(':visible')) {
-    disasmview.clearGutter("gutter-info");
-    disasmview.clearGutter("gutter-bytes");
-    disasmview.clearGutter("gutter-offset");
-    disasmview.clearGutter("gutter-clock");
     var state = lastDebugState || platform.saveState();
     var mem = state.b;
     var pc = state.c.PC;
+    if (assemblyfile && assemblyfile.text) {
+      disasmview.setValue(assemblyfile.text);
+      if (platform.getDebugCallback()) {
+        var lineno = assemblyfile.findLineForOffset(pc);
+        if (lineno) {
+          disasmview.setCursor(lineno-1, 0);
+          jumpToLine(disasmview, lineno-1);
+        }
+      }
+      return;
+    }
     var gutters = [];
     var selline = 0;
     // TODO: not perfect disassembler
@@ -711,7 +744,7 @@ function updateDisassembly() {
       var disasm = platform.disassemble(mem, start, end, pcvisits);
       var s = "";
       for (a in disasm) {
-        var srclinenum = offset2line[a];
+        var srclinenum = sourcefile.offset2line[a];
         if (srclinenum) {
           var srcline = editor.getLine(srclinenum-1);
           if (srcline && srcline.trim().length) {
@@ -728,16 +761,8 @@ function updateDisassembly() {
     }
     var text = disassemble(pc-96, pc) + disassemble(pc, pc+96);
     disasmview.setValue(text);
-    /*
-    for (var i=0; i<gutters.length; i++) {
-      var g = gutters[i];
-      if (g[0]) disasmview.setGutterMarker(i, "gutter-offset", hex(g[0]));
-    }
-    */
     disasmview.setCursor(selline, 0);
-    // TODO: need to refresh when viewport changes
-    var scrinfo = disasmview.getScrollInfo();
-    disasmview.scrollTo(0, (scrinfo.height-scrinfo.clientHeight)/2);
+    jumpToLine(disasmview, selline);
   }
 }
 

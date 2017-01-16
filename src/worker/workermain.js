@@ -21,7 +21,6 @@ var document = noop();
 document.documentElement = noop();
 document.documentElement.style = noop();
 
-
 // load filesystems for CC65 and others asynchronously
 var fsMeta, fsBlob;
 {
@@ -210,7 +209,6 @@ function assembleDASM(code) {
   var alst = FS.readFile("a.lst", {'encoding':'utf8'});
   var listing = parseDASMListing(alst, unresolved);
   return {
-    exitstatus:Module.EXITSTATUS,
     output:aout.slice(2),
     lines:listing.lines,
     errors:listing.errors,
@@ -251,7 +249,6 @@ function assembleACME(code) {
   var asym = FS.readFile("a.sym", {'encoding':'utf8'});
   var listing = parseDASMListing(alst, {}); // TODO
   return {
-    exitstatus:Module.EXITSTATUS,
     output:aout,
     lines:listing.lines,
     errors:listing.errors,
@@ -369,7 +366,6 @@ function assemblelinkCA65(code, platform, warnings) {
     var mapout = FS.readFile("main.map", {encoding:'utf8'});
     var listing = parseCA65Listing(lstout, mapout);
     return {
-      exitstatus:LD65.EXITSTATUS,
       output:aout.slice(4),
       lines:listing.lines,
       errors:listing.errors,
@@ -412,7 +408,7 @@ function compileCC65(code, platform) {
   }
 }
 
-function assembleZ80ASM(code, platform, ccompile) {
+function assembleZ80ASM(code, platform) {
   load("z80asm");
   var origin = 0; // TODO: configurable
   var Module = z80asm({
@@ -454,11 +450,10 @@ l_main00101                     = 0003, L: test
     var asmlines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/i, 1, 2, 3, 4);
     var srclines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+;[(]null[)]:(\d+)/i, 3, 2, 1);
     return {
-      exitstatus:Module.EXITSTATUS,
       output:aout,
       errors:[],
-      lines:ccompile ? srclines : asmlines,
-      listing:ccompile ? asmlines : null,
+      lines:asmlines,
+      srclines:srclines,
       intermediate:{listing:alst, mapfile:amap},
     };
   } catch (e) {
@@ -504,7 +499,7 @@ function parseIHX(ihx, code_start, code_size) {
   }
 }
 
-function assemblelinkSDASZ80(code, platform, ccompile) {
+function assemblelinkSDASZ80(code, platform) {
   load("sdasz80");
   load("sdldz80");
   var objout, lstout, symout;
@@ -538,7 +533,7 @@ function assemblelinkSDASZ80(code, platform, ccompile) {
     }
     objout = FS.readFile("main.rel", {encoding:'utf8'});
     lstout = FS.readFile("main.lst", {encoding:'utf8'});
-    symout = FS.readFile("main.sym", {encoding:'utf8'});
+    //symout = FS.readFile("main.sym", {encoding:'utf8'});
   }{
     var LDZ80 = sdldz80({
       noInitialRun:true,
@@ -557,19 +552,26 @@ function assemblelinkSDASZ80(code, platform, ccompile) {
       'main.rel']);
     var hexout = FS.readFile("main.ihx", {encoding:'utf8'});
     var mapout = FS.readFile("main.noi", {encoding:'utf8'});
-    var dbgout = FS.readFile("main.cdb", {encoding:'utf8'});
+    //var dbgout = FS.readFile("main.cdb", {encoding:'utf8'});
     //   0000 21 02 00      [10]   52 	ld	hl, #2
     // TODO: offset by start address?
     var asmlines = parseListing(lstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2, 5, 3);
     var srclines = parseSourceLines(lstout, /^\s+\d+ ;\(null\):(\d+):/i, /^\s*([0-9A-F]{4})/i);
-    console.log(lstout); // TODO
+    // parse symbol map
+    var symbolmap = {};
+    for (var s of mapout.split("\n")) {
+      var toks = s.split(" ");
+      if (s[0] == 'DEF') {
+        symbolmap[s[1]] = s[2];
+      }
+    }
     return {
-      exitstatus:LDZ80.EXITSTATUS,
       output:parseIHX(hexout, params.code_start, params.code_size),
-      lines:ccompile ? srclines : asmlines,
-      listing:ccompile ? asmlines : null,
+      lines:asmlines,
+      srclines:srclines,
       errors:msvc_errors, // TODO?
-      intermediate:{listing:lstout, map:mapout, symbols:symout, debug:dbgout},
+      symbolmap:symbolmap,
+      intermediate:{listing:lstout},
     };
   }
 }
@@ -589,7 +591,7 @@ function compileSDCC(code, platform) {
   setupFS(FS);
   //FS.writeFile("main.c", code, {encoding:'utf8'});
   msvc_errors = [];
-  SDCC.callMain(['--vc', '--c1mode', '--std-sdcc99', '-mz80',
+  SDCC.callMain(['--vc', '--c1mode', '--std-sdcc99', '-mz80', '-Wall',
     '--debug',
     //'--asm=z80asm',
     '--fomit-frame-pointer', '--opt-code-speed',
@@ -599,8 +601,12 @@ function compileSDCC(code, platform) {
   } catch(e) {
     return {errors:msvc_errors};
   }
+  var warnings = msvc_errors;
   var result = assemblelinkSDASZ80(asmout, platform, true);
-  result.errors = result.errors.concat(msvc_errors);
+  result.asmlines = result.lines;
+  result.lines = result.srclines;
+  result.srclines = null;
+  result.errors = result.errors.concat(warnings);
   return result;
 }
 
