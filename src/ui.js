@@ -1,19 +1,30 @@
 "use strict";
 
 // catch errors
-if (typeof window.onerror == "object") {
-    window.onerror = function (msgevent, url, line, col, error) {
-      console.log(msgevent, url, line, col);
-      console.log(error);
-      //$("#editor").hide();
-      if (window.location.host.endsWith('8bitworkshop.com')) {
-        ga('send', 'exception', {
-          'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
-          'exFatal': true
-        });
-      }
-      alert(msgevent+"");
-    };
+function installErrorHandler() {
+  if (typeof window.onerror == "object") {
+      window.onerror = function (msgevent, url, line, col, error) {
+        console.log(msgevent, url, line, col);
+        console.log(error);
+        //$("#editor").hide();
+        if (window.location.host.endsWith('8bitworkshop.com')) {
+          ga('send', 'exception', {
+            'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
+            'exFatal': true
+          });
+        }
+        alert(msgevent+"");
+      };
+  }
+}
+
+function uninstallErrorHandler() {
+  window.onerror = null;
+}
+
+function gotoNewLocation() {
+  uninstallErrorHandler();
+  window.location = "?" + $.param(qs);
 }
 
 // make sure VCS doesn't start
@@ -196,13 +207,13 @@ function loadPreset(preset_id) {
 function gotoPresetAt(index) {
   var index = (index + PRESETS.length) % PRESETS.length;
   qs['file'] = PRESETS[index].id;
-  window.location = "?" + $.param(qs);
+  gotoNewLocation();
 }
 
 function gotoPresetNamed(id) {
   qs['platform'] = platform_id;
   qs['file'] = id;
-  window.location = "?" + $.param(qs);
+  gotoNewLocation();
 }
 
 function _createNewFile(e) {
@@ -212,7 +223,7 @@ function _createNewFile(e) {
       filename += ".a";
     }
     qs['file'] = "local/" + filename;
-    window.location = "?" + $.param(qs);
+    gotoNewLocation();
   }
   return true;
 }
@@ -249,7 +260,7 @@ function _resetPreset(e) {
     alert("Can only reset built-in file examples.")
   } else if (confirm("Reset '" + PRESETS[current_preset_index].name + "' to default?")) {
     qs['reset'] = '1';
-    window.location = "?" + $.param(qs);
+    gotoNewLocation();
   }
   return true;
 }
@@ -319,6 +330,17 @@ function arrayCompare(a,b) {
 worker.onmessage = function(e) {
   // errors?
   var toolbar = $("#controls_top");
+  function addErrorMarker(line, msg) {
+    var div = document.createElement("div");
+    div.setAttribute("class", "tooltipbox tooltiperror");
+    div.style.color = '#ff3333'; // TODO
+    div.appendChild(document.createTextNode("\u24cd"));
+    var tooltip = document.createElement("span");
+    tooltip.setAttribute("class", "tooltiptext");
+    tooltip.appendChild(document.createTextNode(msg));
+    div.appendChild(tooltip);
+    editor.setGutterMarker(line, "gutter-info", div);
+  }
   sourcefile = new SourceFile(e.data.lines);
   if (e.data.asmlines) {
     assemblyfile = new SourceFile(e.data.asmlines, e.data.intermediate.listing);
@@ -327,19 +349,10 @@ worker.onmessage = function(e) {
     toolbar.addClass("has-errors");
     editor.clearGutter("gutter-info");
     for (info of e.data.errors) {
-      var div = document.createElement("div");
-      div.setAttribute("class", "tooltipbox tooltiperror");
-      div.style.color = '#ff3333'; // TODO
-      div.appendChild(document.createTextNode("\u24cd"));
-      var tooltip = document.createElement("span");
-      tooltip.setAttribute("class", "tooltiptext");
-      tooltip.appendChild(document.createTextNode(info.msg));
-      div.appendChild(tooltip);
-      editor.setGutterMarker(info.line-1, "gutter-info", div);
+      addErrorMarker(info.line-1, info.msg);
     }
     current_output = null;
   } else {
-    toolbar.removeClass("has-errors");
     updatePreset(current_preset_id, editor.getValue()); // update persisted entry
     // load ROM
     var rom = e.data.output;
@@ -349,12 +362,13 @@ worker.onmessage = function(e) {
         //console.log("Loading ROM length", rom.length);
         platform.loadROM(getCurrentPresetTitle(), rom);
         resume();
-        // TODO: what if loadROM fails?
         current_output = rom;
         pcvisits = {};
+        toolbar.removeClass("has-errors");
       } catch (e) {
         console.log(e); // TODO: show error
-        alert("Could not load ROM: " + e);
+        toolbar.addClass("has-errors");
+        addErrorMarker(0, e+"");
         current_output = null;
       }
     }
@@ -887,6 +901,7 @@ function startPlatform() {
 
 // start
 function startUI(loadplatform) {
+  installErrorHandler();
   // parse query string
   // is this a share URL?
   if (qs['sharekey']) {
@@ -898,14 +913,14 @@ function startUI(loadplatform) {
       updatePreset(newid, result['text']);
       qs['file'] = newid;
       delete qs['sharekey'];
-      window.location = "?" + $.param(qs);
+      gotoNewLocation();
     }, 'text');
   } else {
     // reset file?
     if (qs['file'] && qs['reset']) {
       store.deleteFile(qs['file']);
       qs['reset'] = '';
-      window.location = "?" + $.param(qs);
+      gotoNewLocation();
     } else {
       // add default platform?
       platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
