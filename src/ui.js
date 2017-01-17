@@ -116,6 +116,7 @@ var sourcefile = null;
 var pcvisits;
 var trace_pending_at_pc;
 var store;
+var pendingWorkerMessages;
 
 var editor = CodeMirror(document.getElementById('editor'), {
   theme: 'mbo',
@@ -312,6 +313,8 @@ function updateSelector() {
 }
 
 function setCode(text) {
+  if (pendingWorkerMessages++ > 0)
+    return;
   worker.postMessage({code:text, platform:platform_id,
     tool:platform.getToolForFilename(current_preset_id)});
 }
@@ -328,6 +331,10 @@ function arrayCompare(a,b) {
 }
 
 worker.onmessage = function(e) {
+  if (pendingWorkerMessages > 1) {
+    setCode(editor.getValue());
+  }
+  pendingWorkerMessages = 0;
   // errors?
   var toolbar = $("#controls_top");
   function addErrorMarker(line, msg) {

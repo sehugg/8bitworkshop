@@ -2314,6 +2314,10 @@ window.buildZ80 = (opts) ->
 				~48T window, to support retriggered interrupts and interrupt blocking via
 				chains of EI or DD/FD prefixes */
 			}
+			self.nonMaskableInterrupt = function() {
+				iff1 = 1;
+				self.requestInterrupt(0x66);
+			}
 			var z80Interrupt = function() {
 				if (iff1) {
 					if (halted) {

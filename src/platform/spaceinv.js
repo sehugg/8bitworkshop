@@ -21,7 +21,7 @@ var SpaceInvadersPlatform = function(mainElement) {
   var bitshift_register = 0;
   var watchdog_counter;
   var cpuFrequency = 1996800;
-  var cpuCyclesPerLine = Math.round(cpuFrequency/(60*224)); // TODO
+  var cpuCyclesPerLine = cpuFrequency/(60*224); // TODO
   var INITIAL_WATCHDOG = 256;
   var PIXEL_ON = 0xffeeeeee;
   var PIXEL_OFF = 0xff000000;

@@ -16,9 +16,7 @@ function __createCanvas(mainElement, width, height) {
   // TODO
   var fsElement = document.createElement('div');
   fsElement.style.position = "relative";
-  fsElement.style.padding = "20px";
-  if (height > width)
-    fsElement.style.margin = "20%"; // TODO
+  fsElement.style.padding = "5%";
   fsElement.style.overflow = "hidden";
   fsElement.style.background = "black";
 
@@ -43,7 +41,10 @@ var RasterVideo = function(mainElement, width, height, options) {
   this.create = function() {
     self.canvas = canvas = __createCanvas(mainElement, width, height);
     if (options && options.rotate) {
+      // TODO: aspect ratio?
       canvas.style.transform = "rotate("+options.rotate+"deg)";
+      if (canvas.width > canvas.height)
+        canvas.style.paddingTop = canvas.style.paddingBottom = "10%";
     }
     ctx = canvas.getContext('2d');
     imageData = ctx.createImageData(width, height);
@@ -68,9 +69,12 @@ var RasterVideo = function(mainElement, width, height, options) {
     return datau32;
   }
 
-  this.updateFrame = function() {
+  this.updateFrame = function(sx, sy, dx, dy, width, height) {
     imageData.data.set(buf8);
-    ctx.putImageData(imageData, 0, 0);
+    if (width && height)
+      ctx.putImageData(imageData, sx, sy, dx, dy, width, height);
+    else
+      ctx.putImageData(imageData, 0, 0);
   }
 
 /*
