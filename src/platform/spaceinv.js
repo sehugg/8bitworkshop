@@ -46,29 +46,20 @@ var SpaceInvadersPlatform = function(mainElement) {
     ram = new RAM(0x2000);
     displayPCs = new Uint16Array(new ArrayBuffer(0x2000*2));
     membus = {
-      read: function(address) {
-        if (address < 0x2000) {
-          return (rom ? rom[address] : 0) & 0xff;
-        } else {
-          address &= 0x1fff;
-          return ram.mem[address] & 0xff;
-        }
-      },
-      write: function(address, value) {
-        //console.log("write", hex(address,4), hex(value,2));
-        if (address >= 0x2000) {
-          address &= 0x1fff;
-          value &= 0xff;
-          ram.mem[address] = value;
-          if (address >= 0x400) {
-						// TODO: dirty flags
-            var ofs = (address - 0x400)*8;
-            for (var i=0; i<8; i++)
-              pixels[ofs+i] = (value & (1<<i)) ? PIXEL_ON : PIXEL_OFF;
-            displayPCs[address] = cpu.getPC(); // save program counter
-          }
-        }
-      },
+      read: new AddressDecoder([
+				[0x0000, 0x1fff, 0x1fff, function(a) { return rom ? rom[a] : 0; }],
+				[0x2000, 0x3fff, 0x1fff, function(a) { return ram.mem[a]; }],
+			]),
+			write: new AddressDecoder([
+				[0x2000, 0x23ff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
+				[0x2400, 0x3fff, 0x1fff, function(a,v) {
+					ram.mem[a] = v;
+					var ofs = (a - 0x400)<<3;
+					for (var i=0; i<8; i++)
+						pixels[ofs+i] = (v & (1<<i)) ? PIXEL_ON : PIXEL_OFF;
+					displayPCs[a] = cpu.getPC(); // save program counter
+				}],
+			]),
       isContended: function() { return false; },
     };
     iobus = {

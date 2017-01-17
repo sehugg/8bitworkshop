@@ -381,6 +381,7 @@ worker.onmessage = function(e) {
     }
     if (rom_changed || trace_pending_at_pc) {
       // update editor annotations
+      // TODO: do incrementally for performance
       editor.clearGutter("gutter-info");
       editor.clearGutter("gutter-bytes");
       editor.clearGutter("gutter-offset");

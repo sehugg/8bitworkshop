@@ -150,72 +150,24 @@ var GalaxianPlatform = function(mainElement) {
     oram = new RAM(0x100);
 		outlatches = new RAM(0x8);
     membus = {
-      read: function(address) {
-        if (address < 0x4000) {
-          return (rom ? rom[address] : 0) & 0xff;
-        } else if (address < 0x4800) {
-          address &= 0x3ff;
-          return ram.mem[address] & 0xff;
-        } else if (address >= 0x5000 && address < 0x5800) {
-          address &= 0x3ff;
-          return vram.mem[address] & 0xff;
-        } else if (address >= 0x5800 && address < 0x6000) {
-          address &= 0xff;
-          return oram.mem[address] & 0xff;
-				} else if (address >= 0x6000 && address < 0x6800) {
-					address &= 0x7;
-					switch (address) {
-						case 0:
-							return inputs[0];
-					}
-				} else if (address >= 0x6800 && address < 0x7000) {
-					return inputs[1];
-				} else if (address >= 0x7000 && address < 0x7800) {
-					address &= 0x7;
-					switch (address) {
-						case 0:
-							return inputs[2];
-					}
-        } else if (address >= 0x7800 && address < 0x8000) {
-          watchdog_counter = INITIAL_WATCHDOG;
-        } else {
-					console.log("read", hex(address));
-          return 0;
-        }
-      },
-      write: function(address, value) {
-        //console.log("write", hex(address,4), hex(value,2));
-        if (address >= 0x4000 && address < 0x4800) {
-          address &= 0x3ff;
-          ram.mem[address] = value;
-        } else if (address >= 0x5000 && address < 0x5800) {
-          address &= 0x3ff;
-          vram.mem[address] = value;
-        } else if (address >= 0x5800 && address < 0x6000) {
-          address &= 0xff;
-          oram.mem[address] = value;
-				} else if (address >= 0x6000 && address < 0x6800) {
-					address &= 0x7;
-					outlatches.mem[address] = value;
-				} else if (address >= 0x6800 && address < 0x7000) {
-					address &= 0x7;
-					// TODO: sound
-        } else if (address >= 0x7000 && address < 0x7800) {
-					address &= 0x7;
-					switch (address) {
-						case 1:
-							interruptEnabled = value;
-							break;
-            case 4:
-              starsEnabled = value;
-              break;
-					}
-				} else if (address >= 0x7800 && address < 0x8000) {
-					// TODO: sound
-				} else {
-					console.log("write", hex(address), hex(value));
-				}
-      },
+      read: new AddressDecoder([
+				[0x0000, 0x3fff, 0,      function(a) { return rom ? rom[a] : null; }],
+				[0x4000, 0x47ff, 0x3ff,  function(a) { return ram.mem[a]; }],
+				[0x5000, 0x57ff, 0x3ff,  function(a) { return vram.mem[a]; }],
+				[0x5800, 0x5fff, 0xff,   function(a) { return oram.mem[a]; }],
+				[0x6000, 0x6000, 0,      function(a) { return inputs[0]; }],
+				[0x6800, 0x6800, 0,      function(a) { return inputs[1]; }],
+				[0x7000, 0x7000, 0,      function(a) { return inputs[2]; }],
+				[0x7800, 0x7800, 0,      function(a) { watchdog_counter = INITIAL_WATCHDOG; }],
+			]),
+			write: new AddressDecoder([
+				[0x4000, 0x47ff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
+				[0x5000, 0x57ff, 0x3ff,  function(a,v) { vram.mem[a] = v; }],
+				[0x5800, 0x5fff, 0xff,   function(a,v) { oram.mem[a] = v; }],
+				[0x6000, 0x67ff, 0x7,    function(a,v) { outlatches.mem[a] = v; }],
+				[0x7001, 0x7001, 0,      function(a,v) { interruptEnabled = v; }],
+				[0x7004, 0x7004, 0,      function(a,v) { starsEnabled = v; }],
+			]),
       isContended: function() { return false; },
     };
     iobus = {
@@ -323,7 +275,7 @@ var GalaxianPlatform = function(mainElement) {
     watchdog_counter = state.wdc;
 		interruptEnabled = state.ie;
     starsEnabled = state.se;
-    frameCounter = fc;
+    frameCounter = state.fc;
     inputs[0] = state.in0;
     inputs[1] = state.in1;
     inputs[2] = state.in2;
@@ -356,7 +308,6 @@ var GalaxianPlatform = function(mainElement) {
   this.pause = function() {
     timer.stop();
     audio.stop();
-    console.log(JSON.stringify(this.saveState()));
   }
   this.resume = function() {
     timer.start();

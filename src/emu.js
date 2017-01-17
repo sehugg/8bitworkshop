@@ -643,3 +643,25 @@ function padBytes(data, len) {
   r.mem.set(data);
   return r.mem;
 }
+
+// TODO: better performance, check values
+function AddressDecoder(table) {
+  var self = this;
+  function makeFunction(lo, hi) {
+    var s = "";
+    for (var i=0; i<table.length; i++) {
+      var entry = table[i];
+      var start = entry[0];
+      var end = entry[1];
+      var mask = entry[2];
+      var func = entry[3];
+      self['__fn'+i] = func;
+      s += "if (a>=" + start + " && a<="+end + "){";
+      s += "a&="+(mask?mask:0xffff)+";";
+      s += "return this.__fn"+i+"(a,v)&0xff;}\n";
+    }
+    s += "return 0;"; // TODO: noise()?
+    return new Function('a', 'v', s);
+  }
+  return makeFunction(0x0, 0xffff).bind(self);
+}
