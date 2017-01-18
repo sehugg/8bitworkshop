@@ -1,4 +1,3 @@
-
 "use strict";
 var GALAXIAN_PRESETS = [
 ];
@@ -204,6 +203,7 @@ var GalaxianPlatform = function(mainElement) {
 				return;
       var debugCond = self.getDebugCallback();
       var targetTstates = cpu.getTstates();
+			// TODO: get raster position
       for (var sl=0; sl<scanlinesPerFrame; sl++) {
 				drawScanline(pixels, sl);
         targetTstates += cpuCyclesPerLine;
@@ -319,13 +319,7 @@ var GalaxianPlatform = function(mainElement) {
     watchdog_counter = INITIAL_WATCHDOG;
   }
   this.readAddress = function(addr) {
-    return membus.read(addr);
-  }
-
-	this.ramStateToLongString = function(state) {
-		return "";
-		//var stack = state.b.slice(state.c.SP & 0x1fff, 0x400);
-    //return "\n" + dumpRAM(stack, state.c.SP, stack.length);
+    return membus.read(addr); // TODO?
   }
 }
 
