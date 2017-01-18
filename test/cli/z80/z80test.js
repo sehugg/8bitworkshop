@@ -1,9 +1,10 @@
 "use strict";
 
+global.window = global;
+
 require('../../../src/cpu/z80.js');
 
 var _global = window;
-
 _global.buildZ80({
 	applyContention: true
 });
@@ -200,13 +201,36 @@ var testsIn = fs.readFileSync('test/cli/z80/tests.in', {encoding:'utf8'}).split(
 var testsExpected = fs.readFileSync('test/cli/z80/tests.expected', {encoding:'utf8'}).split('\n\n');
 assert(testsIn.length == testsExpected.length);
 
-describe('Z80 CPU', function() {
-	it('should execute test cases', function() {
-		for (var iter=0; iter<testsIn.length; iter++) {
-			var fn = function(index, input, expected) {
-				var output = runTest(input);
-				assert.equal(output.trim(), expected.trim());
-			}.call(this, iter, testsIn[iter], testsExpected[iter]);
-		}
-  });
-});
+function benchmark(cycles) {
+	var memory = Memory(function() { });
+	var ioBus = IOBus();
+	var z80 = _global.Z80({
+		display: {},
+		memory: memory,
+		ioBus: ioBus
+	});
+	memory.clear();
+	for (var i=0; i<0x10000; i++)
+		memory.write(i, i&0xff);
+	z80.setTstates(0);
+	z80.runFrame(cycles);
+	console.log(z80.saveState());
+}
+
+if (global.describe) {
+	describe('Z80 CPU', function() {
+		it('should execute test cases', function() {
+			for (var iter=0; iter<testsIn.length; iter++) {
+				var fn = function(index, input, expected) {
+					var output = runTest(input);
+					assert.equal(output.trim(), expected.trim());
+				}.call(this, iter, testsIn[iter], testsExpected[iter]);
+			}
+	  });
+		it('should run 1M cycles', function() {
+			benchmark(1164770);
+		});
+	});
+} else {
+	benchmark(100*1000000);
+}

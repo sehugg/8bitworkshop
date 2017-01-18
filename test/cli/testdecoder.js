@@ -15,7 +15,7 @@ function assertEquals(a,b) {
   assert(a==b, a + " != " + b);
 }
 
-describe('Test address decoder', function() {
+describe('Address decoder', function() {
   it('Should work empty', function() {
     var decoder = new AddressDecoder([]);
     assertEquals(0, decoder(0x1234));

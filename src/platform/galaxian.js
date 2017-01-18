@@ -12,7 +12,7 @@ var GalaxianPlatform = function(mainElement) {
   this.__proto__ = new BaseZ80Platform();
 
   var cpu, ram, vram, oram, membus, iobus, rom, palette, outlatches;
-  var video, audio, timer, pixels, displayPCs;
+  var video, audio, timer, pixels;
   var inputs = [0xe,0x8,0x0];
 	var interruptEnabled = 0;
   var starsEnabled = 0;
