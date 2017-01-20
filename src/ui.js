@@ -766,7 +766,12 @@ function updateDisassembly() {
             s += "; " + srclinenum + ":\t" + srcline + "\n";
           }
         }
-        var dline = hex(parseInt(a)) + "\t" + disasm.line + "\n";
+        var bytes = "";
+        for (var i=0; i<disasm.nbytes; i++)
+          bytes += hex(platform.readAddress(a+i));
+        while (bytes.length < 14)
+          bytes += ' ';
+        var dline = hex(parseInt(a)) + "\t" + bytes + "\t" + disasm.line + "\n";
         s += dline;
         if (a == pc) selline = curline;
         curline++;

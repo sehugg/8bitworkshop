@@ -533,9 +533,10 @@ var BaseZ80Platform = function() {
     this.resume();
   }
   this.restartDebugState = function() {
-    if (debugCondition && !debugBreakState && debugTargetClock > 0) {
+    if (debugCondition && !debugBreakState) {
       debugSavedState = this.saveState();
-      debugTargetClock -= debugSavedState.c.T;
+      if (debugTargetClock > 0)
+        debugTargetClock -= debugSavedState.c.T;
       debugSavedState.c.T = 0;
       this.loadState(debugSavedState);
     }
@@ -636,7 +637,7 @@ var BaseZ80Platform = function() {
 
 function cpuStateToLongString_6809(c) {
   function decodeFlags(flags) {
-    var flagspec = "SZ-H-VNC";
+    var flagspec = "EFHINZVC";
     var s = "";
     for (var i=0; i<8; i++)
       s += (flags & (128>>i)) ? flagspec.slice(i,i+1) : "-";
@@ -644,6 +645,11 @@ function cpuStateToLongString_6809(c) {
   }
   return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.CC) + "\n"
        + "SP " + hex(c.SP,4) + "\n"
+       + " A " + hex(c.A,2) + "\n"
+       + " B " + hex(c.B,2) + "\n"
+       + " X " + hex(c.X,4) + "\n"
+       + " Y " + hex(c.Y,4) + "\n"
+       + " U " + hex(c.U,4) + "\n"
        ;
 }
 
@@ -658,9 +664,9 @@ var Base6809Platform = function() {
         return true;
 			var op = self.readAddress(c.PC);
       // TODO: 6809 opcodes
-      if (op == 0xcd) // CALL
+      if (op == 0x9d || op == 0xad || op == 0xbd) // CALL
         depth++;
-      else if (op == 0xc0 || op == 0xc8 || op == 0xc9 || op == 0xd0) // RET (TODO?)
+      else if (op == 0x3b || op == 0x39) // RET (TODO?)
         --depth;
       return false;
     });

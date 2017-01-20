@@ -107,7 +107,7 @@ var flagsNZ = [
 
 var setV8 = function(a,b,r) {CC |= (((a^b^r^(r>>1))&0x80)>>6);};
 var setV16 = function(a,b,r) {CC |= (((a^b^r^(r>>1))&0x8000)>>14);};
-var getD = function() {return rA*256+rB;};
+var getD = function() {return (rA<<8)+rB;};
 var setD = function(v) {rA = (v>>8)& 0xff;rB=v&0xff;};
 var PUSHB = function(b) {
     byteTo(--rS, b & 0xff);
@@ -595,6 +595,7 @@ var oCOM = function(b) {
     CC &= ~(F_ZERO | F_NEGATIVE | F_OVERFLOW);
     b ^= 0xff;
     CC |= flagsNZ[b];
+    CC |= F_CARRY;
     return b;
 };
 
@@ -606,10 +607,6 @@ var dpadd = function() {
 
 var step = function() {
     var oldT = T;
-
-    if (IRQs) {
-        //;;;
-    }
 
     var addr = null;
     var pb = null;
@@ -819,7 +816,7 @@ var step = function() {
         break;
         case 0x3B: //RTI
             CC = PULLB();
-            if (cc & F_ENTIRE) {
+            if (CC & F_ENTIRE) {
                 T+=9;
                 rA = PULLB();
                 rB = PULLB();
@@ -1437,7 +1434,7 @@ var step = function() {
         case 0xDE: //LDU direct
             addr = dpadd();
             rU = ReadWord(addr);
-            flagsNZ16(rX);
+            flagsNZ16(rU);
             CC&=~F_OVERFLOW;
         break;
         case 0xDF: //STU direct
@@ -2248,17 +2245,17 @@ var disasm = function(i,a,b,c,d,pc) {
         case 0: //invalid
             break;
         case 1: //direct page
-            mnemo+=" $"+toHex2(a); break;
+            mnemo+="\t$"+toHex2(a); break;
         case 2: // inherent
             break;
         case 3: //brel16
-            mnemo+=" #$"+toHex4((a*256+b)<32768 ? (a*256+b+pc):(a*256+b+pc-65536)); break;
+            mnemo+="\t#$"+toHex4((a*256+b)<32768 ? (a*256+b+pc):(a*256+b+pc-65536)); break;
         case 4: //imm8
-            mnemo+=" #$"+toHex2(a); break;
+            mnemo+="\t#$"+toHex2(a); break;
         case 5: //brel8
-            mnemo+=" #$"+toHex4((a)<128 ? (a+pc+2):(a+pc-254)); break;
+            mnemo+="\t#$"+toHex4((a)<128 ? (a+pc+2):(a+pc-254)); break;
         case 6: //indexed, postbyte etc.
-            mnemo+=' ';
+            mnemo+='\t';
             var pb = a;
             var ixr = ["X","Y","U","S"][(pb & 0x60)>>5];
             if (!(pb & 0x80)) {
@@ -2314,9 +2311,9 @@ var disasm = function(i,a,b,c,d,pc) {
 
             break;
         case 7: //extended
-            mnemo+=" $"+toHex4(a*256+b); break;
+            mnemo+="\t$"+toHex4(a*256+b); break;
         case 8: //imm16
-            mnemo+=" #$"+toHex4(a*256+b); break;
+            mnemo+="\t#$"+toHex4(a*256+b); break;
 
         case 10: //pshs, puls
             rx = ['PC','U','Y','X','DP','B','A','CC'];
@@ -2325,7 +2322,7 @@ var disasm = function(i,a,b,c,d,pc) {
                 if ((a & 1)!==0) {ro.push(rx[7-j]);}
                 a>>=1;
             }
-            mnemo += ' '+ro.join(',');
+            mnemo += '\t'+ro.join(',');
             break;
         case 11: //pshs, puls
             rx = ['PC','S','Y','X','DP','B','A','CC'];
@@ -2334,11 +2331,11 @@ var disasm = function(i,a,b,c,d,pc) {
                 if ((a & 1)!==0) {ro.push(rx[7-j]);}
                 a>>=1;
             }
-            mnemo += ' '+ro.join(',');
+            mnemo += '\t'+ro.join(',');
             break;
         case 20: //TFR etc
             rx = ['D','X','Y','U','S','PC','?','?','A','B','CC','DP','?','?','?','?'];
-            mnemo += ' '+rx[a>>4]+','+rx[a&0x0f];
+            mnemo += '\t'+rx[a>>4]+','+rx[a&0x0f];
             break;
       }
 
@@ -2397,6 +2394,7 @@ return {
       PUSHB(CC);
       CC |= F_IRQMASK | F_FIRQMASK;
       PC = ReadWord(vecFIRQ);
+      T += 9;
     },
     interrupt: function() {
       if (CC & F_IRQMASK) return;
@@ -2411,6 +2409,7 @@ return {
       PUSHB(CC);
       CC |= F_IRQMASK;
       PC = ReadWord(vecIRQ);
+      T += 18;
     },
     nmi: function() {
       PUSHW(PC);
@@ -2424,6 +2423,7 @@ return {
       PUSHB(CC);
       CC |= F_IRQMASK | F_FIRQMASK;
       PC = ReadWord(vecNMI);
+      T += 18;
     },
     set:function(reg,value) {
         switch (reg.toUpperCase()) {
@@ -2445,7 +2445,7 @@ return {
         }
         return f;
     },
-    disasm: disasm,
+    disasm: disasm
 };
 
 };
