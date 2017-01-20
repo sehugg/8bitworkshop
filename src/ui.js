@@ -418,13 +418,6 @@ function setCurrentLine(line) {
   editor.setSelection({line:line,ch:0}, {line:line-1,ch:0}, {scroll:true});
 }
 
-function getTIAPosString() {
-  if (platform.getRasterPosition) {
-    var pos = platform.getRasterPosition();
-    return "V" + pos.y + " H" + pos.x;
-  } else return "";
-}
-
 var lastDebugInfo;
 var lastDebugState;
 
@@ -458,6 +451,10 @@ function showMemory(state) {
   var s = "";
   if (state) {
     s = platform.cpuStateToLongString(state.c);
+    if (platform.getRasterPosition) {
+      var pos = platform.getRasterPosition();
+      s += "H:" + pos.x + "  V:" + pos.y + "\n"; // TODO: padding
+    }
     if (platform.ramStateToLongString) {
       s += platform.ramStateToLongString(state);
     }
@@ -739,7 +736,6 @@ function updateDisassembly() {
   var div = $("#disassembly");
   if (div.is(':visible')) {
     var state = lastDebugState || platform.saveState();
-    var mem = state.b;
     var pc = state.c.PC;
     if (assemblyfile && assemblyfile.text) {
       disasmview.setValue(assemblyfile.text);
@@ -752,28 +748,29 @@ function updateDisassembly() {
       }
       return;
     }
-    var gutters = [];
+    var curline = 0;
     var selline = 0;
     // TODO: not perfect disassembler
     function disassemble(start, end) {
       if (start < 0) start = 0;
-      if (end > mem.length) end = mem.length;
-      // TODO: use platform.readMemory()
-      var disasm = platform.disassemble(mem, start, end, pcvisits);
+      if (end > 0xffff) end = 0xffff;
+      // TODO: use pc2visits
+      var a = start;
       var s = "";
-      for (a in disasm) {
+      while (a < end) {
+        var disasm = platform.disassemble(a, platform.readAddress);
         var srclinenum = sourcefile.offset2line[a];
         if (srclinenum) {
           var srcline = editor.getLine(srclinenum-1);
           if (srcline && srcline.trim().length) {
             s += "; " + srclinenum + ":\t" + srcline + "\n";
-            gutters.push([a]);
           }
         }
-        var dline = hex(parseInt(a)) + "\t" + disasm[a] + "\n";
+        var dline = hex(parseInt(a)) + "\t" + disasm.line + "\n";
         s += dline;
-        if (a == pc) selline = gutters.length;
-        gutters.push([]);
+        if (a == pc) selline = curline;
+        curline++;
+        a += disasm.nbytes;
       }
       return s;
     }

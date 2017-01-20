@@ -2444,13 +2444,13 @@ window.buildZ80 = (opts) ->
 				regPairs[#{rpSP}] = snapRegs['SP'];
 				regPairs[#{rpPC}] = snapRegs['PC'];
 				regPairs[#{rpIR}] = snapRegs['IR'];
-				iff1 = snapRegs['iff1'];
-				iff2 = snapRegs['iff2'];
-				im = snapRegs['im'];
-				halted = snapRegs['halted'];
-				tstates = snapRegs['tstates'];
-				interruptPending = snapRegs['intp'];
-				interruptDataBus = snapRegs['intd'];
+				iff1 = snapRegs['iff1'] & 1;
+				iff2 = snapRegs['iff2'] & 1;
+				im = snapRegs['im'] & 1;
+				halted = !!snapRegs['halted'];
+				tstates = snapRegs['T'] * 1;
+				interruptPending = !!snapRegs['intp'];
+				interruptDataBus = snapRegs['intd'] & 0xffff;
 			};
 
 			self.saveState = function() {
@@ -2472,7 +2472,7 @@ window.buildZ80 = (opts) ->
 					iff2: iff2,
 					im: im,
 					halted: halted,
-					tstates: tstates,
+					T: tstates,
 					intp: interruptPending,
 					intd: interruptDataBus,
 				};
@@ -2577,23 +2577,23 @@ window.buildZ80 = (opts) ->
 				regPairs[#{rpPC}] = val;
 			}
 			self.setIFF1 = function(val) {
-				iff1 = val;
+				iff1 = val & 1;
 			}
 			self.setIFF2 = function(val) {
-				iff2 = val;
+				iff2 = val & 1;
 			}
 			self.setIM = function(val) {
-				im = val;
+				im = val & 1;
 			}
 			self.setHalted = function(val) {
-				halted = val;
+				halted = !!val;
 			}
 
 			self.getTstates = function() {
 				return tstates;
 			}
 			self.setTstates = function(val) {
-				tstates = val;
+				tstates = val * 1;
 			}
 
 			self.getCarry_ = function() {

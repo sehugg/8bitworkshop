@@ -45,6 +45,8 @@ var RasterVideo = function(mainElement, width, height, options) {
       canvas.style.transform = "rotate("+options.rotate+"deg)";
       if (canvas.width > canvas.height)
         canvas.style.paddingTop = canvas.style.paddingBottom = "10%";
+      else
+        canvas.style.paddingLeft = canvas.style.paddingRight = "10%";
     }
     ctx = canvas.getContext('2d');
     imageData = ctx.createImageData(width, height);
@@ -332,7 +334,7 @@ function cpuStateToLongString_6502(c) {
   //  s += c.I ? " I" : " -";
     return s;
   }
-  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c) + "  " + getTIAPosString() + "\n"
+  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c) + "\n"
        + " A " + hex(c.A)    + "     " + (c.R ? "" : "BUSY") + "\n"
        + " X " + hex(c.X)    + "\n"
        + " Y " + hex(c.Y)    + "     " + "SP " + hex(c.SP) + "\n";
@@ -389,7 +391,8 @@ var Base6502Platform = function() {
     onBreakpointHit = null;
     debugCondition = null;
   }
-  this.breakpointHit = function() {
+  this.breakpointHit = function(targetClock) {
+    debugTargetClock = targetClock;
     debugBreakState = this.saveState();
     debugBreakState.c.PC = (debugBreakState.c.PC-1) & 0xffff;
     console.log("Breakpoint at clk", debugClock, "PC", debugBreakState.c.PC.toString(16));
@@ -410,8 +413,7 @@ var Base6502Platform = function() {
         } else {
           if (thisState.PC != previousPC && thisState.T == 0) {
             //console.log(previousPC.toString(16), thisPC.toString(16));
-            debugTargetClock = debugClock-1;
-            self.breakpointHit();
+            self.breakpointHit(debugClock-1);
             return true;
           }
         }
@@ -426,12 +428,10 @@ var Base6502Platform = function() {
     this.setDebugCondition(function() {
       if (debugClock++ >= debugTargetClock && prevState) {
         self.loadState(prevState);
-        debugTargetClock = prevClock-1;
-        self.breakpointHit();
+        self.breakpointHit(prevClock-1);
         return true;
       } else if (debugClock > debugTargetClock-10 && debugClock < debugTargetClock) {
         if (self.getCPUState().T == 0) {
-          console.log(debugClock, self.getCPUState());
           prevState = self.saveState();
           prevClock = debugClock;
         }
@@ -446,8 +446,7 @@ var Base6502Platform = function() {
         var cpuState = self.getCPUState();
         cpuState.PC = (cpuState.PC-1)&0xffff;
         if (evalfunc(cpuState)) {
-          self.breakpointHit();
-          debugTargetClock = debugClock-1;
+          self.breakpointHit(debugClock-1);
           return true;
         } else {
           return false;
@@ -497,6 +496,8 @@ function dumpRAM(ram, ramofs, ramlen) {
   return s;
 }
 
+////// Z80
+
 function cpuStateToLongString_Z80(c) {
   function decodeFlags(flags) {
     var flagspec = "SZ-H-VNC";
@@ -505,15 +506,13 @@ function cpuStateToLongString_Z80(c) {
       s += (flags & (128>>i)) ? flagspec.slice(i,i+1) : "-";
     return s; // TODO
   }
-  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.AF) + "  " + getTIAPosString() + "\n"
+  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.AF) + "\n"
        + "SP " + hex(c.SP,4) + "  IR " + hex(c.IR,4) + "\n"
        + "IX " + hex(c.IX,4) + "  IY " + hex(c.IY,4) + "\n"
        + "AF " + hex(c.AF,4) + "  BC " + hex(c.BC,4) + "\n"
        + "DE " + hex(c.DE,4) + "  HL " + hex(c.HL,4) + "\n"
        ;
 }
-
-////// Z80
 
 var BaseZ80Platform = function() {
 
@@ -536,8 +535,8 @@ var BaseZ80Platform = function() {
   this.restartDebugState = function() {
     if (debugCondition && !debugBreakState && debugTargetClock > 0) {
       debugSavedState = this.saveState();
-      debugTargetClock -= debugSavedState.c.tstates;
-      debugSavedState.c.tstates = 0;
+      debugTargetClock -= debugSavedState.c.T;
+      debugSavedState.c.T = 0;
       this.loadState(debugSavedState);
     }
   }
@@ -554,10 +553,11 @@ var BaseZ80Platform = function() {
     onBreakpointHit = null;
     debugCondition = null;
   }
-  this.breakpointHit = function() {
+  this.breakpointHit = function(targetClock) {
+    debugTargetClock = targetClock;
     debugBreakState = this.saveState();
     //debugBreakState.c.PC = (debugBreakState.c.PC-1) & 0xffff;
-    console.log("Breakpoint at clk", debugBreakState.c.tstates, "PC", debugBreakState.c.PC.toString(16));
+    console.log("Breakpoint at clk", debugBreakState.c.T, "PC", debugBreakState.c.PC.toString(16));
     this.pause();
     if (onBreakpointHit) {
       onBreakpointHit(debugBreakState);
@@ -568,9 +568,8 @@ var BaseZ80Platform = function() {
     var self = this;
     this.setDebugCondition(function() {
       var cpuState = self.getCPUState();
-      if (cpuState.tstates > debugTargetClock) {
-        debugTargetClock = cpuState.tstates;
-        self.breakpointHit();
+      if (cpuState.T > debugTargetClock) {
+        self.breakpointHit(cpuState.T);
         return true;
       }
       return false;
@@ -582,11 +581,10 @@ var BaseZ80Platform = function() {
     var prevClock;
     this.setDebugCondition(function() {
       var cpuState = self.getCPUState();
-      var debugClock = cpuState.tstates;
+      var debugClock = cpuState.T;
       if (debugClock >= debugTargetClock && prevState) {
         self.loadState(prevState);
-        debugTargetClock = prevClock;
-        self.breakpointHit();
+        self.breakpointHit(prevClock);
         return true;
       } else if (debugClock > debugTargetClock-20 && debugClock < debugTargetClock) {
         prevState = self.saveState();
@@ -599,10 +597,9 @@ var BaseZ80Platform = function() {
     var self = this;
     this.setDebugCondition(function() {
       var cpuState = self.getCPUState();
-			if (cpuState.tstates > debugTargetClock) {
+			if (cpuState.T > debugTargetClock) {
         if (evalfunc(cpuState)) {
-					debugTargetClock = cpuState.tstates;
-          self.breakpointHit();
+          self.breakpointHit(cpuState.T);
           return true;
         }
       }
@@ -623,9 +620,6 @@ var BaseZ80Platform = function() {
       return false;
     });
   }
-  this.disassemble = function(mem, start, end, pcvisits) {
-    return new Disassembler6502().disassemble(mem, start, end, pcvisits);
-  }
 	this.cpuStateToLongString = function(c) {
     return cpuStateToLongString_Z80(c);
   }
@@ -636,6 +630,171 @@ var BaseZ80Platform = function() {
   }
   // TODO
   //this.getOpcodeMetadata = function() { }
+}
+
+////// 6809
+
+function cpuStateToLongString_6809(c) {
+  function decodeFlags(flags) {
+    var flagspec = "SZ-H-VNC";
+    var s = "";
+    for (var i=0; i<8; i++)
+      s += (flags & (128>>i)) ? flagspec.slice(i,i+1) : "-";
+    return s; // TODO
+  }
+  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.CC) + "\n"
+       + "SP " + hex(c.SP,4) + "\n"
+       ;
+}
+
+var Base6809Platform = function() {
+  this.__proto__ = new BaseZ80Platform();
+
+	this.runUntilReturn = function() {
+    var self = this;
+    var depth = 1;
+    self.runEval(function(c) {
+      if (depth <= 0)
+        return true;
+			var op = self.readAddress(c.PC);
+      // TODO: 6809 opcodes
+      if (op == 0xcd) // CALL
+        depth++;
+      else if (op == 0xc0 || op == 0xc8 || op == 0xc9 || op == 0xd0) // RET (TODO?)
+        --depth;
+      return false;
+    });
+  }
+	this.cpuStateToLongString = function(c) {
+    return cpuStateToLongString_6809(c);
+  }
+  this.getToolForFilename = function(fn) {
+    if (fn.endsWith(".c")) return "sdcc";
+    if (fn.endsWith(".s")) return "sdasz80";
+    return "z80asm";
+  }
+  // TODO
+  this.disassemble = function(pc, read) {
+    // TODO: don't create new CPU
+    return new CPU6809().disasm(read(pc), read(pc+1), read(pc+2), read(pc+3), read(pc+4), pc);
+  }
+  //this.getOpcodeMetadata = function() { }
+}
+
+//////////
+
+var Keys = {
+    VK_ESCAPE: {c: 27, n: "Esc"},
+    VK_F1: {c: 112, n: "F1"},
+    VK_F2: {c: 113, n: "F2"},
+    VK_F3: {c: 114, n: "F3"},
+    VK_F4: {c: 115, n: "F4"},
+    VK_F5: {c: 116, n: "F5"},
+    VK_F6: {c: 117, n: "F6"},
+    VK_F7: {c: 118, n: "F7"},
+    VK_F8: {c: 119, n: "F8"},
+    VK_F9: {c: 120, n: "F9"},
+    VK_F10: {c: 121, n: "F10"},
+    VK_F11: {c: 122, n: "F11"},
+    VK_F12: {c: 123, n: "F12"},
+    VK_SCROLL_LOCK: {c: 145, n: "ScrLck"},
+    VK_PAUSE: {c: 19, n: "Pause"},
+    VK_QUOTE: {c: 192, n: "'"},
+    VK_TILDE: {c: 222, n: "~"},
+    VK_1: {c: 49, n: "1"},
+    VK_2: {c: 50, n: "2"},
+    VK_3: {c: 51, n: "3"},
+    VK_4: {c: 52, n: "4"},
+    VK_5: {c: 53, n: "5"},
+    VK_6: {c: 54, n: "6"},
+    VK_7: {c: 55, n: "7"},
+    VK_8: {c: 56, n: "8"},
+    VK_9: {c: 57, n: "9"},
+    VK_0: {c: 48, n: "0"},
+    VK_MINUS: {c: 189, n: "-"},
+    VK_MINUS2: {c: 173, n: "-"},
+    VK_EQUALS: {c: 187, n: "="},
+    VK_EQUALS2: {c: 61, n: "="},
+    VK_BACK_SPACE: {c: 8, n: "Bkspc"},
+    VK_TAB: {c: 9, n: "Tab"},
+    VK_Q: {c: 81, n: "Q"},
+    VK_W: {c: 87, n: "W"},
+    VK_E: {c: 69, n: "E"},
+    VK_R: {c: 82, n: "R"},
+    VK_T: {c: 84, n: "T"},
+    VK_Y: {c: 89, n: "Y"},
+    VK_U: {c: 85, n: "U"},
+    VK_I: {c: 73, n: "I"},
+    VK_O: {c: 79, n: "O"},
+    VK_P: {c: 80, n: "P"},
+    VK_ACUTE: {c: 219, n: "´"},
+    VK_OPEN_BRACKET: {c: 221, n: "["},
+    VK_CLOSE_BRACKET: {c: 220, n: "]"},
+    VK_CAPS_LOCK: {c: 20, n: "CpsLck"},
+    VK_A: {c: 65, n: "A"},
+    VK_S: {c: 83, n: "S"},
+    VK_D: {c: 68, n: "D"},
+    VK_F: {c: 70, n: "F"},
+    VK_G: {c: 71, n: "G"},
+    VK_H: {c: 72, n: "H"},
+    VK_J: {c: 74, n: "J"},
+    VK_K: {c: 75, n: "K"},
+    VK_L: {c: 76, n: "L"},
+    VK_CEDILLA: {c: 186, n: "Ç"},
+    VK_TILDE: {c: 222, n: "~"},
+    VK_ENTER: {c: 13, n: "Enter"},
+    VK_SHIFT: {c: 16, n: "Shift"},
+    VK_BACK_SLASH: {c: 226, n: "\\"},
+    VK_Z: {c: 90, n: "Z"},
+    VK_X: {c: 88, n: "X"},
+    VK_C: {c: 67, n: "C"},
+    VK_V: {c: 86, n: "V"},
+    VK_B: {c: 66, n: "B"},
+    VK_N: {c: 78, n: "N"},
+    VK_M: {c: 77, n: "M"},
+    VK_COMMA: {c: 188, n: "] ="},
+    VK_PERIOD: {c: 190, n: "."},
+    VK_SEMICOLON: {c: 191, n: ";"},
+    VK_SLASH: {c: 193, n: "/"},
+    VK_CONTROL: {c: 17, n: "Ctrl"},
+    VK_ALT: {c: 18, n: "Alt"},
+    VK_SPACE: {c: 32, n: "Space"},
+    VK_INSERT: {c: 45, n: "Ins"},
+    VK_DELETE: {c: 46, n: "Del"},
+    VK_HOME: {c: 36, n: "Home"},
+    VK_END: {c: 35, n: "End"},
+    VK_PAGE_UP: {c: 33, n: "PgUp"},
+    VK_PAGE_DOWN: {c: 34, n: "PgDown"},
+    VK_UP: {c: 38, n: "Up"},
+    VK_DOWN: {c: 40, n: "Down"},
+    VK_LEFT: {c: 37, n: "Left"},
+    VK_RIGHT: {c: 39, n: "Right"},
+    VK_NUM_LOCK: {c: 144, n: "Num"},
+    VK_DIVIDE: {c: 111, n: "Num /"},
+    VK_MULTIPLY: {c: 106, n: "Num *"},
+    VK_SUBTRACT: {c: 109, n: "Num -"},
+    VK_ADD: {c: 107, n: "Num +"},
+    VK_DECIMAL: {c: 194, n: "Num ."},
+    VK_NUMPAD0: {c: 96, n: "Num 0"},
+    VK_NUMPAD1: {c: 97, n: "Num 1"},
+    VK_NUMPAD2: {c: 98, n: "Num 2"},
+    VK_NUMPAD3: {c: 99, n: "Num 3"},
+    VK_NUMPAD4: {c: 100, n: "Num 4"},
+    VK_NUMPAD5: {c: 101, n: "Num 5"},
+    VK_NUMPAD6: {c: 102, n: "Num 6"},
+    VK_NUMPAD7: {c: 103, n: "Num 7"},
+    VK_NUMPAD8: {c: 104, n: "Num 8"},
+    VK_NUMPAD9: {c: 105, n: "Num 9"},
+    VK_NUMPAD_CENTER: {c: 12, n: "Num Cntr"}
+};
+
+function makeKeycodeMap(table) {
+  var map = {};
+  for (var i=0; i<table.length; i++) {
+    var entry = table[i];
+    map[entry[0].c] = {index:entry[1], mask:entry[2]};
+  }
+  return map;
 }
 
 function padBytes(data, len) {
@@ -657,7 +816,7 @@ function AddressDecoder(table) {
       var func = entry[3];
       self['__fn'+i] = func;
       s += "if (a>=" + start + " && a<="+end + "){";
-      s += "a&="+(mask?mask:0xffff)+";";
+      if (mask) s += "a&="+mask+";";
       s += "return this.__fn"+i+"(a,v)&0xff;}\n";
     }
     s += "return 0;"; // TODO: noise()?

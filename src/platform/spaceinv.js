@@ -207,12 +207,6 @@ var SpaceInvadersPlatform = function(mainElement) {
   this.readAddress = function(addr) {
     return membus.read(addr);
   }
-
-	this.ramStateToLongString = function(state) {
-		return "";
-		//var stack = state.b.slice(state.c.SP & 0x1fff, 0x400);
-    //return "\n" + dumpRAM(stack, state.c.SP, stack.length);
-  }
 }
 
 PLATFORMS['spaceinv'] = SpaceInvadersPlatform;
