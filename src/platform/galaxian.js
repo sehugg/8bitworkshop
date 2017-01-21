@@ -32,6 +32,18 @@ var GalaxianPlatform = function(mainElement) {
   for (var i=0; i<256; i++)
     stars[i] = noise();
 
+	var GALAXIAN_KEYCODE_MAP = makeKeycodeMap([
+		[Keys.VK_SPACE, 0, 0x10], // P1
+		[Keys.VK_LEFT, 0, 0x4],
+		[Keys.VK_RIGHT, 0, 0x8],
+		[Keys.VK_S, 1, 0x10], // P2
+		[Keys.VK_A, 1, 0x4],
+		[Keys.VK_D, 1, 0x8],
+		[Keys.VK_5, 0, 0x1],
+		[Keys.VK_1, 1, 0x1],
+		[Keys.VK_2, 1, 0x2],
+  ]);
+
 	function drawScanline(pixels, sl) {
     if (sl < 16 && !showOffscreenObjects) return; // offscreen
     if (sl >= 240 && !showOffscreenObjects) return; // offscreen
@@ -127,18 +139,6 @@ var GalaxianPlatform = function(mainElement) {
     }
 	}
 
-  var KEYCODE_MAP = {
-    32:{i:0,b:4}, // space bar (P1)
-    37:{i:0,b:2}, // left arrow (P1)
-    39:{i:0,b:3}, // right arrow (P1)
-    0x53:{i:1,b:4}, // S (P2)
-    0x41:{i:1,b:2}, // A (P2)
-    0x44:{i:1,b:3}, // D (P2)
-    53:{i:0,b:0}, // 5
-    49:{i:1,b:0}, // 1
-    50:{i:1,b:1}, // 2
-  }
-
   this.getPresets = function() {
     return GALAXIAN_PRESETS;
   }
@@ -187,16 +187,7 @@ var GalaxianPlatform = function(mainElement) {
     audio = new SampleAudio(cpuFrequency);
     video.create();
     var idata = video.getFrameData();
-    video.setKeyboardEvents(function(key,code,flags) {
-      var o = KEYCODE_MAP[key];
-      if (o) {
-        if (flags & 1) {
-          inputs[o.i] |= (1<<o.b);
-        } else {
-          inputs[o.i] &= ~(1<<o.b);
-        }
-      }
-    });
+		setKeyboardFromMap(video, inputs, GALAXIAN_KEYCODE_MAP);
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, function() {
 			if (!self.isRunning())
@@ -294,9 +285,6 @@ var GalaxianPlatform = function(mainElement) {
       in1:inputs[1],
       in2:inputs[2],
     };
-  }
-  this.getRAMForState = function(state) {
-    return ram.mem;
   }
   this.getCPUState = function() {
     return cpu.saveState();

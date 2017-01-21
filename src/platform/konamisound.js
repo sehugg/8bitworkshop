@@ -123,9 +123,6 @@ var KonamiSoundPlatform = function(mainElement) {
       b:ram.mem.slice(0),
     };
   }
-  this.getRAMForState = function(state) {
-    return ram.mem;
-  }
   this.getCPUState = function() {
     return cpu.saveState();
   }

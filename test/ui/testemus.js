@@ -14,7 +14,7 @@ describe('Test VCS emulator', function() {
 });
 
 describe('Test Space Invaders emulator', function() {
-  var platform = new SpaceInvadersPlatform($('#emulator')[0]);
+  var platform = new Midway8080BWPlatform($('#emulator')[0]);
   it('Should start', function(done) {
     platform.start();
     assert(!platform.isRunning());

@@ -8,10 +8,6 @@ function noise() {
   return (Math.random() * 256) & 0xff;
 }
 
-function _metakeyflags(e) {
-  return (e.shiftKey?2:0) | (e.ctrlKey?4:0) | (e.altKey?8:0) | (e.metaKey?16:0);
-}
-
 function __createCanvas(mainElement, width, height) {
   // TODO
   var fsElement = document.createElement('div');
@@ -55,6 +51,7 @@ var RasterVideo = function(mainElement, width, height, options) {
     datau32 = new Uint32Array(buf);
   }
 
+  // TODO: make common
   this.setKeyboardEvents = function(callback) {
     canvas.onkeydown = function(e) {
       callback(e.which, 0, 1|_metakeyflags(e));
@@ -131,7 +128,7 @@ var VectorVideo = function(mainElement, width, height) {
   var persistenceAlpha = 0.5;
   var jitter = 1.0;
 
-  this.start = function() {
+  this.create = function() {
     canvas = __createCanvas(mainElement, width, height);
     ctx = canvas.getContext('2d');
   }
@@ -666,7 +663,7 @@ var Base6809Platform = function() {
       // TODO: 6809 opcodes
       if (op == 0x9d || op == 0xad || op == 0xbd) // CALL
         depth++;
-      else if (op == 0x3b || op == 0x39) // RET (TODO?)
+      else if (op == 0x3b || op == 0x39) // RET
         --depth;
       return false;
     });
@@ -675,11 +672,8 @@ var Base6809Platform = function() {
     return cpuStateToLongString_6809(c);
   }
   this.getToolForFilename = function(fn) {
-    if (fn.endsWith(".c")) return "sdcc";
-    if (fn.endsWith(".s")) return "sdasz80";
-    return "z80asm";
+    return "xasm6809";
   }
-  // TODO
   this.disassemble = function(pc, read) {
     // TODO: don't create new CPU
     return new CPU6809().disasm(read(pc), read(pc+1), read(pc+2), read(pc+3), read(pc+4), pc);
@@ -794,6 +788,32 @@ var Keys = {
     VK_NUMPAD_CENTER: {c: 12, n: "Num Cntr"}
 };
 
+function _metakeyflags(e) {
+  return (e.shiftKey?2:0) | (e.ctrlKey?4:0) | (e.altKey?8:0) | (e.metaKey?16:0);
+}
+
+function setKeyboardFromMap(video, switches, map, func) {
+  video.setKeyboardEvents(function(key,code,flags) {
+    var o = map[key];
+    if (o && func) {
+      func(o, key, code, flags);
+    }
+    if (o) {
+      //console.log(key,code,flags,o);
+      var mask = o.mask;
+      if (mask < 0) { // negative mask == active low
+        mask = -mask;
+        flags ^= 1;
+      }
+      if (flags & 1) {
+        switches[o.index] |= mask;
+      } else {
+        switches[o.index] &= ~mask;
+      }
+    }
+  });
+}
+
 function makeKeycodeMap(table) {
   var map = {};
   for (var i=0; i<table.length; i++) {
@@ -810,10 +830,13 @@ function padBytes(data, len) {
 }
 
 // TODO: better performance, check values
-function AddressDecoder(table) {
+function AddressDecoder(table, options) {
   var self = this;
   function makeFunction(lo, hi) {
     var s = "";
+    if (options && options.gmask) {
+      s += "a&=" + options.gmask + ";";
+    }
     for (var i=0; i<table.length; i++) {
       var entry = table[i];
       var start = entry[0];

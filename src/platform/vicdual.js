@@ -57,14 +57,14 @@ var VicDualPlatform = function(mainElement) {
 		}
 	}
 
-  var KEYCODE_MAP = {
-		37:{i:1,m:0x10,a:0}, // left arrow (P1)
-    39:{i:1,m:0x20,a:0}, // right arrow (P1)
-		49:{i:2,m:0x10,a:0}, // 1
-    32:{i:2,m:0x20,a:0}, // space bar (P1)
-    53:{i:3,m:0x08,a:1}, // 5
-		50:{i:3,m:0x20,a:0}, // 2
-  }
+	var CARNIVAL_KEYCODE_MAP = makeKeycodeMap([
+		[Keys.VK_SPACE, 2, -0x20], // P1
+		[Keys.VK_LEFT, 1, -0x10],
+		[Keys.VK_RIGHT, 1, -0x20],
+		[Keys.VK_1, 2, -0x10],
+		[Keys.VK_2, 3, -0x20],
+		[Keys.VK_5, 3, 0x8],
+  ]);
 
   this.getPresets = function() {
     return VICDUAL_PRESETS;
@@ -100,18 +100,10 @@ var VicDualPlatform = function(mainElement) {
     audio = new SampleAudio(cpuFrequency);
     video.create();
     var idata = video.getFrameData();
-    video.setKeyboardEvents(function(key,code,flags) {
-      var o = KEYCODE_MAP[key];
-      if (o) {
-        if ((flags^o.a) & 1) {
-					inputs[o.i] &= ~o.m;
-        } else {
-					inputs[o.i] |= o.m;
-        }
-        // reset CPU when coin inserted
-        if (o.i==3 && o.m==0x8) cpu.reset();
-      }
-    });
+		setKeyboardFromMap(video, inputs, CARNIVAL_KEYCODE_MAP, function(o) {
+			// reset when coin inserted
+			if (o.index==3 && o.mask==0x8) cpu.reset();
+		});
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, function() {
 			if (!self.isRunning())
@@ -159,9 +151,6 @@ var VicDualPlatform = function(mainElement) {
       in2:inputs[2],
 			in3:inputs[3],
     };
-  }
-  this.getRAMForState = function(state) {
-    return ram.mem;
   }
   this.getCPUState = function() {
     return cpu.saveState();

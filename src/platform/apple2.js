@@ -286,9 +286,6 @@ var Apple2Platform = function(mainElement) {
       lc:{s:auxRAMselected,b:auxRAMbank,w:writeinhibit},
     };
   }
-  this.getRAMForState = function(state) {
-    return ram.mem;
-  }
   this.getCPUState = function() {
     return cpu.saveState();
   }

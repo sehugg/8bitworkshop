@@ -16,6 +16,19 @@ var AtariVectorPlatform = function(mainElement) {
 
   this.__proto__ = new Base6502Platform();
 
+  var ASTEROIDS_KEYCODE_MAP = makeKeycodeMap([
+    [Keys.VK_SHIFT, 3, 0xff],
+    [Keys.VK_SPACE, 4, 0xff],
+    [Keys.VK_5, 8, 0xff],
+    [Keys.VK_6, 9, 0xff],
+    [Keys.VK_7, 10, 0xff],
+    [Keys.VK_1, 11, 0xff],
+    [Keys.VK_2, 12, 0xff],
+    [Keys.VK_UP, 13, 0xff],
+    [Keys.VK_RIGHT, 14, 0xff],
+    [Keys.VK_LEFT, 15, 0xff],
+  ]);
+
   this.getPresets = function() {
     return ATARIVEC_PRESETS;
   }
@@ -28,38 +41,24 @@ var AtariVectorPlatform = function(mainElement) {
     //switches[7] = 0xff;
     // bus
     bus = {
-      read: function(address) {
-        address &= 0x7fff;
-        if (address >= 0x6800 && address <= 0x7fff) {
-          return rom[address - 0x6800];
-        } else if (address <= 0x3ff) {
-          return cpuram.mem[address];
-        } else if (address >= 0x5000 && address <= 0x5fff) {
-          return vecrom[address - 0x5000];
-        } else if (address >= 0x4000 && address <= 0x5fff) {
-          return dvgram.mem[address - 0x4000];
-        } else if (address >= 0x2000 && address <= 0x3fff) {
-          if (address == 0x2001)
-            return ((clock/500) & 1) ? 0xff : 0x00;
-          else if (address >= 0x2000 && address <= 0x2007)
-            return switches[address - 0x2000];
-          else if (address >= 0x2400 && address <= 0x2407)
-            return switches[address - 0x2400 + 8];
-        }
-        return 0xff;
-      },
-      write: function(address, val) {
-        address &= 0x7fff;
-        if (address < 0x3ff) {
-          cpuram.mem[address] = val;
-        } else if (address >= 0x4000 && address <= 0x5fff) {
-          dvgram.mem[address - 0x4000] = val;
-        } else if (address >= 0x3000 && address <= 0x3fff) {
-          //console.log(address.toString(16), val);
-          if (address == 0x3000) dvg.runUntilHalt();
-          // TODO: draw asynchronous or allow poll of HALT ($2002)
-        }
-      }
+
+      read: new AddressDecoder([
+        [0x0,    0x3ff,  0x3ff,  function(a) { return cpuram.mem[a]; }],
+        [0x2001, 0x2001, 0,      function(a) { return ((clock/500) & 1) ? 0xff : 0x00; }],
+        [0x2000, 0x2007, 0x7,    function(a) { return switches[a]; }],
+        [0x2400, 0x2407, 0x7,    function(a) { return switches[a+8]; }],
+        [0x4000, 0x4fff, 0xfff,  function(a) { return dvgram.mem[a]; }],
+        [0x5000, 0x5fff, 0xfff,  function(a) { return vecrom[a]; }],
+        [0x6800, 0x7fff, 0,      function(a) { return rom[a - 0x6800]; }],
+      ], {gmask:0x7fff}),
+
+      write: new AddressDecoder([
+        [0x0,    0x3ff,  0x3ff,  function(a,v) { cpuram.mem[a] = v; }],
+        [0x3000, 0x3000, 0,      function(a,v) { dvg.runUntilHalt(); }],
+        // TODO: draw asynchronous or allow poll of HALT ($2002)
+        [0x4000, 0x5fff, 0x1fff, function(a,v) { dvgram.mem[a] = v; }],
+      ], {gmask:0x7fff})
+
     };
     cpu.connectBus(bus);
     // create video/audio
@@ -89,25 +88,7 @@ var AtariVectorPlatform = function(mainElement) {
       }
       self.restartDebugState();
     });
-    video.setKeyboardEvents(function(key,code,flags) {
-      var KEY2ADDR = {
-        16: 3, // shift
-        32: 4, // space
-        53: 8+0, // 5
-        54: 8+1, // 6
-        55: 8+2, // 7
-        49: 8+3, // 1
-        50: 8+4, // 2
-        38: 8+5,
-        39: 8+6,
-        37: 8+7,
-      };
-      var addr = KEY2ADDR[key];
-      //console.log(key,flags,addr);
-      if (addr >= 0) {
-        switches[addr] = (flags&1) ? 0xff : 0x00;
-      }
-    });
+    setKeyboardFromMap(video, switches, ASTEROIDS_KEYCODE_MAP);
   }
 
   this.loadROM = function(title, data) {
@@ -153,9 +134,6 @@ var AtariVectorPlatform = function(mainElement) {
       db:dvgram.mem.slice(0),
       nmic:nmicount
     }
-  }
-  this.getRAMForState = function(state) {
-    return state.cb;
   }
   this.getCPUState = function() {
     return cpu.saveState();

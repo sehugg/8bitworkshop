@@ -463,7 +463,7 @@ l_main00101                     = 0003, L: test
 }
 
 var PLATFORM_PARAMS = {
-  'spaceinv': {
+  'mw8080bw': {
     code_start: 0x0,
     code_size: 0x2000,
     data_start: 0x2000,
@@ -611,6 +611,53 @@ function compileSDCC(code, platform) {
   return result;
 }
 
+function assembleXASM6809(code, platform) {
+  load("xasm6809");
+  var origin = 0; // TODO: configurable
+  var alst = "";
+  var lasterror = null;
+  msvc_errors = [];
+  function match_fn(s) {
+    alst += s;
+    alst += "\n";
+    if (lasterror) {
+      var line = parseInt(s.slice(0,5));
+      msvc_errors.push({
+        line:line,
+        msg:lasterror
+      });
+      lasterror = null;
+    }
+    else if (s.startsWith("***** ")) {
+      lasterror = s.slice(6);
+    }
+  }
+  var Module = xasm6809({
+    noInitialRun:true,
+    //logReadFiles:true,
+    print:match_fn,
+    printErr:print_fn
+  });
+  var FS = Module['FS'];
+  //setupFS(FS);
+  FS.writeFile("main.asm", code);
+  Module.callMain(["-c", "-l", "-s", "-y", "-o=main.bin", "main.asm"]);
+  console.log(alst);
+  try {
+    var aout = FS.readFile("main.bin", {encoding:'binary'});
+    // 00001    0000 [ 2] 1048                asld
+    var asmlines = parseListing(alst, /^\s*([0-9A-F]+)\s+([0-9A-F]+)\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 1, 2, 4, 5, 3);
+    return {
+      output:aout,
+      errors:msvc_errors,
+      lines:asmlines,
+      intermediate:{listing:alst},
+    };
+  } catch(e) {
+    return {errors:msvc_errors}; // TODO
+  }
+}
+
 var TOOLS = {
   'dasm': assembleDASM,
   'acme': assembleACME,
@@ -620,6 +667,7 @@ var TOOLS = {
   'z80asm': assembleZ80ASM,
   'sdasz80': assemblelinkSDASZ80,
   'sdcc': compileSDCC,
+  'xasm6809': assembleXASM6809,
 }
 
 onmessage = function(e) {

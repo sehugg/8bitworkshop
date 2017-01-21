@@ -102,21 +102,24 @@ describe('Worker', function() {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'apple2', done, 0, 0, 1);
   });
   it('should assemble Z80ASM', function(done) {
-    compile('z80asm', '\tMODULE test\n\tXREF _puts\n\tld	hl,$0000\n\tret\n', 'spaceinv', done, 4, 2, 0);
+    compile('z80asm', '\tMODULE test\n\tXREF _puts\n\tld	hl,$0000\n\tret\n', 'mw8080bw', done, 4, 2, 0);
   });
   it('should NOT assemble Z80ASM', function(done) {
     compile('z80asm', 'ddwiuweq', 'none', done, 0, 0, 1);
   });
   it('should assemble SDASZ80', function(done) {
-    compile('sdasz80', '\tld	hl,#0\n\tret\n', 'spaceinv', done, 8192, 2);
+    compile('sdasz80', '\tld	hl,#0\n\tret\n', 'mw8080bw', done, 8192, 2);
   });
   it('should NOT assemble SDASZ80', function(done) {
-    compile('sdasz80', '\txxx hl,#0\n\tret\n', 'spaceinv', done, 0, 0, 1);
+    compile('sdasz80', '\txxx hl,#0\n\tret\n', 'mw8080bw', done, 0, 0, 1);
   });
   it('should compile SDCC', function(done) {
-    compile('sdcc', 'int foo=0;\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}', 'spaceinv', done, 8192, 3, 0);
+    compile('sdcc', 'int foo=0;\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}', 'mw8080bw', done, 8192, 3, 0);
   });
   it('should NOT compile SDCC', function(done) {
-    compile('sdcc', 'foobar', 'spaceinv', done, 0, 0, 1);
+    compile('sdcc', 'foobar', 'mw8080bw', done, 0, 0, 1);
+  });
+  it('should compile XASM6809', function(done) {
+    compile('xasm6809', '\tasld\n\tasld\n', 'mw8080bw', done, 4, 2, 0);
   });
 });

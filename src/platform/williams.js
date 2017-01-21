@@ -1,5 +1,5 @@
-
 "use strict";
+
 var WILLIAMS_PRESETS = [
 ];
 
@@ -277,17 +277,7 @@ var WilliamsPlatform = function(mainElement) {
 			console.log(x, y, hex(addr,4), "PC", hex(displayPCs[addr],4));
 		});
     var idata = video.getFrameData();
-    video.setKeyboardEvents(function(key,code,flags) {
-      var o = ROBOTRON_KEYCODE_MAP[key];
-      if (o) {
-        //console.log(key,code,flags,o);
-        if (flags & 1) {
-          pia6821[o.index] |= o.mask;
-        } else {
-          pia6821[o.index] &= ~o.mask;
-        }
-      }
-    });
+    setKeyboardFromMap(video, pia6821, ROBOTRON_KEYCODE_MAP);
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, function() {
 			if (!self.isRunning())
@@ -355,9 +345,6 @@ var WilliamsPlatform = function(mainElement) {
       bs:banksel,
       ps:portsel,
     };
-  }
-  this.getRAMForState = function(state) {
-    return ram.mem;
   }
   this.getCPUState = function() {
     return cpu.saveState();

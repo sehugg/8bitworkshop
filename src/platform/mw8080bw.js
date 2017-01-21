@@ -1,8 +1,8 @@
 "use strict";
 
-// http://www.computerarcheology.com/Arcade/SpaceInvaders/Hardware.html
+// http://www.computerarcheology.com/Arcade/
 
-var SPACEINV_PRESETS = [
+var MW8080BW_PRESETS = [
 ];
 
 // TODO: global???
@@ -10,7 +10,7 @@ window.buildZ80({
 	applyContention: false
 });
 
-var SpaceInvadersPlatform = function(mainElement) {
+var Midway8080BWPlatform = function(mainElement) {
   var self = this;
   this.__proto__ = new BaseZ80Platform();
 
@@ -26,20 +26,20 @@ var SpaceInvadersPlatform = function(mainElement) {
   var PIXEL_ON = 0xffeeeeee;
   var PIXEL_OFF = 0xff000000;
 
-  var KEYCODE_MAP = {
-    32:{i:1,b:4}, // space bar (P1)
-    37:{i:1,b:5}, // left arrow (P1)
-    39:{i:1,b:6}, // right arrow (P1)
-    0x53:{i:2,b:4}, // S (P2)
-    0x41:{i:2,b:5}, // A (P2)
-    0x44:{i:2,b:6}, // D (P2)
-    53:{i:1,b:0}, // 5
-    49:{i:1,b:2}, // 1
-    50:{i:1,b:1}, // 2
-  }
+	var SPACEINV_KEYCODE_MAP = makeKeycodeMap([
+		[Keys.VK_SPACE, 1, 0x10], // P1
+		[Keys.VK_LEFT, 1, 0x20],
+		[Keys.VK_RIGHT, 1, 0x40],
+		[Keys.VK_S, 2, 0x10], // P2
+		[Keys.VK_A, 2, 0x20],
+		[Keys.VK_D, 2, 0x40],
+		[Keys.VK_5, 1, 0x1],
+		[Keys.VK_1, 1, 0x4],
+		[Keys.VK_2, 1, 0x2],
+  ]);
 
   this.getPresets = function() {
-    return SPACEINV_PRESETS;
+    return MW8080BW_PRESETS;
   }
 
   this.start = function() {
@@ -111,16 +111,7 @@ var SpaceInvadersPlatform = function(mainElement) {
 			console.log(x, y, hex(addr,4), "PC", hex(displayPCs[addr],4));
 		});
     var idata = video.getFrameData();
-    video.setKeyboardEvents(function(key,code,flags) {
-      var o = KEYCODE_MAP[key];
-      if (o) {
-        if (flags & 1) {
-          inputs[o.i] |= (1<<o.b);
-        } else {
-          inputs[o.i] &= ~(1<<o.b);
-        }
-      }
-    });
+		setKeyboardFromMap(video, inputs, SPACEINV_KEYCODE_MAP);
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, function() {
 			if (!self.isRunning())
@@ -183,9 +174,6 @@ var SpaceInvadersPlatform = function(mainElement) {
       in2:inputs[2],
     };
   }
-  this.getRAMForState = function(state) {
-    return ram.mem;
-  }
   this.getCPUState = function() {
     return cpu.saveState();
   }
@@ -209,4 +197,4 @@ var SpaceInvadersPlatform = function(mainElement) {
   }
 }
 
-PLATFORMS['spaceinv'] = SpaceInvadersPlatform;
+PLATFORMS['mw8080bw'] = Midway8080BWPlatform;
