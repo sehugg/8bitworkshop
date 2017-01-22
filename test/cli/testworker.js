@@ -113,11 +113,17 @@ describe('Worker', function() {
   it('should NOT assemble SDASZ80', function(done) {
     compile('sdasz80', '\txxx hl,#0\n\tret\n', 'mw8080bw', done, 0, 0, 1);
   });
+  it('should NOT assemble SDASZ80', function(done) {
+    compile('sdasz80', '\tcall divxxx\n', 'mw8080bw', done, 0, 0, 1);
+  });
   it('should compile SDCC', function(done) {
-    compile('sdcc', 'int foo=0;\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}', 'mw8080bw', done, 8192, 3, 0);
+    compile('sdcc', 'int foo=0; // comment\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}', 'mw8080bw', done, 8192, 3, 0);
   });
   it('should NOT compile SDCC', function(done) {
     compile('sdcc', 'foobar', 'mw8080bw', done, 0, 0, 1);
+  });
+  it('should NOT preprocess SDCC', function(done) {
+    compile('sdcc', 'int x=0\n#bah\n', 'mw8080bw', done, 0, 0, 1);
   });
   it('should compile XASM6809', function(done) {
     compile('xasm6809', '\tasld\n\tasld\n', 'mw8080bw', done, 4, 2, 0);

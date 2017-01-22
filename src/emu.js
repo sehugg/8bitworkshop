@@ -19,7 +19,7 @@ function __createCanvas(mainElement, width, height) {
   var canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  canvas.style.class = "emuvideo";
+  canvas.style['class'] = "emuvideo";
   canvas.style.width = "100%";
   canvas.style.height = "100%";
   canvas.tabIndex = "-1";               // Make it focusable
@@ -463,8 +463,8 @@ var Base6502Platform = function() {
       return false;
     });
   }
-  this.disassemble = function(mem, start, end, pcvisits) {
-    return new Disassembler6502().disassemble(mem, start, end, pcvisits);
+  this.disassemble = function(pc, read) {
+    return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
   }
   this.cpuStateToLongString = function(c) {
     return cpuStateToLongString_6502(c);
@@ -700,7 +700,6 @@ var Keys = {
     VK_SCROLL_LOCK: {c: 145, n: "ScrLck"},
     VK_PAUSE: {c: 19, n: "Pause"},
     VK_QUOTE: {c: 192, n: "'"},
-    VK_TILDE: {c: 222, n: "~"},
     VK_1: {c: 49, n: "1"},
     VK_2: {c: 50, n: "2"},
     VK_3: {c: 51, n: "3"},

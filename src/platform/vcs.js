@@ -85,6 +85,14 @@ var VCSPlatform = function() {
   this.getOriginPC = function() {
     return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
   }
+  /*
+  this.saveState = function() {
+    return Javatari.room.console.saveState(); // TODO
+  }
+  this.loadState = function(state) {
+    return Javatari.room.console.loadState(state); // TODO
+  }
+  */
   this.readAddress = function(addr) {
     return current_output[addr & 0xfff]; // TODO: use bus to read
   }

@@ -72,6 +72,7 @@ var print_fn = function(s) {
 
 // test.c(6) : warning 85: in function main unreferenced local variable : 'x'
 // main.a (4): error: Unknown Mnemonic 'xxx'.
+// at 2: warning 190: ISO C forbids an empty source file
 var re_msvc  = /([^(]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
 var re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
 var msvc_errors;
@@ -508,12 +509,13 @@ function assemblelinkSDASZ80(code, platform) {
   if (!params) throw Error("Platform not supported: " + platform);
   {
     msvc_errors = [];
-    //var match_re = /in line (\d+) of (.+)/; // TODO
-    var match_re = / <\w> (.+)/; // TODO
-    function match_fn(s) {
-      var matches = match_re.exec(s);
+    //?ASxxxx-Error-<o> in line 1 of main.asm null
+    //              <o> .org in REL area or directive / mnemonic error
+    var match_asm_re = / <\w> (.+)/; // TODO
+    function match_asm_fn(s) {
+      var matches = match_asm_re.exec(s);
       if (matches) {
-        var errline = parseInt(matches[1]);
+        var errline = parseInt(matches[2]);
         msvc_errors.push({
           line:1, // TODO: errline,
           msg:matches[1]
@@ -523,8 +525,8 @@ function assemblelinkSDASZ80(code, platform) {
     var ASZ80 = sdasz80({
       noInitialRun:true,
       //logReadFiles:true,
-      print:match_fn,
-      printErr:match_fn,
+      print:match_asm_fn,
+      printErr:match_asm_fn,
     });
     var FS = ASZ80['FS'];
     FS.writeFile("main.asm", code, {encoding:'utf8'});
@@ -536,11 +538,22 @@ function assemblelinkSDASZ80(code, platform) {
     lstout = FS.readFile("main.lst", {encoding:'utf8'});
     //symout = FS.readFile("main.sym", {encoding:'utf8'});
   }{
+    //?ASlink-Warning-Undefined Global '__divsint' referenced by module 'main'
+    var match_aslink_re = /\?ASlink-(\w+)-(.+)/;
+    function match_aslink_fn(s) {
+      var matches = match_aslink_re.exec(s);
+      if (matches) {
+        msvc_errors.push({
+          line:1,
+          msg:matches[2]
+        });
+      }
+    }
     var LDZ80 = sdldz80({
       noInitialRun:true,
       //logReadFiles:true,
-      print:match_msvc,
-      printErr:function() { },
+      print:match_aslink_fn,
+      printErr:match_aslink_fn,
     });
     var FS = LDZ80['FS'];
     FS.writeFile("main.rel", objout, {encoding:'utf8'});
@@ -557,7 +570,7 @@ function assemblelinkSDASZ80(code, platform) {
     //   0000 21 02 00      [10]   52 	ld	hl, #2
     // TODO: offset by start address?
     var asmlines = parseListing(lstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2, 5, 3);
-    var srclines = parseSourceLines(lstout, /^\s+\d+ ;\(null\):(\d+):/i, /^\s*([0-9A-F]{4})/i);
+    var srclines = parseSourceLines(lstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
     // parse symbol map
     var symbolmap = {};
     for (var s of mapout.split("\n")) {
@@ -578,6 +591,10 @@ function assemblelinkSDASZ80(code, platform) {
 }
 
 function compileSDCC(code, platform) {
+  var preproc = preprocessMCPP(code, platform);
+  if (preproc.errors) return preproc;
+  else code = preproc.code;
+
   load("sdcc");
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
@@ -592,16 +609,16 @@ function compileSDCC(code, platform) {
   setupFS(FS);
   //FS.writeFile("main.c", code, {encoding:'utf8'});
   msvc_errors = [];
-  SDCC.callMain(['--vc', '--c1mode', '--std-sdcc99', '-mz80', '-Wall',
-    '--debug',
+  SDCC.callMain(['--vc', '--std-sdcc99', '-mz80', '-Wall',
+    '--c1mode', // '--debug',
+    //'-S', 'main.c',
     //'--asm=z80asm',
     '--fomit-frame-pointer', '--opt-code-speed',
-    '-o', 'test.asm']);
-  try {
-    var asmout = FS.readFile("test.asm", {encoding:'utf8'});
-  } catch(e) {
+    '-o', 'main.asm']);
+  if (msvc_errors.length) {
     return {errors:msvc_errors};
   }
+  var asmout = FS.readFile("main.asm", {encoding:'utf8'});
   var warnings = msvc_errors;
   var result = assemblelinkSDASZ80(asmout, platform, true);
   result.asmlines = result.lines;
@@ -642,7 +659,6 @@ function assembleXASM6809(code, platform) {
   //setupFS(FS);
   FS.writeFile("main.asm", code);
   Module.callMain(["-c", "-l", "-s", "-y", "-o=main.bin", "main.asm"]);
-  console.log(alst);
   try {
     var aout = FS.readFile("main.bin", {encoding:'binary'});
     // 00001    0000 [ 2] 1048                asld
@@ -656,6 +672,33 @@ function assembleXASM6809(code, platform) {
   } catch(e) {
     return {errors:msvc_errors}; // TODO
   }
+}
+
+function preprocessMCPP(code, platform) {
+  load("mcpp");
+  var MCPP = mcpp({
+    noInitialRun:true,
+    noFSInit:true,
+    print:print_fn,
+    printErr:print_fn,
+  });
+  var FS = MCPP['FS'];
+  FS.writeFile("main.c", code, {encoding:'utf8'});
+  msvc_errors = [];
+  try {
+    MCPP.callMain([
+      "-D", "__8BITWORKSHOP__",
+      "-D", platform.toUpperCase(),
+      "-W", "31",
+      "main.c", "main.i"]);
+      var iout = FS.readFile("main.i", {encoding:'utf8'});
+  } catch (e) {
+    msvc_errors.push({line:1, msg:e+""});
+  }
+  if (msvc_errors.length) {
+    return {errors:msvc_errors};
+  }
+  return {code:iout};
 }
 
 var TOOLS = {

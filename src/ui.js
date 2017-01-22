@@ -116,7 +116,7 @@ var sourcefile = null;
 var pcvisits;
 var trace_pending_at_pc;
 var store;
-var pendingWorkerMessages;
+var pendingWorkerMessages = 0;
 
 var editor = CodeMirror(document.getElementById('editor'), {
   theme: 'mbo',
@@ -168,7 +168,7 @@ function loadCode(text, fileid) {
 function loadFile(fileid, filename, index) {
   current_preset_id = fileid;
   current_preset_index = index;
-  var text = store.loadFile(fileid)|| "";
+  var text = store.loadFile(fileid) || "";
   if (text) {
     loadCode(text, fileid);
   } else if (!text && index >= 0) {
@@ -275,30 +275,27 @@ function populateExamples(sel) {
   }
 }
 
-function populateLocalFiles(sel) {
-  sel.append($("<option />").text("------- Local Files -------").attr('disabled',true));
-  var filenames = store.getFiles("local/");
+function populateFiles(sel, name, prefix) {
+  sel.append($("<option />").text("------- " + name + " -------").attr('disabled',true));
+  var filenames = store.getFiles(prefix);
+  var foundSelected = false;
   for (var i = 0; i < filenames.length; i++) {
     var name = filenames[i];
-    var key = "local/" + name;
+    var key = prefix + name;
     sel.append($("<option />").val(key).text(name).attr('selected',key==current_preset_id));
+    if (key == current_preset_id) foundSelected = true;
   }
-}
-
-function populateSharedFiles(sel) {
-  sel.append($("<option />").text("--------- Shared ---------").attr('disabled',true));
-  var filenames = store.getFiles("shared/");
-  for (var i = 0; i < filenames.length; i++) {
-    var name = filenames[i];
-    var key = "shared/" + name;
-    sel.append($("<option />").val(key).text(name).attr('selected',key==current_preset_id));
+  if (!foundSelected && current_preset_id && current_preset_id.startsWith(prefix)) {
+    var name = current_preset_id.slice(prefix.length);
+    var key = prefix + name;
+    sel.append($("<option />").val(key).text(name).attr('selected',true));
   }
 }
 
 function updateSelector() {
   var sel = $("#preset_select").empty();
-  populateLocalFiles(sel);
-  populateSharedFiles(sel);
+  populateFiles(sel, "Local Files", "local/");
+  populateFiles(sel, "Shared", "shared/");
   populateExamples(sel);
   // set click handlers
   sel.off('change').change(function(e) {
@@ -332,6 +329,7 @@ function arrayCompare(a,b) {
 
 worker.onmessage = function(e) {
   if (pendingWorkerMessages > 1) {
+    pendingWorkerMessages = 0;
     setCode(editor.getValue());
   }
   pendingWorkerMessages = 0;
@@ -821,7 +819,7 @@ function setupDebugControls(){
   if (platform_id == 'vcs') {
     $("#dbg_timing").click(traceTiming).show();
   }
-  if (platform.disassemble) {
+  if (platform.saveState) { // TODO: only show if listing or disasm available
     $("#dbg_disasm").click(toggleDisassembly).show();
   }
   $("#disassembly").hide();
