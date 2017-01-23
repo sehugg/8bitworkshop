@@ -59,6 +59,11 @@ global.postMessage = null;
 
 includeInThisContext("src/worker/workermain.js");
 
+global.onmessage({data:{preload:'cc65'}});
+global.onmessage({data:{preload:'sdcc'}});
+
+//
+
 function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
     global.postMessage = function(msg) {
         if (msg.errors && msg.errors.length) {
@@ -117,7 +122,10 @@ describe('Worker', function() {
     compile('sdasz80', '\tcall divxxx\n', 'mw8080bw', done, 0, 0, 1);
   });
   it('should compile SDCC', function(done) {
-    compile('sdcc', 'int foo=0; // comment\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}', 'mw8080bw', done, 8192, 3, 0);
+    compile('sdcc', 'int foo=0; // comment\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}\n', 'mw8080bw', done, 8192, 3, 0);
+  });
+  it('should compile SDCC w/ include', function(done) {
+    compile('sdcc', '#include <string.h>\nvoid main() {\nstrlen(0);\n}\n', 'mw8080bw', done, 8192, 2, 0);
   });
   it('should NOT compile SDCC', function(done) {
     compile('sdcc', 'foobar', 'mw8080bw', done, 0, 0, 1);

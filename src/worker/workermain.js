@@ -21,45 +21,31 @@ var document = noop();
 document.documentElement = noop();
 document.documentElement.style = noop();
 
+var fsMeta = {};
+var fsBlob = {};
+
 // load filesystems for CC65 and others asynchronously
-var fsMeta, fsBlob;
-{
+function loadFilesystem(name) {
   var xhr = new XMLHttpRequest();
   xhr.responseType = 'blob';
-  xhr.open("GET", "fs65.data", false);  // synchronous request
+  xhr.open("GET", "fs"+name+".data", false);  // synchronous request
   xhr.send(null);
-  fsBlob = xhr.response;
+  fsBlob[name] = xhr.response;
   xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
-  xhr.open("GET", "fs65.js.metadata", false);  // synchronous request
+  xhr.open("GET", "fs"+name+".js.metadata", false);  // synchronous request
   xhr.send(null);
-  fsMeta = xhr.response;
-  console.log("Loaded filesystem", fsMeta.files.length, 'files', fsBlob.size, 'bytes');
+  fsMeta[name] = xhr.response;
+  console.log("Loaded "+name+" filesystem", fsMeta[name].files.length, 'files', fsBlob[name].size, 'bytes');
 }
 
 // mount the filesystem at /share
-function setupFS(FS) {
+function setupFS(FS, name) {
   FS.mkdir('/share');
   FS.mount(FS.filesystems['WORKERFS'], {
-    packages: [{ metadata: fsMeta, blob: fsBlob }]
+    packages: [{ metadata: fsMeta[name], blob: fsBlob[name] }]
   }, '/share');
 }
-
-function extractErrors(strings, regex) {
-  var errors = [];
-  for (var i=0; i<strings.length; i++) {
-    var m = regex.exec(strings[i]);
-    if (m) {
-      errors.push({
-        line: m[1],
-        msg: m[2]
-      });
-    }
-  }
-  return errors;
-}
-
-// main worker start
 
 var DASM_MAIN_FILENAME = "main.a";
 var DASM_PREAMBLE = "\tprocessor 6502\n";
@@ -86,6 +72,27 @@ function match_msvc(s) {
       msg:matches[4]
     });
   }
+}
+
+function makeErrorMatcher(errors, regex, iline, imsg) {
+  return function(s) {
+    var matches = regex.exec(s);
+    if (matches) {
+      errors.push({
+        line:parseInt(matches[iline]),
+        msg:matches[imsg]
+      });
+    }
+  }
+}
+
+function extractErrors(regex, strings) {
+  var errors = [];
+  var matcher = makeErrorMatcher(errors, regex, 1, 2);
+  for (var i=0; i<strings.length; i++) {
+    matcher(strings[i]);
+  }
+  return errors;
 }
 
 function parseListing(code, lineMatch, iline, ioffset, iinsns) {
@@ -346,7 +353,7 @@ function assemblelinkCA65(code, platform, warnings) {
       printErr:print_fn,
     });
     var FS = CA65['FS'];
-    setupFS(FS);
+    setupFS(FS, '65');
     FS.writeFile("main.s", code, {encoding:'utf8'});
     CA65.callMain(['-v', '-g', '-I', '/share/asminc', '-l', 'main.lst', "main.s"]);
     objout = FS.readFile("main.o", {encoding:'binary'});
@@ -359,7 +366,7 @@ function assemblelinkCA65(code, platform, warnings) {
       printErr:print_fn,
     });
     var FS = LD65['FS'];
-    setupFS(FS);
+    setupFS(FS, '65');
     FS.writeFile("main.o", objout, {encoding:'binary'});
     LD65.callMain(['--cfg-path', '/share/cfg', '--lib-path', '/share/lib',
       '--start-addr', '0x6000', // TODO
@@ -399,7 +406,7 @@ function compileCC65(code, platform) {
     printErr:match_fn,
   });
   var FS = CC65['FS'];
-  setupFS(FS);
+  setupFS(FS, '65');
   FS.writeFile("main.c", code, {encoding:'utf8'});
   CC65.callMain(['-v', '-T', '-g', /*'-Cl',*/ '-Oirs', '-I', '/share/include', '-t', platform, "main.c"]);
   try {
@@ -433,7 +440,7 @@ function assembleZ80ASM(code, platform) {
     try {
       var aerr = FS.readFile("main.err", {'encoding':'utf8'}); // TODO
       if (aerr.length) {
-        return {errors:extractErrors(aerr.split("\n"), /.+? line (\d+): (.+)/)};
+        return {errors:extractErrors(/.+? line (\d+): (.+)/, aerr.split("\n"))};
       }
       // Warning at file 'test.asm' line 9: 'XREF' is deprecated, use 'EXTERN' instead
     } catch (e) {
@@ -556,16 +563,18 @@ function assemblelinkSDASZ80(code, platform) {
       printErr:match_aslink_fn,
     });
     var FS = LDZ80['FS'];
+    setupFS(FS, 'sdcc');
     FS.writeFile("main.rel", objout, {encoding:'utf8'});
-    //FS.writeFile("main.lst", lstout, {encoding:'utf8'});
-    LDZ80.callMain(['-mjwx', '-i', 'main.ihx', '-y',
+    FS.writeFile("main.lst", lstout, {encoding:'utf8'});
+    LDZ80.callMain(['-mjwxyu', '-i', 'main.ihx',
       '-b', '_CODE=0x'+params.code_start.toString(16),
       '-b', '_DATA=0x'+params.data_start.toString(16),
-      //'-k', '/usr/share/sdcc/lib/z80',
-      //'-l', 'z80',
+      '-k', '/share/lib/z80',
+      '-l', 'z80',
       'main.rel']);
     var hexout = FS.readFile("main.ihx", {encoding:'utf8'});
     var mapout = FS.readFile("main.noi", {encoding:'utf8'});
+    var rstout = FS.readFile("main.rst", {encoding:'utf8'});
     //var dbgout = FS.readFile("main.cdb", {encoding:'utf8'});
     //   0000 21 02 00      [10]   52 	ld	hl, #2
     // TODO: offset by start address?
@@ -585,7 +594,7 @@ function assemblelinkSDASZ80(code, platform) {
       srclines:srclines,
       errors:msvc_errors, // TODO?
       symbolmap:symbolmap,
-      intermediate:{listing:lstout},
+      intermediate:{listing:rstout},
     };
   }
 }
@@ -606,7 +615,7 @@ function compileSDCC(code, platform) {
   });
   var FS = SDCC['FS'];
   setupStdin(FS, code);
-  setupFS(FS);
+  setupFS(FS, 'sdcc');
   //FS.writeFile("main.c", code, {encoding:'utf8'});
   msvc_errors = [];
   SDCC.callMain(['--vc', '--std-sdcc99', '-mz80', '-Wall',
@@ -676,27 +685,38 @@ function assembleXASM6809(code, platform) {
 
 function preprocessMCPP(code, platform) {
   load("mcpp");
+  // <stdin>:2: error: Can't open include file "foo.h"
+  var errors = [];
+  var match_fn = makeErrorMatcher(errors, /<stdin>:(\d+): (.+)/, 1, 2);
   var MCPP = mcpp({
     noInitialRun:true,
     noFSInit:true,
     print:print_fn,
-    printErr:print_fn,
+    printErr:match_fn,
   });
   var FS = MCPP['FS'];
+  setupFS(FS, 'sdcc');
   FS.writeFile("main.c", code, {encoding:'utf8'});
-  msvc_errors = [];
+  MCPP.callMain([
+    "-D", "__8BITWORKSHOP__",
+    "-D", platform.toUpperCase(),
+    "-I", "/share/include",
+    "-Q",
+    "main.c", "main.i"]);
   try {
-    MCPP.callMain([
-      "-D", "__8BITWORKSHOP__",
-      "-D", platform.toUpperCase(),
-      "-W", "31",
-      "main.c", "main.i"]);
-      var iout = FS.readFile("main.i", {encoding:'utf8'});
+    var iout = FS.readFile("main.i", {encoding:'utf8'});
+    iout = iout.replace(/^#line /gm,'\n# ');
   } catch (e) {
-    msvc_errors.push({line:1, msg:e+""});
+    errors.push({line:1, msg:e+""});
   }
-  if (msvc_errors.length) {
-    return {errors:msvc_errors};
+  try {
+    var errout = FS.readFile("mcpp.err", {encoding:'utf8'});
+    if (errout.length) {
+      // //main.c:2: error: Can't open include file "stdiosd.h"
+      return {errors: extractErrors(/[^:]+:(\d+): (.+)/, errout.split("\n"))};
+    }
+  } catch (e) {
+    //
   }
   return {code:iout};
 }
@@ -713,7 +733,21 @@ var TOOLS = {
   'xasm6809': assembleXASM6809,
 }
 
+var TOOL_PRELOADFS = {
+  'cc65': '65',
+  'ca65': '65',
+  'sdasz80': 'sdcc',
+  'sdcc': 'sdcc',
+}
+
 onmessage = function(e) {
+  // (preload)
+  if (e.data.preload) {
+    var fs = TOOL_PRELOADFS[e.data.preload];
+    if (fs && !fsMeta[fs]) loadFilesystem(fs);
+    return;
+  }
+  // (code,platform,tool)
   var code = e.data.code;
   var platform = e.data.platform;
   var toolfn = TOOLS[e.data.tool];

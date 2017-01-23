@@ -157,12 +157,13 @@ function updatePreset(current_preset_id, text) {
 }
 
 function loadCode(text, fileid) {
+  var tool = platform.getToolForFilename(fileid);
+  editor.setOption("mode", tool && TOOL_TO_SOURCE_STYLE[tool]);
   editor.setValue(text);
+  editor.clearHistory();
   current_output = null;
   setCode(text);
   setLastPreset(fileid);
-  var tool = platform.getToolForFilename(fileid);
-  editor.setOption("mode", tool && TOOL_TO_SOURCE_STYLE[tool]);
 }
 
 function loadFile(fileid, filename, index) {
@@ -887,12 +888,18 @@ var qs = (function (a) {
     return b;
 })(window.location.search.substr(1).split('&'));
 
+function preloadWorker(fileid) {
+  var tool = platform.getToolForFilename(fileid);
+  if (tool) worker.postMessage({preload:tool});
+}
+
 function startPlatform() {
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
   store = new FileStore(localStorage, platform_id + '/');
   PRESETS = platform.getPresets();
   if (qs['file']) {
     // start platform and load file
+    preloadWorker(qs['file']);
     setupDebugControls();
     platform.start();
     loadPreset(qs['file']);
