@@ -235,24 +235,24 @@ function _shareFile(e) {
     alert("Please fix errors before sharing.");
     return true;
   }
+  if (!current_preset_id.startsWith("local/")) {
+    alert("Can only share files created with New File.");
+    return true;
+  }
+  var github = new Octokat();
+  var files = {};
   var text = editor.getValue();
-  console.log("POST",text.length,'bytes');
-  $.post({
-    url: 'share.php',
-    data: {
-      'platform':platform_id,
-      'filename':current_preset_id.split('/').pop(),
-      'text':text,
-    },
-    error: function(e) {
-      console.log(e);
-      alert("Error sharing file.");
-    },
-    success: function(result) {
-      var sharekey = result['key'];
-      var url = "http://8bitworkshop.com/?sharekey=" + sharekey;
-      window.prompt("Copy link to clipboard (Ctrl+C, Enter)", url);
-    }
+  files[current_preset_id.slice(6)] = {"content": text};
+  var gistdata = {
+    "description": '8bitworkshop.com {"platform":"' + platform_id + '"}',
+    "public": true,
+    "files": files
+  };
+  var gist = github.gists.create(gistdata).done(function(val) {
+    var url = "http://8bitworkshop.com/?sharekey=" + val.id;
+    window.prompt("Copy link to clipboard (Ctrl+C, Enter)", url);
+  }).fail(function(err) {
+    alert("Error sharing file: " + err.message);
   });
   return true;
 }
@@ -893,9 +893,13 @@ function preloadWorker(fileid) {
   if (tool) worker.postMessage({preload:tool});
 }
 
-function startPlatform() {
-  platform = new PLATFORMS[platform_id]($("#emulator")[0]);
+function initPlatform() {
   store = new FileStore(localStorage, platform_id + '/');
+}
+
+function startPlatform() {
+  initPlatform();
+  platform = new PLATFORMS[platform_id]($("#emulator")[0]);
   PRESETS = platform.getPresets();
   if (qs['file']) {
     // start platform and load file
@@ -914,22 +918,40 @@ function startPlatform() {
   }
 }
 
+function loadSharedFile(sharekey) {
+  var github = new Octokat();
+  var gist = github.gists(sharekey);
+  gist.fetch().done(function(val) {
+    var filename;
+    for (filename in val.files) { break; }
+    var newid = 'shared/' + filename;
+    var json = JSON.parse(val.description.slice(val.description.indexOf(' ')+1));
+    console.log("Fetched " + newid, json);
+    platform_id = json['platform'];
+    initPlatform();
+    updatePreset(newid, val.files[filename].content);
+    qs['file'] = newid;
+    qs['platform'] = platform_id;
+    delete qs['sharekey'];
+    gotoNewLocation();
+  }).fail(function(err) {
+    alert("Error loading share file: " + err.message);
+  });
+  return true;
+}
+
 // start
 function startUI(loadplatform) {
   installErrorHandler();
+  // add default platform?
+  platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
+  if (!platform_id) {
+    platform_id = qs['platform'] = "vcs";
+  }
   // parse query string
   // is this a share URL?
   if (qs['sharekey']) {
-    var sharekey = qs['sharekey'];
-    console.log("Loading shared file ", sharekey);
-    $.getJSON( ".storage/" + sharekey, function( result ) {
-      console.log(result);
-      var newid = 'shared/' + result['filename'];
-      updatePreset(newid, result['text']);
-      qs['file'] = newid;
-      delete qs['sharekey'];
-      gotoNewLocation();
-    }, 'text');
+    loadSharedFile(qs['sharekey']);
   } else {
     // reset file?
     if (qs['file'] && qs['reset']) {
@@ -937,11 +959,6 @@ function startUI(loadplatform) {
       qs['reset'] = '';
       gotoNewLocation();
     } else {
-      // add default platform?
-      platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
-      if (!platform_id) {
-        platform_id = qs['platform'] = "vcs";
-      }
       // load and start platform object
       if (loadplatform) {
         $.getScript('src/platform/' + platform_id + '.js', function() {

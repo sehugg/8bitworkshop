@@ -7,3 +7,6 @@
 [submodule "codemirror"]
 	path = codemirror
 	url = git@github.com:sehugg/codemirror
+[submodule "octokat.js"]
+	path = octokat.js
+	url = ./octokat.js

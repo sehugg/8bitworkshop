@@ -11,3 +11,5 @@
 %-48.pbm: %.jpg
 	convert $< -resize 48x192\! -colorspace Gray -dither FloydSteinberg $@
 
+ship1.pbm: ship1.png
+	convert ship1.png -negate -flop ship1.pbm
