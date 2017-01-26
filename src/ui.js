@@ -117,14 +117,8 @@ var pcvisits;
 var trace_pending_at_pc;
 var store;
 var pendingWorkerMessages = 0;
+var editor;
 
-var editor = CodeMirror(document.getElementById('editor'), {
-  theme: 'mbo',
-  lineNumbers: true,
-  matchBrackets: true,
-  tabSize: 8,
-  gutters: ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"],
-});
 var disasmview = CodeMirror(document.getElementById('disassembly'), {
   mode: 'z80',
   theme: 'cobalt',
@@ -133,10 +127,22 @@ var disasmview = CodeMirror(document.getElementById('disassembly'), {
   styleActiveLine: true
 });
 
-editor.on('changes', function(ed, changeobj) {
-  var text = editor.getValue() || "";
-  setCode(text);
-});
+function newEditor(mode) {
+  var isAsm = (mode != 'text/x-csrc');
+  editor = CodeMirror(document.getElementById('editor'), {
+    theme: 'mbo',
+    lineNumbers: true,
+    matchBrackets: true,
+    tabSize: 8,
+    gutters: isAsm ? ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"]
+                   : ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"],
+  });
+  editor.on('changes', function(ed, changeobj) {
+    var text = editor.getValue() || "";
+    setCode(text);
+  });
+  editor.setOption("mode", mode);
+}
 
 function getCurrentPresetTitle() {
   if (current_preset_index < 0)
@@ -158,7 +164,7 @@ function updatePreset(current_preset_id, text) {
 
 function loadCode(text, fileid) {
   var tool = platform.getToolForFilename(fileid);
-  editor.setOption("mode", tool && TOOL_TO_SOURCE_STYLE[tool]);
+  newEditor(tool && TOOL_TO_SOURCE_STYLE[tool]);
   editor.setValue(text);
   editor.clearHistory();
   current_output = null;
@@ -183,10 +189,15 @@ function loadFile(fileid, filename, index) {
       }, 'text');
     }
   } else {
-    $.get( "presets/"+platform_id+"/skeleton.a", function( text ) {
+    var ext = platform.getToolForFilename(fileid);
+    $.get( "presets/"+platform_id+"/skeleton."+ext, function( text ) {
       loadCode(text, fileid);
       updatePreset(fileid, text);
-    }, 'text');
+    }, 'text')
+    .fail(function() {
+      console.log("Could not load skeleton for " + platform_id + "/" + ext);
+      loadCode("", fileid);
+    });
   }
 }
 

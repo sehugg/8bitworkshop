@@ -1,5 +1,26 @@
 "use strict";
 
+var PLATFORM_PARAMS = {
+  'mw8080bw': {
+    code_start: 0x0,
+    code_size: 0x2000,
+    data_start: 0x2000,
+    data_size: 0x400,
+  },
+  'vicdual': {
+    code_start: 0x0,
+    code_size: 0x4000,
+    data_start: 0xc400,
+    data_size: 0x400,
+  },
+  'galaxian': {
+    code_start: 0x0,
+    code_size: 0x4000,
+    data_start: 0x4000,
+    data_size: 0x400,
+  },
+};
+
 var loaded = {}
 function load(modulename) {
   if (!loaded[modulename]) {
@@ -469,15 +490,6 @@ l_main00101                     = 0003, L: test
     throw (e);
   }
 }
-
-var PLATFORM_PARAMS = {
-  'mw8080bw': {
-    code_start: 0x0,
-    code_size: 0x2000,
-    data_start: 0x2000,
-    data_size: 0x400,
-  },
-};
 
 function hexToArray(s, ofs) {
   var buf = new ArrayBuffer(s.length/2);

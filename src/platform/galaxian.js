@@ -227,7 +227,8 @@ var GalaxianPlatform = function(mainElement) {
 	];
 
   this.loadROM = function(title, data) {
-    rom = padBytes(data, 0x4000);
+    rom = padBytes(data, 0x3820);
+		// palette is at 0x3800-0x381f
 		palette = new Uint32Array(new ArrayBuffer(32*4));
 		for (var i=0; i<32; i++) {
 			var b = rom[0x3800+i];
@@ -237,25 +238,6 @@ var GalaxianPlatform = function(mainElement) {
 					palette[i] += bitcolors[j];
 		}
     self.reset();
-    /*
-    // skip self-test
-    for (var i=0 ;i<3000; i++) {
-      cpu.runFrame(cpu.getTstates() + cpuCyclesPerLine*scanlinesPerFrame);
-      if (interruptEnabled) { cpu.nonMaskableInterrupt(); }
-    }
-  function arr2arr(a) {
-    var l = 0;
-    while (a[++l] >= 0) ;
-    var arr = new Uint8Array(new ArrayBuffer(l));
-    for (var i=0; i<l; i++)
-      arr[i] = a[i];
-    return arr;
-  }
-  state.b = arr2arr(state.b);
-  state.bv = arr2arr(state.bv);
-  state.bo = arr2arr(state.bo);
-    this.loadState(state);
-    */
   }
 
   this.loadState = function(state) {
