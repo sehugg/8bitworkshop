@@ -246,14 +246,11 @@ function _shareFile(e) {
     alert("Please fix errors before sharing.");
     return true;
   }
-  if (!current_preset_id.startsWith("local/")) {
-    alert("Can only share files created with New File.");
-    return true;
-  }
   var github = new Octokat();
   var files = {};
   var text = editor.getValue();
-  files[current_preset_id.slice(6)] = {"content": text};
+  var toks = current_preset_id.split("/");
+  files[toks[toks.length-1]] = {"content": text};
   var gistdata = {
     "description": '8bitworkshop.com {"platform":"' + platform_id + '"}',
     "public": true,
@@ -966,6 +963,7 @@ function startUI(loadplatform) {
   } else {
     // reset file?
     if (qs['file'] && qs['reset']) {
+      initPlatform();
       store.deleteFile(qs['file']);
       qs['reset'] = '';
       gotoNewLocation();

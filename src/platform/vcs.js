@@ -43,6 +43,7 @@ var VCSPlatform = function() {
 
   this.start = function() {
     Javatari.start();
+    $("#booklink_vcs").show();
   }
 
   this.loadROM = function(title, data) {

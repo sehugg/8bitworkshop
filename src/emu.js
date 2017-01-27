@@ -337,6 +337,39 @@ function cpuStateToLongString_6502(c) {
        + " Y " + hex(c.Y)    + "     " + "SP " + hex(c.SP) + "\n";
 }
 
+var MasterAudio = function() {
+  this.master = new MasterChannel();
+  this.looper = new AudioLooper(512);
+  this.start = function() {
+    this.looper.setChannel(this.master);
+    this.looper.activate();
+  }
+  this.stop = function() {
+    this.looper.setChannel(null);
+  }
+}
+
+var AY38910_Audio = function(master) {
+  this.psg = new PsgDeviceChannel();
+  this.psg.setMode(PsgDeviceChannel.MODE_SIGNED);
+  this.psg.setDevice(PsgDeviceChannel.DEVICE_AY_3_8910);
+  master.master.addChannel(this.psg);
+  var curreg = 0;
+
+  this.reset = function() {
+    for (var i=15; i>=0; i--) {
+      this.selectRegister(i);
+      this.setData(0);
+    }
+  }
+  this.selectRegister = function(val) {
+    curreg = val & 0xf;
+  }
+  this.setData = function(val) {
+    this.psg.writeRegisterAY(curreg, val & 0xff);
+  }
+}
+
 ////// 6502
 
 var Base6502Platform = function() {
@@ -823,6 +856,9 @@ function makeKeycodeMap(table) {
 }
 
 function padBytes(data, len) {
+  if (data.length > len) {
+    throw Error("Data too long, " + data.length + " > " + len);
+  }
   var r = new RAM(len);
   r.mem.set(data);
   return r.mem;

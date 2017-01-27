@@ -50,7 +50,8 @@ for ch in range(lochar,hichar+1):
         rot2output.append(0)
     for x in range(0,height):
         for y in range(0,height):
-            rotoutput[-7+x] |= (((output[-1-y]>>x)&1)<<y)
+            #rotoutput[-7+x] |= (((output[-1-y]>>x)&1)<<y)
+            rotoutput[-1-x] |= (((output[-1-y]>>x)&1)<<y)
             rot2output[-1-x] |= (((output[-7+y]>>x)&1)<<y)
 
 def tohex(v):

@@ -12,7 +12,7 @@ var VicDualPlatform = function(mainElement) {
   this.__proto__ = new BaseZ80Platform();
 
   var cpu, ram, membus, iobus, rom;
-  var video, audio, timer, pixels;
+  var video, audio, psg, timer, pixels;
   var inputs = [0xff, 0xff, 0xff, 0xff]; // most things active low
 	var palbank = 0;
 
@@ -58,9 +58,9 @@ var VicDualPlatform = function(mainElement) {
 		var vramofs = (sl>>3)<<5; // offset in VRAM
 		var yy = sl & 7; // y offset within tile
 		for (var xx=0; xx<32; xx++) {
-			var attrib = ram.mem[vramofs+xx];
-      var data = ram.mem[0x800 + (attrib<<3) + yy];
-			var col = (attrib>>5) + (palbank<<4);
+			var code = ram.mem[vramofs+xx];
+      var data = ram.mem[0x800 + (code<<3) + yy];
+			var col = (code>>5) + (palbank<<4);
 			var color1 = palette[colorprom[col]];
 			var color2 = palette[colorprom[col+8]];
       for (var i=0; i<8; i++) {
@@ -99,8 +99,8 @@ var VicDualPlatform = function(mainElement) {
     iobus = {
       read: function(addr) { return inputs[addr&3]; },
     	write: function(addr, val) {
-				if (addr & 0x1) { }; // audio 1
-				if (addr & 0x2) { }; // audio 2
+				if (addr & 0x1) { psg.selectRegister(val); }; // audio 1
+				if (addr & 0x2) { psg.setData(val); }; // audio 2
 				if (addr & 0x8) { }; // coin status
 				if (addr & 0x40) { palbank = val & 3; }; // palette
     	}
@@ -111,7 +111,8 @@ var VicDualPlatform = function(mainElement) {
   		ioBus: iobus
   	});
     video = new RasterVideo(mainElement,256,224,{rotate:-90});
-    audio = new SampleAudio(cpuFrequency);
+    audio = new MasterAudio();
+		psg = new AY38910_Audio(audio);
     video.create();
     var idata = video.getFrameData();
 		setKeyboardFromMap(video, inputs, CARNIVAL_KEYCODE_MAP, function(o) {
@@ -185,6 +186,7 @@ var VicDualPlatform = function(mainElement) {
   }
   this.reset = function() {
     cpu.reset();
+		psg.reset();
     if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
   }
   this.readAddress = function(addr) {

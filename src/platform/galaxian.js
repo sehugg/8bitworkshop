@@ -163,7 +163,10 @@ var GalaxianPlatform = function(mainElement) {
 				[0x4000, 0x47ff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
 				[0x5000, 0x57ff, 0x3ff,  function(a,v) { vram.mem[a] = v; }],
 				[0x5800, 0x5fff, 0xff,   function(a,v) { oram.mem[a] = v; }],
-				[0x6000, 0x67ff, 0x7,    function(a,v) { outlatches.mem[a] = v; }],
+				[0x6004, 0x6007, 0x3,    function(a,v) { }], // lfo freq
+				[0x6800, 0x6807, 0x7,    function(a,v) { }], // sound
+				[0x7800, 0x7800, 0x7,    function(a,v) { }], // pitch
+				[0x6000, 0x6003, 0x3,    function(a,v) { outlatches.mem[a] = v; }],
 				[0x7001, 0x7001, 0,      function(a,v) { interruptEnabled = v; }],
 				[0x7004, 0x7004, 0,      function(a,v) { starsEnabled = v; }],
 			]),
@@ -184,7 +187,7 @@ var GalaxianPlatform = function(mainElement) {
   		ioBus: iobus
   	});
     video = new RasterVideo(mainElement,264,264,{rotate:90});
-    audio = new SampleAudio(cpuFrequency);
+		audio = new MasterAudio();
     video.create();
     var idata = video.getFrameData();
 		setKeyboardFromMap(video, inputs, GALAXIAN_KEYCODE_MAP);
@@ -227,7 +230,7 @@ var GalaxianPlatform = function(mainElement) {
 	];
 
   this.loadROM = function(title, data) {
-    rom = padBytes(data, 0x3820);
+    rom = padBytes(data, 0x4000);
 		// palette is at 0x3800-0x381f
 		palette = new Uint32Array(new ArrayBuffer(32*4));
 		for (var i=0; i<32; i++) {
@@ -285,6 +288,7 @@ var GalaxianPlatform = function(mainElement) {
   }
   this.reset = function() {
     cpu.reset();
+		//audio.reset();
     if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
     watchdog_counter = INITIAL_WATCHDOG;
   }

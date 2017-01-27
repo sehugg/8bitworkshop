@@ -10,3 +10,6 @@
 [submodule "octokat.js"]
 	path = octokat.js
 	url = ./octokat.js
+[submodule "tss"]
+	path = tss
+	url = ./tss
