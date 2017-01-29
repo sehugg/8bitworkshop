@@ -2,11 +2,6 @@
 var GALAXIAN_PRESETS = [
 ];
 
-// TODO: global???
-window.buildZ80({
-	applyContention: false
-});
-
 var GalaxianPlatform = function(mainElement) {
   var self = this;
   this.__proto__ = new BaseZ80Platform();
@@ -181,11 +176,7 @@ var GalaxianPlatform = function(mainElement) {
         console.log('IO write', hex(addr,4), hex(val,2));
     	}
     };
-    cpu = window.Z80({
-  		display: {},
-  		memory: membus,
-  		ioBus: iobus
-  	});
+    cpu = self.newCPU(membus, iobus);
     video = new RasterVideo(mainElement,264,264,{rotate:90});
 		audio = new MasterAudio();
     video.create();

@@ -544,7 +544,20 @@ function cpuStateToLongString_Z80(c) {
        ;
 }
 
+window.buildZ80({
+	applyContention: false // TODO???
+});
+
 var BaseZ80Platform = function() {
+
+  // TODO: refactor w/ platforms
+  this.newCPU = function(membus, iobus) {
+    return window.Z80({
+     display: {},
+     memory: membus,
+     ioBus: iobus
+   });
+  }
 
   var onBreakpointHit;
   var debugCondition;
@@ -685,6 +698,12 @@ function cpuStateToLongString_6809(c) {
 
 var Base6809Platform = function() {
   this.__proto__ = new BaseZ80Platform();
+
+  this.newCPU = function(membus) {
+    var cpu = new CPU6809();
+    cpu.init(membus.write, membus.read, 0);
+    return cpu;
+  }
 
 	this.runUntilReturn = function() {
     var self = this;

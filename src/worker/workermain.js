@@ -19,6 +19,12 @@ var PLATFORM_PARAMS = {
     data_start: 0x4000,
     data_size: 0x400,
   },
+  'williams-z80': {
+    code_start: 0x0,
+    code_size: 0x9000,
+    data_start: 0x9000,
+    data_size: 0x3000,
+  },
 };
 
 var loaded = {}
@@ -639,7 +645,11 @@ function compileSDCC(code, platform) {
   if (msvc_errors.length) {
     return {errors:msvc_errors};
   }
-  var asmout = FS.readFile("main.asm", {encoding:'utf8'});
+  try {
+    var asmout = FS.readFile("main.asm", {encoding:'utf8'});
+  } catch (e) {
+    return {errors:[{line:1, msg:e+""}]};
+  }
   var warnings = msvc_errors;
   var result = assemblelinkSDASZ80(asmout, platform, true);
   result.asmlines = result.lines;
@@ -711,7 +721,7 @@ function preprocessMCPP(code, platform) {
   FS.writeFile("main.c", code, {encoding:'utf8'});
   MCPP.callMain([
     "-D", "__8BITWORKSHOP__",
-    "-D", platform.toUpperCase(),
+    "-D", platform.toUpperCase().replace('-','_'),
     "-I", "/share/include",
     "-Q",
     "main.c", "main.i"]);
@@ -725,7 +735,11 @@ function preprocessMCPP(code, platform) {
     var errout = FS.readFile("mcpp.err", {encoding:'utf8'});
     if (errout.length) {
       // //main.c:2: error: Can't open include file "stdiosd.h"
-      return {errors: extractErrors(/[^:]+:(\d+): (.+)/, errout.split("\n"))};
+      var errors = extractErrors(/[^:]+:(\d+): (.+)/, errout.split("\n"));
+      if (errors.length == 0) {
+        errors = [{line:1, msg:errout}];
+      }
+      return {errors: errors};
     }
   } catch (e) {
     //

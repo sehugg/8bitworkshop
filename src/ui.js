@@ -907,6 +907,7 @@ function initPlatform() {
 
 function startPlatform() {
   initPlatform();
+  if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
   PRESETS = platform.getPresets();
   if (qs['file']) {
@@ -970,7 +971,8 @@ function startUI(loadplatform) {
     } else {
       // load and start platform object
       if (loadplatform) {
-        $.getScript('src/platform/' + platform_id + '.js', function() {
+        var scriptfn = 'src/platform/' + platform_id.split('-')[0] + '.js';
+        $.getScript(scriptfn, function() {
           console.log("loaded platform", platform_id);
           startPlatform();
         });

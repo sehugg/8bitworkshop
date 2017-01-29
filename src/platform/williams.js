@@ -3,9 +3,9 @@
 var WILLIAMS_PRESETS = [
 ];
 
-var WilliamsPlatform = function(mainElement) {
+var WilliamsPlatform = function(mainElement, proto) {
   var self = this;
-  this.__proto__ = new Base6809Platform();
+  this.__proto__ = new (proto?proto:Base6809Platform)();
 
   var SCREEN_HEIGHT = 304;
   var SCREEN_WIDTH = 256;
@@ -76,7 +76,7 @@ var WilliamsPlatform = function(mainElement) {
     [0x400, 0x5ff, 0x1ff, function(a) { return nvram.mem[a]; }],
     [0x800, 0x800, 0,     function(a) { return video_counter; }],
     [0xc00, 0xc07, 0x7,   function(a) { return pia6821[a]; }],
-    [0x0,   0xfff, 0,     function(a) { console.log('ioread',hex(a)); }],
+    [0x0,   0xfff, 0,     function(a) { /*console.log('ioread',hex(a));*/ }],
   ]);
 
   var iowrite_defender = new AddressDecoder([
@@ -117,7 +117,7 @@ var WilliamsPlatform = function(mainElement) {
     [0x80c, 0x80f, 0x3,   function(a) { return pia6821[a+4]; }],
     [0xb00, 0xbff, 0,     function(a) { return video_counter; }],
     [0xc00, 0xfff, 0x3ff, function(a) { return nvram.mem[a]; }],
-    [0x0,   0xfff, 0,     function(a) { console.log('ioread',hex(a)); }],
+    [0x0,   0xfff, 0,     function(a) { /* console.log('ioread',hex(a)); */ }],
   ]);
 
   var iowrite_williams = new AddressDecoder([
@@ -172,7 +172,8 @@ var WilliamsPlatform = function(mainElement) {
     if (a) {
       blitregs[a] = v;
     } else {
-      doBlit(v);
+      var cycles = doBlit(v);
+      cpu.setTstates(cpu.getTstates() + cycles);
     }
   }
 
@@ -241,7 +242,8 @@ var WilliamsPlatform = function(mainElement) {
       curpix |= (solid & ~keepmask);
     else
       curpix |= (srcdata & ~keepmask);
-    memwrite_williams(dstaddr, curpix);
+    if (dstaddr < 0x9000) // can cause recursion otherwise
+      memwrite_williams(dstaddr, curpix);
   }
 
   var trace = false;
@@ -250,7 +252,7 @@ var WilliamsPlatform = function(mainElement) {
     var pc = cpu.getPC();
     if (!_traceinsns[pc]) {
       _traceinsns[pc] = 1;
-      console.log(hex(pc), cpu.T());
+      console.log(hex(pc), cpu.getTstates());
     }
   }
 
@@ -266,8 +268,7 @@ var WilliamsPlatform = function(mainElement) {
       read: memread_williams,
 			write: memwrite_williams,
     };
-    cpu = new CPU6809();
-    cpu.init(membus.write, membus.read, 0);
+    cpu = self.newCPU(membus);
     video = new RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, {rotate:-90});
     video.create();
 		$(video.canvas).click(function(e) {
@@ -287,21 +288,23 @@ var WilliamsPlatform = function(mainElement) {
       for (var quarter=0; quarter<4; quarter++) {
         video_counter = [0x00, 0x3c, 0xbc, 0xfc][quarter];
         if (membus.read != memread_defender || pia6821[7] == 0x3c) { // TODO?
-          cpu.interrupt();
-          //console.log(cpu.getPC());
+          if (cpu.interrupt)
+            cpu.interrupt();
+          if (cpu.requestInterrupt)
+            cpu.requestInterrupt();
         }
-        var targetTstates = cpu.T() + cpuCyclesPerFrame/4;
+        var targetTstates = cpu.getTstates() + cpuCyclesPerFrame/4;
         if (debugCond || trace) {
-          while (cpu.T() < targetTstates) {
+          while (cpu.getTstates() < targetTstates) {
             _trace();
             if (debugCond && debugCond()) {
               debugCond = null;
               break;
             }
-            cpu.steps(1);
+            cpu.runFrame(cpu.getTstates() + 1);
           }
         } else {
-          cpu.steps(cpuCyclesPerFrame);
+          cpu.runFrame(targetTstates);
         }
       }
       if (screenNeedsRefresh) {
@@ -320,6 +323,9 @@ var WilliamsPlatform = function(mainElement) {
   }
 
   this.loadROM = function(title, data) {
+    if (data.length > 2) {
+      rom = padBytes(data, 0xc000);
+    }
     // TODO
     self.reset();
   }
@@ -362,10 +368,16 @@ var WilliamsPlatform = function(mainElement) {
   this.reset = function() {
     cpu.reset();
     watchdog_counter = INITIAL_WATCHDOG;
+    banksel = 1;
   }
   this.readAddress = function(addr) {
     return membus.read(addr);
   }
 }
 
+var WilliamsZ80Platform = function(mainElement) {
+  this.__proto__ = new WilliamsPlatform(mainElement, BaseZ80Platform);
+}
+
 PLATFORMS['williams'] = WilliamsPlatform;
+PLATFORMS['williams-z80'] = WilliamsZ80Platform;

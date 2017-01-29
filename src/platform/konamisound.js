@@ -2,11 +2,6 @@
 var KONAMISOUND_PRESETS = [
 ];
 
-// TODO: global???
-window.buildZ80({
-	applyContention: false
-});
-
 var KonamiSoundPlatform = function(mainElement) {
   var self = this;
   this.__proto__ = new BaseZ80Platform();

@@ -2352,7 +2352,14 @@ return {
             Ts-=step();
         }
     },
+    runFrame: function(Tt){
+        while (T<Tt){
+          step();
+        }
+    },
     T:function(){return T;},
+    getTstates:function(){return T;},
+    setTstates:function(t){T=t;},
     reset: reset,
     init: function(bt,ba,tck){
         byteTo=bt;

@@ -5,11 +5,6 @@
 var MW8080BW_PRESETS = [
 ];
 
-// TODO: global???
-window.buildZ80({
-	applyContention: false
-});
-
 var Midway8080BWPlatform = function(mainElement) {
   var self = this;
   this.__proto__ = new BaseZ80Platform();
