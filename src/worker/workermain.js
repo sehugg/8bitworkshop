@@ -25,6 +25,12 @@ var PLATFORM_PARAMS = {
     data_start: 0x9000,
     data_size: 0x3000,
   },
+  'vector-z80': {
+    code_start: 0x0,
+    code_size: 0x4000,
+    data_start: 0x4000,
+    data_size: 0x3000,
+  },
 };
 
 var loaded = {}
@@ -96,6 +102,7 @@ function match_msvc(s) {
     var errline = parseInt(matches[2]);
     msvc_errors.push({
       line:errline,
+      type:matches[3],
       msg:matches[4]
     });
   }
@@ -417,6 +424,7 @@ function compileCC65(code, platform) {
   var errors = [];
   var errline = 0;
   function match_fn(s) {
+    console.log(s);
     var matches = re_err1.exec(s);
     if (matches) {
       errline = parseInt(matches[1]);
@@ -636,26 +644,38 @@ function compileSDCC(code, platform) {
   setupFS(FS, 'sdcc');
   //FS.writeFile("main.c", code, {encoding:'utf8'});
   msvc_errors = [];
-  SDCC.callMain(['--vc', '--std-sdcc99', '-mz80', '-Wall',
+  SDCC.callMain(['--vc', '--std-sdcc99', '-mz80', //'-Wall',
     '--c1mode', // '--debug',
     //'-S', 'main.c',
     //'--asm=z80asm',
     '--fomit-frame-pointer', '--opt-code-speed',
     '-o', 'main.asm']);
-  if (msvc_errors.length) {
+  // ignore if all are warnings (TODO?)
+  var nwarnings = 0;
+  for (var err of msvc_errors) {
+    if (err.type && err.type.startsWith("warning"))
+      nwarnings++;
+  }
+  if (msvc_errors.length && nwarnings < msvc_errors.length) {
     return {errors:msvc_errors};
   }
   try {
     var asmout = FS.readFile("main.asm", {encoding:'utf8'});
   } catch (e) {
-    return {errors:[{line:1, msg:e+""}]};
+    msvc_errors.push({line:1, msg:e+""});
+    return {errors:msvc_errors};
   }
   var warnings = msvc_errors;
-  var result = assemblelinkSDASZ80(asmout, platform, true);
+  try {
+    var result = assemblelinkSDASZ80(asmout, platform, true);
+  } catch (e) {
+    msvc_errors.push({line:1, msg:e+""});
+    return {errors:msvc_errors};
+  }
   result.asmlines = result.lines;
   result.lines = result.srclines;
   result.srclines = null;
-  result.errors = result.errors.concat(warnings);
+  //result.errors = result.errors.concat(warnings);
   return result;
 }
 

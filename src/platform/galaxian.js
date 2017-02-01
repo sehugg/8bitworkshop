@@ -1,4 +1,5 @@
 "use strict";
+
 var GALAXIAN_PRESETS = [
 ];
 
@@ -111,7 +112,8 @@ var GalaxianPlatform = function(mainElement) {
           missile = which;
       }
     }
-    for (var which of [shell,missile]) {
+    for (var i=0; i<2; i++) {
+      which = i ? missile : shell;
       if (which != 0xff) {
         var sx = 255 - oram.mem[0x60 + (which<<2)+3];
         var outi = pixofs+sx;

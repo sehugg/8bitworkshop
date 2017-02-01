@@ -246,6 +246,8 @@ var WilliamsPlatform = function(mainElement, proto) {
       memwrite_williams(dstaddr, curpix);
   }
 
+// TODO
+/*
   var trace = false;
   var _traceinsns = {};
   function _trace() {
@@ -255,7 +257,7 @@ var WilliamsPlatform = function(mainElement, proto) {
       console.log(hex(pc), cpu.getTstates());
     }
   }
-
+*/
   this.start = function() {
     ram = new RAM(0xc000);
     nvram = new RAM(0x400);
@@ -283,7 +285,6 @@ var WilliamsPlatform = function(mainElement, proto) {
     timer = new AnimationTimer(60, function() {
 			if (!self.isRunning())
 				return;
-      var debugCond = self.getDebugCallback();
       // interrupts happen every 1/4 of the screen
       for (var quarter=0; quarter<4; quarter++) {
         video_counter = [0x00, 0x3c, 0xbc, 0xfc][quarter];
@@ -293,19 +294,7 @@ var WilliamsPlatform = function(mainElement, proto) {
           if (cpu.requestInterrupt)
             cpu.requestInterrupt();
         }
-        var targetTstates = cpu.getTstates() + cpuCyclesPerFrame/4;
-        if (debugCond || trace) {
-          while (cpu.getTstates() < targetTstates) {
-            _trace();
-            if (debugCond && debugCond()) {
-              debugCond = null;
-              break;
-            }
-            cpu.runFrame(cpu.getTstates() + 1);
-          }
-        } else {
-          cpu.runFrame(targetTstates);
-        }
+        self.runCPU(cpu, cpuCyclesPerFrame/4);
       }
       if (screenNeedsRefresh) {
         for (var i=0; i<0x9800; i++)
@@ -377,6 +366,18 @@ var WilliamsPlatform = function(mainElement, proto) {
 
 var WilliamsZ80Platform = function(mainElement) {
   this.__proto__ = new WilliamsPlatform(mainElement, BaseZ80Platform);
+
+  this.ramStateToLongString = function(state) {
+    var blt = state.blt;
+    var sstart = (blt[2] << 8) + blt[3];
+    var dstart = (blt[4] << 8) + blt[5];
+    var w = blt[6] ^ 4; // blitter bug fix
+    var h = blt[7] ^ 4;
+    return "\nBLIT"
+      + " " + hex(sstart,4) + " " + hex(dstart,4)
+      + " w:" + hex(w) + " h:" + hex(h)
+      + " f:" + hex(blt[0]) + " s:" + hex(blt[1]);
+  }
 }
 
 PLATFORMS['williams'] = WilliamsPlatform;

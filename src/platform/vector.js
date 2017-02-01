@@ -1,7 +1,21 @@
 "use strict";
 
-var ATARIVEC_PRESETS = [
+var VECTOR_PRESETS = [
 ]
+
+var ASTEROIDS_KEYCODE_MAP = makeKeycodeMap([
+  [Keys.VK_SHIFT, 3, 0xff],
+  [Keys.VK_SPACE, 4, 0xff],
+  [Keys.VK_5, 8, 0xff],
+  [Keys.VK_6, 9, 0xff],
+  [Keys.VK_7, 10, 0xff],
+  [Keys.VK_1, 11, 0xff],
+  [Keys.VK_2, 12, 0xff],
+  [Keys.VK_UP, 13, 0xff],
+  [Keys.VK_RIGHT, 14, 0xff],
+  [Keys.VK_LEFT, 15, 0xff],
+]);
+
 
 var AtariVectorPlatform = function(mainElement) {
   var self = this;
@@ -16,25 +30,11 @@ var AtariVectorPlatform = function(mainElement) {
 
   this.__proto__ = new Base6502Platform();
 
-  var ASTEROIDS_KEYCODE_MAP = makeKeycodeMap([
-    [Keys.VK_SHIFT, 3, 0xff],
-    [Keys.VK_SPACE, 4, 0xff],
-    [Keys.VK_5, 8, 0xff],
-    [Keys.VK_6, 9, 0xff],
-    [Keys.VK_7, 10, 0xff],
-    [Keys.VK_1, 11, 0xff],
-    [Keys.VK_2, 12, 0xff],
-    [Keys.VK_UP, 13, 0xff],
-    [Keys.VK_RIGHT, 14, 0xff],
-    [Keys.VK_LEFT, 15, 0xff],
-  ]);
-
   this.getPresets = function() {
-    return ATARIVEC_PRESETS;
+    return VECTOR_PRESETS;
   }
 
   this.start = function() {
-    cpu = new jt.M6502();
     cpuram = new RAM(0x400);
     dvgram = new RAM(0x2000);
     //switches[5] = 0xff;
@@ -60,7 +60,7 @@ var AtariVectorPlatform = function(mainElement) {
       ], {gmask:0x7fff})
 
     };
-    cpu.connectBus(bus);
+    cpu = self.newCPU(bus);
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGStateMachine(bus, video);
@@ -68,15 +68,12 @@ var AtariVectorPlatform = function(mainElement) {
     video.create();
     timer = new AnimationTimer(60, function() {
       video.clear();
-      // 262.5 scanlines per frame
-      var iaddr = 0x4000;
-      var iofs = 0;
       var debugCond = self.getDebugCallback();
       clock = 0;
       for (var i=0; i<cpuCyclesPerFrame; i++) {
         if (debugCond && debugCond()) { debugCond = null; }
         clock++;
-        if (--nmicount == 0)  {
+        if (--nmicount == 0) {
           //console.log("NMI", cpu.saveState());
           var n = cpu.setNMIAndWait();
           clock += n;
@@ -101,7 +98,7 @@ var AtariVectorPlatform = function(mainElement) {
   }
 
   this.getRasterPosition = function() {
-    return {x:0, y:0};
+    return {x:0, y:0}; // TODO
   }
 
   this.isRunning = function() {
@@ -140,6 +137,107 @@ var AtariVectorPlatform = function(mainElement) {
   }
 }
 
+//
+
+var VectorZ80Platform = function(mainElement, proto) {
+  var self = this;
+  var cpuFrequency = 3000000.0;
+  var cpuCyclesPerFrame = Math.round(cpuFrequency/60);
+  var cpu, cpuram, dvgram, rom, bus, dvg;
+  var video, audio, timer;
+  var clock;
+  var switches = new RAM(16).mem;
+
+  this.__proto__ = new BaseZ80Platform();
+
+  this.getPresets = function() {
+    return VECTOR_PRESETS;
+  }
+
+  this.start = function() {
+    cpuram = new RAM(0x1000);
+    dvgram = new RAM(0x2000);
+    //switches[5] = 0xff;
+    //switches[7] = 0xff;
+    // bus
+    bus = {
+
+      read: new AddressDecoder([
+        [0x0,    0x3fff, 0,      function(a) { return rom[a]; }],
+        [0x4000, 0x5fff, 0x1fff, function(a) { return dvgram.mem[a]; }],
+        [0x6000, 0x6fff, 0xfff,  function(a) { return cpuram.mem[a]; }],
+        [0x7001, 0x7001, 0,      function(a) { return ((clock/1000) & 1) ? 0xff : 0x00; }],
+        [0x7000, 0x7007, 0x7,    function(a) { return switches[a]; }],
+        [0x7400, 0x7407, 0x7,    function(a) { return switches[a+8]; }],
+      ]),
+
+      write: new AddressDecoder([
+        [0x7000, 0x7000, 0,      function(a,v) { dvg.runUntilHalt(); }],
+        // TODO: draw asynchronous or allow poll of HALT ($2002)
+        [0x4000, 0x5fff, 0x1fff, function(a,v) { dvgram.mem[a] = v; }],
+        [0x6000, 0x6fff, 0xfff,  function(a,v) { cpuram.mem[a] = v; }],
+      ])
+
+    };
+    cpu = self.newCPU(bus);
+    // create video/audio
+    video = new VectorVideo(mainElement,1024,1024);
+    dvg = new DVGStateMachine(bus, video);
+    audio = new SampleAudio(cpuFrequency);
+    video.create();
+    timer = new AnimationTimer(60, function() {
+      video.clear();
+      self.runCPU(cpu, cpuCyclesPerFrame);
+      cpu.requestInterrupt();
+      self.restartDebugState();
+    });
+    setKeyboardFromMap(video, switches, ASTEROIDS_KEYCODE_MAP);
+  }
+
+  this.loadROM = function(title, data) {
+    rom = padBytes(data, 0x4000);
+    this.reset();
+  }
+
+  this.getRasterPosition = function() {
+    return {x:0, y:0}; // TODO
+  }
+
+  this.isRunning = function() {
+    return timer.isRunning();
+  }
+  this.pause = function() {
+    timer.stop();
+  }
+  this.resume = function() {
+    timer.start();
+  }
+  this.reset = function() {
+    cpu.reset();
+  }
+  this.readAddress = function(addr) {
+    return bus.read(addr);
+  }
+
+  this.loadState = function(state) {
+    cpu.loadState(state.c);
+    cpuram.mem.set(state.db);
+    dvgram.mem.set(state.db);
+  }
+  this.saveState = function() {
+    return {
+      c:cpu.saveState(),
+      cb:cpuram.mem.slice(0),
+      db:dvgram.mem.slice(0),
+    }
+  }
+  this.getCPUState = function() {
+    return cpu.saveState();
+  }
+}
+
+// DIGITAL VIDEO GENERATOR
+
 var DVGStateMachine = function(bus, video) {
   var self = this;
   var pc = 0;
@@ -172,7 +270,7 @@ var DVGStateMachine = function(bus, video) {
 
   this.runUntilHalt = function() {
     this.go();
-    for (var i=0; i<10000; i++) { // TODO
+    for (var i=0; i<10000; i++) { // TODO: limit execution
       if (!running) break;
       this.nextInstruction();
     }
@@ -243,4 +341,7 @@ var DVGStateMachine = function(bus, video) {
   }
 }
 
-PLATFORMS['atarivec'] = AtariVectorPlatform;
+//
+
+PLATFORMS['vector-ataribw'] = AtariVectorPlatform;
+PLATFORMS['vector-z80'] = VectorZ80Platform;

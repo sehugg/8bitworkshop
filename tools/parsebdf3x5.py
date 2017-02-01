@@ -41,6 +41,7 @@ output = []
 outputlo = []
 outputhi = []
 for ch in range(lochar,hichar+1):
+    x = 0
     bytes = chars.get(ch)
     #bytes = bytes + [0]
     if not bytes:
@@ -57,8 +58,11 @@ for ch in range(lochar,hichar+1):
 
 def tohex(v):
     return '%02x'%v
+def tohex2(v):
+    return '0x%02x'%v
 
 print '\thex ' + string.join(map(tohex,output),'')
+print string.join(map(tohex2,output),',')
 print '\thex ' + string.join(map(tohex,outputlo),'')
 print '\thex ' + string.join(map(tohex,outputhi),'')
 

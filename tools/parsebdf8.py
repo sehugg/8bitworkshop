@@ -36,6 +36,7 @@ with open(sys.argv[1],'r') as f:
 x = 0
 output = []
 invoutput = []
+revoutput = []
 rotoutput = []
 rot2output = []
 for ch in range(lochar,hichar+1):
@@ -48,6 +49,8 @@ for ch in range(lochar,hichar+1):
         invoutput.append(b ^ 0xff)
         rotoutput.append(0)
         rot2output.append(0)
+    for i in range(0,8):
+        revoutput.append(bytes[7-i])
     for x in range(0,height):
         for y in range(0,height):
             #rotoutput[-7+x] |= (((output[-1-y]>>x)&1)<<y)
@@ -59,7 +62,7 @@ def tohex(v):
 def tohex2(v):
     return '0x%02x'%v
 
-for arr in [output,invoutput,rotoutput,rot2output]:
+for arr in [output,revoutput,invoutput,rotoutput,rot2output]:
     print '\thex ' + string.join(map(tohex,arr),'')
     for i in range(0,len(output),height):
         print '{', string.join(map(tohex2,arr[i:i+height]),','), '},',

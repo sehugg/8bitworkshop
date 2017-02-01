@@ -374,6 +374,12 @@ var AY38910_Audio = function(master) {
 
 var Base6502Platform = function() {
 
+  this.newCPU = function(membus) {
+    var cpu = new jt.M6502();
+    cpu.connectBus(membus);
+    return cpu;
+  }
+
   this.getOpcodeMetadata = function(opcode, offset) {
     return Javatari.getOpcodeMetadata(opcode, offset); // TODO
   }
@@ -544,11 +550,12 @@ function cpuStateToLongString_Z80(c) {
        ;
 }
 
-window.buildZ80({
-	applyContention: false // TODO???
-});
 
 var BaseZ80Platform = function() {
+
+  window.buildZ80({
+  	applyContention: false // TODO???
+  });
 
   // TODO: refactor w/ platforms
   this.newCPU = function(membus, iobus) {
@@ -557,6 +564,24 @@ var BaseZ80Platform = function() {
      memory: membus,
      ioBus: iobus
    });
+  }
+
+  // TODO: refactor other parts into here
+  this.runCPU = function(cpu, cycles) {
+    var debugCond = this.getDebugCallback();
+    var targetTstates = cpu.getTstates() + cycles;
+    if (debugCond) { // || trace) {
+      while (cpu.getTstates() < targetTstates) {
+        //_trace(); // TODO
+        if (debugCond && debugCond()) {
+          debugCond = null;
+          break;
+        }
+        cpu.runFrame(cpu.getTstates() + 1);
+      }
+    } else {
+      cpu.runFrame(targetTstates);
+    }
   }
 
   var onBreakpointHit;
