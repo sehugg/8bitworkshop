@@ -241,6 +241,11 @@ function _createNewFile(e) {
   return true;
 }
 
+function getCurrentFilename() {
+  var toks = current_preset_id.split("/");
+  return toks[toks.length-1];
+}
+
 function _shareFile(e) {
   if (current_output == null) {
     alert("Please fix errors before sharing.");
@@ -249,8 +254,7 @@ function _shareFile(e) {
   var github = new Octokat();
   var files = {};
   var text = editor.getValue();
-  var toks = current_preset_id.split("/");
-  files[toks[toks.length-1]] = {"content": text};
+  files[getCurrentFilename()] = {"content": text};
   var gistdata = {
     "description": '8bitworkshop.com {"platform":"' + platform_id + '"}',
     "public": true,
@@ -273,6 +277,15 @@ function _resetPreset(e) {
     gotoNewLocation();
   }
   return true;
+}
+
+function _downloadROMImage(e) {
+  if (current_output == null) {
+    alert("Please fix errors before downloading ROM.");
+    return true;
+  }
+  var blob = new Blob([current_output], {type: "application/octet-stream"});
+  saveAs(blob, getCurrentFilename()+".rom");
 }
 
 function populateExamples(sel) {
@@ -837,6 +850,7 @@ function setupDebugControls(){
   $("#item_share_file").click(_shareFile);
   $("#item_reset_file").click(_resetPreset);
   $("#item_debug_expr").click(_breakExpression);
+  $("#item_download_rom").click(_downloadROMImage);
 }
 
 function showWelcomeMessage() {

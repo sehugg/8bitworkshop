@@ -13,3 +13,6 @@
 [submodule "tss"]
 	path = tss
 	url = ./tss
+[submodule "FileSaver.js"]
+	path = FileSaver.js
+	url = ./FileSaver.js
