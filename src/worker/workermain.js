@@ -28,8 +28,8 @@ var PLATFORM_PARAMS = {
   'vector-z80': {
     code_start: 0x0,
     code_size: 0x4000,
-    data_start: 0x4000,
-    data_size: 0x3000,
+    data_start: 0x6000,
+    data_size: 0x1000,
   },
 };
 
