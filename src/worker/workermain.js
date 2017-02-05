@@ -25,11 +25,11 @@ var PLATFORM_PARAMS = {
     data_start: 0x9000,
     data_size: 0x3000,
   },
-  'vector-z80': {
+  'vector-z80color': {
     code_start: 0x0,
-    code_size: 0x4000,
-    data_start: 0x6000,
-    data_size: 0x1000,
+    code_size: 0x8000,
+    data_start: 0xe000,
+    data_size: 0x2000,
   },
 };
 
@@ -650,13 +650,15 @@ function compileSDCC(code, platform) {
     //'--asm=z80asm',
     '--fomit-frame-pointer', '--opt-code-speed',
     '-o', 'main.asm']);
+  /*
   // ignore if all are warnings (TODO?)
   var nwarnings = 0;
   for (var err of msvc_errors) {
     if (err.type && err.type.startsWith("warning"))
       nwarnings++;
   }
-  if (msvc_errors.length && nwarnings < msvc_errors.length) {
+  */
+  if (msvc_errors.length /* && nwarnings < msvc_errors.length*/) {
     return {errors:msvc_errors};
   }
   try {

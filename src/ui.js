@@ -530,12 +530,26 @@ function getCurrentLine() {
   return editor.getCursor().line+1;
 }
 
-function runToCursor() {
-  setupBreakpoint();
+function getCurrentPC() {
   var line = getCurrentLine();
   var pc = sourcefile.line2offset[line];
+  if (!(pc >= 0)) {
+    line = disasmview.getCursor().line;
+    if (line) {
+      var toks = disasmview.getLine(line).split(/\s+/);
+      if (toks) {
+        pc = parseInt(toks[0], 16);
+      }
+    }
+  }
+  return pc;
+}
+
+function runToCursor() {
+  setupBreakpoint();
+  var pc = getCurrentPC();
   if (pc >= 0) {
-    console.log("Run to", line, pc.toString(16));
+    console.log("Run to", pc.toString(16));
     platform.runEval(function(c) {
       return c.PC == pc;
     });
@@ -795,7 +809,7 @@ function updateDisassembly() {
         s += dline;
         if (a == pc) selline = curline;
         curline++;
-        a += disasm.nbytes;
+        a += disasm.nbytes || 1;
       }
       return s;
     }

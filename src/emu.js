@@ -154,12 +154,24 @@ var VectorVideo = function(mainElement, width, height) {
     ctx.globalCompositeOperation = 'lighter';
   }
 
-  this.drawLine = function(x1, y1, x2, y2, intensity) {
+  var COLORS = [
+    '#000000',
+    '#0000ff',
+    '#00ff00',
+    '#00ffff',
+    '#ff0000',
+    '#ff00ff',
+    '#ffff00',
+    '#ffffff'
+  ];
+
+  this.drawLine = function(x1, y1, x2, y2, intensity, color) {
     //console.log(x1, y1, x2, y2, intensity);
     if (intensity > 0) {
       // TODO: landscape vs portrait
+      ctx.globalAlpha = intensity / 255.0;
       ctx.beginPath();
-      // TODO: dots
+      // TODO: bright dots
       var jx = jitter * (Math.random() - 0.5);
       var jy = jitter * (Math.random() - 0.5);
       x1 += jx;
@@ -168,8 +180,7 @@ var VectorVideo = function(mainElement, width, height) {
       y2 += jy;
       ctx.moveTo(x1, height-y1);
       ctx.lineTo(x2+1, height-y2);
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = intensity*0.1;
+      ctx.strokeStyle = COLORS[color & 7];
       ctx.stroke();
     }
   }
@@ -492,7 +503,7 @@ var Base6502Platform = function() {
   }
   this.runUntilReturn = function() {
     var depth = 1;
-    self.runEval(function(c) {
+    this.runEval(function(c) {
       if (depth <= 0 && c.T == 0)
         return true;
       if (c.o == 0x20)
@@ -678,7 +689,7 @@ var BaseZ80Platform = function() {
 	this.runUntilReturn = function() {
     var self = this;
     var depth = 1;
-    self.runEval(function(c) {
+    this.runEval(function(c) {
       if (depth <= 0)
         return true;
 			var op = self.readAddress(c.PC);

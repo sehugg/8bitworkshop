@@ -2,7 +2,7 @@
 var OPS_6502 = [
   {mn:"BRK",am:"",nb:1,il:0,c1:7,c2:0}, // 00
   {mn:"ORA",am:"(aa,x)",nb:2,il:0,c1:6,c2:0}, // 01
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // 02
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // 02
   {mn:"SLO",am:"(aa,x)",nb:2,il:1,c1:8,c2:1}, // 03
   {mn:"NOP",am:"aa",nb:2,il:1,c1:3,c2:0}, // 04
   {mn:"ORA",am:"aa",nb:2,il:0,c1:3,c2:0}, // 05
@@ -18,7 +18,7 @@ var OPS_6502 = [
   {mn:"SLO",am:"AAAA",nb:3,il:1,c1:6,c2:0}, // 0F
   {mn:"BPL",am:"branch",nb:2,il:0,c1:2,c2:2}, // 10
   {mn:"ORA",am:"(aa),y",nb:2,il:0,c1:5,c2:1}, // 11
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // 12
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // 12
   {mn:"SLO",am:"(aa),y",nb:2,il:1,c1:8,c2:1}, // 13
   {mn:"NOP",am:"aa,x",nb:2,il:1,c1:4,c2:0}, // 14
   {mn:"ORA",am:"aa,x",nb:2,il:0,c1:4,c2:0}, // 15
@@ -26,7 +26,7 @@ var OPS_6502 = [
   {mn:"SLO",am:"aa,x",nb:2,il:1,c1:6,c2:1}, // 17
   {mn:"CLC",am:"",nb:1,il:0,c1:2,c2:0}, // 18
   {mn:"ORA",am:"AAAA,y",nb:3,il:0,c1:4,c2:1}, // 19
-  {mn:"NOP",am:"",nb:0,il:1,c1:0,c2:0}, // 1A
+  {mn:"NOP",am:"",nb:1,il:1,c1:0,c2:0}, // 1A
   {mn:"SLO",am:"AAAA,y",nb:3,il:1,c1:7,c2:1}, // 1B
   {mn:"NOP",am:"AAAA,x",nb:3,il:1,c1:4,c2:1}, // 1C
   {mn:"ORA",am:"AAAA,x",nb:3,il:0,c1:4,c2:1}, // 1D
@@ -34,7 +34,7 @@ var OPS_6502 = [
   {mn:"SLO",am:"AAAA,x",nb:3,il:1,c1:7,c2:1}, // 1F
   {mn:"JSR",am:"AAAA",nb:3,il:0,c1:6,c2:0}, // 20
   {mn:"AND",am:"(aa,x)",nb:2,il:0,c1:6,c2:0}, // 21
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // 22
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // 22
   {mn:"RLA",am:"(aa,x)",nb:2,il:1,c1:8,c2:1}, // 23
   {mn:"BIT",am:"aa",nb:2,il:0,c1:3,c2:0}, // 24
   {mn:"AND",am:"aa",nb:2,il:0,c1:3,c2:0}, // 25
@@ -50,7 +50,7 @@ var OPS_6502 = [
   {mn:"RLA",am:"AAAA",nb:3,il:1,c1:6,c2:0}, // 2F
   {mn:"BMI",am:"branch",nb:2,il:0,c1:2,c2:2}, // 30
   {mn:"AND",am:"(aa),y",nb:2,il:0,c1:5,c2:1}, // 31
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // 32
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // 32
   {mn:"RLA",am:"(aa),y",nb:2,il:1,c1:8,c2:1}, // 33
   {mn:"NOP",am:"aa,x",nb:2,il:1,c1:4,c2:0}, // 34
   {mn:"AND",am:"aa,x",nb:2,il:0,c1:4,c2:0}, // 35
@@ -58,7 +58,7 @@ var OPS_6502 = [
   {mn:"RLA",am:"aa,x",nb:2,il:1,c1:6,c2:1}, // 37
   {mn:"SEC",am:"",nb:1,il:0,c1:2,c2:0}, // 38
   {mn:"AND",am:"AAAA,y",nb:3,il:0,c1:4,c2:1}, // 39
-  {mn:"NOP",am:"",nb:0,il:1,c1:0,c2:0}, // 3A
+  {mn:"NOP",am:"",nb:1,il:1,c1:0,c2:0}, // 3A
   {mn:"RLA",am:"AAAA,y",nb:3,il:1,c1:7,c2:1}, // 3B
   {mn:"NOP",am:"AAAA,x",nb:3,il:1,c1:4,c2:1}, // 3C
   {mn:"AND",am:"AAAA,x",nb:3,il:0,c1:4,c2:1}, // 3D
@@ -66,7 +66,7 @@ var OPS_6502 = [
   {mn:"RLA",am:"AAAA,x",nb:3,il:1,c1:7,c2:1}, // 3F
   {mn:"RTI",am:"",nb:1,il:0,c1:6,c2:0}, // 40
   {mn:"EOR",am:"(aa,x)",nb:2,il:0,c1:6,c2:0}, // 41
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // 42
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // 42
   {mn:"SRE",am:"(aa,x)",nb:2,il:1,c1:8,c2:1}, // 43
   {mn:"NOP",am:"aa",nb:2,il:1,c1:3,c2:0}, // 44
   {mn:"EOR",am:"aa",nb:2,il:0,c1:3,c2:0}, // 45
@@ -82,7 +82,7 @@ var OPS_6502 = [
   {mn:"SRE",am:"AAAA",nb:3,il:1,c1:6,c2:0}, // 4F
   {mn:"BVC",am:"branch",nb:2,il:0,c1:2,c2:2}, // 50
   {mn:"EOR",am:"(aa),y",nb:2,il:0,c1:5,c2:1}, // 51
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // 52
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // 52
   {mn:"SRE",am:"(aa),y",nb:2,il:1,c1:8,c2:1}, // 53
   {mn:"NOP",am:"aa,x",nb:2,il:1,c1:4,c2:0}, // 54
   {mn:"EOR",am:"aa,x",nb:2,il:0,c1:4,c2:0}, // 55
@@ -90,7 +90,7 @@ var OPS_6502 = [
   {mn:"SRE",am:"aa,x",nb:2,il:1,c1:6,c2:1}, // 57
   {mn:"CLI",am:"",nb:1,il:0,c1:2,c2:0}, // 58
   {mn:"EOR",am:"AAAA,y",nb:3,il:0,c1:4,c2:1}, // 59
-  {mn:"NOP",am:"",nb:0,il:1,c1:0,c2:0}, // 5A
+  {mn:"NOP",am:"",nb:1,il:1,c1:0,c2:0}, // 5A
   {mn:"SRE",am:"AAAA,y",nb:3,il:1,c1:7,c2:1}, // 5B
   {mn:"NOP",am:"AAAA,x",nb:3,il:1,c1:4,c2:1}, // 5C
   {mn:"EOR",am:"AAAA,x",nb:3,il:0,c1:4,c2:1}, // 5D
@@ -98,7 +98,7 @@ var OPS_6502 = [
   {mn:"SRE",am:"AAAA,x",nb:3,il:1,c1:7,c2:1}, // 5F
   {mn:"RTS",am:"",nb:1,il:0,c1:6,c2:0}, // 60
   {mn:"ADC",am:"(aa,x)",nb:2,il:0,c1:6,c2:0}, // 61
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // 62
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // 62
   {mn:"RRA",am:"(aa,x)",nb:2,il:1,c1:8,c2:1}, // 63
   {mn:"NOP",am:"aa",nb:2,il:1,c1:3,c2:0}, // 64
   {mn:"ADC",am:"aa",nb:2,il:0,c1:3,c2:0}, // 65
@@ -114,7 +114,7 @@ var OPS_6502 = [
   {mn:"RRA",am:"AAAA",nb:3,il:1,c1:6,c2:0}, // 6F
   {mn:"BVS",am:"branch",nb:2,il:0,c1:2,c2:2}, // 70
   {mn:"ADC",am:"(aa),y",nb:2,il:0,c1:5,c2:1}, // 71
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // 72
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // 72
   {mn:"RRA",am:"(aa),y",nb:2,il:1,c1:8,c2:1}, // 73
   {mn:"NOP",am:"aa,x",nb:2,il:1,c1:4,c2:0}, // 74
   {mn:"ADC",am:"aa,x",nb:2,il:0,c1:4,c2:0}, // 75
@@ -122,32 +122,32 @@ var OPS_6502 = [
   {mn:"RRA",am:"aa,x",nb:2,il:1,c1:6,c2:1}, // 77
   {mn:"SEI",am:"",nb:1,il:0,c1:2,c2:0}, // 78
   {mn:"ADC",am:"AAAA,y",nb:3,il:0,c1:4,c2:1}, // 79
-  {mn:"NOP",am:"",nb:0,il:1,c1:0,c2:0}, // 7A
+  {mn:"NOP",am:"",nb:1,il:1,c1:0,c2:0}, // 7A
   {mn:"RRA",am:"AAAA,y",nb:3,il:1,c1:7,c2:1}, // 7B
   {mn:"NOP",am:"AAAA,x",nb:3,il:1,c1:4,c2:1}, // 7C
   {mn:"ADC",am:"AAAA,x",nb:3,il:0,c1:4,c2:1}, // 7D
   {mn:"ROR",am:"AAAA,x",nb:3,il:0,c1:7,c2:0}, // 7E
   {mn:"RRA",am:"AAAA,x",nb:3,il:1,c1:7,c2:1}, // 7F
-  {mn:"NOP",am:"#aa",nb:0,il:1,c1:0,c2:0}, // 80
+  {mn:"NOP",am:"#aa",nb:2,il:1,c1:0,c2:0}, // 80
   {mn:"STA",am:"(aa,x)",nb:2,il:0,c1:6,c2:0}, // 81
-  {mn:"NOP",am:"#aa",nb:0,il:1,c1:0,c2:0}, // 82
+  {mn:"NOP",am:"#aa",nb:2,il:1,c1:0,c2:0}, // 82
   {mn:"SAX",am:"(aa,x)",nb:2,il:1,c1:6,c2:1}, // 83
   {mn:"STY",am:"aa",nb:2,il:0,c1:3,c2:0}, // 84
   {mn:"STA",am:"aa",nb:2,il:0,c1:3,c2:0}, // 85
   {mn:"STX",am:"aa",nb:2,il:0,c1:3,c2:0}, // 86
   {mn:"SAX",am:"aa",nb:2,il:1,c1:3,c2:0}, // 87
   {mn:"DEY",am:"",nb:1,il:0,c1:2,c2:0}, // 88
-  {mn:"NOP",am:"#aa",nb:0,il:1,c1:0,c2:0}, // 89
+  {mn:"NOP",am:"#aa",nb:2,il:1,c1:0,c2:0}, // 89
   {mn:"TXA",am:"",nb:1,il:0,c1:2,c2:0}, // 8A
-  {mn:"ANE",am:"#aa",nb:0,il:1,c1:0,c2:0}, // 8B
+  {mn:"ANE",am:"#aa",nb:2,il:1,c1:0,c2:0}, // 8B
   {mn:"STY",am:"AAAA",nb:3,il:0,c1:4,c2:0}, // 8C
   {mn:"STA",am:"AAAA",nb:3,il:0,c1:4,c2:0}, // 8D
   {mn:"STX",am:"AAAA",nb:3,il:0,c1:4,c2:0}, // 8E
   {mn:"SAX",am:"AAAA",nb:3,il:1,c1:4,c2:0}, // 8F
   {mn:"BCC",am:"branch",nb:2,il:0,c1:2,c2:2}, // 90
   {mn:"STA",am:"(aa),y",nb:2,il:0,c1:6,c2:0}, // 91
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // 92
-  {mn:"SHA",am:"(aa),y",nb:0,il:1,c1:0,c2:0}, // 93
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // 92
+  {mn:"SHA",am:"(aa),y",nb:2,il:1,c1:0,c2:0}, // 93
   {mn:"STY",am:"aa,x",nb:2,il:0,c1:4,c2:0}, // 94
   {mn:"STA",am:"aa,x",nb:2,il:0,c1:4,c2:0}, // 95
   {mn:"STX",am:"aa,y",nb:2,il:0,c1:4,c2:0}, // 96
@@ -155,11 +155,11 @@ var OPS_6502 = [
   {mn:"TYA",am:"",nb:1,il:0,c1:2,c2:0}, // 98
   {mn:"STA",am:"AAAA,y",nb:3,il:0,c1:5,c2:0}, // 99
   {mn:"TXS",am:"",nb:1,il:0,c1:2,c2:0}, // 9A
-  {mn:"SHS",am:"AAAA,y",nb:0,il:1,c1:0,c2:0}, // 9B
-  {mn:"SHY",am:"AAAA,x",nb:0,il:1,c1:0,c2:0}, // 9C
+  {mn:"SHS",am:"AAAA,y",nb:3,il:1,c1:0,c2:0}, // 9B
+  {mn:"SHY",am:"AAAA,x",nb:3,il:1,c1:0,c2:0}, // 9C
   {mn:"STA",am:"AAAA,x",nb:3,il:0,c1:5,c2:0}, // 9D
-  {mn:"SHX",am:"AAAA,y",nb:0,il:1,c1:0,c2:0}, // 9E
-  {mn:"SHA",am:"AAAA,y",nb:0,il:1,c1:0,c2:0}, // 9F
+  {mn:"SHX",am:"AAAA,y",nb:3,il:1,c1:0,c2:0}, // 9E
+  {mn:"SHA",am:"AAAA,y",nb:3,il:1,c1:0,c2:0}, // 9F
   {mn:"LDY",am:"#aa",nb:2,il:0,c1:2,c2:0}, // A0
   {mn:"LDA",am:"(aa,x)",nb:2,il:0,c1:6,c2:0}, // A1
   {mn:"LDX",am:"#aa",nb:2,il:0,c1:2,c2:0}, // A2
@@ -171,14 +171,14 @@ var OPS_6502 = [
   {mn:"TAY",am:"",nb:1,il:0,c1:2,c2:0}, // A8
   {mn:"LDA",am:"#aa",nb:2,il:0,c1:2,c2:0}, // A9
   {mn:"TAX",am:"",nb:1,il:0,c1:2,c2:0}, // AA
-  {mn:"LXA",am:"#aa",nb:0,il:1,c1:0,c2:0}, // AB
+  {mn:"LXA",am:"#aa",nb:2,il:1,c1:0,c2:0}, // AB
   {mn:"LDY",am:"AAAA",nb:3,il:0,c1:4,c2:0}, // AC
   {mn:"LDA",am:"AAAA",nb:3,il:0,c1:4,c2:0}, // AD
   {mn:"LDX",am:"AAAA",nb:3,il:0,c1:4,c2:0}, // AE
   {mn:"LAX",am:"AAAA",nb:3,il:1,c1:4,c2:0}, // AF
   {mn:"BCS",am:"branch",nb:2,il:0,c1:2,c2:2}, // B0
   {mn:"LDA",am:"(aa),y",nb:2,il:0,c1:5,c2:1}, // B1
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // B2
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // B2
   {mn:"LAX",am:"(aa),y",nb:2,il:1,c1:5,c2:1}, // B3
   {mn:"LDY",am:"aa,x",nb:2,il:0,c1:4,c2:0}, // B4
   {mn:"LDA",am:"aa,x",nb:2,il:0,c1:4,c2:0}, // B5
@@ -187,14 +187,14 @@ var OPS_6502 = [
   {mn:"CLV",am:"",nb:1,il:0,c1:2,c2:0}, // B8
   {mn:"LDA",am:"AAAA,y",nb:3,il:0,c1:4,c2:1}, // B9
   {mn:"TSX",am:"",nb:1,il:0,c1:2,c2:0}, // BA
-  {mn:"LAS",am:"AAAA,y",nb:0,il:1,c1:0,c2:0}, // BB
+  {mn:"LAS",am:"AAAA,y",nb:3,il:1,c1:0,c2:0}, // BB
   {mn:"LDY",am:"AAAA,x",nb:3,il:0,c1:4,c2:1}, // BC
   {mn:"LDA",am:"AAAA,x",nb:3,il:0,c1:4,c2:1}, // BD
   {mn:"LDX",am:"AAAA,y",nb:3,il:0,c1:4,c2:1}, // BE
   {mn:"LAX",am:"AAAA,y",nb:3,il:1,c1:4,c2:1}, // BF
   {mn:"CPY",am:"#aa",nb:2,il:0,c1:2,c2:0}, // C0
   {mn:"CMP",am:"(aa,x)",nb:2,il:0,c1:6,c2:0}, // C1
-  {mn:"NOP",am:"#aa",nb:0,il:1,c1:0,c2:0}, // C2
+  {mn:"NOP",am:"#aa",nb:2,il:1,c1:0,c2:0}, // C2
   {mn:"DCP",am:"(aa,x)",nb:2,il:1,c1:8,c2:1}, // C3
   {mn:"CPY",am:"aa",nb:2,il:0,c1:3,c2:0}, // C4
   {mn:"CMP",am:"aa",nb:2,il:0,c1:3,c2:0}, // C5
@@ -210,7 +210,7 @@ var OPS_6502 = [
   {mn:"DCP",am:"AAAA",nb:3,il:1,c1:6,c2:0}, // CF
   {mn:"BNE",am:"branch",nb:2,il:0,c1:2,c2:2}, // D0
   {mn:"CMP",am:"(aa),y",nb:2,il:0,c1:5,c2:1}, // D1
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // D2
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // D2
   {mn:"DCP",am:"(aa),y",nb:2,il:1,c1:8,c2:1}, // D3
   {mn:"NOP",am:"aa,x",nb:2,il:1,c1:4,c2:0}, // D4
   {mn:"CMP",am:"aa,x",nb:2,il:0,c1:4,c2:0}, // D5
@@ -218,7 +218,7 @@ var OPS_6502 = [
   {mn:"DCP",am:"aa,x",nb:2,il:1,c1:6,c2:1}, // D7
   {mn:"CLD",am:"",nb:1,il:0,c1:2,c2:0}, // D8
   {mn:"CMP",am:"AAAA,y",nb:3,il:0,c1:4,c2:1}, // D9
-  {mn:"NOP",am:"",nb:0,il:1,c1:0,c2:0}, // DA
+  {mn:"NOP",am:"",nb:1,il:1,c1:0,c2:0}, // DA
   {mn:"DCP",am:"AAAA,y",nb:3,il:1,c1:7,c2:1}, // DB
   {mn:"NOP",am:"AAAA,x",nb:3,il:1,c1:4,c2:1}, // DC
   {mn:"CMP",am:"AAAA,x",nb:3,il:0,c1:4,c2:1}, // DD
@@ -226,7 +226,7 @@ var OPS_6502 = [
   {mn:"DCP",am:"AAAA,x",nb:3,il:1,c1:7,c2:1}, // DF
   {mn:"CPX",am:"#aa",nb:2,il:0,c1:2,c2:0}, // E0
   {mn:"SBC",am:"(aa,x)",nb:2,il:0,c1:6,c2:0}, // E1
-  {mn:"NOP",am:"#aa",nb:0,il:1,c1:0,c2:0}, // E2
+  {mn:"NOP",am:"#aa",nb:2,il:1,c1:0,c2:0}, // E2
   {mn:"ISB",am:"(aa,x)",nb:2,il:1,c1:8,c2:1}, // E3
   {mn:"CPX",am:"aa",nb:2,il:0,c1:3,c2:0}, // E4
   {mn:"SBC",am:"aa",nb:2,il:0,c1:3,c2:0}, // E5
@@ -235,14 +235,14 @@ var OPS_6502 = [
   {mn:"INX",am:"",nb:1,il:0,c1:2,c2:0}, // E8
   {mn:"SBC",am:"#aa",nb:2,il:0,c1:2,c2:0}, // E9
   {mn:"NOP",am:"",nb:1,il:0,c1:2,c2:0}, // EA
-  {mn:"SBC",am:"#aa",nb:0,il:1,c1:0,c2:0}, // EB
+  {mn:"SBC",am:"#aa",nb:2,il:1,c1:0,c2:0}, // EB
   {mn:"CPX",am:"AAAA",nb:3,il:0,c1:4,c2:0}, // EC
   {mn:"SBC",am:"AAAA",nb:3,il:0,c1:4,c2:0}, // ED
   {mn:"INC",am:"AAAA",nb:3,il:0,c1:6,c2:0}, // EE
   {mn:"ISB",am:"AAAA",nb:3,il:1,c1:6,c2:0}, // EF
   {mn:"BEQ",am:"branch",nb:2,il:0,c1:2,c2:2}, // F0
   {mn:"SBC",am:"(aa),y",nb:2,il:0,c1:5,c2:1}, // F1
-  {mn:"KIL",am:"",nb:0,il:1,c1:0,c2:0}, // F2
+  {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // F2
   {mn:"ISB",am:"(aa),y",nb:2,il:1,c1:8,c2:1}, // F3
   {mn:"NOP",am:"aa,x",nb:2,il:1,c1:4,c2:0}, // F4
   {mn:"SBC",am:"aa,x",nb:2,il:0,c1:4,c2:0}, // F5
@@ -250,7 +250,7 @@ var OPS_6502 = [
   {mn:"ISB",am:"aa,x",nb:2,il:1,c1:6,c2:1}, // F7
   {mn:"SED",am:"",nb:1,il:0,c1:2,c2:0}, // F8
   {mn:"SBC",am:"AAAA,y",nb:3,il:0,c1:4,c2:1}, // F9
-  {mn:"NOP",am:"",nb:0,il:1,c1:0,c2:0}, // FA
+  {mn:"NOP",am:"",nb:1,il:1,c1:0,c2:0}, // FA
   {mn:"ISB",am:"AAAA,y",nb:3,il:1,c1:7,c2:1}, // FB
   {mn:"NOP",am:"AAAA,x",nb:3,il:1,c1:4,c2:1}, // FC
   {mn:"SBC",am:"AAAA,x",nb:3,il:0,c1:4,c2:1}, // FD
@@ -281,7 +281,7 @@ function disassemble6502(pc, b0, b1, b2) {
   var s = op.mn;
   var am = op.am;
   if (am == 'branch') {
-    var offset = (b1 < 0x80) ? (pc+b1) : (pc-(256-b1));
+    var offset = (b1 < 0x80) ? (pc+2+b1) : (pc+2-(256-b1));
     offset &= 0xffff;
     am = '$'+formatHex(offset, 4);
   } else {
