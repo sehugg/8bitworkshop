@@ -31,6 +31,17 @@ var GRAVITAR_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_LEFT, 1, -0x8],
 ]);
 
+function newPOKEYAudio() {
+  var pokey1 = new POKEYDeviceChannel();
+  var pokey2 = new POKEYDeviceChannel();
+  var audio = new MasterAudio();
+  audio.pokey1 = pokey1;
+  audio.pokey2 = pokey2;
+  audio.master.addChannel(pokey1);
+  audio.master.addChannel(pokey2);
+  return audio;
+}
+
 var AtariVectorPlatform = function(mainElement) {
   var self = this;
   var cpuFrequency = 1500000.0;
@@ -78,7 +89,7 @@ var AtariVectorPlatform = function(mainElement) {
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGBWStateMachine(bus, video, 0x4000);
-    audio = new SampleAudio(cpuFrequency);
+    audio = newPOKEYAudio();
     video.create();
     timer = new AnimationTimer(60, function() {
       video.clear();
@@ -120,9 +131,11 @@ var AtariVectorPlatform = function(mainElement) {
   }
   this.pause = function() {
     timer.stop();
+    audio.stop();
   }
   this.resume = function() {
     timer.start();
+    audio.start();
   }
   this.reset = function() {
     this.clearDebug();
@@ -202,8 +215,8 @@ var AtariColorVectorPlatform = function(mainElement) {
       write: new AddressDecoder([
         [0x0,    0x7ff,  0x7ff,  function(a,v) { cpuram.mem[a] = v; }],
         [0x2000, 0x27ff, 0x7ff,  function(a,v) { dvgram.mem[a] = v; }],
-        [0x6000, 0x67ff, 0x7ff,  function(a,v) { /* pokey1 */ }],
-        [0x6800, 0x6fff, 0x7ff,  function(a,v) { /* pokey2 */ }],
+        [0x6000, 0x67ff, 0xf,    function(a,v) { audio.pokey1.setRegister(a, v); }],
+        [0x6800, 0x6fff, 0xf,    function(a,v) { audio.pokey2.setRegister(a, v); }],
         [0x8800, 0x8800, 0,      function(a,v) { /* LEDs, etc */ }],
         [0x8840, 0x8840, 0,      function(a,v) { dvg.runUntilHalt(0); }],
         [0x8880, 0x8880, 0,      function(a,v) { dvg.reset(); }],
@@ -223,7 +236,7 @@ var AtariColorVectorPlatform = function(mainElement) {
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGColorStateMachine(bus, video, 0x2000);
-    audio = new SampleAudio(cpuFrequency);
+    audio = newPOKEYAudio();
     video.create();
     timer = new AnimationTimer(60, function() {
       video.clear();
@@ -260,9 +273,11 @@ var AtariColorVectorPlatform = function(mainElement) {
   }
   this.pause = function() {
     timer.stop();
+    audio.stop();
   }
   this.resume = function() {
     timer.start();
+    audio.start();
   }
   this.reset = function() {
     this.clearDebug();
@@ -322,6 +337,8 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
       ]),
 
       write: new AddressDecoder([
+        [0x8000, 0x800f, 0xf,    function(a,v) { audio.pokey1.setRegister(a, v); }],
+        [0x8010, 0x801f, 0xf,    function(a,v) { audio.pokey2.setRegister(a, v); }],
         [0x8840, 0x8840, 0,      function(a,v) { dvg.runUntilHalt(0); }],
         [0x8880, 0x8880, 0,      function(a,v) { dvg.reset(); }],
         [0xa000, 0xdfff, 0x3fff, function(a,v) { dvgram.mem[a] = v; }],
@@ -333,7 +350,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGColorStateMachine(bus, video, 0xa000);
-    audio = new SampleAudio(cpuFrequency);
+    audio = newPOKEYAudio();
     video.create();
     timer = new AnimationTimer(60, function() {
       video.clear();
@@ -358,9 +375,11 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
   }
   this.pause = function() {
     timer.stop();
+    audio.stop();
   }
   this.resume = function() {
     timer.start();
+    audio.start();
   }
   this.reset = function() {
     cpu.reset();
