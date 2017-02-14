@@ -561,6 +561,50 @@ var POKEYDeviceChannel = function() {
   }
 }
 
+////// CPU sound
+
+var CPUSoundChannel = function(cpu, clockRate) {
+  var sampleRate;
+  var buffer;
+  var lastbufpos=0;
+  var curSample=0;
+  var clocksPerSample;
+
+  this.setBufferLength = function (length) {
+    buffer = new Int32Array(length);
+  };
+
+  this.getBuffer = function () {
+    return buffer;
+  };
+
+  this.setSampleRate = function (rate) {
+    sampleRate = rate;
+  };
+
+  this.getSetDACFunction = function() {
+    return function(a,v) {
+      var bufpos = Math.floor(cpu.getTstates() / clocksPerSample);
+      while (lastbufpos < bufpos)
+        buffer[lastbufpos++] = curSample;
+      lastbufpos = bufpos;
+      curSample = v;
+    };
+  };
+
+  this.generate = function (length) {
+    clocksPerSample = clockRate * 1.0 / sampleRate;
+    var clocks = Math.round(length * clocksPerSample);
+    if (cpu.getTstates && cpu.runFrame) {
+      cpu.setTstates(0);
+      lastbufpos = 0;
+      cpu.runFrame(cpu.getTstates() + totalClocks);
+      while (lastbufpos < length)
+        buffer[lastbufpos++] = curSample;
+    }
+  };
+}
+
 ////// 6502
 
 var Base6502Platform = function() {

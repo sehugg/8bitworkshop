@@ -179,7 +179,8 @@ function loadFile(fileid, filename, index) {
   if (text) {
     loadCode(text, fileid);
   } else if (!text && index >= 0) {
-    filename += ".a";
+    if (filename.indexOf('.') <= 0)
+      filename += ".a";
     console.log("Loading preset", fileid, filename, index, PRESETS[index]);
     if (text.length == 0) {
       console.log("Fetching", filename);
@@ -292,7 +293,7 @@ function populateExamples(sel) {
   sel.append($("<option />").text("--------- Chapters ---------").attr('disabled',true));
   for (var i=0; i<PRESETS.length; i++) {
     var preset = PRESETS[i];
-    var name = preset.chapter + ". " + preset.name;
+    var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
     sel.append($("<option />").val(preset.id).text(name).attr('selected',preset.id==current_preset_id));
   }
 }

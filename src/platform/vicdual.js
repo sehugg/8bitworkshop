@@ -1,5 +1,7 @@
 "use strict";
+
 var VICDUAL_PRESETS = [
+  {id:'vic1.c', name:'Graphics Test'},
 ];
 
 var VicDualPlatform = function(mainElement) {

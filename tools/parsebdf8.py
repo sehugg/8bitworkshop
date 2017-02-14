@@ -5,6 +5,8 @@ import sys,string
 height = 8
 lochar = 0x20 #48
 hichar = 0x5e #57
+lochar = 0
+hichar = 255
 
 chars = {}
 inbitmap = 0
