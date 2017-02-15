@@ -19,6 +19,12 @@ var PLATFORM_PARAMS = {
     data_start: 0x4000,
     data_size: 0x400,
   },
+  'galaxian-scramble': {
+    code_start: 0x0,
+    code_size: 0x5020,
+    data_start: 0x4000,
+    data_size: 0x400,
+  },
   'williams-z80': {
     code_start: 0x0,
     code_size: 0x9000,
@@ -460,7 +466,7 @@ function assembleZ80ASM(code, platform) {
     //logReadFiles:true,
     print:print_fn,
     printErr:print_fn,
-    TOTAL_MEMORY:64*1024*1024,
+    TOTAL_MEMORY:256*1024*1024,
   });
   var FS = Module['FS'];
   //setupFS(FS);

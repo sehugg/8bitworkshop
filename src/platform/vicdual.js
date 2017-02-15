@@ -94,7 +94,9 @@ var VicDualPlatform = function(mainElement) {
       isContended: function() { return false; },
     };
     iobus = {
-      read: function(addr) { return inputs[addr&3]; },
+      read: function(addr) {
+        return inputs[addr&3];
+      },
     	write: function(addr, val) {
 				if (addr & 0x1) { psg.selectRegister(val); }; // audio 1
 				if (addr & 0x2) { psg.setData(val); }; // audio 2

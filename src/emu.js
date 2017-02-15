@@ -817,6 +817,7 @@ var BaseZ80Platform = function() {
     } else {
       cpu.runFrame(targetTstates);
     }
+    return cpu.getTstates() - targetTstates;
   }
 
   var onBreakpointHit;

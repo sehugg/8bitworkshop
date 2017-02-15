@@ -3,13 +3,49 @@
 var GALAXIAN_PRESETS = [
 ];
 
-var GalaxianPlatform = function(mainElement) {
+var GALAXIAN_KEYCODE_MAP = makeKeycodeMap([
+  [Keys.VK_SPACE, 0, 0x10], // P1
+  [Keys.VK_LEFT, 0, 0x4],
+  [Keys.VK_RIGHT, 0, 0x8],
+  [Keys.VK_S, 1, 0x10], // P2
+  [Keys.VK_A, 1, 0x4],
+  [Keys.VK_D, 1, 0x8],
+  [Keys.VK_5, 0, 0x1],
+  [Keys.VK_1, 1, 0x1],
+  [Keys.VK_2, 1, 0x2],
+]);
+
+var SCRAMBLE_KEYCODE_MAP = makeKeycodeMap([
+  [Keys.VK_UP,    0, -0x1], // P1
+  [Keys.VK_SHIFT, 0, -0x2], // bomb
+  [Keys.VK_7,     0, -0x4], // credit
+  [Keys.VK_SPACE, 0, -0x8], // fire
+  [Keys.VK_RIGHT, 0, -0x10],
+  [Keys.VK_LEFT,  0, -0x20],
+  [Keys.VK_6,     0, -0x40],
+  [Keys.VK_5,     0, -0x80],
+  [Keys.VK_1,     1, -0x80],
+  [Keys.VK_2,     1, -0x40],
+  [Keys.VK_DOWN,  2, -0x40],
+  [Keys.VK_UP,    2, -0x10],
+]);
+
+
+var GalaxianPlatform = function(mainElement, options) {
   var self = this;
   this.__proto__ = new BaseZ80Platform();
 
+  options = options || {};
+  var romSize = options.romSize || 0x4000;
+  var gfxBase = options.gfxBase || 0x2800;
+  var palBase = options.palBase || 0x3800;
+  var keyMap = options.keyMap || GALAXIAN_KEYCODE_MAP;
+  var missileWidth = options.missileWidth || 4;
+  var missileOffset = options.missileOffset || 0;
+
   var cpu, ram, vram, oram, membus, iobus, rom, palette, outlatches;
   var video, audio, timer, pixels;
-  var inputs = [0xe,0x8,0x0];
+  var inputs;
 	var interruptEnabled = 0;
   var starsEnabled = 0;
   var watchdog_counter;
@@ -28,18 +64,6 @@ var GalaxianPlatform = function(mainElement) {
   for (var i=0; i<256; i++)
     stars[i] = noise();
 
-	var GALAXIAN_KEYCODE_MAP = makeKeycodeMap([
-		[Keys.VK_SPACE, 0, 0x10], // P1
-		[Keys.VK_LEFT, 0, 0x4],
-		[Keys.VK_RIGHT, 0, 0x8],
-		[Keys.VK_S, 1, 0x10], // P2
-		[Keys.VK_A, 1, 0x4],
-		[Keys.VK_D, 1, 0x8],
-		[Keys.VK_5, 0, 0x1],
-		[Keys.VK_1, 1, 0x1],
-		[Keys.VK_2, 1, 0x2],
-  ]);
-
 	function drawScanline(pixels, sl) {
     if (sl < 16 && !showOffscreenObjects) return; // offscreen
     if (sl >= 240 && !showOffscreenObjects) return; // offscreen
@@ -55,7 +79,7 @@ var GalaxianPlatform = function(mainElement) {
       var yy = sl2 & 7; // y offset within tile
       var tile = vram.mem[vramofs+xofs];
 			var color0 = (attrib & 7) << 2;
-      var addr = 0x2800+(tile<<3)+yy;
+      var addr = gfxBase+(tile<<3)+yy;
 			var data1 = rom[addr];
       var data2 = rom[addr+0x800];
       for (var i=0; i<8; i++) {
@@ -76,11 +100,12 @@ var GalaxianPlatform = function(mainElement) {
         if (sx == 0 && !showOffscreenObjects)
           continue; // drawn off-buffer
         var code = oram.mem[base+1];
-        var flipx = code & 0x40; // TODO
-        var flipy = code & 0x80; // TODO
+        var flipx = code & 0x40; // TODO: flipx
+        if (code & 0x80) // flipy
+          yy = 15-yy;
         code &= 0x3f;
-        var color0 = oram.mem[base+2] << 2;
-        var addr = 0x2800+(code<<5)+(yy<8?yy:yy+8);
+        var color0 = (oram.mem[base+2] & 7) << 2;
+        var addr = gfxBase+(code<<5)+(yy<8?yy:yy+8);
         outi = pixofs + sx; //<< 1
         var data1 = rom[addr];
         var data2 = rom[addr+0x800];
@@ -116,12 +141,10 @@ var GalaxianPlatform = function(mainElement) {
       which = i ? missile : shell;
       if (which != 0xff) {
         var sx = 255 - oram.mem[0x60 + (which<<2)+3];
-        var outi = pixofs+sx;
+        var outi = pixofs+sx-missileOffset;
         var col = which == 7 ? 0xffffff00 : 0xffffffff;
-        pixels[outi++] = col;
-        pixels[outi++] = col;
-        pixels[outi++] = col;
-        pixels[outi++] = col;
+        for (var j=0; j<missileWidth; j++)
+          pixels[outi++] = col;
       }
     }
     // draw stars
@@ -140,35 +163,101 @@ var GalaxianPlatform = function(mainElement) {
     return GALAXIAN_PRESETS;
   }
 
+  var m_protection_state = 0;
+  var m_protection_result = 0;
+  function scramble_protection_w(addr,data) {
+    /*
+        This is not fully understood; the low 4 bits of port C are
+        inputs; the upper 4 bits are outputs. Scramble main set always
+        writes sequences of 3 or more nibbles to the low port and
+        expects certain results in the upper nibble afterwards.
+    */
+    m_protection_state = (m_protection_state << 4) | (data & 0x0f);
+    switch (m_protection_state & 0xfff)
+    {
+            /* scramble */
+            case 0xf09:     m_protection_result = 0xff; break;
+            case 0xa49:     m_protection_result = 0xbf; break;
+            case 0x319:     m_protection_result = 0x4f; break;
+            case 0x5c9:     m_protection_result = 0x6f; break;
+
+            /* scrambls */
+            case 0x246:     m_protection_result ^= 0x80;    break;
+            case 0xb5f:     m_protection_result = 0x6f; break;
+    }
+  }
+  function scramble_protection_alt_r() {
+    var bit = (m_protection_result >> 7) & 1;
+    return (bit << 5) | ((bit^1) << 7);
+  }
+
   this.start = function() {
-    ram = new RAM(0x400);
+    ram = new RAM(0x800);
     vram = new RAM(0x400);
     oram = new RAM(0x100);
 		outlatches = new RAM(0x8);
-    membus = {
-      read: new AddressDecoder([
-				[0x0000, 0x3fff, 0,      function(a) { return rom ? rom[a] : null; }],
-				[0x4000, 0x47ff, 0x3ff,  function(a) { return ram.mem[a]; }],
-				[0x5000, 0x57ff, 0x3ff,  function(a) { return vram.mem[a]; }],
-				[0x5800, 0x5fff, 0xff,   function(a) { return oram.mem[a]; }],
-				[0x6000, 0x6000, 0,      function(a) { return inputs[0]; }],
-				[0x6800, 0x6800, 0,      function(a) { return inputs[1]; }],
-				[0x7000, 0x7000, 0,      function(a) { return inputs[2]; }],
-				[0x7800, 0x7800, 0,      function(a) { watchdog_counter = INITIAL_WATCHDOG; }],
-			]),
-			write: new AddressDecoder([
-				[0x4000, 0x47ff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
-				[0x5000, 0x57ff, 0x3ff,  function(a,v) { vram.mem[a] = v; }],
-				[0x5800, 0x5fff, 0xff,   function(a,v) { oram.mem[a] = v; }],
-				[0x6004, 0x6007, 0x3,    function(a,v) { }], // lfo freq
-				[0x6800, 0x6807, 0x7,    function(a,v) { }], // sound
-				[0x7800, 0x7800, 0x7,    function(a,v) { }], // pitch
-				[0x6000, 0x6003, 0x3,    function(a,v) { outlatches.mem[a] = v; }],
-				[0x7001, 0x7001, 0,      function(a,v) { interruptEnabled = v; }],
-				[0x7004, 0x7004, 0,      function(a,v) { starsEnabled = v; }],
-			]),
-      isContended: function() { return false; },
-    };
+    if (options.scramble) {
+      inputs = [0xff,0xfc,0xf1];
+      membus = {
+        read: new AddressDecoder([
+  				[0x0000, 0x3fff, 0,      function(a) { return rom ? rom[a] : null; }],
+  				[0x4000, 0x47ff, 0x7ff,  function(a) { return ram.mem[a]; }],
+          [0x4800, 0x4fff, 0x3ff,  function(a) { return vram.mem[a]; }],
+  				[0x5000, 0x5fff, 0xff,   function(a) { return oram.mem[a]; }],
+  				[0x7000, 0x7000, 0,      function(a) { watchdog_counter = INITIAL_WATCHDOG; }],
+          [0x7800, 0x7800, 0,      function(a) { watchdog_counter = INITIAL_WATCHDOG; }],
+          //[0x8000, 0x820f, 0,      function(a) { return noise(); }], // TODO: remove
+          [0x8100, 0x8100, 0,      function(a) { return inputs[0]; }],
+  				[0x8101, 0x8101, 0,      function(a) { return inputs[1]; }],
+  				[0x8102, 0x8102, 0,      function(a) { return inputs[2] | scramble_protection_alt_r(); }],
+          [0x8202, 0x8202, 0,      function(a) { return m_protection_result; }], // scramble (protection)
+          [0x9100, 0x9100, 0,      function(a) { return inputs[0]; }],
+  				[0x9101, 0x9101, 0,      function(a) { return inputs[1]; }],
+  				[0x9102, 0x9102, 0,      function(a) { return inputs[2] | scramble_protection_alt_r(); }],
+          [0x9212, 0x9212, 0,      function(a) { return m_protection_result; }], // scramble (protection)
+          //[0, 0xffff, 0, function(a) { console.log(hex(a)); return 0; }]
+  			]),
+  			write: new AddressDecoder([
+  				[0x4000, 0x47ff, 0x7ff,  function(a,v) { ram.mem[a] = v; }],
+          [0x4800, 0x4fff, 0x3ff,  function(a,v) { vram.mem[a] = v; }],
+  				[0x5000, 0x5fff, 0xff,   function(a,v) { oram.mem[a] = v; }],
+          [0x6801, 0x6801, 0,      function(a,v) { interruptEnabled = 1; }],
+          [0x6802, 0x6802, 0,      function(a,v) { /* TODO: coin counter */ }],
+          [0x6804, 0x6804, 0,      function(a,v) { starsEnabled = v; }],
+          [0x8202, 0x8202, 0, scramble_protection_w],
+          //[0x8100, 0x8103, 0, function(a,v){ /* PPI 0 */ }],
+          //[0x8200, 0x8203, 0, function(a,v){ /* PPI 1 */ }],
+          //[0, 0xffff, 0, function(a,v) { console.log(hex(a),hex(v)); }]
+  			]),
+        isContended: function() { return false; },
+      };
+    } else {
+      inputs = [0xe,0x8,0x0];
+      membus = {
+        read: new AddressDecoder([
+  				[0x0000, 0x3fff, 0,      function(a) { return rom ? rom[a] : null; }],
+  				[0x4000, 0x47ff, 0x3ff,  function(a) { return ram.mem[a]; }],
+  				[0x5000, 0x57ff, 0x3ff,  function(a) { return vram.mem[a]; }],
+  				[0x5800, 0x5fff, 0xff,   function(a) { return oram.mem[a]; }],
+  				[0x6000, 0x6000, 0,      function(a) { return inputs[0]; }],
+  				[0x6800, 0x6800, 0,      function(a) { return inputs[1]; }],
+  				[0x7000, 0x7000, 0,      function(a) { return inputs[2]; }],
+  				[0x7800, 0x7800, 0,      function(a) { watchdog_counter = INITIAL_WATCHDOG; }],
+  			]),
+  			write: new AddressDecoder([
+  				[0x4000, 0x47ff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
+  				[0x5000, 0x57ff, 0x3ff,  function(a,v) { vram.mem[a] = v; }],
+  				[0x5800, 0x5fff, 0xff,   function(a,v) { oram.mem[a] = v; }],
+  				//[0x6004, 0x6007, 0x3,    function(a,v) { }], // lfo freq
+  				//[0x6800, 0x6807, 0x7,    function(a,v) { }], // sound
+  				//[0x7800, 0x7800, 0x7,    function(a,v) { }], // pitch
+  				[0x6000, 0x6003, 0x3,    function(a,v) { outlatches.mem[a] = v; }],
+  				[0x7001, 0x7001, 0,      function(a,v) { interruptEnabled = v; }],
+  				[0x7004, 0x7004, 0,      function(a,v) { starsEnabled = v; }],
+  			]),
+        isContended: function() { return false; },
+      };
+    }
     iobus = {
       read: function(addr) {
         console.log('IO read', hex(addr,4));
@@ -183,7 +272,7 @@ var GalaxianPlatform = function(mainElement) {
 		audio = new MasterAudio();
     video.create();
     var idata = video.getFrameData();
-		setKeyboardFromMap(video, inputs, GALAXIAN_KEYCODE_MAP);
+		setKeyboardFromMap(video, inputs, keyMap);
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, function() {
 			if (!self.isRunning())
@@ -223,11 +312,11 @@ var GalaxianPlatform = function(mainElement) {
 	];
 
   this.loadROM = function(title, data) {
-    rom = padBytes(data, 0x4000);
-		// palette is at 0x3800-0x381f
+    rom = padBytes(data, romSize);
+		// palette is at 0x3800-0x381f by default
 		palette = new Uint32Array(new ArrayBuffer(32*4));
 		for (var i=0; i<32; i++) {
-			var b = rom[0x3800+i];
+			var b = rom[palBase+i];
 			palette[i] = 0xff000000;
 			for (var j=0; j<8; j++)
 				if (((1<<j) & b))
@@ -290,4 +379,18 @@ var GalaxianPlatform = function(mainElement) {
   }
 }
 
+var GalaxianScramblePlatform = function(mainElement) {
+  var self = this;
+  this.__proto__ = new GalaxianPlatform(mainElement, {
+    romSize: 0x5020,
+    gfxBase: 0x4000,
+    palBase: 0x5000,
+    scramble: true,
+    keyMap: SCRAMBLE_KEYCODE_MAP,
+    missileWidth: 1,
+    missileOffset: 6,
+  });
+}
+
 PLATFORMS['galaxian'] = GalaxianPlatform;
+PLATFORMS['galaxian-scramble'] = GalaxianScramblePlatform;
