@@ -10,7 +10,7 @@ var PLATFORM_PARAMS = {
   'vicdual': {
     code_start: 0x0,
     code_size: 0x4000,
-    data_start: 0xc400,
+    data_start: 0xe400,
     data_size: 0x400,
   },
   'galaxian': {
@@ -654,6 +654,7 @@ function compileSDCC(code, platform) {
     '--c1mode', // '--debug',
     //'-S', 'main.c',
     //'--asm=z80asm',
+    '--less-pedantic',
     '--fomit-frame-pointer', '--opt-code-speed',
     '-o', 'main.asm']);
   /*
@@ -669,6 +670,8 @@ function compileSDCC(code, platform) {
   }
   try {
     var asmout = FS.readFile("main.asm", {encoding:'utf8'});
+    asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
+    //asmout = asmout.replace(".area _INITIALIZER",".area _CODE");
   } catch (e) {
     msvc_errors.push({line:1, msg:e+""});
     return {errors:msvc_errors};

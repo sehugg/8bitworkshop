@@ -67,8 +67,8 @@ var FileStore = function(storage, prefix) {
     return files;
   }
   this.deleteFile = function(name) {
-    storage.removeItem(name);
-    storage.removeItem('local/' + name);
+    storage.removeItem(prefix + name);
+    storage.removeItem(prefix + 'local/' + name);
   }
 }
 
@@ -531,17 +531,21 @@ function getCurrentLine() {
   return editor.getCursor().line+1;
 }
 
+function getDisasmViewPC() {
+  var line = disasmview.getCursor().line;
+  if (line) {
+    var toks = disasmview.getLine(line).split(/\s+/);
+    if (toks) {
+      return parseInt(toks[0], 16);
+    }
+  }
+}
+
 function getCurrentPC() {
   var line = getCurrentLine();
   var pc = sourcefile.line2offset[line];
   if (!(pc >= 0)) {
-    line = disasmview.getCursor().line;
-    if (line) {
-      var toks = disasmview.getLine(line).split(/\s+/);
-      if (toks) {
-        pc = parseInt(toks[0], 16);
-      }
-    }
+    return getDisasmViewPC();
   }
   return pc;
 }
@@ -774,10 +778,11 @@ function updateDisassembly() {
     var pc = state.c.PC;
     if (assemblyfile && assemblyfile.text) {
       disasmview.setValue(assemblyfile.text);
-      if (platform.getDebugCallback()) {
-        var lineno = assemblyfile.findLineForOffset(pc);
+      var findPC = platform.getDebugCallback() ? pc : getCurrentPC();
+      if (findPC) {
+        var lineno = assemblyfile.findLineForOffset(findPC);
         if (lineno) {
-          disasmview.setCursor(lineno-1, 0);
+          if (platform.getDebugCallback()) disasmview.setCursor(lineno-1, 0);
           jumpToLine(disasmview, lineno-1);
         }
       }

@@ -9,26 +9,38 @@ __sfr __at (0x1) input1;
 __sfr __at (0x2) input2;
 __sfr __at (0x3) input3;
 
-__sfr __at (0x1) audreg;
-__sfr __at (0x2) auddata;
+__sfr __at (0x1) ay8910_reg;
+__sfr __at (0x2) ay8910_data;
 __sfr __at (0x40) palette;
 
-byte __at (0xc000) cellram[32][32];
-byte __at (0xc800) tileram[256][8];
+byte __at (0xe000) cellram[32][32];
+byte __at (0xe800) tileram[256][8];
 
-#define FIRE1 0x10
-#define LEFT1 0x20
-#define RIGHT1 0x40
+#define LEFT1 !(input1 & 0x10)
+#define RIGHT1 !(input1 & 0x20)
+#define UP1 !(input1 & 0x40)
+#define DOWN1 !(input1 & 0x80)
+#define FIRE1 !(input2 & 0x20)
 
 void main();
 
+// start routine @ 0x0
 void start() {
 __asm
-	LD      SP,#0xc800
+; set up stack pointer, interrupt flag
+  	LD    SP,#0xE800
         DI
+; copy initialized data
+	LD    BC, #l__INITIALIZER
+	LD    A, B
+	LD    DE, #s__INITIALIZED
+	LD    HL, #s__INITIALIZER
+      	LDIR
 __endasm;
 	main();
 }
+
+////////
 
 #define LOCHAR 0x0
 #define HICHAR 0xff
@@ -49,23 +61,117 @@ void putstring(byte attr, byte x, byte y, const char* string) {
   }
 }
 
+const char BOX_CHARS[8] = { 218, 191, 192, 217, 196, 196, 179, 179 };
+
+void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
+  byte x1 = x;
+  putchar(chars[2], x, y);
+  putchar(chars[3], x2, y);
+  putchar(chars[0], x, y2);
+  putchar(chars[1], x2, y2);
+  while (++x < x2) {
+    putchar(chars[5], x, y);
+    putchar(chars[4], x, y2);
+  }
+  while (++y < y2) {
+    putchar(chars[6], x1, y);
+    putchar(chars[7], x2, y);
+  }
+}
+
 static byte palbank = 0;
 
+inline void set8910(byte reg, byte data) {
+  ay8910_reg = reg;
+  ay8910_data = data;
+}
+
+const char* const AY8910REGNAMES[14] = {
+  "PITCH A LO", "PITCH A HI",
+  "PITCH B LO", "PITCH B HI",
+  "PITCH C LO", "PITCH C HI",
+  "NOISE PERI",
+  "DISABLE",
+  "ENV-VOL A",
+  "ENV-VOL B",
+  "ENV-VOL C",
+  "ENV PERI LO",
+  "ENV PERI HI",
+  "ENV SHAPE"
+};
+
+const char* const AY8910MASKS[14] = {
+  "11111111", "    1111",
+  "11111111", "    1111",
+  "11111111", "    1111",
+  "   11111",
+  "  cbaCBA",
+  "  E11111", "  E11111", "  E11111",
+  "11111111", "    1111",
+  "    CALH"
+};
+
+char is_control_active() {
+  return (LEFT1 || RIGHT1 || UP1 || DOWN1 || FIRE1);
+}
+
+void ay8910test() {
+  byte i,j,y;
+  byte curreg=0,curbit=0;
+  byte ay8910regs[16];
+  memset(ay8910regs, 0, sizeof(ay8910regs));
+  ay8910regs[7] = 0x3f;
+  while (1) {
+    for (i=0; i<=13; i++) {
+      const char* mask = AY8910MASKS[i];
+      y = 29-i*2;
+      if (i<10) {
+        putchar(CHAR(i+'0'), 3, y);
+      } else {
+        putchar(CHAR('1'), 2, y);
+        putchar(CHAR(i+'0'-10), 3, y);
+      }
+      for (j=0; j<8; j++) {
+        char ch = mask[j];
+        byte bit = (ay8910regs[i] & (128>>j)) != 0;
+        if (!bit) {
+          if (ch == '1')
+            ch = '0';
+          else if (ch != ' ')
+            ch = '.';
+        }
+        putchar(ch, 6+j, y);
+      }
+      putstring(0, 16, y, AY8910REGNAMES[i]);
+      set8910(i, ay8910regs[i]);
+    }
+    y = 29-curreg*2;
+    j = 6+curbit;
+    putchar(175, 1, y);
+    putchar(194, j, y-1);
+    putchar(193, j, y+1);
+    while (is_control_active()) ;
+    while (!is_control_active()) ;
+    putchar(CHAR(' '), 1, y);
+    putchar(CHAR(' '), j, y-1);
+    putchar(CHAR(' '), j, y+1);
+    if (LEFT1) curbit--;
+    if (RIGHT1) curbit++;
+    curbit &= 7;
+    if (UP1) curreg--;
+    if (DOWN1) curreg++;
+    curreg &= 15;
+    if (FIRE1) {
+      ay8910regs[curreg] ^= (128>>curbit);
+      while (FIRE1) ;
+    }
+  }
+}
+
 void main() {
-  short i;
+  palette = 2;
   memcpy(tileram, font8x8, sizeof(font8x8));
-  for (i=0; i<32; i++) {
-    putchar(CHAR('*'),0,i);
-    putchar(CHAR('^'),i,0);
-    putchar(0x4,27,i);
-    putchar(0xf8,i,31);
-  }
-  putstring(0x0, 2, 25, "HELLO THERE");
-  for (i=0; i<0x1000; i++) {
-    //audreg = auddata = i;
-//    cellram[i&0x3ff] += i;
-    //tileram[i&0x7ff] += i;
-  }
-  //palette = palbank++;
-  main();
+  memset(cellram, CHAR(' '), sizeof(cellram));
+  draw_box(0,0,27,31,BOX_CHARS);
+  ay8910test();
 }

@@ -1,7 +1,7 @@
 "use strict";
 
 var VICDUAL_PRESETS = [
-  {id:'vic1.c', name:'Graphics Test'},
+  {id:'soundtest.c', name:'Sound Tester'},
 ];
 
 var VicDualPlatform = function(mainElement) {
@@ -39,10 +39,10 @@ var VicDualPlatform = function(mainElement) {
 		7,3,1,3,6,3,2,6,
 		7,0,0,0,0,0,0,0,
 		0,1,2,3,4,5,6,7,
-		4,5,6,7,0,0,0,0,
-		0,0,0,0,4,5,6,7,
-		1,2,4,7,0,0,0,0,
-		0,0,0,0,1,2,4,7,
+    0,0,0,0,0,0,0,0,
+		7,7,7,7,3,3,3,3,
+		0,0,0,0,0,0,0,0,
+		7,7,7,7,7,7,7,7,
 	];
 
 	// videoram 0xc000-0xc3ff
@@ -69,9 +69,12 @@ var VicDualPlatform = function(mainElement) {
 	}
 
 	var CARNIVAL_KEYCODE_MAP = makeKeycodeMap([
-		[Keys.VK_SPACE, 2, -0x20], // P1
+		[Keys.VK_SPACE, 2, -0x20],
+    [Keys.VK_SHIFT, 2, -0x40],
 		[Keys.VK_LEFT, 1, -0x10],
 		[Keys.VK_RIGHT, 1, -0x20],
+    [Keys.VK_UP, 1, -0x40],
+		[Keys.VK_DOWN, 1, -0x80],
 		[Keys.VK_1, 2, -0x10],
 		[Keys.VK_2, 3, -0x20],
 		[Keys.VK_5, 3, 0x8],
@@ -98,7 +101,7 @@ var VicDualPlatform = function(mainElement) {
         return inputs[addr&3];
       },
     	write: function(addr, val) {
-				if (addr & 0x1) { psg.selectRegister(val); }; // audio 1
+				if (addr & 0x1) { psg.selectRegister(val & 0xf); }; // audio 1
 				if (addr & 0x2) { psg.setData(val); }; // audio 2
 				if (addr & 0x8) { }; // coin status
 				if (addr & 0x40) { palbank = val & 3; }; // palette
