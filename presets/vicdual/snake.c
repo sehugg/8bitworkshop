@@ -1,8 +1,9 @@
-
 #include <string.h>
 
 typedef unsigned char byte;
-typedef unsigned char word;
+typedef unsigned short word;
+
+// PLATFORM DEFINITION
 
 __sfr __at (0x0) input0;
 __sfr __at (0x1) input1;
@@ -21,26 +22,92 @@ byte __at (0xe800) tileram[256][8];
 #define UP1 !(input1 & 0x40)
 #define DOWN1 !(input1 & 0x80)
 #define FIRE1 !(input2 & 0x20)
+#define COIN1 (input3 & 0x8)
+#define START1 !(input2 & 0x10)
+#define START2 !(input3 & 0x20)
+
+// GAME DATA
+
+typedef struct {
+  byte x;
+  byte y;
+  byte dir;
+  word score;
+  char head_attr;
+  char tail_attr;
+  char collided:1;
+  char human:1;
+} Player;
+
+Player players[2];
+
+byte attract;
+byte credits = 0;
+byte frames_per_move;
+
+#define START_SPEED 12
+#define MAX_SPEED 5
+#define MAX_SCORE 7
+
+// GAME CODE
 
 void main();
+void gsinit();
 
 // start routine @ 0x0
 void start() {
 __asm
-; set up stack pointer, interrupt flag
-  	LD    SP,#0xE800
-        DI
-; copy initialized data
+  	LD    SP,#0xE800 ; set up stack pointer
+        DI		 ; disable interrupts
+__endasm;
+  	gsinit();
+	main();
+}
+
+#define INIT_MAGIC 0xdeadbeef
+static long is_initialized = INIT_MAGIC;
+
+// set initialized portion of global memory
+// by copying INITIALIZER area -> INITIALIZED area
+void gsinit() {
+  // already initialized? skip it
+  if (is_initialized == INIT_MAGIC)
+    return;
+__asm
+; copy initialized data to RAM
 	LD    BC, #l__INITIALIZER
 	LD    A, B
 	LD    DE, #s__INITIALIZED
 	LD    HL, #s__INITIALIZER
       	LDIR
 __endasm;
-	main();
+}
+
+// SOUND CODE
+
+inline void set8910(byte reg, byte data) {
+  if (attract) return; // no sound in attract mode
+  ay8910_reg = reg;
+  ay8910_data = data;
 }
 
 ////////
+
+// https://en.wikipedia.org/wiki/Linear-feedback_shift_register#Galois_LFSRs
+static word lfsr = 1;
+word rand() {
+  unsigned lsb = lfsr & 1;   /* Get LSB (i.e., the output bit). */
+  lfsr >>= 1;                /* Shift register */
+  if (lsb) {                 /* If the output bit is 1, apply toggle mask. */
+    lfsr ^= 0xB400u;
+  }
+  return lfsr;
+}
+
+void wait_for_vsync() {
+  while ((input1 & 0x8) != 0) lfsr++; // wait for VSYNC end
+  while ((input1 & 0x8) == 0) lfsr++; // wait for VSYNC start
+}
 
 #define LOCHAR 0x0
 #define HICHAR 0xff
@@ -88,97 +155,274 @@ void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
   }
 }
 
-inline void set8910(byte reg, byte data) {
-  ay8910_reg = reg;
-  ay8910_data = data;
+void draw_bcd_word(byte x, byte y, word bcd) {
+  byte j;
+  x += 3;
+  for (j=0; j<4; j++) {
+    putchar(x, y, CHAR('0'+(bcd&0xf)));
+    x--;
+    bcd >>= 4;
+  }
 }
 
-const char* const AY8910REGNAMES[14] = {
-  "PITCH A LO", "PITCH A HI",
-  "PITCH B LO", "PITCH B HI",
-  "PITCH C LO", "PITCH C HI",
-  "NOISE PERI",
-  "DISABLE",
-  "ENV-VOL A",
-  "ENV-VOL B",
-  "ENV-VOL C",
-  "ENV PERI LO",
-  "ENV PERI HI",
-  "ENV SHAPE"
-};
-
-const char* const AY8910MASKS[14] = {
-  "11111111", "    1111",
-  "11111111", "    1111",
-  "11111111", "    1111",
-  "   11111",
-  "  cbaCBA",
-  "  E11111", "  E11111", "  E11111",
-  "11111111", "    1111",
-  "    CALH"
-};
-
-char is_control_active() {
-  return (LEFT1 || RIGHT1 || UP1 || DOWN1 || FIRE1);
+/*
+void draw_bcd_byte(byte x, byte y, byte bcd) {
+  putchar(CHAR('0'+(bcd&0xf)), x+1, y);
+  putchar(CHAR('0'+((bcd>>4)&0xf)), x, y);
 }
 
-void ay8910test() {
-  byte i,j,y;
-  byte curreg=0,curbit=0;
-  byte ay8910regs[16];
-  memset(ay8910regs, 0, sizeof(ay8910regs));
-  ay8910regs[7] = 0x3f;
-  while (1) {
-    for (i=0; i<=13; i++) {
-      const char* mask = AY8910MASKS[i];
-      y = 29-i*2;
-      if (i<10) {
-        putchar(3, y, CHAR(i+'0'));
-      } else {
-        putchar(2, y, CHAR('1'));
-        putchar(3, y, CHAR(i+'0'-10));
-      }
-      for (j=0; j<8; j++) {
-        char ch = mask[j];
-        byte bit = (ay8910regs[i] & (128>>j)) != 0;
-        if (!bit) {
-          if (ch == '1')
-            ch = '0';
-          else if (ch != ' ')
-            ch = '.';
-        }
-        putchar(6+j, y, ch);
-      }
-      putstring(16, y, AY8910REGNAMES[i]);
-      set8910(i, ay8910regs[i]);
-    }
-    y = 29-curreg*2;
-    j = 6+curbit;
-    putchar(1, y, 175);
-    putchar(j, y-1, 194);
-    putchar(j, y+1, 193);
-    while (is_control_active()) ;
-    while (!is_control_active()) ;
-    putchar(1, y, CHAR(' '));
-    putchar(j, y-1, CHAR(' '));
-    putchar(j, y+1, CHAR(' '));
-    if (LEFT1) curbit--;
-    if (RIGHT1) curbit++;
-    curbit &= 7;
-    if (UP1) curreg--;
-    if (DOWN1) curreg++;
-    curreg &= 15;
-    if (FIRE1) {
-      ay8910regs[curreg] ^= (128>>curbit);
-      while (FIRE1) ;
+void draw_bcd_word2(byte x, byte y, word bcd) {
+  draw_bcd_byte(x+2, y, bcd);
+  draw_bcd_byte(x, y, bcd>>8);
+}
+*/
+
+void draw_playfield() {
+  draw_box(0,0,27,29,BOX_CHARS);
+  putstring(0,31,"PLAYER 1");
+  putstring(20,31,"PLAYER 2");
+  draw_bcd_word(0,30,players[0].score);
+  draw_bcd_word(24,30,players[1].score);
+  if (attract) {
+    if (credits) {
+      putstring(8,29,"PRESS START");
+      putstring(9,0,"CREDITS ");
+      putchar(9+8, 0, (credits>9?9:credits)+CHAR('0'));
+    } else {
+      putstring(9,29,"GAME OVER");
+      putstring(8,0,"INSERT COIN");
     }
   }
 }
 
+typedef enum { D_RIGHT, D_DOWN, D_LEFT, D_UP } dir_t;
+const char DIR_X[4] = { 1, 0, -1, 0 };
+const char DIR_Y[4] = { 0, -1, 0, 1 };
+
+void init_game() {
+  memset(players, 0, sizeof(players));
+  players[0].head_attr = CHAR('1');
+  players[1].head_attr = CHAR('2');
+  players[0].tail_attr = 254;
+  players[1].tail_attr = 254;
+  frames_per_move = START_SPEED;
+}
+
+void reset_players() {
+  players[0].x = players[0].y = 6;
+  players[0].dir = D_RIGHT;
+  players[1].x = players[1].y = 21;
+  players[1].dir = D_LEFT;
+  players[0].collided = players[1].collided = 0;
+}
+
+void draw_player(Player* p) {
+  putchar(p->x, p->y, p->head_attr);
+}
+
+void move_player(Player* p) {
+  putchar(p->x, p->y, p->tail_attr);
+  p->x += DIR_X[p->dir];
+  p->y += DIR_Y[p->dir];
+  if (getchar(p->x, p->y) != CHAR(' '))
+    p->collided = 1;
+  draw_player(p);
+}
+
+void human_control(Player* p) {
+  byte dir = 0xff;
+  if (!p->human) return;
+  if (LEFT1) dir = D_LEFT;
+  if (RIGHT1) dir = D_RIGHT;
+  if (UP1) dir = D_UP;
+  if (DOWN1) dir = D_DOWN;
+  // don't let the player reverse
+  if (dir < 0x80 && dir != (p->dir ^ 2)) {
+    p->dir = dir;
+  }
+}
+
+byte ai_try_dir(Player* p, dir_t dir, byte shift) {
+  byte x,y;
+  dir &= 3;
+  x = p->x + (DIR_X[dir] << shift);
+  y = p->y + (DIR_Y[dir] << shift);
+  if (x < 29 && y < 27 && getchar(x, y) == CHAR(' ')) {
+    p->dir = dir;
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+void ai_control(Player* p) {
+  dir_t dir;
+  if (p->human) return;
+  dir = p->dir;
+  if (!ai_try_dir(p, dir, 0)) {
+    ai_try_dir(p, dir+1, 0);
+    ai_try_dir(p, dir-1, 0);
+  } else {
+    ai_try_dir(p, dir-1, 0) && ai_try_dir(p, dir-1, 1+(rand() & 3));
+    ai_try_dir(p, dir+1, 0) && ai_try_dir(p, dir+1, 1+(rand() & 3));
+    ai_try_dir(p, dir, rand() & 3);
+  }
+}
+
+// add two 16-bit BCD values
+word bcd_add(word a, word b) {
+  a; b; // to avoid warning
+__asm
+	ld	hl,#4
+	add	hl,sp
+	ld	iy,#2
+	add	iy,sp
+	ld	a,0 (iy)
+	add	a, (hl)
+	daa
+	ld	c,a
+	ld	a,1 (iy)
+	inc	hl
+	adc	a, (hl)
+  	daa
+	ld	b,a
+	ld	l, c
+	ld	h, b
+__endasm;
+}
+
+void slide_right() {
+  byte j;
+  for (j=0; j<32; j++) {
+    memmove(&cellram[1], &cellram[0], sizeof(cellram)-sizeof(cellram[0]));
+    memset(&cellram[0], 0, sizeof(cellram[0]));
+  }
+}
+
+void flash_colliders() {
+  byte i;
+  // flash players that collided
+  for (i=0; i<60; i++) {
+    if (players[0].collided) players[0].head_attr ^= 0x80;
+    if (players[1].collided) players[1].head_attr ^= 0x80;
+    wait_for_vsync();
+    wait_for_vsync();
+    draw_player(&players[0]);
+    draw_player(&players[1]);
+    palette = i;
+    set8910(7, 0xff ^ 0x8);
+    set8910(6, i>>1);
+    set8910(8, 10);
+  }
+  set8910(8, 0);
+  palette = 0;
+}
+
+void make_move() {
+  byte i;
+  for (i=0; i<frames_per_move; i++) {
+    human_control(&players[0]);
+    wait_for_vsync();
+  }
+  ai_control(&players[0]);
+  ai_control(&players[1]);
+  // if players collide, 2nd player gets the point
+  move_player(&players[1]);
+  move_player(&players[0]);
+}
+
+void play_game();
+
+char start_pressed() {
+  if (attract) {
+    if (credits > 0 && START1) {
+      credits--;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+void declare_winner(byte winner) {
+  byte i;
+  for (i=0; i<10; i++) {
+    draw_box(i,i,27-i,29-i,BOX_CHARS);
+    wait_for_vsync();
+  }
+  putstring(10,16,"WINNER:");
+  putstring(10,13,"PLAYER ");
+  putchar(10+7, 13, CHAR('1')+winner);
+  for (i=0; i<250; i++)
+    wait_for_vsync();
+  slide_right();
+  attract = 1;
+}
+
+void play_round() {
+  reset_players();
+  clrscr();
+  draw_playfield();
+  while (1) {
+    make_move();
+    if (players[0].collided || players[1].collided) break;
+    if (start_pressed()) {
+      play_game();
+      return;
+    }
+  }
+  flash_colliders();
+  // don't keep score in attract mode
+  if (attract) return;
+  // add scores to players that didn't collide
+  if (players[0].collided)
+    players[1].score = bcd_add(players[1].score, 1);
+  if (players[1].collided)
+    players[0].score = bcd_add(players[0].score, 1);
+  // increase speed
+  if (frames_per_move > MAX_SPEED) frames_per_move--;
+  // game over?
+  if (players[0].score != players[1].score) {
+    if (players[0].score >= MAX_SCORE)
+      declare_winner(0);
+    else if (players[1].score >= MAX_SCORE)
+      declare_winner(1);
+  }
+}
+
+void play_game() {
+  attract = 0;
+  init_game();
+  players[0].human = 1;
+  while (!attract) {
+    play_round();
+  }
+}
+
+void attract_mode() {
+  attract = 1;
+  init_game();
+  frames_per_move = 9;
+  players[0].human = 0;
+  while (1) {
+    play_round();
+  }
+}
+
+void test_ram() {
+  word i;
+  for (i=0; i<0x800; i++) {
+    cellram[0][i & 0x3ff] = rand();
+  }
+}
+
 void main() {
-  palette = 2;
+  if (COIN1) {
+    credits++;
+  } else {
+    test_ram();
+  }
+  palette = 0;
   memcpy(tileram, font8x8, sizeof(font8x8));
-  memset(cellram, CHAR(' '), sizeof(cellram));
-  draw_box(0,0,27,31,BOX_CHARS);
-  ay8910test();
+  draw_playfield();
+  attract_mode();
 }

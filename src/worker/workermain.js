@@ -108,6 +108,7 @@ function match_msvc(s) {
     var errline = parseInt(matches[2]);
     msvc_errors.push({
       line:errline,
+      file:matches[1],
       type:matches[3],
       msg:matches[4]
     });
@@ -655,7 +656,8 @@ function compileSDCC(code, platform) {
     //'-S', 'main.c',
     //'--asm=z80asm',
     '--less-pedantic',
-    '--fomit-frame-pointer', '--opt-code-speed',
+    //'--fomit-frame-pointer',
+    '--opt-code-speed',
     '-o', 'main.asm']);
   /*
   // ignore if all are warnings (TODO?)
@@ -665,6 +667,7 @@ function compileSDCC(code, platform) {
       nwarnings++;
   }
   */
+  // TODO: preprocessor errors w/ correct file
   if (msvc_errors.length /* && nwarnings < msvc_errors.length*/) {
     return {errors:msvc_errors};
   }
@@ -753,6 +756,7 @@ function preprocessMCPP(code, platform) {
   MCPP.callMain([
     "-D", "__8BITWORKSHOP__",
     "-D", platform.toUpperCase().replace('-','_'),
+    "-D", "__SDCC_z80",
     "-I", "/share/include",
     "-Q",
     "main.c", "main.i"]);

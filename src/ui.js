@@ -134,12 +134,17 @@ function newEditor(mode) {
     lineNumbers: true,
     matchBrackets: true,
     tabSize: 8,
+    indentAuto: true,
     gutters: isAsm ? ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"]
                    : ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"],
   });
+  var timer;
   editor.on('changes', function(ed, changeobj) {
-    var text = editor.getValue() || "";
-    setCode(text);
+    clearTimeout(timer);
+    timer = setTimeout(function() {
+      var text = editor.getValue() || "";
+      setCode(text);
+    }, 200);
   });
   editor.setOption("mode", mode);
 }
@@ -376,8 +381,11 @@ worker.onmessage = function(e) {
   if (e.data.errors.length > 0) {
     toolbar.addClass("has-errors");
     editor.clearGutter("gutter-info");
+    var numLines = editor.lineCount();
     for (info of e.data.errors) {
-      addErrorMarker(info.line-1, info.msg);
+      var line = info.line-1;
+      if (line < 0 || line >= numLines) line = numLines-1;
+      addErrorMarker(line, info.msg);
     }
     current_output = null;
   } else {

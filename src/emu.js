@@ -51,7 +51,7 @@ var RasterVideo = function(mainElement, width, height, options) {
     datau32 = new Uint32Array(buf);
   }
 
-  // TODO: make common
+  // TODO: common function (canvas)
   this.setKeyboardEvents = function(callback) {
     canvas.onkeydown = function(e) {
       callback(e.which, 0, 1|_metakeyflags(e));
@@ -62,7 +62,7 @@ var RasterVideo = function(mainElement, width, height, options) {
     canvas.onkeypress = function(e) {
       callback(e.which, e.charCode, 1|_metakeyflags(e));
     };
-  }
+  };
 
   this.getFrameData = function() {
     return datau32;
@@ -136,6 +136,7 @@ var VectorVideo = function(mainElement, width, height) {
     ctx = canvas.getContext('2d');
   }
 
+  // TODO: common function (canvas)
   this.setKeyboardEvents = function(callback) {
     canvas.onkeydown = function(e) {
       callback(e.which, 0, 1|_metakeyflags(e));
@@ -146,7 +147,7 @@ var VectorVideo = function(mainElement, width, height) {
     canvas.onkeypress = function(e) {
       callback(e.which, e.charCode, 1|_metakeyflags(e));
     };
-  }
+  };
 
   this.clear = function() {
     ctx.globalCompositeOperation = 'source-over';

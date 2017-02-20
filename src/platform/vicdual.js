@@ -1,7 +1,11 @@
 "use strict";
 
 var VICDUAL_PRESETS = [
-  {id:'soundtest.c', name:'Sound Tester'},
+  {id:'minimal.c', name:'Minimal Example'},
+  {id:'hello.c', name:'Hello World'},
+  {id:'gfxtest.c', name:'Graphics Test'},
+  {id:'soundtest.c', name:'Sound Test'},
+  {id:'snake.c', name:'Snake Game'},
 ];
 
 var VicDualPlatform = function(mainElement) {
@@ -10,7 +14,7 @@ var VicDualPlatform = function(mainElement) {
 
   var cpu, ram, membus, iobus, rom;
   var video, audio, psg, timer, pixels;
-  var inputs = [0xff, 0xff, 0xff, 0xff]; // most things active low
+  var inputs = [0xff, 0xff, 0xff, 0xff^0x8]; // most things active low
 	var palbank = 0;
 
   var XTAL = 15468000.0;
@@ -22,6 +26,8 @@ var VicDualPlatform = function(mainElement) {
   var vsyncFrequency = hsyncFrequency/0x148;
   var cpuCyclesPerLine = cpuFrequency/hsyncFrequency;
 	var timerFrequency = 500; // TODO
+  var reset_disable = false;
+  var reset_disable_timer;
 
 	var palette = [
 		0xff000000, // black
@@ -119,7 +125,11 @@ var VicDualPlatform = function(mainElement) {
     var idata = video.getFrameData();
 		setKeyboardFromMap(video, inputs, CARNIVAL_KEYCODE_MAP, function(o) {
 			// reset when coin inserted
-			if (o.index==3 && o.mask==0x8) cpu.reset();
+			if (o.index==3 && o.mask==0x8 && !reset_disable) cpu.reset();
+      // don't allow repeated resets in short period of time
+      reset_disable = true;
+      clearTimeout(reset_disable_timer);
+      reset_disable_timer = setTimeout(function() { reset_disable = false; }, 1100);
 		});
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, function() {

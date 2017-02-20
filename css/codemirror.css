@@ -383,6 +383,8 @@ span.CodeMirror-selectedtext { background: none; }
 .cm-s-mbo span.cm-error { border-bottom: #636363; color: #ffffec; }
 .cm-s-mbo span.cm-qualifier { color: #ffffec; }
 
+.cm-s-mbo span.cm-meta { color: #aaddaa; }
+
 .cm-s-mbo .CodeMirror-activeline-background { background: #494b41; }
 .cm-s-mbo .CodeMirror-matchingbracket { color: #33ff33 !important; }
 .cm-s-mbo .CodeMirror-matchingtag { background: rgba(255, 255, 255, .37); }
