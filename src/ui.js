@@ -541,9 +541,9 @@ function getCurrentLine() {
 
 function getDisasmViewPC() {
   var line = disasmview.getCursor().line;
-  if (line) {
+  if (line >= 0) {
     var toks = disasmview.getLine(line).split(/\s+/);
-    if (toks) {
+    if (toks && toks[0].length == 4) {
       return parseInt(toks[0], 16);
     }
   }
@@ -551,11 +551,12 @@ function getDisasmViewPC() {
 
 function getCurrentPC() {
   var line = getCurrentLine();
-  var pc = sourcefile.line2offset[line];
-  if (!(pc >= 0)) {
-    return getDisasmViewPC();
+  while (line >= 0) {
+    var pc = sourcefile.line2offset[line];
+    if (pc >= 0) return pc;
+    line--;
   }
-  return pc;
+  return getDisasmViewPC();
 }
 
 function runToCursor() {

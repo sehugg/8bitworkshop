@@ -165,18 +165,6 @@ void draw_bcd_word(byte x, byte y, word bcd) {
   }
 }
 
-/*
-void draw_bcd_byte(byte x, byte y, byte bcd) {
-  putchar(CHAR('0'+(bcd&0xf)), x+1, y);
-  putchar(CHAR('0'+((bcd>>4)&0xf)), x, y);
-}
-
-void draw_bcd_word2(byte x, byte y, word bcd) {
-  draw_bcd_byte(x+2, y, bcd);
-  draw_bcd_byte(x, y, bcd>>8);
-}
-*/
-
 void draw_playfield() {
   draw_box(0,0,27,29,BOX_CHARS);
   putstring(0,31,"PLAYER 1");

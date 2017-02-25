@@ -3,6 +3,7 @@
 // http://www.computerarcheology.com/Arcade/
 
 var MW8080BW_PRESETS = [
+  {id:'game2.c', name:'Game #2'},
 ];
 
 var Midway8080BWPlatform = function(mainElement) {
