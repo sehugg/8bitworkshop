@@ -29,6 +29,7 @@ var VicDualPlatform = function(mainElement) {
 	var timerFrequency = 500; // TODO
   var reset_disable = false;
   var reset_disable_timer;
+  var framestats;
 
 	var palette = [
 		0xff000000, // black
@@ -70,6 +71,9 @@ var VicDualPlatform = function(mainElement) {
       for (var i=0; i<8; i++) {
         var bm = 128>>i;
         pixels[outi] = (data&bm) ? color2 : color1;
+        if (framestats) {
+          framestats.layers.tiles[outi] = (data&bm) ? colorprom[col+8] : colorprom[col];
+        }
         outi++;
       }
 		}
@@ -203,7 +207,13 @@ var VicDualPlatform = function(mainElement) {
     if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
   }
   this.readAddress = function(addr) {
-    return membus.read(addr); // TODO?
+    return membus.read(addr & 0xffff); // TODO?
+  }
+  this.setFrameStats = function(on) {
+    framestats = on ? {
+      palette: palette,
+      layers: {width:256, height:224, tiles:[]}
+    } : null;
   }
 }
 

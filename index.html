@@ -173,6 +173,23 @@ canvas.pixelated {
   image-rendering: pixelated;                 /* Awesome future-browsers       */
   -ms-interpolation-mode: nearest-neighbor;   /* IE                            */
 }
+div.bitmap_editor {
+  position: fixed;
+  left: 2%;
+  width: 46%;
+  top: 10%;
+  bottom: 10%;
+  background-color: #333;
+  border-color: #fff;
+  border-style: ridge;
+  border-radius: 16px;
+  color: #66ff66;
+  white-space: pre;
+  padding: 20px;
+  z-index: 9;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+  font-size: 12pt;
+}
 </style>
 </head>
 <body>
@@ -194,7 +211,7 @@ canvas.pixelated {
             <!--<li><a class="dropdown-item" href="?platform=apple2" id="item_platform_apple2">Apple ][</a></li>-->
             <li><a class="dropdown-item" href="?platform=mw8080bw" id="item_platform_mw8080bw">Midway 8080 B&amp;W</a></li>
             <li><a class="dropdown-item" href="?platform=vicdual" id="item_platform_vicdual">VIC Dual</a></li>
-            <li><a class="dropdown-item" href="?platform=galaxian-scramble" id="item_platform_galaxian_scramble">Scramble</a></li>
+            <li><a class="dropdown-item" href="?platform=galaxian-scramble" id="item_platform_galaxian_scramble">Galaxian/Scramble</a></li>
             <li><a class="dropdown-item" href="?platform=vector-z80color" id="item_platform_vector_z80color">Atari Color Vector (Z80)</a></li>
             <li><a class="dropdown-item" href="?platform=williams" id="item_platform_williams">Williams (Z80)</a></li>
           </ul>
@@ -251,6 +268,14 @@ canvas.pixelated {
   Get the new book<br>
   <a target="_new" href="https://www.amazon.com/gp/product/1541021304/ref=as_li_qf_sp_asin_il_tl?ie=UTF8&tag=pzp-20&camp=1789&creative=9325&linkCode=as2&creativeASIN=B01N4DSRIZ&linkId=04d39e274c06e6c93b93d20a9a977111">
     Making Games For The Atari 2600</a>
+</div>
+
+<div class="bitmap_editor" style="display:none">
+  PC: $<span id="bitmap_editor_pc">0000</span>
+   X: <span id="bitmap_editor_x">0</span>
+   Y: <span id="bitmap_editor_y">0</span>
+Dest: $<span id="bitmap_editor_dest">0000/0</span>
+  <canvas width="32" height="32" id="bitmap_editor_canvas"/>
 </div>
 
 <script src="jquery/jquery-2.2.3.min.js"></script>

@@ -11,16 +11,16 @@ __sfr __at (0x2) bitshift_offset;
 __sfr __at (0x3) bitshift_read;
 __sfr __at (0x4) bitshift_value;
 __sfr __at (0x6) watchdog_strobe;
-byte __at (0x2400) vidmem[0x1c00]; // 256x224x1 video memory
+byte __at (0x2400) vidmem[224][32]; // 256x224x1 video memory
 
 #define FIRE1 (input1 & 0x10)
 #define LEFT1 (input1 & 0x20)
 #define RIGHT1 (input1 & 0x40)
 
-void main();
 void scanline96() __interrupt;
-void scanline224();
+void scanline224() __interrupt;
 
+void main();
 // start routine @ 0x0
 // set stack pointer, enable interrupts
 void start() {
@@ -48,24 +48,26 @@ __endasm;
 
 // scanline 224 interrupt @ 0x10
 // this one, we make an interrupt so it saves regs.
-void RST_10() __interrupt {
-	scanline224();
+void scanline224() __interrupt {
+  vidmem[2]++;
 }
 
 // scanline 96 function, saves regs
 void scanline96() __interrupt {
-}
-
-// scanline 224 function, regs already saved
-void scanline224() {
+  vidmem[0]++;
 }
 
 /// GRAPHICS FUNCTIONS
 
+/*
+void draw_hline(byte y, byte x1, byte x2) {
+}
+*/
+
 void draw_vline(byte x, byte y1, byte y2) {
   byte yb1 = y1/8;
   byte yb2 = y2/8;
-  byte* dest = &vidmem[x*32+yb1];
+  byte* dest = &vidmem[x][yb1];
   signed char nbytes = yb2 - yb1;
   *dest++ ^= 0xff << (y1&7);
   if (nbytes > 0) {
@@ -103,7 +105,7 @@ const byte enemy1_bitmap[] =
 
 void draw_sprite(const byte* src, byte x, byte y) {
   byte i,j;
-  byte* dest = &vidmem[y+x*32];
+  byte* dest = &vidmem[x][y];
   byte w = *src++;
   byte h = *src++;
   for (j=0; j<h; j++) {
@@ -117,7 +119,7 @@ void draw_sprite(const byte* src, byte x, byte y) {
 byte xor_sprite(const byte* src, byte x, byte y) {
   byte i,j;
   byte result = 0;
-  byte* dest = &vidmem[y+x*32];
+  byte* dest = &vidmem[x][y];
   byte w = *src++;
   byte h = *src++;
   for (j=0; j<h; j++) {
@@ -131,7 +133,7 @@ byte xor_sprite(const byte* src, byte x, byte y) {
 
 void erase_sprite(const byte* src, byte x, byte y) {
   byte i,j;
-  byte* dest = &vidmem[y+x*32];
+  byte* dest = &vidmem[x][y];
   byte w = *src++;
   byte h = *src++;
   for (j=0; j<h; j++) {
@@ -144,10 +146,9 @@ void erase_sprite(const byte* src, byte x, byte y) {
 
 void draw_char(char ch, byte x, byte y) {
   byte i;
-  byte* dest = &vidmem[y+x*32*8];
   const byte* src = &font8x8[(ch-LOCHAR)][0];
+  byte* dest = &vidmem[x*8][y];
   for (i=0; i<8; i++) {
-    //dest[i*32] ^= src[i];
     *dest ^= *src;
     dest += 32;
     src += 1;
@@ -254,17 +255,17 @@ void draw_bunker(byte x, byte y, byte y2, byte h, byte w) {
   }
 }
 
-char in_rect(Entity* e, byte x, byte y) {
-  byte h = e->shape[0];
-  byte w = e->shape[1];
-  return (x >= e->x && x <= e->x+w && y >= e->y && y <= e->y+h);
+char in_rect(Entity* e, byte x, byte y, byte w, byte h) {
+  byte eh = e->shape[0];
+  byte ew = e->shape[1];
+  return (x >= e->x-w && x <= e->x+ew && y >= e->y-h && y <= e->y+eh);
 }
 
 Entity* find_entity_at(byte x, byte y) {
   byte i;
   for (i=0; i<num_entities; i++) {
     Entity* e = &entities[i];
-    if (in_rect(e, x, y)) {
+    if (in_rect(e, x, y, 2, 0)) {
       return e;
     }
   }
@@ -280,8 +281,6 @@ void check_bullet_hit(byte x, byte y) {
 
 void gameloop() {
   watchdog_strobe = 0b0111 / 14;
-  //draw_char('S',0,50);
-  //draw_string("HELLO WORLD", 6, 16);
   draw_bunker(30, 40, 15, 15, 20);
   draw_bunker(120, 40, 15, 15, 20);
   draw_sprite(enemy1_bitmap, 10, 20);

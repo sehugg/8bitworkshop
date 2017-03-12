@@ -192,7 +192,11 @@ function loadFile(fileid, filename, index) {
       $.get( filename, function( text ) {
         console.log("GET",text.length,'bytes');
         loadCode(text, fileid);
-      }, 'text');
+      }, 'text')
+      .fail(function() {
+        alert("Could not load preset " + fileid);
+        loadCode("", fileid);
+      });
     }
   } else {
     var ext = platform.getToolForFilename(fileid);
@@ -201,7 +205,7 @@ function loadFile(fileid, filename, index) {
       updatePreset(fileid, text);
     }, 'text')
     .fail(function() {
-      console.log("Could not load skeleton for " + platform_id + "/" + ext);
+      alert("Could not load skeleton for " + platform_id + "/" + ext);
       loadCode("", fileid);
     });
   }
@@ -925,6 +929,11 @@ function showWelcomeMessage() {
 
 ///////////////////////////////////////////////////
 
+function setupBitmapEditor() {
+}
+
+///////////////////////////////////////////////////
+
 var qs = (function (a) {
     if (!a || a == "")
         return {};
@@ -957,6 +966,7 @@ function startPlatform() {
     // start platform and load file
     preloadWorker(qs['file']);
     setupDebugControls();
+    setupBitmapEditor();
     platform.start();
     loadPreset(qs['file']);
     updateSelector();

@@ -1,6 +1,9 @@
 "use strict";
 
 var GALAXIAN_PRESETS = [
+  {id:'minimal.c', name:'Minimal Example'},
+  {id:'hello.c', name:'Hello World'},
+  {id:'gfxtest.c', name:'Graphics Test'},
 ];
 
 var GALAXIAN_KEYCODE_MAP = makeKeycodeMap([
