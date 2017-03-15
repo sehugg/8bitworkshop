@@ -645,6 +645,7 @@ function compileSDCC(code, platform) {
     noFSInit:true,
     print:print_fn,
     printErr:match_msvc,
+    TOTAL_MEMORY:256*1024*1024,
   });
   var FS = SDCC['FS'];
   setupStdin(FS, code);

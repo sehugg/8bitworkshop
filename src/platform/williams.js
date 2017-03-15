@@ -128,7 +128,7 @@ var WilliamsPlatform = function(mainElement, proto) {
     [0xa00, 0xa07, 0x7,   setBlitter],
     [0xbff, 0xbff, 0,     function(a,v) { if (v == 0x39) watchdog_counter = INITIAL_WATCHDOG; }],
     [0xc00, 0xfff, 0x3ff, function(a,v) { nvram.mem[a] = v; }],
-    [0x0,   0xfff, 0,     function(a,v) { console.log('iowrite',hex(a),hex(v)); }],
+    //[0x0,   0xfff, 0,     function(a,v) { console.log('iowrite',hex(a),hex(v)); }],
   ]);
 
   var memread_williams = new AddressDecoder([
@@ -142,7 +142,7 @@ var WilliamsPlatform = function(mainElement, proto) {
     [0x0000, 0x8fff, 0,      write_display_byte],
     [0x9000, 0xbfff, 0,      function(a,v) { ram.mem[a] = v; }],
     [0xc000, 0xcfff, 0x0fff, iowrite_williams],
-    [0x0000, 0xffff, 0,      function(a,v) { console.log(hex(a), hex(v)); }],
+    //[0x0000, 0xffff, 0,      function(a,v) { console.log(hex(a), hex(v)); }],
   ]);
 
   // d1d6 ldu $11 / beq $d1ed

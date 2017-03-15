@@ -108,7 +108,7 @@ void draw_playfield() {
   draw_box(0,0,27,29,BOX_CHARS);
 }
 
-typedef enum { D_RIGHT, D_DOWN, D_LEFT, D_UP } dir_t;
+typedef enum { D_RIGHT, D_DOWN, D_LEFT, D_UP } Direction;
 const char DIR_X[4] = { 1, 0, -1, 0 };
 const char DIR_Y[4] = { 0, -1, 0, 1 };
 
@@ -132,8 +132,12 @@ void draw_player(Player* p) {
   putchar(p->x, p->y, p->head_attr);
 }
 
-void move_player(Player* p) {
+void erase_player(Player* p) {
   putchar(p->x, p->y, p->tail_attr);
+}
+
+void move_player(Player* p) {
+  erase_player(p);
   p->x += DIR_X[p->dir];
   p->y += DIR_Y[p->dir];
   if (getchar(p->x, p->y) != CHAR(' '))
@@ -142,20 +146,20 @@ void move_player(Player* p) {
 }
 
 void human_control(Player* p) {
-  byte dir = 0xff;
+  Direction dir = 0xff;
   if (LEFT1) dir = D_LEFT;
   if (RIGHT1) dir = D_RIGHT;
   if (UP1) dir = D_UP;
   if (DOWN1) dir = D_DOWN;
   // don't let the player reverse
-  if (dir < 0x80 && dir != (p->dir ^ 2)) {
+  if (dir != 0xff && dir != (p->dir ^ 2)) {
     p->dir = dir;
   }
 }
 
 void ai_control(Player* p) {
   byte x,y;
-  dir_t dir = p->dir;
+  Direction dir = p->dir;
   x = p->x + DIR_X[dir];
   y = p->y + DIR_Y[dir];
   if (getchar(x,y) != CHAR(' ')) {

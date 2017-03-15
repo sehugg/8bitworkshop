@@ -1,9 +1,8 @@
 "use strict";
 
 var GALAXIAN_PRESETS = [
-  {id:'minimal.c', name:'Minimal Example'},
-  {id:'hello.c', name:'Hello World'},
   {id:'gfxtest.c', name:'Graphics Test'},
+  {id:'game1.c', name:'Shoot-em-up Game'},
 ];
 
 var GALAXIAN_KEYCODE_MAP = makeKeycodeMap([
@@ -30,7 +29,7 @@ var SCRAMBLE_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_1,     1, -0x80],
   [Keys.VK_2,     1, -0x40],
   [Keys.VK_DOWN,  2, -0x40],
-  [Keys.VK_UP,    2, -0x10],
+  //[Keys.VK_UP,    2, -0x10],
 ]);
 
 
@@ -116,7 +115,7 @@ var GalaxianPlatform = function(mainElement, options) {
           var bm = 128>>i;
           var color = ((data1&bm)?1:0) + ((data2&bm)?2:0);
           if (color)
-  				    pixels[outi+i] = palette[color0 + color];
+  				    pixels[flipx?(outi+15-i):(outi+i)] = palette[color0 + color];
         }
         var data1 = rom[addr+8];
         var data2 = rom[addr+0x808];
@@ -124,7 +123,7 @@ var GalaxianPlatform = function(mainElement, options) {
           var bm = 128>>i;
           var color = ((data1&bm)?1:0) + ((data2&bm)?2:0);
           if (color)
-              pixels[outi+i+8] = palette[color0 + color];
+              pixels[flipx?(outi+7-i):(outi+i+8)] = palette[color0 + color];
         }
       }
     }
@@ -227,6 +226,8 @@ var GalaxianPlatform = function(mainElement, options) {
           [0x6801, 0x6801, 0,      function(a,v) { interruptEnabled = 1; }],
           [0x6802, 0x6802, 0,      function(a,v) { /* TODO: coin counter */ }],
           [0x6804, 0x6804, 0,      function(a,v) { starsEnabled = v; }],
+          [0x6805, 0x6805, 0,      function(a,v) { missileWidth = v; }], // not on h/w
+          [0x6806, 0x6806, 0,      function(a,v) { missileOffset = v; }], // not on h/w
           [0x8202, 0x8202, 0, scramble_protection_w],
           //[0x8100, 0x8103, 0, function(a,v){ /* PPI 0 */ }],
           //[0x8200, 0x8203, 0, function(a,v){ /* PPI 1 */ }],

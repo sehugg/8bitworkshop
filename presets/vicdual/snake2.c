@@ -14,7 +14,7 @@ __sfr __at (0x1) ay8910_reg;
 __sfr __at (0x2) ay8910_data;
 __sfr __at (0x40) palette;
 
-byte __at (0xe000) cellram[32][32];
+byte __at (0xe000) cellram[28][32];
 byte __at (0xe800) tileram[256][8];
 
 #define LEFT1 !(input1 & 0x10)
@@ -25,6 +25,7 @@ byte __at (0xe800) tileram[256][8];
 #define COIN1 (input3 & 0x8)
 #define START1 !(input2 & 0x10)
 #define START2 !(input3 & 0x20)
+#define VSYNC (input1 & 0x8)
 
 // GAME DATA
 
@@ -105,8 +106,8 @@ word rand() {
 }
 
 void wait_for_vsync() {
-  while ((input1 & 0x8) != 0) lfsr++; // wait for VSYNC end
-  while ((input1 & 0x8) == 0) lfsr++; // wait for VSYNC start
+  while (VSYNC != 0) lfsr++; // wait for VSYNC end
+  while (VSYNC == 0) lfsr++; // wait for VSYNC start
 }
 
 #define LOCHAR 0x0
@@ -128,7 +129,7 @@ void putchar(byte x, byte y, byte attr) {
 
 void putstring(byte x, byte y, const char* string) {
   while (*string) {
-    putchar(x++, y, (*string++ - LOCHAR));
+    putchar(x++, y, CHAR(*string++));
   }
 }
 
@@ -164,6 +165,18 @@ void draw_bcd_word(byte x, byte y, word bcd) {
     bcd >>= 4;
   }
 }
+
+/*
+void draw_bcd_byte(byte x, byte y, byte bcd) {
+  putchar(CHAR('0'+(bcd&0xf)), x+1, y);
+  putchar(CHAR('0'+((bcd>>4)&0xf)), x, y);
+}
+
+void draw_bcd_word2(byte x, byte y, word bcd) {
+  draw_bcd_byte(x+2, y, bcd);
+  draw_bcd_byte(x, y, bcd>>8);
+}
+*/
 
 void draw_playfield() {
   draw_box(0,0,27,29,BOX_CHARS);
