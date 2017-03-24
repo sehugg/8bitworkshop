@@ -4,6 +4,8 @@
 // http://arcarc.xmission.com/Tech/neilw_xy.txt
 
 var VECTOR_PRESETS = [
+  {id:'font.c', name:'Vector Fonts'},
+  {id:'threed.c', name:'3D Transformations'},
 ]
 
 var ASTEROIDS_KEYCODE_MAP = makeKeycodeMap([
@@ -316,11 +318,24 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
   var video, audio, timer;
   var clock;
   var switches = new RAM(16).mem;
+  var mathram = new RAM(16).mem;
 
   this.__proto__ = new BaseZ80Platform();
 
   this.getPresets = function() {
     return VECTOR_PRESETS;
+  }
+
+  function do_math() {
+    var sum = (((mathram[0] + (mathram[1]<<8)) << 16) >> 16);
+    var a = (mathram[2] << 24) >> 24;
+    var b = (mathram[3] << 24) >> 24;
+    var d = a!=0 ? (sum/a) : 0;
+    sum += (a*b) & 0xffff;
+    mathram[0] = sum & 0xff;
+    mathram[1] = (sum >> 8) & 0xff;
+    mathram[4] = d & 0xff;
+    mathram[5] = (d >> 8) & 0xff;
   }
 
   this.start = function() {
@@ -332,6 +347,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
       read: new AddressDecoder([
         [0x0,    0x7fff, 0,      function(a) { return rom[a]; }],
         [0x8000, 0x800f, 0xf,    function(a) { return switches[a]; }],
+        [0x8100, 0x810f, 0xf,    function(a) { return mathram[a]; } ],
         [0xa000, 0xdfff, 0x3fff, function(a) { return dvgram.mem[a]; }],
         [0xe000, 0xffff, 0x1fff, function(a) { return cpuram.mem[a]; }],
       ]),
@@ -339,6 +355,8 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
       write: new AddressDecoder([
         [0x8000, 0x800f, 0xf,    function(a,v) { audio.pokey1.setRegister(a, v); }],
         [0x8010, 0x801f, 0xf,    function(a,v) { audio.pokey2.setRegister(a, v); }],
+        [0x8100, 0x810e, 0xf,    function(a,v) { mathram[a] = v; } ],
+        [0x810f, 0x810f, 0,      function(a,v) { do_math(); } ],
         [0x8840, 0x8840, 0,      function(a,v) { dvg.runUntilHalt(0); }],
         [0x8880, 0x8880, 0,      function(a,v) { dvg.reset(); }],
         [0xa000, 0xdfff, 0x3fff, function(a,v) { dvgram.mem[a] = v; }],
@@ -390,14 +408,16 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
 
   this.loadState = function(state) {
     cpu.loadState(state.c);
-    cpuram.mem.set(state.db);
+    cpuram.mem.set(state.cb);
     dvgram.mem.set(state.db);
+    mathram.set(state.mr);
   }
   this.saveState = function() {
     return {
       c:cpu.saveState(),
       cb:cpuram.mem.slice(0),
       db:dvgram.mem.slice(0),
+      mr:mathram.slice(0),
     }
   }
   this.getCPUState = function() {
@@ -524,8 +544,10 @@ var DVGColorStateMachine = function(bus, video, bofs) {
   var scale = 1.0;
   var color;
   var statz;
+  var sparkle;
   var pcstack = [];
   var running = false;
+
   bofs &= 0xffff;
 
   function readWord(a) {
@@ -543,6 +565,10 @@ var DVGColorStateMachine = function(bus, video, bofs) {
       return w;
   }
 
+  function sparkle_color() {
+    return (Math.random() * 256) & 0x7;
+  }
+
   this.reset = function() {
     pc = 0;
     scale = 1.0;
@@ -550,6 +576,7 @@ var DVGColorStateMachine = function(bus, video, bofs) {
     statz = 15;
     x = 512;
     y = 512;
+    sparkle = false;
     running = false;
   }
 
@@ -582,6 +609,7 @@ var DVGColorStateMachine = function(bus, video, bofs) {
         if (z == 2) z = statz;
         var x2 = x + Math.round(decodeSigned(w2, 12) * scale);
         var y2 = y + Math.round(decodeSigned(w, 12) * scale);
+        if (sparkle) color = sparkle_color();
         video.drawLine(x, y, x2, y2, z<<4, color);
         x = x2;
         y = y2;
@@ -595,19 +623,21 @@ var DVGColorStateMachine = function(bus, video, bofs) {
         var y2 = y + Math.round(decodeSigned(w>>8, 4) * scale * 2);
         var z = (w >> 5) & 0x7;
         if (z == 2) z = statz;
+        if (sparkle) color = sparkle_color();
         video.drawLine(x, y, x2, y2, z<<4, color);
         x = x2;
         y = y2;
         break;
       }
       case 3: { // STAT/SCAL
-        if (w & 0x1000) {
+        if (w & 0x1000) { // SCAL
           var b = ((w >> 8) & 0x07)+8;
           var l = (~w) & 0xff;
           scale = ((l << 16) >> b) / 32768.0;
-        } else {
+        } else { // STAT
           color = w & 7;
           statz = (w >> 4) & 0xf;
+          sparkle = (w & 0x800) != 0;
         }
         break;
       }

@@ -614,19 +614,22 @@ function assemblelinkSDASZ80(code, platform) {
     var asmlines = parseListing(lstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2, 5, 3);
     var srclines = parseSourceLines(lstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
     // parse symbol map
+    /*
     var symbolmap = {};
+    console.log(mapout);
     for (var s of mapout.split("\n")) {
       var toks = s.split(" ");
       if (s[0] == 'DEF') {
         symbolmap[s[1]] = s[2];
       }
     }
+    */
     return {
       output:parseIHX(hexout, params.code_start, params.code_size),
       lines:asmlines,
       srclines:srclines,
       errors:msvc_errors, // TODO?
-      symbolmap:symbolmap,
+      symbolmap:mapout,
       intermediate:{listing:rstout},
     };
   }

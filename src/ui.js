@@ -359,12 +359,11 @@ function arrayCompare(a,b) {
   return true;
 }
 
-worker.onmessage = function(e) {
-  if (pendingWorkerMessages > 1) {
-    pendingWorkerMessages = 0;
-    setCode(editor.getValue());
+function setCompileOutput(data) {
+  sourcefile = new SourceFile(data.lines);
+  if (data.asmlines) {
+    assemblyfile = new SourceFile(data.asmlines, data.intermediate.listing);
   }
-  pendingWorkerMessages = 0;
   // errors?
   var toolbar = $("#controls_top");
   function addErrorMarker(line, msg) {
@@ -378,15 +377,11 @@ worker.onmessage = function(e) {
     div.appendChild(tooltip);
     editor.setGutterMarker(line, "gutter-info", div);
   }
-  sourcefile = new SourceFile(e.data.lines);
-  if (e.data.asmlines) {
-    assemblyfile = new SourceFile(e.data.asmlines, e.data.intermediate.listing);
-  }
-  if (e.data.errors.length > 0) {
+  if (data.errors.length > 0) {
     toolbar.addClass("has-errors");
     editor.clearGutter("gutter-info");
     var numLines = editor.lineCount();
-    for (info of e.data.errors) {
+    for (info of data.errors) {
       var line = info.line-1;
       if (line < 0 || line >= numLines) line = numLines-1;
       addErrorMarker(line, info.msg);
@@ -395,7 +390,7 @@ worker.onmessage = function(e) {
   } else {
     updatePreset(current_preset_id, editor.getValue()); // update persisted entry
     // load ROM
-    var rom = e.data.output;
+    var rom = data.output;
     var rom_changed = rom && !arrayCompare(rom, current_output);
     if (rom_changed) {
       try {
@@ -419,7 +414,7 @@ worker.onmessage = function(e) {
       editor.clearGutter("gutter-bytes");
       editor.clearGutter("gutter-offset");
       editor.clearGutter("gutter-clock");
-      for (var info of e.data.lines) {
+      for (var info of data.lines) {
         if (info.offset >= 0) {
           var textel = document.createTextNode(hex(info.offset,4));
           editor.setGutterMarker(info.line-1, "gutter-offset", textel);
@@ -445,6 +440,15 @@ worker.onmessage = function(e) {
     }
   }
   trace_pending_at_pc = null;
+}
+
+worker.onmessage = function(e) {
+  if (pendingWorkerMessages > 1) {
+    pendingWorkerMessages = 0;
+    setCode(editor.getValue());
+  }
+  pendingWorkerMessages = 0;
+  setCompileOutput(e.data);
 }
 
 function setCurrentLine(line) {
