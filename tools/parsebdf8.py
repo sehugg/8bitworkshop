@@ -66,6 +66,7 @@ def tohex2(v):
 
 for arr in [output,revoutput,invoutput,rotoutput,rot2output]:
     print '\thex ' + string.join(map(tohex,arr),'')
+    print string.join(map(tohex2,arr),',')
     for i in range(0,len(output),height):
         print '{', string.join(map(tohex2,arr[i:i+height]),','), '},',
     print
