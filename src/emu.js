@@ -125,7 +125,7 @@ mainElement.appendChild(borderElement);
 var VectorVideo = function(mainElement, width, height) {
   var self = this;
   var canvas, ctx;
-  var persistenceAlpha = 0.8;
+  var persistenceAlpha = 0.5;
   var jitter = 1.0;
   var gamma = 0.8;
   var sx = width/1024.0;

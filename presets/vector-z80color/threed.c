@@ -43,8 +43,8 @@ void dvgwrite(word w) {
 }
 
 inline void VCTR(int dx, int dy, byte bright) {
-  dvgwrite((dx & 0x1fff));
-  dvgwrite(((bright & 7) << 13) | (dy & 0x1fff));
+  dvgwrite((dy & 0x1fff));
+  dvgwrite(((bright & 7) << 13) | (dx & 0x1fff));
 }
 
 inline void SVEC(sbyte dx, sbyte dy, byte bright) {

@@ -6,6 +6,7 @@
 var VECTOR_PRESETS = [
   {id:'font.c', name:'Vector Fonts'},
   {id:'threed.c', name:'3D Transformations'},
+  {id:'game.c', name:'Space Game'},
 ]
 
 var ASTEROIDS_KEYCODE_MAP = makeKeycodeMap([
@@ -29,6 +30,7 @@ var GRAVITAR_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_1, 2, 0x20],
   [Keys.VK_2, 2, 0x40],
   [Keys.VK_UP, 1, -0x10],
+  [Keys.VK_DOWN, 1, -0x20],
   [Keys.VK_RIGHT, 1, -0x4],
   [Keys.VK_LEFT, 1, -0x8],
 ]);
@@ -192,9 +194,9 @@ var AtariColorVectorPlatform = function(mainElement) {
     earom = new RAM(0x40);
     rom = padBytes(new lzgmini().decode(GRAVITAR_ROM).slice(0), 0x7000+1);
     vecrom = padBytes(new lzgmini().decode(GRAVITAR_VECROM).slice(0), 0x6000-0x2800+1);
-    switches[0] = 0xff;
+    switches[0] = 0x0;
     switches[1] = 0xff;
-    switches[2] = 0xff;
+    switches[2] = 0x0;
     // bus
     bus = {
 
@@ -376,7 +378,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
       cpu.requestInterrupt();
       self.restartDebugState();
     });
-    setKeyboardFromMap(video, switches, ASTEROIDS_KEYCODE_MAP);
+    setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
   }
 
   this.loadROM = function(title, data) {
