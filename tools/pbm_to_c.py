@@ -22,7 +22,7 @@ with open(sys.argv[1],'rb') as f:
     header = f.readline().strip()
     assert(header == 'P4')
     dims = f.readline().strip()
-    if dims[0] == '#':
+    while dims[0] == '#':
         dims = f.readline().strip()
     width,height = map(int, dims.split())
     wbytes = (width+7)/8

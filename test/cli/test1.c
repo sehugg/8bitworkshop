@@ -10,16 +10,14 @@ typedef signed char sbyte;
 word __at(0xa000) dvgram[0x1000];
 byte __at(0x8840) _dvgstart;
 
-volatile int __at(0x8100) mathbox_sum;
+int __at(0x8100) mathbox_sum;
 sbyte __at(0x8102) mathbox_arg1;
 sbyte __at(0x8103) mathbox_arg2;
 byte __at(0x810f) mathbox_go_mul;
 
-volatile byte __at (0x8000) input0;
-volatile byte __at (0x8001) input1;
-volatile byte __at (0x8002) input2;
-volatile byte __at (0x8980) watchdog;
-volatile byte __at (0x800f) vidframe;
+byte __at (0x8000) input0;
+byte __at (0x8001) input1;
+byte __at (0x8002) input2;
 
 #define LEFT1 !(input1 & 0x8)
 #define RIGHT1 !(input1 & 0x4)
@@ -118,125 +116,6 @@ enum {
   BLACK, BLUE, GREEN, CYAN, RED, MAGENTA, YELLOW, WHITE
 } Color;
 
-
-/// https://trmm.net/Asteroids_font
-
-#define P(x,y) ((((x) & 0xF) << 4) | (((y) & 0xF) << 0))
-#define FONT_UP 0xFE
-#define FONT_LAST 0xFF
-
-const byte vecfont[95][8] = {
-  ['0' - 0x20] = { P(0,0), P(8,0), P(8,12), P(0,12), P(0,0), P(8,12), FONT_LAST },
-  ['1' - 0x20] = { P(4,0), P(4,12), P(3,10), FONT_LAST },
-  ['2' - 0x20] = { P(0,12), P(8,12), P(8,7), P(0,5), P(0,0), P(8,0), FONT_LAST },
-  ['3' - 0x20] = { P(0,12), P(8,12), P(8,0), P(0,0), FONT_UP, P(0,6), P(8,6), FONT_LAST },
-  ['4' - 0x20] = { P(0,12), P(0,6), P(8,6), FONT_UP, P(8,12), P(8,0), FONT_LAST },
-  ['5' - 0x20] = { P(0,0), P(8,0), P(8,6), P(0,7), P(0,12), P(8,12), FONT_LAST },
-  ['6' - 0x20] = { P(0,12), P(0,0), P(8,0), P(8,5), P(0,7), FONT_LAST },
-  ['7' - 0x20] = { P(0,12), P(8,12), P(8,6), P(4,0), FONT_LAST },
-  ['8' - 0x20] = { P(0,0), P(8,0), P(8,12), P(0,12), P(0,0), FONT_UP, P(0,6), P(8,6), },
-  ['9' - 0x20] = { P(8,0), P(8,12), P(0,12), P(0,7), P(8,5), FONT_LAST },
-  [' ' - 0x20] = { FONT_LAST },
-  ['.' - 0x20] = { P(3,0), P(4,0), FONT_LAST },
-  [',' - 0x20] = { P(2,0), P(4,2), FONT_LAST },
-  ['-' - 0x20] = { P(2,6), P(6,6), FONT_LAST },
-  ['+' - 0x20] = { P(1,6), P(7,6), FONT_UP, P(4,9), P(4,3), FONT_LAST },
-  ['!' - 0x20] = { P(4,0), P(3,2), P(5,2), P(4,0), FONT_UP, P(4,4), P(4,12), FONT_LAST },
-  ['#' - 0x20] = { P(0,4), P(8,4), P(6,2), P(6,10), P(8,8), P(0,8), P(2,10), P(2,2) },
-  ['^' - 0x20] = { P(2,6), P(4,12), P(6,6), FONT_LAST },
-  ['=' - 0x20] = { P(1,4), P(7,4), FONT_UP, P(1,8), P(7,8), FONT_LAST },
-  ['*' - 0x20] = { P(0,0), P(4,12), P(8,0), P(0,8), P(8,8), P(0,0), FONT_LAST },
-  ['_' - 0x20] = { P(0,0), P(8,0), FONT_LAST },
-  ['/' - 0x20] = { P(0,0), P(8,12), FONT_LAST },
-  ['\\' - 0x20] = { P(0,12), P(8,0), FONT_LAST },
-  ['@' - 0x20] = { P(8,4), P(4,0), P(0,4), P(0,8), P(4,12), P(8,8), P(4,4), P(3,6) },
-  ['$' - 0x20] = { P(6,2), P(2,6), P(6,10), FONT_UP, P(4,12), P(4,0), FONT_LAST },
-  ['&' - 0x20] = { P(8,0), P(4,12), P(8,8), P(0,4), P(4,0), P(8,4), FONT_LAST },
-  ['[' - 0x20] = { P(6,0), P(2,0), P(2,12), P(6,12), FONT_LAST },
-  [']' - 0x20] = { P(2,0), P(6,0), P(6,12), P(2,12), FONT_LAST },
-  ['(' - 0x20] = { P(6,0), P(2,4), P(2,8), P(6,12), FONT_LAST },
-  [')' - 0x20] = { P(2,0), P(6,4), P(6,8), P(2,12), FONT_LAST },
-  ['{' - 0x20] = { P(6,0), P(4,2), P(4,10), P(6,12), FONT_UP, P(2,6), P(4,6), FONT_LAST },
-  ['}' - 0x20] = { P(4,0), P(6,2), P(6,10), P(4,12), FONT_UP, P(6,6), P(8,6), FONT_LAST },
-  ['%' - 0x20] = { P(0,0), P(8,12), FONT_UP, P(2,10), P(2,8), FONT_UP, P(6,4), P(6,2) },
-  ['<' - 0x20] = { P(6,0), P(2,6), P(6,12), FONT_LAST },
-  ['>' - 0x20] = { P(2,0), P(6,6), P(2,12), FONT_LAST },
-  ['|' - 0x20] = { P(4,0), P(4,5), FONT_UP, P(4,6), P(4,12), FONT_LAST },
-  [':' - 0x20] = { P(4,9), P(4,7), FONT_UP, P(4,5), P(4,3), FONT_LAST },
-  [';' - 0x20] = { P(4,9), P(4,7), FONT_UP, P(4,5), P(1,2), FONT_LAST },
-  ['"' - 0x20] = { P(2,10), P(2,6), FONT_UP, P(6,10), P(6,6), FONT_LAST },
-  ['\'' - 0x20] = { P(2,6), P(6,10), FONT_LAST },
-  ['`' - 0x20] = { P(2,10), P(6,6), FONT_LAST },
-  ['~' - 0x20] = { P(0,4), P(2,8), P(6,4), P(8,8), FONT_LAST },
-  ['?' - 0x20] = { P(0,8), P(4,12), P(8,8), P(4,4), FONT_UP, P(4,1), P(4,0), FONT_LAST },
-  ['A' - 0x20] = { P(0,0), P(0,8), P(4,12), P(8,8), P(8,0), FONT_UP, P(0,4), P(8,4) },
-  ['B' - 0x20] = { P(0,0), P(0,12), P(4,12), P(8,10), P(4,6), P(8,2), P(4,0), P(0,0) },
-  ['C' - 0x20] = { P(8,0), P(0,0), P(0,12), P(8,12), FONT_LAST },
-  ['D' - 0x20] = { P(0,0), P(0,12), P(4,12), P(8,8), P(8,4), P(4,0), P(0,0), FONT_LAST },
-  ['E' - 0x20] = { P(8,0), P(0,0), P(0,12), P(8,12), FONT_UP, P(0,6), P(6,6), FONT_LAST },
-  ['F' - 0x20] = { P(0,0), P(0,12), P(8,12), FONT_UP, P(0,6), P(6,6), FONT_LAST },
-  ['G' - 0x20] = { P(6,6), P(8,4), P(8,0), P(0,0), P(0,12), P(8,12), FONT_LAST },
-  ['H' - 0x20] = { P(0,0), P(0,12), FONT_UP, P(0,6), P(8,6), FONT_UP, P(8,12), P(8,0) },
-  ['I' - 0x20] = { P(0,0), P(8,0), FONT_UP, P(4,0), P(4,12), FONT_UP, P(0,12), P(8,12) },
-  ['J' - 0x20] = { P(0,4), P(4,0), P(8,0), P(8,12), FONT_LAST },
-  ['K' - 0x20] = { P(0,0), P(0,12), FONT_UP, P(8,12), P(0,6), P(6,0), FONT_LAST },
-  ['L' - 0x20] = { P(8,0), P(0,0), P(0,12), FONT_LAST },
-  ['M' - 0x20] = { P(0,0), P(0,12), P(4,8), P(8,12), P(8,0), FONT_LAST },
-  ['N' - 0x20] = { P(0,0), P(0,12), P(8,0), P(8,12), FONT_LAST },
-  ['O' - 0x20] = { P(0,0), P(0,12), P(8,12), P(8,0), P(0,0), FONT_LAST },
-  ['P' - 0x20] = { P(0,0), P(0,12), P(8,12), P(8,6), P(0,5), FONT_LAST },
-  ['Q' - 0x20] = { P(0,0), P(0,12), P(8,12), P(8,4), P(0,0), FONT_UP, P(4,4), P(8,0) },
-  ['R' - 0x20] = { P(0,0), P(0,12), P(8,12), P(8,6), P(0,5), FONT_UP, P(4,5), P(8,0) },
-  ['S' - 0x20] = { P(0,2), P(2,0), P(8,0), P(8,5), P(0,7), P(0,12), P(6,12), P(8,10) },
-  ['T' - 0x20] = { P(0,12), P(8,12), FONT_UP, P(4,12), P(4,0), FONT_LAST },
-  ['U' - 0x20] = { P(0,12), P(0,2), P(4,0), P(8,2), P(8,12), FONT_LAST },
-  ['V' - 0x20] = { P(0,12), P(4,0), P(8,12), FONT_LAST },
-  ['W' - 0x20] = { P(0,12), P(2,0), P(4,4), P(6,0), P(8,12), FONT_LAST },
-  ['X' - 0x20] = { P(0,0), P(8,12), FONT_UP, P(0,12), P(8,0), FONT_LAST },
-  ['Y' - 0x20] = { P(0,12), P(4,6), P(8,12), FONT_UP, P(4,6), P(4,0), FONT_LAST },
-  ['Z' - 0x20] = { P(0,12), P(8,12), P(0,0), P(8,0), FONT_UP, P(2,6), P(6,6), FONT_LAST },
-};
-
-void draw_char(char ch) {
-  const byte* p = vecfont[ch-0x20];
-  byte bright = 0;
-  byte x = 0;
-  byte y = 0;
-  byte i;
-  for (i=0; i<8; i++) {
-    byte b = *p++;
-    if (b == FONT_LAST) break; // last move
-    else if (b == FONT_UP) bright = 0; // pen up
-    else {
-      byte x2 = b>>4;
-      byte y2 = b&15;
-      SVEC((char)(x2-x), (char)(y2-y), bright);
-      bright = 2;
-      x = x2;
-      y = y2;
-    }
-  }
-  SVEC((char)12-x, (char)-y, 0);
-}
-
-static word font_shapes[95];
-
-void make_cached_font() {
-  char ch;
-  for (ch=0; ch<95; ch++) {
-    watchdog = 0;
-    font_shapes[ch] = dvgwrofs;
-    draw_char(ch+0x20);
-    RTSL();
-  }
-}
-
-void draw_string(const char* str, byte spacing) {
-  while (*str) {
-    JSRL(font_shapes[*str++ - 0x20]);
-    if (spacing) SVEC(spacing, 0, 0);
-  }
-}
 
 // MATH/3D ROUTINES
 
@@ -414,7 +293,6 @@ void make_cached_shapes() {
   Matrix mat;
   byte i;
   for (i=0; i<32; i++) {
-    watchdog = 0;
     ship_shapes[i] = dvgwrofs;
     mat_rotate(&mat, 2, i<<3);
     draw_wireframe_ortho(&ship_wf, &mat);
@@ -590,7 +468,7 @@ void torpedo_update_fn(struct Actor* a) {
     a->removed = 1;
   } else {
     // check for torpedo hits
-    test_actor_distance(explode_actor, a, 12, 0x2);
+    test_actor_distance(explode_actor, a, 20, 0x2);
   }
 }
 
@@ -626,7 +504,7 @@ void create_obstacles(byte count) {
 
 static int frame = 0;
 
-static Actor* curship = NULL;
+static Actor* curship;
 
 void draw_thrust() {
   word rnd = rand();
@@ -674,9 +552,7 @@ static byte can_fire;
 static byte newship_timer;
 
 void new_player_ship() {
-  if (curship == NULL) {
-    curship = new_actor(&ship_actor);
-  }
+  curship = new_actor(&ship_actor);
 }
 
 void explode_at(Actor* base) {
@@ -690,7 +566,6 @@ void control_player() {
     new_player_ship();
   }
   if (!curship) return;
-  
   if (LEFT1) curship->angle -= 2;
   if (RIGHT1) curship->angle += 2;
   if ((frame&1)==1) {
@@ -713,7 +588,7 @@ void control_player() {
     can_fire = 1;
   }
   // ship ran into something?
-  if (test_actor_distance(NULL, curship, 16, 0x2)) {
+  if (test_actor_distance(NULL, curship, 20, 0x2)) {
     explode_at(curship);
     curship->removed = 1;
     curship = NULL;
@@ -721,28 +596,20 @@ void control_player() {
   }
 }
 
-byte just_one_actor_left() {
-  return first_actor && first_actor->next == NULL;
-}
-
 void main() {
   memset(dvgram, 0x20, sizeof(dvgram)); // HALTs
   dvgwrofs = 0x800;
-  make_cached_font();
   make_cached_shapes();
   create_obstacles(5);
   new_player_ship();
-  while (!just_one_actor_left()) {
+  while (1) {
     dvgreset();
-    control_player();
     draw_and_update_actors();
+    control_player();
+    remove_expired_actors();
     CNTR();
     HALT();
     dvgstart();
-    remove_expired_actors();
     frame++;
-    watchdog=0;
-    while (vidframe == (frame & 0x3)) {}
   }
-  main();
 }

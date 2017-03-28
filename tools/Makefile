@@ -11,5 +11,22 @@
 %-48.pbm: %.jpg
 	convert $< -resize 48x192\! -colorspace Gray -dither FloydSteinberg $@
 
+%.tga: %.png
+	convert $< -resize 128x96\! +dither $<.gif
+	convert $<.gif -type palette -compress RLE -colors 8 +dither -flip $@
+	convert $@ $@.png
+
+%.pcx: %.png
+	convert $< -format raw -type palette -compress none -colors 15 +dither $@
+
 ship1.pbm: ship1.png
 	convert ship1.png -negate -flop ship1.pbm
+
+%.h:
+	cat $* | hexdump -v -e '"\n" 128/1 "0x%02x,"'
+
+%.prom:
+	cat $* | hexdump -v -e '" \n defb  " 32/1 "$$%02x,"' | cut -c 2-134
+
+%.rot.pbm: %.pbm
+	convert $< -transpose -bordercolor white -border 4x4 $@

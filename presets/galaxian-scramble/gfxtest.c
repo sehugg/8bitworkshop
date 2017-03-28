@@ -97,26 +97,6 @@ void putstring(byte x, byte y, const char* string) {
 
 static int frame;
 
-void testpattern() {
-  byte i;
-  watchdog++;
-  for (i=0; i<32; i++) {
-    columns[i].attrib = i;
-    columns[i].scroll = frame;
-  }
-  for (i=0; i<8; i++) {
-    sprites[i].xpos = i*16-frame;
-    sprites[i].ypos = i*32;
-    sprites[i].code = i*8;
-    sprites[i].color = i;
-  }
-  for (i=0; i<8; i++) {
-    missiles[i].xpos = i*32;
-    missiles[i].ypos = i*16-frame;
-  }
-  frame++;
-}
-
 void draw_all_chars() {
   byte i;
   i = 0;
@@ -129,16 +109,6 @@ void draw_all_chars() {
   } while (++i);
 }
 
-void draw_test_sprites() {
-  byte i;
-  for (i=0; i<8; i++) {
-    sprites[i].xpos = i*16-frame;
-    sprites[i].ypos = 190;
-    sprites[i].code = i+16;
-    sprites[i].color = 2;
-  }
-}
-
 void putshape(byte x, byte y, byte ofs) {
   putchar(x, y, ofs+2);
   putchar(x+1, y, ofs);
@@ -146,7 +116,7 @@ void putshape(byte x, byte y, byte ofs) {
   putchar(x+1, y+1, ofs+1);
 }
 
-void draw_alien(byte ofs, byte y) {
+void draw_sprites(byte ofs, byte y) {
   byte i;
   byte x = 0;
   columns[y].attrib = 1;
@@ -175,17 +145,36 @@ void draw_explosion(byte ofs, byte y) {
   }
 }
 
+void draw_missiles() {
+  byte i;
+  for (i=0; i<7; i++) {
+    missiles[i].ypos = i + 24;
+    missiles[i].xpos = i*16 + frame;
+    sprites[i].xpos = i*32 + frame;
+    sprites[i].ypos = i*24 + frame;
+  }
+}
+
+void draw_corners() {
+  vram[2][0]++;
+  vram[2][31]++;
+  vram[29][0]++;
+  vram[29][31]++;
+}
+
 void main() {
   clrscr();
   while (1) {
     draw_all_chars();
-    //draw_test_sprites();
-    draw_alien(0x30, 18);
-    draw_alien(0x50, 21);
-    draw_alien(0x70, 24);
-    draw_alien(0xa0, 27);
+    draw_sprites(0x30, 18);
+    draw_sprites(0x50, 21);
+    draw_sprites(0x70, 24);
+    draw_sprites(0xa0, 27);
+    draw_sprites(0x0, 29);
     draw_explosion(0xc0, 12);
-    putstring(0, 0, "HELLO@WORLD@123");
+    draw_missiles();
+    putstring(7, 0, "HELLO@WORLD@123");
+    draw_corners();
     columns[1].attrib = frame;
     enable_stars = 0&0xff;
     frame++;

@@ -60,7 +60,7 @@ var GalaxianPlatform = function(mainElement, options) {
   var vsyncFrequency = hsyncFrequency/132/2; // 60.606060 Hz
   var vblankDuration = 1/vsyncFrequency * (20/132); // 2500 us
   var cpuCyclesPerLine = cpuFrequency/hsyncFrequency;
-  var INITIAL_WATCHDOG = 256;
+  var INITIAL_WATCHDOG = 8;
   var showOffscreenObjects = false;
   var stars = [];
   for (var i=0; i<256; i++)
@@ -225,9 +225,10 @@ var GalaxianPlatform = function(mainElement, options) {
   				[0x5000, 0x5fff, 0xff,   function(a,v) { oram.mem[a] = v; }],
           [0x6801, 0x6801, 0,      function(a,v) { interruptEnabled = 1; }],
           [0x6802, 0x6802, 0,      function(a,v) { /* TODO: coin counter */ }],
-          [0x6804, 0x6804, 0,      function(a,v) { starsEnabled = v; }],
-          [0x6805, 0x6805, 0,      function(a,v) { missileWidth = v; }], // not on h/w
-          [0x6806, 0x6806, 0,      function(a,v) { missileOffset = v; }], // not on h/w
+          [0x6803, 0x6803, 0,      function(a,v) { /* TODO: backgroundColor = (v & 1) ? 0xFF000056 : 0xFF000000; */ }],
+          [0x6804, 0x6804, 0,      function(a,v) { starsEnabled = v & 1; }],
+          [0x6808, 0x6808, 0,      function(a,v) { missileWidth = v; }], // not on h/w
+          [0x6809, 0x6809, 0,      function(a,v) { missileOffset = v; }], // not on h/w
           [0x8202, 0x8202, 0, scramble_protection_w],
           //[0x8100, 0x8103, 0, function(a,v){ /* PPI 0 */ }],
           //[0x8200, 0x8203, 0, function(a,v){ /* PPI 1 */ }],
@@ -256,8 +257,8 @@ var GalaxianPlatform = function(mainElement, options) {
   				//[0x6800, 0x6807, 0x7,    function(a,v) { }], // sound
   				//[0x7800, 0x7800, 0x7,    function(a,v) { }], // pitch
   				[0x6000, 0x6003, 0x3,    function(a,v) { outlatches.mem[a] = v; }],
-  				[0x7001, 0x7001, 0,      function(a,v) { interruptEnabled = v; }],
-  				[0x7004, 0x7004, 0,      function(a,v) { starsEnabled = v; }],
+  				[0x7001, 0x7001, 0,      function(a,v) { interruptEnabled = v & 1; }],
+  				[0x7004, 0x7004, 0,      function(a,v) { starsEnabled = v & 1; }],
   			]),
         isContended: function() { return false; },
       };

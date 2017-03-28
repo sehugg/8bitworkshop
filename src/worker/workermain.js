@@ -27,9 +27,9 @@ var PLATFORM_PARAMS = {
   },
   'williams-z80': {
     code_start: 0x0,
-    code_size: 0x9000,
-    data_start: 0x9000,
-    data_size: 0x3000,
+    code_size: 0x9800,
+    data_start: 0x9800,
+    data_size: 0x2800,
   },
   'vector-z80color': {
     code_start: 0x0,
@@ -662,6 +662,7 @@ function compileSDCC(code, platform) {
     '--less-pedantic',
     //'--fomit-frame-pointer',
     '--opt-code-speed',
+    '--oldralloc', // TODO: does this make it fater?
     '-o', 'main.asm']);
   /*
   // ignore if all are warnings (TODO?)

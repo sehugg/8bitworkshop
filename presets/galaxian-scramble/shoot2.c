@@ -28,8 +28,8 @@ byte __at (0x5080) xram[128];
 
 byte __at (0x6801) enable_irq;
 byte __at (0x6804) enable_stars;
-byte __at (0x6805) missile_width;
-byte __at (0x6806) missile_offset;
+byte __at (0x6808) missile_width;
+byte __at (0x6809) missile_offset;
 byte __at (0x7000) watchdog;
 byte __at (0x8100) input0;
 byte __at (0x8101) input1;

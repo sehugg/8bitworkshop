@@ -1,6 +1,9 @@
 "use strict";
 
 var WILLIAMS_PRESETS = [
+  {id:'gfxtest.c', name:'Graphics Test'},
+  {id:'sprites.c', name:'Sprite Test'},
+  {id:'bitmap_rle.c', name:'RLE Bitmap'},
 ];
 
 var WilliamsPlatform = function(mainElement, proto) {
@@ -18,13 +21,14 @@ var WilliamsPlatform = function(mainElement, proto) {
   var blitregs = new RAM(8).mem;
 
   var video, timer, pixels, displayPCs;
-  var membus, iobus;
   var screenNeedsRefresh = false;
+  var membus, iobus;
   var video_counter;
 
   var xtal = 12000000;
   var cpuFrequency = xtal/3/4;
   var cpuCyclesPerFrame = cpuFrequency/60; // TODO
+  var cpuScale = 1;
   var INITIAL_WATCHDOG = 64;
   var PIXEL_ON = 0xffeeeeee;
   var PIXEL_OFF = 0xff000000;
@@ -132,15 +136,15 @@ var WilliamsPlatform = function(mainElement, proto) {
   ]);
 
   var memread_williams = new AddressDecoder([
-    [0x0000, 0x8fff, 0xffff, function(a) { return banksel ? rom[a] : ram.mem[a]; }],
-    [0x9000, 0xbfff, 0xffff, function(a) { return ram.mem[a]; }],
+    [0x0000, 0x97ff, 0xffff, function(a) { return banksel ? rom[a] : ram.mem[a]; }],
+    [0x9800, 0xbfff, 0xffff, function(a) { return ram.mem[a]; }],
     [0xc000, 0xcfff, 0x0fff, ioread_williams],
     [0xd000, 0xffff, 0xffff, function(a) { return rom ? rom[a-0x4000] : 0; }],
   ]);
 
   var memwrite_williams = new AddressDecoder([
-    [0x0000, 0x8fff, 0,      write_display_byte],
-    [0x9000, 0xbfff, 0,      function(a,v) { ram.mem[a] = v; }],
+    [0x0000, 0x97ff, 0,      write_display_byte],
+    [0x9800, 0xbfff, 0,      function(a,v) { ram.mem[a] = v; }],
     [0xc000, 0xcfff, 0x0fff, iowrite_williams],
     //[0x0000, 0xffff, 0,      function(a,v) { console.log(hex(a), hex(v)); }],
   ]);
@@ -173,7 +177,7 @@ var WilliamsPlatform = function(mainElement, proto) {
       blitregs[a] = v;
     } else {
       var cycles = doBlit(v);
-      cpu.setTstates(cpu.getTstates() + cycles);
+      cpu.setTstates(cpu.getTstates() + cycles * cpuScale);
     }
   }
 
@@ -242,7 +246,7 @@ var WilliamsPlatform = function(mainElement, proto) {
       curpix |= (solid & ~keepmask);
     else
       curpix |= (srcdata & ~keepmask);
-    if (dstaddr < 0x9000) // can cause recursion otherwise
+    if (dstaddr < 0x9800) // can cause recursion otherwise
       memwrite_williams(dstaddr, curpix);
   }
 
@@ -362,10 +366,19 @@ var WilliamsPlatform = function(mainElement, proto) {
   this.readAddress = function(addr) {
     return membus.read(addr);
   }
+  this.scaleCPUFrequency = function(scale) {
+    cpuScale = scale;
+    cpuFrequency *= scale;
+    cpuCyclesPerFrame *= scale;
+  }
 }
 
 var WilliamsZ80Platform = function(mainElement) {
   this.__proto__ = new WilliamsPlatform(mainElement, BaseZ80Platform);
+
+  // Z80 @ 4 MHz
+  // also scale bitblt clocks
+  this.scaleCPUFrequency(4);
 
   this.ramStateToLongString = function(state) {
     var blt = state.blt;

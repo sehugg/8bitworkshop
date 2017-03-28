@@ -81,6 +81,10 @@ function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
     });
 }
 
+function ab2str(buf) {
+  return String.fromCharCode.apply(null, new Uint16Array(buf));
+}
+
 describe('Worker', function() {
   it('should assemble DASM', function(done) {
     compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo lda #0\n', 'vcs', done, 2, 1);
@@ -126,6 +130,10 @@ describe('Worker', function() {
   });
   it('should compile SDCC w/ include', function(done) {
     compile('sdcc', '#include <string.h>\nvoid main() {\nstrlen(0);\n}\n', 'mw8080bw', done, 8192, 2, 0);
+  });
+  it('should compile big SDCC file', function(done) {
+    var csource = ab2str(fs.readFileSync('test/cli/test1.c'));
+    compile('sdcc', csource, 'vector-z80color', done, 32768, 298, 0);
   });
   it('should NOT compile SDCC', function(done) {
     compile('sdcc', 'foobar', 'mw8080bw', done, 0, 0, 1);

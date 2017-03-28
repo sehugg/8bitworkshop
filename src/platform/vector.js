@@ -153,6 +153,7 @@ var AtariVectorPlatform = function(mainElement) {
     cpu.loadState(state.c);
     cpuram.mem.set(state.cb);
     dvgram.mem.set(state.db);
+    switches.set(state.sw);
     nmicount = state.nmic;
   }
   this.saveState = function() {
@@ -160,6 +161,7 @@ var AtariVectorPlatform = function(mainElement) {
       c:cpu.saveState(),
       cb:cpuram.mem.slice(0),
       db:dvgram.mem.slice(0),
+      sw:switches.slice(0),
       nmic:nmicount
     }
   }
@@ -295,6 +297,7 @@ var AtariColorVectorPlatform = function(mainElement) {
     cpu.loadState(state.c);
     cpuram.mem.set(state.cb);
     dvgram.mem.set(state.db);
+    switches.set(state.sw);
     nmicount = state.nmic;
   }
   this.saveState = function() {
@@ -302,6 +305,7 @@ var AtariColorVectorPlatform = function(mainElement) {
       c:cpu.saveState(),
       cb:cpuram.mem.slice(0),
       db:dvgram.mem.slice(0),
+      sw:switches.slice(0),
       nmic:nmicount
     }
   }
@@ -314,7 +318,7 @@ var AtariColorVectorPlatform = function(mainElement) {
 
 var Z80ColorVectorPlatform = function(mainElement, proto) {
   var self = this;
-  var cpuFrequency = 3000000.0;
+  var cpuFrequency = 4000000.0;
   var cpuCyclesPerFrame = Math.round(cpuFrequency/60);
   var cpu, cpuram, dvgram, rom, bus, dvg;
   var video, audio, timer;
@@ -361,6 +365,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
         [0x810f, 0x810f, 0,      function(a,v) { do_math(); } ],
         [0x8840, 0x8840, 0,      function(a,v) { dvg.runUntilHalt(0); }],
         [0x8880, 0x8880, 0,      function(a,v) { dvg.reset(); }],
+        [0x8980, 0x8980, 0,      function(a,v) { switches[0xe] = 16; }],
         [0xa000, 0xdfff, 0x3fff, function(a,v) { dvgram.mem[a] = v; }],
         [0xe000, 0xffff, 0x1fff, function(a,v) { cpuram.mem[a] = v; }],
       ])
@@ -377,6 +382,11 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
       self.runCPU(cpu, cpuCyclesPerFrame);
       cpu.requestInterrupt();
       self.restartDebugState();
+      switches[0xf] = (switches[0xf] + 1) & 0x3;
+      if (--switches[0xe] <= 0) {
+        console.log("WATCHDOG FIRED"); // TODO: alert on video
+        self.reset(); // watchdog reset
+      }
     });
     setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
   }
@@ -402,6 +412,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
     audio.start();
   }
   this.reset = function() {
+    switches[0xe] = 16;
     cpu.reset();
   }
   this.readAddress = function(addr) {
@@ -412,6 +423,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
     cpu.loadState(state.c);
     cpuram.mem.set(state.cb);
     dvgram.mem.set(state.db);
+    switches.set(state.sw);
     mathram.set(state.mr);
   }
   this.saveState = function() {
@@ -419,6 +431,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
       c:cpu.saveState(),
       cb:cpuram.mem.slice(0),
       db:dvgram.mem.slice(0),
+      sw:switches.slice(0),
       mr:mathram.slice(0),
     }
   }
