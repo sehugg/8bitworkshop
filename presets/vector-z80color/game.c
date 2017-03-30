@@ -365,7 +365,7 @@ void draw_wireframe_ortho(const Wireframe* wf, const Matrix* m) {
 static word lfsr = 1;
 
 word rand() {
-  word lsb = lfsr & 1;
+  byte lsb = lfsr & 1;
   lfsr >>= 1;
   if (lsb) lfsr ^= 0xd400;
   return lfsr;

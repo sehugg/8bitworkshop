@@ -47,6 +47,7 @@ var GalaxianPlatform = function(mainElement, options) {
 
   var cpu, ram, vram, oram, membus, iobus, rom, palette, outlatches;
   var video, audio, timer, pixels;
+  var psg1, psg2;
   var inputs;
 	var interruptEnabled = 0;
   var starsEnabled = 0;
@@ -263,18 +264,22 @@ var GalaxianPlatform = function(mainElement, options) {
         isContended: function() { return false; },
       };
     }
+    audio = new MasterAudio();
+    psg1 = new AY38910_Audio(audio);
+    psg2 = new AY38910_Audio(audio);
     iobus = {
       read: function(addr) {
-        console.log('IO read', hex(addr,4));
         return 0;
-    	},
+      },
     	write: function(addr, val) {
-        console.log('IO write', hex(addr,4), hex(val,2));
+        if (addr & 0x1) { psg1.selectRegister(val & 0xf); };
+				if (addr & 0x2) { psg1.setData(val); };
+        if (addr & 0x4) { psg2.selectRegister(val & 0xf); };
+				if (addr & 0x8) { psg2.setData(val); };
     	}
     };
     cpu = self.newCPU(membus, iobus);
     video = new RasterVideo(mainElement,264,264,{rotate:90});
-		audio = new MasterAudio();
     video.create();
     var idata = video.getFrameData();
 		setKeyboardFromMap(video, inputs, keyMap);

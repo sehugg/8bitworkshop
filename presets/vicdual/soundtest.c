@@ -98,7 +98,7 @@ const char* const AY8910REGNAMES[14] = {
   "PITCH B LO", "PITCH B HI",
   "PITCH C LO", "PITCH C HI",
   "NOISE PERI",
-  "DISABLE",
+  "!ENABLE",
   "ENV-VOL A",
   "ENV-VOL B",
   "ENV-VOL C",
