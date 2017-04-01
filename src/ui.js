@@ -443,6 +443,7 @@ function setCompileOutput(data) {
 }
 
 worker.onmessage = function(e) {
+  // TODO: this doesn't completely work yet
   if (pendingWorkerMessages > 1) {
     pendingWorkerMessages = 0;
     setCode(editor.getValue());

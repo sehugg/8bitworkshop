@@ -18,8 +18,8 @@ byte __at(0x810f) mathbox_go_mul;
 volatile byte __at (0x8000) input0;
 volatile byte __at (0x8001) input1;
 volatile byte __at (0x8002) input2;
-volatile byte __at (0x8980) watchdog;
 volatile byte __at (0x800f) vidframe;
+byte __at (0x8980) watchdog;
 
 #define LEFT1 !(input1 & 0x8)
 #define RIGHT1 !(input1 & 0x4)

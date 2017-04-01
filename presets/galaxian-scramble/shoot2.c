@@ -31,9 +31,9 @@ byte __at (0x6804) enable_stars;
 byte __at (0x6808) missile_width;
 byte __at (0x6809) missile_offset;
 byte __at (0x7000) watchdog;
-byte __at (0x8100) input0;
-byte __at (0x8101) input1;
-byte __at (0x8102) input2;
+volatile byte __at (0x8100) input0;
+volatile byte __at (0x8101) input1;
+volatile byte __at (0x8102) input2;
 
 #define LEFT1 !(input0 & 0x20)
 #define RIGHT1 !(input0 & 0x10)
@@ -623,6 +623,7 @@ void new_player_ship() {
 }
 
 void set_sounds() {
+  byte i;
   byte enable = 0;
   // missile fire sound
   if (missiles[7].ypos) {
@@ -642,7 +643,16 @@ void set_sounds() {
     enable |= 0x4 << 3;
   }
   set8910a(AY_ENABLE, ~enable);
-  set8910b(AY_ENABLE, ~0);
+  // set diving sounds for spaceships
+  enable = 0;
+  for (i=0; i<3; i++) {
+    if (sprites[i].ypos >= 128) {
+      set8910b(AY_PITCH_A_LO+i, sprites[i].ypos);
+      set8910b(AY_ENV_VOL_A+i, 7);
+      enable |= 1<<i;
+    }
+  }
+  set8910b(AY_ENABLE, ~enable);
 }
 
 void wait_for_frame() {

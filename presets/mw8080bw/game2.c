@@ -4,13 +4,14 @@
 typedef unsigned char byte;
 typedef unsigned char word;
 
-__sfr __at (0x0) input0;
-__sfr __at (0x1) input1;
-__sfr __at (0x2) input2;
+volatile __sfr __at (0x0) input0;
+volatile __sfr __at (0x1) input1;
+volatile __sfr __at (0x2) input2;
 __sfr __at (0x2) bitshift_offset;
-__sfr __at (0x3) bitshift_read;
+volatile __sfr __at (0x3) bitshift_read;
 __sfr __at (0x4) bitshift_value;
 __sfr __at (0x6) watchdog_strobe;
+
 byte __at (0x2400) vidmem[224][32]; // 256x224x1 video memory
 
 #define FIRE1 (input1 & 0x10)

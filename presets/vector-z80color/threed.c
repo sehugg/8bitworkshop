@@ -7,7 +7,7 @@ typedef unsigned short word;
 word __at(0xa000) dvgram[0x1000];
 byte __at(0x8840) _dvgstart;
 
-int __at(0x8100) mathbox_sum;
+volatile int __at(0x8100) mathbox_sum;
 sbyte __at(0x8102) mathbox_arg1;
 sbyte __at(0x8103) mathbox_arg2;
 byte __at(0x810f) mathbox_go_mul;

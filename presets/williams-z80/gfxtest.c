@@ -5,11 +5,11 @@ typedef unsigned char byte;
 typedef unsigned short word;
 
 byte __at (0xc000) palette[16];
-byte __at (0xc800) input0;
-byte __at (0xc802) input1;
-byte __at (0xc804) input2;
+volatile byte __at (0xc800) input0;
+volatile byte __at (0xc802) input1;
+volatile byte __at (0xc804) input2;
 byte __at (0xc900) rom_select;
-byte __at (0xcb00) video_counter;
+volatile byte __at (0xcb00) video_counter;
 byte __at (0xcbff) watchdog0x39;
 byte __at (0xcc00) nvram[0x400];
 

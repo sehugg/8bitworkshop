@@ -29,9 +29,9 @@ byte __at (0x5080) xram[128];
 byte __at (0x6801) enable_irq;
 byte __at (0x6804) enable_stars;
 byte __at (0x7000) watchdog;
-byte __at (0x8100) input0;
-byte __at (0x8101) input1;
-byte __at (0x8102) input2;
+volatile byte __at (0x8100) input0;
+volatile byte __at (0x8101) input1;
+volatile byte __at (0x8102) input2;
 
 void main();
 

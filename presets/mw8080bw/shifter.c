@@ -5,7 +5,7 @@ typedef unsigned char byte;
 typedef unsigned char word;
 
 __sfr __at (0x2) bitshift_offset;
-__sfr __at (0x3) bitshift_read;
+volatile __sfr __at (0x3) bitshift_read;
 __sfr __at (0x4) bitshift_value;
 __sfr __at (0x6) watchdog_strobe;
 
