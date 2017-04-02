@@ -25,6 +25,8 @@ var WilliamsPlatform = function(mainElement, proto) {
   var membus, iobus;
   var video_counter;
 
+  var audio, worker, workerchannel;
+
   var xtal = 12000000;
   var cpuFrequency = xtal/3/4;
   var cpuCyclesPerFrame = cpuFrequency/60; // TODO
@@ -126,8 +128,9 @@ var WilliamsPlatform = function(mainElement, proto) {
 
   var iowrite_williams = new AddressDecoder([
     [0x0,   0xf,   0xf,   setPalette],
-    [0x804, 0x807, 0x3,   function(a,v) { console.log('iowrite',a); }], // TODO: sound
-    [0x80c, 0x80f, 0x3,   function(a,v) { console.log('iowrite',a+4); }], // TODO: sound
+    [0x803, 0x803, 0xf,   function(a,v) { if (worker) worker.postMessage({command:v}); }],
+    //[0x804, 0x807, 0x3,   function(a,v) { console.log('iowrite',a); }], // TODO: sound
+    //[0x80c, 0x80f, 0x3,   function(a,v) { console.log('iowrite',a+4); }], // TODO: sound
     [0x900, 0x9ff, 0,     function(a,v) { banksel = v & 0x1; }],
     [0xa00, 0xa07, 0x7,   setBlitter],
     [0xbff, 0xbff, 0,     function(a,v) { if (v == 0x39) watchdog_counter = INITIAL_WATCHDOG; }],
@@ -275,6 +278,12 @@ var WilliamsPlatform = function(mainElement, proto) {
 			write: memwrite_williams,
     };
     cpu = self.newCPU(membus);
+
+    audio = new MasterAudio();
+    worker = new Worker("./src/audio/z80worker.js");
+		workerchannel = new WorkerSoundChannel(worker);
+    audio.master.addChannel(workerchannel);
+
     video = new RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, {rotate:-90});
     video.create();
 		$(video.canvas).click(function(e) {
@@ -354,9 +363,11 @@ var WilliamsPlatform = function(mainElement, proto) {
   }
   this.pause = function() {
     timer.stop();
+    audio.stop();
   }
   this.resume = function() {
     timer.start();
+    audio.start();
   }
   this.reset = function() {
     cpu.reset();
