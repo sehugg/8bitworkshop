@@ -127,6 +127,8 @@ var VicDualPlatform = function(mainElement) {
     video = new RasterVideo(mainElement,256,224,{rotate:-90});
     audio = new MasterAudio();
 		psg = new AY38910_Audio(audio);
+    //var speech = new VotraxSpeech();
+    //audio.master.addChannel(speech);
     video.create();
     var idata = video.getFrameData();
 		setKeyboardFromMap(video, inputs, CARNIVAL_KEYCODE_MAP, function(o) {
