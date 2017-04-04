@@ -3,7 +3,8 @@
 // http://www.computerarcheology.com/Arcade/
 
 var MW8080BW_PRESETS = [
-  {id:'game2.c', name:'Game #2'},
+  {id:'game2.c', name:'Shoot-em-up Game'},
+  {id:'shifter.c', name:'Sprite w/ Bit Shifter'},
 ];
 
 var Midway8080BWPlatform = function(mainElement) {

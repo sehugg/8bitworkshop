@@ -142,8 +142,7 @@ function newEditor(mode) {
   editor.on('changes', function(ed, changeobj) {
     clearTimeout(timer);
     timer = setTimeout(function() {
-      var text = editor.getValue() || "";
-      setCode(text);
+      setCode(editor.getValue());
     }, 200);
   });
   editor.setOption("mode", mode);
@@ -170,10 +169,9 @@ function updatePreset(current_preset_id, text) {
 function loadCode(text, fileid) {
   var tool = platform.getToolForFilename(fileid);
   newEditor(tool && TOOL_TO_SOURCE_STYLE[tool]);
-  editor.setValue(text);
+  editor.setValue(text); // calls setCode()
   editor.clearHistory();
   current_output = null;
-  setCode(text);
   setLastPreset(fileid);
 }
 
@@ -378,6 +376,7 @@ function setCompileOutput(data) {
     editor.setGutterMarker(line, "gutter-info", div);
   }
   if (data.errors.length > 0) {
+    // TODO: move cursor to error line if offscreen?
     toolbar.addClass("has-errors");
     editor.clearGutter("gutter-info");
     var numLines = editor.lineCount();
@@ -638,6 +637,7 @@ function constraintEquals(a,b) {
   return null;
 }
 
+// TODO: move to file
 function _traceInstructions(pc, minclocks, maxclocks, subaddr, constraints) {
   //console.log("trace", hex(pc), minclocks, maxclocks);
   if (!minclocks) minclocks = 0;

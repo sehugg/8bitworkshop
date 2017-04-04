@@ -30,3 +30,7 @@ ship1.pbm: ship1.png
 
 %.rot.pbm: %.pbm
 	convert $< -transpose -bordercolor white -border 4x4 $@
+
+baddies-horiz.rot.pbm: baddies-horiz.png
+	convert $< +dither -brightness-contrast 50x50 -fill black -transpose -negate $@
+	convert $@ foo.png
