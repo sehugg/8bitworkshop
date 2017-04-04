@@ -1,0 +1,11 @@
+all: js/sdcc.js js/sdasz80.js js/sdldz80.js
+
+js/%.js: js/%.bc
+	docker run --rm -v $(shell pwd):/src -e USERID=1000 -t apiaryio/emcc emcc -O2 --memory-init-file 0 \
+		-s ASM_JS=1 \
+		-s MODULARIZE=1 \
+		-s EXPORT_NAME=\"'$*'\" \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s FORCE_FILESYSTEM=1 \
+		$< -o $@ $(ARGS_$*) \
+

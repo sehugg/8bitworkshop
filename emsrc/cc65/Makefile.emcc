@@ -1,0 +1,25 @@
+# Emscripten target (see https://github.com/apiaryio/emscripten-docker)
+
+DOCKEREMCC=docker run --rm -v $(shell pwd):/src -e USERID=$(shell id -u) -t apiaryio/emcc
+
+%.js: bin/%.bc
+	$(DOCKEREMCC) emcc -O2 --memory-init-file 0 \
+		-s ASM_JS=1 \
+		-s MODULARIZE=1 \
+		-s EXPORT_NAME=\"'$*'\" \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s FORCE_FILESYSTEM=1 \
+		bin/$*.bc -o $@ $(ARGS_$*)
+
+bin/%.bc:
+	mkdir -p bin js
+	$(DOCKEREMCC) emmake make $*
+	cp bin/$*.exe bin/$*.bc
+
+emscripten: include asminc cfg lib/apple2.lib target/apple2
+	cp -rp src Makefile js
+	make -C js cc65.js ca65.js co65.js ld65.js
+	$(DOCKEREMCC) \
+		python /emscripten/tools/file_packager.py fs65.data \
+		--preload include asminc cfg lib/apple2.lib target/apple2 \
+		--separate-metadata --js-output=fs65.js
