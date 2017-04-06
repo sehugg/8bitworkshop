@@ -2,6 +2,13 @@
 
 import sys, array, string
 
+col0 = 0
+
+def tocolor(x):
+    if x == 0:
+        return 0
+    else:
+        return x + col0
 
 def tohex2(v):
     return '0x%02x'%v
@@ -25,13 +32,15 @@ with open(sys.argv[1],'rb') as f:
     width = (data[9] << 8) + data[8] + 1
     height = (data[11] << 8) + data[10] + 1
     rowlen = (data[0x43] << 8) + data[0x42]
+    print "const byte sprite[] = {"
     print "%d,%d," % ((width+1)/2,height)
     for y in range(0,height):
         ofs = 0x80 + y*rowlen
         output = []
         for x in range(0,width,2):
-            b = (data[ofs] << 4) + (data[ofs+1])
+            b = (tocolor(data[ofs]) << 4) + tocolor(data[ofs+1])
             output.append(b)
             ofs += 2
         print string.join(map(tohex2,output),',') + ','
-
+    print "}"
+    

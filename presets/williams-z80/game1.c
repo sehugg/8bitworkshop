@@ -356,22 +356,23 @@ void delete_from_grid(byte gi, byte actor_index) {
 }
 
 void draw_actor_debug(struct Actor* a) {
-  draw_sprite_solid(a->shape, a->x, a->y, a->next_actor?0xff:0x33);
+  draw_sprite_solid(a->shape, a->x, a->y, a->next_actor?0xff:0x66);
 }
 
 byte update_actor(byte actor_index) {
   struct Actor* a = &actors[actor_index];
   byte next_actor;
   byte gi0,gi1;
-  if (!a->shape) return 0;
-  next_actor = a->next_actor;
+  if (!a->shape) return 0; // no shape present, ignore
+  next_actor = a->next_actor; // fetch in case it changes
   gi0 = a->grid_index;
-  draw_sprite_solid(a->shape, a->x, a->y, 0);
-  if (a->update) a->update(a);
-  if (a->draw) a->draw(a);
-  //draw_sprite_strided(a->shape, a->x, a->y, 2);
+  draw_sprite_solid(a->shape, a->x, a->y, 0); // erase
+  if (a->update) a->update(a); // move
+  if (a->draw) a->draw(a); // draw
   gi1 = xy2grid(a->x, a->y);
+  // has grid bucket changed?
   if (gi0 != gi1) {
+    // remove from old, add to new bucket
     delete_from_grid(gi0, actor_index);
     insert_into_grid(gi1, actor_index);
   }
@@ -426,8 +427,8 @@ void main() {
   memcpy(palette, palette_data, 16);
   for (i=1; i<num_actors; i++) {
     Actor* a = &actors[i];
-    a->x = (i & 3) * 16 + 32;
-    a->y = (i / 4) * 16 + 64;
+    a->x = (i & 7) * 16 + 16;
+    a->y = (i / 4) * 24 + 32;
     a->shape = (void*) all_sprites[i%9];
     a->update = random_walk;
     a->draw = draw_actor_debug;

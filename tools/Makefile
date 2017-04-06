@@ -18,6 +18,8 @@
 
 %.pcx: %.png
 	convert $< -format raw -type palette -compress none -colors 15 +dither $@
+%.4.pcx: %.png
+	convert $< -format raw -type palette -compress none -colors 4 +dither $@
 
 ship1.pbm: ship1.png
 	convert ship1.png -negate -flop ship1.pbm

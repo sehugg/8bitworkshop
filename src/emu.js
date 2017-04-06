@@ -32,7 +32,7 @@ function __createCanvas(mainElement, width, height) {
 var RasterVideo = function(mainElement, width, height, options) {
   var self = this;
   var canvas, ctx;
-  var imageData, buf8, datau32;
+  var imageData, arraybuf, buf8, datau32;
 
   this.create = function() {
     self.canvas = canvas = __createCanvas(mainElement, width, height);
@@ -46,9 +46,13 @@ var RasterVideo = function(mainElement, width, height, options) {
     }
     ctx = canvas.getContext('2d');
     imageData = ctx.createImageData(width, height);
-    var buf = new ArrayBuffer(imageData.data.length);
-    buf8 = new Uint8Array(buf); // TODO: Uint8ClampedArray
-    datau32 = new Uint32Array(buf);
+    /*
+    arraybuf = new ArrayBuffer(imageData.data.length);
+    buf8 = new Uint8Array(arraybuf); // TODO: Uint8ClampedArray
+    datau32 = new Uint32Array(arraybuf);
+    */
+    buf8 = imageData.data;
+    datau32 = new Uint32Array(imageData.data.buffer);
   }
 
   // TODO: common function (canvas)
@@ -69,7 +73,7 @@ var RasterVideo = function(mainElement, width, height, options) {
   }
 
   this.updateFrame = function(sx, sy, dx, dy, width, height) {
-    imageData.data.set(buf8);
+    //imageData.data.set(buf8); // TODO: slow w/ partial updates
     if (width && height)
       ctx.putImageData(imageData, sx, sy, dx, dy, width, height);
     else

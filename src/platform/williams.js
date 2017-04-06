@@ -3,6 +3,7 @@
 var WILLIAMS_PRESETS = [
   {id:'gfxtest.c', name:'Graphics Test'},
   {id:'sprites.c', name:'Sprite Test'},
+  {id:'game1.c', name:'Game'},
   {id:'bitmap_rle.c', name:'RLE Bitmap'},
 ];
 
@@ -64,9 +65,11 @@ var WilliamsPlatform = function(mainElement, proto) {
     [Keys.VK_RIGHT, 2, 0x2],
     [Keys.VK_7, 4, 0x1],
     [Keys.VK_8, 4, 0x2],
-    [Keys.VK_5, 4, 0x4],
+    [Keys.VK_6, 4, 0x4],
     [Keys.VK_9, 4, 0x8],
+    [Keys.VK_5, 4, 0x10],
   ]);
+  // TODO: sound board handshake
 
   var palette = [];
   for (var ii=0; ii<16; ii++)
@@ -308,13 +311,13 @@ var WilliamsPlatform = function(mainElement, proto) {
             cpu.requestInterrupt();
         }
         self.runCPU(cpu, cpuCyclesPerFrame/4);
+        video.updateFrame(0, 0, quarter*64, 0, 64, 304);
       }
       if (screenNeedsRefresh) {
         for (var i=0; i<0x9800; i++)
           drawDisplayByte(i, ram.mem[i]);
         screenNeedsRefresh = false;
       }
-      video.updateFrame();
       if (watchdog_counter-- <= 0) {
         console.log("WATCHDOG FIRED, PC =", cpu.getPC().toString(16)); // TODO: alert on video
         // TODO: self.breakpointHit(cpu.T());
