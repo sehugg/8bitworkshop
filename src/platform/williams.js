@@ -139,8 +139,8 @@ var WilliamsPlatform = function(mainElement, proto) {
   ]);
 
   var memread_williams = new AddressDecoder([
-    [0x0000, 0x97ff, 0xffff, function(a) { return banksel ? rom[a] : ram.mem[a]; }],
-    [0x9800, 0xbfff, 0xffff, function(a) { return ram.mem[a]; }],
+    [0x0000, 0x8fff, 0xffff, function(a) { return banksel ? rom[a] : ram.mem[a]; }],
+    [0x9000, 0xbfff, 0xffff, function(a) { return ram.mem[a]; }],
     [0xc000, 0xcfff, 0x0fff, ioread_williams],
     [0xd000, 0xffff, 0xffff, function(a) { return rom ? rom[a-0x4000] : 0; }],
   ]);
@@ -324,11 +324,20 @@ var WilliamsPlatform = function(mainElement, proto) {
     });
   }
 
+  this.loadSoundROM = function(data) {
+    var soundrom = padBytes(data, 0x4000);
+    worker.postMessage({rom:soundrom});
+  }
+
   this.loadROM = function(title, data) {
     if (data.length > 2) {
-      rom = padBytes(data, 0xc000);
+      if (data.length > 0xc000) {
+        self.loadSoundROM(data.slice(0xc000));
+        rom = rom.slice(data, 0, 0xc000);
+      } else {
+        rom = padBytes(data, 0xc000);
+      }
     }
-    // TODO
     self.reset();
   }
 

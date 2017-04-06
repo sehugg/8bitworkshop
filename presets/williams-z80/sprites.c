@@ -5,11 +5,11 @@ typedef unsigned char byte;
 typedef unsigned short word;
 
 byte __at (0xc000) palette[16];
-byte __at (0xc800) input0;
-byte __at (0xc802) input1;
-byte __at (0xc804) input2;
+volatile byte __at (0xc800) input0;
+volatile byte __at (0xc802) input1;
+volatile byte __at (0xc804) input2;
 byte __at (0xc900) rom_select;
-byte __at (0xcb00) video_counter;
+volatile byte __at (0xcb00) video_counter;
 byte __at (0xcbff) watchdog0x39;
 byte __at (0xcc00) nvram[0x400];
 
@@ -359,7 +359,7 @@ typedef struct Actor {
   ActorDrawFn* draw;
 } Actor;
 
-#define GBITS 4
+#define GBITS 3
 #define GDIM (1<<GBITS)
 #define MAX_ACTORS 256
 
@@ -371,36 +371,43 @@ inline byte xy2grid(byte x, byte y) {
 }
 
 void insert_into_grid(byte gi, byte actor_index) {
-  actors[actor_index].grid_index = gi;
-  actors[actor_index].next_actor = grid[gi];
+  struct Actor* a = &actors[actor_index];
+  a->grid_index = gi;
+  a->next_actor = grid[gi];
   grid[gi] = actor_index;
 }
 
 void delete_from_grid(byte gi, byte actor_index) {
   byte i = grid[gi];
+  byte next = actors[actor_index].next_actor;
+  // is actor to delete at head of list?
   if (i == actor_index) {
-    grid[gi] = actors[actor_index].next_actor;
+    grid[gi] = next;
   } else {
+    // iterate through the list
     do {
       byte j = actors[i].next_actor;
       if (j == actor_index) {
-        actors[i].next_actor = actors[actor_index].next_actor;
+        actors[i].next_actor = next;
         break;
       }
       i = j;
-    } while (1);
-    // watchdog reset if actor not found to delete
+    } while (1); // watchdog reset if actor not found to delete
   }
+  actors[actor_index].next_actor = 0;
+  actors[actor_index].grid_index = 0;
 }
 
 void draw_actor_debug(struct Actor* a) {
   draw_sprite_solid(a->shape, a->x, a->y, a->next_actor?0xff:0x33);
 }
 
-void update_actor(byte actor_index) {
+byte update_actor(byte actor_index) {
   struct Actor* a = &actors[actor_index];
+  byte next_actor;
   byte gi0,gi1;
-  if (!a->shape) return;
+  if (!a->shape) return 0;
+  next_actor = a->next_actor;
   gi0 = a->grid_index;
   draw_sprite_solid(a->shape, a->x, a->y, 0);
   if (a->update) a->update(a);
@@ -411,6 +418,7 @@ void update_actor(byte actor_index) {
     delete_from_grid(gi0, actor_index);
     insert_into_grid(gi1, actor_index);
   }
+  return next_actor;
 }
 
 //
@@ -436,8 +444,23 @@ void random_walk(Actor* a) {
   a->y += random_dir();
 }
 
+void update_grid_cell(byte grid_index) {
+  byte actor_index = grid[grid_index];
+  while (actor_index) {
+    actor_index = update_actor(actor_index);
+  }
+}
+
+void update_grid_rows(byte row_start, byte row_end) {
+  byte i0 = row_start * GDIM;
+  byte i1 = row_end * GDIM;
+  byte i;
+  for (i=i0; i!=i1; i++) {
+    update_grid_cell(i);
+  }
+}
+
 void main() {
-  byte y = 0;
   byte i;
   byte num_actors = 32;
   blit_solid(0, 0, 255, 255, 0);
@@ -445,7 +468,7 @@ void main() {
   memset(actors, 0, sizeof(actors));
   memcpy(palette, palette_data, 16);
   fill_char_table();
-  for (i=0; i<num_actors; i++) {
+  for (i=1; i<num_actors; i++) {
     Actor* a = &actors[i];
     a->x = (i & 3) * 16 + 32;
     a->y = (i / 4) * 16 + 64;
@@ -456,10 +479,12 @@ void main() {
     watchdog0x39 = 0x39;
   }
   while (1) {
-    for (i=0; i<num_actors; i++) {
-      update_actor(i);
-      watchdog0x39 = 0x39;
-    }
-    y++;
+    // update top half while drawing bottom half
+    while (video_counter < 0x80) ;
+    update_grid_rows(0,GDIM/2);
+    // update bottom half while drawing top half
+    while (video_counter >= 0x80) ;
+    update_grid_rows(GDIM/2,GDIM);
+    watchdog0x39 = 0x39;
   }
 }

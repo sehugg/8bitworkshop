@@ -188,6 +188,7 @@ void draw_string(const char* str, byte spacing) {
 }
 
 void main() {
+  int r = 512;
   dvgwrofs = 0x800;
   draw_string("HELLO WORLD", 0);
   RTSL();
@@ -195,12 +196,12 @@ void main() {
     dvgreset();
     CNTR();
     SCAL(0x7f);
-    //SCAL(frame & 0xff);
     STAT(RED, 0);
-    VCTR(200, 200, 1);
-    VCTR(-200, 200, 3);
-    VCTR(-200, -200, 5);
-    VCTR(200, -200, 7);
+    VCTR(r, r, 1);
+    VCTR(-r*2, 0, 3);
+    VCTR(0, -r*2, 5);
+    VCTR(r*2, 0, 7);
+    VCTR(0, r*2, 7);
     CNTR();
     STAT(GREEN, 0);
     VCTR(100, -100, 0);

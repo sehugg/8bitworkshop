@@ -591,7 +591,6 @@ function runStepBackwards() {
 function clearBreakpoint() {
   lastDebugState = null;
   platform.clearDebug();
-  $("#dbg_info").empty();
   showMemory();
 }
 
