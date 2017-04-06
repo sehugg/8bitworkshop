@@ -2,7 +2,8 @@
 #include <string.h>
 
 typedef unsigned char byte;
-typedef unsigned char word;
+typedef signed char sbyte;
+typedef unsigned short word;
 
 __sfr __at (0x2) bitshift_offset;
 volatile __sfr __at (0x3) bitshift_read;

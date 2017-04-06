@@ -1,6 +1,7 @@
 #include <string.h>
 
 typedef unsigned char byte;
+typedef signed char sbyte;
 typedef unsigned short word;
 
 // PLATFORM DEFINITION
@@ -156,34 +157,14 @@ void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
   }
 }
 
-void draw_bcd_word(byte x, byte y, word bcd) {
-  byte j;
-  x += 3;
-  for (j=0; j<4; j++) {
-    putchar(x, y, CHAR('0'+(bcd&0xf)));
-    x--;
-    bcd >>= 4;
-  }
-}
-
-/*
-void draw_bcd_byte(byte x, byte y, byte bcd) {
-  putchar(CHAR('0'+(bcd&0xf)), x+1, y);
-  putchar(CHAR('0'+((bcd>>4)&0xf)), x, y);
-}
-
-void draw_bcd_word2(byte x, byte y, word bcd) {
-  draw_bcd_byte(x+2, y, bcd);
-  draw_bcd_byte(x, y, bcd>>8);
-}
-*/
-
 void draw_playfield() {
   draw_box(0,0,27,29,BOX_CHARS);
   putstring(0,31,"PLAYER 1");
   putstring(20,31,"PLAYER 2");
-  draw_bcd_word(0,30,players[0].score);
-  draw_bcd_word(24,30,players[1].score);
+  putstring(0,30,"SCORE:");
+  putstring(20,30,"SCORE:");
+  putchar(7,30,CHAR(players[0].score + '0'));
+  putchar(27,30,CHAR(players[1].score + '0'));
   if (attract) {
     if (credits) {
       putstring(8,29,"PRESS START");
@@ -270,28 +251,6 @@ void ai_control(Player* p) {
   }
 }
 
-// add two 16-bit BCD values
-word bcd_add(word a, word b) {
-  a; b; // to avoid warning
-__asm
-	ld	hl,#4
-	add	hl,sp
-	ld	iy,#2
-	add	iy,sp
-	ld	a,0 (iy)
-	add	a, (hl)
-	daa
-	ld	c,a
-	ld	a,1 (iy)
-	inc	hl
-	adc	a, (hl)
-  	daa
-	ld	b,a
-	ld	l, c
-	ld	h, b
-__endasm;
-}
-
 void slide_right() {
   byte j;
   for (j=0; j<32; j++) {
@@ -375,10 +334,8 @@ void play_round() {
   // don't keep score in attract mode
   if (attract) return;
   // add scores to players that didn't collide
-  if (players[0].collided)
-    players[1].score = bcd_add(players[1].score, 1);
-  if (players[1].collided)
-    players[0].score = bcd_add(players[0].score, 1);
+  if (players[0].collided) players[1].score++;
+  if (players[1].collided) players[0].score++;
   // increase speed
   if (frames_per_move > MAX_SPEED) frames_per_move--;
   // game over?

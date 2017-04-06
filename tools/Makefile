@@ -12,12 +12,14 @@
 	convert $< -resize 48x192\! -colorspace Gray -dither FloydSteinberg $@
 
 %.tga: %.png
-	convert $< -resize 128x96\! +dither $<.gif
-	convert $<.gif -type palette -compress RLE -colors 8 +dither -flip $@
+	convert $< -resize 192 $<.gif
+	convert $<.gif +dither -type palette -compress RLE -colors 8 +dither -flip $@
 	convert $@ $@.png
 
 %.pcx: %.png
 	convert $< -format raw -type palette -compress none -colors 15 +dither $@
+%.rle.pcx: %.png
+	convert $< -format raw -type palette -compress rle -colors 15 +dither $@
 %.4.pcx: %.png
 	convert $< -format raw -type palette -compress none -colors 4 +dither $@
 
