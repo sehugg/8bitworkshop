@@ -874,7 +874,6 @@ function setupDebugControls(){
   $("#dbg_toline").click(runToCursor);
   $("#dbg_stepout").click(runUntilReturn);
   $("#dbg_stepback").click(runStepBackwards);
-  // TODO: vcs platform seems to show them regardless
   if (platform_id == 'vcs') {
     $("#dbg_timing").click(traceTiming).show();
   }

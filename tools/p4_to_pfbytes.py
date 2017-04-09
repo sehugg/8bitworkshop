@@ -49,9 +49,9 @@ with open(sys.argv[1],'rb') as f:
 
 # output bitmap tables
 for c in range(0,6):
-    print "\talign $100"
+    #print "\talign $100"
     print "PFBitmap%d" % c
-    print "\thex 00"
+    #print "\thex 00"
     s = '\thex '
     for i in range(0,height):
         s += '%02x' % output[c][height-i-1]

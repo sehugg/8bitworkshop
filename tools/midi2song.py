@@ -6,15 +6,25 @@ import mido
 min_note = 21
 max_note = 21+63
 max_voices = 3
-one_voice_per_channel = 1
+one_voice_per_channel = 0
 tempo = 48
 compress = 0
 transpose = 0
+coutput = 1
+
+# for 2600
+#max_voices = 2
+#coutput = 0
+# for 2600 wavetable
+#max_voices = 4
+#one_voice_per_channel = 0
 
 fn = sys.argv[1]
 
 mid = mido.MidiFile(fn)
 
+def hex1(n):
+    return '%02x'%n
 def hex2(n):
     return '0x%02x'%n
 
@@ -128,7 +138,12 @@ else:
                         nvoices += 1
                         curchans |= 1<<msg.channel
     output.append(0xff)
-    print string.join([hex2(x) for x in output], ',')
+    if coutput:
+        print string.join([hex2(x) for x in output], ',')
+    else:
+        bighex = string.join([hex1(x) for x in output], '')
+        for i in range(0,len(bighex)+32,32):
+            print '\thex', bighex[i:i+32]
     if compress:
         # replace common substrings
         bout = ''.join(chr(i) for i in output)
