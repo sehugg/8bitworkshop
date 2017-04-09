@@ -9,10 +9,10 @@
 	url = git@github.com:sehugg/codemirror
 [submodule "octokat.js"]
 	path = octokat.js
-	url = ./octokat.js
+	url = https://github.com/philschatz/octokat.js
 [submodule "tss"]
 	path = tss
-	url = ./tss
+	url = https://github.com/toyoshim/tss
 [submodule "FileSaver.js"]
 	path = FileSaver.js
-	url = ./FileSaver.js
+	url = https://github.com/eligrey/FileSaver.js

@@ -13,7 +13,7 @@
 
 %.tga: %.png
 	convert $< -resize 192 $<.gif
-	convert $<.gif +dither -type palette -compress RLE -colors 8 +dither -flip $@
+	convert $<.gif +dither -type palette -depth 4 -compress RLE -colors 8 -flip $@
 	convert $@ $@.png
 
 %.pcx: %.png

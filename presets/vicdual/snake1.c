@@ -88,7 +88,7 @@ const byte font8x8[0x100][8] = {
 
 const char BOX_CHARS[8] = { 218, 191, 192, 217, 196, 196, 179, 179 };
 
-void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
+void draw_box(byte x, byte y, byte x2, byte y2, const char chars[]) {
   byte x1 = x;
   putchar(x, y, chars[2]);
   putchar(x2, y, chars[3]);
@@ -128,42 +128,42 @@ void reset_players() {
   players[0].collided = players[1].collided = 0;
 }
 
-void draw_player(Player* p) {
-  putchar(p->x, p->y, p->head_attr);
+void draw_player(byte p) {
+  putchar(players[p].x, players[p].y, players[p].head_attr);
 }
 
-void erase_player(Player* p) {
-  putchar(p->x, p->y, p->tail_attr);
+void erase_player(byte p) {
+  putchar(players[p].x, players[p].y, players[p].tail_attr);
 }
 
-void move_player(Player* p) {
+void move_player(byte p) {
   erase_player(p);
-  p->x += DIR_X[p->dir];
-  p->y += DIR_Y[p->dir];
-  if (getchar(p->x, p->y) != CHAR(' '))
-    p->collided = 1;
+  players[p].x += DIR_X[players[p].dir];
+  players[p].y += DIR_Y[players[p].dir];
+  if (getchar(players[p].x, players[p].y) != CHAR(' '))
+    players[p].collided = 1;
   draw_player(p);
 }
 
-void human_control(Player* p) {
+void human_control(byte p) {
   Direction dir = 0xff;
   if (LEFT1) dir = D_LEFT;
   if (RIGHT1) dir = D_RIGHT;
   if (UP1) dir = D_UP;
   if (DOWN1) dir = D_DOWN;
   // don't let the player reverse
-  if (dir != 0xff && dir != (p->dir ^ 2)) {
-    p->dir = dir;
+  if (dir != 0xff && dir != (players[p].dir ^ 2)) {
+    players[p].dir = dir;
   }
 }
 
-void ai_control(Player* p) {
+void ai_control(byte p) {
   byte x,y;
-  Direction dir = p->dir;
-  x = p->x + DIR_X[dir];
-  y = p->y + DIR_Y[dir];
+  Direction dir = players[p].dir;
+  x = players[p].x + DIR_X[dir];
+  y = players[p].y + DIR_Y[dir];
   if (getchar(x,y) != CHAR(' ')) {
-    p->dir = (dir + 1) & 3;
+    players[p].dir = (dir + 1) & 3;
   }
 }
 
@@ -175,8 +175,8 @@ void flash_colliders() {
     if (players[1].collided) players[1].head_attr ^= 0x80;
     wait_for_vsync();
     wait_for_vsync();
-    draw_player(&players[0]);
-    draw_player(&players[1]);
+    draw_player(0);
+    draw_player(1);
     palette = i;
   }
   palette = 0;
@@ -185,13 +185,13 @@ void flash_colliders() {
 void make_move() {
   byte i;
   for (i=0; i<FRAMES_PER_MOVE; i++) {
-    human_control(&players[0]);
+    human_control(0);
     wait_for_vsync();
   }
-  ai_control(&players[1]);
+  ai_control(1);
   // if players collide, 2nd player gets the point
-  move_player(&players[1]);
-  move_player(&players[0]);
+  move_player(1);
+  move_player(0);
 }
 
 void play_round() {
