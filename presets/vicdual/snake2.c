@@ -13,6 +13,7 @@ __sfr __at (0x3) input3;
 
 __sfr __at (0x1) ay8910_reg;
 __sfr __at (0x2) ay8910_data;
+__sfr __at (0x8) assert_coin_status;
 __sfr __at (0x40) palette;
 
 byte __at (0xe000) cellram[28][32];
@@ -23,10 +24,10 @@ byte __at (0xe800) tileram[256][8];
 #define UP1 !(input1 & 0x40)
 #define DOWN1 !(input1 & 0x80)
 #define FIRE1 !(input2 & 0x20)
-#define COIN1 (input3 & 0x8)
 #define START1 !(input2 & 0x10)
 #define START2 !(input3 & 0x20)
-#define VSYNC (input1 & 0x8)
+#define TIMER500HZ (input2 & 0x8)
+#define COIN1 (input3 & 0x8)
 
 // GAME DATA
 
@@ -106,10 +107,21 @@ word rand() {
   return lfsr;
 }
 
-void wait_for_vsync() {
-  while (VSYNC != 0) lfsr++; // wait for VSYNC end
-  while (VSYNC == 0) lfsr++; // wait for VSYNC start
+void delay(byte msec) {
+  while (msec--) {
+    while (TIMER500HZ != 0) lfsr++;
+    while (TIMER500HZ == 0) lfsr++;
+  }
 }
+
+#define PE(fg,bg) (((fg)<<5) | ((bg)<<1))
+
+const byte __at (0x4000) color_prom[32] = {
+  PE(7,0),PE(3,0),PE(1,0),PE(3,0),PE(6,0),PE(3,0),PE(2,0),PE(6,0),
+  PE(7,0),PE(3,0),PE(1,0),PE(3,0),PE(6,0),PE(3,0),PE(2,0),PE(6,0),
+  PE(7,0),PE(3,0),PE(1,0),PE(3,0),PE(6,0),PE(3,0),PE(2,0),PE(6,0),
+  PE(7,0),PE(3,0),PE(1,0),PE(3,0),PE(6,0),PE(3,0),PE(2,0),PE(6,0),
+};
 
 #define LOCHAR 0x0
 #define HICHAR 0xff
@@ -265,8 +277,7 @@ void flash_colliders() {
   for (i=0; i<60; i++) {
     if (players[0].collided) players[0].head_attr ^= 0x80;
     if (players[1].collided) players[1].head_attr ^= 0x80;
-    wait_for_vsync();
-    wait_for_vsync();
+    delay(5);
     draw_player(&players[0]);
     draw_player(&players[1]);
     palette = i;
@@ -282,7 +293,7 @@ void make_move() {
   byte i;
   for (i=0; i<frames_per_move; i++) {
     human_control(&players[0]);
-    wait_for_vsync();
+    delay(10);
   }
   ai_control(&players[0]);
   ai_control(&players[1]);
@@ -307,13 +318,12 @@ void declare_winner(byte winner) {
   byte i;
   for (i=0; i<10; i++) {
     draw_box(i,i,27-i,29-i,BOX_CHARS);
-    wait_for_vsync();
+    delay(10);
   }
   putstring(10,16,"WINNER:");
   putstring(10,13,"PLAYER ");
   putchar(10+7, 13, CHAR('1')+winner);
-  for (i=0; i<250; i++)
-    wait_for_vsync();
+  delay(250);
   slide_right();
   attract = 1;
 }
@@ -374,6 +384,7 @@ void test_ram() {
 }
 
 void main() {
+  assert_coin_status = 1;
   if (COIN1) {
     credits++;
   } else {

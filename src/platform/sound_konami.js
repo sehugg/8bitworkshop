@@ -26,12 +26,11 @@ var KonamiSoundPlatform = function(mainElement) {
     ram = new RAM(0x400);
     membus = {
       read: new AddressDecoder([
-				[0x0000, 0x3fff, 0x1fff, function(a) { return rom ? rom[a] : null; }],
+				[0x0000, 0x3fff, 0x3fff, function(a) { return rom ? rom[a] : null; }],
 				[0x4000, 0x5fff, 0x3ff,  function(a) { return ram.mem[a]; }]
 			]),
 			write: new AddressDecoder([
 				[0x4000, 0x5fff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
-				[0x6000, 0x6fff, 0,      function(a,v) { }],
 			]),
       isContended: function() { return false; },
     };
@@ -40,7 +39,7 @@ var KonamiSoundPlatform = function(mainElement) {
         if (addr & 0x40) {
           if (psgRegister == 0xf) { // timer
             var bit = (cpu.getTstates() / cpuCyclesPerTimer) & 1;
-            return bit << 3;
+            return bit ? 0xff : 0x00; // 0x00, 0x10, 0x20, 0x30, 0x40, 0x90, 0xa0, 0xb0, 0xa0, 0xd0
           }
           return psg.readRegister(psgRegister) & 0xff;
         }
@@ -142,4 +141,4 @@ var KonamiSoundPlatform = function(mainElement) {
   }
 }
 
-PLATFORMS['konamisound'] = KonamiSoundPlatform;
+PLATFORMS['sound_konami'] = KonamiSoundPlatform;

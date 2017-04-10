@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys, struct
+import sys
 
 # reverse byte
 def rev(n):

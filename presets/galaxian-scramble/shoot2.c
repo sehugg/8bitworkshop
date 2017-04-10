@@ -2,29 +2,28 @@
 
 typedef unsigned char byte;
 typedef unsigned short word;
+typedef unsigned char sbyte;
 
 byte __at (0x4800) vram[32][32];
 
 struct {
   byte scroll;
   byte attrib;
-} __at (0x5000) columns[32];
+} __at (0x5000) vcolumns[32];
 
 struct {
   byte xpos;
   byte code;
   byte color;
   byte ypos;
-} __at (0x5040) sprites[8];
+} __at (0x5040) vsprites[8];
 
 struct {
-  signed char dx; // unused by h/w
+  byte unused1;
   byte xpos;
-  signed char dy; // unused by h/w
+  byte unused2;
   byte ypos;
-} __at (0x5060) missiles[8];
-
-byte __at (0x5080) xram[128];
+} __at (0x5060) vmissiles[8];
 
 byte __at (0x6801) enable_irq;
 byte __at (0x6804) enable_stars;
@@ -124,12 +123,15 @@ const char __at (0x5000) palette[32] = {
 
 #define BLANK 0x10
 
-void clrscr() {
-  memset(vram, BLANK, sizeof(vram));
+void memset_safe(void* _dest, char ch, word size) {
+  byte* dest = _dest;
+  while (size--) {
+    *dest++ = ch;
+  }
 }
 
-byte getchar(byte x, byte y) {
-  return vram[29-x][y];
+void clrscr() {
+  memset_safe(vram, BLANK, sizeof(vram));
 }
 
 volatile byte video_framecount; // actual framecount
@@ -145,13 +147,15 @@ __asm
   ld ix,#0
   ld ix,#0
   nop
-  nop
-  nop
 __endasm;
 }
 
 void rst_66() __interrupt {
   video_framecount++;
+}
+
+byte getchar(byte x, byte y) {
+  return vram[29-x][y];
 }
 
 void putchar(byte x, byte y, byte ch) {
@@ -160,9 +164,9 @@ void putchar(byte x, byte y, byte ch) {
 
 void clrobjs() {
   byte i;
-  memset(columns, 0, 0x100);
+  memset_safe(vcolumns, 0, 0x100);
   for (i=0; i<8; i++)
-    sprites[i].ypos = 64;
+    vsprites[i].ypos = 64;
 }
 
 void putstring(byte x, byte y, const char* string) {
@@ -234,6 +238,13 @@ typedef struct {
   byte returning;
 } AttackingEnemy;
 
+typedef struct {
+  signed char dx;
+  byte xpos;
+  signed char dy;
+  byte ypos;
+} Missile;
+
 #define ENEMIES_PER_ROW 8
 #define ENEMY_ROWS 4
 #define MAX_IN_FORMATION (ENEMIES_PER_ROW*ENEMY_ROWS)
@@ -241,12 +252,15 @@ typedef struct {
 
 FormationEnemy formation[MAX_IN_FORMATION];
 AttackingEnemy attackers[MAX_ATTACKERS];
+Missile missiles[8];
+
 byte formation_offset_x;
 signed char formation_direction;
 byte current_row;
 byte player_x;
 const byte player_y = 232;
 byte player_exploding;
+byte enemy_exploding;
 byte enemies_left;
 word player_score;
 word framecount;
@@ -272,8 +286,8 @@ void setup_formation() {
 void draw_row(byte row) {
   byte i;
   byte y = 4 + row * 2;
-  columns[y].attrib = 0x2;
-  columns[y].scroll = formation_offset_x;
+  vcolumns[y].attrib = 0x2;
+  vcolumns[y].scroll = formation_offset_x;
   for (i=0; i<ENEMIES_PER_ROW; i++) {
     byte x = i * 3;
     byte shape = formation[i + row*ENEMIES_PER_ROW].shape;
@@ -346,12 +360,12 @@ void draw_attacker(byte i) {
   AttackingEnemy* a = &attackers[i];
   if (a->findex) {
     byte code = DIR_TO_CODE[a->dir & 31];
-    sprites[i].code = code + a->shape + 14;
-    sprites[i].xpos = a->x >> 8;
-    sprites[i].ypos = a->y >> 8;
-    sprites[i].color = 2;
+    vsprites[i].code = code + a->shape + 14;
+    vsprites[i].xpos = a->x >> 8;
+    vsprites[i].ypos = a->y >> 8;
+    vsprites[i].color = 2;
   } else {
-    sprites[i].ypos = 255; // offscreen
+    vsprites[i].ypos = 255; // offscreen
   }
 }
 
@@ -453,8 +467,8 @@ void formation_to_attacker(byte formation_index) {
 }
 
 void draw_player() {
-  columns[29].attrib = 1;
-  columns[30].attrib = 1;
+  vcolumns[29].attrib = 1;
+  vcolumns[30].attrib = 1;
   vram[30][29] = 0x60;
   vram[31][29] = 0x62;
   vram[30][30] = 0x61;
@@ -469,8 +483,8 @@ void move_player() {
     missiles[7].xpos = player_x+8; // player X position
     missiles[7].dy = 4; // player missile speed
   }
-  columns[29].scroll = player_x;
-  columns[30].scroll = player_x;
+  vcolumns[29].scroll = player_x;
+  vcolumns[30].scroll = player_x;
 }
 
 void move_missiles() {
@@ -484,22 +498,24 @@ void move_missiles() {
       }
     }
   }
+  // copy all "shadow missiles" to video memory
+  memcpy(vmissiles, missiles, sizeof(missiles));
 }
 
 void blowup_at(byte x, byte y) {
-  sprites[6].color = 1;
-  sprites[6].code = 28;
-  sprites[6].xpos = x;
-  sprites[6].ypos = y;
+  vsprites[6].color = 1;
+  vsprites[6].code = 28;
+  vsprites[6].xpos = x;
+  vsprites[6].ypos = y;
+  enemy_exploding = 1;
 }
 
 void animate_enemy_explosion() {
-  if (sprites[6].ypos != 0xff) {
-    if (sprites[6].code == 31) {
-      sprites[6].ypos = 0xff;
-    } else {
-      sprites[6].code++;
-    }
+  if (enemy_exploding) {
+    // animate next frame
+    vsprites[6].code = 28 + enemy_exploding++;
+    if (enemy_exploding > 4)
+      enemy_exploding = 0; // hide explosion after 4 frames
   }
 }
 
@@ -508,19 +524,19 @@ void animate_player_explosion() {
   if (z <= 5) {
     if (z == 5) {
       // erase explosion
-      memset(&vram[29][28], BLANK, 4);
-      memset(&vram[30][28], BLANK, 4);
-      memset(&vram[31][28], BLANK, 4);
-      memset(&vram[0][28], BLANK, 4);
+      memset_safe(&vram[29][28], BLANK, 4);
+      memset_safe(&vram[30][28], BLANK, 4);
+      memset_safe(&vram[31][28], BLANK, 4);
+      memset_safe(&vram[0][28], BLANK, 4);
     } else {
       // draw explosion
       z = 0xb0 + (z<<4);
-      columns[28].scroll = player_x;
-      columns[31].scroll = player_x;
-      columns[28].attrib = 2;
-      columns[29].attrib = 2;
-      columns[30].attrib = 2;
-      columns[31].attrib = 2;
+      vcolumns[28].scroll = player_x;
+      vcolumns[31].scroll = player_x;
+      vcolumns[28].attrib = 2;
+      vcolumns[29].attrib = 2;
+      vcolumns[30].attrib = 2;
+      vcolumns[31].attrib = 2;
       vram[29][28] = z+0x0;
       vram[29][29] = z+0x1;
       vram[29][30] = z+0x4;
@@ -632,8 +648,8 @@ void set_sounds() {
     enable |= 0x1;
   }
   // enemy explosion sound
-  if (sprites[6].ypos != 0xff) {
-    set8910a(AY_PITCH_B_HI, sprites[6].code-30);
+  if (enemy_exploding) {
+    set8910a(AY_PITCH_B_HI, enemy_exploding);
     set8910a(AY_ENV_VOL_B, 15);
     enable |= 0x2;
   }
@@ -646,8 +662,9 @@ void set_sounds() {
   // set diving sounds for spaceships
   enable = 0;
   for (i=0; i<3; i++) {
-    if (sprites[i].ypos >= 128) {
-      set8910b(AY_PITCH_A_LO+i, sprites[i].ypos);
+    byte y = attackers[i].y >> 8;
+    if (y >= 0x80) {
+      set8910b(AY_PITCH_A_LO+i, y);
       set8910b(AY_ENV_VOL_A+i, 7);
       enable |= 1<<i;
     }
@@ -656,7 +673,7 @@ void set_sounds() {
 }
 
 void wait_for_frame() {
-  while (video_framecount == (byte)(framecount)) ;
+  while (((video_framecount^framecount)&3) == 0);
 }
 
 void play_round() {
@@ -672,6 +689,8 @@ void play_round() {
   framecount = 0;
   new_player_ship();
   while (end_timer) {
+    enable_irq = 0;
+    enable_irq = 1;
     if (player_exploding) {
       if ((framecount & 7) == 1) {
         animate_player_explosion();
@@ -698,15 +717,19 @@ void play_round() {
     framecount++;
     watchdog++;
     if (!enemies_left) end_timer--;
+    putchar(12,0,video_framecount&3);
+    putchar(13,0,framecount&3);
+    putchar(14,0,(video_framecount^framecount)&3);
     wait_for_frame();
   }
+  enable_irq = 0;
 }
 
 void main() {
   clrscr();
   clrobjs();
   enable_stars = 0xff;
-  enable_irq = 1;
+  enable_irq = 0;
   play_round();
   main();
 }

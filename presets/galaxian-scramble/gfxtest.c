@@ -2,27 +2,29 @@
 
 typedef unsigned char byte;
 typedef unsigned short word;
+typedef signed char sbyte;
 
 byte __at (0x4800) vram[32][32];
+
 
 struct {
   byte scroll;
   byte attrib;
-} __at (0x5000) columns[32];
+} __at (0x5000) vcolumns[32];
 
 struct {
   byte xpos;
   byte code;
   byte color;
   byte ypos;
-} __at (0x5040) sprites[8];
+} __at (0x5040) vsprites[8];
 
 struct {
   byte unused1;
   byte xpos;
   byte unused2;
   byte ypos;
-} __at (0x5060) missiles[8];
+} __at (0x5060) vmissiles[8];
 
 byte __at (0x5080) xram[128];
 
@@ -74,11 +76,18 @@ const char __at (0x5000) palette[32] = {
 
 #define CHAR(ch) (ch-LOCHAR)
 
+void memset_safe(void* _dest, char ch, word size) {
+  byte* dest = _dest;
+  while (size--) {
+    *dest++ = ch;
+  }
+}
+
 void clrscr() {
-  memset(vram, 0x10, sizeof(vram));
-  memset(columns, 0, sizeof(columns));
-  memset(sprites, 0, sizeof(sprites));
-  memset(missiles, 0, sizeof(missiles));
+  memset_safe(vram, 0x10, sizeof(vram));
+  memset_safe(vcolumns, 0, sizeof(vcolumns));
+  memset_safe(vsprites, 0, sizeof(vsprites));
+  memset_safe(vmissiles, 0, sizeof(vmissiles));
 }
 
 byte getchar(byte x, byte y) {
@@ -104,7 +113,7 @@ void draw_all_chars() {
     byte x = (i & 31);
     byte y = (i >> 5) + 2;
     putchar(x,y,i);
-    columns[y].attrib = frame+y;
+    vcolumns[y].attrib = frame+y;
     //columns[y].scroll = frame;
   } while (++i);
 }
@@ -119,10 +128,10 @@ void putshape(byte x, byte y, byte ofs) {
 void draw_sprites(byte ofs, byte y) {
   byte i;
   byte x = 0;
-  columns[y].attrib = 1;
-  columns[y].scroll = 0;
-  columns[y+1].attrib = 1;
-  columns[y+1].scroll = 0;
+  vcolumns[y].attrib = 1;
+  vcolumns[y].scroll = 0;
+  vcolumns[y+1].attrib = 1;
+  vcolumns[y+1].scroll = 0;
   for (i=0; i<8; i++) {
     putshape(x, y, ofs);
     x += 3;
@@ -132,10 +141,10 @@ void draw_sprites(byte ofs, byte y) {
 
 void draw_explosion(byte ofs, byte y) {
   byte x;
-  columns[y].attrib = 2;
-  columns[y+1].attrib = 2;
-  columns[y+2].attrib = 2;
-  columns[y+3].attrib = 2;
+  vcolumns[y].attrib = 2;
+  vcolumns[y+1].attrib = 2;
+  vcolumns[y+2].attrib = 2;
+  vcolumns[y+3].attrib = 2;
   for (x=0; x<4; x++) {
     putshape(x*5, y, ofs+8);
     putshape(x*5, y+2, ofs+12);
@@ -148,10 +157,10 @@ void draw_explosion(byte ofs, byte y) {
 void draw_missiles() {
   byte i;
   for (i=0; i<7; i++) {
-    missiles[i].ypos = i + 24;
-    missiles[i].xpos = i*16 + frame;
-    sprites[i].xpos = i*32 + frame;
-    sprites[i].ypos = i*24 + frame;
+    vmissiles[i].ypos = i + 24;
+    vmissiles[i].xpos = i*16 + frame;
+    vsprites[i].xpos = i*32 + frame;
+    vsprites[i].ypos = i*24 + frame;
   }
 }
 
@@ -175,7 +184,7 @@ void main() {
     draw_missiles();
     putstring(7, 0, "HELLO@WORLD@123");
     draw_corners();
-    columns[1].attrib = frame;
+    vcolumns[1].attrib = frame;
     enable_stars = 0&0xff;
     frame++;
     watchdog++;

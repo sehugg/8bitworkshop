@@ -23,6 +23,7 @@ byte __at (0xe800) tileram[256][8];
 #define COIN1 (input3 & 0x8)
 #define START1 !(input2 & 0x10)
 #define START2 !(input3 & 0x20)
+#define TIMER500HZ (input2 & 0x8)
 
 // GAME DATA
 
@@ -54,9 +55,11 @@ __endasm;
 
 ////////
 
-void wait_for_vsync() {
-  while ((input1 & 0x8) != 0) ; // wait for VSYNC end
-  while ((input1 & 0x8) == 0) ; // wait for VSYNC start
+void delay(byte msec) {
+  while (msec--) {
+    while (TIMER500HZ != 0) ;
+    while (TIMER500HZ == 0) ;
+  }
 }
 
 #define LOCHAR 0x0
@@ -173,8 +176,7 @@ void flash_colliders() {
   for (i=0; i<60; i++) {
     if (players[0].collided) players[0].head_attr ^= 0x80;
     if (players[1].collided) players[1].head_attr ^= 0x80;
-    wait_for_vsync();
-    wait_for_vsync();
+    delay(5);
     draw_player(0);
     draw_player(1);
     palette = i;
@@ -186,7 +188,7 @@ void make_move() {
   byte i;
   for (i=0; i<FRAMES_PER_MOVE; i++) {
     human_control(0);
-    wait_for_vsync();
+    delay(10);
   }
   ai_control(1);
   // if players collide, 2nd player gets the point

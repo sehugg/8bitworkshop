@@ -3,8 +3,9 @@
 // http://www.computerarcheology.com/Arcade/
 
 var MW8080BW_PRESETS = [
-  {id:'game2.c', name:'Shoot-em-up Game'},
+  {id:'gfxtest.c', name:'Graphics Test'},
   {id:'shifter.c', name:'Sprite w/ Bit Shifter'},
+  {id:'game2.c', name:'Cosmic Impalas'},
 ];
 
 var Midway8080BWPlatform = function(mainElement) {

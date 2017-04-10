@@ -9,7 +9,7 @@ var PLATFORM_PARAMS = {
   },
   'vicdual': {
     code_start: 0x0,
-    code_size: 0x4000,
+    code_size: 0x4020,
     data_start: 0xe400,
     data_size: 0x400,
   },

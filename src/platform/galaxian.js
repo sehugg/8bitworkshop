@@ -19,9 +19,9 @@ var GALAXIAN_KEYCODE_MAP = makeKeycodeMap([
 
 var SCRAMBLE_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_UP,    0, -0x1], // P1
-  [Keys.VK_SHIFT, 0, -0x2], // bomb
+  [Keys.VK_SHIFT, 0, -0x2], // fire
   [Keys.VK_7,     0, -0x4], // credit
-  [Keys.VK_SPACE, 0, -0x8], // fire
+  [Keys.VK_SPACE, 0, -0x8], // bomb
   [Keys.VK_RIGHT, 0, -0x10],
   [Keys.VK_LEFT,  0, -0x20],
   [Keys.VK_6,     0, -0x40],
@@ -205,8 +205,8 @@ var GalaxianPlatform = function(mainElement, options) {
         read: new AddressDecoder([
   				[0x0000, 0x3fff, 0,      function(a) { return rom ? rom[a] : null; }],
   				[0x4000, 0x47ff, 0x7ff,  function(a) { return ram.mem[a]; }],
-          [0x4800, 0x4fff, 0x3ff,  function(a) { return vram.mem[a]; }],
-  				[0x5000, 0x5fff, 0xff,   function(a) { return oram.mem[a]; }],
+//          [0x4800, 0x4fff, 0x3ff,  function(a) { return vram.mem[a]; }],
+//  				[0x5000, 0x5fff, 0xff,   function(a) { return oram.mem[a]; }],
   				[0x7000, 0x7000, 0,      function(a) { watchdog_counter = INITIAL_WATCHDOG; }],
           [0x7800, 0x7800, 0,      function(a) { watchdog_counter = INITIAL_WATCHDOG; }],
           //[0x8000, 0x820f, 0,      function(a) { return noise(); }], // TODO: remove
@@ -224,7 +224,7 @@ var GalaxianPlatform = function(mainElement, options) {
   				[0x4000, 0x47ff, 0x7ff,  function(a,v) { ram.mem[a] = v; }],
           [0x4800, 0x4fff, 0x3ff,  function(a,v) { vram.mem[a] = v; }],
   				[0x5000, 0x5fff, 0xff,   function(a,v) { oram.mem[a] = v; }],
-          [0x6801, 0x6801, 0,      function(a,v) { interruptEnabled = 1; }],
+          [0x6801, 0x6801, 0,      function(a,v) { interruptEnabled = v & 1; /*console.log(a,v,cpu.getPC().toString(16));*/ }],
           [0x6802, 0x6802, 0,      function(a,v) { /* TODO: coin counter */ }],
           [0x6803, 0x6803, 0,      function(a,v) { /* TODO: backgroundColor = (v & 1) ? 0xFF000056 : 0xFF000000; */ }],
           [0x6804, 0x6804, 0,      function(a,v) { starsEnabled = v & 1; }],
@@ -323,7 +323,7 @@ var GalaxianPlatform = function(mainElement, options) {
 
   this.loadROM = function(title, data) {
     rom = padBytes(data, romSize);
-		// palette is at 0x3800-0x381f by default
+
 		palette = new Uint32Array(new ArrayBuffer(32*4));
 		for (var i=0; i<32; i++) {
 			var b = rom[palBase+i];

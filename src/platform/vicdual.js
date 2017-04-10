@@ -21,13 +21,15 @@ var VicDualPlatform = function(mainElement) {
 
   var XTAL = 15468000.0;
   var scanlinesPerFrame = 0x106;
+  var vblankStart = 0xe0;
 	var vsyncStart = 0xec;
 	var vsyncEnd = 0xf0;
   var cpuFrequency = XTAL/8;
   var hsyncFrequency = XTAL/3/scanlinesPerFrame;
   var vsyncFrequency = hsyncFrequency/0x148;
   var cpuCyclesPerLine = cpuFrequency/hsyncFrequency;
-	var timerFrequency = 500; // TODO
+	var timerFrequency = 500; // input 2 bit 0x8
+  var cyclesPerTimerTick = cpuFrequency / (2 * timerFrequency);
   var reset_disable = false;
   var reset_disable_timer;
   var framestats;
@@ -115,7 +117,7 @@ var VicDualPlatform = function(mainElement) {
     	write: function(addr, val) {
 				if (addr & 0x1) { psg.selectRegister(val & 0xf); }; // audio 1
 				if (addr & 0x2) { psg.setData(val); }; // audio 2
-				if (addr & 0x8) { }; // coin status
+				if (addr & 0x8) { }; // TODO: assert coin status
 				if (addr & 0x40) { palbank = val & 3; }; // palette
     	}
     };
@@ -146,9 +148,11 @@ var VicDualPlatform = function(mainElement) {
       var debugCond = self.getDebugCallback();
       var targetTstates = cpu.getTstates();
       for (var sl=0; sl<scanlinesPerFrame; sl++) {
+        inputs[2] &= ~0x8;
+        inputs[2] |= ((cpu.getTstates() / cyclesPerTimerTick) & 1) << 3;
 				drawScanline(pixels, sl);
         targetTstates += cpuCyclesPerLine;
-				if (sl == vsyncStart) inputs[1] |= 0x8;
+				if (sl == vblankStart) inputs[1] |= 0x8;
 				if (sl == vsyncEnd) inputs[1] &= ~0x8;
         if (debugCond) {
           while (cpu.getTstates() < targetTstates) {
@@ -165,7 +169,7 @@ var VicDualPlatform = function(mainElement) {
   }
 
   this.loadROM = function(title, data) {
-    rom = padBytes(data, 0x4000);
+    rom = padBytes(data, 0x4040);
     self.reset();
   }
 
