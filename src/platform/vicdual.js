@@ -1,5 +1,5 @@
-"use strict";
 
+"use strict";
 var VICDUAL_PRESETS = [
   {id:'minimal.c', name:'Minimal Example'},
   {id:'hello.c', name:'Hello World'},
@@ -46,14 +46,10 @@ var VicDualPlatform = function(mainElement) {
 	];
 
 	var colorprom = [
-		0,0,0,0,0,0,0,0,
-		7,3,1,3,6,3,2,6,
-		7,0,0,0,0,0,0,0,
-		0,1,2,3,4,5,6,7,
-    0,0,0,0,0,0,0,0,
-		7,7,7,7,3,3,3,3,
-		0,0,0,0,0,0,0,0,
-		7,7,7,7,7,7,7,7,
+    0xe0,0x60,0x20,0x60, 0xc0,0x60,0x40,0xc0,
+    0x20,0x40,0x60,0x80, 0xa0,0xc0,0xe0,0x0e,
+    0xe0,0xe0,0xe0,0xe0, 0x60,0x60,0x60,0x60,
+    0xe0,0xe0,0xe0,0xe0, 0xe0,0xe0,0xe0,0xe0,
 	];
 
 	// videoram 0xc000-0xc3ff
@@ -69,14 +65,16 @@ var VicDualPlatform = function(mainElement) {
 			var code = ram.mem[vramofs+xx];
       var data = ram.mem[0x800 + (code<<3) + yy];
 			var col = (code>>5) + (palbank<<4);
-			var color1 = palette[colorprom[col]];
-			var color2 = palette[colorprom[col+8]];
+			var color1 = palette[(colorprom[col] >> 1) & 7];
+			var color2 = palette[(colorprom[col] >> 5) & 7];
       for (var i=0; i<8; i++) {
         var bm = 128>>i;
         pixels[outi] = (data&bm) ? color2 : color1;
+        /* TODO
         if (framestats) {
           framestats.layers.tiles[outi] = (data&bm) ? colorprom[col+8] : colorprom[col];
         }
+        */
         outi++;
       }
 		}
@@ -169,6 +167,9 @@ var VicDualPlatform = function(mainElement) {
   }
 
   this.loadROM = function(title, data) {
+    if (data.length >= 0x4020 && (data[0x4000] || data[0x401f])) {
+      colorprom = data.slice(0x4000,0x4020);
+    }
     rom = padBytes(data, 0x4040);
     self.reset();
   }

@@ -1,10 +1,10 @@
 
 all: cp437.vicdual.c c64.vicdual.c
 
-cp437.vicdual.c: ../cp437-8x8.bdf
+cp437.vicdual.c: ../fonts/cp437-8x8.bdf
 	python ../parsebdf8.py $< -r -C > $@
 
-c64.vicdual.c: ../c64.bdf
+c64.vicdual.c: ../fonts/c64.bdf
 	python ../parsebdf8.py $< -r -C > $@
 
 %.h:

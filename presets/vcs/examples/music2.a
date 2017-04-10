@@ -1,7 +1,37 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Playing music on the Atari VCS can be challenging since
+;; the frequencies rarely line up with the desired notes of a
+;; musical scale, and if they do, they're likely out of tune.
+;; There are only 32 divisors to configure pitch for a channel,
+;; and three possible base clocks that produce square tones --
+;; a total of 96 possible frequencies.
+;;
+;; This demo implements fractional frequencies by duty cycling
+;; the frequency divisor.
+;; This extends the number of audible pitches to 768.
+;;
+;; We have a lookup table with AUDF, AUDC, and a duty cycle
+;; bitmask for each note. Every 2 msec, we rotate the bitmask
+;; and add the next bit to the divisor -- cycling between
+;; two neighboring divisors.
+;;
+;; The pitches are modulated 8 times per frame, but could
+;; be reduced to 1 or 2 times per frame, but "vibrato"
+;; would be more apparent.
+;;
+;; The song file format is simple:
+;; - High bit set: delay (0-126)
+;; - High bit clear: note (0-63)
+;; - $FF: done
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 	processor 6502
         include "vcs.h"
         include "macro.h"
         include "xmacro.h"
+
 
 	org  $f000
 
@@ -447,3 +477,4 @@ PFBitmap5
 	org $fffc
         .word Start
         .word Start
+        

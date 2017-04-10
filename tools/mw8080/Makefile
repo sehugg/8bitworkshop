@@ -1,10 +1,10 @@
 
 all: cp437.mw8080.c c64.mw8080.c baddies-horiz.rot.c scrappy.rot.c
 
-cp437.mw8080.c: ../cp437-8x8.bdf
+cp437.mw8080.c: ../fonts/cp437-8x8.bdf
 	python ../parsebdf8.py $< -f -r -C > $@
 
-c64.mw8080.c: ../c64.bdf
+c64.mw8080.c: ../fonts/c64.bdf
 	python ../parsebdf8.py $< -f -r -C -s 32 -e 94 > $@
 
 %.h:
@@ -17,10 +17,10 @@ c64.mw8080.c: ../c64.bdf
 #%.rot.pbm: %.pbm
 #	convert $< -transpose -bordercolor white -border 4x4 $@
 
-baddies-horiz.rot.pbm: ../baddies-horiz.png
+baddies-horiz.rot.pbm: ../images/baddies-horiz.png
 	convert $< +dither -brightness-contrast 50x50 -fill black -transpose -negate $@
 
-scrappy.rot.pbm: ../scrappy48x64.pbm
+scrappy.rot.pbm: ../images/scrappy48x64.pbm
 	convert $< -transpose -bordercolor white -border 4x4 $@
 
 
