@@ -36,6 +36,8 @@ var PRESETS; // presets array
 var platform_id;
 var platform; // platform object
 
+var toolbar = $("#controls_top");
+
 var FileStore = function(storage, prefix) {
   var self = this;
   this.saveFile = function(name, text) {
@@ -344,6 +346,8 @@ function setCode(text) {
     return;
   worker.postMessage({code:text, platform:platform_id,
     tool:platform.getToolForFilename(current_preset_id)});
+  toolbar.addClass("is-busy");
+  $('#compile_spinner').css('visibility', 'visible');
 }
 
 function arrayCompare(a,b) {
@@ -363,7 +367,6 @@ function setCompileOutput(data) {
     assemblyfile = new SourceFile(data.asmlines, data.intermediate.listing);
   }
   // errors?
-  var toolbar = $("#controls_top");
   function addErrorMarker(line, msg) {
     var div = document.createElement("div");
     div.setAttribute("class", "tooltipbox tooltiperror");
@@ -442,6 +445,8 @@ function setCompileOutput(data) {
 }
 
 worker.onmessage = function(e) {
+  toolbar.removeClass("is-busy");
+  $('#compile_spinner').css('visibility', 'hidden');
   // TODO: this doesn't completely work yet
   if (pendingWorkerMessages > 1) {
     pendingWorkerMessages = 0;

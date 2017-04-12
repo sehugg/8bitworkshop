@@ -929,3 +929,13 @@ function AddressDecoder(table, options) {
   }
   return makeFunction(0x0, 0xffff).bind(self);
 }
+
+var BusProbe = function(bus) {
+  this.read = function(a) {
+    var val = bus.read(a);
+    return val;
+  }
+  this.write = function(a,v) {
+    return bus.write(a,v);
+  }
+}

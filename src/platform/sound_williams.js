@@ -1,7 +1,7 @@
 "use strict";
 
 var WILLIAMS_SOUND_PRESETS = [
-  {id:'minimal.c', name:'Minimal Test'},
+  {id:'wavetable.c', name:'Wavetable Synth'},
 ];
 
 /****************************************************************************

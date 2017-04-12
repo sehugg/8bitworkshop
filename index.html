@@ -93,6 +93,9 @@ span.hilite {
 div.has-errors {
   background-color: #ff6666 !important;
 }
+div.is-busy-unused {
+  background-color: #8888bb !important;
+}
 div.menu_div {
   position: absolute;
   width: 200px;
@@ -223,7 +226,8 @@ div.bitmap_editor {
   </span>
   <select id="preset_select" name="">
   </select>
-  <span id="debug_bar">
+  <img id="compile_spinner" src="spinner.gif" height="20em" style="visibility:hidden;margin-left:8px;margin-right:8px">
+  <span class="debug_bar" id="debug_bar">
     <button id="dbg_reset" type="submit" title="Reset and Break"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></button>
     <button id="dbg_pause" type="button" title="Pause"><span class="glyphicon glyphicon-pause" aria-hidden="true"></span></button>
     <button id="dbg_go" type="button" title="Run"><span class="glyphicon glyphicon-play" aria-hidden="true"></span></button>
@@ -232,8 +236,8 @@ div.bitmap_editor {
     <button id="dbg_stepout" type="submit" title="Step Out of Subroutine"><span class="glyphicon glyphicon-hand-up" aria-hidden="true"></span></button>
     <button id="dbg_stepback" type="submit" title="Step Backwards"><span class="glyphicon glyphicon-step-backward" aria-hidden="true"></span></button>
     <button id="dbg_timing" type="submit" title="See Timing" style="display:none"><span class="glyphicon glyphicon-time" aria-hidden="true"></span></button>
-    <button id="dbg_disasm" type="submit" title="Show Disassembly" style="display:none"><span class="glyphicon glyphicon-list" aria-hidden="true"></span></button>
   </span>
+  <button id="dbg_disasm" type="submit" title="Show Disassembly" style="display:none"><span class="glyphicon glyphicon-list" aria-hidden="true"></span></button>
 </div>
 <div id="notebook">
   <div id="workspace">

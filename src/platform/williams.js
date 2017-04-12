@@ -23,7 +23,7 @@ var WilliamsPlatform = function(mainElement, proto) {
 
   var video, timer, pixels, displayPCs;
   var screenNeedsRefresh = false;
-  var membus, iobus;
+  var membus;
   var video_counter;
 
   var audio, worker, workerchannel;
@@ -169,7 +169,7 @@ var WilliamsPlatform = function(mainElement, proto) {
   function write_display_byte(a,v) {
     ram.mem[a] = v;
     drawDisplayByte(a, v);
-    displayPCs[a] = cpu.getPC(); // save program counter
+    if (displayPCs) displayPCs[a] = cpu.getPC(); // save program counter
   }
 
   function drawDisplayByte(a,v) {
@@ -272,15 +272,18 @@ var WilliamsPlatform = function(mainElement, proto) {
     ram = new RAM(0xc000);
     nvram = new RAM(0x400);
     // TODO: save in browser storage?
-    // defender nvram.mem.set([240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,242,241,242,247,240,244,244,245,242,244,250,240,241,248,243,241,245,245,243,244,241,244,253,240,241,245,249,242,240,244,252,244,245,244,244,240,241,244,242,248,245,245,240,244,247,244,244,240,241,242,245,242,240,244,243,245,242,244,242,240,241,241,240,243,245,244,253,245,242,245,243,240,240,248,242,246,245,245,243,245,243,245,242,240,240,246,240,241,240,245,244,244,253,244,248,240,240,245,250,240,241,240,240,240,243,240,243,240,241,240,244,240,241,240,241,240,240,240,240,240,240,240,245,241,245,240,241,240,245,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240]);
-
-    displayPCs = new Uint16Array(new ArrayBuffer(0x9800*2));
+    //displayPCs = new Uint16Array(new ArrayBuffer(0x9800*2));
     rom = padBytes(new lzgmini().decode(ROBOTRON_ROM).slice(0), 0xc001);
     membus = {
       read: memread_williams,
 			write: memwrite_williams,
     };
-    cpu = self.newCPU(membus);
+    //var probebus = new BusProbe(membus);
+    var iobus = {
+      read: function(a) {return 0;},
+      write: function(a,v) {console.log(hex(a),hex(v));}
+    }
+    cpu = self.newCPU(membus, iobus);
 
     audio = new MasterAudio();
     worker = new Worker("./src/audio/z80worker.js");
@@ -293,7 +296,7 @@ var WilliamsPlatform = function(mainElement, proto) {
 			var x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
 			var y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height());
 			var addr = (x>>3) + (y*32) + 0x400;
-			console.log(x, y, hex(addr,4), "PC", hex(displayPCs[addr],4));
+      if (displayPCs)	console.log(x, y, hex(addr,4), "PC", hex(displayPCs[addr],4));
 		});
     var idata = video.getFrameData();
     setKeyboardFromMap(video, pia6821, ROBOTRON_KEYCODE_MAP);
@@ -419,3 +422,5 @@ var WilliamsZ80Platform = function(mainElement) {
 
 PLATFORMS['williams'] = WilliamsPlatform;
 PLATFORMS['williams-z80'] = WilliamsZ80Platform;
+
+// http://seanriddle.com/willhard.html
