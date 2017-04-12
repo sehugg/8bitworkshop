@@ -1,16 +1,29 @@
 #!/usr/bin/python
 
-import sys, string, math
+import sys, string, math, argparse
 import mido
 
-min_note = 21
-max_note = 21+63
-max_voices = 3
-one_voice_per_channel = 0
-tempo = 48
-compress = 0
-transpose = 0
-coutput = 1
+parser = argparse.ArgumentParser()
+parser.add_argument('-s', '--start', type=int, default=21, help="first MIDI note")
+parser.add_argument('-n', '--num', type=int, default=21+63, help="number of notes")
+parser.add_argument('-v', '--voices', type=int, default=3, help="number of voices")
+parser.add_argument('-T', '--transpose', type=int, default=0, help="transpose by half-steps")
+parser.add_argument('-t', '--tempo', type=int, default=48, help="tempo")
+parser.add_argument('-o', '--one', action="store_true", help="one voice per channel")
+parser.add_argument('-z', '--compress', action="store_true", help="compress song (experimental)")
+parser.add_argument('-H', '--hex', action="store_true", help="hex output")
+parser.add_argument('midifile', help="MIDI file")
+parser.add_argument('midichannels', nargs='?', help="comma-separated list of MIDI channels, or -")
+args = parser.parse_args()
+
+min_note = args.start
+max_note = min_note + args.num
+max_voices = args.voices
+one_voice_per_channel = args.one
+tempo = args.tempo
+compress = args.compress
+transpose = args.transpose
+coutput = not args.hex
 
 # for 2600
 #max_voices = 2
@@ -19,7 +32,7 @@ coutput = 1
 #max_voices = 4
 #one_voice_per_channel = 0
 
-fn = sys.argv[1]
+fn = args.midifile
 
 mid = mido.MidiFile(fn)
 
@@ -97,7 +110,7 @@ def channels_for_track(track):
             channels.add(msg.channel)
     return list(channels)
 
-if len(sys.argv) < 3:
+if not args.midichannels:
     print mid
     print mid.length, 'seconds'
     for i, track in enumerate(mid.tracks):
@@ -105,14 +118,12 @@ if len(sys.argv) < 3:
         #for msg in track:
         #    print(msg)
 else:
-    if len(sys.argv) > 3:
-        transpose = int(sys.argv[3])
     gtime = 0
     curtime = 0
     nnotes = 0
     nvoices = 0
     curchans = 0
-    channels = [int(x) for x in string.split(sys.argv[2], ',')]
+    channels = [int(x) for x in string.split(args.midichannels, ',')]
     print
     print "// %s %s" % (mid, channels)
     output = []

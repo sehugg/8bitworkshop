@@ -310,7 +310,8 @@ var WilliamsPlatform = function(mainElement, proto) {
           if (cpu.requestInterrupt)
             cpu.requestInterrupt();
         }
-        self.runCPU(cpu, cpuCyclesPerFrame/4);
+        if (!self.wasBreakpointHit())
+          self.runCPU(cpu, cpuCyclesPerFrame/4);
         video.updateFrame(0, 0, quarter*64, 0, 64, 304);
       }
       if (screenNeedsRefresh) {

@@ -2,7 +2,7 @@
 
 var GALAXIAN_PRESETS = [
   {id:'gfxtest.c', name:'Graphics Test'},
-  {id:'shoot2.c', name:'Shoot-em-up Game'},
+  {id:'shoot2.c', name:'Solarian Game'},
 ];
 
 var GALAXIAN_KEYCODE_MAP = makeKeycodeMap([

@@ -5,9 +5,9 @@ var VICDUAL_PRESETS = [
   {id:'hello.c', name:'Hello World'},
   {id:'gfxtest.c', name:'Graphics Test'},
   {id:'soundtest.c', name:'Sound Test'},
-  {id:'snake1.c', name:'Snake Game (Prototype)'},
-  {id:'snake2.c', name:'Snake Game (Full)'},
-  {id:'music.c', name:'Music Example'},
+  {id:'snake1.c', name:'Siege Game (Prototype)'},
+  {id:'snake2.c', name:'Siege Game (Full)'},
+  {id:'music.c', name:'Music Player'},
 ];
 
 var VicDualPlatform = function(mainElement) {

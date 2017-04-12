@@ -626,6 +626,9 @@ var BaseZ80Platform = function() {
       onBreakpointHit(debugBreakState);
     }
   }
+  this.wasBreakpointHit = function() {
+    return debugBreakState != null;
+  }
   // TODO: lower bound of clock value
   this.step = function() {
     var self = this;

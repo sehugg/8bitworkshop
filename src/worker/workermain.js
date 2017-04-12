@@ -84,12 +84,67 @@ function loadFilesystem(name) {
   console.log("Loaded "+name+" filesystem", fsMeta[name].files.length, 'files', fsBlob[name].size, 'bytes');
 }
 
+var ATARI_CFG =
+  "FEATURES {\nSTARTADDRESS: default = $9000;\n}\n"
++  "MEMORY {\n"
++  "     ZP:  start = $82, size = $7E;\n"
++  "    RAM:  start = $0200, size = $1e00;\n"
++  "    ROM:  start = $9000, size = $7000;\n"
++  "    VEC:  start = $FFFA, size = 6;\n"
++  "}\n"
++  "SEGMENTS {\n"
++  "    CODE: load = ROM, type = ro, define = no;\n"
++  "    DATA: load = RAM, type = rw, define = no;\n"
++  "ZEROPAGE: load = ZP,  type = zp, define = no;\n"
+//+  " VECTORS: load = VEC, type = ro, define = yes;"
++  "}\n"
+;
+/*
++  "SYMBOLS {\n"
++  "    __STACKSIZE__:       type = weak,   value = $0800; # 2k stack\n"
++  "    __RESERVED_MEMORY__: type = weak,   value = $0000;\n"
++  "    __STARTADDRESS__:    type = export, value = %S;\n"
++  "}\n"
++  "MEMORY {\n"
++  "    ZP:   file = \"\", define = yes, start = $0082, size = $007E;\n"
++  "    MAIN: file = %O, define = yes, start = %S,    size = $BC20 - __STACKSIZE__ - __RESERVED_MEMORY__ - %S;\n"
++  "}\n"
++  "SEGMENTS {\n"
++  "    ZEROPAGE: load = ZP,   type = zp,                optional = yes;\n"
++  "    EXTZP:    load = ZP,   type = zp,                optional = yes;\n"
++  "    STARTUP:  load = MAIN, type = ro,  define = yes, optional = yes;\n"
++  "    LOWCODE:  load = MAIN, type = ro,  define = yes, optional = yes;\n"
++  "    ONCE:     load = MAIN, type = ro,                optional = yes;\n"
++  "    CODE:     load = MAIN, type = ro,  define = yes;\n"
++  "    RODATA:   load = MAIN, type = ro,                optional = yes;\n"
++  "    DATA:     load = MAIN, type = rw,                optional = yes;\n"
++  "    BSS:      load = MAIN, type = bss, define = yes, optional = yes;\n"
++  "    INIT:     load = MAIN, type = bss,               optional = yes;\n"
++  "}\n"
++  "FEATURES {\n"
++  "    CONDES: type    = constructor,\n"
++  "            label   = __CONSTRUCTOR_TABLE__,\n"
++  "            count   = __CONSTRUCTOR_COUNT__,\n"
++  "            segment = ONCE;\n"
++  "    CONDES: type    = destructor,\n"
++  "            label   = __DESTRUCTOR_TABLE__,\n"
++  "            count   = __DESTRUCTOR_COUNT__,\n"
++  "            segment = RODATA;\n"
++  "    CONDES: type    = interruptor,\n"
++  "            label   = __INTERRUPTOR_TABLE__,\n"
++  "            count   = __INTERRUPTOR_COUNT__,\n"
++  "            segment = RODATA,\n"
++  "            import  = __CALLIRQ__;\n"
++  "}\n";
+*/
+
 // mount the filesystem at /share
 function setupFS(FS, name) {
   FS.mkdir('/share');
   FS.mount(FS.filesystems['WORKERFS'], {
     packages: [{ metadata: fsMeta[name], blob: fsBlob[name] }]
   }, '/share');
+  FS.writeFile("/vector-ataricolor.cfg", ATARI_CFG);
 }
 
 var DASM_MAIN_FILENAME = "main.a";
@@ -413,11 +468,14 @@ function assemblelinkCA65(code, platform, warnings) {
       printErr:print_fn,
     });
     var FS = LD65['FS'];
+    var cfgfile = '/' + platform + '.cfg';
     setupFS(FS, '65');
     FS.writeFile("main.o", objout, {encoding:'binary'});
     LD65.callMain(['--cfg-path', '/share/cfg', '--lib-path', '/share/lib',
-      '--start-addr', '0x6000', // TODO
-      '-t', platform, '-o', 'main', '-m', 'main.map', 'main.o', platform+'.lib']);
+      //'--start-addr', '0x6000', // TODO
+      '-C', cfgfile,
+      '-o', 'main', '-m', 'main.map', 'main.o',
+      'apple2.lib']);
     var aout = FS.readFile("main", {encoding:'binary'});
     var mapout = FS.readFile("main.map", {encoding:'utf8'});
     var listing = parseCA65Listing(lstout, mapout);
@@ -456,10 +514,17 @@ function compileCC65(code, platform) {
   var FS = CC65['FS'];
   setupFS(FS, '65');
   FS.writeFile("main.c", code, {encoding:'utf8'});
-  CC65.callMain(['-v', '-T', '-g', /*'-Cl',*/ '-Oirs', '-I', '/share/include', '-t', platform, "main.c"]);
+  CC65.callMain(['-v', '-T', '-g', /*'-Cl',*/ '-Oirs', '-I', '/share/include', "main.c"]);
   try {
     var asmout = FS.readFile("main.s", {encoding:'utf8'});
-    return assemblelinkCA65(asmout, platform, errors);
+    var result = assemblelinkCA65(asmout, platform, errors);
+/*
+    result.asmlines = result.lines;
+    result.lines = result.srclines;
+    result.srclines = null;
+*/
+//console.log(result.intermediate.listing);
+    return result;
   } catch(e) {
     return {errors:errors};
   }

@@ -92,10 +92,21 @@ word rand() {
   return lfsr;
 }
 
-void wait_for_vsync() {
-  while (VSYNC != 0) lfsr++; // wait for VSYNC end
-  while (VSYNC == 0) lfsr++; // wait for VSYNC start
+void delay(byte msec) {
+  while (msec--) {
+    while (TIMER500HZ != 0) lfsr++;
+    while (TIMER500HZ == 0) lfsr++;
+  }
 }
+
+#define PE(fg,bg) (((fg)<<5) | ((bg)<<1))
+
+const byte __at (0x4000) color_prom[32] = {
+  PE(7,0),PE(3,0),PE(1,0),PE(3,0),PE(6,0),PE(3,0),PE(2,0),PE(6,0),
+  PE(7,0),PE(3,0),PE(1,0),PE(3,0),PE(6,0),PE(3,0),PE(2,0),PE(6,0),
+  PE(7,0),PE(3,0),PE(1,0),PE(3,0),PE(6,0),PE(3,0),PE(2,0),PE(6,0),
+  PE(7,0),PE(3,0),PE(1,0),PE(3,0),PE(6,0),PE(3,0),PE(2,0),PE(6,0),
+};
 
 #define LOCHAR 0x0
 #define HICHAR 0xff
