@@ -451,8 +451,9 @@ worker.onmessage = function(e) {
   if (pendingWorkerMessages > 1) {
     pendingWorkerMessages = 0;
     setCode(editor.getValue());
+  } else {
+    pendingWorkerMessages = 0;
   }
-  pendingWorkerMessages = 0;
   setCompileOutput(e.data);
 }
 

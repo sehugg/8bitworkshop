@@ -62,6 +62,7 @@ struct {
 //
 
 void main();
+void _sdcc_heap_init(void); // for malloc()
 
 // start routine @ 0x0
 // set stack pointer, enable interrupts
@@ -76,7 +77,9 @@ __asm
         LD    HL, #s__INITIALIZER
         LDIR
 __endasm;
-        main();
+  
+  _sdcc_heap_init();
+  main();
 }
 
 #define LOCHAR 0x21
@@ -102,6 +105,7 @@ void fill_char_table_entry(char ch) {
       b <<= 2;
     }
   }
+  WATCHDOG;
 }
 
 void fill_char_table() {
@@ -176,6 +180,43 @@ inline void draw_sprite_solid(const byte* data, byte x, byte y, byte color) {
   blitter.dstart = (x>>1)+y*256+XBIAS; // swapped
   blitter.solid = color;
   blitter.flags = (x&1) ? DSTSCREEN|FGONLY|RSHIFT|SOLID : DSTSCREEN|FGONLY|SOLID;
+}
+
+void draw_sprite_strided(const byte* data, byte x, byte y, byte stride) {
+  byte i;
+  byte width = data[0];
+  byte height = data[1];
+  byte yy = y-(height*(stride-1)/2);
+  word dest = (x>>1)+yy*256+XBIAS;
+  blitter.width = width^4;
+  blitter.height = 1^4;
+  for (i=0; i<height; i++) {
+    if ((dest & 0xff) < 0x90) {
+      blitter.sstart = swapw((word)(data+2));
+      blitter.dstart = dest; // swapped
+      blitter.flags = DSTSCREEN|FGONLY;
+    }
+    dest += stride << 8;
+    data += width;
+  }
+}
+
+void erase_sprite_strided(const byte* data, byte x, byte y, byte stride) {
+  byte i;
+  byte width = data[0];
+  byte height = data[1];
+  byte yy = y-(height*(stride-1)/2);
+  word dest = (x>>1)+yy*256+XBIAS;
+  blitter.width = width^4;
+  blitter.height = 1^4;
+  blitter.solid = 0;
+  for (i=0; i<height; i++) {
+    if ((dest & 0xff) < 0x90) {
+      blitter.dstart = dest; // swapped
+      blitter.flags = DSTSCREEN|SOLID;
+    }
+    dest += stride << 8;
+  }
 }
 
 inline void draw_char(char ch, byte x, byte y, byte color) {
@@ -429,22 +470,15 @@ const byte* const all_sprites[9] = {
 // GAME CODE
 
 typedef struct Actor;
-typedef struct Task;
 
 typedef void (*ActorUpdateFn)(struct Actor* a);
-typedef void (*ActorDrawFn)(const struct Actor* a);
-typedef void (*ActorEnumerateFn)(const struct Actor* a);
-typedef bool (*TaskFn)(struct Task* task);
+typedef void (*ActorDrawFn)(struct Actor* a);
 
 typedef struct Actor {
-  byte grid_index;
-  byte next_actor;
-  byte last_update_frame;
+  struct Actor* next;
+  struct Actor** prevptr;
   byte x,y;
   byte* shape;
-  byte flags;
-  byte updatefreq;
-  byte updatetimer;
   ActorUpdateFn update;
   ActorDrawFn draw;
   union {
@@ -453,66 +487,30 @@ typedef struct Actor {
   } u;
 } Actor;
 
-typedef struct Task {
-  Actor* actor;
-  struct Task* next;
-  TaskFn func;
-} Task;
-
-#define GBITS 3
-#define GDIM (1<<GBITS)
-#define GDIM2 (1<<(GBITS+GBITS))
-#define GMASK (GDIM2-1)
 #define MAX_ACTORS 128
-#define MAX_TASKS 256
 
-static byte grid[GDIM*GDIM]; // should be 256
 static Actor actors[MAX_ACTORS];
-static Task taskarray[MAX_TASKS];
-static Task* first_task;
-static Task* last_task;
+static Actor* player_list;
+static Actor* fast_list;
+static Actor* slow_lists[4];
+static Actor* obstacle_list;
+static Actor* free_list;
+static Actor* effects_list;
 static byte frame;
 
 #define PLAYER 1
 #define LASER 2
-#define F_PLAYER 0x1
-#define F_KILLABLE 0x2
 
-byte xy2grid(byte x, byte y) {
-  return (x >> (8-GBITS)) | ((y >> (8-GBITS)) << GBITS);
+void add_actor(Actor** list, Actor* a) {
+  if (*list) (*list)->prevptr = &a->next;
+  a->next = *list;
+  a->prevptr = list;
+  *list = a;
 }
 
-void insert_into_grid(byte gi, byte actor_index) {
-  struct Actor* a = &actors[actor_index];
-  a->grid_index = gi;
-  a->next_actor = grid[gi];
-  grid[gi] = actor_index;
-}
-
-void delete_from_grid(byte gi, byte actor_index) {
-  byte i = grid[gi];
-  byte next = actors[actor_index].next_actor;
-  // is actor to delete at head of list?
-  if (i == actor_index) {
-    grid[gi] = next;
-  } else {
-    // iterate through the list
-    do {
-      byte j = actors[i].next_actor;
-      if (j == actor_index) {
-        actors[i].next_actor = next;
-        break;
-      }
-      i = j;
-    } while (1); // watchdog reset if actor not found to delete
-  }
-  actors[actor_index].next_actor = 0;
-  actors[actor_index].grid_index = 0;
-}
-
-void add_actor(byte actor_index) {
-  struct Actor* a = &actors[actor_index];
-  insert_into_grid(xy2grid(a->x, a->y), actor_index);
+void remove_actor(Actor* a) {
+  if (a->next) a->next->prevptr = a->prevptr;
+  *a->prevptr = a->next;
 }
 
 char in_rect(const Actor* e, byte x, byte y, byte w, byte h) {
@@ -521,78 +519,39 @@ char in_rect(const Actor* e, byte x, byte y, byte w, byte h) {
   return (x >= e->x-w && x <= e->x+ew && y >= e->y-h && y <= e->y+eh);
 }
 
-void enumerate_actors_at_grid(ActorEnumerateFn enumfn, byte gi) {
-  byte ai = grid[gi & GMASK];
-  while (ai) {
-    const Actor* a = &actors[ai];
-    ai = a->next_actor;
-    enumfn(a);
-  }
-}
-
-void enumerate_actors_in_rect(ActorEnumerateFn enumfn,
-                              byte x1, byte y1, byte x2, byte y2) {
-  byte gi = xy2grid(x1, y1);
-  byte gi1 = xy2grid(x2, y2) + 1;
-  byte gwidth = 1 + ((gi1 - gi) & (GDIM-1));
-  byte x;
-  do {
-    for (x=0; x<gwidth; x++) {
-      byte ai = grid[gi];
-      while (ai) {
-        Actor* a = &actors[ai];
-        enumfn(a);
-        ai = a->next_actor;
-      }
-      gi++;
-    }
-    if (gi == gi1) break;
-    gi += GDIM - gwidth;
-  } while (1);
-}
-
 void draw_actor_normal(Actor* a) {
   draw_sprite(a->shape, a->x, a->y);
 }
 
-void draw_actor_debug(Actor* a) {
-  draw_sprite_solid(a->shape, a->x, a->y, a->grid_index);
+void draw_actor_exploding(Actor* a) {
+  erase_sprite_strided(a->shape, a->x, a->y, a->u.enemy.exploding);
+  if (a->u.enemy.exploding > 10) {
+    a->draw = NULL;
+  } else {
+    draw_sprite_strided(a->shape, a->x, a->y, ++a->u.enemy.exploding);
+  }
 }
 
-byte time_to_update(Actor* a) {
-  byte t0 = a->updatetimer;
-  return (a->updatetimer += a->updatefreq) < t0;
-}
-
-byte update_actor(byte actor_index) {
-  struct Actor* a = &actors[actor_index];
-  byte next_actor = a->next_actor;
-  byte gi0,gi1;
+void update_actor(Actor* a) {
   // if NULL shape, we don't have anything
-  if (a->shape && time_to_update(a)) {
-    gi0 = a->grid_index;
+  if (a->shape) {
     // erase the sprite
     draw_sprite_solid(a->shape, a->x, a->y, 0);
     // call update callback
-    if (a->update) a->update(a);
-    // set last_update_frame
-    a->last_update_frame = frame;
+    if (a->update) {
+      a->update(a);
+    }
     // did we delete it?
     if (a->shape) {
       // draw the sprite
-      if (a->draw) a->draw(a);
-      // grid bucket changed?
-      gi1 = xy2grid(a->x, a->y);
-      if (gi0 != gi1) {
-        delete_from_grid(gi0, actor_index);
-        insert_into_grid(gi1, actor_index);
+      if (a->draw) {
+        a->draw(a);
       }
     } else {
-      // shape NULL, delete from grid
-      delete_from_grid(gi0, actor_index);
+      // shape became null, remove from list
+      remove_actor(a);
     }
   }
-  return next_actor;
 }
 
 //
@@ -613,68 +572,133 @@ signed char random_dir() {
   else return 1;
 }
 
+void update_actor_list(Actor* a) {
+  while (a) {
+    update_actor(a);
+    a = a->next;
+  }
+}
+
+static byte g_section;
+
+void update_actors_partial(Actor* a) {
+  while (a) {
+    if (g_section ^ (a->y < 0x80)) {
+      update_actor(a);
+    }
+    a = a->next;
+  }
+}
+
+void update_screen_section(byte section) {
+  g_section = section;
+  update_actors_partial(player_list);
+  update_actors_partial(fast_list);
+  update_actors_partial(slow_lists[frame & 3]);
+}
+
+static Actor* test_actor;
+static byte test_x, test_y;
+
+byte minbyte(byte a, byte b) { return a<b?a:b; }
+byte maxbyte(byte a, byte b) { return a>b?a:b; }
+
+bool test_actor_pixels(Actor* a) {
+  if (a->shape) {
+    byte x,y;
+    byte *p1, *p2;
+    byte x1 = maxbyte(test_actor->x, a->x);
+    byte y1 = maxbyte(test_actor->y, a->y);
+    byte x2 = minbyte(test_actor->x + test_actor->shape[0]*2,
+                      a->x + a->shape[0]*2);
+    byte y2 = minbyte(test_actor->y + test_actor->shape[1],
+                      a->y + a->shape[1]);
+    if (x2 <= x1 || y2 <= y1) return false;
+    //draw_box(x1,y1,x2,y2,0xff);
+    p1 = &test_actor->shape[2+(y1-test_actor->y)*test_actor->shape[0]];
+    p2 = &a->shape[2+(y1-a->y)*a->shape[0]];
+    p1 += (x1 - test_actor->x) >> 1;
+    p2 += (x1 - a->x) >> 1;
+    for (y=y1; y<y2; y++) {
+      for (x=x1; x<x2; x++) {
+        if (p1[x] && p2[x]) return true;
+      }
+      p1 += test_actor->shape[0];
+      p2 += a->shape[0];
+    }
+  }
+  return false;
+}
+
+inline bool test_collision_actor(Actor* a) {
+  return ((byte)(test_y - a->y + 16) < 32 &&
+          (byte)(test_x - a->x + 16) < 32 &&
+          test_actor_pixels(a));
+}
+
+Actor* test_collisions(Actor* a) {
+  while (a) {
+    if (test_collision_actor(a)) {
+      return a;
+    }
+    a = a->next;
+  }
+  return NULL;
+}
+
+void setup_collision(Actor* a) {
+  test_actor = a;
+  test_x = a->x;
+  test_y = a->y;
+}
+
+void destroy_player() {
+  Actor* a = &actors[PLAYER];
+  byte i;
+  for (i=0; i<60; i++) {
+    WATCHDOG;
+    while (video_counter != 0xfc) ;
+    draw_sprite_solid(a->shape, a->x, a->y, i);
+    while (video_counter == 0xfc) ;
+  }
+  for (i=1; i<60; i++) {
+    WATCHDOG;
+    while (video_counter != 0xfc) ;
+    draw_sprite_strided(a->shape, a->x+i, a->y, i);
+    draw_sprite_strided(a->shape, a->x-i, a->y, i);
+    while (video_counter == 0xfc) ;
+  }
+}
+
 void random_walk(Actor* a) {
   a->x += random_dir();
   a->y += random_dir();
-  if (a->u.enemy.exploding) {
-    a->shape = NULL;
+  setup_collision(a);
+  if (actors[PLAYER].shape && test_collision_actor(&actors[PLAYER])) {
+    destroy_player();
+    actors[PLAYER].shape = NULL;
   }
-}
-
-void update_grid_cell(byte grid_index) {
-  byte actor_index = grid[grid_index];
-  while (actor_index) {
-    actor_index = update_actor(actor_index);
-  }
-}
-
-void update_screen_section(byte gi0, byte gi1, byte vc0, byte vc1) {
-  while (!(video_counter >= vc0 && video_counter <= vc1)) ;
-  while (gi0 < gi1) {
-    update_grid_cell(gi0++);
-  }
-}
-
-inline void ensure_update(byte actor_index) {
-  if (actors[actor_index].last_update_frame != frame) {
-    update_actor(actor_index);
-  }
-}
-
-byte did_overflow() {
-  __asm
-    ld l,#0
-    ret nc
-    inc l
-  __endasm;
-}
-
-static byte test_flags;
-static byte test_x, test_y;
-static Actor* test_collided;
-
-void enumerate_check_point(Actor* a) {
-  // check flags to see if we should test this
-  if (!(a->flags & test_flags)) return;
-  draw_actor_debug(a);
-  if (in_rect(a, test_x, test_y, 1, 1)) test_collided = a;
 }
 
 void laser_move(Actor* a) {
   // did we hit something?
-  test_x = a->x;
-  test_y = a->y;
-  test_flags = F_KILLABLE;
-  test_collided = NULL;
-  enumerate_actors_at_grid(enumerate_check_point, a->grid_index);
-  enumerate_actors_at_grid(enumerate_check_point, a->grid_index-1);
-  enumerate_actors_at_grid(enumerate_check_point, a->grid_index-GDIM);
-  enumerate_actors_at_grid(enumerate_check_point, a->grid_index-GDIM-1);
-  if (test_collided) {
+  static Actor* collided;
+  setup_collision(a);
+  collided = test_collisions(fast_list);
+  if (!collided) collided = test_collisions(slow_lists[0]);
+  if (!collided) collided = test_collisions(slow_lists[1]);
+  if (!collided) collided = test_collisions(slow_lists[2]);
+  if (!collided) collided = test_collisions(slow_lists[3]);
+  if (collided) {
     // get rid of laser (we can do this in our 'update' fn)
     a->shape = NULL;
-    // set exploding flag for enemy (we're not in its update)
-    test_collided->u.enemy.exploding = 1;
+    // set exploding counter for enemy, change fn pointers
+    collided->draw = draw_actor_exploding;
+    collided->update = NULL;
+    collided->u.enemy.exploding = 1;
+    // move enemy to effects list
+    remove_actor(collided);
+    add_actor(&effects_list, collided);
     return;
   }
   // move laser
@@ -686,21 +710,22 @@ void laser_move(Actor* a) {
 }
 
 void shoot_laser(sbyte dx, sbyte dy, const byte* shape) {
-  actors[LASER].shape = (void*) shape;
-  actors[LASER].x = actors[1].x;
-  actors[LASER].y = actors[1].y;
-  actors[LASER].u.laser.dx = dx;
-  actors[LASER].u.laser.dy = dy;
-  add_actor(LASER);
+  Actor* a = &actors[LASER];
+  a->shape = (void*) shape;
+  a->x = actors[PLAYER].x + 6;
+  a->y = actors[PLAYER].y + 8;
+  a->u.laser.dx = dx;
+  a->u.laser.dy = dy;
+  add_actor(&player_list, a);
 }
 
 void player_laser() {
-  // shoot laser
-  if (actors[LASER].shape == NULL) {
-    if (UP2) shoot_laser(0,-4,laser_vert);
-    else if (DOWN2) shoot_laser(0,4,laser_vert);
-    else if (LEFT2) shoot_laser(-4,0,laser_horiz);
-    else if (RIGHT2) shoot_laser(4,0,laser_horiz);
+  // is the laser being used?
+  if (actors[LASER].shape == NULL) { // no, check controls
+    if (UP2) shoot_laser(0,-8,laser_vert);
+    else if (DOWN2) shoot_laser(0,8,laser_vert); 
+    else if (LEFT2) shoot_laser(-8,0,laser_horiz);
+    else if (RIGHT2) shoot_laser(8,0,laser_horiz);
   }
 }
 
@@ -716,43 +741,107 @@ void player_move(Actor* a) {
   player_laser();
 }
 
-void main() {
+static Actor* current_effect;
+
+void effects_new_frame() {
+  current_effect = effects_list;
+}
+
+void effects_next() {
+  if (current_effect) {
+    if (current_effect->draw) {
+      current_effect->draw(current_effect);
+    } else {
+      remove_actor(current_effect);
+    }
+    current_effect = current_effect->next;
+  }
+}
+
+Actor* new_actor() {
+  Actor* a = free_list;
+  remove_actor(a);
+  a->draw = draw_actor_normal;
+  return a;
+}
+
+void redraw_playfield(Actor* a) {
+  a;
+  draw_box(0,0,303,255,0x11);
+}
+
+Actor* new_effect(ActorDrawFn draw) {
+  Actor* a = new_actor();
+  a->draw = draw;
+  add_actor(&effects_list, a);
+  return a;
+}
+
+void init() {
   byte i;
-  byte num_actors = 16;
   blit_solid(0, 0, 255, 255, 0);
-  memset(grid, 0, sizeof(grid));
   memset(actors, 0, sizeof(actors));
   memcpy(palette, palette_data, 16);
-  draw_box(0,0,303,255,0x11);
   fill_char_table();
-  WATCHDOG;
-  for (i=1; i<num_actors; i++) {
-    Actor* a = &actors[i];
-    a->x = (i & 7) * 24 + 16;
-    a->y = (i / 4) * 24 + 16;
+  player_list = fast_list = obstacle_list = free_list = NULL;
+  memset(slow_lists, 0, sizeof(slow_lists));
+  // add all actors to free list
+  for (i=MAX_ACTORS-1; i>0; i--) {
+    add_actor(&free_list, &actors[i]);
+  }
+}
+
+void make_player_actors() {
+  // make player
+  Actor* a = new_actor();
+  a->x = 128;
+  a->y = 120;
+  a->shape = (void*) playersprite1;
+  a->update = player_move;
+  add_actor(&player_list, a);
+  // make laser
+  a = new_actor();
+  a->update = laser_move;
+  a->shape = NULL;
+}
+
+void make_enemy_actors() {
+  byte i;
+  const byte num_actors = 32;
+  for (i=3; i<num_actors; i++) {
+    Actor* a = new_actor();
+    do {
+      a->x = rand() + rand();
+      a->y = rand() + rand();
+    } while ((byte)(a->x - 96) < 64 && (byte)(a->y - 96) < 64);
     a->shape = (void*) all_sprites[i%9];
     a->update = random_walk;
     a->draw = draw_actor_normal;
-    a->updatefreq = i*8;
-    a->updatetimer = i*8;
-    if (i > LASER) a->flags = F_KILLABLE;
-    if (i != LASER) add_actor(i);
+    if (i < 5) add_actor(&fast_list, a);
+    else add_actor(&slow_lists[i&3], a);
+    WATCHDOG;
   }
-  actors[PLAYER].shape = (void*) playersprite1;
-  actors[PLAYER].update = player_move;
-  actors[PLAYER].updatefreq = 0xff;
-  actors[LASER].update = laser_move;
-  actors[LASER].shape = NULL;
-  actors[LASER].updatefreq = 0xff;
+}
+
+void main() {
+  init();
+  make_player_actors();
+  make_enemy_actors();
+  new_effect(redraw_playfield);
   WATCHDOG;
-  while (1) {
-    update_screen_section(GDIM2*3/4, GDIM2*4/4, 0x00, 0x2f);
-    update_screen_section(GDIM2*0/4, GDIM2*1/4, 0x30, 0x7f);
-    update_screen_section(GDIM2*1/4, GDIM2*2/4, 0x80, 0xbf);
-    update_screen_section(GDIM2*2/4, GDIM2*3/4, 0xc0, 0xff);
-    ensure_update(PLAYER);
-    ensure_update(LASER);
+  while (actors[PLAYER].shape) {
+    effects_new_frame();
+    while (video_counter >= 0x90) effects_next();
+    update_screen_section(1);
+    while (video_counter < 0x90) effects_next();
+    update_screen_section(0);
+    switch (frame & 7) {
+      case 0:
+        draw_box(0,0,303,255,0x11);
+        break;
+    }
     frame++;
     WATCHDOG;
   }
+  main();
 }

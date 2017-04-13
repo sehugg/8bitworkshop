@@ -3,7 +3,7 @@
 var WILLIAMS_PRESETS = [
   {id:'gfxtest.c', name:'Graphics Test'},
   {id:'sprites.c', name:'Sprite Test'},
-  {id:'game1.c', name:'Game'},
+  {id:'game1.c', name:'Raster Paranoia Game'},
   {id:'bitmap_rle.c', name:'RLE Bitmap'},
 ];
 
@@ -32,7 +32,7 @@ var WilliamsPlatform = function(mainElement, proto) {
   var cpuFrequency = xtal/3/4;
   var cpuCyclesPerFrame = cpuFrequency/60; // TODO
   var cpuScale = 1;
-  var INITIAL_WATCHDOG = 64;
+  var INITIAL_WATCHDOG = 8;
   var PIXEL_ON = 0xffeeeeee;
   var PIXEL_OFF = 0xff000000;
 
@@ -304,19 +304,25 @@ var WilliamsPlatform = function(mainElement, proto) {
     timer = new AnimationTimer(60, function() {
 			if (!self.isRunning())
 				return;
-      // interrupts happen every 1/4 of the screen
-      for (var quarter=0; quarter<4; quarter++) {
-        video_counter = [0x00, 0x3c, 0xbc, 0xfc][quarter];
-        if (membus.read != memread_defender || pia6821[7] == 0x3c) { // TODO?
-          if (cpu.interrupt)
-            cpu.interrupt();
-          if (cpu.requestInterrupt)
-            cpu.requestInterrupt();
+      var cpuCyclesPerSection = Math.round(cpuCyclesPerFrame / 65);
+      for (var sl=0; sl<256; sl+=4) {
+        video_counter = sl;
+        // interrupts happen every 1/4 of the screen
+        if (sl == 0 || sl == 0x3c || sl == 0xbc || sl == 0xfc) {
+          if (membus.read != memread_defender || pia6821[7] == 0x3c) { // TODO?
+            if (cpu.interrupt)
+              cpu.interrupt();
+            if (cpu.requestInterrupt)
+              cpu.requestInterrupt();
+          }
         }
         if (!self.wasBreakpointHit())
-          self.runCPU(cpu, cpuCyclesPerFrame/4);
-        video.updateFrame(0, 0, quarter*64, 0, 64, 304);
+          self.runCPU(cpu, cpuCyclesPerSection);
+        if (sl < 256) video.updateFrame(0, 0, 256-4-sl, 0, 4, 304);
       }
+      // last 6 lines
+      if (!self.wasBreakpointHit())
+        self.runCPU(cpu, cpuCyclesPerSection*2);
       if (screenNeedsRefresh) {
         for (var i=0; i<0x9800; i++)
           drawDisplayByte(i, ram.mem[i]);
