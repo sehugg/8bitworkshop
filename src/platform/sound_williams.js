@@ -1,7 +1,7 @@
 "use strict";
 
 var WILLIAMS_SOUND_PRESETS = [
-  {id:'wavetable.c', name:'Wavetable Synth'},
+  {id:'swave.c', name:'Wavetable Synth'},
 ];
 
 /****************************************************************************

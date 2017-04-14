@@ -131,7 +131,7 @@ var WilliamsPlatform = function(mainElement, proto) {
 
   var iowrite_williams = new AddressDecoder([
     [0x0,   0xf,   0xf,   setPalette],
-    [0x803, 0x803, 0xf,   function(a,v) { if (worker) worker.postMessage({command:v}); }],
+    [0x80c, 0x80c, 0xf,   function(a,v) { if (worker) worker.postMessage({command:v}); }],
     //[0x804, 0x807, 0x3,   function(a,v) { console.log('iowrite',a); }], // TODO: sound
     //[0x80c, 0x80f, 0x3,   function(a,v) { console.log('iowrite',a+4); }], // TODO: sound
     [0x900, 0x9ff, 0,     function(a,v) { banksel = v & 0x1; }],
@@ -338,6 +338,7 @@ var WilliamsPlatform = function(mainElement, proto) {
   }
 
   this.loadSoundROM = function(data) {
+    console.log("loading sound ROM " + data.length + " bytes");
     var soundrom = padBytes(data, 0x4000);
     worker.postMessage({rom:soundrom});
   }
@@ -346,10 +347,12 @@ var WilliamsPlatform = function(mainElement, proto) {
     if (data.length > 2) {
       if (data.length > 0xc000) {
         self.loadSoundROM(data.slice(0xc000));
-        rom = rom.slice(data, 0, 0xc000);
-      } else {
-        rom = padBytes(data, 0xc000);
+        rom = rom.slice(0, 0xc000);
       }
+      else if (data.length > 0x9000 && data[0x9000]) {
+        self.loadSoundROM(data.slice(0x9000));
+      }
+      rom = padBytes(data, 0xc000);
     }
     self.reset();
   }

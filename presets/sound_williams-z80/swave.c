@@ -44,23 +44,16 @@ const char WAVES[] = {
 const sbyte* wav;
 SoundEffect e;
 
-const SoundEffect DEFAULT_SOUND = {
-  2000, 0, 3000, -1, 0x40, 0
+const SoundEffect SOUNDS[] = {
+  { 2000, 0, 3000, -1, 0x40, 0 }
 };
 
 void play();
 
 void main() {
   if (command == 0) HALT;
-  memcpy(&e, &DEFAULT_SOUND, sizeof(e));
+  memcpy(&e, &SOUNDS[command-1], sizeof(e));
   play();
-  /*
-  char i;
-  char j;
-  for (i=0; i<255; i++) {
-    for (j=0; j<i; j++) dac=j^i;
-  }
-  */
   HALT;
 }
 

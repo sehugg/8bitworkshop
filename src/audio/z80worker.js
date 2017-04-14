@@ -51,6 +51,9 @@ var cpuFrequency = 18432000/6; // 3.072 MHz
 var cpuCyclesPerFrame = cpuFrequency/60;
 var cpuAudioFactor = 32;
 
+rom = new RAM(0x4000).mem;
+// sample: [0xe,0x0,0x6,0x0,0x78,0xb9,0x30,0x06,0xa9,0xd3,0x00,0x04,0x18,0xf6,0x0c,0x79,0xd6,0xff,0x38,0xee,0x76,0x18,0xea];
+rom.fill(0x76); // HALT opcodes
 
 function fillBuffer() {
   var t = cpu.getTstates() / cpuAudioFactor;
@@ -63,9 +66,6 @@ function fillBuffer() {
 
 function start() {
   ram = new RAM(0x400);
-  rom = new RAM(0x4000).mem;
-  // sample: [0xe,0x0,0x6,0x0,0x78,0xb9,0x30,0x06,0xa9,0xd3,0x00,0x04,0x18,0xf6,0x0c,0x79,0xd6,0xff,0x38,0xee,0x76,0x18,0xea];
-  rom.fill(0x76); // HALT opcodes
   membus = {
     read: new AddressDecoder([
       [0x0000, 0x3fff, 0x3fff, function(a) { return rom ? rom[a] : null; }],
@@ -91,6 +91,7 @@ function start() {
     ioBus: iobus
   });
   current_buffer = new Int16Array(bufferLength);
+  console.log('started audio');
 }
 
 function timerCallback() {
@@ -115,6 +116,7 @@ function timerCallback() {
 
 function reset() {
   if (!bufferLength) return;
+  cpu.setHalted(0);
   cpu.reset();
   if (!timer) {
     curTime = new Date().getTime() - timerPeriod*4;
