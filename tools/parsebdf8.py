@@ -28,7 +28,7 @@ rotate = args.rotate
 
 chars = {}
 inbitmap = 0
-with open(sys.argv[1],'r') as f:
+with open(args.bdffile,'r') as f:
     lines = f.readlines()
     for l in lines:
         l = l.strip()

@@ -41,14 +41,14 @@ var PLATFORM_PARAMS = {
     code_start: 0x0,
     code_size: 0x4000,
     data_start: 0x4000,
-    data_size: 0x1000,
+    data_size: 0x400,
   },
 };
 
 var loaded = {}
-function load(modulename) {
+function load(modulename, debug) {
   if (!loaded[modulename]) {
-    importScripts(modulename+".js");
+    importScripts(modulename+(debug?"."+debug+".js":".js"));
     loaded[modulename] = 1;
   }
 }
@@ -712,6 +712,7 @@ function compileSDCC(code, platform) {
   else code = preproc.code;
 
   load("sdcc");
+  //console.profile("sdcc");
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
   var SDCC = sdcc({
@@ -726,15 +727,21 @@ function compileSDCC(code, platform) {
   setupFS(FS, 'sdcc');
   //FS.writeFile("main.c", code, {encoding:'utf8'});
   msvc_errors = [];
+  var t1 = new Date();
   SDCC.callMain(['--vc', '--std-sdcc99', '-mz80', //'-Wall',
     '--c1mode', // '--debug',
     //'-S', 'main.c',
     //'--asm=z80asm',
     '--less-pedantic',
-    //'--fomit-frame-pointer',
+    ///'--fomit-frame-pointer',
     '--opt-code-speed',
     '--oldralloc', // TODO: does this make it fater?
+    //'--cyclomatic',
+    //'--nooverlay','--nogcse','--nolabelopt','--noinvariant','--noinduction','--nojtbound','--noloopreverse','--no-peep','--nolospre',
     '-o', 'main.asm']);
+  var t2 = new Date();
+  //console.profileEnd();
+  //console.log(t2.getTime() - t1.getTime());
   /*
   // ignore if all are warnings (TODO?)
   var nwarnings = 0;

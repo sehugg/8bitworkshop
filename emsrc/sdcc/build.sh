@@ -1,3 +1,4 @@
+#!/bin/bash
 
 rm -fr /tmp/sdcc
 mkdir /tmp/sdcc

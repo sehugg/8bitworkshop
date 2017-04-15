@@ -304,3 +304,111 @@ var WorkerSoundChannel = function(worker) {
   }
 
 }
+
+// SampleAudio
+
+var SampleAudio = function(clockfreq) {
+  var self = this;
+  var sfrac, sinc, accum;
+  var buffer, bufpos, bufferlist;
+
+  function mix(ape) {
+    var buflen=ape.outputBuffer.length;
+    var lbuf = ape.outputBuffer.getChannelData(0);
+    //var rbuf = ape.outputBuffer.getChannelData(1);
+    var m = this.module;
+    if (!m) m = ape.srcElement.module;
+    if (!m) return;
+    if (m.callback) {
+      m.callback(lbuf);
+      return;
+    } else {
+      var buf = bufferlist[1];
+      for (var i=0; i<lbuf.length; i++) {
+        lbuf[i] = buf[i];
+      }
+    }
+  }
+
+  function createContext() {
+    var AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext;
+    if (! AudioContext) {
+      console.log("no web audio context");
+      return;
+    }
+    self.context = new AudioContext();
+    self.sr=self.context.sampleRate;
+    self.bufferlen=(self.sr > 44100) ? 4096 : 2048;
+
+    // Amiga 500 fixed filter at 6kHz. WebAudio lowpass is 12dB/oct, whereas
+    // older Amigas had a 6dB/oct filter at 4900Hz.
+    self.filterNode=self.context.createBiquadFilter();
+    if (self.amiga500) {
+      self.filterNode.frequency.value=6000;
+    } else {
+      self.filterNode.frequency.value=28867;
+    }
+
+    // "LED filter" at 3275kHz - off by default
+    self.lowpassNode=self.context.createBiquadFilter();
+    self.lowpassNode.frequency.value=28867;
+    self.filter=false;
+
+    // mixer
+    if ( typeof self.context.createScriptProcessor === 'function') {
+      self.mixerNode=self.context.createScriptProcessor(self.bufferlen, 1, 1);
+    } else {
+      self.mixerNode=self.context.createJavaScriptNode(self.bufferlen, 1, 1);
+    }
+
+    self.mixerNode.module=self;
+    self.mixerNode.onaudioprocess=mix;
+
+    // compressor for a bit of volume boost, helps with multich tunes
+    self.compressorNode=self.context.createDynamicsCompressor();
+
+    // patch up some cables :)
+    self.mixerNode.connect(self.filterNode);
+    self.filterNode.connect(self.lowpassNode);
+    self.lowpassNode.connect(self.compressorNode);
+    self.compressorNode.connect(self.context.destination);
+  }
+
+  this.start = function() {
+    if (!this.context) createContext();
+    sinc = this.sr * 1.0 / clockfreq;
+    sfrac = 0;
+    accum = 0;
+    bufpos = 0;
+    bufferlist = [];
+    for (var i=0; i<2; i++) {
+      var arrbuf = new ArrayBuffer(self.bufferlen*4);
+      bufferlist[i] = new Float32Array(arrbuf);
+    }
+    buffer = bufferlist[0];
+  }
+
+  this.stop = function() {
+    if (this.context) {
+      this.context.close();
+      this.context = null;
+    }
+  }
+
+  this.feedSample = function(value, count) {
+    while (count-- > 0) {
+      accum += value;
+      sfrac += sinc;
+      if (sfrac >= 1) {
+        buffer[bufpos++] = accum / sfrac;
+        sfrac -= 1;
+        accum = 0;
+        if (bufpos >= buffer.length) {
+          bufpos = 0;
+          bufferlist[0] = bufferlist[1];
+          bufferlist[1] = buffer;
+        }
+      }
+    }
+  }
+}

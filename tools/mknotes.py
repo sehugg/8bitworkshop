@@ -1,11 +1,16 @@
 #!/usr/bin/python
 
-import sys, math
+import sys, string, math, argparse
 
-test_notes = int(sys.argv[1]) or 49
-final_notes = int(sys.argv[2]) or 64
+parser = argparse.ArgumentParser()
+parser.add_argument('-l', '--length', type=int, default=64, help="length of note table")
+parser.add_argument('-u', '--upper', type=int, default=49, help="upper note # to test")
+parser.add_argument('-f', '--freq', type=float, default=3579545/32.0, help="base frequency (Hz)")
+args = parser.parse_args()
 
-basehz = 3579545/32.0
+test_notes = args.upper
+final_notes = args.length
+basehz = args.freq
 
 results = []
 

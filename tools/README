@@ -1,17 +1,24 @@
 
-This directory contains tools for bitmap conversion.
+This directory contains 8bitworkshop tools for bitmap and
+music conversion.
 
 Requires ImageMagick (convert) and Python 2.x.
+MIDI tools require Mido (pip install mido).
 
-make <filename>.pf.hex
+On Ubuntu:
 
-	Converts a .jpg into a 40-pixel wide playfield bitmap.
-	Cut-and-paste output into program.
-	(See Chapter 20, Asynchronous Bitmaps)
+$ sudo apt update
+$ sudo apt install python python-pip imagemagick curl
+$ sudo pip install mido
 
-make <filename>.48.hex
+To use the tools, go to the appropriate directory and
+look at the Makefile for each:
 
-	Converts a .jpg into a 48-pixel wide sprite bitmap.
-	Cut-and-paste output into program.
-	(See Chapter 22, A Big 48-Pixel Sprite)
+vcs/		Atari 2600/VCS
+mw8080/		Midway 8080
+scramble/	Galaxian/Scramble
+vicdual/	VIC Dual
+williams/	Williams
 
+fonts/		Example fonts
+images/		Example images

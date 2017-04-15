@@ -1,0 +1,31 @@
+all: js/sdcc.js js/sdasz80.js js/sdldz80.js \
+     wasm/sdcc.js wasm/sdasz80.js wasm/sdldz80.js
+
+js/%.js: js/%.bc
+	emcc -Oz --memory-init-file 0 \
+		-s ASM_JS=1 \
+		-s MODULARIZE=1 \
+		-s EXPORT_NAME=\"'$*'\" \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s FORCE_FILESYSTEM=1 \
+		$< -o $@ $(ARGS_$*) \
+
+wasm/%.js: js/%.bc
+	emcc -Oz --memory-init-file 0 \
+		-s WASM=1 \
+		-s MODULARIZE=1 \
+		-s EXPORT_NAME=\"'$*'\" \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s FORCE_FILESYSTEM=1 \
+		$< -o $@ $(ARGS_$*) \
+
+
+debugjs/%.js: js/%.bc
+	emcc -O1 --memory-init-file 0 \
+		-s ASM_JS=1 \
+		-s MODULARIZE=1 \
+		-s EXPORT_NAME=\"'$*'\" \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s FORCE_FILESYSTEM=1 \
+		$< -o $@ $(ARGS_$*) \
+

@@ -62,10 +62,10 @@ var WilliamsSoundPlatform = function(mainElement) {
     membus = {
       read: new AddressDecoder([
 				[0x0000, 0x3fff, 0x3fff, function(a) { return rom ? rom[a] : null; }],
-				[0x4000, 0x5fff, 0xfff,  function(a) { return ram.mem[a]; }]
+				[0x4000, 0x7fff, 0x3ff,  function(a) { return ram.mem[a]; }]
 			]),
 			write: new AddressDecoder([
-				[0x4000, 0x5fff, 0xfff,  function(a,v) { ram.mem[a] = v; }],
+				[0x4000, 0x7fff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
 			]),
       isContended: function() { return false; },
     };

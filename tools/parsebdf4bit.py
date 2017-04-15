@@ -8,17 +8,11 @@ import sys,string,argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-s', '--start', type=int, default=0, help="index of first character")
 parser.add_argument('-e', '--end', type=int, default=255, help="index of last character")
-parser.add_argument('-i', '--invert', action="store_true", help="invert bits")
-parser.add_argument('-r', '--rotate', action="store_true", help="rotate bits (vertical)")
-parser.add_argument('-f', '--flip', action="store_true", help="flip bits (horizontal)")
 parser.add_argument('bdffile', help="BDF bitmap file")
 args = parser.parse_args()
 
 lochar = args.start
 hichar = args.end
-invert = args.invert
-flip = args.flip
-rotate = args.rotate
 
 def tohex(v):
     return '%02x'%v
@@ -27,7 +21,7 @@ def tohex2(v):
 
 chars = {}
 inbitmap = 0
-with open(sys.argv[1],'r') as f:
+with open(args.bdffile,'r') as f:
     lines = f.readlines()
     for l in lines:
         l = l.strip()
