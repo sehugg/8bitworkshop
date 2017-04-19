@@ -131,9 +131,29 @@ describe('Worker', function() {
   it('should compile SDCC w/ include', function(done) {
     compile('sdcc', '#include <string.h>\nvoid main() {\nstrlen(0);\n}\n', 'mw8080bw', done, 8192, 2, 0);
   });
-  it('should compile big SDCC file', function(done) {
-    var csource = ab2str(fs.readFileSync('test/cli/test1.c'));
-    compile('sdcc', csource, 'vector-z80color', done, 32768, 298, 0);
+  it('should compile vicdual skeleton', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/vicdual/skeleton.sdcc'));
+    compile('sdcc', csource, 'vicdual', done, 16416, 45, 0);
+  });
+  it('should compile mw8080 skeleton', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/mw8080bw/skeleton.sdcc'));
+    compile('sdcc', csource, 'mw8080bw', done, 8192, 84, 0);
+  });
+  it('should compile galaxian skeleton', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/galaxian-scramble/skeleton.sdcc'));
+    compile('sdcc', csource, 'galaxian-scramble', done, 20512, 29, 0);
+  });
+  it('should compile vector skeleton', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/vector-z80color/skeleton.sdcc'));
+    compile('sdcc', csource, 'vector-z80color', done, 32768, 24, 0);
+  });
+  it('should compile williams skeleton', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/williams-z80/skeleton.sdcc'));
+    compile('sdcc', csource, 'williams-z80', done, 38912, 39, 0);
+  });
+  it('should compile williams_sound skeleton', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/sound_williams-z80/skeleton.sdcc'));
+    compile('sdcc', csource, 'sound_williams-z80', done, 16384, 6, 0);
   });
   it('should NOT compile SDCC', function(done) {
     compile('sdcc', 'foobar', 'mw8080bw', done, 0, 0, 1);

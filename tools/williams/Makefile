@@ -1,5 +1,5 @@
 
-all: baddies.c badspacerobots.tga tom-thumb.c
+all: baddies.c badspacerobots.tga tom-thumb.c swave.c.rom.h
 
 %.h: %
 	cat $* | hexdump -v -e '"\n" 128/1 "0x%02x,"' > $@

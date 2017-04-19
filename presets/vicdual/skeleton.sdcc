@@ -25,7 +25,7 @@ byte __at (0xe800) tileram[256][8];
 #define COIN1 (input3 & 0x8)
 #define START1 !(input2 & 0x10)
 #define START2 !(input3 & 0x20)
-#define VSYNC (input1 & 0x8)
+#define TIMER500HZ (input2 & 0x8)
 
 inline void set8910(byte reg, byte data) {
   ay8910_reg = reg;

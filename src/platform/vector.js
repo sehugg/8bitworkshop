@@ -348,6 +348,9 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
   this.start = function() {
     cpuram = new RAM(0x2000);
     dvgram = new RAM(0x4000);
+    switches[0] = 0x0;
+    switches[1] = 0xff;
+    switches[2] = 0x0;
     // bus
     bus = {
 
