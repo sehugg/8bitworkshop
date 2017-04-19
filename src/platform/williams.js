@@ -278,6 +278,7 @@ var WilliamsPlatform = function(mainElement, proto) {
       read: memread_williams,
 			write: memwrite_williams,
     };
+    this.readMemory = membus.read;
     //var probebus = new BusProbe(membus);
     var iobus = {
       read: function(a) {return 0;},
@@ -384,7 +385,7 @@ var WilliamsPlatform = function(mainElement, proto) {
   }
 
   this.isRunning = function() {
-    return timer.isRunning();
+    return timer && timer.isRunning();
   }
   this.pause = function() {
     timer.stop();

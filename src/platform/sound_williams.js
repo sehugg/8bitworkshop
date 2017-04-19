@@ -137,7 +137,7 @@ var WilliamsSoundPlatform = function(mainElement) {
   }
 
   this.isRunning = function() {
-    return timer.isRunning();
+    return timer && timer.isRunning();
   }
   this.pause = function() {
     timer.stop();

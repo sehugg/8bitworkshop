@@ -15,7 +15,7 @@ var VicDualPlatform = function(mainElement) {
   this.__proto__ = new BaseZ80Platform();
 
   var cpu, ram, membus, iobus, rom;
-  var video, audio, psg, timer, pixels;
+  var video, audio, psg, timer, pixels, probe;
   var inputs = [0xff, 0xff, 0xff, 0xff^0x8]; // most things active low
 	var palbank = 0;
 
@@ -108,6 +108,7 @@ var VicDualPlatform = function(mainElement) {
 			]),
       isContended: function() { return false; },
     };
+    this.readMemory = membus.read;
     iobus = {
       read: function(addr) {
         return inputs[addr&3];
@@ -119,9 +120,10 @@ var VicDualPlatform = function(mainElement) {
 				if (addr & 0x40) { palbank = val & 3; }; // palette
     	}
     };
+    probe = new BusProbe(membus);
     cpu = window.Z80({
   		display: {},
-  		memory: membus,
+  		memory: probe,
   		ioBus: iobus
   	});
     video = new RasterVideo(mainElement,256,224,{rotate:-90});
@@ -199,7 +201,7 @@ var VicDualPlatform = function(mainElement) {
   }
 
   this.isRunning = function() {
-    return timer.isRunning();
+    return timer && timer.isRunning();
   }
   this.pause = function() {
     timer.stop();
@@ -223,6 +225,7 @@ var VicDualPlatform = function(mainElement) {
       layers: {width:256, height:224, tiles:[]}
     } : null;
   }
+  this.getProbe = function() { return probe; }
 }
 
 PLATFORMS['vicdual'] = VicDualPlatform;

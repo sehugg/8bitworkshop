@@ -264,6 +264,9 @@ var GalaxianPlatform = function(mainElement, options) {
         isContended: function() { return false; },
       };
     }
+    this.readMemory = function(a) {
+      return (a == 0x7000 || a == 0x7800) ? null : membus.read; // ignore watchdog
+    };
     audio = new MasterAudio();
     psg1 = new AY38910_Audio(audio);
     psg2 = new AY38910_Audio(audio);
@@ -368,7 +371,7 @@ var GalaxianPlatform = function(mainElement, options) {
   }
 
   this.isRunning = function() {
-    return timer.isRunning();
+    return timer && timer.isRunning();
   }
   this.pause = function() {
     timer.stop();

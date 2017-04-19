@@ -65,7 +65,7 @@ var VCSPlatform = function() {
     return {x:xpos, y:ypos};
   }
 
-  this.isRunning = function() { return Javatari.room.console.isRunning(); }
+  this.isRunning = function() { return Javatari.room && Javatari.room.console.isRunning(); }
   this.pause = function() { Javatari.room.console.pause(); }
   this.resume = function() { Javatari.room.console.go(); }
   this.step = function() { Javatari.room.console.debugSingleStepCPUClock(); }

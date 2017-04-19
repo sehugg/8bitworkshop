@@ -115,12 +115,10 @@ var current_preset_index = -1; // TODO: use URL
 var current_preset_id = null;
 var assemblyfile = null;
 var sourcefile = null;
-var pcvisits;
 var trace_pending_at_pc;
 var store;
 var pendingWorkerMessages = 0;
 var editor;
-
 var disasmview = CodeMirror(document.getElementById('disassembly'), {
   mode: 'z80',
   theme: 'cobalt',
@@ -128,6 +126,9 @@ var disasmview = CodeMirror(document.getElementById('disassembly'), {
   readOnly: true,
   styleActiveLine: true
 });
+
+var memoryview;
+var profileview;
 
 function newEditor(mode) {
   var isAsm = (mode != 'text/x-csrc');
@@ -146,6 +147,11 @@ function newEditor(mode) {
     timer = setTimeout(function() {
       setCode(editor.getValue());
     }, 200);
+  });
+  editor.on('scroll', function(ed, changeobj) {
+    if (profileview) {
+      profileview.container.scrollTop = editor.getScrollInfo().top;
+    }
   });
   editor.setOption("mode", mode);
 }
@@ -400,7 +406,8 @@ function setCompileOutput(data) {
         platform.loadROM(getCurrentPresetTitle(), rom);
         resume();
         current_output = rom;
-        pcvisits = {};
+        prof_reads = [];
+        prof_writes = [];
         toolbar.removeClass("has-errors");
       } catch (e) {
         console.log(e); // TODO: show error
@@ -447,7 +454,6 @@ function setCompileOutput(data) {
 worker.onmessage = function(e) {
   toolbar.removeClass("is-busy");
   $('#compile_spinner').css('visibility', 'hidden');
-  // TODO: this doesn't completely work yet
   if (pendingWorkerMessages > 1) {
     pendingWorkerMessages = 0;
     setCode(editor.getValue());
@@ -523,7 +529,6 @@ function setupBreakpoint() {
       console.log("BREAKPOINT", hex(PC));
       // TODO: switch to disasm
     }
-    pcvisits[PC] = pcvisits[PC] ? pcvisits[PC]+1 : 1;
     showMemory(state);
     updateDisassembly();
   });
@@ -872,6 +877,136 @@ function _breakExpression() {
   }
 }
 
+function updateDebugWindows() {
+  if (platform.isRunning()) {
+    updateMemoryWindow();
+    updateProfileWindow();
+  }
+  setTimeout(updateDebugWindows, 200);
+}
+
+function getProfileLine(line) {
+  var offset = sourcefile.line2offset[line];
+  if (offset >= 0) {
+    if (prof_reads[offset] > 0)
+      return ""+prof_reads[offset];
+  }
+}
+
+function updateProfileWindow() {
+  if (profileview && sourcefile) {
+    $("#profileview").find('[data-index]').each(function(i,e) {
+      var div = $(e);
+      var lineno = div.attr('data-index') | 0;
+      var newtext = getProfileLine(lineno+1);
+      if (newtext) {
+        var oldtext = div.text();
+        if (oldtext != newtext)
+          div.text(newtext);
+      }
+    });
+  }
+}
+
+function updateMemoryWindow() {
+  if (memoryview) {
+    $("#memoryview").find('[data-index]').each(function(i,e) {
+      var div = $(e);
+      var offset = div.attr('data-index') * 16;
+      var oldtext = div.text();
+      var newtext = getMemoryLineAtOffset(offset);
+      if (oldtext != newtext)
+        div.text(newtext);
+    });
+  }
+}
+
+function getMemoryLineAtOffset(offset) {
+  var s = hex(offset,4) + ' ';
+  for (var i=0; i<16; i++) {
+    var read = platform.readMemory(offset+i);
+    if (i==8) s += ' ';
+    s += ' ' + (read>=0?hex(read,2):'??');
+  }
+  return s;
+}
+
+function getEditorLineHeight() {
+  return $("#editor").find(".CodeMirror-line").first().height();
+}
+
+function showMemoryWindow() {
+  memoryview = new VirtualList({
+    w:$("#emulator").width(),
+    h:$("#emulator").height(),
+    itemHeight: getEditorLineHeight(),
+    totalRows: 0x1000,
+    generatorFn: function(row) {
+      var s = getMemoryLineAtOffset(row * 16);
+      var div = document.createElement("div");
+      div.appendChild(document.createTextNode(s));
+      return div;
+    }
+  });
+  $("#memoryview").empty().append(memoryview.container);
+  updateMemoryWindow();
+  memoryview.scrollToItem(0x800); // TODO
+}
+
+function toggleMemoryWindow() {
+  if ($("#profileview").is(':visible')) toggleProfileWindow();
+  if ($("#memoryview").is(':visible')) {
+    memoryview = null;
+    $("#emulator").show();
+    $("#memoryview").hide();
+  } else {
+    showMemoryWindow();
+    $("#emulator").hide();
+    $("#memoryview").show();
+  }
+}
+
+function createProfileWindow() {
+  profileview = new VirtualList({
+    w:$("#emulator").width(),
+    h:$("#emulator").height(),
+    itemHeight: getEditorLineHeight(),
+    totalRows: editor.lineCount(),
+    generatorFn: function(row) {
+      var div = document.createElement("div");
+      div.appendChild(document.createTextNode("."));
+      return div;
+    }
+  });
+  $("#profileview").empty().append(profileview.container);
+  updateProfileWindow();
+}
+
+var prof_reads, prof_writes;
+
+function profileWindowCallback(a,v) {
+  if (v >= 0) {
+    prof_writes[a] = (prof_writes[a]|0)+1;
+  } else {
+    prof_reads[a] = (prof_reads[a]|0)+1;
+  }
+}
+
+function toggleProfileWindow() {
+  if ($("#memoryview").is(':visible')) toggleMemoryWindow();
+  if ($("#profileview").is(':visible')) {
+    profileview = null;
+    platform.getProbe().deactivate();
+    $("#emulator").show();
+    $("#profileview").hide();
+  } else {
+    createProfileWindow();
+    platform.getProbe().activate(profileWindowCallback);
+    $("#emulator").hide();
+    $("#profileview").show();
+  }
+}
+
 function setupDebugControls(){
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
@@ -883,6 +1018,12 @@ function setupDebugControls(){
   if (platform_id == 'vcs') {
     $("#dbg_timing").click(traceTiming).show();
   }
+  else if (platform.readAddress) {
+    $("#dbg_memory").click(toggleMemoryWindow).show();
+  }
+  if (platform.getProbe) {
+    $("#dbg_profile").click(toggleProfileWindow).show();
+  }
   if (platform.saveState) { // TODO: only show if listing or disasm available
     $("#dbg_disasm").click(toggleDisassembly).show();
   }
@@ -893,6 +1034,7 @@ function setupDebugControls(){
   $("#item_reset_file").click(_resetPreset);
   $("#item_debug_expr").click(_breakExpression);
   $("#item_download_rom").click(_downloadROMImage);
+  updateDebugWindows();
 }
 
 function showWelcomeMessage() {
@@ -938,11 +1080,6 @@ function showWelcomeMessage() {
 
 ///////////////////////////////////////////////////
 
-function setupBitmapEditor() {
-}
-
-///////////////////////////////////////////////////
-
 var qs = (function (a) {
     if (!a || a == "")
         return {};
@@ -975,7 +1112,6 @@ function startPlatform() {
     // start platform and load file
     preloadWorker(qs['file']);
     setupDebugControls();
-    setupBitmapEditor();
     platform.start();
     loadPreset(qs['file']);
     updateSelector();

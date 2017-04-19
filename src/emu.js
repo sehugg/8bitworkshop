@@ -825,11 +825,26 @@ function AddressDecoder(table, options) {
 }
 
 var BusProbe = function(bus) {
+  var active = false;
+  var callback;
+  this.activate = function(_callback) {
+    active = true;
+    callback = _callback;
+  }
+  this.deactivate = function() {
+    active = false;
+    callback = null;
+  }
   this.read = function(a) {
-    var val = bus.read(a);
-    return val;
+    if (active) {
+      callback(a);
+    }
+    return bus.read(a);
   }
   this.write = function(a,v) {
-    return bus.write(a,v);
+    if (active) {
+      callback(a,v);
+    }
+    bus.write(a,v);
   }
 }

@@ -60,6 +60,7 @@ var Midway8080BWPlatform = function(mainElement) {
 			]),
       isContended: function() { return false; },
     };
+    this.readMemory = membus.read;
     iobus = {
       read: function(addr) {
 				addr &= 0x3;
@@ -177,7 +178,7 @@ var Midway8080BWPlatform = function(mainElement) {
   }
 
   this.isRunning = function() {
-    return timer.isRunning();
+    return timer && timer.isRunning();
   }
   this.pause = function() {
     timer.stop();

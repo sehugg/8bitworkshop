@@ -89,6 +89,7 @@ var AtariVectorPlatform = function(mainElement) {
       ], {gmask:0x7fff})
 
     };
+    this.readMemory = membus.read;
     cpu = self.newCPU(bus);
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
@@ -131,7 +132,7 @@ var AtariVectorPlatform = function(mainElement) {
   }
 
   this.isRunning = function() {
-    return timer.isRunning();
+    return timer && timer.isRunning();
   }
   this.pause = function() {
     timer.stop();
@@ -275,7 +276,7 @@ var AtariColorVectorPlatform = function(mainElement) {
   }
 
   this.isRunning = function() {
-    return timer.isRunning();
+    return timer && timer.isRunning();
   }
   this.pause = function() {
     timer.stop();
@@ -401,7 +402,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
   }
 
   this.isRunning = function() {
-    return timer.isRunning();
+    return timer && timer.isRunning();
   }
   this.pause = function() {
     timer.stop();
