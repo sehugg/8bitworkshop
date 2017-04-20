@@ -191,16 +191,16 @@ var POKEYDeviceChannel = function() {
         if (d > 0 && d < 1 && v > 0) {
           var wav = waveforms[i];
           var cnt = counters[i] += d;
-          if (cnt > POLY17_SIZE+1) {
-            counters[i] -= POLY17_SIZE+1;
+          if (cnt > wav.length) {
+            cnt = counters[i] = cnt - Math.floor(cnt / wav.length) * wav.length;
           }
-          var on = wav[Math.floor(cnt % wav.length)];
+          var on = wav[Math.floor(cnt)];
           if (on) {
             sample += v;
           }
         }
       }
-      sample *= 273;
+      sample *= 128;
       buffer[s] = sample;
       buffer[s+1] = sample;
     }

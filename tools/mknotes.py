@@ -12,6 +12,7 @@ args = parser.parse_args()
 test_notes = args.upper
 final_notes = args.length
 basehz = args.freq
+bias = args.bias
 
 results = []
 
@@ -19,7 +20,7 @@ for a440 in range(4300,4500):
     error = 0
     for note in range(1,test_notes):
         notehz = a440 / 10.0 * math.pow(2.0, (note - 49) / 12.0);
-        period = int(round(basehz / notehz))
+        period = int(round(basehz / notehz)) 
         tonehz = basehz / period
         error += abs(notehz-tonehz)
         #print a440,note,notehz,notehz-tonehz,period
@@ -35,6 +36,6 @@ print '//', best_a440, best_error, test_notes
 print "const int note_table[%d] = {" % final_notes
 for note in range(0,final_notes):
     notehz = best_a440 * math.pow(2.0, (note - 49) / 12.0);
-    period = int(round(basehz / notehz))
+    period = int(round(basehz / notehz)) - bias
     print '%d,' % period,
 print "};"

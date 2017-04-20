@@ -7,6 +7,7 @@ var VECTOR_PRESETS = [
   {id:'font.c', name:'Vector Fonts'},
   {id:'threed.c', name:'3D Transformations'},
   {id:'game.c', name:'Space Game'},
+  {id:'music.c', name:'POKEY Music'},
 ]
 
 var ASTEROIDS_KEYCODE_MAP = makeKeycodeMap([
