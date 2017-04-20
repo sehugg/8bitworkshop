@@ -30,12 +30,6 @@ __asm
 ; set up stack pointer, interrupt flag
   	LD    SP,#0xE800
         DI
-; copy initialized data
-	LD    BC, #l__INITIALIZER
-	LD    A, B
-	LD    DE, #s__INITIALIZED
-	LD    HL, #s__INITIALIZER
-      	LDIR
 __endasm;
 	main();
 }
@@ -176,7 +170,7 @@ void ay8910test() {
 }
 
 void main() {
-  palette = 2;
+  palette = 0;
   memcpy(tileram, font8x8, sizeof(font8x8));
   memset(cellram, CHAR(' '), sizeof(cellram));
   draw_box(0,0,27,31,BOX_CHARS);

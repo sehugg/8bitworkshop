@@ -123,6 +123,7 @@ var VCSPlatform = function() {
   this.getToolForFilename = function(fn) {
     return "dasm";
   }
+  this.getDefaultExtension = function() { return ".a"; };
 };
 
 PLATFORMS['vcs'] = VCSPlatform;

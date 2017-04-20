@@ -249,7 +249,7 @@ function _createNewFile(e) {
   var filename = prompt("Create New File", "newfile.a");
   if (filename && filename.length) {
     if (filename.indexOf(".") < 0) {
-      filename += ".a";
+      filename += platform.getDefaultExtension();
     }
     qs['file'] = "local/" + filename;
     gotoNewLocation();
@@ -1038,9 +1038,27 @@ function setupDebugControls(){
 }
 
 function showWelcomeMessage() {
-  if (!localStorage.getItem("8bitworkshop.hello"))
-  {
+  if (!localStorage.getItem("8bitworkshop.splash")) {
+    // OH BOOTSTRAP YOU ARE SO AWESOME A+++++
+    // https://stackoverflow.com/questions/28270333/how-do-i-know-which-button-is-click-when-bootstrap-modal-closes
+    // https://github.com/jschr/bootstrap-modal/issues/224
+    var whichPlatform;
+    $('#welcomeModal button').on('click', function(event) {
+      whichPlatform = $(event.target).data('platform');
+    });
+    $('#welcomeModal img').on('click', function(event) {
+      whichPlatform = $(event.target).data('platform');
+    });
+    $('#welcomeModal').on('hidden.bs.modal', function (event) {
+      localStorage.setItem('8bitworkshop.splash', true);
+      if (whichPlatform && whichPlatform != qs['platform']) {
+        window.location = "?platform=" + whichPlatform;
+      }
+    }).modal('show');
+  }
+  else if (!localStorage.getItem("8bitworkshop.hello")) {
     // Instance the tour
+    var is_vcs = platform_id == 'vcs';
     var tour = new Tour({
       autoscroll:false,
       //storage:false,
@@ -1048,13 +1066,14 @@ function showWelcomeMessage() {
         {
           element: "#editor",
           title: "Welcome to 8bitworkshop!",
-          content: "Type your 6502 code on the left side, and it'll be assembled in real-time. All changes are saved to browser local storage.",
+          content: is_vcs ? "Type your 6502 assembly code into the editor, and it'll be assembled in real-time. All changes are saved to browser local storage."
+                          : "Type your C source code into the editor, and it'll be compiled in real-time. All changes are saved to browser local storage."
         },
         {
           element: "#emulator",
           placement: 'left',
-          title: "Atari VCS Emulator",
-          content: "This is an emulator for the Atari VCS/2600. We'll load your assembled code into the emulator whenever you make changes.",
+          title: "Emulator",
+          content: "This is an emulator for the \"" + platform_id + "\" platform. We'll load your compiled code into the emulator whenever you make changes."
         },
         {
           element: "#preset_select",
@@ -1065,12 +1084,12 @@ function showWelcomeMessage() {
           element: "#debug_bar",
           placement: 'bottom',
           title: "Debug Tools",
-          content: "Use these buttons to set breakpoints, single step through code, pause/resume, and perform timing analysis."
+          content: "Use these buttons to set breakpoints, single step through code, pause/resume, and use debugging tools."
         },
         {
           element: "#dropdownMenuButton",
           title: "Main Menu",
-          content: "Click the menu to create new files and share your work with others."
+          content: "Click the menu to switch between platforms, create new files, or share your work with others."
         },
     ]});
     tour.init();
@@ -1109,6 +1128,7 @@ function startPlatform() {
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
   PRESETS = platform.getPresets();
   if (qs['file']) {
+    showWelcomeMessage();
     // start platform and load file
     preloadWorker(qs['file']);
     setupDebugControls();

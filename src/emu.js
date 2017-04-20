@@ -401,6 +401,7 @@ var Base6502Platform = function() {
     if (fn.endsWith(".s")) return "ca65";
     return "dasm";
   }
+  this.getDefaultExtension = function() { return ".a"; };
 }
 
 function dumpRAM(ram, ramofs, ramlen) {
@@ -588,6 +589,7 @@ var BaseZ80Platform = function() {
     if (fn.endsWith(".s")) return "sdasz80";
     return "z80asm";
   }
+  this.getDefaultExtension = function() { return ".c"; };
   // TODO
   //this.getOpcodeMetadata = function() { }
 }
@@ -646,6 +648,7 @@ var Base6809Platform = function() {
     // TODO: don't create new CPU
     return new CPU6809().disasm(read(pc), read(pc+1), read(pc+2), read(pc+3), read(pc+4), pc);
   }
+  this.getDefaultExtension = function() { return ".asm"; };
   //this.getOpcodeMetadata = function() { }
 }
 
