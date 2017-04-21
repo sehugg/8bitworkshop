@@ -11,6 +11,32 @@ function hex(v, nd) {
   }
 }
 
+function highlightDifferences(s1, s2) {
+  var split1 = s1.split(/(\S+\s+)/).filter(function(n) {return n});
+  var split2 = s2.split(/(\S+\s+)/).filter(function(n) {return n});
+  var i = 0;
+  var j = 0;
+  var result = "";
+  while (i < split1.length && j < split2.length) {
+    var w1 = split1[i];
+    var w2 = split2[j];
+    if (w2 && w2.indexOf("\n") >= 0) {
+      while (i < s1.length && split1[i].indexOf("\n") < 0)
+        i++;
+    }
+    if (w1 != w2) {
+      w2 = '<span class="hilite">' + w2 + '</span>';
+    }
+    result += w2;
+    i++;
+    j++;
+  }
+  while (j < split2.length) {
+      result += split2[j++];
+  }
+  return result;
+}
+
 function lzgmini() {
 
   // Constants

@@ -470,32 +470,6 @@ function setCurrentLine(line) {
 var lastDebugInfo;
 var lastDebugState;
 
-function highlightDifferences(s1, s2) {
-  var split1 = s1.split(/(\S+\s+)/).filter(function(n) {return n});
-  var split2 = s2.split(/(\S+\s+)/).filter(function(n) {return n});
-  var i = 0;
-  var j = 0;
-  var result = "";
-  while (i < split1.length && j < split2.length) {
-    var w1 = split1[i];
-    var w2 = split2[j];
-    if (w2 && w2.indexOf("\n") >= 0) {
-      while (i < s1.length && split1[i].indexOf("\n") < 0)
-        i++;
-    }
-    if (w1 != w2) {
-      w2 = '<span class="hilite">' + w2 + '</span>';
-    }
-    result += w2;
-    i++;
-    j++;
-  }
-  while (j < split2.length) {
-      result += split2[j++];
-  }
-  return result;
-}
-
 function showMemory(state) {
   var s = "";
   if (state) {
@@ -611,11 +585,6 @@ function getClockCountsAtPC(pc) {
   return meta; // minCycles, maxCycles
 }
 
-var pc2minclocks = {};
-var pc2maxclocks = {};
-var jsrresult = {};
-var MAX_CLOCKS = 76*2;
-
 function byte2signed(b) {
   b &= 0xff;
   return (b < 0x80) ? b : -(256-b);
@@ -647,141 +616,6 @@ function constraintEquals(a,b) {
   return null;
 }
 
-// TODO: move to file
-function _traceInstructions(pc, minclocks, maxclocks, subaddr, constraints) {
-  //console.log("trace", hex(pc), minclocks, maxclocks);
-  if (!minclocks) minclocks = 0;
-  if (!maxclocks) maxclocks = 0;
-  if (!constraints) constraints = {};
-  var modified = true;
-  var abort = false;
-  for (var i=0; i<1000 && modified && !abort; i++) {
-    modified = false;
-    var meta = getClockCountsAtPC(pc);
-    var lob = platform.readAddress(pc+1);
-    var hib = platform.readAddress(pc+2);
-    var addr = lob + (hib << 8);
-    var pc0 = pc;
-    if (!pc2minclocks[pc0] || minclocks < pc2minclocks[pc0]) {
-      pc2minclocks[pc0] = minclocks;
-      modified = true;
-    }
-    if (!pc2maxclocks[pc0] || maxclocks > pc2maxclocks[pc0]) {
-      pc2maxclocks[pc0] = maxclocks;
-      modified = true;
-    }
-    //console.log(hex(pc),minclocks,maxclocks,meta);
-    if (!meta.insnlength) {
-      console.log("Illegal instruction!", hex(pc), hex(meta.opcode), meta);
-      break;
-    }
-    pc += meta.insnlength;
-    var oldconstraints = constraints;
-    constraints = null;
-    // TODO: if jump to zero-page, maybe assume RTS?
-    switch (meta.opcode) {
-      /*
-      case 0xb9: // TODO: hack for zero page,y
-        if (addr < 0x100)
-          meta.maxCycles -= 1;
-        break;
-      */
-      case 0x85:
-        if (lob == 0x2) { // STA WSYNC
-          minclocks = maxclocks = 0;
-          meta.minCycles = meta.maxCycles = 0;
-        }
-        break;
-      case 0x20: // JSR
-        _traceInstructions(addr, minclocks, maxclocks, addr, constraints);
-        var result = jsrresult[addr];
-        if (result) {
-          minclocks = result.minclocks;
-          maxclocks = result.maxclocks;
-        } else {
-          console.log("No JSR result!", hex(pc), hex(addr));
-          return;
-        }
-        break;
-      case 0x4c: // JMP
-        pc = addr; // TODO: make sure in ROM space
-        break;
-      case 0x60: // RTS
-        if (subaddr) {
-          // TODO: combine with previous result
-          var result = jsrresult[subaddr];
-          if (!result) {
-            result = {minclocks:minclocks, maxclocks:maxclocks};
-          } else {
-            result = {
-              minclocks:Math.min(minclocks,result.minclocks),
-              maxclocks:Math.max(maxclocks,result.maxclocks)
-            }
-          }
-          jsrresult[subaddr] = result;
-          console.log("RTS", hex(pc), hex(subaddr), jsrresult[subaddr]);
-        }
-        return;
-      case 0x10: case 0x30: // branch
-      case 0x50: case 0x70:
-      case 0x90: case 0xB0:
-      case 0xD0: case 0xF0:
-        var newpc = pc + byte2signed(lob);
-        var crosspage = (pc>>8) != (newpc>>8);
-        if (!crosspage) meta.maxCycles--;
-        // TODO: other instructions might modify flags too
-        var cons = BRANCH_CONSTRAINTS[Math.floor((meta.opcode-0x10)/0x20)];
-        var cons0 = constraintEquals(oldconstraints, cons[0]);
-        var cons1 = constraintEquals(oldconstraints, cons[1]);
-        if (cons0 !== false) {
-          _traceInstructions(newpc, minclocks+meta.maxCycles, maxclocks+meta.maxCycles, subaddr, cons[0]);
-        }
-        if (cons1 === false) {
-          console.log("abort", hex(pc), oldconstraints, cons[1]);
-          abort = true;
-        }
-        constraints = cons[1]; // not taken
-        meta.maxCycles = meta.minCycles; // branch not taken, no extra clock(s)
-        break;
-      case 0x6c:
-        console.log("Instruction not supported!", hex(pc), hex(meta.opcode), meta); // TODO
-        return;
-    }
-    // TODO: wraparound?
-    minclocks = Math.min(MAX_CLOCKS, minclocks + meta.minCycles);
-    maxclocks = Math.min(MAX_CLOCKS, maxclocks + meta.maxCycles);
-  }
-}
-
-function showLoopTimingForPC(pc) {
-  pc2minclocks = {};
-  pc2maxclocks = {};
-  jsrresult = {};
-  // recurse through all traces
-  _traceInstructions(pc | platform.getOriginPC(), MAX_CLOCKS, MAX_CLOCKS);
-  // show the lines
-  for (var line in sourcefile.line2offset) {
-    var pc = sourcefile.line2offset[line];
-    var minclocks = pc2minclocks[pc];
-    var maxclocks = pc2maxclocks[pc];
-    if (minclocks>=0 && maxclocks>=0) {
-      var s;
-      if (maxclocks == minclocks)
-        s = minclocks + "";
-      else
-        s = minclocks + "-" + maxclocks;
-      if (maxclocks == MAX_CLOCKS)
-        s += "+";
-      var textel = document.createTextNode(s);
-      editor.setGutterMarker(line-1, "gutter-bytes", textel);
-    }
-  }
-}
-
-function traceTiming() {
-  trace_pending_at_pc = platform.getOriginPC();
-  setCode(editor.getValue());
-}
 
 /*
 function showLoopTimingForCurrentLine() {
