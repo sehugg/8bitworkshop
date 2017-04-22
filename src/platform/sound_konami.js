@@ -56,11 +56,8 @@ var KonamiSoundPlatform = function(mainElement) {
         }
     	}
     };
-    cpu = window.Z80({
-  		display: {},
-  		memory: membus,
-  		ioBus: iobus
-  	});
+    this.readAddress = membus.read;
+    cpu = this.newCPU(membus, iobus);
     psg = new PsgDeviceChannel();
     master = new MasterChannel();
     psg.setMode(PsgDeviceChannel.MODE_SIGNED);
@@ -135,9 +132,6 @@ var KonamiSoundPlatform = function(mainElement) {
   this.reset = function() {
     cpu.reset();
     if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
-  }
-  this.readAddress = function(addr) {
-    return membus.read(addr); // TODO?
   }
 }
 

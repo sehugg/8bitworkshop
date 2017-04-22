@@ -441,21 +441,32 @@ function cpuStateToLongString_Z80(c) {
 
 var BaseZ80Platform = function() {
 
+  var _cpu;
+  var probe;
+
   window.buildZ80({
   	applyContention: false // TODO???
   });
 
-  // TODO: refactor w/ platforms
   this.newCPU = function(membus, iobus) {
-    return window.Z80({
+    probe = new BusProbe(membus);
+    _cpu = window.Z80({
      display: {},
-     memory: membus,
+     memory: probe,
      ioBus: iobus
    });
+   return _cpu;
   }
+
+  this.getProbe = function() { return probe; }
+  this.getPC = function() { return _cpu.getPC(); }
+  this.getSP = function() { return _cpu.getSP(); }
 
   // TODO: refactor other parts into here
   this.runCPU = function(cpu, cycles) {
+    _cpu = cpu; // TODO?
+    if (this.wasBreakpointHit())
+      return 0;
     var debugCond = this.getDebugCallback();
     var targetTstates = cpu.getTstates() + cycles;
     if (debugCond) { // || trace) {

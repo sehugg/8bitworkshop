@@ -15,7 +15,7 @@ var VicDualPlatform = function(mainElement) {
   this.__proto__ = new BaseZ80Platform();
 
   var cpu, ram, membus, iobus, rom;
-  var video, audio, psg, timer, pixels, probe;
+  var video, audio, psg, timer, pixels;
   var inputs = [0xff, 0xff, 0xff, 0xff^0x8]; // most things active low
 	var palbank = 0;
 
@@ -108,7 +108,7 @@ var VicDualPlatform = function(mainElement) {
 			]),
       isContended: function() { return false; },
     };
-    this.readMemory = membus.read;
+    this.readAddress = membus.read;
     iobus = {
       read: function(addr) {
         return inputs[addr&3];
@@ -120,12 +120,7 @@ var VicDualPlatform = function(mainElement) {
 				if (addr & 0x40) { palbank = val & 3; }; // palette
     	}
     };
-    probe = new BusProbe(membus);
-    cpu = window.Z80({
-  		display: {},
-  		memory: probe,
-  		ioBus: iobus
-  	});
+    cpu = this.newCPU(membus, iobus);
     video = new RasterVideo(mainElement,256,224,{rotate:-90});
     audio = new MasterAudio();
 		psg = new AY38910_Audio(audio);
@@ -154,14 +149,7 @@ var VicDualPlatform = function(mainElement) {
         targetTstates += cpuCyclesPerLine;
 				if (sl == vblankStart) inputs[1] |= 0x8;
 				if (sl == vsyncEnd) inputs[1] &= ~0x8;
-        if (debugCond) {
-          while (cpu.getTstates() < targetTstates) {
-            if (debugCond && debugCond()) { debugCond = null; }
-            cpu.runFrame(cpu.getTstates() + 1);
-          }
-        } else {
-          cpu.runFrame(targetTstates);
-        }
+        self.runCPU(cpu, targetTstates - cpu.getTstates());
       }
       video.updateFrame();
       self.restartDebugState();
@@ -216,16 +204,12 @@ var VicDualPlatform = function(mainElement) {
 		psg.reset();
     if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
   }
-  this.readAddress = function(addr) {
-    return membus.read(addr & 0xffff); // TODO?
-  }
   this.setFrameStats = function(on) {
     framestats = on ? {
       palette: palette,
       layers: {width:256, height:224, tiles:[]}
     } : null;
   }
-  this.getProbe = function() { return probe; }
 }
 
 PLATFORMS['vicdual'] = VicDualPlatform;

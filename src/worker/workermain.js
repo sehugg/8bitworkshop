@@ -6,42 +6,49 @@ var PLATFORM_PARAMS = {
     code_size: 0x2000,
     data_start: 0x2000,
     data_size: 0x400,
+    stack_end: 0x2400,
   },
   'vicdual': {
     code_start: 0x0,
     code_size: 0x4020,
     data_start: 0xe400,
     data_size: 0x400,
+    stack_end: 0xe800,
   },
   'galaxian': {
     code_start: 0x0,
     code_size: 0x4000,
     data_start: 0x4000,
     data_size: 0x400,
+    stack_end: 0x4800,
   },
   'galaxian-scramble': {
     code_start: 0x0,
     code_size: 0x5020,
     data_start: 0x4000,
     data_size: 0x400,
+    stack_end: 0x4800,
   },
   'williams-z80': {
     code_start: 0x0,
     code_size: 0x9800,
     data_start: 0x9800,
     data_size: 0x2800,
+    stack_end: 0xc000,
   },
   'vector-z80color': {
     code_start: 0x0,
     code_size: 0x8000,
     data_start: 0xe000,
     data_size: 0x2000,
+    stack_end: 0x0,
   },
   'sound_williams-z80': {
     code_start: 0x0,
     code_size: 0x4000,
     data_start: 0x4000,
     data_size: 0x400,
+    stack_end: 0x8000,
   },
 };
 
@@ -685,22 +692,19 @@ function assemblelinkSDASZ80(code, platform) {
     var asmlines = parseListing(lstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2, 5, 3);
     var srclines = parseSourceLines(lstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
     // parse symbol map
-    /*
     var symbolmap = {};
-    console.log(mapout);
     for (var s of mapout.split("\n")) {
       var toks = s.split(" ");
-      if (s[0] == 'DEF') {
-        symbolmap[s[1]] = s[2];
+      if (toks[0] == 'DEF' && !toks[1].startsWith("A$main$")) {
+        symbolmap[toks[1]] = parseInt(toks[2], 16);
       }
     }
-    */
     return {
       output:parseIHX(hexout, params.code_start, params.code_size),
       lines:asmlines,
       srclines:srclines,
       errors:msvc_errors, // TODO?
-      symbolmap:mapout,
+      symbolmap:symbolmap,
       intermediate:{listing:rstout},
     };
   }
@@ -897,6 +901,7 @@ onmessage = function(e) {
   var toolfn = TOOLS[e.data.tool];
   if (!toolfn) throw "no tool named " + e.data.tool;
   var result = toolfn(code, platform);
+  result.params = PLATFORM_PARAMS[platform];
   if (result) {
     postMessage(result);
   }

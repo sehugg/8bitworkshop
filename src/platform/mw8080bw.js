@@ -13,6 +13,7 @@ var Midway8080BWPlatform = function(mainElement) {
   this.__proto__ = new BaseZ80Platform();
 
   var cpu, ram, membus, iobus, rom;
+  var probe;
   var video, timer, pixels, displayPCs;
   var inputs = [0xe,0x8,0x0];
   var bitshift_offset = 0;
@@ -60,7 +61,7 @@ var Midway8080BWPlatform = function(mainElement) {
 			]),
       isContended: function() { return false; },
     };
-    this.readMemory = membus.read;
+    this.readAddress = membus.read;
     iobus = {
       read: function(addr) {
 				addr &= 0x3;
@@ -96,11 +97,7 @@ var Midway8080BWPlatform = function(mainElement) {
         }
     	}
     };
-    cpu = window.Z80({
-  		display: {},
-  		memory: membus,
-  		ioBus: iobus
-  	});
+    cpu = this.newCPU(membus, iobus);
     video = new RasterVideo(mainElement,256,224,{rotate:-90});
     video.create();
 		$(video.canvas).click(function(e) {
@@ -190,9 +187,6 @@ var Midway8080BWPlatform = function(mainElement) {
     cpu.reset();
     cpu.setTstates(0);
     watchdog_counter = INITIAL_WATCHDOG;
-  }
-  this.readAddress = function(addr) {
-    return membus.read(addr);
   }
 }
 

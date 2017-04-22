@@ -90,7 +90,7 @@ var AtariVectorPlatform = function(mainElement) {
       ], {gmask:0x7fff})
 
     };
-    this.readMemory = membus.read;
+    this.readAddress = bus.read;
     cpu = self.newCPU(bus);
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
@@ -146,9 +146,6 @@ var AtariVectorPlatform = function(mainElement) {
   this.reset = function() {
     this.clearDebug();
     cpu.reset();
-  }
-  this.readAddress = function(addr) {
-    return bus.read(addr);
   }
 
   this.loadState = function(state) {
@@ -240,6 +237,7 @@ var AtariColorVectorPlatform = function(mainElement) {
       ])
 
     };
+    this.readAddress = bus.read;
     cpu = self.newCPU(bus);
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
@@ -290,9 +288,6 @@ var AtariColorVectorPlatform = function(mainElement) {
   this.reset = function() {
     this.clearDebug();
     cpu.reset();
-  }
-  this.readAddress = function(addr) {
-    return bus.read(addr);
   }
 
   this.loadState = function(state) {
@@ -376,6 +371,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
       ])
 
     };
+    this.readAddress = bus.read;
     cpu = self.newCPU(bus);
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
@@ -419,9 +415,6 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
   this.reset = function() {
     switches[0xe] = 16;
     cpu.reset();
-  }
-  this.readAddress = function(addr) {
-    return bus.read(addr);
   }
 
   this.loadState = function(state) {

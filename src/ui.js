@@ -110,11 +110,14 @@ var TOOL_TO_SOURCE_STYLE = {
 }
 
 var worker = new Worker("./src/worker/workermain.js");
-var current_output = null;
-var current_preset_index = -1; // TODO: use URL
-var current_preset_id = null;
-var assemblyfile = null;
-var sourcefile = null;
+var current_output;
+var current_preset_index = -1;
+var current_preset_id;
+var assemblyfile;
+var sourcefile;
+var symbolmap;
+var addr2symbol;
+var compparams;
 var trace_pending_at_pc;
 var store;
 var pendingWorkerMessages = 0;
@@ -367,11 +370,23 @@ function arrayCompare(a,b) {
   return true;
 }
 
+function invertMap(m) {
+  var r = {};
+  if (m) {
+    for (var k in m) r[m[k]] = k;
+  }
+  return r;
+}
+
 function setCompileOutput(data) {
   sourcefile = new SourceFile(data.lines);
   if (data.asmlines) {
     assemblyfile = new SourceFile(data.asmlines, data.intermediate.listing);
   }
+  symbolmap = data.symbolmap;
+  addr2symbol = invertMap(symbolmap);
+  addr2symbol[0x10000] = '__END__';
+  compparams = data.params;
   // errors?
   function addErrorMarker(line, msg) {
     var div = document.createElement("div");
@@ -406,8 +421,7 @@ function setCompileOutput(data) {
         platform.loadROM(getCurrentPresetTitle(), rom);
         resume();
         current_output = rom;
-        prof_reads = [];
-        prof_writes = [];
+        resetProfiler();
         toolbar.removeClass("has-errors");
       } catch (e) {
         console.log(e); // TODO: show error
@@ -711,20 +725,22 @@ function _breakExpression() {
   }
 }
 
+function getSymbolAtAddress(a) {
+  if (addr2symbol[a]) return addr2symbol[a];
+  var i=0;
+  while (--a >= 0) {
+    i++;
+    if (addr2symbol[a]) return addr2symbol[a] + '+' + i;
+  }
+  return '';
+}
+
 function updateDebugWindows() {
   if (platform.isRunning()) {
     updateMemoryWindow();
     updateProfileWindow();
   }
   setTimeout(updateDebugWindows, 200);
-}
-
-function getProfileLine(line) {
-  var offset = sourcefile.line2offset[line];
-  if (offset >= 0) {
-    if (prof_reads[offset] > 0)
-      return ""+prof_reads[offset];
-  }
 }
 
 function updateProfileWindow() {
@@ -746,27 +762,96 @@ function updateMemoryWindow() {
   if (memoryview) {
     $("#memoryview").find('[data-index]').each(function(i,e) {
       var div = $(e);
-      var offset = div.attr('data-index') * 16;
+      var row = div.attr('data-index');
       var oldtext = div.text();
-      var newtext = getMemoryLineAtOffset(offset);
+      var newtext = getMemoryLineAt(row);
       if (oldtext != newtext)
         div.text(newtext);
     });
   }
 }
 
-function getMemoryLineAtOffset(offset) {
+function getMemoryLineAt(row) {
+  var offset = row * 16;
+  var n1 = 0;
+  var n2 = 16;
+  var sym;
+  if (getDumpLines()) {
+    var dl = dumplines[row];
+    if (dl) {
+      offset = dl.a & 0xfff0;
+      n1 = dl.a - offset;
+      n2 = n1 + dl.l;
+      sym = dl.s;
+    } else {
+      return '.';
+    }
+  }
   var s = hex(offset,4) + ' ';
-  for (var i=0; i<16; i++) {
-    var read = platform.readMemory(offset+i);
+  for (var i=0; i<n1; i++) s += '   ';
+  if (n1 > 8) s += ' ';
+  for (var i=n1; i<n2; i++) {
+    var read = platform.readAddress(offset+i);
     if (i==8) s += ' ';
     s += ' ' + (read>=0?hex(read,2):'??');
   }
+  for (var i=n2; i<16; i++) s += '   ';
+  if (sym) s += '  ' + sym;
   return s;
 }
 
 function getEditorLineHeight() {
   return $("#editor").find(".CodeMirror-line").first().height();
+}
+
+function getDumpLineAt(line) {
+  var d = dumplines[line];
+  if (d) {
+    return d.a + " " + d.s;
+  }
+}
+
+var IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
+
+function getDumpLines() {
+  if (!dumplines && addr2symbol) {
+    dumplines = [];
+    var ofs = 0;
+    var sym;
+    for (var nextofs in addr2symbol) {
+      nextofs |= 0;
+      var nextsym = addr2symbol[nextofs];
+      if (sym) {
+        if (IGNORE_SYMS[sym]) {
+          ofs = nextofs;
+        } else {
+          while (ofs < nextofs) {
+            var ofs2 = (ofs + 16) & 0xffff0;
+            if (ofs2 > nextofs) ofs2 = nextofs;
+            //if (ofs < 1000) console.log(ofs, ofs2, nextofs, sym);
+            dumplines.push({a:ofs, l:ofs2-ofs, s:sym});
+            ofs = ofs2;
+          }
+        }
+      }
+      sym = nextsym;
+    }
+  }
+  return dumplines;
+}
+
+function getMemorySegment(a) {
+  if (!compparams) return 'unknown';
+  if (a >= compparams.data_start && a < compparams.data_start+compparams.data_size) {
+    if (platform.getSP && a >= platform.getSP() - 15)
+      return 'stack';
+    else
+      return 'data';
+  }
+  else if (a >= compparams.code_start && a < compparams.code_start+compparams.code_size)
+    return 'code';
+  else
+    return 'unknown';
 }
 
 function showMemoryWindow() {
@@ -776,15 +861,19 @@ function showMemoryWindow() {
     itemHeight: getEditorLineHeight(),
     totalRows: 0x1000,
     generatorFn: function(row) {
-      var s = getMemoryLineAtOffset(row * 16);
+      var s = getMemoryLineAt(row);
       var div = document.createElement("div");
+      if (dumplines) {
+        var dlr = dumplines[row];
+        if (dlr) div.classList.add('seg_' + getMemorySegment(dumplines[row].a));
+      }
       div.appendChild(document.createTextNode(s));
       return div;
     }
   });
   $("#memoryview").empty().append(memoryview.container);
   updateMemoryWindow();
-  memoryview.scrollToItem(0x800); // TODO
+  memoryview.scrollToItem(0); // TODO
 }
 
 function toggleMemoryWindow() {
@@ -816,13 +905,59 @@ function createProfileWindow() {
   updateProfileWindow();
 }
 
+var pcdata = {};
 var prof_reads, prof_writes;
+var dumplines;
+
+function resetProfiler() {
+  prof_reads = [];
+  prof_writes = [];
+  pcdata = [];
+  dumplines = null;
+}
 
 function profileWindowCallback(a,v) {
-  if (v >= 0) {
-    prof_writes[a] = (prof_writes[a]|0)+1;
+  if (platform.getPC) {
+    var pc = platform.getPC();
+    var pcd = pcdata[pc];
+    if (!pcd) {
+      pcd = pcdata[pc] = {nv:1};
+    }
+    pcd.nv++;
+    if (a != pc) {
+      if (v >= 0) {
+        pcd.lastwa = a;
+        pcd.lastwv = v;
+      } else {
+        pcd.lastra = a;
+        pcd.lastrv = platform.readAddress(a);
+      }
+    }
   } else {
-    prof_reads[a] = (prof_reads[a]|0)+1;
+    // TODO
+    if (v >= 0) {
+      prof_writes[a] = (prof_writes[a]|0)+1;
+    } else {
+      prof_reads[a] = (prof_reads[a]|0)+1;
+    }
+  }
+}
+
+function getProfileLine(line) {
+  var offset = sourcefile.line2offset[line];
+  if (offset >= 0) {
+    var pcd = pcdata[offset];
+    if (pcd) {
+      var s = pcd.nv+"";
+      while (s.length < 8) { s = ' '+s; }
+      if (pcd.lastra >= 0) {
+        s += " read [" + hex(pcd.lastra,4) + "] == " + hex(pcd.lastrv,2);
+      }
+      if (pcd.lastwa >= 0) {
+        s += " write " + hex(pcd.lastwv,2) + " -> [" + hex(pcd.lastwa,4) + "]";
+      }
+      return s;
+    }
   }
 }
 
@@ -965,8 +1100,8 @@ function startPlatform() {
     showWelcomeMessage();
     // start platform and load file
     preloadWorker(qs['file']);
-    setupDebugControls();
     platform.start();
+    setupDebugControls();
     loadPreset(qs['file']);
     updateSelector();
     return true;

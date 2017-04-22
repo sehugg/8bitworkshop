@@ -264,8 +264,8 @@ var GalaxianPlatform = function(mainElement, options) {
         isContended: function() { return false; },
       };
     }
-    this.readMemory = function(a) {
-      return (a == 0x7000 || a == 0x7800) ? null : membus.read; // ignore watchdog
+    this.readAddress = function(a) {
+      return (a == 0x7000 || a == 0x7800) ? null : membus.read(a); // ignore watchdog
     };
     audio = new MasterAudio();
     psg1 = new AY38910_Audio(audio);
@@ -386,9 +386,6 @@ var GalaxianPlatform = function(mainElement, options) {
 		//audio.reset();
     if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
     watchdog_counter = INITIAL_WATCHDOG;
-  }
-  this.readAddress = function(addr) {
-    return membus.read(addr); // TODO?
   }
 }
 

@@ -273,13 +273,12 @@ var WilliamsPlatform = function(mainElement, proto) {
     nvram = new RAM(0x400);
     // TODO: save in browser storage?
     //displayPCs = new Uint16Array(new ArrayBuffer(0x9800*2));
-    rom = padBytes(new lzgmini().decode(ROBOTRON_ROM).slice(0), 0xc001);
+    //rom = padBytes(new lzgmini().decode(ROBOTRON_ROM).slice(0), 0xc001);
     membus = {
       read: memread_williams,
 			write: memwrite_williams,
     };
-    this.readMemory = membus.read;
-    //var probebus = new BusProbe(membus);
+    this.readAddress = membus.read;
     var iobus = {
       read: function(a) {return 0;},
       write: function(a,v) {console.log(hex(a),hex(v));}
@@ -317,13 +316,11 @@ var WilliamsPlatform = function(mainElement, proto) {
               cpu.requestInterrupt();
           }
         }
-        if (!self.wasBreakpointHit())
-          self.runCPU(cpu, cpuCyclesPerSection);
+        self.runCPU(cpu, cpuCyclesPerSection);
         if (sl < 256) video.updateFrame(0, 0, 256-4-sl, 0, 4, 304);
       }
       // last 6 lines
-      if (!self.wasBreakpointHit())
-        self.runCPU(cpu, cpuCyclesPerSection*2);
+      self.runCPU(cpu, cpuCyclesPerSection*2);
       if (screenNeedsRefresh) {
         for (var i=0; i<0x9800; i++)
           drawDisplayByte(i, ram.mem[i]);
@@ -399,9 +396,6 @@ var WilliamsPlatform = function(mainElement, proto) {
     cpu.reset();
     watchdog_counter = INITIAL_WATCHDOG;
     banksel = 1;
-  }
-  this.readAddress = function(addr) {
-    return membus.read(addr);
   }
   this.scaleCPUFrequency = function(scale) {
     cpuScale = scale;

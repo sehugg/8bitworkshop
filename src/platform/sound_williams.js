@@ -79,11 +79,8 @@ var WilliamsSoundPlatform = function(mainElement) {
         fillBuffer();
     	}
     };
-    cpu = window.Z80({
-  		display: {},
-  		memory: membus,
-  		ioBus: iobus
-  	});
+    this.readAddress = membus.read;
+    cpu = this.newCPU(membus, iobus);
     audio = new SampleAudio(cpuFrequency / cpuAudioFactor);
     audio.callback = function(lbuf) {
       if (self.isRunning()) {
@@ -150,9 +147,6 @@ var WilliamsSoundPlatform = function(mainElement) {
   this.reset = function() {
     cpu.reset();
     if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
-  }
-  this.readAddress = function(addr) {
-    return membus.read(addr); // TODO?
   }
 }
 
