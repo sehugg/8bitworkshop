@@ -97,6 +97,7 @@ var SourceFile = function(lines, text) {
     }
     return 0;
   }
+  this.lineCount = function() { return this.line2offset.length; }
 }
 
 var TOOL_TO_SOURCE_STYLE = {
@@ -129,9 +130,18 @@ var disasmview = CodeMirror(document.getElementById('disassembly'), {
   readOnly: true,
   styleActiveLine: true
 });
+scrollProfileView(disasmview);
 
 var memoryview;
 var profileview;
+
+function scrollProfileView(_ed) {
+  _ed.on('scroll', function(ed, changeobj) {
+    if (profileview) {
+      profileview.container.scrollTop = ed.getScrollInfo().top;
+    }
+  });
+}
 
 function newEditor(mode) {
   var isAsm = (mode != 'text/x-csrc');
@@ -151,11 +161,7 @@ function newEditor(mode) {
       setCode(editor.getValue());
     }, 200);
   });
-  editor.on('scroll', function(ed, changeobj) {
-    if (profileview) {
-      profileview.container.scrollTop = editor.getScrollInfo().top;
-    }
-  });
+  scrollProfileView(editor);
   editor.setOption("mode", mode);
 }
 
@@ -647,6 +653,11 @@ function jumpToLine(ed, i) {
     ed.scrollTo(null, t - middleHeight - 5);
 }
 
+function getVisibleSourceFile() {
+  var div = $("#disassembly");
+  return div.is(':visible') ? assemblyfile : sourcefile;
+}
+
 function updateDisassembly() {
   var div = $("#disassembly");
   if (div.is(':visible')) {
@@ -706,6 +717,7 @@ function toggleDisassembly() {
   $("#disassembly").toggle();
   $("#editor").toggle();
   updateDisassembly();
+  if ($("#profileview").is(':visible')) createProfileWindow();
 }
 
 function resetAndDebug() {
@@ -800,8 +812,8 @@ function getMemoryLineAt(row) {
   return s;
 }
 
-function getEditorLineHeight() {
-  return $("#editor").find(".CodeMirror-line").first().height();
+function getVisibleEditorLineHeight() {
+  return $(".CodeMirror-line:visible").first().height();
 }
 
 function getDumpLineAt(line) {
@@ -858,7 +870,7 @@ function showMemoryWindow() {
   memoryview = new VirtualList({
     w:$("#emulator").width(),
     h:$("#emulator").height(),
-    itemHeight: getEditorLineHeight(),
+    itemHeight: getVisibleEditorLineHeight(),
     totalRows: 0x1000,
     generatorFn: function(row) {
       var s = getMemoryLineAt(row);
@@ -893,8 +905,8 @@ function createProfileWindow() {
   profileview = new VirtualList({
     w:$("#emulator").width(),
     h:$("#emulator").height(),
-    itemHeight: getEditorLineHeight(),
-    totalRows: editor.lineCount(),
+    itemHeight: getVisibleEditorLineHeight(),
+    totalRows: getVisibleSourceFile().lineCount(),
     generatorFn: function(row) {
       var div = document.createElement("div");
       div.appendChild(document.createTextNode("."));
@@ -923,7 +935,6 @@ function profileWindowCallback(a,v) {
     if (!pcd) {
       pcd = pcdata[pc] = {nv:1};
     }
-    pcd.nv++;
     if (a != pc) {
       if (v >= 0) {
         pcd.lastwa = a;
@@ -932,19 +943,14 @@ function profileWindowCallback(a,v) {
         pcd.lastra = a;
         pcd.lastrv = platform.readAddress(a);
       }
-    }
-  } else {
-    // TODO
-    if (v >= 0) {
-      prof_writes[a] = (prof_writes[a]|0)+1;
     } else {
-      prof_reads[a] = (prof_reads[a]|0)+1;
+      pcd.nv++;
     }
   }
 }
 
 function getProfileLine(line) {
-  var offset = sourcefile.line2offset[line];
+  var offset = getVisibleSourceFile().line2offset[line];
   if (offset >= 0) {
     var pcd = pcdata[offset];
     if (pcd) {
