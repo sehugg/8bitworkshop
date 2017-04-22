@@ -12,14 +12,13 @@ function __createCanvas(mainElement, width, height) {
   // TODO
   var fsElement = document.createElement('div');
   fsElement.style.position = "relative";
-  fsElement.style.padding = "5%";
   fsElement.style.overflow = "hidden";
-  fsElement.style.background = "black";
+  fsElement.classList.add("emubevel");
 
   var canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  canvas.style['class'] = "emuvideo";
+  canvas.classList.add("emuvideo");
   canvas.style.width = "100%";
   canvas.style.height = "100%";
   canvas.tabIndex = "-1";               // Make it focusable
@@ -39,10 +38,10 @@ var RasterVideo = function(mainElement, width, height, options) {
     if (options && options.rotate) {
       // TODO: aspect ratio?
       canvas.style.transform = "rotate("+options.rotate+"deg)";
-      if (canvas.width > canvas.height)
-        canvas.style.paddingTop = canvas.style.paddingBottom = "10%";
-      else
+      if (canvas.width < canvas.height)
         canvas.style.paddingLeft = canvas.style.paddingRight = "10%";
+      //else
+      //  canvas.style.paddingTop = canvas.style.paddingBottom = "10%";
     }
     ctx = canvas.getContext('2d');
     imageData = ctx.createImageData(width, height);
