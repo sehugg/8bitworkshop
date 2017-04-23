@@ -92,26 +92,41 @@ function loadFilesystem(name) {
 }
 
 var ATARI_CFG =
-  "FEATURES {\nSTARTADDRESS: default = $9000;\n}\n"
+   "FEATURES {\nSTARTADDRESS: default = $9000;\n}\n"
 +  "MEMORY {\n"
-+  "     ZP:  start = $82, size = $7E;\n"
-+  "    RAM:  start = $0200, size = $1e00;\n"
-+  "    ROM:  start = $9000, size = $7000;\n"
-+  "    VEC:  start = $FFFA, size = 6;\n"
++  "     ZP:  file = \"\", start = $82, size = $7E, type = rw, define = yes;\n"
++  "    RAM:  file = \"\", start = $0200, size = $1e00, define = yes;\n"
++  "    ROM:  file = %O, start = $9000, size = $7000;\n"
++  "   ROMV:  file = %O, start = $FFFA, size = $0006, fill = yes;\n"
 +  "}\n"
 +  "SEGMENTS {\n"
-+  "    CODE: load = ROM, type = ro, define = no;\n"
-+  "    DATA: load = RAM, type = rw, define = no;\n"
-+  "ZEROPAGE: load = ZP,  type = zp, define = no;\n"
-//+  " VECTORS: load = VEC, type = ro, define = yes;"
++  "ZEROPAGE: load = ZP,  type = zp, define = yes;\n"
++  " STARTUP: load = ROM, type = ro, define = yes;\n"
++  "    ONCE: load = ROM, type = ro, define = yes;\n"
++  "    CODE: load = ROM, type = ro, define = yes;\n"
++  "    DATA: load = RAM, type = rw, define = yes, run = RAM;\n"
++  "    INIT: load = RAM, type = rw, define = yes;\n"
++  "     BSS: load = RAM, type = bss, define = yes;\n"
++  "    HEAP: load = RAM, type = bss, optional = yes;\n"
++  "  RODATA: load = ROM, type = ro;\n"
++  "}\n"
++  "FEATURES {\n"
++  "    CONDES:    segment = STARTUP,\n"
++  "               type    = constructor,\n"
++  "               label   = __CONSTRUCTOR_TABLE__,\n"
++  "               count   = __CONSTRUCTOR_COUNT__;\n"
++  "    CONDES:    segment = STARTUP,\n"
++  "               type    = destructor,\n"
++  "               label   = __DESTRUCTOR_TABLE__,\n"
++  "               count   = __DESTRUCTOR_COUNT__;\n"
++  "}\n"
++  "SYMBOLS {\n"
++  "    __STACKSIZE__:       type = weak,   value = $0400;\n"
++  "    __LC_LAST__:       type = weak,   value = $0400;\n"
++  "    __LC_START__:       type = weak,   value = $0400;\n"
 +  "}\n"
 ;
 /*
-+  "SYMBOLS {\n"
-+  "    __STACKSIZE__:       type = weak,   value = $0800; # 2k stack\n"
-+  "    __RESERVED_MEMORY__: type = weak,   value = $0000;\n"
-+  "    __STARTADDRESS__:    type = export, value = %S;\n"
-+  "}\n"
 +  "MEMORY {\n"
 +  "    ZP:   file = \"\", define = yes, start = $0082, size = $007E;\n"
 +  "    MAIN: file = %O, define = yes, start = %S,    size = $BC20 - __STACKSIZE__ - __RESERVED_MEMORY__ - %S;\n"
@@ -486,6 +501,8 @@ function assemblelinkCA65(code, platform, warnings) {
     var aout = FS.readFile("main", {encoding:'binary'});
     var mapout = FS.readFile("main.map", {encoding:'utf8'});
     var listing = parseCA65Listing(lstout, mapout);
+    //console.log(lstout);
+    //console.log(mapout);
     return {
       output:aout.slice(4),
       lines:listing.lines,
@@ -524,6 +541,7 @@ function compileCC65(code, platform) {
   CC65.callMain(['-v', '-T', '-g', /*'-Cl',*/ '-Oirs', '-I', '/share/include', "main.c"]);
   try {
     var asmout = FS.readFile("main.s", {encoding:'utf8'});
+    //console.log(asmout);
     var result = assemblelinkCA65(asmout, platform, errors);
 /*
     result.asmlines = result.lines;

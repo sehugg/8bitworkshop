@@ -255,7 +255,7 @@ function gotoPresetNamed(id) {
 }
 
 function _createNewFile(e) {
-  var filename = prompt("Create New File", "newfile.a");
+  var filename = prompt("Create New File", "newfile" + platform.getDefaultExtension());
   if (filename && filename.length) {
     if (filename.indexOf(".") < 0) {
       filename += platform.getDefaultExtension();
@@ -866,6 +866,12 @@ function getMemorySegment(a) {
     return 'unknown';
 }
 
+function findMemoryWindowLine(a) {
+  for (var i=0; i<dumplines.length; i++)
+    if (dumplines[i].a >= a)
+      return i;
+}
+
 function showMemoryWindow() {
   memoryview = new VirtualList({
     w:$("#emulator").width(),
@@ -885,7 +891,8 @@ function showMemoryWindow() {
   });
   $("#memoryview").empty().append(memoryview.container);
   updateMemoryWindow();
-  memoryview.scrollToItem(0); // TODO
+  if (compparams && dumplines)
+    memoryview.scrollToItem(findMemoryWindowLine(compparams.data_start));
 }
 
 function toggleMemoryWindow() {
@@ -950,21 +957,26 @@ function profileWindowCallback(a,v) {
 }
 
 function getProfileLine(line) {
-  var offset = getVisibleSourceFile().line2offset[line];
-  if (offset >= 0) {
+  var srcfile = getVisibleSourceFile();
+  var offset = srcfile.line2offset[line];
+  var offset2 = srcfile.line2offset[line+1];
+  if (!(offset2 > offset)) offset2 = offset+1;
+  var s = '';
+  var nv = 0;
+  while (offset < offset2) {
     var pcd = pcdata[offset];
     if (pcd) {
-      var s = pcd.nv+"";
-      while (s.length < 8) { s = ' '+s; }
+      nv += pcd.nv;
       if (pcd.lastra >= 0) {
-        s += " read [" + hex(pcd.lastra,4) + "] == " + hex(pcd.lastrv,2);
+        s += " rd [" + hex(pcd.lastra,4) + "] == " + hex(pcd.lastrv,2);
       }
       if (pcd.lastwa >= 0) {
-        s += " write " + hex(pcd.lastwv,2) + " -> [" + hex(pcd.lastwa,4) + "]";
+        s += " wr " + hex(pcd.lastwv,2) + " -> [" + hex(pcd.lastwa,4) + "]";
       }
-      return s;
     }
+    offset++;
   }
+  return nv ? (lpad(nv+"",8) + s) : '.';
 }
 
 function toggleProfileWindow() {

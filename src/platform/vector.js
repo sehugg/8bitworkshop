@@ -193,8 +193,8 @@ var AtariColorVectorPlatform = function(mainElement) {
     cpuram = new RAM(0x800);
     dvgram = new RAM(0x2000);
     earom = new RAM(0x40);
-    rom = padBytes(new lzgmini().decode(GRAVITAR_ROM).slice(0), 0x7000+1);
-    vecrom = padBytes(new lzgmini().decode(GRAVITAR_VECROM).slice(0), 0x6000-0x2800+1);
+    //rom = padBytes(new lzgmini().decode(GRAVITAR_ROM).slice(0), 0x7000+1);
+    //vecrom = padBytes(new lzgmini().decode(GRAVITAR_VECROM).slice(0), 0x6000-0x2800+1);
     switches[0] = 0x0;
     switches[1] = 0xff;
     switches[2] = 0x0;
@@ -267,6 +267,7 @@ var AtariColorVectorPlatform = function(mainElement) {
   }
 
   this.loadROM = function(title, data) {
+    rom = padBytes(data, 0x7000);
     this.reset();
   }
 

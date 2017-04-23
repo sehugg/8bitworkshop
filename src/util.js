@@ -1,4 +1,6 @@
 
+function lpad(s,n) { while(s.length<n) s=" "+s; return s; }
+
 function hex(v, nd) {
   try {
     if (!nd) nd = 2;
