@@ -897,6 +897,7 @@ var TOOLS = {
   'sdasz80': assemblelinkSDASZ80,
   'sdcc': compileSDCC,
   'xasm6809': assembleXASM6809,
+  //'nakenz80': assembleNAKEN_Z80,
 }
 
 var TOOL_PRELOADFS = {

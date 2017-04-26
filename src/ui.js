@@ -132,13 +132,13 @@ var disasmview = CodeMirror(document.getElementById('disassembly'), {
 });
 scrollProfileView(disasmview);
 
-var memoryview;
-var profileview;
+var memorylist;
+var profilelist;
 
 function scrollProfileView(_ed) {
   _ed.on('scroll', function(ed, changeobj) {
-    if (profileview) {
-      profileview.container.scrollTop = ed.getScrollInfo().top;
+    if (profilelist) {
+      profilelist.container.scrollTop = ed.getScrollInfo().top;
     }
   });
 }
@@ -717,7 +717,7 @@ function toggleDisassembly() {
   $("#disassembly").toggle();
   $("#editor").toggle();
   updateDisassembly();
-  if ($("#profileview").is(':visible')) createProfileWindow();
+  if (profilelist) createProfileWindow();
 }
 
 function resetAndDebug() {
@@ -756,7 +756,7 @@ function updateDebugWindows() {
 }
 
 function updateProfileWindow() {
-  if (profileview && sourcefile) {
+  if (profilelist && sourcefile) {
     $("#profileview").find('[data-index]').each(function(i,e) {
       var div = $(e);
       var lineno = div.attr('data-index') | 0;
@@ -771,7 +771,7 @@ function updateProfileWindow() {
 }
 
 function updateMemoryWindow() {
-  if (memoryview) {
+  if (memorylist) {
     $("#memoryview").find('[data-index]').each(function(i,e) {
       var div = $(e);
       var row = div.attr('data-index');
@@ -873,7 +873,7 @@ function findMemoryWindowLine(a) {
 }
 
 function showMemoryWindow() {
-  memoryview = new VirtualList({
+  memorylist = new VirtualList({
     w:$("#emulator").width(),
     h:$("#emulator").height(),
     itemHeight: getVisibleEditorLineHeight(),
@@ -889,16 +889,16 @@ function showMemoryWindow() {
       return div;
     }
   });
-  $("#memoryview").empty().append(memoryview.container);
+  $("#memoryview").empty().append(memorylist.container);
   updateMemoryWindow();
   if (compparams && dumplines)
-    memoryview.scrollToItem(findMemoryWindowLine(compparams.data_start));
+    memorylist.scrollToItem(findMemoryWindowLine(compparams.data_start));
 }
 
 function toggleMemoryWindow() {
   if ($("#profileview").is(':visible')) toggleProfileWindow();
   if ($("#memoryview").is(':visible')) {
-    memoryview = null;
+    memorylist = null;
     $("#emulator").show();
     $("#memoryview").hide();
   } else {
@@ -909,7 +909,7 @@ function toggleMemoryWindow() {
 }
 
 function createProfileWindow() {
-  profileview = new VirtualList({
+  profilelist = new VirtualList({
     w:$("#emulator").width(),
     h:$("#emulator").height(),
     itemHeight: getVisibleEditorLineHeight(),
@@ -920,7 +920,7 @@ function createProfileWindow() {
       return div;
     }
   });
-  $("#profileview").empty().append(profileview.container);
+  $("#profileview").empty().append(profilelist.container);
   updateProfileWindow();
 }
 
@@ -982,7 +982,7 @@ function getProfileLine(line) {
 function toggleProfileWindow() {
   if ($("#memoryview").is(':visible')) toggleMemoryWindow();
   if ($("#profileview").is(':visible')) {
-    profileview = null;
+    profilelist = null;
     platform.getProbe().deactivate();
     $("#emulator").show();
     $("#profileview").hide();
