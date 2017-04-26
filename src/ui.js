@@ -1109,6 +1109,13 @@ function initPlatform() {
   store = new FileStore(localStorage, platform_id + '/');
 }
 
+function showBookLink() {
+  if (platform_id == 'vcs')
+    $("#booklink_vcs").show();
+  else
+    $("#booklink_arcade").show();
+}
+
 function startPlatform() {
   initPlatform();
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
@@ -1122,6 +1129,7 @@ function startPlatform() {
     setupDebugControls();
     loadPreset(qs['file']);
     updateSelector();
+    showBookLink();
     return true;
   } else {
     // try to load last file (redirect)
