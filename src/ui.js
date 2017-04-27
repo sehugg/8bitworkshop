@@ -1025,7 +1025,10 @@ function setupDebugControls(){
 }
 
 function showWelcomeMessage() {
-  if (!localStorage.getItem("8bitworkshop.splash")) {
+  if (qs['sharekey']) {
+    localStorage.setItem('8bitworkshop.splash', true);
+  }
+  else if (!localStorage.getItem("8bitworkshop.splash")) {
     // OH BOOTSTRAP YOU ARE SO AWESOME A+++++
     // https://stackoverflow.com/questions/28270333/how-do-i-know-which-button-is-click-when-bootstrap-modal-closes
     // https://github.com/jschr/bootstrap-modal/issues/224

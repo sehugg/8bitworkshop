@@ -597,6 +597,7 @@ var BaseZ80Platform = function() {
   this.getToolForFilename = function(fn) {
     if (fn.endsWith(".c")) return "sdcc";
     if (fn.endsWith(".s")) return "sdasz80";
+    if (fn.endsWith(".ns")) return "naken";
     return "z80asm";
   }
   this.getDefaultExtension = function() { return ".c"; };

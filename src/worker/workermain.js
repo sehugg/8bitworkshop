@@ -887,6 +887,37 @@ function preprocessMCPP(code, platform) {
   return {code:iout};
 }
 
+function assembleNAKEN(code, platform) {
+  load("naken_asm");
+  var errors = [];
+  var match_fn = makeErrorMatcher(errors, /Error: (.+) at (.+):(\d+)/, 3, 1);
+  var Module = naken_asm({
+    noInitialRun:true,
+    //logReadFiles:true,
+    print:match_fn,
+    printErr:print_fn
+  });
+  var FS = Module['FS'];
+  //setupFS(FS);
+  FS.writeFile("main.asm", code);
+  Module.callMain(["-l", "-b", "main.asm"]);
+  try {
+    var aout = FS.readFile("out.bin", {encoding:'binary'});
+    var alst = FS.readFile("out.lst", {encoding:'utf8'});
+    //console.log(alst);
+    // 0x0000: 77        ld (hl),a                                cycles: 4
+    var asmlines = parseListing(alst, /^0x([0-9a-f]+):\s+([0-9a-f]+)\s+(.+)cycles: (\d+)/i, 0, 1, 2, 3);
+    return {
+      output:aout,
+      errors:errors,
+      lines:asmlines,
+      intermediate:{listing:alst},
+    };
+  } catch(e) {
+    return {errors:errors};
+  }
+}
+
 var TOOLS = {
   'dasm': assembleDASM,
   'acme': assembleACME,
@@ -897,7 +928,7 @@ var TOOLS = {
   'sdasz80': assemblelinkSDASZ80,
   'sdcc': compileSDCC,
   'xasm6809': assembleXASM6809,
-  //'nakenz80': assembleNAKEN_Z80,
+  'naken': assembleNAKEN,
 }
 
 var TOOL_PRELOADFS = {
