@@ -111,6 +111,7 @@ var TOOL_TO_SOURCE_STYLE = {
 }
 
 var worker = new Worker("./src/worker/workermain.js");
+var main_editor;
 var current_output;
 var current_preset_index = -1;
 var current_preset_id;
@@ -173,8 +174,10 @@ function getCurrentPresetTitle() {
 }
 
 function setLastPreset(id) {
-  localStorage.setItem("__lastplatform", platform_id);
-  localStorage.setItem("__lastid_"+platform_id, id);
+  if (platform_id != 'base_z80') { // TODO
+    localStorage.setItem("__lastplatform", platform_id);
+    localStorage.setItem("__lastid_"+platform_id, id);
+  }
 }
 
 function updatePreset(current_preset_id, text) {
@@ -185,7 +188,7 @@ function updatePreset(current_preset_id, text) {
 
 function loadCode(text, fileid) {
   var tool = platform.getToolForFilename(fileid);
-  newEditor(tool && TOOL_TO_SOURCE_STYLE[tool]);
+  main_editor = newEditor(tool && TOOL_TO_SOURCE_STYLE[tool]);
   editor.setValue(text); // calls setCode()
   editor.clearHistory();
   current_output = null;
@@ -314,7 +317,7 @@ function _downloadROMImage(e) {
 }
 
 function populateExamples(sel) {
-  sel.append($("<option />").text("--------- Chapters ---------").attr('disabled',true));
+  sel.append($("<option />").text("--------- Examples ---------").attr('disabled',true));
   for (var i=0; i<PRESETS.length; i++) {
     var preset = PRESETS[i];
     var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
@@ -341,8 +344,10 @@ function populateFiles(sel, name, prefix) {
 
 function updateSelector() {
   var sel = $("#preset_select").empty();
-  populateFiles(sel, "Local Files", "local/");
-  populateFiles(sel, "Shared", "shared/");
+  if (platform_id != 'base_z80') { // TODO
+    populateFiles(sel, "Local Files", "local/");
+    populateFiles(sel, "Shared", "shared/");
+  }
   populateExamples(sel);
   // set click handlers
   sel.off('change').change(function(e) {
@@ -464,6 +469,7 @@ function setCompileOutput(data) {
         }
       }
     }
+    updateDisassembly();
     if (trace_pending_at_pc) {
       showLoopTimingForPC(trace_pending_at_pc);
     }
@@ -664,7 +670,12 @@ function updateDisassembly() {
     var state = lastDebugState || platform.saveState();
     var pc = state.c.PC;
     if (assemblyfile && assemblyfile.text) {
-      disasmview.setValue(assemblyfile.text);
+      var asmtext = assemblyfile.text;
+      if (platform_id == 'base_z80') { // TODO
+        asmtext = asmtext.replace(/[ ]+\d+\s+;.+\n/g, '');
+        asmtext = asmtext.replace(/[ ]+\d+\s+.area .+\n/g, '');
+      }
+      disasmview.setValue(asmtext);
       var findPC = platform.getDebugCallback() ? pc : getCurrentPC();
       if (findPC) {
         var lineno = assemblyfile.findLineForOffset(findPC);
@@ -673,43 +684,44 @@ function updateDisassembly() {
           jumpToLine(disasmview, lineno-1);
         }
       }
-      return;
     }
-    var curline = 0;
-    var selline = 0;
-    // TODO: not perfect disassembler
-    function disassemble(start, end) {
-      if (start < 0) start = 0;
-      if (end > 0xffff) end = 0xffff;
-      // TODO: use pc2visits
-      var a = start;
-      var s = "";
-      while (a < end) {
-        var disasm = platform.disassemble(a, platform.readAddress);
-        var srclinenum = sourcefile.offset2line[a];
-        if (srclinenum) {
-          var srcline = editor.getLine(srclinenum-1);
-          if (srcline && srcline.trim().length) {
-            s += "; " + srclinenum + ":\t" + srcline + "\n";
+    else if (platform.disassemble) {
+      var curline = 0;
+      var selline = 0;
+      // TODO: not perfect disassembler
+      function disassemble(start, end) {
+        if (start < 0) start = 0;
+        if (end > 0xffff) end = 0xffff;
+        // TODO: use pc2visits
+        var a = start;
+        var s = "";
+        while (a < end) {
+          var disasm = platform.disassemble(a, platform.readAddress);
+          var srclinenum = sourcefile.offset2line[a];
+          if (srclinenum) {
+            var srcline = editor.getLine(srclinenum-1);
+            if (srcline && srcline.trim().length) {
+              s += "; " + srclinenum + ":\t" + srcline + "\n";
+            }
           }
+          var bytes = "";
+          for (var i=0; i<disasm.nbytes; i++)
+            bytes += hex(platform.readAddress(a+i));
+          while (bytes.length < 14)
+            bytes += ' ';
+          var dline = hex(parseInt(a)) + "\t" + bytes + "\t" + disasm.line + "\n";
+          s += dline;
+          if (a == pc) selline = curline;
+          curline++;
+          a += disasm.nbytes || 1;
         }
-        var bytes = "";
-        for (var i=0; i<disasm.nbytes; i++)
-          bytes += hex(platform.readAddress(a+i));
-        while (bytes.length < 14)
-          bytes += ' ';
-        var dline = hex(parseInt(a)) + "\t" + bytes + "\t" + disasm.line + "\n";
-        s += dline;
-        if (a == pc) selline = curline;
-        curline++;
-        a += disasm.nbytes || 1;
+        return s;
       }
-      return s;
+      var text = disassemble(pc-96, pc) + disassemble(pc, pc+96);
+      disasmview.setValue(text);
+      disasmview.setCursor(selline, 0);
+      jumpToLine(disasmview, selline);
     }
-    var text = disassemble(pc-96, pc) + disassemble(pc, pc+96);
-    disasmview.setValue(text);
-    disasmview.setCursor(selline, 0);
-    jumpToLine(disasmview, selline);
   }
 }
 
@@ -1085,6 +1097,7 @@ function showWelcomeMessage() {
     tour.init();
     setTimeout(function() { tour.start(); }, 2000);
   }
+  if (qs['redir']) delete qs['redir'];
 }
 
 ///////////////////////////////////////////////////
@@ -1125,7 +1138,6 @@ function startPlatform() {
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
   PRESETS = platform.getPresets();
   if (qs['file']) {
-    showWelcomeMessage();
     // start platform and load file
     preloadWorker(qs['file']);
     platform.start();
@@ -1192,9 +1204,11 @@ function startUI(loadplatform) {
         $.getScript(scriptfn, function() {
           console.log("loaded platform", platform_id);
           startPlatform();
+          showWelcomeMessage();
         });
       } else {
         startPlatform();
+        showWelcomeMessage();
       }
     }
   }
