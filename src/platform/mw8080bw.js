@@ -43,7 +43,7 @@ var Midway8080BWPlatform = function(mainElement) {
 
   this.start = function() {
     ram = new RAM(0x2000);
-    displayPCs = new Uint16Array(new ArrayBuffer(0x2000*2));
+    //displayPCs = new Uint16Array(new ArrayBuffer(0x2000*2));
     membus = {
       read: new AddressDecoder([
 				[0x0000, 0x1fff, 0x1fff, function(a) { return rom ? rom[a] : 0; }],
@@ -56,7 +56,7 @@ var Midway8080BWPlatform = function(mainElement) {
 					var ofs = (a - 0x400)<<3;
 					for (var i=0; i<8; i++)
 						pixels[ofs+i] = (v & (1<<i)) ? PIXEL_ON : PIXEL_OFF;
-					displayPCs[a] = cpu.getPC(); // save program counter
+          if (displayPCs) displayPCs[a] = cpu.getPC(); // save program counter
 				}],
 			]),
       isContended: function() { return false; },
@@ -104,7 +104,7 @@ var Midway8080BWPlatform = function(mainElement) {
 			var x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
 			var y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height());
 			var addr = (x>>3) + (y*32) + 0x400;
-			console.log(x, y, hex(addr,4), "PC", hex(displayPCs[addr],4));
+      if (displayPCs) console.log(x, y, hex(addr,4), "PC", hex(displayPCs[addr],4));
 		});
     var idata = video.getFrameData();
 		setKeyboardFromMap(video, inputs, SPACEINV_KEYCODE_MAP);

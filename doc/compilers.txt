@@ -1,4 +1,6 @@
 
+C COMPILERS
+
 cc65 - A fairly mature C compiler + toolchain for the 6502 family with lots of target
 platforms and an extensive library. The code generation is
 not great, using the AX register pair and a parameter stack for local variables that has to be
@@ -51,12 +53,27 @@ WLA-DX - Some other weird cross-assembler with lots of CPU targets.
 z88dk - A Small C-derived cross-compiler for the Z80, supporting 20 target
 machines.
 
-SWEET16 - Woz's tiny bytecode interpreter on the Apple ][ integer BASIC ROM.
-Still emcumbered by Apple's copyright for the foreseeable future.
-http://6502.org/source/interpreters/sweet16.htm
-
 https://github.com/EtchedPixels/FUZIX/wiki
 
 gcc6809 - need to check this out
 
+
+OTHER COMPILERS
+
+Java Grinder - Compile Java bytecode to microcontroller assembly.  Currently
+supporting MSP430, dsPIC, 6502/6510, 68000, MIPS, TMS9900, and Z80 with
+platforms that include Commodore 64, Sega Genesis, Atari 2600, Apple IIgs,
+ChipKit (PIC32), TI99, TI84 and more.
+
+ZX Basic - This cross-compiler is focused on ZX-Spectrum, but with some
+patchworking it can be used to compile to whatever machine running on z80
+architecture. (Python)
+
+IntyBASIC: a BASIC compiler for Intellivision.  IntyBASIC is a cross
+compiler that takes BASIC source code and translates it to CP1610 assembler
+code. http://nanochess.org/intybasic.html
+
+SWEET16 - Woz's tiny bytecode interpreter on the Apple ][ integer BASIC ROM.
+Still emcumbered by Apple's copyright for the foreseeable future.
+http://6502.org/source/interpreters/sweet16.htm
 

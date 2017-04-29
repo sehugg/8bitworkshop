@@ -1025,10 +1025,10 @@ function setupDebugControls(){
 }
 
 function showWelcomeMessage() {
-  if (qs['sharekey']) {
+  if (localStorage.getItem("__lastplatform")) {
     localStorage.setItem('8bitworkshop.splash', true);
   }
-  else if (!localStorage.getItem("8bitworkshop.splash")) {
+  if (!localStorage.getItem("8bitworkshop.splash") && qs['redir']) {
     // OH BOOTSTRAP YOU ARE SO AWESOME A+++++
     // https://stackoverflow.com/questions/28270333/how-do-i-know-which-button-is-click-when-bootstrap-modal-closes
     // https://github.com/jschr/bootstrap-modal/issues/224
@@ -1138,6 +1138,7 @@ function startPlatform() {
     // try to load last file (redirect)
     var lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
     localStorage.removeItem("__lastid");
+    qs['redir'] = '1';
     gotoPresetNamed(lastid || PRESETS[0].id);
     return false;
   }
