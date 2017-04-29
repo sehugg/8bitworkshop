@@ -61,6 +61,7 @@ body {
     <button id="dbg_memory" type="submit" title="Show Memory" style="display:none"><span class="glyphicon glyphicon-sunglasses" aria-hidden="true"></span></button>
     <button id="dbg_profile" type="submit" title="Show Profile" style="display:none"><span class="glyphicon glyphicon-stats" aria-hidden="true"></span></button>
   </span>
+  <span id="best_in_firefox" style="display:none;font-size:12px;font-style:italic;float:right;color:#666">Note: Works best in Firefox</span>
 </div>
 <div id="notebook">
   <div id="workspace">
@@ -179,6 +180,11 @@ body {
 
 <script>
   startUI(true);
+</script>
+
+<script>
+  var isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+  if (!isFirefox && platform_id != 'vcs') { $("#best_in_firefox").show(); }
 </script>
 
 </body>

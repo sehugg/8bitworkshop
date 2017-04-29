@@ -741,6 +741,7 @@ function compileSDCC(code, platform) {
   else code = preproc.code;
 
   load("sdcc");
+  //load("wasm/sdcc");
   //console.profile("sdcc");
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
