@@ -193,6 +193,8 @@ a.dropdown-toggle {
   margin-bottom: 20px;
   background: #000;
   outline-color: #666;
+  width: 100%;
+  height: 100%;
 }
 canvas.pixelated {
   image-rendering: optimizeSpeed;             /* Older versions of FF          */

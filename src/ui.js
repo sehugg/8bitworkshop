@@ -1111,6 +1111,21 @@ function showBookLink() {
     $("#booklink_arcade").show();
 }
 
+function addPageFocusHandlers() {
+  document.addEventListener("visibilitychange", function() {
+    if (document.visibilityState == 'hidden')
+      platform.pause();
+    else if (document.visibilityState == 'visible')
+      platform.resume();
+  });
+  window.onfocus = function() {
+    platform.resume();
+  };
+  window.onblur = function() {
+    platform.pause();
+  };
+}
+
 function startPlatform() {
   initPlatform();
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
@@ -1124,6 +1139,7 @@ function startPlatform() {
     loadPreset(qs['file']);
     updateSelector();
     showBookLink();
+    addPageFocusHandlers();
     return true;
   } else {
     // try to load last file (redirect)
@@ -1180,11 +1196,14 @@ function startUI(loadplatform) {
       // load and start platform object
       if (loadplatform) {
         var scriptfn = 'src/platform/' + platform_id.split('-')[0] + '.js';
-        $.getScript(scriptfn, function() {
+        var script = document.createElement('script');
+        script.onload = function() {
           console.log("loaded platform", platform_id);
           startPlatform();
           showWelcomeMessage();
-        });
+        };
+        script.src = scriptfn;
+        document.getElementsByTagName('head')[0].appendChild(script);
       } else {
         startPlatform();
         showWelcomeMessage();

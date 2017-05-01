@@ -29,3 +29,9 @@ debugjs/%.js: js/%.bc
 		-s FORCE_FILESYSTEM=1 \
 		$< -o $@ $(ARGS_$*) \
 
+js/fssdcc.js:
+	ln -s ./sdcc/device/include include
+	ln -s ./sdcc/device/lib/build lib
+	python $(EMSCRIPTEN)/tools/file_packager.py js/fssdcc.data \
+		--preload include lib/z80 \
+		--separate-metadata --js-output=js/fssdcc.js

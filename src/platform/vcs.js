@@ -125,8 +125,6 @@ var VCSPlatform = function() {
   this.getDefaultExtension = function() { return ".a"; };
 };
 
-PLATFORMS['vcs'] = VCSPlatform;
-
 /// VCS TIMING ANALYSIS
 
 var pc2minclocks = {};
@@ -268,3 +266,38 @@ function traceTiming() {
   trace_pending_at_pc = platform.getOriginPC();
   setCode(editor.getValue());
 }
+
+///////////////
+
+var VCSMAMEPlatform = function(mainElement) {
+  var self = this;
+  this.__proto__ = new BaseMAMEPlatform();
+
+//  MCFG_SCREEN_RAW_PARAMS( MASTER_CLOCK_NTSC, 228, 26, 26 + 160 + 16, 262, 24 , 24 + 192 + 31 )
+  this.start = function() {
+    self.startModule(mainElement, {
+      jsfile:'mamea2600.js',
+      driver:'a2600',
+      width:176*2,
+      height:223,
+      romfn:'/emulator/cart.rom',
+      romsize:0x1000,
+    });
+  }
+
+  this.loadROM = function(title, data) {
+    this.loadRegion(":cartslot:cart:rom", data);
+  }
+
+  this.getPresets = function() { return VCS_PRESETS; }
+
+  this.getToolForFilename = function(fn) {
+    return "dasm";
+  }
+  this.getDefaultExtension = function() { return ".a"; };
+}
+
+////////////////
+
+PLATFORMS['vcs'] = VCSPlatform;
+PLATFORMS['vcs-mame'] = VCSMAMEPlatform;

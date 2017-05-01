@@ -19,8 +19,6 @@ function __createCanvas(mainElement, width, height) {
   canvas.width = width;
   canvas.height = height;
   canvas.classList.add("emuvideo");
-  canvas.style.width = "100%";
-  canvas.style.height = "100%";
   canvas.tabIndex = "-1";               // Make it focusable
 
   fsElement.appendChild(canvas);
@@ -594,15 +592,17 @@ var BaseZ80Platform = function() {
 	this.cpuStateToLongString = function(c) {
     return cpuStateToLongString_Z80(c);
   }
-  this.getToolForFilename = function(fn) {
-    if (fn.endsWith(".c")) return "sdcc";
-    if (fn.endsWith(".s")) return "sdasz80";
-    if (fn.endsWith(".ns")) return "naken";
-    return "z80asm";
-  }
+  this.getToolForFilename = getToolForFilename_z80;
   this.getDefaultExtension = function() { return ".c"; };
   // TODO
   //this.getOpcodeMetadata = function() { }
+}
+
+function getToolForFilename_z80(fn) {
+  if (fn.endsWith(".c")) return "sdcc";
+  if (fn.endsWith(".s")) return "sdasz80";
+  if (fn.endsWith(".ns")) return "naken";
+  return "z80asm";
 }
 
 ////// 6809
@@ -861,4 +861,121 @@ var BusProbe = function(bus) {
     }
     bus.write(a,v);
   }
+}
+
+/// MAME SUPPORT
+
+var BaseMAMEPlatform = function() {
+  var self = this;
+
+  var loaded = false;
+  var romfn;
+  var romdata;
+  var video;
+  var preload_files;
+
+  this.luacall = function(s) {
+    //console.log(s);
+    Module.ccall('_Z13js_lua_stringPKc', 'void', ['string'], [s+""]);
+  }
+
+  this.clearDebug = function() {
+    //TODO
+  }
+
+  this.pause = function() {
+    if (loaded) this.luacall('emu.pause()');
+  }
+
+  this.resume = function() {
+    if (loaded) this.luacall('emu.unpause()');
+  }
+
+  this.reset = function() {
+    this.luacall('manager:machine():soft_reset()');
+  }
+
+  this.isRunning = function() {
+    // TODO
+  }
+
+  this.startModule = function(mainElement, opts) {
+    romfn = opts.romfn;
+    if (!romdata) romdata = new RAM(opts.romsize).mem;
+    // create canvas
+    video = new RasterVideo(mainElement, opts.width, opts.height);
+    video.create();
+    $(video.canvas).attr('id','canvas');
+    // load asm.js module
+    console.log("loading", opts.jsfile);
+    var script = document.createElement('script');
+    window.JSMESS = {};
+    window.Module = {
+      arguments: [opts.driver, '-verbose', '-window', '-nokeepaspect', '-resolution', canvas.width+'x'+canvas.height, '-cart', romfn],
+      screenIsReadOnly: true,
+      print: function (text) { console.log(text); },
+      canvas:video.canvas,
+      doNotCaptureKeyboard:true,
+      keyboardListeningElement:video.canvas,
+      preInit: function () {
+        console.log("loading FS");
+        ENV.SDL_EMSCRIPTEN_KEYBOARD_ELEMENT = 'canvas';
+        if (opts.cfgfile) {
+          FS.mkdir('/cfg');
+          FS.writeFile('/cfg/' + opts.cfgfile, opts.cfgdata, {encoding:'utf8'});
+        }
+        if (opts.biosfile) {
+          FS.mkdir('/roms');
+          FS.mkdir('/roms/' + opts.driver);
+          FS.writeFile('/roms/' + opts.biosfile, opts.biosdata, {encoding:'binary'});
+        }
+        FS.mkdir('/emulator');
+        FS.writeFile(romfn, romdata, {encoding:'binary'});
+        if (opts.preInit) {
+          opts.preInit(self);
+        }
+        $(video.canvas).click(function(e) {
+          video.canvas.focus();
+        });
+        loaded = true;
+      }
+    };
+    // preload files
+    // TODO: ensure loaded
+    if (opts.cfgfile) {
+      $.get('mame/cfg/' + opts.cfgfile, function(data) {
+        opts.cfgdata = data;
+        console.log("loaded " + opts.cfgfile);
+      }, 'text');
+    }
+    if (opts.biosfile) {
+      var oReq = new XMLHttpRequest();
+      oReq.open("GET", 'mame/roms/' + opts.biosfile, true);
+      oReq.responseType = "arraybuffer";
+      oReq.onload = function(oEvent) {
+        console.log("loaded " + opts.biosfile);
+        opts.biosdata = new Uint8Array(oReq.response);
+      };
+      oReq.send();
+    }
+    // start loading script
+    script.src = 'mame/' + opts.jsfile;
+    document.getElementsByTagName('head')[0].appendChild(script);
+  }
+
+  this.loadRegion = function(region, data) {
+    romdata = data;
+    if (loaded) {
+      FS.writeFile(romfn, data, {encoding:'binary'});
+      //self.luacall('cart=manager:machine().images["cart"]\nprint(cart:filename())\ncart:load("' + romfn + '")\n');
+      var s = 'mem = manager:machine():memory().regions["' + region + '"]\n';
+      for (var i=0; i<data.length; i+=4) {
+        var v = data[i] + (data[i+1]<<8) + (data[i+2]<<16) + (data[i+3]<<24);
+        s += 'mem:write_u32(' + i + ',' + v + ')\n'; // TODO: endian?
+      }
+      self.luacall(s);
+      self.reset();
+    }
+  }
+
 }
