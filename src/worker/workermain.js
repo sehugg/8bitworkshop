@@ -57,6 +57,13 @@ var PLATFORM_PARAMS = {
     data_size: 0x8000,
     stack_end: 0x0,
   },
+  'coleco': {
+    code_start: 0x8000,
+    code_size: 0x8000,
+    data_start: 0x6000,
+    data_size: 0x400,
+    stack_end: 0x8000,
+  },
 };
 
 var loaded = {}

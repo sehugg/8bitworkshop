@@ -1037,28 +1037,7 @@ function setupDebugControls(){
 }
 
 function showWelcomeMessage() {
-  if (localStorage.getItem("__lastplatform")) {
-    localStorage.setItem('8bitworkshop.splash', true);
-  }
-  if (!localStorage.getItem("8bitworkshop.splash") && qs['redir']) {
-    // OH BOOTSTRAP YOU ARE SO AWESOME A+++++
-    // https://stackoverflow.com/questions/28270333/how-do-i-know-which-button-is-click-when-bootstrap-modal-closes
-    // https://github.com/jschr/bootstrap-modal/issues/224
-    var whichPlatform;
-    $('#welcomeModal button').on('click', function(event) {
-      whichPlatform = $(event.target).data('platform');
-    });
-    $('#welcomeModal img').on('click', function(event) {
-      whichPlatform = $(event.target).data('platform');
-    });
-    $('#welcomeModal').on('hidden.bs.modal', function (event) {
-      localStorage.setItem('8bitworkshop.splash', true);
-      if (whichPlatform && whichPlatform != qs['platform']) {
-        window.location = "?platform=" + whichPlatform;
-      }
-    }).modal('show');
-  }
-  else if (!localStorage.getItem("8bitworkshop.hello")) {
+  if (!localStorage.getItem("8bitworkshop.hello")) {
     // Instance the tour
     var is_vcs = platform_id == 'vcs';
     var tour = new Tour({
