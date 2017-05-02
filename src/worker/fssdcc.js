@@ -85,8 +85,10 @@ Module.expectedDataFileDownloads++;
       console.error('package error:', error);
     };
   
-      var fetched = null, fetchedCallback = null;
-      fetchRemotePackage(REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE, function(data) {
+      var fetchedCallback = null;
+      var fetched = Module['getPreloadedPackage'] ? Module['getPreloadedPackage'](REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE) : null;
+
+      if (!fetched) fetchRemotePackage(REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE, function(data) {
         if (fetchedCallback) {
           fetchedCallback(data);
           fetchedCallback = null;
@@ -101,6 +103,7 @@ Module.expectedDataFileDownloads++;
       if (!check) throw msg + new Error().stack;
     }
 Module['FS_createPath']('/', 'include', true, true);
+Module['FS_createPath']('/include', 'pic16', true, true);
 Module['FS_createPath']('/include', 'ds390', true, true);
 Module['FS_createPath']('/include', 'asm', true, true);
 Module['FS_createPath']('/include/asm', 'default', true, true);
@@ -115,12 +118,18 @@ Module['FS_createPath']('/include/asm', 'pic14', true, true);
 Module['FS_createPath']('/include/asm', 'gbz80', true, true);
 Module['FS_createPath']('/include/asm', 'r2k', true, true);
 Module['FS_createPath']('/include/asm', 'z80', true, true);
+Module['FS_createPath']('/include', 'xa51', true, true);
 Module['FS_createPath']('/include', 'mcs51', true, true);
 Module['FS_createPath']('/include', 'hc08', true, true);
 Module['FS_createPath']('/include', 'z180', true, true);
+Module['FS_createPath']('/include', 'pic14', true, true);
 Module['FS_createPath']('/include', 'ds400', true, true);
 Module['FS_createPath']('/', 'lib', true, true);
 Module['FS_createPath']('/lib', 'z80', true, true);
+Module['FS_createPath']('/lib', 'libcv', true, true);
+Module['FS_createPath']('/lib', 'libcvu', true, true);
+Module['FS_createPath']('/include', 'libcv', true, true);
+Module['FS_createPath']('/include', 'libcvu', true, true);
 
     function DataRequest(start, end, crunched, audio) {
       this.start = start;

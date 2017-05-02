@@ -52,13 +52,13 @@ void newline() {
   }
 }
 
-void putchar(char ch) {
+int putchar(int ch) {
   switch (ch) {
     case '\n':
       newline(); // TODO: scrolling
     case '\r':
       cursor_x = 0;
-      return;
+      return 0;
   }
   cellram[cursor_x][31-cursor_y] = ch;
   cursor_x++;

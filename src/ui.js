@@ -398,6 +398,7 @@ function setCompileOutput(data) {
   addr2symbol = invertMap(symbolmap);
   addr2symbol[0x10000] = '__END__';
   compparams = data.params;
+  updatePreset(current_preset_id, editor.getValue()); // update persisted entry
   // errors?
   function addErrorMarker(line, msg) {
     var div = document.createElement("div");
@@ -422,7 +423,6 @@ function setCompileOutput(data) {
     }
     current_output = null;
   } else {
-    updatePreset(current_preset_id, editor.getValue()); // update persisted entry
     // load ROM
     var rom = data.output;
     var rom_changed = rom && !arrayCompare(rom, current_output);
@@ -1112,18 +1112,28 @@ function showBookLink() {
 }
 
 function addPageFocusHandlers() {
+  var hidden = false;
   document.addEventListener("visibilitychange", function() {
-    if (document.visibilityState == 'hidden')
+    if (document.visibilityState == 'hidden' && platform.isRunning()) {
       platform.pause();
-    else if (document.visibilityState == 'visible')
+      hidden = true;
+    } else if (document.visibilityState == 'visible' && hidden) {
       platform.resume();
+      hidden = false;
+    }
   });
-  window.onfocus = function() {
-    platform.resume();
-  };
-  window.onblur = function() {
-    platform.pause();
-  };
+  $(window).on("focus", function() {
+    if (hidden) {
+      platform.resume();
+      hidden = false;
+    }
+  });
+  $(window).on("blur", function() {
+    if (platform.isRunning()) {
+      platform.pause();
+      hidden = true;
+    }
+  });
 }
 
 function startPlatform() {

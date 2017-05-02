@@ -3,66 +3,69 @@
 var PLATFORM_PARAMS = {
   'mw8080bw': {
     code_start: 0x0,
-    code_size: 0x2000,
+    rom_size: 0x2000,
     data_start: 0x2000,
     data_size: 0x400,
     stack_end: 0x2400,
   },
   'vicdual': {
     code_start: 0x0,
-    code_size: 0x4020,
+    rom_size: 0x4020,
     data_start: 0xe400,
     data_size: 0x400,
     stack_end: 0xe800,
   },
   'galaxian': {
     code_start: 0x0,
-    code_size: 0x4000,
+    rom_size: 0x4000,
     data_start: 0x4000,
     data_size: 0x400,
     stack_end: 0x4800,
   },
   'galaxian-scramble': {
     code_start: 0x0,
-    code_size: 0x5020,
+    rom_size: 0x5020,
     data_start: 0x4000,
     data_size: 0x400,
     stack_end: 0x4800,
   },
   'williams-z80': {
     code_start: 0x0,
-    code_size: 0x9800,
+    rom_size: 0x9800,
     data_start: 0x9800,
     data_size: 0x2800,
     stack_end: 0xc000,
   },
   'vector-z80color': {
     code_start: 0x0,
-    code_size: 0x8000,
+    rom_size: 0x8000,
     data_start: 0xe000,
     data_size: 0x2000,
     stack_end: 0x0,
   },
   'sound_williams-z80': {
     code_start: 0x0,
-    code_size: 0x4000,
+    rom_size: 0x4000,
     data_start: 0x4000,
     data_size: 0x400,
     stack_end: 0x8000,
   },
   'base_z80': {
     code_start: 0x0,
-    code_size: 0x8000,
+    rom_size: 0x8000,
     data_start: 0x8000,
     data_size: 0x8000,
     stack_end: 0x0,
   },
   'coleco': {
-    code_start: 0x8000,
-    code_size: 0x8000,
-    data_start: 0x6000,
+    rom_start: 0x8000,
+    code_start: 0x8100,
+    rom_size: 0x8000,
+    data_start: 0x7000,
     data_size: 0x400,
     stack_end: 0x8000,
+    extra_preproc_args: ['-I', '/share/include/libcv', '-I', '/share/include/libcvu'],
+    extra_link_args: ['-k', '/share/lib/libcv', '-l', 'libcv', '-k', '/share/lib/libcvu', '-l', 'libcvu', '/share/lib/libcv/crt0.rel', 'main.rel'],
   },
 };
 
@@ -631,13 +634,13 @@ function hexToArray(s, ofs) {
   return arr;
 }
 
-function parseIHX(ihx, code_start, code_size) {
-  var output = new Uint8Array(new ArrayBuffer(code_size));
+function parseIHX(ihx, rom_start, rom_size) {
+  var output = new Uint8Array(new ArrayBuffer(rom_size));
   for (var s of ihx.split("\n")) {
     if (s[0] == ':') {
       var arr = hexToArray(s, 1);
       var count = arr[0];
-      var address = (arr[1]<<8) + arr[2] - code_start;
+      var address = (arr[1]<<8) + arr[2] - rom_start;
       var rectype = arr[3];
       if (rectype == 0) {
         for (var i=0; i<count; i++) {
@@ -699,6 +702,7 @@ function assemblelinkSDASZ80(code, platform) {
         });
       }
     }
+    var updateListing = !params.extra_link_args;
     var LDZ80 = sdldz80({
       noInitialRun:true,
       //logReadFiles:true,
@@ -708,16 +712,24 @@ function assemblelinkSDASZ80(code, platform) {
     var FS = LDZ80['FS'];
     setupFS(FS, 'sdcc');
     FS.writeFile("main.rel", objout, {encoding:'utf8'});
-    FS.writeFile("main.lst", lstout, {encoding:'utf8'});
-    LDZ80.callMain(['-mjwxyu', '-i', 'main.ihx',
+    if (updateListing) {
+      FS.writeFile("main.lst", lstout, {encoding:'utf8'});
+    }
+    var args = ['-mjwxy'+(updateListing?'u':''),
+      '-i', 'main.ihx',
       '-b', '_CODE=0x'+params.code_start.toString(16),
       '-b', '_DATA=0x'+params.data_start.toString(16),
       '-k', '/share/lib/z80',
-      '-l', 'z80',
-      'main.rel']);
+      '-l', 'z80'];
+    if (params.extra_link_args) {
+      args.push.apply(args, params.extra_link_args);
+    } else {
+      args.push('main.rel');
+    }
+    LDZ80.callMain(args);
     var hexout = FS.readFile("main.ihx", {encoding:'utf8'});
     var mapout = FS.readFile("main.noi", {encoding:'utf8'});
-    var rstout = FS.readFile("main.rst", {encoding:'utf8'});
+    var rstout = updateListing ? FS.readFile("main.rst", {encoding:'utf8'}) : lstout;
     //var dbgout = FS.readFile("main.cdb", {encoding:'utf8'});
     //   0000 21 02 00      [10]   52 	ld	hl, #2
     // TODO: offset by start address?
@@ -732,7 +744,7 @@ function assemblelinkSDASZ80(code, platform) {
       }
     }
     return {
-      output:parseIHX(hexout, params.code_start, params.code_size),
+      output:parseIHX(hexout, params.rom_start?params.rom_start:params.code_start, params.rom_size),
       lines:asmlines,
       srclines:srclines,
       errors:msvc_errors, // TODO?
@@ -765,7 +777,7 @@ function compileSDCC(code, platform) {
   //FS.writeFile("main.c", code, {encoding:'utf8'});
   msvc_errors = [];
   var t1 = new Date();
-  SDCC.callMain(['--vc', '--std-sdcc99', '-mz80', //'-Wall',
+  var args = ['--vc', '--std-sdcc99', '-mz80', //'-Wall',
     '--c1mode', // '--debug',
     //'-S', 'main.c',
     //'--asm=z80asm',
@@ -775,7 +787,11 @@ function compileSDCC(code, platform) {
     '--oldralloc', // TODO: does this make it fater?
     //'--cyclomatic',
     //'--nooverlay','--nogcse','--nolabelopt','--noinvariant','--noinduction','--nojtbound','--noloopreverse','--no-peep','--nolospre',
-    '-o', 'main.asm']);
+    '-o', 'main.asm'];
+  if (params.extra_compile_args) {
+    args.push.apply(args, params.extra_compile_args);
+  }
+  SDCC.callMain(args);
   var t2 = new Date();
   //console.profileEnd();
   //console.log(t2.getTime() - t1.getTime());
@@ -861,6 +877,8 @@ function assembleXASM6809(code, platform) {
 
 function preprocessMCPP(code, platform) {
   load("mcpp");
+  var params = PLATFORM_PARAMS[platform];
+  if (!params) throw Error("Platform not supported: " + platform);
   // <stdin>:2: error: Can't open include file "foo.h"
   var errors = [];
   var match_fn = makeErrorMatcher(errors, /<stdin>:(\d+): (.+)/, 1, 2);
@@ -873,13 +891,17 @@ function preprocessMCPP(code, platform) {
   var FS = MCPP['FS'];
   setupFS(FS, 'sdcc');
   FS.writeFile("main.c", code, {encoding:'utf8'});
-  MCPP.callMain([
+  var args = [
     "-D", "__8BITWORKSHOP__",
     "-D", platform.toUpperCase().replace('-','_'),
     "-D", "__SDCC_z80",
     "-I", "/share/include",
     "-Q",
-    "main.c", "main.i"]);
+    "main.c", "main.i"];
+  if (params.extra_preproc_args) {
+    args.push.apply(args, params.extra_preproc_args);
+  }
+  MCPP.callMain(args);
   try {
     var iout = FS.readFile("main.i", {encoding:'utf8'});
     iout = iout.replace(/^#line /gm,'\n# ');

@@ -5,11 +5,21 @@
 // http://www.kernelcrash.com/blog/recreating-the-colecovision/2016/01/27/
 // http://www.atarihq.com/danb/files/CV-Tech.txt
 // http://www.colecoboxart.com/faq/FAQ05.htm
+// http://www.theadamresource.com/manuals/technical/Jeffcoleco.html
+// http://bifi.msxnet.org/msxnet//tech/tms9918a.txt
+// http://www.colecovision.dk/tools.htm?refreshed
 
 var ColecoVision_PRESETS = [
-  {id:'minimal.c', name:'Minimal Example'},
+  {id:'text.c', name:'Text Mode'},
+  {id:'hello.c', name:'Scrolling Text'},
+  {id:'text32.c', name:'32-Column Text'},
+  {id:'stars.c', name:'Scrolling Starfield'},
+  {id:'cursorsmooth.c', name:'Moving Cursor'},
+  {id:'simplemusic.c', name:'Simple Music'},
+  {id:'siegegame.c', name:'Siege Game'},
 ];
 
+// doesn't work, use MAME
 var ColecoVisionPlatform = function(mainElement) {
   var self = this;
   this.__proto__ = new BaseZ80Platform();

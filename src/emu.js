@@ -873,6 +873,7 @@ var BaseMAMEPlatform = function() {
   var romdata;
   var video;
   var preload_files;
+  var running = false;
 
   this.luacall = function(s) {
     //console.log(s);
@@ -884,11 +885,17 @@ var BaseMAMEPlatform = function() {
   }
 
   this.pause = function() {
-    if (loaded) this.luacall('emu.pause()');
+    if (loaded && running) {
+      this.luacall('emu.pause()');
+      running = false;
+    }
   }
 
   this.resume = function() {
-    if (loaded) this.luacall('emu.unpause()');
+    if (loaded && !running) {
+      this.luacall('emu.unpause()');
+      running = true;
+    }
   }
 
   this.reset = function() {
@@ -896,7 +903,7 @@ var BaseMAMEPlatform = function() {
   }
 
   this.isRunning = function() {
-    // TODO
+    return running;
   }
 
   this.startModule = function(mainElement, opts) {
