@@ -874,9 +874,16 @@ var BaseMAMEPlatform = function() {
   var video;
   var preload_files;
   var running = false;
+  var console_vars = {};
+  var console_varname;
 
+  this.luareset = function() {
+    console_vars = {};
+  }
+
+  // http://docs.mamedev.org/techspecs/luaengine.html
   this.luacall = function(s) {
-    //console.log(s);
+    console_varname = null;
     Module.ccall('_Z13js_lua_stringPKc', 'void', ['string'], [s+""]);
   }
 
@@ -906,6 +913,18 @@ var BaseMAMEPlatform = function() {
     return running;
   }
 
+  function bufferConsoleOutput(s) {
+    if (!s) return;
+    if (s.startsWith(">>>")) {
+      console_varname = s.length > 3 ? s.slice(3) : null;
+      if (console_varname) console_vars[console_varname] = [];
+    } else if (console_varname) {
+      console_vars[console_varname].push(s);
+    } else {
+      console.log(s);
+    }
+  }
+
   this.startModule = function(mainElement, opts) {
     romfn = opts.romfn;
     if (!romdata) romdata = new RAM(opts.romsize).mem;
@@ -920,7 +939,7 @@ var BaseMAMEPlatform = function() {
     window.Module = {
       arguments: [opts.driver, '-verbose', '-window', '-nokeepaspect', '-resolution', canvas.width+'x'+canvas.height, '-cart', romfn],
       screenIsReadOnly: true,
-      print: function (text) { console.log(text); },
+      print: bufferConsoleOutput,
       canvas:video.canvas,
       doNotCaptureKeyboard:true,
       keyboardListeningElement:video.canvas,
@@ -983,6 +1002,35 @@ var BaseMAMEPlatform = function() {
       self.luacall(s);
       self.reset();
     }
+  }
+
+  this.saveState = function() {
+    this.luareset();
+    this.luacall('cpu = manager:machine().devices[":maincpu"]\nfor k,v in pairs(cpu.state) do print(">>>cpu_"..k); print(v.value) end');
+    var state = {c:{}};
+    for (var k in console_vars) {
+      if (k.startsWith("cpu_")) {
+        var v = parseInt(console_vars[k][0]);
+        state.c[k.slice(4)] = v;
+      }
+    }
+    // TODO
+    return state;
+  }
+
+  var initluavars=false;
+
+  this.readAddress = function(a) {
+    if (!initluavars) {
+      self.luacall('cpu = manager:machine().devices[":maincpu"]\nmem = cpu.spaces["program"]\n')
+      initluavars = true;
+    }
+    self.luacall('print(">>>v"); print(mem:read_u8(' + a + '))');
+    return parseInt(console_vars.v[0]);
+  }
+
+  this.getDebugCallback = function() {
+    // TODO
   }
 
 }

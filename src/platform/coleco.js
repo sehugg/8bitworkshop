@@ -8,6 +8,7 @@
 // http://www.theadamresource.com/manuals/technical/Jeffcoleco.html
 // http://bifi.msxnet.org/msxnet//tech/tms9918a.txt
 // http://www.colecovision.dk/tools.htm?refreshed
+// http://www.theadamresource.com/manuals/technical/ColecoVision%20Coding%20Guide.pdf
 
 var ColecoVision_PRESETS = [
   {id:'text.c', name:'Text Mode'},
@@ -201,13 +202,6 @@ var ColecoVisionMAMEPlatform = function(mainElement) {
       romfn:'/emulator/cart.rom',
       romsize:0x8000,
       preInit:function(_self) {
-        /*
-        console.log("Writing BIOS");
-        var dir = '/roms/coleco';
-        FS.mkdir('/roms');
-        FS.mkdir(dir);
-        FS.writeFile(dir + "/313 10031-4005 73108a.u2", COLECO_BIOS, {encoding:'binary'});
-        */
       },
     });
   }
