@@ -1022,7 +1022,7 @@ function openBitmapEditorWithParams(fmt, bytestr, palfmt, palstr) {
   pixeditframe.contentWindow.postMessage({fmt:fmt, bytestr:bytestr, palfmt:palfmt, palstr:palstr}, '*');
 }
 
-function lookBackwardsForJSONComment(line) {
+function lookBackwardsForJSONComment(line, req) {
   var re = /[/][*]([{].+[}])[*][/]/;
   while (--line >= 0) {
     var s = editor.getLine(line);
@@ -1030,13 +1030,17 @@ function lookBackwardsForJSONComment(line) {
     if (m) {
       var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
       var obj = JSON.parse(jsontxt);
-      var start = {obj:obj, line:line, ch:s.indexOf(m[0])+m[0].length};
-      line--;
-      while (++line < editor.lineCount()) {
-        if (editor.getLine(line).indexOf(';') >= 0) {
-          var end = {line:line, ch:editor.getLine(line).length};
-          return {obj:obj, start:start, end:end};
+      if (obj[req]) {
+        var start = {obj:obj, line:line, ch:s.indexOf(m[0])+m[0].length};
+        var line0 = line;
+        line--;
+        while (++line < editor.lineCount()) {
+          if (editor.getLine(line).indexOf(';') >= 0) {
+            var end = {line:line, ch:editor.getLine(line).length};
+            return {obj:obj, start:start, end:end};
+          }
         }
+        line = line0;
       }
     }
   }
@@ -1047,9 +1051,9 @@ function openBitmapEditorAtCursor() {
     $("#pixeditback").hide(250);
     return;
   }
-  var data = lookBackwardsForJSONComment(getCurrentLine());
+  var data = lookBackwardsForJSONComment(getCurrentLine(), 'bpp');
   if (data && data.obj && data.obj.w>0 && data.obj.h>0 && data.obj.bpp>0) {
-    var paldata = lookBackwardsForJSONComment(data.start.line-1);
+    var paldata = lookBackwardsForJSONComment(data.start.line-1, 'pal');
     var palbytestr;
     if (paldata) {
       palbytestr = editor.getRange(paldata.start, paldata.end);

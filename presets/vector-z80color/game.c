@@ -35,7 +35,6 @@ byte __at (0x8980) watchdog;
 //
 
 void main();
-void _sdcc_heap_init(void); // for malloc()
 
 void start() {
 __asm
@@ -49,7 +48,6 @@ __asm
         LDIR
 __endasm;
   // init heap for malloc() and run main pgm.
-  _sdcc_heap_init();
   main();
 }
 
