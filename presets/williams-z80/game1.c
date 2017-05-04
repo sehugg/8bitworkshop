@@ -63,7 +63,6 @@ struct {
 //
 
 void main();
-void _sdcc_heap_init(void); // for malloc()
 
 // start routine @ 0x0
 // set stack pointer, enable interrupts
@@ -79,7 +78,6 @@ __asm
         LDIR
 __endasm;
   
-  _sdcc_heap_init();
   main();
 }
 

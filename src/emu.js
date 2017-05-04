@@ -11,8 +11,6 @@ function noise() {
 function __createCanvas(mainElement, width, height) {
   // TODO
   var fsElement = document.createElement('div');
-  fsElement.style.position = "relative";
-  fsElement.style.overflow = "hidden";
   fsElement.classList.add("emubevel");
 
   var canvas = document.createElement('canvas');

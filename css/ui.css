@@ -48,13 +48,13 @@
   left:0;
   right:0;
   background-color: #666;
-  overflow: hidden;;
+  overflow: hidden;
 }
-div.workspace {
-  background-color:#999;
+#workspace {
+  background-color:#333;
+  width:50%;
 }
 div.editor {
-  width:50%;
   line-height:1.25;
   font-size:12pt;
 }
@@ -182,6 +182,8 @@ a.dropdown-toggle {
     border-radius:6px 0 6px 6px;
 }
 .emubevel {
+  width:100%;
+  height:100%;
   padding:4%;
   background:#333;
 }
@@ -203,4 +205,14 @@ canvas.pixelated {
   image-rendering: -o-crisp-edges;            /* OS X & Windows Opera (12.02+) */
   image-rendering: pixelated;                 /* Awesome future-browsers       */
   -ms-interpolation-mode: nearest-neighbor;   /* IE                            */
+}
+.palbtn {
+  width:2em;
+  height:2em;
+  border-style:none;
+}
+.selected {
+  border-width:2px;
+  border-color:white;
+  border-style:dotted;
 }

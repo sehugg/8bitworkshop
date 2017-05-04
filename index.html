@@ -7,6 +7,21 @@ body {
   overflow: hidden !important;
   font-size: 11px;
 }
+.pixeditback {
+  position:absolute;
+  z-index:100;
+  width:100%;
+  height:100%;
+  padding:50px;
+  border-width:4px;
+  border-color:#333;
+  border-style:solid;
+  background-color:rgba(64, 64, 64, 0.5);
+}
+#pixeditframe {
+  width:100%;
+  height:100%;
+}
 </style>
 <link rel="stylesheet" href="css/ui.css">
 </head>
@@ -61,6 +76,9 @@ body {
     <button id="dbg_memory" type="submit" title="Show Memory" style="display:none"><span class="glyphicon glyphicon-sunglasses" aria-hidden="true"></span></button>
     <button id="dbg_profile" type="submit" title="Show Profile" style="display:none"><span class="glyphicon glyphicon-stats" aria-hidden="true"></span></button>
   </span>
+  <span class="btn_group view_group" id="tools_bar">
+    <button id="dbg_bitmap" type="submit" title="Edit Bitmap"><span class="glyphicon glyphicon-camera" aria-hidden="true"></span></button>
+  </span>
   <span id="best_in_firefox" style="display:none;font-size:12px;font-style:italic;float:right;color:#666">Note: Works best in Firefox</span>
 </div>
 <div id="notebook">
@@ -99,39 +117,9 @@ body {
   <a target="_new" href="https://www.amazon.com/Making-8-bit-Arcade-Games-C/dp/1545484759">
     Making 8-bit Arcade Games in C</a>
 </div>
-
-<div id="welcomeModal" class="modal fade">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title">Welcome to 8bitworkshop!</h3>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <p>What would you like to start programming?</p>
-        <div class="container-fluid">
-          <div class="row">
-            <div class="col-md-6">
-              <img data-dismiss="modal" class="img-responsive" data-platform="vcs" src="images/atarivcs.jpg" alt="Atari 2600 four-switch wood veneer version, dating from 1980-1982 (photo by Evan Amos)"/>
-            </div>
-            <div class="col-md-6">
-              <img data-dismiss="modal" class="img-responsive" data-platform="vicdual" src="images/arcadegames.jpg" alt="Galaxian arcade system board (photo by Dennis van Zuijlekom, CC BY-SA 2.0)"/>
-            </div>
-          </div>
-          <div class="row">
-            <div class="col-md-3 col-md-offset-2">
-              <button type="button" class="btn btn-secondary" data-platform="vcs" data-dismiss="modal">Atari VCS</button>
-            </div>
-            <div class="col-md-3 col-md-offset-2">
-              <button type="button" class="btn btn-secondary" data-platform="vicdual" data-dismiss="modal">Arcade Games</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+<div id="pixeditback" class="pixeditback" style="display:none">
+  <iframe id="pixeditframe" src="pixels.html">
+  </iframe>
 </div>
 
 <script src="jquery/jquery-2.2.3.min.js"></script>

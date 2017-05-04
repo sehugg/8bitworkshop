@@ -390,6 +390,7 @@ function invertMap(m) {
 }
 
 function setCompileOutput(data) {
+  // TODO: kills current selection
   sourcefile = new SourceFile(data.lines);
   if (data.asmlines) {
     assemblyfile = new SourceFile(data.asmlines, data.intermediate.listing);
@@ -1006,6 +1007,61 @@ function toggleProfileWindow() {
   }
 }
 
+function handleWindowMessage(e) {
+  console.log("window message", e.data);
+  if (e.data.bytes) {
+    editor.replaceSelection(e.data.bytestr);
+  }
+  if (e.data.close) {
+    $("#pixeditback").hide(250);
+  }
+}
+
+function openBitmapEditorWithParams(fmt, bytestr, palfmt, palstr) {
+  $("#pixeditback").show(250);
+  pixeditframe.contentWindow.postMessage({fmt:fmt, bytestr:bytestr, palfmt:palfmt, palstr:palstr}, '*');
+}
+
+function lookBackwardsForJSONComment(line) {
+  var re = /[/][*]([{].+[}])[*][/]/;
+  while (--line >= 0) {
+    var s = editor.getLine(line);
+    var m = re.exec(s);
+    if (m) {
+      var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
+      var obj = JSON.parse(jsontxt);
+      var start = {obj:obj, line:line, ch:s.indexOf(m[0])+m[0].length};
+      line--;
+      while (++line < editor.lineCount()) {
+        if (editor.getLine(line).indexOf(';') >= 0) {
+          var end = {line:line, ch:editor.getLine(line).length};
+          return {obj:obj, start:start, end:end};
+        }
+      }
+    }
+  }
+}
+
+function openBitmapEditorAtCursor() {
+  if ($("#pixeditback").is(":visible")) {
+    $("#pixeditback").hide(250);
+    return;
+  }
+  var data = lookBackwardsForJSONComment(getCurrentLine());
+  if (data && data.obj && data.obj.w>0 && data.obj.h>0 && data.obj.bpp>0) {
+    var paldata = lookBackwardsForJSONComment(data.start.line-1);
+    var palbytestr;
+    if (paldata) {
+      palbytestr = editor.getRange(paldata.start, paldata.end);
+      paldata = paldata.obj;
+    }
+    editor.setSelection(data.end, data.start);
+    openBitmapEditorWithParams(data.obj, editor.getSelection(), paldata, palbytestr);
+  } else {
+    alert("No bitmap spec found in format /*{w:,h:,bpp:,count:...}*/");
+  }
+}
+
 function setupDebugControls(){
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
@@ -1027,6 +1083,7 @@ function setupDebugControls(){
     $("#dbg_disasm").click(toggleDisassembly).show();
   }
   $("#disassembly").hide();
+  $("#dbg_bitmap").click(openBitmapEditorAtCursor);
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
   $("#item_share_file").click(_shareFile);
@@ -1076,7 +1133,6 @@ function showWelcomeMessage() {
     tour.init();
     setTimeout(function() { tour.start(); }, 2000);
   }
-  if (qs['redir']) delete qs['redir'];
 }
 
 ///////////////////////////////////////////////////
@@ -1155,7 +1211,6 @@ function startPlatform() {
     // try to load last file (redirect)
     var lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
     localStorage.removeItem("__lastid");
-    qs['redir'] = '1';
     gotoPresetNamed(lastid || PRESETS[0].id);
     return false;
   }
@@ -1186,6 +1241,7 @@ function loadSharedFile(sharekey) {
 // start
 function startUI(loadplatform) {
   installErrorHandler();
+  window.addEventListener("message", handleWindowMessage, false);
   // add default platform?
   platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
   if (!platform_id) {
