@@ -151,75 +151,17 @@ MOVEMENT
 	.byte $20	; -2 pixels
 
 ; Bitmap pattern for digits
-NUMBERS	.byte $0E ; |    XXX | $F5C5   Leading zero is not drawn
-	.byte $0A ; |    X X | $F5C6   because it's never used.
-	.byte $0A ; |    X X | $F5C7
-	.byte $0A ; |    X X | $F5C8
-	.byte $0E ; |    XXX | $F5C9
-	.byte $00
-	
-	.byte $22 ; |  X   X | $F5CA
-	.byte $22 ; |  X   X | $F5CB
-	.byte $22 ; |  X   X | $F5CC
-	.byte $22 ; |  X   X | $F5CD
-	.byte $22 ; |  X   X | $F5CE
-	.byte $00
-	
-	.byte $EE ; |XXX XXX | $F5CF
-	.byte $22 ; |  X   X | $F5D0
-	.byte $EE ; |XXX XXX | $F5D1
-	.byte $88 ; |X   X   | $F5D2
-	.byte $EE ; |XXX XXX | $F5D3
-	.byte $00
-	
-	.byte $EE ; |XXX XXX | $F5D4
-	.byte $22 ; |  X   X | $F5D5
-	.byte $66 ; | XX  XX | $F5D6
-	.byte $22 ; |  X   X | $F5D7
-	.byte $EE ; |XXX XXX | $F5D8
-	.byte $00
-
-	.byte $AA ; |X X X X | $F5D9
-	.byte $AA ; |X X X X | $F5DA
-	.byte $EE ; |XXX XXX | $F5DB
-	.byte $22 ; |  X   X | $F5DC
-	.byte $22 ; |  X   X | $F5DD
-	.byte $00
-
-	.byte $EE ; |XXX XXX | $F5DE
-	.byte $88 ; |X   X   | $F5DF
-	.byte $EE ; |XXX XXX | $F5E0
-	.byte $22 ; |  X   X | $F5E1
-	.byte $EE ; |XXX XXX | $F5E2
-	.byte $00
-	
-	.byte $EE ; |XXX XXX | $F5E3
-	.byte $88 ; |X   X   | $F5E4
-	.byte $EE ; |XXX XXX | $F5E5
-	.byte $AA ; |X X X X | $F5E6
-	.byte $EE ; |XXX XXX | $F5E7
-	.byte $00
-	
-	.byte $EE ; |XXX XXX | $F5E8
-	.byte $22 ; |  X   X | $F5E9
-	.byte $22 ; |  X   X | $F5EA
-	.byte $22 ; |  X   X | $F5EB
-	.byte $22 ; |  X   X | $F5EC
-	.byte $00
-	
-	.byte $EE ; |XXX XXX | $F5ED
-	.byte $AA ; |X X X X | $F5EE
-	.byte $EE ; |XXX XXX | $F5EF
-	.byte $AA ; |X X X X | $F5F0
-	.byte $EE ; |XXX XXX | $F5F1
-	.byte $00
-	
-	.byte $EE ; |XXX XXX | $F5F2
-	.byte $AA ; |X X X X | $F5F3
-	.byte $EE ; |XXX XXX | $F5F4
-	.byte $22 ; |  X   X | $F5F5
-	.byte $EE ; |XXX XXX | $F5F6	
-	.byte $00
+NUMBERS ;;{w:8,h:6,count:10,brev:1};;
+        .byte $EE,$AA,$AA,$AA,$EE,$00
+        .byte $22,$22,$22,$22,$22,$00
+        .byte $EE,$22,$EE,$88,$EE,$00
+        .byte $EE,$22,$66,$22,$EE,$00
+        .byte $AA,$AA,$EE,$22,$22,$00
+        .byte $EE,$88,$EE,$22,$EE,$00
+        .byte $EE,$88,$EE,$AA,$EE,$00
+        .byte $EE,$22,$22,$22,$22,$00
+        .byte $EE,$AA,$EE,$AA,$EE,$00
+        .byte $EE,$AA,$EE,$22,$EE,$00
 
 ; Epilogue
 	org $fffc

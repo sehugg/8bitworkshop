@@ -131,67 +131,18 @@ GetBCDBitmap subroutine
 	org $FF00
 
 ; Bitmap pattern for digits
-DigitsBitmap
-	.byte $0E ; |    XXX |
-	.byte $0A ; |    X X |
-	.byte $0A ; |    X X |
-	.byte $0A ; |    X X |
-	.byte $0E ; |    XXX |
-	
-	.byte $22 ; |  X   X | 
-	.byte $22 ; |  X   X | 
-	.byte $22 ; |  X   X | 
-	.byte $22 ; |  X   X | 
-	.byte $22 ; |  X   X | 
-	
-	.byte $EE ; |XXX XXX | 
-	.byte $22 ; |  X   X | 
-	.byte $EE ; |XXX XXX | 
-	.byte $88 ; |X   X   | 
-	.byte $EE ; |XXX XXX | 
-	
-	.byte $EE ; |XXX XXX | 
-	.byte $22 ; |  X   X | 
-	.byte $66 ; | XX  XX | 
-	.byte $22 ; |  X   X | 
-	.byte $EE ; |XXX XXX | 
-
-	.byte $AA ; |X X X X | 
-	.byte $AA ; |X X X X | 
-	.byte $EE ; |XXX XXX | 
-	.byte $22 ; |  X   X | 
-	.byte $22 ; |  X   X | 
-
-	.byte $EE ; |XXX XXX | 
-	.byte $88 ; |X   X   | 
-	.byte $EE ; |XXX XXX | 
-	.byte $22 ; |  X   X | 
-	.byte $EE ; |XXX XXX | 
-	
-	.byte $EE ; |XXX XXX | 
-	.byte $88 ; |X   X   | 
-	.byte $EE ; |XXX XXX | 
-	.byte $AA ; |X X X X | 
-	.byte $EE ; |XXX XXX | 
-	
-	.byte $EE ; |XXX XXX | 
-	.byte $22 ; |  X   X | 
-	.byte $22 ; |  X   X | 
-	.byte $22 ; |  X   X | 
-	.byte $22 ; |  X   X | 
-	
-	.byte $EE ; |XXX XXX | 
-	.byte $AA ; |X X X X | 
-	.byte $EE ; |XXX XXX | 
-	.byte $AA ; |X X X X | 
-	.byte $EE ; |XXX XXX | 
-	
-	.byte $EE ; |XXX XXX | 
-	.byte $AA ; |X X X X | 
-	.byte $EE ; |XXX XXX | 
-	.byte $22 ; |  X   X | 
-	.byte $EE ; |XXX XXX | 	
-
+DigitsBitmap ;;{w:8,h:6,count:10,brev:1};;
+        .byte $EE,$AA,$AA,$AA,$EE,$00
+        .byte $22,$22,$22,$22,$22,$00
+        .byte $EE,$22,$EE,$88,$EE,$00
+        .byte $EE,$22,$66,$22,$EE,$00
+        .byte $AA,$AA,$EE,$22,$22,$00
+        .byte $EE,$88,$EE,$22,$EE,$00
+        .byte $EE,$88,$EE,$AA,$EE,$00
+        .byte $EE,$22,$22,$22,$22,$00
+        .byte $EE,$AA,$EE,$AA,$EE,$00
+        .byte $EE,$AA,$EE,$22,$EE,$00
+        
 ; Epilogue
 	org $fffc
         .word Start

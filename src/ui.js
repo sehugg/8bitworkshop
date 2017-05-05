@@ -1023,7 +1023,7 @@ function openBitmapEditorWithParams(fmt, bytestr, palfmt, palstr) {
 }
 
 function lookBackwardsForJSONComment(line, req) {
-  var re = /[/][*]([{].+[}])[*][/]/;
+  var re = /[/;][*;]([{].+[}])[*;][/;]/;
   while (--line >= 0) {
     var s = editor.getLine(line);
     var m = re.exec(s);
@@ -1033,12 +1033,14 @@ function lookBackwardsForJSONComment(line, req) {
       if (obj[req]) {
         var start = {obj:obj, line:line, ch:s.indexOf(m[0])+m[0].length};
         var line0 = line;
+        var pos0 = start.ch;
         line--;
         while (++line < editor.lineCount()) {
-          if (editor.getLine(line).indexOf(';') >= 0) {
+          if (editor.getLine(line).indexOf(';') >= pos0) {
             var end = {line:line, ch:editor.getLine(line).length};
             return {obj:obj, start:start, end:end};
           }
+          pos0 = 0;
         }
         line = line0;
       }
@@ -1051,8 +1053,8 @@ function openBitmapEditorAtCursor() {
     $("#pixeditback").hide(250);
     return;
   }
-  var data = lookBackwardsForJSONComment(getCurrentLine(), 'bpp');
-  if (data && data.obj && data.obj.w>0 && data.obj.h>0 && data.obj.bpp>0) {
+  var data = lookBackwardsForJSONComment(getCurrentLine(), 'w');
+  if (data && data.obj && data.obj.w>0 && data.obj.h>0) {
     var paldata = lookBackwardsForJSONComment(data.start.line-1, 'pal');
     var palbytestr;
     if (paldata) {

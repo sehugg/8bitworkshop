@@ -47,7 +47,7 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
 
   var pixcanvas = createCanvas();
   var ctx = pixcanvas.getContext('2d');
-  var pixdata = ctx.createImageData(pixcanvas.width, pixcanvas.height);
+  var pixdata = ctx.createImageData(width, height);
   var pixints = new Uint32Array(pixdata.data.buffer);
   for (var i=0; i<pixints.length; i++) {
     pixints[i] = initialData ? palette[initialData[i]] : palette[0];
@@ -87,12 +87,13 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
   }
 
   function getPixel(x, y) {
-    var ofs = x+y*pixcanvas.width;
+    var ofs = x+y*width;
     return getPixelByOffset(ofs);
   }
 
   function setPixel(x, y, col) {
-    var ofs = x+y*pixcanvas.width;
+    if (x < 0 || x >= width || y < 0 || y >= height) return;
+    var ofs = x+y*width;
     var oldrgba = pixints[ofs];
     var rgba = palette[col];
     if (oldrgba != rgba) {
@@ -139,6 +140,7 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
       dragcol = getPixel(pos.x, pos.y) == curpalcol ? 0 : curpalcol;
       setPixel(pos.x, pos.y, curpalcol);
       dragging = true;
+      pixcanvas.setCapture();
     })
     .mousemove(function(e) {
       var pos = getPositionFromEvent(e);
@@ -151,38 +153,47 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
       setPixel(pos.x, pos.y, dragcol);
       dragging = false;
       updateThumbnails();
+      pixcanvas.releaseCapture();
     });
   }
 }
 
 /////////////////
 
+var pixel_re = /([0#]?)([x$%])([0-9a-f]+)/gi;
+
 function parseHexBytes(s) {
   var arr = [];
-  var re = /0x([0-9a-f]+)/gi;
   var m;
-  while (m = re.exec(s)) {
-    if (m[0].startsWith('0x'))
-      arr.push(parseInt(m[1],16));
+  while (m = pixel_re.exec(s)) {
+    var n;
+    if (m[2].startsWith('%'))
+      n = parseInt(m[3],2);
+    else if (m[2].startsWith('x') || m[2].startsWith('$'))
+      n = parseInt(m[3],16);
     else
-      arr.push(parseInt(m[1]));
+      n = parseInt(m[3]);
+    arr.push(n);
   }
   return arr;
 }
 
 function replaceHexBytes(s, bytes) {
   var result = "";
-  var re = /0x[0-9a-f]+/gi; // TODO: decimal
   var m;
   var li = 0;
   var i = 0;
-  while (m = re.exec(s)) {
-    result += s.slice(li, re.lastIndex - m[0].length);
-    li = re.lastIndex;
-    if (m[0].startsWith('0x'))
-      result += "0x" + hex(bytes[i++]);
+  while (m = pixel_re.exec(s)) {
+    result += s.slice(li, pixel_re.lastIndex - m[0].length);
+    li = pixel_re.lastIndex;
+    if (m[2].startsWith('%'))
+      result += m[1] + "%" + bytes[i++].toString(2);
+    else if (m[2].startsWith('x'))
+      result += m[1] + "x" + hex(bytes[i++]);
+    else if (m[2].startsWith('$'))
+      result += m[1] + "$" + hex(bytes[i++]);
     else
-      result += bytes[i++].toString();
+      result += m[1] + bytes[i++].toString();
   }
   result += s.slice(li);
   return result;
@@ -227,7 +238,7 @@ function convertImagesToBytes(images, fmt) {
   var width = fmt.w;
   var height = fmt.h;
   var bpp = fmt.bpp ? fmt.bpp : 1;
-  var bytesperline = fmt.sl ? fmt.sl : Math.ceil(fmt.w * fmt.bpp / 8);
+  var bytesperline = fmt.sl ? fmt.sl : Math.ceil(fmt.w * bpp / 8);
   var mask = (1 << bpp)-1;
   var nplanes = fmt.np ? fmt.np : 1;
   var bytes = new Uint8Array(bytesperline * height * nplanes * count);
@@ -277,7 +288,7 @@ var currentPaletteStr;
 var currentPaletteFmt;
 var allthumbs;
 
-function pixelEditorReceiveMessage(e) {
+function pixelEditorDecodeMessage(e) {
   console.log(e.data);
   parentSource = e.source;
   parentOrigin = e.origin;
@@ -302,6 +313,9 @@ function pixelEditorReceiveMessage(e) {
     // TODO: default palette?
   }
   palette = new Uint32Array(palette);
+}
+
+function pixelEditorCreateThumbnails(e) {
   // create thumbnail for all images
   $("#thumbnaildiv").empty();
   var parentdiv;
@@ -313,6 +327,11 @@ function pixelEditorReceiveMessage(e) {
     }
     allthumbs.push(createThumbnailForImage(parentdiv, i));
   }
+}
+
+function pixelEditorReceiveMessage(e) {
+  pixelEditorDecodeMessage(e);
+  pixelEditorCreateThumbnails(e);
   // create initial editor
   createEditorForImage(0);
 }

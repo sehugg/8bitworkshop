@@ -15,6 +15,7 @@
   },
   "scripts": {
     "test": "npm run test-node && npm run test-browser",
+    "test-one": "mocha --recursive --timeout 20000",
     "test-node": "mocha --recursive --timeout 20000 test/cli",
     "test-profile": "mocha --recursive --timeout 60000 --prof test/cli",
     "test-browser": "mocha-phantomjs ./testemu.html"
