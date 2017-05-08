@@ -199,23 +199,39 @@ function replaceHexBytes(s, bytes) {
   return result;
 }
 
+function remapBits(x, arr) {
+  if (!arr) return x;
+  var y = 0;
+  for (var i=0; i<arr.length; i++) {
+    var s = arr[i];
+    if (s < 0) {
+      s = -s-1;
+      y ^= 1 << s;
+    }
+    if (x & (1 << i)) {
+      y ^= 1 << s;
+    }
+  }
+  return y;
+}
+
 function convertBytesToImages(bytes, fmt) {
-  var count = fmt.count ? fmt.count : 1;
   var width = fmt.w;
   var height = fmt.h;
-  var bpp = fmt.bpp ? fmt.bpp : 1;
-  var bytesperline = fmt.sl ? fmt.sl : Math.ceil(width * bpp / 8);
-  //console.log(width,height,bytesperline);
+  var count = fmt.count || 1;
+  var bpp = fmt.bpp || 1;
+  var nplanes = fmt.np || 1;
+  var bytesperline = fmt.sl || Math.ceil(width * bpp / 8);
   var mask = (1 << bpp)-1;
   var images = [];
-  var nplanes = fmt.np ? fmt.np : 1;
   for (var n=0; n<count; n++) {
     var imgdata = [];
     for (var y=0; y<height; y++) {
-      var ofs = n*bytesperline*height + y*bytesperline;
+      var ofs0 = n*bytesperline*height + y*bytesperline;
       var shift = 0;
       for (var x=0; x<width; x++) {
         var color = 0;
+        var ofs = remapBits(ofs0, fmt.remap);
         for (var p=0; p<nplanes; p++) {
           var byte = bytes[ofs + p*(fmt.pofs|0)];
           color |= ((fmt.brev ? byte>>(8-shift-bpp) : byte>>shift) & mask) << (p*bpp);
@@ -223,7 +239,7 @@ function convertBytesToImages(bytes, fmt) {
         imgdata.push(color);
         shift += bpp;
         if (shift >= 8) {
-          ofs += 1;
+          ofs0 += 1;
           shift = 0;
         }
       }
@@ -234,29 +250,30 @@ function convertBytesToImages(bytes, fmt) {
 }
 
 function convertImagesToBytes(images, fmt) {
-  var count = fmt.count ? fmt.count : 1;
   var width = fmt.w;
   var height = fmt.h;
-  var bpp = fmt.bpp ? fmt.bpp : 1;
-  var bytesperline = fmt.sl ? fmt.sl : Math.ceil(fmt.w * bpp / 8);
+  var count = fmt.count || 1;
+  var bpp = fmt.bpp || 1;
+  var nplanes = fmt.np || 1;
+  var bytesperline = fmt.sl || Math.ceil(fmt.w * bpp / 8);
   var mask = (1 << bpp)-1;
-  var nplanes = fmt.np ? fmt.np : 1;
   var bytes = new Uint8Array(bytesperline * height * nplanes * count);
   for (var n=0; n<count; n++) {
     var imgdata = images[n];
     var i = 0;
     for (var y=0; y<height; y++) {
-      var ofs = n*bytesperline*height + y*bytesperline;
+      var ofs0 = n*bytesperline*height + y*bytesperline;
       var shift = 0;
       for (var x=0; x<width; x++) {
         var color = imgdata[i++];
+        var ofs = remapBits(ofs0, fmt.remap);
         for (var p=0; p<nplanes; p++) {
           var c = (color >> (p*bpp)) & mask;
           bytes[ofs + p*(fmt.pofs|0)] |= (fmt.brev ? (c << (8-shift-bpp)) : (c << shift));
         }
         shift += bpp;
         if (shift >= 8) {
-          ofs += 1;
+          ofs0 += 1;
           shift = 0;
         }
       }

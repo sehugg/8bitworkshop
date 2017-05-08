@@ -1,7 +1,6 @@
 
 #include <string.h>
-#include <malloc.h>
-#include <stdio.h>
+#include <stdlib.h>
 
 typedef unsigned char byte;
 typedef unsigned short word;
@@ -35,6 +34,7 @@ byte __at (0x8980) watchdog;
 //
 
 void main();
+void __sdcc_heap_init(void); // for malloc()
 
 void start() {
 __asm
@@ -48,6 +48,7 @@ __asm
         LDIR
 __endasm;
   // init heap for malloc() and run main pgm.
+  __sdcc_heap_init();
   main();
 }
 
@@ -360,15 +361,6 @@ void draw_wireframe_ortho(const Wireframe* wf, const Matrix* m) {
   } while (1);
 }
 
-static word lfsr = 1;
-
-word rand() {
-  byte lsb = lfsr & 1;
-  lfsr >>= 1;
-  if (lsb) lfsr ^= 0xd400;
-  return lfsr;
-}
-
 // SHAPE CACHE
 
 const Vector8 tetra_v[] = { {0,-86,86},{86,86,86},{-86,86,86},{0,0,-86} };
@@ -525,10 +517,6 @@ void draw_actor_rect(Actor* a) {
   VCTR(0,86*2,2);
   VCTR(-86*2,0,2);
   VCTR(0,-86*2,2);
-}
-
-inline byte abs(sbyte x) {
-  return (x>=0) ? x : -x;
 }
 
 inline word get_distance_squared(byte dx, byte dy) {

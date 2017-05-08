@@ -145,15 +145,19 @@ describe('Worker', function() {
   });
   it('should compile vector skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/vector-z80color/skeleton.sdcc'));
-    compile('sdcc', csource, 'vector-z80color', done, 32768, 24, 0);
+    compile('sdcc', csource, 'vector-z80color', done, 32768, 23, 0);
   });
   it('should compile williams skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/williams-z80/skeleton.sdcc'));
-    compile('sdcc', csource, 'williams-z80', done, 38912, 39, 0);
+    compile('sdcc', csource, 'williams-z80', done, 38912, 38, 0);
   });
   it('should compile williams_sound skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/sound_williams-z80/skeleton.sdcc'));
     compile('sdcc', csource, 'sound_williams-z80', done, 16384, 6, 0);
+  });
+  it('should compile coleco skeleton', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/coleco/skeleton.sdcc'));
+    compile('sdcc', csource, 'coleco', done, 32768, 31, 0);
   });
   it('should NOT compile SDCC', function(done) {
     compile('sdcc', 'foobar', 'mw8080bw', done, 0, 0, 1);

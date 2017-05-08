@@ -9,6 +9,7 @@
 // http://bifi.msxnet.org/msxnet//tech/tms9918a.txt
 // http://www.colecovision.dk/tools.htm?refreshed
 // http://www.theadamresource.com/manuals/technical/ColecoVision%20Coding%20Guide.pdf
+// http://www.unige.ch/medecine/nouspikel/ti99/tms9918a.htm
 
 var ColecoVision_PRESETS = [
   {id:'text.c', name:'Text Mode'},
