@@ -1,7 +1,5 @@
 "use strict";
 
-var palette;
-
 function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
   var self = this;
   var width = fmt.w;
@@ -295,6 +293,9 @@ function convertPaletteBytes(arr,r0,r1,g0,g1,b0,b1) {
   return result;
 }
 
+var palette;
+var paletteSets;
+var paletteSetIndex=0;
 var currentPixelEditor;
 var parentSource;
 var parentOrigin;
@@ -306,7 +307,6 @@ var currentPaletteFmt;
 var allthumbs;
 
 function pixelEditorDecodeMessage(e) {
-  console.log(e.data);
   parentSource = e.source;
   parentOrigin = e.origin;
   currentFormat = e.data.fmt;
@@ -326,6 +326,14 @@ function pixelEditorDecodeMessage(e) {
       palette = convertPaletteBytes(palbytes, 0, rr, rr, gg, rr+gg, bb);
     else
       palette = convertPaletteBytes(palbytes, rr+gg, bb, rr, gg, 0, rr);
+    if (currentPaletteFmt.n) {
+      paletteSets = [];
+      for (var i=0; i<palette.length; i+=currentPaletteFmt.n) {
+        paletteSets.push(palette.slice(i, i+currentPaletteFmt.n));
+      }
+      palette = paletteSets[paletteSetIndex = 0];
+      // TODO: swap palettes
+    }
   } else {
     // TODO: default palette?
   }
