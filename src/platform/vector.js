@@ -67,8 +67,8 @@ var AtariVectorPlatform = function(mainElement) {
   this.start = function() {
     cpuram = new RAM(0x400);
     dvgram = new RAM(0x2000);
-    //switches[5] = 0xff;
-    //switches[7] = 0xff;
+    switches[5] = 0xff;
+    switches[7] = 0xff;
     // bus
     bus = {
 
