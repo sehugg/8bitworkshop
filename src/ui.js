@@ -1013,12 +1013,12 @@ function handleWindowMessage(e) {
     editor.replaceSelection(e.data.bytestr);
   }
   if (e.data.close) {
-    $("#pixeditback").hide(250);
+    $("#pixeditback").hide();
   }
 }
 
 function openBitmapEditorWithParams(fmt, bytestr, palfmt, palstr) {
-  $("#pixeditback").show(250);
+  $("#pixeditback").show();
   pixeditframe.contentWindow.postMessage({fmt:fmt, bytestr:bytestr, palfmt:palfmt, palstr:palstr}, '*');
 }
 

@@ -198,12 +198,10 @@ var RAM = function(size) {
   this.mem = new Uint8Array(memArray);
 }
 
-// TODO
 var AnimationTimer = function(frequencyHz, callback) {
   var intervalMsec = 1000.0 / frequencyHz;
-  var curTime = 0;
   var running;
-  var useReqAnimFrame = false; // TODO: disable on OS X
+  var useReqAnimFrame = false; // TODO: enable?
 
   function scheduleFrame() {
     if (useReqAnimFrame)
@@ -211,9 +209,7 @@ var AnimationTimer = function(frequencyHz, callback) {
     else
       setTimeout(nextFrame, intervalMsec);
   }
-
-  var nextFrame = function(timestamp) {
-    // TODO: calculate framerate
+  var nextFrame = function(ts) {
     callback();
     if (running) {
       scheduleFrame();
@@ -439,13 +435,9 @@ var BaseZ80Platform = function() {
   var _cpu;
   var probe;
 
-  window.buildZ80({
-  	applyContention: false // TODO???
-  });
-
   this.newCPU = function(membus, iobus) {
     probe = new BusProbe(membus);
-    _cpu = window.Z80({
+    _cpu = Z80_fast({
      display: {},
      memory: probe,
      ioBus: iobus
