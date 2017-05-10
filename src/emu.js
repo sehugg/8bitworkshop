@@ -201,7 +201,8 @@ var RAM = function(size) {
 var AnimationTimer = function(frequencyHz, callback) {
   var intervalMsec = 1000.0 / frequencyHz;
   var running;
-  var useReqAnimFrame = false; // TODO: enable?
+  var lastts = 0;
+  var useReqAnimFrame = true;
 
   function scheduleFrame() {
     if (useReqAnimFrame)
@@ -210,7 +211,14 @@ var AnimationTimer = function(frequencyHz, callback) {
       setTimeout(nextFrame, intervalMsec);
   }
   var nextFrame = function(ts) {
-    callback();
+    if (!useReqAnimFrame || ts - lastts > intervalMsec/2) {
+      if (ts - lastts < intervalMsec*30) {
+        lastts += intervalMsec;
+      } else {
+        lastts = ts;
+      }
+      callback();
+    }
     if (running) {
       scheduleFrame();
     }
@@ -221,6 +229,7 @@ var AnimationTimer = function(frequencyHz, callback) {
   this.start = function() {
     if (!running) {
       running = true;
+      lastts = 0;
       scheduleFrame();
     }
   }

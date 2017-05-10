@@ -2,8 +2,8 @@
 
 var MasterAudio = function() {
   this.master = new MasterChannel();
+  this.looper = new AudioLooper(512);
   this.start = function() {
-    this.looper = new AudioLooper(512);
     this.looper.setChannel(this.master);
     this.looper.activate();
   }
