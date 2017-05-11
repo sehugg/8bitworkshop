@@ -202,7 +202,7 @@ var AnimationTimer = function(frequencyHz, callback) {
   var intervalMsec = 1000.0 / frequencyHz;
   var running;
   var lastts = 0;
-  var useReqAnimFrame = true;
+  var useReqAnimFrame = window.requestAnimationFrame ? true : false;
 
   function scheduleFrame() {
     if (useReqAnimFrame)

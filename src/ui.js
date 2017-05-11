@@ -1064,7 +1064,7 @@ function openBitmapEditorAtCursor() {
     editor.setSelection(data.end, data.start);
     openBitmapEditorWithParams(data.obj, editor.getSelection(), paldata, palbytestr);
   } else {
-    alert("No bitmap spec found in format /*{w:,h:,bpp:,count:...}*/");
+    alert("To edit graphics, move cursor to a constant array preceded by a comment in the format:\n\n/*{w:,h:,bpp:,count:...}*/\n\n(See code examples)");
   }
 }
 
