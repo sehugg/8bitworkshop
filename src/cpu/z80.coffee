@@ -1248,9 +1248,10 @@ window.buildZ80 = (opts) ->
 					"if (regPairs[#{rpPC}] == #{(address + 1) & 0xffff} && !(#{action})) break;" for [address, action] in relevantTraps
 				)
 				clauses.push """
-					case #{i}:
+					case #{i}: { var fn#{i} = function() {
 						#{trapCode.join("\n")}
 						#{runString}
+					}; fn#{i}(); }
 						break;
 				"""
 		"""

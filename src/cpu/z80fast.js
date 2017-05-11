@@ -1,4 +1,3 @@
-"use strict";
 var Z80_fast = function (opts) {
 	var self = {};
 
@@ -132,25 +131,29 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 					opcode = memory.read(regPairs[12]); regPairs[12]++;
 					regs[20] = ((regs[20] + 1) & 0x7f) | (regs[20] & 0x80);
 					switch (opcode) {
-	case 0:
+	case 0: { var fn0 = function() {
 	
 			
-	break;case 1:
+}; fn0(); }
+	break;case 1: { var fn1 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[1] = (h<<8) | l;
-	break;case 2:
+}; fn1(); }
+	break;case 2: { var fn2 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[1], regs[1]);;
-	break;case 3:
+}; fn2(); }
+	break;case 3: { var fn3 = function() {
 	
 	regPairs[1]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 4:
+}; fn3(); }
+	break;case 4: { var fn4 = function() {
 	
 	
 
@@ -159,7 +162,8 @@ regs[3] = (regs[3] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[3] == 0x80 ? 4 : 0 ) | ( regs[3] & 0x0f ? 0 : 16 ) | sz53Table[regs[3]];
-	break;case 5:
+}; fn4(); }
+	break;case 5: { var fn5 = function() {
 	
 	
 
@@ -168,19 +172,23 @@ regs[3] = (regs[3] - 1) ;
 
 
 regs[0] |= (regs[3] == 0x7f ? 4 : 0) | sz53Table[regs[3]];
-	break;case 6:
+}; fn5(); }
+	break;case 6: { var fn6 = function() {
 	
 	regs[3] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 7:
+}; fn6(); }
+	break;case 7: { var fn7 = function() {
 	
 	regs[1] = (regs[1] << 1) | (regs[1] >> 7);
 regs[0] = (regs[0] & 196) | (regs[1] & 41);
-	break;case 8:
+}; fn7(); }
+	break;case 8: { var fn8 = function() {
 	
 	var temp = regPairs[0];
 regPairs[0] = regPairs[4];
 regPairs[4] = temp;
-	break;case 9:
+}; fn8(); }
+	break;case 9: { var fn9 = function() {
 	
 	var add16temp = regPairs[3] + regPairs[1];
 var lookup = ( (regPairs[3] & 0x0800) >> 11 ) | ( (regPairs[1] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -193,15 +201,18 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 10:
+}; fn9(); }
+	break;case 10: { var fn10 = function() {
 	
 	regs[1] = (tstates += ( 3), memory.read(regPairs[1]));
-	break;case 11:
+}; fn10(); }
+	break;case 11: { var fn11 = function() {
 	
 	regPairs[1]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 12:
+}; fn11(); }
+	break;case 12: { var fn12 = function() {
 	
 	
 
@@ -210,7 +221,8 @@ regs[2] = (regs[2] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[2] == 0x80 ? 4 : 0 ) | ( regs[2] & 0x0f ? 0 : 16 ) | sz53Table[regs[2]];
-	break;case 13:
+}; fn12(); }
+	break;case 13: { var fn13 = function() {
 	
 	
 
@@ -219,15 +231,18 @@ regs[2] = (regs[2] - 1) ;
 
 
 regs[0] |= (regs[2] == 0x7f ? 4 : 0) | sz53Table[regs[2]];
-	break;case 14:
+}; fn13(); }
+	break;case 14: { var fn14 = function() {
 	
 	regs[2] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 15:
+}; fn14(); }
+	break;case 15: { var fn15 = function() {
 	
 	regs[0] = (regs[0] & 196) | (regs[1] & 1);
 regs[1] = (regs[1] >> 1) | (regs[1] << 7);
 regs[0] |= (regs[1] & 40);
-	break;case 16:
+}; fn15(); }
+	break;case 16: { var fn16 = function() {
 	
 	tstates += ( 1);
 regs[3]--;
@@ -246,22 +261,26 @@ if (regs[3]) {
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 17:
+}; fn16(); }
+	break;case 17: { var fn17 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[2] = (h<<8) | l;
-	break;case 18:
+}; fn17(); }
+	break;case 18: { var fn18 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[2], regs[1]);;
-	break;case 19:
+}; fn18(); }
+	break;case 19: { var fn19 = function() {
 	
 	regPairs[2]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 20:
+}; fn19(); }
+	break;case 20: { var fn20 = function() {
 	
 	
 
@@ -270,7 +289,8 @@ regs[5] = (regs[5] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[5] == 0x80 ? 4 : 0 ) | ( regs[5] & 0x0f ? 0 : 16 ) | sz53Table[regs[5]];
-	break;case 21:
+}; fn20(); }
+	break;case 21: { var fn21 = function() {
 	
 	
 
@@ -279,15 +299,18 @@ regs[5] = (regs[5] - 1) ;
 
 
 regs[0] |= (regs[5] == 0x7f ? 4 : 0) | sz53Table[regs[5]];
-	break;case 22:
+}; fn21(); }
+	break;case 22: { var fn22 = function() {
 	
 	regs[5] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 23:
+}; fn22(); }
+	break;case 23: { var fn23 = function() {
 	
 	var bytetemp = regs[1];
 regs[1] = (regs[1] << 1) | (regs[0] & 1);
 regs[0] = (regs[0] & 196) | (regs[1] & 40) | (bytetemp >> 7);
-	break;case 24:
+}; fn23(); }
+	break;case 24: { var fn24 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -297,7 +320,8 @@ tstates += ( 1);
 tstates += ( 1);
 regPairs[12]++;
 regPairs[12] += (offset & 0x80 ? offset - 0x100 : offset);
-	break;case 25:
+}; fn24(); }
+	break;case 25: { var fn25 = function() {
 	
 	var add16temp = regPairs[3] + regPairs[2];
 var lookup = ( (regPairs[3] & 0x0800) >> 11 ) | ( (regPairs[2] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -310,15 +334,18 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 26:
+}; fn25(); }
+	break;case 26: { var fn26 = function() {
 	
 	regs[1] = (tstates += ( 3), memory.read(regPairs[2]));
-	break;case 27:
+}; fn26(); }
+	break;case 27: { var fn27 = function() {
 	
 	regPairs[2]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 28:
+}; fn27(); }
+	break;case 28: { var fn28 = function() {
 	
 	
 
@@ -327,7 +354,8 @@ regs[4] = (regs[4] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[4] == 0x80 ? 4 : 0 ) | ( regs[4] & 0x0f ? 0 : 16 ) | sz53Table[regs[4]];
-	break;case 29:
+}; fn28(); }
+	break;case 29: { var fn29 = function() {
 	
 	
 
@@ -336,15 +364,18 @@ regs[4] = (regs[4] - 1) ;
 
 
 regs[0] |= (regs[4] == 0x7f ? 4 : 0) | sz53Table[regs[4]];
-	break;case 30:
+}; fn29(); }
+	break;case 30: { var fn30 = function() {
 	
 	regs[4] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 31:
+}; fn30(); }
+	break;case 31: { var fn31 = function() {
 	
 	var bytetemp = regs[1];
 regs[1] = (bytetemp >> 1) | (regs[0] << 7);
 regs[0] = (regs[0] & 196) | (regs[1] & 40) | (bytetemp & 1);
-	break;case 32:
+}; fn31(); }
+	break;case 32: { var fn32 = function() {
 	
 	if (!(regs[0] & 64)) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -359,12 +390,14 @@ regs[0] = (regs[0] & 196) | (regs[1] & 40) | (bytetemp & 1);
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 33:
+}; fn32(); }
+	break;case 33: { var fn33 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[3] = (h<<8) | l;
-	break;case 34:
+}; fn33(); }
+	break;case 34: { var fn34 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -376,12 +409,14 @@ addr = (addr + 1) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regPairs[3] >> 8);;
-	break;case 35:
+}; fn34(); }
+	break;case 35: { var fn35 = function() {
 	
 	regPairs[3]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 36:
+}; fn35(); }
+	break;case 36: { var fn36 = function() {
 	
 	
 
@@ -390,7 +425,8 @@ regs[7] = (regs[7] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[7] == 0x80 ? 4 : 0 ) | ( regs[7] & 0x0f ? 0 : 16 ) | sz53Table[regs[7]];
-	break;case 37:
+}; fn36(); }
+	break;case 37: { var fn37 = function() {
 	
 	
 
@@ -399,10 +435,12 @@ regs[7] = (regs[7] - 1) ;
 
 
 regs[0] |= (regs[7] == 0x7f ? 4 : 0) | sz53Table[regs[7]];
-	break;case 38:
+}; fn37(); }
+	break;case 38: { var fn38 = function() {
 	
 	regs[7] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 39:
+}; fn38(); }
+	break;case 39: { var fn39 = function() {
 	
 	var add = 0;
 var carry = regs[0] & 1;
@@ -424,7 +462,8 @@ regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
 }
 regs[0] = ( regs[0] & -6 ) | carry | parityTable[regs[1]];
-	break;case 40:
+}; fn39(); }
+	break;case 40: { var fn40 = function() {
 	
 	if (regs[0] & 64) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -439,7 +478,8 @@ regs[0] = ( regs[0] & -6 ) | carry | parityTable[regs[1]];
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 41:
+}; fn40(); }
+	break;case 41: { var fn41 = function() {
 	
 	var add16temp = regPairs[3] + regPairs[3];
 var lookup = ( (regPairs[3] & 0x0800) >> 11 ) | ( (regPairs[3] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -452,7 +492,8 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 42:
+}; fn41(); }
+	break;case 42: { var fn42 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -461,12 +502,14 @@ l = (tstates += ( 3), memory.read(addr));
 addr = (addr + 1) & 0xffff;
 h = (tstates += ( 3), memory.read(addr));
 regPairs[3] = (h<<8) | l;
-	break;case 43:
+}; fn42(); }
+	break;case 43: { var fn43 = function() {
 	
 	regPairs[3]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 44:
+}; fn43(); }
+	break;case 44: { var fn44 = function() {
 	
 	
 
@@ -475,7 +518,8 @@ regs[6] = (regs[6] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[6] == 0x80 ? 4 : 0 ) | ( regs[6] & 0x0f ? 0 : 16 ) | sz53Table[regs[6]];
-	break;case 45:
+}; fn44(); }
+	break;case 45: { var fn45 = function() {
 	
 	
 
@@ -484,14 +528,17 @@ regs[6] = (regs[6] - 1) ;
 
 
 regs[0] |= (regs[6] == 0x7f ? 4 : 0) | sz53Table[regs[6]];
-	break;case 46:
+}; fn45(); }
+	break;case 46: { var fn46 = function() {
 	
 	regs[6] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 47:
+}; fn46(); }
+	break;case 47: { var fn47 = function() {
 	
 	regs[1] ^= 0xff;
 regs[0] = (regs[0] & 197) | (regs[1] & 40) | 18;
-	break;case 48:
+}; fn47(); }
+	break;case 48: { var fn48 = function() {
 	
 	if (!(regs[0] & 1)) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -506,12 +553,14 @@ regs[0] = (regs[0] & 197) | (regs[1] & 40) | 18;
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 49:
+}; fn48(); }
+	break;case 49: { var fn49 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[11] = (h<<8) | l;
-	break;case 50:
+}; fn49(); }
+	break;case 50: { var fn50 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -519,12 +568,14 @@ var addr = (h<<8) | l;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 51:
+}; fn50(); }
+	break;case 51: { var fn51 = function() {
 	
 	regPairs[11]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 52:
+}; fn51(); }
+	break;case 52: { var fn52 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 
@@ -536,7 +587,8 @@ tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
 regs[0] = (regs[0] & 1) | ( val == 0x80 ? 4 : 0 ) | ( val & 0x0f ? 0 : 16 ) | sz53Table[val];
-	break;case 53:
+}; fn52(); }
+	break;case 53: { var fn53 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 
@@ -548,16 +600,19 @@ tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
 regs[0] |= (val == 0x7f ? 4 : 0) | sz53Table[val];
-	break;case 54:
+}; fn53(); }
+	break;case 54: { var fn54 = function() {
 	
 	var n = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], n);;
-	break;case 55:
+}; fn54(); }
+	break;case 55: { var fn55 = function() {
 	
 	regs[0] = (regs[0] & 196) | (regs[1] & 40) | 1;
-	break;case 56:
+}; fn55(); }
+	break;case 56: { var fn56 = function() {
 	
 	if (regs[0] & 1) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -572,7 +627,8 @@ memory.write(regPairs[3], n);;
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 57:
+}; fn56(); }
+	break;case 57: { var fn57 = function() {
 	
 	var add16temp = regPairs[3] + regPairs[11];
 var lookup = ( (regPairs[3] & 0x0800) >> 11 ) | ( (regPairs[11] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -585,18 +641,21 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 58:
+}; fn57(); }
+	break;case 58: { var fn58 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var addr = (h<<8) | l;
 regs[1] = (tstates += ( 3), memory.read(addr));
-	break;case 59:
+}; fn58(); }
+	break;case 59: { var fn59 = function() {
 	
 	regPairs[11]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 60:
+}; fn59(); }
+	break;case 60: { var fn60 = function() {
 	
 	
 
@@ -605,7 +664,8 @@ regs[1] = (regs[1] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[1] == 0x80 ? 4 : 0 ) | ( regs[1] & 0x0f ? 0 : 16 ) | sz53Table[regs[1]];
-	break;case 61:
+}; fn60(); }
+	break;case 61: { var fn61 = function() {
 	
 	
 
@@ -614,220 +674,287 @@ regs[1] = (regs[1] - 1) ;
 
 
 regs[0] |= (regs[1] == 0x7f ? 4 : 0) | sz53Table[regs[1]];
-	break;case 62:
+}; fn61(); }
+	break;case 62: { var fn62 = function() {
 	
 	regs[1] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 63:
+}; fn62(); }
+	break;case 63: { var fn63 = function() {
 	
 	regs[0] = ( regs[0] & 196 ) | ( (regs[0] & 1) ? 16 : 1 ) | ( regs[1] & 40 );
-	break;case 64:
+}; fn63(); }
+	break;case 64: { var fn64 = function() {
 	
 	regs[3] = regs[3];
-	break;case 65:
+}; fn64(); }
+	break;case 65: { var fn65 = function() {
 	
 	regs[3] = regs[2];
-	break;case 66:
+}; fn65(); }
+	break;case 66: { var fn66 = function() {
 	
 	regs[3] = regs[5];
-	break;case 67:
+}; fn66(); }
+	break;case 67: { var fn67 = function() {
 	
 	regs[3] = regs[4];
-	break;case 68:
+}; fn67(); }
+	break;case 68: { var fn68 = function() {
 	
 	regs[3] = regs[7];
-	break;case 69:
+}; fn68(); }
+	break;case 69: { var fn69 = function() {
 	
 	regs[3] = regs[6];
-	break;case 70:
+}; fn69(); }
+	break;case 70: { var fn70 = function() {
 	
 	regs[3] = (tstates += ( 3), memory.read(regPairs[3]));
-	break;case 71:
+}; fn70(); }
+	break;case 71: { var fn71 = function() {
 	
 	regs[3] = regs[1];
-	break;case 72:
+}; fn71(); }
+	break;case 72: { var fn72 = function() {
 	
 	regs[2] = regs[3];
-	break;case 73:
+}; fn72(); }
+	break;case 73: { var fn73 = function() {
 	
 	regs[2] = regs[2];
-	break;case 74:
+}; fn73(); }
+	break;case 74: { var fn74 = function() {
 	
 	regs[2] = regs[5];
-	break;case 75:
+}; fn74(); }
+	break;case 75: { var fn75 = function() {
 	
 	regs[2] = regs[4];
-	break;case 76:
+}; fn75(); }
+	break;case 76: { var fn76 = function() {
 	
 	regs[2] = regs[7];
-	break;case 77:
+}; fn76(); }
+	break;case 77: { var fn77 = function() {
 	
 	regs[2] = regs[6];
-	break;case 78:
+}; fn77(); }
+	break;case 78: { var fn78 = function() {
 	
 	regs[2] = (tstates += ( 3), memory.read(regPairs[3]));
-	break;case 79:
+}; fn78(); }
+	break;case 79: { var fn79 = function() {
 	
 	regs[2] = regs[1];
-	break;case 80:
+}; fn79(); }
+	break;case 80: { var fn80 = function() {
 	
 	regs[5] = regs[3];
-	break;case 81:
+}; fn80(); }
+	break;case 81: { var fn81 = function() {
 	
 	regs[5] = regs[2];
-	break;case 82:
+}; fn81(); }
+	break;case 82: { var fn82 = function() {
 	
 	regs[5] = regs[5];
-	break;case 83:
+}; fn82(); }
+	break;case 83: { var fn83 = function() {
 	
 	regs[5] = regs[4];
-	break;case 84:
+}; fn83(); }
+	break;case 84: { var fn84 = function() {
 	
 	regs[5] = regs[7];
-	break;case 85:
+}; fn84(); }
+	break;case 85: { var fn85 = function() {
 	
 	regs[5] = regs[6];
-	break;case 86:
+}; fn85(); }
+	break;case 86: { var fn86 = function() {
 	
 	regs[5] = (tstates += ( 3), memory.read(regPairs[3]));
-	break;case 87:
+}; fn86(); }
+	break;case 87: { var fn87 = function() {
 	
 	regs[5] = regs[1];
-	break;case 88:
+}; fn87(); }
+	break;case 88: { var fn88 = function() {
 	
 	regs[4] = regs[3];
-	break;case 89:
+}; fn88(); }
+	break;case 89: { var fn89 = function() {
 	
 	regs[4] = regs[2];
-	break;case 90:
+}; fn89(); }
+	break;case 90: { var fn90 = function() {
 	
 	regs[4] = regs[5];
-	break;case 91:
+}; fn90(); }
+	break;case 91: { var fn91 = function() {
 	
 	regs[4] = regs[4];
-	break;case 92:
+}; fn91(); }
+	break;case 92: { var fn92 = function() {
 	
 	regs[4] = regs[7];
-	break;case 93:
+}; fn92(); }
+	break;case 93: { var fn93 = function() {
 	
 	regs[4] = regs[6];
-	break;case 94:
+}; fn93(); }
+	break;case 94: { var fn94 = function() {
 	
 	regs[4] = (tstates += ( 3), memory.read(regPairs[3]));
-	break;case 95:
+}; fn94(); }
+	break;case 95: { var fn95 = function() {
 	
 	regs[4] = regs[1];
-	break;case 96:
+}; fn95(); }
+	break;case 96: { var fn96 = function() {
 	
 	regs[7] = regs[3];
-	break;case 97:
+}; fn96(); }
+	break;case 97: { var fn97 = function() {
 	
 	regs[7] = regs[2];
-	break;case 98:
+}; fn97(); }
+	break;case 98: { var fn98 = function() {
 	
 	regs[7] = regs[5];
-	break;case 99:
+}; fn98(); }
+	break;case 99: { var fn99 = function() {
 	
 	regs[7] = regs[4];
-	break;case 100:
+}; fn99(); }
+	break;case 100: { var fn100 = function() {
 	
 	regs[7] = regs[7];
-	break;case 101:
+}; fn100(); }
+	break;case 101: { var fn101 = function() {
 	
 	regs[7] = regs[6];
-	break;case 102:
+}; fn101(); }
+	break;case 102: { var fn102 = function() {
 	
 	regs[7] = (tstates += ( 3), memory.read(regPairs[3]));
-	break;case 103:
+}; fn102(); }
+	break;case 103: { var fn103 = function() {
 	
 	regs[7] = regs[1];
-	break;case 104:
+}; fn103(); }
+	break;case 104: { var fn104 = function() {
 	
 	regs[6] = regs[3];
-	break;case 105:
+}; fn104(); }
+	break;case 105: { var fn105 = function() {
 	
 	regs[6] = regs[2];
-	break;case 106:
+}; fn105(); }
+	break;case 106: { var fn106 = function() {
 	
 	regs[6] = regs[5];
-	break;case 107:
+}; fn106(); }
+	break;case 107: { var fn107 = function() {
 	
 	regs[6] = regs[4];
-	break;case 108:
+}; fn107(); }
+	break;case 108: { var fn108 = function() {
 	
 	regs[6] = regs[7];
-	break;case 109:
+}; fn108(); }
+	break;case 109: { var fn109 = function() {
 	
 	regs[6] = regs[6];
-	break;case 110:
+}; fn109(); }
+	break;case 110: { var fn110 = function() {
 	
 	regs[6] = (tstates += ( 3), memory.read(regPairs[3]));
-	break;case 111:
+}; fn110(); }
+	break;case 111: { var fn111 = function() {
 	
 	regs[6] = regs[1];
-	break;case 112:
+}; fn111(); }
+	break;case 112: { var fn112 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], regs[3]);;
-	break;case 113:
+}; fn112(); }
+	break;case 113: { var fn113 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], regs[2]);;
-	break;case 114:
+}; fn113(); }
+	break;case 114: { var fn114 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], regs[5]);;
-	break;case 115:
+}; fn114(); }
+	break;case 115: { var fn115 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], regs[4]);;
-	break;case 116:
+}; fn115(); }
+	break;case 116: { var fn116 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], regs[7]);;
-	break;case 117:
+}; fn116(); }
+	break;case 117: { var fn117 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], regs[6]);;
-	break;case 118:
+}; fn117(); }
+	break;case 118: { var fn118 = function() {
 	
 	halted = true;
 regPairs[12]--;
-	break;case 119:
+}; fn118(); }
+	break;case 119: { var fn119 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], regs[1]);;
-	break;case 120:
+}; fn119(); }
+	break;case 120: { var fn120 = function() {
 	
 	regs[1] = regs[3];
-	break;case 121:
+}; fn120(); }
+	break;case 121: { var fn121 = function() {
 	
 	regs[1] = regs[2];
-	break;case 122:
+}; fn121(); }
+	break;case 122: { var fn122 = function() {
 	
 	regs[1] = regs[5];
-	break;case 123:
+}; fn122(); }
+	break;case 123: { var fn123 = function() {
 	
 	regs[1] = regs[4];
-	break;case 124:
+}; fn123(); }
+	break;case 124: { var fn124 = function() {
 	
 	regs[1] = regs[7];
-	break;case 125:
+}; fn124(); }
+	break;case 125: { var fn125 = function() {
 	
 	regs[1] = regs[6];
-	break;case 126:
+}; fn125(); }
+	break;case 126: { var fn126 = function() {
 	
 	regs[1] = (tstates += ( 3), memory.read(regPairs[3]));
-	break;case 127:
+}; fn126(); }
+	break;case 127: { var fn127 = function() {
 	
 	regs[1] = regs[1];
-	break;case 128:
+}; fn127(); }
+	break;case 128: { var fn128 = function() {
 	
 	
 
@@ -835,7 +962,8 @@ var addtemp = regs[1] + regs[3];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 129:
+}; fn128(); }
+	break;case 129: { var fn129 = function() {
 	
 	
 
@@ -843,7 +971,8 @@ var addtemp = regs[1] + regs[2];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 130:
+}; fn129(); }
+	break;case 130: { var fn130 = function() {
 	
 	
 
@@ -851,7 +980,8 @@ var addtemp = regs[1] + regs[5];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 131:
+}; fn130(); }
+	break;case 131: { var fn131 = function() {
 	
 	
 
@@ -859,7 +989,8 @@ var addtemp = regs[1] + regs[4];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 132:
+}; fn131(); }
+	break;case 132: { var fn132 = function() {
 	
 	
 
@@ -867,7 +998,8 @@ var addtemp = regs[1] + regs[7];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[7] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 133:
+}; fn132(); }
+	break;case 133: { var fn133 = function() {
 	
 	
 
@@ -875,7 +1007,8 @@ var addtemp = regs[1] + regs[6];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[6] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 134:
+}; fn133(); }
+	break;case 134: { var fn134 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 
@@ -883,7 +1016,8 @@ var addtemp = regs[1] + val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 135:
+}; fn134(); }
+	break;case 135: { var fn135 = function() {
 	
 	
 
@@ -891,7 +1025,8 @@ var addtemp = regs[1] + regs[1];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 136:
+}; fn135(); }
+	break;case 136: { var fn136 = function() {
 	
 	
 
@@ -899,7 +1034,8 @@ var adctemp = regs[1] + regs[3] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 137:
+}; fn136(); }
+	break;case 137: { var fn137 = function() {
 	
 	
 
@@ -907,7 +1043,8 @@ var adctemp = regs[1] + regs[2] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 138:
+}; fn137(); }
+	break;case 138: { var fn138 = function() {
 	
 	
 
@@ -915,7 +1052,8 @@ var adctemp = regs[1] + regs[5] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 139:
+}; fn138(); }
+	break;case 139: { var fn139 = function() {
 	
 	
 
@@ -923,7 +1061,8 @@ var adctemp = regs[1] + regs[4] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 140:
+}; fn139(); }
+	break;case 140: { var fn140 = function() {
 	
 	
 
@@ -931,7 +1070,8 @@ var adctemp = regs[1] + regs[7] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[7] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 141:
+}; fn140(); }
+	break;case 141: { var fn141 = function() {
 	
 	
 
@@ -939,7 +1079,8 @@ var adctemp = regs[1] + regs[6] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[6] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 142:
+}; fn141(); }
+	break;case 142: { var fn142 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 
@@ -947,7 +1088,8 @@ var adctemp = regs[1] + val + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 143:
+}; fn142(); }
+	break;case 143: { var fn143 = function() {
 	
 	
 
@@ -955,311 +1097,360 @@ var adctemp = regs[1] + regs[1] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 144:
+}; fn143(); }
+	break;case 144: { var fn144 = function() {
 	
 	
 var subtemp = regs[1] - regs[3];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 145:
+}; fn144(); }
+	break;case 145: { var fn145 = function() {
 	
 	
 var subtemp = regs[1] - regs[2];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 146:
+}; fn145(); }
+	break;case 146: { var fn146 = function() {
 	
 	
 var subtemp = regs[1] - regs[5];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 147:
+}; fn146(); }
+	break;case 147: { var fn147 = function() {
 	
 	
 var subtemp = regs[1] - regs[4];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 148:
+}; fn147(); }
+	break;case 148: { var fn148 = function() {
 	
 	
 var subtemp = regs[1] - regs[7];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[7] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 149:
+}; fn148(); }
+	break;case 149: { var fn149 = function() {
 	
 	
 var subtemp = regs[1] - regs[6];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[6] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 150:
+}; fn149(); }
+	break;case 150: { var fn150 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 var subtemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 151:
+}; fn150(); }
+	break;case 151: { var fn151 = function() {
 	
 	
 var subtemp = regs[1] - regs[1];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 152:
+}; fn151(); }
+	break;case 152: { var fn152 = function() {
 	
 	
 var sbctemp = regs[1] - regs[3] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 153:
+}; fn152(); }
+	break;case 153: { var fn153 = function() {
 	
 	
 var sbctemp = regs[1] - regs[2] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 154:
+}; fn153(); }
+	break;case 154: { var fn154 = function() {
 	
 	
 var sbctemp = regs[1] - regs[5] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 155:
+}; fn154(); }
+	break;case 155: { var fn155 = function() {
 	
 	
 var sbctemp = regs[1] - regs[4] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 156:
+}; fn155(); }
+	break;case 156: { var fn156 = function() {
 	
 	
 var sbctemp = regs[1] - regs[7] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[7] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 157:
+}; fn156(); }
+	break;case 157: { var fn157 = function() {
 	
 	
 var sbctemp = regs[1] - regs[6] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[6] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 158:
+}; fn157(); }
+	break;case 158: { var fn158 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 var sbctemp = regs[1] - val - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 159:
+}; fn158(); }
+	break;case 159: { var fn159 = function() {
 	
 	
 var sbctemp = regs[1] - regs[1] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 160:
+}; fn159(); }
+	break;case 160: { var fn160 = function() {
 	
 	
 
 regs[1] &= regs[3];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 161:
+}; fn160(); }
+	break;case 161: { var fn161 = function() {
 	
 	
 
 regs[1] &= regs[2];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 162:
+}; fn161(); }
+	break;case 162: { var fn162 = function() {
 	
 	
 
 regs[1] &= regs[5];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 163:
+}; fn162(); }
+	break;case 163: { var fn163 = function() {
 	
 	
 
 regs[1] &= regs[4];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 164:
+}; fn163(); }
+	break;case 164: { var fn164 = function() {
 	
 	
 
 regs[1] &= regs[7];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 165:
+}; fn164(); }
+	break;case 165: { var fn165 = function() {
 	
 	
 
 regs[1] &= regs[6];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 166:
+}; fn165(); }
+	break;case 166: { var fn166 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 
 regs[1] &= val;
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 167:
+}; fn166(); }
+	break;case 167: { var fn167 = function() {
 	
 	
 
 regs[1] &= regs[1];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 168:
+}; fn167(); }
+	break;case 168: { var fn168 = function() {
 	
 	
 regs[1] ^= regs[3];
 regs[0] = sz53pTable[regs[1]];
-	break;case 169:
+}; fn168(); }
+	break;case 169: { var fn169 = function() {
 	
 	
 regs[1] ^= regs[2];
 regs[0] = sz53pTable[regs[1]];
-	break;case 170:
+}; fn169(); }
+	break;case 170: { var fn170 = function() {
 	
 	
 regs[1] ^= regs[5];
 regs[0] = sz53pTable[regs[1]];
-	break;case 171:
+}; fn170(); }
+	break;case 171: { var fn171 = function() {
 	
 	
 regs[1] ^= regs[4];
 regs[0] = sz53pTable[regs[1]];
-	break;case 172:
+}; fn171(); }
+	break;case 172: { var fn172 = function() {
 	
 	
 regs[1] ^= regs[7];
 regs[0] = sz53pTable[regs[1]];
-	break;case 173:
+}; fn172(); }
+	break;case 173: { var fn173 = function() {
 	
 	
 regs[1] ^= regs[6];
 regs[0] = sz53pTable[regs[1]];
-	break;case 174:
+}; fn173(); }
+	break;case 174: { var fn174 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 regs[1] ^= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 175:
+}; fn174(); }
+	break;case 175: { var fn175 = function() {
 	
 	
 regs[1] ^= regs[1];
 regs[0] = sz53pTable[regs[1]];
-	break;case 176:
+}; fn175(); }
+	break;case 176: { var fn176 = function() {
 	
 	
 
 regs[1] |= regs[3];
 regs[0] = sz53pTable[regs[1]];
-	break;case 177:
+}; fn176(); }
+	break;case 177: { var fn177 = function() {
 	
 	
 
 regs[1] |= regs[2];
 regs[0] = sz53pTable[regs[1]];
-	break;case 178:
+}; fn177(); }
+	break;case 178: { var fn178 = function() {
 	
 	
 
 regs[1] |= regs[5];
 regs[0] = sz53pTable[regs[1]];
-	break;case 179:
+}; fn178(); }
+	break;case 179: { var fn179 = function() {
 	
 	
 
 regs[1] |= regs[4];
 regs[0] = sz53pTable[regs[1]];
-	break;case 180:
+}; fn179(); }
+	break;case 180: { var fn180 = function() {
 	
 	
 
 regs[1] |= regs[7];
 regs[0] = sz53pTable[regs[1]];
-	break;case 181:
+}; fn180(); }
+	break;case 181: { var fn181 = function() {
 	
 	
 
 regs[1] |= regs[6];
 regs[0] = sz53pTable[regs[1]];
-	break;case 182:
+}; fn181(); }
+	break;case 182: { var fn182 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 
 regs[1] |= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 183:
+}; fn182(); }
+	break;case 183: { var fn183 = function() {
 	
 	
 
 regs[1] |= regs[1];
 regs[0] = sz53pTable[regs[1]];
-	break;case 184:
+}; fn183(); }
+	break;case 184: { var fn184 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[3];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[3] & 40 ) | ( cptemp & 128 );
-	break;case 185:
+}; fn184(); }
+	break;case 185: { var fn185 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[2];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[2] & 40 ) | ( cptemp & 128 );
-	break;case 186:
+}; fn185(); }
+	break;case 186: { var fn186 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[5];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[5] & 40 ) | ( cptemp & 128 );
-	break;case 187:
+}; fn186(); }
+	break;case 187: { var fn187 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[4];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[4] & 40 ) | ( cptemp & 128 );
-	break;case 188:
+}; fn187(); }
+	break;case 188: { var fn188 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[7];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[7] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[7] & 40 ) | ( cptemp & 128 );
-	break;case 189:
+}; fn188(); }
+	break;case 189: { var fn189 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[6];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[6] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[6] & 40 ) | ( cptemp & 128 );
-	break;case 190:
+}; fn189(); }
+	break;case 190: { var fn190 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 
 var cptemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( val & 40 ) | ( cptemp & 128 );
-	break;case 191:
+}; fn190(); }
+	break;case 191: { var fn191 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[1];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[1] & 40 ) | ( cptemp & 128 );
-	break;case 192:
+}; fn191(); }
+	break;case 192: { var fn192 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 64)) {
@@ -1267,12 +1458,14 @@ if (!(regs[0] & 64)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 193:
+}; fn192(); }
+	break;case 193: { var fn193 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[1] = (h<<8) | l;
-	break;case 194:
+}; fn193(); }
+	break;case 194: { var fn194 = function() {
 	
 	if (!(regs[0] & 64)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1284,12 +1477,14 @@ regPairs[1] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 195:
+}; fn194(); }
+	break;case 195: { var fn195 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[12] = (h<<8) | l;
-	break;case 196:
+}; fn195(); }
+	break;case 196: { var fn196 = function() {
 	
 	if (!(regs[0] & 64)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1309,7 +1504,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 197:
+}; fn196(); }
+	break;case 197: { var fn197 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1318,7 +1514,8 @@ memory.write(regPairs[11], regPairs[1] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[1] & 0xff);;
-	break;case 198:
+}; fn197(); }
+	break;case 198: { var fn198 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
@@ -1326,7 +1523,8 @@ var addtemp = regs[1] + val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 199:
+}; fn198(); }
+	break;case 199: { var fn199 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1336,7 +1534,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 0;
-	break;case 200:
+}; fn199(); }
+	break;case 200: { var fn200 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 64) {
@@ -1344,12 +1543,14 @@ if (regs[0] & 64) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 201:
+}; fn200(); }
+	break;case 201: { var fn201 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[12] = (h<<8) | l;
-	break;case 202:
+}; fn201(); }
+	break;case 202: { var fn202 = function() {
 	
 	if (regs[0] & 64) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1361,11 +1562,13 @@ regPairs[12] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 203:
+}; fn202(); }
+	break;case 203: { var fn203 = function() {
 	
 	opcodePrefix = 'CB';
 interruptible = false;
-	break;case 204:
+}; fn203(); }
+	break;case 204: { var fn204 = function() {
 	
 	if (regs[0] & 64) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1385,7 +1588,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 205:
+}; fn204(); }
+	break;case 205: { var fn205 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12]));
@@ -1398,7 +1602,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = (h<<8) | l;
-	break;case 206:
+}; fn205(); }
+	break;case 206: { var fn206 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
@@ -1406,7 +1611,8 @@ var adctemp = regs[1] + val + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 207:
+}; fn206(); }
+	break;case 207: { var fn207 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1416,7 +1622,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 8;
-	break;case 208:
+}; fn207(); }
+	break;case 208: { var fn208 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 1)) {
@@ -1424,12 +1631,14 @@ if (!(regs[0] & 1)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 209:
+}; fn208(); }
+	break;case 209: { var fn209 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[2] = (h<<8) | l;
-	break;case 210:
+}; fn209(); }
+	break;case 210: { var fn210 = function() {
 	
 	if (!(regs[0] & 1)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1441,13 +1650,15 @@ regPairs[2] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 211:
+}; fn210(); }
+	break;case 211: { var fn211 = function() {
 	
 	var port = (regs[1] << 8) | (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 tstates += 1;
 ioBus.write(port, regs[1], tstates);
 tstates += 3;
-	break;case 212:
+}; fn211(); }
+	break;case 212: { var fn212 = function() {
 	
 	if (!(regs[0] & 1)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1467,7 +1678,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 213:
+}; fn212(); }
+	break;case 213: { var fn213 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1476,14 +1688,16 @@ memory.write(regPairs[11], regPairs[2] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[2] & 0xff);;
-	break;case 214:
+}; fn213(); }
+	break;case 214: { var fn214 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var subtemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 215:
+}; fn214(); }
+	break;case 215: { var fn215 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1493,7 +1707,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 16;
-	break;case 216:
+}; fn215(); }
+	break;case 216: { var fn216 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 1) {
@@ -1501,13 +1716,15 @@ if (regs[0] & 1) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 217:
+}; fn216(); }
+	break;case 217: { var fn217 = function() {
 	
 	var wordtemp;
 wordtemp = regPairs[1]; regPairs[1] = regPairs[5]; regPairs[5] = wordtemp;
 wordtemp = regPairs[2]; regPairs[2] = regPairs[6]; regPairs[6] = wordtemp;
 wordtemp = regPairs[3]; regPairs[3] = regPairs[7]; regPairs[7] = wordtemp;
-	break;case 218:
+}; fn217(); }
+	break;case 218: { var fn218 = function() {
 	
 	if (regs[0] & 1) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1519,14 +1736,16 @@ wordtemp = regPairs[3]; regPairs[3] = regPairs[7]; regPairs[7] = wordtemp;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 219:
+}; fn218(); }
+	break;case 219: { var fn219 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var port = (regs[1] << 8) | val;
 tstates += 1;
 regs[1] = ioBus.read(port);
 tstates += 3;
-	break;case 220:
+}; fn219(); }
+	break;case 220: { var fn220 = function() {
 	
 	if (regs[0] & 1) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1546,18 +1765,21 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 221:
+}; fn220(); }
+	break;case 221: { var fn221 = function() {
 	
 	opcodePrefix = 'DD';
 interruptible = false;
-	break;case 222:
+}; fn221(); }
+	break;case 222: { var fn222 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var sbctemp = regs[1] - val - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 223:
+}; fn222(); }
+	break;case 223: { var fn223 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1567,7 +1789,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 24;
-	break;case 224:
+}; fn223(); }
+	break;case 224: { var fn224 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 4)) {
@@ -1575,12 +1798,14 @@ if (!(regs[0] & 4)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 225:
+}; fn224(); }
+	break;case 225: { var fn225 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[3] = (h<<8) | l;
-	break;case 226:
+}; fn225(); }
+	break;case 226: { var fn226 = function() {
 	
 	if (!(regs[0] & 4)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1592,7 +1817,8 @@ regPairs[3] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 227:
+}; fn226(); }
+	break;case 227: { var fn227 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11]));
 var spPlus1 = (regPairs[11] + 1) & 0xffff;
@@ -1607,7 +1833,8 @@ memory.write(regPairs[11], regPairs[3] & 0xff);;
 regPairs[3] = (h<<8) | l;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 228:
+}; fn227(); }
+	break;case 228: { var fn228 = function() {
 	
 	if (!(regs[0] & 4)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1627,7 +1854,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 229:
+}; fn228(); }
+	break;case 229: { var fn229 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1636,13 +1864,15 @@ memory.write(regPairs[11], regPairs[3] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[3] & 0xff);;
-	break;case 230:
+}; fn229(); }
+	break;case 230: { var fn230 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
 regs[1] &= val;
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 231:
+}; fn230(); }
+	break;case 231: { var fn231 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1652,7 +1882,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 32;
-	break;case 232:
+}; fn231(); }
+	break;case 232: { var fn232 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 4) {
@@ -1660,10 +1891,12 @@ if (regs[0] & 4) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 233:
+}; fn232(); }
+	break;case 233: { var fn233 = function() {
 	
 	regPairs[12] = regPairs[3];
-	break;case 234:
+}; fn233(); }
+	break;case 234: { var fn234 = function() {
 	
 	if (regs[0] & 4) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1675,12 +1908,14 @@ if (regs[0] & 4) {
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 235:
+}; fn234(); }
+	break;case 235: { var fn235 = function() {
 	
 	var temp = regPairs[2];
 regPairs[2] = regPairs[3];
 regPairs[3] = temp;
-	break;case 236:
+}; fn235(); }
+	break;case 236: { var fn236 = function() {
 	
 	if (regs[0] & 4) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1700,16 +1935,19 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 237:
+}; fn236(); }
+	break;case 237: { var fn237 = function() {
 	
 	opcodePrefix = 'ED';
 interruptible = false;
-	break;case 238:
+}; fn237(); }
+	break;case 238: { var fn238 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regs[1] ^= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 239:
+}; fn238(); }
+	break;case 239: { var fn239 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1719,7 +1957,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 40;
-	break;case 240:
+}; fn239(); }
+	break;case 240: { var fn240 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 128)) {
@@ -1727,12 +1966,14 @@ if (!(regs[0] & 128)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 241:
+}; fn240(); }
+	break;case 241: { var fn241 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[0] = (h<<8) | l;
-	break;case 242:
+}; fn241(); }
+	break;case 242: { var fn242 = function() {
 	
 	if (!(regs[0] & 128)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1744,10 +1985,12 @@ regPairs[0] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 243:
+}; fn242(); }
+	break;case 243: { var fn243 = function() {
 	
 	iff1 = iff2 = 0;
-	break;case 244:
+}; fn243(); }
+	break;case 244: { var fn244 = function() {
 	
 	if (!(regs[0] & 128)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1767,7 +2010,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 245:
+}; fn244(); }
+	break;case 245: { var fn245 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1776,13 +2020,15 @@ memory.write(regPairs[11], regPairs[0] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[0] & 0xff);;
-	break;case 246:
+}; fn245(); }
+	break;case 246: { var fn246 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
 regs[1] |= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 247:
+}; fn246(); }
+	break;case 247: { var fn247 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1792,7 +2038,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 48;
-	break;case 248:
+}; fn247(); }
+	break;case 248: { var fn248 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 128) {
@@ -1800,12 +2047,14 @@ if (regs[0] & 128) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 249:
+}; fn248(); }
+	break;case 249: { var fn249 = function() {
 	
 	regPairs[11] = regPairs[3];
 tstates += ( 1);
 tstates += ( 1);
-	break;case 250:
+}; fn249(); }
+	break;case 250: { var fn250 = function() {
 	
 	if (regs[0] & 128) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1817,11 +2066,13 @@ tstates += ( 1);
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 251:
+}; fn250(); }
+	break;case 251: { var fn251 = function() {
 	
 	iff1 = iff2 = 1;
 interruptible = false;
-	break;case 252:
+}; fn251(); }
+	break;case 252: { var fn252 = function() {
 	
 	if (regs[0] & 128) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -1841,18 +2092,21 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 253:
+}; fn252(); }
+	break;case 253: { var fn253 = function() {
 	
 	opcodePrefix = 'FD';
 interruptible = false;
-	break;case 254:
+}; fn253(); }
+	break;case 254: { var fn254 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
 var cptemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( val & 40 ) | ( cptemp & 128 );
-	break;case 255:
+}; fn254(); }
+	break;case 255: { var fn255 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -1862,6 +2116,7 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 56;
+}; fn255(); }
 	break;
 	default:
 		var addr = regPairs[12] - 1;
@@ -1873,43 +2128,49 @@ regPairs[12] = 56;
 					opcode = memory.read(regPairs[12]); regPairs[12]++;
 					regs[20] = ((regs[20] + 1) & 0x7f) | (regs[20] & 0x80);
 					switch (opcode) {
-	case 0:
+	case 0: { var fn0 = function() {
 	
 	
 regs[3] = ( (regs[3] << 1) | (regs[3] >> 7) ) ;
 regs[0] = (regs[3] & 1) | sz53pTable[regs[3]];
 
-	break;case 1:
+}; fn0(); }
+	break;case 1: { var fn1 = function() {
 	
 	
 regs[2] = ( (regs[2] << 1) | (regs[2] >> 7) ) ;
 regs[0] = (regs[2] & 1) | sz53pTable[regs[2]];
 
-	break;case 2:
+}; fn1(); }
+	break;case 2: { var fn2 = function() {
 	
 	
 regs[5] = ( (regs[5] << 1) | (regs[5] >> 7) ) ;
 regs[0] = (regs[5] & 1) | sz53pTable[regs[5]];
 
-	break;case 3:
+}; fn2(); }
+	break;case 3: { var fn3 = function() {
 	
 	
 regs[4] = ( (regs[4] << 1) | (regs[4] >> 7) ) ;
 regs[0] = (regs[4] & 1) | sz53pTable[regs[4]];
 
-	break;case 4:
+}; fn3(); }
+	break;case 4: { var fn4 = function() {
 	
 	
 regs[7] = ( (regs[7] << 1) | (regs[7] >> 7) ) ;
 regs[0] = (regs[7] & 1) | sz53pTable[regs[7]];
 
-	break;case 5:
+}; fn4(); }
+	break;case 5: { var fn5 = function() {
 	
 	
 regs[6] = ( (regs[6] << 1) | (regs[6] >> 7) ) ;
 regs[0] = (regs[6] & 1) | sz53pTable[regs[6]];
 
-	break;case 6:
+}; fn5(); }
+	break;case 6: { var fn6 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val = ( (val << 1) | (val >> 7) ) & 0xff;
@@ -1918,55 +2179,63 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 7:
+}; fn6(); }
+	break;case 7: { var fn7 = function() {
 	
 	
 regs[1] = ( (regs[1] << 1) | (regs[1] >> 7) ) ;
 regs[0] = (regs[1] & 1) | sz53pTable[regs[1]];
 
-	break;case 8:
+}; fn7(); }
+	break;case 8: { var fn8 = function() {
 	
 	
 regs[0] = regs[3] & 1;
 regs[3] = ( (regs[3] >> 1) | (regs[3] << 7) ) ;
 regs[0] |= sz53pTable[regs[3]];
 
-	break;case 9:
+}; fn8(); }
+	break;case 9: { var fn9 = function() {
 	
 	
 regs[0] = regs[2] & 1;
 regs[2] = ( (regs[2] >> 1) | (regs[2] << 7) ) ;
 regs[0] |= sz53pTable[regs[2]];
 
-	break;case 10:
+}; fn9(); }
+	break;case 10: { var fn10 = function() {
 	
 	
 regs[0] = regs[5] & 1;
 regs[5] = ( (regs[5] >> 1) | (regs[5] << 7) ) ;
 regs[0] |= sz53pTable[regs[5]];
 
-	break;case 11:
+}; fn10(); }
+	break;case 11: { var fn11 = function() {
 	
 	
 regs[0] = regs[4] & 1;
 regs[4] = ( (regs[4] >> 1) | (regs[4] << 7) ) ;
 regs[0] |= sz53pTable[regs[4]];
 
-	break;case 12:
+}; fn11(); }
+	break;case 12: { var fn12 = function() {
 	
 	
 regs[0] = regs[7] & 1;
 regs[7] = ( (regs[7] >> 1) | (regs[7] << 7) ) ;
 regs[0] |= sz53pTable[regs[7]];
 
-	break;case 13:
+}; fn12(); }
+	break;case 13: { var fn13 = function() {
 	
 	
 regs[0] = regs[6] & 1;
 regs[6] = ( (regs[6] >> 1) | (regs[6] << 7) ) ;
 regs[0] |= sz53pTable[regs[6]];
 
-	break;case 14:
+}; fn13(); }
+	break;case 14: { var fn14 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 regs[0] = val & 1;
@@ -1976,56 +2245,64 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 15:
+}; fn14(); }
+	break;case 15: { var fn15 = function() {
 	
 	
 regs[0] = regs[1] & 1;
 regs[1] = ( (regs[1] >> 1) | (regs[1] << 7) ) ;
 regs[0] |= sz53pTable[regs[1]];
 
-	break;case 16:
+}; fn15(); }
+	break;case 16: { var fn16 = function() {
 	
 	
 var rltemp = regs[3];
 regs[3] = ( (regs[3] << 1) | (regs[0] & 1) ) ;
 regs[0] = ( rltemp >> 7 ) | sz53pTable[regs[3]];
 
-	break;case 17:
+}; fn16(); }
+	break;case 17: { var fn17 = function() {
 	
 	
 var rltemp = regs[2];
 regs[2] = ( (regs[2] << 1) | (regs[0] & 1) ) ;
 regs[0] = ( rltemp >> 7 ) | sz53pTable[regs[2]];
 
-	break;case 18:
+}; fn17(); }
+	break;case 18: { var fn18 = function() {
 	
 	
 var rltemp = regs[5];
 regs[5] = ( (regs[5] << 1) | (regs[0] & 1) ) ;
 regs[0] = ( rltemp >> 7 ) | sz53pTable[regs[5]];
 
-	break;case 19:
+}; fn18(); }
+	break;case 19: { var fn19 = function() {
 	
 	
 var rltemp = regs[4];
 regs[4] = ( (regs[4] << 1) | (regs[0] & 1) ) ;
 regs[0] = ( rltemp >> 7 ) | sz53pTable[regs[4]];
 
-	break;case 20:
+}; fn19(); }
+	break;case 20: { var fn20 = function() {
 	
 	
 var rltemp = regs[7];
 regs[7] = ( (regs[7] << 1) | (regs[0] & 1) ) ;
 regs[0] = ( rltemp >> 7 ) | sz53pTable[regs[7]];
 
-	break;case 21:
+}; fn20(); }
+	break;case 21: { var fn21 = function() {
 	
 	
 var rltemp = regs[6];
 regs[6] = ( (regs[6] << 1) | (regs[0] & 1) ) ;
 regs[0] = ( rltemp >> 7 ) | sz53pTable[regs[6]];
 
-	break;case 22:
+}; fn21(); }
+	break;case 22: { var fn22 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 var rltemp = val;
@@ -2035,56 +2312,64 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 23:
+}; fn22(); }
+	break;case 23: { var fn23 = function() {
 	
 	
 var rltemp = regs[1];
 regs[1] = ( (regs[1] << 1) | (regs[0] & 1) ) ;
 regs[0] = ( rltemp >> 7 ) | sz53pTable[regs[1]];
 
-	break;case 24:
+}; fn23(); }
+	break;case 24: { var fn24 = function() {
 	
 	
 var rrtemp = regs[3];
 regs[3] = ( (regs[3] >> 1) | ( regs[0] << 7 ) ) ;
 regs[0] = (rrtemp & 1) | sz53pTable[regs[3]];
 
-	break;case 25:
+}; fn24(); }
+	break;case 25: { var fn25 = function() {
 	
 	
 var rrtemp = regs[2];
 regs[2] = ( (regs[2] >> 1) | ( regs[0] << 7 ) ) ;
 regs[0] = (rrtemp & 1) | sz53pTable[regs[2]];
 
-	break;case 26:
+}; fn25(); }
+	break;case 26: { var fn26 = function() {
 	
 	
 var rrtemp = regs[5];
 regs[5] = ( (regs[5] >> 1) | ( regs[0] << 7 ) ) ;
 regs[0] = (rrtemp & 1) | sz53pTable[regs[5]];
 
-	break;case 27:
+}; fn26(); }
+	break;case 27: { var fn27 = function() {
 	
 	
 var rrtemp = regs[4];
 regs[4] = ( (regs[4] >> 1) | ( regs[0] << 7 ) ) ;
 regs[0] = (rrtemp & 1) | sz53pTable[regs[4]];
 
-	break;case 28:
+}; fn27(); }
+	break;case 28: { var fn28 = function() {
 	
 	
 var rrtemp = regs[7];
 regs[7] = ( (regs[7] >> 1) | ( regs[0] << 7 ) ) ;
 regs[0] = (rrtemp & 1) | sz53pTable[regs[7]];
 
-	break;case 29:
+}; fn28(); }
+	break;case 29: { var fn29 = function() {
 	
 	
 var rrtemp = regs[6];
 regs[6] = ( (regs[6] >> 1) | ( regs[0] << 7 ) ) ;
 regs[0] = (rrtemp & 1) | sz53pTable[regs[6]];
 
-	break;case 30:
+}; fn29(); }
+	break;case 30: { var fn30 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 var rrtemp = val;
@@ -2094,56 +2379,64 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 31:
+}; fn30(); }
+	break;case 31: { var fn31 = function() {
 	
 	
 var rrtemp = regs[1];
 regs[1] = ( (regs[1] >> 1) | ( regs[0] << 7 ) ) ;
 regs[0] = (rrtemp & 1) | sz53pTable[regs[1]];
 
-	break;case 32:
+}; fn31(); }
+	break;case 32: { var fn32 = function() {
 	
 	
 regs[0] = regs[3] >> 7;
 regs[3] = (regs[3] << 1) ;
 regs[0] |= sz53pTable[regs[3]];
 
-	break;case 33:
+}; fn32(); }
+	break;case 33: { var fn33 = function() {
 	
 	
 regs[0] = regs[2] >> 7;
 regs[2] = (regs[2] << 1) ;
 regs[0] |= sz53pTable[regs[2]];
 
-	break;case 34:
+}; fn33(); }
+	break;case 34: { var fn34 = function() {
 	
 	
 regs[0] = regs[5] >> 7;
 regs[5] = (regs[5] << 1) ;
 regs[0] |= sz53pTable[regs[5]];
 
-	break;case 35:
+}; fn34(); }
+	break;case 35: { var fn35 = function() {
 	
 	
 regs[0] = regs[4] >> 7;
 regs[4] = (regs[4] << 1) ;
 regs[0] |= sz53pTable[regs[4]];
 
-	break;case 36:
+}; fn35(); }
+	break;case 36: { var fn36 = function() {
 	
 	
 regs[0] = regs[7] >> 7;
 regs[7] = (regs[7] << 1) ;
 regs[0] |= sz53pTable[regs[7]];
 
-	break;case 37:
+}; fn36(); }
+	break;case 37: { var fn37 = function() {
 	
 	
 regs[0] = regs[6] >> 7;
 regs[6] = (regs[6] << 1) ;
 regs[0] |= sz53pTable[regs[6]];
 
-	break;case 38:
+}; fn37(); }
+	break;case 38: { var fn38 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 regs[0] = val >> 7;
@@ -2153,56 +2446,64 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 39:
+}; fn38(); }
+	break;case 39: { var fn39 = function() {
 	
 	
 regs[0] = regs[1] >> 7;
 regs[1] = (regs[1] << 1) ;
 regs[0] |= sz53pTable[regs[1]];
 
-	break;case 40:
+}; fn39(); }
+	break;case 40: { var fn40 = function() {
 	
 	
 regs[0] = regs[3] & 1;
 regs[3] = ( (regs[3] & 0x80) | (regs[3] >> 1) ) ;
 regs[0] |= sz53pTable[regs[3]];
 
-	break;case 41:
+}; fn40(); }
+	break;case 41: { var fn41 = function() {
 	
 	
 regs[0] = regs[2] & 1;
 regs[2] = ( (regs[2] & 0x80) | (regs[2] >> 1) ) ;
 regs[0] |= sz53pTable[regs[2]];
 
-	break;case 42:
+}; fn41(); }
+	break;case 42: { var fn42 = function() {
 	
 	
 regs[0] = regs[5] & 1;
 regs[5] = ( (regs[5] & 0x80) | (regs[5] >> 1) ) ;
 regs[0] |= sz53pTable[regs[5]];
 
-	break;case 43:
+}; fn42(); }
+	break;case 43: { var fn43 = function() {
 	
 	
 regs[0] = regs[4] & 1;
 regs[4] = ( (regs[4] & 0x80) | (regs[4] >> 1) ) ;
 regs[0] |= sz53pTable[regs[4]];
 
-	break;case 44:
+}; fn43(); }
+	break;case 44: { var fn44 = function() {
 	
 	
 regs[0] = regs[7] & 1;
 regs[7] = ( (regs[7] & 0x80) | (regs[7] >> 1) ) ;
 regs[0] |= sz53pTable[regs[7]];
 
-	break;case 45:
+}; fn44(); }
+	break;case 45: { var fn45 = function() {
 	
 	
 regs[0] = regs[6] & 1;
 regs[6] = ( (regs[6] & 0x80) | (regs[6] >> 1) ) ;
 regs[0] |= sz53pTable[regs[6]];
 
-	break;case 46:
+}; fn45(); }
+	break;case 46: { var fn46 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 regs[0] = val & 1;
@@ -2212,56 +2513,64 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 47:
+}; fn46(); }
+	break;case 47: { var fn47 = function() {
 	
 	
 regs[0] = regs[1] & 1;
 regs[1] = ( (regs[1] & 0x80) | (regs[1] >> 1) ) ;
 regs[0] |= sz53pTable[regs[1]];
 
-	break;case 48:
+}; fn47(); }
+	break;case 48: { var fn48 = function() {
 	
 	
 regs[0] =  regs[3] >> 7;
 regs[3] = (((regs[3]) << 1) ) | 0x01;
 regs[0] |= sz53pTable[regs[3]];
 
-	break;case 49:
+}; fn48(); }
+	break;case 49: { var fn49 = function() {
 	
 	
 regs[0] =  regs[2] >> 7;
 regs[2] = (((regs[2]) << 1) ) | 0x01;
 regs[0] |= sz53pTable[regs[2]];
 
-	break;case 50:
+}; fn49(); }
+	break;case 50: { var fn50 = function() {
 	
 	
 regs[0] =  regs[5] >> 7;
 regs[5] = (((regs[5]) << 1) ) | 0x01;
 regs[0] |= sz53pTable[regs[5]];
 
-	break;case 51:
+}; fn50(); }
+	break;case 51: { var fn51 = function() {
 	
 	
 regs[0] =  regs[4] >> 7;
 regs[4] = (((regs[4]) << 1) ) | 0x01;
 regs[0] |= sz53pTable[regs[4]];
 
-	break;case 52:
+}; fn51(); }
+	break;case 52: { var fn52 = function() {
 	
 	
 regs[0] =  regs[7] >> 7;
 regs[7] = (((regs[7]) << 1) ) | 0x01;
 regs[0] |= sz53pTable[regs[7]];
 
-	break;case 53:
+}; fn52(); }
+	break;case 53: { var fn53 = function() {
 	
 	
 regs[0] =  regs[6] >> 7;
 regs[6] = (((regs[6]) << 1) ) | 0x01;
 regs[0] |= sz53pTable[regs[6]];
 
-	break;case 54:
+}; fn53(); }
+	break;case 54: { var fn54 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 regs[0] =  val >> 7;
@@ -2271,56 +2580,64 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 55:
+}; fn54(); }
+	break;case 55: { var fn55 = function() {
 	
 	
 regs[0] =  regs[1] >> 7;
 regs[1] = (((regs[1]) << 1) ) | 0x01;
 regs[0] |= sz53pTable[regs[1]];
 
-	break;case 56:
+}; fn55(); }
+	break;case 56: { var fn56 = function() {
 	
 	
 regs[0] =  regs[3] & 1;
 regs[3] >>= 1;
 regs[0] |= sz53pTable[regs[3]];
 
-	break;case 57:
+}; fn56(); }
+	break;case 57: { var fn57 = function() {
 	
 	
 regs[0] =  regs[2] & 1;
 regs[2] >>= 1;
 regs[0] |= sz53pTable[regs[2]];
 
-	break;case 58:
+}; fn57(); }
+	break;case 58: { var fn58 = function() {
 	
 	
 regs[0] =  regs[5] & 1;
 regs[5] >>= 1;
 regs[0] |= sz53pTable[regs[5]];
 
-	break;case 59:
+}; fn58(); }
+	break;case 59: { var fn59 = function() {
 	
 	
 regs[0] =  regs[4] & 1;
 regs[4] >>= 1;
 regs[0] |= sz53pTable[regs[4]];
 
-	break;case 60:
+}; fn59(); }
+	break;case 60: { var fn60 = function() {
 	
 	
 regs[0] =  regs[7] & 1;
 regs[7] >>= 1;
 regs[0] |= sz53pTable[regs[7]];
 
-	break;case 61:
+}; fn60(); }
+	break;case 61: { var fn61 = function() {
 	
 	
 regs[0] =  regs[6] & 1;
 regs[6] >>= 1;
 regs[0] |= sz53pTable[regs[6]];
 
-	break;case 62:
+}; fn61(); }
+	break;case 62: { var fn62 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 regs[0] =  val & 1;
@@ -2330,44 +2647,52 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 63:
+}; fn62(); }
+	break;case 63: { var fn63 = function() {
 	
 	
 regs[0] =  regs[1] & 1;
 regs[1] >>= 1;
 regs[0] |= sz53pTable[regs[1]];
 
-	break;case 64:
+}; fn63(); }
+	break;case 64: { var fn64 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[3] & 40 );
 if( !(regs[3] & 1) ) regs[0] |= 68;
 
-	break;case 65:
+}; fn64(); }
+	break;case 65: { var fn65 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[2] & 40 );
 if( !(regs[2] & 1) ) regs[0] |= 68;
 
-	break;case 66:
+}; fn65(); }
+	break;case 66: { var fn66 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[5] & 40 );
 if( !(regs[5] & 1) ) regs[0] |= 68;
 
-	break;case 67:
+}; fn66(); }
+	break;case 67: { var fn67 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[4] & 40 );
 if( !(regs[4] & 1) ) regs[0] |= 68;
 
-	break;case 68:
+}; fn67(); }
+	break;case 68: { var fn68 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[7] & 40 );
 if( !(regs[7] & 1) ) regs[0] |= 68;
 
-	break;case 69:
+}; fn68(); }
+	break;case 69: { var fn69 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[6] & 40 );
 if( !(regs[6] & 1) ) regs[0] |= 68;
 
-	break;case 70:
+}; fn69(); }
+	break;case 70: { var fn70 = function() {
 	
 	var addr = regPairs[3];
 var value = (tstates += ( 3), memory.read(addr));
@@ -2375,42 +2700,50 @@ tstates += ( 1);
 regs[0] = ( regs[0] & 1 ) | 16 | ( value & 40 );
 if( !(value & 1) ) regs[0] |= 68;
 
-	break;case 71:
+}; fn70(); }
+	break;case 71: { var fn71 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[1] & 40 );
 if( !(regs[1] & 1) ) regs[0] |= 68;
 
-	break;case 72:
+}; fn71(); }
+	break;case 72: { var fn72 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[3] & 40 );
 if( !(regs[3] & 2) ) regs[0] |= 68;
 
-	break;case 73:
+}; fn72(); }
+	break;case 73: { var fn73 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[2] & 40 );
 if( !(regs[2] & 2) ) regs[0] |= 68;
 
-	break;case 74:
+}; fn73(); }
+	break;case 74: { var fn74 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[5] & 40 );
 if( !(regs[5] & 2) ) regs[0] |= 68;
 
-	break;case 75:
+}; fn74(); }
+	break;case 75: { var fn75 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[4] & 40 );
 if( !(regs[4] & 2) ) regs[0] |= 68;
 
-	break;case 76:
+}; fn75(); }
+	break;case 76: { var fn76 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[7] & 40 );
 if( !(regs[7] & 2) ) regs[0] |= 68;
 
-	break;case 77:
+}; fn76(); }
+	break;case 77: { var fn77 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[6] & 40 );
 if( !(regs[6] & 2) ) regs[0] |= 68;
 
-	break;case 78:
+}; fn77(); }
+	break;case 78: { var fn78 = function() {
 	
 	var addr = regPairs[3];
 var value = (tstates += ( 3), memory.read(addr));
@@ -2418,42 +2751,50 @@ tstates += ( 1);
 regs[0] = ( regs[0] & 1 ) | 16 | ( value & 40 );
 if( !(value & 2) ) regs[0] |= 68;
 
-	break;case 79:
+}; fn78(); }
+	break;case 79: { var fn79 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[1] & 40 );
 if( !(regs[1] & 2) ) regs[0] |= 68;
 
-	break;case 80:
+}; fn79(); }
+	break;case 80: { var fn80 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[3] & 40 );
 if( !(regs[3] & 4) ) regs[0] |= 68;
 
-	break;case 81:
+}; fn80(); }
+	break;case 81: { var fn81 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[2] & 40 );
 if( !(regs[2] & 4) ) regs[0] |= 68;
 
-	break;case 82:
+}; fn81(); }
+	break;case 82: { var fn82 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[5] & 40 );
 if( !(regs[5] & 4) ) regs[0] |= 68;
 
-	break;case 83:
+}; fn82(); }
+	break;case 83: { var fn83 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[4] & 40 );
 if( !(regs[4] & 4) ) regs[0] |= 68;
 
-	break;case 84:
+}; fn83(); }
+	break;case 84: { var fn84 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[7] & 40 );
 if( !(regs[7] & 4) ) regs[0] |= 68;
 
-	break;case 85:
+}; fn84(); }
+	break;case 85: { var fn85 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[6] & 40 );
 if( !(regs[6] & 4) ) regs[0] |= 68;
 
-	break;case 86:
+}; fn85(); }
+	break;case 86: { var fn86 = function() {
 	
 	var addr = regPairs[3];
 var value = (tstates += ( 3), memory.read(addr));
@@ -2461,42 +2802,50 @@ tstates += ( 1);
 regs[0] = ( regs[0] & 1 ) | 16 | ( value & 40 );
 if( !(value & 4) ) regs[0] |= 68;
 
-	break;case 87:
+}; fn86(); }
+	break;case 87: { var fn87 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[1] & 40 );
 if( !(regs[1] & 4) ) regs[0] |= 68;
 
-	break;case 88:
+}; fn87(); }
+	break;case 88: { var fn88 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[3] & 40 );
 if( !(regs[3] & 8) ) regs[0] |= 68;
 
-	break;case 89:
+}; fn88(); }
+	break;case 89: { var fn89 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[2] & 40 );
 if( !(regs[2] & 8) ) regs[0] |= 68;
 
-	break;case 90:
+}; fn89(); }
+	break;case 90: { var fn90 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[5] & 40 );
 if( !(regs[5] & 8) ) regs[0] |= 68;
 
-	break;case 91:
+}; fn90(); }
+	break;case 91: { var fn91 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[4] & 40 );
 if( !(regs[4] & 8) ) regs[0] |= 68;
 
-	break;case 92:
+}; fn91(); }
+	break;case 92: { var fn92 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[7] & 40 );
 if( !(regs[7] & 8) ) regs[0] |= 68;
 
-	break;case 93:
+}; fn92(); }
+	break;case 93: { var fn93 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[6] & 40 );
 if( !(regs[6] & 8) ) regs[0] |= 68;
 
-	break;case 94:
+}; fn93(); }
+	break;case 94: { var fn94 = function() {
 	
 	var addr = regPairs[3];
 var value = (tstates += ( 3), memory.read(addr));
@@ -2504,42 +2853,50 @@ tstates += ( 1);
 regs[0] = ( regs[0] & 1 ) | 16 | ( value & 40 );
 if( !(value & 8) ) regs[0] |= 68;
 
-	break;case 95:
+}; fn94(); }
+	break;case 95: { var fn95 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[1] & 40 );
 if( !(regs[1] & 8) ) regs[0] |= 68;
 
-	break;case 96:
+}; fn95(); }
+	break;case 96: { var fn96 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[3] & 40 );
 if( !(regs[3] & 16) ) regs[0] |= 68;
 
-	break;case 97:
+}; fn96(); }
+	break;case 97: { var fn97 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[2] & 40 );
 if( !(regs[2] & 16) ) regs[0] |= 68;
 
-	break;case 98:
+}; fn97(); }
+	break;case 98: { var fn98 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[5] & 40 );
 if( !(regs[5] & 16) ) regs[0] |= 68;
 
-	break;case 99:
+}; fn98(); }
+	break;case 99: { var fn99 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[4] & 40 );
 if( !(regs[4] & 16) ) regs[0] |= 68;
 
-	break;case 100:
+}; fn99(); }
+	break;case 100: { var fn100 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[7] & 40 );
 if( !(regs[7] & 16) ) regs[0] |= 68;
 
-	break;case 101:
+}; fn100(); }
+	break;case 101: { var fn101 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[6] & 40 );
 if( !(regs[6] & 16) ) regs[0] |= 68;
 
-	break;case 102:
+}; fn101(); }
+	break;case 102: { var fn102 = function() {
 	
 	var addr = regPairs[3];
 var value = (tstates += ( 3), memory.read(addr));
@@ -2547,42 +2904,50 @@ tstates += ( 1);
 regs[0] = ( regs[0] & 1 ) | 16 | ( value & 40 );
 if( !(value & 16) ) regs[0] |= 68;
 
-	break;case 103:
+}; fn102(); }
+	break;case 103: { var fn103 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[1] & 40 );
 if( !(regs[1] & 16) ) regs[0] |= 68;
 
-	break;case 104:
+}; fn103(); }
+	break;case 104: { var fn104 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[3] & 40 );
 if( !(regs[3] & 32) ) regs[0] |= 68;
 
-	break;case 105:
+}; fn104(); }
+	break;case 105: { var fn105 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[2] & 40 );
 if( !(regs[2] & 32) ) regs[0] |= 68;
 
-	break;case 106:
+}; fn105(); }
+	break;case 106: { var fn106 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[5] & 40 );
 if( !(regs[5] & 32) ) regs[0] |= 68;
 
-	break;case 107:
+}; fn106(); }
+	break;case 107: { var fn107 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[4] & 40 );
 if( !(regs[4] & 32) ) regs[0] |= 68;
 
-	break;case 108:
+}; fn107(); }
+	break;case 108: { var fn108 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[7] & 40 );
 if( !(regs[7] & 32) ) regs[0] |= 68;
 
-	break;case 109:
+}; fn108(); }
+	break;case 109: { var fn109 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[6] & 40 );
 if( !(regs[6] & 32) ) regs[0] |= 68;
 
-	break;case 110:
+}; fn109(); }
+	break;case 110: { var fn110 = function() {
 	
 	var addr = regPairs[3];
 var value = (tstates += ( 3), memory.read(addr));
@@ -2590,42 +2955,50 @@ tstates += ( 1);
 regs[0] = ( regs[0] & 1 ) | 16 | ( value & 40 );
 if( !(value & 32) ) regs[0] |= 68;
 
-	break;case 111:
+}; fn110(); }
+	break;case 111: { var fn111 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[1] & 40 );
 if( !(regs[1] & 32) ) regs[0] |= 68;
 
-	break;case 112:
+}; fn111(); }
+	break;case 112: { var fn112 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[3] & 40 );
 if( !(regs[3] & 64) ) regs[0] |= 68;
 
-	break;case 113:
+}; fn112(); }
+	break;case 113: { var fn113 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[2] & 40 );
 if( !(regs[2] & 64) ) regs[0] |= 68;
 
-	break;case 114:
+}; fn113(); }
+	break;case 114: { var fn114 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[5] & 40 );
 if( !(regs[5] & 64) ) regs[0] |= 68;
 
-	break;case 115:
+}; fn114(); }
+	break;case 115: { var fn115 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[4] & 40 );
 if( !(regs[4] & 64) ) regs[0] |= 68;
 
-	break;case 116:
+}; fn115(); }
+	break;case 116: { var fn116 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[7] & 40 );
 if( !(regs[7] & 64) ) regs[0] |= 68;
 
-	break;case 117:
+}; fn116(); }
+	break;case 117: { var fn117 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[6] & 40 );
 if( !(regs[6] & 64) ) regs[0] |= 68;
 
-	break;case 118:
+}; fn117(); }
+	break;case 118: { var fn118 = function() {
 	
 	var addr = regPairs[3];
 var value = (tstates += ( 3), memory.read(addr));
@@ -2633,42 +3006,50 @@ tstates += ( 1);
 regs[0] = ( regs[0] & 1 ) | 16 | ( value & 40 );
 if( !(value & 64) ) regs[0] |= 68;
 
-	break;case 119:
+}; fn118(); }
+	break;case 119: { var fn119 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[1] & 40 );
 if( !(regs[1] & 64) ) regs[0] |= 68;
 
-	break;case 120:
+}; fn119(); }
+	break;case 120: { var fn120 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[3] & 40 );
 if( !(regs[3] & 128) ) regs[0] |= 68;
 if (regs[3] & 0x80) regs[0] |= 128;
-	break;case 121:
+}; fn120(); }
+	break;case 121: { var fn121 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[2] & 40 );
 if( !(regs[2] & 128) ) regs[0] |= 68;
 if (regs[2] & 0x80) regs[0] |= 128;
-	break;case 122:
+}; fn121(); }
+	break;case 122: { var fn122 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[5] & 40 );
 if( !(regs[5] & 128) ) regs[0] |= 68;
 if (regs[5] & 0x80) regs[0] |= 128;
-	break;case 123:
+}; fn122(); }
+	break;case 123: { var fn123 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[4] & 40 );
 if( !(regs[4] & 128) ) regs[0] |= 68;
 if (regs[4] & 0x80) regs[0] |= 128;
-	break;case 124:
+}; fn123(); }
+	break;case 124: { var fn124 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[7] & 40 );
 if( !(regs[7] & 128) ) regs[0] |= 68;
 if (regs[7] & 0x80) regs[0] |= 128;
-	break;case 125:
+}; fn124(); }
+	break;case 125: { var fn125 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[6] & 40 );
 if( !(regs[6] & 128) ) regs[0] |= 68;
 if (regs[6] & 0x80) regs[0] |= 128;
-	break;case 126:
+}; fn125(); }
+	break;case 126: { var fn126 = function() {
 	
 	var addr = regPairs[3];
 var value = (tstates += ( 3), memory.read(addr));
@@ -2676,42 +3057,50 @@ tstates += ( 1);
 regs[0] = ( regs[0] & 1 ) | 16 | ( value & 40 );
 if( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
-	break;case 127:
+}; fn126(); }
+	break;case 127: { var fn127 = function() {
 	
 	regs[0] = ( regs[0] & 1 ) | 16 | ( regs[1] & 40 );
 if( !(regs[1] & 128) ) regs[0] |= 68;
 if (regs[1] & 0x80) regs[0] |= 128;
-	break;case 128:
+}; fn127(); }
+	break;case 128: { var fn128 = function() {
 	
 	
 regs[3] &= 254;
 
-	break;case 129:
+}; fn128(); }
+	break;case 129: { var fn129 = function() {
 	
 	
 regs[2] &= 254;
 
-	break;case 130:
+}; fn129(); }
+	break;case 130: { var fn130 = function() {
 	
 	
 regs[5] &= 254;
 
-	break;case 131:
+}; fn130(); }
+	break;case 131: { var fn131 = function() {
 	
 	
 regs[4] &= 254;
 
-	break;case 132:
+}; fn131(); }
+	break;case 132: { var fn132 = function() {
 	
 	
 regs[7] &= 254;
 
-	break;case 133:
+}; fn132(); }
+	break;case 133: { var fn133 = function() {
 	
 	
 regs[6] &= 254;
 
-	break;case 134:
+}; fn133(); }
+	break;case 134: { var fn134 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val &= 254;
@@ -2719,42 +3108,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 135:
+}; fn134(); }
+	break;case 135: { var fn135 = function() {
 	
 	
 regs[1] &= 254;
 
-	break;case 136:
+}; fn135(); }
+	break;case 136: { var fn136 = function() {
 	
 	
 regs[3] &= 253;
 
-	break;case 137:
+}; fn136(); }
+	break;case 137: { var fn137 = function() {
 	
 	
 regs[2] &= 253;
 
-	break;case 138:
+}; fn137(); }
+	break;case 138: { var fn138 = function() {
 	
 	
 regs[5] &= 253;
 
-	break;case 139:
+}; fn138(); }
+	break;case 139: { var fn139 = function() {
 	
 	
 regs[4] &= 253;
 
-	break;case 140:
+}; fn139(); }
+	break;case 140: { var fn140 = function() {
 	
 	
 regs[7] &= 253;
 
-	break;case 141:
+}; fn140(); }
+	break;case 141: { var fn141 = function() {
 	
 	
 regs[6] &= 253;
 
-	break;case 142:
+}; fn141(); }
+	break;case 142: { var fn142 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val &= 253;
@@ -2762,42 +3159,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 143:
+}; fn142(); }
+	break;case 143: { var fn143 = function() {
 	
 	
 regs[1] &= 253;
 
-	break;case 144:
+}; fn143(); }
+	break;case 144: { var fn144 = function() {
 	
 	
 regs[3] &= 251;
 
-	break;case 145:
+}; fn144(); }
+	break;case 145: { var fn145 = function() {
 	
 	
 regs[2] &= 251;
 
-	break;case 146:
+}; fn145(); }
+	break;case 146: { var fn146 = function() {
 	
 	
 regs[5] &= 251;
 
-	break;case 147:
+}; fn146(); }
+	break;case 147: { var fn147 = function() {
 	
 	
 regs[4] &= 251;
 
-	break;case 148:
+}; fn147(); }
+	break;case 148: { var fn148 = function() {
 	
 	
 regs[7] &= 251;
 
-	break;case 149:
+}; fn148(); }
+	break;case 149: { var fn149 = function() {
 	
 	
 regs[6] &= 251;
 
-	break;case 150:
+}; fn149(); }
+	break;case 150: { var fn150 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val &= 251;
@@ -2805,42 +3210,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 151:
+}; fn150(); }
+	break;case 151: { var fn151 = function() {
 	
 	
 regs[1] &= 251;
 
-	break;case 152:
+}; fn151(); }
+	break;case 152: { var fn152 = function() {
 	
 	
 regs[3] &= 247;
 
-	break;case 153:
+}; fn152(); }
+	break;case 153: { var fn153 = function() {
 	
 	
 regs[2] &= 247;
 
-	break;case 154:
+}; fn153(); }
+	break;case 154: { var fn154 = function() {
 	
 	
 regs[5] &= 247;
 
-	break;case 155:
+}; fn154(); }
+	break;case 155: { var fn155 = function() {
 	
 	
 regs[4] &= 247;
 
-	break;case 156:
+}; fn155(); }
+	break;case 156: { var fn156 = function() {
 	
 	
 regs[7] &= 247;
 
-	break;case 157:
+}; fn156(); }
+	break;case 157: { var fn157 = function() {
 	
 	
 regs[6] &= 247;
 
-	break;case 158:
+}; fn157(); }
+	break;case 158: { var fn158 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val &= 247;
@@ -2848,42 +3261,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 159:
+}; fn158(); }
+	break;case 159: { var fn159 = function() {
 	
 	
 regs[1] &= 247;
 
-	break;case 160:
+}; fn159(); }
+	break;case 160: { var fn160 = function() {
 	
 	
 regs[3] &= 239;
 
-	break;case 161:
+}; fn160(); }
+	break;case 161: { var fn161 = function() {
 	
 	
 regs[2] &= 239;
 
-	break;case 162:
+}; fn161(); }
+	break;case 162: { var fn162 = function() {
 	
 	
 regs[5] &= 239;
 
-	break;case 163:
+}; fn162(); }
+	break;case 163: { var fn163 = function() {
 	
 	
 regs[4] &= 239;
 
-	break;case 164:
+}; fn163(); }
+	break;case 164: { var fn164 = function() {
 	
 	
 regs[7] &= 239;
 
-	break;case 165:
+}; fn164(); }
+	break;case 165: { var fn165 = function() {
 	
 	
 regs[6] &= 239;
 
-	break;case 166:
+}; fn165(); }
+	break;case 166: { var fn166 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val &= 239;
@@ -2891,42 +3312,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 167:
+}; fn166(); }
+	break;case 167: { var fn167 = function() {
 	
 	
 regs[1] &= 239;
 
-	break;case 168:
+}; fn167(); }
+	break;case 168: { var fn168 = function() {
 	
 	
 regs[3] &= 223;
 
-	break;case 169:
+}; fn168(); }
+	break;case 169: { var fn169 = function() {
 	
 	
 regs[2] &= 223;
 
-	break;case 170:
+}; fn169(); }
+	break;case 170: { var fn170 = function() {
 	
 	
 regs[5] &= 223;
 
-	break;case 171:
+}; fn170(); }
+	break;case 171: { var fn171 = function() {
 	
 	
 regs[4] &= 223;
 
-	break;case 172:
+}; fn171(); }
+	break;case 172: { var fn172 = function() {
 	
 	
 regs[7] &= 223;
 
-	break;case 173:
+}; fn172(); }
+	break;case 173: { var fn173 = function() {
 	
 	
 regs[6] &= 223;
 
-	break;case 174:
+}; fn173(); }
+	break;case 174: { var fn174 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val &= 223;
@@ -2934,42 +3363,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 175:
+}; fn174(); }
+	break;case 175: { var fn175 = function() {
 	
 	
 regs[1] &= 223;
 
-	break;case 176:
+}; fn175(); }
+	break;case 176: { var fn176 = function() {
 	
 	
 regs[3] &= 191;
 
-	break;case 177:
+}; fn176(); }
+	break;case 177: { var fn177 = function() {
 	
 	
 regs[2] &= 191;
 
-	break;case 178:
+}; fn177(); }
+	break;case 178: { var fn178 = function() {
 	
 	
 regs[5] &= 191;
 
-	break;case 179:
+}; fn178(); }
+	break;case 179: { var fn179 = function() {
 	
 	
 regs[4] &= 191;
 
-	break;case 180:
+}; fn179(); }
+	break;case 180: { var fn180 = function() {
 	
 	
 regs[7] &= 191;
 
-	break;case 181:
+}; fn180(); }
+	break;case 181: { var fn181 = function() {
 	
 	
 regs[6] &= 191;
 
-	break;case 182:
+}; fn181(); }
+	break;case 182: { var fn182 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val &= 191;
@@ -2977,42 +3414,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 183:
+}; fn182(); }
+	break;case 183: { var fn183 = function() {
 	
 	
 regs[1] &= 191;
 
-	break;case 184:
+}; fn183(); }
+	break;case 184: { var fn184 = function() {
 	
 	
 regs[3] &= 127;
 
-	break;case 185:
+}; fn184(); }
+	break;case 185: { var fn185 = function() {
 	
 	
 regs[2] &= 127;
 
-	break;case 186:
+}; fn185(); }
+	break;case 186: { var fn186 = function() {
 	
 	
 regs[5] &= 127;
 
-	break;case 187:
+}; fn186(); }
+	break;case 187: { var fn187 = function() {
 	
 	
 regs[4] &= 127;
 
-	break;case 188:
+}; fn187(); }
+	break;case 188: { var fn188 = function() {
 	
 	
 regs[7] &= 127;
 
-	break;case 189:
+}; fn188(); }
+	break;case 189: { var fn189 = function() {
 	
 	
 regs[6] &= 127;
 
-	break;case 190:
+}; fn189(); }
+	break;case 190: { var fn190 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val &= 127;
@@ -3020,42 +3465,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 191:
+}; fn190(); }
+	break;case 191: { var fn191 = function() {
 	
 	
 regs[1] &= 127;
 
-	break;case 192:
+}; fn191(); }
+	break;case 192: { var fn192 = function() {
 	
 	
 regs[3] |= 1;
 
-	break;case 193:
+}; fn192(); }
+	break;case 193: { var fn193 = function() {
 	
 	
 regs[2] |= 1;
 
-	break;case 194:
+}; fn193(); }
+	break;case 194: { var fn194 = function() {
 	
 	
 regs[5] |= 1;
 
-	break;case 195:
+}; fn194(); }
+	break;case 195: { var fn195 = function() {
 	
 	
 regs[4] |= 1;
 
-	break;case 196:
+}; fn195(); }
+	break;case 196: { var fn196 = function() {
 	
 	
 regs[7] |= 1;
 
-	break;case 197:
+}; fn196(); }
+	break;case 197: { var fn197 = function() {
 	
 	
 regs[6] |= 1;
 
-	break;case 198:
+}; fn197(); }
+	break;case 198: { var fn198 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val |= 1;
@@ -3063,42 +3516,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 199:
+}; fn198(); }
+	break;case 199: { var fn199 = function() {
 	
 	
 regs[1] |= 1;
 
-	break;case 200:
+}; fn199(); }
+	break;case 200: { var fn200 = function() {
 	
 	
 regs[3] |= 2;
 
-	break;case 201:
+}; fn200(); }
+	break;case 201: { var fn201 = function() {
 	
 	
 regs[2] |= 2;
 
-	break;case 202:
+}; fn201(); }
+	break;case 202: { var fn202 = function() {
 	
 	
 regs[5] |= 2;
 
-	break;case 203:
+}; fn202(); }
+	break;case 203: { var fn203 = function() {
 	
 	
 regs[4] |= 2;
 
-	break;case 204:
+}; fn203(); }
+	break;case 204: { var fn204 = function() {
 	
 	
 regs[7] |= 2;
 
-	break;case 205:
+}; fn204(); }
+	break;case 205: { var fn205 = function() {
 	
 	
 regs[6] |= 2;
 
-	break;case 206:
+}; fn205(); }
+	break;case 206: { var fn206 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val |= 2;
@@ -3106,42 +3567,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 207:
+}; fn206(); }
+	break;case 207: { var fn207 = function() {
 	
 	
 regs[1] |= 2;
 
-	break;case 208:
+}; fn207(); }
+	break;case 208: { var fn208 = function() {
 	
 	
 regs[3] |= 4;
 
-	break;case 209:
+}; fn208(); }
+	break;case 209: { var fn209 = function() {
 	
 	
 regs[2] |= 4;
 
-	break;case 210:
+}; fn209(); }
+	break;case 210: { var fn210 = function() {
 	
 	
 regs[5] |= 4;
 
-	break;case 211:
+}; fn210(); }
+	break;case 211: { var fn211 = function() {
 	
 	
 regs[4] |= 4;
 
-	break;case 212:
+}; fn211(); }
+	break;case 212: { var fn212 = function() {
 	
 	
 regs[7] |= 4;
 
-	break;case 213:
+}; fn212(); }
+	break;case 213: { var fn213 = function() {
 	
 	
 regs[6] |= 4;
 
-	break;case 214:
+}; fn213(); }
+	break;case 214: { var fn214 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val |= 4;
@@ -3149,42 +3618,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 215:
+}; fn214(); }
+	break;case 215: { var fn215 = function() {
 	
 	
 regs[1] |= 4;
 
-	break;case 216:
+}; fn215(); }
+	break;case 216: { var fn216 = function() {
 	
 	
 regs[3] |= 8;
 
-	break;case 217:
+}; fn216(); }
+	break;case 217: { var fn217 = function() {
 	
 	
 regs[2] |= 8;
 
-	break;case 218:
+}; fn217(); }
+	break;case 218: { var fn218 = function() {
 	
 	
 regs[5] |= 8;
 
-	break;case 219:
+}; fn218(); }
+	break;case 219: { var fn219 = function() {
 	
 	
 regs[4] |= 8;
 
-	break;case 220:
+}; fn219(); }
+	break;case 220: { var fn220 = function() {
 	
 	
 regs[7] |= 8;
 
-	break;case 221:
+}; fn220(); }
+	break;case 221: { var fn221 = function() {
 	
 	
 regs[6] |= 8;
 
-	break;case 222:
+}; fn221(); }
+	break;case 222: { var fn222 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val |= 8;
@@ -3192,42 +3669,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 223:
+}; fn222(); }
+	break;case 223: { var fn223 = function() {
 	
 	
 regs[1] |= 8;
 
-	break;case 224:
+}; fn223(); }
+	break;case 224: { var fn224 = function() {
 	
 	
 regs[3] |= 16;
 
-	break;case 225:
+}; fn224(); }
+	break;case 225: { var fn225 = function() {
 	
 	
 regs[2] |= 16;
 
-	break;case 226:
+}; fn225(); }
+	break;case 226: { var fn226 = function() {
 	
 	
 regs[5] |= 16;
 
-	break;case 227:
+}; fn226(); }
+	break;case 227: { var fn227 = function() {
 	
 	
 regs[4] |= 16;
 
-	break;case 228:
+}; fn227(); }
+	break;case 228: { var fn228 = function() {
 	
 	
 regs[7] |= 16;
 
-	break;case 229:
+}; fn228(); }
+	break;case 229: { var fn229 = function() {
 	
 	
 regs[6] |= 16;
 
-	break;case 230:
+}; fn229(); }
+	break;case 230: { var fn230 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val |= 16;
@@ -3235,42 +3720,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 231:
+}; fn230(); }
+	break;case 231: { var fn231 = function() {
 	
 	
 regs[1] |= 16;
 
-	break;case 232:
+}; fn231(); }
+	break;case 232: { var fn232 = function() {
 	
 	
 regs[3] |= 32;
 
-	break;case 233:
+}; fn232(); }
+	break;case 233: { var fn233 = function() {
 	
 	
 regs[2] |= 32;
 
-	break;case 234:
+}; fn233(); }
+	break;case 234: { var fn234 = function() {
 	
 	
 regs[5] |= 32;
 
-	break;case 235:
+}; fn234(); }
+	break;case 235: { var fn235 = function() {
 	
 	
 regs[4] |= 32;
 
-	break;case 236:
+}; fn235(); }
+	break;case 236: { var fn236 = function() {
 	
 	
 regs[7] |= 32;
 
-	break;case 237:
+}; fn236(); }
+	break;case 237: { var fn237 = function() {
 	
 	
 regs[6] |= 32;
 
-	break;case 238:
+}; fn237(); }
+	break;case 238: { var fn238 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val |= 32;
@@ -3278,42 +3771,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 239:
+}; fn238(); }
+	break;case 239: { var fn239 = function() {
 	
 	
 regs[1] |= 32;
 
-	break;case 240:
+}; fn239(); }
+	break;case 240: { var fn240 = function() {
 	
 	
 regs[3] |= 64;
 
-	break;case 241:
+}; fn240(); }
+	break;case 241: { var fn241 = function() {
 	
 	
 regs[2] |= 64;
 
-	break;case 242:
+}; fn241(); }
+	break;case 242: { var fn242 = function() {
 	
 	
 regs[5] |= 64;
 
-	break;case 243:
+}; fn242(); }
+	break;case 243: { var fn243 = function() {
 	
 	
 regs[4] |= 64;
 
-	break;case 244:
+}; fn243(); }
+	break;case 244: { var fn244 = function() {
 	
 	
 regs[7] |= 64;
 
-	break;case 245:
+}; fn244(); }
+	break;case 245: { var fn245 = function() {
 	
 	
 regs[6] |= 64;
 
-	break;case 246:
+}; fn245(); }
+	break;case 246: { var fn246 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val |= 64;
@@ -3321,42 +3822,50 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 247:
+}; fn246(); }
+	break;case 247: { var fn247 = function() {
 	
 	
 regs[1] |= 64;
 
-	break;case 248:
+}; fn247(); }
+	break;case 248: { var fn248 = function() {
 	
 	
 regs[3] |= 128;
 
-	break;case 249:
+}; fn248(); }
+	break;case 249: { var fn249 = function() {
 	
 	
 regs[2] |= 128;
 
-	break;case 250:
+}; fn249(); }
+	break;case 250: { var fn250 = function() {
 	
 	
 regs[5] |= 128;
 
-	break;case 251:
+}; fn250(); }
+	break;case 251: { var fn251 = function() {
 	
 	
 regs[4] |= 128;
 
-	break;case 252:
+}; fn251(); }
+	break;case 252: { var fn252 = function() {
 	
 	
 regs[7] |= 128;
 
-	break;case 253:
+}; fn252(); }
+	break;case 253: { var fn253 = function() {
 	
 	
 regs[6] |= 128;
 
-	break;case 254:
+}; fn253(); }
+	break;case 254: { var fn254 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[3]));
 val |= 128;
@@ -3364,11 +3873,13 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[3], val);;
-	break;case 255:
+}; fn254(); }
+	break;case 255: { var fn255 = function() {
 	
 	
 regs[1] |= 128;
 
+}; fn255(); }
 	break;
 	default:
 		var addr = regPairs[12] - 1;
@@ -3380,25 +3891,29 @@ regs[1] |= 128;
 					opcode = memory.read(regPairs[12]); regPairs[12]++;
 					regs[20] = ((regs[20] + 1) & 0x7f) | (regs[20] & 0x80);
 					switch (opcode) {
-	case 0:
+	case 0: { var fn0 = function() {
 	
 			
-	break;case 1:
+}; fn0(); }
+	break;case 1: { var fn1 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[1] = (h<<8) | l;
-	break;case 2:
+}; fn1(); }
+	break;case 2: { var fn2 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[1], regs[1]);;
-	break;case 3:
+}; fn2(); }
+	break;case 3: { var fn3 = function() {
 	
 	regPairs[1]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 4:
+}; fn3(); }
+	break;case 4: { var fn4 = function() {
 	
 	
 
@@ -3407,7 +3922,8 @@ regs[3] = (regs[3] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[3] == 0x80 ? 4 : 0 ) | ( regs[3] & 0x0f ? 0 : 16 ) | sz53Table[regs[3]];
-	break;case 5:
+}; fn4(); }
+	break;case 5: { var fn5 = function() {
 	
 	
 
@@ -3416,19 +3932,23 @@ regs[3] = (regs[3] - 1) ;
 
 
 regs[0] |= (regs[3] == 0x7f ? 4 : 0) | sz53Table[regs[3]];
-	break;case 6:
+}; fn5(); }
+	break;case 6: { var fn6 = function() {
 	
 	regs[3] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 7:
+}; fn6(); }
+	break;case 7: { var fn7 = function() {
 	
 	regs[1] = (regs[1] << 1) | (regs[1] >> 7);
 regs[0] = (regs[0] & 196) | (regs[1] & 41);
-	break;case 8:
+}; fn7(); }
+	break;case 8: { var fn8 = function() {
 	
 	var temp = regPairs[0];
 regPairs[0] = regPairs[4];
 regPairs[4] = temp;
-	break;case 9:
+}; fn8(); }
+	break;case 9: { var fn9 = function() {
 	
 	var add16temp = regPairs[8] + regPairs[1];
 var lookup = ( (regPairs[8] & 0x0800) >> 11 ) | ( (regPairs[1] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -3441,15 +3961,18 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 10:
+}; fn9(); }
+	break;case 10: { var fn10 = function() {
 	
 	regs[1] = (tstates += ( 3), memory.read(regPairs[1]));
-	break;case 11:
+}; fn10(); }
+	break;case 11: { var fn11 = function() {
 	
 	regPairs[1]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 12:
+}; fn11(); }
+	break;case 12: { var fn12 = function() {
 	
 	
 
@@ -3458,7 +3981,8 @@ regs[2] = (regs[2] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[2] == 0x80 ? 4 : 0 ) | ( regs[2] & 0x0f ? 0 : 16 ) | sz53Table[regs[2]];
-	break;case 13:
+}; fn12(); }
+	break;case 13: { var fn13 = function() {
 	
 	
 
@@ -3467,15 +3991,18 @@ regs[2] = (regs[2] - 1) ;
 
 
 regs[0] |= (regs[2] == 0x7f ? 4 : 0) | sz53Table[regs[2]];
-	break;case 14:
+}; fn13(); }
+	break;case 14: { var fn14 = function() {
 	
 	regs[2] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 15:
+}; fn14(); }
+	break;case 15: { var fn15 = function() {
 	
 	regs[0] = (regs[0] & 196) | (regs[1] & 1);
 regs[1] = (regs[1] >> 1) | (regs[1] << 7);
 regs[0] |= (regs[1] & 40);
-	break;case 16:
+}; fn15(); }
+	break;case 16: { var fn16 = function() {
 	
 	tstates += ( 1);
 regs[3]--;
@@ -3494,22 +4021,26 @@ if (regs[3]) {
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 17:
+}; fn16(); }
+	break;case 17: { var fn17 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[2] = (h<<8) | l;
-	break;case 18:
+}; fn17(); }
+	break;case 18: { var fn18 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[2], regs[1]);;
-	break;case 19:
+}; fn18(); }
+	break;case 19: { var fn19 = function() {
 	
 	regPairs[2]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 20:
+}; fn19(); }
+	break;case 20: { var fn20 = function() {
 	
 	
 
@@ -3518,7 +4049,8 @@ regs[5] = (regs[5] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[5] == 0x80 ? 4 : 0 ) | ( regs[5] & 0x0f ? 0 : 16 ) | sz53Table[regs[5]];
-	break;case 21:
+}; fn20(); }
+	break;case 21: { var fn21 = function() {
 	
 	
 
@@ -3527,15 +4059,18 @@ regs[5] = (regs[5] - 1) ;
 
 
 regs[0] |= (regs[5] == 0x7f ? 4 : 0) | sz53Table[regs[5]];
-	break;case 22:
+}; fn21(); }
+	break;case 22: { var fn22 = function() {
 	
 	regs[5] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 23:
+}; fn22(); }
+	break;case 23: { var fn23 = function() {
 	
 	var bytetemp = regs[1];
 regs[1] = (regs[1] << 1) | (regs[0] & 1);
 regs[0] = (regs[0] & 196) | (regs[1] & 40) | (bytetemp >> 7);
-	break;case 24:
+}; fn23(); }
+	break;case 24: { var fn24 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -3545,7 +4080,8 @@ tstates += ( 1);
 tstates += ( 1);
 regPairs[12]++;
 regPairs[12] += (offset & 0x80 ? offset - 0x100 : offset);
-	break;case 25:
+}; fn24(); }
+	break;case 25: { var fn25 = function() {
 	
 	var add16temp = regPairs[8] + regPairs[2];
 var lookup = ( (regPairs[8] & 0x0800) >> 11 ) | ( (regPairs[2] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -3558,15 +4094,18 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 26:
+}; fn25(); }
+	break;case 26: { var fn26 = function() {
 	
 	regs[1] = (tstates += ( 3), memory.read(regPairs[2]));
-	break;case 27:
+}; fn26(); }
+	break;case 27: { var fn27 = function() {
 	
 	regPairs[2]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 28:
+}; fn27(); }
+	break;case 28: { var fn28 = function() {
 	
 	
 
@@ -3575,7 +4114,8 @@ regs[4] = (regs[4] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[4] == 0x80 ? 4 : 0 ) | ( regs[4] & 0x0f ? 0 : 16 ) | sz53Table[regs[4]];
-	break;case 29:
+}; fn28(); }
+	break;case 29: { var fn29 = function() {
 	
 	
 
@@ -3584,15 +4124,18 @@ regs[4] = (regs[4] - 1) ;
 
 
 regs[0] |= (regs[4] == 0x7f ? 4 : 0) | sz53Table[regs[4]];
-	break;case 30:
+}; fn29(); }
+	break;case 30: { var fn30 = function() {
 	
 	regs[4] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 31:
+}; fn30(); }
+	break;case 31: { var fn31 = function() {
 	
 	var bytetemp = regs[1];
 regs[1] = (bytetemp >> 1) | (regs[0] << 7);
 regs[0] = (regs[0] & 196) | (regs[1] & 40) | (bytetemp & 1);
-	break;case 32:
+}; fn31(); }
+	break;case 32: { var fn32 = function() {
 	
 	if (!(regs[0] & 64)) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -3607,12 +4150,14 @@ regs[0] = (regs[0] & 196) | (regs[1] & 40) | (bytetemp & 1);
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 33:
+}; fn32(); }
+	break;case 33: { var fn33 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[8] = (h<<8) | l;
-	break;case 34:
+}; fn33(); }
+	break;case 34: { var fn34 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -3624,12 +4169,14 @@ addr = (addr + 1) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regPairs[8] >> 8);;
-	break;case 35:
+}; fn34(); }
+	break;case 35: { var fn35 = function() {
 	
 	regPairs[8]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 36:
+}; fn35(); }
+	break;case 36: { var fn36 = function() {
 	
 	
 
@@ -3638,7 +4185,8 @@ regs[17] = (regs[17] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[17] == 0x80 ? 4 : 0 ) | ( regs[17] & 0x0f ? 0 : 16 ) | sz53Table[regs[17]];
-	break;case 37:
+}; fn36(); }
+	break;case 37: { var fn37 = function() {
 	
 	
 
@@ -3647,10 +4195,12 @@ regs[17] = (regs[17] - 1) ;
 
 
 regs[0] |= (regs[17] == 0x7f ? 4 : 0) | sz53Table[regs[17]];
-	break;case 38:
+}; fn37(); }
+	break;case 38: { var fn38 = function() {
 	
 	regs[17] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 39:
+}; fn38(); }
+	break;case 39: { var fn39 = function() {
 	
 	var add = 0;
 var carry = regs[0] & 1;
@@ -3672,7 +4222,8 @@ regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
 }
 regs[0] = ( regs[0] & -6 ) | carry | parityTable[regs[1]];
-	break;case 40:
+}; fn39(); }
+	break;case 40: { var fn40 = function() {
 	
 	if (regs[0] & 64) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -3687,7 +4238,8 @@ regs[0] = ( regs[0] & -6 ) | carry | parityTable[regs[1]];
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 41:
+}; fn40(); }
+	break;case 41: { var fn41 = function() {
 	
 	var add16temp = regPairs[8] + regPairs[8];
 var lookup = ( (regPairs[8] & 0x0800) >> 11 ) | ( (regPairs[8] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -3700,7 +4252,8 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 42:
+}; fn41(); }
+	break;case 42: { var fn42 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -3709,12 +4262,14 @@ l = (tstates += ( 3), memory.read(addr));
 addr = (addr + 1) & 0xffff;
 h = (tstates += ( 3), memory.read(addr));
 regPairs[8] = (h<<8) | l;
-	break;case 43:
+}; fn42(); }
+	break;case 43: { var fn43 = function() {
 	
 	regPairs[8]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 44:
+}; fn43(); }
+	break;case 44: { var fn44 = function() {
 	
 	
 
@@ -3723,7 +4278,8 @@ regs[16] = (regs[16] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[16] == 0x80 ? 4 : 0 ) | ( regs[16] & 0x0f ? 0 : 16 ) | sz53Table[regs[16]];
-	break;case 45:
+}; fn44(); }
+	break;case 45: { var fn45 = function() {
 	
 	
 
@@ -3732,14 +4288,17 @@ regs[16] = (regs[16] - 1) ;
 
 
 regs[0] |= (regs[16] == 0x7f ? 4 : 0) | sz53Table[regs[16]];
-	break;case 46:
+}; fn45(); }
+	break;case 46: { var fn46 = function() {
 	
 	regs[16] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 47:
+}; fn46(); }
+	break;case 47: { var fn47 = function() {
 	
 	regs[1] ^= 0xff;
 regs[0] = (regs[0] & 197) | (regs[1] & 40) | 18;
-	break;case 48:
+}; fn47(); }
+	break;case 48: { var fn48 = function() {
 	
 	if (!(regs[0] & 1)) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -3754,12 +4313,14 @@ regs[0] = (regs[0] & 197) | (regs[1] & 40) | 18;
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 49:
+}; fn48(); }
+	break;case 49: { var fn49 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[11] = (h<<8) | l;
-	break;case 50:
+}; fn49(); }
+	break;case 50: { var fn50 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -3767,12 +4328,14 @@ var addr = (h<<8) | l;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 51:
+}; fn50(); }
+	break;case 51: { var fn51 = function() {
 	
 	regPairs[11]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 52:
+}; fn51(); }
+	break;case 52: { var fn52 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -3792,7 +4355,8 @@ tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
 regs[0] = (regs[0] & 1) | ( val == 0x80 ? 4 : 0 ) | ( val & 0x0f ? 0 : 16 ) | sz53Table[val];
-	break;case 53:
+}; fn52(); }
+	break;case 53: { var fn53 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -3812,7 +4376,8 @@ tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
 regs[0] |= (val == 0x7f ? 4 : 0) | sz53Table[val];
-	break;case 54:
+}; fn53(); }
+	break;case 54: { var fn54 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 if (offset & 0x80) offset -= 0x100;
@@ -3825,10 +4390,12 @@ regPairs[12]++;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 55:
+}; fn54(); }
+	break;case 55: { var fn55 = function() {
 	
 	regs[0] = (regs[0] & 196) | (regs[1] & 40) | 1;
-	break;case 56:
+}; fn55(); }
+	break;case 56: { var fn56 = function() {
 	
 	if (regs[0] & 1) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -3843,7 +4410,8 @@ memory.write(addr, val);;
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 57:
+}; fn56(); }
+	break;case 57: { var fn57 = function() {
 	
 	var add16temp = regPairs[8] + regPairs[11];
 var lookup = ( (regPairs[8] & 0x0800) >> 11 ) | ( (regPairs[11] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -3856,18 +4424,21 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 58:
+}; fn57(); }
+	break;case 58: { var fn58 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var addr = (h<<8) | l;
 regs[1] = (tstates += ( 3), memory.read(addr));
-	break;case 59:
+}; fn58(); }
+	break;case 59: { var fn59 = function() {
 	
 	regPairs[11]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 60:
+}; fn59(); }
+	break;case 60: { var fn60 = function() {
 	
 	
 
@@ -3876,7 +4447,8 @@ regs[1] = (regs[1] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[1] == 0x80 ? 4 : 0 ) | ( regs[1] & 0x0f ? 0 : 16 ) | sz53Table[regs[1]];
-	break;case 61:
+}; fn60(); }
+	break;case 61: { var fn61 = function() {
 	
 	
 
@@ -3885,31 +4457,40 @@ regs[1] = (regs[1] - 1) ;
 
 
 regs[0] |= (regs[1] == 0x7f ? 4 : 0) | sz53Table[regs[1]];
-	break;case 62:
+}; fn61(); }
+	break;case 62: { var fn62 = function() {
 	
 	regs[1] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 63:
+}; fn62(); }
+	break;case 63: { var fn63 = function() {
 	
 	regs[0] = ( regs[0] & 196 ) | ( (regs[0] & 1) ? 16 : 1 ) | ( regs[1] & 40 );
-	break;case 64:
+}; fn63(); }
+	break;case 64: { var fn64 = function() {
 	
 	regs[3] = regs[3];
-	break;case 65:
+}; fn64(); }
+	break;case 65: { var fn65 = function() {
 	
 	regs[3] = regs[2];
-	break;case 66:
+}; fn65(); }
+	break;case 66: { var fn66 = function() {
 	
 	regs[3] = regs[5];
-	break;case 67:
+}; fn66(); }
+	break;case 67: { var fn67 = function() {
 	
 	regs[3] = regs[4];
-	break;case 68:
+}; fn67(); }
+	break;case 68: { var fn68 = function() {
 	
 	regs[3] = regs[17];
-	break;case 69:
+}; fn68(); }
+	break;case 69: { var fn69 = function() {
 	
 	regs[3] = regs[16];
-	break;case 70:
+}; fn69(); }
+	break;case 70: { var fn70 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -3922,28 +4503,36 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[8] + offset) & 0xffff;
 
 regs[3] = (tstates += ( 3), memory.read(addr));
-	break;case 71:
+}; fn70(); }
+	break;case 71: { var fn71 = function() {
 	
 	regs[3] = regs[1];
-	break;case 72:
+}; fn71(); }
+	break;case 72: { var fn72 = function() {
 	
 	regs[2] = regs[3];
-	break;case 73:
+}; fn72(); }
+	break;case 73: { var fn73 = function() {
 	
 	regs[2] = regs[2];
-	break;case 74:
+}; fn73(); }
+	break;case 74: { var fn74 = function() {
 	
 	regs[2] = regs[5];
-	break;case 75:
+}; fn74(); }
+	break;case 75: { var fn75 = function() {
 	
 	regs[2] = regs[4];
-	break;case 76:
+}; fn75(); }
+	break;case 76: { var fn76 = function() {
 	
 	regs[2] = regs[17];
-	break;case 77:
+}; fn76(); }
+	break;case 77: { var fn77 = function() {
 	
 	regs[2] = regs[16];
-	break;case 78:
+}; fn77(); }
+	break;case 78: { var fn78 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -3956,28 +4545,36 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[8] + offset) & 0xffff;
 
 regs[2] = (tstates += ( 3), memory.read(addr));
-	break;case 79:
+}; fn78(); }
+	break;case 79: { var fn79 = function() {
 	
 	regs[2] = regs[1];
-	break;case 80:
+}; fn79(); }
+	break;case 80: { var fn80 = function() {
 	
 	regs[5] = regs[3];
-	break;case 81:
+}; fn80(); }
+	break;case 81: { var fn81 = function() {
 	
 	regs[5] = regs[2];
-	break;case 82:
+}; fn81(); }
+	break;case 82: { var fn82 = function() {
 	
 	regs[5] = regs[5];
-	break;case 83:
+}; fn82(); }
+	break;case 83: { var fn83 = function() {
 	
 	regs[5] = regs[4];
-	break;case 84:
+}; fn83(); }
+	break;case 84: { var fn84 = function() {
 	
 	regs[5] = regs[17];
-	break;case 85:
+}; fn84(); }
+	break;case 85: { var fn85 = function() {
 	
 	regs[5] = regs[16];
-	break;case 86:
+}; fn85(); }
+	break;case 86: { var fn86 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -3990,28 +4587,36 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[8] + offset) & 0xffff;
 
 regs[5] = (tstates += ( 3), memory.read(addr));
-	break;case 87:
+}; fn86(); }
+	break;case 87: { var fn87 = function() {
 	
 	regs[5] = regs[1];
-	break;case 88:
+}; fn87(); }
+	break;case 88: { var fn88 = function() {
 	
 	regs[4] = regs[3];
-	break;case 89:
+}; fn88(); }
+	break;case 89: { var fn89 = function() {
 	
 	regs[4] = regs[2];
-	break;case 90:
+}; fn89(); }
+	break;case 90: { var fn90 = function() {
 	
 	regs[4] = regs[5];
-	break;case 91:
+}; fn90(); }
+	break;case 91: { var fn91 = function() {
 	
 	regs[4] = regs[4];
-	break;case 92:
+}; fn91(); }
+	break;case 92: { var fn92 = function() {
 	
 	regs[4] = regs[17];
-	break;case 93:
+}; fn92(); }
+	break;case 93: { var fn93 = function() {
 	
 	regs[4] = regs[16];
-	break;case 94:
+}; fn93(); }
+	break;case 94: { var fn94 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -4024,28 +4629,36 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[8] + offset) & 0xffff;
 
 regs[4] = (tstates += ( 3), memory.read(addr));
-	break;case 95:
+}; fn94(); }
+	break;case 95: { var fn95 = function() {
 	
 	regs[4] = regs[1];
-	break;case 96:
+}; fn95(); }
+	break;case 96: { var fn96 = function() {
 	
 	regs[17] = regs[3];
-	break;case 97:
+}; fn96(); }
+	break;case 97: { var fn97 = function() {
 	
 	regs[17] = regs[2];
-	break;case 98:
+}; fn97(); }
+	break;case 98: { var fn98 = function() {
 	
 	regs[17] = regs[5];
-	break;case 99:
+}; fn98(); }
+	break;case 99: { var fn99 = function() {
 	
 	regs[17] = regs[4];
-	break;case 100:
+}; fn99(); }
+	break;case 100: { var fn100 = function() {
 	
 	regs[17] = regs[17];
-	break;case 101:
+}; fn100(); }
+	break;case 101: { var fn101 = function() {
 	
 	regs[17] = regs[16];
-	break;case 102:
+}; fn101(); }
+	break;case 102: { var fn102 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -4058,28 +4671,36 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[8] + offset) & 0xffff;
 
 regs[7] = (tstates += ( 3), memory.read(addr));
-	break;case 103:
+}; fn102(); }
+	break;case 103: { var fn103 = function() {
 	
 	regs[17] = regs[1];
-	break;case 104:
+}; fn103(); }
+	break;case 104: { var fn104 = function() {
 	
 	regs[16] = regs[3];
-	break;case 105:
+}; fn104(); }
+	break;case 105: { var fn105 = function() {
 	
 	regs[16] = regs[2];
-	break;case 106:
+}; fn105(); }
+	break;case 106: { var fn106 = function() {
 	
 	regs[16] = regs[5];
-	break;case 107:
+}; fn106(); }
+	break;case 107: { var fn107 = function() {
 	
 	regs[16] = regs[4];
-	break;case 108:
+}; fn107(); }
+	break;case 108: { var fn108 = function() {
 	
 	regs[16] = regs[17];
-	break;case 109:
+}; fn108(); }
+	break;case 109: { var fn109 = function() {
 	
 	regs[16] = regs[16];
-	break;case 110:
+}; fn109(); }
+	break;case 110: { var fn110 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -4092,10 +4713,12 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[8] + offset) & 0xffff;
 
 regs[6] = (tstates += ( 3), memory.read(addr));
-	break;case 111:
+}; fn110(); }
+	break;case 111: { var fn111 = function() {
 	
 	regs[16] = regs[1];
-	break;case 112:
+}; fn111(); }
+	break;case 112: { var fn112 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -4110,7 +4733,8 @@ var addr = (regPairs[8] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 113:
+}; fn112(); }
+	break;case 113: { var fn113 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -4125,7 +4749,8 @@ var addr = (regPairs[8] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 114:
+}; fn113(); }
+	break;case 114: { var fn114 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -4140,7 +4765,8 @@ var addr = (regPairs[8] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 115:
+}; fn114(); }
+	break;case 115: { var fn115 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -4155,7 +4781,8 @@ var addr = (regPairs[8] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 116:
+}; fn115(); }
+	break;case 116: { var fn116 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -4170,7 +4797,8 @@ var addr = (regPairs[8] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 117:
+}; fn116(); }
+	break;case 117: { var fn117 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -4185,11 +4813,13 @@ var addr = (regPairs[8] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 118:
+}; fn117(); }
+	break;case 118: { var fn118 = function() {
 	
 	halted = true;
 regPairs[12]--;
-	break;case 119:
+}; fn118(); }
+	break;case 119: { var fn119 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -4204,25 +4834,32 @@ var addr = (regPairs[8] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 120:
+}; fn119(); }
+	break;case 120: { var fn120 = function() {
 	
 	regs[1] = regs[3];
-	break;case 121:
+}; fn120(); }
+	break;case 121: { var fn121 = function() {
 	
 	regs[1] = regs[2];
-	break;case 122:
+}; fn121(); }
+	break;case 122: { var fn122 = function() {
 	
 	regs[1] = regs[5];
-	break;case 123:
+}; fn122(); }
+	break;case 123: { var fn123 = function() {
 	
 	regs[1] = regs[4];
-	break;case 124:
+}; fn123(); }
+	break;case 124: { var fn124 = function() {
 	
 	regs[1] = regs[17];
-	break;case 125:
+}; fn124(); }
+	break;case 125: { var fn125 = function() {
 	
 	regs[1] = regs[16];
-	break;case 126:
+}; fn125(); }
+	break;case 126: { var fn126 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -4235,10 +4872,12 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[8] + offset) & 0xffff;
 
 regs[1] = (tstates += ( 3), memory.read(addr));
-	break;case 127:
+}; fn126(); }
+	break;case 127: { var fn127 = function() {
 	
 	regs[1] = regs[1];
-	break;case 128:
+}; fn127(); }
+	break;case 128: { var fn128 = function() {
 	
 	
 
@@ -4246,7 +4885,8 @@ var addtemp = regs[1] + regs[3];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 129:
+}; fn128(); }
+	break;case 129: { var fn129 = function() {
 	
 	
 
@@ -4254,7 +4894,8 @@ var addtemp = regs[1] + regs[2];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 130:
+}; fn129(); }
+	break;case 130: { var fn130 = function() {
 	
 	
 
@@ -4262,7 +4903,8 @@ var addtemp = regs[1] + regs[5];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 131:
+}; fn130(); }
+	break;case 131: { var fn131 = function() {
 	
 	
 
@@ -4270,7 +4912,8 @@ var addtemp = regs[1] + regs[4];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 132:
+}; fn131(); }
+	break;case 132: { var fn132 = function() {
 	
 	
 
@@ -4278,7 +4921,8 @@ var addtemp = regs[1] + regs[17];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[17] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 133:
+}; fn132(); }
+	break;case 133: { var fn133 = function() {
 	
 	
 
@@ -4286,7 +4930,8 @@ var addtemp = regs[1] + regs[16];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[16] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 134:
+}; fn133(); }
+	break;case 134: { var fn134 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -4302,7 +4947,8 @@ var addtemp = regs[1] + val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 135:
+}; fn134(); }
+	break;case 135: { var fn135 = function() {
 	
 	
 
@@ -4310,7 +4956,8 @@ var addtemp = regs[1] + regs[1];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 136:
+}; fn135(); }
+	break;case 136: { var fn136 = function() {
 	
 	
 
@@ -4318,7 +4965,8 @@ var adctemp = regs[1] + regs[3] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 137:
+}; fn136(); }
+	break;case 137: { var fn137 = function() {
 	
 	
 
@@ -4326,7 +4974,8 @@ var adctemp = regs[1] + regs[2] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 138:
+}; fn137(); }
+	break;case 138: { var fn138 = function() {
 	
 	
 
@@ -4334,7 +4983,8 @@ var adctemp = regs[1] + regs[5] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 139:
+}; fn138(); }
+	break;case 139: { var fn139 = function() {
 	
 	
 
@@ -4342,7 +4992,8 @@ var adctemp = regs[1] + regs[4] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 140:
+}; fn139(); }
+	break;case 140: { var fn140 = function() {
 	
 	
 
@@ -4350,7 +5001,8 @@ var adctemp = regs[1] + regs[17] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[17] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 141:
+}; fn140(); }
+	break;case 141: { var fn141 = function() {
 	
 	
 
@@ -4358,7 +5010,8 @@ var adctemp = regs[1] + regs[16] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[16] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 142:
+}; fn141(); }
+	break;case 142: { var fn142 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -4374,7 +5027,8 @@ var adctemp = regs[1] + val + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 143:
+}; fn142(); }
+	break;case 143: { var fn143 = function() {
 	
 	
 
@@ -4382,49 +5036,56 @@ var adctemp = regs[1] + regs[1] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 144:
+}; fn143(); }
+	break;case 144: { var fn144 = function() {
 	
 	
 var subtemp = regs[1] - regs[3];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 145:
+}; fn144(); }
+	break;case 145: { var fn145 = function() {
 	
 	
 var subtemp = regs[1] - regs[2];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 146:
+}; fn145(); }
+	break;case 146: { var fn146 = function() {
 	
 	
 var subtemp = regs[1] - regs[5];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 147:
+}; fn146(); }
+	break;case 147: { var fn147 = function() {
 	
 	
 var subtemp = regs[1] - regs[4];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 148:
+}; fn147(); }
+	break;case 148: { var fn148 = function() {
 	
 	
 var subtemp = regs[1] - regs[17];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[17] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 149:
+}; fn148(); }
+	break;case 149: { var fn149 = function() {
 	
 	
 var subtemp = regs[1] - regs[16];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[16] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 150:
+}; fn149(); }
+	break;case 150: { var fn150 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -4439,56 +5100,64 @@ var subtemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 151:
+}; fn150(); }
+	break;case 151: { var fn151 = function() {
 	
 	
 var subtemp = regs[1] - regs[1];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 152:
+}; fn151(); }
+	break;case 152: { var fn152 = function() {
 	
 	
 var sbctemp = regs[1] - regs[3] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 153:
+}; fn152(); }
+	break;case 153: { var fn153 = function() {
 	
 	
 var sbctemp = regs[1] - regs[2] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 154:
+}; fn153(); }
+	break;case 154: { var fn154 = function() {
 	
 	
 var sbctemp = regs[1] - regs[5] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 155:
+}; fn154(); }
+	break;case 155: { var fn155 = function() {
 	
 	
 var sbctemp = regs[1] - regs[4] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 156:
+}; fn155(); }
+	break;case 156: { var fn156 = function() {
 	
 	
 var sbctemp = regs[1] - regs[17] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[17] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 157:
+}; fn156(); }
+	break;case 157: { var fn157 = function() {
 	
 	
 var sbctemp = regs[1] - regs[16] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[16] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 158:
+}; fn157(); }
+	break;case 158: { var fn158 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -4503,50 +5172,58 @@ var sbctemp = regs[1] - val - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 159:
+}; fn158(); }
+	break;case 159: { var fn159 = function() {
 	
 	
 var sbctemp = regs[1] - regs[1] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 160:
+}; fn159(); }
+	break;case 160: { var fn160 = function() {
 	
 	
 
 regs[1] &= regs[3];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 161:
+}; fn160(); }
+	break;case 161: { var fn161 = function() {
 	
 	
 
 regs[1] &= regs[2];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 162:
+}; fn161(); }
+	break;case 162: { var fn162 = function() {
 	
 	
 
 regs[1] &= regs[5];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 163:
+}; fn162(); }
+	break;case 163: { var fn163 = function() {
 	
 	
 
 regs[1] &= regs[4];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 164:
+}; fn163(); }
+	break;case 164: { var fn164 = function() {
 	
 	
 
 regs[1] &= regs[17];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 165:
+}; fn164(); }
+	break;case 165: { var fn165 = function() {
 	
 	
 
 regs[1] &= regs[16];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 166:
+}; fn165(); }
+	break;case 166: { var fn166 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -4560,43 +5237,51 @@ var val = (tstates += ( 3), memory.read(addr));
 
 regs[1] &= val;
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 167:
+}; fn166(); }
+	break;case 167: { var fn167 = function() {
 	
 	
 
 regs[1] &= regs[1];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 168:
+}; fn167(); }
+	break;case 168: { var fn168 = function() {
 	
 	
 regs[1] ^= regs[3];
 regs[0] = sz53pTable[regs[1]];
-	break;case 169:
+}; fn168(); }
+	break;case 169: { var fn169 = function() {
 	
 	
 regs[1] ^= regs[2];
 regs[0] = sz53pTable[regs[1]];
-	break;case 170:
+}; fn169(); }
+	break;case 170: { var fn170 = function() {
 	
 	
 regs[1] ^= regs[5];
 regs[0] = sz53pTable[regs[1]];
-	break;case 171:
+}; fn170(); }
+	break;case 171: { var fn171 = function() {
 	
 	
 regs[1] ^= regs[4];
 regs[0] = sz53pTable[regs[1]];
-	break;case 172:
+}; fn171(); }
+	break;case 172: { var fn172 = function() {
 	
 	
 regs[1] ^= regs[17];
 regs[0] = sz53pTable[regs[1]];
-	break;case 173:
+}; fn172(); }
+	break;case 173: { var fn173 = function() {
 	
 	
 regs[1] ^= regs[16];
 regs[0] = sz53pTable[regs[1]];
-	break;case 174:
+}; fn173(); }
+	break;case 174: { var fn174 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -4609,48 +5294,56 @@ regPairs[12]++;var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
 regs[1] ^= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 175:
+}; fn174(); }
+	break;case 175: { var fn175 = function() {
 	
 	
 regs[1] ^= regs[1];
 regs[0] = sz53pTable[regs[1]];
-	break;case 176:
+}; fn175(); }
+	break;case 176: { var fn176 = function() {
 	
 	
 
 regs[1] |= regs[3];
 regs[0] = sz53pTable[regs[1]];
-	break;case 177:
+}; fn176(); }
+	break;case 177: { var fn177 = function() {
 	
 	
 
 regs[1] |= regs[2];
 regs[0] = sz53pTable[regs[1]];
-	break;case 178:
+}; fn177(); }
+	break;case 178: { var fn178 = function() {
 	
 	
 
 regs[1] |= regs[5];
 regs[0] = sz53pTable[regs[1]];
-	break;case 179:
+}; fn178(); }
+	break;case 179: { var fn179 = function() {
 	
 	
 
 regs[1] |= regs[4];
 regs[0] = sz53pTable[regs[1]];
-	break;case 180:
+}; fn179(); }
+	break;case 180: { var fn180 = function() {
 	
 	
 
 regs[1] |= regs[17];
 regs[0] = sz53pTable[regs[1]];
-	break;case 181:
+}; fn180(); }
+	break;case 181: { var fn181 = function() {
 	
 	
 
 regs[1] |= regs[16];
 regs[0] = sz53pTable[regs[1]];
-	break;case 182:
+}; fn181(); }
+	break;case 182: { var fn182 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -4664,55 +5357,63 @@ var val = (tstates += ( 3), memory.read(addr));
 
 regs[1] |= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 183:
+}; fn182(); }
+	break;case 183: { var fn183 = function() {
 	
 	
 
 regs[1] |= regs[1];
 regs[0] = sz53pTable[regs[1]];
-	break;case 184:
+}; fn183(); }
+	break;case 184: { var fn184 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[3];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[3] & 40 ) | ( cptemp & 128 );
-	break;case 185:
+}; fn184(); }
+	break;case 185: { var fn185 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[2];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[2] & 40 ) | ( cptemp & 128 );
-	break;case 186:
+}; fn185(); }
+	break;case 186: { var fn186 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[5];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[5] & 40 ) | ( cptemp & 128 );
-	break;case 187:
+}; fn186(); }
+	break;case 187: { var fn187 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[4];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[4] & 40 ) | ( cptemp & 128 );
-	break;case 188:
+}; fn187(); }
+	break;case 188: { var fn188 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[17];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[17] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[17] & 40 ) | ( cptemp & 128 );
-	break;case 189:
+}; fn188(); }
+	break;case 189: { var fn189 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[16];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[16] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[16] & 40 ) | ( cptemp & 128 );
-	break;case 190:
+}; fn189(); }
+	break;case 190: { var fn190 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -4727,14 +5428,16 @@ var val = (tstates += ( 3), memory.read(addr));
 var cptemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( val & 40 ) | ( cptemp & 128 );
-	break;case 191:
+}; fn190(); }
+	break;case 191: { var fn191 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[1];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[1] & 40 ) | ( cptemp & 128 );
-	break;case 192:
+}; fn191(); }
+	break;case 192: { var fn192 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 64)) {
@@ -4742,12 +5445,14 @@ if (!(regs[0] & 64)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 193:
+}; fn192(); }
+	break;case 193: { var fn193 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[1] = (h<<8) | l;
-	break;case 194:
+}; fn193(); }
+	break;case 194: { var fn194 = function() {
 	
 	if (!(regs[0] & 64)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -4759,12 +5464,14 @@ regPairs[1] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 195:
+}; fn194(); }
+	break;case 195: { var fn195 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[12] = (h<<8) | l;
-	break;case 196:
+}; fn195(); }
+	break;case 196: { var fn196 = function() {
 	
 	if (!(regs[0] & 64)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -4784,7 +5491,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 197:
+}; fn196(); }
+	break;case 197: { var fn197 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -4793,7 +5501,8 @@ memory.write(regPairs[11], regPairs[1] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[1] & 0xff);;
-	break;case 198:
+}; fn197(); }
+	break;case 198: { var fn198 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
@@ -4801,7 +5510,8 @@ var addtemp = regs[1] + val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 199:
+}; fn198(); }
+	break;case 199: { var fn199 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -4811,7 +5521,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 0;
-	break;case 200:
+}; fn199(); }
+	break;case 200: { var fn200 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 64) {
@@ -4819,12 +5530,14 @@ if (regs[0] & 64) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 201:
+}; fn200(); }
+	break;case 201: { var fn201 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[12] = (h<<8) | l;
-	break;case 202:
+}; fn201(); }
+	break;case 202: { var fn202 = function() {
 	
 	if (regs[0] & 64) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -4836,11 +5549,13 @@ regPairs[12] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 203:
+}; fn202(); }
+	break;case 203: { var fn203 = function() {
 	
 	opcodePrefix = 'DDCB';
 interruptible = false;
-	break;case 204:
+}; fn203(); }
+	break;case 204: { var fn204 = function() {
 	
 	if (regs[0] & 64) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -4860,7 +5575,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 205:
+}; fn204(); }
+	break;case 205: { var fn205 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12]));
@@ -4873,7 +5589,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = (h<<8) | l;
-	break;case 206:
+}; fn205(); }
+	break;case 206: { var fn206 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
@@ -4881,7 +5598,8 @@ var adctemp = regs[1] + val + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 207:
+}; fn206(); }
+	break;case 207: { var fn207 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -4891,7 +5609,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 8;
-	break;case 208:
+}; fn207(); }
+	break;case 208: { var fn208 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 1)) {
@@ -4899,12 +5618,14 @@ if (!(regs[0] & 1)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 209:
+}; fn208(); }
+	break;case 209: { var fn209 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[2] = (h<<8) | l;
-	break;case 210:
+}; fn209(); }
+	break;case 210: { var fn210 = function() {
 	
 	if (!(regs[0] & 1)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -4916,13 +5637,15 @@ regPairs[2] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 211:
+}; fn210(); }
+	break;case 211: { var fn211 = function() {
 	
 	var port = (regs[1] << 8) | (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 tstates += 1;
 ioBus.write(port, regs[1], tstates);
 tstates += 3;
-	break;case 212:
+}; fn211(); }
+	break;case 212: { var fn212 = function() {
 	
 	if (!(regs[0] & 1)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -4942,7 +5665,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 213:
+}; fn212(); }
+	break;case 213: { var fn213 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -4951,14 +5675,16 @@ memory.write(regPairs[11], regPairs[2] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[2] & 0xff);;
-	break;case 214:
+}; fn213(); }
+	break;case 214: { var fn214 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var subtemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 215:
+}; fn214(); }
+	break;case 215: { var fn215 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -4968,7 +5694,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 16;
-	break;case 216:
+}; fn215(); }
+	break;case 216: { var fn216 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 1) {
@@ -4976,13 +5703,15 @@ if (regs[0] & 1) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 217:
+}; fn216(); }
+	break;case 217: { var fn217 = function() {
 	
 	var wordtemp;
 wordtemp = regPairs[1]; regPairs[1] = regPairs[5]; regPairs[5] = wordtemp;
 wordtemp = regPairs[2]; regPairs[2] = regPairs[6]; regPairs[6] = wordtemp;
 wordtemp = regPairs[3]; regPairs[3] = regPairs[7]; regPairs[7] = wordtemp;
-	break;case 218:
+}; fn217(); }
+	break;case 218: { var fn218 = function() {
 	
 	if (regs[0] & 1) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -4994,14 +5723,16 @@ wordtemp = regPairs[3]; regPairs[3] = regPairs[7]; regPairs[7] = wordtemp;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 219:
+}; fn218(); }
+	break;case 219: { var fn219 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var port = (regs[1] << 8) | val;
 tstates += 1;
 regs[1] = ioBus.read(port);
 tstates += 3;
-	break;case 220:
+}; fn219(); }
+	break;case 220: { var fn220 = function() {
 	
 	if (regs[0] & 1) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -5021,18 +5752,21 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 221:
+}; fn220(); }
+	break;case 221: { var fn221 = function() {
 	
 	opcodePrefix = 'DD';
 interruptible = false;
-	break;case 222:
+}; fn221(); }
+	break;case 222: { var fn222 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var sbctemp = regs[1] - val - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 223:
+}; fn222(); }
+	break;case 223: { var fn223 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -5042,7 +5776,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 24;
-	break;case 224:
+}; fn223(); }
+	break;case 224: { var fn224 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 4)) {
@@ -5050,12 +5785,14 @@ if (!(regs[0] & 4)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 225:
+}; fn224(); }
+	break;case 225: { var fn225 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[8] = (h<<8) | l;
-	break;case 226:
+}; fn225(); }
+	break;case 226: { var fn226 = function() {
 	
 	if (!(regs[0] & 4)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -5067,7 +5804,8 @@ regPairs[8] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 227:
+}; fn226(); }
+	break;case 227: { var fn227 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11]));
 var spPlus1 = (regPairs[11] + 1) & 0xffff;
@@ -5082,7 +5820,8 @@ memory.write(regPairs[11], regPairs[8] & 0xff);;
 regPairs[8] = (h<<8) | l;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 228:
+}; fn227(); }
+	break;case 228: { var fn228 = function() {
 	
 	if (!(regs[0] & 4)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -5102,7 +5841,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 229:
+}; fn228(); }
+	break;case 229: { var fn229 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -5111,13 +5851,15 @@ memory.write(regPairs[11], regPairs[8] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[8] & 0xff);;
-	break;case 230:
+}; fn229(); }
+	break;case 230: { var fn230 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
 regs[1] &= val;
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 231:
+}; fn230(); }
+	break;case 231: { var fn231 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -5127,7 +5869,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 32;
-	break;case 232:
+}; fn231(); }
+	break;case 232: { var fn232 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 4) {
@@ -5135,10 +5878,12 @@ if (regs[0] & 4) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 233:
+}; fn232(); }
+	break;case 233: { var fn233 = function() {
 	
 	regPairs[12] = regPairs[8];
-	break;case 234:
+}; fn233(); }
+	break;case 234: { var fn234 = function() {
 	
 	if (regs[0] & 4) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -5150,12 +5895,14 @@ if (regs[0] & 4) {
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 235:
+}; fn234(); }
+	break;case 235: { var fn235 = function() {
 	
 	var temp = regPairs[2];
 regPairs[2] = regPairs[3];
 regPairs[3] = temp;
-	break;case 236:
+}; fn235(); }
+	break;case 236: { var fn236 = function() {
 	
 	if (regs[0] & 4) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -5175,16 +5922,19 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 237:
+}; fn236(); }
+	break;case 237: { var fn237 = function() {
 	
 	opcodePrefix = 'ED';
 interruptible = false;
-	break;case 238:
+}; fn237(); }
+	break;case 238: { var fn238 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regs[1] ^= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 239:
+}; fn238(); }
+	break;case 239: { var fn239 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -5194,7 +5944,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 40;
-	break;case 240:
+}; fn239(); }
+	break;case 240: { var fn240 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 128)) {
@@ -5202,12 +5953,14 @@ if (!(regs[0] & 128)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 241:
+}; fn240(); }
+	break;case 241: { var fn241 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[0] = (h<<8) | l;
-	break;case 242:
+}; fn241(); }
+	break;case 242: { var fn242 = function() {
 	
 	if (!(regs[0] & 128)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -5219,10 +5972,12 @@ regPairs[0] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 243:
+}; fn242(); }
+	break;case 243: { var fn243 = function() {
 	
 	iff1 = iff2 = 0;
-	break;case 244:
+}; fn243(); }
+	break;case 244: { var fn244 = function() {
 	
 	if (!(regs[0] & 128)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -5242,7 +5997,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 245:
+}; fn244(); }
+	break;case 245: { var fn245 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -5251,13 +6007,15 @@ memory.write(regPairs[11], regPairs[0] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[0] & 0xff);;
-	break;case 246:
+}; fn245(); }
+	break;case 246: { var fn246 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
 regs[1] |= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 247:
+}; fn246(); }
+	break;case 247: { var fn247 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -5267,7 +6025,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 48;
-	break;case 248:
+}; fn247(); }
+	break;case 248: { var fn248 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 128) {
@@ -5275,12 +6034,14 @@ if (regs[0] & 128) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 249:
+}; fn248(); }
+	break;case 249: { var fn249 = function() {
 	
 	regPairs[11] = regPairs[8];
 tstates += ( 1);
 tstates += ( 1);
-	break;case 250:
+}; fn249(); }
+	break;case 250: { var fn250 = function() {
 	
 	if (regs[0] & 128) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -5292,11 +6053,13 @@ tstates += ( 1);
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 251:
+}; fn250(); }
+	break;case 251: { var fn251 = function() {
 	
 	iff1 = iff2 = 1;
 interruptible = false;
-	break;case 252:
+}; fn251(); }
+	break;case 252: { var fn252 = function() {
 	
 	if (regs[0] & 128) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -5316,18 +6079,21 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 253:
+}; fn252(); }
+	break;case 253: { var fn253 = function() {
 	
 	opcodePrefix = 'FD';
 interruptible = false;
-	break;case 254:
+}; fn253(); }
+	break;case 254: { var fn254 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
 var cptemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( val & 40 ) | ( cptemp & 128 );
-	break;case 255:
+}; fn254(); }
+	break;case 255: { var fn255 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -5337,6 +6103,7 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 56;
+}; fn255(); }
 	break;
 	default:
 		var addr = regPairs[12] - 1;
@@ -5352,7 +6119,7 @@ regPairs[12] = 56;
 					tstates += ( 1);
 					regPairs[12]++;
 					switch (opcode) {
-	case 0:
+	case 0: { var fn0 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -5364,7 +6131,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 1:
+}; fn0(); }
+	break;case 1: { var fn1 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -5376,7 +6144,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 2:
+}; fn1(); }
+	break;case 2: { var fn2 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -5388,7 +6157,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 3:
+}; fn2(); }
+	break;case 3: { var fn3 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -5400,7 +6170,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 4:
+}; fn3(); }
+	break;case 4: { var fn4 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -5412,7 +6183,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 5:
+}; fn4(); }
+	break;case 5: { var fn5 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -5424,7 +6196,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 6:
+}; fn5(); }
+	break;case 6: { var fn6 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -5434,7 +6207,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 7:
+}; fn6(); }
+	break;case 7: { var fn7 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -5446,7 +6220,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 8:
+}; fn7(); }
+	break;case 8: { var fn8 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -5459,7 +6234,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 9:
+}; fn8(); }
+	break;case 9: { var fn9 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -5472,7 +6248,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 10:
+}; fn9(); }
+	break;case 10: { var fn10 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -5485,7 +6262,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 11:
+}; fn10(); }
+	break;case 11: { var fn11 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -5498,7 +6276,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 12:
+}; fn11(); }
+	break;case 12: { var fn12 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -5511,7 +6290,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 13:
+}; fn12(); }
+	break;case 13: { var fn13 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -5524,7 +6304,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 14:
+}; fn13(); }
+	break;case 14: { var fn14 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -5535,7 +6316,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 15:
+}; fn14(); }
+	break;case 15: { var fn15 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -5548,7 +6330,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 16:
+}; fn15(); }
+	break;case 16: { var fn16 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -5561,7 +6344,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 17:
+}; fn16(); }
+	break;case 17: { var fn17 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -5574,7 +6358,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 18:
+}; fn17(); }
+	break;case 18: { var fn18 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -5587,7 +6372,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 19:
+}; fn18(); }
+	break;case 19: { var fn19 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -5600,7 +6386,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 20:
+}; fn19(); }
+	break;case 20: { var fn20 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -5613,7 +6400,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 21:
+}; fn20(); }
+	break;case 21: { var fn21 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -5626,7 +6414,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 22:
+}; fn21(); }
+	break;case 22: { var fn22 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -5637,7 +6426,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 23:
+}; fn22(); }
+	break;case 23: { var fn23 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -5650,7 +6440,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 24:
+}; fn23(); }
+	break;case 24: { var fn24 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -5663,7 +6454,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 25:
+}; fn24(); }
+	break;case 25: { var fn25 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -5676,7 +6468,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 26:
+}; fn25(); }
+	break;case 26: { var fn26 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -5689,7 +6482,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 27:
+}; fn26(); }
+	break;case 27: { var fn27 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -5702,7 +6496,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 28:
+}; fn27(); }
+	break;case 28: { var fn28 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -5715,7 +6510,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 29:
+}; fn28(); }
+	break;case 29: { var fn29 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -5728,7 +6524,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 30:
+}; fn29(); }
+	break;case 30: { var fn30 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -5739,7 +6536,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 31:
+}; fn30(); }
+	break;case 31: { var fn31 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -5752,7 +6550,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 32:
+}; fn31(); }
+	break;case 32: { var fn32 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -5765,7 +6564,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 33:
+}; fn32(); }
+	break;case 33: { var fn33 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -5778,7 +6578,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 34:
+}; fn33(); }
+	break;case 34: { var fn34 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -5791,7 +6592,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 35:
+}; fn34(); }
+	break;case 35: { var fn35 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -5804,7 +6606,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 36:
+}; fn35(); }
+	break;case 36: { var fn36 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -5817,7 +6620,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 37:
+}; fn36(); }
+	break;case 37: { var fn37 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -5830,7 +6634,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 38:
+}; fn37(); }
+	break;case 38: { var fn38 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -5841,7 +6646,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 39:
+}; fn38(); }
+	break;case 39: { var fn39 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -5854,7 +6660,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 40:
+}; fn39(); }
+	break;case 40: { var fn40 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -5867,7 +6674,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 41:
+}; fn40(); }
+	break;case 41: { var fn41 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -5880,7 +6688,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 42:
+}; fn41(); }
+	break;case 42: { var fn42 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -5893,7 +6702,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 43:
+}; fn42(); }
+	break;case 43: { var fn43 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -5906,7 +6716,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 44:
+}; fn43(); }
+	break;case 44: { var fn44 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -5919,7 +6730,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 45:
+}; fn44(); }
+	break;case 45: { var fn45 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -5932,7 +6744,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 46:
+}; fn45(); }
+	break;case 46: { var fn46 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -5943,7 +6756,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 47:
+}; fn46(); }
+	break;case 47: { var fn47 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -5956,7 +6770,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 48:
+}; fn47(); }
+	break;case 48: { var fn48 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -5969,7 +6784,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 49:
+}; fn48(); }
+	break;case 49: { var fn49 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -5982,7 +6798,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 50:
+}; fn49(); }
+	break;case 50: { var fn50 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -5995,7 +6812,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 51:
+}; fn50(); }
+	break;case 51: { var fn51 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -6008,7 +6826,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 52:
+}; fn51(); }
+	break;case 52: { var fn52 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -6021,7 +6840,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 53:
+}; fn52(); }
+	break;case 53: { var fn53 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -6034,7 +6854,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 54:
+}; fn53(); }
+	break;case 54: { var fn54 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -6045,7 +6866,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 55:
+}; fn54(); }
+	break;case 55: { var fn55 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -6058,7 +6880,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 56:
+}; fn55(); }
+	break;case 56: { var fn56 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -6071,7 +6894,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 57:
+}; fn56(); }
+	break;case 57: { var fn57 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -6084,7 +6908,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 58:
+}; fn57(); }
+	break;case 58: { var fn58 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -6097,7 +6922,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 59:
+}; fn58(); }
+	break;case 59: { var fn59 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -6110,7 +6936,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 60:
+}; fn59(); }
+	break;case 60: { var fn60 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -6123,7 +6950,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 61:
+}; fn60(); }
+	break;case 61: { var fn61 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -6136,7 +6964,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 62:
+}; fn61(); }
+	break;case 62: { var fn62 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -6147,7 +6976,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 63:
+}; fn62(); }
+	break;case 63: { var fn63 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -6160,7 +6990,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 64:
+}; fn63(); }
+	break;case 64: { var fn64 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6168,7 +6999,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 65:
+}; fn64(); }
+	break;case 65: { var fn65 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6176,7 +7008,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 66:
+}; fn65(); }
+	break;case 66: { var fn66 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6184,7 +7017,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 67:
+}; fn66(); }
+	break;case 67: { var fn67 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6192,7 +7026,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 68:
+}; fn67(); }
+	break;case 68: { var fn68 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6200,7 +7035,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 69:
+}; fn68(); }
+	break;case 69: { var fn69 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6208,7 +7044,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 70:
+}; fn69(); }
+	break;case 70: { var fn70 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6216,7 +7053,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 71:
+}; fn70(); }
+	break;case 71: { var fn71 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6224,7 +7062,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 72:
+}; fn71(); }
+	break;case 72: { var fn72 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6232,7 +7071,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 73:
+}; fn72(); }
+	break;case 73: { var fn73 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6240,7 +7080,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 74:
+}; fn73(); }
+	break;case 74: { var fn74 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6248,7 +7089,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 75:
+}; fn74(); }
+	break;case 75: { var fn75 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6256,7 +7098,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 76:
+}; fn75(); }
+	break;case 76: { var fn76 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6264,7 +7107,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 77:
+}; fn76(); }
+	break;case 77: { var fn77 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6272,7 +7116,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 78:
+}; fn77(); }
+	break;case 78: { var fn78 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6280,7 +7125,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 79:
+}; fn78(); }
+	break;case 79: { var fn79 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6288,7 +7134,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 80:
+}; fn79(); }
+	break;case 80: { var fn80 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6296,7 +7143,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 81:
+}; fn80(); }
+	break;case 81: { var fn81 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6304,7 +7152,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 82:
+}; fn81(); }
+	break;case 82: { var fn82 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6312,7 +7161,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 83:
+}; fn82(); }
+	break;case 83: { var fn83 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6320,7 +7170,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 84:
+}; fn83(); }
+	break;case 84: { var fn84 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6328,7 +7179,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 85:
+}; fn84(); }
+	break;case 85: { var fn85 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6336,7 +7188,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 86:
+}; fn85(); }
+	break;case 86: { var fn86 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6344,7 +7197,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 87:
+}; fn86(); }
+	break;case 87: { var fn87 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6352,7 +7206,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 88:
+}; fn87(); }
+	break;case 88: { var fn88 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6360,7 +7215,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 89:
+}; fn88(); }
+	break;case 89: { var fn89 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6368,7 +7224,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 90:
+}; fn89(); }
+	break;case 90: { var fn90 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6376,7 +7233,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 91:
+}; fn90(); }
+	break;case 91: { var fn91 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6384,7 +7242,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 92:
+}; fn91(); }
+	break;case 92: { var fn92 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6392,7 +7251,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 93:
+}; fn92(); }
+	break;case 93: { var fn93 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6400,7 +7260,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 94:
+}; fn93(); }
+	break;case 94: { var fn94 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6408,7 +7269,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 95:
+}; fn94(); }
+	break;case 95: { var fn95 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6416,7 +7278,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 96:
+}; fn95(); }
+	break;case 96: { var fn96 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6424,7 +7287,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 97:
+}; fn96(); }
+	break;case 97: { var fn97 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6432,7 +7296,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 98:
+}; fn97(); }
+	break;case 98: { var fn98 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6440,7 +7305,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 99:
+}; fn98(); }
+	break;case 99: { var fn99 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6448,7 +7314,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 100:
+}; fn99(); }
+	break;case 100: { var fn100 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6456,7 +7323,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 101:
+}; fn100(); }
+	break;case 101: { var fn101 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6464,7 +7332,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 102:
+}; fn101(); }
+	break;case 102: { var fn102 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6472,7 +7341,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 103:
+}; fn102(); }
+	break;case 103: { var fn103 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6480,7 +7350,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 104:
+}; fn103(); }
+	break;case 104: { var fn104 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6488,7 +7359,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 105:
+}; fn104(); }
+	break;case 105: { var fn105 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6496,7 +7368,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 106:
+}; fn105(); }
+	break;case 106: { var fn106 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6504,7 +7377,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 107:
+}; fn106(); }
+	break;case 107: { var fn107 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6512,7 +7386,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 108:
+}; fn107(); }
+	break;case 108: { var fn108 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6520,7 +7395,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 109:
+}; fn108(); }
+	break;case 109: { var fn109 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6528,7 +7404,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 110:
+}; fn109(); }
+	break;case 110: { var fn110 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6536,7 +7413,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 111:
+}; fn110(); }
+	break;case 111: { var fn111 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6544,7 +7422,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 112:
+}; fn111(); }
+	break;case 112: { var fn112 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6552,7 +7431,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 113:
+}; fn112(); }
+	break;case 113: { var fn113 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6560,7 +7440,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 114:
+}; fn113(); }
+	break;case 114: { var fn114 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6568,7 +7449,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 115:
+}; fn114(); }
+	break;case 115: { var fn115 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6576,7 +7458,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 116:
+}; fn115(); }
+	break;case 116: { var fn116 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6584,7 +7467,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 117:
+}; fn116(); }
+	break;case 117: { var fn117 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6592,7 +7476,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 118:
+}; fn117(); }
+	break;case 118: { var fn118 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6600,7 +7485,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 119:
+}; fn118(); }
+	break;case 119: { var fn119 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6608,7 +7494,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 120:
+}; fn119(); }
+	break;case 120: { var fn120 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6616,7 +7503,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 121:
+}; fn120(); }
+	break;case 121: { var fn121 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6624,7 +7512,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 122:
+}; fn121(); }
+	break;case 122: { var fn122 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6632,7 +7521,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 123:
+}; fn122(); }
+	break;case 123: { var fn123 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6640,7 +7530,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 124:
+}; fn123(); }
+	break;case 124: { var fn124 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6648,7 +7539,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 125:
+}; fn124(); }
+	break;case 125: { var fn125 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6656,7 +7548,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 126:
+}; fn125(); }
+	break;case 126: { var fn126 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6664,7 +7557,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 127:
+}; fn126(); }
+	break;case 127: { var fn127 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -6672,7 +7566,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 128:
+}; fn127(); }
+	break;case 128: { var fn128 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -6683,7 +7578,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 129:
+}; fn128(); }
+	break;case 129: { var fn129 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -6694,7 +7590,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 130:
+}; fn129(); }
+	break;case 130: { var fn130 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -6705,7 +7602,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 131:
+}; fn130(); }
+	break;case 131: { var fn131 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -6716,7 +7614,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 132:
+}; fn131(); }
+	break;case 132: { var fn132 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -6727,7 +7626,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 133:
+}; fn132(); }
+	break;case 133: { var fn133 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -6738,7 +7638,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 134:
+}; fn133(); }
+	break;case 134: { var fn134 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -6747,7 +7648,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 135:
+}; fn134(); }
+	break;case 135: { var fn135 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -6758,7 +7660,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 136:
+}; fn135(); }
+	break;case 136: { var fn136 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -6769,7 +7672,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 137:
+}; fn136(); }
+	break;case 137: { var fn137 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -6780,7 +7684,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 138:
+}; fn137(); }
+	break;case 138: { var fn138 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -6791,7 +7696,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 139:
+}; fn138(); }
+	break;case 139: { var fn139 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -6802,7 +7708,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 140:
+}; fn139(); }
+	break;case 140: { var fn140 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -6813,7 +7720,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 141:
+}; fn140(); }
+	break;case 141: { var fn141 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -6824,7 +7732,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 142:
+}; fn141(); }
+	break;case 142: { var fn142 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -6833,7 +7742,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 143:
+}; fn142(); }
+	break;case 143: { var fn143 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -6844,7 +7754,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 144:
+}; fn143(); }
+	break;case 144: { var fn144 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -6855,7 +7766,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 145:
+}; fn144(); }
+	break;case 145: { var fn145 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -6866,7 +7778,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 146:
+}; fn145(); }
+	break;case 146: { var fn146 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -6877,7 +7790,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 147:
+}; fn146(); }
+	break;case 147: { var fn147 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -6888,7 +7802,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 148:
+}; fn147(); }
+	break;case 148: { var fn148 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -6899,7 +7814,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 149:
+}; fn148(); }
+	break;case 149: { var fn149 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -6910,7 +7826,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 150:
+}; fn149(); }
+	break;case 150: { var fn150 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -6919,7 +7836,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 151:
+}; fn150(); }
+	break;case 151: { var fn151 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -6930,7 +7848,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 152:
+}; fn151(); }
+	break;case 152: { var fn152 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -6941,7 +7860,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 153:
+}; fn152(); }
+	break;case 153: { var fn153 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -6952,7 +7872,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 154:
+}; fn153(); }
+	break;case 154: { var fn154 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -6963,7 +7884,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 155:
+}; fn154(); }
+	break;case 155: { var fn155 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -6974,7 +7896,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 156:
+}; fn155(); }
+	break;case 156: { var fn156 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -6985,7 +7908,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 157:
+}; fn156(); }
+	break;case 157: { var fn157 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -6996,7 +7920,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 158:
+}; fn157(); }
+	break;case 158: { var fn158 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7005,7 +7930,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 159:
+}; fn158(); }
+	break;case 159: { var fn159 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7016,7 +7942,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 160:
+}; fn159(); }
+	break;case 160: { var fn160 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7027,7 +7954,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 161:
+}; fn160(); }
+	break;case 161: { var fn161 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7038,7 +7966,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 162:
+}; fn161(); }
+	break;case 162: { var fn162 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7049,7 +7978,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 163:
+}; fn162(); }
+	break;case 163: { var fn163 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -7060,7 +7990,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 164:
+}; fn163(); }
+	break;case 164: { var fn164 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -7071,7 +8002,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 165:
+}; fn164(); }
+	break;case 165: { var fn165 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -7082,7 +8014,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 166:
+}; fn165(); }
+	break;case 166: { var fn166 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7091,7 +8024,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 167:
+}; fn166(); }
+	break;case 167: { var fn167 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7102,7 +8036,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 168:
+}; fn167(); }
+	break;case 168: { var fn168 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7113,7 +8048,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 169:
+}; fn168(); }
+	break;case 169: { var fn169 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7124,7 +8060,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 170:
+}; fn169(); }
+	break;case 170: { var fn170 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7135,7 +8072,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 171:
+}; fn170(); }
+	break;case 171: { var fn171 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -7146,7 +8084,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 172:
+}; fn171(); }
+	break;case 172: { var fn172 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -7157,7 +8096,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 173:
+}; fn172(); }
+	break;case 173: { var fn173 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -7168,7 +8108,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 174:
+}; fn173(); }
+	break;case 174: { var fn174 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7177,7 +8118,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 175:
+}; fn174(); }
+	break;case 175: { var fn175 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7188,7 +8130,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 176:
+}; fn175(); }
+	break;case 176: { var fn176 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7199,7 +8142,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 177:
+}; fn176(); }
+	break;case 177: { var fn177 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7210,7 +8154,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 178:
+}; fn177(); }
+	break;case 178: { var fn178 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7221,7 +8166,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 179:
+}; fn178(); }
+	break;case 179: { var fn179 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -7232,7 +8178,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 180:
+}; fn179(); }
+	break;case 180: { var fn180 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -7243,7 +8190,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 181:
+}; fn180(); }
+	break;case 181: { var fn181 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -7254,7 +8202,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 182:
+}; fn181(); }
+	break;case 182: { var fn182 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7263,7 +8212,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 183:
+}; fn182(); }
+	break;case 183: { var fn183 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7274,7 +8224,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 184:
+}; fn183(); }
+	break;case 184: { var fn184 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7285,7 +8236,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 185:
+}; fn184(); }
+	break;case 185: { var fn185 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7296,7 +8248,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 186:
+}; fn185(); }
+	break;case 186: { var fn186 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7307,7 +8260,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 187:
+}; fn186(); }
+	break;case 187: { var fn187 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -7318,7 +8272,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 188:
+}; fn187(); }
+	break;case 188: { var fn188 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -7329,7 +8284,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 189:
+}; fn188(); }
+	break;case 189: { var fn189 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -7340,7 +8296,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 190:
+}; fn189(); }
+	break;case 190: { var fn190 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7349,7 +8306,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 191:
+}; fn190(); }
+	break;case 191: { var fn191 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7360,7 +8318,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 192:
+}; fn191(); }
+	break;case 192: { var fn192 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7371,7 +8330,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 193:
+}; fn192(); }
+	break;case 193: { var fn193 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7382,7 +8342,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 194:
+}; fn193(); }
+	break;case 194: { var fn194 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7393,7 +8354,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 195:
+}; fn194(); }
+	break;case 195: { var fn195 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -7404,7 +8366,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 196:
+}; fn195(); }
+	break;case 196: { var fn196 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -7415,7 +8378,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 197:
+}; fn196(); }
+	break;case 197: { var fn197 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -7426,7 +8390,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 198:
+}; fn197(); }
+	break;case 198: { var fn198 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7435,7 +8400,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 199:
+}; fn198(); }
+	break;case 199: { var fn199 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7446,7 +8412,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 200:
+}; fn199(); }
+	break;case 200: { var fn200 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7457,7 +8424,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 201:
+}; fn200(); }
+	break;case 201: { var fn201 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7468,7 +8436,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 202:
+}; fn201(); }
+	break;case 202: { var fn202 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7479,7 +8448,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 203:
+}; fn202(); }
+	break;case 203: { var fn203 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -7490,7 +8460,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 204:
+}; fn203(); }
+	break;case 204: { var fn204 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -7501,7 +8472,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 205:
+}; fn204(); }
+	break;case 205: { var fn205 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -7512,7 +8484,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 206:
+}; fn205(); }
+	break;case 206: { var fn206 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7521,7 +8494,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 207:
+}; fn206(); }
+	break;case 207: { var fn207 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7532,7 +8506,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 208:
+}; fn207(); }
+	break;case 208: { var fn208 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7543,7 +8518,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 209:
+}; fn208(); }
+	break;case 209: { var fn209 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7554,7 +8530,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 210:
+}; fn209(); }
+	break;case 210: { var fn210 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7565,7 +8542,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 211:
+}; fn210(); }
+	break;case 211: { var fn211 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -7576,7 +8554,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 212:
+}; fn211(); }
+	break;case 212: { var fn212 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -7587,7 +8566,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 213:
+}; fn212(); }
+	break;case 213: { var fn213 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -7598,7 +8578,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 214:
+}; fn213(); }
+	break;case 214: { var fn214 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7607,7 +8588,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 215:
+}; fn214(); }
+	break;case 215: { var fn215 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7618,7 +8600,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 216:
+}; fn215(); }
+	break;case 216: { var fn216 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7629,7 +8612,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 217:
+}; fn216(); }
+	break;case 217: { var fn217 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7640,7 +8624,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 218:
+}; fn217(); }
+	break;case 218: { var fn218 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7651,7 +8636,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 219:
+}; fn218(); }
+	break;case 219: { var fn219 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -7662,7 +8648,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 220:
+}; fn219(); }
+	break;case 220: { var fn220 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -7673,7 +8660,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 221:
+}; fn220(); }
+	break;case 221: { var fn221 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -7684,7 +8672,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 222:
+}; fn221(); }
+	break;case 222: { var fn222 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7693,7 +8682,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 223:
+}; fn222(); }
+	break;case 223: { var fn223 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7704,7 +8694,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 224:
+}; fn223(); }
+	break;case 224: { var fn224 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7715,7 +8706,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 225:
+}; fn224(); }
+	break;case 225: { var fn225 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7726,7 +8718,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 226:
+}; fn225(); }
+	break;case 226: { var fn226 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7737,7 +8730,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 227:
+}; fn226(); }
+	break;case 227: { var fn227 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -7748,7 +8742,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 228:
+}; fn227(); }
+	break;case 228: { var fn228 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -7759,7 +8754,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 229:
+}; fn228(); }
+	break;case 229: { var fn229 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -7770,7 +8766,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 230:
+}; fn229(); }
+	break;case 230: { var fn230 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7779,7 +8776,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 231:
+}; fn230(); }
+	break;case 231: { var fn231 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7790,7 +8788,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 232:
+}; fn231(); }
+	break;case 232: { var fn232 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7801,7 +8800,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 233:
+}; fn232(); }
+	break;case 233: { var fn233 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7812,7 +8812,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 234:
+}; fn233(); }
+	break;case 234: { var fn234 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7823,7 +8824,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 235:
+}; fn234(); }
+	break;case 235: { var fn235 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -7834,7 +8836,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 236:
+}; fn235(); }
+	break;case 236: { var fn236 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -7845,7 +8848,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 237:
+}; fn236(); }
+	break;case 237: { var fn237 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -7856,7 +8860,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 238:
+}; fn237(); }
+	break;case 238: { var fn238 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7865,7 +8870,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 239:
+}; fn238(); }
+	break;case 239: { var fn239 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7876,7 +8882,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 240:
+}; fn239(); }
+	break;case 240: { var fn240 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7887,7 +8894,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 241:
+}; fn240(); }
+	break;case 241: { var fn241 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7898,7 +8906,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 242:
+}; fn241(); }
+	break;case 242: { var fn242 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7909,7 +8918,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 243:
+}; fn242(); }
+	break;case 243: { var fn243 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -7920,7 +8930,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 244:
+}; fn243(); }
+	break;case 244: { var fn244 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -7931,7 +8942,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 245:
+}; fn244(); }
+	break;case 245: { var fn245 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -7942,7 +8954,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 246:
+}; fn245(); }
+	break;case 246: { var fn246 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -7951,7 +8964,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 247:
+}; fn246(); }
+	break;case 247: { var fn247 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -7962,7 +8976,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 248:
+}; fn247(); }
+	break;case 248: { var fn248 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -7973,7 +8988,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 249:
+}; fn248(); }
+	break;case 249: { var fn249 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -7984,7 +9000,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 250:
+}; fn249(); }
+	break;case 250: { var fn250 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -7995,7 +9012,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 251:
+}; fn250(); }
+	break;case 251: { var fn251 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -8006,7 +9024,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 252:
+}; fn251(); }
+	break;case 252: { var fn252 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -8017,7 +9036,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 253:
+}; fn252(); }
+	break;case 253: { var fn253 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -8028,7 +9048,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 254:
+}; fn253(); }
+	break;case 254: { var fn254 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -8037,7 +9058,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 255:
+}; fn254(); }
+	break;case 255: { var fn255 = function() {
 	
 	var addr = (regPairs[8] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -8048,6 +9070,7 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
+}; fn255(); }
 	break;
 	default:
 		var addr = regPairs[12] - 1;
@@ -8059,19 +9082,21 @@ memory.write(addr, regs[1]);;
 					opcode = memory.read(regPairs[12]); regPairs[12]++;
 					regs[20] = ((regs[20] + 1) & 0x7f) | (regs[20] & 0x80);
 					switch (opcode) {
-	case 64:
+	case 64: { var fn64 = function() {
 	
 	var port = regPairs[1];
 tstates += 1;
 regs[3] = ioBus.read(port);
 tstates += 3;
 regs[0] = (regs[0] & 1) | sz53pTable[regs[3]];
-	break;case 65:
+}; fn64(); }
+	break;case 65: { var fn65 = function() {
 	
 	tstates += 1;
 ioBus.write(regPairs[1], regs[3], tstates);
 tstates += 3;
-	break;case 66:
+}; fn65(); }
+	break;case 66: { var fn66 = function() {
 	
 	var sub16temp = regPairs[3] - regPairs[1] - (regs[0] & 1);
 var lookup = ( (regPairs[3] & 0x8800) >> 11 ) | ( (regPairs[1] & 0x8800) >> 10 ) | ( (sub16temp & 0x8800) >>  9 );
@@ -8084,7 +9109,8 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 67:
+}; fn66(); }
+	break;case 67: { var fn67 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -8096,39 +9122,46 @@ addr = (addr + 1) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regPairs[1] >> 8);;
-	break;case 68:
+}; fn67(); }
+	break;case 68: { var fn68 = function() {
 	
 	var val = regs[1];
 var subtemp = -val;
 var lookup = ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 69:
+}; fn68(); }
+	break;case 69: { var fn69 = function() {
 	
 	iff1 = iff2;
 var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[12] = (h<<8) | l;
-	break;case 70:
+}; fn69(); }
+	break;case 70: { var fn70 = function() {
 	
 	im = 0;
-	break;case 71:
+}; fn70(); }
+	break;case 71: { var fn71 = function() {
 	
 	tstates += ( 1);
 regs[21] = regs[1];
-	break;case 72:
+}; fn71(); }
+	break;case 72: { var fn72 = function() {
 	
 	var port = regPairs[1];
 tstates += 1;
 regs[2] = ioBus.read(port);
 tstates += 3;
 regs[0] = (regs[0] & 1) | sz53pTable[regs[2]];
-	break;case 73:
+}; fn72(); }
+	break;case 73: { var fn73 = function() {
 	
 	tstates += 1;
 ioBus.write(regPairs[1], regs[2], tstates);
 tstates += 3;
-	break;case 74:
+}; fn73(); }
+	break;case 74: { var fn74 = function() {
 	
 	var add16temp = regPairs[3] + regPairs[1] + (regs[0] & 1);
 var lookup = (
@@ -8151,7 +9184,8 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 75:
+}; fn74(); }
+	break;case 75: { var fn75 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -8160,39 +9194,46 @@ l = (tstates += ( 3), memory.read(addr));
 addr = (addr + 1) & 0xffff;
 h = (tstates += ( 3), memory.read(addr));
 regPairs[1] = (h<<8) | l;
-	break;case 76:
+}; fn75(); }
+	break;case 76: { var fn76 = function() {
 	
 	var val = regs[1];
 var subtemp = -val;
 var lookup = ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 77:
+}; fn76(); }
+	break;case 77: { var fn77 = function() {
 	
 	iff1 = iff2;
 var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[12] = (h<<8) | l;
-	break;case 78:
+}; fn77(); }
+	break;case 78: { var fn78 = function() {
 	
 	im = 0;
-	break;case 79:
+}; fn78(); }
+	break;case 79: { var fn79 = function() {
 	
 	tstates += ( 1);
 regs[20] = regs[1];
-	break;case 80:
+}; fn79(); }
+	break;case 80: { var fn80 = function() {
 	
 	var port = regPairs[1];
 tstates += 1;
 regs[5] = ioBus.read(port);
 tstates += 3;
 regs[0] = (regs[0] & 1) | sz53pTable[regs[5]];
-	break;case 81:
+}; fn80(); }
+	break;case 81: { var fn81 = function() {
 	
 	tstates += 1;
 ioBus.write(regPairs[1], regs[5], tstates);
 tstates += 3;
-	break;case 82:
+}; fn81(); }
+	break;case 82: { var fn82 = function() {
 	
 	var sub16temp = regPairs[3] - regPairs[2] - (regs[0] & 1);
 var lookup = ( (regPairs[3] & 0x8800) >> 11 ) | ( (regPairs[2] & 0x8800) >> 10 ) | ( (sub16temp & 0x8800) >>  9 );
@@ -8205,7 +9246,8 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 83:
+}; fn82(); }
+	break;case 83: { var fn83 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -8217,39 +9259,46 @@ addr = (addr + 1) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regPairs[2] >> 8);;
-	break;case 84:
+}; fn83(); }
+	break;case 84: { var fn84 = function() {
 	
 	var val = regs[1];
 var subtemp = -val;
 var lookup = ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 85:
+}; fn84(); }
+	break;case 85: { var fn85 = function() {
 	
 	iff1 = iff2;
 var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[12] = (h<<8) | l;
-	break;case 86:
+}; fn85(); }
+	break;case 86: { var fn86 = function() {
 	
 	im = 1;
-	break;case 87:
+}; fn86(); }
+	break;case 87: { var fn87 = function() {
 	
 	tstates += ( 1);
 regs[1] = regs[21];regs[0] = (regs[0] & 1) | sz53Table[regs[1]] | ( iff2 ? 4 : 0 );
-	break;case 88:
+}; fn87(); }
+	break;case 88: { var fn88 = function() {
 	
 	var port = regPairs[1];
 tstates += 1;
 regs[4] = ioBus.read(port);
 tstates += 3;
 regs[0] = (regs[0] & 1) | sz53pTable[regs[4]];
-	break;case 89:
+}; fn88(); }
+	break;case 89: { var fn89 = function() {
 	
 	tstates += 1;
 ioBus.write(regPairs[1], regs[4], tstates);
 tstates += 3;
-	break;case 90:
+}; fn89(); }
+	break;case 90: { var fn90 = function() {
 	
 	var add16temp = regPairs[3] + regPairs[2] + (regs[0] & 1);
 var lookup = (
@@ -8272,7 +9321,8 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 91:
+}; fn90(); }
+	break;case 91: { var fn91 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -8281,39 +9331,46 @@ l = (tstates += ( 3), memory.read(addr));
 addr = (addr + 1) & 0xffff;
 h = (tstates += ( 3), memory.read(addr));
 regPairs[2] = (h<<8) | l;
-	break;case 92:
+}; fn91(); }
+	break;case 92: { var fn92 = function() {
 	
 	var val = regs[1];
 var subtemp = -val;
 var lookup = ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 93:
+}; fn92(); }
+	break;case 93: { var fn93 = function() {
 	
 	iff1 = iff2;
 var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[12] = (h<<8) | l;
-	break;case 94:
+}; fn93(); }
+	break;case 94: { var fn94 = function() {
 	
 	im = 2;
-	break;case 95:
+}; fn94(); }
+	break;case 95: { var fn95 = function() {
 	
 	tstates += ( 1);
 regs[1] = regs[20];regs[0] = (regs[0] & 1) | sz53Table[regs[1]] | ( iff2 ? 4 : 0 );
-	break;case 96:
+}; fn95(); }
+	break;case 96: { var fn96 = function() {
 	
 	var port = regPairs[1];
 tstates += 1;
 regs[7] = ioBus.read(port);
 tstates += 3;
 regs[0] = (regs[0] & 1) | sz53pTable[regs[7]];
-	break;case 97:
+}; fn96(); }
+	break;case 97: { var fn97 = function() {
 	
 	tstates += 1;
 ioBus.write(regPairs[1], regs[7], tstates);
 tstates += 3;
-	break;case 98:
+}; fn97(); }
+	break;case 98: { var fn98 = function() {
 	
 	var sub16temp = regPairs[3] - regPairs[3] - (regs[0] & 1);
 var lookup = ( (regPairs[3] & 0x8800) >> 11 ) | ( (regPairs[3] & 0x8800) >> 10 ) | ( (sub16temp & 0x8800) >>  9 );
@@ -8326,7 +9383,8 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 99:
+}; fn98(); }
+	break;case 99: { var fn99 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -8338,23 +9396,27 @@ addr = (addr + 1) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regPairs[3] >> 8);;
-	break;case 100:
+}; fn99(); }
+	break;case 100: { var fn100 = function() {
 	
 	var val = regs[1];
 var subtemp = -val;
 var lookup = ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 101:
+}; fn100(); }
+	break;case 101: { var fn101 = function() {
 	
 	iff1 = iff2;
 var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[12] = (h<<8) | l;
-	break;case 102:
+}; fn101(); }
+	break;case 102: { var fn102 = function() {
 	
 	im = 0;
-	break;case 103:
+}; fn102(); }
+	break;case 103: { var fn103 = function() {
 	
 	var bytetemp = (tstates += ( 3), memory.read(regPairs[3]));
 tstates += ( 1);
@@ -8367,19 +9429,22 @@ while (display.nextEventTime != null && display.nextEventTime < tstates) display
 memory.write(regPairs[3], val);;
 regs[1] = (regs[1] & 0xf0) | (bytetemp & 0x0f);
 regs[0] = (regs[0] & 1) | sz53pTable[regs[1]];
-	break;case 104:
+}; fn103(); }
+	break;case 104: { var fn104 = function() {
 	
 	var port = regPairs[1];
 tstates += 1;
 regs[6] = ioBus.read(port);
 tstates += 3;
 regs[0] = (regs[0] & 1) | sz53pTable[regs[6]];
-	break;case 105:
+}; fn104(); }
+	break;case 105: { var fn105 = function() {
 	
 	tstates += 1;
 ioBus.write(regPairs[1], regs[6], tstates);
 tstates += 3;
-	break;case 106:
+}; fn105(); }
+	break;case 106: { var fn106 = function() {
 	
 	var add16temp = regPairs[3] + regPairs[3] + (regs[0] & 1);
 var lookup = (
@@ -8402,7 +9467,8 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 107:
+}; fn106(); }
+	break;case 107: { var fn107 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -8411,23 +9477,27 @@ l = (tstates += ( 3), memory.read(addr));
 addr = (addr + 1) & 0xffff;
 h = (tstates += ( 3), memory.read(addr));
 regPairs[3] = (h<<8) | l;
-	break;case 108:
+}; fn107(); }
+	break;case 108: { var fn108 = function() {
 	
 	var val = regs[1];
 var subtemp = -val;
 var lookup = ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 109:
+}; fn108(); }
+	break;case 109: { var fn109 = function() {
 	
 	iff1 = iff2;
 var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[12] = (h<<8) | l;
-	break;case 110:
+}; fn109(); }
+	break;case 110: { var fn110 = function() {
 	
 	im = 0;
-	break;case 111:
+}; fn110(); }
+	break;case 111: { var fn111 = function() {
 	
 	var bytetemp =  (tstates += ( 3), memory.read(regPairs[3]));
 tstates += ( 1);
@@ -8440,19 +9510,22 @@ while (display.nextEventTime != null && display.nextEventTime < tstates) display
 memory.write(regPairs[3], val);;
 regs[1] = (regs[1] & 0xf0) | (bytetemp >> 4);
 regs[0] = (regs[0] & 1) | sz53pTable[regs[1]];
-	break;case 112:
+}; fn111(); }
+	break;case 112: { var fn112 = function() {
 	
 	var port = regPairs[1];
 tstates += 1;
 var result = ioBus.read(port);
 tstates += 3;
 regs[0] = (regs[0] & 1) | sz53pTable[result];
-	break;case 113:
+}; fn112(); }
+	break;case 113: { var fn113 = function() {
 	
 	tstates += 1;
 ioBus.write(regPairs[1], 0, tstates);
 tstates += 3;
-	break;case 114:
+}; fn113(); }
+	break;case 114: { var fn114 = function() {
 	
 	var sub16temp = regPairs[3] - regPairs[11] - (regs[0] & 1);
 var lookup = ( (regPairs[3] & 0x8800) >> 11 ) | ( (regPairs[11] & 0x8800) >> 10 ) | ( (sub16temp & 0x8800) >>  9 );
@@ -8465,7 +9538,8 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 115:
+}; fn114(); }
+	break;case 115: { var fn115 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -8477,35 +9551,41 @@ addr = (addr + 1) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regPairs[11] >> 8);;
-	break;case 116:
+}; fn115(); }
+	break;case 116: { var fn116 = function() {
 	
 	var val = regs[1];
 var subtemp = -val;
 var lookup = ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 117:
+}; fn116(); }
+	break;case 117: { var fn117 = function() {
 	
 	iff1 = iff2;
 var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[12] = (h<<8) | l;
-	break;case 118:
+}; fn117(); }
+	break;case 118: { var fn118 = function() {
 	
 	im = 1;
-	break;case 120:
+}; fn118(); }
+	break;case 120: { var fn120 = function() {
 	
 	var port = regPairs[1];
 tstates += 1;
 regs[1] = ioBus.read(port);
 tstates += 3;
 regs[0] = (regs[0] & 1) | sz53pTable[regs[1]];
-	break;case 121:
+}; fn120(); }
+	break;case 121: { var fn121 = function() {
 	
 	tstates += 1;
 ioBus.write(regPairs[1], regs[1], tstates);
 tstates += 3;
-	break;case 122:
+}; fn121(); }
+	break;case 122: { var fn122 = function() {
 	
 	var add16temp = regPairs[3] + regPairs[11] + (regs[0] & 1);
 var lookup = (
@@ -8528,7 +9608,8 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 123:
+}; fn122(); }
+	break;case 123: { var fn123 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -8537,23 +9618,27 @@ l = (tstates += ( 3), memory.read(addr));
 addr = (addr + 1) & 0xffff;
 h = (tstates += ( 3), memory.read(addr));
 regPairs[11] = (h<<8) | l;
-	break;case 124:
+}; fn123(); }
+	break;case 124: { var fn124 = function() {
 	
 	var val = regs[1];
 var subtemp = -val;
 var lookup = ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 125:
+}; fn124(); }
+	break;case 125: { var fn125 = function() {
 	
 	iff1 = iff2;
 var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[12] = (h<<8) | l;
-	break;case 126:
+}; fn125(); }
+	break;case 126: { var fn126 = function() {
 	
 	im = 2;
-	break;case 160:
+}; fn126(); }
+	break;case 160: { var fn160 = function() {
 	
 	var bytetemp = (tstates += ( 3), memory.read(regPairs[3]));
 regPairs[1]--;
@@ -8566,7 +9651,8 @@ bytetemp = (bytetemp + regs[1]) & 0xff;
 regs[0] = (regs[0] & 193) | (regPairs[1] ? 4 : 0) | (bytetemp & 8) | ((bytetemp & 0x02) ? 32 : 0);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 161:
+}; fn160(); }
+	break;case 161: { var fn161 = function() {
 	
 	var value = (tstates += ( 3), memory.read(regPairs[3]));
 var bytetemp = (regs[1] - value) & 0xff;
@@ -8581,7 +9667,8 @@ regPairs[3]++; regPairs[1]--;
 regs[0] = (regs[0] & 1) | (regPairs[1] ? 6 : 2) | halfcarrySubTable[lookup] | (bytetemp ? 0 : 64) | (bytetemp & 128);
 if (regs[0] & 16) bytetemp--;
 regs[0] |= (bytetemp & 8) | ( (bytetemp & 0x02) ? 32 : 0 );
-	break;case 162:
+}; fn161(); }
+	break;case 162: { var fn162 = function() {
 	
 	tstates += ( 1);
 tstates += 1;
@@ -8596,7 +9683,8 @@ regPairs[3]++;
 var initemp2 = (initemp + regs[2] + 1) & 0xff;
 
 regs[0] = (initemp & 0x80 ? 2 : 0) | ((initemp2 < initemp) ? 17 : 0 ) | ( parityTable[ (initemp2 & 0x07) ^ regs[3] ] ? 4 : 0 ) | sz53Table[regs[3]];
-	break;case 163:
+}; fn162(); }
+	break;case 163: { var fn163 = function() {
 	
 	tstates += ( 1);
 var outitemp = (tstates += ( 3), memory.read(regPairs[3]));
@@ -8608,7 +9696,8 @@ tstates += 3;
 regPairs[3]++;
 outitemp2 = (outitemp + regs[6]) & 0xff;
 regs[0] = (outitemp & 0x80 ? 2 : 0) | ( (outitemp2 < outitemp) ? 17 : 0) | (parityTable[ (outitemp2 & 0x07) ^ regs[3] ] ? 4 : 0 ) | sz53Table[ regs[3] ];
-	break;case 168:
+}; fn163(); }
+	break;case 168: { var fn168 = function() {
 	
 	var bytetemp = (tstates += ( 3), memory.read(regPairs[3]));
 regPairs[1]--;
@@ -8621,7 +9710,8 @@ bytetemp = (bytetemp + regs[1]) & 0xff;
 regs[0] = (regs[0] & 193) | (regPairs[1] ? 4 : 0) | (bytetemp & 8) | ((bytetemp & 0x02) ? 32 : 0);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 169:
+}; fn168(); }
+	break;case 169: { var fn169 = function() {
 	
 	var value = (tstates += ( 3), memory.read(regPairs[3]));
 var bytetemp = (regs[1] - value) & 0xff;
@@ -8636,7 +9726,8 @@ regPairs[3]--; regPairs[1]--;
 regs[0] = (regs[0] & 1) | (regPairs[1] ? 6 : 2) | halfcarrySubTable[lookup] | (bytetemp ? 0 : 64) | (bytetemp & 128);
 if (regs[0] & 16) bytetemp--;
 regs[0] |= (bytetemp & 8) | ( (bytetemp & 0x02) ? 32 : 0 );
-	break;case 170:
+}; fn169(); }
+	break;case 170: { var fn170 = function() {
 	
 	tstates += ( 1);
 tstates += 1;
@@ -8651,7 +9742,8 @@ regPairs[3]--;
 var initemp2 = (initemp + regs[2] - 1) & 0xff;
 
 regs[0] = (initemp & 0x80 ? 2 : 0) | ((initemp2 < initemp) ? 17 : 0 ) | ( parityTable[ (initemp2 & 0x07) ^ regs[3] ] ? 4 : 0 ) | sz53Table[regs[3]];
-	break;case 171:
+}; fn170(); }
+	break;case 171: { var fn171 = function() {
 	
 	tstates += ( 1);
 var outitemp = (tstates += ( 3), memory.read(regPairs[3]));
@@ -8663,7 +9755,8 @@ tstates += 3;
 regPairs[3]--;
 outitemp2 = (outitemp + regs[6]) & 0xff;
 regs[0] = (outitemp & 0x80 ? 2 : 0) | ( (outitemp2 < outitemp) ? 17 : 0) | (parityTable[ (outitemp2 & 0x07) ^ regs[3] ] ? 4 : 0 ) | sz53Table[ regs[3] ];
-	break;case 176:
+}; fn171(); }
+	break;case 176: { var fn176 = function() {
 	
 	var bytetemp = (tstates += ( 3), memory.read(regPairs[3]));
 regPairs[1]--;
@@ -8684,7 +9777,8 @@ if (regPairs[1]) {
 	tstates += ( 1);
 	tstates += ( 1);
 }
-	break;case 177:
+}; fn176(); }
+	break;case 177: { var fn177 = function() {
 	
 	var value = (tstates += ( 3), memory.read(regPairs[3]));
 var bytetemp = (regs[1] - value) & 0xff;
@@ -8707,7 +9801,8 @@ if ((regs[0] & 68) == 4) {
 	tstates += ( 1);
 	tstates += ( 1);
 }
-	break;case 178:
+}; fn177(); }
+	break;case 178: { var fn178 = function() {
 	
 	tstates += ( 1);
 tstates += 1;
@@ -8730,7 +9825,8 @@ if (regs[3]) {
 	tstates += ( 1);
 	regPairs[12] -= 2;
 }
-	break;case 179:
+}; fn178(); }
+	break;case 179: { var fn179 = function() {
 	
 	tstates += ( 1);
 var outitemp = (tstates += ( 3), memory.read(regPairs[3]));
@@ -8750,7 +9846,8 @@ if (regs[3]) {
 	tstates += ( 1);
 	tstates += ( 1);
 }
-	break;case 184:
+}; fn179(); }
+	break;case 184: { var fn184 = function() {
 	
 	var bytetemp = (tstates += ( 3), memory.read(regPairs[3]));
 regPairs[1]--;
@@ -8771,7 +9868,8 @@ if (regPairs[1]) {
 	tstates += ( 1);
 	tstates += ( 1);
 }
-	break;case 185:
+}; fn184(); }
+	break;case 185: { var fn185 = function() {
 	
 	var value = (tstates += ( 3), memory.read(regPairs[3]));
 var bytetemp = (regs[1] - value) & 0xff;
@@ -8794,7 +9892,8 @@ if ((regs[0] & 68) == 4) {
 	tstates += ( 1);
 	tstates += ( 1);
 }
-	break;case 186:
+}; fn185(); }
+	break;case 186: { var fn186 = function() {
 	
 	tstates += ( 1);
 tstates += 1;
@@ -8817,7 +9916,8 @@ if (regs[3]) {
 	tstates += ( 1);
 	regPairs[12] -= 2;
 }
-	break;case 187:
+}; fn186(); }
+	break;case 187: { var fn187 = function() {
 	
 	tstates += ( 1);
 var outitemp = (tstates += ( 3), memory.read(regPairs[3]));
@@ -8837,6 +9937,7 @@ if (regs[3]) {
 	tstates += ( 1);
 	tstates += ( 1);
 }
+}; fn187(); }
 	break;
 	default:
 		var addr = regPairs[12] - 1;
@@ -8848,25 +9949,29 @@ if (regs[3]) {
 					opcode = memory.read(regPairs[12]); regPairs[12]++;
 					regs[20] = ((regs[20] + 1) & 0x7f) | (regs[20] & 0x80);
 					switch (opcode) {
-	case 0:
+	case 0: { var fn0 = function() {
 	
 			
-	break;case 1:
+}; fn0(); }
+	break;case 1: { var fn1 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[1] = (h<<8) | l;
-	break;case 2:
+}; fn1(); }
+	break;case 2: { var fn2 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[1], regs[1]);;
-	break;case 3:
+}; fn2(); }
+	break;case 3: { var fn3 = function() {
 	
 	regPairs[1]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 4:
+}; fn3(); }
+	break;case 4: { var fn4 = function() {
 	
 	
 
@@ -8875,7 +9980,8 @@ regs[3] = (regs[3] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[3] == 0x80 ? 4 : 0 ) | ( regs[3] & 0x0f ? 0 : 16 ) | sz53Table[regs[3]];
-	break;case 5:
+}; fn4(); }
+	break;case 5: { var fn5 = function() {
 	
 	
 
@@ -8884,19 +9990,23 @@ regs[3] = (regs[3] - 1) ;
 
 
 regs[0] |= (regs[3] == 0x7f ? 4 : 0) | sz53Table[regs[3]];
-	break;case 6:
+}; fn5(); }
+	break;case 6: { var fn6 = function() {
 	
 	regs[3] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 7:
+}; fn6(); }
+	break;case 7: { var fn7 = function() {
 	
 	regs[1] = (regs[1] << 1) | (regs[1] >> 7);
 regs[0] = (regs[0] & 196) | (regs[1] & 41);
-	break;case 8:
+}; fn7(); }
+	break;case 8: { var fn8 = function() {
 	
 	var temp = regPairs[0];
 regPairs[0] = regPairs[4];
 regPairs[4] = temp;
-	break;case 9:
+}; fn8(); }
+	break;case 9: { var fn9 = function() {
 	
 	var add16temp = regPairs[9] + regPairs[1];
 var lookup = ( (regPairs[9] & 0x0800) >> 11 ) | ( (regPairs[1] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -8909,15 +10019,18 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 10:
+}; fn9(); }
+	break;case 10: { var fn10 = function() {
 	
 	regs[1] = (tstates += ( 3), memory.read(regPairs[1]));
-	break;case 11:
+}; fn10(); }
+	break;case 11: { var fn11 = function() {
 	
 	regPairs[1]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 12:
+}; fn11(); }
+	break;case 12: { var fn12 = function() {
 	
 	
 
@@ -8926,7 +10039,8 @@ regs[2] = (regs[2] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[2] == 0x80 ? 4 : 0 ) | ( regs[2] & 0x0f ? 0 : 16 ) | sz53Table[regs[2]];
-	break;case 13:
+}; fn12(); }
+	break;case 13: { var fn13 = function() {
 	
 	
 
@@ -8935,15 +10049,18 @@ regs[2] = (regs[2] - 1) ;
 
 
 regs[0] |= (regs[2] == 0x7f ? 4 : 0) | sz53Table[regs[2]];
-	break;case 14:
+}; fn13(); }
+	break;case 14: { var fn14 = function() {
 	
 	regs[2] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 15:
+}; fn14(); }
+	break;case 15: { var fn15 = function() {
 	
 	regs[0] = (regs[0] & 196) | (regs[1] & 1);
 regs[1] = (regs[1] >> 1) | (regs[1] << 7);
 regs[0] |= (regs[1] & 40);
-	break;case 16:
+}; fn15(); }
+	break;case 16: { var fn16 = function() {
 	
 	tstates += ( 1);
 regs[3]--;
@@ -8962,22 +10079,26 @@ if (regs[3]) {
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 17:
+}; fn16(); }
+	break;case 17: { var fn17 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[2] = (h<<8) | l;
-	break;case 18:
+}; fn17(); }
+	break;case 18: { var fn18 = function() {
 	
 	tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[2], regs[1]);;
-	break;case 19:
+}; fn18(); }
+	break;case 19: { var fn19 = function() {
 	
 	regPairs[2]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 20:
+}; fn19(); }
+	break;case 20: { var fn20 = function() {
 	
 	
 
@@ -8986,7 +10107,8 @@ regs[5] = (regs[5] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[5] == 0x80 ? 4 : 0 ) | ( regs[5] & 0x0f ? 0 : 16 ) | sz53Table[regs[5]];
-	break;case 21:
+}; fn20(); }
+	break;case 21: { var fn21 = function() {
 	
 	
 
@@ -8995,15 +10117,18 @@ regs[5] = (regs[5] - 1) ;
 
 
 regs[0] |= (regs[5] == 0x7f ? 4 : 0) | sz53Table[regs[5]];
-	break;case 22:
+}; fn21(); }
+	break;case 22: { var fn22 = function() {
 	
 	regs[5] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 23:
+}; fn22(); }
+	break;case 23: { var fn23 = function() {
 	
 	var bytetemp = regs[1];
 regs[1] = (regs[1] << 1) | (regs[0] & 1);
 regs[0] = (regs[0] & 196) | (regs[1] & 40) | (bytetemp >> 7);
-	break;case 24:
+}; fn23(); }
+	break;case 24: { var fn24 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9013,7 +10138,8 @@ tstates += ( 1);
 tstates += ( 1);
 regPairs[12]++;
 regPairs[12] += (offset & 0x80 ? offset - 0x100 : offset);
-	break;case 25:
+}; fn24(); }
+	break;case 25: { var fn25 = function() {
 	
 	var add16temp = regPairs[9] + regPairs[2];
 var lookup = ( (regPairs[9] & 0x0800) >> 11 ) | ( (regPairs[2] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -9026,15 +10152,18 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 26:
+}; fn25(); }
+	break;case 26: { var fn26 = function() {
 	
 	regs[1] = (tstates += ( 3), memory.read(regPairs[2]));
-	break;case 27:
+}; fn26(); }
+	break;case 27: { var fn27 = function() {
 	
 	regPairs[2]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 28:
+}; fn27(); }
+	break;case 28: { var fn28 = function() {
 	
 	
 
@@ -9043,7 +10172,8 @@ regs[4] = (regs[4] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[4] == 0x80 ? 4 : 0 ) | ( regs[4] & 0x0f ? 0 : 16 ) | sz53Table[regs[4]];
-	break;case 29:
+}; fn28(); }
+	break;case 29: { var fn29 = function() {
 	
 	
 
@@ -9052,15 +10182,18 @@ regs[4] = (regs[4] - 1) ;
 
 
 regs[0] |= (regs[4] == 0x7f ? 4 : 0) | sz53Table[regs[4]];
-	break;case 30:
+}; fn29(); }
+	break;case 30: { var fn30 = function() {
 	
 	regs[4] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 31:
+}; fn30(); }
+	break;case 31: { var fn31 = function() {
 	
 	var bytetemp = regs[1];
 regs[1] = (bytetemp >> 1) | (regs[0] << 7);
 regs[0] = (regs[0] & 196) | (regs[1] & 40) | (bytetemp & 1);
-	break;case 32:
+}; fn31(); }
+	break;case 32: { var fn32 = function() {
 	
 	if (!(regs[0] & 64)) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -9075,12 +10208,14 @@ regs[0] = (regs[0] & 196) | (regs[1] & 40) | (bytetemp & 1);
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 33:
+}; fn32(); }
+	break;case 33: { var fn33 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[9] = (h<<8) | l;
-	break;case 34:
+}; fn33(); }
+	break;case 34: { var fn34 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -9092,12 +10227,14 @@ addr = (addr + 1) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regPairs[9] >> 8);;
-	break;case 35:
+}; fn34(); }
+	break;case 35: { var fn35 = function() {
 	
 	regPairs[9]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 36:
+}; fn35(); }
+	break;case 36: { var fn36 = function() {
 	
 	
 
@@ -9106,7 +10243,8 @@ regs[19] = (regs[19] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[19] == 0x80 ? 4 : 0 ) | ( regs[19] & 0x0f ? 0 : 16 ) | sz53Table[regs[19]];
-	break;case 37:
+}; fn36(); }
+	break;case 37: { var fn37 = function() {
 	
 	
 
@@ -9115,10 +10253,12 @@ regs[19] = (regs[19] - 1) ;
 
 
 regs[0] |= (regs[19] == 0x7f ? 4 : 0) | sz53Table[regs[19]];
-	break;case 38:
+}; fn37(); }
+	break;case 38: { var fn38 = function() {
 	
 	regs[19] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 39:
+}; fn38(); }
+	break;case 39: { var fn39 = function() {
 	
 	var add = 0;
 var carry = regs[0] & 1;
@@ -9140,7 +10280,8 @@ regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
 }
 regs[0] = ( regs[0] & -6 ) | carry | parityTable[regs[1]];
-	break;case 40:
+}; fn39(); }
+	break;case 40: { var fn40 = function() {
 	
 	if (regs[0] & 64) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -9155,7 +10296,8 @@ regs[0] = ( regs[0] & -6 ) | carry | parityTable[regs[1]];
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 41:
+}; fn40(); }
+	break;case 41: { var fn41 = function() {
 	
 	var add16temp = regPairs[9] + regPairs[9];
 var lookup = ( (regPairs[9] & 0x0800) >> 11 ) | ( (regPairs[9] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -9168,7 +10310,8 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 42:
+}; fn41(); }
+	break;case 42: { var fn42 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -9177,12 +10320,14 @@ l = (tstates += ( 3), memory.read(addr));
 addr = (addr + 1) & 0xffff;
 h = (tstates += ( 3), memory.read(addr));
 regPairs[9] = (h<<8) | l;
-	break;case 43:
+}; fn42(); }
+	break;case 43: { var fn43 = function() {
 	
 	regPairs[9]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 44:
+}; fn43(); }
+	break;case 44: { var fn44 = function() {
 	
 	
 
@@ -9191,7 +10336,8 @@ regs[18] = (regs[18] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[18] == 0x80 ? 4 : 0 ) | ( regs[18] & 0x0f ? 0 : 16 ) | sz53Table[regs[18]];
-	break;case 45:
+}; fn44(); }
+	break;case 45: { var fn45 = function() {
 	
 	
 
@@ -9200,14 +10346,17 @@ regs[18] = (regs[18] - 1) ;
 
 
 regs[0] |= (regs[18] == 0x7f ? 4 : 0) | sz53Table[regs[18]];
-	break;case 46:
+}; fn45(); }
+	break;case 46: { var fn46 = function() {
 	
 	regs[18] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 47:
+}; fn46(); }
+	break;case 47: { var fn47 = function() {
 	
 	regs[1] ^= 0xff;
 regs[0] = (regs[0] & 197) | (regs[1] & 40) | 18;
-	break;case 48:
+}; fn47(); }
+	break;case 48: { var fn48 = function() {
 	
 	if (!(regs[0] & 1)) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -9222,12 +10371,14 @@ regs[0] = (regs[0] & 197) | (regs[1] & 40) | 18;
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 49:
+}; fn48(); }
+	break;case 49: { var fn49 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[11] = (h<<8) | l;
-	break;case 50:
+}; fn49(); }
+	break;case 50: { var fn50 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -9235,12 +10386,14 @@ var addr = (h<<8) | l;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 51:
+}; fn50(); }
+	break;case 51: { var fn51 = function() {
 	
 	regPairs[11]++;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 52:
+}; fn51(); }
+	break;case 52: { var fn52 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -9260,7 +10413,8 @@ tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
 regs[0] = (regs[0] & 1) | ( val == 0x80 ? 4 : 0 ) | ( val & 0x0f ? 0 : 16 ) | sz53Table[val];
-	break;case 53:
+}; fn52(); }
+	break;case 53: { var fn53 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -9280,7 +10434,8 @@ tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
 regs[0] |= (val == 0x7f ? 4 : 0) | sz53Table[val];
-	break;case 54:
+}; fn53(); }
+	break;case 54: { var fn54 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 if (offset & 0x80) offset -= 0x100;
@@ -9293,10 +10448,12 @@ regPairs[12]++;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 55:
+}; fn54(); }
+	break;case 55: { var fn55 = function() {
 	
 	regs[0] = (regs[0] & 196) | (regs[1] & 40) | 1;
-	break;case 56:
+}; fn55(); }
+	break;case 56: { var fn56 = function() {
 	
 	if (regs[0] & 1) {
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
@@ -9311,7 +10468,8 @@ memory.write(addr, val);;
 	tstates += ( 3);
 	regPairs[12]++; /* skip past offset byte */
 }
-	break;case 57:
+}; fn56(); }
+	break;case 57: { var fn57 = function() {
 	
 	var add16temp = regPairs[9] + regPairs[11];
 var lookup = ( (regPairs[9] & 0x0800) >> 11 ) | ( (regPairs[11] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );
@@ -9324,18 +10482,21 @@ tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
 tstates += ( 1);
-	break;case 58:
+}; fn57(); }
+	break;case 58: { var fn58 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var addr = (h<<8) | l;
 regs[1] = (tstates += ( 3), memory.read(addr));
-	break;case 59:
+}; fn58(); }
+	break;case 59: { var fn59 = function() {
 	
 	regPairs[11]--;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 60:
+}; fn59(); }
+	break;case 60: { var fn60 = function() {
 	
 	
 
@@ -9344,7 +10505,8 @@ regs[1] = (regs[1] + 1) ;
 
 
 regs[0] = (regs[0] & 1) | ( regs[1] == 0x80 ? 4 : 0 ) | ( regs[1] & 0x0f ? 0 : 16 ) | sz53Table[regs[1]];
-	break;case 61:
+}; fn60(); }
+	break;case 61: { var fn61 = function() {
 	
 	
 
@@ -9353,31 +10515,40 @@ regs[1] = (regs[1] - 1) ;
 
 
 regs[0] |= (regs[1] == 0x7f ? 4 : 0) | sz53Table[regs[1]];
-	break;case 62:
+}; fn61(); }
+	break;case 62: { var fn62 = function() {
 	
 	regs[1] = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
-	break;case 63:
+}; fn62(); }
+	break;case 63: { var fn63 = function() {
 	
 	regs[0] = ( regs[0] & 196 ) | ( (regs[0] & 1) ? 16 : 1 ) | ( regs[1] & 40 );
-	break;case 64:
+}; fn63(); }
+	break;case 64: { var fn64 = function() {
 	
 	regs[3] = regs[3];
-	break;case 65:
+}; fn64(); }
+	break;case 65: { var fn65 = function() {
 	
 	regs[3] = regs[2];
-	break;case 66:
+}; fn65(); }
+	break;case 66: { var fn66 = function() {
 	
 	regs[3] = regs[5];
-	break;case 67:
+}; fn66(); }
+	break;case 67: { var fn67 = function() {
 	
 	regs[3] = regs[4];
-	break;case 68:
+}; fn67(); }
+	break;case 68: { var fn68 = function() {
 	
 	regs[3] = regs[19];
-	break;case 69:
+}; fn68(); }
+	break;case 69: { var fn69 = function() {
 	
 	regs[3] = regs[18];
-	break;case 70:
+}; fn69(); }
+	break;case 70: { var fn70 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9390,28 +10561,36 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[9] + offset) & 0xffff;
 
 regs[3] = (tstates += ( 3), memory.read(addr));
-	break;case 71:
+}; fn70(); }
+	break;case 71: { var fn71 = function() {
 	
 	regs[3] = regs[1];
-	break;case 72:
+}; fn71(); }
+	break;case 72: { var fn72 = function() {
 	
 	regs[2] = regs[3];
-	break;case 73:
+}; fn72(); }
+	break;case 73: { var fn73 = function() {
 	
 	regs[2] = regs[2];
-	break;case 74:
+}; fn73(); }
+	break;case 74: { var fn74 = function() {
 	
 	regs[2] = regs[5];
-	break;case 75:
+}; fn74(); }
+	break;case 75: { var fn75 = function() {
 	
 	regs[2] = regs[4];
-	break;case 76:
+}; fn75(); }
+	break;case 76: { var fn76 = function() {
 	
 	regs[2] = regs[19];
-	break;case 77:
+}; fn76(); }
+	break;case 77: { var fn77 = function() {
 	
 	regs[2] = regs[18];
-	break;case 78:
+}; fn77(); }
+	break;case 78: { var fn78 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9424,28 +10603,36 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[9] + offset) & 0xffff;
 
 regs[2] = (tstates += ( 3), memory.read(addr));
-	break;case 79:
+}; fn78(); }
+	break;case 79: { var fn79 = function() {
 	
 	regs[2] = regs[1];
-	break;case 80:
+}; fn79(); }
+	break;case 80: { var fn80 = function() {
 	
 	regs[5] = regs[3];
-	break;case 81:
+}; fn80(); }
+	break;case 81: { var fn81 = function() {
 	
 	regs[5] = regs[2];
-	break;case 82:
+}; fn81(); }
+	break;case 82: { var fn82 = function() {
 	
 	regs[5] = regs[5];
-	break;case 83:
+}; fn82(); }
+	break;case 83: { var fn83 = function() {
 	
 	regs[5] = regs[4];
-	break;case 84:
+}; fn83(); }
+	break;case 84: { var fn84 = function() {
 	
 	regs[5] = regs[19];
-	break;case 85:
+}; fn84(); }
+	break;case 85: { var fn85 = function() {
 	
 	regs[5] = regs[18];
-	break;case 86:
+}; fn85(); }
+	break;case 86: { var fn86 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9458,28 +10645,36 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[9] + offset) & 0xffff;
 
 regs[5] = (tstates += ( 3), memory.read(addr));
-	break;case 87:
+}; fn86(); }
+	break;case 87: { var fn87 = function() {
 	
 	regs[5] = regs[1];
-	break;case 88:
+}; fn87(); }
+	break;case 88: { var fn88 = function() {
 	
 	regs[4] = regs[3];
-	break;case 89:
+}; fn88(); }
+	break;case 89: { var fn89 = function() {
 	
 	regs[4] = regs[2];
-	break;case 90:
+}; fn89(); }
+	break;case 90: { var fn90 = function() {
 	
 	regs[4] = regs[5];
-	break;case 91:
+}; fn90(); }
+	break;case 91: { var fn91 = function() {
 	
 	regs[4] = regs[4];
-	break;case 92:
+}; fn91(); }
+	break;case 92: { var fn92 = function() {
 	
 	regs[4] = regs[19];
-	break;case 93:
+}; fn92(); }
+	break;case 93: { var fn93 = function() {
 	
 	regs[4] = regs[18];
-	break;case 94:
+}; fn93(); }
+	break;case 94: { var fn94 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9492,28 +10687,36 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[9] + offset) & 0xffff;
 
 regs[4] = (tstates += ( 3), memory.read(addr));
-	break;case 95:
+}; fn94(); }
+	break;case 95: { var fn95 = function() {
 	
 	regs[4] = regs[1];
-	break;case 96:
+}; fn95(); }
+	break;case 96: { var fn96 = function() {
 	
 	regs[19] = regs[3];
-	break;case 97:
+}; fn96(); }
+	break;case 97: { var fn97 = function() {
 	
 	regs[19] = regs[2];
-	break;case 98:
+}; fn97(); }
+	break;case 98: { var fn98 = function() {
 	
 	regs[19] = regs[5];
-	break;case 99:
+}; fn98(); }
+	break;case 99: { var fn99 = function() {
 	
 	regs[19] = regs[4];
-	break;case 100:
+}; fn99(); }
+	break;case 100: { var fn100 = function() {
 	
 	regs[19] = regs[19];
-	break;case 101:
+}; fn100(); }
+	break;case 101: { var fn101 = function() {
 	
 	regs[19] = regs[18];
-	break;case 102:
+}; fn101(); }
+	break;case 102: { var fn102 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9526,28 +10729,36 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[9] + offset) & 0xffff;
 
 regs[7] = (tstates += ( 3), memory.read(addr));
-	break;case 103:
+}; fn102(); }
+	break;case 103: { var fn103 = function() {
 	
 	regs[19] = regs[1];
-	break;case 104:
+}; fn103(); }
+	break;case 104: { var fn104 = function() {
 	
 	regs[18] = regs[3];
-	break;case 105:
+}; fn104(); }
+	break;case 105: { var fn105 = function() {
 	
 	regs[18] = regs[2];
-	break;case 106:
+}; fn105(); }
+	break;case 106: { var fn106 = function() {
 	
 	regs[18] = regs[5];
-	break;case 107:
+}; fn106(); }
+	break;case 107: { var fn107 = function() {
 	
 	regs[18] = regs[4];
-	break;case 108:
+}; fn107(); }
+	break;case 108: { var fn108 = function() {
 	
 	regs[18] = regs[19];
-	break;case 109:
+}; fn108(); }
+	break;case 109: { var fn109 = function() {
 	
 	regs[18] = regs[18];
-	break;case 110:
+}; fn109(); }
+	break;case 110: { var fn110 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9560,10 +10771,12 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[9] + offset) & 0xffff;
 
 regs[6] = (tstates += ( 3), memory.read(addr));
-	break;case 111:
+}; fn110(); }
+	break;case 111: { var fn111 = function() {
 	
 	regs[18] = regs[1];
-	break;case 112:
+}; fn111(); }
+	break;case 112: { var fn112 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9578,7 +10791,8 @@ var addr = (regPairs[9] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 113:
+}; fn112(); }
+	break;case 113: { var fn113 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9593,7 +10807,8 @@ var addr = (regPairs[9] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 114:
+}; fn113(); }
+	break;case 114: { var fn114 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9608,7 +10823,8 @@ var addr = (regPairs[9] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 115:
+}; fn114(); }
+	break;case 115: { var fn115 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9623,7 +10839,8 @@ var addr = (regPairs[9] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 116:
+}; fn115(); }
+	break;case 116: { var fn116 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9638,7 +10855,8 @@ var addr = (regPairs[9] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 117:
+}; fn116(); }
+	break;case 117: { var fn117 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9653,11 +10871,13 @@ var addr = (regPairs[9] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 118:
+}; fn117(); }
+	break;case 118: { var fn118 = function() {
 	
 	halted = true;
 regPairs[12]--;
-	break;case 119:
+}; fn118(); }
+	break;case 119: { var fn119 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9672,25 +10892,32 @@ var addr = (regPairs[9] + offset) & 0xffff;
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 120:
+}; fn119(); }
+	break;case 120: { var fn120 = function() {
 	
 	regs[1] = regs[3];
-	break;case 121:
+}; fn120(); }
+	break;case 121: { var fn121 = function() {
 	
 	regs[1] = regs[2];
-	break;case 122:
+}; fn121(); }
+	break;case 122: { var fn122 = function() {
 	
 	regs[1] = regs[5];
-	break;case 123:
+}; fn122(); }
+	break;case 123: { var fn123 = function() {
 	
 	regs[1] = regs[4];
-	break;case 124:
+}; fn123(); }
+	break;case 124: { var fn124 = function() {
 	
 	regs[1] = regs[19];
-	break;case 125:
+}; fn124(); }
+	break;case 125: { var fn125 = function() {
 	
 	regs[1] = regs[18];
-	break;case 126:
+}; fn125(); }
+	break;case 126: { var fn126 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 tstates += ( 1);
@@ -9703,10 +10930,12 @@ if (offset & 0x80) offset -= 0x100;
 var addr = (regPairs[9] + offset) & 0xffff;
 
 regs[1] = (tstates += ( 3), memory.read(addr));
-	break;case 127:
+}; fn126(); }
+	break;case 127: { var fn127 = function() {
 	
 	regs[1] = regs[1];
-	break;case 128:
+}; fn127(); }
+	break;case 128: { var fn128 = function() {
 	
 	
 
@@ -9714,7 +10943,8 @@ var addtemp = regs[1] + regs[3];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 129:
+}; fn128(); }
+	break;case 129: { var fn129 = function() {
 	
 	
 
@@ -9722,7 +10952,8 @@ var addtemp = regs[1] + regs[2];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 130:
+}; fn129(); }
+	break;case 130: { var fn130 = function() {
 	
 	
 
@@ -9730,7 +10961,8 @@ var addtemp = regs[1] + regs[5];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 131:
+}; fn130(); }
+	break;case 131: { var fn131 = function() {
 	
 	
 
@@ -9738,7 +10970,8 @@ var addtemp = regs[1] + regs[4];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 132:
+}; fn131(); }
+	break;case 132: { var fn132 = function() {
 	
 	
 
@@ -9746,7 +10979,8 @@ var addtemp = regs[1] + regs[19];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[19] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 133:
+}; fn132(); }
+	break;case 133: { var fn133 = function() {
 	
 	
 
@@ -9754,7 +10988,8 @@ var addtemp = regs[1] + regs[18];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[18] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 134:
+}; fn133(); }
+	break;case 134: { var fn134 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -9770,7 +11005,8 @@ var addtemp = regs[1] + val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 135:
+}; fn134(); }
+	break;case 135: { var fn135 = function() {
 	
 	
 
@@ -9778,7 +11014,8 @@ var addtemp = regs[1] + regs[1];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 136:
+}; fn135(); }
+	break;case 136: { var fn136 = function() {
 	
 	
 
@@ -9786,7 +11023,8 @@ var adctemp = regs[1] + regs[3] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 137:
+}; fn136(); }
+	break;case 137: { var fn137 = function() {
 	
 	
 
@@ -9794,7 +11032,8 @@ var adctemp = regs[1] + regs[2] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 138:
+}; fn137(); }
+	break;case 138: { var fn138 = function() {
 	
 	
 
@@ -9802,7 +11041,8 @@ var adctemp = regs[1] + regs[5] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 139:
+}; fn138(); }
+	break;case 139: { var fn139 = function() {
 	
 	
 
@@ -9810,7 +11050,8 @@ var adctemp = regs[1] + regs[4] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 140:
+}; fn139(); }
+	break;case 140: { var fn140 = function() {
 	
 	
 
@@ -9818,7 +11059,8 @@ var adctemp = regs[1] + regs[19] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[19] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 141:
+}; fn140(); }
+	break;case 141: { var fn141 = function() {
 	
 	
 
@@ -9826,7 +11068,8 @@ var adctemp = regs[1] + regs[18] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[18] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 142:
+}; fn141(); }
+	break;case 142: { var fn142 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -9842,7 +11085,8 @@ var adctemp = regs[1] + val + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 143:
+}; fn142(); }
+	break;case 143: { var fn143 = function() {
 	
 	
 
@@ -9850,49 +11094,56 @@ var adctemp = regs[1] + regs[1] + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 144:
+}; fn143(); }
+	break;case 144: { var fn144 = function() {
 	
 	
 var subtemp = regs[1] - regs[3];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 145:
+}; fn144(); }
+	break;case 145: { var fn145 = function() {
 	
 	
 var subtemp = regs[1] - regs[2];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 146:
+}; fn145(); }
+	break;case 146: { var fn146 = function() {
 	
 	
 var subtemp = regs[1] - regs[5];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 147:
+}; fn146(); }
+	break;case 147: { var fn147 = function() {
 	
 	
 var subtemp = regs[1] - regs[4];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 148:
+}; fn147(); }
+	break;case 148: { var fn148 = function() {
 	
 	
 var subtemp = regs[1] - regs[19];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[19] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 149:
+}; fn148(); }
+	break;case 149: { var fn149 = function() {
 	
 	
 var subtemp = regs[1] - regs[18];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[18] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 150:
+}; fn149(); }
+	break;case 150: { var fn150 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -9907,56 +11158,64 @@ var subtemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 151:
+}; fn150(); }
+	break;case 151: { var fn151 = function() {
 	
 	
 var subtemp = regs[1] - regs[1];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 152:
+}; fn151(); }
+	break;case 152: { var fn152 = function() {
 	
 	
 var sbctemp = regs[1] - regs[3] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 153:
+}; fn152(); }
+	break;case 153: { var fn153 = function() {
 	
 	
 var sbctemp = regs[1] - regs[2] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 154:
+}; fn153(); }
+	break;case 154: { var fn154 = function() {
 	
 	
 var sbctemp = regs[1] - regs[5] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 155:
+}; fn154(); }
+	break;case 155: { var fn155 = function() {
 	
 	
 var sbctemp = regs[1] - regs[4] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 156:
+}; fn155(); }
+	break;case 156: { var fn156 = function() {
 	
 	
 var sbctemp = regs[1] - regs[19] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[19] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 157:
+}; fn156(); }
+	break;case 157: { var fn157 = function() {
 	
 	
 var sbctemp = regs[1] - regs[18] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[18] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 158:
+}; fn157(); }
+	break;case 158: { var fn158 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -9971,50 +11230,58 @@ var sbctemp = regs[1] - val - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 159:
+}; fn158(); }
+	break;case 159: { var fn159 = function() {
 	
 	
 var sbctemp = regs[1] - regs[1] - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 160:
+}; fn159(); }
+	break;case 160: { var fn160 = function() {
 	
 	
 
 regs[1] &= regs[3];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 161:
+}; fn160(); }
+	break;case 161: { var fn161 = function() {
 	
 	
 
 regs[1] &= regs[2];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 162:
+}; fn161(); }
+	break;case 162: { var fn162 = function() {
 	
 	
 
 regs[1] &= regs[5];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 163:
+}; fn162(); }
+	break;case 163: { var fn163 = function() {
 	
 	
 
 regs[1] &= regs[4];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 164:
+}; fn163(); }
+	break;case 164: { var fn164 = function() {
 	
 	
 
 regs[1] &= regs[19];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 165:
+}; fn164(); }
+	break;case 165: { var fn165 = function() {
 	
 	
 
 regs[1] &= regs[18];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 166:
+}; fn165(); }
+	break;case 166: { var fn166 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -10028,43 +11295,51 @@ var val = (tstates += ( 3), memory.read(addr));
 
 regs[1] &= val;
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 167:
+}; fn166(); }
+	break;case 167: { var fn167 = function() {
 	
 	
 
 regs[1] &= regs[1];
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 168:
+}; fn167(); }
+	break;case 168: { var fn168 = function() {
 	
 	
 regs[1] ^= regs[3];
 regs[0] = sz53pTable[regs[1]];
-	break;case 169:
+}; fn168(); }
+	break;case 169: { var fn169 = function() {
 	
 	
 regs[1] ^= regs[2];
 regs[0] = sz53pTable[regs[1]];
-	break;case 170:
+}; fn169(); }
+	break;case 170: { var fn170 = function() {
 	
 	
 regs[1] ^= regs[5];
 regs[0] = sz53pTable[regs[1]];
-	break;case 171:
+}; fn170(); }
+	break;case 171: { var fn171 = function() {
 	
 	
 regs[1] ^= regs[4];
 regs[0] = sz53pTable[regs[1]];
-	break;case 172:
+}; fn171(); }
+	break;case 172: { var fn172 = function() {
 	
 	
 regs[1] ^= regs[19];
 regs[0] = sz53pTable[regs[1]];
-	break;case 173:
+}; fn172(); }
+	break;case 173: { var fn173 = function() {
 	
 	
 regs[1] ^= regs[18];
 regs[0] = sz53pTable[regs[1]];
-	break;case 174:
+}; fn173(); }
+	break;case 174: { var fn174 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -10077,48 +11352,56 @@ regPairs[12]++;var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
 regs[1] ^= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 175:
+}; fn174(); }
+	break;case 175: { var fn175 = function() {
 	
 	
 regs[1] ^= regs[1];
 regs[0] = sz53pTable[regs[1]];
-	break;case 176:
+}; fn175(); }
+	break;case 176: { var fn176 = function() {
 	
 	
 
 regs[1] |= regs[3];
 regs[0] = sz53pTable[regs[1]];
-	break;case 177:
+}; fn176(); }
+	break;case 177: { var fn177 = function() {
 	
 	
 
 regs[1] |= regs[2];
 regs[0] = sz53pTable[regs[1]];
-	break;case 178:
+}; fn177(); }
+	break;case 178: { var fn178 = function() {
 	
 	
 
 regs[1] |= regs[5];
 regs[0] = sz53pTable[regs[1]];
-	break;case 179:
+}; fn178(); }
+	break;case 179: { var fn179 = function() {
 	
 	
 
 regs[1] |= regs[4];
 regs[0] = sz53pTable[regs[1]];
-	break;case 180:
+}; fn179(); }
+	break;case 180: { var fn180 = function() {
 	
 	
 
 regs[1] |= regs[19];
 regs[0] = sz53pTable[regs[1]];
-	break;case 181:
+}; fn180(); }
+	break;case 181: { var fn181 = function() {
 	
 	
 
 regs[1] |= regs[18];
 regs[0] = sz53pTable[regs[1]];
-	break;case 182:
+}; fn181(); }
+	break;case 182: { var fn182 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -10132,55 +11415,63 @@ var val = (tstates += ( 3), memory.read(addr));
 
 regs[1] |= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 183:
+}; fn182(); }
+	break;case 183: { var fn183 = function() {
 	
 	
 
 regs[1] |= regs[1];
 regs[0] = sz53pTable[regs[1]];
-	break;case 184:
+}; fn183(); }
+	break;case 184: { var fn184 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[3];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[3] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[3] & 40 ) | ( cptemp & 128 );
-	break;case 185:
+}; fn184(); }
+	break;case 185: { var fn185 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[2];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[2] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[2] & 40 ) | ( cptemp & 128 );
-	break;case 186:
+}; fn185(); }
+	break;case 186: { var fn186 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[5];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[5] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[5] & 40 ) | ( cptemp & 128 );
-	break;case 187:
+}; fn186(); }
+	break;case 187: { var fn187 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[4];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[4] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[4] & 40 ) | ( cptemp & 128 );
-	break;case 188:
+}; fn187(); }
+	break;case 188: { var fn188 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[19];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[19] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[19] & 40 ) | ( cptemp & 128 );
-	break;case 189:
+}; fn188(); }
+	break;case 189: { var fn189 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[18];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[18] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[18] & 40 ) | ( cptemp & 128 );
-	break;case 190:
+}; fn189(); }
+	break;case 190: { var fn190 = function() {
 	
 	var offset = (tstates += ( 3), memory.read(regPairs[12]));
 if (offset & 0x80) offset -= 0x100;
@@ -10195,14 +11486,16 @@ var val = (tstates += ( 3), memory.read(addr));
 var cptemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( val & 40 ) | ( cptemp & 128 );
-	break;case 191:
+}; fn190(); }
+	break;case 191: { var fn191 = function() {
 	
 	
 
 var cptemp = regs[1] - regs[1];
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (regs[1] & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( regs[1] & 40 ) | ( cptemp & 128 );
-	break;case 192:
+}; fn191(); }
+	break;case 192: { var fn192 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 64)) {
@@ -10210,12 +11503,14 @@ if (!(regs[0] & 64)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 193:
+}; fn192(); }
+	break;case 193: { var fn193 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[1] = (h<<8) | l;
-	break;case 194:
+}; fn193(); }
+	break;case 194: { var fn194 = function() {
 	
 	if (!(regs[0] & 64)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10227,12 +11522,14 @@ regPairs[1] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 195:
+}; fn194(); }
+	break;case 195: { var fn195 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regPairs[12] = (h<<8) | l;
-	break;case 196:
+}; fn195(); }
+	break;case 196: { var fn196 = function() {
 	
 	if (!(regs[0] & 64)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10252,7 +11549,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 197:
+}; fn196(); }
+	break;case 197: { var fn197 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10261,7 +11559,8 @@ memory.write(regPairs[11], regPairs[1] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[1] & 0xff);;
-	break;case 198:
+}; fn197(); }
+	break;case 198: { var fn198 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
@@ -10269,7 +11568,8 @@ var addtemp = regs[1] + val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );
 regs[1] = addtemp;
 regs[0] = ( addtemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 199:
+}; fn198(); }
+	break;case 199: { var fn199 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10279,7 +11579,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 0;
-	break;case 200:
+}; fn199(); }
+	break;case 200: { var fn200 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 64) {
@@ -10287,12 +11588,14 @@ if (regs[0] & 64) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 201:
+}; fn200(); }
+	break;case 201: { var fn201 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[12] = (h<<8) | l;
-	break;case 202:
+}; fn201(); }
+	break;case 202: { var fn202 = function() {
 	
 	if (regs[0] & 64) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10304,11 +11607,13 @@ regPairs[12] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 203:
+}; fn202(); }
+	break;case 203: { var fn203 = function() {
 	
 	opcodePrefix = 'FDCB';
 interruptible = false;
-	break;case 204:
+}; fn203(); }
+	break;case 204: { var fn204 = function() {
 	
 	if (regs[0] & 64) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10328,7 +11633,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 205:
+}; fn204(); }
+	break;case 205: { var fn205 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var h = (tstates += ( 3), memory.read(regPairs[12]));
@@ -10341,7 +11647,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = (h<<8) | l;
-	break;case 206:
+}; fn205(); }
+	break;case 206: { var fn206 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
@@ -10349,7 +11656,8 @@ var adctemp = regs[1] + val + (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );
 regs[1] = adctemp;
 regs[0] = ( adctemp & 0x100 ? 1 : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 207:
+}; fn206(); }
+	break;case 207: { var fn207 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10359,7 +11667,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 8;
-	break;case 208:
+}; fn207(); }
+	break;case 208: { var fn208 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 1)) {
@@ -10367,12 +11676,14 @@ if (!(regs[0] & 1)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 209:
+}; fn208(); }
+	break;case 209: { var fn209 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[2] = (h<<8) | l;
-	break;case 210:
+}; fn209(); }
+	break;case 210: { var fn210 = function() {
 	
 	if (!(regs[0] & 1)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10384,13 +11695,15 @@ regPairs[2] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 211:
+}; fn210(); }
+	break;case 211: { var fn211 = function() {
 	
 	var port = (regs[1] << 8) | (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 tstates += 1;
 ioBus.write(port, regs[1], tstates);
 tstates += 3;
-	break;case 212:
+}; fn211(); }
+	break;case 212: { var fn212 = function() {
 	
 	if (!(regs[0] & 1)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10410,7 +11723,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 213:
+}; fn212(); }
+	break;case 213: { var fn213 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10419,14 +11733,16 @@ memory.write(regPairs[11], regPairs[2] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[2] & 0xff);;
-	break;case 214:
+}; fn213(); }
+	break;case 214: { var fn214 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var subtemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );
 regs[1] = subtemp;
 regs[0] = ( subtemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 215:
+}; fn214(); }
+	break;case 215: { var fn215 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10436,7 +11752,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 16;
-	break;case 216:
+}; fn215(); }
+	break;case 216: { var fn216 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 1) {
@@ -10444,13 +11761,15 @@ if (regs[0] & 1) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 217:
+}; fn216(); }
+	break;case 217: { var fn217 = function() {
 	
 	var wordtemp;
 wordtemp = regPairs[1]; regPairs[1] = regPairs[5]; regPairs[5] = wordtemp;
 wordtemp = regPairs[2]; regPairs[2] = regPairs[6]; regPairs[6] = wordtemp;
 wordtemp = regPairs[3]; regPairs[3] = regPairs[7]; regPairs[7] = wordtemp;
-	break;case 218:
+}; fn217(); }
+	break;case 218: { var fn218 = function() {
 	
 	if (regs[0] & 1) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10462,14 +11781,16 @@ wordtemp = regPairs[3]; regPairs[3] = regPairs[7]; regPairs[7] = wordtemp;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 219:
+}; fn218(); }
+	break;case 219: { var fn219 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var port = (regs[1] << 8) | val;
 tstates += 1;
 regs[1] = ioBus.read(port);
 tstates += 3;
-	break;case 220:
+}; fn219(); }
+	break;case 220: { var fn220 = function() {
 	
 	if (regs[0] & 1) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10489,18 +11810,21 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 221:
+}; fn220(); }
+	break;case 221: { var fn221 = function() {
 	
 	opcodePrefix = 'DD';
 interruptible = false;
-	break;case 222:
+}; fn221(); }
+	break;case 222: { var fn222 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 var sbctemp = regs[1] - val - (regs[0] & 1);
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );
 regs[1] = sbctemp;
 regs[0] = ( sbctemp & 0x100 ? 1 : 0 ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[1]];
-	break;case 223:
+}; fn222(); }
+	break;case 223: { var fn223 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10510,7 +11834,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 24;
-	break;case 224:
+}; fn223(); }
+	break;case 224: { var fn224 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 4)) {
@@ -10518,12 +11843,14 @@ if (!(regs[0] & 4)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 225:
+}; fn224(); }
+	break;case 225: { var fn225 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[9] = (h<<8) | l;
-	break;case 226:
+}; fn225(); }
+	break;case 226: { var fn226 = function() {
 	
 	if (!(regs[0] & 4)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10535,7 +11862,8 @@ regPairs[9] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 227:
+}; fn226(); }
+	break;case 227: { var fn227 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11]));
 var spPlus1 = (regPairs[11] + 1) & 0xffff;
@@ -10550,7 +11878,8 @@ memory.write(regPairs[11], regPairs[9] & 0xff);;
 regPairs[9] = (h<<8) | l;
 tstates += ( 1);
 tstates += ( 1);
-	break;case 228:
+}; fn227(); }
+	break;case 228: { var fn228 = function() {
 	
 	if (!(regs[0] & 4)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10570,7 +11899,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 229:
+}; fn228(); }
+	break;case 229: { var fn229 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10579,13 +11909,15 @@ memory.write(regPairs[11], regPairs[9] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[9] & 0xff);;
-	break;case 230:
+}; fn229(); }
+	break;case 230: { var fn230 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
 regs[1] &= val;
 regs[0] = 16 | sz53pTable[regs[1]];
-	break;case 231:
+}; fn230(); }
+	break;case 231: { var fn231 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10595,7 +11927,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 32;
-	break;case 232:
+}; fn231(); }
+	break;case 232: { var fn232 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 4) {
@@ -10603,10 +11936,12 @@ if (regs[0] & 4) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 233:
+}; fn232(); }
+	break;case 233: { var fn233 = function() {
 	
 	regPairs[12] = regPairs[9];
-	break;case 234:
+}; fn233(); }
+	break;case 234: { var fn234 = function() {
 	
 	if (regs[0] & 4) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10618,12 +11953,14 @@ if (regs[0] & 4) {
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 235:
+}; fn234(); }
+	break;case 235: { var fn235 = function() {
 	
 	var temp = regPairs[2];
 regPairs[2] = regPairs[3];
 regPairs[3] = temp;
-	break;case 236:
+}; fn235(); }
+	break;case 236: { var fn236 = function() {
 	
 	if (regs[0] & 4) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10643,16 +11980,19 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 237:
+}; fn236(); }
+	break;case 237: { var fn237 = function() {
 	
 	opcodePrefix = 'ED';
 interruptible = false;
-	break;case 238:
+}; fn237(); }
+	break;case 238: { var fn238 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 regs[1] ^= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 239:
+}; fn238(); }
+	break;case 239: { var fn239 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10662,7 +12002,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 40;
-	break;case 240:
+}; fn239(); }
+	break;case 240: { var fn240 = function() {
 	
 	tstates += ( 1);
 if (!(regs[0] & 128)) {
@@ -10670,12 +12011,14 @@ if (!(regs[0] & 128)) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 241:
+}; fn240(); }
+	break;case 241: { var fn241 = function() {
 	
 	var l = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 regPairs[0] = (h<<8) | l;
-	break;case 242:
+}; fn241(); }
+	break;case 242: { var fn242 = function() {
 	
 	if (!(regs[0] & 128)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10687,10 +12030,12 @@ regPairs[0] = (h<<8) | l;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 243:
+}; fn242(); }
+	break;case 243: { var fn243 = function() {
 	
 	iff1 = iff2 = 0;
-	break;case 244:
+}; fn243(); }
+	break;case 244: { var fn244 = function() {
 	
 	if (!(regs[0] & 128)) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10710,7 +12055,8 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 245:
+}; fn244(); }
+	break;case 245: { var fn245 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10719,13 +12065,15 @@ memory.write(regPairs[11], regPairs[0] >> 8);;
 regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[0] & 0xff);;
-	break;case 246:
+}; fn245(); }
+	break;case 246: { var fn246 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
 regs[1] |= val;
 regs[0] = sz53pTable[regs[1]];
-	break;case 247:
+}; fn246(); }
+	break;case 247: { var fn247 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10735,7 +12083,8 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 48;
-	break;case 248:
+}; fn247(); }
+	break;case 248: { var fn248 = function() {
 	
 	tstates += ( 1);
 if (regs[0] & 128) {
@@ -10743,12 +12092,14 @@ if (regs[0] & 128) {
 	var h = (tstates += ( 3), memory.read(regPairs[11])); regPairs[11]++;
 	regPairs[12] = (h<<8) | l;
 }
-	break;case 249:
+}; fn248(); }
+	break;case 249: { var fn249 = function() {
 	
 	regPairs[11] = regPairs[9];
 tstates += ( 1);
 tstates += ( 1);
-	break;case 250:
+}; fn249(); }
+	break;case 250: { var fn250 = function() {
 	
 	if (regs[0] & 128) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10760,11 +12111,13 @@ tstates += ( 1);
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 251:
+}; fn250(); }
+	break;case 251: { var fn251 = function() {
 	
 	iff1 = iff2 = 1;
 interruptible = false;
-	break;case 252:
+}; fn251(); }
+	break;case 252: { var fn252 = function() {
 	
 	if (regs[0] & 128) {
 	var l = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
@@ -10784,18 +12137,21 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 	tstates += ( 3);
 	regPairs[12]++;
 }
-	break;case 253:
+}; fn252(); }
+	break;case 253: { var fn253 = function() {
 	
 	opcodePrefix = 'FD';
 interruptible = false;
-	break;case 254:
+}; fn253(); }
+	break;case 254: { var fn254 = function() {
 	
 	var val = (tstates += ( 3), memory.read(regPairs[12])); regPairs[12]++;
 
 var cptemp = regs[1] - val;
 var lookup = ( (regs[1] & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
 regs[0] = ( cptemp & 0x100 ? 1 : ( cptemp ? 0 : 64 ) ) | 2 | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( val & 40 ) | ( cptemp & 128 );
-	break;case 255:
+}; fn254(); }
+	break;case 255: { var fn255 = function() {
 	
 	tstates += ( 1);
 regPairs[11]--; tstates += ( 3);
@@ -10805,6 +12161,7 @@ regPairs[11]--; tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(regPairs[11], regPairs[12] & 0xff);;
 regPairs[12] = 56;
+}; fn255(); }
 	break;
 	default:
 		var addr = regPairs[12] - 1;
@@ -10820,7 +12177,7 @@ regPairs[12] = 56;
 					tstates += ( 1);
 					regPairs[12]++;
 					switch (opcode) {
-	case 0:
+	case 0: { var fn0 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -10832,7 +12189,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 1:
+}; fn0(); }
+	break;case 1: { var fn1 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -10844,7 +12202,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 2:
+}; fn1(); }
+	break;case 2: { var fn2 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -10856,7 +12215,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 3:
+}; fn2(); }
+	break;case 3: { var fn3 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -10868,7 +12228,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 4:
+}; fn3(); }
+	break;case 4: { var fn4 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -10880,7 +12241,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 5:
+}; fn4(); }
+	break;case 5: { var fn5 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -10892,7 +12254,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 6:
+}; fn5(); }
+	break;case 6: { var fn6 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -10902,7 +12265,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 7:
+}; fn6(); }
+	break;case 7: { var fn7 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -10914,7 +12278,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 8:
+}; fn7(); }
+	break;case 8: { var fn8 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -10927,7 +12292,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 9:
+}; fn8(); }
+	break;case 9: { var fn9 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -10940,7 +12306,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 10:
+}; fn9(); }
+	break;case 10: { var fn10 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -10953,7 +12320,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 11:
+}; fn10(); }
+	break;case 11: { var fn11 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -10966,7 +12334,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 12:
+}; fn11(); }
+	break;case 12: { var fn12 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -10979,7 +12348,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 13:
+}; fn12(); }
+	break;case 13: { var fn13 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -10992,7 +12362,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 14:
+}; fn13(); }
+	break;case 14: { var fn14 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -11003,7 +12374,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 15:
+}; fn14(); }
+	break;case 15: { var fn15 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -11016,7 +12388,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 16:
+}; fn15(); }
+	break;case 16: { var fn16 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -11029,7 +12402,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 17:
+}; fn16(); }
+	break;case 17: { var fn17 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -11042,7 +12416,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 18:
+}; fn17(); }
+	break;case 18: { var fn18 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -11055,7 +12430,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 19:
+}; fn18(); }
+	break;case 19: { var fn19 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -11068,7 +12444,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 20:
+}; fn19(); }
+	break;case 20: { var fn20 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -11081,7 +12458,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 21:
+}; fn20(); }
+	break;case 21: { var fn21 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -11094,7 +12472,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 22:
+}; fn21(); }
+	break;case 22: { var fn22 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -11105,7 +12484,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 23:
+}; fn22(); }
+	break;case 23: { var fn23 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -11118,7 +12498,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 24:
+}; fn23(); }
+	break;case 24: { var fn24 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -11131,7 +12512,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 25:
+}; fn24(); }
+	break;case 25: { var fn25 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -11144,7 +12526,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 26:
+}; fn25(); }
+	break;case 26: { var fn26 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -11157,7 +12540,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 27:
+}; fn26(); }
+	break;case 27: { var fn27 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -11170,7 +12554,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 28:
+}; fn27(); }
+	break;case 28: { var fn28 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -11183,7 +12568,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 29:
+}; fn28(); }
+	break;case 29: { var fn29 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -11196,7 +12582,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 30:
+}; fn29(); }
+	break;case 30: { var fn30 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -11207,7 +12594,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 31:
+}; fn30(); }
+	break;case 31: { var fn31 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -11220,7 +12608,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 32:
+}; fn31(); }
+	break;case 32: { var fn32 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -11233,7 +12622,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 33:
+}; fn32(); }
+	break;case 33: { var fn33 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -11246,7 +12636,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 34:
+}; fn33(); }
+	break;case 34: { var fn34 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -11259,7 +12650,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 35:
+}; fn34(); }
+	break;case 35: { var fn35 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -11272,7 +12664,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 36:
+}; fn35(); }
+	break;case 36: { var fn36 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -11285,7 +12678,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 37:
+}; fn36(); }
+	break;case 37: { var fn37 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -11298,7 +12692,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 38:
+}; fn37(); }
+	break;case 38: { var fn38 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -11309,7 +12704,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 39:
+}; fn38(); }
+	break;case 39: { var fn39 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -11322,7 +12718,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 40:
+}; fn39(); }
+	break;case 40: { var fn40 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -11335,7 +12732,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 41:
+}; fn40(); }
+	break;case 41: { var fn41 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -11348,7 +12746,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 42:
+}; fn41(); }
+	break;case 42: { var fn42 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -11361,7 +12760,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 43:
+}; fn42(); }
+	break;case 43: { var fn43 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -11374,7 +12774,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 44:
+}; fn43(); }
+	break;case 44: { var fn44 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -11387,7 +12788,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 45:
+}; fn44(); }
+	break;case 45: { var fn45 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -11400,7 +12802,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 46:
+}; fn45(); }
+	break;case 46: { var fn46 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -11411,7 +12814,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 47:
+}; fn46(); }
+	break;case 47: { var fn47 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -11424,7 +12828,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 48:
+}; fn47(); }
+	break;case 48: { var fn48 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -11437,7 +12842,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 49:
+}; fn48(); }
+	break;case 49: { var fn49 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -11450,7 +12856,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 50:
+}; fn49(); }
+	break;case 50: { var fn50 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -11463,7 +12870,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 51:
+}; fn50(); }
+	break;case 51: { var fn51 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -11476,7 +12884,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 52:
+}; fn51(); }
+	break;case 52: { var fn52 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -11489,7 +12898,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 53:
+}; fn52(); }
+	break;case 53: { var fn53 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -11502,7 +12912,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 54:
+}; fn53(); }
+	break;case 54: { var fn54 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -11513,7 +12924,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 55:
+}; fn54(); }
+	break;case 55: { var fn55 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -11526,7 +12938,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 56:
+}; fn55(); }
+	break;case 56: { var fn56 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -11539,7 +12952,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 57:
+}; fn56(); }
+	break;case 57: { var fn57 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -11552,7 +12966,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 58:
+}; fn57(); }
+	break;case 58: { var fn58 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -11565,7 +12980,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 59:
+}; fn58(); }
+	break;case 59: { var fn59 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -11578,7 +12994,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 60:
+}; fn59(); }
+	break;case 60: { var fn60 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -11591,7 +13008,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 61:
+}; fn60(); }
+	break;case 61: { var fn61 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -11604,7 +13022,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 62:
+}; fn61(); }
+	break;case 62: { var fn62 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -11615,7 +13034,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 63:
+}; fn62(); }
+	break;case 63: { var fn63 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -11628,7 +13048,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 64:
+}; fn63(); }
+	break;case 64: { var fn64 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11636,7 +13057,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 65:
+}; fn64(); }
+	break;case 65: { var fn65 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11644,7 +13066,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 66:
+}; fn65(); }
+	break;case 66: { var fn66 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11652,7 +13075,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 67:
+}; fn66(); }
+	break;case 67: { var fn67 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11660,7 +13084,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 68:
+}; fn67(); }
+	break;case 68: { var fn68 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11668,7 +13093,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 69:
+}; fn68(); }
+	break;case 69: { var fn69 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11676,7 +13102,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 70:
+}; fn69(); }
+	break;case 70: { var fn70 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11684,7 +13111,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 71:
+}; fn70(); }
+	break;case 71: { var fn71 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11692,7 +13120,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 1) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 72:
+}; fn71(); }
+	break;case 72: { var fn72 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11700,7 +13129,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 73:
+}; fn72(); }
+	break;case 73: { var fn73 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11708,7 +13138,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 74:
+}; fn73(); }
+	break;case 74: { var fn74 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11716,7 +13147,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 75:
+}; fn74(); }
+	break;case 75: { var fn75 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11724,7 +13156,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 76:
+}; fn75(); }
+	break;case 76: { var fn76 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11732,7 +13165,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 77:
+}; fn76(); }
+	break;case 77: { var fn77 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11740,7 +13174,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 78:
+}; fn77(); }
+	break;case 78: { var fn78 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11748,7 +13183,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 79:
+}; fn78(); }
+	break;case 79: { var fn79 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11756,7 +13192,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 2) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 80:
+}; fn79(); }
+	break;case 80: { var fn80 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11764,7 +13201,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 81:
+}; fn80(); }
+	break;case 81: { var fn81 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11772,7 +13210,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 82:
+}; fn81(); }
+	break;case 82: { var fn82 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11780,7 +13219,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 83:
+}; fn82(); }
+	break;case 83: { var fn83 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11788,7 +13228,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 84:
+}; fn83(); }
+	break;case 84: { var fn84 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11796,7 +13237,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 85:
+}; fn84(); }
+	break;case 85: { var fn85 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11804,7 +13246,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 86:
+}; fn85(); }
+	break;case 86: { var fn86 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11812,7 +13255,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 87:
+}; fn86(); }
+	break;case 87: { var fn87 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11820,7 +13264,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 4) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 88:
+}; fn87(); }
+	break;case 88: { var fn88 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11828,7 +13273,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 89:
+}; fn88(); }
+	break;case 89: { var fn89 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11836,7 +13282,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 90:
+}; fn89(); }
+	break;case 90: { var fn90 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11844,7 +13291,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 91:
+}; fn90(); }
+	break;case 91: { var fn91 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11852,7 +13300,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 92:
+}; fn91(); }
+	break;case 92: { var fn92 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11860,7 +13309,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 93:
+}; fn92(); }
+	break;case 93: { var fn93 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11868,7 +13318,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 94:
+}; fn93(); }
+	break;case 94: { var fn94 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11876,7 +13327,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 95:
+}; fn94(); }
+	break;case 95: { var fn95 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11884,7 +13336,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 8) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 96:
+}; fn95(); }
+	break;case 96: { var fn96 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11892,7 +13345,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 97:
+}; fn96(); }
+	break;case 97: { var fn97 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11900,7 +13354,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 98:
+}; fn97(); }
+	break;case 98: { var fn98 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11908,7 +13363,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 99:
+}; fn98(); }
+	break;case 99: { var fn99 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11916,7 +13372,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 100:
+}; fn99(); }
+	break;case 100: { var fn100 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11924,7 +13381,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 101:
+}; fn100(); }
+	break;case 101: { var fn101 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11932,7 +13390,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 102:
+}; fn101(); }
+	break;case 102: { var fn102 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11940,7 +13399,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 103:
+}; fn102(); }
+	break;case 103: { var fn103 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11948,7 +13408,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 16) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 104:
+}; fn103(); }
+	break;case 104: { var fn104 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11956,7 +13417,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 105:
+}; fn104(); }
+	break;case 105: { var fn105 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11964,7 +13426,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 106:
+}; fn105(); }
+	break;case 106: { var fn106 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11972,7 +13435,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 107:
+}; fn106(); }
+	break;case 107: { var fn107 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11980,7 +13444,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 108:
+}; fn107(); }
+	break;case 108: { var fn108 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11988,7 +13453,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 109:
+}; fn108(); }
+	break;case 109: { var fn109 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -11996,7 +13462,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 110:
+}; fn109(); }
+	break;case 110: { var fn110 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12004,7 +13471,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 111:
+}; fn110(); }
+	break;case 111: { var fn111 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12012,7 +13480,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 32) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 112:
+}; fn111(); }
+	break;case 112: { var fn112 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12020,7 +13489,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 113:
+}; fn112(); }
+	break;case 113: { var fn113 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12028,7 +13498,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 114:
+}; fn113(); }
+	break;case 114: { var fn114 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12036,7 +13507,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 115:
+}; fn114(); }
+	break;case 115: { var fn115 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12044,7 +13516,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 116:
+}; fn115(); }
+	break;case 116: { var fn116 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12052,7 +13525,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 117:
+}; fn116(); }
+	break;case 117: { var fn117 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12060,7 +13534,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 118:
+}; fn117(); }
+	break;case 118: { var fn118 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12068,7 +13543,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 119:
+}; fn118(); }
+	break;case 119: { var fn119 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12076,7 +13552,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 64) ) regs[0] |= 68;
 
 tstates += ( 1);
-	break;case 120:
+}; fn119(); }
+	break;case 120: { var fn120 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12084,7 +13561,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 121:
+}; fn120(); }
+	break;case 121: { var fn121 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12092,7 +13570,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 122:
+}; fn121(); }
+	break;case 122: { var fn122 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12100,7 +13579,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 123:
+}; fn122(); }
+	break;case 123: { var fn123 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12108,7 +13588,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 124:
+}; fn123(); }
+	break;case 124: { var fn124 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12116,7 +13597,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 125:
+}; fn124(); }
+	break;case 125: { var fn125 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12124,7 +13606,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 126:
+}; fn125(); }
+	break;case 126: { var fn126 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12132,7 +13615,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 127:
+}; fn126(); }
+	break;case 127: { var fn127 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var value = (tstates += ( 3), memory.read(addr));
@@ -12140,7 +13624,8 @@ regs[0] = ( regs[0] & 1 ) | 16 | ( ( addr >> 8 ) & 40 );
 if ( !(value & 128) ) regs[0] |= 68;
 if (value & 0x80) regs[0] |= 128;
 tstates += ( 1);
-	break;case 128:
+}; fn127(); }
+	break;case 128: { var fn128 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -12151,7 +13636,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 129:
+}; fn128(); }
+	break;case 129: { var fn129 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -12162,7 +13648,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 130:
+}; fn129(); }
+	break;case 130: { var fn130 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -12173,7 +13660,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 131:
+}; fn130(); }
+	break;case 131: { var fn131 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -12184,7 +13672,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 132:
+}; fn131(); }
+	break;case 132: { var fn132 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -12195,7 +13684,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 133:
+}; fn132(); }
+	break;case 133: { var fn133 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -12206,7 +13696,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 134:
+}; fn133(); }
+	break;case 134: { var fn134 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -12215,7 +13706,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 135:
+}; fn134(); }
+	break;case 135: { var fn135 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -12226,7 +13718,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 136:
+}; fn135(); }
+	break;case 136: { var fn136 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -12237,7 +13730,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 137:
+}; fn136(); }
+	break;case 137: { var fn137 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -12248,7 +13742,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 138:
+}; fn137(); }
+	break;case 138: { var fn138 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -12259,7 +13754,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 139:
+}; fn138(); }
+	break;case 139: { var fn139 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -12270,7 +13766,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 140:
+}; fn139(); }
+	break;case 140: { var fn140 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -12281,7 +13778,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 141:
+}; fn140(); }
+	break;case 141: { var fn141 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -12292,7 +13790,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 142:
+}; fn141(); }
+	break;case 142: { var fn142 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -12301,7 +13800,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 143:
+}; fn142(); }
+	break;case 143: { var fn143 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -12312,7 +13812,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 144:
+}; fn143(); }
+	break;case 144: { var fn144 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -12323,7 +13824,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 145:
+}; fn144(); }
+	break;case 145: { var fn145 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -12334,7 +13836,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 146:
+}; fn145(); }
+	break;case 146: { var fn146 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -12345,7 +13848,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 147:
+}; fn146(); }
+	break;case 147: { var fn147 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -12356,7 +13860,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 148:
+}; fn147(); }
+	break;case 148: { var fn148 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -12367,7 +13872,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 149:
+}; fn148(); }
+	break;case 149: { var fn149 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -12378,7 +13884,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 150:
+}; fn149(); }
+	break;case 150: { var fn150 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -12387,7 +13894,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 151:
+}; fn150(); }
+	break;case 151: { var fn151 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -12398,7 +13906,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 152:
+}; fn151(); }
+	break;case 152: { var fn152 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -12409,7 +13918,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 153:
+}; fn152(); }
+	break;case 153: { var fn153 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -12420,7 +13930,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 154:
+}; fn153(); }
+	break;case 154: { var fn154 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -12431,7 +13942,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 155:
+}; fn154(); }
+	break;case 155: { var fn155 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -12442,7 +13954,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 156:
+}; fn155(); }
+	break;case 156: { var fn156 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -12453,7 +13966,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 157:
+}; fn156(); }
+	break;case 157: { var fn157 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -12464,7 +13978,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 158:
+}; fn157(); }
+	break;case 158: { var fn158 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -12473,7 +13988,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 159:
+}; fn158(); }
+	break;case 159: { var fn159 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -12484,7 +14000,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 160:
+}; fn159(); }
+	break;case 160: { var fn160 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -12495,7 +14012,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 161:
+}; fn160(); }
+	break;case 161: { var fn161 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -12506,7 +14024,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 162:
+}; fn161(); }
+	break;case 162: { var fn162 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -12517,7 +14036,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 163:
+}; fn162(); }
+	break;case 163: { var fn163 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -12528,7 +14048,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 164:
+}; fn163(); }
+	break;case 164: { var fn164 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -12539,7 +14060,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 165:
+}; fn164(); }
+	break;case 165: { var fn165 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -12550,7 +14072,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 166:
+}; fn165(); }
+	break;case 166: { var fn166 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -12559,7 +14082,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 167:
+}; fn166(); }
+	break;case 167: { var fn167 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -12570,7 +14094,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 168:
+}; fn167(); }
+	break;case 168: { var fn168 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -12581,7 +14106,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 169:
+}; fn168(); }
+	break;case 169: { var fn169 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -12592,7 +14118,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 170:
+}; fn169(); }
+	break;case 170: { var fn170 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -12603,7 +14130,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 171:
+}; fn170(); }
+	break;case 171: { var fn171 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -12614,7 +14142,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 172:
+}; fn171(); }
+	break;case 172: { var fn172 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -12625,7 +14154,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 173:
+}; fn172(); }
+	break;case 173: { var fn173 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -12636,7 +14166,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 174:
+}; fn173(); }
+	break;case 174: { var fn174 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -12645,7 +14176,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 175:
+}; fn174(); }
+	break;case 175: { var fn175 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -12656,7 +14188,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 176:
+}; fn175(); }
+	break;case 176: { var fn176 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -12667,7 +14200,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 177:
+}; fn176(); }
+	break;case 177: { var fn177 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -12678,7 +14212,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 178:
+}; fn177(); }
+	break;case 178: { var fn178 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -12689,7 +14224,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 179:
+}; fn178(); }
+	break;case 179: { var fn179 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -12700,7 +14236,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 180:
+}; fn179(); }
+	break;case 180: { var fn180 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -12711,7 +14248,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 181:
+}; fn180(); }
+	break;case 181: { var fn181 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -12722,7 +14260,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 182:
+}; fn181(); }
+	break;case 182: { var fn182 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -12731,7 +14270,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 183:
+}; fn182(); }
+	break;case 183: { var fn183 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -12742,7 +14282,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 184:
+}; fn183(); }
+	break;case 184: { var fn184 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -12753,7 +14294,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 185:
+}; fn184(); }
+	break;case 185: { var fn185 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -12764,7 +14306,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 186:
+}; fn185(); }
+	break;case 186: { var fn186 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -12775,7 +14318,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 187:
+}; fn186(); }
+	break;case 187: { var fn187 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -12786,7 +14330,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 188:
+}; fn187(); }
+	break;case 188: { var fn188 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -12797,7 +14342,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 189:
+}; fn188(); }
+	break;case 189: { var fn189 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -12808,7 +14354,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 190:
+}; fn189(); }
+	break;case 190: { var fn190 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -12817,7 +14364,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 191:
+}; fn190(); }
+	break;case 191: { var fn191 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -12828,7 +14376,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 192:
+}; fn191(); }
+	break;case 192: { var fn192 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -12839,7 +14388,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 193:
+}; fn192(); }
+	break;case 193: { var fn193 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -12850,7 +14400,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 194:
+}; fn193(); }
+	break;case 194: { var fn194 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -12861,7 +14412,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 195:
+}; fn194(); }
+	break;case 195: { var fn195 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -12872,7 +14424,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 196:
+}; fn195(); }
+	break;case 196: { var fn196 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -12883,7 +14436,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 197:
+}; fn196(); }
+	break;case 197: { var fn197 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -12894,7 +14448,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 198:
+}; fn197(); }
+	break;case 198: { var fn198 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -12903,7 +14458,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 199:
+}; fn198(); }
+	break;case 199: { var fn199 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -12914,7 +14470,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 200:
+}; fn199(); }
+	break;case 200: { var fn200 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -12925,7 +14482,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 201:
+}; fn200(); }
+	break;case 201: { var fn201 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -12936,7 +14494,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 202:
+}; fn201(); }
+	break;case 202: { var fn202 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -12947,7 +14506,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 203:
+}; fn202(); }
+	break;case 203: { var fn203 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -12958,7 +14518,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 204:
+}; fn203(); }
+	break;case 204: { var fn204 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -12969,7 +14530,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 205:
+}; fn204(); }
+	break;case 205: { var fn205 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -12980,7 +14542,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 206:
+}; fn205(); }
+	break;case 206: { var fn206 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -12989,7 +14552,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 207:
+}; fn206(); }
+	break;case 207: { var fn207 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -13000,7 +14564,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 208:
+}; fn207(); }
+	break;case 208: { var fn208 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -13011,7 +14576,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 209:
+}; fn208(); }
+	break;case 209: { var fn209 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -13022,7 +14588,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 210:
+}; fn209(); }
+	break;case 210: { var fn210 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -13033,7 +14600,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 211:
+}; fn210(); }
+	break;case 211: { var fn211 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -13044,7 +14612,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 212:
+}; fn211(); }
+	break;case 212: { var fn212 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -13055,7 +14624,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 213:
+}; fn212(); }
+	break;case 213: { var fn213 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -13066,7 +14636,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 214:
+}; fn213(); }
+	break;case 214: { var fn214 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -13075,7 +14646,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 215:
+}; fn214(); }
+	break;case 215: { var fn215 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -13086,7 +14658,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 216:
+}; fn215(); }
+	break;case 216: { var fn216 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -13097,7 +14670,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 217:
+}; fn216(); }
+	break;case 217: { var fn217 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -13108,7 +14682,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 218:
+}; fn217(); }
+	break;case 218: { var fn218 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -13119,7 +14694,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 219:
+}; fn218(); }
+	break;case 219: { var fn219 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -13130,7 +14706,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 220:
+}; fn219(); }
+	break;case 220: { var fn220 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -13141,7 +14718,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 221:
+}; fn220(); }
+	break;case 221: { var fn221 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -13152,7 +14730,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 222:
+}; fn221(); }
+	break;case 222: { var fn222 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -13161,7 +14740,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 223:
+}; fn222(); }
+	break;case 223: { var fn223 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -13172,7 +14752,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 224:
+}; fn223(); }
+	break;case 224: { var fn224 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -13183,7 +14764,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 225:
+}; fn224(); }
+	break;case 225: { var fn225 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -13194,7 +14776,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 226:
+}; fn225(); }
+	break;case 226: { var fn226 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -13205,7 +14788,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 227:
+}; fn226(); }
+	break;case 227: { var fn227 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -13216,7 +14800,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 228:
+}; fn227(); }
+	break;case 228: { var fn228 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -13227,7 +14812,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 229:
+}; fn228(); }
+	break;case 229: { var fn229 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -13238,7 +14824,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 230:
+}; fn229(); }
+	break;case 230: { var fn230 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -13247,7 +14834,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 231:
+}; fn230(); }
+	break;case 231: { var fn231 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -13258,7 +14846,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 232:
+}; fn231(); }
+	break;case 232: { var fn232 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -13269,7 +14858,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 233:
+}; fn232(); }
+	break;case 233: { var fn233 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -13280,7 +14870,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 234:
+}; fn233(); }
+	break;case 234: { var fn234 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -13291,7 +14882,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 235:
+}; fn234(); }
+	break;case 235: { var fn235 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -13302,7 +14894,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 236:
+}; fn235(); }
+	break;case 236: { var fn236 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -13313,7 +14906,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 237:
+}; fn236(); }
+	break;case 237: { var fn237 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -13324,7 +14918,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 238:
+}; fn237(); }
+	break;case 238: { var fn238 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -13333,7 +14928,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 239:
+}; fn238(); }
+	break;case 239: { var fn239 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -13344,7 +14940,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 240:
+}; fn239(); }
+	break;case 240: { var fn240 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -13355,7 +14952,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 241:
+}; fn240(); }
+	break;case 241: { var fn241 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -13366,7 +14964,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 242:
+}; fn241(); }
+	break;case 242: { var fn242 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -13377,7 +14976,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 243:
+}; fn242(); }
+	break;case 243: { var fn243 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -13388,7 +14988,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 244:
+}; fn243(); }
+	break;case 244: { var fn244 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -13399,7 +15000,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 245:
+}; fn244(); }
+	break;case 245: { var fn245 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -13410,7 +15012,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 246:
+}; fn245(); }
+	break;case 246: { var fn246 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -13419,7 +15022,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 247:
+}; fn246(); }
+	break;case 247: { var fn247 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -13430,7 +15034,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
-	break;case 248:
+}; fn247(); }
+	break;case 248: { var fn248 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[3] = (tstates += ( 3), memory.read(addr));
@@ -13441,7 +15046,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[3]);;
-	break;case 249:
+}; fn248(); }
+	break;case 249: { var fn249 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[2] = (tstates += ( 3), memory.read(addr));
@@ -13452,7 +15058,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[2]);;
-	break;case 250:
+}; fn249(); }
+	break;case 250: { var fn250 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[5] = (tstates += ( 3), memory.read(addr));
@@ -13463,7 +15070,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[5]);;
-	break;case 251:
+}; fn250(); }
+	break;case 251: { var fn251 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[4] = (tstates += ( 3), memory.read(addr));
@@ -13474,7 +15082,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[4]);;
-	break;case 252:
+}; fn251(); }
+	break;case 252: { var fn252 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[7] = (tstates += ( 3), memory.read(addr));
@@ -13485,7 +15094,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[7]);;
-	break;case 253:
+}; fn252(); }
+	break;case 253: { var fn253 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[6] = (tstates += ( 3), memory.read(addr));
@@ -13496,7 +15106,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[6]);;
-	break;case 254:
+}; fn253(); }
+	break;case 254: { var fn254 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 var val = (tstates += ( 3), memory.read(addr));
@@ -13505,7 +15116,8 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, val);;
-	break;case 255:
+}; fn254(); }
+	break;case 255: { var fn255 = function() {
 	
 	var addr = (regPairs[9] + offset) & 0xffff;
 regs[1] = (tstates += ( 3), memory.read(addr));
@@ -13516,6 +15128,7 @@ tstates += ( 1);
 tstates += ( 3);
 while (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();
 memory.write(addr, regs[1]);;
+}; fn255(); }
 	break;
 	default:
 		var addr = regPairs[12] - 1;
@@ -13548,9 +15161,9 @@ memory.write(addr, regs[1]);;
 		regPairs[11] = snapRegs['SP'];
 		regPairs[12] = snapRegs['PC'];
 		regPairs[10] = snapRegs['IR'];
-		iff1 = snapRegs['iff1'] & 0xffff;
-		iff2 = snapRegs['iff2'] & 0xffff;
-		im = snapRegs['im'] & 0xffff;
+		iff1 = snapRegs['iff1'] & 1;
+		iff2 = snapRegs['iff2'] & 1;
+		im = snapRegs['im'] & 1;
 		halted = !!snapRegs['halted'];
 		tstates = snapRegs['T'] * 1;
 		interruptPending = !!snapRegs['intp'];
@@ -13681,13 +15294,13 @@ memory.write(addr, regs[1]);;
 		regPairs[12] = val;
 	}
 	self.setIFF1 = function(val) {
-		iff1 = val & 0xffff;
+		iff1 = val & 1;
 	}
 	self.setIFF2 = function(val) {
-		iff2 = val & 0xffff;
+		iff2 = val & 1;
 	}
 	self.setIM = function(val) {
-		im = val & 0xffff;
+		im = val & 1;
 	}
 	self.setHalted = function(val) {
 		halted = !!val;
