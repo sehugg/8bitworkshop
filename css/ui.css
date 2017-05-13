@@ -216,3 +216,9 @@ canvas.pixelated {
   border-color:white;
   border-style:dotted;
 }
+#javatari-screen canvas {
+  box-sizing: content-box;
+}
+#javatari-screen div {
+  box-sizing: content-box;
+}
