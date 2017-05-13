@@ -295,6 +295,15 @@ var VCSMAMEPlatform = function(mainElement) {
     return "dasm";
   }
   this.getDefaultExtension = function() { return ".a"; };
+
+  this.getOriginPC = function() {
+    return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
+  }
+  /*
+  this.getOpcodeMetadata = function(opcode, offset) {
+    return Javatari.getOpcodeMetadata(opcode, offset);
+  }
+  */
 }
 
 ////////////////

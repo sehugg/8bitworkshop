@@ -97,8 +97,6 @@ Start	CLEAN_START
         sta XBall
         ldx #4
         jsr SetHorizPos2
-	sta WSYNC
-	sta HMOVE
 ; Set ball initial velocity
 	lda #1
         sta YBallVel
@@ -235,7 +233,7 @@ ScanLoop3a
         DRAW_BALL	; draw the ball on this line?
 ScanSkipSync
 	sta WSYNC
-<        stx COLUPF	; change colors for bricks
+        stx COLUPF	; change colors for bricks
 ; Load the first byte of bricks
 ; Bricks are stored in six contiguous arrays (row-major)
 	lda Bricks+NBL*0,y
@@ -492,14 +490,10 @@ SkipMoveRight
 	lda XBall
         ldx #4
         jsr SetHorizPos2
-	sta WSYNC
-	sta HMOVE
 ; Set player position using SetHorizPos
 	lda XPlyr
         ldx #0
         jsr SetHorizPos2
-	sta WSYNC
-	sta HMOVE
 
 ; Play audio from shadow register?
 	ldx AVol0
@@ -571,10 +565,11 @@ NoBrickFound
 ;  X=3: missile 1
 ;  X=4: ball
 ; This routine does a WSYNC both before and after, followed by
-; a HMOVE and HMCLR. So it takes two scanlines to complete.
+; HMOVE. So it takes two scanlines to complete.
 SetHorizPos2
-        sta WSYNC	; start a new line
         sec		; set carry flag
+        sta WSYNC	; start a new line
+	sta HMCLR
 DivideLoop
 	sbc #15		; subtract 15
 	bcs DivideLoop	; branch until negative
@@ -587,7 +582,6 @@ DivideLoop
         sta RESP0,x	; fix coarse position
         sta WSYNC
         sta HMOVE	; apply the previous fine position(s)
-	sta HMCLR	; reset the old horizontal position(s)
         rts		; return to caller 
 
 ; Height of our sprite in lines
@@ -654,18 +648,17 @@ ColorFrame0
         .byte #$F4;
 
 ; Bitmap pattern for digits
-
-DigitsBitmap ;;{w:8,h:6,count:10,brev:1};;
-	.byte $EE,$AA,$AA,$AA,$EE,$00
-        .byte $22,$22,$22,$22,$22,$00
-        .byte $EE,$22,$EE,$88,$EE,$00
-        .byte $EE,$22,$66,$22,$EE,$00
-        .byte $AA,$AA,$EE,$22,$22,$00
-        .byte $EE,$88,$EE,$22,$EE,$00
-        .byte $EE,$88,$EE,$AA,$EE,$00
-        .byte $EE,$22,$22,$22,$22,$00
-        .byte $EE,$AA,$EE,$AA,$EE,$00
-        .byte $EE,$AA,$EE,$22,$EE,$00
+DigitsBitmap ;;{w:8,h:5,count:10,brev:1};;
+        .byte $EE,$AA,$AA,$AA,$EE
+        .byte $22,$22,$22,$22,$22
+        .byte $EE,$22,$EE,$88,$EE
+        .byte $EE,$22,$66,$22,$EE
+        .byte $AA,$AA,$EE,$22,$22
+        .byte $EE,$88,$EE,$22,$EE
+        .byte $EE,$88,$EE,$AA,$EE
+        .byte $EE,$22,$22,$22,$22
+        .byte $EE,$AA,$EE,$AA,$EE
+        .byte $EE,$AA,$EE,$22,$EE
 
 ; Playfield bitmasks for all 40 brick columns
 PFMaskTable
@@ -674,6 +667,7 @@ PFMaskTable
 	.byte #$80,#$40,#$20,#$10,#$08,#$04,#$02,#$01
 	.byte #$01,#$02,#$04,#$08,#$10,#$20,#$40,#$80
         REPEND
+
 ; Brick array byte offsets for all 40 brick columns
 PFOfsTable
 	.byte NBL*0,NBL*0,NBL*0,NBL*0

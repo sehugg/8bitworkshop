@@ -317,6 +317,7 @@ NoFireButton
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Set horizontal position of object
 SetHorizPos
+        sta HMCLR
         sta WSYNC       ; start a new line
         sec             ; set carry flag
 DivideLoop
@@ -331,7 +332,6 @@ DivideLoop
         sta RESP0,x     ; fix coarse position
         sta WSYNC
         sta HMOVE
-        sta HMCLR
         rts             ; return to caller 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

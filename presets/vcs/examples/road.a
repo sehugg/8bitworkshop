@@ -193,6 +193,7 @@ SetupRoadComponents subroutine
 	lda #$90	; right 7 pixels
         ldy #$70	; left 7 pixels
         ldx #$00	; no movement
+        SLEEP 14	; wait until safe to set regs
         sta HMM0
         sty HMM1
         stx HMBL
