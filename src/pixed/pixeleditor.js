@@ -21,7 +21,7 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
     ctx.putImageData(pixdata, 0, 0);
   }
 
-  function updateThumbnails() {
+  function commit() {
     if (!thumbnails) return;
     for (var i=0; i<thumbnails.length; i++) {
       thumbnails[i].copyImageFrom(self);
@@ -33,12 +33,15 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
     updateImage();
   }
 
-  this.getImageData = function() { return pixints; }
+  this.getImageData = function() { return pixints.slice(0); }
 
   function fitCanvas() {
     var w = $(parentDiv).width();
     var h = $(parentDiv).height();
-    pixcanvas.style.height = Math.floor(h)+"px";
+    if (h > w)
+      pixcanvas.style.height = Math.floor(h)+"px";
+    else
+      pixcanvas.style.height = Math.floor(h/2)+"px";
     // TODO
   }
   this.resize = fitCanvas;
@@ -150,9 +153,34 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
       var pos = getPositionFromEvent(e);
       setPixel(pos.x, pos.y, dragcol);
       dragging = false;
-      updateThumbnails();
+      commit();
       pixcanvas.releaseCapture();
     });
+  }
+
+  this.rotate = function(deg) {
+    console.log("rotate " + deg);
+    var s1 = Math.sin(deg * Math.PI / 180);
+    var c1 = Math.cos(deg * Math.PI / 180);
+    var p = self.getImageColors();
+    var i = 0;
+    for (var y=0; y<height; y++) {
+      for (var x=0; x<width; x++) {
+        var xx = x + 0.5 - width/2.0;
+        var yy = y + 0.5 - height/2.0;
+        var xx2 = xx*c1 - yy*s1 + width/2.0 - 0.5;
+        var yy2 = yy*c1 + xx*s1 + height/2.0 - 0.5;
+        var col = getPixel(Math.round(xx2), Math.round(yy2));
+        p[i++] = col;
+      }
+    }
+    i = 0;
+    for (var y=0; y<height; y++) {
+      for (var x=0; x<width; x++) {
+        setPixel(x, y, p[i++]);
+      }
+    }
+    commit();
   }
 }
 
@@ -402,5 +430,23 @@ function pixelEditorKeypress(e) {
     currentPixelEditor.setCurrentColor(c-48);
   } else if (c >= 97 && c <= 102) {
     currentPixelEditor.setCurrentColor(c-97+10);
+  } else {
+    switch (e.keyCode) {
+      case 33: // PgUp
+        currentPixelEditor.rotate(-90);
+        break;
+      case 34: // PgDn
+        currentPixelEditor.rotate(90);
+        break;
+      case 35: // PgUp
+        currentPixelEditor.rotate(-45);
+        break;
+      case 36: // PgDn
+        currentPixelEditor.rotate(45);
+        break;
+      default:
+        console.log(e);
+        break;
+    }
   }
 }

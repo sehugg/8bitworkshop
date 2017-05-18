@@ -286,6 +286,7 @@ var VCSMAMEPlatform = function(mainElement) {
   }
 
   this.loadROM = function(title, data) {
+    this.loadROMFile(data);
     this.loadRegion(":cartslot:cart:rom", data);
   }
 

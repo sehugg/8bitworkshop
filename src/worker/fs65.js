@@ -20,7 +20,7 @@ Module.expectedDataFileDownloads++;
     } else {
       throw 'using preloaded data can only be done on a web page or in a web worker';
     }
-    var PACKAGE_NAME = 'js/fs65.data';
+    var PACKAGE_NAME = 'fs65.data';
     var REMOTE_PACKAGE_BASE = 'fs65.data';
     if (typeof Module['locateFilePackage'] === 'function' && !Module['locateFile']) {
       Module['locateFile'] = Module['locateFilePackage'];
@@ -85,8 +85,10 @@ Module.expectedDataFileDownloads++;
       console.error('package error:', error);
     };
   
-      var fetched = null, fetchedCallback = null;
-      fetchRemotePackage(REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE, function(data) {
+      var fetchedCallback = null;
+      var fetched = Module['getPreloadedPackage'] ? Module['getPreloadedPackage'](REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE) : null;
+
+      if (!fetched) fetchRemotePackage(REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE, function(data) {
         if (fetchedCallback) {
           fetchedCallback(data);
           fetchedCallback = null;
@@ -119,6 +121,11 @@ Module['FS_createPath']('/target/apple2/drv', 'emd', true, true);
 Module['FS_createPath']('/target/apple2/drv', 'mou', true, true);
 Module['FS_createPath']('/target/apple2/drv', 'ser', true, true);
 Module['FS_createPath']('/target/apple2', 'util', true, true);
+Module['FS_createPath']('/target', 'nes', true, true);
+Module['FS_createPath']('/target/nes', 'drv', true, true);
+Module['FS_createPath']('/target/nes/drv', 'tgi', true, true);
+Module['FS_createPath']('/target/nes/drv', 'joy', true, true);
+Module['FS_createPath']('/', 'neslib', true, true);
 
     function DataRequest(start, end, crunched, audio) {
       this.start = start;
@@ -174,10 +181,10 @@ Module['FS_createPath']('/target/apple2', 'util', true, true);
           for (i = 0; i < files.length; ++i) {
             DataRequest.prototype.requests[files[i].filename].onload();
           }
-              Module['removeRunDependency']('datafile_js/fs65.data');
+              Module['removeRunDependency']('datafile_fs65.data');
 
     };
-    Module['addRunDependency']('datafile_js/fs65.data');
+    Module['addRunDependency']('datafile_fs65.data');
   
     if (!Module.preloadResults) Module.preloadResults = {};
   

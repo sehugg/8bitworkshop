@@ -4,6 +4,7 @@
 // http://www.colecovision.eu/ColecoVision/development/libcv.shtml
 // http://www.kernelcrash.com/blog/recreating-the-colecovision/2016/01/27/
 // http://www.atarihq.com/danb/files/CV-Tech.txt
+// http://www.atarihq.com/danb/files/CV-Sound.txt
 // http://www.colecoboxart.com/faq/FAQ05.htm
 // http://www.theadamresource.com/manuals/technical/Jeffcoleco.html
 // http://bifi.msxnet.org/msxnet//tech/tms9918a.txt
@@ -19,6 +20,7 @@ var ColecoVision_PRESETS = [
   {id:'cursorsmooth.c', name:'Moving Cursor'},
   {id:'simplemusic.c', name:'Simple Music'},
   {id:'siegegame.c', name:'Siege Game'},
+  {id:'shoot.c', name:'Solarian Game'},
 ];
 
 // doesn't work, use MAME
@@ -208,6 +210,7 @@ var ColecoVisionMAMEPlatform = function(mainElement) {
   }
 
   this.loadROM = function(title, data) {
+    this.loadROMFile(data);
     this.loadRegion(":coleco_cart:rom", data);
   }
 

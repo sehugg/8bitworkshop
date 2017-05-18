@@ -132,8 +132,8 @@ void init_game() {
   memset(players, 0, sizeof(players));
   players[0].head_attr = CHAR('1');
   players[1].head_attr = CHAR('2');
-  players[0].tail_attr = '~';
-  players[1].tail_attr = '@';
+  players[0].tail_attr = '@';
+  players[1].tail_attr = '%';
   frames_per_move = START_SPEED;
 }
 

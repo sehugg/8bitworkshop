@@ -483,6 +483,10 @@ function parseCA65Listing(code, mapfile) {
 }
 
 function assemblelinkCA65(code, platform, warnings) {
+  var errors = "";
+  function error_fn(s) {
+    errors += s + "\n";
+  }
   load("ca65");
   load("ld65");
   var objout, lstout;
@@ -504,25 +508,30 @@ function assemblelinkCA65(code, platform, warnings) {
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
-      printErr:print_fn,
+      printErr:error_fn,
     });
     var FS = LD65['FS'];
     var cfgfile = '/' + platform + '.cfg';
     setupFS(FS, '65');
     FS.writeFile("main.o", objout, {encoding:'binary'});
     LD65.callMain(['--cfg-path', '/share/cfg', '--lib-path', '/share/lib',
-      //'--start-addr', '0x6000', // TODO
       '-C', cfgfile,
+      //'--dbgfile', 'main.dbg',
       '-o', 'main', '-m', 'main.map', 'main.o',
-      'apple2.lib']);
+      platform+'.lib']);
+    if (errors.length) {
+      return {errors:[{line:1,msg:errors}]};
+    }
     var aout = FS.readFile("main", {encoding:'binary'});
     var mapout = FS.readFile("main.map", {encoding:'utf8'});
     var listing = parseCA65Listing(lstout, mapout);
     //console.log(lstout);
     //console.log(mapout);
+    var srclines = parseSourceLines(lstout, /[.]dbg\s+line, "main[.]c", (\d+)/i, /^\s*([0-9A-F]+)r/i);
     return {
-      output:aout.slice(4),
+      output:aout.slice(0),
       lines:listing.lines,
+      srclines:srclines,
       errors:listing.errors,
       intermediate:{listing:lstout, map:mapout},
     };
@@ -555,17 +564,18 @@ function compileCC65(code, platform) {
   var FS = CC65['FS'];
   setupFS(FS, '65');
   FS.writeFile("main.c", code, {encoding:'utf8'});
-  CC65.callMain(['-v', '-T', '-g', /*'-Cl',*/ '-Oirs', '-I', '/share/include', "main.c"]);
+  CC65.callMain(['-v', '-T', '-g', /*'-Cl',*/
+    '-Oirs',
+    '-I', '/share/include',
+    '-D__' + platform.toUpperCase() + '__',
+    "main.c"]);
   try {
     var asmout = FS.readFile("main.s", {encoding:'utf8'});
     //console.log(asmout);
     var result = assemblelinkCA65(asmout, platform, errors);
-/*
     result.asmlines = result.lines;
     result.lines = result.srclines;
     result.srclines = null;
-*/
-//console.log(result.intermediate.listing);
     return result;
   } catch(e) {
     return {errors:errors};

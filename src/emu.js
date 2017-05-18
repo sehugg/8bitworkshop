@@ -395,13 +395,15 @@ var Base6502Platform = function() {
   this.cpuStateToLongString = function(c) {
     return cpuStateToLongString_6502(c);
   }
-  this.getToolForFilename = function(fn) {
-    if (fn.endsWith(".pla")) return "plasm";
-    if (fn.endsWith(".c")) return "cc65";
-    if (fn.endsWith(".s")) return "ca65";
-    return "dasm";
-  }
+  this.getToolForFilename = getToolForFilename_6502;
   this.getDefaultExtension = function() { return ".a"; };
+}
+
+function getToolForFilename_6502(fn) {
+  if (fn.endsWith(".pla")) return "plasm";
+  if (fn.endsWith(".c")) return "cc65";
+  if (fn.endsWith(".s")) return "ca65";
+  return "dasm";
 }
 
 function dumpRAM(ram, ramofs, ramlen) {
@@ -926,6 +928,7 @@ var BaseMAMEPlatform = function() {
 
   this.startModule = function(mainElement, opts) {
     romfn = opts.romfn;
+    if (opts.romdata) romdata = opts.romdata;
     if (!romdata) romdata = new RAM(opts.romsize).mem;
     // create canvas
     video = new RasterVideo(mainElement, opts.width, opts.height);
@@ -988,12 +991,18 @@ var BaseMAMEPlatform = function() {
     document.getElementsByTagName('head')[0].appendChild(script);
   }
 
-  this.loadRegion = function(region, data) {
+  this.loadROMFile = function(data) {
     romdata = data;
     if (loaded) {
       FS.writeFile(romfn, data, {encoding:'binary'});
+    }
+  }
+
+  this.loadRegion = function(region, data) {
+    if (loaded) {
       //self.luacall('cart=manager:machine().images["cart"]\nprint(cart:filename())\ncart:load("' + romfn + '")\n');
       var s = 'mem = manager:machine():memory().regions["' + region + '"]\n';
+      //s += 'print(mem.size)\n';
       for (var i=0; i<data.length; i+=4) {
         var v = data[i] + (data[i+1]<<8) + (data[i+2]<<16) + (data[i+3]<<24);
         s += 'mem:write_u32(' + i + ',' + v + ')\n'; // TODO: endian?

@@ -10,10 +10,11 @@ parser.add_argument('-s', '--start', type=int, default=0, help="index of first c
 parser.add_argument('-e', '--end', type=int, default=255, help="index of last character")
 parser.add_argument('-H', '--height', type=int, default=8, help="character height")
 parser.add_argument('-i', '--invert', action="store_true", help="invert bits")
-parser.add_argument('-r', '--rotate', action="store_true", help="rotate bits (vertical)")
-parser.add_argument('-f', '--flip', action="store_true", help="flip bits (horizontal)")
+parser.add_argument('-r', '--rotate', action="store_true", help="rotate bits")
+parser.add_argument('-f', '--flip', action="store_true", help="flip bits (vertically")
 outfmtgroup = parser.add_mutually_exclusive_group()
 outfmtgroup.add_argument("-A", "--asmhex", action="store_true", help="DASM-compatible hex")
+outfmtgroup.add_argument("-B", "--asmdb", action="store_true", help="Z80ASM-compatible hex")
 outfmtgroup.add_argument("-C", "--carray", action="store_true", help="Nested C array")
 outfmtgroup.add_argument("-F", "--flatcarray", action="store_true", help="Flat C array")
 parser.add_argument('bdffile', help="BDF bitmap file")
@@ -84,6 +85,9 @@ def tohex2(v):
 for arr in [output]:
     if args.asmhex:
         print '\thex ' + string.join(map(tohex,arr),'')
+    if args.asmdb:
+        for i in range(0,len(output),height):
+            print '.DB', string.join(map(tohex2,arr[i:i+height]),','), ';%d'%(i/height+lochar)
     if args.carray:
         print "static char FONT[%d][%d] = {" % (hichar-lochar+1, height)
         for i in range(0,len(output),height):
