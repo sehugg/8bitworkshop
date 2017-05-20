@@ -1068,6 +1068,39 @@ function openBitmapEditorAtCursor() {
   }
 }
 
+function _recordVideo() {
+  var gif = new GIF({
+    workerScript: 'gif.js/dist/gif.worker.js',
+    workers: 4,
+    quality: 10
+  });
+  var canvas = $("#emulator").find("canvas")[0];
+  if (!canvas) {
+    alert("Could not find canvas element to record video!");
+    return;
+  }
+  var img = $('#videoPreviewImage');
+  //img.attr('src', 'https://articulate-heroes.s3.amazonaws.com/uploads/rte/kgrtehja_DancingBannana.gif');
+  gif.on('finished', function(blob) {
+    img.attr('src', URL.createObjectURL(blob));
+    $("#videoPreviewModal").modal('show');
+  });
+  var intervalMsec = 17;
+  var maxFrames = 500;
+  var nframes = 0;
+  console.log("Recording video", canvas);
+  var f = function() {
+    if (nframes++ > maxFrames) {
+      console.log("Rendering video");
+      gif.render();
+    } else {
+      gif.addFrame(canvas, {delay: intervalMsec});
+      setTimeout(f, intervalMsec);
+    }
+  };
+  f();
+}
+
 function setupDebugControls(){
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
@@ -1096,6 +1129,7 @@ function setupDebugControls(){
   $("#item_reset_file").click(_resetPreset);
   $("#item_debug_expr").click(_breakExpression);
   $("#item_download_rom").click(_downloadROMImage);
+  $("#item_record_video").click(_recordVideo);
   updateDebugWindows();
 }
 

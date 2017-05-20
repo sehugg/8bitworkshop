@@ -16,3 +16,6 @@
 [submodule "FileSaver.js"]
 	path = FileSaver.js
 	url = https://github.com/eligrey/FileSaver.js
+[submodule "gif.js"]
+	path = gif.js
+	url = https://github.com/jnordberg/gif.js

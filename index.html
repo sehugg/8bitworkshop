@@ -37,28 +37,27 @@ body {
       <li><a class="dropdown-item" href="#" id="item_share_file">Share File as GitHub Gist...</a></li>
       <li><a class="dropdown-item" href="#" id="item_reset_file">Revert to Original...</a></li>
       <li><a class="dropdown-item" href="#" id="item_download_rom">Download ROM Image...</a></li>
-      <!--
       <li><a class="dropdown-item" href="#" id="item_record_video">Record Video...</a></li>
-      -->
-      <li class="dropdown dropdown-submenu">
-          <a tabindex="-1" href="#">Platform</a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="?platform=vcs" id="item_platform_vcs">Atari VCS</a></li>
-            <!--<li><a class="dropdown-item" href="?platform=apple2" id="item_platform_apple2">Apple ][</a></li>-->
-            <li><a class="dropdown-item" href="?platform=vicdual" id="item_platform_vicdual">VIC Dual</a></li>
-            <li><a class="dropdown-item" href="?platform=mw8080bw" id="item_platform_mw8080bw">Midway 8080</a></li>
-            <li><a class="dropdown-item" href="?platform=galaxian-scramble" id="item_platform_galaxian_scramble">Galaxian/Scramble Hardware</a></li>
-            <li><a class="dropdown-item" href="?platform=vector-z80color" id="item_platform_vector_z80color">Atari Color Vector (Z80)</a></li>
-            <li><a class="dropdown-item" href="?platform=williams-z80" id="item_platform_williams_z80">Williams (Z80)</a></li>
-            <li><a class="dropdown-item" href="?platform=sound_williams-z80" id="item_platform_sound_williams_z80">Williams Sound (Z80)</a></li>
-          </ul>
-      </li>
       <li class="dropdown dropdown-submenu">
         <a tabindex="-1" href="#">Debug</a>
         <ul class="dropdown-menu">
           <li><a class="dropdown-item" href="#" id="item_debug_expr">Break Expression...</a></li>
         </ul>
-    </li>
+      </li>
+      <hr>
+      <li class="dropdown dropdown-submenu">
+         <a tabindex="-1" href="#">Platform</a>
+         <ul class="dropdown-menu">
+           <li><a class="dropdown-item" href="?platform=vcs" id="item_platform_vcs">Atari VCS</a></li>
+           <!--<li><a class="dropdown-item" href="?platform=apple2" id="item_platform_apple2">Apple ][</a></li>-->
+           <li><a class="dropdown-item" href="?platform=vicdual" id="item_platform_vicdual">VIC Dual</a></li>
+           <li><a class="dropdown-item" href="?platform=mw8080bw" id="item_platform_mw8080bw">Midway 8080</a></li>
+           <li><a class="dropdown-item" href="?platform=galaxian-scramble" id="item_platform_galaxian_scramble">Galaxian/Scramble Hardware</a></li>
+           <li><a class="dropdown-item" href="?platform=vector-z80color" id="item_platform_vector_z80color">Atari Color Vector (Z80)</a></li>
+           <li><a class="dropdown-item" href="?platform=williams-z80" id="item_platform_williams_z80">Williams (Z80)</a></li>
+           <li><a class="dropdown-item" href="?platform=sound_williams-z80" id="item_platform_sound_williams_z80">Williams Sound (Z80)</a></li>
+         </ul>
+      </li>
     </ul>
   </span>
   <select id="preset_select" name="">
@@ -126,6 +125,22 @@ body {
   <iframe id="pixeditframe" src="pixels.html">
   </iframe>
 </div>
+<div id="videoPreviewModal" class="modal fade">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Video Preview - Right-click to save</h3>
+      </div>
+      <div class="modal-body">
+        <img id="videoPreviewImage">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <script src="jquery/jquery-2.2.3.min.js"></script>
 
@@ -165,6 +180,7 @@ body {
 -->
 <script src="FileSaver.js/FileSaver.min.js"></script>
 <script src="octokat.js/dist/octokat.js"></script>
+<script src="gif.js/dist/gif.js"></script>
 
 <script src="src/vlist.js"></script>
 <script src="src/emu.js"></script>

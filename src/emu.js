@@ -4,6 +4,8 @@
 
 var PLATFORMS = {};
 
+var frameUpdateFunction = null;
+
 function noise() {
   return (Math.random() * 256) & 0xff;
 }
@@ -73,6 +75,7 @@ var RasterVideo = function(mainElement, width, height, options) {
       ctx.putImageData(imageData, sx, sy, dx, dy, width, height);
     else
       ctx.putImageData(imageData, 0, 0);
+    if (frameUpdateFunction) frameUpdateFunction(canvas);
   }
 
 /*
@@ -155,6 +158,7 @@ var VectorVideo = function(mainElement, width, height) {
     ctx.fillRect(0, 0, width, height);
     ctx.globalAlpha = 1.0;
     ctx.globalCompositeOperation = 'lighter';
+    if (frameUpdateFunction) frameUpdateFunction(canvas);
   }
 
   var COLORS = [
