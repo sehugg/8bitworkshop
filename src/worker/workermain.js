@@ -64,8 +64,11 @@ var PLATFORM_PARAMS = {
     data_start: 0x7000,
     data_size: 0x400,
     stack_end: 0x8000,
-    extra_preproc_args: ['-I', '/share/include/libcv', '-I', '/share/include/libcvu'],
-    extra_link_args: ['-k', '/share/lib/libcv', '-l', 'libcv', '-k', '/share/lib/libcvu', '-l', 'libcvu', '/share/lib/libcv/crt0.rel', 'main.rel'],
+    extra_preproc_args: ['-I', '/share/include/coleco'],
+    extra_link_args: ['-k', '/share/lib/coleco',
+      '-l', 'libcv', '-l', 'libcvu',
+      '/share/lib/coleco/crt0.rel',
+      'main.rel'],
   },
 };
 

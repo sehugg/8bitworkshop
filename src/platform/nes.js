@@ -2,6 +2,8 @@
 
 var NES_PRESETS = [
   {id:'hello.c', name:'Hello PPU'},
+  {id:'conio.c', name:'Hello Console I/O'},
+  {id:'siegegame.c', name:'Siege Game'},
 ];
 
 /// JSNES

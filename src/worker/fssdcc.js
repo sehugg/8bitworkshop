@@ -126,10 +126,8 @@ Module['FS_createPath']('/include', 'pic14', true, true);
 Module['FS_createPath']('/include', 'ds400', true, true);
 Module['FS_createPath']('/', 'lib', true, true);
 Module['FS_createPath']('/lib', 'z80', true, true);
-Module['FS_createPath']('/lib', 'libcv', true, true);
-Module['FS_createPath']('/lib', 'libcvu', true, true);
-Module['FS_createPath']('/include', 'libcv', true, true);
-Module['FS_createPath']('/include', 'libcvu', true, true);
+Module['FS_createPath']('/lib', 'coleco', true, true);
+Module['FS_createPath']('/include', 'coleco', true, true);
 
     function DataRequest(start, end, crunched, audio) {
       this.start = start;
