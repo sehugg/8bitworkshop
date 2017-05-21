@@ -125,7 +125,6 @@ Module['FS_createPath']('/target', 'nes', true, true);
 Module['FS_createPath']('/target/nes', 'drv', true, true);
 Module['FS_createPath']('/target/nes/drv', 'tgi', true, true);
 Module['FS_createPath']('/target/nes/drv', 'joy', true, true);
-Module['FS_createPath']('/', 'neslib', true, true);
 
     function DataRequest(start, end, crunched, audio) {
       this.start = start;

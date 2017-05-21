@@ -66,9 +66,19 @@ var PLATFORM_PARAMS = {
     stack_end: 0x8000,
     extra_preproc_args: ['-I', '/share/include/coleco'],
     extra_link_args: ['-k', '/share/lib/coleco',
-      '-l', 'libcv', '-l', 'libcvu',
-      '/share/lib/coleco/crt0.rel',
+      '-l', 'libcv', '-l', 'libcvu', '/share/lib/coleco/crt0.rel',
+      //'-l', 'comp.lib', '-l', 'cvlib.lib', '-l', 'getput.lib', '/share/lib/coleco/crtcv.rel',
       'main.rel'],
+  },
+  'nes-conio': {
+    define: '__NES__',
+    cfgfile: 'nes.cfg',
+    libargs: ['nes.lib'],
+  },
+  'nes-lib': {
+    define: '__NES__',
+    cfgfile: 'neslib.cfg',
+    libargs: ['neslib.lib', 'nes.lib'],
   },
 };
 
@@ -486,6 +496,8 @@ function parseCA65Listing(code, mapfile) {
 }
 
 function assemblelinkCA65(code, platform, warnings) {
+  var params = PLATFORM_PARAMS[platform];
+  if (!params) throw Error("Platform not supported: " + platform);
   var errors = "";
   function error_fn(s) {
     errors += s + "\n";
@@ -517,11 +529,11 @@ function assemblelinkCA65(code, platform, warnings) {
     var cfgfile = '/' + platform + '.cfg';
     setupFS(FS, '65');
     FS.writeFile("main.o", objout, {encoding:'binary'});
+    var libargs = params.libargs;
     LD65.callMain(['--cfg-path', '/share/cfg', '--lib-path', '/share/lib',
-      '-C', cfgfile,
+      '-C', params.cfgfile,
       //'--dbgfile', 'main.dbg',
-      '-o', 'main', '-m', 'main.map', 'main.o',
-      platform+'.lib']);
+      '-o', 'main', '-m', 'main.map', 'main.o'].concat(libargs));
     if (errors.length) {
       return {errors:[{line:1,msg:errors}]};
     }
@@ -542,6 +554,8 @@ function assemblelinkCA65(code, platform, warnings) {
 }
 
 function compileCC65(code, platform) {
+  var params = PLATFORM_PARAMS[platform];
+  if (!params) throw Error("Platform not supported: " + platform);
   load("cc65");
   // stderr
   var re_err1 = /.*?(\d+).*?: (.+)/;
@@ -567,10 +581,10 @@ function compileCC65(code, platform) {
   var FS = CC65['FS'];
   setupFS(FS, '65');
   FS.writeFile("main.c", code, {encoding:'utf8'});
-  CC65.callMain(['-v', '-T', '-g', /*'-Cl',*/
+  CC65.callMain(['-T', '-g', /*'-Cl',*/
     '-Oirs',
     '-I', '/share/include',
-    '-D__' + platform.toUpperCase() + '__',
+    '-D' + params.define,
     "main.c"]);
   try {
     var asmout = FS.readFile("main.s", {encoding:'utf8'});
