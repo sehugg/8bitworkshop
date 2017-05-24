@@ -8,10 +8,11 @@ var NES_NESLIB_PRESETS = [
 ];
 
 var NES_CONIO_PRESETS = [
-  {id:'hello.c', name:'Hello PPU'},
-  {id:'conio.c', name:'Hello Console I/O'},
-  {id:'siegegame.c', name:'Siege Game'},
-  {id:'ex1.asm', name:'Assembly Example'},
+  {id:'ex0.asm', name:'ASM: Initialization'},
+  {id:'ex1.asm', name:'ASM: Scrolling Demo'},
+  {id:'hello.c', name:'C: Hello PPU'},
+  {id:'conio.c', name:'C: Hello Console I/O'},
+  {id:'siegegame.c', name:'C: Siege Game'},
 ];
 
 /// JSNES

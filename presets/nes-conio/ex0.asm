@@ -4,20 +4,10 @@
 PPU_CTRL	equ $2000
 PPU_MASK	equ $2001
 PPU_STATUS	equ $2002
-OAM_ADDR	equ $2003
-OAM_DATA	equ $2004
 PPU_SCROLL	equ $2005
 PPU_ADDR	equ $2006
 PPU_DATA	equ $2007
-PPU_OAM_DMA	equ $4014
 DMC_FREQ	equ $4010
-
-;;;;; ZERO-PAGE VARIABLES
-
-        seg.u ZPVars
-	org $0
-
-ScrollPos	byte	; used during NMI
 
 ;;;;; CARTRIDGE FILE HEADER
 
@@ -65,10 +55,16 @@ _exit:
 	sta $700,x
         inx
         bne .loop
-; end of clear RAM routine
-	jsr SetPalette		;set colors
-        jsr FillVRAM		;set PPU RAM
-        jsr WaitSync		;wait for VSYNC (and PPU warmup)
+; wait for PPU warmup        
+        jsr WaitSync
+; set palette background
+        ldy #$0
+	lda #$3f
+	sta PPU_ADDR
+	sty PPU_ADDR
+        lda #$1c
+        sta PPU_DATA
+; enable PPU rendering
         lda #0
         sta PPU_ADDR
         sta PPU_ADDR		;PPU addr = 0
@@ -83,37 +79,6 @@ _exit:
 
 ;;;;; SUBROUTINES
 
-; set palette colors
-SetPalette: subroutine
-        ldy #$0
-	lda #$3f
-	sta PPU_ADDR
-	sty PPU_ADDR
-	ldx #4
-.loop:
-	lda Palette,y
-	sta PPU_DATA
-        iny
-	dex
-	bne .loop
-        rts
-
-; fill video RAM
-FillVRAM: subroutine
-	txa
-	ldy #$20
-	sty PPU_ADDR
-	sta PPU_ADDR
-	ldy #$10
-.loop:
-	sta PPU_DATA
-        adc #1
-	inx
-	bne .loop
-	dey
-	bne .loop
-        rts
-
 ; wait for VSYNC to start
 WaitSyncSafe: subroutine
 	bit PPU_STATUS
@@ -126,24 +91,7 @@ WaitSync:
 
 nmi:
 irq:
-; save registers
-	pha	; save A
-; update scroll position
-	inc ScrollPos
-        lda ScrollPos
-        sta PPU_SCROLL
-        sta PPU_SCROLL
-; reload registers
-        pla	; reload A
 	rti
-
-;;;;; CONSTANT DATA
-
-Palette:
-	hex 1f001020 ; black, gray, lt gray, white
-TextString:
-	byte "HELLO WORLD!"
-        byte 0
 
 ;;;;; CPU VECTORS
 
@@ -152,15 +100,3 @@ TextString:
 	.word start	;$fffc reset
 	.word irq	;$fffe irq / brk
 
-;;;;; TILE SETS
-
-	REPEAT 64
-	hex 003c6666766e663c007e181818381818
-        hex 007e60300c06663c003c66061c06663c
-        hex 0006067f661e0e06003c6606067c607e
-        hex 003c66667c60663c00181818180c667e
-        hex 003c66663c66663c003c66063e66663c
-        hex 01010101010101010000000000000000
-        hex ff000000000000000000000000000000
-        hex 01020408102040800000000000000000
-	REPEND

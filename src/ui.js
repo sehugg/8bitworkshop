@@ -35,13 +35,39 @@ Javatari.AUTO_START = false;
 var PRESETS; // presets array
 var platform_id;
 var platform; // platform object
+var originalFileID;
+var originalText;
 
 var toolbar = $("#controls_top");
+
+function getBiggestItems(storage) {
+  var items = [];
+  for (var i = 0; i < storage.length; i++) {
+    var key = storage.key(i);
+    items.push([lpad(storage.getItem(key).length+"", 12), key]);
+  }
+  items.sort();
+  var s = "";
+  for (var i=items.length-5; i<items.length; i++) {
+    s += items[i] + "\n";
+  }
+  return s;
+}
 
 var FileStore = function(storage, prefix) {
   var self = this;
   this.saveFile = function(name, text) {
-    storage.setItem(prefix + name, text);
+    try {
+      storage.setItem(prefix + name, text);
+    } catch (e) {
+      if (e.name == 'NS_ERROR_DOM_QUOTA_REACHED') {
+        console.log(e);
+        alert("Sorry, you've reached your local storage quota for this browser.\n\nHere are the biggest items:\n\n" +
+          getBiggestItems(storage));
+      } else {
+        throw e;
+      }
+    }
   }
   this.loadFile = function(name) {
     return storage.getItem(prefix + name) || storage.getItem(name);
@@ -181,7 +207,7 @@ function setLastPreset(id) {
 }
 
 function updatePreset(current_preset_id, text) {
-  if (text.trim().length) {
+  if (text.trim().length && (originalFileID != current_preset_id || text != originalText)) {
     store.saveFile(current_preset_id, text);
   }
 }
@@ -193,6 +219,8 @@ function loadCode(text, fileid) {
   editor.clearHistory();
   current_output = null;
   setLastPreset(fileid);
+  originalFileID = fileid;
+  originalText = text;
 }
 
 function loadFile(fileid, filename, index) {
@@ -220,7 +248,6 @@ function loadFile(fileid, filename, index) {
     var ext = platform.getToolForFilename(fileid);
     $.get( "presets/"+platform_id+"/skeleton."+ext, function( text ) {
       loadCode(text, fileid);
-      updatePreset(fileid, text);
     }, 'text')
     .fail(function() {
       alert("Could not load skeleton for " + platform_id + "/" + ext);
