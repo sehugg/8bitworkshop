@@ -1,13 +1,12 @@
 
-#include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 
 #include "cv.h"
 #include "cvu.h"
 
-#define COLOR ((const cv_vmemp)0x2000)
-#define IMAGE ((const cv_vmemp)0x1c00)
+#define PATTERN	0x0000
+#define IMAGE	0x1c00
+#define COLOR	0x2000
 
 #define COLS 32
 #define ROWS 24
@@ -16,11 +15,11 @@ uintptr_t __at(0x6a) font_bitmap_a;
 uintptr_t __at(0x6c) font_bitmap_0;
 
 void setup_32_column_font() {
+  cv_set_character_pattern_t(PATTERN);
   cv_set_image_table(IMAGE);
-  cvu_memtovmemcpy(0x1800, (void *)(font_bitmap_0 - '0'*8), 2048);
-  cv_set_character_pattern_t(0x1800);
-  cv_set_screen_mode(CV_SCREENMODE_STANDARD);
   cv_set_color_table(COLOR);
+  cv_set_screen_mode(CV_SCREENMODE_STANDARD);
+  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - '0'*8), 2048);
   cvu_vmemset(COLOR, 0x36, 8); // set color for chars 0-63
   cvu_vmemset(COLOR+8, 0x06, 32-8); // set chars 63-255
 }

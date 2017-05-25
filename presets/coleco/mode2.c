@@ -24,7 +24,7 @@ void setup_32_column_font() {
   cvu_memtovmemcpy(PATTERN+0x1000, (void *)(font_bitmap_0 - '0'*0), 0x800);
   cv_set_character_pattern_t(PATTERN|0x1fff); // AND mask
   cv_set_screen_mode(CV_SCREENMODE_BITMAP); // mode 2
-  cv_set_color_table(0x2000|0xfff); // AND mask
+  cv_set_color_table(0x2000|0x1fff); // AND mask
   {
     int i;
     for (i=0; i<0x800; i++)

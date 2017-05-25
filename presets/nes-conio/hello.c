@@ -1,42 +1,48 @@
 
-#include "nes.h"
+#include <nes.h>
 
-unsigned char index;
+const unsigned char TEXT[]="Hello PPU!!!!";
 
-const unsigned char TEXT[]={"Hello PPU!!!"};
-
-const unsigned char PALETTE[]={0x1, 0x00, 0x10, 0x20}; //blue, gray, lt gray, white
+const unsigned char PALETTE[]={0x1, 0x00, 0x10, 0x20}; // blue, gray, lt gray, white
 
 void main (void) {
+  unsigned char index; // used in 'for' loops
 
- // turn off the screen
- PPU.control = 0;
- PPU.mask = 0;
- 
- // load the palette
- PPU.vram.address = 0x3f;
- PPU.vram.address = 0x0;
- for(index = 0; index < sizeof(PALETTE); ++index){
-  PPU.vram.data = PALETTE[index];
- }
+  // if we've just powered on,
+  // wait for PPU to warm-up
+  waitvblank();
+  waitvblank();
 
- // load the text
- PPU.vram.address = 0x21; // set an address in the PPU of 0x21ca
- PPU.vram.address = 0xca;  // about the middle of the screen
- for( index = 0; index < sizeof(TEXT); ++index ){
-  PPU.vram.data = TEXT[index];
- }
-  
- // reset the scroll position 
- PPU.vram.address = 0x20;
- PPU.vram.address = 0x0;
- PPU.scroll = 0;
- PPU.scroll = 0;
+  // turn off screen
+  PPU.control = 0x0; // NMI off
+  PPU.mask = 0x0; // screen off
+
+  // load the palette
+  // set PPU address to 0x3f00
+  PPU.vram.address = 0x3f;
+  PPU.vram.address = 0x00;
+  for (index = 0; index < sizeof(PALETTE); index++) {
+    PPU.vram.data = PALETTE[index];
+  }
+
+  // load the text into VRAM
+  // set PPU address to 0x21c9
+  PPU.vram.address = 0x21;
+  PPU.vram.address = 0xc9;
+  for (index = 0; index < sizeof(TEXT); index++) {
+    PPU.vram.data = TEXT[index];
+  }
+
+  // reset the scroll position to 0
+  PPU.scroll = 0;
+  PPU.scroll = 0;
+  // reset the PPU address to 0x2000 (frame start)
+  PPU.vram.address = 0x20;
+  PPU.vram.address = 0x00;
  
- // turn on screen
- PPU.control = 0x80; // NMI on
- PPU.mask = 0x1e; // screen on
- 
- // infinite loop
- while (1); 
+  // turn on the screen
+  PPU.mask = 0x1e;
+
+  // infinite loop
+  while (1);
 }

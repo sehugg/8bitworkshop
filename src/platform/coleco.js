@@ -19,8 +19,13 @@ var ColecoVision_PRESETS = [
   {id:'stars.c', name:'Scrolling Starfield'},
   {id:'cursorsmooth.c', name:'Moving Cursor'},
   {id:'simplemusic.c', name:'Simple Music'},
+  {id:'musicplayer.c', name:'Multivoice Music'},
+  {id:'mode2bitmap.c', name:'Mode 2 Bitmap'},
+  {id:'lines.c', name:'Mode 2 Lines'},
+  {id:'multicolor.c', name:'Multicolor Mode'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot.c', name:'Solarian Game'},
+  {id:'platform.c', name:'Platform Game'},
 ];
 
 // doesn't work, use MAME

@@ -653,8 +653,8 @@ void does_missile_hit_player() {
     return;
   for (i=0; i<MAX_ATTACKERS; i++) {
     if (missiles[i].dy && 
-        in_rect(missiles[i].xpos + 8, missiles[i].ypos, 
-                player_x, player_y - 8, 16, 16)) {
+        in_rect(missiles[i].xpos + 8, missiles[i].ypos + 16, 
+                player_x, player_y, 16, 16)) {
       player_exploding = 1;
       break;
     }
@@ -736,7 +736,6 @@ void play_round() {
   framecount = 0;
   new_player_ship();
   while (end_timer) {
-    //cvu_voutb(cv_get_sprite_collission()*4, COLOR);
     if (player_exploding) {
       if ((framecount & 7) == 1) {
         animate_player_explosion();
@@ -755,18 +754,13 @@ void play_round() {
     move_attackers();
     move_missiles();
     does_player_shoot_formation();
-    does_player_shoot_attacker();
+    does_player_shoot_attacker(); 
     draw_next_row();
     draw_attackers();
     if ((framecount & 0xf) == 0) think_attackers();
     set_sounds();
     framecount++;
     if (!enemies_left) end_timer--;
-    if (0) {
-      putchar(12,0,vint_counter&3);
-      putchar(13,0,framecount&3);
-      putchar(14,0,(vint_counter^framecount)&3);
-    }
     wait_for_frame();
     copy_sprites();
   }
@@ -776,8 +770,8 @@ void main() {
   cv_set_screen_active(false);
   setup_32_column_font();
   clrscr();
-  cv_set_screen_active(true);
   cv_set_vint_handler(&vint_handler);
+  cv_set_screen_active(true);
   play_round();
   main();
 }

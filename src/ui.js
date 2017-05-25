@@ -1096,20 +1096,30 @@ function openBitmapEditorAtCursor() {
 }
 
 function _recordVideo() {
-  var gif = new GIF({
-    workerScript: 'gif.js/dist/gif.worker.js',
-    workers: 4,
-    quality: 10
-  });
   var canvas = $("#emulator").find("canvas")[0];
   if (!canvas) {
     alert("Could not find canvas element to record video!");
     return;
   }
+  var rotate = 0;
+  if (canvas.style && canvas.style.transform) {
+    if (canvas.style.transform.indexOf("rotate(-90deg)") >= 0)
+      rotate = -1;
+    else if (canvas.style.transform.indexOf("rotate(90deg)") >= 0)
+      rotate = 1;
+  }
+  var gif = new GIF({
+    workerScript: 'gif.js/dist/gif.worker.js',
+    workers: 4,
+    quality: 10,
+    rotate: rotate
+  });
   var img = $('#videoPreviewImage');
   //img.attr('src', 'https://articulate-heroes.s3.amazonaws.com/uploads/rte/kgrtehja_DancingBannana.gif');
   gif.on('finished', function(blob) {
     img.attr('src', URL.createObjectURL(blob));
+    $("#pleaseWaitModal").modal('hide');
+    platform.resume();
     $("#videoPreviewModal").modal('show');
   });
   var intervalMsec = 17;
@@ -1119,9 +1129,11 @@ function _recordVideo() {
   var f = function() {
     if (nframes++ > maxFrames) {
       console.log("Rendering video");
+      $("#pleaseWaitModal").modal('show');
+      platform.pause();
       gif.render();
     } else {
-      gif.addFrame(canvas, {delay: intervalMsec});
+      gif.addFrame(canvas, {delay: intervalMsec, copy: true});
       setTimeout(f, intervalMsec);
     }
   };

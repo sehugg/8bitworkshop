@@ -881,6 +881,7 @@ var BaseMAMEPlatform = function() {
   var running = false;
   var console_vars = {};
   var console_varname;
+  var initluavars = false;
 
   this.luareset = function() {
     console_vars = {};
@@ -912,6 +913,8 @@ var BaseMAMEPlatform = function() {
 
   this.reset = function() {
     this.luacall('manager:machine():soft_reset()');
+    running = true;
+    initluavars = false;
   }
 
   this.isRunning = function() {
@@ -1029,8 +1032,6 @@ var BaseMAMEPlatform = function() {
     // TODO
     return state;
   }
-
-  var initluavars=false;
 
   this.readAddress = function(a) {
     if (!initluavars) {

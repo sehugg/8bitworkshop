@@ -54,7 +54,7 @@ _exit:
 ; clear RAM -- not a subroutine because we clear the stack too
 	lda #0
         tax
-.loop
+.clearRAM
 	sta $0,x
 	sta $100,x
         ; skip $200-$2FF, used for OAM display list
@@ -64,7 +64,7 @@ _exit:
 	sta $600,x
 	sta $700,x
         inx
-        bne .loop
+        bne .clearRAM
 ; end of clear RAM routine
 	jsr SetPalette		;set colors
         jsr FillVRAM		;set PPU RAM

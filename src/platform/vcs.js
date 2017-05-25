@@ -27,6 +27,7 @@ var VCS_PRESETS = [
   {id:'examples/road', chapter:33, name:'Pseudo 3D Road'},
   {id:'examples/bankswitching', chapter:35, name:'Bankswitching'},
   {id:'examples/wavetable', chapter:36, name:'Wavetable Sound'},
+  {id:'examples/fracpitch', name:'Fractional Pitch'},
 //  {id:'examples/music2', name:'Pitch-Accurate Music'},
 //  {id:'examples/fullgame', name:'Thru Hike: The Game', title:'Thru Hike'},
 ];

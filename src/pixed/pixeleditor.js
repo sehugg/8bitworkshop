@@ -26,6 +26,7 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
     for (var i=0; i<thumbnails.length; i++) {
       thumbnails[i].copyImageFrom(self);
     }
+    initialData.set(self.getImageColors());
   }
 
   this.copyImageFrom = function(src) {
@@ -249,6 +250,7 @@ function convertBytesToImages(bytes, fmt) {
   var nplanes = fmt.np || 1;
   var bytesperline = fmt.sl || Math.ceil(width * bpp / 8);
   var mask = (1 << bpp)-1;
+  var pofs = fmt.pofs || bytesperline*height*count;
   var images = [];
   for (var n=0; n<count; n++) {
     var imgdata = [];
@@ -259,7 +261,7 @@ function convertBytesToImages(bytes, fmt) {
         var color = 0;
         var ofs = remapBits(ofs0, fmt.remap);
         for (var p=0; p<nplanes; p++) {
-          var byte = bytes[ofs + p*(fmt.pofs|0)];
+          var byte = bytes[ofs + p*pofs];
           color |= ((fmt.brev ? byte>>(8-shift-bpp) : byte>>shift) & mask) << (p*bpp);
         }
         imgdata.push(color);
@@ -270,7 +272,7 @@ function convertBytesToImages(bytes, fmt) {
         }
       }
     }
-    images.push(imgdata);
+    images.push(new Uint8Array(imgdata));
   }
   return images;
 }
@@ -283,7 +285,8 @@ function convertImagesToBytes(images, fmt) {
   var nplanes = fmt.np || 1;
   var bytesperline = fmt.sl || Math.ceil(fmt.w * bpp / 8);
   var mask = (1 << bpp)-1;
-  var bytes = new Uint8Array(bytesperline * height * nplanes * count);
+  var pofs = fmt.pofs || bytesperline*height*count;
+  var bytes = new Uint8Array(bytesperline*height*count*nplanes);
   for (var n=0; n<count; n++) {
     var imgdata = images[n];
     var i = 0;
@@ -295,7 +298,7 @@ function convertImagesToBytes(images, fmt) {
         var ofs = remapBits(ofs0, fmt.remap);
         for (var p=0; p<nplanes; p++) {
           var c = (color >> (p*bpp)) & mask;
-          bytes[ofs + p*(fmt.pofs|0)] |= (fmt.brev ? (c << (8-shift-bpp)) : (c << shift));
+          bytes[ofs + p*pofs] |= (fmt.brev ? (c << (8-shift-bpp)) : (c << shift));
         }
         shift += bpp;
         if (shift >= 8) {
@@ -373,10 +376,10 @@ function pixelEditorDecodeMessage(e) {
       // TODO: swap palettes
     }
   } else {
-    var ncols = (currentFormat.bpp || 1) * (currentFormat.np || 2);
+    var ncols = (currentFormat.bpp || 1) * (currentFormat.np || 1);
     switch (ncols) {
       case 2:
-        palette = [0xff000000, 0xffff0000, 0xffffff00, 0xffffffff];
+        palette = [0xff000000, 0xffff00ff, 0xffffff00, 0xffffffff];
         break;
       // TODO
     }

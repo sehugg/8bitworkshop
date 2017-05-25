@@ -22,7 +22,7 @@ void setup_mode2() {
   cv_set_screen_mode(CV_SCREENMODE_BITMAP); // mode 2
   cv_set_image_table(IMAGE);
   cv_set_character_pattern_t(PATTERN|0x1fff); // AND mask
-  cv_set_color_table(COLOR|0xfff); // AND mask
+  cv_set_color_table(COLOR|0x1fff); // AND mask
   cv_set_sprite_attribute_table(0x2800);
   {
     byte i=0;
@@ -48,47 +48,26 @@ void set_pixel(byte x, byte y, byte color) {
   }
 }
 
-void draw_line(int x0, int y0, int x1, int y1, byte color)
-{
-    int dx, dy, p, x, y;
-    dx=x1-x0;
-    dy=y1-y0;
-    x=x0;
-    y=y0;
-    p=2*dy-dx;
-    while(x<x1)
-    {
-        if(p>=0)
-        {
-            set_pixel(x,y,color);
-            y=y+1;
-            p=p+2*dy-2*dx;
-        }
-        else
-        {
-            set_pixel(x,y,color);
-            p=p+2*dy;
-        }
-        x=x+1;
-    }
+void draw_line(int x0, int y0, int x1, int y1, byte color) {
+  int dx = abs(x1-x0);
+  int sx = x0<x1 ? 1 : -1;
+  int dy = abs(y1-y0);
+  int sy = y0<y1 ? 1 : -1;
+  int err = (dx>dy ? dx : -dy)>>1;
+  int e2;
+  for(;;) {
+    set_pixel(x0, y0, color);
+    if (x0==x1 && y0==y1) break;
+    e2 = err;
+    if (e2 > -dx) { err -= dy; x0 += sx; }
+    if (e2 < dy) { err += dx; y0 += sy; }
+  }
 }
 
 void main() {
   setup_mode2();
   cv_set_screen_active(true);
-  while(1)
-  draw_line(rand()&0xff, rand()&0xff, rand()&0xff, rand()&0xff, rand()&15);
-  /*
-  set_pixel(0, 0, 2);
-  set_pixel(1, 0, 2);
-  set_pixel(0, 1, 2);
-  set_pixel(2, 2, 2);
-  set_pixel(3, 3, 2);
-  set_pixel(0, 7, 4);
-  set_pixel(7, 7, 4);
-  set_pixel(8, 7, 4);
-  set_pixel(0, 8, 4);
-  draw_line(20,0,210,150,2);
-  while(1);
-  */
+  while(1) {
+    draw_line(rand()&0xff, rand()&0xbf, rand()&0xff, rand()&0xbf, rand()&15);
+  }
 }

@@ -33,8 +33,8 @@ void setup_32_column_font() {
   cv_set_character_pattern_t(0x1800);
   cv_set_screen_mode(CV_SCREENMODE_STANDARD);
   cv_set_color_table(COLOR);
-  cvu_vmemset(COLOR, 0x36, 8); // set color for chars 0-63
-  cvu_vmemset(COLOR+8, 0x06, 32-8); // set chars 63-255
+  cvu_vmemset(COLOR, 0x30, 8); // set color for chars 0-63
+  cvu_vmemset(COLOR+8, 0x50, 32-8); // set chars 63-255
 }
 
 char cursor_x;
