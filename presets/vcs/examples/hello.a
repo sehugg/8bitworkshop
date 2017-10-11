@@ -29,6 +29,7 @@ Start   sei		; disable interrupts
 Zero    sta  $00,X	; store A register at address ($0 + X)
 	dex		; decrement X by one
 	bne  Zero	; branch until X is zero
+        sta  $00	; the loop doesn't cover address 0
 
 ; Set background color
 	lda #$30	;load value into A ($30 is deep red on NTSC)
