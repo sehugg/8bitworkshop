@@ -82,13 +82,6 @@ var PLATFORM_PARAMS = {
   },
 };
 
-var loaded = {}
-function load(modulename, debug) {
-  if (!loaded[modulename]) {
-    importScripts(modulename+(debug?"."+debug+".js":".js"));
-    loaded[modulename] = 1;
-  }
-}
 // shim out window and document objects for security
 // https://github.com/mbostock/d3/issues/1053
 var noop = function() { return new Function(); };
@@ -105,6 +98,7 @@ document.documentElement.style = noop();
 
 var fsMeta = {};
 var fsBlob = {};
+var wasmBlob = {};
 
 // load filesystems for CC65 and others asynchronously
 function loadFilesystem(name) {
@@ -119,6 +113,30 @@ function loadFilesystem(name) {
   xhr.send(null);
   fsMeta[name] = xhr.response;
   console.log("Loaded "+name+" filesystem", fsMeta[name].files.length, 'files', fsBlob[name].size, 'bytes');
+}
+
+var loaded = {}
+function load(modulename, debug) {
+  if (!loaded[modulename]) {
+    importScripts(modulename+(debug?"."+debug+".js":".js"));
+    loaded[modulename] = 1;
+  }
+}
+function loadWASM(modulename, debug) {
+  if (!loaded[modulename]) {
+    importScripts("wasm/" + modulename+(debug?"."+debug+".js":".js"));
+    var xhr = new XMLHttpRequest();
+    xhr.responseType = 'arraybuffer';
+    xhr.open("GET", "wasm/"+modulename+".wasm", false);  // synchronous request
+    xhr.send(null);
+    if (xhr.response) {
+      wasmBlob[modulename] = xhr.response; //new Uint8Array(xhr.response);
+      console.log("Loaded " + modulename + ".wasm");
+      loaded[modulename] = 1;
+    } else {
+      throw Error("Could not load WASM file");
+    }
+  }
 }
 
 var ATARI_CFG =
@@ -781,21 +799,31 @@ function assemblelinkSDASZ80(code, platform) {
   }
 }
 
+var sdcc;
 function compileSDCC(code, platform) {
   var preproc = preprocessMCPP(code, platform);
   if (preproc.errors) return preproc;
   else code = preproc.code;
 
-  load("sdcc");
-  //load("wasm/sdcc");
-  //console.profile("sdcc");
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
+
+  load("sdcc");
+  //loadWASM("sdcc");
+  //var wasmmod = new WebAssembly.Module(wasmBlob['sdcc']);
+  //var wasminst = new WebAssembly.Instance(wasmmod);
+  //var webasm = WebAssembly.instantiate(wasmBlob['sdcc']).then(foo => console.log(foo));
   var SDCC = sdcc({
+    instantiateWasm: function(info, recv) {
+      var inst = new WebAssembly.Instance(wasmmod, info);
+      recv(inst);
+      return true;
+    },
+    //wasmBinary: wasmBlob['sdcc'],
     noInitialRun:true,
     noFSInit:true,
     print:print_fn,
-    printErr:match_msvc,
+    printErr:match_msvc, // console.log
     TOTAL_MEMORY:256*1024*1024,
   });
   var FS = SDCC['FS'];

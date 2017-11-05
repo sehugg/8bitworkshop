@@ -946,7 +946,7 @@ var BaseMAMEPlatform = function() {
     var script = document.createElement('script');
     window.JSMESS = {};
     window.Module = {
-      arguments: [opts.driver, '-verbose', '-window', '-nokeepaspect', '-resolution', canvas.width+'x'+canvas.height, '-cart', romfn],
+      arguments: [opts.driver, '-debug', '-verbose', '-window', '-nokeepaspect', '-resolution', canvas.width+'x'+canvas.height, '-cart', romfn],
       screenIsReadOnly: true,
       print: bufferConsoleOutput,
       canvas:video.canvas,
@@ -966,6 +966,7 @@ var BaseMAMEPlatform = function() {
         }
         FS.mkdir('/emulator');
         FS.writeFile(romfn, romdata, {encoding:'binary'});
+        FS.writeFile('/debug.ini', 'debugger none\n', {encoding:'utf8'});
         if (opts.preInit) {
           opts.preInit(self);
         }
@@ -1042,8 +1043,21 @@ var BaseMAMEPlatform = function() {
     return parseInt(console_vars.v[0]);
   }
 
+  // DEBUGGING SUPPORT
+
+  var onBreakpointHit;
+
   this.getDebugCallback = function() {
     // TODO
+  }
+  this.setupDebug = function(callback) {
+    onBreakpointHit = callback;
+  }
+  this.step = function() {
+    self.readAddress(0);
+    //self.luacall('cpu.debug()\n')
+    self.luacall('debugger = manager:machine().debugger()')
+    self.luacall('print(debugger)') // TODO
   }
 
 }

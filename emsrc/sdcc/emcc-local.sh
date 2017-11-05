@@ -45,7 +45,7 @@ emmake make
 
 echo Making JS files...
 popd
-mkdir -p ./js
+mkdir -p ./js ./wasm
 cp /tmp/sdcc/sdcc/bin/sdcc js/sdcc.bc
 cp /tmp/sdcc/sdcc/bin/sdasz80 js/sdasz80.bc
 cp /tmp/sdcc/sdcc/bin/sdldz80 js/sdldz80.bc

@@ -1,0 +1,6 @@
+
+1. Install Emscripten
+ a. bash boost.sh
+2. Install texinfo
+3. cp Makefile.local and emcc-local.sh to ~/sdcc
+4. bash emcc-local.sh
