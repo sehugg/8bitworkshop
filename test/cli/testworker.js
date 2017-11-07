@@ -105,10 +105,10 @@ describe('Worker', function() {
     compile('plasm', 'word x = ', 'apple2', done, 0, 0, 1);
   });
   it('should compile CC65', function(done) {
-    compile('cc65', '#include <stdio.h>\nint main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'apple2', done, 2947, 4);
+    compile('cc65', 'int main() {\nint x=1;\nreturn x+2;\n}', 'nes-conio', done, 2947, 4);
   });
   it('should NOT compile CC65', function(done) {
-    compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'apple2', done, 0, 0, 1);
+    compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes-conio', done, 0, 0, 1);
   });
   it('should assemble Z80ASM', function(done) {
     compile('z80asm', '\tMODULE test\n\tXREF _puts\n\tld	hl,$0000\n\tret\n', 'mw8080bw', done, 4, 2, 0);

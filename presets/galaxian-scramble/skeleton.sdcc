@@ -143,11 +143,6 @@ void _buffer() {
 __asm
 ; padding to get to offset 0x66
   ld ix,#0
-  ld ix,#0
-  ld ix,#0
-  nop
-  nop
-  nop
 __endasm;
 }
 

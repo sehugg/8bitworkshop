@@ -808,18 +808,13 @@ function compileSDCC(code, platform) {
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
 
-  load("sdcc");
-  //loadWASM("sdcc");
-  //var wasmmod = new WebAssembly.Module(wasmBlob['sdcc']);
-  //var wasminst = new WebAssembly.Instance(wasmmod);
-  //var webasm = WebAssembly.instantiate(wasmBlob['sdcc']).then(foo => console.log(foo));
+  // detect WASM
+  if (typeof WebAssembly === 'object')
+    loadWASM("sdcc");
+  else
+    load("sdcc");
   var SDCC = sdcc({
-    instantiateWasm: function(info, recv) {
-      var inst = new WebAssembly.Instance(wasmmod, info);
-      recv(inst);
-      return true;
-    },
-    //wasmBinary: wasmBlob['sdcc'],
+    wasmBinary: wasmBlob['sdcc'],
     noInitialRun:true,
     noFSInit:true,
     print:print_fn,
@@ -835,7 +830,8 @@ function compileSDCC(code, platform) {
   var args = ['--vc', '--std-sdcc99', '-mz80', //'-Wall',
     '--c1mode', // '--debug',
     //'-S', 'main.c',
-    //'--asm=z80asm',
+    //'--asm=sdasz80',
+    //'--reserve-regs-iy',
     '--less-pedantic',
     ///'--fomit-frame-pointer',
     '--opt-code-speed',
@@ -849,7 +845,7 @@ function compileSDCC(code, platform) {
   SDCC.callMain(args);
   var t2 = new Date();
   //console.profileEnd();
-  //console.log(t2.getTime() - t1.getTime());
+  console.log(t2.getTime() - t1.getTime() + " ms");
   /*
   // ignore if all are warnings (TODO?)
   var nwarnings = 0;

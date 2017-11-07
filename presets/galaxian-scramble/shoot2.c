@@ -137,22 +137,21 @@ void clrscr() {
 
 volatile byte video_framecount; // actual framecount
 
-void reset_video_framecount() __critical {
-  video_framecount = 0;
-}
-
 void _buffer() {
 __asm
 ; padding to get to offset 0x66
   ld ix,#0
   ld ix,#0
-  ld ix,#0
-  nop
 __endasm;
 }
 
+// needs to start at offset 0x66
 void rst_66() __interrupt {
   video_framecount++;
+}
+
+void reset_video_framecount() __critical {
+  video_framecount = 0;
 }
 
 byte getchar(byte x, byte y) {
@@ -734,3 +733,4 @@ void main() {
   play_round();
   main();
 }
+

@@ -14,6 +14,18 @@ wasm/%.js: js/%.bc
 	emcc -Oz --memory-init-file 0 \
 		-s WASM=1 \
 		-s MODULARIZE=1 \
+		-s BINARYEN_ASYNC_COMPILATION=0 \
+		-s TOTAL_MEMORY=256MB \
+		-s NO_EXIT_RUNTIME=1 \
+		-s EXPORT_NAME=\"'$*'\" \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s FORCE_FILESYSTEM=1 \
+		$< -o $@ $(ARGS_$*) \
+
+
+mainwasm/%.js: js/%.bc
+	emcc -Oz --memory-init-file 0 \
+		-s WASM=1 \
 		-s EXPORT_NAME=\"'$*'\" \
 		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
 		-s FORCE_FILESYSTEM=1 \
