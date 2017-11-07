@@ -1,5 +1,5 @@
 
-CC65FLAGS=-I/home/huggvey/compilers/cc65/include -I/home/huggvey/compilers/cc65/include/nes -L/home/huggvey/compilers/cc65/lib --cfg-path /home/huggvey/compilers/cc65/cfg/
+CC65FLAGS=-I/home/hugg/compilers/cc65/include -I/home/hugg/compilers/cc65/include/nes -L/home/hugg/compilers/cc65/lib --cfg-path /home/hugg/compilers/cc65/cfg/ -v
 
 all: \
 	default_neslib.neslib.nes default_conio.conio.nes \
@@ -19,7 +19,7 @@ clean:
 	cl65 $(CC65FLAGS) -o $@ -t nes $*.c nes.lib
 
 %.rom: %.s
-	ld65 -o $@ -C atarivec.cfg $*.o atari2600.lib
+	time ld65 -o $@ -C atarivec.cfg $*.o atari2600.lib
 	
 %.lzg: %.nes
 	lzg $< | hexdump -v -e '"\n" 32/1 "%u,"' > $@

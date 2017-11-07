@@ -96,6 +96,10 @@ var document = noop();
 document.documentElement = noop();
 document.documentElement.style = noop();
 
+var _t1, _t2;
+function starttime() { _t1 = new Date(); }
+function endtime(msg) { _t2 = new Date(); console.log(msg, _t2.getTime() - _t1.getTime(), "ms"); }
+
 var fsMeta = {};
 var fsBlob = {};
 var wasmBlob = {};
@@ -136,6 +140,15 @@ function loadWASM(modulename, debug) {
     } else {
       throw Error("Could not load WASM file");
     }
+  }
+}
+function loadNative(modulename, debug) {
+  // detect WASM
+  if (typeof WebAssembly === 'object') {
+    loadWASM(modulename);
+    return wasmBlob['sdcc'];
+  } else {
+    load(modulename);
   }
 }
 
@@ -520,11 +533,12 @@ function assemblelinkCA65(code, platform, warnings) {
   function error_fn(s) {
     errors += s + "\n";
   }
-  load("ca65");
-  load("ld65");
+  loadNative("ca65");
+  loadNative("ld65");
   var objout, lstout;
   {
     var CA65 = ca65({
+      wasmBinary: wasmBlob['ca65'],
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
@@ -533,11 +547,14 @@ function assemblelinkCA65(code, platform, warnings) {
     var FS = CA65['FS'];
     setupFS(FS, '65');
     FS.writeFile("main.s", code, {encoding:'utf8'});
+    starttime();
     CA65.callMain(['-v', '-g', '-I', '/share/asminc', '-l', 'main.lst', "main.s"]);
+    endtime("assemble");
     objout = FS.readFile("main.o", {encoding:'binary'});
     lstout = FS.readFile("main.lst", {encoding:'utf8'});
   }{
     var LD65 = ld65({
+      wasmBinary: wasmBlob['ld65'],
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
@@ -548,10 +565,12 @@ function assemblelinkCA65(code, platform, warnings) {
     setupFS(FS, '65');
     FS.writeFile("main.o", objout, {encoding:'binary'});
     var libargs = params.libargs;
+    starttime();
     LD65.callMain(['--cfg-path', '/share/cfg', '--lib-path', '/share/lib',
       '-C', params.cfgfile,
       //'--dbgfile', 'main.dbg',
       '-o', 'main', '-m', 'main.map', 'main.o'].concat(libargs));
+    endtime("link");
     if (errors.length) {
       return {errors:[{line:1,msg:errors}]};
     }
@@ -599,11 +618,13 @@ function compileCC65(code, platform) {
   var FS = CC65['FS'];
   setupFS(FS, '65');
   FS.writeFile("main.c", code, {encoding:'utf8'});
+  starttime();
   CC65.callMain(['-T', '-g', /*'-Cl',*/
     '-Oirs',
     '-I', '/share/include',
     '-D' + params.define,
     "main.c"]);
+  endtime("compile");
   try {
     var asmout = FS.readFile("main.s", {encoding:'utf8'});
     //console.log(asmout);
@@ -700,8 +721,8 @@ function parseIHX(ihx, rom_start, rom_size) {
 }
 
 function assemblelinkSDASZ80(code, platform) {
-  load("sdasz80");
-  load("sdldz80");
+  loadNative("sdasz80");
+  loadNative("sdldz80");
   var objout, lstout, symout;
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
@@ -721,6 +742,7 @@ function assemblelinkSDASZ80(code, platform) {
       }
     }
     var ASZ80 = sdasz80({
+      wasmBinary: wasmBlob['sdasz80'],
       noInitialRun:true,
       //logReadFiles:true,
       print:match_asm_fn,
@@ -728,7 +750,9 @@ function assemblelinkSDASZ80(code, platform) {
     });
     var FS = ASZ80['FS'];
     FS.writeFile("main.asm", code, {encoding:'utf8'});
+    starttime();
     ASZ80.callMain(['-plosgffwy', 'main.asm']);
+    endtime("assemble");
     if (msvc_errors.length) {
       return {errors:msvc_errors};
     }
@@ -749,6 +773,7 @@ function assemblelinkSDASZ80(code, platform) {
     }
     var updateListing = !params.extra_link_args;
     var LDZ80 = sdldz80({
+      wasmBinary: wasmBlob['sdldz80'],
       noInitialRun:true,
       //logReadFiles:true,
       print:match_aslink_fn,
@@ -771,7 +796,9 @@ function assemblelinkSDASZ80(code, platform) {
     } else {
       args.push('main.rel');
     }
+    starttime();
     LDZ80.callMain(args);
+    endtime("link");
     var hexout = FS.readFile("main.ihx", {encoding:'utf8'});
     var mapout = FS.readFile("main.noi", {encoding:'utf8'});
     var rstout = updateListing ? FS.readFile("main.rst", {encoding:'utf8'}) : lstout;
@@ -808,11 +835,7 @@ function compileSDCC(code, platform) {
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
 
-  // detect WASM
-  if (typeof WebAssembly === 'object')
-    loadWASM("sdcc");
-  else
-    load("sdcc");
+  loadNative('sdcc');
   var SDCC = sdcc({
     wasmBinary: wasmBlob['sdcc'],
     noInitialRun:true,
@@ -826,7 +849,6 @@ function compileSDCC(code, platform) {
   setupFS(FS, 'sdcc');
   //FS.writeFile("main.c", code, {encoding:'utf8'});
   msvc_errors = [];
-  var t1 = new Date();
   var args = ['--vc', '--std-sdcc99', '-mz80', //'-Wall',
     '--c1mode', // '--debug',
     //'-S', 'main.c',
@@ -842,10 +864,9 @@ function compileSDCC(code, platform) {
   if (params.extra_compile_args) {
     args.push.apply(args, params.extra_compile_args);
   }
+  starttime();
   SDCC.callMain(args);
-  var t2 = new Date();
-  //console.profileEnd();
-  console.log(t2.getTime() - t1.getTime() + " ms");
+  endtime("compile");
   /*
   // ignore if all are warnings (TODO?)
   var nwarnings = 0;
