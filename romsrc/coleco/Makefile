@@ -1,5 +1,10 @@
 
 all: minbios.rom
+	mkdir -p ../../mame/roms/coleco
+	cp $< ../../mame/roms/coleco/"313 10031-4005 73108a.u2"
+
+clean:
+	rm -f minbios.rom
 
 %.rom: %.asm
 	naken_asm -b $<

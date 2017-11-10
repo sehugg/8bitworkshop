@@ -1,0 +1,28 @@
+
+%.js: bin/%.bc
+	emcc -O2 --memory-init-file 0 \
+		-s ASM_JS=1 \
+		-s MODULARIZE=1 \
+		-s EXPORT_NAME=\"'$*'\" \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s FORCE_FILESYSTEM=1 \
+		bin/$*.bc -o $@ $(ARGS_$*)
+
+bin/%.bc:
+	mkdir -p bin js
+	emmake make $*
+	cp bin/$*.exe bin/$*.bc
+
+emscripten: include asminc cfg lib/apple2.lib target/apple2
+	cp -rp src Makefile js
+	make -C js cc65.js ca65.js co65.js ld65.js
+
+fs65.js:
+	python $(EMSCRIPTEN)/tools/file_packager.py fs65.data \
+	--preload include asminc cfg \
+	lib/apple2.lib target/apple2 \
+	lib/nes.lib target/nes \
+	neslib/nes.cfg@cfg/neslib.cfg \
+	neslib/neslib.lib@lib/neslib.lib \
+	neslib/neslib.h@include/neslib.h \
+	--separate-metadata --js-output=fs65.js
