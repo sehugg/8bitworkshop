@@ -134,6 +134,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'z80asm': 'z80',
   'sdasz80': 'z80',
   'sdcc': 'text/x-csrc',
+  'verilator': 'verilog',
 }
 
 var worker = new Worker("./src/worker/workermain.js");
@@ -629,7 +630,7 @@ function runStepBackwards() {
 
 function clearBreakpoint() {
   lastDebugState = null;
-  platform.clearDebug();
+  if (platform.clearDebug) platform.clearDebug();
   showMemory();
 }
 
@@ -669,7 +670,6 @@ function constraintEquals(a,b) {
   }
   return null;
 }
-
 
 /*
 function showLoopTimingForCurrentLine() {
@@ -761,11 +761,16 @@ function toggleDisassembly() {
 }
 
 function resetAndDebug() {
-  clearBreakpoint();
-  platform.resume();
-  platform.reset();
-  setupBreakpoint();
-  platform.runEval(function(c) { return true; });
+  if (platform.setupDebug) {
+    clearBreakpoint();
+    platform.resume();
+    platform.reset();
+    setupBreakpoint();
+    platform.runEval(function(c) { return true; });
+  } else {
+    platform.pause();
+    platform.reset();
+  }
 }
 
 function _breakExpression() {
@@ -1141,13 +1146,21 @@ function _recordVideo() {
 }
 
 function setupDebugControls(){
+  var hasDebug = platform.setupDebug;
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
   $("#dbg_go").click(resume);
-  $("#dbg_step").click(singleStep);
-  $("#dbg_toline").click(runToCursor);
-  $("#dbg_stepout").click(runUntilReturn);
-  $("#dbg_stepback").click(runStepBackwards);
+  if (hasDebug) {
+    $("#dbg_step").click(singleStep).show();
+    $("#dbg_toline").click(runToCursor).show();
+    $("#dbg_stepout").click(runUntilReturn).show();
+    $("#dbg_stepback").click(runStepBackwards).show();
+  } else {
+    $("#dbg_step").hide();
+    $("#dbg_toline").hide();
+    $("#dbg_stepout").hide();
+    $("#dbg_stepback").hide();
+  }
   if (platform_id == 'vcs') {
     $("#dbg_timing").click(traceTiming).show();
   }

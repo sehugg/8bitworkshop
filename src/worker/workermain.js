@@ -80,6 +80,8 @@ var PLATFORM_PARAMS = {
     cfgfile: 'neslib.cfg',
     libargs: ['neslib.lib', 'nes.lib'],
   },
+  'verilog': {
+  },
 };
 
 // shim out window and document objects for security
@@ -1027,6 +1029,37 @@ function assembleNAKEN(code, platform) {
   }
 }
 
+function compileVerilator(code, platform) {
+  loadWASM("verilator_bin");
+  load("verilator2js");
+  var errors = [];
+  var match_fn = makeErrorMatcher(errors, /%Error: main.v:(\d+): (.+)/, 1, 2);
+  var verilator_mod = verilator_bin({
+    wasmBinary:wasmBlob['verilator_bin'],
+    noInitialRun:true,
+    print:print_fn,
+    printErr:match_fn,
+  });
+  var FS = verilator_mod['FS'];
+  //setupFS(FS);
+  FS.writeFile("main.v", code);
+  starttime();
+  verilator_mod.callMain(["--cc", "-O2", "main.v"]);
+  endtime("compile");
+  try {
+    var h_file = FS.readFile("obj_dir/Vmain.h", {encoding:'utf8'});
+    var cpp_file = FS.readFile("obj_dir/Vmain.cpp", {encoding:'utf8'});
+    //console.log(cpp_file)
+    var rtn = translateVerilatorOutputToJS(h_file, cpp_file);
+    rtn.errors = errors;
+    rtn.lines = [];// TODO
+    rtn.intermediate = {listing:h_file + cpp_file};
+    return rtn;
+  } catch(e) {
+    return {errors:errors};
+  }
+}
+
 var TOOLS = {
   'dasm': assembleDASM,
   'acme': assembleACME,
@@ -1038,6 +1071,7 @@ var TOOLS = {
   'sdcc': compileSDCC,
   'xasm6809': assembleXASM6809,
   'naken': assembleNAKEN,
+  'verilator': compileVerilator,
 }
 
 var TOOL_PRELOADFS = {
