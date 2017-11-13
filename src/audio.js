@@ -395,19 +395,23 @@ var SampleAudio = function(clockfreq) {
     }
   }
 
+  this.addSingleSample = function(value) {
+    buffer[bufpos++] = value;
+    if (bufpos >= buffer.length) {
+      bufpos = 0;
+      bufferlist[0] = bufferlist[1];
+      bufferlist[1] = buffer;
+    }
+  }
+
   this.feedSample = function(value, count) {
     while (count-- > 0) {
       accum += value;
       sfrac += sinc;
       if (sfrac >= 1) {
-        buffer[bufpos++] = accum / sfrac;
         sfrac -= 1;
         accum = 0;
-        if (bufpos >= buffer.length) {
-          bufpos = 0;
-          bufferlist[0] = bufferlist[1];
-          bufferlist[1] = buffer;
-        }
+        this.feedSingleSample(accum / sfrac);
       }
     }
   }

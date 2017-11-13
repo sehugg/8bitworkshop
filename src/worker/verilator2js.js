@@ -12,12 +12,10 @@ function parseDecls(text, arr, name, bin, bout) {
       ofs:parseInt(m[4]),
     });
   }
-  //console.log(arr);
 }
 
 function buildModule(o) {
   var m = '"use strict";\n';
-  //m += 'var ' + o.name + ' = function(base) {\n';
   m += '\tvar self = this;\n';
   m += '\tvar VL_RAND_RESET_I = base.VL_RAND_RESET_I;\n';
   for (var i=0; i<o.ports.length; i++) {
@@ -29,8 +27,6 @@ function buildModule(o) {
   for (var i=0; i<o.funcs.length; i++) {
     m += o.funcs[i];
   }
-  //m += "\n}\n";
-  //m += "return " + o.name + ";\n";
   return m;
 }
 
@@ -56,11 +52,20 @@ function translateFunction(text) {
   return "function " + text + "\nself." + funcname + " = " + funcname + ";\n";
 }
 
+function translateStaticVars(text) {
+  var s = "";
+  var m;
+  var re = /VL_ST_SIG(\d+)[(](\w+?)::(\w+).(\d+).,(\d+),(\d+)[)]/g;
+  while (m = re.exec(text)) {
+    s += "var " + m[3] + " = this." + m[3] + " = new Uint" + m[1] + "Array(" + m[4] + ");\n";
+  }
+  return s;
+}
+
 function translateVerilatorOutputToJS(htext, cpptext) {
   // parse header file
   moduleName = /VL_MODULE.(\w+)./.exec(htext)[1];
   symsName = moduleName + "__Syms";
-  //console.log(moduleName, symsName);
   var ports = [];
   parseDecls(htext, ports, 'VL_IN', true, false);
   parseDecls(htext, ports, 'VL_OUT', false, true);
@@ -72,9 +77,9 @@ function translateVerilatorOutputToJS(htext, cpptext) {
   var re_fnsplit = new RegExp("(?:void|QData) " + moduleName + "::");
   var functexts = cpptext.split(re_fnsplit);
   var funcs = [];
+  funcs.push(translateStaticVars(functexts[0]));
   for (var i=4; i<functexts.length; i++) {
     var fntxt = translateFunction(functexts[i]);
-    //console.log(fntxt);
     funcs.push(fntxt);
   }
 
@@ -93,6 +98,7 @@ function translateVerilatorOutputToJS(htext, cpptext) {
 
 ////
 
+// TODO: unit test
 /*
 incpp = "obj_dir/Vhvsync_generator.cpp"
 inh = "obj_dir/Vhvsync_generator.h"

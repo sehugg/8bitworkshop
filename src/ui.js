@@ -429,6 +429,7 @@ function setCompileOutput(data) {
   compparams = data.params;
   updatePreset(current_preset_id, editor.getValue()); // update persisted entry
   // errors?
+  var lines2errmsg = [];
   function addErrorMarker(line, msg) {
     var div = document.createElement("div");
     div.setAttribute("class", "tooltipbox tooltiperror");
@@ -436,7 +437,9 @@ function setCompileOutput(data) {
     div.appendChild(document.createTextNode("\u24cd"));
     var tooltip = document.createElement("span");
     tooltip.setAttribute("class", "tooltiptext");
+    if (lines2errmsg[line]) msg = lines2errmsg[line] + "\n" + msg;
     tooltip.appendChild(document.createTextNode(msg));
+    lines2errmsg[line] = msg;
     div.appendChild(tooltip);
     editor.setGutterMarker(line, "gutter-info", div);
   }
@@ -768,7 +771,6 @@ function resetAndDebug() {
     setupBreakpoint();
     platform.runEval(function(c) { return true; });
   } else {
-    platform.pause();
     platform.reset();
   }
 }

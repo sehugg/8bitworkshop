@@ -266,9 +266,11 @@ function makeErrorMatcher(errors, regex, iline, imsg) {
     var matches = regex.exec(s);
     if (matches) {
       errors.push({
-        line:parseInt(matches[iline]),
+        line:parseInt(matches[iline]) || 1,
         msg:matches[imsg]
       });
+    } else {
+      console.log(s);
     }
   }
 }
@@ -1033,29 +1035,34 @@ function compileVerilator(code, platform) {
   loadWASM("verilator_bin");
   load("verilator2js");
   var errors = [];
-  var match_fn = makeErrorMatcher(errors, /%Error: main.v:(\d+): (.+)/, 1, 2);
+  var match_fn = makeErrorMatcher(errors, /%Error: (.+?:)?(\d+)?[:]?\s*(.+)/, 2, 3);
   var verilator_mod = verilator_bin({
     wasmBinary:wasmBlob['verilator_bin'],
     noInitialRun:true,
     print:print_fn,
     printErr:match_fn,
   });
+  // detect module_top name
+  var topmod = "top";
+  var m = /\bmodule\s+(\w+?_top)/.exec(code);
+  if (m && m[1]) topmod = m[1];
   var FS = verilator_mod['FS'];
   //setupFS(FS);
-  FS.writeFile("main.v", code);
+  FS.writeFile(topmod+".v", code);
   starttime();
-  verilator_mod.callMain(["--cc", "-O2", "main.v"]);
+  verilator_mod.callMain(["--cc", "-O3", "--top-module", topmod, topmod+".v"]);
   endtime("compile");
+  if (errors.length) return {errors:errors};
   try {
-    var h_file = FS.readFile("obj_dir/Vmain.h", {encoding:'utf8'});
-    var cpp_file = FS.readFile("obj_dir/Vmain.cpp", {encoding:'utf8'});
-    //console.log(cpp_file)
+    var h_file = FS.readFile("obj_dir/V"+topmod+".h", {encoding:'utf8'});
+    var cpp_file = FS.readFile("obj_dir/V"+topmod+".cpp", {encoding:'utf8'});
     var rtn = translateVerilatorOutputToJS(h_file, cpp_file);
     rtn.errors = errors;
     rtn.lines = [];// TODO
     rtn.intermediate = {listing:h_file + cpp_file};
     return rtn;
   } catch(e) {
+    console.log(e);
     return {errors:errors};
   }
 }
