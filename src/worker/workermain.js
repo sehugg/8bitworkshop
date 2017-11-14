@@ -861,7 +861,7 @@ function compileSDCC(code, platform) {
     '--less-pedantic',
     ///'--fomit-frame-pointer',
     '--opt-code-speed',
-    '--oldralloc', // TODO: does this make it fater?
+    //'--oldralloc', // TODO: does this make it fater?
     //'--cyclomatic',
     //'--nooverlay','--nogcse','--nolabelopt','--noinvariant','--noinduction','--nojtbound','--noloopreverse','--no-peep','--nolospre',
     '-o', 'main.asm'];
