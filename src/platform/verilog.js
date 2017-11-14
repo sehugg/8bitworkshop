@@ -77,6 +77,7 @@ var VerilogPlatform = function(mainElement, options) {
   var gen;
   var frameRate = 60;
   var AUDIO_FREQ = 15700;
+  var current_output;
 
   this.getPresets = function() { return VERILOG_PRESETS; }
 
@@ -96,6 +97,65 @@ var VerilogPlatform = function(mainElement, options) {
     0xffffffff,
   ];
 
+  function updateVideoFrame() {
+    var i=0;
+    for (var y=0; y<videoHeight; y++) {
+      for (var x=0; x<videoWidth; x++) {
+        tick2();
+        idata[i++] = RGBLOOKUP[gen.rgb];
+      }
+      var z=0;
+      while (gen.hsync && z++<videoWidth) tick2();
+      while (!gen.hsync && z++<videoWidth) tick2();
+    }
+    var z=0;
+    while (gen.vsync && z++<videoWidth*80) tick2();
+    while (!gen.vsync && z++<videoWidth*80) tick2();
+    video.updateFrame();
+  }
+
+  var yposlist = [];
+
+  function updateScopeFrame() {
+    var arr = current_output.ports;
+    if (!arr) return;
+    for (var i=0; i<idata.length; i++) {
+      if (idata[i])
+        idata[i] = 0; //<<= 1;
+    }
+    var COLOR_SIGNAL = 0xff11ff11;
+    var COLOR_BORDER = 0xff661111;
+    for (var x=0; x<videoWidth; x++) {
+      gen.clk ^= 1;
+      gen.eval();
+      var yb = 8;
+      var y1 = 0;
+      for (var i=0; i<arr.length; i++) {
+        var v = arr[i];
+        var lo = 0; // TODO? v.ofs?
+        var hi = v.len ? ((2 << v.len)-1) : 1;
+        var ys = hi>1 ? v.len*2+8 : 8;
+        var y2 = y1+ys;
+        var z = gen[v.name];
+        var y = y2 - ys*((z-lo)/hi);
+        yposlist[i] = y2;
+        //idata[x + y1*videoWidth] = COLOR_BORDER;
+        //idata[x + y2*videoWidth] = COLOR_BORDER;
+        idata[x + Math.round(y)*videoWidth] = COLOR_SIGNAL;
+        y1 += ys+yb;
+      }
+    }
+    video.updateFrame();
+    // draw labels
+    var ctx = video.getContext();
+    ctx.font = "8px TinyFont";
+    ctx.fillStyle = "white";
+    for (var i=0; i<arr.length; i++) {
+      var v = arr[i];
+      ctx.fillText(v.name, 1, yposlist[i]);
+    }
+  }
+
   this.start = function() {
     // TODO
     video = new RasterVideo(mainElement,videoWidth,videoHeight);
@@ -106,30 +166,21 @@ var VerilogPlatform = function(mainElement, options) {
     timer = new AnimationTimer(frameRate, function() {
 			if (!self.isRunning())
 				return;
-      var i=0;
-      for (var y=0; y<videoHeight; y++) {
-        for (var x=0; x<videoWidth; x++) {
-          tick2();
-          idata[i++] = RGBLOOKUP[gen.rgb];
-        }
-        var z=0;
-        while (gen.hsync && z++<videoWidth) tick2();
-        while (!gen.hsync && z++<videoWidth) tick2();
-      }
-      var z=0;
-      while (gen.vsync && z++<videoWidth*80) tick2();
-      while (!gen.vsync && z++<videoWidth*80) tick2();
-      video.updateFrame();
+      if (gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined)
+        updateVideoFrame();
+      else
+        updateScopeFrame();
     });
   }
 
-  this.loadROM = function(title, modtext) {
-    //console.log(modtext);
-    var mod = new Function('base', modtext);
+  this.loadROM = function(title, output) {
+    var mod = new Function('base', output.code);
     var base = new VerilatorBase();
     gen = new mod(base);
     gen.__proto__ = base;
-    console.log(gen);
+    output.code = null;
+    output.ports_signals = output.ports.concat(output.signals);
+    current_output = output;
     this.reset();
   }
 

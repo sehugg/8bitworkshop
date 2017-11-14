@@ -65,9 +65,9 @@ var RasterVideo = function(mainElement, width, height, options) {
     };
   };
 
-  this.getFrameData = function() {
-    return datau32;
-  }
+  this.getFrameData = function() { return datau32; }
+
+  this.getContext = function() { return ctx; }
 
   this.updateFrame = function(sx, sy, dx, dy, width, height) {
     //imageData.data.set(buf8); // TODO: slow w/ partial updates

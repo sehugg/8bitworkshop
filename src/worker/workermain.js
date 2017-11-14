@@ -1031,6 +1031,11 @@ function assembleNAKEN(code, platform) {
   }
 }
 
+function detectModuleName(code) {
+  var m = /\bmodule\s+(\w+_top)/.exec(code) || /\bmodule\s+(\w+)/.exec(code);
+  return m ? m[1] : null;
+}
+
 function compileVerilator(code, platform) {
   loadWASM("verilator_bin");
   load("verilator2js");
@@ -1042,9 +1047,10 @@ function compileVerilator(code, platform) {
     print:print_fn,
     printErr:match_fn,
   });
-  // detect module_top name
-  var topmod = "top";
+  var topmod = detectModuleName(code) || "top";
   var m = /\bmodule\s+(\w+?_top)/.exec(code);
+  if (m && m[1]) topmod = m[1];
+  m = /\bmodule\s+(\w+?_top)/.exec(code);
   if (m && m[1]) topmod = m[1];
   var FS = verilator_mod['FS'];
   //setupFS(FS);

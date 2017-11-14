@@ -84,15 +84,17 @@ function translateVerilatorOutputToJS(htext, cpptext) {
   }
 
   return {
-    output:buildModule({
+    output:{
+      code:buildModule({
+        name:moduleName,
+        ports:ports,
+        signals:signals,
+        funcs:funcs,
+      }),
       name:moduleName,
       ports:ports,
       signals:signals,
-      funcs:funcs,
-    }),
-    name:moduleName,
-    ports:ports,
-    signals:signals,
+    }
   };
 }
 
