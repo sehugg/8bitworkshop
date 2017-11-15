@@ -1,13 +1,12 @@
 
-module hvsync(
-  clk, hsync, vsync, inDisplayArea, CounterX, CounterY, pixel);
+module hvsync_generator(
+  clk, hsync, vsync, inDisplayArea, CounterX, CounterY);
 
   input clk;
   output hsync, vsync;
   output inDisplayArea;
   output [8:0] CounterX;
   output [8:0] CounterY;
-  output pixel;
 
   // constant declarations for VGA sync parameters
   localparam H_DISPLAY       = 256; // horizontal display area
@@ -28,11 +27,10 @@ module hvsync(
 
   reg [8:0] CounterX;
   reg [8:0] CounterY;
-  reg pixel;
   wire CounterXmaxed = (CounterX==H_MAX);
   wire CounterYmaxed = (CounterY==V_MAX);
 
-  always @(posedge clk)
+  always @(posedge clk)   
     if(CounterXmaxed)
       CounterX <= 0;
     else
@@ -56,8 +54,6 @@ module hvsync(
   always @(posedge clk)
   begin
     inDisplayArea <= (CounterX<H_DISPLAY) && (CounterY<V_DISPLAY);
-    pixel <= inDisplayArea &&
-      (((CounterX&7)==0) || ((CounterY&7)==0));
   end
 
   assign hsync = ~vga_HS;

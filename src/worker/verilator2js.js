@@ -12,6 +12,17 @@ function parseDecls(text, arr, name, bin, bout) {
       ofs:parseInt(m[4]),
     });
   }
+  re = new RegExp(name + "(\\d+)[(](\\w+)\\[(\\d+)\\],(\\d+),(\\d+)[)]", 'gm');
+  var m;
+  while ((m = re.exec(text))) {
+    arr.push({
+      wordlen:parseInt(m[1]),
+      name:m[2],
+      arrlen:parseInt(m[3]),
+      len:parseInt(m[4]),
+      ofs:parseInt(m[5]),
+    });
+  }
 }
 
 function buildModule(o) {
@@ -22,7 +33,10 @@ function buildModule(o) {
     m += "\tself." + o.ports[i].name + ";\n";
   }
   for (var i=0; i<o.signals.length; i++) {
-    m += "\tself." + o.signals[i].name + ";\n";
+    if (o.signals[i].arrlen)
+      m += "\tvar " + o.signals[i].name + " = self." + o.signals[i].name + " = [];\n";
+    else
+      m += "\tself." + o.signals[i].name + ";\n";
   }
   for (var i=0; i<o.funcs.length; i++) {
     m += o.funcs[i];
@@ -44,7 +58,9 @@ function translateFunction(text) {
   text = text.replace(/\b([0-9]+)U/gi, '$1');
   text = text.replace(/\bQData /, 'var ');
   text = text.replace(/\bbool /, '');
+  text = text.replace(/\bint /, 'var ');
   text = text.replace(/(\w+ = VL_RAND_RESET_I)/g, 'self.$1');
+  //text = text.replace(/(\w+\[\w+\] = VL_RAND_RESET_I)/g, 'self.$1');
   text = text.replace(/^#/gm, '//#');
   text = text.replace(/VL_LIKELY/g, '!!');
   text = text.replace(/VL_UNLIKELY/g, '!!');

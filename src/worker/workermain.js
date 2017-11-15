@@ -530,7 +530,7 @@ function parseCA65Listing(code, mapfile) {
   return {lines:lines, errors:errors};
 }
 
-function assemblelinkCA65(code, platform, warnings) {
+function assemblelinkCA65(code, platform) {
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
   var errors = "";
@@ -871,14 +871,6 @@ function compileSDCC(code, platform) {
   starttime();
   SDCC.callMain(args);
   endtime("compile");
-  /*
-  // ignore if all are warnings (TODO?)
-  var nwarnings = 0;
-  for (var err of msvc_errors) {
-    if (err.type && err.type.startsWith("warning"))
-      nwarnings++;
-  }
-  */
   // TODO: preprocessor errors w/ correct file
   if (msvc_errors.length /* && nwarnings < msvc_errors.length*/) {
     return {errors:msvc_errors};
@@ -901,7 +893,6 @@ function compileSDCC(code, platform) {
   result.asmlines = result.lines;
   result.lines = result.srclines;
   result.srclines = null;
-  //result.errors = result.errors.concat(warnings);
   return result;
 }
 
@@ -1036,11 +1027,21 @@ function detectModuleName(code) {
   return m ? m[1] : null;
 }
 
-function compileVerilator(code, platform) {
+function writeDependencies(depends, FS, errors) {
+  if (depends) {
+    for (var i=0; i<depends.length; i++) {
+      var d = depends[i];
+      if (d.text)
+        FS.writeFile(d.filename, d.text, {encoding:'utf8'});
+    }
+  }
+}
+
+function compileVerilator(code, platform, options) {
   loadWASM("verilator_bin");
   load("verilator2js");
   var errors = [];
-  var match_fn = makeErrorMatcher(errors, /%Error: (.+?:)?(\d+)?[:]?\s*(.+)/, 2, 3);
+  var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?:)?(\d+)?[:]?\s*(.+)/i, 3, 4);
   var verilator_mod = verilator_bin({
     wasmBinary:wasmBlob['verilator_bin'],
     noInitialRun:true,
@@ -1055,6 +1056,7 @@ function compileVerilator(code, platform) {
   var FS = verilator_mod['FS'];
   //setupFS(FS);
   FS.writeFile(topmod+".v", code);
+  writeDependencies(options.dependencies, FS, errors);
   starttime();
   verilator_mod.callMain(["--cc", "-O3", "--top-module", topmod, topmod+".v"]);
   endtime("compile");
@@ -1106,7 +1108,8 @@ onmessage = function(e) {
   var platform = e.data.platform;
   var toolfn = TOOLS[e.data.tool];
   if (!toolfn) throw "no tool named " + e.data.tool;
-  var result = toolfn(code, platform);
+  var dependencies = e.data.dependencies;
+  var result = toolfn(code, platform, e.data);
   result.params = PLATFORM_PARAMS[platform];
   if (result) {
     postMessage(result);

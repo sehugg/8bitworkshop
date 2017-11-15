@@ -411,7 +411,7 @@ var SampleAudio = function(clockfreq) {
       if (sfrac >= 1) {
         sfrac -= 1;
         accum = 0;
-        this.feedSingleSample(accum / sfrac);
+        this.addSingleSample(accum / sfrac);
       }
     }
   }

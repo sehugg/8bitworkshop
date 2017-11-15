@@ -208,7 +208,9 @@ function setLastPreset(id) {
 }
 
 function updatePreset(current_preset_id, text) {
-  if (text.trim().length && (originalFileID != current_preset_id || text != originalText)) {
+  // TODO: do we have to save all Verilog thingies?
+  if (text.trim().length &&
+    (originalFileID != current_preset_id || text != originalText || platform_id=='verilog')) {
     store.saveFile(current_preset_id, text);
   }
 }
@@ -389,11 +391,30 @@ function updateSelector() {
   });
 }
 
+function loadFileDependencies(text) {
+  var arr = [];
+  if (platform_id == 'verilog') {
+    var re = /`include\s+"(.+)"/g;
+    var m;
+    while (m = re.exec(text)) {
+      arr.push({
+        filename:m[1],
+        text:store.loadFile(m[1]) // TODO: if missing?
+      });
+    }
+  }
+  return arr;
+}
+
 function setCode(text) {
   if (pendingWorkerMessages++ > 0)
     return;
-  worker.postMessage({code:text, platform:platform_id,
-    tool:platform.getToolForFilename(current_preset_id)});
+  worker.postMessage({
+    code:text,
+    dependencies:loadFileDependencies(text),
+    platform:platform_id,
+    tool:platform.getToolForFilename(current_preset_id)
+  });
   toolbar.addClass("is-busy");
   $('#compile_spinner').css('visibility', 'visible');
 }
@@ -437,7 +458,8 @@ function setCompileOutput(data) {
     div.appendChild(document.createTextNode("\u24cd"));
     var tooltip = document.createElement("span");
     tooltip.setAttribute("class", "tooltiptext");
-    if (lines2errmsg[line]) msg = lines2errmsg[line] + "\n" + msg;
+    if (lines2errmsg[line])
+      msg = lines2errmsg[line] + "\n" + msg;
     tooltip.appendChild(document.createTextNode(msg));
     lines2errmsg[line] = msg;
     div.appendChild(tooltip);
@@ -1257,7 +1279,7 @@ function initPlatform() {
 function showBookLink() {
   if (platform_id == 'vcs')
     $("#booklink_vcs").show();
-  else
+  else if (platform_id == 'mw8080bw' || platform_id == 'vicdual' || platform_id == 'galaxian-scramble' || platform_id == 'vector-z80color' || platform_id == 'williams-z80')
     $("#booklink_arcade").show();
 }
 

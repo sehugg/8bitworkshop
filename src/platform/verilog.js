@@ -1,9 +1,26 @@
 "use strict";
 
 var VERILOG_PRESETS = [
-  {id:'hvsync.v', name:'Hello Verilog'},
+  {id:'clock_divider.v', name:'Clock Divider'},
+  {id:'hvsync_generator.v', name:'Video Sync Generator'},
+  {id:'test_hvsync.v', name:'Test Pattern'},
+  {id:'lfsr.v', name:'Linear Feedback Shift Register'},
   {id:'pong.v', name:'Pong'},
 ];
+
+var VERILOG_KEYCODE_MAP = makeKeycodeMap([
+  [Keys.VK_LEFT, 0, 0x1],
+  [Keys.VK_RIGHT, 0, 0x2],
+  [Keys.VK_UP, 0, 0x4],
+  [Keys.VK_DOWN, 0, 0x8],
+  [Keys.VK_SPACE, 0, 0x10],
+  [Keys.VK_SHIFT, 0, 0x20],
+  [Keys.VK_1, 0, 0x40],
+  [Keys.VK_2, 0, 0x80],
+  [Keys.VK_5, 0, 0x100],
+  [Keys.VK_6, 0, 0x200],
+  [Keys.VK_7, 0, 0x400],
+]);
 
 function VerilatorBase() {
   this.VL_RAND_RESET_I = function(bits) { return Math.floor(Math.random() * (1<<bits)); }
@@ -71,20 +88,18 @@ function VerilatorBase() {
 var VerilogPlatform = function(mainElement, options) {
   var self = this;
   var video, audio;
-  var videoWidth=288;
-  var videoHeight=248;
+  var videoWidth  = 288;
+  var videoHeight = 248;
   var idata, timer;
   var gen;
   var frameRate = 60;
-  var AUDIO_FREQ = 15700;
+  var AUDIO_FREQ = 15750;
   var current_output;
+  var paddle_x = 0;
+  var paddle_y = 0;
+  var switches = [0];
 
   this.getPresets = function() { return VERILOG_PRESETS; }
-
-  function tick2() {
-    gen.tick2();
-    audio.addSingleSample(0+gen.audio); // TODO: sync with audio freq
-  }
 
   var RGBLOOKUP = [
     0xff111111,
@@ -97,24 +112,32 @@ var VerilogPlatform = function(mainElement, options) {
     0xffffffff,
   ];
 
+  function vidtick() {
+    gen.tick2();
+    audio.addSingleSample(0+gen.spkr); // TODO: sync with audio freq
+  }
+
   function updateVideoFrame() {
     var i=0;
     for (var y=0; y<videoHeight; y++) {
+      gen.hpaddle = y > paddle_x ? 1 : 0;
+      gen.vpaddle = y > paddle_y ? 1 : 0;
       for (var x=0; x<videoWidth; x++) {
-        tick2();
+        vidtick();
         idata[i++] = RGBLOOKUP[gen.rgb];
       }
       var z=0;
-      while (gen.hsync && z++<videoWidth) tick2();
-      while (!gen.hsync && z++<videoWidth) tick2();
+      while (gen.hsync && z++<videoWidth) vidtick();
+      while (!gen.hsync && z++<videoWidth) vidtick();
     }
     var z=0;
-    while (gen.vsync && z++<videoWidth*80) tick2();
-    while (!gen.vsync && z++<videoWidth*80) tick2();
+    while (gen.vsync && z++<videoWidth*80) vidtick();
+    while (!gen.vsync && z++<videoWidth*80) vidtick();
     video.updateFrame();
   }
 
   var yposlist = [];
+  var lasty = [];
 
   function updateScopeFrame() {
     var arr = current_output.ports;
@@ -125,6 +148,7 @@ var VerilogPlatform = function(mainElement, options) {
     }
     var COLOR_SIGNAL = 0xff11ff11;
     var COLOR_BORDER = 0xff661111;
+    var COLOR_TRANS_SIGNAL = 0xff116611;
     for (var x=0; x<videoWidth; x++) {
       gen.clk ^= 1;
       gen.eval();
@@ -137,11 +161,19 @@ var VerilogPlatform = function(mainElement, options) {
         var ys = hi>1 ? v.len*2+8 : 8;
         var y2 = y1+ys;
         var z = gen[v.name];
-        var y = y2 - ys*((z-lo)/hi);
+        var y = Math.round(y2 - ys*((z-lo)/hi));
         yposlist[i] = y2;
+        var ly = lasty[i];
+        if (x > 0 && ly != y) {
+          var dir = ly < y ? 1 : -1;
+          while ((ly += dir) != y && ly >= y1 && ly <= y2) {
+            idata[x + ly*videoWidth] = COLOR_TRANS_SIGNAL;
+          }
+        }
+        lasty[i] = y;
         //idata[x + y1*videoWidth] = COLOR_BORDER;
         //idata[x + y2*videoWidth] = COLOR_BORDER;
-        idata[x + Math.round(y)*videoWidth] = COLOR_SIGNAL;
+        idata[x + y*videoWidth] = COLOR_SIGNAL;
         y1 += ys+yb;
       }
     }
@@ -152,7 +184,10 @@ var VerilogPlatform = function(mainElement, options) {
     ctx.fillStyle = "white";
     for (var i=0; i<arr.length; i++) {
       var v = arr[i];
+      ctx.textAlign = 'left';
       ctx.fillText(v.name, 1, yposlist[i]);
+      //ctx.textAlign = 'right';
+      //ctx.fillText(""+gen[v.name], videoWidth-1, yposlist[i]);
     }
   }
 
@@ -160,12 +195,18 @@ var VerilogPlatform = function(mainElement, options) {
     // TODO
     video = new RasterVideo(mainElement,videoWidth,videoHeight);
     video.create();
+    setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
+		$(video.canvas).mousemove(function(e) {
+			paddle_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
+			paddle_y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height() - 20);
+		});
     audio = new SampleAudio(AUDIO_FREQ);
     idata = video.getFrameData();
     // TODO: 15.7 kHz?
     timer = new AnimationTimer(frameRate, function() {
 			if (!self.isRunning())
 				return;
+      gen.switches = switches[0];
       if (gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined)
         updateVideoFrame();
       else
@@ -173,8 +214,27 @@ var VerilogPlatform = function(mainElement, options) {
     });
   }
 
+  function printErrorCodeContext(e, code) {
+    if (e.lineNumber && e.message) {
+      var lines = code.split('\n');
+      var s = e.message + '\n';
+      for (var i=0; i<lines.length; i++) {
+        if (i > e.lineNumber-5 && i < e.lineNumber+5) {
+          s += lines[i] + '\n';
+        }
+      }
+      console.log(s);
+    }
+  }
+
   this.loadROM = function(title, output) {
-    var mod = new Function('base', output.code);
+    var mod;
+    try {
+      mod = new Function('base', output.code);
+    } catch (e) {
+      printErrorCodeContext(e, output.code);
+      throw e;
+    }
     var base = new VerilatorBase();
     gen = new mod(base);
     gen.__proto__ = base;
