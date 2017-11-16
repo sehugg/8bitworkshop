@@ -588,19 +588,32 @@ function setupBreakpoint() {
   });
 }
 
-function pause() {
-  clearBreakpoint();
+function _pause() {
   if (platform.isRunning()) {
     platform.pause();
   }
+  $("#dbg_pause").addClass("btn_stopped");
+  $("#dbg_go").removeClass("btn_active");
+}
+
+function pause() {
+  clearBreakpoint();
+  _pause();
+}
+
+function _resume() {
+  if (! platform.isRunning()) {
+    platform.resume();
+  }
+  $("#dbg_pause").removeClass("btn_stopped");
+  $("#dbg_go").addClass("btn_active");
 }
 
 function resume() {
   clearBreakpoint();
-  if (! platform.isRunning()) {
-    platform.resume();
-    editor.setSelection(editor.getCursor());
-  }
+  if (! platform.isRunning())
+    editor.setSelection(editor.getCursor()); // TODO??
+  _resume();
 }
 
 function singleStep() {
@@ -788,7 +801,7 @@ function toggleDisassembly() {
 function resetAndDebug() {
   if (platform.setupDebug) {
     clearBreakpoint();
-    platform.resume();
+    _resume();
     platform.reset();
     setupBreakpoint();
     platform.runEval(function(c) { return true; });
@@ -1148,7 +1161,7 @@ function _recordVideo() {
   gif.on('finished', function(blob) {
     img.attr('src', URL.createObjectURL(blob));
     $("#pleaseWaitModal").modal('hide');
-    platform.resume();
+    _resume();
     $("#videoPreviewModal").modal('show');
   });
   var intervalMsec = 17;
@@ -1159,7 +1172,7 @@ function _recordVideo() {
     if (nframes++ > maxFrames) {
       console.log("Rendering video");
       $("#pleaseWaitModal").modal('show');
-      platform.pause();
+      _pause();
       gif.render();
     } else {
       gif.addFrame(canvas, {delay: intervalMsec, copy: true});
@@ -1287,22 +1300,22 @@ function addPageFocusHandlers() {
   var hidden = false;
   document.addEventListener("visibilitychange", function() {
     if (document.visibilityState == 'hidden' && platform.isRunning()) {
-      platform.pause();
+      _pause();
       hidden = true;
     } else if (document.visibilityState == 'visible' && hidden) {
-      platform.resume();
+      _resume();
       hidden = false;
     }
   });
   $(window).on("focus", function() {
     if (hidden) {
-      platform.resume();
+      _resume();
       hidden = false;
     }
   });
   $(window).on("blur", function() {
     if (platform.isRunning()) {
-      platform.pause();
+      _pause();
       hidden = true;
     }
   });

@@ -101,8 +101,10 @@ div.mem_info {
 .btn_group.view_group {
 }
 .btn_active {
-  border-radius:3px;
-  color: #ffffff;
+  color: #33cc33;
+}
+.btn_stopped {
+  color: #ff9933;
 }
 .seg_code { color: #ff9966; }
 .seg_data { color: #66ff66; }
