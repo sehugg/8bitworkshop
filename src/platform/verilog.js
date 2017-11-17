@@ -22,15 +22,49 @@ var VERILOG_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_7, 0, 0x400],
 ]);
 
+  var VL_UL = function(x) { return x; }
+
+  /// Return true if data[bit] set
+  var VL_BITISSET_I = this.VL_BITISSET_I = function(data,bit) { return (data & (VL_UL(1)<<VL_BITBIT_I(bit))); }
+
+  var VL_EXTENDSIGN_I = this.VL_EXTENDSIGN_I = function(lbits, lhs) { return (-((lhs)&(VL_UL(1)<<(lbits-1)))); }
+
+  var VL_EXTEND_II = this.VL_EXTEND_II = function(obits,lbits,lhs) { return lhs; }
+
+  var VL_EXTENDS_II = this.VL_EXTENDS_II = function(x,lbits,lhs) {
+    return VL_EXTENDSIGN_I(lbits,lhs) | lhs;
+  }
+
+  var VL_EXTEND_II = this.VL_EXTEND_II = function(obits,lbits,lhs) { return lhs; }
+
+  var VL_NEGATE_I = this.VL_NEGATE_I = function(x) { return -x; }
+
+  var VL_LTS_III = this.VL_LTS_III = function(x,lbits,y,lhs,rhs) {
+    return VL_EXTENDS_II(x,lbits,lhs) < VL_EXTENDS_II(x,lbits,rhs); }
+
+  var VL_GTS_III = this.VL_GTS_III = function(x,lbits,y,lhs,rhs) {
+    return VL_EXTENDS_II(x,lbits,lhs) > VL_EXTENDS_II(x,lbits,rhs); }
+
+  var VL_LTES_III = this.VL_LTES_III = function(x,lbits,y,lhs,rhs) {
+    return VL_EXTENDS_II(x,lbits,lhs) <= VL_EXTENDS_II(x,lbits,rhs); }
+
+  var VL_GTES_III = this.VL_GTES_III = function(x,lbits,y,lhs,rhs) {
+    return VL_EXTENDS_II(x,lbits,lhs) >= VL_EXTENDS_II(x,lbits,rhs); }
+
+//
+
 function VerilatorBase() {
-  this.VL_RAND_RESET_I = function(bits) { return Math.floor(Math.random() * (1<<bits)); }
+
+  var VL_RAND_RESET_I = this.VL_RAND_RESET_I = function(bits) { return Math.floor(Math.random() * (1<<bits)); }
+
+  //
 
   function vl_fatal(msg) {
     console.log(msg);
   }
 
   this.reset2 = function() {
-    if (this.reset !== 'undefined') {
+    if (this.reset !== undefined) {
       this.reset = 1;
       for (var i=0; i<100; i++)
         this.tick2();
@@ -191,14 +225,18 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
+  function clamp(minv,maxv,v) {
+    return (v < minv) ? minv : (v > maxv) ? maxv : v;
+  }
+
   this.start = function() {
     // TODO
     video = new RasterVideo(mainElement,videoWidth,videoHeight);
     video.create();
     setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
 		$(video.canvas).mousemove(function(e) {
-			paddle_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
-			paddle_y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height() - 20);
+			paddle_x = clamp(4,255,Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 20));
+			paddle_y = clamp(4,255,Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height() - 20));
 		});
     audio = new SampleAudio(AUDIO_FREQ);
     idata = video.getFrameData();

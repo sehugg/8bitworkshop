@@ -1,12 +1,12 @@
 
 module hvsync_generator(
-  clk, hsync, vsync, inDisplayArea, CounterX, CounterY);
+  clk, hsync, vsync, display_on, hpos, vpos);
 
   input clk;
   output hsync, vsync;
-  output inDisplayArea;
-  output [8:0] CounterX;
-  output [8:0] CounterY;
+  output reg display_on;
+  output reg [8:0] hpos;
+  output reg [8:0] vpos;
 
   // constant declarations for VGA sync parameters
   localparam H_DISPLAY       = 256; // horizontal display area
@@ -25,35 +25,32 @@ module hvsync_generator(
   localparam START_V_RETRACE = V_DISPLAY + V_B_BORDER;
   localparam END_V_RETRACE   = V_DISPLAY + V_B_BORDER + V_RETRACE - 1;
 
-  reg [8:0] CounterX;
-  reg [8:0] CounterY;
-  wire CounterXmaxed = (CounterX==H_MAX);
-  wire CounterYmaxed = (CounterY==V_MAX);
+  wire hmaxxed = (hpos==H_MAX);
+  wire vmaxxed = (vpos==V_MAX);
 
   always @(posedge clk)   
-    if(CounterXmaxed)
-      CounterX <= 0;
+    if(hmaxxed)
+      hpos <= 0;
     else
-      CounterX <= CounterX + 1;
+      hpos <= hpos + 1;
 
   always @(posedge clk)
-    if(CounterXmaxed)
-      if (!CounterYmaxed)
-        CounterY <= CounterY + 1;
+    if(hmaxxed)
+      if (!vmaxxed)
+        vpos <= vpos + 1;
       else
-        CounterY <= 0;
+        vpos <= 0;
 
   reg vga_HS, vga_VS;
   always @(posedge clk)
   begin
-    vga_HS <= (CounterX>=280 && CounterX<288); // change this value to move the display horizontally
-    vga_VS <= (CounterY==START_V_RETRACE); // change this value to move the display vertically
+    vga_HS <= (hpos>=280 && hpos<288); // change this value to move the display horizontally
+    vga_VS <= (vpos==START_V_RETRACE); // change this value to move the display vertically
   end
 
-  reg inDisplayArea;
   always @(posedge clk)
   begin
-    inDisplayArea <= (CounterX<H_DISPLAY) && (CounterY<V_DISPLAY);
+    display_on <= (hpos<H_DISPLAY) && (vpos<V_DISPLAY);
   end
 
   assign hsync = ~vga_HS;

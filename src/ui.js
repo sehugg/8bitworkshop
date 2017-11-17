@@ -172,7 +172,7 @@ function scrollProfileView(_ed) {
 }
 
 function newEditor(mode) {
-  var isAsm = (mode != 'text/x-csrc');
+  var isAsm = mode=='6502' || mode =='z80';
   editor = CodeMirror(document.getElementById('editor'), {
     theme: 'mbo',
     lineNumbers: true,
