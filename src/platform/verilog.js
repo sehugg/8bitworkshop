@@ -5,6 +5,7 @@ var VERILOG_PRESETS = [
   {id:'hvsync_generator.v', name:'Video Sync Generator'},
   {id:'test_hvsync.v', name:'Test Pattern'},
   {id:'lfsr.v', name:'Linear Feedback Shift Register'},
+  {id:'digits10.v', name:'Digits'},
   {id:'ball_slip_counter.v', name:'Ball Motion (slipping counter)'},
   {id:'ball_paddle.v', name:'Brick Smash Game'},
   //{id:'pong.v', name:'Pong'},
@@ -69,6 +70,8 @@ function VerilatorBase() {
 
   this.reset2 = function() {
     if (this.reset !== undefined) {
+      this.reset = 0;
+      this.tick2();
       this.reset = 1;
       for (var i=0; i<RESET_TICKS; i++)
         this.tick2();

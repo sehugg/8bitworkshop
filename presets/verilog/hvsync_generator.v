@@ -1,3 +1,5 @@
+`ifndef HVSYNC_GENERATOR_H
+`define HVSYNC_GENERATOR_H
 
 module hvsync_generator(
   clk, hsync, vsync, display_on, hpos, vpos);
@@ -57,3 +59,5 @@ module hvsync_generator(
   assign vsync = ~vga_VS;
 
 endmodule
+
+`endif

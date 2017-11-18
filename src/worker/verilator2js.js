@@ -18,9 +18,20 @@ function parseDecls(text, arr, name, bin, bout) {
     arr.push({
       wordlen:parseInt(m[1]),
       name:m[2],
-      arrlen:parseInt(m[3]),
+      arrdim:[parseInt(m[3])],
       len:parseInt(m[4]),
       ofs:parseInt(m[5]),
+    });
+  }
+  re = new RegExp(name + "(\\d+)[(](\\w+)\\[(\\d+)\\]\\[(\\d+)\\],(\\d+),(\\d+)[)]", 'gm');
+  var m;
+  while ((m = re.exec(text))) {
+    arr.push({
+      wordlen:parseInt(m[1]),
+      name:m[2],
+      arrdim:[parseInt(m[3]), parseInt(m[4])],
+      len:parseInt(m[5]),
+      ofs:parseInt(m[6]),
     });
   }
 }
@@ -33,10 +44,17 @@ function buildModule(o) {
     m += "\tself." + o.ports[i].name + ";\n";
   }
   for (var i=0; i<o.signals.length; i++) {
-    if (o.signals[i].arrlen)
-      m += "\tvar " + o.signals[i].name + " = self." + o.signals[i].name + " = [];\n";
-    else
-      m += "\tself." + o.signals[i].name + ";\n";
+    var sig = o.signals[i];
+    if (sig.arrdim) {
+      if (sig.arrdim.length == 1) {
+        m += "\tvar " + sig.name + " = self." + sig.name + " = [];\n";
+      } else if (sig.arrdim.length == 2) {
+        m += "\tvar " + sig.name + " = self." + sig.name + " = [];\n";
+        m += "\tfor(var i=0; i<" + sig.arrdim[0] + "; i++) { " + sig.name + "[i] = []; }\n";
+      }
+    } else {
+      m += "\tself." + sig.name + ";\n";
+    }
   }
   for (var i=0; i<o.funcs.length; i++) {
     m += o.funcs[i];
@@ -56,9 +74,9 @@ function translateFunction(text) {
   text = text.replace(/[(]IData[)]/g, '');
   text = text.replace(/\b(0x[0-9a-f]+)U/gi, '$1');
   text = text.replace(/\b([0-9]+)U/gi, '$1');
-  text = text.replace(/\bQData /, 'var ');
-  text = text.replace(/\bbool /, '');
-  text = text.replace(/\bint /, 'var ');
+  text = text.replace(/\bQData /g, 'var ');
+  text = text.replace(/\bbool /g, '');
+  text = text.replace(/\bint /g, 'var ');
   text = text.replace(/(\w+ = VL_RAND_RESET_I)/g, 'self.$1');
   //text = text.replace(/(\w+\[\w+\] = VL_RAND_RESET_I)/g, 'self.$1');
   text = text.replace(/^#/gm, '//#');
