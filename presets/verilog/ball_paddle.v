@@ -1,8 +1,9 @@
 `include "hvsync_generator.v"
 
-module ball_paddle_top(clk, hpaddle, hsync, vsync, rgb);
+module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
 
   input clk;
+  input reset;
   input hpaddle;
   output hsync, vsync;
   output [2:0] rgb;
@@ -12,16 +13,25 @@ module ball_paddle_top(clk, hpaddle, hsync, vsync, rgb);
   
   reg [8:0] paddle_pos;
   
-  reg [8:0] ball_x = 128;
-  reg [8:0] ball_y = 128;
-  reg signed [1:0] ball_vel_x = 0;
-  reg ball_vel_y = BALL_VEL_DOWN;
+  reg [8:0] ball_x;
+  reg [8:0] ball_y;
+  reg ball_dir_x;
+  reg ball_speed_x;
+  reg ball_dir_y;
   
-  localparam BALL_VEL_DOWN = 1;
-  localparam BALL_VEL_UP = 0;
+  reg brick_array [BRICKS_H * BRICKS_V];
+  
+  localparam BRICKS_H = 16;
+  localparam BRICKS_V = 8;
+
+  localparam BALL_DIR_LEFT = 0;
+  localparam BALL_DIR_RIGHT = 1;
+
+  localparam BALL_DIR_DOWN = 1;
+  localparam BALL_DIR_UP = 0;
   
   localparam PADDLE_WIDTH = 31;
-  localparam BALL_SIZE = 8;
+  localparam BALL_SIZE = 6;
   
   hvsync_generator hvsync_gen(
     .clk(clk),
@@ -37,9 +47,13 @@ module ball_paddle_top(clk, hpaddle, hsync, vsync, rgb);
     if (!hpaddle)
       paddle_pos <= vpos;
 
+  wire [5:0] hcell = hpos[8:3];
+  wire [5:0] vcell = vpos[8:3];
+  wire lr_border = hcell==0 || hcell==31;
+
   // TODO: unsigned compare doesn't work in JS
   wire [8:0] paddle_rel_x = ((hpos-paddle_pos) & 9'h1ff);
-  wire paddle_gfx = paddle_rel_x < PADDLE_WIDTH;
+  wire paddle_gfx = (vcell == 28) && (paddle_rel_x < PADDLE_WIDTH);
   
   wire [8:0] ball_rel_x = (hpos-ball_x);
   wire [8:0] ball_rel_y = (vpos-ball_y);
@@ -47,60 +61,113 @@ module ball_paddle_top(clk, hpaddle, hsync, vsync, rgb);
   wire ball_gfx = ball_rel_x < BALL_SIZE
   	       && ball_rel_y < BALL_SIZE;
   
-  wire [5:0] hcell = hpos[8:3];
-  wire [5:0] vcell = vpos[8:3];
-  wire lr_border = hcell==0 || hcell==31;
-
-  wire main_gfx;
+  reg main_gfx;
+  reg brick_present;
+  reg [6:0] brick_index;
   
   always @(posedge clk)
-    case (vpos[8:3])
-      0: main_gfx = 1;
-      28: main_gfx = paddle_gfx | lr_border;
-      default: main_gfx = lr_border;
-    endcase;
+  begin
+    if (vpos[8:6] == 1 && !lr_border) // 8 rows
+    begin
+      // compute brick index
+      if (hpos[3:0] == 8) begin
+        brick_index <= {vpos[5:3], hpos[7:4]};
+        main_gfx <= 0; // 2 pixel horiz spacing between bricks
+      // load brick bit from array
+      end else if (hpos[3:0] == 9) begin
+        brick_present <= brick_array[brick_index];
+      end else begin
+        main_gfx <= brick_present && vpos[2:0] != 0; // 1 pixel vert. spacing
+      end
+    end else begin
+      brick_present <= 0;
+      case (vpos[8:3])
+        4: main_gfx <= 1; // top border
+        //14: main_gfx <= hpos[4];
+        //21: main_gfx <= hpos[5];
+        28: main_gfx <= paddle_gfx | lr_border; // paddle
+        29: main_gfx <= hpos[0] ^ vpos[0]; // bottom border
+        default: main_gfx <= lr_border; // left/right borders
+      endcase
+    end
+  end
   
   wire ball_pixel_collide = main_gfx & ball_gfx;
   
   /* verilator lint_off MULTIDRIVEN */
-  reg [4:0] ball_collide_bits = 0;
+  reg [5:0] ball_collide_bits = 0;
   /* verilator lint_on MULTIDRIVEN */
 
   always @(posedge clk)
     if (ball_pixel_collide) begin
-      if (paddle_gfx) begin // did we collide w/ paddle?
+      if (paddle_gfx) // did we collide w/ paddle?
         ball_collide_bits[4] <= 1;
-      end else begin // collided with playfield
-        if (!ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[0] <= 1;
-        if (ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[1] <= 1;
-        if (!ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[2] <= 1;
-        if (ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[3] <= 1;
+      else if (brick_present)
+        brick_array[brick_index] <= 0;
+      // ball has 4 collision quadrants
+      if (!ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[0] <= 1;
+      if (ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[1] <= 1;
+      if (!ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[2] <= 1;
+      if (ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[3] <= 1;
+    end
+
+  always @(posedge vsync or posedge reset)
+    begin
+      if (reset) begin
+        ball_dir_y <= BALL_DIR_DOWN;
+      end else
+      if (ball_collide_bits[4]) begin // collided with paddle?
+        reg signed [8:0] ball_paddle_dx = ball_x - paddle_pos + 8;
+        // bounces upward off of paddle
+        ball_dir_y <= BALL_DIR_UP;
+        // which side of paddle, left/right?
+        ball_dir_x <= (ball_paddle_dx < 16) ? BALL_DIR_LEFT : BALL_DIR_RIGHT;
+        // hitting with edge of paddle makes it fast
+        ball_speed_x <= !(ball_collide_bits[2] && ball_collide_bits[3]);
+      end else begin
+        // collided with playfield
+        // TODO: can still slip through corners
+        casez (ball_collide_bits[3:0])
+          4'b01?1: ball_dir_x <= BALL_DIR_RIGHT; // left edge/corner
+          4'b1101: ball_dir_x <= BALL_DIR_RIGHT; // left corner
+          4'b101?: ball_dir_x <= BALL_DIR_LEFT; // right edge/corner
+          4'b1110: ball_dir_x <= BALL_DIR_LEFT; // right corner
+          default: ;
+        endcase
+        casez (ball_collide_bits[3:0])
+          4'b1011: ball_dir_y <= BALL_DIR_DOWN;
+          4'b0111: ball_dir_y <= BALL_DIR_DOWN;
+          4'b001?: ball_dir_y <= BALL_DIR_DOWN;
+          4'b0001: ball_dir_y <= BALL_DIR_DOWN;
+          4'b0100: ball_dir_y <= BALL_DIR_UP;
+          4'b1?00: ball_dir_y <= BALL_DIR_UP;
+          4'b1101: ball_dir_y <= BALL_DIR_UP;
+          4'b1110: ball_dir_y <= BALL_DIR_UP;
+          default: ;
+        endcase
       end
+      ball_collide_bits <= 0;
     end
   
-  always @(posedge vsync)
+  always @(negedge vsync or posedge reset)
     begin
-      if (ball_collide_bits[4]) begin // collided with paddle?
-        reg signed [1:0] ball_paddle_dx = ball_x[6:5] - paddle_pos[6:5];
-        ball_vel_y <= BALL_VEL_UP; // paddle top
-        ball_vel_x <= ball_vel_x + ball_paddle_dx;
-      end else casez (ball_collide_bits[3:0]) // collided with playfield
-        0: ;
-        4'b01?1: if (ball_vel_x<0) ball_vel_x <= -ball_vel_x-1; // left
-        4'b101?: if (ball_vel_x>=0) ball_vel_x <= -ball_vel_x-1; // right
-        4'b1100: ball_vel_y <= BALL_VEL_UP;
-        4'b0011: ball_vel_y <= BALL_VEL_DOWN;
-      endcase;
-      ball_collide_bits <= 0;
-      ball_x <= ball_x + 9'(ball_vel_x) + 9'(ball_vel_x>=0); // TODO: signed?
-      ball_y <= ball_y + (ball_vel_y==BALL_VEL_DOWN?1:-1);
-    end;
+      if (reset) begin
+        ball_x <= 128;
+        ball_y <= 180;
+      end else begin
+        if (ball_dir_x == BALL_DIR_RIGHT)
+          ball_x <= ball_x + (ball_speed_x?1:0) + 1;
+        else
+          ball_x <= ball_x - (ball_speed_x?1:0) - 1;
+        ball_y <= ball_y + (ball_dir_y==BALL_DIR_DOWN?1:-1);
+      end
+    end
   
   wire grid_gfx = (((hpos&7)==0) || ((vpos&7)==0));
 
   wire r = display_on && (grid_gfx | ball_gfx);
   wire g = display_on && (main_gfx | ball_gfx);
-  wire b = display_on && ball_gfx;
+  wire b = display_on && (ball_gfx | brick_present);
   assign rgb = {b,g,r};
 
 endmodule

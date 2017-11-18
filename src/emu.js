@@ -216,7 +216,13 @@ var AnimationTimer = function(frequencyHz, callback) {
       setTimeout(nextFrame, intervalMsec);
   }
   var nextFrame = function(ts) {
+    if (running) {
+      scheduleFrame();
+    }
     if (!useReqAnimFrame || ts - lastts > intervalMsec/2) {
+      if (running) {
+        callback();
+      }
       if (ts - lastts < intervalMsec*30) {
         lastts += intervalMsec;
       } else {
@@ -226,10 +232,6 @@ var AnimationTimer = function(frequencyHz, callback) {
       if (nframes++ == 300) {
         console.log("Avg framerate: " + nframes*1000/(ts-startts) + " fps");
       }
-      callback();
-    }
-    if (running) {
-      scheduleFrame();
     }
   }
   this.isRunning = function() {

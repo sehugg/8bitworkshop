@@ -1058,7 +1058,8 @@ function compileVerilator(code, platform, options) {
   FS.writeFile(topmod+".v", code);
   writeDependencies(options.dependencies, FS, errors);
   starttime();
-  verilator_mod.callMain(["--cc", "-O3", "--top-module", topmod, topmod+".v"]);
+  verilator_mod.callMain(["--cc", "-O3", "--x-assign", "fast", "--noassert", "--pins-bv", "33",
+    "--top-module", topmod, topmod+".v"]);
   endtime("compile");
   if (errors.length) return {errors:errors};
   try {

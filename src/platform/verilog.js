@@ -5,7 +5,9 @@ var VERILOG_PRESETS = [
   {id:'hvsync_generator.v', name:'Video Sync Generator'},
   {id:'test_hvsync.v', name:'Test Pattern'},
   {id:'lfsr.v', name:'Linear Feedback Shift Register'},
-  {id:'pong.v', name:'Pong'},
+  {id:'ball_slip_counter.v', name:'Ball Motion (slipping counter)'},
+  {id:'ball_paddle.v', name:'Brick Smash Game'},
+  //{id:'pong.v', name:'Pong'},
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([
@@ -63,10 +65,12 @@ function VerilatorBase() {
     console.log(msg);
   }
 
+  var RESET_TICKS = 1000;
+
   this.reset2 = function() {
     if (this.reset !== undefined) {
       this.reset = 1;
-      for (var i=0; i<100; i++)
+      for (var i=0; i<RESET_TICKS; i++)
         this.tick2();
       this.reset = 0;
     }
