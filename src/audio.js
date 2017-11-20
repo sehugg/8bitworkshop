@@ -396,6 +396,7 @@ var SampleAudio = function(clockfreq) {
   }
 
   this.addSingleSample = function(value) {
+    if (!buffer) return;
     buffer[bufpos++] = value;
     if (bufpos >= buffer.length) {
       bufpos = 0;

@@ -1198,7 +1198,7 @@ function setupDebugControls(){
     $("#dbg_stepout").hide();
     $("#dbg_stepback").hide();
   }
-  if (platform_id == 'vcs') {
+  if (window.traceTiming) {
     $("#dbg_timing").click(traceTiming).show();
   }
   else if (platform.readAddress) {

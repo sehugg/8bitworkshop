@@ -242,8 +242,8 @@ var VerilogPlatform = function(mainElement, options) {
     video.create();
     setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
 		$(video.canvas).mousemove(function(e) {
-			paddle_x = clamp(4,255,Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 20));
-			paddle_y = clamp(4,255,Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height() - 20));
+			paddle_x = clamp(8,240,Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 20));
+			paddle_y = clamp(8,240,Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height() - 20));
 		});
     audio = new SampleAudio(AUDIO_FREQ);
     idata = video.getFrameData();
@@ -294,11 +294,11 @@ var VerilogPlatform = function(mainElement, options) {
   }
   this.pause = function() {
     timer.stop();
-    audio.stop();
+    if (gen.spkr !== undefined) audio.stop();
   }
   this.resume = function() {
     timer.start();
-    audio.start();
+    if (gen.spkr !== undefined) audio.start();
   }
 
   this.reset = function() {
@@ -310,6 +310,17 @@ var VerilogPlatform = function(mainElement, options) {
   }
   this.getDefaultExtension = function() { return ".v"; };
 };
+
+function traceTiming() {
+  // TODO: merge with main setCode(text)
+  var text = editor.getValue();
+  worker.postMessage({
+    code:text,
+    dependencies:loadFileDependencies(text),
+    platform:platform_id,
+    tool:'yosys'
+  });
+}
 
 ////////////////
 

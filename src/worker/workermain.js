@@ -1027,6 +1027,15 @@ function detectModuleName(code) {
   return m ? m[1] : null;
 }
 
+function detectTopModuleName(code) {
+  var topmod = detectModuleName(code) || "top";
+  var m = /\bmodule\s+(\w+?_top)/.exec(code);
+  if (m && m[1]) topmod = m[1];
+  m = /\bmodule\s+(\w+?_top)/.exec(code);
+  if (m && m[1]) topmod = m[1];
+  return topmod;
+}
+
 function writeDependencies(depends, FS, errors) {
   if (depends) {
     for (var i=0; i<depends.length; i++) {
@@ -1038,7 +1047,7 @@ function writeDependencies(depends, FS, errors) {
 }
 
 function compileVerilator(code, platform, options) {
-  loadWASM("verilator_bin");
+  loadNative("verilator_bin");
   load("verilator2js");
   var errors = [];
   var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?:)?(\d+)?[:]?\s*(.+)/i, 3, 4);
@@ -1048,13 +1057,8 @@ function compileVerilator(code, platform, options) {
     print:print_fn,
     printErr:match_fn,
   });
-  var topmod = detectModuleName(code) || "top";
-  var m = /\bmodule\s+(\w+?_top)/.exec(code);
-  if (m && m[1]) topmod = m[1];
-  m = /\bmodule\s+(\w+?_top)/.exec(code);
-  if (m && m[1]) topmod = m[1];
+  var topmod = detectTopModuleName(code);
   var FS = verilator_mod['FS'];
-  //setupFS(FS);
   FS.writeFile(topmod+".v", code);
   writeDependencies(options.dependencies, FS, errors);
   starttime();
@@ -1078,6 +1082,37 @@ function compileVerilator(code, platform, options) {
   }
 }
 
+function compileYosys(code, platform, options) {
+  loadNative("yosys");
+  var errors = [];
+  var match_fn = makeErrorMatcher(errors, /ERROR: (.+?) in line (.+?[.]v):(\d+) (.+)/i, 3, 4);
+  starttime();
+  var yosys_mod = yosys({
+    wasmBinary:wasmBlob['yosys'],
+    noInitialRun:true,
+    print:print_fn,
+    printErr:match_fn,
+  });
+  endtime("create module");
+  var topmod = detectTopModuleName(code);
+  var FS = yosys_mod['FS'];
+  FS.writeFile(topmod+".v", code);
+  writeDependencies(options.dependencies, FS, errors);
+  starttime();
+  yosys_mod.callMain(["-q", "-o", topmod+".json", "-S", topmod+".v"]);
+  endtime("compile");
+  if (errors.length) return {errors:errors};
+  try {
+    var json_file = FS.readFile(topmod+".json", {encoding:'utf8'});
+    var json = JSON.parse(json_file);
+    console.log(json);
+    return {yosys_json:json, errors:errors};
+  } catch(e) {
+    console.log(e);
+    return {errors:errors};
+  }
+}
+
 var TOOLS = {
   'dasm': assembleDASM,
   'acme': assembleACME,
@@ -1090,6 +1125,7 @@ var TOOLS = {
   'xasm6809': assembleXASM6809,
   'naken': assembleNAKEN,
   'verilator': compileVerilator,
+  'yosys': compileYosys,
 }
 
 var TOOL_PRELOADFS = {

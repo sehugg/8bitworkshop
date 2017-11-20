@@ -1,10 +1,11 @@
 `include "hvsync_generator.v"
 `include "digits10.v"
 
-module player_stats(reset, score, lives, incscore, declives);
+module player_stats(reset, score0, score1, lives, incscore, declives);
   
   input reset;
-  output [3:0] score[2];
+  output [3:0] score0;
+  output [3:0] score1;
   input incscore;
   output [3:0] lives;
   input declives;
@@ -12,13 +13,13 @@ module player_stats(reset, score, lives, incscore, declives);
   always @(posedge incscore or posedge reset)
     begin
       if (reset) begin
-        score[0] <= 0;
-        score[1] <= 0;
-      end else if (score[0] == 9) begin
-        score[0] <= 0;
-        score[1] <= score[1] + 1;
+        score0 <= 0;
+        score1 <= 0;
+      end else if (score0 == 9) begin
+        score0 <= 0;
+        score1 <= score1 + 1;
       end else begin
-        score[0] <= score[0] + 1;
+        score0 <= score0 + 1;
       end
     end
 
@@ -53,10 +54,11 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   
   reg brick_array [BRICKS_H * BRICKS_V];
 
-  wire [3:0] score[2];
+  wire [3:0] score0;
+  wire [3:0] score1;
   wire [3:0] lives;
   reg incscore;
-  reg declives;
+  reg declives = 0; // TODO
   
   localparam BRICKS_H = 16;
   localparam BRICKS_V = 8;
@@ -81,8 +83,9 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   
   // scoreboard
 
-  player_stats stats(.reset(reset), .score(score), .lives(lives),
-                     .incscore(incscore), .declives(declives));
+  player_stats stats(.reset(reset), 
+                     .score0(score0), .score1(score1), .incscore(incscore),
+                     .lives(lives), .declives(declives));
 
   wire [3:0] score_digit;
   wire [4:0] score_bits;
@@ -90,8 +93,8 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   always @(*)
     begin
       case (hpos[7:5])
-        1: score_digit = score[1];
-        2: score_digit = score[0];
+        1: score_digit = score1;
+        2: score_digit = score0;
         6: score_digit = lives;
         default: score_digit = 15; // no digit
       endcase
@@ -104,11 +107,6 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   );
 
   wire score_gfx = display_on && score_bits[hpos[4:2] ^ 3'b111];
-
-  // TODO: only works when paddle at bottom of screen!
-  always @(posedge hsync)
-    if (!hpaddle)
-      paddle_pos <= vpos;
 
   wire [5:0] hcell = hpos[8:3];
   wire [5:0] vcell = vpos[8:3];
@@ -127,10 +125,11 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   reg main_gfx;
   reg brick_present;
   reg [6:0] brick_index;
+  
+  wire visible_clk = clk & display_on;
 
   // compute main_gfx and locate bricks
-  always @(posedge clk)
-  begin
+  always @(posedge visible_clk)
     // see if we are scanning brick area
     if (vpos[8:6] == 1 && !lr_border)
     begin
@@ -162,16 +161,21 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
         default: main_gfx <= lr_border; // left/right borders
       endcase
     end
-  end
-  
+
+  // only works when paddle at bottom of screen!
+  // (we don't want to mess w/ paddle position during visible portion)
+  always @(posedge hsync)
+    if (!hpaddle)
+      paddle_pos <= vpos;
+
   wire ball_pixel_collide = main_gfx & ball_gfx;
   
   /* verilator lint_off MULTIDRIVEN */
-  reg [5:0] ball_collide_bits = 0;
+  reg [4:0] ball_collide_bits = 0;
   /* verilator lint_on MULTIDRIVEN */
 
   // compute ball collisions with paddle and playfield
-  always @(posedge clk)
+  always @(posedge visible_clk)
     if (ball_pixel_collide) begin
       if (paddle_gfx) begin
         // did we collide w/ paddle?
@@ -186,7 +190,7 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
     end
 
   // compute ball collisions with brick
-  always @(posedge clk)
+  always @(posedge visible_clk)
     if (ball_pixel_collide && brick_present) begin
       brick_array[brick_index] <= 0;
       incscore <= 1; // increment score

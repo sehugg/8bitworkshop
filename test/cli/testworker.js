@@ -71,7 +71,7 @@ function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
           assert.equal(nerrors, msg.errors.length, "errors");
         } else {
           assert.equal(nerrors||0, 0, "errors");
-          assert.equal(msg.output.length, outlen, "output binary");
+          assert.equal(msg.output.code?msg.output.code.length:msg.output.length, outlen, "output binary");
           assert.equal(msg.lines.length, nlines, "listing lines");
         }
         callback(null, msg);
@@ -158,6 +158,10 @@ describe('Worker', function() {
   it('should compile coleco skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/coleco/skeleton.sdcc'));
     compile('sdcc', csource, 'coleco', done, 32768, 31, 0);
+  });
+  it('should compile verilog example', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
+    compile('verilator', csource, 'verilog', done, 3731, 0, 0);
   });
   it('should NOT compile SDCC', function(done) {
     compile('sdcc', 'foobar', 'mw8080bw', done, 0, 0, 1);
