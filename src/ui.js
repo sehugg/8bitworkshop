@@ -189,8 +189,25 @@ function newEditor(mode) {
       setCode(editor.getValue());
     }, 200);
   });
+  editor.on('cursorActivity', function(ed) {
+    var start = editor.getCursor(true);
+    var end = editor.getCursor(false);
+    if (start.line == end.line && start.ch < end.ch) {
+      var name = editor.getSelection();
+      inspectVariable(editor, name);
+    } else {
+      inspectVariable(editor);
+    }
+  });
   scrollProfileView(editor);
   editor.setOption("mode", mode);
+}
+
+function inspectVariable(editor, name) {
+  var val;
+  if (platform.inspect) {
+    platform.inspect(name);
+  }
 }
 
 function getCurrentPresetTitle() {
@@ -1105,7 +1122,13 @@ function lookBackwardsForJSONComment(line, req) {
         var pos0 = start.ch;
         line--;
         while (++line < editor.lineCount()) {
-          if (editor.getLine(line).indexOf(';') >= pos0) {
+          var l = editor.getLine(line);
+          var endsection;
+          if (platform_id == 'verilog')
+            endsection = l.indexOf('end') >= pos0;
+          else
+            endsection = l.indexOf(';') >= pos0;
+          if (endsection) {
             var end = {line:line, ch:editor.getLine(line).length};
             return {obj:obj, start:start, end:end};
           }

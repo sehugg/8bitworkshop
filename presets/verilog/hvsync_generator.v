@@ -43,20 +43,16 @@ module hvsync_generator(
       else
         vpos <= 0;
 
-  reg vga_HS, vga_VS;
   always @(posedge clk)
   begin
-    vga_HS <= (hpos>=START_H_RETRACE && hpos<=END_H_RETRACE);
-    vga_VS <= (vpos==START_V_RETRACE);
+    hsync <= (hpos>=START_H_RETRACE && hpos<=END_H_RETRACE);
+    vsync <= (vpos==START_V_RETRACE);
   end
 
   always @(posedge clk)
   begin
     display_on <= (hpos<H_DISPLAY) && (vpos<V_DISPLAY);
   end
-
-  assign hsync = ~vga_HS;
-  assign vsync = ~vga_VS;
 
 endmodule
 

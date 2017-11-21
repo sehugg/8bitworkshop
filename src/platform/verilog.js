@@ -139,17 +139,19 @@ var VerilogPlatform = function(mainElement, options) {
   var paddle_x = 0;
   var paddle_y = 0;
   var switches = [0];
+  var inspect_obj, inspect_sym;
+  var inspect_data = new Uint32Array(videoWidth * videoHeight);
 
   this.getPresets = function() { return VERILOG_PRESETS; }
 
   var RGBLOOKUP = [
-    0xff111111,
-    0xff1111ff,
-    0xff11ff11,
-    0xff11ffff,
-    0xffff1111,
-    0xffff11ff,
-    0xffffff11,
+    0xff222222,
+    0xff2222ff,
+    0xff22ff22,
+    0xff22ffff,
+    0xffff2222,
+    0xffff22ff,
+    0xffffff22,
     0xffffffff,
   ];
 
@@ -158,23 +160,56 @@ var VerilogPlatform = function(mainElement, options) {
     audio.addSingleSample(0+gen.spkr); // TODO: sync with audio freq
   }
 
+  function updateInspectionFrame() {
+    if (inspect_obj && inspect_sym) {
+      var COLOR_BIT_OFF = 0xffff3333;
+      var COLOR_BIT_ON  = 0xffffffff;
+      for (var y=0; y<videoHeight; y++) {
+        var val = inspect_data[y * videoWidth];
+        var i = y * videoWidth + 16;
+        do {
+          idata[i] = (val & 1) ? COLOR_BIT_ON : COLOR_BIT_OFF;
+          i -= 2;
+          val >>= 1;
+        } while (val != 0);
+      }
+    }
+  }
+
+  function updateInspectionPostFrame() {
+    if (inspect_obj && inspect_sym) {
+      var ctx = video.getContext();
+      var val = inspect_data[inspect_data.length-1];
+      ctx.fillStyle = "black";
+      ctx.fillRect(18, videoHeight-8, 30, 8);
+      ctx.fillStyle = "white";
+      ctx.fillText(val.toString(10), 20, videoHeight-1);
+    }
+  }
+
   function updateVideoFrame() {
-    var i=0;
+    var i=4; // TODO, start @ 0?
+    var trace=inspect_obj && inspect_sym;
     for (var y=0; y<videoHeight; y++) {
       gen.hpaddle = y > paddle_x ? 1 : 0;
       gen.vpaddle = y > paddle_y ? 1 : 0;
       for (var x=0; x<videoWidth; x++) {
         vidtick();
+        if (trace) {
+          inspect_data[i] = inspect_obj[inspect_sym];
+        }
         idata[i++] = RGBLOOKUP[gen.rgb];
       }
       var z=0;
-      while (gen.hsync && z++<videoWidth) vidtick();
       while (!gen.hsync && z++<videoWidth) vidtick();
+      while (gen.hsync && z++<videoWidth) vidtick();
     }
     var z=0;
-    while (gen.vsync && z++<videoWidth*80) vidtick();
     while (!gen.vsync && z++<videoWidth*80) vidtick();
+    while (gen.vsync && z++<videoWidth*80) vidtick();
+    updateInspectionFrame();
     video.updateFrame();
+    updateInspectionPostFrame();
   }
 
   var yposlist = [];
@@ -187,9 +222,9 @@ var VerilogPlatform = function(mainElement, options) {
       if (idata[i])
         idata[i] = 0; //<<= 1;
     }
-    var COLOR_SIGNAL = 0xff11ff11;
-    var COLOR_BORDER = 0xff661111;
-    var COLOR_TRANS_SIGNAL = 0xff116611;
+    var COLOR_SIGNAL = 0xff22ff22;
+    var COLOR_BORDER = 0xff662222;
+    var COLOR_TRANS_SIGNAL = 0xff226622;
     for (var x=0; x<videoWidth; x++) {
       gen.clk ^= 1;
       gen.eval();
@@ -221,11 +256,9 @@ var VerilogPlatform = function(mainElement, options) {
     video.updateFrame();
     // draw labels
     var ctx = video.getContext();
-    ctx.font = "8px TinyFont";
-    ctx.fillStyle = "white";
     for (var i=0; i<arr.length; i++) {
       var v = arr[i];
-      ctx.textAlign = 'left';
+      ctx.fillStyle = v.name == inspect_sym ? "yellow" : "white";
       ctx.fillText(v.name, 1, yposlist[i]);
       //ctx.textAlign = 'right';
       //ctx.fillText(""+gen[v.name], videoWidth-1, yposlist[i]);
@@ -240,6 +273,10 @@ var VerilogPlatform = function(mainElement, options) {
     // TODO
     video = new RasterVideo(mainElement,videoWidth,videoHeight);
     video.create();
+    var ctx = video.getContext();
+    ctx.font = "8px TinyFont";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "left";
     setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
 		$(video.canvas).mousemove(function(e) {
 			paddle_x = clamp(8,240,Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 20));
@@ -283,10 +320,8 @@ var VerilogPlatform = function(mainElement, options) {
     var base = new VerilatorBase();
     gen = new mod(base);
     gen.__proto__ = base;
-    output.code = null;
-    output.ports_signals = output.ports.concat(output.signals);
     current_output = output;
-    this.reset();
+    this.poweron();
   }
 
   this.isRunning = function() {
@@ -301,14 +336,37 @@ var VerilogPlatform = function(mainElement, options) {
     if (gen.spkr !== undefined) audio.start();
   }
 
-  this.reset = function() {
+  this.poweron = function() {
     gen._ctor_var_reset();
+    this.reset();
+  }
+  this.reset = function() {
     gen.reset2();
   }
   this.getToolForFilename = function(fn) {
     return "verilator";
   }
   this.getDefaultExtension = function() { return ".v"; };
+
+  this.inspect = function(name) {
+    if (!gen) return;
+    if (name && !name.match(/^\w+$/)) return;
+    var val = gen[name];
+    if (val === undefined && current_output.code) {
+      var re = new RegExp("(\\w+__DOT__" + name + ")\\b", "gm");
+      var m = re.exec(current_output.code);
+      if (m) {
+        name = m[1];
+        val = gen[name];
+      }
+    }
+    if (val !== undefined) {
+      inspect_obj = gen;
+      inspect_sym = name;
+    } else {
+      inspect_obj = inspect_sym = null;
+    }
+  }
 };
 
 function traceTiming() {

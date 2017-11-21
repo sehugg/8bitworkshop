@@ -8,7 +8,7 @@ module digits10_case(digit, yofs, bits);
 
   wire [6:0] caseexpr = {digit,yofs};
   always @(*)
-    case (caseexpr)
+    case (caseexpr)/*{w:5,h:5,count:10}*/
       7'o00: bits = 5'b11111;
       7'o01: bits = 5'b10001;
       7'o02: bits = 5'b10001;
@@ -81,11 +81,9 @@ module digits10_array(digit, yofs, bits);
   
   reg [4:0] bitarray[10][5];
 
-  always @(*)
-    bits = bitarray[digit][yofs];
-  
-  initial
-  begin
+  assign bits = bitarray[digit][yofs];
+
+  initial begin/*{w:5,h:5,count:10}*/
     bitarray[0][0] = 5'b11111;
     bitarray[0][1] = 5'b10001;
     bitarray[0][2] = 5'b10001;
