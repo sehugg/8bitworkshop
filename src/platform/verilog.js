@@ -8,7 +8,9 @@ var VERILOG_PRESETS = [
   {id:'digits10.v', name:'Digits'},
   {id:'ball_slip_counter.v', name:'Ball Motion (slipping counter)'},
   {id:'ball_paddle.v', name:'Brick Smash Game'},
-  //{id:'pong.v', name:'Pong'},
+  {id:'sprite_bitmap.v', name:'Sprite Bitmaps'},
+  {id:'sprite_renderer.v', name:'Sprite Rendering'},
+  {id:'sprite_multiple.v', name:'Multiple Sprites'},
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([

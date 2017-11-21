@@ -28,7 +28,7 @@ function gotoNewLocation() {
 }
 
 // make sure VCS doesn't start
-Javatari.AUTO_START = false;
+if (window.Javatari) Javatari.AUTO_START = false;
 
 // 8bitworkshop IDE user interface
 
@@ -44,15 +44,20 @@ function getBiggestItems(storage) {
   var items = [];
   for (var i = 0; i < storage.length; i++) {
     var key = storage.key(i);
-    items.push([lpad(storage.getItem(key).length+"", 12), key]);
+    var len = storage.getItem(key).length;
+    if (len>=100)
+      items.push([lpad(len+"", 12), key]);
   }
   items.sort();
+  return items;
+}
+/*
   var s = "";
   for (var i=items.length-5; i<items.length; i++) {
     s += items[i] + "\n";
   }
   return s;
-}
+}*/
 
 var FileStore = function(storage, prefix) {
   var self = this;
@@ -62,8 +67,10 @@ var FileStore = function(storage, prefix) {
     } catch (e) {
       if (e.name == 'NS_ERROR_DOM_QUOTA_REACHED') {
         console.log(e);
-        alert("Sorry, you've reached your local storage quota for this browser.\n\nHere are the biggest items:\n\n" +
-          getBiggestItems(storage));
+        if (confirm("Sorry, you've reached your local storage quota for this browser.\n\nGo to local storage editor?")) {
+          window.location = 'editstorage.html';
+          return;
+        }
       } else {
         throw e;
       }
@@ -1094,7 +1101,7 @@ function toggleProfileWindow() {
 }
 
 function handleWindowMessage(e) {
-  console.log("window message", e.data);
+  //console.log("window message", e.data);
   if (e.data.bytes) {
     editor.replaceSelection(e.data.bytestr);
   }
