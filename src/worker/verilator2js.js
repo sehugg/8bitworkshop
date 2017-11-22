@@ -66,8 +66,9 @@ function translateFunction(text) {
   var funcname = text.match(/(\w+)/)[1];
   text = text.replace(symsName + "* __restrict ", "");
   text = text.replace(moduleName + "* __restrict vlTOPp VL_ATTR_UNUSED", "var vlTOPp");
-  text = text.replace(/VL_DEBUG_IF/g,"//VL_DEBUG_IF");
-  text = text.replace(/VL_SIG(\d*)[(](\w+),(\d+),(\d+)[)]/g, 'var $2');
+  text = text.replace(/\bVL_DEBUG_IF\(([^]+?)\);\n/g,"/*VL_DEBUG_IF($1);*/\n");
+  //text = text.replace(/\bVL_DEBUG_IF/g,"!__debug__?0:\n");
+  text = text.replace(/\bVL_SIG(\d*)[(](\w+),(\d+),(\d+)[)]/g, 'var $2');
   text = text.replace(/\b->\b/g, ".");
   text = text.replace('VL_INLINE_OPT', '');
   text = text.replace(/[(]IData[)]/g, '');
@@ -83,6 +84,7 @@ function translateFunction(text) {
   text = text.replace(/VL_LIKELY/g, '!!');
   text = text.replace(/VL_UNLIKELY/g, '!!');
   text = text.replace(/Verilated::(\w+)Error/g, 'console.log');
+  text = text.replace(/vlSymsp.name[(][)]/g, '"'+moduleName+'"');
   return "function " + text + "\nself." + funcname + " = " + funcname + ";\n";
 }
 
@@ -131,28 +133,3 @@ function translateVerilatorOutputToJS(htext, cpptext) {
     }
   };
 }
-
-////
-
-// TODO: unit test
-/*
-incpp = "obj_dir/Vhvsync_generator.cpp"
-inh = "obj_dir/Vhvsync_generator.h"
-
-fs = require('fs')
-fs.readFile(incpp, 'utf8', function (err,datacpp) {
-  fs.readFile(inh, 'utf8', function (err,datah) {
-    var modtext = translateVerilatorOutputToJS(datah, datacpp);
-    console.log(modtext);
-    var mod = new Function('base',modtext);
-    var gen = new mod(new VerilatorBase());
-    console.log(gen);
-    gen._ctor_var_reset();
-    var top = {TOPp:gen};
-    gen._eval_settle(top);
-    for (var i=0; i<1000000; i++)
-      gen._eval(top);
-    console.log(gen);
-  });
-});
-*/

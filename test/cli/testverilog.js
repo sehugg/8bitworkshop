@@ -11,8 +11,9 @@ function loadPlatform(msg) {
   try {
     platform.loadROM("ROM", msg.output);
     vl_finished = vl_stopped = false;
-    for (var i=0; i<100 && !(vl_finished||vl_stopped); i++)
+    for (var i=0; i<10000 && !(vl_finished||vl_stopped); i++)
       platform.tick();
+    //assert.ok(vl_finished||vl_stopped);
   } catch (e) {
     //platform.printErrorCodeContext(e, msg.output.code);
     console.log(msg.intermediate.listing);
@@ -49,6 +50,24 @@ function testVerilator(filename, disables, nerrors) {
 }
 
 describe('Verilog Worker', function() {
+  testVerilator('test/cli/verilog/t_gen_alw.v');
+  testVerilator('test/cli/verilog/t_case_huge_sub3.v');
+
+  //testVerilator('test/cli/verilog/t_order.v');
+  //testVerilator('test/cli/verilog/t_order_2d.v');
+  //testVerilator('test/cli/verilog/t_order_a.v');
+  //testVerilator('test/cli/verilog/t_order_b.v');
+  //testVerilator('test/cli/verilog/t_order_clkinst.v');
+  testVerilator('test/cli/verilog/t_order_comboclkloop.v');
+  //testVerilator('test/cli/verilog/t_order_comboloop.v', ['BLKSEQ']);
+  testVerilator('test/cli/verilog/t_order_doubleloop.v', ['BLKSEQ']);
+  testVerilator('test/cli/verilog/t_order_first.v');
+  testVerilator('test/cli/verilog/t_order_loop_bad.v', ['BLKSEQ'], 10);
+  testVerilator('test/cli/verilog/t_order_multialways.v');
+  testVerilator('test/cli/verilog/t_order_multidriven.v', ['UNDRIVEN']);
+  //testVerilator('test/cli/verilog/t_order_quad.v');
+  testVerilator('test/cli/verilog/t_order_wireloop.v', ['UNOPT']);
+
   testVerilator('test/cli/verilog/t_mem.v');
 
   testVerilator('test/cli/verilog/t_alw_combdly.v');
