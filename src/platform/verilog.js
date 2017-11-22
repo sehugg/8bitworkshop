@@ -67,11 +67,11 @@ var vl_stopped = false;
   var VL_WRITEF = this.VL_WRITEF = console.log; // TODO: $write
 
   var vl_finish = this.vl_finish = function(filename,lineno,hier) {
-    console.log("Finished at " + filename + ":" + lineno);
+    console.log("Finished at " + filename + ":" + lineno, hier);
     vl_finished = true;
   }
   var vl_stop = this.vl_stop = function(filename,lineno,hier) {
-    console.log("Finished at " + filename + ":" + lineno);
+    console.log("Stopped at " + filename + ":" + lineno, hier);
     vl_stopped = true;
   }
 

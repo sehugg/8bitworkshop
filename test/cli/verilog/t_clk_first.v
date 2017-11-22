@@ -13,6 +13,7 @@ module t (/*AUTOARG*/
    reg 	 reset_l;
 
    int cyc;
+   // TODO: initial cyc = 0;
    initial reset_l = 0;
    always @ (posedge clk) begin
       if (cyc==0) reset_l <= 1'b1;

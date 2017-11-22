@@ -78,7 +78,7 @@ function translateFunction(text) {
   text = text.replace(/\bbool /g, '');
   text = text.replace(/\bint /g, 'var ');
   text = text.replace(/(\w+ = VL_RAND_RESET_)/g, 'self.$1'); // TODO?
-  text = text.replace(/^\s*(\w+ = \d+;)/gm, 'self.$1'); // TODO?
+  //text = text.replace(/^\s*(\w+ = \d+;)/gm, 'self.$1'); // TODO?
   //text = text.replace(/(\w+\[\w+\] = VL_RAND_RESET_I)/g, 'self.$1');
   text = text.replace(/^#/gm, '//#');
   text = text.replace(/VL_LIKELY/g, '!!');
