@@ -1,63 +1,7 @@
 
 var assert = require('assert');
 var fs = require('fs');
-var vm = require('vm');
-var worker = {};
-
-var includeInThisContext = function(path) {
-    var code = fs.readFileSync(path);
-    vm.runInThisContext(code, path);
-};
-
-global.importScripts = function(path) {
-    includeInThisContext('src/worker/'+path);
-}
-
-function Blob(blob) {
-  this.size = blob.length;
-  this.length = blob.length;
-  this.slice = function(a,b) {
-    var data = blob.slice(a,b);
-    var b = new Blob(data);
-    //console.log(a, b, data.length, data.slice(0,64));
-    //console.log(new Error().stack);
-    return b;
-  }
-  this.asArrayBuffer = function() {
-    var buf = new ArrayBuffer(blob.length);
-    var arr = new Uint8Array(buf);
-    for (var i=0; i<blob.length; i++)
-      arr[i] = blob[i].charCodeAt(0);
-    return arr;
-  }
-}
-
-global.XMLHttpRequest = function() {
-    this.open = function(a,b,c) {
-        if (this.responseType == 'json') {
-            var txt = fs.readFileSync('src/worker/'+b);
-            this.response = JSON.parse(txt);
-        } else if (this.responseType == 'blob') {
-            var data = fs.readFileSync('src/worker/'+b, {encoding:'binary'});
-            //var buf = new ArrayBuffer(data.length);
-            //var blob = new Uint8Array(buf);
-            //blob.set(data);
-            this.response = new Blob(data);
-        }
-    }
-    this.send = function() { }
-}
-
-global.FileReaderSync = function() {
-  this.readAsArrayBuffer = function(blob) {
-    return blob.asArrayBuffer();
-  }
-}
-
-global.onmessage = null;
-global.postMessage = null;
-
-includeInThisContext("src/worker/workermain.js");
+var wtu = require('./workertestutils.js');
 
 global.onmessage({data:{preload:'cc65'}});
 global.onmessage({data:{preload:'sdcc'}});
@@ -79,10 +23,6 @@ function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
     global.onmessage({
         data:{code:code, platform:platform, tool:tool}
     });
-}
-
-function ab2str(buf) {
-  return String.fromCharCode.apply(null, new Uint16Array(buf));
 }
 
 describe('Worker', function() {
@@ -161,7 +101,7 @@ describe('Worker', function() {
   });
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
-    compile('verilator', csource, 'verilog', done, 3731, 0, 0);
+    compile('verilator', csource, 'verilog', done, 3686, 0, 0);
   });
   it('should NOT compile SDCC', function(done) {
     compile('sdcc', 'foobar', 'mw8080bw', done, 0, 0, 1);

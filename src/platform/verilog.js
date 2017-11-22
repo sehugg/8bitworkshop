@@ -27,7 +27,12 @@ var VERILOG_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_7, 0, 0x400],
 ]);
 
-  var VL_UL = function(x) { return x; }
+var vl_finished = false;
+var vl_stopped = false;
+
+  var VL_UL = function(x) { return x|0; }
+  var VL_ULL = function(x) { return x|0; }
+  var VL_TIME_Q = function() { return (new Date().getTime())|0; }
 
   /// Return true if data[bit] set
   var VL_BITISSET_I = this.VL_BITISSET_I = function(data,bit) { return (data & (VL_UL(1)<<VL_BITBIT_I(bit))); }
@@ -56,11 +61,25 @@ var VERILOG_KEYCODE_MAP = makeKeycodeMap([
   var VL_GTES_III = this.VL_GTES_III = function(x,lbits,y,lhs,rhs) {
     return VL_EXTENDS_II(x,lbits,lhs) >= VL_EXTENDS_II(x,lbits,rhs); }
 
+  var VL_MODDIV_III = this.VL_MODDIV_III = function(lbits,lhs,rhs) {
+    return (((rhs)==0)?0:(lhs)%(rhs)); }
+
+  var VL_WRITEF = this.VL_WRITEF = console.log; // TODO: $write
+
+  var vl_finish = this.vl_finish = function(filename,lineno,hier) {
+    console.log("Finished at " + filename + ":" + lineno);
+    vl_finished = true;
+  }
+  var vl_stop = this.vl_stop = function(filename,lineno,hier) {
+    console.log("Finished at " + filename + ":" + lineno);
+    vl_stopped = true;
+  }
+
+  var VL_RAND_RESET_I = this.VL_RAND_RESET_I = function(bits) { return Math.floor(Math.random() * (1<<bits)); }
+
 //
 
 function VerilatorBase() {
-
-  var VL_RAND_RESET_I = this.VL_RAND_RESET_I = function(bits) { return Math.floor(Math.random() * (1<<bits)); }
 
   //
 
@@ -298,7 +317,7 @@ var VerilogPlatform = function(mainElement, options) {
     });
   }
 
-  function printErrorCodeContext(e, code) {
+  this.printErrorCodeContext = function(e, code) {
     if (e.lineNumber && e.message) {
       var lines = code.split('\n');
       var s = e.message + '\n';
@@ -316,7 +335,7 @@ var VerilogPlatform = function(mainElement, options) {
     try {
       mod = new Function('base', output.code);
     } catch (e) {
-      printErrorCodeContext(e, output.code);
+      this.printErrorCodeContext(e, output.code);
       throw e;
     }
     var base = new VerilatorBase();
@@ -344,6 +363,9 @@ var VerilogPlatform = function(mainElement, options) {
   }
   this.reset = function() {
     gen.reset2();
+  }
+  this.tick = function() {
+    gen.tick2();
   }
   this.getToolForFilename = function(fn) {
     return "verilator";

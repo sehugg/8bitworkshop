@@ -2,7 +2,7 @@
 var moduleName, symsName;
 
 function parseDecls(text, arr, name, bin, bout) {
-  var re = new RegExp(name + "(\\d+)[(](\\w+),(\\d+),(\\d+)[)]", 'gm');
+  var re = new RegExp(name + "(\\d*)[(](\\w+),(\\d+),(\\d+)[)]", 'gm');
   var m;
   while ((m = re.exec(text))) {
     arr.push({
@@ -12,7 +12,7 @@ function parseDecls(text, arr, name, bin, bout) {
       ofs:parseInt(m[4]),
     });
   }
-  re = new RegExp(name + "(\\d+)[(](\\w+)\\[(\\d+)\\],(\\d+),(\\d+)[)]", 'gm');
+  re = new RegExp(name + "(\\d*)[(](\\w+)\\[(\\d+)\\],(\\d+),(\\d+)[)]", 'gm');
   var m;
   while ((m = re.exec(text))) {
     arr.push({
@@ -23,7 +23,7 @@ function parseDecls(text, arr, name, bin, bout) {
       ofs:parseInt(m[5]),
     });
   }
-  re = new RegExp(name + "(\\d+)[(](\\w+)\\[(\\d+)\\]\\[(\\d+)\\],(\\d+),(\\d+)[)]", 'gm');
+  re = new RegExp(name + "(\\d*)[(](\\w+)\\[(\\d+)\\]\\[(\\d+)\\],(\\d+),(\\d+)[)]", 'gm');
   var m;
   while ((m = re.exec(text))) {
     arr.push({
@@ -39,7 +39,6 @@ function parseDecls(text, arr, name, bin, bout) {
 function buildModule(o) {
   var m = '"use strict";\n';
   m += '\tvar self = this;\n';
-  m += '\tvar VL_RAND_RESET_I = base.VL_RAND_RESET_I;\n';
   for (var i=0; i<o.ports.length; i++) {
     m += "\tself." + o.ports[i].name + ";\n";
   }
@@ -68,7 +67,7 @@ function translateFunction(text) {
   text = text.replace(symsName + "* __restrict ", "");
   text = text.replace(moduleName + "* __restrict vlTOPp VL_ATTR_UNUSED", "var vlTOPp");
   text = text.replace(/VL_DEBUG_IF/g,"//VL_DEBUG_IF");
-  text = text.replace(/VL_SIG\d+[(](\w+),(\d+),(\d+)[)]/g, 'var $1');
+  text = text.replace(/VL_SIG(\d*)[(](\w+),(\d+),(\d+)[)]/g, 'var $2');
   text = text.replace(/\b->\b/g, ".");
   text = text.replace('VL_INLINE_OPT', '');
   text = text.replace(/[(]IData[)]/g, '');
@@ -77,7 +76,8 @@ function translateFunction(text) {
   text = text.replace(/\bQData /g, 'var ');
   text = text.replace(/\bbool /g, '');
   text = text.replace(/\bint /g, 'var ');
-  text = text.replace(/(\w+ = VL_RAND_RESET_I)/g, 'self.$1');
+  text = text.replace(/(\w+ = VL_RAND_RESET_)/g, 'self.$1'); // TODO?
+  text = text.replace(/^\s*(\w+ = \d+;)/gm, 'self.$1'); // TODO?
   //text = text.replace(/(\w+\[\w+\] = VL_RAND_RESET_I)/g, 'self.$1');
   text = text.replace(/^#/gm, '//#');
   text = text.replace(/VL_LIKELY/g, '!!');
