@@ -576,7 +576,7 @@ var lastDebugState;
 
 function showMemory(state) {
   var s = "";
-  if (state) {
+  if (state && platform.cpuStateToLongString) {
     s = platform.cpuStateToLongString(state.c);
     if (platform.getRasterPosition) {
       var pos = platform.getRasterPosition();
@@ -598,14 +598,16 @@ function setupBreakpoint() {
   // TODO
   platform.setupDebug(function(state) {
     lastDebugState = state;
-    var PC = state.c.PC;
-    var line = sourcefile.findLineForOffset(PC);
-    if (line >= 0) {
-      console.log("BREAKPOINT", hex(PC), line);
-      setCurrentLine(line);
-    } else {
-      console.log("BREAKPOINT", hex(PC));
-      // TODO: switch to disasm
+    if (state.c) {
+      var PC = state.c.PC;
+      var line = sourcefile.findLineForOffset(PC);
+      if (line >= 0) {
+        console.log("BREAKPOINT", hex(PC), line);
+        setCurrentLine(line);
+      } else {
+        console.log("BREAKPOINT", hex(PC));
+        // TODO: switch to disasm
+      }
     }
     showMemory(state);
     updateDisassembly();
@@ -635,7 +637,7 @@ function _resume() {
 
 function resume() {
   clearBreakpoint();
-  if (! platform.isRunning())
+  if (! platform.isRunning() )
     editor.setSelection(editor.getCursor()); // TODO??
   _resume();
 }
@@ -643,6 +645,11 @@ function resume() {
 function singleStep() {
   setupBreakpoint();
   platform.step();
+}
+
+function singleFrameStep() {
+  setupBreakpoint();
+  platform.runToVsync();
 }
 
 function getCurrentLine() {
@@ -1213,31 +1220,40 @@ function _recordVideo() {
 }
 
 function setupDebugControls(){
-  var hasDebug = platform.setupDebug;
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
   $("#dbg_go").click(resume);
-  if (hasDebug) {
+
+  if (platform.step)
     $("#dbg_step").click(singleStep).show();
-    $("#dbg_toline").click(runToCursor).show();
-    $("#dbg_stepout").click(runUntilReturn).show();
-    $("#dbg_stepback").click(runStepBackwards).show();
-  } else {
+  else
     $("#dbg_step").hide();
+  if (platform.runToVsync)
+    $("#dbg_tovsync").click(singleFrameStep).show();
+  else
+    $("#dbg_tovsync").hide();
+  if (platform.runEval && platform_id != 'verilog')
+    $("#dbg_toline").click(runToCursor).show();
+  else
     $("#dbg_toline").hide();
+  if (platform.runUntilReturn)
+    $("#dbg_stepout").click(runUntilReturn).show();
+  else
     $("#dbg_stepout").hide();
+  if (platform.stepBack)
+    $("#dbg_stepback").click(runStepBackwards).show();
+  else
     $("#dbg_stepback").hide();
-  }
+
   if (window.traceTiming) {
     $("#dbg_timing").click(traceTiming).show();
-  }
-  else if (platform.readAddress) {
+  } else if (platform.readAddress) {
     $("#dbg_memory").click(toggleMemoryWindow).show();
   }
   if (platform.getProbe) {
     $("#dbg_profile").click(toggleProfileWindow).show();
   }
-  if (platform.saveState) { // TODO: only show if listing or disasm available
+  if (platform.saveState && platform_id != 'verilog') { // TODO: only show if listing or disasm available
     $("#dbg_disasm").click(toggleDisassembly).show();
   }
   $("#disassembly").hide();
@@ -1246,7 +1262,10 @@ function setupDebugControls(){
   $("#item_new_file").click(_createNewFile);
   $("#item_share_file").click(_shareFile);
   $("#item_reset_file").click(_resetPreset);
-  $("#item_debug_expr").click(_breakExpression);
+  if (platform.runEval)
+    $("#item_debug_expr").click(_breakExpression).show();
+  else
+    $("#item_debug_expr").hide();
   $("#item_download_rom").click(_downloadROMImage);
   $("#item_record_video").click(_recordVideo);
   updateDebugWindows();

@@ -83,14 +83,20 @@ function VerilatorBase() {
 
   //
 
+  var totalTicks = 0;
+
   function vl_fatal(msg) {
     console.log(msg);
   }
+
+  this.ticks = function() { return totalTicks; }
+  this.setTicks = function(T) { totalTicks = T|0; }
 
   var RESET_TICKS = 1000;
 
   this.reset2 = function() {
     if (this.reset !== undefined) {
+      totalTicks = 0;
       this.reset = 0;
       this.tick2();
       this.reset = 1;
@@ -130,6 +136,7 @@ function VerilatorBase() {
       maxVclockLoop = __VclockLoop;
       console.log("Graph took " + maxVclockLoop + " iterations to stabilize");
     }
+    totalTicks++;
   }
 
   this._eval_initial_loop = function(vlSymsp) {
@@ -176,9 +183,12 @@ var VerilogPlatform = function(mainElement, options) {
     0xffffffff,
   ];
 
+  var debugCond;
+
   function vidtick() {
     gen.tick2();
     audio.addSingleSample(0+gen.spkr); // TODO: sync with audio freq
+    if (debugCond && debugCond()) debugCond = null;
   }
 
   function updateInspectionFrame() {
@@ -209,6 +219,7 @@ var VerilogPlatform = function(mainElement, options) {
   }
 
   function updateVideoFrame() {
+    debugCond = self.getDebugCallback();
     var i=4; // TODO, start @ 0?
     var trace=inspect_obj && inspect_sym;
     for (var y=0; y<videoHeight; y++) {
@@ -231,6 +242,7 @@ var VerilogPlatform = function(mainElement, options) {
     updateInspectionFrame();
     video.updateFrame();
     updateInspectionPostFrame();
+    self.restartDebugState();
   }
 
   var yposlist = [];
@@ -391,6 +403,117 @@ var VerilogPlatform = function(mainElement, options) {
       inspect_obj = inspect_sym = null;
     }
   }
+
+  // DEBUGGING
+
+  this.saveState = function() {
+    return {T:gen.ticks(), o:$.extend(true, {}, gen)};
+  }
+  this.loadState = function(state) {
+    gen = $.extend(true, gen, state.o);
+    gen.setTicks(state.T);
+  }
+
+  var onBreakpointHit;
+  var debugCondition;
+  var debugSavedState = null;
+  var debugBreakState = null;
+  var debugTargetClock = 0;
+
+  this.setDebugCondition = function(debugCond) {
+    if (debugSavedState) {
+      this.loadState(debugSavedState);
+    } else {
+      debugSavedState = this.saveState();
+    }
+    debugCondition = debugCond;
+    debugBreakState = null;
+    this.resume();
+  }
+  this.restartDebugState = function() {
+    if (debugCondition && !debugBreakState) {
+      debugSavedState = this.saveState();
+      if (debugTargetClock > 0)
+        debugTargetClock -= debugSavedState.T;
+      debugSavedState.T = 0;
+      this.loadState(debugSavedState);
+    }
+  }
+  this.getDebugCallback = function() {
+    return debugCondition;
+  }
+  this.setupDebug = function(callback) {
+    onBreakpointHit = callback;
+  }
+  this.clearDebug = function() {
+    debugSavedState = null;
+    debugBreakState = null;
+    debugTargetClock = 0;
+    onBreakpointHit = null;
+    debugCondition = null;
+  }
+  this.breakpointHit = function(targetClock) {
+    debugTargetClock = targetClock;
+    debugBreakState = this.saveState();
+    console.log("Breakpoint at clk", debugBreakState.T);
+    this.pause();
+    if (onBreakpointHit) {
+      onBreakpointHit(debugBreakState);
+    }
+  }
+  this.wasBreakpointHit = function() {
+    return debugBreakState != null;
+  }
+  this.step = function() {
+    var self = this;
+    this.setDebugCondition(function() {
+      if (gen.ticks() > debugTargetClock) {
+        self.breakpointHit(gen.ticks());
+        return true;
+      }
+      return false;
+    });
+  }
+  this.runToVsync = function() {
+    var self = this;
+    this.setDebugCondition(function() {
+      if (gen.vsync && gen.ticks() > debugTargetClock+1000) {
+        self.breakpointHit(gen.ticks());
+        return true;
+      }
+      return false;
+    });
+  }
+  this.stepBack = function() {
+    var self = this;
+    var prevState;
+    var prevClock;
+    this.setDebugCondition(function() {
+      var debugClock = gen.ticks();
+      if (debugClock >= debugTargetClock && prevState) {
+        self.loadState(prevState);
+        self.breakpointHit(prevClock);
+        return true;
+      } else if (debugClock >= debugTargetClock-2 && debugClock < debugTargetClock) {
+        prevState = self.saveState();
+        prevClock = debugClock;
+      }
+      return false;
+    });
+  }
+  this.runEval = function(evalfunc) {
+    var self = this;
+    this.setDebugCondition(function() {
+			if (gen.ticks() > debugTargetClock) {
+        if (evalfunc(gen)) {
+          self.breakpointHit(gen.ticks());
+          return true;
+        }
+      }
+			return false;
+    });
+  }
+
 };
 
 function traceTiming() {

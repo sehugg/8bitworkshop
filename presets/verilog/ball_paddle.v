@@ -180,13 +180,12 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
       if (paddle_gfx) begin
         // did we collide w/ paddle?
         ball_collide_bits[4] <= 1; // bit 4 == paddle collide
-      end else begin
-        // ball has 4 collision quadrants
-        if (!ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[0] <= 1;
-        if (ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[1] <= 1;
-        if (!ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[2] <= 1;
-        if (ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[3] <= 1;
       end
+      // ball has 4 collision quadrants
+      if (!ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[0] <= 1;
+      if (ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[1] <= 1;
+      if (!ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[2] <= 1;
+      if (ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[3] <= 1;
     end
 
   // compute ball collisions with brick
@@ -213,7 +212,7 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
         // which side of paddle, left/right?
         ball_dir_x <= (ball_paddle_dx < 16) ? BALL_DIR_LEFT : BALL_DIR_RIGHT;
         // hitting with edge of paddle makes it fast
-        ball_speed_x <= !(ball_collide_bits[2] && ball_collide_bits[3]);
+        ball_speed_x <= ball_collide_bits[3:0] != 4'b1100;
       end else begin
         // collided with playfield
         // TODO: can still slip through corners
