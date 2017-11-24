@@ -99,10 +99,12 @@ describe('Worker', function() {
     var csource = ab2str(fs.readFileSync('presets/coleco/skeleton.sdcc'));
     compile('sdcc', csource, 'coleco', done, 32768, 31, 0);
   });
+  /*
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
     compile('verilator', csource, 'verilog', done, 3686, 0, 0);
   });
+  */
   it('should NOT compile SDCC', function(done) {
     compile('sdcc', 'foobar', 'mw8080bw', done, 0, 0, 1);
   });

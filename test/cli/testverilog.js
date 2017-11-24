@@ -51,6 +51,10 @@ function testVerilator(filename, disables, nerrors) {
 
 describe('Verilog Worker', function() {
 
+  testVerilator('presets/verilog/hvsync_generator.v');
+  testVerilator('presets/verilog/lfsr.v');
+  // TODO: how to include files?
+
 /* TODO: fix tests
   testVerilator('test/cli/verilog/t_order_doubleloop.v', ['BLKSEQ']);
   testVerilator('test/cli/verilog/t_alw_combdly.v');
@@ -58,6 +62,7 @@ describe('Verilog Worker', function() {
   testVerilator('test/cli/verilog/t_clk_gen.v', ['BLKSEQ']);
   testVerilator('test/cli/verilog/t_clk_first.v', ['UNDRIVEN','SYNCASYNCNET']);
   testVerilator('test/cli/verilog/t_clk_2in.v', ['BLKSEQ']);
+  testVerilator('test/cli/verilog/t_order_comboclkloop.v');
 */
   testVerilator('test/cli/verilog/t_gen_alw.v');
   testVerilator('test/cli/verilog/t_case_huge_sub3.v');
@@ -67,7 +72,6 @@ describe('Verilog Worker', function() {
   //testVerilator('test/cli/verilog/t_order_a.v');
   //testVerilator('test/cli/verilog/t_order_b.v');
   //testVerilator('test/cli/verilog/t_order_clkinst.v');
-  testVerilator('test/cli/verilog/t_order_comboclkloop.v');
   //testVerilator('test/cli/verilog/t_order_comboloop.v', ['BLKSEQ']);
   testVerilator('test/cli/verilog/t_order_first.v');
   testVerilator('test/cli/verilog/t_order_loop_bad.v', ['BLKSEQ'], 10);
