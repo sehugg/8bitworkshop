@@ -37,6 +37,7 @@ var platform_id;
 var platform; // platform object
 var originalFileID;
 var originalText;
+var userPaused;
 
 var toolbar = $("#controls_top");
 
@@ -508,7 +509,7 @@ function setCompileOutput(data) {
       try {
         //console.log("Loading ROM length", rom.length);
         platform.loadROM(getCurrentPresetTitle(), rom);
-        resume();
+        if (!userPaused) resume();
         current_output = rom;
         resetProfiler();
         toolbar.removeClass("has-errors");
@@ -625,6 +626,7 @@ function _pause() {
 function pause() {
   clearBreakpoint();
   _pause();
+  userPaused = true;
 }
 
 function _resume() {
@@ -640,6 +642,7 @@ function resume() {
   if (! platform.isRunning() )
     editor.setSelection(editor.getCursor()); // TODO??
   _resume();
+  userPaused = false;
 }
 
 function singleStep() {
@@ -765,7 +768,7 @@ function updateDisassembly() {
   var div = $("#disassembly");
   if (div.is(':visible')) {
     var state = lastDebugState || platform.saveState();
-    var pc = state.c.PC;
+    var pc = state.c ? state.c.PC : 0;
     if (assemblyfile && assemblyfile.text) {
       var asmtext = assemblyfile.text;
       if (platform_id == 'base_z80') { // TODO
@@ -818,6 +821,9 @@ function updateDisassembly() {
       disasmview.setValue(text);
       disasmview.setCursor(selline, 0);
       jumpToLine(disasmview, selline);
+    } else if (current_output.code) {
+      // show verilog javascript
+      disasmview.setValue(current_output.code);
     }
   }
 }
@@ -1253,7 +1259,7 @@ function setupDebugControls(){
   if (platform.getProbe) {
     $("#dbg_profile").click(toggleProfileWindow).show();
   }
-  if (platform.saveState && platform_id != 'verilog') { // TODO: only show if listing or disasm available
+  if (platform.saveState) { // TODO: only show if listing or disasm available
     $("#dbg_disasm").click(toggleDisassembly).show();
   }
   $("#disassembly").hide();

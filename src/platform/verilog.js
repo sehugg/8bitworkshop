@@ -92,16 +92,17 @@ function VerilatorBase() {
   this.ticks = function() { return totalTicks; }
   this.setTicks = function(T) { totalTicks = T|0; }
 
-  var RESET_TICKS = 1000;
-
-  this.reset2 = function() {
+  this.__reset = function() {
     if (this.reset !== undefined) {
       totalTicks = 0;
       this.reset = 0;
       this.tick2();
       this.reset = 1;
-      for (var i=0; i<RESET_TICKS; i++)
-        this.tick2();
+    }
+  }
+
+  this.__unreset = function() {
+    if (this.reset !== undefined) {
       this.reset = 0;
     }
   }
@@ -169,6 +170,18 @@ var VerilogPlatform = function(mainElement, options) {
   var switches = [0];
   var inspect_obj, inspect_sym;
   var inspect_data = new Uint32Array(videoWidth * videoHeight);
+  var scope_time_x = 0;
+  var scope_y_offset = 0;
+  var scope_max_y = 0;
+
+  var yposlist = [];
+  var lasty = [];
+  var lastval = [];
+  var ports_and_signals;
+  var trace_buffer;
+  var trace_index;
+  var mouse_pressed;
+  var dirty = false;
 
   this.getPresets = function() { return VERILOG_PRESETS; }
 
@@ -243,14 +256,31 @@ var VerilogPlatform = function(mainElement, options) {
     video.updateFrame();
     updateInspectionPostFrame();
     self.restartDebugState();
+    gen.__unreset();
   }
 
-  var yposlist = [];
-  var lasty = [];
+  function fillTraceBuffer(count) {
+    var arr = ports_and_signals;
+    var max_index = Math.min(trace_buffer.length, trace_index + count);
+    while (trace_index < max_index) {
+      gen.clk ^= 1;
+      gen.eval();
+      for (var i=0; i<arr.length; i++) {
+        var v = arr[i];
+        var z = gen[v.name];
+        trace_buffer[trace_index++] = z;
+      }
+      dirty = true;
+    }
+    gen.__unreset();
+  }
 
   function updateScopeFrame() {
-    var arr = current_output.ports;
+    var arr = ports_and_signals;
     if (!arr) return;
+    fillTraceBuffer(Math.floor(videoWidth/4) * arr.length);
+    if (!dirty) return;
+    dirty = false;
     for (var i=0; i<idata.length; i++) {
       if (idata[i])
         idata[i] = 0; //<<= 1;
@@ -258,18 +288,18 @@ var VerilogPlatform = function(mainElement, options) {
     var COLOR_SIGNAL = 0xff22ff22;
     var COLOR_BORDER = 0xff662222;
     var COLOR_TRANS_SIGNAL = 0xff226622;
+    var COLOR_BLIP_SIGNAL = 0xff226622;
+    var j = 0;
     for (var x=0; x<videoWidth; x++) {
-      gen.clk ^= 1;
-      gen.eval();
       var yb = 8;
-      var y1 = 0;
+      var y1 = scope_y_offset;
       for (var i=0; i<arr.length; i++) {
         var v = arr[i];
         var lo = 0; // TODO? v.ofs?
         var hi = v.len ? ((2 << v.len)-1) : 1;
         var ys = hi>1 ? v.len*2+8 : 8;
         var y2 = y1+ys;
-        var z = gen[v.name];
+        var z = trace_buffer[j++];
         var y = Math.round(y2 - ys*((z-lo)/hi));
         yposlist[i] = y2;
         var ly = lasty[i];
@@ -279,22 +309,29 @@ var VerilogPlatform = function(mainElement, options) {
             idata[x + ly*videoWidth] = COLOR_TRANS_SIGNAL;
           }
         }
+        idata[x + y*videoWidth] = lastval[i]==z ? COLOR_SIGNAL : COLOR_BLIP_SIGNAL;
         lasty[i] = y;
-        //idata[x + y1*videoWidth] = COLOR_BORDER;
-        //idata[x + y2*videoWidth] = COLOR_BORDER;
-        idata[x + y*videoWidth] = COLOR_SIGNAL;
+        lastval[i] = z;
         y1 += ys+yb;
       }
     }
+    scope_max_y = y1;
     video.updateFrame();
     // draw labels
     var ctx = video.getContext();
     for (var i=0; i<arr.length; i++) {
       var v = arr[i];
-      ctx.fillStyle = v.name == inspect_sym ? "yellow" : "white";
-      ctx.fillText(v.name, 1, yposlist[i]);
-      //ctx.textAlign = 'right';
-      //ctx.fillText(""+gen[v.name], videoWidth-1, yposlist[i]);
+      var name = v.name;
+      ctx.fillStyle = name == inspect_sym ? "yellow" : "white";
+      name = name.replace(/__DOT__/g,'.');
+      ctx.textAlign = 'left';
+      ctx.fillText(name, 1, yposlist[i]);
+      if (scope_time_x > 0) {
+        ctx.fillRect(scope_time_x, 0, 1, 4000);
+        ctx.textAlign = 'right';
+        var value = arr.length * scope_time_x + i;
+        ctx.fillText(""+trace_buffer[value], videoWidth-1, yposlist[i]);
+      }
     }
   }
 
@@ -312,8 +349,25 @@ var VerilogPlatform = function(mainElement, options) {
     ctx.textAlign = "left";
     setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
 		$(video.canvas).mousemove(function(e) {
-			paddle_x = clamp(8,240,Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 20));
-			paddle_y = clamp(8,240,Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height() - 20));
+      var new_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 20);
+      var new_y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height() - 20);
+      if (mouse_pressed) {
+        scope_y_offset = clamp(-scope_max_y, 0, scope_y_offset + new_y - paddle_y);
+  			scope_time_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 16);
+        dirty = true;
+      }
+			paddle_x = clamp(8, 240, new_x);
+			paddle_y = clamp(8, 240, new_y);
+		});
+		$(video.canvas).mousedown(function(e) {
+			scope_time_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 16);
+      mouse_pressed = true;
+      e.target.setCapture();
+      dirty = true;
+		});
+		$(video.canvas).mouseup(function(e) {
+      mouse_pressed = false;
+      e.target.releaseCapture();
 		});
     audio = new SampleAudio(AUDIO_FREQ);
     idata = video.getFrameData();
@@ -354,6 +408,9 @@ var VerilogPlatform = function(mainElement, options) {
     gen = new mod(base);
     gen.__proto__ = base;
     current_output = output;
+    ports_and_signals = current_output.ports.concat(current_output.signals);
+    trace_buffer = new Uint32Array(0x10000);
+    trace_index = 0;
     this.poweron();
   }
 
@@ -374,7 +431,10 @@ var VerilogPlatform = function(mainElement, options) {
     this.reset();
   }
   this.reset = function() {
-    gen.reset2();
+    gen.__reset();
+    trace_index = 0;
+    trace_buffer.fill(0);
+    dirty = true;
   }
   this.tick = function() {
     gen.tick2();

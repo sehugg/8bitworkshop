@@ -55,6 +55,17 @@ describe('Verilog Worker', function() {
   testVerilator('presets/verilog/lfsr.v');
   // TODO: how to include files?
 
+  //testVerilator('test/cli/verilog/t_tri_gate.v');
+  testVerilator('test/cli/verilog/t_tri_gen.v', ['UNDRIVEN']);
+  testVerilator('test/cli/verilog/t_tri_graph.v', ['UNDRIVEN']);
+  testVerilator('test/cli/verilog/t_tri_ifbegin.v', ['UNDRIVEN']);
+  testVerilator('test/cli/verilog/t_tri_inout.v');
+  testVerilator('test/cli/verilog/t_tri_inout2.v');
+  testVerilator('test/cli/verilog/t_tri_pullup.v', ['UNDRIVEN']);
+  testVerilator('test/cli/verilog/t_tri_select_unsized.v', ['WIDTH']);
+  testVerilator('test/cli/verilog/t_tri_unconn.v', ['PINCONNECTEMPTY']);
+  testVerilator('test/cli/verilog/t_tri_various.v', ['UNDRIVEN']);
+
 /* TODO: fix tests
   testVerilator('test/cli/verilog/t_order_doubleloop.v', ['BLKSEQ']);
   testVerilator('test/cli/verilog/t_alw_combdly.v');

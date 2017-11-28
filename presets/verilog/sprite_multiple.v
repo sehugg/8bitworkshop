@@ -17,6 +17,7 @@ module sprite_multiple_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   reg [7:0] paddle_y;
   reg [7:0] enemy_x = 128;
   reg [7:0] enemy_y = 128;
+  reg enemy_dir = 0;
   
   reg [15:0] track_pos = 0;
   reg [7:0] speed = 31;
@@ -73,17 +74,29 @@ module sprite_multiple_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
       if (!vpaddle) paddle_y <= vpos[7:0];
     end
   
+  wire enemy_hit_left = (enemy_x == 64);
+  wire enemy_hit_right = (enemy_x == 192);
+  wire enemy_hit_edge = enemy_hit_left || enemy_hit_right;
+  
   always @(posedge vsync)
     begin
       player_x <= paddle_x;
       player_y <= 180;
       track_pos <= track_pos + {11'b0,speed[7:4]};
       enemy_y <= enemy_y + {3'b0, speed[7:4]};
+      if (enemy_hit_edge)
+        enemy_dir <= !enemy_dir;
+      if (enemy_dir ^ enemy_hit_edge)
+        enemy_x <= enemy_x + 1;
+      else
+        enemy_x <= enemy_x - 1;
       // collision check?
       if (frame_collision)
         speed <= 16;
-      else if (speed < 255)
+      else if (speed < ~paddle_y)
         speed <= speed + 1;
+      else
+        speed <= speed - 1;
     end
   
   reg frame_collision;

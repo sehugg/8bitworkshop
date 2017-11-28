@@ -1023,7 +1023,9 @@ function assembleNAKEN(code, platform) {
 }
 
 function detectModuleName(code) {
-  var m = /\bmodule\s+(\w+_top)/.exec(code) || /\bmodule\s+(\w+)/.exec(code);
+  var m = /\bmodule\s+(\w+_top)\b/.exec(code)
+       || /\bmodule\s+(top)\b/.exec(code)
+       || /\bmodule\s+(\w+)\b/.exec(code);
   return m ? m[1] : null;
 }
 
