@@ -11,6 +11,7 @@ module test_hvsync_top(clk, hsync, vsync, rgb);
 
   hvsync_generator hvsync_gen(
     .clk(clk),
+    .reset(0),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(display_on),

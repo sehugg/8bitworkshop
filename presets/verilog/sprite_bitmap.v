@@ -29,7 +29,7 @@ module car_bitmap(yofs, bits);
   end
 endmodule
 
-module test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
+module sprite_bitmap_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
 
   input clk;
   input hpaddle, vpaddle;
@@ -49,6 +49,7 @@ module test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   
   hvsync_generator hvsync_gen(
     .clk(clk),
+    .reset(0),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(display_on),

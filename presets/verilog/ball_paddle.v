@@ -74,6 +74,7 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   
   hvsync_generator hvsync_gen(
     .clk(clk),
+    .reset(reset),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(display_on),
@@ -125,10 +126,11 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   reg main_gfx;
   reg brick_present;
   reg [6:0] brick_index;
+  wire brick_gfx = lr_border || (brick_present && vpos[2:0] != 0 && hpos[3:1] != 4);
   
   wire visible_clk = clk & display_on;
 
-  // compute main_gfx and locate bricks
+  // scan bricks: compute brick_index and brick_present flag
   always @(posedge visible_clk)
     // see if we are scanning brick area
     if (vpos[8:6] == 1 && !lr_border)
@@ -137,31 +139,19 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
       if (hpos[3:0] == 8) begin
         // compute brick index
         brick_index <= {vpos[5:3], hpos[7:4]};
-        main_gfx <= 0; // 2 pixel horiz spacing between bricks
+        //main_gfx <= 0; // 2 pixel horiz spacing between bricks
       end
       // every 17th pixel
       else if (hpos[3:0] == 9) begin
         // load brick bit from array
         brick_present <= brick_array[brick_index];
       end else begin
-        main_gfx <= brick_present && vpos[2:0] != 0; // 1 pixel vert. spacing
+        //main_gfx <= brick_present && vpos[2:0] != 0; // 1 pixel vert. spacing
       end
     end else begin
       brick_present <= 0;
-      case (vpos[8:3])
-        0: main_gfx <= score_gfx; // scoreboard
-        1: main_gfx <= score_gfx;
-        2: main_gfx <= score_gfx;
-        3: main_gfx <= 0;
-        4: main_gfx <= 1; // top border
-        //14: main_gfx <= hpos[4];
-        //21: main_gfx <= hpos[5];
-        28: main_gfx <= paddle_gfx | lr_border; // paddle
-        29: main_gfx <= hpos[0] ^ vpos[0]; // bottom border
-        default: main_gfx <= lr_border; // left/right borders
-      endcase
     end
-
+  
   // only works when paddle at bottom of screen!
   // (we don't want to mess w/ paddle position during visible portion)
   always @(posedge hsync)
@@ -171,15 +161,16 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   wire ball_pixel_collide = main_gfx & ball_gfx;
   
   /* verilator lint_off MULTIDRIVEN */
-  reg [4:0] ball_collide_bits = 0;
+  reg ball_collide_paddle = 0;
+  reg [3:0] ball_collide_bits = 0;
   /* verilator lint_on MULTIDRIVEN */
 
   // compute ball collisions with paddle and playfield
   always @(posedge visible_clk)
     if (ball_pixel_collide) begin
+      // did we collide w/ paddle?
       if (paddle_gfx) begin
-        // did we collide w/ paddle?
-        ball_collide_bits[4] <= 1; // bit 4 == paddle collide
+        ball_collide_paddle <= 1;
       end
       // ball has 4 collision quadrants
       if (!ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[0] <= 1;
@@ -188,7 +179,7 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
       if (ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[3] <= 1;
     end
 
-  // compute ball collisions with brick
+  // compute ball collisions with brick and increment score
   always @(posedge visible_clk)
     if (ball_pixel_collide && brick_present) begin
       brick_array[brick_index] <= 0;
@@ -199,18 +190,18 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
 
   wire signed [8:0] ball_paddle_dx = ball_x - paddle_pos + 8;
 
-  // compute ball new position and velocity
+  // ball bounce: determine new velocity/direction
   always @(posedge vsync or posedge reset)
     begin
       if (reset) begin
         ball_dir_y <= BALL_DIR_DOWN;
       end else
       // ball collided with paddle?
-      if (ball_collide_bits[4]) begin 
+      if (ball_collide_paddle) begin 
         // bounces upward off of paddle
         ball_dir_y <= BALL_DIR_UP;
         // which side of paddle, left/right?
-        ball_dir_x <= (ball_paddle_dx < 16) ? BALL_DIR_LEFT : BALL_DIR_RIGHT;
+        ball_dir_x <= (ball_paddle_dx < 20) ? BALL_DIR_LEFT : BALL_DIR_RIGHT;
         // hitting with edge of paddle makes it fast
         ball_speed_x <= ball_collide_bits[3:0] != 4'b1100;
       end else begin
@@ -238,8 +229,10 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
         endcase
       end
       ball_collide_bits <= 0; // clear all collide bits for frame
+      ball_collide_paddle <= 0;
     end
   
+  // ball motion: update ball position
   always @(negedge vsync or posedge reset)
     begin
       if (reset) begin
@@ -254,6 +247,29 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
       end
     end
   
+  // compute main_gfx
+  always @(*)
+    begin
+      case (vpos[8:3])
+        0: main_gfx = score_gfx; // scoreboard
+        1: main_gfx = score_gfx;
+        2: main_gfx = score_gfx;
+        3: main_gfx = 0;
+        4: main_gfx = 1; // top border
+        8: main_gfx = brick_gfx; // 1st brick row
+        9: main_gfx = brick_gfx; // ...
+        10: main_gfx = brick_gfx;
+        11: main_gfx = brick_gfx;
+        12: main_gfx = brick_gfx;
+        13: main_gfx = brick_gfx;
+        14: main_gfx = brick_gfx;
+        15: main_gfx = brick_gfx; // 8th brick row
+        28: main_gfx = paddle_gfx | lr_border; // paddle
+        29: main_gfx = hpos[0] ^ vpos[0]; // bottom border
+        default: main_gfx = lr_border; // left/right borders
+      endcase
+    end
+
   wire grid_gfx = (((hpos&7)==0) || ((vpos&7)==0));
   
   wire r = display_on && (ball_gfx | paddle_gfx);

@@ -419,12 +419,12 @@ function updateSelector() {
 function loadFileDependencies(text) {
   var arr = [];
   if (platform_id == 'verilog') {
-    var re = /`include\s+"(.+)"/g;
+    var re = /`include\s+"(.+?)"/g;
     var m;
     while (m = re.exec(text)) {
       arr.push({
         filename:m[1],
-        text:store.loadFile(m[1]) // TODO: if missing?
+        text:store.loadFile(m[1]) || store.loadFile('local/'+m[1]) // TODO??
       });
     }
   }
@@ -836,7 +836,7 @@ function toggleDisassembly() {
 }
 
 function resetAndDebug() {
-  if (platform.setupDebug) {
+  if (platform.setupDebug && platform.readAddress) { // TODO??
     clearBreakpoint();
     _resume();
     platform.reset();

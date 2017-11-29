@@ -11,6 +11,7 @@ var VERILOG_PRESETS = [
   {id:'sprite_bitmap.v', name:'Sprite Bitmaps'},
   {id:'sprite_renderer.v', name:'Sprite Rendering'},
   {id:'sprite_multiple.v', name:'Multiple Sprites'},
+  {id:'cpu8.v', name:'Simple 8-Bit CPU'},
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([
@@ -170,7 +171,8 @@ var VerilogPlatform = function(mainElement, options) {
   var switches = [0];
   var inspect_obj, inspect_sym;
   var inspect_data = new Uint32Array(videoWidth * videoHeight);
-  var scope_time_x = 0;
+  var scope_time_x = 0; // scope cursor
+  var scope_x_offset = 0;
   var scope_y_offset = 0;
   var scope_max_y = 0;
 
@@ -289,7 +291,8 @@ var VerilogPlatform = function(mainElement, options) {
     var COLOR_BORDER = 0xff662222;
     var COLOR_TRANS_SIGNAL = 0xff226622;
     var COLOR_BLIP_SIGNAL = 0xff226622;
-    var j = 0;
+    var jstart = scope_x_offset * arr.length;
+    var j = jstart;
     for (var x=0; x<videoWidth; x++) {
       var yb = 8;
       var y1 = scope_y_offset;
@@ -315,7 +318,7 @@ var VerilogPlatform = function(mainElement, options) {
         y1 += ys+yb;
       }
     }
-    scope_max_y = y1;
+    scope_max_y = y1 - scope_y_offset;
     video.updateFrame();
     // draw labels
     var ctx = video.getContext();
@@ -327,11 +330,26 @@ var VerilogPlatform = function(mainElement, options) {
       ctx.textAlign = 'left';
       ctx.fillText(name, 1, yposlist[i]);
       if (scope_time_x > 0) {
-        ctx.fillRect(scope_time_x, 0, 1, 4000);
         ctx.textAlign = 'right';
-        var value = arr.length * scope_time_x + i;
+        var value = arr.length * scope_time_x + i + jstart;
         ctx.fillText(""+trace_buffer[value], videoWidth-1, yposlist[i]);
       }
+    }
+    // draw scope line & label
+    if (scope_time_x > 0) {
+      ctx.fillStyle = "cyan";
+      ctx.fillText(""+(scope_time_x+scope_x_offset),
+        (scope_time_x>10)?(scope_time_x-2):(scope_time_x+20), videoHeight-2);
+      ctx.fillRect(scope_time_x, 0, 1, 4000);
+    }
+    // scroll left/right
+    if (scope_time_x >= videoWidth && scope_x_offset < (trace_buffer.length / arr.length) - videoWidth) {
+      scope_x_offset += 1 + (scope_time_x - videoWidth);
+      dirty = true;
+    }
+    else if (scope_time_x < 0 && scope_x_offset > 0) {
+      scope_x_offset = Math.max(0, scope_x_offset + scope_time_x);
+      dirty = true;
     }
   }
 
@@ -352,7 +370,7 @@ var VerilogPlatform = function(mainElement, options) {
       var new_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 20);
       var new_y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height() - 20);
       if (mouse_pressed) {
-        scope_y_offset = clamp(-scope_max_y, 0, scope_y_offset + new_y - paddle_y);
+        scope_y_offset = clamp(Math.min(0,-scope_max_y+videoHeight), 0, scope_y_offset + new_y - paddle_y);
   			scope_time_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 16);
         dirty = true;
       }
@@ -432,7 +450,7 @@ var VerilogPlatform = function(mainElement, options) {
   }
   this.reset = function() {
     gen.__reset();
-    trace_index = 0;
+    trace_index = scope_x_offset = 0;
     trace_buffer.fill(0);
     dirty = true;
   }
@@ -462,6 +480,7 @@ var VerilogPlatform = function(mainElement, options) {
     } else {
       inspect_obj = inspect_sym = null;
     }
+    dirty = true;
   }
 
   // DEBUGGING

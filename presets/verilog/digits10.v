@@ -82,7 +82,7 @@ module digits10_array(digit, yofs, bits);
   reg [4:0] bitarray[10][5];
 
   assign bits = bitarray[digit][yofs];
-
+  
   initial begin/*{w:5,h:5,count:10}*/
     bitarray[0][0] = 5'b11111;
     bitarray[0][1] = 5'b10001;
@@ -157,6 +157,7 @@ module test_numbers_top(clk, hsync, vsync, rgb);
   
   hvsync_generator hvsync_gen(
     .clk(clk),
+    .reset(0),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(display_on),

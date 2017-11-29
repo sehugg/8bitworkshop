@@ -1087,7 +1087,7 @@ function compileVerilator(code, platform, options) {
 function compileYosys(code, platform, options) {
   loadNative("yosys");
   var errors = [];
-  var match_fn = makeErrorMatcher(errors, /ERROR: (.+?) in line (.+?[.]v):(\d+) (.+)/i, 3, 4);
+  var match_fn = makeErrorMatcher(errors, /ERROR: (.+?) in line (.+?[.]v):(\d+)[: ]+(.+)/i, 3, 4);
   starttime();
   var yosys_mod = yosys({
     wasmBinary:wasmBlob['yosys'],
@@ -1101,7 +1101,13 @@ function compileYosys(code, platform, options) {
   FS.writeFile(topmod+".v", code);
   writeDependencies(options.dependencies, FS, errors);
   starttime();
-  yosys_mod.callMain(["-q", "-o", topmod+".json", "-S", topmod+".v"]);
+  try {
+    yosys_mod.callMain(["-q", "-o", topmod+".json", "-S", topmod+".v"]);
+  } catch (e) {
+    console.log(e);
+    endtime("compile");
+    return {errors:errors};
+  }
   endtime("compile");
   if (errors.length) return {errors:errors};
   try {

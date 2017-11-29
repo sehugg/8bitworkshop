@@ -24,6 +24,7 @@ module sprite_multiple_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   
   hvsync_generator hvsync_gen(
     .clk(clk),
+    .reset(0),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(display_on),

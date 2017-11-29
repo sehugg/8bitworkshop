@@ -2,15 +2,16 @@
 `define HVSYNC_GENERATOR_H
 
 module hvsync_generator(
-  clk, hsync, vsync, display_on, hpos, vpos);
+  clk, reset, hsync, vsync, display_on, hpos, vpos);
 
   input clk;
-  output hsync, vsync;
+  input reset;
+  output reg hsync, vsync;
   output reg display_on;
   output reg [8:0] hpos;
   output reg [8:0] vpos;
 
-  // constant declarations for VGA sync parameters
+  // constant declarations for TV-simulator sync parameters
   localparam H_DISPLAY       = 256; // horizontal display area
   localparam H_L_BORDER      =  16; // horizontal left border
   localparam H_R_BORDER      =  16; // horizontal right border
@@ -27,15 +28,17 @@ module hvsync_generator(
   localparam START_V_RETRACE = V_DISPLAY + V_B_BORDER;
   localparam END_V_RETRACE   = V_DISPLAY + V_B_BORDER + V_RETRACE - 1;
 
-  wire hmaxxed = (hpos==H_MAX);
-  wire vmaxxed = (vpos==V_MAX);
-
-  always @(posedge clk)   
+  wire hmaxxed = (hpos == H_MAX) || reset;
+  wire vmaxxed = (vpos == V_MAX) || reset;
+  
+  // increment horizontal position counter
+  always @(posedge clk)
     if(hmaxxed)
       hpos <= 0;
     else
       hpos <= hpos + 1;
 
+  // increment vertical position counter
   always @(posedge clk)
     if(hmaxxed)
       if (!vmaxxed)
@@ -43,14 +46,11 @@ module hvsync_generator(
       else
         vpos <= 0;
 
+  // compute hsync + vsync + display_on signals
   always @(posedge clk)
   begin
     hsync <= (hpos>=START_H_RETRACE && hpos<=END_H_RETRACE);
     vsync <= (vpos==START_V_RETRACE);
-  end
-
-  always @(posedge clk)
-  begin
     display_on <= (hpos<H_DISPLAY) && (vpos<V_DISPLAY);
   end
 

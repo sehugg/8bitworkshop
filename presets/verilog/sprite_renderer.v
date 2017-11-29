@@ -6,7 +6,7 @@ module car_bitmap(yofs, bits);
   output [7:0] bits;
   
   reg [7:0] bitarray[16];
-
+  
   assign bits = bitarray[yofs];
   
   initial begin/*{w:8,h:16}*/
@@ -102,6 +102,7 @@ module test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   
   hvsync_generator hvsync_gen(
     .clk(clk),
+    .reset(0),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(display_on),
