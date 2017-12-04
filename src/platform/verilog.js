@@ -21,11 +21,17 @@ var VERILOG_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_DOWN, 0, 0x8],
   [Keys.VK_SPACE, 0, 0x10],
   [Keys.VK_SHIFT, 0, 0x20],
-  [Keys.VK_1, 0, 0x40],
-  [Keys.VK_2, 0, 0x80],
-  [Keys.VK_5, 0, 0x100],
-  [Keys.VK_6, 0, 0x200],
-  [Keys.VK_7, 0, 0x400],
+  [Keys.VK_A, 1, 0x1],
+  [Keys.VK_D, 1, 0x2],
+  [Keys.VK_W, 1, 0x4],
+  [Keys.VK_S, 1, 0x8],
+  [Keys.VK_Z, 1, 0x10],
+  [Keys.VK_X, 1, 0x20],
+  [Keys.VK_1, 2, 0x1],
+  [Keys.VK_2, 2, 0x2],
+  [Keys.VK_5, 2, 0x4],
+  [Keys.VK_6, 2, 0x8],
+  [Keys.VK_7, 2, 0x10],
 ]);
 
 var vl_finished = false;
@@ -64,6 +70,11 @@ var vl_stopped = false;
 
   var VL_MODDIV_III = this.VL_MODDIV_III = function(lbits,lhs,rhs) {
     return (((rhs)==0)?0:(lhs)%(rhs)); }
+
+  var VL_REDXOR_32 = this.VL_REDXOR_32 = function(r) {
+    r=(r^(r>>1)); r=(r^(r>>2)); r=(r^(r>>4)); r=(r^(r>>8)); r=(r^(r>>16));
+    return r;
+  }
 
   var VL_WRITEF = this.VL_WRITEF = console.log; // TODO: $write
 
@@ -168,7 +179,7 @@ var VerilogPlatform = function(mainElement, options) {
   var current_output;
   var paddle_x = 0;
   var paddle_y = 0;
-  var switches = [0];
+  var switches = [0,0,0];
   var inspect_obj, inspect_sym;
   var inspect_data = new Uint32Array(videoWidth * videoHeight);
   var scope_time_x = 0; // scope cursor

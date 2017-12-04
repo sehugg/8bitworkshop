@@ -250,7 +250,8 @@ function convertBytesToImages(bytes, fmt) {
   var count = fmt.count || 1;
   var bpp = fmt.bpp || 1;
   var nplanes = fmt.np || 1;
-  var bytesperline = fmt.sl || Math.ceil(width * bpp / 8);
+  var bitsperword = fmt.bpw || 8;
+  var bytesperline = fmt.sl || Math.ceil(width * bpp / bitsperword);
   var mask = (1 << bpp)-1;
   var pofs = fmt.pofs || bytesperline*height*count;
   var images = [];
@@ -264,11 +265,11 @@ function convertBytesToImages(bytes, fmt) {
         var ofs = remapBits(ofs0, fmt.remap);
         for (var p=0; p<nplanes; p++) {
           var byte = bytes[ofs + p*pofs];
-          color |= ((fmt.brev ? byte>>(8-shift-bpp) : byte>>shift) & mask) << (p*bpp);
+          color |= ((fmt.brev ? byte>>(bitsperword-shift-bpp) : byte>>shift) & mask) << (p*bpp);
         }
         imgdata.push(color);
         shift += bpp;
-        if (shift >= 8) {
+        if (shift >= bitsperword) {
           ofs0 += 1;
           shift = 0;
         }
@@ -285,10 +286,15 @@ function convertImagesToBytes(images, fmt) {
   var count = fmt.count || 1;
   var bpp = fmt.bpp || 1;
   var nplanes = fmt.np || 1;
-  var bytesperline = fmt.sl || Math.ceil(fmt.w * bpp / 8);
+  var bitsperword = fmt.bpw || 8;
+  var bytesperline = fmt.sl || Math.ceil(fmt.w * bpp / bitsperword);
   var mask = (1 << bpp)-1;
   var pofs = fmt.pofs || bytesperline*height*count;
-  var bytes = new Uint8Array(bytesperline*height*count*nplanes);
+  var bytes;
+  if (bitsperword <= 8)
+    bytes = new Uint8Array(bytesperline*height*count*nplanes);
+  else
+    bytes = new Uint32Array(bytesperline*height*count*nplanes);
   for (var n=0; n<count; n++) {
     var imgdata = images[n];
     var i = 0;
@@ -300,10 +306,10 @@ function convertImagesToBytes(images, fmt) {
         var ofs = remapBits(ofs0, fmt.remap);
         for (var p=0; p<nplanes; p++) {
           var c = (color >> (p*bpp)) & mask;
-          bytes[ofs + p*pofs] |= (fmt.brev ? (c << (8-shift-bpp)) : (c << shift));
+          bytes[ofs + p*pofs] |= (fmt.brev ? (c << (bitsperword-shift-bpp)) : (c << shift));
         }
         shift += bpp;
-        if (shift >= 8) {
+        if (shift >= bitsperword) {
           ofs0 += 1;
           shift = 0;
         }
