@@ -466,10 +466,10 @@ function pixelEditorKeypress(e) {
       case 34: // PgDn
         currentPixelEditor.rotate(90);
         break;
-      case 35: // PgUp
+      case 35: // Home
         currentPixelEditor.rotate(-45);
         break;
-      case 36: // PgDn
+      case 36: // End
         currentPixelEditor.rotate(45);
         break;
       default:
