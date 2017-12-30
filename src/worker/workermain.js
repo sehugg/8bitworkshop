@@ -80,6 +80,11 @@ var PLATFORM_PARAMS = {
     cfgfile: 'neslib.cfg',
     libargs: ['neslib.lib', 'nes.lib'],
   },
+  'apple2': {
+    define: '__APPLE2__',
+    cfgfile: 'apple2.cfg',
+    libargs: ['apple2.lib'],
+  },
   'verilog': {
   },
 };

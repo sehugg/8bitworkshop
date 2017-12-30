@@ -1,5 +1,5 @@
-
 "use strict";
+
 var APPLE2_PRESETS = [
 ];
 

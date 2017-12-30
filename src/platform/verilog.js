@@ -437,7 +437,7 @@ var VerilogPlatform = function(mainElement, options) {
     gen = new mod(base);
     gen.__proto__ = base;
     current_output = output;
-    ports_and_signals = current_output.ports.concat(current_output.signals);
+    ports_and_signals = current_output.ports; // TODO: current_output.ports.concat(current_output.signals);
     trace_buffer = new Uint32Array(0x10000);
     trace_index = 0;
     this.poweron();
