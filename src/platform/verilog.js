@@ -170,8 +170,9 @@ function VerilatorBase() {
 var VerilogPlatform = function(mainElement, options) {
   var self = this;
   var video, audio;
-  var videoWidth  = 288;
+  var videoWidth  = 304;
   var videoHeight = 248;
+  var maxVideoBlankLines = 80;
   var idata, timer;
   var gen;
   var frameRate = 60;
@@ -263,8 +264,8 @@ var VerilogPlatform = function(mainElement, options) {
       while (gen.hsync && z++<videoWidth) vidtick();
     }
     var z=0;
-    while (!gen.vsync && z++<videoWidth*80) vidtick();
-    while (gen.vsync && z++<videoWidth*80) vidtick();
+    while (!gen.vsync && z++<videoWidth*maxVideoBlankLines) vidtick();
+    while (gen.vsync && z++<videoWidth*maxVideoBlankLines) vidtick();
     updateInspectionFrame();
     video.updateFrame();
     updateInspectionPostFrame();

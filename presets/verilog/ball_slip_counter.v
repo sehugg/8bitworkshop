@@ -13,7 +13,7 @@ module ball_paddle_top(clk, reset, hsync, vsync, rgb);
   reg [8:0] ball_htimer;
   reg [8:0] ball_vtimer;
   
-  reg [8:0] ball_horiz_stop = 209;
+  reg [8:0] ball_horiz_stop = 204;
   reg [8:0] ball_horiz_move = -2;
   reg [8:0] ball_vert_stop = 251;
   reg [8:0] ball_vert_move = 2;

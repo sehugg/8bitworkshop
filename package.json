@@ -5,7 +5,8 @@
   "dependencies": {},
   "devDependencies": {
     "mocha": "^3.2.0",
-    "mocha-phantomjs": "^4.1.0"
+    "mocha-phantomjs": "^4.1.0",
+    "wavedrom-cli": "^0.5.0"
   },
   "description": "8bitworkshop.com",
   "main": "main.js",
