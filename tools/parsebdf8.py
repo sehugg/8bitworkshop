@@ -17,6 +17,7 @@ outfmtgroup.add_argument("-A", "--asmhex", action="store_true", help="DASM-compa
 outfmtgroup.add_argument("-B", "--asmdb", action="store_true", help="Z80ASM-compatible hex")
 outfmtgroup.add_argument("-C", "--carray", action="store_true", help="Nested C array")
 outfmtgroup.add_argument("-F", "--flatcarray", action="store_true", help="Flat C array")
+outfmtgroup.add_argument("-V", "--verilog", action="store_true", help="Verilog-compatible hex")
 parser.add_argument('bdffile', help="BDF bitmap file")
 args = parser.parse_args()
 
@@ -98,5 +99,12 @@ for arr in [output]:
         print "static char FONT[%d] = {" % ((hichar-lochar+1) * height)
         print string.join(map(tohex2,arr),',')
         print "}";
-
-
+    if args.verilog:
+        j = 0
+        for i in range(0,len(output),height):
+            #print "rom["+str(j)+"] = 32'h" + string.join(map(tohex,arr[i:i+height/2]),'') + ";"
+            #j += 1
+            #print "rom["+str(j)+"] = 32'h" + string.join(map(tohex,arr[i+height/2:i+height]),'') + ";"
+            #j += 1
+            print "rom["+str(j)+"] = 64'h" + string.join(map(tohex,arr[i:i+height]),'') + ";"
+            j += 1

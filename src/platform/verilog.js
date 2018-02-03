@@ -5,12 +5,16 @@ var VERILOG_PRESETS = [
   {id:'hvsync_generator.v', name:'Video Sync Generator'},
   {id:'test_hvsync.v', name:'Test Pattern'},
   {id:'lfsr.v', name:'Linear Feedback Shift Register'},
-  {id:'digits10.v', name:'Digits'},
+  {id:'digits10.v', name:'Bitmapped Digits'},
+  {id:'7segment.v', name:'7-Segment Decoder'},
   {id:'ball_slip_counter.v', name:'Ball Motion (slipping counter)'},
   {id:'ball_paddle.v', name:'Brick Smash Game'},
   {id:'sprite_bitmap.v', name:'Sprite Bitmaps'},
   {id:'sprite_renderer.v', name:'Sprite Rendering'},
   {id:'sprite_multiple.v', name:'Multiple Sprites'},
+  {id:'sprite_rotation.v', name:'Sprite Rotation'},
+  {id:'ram1.v', name:'RAM Text Display'},
+  {id:'tank.v', name:'Tank Game'},
   {id:'cpu8.v', name:'Simple 8-Bit CPU'},
 ];
 
@@ -568,7 +572,7 @@ var VerilogPlatform = function(mainElement, options) {
   this.runToVsync = function() {
     var self = this;
     this.setDebugCondition(function() {
-      if (gen.vsync && gen.ticks() > debugTargetClock+1000) {
+      if (gen.vsync && gen.ticks() > debugTargetClock+2000) {
         self.breakpointHit(gen.ticks());
         return true;
       }

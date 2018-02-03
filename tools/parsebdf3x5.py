@@ -60,10 +60,13 @@ def tohex(v):
     return '%02x'%v
 def tohex2(v):
     return '0x%02x'%v
+def tobin(v):
+    return "bitarray[0][0]=3'b{0:3b};\n".format(v)
 
 print '\thex ' + string.join(map(tohex,output),'')
 print string.join(map(tohex2,output),',')
 print '\thex ' + string.join(map(tohex,outputlo),'')
 print '\thex ' + string.join(map(tohex,outputhi),'')
+print string.join(map(tobin,output),'')
 
 print len(output),len(outputlo),len(outputhi)

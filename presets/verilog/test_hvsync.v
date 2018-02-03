@@ -1,10 +1,12 @@
 `include "hvsync_generator.v"
 
-module test_hvsync_top(clk, hsync, vsync, rgb);
-
-  input clk;
-  output hsync, vsync;
-  output [2:0] rgb;
+module test_hvsync_top(
+  input clk,
+  output hsync,
+  output vsync,
+  output [2:0] rgb
+);
+  
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;

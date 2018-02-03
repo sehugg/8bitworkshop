@@ -1,14 +1,11 @@
 `include "hvsync_generator.v"
 
-module car_bitmap(yofs, bits);
-  
-  input [3:0] yofs;
-  output [7:0] bits;
-  
+module car_bitmap(
+  input [3:0] yofs,
+  output [7:0] bits
+);
   reg [7:0] bitarray[16];
-
   assign bits = bitarray[yofs];
-  
   initial begin/*{w:8,h:16}*/
     bitarray[0] = 8'b0;
     bitarray[1] = 8'b101110;
@@ -29,10 +26,9 @@ module car_bitmap(yofs, bits);
   end
 endmodule
 
-module sprite_bitmap_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
+module sprite_bitmap_top(clk, reset, hsync, vsync, rgb);
 
-  input clk;
-  input hpaddle, vpaddle;
+  input clk, reset;
   output hsync, vsync;
   output [2:0] rgb;
   wire display_on;
@@ -44,12 +40,12 @@ module sprite_bitmap_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   reg [3:0] car_sprite_yofs;
   wire [7:0] car_sprite_bits;
   
-  reg [7:0] player_x = 128;
-  reg [7:0] player_y = 128;
+  reg [8:0] player_x = 128;
+  reg [8:0] player_y = 128;
   
   hvsync_generator hvsync_gen(
     .clk(clk),
-    .reset(0),
+    .reset(reset),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(display_on),
@@ -63,23 +59,22 @@ module sprite_bitmap_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
 
   always @(posedge hsync)
     // start sprite?
-    if (vpos == {1'0,player_y})
+    if (vpos == player_y)
       car_sprite_yofs <= 15;
     else if (car_sprite_yofs != 0)
       car_sprite_yofs <= car_sprite_yofs - 1;
   
   always @(posedge clk)
-    if (display_on) begin
-      if (hpos == {1'0,player_x})
-        car_sprite_xofs <= 15;
-      else if (car_sprite_xofs != 0)
-        car_sprite_xofs <= car_sprite_xofs - 1;
-    end
+    if (hpos == player_x)
+      car_sprite_xofs <= 15;
+    else if (car_sprite_xofs != 0)
+      car_sprite_xofs <= car_sprite_xofs - 1;
 
   // mirror sprite in X direction
-  wire car_gfx = car_sprite_bits[car_sprite_xofs>=8 ? 
+  wire [3:0] car_bit = car_sprite_xofs>=8 ? 
                                  15-car_sprite_xofs:
-                                 car_sprite_xofs];
+                                 car_sprite_xofs;
+  wire car_gfx = car_sprite_bits[3'(car_bit)];
 
   wire r = display_on && car_gfx;
   wire g = display_on && car_gfx;

@@ -1114,6 +1114,7 @@ function compileYosys(code, platform, options) {
     return {errors:errors};
   }
   endtime("compile");
+  //TODO: filename in errors
   if (errors.length) return {errors:errors};
   try {
     var json_file = FS.readFile(topmod+".json", {encoding:'utf8'});

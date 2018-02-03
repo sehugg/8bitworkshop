@@ -1,11 +1,10 @@
 `include "hvsync_generator.v"
 
-module digits10_case(digit, yofs, bits);
-  
-  input [3:0] digit;
-  input [2:0] yofs;
-  output [4:0] bits;
-
+module digits10_case(
+  input [3:0] digit,
+  input [2:0] yofs,
+  output [4:0] bits
+);
   wire [6:0] caseexpr = {digit,yofs};
   always @(*)
     case (caseexpr)/*{w:5,h:5,count:10}*/
@@ -73,13 +72,12 @@ module digits10_case(digit, yofs, bits);
     endcase
 endmodule
 
-module digits10_array(digit, yofs, bits);
-  
-  input [3:0] digit;
-  input [2:0] yofs;
-  output [4:0] bits;
-  
-  reg [4:0] bitarray[10][5];
+module digits10_array(
+  input [3:0] digit,
+  input [2:0] yofs,
+  output [4:0] bits
+);
+  reg [4:0] bitarray[16][5];
 
   assign bits = bitarray[digit][yofs];
   
@@ -143,21 +141,25 @@ module digits10_array(digit, yofs, bits);
     bitarray[9][2] = 5'b11111;
     bitarray[9][3] = 5'b00001;
     bitarray[9][4] = 5'b11111;
+
+    for (int i = 10; i <= 15; i++)
+      for (int j = 0; j <= 4; j++) 
+        bitarray[i][j] = 0; 
   end
 endmodule
 
-module test_numbers_top(clk, hsync, vsync, rgb);
-
-  input clk;
-  output hsync, vsync;
-  output [2:0] rgb;
+module test_numbers_top(
+  input clk, reset,
+  output hsync, vsync,
+  output [2:0] rgb
+);
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
   
   hvsync_generator hvsync_gen(
     .clk(clk),
-    .reset(0),
+    .reset(reset),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(display_on),
