@@ -175,7 +175,7 @@ module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits,
 endmodule
 
 module rotation_selector(rotation, bitmap_num, hmirror, vmirror);
-  input [4:0] rotation;
+  input [3:0] rotation;
   output [2:0] bitmap_num;
   output hmirror, vmirror;
   
@@ -205,8 +205,26 @@ module rotation_selector(rotation, bitmap_num, hmirror, vmirror);
 
 endmodule
 
+function signed [7:0] sin_16x4;
+  input [3:0] in;
+  integer y;
+  case (in[1:0])
+    0: y = 0;
+    1: y = 3;
+    2: y = 5;
+    3: y = 6;
+  endcase
+  case (in[3:2])
+    0: sin_16x4 = 8'(y);
+    1: sin_16x4 = 8'(7-y);
+    2: sin_16x4 = 8'(-y);
+    3: sin_16x4 = 8'(y-7);
+  endcase
+endfunction
+
 module tank_controller(clk, reset, hpos, vpos, hsync, vsync, 
-                       sprite_addr, sprite_bits, gfx);
+                       sprite_addr, sprite_bits, gfx,
+                      switch_left, switch_right, switch_up);
   
   input clk;
   input reset;
@@ -216,14 +234,23 @@ module tank_controller(clk, reset, hpos, vpos, hsync, vsync,
   input [8:0] vpos;
   output [7:0] sprite_addr;
   input [7:0] sprite_bits;
-  reg hmirror;
-  reg vmirror;
   output gfx;
+  input switch_left, switch_right, switch_up;
+  
+  wire hmirror, vmirror;
   wire busy;
 
-  reg [7:0] player_x = 64;
-  reg [7:0] player_y = 64;
-  reg [4:0] player_rot = 0;
+  reg [11:0] player_x_fixed;
+  wire [7:0] player_x = player_x_fixed[11:4];
+  wire [3:0] player_x_frac = player_x_fixed[3:0];
+  
+  reg [11:0] player_y_fixed;
+  wire [7:0] player_y = player_y_fixed[11:4];
+  wire [3:0] player_y_frac = player_y_fixed[3:0];
+  
+  reg [3:0] player_rot;
+  reg [3:0] player_speed = 0;
+  reg [3:0] frame = 0;
   
   wire vstart = {1'b0,player_y} == vpos;
   wire hstart = {1'b0,player_x} == hpos;
@@ -245,19 +272,53 @@ module tank_controller(clk, reset, hpos, vpos, hsync, vsync,
     .bitmap_num(sprite_addr[7:5]),
     .hmirror(hmirror),
     .vmirror(vmirror));
+
+  always @(posedge vsync or posedge reset)
+    if (reset) begin
+      player_rot <= 0;
+    end else begin
+      frame <= frame + 1;
+      // rotation
+      if (frame[0]) begin
+        if (switch_left)
+          player_rot <= player_rot - 1;
+        else if (switch_right)
+          player_rot <= player_rot + 1;
+        if (switch_up) begin
+          if (player_speed != 15)
+            player_speed <= player_speed + 1;
+        end else
+          player_speed <= 0;
+      end
+    end
   
-  always @(posedge vsync)
-    player_rot <= player_rot + 1;
+  always @(posedge hsync or posedge reset)
+    if (reset) begin
+      player_x_fixed <= 128<<4;
+      player_y_fixed <= 120<<4;
+    end else begin
+      // movement
+      if (vpos < 9'(player_speed)) begin
+        if (vpos[0])
+          player_x_fixed <= player_x_fixed + 12'(sin_16x4(player_rot));
+        else
+          player_y_fixed <= player_y_fixed - 12'(sin_16x4(player_rot+4));
+      end
+    end
 
 endmodule
 
-module test_top(clk, reset, hsync, vsync, rgb);
+//TODO: debouncing
+
+module test_top(clk, reset, hsync, vsync, rgb, switches_p1);
 
   input clk;
   input reset;
   output hsync;
   output vsync;
   output [2:0] rgb;
+  input [7:0] switches_p1;
+  
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
@@ -291,7 +352,10 @@ module test_top(clk, reset, hsync, vsync, rgb);
     .vsync(vsync),
     .sprite_addr(tank_sprite_addr), 
     .sprite_bits(tank_sprite_bits),
-    .gfx(tank1_gfx)
+    .gfx(tank1_gfx),
+    .switch_left(switches_p1[0]),
+    .switch_right(switches_p1[1]),
+    .switch_up(switches_p1[2])
   );
   
   wire tank1_gfx;

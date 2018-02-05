@@ -1,8 +1,8 @@
 `include "hvsync_generator.v"
 
-module top(clk, hsync, vsync, rgb);
+module top(clk, reset, hsync, vsync, rgb);
 
-  input clk;
+  input clk, reset;
   output hsync, vsync;
   output [2:0] rgb;
   wire display_on;
@@ -11,6 +11,7 @@ module top(clk, hsync, vsync, rgb);
 
   hvsync_generator hvsync_gen(
     .clk(clk),
+    .reset(reset),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(display_on),
