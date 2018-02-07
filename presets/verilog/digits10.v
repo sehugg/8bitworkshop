@@ -1,10 +1,14 @@
+`ifndef DIGITS10_H
+`define DIGITS10_H
+
 `include "hvsync_generator.v"
 
-module digits10_case(
-  input [3:0] digit,
-  input [2:0] yofs,
-  output [4:0] bits
-);
+module digits10_case(digit, yofs, bits);
+  
+  input [3:0] digit;
+  input [2:0] yofs;
+  output [4:0] bits;
+
   wire [6:0] caseexpr = {digit,yofs};
   always @(*)
     case (caseexpr)/*{w:5,h:5,count:10}*/
@@ -72,11 +76,12 @@ module digits10_case(
     endcase
 endmodule
 
-module digits10_array(
-  input [3:0] digit,
-  input [2:0] yofs,
-  output [4:0] bits
-);
+module digits10_array(digit, yofs, bits);
+  
+  input [3:0] digit;
+  input [2:0] yofs;
+  output [4:0] bits;
+
   reg [4:0] bitarray[16][5];
 
   assign bits = bitarray[digit][yofs];
@@ -142,17 +147,19 @@ module digits10_array(
     bitarray[9][3] = 5'b00001;
     bitarray[9][4] = 5'b11111;
 
+    // clear unused array entries
     for (int i = 10; i <= 15; i++)
       for (int j = 0; j <= 4; j++) 
         bitarray[i][j] = 0; 
   end
 endmodule
 
-module test_numbers_top(
-  input clk, reset,
-  output hsync, vsync,
-  output [2:0] rgb
-);
+module test_numbers_top(clk, reset, hsync, vsync, rgb);
+  
+  input clk, reset;
+  output hsync, vsync;
+  output [2:0] rgb;
+
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
@@ -167,8 +174,9 @@ module test_numbers_top(
     .vpos(vpos)
   );
   
-  wire [3:0] digit = hpos[6:3];
-  wire [2:0] yofs = vpos[2:0];
+  wire [3:0] digit = hpos[7:4];
+  wire [2:0] xofs = hpos[3:1];
+  wire [2:0] yofs = vpos[3:1];
   wire [4:0] bits;
   
   digits10_array numbers(
@@ -178,8 +186,10 @@ module test_numbers_top(
   );
 
   wire r = display_on && 0;
-  wire g = display_on && bits[hpos[2:0] ^ 3'b111];
+  wire g = display_on && bits[xofs ^ 3'b111];
   wire b = display_on && 0;
   assign rgb = {b,g,r};
 
 endmodule
+
+`endif

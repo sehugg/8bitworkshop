@@ -1,16 +1,17 @@
 
 `define OP_LOAD_A	4'h0
 `define OP_LOAD_B	4'h1
-`define OP_ADD		4'h2
-`define OP_SUB		4'h3
-`define OP_INC		4'h4
-`define OP_DEC		4'h5
-`define OP_ASL		4'h6
-`define OP_LSR		4'h7
-`define OP_OR		4'h8
-`define OP_AND		4'h9
-`define OP_XOR		4'ha
-`define OP_NOP		4'hf
+`define OP_OR		4'h2
+`define OP_AND		4'h3
+`define OP_XOR		4'h4
+`define OP_INC		4'h5
+`define OP_DEC		4'h6
+`define OP_NOP		4'h7
+// operations that generate carry
+`define OP_ADD		4'h8
+`define OP_SUB		4'h9
+`define OP_ASL		4'ha
+`define OP_LSR		4'hb
 
 module ALU(
   input  [7:0] A,
@@ -42,12 +43,16 @@ endmodule
 `define DEST_IP  2'b10
 `define DEST_NOP 2'b11
 `define I_COMPUTE(dest,op) { 2'b00, 2'(dest), 4'(op) }
-`define I_LOAD_IMM_A { 2'b01, `DEST_A, `OP_LOAD_A }
-`define I_LOAD_IMM_B { 2'b01, `DEST_B, `OP_LOAD_B }
-`define I_JUMP_IMM { 2'b01, `DEST_IP, `OP_NOP }
-`define I_STORE_B(op) { 4'b01100, 4'(op) }
-`define I_STORE_IMM(op) { 4'b01101, 4'(op) }
-`define I_RESET { 8'hff }
+`define I_COMPUTE_IMM(dest,op) { 2'b01, 2'(dest), 4'(op) }
+`define I_COMPUTE_READB(dest,op) { 2'b11, 2'(dest), 4'(op) }
+`define I_CONST_IMM_A { 2'b01, `DEST_A, `OP_LOAD_B }
+`define I_CONST_IMM_B { 2'b01, `DEST_B, `OP_LOAD_B }
+`define I_JUMP_IMM { 2'b01, `DEST_IP, `OP_LOAD_B }
+`define I_STORE_A_TO_B { 8'b10000000 }
+`define I_CONST_SHORT_A(addr) { 4'b01010, 4'(addr) }
+`define I_CONST_SHORT_B(addr) { 4'b01011, 4'(addr) }
+`define I_BRANCH_IF_CARRY(carry) { 6'b100100, 1'(carry), 1'b1 }
+`define I_RESET { 8'b10000001 }
 
 module CPU(
   input        clk,
@@ -70,15 +75,15 @@ module CPU(
   reg [7:0] opcode;
   wire [3:0] aluop = opcode[3:0];
   wire [1:0] opdest = opcode[5:4];
+  wire memalu = opcode[6];
 
   localparam S_RESET = 0;
   localparam S_SELECT = 1;
   localparam S_DECODE = 2;
-  localparam S_LOAD_ADDR = 3;
-  localparam S_STORE_ADDR = 4;
-  localparam S_COMPUTE = 5;
+  localparam S_COMPUTE = 3;
+  localparam S_READ_IP = 4;
 
-  ALU alu(.A(A), .B(B), .Y(Y), .aluop(aluop));
+  ALU alu(.A(A), .B(memalu?data_in:B), .Y(Y), .aluop(aluop));
   
   always @(posedge clk)
     if (reset) begin
@@ -111,23 +116,42 @@ module CPU(
             8'b01??????: begin
 	      address <= IP;
        	      IP <= IP + 1;
-              state <= S_LOAD_ADDR;
+              state <= S_COMPUTE;
             end
-            // read[B] -> dest, ALU A + B -> dest
-            8'b10??????: begin
+            // ALU A + [B] -> dest
+            8'b11??????: begin
               address <= B;
-              state <= S_LOAD_ADDR;
+              state <= S_COMPUTE;
             end
-            // ALU A + B -> write [B] -> dest
-            8'b1100????: begin
+            // A -> write [B]
+            8'b10000000: begin
               address <= B;
-              state <= S_STORE_ADDR;
+              data_out <= A;
+              write <= 1;
+              state <= S_SELECT;
             end
-            // ALU A + B -> write [immediate] -> dest
-            8'b1101????: begin
-	      address <= IP;
-       	      IP <= IP + 1;
-              state <= S_STORE_ADDR;
+            // conditional branch
+            8'b1001????: begin
+              if (
+                (data_in[0] && (data_in[1] == carry)) ||
+                (data_in[2] && (data_in[3] == zero))) 
+              begin
+                address <= IP;
+                state <= S_READ_IP;
+              end else begin
+                state <= S_SELECT;
+              end
+              IP <= IP + 1; // skip immediate
+            end
+            // aluop -> A
+            8'b1010????: begin
+              A <= {4'b0, data_in[3:0]};
+              state <= S_SELECT;
+            end
+            // aluop -> B
+            8'b1011????: begin
+              B <= {4'b0, data_in[3:0]};
+              state <= S_SELECT;
             end
             // fall-through RESET
             default: begin
@@ -135,37 +159,25 @@ module CPU(
             end
           endcase
         end
-        // state 3: load address
-        S_LOAD_ADDR: begin
-          case (opdest)
-            `DEST_A: A <= data_in;
-            `DEST_B: B <= data_in;
-            `DEST_IP: IP <= data_in;
-            // use ALU-op for conditional branch
-            `DEST_NOP: if (
-              (aluop[0] && (aluop[1] ^ carry)) ||
-              (aluop[2] && (aluop[3] ^ zero)))
-                IP <= data_in;
-          endcase
-          // short-circuit ALU for branches
-          state <= opdest[1] ? S_SELECT : S_COMPUTE;
-        end
-        // state 4: store address
-        S_STORE_ADDR: begin
-          data_out <= Y[7:0];
-          write <= 1;
-          state <= S_SELECT;
-        end
-        // state 5: compute ALU op and flags
+        // state 3: compute ALU op and flags
         S_COMPUTE: begin
+          // transfer ALU output to destination
           case (opdest)
             `DEST_A: A <= Y[7:0];
             `DEST_B: B <= Y[7:0];
             `DEST_IP: IP <= Y[7:0];
             `DEST_NOP: ;
           endcase
-          carry <= Y[8];
+          // set carry for certain operations (code >= 8)
+          if (aluop[3]) carry <= Y[8];
+          // set zero flag
           zero <= ~|Y;
+          // repeat CPU loop
+          state <= S_SELECT;
+        end
+        // state 4: read new IP from memory (immediate mode)
+        S_READ_IP: begin
+          IP <= data_in;
           state <= S_SELECT;
         end
       endcase
@@ -209,13 +221,17 @@ module test_CPU_top(
       to_cpu = rom[address_bus[6:0]];
   
   initial begin
-    // address 0x80
-    rom['h00] = `I_LOAD_IMM_A;
-    rom['h01] = 42;
-    rom['h02] = `I_COMPUTE(`DEST_A, `OP_ASL);
-    rom['h03] = `I_COMPUTE(`DEST_B, `OP_INC);
-    rom['h04] = `I_STORE_B(`OP_LOAD_B);
-    rom['h05] = `I_RESET;
+    // ROM starts at address 0x80
+    rom['h00] = `I_CONST_IMM_A;
+    rom['h01] = 1;
+    rom['h02] = `I_CONST_SHORT_B(0);
+    rom['h03] = `I_COMPUTE(`DEST_A, `OP_ADD);
+    rom['h04] = `I_COMPUTE(`DEST_B, `OP_ADD);
+    rom['h05] = `I_STORE_A_TO_B;
+    //rom['h06] = `I_JUMP_IMM;
+    rom['h06] = `I_BRANCH_IF_CARRY(0);
+    rom['h07] = 3 + 'h80; // correct for ROM offset
+    rom['h08] = `I_RESET;
   end
 
 endmodule

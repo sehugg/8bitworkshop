@@ -2,6 +2,7 @@
 `include "digits10.v"
 
 module RAM_1KB(clk, addr, din, dout, we);
+  
   input  clk;		// clock
   input  [9:0] addr;	// 10-bit address
   input  [7:0] din;	// 8-bit data input
@@ -15,13 +16,15 @@ module RAM_1KB(clk, addr, din, dout, we);
       mem[addr] <= din;	// write memory from din
     dout <= mem[addr];	// read memory to dout
   end
+
 endmodule
 
-module test_framebuf_top(
-  input clk, reset,
-  output hsync, vsync,
-  output [2:0] rgb
-);
+module test_framebuf_top(clk, reset, hsync, vsync, rgb);
+
+  input clk, reset;
+  output hsync, vsync;
+  output [2:0] rgb;
+
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;

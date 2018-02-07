@@ -1,37 +1,6 @@
 `include "hvsync_generator.v"
 `include "digits10.v"
-
-module player_stats(reset, score0, score1, lives, incscore, declives);
-  
-  input reset;
-  output [3:0] score0;
-  output [3:0] score1;
-  input incscore;
-  output [3:0] lives;
-  input declives;
-
-  always @(posedge incscore or posedge reset)
-    begin
-      if (reset) begin
-        score0 <= 0;
-        score1 <= 0;
-      end else if (score0 == 9) begin
-        score0 <= 0;
-        score1 <= score1 + 1;
-      end else begin
-        score0 <= score0 + 1;
-      end
-    end
-
-  always @(posedge declives or posedge reset)
-    begin
-      if (reset)
-        lives <= 3;
-      else if (lives != 0)
-        lives <= lives - 1;
-    end
-
-endmodule
+`include "scoreboard.v"
 
 module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
 
@@ -88,26 +57,12 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
                      .score0(score0), .score1(score1), .incscore(incscore),
                      .lives(lives), .declives(declives));
 
-  wire [3:0] score_digit;
-  wire [4:0] score_bits;
+  wire score_gfx;
   
-  always @(*)
-    begin
-      case (hpos[7:5])
-        1: score_digit = score1;
-        2: score_digit = score0;
-        6: score_digit = lives;
-        default: score_digit = 15; // no digit
-      endcase
-    end
-  
-  digits10_case numbers(
-    .digit(score_digit),
-    .yofs(vpos[4:2]),
-    .bits(score_bits)
-  );
-
-  wire score_gfx = display_on && score_bits[hpos[4:2] ^ 3'b111];
+  scoreboard_generator score_gen(
+    .score0(score0), .score1(score1), .lives(lives),
+    .vpos(vpos), .hpos(hpos), 
+    .board_gfx(score_gfx));
 
   wire [5:0] hcell = hpos[8:3];
   wire [5:0] vcell = vpos[8:3];

@@ -1,4 +1,5 @@
 `include "hvsync_generator.v"
+`include "sprite_rotation.v"
 
 module minefield(hpos, vpos, mine_gfx);
 
@@ -72,43 +73,47 @@ module playfield(hpos, vpos, playfield_gfx);
     maze[2]  = 32'b10000000000100000000001000000001;
     maze[3]  = 32'b10000000000100000000000000000001;
     maze[4]  = 32'b10011110000000000000000000000001;
-    maze[5]  = 32'b10000000000000000000000011111001;
-    maze[6]  = 32'b10000000001000000000000000100001;
+    maze[5]  = 32'b10000000000000000000000000000001;
+    maze[6]  = 32'b10000000001000000000000011110001;
     maze[7]  = 32'b11100010000000000000000000100001;
-    maze[8]  = 32'b10000010000000000000000000000001;
+    maze[8]  = 32'b10000010000000000000000000100001;
     maze[9]  = 32'b10000011100000000000000000000001;
     maze[10] = 32'b10000000000000000000000000000001;
     maze[11] = 32'b10000000000000000000000000000001;
     maze[12] = 32'b11111000001000000000000000000001;
     maze[13] = 32'b10001000001000000000000111100001;
-    maze[14] = 32'b10001110001000000000000000000001;
+    maze[14] = 32'b10001000001000000000000000000001;
     maze[15] = 32'b10000000001000000000000000000001;
     maze[16] = 32'b10000000001000000000000000000001;
-    maze[17] = 32'b10001111000000000000000000000001;
-    maze[18] = 32'b10000000000000000000000100011001;
-    maze[19] = 32'b10000000000000000000000100010001;
-    maze[20] = 32'b10000001001000000000000100010001;
-    maze[21] = 32'b10000001001110000000000100000001;
-    maze[22] = 32'b10000001000000000010001100000001;
-    maze[23] = 32'b10001000000000000000000000000001;
-    maze[24] = 32'b10001000000111100000000000010001;
-    maze[25] = 32'b10001000000000100000000000010001;
-    maze[26] = 32'b10001000000000000010000000010001;
+    maze[17] = 32'b10000000000000000000000000000001;
+    maze[18] = 32'b10000010000000000000000100011001;
+    maze[19] = 32'b10001110000000000000000100010001;
+    maze[20] = 32'b10000000001000000000000100010001;
+    maze[21] = 32'b10000000001110000000000100000001;
+    maze[22] = 32'b10000000000000000010001100000001;
+    maze[23] = 32'b10000000000000000000000000000001;
+    maze[24] = 32'b10000010000111100000000000010001;
+    maze[25] = 32'b10000010000000100000000000010001;
+    maze[26] = 32'b10000010000000000010000000010001;
     maze[27] = 32'b11111111111111111111111111111111;
   end
   
 endmodule
 
-module mine_test_top(clk, hsync, vsync, rgb);
+module mine_test_top(clk, reset, hsync, vsync, rgb, switches_p1, switches_p2);
 
-  input clk;
+  input clk, reset;
+  input [7:0] switches_p1;
+  input [7:0] switches_p2;
   output hsync, vsync;
   output [2:0] rgb;
+  
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
   wire mine_gfx;
   wire playfield_gfx;
+  wire tank1_gfx, tank2_gfx;
 
   hvsync_generator hvsync_gen(
     .clk(clk),
@@ -132,9 +137,54 @@ module mine_test_top(clk, hsync, vsync, rgb);
     .playfield_gfx(playfield_gfx)
   );
 
-  wire r = display_on && mine_gfx;
-  wire g = display_on && playfield_gfx;
-  wire b = display_on && 0;
+  // multiplex player 1 and 2 load times during hsync
+  wire p2sel = hpos[3];
+  // sprite ROM inputs for each player
+  wire [7:0] tank1_sprite_addr;
+  wire [7:0] tank2_sprite_addr;
+  // multiplex sprite ROM output
+  wire [7:0] tank_sprite_bits;
+  
+  // bitmap ROM is shared between tank 1 and 2
+  tank_bitmap tank_bmp(
+    .addr(p2sel ? tank2_sprite_addr : tank1_sprite_addr), 
+    .bits(tank_sprite_bits));
+  
+  tank_controller #(16,36,4) tank1(
+    .clk(clk),
+    .reset(reset),
+    .hpos(hpos),
+    .vpos(vpos),
+    .hsync(hsync && !p2sel),
+    .vsync(vsync),
+    .sprite_addr(tank1_sprite_addr), 
+    .sprite_bits(tank_sprite_bits),
+    .gfx(tank1_gfx),
+    .playfield(playfield_gfx),
+    .switch_left(switches_p1[0]),
+    .switch_right(switches_p1[1]),
+    .switch_up(switches_p1[2])
+  );
+
+  tank_controller #(220,190,12) tank2(
+    .clk(clk),
+    .reset(reset),
+    .hpos(hpos),
+    .vpos(vpos),
+    .hsync(hsync && p2sel),
+    .vsync(vsync),
+    .sprite_addr(tank2_sprite_addr), 
+    .sprite_bits(tank_sprite_bits),
+    .gfx(tank2_gfx),
+    .playfield(playfield_gfx),
+    .switch_left(switches_p2[0]),
+    .switch_right(switches_p2[1]),
+    .switch_up(switches_p2[2])
+  );
+
+  wire r = display_on && (mine_gfx || tank2_gfx);
+  wire g = display_on && tank1_gfx;
+  wire b = display_on && (playfield_gfx || tank2_gfx);
   assign rgb = {b,g,r};
   
 endmodule

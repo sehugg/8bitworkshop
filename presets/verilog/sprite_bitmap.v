@@ -1,9 +1,10 @@
 `include "hvsync_generator.v"
 
-module car_bitmap(
-  input [3:0] yofs,
-  output [7:0] bits
-);
+module car_bitmap(yofs, bits);
+  
+  input [3:0] yofs;
+  output [7:0] bits;
+
   reg [7:0] bitarray[16];
   assign bits = bitarray[yofs];
   initial begin/*{w:8,h:16}*/
@@ -24,6 +25,7 @@ module car_bitmap(
     bitarray[14] = 8'b11001100;
     bitarray[15] = 8'b1100;
   end
+  
 endmodule
 
 module sprite_bitmap_top(clk, reset, hsync, vsync, rgb);

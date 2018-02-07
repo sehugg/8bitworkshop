@@ -1,5 +1,6 @@
 module clock_divider(
   input clk,
+  input reset,
   output reg clk_div2,
   output reg clk_div4,
   output reg clk_div8,
@@ -27,8 +28,11 @@ module clock_divider(
 
   // use bits of (4-bit) counter to divide clocks
   
-  always @(posedge clk)
-    counter <= counter + 1;
+  always @(posedge clk or posedge reset)
+    if (reset)
+      counter <= 0;
+    else
+      counter <= counter + 1;
 
   assign cntr_div2 = counter[0];
   assign cntr_div4 = counter[1];

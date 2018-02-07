@@ -1047,8 +1047,9 @@ function writeDependencies(depends, FS, errors) {
   if (depends) {
     for (var i=0; i<depends.length; i++) {
       var d = depends[i];
-      if (d.text)
+      if (d.text) {
         FS.writeFile(d.filename, d.text, {encoding:'utf8'});
+      }
     }
   }
 }
