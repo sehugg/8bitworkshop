@@ -83,10 +83,8 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   reg [6:0] brick_index;
   wire brick_gfx = lr_border || (brick_present && vpos[2:0] != 0 && hpos[3:1] != 4);
   
-  wire visible_clk = clk & display_on;
-
   // scan bricks: compute brick_index and brick_present flag
-  always @(posedge visible_clk)
+  always @(posedge clk)
     // see if we are scanning brick area
     if (vpos[8:6] == 1 && !lr_border)
     begin
@@ -121,7 +119,7 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   /* verilator lint_on MULTIDRIVEN */
 
   // compute ball collisions with paddle and playfield
-  always @(posedge visible_clk)
+  always @(posedge clk)
     if (ball_pixel_collide) begin
       // did we collide w/ paddle?
       if (paddle_gfx) begin
@@ -135,7 +133,7 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
     end
 
   // compute ball collisions with brick and increment score
-  always @(posedge visible_clk)
+  always @(posedge clk)
     if (ball_pixel_collide && brick_present) begin
       brick_array[brick_index] <= 0;
       incscore <= 1; // increment score

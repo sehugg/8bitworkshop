@@ -31,32 +31,28 @@ module hvsync_generator(clk, reset, hsync, vsync, display_on, hpos, vpos);
   wire hmaxxed = (hpos == H_MAX) || reset;
   wire vmaxxed = (vpos == V_MAX) || reset;
   
-  // increment horizontal position counter
+  // horizontal position counter
   always @(posedge clk)
   begin
+    hsync <= (hpos>=H_SYNC_START && hpos<=H_SYNC_END);
     if(hmaxxed)
       hpos <= 0;
     else
       hpos <= hpos + 1;
   end
 
-  // increment vertical position counter
+  // vertical position counter
   always @(posedge clk)
   begin
+    vsync <= (vpos>=V_SYNC_START && vpos<=V_SYNC_END);
     if(hmaxxed)
-      if (!vmaxxed)
-        vpos <= vpos + 1;
-      else
+      if (vmaxxed)
         vpos <= 0;
+      else
+        vpos <= vpos + 1;
   end
   
-  // compute hsync + vsync + display_on signals
-  always @(posedge clk)
-  begin
-    hsync <= (hpos>=H_SYNC_START && hpos<=H_SYNC_END);
-    vsync <= (vpos>=V_SYNC_START && vpos<=V_SYNC_END);
-    display_on <= (hpos<H_DISPLAY) && (vpos<V_DISPLAY);
-  end
+  assign display_on = (hpos<H_DISPLAY) && (vpos<V_DISPLAY);
 
 endmodule
 

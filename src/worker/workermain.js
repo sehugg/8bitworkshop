@@ -1071,11 +1071,13 @@ function compileVerilator(code, platform, options) {
   writeDependencies(options.dependencies, FS, errors);
   starttime();
   verilator_mod.callMain(["--cc", "-O3",
-    "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED",
+    "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
     "--x-assign", "fast", "--noassert", "--pins-bv", "33",
     "--top-module", topmod, topmod+".v"]);
   endtime("compile");
-  if (errors.length) return {errors:errors};
+  if (errors.length) {
+    return {errors:errors};
+  }
   try {
     var h_file = FS.readFile("obj_dir/V"+topmod+".h", {encoding:'utf8'});
     var cpp_file = FS.readFile("obj_dir/V"+topmod+".cpp", {encoding:'utf8'});
