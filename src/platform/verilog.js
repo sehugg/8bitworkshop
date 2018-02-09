@@ -297,6 +297,24 @@ var VerilogPlatform = function(mainElement, options) {
     gen.__unreset();
   }
 
+  function shadowText(ctx, txt, x, y) {
+    ctx.shadowColor = "black";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = -1;
+    ctx.shadowOffsetX = 0;
+    ctx.fillText(txt, x, y);
+    ctx.shadowOffsetY = 1;
+    ctx.shadowOffsetX = 0;
+    ctx.fillText(txt, x, y);
+    ctx.shadowOffsetY = 0;
+    ctx.shadowOffsetX = -1;
+    ctx.fillText(txt, x, y);
+    ctx.shadowOffsetY = 0;
+    ctx.shadowOffsetX = 1;
+    ctx.fillText(txt, x, y);
+    ctx.shadowOffsetX = 0;
+  }
+
   function updateScopeFrame() {
     var arr = ports_and_signals;
     if (!arr) return;
@@ -348,17 +366,18 @@ var VerilogPlatform = function(mainElement, options) {
       ctx.fillStyle = name == inspect_sym ? "yellow" : "white";
       name = name.replace(/__DOT__/g,'.');
       ctx.textAlign = 'left';
-      ctx.fillText(name, 1, yposlist[i]);
+      ctx.fillStyle = "white";
+      shadowText(ctx, name, 1, yposlist[i]);
       if (scope_time_x > 0) {
         ctx.textAlign = 'right';
         var value = arr.length * scope_time_x + i + jstart;
-        ctx.fillText(""+trace_buffer[value], videoWidth-1, yposlist[i]);
+        shadowText(ctx, ""+trace_buffer[value], videoWidth-1, yposlist[i]);
       }
     }
     // draw scope line & label
     if (scope_time_x > 0) {
       ctx.fillStyle = "cyan";
-      ctx.fillText(""+(scope_time_x+scope_x_offset),
+      shadowText(ctx, ""+(scope_time_x+scope_x_offset),
         (scope_time_x>10)?(scope_time_x-2):(scope_time_x+20), videoHeight-2);
       ctx.fillRect(scope_time_x, 0, 1, 4000);
     }

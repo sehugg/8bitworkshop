@@ -159,6 +159,15 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
     });
   }
 
+  function setPixels(p) {
+    var i = 0;
+    for (var y=0; y<height; y++) {
+      for (var x=0; x<width; x++) {
+        setPixel(x, y, p[i++]);
+      }
+    }
+  }
+
   this.rotate = function(deg) {
     console.log("rotate " + deg);
     var s1 = Math.sin(deg * Math.PI / 180);
@@ -175,12 +184,35 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
         p[i++] = col;
       }
     }
-    i = 0;
+    setPixels(p);
+    commit();
+  }
+
+  this.flipy = function() {
+    console.log("flipy");
+    var p = self.getImageColors();
+    var i = 0;
     for (var y=0; y<height; y++) {
       for (var x=0; x<width; x++) {
-        setPixel(x, y, p[i++]);
+        var col = getPixel(x, height-1-y);
+        p[i++] = col;
       }
     }
+    setPixels(p);
+    commit();
+  }
+
+  this.flipx = function() {
+    console.log("flipx");
+    var p = self.getImageColors();
+    var i = 0;
+    for (var y=0; y<height; y++) {
+      for (var x=0; x<width; x++) {
+        var col = getPixel(width-1-x, y);
+        p[i++] = col;
+      }
+    }
+    setPixels(p);
     commit();
   }
 }
@@ -471,6 +503,14 @@ function pixelEditorKeypress(e) {
         break;
       case 36: // End
         currentPixelEditor.rotate(45);
+        break;
+    }
+    switch (e.charCode) {  
+      case 104:
+        currentPixelEditor.flipx();
+        break;
+      case 118:
+        currentPixelEditor.flipy();
         break;
       default:
         console.log(e);

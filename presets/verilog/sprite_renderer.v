@@ -10,79 +10,98 @@ module car_bitmap(yofs, bits);
   assign bits = bitarray[yofs];
   
   initial begin/*{w:8,h:16}*/
-    bitarray[0] = 8'b110000;
-    bitarray[1] = 8'b1110111;
-    bitarray[2] = 8'b11100110;
-    bitarray[3] = 8'b11111111;
-    bitarray[4] = 8'b11100110;
-    bitarray[5] = 8'b1100111;
-    bitarray[6] = 8'b110000;
+    bitarray[0] = 8'b1100;
+    bitarray[1] = 8'b11001100;
+    bitarray[2] = 8'b11111100;
+    bitarray[3] = 8'b11101100;
+    bitarray[4] = 8'b11100000;
+    bitarray[5] = 8'b1100000;
+    bitarray[6] = 8'b1110000;
     bitarray[7] = 8'b110000;
     bitarray[8] = 8'b110000;
-    bitarray[9] = 8'b1110000;
-    bitarray[10] = 8'b1100000;
-    bitarray[11] = 8'b11100000;
-    bitarray[12] = 8'b11101100;
-    bitarray[13] = 8'b11111100;
-    bitarray[14] = 8'b11001100;
-    bitarray[15] = 8'b1100;
+    bitarray[9] = 8'b110000;
+    bitarray[10] = 8'b1100111;
+    bitarray[11] = 8'b11100110;
+    bitarray[12] = 8'b11111111;
+    bitarray[13] = 8'b11100110;
+    bitarray[14] = 8'b1110111;
+    bitarray[15] = 8'b110000;
   end
+  
 endmodule
 
-module sprite_renderer(clk, vstart, load, hstart, rom_yofs, rom_bits, 
+module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits, 
                        gfx, in_progress);
   
   input clk, vstart, load, hstart;
-  output [3:0] rom_yofs;
+  output [3:0] rom_addr;
   input [7:0] rom_bits;
   output gfx;
-  output in_progress = yactive;
-  
+  output in_progress = state != WAIT_FOR_VSTART;
+
+  reg [2:0] state;
   reg [3:0] ycount;
   reg [3:0] xcount;
-  reg yactive;
-  reg xactive;
-  reg loading;
   
   reg [7:0] outbits;
   
+  localparam WAIT_FOR_VSTART = 0;
+  localparam WAIT_FOR_LOAD   = 1;
+  localparam LOAD1_SETUP     = 2;
+  localparam LOAD1_FETCH     = 3;
+  localparam WAIT_FOR_HSTART = 4;
+  localparam DRAW            = 5;
+  
   always @(posedge clk)
     begin
-      // set a default value (blank) for pixel output
-      // note: multiple non-blocking assignments are vendor-specific
-      gfx <= 0; 
-      // load next line? set ROM address
-      if (yactive && load) begin
-        rom_yofs <= ~ycount;
-        loading <= 1;
-      // ROM address was set, now latch bits from bus
-      end else if (loading) begin
-        outbits <= rom_bits;
-        loading <= 0;
-        ycount <= ycount + 1;
-      // start sprite at this vertical scanline
-      end else if (vstart) begin
-        yactive <= 1;
-        //ycount <= 0;
-      // start sprite at this horizontal clock
-      end else if (hstart && yactive) begin
-        xactive <= 1;
-        //xcount <= 0;
-      // both X & Y active, set pixel output
-      end else if (xactive && yactive)
-        begin
+      case (state)
+        WAIT_FOR_VSTART: begin
+          ycount <= 0;
+          // set a default value (blank) for pixel output
+          // note: multiple non-blocking assignments are vendor-specific
+	  gfx <= 0;
+          if (vstart) state <= WAIT_FOR_LOAD;
+        end
+        WAIT_FOR_LOAD: begin
+          xcount <= 0;
+	  gfx <= 0;
+          if (load) state <= LOAD1_SETUP;
+        end
+        LOAD1_SETUP: begin
+          rom_addr <= ycount;
+	  gfx <= 0;
+          state <= LOAD1_FETCH;
+        end
+        LOAD1_FETCH: begin
+	  outbits[7:0] <= rom_bits;
+	  gfx <= 0;
+          state <= WAIT_FOR_HSTART;
+        end
+        WAIT_FOR_HSTART: begin
+          if (hstart) state <= DRAW;
+	  gfx <= 0;
+        end
+        DRAW: begin
           // mirror graphics left/right
-          gfx <= outbits[xcount[3]?~xcount[2:0]:xcount[2:0]];
+          gfx <= outbits[xcount<8 ? xcount[2:0] : ~xcount[2:0]];
           xcount <= xcount + 1;
           if (xcount == 15) begin // pre-increment value
-            xactive <= 0; // done drawing this scanline
-            if (ycount == 0) // post-increment value
-              yactive <= 0; // done drawing sprite
+            ycount <= ycount + 1;
+            if (ycount == 15) // pre-increment value
+              state <= WAIT_FOR_VSTART; // done drawing sprite
+            else
+	      state <= WAIT_FOR_LOAD; // done drawing this scanline
           end
         end
+        default: begin
+          state <= 0; // TODO: reset
+	  gfx <= 0;
+        end
+      endcase
     end
   
 endmodule
+
 
 module test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
 
@@ -127,7 +146,7 @@ module test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .vstart(vstart),
     .load(hsync),
     .hstart(hstart),
-    .rom_yofs(car_sprite_yofs),
+    .rom_addr(car_sprite_yofs),
     .rom_bits(car_sprite_bits),
     .gfx(car_gfx),
     .in_progress(unused));
