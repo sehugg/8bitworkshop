@@ -1,40 +1,41 @@
 
-`define OP_LOAD_A	4'h0
-`define OP_LOAD_B	4'h1
-`define OP_OR		4'h2
-`define OP_AND		4'h3
-`define OP_XOR		4'h4
-`define OP_INC		4'h5
-`define OP_DEC		4'h6
-`define OP_ZERO		4'h7
-// operations that generate carry
-`define OP_ADD		4'h8
-`define OP_SUB		4'h9
-`define OP_ASL		4'ha
-`define OP_LSR		4'hb
+parameter OP_LOAD_A	= 4'h0;
+parameter OP_LOAD_B	= 4'h1;
+parameter OP_OR		= 4'h2;
+parameter OP_AND	= 4'h3;
+parameter OP_XOR	= 4'h4;
+parameter OP_INC	= 4'h5;
+parameter OP_DEC	= 4'h6;
+parameter OP_ZERO	= 4'h7;
+// operations that generate and use carry
+parameter OP_ADC	= 4'h8;
+parameter OP_SBB	= 4'h9;
+parameter OP_ROL	= 4'ha;
+parameter OP_ROR	= 4'hb;
 
-module ALU(
-  input  [7:0] A,
-  input  [7:0] B,
-  output [8:0] Y,
-  input  [3:0] aluop
-);
+module ALU(A, B, Y, aluop, carry);
+
+  input  [7:0] A;
+  input  [7:0] B;
+  output [8:0] Y;
+  input  [3:0] aluop;
+  input  carry;
   
   always @(*)
     case (aluop)
-      `OP_LOAD_A:	Y = {1'b0, A};
-      `OP_LOAD_B:	Y = {1'b0, B};
-      `OP_OR:		Y = {1'b0, A | B};
-      `OP_AND:		Y = {1'b0, A & B};
-      `OP_XOR:		Y = {1'b0, A ^ B};
-      `OP_INC:		Y = A + 1;
-      `OP_DEC:		Y = A - 1;
-      `OP_ZERO:		Y = 0;
+      OP_LOAD_A:	Y = {1'b0, A};
+      OP_LOAD_B:	Y = {1'b0, B};
+      OP_OR:		Y = {1'b0, A | B};
+      OP_AND:		Y = {1'b0, A & B};
+      OP_XOR:		Y = {1'b0, A ^ B};
+      OP_INC:		Y = A + 1;
+      OP_DEC:		Y = A - 1;
+      OP_ZERO:		Y = 0;
 
-      `OP_ADD:		Y = A + B;
-      `OP_SUB:		Y = A - B;
-      `OP_ASL:		Y = A + A;
-      `OP_LSR:		Y = {A[0], A >> 1};
+      OP_ADC:		Y = A + B + (carry?1:0);
+      OP_SBB:		Y = A - B - (carry?1:0);
+      OP_ROL:		Y = {A, carry};
+      OP_ROR:		Y = {A[0], carry, A[7:1]};
       default:		Y = 9'bx;
     endcase
   
@@ -57,33 +58,37 @@ tttt = flags test for conditional branch
 */
 
 // destinations for COMPUTE instructions
-`define DEST_A   2'b00
-`define DEST_B   2'b01
-`define DEST_IP  2'b10
-`define DEST_NOP 2'b11
+parameter DEST_A   = 2'b00;
+parameter DEST_B   = 2'b01;
+parameter DEST_IP  = 2'b10;
+parameter DEST_NOP = 2'b11;
 // instruction macros
 `define I_COMPUTE(dest,op) { 2'b00, 2'(dest), 4'(op) }
 `define I_COMPUTE_IMM(dest,op) { 2'b01, 2'(dest), 4'(op) }
 `define I_COMPUTE_READB(dest,op) { 2'b11, 2'(dest), 4'(op) }
-`define I_CONST_IMM_A { 2'b01, `DEST_A, `OP_LOAD_B }
-`define I_CONST_IMM_B { 2'b01, `DEST_B, `OP_LOAD_B }
-`define I_JUMP_IMM { 2'b01, `DEST_IP, `OP_LOAD_B }
+`define I_CONST_IMM_A { 2'b01, DEST_A, OP_LOAD_B }
+`define I_CONST_IMM_B { 2'b01, DEST_B, OP_LOAD_B }
+`define I_JUMP_IMM { 2'b01, DEST_IP, OP_LOAD_B }
 `define I_STORE_A(addr) { 4'b1001, 4'(addr) }
-`define I_BRANCH_IF_CARRY(carry) { 4'b1010, 2'b00, 1'(carry), 1'b1 }
+`define I_BRANCH_IF(zv,zu,cv,cu) { 4'b1010, 1'(zv), 1'(zu), 1'(cv), 1'(cu) }
+`define I_CLEAR_CARRY { 8'b10001000 }
 `define I_SWAP_AB { 8'b10000001 }
 `define I_RESET { 8'b10111111 }
 // convenience macros
-`define I_ZERO_A `I_COMPUTE(`DEST_A, `OP_ZERO)
-`define I_ZERO_B `I_COMPUTE(`DEST_B, `OP_ZERO)
+`define I_ZERO_A `I_COMPUTE(DEST_A, OP_ZERO)
+`define I_ZERO_B `I_COMPUTE(DEST_B, OP_ZERO)
+`define I_BRANCH_IF_CARRY(carry) `I_BRANCH_IF(0,0,carry,1)
+`define I_BRANCH_IF_ZERO(zero) `I_BRANCH_IF(zero,1,0,0)
+`define I_CLEAR_ZERO `I_COMPUTE(DEST_NOP,OP_ZERO)
 
-module CPU(
-  input        clk,
-  input        reset,
-  output [7:0] address,
-  input  [7:0] data_in,
-  output [7:0] data_out,
-  output       write
-);
+module CPU(clk, reset, address, data_in, data_out, write);
+  
+  input        clk;
+  input        reset;
+  output [7:0] address;
+  input  [7:0] data_in;
+  output [7:0] data_out;
+  output       write;
   
   reg [7:0] IP;
   reg [7:0] A, B;
@@ -105,7 +110,12 @@ module CPU(
   localparam S_COMPUTE = 3;
   localparam S_READ_IP = 4;
 
-  ALU alu(.A(A), .B(B_or_data?data_in:B), .Y(Y), .aluop(aluop));
+  ALU alu(
+    .A(A), 
+    .B(B_or_data ? data_in : B), 
+    .Y(Y), 
+    .aluop(aluop), 
+    .carry(carry));
   
   always @(posedge clk)
     if (reset) begin
@@ -128,7 +138,7 @@ module CPU(
         end
         // state 2: read/decode opcode
         S_DECODE: begin
-          opcode <= data_in;
+          opcode <= data_in; // (only use opcode next cycle)
           casez (data_in)
             // ALU A + B -> dest
             8'b00??????: begin
@@ -145,11 +155,16 @@ module CPU(
               address <= B;
               state <= S_COMPUTE;
             end
-            // A -> write [aluop]
+            // A -> write [nnnn]
             8'b1001????: begin
-              address <= {4'b0, aluop};
+              address <= {4'b0, data_in[3:0]};
               data_out <= A;
               write <= 1;
+              state <= S_SELECT;
+            end
+            // clear carry
+            8'b10001000: begin
+              carry <= 0;
               state <= S_SELECT;
             end
             // swap A,B
@@ -181,15 +196,15 @@ module CPU(
         S_COMPUTE: begin
           // transfer ALU output to destination
           case (opdest)
-            `DEST_A: A <= Y[7:0];
-            `DEST_B: B <= Y[7:0];
-            `DEST_IP: IP <= Y[7:0];
-            `DEST_NOP: ;
+            DEST_A: A <= Y[7:0];
+            DEST_B: B <= Y[7:0];
+            DEST_IP: IP <= Y[7:0];
+            DEST_NOP: ;
           endcase
           // set carry for certain operations (code >= 8)
           if (aluop[3]) carry <= Y[8];
           // set zero flag
-          zero <= ~|Y;
+          zero <= ~|Y[7:0];
           // repeat CPU loop
           state <= S_SELECT;
         end
@@ -212,7 +227,9 @@ module test_CPU_top(
   output write_enable,
   output [7:0] IP,
   output [7:0] A,
-  output [7:0] B
+  output [7:0] B,
+  output zero,
+  output carry
 );
 
   reg [7:0] ram[0:127];
@@ -221,6 +238,8 @@ module test_CPU_top(
   assign IP = cpu.IP;
   assign A = cpu.A;
   assign B = cpu.B;
+  assign zero = cpu.zero;
+  assign carry = cpu.carry;
   
   CPU cpu(.clk(clk),
           .reset(reset),
@@ -229,27 +248,31 @@ module test_CPU_top(
           .data_out(from_cpu),
           .write(write_enable));
 
-  // does not work as (posedge clk)
+  always @(posedge clk)
+    if (write_enable) begin
+      ram[address_bus[6:0]] <= from_cpu;
+    end
+  
   always @(*)
-    if (write_enable)
-      ram[address_bus[6:0]] = from_cpu;
-    else if (address_bus[7] == 0)
+    if (address_bus[7] == 0)
       to_cpu = ram[address_bus[6:0]];
     else
       to_cpu = rom[address_bus[6:0]];
   
   initial begin
     rom = '{
+      `I_CLEAR_CARRY,
       `I_ZERO_A,
       `I_CONST_IMM_B,
       1,
-      `I_COMPUTE(`DEST_A, `OP_ADD), // addr 4
+      `I_COMPUTE(DEST_A, OP_ADC), // addr 4
       `I_SWAP_AB,
       `I_BRANCH_IF_CARRY(0),
-      3 + 'h80, // correct for ROM offset
+      4 + 'h80, // correct for ROM offset
+      `I_STORE_A(0),
       `I_RESET,
       // leftover elements
-      120{0}
+      118{0}
     };
   end
 

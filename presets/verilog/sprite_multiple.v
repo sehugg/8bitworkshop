@@ -54,7 +54,7 @@ module sprite_multiple_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .vstart(player_vstart),
     .load(hpos == 256),
     .hstart(player_hstart),
-    .rom_yofs(car_sprite_yofs),
+    .rom_addr(car_sprite_yofs),
     .rom_bits(car_sprite_bits),
     .gfx(player_gfx),
     .in_progress(player_is_drawing));
@@ -64,7 +64,7 @@ module sprite_multiple_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .vstart(enemy_vstart),
     .load(hpos == 257),
     .hstart(enemy_hstart),
-    .rom_yofs(car_sprite_yofs),
+    .rom_addr(car_sprite_yofs),
     .rom_bits(car_sprite_bits),
     .gfx(enemy_gfx),
     .in_progress(player_is_drawing));
