@@ -311,11 +311,11 @@ var SampleAudio = function(clockfreq) {
   var self = this;
   var sfrac, sinc, accum;
   var buffer, bufpos, bufferlist;
+  var idrain, ifill;
 
   function mix(ape) {
     var buflen=ape.outputBuffer.length;
     var lbuf = ape.outputBuffer.getChannelData(0);
-    //var rbuf = ape.outputBuffer.getChannelData(1);
     var m = this.module;
     if (!m) m = ape.srcElement.module;
     if (!m) return;
@@ -323,10 +323,12 @@ var SampleAudio = function(clockfreq) {
       m.callback(lbuf);
       return;
     } else {
-      var buf = bufferlist[1];
+      var buf = bufferlist[idrain];
       for (var i=0; i<lbuf.length; i++) {
         lbuf[i] = buf[i];
+        //lbuf[i] = (i&128) ? 1.0 : 0.33;
       }
+      idrain = (idrain + 1) % bufferlist.length;
     }
   }
 
@@ -343,11 +345,7 @@ var SampleAudio = function(clockfreq) {
     // Amiga 500 fixed filter at 6kHz. WebAudio lowpass is 12dB/oct, whereas
     // older Amigas had a 6dB/oct filter at 4900Hz.
     self.filterNode=self.context.createBiquadFilter();
-    if (self.amiga500) {
-      self.filterNode.frequency.value=6000;
-    } else {
-      self.filterNode.frequency.value=28867;
-    }
+    self.filterNode.frequency.value=6000;
 
     // "LED filter" at 3275kHz - off by default
     self.lowpassNode=self.context.createBiquadFilter();
@@ -381,7 +379,9 @@ var SampleAudio = function(clockfreq) {
     accum = 0;
     bufpos = 0;
     bufferlist = [];
-    for (var i=0; i<2; i++) {
+    idrain = 1;
+    ifill = 0;
+    for (var i=0; i<3; i++) {
       var arrbuf = new ArrayBuffer(self.bufferlen*4);
       bufferlist[i] = new Float32Array(arrbuf);
     }
@@ -400,8 +400,10 @@ var SampleAudio = function(clockfreq) {
     buffer[bufpos++] = value;
     if (bufpos >= buffer.length) {
       bufpos = 0;
-      bufferlist[0] = bufferlist[1];
-      bufferlist[1] = buffer;
+      bufferlist[ifill] = buffer;
+      var inext = (ifill + 1) % bufferlist.length;
+      if (inext != idrain) ifill = inext;
+      buffer = bufferlist[ifill];
     }
   }
 
@@ -411,8 +413,9 @@ var SampleAudio = function(clockfreq) {
       sfrac += sinc;
       if (sfrac >= 1) {
         sfrac -= 1;
-        accum = 0;
-        this.addSingleSample(accum / sfrac);
+        value *= sfrac;
+        this.addSingleSample(accum - value);
+        accum = value;
       }
     }
   }

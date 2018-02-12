@@ -181,7 +181,7 @@ var VerilogPlatform = function(mainElement, options) {
   var idata, timer;
   var gen;
   var frameRate = 60;
-  var AUDIO_FREQ = 15750;
+  var AUDIO_FREQ = (256+23+7+23)*262*60; // 4857480
   var current_output;
   var paddle_x = 0;
   var paddle_y = 0;
@@ -219,7 +219,7 @@ var VerilogPlatform = function(mainElement, options) {
 
   function vidtick() {
     gen.tick2();
-    audio.addSingleSample(0+gen.spkr); // TODO: sync with audio freq
+    audio.feedSample((gen.spkr&255)*(1.0/255.0), 1);
     if (debugCond && debugCond()) debugCond = null;
   }
 
