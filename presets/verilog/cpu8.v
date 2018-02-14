@@ -1,17 +1,23 @@
 
+// ALU operations
 parameter OP_LOAD_A	= 4'h0;
 parameter OP_LOAD_B	= 4'h1;
-parameter OP_OR		= 4'h2;
-parameter OP_AND	= 4'h3;
-parameter OP_XOR	= 4'h4;
-parameter OP_INC	= 4'h5;
-parameter OP_DEC	= 4'h6;
+parameter OP_INC	= 4'h2;
+parameter OP_DEC	= 4'h3;
+parameter OP_OR		= 4'h4;
+parameter OP_AND	= 4'h5;
+parameter OP_XOR	= 4'h6;
 parameter OP_ZERO	= 4'h7;
+// operations that generate carry
+parameter OP_ADD	= 4'h8;
+parameter OP_SUB	= 4'h9;
+parameter OP_ASL	= 4'ha;
+parameter OP_LSR	= 4'hb;
 // operations that generate and use carry
-parameter OP_ADC	= 4'h8;
-parameter OP_SBB	= 4'h9;
-parameter OP_ROL	= 4'ha;
-parameter OP_ROR	= 4'hb;
+parameter OP_ADC	= 4'hc;
+parameter OP_SBB	= 4'hd;
+parameter OP_ROL	= 4'he;
+parameter OP_ROR	= 4'hf;
 
 module ALU(A, B, Y, aluop, carry);
 
@@ -25,18 +31,22 @@ module ALU(A, B, Y, aluop, carry);
     case (aluop)
       OP_LOAD_A:	Y = {1'b0, A};
       OP_LOAD_B:	Y = {1'b0, B};
+      OP_INC:		Y = A + 1;
+      OP_DEC:		Y = A - 1;
       OP_OR:		Y = {1'b0, A | B};
       OP_AND:		Y = {1'b0, A & B};
       OP_XOR:		Y = {1'b0, A ^ B};
-      OP_INC:		Y = A + 1;
-      OP_DEC:		Y = A - 1;
       OP_ZERO:		Y = 0;
 
+      OP_ADD:		Y = A + B;
+      OP_SUB:		Y = A - B;
+      OP_ASL:		Y = {A, 1'b0};
+      OP_LSR:		Y = {A[0], 1'b0, A[7:1]};
+      
       OP_ADC:		Y = A + B + (carry?1:0);
       OP_SBB:		Y = A - B - (carry?1:0);
       OP_ROL:		Y = {A, carry};
       OP_ROR:		Y = {A[0], carry, A[7:1]};
-      default:		Y = 9'bx;
     endcase
   
 endmodule

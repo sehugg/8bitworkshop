@@ -424,6 +424,7 @@ function loadFileDependencies(text) {
     while (m = re.exec(text)) {
       arr.push({
         filename:m[1],
+        prefix:platform_id,
         text:store.loadFile(m[1]) || store.loadFile('local/'+m[1]) // TODO??
       });
     }

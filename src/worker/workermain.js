@@ -1049,6 +1049,18 @@ function writeDependencies(depends, FS, errors) {
       var d = depends[i];
       if (d.text) {
         FS.writeFile(d.filename, d.text, {encoding:'utf8'});
+      } else {
+        // load from network (hopefully cached)
+        // TODO: get from indexeddb?
+        var path = '../../presets/' + d.prefix + '/' + d.filename;
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", path, false);  // synchronous request
+        xhr.send(null);
+        if (xhr.response) {
+          FS.writeFile(d.filename, xhr.response, {encoding:'utf8'});
+        } else {
+          console.log("Could not load " + path);
+        }
       }
     }
   }
