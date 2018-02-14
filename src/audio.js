@@ -312,6 +312,7 @@ var SampleAudio = function(clockfreq) {
   var sfrac, sinc, accum;
   var buffer, bufpos, bufferlist;
   var idrain, ifill;
+  var nbuffers = 3;
 
   function mix(ape) {
     var buflen=ape.outputBuffer.length;
@@ -381,7 +382,7 @@ var SampleAudio = function(clockfreq) {
     bufferlist = [];
     idrain = 1;
     ifill = 0;
-    for (var i=0; i<3; i++) {
+    for (var i=0; i<nbuffers; i++) {
       var arrbuf = new ArrayBuffer(self.bufferlen*4);
       bufferlist[i] = new Float32Array(arrbuf);
     }

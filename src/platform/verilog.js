@@ -4,7 +4,6 @@ var VERILOG_PRESETS = [
   {id:'clock_divider.v', name:'Clock Divider'},
   {id:'hvsync_generator.v', name:'Video Sync Generator'},
   {id:'test_hvsync.v', name:'Test Pattern'},
-  {id:'lfsr.v', name:'Linear Feedback Shift Register'},
   {id:'digits10.v', name:'Bitmapped Digits'},
   {id:'7segment.v', name:'7-Segment Decoder'},
   {id:'scoreboard.v', name:'Scoreboard'},
@@ -17,6 +16,10 @@ var VERILOG_PRESETS = [
   {id:'sprite_rotation.v', name:'Sprite Rotation'},
   {id:'tank.v', name:'Tank Game'},
   {id:'cpu8.v', name:'Simple 8-Bit CPU'},
+  {id:'race_game_cpu.v', name:'Race Game With CPU'},
+  {id:'music.v', name:'3-Voice Music'},
+  {id:'lfsr.v', name:'Linear Feedback Shift Register'},
+  {id:'starfield.v', name:'Scrolling Starfield'},
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([
@@ -62,16 +65,16 @@ var vl_stopped = false;
   var VL_NEGATE_I = this.VL_NEGATE_I = function(x) { return -x; }
 
   var VL_LTS_III = this.VL_LTS_III = function(x,lbits,y,lhs,rhs) {
-    return VL_EXTENDS_II(x,lbits,lhs) < VL_EXTENDS_II(x,lbits,rhs); }
+    return 0 | (VL_EXTENDS_II(x,lbits,lhs) < VL_EXTENDS_II(x,lbits,rhs)); }
 
   var VL_GTS_III = this.VL_GTS_III = function(x,lbits,y,lhs,rhs) {
-    return VL_EXTENDS_II(x,lbits,lhs) > VL_EXTENDS_II(x,lbits,rhs); }
+    return 0 | (VL_EXTENDS_II(x,lbits,lhs) > VL_EXTENDS_II(x,lbits,rhs)); }
 
   var VL_LTES_III = this.VL_LTES_III = function(x,lbits,y,lhs,rhs) {
-    return VL_EXTENDS_II(x,lbits,lhs) <= VL_EXTENDS_II(x,lbits,rhs); }
+    return 0 | (VL_EXTENDS_II(x,lbits,lhs) <= VL_EXTENDS_II(x,lbits,rhs)); }
 
   var VL_GTES_III = this.VL_GTES_III = function(x,lbits,y,lhs,rhs) {
-    return VL_EXTENDS_II(x,lbits,lhs) >= VL_EXTENDS_II(x,lbits,rhs); }
+    return 0 | (VL_EXTENDS_II(x,lbits,lhs) >= VL_EXTENDS_II(x,lbits,rhs)); }
 
   var VL_MODDIV_III = this.VL_MODDIV_III = function(lbits,lhs,rhs) {
     return (((rhs)==0)?0:(lhs)%(rhs)); }
@@ -92,7 +95,7 @@ var vl_stopped = false;
     vl_stopped = true;
   }
 
-  var VL_RAND_RESET_I = this.VL_RAND_RESET_I = function(bits) { return Math.floor(Math.random() * (1<<bits)); }
+  var VL_RAND_RESET_I = this.VL_RAND_RESET_I = function(bits) { return 0 | Math.floor(Math.random() * (1<<bits)); }
 
 //
 
@@ -131,11 +134,10 @@ function VerilatorBase() {
     this.eval();
   }
 
-  var vlSymsp = {TOPp:this};
+  var vlSymsp = this; //{TOPp:this};
   var maxVclockLoop = 1;
 
   this.eval = function() {
-    vlSymsp.TOPp = this;
     // Initialize
     if (!vlSymsp.__Vm_didInit)
       this._eval_initial_loop(vlSymsp);
@@ -158,6 +160,7 @@ function VerilatorBase() {
   }
 
   this._eval_initial_loop = function(vlSymsp) {
+    vlSymsp.TOPp = this;
     vlSymsp.__Vm_didInit = true;
     this._eval_initial(vlSymsp);
     vlSymsp.__Vm_activity = true;
@@ -175,8 +178,9 @@ function VerilatorBase() {
 var VerilogPlatform = function(mainElement, options) {
   var self = this;
   var video, audio;
-  var videoWidth  = 304;
-  var videoHeight = 248;
+  var useAudio = false;
+  var videoWidth  = 256+16;
+  var videoHeight = 240+16;
   var maxVideoBlankLines = 80;
   var idata, timer;
   var gen;
@@ -219,11 +223,14 @@ var VerilogPlatform = function(mainElement, options) {
 
   function vidtick() {
     gen.tick2();
-    audio.feedSample((gen.spkr&255)*(1.0/255.0), 1);
-    if (debugCond && debugCond()) debugCond = null;
+    if (useAudio)
+      audio.feedSample(gen.spkr*(1.0/255.0), 1);
+    if (debugCond && debugCond())
+      debugCond = null;
   }
 
   function updateInspectionFrame() {
+    useAudio = false;
     if (inspect_obj && inspect_sym) {
       var COLOR_BIT_OFF = 0xffff3333;
       var COLOR_BIT_ON  = 0xffffffff;
@@ -251,8 +258,9 @@ var VerilogPlatform = function(mainElement, options) {
   }
 
   function updateVideoFrame() {
+    useAudio = gen.spkr !== 'undefined';
     debugCond = self.getDebugCallback();
-    var i=4; // TODO, start @ 0?
+    var i=videoWidth-10;
     var trace=inspect_obj && inspect_sym;
     gen.switches_p1 = switches[0];
     gen.switches_p2 = switches[1];
@@ -265,7 +273,7 @@ var VerilogPlatform = function(mainElement, options) {
         if (trace) {
           inspect_data[i] = inspect_obj[inspect_sym];
         }
-        idata[i++] = RGBLOOKUP[gen.rgb];
+        idata[i++] = RGBLOOKUP[gen.rgb & 7];
       }
       var z=0;
       while (!gen.hsync && z++<videoWidth) vidtick();
@@ -321,14 +329,12 @@ var VerilogPlatform = function(mainElement, options) {
     fillTraceBuffer(Math.floor(videoWidth/4) * arr.length);
     if (!dirty) return;
     dirty = false;
-    for (var i=0; i<idata.length; i++) {
-      if (idata[i])
-        idata[i] = 0; //<<= 1;
-    }
+    var COLOR_BLACK  = 0xff000000;
     var COLOR_SIGNAL = 0xff22ff22;
     var COLOR_BORDER = 0xff662222;
     var COLOR_TRANS_SIGNAL = 0xff226622;
     var COLOR_BLIP_SIGNAL = 0xff226622;
+    idata.fill(COLOR_BLACK);
     var jstart = scope_x_offset * arr.length;
     var j = jstart;
     for (var x=0; x<videoWidth; x++) {
@@ -419,12 +425,12 @@ var VerilogPlatform = function(mainElement, options) {
 		$(video.canvas).mousedown(function(e) {
 			scope_time_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 16);
       mouse_pressed = true;
-      e.target.setCapture();
+      if (e.target.setCapture) e.target.setCapture();
       dirty = true;
 		});
 		$(video.canvas).mouseup(function(e) {
       mouse_pressed = false;
-      e.target.releaseCapture();
+      if (e.target.setCapture) e.target.releaseCapture();
 		});
     audio = new SampleAudio(AUDIO_FREQ);
     idata = video.getFrameData();
@@ -492,6 +498,8 @@ var VerilogPlatform = function(mainElement, options) {
     trace_index = scope_x_offset = 0;
     trace_buffer.fill(0);
     dirty = true;
+    console.log(gen.rotate);
+    video.setRotate(gen.rotate ? -90 : 0);
   }
   this.tick = function() {
     gen.tick2();

@@ -13,10 +13,11 @@ module sound_psg(clk, reset, out, reg_sel, reg_data, reg_write);
   reg outputs[NVOICES];
   reg [17:0] count[NVOICES];
   reg [7:0] register[16];
+  integer i;
   
   always @(posedge clk) begin
     out = 0;
-    for (int i=0; i<NVOICES; i++) begin
+    for (i=0; i<NVOICES; i++) begin
       if (count[i][17:6] == {register[i*2+1][3:0], register[i*2]}) begin
         outputs[i] <= outputs[i] ^ 1;
         count[i] <= 0;
@@ -33,7 +34,7 @@ module sound_psg(clk, reset, out, reg_sel, reg_data, reg_write);
     end
   end
   
-endmodule;
+endmodule
 
 module music_player(clk, reset, advance,
                     psg_sel, psg_data, psg_write);

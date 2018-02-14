@@ -1,19 +1,23 @@
-module LFSR8_11D(
-  input clk,
-  output reg [7:0] LFSR = 255   // put here the initial value
-);
 
-wire feedback = LFSR[7];
+module LFSR(clk,reset,enable,lfsr);
+  
+  parameter NBITS  = 8;
+  parameter TAPS   = 8'b11101;
+  parameter INVERT = 0;
+  
+  input clk, reset;
+  input enable;
+  output reg [NBITS-1:0] lfsr;
 
-always @(posedge clk)
-begin
-  LFSR[0] <= feedback;
-  LFSR[1] <= LFSR[0];
-  LFSR[2] <= LFSR[1] ^ feedback;
-  LFSR[3] <= LFSR[2] ^ feedback;
-  LFSR[4] <= LFSR[3] ^ feedback;
-  LFSR[5] <= LFSR[4];
-  LFSR[6] <= LFSR[5];
-  LFSR[7] <= LFSR[6];
-end
-endmodule
+  wire feedback = lfsr[NBITS-1] ^ INVERT;
+
+  always @(posedge clk)
+  begin
+    if (reset) // initialize to 1
+      lfsr <= {lfsr[NBITS-2:1], 1'b0, 1'b1};
+    else if (enable)
+      lfsr <= {lfsr[NBITS-2:0], 1'b0} ^ (feedback ? TAPS : 0);
+  end
+
+endmodule;
+

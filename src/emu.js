@@ -31,15 +31,22 @@ var RasterVideo = function(mainElement, width, height, options) {
   var canvas, ctx;
   var imageData, arraybuf, buf8, datau32;
 
+  this.setRotate = function(rotate) {
+    if (rotate) {
+      // TODO: aspect ratio?
+      canvas.style.transform = "rotate("+rotate+"deg)";
+      if (canvas.width < canvas.height)
+        canvas.style.paddingLeft = canvas.style.paddingRight = "10%";
+    } else {
+      canvas.style.transform = null;
+      canvas.style.paddingLeft = canvas.style.paddingRight = null;
+    }
+  }
+
   this.create = function() {
     self.canvas = canvas = __createCanvas(mainElement, width, height);
     if (options && options.rotate) {
-      // TODO: aspect ratio?
-      canvas.style.transform = "rotate("+options.rotate+"deg)";
-      if (canvas.width < canvas.height)
-        canvas.style.paddingLeft = canvas.style.paddingRight = "10%";
-      //else
-      //  canvas.style.paddingTop = canvas.style.paddingBottom = "10%";
+      self.setRotate(options.rotate);
     }
     ctx = canvas.getContext('2d');
     imageData = ctx.createImageData(width, height);
