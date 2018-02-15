@@ -49,7 +49,7 @@ module sprite_multiple_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
   parameter IN_FLAGS = 8'b01000010;
 
   reg [7:0] ram[0:63];
-  reg [7:0] rom[0:127];
+  reg [7:0] rom[0:255];
   
   output wire [7:0] address_bus;
   output reg  [7:0] to_cpu;
@@ -77,7 +77,7 @@ module sprite_multiple_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
       IN_FLAGS: to_cpu = {2'b0, frame_collision,
                           vsync, hsync, vpaddle, hpaddle, display_on};
       // ROM
-      8'b1???????: to_cpu = rom[address_bus[6:0]];
+      8'b1???????: to_cpu = rom[address_bus[6:0] + 128];
       default: ;
     endcase
   
@@ -128,120 +128,113 @@ module sprite_multiple_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
     .gfx(enemy_gfx),
     .in_progress(player_is_drawing));
   
-  /*
-  always @(posedge hsync)
-    begin
-      if (!hpaddle) ram[PADDLE_X] <= vpos[7:0];
-      if (!vpaddle) ram[PADDLE_Y] <= vpos[7:0];
-    end
-  
-  wire enemy_hit_left = (enemy_x == 64);
-  wire enemy_hit_right = (enemy_x == 192);
-  wire enemy_hit_edge = enemy_hit_left || enemy_hit_right;
-  
-  always @(posedge vsync)
-    begin
-      player_x <= paddle_x;
-      player_y <= 180;
-      track_pos <= track_pos + {11'b0,speed[7:4]};
-      enemy_y <= enemy_y + {3'b0, speed[7:4]};
-      if (enemy_hit_edge)
-        enemy_dir <= !enemy_dir;
-      if (enemy_dir ^ enemy_hit_edge)
-        enemy_x <= enemy_x + 1;
-      else
-        enemy_x <= enemy_x - 1;
-      // collision check?
-      if (frame_collision)
-        speed <= 16;
-      else if (speed < ~paddle_y)
-        speed <= speed + 1;
-      else
-        speed <= speed - 1;
-    end
-  */
-  
   initial begin
     rom = '{
-      // initialize registers
-      `I_CONST_IMM_A,
-      128,
-      `I_STORE_A(PLAYER_X),
-      `I_STORE_A(ENEMY_X),
-      `I_STORE_A(ENEMY_Y),
-      `I_CONST_IMM_A,
-      180,
-      `I_STORE_A(PLAYER_Y),
-      `I_ZERO_A,
-      `I_STORE_A(SPEED),
-      // test hpaddle flag
-      `I_CONST_IMM_A,
-      8'b00000010,
-      `I_CONST_IMM_B,
-      IN_FLAGS,
-      `I_COMPUTE_READB(DEST_NOP, OP_AND),
-      `I_BRANCH_IF_ZERO(1),
-      128+10,
-      // [vpos] -> paddle_x
-      `I_CONST_IMM_B,
-      IN_VPOS,
-      `I_COMPUTE_READB(DEST_A, OP_LOAD_B),
-      `I_STORE_A(PLAYER_X),
-      // wait for vsync=1 then vsync=0
-      `I_CONST_IMM_A,
-      8'b00010000,
-      `I_CONST_IMM_B,
-      IN_FLAGS,
-      `I_COMPUTE_READB(DEST_NOP, OP_AND),
-      `I_BRANCH_IF_ZERO(1),
-      128+25,
-      `I_COMPUTE_READB(DEST_NOP, OP_AND),
-      `I_BRANCH_IF_ZERO(0),
-      128+28,
-      // check collision
-      `I_CONST_IMM_A,
-      8'b00100000,
-      `I_CONST_IMM_B,
-      IN_FLAGS,
-      `I_COMPUTE_READB(DEST_NOP, OP_AND),
-      `I_BRANCH_IF_ZERO(1),
-      128+41,
-      // load slow speed
-      `I_CONST_IMM_A,
-      16,
-      `I_STORE_A(SPEED),
-      // update speed
-      `I_CONST_IMM_B,
-      SPEED,
-      `I_COMPUTE_READB(DEST_A, OP_LOAD_B),
-      `I_COMPUTE(DEST_A, OP_INC),
-      // don't store if == 0
-      `I_BRANCH_IF_ZERO(1),
-      128+48,
-      `I_STORE_A(SPEED),
-      // branch target
-      `I_COMPUTE_READB(DEST_A, OP_LOAD_B),
-      `I_COMPUTE(DEST_A, OP_LSR),
-      `I_COMPUTE(DEST_A, OP_LSR),
-      `I_COMPUTE(DEST_A, OP_LSR),
-      `I_COMPUTE(DEST_A, OP_LSR),
-      // add to lo byte of track pos
-      `I_CONST_IMM_B,
-      TRACKPOS_LO,
-      `I_COMPUTE_READB(DEST_B, OP_ADD),
-      `I_SWAP_AB,
-      `I_STORE_A(TRACKPOS_LO),
-      `I_SWAP_AB,
-      // update enemy vert pos
-      `I_CONST_IMM_B,
-      ENEMY_Y,
-      `I_COMPUTE_READB(DEST_A, OP_ADD),
-      `I_STORE_A(ENEMY_Y),
-      // repeat main loop
-      `I_JUMP_IMM,
-      128+10,
-      // leftover elements
-      63{0}
+      __asm
+.arch nano8
+.org 128
+
+.define PADDLE_X 0
+.define PADDLE_Y 1
+.define PLAYER_X 2
+.define PLAYER_Y 3
+.define ENEMY_X 4
+.define ENEMY_Y 5
+.define ENEMY_DIR 6
+.define SPEED 7
+.define TRACKPOS_LO 8
+.define TRACKPOS_HI 9
+
+.define IN_HPOS  $40
+.define IN_VPOS  $41
+.define IN_FLAGS $42
+
+.define F_DISPLAY 1
+.define F_HPADDLE 2
+.define F_VPADDLE 4
+.define F_HSYNC 8
+.define F_VSYNC 16
+.define F_COLLIDE 32
+
+Start:
+	lda	128
+	sta	PLAYER_X
+	sta	ENEMY_X
+	sta 	ENEMY_Y
+	lda	180
+	sta	PLAYER_Y
+	zero	A
+	sta	SPEED
+        inc	A
+        sta	ENEMY_DIR
+; test hpaddle flag
+DisplayLoop:
+	lda	F_HPADDLE
+	ldb	IN_FLAGS
+	andrb	NOP
+	bz	DisplayLoop
+; [vpos] -> paddle_x
+	ldb	IN_VPOS
+	movrb	A
+	sta	PLAYER_X
+; wait for vsync=1 then vsync=0
+	lda	F_VSYNC
+	ldb	IN_FLAGS
+WaitForVsyncOn:
+	andrb	NOP
+	bz	WaitForVsyncOn
+WaitForVsyncOff:
+	andrb	NOP
+	bnz	WaitForVsyncOff
+; check collision
+	lda	F_COLLIDE
+	ldb	IN_FLAGS
+	andrb	NOP
+	bz	NoCollision
+; load slow speed
+	lda	16
+	sta	SPEED
+NoCollision:
+; update speed
+	ldb	SPEED
+	movrb	A
+	inc	A
+; don't store if == 0
+	bz	MaxSpeed
+	sta	SPEED
+MaxSpeed:
+	movrb	A
+	lsr	A
+	lsr	A
+	lsr	A
+	lsr	A
+; add to lo byte of track pos
+	ldb	TRACKPOS_LO
+	addrb	B
+	swapab
+	sta	TRACKPOS_LO
+	swapab
+; update enemy vert pos
+	ldb	ENEMY_Y
+	addrb	A
+	sta	ENEMY_Y
+; update enemy horiz pos
+      	ldb	ENEMY_X
+        movrb	A
+        ldb	ENEMY_DIR
+        addrb	A
+        sta	ENEMY_X
+        subi	A 64
+        andi    A 127
+        bnz     SkipXReverse
+; load ENEMY_DIR and negate
+      	zero	A
+        subrb	A
+        sta	ENEMY_DIR
+; back to display loop
+SkipXReverse:
+	jmp	DisplayLoop
+      __endasm
     };
   end
   

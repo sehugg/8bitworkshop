@@ -1,0 +1,33 @@
+
+DEST=/Users/sehugg/PuzzlingPlans/8bitworkshop/src/worker
+TARGETS=js/caspr.js wasm/caspr.js
+
+all: $(TARGETS)
+	cp js/caspr.js $(DEST)
+	cp wasm/caspr.* $(DEST)/wasm
+
+clean:
+	rm -f $(TARGETS)
+
+js/%.js: %.bc
+	emcc -Oz --memory-init-file 0 \
+		-s ASM_JS=1 \
+		-s MODULARIZE=1 \
+		-s ALLOW_MEMORY_GROWTH=1 \
+		-s EXPORT_NAME=\"'$*'\" \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s FORCE_FILESYSTEM=1 \
+		$< -o $@ $(ARGS_$*) \
+
+wasm/%.js: %.bc
+	emcc -Oz --memory-init-file 0 \
+		-s WASM=1 \
+		-s MODULARIZE=1 \
+		-s ALLOW_MEMORY_GROWTH=1 \
+		-s NO_EXIT_RUNTIME=1 \
+		-s BINARYEN_ASYNC_COMPILATION=0 \
+		-s EXPORT_NAME=\"'$*'\" \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s FORCE_FILESYSTEM=1 \
+		$< -o $@ $(ARGS_$*) \
+

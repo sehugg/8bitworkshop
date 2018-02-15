@@ -822,7 +822,7 @@ function updateDisassembly() {
       disasmview.setValue(text);
       disasmview.setCursor(selline, 0);
       jumpToLine(disasmview, selline);
-    } else if (current_output.code) {
+    } else if (current_output && current_output.code) {
       // show verilog javascript
       disasmview.setValue(current_output.code);
     }

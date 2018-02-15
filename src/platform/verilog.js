@@ -505,7 +505,10 @@ var VerilogPlatform = function(mainElement, options) {
     gen.tick2();
   }
   this.getToolForFilename = function(fn) {
-    return "verilator";
+    if (fn.endsWith("asm"))
+      return "caspr";
+    else
+      return "verilator";
   }
   this.getDefaultExtension = function() { return ".v"; };
 

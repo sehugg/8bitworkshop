@@ -1066,10 +1066,73 @@ function writeDependencies(depends, FS, errors) {
   }
 }
 
+function parseMIF(s) {
+  var lines = s.split('\n');
+  var words = [];
+  for (var i=0; i<lines.length; i++) {
+    var l = lines[i];
+    var toks = l.split(/[;\s+]+/);
+    if (toks.length == 5 && toks[2] == ":") {
+      var addr = parseInt(toks[1], 16);
+      var value = parseInt(toks[3], 16);
+      words[addr] = value;
+    }
+  }
+  return words;
+}
+
+function compileCASPR(code, platform, options) {
+  loadNative("caspr");
+  var errors = [];
+  var match_fn = makeErrorMatcher(errors, /(ERROR|FATAL) - (.+)/, 2, 2);
+  var caspr_mod = caspr({
+    wasmBinary:wasmBlob['caspr'],
+    noInitialRun:true,
+    print:print_fn,
+    printErr:match_fn,
+  });
+  var FS = caspr_mod['FS'];
+  FS.writeFile("main.asm", code);
+  var deps = [{prefix:'verilog',filename:'nano8.cfg'}]; // TODO
+  writeDependencies(deps, FS, errors);
+  try {
+    starttime();
+    caspr_mod.callMain(["main.asm"]);
+    endtime("compile");
+    var miffile = FS.readFile("main.mif", {encoding:'utf8'});
+    return {
+      errors:errors,
+      output:parseMIF(miffile),
+      intermediate:{listing:miffile},
+      lines:[]};
+  } catch(e) {
+    console.log(e);
+    errors.push({line:0,msg:e.message});
+    return {errors:errors}; // TODO
+  }
+}
+
 function compileVerilator(code, platform, options) {
   loadNative("verilator_bin");
   load("verilator2js");
   var errors = [];
+  // compile inline asm
+  code = code.replace(/__asm\b([\s\S]+?)\b__endasm\b/g, function(s,asmcode) {
+    var asmout = compileCASPR(asmcode, platform, options);
+    if (asmout.errors && asmout.errors.length) {
+      errors = asmout.errors;
+      return "";
+    } else if (asmout.output) {
+      var s = "";
+      var out = asmout.output;
+      for (var i=0; i<out.length; i++) {
+        if (i>0) s += ",";
+        s += out[i];
+      }
+      //console.log(s);
+      return s;
+    }
+  });
   var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?:)?(\d+)?[:]?\s*(.+)/i, 3, 4);
   var verilator_mod = verilator_bin({
     wasmBinary:wasmBlob['verilator_bin'],
@@ -1155,6 +1218,7 @@ var TOOLS = {
   'naken': assembleNAKEN,
   'verilator': compileVerilator,
   'yosys': compileYosys,
+  'caspr': compileCASPR,
 }
 
 var TOOL_PRELOADFS = {
