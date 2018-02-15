@@ -3,32 +3,44 @@
 module sound_psg(clk, reset, out, reg_sel, reg_data, reg_write);
   
   input clk, reset;
-  input [3:0] reg_sel;
-  input [7:0] reg_data;
-  input reg_write;
-  output [7:0] out;
+  input [3:0] reg_sel;	// select register #
+  input [7:0] reg_data;	// data to write to register
+  input reg_write;	// write enable
+  output [7:0] out;	// output waveform
   
   parameter NVOICES = 4;
   
-  reg outputs[NVOICES];
-  reg [17:0] count[NVOICES];
-  reg [7:0] register[16];
+  reg outputs[0:NVOICES-1];
+  reg [11:0] count[0:NVOICES-1];
+  reg [7:0] register[0:15];
+  reg [5:0] div64;
+  
   integer i;
   
   always @(posedge clk) begin
-    out = 0;
-    for (i=0; i<NVOICES; i++) begin
-      if (count[i][17:6] == {register[i*2+1][3:0], register[i*2]}) begin
-        outputs[i] <= outputs[i] ^ 1;
-        count[i] <= 0;
-      end else begin
-        count[i] <= count[i] + 1;
-      end
-      /* verilator lint_off BLKSEQ */
-      if (register[15][i] && outputs[i]) begin
-        out = out + 1;
+    // divide clock by 64
+    if (div64 == 0) begin
+      out = 0; // initialize waveform output
+      // generate code for each voice (0..NVOICES-1)
+      for (i=0; i<NVOICES; i++) begin
+        // divide clock/64 by waveform frequency
+        if (count[i] == {register[i+4][3:0], register[i]}) begin
+          outputs[i] <= outputs[i] ^ 1;
+          count[i] <= 0;
+        end else begin
+          count[i] <= count[i] + 1;
+        end
+        // need this directive to mix
+        // blocking and non-blocking assignments
+        /* verilator lint_off BLKSEQ */
+        if (register[15][i] && outputs[i]) begin
+          // add to output waveform, scaled by intensity
+          out = out + register[i+8];
+        end
       end
     end
+    div64 <= div64 + 1;
+    // write to register?
     if (reg_write) begin
       register[reg_sel] <= reg_data;
     end
@@ -46,12 +58,14 @@ module music_player(clk, reset, advance,
   output [3:0] psg_sel;
   output [7:0] psg_data;
   output psg_write;
+  
+  integer i;
 
 //./mknotes.py -m 12 -f 75898
 // Namespace(bias=0, freq=75898.0, length=64, maxbits=12.0, upper=49)
 // 434.7 3.23120101673 49
   
-  reg [11:0] note_table[64] = '{
+  reg [11:0] note_table[0:63] = '{
     2960, 2794, 2637, 2489, 2349, 2217, 2093, 1975,
     1864, 1760, 1661, 1568, 1480, 1397, 1318, 1244,
     1175, 1109, 1046, 988, 932, 880, 831, 784,
@@ -62,16 +76,16 @@ module music_player(clk, reset, advance,
     117, 110, 104, 98, 92, 87, 82, 78 
   };
   
-  reg [7:0] music_table[292] = '{
+  reg [7:0] music_table[0:291] = '{
 8'h1e,8'h12,8'h8c,8'h23,8'h17,8'h86,8'h2f,8'h86,8'h36,8'h2a,8'h27,8'h86,8'h2f,8'h86,8'h33,8'h1e,8'h23,8'h86,8'h36,8'h2a,8'h86,8'h24,8'h18,8'h86,8'h2e,8'h86,8'h2a,8'h36,8'h25,8'h86,8'h2e,8'h86,8'h31,8'h28,8'h22,8'h86,8'h36,8'h2a,8'h86,8'h1e,8'h22,8'h28,8'h8c,8'h1e,8'h12,8'h8c,8'h23,8'h17,8'h86,8'h2f,8'h86,8'h36,8'h2a,8'h27,8'h86,8'h2f,8'h86,8'h33,8'h1e,8'h23,8'h86,8'h36,8'h2a,8'h86,8'h24,8'h18,8'h86,8'h2e,8'h86,8'h36,8'h2a,8'h25,8'h86,8'h2e,8'h86,8'h31,8'h28,8'h22,8'h86,8'h36,8'h2a,8'h86,8'h28,8'h22,8'h1e,8'h8c,8'h12,8'h1e,8'h86,8'h36,8'h2a,8'h86,8'h1f,8'h13,8'h86,8'h2f,8'h86,8'h32,8'h86,8'h37,8'h2b,8'h86,8'h1e,8'h12,8'h86,8'h36,8'h2a,8'h86,8'h1e,8'h12,8'h86,8'h2a,8'h36,8'h86,8'h1f,8'h13,8'h86,8'h2f,8'h86,8'h32,8'h86,8'h37,8'h2b,8'h86,8'h1e,8'h12,8'h86,8'h36,8'h2a,8'h92,8'h0b,8'h86,8'h17,8'h86,8'h1a,8'h86,8'h23,8'h86,8'h17,8'h86,8'h23,8'h86,8'h26,8'h86,8'h2f,8'h86,8'h23,8'h86,8'h2f,8'h86,8'h32,8'h86,8'h3b,8'h86,8'h2f,8'h86,8'h3b,8'h86,8'h3e,8'h86,8'h86,8'h3b,8'h29,8'h2c,8'h8c,8'h3b,8'h32,8'h2f,8'h8c,8'h3b,8'h32,8'h2f,8'h8c,8'h3b,8'h29,8'h2c,8'h86,8'h3b,8'h86,8'h33,8'h2f,8'h2a,8'h86,8'h86,8'h33,8'h2f,8'h2a,8'h86,8'h3f,8'h86,8'h2a,8'h2f,8'h33,8'h86,8'h3b,8'h86,8'h33,8'h2f,8'h2a,8'h86,8'h37,8'h3b,8'h86,8'h32,8'h2f,8'h2b,8'h86,8'h3d,8'h86,8'h3e,8'h37,8'h2b,8'h86,8'h3b,8'h86,8'h3d,8'h33,8'h2f,8'h86,8'h3f,8'h36,8'h86,8'h33,8'h2f,8'h2a,8'h86,8'h3b,8'h86,8'h3f,8'h36,8'h33,8'h86,8'h3b,8'h86,8'h3d,8'h36,8'h2a,8'h8c,8'h3b,8'h36,8'h33,8'h92,8'h3b,8'h2f,8'h86,8'h26,8'h23,8'h20,8'h8c,8'h3b,8'h2f,8'h1d,8'h8c,8'h3b,8'h2f,8'h26,8'h8c,8'h3b,8'h2f,8'h26,8'h86,8'h3b,8'h2f,8'h86,8'h1e,8'h23,8'h27,8'h86,8'h36,8'h86,8'h38,8'h2f,8'h27,8'h86,8'h33,8'h86,8'h36,8'h27,8'h23,8'h86,8'h38,8'h2f,8'h86,8'h1e,8'h23,8'h27,8'h86,8'h2f,8'h2b,8'h86,8'h26,8'hff
   };
   
   reg [15:0] music_ptr = 0;
   reg [2:0] freech = 0;
   reg [7:0] cur_duration = 0;
-  reg [3:0] ch_durations[NVOICES];
+  reg [3:0] ch_durations[0:NVOICES-1];
 
-  reg [7:0] psg_regs[16];
+  reg [7:0] psg_regs[0:15];
   reg [3:0] next_reg;
 
   wire [7:0] note = music_table[music_ptr[8:0]];
@@ -88,18 +102,19 @@ module music_player(clk, reset, advance,
       if (note[7]) begin
         cur_duration <= note & 63;
       end else begin
-        psg_regs[freech*2] <= period[7:0];
-        psg_regs[freech*2+1] <= 8'(period[11:8]);
-        ch_durations[freech+0] = 4;
+        psg_regs[freech+0] <= period[7:0];
+        psg_regs[freech+4] <= {4'b0, period[11:8]};
+        ch_durations[freech+0] = 7;
         psg_regs[15][freech] <= 1;
         freech <= (freech == NVOICES-1) ? 0 : freech+1;
       end
     end else begin
       cur_duration <= cur_duration - 1;
-      for (int i=0; i<NVOICES; i++) begin
+      for (i=0; i<NVOICES; i++) begin
         if (ch_durations[i] == 0) begin
           psg_regs[15][i] <= 0;
         end else begin
+          psg_regs[freech+8] <= {4'b0, ch_durations[i]};
           ch_durations[i] <= ch_durations[i] - 1;
         end
       end
@@ -113,7 +128,7 @@ module music_player(clk, reset, advance,
     next_reg <= next_reg + 1;
   end
 
-endmodule;
+endmodule
 
 module top(clk, reset, hsync, vsync, rgb, spkr);
 

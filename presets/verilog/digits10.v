@@ -82,9 +82,11 @@ module digits10_array(digit, yofs, bits);
   input [2:0] yofs;
   output [4:0] bits;
 
-  reg [4:0] bitarray[16][5];
+  reg [4:0] bitarray[0:15][0:4];
 
   assign bits = bitarray[digit][yofs];
+  
+  integer i,j;
   
   initial begin/*{w:5,h:5,count:10}*/
     bitarray[0][0] = 5'b11111;
@@ -148,8 +150,8 @@ module digits10_array(digit, yofs, bits);
     bitarray[9][4] = 5'b11111;
 
     // clear unused array entries
-    for (int i = 10; i <= 15; i++)
-      for (int j = 0; j <= 4; j++) 
+    for (i = 10; i <= 15; i++)
+      for (j = 0; j <= 4; j++) 
         bitarray[i][j] = 0; 
   end
 endmodule

@@ -1,3 +1,6 @@
+`ifndef SCOREBOARD_H
+`define SCOREBOARD_H
+
 `include "hvsync_generator.v"
 `include "digits10.v"
 
@@ -65,7 +68,7 @@ module scoreboard_generator(score0, score1, lives, vpos, hpos, board_gfx);
   
 endmodule
 
-module top(clk, reset, hsync, vsync, rgb);
+module scoreboard_top(clk, reset, hsync, vsync, rgb);
 
   input clk, reset;
   output hsync, vsync;
@@ -101,3 +104,5 @@ module top(clk, reset, hsync, vsync, rgb);
   assign rgb = {b,g,r};
 
 endmodule
+
+`endif

@@ -1,3 +1,5 @@
+`ifndef LFSR_V
+`define LFSR_V
 
 module LFSR(clk,reset,enable,lfsr);
   
@@ -19,5 +21,6 @@ module LFSR(clk,reset,enable,lfsr);
       lfsr <= {lfsr[NBITS-2:0], 1'b0} ^ (feedback ? TAPS : 0);
   end
 
-endmodule;
+endmodule
 
+`endif

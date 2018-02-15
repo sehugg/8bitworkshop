@@ -48,7 +48,7 @@ module segments_to_bitmap(segments, line, bits);
   
 endmodule
 
-module test_numbers_top(clk, reset, hsync, vsync, rgb);
+module test_7segment_top(clk, reset, hsync, vsync, rgb);
   
   input clk, reset;
   output hsync, vsync;

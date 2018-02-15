@@ -1,4 +1,5 @@
 `include "hvsync_generator.v"
+`include "sprite_bitmap.v"
 `include "sprite_renderer.v"
 
 module sprite_multiple_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
@@ -39,13 +40,13 @@ module sprite_multiple_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .yofs(car_sprite_yofs), 
     .bits(car_sprite_bits));
   
-  wire player_vstart = {1'0,player_y} == vpos;
-  wire player_hstart = {1'0,player_x} == hpos;
+  wire player_vstart = {1'd0,player_y} == vpos;
+  wire player_hstart = {1'd0,player_x} == hpos;
   wire player_gfx;
   wire player_is_drawing;
 
-  wire enemy_vstart = {1'0,enemy_y} == vpos;
-  wire enemy_hstart = {1'0,enemy_x} == hpos;
+  wire enemy_vstart = {1'd0,enemy_y} == vpos;
+  wire enemy_hstart = {1'd0,enemy_x} == hpos;
   wire enemy_gfx;
   wire enemy_is_drawing;
   

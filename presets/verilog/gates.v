@@ -13,4 +13,5 @@ module gates(clk, out_not, out_and, out_or, out_xor, in);
     in <= in + 1;
   end
   
-endmodule;
+endmodule
+

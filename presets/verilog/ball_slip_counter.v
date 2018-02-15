@@ -1,6 +1,6 @@
 `include "hvsync_generator.v"
 
-module ball_paddle_top(clk, reset, hsync, vsync, rgb);
+module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
 
   input clk;
   input reset;

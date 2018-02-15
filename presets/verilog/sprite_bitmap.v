@@ -1,3 +1,6 @@
+`ifndef SPRITE_BITMAP_H
+`define SPRITE_BITMAP_H
+
 `include "hvsync_generator.v"
 
 module car_bitmap(yofs, bits);
@@ -5,25 +8,27 @@ module car_bitmap(yofs, bits);
   input [3:0] yofs;
   output [7:0] bits;
 
-  reg [7:0] bitarray[16];
+  reg [7:0] bitarray[0:15];
+  
   assign bits = bitarray[yofs];
+  
   initial begin/*{w:8,h:16}*/
     bitarray[0] = 8'b0;
-    bitarray[1] = 8'b101110;
-    bitarray[2] = 8'b11101110;
-    bitarray[3] = 8'b11111110;
-    bitarray[4] = 8'b11101110;
-    bitarray[5] = 8'b1101110;
-    bitarray[6] = 8'b110000;
-    bitarray[7] = 8'b110000;
+    bitarray[1] = 8'b1100;
+    bitarray[2] = 8'b11001100;
+    bitarray[3] = 8'b11111100;
+    bitarray[4] = 8'b11101100;
+    bitarray[5] = 8'b11100000;
+    bitarray[6] = 8'b1100000;
+    bitarray[7] = 8'b1110000;
     bitarray[8] = 8'b110000;
-    bitarray[9] = 8'b1110000;
-    bitarray[10] = 8'b1100000;
-    bitarray[11] = 8'b11100000;
-    bitarray[12] = 8'b11101100;
-    bitarray[13] = 8'b11111100;
-    bitarray[14] = 8'b11001100;
-    bitarray[15] = 8'b1100;
+    bitarray[9] = 8'b110000;
+    bitarray[10] = 8'b110000;
+    bitarray[11] = 8'b1101110;
+    bitarray[12] = 8'b11101110;
+    bitarray[13] = 8'b11111110;
+    bitarray[14] = 8'b11101110;
+    bitarray[15] = 8'b101110;
   end
   
 endmodule
@@ -76,7 +81,7 @@ module sprite_bitmap_top(clk, reset, hsync, vsync, rgb);
   wire [3:0] car_bit = car_sprite_xofs>=8 ? 
                                  15-car_sprite_xofs:
                                  car_sprite_xofs;
-  wire car_gfx = car_sprite_bits[3'(car_bit)];
+  wire car_gfx = car_sprite_bits[car_bit[2:0]];
 
   wire r = display_on && car_gfx;
   wire g = display_on && car_gfx;
@@ -84,3 +89,5 @@ module sprite_bitmap_top(clk, reset, hsync, vsync, rgb);
   assign rgb = {b,g,r};
 
 endmodule
+
+`endif

@@ -1,3 +1,6 @@
+`ifndef SPRITE_ROTATION_H
+`define SPRITE_ROTATION_H
+
 `include "hvsync_generator.v"
 
 module tank_bitmap(addr, bits);
@@ -97,7 +100,7 @@ module tank_bitmap(addr, bits);
   end
 endmodule
 
-module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits, 
+module sprite_renderer2(clk, vstart, load, hstart, rom_addr, rom_bits, 
                        hmirror, vmirror,
                        gfx, busy);
   
@@ -262,7 +265,7 @@ module tank_controller(clk, reset, hpos, vpos, hsync, vsync,
   wire vstart = {1'b0,player_y} == vpos;
   wire hstart = {1'b0,player_x} == hpos;
 
-  sprite_renderer renderer(
+  sprite_renderer2 renderer(
     .clk(clk),
     .vstart(vstart),
     .load(hsync),
@@ -388,3 +391,5 @@ module control_test_top(clk, reset, hsync, vsync, rgb, switches_p1);
   assign rgb = {b,g,r};
 
 endmodule
+
+`endif

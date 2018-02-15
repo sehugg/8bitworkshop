@@ -9,7 +9,7 @@ module RAM_1KB(clk, addr, din, dout, we);
   output [7:0] dout;	// 8-bit data output
   input  we;		// write enable
   
-  reg [7:0] mem [1024]; // 1024x8 bit memory
+  reg [7:0] mem [0:1023]; // 1024x8 bit memory
   
   always @(posedge clk) begin
     if (we)		// if write enabled
@@ -19,7 +19,7 @@ module RAM_1KB(clk, addr, din, dout, we);
 
 endmodule
 
-module test_framebuf_top(clk, reset, hsync, vsync, rgb);
+module test_ram1_top(clk, reset, hsync, vsync, rgb);
 
   input clk, reset;
   output hsync, vsync;

@@ -16,10 +16,11 @@ var VERILOG_PRESETS = [
   {id:'sprite_rotation.v', name:'Sprite Rotation'},
   {id:'tank.v', name:'Tank Game'},
   {id:'cpu8.v', name:'Simple 8-Bit CPU'},
-  {id:'race_game_cpu.v', name:'Race Game With CPU'},
+  {id:'racing_game_cpu.v', name:'Racing Game With CPU'},
   {id:'music.v', name:'3-Voice Music'},
   {id:'lfsr.v', name:'Linear Feedback Shift Register'},
   {id:'starfield.v', name:'Scrolling Starfield'},
+  {id:'framebuffer.v', name:'Frame Buffer'},
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([

@@ -15,7 +15,7 @@ module RAM_1KB_tri(clk, addr, data, we);
   end
 endmodule
 
-module test_framebuf_top(
+module test_ram2_top(
   input clk, reset,
   output hsync, vsync,
   output [2:0] rgb

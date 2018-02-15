@@ -1093,7 +1093,8 @@ function compileCASPR(code, platform, options) {
   });
   var FS = caspr_mod['FS'];
   FS.writeFile("main.asm", code);
-  var deps = [{prefix:'verilog',filename:'nano8.cfg'}]; // TODO
+  var arch = code.match(/^[.]arch\s+(\w+)/m);
+  var deps = [{prefix:'verilog',filename:arch[1]+'.cfg'}]; // TODO: parse file for ".arch femto8"
   writeDependencies(deps, FS, errors);
   try {
     starttime();
@@ -1117,6 +1118,7 @@ function compileVerilator(code, platform, options) {
   load("verilator2js");
   var errors = [];
   // compile inline asm
+  // TODO: keep line numbers
   code = code.replace(/__asm\b([\s\S]+?)\b__endasm\b/g, function(s,asmcode) {
     var asmout = compileCASPR(asmcode, platform, options);
     if (asmout.errors && asmout.errors.length) {
@@ -1145,7 +1147,7 @@ function compileVerilator(code, platform, options) {
   FS.writeFile(topmod+".v", code);
   writeDependencies(options.dependencies, FS, errors);
   starttime();
-  verilator_mod.callMain(["--cc", "-O3",
+  verilator_mod.callMain(["--cc", "-O3", "-DEXT_INLINE_ASM",
     "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
     "--x-assign", "fast", "--noassert", "--pins-bv", "33",
     "--top-module", topmod, topmod+".v"]);

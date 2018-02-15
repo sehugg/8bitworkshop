@@ -21,7 +21,7 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   reg ball_speed_x;
   reg ball_dir_y;
   
-  reg brick_array [BRICKS_H * BRICKS_V];
+  reg brick_array [0:BRICKS_H * BRICKS_V];
 
   wire [3:0] score0;
   wire [3:0] score1;

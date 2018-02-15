@@ -1,34 +1,8 @@
-`include "hvsync_generator.v"
+`ifndef SPRITE_RENDERER_H
+`define SPRITE_RENDERER_H
 
-module car_bitmap(yofs, bits);
-  
-  input [3:0] yofs;
-  output [7:0] bits;
-  
-  reg [7:0] bitarray[16];
-  
-  assign bits = bitarray[yofs];
-  
-  initial begin/*{w:8,h:16}*/
-    bitarray[0] = 8'b1100;
-    bitarray[1] = 8'b11001100;
-    bitarray[2] = 8'b11111100;
-    bitarray[3] = 8'b11101100;
-    bitarray[4] = 8'b11100000;
-    bitarray[5] = 8'b1100000;
-    bitarray[6] = 8'b1110000;
-    bitarray[7] = 8'b110000;
-    bitarray[8] = 8'b110000;
-    bitarray[9] = 8'b110000;
-    bitarray[10] = 8'b1100111;
-    bitarray[11] = 8'b11100110;
-    bitarray[12] = 8'b11111111;
-    bitarray[13] = 8'b11100110;
-    bitarray[14] = 8'b1110111;
-    bitarray[15] = 8'b110000;
-  end
-  
-endmodule
+`include "hvsync_generator.v"
+`include "sprite_bitmap.v"
 
 module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits, 
                        gfx, in_progress);
@@ -37,7 +11,9 @@ module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits,
   output [3:0] rom_addr;
   input [7:0] rom_bits;
   output gfx;
-  output in_progress = state != WAIT_FOR_VSTART;
+  output in_progress;
+  
+  assign in_progress = state != WAIT_FOR_VSTART;
 
   reg [2:0] state;
   reg [3:0] ycount;
@@ -135,9 +111,9 @@ module test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   car_bitmap car(
     .yofs(car_sprite_yofs), 
     .bits(car_sprite_bits));
-  
-  wire vstart = {1'0,player_y} == vpos;
-  wire hstart = {1'0,player_x} == hpos;
+   
+  wire vstart = {1'd0,player_y} == vpos;
+  wire hstart = {1'd0,player_x} == hpos;
   wire car_gfx;
   wire unused;
   
@@ -169,3 +145,5 @@ module test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   assign rgb = {b,g,r};
 
 endmodule
+
+`endif

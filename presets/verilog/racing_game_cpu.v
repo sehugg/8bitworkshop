@@ -1,11 +1,12 @@
 `include "hvsync_generator.v"
+`include "sprite_bitmap.v"
 `include "sprite_renderer.v"
 `include "cpu8.v"
 
 // uncomment to see scope view
 //`define DEBUG
 
-module sprite_multiple_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
+module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
                            address_bus, to_cpu, from_cpu, write_enable
 `ifdef DEBUG
                            , output [7:0] A
@@ -14,7 +15,7 @@ module sprite_multiple_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
                            , output carry
                            , output zero
 `else
-                           , output [2:0] rgb
+                           , rgb
 `endif
 );
 
@@ -31,6 +32,8 @@ module sprite_multiple_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
   assign B = cpu.B;
   assign carry = cpu.carry;
   assign zero = cpu.zero;
+`else
+  output [3:0] rgb;
 `endif
   
   parameter PADDLE_X = 0;
@@ -128,10 +131,28 @@ module sprite_multiple_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
     .gfx(enemy_gfx),
     .in_progress(player_is_drawing));
   
+  reg frame_collision;
+  
+  always @(posedge clk)
+    if (player_gfx && (enemy_gfx || track_gfx))
+      frame_collision <= 1;
+    else if (vpos==0)
+      frame_collision <= 0;
+  
+  wire track_offside = (hpos[7:5]==0) || (hpos[7:5]==7);
+  wire track_shoulder = (hpos[7:3]==3) || (hpos[7:3]==28);
+  wire track_gfx = (vpos[5:1]!=ram[TRACKPOS_LO][5:1]) && track_offside;
+  
+  wire r = display_on && (player_gfx || enemy_gfx || track_shoulder);
+  wire g = display_on && (player_gfx || track_gfx);
+  wire b = display_on && (enemy_gfx || track_shoulder);
+  assign rgb = {1'b0,b,g,r};
+
+`ifdef EXT_INLINE_ASM
   initial begin
     rom = '{
       __asm
-.arch nano8
+.arch femto8
 .org 128
 
 .define PADDLE_X 0
@@ -157,11 +178,11 @@ module sprite_multiple_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
 .define F_COLLIDE 32
 
 Start:
-	lda	128
+	lia	128
 	sta	PLAYER_X
 	sta	ENEMY_X
 	sta 	ENEMY_Y
-	lda	180
+	lia	180
 	sta	PLAYER_Y
 	zero	A
 	sta	SPEED
@@ -169,17 +190,17 @@ Start:
         sta	ENEMY_DIR
 ; test hpaddle flag
 DisplayLoop:
-	lda	F_HPADDLE
-	ldb	IN_FLAGS
+	lia	F_HPADDLE
+	lib	IN_FLAGS
 	andrb	NOP
 	bz	DisplayLoop
 ; [vpos] -> paddle_x
-	ldb	IN_VPOS
+	lib	IN_VPOS
 	movrb	A
 	sta	PLAYER_X
 ; wait for vsync=1 then vsync=0
-	lda	F_VSYNC
-	ldb	IN_FLAGS
+	lia	F_VSYNC
+	lib	IN_FLAGS
 WaitForVsyncOn:
 	andrb	NOP
 	bz	WaitForVsyncOn
@@ -187,16 +208,16 @@ WaitForVsyncOff:
 	andrb	NOP
 	bnz	WaitForVsyncOff
 ; check collision
-	lda	F_COLLIDE
-	ldb	IN_FLAGS
+	lia	F_COLLIDE
+	lib	IN_FLAGS
 	andrb	NOP
 	bz	NoCollision
 ; load slow speed
-	lda	16
+	lia	16
 	sta	SPEED
 NoCollision:
 ; update speed
-	ldb	SPEED
+	lib	SPEED
 	movrb	A
 	inc	A
 ; don't store if == 0
@@ -209,19 +230,19 @@ MaxSpeed:
 	lsr	A
 	lsr	A
 ; add to lo byte of track pos
-	ldb	TRACKPOS_LO
+	lib	TRACKPOS_LO
 	addrb	B
 	swapab
 	sta	TRACKPOS_LO
 	swapab
 ; update enemy vert pos
-	ldb	ENEMY_Y
+	lib	ENEMY_Y
 	addrb	A
 	sta	ENEMY_Y
 ; update enemy horiz pos
-      	ldb	ENEMY_X
+      	lib	ENEMY_X
         movrb	A
-        ldb	ENEMY_DIR
+        lib	ENEMY_DIR
         addrb	A
         sta	ENEMY_X
         subi	A 64
@@ -237,22 +258,6 @@ SkipXReverse:
       __endasm
     };
   end
+`endif
   
-  reg frame_collision;
-  
-  always @(posedge clk)
-    if (player_gfx && (enemy_gfx || track_gfx))
-      frame_collision <= 1;
-    else if (vpos==0)
-      frame_collision <= 0;
-  
-  wire track_offside = (hpos[7:5]==0) || (hpos[7:5]==7);
-  wire track_shoulder = (hpos[7:3]==3) || (hpos[7:3]==28);
-  wire track_gfx = (vpos[5:1]!=ram[TRACKPOS_LO][5:1]) && track_offside;
-  
-  wire r = display_on && (player_gfx || enemy_gfx || track_shoulder);
-  wire g = display_on && (player_gfx || track_gfx);
-  wire b = display_on && (enemy_gfx || track_shoulder);
-  assign rgb = {b,g,r};
-
 endmodule

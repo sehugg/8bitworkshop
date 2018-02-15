@@ -1,7 +1,7 @@
 `include "hvsync_generator.v"
 `include "lfsr.v"
 
-module top(clk, reset, hsync, vsync, rgb);
+module starfield_top(clk, reset, hsync, vsync, rgb);
 
   input clk, reset;
   output hsync, vsync;
