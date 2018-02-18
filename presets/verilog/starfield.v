@@ -31,9 +31,6 @@ module starfield_top(clk, reset, hsync, vsync, rgb);
     .lfsr(lfsr));
 
   wire star_on = &lfsr[15:9];
-  wire r = display_on && star_on && lfsr[0];
-  wire g = display_on && star_on && lfsr[1];
-  wire b = display_on && star_on && lfsr[2];
-  assign rgb = {b,g,r};
+  assign rgb = display_on && star_on ? lfsr[2:0] : 0;
 
 endmodule

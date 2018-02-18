@@ -41,7 +41,7 @@ module frame_buffer_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
   parameter IN_VPU   = 8'b01000011;
 
   reg [7:0] ram[0:63];
-  reg [7:0] rom[0:255];
+  reg [7:0] rom[0:127];
 
   output wire [7:0] address_bus;
   output reg  [7:0] to_cpu;
@@ -95,7 +95,7 @@ module frame_buffer_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
                           vsync, hsync, vpaddle, hpaddle, display_on};
       IN_VPU:	to_cpu = {vpu_ram[vpu_write], vpu_ram[vpu_write+1]};
       // ROM
-      8'b1???????: to_cpu = rom[address_bus[6:0] + 128];
+      8'b1???????: to_cpu = rom[address_bus[7:0] + 128];
       default: ;
     endcase
   
@@ -131,7 +131,8 @@ module frame_buffer_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
         __asm
 .arch femto8
 .org 128
-      
+.len 128
+
 .define VPU_LO 8
 .define VPU_HI 9
 .define VPU_WRITE 10
@@ -152,25 +153,24 @@ Start:
         sta	VPU_LO
         sta	VPU_HI
         sta	0
-        sta	1
 DisplayLoop:
       	zero	B
-      	movrb	A
+        mov	A,[b]
         sta	VPU_WRITE
         sta	VPU_MOVE
         sta	VPU_WRITE
         sta	VPU_MOVE
         sta	VPU_WRITE
         sta	VPU_MOVE
-        lia	F_VSYNC
-      	lib	IN_FLAGS
-        andrb	NOP
+        lda	#F_VSYNC
+      	ldb	#IN_FLAGS
+        and	none,[B]
         bz	DisplayLoop
 WaitVsync:
-        andrb	NOP
+        and	none,[B]
         bnz	WaitVsync
       	zero	B
-        movrb	A
+        mov	A,[b]
         inc	A
         sta	0
 	jmp	DisplayLoop

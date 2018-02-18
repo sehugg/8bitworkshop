@@ -433,6 +433,12 @@ var VerilogPlatform = function(mainElement, options) {
       mouse_pressed = false;
       if (e.target.setCapture) e.target.releaseCapture();
 		});
+		$(video.canvas).keydown(function(e) {
+      switch (e.keyCode) {
+        case 37: scope_time_x--; dirty=true; break;
+        case 39: scope_time_x++; dirty=true; break;
+      }
+		});
     audio = new SampleAudio(AUDIO_FREQ);
     idata = video.getFrameData();
     // TODO: 15.7 kHz?
@@ -499,8 +505,7 @@ var VerilogPlatform = function(mainElement, options) {
     trace_index = scope_x_offset = 0;
     trace_buffer.fill(0);
     dirty = true;
-    console.log(gen.rotate);
-    video.setRotate(gen.rotate ? -90 : 0);
+    if (video) video.setRotate(gen.rotate ? -90 : 0);
   }
   this.tick = function() {
     gen.tick2();

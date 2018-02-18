@@ -1113,25 +1113,47 @@ function compileCASPR(code, platform, options) {
   }
 }
 
+function compileASM(asmcode, platform, options) {
+  load("assembler");
+  var asm = new Assembler();
+  asm.loadFile = function(filename) {
+    // TODO: what if it comes from dependencies?
+    var path = '../../presets/' + platform + '/' + filename;
+    var xhr = new XMLHttpRequest();
+    xhr.responseType = 'json';
+    xhr.open("GET", path, false);  // synchronous request
+    xhr.send(null);
+    return xhr.response;
+  };
+  var result = asm.assembleFile(asmcode);
+  return result;
+}
+
 function compileVerilator(code, platform, options) {
   loadNative("verilator_bin");
   load("verilator2js");
   var errors = [];
+  var asmlines = [];
   // compile inline asm
   // TODO: keep line numbers
-  code = code.replace(/__asm\b([\s\S]+?)\b__endasm\b/g, function(s,asmcode) {
-    var asmout = compileCASPR(asmcode, platform, options);
+  code = code.replace(/__asm\b([\s\S]+?)\b__endasm\b/g, function(s,asmcode,index) {
+    var firstline = code.substr(0,index).match(/\n/g).length;
+    var asmout = compileASM(asmcode, platform, options);
     if (asmout.errors && asmout.errors.length) {
       errors = asmout.errors;
+      for (var i=0; i<errors.length; i++)
+        errors[i].line += firstline;
       return "";
     } else if (asmout.output) {
       var s = "";
       var out = asmout.output;
       for (var i=0; i<out.length; i++) {
         if (i>0) s += ",";
-        s += out[i];
+        s += 0|out[i];
       }
-      //console.log(s);
+      asmlines = asmout.asmlines;
+      for (var i=0; i<asmlines.length; i++)
+        asmlines[i].line += firstline;
       return s;
     }
   });
@@ -1162,6 +1184,7 @@ function compileVerilator(code, platform, options) {
     rtn.errors = errors;
     rtn.lines = [];// TODO
     rtn.intermediate = {listing:h_file + cpp_file};
+    rtn.lines = asmlines;
     return rtn;
   } catch(e) {
     console.log(e);

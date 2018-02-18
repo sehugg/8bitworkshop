@@ -180,7 +180,7 @@ function scrollProfileView(_ed) {
 }
 
 function newEditor(mode) {
-  var isAsm = mode=='6502' || mode =='z80';
+  var isAsm = mode=='6502' || mode =='z80' || mode=='verilog'; // TODO
   editor = CodeMirror(document.getElementById('editor'), {
     theme: 'mbo',
     lineNumbers: true,

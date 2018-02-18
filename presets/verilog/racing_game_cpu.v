@@ -52,7 +52,7 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
   parameter IN_FLAGS = 8'b01000010;
 
   reg [7:0] ram[0:63];
-  reg [7:0] rom[0:255];
+  reg [7:0] rom[0:127];
   
   output wire [7:0] address_bus;
   output reg  [7:0] to_cpu;
@@ -80,7 +80,7 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
       IN_FLAGS: to_cpu = {2'b0, frame_collision,
                           vsync, hsync, vpaddle, hpaddle, display_on};
       // ROM
-      8'b1???????: to_cpu = rom[address_bus[6:0] + 128];
+      8'b1???????: to_cpu = rom[address_bus[6:0]];
       default: ;
     endcase
   
@@ -154,6 +154,7 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
       __asm
 .arch femto8
 .org 128
+.len 128
 
 .define PADDLE_X 0
 .define PADDLE_Y 1
@@ -178,11 +179,11 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
 .define F_COLLIDE 32
 
 Start:
-	lia	128
+	lda	#128
 	sta	PLAYER_X
 	sta	ENEMY_X
-	sta 	ENEMY_Y
-	lia	180
+	sta	ENEMY_Y
+	lda	#180
 	sta	PLAYER_Y
 	zero	A
 	sta	SPEED
@@ -190,67 +191,67 @@ Start:
         sta	ENEMY_DIR
 ; test hpaddle flag
 DisplayLoop:
-	lia	F_HPADDLE
-	lib	IN_FLAGS
-	andrb	NOP
+	lda	#F_HPADDLE
+	ldb	#IN_FLAGS
+        and	none,[B]
 	bz	DisplayLoop
 ; [vpos] -> paddle_x
-	lib	IN_VPOS
-	movrb	A
+	ldb	#IN_VPOS
+        mov	A,[B]
 	sta	PLAYER_X
 ; wait for vsync=1 then vsync=0
-	lia	F_VSYNC
-	lib	IN_FLAGS
+	lda	#F_VSYNC
+	ldb	#IN_FLAGS
 WaitForVsyncOn:
-	andrb	NOP
+        and	none,[B]
 	bz	WaitForVsyncOn
 WaitForVsyncOff:
-	andrb	NOP
+        and	none,[B]
 	bnz	WaitForVsyncOff
 ; check collision
-	lia	F_COLLIDE
-	lib	IN_FLAGS
-	andrb	NOP
+	lda	#F_COLLIDE
+	ldb	#IN_FLAGS
+        and	none,[B]
 	bz	NoCollision
 ; load slow speed
-	lia	16
+	lda	#16
 	sta	SPEED
 NoCollision:
 ; update speed
-	lib	SPEED
-	movrb	A
+	ldb	#SPEED
+        mov	A,[B]
 	inc	A
 ; don't store if == 0
 	bz	MaxSpeed
 	sta	SPEED
 MaxSpeed:
-	movrb	A
+        mov	A,[B]
 	lsr	A
 	lsr	A
 	lsr	A
 	lsr	A
 ; add to lo byte of track pos
-	lib	TRACKPOS_LO
-	addrb	B
+	ldb	#TRACKPOS_LO
+        add	B,[B]
 	swapab
 	sta	TRACKPOS_LO
 	swapab
 ; update enemy vert pos
-	lib	ENEMY_Y
-	addrb	A
+	ldb	#ENEMY_Y
+        add	A,[B]
 	sta	ENEMY_Y
 ; update enemy horiz pos
-      	lib	ENEMY_X
-        movrb	A
-        lib	ENEMY_DIR
-        addrb	A
+      	ldb	#ENEMY_X
+        mov	A,[B]
+        ldb	#ENEMY_DIR
+        add	A,[B]
         sta	ENEMY_X
-        subi	A 64
-        andi    A 127
+        sub	A,#64
+        and     A,#127
         bnz     SkipXReverse
 ; load ENEMY_DIR and negate
       	zero	A
-        subrb	A
+        sub	A,[B]
         sta	ENEMY_DIR
 ; back to display loop
 SkipXReverse:
