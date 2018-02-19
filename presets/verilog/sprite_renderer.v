@@ -7,20 +7,24 @@
 module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits, 
                        gfx, in_progress);
   
-  input clk, vstart, load, hstart;
-  output [3:0] rom_addr;
-  input [7:0] rom_bits;
-  output gfx;
-  output in_progress;
+  input clk;
+  input vstart;		// start drawing (top border)
+  input load;		// ok to load sprite data?
+  input hstart;		// start drawing scanline (left border)
+  output [3:0] rom_addr;	// select ROM address
+  input [7:0] rom_bits;		// input bits from ROM
+  output gfx;		// output pixel
+  output in_progress;	// 0 if waiting for vstart
   
   assign in_progress = state != WAIT_FOR_VSTART;
 
-  reg [2:0] state;
-  reg [3:0] ycount;
-  reg [3:0] xcount;
+  reg [2:0] state;	// current state #
+  reg [3:0] ycount;	// number of scanlines drawn so far
+  reg [3:0] xcount;	// number of horiz. pixels in this line
   
-  reg [7:0] outbits;
+  reg [7:0] outbits;	// register to store bits from ROM
   
+  // states
   localparam WAIT_FOR_VSTART = 0;
   localparam WAIT_FOR_LOAD   = 1;
   localparam LOAD1_SETUP     = 2;
@@ -32,46 +36,49 @@ module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits,
     begin
       case (state)
         WAIT_FOR_VSTART: begin
-          ycount <= 0;
-          // set a default value (blank) for pixel output
-          // note: multiple non-blocking assignments are vendor-specific
-	  gfx <= 0;
-          if (vstart) state <= WAIT_FOR_LOAD;
+          ycount <= 0; // initialize vertical count
+          gfx <= 0; // default pixel value (off)
+          // wait for vstart, then next state
+          if (vstart)
+            state <= WAIT_FOR_LOAD;
         end
         WAIT_FOR_LOAD: begin
-          xcount <= 0;
+          xcount <= 0; // initialize horiz. count
 	  gfx <= 0;
-          if (load) state <= LOAD1_SETUP;
+          // wait for load, then next state
+          if (load)
+            state <= LOAD1_SETUP;
         end
         LOAD1_SETUP: begin
-          rom_addr <= ycount;
-	  gfx <= 0;
+          rom_addr <= ycount; // load ROM address
           state <= LOAD1_FETCH;
         end
         LOAD1_FETCH: begin
-	  outbits[7:0] <= rom_bits;
-	  gfx <= 0;
+	  outbits <= rom_bits; // latch bits from ROM
           state <= WAIT_FOR_HSTART;
         end
         WAIT_FOR_HSTART: begin
-          if (hstart) state <= DRAW;
-	  gfx <= 0;
+          // wait for hstart, then start drawing
+          if (hstart)
+            state <= DRAW;
         end
         DRAW: begin
-          // mirror graphics left/right
+          // get pixel, mirroring graphics left/right
           gfx <= outbits[xcount<8 ? xcount[2:0] : ~xcount[2:0]];
           xcount <= xcount + 1;
+          // finished drawing horizontal slice?
           if (xcount == 15) begin // pre-increment value
             ycount <= ycount + 1;
+            // finished drawing sprite?
             if (ycount == 15) // pre-increment value
               state <= WAIT_FOR_VSTART; // done drawing sprite
             else
 	      state <= WAIT_FOR_LOAD; // done drawing this scanline
           end
         end
+        // unknown state -- reset
         default: begin
-          state <= 0; // TODO: reset
-	  gfx <= 0;
+          state <= WAIT_FOR_VSTART; 
         end
       endcase
     end
@@ -105,34 +112,34 @@ module test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .vpos(vpos)
   );
   
-  wire [3:0] car_sprite_yofs;
+  wire [3:0] car_sprite_addr;
   wire [7:0] car_sprite_bits;
   
   car_bitmap car(
-    .yofs(car_sprite_yofs), 
+    .yofs(car_sprite_addr), 
     .bits(car_sprite_bits));
    
   wire vstart = {1'd0,player_y} == vpos;
   wire hstart = {1'd0,player_x} == hpos;
   wire car_gfx;
-  wire unused;
+  wire in_progress;
   
   sprite_renderer renderer(
     .clk(clk),
     .vstart(vstart),
     .load(hsync),
     .hstart(hstart),
-    .rom_addr(car_sprite_yofs),
+    .rom_addr(car_sprite_addr),
     .rom_bits(car_sprite_bits),
     .gfx(car_gfx),
-    .in_progress(unused));
-  
-  always @(posedge hsync)
-    begin
-      if (!hpaddle) paddle_x <= vpos[7:0];
-      if (!vpaddle) paddle_y <= vpos[7:0];
-    end
-  
+    .in_progress(in_progress));
+
+  always @(posedge hpaddle)
+    paddle_x <= vpos[7:0];
+
+  always @(posedge vpaddle)
+    paddle_y <= vpos[7:0];
+
   always @(posedge vsync)
     begin
       player_x <= paddle_x;
@@ -141,7 +148,7 @@ module test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
 
   wire r = display_on && car_gfx;
   wire g = display_on && car_gfx;
-  wire b = display_on && car_gfx;
+  wire b = display_on && in_progress;
   assign rgb = {b,g,r};
 
 endmodule

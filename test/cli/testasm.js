@@ -23,12 +23,12 @@ describe('Assemble', function() {
 .define F_VSYNC 16
 
 Start:
-       	zero	A
+       	zero	A    ; comment
         sta	VPU_LO
         sta    VPU_HI
         sta	0
-DisplayLoop:
-      	zero	B
+        
+DisplayLoop:zero	B
         mov	A,[b]
         sta	VPU_WRITE
         sta	VPU_MOVE

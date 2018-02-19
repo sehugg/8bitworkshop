@@ -180,13 +180,13 @@ var VerilogPlatform = function(mainElement, options) {
   var self = this;
   var video, audio;
   var useAudio = false;
-  var videoWidth  = 256+16;
-  var videoHeight = 240+16;
-  var maxVideoBlankLines = 80;
+  var videoWidth  = 256+20;
+  var videoHeight = 240+20;
+  var maxVideoBlankLines = 40; // vertical hold
   var idata, timer;
   var gen;
   var frameRate = 60;
-  var AUDIO_FREQ = (256+23+7+23)*262*60; // 4857480
+  var AUDIO_FREQ = (256+23+7+23)*262*60; // 4857480 Hz
   var current_output;
   var paddle_x = 0;
   var paddle_y = 0;
@@ -235,6 +235,7 @@ var VerilogPlatform = function(mainElement, options) {
     if (inspect_obj && inspect_sym) {
       var COLOR_BIT_OFF = 0xffff3333;
       var COLOR_BIT_ON  = 0xffffffff;
+      /*
       for (var y=0; y<videoHeight; y++) {
         var val = inspect_data[y * videoWidth];
         var i = y * videoWidth + 16;
@@ -243,6 +244,14 @@ var VerilogPlatform = function(mainElement, options) {
           i -= 2;
           val >>= 1;
         } while (val != 0);
+      }
+      */
+      var i = 0;
+      for (var y=0; y<videoHeight; y++) {
+        for (var x=0; x<videoWidth; x++) {
+          var val = inspect_data[i];
+          idata[i++] = (val & 1) ? COLOR_BIT_ON : COLOR_BIT_OFF;
+        }
       }
     }
   }
@@ -441,7 +450,6 @@ var VerilogPlatform = function(mainElement, options) {
 		});
     audio = new SampleAudio(AUDIO_FREQ);
     idata = video.getFrameData();
-    // TODO: 15.7 kHz?
     timer = new AnimationTimer(frameRate, function() {
 			if (!self.isRunning())
 				return;

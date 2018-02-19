@@ -3,7 +3,7 @@
 module seven_segment_decoder(digit, segments);
 
   input [3:0] digit;
-  output [6:0] segments;
+  output reg [6:0] segments;
 
   always @(*)
     case(digit)
@@ -26,7 +26,7 @@ module segments_to_bitmap(segments, line, bits);
   
   input [6:0] segments;
   input [2:0] line;
-  output [4:0] bits;
+  output reg [4:0] bits;
   
   always @(*)
     case (line)

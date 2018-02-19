@@ -63,7 +63,7 @@ module sprite_multiple_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   sprite_renderer enemy_renderer(
     .clk(clk),
     .vstart(enemy_vstart),
-    .load(hpos == 257),
+    .load(hpos == 258),
     .hstart(enemy_hstart),
     .rom_addr(car_sprite_yofs),
     .rom_bits(car_sprite_bits),

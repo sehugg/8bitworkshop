@@ -7,10 +7,10 @@
 module player_stats(reset, score0, score1, lives, incscore, declives);
   
   input reset;
-  output [3:0] score0;
-  output [3:0] score1;
+  output reg [3:0] score0;
+  output reg [3:0] score1;
   input incscore;
-  output [3:0] lives;
+  output reg [3:0] lives;
   input declives;
 
   always @(posedge incscore or posedge reset)
@@ -45,8 +45,8 @@ module scoreboard_generator(score0, score1, lives, vpos, hpos, board_gfx);
   input [8:0] hpos;
   output board_gfx;
 
-  wire [3:0] score_digit;
-  wire [4:0] score_bits;
+  reg [3:0] score_digit;
+  reg [4:0] score_bits;
   
   always @(*)
     begin

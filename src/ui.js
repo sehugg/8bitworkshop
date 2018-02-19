@@ -534,7 +534,7 @@ function setCompileOutput(data) {
           editor.setGutterMarker(info.line-1, "gutter-offset", textel);
         }
         if (info.insns) {
-          var insnstr = info.insns.length > 8 ? ("...") : info.insns;
+          var insnstr = info.insns.length > 9 ? ("...") : info.insns;
           var textel = document.createTextNode(insnstr);
           editor.setGutterMarker(info.line-1, "gutter-bytes", textel);
           if (info.iscode) {

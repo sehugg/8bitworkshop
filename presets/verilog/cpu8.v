@@ -2,8 +2,8 @@
 `define ALU_H
 
 // ALU operations
-`define OP_LOAD_A	4'h0
-`define OP_LOAD_B	4'h1
+`define OP_ZERO		4'h0
+`define OP_LOAD_A	4'h1
 `define OP_INC	4'h2
 `define OP_DEC	4'h3
 `define OP_ASL	4'h4
@@ -13,7 +13,7 @@
 `define OP_OR	4'h8
 `define OP_AND	4'h9
 `define OP_XOR	4'ha
-`define OP_ZERO	4'hb
+`define OP_LOAD_B	4'hb
 `define OP_ADD	4'hc
 `define OP_SUB	4'hd
 `define OP_ADC	4'he
@@ -32,8 +32,8 @@ module ALU(A, B, Y, aluop, carry);
   always @(*)
     case (aluop)
       // unary operations
+      `OP_ZERO:		Y = 0;
       `OP_LOAD_A:	Y = {1'b0, A};
-      `OP_LOAD_B:	Y = {1'b0, B};
       `OP_INC:		Y = A + 1;
       `OP_DEC:		Y = A - 1;
       // unary operations that generate and/or use carry
@@ -45,7 +45,7 @@ module ALU(A, B, Y, aluop, carry);
       `OP_OR:		Y = {1'b0, A | B};
       `OP_AND:		Y = {1'b0, A & B};
       `OP_XOR:		Y = {1'b0, A ^ B};
-      `OP_ZERO:		Y = 0;
+      `OP_LOAD_B:	Y = {1'b0, B};
       // binary operations that generate and/or use carry
       `OP_ADD:		Y = A + B;
       `OP_SUB:		Y = A - B;

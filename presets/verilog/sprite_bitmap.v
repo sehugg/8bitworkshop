@@ -81,6 +81,7 @@ module sprite_bitmap_top(clk, reset, hsync, vsync, rgb);
   wire [3:0] car_bit = car_sprite_xofs>=8 ? 
                                  15-car_sprite_xofs:
                                  car_sprite_xofs;
+
   wire car_gfx = car_sprite_bits[car_bit[2:0]];
 
   wire r = display_on && car_gfx;

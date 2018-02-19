@@ -5,10 +5,10 @@ module hvsync_generator(clk, reset, hsync, vsync, display_on, hpos, vpos);
 
   input clk;
   input reset;
-  output hsync, vsync;
+  output reg hsync, vsync;
   output display_on;
-  output [8:0] hpos;
-  output [8:0] vpos;
+  output reg [8:0] hpos;
+  output reg [8:0] vpos;
 
   // constant declarations for TV-simulator sync parameters
   // horizontal

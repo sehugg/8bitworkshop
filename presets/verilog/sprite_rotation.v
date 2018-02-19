@@ -8,7 +8,7 @@ module tank_bitmap(addr, bits);
   input [7:0] addr;
   output [7:0] bits;
   
-  reg [15:0] bitarray[256];
+  reg [15:0] bitarray[0:255];
   
   assign bits = (addr[0]) ? bitarray[addr>>1][15:8] : bitarray[addr>>1][7:0];
   
@@ -109,7 +109,9 @@ module sprite_renderer2(clk, vstart, load, hstart, rom_addr, rom_bits,
   output [4:0] rom_addr;
   input [7:0] rom_bits;
   output gfx;
-  output busy = state != WAIT_FOR_VSTART;
+  output busy;
+  
+  assign busy = state != WAIT_FOR_VSTART;
 
   reg [2:0] state;
   reg [3:0] ycount;
@@ -178,6 +180,7 @@ module sprite_renderer2(clk, vstart, load, hstart, rom_addr, rom_bits,
 endmodule
 
 module rotation_selector(rotation, bitmap_num, hmirror, vmirror);
+  
   input [3:0] rotation;
   output [2:0] bitmap_num;
   output hmirror, vmirror;
@@ -207,23 +210,6 @@ module rotation_selector(rotation, bitmap_num, hmirror, vmirror);
     endcase
 
 endmodule
-
-function signed [7:0] sin_16x4;
-  input [3:0] in;
-  integer y;
-  case (in[1:0])
-    0: y = 0;
-    1: y = 3;
-    2: y = 5;
-    3: y = 6;
-  endcase
-  case (in[3:2])
-    0: sin_16x4 = 8'(y);
-    1: sin_16x4 = 8'(7-y);
-    2: sin_16x4 = 8'(-y);
-    3: sin_16x4 = 8'(y-7);
-  endcase
-endfunction
 
 module tank_controller(clk, reset, hpos, vpos, hsync, vsync, 
                        sprite_addr, sprite_bits, gfx,
@@ -305,9 +291,33 @@ module tank_controller(clk, reset, hpos, vpos, hsync, vsync,
     end
   end
   
-  reg collision_detected;
-  always @(posedge collision_gfx or posedge vsync or posedge reset)
-    collision_detected <= collision_gfx;
+  // set if collision; cleared at vsync
+  reg collision_detected; 
+  
+  always @(posedge clk)
+    if (collision_gfx)
+      collision_detected <= collision_gfx;
+    else if (vsync)
+      collision_detected <= 0;
+  
+  // sine lookup (4 bits input, 4 signed bits output)
+  
+  function signed [3:0] sin_16x4;
+    input [3:0] in;
+    integer y;
+    case (in[1:0])
+      0: y = 0;
+      1: y = 3;
+      2: y = 5;
+      3: y = 6;
+    endcase
+    case (in[3:2])
+      0: sin_16x4 = 4'(y);
+      1: sin_16x4 = 4'(7-y);
+      2: sin_16x4 = 4'(-y);
+      3: sin_16x4 = 4'(y-7);
+    endcase
+  endfunction
   
   always @(posedge hsync or posedge reset)
     if (reset) begin

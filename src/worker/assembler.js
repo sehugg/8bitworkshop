@@ -70,16 +70,18 @@ var Assembler = function(spec) {
   }
 
   function preprocessRules() {
+    if (spec.width)
+      width = spec.width|0;
     for (var i=0; i<spec.rules.length; i++)
       rule2regex(spec.rules[i], spec.vars);
   }
   if (spec) preprocessRules();
 
-  function warning(msg) {
-    errors.push({msg:msg, line:linenum});
+  function warning(msg, line) {
+    errors.push({msg:msg, line:line?line:linenum});
   }
-  function fatal(msg) {
-    warning(msg);
+  function fatal(msg, line) {
+    warning(msg, line);
     aborted = true;
   }
   function hex(v, nd) {
@@ -106,7 +108,8 @@ var Assembler = function(spec) {
     }
   }
 
-  function parseConst(s) {
+  function parseConst(s, nbits) {
+    // TODO: check bit length
     if (!s.length)
       return s;
     else if (s.startsWith("$"))
@@ -128,8 +131,7 @@ var Assembler = function(spec) {
         var id = m[b+1];
         var v = spec.vars[rule.varlist[b]];
         if (!v) {
-          warning("Could not find matching identifier for '" + m[0] + "'");
-          return;
+          return {error:"Could not find matching identifier for '" + m[0] + "'"};
         }
         n = v.bits;
         if (v.toks) {
@@ -137,7 +139,7 @@ var Assembler = function(spec) {
           if (x < 0)
             return null;
         } else {
-          x = parseConst(id);
+          x = parseConst(id, n);
           // is it a label? add fixup
           if (isNaN(x)) {
             fixups.push({sym:id, ofs:ip, bitlen:n, bitofs:oplen, line:linenum, iprel:!!v.iprel, ipofs:(v.ipofs+0)});
@@ -147,7 +149,7 @@ var Assembler = function(spec) {
       }
       var mask = (1<<n)-1;
       if ((x&mask) != x)
-        warning("Value " + x + " could not fit in " + n + " bits");
+        return {error:"Value " + x + " does not fit in " + n + " bits"};
       opcode = (opcode << n) | x;
       oplen += n;
     }
@@ -206,18 +208,21 @@ var Assembler = function(spec) {
       return; // empty line
     // look at each rule in order
     if (!spec) { fatal("Need to load .spec first"); return; }
+    var lastError;
     for (var i=0; i<spec.rules.length; i++) {
       var rule = spec.rules[i];
       var m = rule.re.exec(line);
       if (m) {
         var result = self.buildInstruction(rule, m);
-        if (result) {
+        if (result && result.nbits) {
           addBytes(result);
           return result;
+        } else if (result && result.error) {
+          lastError = result.error;
         }
       }
     }
-    warning("Could not decode instruction: " + line);
+    warning(lastError ? lastError : ("Could not decode instruction: " + line));
   }
 
   self.finish = function() {
@@ -226,15 +231,18 @@ var Assembler = function(spec) {
       var fix = fixups[i];
       var sym = symbols[fix.sym];
       if (sym) {
-        var ofs = fix.ofs + (fix.bitofs>>3);
-        var shift = fix.bitofs&7;
+        var ofs = fix.ofs + Math.floor(fix.bitofs/width);
+        var shift = fix.bitofs & (width-1);
         var mask = ((1<<fix.bitlen)-1);
-        var value = parseConst(sym.value);
-        if (fix.iprel) value -= fix.ofs + fix.ipofs;
+        var value = parseConst(sym.value, fix.bitlen);
+        if (fix.iprel)
+          value -= fix.ofs + fix.ipofs;
+        if (value > mask || value < -mask)
+          warning("Symbol " + fix.sym + " (" + value + ") does not fit in " + fix.bitlen + " bits", fix.line);
         value &= mask;
         // TODO: check range
         // TODO: span multiple words?
-        outwords[ofs - origin] ^= value;
+        outwords[ofs - origin] ^= value; // TODO: << shift?
       } else {
         warning("Symbol '" + fix.sym + "' not found");
       }
