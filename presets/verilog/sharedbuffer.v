@@ -5,7 +5,7 @@
 // uncomment to see scope view
 //`define DEBUG
 
-module frame_buffer_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
+module shared_framebuffer_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
                            address_bus, to_cpu, from_cpu, write_enable
 `ifdef DEBUG
                         , output [15:0] IP
@@ -87,7 +87,8 @@ module frame_buffer_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
   reg [15:0] vline[0:31]; // 32x16 bits = 256 4-color pixels
   reg [4:0] vindex;
   reg [15:0] vshift;
-  reg [3:0] palette[0:3] = '{0,1,4,7};
+  //wire [15:0] scanread = scanline[hpos[7:3]];
+  //wire [2:0] scanpixel = hpos[2:0];
   
   always @(posedge clk) begin
     // has CPU released the bus?
@@ -100,18 +101,44 @@ module frame_buffer_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
       vindex <= vindex + 1; // next address
     end else if (hpos >= 256 && hpos < 256+4 && vpos < 240) begin
       hold <= 1; // start DMA mode, hold CPU
-    end else if (!hpos[8] && vpos < 240) begin
+    end else if (!hpos[8]) begin
       // load next word from vline buffer
-      if (0 == hpos[2:0]) begin
+      if (!&hpos[2:0]) begin
         vshift <= vline[vindex];
         vindex <= vindex + 1;
       end else
-        vshift <= vshift >> 2;
+        vshift <= {2'b0, vshift[15:2]};
       // decode scanline RAM to RGB output
-      rgb <= palette[vshift[1:0]];
+      rgb <= vshift[3:0];
     end else
       rgb <= 0;
   end
+
+  /*
+  reg [14:0] vpu_read;
+  reg [15:0] vpu_buffer;
+  reg [3:0]  rgb;
+  
+  always @(posedge clk) begin
+    if (!hpos[8] && !vpos[8]) begin
+      if (hpos[1:0] == 0) begin
+        vpu_buffer <= ram[vpu_read];
+        vpu_read <= vpu_read + 1;
+      end
+      //rgb <= ram[{vpos[6:0],hpos[7:0]}][3:0];
+      case (hpos[1:0])
+        0: rgb <= vpu_buffer[3:0];
+        1: rgb <= vpu_buffer[7:4];
+        2: rgb <= vpu_buffer[11:8];
+        3: rgb <= vpu_buffer[15:12];
+      endcase
+    end else begin
+      rgb <= 0;
+      if (vpos[8])
+        vpu_read <= 0;
+    end
+  end
+  */
 
 `ifdef EXT_INLINE_ASM
   initial begin
@@ -135,7 +162,6 @@ Start:
       mov ax,#0
       mov bx,ax
 Loop:
-      xor ax,[bx]
       mov [bx],ax
       inc bx
       inc ax

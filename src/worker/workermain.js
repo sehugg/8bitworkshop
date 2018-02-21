@@ -1043,12 +1043,13 @@ function detectTopModuleName(code) {
   return topmod;
 }
 
-function writeDependencies(depends, FS, errors) {
+function writeDependencies(depends, FS, errors, callback) {
   if (depends) {
     for (var i=0; i<depends.length; i++) {
       var d = depends[i];
+      var text;
       if (d.text) {
-        FS.writeFile(d.filename, d.text, {encoding:'utf8'});
+        text = d.text;
       } else {
         // load from network (hopefully cached)
         // TODO: get from indexeddb?
@@ -1057,11 +1058,15 @@ function writeDependencies(depends, FS, errors) {
         xhr.open("GET", path, false);  // synchronous request
         xhr.send(null);
         if (xhr.response) {
-          FS.writeFile(d.filename, xhr.response, {encoding:'utf8'});
+          text = xhr.response;
         } else {
           console.log("Could not load " + path);
         }
       }
+      if (callback)
+        text = callback(d, text);
+      if (text)
+        FS.writeFile(d.filename, text, {encoding:'utf8'});
     }
   }
 }
@@ -1129,20 +1134,15 @@ function compileASM(asmcode, platform, options) {
   return result;
 }
 
-function compileVerilator(code, platform, options) {
-  loadNative("verilator_bin");
-  load("verilator2js");
-  var errors = [];
-  var asmlines = [];
-  // compile inline asm
-  // TODO: keep line numbers
+function compileInlineASM(code, platform, options, errors, asmlines) {
   code = code.replace(/__asm\b([\s\S]+?)\b__endasm\b/g, function(s,asmcode,index) {
     var firstline = code.substr(0,index).match(/\n/g).length;
     var asmout = compileASM(asmcode, platform, options);
     if (asmout.errors && asmout.errors.length) {
-      errors = asmout.errors;
-      for (var i=0; i<errors.length; i++)
-        errors[i].line += firstline;
+      for (var i=0; i<asmout.errors.length; i++) {
+        asmout.errors[i].line += firstline;
+        errors.push(asmout.errors[i]);
+      }
       return "";
     } else if (asmout.output) {
       var s = "";
@@ -1157,6 +1157,15 @@ function compileVerilator(code, platform, options) {
       return s;
     }
   });
+  return code;
+}
+
+function compileVerilator(code, platform, options) {
+  loadNative("verilator_bin");
+  load("verilator2js");
+  var errors = [];
+  var asmlines = [];
+  code = compileInlineASM(code, platform, options, errors, asmlines);
   var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?:)?(\d+)?[:]?\s*(.+)/i, 3, 4);
   var verilator_mod = verilator_bin({
     wasmBinary:wasmBlob['verilator_bin'],
@@ -1167,9 +1176,11 @@ function compileVerilator(code, platform, options) {
   var topmod = detectTopModuleName(code);
   var FS = verilator_mod['FS'];
   FS.writeFile(topmod+".v", code);
-  writeDependencies(options.dependencies, FS, errors);
+  writeDependencies(options.dependencies, FS, errors, function(d, code) {
+    return compileInlineASM(code, platform, options, errors, asmlines);
+  });
   starttime();
-  verilator_mod.callMain(["--cc", "-O3", "-DEXT_INLINE_ASM",
+  verilator_mod.callMain(["--cc", "-O3", "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
     "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
     "--x-assign", "fast", "--noassert", "--pins-bv", "33",
     "--top-module", topmod, topmod+".v"]);

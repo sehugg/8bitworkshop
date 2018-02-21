@@ -228,7 +228,12 @@ var AnimationTimer = function(frequencyHz, callback) {
     }
     if (!useReqAnimFrame || ts - lastts > intervalMsec/2) {
       if (running) {
-        callback();
+        try {
+          callback();
+        } catch (e) {
+          running = false;
+          throw e;
+        }
       }
       if (ts - lastts < intervalMsec*30) {
         lastts += intervalMsec;

@@ -233,6 +233,8 @@ module CPU(clk, reset, address, data_in, data_out, write);
 
 endmodule
 
+`ifdef TOPMOD__test_CPU_top
+
 module test_CPU_top(
   input  clk,
   input  reset,
@@ -275,29 +277,31 @@ module test_CPU_top(
       to_cpu = rom[address_bus[6:0]];
   
   initial begin
+`ifdef EXT_INLINE_ASM
+    // example code: Fibonacci sequence
     rom = '{
-      `I_CLEAR_CARRY,
-      `I_ZERO_A,
-      `I_CONST_IMM_B,
-      1,
-      `I_COMPUTE(`DEST_A, `OP_ADC), // addr 4
-      `I_SWAP_AB,
-      `I_BRANCH_IF_CARRY(1'b0),
-      4 + 'h80, // correct for ROM offset
-      `I_STORE_A(4'd0),
-      `I_RESET,
-      // leftover elements
-      0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-      0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-      0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-      0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-      0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-      0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-      0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-      0,0,0,0, 0,0
+      __asm
+      
+.arch femto8
+.org 128
+.len 128
+      
+Start:
+      zero A	; A <= 0
+      ldb #1	; B <= 1
+Loop:
+      add A,B	; A <= A + B
+      swapab	; swap A,B
+      bcc Loop	; repeat until carry set
+      reset	; end of loop; reset CPU
+
+      __endasm
     };
+`endif
   end
 
 endmodule
+
+`endif
 
 `endif

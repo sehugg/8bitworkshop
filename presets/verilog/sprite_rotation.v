@@ -295,10 +295,10 @@ module tank_controller(clk, reset, hpos, vpos, hsync, vsync,
   reg collision_detected; 
   
   always @(posedge clk)
-    if (collision_gfx)
-      collision_detected <= collision_gfx;
-    else if (vsync)
+    if (vstart)
       collision_detected <= 0;
+    else if (collision_gfx)
+      collision_detected <= 1;
   
   // sine lookup (4 bits input, 4 signed bits output)
   
@@ -325,7 +325,7 @@ module tank_controller(clk, reset, hpos, vpos, hsync, vsync,
       player_y_fixed <= initial_y << 4;
     end else begin
       // movement
-      if (collision_detected && vpos[1]) begin
+      if (collision_detected && vpos[3:1] == 0) begin
         if (vpos[0])
           player_x_fixed <= player_x_fixed + 12'(sin_16x4(player_rot+8));
         else

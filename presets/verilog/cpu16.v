@@ -1,6 +1,7 @@
 `ifndef CPU16_H
 `define CPU16_H
 
+// include ALU module
 `include "cpu8.v"
 
 /*
@@ -17,34 +18,35 @@
 11+++aaa ########	immediate binary operation
 */
 
-module CPU16(clk, reset, halt, busy,
+module CPU16(clk, reset, hold, busy,
              address, data_in, data_out, write);
 
   input         clk;
   input         reset;
-  input		halt;
+  input		hold;
   output	busy;
   output [15:0] address;
   input  [15:0] data_in;
   output [15:0] data_out;
   output        write;
   
-  reg [15:0] regs[0:7];
-  reg [2:0] state;
+  reg [15:0] regs[0:7]; // 8 16-bit registers
+  reg [2:0] state; // CPU state
   
-  reg carry;
-  reg zero;
-  reg neg;
-  wire [2:0] flags = { neg, zero, carry };
+  reg carry;	// carry flag
+  reg zero;	// zero flag
+  reg neg;	// negative flag
 
-  reg [15:0] opcode;
-  wire [16:0] Y;
-  reg [3:0] aluop;
-  wire [2:0] rdest = opcode[10:8];
-  wire [2:0] rsrc = opcode[2:0];
-  wire Bconst = opcode[15]; // TODO
-  wire Bload  = opcode[11]; // TODO
+  wire [16:0] Y;	// ALU 16-bit + carry output
+  reg [3:0] aluop;	// ALU operation
+  
+  reg [15:0] opcode; // used to decode ALU inputs
+  wire [2:0] rdest = opcode[10:8]; // ALU A input reg.
+  wire [2:0] rsrc = opcode[2:0]; // ALU B input reg.
+  wire Bconst = opcode[15]; // ALU B = 8-bit constant
+  wire Bload  = opcode[11]; // ALU B = data bus
 
+  // CPU states
   localparam S_RESET   = 0;
   localparam S_SELECT  = 1;
   localparam S_DECODE  = 2;
@@ -77,7 +79,7 @@ module CPU16(clk, reset, halt, busy,
 	// state 1: select opcode address
         S_SELECT: begin
           write <= 0;
-          if (halt) begin
+          if (hold) begin
             busy <= 1;
             state <= S_SELECT;
           end else begin
@@ -89,7 +91,6 @@ module CPU16(clk, reset, halt, busy,
         end
         // state 2: read/decode opcode
         S_DECODE: begin
-          opcode <= data_in; // (only use opcode next cycle)
           casez (data_in)
             //  00000aaa0++++bbb	operation A+B->A
             16'b00000???0???????: begin
@@ -180,6 +181,7 @@ module CPU16(clk, reset, halt, busy,
               state <= S_RESET; // reset
             end
           endcase
+          opcode <= data_in; // (only use opcode next cycle)
         end
         // state 3: compute ALU op and flags
         S_COMPUTE: begin
@@ -197,6 +199,8 @@ module CPU16(clk, reset, halt, busy,
     end
 
 endmodule
+
+`ifdef TOPMOD__test_CPU16_top
 
 module test_CPU16_top(
   input  clk,
@@ -221,7 +225,7 @@ module test_CPU16_top(
   CPU16 cpu(
           .clk(clk),
           .reset(reset),
-          .halt(0),
+          .hold(0),
           .busy(busy),
           .address(address_bus),
           .data_in(to_cpu),
@@ -269,5 +273,7 @@ Loop:
 `endif
 
 endmodule
+
+`endif
 
 `endif

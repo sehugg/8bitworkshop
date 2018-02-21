@@ -1,4 +1,5 @@
 `include "hvsync_generator.v"
+`include "digits10.v"
 `include "sprite_rotation.v"
 
 module minefield(hpos, vpos, mine_gfx);
@@ -100,7 +101,7 @@ module playfield(hpos, vpos, playfield_gfx);
   
 endmodule
 
-module mine_test_top(clk, reset, hsync, vsync, rgb, switches_p1, switches_p2);
+module tank_game_top(clk, reset, hsync, vsync, rgb, switches_p1, switches_p2);
 
   input clk, reset;
   input [7:0] switches_p1;
@@ -114,7 +115,7 @@ module mine_test_top(clk, reset, hsync, vsync, rgb, switches_p1, switches_p2);
   wire mine_gfx;
   wire playfield_gfx;
   wire tank1_gfx, tank2_gfx;
-
+  
   hvsync_generator hvsync_gen(
     .clk(clk),
     .reset(0),

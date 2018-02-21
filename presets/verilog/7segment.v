@@ -1,5 +1,17 @@
 `include "hvsync_generator.v"
 
+/*
+Segment bit indices:
+
+       6666
+      1    5 
+      1    5
+       0000
+      2    4
+      2    4
+       3333
+*/
+
 module seven_segment_decoder(digit, segments);
 
   input [3:0] digit;

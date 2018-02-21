@@ -1,15 +1,18 @@
 `include "hvsync_generator.v"
 `include "digits10.v"
 
-module RAM_1KB(clk, addr, din, dout, we);
+module RAM(clk, addr, din, dout, we);
+  
+  parameter A = 10; // # of address bits
+  parameter D = 8;  // # of data bits
   
   input  clk;		// clock
-  input  [9:0] addr;	// 10-bit address
-  input  [7:0] din;	// 8-bit data input
-  output [7:0] dout;	// 8-bit data output
+  input  [A-1:0] addr;	// 10-bit address
+  input  [D-1:0] din;	// 8-bit data input
+  output [D-1:0] dout;	// 8-bit data output
   input  we;		// write enable
   
-  reg [7:0] mem [0:1023]; // 1024x8 bit memory
+  reg [D-1:0] mem [0:(1<<A)-1]; // 1024x8 bit memory
   
   always @(posedge clk) begin
     if (we)		// if write enabled
@@ -34,7 +37,8 @@ module test_ram1_top(clk, reset, hsync, vsync, rgb);
   reg [7:0] ram_write;
   reg ram_writeenable = 0;
   
-  RAM_1KB ram(
+  // RAM to hold 32x32 array of bytes
+  RAM ram(
     .clk(clk),
     .dout(ram_read),
     .din(ram_write),
@@ -51,35 +55,45 @@ module test_ram1_top(clk, reset, hsync, vsync, rgb);
     .hpos(hpos),
     .vpos(vpos)
   );
+ 
+  wire [4:0] row = vpos[7:3];	// 5-bit row, vpos / 8
+  wire [4:0] col = hpos[7:3];	// 5-bit column, hpos / 8
+  wire [2:0] rom_yofs = vpos[2:0]; // scanline of cell
+  wire [4:0] rom_bits;		   // 5 pixels per scanline
   
-  wire [4:0] row = vpos[7:3];
-  wire [4:0] col = hpos[7:3];
-  wire [3:0] digit = ram_read[3:0];
-  wire [2:0] yofs = vpos[2:0];
-  wire [2:0] xofs = hpos[2:0];
-  wire [4:0] bits;
+  wire [3:0] digit = ram_read[3:0]; // read digit from RAM
+  wire [2:0] xofs = hpos[2:0];      // which pixel to draw (0-7)
   
-  assign ram_addr = {row,col};
-  
+  assign ram_addr = {row,col};	// 10-bit RAM address
+
+  // digits ROM
   digits10_case numbers(
     .digit(digit),
-    .yofs(yofs),
-    .bits(bits)
+    .yofs(rom_yofs),
+    .bits(rom_bits)
   );
 
+  // extract bit from ROM output
   wire r = display_on && 0;
-  wire g = display_on && bits[~xofs];
+  wire g = display_on && rom_bits[~xofs];
   wire b = display_on && 0;
   assign rgb = {b,g,r};
 
+  // increment the current RAM cell
   always @(posedge clk)
-    if (display_on && vpos[2:0] == 7)
-      case (hpos[2:0])
-        6: begin
-          ram_write <= (ram_read + 1);
-          ram_writeenable <= 1;
-        end
-        7: ram_writeenable <= 0;
-      endcase
+    case (hpos[2:0])
+      // on 7th pixel of cell
+      6: begin
+        // increment RAM cell
+        ram_write <= (ram_read + 1);
+        // only enable write on last scanline of cell
+        ram_writeenable <= (vpos[2:0] == 7);
+      end
+      // on 8th pixel of cell
+      7: begin
+        // disable write
+        ram_writeenable <= 0;
+      end
+    endcase
       
 endmodule

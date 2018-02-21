@@ -4,23 +4,24 @@ var VERILOG_PRESETS = [
   {id:'clock_divider.v', name:'Clock Divider'},
   {id:'hvsync_generator.v', name:'Video Sync Generator'},
   {id:'test_hvsync.v', name:'Test Pattern'},
-  {id:'digits10.v', name:'Bitmapped Digits'},
   {id:'7segment.v', name:'7-Segment Decoder'},
+  {id:'digits10.v', name:'Bitmapped Digits'},
   {id:'scoreboard.v', name:'Scoreboard'},
   {id:'ball_slip_counter.v', name:'Ball Motion (slipping counter)'},
   {id:'ball_paddle.v', name:'Brick Smash Game'},
   {id:'ram1.v', name:'RAM Text Display'},
   {id:'sprite_bitmap.v', name:'Sprite Bitmaps'},
   {id:'sprite_renderer.v', name:'Sprite Rendering'},
-  {id:'sprite_multiple.v', name:'Multiple Sprites'},
   {id:'sprite_rotation.v', name:'Sprite Rotation'},
   {id:'tank.v', name:'Tank Game'},
-  {id:'cpu8.v', name:'Simple 8-Bit CPU'},
-  {id:'racing_game_cpu.v', name:'Racing Game With CPU'},
-  {id:'music.v', name:'3-Voice Music'},
+  {id:'sound_generator.v', name:'Sound Generator'},
   {id:'lfsr.v', name:'Linear Feedback Shift Register'},
   {id:'starfield.v', name:'Scrolling Starfield'},
+  {id:'racing_game.v', name:'Racing Game'},
+  {id:'cpu8.v', name:'Simple 8-Bit CPU'},
+  {id:'racing_game_cpu.v', name:'Racing Game with CPU'},
   {id:'framebuffer.v', name:'Frame Buffer'},
+  {id:'sprite_scanline_renderer.v', name:'Sprite Scanline Renderer'},
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([
@@ -80,6 +81,9 @@ var vl_stopped = false;
   var VL_MODDIV_III = this.VL_MODDIV_III = function(lbits,lhs,rhs) {
     return (((rhs)==0)?0:(lhs)%(rhs)); }
 
+  var VL_MODDIVS_III = this.VL_MODDIVS_III = function(lbits,lhs,rhs) {
+    return (((rhs)==0)?0:(lhs)%(rhs)); }
+
   var VL_REDXOR_32 = this.VL_REDXOR_32 = function(r) {
     r=(r^(r>>1)); r=(r^(r>>2)); r=(r^(r>>4)); r=(r^(r>>8)); r=(r^(r>>16));
     return r;
@@ -97,6 +101,8 @@ var vl_stopped = false;
   }
 
   var VL_RAND_RESET_I = this.VL_RAND_RESET_I = function(bits) { return 0 | Math.floor(Math.random() * (1<<bits)); }
+
+  var VL_RANDOM_I = this.VL_RANDOM_I = function(bits) { return 0 | Math.floor(Math.random() * (1<<bits)); }
 
 //
 
@@ -182,7 +188,7 @@ var VerilogPlatform = function(mainElement, options) {
   var useAudio = false;
   var videoWidth  = 256+20;
   var videoHeight = 240+20;
-  var maxVideoBlankLines = 40; // vertical hold
+  var maxVideoLines = 262+40; // vertical hold
   var idata, timer;
   var gen;
   var frameRate = 60;
@@ -218,6 +224,14 @@ var VerilogPlatform = function(mainElement, options) {
     0xffff22ff,
     0xffffff22,
     0xffffffff,
+    0xff999999,
+    0xff9999ff,
+    0xff99ff99,
+    0xff99ffff,
+    0xffff9999,
+    0xffff99ff,
+    0xffffff99,
+    0xff666666,
   ];
 
   var debugCond;
@@ -233,8 +247,8 @@ var VerilogPlatform = function(mainElement, options) {
   function updateInspectionFrame() {
     useAudio = false;
     if (inspect_obj && inspect_sym) {
-      var COLOR_BIT_OFF = 0xffff3333;
-      var COLOR_BIT_ON  = 0xffffffff;
+      var COLOR_BIT_OFF = 0xffff6666;
+      var COLOR_BIT_ON  = 0xffff9999;
       /*
       for (var y=0; y<videoHeight; y++) {
         var val = inspect_data[y * videoWidth];
@@ -275,6 +289,7 @@ var VerilogPlatform = function(mainElement, options) {
     gen.switches_p1 = switches[0];
     gen.switches_p2 = switches[1];
     gen.switches_gen = switches[2];
+    var totalz = 0;
     for (var y=0; y<videoHeight; y++) {
       gen.hpaddle = y > paddle_x ? 1 : 0;
       gen.vpaddle = y > paddle_y ? 1 : 0;
@@ -283,15 +298,16 @@ var VerilogPlatform = function(mainElement, options) {
         if (trace) {
           inspect_data[i] = inspect_obj[inspect_sym];
         }
-        idata[i++] = RGBLOOKUP[gen.rgb & 7];
+        idata[i++] = RGBLOOKUP[gen.rgb & 15];
       }
       var z=0;
       while (!gen.hsync && z++<videoWidth) vidtick();
       while (gen.hsync && z++<videoWidth) vidtick();
+      totalz += z;
     }
-    var z=0;
-    while (!gen.vsync && z++<videoWidth*maxVideoBlankLines) vidtick();
-    while (gen.vsync && z++<videoWidth*maxVideoBlankLines) vidtick();
+    var maxz = videoWidth*maxVideoLines;
+    while (!gen.vsync && totalz++ < maxz) vidtick();
+    while (gen.vsync && totalz++ < maxz) vidtick();
     updateInspectionFrame();
     video.updateFrame();
     updateInspectionPostFrame();

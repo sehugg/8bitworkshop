@@ -207,7 +207,7 @@ var Assembler = function(spec) {
     if (line == '')
       return; // empty line
     // look at each rule in order
-    if (!spec) { fatal("Need to load .spec first"); return; }
+    if (!spec) { fatal("Need to load .arch first"); return; }
     var lastError;
     for (var i=0; i<spec.rules.length; i++) {
       var rule = spec.rules[i];
@@ -275,5 +275,22 @@ var Assembler = function(spec) {
   self.state = function() {
     return {ip:ip, line:linenum, origin:origin, codelen:codelen,
       output:outwords, asmlines:asmlines, errors:errors, fixups:fixups};
+  }
+}
+
+// Main
+if (typeof module !== 'undefined' && require.main === module) {
+  var fs = require('fs');
+  var stdinBuffer = fs.readFileSync(0);
+  var code = stdinBuffer.toString();
+  var asm = new Assembler();
+  asm.loadFile = function(filename) {
+    return fs.readFileSync(filename, 'utf8');
+  };
+  var out = asm.assembleFile(code);
+  if (out.errors) {
+    console.log(out.errors);
+  } else {
+    console.log(out.outwords);
   }
 }
