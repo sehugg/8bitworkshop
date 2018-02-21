@@ -619,6 +619,7 @@ function setupBreakpoint() {
 function _pause() {
   if (platform.isRunning()) {
     platform.pause();
+    console.log("Paused");
   }
   $("#dbg_pause").addClass("btn_stopped");
   $("#dbg_go").removeClass("btn_active");
@@ -633,6 +634,7 @@ function pause() {
 function _resume() {
   if (! platform.isRunning()) {
     platform.resume();
+    console.log("Resumed");
   }
   $("#dbg_pause").removeClass("btn_stopped");
   $("#dbg_go").addClass("btn_active");

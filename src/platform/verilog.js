@@ -268,7 +268,7 @@ var VerilogPlatform = function(mainElement, options) {
   }
 
   function updateVideoFrame() {
-    useAudio = gen.spkr !== 'undefined';
+    useAudio = (audio != null);
     debugCond = self.getDebugCallback();
     var i=videoWidth-10;
     var trace=inspect_obj && inspect_sym;
@@ -448,7 +448,6 @@ var VerilogPlatform = function(mainElement, options) {
         case 39: scope_time_x++; dirty=true; break;
       }
 		});
-    audio = new SampleAudio(AUDIO_FREQ);
     idata = video.getFrameData();
     timer = new AnimationTimer(frameRate, function() {
 			if (!self.isRunning())
@@ -459,6 +458,7 @@ var VerilogPlatform = function(mainElement, options) {
       else
         updateScopeFrame();
     });
+    trace_buffer = new Uint32Array(0x10000);
   }
 
   this.printErrorCodeContext = function(e, code) {
@@ -482,14 +482,24 @@ var VerilogPlatform = function(mainElement, options) {
       this.printErrorCodeContext(e, output.code);
       throw e;
     }
+    // compile Verilog code
     var base = new VerilatorBase();
     gen = new mod(base);
     gen.__proto__ = base;
     current_output = output;
-    ports_and_signals = current_output.ports; // TODO: current_output.ports.concat(current_output.signals);
-    trace_buffer = new Uint32Array(0x10000);
+    ports_and_signals = current_output.ports;
     trace_index = 0;
+    // power on module
     this.poweron();
+    // stop/start audio
+    if (audio && gen.spkr === undefined) {
+      audio.stop();
+      audio = null;
+    } else if (!audio && gen.spkr !== undefined) {
+      audio = new SampleAudio(AUDIO_FREQ);
+      if (this.isRunning())
+        audio.start();
+    }
   }
 
   this.isRunning = function() {
@@ -497,11 +507,11 @@ var VerilogPlatform = function(mainElement, options) {
   }
   this.pause = function() {
     timer.stop();
-    if (gen.spkr !== undefined) audio.stop();
+    if (audio) audio.stop();
   }
   this.resume = function() {
     timer.start();
-    if (gen.spkr !== undefined) audio.start();
+    if (audio) audio.start();
   }
 
   this.poweron = function() {
