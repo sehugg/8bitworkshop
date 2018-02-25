@@ -34,7 +34,7 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
                                rom_addr, rom_data);
 
   parameter NB = 5;
-  parameter MB = 2;
+  parameter MB = 3;
   
   localparam N = 1<<NB;
   localparam M = 1<<MB;
@@ -85,17 +85,13 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
     
     // reset every frame, don't draw vpos >= 256
     if (reset || vpos[8]) begin
-      // initialize counters, even though it works w/o it
-      i <= 0;
-      j <= 0;
-      k <= 0;
       // wiggle sprites randomly once per frame
       if (vpos == 256 && hpos < N) begin
         sprite_xpos[move_index] <= sprite_xpos[move_index] + 8'(($random&3)-1);
         sprite_ypos[move_index] <= sprite_ypos[move_index] + 8'(($random&3)-1);
       end
-    end else
-    if (hpos < N*2) begin
+    end else if (hpos < N*2) begin
+      k <= 0;
       // select the sprites that will appear in this scanline
       case (hpos[0])
         // compute Y offset of sprite relative to scanline
@@ -111,31 +107,22 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
           i <= i + 1; // inc main array counter
         end
       endcase
-    end else if (hpos < N*2+M*4) begin
-      // copy sprites from main array to local array
-      case (hpos[1:0])
-        0: i <= sprite_to_line[j];
-        // transfer sprite X pos to line array
-        1: line_xpos[j] <= sprite_xpos[i];
-        // transfer sprite attribte to line array
-        2: line_attr[j] <= sprite_attr[i];
-        // increment 2nd array counter
-        3: j <= j + 1;
-      endcase
-    end else if (hpos < N*2+M*4+M*32) begin
-      i <= 0;
+    end else if (hpos < N*2+M*24) begin
       j <= 0;
-      if (hpos[4:0] < 16) begin
+      // divide hpos by 24 (8 setup + 16 render)
+      if ((hpos[3:0] < 8) ^^ hpos[4]) begin
         // render sprites into write buffer
-        case (hpos[4:0])
+        case (hpos[3:0])
+          // grab index into main sprite array
+          0: i <= sprite_to_line[k];
           // load scanline buffer offset to write
-          0: write_ofs <= {~vpos[0], line_xpos[k]};
-          // set ROM address and  fetch bitmap
-          1: rom_addr <= {4'b0, line_attr[k][7:4], line_yofs[k]};
+          1: write_ofs <= {~vpos[0], sprite_xpos[i]};
+          // set ROM address and fetch bitmap
+          2: rom_addr <= {4'b0, sprite_attr[i][7:4], line_yofs[k]};
           // fetch 0 if sprite is inactive
-          2: out_bitmap <= line_active[k] ? rom_data : 0;
+          3: out_bitmap <= line_active[k] ? rom_data : 0;
           // load attribute for sprite
-          3: out_attr <= line_attr[k];
+          4: out_attr <= sprite_attr[i];
           // disable sprite for next scanline
           6: line_active[k] <= 0;
           // go to next sprite in 2ndary buffer
@@ -150,6 +137,9 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
         // increment to next scanline pixel
         write_ofs <= write_ofs + 1;
       end
+    end else begin
+      // clear counters
+      i <= 0;
     end
     
     // read and clear buffer
