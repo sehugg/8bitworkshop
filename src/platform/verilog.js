@@ -187,12 +187,11 @@ var VerilogPlatform = function(mainElement, options) {
   var video, audio;
   var useAudio = false;
   var videoWidth  = 256+20;
-  var videoHeight = 240+20;
+  var videoHeight = 240+16;
   var maxVideoLines = 262+40; // vertical hold
-  var idata, timer;
+  var idata, timer, timerCallback;
   var gen;
-  var frameRate = 60;
-  var AUDIO_FREQ = (256+23+7+23)*262*60; // 4857480 Hz
+  var cyclesPerFrame = (256+23+7+23)*262; // 4857480/60 Hz
   var current_output;
   var paddle_x = 0;
   var paddle_y = 0;
@@ -202,12 +201,19 @@ var VerilogPlatform = function(mainElement, options) {
   var scope_time_x = 0; // scope cursor
   var scope_x_offset = 0;
   var scope_y_offset = 0;
+  var scope_index_offset = 0;
   var scope_max_y = 0;
+  var scope_y_top = 0;
+  var scopeWidth = videoWidth;
+  var scopeHeight = videoHeight;
+  var scopeImageData;
+  var sdata; // scope data
 
   var yposlist = [];
   var lasty = [];
   var lastval = [];
-  var ports_and_signals;
+  var trace_ports;
+  var trace_signals;
   var trace_buffer;
   var trace_index;
   var mouse_pressed;
@@ -249,8 +255,8 @@ var VerilogPlatform = function(mainElement, options) {
     if (inspect_obj && inspect_sym) {
       var COLOR_BIT_OFF = 0xffff6666;
       var COLOR_BIT_ON  = 0xffff9999;
-      var i = 0;
-      for (var y=0; y<videoHeight; y++) {
+      var i = videoWidth;
+      for (var y=0; y<videoHeight-2; y++) {
         for (var x=0; x<videoWidth; x++) {
           var val = inspect_data[i];
           idata[i++] = (val & 1) ? COLOR_BIT_ON : COLOR_BIT_OFF;
@@ -270,55 +276,114 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
+  var framex=videoWidth-10;
+  var framey=0;
+  var frameidx=videoWidth-10;
+  var framehsync=false;
+  var framevsync=false;
+
+  function updateVideoFrameCycles(ncycles, sync, trace) {
+    ncycles |= 0;
+    var inspect = inspect_obj && inspect_sym;
+    while (ncycles--) {
+      if (trace) snapshotTrace(true);
+      vidtick();
+      if (framex++ < videoWidth) {
+        if (framey < videoHeight) {
+          if (inspect) {
+            inspect_data[frameidx] = inspect_obj[inspect_sym];
+          }
+          idata[frameidx] = RGBLOOKUP[gen.rgb & 15];
+          frameidx++;
+        }
+      } else if (!framehsync && gen.hsync) {
+        framehsync = true;
+      } else if ((framehsync && !gen.hsync) || framex > videoWidth*2) {
+        framehsync = false;
+        framex = 0;
+        framey++;
+        gen.hpaddle = framey > paddle_x ? 1 : 0;
+        gen.vpaddle = framey > paddle_y ? 1 : 0;
+      }
+      if (framey > maxVideoLines || gen.vsync) {
+        var wasvsync = framevsync;
+        framevsync = true;
+        framey = 0;
+        framex = videoWidth-10;
+        frameidx = framex;
+        if (sync && !wasvsync) return; // exit when vsync starts
+      } else {
+        framevsync = false;
+      }
+    }
+  }
+
   function updateVideoFrame() {
     useAudio = (audio != null);
     debugCond = self.getDebugCallback();
-    var i;
-    // erase top line & start i on offset
-    for (i=0; i<videoWidth-10; i++) {
-      idata[i] = 0;
-    }
-    var trace = inspect_obj && inspect_sym;
     gen.switches_p1 = switches[0];
     gen.switches_p2 = switches[1];
     gen.switches_gen = switches[2];
-    var totalz = 0;
-    for (var y=0; y<videoHeight; y++) {
-      gen.hpaddle = y > paddle_x ? 1 : 0;
-      gen.vpaddle = y > paddle_y ? 1 : 0;
-      for (var x=0; x<videoWidth; x++) {
-        vidtick();
-        if (trace) {
-          inspect_data[i] = inspect_obj[inspect_sym];
-        }
-        idata[i++] = RGBLOOKUP[gen.rgb & 15];
-      }
-      var z=0;
-      while (!gen.hsync && z++<videoWidth) vidtick();
-      while (gen.hsync && z++<videoWidth) vidtick();
-      totalz += z;
+    var fps = self.getFrameRate();
+    // darken the previous frame?
+    if (fps < 45) {
+      var mask = fps > 10 ? 0xcfffffff : 0x7fdddddd;
+      for (var i=0; i<idata.length; i++)
+        idata[i] &= mask;
     }
-    var maxz = videoWidth*maxVideoLines;
-    while (!gen.vsync && totalz++ < maxz) vidtick();
-    while (gen.vsync && totalz++ < maxz) vidtick();
+    // paint into frame, synched with vsync if full speed
+    var sync = fps > 45;
+    var trace = fps < 0.1;
+    updateVideoFrameCycles(cyclesPerFrame * fps/60 + 1, sync, trace);
+    //if (trace) displayTraceBuffer();
     updateInspectionFrame();
-    video.updateFrame();
+    if (trace) {
+      video.getContext().fillStyle = "black";
+      video.getContext().fillRect(0, 0, videoWidth, videoHeight/3);
+      video.updateFrame(0, -framey+videoHeight/6, 0, 0, videoWidth, videoHeight);
+      scope_index_offset = (trace_index - trace_signals.length*scopeWidth + trace_buffer.length) % trace_buffer.length;
+      scope_x_offset = 0;
+      updateScopeOverlay(trace_signals);
+      var k = 0.1;
+      scope_y_top = k*videoHeight/3 + scope_y_top*(1-k);
+    } else {
+      video.updateFrame();
+      scope_index_offset = 0;
+      scope_y_top = videoHeight;
+    }
     updateInspectionPostFrame();
     self.restartDebugState();
     gen.__unreset();
   }
 
+  function displayTraceBuffer() {
+    var skip = trace_signals.length;
+    var src = trace_index;
+    for (var dest=0; dest<idata.length; dest+=videoWidth) {
+      for (var i=0; i<skip; i++) {
+        if (--src < 0) src = trace_buffer.length-1;
+        var v = trace_buffer[src];
+        idata[dest+i] = RGBLOOKUP[v & 15]; // TODO?
+      }
+    }
+  }
+
+  function snapshotTrace(signals) {
+    var arr = signals ? trace_signals : trace_ports;
+    for (var i=0; i<arr.length; i++) {
+      var v = arr[i];
+      var z = gen[v.name];
+      trace_buffer[trace_index++] = z;
+      if (trace_index >= trace_buffer.length) trace_index = 0;
+    }
+  }
+
   function fillTraceBuffer(count) {
-    var arr = ports_and_signals;
-    var max_index = Math.min(trace_buffer.length, trace_index + count);
+    var max_index = Math.min(trace_buffer.length - trace_ports.length, trace_index + count);
     while (trace_index < max_index) {
       gen.clk ^= 1;
       gen.eval();
-      for (var i=0; i<arr.length; i++) {
-        var v = arr[i];
-        var z = gen[v.name];
-        trace_buffer[trace_index++] = z;
-      }
+      snapshotTrace(false);
       dirty = true;
     }
     gen.__unreset();
@@ -343,49 +408,59 @@ var VerilogPlatform = function(mainElement, options) {
   }
 
   function updateScopeFrame() {
-    var arr = ports_and_signals;
-    if (!arr) return;
-    fillTraceBuffer(Math.floor(videoWidth/4) * arr.length);
+    fillTraceBuffer(Math.floor(videoWidth/4) * trace_ports.length);
     if (!dirty) return;
     dirty = false;
+    scope_y_top = 0;
+    updateScopeOverlay(trace_ports);
+  }
+
+  function updateScopeOverlay(arr) {
+    if (!sdata) {
+      scopeImageData = video.getContext().createImageData(scopeWidth,scopeHeight);
+      sdata = new Uint32Array(scopeImageData.data.buffer);
+    }
     var COLOR_BLACK  = 0xff000000;
     var COLOR_SIGNAL = 0xff22ff22;
     var COLOR_BORDER = 0xff662222;
     var COLOR_TRANS_SIGNAL = 0xff226622;
     var COLOR_BLIP_SIGNAL = 0xff226622;
-    idata.fill(COLOR_BLACK);
-    var jstart = scope_x_offset * arr.length;
+    sdata.fill(0xff000000);
+    var jstart = scope_x_offset * arr.length + scope_index_offset;
     var j = jstart;
-    for (var x=0; x<videoWidth; x++) {
+    for (var x=0; x<scopeWidth; x++) {
       var yb = 8;
       var y1 = scope_y_offset;
       for (var i=0; i<arr.length; i++) {
         var v = arr[i];
         var lo = 0; // TODO? v.ofs?
-        var hi = v.len ? ((2 << v.len)-1) : 1;
+        var hi = ((1 << v.len)-1);
         var ys = hi>1 ? v.len*2+8 : 8;
         var y2 = y1+ys;
         var z = trace_buffer[j++];
+        if (j >= trace_buffer.length) j = 0;
         var y = Math.round(y2 - ys*((z-lo)/hi));
-        yposlist[i] = y2;
+        yposlist[i] = y2 + scope_y_top;
         var ly = lasty[i];
         if (x > 0 && ly != y) {
           var dir = ly < y ? 1 : -1;
           while ((ly += dir) != y && ly >= y1 && ly <= y2) {
-            idata[x + ly*videoWidth] = COLOR_TRANS_SIGNAL;
+            sdata[x + ly * scopeWidth] = COLOR_TRANS_SIGNAL;
           }
         }
-        idata[x + y*videoWidth] = lastval[i]==z ? COLOR_SIGNAL : COLOR_BLIP_SIGNAL;
+        sdata[x + y * scopeWidth] = lastval[i]==z ? COLOR_SIGNAL : COLOR_BLIP_SIGNAL;
         lasty[i] = y;
         lastval[i] = z;
         y1 += ys+yb;
       }
     }
     scope_max_y = y1 - scope_y_offset;
-    video.updateFrame();
+    video.getContext().putImageData(scopeImageData, 0, scope_y_top);
     // draw labels
     var ctx = video.getContext();
     for (var i=0; i<arr.length; i++) {
+      var yp = yposlist[i];
+      if (yp < 20 || yp > videoHeight) continue;
       var v = arr[i];
       var name = v.name;
       ctx.fillStyle = name == inspect_sym ? "yellow" : "white";
@@ -395,8 +470,8 @@ var VerilogPlatform = function(mainElement, options) {
       shadowText(ctx, name, 1, yposlist[i]);
       if (scope_time_x > 0) {
         ctx.textAlign = 'right';
-        var value = arr.length * scope_time_x + i + jstart;
-        shadowText(ctx, ""+trace_buffer[value], videoWidth-1, yposlist[i]);
+        var value = (arr.length * scope_time_x + i + jstart) % trace_buffer.length;
+        shadowText(ctx, ""+trace_buffer[value], videoWidth-1, yp);
       }
     }
     // draw scope line & label
@@ -458,7 +533,7 @@ var VerilogPlatform = function(mainElement, options) {
       }
 		});
     idata = video.getFrameData();
-    timer = new AnimationTimer(frameRate, function() {
+    timerCallback = function() {
 			if (!self.isRunning())
 				return;
       gen.switches = switches[0];
@@ -466,8 +541,9 @@ var VerilogPlatform = function(mainElement, options) {
         updateVideoFrame();
       else
         updateScopeFrame();
-    });
+    };
     trace_buffer = new Uint32Array(0x10000);
+    self.setFrameRate(60);
   }
 
   this.printErrorCodeContext = function(e, code) {
@@ -496,17 +572,23 @@ var VerilogPlatform = function(mainElement, options) {
     gen = new mod(base);
     gen.__proto__ = base;
     current_output = output;
-    ports_and_signals = current_output.ports;
+    trace_ports = current_output.ports;
+    trace_signals = current_output.ports.concat(current_output.signals);
     trace_index = 0;
     // power on module
     this.poweron();
+    restartAudio();
+  }
+
+  function restartAudio() {
     // stop/start audio
-    if (audio && gen.spkr === undefined) {
+    var hasAudio = gen && gen.spkr !== undefined && frameRate > 1;
+    if (audio && !hasAudio) {
       audio.stop();
       audio = null;
-    } else if (!audio && gen.spkr !== undefined) {
-      audio = new SampleAudio(AUDIO_FREQ);
-      if (this.isRunning())
+    } else if (!audio && hasAudio) {
+      audio = new SampleAudio(cyclesPerFrame * self.getFrameRate());
+      if (self.isRunning())
         audio.start();
     }
   }
@@ -522,6 +604,25 @@ var VerilogPlatform = function(mainElement, options) {
     timer.start();
     if (audio) audio.start();
   }
+
+  var frameRate = 0;
+
+  this.setFrameRate = function(rateHz) {
+    frameRate = rateHz;
+    var fps = Math.min(60, rateHz*cyclesPerFrame);
+    if (!timer || timer.frameRate != fps) {
+      var running = this.isRunning();
+      if (timer) timer.stop();
+      timer = new AnimationTimer(fps, timerCallback);
+      if (running) timer.start();
+    }
+    if (audio) {
+      audio.stop();
+      audio = null;
+    }
+    restartAudio();
+  }
+  this.getFrameRate = function() { return frameRate; }
 
   this.poweron = function() {
     gen._ctor_var_reset();

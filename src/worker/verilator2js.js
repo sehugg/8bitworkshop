@@ -8,7 +8,7 @@ function parseDecls(text, arr, name, bin, bout) {
     arr.push({
       wordlen:parseInt(m[1]),
       name:m[2],
-      len:parseInt(m[3]),
+      len:parseInt(m[3])+1,
       ofs:parseInt(m[4]),
     });
   }
@@ -19,7 +19,7 @@ function parseDecls(text, arr, name, bin, bout) {
       wordlen:parseInt(m[1]),
       name:m[2],
       arrdim:[parseInt(m[3])],
-      len:parseInt(m[4]),
+      len:parseInt(m[4])+1,
       ofs:parseInt(m[5]),
     });
   }
@@ -30,7 +30,7 @@ function parseDecls(text, arr, name, bin, bout) {
       wordlen:parseInt(m[1]),
       name:m[2],
       arrdim:[parseInt(m[3]), parseInt(m[4])],
-      len:parseInt(m[5]),
+      len:parseInt(m[5])+1,
       ofs:parseInt(m[6]),
     });
   }

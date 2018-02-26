@@ -54,8 +54,8 @@ var RasterVideo = function(mainElement, width, height, options) {
     arraybuf = new ArrayBuffer(imageData.data.length);
     buf8 = new Uint8Array(arraybuf); // TODO: Uint8ClampedArray
     datau32 = new Uint32Array(arraybuf);
-    */
     buf8 = imageData.data;
+    */
     datau32 = new Uint32Array(imageData.data.buffer);
   }
 
@@ -213,8 +213,9 @@ var AnimationTimer = function(frequencyHz, callback) {
   var intervalMsec = 1000.0 / frequencyHz;
   var running;
   var lastts = 0;
-  var useReqAnimFrame = window.requestAnimationFrame ? true : false;
+  var useReqAnimFrame = window.requestAnimationFrame ? (frequencyHz>40) : false;
   var nframes, startts; // for FPS calc
+  this.frameRate = frequencyHz;
 
   function scheduleFrame() {
     if (useReqAnimFrame)
@@ -222,7 +223,7 @@ var AnimationTimer = function(frequencyHz, callback) {
     else
       setTimeout(nextFrame, intervalMsec);
   }
-  var nextFrame = function(ts) {
+  function nextFrame(ts) {
     if (running) {
       scheduleFrame();
     }

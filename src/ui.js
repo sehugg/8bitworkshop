@@ -1232,6 +1232,26 @@ function _recordVideo() {
   f();
 }
 
+function setFrameRateUI(fps) {
+  platform.setFrameRate(fps);
+  if (fps > 0.01)
+    $("#fps_label").text(fps.toFixed(2));
+  else
+    $("#fps_label").text("1/"+Math.round(1/fps));
+}
+
+function _slowerFrameRate() {
+  var fps = platform.getFrameRate();
+  fps = fps/2;
+  if (fps > 0.00001) setFrameRateUI(fps);
+}
+
+function _fasterFrameRate() {
+  var fps = platform.getFrameRate();
+  fps = Math.min(60, fps*2);
+  setFrameRateUI(fps);
+}
+
 function setupDebugControls(){
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
@@ -1281,6 +1301,11 @@ function setupDebugControls(){
     $("#item_debug_expr").hide();
   $("#item_download_rom").click(_downloadROMImage);
   $("#item_record_video").click(_recordVideo);
+  if (platform.setFrameRate && platform.getFrameRate) {
+    $("#speed_bar").show();
+    $("#dbg_slower").click(_slowerFrameRate);
+    $("#dbg_faster").click(_fasterFrameRate);
+  }
   updateDebugWindows();
 }
 

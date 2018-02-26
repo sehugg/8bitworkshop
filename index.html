@@ -79,6 +79,11 @@ ga('send', 'pageview');
     <button id="dbg_stepout" type="submit" title="Step Out of Subroutine"><span class="glyphicon glyphicon-hand-up" aria-hidden="true"></span></button>
     <button id="dbg_stepback" type="submit" title="Step Backwards"><span class="glyphicon glyphicon-step-backward" aria-hidden="true"></span></button>
   </span>
+  <span class="btn_group view_group" id="speed_bar" style="display:none">
+    <button id="dbg_slower" type="submit" title="Slower"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
+    <span id="fps_label">60.00</span> fps
+    <button id="dbg_faster" type="submit" title="Faster"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
+  </span>
   <span class="btn_group view_group" id="extra_bar">
     <button id="dbg_timing" type="submit" title="See Timing" style="display:none"><span class="glyphicon glyphicon-time" aria-hidden="true"></span></button>
     <button id="dbg_disasm" type="submit" title="Show Disassembly" style="display:none"><span class="glyphicon glyphicon-list" aria-hidden="true"></span></button>
@@ -162,7 +167,6 @@ ga('send', 'pageview');
     </div>
   </div>
 </div>
-
 
 <script src="jquery/jquery-2.2.3.min.js"></script>
 
