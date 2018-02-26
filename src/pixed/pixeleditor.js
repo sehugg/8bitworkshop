@@ -219,7 +219,7 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
 
 /////////////////
 
-var pixel_re = /([0#]?)([x$%]|\d'b)([0-9a-f]+)/gi;
+var pixel_re = /([0#]?)([x$%]|\d'[bh])([0-9a-f]+)/gi;
 
 function parseHexBytes(s) {
   var arr = [];
@@ -228,7 +228,7 @@ function parseHexBytes(s) {
     var n;
     if (m[2].startsWith('%') || m[2].endsWith("b"))
       n = parseInt(m[3],2);
-    else if (m[2].startsWith('x') || m[2].startsWith('$'))
+    else if (m[2].startsWith('x') || m[2].startsWith('$') || m[2].endsWith('h'))
       n = parseInt(m[3],16);
     else
       n = parseInt(m[3]);
@@ -249,6 +249,8 @@ function replaceHexBytes(s, bytes) {
       result += m[1] + "%" + bytes[i++].toString(2);
     else if (m[2].endsWith('b'))
       result += m[1] + m[2] + bytes[i++].toString(2); // TODO
+    else if (m[2].endsWith('h'))
+      result += m[1] + m[2] + bytes[i++].toString(16); // TODO
     else if (m[2].startsWith('x'))
       result += m[1] + "x" + hex(bytes[i++]);
     else if (m[2].startsWith('$'))
@@ -505,7 +507,7 @@ function pixelEditorKeypress(e) {
         currentPixelEditor.rotate(45);
         break;
     }
-    switch (e.charCode) {  
+    switch (e.charCode) {
       case 104:
         currentPixelEditor.flipx();
         break;

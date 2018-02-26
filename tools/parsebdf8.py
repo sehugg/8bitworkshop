@@ -82,6 +82,8 @@ def tohex(v):
     return '%02x'%v
 def tohex2(v):
     return '0x%02x'%v
+def tohexv(v):
+    return "8'h%02x"%v
 
 for arr in [output]:
     if args.asmhex:
@@ -106,5 +108,6 @@ for arr in [output]:
             #j += 1
             #print "rom["+str(j)+"] = 32'h" + string.join(map(tohex,arr[i+height/2:i+height]),'') + ";"
             #j += 1
-            print "rom["+str(j)+"] = 64'h" + string.join(map(tohex,arr[i:i+height]),'') + ";"
+            #print "rom["+str(j)+"] = 64'h" + string.join(map(tohex,arr[i:i+height]),'') + ";"
+            print string.join(map(tohexv,arr[i:i+height]),',') + ", //%d" % (i/height)
             j += 1

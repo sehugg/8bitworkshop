@@ -505,7 +505,11 @@ function setCompileOutput(data) {
   } else {
     // load ROM
     var rom = data.output;
-    var rom_changed = rom && !arrayCompare(rom.code||rom, current_output);
+    var rom_changed = false;
+    if (rom && rom.code)
+      rom_changed = !current_output || rom.code != current_output.code;
+    else if (rom)
+      rom_changed = !arrayCompare(rom, current_output);
     if (rom_changed) {
       try {
         //console.log("Loading ROM length", rom.length);

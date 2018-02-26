@@ -1180,10 +1180,14 @@ function compileVerilator(code, platform, options) {
     return compileInlineASM(code, platform, options, errors, asmlines);
   });
   starttime();
-  verilator_mod.callMain(["--cc", "-O3", "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
-    "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
-    "--x-assign", "fast", "--noassert", "--pins-bv", "33",
-    "--top-module", topmod, topmod+".v"]);
+  try {
+    verilator_mod.callMain(["--cc", "-O3", "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
+      "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
+      "--x-assign", "fast", "--noassert", "--pins-bv", "33",
+      "--top-module", topmod, topmod+".v"]);
+  } catch (e) {
+    errors.push({line:0,msg:"Compiler internal error: " + e});
+  }
   endtime("compile");
   if (errors.length) {
     return {errors:errors};

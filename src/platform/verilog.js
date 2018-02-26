@@ -249,17 +249,6 @@ var VerilogPlatform = function(mainElement, options) {
     if (inspect_obj && inspect_sym) {
       var COLOR_BIT_OFF = 0xffff6666;
       var COLOR_BIT_ON  = 0xffff9999;
-      /*
-      for (var y=0; y<videoHeight; y++) {
-        var val = inspect_data[y * videoWidth];
-        var i = y * videoWidth + 16;
-        do {
-          idata[i] = (val & 1) ? COLOR_BIT_ON : COLOR_BIT_OFF;
-          i -= 2;
-          val >>= 1;
-        } while (val != 0);
-      }
-      */
       var i = 0;
       for (var y=0; y<videoHeight; y++) {
         for (var x=0; x<videoWidth; x++) {
@@ -284,8 +273,12 @@ var VerilogPlatform = function(mainElement, options) {
   function updateVideoFrame() {
     useAudio = (audio != null);
     debugCond = self.getDebugCallback();
-    var i=videoWidth-10;
-    var trace=inspect_obj && inspect_sym;
+    var i;
+    // erase top line & start i on offset
+    for (i=0; i<videoWidth-10; i++) {
+      idata[i] = 0;
+    }
+    var trace = inspect_obj && inspect_sym;
     gen.switches_p1 = switches[0];
     gen.switches_p2 = switches[1];
     gen.switches_gen = switches[2];
