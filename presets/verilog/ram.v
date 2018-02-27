@@ -1,3 +1,6 @@
+`ifndef RAM_H
+`define RAM_H
+
 `include "hvsync_generator.v"
 
 module RAM(clk, addr, din, dout, we);
@@ -21,3 +24,4 @@ module RAM(clk, addr, din, dout, we);
 
 endmodule
 
+`endif

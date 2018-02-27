@@ -21,7 +21,9 @@ var VERILOG_PRESETS = [
   {id:'cpu8.v', name:'Simple 8-Bit CPU'},
   {id:'racing_game_cpu.v', name:'Racing Game with CPU'},
   {id:'framebuffer.v', name:'Frame Buffer'},
+  {id:'tile_renderer.v', name:'Tile Renderer'},
   {id:'sprite_scanline_renderer.v', name:'Sprite Scanline Renderer'},
+  {id:'maze_game.v', name:'Maze Game'},
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([
@@ -186,8 +188,8 @@ var VerilogPlatform = function(mainElement, options) {
   var self = this;
   var video, audio;
   var useAudio = false;
-  var videoWidth  = 256+20;
-  var videoHeight = 240+16;
+  var videoWidth  = 292;
+  var videoHeight = 256;
   var maxVideoLines = 262+40; // vertical hold
   var idata, timer, timerCallback;
   var gen;
@@ -204,6 +206,7 @@ var VerilogPlatform = function(mainElement, options) {
   var scope_index_offset = 0;
   var scope_max_y = 0;
   var scope_y_top = 0;
+  var scope_a = 0; // used for transitions
   var scopeWidth = videoWidth;
   var scopeHeight = videoHeight;
   var scopeImageData;
@@ -276,9 +279,9 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
-  var framex=videoWidth-10;
+  var framex=0;
   var framey=0;
-  var frameidx=videoWidth-10;
+  var frameidx=0;
   var framehsync=false;
   var framevsync=false;
 
@@ -306,14 +309,14 @@ var VerilogPlatform = function(mainElement, options) {
         gen.vpaddle = framey > paddle_y ? 1 : 0;
       }
       if (framey > maxVideoLines || gen.vsync) {
-        var wasvsync = framevsync;
         framevsync = true;
         framey = 0;
-        framex = videoWidth-10;
-        frameidx = framex;
-        if (sync && !wasvsync) return; // exit when vsync starts
+        framex = 0;
+        frameidx = 0;
       } else {
+        var wasvsync = framevsync;
         framevsync = false;
+        if (sync && wasvsync) return; // exit when vsync ends
       }
     }
   }
@@ -333,24 +336,27 @@ var VerilogPlatform = function(mainElement, options) {
     }
     // paint into frame, synched with vsync if full speed
     var sync = fps > 45;
-    var trace = fps < 0.1;
+    var trace = fps < 0.02;
     updateVideoFrameCycles(cyclesPerFrame * fps/60 + 1, sync, trace);
     //if (trace) displayTraceBuffer();
     updateInspectionFrame();
-    if (trace) {
+    if (scope_a > 0.01) {
       video.getContext().fillStyle = "black";
-      video.getContext().fillRect(0, 0, videoWidth, videoHeight/3);
-      video.updateFrame(0, -framey+videoHeight/6, 0, 0, videoWidth, videoHeight);
+      video.getContext().fillRect(0, 0, videoWidth, videoHeight);
+      var vidyoffset = Math.round(scope_a*(-framey+videoHeight/6));
+      video.updateFrame(0, vidyoffset, 0, 0, videoWidth, videoHeight);
+      video.getContext().fillStyle = "white";
+      video.getContext().fillRect(framex, framey+vidyoffset, 1, 1);
       scope_index_offset = (trace_index - trace_signals.length*scopeWidth + trace_buffer.length) % trace_buffer.length;
       scope_x_offset = 0;
       updateScopeOverlay(trace_signals);
-      var k = 0.1;
-      scope_y_top = k*videoHeight/3 + scope_y_top*(1-k);
     } else {
       video.updateFrame();
       scope_index_offset = 0;
-      scope_y_top = videoHeight;
     }
+    // smooth transition
+    scope_a = scope_a * 0.9 + (trace?1.0:0.0) * 0.1;
+    scope_y_top = (1 - scope_a*0.7) * videoHeight - (1 - scope_a) * scope_y_offset;
     updateInspectionPostFrame();
     self.restartDebugState();
     gen.__unreset();
@@ -631,7 +637,7 @@ var VerilogPlatform = function(mainElement, options) {
   this.reset = function() {
     gen.__reset();
     trace_index = scope_x_offset = 0;
-    trace_buffer.fill(0);
+    if (trace_buffer) trace_buffer.fill(0);
     dirty = true;
     if (video) video.setRotate(gen.rotate ? -90 : 0);
   }

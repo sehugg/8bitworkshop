@@ -1,3 +1,6 @@
+`ifndef FONT_CP437_H
+`define FONT_CP437_H
+
 // PC font (code page 437)
 
 module font_cp437_8x8(addr, data);
@@ -270,3 +273,5 @@ module font_cp437_8x8(addr, data);
     };
   end
 endmodule
+
+`endif

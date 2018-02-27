@@ -1252,6 +1252,14 @@ function _fasterFrameRate() {
   setFrameRateUI(fps);
 }
 
+function _slowestFrameRate() {
+  setFrameRateUI(60/65536);
+}
+
+function _fastestFrameRate() {
+  setFrameRateUI(60);
+}
+
 function setupDebugControls(){
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
@@ -1305,6 +1313,8 @@ function setupDebugControls(){
     $("#speed_bar").show();
     $("#dbg_slower").click(_slowerFrameRate);
     $("#dbg_faster").click(_fasterFrameRate);
+    $("#dbg_slowest").click(_slowestFrameRate);
+    $("#dbg_fastest").click(_fastestFrameRate);
   }
   updateDebugWindows();
 }
