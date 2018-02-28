@@ -2,7 +2,7 @@
 `include "font_cp437_8x8.v"
 `include "ram.v"
 
-module tile_renderer(clk, reset, hpos, vpos, display_on,
+module tile_renderer(clk, reset, hpos, vpos,
                      rgb,
                      ram_addr, ram_read, ram_busy,
                      rom_addr, rom_data);
@@ -10,7 +10,6 @@ module tile_renderer(clk, reset, hpos, vpos, display_on,
   input clk, reset;
   input [8:0] hpos;
   input [8:0] vpos;
-  input display_on;
   output [3:0] rgb;
 
   output reg [15:0] ram_addr;
@@ -22,33 +21,42 @@ module tile_renderer(clk, reset, hpos, vpos, display_on,
   
   reg [7:0] page_base = 8'h7e;	// page table base (8 bits)
   reg [15:0] row_base;		// row table base (16 bits)
-
-  wire [4:0] row = vpos[7:3];	// 5-bit row, vpos / 8
+  reg [4:0] row;
+  //wire [4:0] row = vpos[7:3];	// 5-bit row, vpos / 8
   wire [4:0] col = hpos[7:3];	// 5-bit column, hpos / 8
   wire [2:0] yofs = vpos[2:0];  // scanline of cell (0-7)
   wire [2:0] xofs = hpos[2:0];  // which pixel to draw (0-7)
   
-  reg [7:0] char;
-  reg [7:0] attr;
+  reg [15:0] cur_cell;
+  wire [7:0] cur_char = cur_cell[7:0];
+  wire [7:0] cur_attr = cur_cell[15:8];
 
   // tile ROM address
-  assign rom_addr = {char, yofs};
+  assign rom_addr = {cur_char, yofs};
   
   reg [15:0] row_buffer[0:31];
-
+  
   // lookup char and attr
   always @(posedge clk) begin
+    // reset row to 0 when last row displayed
+    if (vpos == 248) begin
+      row <= 0;
+    end
     // time to read a row?
     if (vpos[2:0] == 7) begin
       // read row_base from page table (2 bytes)
       case (hpos[7:0])
-        186: ram_busy <= 1;
+        185: ram_busy <= 1;
         190: ram_addr <= {page_base, 3'b000, row};
         192: row_base <= ram_read;
-        192+32: ram_busy <= 0;
+        192+32: begin
+          ram_busy <= 0;
+          row <= row + 1;
+        end
       endcase
       // load row of tile data from RAM
-      if (hpos >= 192 && hpos < 192+32) begin
+      // (last two twice)
+      if (hpos >= 192 && hpos < 192+34) begin
         ram_addr <= row_base + 16'(hpos[4:0]);
         row_buffer[hpos[4:0]-2] <= ram_read;
       end
@@ -57,17 +65,16 @@ module tile_renderer(clk, reset, hpos, vpos, display_on,
     if (hpos < 256) begin
       case (hpos[2:0])
         7: begin
-          char <= row_buffer[col][7:0];
-          attr <= row_buffer[col][15:8];
+          cur_cell <= row_buffer[col+1];
         end
       endcase
+    end else if (hpos == 308) begin
+      cur_cell <= row_buffer[0];
     end
   end
       
   // extract bit from ROM output
-  assign rgb = display_on
-    ? (rom_data[~xofs] ? attr[3:0] : attr[7:4])
-    : 0;
+  assign rgb = rom_data[~xofs] ? cur_attr[3:0] : cur_attr[7:4];
   
 endmodule
 
@@ -108,26 +115,38 @@ module test_tilerender_top(clk, reset, hsync, vsync, rgb);
     .addr(ram_addr),
     .we(ram_writeenable)
   );
-  
+
+  wire [3:0] rgb_tile;
+
   tile_renderer tile_gen(
     .clk(clk),
     .reset(reset),
     .hpos(hpos),
     .vpos(vpos),
-    .display_on(display_on),
     .ram_addr(ram_addr),
     .ram_read(ram_read),
     .ram_busy(ram_busy),
     .rom_addr(rom_addr),
     .rom_data(rom_data),
-    .rgb(rgb)
+    .rgb(rgb_tile)
   );
+  
+  assign rgb = display_on ? rgb_tile : rgb_tile|8;
 
     // tile ROM
   font_cp437_8x8 tile_rom(
     .addr(rom_addr),
     .data(rom_data)
   );
-
+  
+  initial begin
+    for (int i=0; i<32; i++) begin
+      ram.mem[16'h7e00 + 16'(i)] = 16'(i*32);
+      ram.mem[16'(i*32)] = 16'hfa1b;
+      ram.mem[16'(i*32+31)] = 16'hfb1a;
+      ram.mem[16'(i)] = 16'hfc18;
+      ram.mem[16'(28*32+i)] = 16'hfd19;
+    end
+  end
 
 endmodule

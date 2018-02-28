@@ -94,7 +94,8 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
     if (reset || vpos[8]) begin
       // load sprites from RAM on line 260
       // 8 cycles per sprite
-      if (vpos == 260 && hpos < N*8) begin
+      // do first sprite twice b/c CPU might still be busy
+      if (vpos == 260 && hpos < N*8+8) begin
         ram_busy <= 1;
         case (hpos[2:0])
           3: begin
@@ -166,13 +167,6 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
     rgb <= scanline[read_bufidx];
     scanline[read_bufidx] <= 0;
   end
-  
-  initial
-    begin
-      sprite_xpos[0] = 0;
-      sprite_ypos[0] = 0;
-      sprite_attr[0] = 1;
-    end
   
 endmodule
 

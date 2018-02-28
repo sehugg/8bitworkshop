@@ -24,7 +24,7 @@ var VERILOG_PRESETS = [
   {id:'tile_renderer.v', name:'Tile Renderer'},
   {id:'sprite_scanline_renderer.v', name:'Sprite Scanline Renderer'},
   {id:'cpu16.v', name:'16-Bit CPU'},
-  {id:'maze_game.v', name:'Maze Game'},
+  {id:'cpu_platform.v', name:'CPU Platform'},
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([
@@ -332,7 +332,7 @@ var VerilogPlatform = function(mainElement, options) {
     var fps = self.getFrameRate();
     // darken the previous frame?
     if (fps < 45) {
-      var mask = fps > 10 ? 0xcfffffff : 0x7fdddddd;
+      var mask = fps > 5 ? 0xe7ffffff : 0x7fdddddd;
       for (var i=0; i<idata.length; i++)
         idata[i] &= mask;
     }
@@ -342,6 +342,15 @@ var VerilogPlatform = function(mainElement, options) {
     updateVideoFrameCycles(cyclesPerFrame * fps/60 + 1, sync, trace);
     //if (trace) displayTraceBuffer();
     updateInspectionFrame();
+    updateAnimateScope(trace);
+    updateInspectionPostFrame();
+    self.restartDebugState();
+    gen.__unreset();
+  }
+
+  function updateAnimateScope() {
+    var fps = self.getFrameRate();
+    var trace = fps < 0.02;
     if (scope_a > 0.01) {
       video.getContext().fillStyle = "black";
       video.getContext().fillRect(0, 0, videoWidth, videoHeight);
@@ -359,9 +368,6 @@ var VerilogPlatform = function(mainElement, options) {
     // smooth transition
     scope_a = scope_a * 0.9 + (trace?1.0:0.0) * 0.1;
     scope_y_top = (1 - scope_a*0.7) * videoHeight - (1 - scope_a) * scope_y_offset;
-    updateInspectionPostFrame();
-    self.restartDebugState();
-    gen.__unreset();
   }
 
   function displayTraceBuffer() {
@@ -520,7 +526,7 @@ var VerilogPlatform = function(mainElement, options) {
       if (mouse_pressed) {
         scope_y_offset = clamp(Math.min(0,-scope_max_y+videoHeight), 0, scope_y_offset + new_y - paddle_y);
   			scope_time_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 16);
-        dirty = true;
+        redrawFrame();
       }
 			paddle_x = clamp(8, 240, new_x);
 			paddle_y = clamp(8, 240, new_y);
@@ -529,16 +535,17 @@ var VerilogPlatform = function(mainElement, options) {
 			scope_time_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 16);
       mouse_pressed = true;
       if (e.target.setCapture) e.target.setCapture();
-      dirty = true;
+      redrawFrame();
 		});
 		$(video.canvas).mouseup(function(e) {
       mouse_pressed = false;
       if (e.target.setCapture) e.target.releaseCapture();
+      redrawFrame();
 		});
 		$(video.canvas).keydown(function(e) {
       switch (e.keyCode) {
-        case 37: scope_time_x--; dirty=true; break;
-        case 39: scope_time_x++; dirty=true; break;
+        case 37: scope_time_x--; redrawFrame(); break;
+        case 39: scope_time_x++; redrawFrame(); break;
       }
 		});
     idata = video.getFrameData();
@@ -553,6 +560,10 @@ var VerilogPlatform = function(mainElement, options) {
     };
     trace_buffer = new Uint32Array(0x10000);
     self.setFrameRate(60);
+  }
+
+  function redrawFrame() {
+    updateAnimateScope();
   }
 
   this.printErrorCodeContext = function(e, code) {

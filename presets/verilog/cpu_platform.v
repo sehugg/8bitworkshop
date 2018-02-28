@@ -7,7 +7,7 @@
 `include "sound_generator.v"
 `include "cpu16.v"
 
-module maze_game_top(clk, reset, hsync, vsync, rgb);
+module cpu_platform(clk, reset, hsync, vsync, rgb);
 
   input clk, reset;
   output hsync, vsync;
@@ -19,11 +19,10 @@ module maze_game_top(clk, reset, hsync, vsync, rgb);
   
   // video RAM bus
   wire [15:0] ram_read;
-  reg [15:0] ram_write = 0;
-  reg ram_writeenable = 0;
+  reg [15:0] ram_write;
+  reg ram_writeenable;
 
   // multiplex sprite and tile RAM
-  wire sprite_ram_select = (vpos == 256);
   reg [15:0] tile_ram_addr;
   reg [5:0] sprite_ram_addr;
   wire tile_reading;
@@ -32,8 +31,8 @@ module maze_game_top(clk, reset, hsync, vsync, rgb);
   
   always @(*)
     if (cpu_busy) begin
-      if (sprite_ram_select)
-        mux_ram_addr = {9'b1111111, sprite_ram_addr};
+      if (sprite_reading)
+        mux_ram_addr = {9'b111111100, sprite_ram_addr};
       else
         mux_ram_addr = tile_ram_addr[14:0];
     end else
@@ -141,34 +140,45 @@ module maze_game_top(clk, reset, hsync, vsync, rgb);
 .org 0x8000
 .len 1024
       mov       sp,@$6fff
-      mov	dx,@Init
+      mov	dx,@InitPageTable
       jsr	dx
-      mov	ax,#0
-      mov	dx,@Clear
+      mov	ax,@$4ffe
+      mov	dx,@ClearTiles
+      jsr	dx
+      mov	dx,@ClearSprites
       jsr	dx
       reset
-Init:
+InitPageTable:
       mov       ax,@$6000	; screen buffer
       mov       bx,@$7e00	; page table start
       mov	cx,#32		; 32 rows
-InitLoop:
+InitPTLoop:
       mov	[bx],ax
-      mov	[ax],ax
       add	ax,#32
       inc	bx
       dec	cx
-      bnz	InitLoop
+      bnz	InitPTLoop
       rts
-Clear:
-      mov	bx,@$7e00
-      mov	cx,@1024
+ClearTiles:
+      mov	bx,@$6000
+      mov	cx,@$390
 ClearLoop:
         mov	[bx],ax
         inc	bx
         dec	cx
         bnz	ClearLoop
-        
       rts
+ClearSprites:
+        mov	bx,@$7f00
+        mov	ax,#0
+        mov	cx,#$80
+ClearSLoop:
+        mov	ax,[bx]
+        add	ax,@$101
+        mov	[bx],ax
+        inc	bx
+	dec	cx
+        bnz	ClearSLoop
       __endasm
     };
   end
