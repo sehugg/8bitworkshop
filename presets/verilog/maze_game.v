@@ -5,7 +5,6 @@
 `include "sprite_scanline_renderer.v"
 `include "lfsr.v"
 `include "sound_generator.v"
-`include "cpu8.v"
 `include "cpu16.v"
 
 module maze_game_top(clk, reset, hsync, vsync, rgb);
@@ -19,14 +18,26 @@ module maze_game_top(clk, reset, hsync, vsync, rgb);
   wire [8:0] vpos;
   
   // video RAM bus
-  wire [7:0] vram_read;
-  reg [7:0] vram_write = 0;
-  reg vram_writeenable = 0;
+  wire [15:0] ram_read;
+  reg [15:0] ram_write = 0;
+  reg ram_writeenable = 0;
 
   // multiplex sprite and tile RAM
   wire sprite_ram_select = (vpos == 256);
   reg [15:0] tile_ram_addr;
-  reg [6:0] sprite_ram_addr;
+  reg [5:0] sprite_ram_addr;
+  wire tile_reading;
+  wire sprite_reading;
+  wire [14:0] mux_ram_addr; // 15-bit RAM access
+  
+  always @(*)
+    if (cpu_busy) begin
+      if (sprite_ram_select)
+        mux_ram_addr = {9'b1111111, sprite_ram_addr};
+      else
+        mux_ram_addr = tile_ram_addr[14:0];
+    end else
+      mux_ram_addr = cpu_ram_addr[14:0];
   
   // tile and sprite ROM
   wire [10:0] tile_rom_addr;
@@ -48,15 +59,13 @@ module maze_game_top(clk, reset, hsync, vsync, rgb);
     .vpos(vpos)
   );
  
-  // video RAM (16k)
-  RAM #(14,8) vram(
+  // RAM (32k x 16 bits)
+  RAM_sync #(15,16) ram(
     .clk(clk),
-    .dout(vram_read),
-    .din(vram_write),
-    .addr(sprite_ram_select 
-      ? {7'b0111111, sprite_ram_addr}
-      : tile_ram_addr[13:0]),
-    .we(vram_writeenable)
+    .dout(ram_read),
+    .din(ram_write),
+    .addr(mux_ram_addr),
+    .we(ram_writeenable)
   );
   
   tile_renderer tile_gen(
@@ -66,7 +75,8 @@ module maze_game_top(clk, reset, hsync, vsync, rgb);
     .vpos(vpos),
     .display_on(display_on),
     .ram_addr(tile_ram_addr),
-    .ram_read(vram_read),
+    .ram_read(ram_read),
+    .ram_busy(tile_reading),
     .rom_addr(tile_rom_addr),
     .rom_data(tile_rom_data),
     .rgb(tile_rgb)
@@ -78,7 +88,8 @@ module maze_game_top(clk, reset, hsync, vsync, rgb);
     .hpos(hpos),
     .vpos(vpos),
     .ram_addr(sprite_ram_addr),
-    .ram_data(vram_read),
+    .ram_data(ram_read),
+    .ram_busy(sprite_reading),
     .rom_addr(sprite_rom_addr),
     .rom_data(sprite_rom_data),
     .rgb(sprite_rgb)
@@ -93,34 +104,74 @@ module maze_game_top(clk, reset, hsync, vsync, rgb);
     .addr(sprite_rom_addr),
     .data(sprite_rom_data)
   );
-  
+
+  // sprites overlay tiles
   assign rgb = display_on
     ? (sprite_rgb>0 ? sprite_rgb : tile_rgb)
     : 0;
 
-  // CPU RAM (32k x 16 bits)
-  RAM #(15,16) mram(
-    .clk(clk),
-    .dout(cpuram_read),
-    .din(cpuram_write),
-    .addr(cpuram_addr[14:0]),
-    .we(cpuram_writeenable)
-  );
-  
-  reg [15:0] cpuram_read;
-  reg [15:0] cpuram_write;
-  reg [15:0] cpuram_addr;
-  reg cpuram_writeenable;
+  // CPU
+  reg cpu_hold = 0;
+  wire cpu_busy;
+  wire [15:0] cpu_ram_addr;
   wire busy;
+  wire [15:0] cpu_bus;
+  
+  assign cpu_bus = cpu_ram_addr[15]
+    ? rom[cpu_ram_addr[9:0]]
+    : ram_read;
   
   CPU16 cpu(
     .clk(clk),
     .reset(reset),
-    .hold(0),
-    .busy(busy),
-    .address(cpuram_addr),
-    .data_in(cpuram_read),
-    .data_out(cpuram_write),
-    .write(cpuram_writeenable));
+    .hold(tile_reading | sprite_reading),
+    .busy(cpu_busy),
+    .address(cpu_ram_addr),
+    .data_in(cpu_bus),
+    .data_out(ram_write),
+    .write(ram_writeenable));
+
+  reg [15:0] rom[0:1023];
   
+`ifdef EXT_INLINE_ASM
+  initial begin
+    rom = '{
+      __asm
+.arch femto16
+.org 0x8000
+.len 1024
+      mov       sp,@$6fff
+      mov	dx,@Init
+      jsr	dx
+      mov	ax,#0
+      mov	dx,@Clear
+      jsr	dx
+      reset
+Init:
+      mov       ax,@$6000	; screen buffer
+      mov       bx,@$7e00	; page table start
+      mov	cx,#32		; 32 rows
+InitLoop:
+      mov	[bx],ax
+      mov	[ax],ax
+      add	ax,#32
+      inc	bx
+      dec	cx
+      bnz	InitLoop
+      rts
+Clear:
+      mov	bx,@$7e00
+      mov	cx,@1024
+ClearLoop:
+        mov	[bx],ax
+        inc	bx
+        dec	cx
+        bnz	ClearLoop
+        
+      rts
+      __endasm
+    };
+  end
+`endif
+
 endmodule

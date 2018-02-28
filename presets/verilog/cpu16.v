@@ -1,8 +1,59 @@
 `ifndef CPU16_H
 `define CPU16_H
 
-// include ALU module
-`include "cpu8.v"
+// ALU operations
+`define OP_ZERO         4'h0
+`define OP_LOAD_A       4'h1
+`define OP_INC  4'h2
+`define OP_DEC  4'h3
+`define OP_ASL  4'h4
+`define OP_LSR  4'h5
+`define OP_ROL  4'h6
+`define OP_ROR  4'h7
+`define OP_OR   4'h8
+`define OP_AND  4'h9
+`define OP_XOR  4'ha
+`define OP_LOAD_B       4'hb
+`define OP_ADD  4'hc
+`define OP_SUB  4'hd
+`define OP_ADC  4'he
+`define OP_SBB  4'hf
+
+
+module ALU(A, B, Y, aluop, carry);
+
+  parameter N = 8;
+  input  [N-1:0] A;
+  input  [N-1:0] B;
+  output [N:0] Y;
+  input  [3:0] aluop;
+  input  carry;
+  
+  always @(*)
+    case (aluop)
+      // unary operations
+      `OP_ZERO:         Y = 0;
+      `OP_LOAD_A:       Y = {1'b0, A};
+      `OP_INC:          Y = A + 1;
+      `OP_DEC:          Y = A - 1;
+      // unary operations that generate and/or use carry
+      `OP_ASL:          Y = {A, 1'b0};
+      `OP_LSR:          Y = {A[0], 1'b0, A[N-1:1]};
+      `OP_ROL:          Y = {A, carry};
+      `OP_ROR:          Y = {A[0], carry, A[N-1:1]};
+      // binary operations
+      `OP_OR:           Y = {1'b0, A | B};
+      `OP_AND:          Y = {1'b0, A & B};
+      `OP_XOR:          Y = {1'b0, A ^ B};
+      `OP_LOAD_B:       Y = {1'b0, B};
+      // binary operations that generate and/or use carry
+      `OP_ADD:          Y = A + B;
+      `OP_SUB:          Y = A - B;
+      `OP_ADC:          Y = A + B + (carry?1:0);
+      `OP_SBB:          Y = A - B - (carry?1:0);
+    endcase
+  
+endmodule
 
 /*
 00000aaa 0++++bbb	operation A+B->A
@@ -30,6 +81,9 @@ module CPU16(clk, reset, hold, busy,
   output [15:0] data_out;
   output        write;
   
+  // wait state for RAM?
+  parameter RAM_WAIT = 1;
+  
   reg [15:0] regs[0:7]; // 8 16-bit registers
   reg [2:0] state; // CPU state
   
@@ -51,6 +105,8 @@ module CPU16(clk, reset, hold, busy,
   localparam S_SELECT  = 1;
   localparam S_DECODE  = 2;
   localparam S_COMPUTE = 3;
+  localparam S_DECODE_WAIT = 4;
+  localparam S_COMPUTE_WAIT = 5;
   
   localparam SP = 6; // stack ptr = register 6
   localparam IP = 7; // IP = register 7
@@ -86,22 +142,22 @@ module CPU16(clk, reset, hold, busy,
             busy <= 0;
             address <= regs[IP];
             regs[IP] <= regs[IP] + 1;
-            state <= S_DECODE;
+            state <= RAM_WAIT ? S_DECODE_WAIT : S_DECODE;
           end
         end
         // state 2: read/decode opcode
         S_DECODE: begin
+          // default next state
+          state <= RAM_WAIT && data_in[11] ? S_COMPUTE_WAIT : S_COMPUTE;
           casez (data_in)
             //  00000aaa0++++bbb	operation A+B->A
             16'b00000???0???????: begin
               aluop <= data_in[6:3];
-              state <= S_COMPUTE;
             end
             //  00001aaa01+++bbb	operation A+[B]->A
             16'b00001???01??????: begin
               address <= regs[data_in[2:0]];
               aluop <= data_in[6:3];
-              state <= S_COMPUTE;
               if (data_in[2:0] == SP)
                 regs[SP] <= regs[SP] + 1;
             end
@@ -110,18 +166,15 @@ module CPU16(clk, reset, hold, busy,
               address <= regs[IP];
               regs[IP] <= regs[IP] + 1;
               aluop <= data_in[6:3];
-              state <= S_COMPUTE;
             end
             //  11+++aaa########	immediate binary operation
             16'b11??????????????: begin
               aluop <= data_in[14:11];
-              state <= S_COMPUTE;
             end
 	    //  00101aaa########	load ZP memory
             16'b00101???????????: begin
               address <= {8'b0, data_in[7:0]};
               aluop <= `OP_LOAD_B;
-              state <= S_COMPUTE;
             end
 	    //  00110aaa########	store ZP memory
             16'b00110???????????: begin
@@ -134,7 +187,6 @@ module CPU16(clk, reset, hold, busy,
             16'b01001???????????: begin
               address <= regs[data_in[2:0]] + 16'($signed(data_in[7:3]));
               aluop <= `OP_LOAD_B;
-              state <= S_COMPUTE;
               if (data_in[2:0] == SP)
                 regs[SP] <= regs[SP] + 1;
             end
@@ -152,11 +204,10 @@ module CPU16(clk, reset, hold, busy,
               address <= regs[IP];
               regs[IP] <= regs[IP] + 1;
               aluop <= data_in[6:3];
-              state <= S_COMPUTE;
             end
-            //  01110aaa00cccbbb	store A -> [B+#], C -> IP
+            //  01110aaa00cccbbb	store A -> [B], C -> IP
             16'b01110???00??????: begin
-              address <= regs[data_in[2:0]] + 16'($signed(data_in[7:3]));
+              address <= regs[data_in[2:0]];
               data_out <= regs[data_in[10:8]];
               write <= 1;
               state <= S_SELECT;
@@ -195,6 +246,13 @@ module CPU16(clk, reset, hold, busy,
           // repeat CPU loop
           state <= S_SELECT;
         end
+        // wait 1 cycle for RAM read
+        S_DECODE_WAIT: begin
+          state <= S_DECODE;
+        end
+        S_COMPUTE_WAIT : begin
+          state <= S_COMPUTE;
+        end
       endcase
     end
 
@@ -212,7 +270,8 @@ module test_CPU16_top(
   output [15:0] IP,
   output zero,
   output carry,
-  output busy
+  output busy,
+  output [2:0] state
 );
 
   reg [15:0] ram[0:65535];
@@ -221,6 +280,7 @@ module test_CPU16_top(
   assign IP = cpu.regs[7];
   assign zero = cpu.zero;
   assign carry = cpu.carry;
+  assign state = cpu.state;
   
   CPU16 cpu(
           .clk(clk),
@@ -237,11 +297,11 @@ module test_CPU16_top(
       ram[address_bus] <= from_cpu;
     end
   
-  always @(*)
+  always @(posedge clk)
     if (address_bus[15] == 0)
-      to_cpu = ram[address_bus];
+      to_cpu <= ram[address_bus];
     else
-      to_cpu = rom[address_bus[7:0]];
+      to_cpu <= rom[address_bus[7:0]];
   
 `ifdef EXT_INLINE_ASM
   initial begin
@@ -250,13 +310,13 @@ module test_CPU16_top(
 .arch femto16
 .org 0x8000
 .len 256
+      mov	sp,@$6fff
       mov dx,@Fib
       jsr dx
       reset
 Fib:
       mov	ax,#1
       mov	bx,#0
-      mov	sp,@$6fff
 Loop:
       mov	cx,ax
       add	ax,bx

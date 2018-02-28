@@ -1151,9 +1151,13 @@ function compileInlineASM(code, platform, options, errors, asmlines) {
         if (i>0) s += ",";
         s += 0|out[i];
       }
-      asmlines = asmout.asmlines;
-      for (var i=0; i<asmlines.length; i++)
-        asmlines[i].line += firstline;
+      if (asmlines) {
+        var al = asmout.asmlines;
+        for (var i=0; i<al.length; i++) {
+          al[i].line += firstline;
+          asmlines.push(al[i]);
+        }
+      }
       return s;
     }
   });
@@ -1177,7 +1181,7 @@ function compileVerilator(code, platform, options) {
   var FS = verilator_mod['FS'];
   FS.writeFile(topmod+".v", code);
   writeDependencies(options.dependencies, FS, errors, function(d, code) {
-    return compileInlineASM(code, platform, options, errors, asmlines);
+    return compileInlineASM(code, platform, options, errors, null);
   });
   starttime();
   try {

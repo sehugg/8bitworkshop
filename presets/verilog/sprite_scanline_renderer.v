@@ -32,7 +32,7 @@ module example_bitmap_rom(addr, data);
 endmodule
 
 module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
-                               ram_addr, ram_data,
+                               ram_addr, ram_data, ram_busy,
                                rom_addr, rom_data);
 
   parameter NB = 5;
@@ -46,8 +46,10 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
   input [8:0] vpos;
   output [3:0] rgb;
 
-  output [NB+1:0] ram_addr;
-  input [7:0] ram_data;
+  output [NB:0] ram_addr;
+  input [15:0] ram_data;
+  output ram_busy;
+  
   output [15:0] rom_addr;
   input [15:0] rom_data;
   
@@ -87,25 +89,24 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
   
   always @(posedge clk) begin
     
+    ram_busy <= 0;
     // reset every frame, don't draw vpos >= 256
     if (reset || vpos[8]) begin
       // load sprites from RAM on line 260
       // 8 cycles per sprite
       if (vpos == 260 && hpos < N*8) begin
+        ram_busy <= 1;
         case (hpos[2:0])
-          0: begin
-            ram_addr <= {load_index, 2'b00};
+          3: begin
+            ram_addr <= {load_index, 1'b0};
           end
-          2: begin
-            sprite_xpos[load_index] <= ram_data;
-            ram_addr <= {load_index, 2'b01};
+          5: begin
+            sprite_xpos[load_index] <= ram_data[7:0];
+            sprite_ypos[load_index] <= ram_data[15:8];
+            ram_addr <= {load_index, 1'b1};
           end
-          4: begin
-            sprite_ypos[load_index] <= ram_data;
-            ram_addr <= {load_index, 2'b10};
-          end
-          6: begin
-            sprite_attr[load_index] <= ram_data;
+          7: begin
+            sprite_attr[load_index] <= ram_data[7:0];
           end
         endcase
       end
@@ -202,13 +203,14 @@ module test_scanline_render_top(clk, reset, hsync, vsync, rgb);
     .data(rom_data)
   );
   
-  wire [6:0] ram_addr;
-  wire [7:0] ram_read;
-  reg [7:0] ram_write;
+  wire [5:0] ram_addr;
+  wire [15:0] ram_read;
+  reg [15:0] ram_write;
   reg ram_we;
+  wire ram_busy;
   
-  // 128-byte RAM
-  RAM #(7,8) ram(
+  // 64-word RAM
+  RAM_sync #(6,16) ram(
     .clk(clk),
     .addr(ram_addr),
     .dout(ram_read),
@@ -224,6 +226,7 @@ module test_scanline_render_top(clk, reset, hsync, vsync, rgb);
     .rgb(rgb),
     .ram_addr(ram_addr),
     .ram_data(ram_read),
+    .ram_busy(ram_busy),
     .rom_addr(rom_addr),
     .rom_data(rom_data)
   );
@@ -231,13 +234,13 @@ module test_scanline_render_top(clk, reset, hsync, vsync, rgb);
   always @(posedge clk) begin
     // wiggle sprites randomly once per frame
     if (vpos == 256) begin
-      ram_addr <= hpos[8:2];
+      ram_addr <= hpos[7:2];
       // 4 clocks per read/write cycle
       if (!hpos[1]) begin
         ram_we <= 0;
       end else begin
         ram_we <= 1;
-        ram_write <= ram_read + 8'(($random&3)-1);
+        ram_write <= ram_read + 16'(($random&3)-1);
       end
     end else
       ram_we <= 0;

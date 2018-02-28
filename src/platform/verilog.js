@@ -23,6 +23,7 @@ var VERILOG_PRESETS = [
   {id:'framebuffer.v', name:'Frame Buffer'},
   {id:'tile_renderer.v', name:'Tile Renderer'},
   {id:'sprite_scanline_renderer.v', name:'Sprite Scanline Renderer'},
+  {id:'cpu16.v', name:'16-Bit CPU'},
   {id:'maze_game.v', name:'Maze Game'},
 ];
 
@@ -211,6 +212,7 @@ var VerilogPlatform = function(mainElement, options) {
   var scopeHeight = videoHeight;
   var scopeImageData;
   var sdata; // scope data
+  var module_name;
 
   var yposlist = [];
   var lasty = [];
@@ -471,6 +473,7 @@ var VerilogPlatform = function(mainElement, options) {
       var name = v.name;
       ctx.fillStyle = name == inspect_sym ? "yellow" : "white";
       name = name.replace(/__DOT__/g,'.');
+      name = name.replace(module_name+'.','');
       ctx.textAlign = 'left';
       ctx.fillStyle = "white";
       shadowText(ctx, name, 1, yposlist[i]);
@@ -578,6 +581,7 @@ var VerilogPlatform = function(mainElement, options) {
     gen = new mod(base);
     gen.__proto__ = base;
     current_output = output;
+    module_name = output.name ? output.name.substr(1) : "top";
     trace_ports = current_output.ports;
     trace_signals = current_output.ports.concat(current_output.signals);
     trace_index = 0;
