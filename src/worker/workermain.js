@@ -1065,7 +1065,7 @@ function writeDependencies(depends, FS, errors, callback) {
       }
       if (callback)
         text = callback(d, text);
-      if (text)
+      if (text && FS)
         FS.writeFile(d.filename, text, {encoding:'utf8'});
     }
   }
@@ -1118,9 +1118,10 @@ function compileCASPR(code, platform, options) {
   }
 }
 
-function compileASM(asmcode, platform, options) {
+function compileJSASM(asmcode, platform, options, is_inline) {
   load("assembler");
   var asm = new Assembler();
+  var includes = [];
   asm.loadFile = function(filename) {
     // TODO: what if it comes from dependencies?
     var path = '../../presets/' + platform + '/' + filename;
@@ -1130,14 +1131,41 @@ function compileASM(asmcode, platform, options) {
     xhr.send(null);
     return xhr.response;
   };
+  asm.loadInclude = function(filename) {
+    if (!filename.startsWith('"') || !filename.endsWith('"'))
+      return 'Expected filename in "double quotes"';
+    filename = filename.substr(1, filename.length-2);
+    includes.push(filename);
+  };
+  var module_top;
+  var module_output;
+  asm.loadModule = function(top_module) {
+    // TODO: cache module
+    // compile last file in list
+    module_top = top_module;
+    var main_filename = includes[includes.length-1];
+    var code = '`include "' + main_filename + '"\n';
+    code += "/* module " + top_module + " */\n";
+    var voutput = compileVerilator(code, platform, options);
+    if (voutput.errors.length)
+      return voutput.errors[0].msg;
+    module_output = voutput;
+  }
   var result = asm.assembleFile(asmcode);
+  if (module_output) {
+    var asmout = result.output;
+    result.output = module_output.output;
+    result.output.program_rom = asmout;
+    // cpu_platform__DOT__program_rom
+    result.output.program_rom_variable = module_top + "__DOT__program_rom";
+  }
   return result;
 }
 
 function compileInlineASM(code, platform, options, errors, asmlines) {
   code = code.replace(/__asm\b([\s\S]+?)\b__endasm\b/g, function(s,asmcode,index) {
     var firstline = code.substr(0,index).match(/\n/g).length;
-    var asmout = compileASM(asmcode, platform, options);
+    var asmout = compileJSASM(asmcode, platform, options, true);
     if (asmout.errors && asmout.errors.length) {
       for (var i=0; i<asmout.errors.length; i++) {
         asmout.errors[i].line += firstline;
@@ -1152,7 +1180,7 @@ function compileInlineASM(code, platform, options, errors, asmlines) {
         s += 0|out[i];
       }
       if (asmlines) {
-        var al = asmout.asmlines;
+        var al = asmout.lines;
         for (var i=0; i<al.length; i++) {
           al[i].line += firstline;
           asmlines.push(al[i]);
@@ -1263,6 +1291,7 @@ var TOOLS = {
   'verilator': compileVerilator,
   'yosys': compileYosys,
   'caspr': compileCASPR,
+  'jsasm': compileJSASM,
 }
 
 var TOOL_PRELOADFS = {

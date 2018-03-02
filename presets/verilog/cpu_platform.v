@@ -116,7 +116,7 @@ module cpu_platform(clk, reset, hsync, vsync, rgb);
   wire [15:0] cpu_bus;
   
   assign cpu_bus = cpu_ram_addr[15]
-    ? rom[cpu_ram_addr[9:0]]
+    ? program_rom[cpu_ram_addr[9:0]]
     : ram_read;
   
   CPU16 cpu(
@@ -129,11 +129,11 @@ module cpu_platform(clk, reset, hsync, vsync, rgb);
     .data_out(ram_write),
     .write(ram_writeenable));
 
-  reg [15:0] rom[0:1023];
+  reg [15:0] program_rom[0:1023];
   
 `ifdef EXT_INLINE_ASM
   initial begin
-    rom = '{
+    program_rom = '{
       __asm
 .arch femto16
 .org 0x8000
@@ -160,7 +160,7 @@ InitPTLoop:
       rts
 ClearTiles:
       mov	bx,@$6000
-      mov	cx,@$390
+      mov	cx,@$3c0
 ClearLoop:
         mov	[bx],ax
         inc	bx

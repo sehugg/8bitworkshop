@@ -143,6 +143,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'sdasz80': 'z80',
   'sdcc': 'text/x-csrc',
   'verilator': 'verilog',
+  'jsasm': 'z80'
 }
 
 var worker = new Worker("./src/worker/workermain.js");
@@ -180,7 +181,7 @@ function scrollProfileView(_ed) {
 }
 
 function newEditor(mode) {
-  var isAsm = mode=='6502' || mode =='z80' || mode=='verilog'; // TODO
+  var isAsm = mode=='6502' || mode =='z80' || mode=='verilog' || mode=='gas'; // TODO
   editor = CodeMirror(document.getElementById('editor'), {
     theme: 'mbo',
     lineNumbers: true,
@@ -419,13 +420,13 @@ function updateSelector() {
 function loadFileDependencies(text) {
   var arr = [];
   if (platform_id == 'verilog') {
-    var re = /`include\s+"(.+?)"/g;
+    var re = /^(`include|[.]include)\s+"(.+?)"/gm;
     var m;
     while (m = re.exec(text)) {
       arr.push({
-        filename:m[1],
+        filename:m[2],
         prefix:platform_id,
-        text:store.loadFile(m[1]) || store.loadFile('local/'+m[1]) // TODO??
+        text:store.loadFile(m[2]) || store.loadFile('local/'+m[2]) // TODO??
       });
     }
   }
@@ -524,6 +525,9 @@ function setCompileOutput(data) {
         addErrorMarker(0, e+"");
         current_output = null;
       }
+    } else if (rom.program_rom_variable) { //TODO: a little wonky...
+      platform.loadROM(rom.program_rom_variable, rom.program_rom);
+      rom_changed = true;
     }
     if (rom_changed || trace_pending_at_pc) {
       // update editor annotations

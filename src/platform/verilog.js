@@ -581,23 +581,40 @@ var VerilogPlatform = function(mainElement, options) {
 
   this.loadROM = function(title, output) {
     var mod;
-    try {
-      mod = new Function('base', output.code);
-    } catch (e) {
-      this.printErrorCodeContext(e, output.code);
-      throw e;
+    if (output.code) {
+      try {
+        mod = new Function('base', output.code);
+      } catch (e) {
+        this.printErrorCodeContext(e, output.code);
+        throw e;
+      }
+      // compile Verilog code
+      var base = new VerilatorBase();
+      gen = new mod(base);
+      gen.__proto__ = base;
+      current_output = output;
+      module_name = output.name ? output.name.substr(1) : "top";
+      trace_ports = current_output.ports;
+      trace_signals = current_output.ports.concat(current_output.signals);
+      trace_index = 0;
+      // power on module
+      this.poweron();
+    } else {
+      // TODO: :^P
+      output = {program_rom_variable: title, program_rom: output};
     }
-    // compile Verilog code
-    var base = new VerilatorBase();
-    gen = new mod(base);
-    gen.__proto__ = base;
-    current_output = output;
-    module_name = output.name ? output.name.substr(1) : "top";
-    trace_ports = current_output.ports;
-    trace_signals = current_output.ports.concat(current_output.signals);
-    trace_index = 0;
-    // power on module
-    this.poweron();
+    // replace program ROM, if using the assembler
+    if (output.program_rom && output.program_rom_variable) {
+      if (gen[output.program_rom_variable]) {
+        if (gen[output.program_rom_variable].length != output.program_rom.length)
+          alert("ROM size mismatch -- expected " + gen[output.program_rom_variable].length + " got " + output.program_rom.length);
+        else
+          gen[output.program_rom_variable] = output.program_rom;
+      } else {
+        alert("No program_rom variable found (" + output.program_rom_variable + ")");
+      }
+    }
+    // restart audio
     restartAudio();
   }
 
@@ -661,7 +678,7 @@ var VerilogPlatform = function(mainElement, options) {
   }
   this.getToolForFilename = function(fn) {
     if (fn.endsWith("asm"))
-      return "caspr";
+      return "jsasm";
     else
       return "verilator";
   }

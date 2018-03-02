@@ -84,6 +84,9 @@ var Assembler = function(spec) {
     warning(msg, line);
     aborted = true;
   }
+  function fatalIf(msg, line) {
+    if (msg) fatal(msg, line);
+  }
   function hex(v, nd) {
     try {
       if (!nd) nd = 2;
@@ -160,7 +163,7 @@ var Assembler = function(spec) {
     return {opcode:opcode, nbits:oplen};
   }
 
-  function loadArch(arch) {
+  self.loadArch = function(arch) {
     if (self.loadFile) {
       var json = self.loadFile(arch + ".json");
       if (json && json.vars && json.rules) {
@@ -182,7 +185,11 @@ var Assembler = function(spec) {
     else if (tokens[0] == '.width')
       width = parseInt(tokens[1]);
     else if (tokens[0] == '.arch')
-      loadArch(tokens[1]);
+      fatalIf(self.loadArch(tokens[1]));
+    else if (tokens[0] == '.include')
+      fatalIf(self.loadInclude(tokens[1]));
+    else if (tokens[0] == '.module')
+      fatalIf(self.loadModule(tokens[1]));
     else
       warning("Unrecognized directive: " + tokens);
   }
@@ -274,7 +281,8 @@ var Assembler = function(spec) {
 
   self.state = function() {
     return {ip:ip, line:linenum, origin:origin, codelen:codelen,
-      output:outwords, asmlines:asmlines, errors:errors, fixups:fixups};
+      intermediate:{}, // TODO: listing, symbols?
+      output:outwords, lines:asmlines, errors:errors, fixups:fixups};
   }
 }
 
