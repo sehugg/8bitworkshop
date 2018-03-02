@@ -72,7 +72,6 @@ module cpu_platform(clk, reset, hsync, vsync, rgb);
     .reset(reset),
     .hpos(hpos),
     .vpos(vpos),
-    .display_on(display_on),
     .ram_addr(tile_ram_addr),
     .ram_read(ram_read),
     .ram_busy(tile_reading),
@@ -171,7 +170,7 @@ ClearLoop:
 ClearSprites:
         mov	bx,@$7f00
         mov	ax,#0
-        mov	cx,#$80
+        mov	cx,#$40
 ClearSLoop:
         mov	ax,[bx]
         add	ax,@$101

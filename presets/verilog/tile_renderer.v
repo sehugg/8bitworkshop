@@ -11,6 +11,10 @@ module tile_renderer(clk, reset, hpos, vpos,
   input [8:0] hpos;
   input [8:0] vpos;
   output [3:0] rgb;
+  
+  // start loading cells from RAM at this hpos value
+  // first column read will be ((HLOAD-2) % 32)
+  parameter HLOAD = 272;
 
   output reg [15:0] ram_addr;
   input [15:0] ram_read;
@@ -45,20 +49,23 @@ module tile_renderer(clk, reset, hpos, vpos,
     // time to read a row?
     if (vpos[2:0] == 7) begin
       // read row_base from page table (2 bytes)
-      case (hpos[7:0])
-        185: ram_busy <= 1;
-        190: ram_addr <= {page_base, 3'b000, row};
-        192: row_base <= ram_read;
-        192+32: begin
+      case (hpos)
+        // assert busy 5 cycles before first RAM read
+        HLOAD-8: ram_busy <= 1;
+        // read page base for row
+        HLOAD-3: ram_addr <= {page_base, 3'b000, row};
+        HLOAD-1: row_base <= ram_read;
+        // deassert BUSY and increment row counter
+        HLOAD+34: begin
           ram_busy <= 0;
           row <= row + 1;
         end
       endcase
       // load row of tile data from RAM
       // (last two twice)
-      if (hpos >= 192 && hpos < 192+34) begin
+      if (hpos >= HLOAD && hpos < HLOAD+34) begin
         ram_addr <= row_base + 16'(hpos[4:0]);
-        row_buffer[hpos[4:0]-2] <= ram_read;
+        row_buffer[hpos[4:0] - 5'd2] <= ram_read;
       end
     end
     // latch character data
