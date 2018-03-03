@@ -1141,11 +1141,14 @@ function compileJSASM(asmcode, platform, options, is_inline) {
     filename = filename.substr(1, filename.length-2);
     includes.push(filename);
   };
+  var loaded_module = false;
   asm.loadModule = function(top_module) {
     // TODO: cache module
     // compile last file in list
+    loaded_module = true;
     var key = top_module + '/' + includes;
     if (key != jsasm_module_key) {
+      jsasm_module_key = key;
       jsasm_module_top = top_module;
       var main_filename = includes[includes.length-1];
       var code = '`include "' + main_filename + '"\n';
@@ -1157,7 +1160,7 @@ function compileJSASM(asmcode, platform, options, is_inline) {
     }
   }
   var result = asm.assembleFile(asmcode);
-  if (jsasm_module_output) {
+  if (loaded_module && jsasm_module_output) {
     var asmout = result.output;
     result.output = jsasm_module_output.output;
     result.output.program_rom = asmout;
