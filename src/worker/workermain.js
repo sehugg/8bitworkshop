@@ -145,7 +145,7 @@ function loadWASM(modulename, debug) {
       console.log("Loaded " + modulename + ".wasm");
       loaded[modulename] = 1;
     } else {
-      throw Error("Could not load WASM file");
+      throw Error("Could not load WASM file " + modulename + ".wasm");
     }
   }
 }
@@ -1118,6 +1118,10 @@ function compileCASPR(code, platform, options) {
   }
 }
 
+var jsasm_module_top;
+var jsasm_module_output;
+var jsasm_module_key;
+
 function compileJSASM(asmcode, platform, options, is_inline) {
   load("assembler");
   var asm = new Assembler();
@@ -1137,27 +1141,28 @@ function compileJSASM(asmcode, platform, options, is_inline) {
     filename = filename.substr(1, filename.length-2);
     includes.push(filename);
   };
-  var module_top;
-  var module_output;
   asm.loadModule = function(top_module) {
     // TODO: cache module
     // compile last file in list
-    module_top = top_module;
-    var main_filename = includes[includes.length-1];
-    var code = '`include "' + main_filename + '"\n';
-    code += "/* module " + top_module + " */\n";
-    var voutput = compileVerilator(code, platform, options);
-    if (voutput.errors.length)
-      return voutput.errors[0].msg;
-    module_output = voutput;
+    var key = top_module + '/' + includes;
+    if (key != jsasm_module_key) {
+      jsasm_module_top = top_module;
+      var main_filename = includes[includes.length-1];
+      var code = '`include "' + main_filename + '"\n';
+      code += "/* module " + top_module + " */\n";
+      var voutput = compileVerilator(code, platform, options);
+      if (voutput.errors.length)
+        return voutput.errors[0].msg;
+      jsasm_module_output = voutput;
+    }
   }
   var result = asm.assembleFile(asmcode);
-  if (module_output) {
+  if (jsasm_module_output) {
     var asmout = result.output;
-    result.output = module_output.output;
+    result.output = jsasm_module_output.output;
     result.output.program_rom = asmout;
     // cpu_platform__DOT__program_rom
-    result.output.program_rom_variable = module_top + "__DOT__program_rom";
+    result.output.program_rom_variable = jsasm_module_top + "__DOT__program_rom";
   }
   return result;
 }
