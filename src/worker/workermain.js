@@ -1301,22 +1301,32 @@ var TOOL_PRELOADFS = {
   'sdcc': 'sdcc',
 }
 
-onmessage = function(e) {
-  // (preload)
-  if (e.data.preload) {
-    var fs = TOOL_PRELOADFS[e.data.preload];
+function handleMessage(data) {
+  if (data.preload) {
+    var fs = TOOL_PRELOADFS[data.preload];
     if (fs && !fsMeta[fs]) loadFilesystem(fs);
     return;
   }
   // (code,platform,tool)
-  var code = e.data.code;
-  var platform = e.data.platform;
-  var toolfn = TOOLS[e.data.tool];
-  if (!toolfn) throw "no tool named " + e.data.tool;
-  var dependencies = e.data.dependencies;
-  var result = toolfn(code, platform, e.data);
+  var code = data.code;
+  var platform = data.platform;
+  var toolfn = TOOLS[data.tool];
+  if (!toolfn) throw "no tool named " + data.tool;
+  var dependencies = data.dependencies;
+  var result = toolfn(code, platform, data);
   result.params = PLATFORM_PARAMS[platform];
-  if (result) {
-    postMessage(result);
+  return result;
+}
+
+var ENVIRONMENT_IS_NODE = typeof process === 'object' && typeof require === 'function';
+var ENVIRONMENT_IS_WEB = typeof window === 'object';
+var ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
+
+if (ENVIRONMENT_IS_WORKER) {
+  onmessage = function(e) {
+    var result = handleMessage(e.data);
+    if (result) {
+      postMessage(result);
+    }
   }
 }
