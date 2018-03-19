@@ -697,7 +697,7 @@ var VerilogPlatform = function(mainElement, options) {
         val = gen[name];
       }
     }
-    if (val !== undefined) {
+    if (typeof(val) === 'number') {
       inspect_obj = gen;
       inspect_sym = name;
     } else {
