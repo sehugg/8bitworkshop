@@ -98,6 +98,9 @@ div.mem_info {
   margin-left:8px;
   background-color: #666;
 }
+.btn_label {
+  color: #ccc;
+}
 .btn_group.debug_group {
 }
 .btn_group.view_group {

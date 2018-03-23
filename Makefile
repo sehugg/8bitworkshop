@@ -21,3 +21,7 @@ archive:
 	git archive --prefix 8bitworkshop- -o release/8bitworkshop-tools.zip HEAD tools
 
 
+web:
+	ifconfig | grep inet
+	python2 -m SimpleHTTPServer 2>> http.out
+

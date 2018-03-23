@@ -19,8 +19,8 @@
       mov       ax,@$4ffe
       mov       dx,@ClearTiles
       jsr       dx
-      mov       dx,@ClearSprites
-      jsr       dx
+      mov       ex,@ClearSprites
+      jsr       ex
       reset
 InitPageTable:
       mov       ax,@$6000       ; screen buffer

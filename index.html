@@ -39,15 +39,22 @@ ga('send', 'pageview');
         &#9776; <span class="caret"></span>
       </a>
       <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-        <li><a class="dropdown-item" href="#" id="item_new_file">New File...</a></li>
+      <li><a class="dropdown-item" href="#" id="item_new_file">New File...</a></li>
       <li><a class="dropdown-item" href="#" id="item_share_file">Share File as GitHub Gist...</a></li>
       <li><a class="dropdown-item" href="#" id="item_reset_file">Revert to Original...</a></li>
-      <li><a class="dropdown-item" href="#" id="item_download_rom">Download ROM Image...</a></li>
+      <li><a class="dropdown-item" href="#" id="item_download_file">Download File</a></li>
+      <li><a class="dropdown-item" href="#" id="item_download_rom">Download ROM Image</a></li>
       <li><a class="dropdown-item" href="#" id="item_record_video">Record Video...</a></li>
       <li class="dropdown dropdown-submenu">
         <a tabindex="-1" href="#">Debug</a>
         <ul class="dropdown-menu">
           <li><a class="dropdown-item" href="#" id="item_debug_expr">Break Expression...</a></li>
+        </ul>
+      </li>
+      <li class="dropdown dropdown-submenu">
+        <a tabindex="-1" href="#">Options</a>
+        <ul class="dropdown-menu">
+          <li><i id="item_low_power_check" style="display:hidden" class="fa fa-check"></i><a class="dropdown-item" href="#" id="item_low_power">Low Power Mode</a></li>
         </ul>
       </li>
       <hr>
@@ -82,7 +89,7 @@ ga('send', 'pageview');
   <span class="btn_group view_group" id="speed_bar" style="display:none">
     <button id="dbg_slowest" type="submit" title="Slowest"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
     <button id="dbg_slower" type="submit" title="Slower"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
-    <span id="fps_label">60.00</span> fps
+    <span class="label"><span id="fps_label">60.00</span> fps</span>
     <button id="dbg_faster" type="submit" title="Faster"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
     <button id="dbg_fastest" type="submit" title="Faster"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
   </span>
@@ -224,8 +231,10 @@ ga('send', 'pageview');
 </script>
 
 <script>
+/*
   var isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
   if (!isFirefox && platform_id != 'vcs') { $("#best_in_firefox").show(); }
+*/
 </script>
 
 </body>
