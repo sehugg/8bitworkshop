@@ -110,6 +110,39 @@ var Assembler = function(spec) {
       outwords[ip++ - origin] = (op >> (nb-1-i)*width) & ((1<<width)-1);
     }
   }
+  function addWords(data) {
+    asmlines.push({
+      line:linenum,
+      offset:ip,
+      nbits:width*data.length
+    });
+    for (var i=0; i<data.length; i++) {
+      outwords[ip++ - origin] = data[i];
+    }
+  }
+  
+  function parseData(toks) {
+    var data = [];
+    for (var i=0; i<toks.length; i++) {
+      data[i] = parseConst(toks[i]);
+    }
+    return data;
+  }
+  
+  function stringToData(s) {
+    var data = [];
+    for (var i=0; i<s.length; i++) {
+      data[i] = s.charCodeAt(i);
+    }
+    return data;
+  }
+  
+  function alignIP(align) {
+    if (align < 1 || align > codelen)
+      fatal("Invalid alignment value");
+    else
+      ip = Math.floor((ip+align-1)/align)*align;
+  }
 
   function parseConst(s, nbits) {
     // TODO: check bit length
@@ -184,20 +217,27 @@ var Assembler = function(spec) {
   }
 
   function parseDirective(tokens) {
-    if (tokens[0] == '.define')
-      symbols[tokens[1]] = {value:tokens[2]};
-    else if (tokens[0] == '.org')
+    var cmd = tokens[0].toLowerCase();
+    if (cmd == '.define')
+      symbols[tokens[1].toLowerCase()] = {value:tokens[2]};
+    else if (cmd == '.org')
       ip = origin = parseInt(tokens[1]);
-    else if (tokens[0] == '.len')
+    else if (cmd == '.len')
       codelen = parseInt(tokens[1]);
-    else if (tokens[0] == '.width')
+    else if (cmd == '.width')
       width = parseInt(tokens[1]);
-    else if (tokens[0] == '.arch')
+    else if (cmd == '.arch')
       fatalIf(self.loadArch(tokens[1]));
-    else if (tokens[0] == '.include')
+    else if (cmd == '.include')
       fatalIf(self.loadInclude(tokens[1]));
-    else if (tokens[0] == '.module')
+    else if (cmd == '.module')
       fatalIf(self.loadModule(tokens[1]));
+    else if (cmd == '.data')
+      addWords(parseData(tokens.slice(1)));
+    else if (cmd == '.string')
+      addWords(stringToData(tokens.slice(1).join(' ')));
+    else if (cmd == '.align')
+      alignIP(parseConst(tokens[1]));
     else
       warning("Unrecognized directive: " + tokens);
   }
@@ -205,14 +245,15 @@ var Assembler = function(spec) {
   self.assemble = function(line) {
     linenum++;
     // remove comments
-    line = line.replace(/[;].*/g, '');
-    line = line.trim().toLowerCase();
+    line = line.replace(/[;].*/g, '').trim();
     // is it a directive?
     if (line[0] == '.') {
       var tokens = line.split(/\s+/);
       parseDirective(tokens);
       return;
     }
+    // make it lowercase
+    line = line.toLowerCase();
     // find labels
     line = line.replace(/(\w+):/, function(_label, label) {
       symbols[label] = {value:ip};
@@ -282,7 +323,12 @@ var Assembler = function(spec) {
   self.assembleFile = function(text) {
     var lines = text.split(/\n/g);
     for (var i=0; i<lines.length && !aborted; i++) {
-      self.assemble(lines[i]);
+      try {
+        self.assemble(lines[i]);
+      } catch (e) {
+        console.log(e);
+        fatal("Exception during assembly: " + e);
+      }
     }
     return self.finish();
   }
