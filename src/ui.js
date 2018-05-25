@@ -372,6 +372,11 @@ function _downloadROMImage(e) {
   saveAs(blob, getCurrentFilename()+".rom");
 }
 
+function _downloadSourceFile(e) {
+  var blob = new Blob([editor.getValue()], {type: "text/plain;charset=utf-8"});
+  saveAs(blob, getCurrentFilename());
+}
+
 function populateExamples(sel) {
   sel.append($("<option />").text("--------- Examples ---------").attr('disabled',true));
   for (var i=0; i<PRESETS.length; i++) {
@@ -1312,6 +1317,7 @@ function setupDebugControls(){
   else
     $("#item_debug_expr").hide();
   $("#item_download_rom").click(_downloadROMImage);
+  $("#item_download_file").click(_downloadSourceFile);
   $("#item_record_video").click(_recordVideo);
   if (platform.setFrameRate && platform.getFrameRate) {
     $("#speed_bar").show();

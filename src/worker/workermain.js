@@ -1126,7 +1126,7 @@ function compileJSASM(asmcode, platform, options, is_inline) {
   load("assembler");
   var asm = new Assembler();
   var includes = [];
-  asm.loadFile = function(filename) {
+  asm.loadJSON = function(filename) {
     // TODO: what if it comes from dependencies?
     var path = '../../presets/' + platform + '/' + filename;
     var xhr = new XMLHttpRequest();

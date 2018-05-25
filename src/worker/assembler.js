@@ -110,6 +110,39 @@ var Assembler = function(spec) {
       outwords[ip++ - origin] = (op >> (nb-1-i)*width) & ((1<<width)-1);
     }
   }
+  function addWords(data) {
+    asmlines.push({
+      line:linenum,
+      offset:ip,
+      nbits:width*data.length
+    });
+    for (var i=0; i<data.length; i++) {
+      outwords[ip++ - origin] = data[i];
+    }
+  }
+  
+  function parseData(toks) {
+    var data = [];
+    for (var i=0; i<toks.length; i++) {
+      data[i] = parseConst(toks[i]);
+    }
+    return data;
+  }
+  
+  function stringToData(s) {
+    var data = [];
+    for (var i=0; i<s.length; i++) {
+      data[i] = s.charCodeAt(i);
+    }
+    return data;
+  }
+  
+  function alignIP(align) {
+    if (align < 1 || align > codelen)
+      fatal("Invalid alignment value");
+    else
+      ip = Math.floor((ip+align-1)/align)*align;
+  }
 
   function parseConst(s, nbits) {
     // TODO: check bit length
@@ -124,24 +157,30 @@ var Assembler = function(spec) {
   self.buildInstruction = function(rule, m) {
     var opcode = 0;
     var oplen = 0;
+    // iterate over each component of the rule output ("bits")
     for (var i=0; i<rule.bits.length; i++) {
       var b = rule.bits[i];
       var n,x;
+      // is a string? then it's a bit constant
+      // TODO
       if (b.length) {
         n = b.length;
         x = parseInt(b,2);
       } else {
+        // it's an indexed variable, look up its variable
         var id = m[b+1];
         var v = spec.vars[rule.varlist[b]];
         if (!v) {
           return {error:"Could not find matching identifier for '" + m[0] + "'"};
         }
         n = v.bits;
+        // is it an enumerated type? look up the index of its keyword
         if (v.toks) {
           x = v.toks.indexOf(id);
           if (x < 0)
             return null;
         } else {
+          // otherwise, parse it as a constant
           x = parseConst(id, n);
           // is it a label? add fixup
           if (isNaN(x)) {
@@ -158,14 +197,16 @@ var Assembler = function(spec) {
     }
     if (oplen == 0)
       warning("Opcode had zero length");
+    else if (oplen > 32)
+      warning("Opcodes > 32 bits not supported");
     else if ((oplen % width) != 0)
       warning("Opcode was not word-aligned (" + oplen + " bits)");
     return {opcode:opcode, nbits:oplen};
   }
 
   self.loadArch = function(arch) {
-    if (self.loadFile) {
-      var json = self.loadFile(arch + ".json");
+    if (self.loadJSON) {
+      var json = self.loadJSON(arch + ".json");
       if (json && json.vars && json.rules) {
         spec = json;
         preprocessRules();
@@ -176,20 +217,27 @@ var Assembler = function(spec) {
   }
 
   function parseDirective(tokens) {
-    if (tokens[0] == '.define')
-      symbols[tokens[1]] = {value:tokens[2]};
-    else if (tokens[0] == '.org')
+    var cmd = tokens[0].toLowerCase();
+    if (cmd == '.define')
+      symbols[tokens[1].toLowerCase()] = {value:tokens[2]};
+    else if (cmd == '.org')
       ip = origin = parseInt(tokens[1]);
-    else if (tokens[0] == '.len')
+    else if (cmd == '.len')
       codelen = parseInt(tokens[1]);
-    else if (tokens[0] == '.width')
+    else if (cmd == '.width')
       width = parseInt(tokens[1]);
-    else if (tokens[0] == '.arch')
+    else if (cmd == '.arch')
       fatalIf(self.loadArch(tokens[1]));
-    else if (tokens[0] == '.include')
+    else if (cmd == '.include')
       fatalIf(self.loadInclude(tokens[1]));
-    else if (tokens[0] == '.module')
+    else if (cmd == '.module')
       fatalIf(self.loadModule(tokens[1]));
+    else if (cmd == '.data')
+      addWords(parseData(tokens.slice(1)));
+    else if (cmd == '.string')
+      addWords(stringToData(tokens.slice(1).join(' ')));
+    else if (cmd == '.align')
+      alignIP(parseConst(tokens[1]));
     else
       warning("Unrecognized directive: " + tokens);
   }
@@ -197,14 +245,15 @@ var Assembler = function(spec) {
   self.assemble = function(line) {
     linenum++;
     // remove comments
-    line = line.replace(/[;].*/g, '');
-    line = line.trim().toLowerCase();
+    line = line.replace(/[;].*/g, '').trim();
     // is it a directive?
     if (line[0] == '.') {
       var tokens = line.split(/\s+/);
       parseDirective(tokens);
       return;
     }
+    // make it lowercase
+    line = line.toLowerCase();
     // find labels
     line = line.replace(/(\w+):/, function(_label, label) {
       symbols[label] = {value:ip};
@@ -274,7 +323,12 @@ var Assembler = function(spec) {
   self.assembleFile = function(text) {
     var lines = text.split(/\n/g);
     for (var i=0; i<lines.length && !aborted; i++) {
-      self.assemble(lines[i]);
+      try {
+        self.assemble(lines[i]);
+      } catch (e) {
+        console.log(e);
+        fatal("Exception during assembly: " + e);
+      }
     }
     return self.finish();
   }
@@ -292,13 +346,16 @@ if (typeof module !== 'undefined' && require.main === module) {
   var stdinBuffer = fs.readFileSync(0);
   var code = stdinBuffer.toString();
   var asm = new Assembler();
-  asm.loadFile = function(filename) {
-    return fs.readFileSync(filename, 'utf8');
+  asm.loadJSON = function(filename) {
+    return JSON.parse(fs.readFileSync(filename, 'utf8'));
+  };
+  asm.loadInclude = function(filename) {
+    filename = filename.substr(1, filename.length-2); // remove quotes
+    //return fs.readFileSync(filename, 'utf8');
+  };
+  asm.loadModule = function(top_module) {
+   //TODO
   };
   var out = asm.assembleFile(code);
-  if (out.errors) {
-    console.log(out.errors);
-  } else {
-    console.log(out.outwords);
-  }
+  console.log(out);
 }

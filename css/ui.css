@@ -60,14 +60,6 @@ div.editor {
   line-height:1.25;
   font-size:12pt;
 }
-div.emulator {
-  position:absolute;
-  left:50%;
-  top:0;
-  width:50%;
-  background-color: #666;
-  margin-top: 20px auto 0;
-}
 div.debugwindow {
   position:absolute;
   left:50%;
@@ -97,6 +89,9 @@ div.mem_info {
   padding:6px;
   margin-left:8px;
   background-color: #666;
+}
+.btn_label {
+  color: #ccc;
 }
 .btn_group.debug_group {
 }
@@ -189,22 +184,30 @@ a.dropdown-toggle {
     -moz-border-radius:6px 0 6px 6px;
     border-radius:6px 0 6px 6px;
 }
+div.emulator {
+  position:absolute;
+  left:50%;
+  top:0;
+  width:50%;
+  background-color: #666;
+  margin-top: 20px auto 0;
+  height:100%;
+}
 .emubevel {
   width:100%;
   height:100%;
-  padding:4%;
+  padding:5%;
   background:#333;
 }
 .emuvideo {
   border-radius:20px;
   border: 4px solid #222;
   padding: 30px;
-  margin-top: 20px;
-  margin-bottom: 20px;
+  margin-top: 10px;
+  margin-bottom: 10px;
   background: #000;
   outline-color: #666;
   width: 100%;
-  height: 100%;
 }
 canvas.pixelated {
   image-rendering: optimizeSpeed;             /* Older versions of FF          */

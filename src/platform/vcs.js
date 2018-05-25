@@ -44,6 +44,7 @@ var VCSPlatform = function() {
   this.getPresets = function() { return VCS_PRESETS; }
 
   this.start = function() {
+    $("#javatari-div").show();
     Javatari.start();
   }
 
