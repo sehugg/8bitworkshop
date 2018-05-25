@@ -27,6 +27,7 @@ body {
 <script>
 window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
 ga('create', 'UA-54497476-9', 'auto');
+ga('set', 'anonymizeIp', true);
 ga('send', 'pageview');
 </script>
 <script async src='https://www.google-analytics.com/analytics.js'></script>
@@ -51,12 +52,14 @@ ga('send', 'pageview');
           <li><a class="dropdown-item" href="#" id="item_debug_expr">Break Expression...</a></li>
         </ul>
       </li>
+      <!--
       <li class="dropdown dropdown-submenu">
         <a tabindex="-1" href="#">Options</a>
         <ul class="dropdown-menu">
           <li><i id="item_low_power_check" style="display:hidden" class="fa fa-check"></i><a class="dropdown-item" href="#" id="item_low_power">Low Power Mode</a></li>
         </ul>
       </li>
+      -->
       <hr>
       <li class="dropdown dropdown-submenu">
          <a tabindex="-1" href="#">Platform</a>
@@ -103,8 +106,8 @@ ga('send', 'pageview');
     <button id="dbg_bitmap" type="submit" title="Edit Bitmap"><span class="glyphicon glyphicon-camera" aria-hidden="true"></span></button>
   </span>
   <span class="dropdown" style="float:right">
-    <a class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-      <i>Want a book?</i> <span class="caret"></span>
+    <a class="btn btn-secondary dropdown-toggle" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+      GET BOOKS <span class="caret"></span>
     </a>
     <ul class="dropdown-menu pull-right" aria-labelledby="dropdownMenuButton">
       <li>
@@ -146,7 +149,8 @@ ga('send', 'pageview');
   </div>
 </div>
 <div class="twitbtn">
-  <a href="https://twitter.com/8bitworkshop" class="twitter-follow-button" data-show-count="false">Follow @8bitworkshop</a><script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+  <a href="https://twitter.com/8bitworkshop" class="twitter-follow-button" data-show-count="false">Follow @8bitworkshop</a>
+  <!--<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>-->
 </div>
 <div id="pixeditback" class="pixeditback" style="display:none">
   <iframe id="pixeditframe" src="pixels.html">
