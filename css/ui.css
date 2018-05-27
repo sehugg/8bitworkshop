@@ -237,3 +237,10 @@ canvas.pixelated {
     font-family: TinyFont;
     src: url(04B_03__.TTF);
 }
+#booksMenuButton {
+  border-width:3px;
+  border-color:#99ff99;
+  background-color:#006600;
+  border-style:solid;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;  
+}
