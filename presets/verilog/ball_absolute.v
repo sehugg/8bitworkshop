@@ -18,7 +18,7 @@ module ball_absolute_top(clk, reset, hsync, vsync, rgb);
   reg [8:0] ball_vert_initial = 128;
   reg [8:0] ball_vert_move = 2;
   
-  localparam BALL_SIZE = 8;
+  localparam BALL_SIZE = 4;
   
   hvsync_generator hvsync_gen(
     .clk(clk),
@@ -54,16 +54,16 @@ module ball_absolute_top(clk, reset, hsync, vsync, rgb);
     ball_horiz_move <= -ball_horiz_move;
   end
   
-  wire [8:0] ball_hdiff = ball_hpos - hpos;
-  wire [8:0] ball_vdiff = ball_vpos - vpos;
+  wire [8:0] ball_hdiff = hpos - ball_hpos;
+  wire [8:0] ball_vdiff = vpos - ball_vpos;
 
   wire ball_hgfx = ball_hdiff < BALL_SIZE;
   wire ball_vgfx = ball_vdiff < BALL_SIZE;
   wire ball_gfx = ball_hgfx && ball_vgfx;
 
   // collide with vertical and horizontal boundaries
-  wire ball_vert_collide = ball_vgfx && (vpos==V_DISPLAY || vpos==0);
-  wire ball_horiz_collide = ball_hgfx && vpos==0 && (hpos==H_DISPLAY || hpos==0);
+  wire ball_vert_collide = ball_vpos >= 240 - BALL_SIZE;
+  wire ball_horiz_collide = ball_hpos >= 256 - BALL_SIZE;
   
   wire grid_gfx = (((hpos&7)==0) && ((vpos&7)==0));
 

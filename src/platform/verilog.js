@@ -7,6 +7,7 @@ var VERILOG_PRESETS = [
   {id:'7segment.v', name:'7-Segment Decoder'},
   {id:'digits10.v', name:'Bitmapped Digits'},
   {id:'scoreboard.v', name:'Scoreboard'},
+  {id:'ball_absolute.v', name:'Ball Motion (absolute position)'},
   {id:'ball_slip_counter.v', name:'Ball Motion (slipping counter)'},
   {id:'ball_paddle.v', name:'Brick Smash Game'},
   {id:'ram1.v', name:'RAM Text Display'},

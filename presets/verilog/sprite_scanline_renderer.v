@@ -35,44 +35,54 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
                                ram_addr, ram_data, ram_busy,
                                rom_addr, rom_data);
 
-  parameter NB = 5;
-  parameter MB = 3;
+  parameter NB = 5; // 2^NB == number of sprites
+  parameter MB = 3; // 2^MB == slots per scanline
   
-  localparam N = 1<<NB;
-  localparam M = 1<<MB;
+  localparam N = 1<<NB; // number of sprites
+  localparam M = 1<<MB; // slots per scanline
   
   input clk, reset;
   input [8:0] hpos;
   input [8:0] vpos;
   output [3:0] rgb;
 
-  output [NB:0] ram_addr;
-  input [15:0] ram_data;
-  output ram_busy;
+  output [NB:0] ram_addr; // RAM for sprite data
+  input [15:0] ram_data;  // (2 words per sprite)
+  output ram_busy;	  // set when accessing RAM
   
-  output [15:0] rom_addr;
-  input [15:0] rom_data;
+  output [15:0] rom_addr; // sprite ROM address
+  input [15:0] rom_data;  // sprite ROM data
   
+  // copy of sprite data from RAM
   reg [7:0] sprite_xpos[0:N-1];
   reg [7:0] sprite_ypos[0:N-1];
   reg [7:0] sprite_attr[0:N-1];
   
+  // mapping of N sprites to M line slots
   reg [NB-1:0] sprite_to_line[0:M-1];
-  reg [7:0] line_xpos[0:M-1];
-  reg [7:0] line_yofs[0:M-1];
-  reg [7:0] line_attr[0:M-1];
-  reg line_active[0:M-1];
-  reg [3:0] scanline[0:511];
+
+  reg [7:0] line_xpos[0:M-1]; // X pos for M slots
+  reg [7:0] line_yofs[0:M-1]; // Y pos for M slots
+  reg [7:0] line_attr[0:M-1]; // attr for M slots
+  reg line_active[0:M-1];     // slot active?
+  
+  // temporary counters
   reg [NB-1:0] i; // 0..N-1
   reg [MB-1:0] j; // 0..M-1
   reg [MB-1:0] k; // 0..M-1
   reg [7:0] z;
   reg [8:0] write_ofs;
-  
-  wire [8:0] read_bufidx = {vpos[0], hpos[7:0]};
   reg [15:0] out_bitmap;
   reg [7:0] out_attr;
-  wire [NB-1:0] load_index = hpos[NB+2:3];
+
+  // which sprite are we currently reading?
+  wire [NB-1:0] load_index = hpos[NB+1:2];
+
+  // RGB dual scanline buffer
+  reg [3:0] scanline[0:511];  
+  
+  // which offset in scanline buffer to read?
+  wire [8:0] read_bufidx = {vpos[0], hpos[7:0]};
   
   /*
   0: read sprite_ypos[i]
@@ -95,18 +105,20 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
       // load sprites from RAM on line 260
       // 8 cycles per sprite
       // do first sprite twice b/c CPU might still be busy
-      if (vpos == 260 && hpos < N*8+8) begin
+      if (vpos == 260 && hpos < N*4+8) begin
         ram_busy <= 1;
-        case (hpos[2:0])
-          3: begin
+        case (hpos[1:0])
+          0: begin
             ram_addr <= {load_index, 1'b0};
           end
-          5: begin
-            sprite_xpos[load_index] <= ram_data[7:0];
-            sprite_ypos[load_index] <= ram_data[15:8];
+          1: begin
             ram_addr <= {load_index, 1'b1};
           end
-          7: begin
+          2: begin
+            sprite_xpos[load_index] <= ram_data[7:0];
+            sprite_ypos[load_index] <= ram_data[15:8];
+          end
+          3: begin
             sprite_attr[load_index] <= ram_data[7:0];
           end
         endcase
