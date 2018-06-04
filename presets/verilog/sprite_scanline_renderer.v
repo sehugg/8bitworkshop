@@ -76,7 +76,7 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
   reg [7:0] out_attr;
 
   // which sprite are we currently reading?
-  wire [NB-1:0] load_index = hpos[NB+1:2];
+  wire [NB-1:0] load_index = hpos[NB:1];
 
   // RGB dual scanline buffer
   reg [3:0] scanline[0:511];  
@@ -105,20 +105,18 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
       // load sprites from RAM on line 260
       // 8 cycles per sprite
       // do first sprite twice b/c CPU might still be busy
-      if (vpos == 260 && hpos < N*4+8) begin
+      if (vpos == 260 && hpos < N*2+8) begin
         ram_busy <= 1;
-        case (hpos[1:0])
+        case (hpos[0])
           0: begin
             ram_addr <= {load_index, 1'b0};
-          end
-          1: begin
-            ram_addr <= {load_index, 1'b1};
-          end
-          2: begin
+            // load X and Y position (2 cycles ago)
             sprite_xpos[load_index] <= ram_data[7:0];
             sprite_ypos[load_index] <= ram_data[15:8];
           end
-          3: begin
+          1: begin
+            ram_addr <= {load_index, 1'b1};
+            // load attribute (2 cycles ago)
             sprite_attr[load_index] <= ram_data[7:0];
           end
         endcase
