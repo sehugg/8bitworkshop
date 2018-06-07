@@ -7,9 +7,10 @@
 `include "sound_generator.v"
 `include "cpu16.v"
 
-module cpu_platform(clk, reset, hsync, vsync, rgb);
+module cpu_platform(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
 
   input clk, reset;
+  input hpaddle, vpaddle;
   output hsync, vsync;
   output [3:0] rgb;
 
@@ -114,9 +115,12 @@ module cpu_platform(clk, reset, hsync, vsync, rgb);
   wire [15:0] cpu_ram_addr;
   wire busy;
   wire [15:0] cpu_bus;
+  wire [15:0] flags = {11'b0, vsync, hsync, vpaddle, hpaddle, display_on};
   
   assign cpu_bus = cpu_ram_addr[15]
-    ? program_rom[cpu_ram_addr[9:0]]
+    ? (cpu_ram_addr == 16'hffff) 
+    ? flags
+    : program_rom[cpu_ram_addr[9:0]]
     : ram_read;
   
   CPU16 cpu(

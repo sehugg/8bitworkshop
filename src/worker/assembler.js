@@ -48,10 +48,13 @@ var Assembler = function(spec) {
     var s = rule.fmt;
     var varlist = [];
     rule.prefix = s.split(/\s+/)[0];
+    s = s.replace(/\+/g, '\\+');
+    s = s.replace(/\*/g, '\\*');
     s = s.replace(/\s+/g, '\\s+');
     s = s.replace(/\[/g, '\\[');
     s = s.replace(/\]/g, '\\]');
     s = s.replace(/\./g, '\\.');
+    // TODO: more escapes?
     s = s.replace(/~\w+/g, function(varname) {
       varname = varname.substr(1);
       var v = vars[varname];
@@ -117,7 +120,7 @@ var Assembler = function(spec) {
       nbits:width*data.length
     });
     for (var i=0; i<data.length; i++) {
-      outwords[ip++ - origin] = data[i];
+      outwords[ip++ - origin] = data[i] & ((1<<width)-1);
     }
   }
   
