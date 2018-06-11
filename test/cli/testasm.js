@@ -1,4 +1,35 @@
 
+var EXAMPLE_SPEC = {
+  name:'femto8',
+  vars:{
+    reg:{bits:2, toks:['a', 'b', 'ip', 'none']},
+    unop:{bits:3, toks:['mova','movb','inc','dec','asl','lsr','rol','ror']},
+    binop:{bits:3, toks:['or','and','xor','zero','add','sub','adc','sbb']},
+    imm4:{bits:4},
+    imm8:{bits:8},
+    rel:{bits:8, iprel:true, ipofs:1},
+  },
+  rules:[
+    {fmt:'~binop ~reg,b', bits:['00',1,'1',0]},
+    {fmt:'~binop ~reg,#~imm8', bits:['01',1,'1',0,2]},
+    {fmt:'~binop ~reg,[b]', bits:['11',1,'1',0]},
+    {fmt:'~unop ~reg', bits:['00',1,'0',0]},
+    {fmt:'mov ~reg,[b]', bits:['11',0,'0001']},
+    {fmt:'zero ~reg', bits:['00',0,'1011']},
+    {fmt:'lda #~imm8', bits:['01','00','0001',0]},
+    {fmt:'ldb #~imm8', bits:['01','01','0001',0]},
+    {fmt:'jmp ~imm8',  bits:['01','10','0001',0]},
+    {fmt:'sta ~imm4',  bits:['1001',0]},
+    {fmt:'bcc ~imm8', bits:['1010','0001',0]},
+    {fmt:'bcs ~imm8', bits:['1010','0011',0]},
+    {fmt:'bz ~imm8',  bits:['1010','1100',0]},
+    {fmt:'bnz ~imm8', bits:['1010','0100',0]},
+    {fmt:'clc', bits:['10001000']},
+    {fmt:'swapab', bits:['10000001']},
+    {fmt:'reset', bits:['10001111']},
+  ]
+}
+
 var vm = require('vm');
 var fs = require('fs');
 var assert = require('assert');
@@ -27,7 +58,7 @@ Start:
         sta	VPU_LO
         sta    VPU_HI
         sta	0
-        
+
 DisplayLoop:zero	B
         mov	A,[b]
         sta	VPU_WRITE
@@ -51,12 +82,13 @@ WaitVsync:
     //assert.equal(result, {});
     assert.equal(128, result.origin);
     assert.equal(152, result.ip);
+    console.log(result);
     assert.deepEqual({
             insns: "0B",
             line: 13,
             nbits: 8,
             offset: 128
-          }, result.asmlines[0]);
+          }, result.lines[0]);
     assert.deepEqual(
    [ { line: 13, offset: 128, nbits: 8, insns: '0B' },
      { line: 14, offset: 129, nbits: 8, insns: '98' },
@@ -77,7 +109,7 @@ WaitVsync:
      { line: 31, offset: 148, nbits: 8, insns: '02' },
      { line: 32, offset: 149, nbits: 8, insns: '90' },
      { line: 33, offset: 150, nbits: 16, insns: '61 84' },
-   ], result.asmlines);
+   ], result.lines);
    assert.equal(11, result.output[0]);
    assert.equal(128, result.output.length);
   });

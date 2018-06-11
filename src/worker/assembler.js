@@ -1,35 +1,4 @@
 
-EXAMPLE_SPEC = {
-  name:'femto8',
-  vars:{
-    reg:{bits:2, toks:['a', 'b', 'ip', 'none']},
-    unop:{bits:3, toks:['mova','movb','inc','dec','asl','lsr','rol','ror']},
-    binop:{bits:3, toks:['or','and','xor','zero','add','sub','adc','sbb']},
-    imm4:{bits:4},
-    imm8:{bits:8},
-    rel:{bits:8, iprel:true, ipofs:1},
-  },
-  rules:[
-    {fmt:'~binop ~reg,b', bits:['00',1,'1',0]},
-    {fmt:'~binop ~reg,#~imm8', bits:['01',1,'1',0,2]},
-    {fmt:'~binop ~reg,[b]', bits:['11',1,'1',0]},
-    {fmt:'~unop ~reg', bits:['00',1,'0',0]},
-    {fmt:'mov ~reg,[b]', bits:['11',0,'0001']},
-    {fmt:'zero ~reg', bits:['00',0,'1011']},
-    {fmt:'lda #~imm8', bits:['01','00','0001',0]},
-    {fmt:'ldb #~imm8', bits:['01','01','0001',0]},
-    {fmt:'jmp ~imm8',  bits:['01','10','0001',0]},
-    {fmt:'sta ~imm4',  bits:['1001',0]},
-    {fmt:'bcc ~imm8', bits:['1010','0001',0]},
-    {fmt:'bcs ~imm8', bits:['1010','0011',0]},
-    {fmt:'bz ~imm8',  bits:['1010','1100',0]},
-    {fmt:'bnz ~imm8', bits:['1010','0100',0]},
-    {fmt:'clc', bits:['10001000']},
-    {fmt:'swapab', bits:['10000001']},
-    {fmt:'reset', bits:['10001111']},
-  ]
-}
-
 var Assembler = function(spec) {
   var self = this;
   var ip = 0;
@@ -123,7 +92,7 @@ var Assembler = function(spec) {
       outwords[ip++ - origin] = data[i] & ((1<<width)-1);
     }
   }
-  
+
   function parseData(toks) {
     var data = [];
     for (var i=0; i<toks.length; i++) {
@@ -131,7 +100,7 @@ var Assembler = function(spec) {
     }
     return data;
   }
-  
+
   function stringToData(s) {
     var data = [];
     for (var i=0; i<s.length; i++) {
@@ -139,7 +108,7 @@ var Assembler = function(spec) {
     }
     return data;
   }
-  
+
   function alignIP(align) {
     if (align < 1 || align > codelen)
       fatal("Invalid alignment value");

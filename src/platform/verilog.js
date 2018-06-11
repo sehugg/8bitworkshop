@@ -27,7 +27,7 @@ var VERILOG_PRESETS = [
   {id:'sprite_scanline_renderer.v', name:'Sprite Scanline Renderer'},
   {id:'cpu16.v', name:'16-Bit CPU'},
   {id:'cpu_platform.v', name:'CPU Platform'},
-  {id:'test.asm', name:'Test ASM'},
+  {id:'test2.asm', name:'16-bit ASM Game'},
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([
