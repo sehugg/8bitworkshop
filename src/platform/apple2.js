@@ -956,4 +956,39 @@ var APPLEIIGO_LZG = [
   76,237,253,165,72,72,165,69,166,70,164,71,52,110,22,52,62,27,59,30,59,14,245,3,251,3,98,250,98,250
 ];
 
+/// MAME support
+
+var Apple2MAMEPlatform = function(mainElement) {
+  var self = this;
+  this.__proto__ = new BaseMAMEPlatform();
+
+  this.start = function() {
+    self.startModule(mainElement, {
+      jsfile:'mameapple2e.js',
+      //cfgfile:'nes.cfg',
+      driver:'apple2e',
+      width:256*2,
+      height:240*2,
+      //romfn:'/emulator/cart.nes',
+      //romsize:romSize,
+      //romdata:new lzgmini().decode(lzgRom).slice(0, romSize),
+      preInit:function(_self) {
+      },
+    });
+  }
+
+  this.getOpcodeMetadata = Javatari.getOpcodeMetadata;
+  this.getToolForFilename = getToolForFilename_6502;
+  this.getDefaultExtension = function() { return ".c"; };
+
+  this.getPresets = function() { return APPLE2_PRESETS; }
+
+  this.loadROM = function(title, data) {
+    this.loadROMFile(data);
+    this.loadRegion(":nes_slot:cart:prg_rom", data.slice(0x10, 0x8010));
+    this.loadRegion(":nes_slot:cart:chr_rom", data.slice(0x8010, 0xa010));
+  }
+}
+
 PLATFORMS['apple2'] = Apple2Platform;
+PLATFORMS['apple2-e'] = Apple2MAMEPlatform;

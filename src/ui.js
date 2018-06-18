@@ -590,9 +590,8 @@ var lastDebugInfo;
 var lastDebugState;
 
 function showMemory(state) {
-  var s = "";
-  if (state && platform.cpuStateToLongString) {
-    s = platform.cpuStateToLongString(state.c);
+  var s = state && platform.cpuStateToLongString && platform.cpuStateToLongString(state.c);
+  if (s) {
     if (platform.getRasterPosition) {
       var pos = platform.getRasterPosition();
       s += "H:" + pos.x + "  V:" + pos.y + "\n"; // TODO: padding
@@ -700,9 +699,13 @@ function runToCursor() {
   var pc = getCurrentPC();
   if (pc >= 0) {
     console.log("Run to", pc.toString(16));
-    platform.runEval(function(c) {
-      return c.PC == pc;
-    });
+    if (platform.runToPC) {
+      platform.runToPC(pc);
+    } else {
+      platform.runEval(function(c) {
+        return c.PC == pc;
+      });
+    }
   }
 }
 
@@ -1282,7 +1285,7 @@ function setupDebugControls(){
     $("#dbg_tovsync").click(singleFrameStep).show();
   else
     $("#dbg_tovsync").hide();
-  if (platform.runEval && platform_id != 'verilog')
+  if ((platform.runEval || platform.runToPC) && platform_id != 'verilog')
     $("#dbg_toline").click(runToCursor).show();
   else
     $("#dbg_toline").hide();

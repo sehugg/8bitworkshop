@@ -903,6 +903,8 @@ var BaseMAMEPlatform = function() {
   var console_vars = {};
   var console_varname;
   var initluavars = false;
+  var luadebugscript;
+  var js_lua_string;
 
   this.luareset = function() {
     console_vars = {};
@@ -911,11 +913,9 @@ var BaseMAMEPlatform = function() {
   // http://docs.mamedev.org/techspecs/luaengine.html
   this.luacall = function(s) {
     console_varname = null;
-    Module.ccall('_Z13js_lua_stringPKc', 'void', ['string'], [s+""]);
-  }
-
-  this.clearDebug = function() {
-    //TODO
+    //Module.ccall('_Z13js_lua_stringPKc', 'void', ['string'], [s+""]);
+    if (!js_lua_string) js_lua_string = Module.cwrap('_Z13js_lua_stringPKc', 'void', ['string']);
+    js_lua_string(s || "");
   }
 
   this.pause = function() {
@@ -926,7 +926,7 @@ var BaseMAMEPlatform = function() {
   }
 
   this.resume = function() {
-    if (loaded && !running) {
+    if (loaded && !running) { // TODO
       this.luacall('emu.unpause()');
       running = true;
     }
@@ -949,6 +949,13 @@ var BaseMAMEPlatform = function() {
       if (console_varname) console_vars[console_varname] = [];
     } else if (console_varname) {
       console_vars[console_varname].push(s);
+      if (console_varname == 'debug_stopped') {
+        var debugSaveState = self.preserveState();
+        self.pause();
+        if (onBreakpointHit) {
+          onBreakpointHit(debugSaveState);
+        }
+      }
     } else {
       console.log(s);
     }
@@ -964,10 +971,14 @@ var BaseMAMEPlatform = function() {
     $(video.canvas).attr('id','canvas');
     // load asm.js module
     console.log("loading", opts.jsfile);
-    var script = document.createElement('script');
     window.JSMESS = {};
     window.Module = {
-      arguments: [opts.driver, '-debug', '-verbose', '-window', '-nokeepaspect', '-resolution', canvas.width+'x'+canvas.height, '-cart', romfn],
+      arguments: [opts.driver,
+        '-debug',
+        '-debugger', 'none',
+        '-verbose', '-window', '-nokeepaspect',
+        '-resolution', canvas.width+'x'+canvas.height,
+        '-cart', romfn],
       screenIsReadOnly: true,
       print: bufferConsoleOutput,
       canvas:video.canvas,
@@ -986,38 +997,72 @@ var BaseMAMEPlatform = function() {
           FS.writeFile('/roms/' + opts.biosfile, opts.biosdata, {encoding:'binary'});
         }
         FS.mkdir('/emulator');
-        FS.writeFile(romfn, romdata, {encoding:'binary'});
-        FS.writeFile('/debug.ini', 'debugger none\n', {encoding:'utf8'});
+        if (romfn) FS.writeFile(romfn, new Uint8Array(romdata), {encoding:'binary'});
+        //FS.writeFile('/debug.ini', 'debugger none\n', {encoding:'utf8'});
         if (opts.preInit) {
           opts.preInit(self);
         }
-        $(video.canvas).click(function(e) {
-          video.canvas.focus();
-        });
-        loaded = true;
-      }
+      },
+      preRun: [
+        function() {
+          $(video.canvas).click(function(e) {
+            video.canvas.focus();
+          });
+          loaded = true;
+          console.log("about to run...");
+        }
+      ]
     };
     // preload files
     // TODO: ensure loaded
+    var fetch_cfg, fetch_lua;
+    var fetch_bios = $.Deferred();
+    var fetch_wasm = $.Deferred();
+    // fetch config file
     if (opts.cfgfile) {
-      $.get('mame/cfg/' + opts.cfgfile, function(data) {
+      fetch_cfg = $.get('mame/cfg/' + opts.cfgfile, function(data) {
         opts.cfgdata = data;
         console.log("loaded " + opts.cfgfile);
       }, 'text');
     }
+    // fetch BIOS file
     if (opts.biosfile) {
-      var oReq = new XMLHttpRequest();
-      oReq.open("GET", 'mame/roms/' + opts.biosfile, true);
-      oReq.responseType = "arraybuffer";
-      oReq.onload = function(oEvent) {
-        console.log("loaded " + opts.biosfile);
-        opts.biosdata = new Uint8Array(oReq.response);
+      var oReq1 = new XMLHttpRequest();
+      oReq1.open("GET", 'mame/roms/' + opts.biosfile, true);
+      oReq1.responseType = "arraybuffer";
+      oReq1.onload = function(oEvent) {
+        opts.biosdata = new Uint8Array(oReq1.response);
+        console.log("loaded " + opts.biosfile + " (" + oEvent.total + " bytes)");
+        fetch_bios.resolve();
       };
-      oReq.send();
+      oReq1.send();
+    } else {
+      fetch_bios.resolve();
+    }
+    // load debugger Lua script
+    fetch_lua = $.get('mame/debugger.lua', function(data) {
+      luadebugscript = data;
+      console.log("loaded debugger.lua");
+    }, 'text');
+    // load WASM
+    {
+      var oReq2 = new XMLHttpRequest();
+      oReq2.open("GET", 'mame/' + opts.jsfile.replace('.js','.wasm'), true);
+      oReq2.responseType = "arraybuffer";
+      oReq2.onload = function(oEvent) {
+        console.log("loaded WASM file");
+        window.Module.wasmBinary = new Uint8Array(oReq2.response);
+        fetch_wasm.resolve();
+      };
+      oReq2.send();
     }
     // start loading script
-    script.src = 'mame/' + opts.jsfile;
-    document.getElementsByTagName('head')[0].appendChild(script);
+    $.when(fetch_lua, fetch_cfg, fetch_bios, fetch_wasm).done(function() {
+      var script = document.createElement('script');
+      script.src = 'mame/' + opts.jsfile;
+      document.getElementsByTagName('head')[0].appendChild(script);
+      console.log("created script element");
+    });
   }
 
   this.loadROMFile = function(data) {
@@ -1041,9 +1086,7 @@ var BaseMAMEPlatform = function() {
     }
   }
 
-  this.saveState = function() {
-    this.luareset();
-    this.luacall('cpu = manager:machine().devices[":maincpu"]\nfor k,v in pairs(cpu.state) do print(">>>cpu_"..k); print(v.value) end');
+  this.preserveState = function() {
     var state = {c:{}};
     for (var k in console_vars) {
       if (k.startsWith("cpu_")) {
@@ -1051,15 +1094,26 @@ var BaseMAMEPlatform = function() {
         state.c[k.slice(4)] = v;
       }
     }
-    // TODO
+    // TODO: memory?
     return state;
   }
 
-  this.readAddress = function(a) {
+  this.saveState = function() {
+    this.luareset();
+    this.luacall('mamedbg.printstate()');
+    return self.preserveState();
+  }
+
+  this.initlua = function() {
     if (!initluavars) {
-      self.luacall('cpu = manager:machine().devices[":maincpu"]\nmem = cpu.spaces["program"]\n')
+      self.luacall(luadebugscript);
+      self.luacall('mamedbg.init()')
       initluavars = true;
     }
+  }
+
+  this.readAddress = function(a) {
+    self.initlua();
     self.luacall('print(">>>v"); print(mem:read_u8(' + a + '))');
     return parseInt(console_vars.v[0]);
   }
@@ -1068,17 +1122,39 @@ var BaseMAMEPlatform = function() {
 
   var onBreakpointHit;
 
+  this.clearDebug = function() {
+    onBreakpointHit = null;
+  }
   this.getDebugCallback = function() {
-    // TODO
+    return onBreakpointHit;
   }
   this.setupDebug = function(callback) {
+    self.initlua();
+    self.luareset();
     onBreakpointHit = callback;
   }
+  this.runToPC = function(pc) {
+    self.luacall('mamedbg.runTo(' + pc + ')');
+    self.resume();
+  }
+  this.runToVsync = function() {
+    self.luacall('mamedbg.runToVsync()');
+    self.resume();
+  }
+  this.runUntilReturn = function() {
+    self.luacall('mamedbg.runUntilReturn()');
+    self.resume();
+  }
   this.step = function() {
-    self.readAddress(0);
-    //self.luacall('cpu.debug()\n')
-    self.luacall('debugger = manager:machine().debugger()')
-    self.luacall('print(debugger)') // TODO
+    self.luacall('mamedbg.step()');
+    self.resume();
+  }
+  // TODO: other than z80
+  this.cpuStateToLongString = function(c) {
+    if (c.HL)
+      return cpuStateToLongString_Z80(c);
+    else
+      return null; // TODO
   }
 
 }

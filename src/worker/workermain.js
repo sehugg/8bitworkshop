@@ -60,6 +60,7 @@ var PLATFORM_PARAMS = {
   'coleco': {
     rom_start: 0x8000,
     code_start: 0x8100,
+    code_offset: 0x8147, // TODO: right after cv_start()
     rom_size: 0x8000,
     data_start: 0x7000,
     data_size: 0x400,
@@ -71,8 +72,8 @@ var PLATFORM_PARAMS = {
       'main.rel'],
   },
   'nes-conio': {
-    define: '__NES__',
     cfgfile: 'nes.cfg',
+    define: '__NES__',
     libargs: ['nes.lib'],
   },
   'nes-lib': {
@@ -81,6 +82,11 @@ var PLATFORM_PARAMS = {
     libargs: ['neslib.lib', 'nes.lib'],
   },
   'apple2': {
+    define: '__APPLE2__',
+    cfgfile: 'apple2.cfg',
+    libargs: ['apple2.lib'],
+  },
+  'apple2-e': {
     define: '__APPLE2__',
     cfgfile: 'apple2.cfg',
     libargs: ['apple2.lib'],
@@ -289,8 +295,9 @@ function extractErrors(regex, strings) {
   return errors;
 }
 
-function parseListing(code, lineMatch, iline, ioffset, iinsns) {
+function parseListing(code, lineMatch, iline, ioffset, iinsns, origin) {
   var lines = [];
+  origin |= 0;
   for (var line of code.split(/\r?\n/)) {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
@@ -300,7 +307,7 @@ function parseListing(code, lineMatch, iline, ioffset, iinsns) {
       if (insns) {
         lines.push({
           line:linenum,
-          offset:offset,
+          offset:offset + origin,
           insns:insns,
         });
       }
@@ -309,9 +316,10 @@ function parseListing(code, lineMatch, iline, ioffset, iinsns) {
   return lines;
 }
 
-function parseSourceLines(code, lineMatch, offsetMatch) {
+function parseSourceLines(code, lineMatch, offsetMatch, origin) {
   var lines = [];
   var lastlinenum = 0;
+  origin |= 0;
   for (var line of code.split(/\r?\n/)) {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
@@ -322,7 +330,7 @@ function parseSourceLines(code, lineMatch, offsetMatch) {
         var offset = parseInt(linem[1], 16);
         lines.push({
           line:lastlinenum,
-          offset:offset,
+          offset:offset + origin,
         });
         lastlinenum = 0;
       }
@@ -686,7 +694,7 @@ l_main00101                     = 0003, L: test
 */
     var amap = FS.readFile("main.map", {'encoding':'utf8'}); // TODO
     var aout = FS.readFile("main.bin", {'encoding':'binary'});
-    var asmlines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/i, 1, 2, 3, 4);
+    var asmlines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/i, 1, 2, 3, params.rom_start|0);
     var srclines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+;[(]null[)]:(\d+)/i, 3, 2, 1);
     return {
       output:aout,
@@ -813,9 +821,9 @@ function assemblelinkSDASZ80(code, platform) {
     var rstout = updateListing ? FS.readFile("main.rst", {encoding:'utf8'}) : lstout;
     //var dbgout = FS.readFile("main.cdb", {encoding:'utf8'});
     //   0000 21 02 00      [10]   52 	ld	hl, #2
-    // TODO: offset by start address?
-    var asmlines = parseListing(lstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2, 5, 3);
-    var srclines = parseSourceLines(lstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
+    // TODO: use map to find code_offset
+    var asmlines = parseListing(lstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2, params.code_offset); //, 5, 3);
+    var srclines = parseSourceLines(lstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i, params.code_offset);
     // parse symbol map
     var symbolmap = {};
     for (var s of mapout.split("\n")) {
@@ -935,7 +943,7 @@ function assembleXASM6809(code, platform) {
   try {
     var aout = FS.readFile("main.bin", {encoding:'binary'});
     // 00001    0000 [ 2] 1048                asld
-    var asmlines = parseListing(alst, /^\s*([0-9A-F]+)\s+([0-9A-F]+)\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 1, 2, 4, 5, 3);
+    var asmlines = parseListing(alst, /^\s*([0-9A-F]+)\s+([0-9A-F]+)\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 1, 2, 4, params.code_offset); //, 5, 3);
     return {
       output:aout,
       errors:msvc_errors,
@@ -1015,7 +1023,7 @@ function assembleNAKEN(code, platform) {
     var alst = FS.readFile("out.lst", {encoding:'utf8'});
     //console.log(alst);
     // 0x0000: 77        ld (hl),a                                cycles: 4
-    var asmlines = parseListing(alst, /^0x([0-9a-f]+):\s+([0-9a-f]+)\s+(.+)cycles: (\d+)/i, 0, 1, 2, 3);
+    var asmlines = parseListing(alst, /^0x([0-9a-f]+):\s+([0-9a-f]+)\s+(.+)cycles: (\d+)/i, 0, 1, 2); //, 3);
     return {
       output:aout,
       errors:errors,
