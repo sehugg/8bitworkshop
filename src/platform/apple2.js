@@ -2,6 +2,7 @@
 
 var APPLE2_PRESETS = [
   {id:'sieve.c', name:'Sieve'},
+//  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
 ];
 
 var GR_TXMODE   = 1;

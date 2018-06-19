@@ -428,7 +428,8 @@ function getToolForFilename_6502(fn) {
   if (fn.endsWith(".pla")) return "plasm";
   if (fn.endsWith(".c")) return "cc65";
   if (fn.endsWith(".s")) return "ca65";
-  return "dasm";
+  if (fn.endsWith(".acme")) return "acme";
+  return "dasm"; // .a
 }
 
 function dumpRAM(ram, ramofs, ramlen) {

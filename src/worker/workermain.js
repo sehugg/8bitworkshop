@@ -259,18 +259,21 @@ var print_fn = function(s) {
 // at 2: warning 190: ISO C forbids an empty source file
 var re_msvc  = /([^(]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
 var re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
-var msvc_errors;
 
-function match_msvc(s) {
-  var matches = re_msvc.exec(s) || re_msvc2.exec(s);
-  if (matches) {
-    var errline = parseInt(matches[2]);
-    msvc_errors.push({
-      line:errline,
-      file:matches[1],
-      type:matches[3],
-      msg:matches[4]
-    });
+function msvcErrorMatcher(errors) {
+  return function(s) {
+    var matches = re_msvc.exec(s) || re_msvc2.exec(s);
+    if (matches) {
+      var errline = parseInt(matches[2]);
+      errors.push({
+        line:errline,
+        file:matches[1],
+        type:matches[3],
+        msg:matches[4]
+      });
+    } else {
+      console.log(s);
+    }
   }
 }
 
@@ -510,17 +513,22 @@ function compilePLASMA(code) {
   setupStdin(FS, code);
   //FS.writeFile("main.pla", code);
   Module.callMain(["-A"]);
+  // TODO: have to make dummy 4-byte header so start ends up @ $803
+  outstr = "\tnop\n\tnop\n\tnop\n\tnop\n" + outstr;
+  // set code base and INTERP address
+  outstr = "* = $7FF\n" + outstr;
   outstr = "INTERP = $e044\n" + outstr; // TODO
   if (errors.length) {
     return {errors:errors};
   }
+  console.log(outstr);
   return assembleACME(outstr);
 }
 
 function parseCA65Listing(code, mapfile) {
   // CODE                  00603E  00637C  00033F  00001
   var mapMatch = /^CODE\s+([0-9A-F]+)/m.exec(mapfile);
-  var codeofs = 0x6000;
+  var codeofs = 0x6000; // TODO
   if (mapMatch) {
     var codeofs = parseInt(mapMatch[1], 16);
   }
@@ -548,12 +556,9 @@ function parseCA65Listing(code, mapfile) {
 function assemblelinkCA65(code, platform) {
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
-  var errors = "";
-  function error_fn(s) {
-    errors += s + "\n";
-  }
   loadNative("ca65");
   loadNative("ld65");
+  var errors = [];
   var objout, lstout;
   {
     var CA65 = ca65({
@@ -561,7 +566,7 @@ function assemblelinkCA65(code, platform) {
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
-      printErr:print_fn,
+      printErr:msvcErrorMatcher(errors),
     });
     var FS = CA65['FS'];
     setupFS(FS, '65');
@@ -569,15 +574,21 @@ function assemblelinkCA65(code, platform) {
     starttime();
     CA65.callMain(['-v', '-g', '-I', '/share/asminc', '-l', 'main.lst', "main.s"]);
     endtime("assemble");
-    objout = FS.readFile("main.o", {encoding:'binary'});
-    lstout = FS.readFile("main.lst", {encoding:'utf8'});
+    try {
+      objout = FS.readFile("main.o", {encoding:'binary'});
+      lstout = FS.readFile("main.lst", {encoding:'utf8'});
+    } catch (e) {
+      return {errors:errors}; // TODO
+    }
+    if (errors.length)
+      return {errors:errors};
   }{
     var LD65 = ld65({
       wasmBinary: wasmBlob['ld65'],
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
-      printErr:error_fn,
+      printErr:makeErrorMatcher(errors, /[(](\d+)[)]: (.+)/, 1, 2),
     });
     var FS = LD65['FS'];
     var cfgfile = '/' + platform + '.cfg';
@@ -591,10 +602,14 @@ function assemblelinkCA65(code, platform) {
       '-o', 'main', '-m', 'main.map', 'main.o'].concat(libargs));
     endtime("link");
     if (errors.length) {
-      return {errors:[{line:1,msg:errors}]};
+      return {errors:errors};
     }
-    var aout = FS.readFile("main", {encoding:'binary'});
-    var mapout = FS.readFile("main.map", {encoding:'utf8'});
+    try {
+      var aout = FS.readFile("main", {encoding:'binary'});
+      var mapout = FS.readFile("main.map", {encoding:'utf8'});
+    } catch (e) {
+      return {errors:errors};
+    }
     //console.log(mapout);
     var listing = parseCA65Listing(lstout, mapout);
     //console.log(lstout);
@@ -697,7 +712,7 @@ l_main00101                     = 0003, L: test
 */
     var amap = FS.readFile("main.map", {'encoding':'utf8'}); // TODO
     var aout = FS.readFile("main.bin", {'encoding':'binary'});
-    var asmlines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/i, 1, 2, 3, params.rom_start|0);
+    var asmlines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/i, 1, 2, 3); // TODO: , params.rom_start|0);
     var srclines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+;[(]null[)]:(\d+)/i, 3, 2, 1);
     return {
       output:aout,
@@ -746,8 +761,8 @@ function assemblelinkSDASZ80(code, platform) {
   var objout, lstout, symout;
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
+  var errors = [];
   {
-    msvc_errors = [];
     //?ASxxxx-Error-<o> in line 1 of main.asm null
     //              <o> .org in REL area or directive / mnemonic error
     var match_asm_re = / <\w> (.+)/; // TODO
@@ -755,7 +770,7 @@ function assemblelinkSDASZ80(code, platform) {
       var matches = match_asm_re.exec(s);
       if (matches) {
         var errline = parseInt(matches[2]);
-        msvc_errors.push({
+        errors.push({
           line:1, // TODO: errline,
           msg:matches[1]
         });
@@ -773,8 +788,8 @@ function assemblelinkSDASZ80(code, platform) {
     starttime();
     ASZ80.callMain(['-plosgffwy', 'main.asm']);
     endtime("assemble");
-    if (msvc_errors.length) {
-      return {errors:msvc_errors};
+    if (errors.length) {
+      return {errors:errors};
     }
     objout = FS.readFile("main.rel", {encoding:'utf8'});
     lstout = FS.readFile("main.lst", {encoding:'utf8'});
@@ -785,7 +800,7 @@ function assemblelinkSDASZ80(code, platform) {
     function match_aslink_fn(s) {
       var matches = match_aslink_re.exec(s);
       if (matches) {
-        msvc_errors.push({
+        errors.push({
           line:1,
           msg:matches[2]
         });
@@ -839,7 +854,7 @@ function assemblelinkSDASZ80(code, platform) {
       output:parseIHX(hexout, params.rom_start?params.rom_start:params.code_start, params.rom_size),
       lines:asmlines,
       srclines:srclines,
-      errors:msvc_errors, // TODO?
+      errors:errors, // TODO?
       symbolmap:symbolmap,
       intermediate:{listing:rstout},
     };
@@ -854,6 +869,7 @@ function compileSDCC(code, platform) {
 
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
+  var errors = [];
 
   loadNative('sdcc');
   var SDCC = sdcc({
@@ -861,14 +877,13 @@ function compileSDCC(code, platform) {
     noInitialRun:true,
     noFSInit:true,
     print:print_fn,
-    printErr:match_msvc, // console.log
+    printErr:msvcErrorMatcher(errors),
     TOTAL_MEMORY:256*1024*1024,
   });
   var FS = SDCC['FS'];
   setupStdin(FS, code);
   setupFS(FS, 'sdcc');
   //FS.writeFile("main.c", code, {encoding:'utf8'});
-  msvc_errors = [];
   var args = ['--vc', '--std-sdcc99', '-mz80', //'-Wall',
     '--c1mode', // '--debug',
     //'-S', 'main.c',
@@ -888,23 +903,23 @@ function compileSDCC(code, platform) {
   SDCC.callMain(args);
   endtime("compile");
   // TODO: preprocessor errors w/ correct file
-  if (msvc_errors.length /* && nwarnings < msvc_errors.length*/) {
-    return {errors:msvc_errors};
+  if (errors.length /* && nwarnings < msvc_errors.length*/) {
+    return {errors:errors};
   }
   try {
     var asmout = FS.readFile("main.asm", {encoding:'utf8'});
     asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
     //asmout = asmout.replace(".area _INITIALIZER",".area _CODE");
   } catch (e) {
-    msvc_errors.push({line:1, msg:e+""});
-    return {errors:msvc_errors};
+    errors.push({line:1, msg:e+""});
+    return {errors:errors};
   }
-  var warnings = msvc_errors;
+  var warnings = errors;
   try {
     var result = assemblelinkSDASZ80(asmout, platform, true);
   } catch (e) {
-    msvc_errors.push({line:1, msg:e+""});
-    return {errors:msvc_errors};
+    errors.push({line:1, msg:e+""});
+    return {errors:errors};
   }
   result.asmlines = result.lines;
   result.lines = result.srclines;
@@ -917,13 +932,13 @@ function assembleXASM6809(code, platform) {
   var origin = 0; // TODO: configurable
   var alst = "";
   var lasterror = null;
-  msvc_errors = [];
+  var errors = [];
   function match_fn(s) {
     alst += s;
     alst += "\n";
     if (lasterror) {
       var line = parseInt(s.slice(0,5));
-      msvc_errors.push({
+      errors.push({
         line:line,
         msg:lasterror
       });
@@ -949,12 +964,12 @@ function assembleXASM6809(code, platform) {
     var asmlines = parseListing(alst, /^\s*([0-9A-F]+)\s+([0-9A-F]+)\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 1, 2, 4, params.code_offset); //, 5, 3);
     return {
       output:aout,
-      errors:msvc_errors,
+      errors:errors,
       lines:asmlines,
       intermediate:{listing:alst},
     };
   } catch(e) {
-    return {errors:msvc_errors}; // TODO
+    return {errors:errors}; // TODO
   }
 }
 

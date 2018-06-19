@@ -111,7 +111,9 @@ describe('Worker', function() {
   it('should NOT preprocess SDCC', function(done) {
     compile('sdcc', 'int x=0\n#bah\n', 'mw8080bw', done, 0, 0, 1);
   });
+  /*
   it('should compile XASM6809', function(done) {
     compile('xasm6809', '\tasld\n\tasld\n', 'mw8080bw', done, 4, 2, 0);
   });
+  */
 });
