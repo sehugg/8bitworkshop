@@ -1,6 +1,7 @@
 "use strict";
 
 var APPLE2_PRESETS = [
+  {id:'sieve.c', name:'Sieve'},
 ];
 
 var GR_TXMODE   = 1;
@@ -19,8 +20,10 @@ var Apple2Platform = function(mainElement) {
   var kbdlatch = 0;
   var soundstate = 0;
   var pgmbin;
-  var VM_BASE = 0x6000; // where to JMP after pr#6
-  var PGM_BASE = 0x6000; // where to load ROM
+  //var VM_BASE = 0x6000; // where to JMP after pr#6
+  //var PGM_BASE = 0x6000; // where to load ROM
+  var VM_BASE = 0x803; // where to JMP after pr#6
+  var PGM_BASE = 0x7ff; // where to load ROM
   // language card switches
   var auxRAMselected = false;
   var auxRAMbank = 1;
@@ -965,6 +968,7 @@ var Apple2MAMEPlatform = function(mainElement) {
   this.start = function() {
     self.startModule(mainElement, {
       jsfile:'mameapple2e.js',
+      //biosfile:['apple2/'],
       //cfgfile:'nes.cfg',
       driver:'apple2e',
       width:256*2,

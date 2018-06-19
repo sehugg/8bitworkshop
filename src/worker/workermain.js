@@ -85,11 +85,13 @@ var PLATFORM_PARAMS = {
     define: '__APPLE2__',
     cfgfile: 'apple2.cfg',
     libargs: ['apple2.lib'],
+    code_offset: 0x803, // TODO
   },
   'apple2-e': {
     define: '__APPLE2__',
     cfgfile: 'apple2.cfg',
     libargs: ['apple2.lib'],
+    code_offset: 0x803, // TODO
   },
   'verilog': {
   },
@@ -593,10 +595,11 @@ function assemblelinkCA65(code, platform) {
     }
     var aout = FS.readFile("main", {encoding:'binary'});
     var mapout = FS.readFile("main.map", {encoding:'utf8'});
+    //console.log(mapout);
     var listing = parseCA65Listing(lstout, mapout);
     //console.log(lstout);
     //console.log(mapout);
-    var srclines = parseSourceLines(lstout, /[.]dbg\s+line, "main[.]c", (\d+)/i, /^\s*([0-9A-F]+)r/i);
+    var srclines = parseSourceLines(lstout, /[.]dbg\s+line, "main[.]c", (\d+)/i, /^\s*([0-9A-F]+)r/i, params.code_offset);
     return {
       output:aout.slice(0),
       lines:listing.lines,
