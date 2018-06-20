@@ -1401,7 +1401,7 @@ var qs = (function (a) {
 
 function preloadWorker(fileid) {
   var tool = platform.getToolForFilename(fileid);
-  if (tool) worker.postMessage({preload:tool});
+  if (tool) worker.postMessage({preload:tool, platform:platform_id});
 }
 
 function initPlatform() {

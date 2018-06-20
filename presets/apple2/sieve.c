@@ -25,8 +25,8 @@
 
 
 
-#define COUNT           16384           /* Up to what number? */
-#define SQRT_COUNT      128             /* Sqrt of COUNT */
+#define COUNT           4096           /* Up to what number? */
+#define SQRT_COUNT      64             /* Sqrt of COUNT */
 
 static unsigned char Sieve[COUNT];
 

@@ -83,7 +83,7 @@ var PLATFORM_PARAMS = {
   },
   'apple2': {
     define: '__APPLE2__',
-    cfgfile: 'apple2.cfg',
+    cfgfile: 'apple2-hgr.cfg',
     libargs: ['apple2.lib'],
     code_offset: 0x803, // TODO: parse segment list
   },
@@ -586,7 +586,7 @@ function assemblelinkCA65(code, platform) {
       printErr:msvcErrorMatcher(errors),
     });
     var FS = CA65['FS'];
-    setupFS(FS, '65');
+    setupFS(FS, '65-'+platform.split('-')[0]);
     FS.writeFile("main.s", code, {encoding:'utf8'});
     starttime();
     CA65.callMain(['-v', '-g', '-I', '/share/asminc', '-l', 'main.lst', "main.s"]);
@@ -610,7 +610,7 @@ function assemblelinkCA65(code, platform) {
     });
     var FS = LD65['FS'];
     var cfgfile = '/' + platform + '.cfg';
-    setupFS(FS, '65');
+    setupFS(FS, '65-'+platform.split('-')[0]);
     FS.writeFile("main.o", objout, {encoding:'binary'});
     var libargs = params.libargs;
     starttime();
@@ -683,7 +683,7 @@ function compileCC65(code, platform) {
     printErr:match_fn,
   });
   var FS = CC65['FS'];
-  setupFS(FS, '65');
+  setupFS(FS, '65-'+platform.split('-')[0]);
   FS.writeFile("main.c", code, {encoding:'utf8'});
   starttime();
   CC65.callMain(['-T', '-g', /*'-Cl',*/
@@ -1360,8 +1360,14 @@ var TOOLS = {
 }
 
 var TOOL_PRELOADFS = {
-  'cc65': '65',
-  'ca65': '65',
+  'cc65-apple2': '65-apple2',
+  'ca65-apple2': '65-apple2',
+  'cc65-c64': '65-c64',
+  'ca65-c64': '65-c64',
+  'cc65-nes': '65-nes',
+  'ca65-nes': '65-nes',
+  'cc65-atari8': '65-atari8',
+  'ca65-atari8': '65-atari8',
   'sdasz80': 'sdcc',
   'sdcc': 'sdcc',
 }
@@ -1369,7 +1375,10 @@ var TOOL_PRELOADFS = {
 function handleMessage(data) {
   if (data.preload) {
     var fs = TOOL_PRELOADFS[data.preload];
-    if (fs && !fsMeta[fs]) loadFilesystem(fs);
+    if (!fs && data.platform)
+      fs = TOOL_PRELOADFS[data.preload+'-'+data.platform.split('-')[0]];
+    if (fs && !fsMeta[fs])
+      loadFilesystem(fs);
     return;
   }
   // (code,platform,tool)
