@@ -93,6 +93,12 @@ var PLATFORM_PARAMS = {
     libargs: ['apple2.lib'],
     code_offset: 0x803, // TODO
   },
+  'atari8-5200': {
+    define: '__APPLE2__',
+    cfgfile: 'apple2-hgr.cfg',
+    libargs: ['atari5200.lib'],
+    //code_offset: 0x803, // TODO
+  },
   'verilog': {
   },
 };

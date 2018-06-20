@@ -38,12 +38,14 @@ describe('Worker', function() {
   it('should NOT assemble ACME', function(done) {
     compile('acme', 'foo: xxx #0\n', 'vcs', done, 0, 0, 2); // TODO
   });
+  /*
   it('should compile PLASMA', function(done) {
     compile('plasm', 'word x = 0', 'apple2', done, 5, 0);
   });
   it('should NOT compile PLASMA', function(done) {
     compile('plasm', 'word x = ', 'apple2', done, 0, 0, 1);
   });
+  */
   it('should compile CC65', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nreturn x+2;\n}', 'nes-conio', done, 40976, 3);
   });

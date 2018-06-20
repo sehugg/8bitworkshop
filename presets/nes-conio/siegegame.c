@@ -22,7 +22,7 @@ byte getchar(byte x, byte y) {
   word addr = 0x2020+x+y*32;
   byte rd;
   // wait for VBLANK to start
-  waitvblank();
+  waitvsync();
   // set VRAM read address in PPU
   PPU.vram.address = addr>>8;
   PPU.vram.address = addr&0xff;
@@ -37,7 +37,7 @@ byte getchar(byte x, byte y) {
 }
 
 void delay(byte count) {
-  while (count--) waitvblank();
+  while (count--) waitvsync();
 }
 
 ////////// GAME DATA
@@ -130,10 +130,10 @@ void human_control(Player* p) {
   byte joy;
   if (!p->human) return;
   joy = joy_read (JOY_1);
-  if (joy & KEY_LEFT) dir = D_LEFT;
-  if (joy & KEY_RIGHT) dir = D_RIGHT;
-  if (joy & KEY_UP) dir = D_UP;
-  if (joy & KEY_DOWN) dir = D_DOWN;
+  if (joy & JOY_LEFT_MASK) dir = D_LEFT;
+  if (joy & JOY_RIGHT_MASK) dir = D_RIGHT;
+  if (joy & JOY_UP_MASK) dir = D_UP;
+  if (joy & JOY_DOWN_MASK) dir = D_DOWN;
   // don't let the player reverse
   if (dir < 0x80 && dir != (p->dir ^ 2)) {
     p->dir = dir;
@@ -230,7 +230,7 @@ AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1), AE(1,1,1,1),AE(1,1,1,1),AE(1,1,
 // put 8x8 grid of palette entries into the PPU
 void setup_attrib_table() {
   byte index;
-  waitvblank(); // wait for VBLANK
+  waitvsync(); // wait for VBLANK
   PPU.vram.address = 0x23;
   PPU.vram.address = 0xc0;
   for( index = 0; index < 0x40; ++index ){

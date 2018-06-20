@@ -896,6 +896,7 @@ var BaseMAMEPlatform = function() {
   var self = this;
 
   var loaded = false;
+  var preinitted = false;
   var romfn;
   var romdata;
   var video;
@@ -1004,6 +1005,7 @@ var BaseMAMEPlatform = function() {
         if (opts.preInit) {
           opts.preInit(self);
         }
+        preinitted = true;
       },
       preRun: [
         function() {
@@ -1069,7 +1071,7 @@ var BaseMAMEPlatform = function() {
 
   this.loadROMFile = function(data) {
     romdata = data;
-    if (romfn) {
+    if (preinitted && romfn) {
       FS.writeFile(romfn, data, {encoding:'binary'});
     }
   }

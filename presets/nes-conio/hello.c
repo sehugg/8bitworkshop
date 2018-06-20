@@ -10,8 +10,8 @@ void main (void) {
 
   // if we've just powered on,
   // wait for PPU to warm-up
-  waitvblank();
-  waitvblank();
+  waitvsync();
+  waitvsync();
 
   // turn off screen
   PPU.control = 0x0; // NMI off
