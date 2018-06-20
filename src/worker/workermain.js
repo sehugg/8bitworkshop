@@ -596,7 +596,9 @@ function assemblelinkCA65(code, platform) {
     FS.writeFile("main.o", objout, {encoding:'binary'});
     var libargs = params.libargs;
     starttime();
-    LD65.callMain(['--cfg-path', '/share/cfg', '--lib-path', '/share/lib',
+    LD65.callMain(['--cfg-path', '/share/cfg',
+      '--lib-path', '/share/lib',
+      '--lib-path', '/share/target/apple2/drv',
       '-C', params.cfgfile,
       //'--dbgfile', 'main.dbg',
       '-o', 'main', '-m', 'main.map', 'main.o'].concat(libargs));
@@ -610,7 +612,6 @@ function assemblelinkCA65(code, platform) {
     } catch (e) {
       return {errors:errors};
     }
-    //console.log(mapout);
     var listing = parseCA65Listing(lstout, mapout);
     //console.log(lstout);
     //console.log(mapout);
@@ -620,7 +621,7 @@ function assemblelinkCA65(code, platform) {
       lines:listing.lines,
       srclines:srclines,
       errors:listing.errors,
-      intermediate:{listing:lstout, map:mapout},
+      intermediate:{listing:lstout+"\n"+mapout, map:mapout}, // TODO
     };
   }
 }

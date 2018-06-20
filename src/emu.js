@@ -998,7 +998,8 @@ var BaseMAMEPlatform = function() {
           FS.writeFile('/roms/' + opts.biosfile, opts.biosdata, {encoding:'binary'});
         }
         FS.mkdir('/emulator');
-        if (romfn) FS.writeFile(romfn, new Uint8Array(romdata), {encoding:'binary'});
+        if (romfn)
+          FS.writeFile(romfn, romdata, {encoding:'binary'});
         //FS.writeFile('/debug.ini', 'debugger none\n', {encoding:'utf8'});
         if (opts.preInit) {
           opts.preInit(self);
@@ -1068,7 +1069,7 @@ var BaseMAMEPlatform = function() {
 
   this.loadROMFile = function(data) {
     romdata = data;
-    if (loaded) {
+    if (romfn) {
       FS.writeFile(romfn, data, {encoding:'binary'});
     }
   }
@@ -1076,11 +1077,11 @@ var BaseMAMEPlatform = function() {
   this.loadRegion = function(region, data) {
     if (loaded) {
       //self.luacall('cart=manager:machine().images["cart"]\nprint(cart:filename())\ncart:load("' + romfn + '")\n');
-      var s = 'mem = manager:machine():memory().regions["' + region + '"]\n';
-      //s += 'print(mem.size)\n';
+      var s = 'rgn = manager:machine():memory().regions["' + region + '"]\n';
+      //s += 'print(rgn.size)\n';
       for (var i=0; i<data.length; i+=4) {
         var v = data[i] + (data[i+1]<<8) + (data[i+2]<<16) + (data[i+3]<<24);
-        s += 'mem:write_u32(' + i + ',' + v + ')\n'; // TODO: endian?
+        s += 'rgn:write_u32(' + i + ',' + v + ')\n'; // TODO: endian?
       }
       self.luacall(s);
       self.reset();

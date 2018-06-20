@@ -64,7 +64,7 @@ var NESMAMEPlatform = function(mainElement, lzgRom, romSize) {
       height:240*2,
       romfn:'/emulator/cart.nes',
       romsize:romSize,
-      romdata:new lzgmini().decode(lzgRom).slice(0, romSize),
+      romdata:new Uint8Array(new lzgmini().decode(lzgRom).slice(0, romSize)),
       preInit:function(_self) {
       },
     });
