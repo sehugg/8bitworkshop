@@ -2,6 +2,10 @@
 
 var APPLE2_PRESETS = [
   {id:'sieve.c', name:'Sieve'},
+  {id:'mandel.c', name:'Mandelbrot'},
+  {id:'tgidemo.c', name:'TGI Graphics Demo'},
+  {id:'siegegame.c', name:'Siege Game'},
+  {id:'conway.a', name:"Conway's Game of Life (asm)"},
 //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
 ];
 
@@ -21,10 +25,10 @@ var Apple2Platform = function(mainElement) {
   var kbdlatch = 0;
   var soundstate = 0;
   var pgmbin;
-  //var VM_BASE = 0x6000; // where to JMP after pr#6
-  //var PGM_BASE = 0x6000; // where to load ROM
   var VM_BASE = 0x803; // where to JMP after pr#6
-  var PGM_BASE = 0x7ff; // where to load ROM
+  var LOAD_BASE = VM_BASE; //0x7c9; // where to load ROM
+  var PGM_BASE = VM_BASE; //0x800; // where to load ROM
+  var HDR_SIZE = PGM_BASE - LOAD_BASE;
   // language card switches
   var auxRAMselected = false;
   var auxRAMbank = 1;
@@ -110,7 +114,12 @@ var Apple2Platform = function(mainElement) {
         } else {
           switch (address) {
             // JMP VM_BASE
-            case 0xc600: return 0x4c;
+            case 0xc600: {
+              // load program into RAM
+              if (pgmbin)
+                ram.mem.set(pgmbin.slice(HDR_SIZE), PGM_BASE);
+              return 0x4c;
+            }
             case 0xc601: return VM_BASE&0xff;
             case 0xc602: return (VM_BASE>>8)&0xff;
             default: return noise();
@@ -264,8 +273,6 @@ var Apple2Platform = function(mainElement) {
   }
   this.reset = function() {
     cpu.reset();
-    if (pgmbin)
-      ram.mem.set(pgmbin, PGM_BASE);
   }
   this.readAddress = function(addr) {
     return bus.read(addr);

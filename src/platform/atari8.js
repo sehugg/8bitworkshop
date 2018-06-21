@@ -18,8 +18,8 @@ var Atari8MAMEPlatform = function(mainElement) {
       biosfile:'a5200/5200.rom',
       //cfgfile:'atari5200.cfg',
       driver:'a5200',
-      width:280*2,
-      height:216*2,
+      width:336*2,
+      height:225*2,
       romfn:'/emulator/cart.rom',
       romsize:0x4000,
       preInit:function(_self) {

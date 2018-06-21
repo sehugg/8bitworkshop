@@ -85,17 +85,16 @@ var PLATFORM_PARAMS = {
     define: '__APPLE2__',
     cfgfile: 'apple2.cfg',
     libargs: ['apple2.lib'],
-    code_offset: 0x803, // TODO
+    code_offset: 0x803, // TODO: parse segment list
   },
   'apple2-e': {
     define: '__APPLE2__',
     cfgfile: 'apple2.cfg',
     libargs: ['apple2.lib'],
-    code_offset: 0x803, // TODO
   },
   'atari8-5200': {
-    define: '__APPLE2__',
-    cfgfile: 'apple2-hgr.cfg',
+    define: '__ATARI5200__',
+    cfgfile: 'atari5200.cfg',
     libargs: ['atari5200.lib'],
     //code_offset: 0x803, // TODO
   },
@@ -605,7 +604,9 @@ function assemblelinkCA65(code, platform) {
     LD65.callMain(['--cfg-path', '/share/cfg',
       '--lib-path', '/share/lib',
       '--lib-path', '/share/target/apple2/drv',
+      '-D', '__EXEHDR__=0',
       '-C', params.cfgfile,
+      '-Ln', 'main.vice',
       //'--dbgfile', 'main.dbg',
       '-o', 'main', '-m', 'main.map', 'main.o'].concat(libargs));
     endtime("link");
@@ -615,6 +616,7 @@ function assemblelinkCA65(code, platform) {
     try {
       var aout = FS.readFile("main", {encoding:'binary'});
       var mapout = FS.readFile("main.map", {encoding:'utf8'});
+      var viceout = FS.readFile("main.vice", {encoding:'utf8'});
     } catch (e) {
       return {errors:errors};
     }
@@ -622,12 +624,21 @@ function assemblelinkCA65(code, platform) {
     //console.log(lstout);
     //console.log(mapout);
     var srclines = parseSourceLines(lstout, /[.]dbg\s+line, "main[.]c", (\d+)/i, /^\s*([0-9A-F]+)r/i, params.code_offset);
+    // parse symbol map (TODO: omit segments, constants)
+    var symbolmap = {};
+    for (var s of viceout.split("\n")) {
+      var toks = s.split(" ");
+      if (toks[0] == 'al') {
+        symbolmap[toks[2].substr(1)] = parseInt(toks[1], 16);
+      }
+    }
     return {
       output:aout.slice(0),
       lines:listing.lines,
       srclines:srclines,
       errors:listing.errors,
-      intermediate:{listing:lstout+"\n"+mapout, map:mapout}, // TODO
+      symbolmap:symbolmap,
+      intermediate:{listing:lstout+"\n"+mapout+"\n"+viceout, map:mapout, symbols:viceout}, // TODO
     };
   }
 }
@@ -671,8 +682,8 @@ function compileCC65(code, platform) {
     var asmout = FS.readFile("main.s", {encoding:'utf8'});
     //console.log(asmout);
     var result = assemblelinkCA65(asmout, platform, errors);
-    result.asmlines = result.lines;
-    result.lines = result.srclines;
+    //result.asmlines = result.lines;
+    //result.lines = result.srclines;
     result.srclines = null;
     return result;
   } catch(e) {

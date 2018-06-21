@@ -687,6 +687,7 @@ function getDisasmViewPC() {
 function getCurrentPC() {
   var line = getCurrentLine();
   while (line >= 0) {
+    // TODO: what if in disassembler?
     var pc = sourcefile.line2offset[line];
     if (pc >= 0) return pc;
     line--;
@@ -788,6 +789,7 @@ function updateDisassembly() {
   if (div.is(':visible')) {
     var state = lastDebugState || platform.saveState();
     var pc = state.c ? state.c.PC : 0;
+    // do we have an assembly listing?
     if (assemblyfile && assemblyfile.text) {
       var asmtext = assemblyfile.text;
       if (platform_id == 'base_z80') { // TODO
@@ -799,12 +801,15 @@ function updateDisassembly() {
       if (findPC) {
         var lineno = assemblyfile.findLineForOffset(findPC);
         if (lineno) {
+          // set cursor while debugging
           if (platform.getDebugCallback()) disasmview.setCursor(lineno-1, 0);
           jumpToLine(disasmview, lineno-1);
+          return; // success, don't disassemble in next step
         }
       }
     }
-    else if (platform.disassemble) {
+    // fall through to platform disassembler?
+    if (platform.disassemble) {
       var curline = 0;
       var selline = 0;
       // TODO: not perfect disassembler
@@ -821,6 +826,7 @@ function updateDisassembly() {
             var srcline = editor.getLine(srclinenum-1);
             if (srcline && srcline.trim().length) {
               s += "; " + srclinenum + ":\t" + srcline + "\n";
+              curline++;
             }
           }
           var bytes = "";
