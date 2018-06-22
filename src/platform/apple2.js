@@ -976,11 +976,11 @@ var Apple2MAMEPlatform = function(mainElement) {
   this.start = function() {
     self.startModule(mainElement, {
       jsfile:'mameapple2e.js',
-      //biosfile:['apple2/'],
+      biosfile:['apple2e.zip'],
       //cfgfile:'nes.cfg',
       driver:'apple2e',
-      width:256*2,
-      height:240*2,
+      width:280*2,
+      height:192*2,
       //romfn:'/emulator/cart.nes',
       //romsize:romSize,
       //romdata:new lzgmini().decode(lzgRom).slice(0, romSize),
@@ -997,8 +997,7 @@ var Apple2MAMEPlatform = function(mainElement) {
 
   this.loadROM = function(title, data) {
     this.loadROMFile(data);
-    this.loadRegion(":nes_slot:cart:prg_rom", data.slice(0x10, 0x8010));
-    this.loadRegion(":nes_slot:cart:chr_rom", data.slice(0x8010, 0xa010));
+    // TODO
   }
 }
 

@@ -866,7 +866,10 @@ function resetAndDebug() {
     _resume();
     platform.reset();
     setupBreakpoint();
-    platform.runEval(function(c) { return true; });
+    if (platform.runEval)
+      platform.runEval(function(c) { return true; }); // break immediately
+    else
+      ; // TODO???
   } else {
     platform.reset();
   }

@@ -92,11 +92,23 @@ var PLATFORM_PARAMS = {
     cfgfile: 'apple2.cfg',
     libargs: ['apple2.lib'],
   },
+  'atari8-800': {
+    define: '__ATARI__',
+    cfgfile: 'atari-cart.cfg',
+    libargs: ['atari.lib'],
+    code_offset: 0xa000, // TODO
+  },
   'atari8-5200': {
     define: '__ATARI5200__',
     cfgfile: 'atari5200.cfg',
     libargs: ['atari5200.lib'],
-    //code_offset: 0x803, // TODO
+    code_offset: 0x4000, // TODO
+  },
+  'c64': {
+    define: '__C64__',
+    cfgfile: 'c64.cfg',
+    libargs: ['c64.lib'],
+    code_offset: 0x4000, // TODO
   },
   'verilog': {
   },
@@ -583,6 +595,7 @@ function assemblelinkCA65(code, platform) {
       objout = FS.readFile("main.o", {encoding:'binary'});
       lstout = FS.readFile("main.lst", {encoding:'utf8'});
     } catch (e) {
+      errors.push({line:1, msg:e+""});
       return {errors:errors}; // TODO
     }
     if (errors.length)
@@ -603,8 +616,8 @@ function assemblelinkCA65(code, platform) {
     starttime();
     LD65.callMain(['--cfg-path', '/share/cfg',
       '--lib-path', '/share/lib',
-      '--lib-path', '/share/target/apple2/drv',
-      '-D', '__EXEHDR__=0',
+      '--lib-path', '/share/target/apple2/drv', // TODO
+      '-D', '__EXEHDR__=0', // TODO
       '-C', params.cfgfile,
       '-Ln', 'main.vice',
       //'--dbgfile', 'main.dbg',
@@ -618,7 +631,8 @@ function assemblelinkCA65(code, platform) {
       var mapout = FS.readFile("main.map", {encoding:'utf8'});
       var viceout = FS.readFile("main.vice", {encoding:'utf8'});
     } catch (e) {
-      return {errors:errors};
+      errors.push({line:1, msg:e+""});
+      return {errors:errors}; // TODO
     }
     var listing = parseCA65Listing(lstout, mapout);
     //console.log(lstout);
@@ -1156,7 +1170,6 @@ function compileCASPR(code, platform, options) {
       intermediate:{listing:miffile},
       lines:[]};
   } catch(e) {
-    console.log(e);
     errors.push({line:0,msg:e.message});
     return {errors:errors}; // TODO
   }

@@ -973,14 +973,16 @@ var BaseMAMEPlatform = function() {
     $(video.canvas).attr('id','canvas');
     // load asm.js module
     console.log("loading", opts.jsfile);
+    var modargs = [opts.driver,
+      '-debug',
+      '-debugger', 'none',
+      '-verbose', '-window', '-nokeepaspect',
+      '-resolution', canvas.width+'x'+canvas.height
+    ];
+    if (romfn) modargs.push('-cart', romfn);
     window.JSMESS = {};
     window.Module = {
-      arguments: [opts.driver,
-        '-debug',
-        '-debugger', 'none',
-        '-verbose', '-window', '-nokeepaspect',
-        '-resolution', canvas.width+'x'+canvas.height,
-        '-cart', romfn],
+      arguments: modargs,
       screenIsReadOnly: true,
       print: bufferConsoleOutput,
       canvas:video.canvas,
