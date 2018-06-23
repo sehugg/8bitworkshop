@@ -3,7 +3,7 @@ var assert = require('assert');
 var fs = require('fs');
 var wtu = require('./workertestutils.js');
 
-global.onmessage({data:{preload:'cc65'}});
+global.onmessage({data:{preload:'cc65', platform:'nes'}});
 global.onmessage({data:{preload:'sdcc'}});
 
 //
