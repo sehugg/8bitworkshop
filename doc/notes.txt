@@ -1,13 +1,11 @@
 
 TODO:
 
-- download ROM file
 - NaN in cycle count for macros
 - debugging of scan line overflow
 - confuse code/data in listing
 - show memory locations hovering over lines
 - don't play sound when debugging
-- coalesce compile events
 - don't check against ROM signatures
 - better errors when ROM format wrong
 - debugging inside of bank switching??? relocated segs?
@@ -17,12 +15,14 @@ TODO:
 - show other TIA internal values
 - case sensisitvity looking for mismatch variables
 - remove pulldown when no preset?
-- some units test maybe
 - can't step after reset (or when funky frame; TIA frame is out of sync)
 - break on BRK/illegal opcode?
-- last used filename for each platform
-- skeleton for each platform/tool
+- skeleton for each platform/tool (check?)
 - disassembler/debugger
 - multiple breakpoints, expression breakpoints
-
+- current exec. pos in gutter
+- cc65: parse listing
+- faster Z80 compile
+- projects w/ multiple files, navigation (need refactor UI)
+- nes: tools (nesst, tiled) https://shiru.untergrund.net/software.shtml
 

@@ -140,12 +140,12 @@ var wasmBlob = {};
 function loadFilesystem(name) {
   var xhr = new XMLHttpRequest();
   xhr.responseType = 'blob';
-  xhr.open("GET", "fs"+name+".data", false);  // synchronous request
+  xhr.open("GET", "fs/fs"+name+".data", false);  // synchronous request
   xhr.send(null);
   fsBlob[name] = xhr.response;
   xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
-  xhr.open("GET", "fs"+name+".js.metadata", false);  // synchronous request
+  xhr.open("GET", "fs/fs"+name+".js.metadata", false);  // synchronous request
   xhr.send(null);
   fsMeta[name] = xhr.response;
   console.log("Loaded "+name+" filesystem", fsMeta[name].files.length, 'files', fsBlob[name].size, 'bytes');
@@ -154,7 +154,7 @@ function loadFilesystem(name) {
 var loaded = {}
 function load(modulename, debug) {
   if (!loaded[modulename]) {
-    importScripts(modulename+(debug?"."+debug+".js":".js"));
+    importScripts('asmjs/'+modulename+(debug?"."+debug+".js":".js"));
     loaded[modulename] = 1;
   }
 }
@@ -178,7 +178,7 @@ function loadNative(modulename, debug) {
   // detect WASM
   if (typeof WebAssembly === 'object') {
     loadWASM(modulename);
-    return wasmBlob['sdcc'];
+    return wasmBlob[modulename];
   } else {
     load(modulename);
   }
@@ -1320,7 +1320,7 @@ function compileInlineASM(code, platform, options, errors, asmlines) {
 
 function compileVerilator(code, platform, options) {
   loadNative("verilator_bin");
-  load("verilator2js");
+  load("../verilator2js");
   var errors = [];
   var asmlines = [];
   code = compileInlineASM(code, platform, options, errors, asmlines);
