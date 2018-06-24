@@ -16,13 +16,13 @@ TODO:
 - case sensisitvity looking for mismatch variables
 - remove pulldown when no preset?
 - can't step after reset (or when funky frame; TIA frame is out of sync)
-- break on BRK/illegal opcode?
+- break on BRK/illegal opcode? (or warnings?)
 - skeleton for each platform/tool (check?)
 - disassembler/debugger
 - multiple breakpoints, expression breakpoints
 - current exec. pos in gutter
 - cc65: parse listing
-- faster Z80 compile
-- projects w/ multiple files, navigation (need refactor UI)
+- faster Z80 compile (maybe split up files?)
+- projects w/ multiple files, navigation (need refactor UI, backend)
 - nes: tools (nesst, tiled) https://shiru.untergrund.net/software.shtml
 

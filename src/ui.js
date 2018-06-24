@@ -582,12 +582,32 @@ worker.onmessage = function(e) {
   setCompileOutput(e.data);
 }
 
-function setCurrentLine(line) {
-  editor.setSelection({line:line,ch:0}, {line:line-1,ch:0}, {scroll:true});
-}
-
+var currentDebugLine;
 var lastDebugInfo;
 var lastDebugState;
+
+function setCurrentLine(line) {
+  function addCurrentMarker(line) {
+    var div = document.createElement("div");
+    div.style.color = '#66ffff'; // TODO
+    div.appendChild(document.createTextNode("\u25b6"));
+    editor.setGutterMarker(line, "gutter-info", div);
+  }
+  clearCurrentLine();
+  if (line>0) {
+    addCurrentMarker(line-1);
+    editor.setSelection({line:line,ch:0}, {line:line-1,ch:0}, {scroll:true});
+    currentDebugLine = line;
+  }
+}
+
+function clearCurrentLine() {
+  if (currentDebugLine) {
+    editor.clearGutter("gutter-info");
+    editor.setSelection(editor.getCursor()); // TODO??
+    currentDebugLine = 0;
+  }
+}
 
 function showMemory(state) {
   var s = state && platform.cpuStateToLongString && platform.cpuStateToLongString(state.c);
@@ -654,8 +674,9 @@ function _resume() {
 
 function resume() {
   clearBreakpoint();
-  if (! platform.isRunning() )
-    editor.setSelection(editor.getCursor()); // TODO??
+  if (! platform.isRunning() ) {
+    clearCurrentLine();
+  }
   _resume();
   userPaused = false;
 }
