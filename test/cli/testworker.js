@@ -53,10 +53,10 @@ describe('Worker', function() {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes-conio', done, 0, 0, 1);
   });
   it('should assemble Z80ASM', function(done) {
-    compile('z80asm', '\tMODULE test\n\tXREF _puts\n\tld	hl,$0000\n\tret\n', 'mw8080bw', done, 4, 2, 0);
+    compile('z80asm', '\tMODULE test\n\tEXTERN _puts\n\tld	hl,$0000\n\tret\n', 'mw8080bw', done, 4, 2, 0);
   });
   it('should NOT assemble Z80ASM', function(done) {
-    compile('z80asm', 'ddwiuweq', 'none', done, 0, 0, 1);
+    compile('z80asm', 'ddwiuweq', 'mw8080bw', done, 0, 0, 1);
   });
   it('should assemble SDASZ80', function(done) {
     compile('sdasz80', '\tld	hl,#0\n\tret\n', 'mw8080bw', done, 8192, 2);

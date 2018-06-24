@@ -1,13 +1,17 @@
 "use strict";
 
-global.window = global;
-
-require('../../../src/cpu/z80.js');
-
-var _global = window;
-_global.buildZ80({
-	applyContention: true
-});
+if (true) {
+	global.window = global;
+	require('../../../src/cpu/z80.js');
+	var _global = window;
+	_global.buildZ80({
+		applyContention: true
+	});
+} else {
+	var wtu = require('../workertestutils.js');
+	global.includeInThisContext('src/cpu/z80fast.js');
+	var _global = {Z80:Z80_fast};
+}
 
 var Memory = function(dump) {
 	var self = {};

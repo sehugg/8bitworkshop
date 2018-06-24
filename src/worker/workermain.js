@@ -707,24 +707,27 @@ function compileCC65(code, platform) {
 
 function assembleZ80ASM(code, platform) {
   load("z80asm");
-  var origin = 0; // TODO: configurable
+  var params = PLATFORM_PARAMS[platform];
+  if (!params) throw Error("Platform not supported: " + platform);
   var Module = z80asm({
     noInitialRun:true,
     //logReadFiles:true,
     print:print_fn,
-    printErr:print_fn,
+    printErr:function() {},
     TOTAL_MEMORY:256*1024*1024,
   });
   var FS = Module['FS'];
   //setupFS(FS);
   // changes for dialect
-  code = code.replace(".optsdcc -mz80","");
-  code = code.replace(/^(\w+)\s*=/gim,"DEFC $1 =");
-  code = code.replace(/\tXREF /gi,"\tEXTERN ");
-  code = code.replace(/\tXDEF /gi,"\tPUBLIC ");
+  //code = code.replace(".optsdcc -mz80","");
+  //code = code.replace(/^(\w+)\s*=/gim,"DEFC $1 =");
+  //code = code.replace(/\tXREF /gi,"\tEXTERN ");
+  //code = code.replace(/\tXDEF /gi,"\tPUBLIC ");
   FS.writeFile("main.asm", code);
   try {
-    Module.callMain(["-b", "-s", "-l", "-m", "-g", "--origin=" + origin.toString(16), "main.asm"]);
+    Module.callMain(["-b", "-s", "-l", "-m", "-g",
+      "--origin=" + params.code_start.toString(16),
+      "main.asm"]);
     try {
       var aerr = FS.readFile("main.err", {'encoding':'utf8'}); // TODO
       if (aerr.length) {
@@ -756,6 +759,64 @@ l_main00101                     = 0003, L: test
   } catch (e) {
     throw (e);
   }
+}
+
+function compileSCCZ80(code, platform) {
+  var preproc = preprocessMCPP(code, platform, 'sccz80');
+  if (preproc.errors) return preproc;
+  else code = preproc.code;
+
+  var params = PLATFORM_PARAMS[platform];
+  if (!params) throw Error("Platform not supported: " + platform);
+  var errors = [];
+  var errorMatcher = makeErrorMatcher(errors, /sccz80:[^ ]+ L:(\d+) (.+)/, 1, 2);
+
+  load('sccz80');
+  //sccz80:hello.c L:1 Error:Can't open include file
+  var SCCZ80 = sccz80({
+    wasmBinary: wasmBlob['sccz80'],
+    noInitialRun:true,
+    //noFSInit:true,
+    print:errorMatcher,
+    printErr:errorMatcher,
+    TOTAL_MEMORY:256*1024*1024,
+  });
+  var FS = SCCZ80['FS'];
+  //setupStdin(FS, code);
+  setupFS(FS, 'sccz80');
+  code = code.replace('__asm', '#asm').replace('__endasm', '#endasm;');
+  FS.writeFile("main.i", code, {encoding:'utf8'});
+  var args = ['-ext=asm', '-opt-code-speed', '-mz80', '-standard-escape-chars', 'main.i', '-o', 'main.asm'];
+  if (params.extra_compile_args) {
+    args.push.apply(args, params.extra_compile_args);
+  }
+  starttime();
+  SCCZ80.callMain(args);
+  endtime("compile");
+  // TODO: preprocessor errors w/ correct file
+  if (errors.length /* && nwarnings < msvc_errors.length*/) {
+    return {errors:errors};
+  }
+  try {
+    var asmout = FS.readFile("main.asm", {encoding:'utf8'});
+    //asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
+    //asmout = asmout.replace(".area _INITIALIZER",".area _CODE");
+    asmout = asmout.replace('INCLUDE "', ';;;INCLUDE "')
+  } catch (e) {
+    errors.push({line:1, msg:e+""});
+    return {errors:errors};
+  }
+  var warnings = errors;
+  try {
+    var result = assembleZ80ASM(asmout, platform, true);
+  } catch (e) {
+    errors.push({line:1, msg:e+""});
+    return {errors:errors};
+  }
+  result.asmlines = result.lines;
+  result.lines = result.srclines;
+  result.srclines = null;
+  return result;
 }
 
 function hexToArray(s, ofs) {
@@ -895,7 +956,7 @@ function assemblelinkSDASZ80(code, platform) {
 
 var sdcc;
 function compileSDCC(code, platform) {
-  var preproc = preprocessMCPP(code, platform);
+  var preproc = preprocessMCPP(code, platform, 'sdcc');
   if (preproc.errors) return preproc;
   else code = preproc.code;
 
@@ -1005,7 +1066,7 @@ function assembleXASM6809(code, platform) {
   }
 }
 
-function preprocessMCPP(code, platform) {
+function preprocessMCPP(code, platform, toolname) {
   load("mcpp");
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
@@ -1019,7 +1080,7 @@ function preprocessMCPP(code, platform) {
     printErr:match_fn,
   });
   var FS = MCPP['FS'];
-  setupFS(FS, 'sdcc');
+  setupFS(FS, toolname);
   FS.writeFile("main.c", code, {encoding:'utf8'});
   var args = [
     "-D", "__8BITWORKSHOP__",
@@ -1357,6 +1418,7 @@ var TOOLS = {
   'yosys': compileYosys,
   'caspr': compileCASPR,
   'jsasm': compileJSASM,
+  'sccz80': compileSCCZ80,
 }
 
 var TOOL_PRELOADFS = {
@@ -1370,6 +1432,7 @@ var TOOL_PRELOADFS = {
   'ca65-atari8': '65-atari8',
   'sdasz80': 'sdcc',
   'sdcc': 'sdcc',
+  'sccz80': 'sccz80',
 }
 
 function handleMessage(data) {
