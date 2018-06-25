@@ -471,6 +471,7 @@ function invertMap(m) {
 }
 
 function setCompileOutput(data) {
+  if (data.unchanged) return;
   // TODO: kills current selection
   sourcefile = new SourceFile(data.lines);
   if (data.asmlines) {

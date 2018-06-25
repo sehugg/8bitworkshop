@@ -135,49 +135,87 @@ function endtime(msg) { _t2 = new Date(); console.log(msg, _t2.getTime() - _t1.g
 
 var buildsteps = [];
 var workfs = {};
+var workerseq = 1;
+
+function compareData(a,b) {
+  if (a.length != b.length) return false;
+  if (typeof a === 'string' && typeof b === 'string')
+    return a==b;
+  else {
+    for (var i=0; i<a.length; i++) {
+      //if (a[i] != b[i]) console.log('differ at byte',i,a[i],b[i]);
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+}
 
 function putWorkFile(path, data) {
   var encoding = (typeof data === 'string') ? 'utf8' : 'binary';
   var entry = workfs[path];
-  // TODO: comparison doesn't work
-  if (!entry || entry.data != data) {
-    workfs[path] = entry = {path:path, data:data, encoding:encoding, dirty:true};
+  if (!entry || !compareData(entry.data, data) || entry.encoding != encoding) {
+    workfs[path] = entry = {path:path, data:data, encoding:encoding, ts:workerseq++};
+    console.log('+++', entry.path, entry.encoding, entry.data.length, entry.ts);
   }
-  console.log(entry.path, entry.encoding, entry.data.length, entry.dirty);
   return entry;
 }
 
-function populateFiles(step, fs, options) {
-  var dirty = false;
-  // TODO?
-  if (step.code && options.mainFilePath) {
+function populateEntry(fs, path, entry) {
+  fs.writeFile(path, entry.data, {encoding:entry.encoding});
+  fs.utime(path, entry.ts, entry.ts);
+  console.log("<<<", path);
+}
+
+// can call multiple times (from populateFiles)
+function gatherFiles(step, options) {
+  var maxts = 0;
+  if (step.files) {
+    for (var i=0; i<step.files.length; i++) {
+      var path = step.files[i];
+      var entry = workfs[path];
+      maxts = Math.max(maxts, entry.ts);
+    }
+  }
+  else if (step.code && options.mainFilePath) {
     var path = options.mainFilePath;
     var code = step.code;
     if (options.transform) code = options.transform(code);
     var entry = putWorkFile(path, code);
-    dirty |= entry.dirty;
-    fs.writeFile(path, entry.data, {encoding:entry.encoding});
     step.path = path;
-    console.log("Wrote " + path);
-  }
-  else if (step.files) {
-    for (var i=0; i<step.files.length; i++) {
-      var path = step.files[i];
-      var entry = workfs[path];
-      fs.writeFile(path, entry.data, {encoding:entry.encoding});
-      console.log("Wrote " + path);
-    }
+    step.files = [path];
+    maxts = entry.ts;
   }
   else if (step.path) {
     var path = step.path;
     var entry = workfs[path];
-    fs.writeFile(path, entry.data, {encoding:entry.encoding});
-    console.log("Wrote " + path);
+    maxts = entry.ts;
+    step.files = [path];
   }
   if (step.path && !step.prefix) {
     step.prefix = step.path.split(/[./]/)[0]; // TODO
   }
-  return dirty;
+  step.maxts = maxts;
+  return maxts;
+}
+
+function populateFiles(step, fs, options) {
+  gatherFiles(step, options);
+  if (!step.files) throw "call gatherFiles() first";
+  for (var i=0; i<step.files.length; i++) {
+    var path = step.files[i];
+    populateEntry(fs, path, workfs[path]);
+  }
+}
+
+function staleFiles(step, targets) {
+  if (!step.maxts) throw "call populateFiles() first";
+  for (var i=0; i<targets.length; i++) {
+    var entry = workfs[targets[i]];
+    if (!entry || step.maxts > entry.ts)
+      return true;
+  }
+  console.log("unchanged", step.maxts, targets);
+  return false;
 }
 
 function execMain(step, mod, args) {
@@ -563,8 +601,11 @@ function parseCA65Listing(code, mapfile) {
 function assembleCA65(step) {
   loadNative("ca65");
   var errors = [];
-  var objout, lstout;
-  {
+  gatherFiles(step, {mainFilePath:"main.s"});
+  var objpath = step.prefix+".o";
+  var lstpath = step.prefix+".lst";
+  if (staleFiles(step, [objpath, lstpath])) {
+    var objout, lstout;
     var CA65 = ca65({
       wasmBinary: wasmBlob['ca65'],
       noInitialRun:true,
@@ -574,75 +615,80 @@ function assembleCA65(step) {
     });
     var FS = CA65['FS'];
     setupFS(FS, '65-'+step.platform.split('-')[0]);
-    populateFiles(step, FS, {mainFilePath:"main.s"});
+    populateFiles(step, FS);
     execMain(step, CA65, ['-v', '-g', '-I', '/share/asminc', '-l', step.prefix+'.lst', step.prefix+".s"]);
     if (errors.length)
       return {errors:errors};
-    objout = FS.readFile(step.prefix+".o", {encoding:'binary'});
-    lstout = FS.readFile(step.prefix+".lst", {encoding:'utf8'});
-    putWorkFile(step.prefix+".o", objout);
-    putWorkFile(step.prefix+".lst", lstout);
-    return {
-      linktool:"ld65",
-      files:[step.prefix+".o", step.prefix+".lst"],
-      args:[step.prefix+".o"]
-    };
+    objout = FS.readFile(objpath, {encoding:'binary'});
+    lstout = FS.readFile(lstpath, {encoding:'utf8'});
+    putWorkFile(objpath, objout);
+    putWorkFile(lstpath, lstout);
   }
+  return {
+    linktool:"ld65",
+    files:[objpath, lstpath],
+    args:[objpath]
+  };
 }
 
 function linkLD65(step) {
   loadNative("ld65");
   var params = step.params;
   var platform = step.platform;
-  var errors = [];
-  var LD65 = ld65({
-    wasmBinary: wasmBlob['ld65'],
-    noInitialRun:true,
-    //logReadFiles:true,
-    print:print_fn,
-    printErr:makeErrorMatcher(errors, /[(](\d+)[)]: (.+)/, 1, 2),
-  });
-  var FS = LD65['FS'];
-  var cfgfile = '/' + platform + '.cfg';
-  setupFS(FS, '65-'+platform.split('-')[0]);
-  populateFiles(step, FS);
-  var libargs = params.libargs;
-  var args = ['--cfg-path', '/share/cfg',
-    '--lib-path', '/share/lib',
-    '--lib-path', '/share/target/apple2/drv', // TODO
-    '-D', '__EXEHDR__=0', // TODO
-    '-C', params.cfgfile,
-    '-Ln', 'main.vice',
-    //'--dbgfile', 'main.dbg',
-    '-o', 'main', '-m', 'main.map'].concat(step.args, libargs);
-  execMain(step, LD65, args);
-  if (errors.length)
-    return {errors:errors};
-  var aout = FS.readFile("main", {encoding:'binary'});
-  var mapout = FS.readFile("main.map", {encoding:'utf8'});
-  var viceout = FS.readFile("main.vice", {encoding:'utf8'});
-  // TODO: multiple listing files
-  var lstout = FS.readFile("main.lst", {encoding:'utf8'});
-  var listing = parseCA65Listing(lstout, mapout);
-  //console.log(lstout);
-  //console.log(mapout);
-  var srclines = parseSourceLines(lstout, /[.]dbg\s+line, "main[.]c", (\d+)/i, /^\s*([0-9A-F]+)r/i, params.code_offset);
-  // parse symbol map (TODO: omit segments, constants)
-  var symbolmap = {};
-  for (var s of viceout.split("\n")) {
-    var toks = s.split(" ");
-    if (toks[0] == 'al') {
-      symbolmap[toks[2].substr(1)] = parseInt(toks[1], 16);
+  gatherFiles(step);
+  var binpath = "main";
+  if (staleFiles(step, [binpath])) {
+    var errors = [];
+    var LD65 = ld65({
+      wasmBinary: wasmBlob['ld65'],
+      noInitialRun:true,
+      //logReadFiles:true,
+      print:print_fn,
+      printErr:makeErrorMatcher(errors, /[(](\d+)[)]: (.+)/, 1, 2),
+    });
+    var FS = LD65['FS'];
+    var cfgfile = '/' + platform + '.cfg';
+    setupFS(FS, '65-'+platform.split('-')[0]);
+    populateFiles(step, FS);
+    var libargs = params.libargs;
+    var args = ['--cfg-path', '/share/cfg',
+      '--lib-path', '/share/lib',
+      '--lib-path', '/share/target/apple2/drv', // TODO
+      '-D', '__EXEHDR__=0', // TODO
+      '-C', params.cfgfile,
+      '-Ln', 'main.vice',
+      //'--dbgfile', 'main.dbg',
+      '-o', 'main', '-m', 'main.map'].concat(step.args, libargs);
+    execMain(step, LD65, args);
+    if (errors.length)
+      return {errors:errors};
+    var aout = FS.readFile("main", {encoding:'binary'});
+    var mapout = FS.readFile("main.map", {encoding:'utf8'});
+    var viceout = FS.readFile("main.vice", {encoding:'utf8'});
+    // TODO: multiple listing files
+    var lstout = FS.readFile("main.lst", {encoding:'utf8'});
+    var listing = parseCA65Listing(lstout, mapout);
+    //console.log(lstout);
+    //console.log(mapout);
+    var srclines = parseSourceLines(lstout, /[.]dbg\s+line, "main[.]c", (\d+)/i, /^\s*([0-9A-F]+)r/i, params.code_offset);
+    // parse symbol map (TODO: omit segments, constants)
+    var symbolmap = {};
+    for (var s of viceout.split("\n")) {
+      var toks = s.split(" ");
+      if (toks[0] == 'al') {
+        symbolmap[toks[2].substr(1)] = parseInt(toks[1], 16);
+      }
     }
+    putWorkFile("main", aout);
+    return {
+      output:aout.slice(0),
+      lines:listing.lines,
+      srclines:srclines,
+      errors:listing.errors,
+      symbolmap:symbolmap,
+      intermediate:{listing:lstout+"\n"+mapout+"\n"+viceout, map:mapout, symbols:viceout}, // TODO
+    };
   }
-  return {
-    output:aout.slice(0),
-    lines:listing.lines,
-    srclines:srclines,
-    errors:listing.errors,
-    symbolmap:symbolmap,
-    intermediate:{listing:lstout+"\n"+mapout+"\n"+viceout, map:mapout, symbols:viceout}, // TODO
-  };
 }
 
 function compileCC65(step) {
@@ -663,28 +709,32 @@ function compileCC65(step) {
       });
     }
   }
-  var CC65 = cc65({
-    noInitialRun:true,
-    //logReadFiles:true,
-    print:print_fn,
-    printErr:match_fn,
-  });
-  var FS = CC65['FS'];
-  setupFS(FS, '65-'+step.platform.split('-')[0]);
-  populateFiles(step, FS, {mainFilePath:"main.c"});
-  execMain(step, CC65, ['-T', '-g', /*'-Cl',*/
-    '-Oirs',
-    '-I', '/share/include',
-    '-D' + params.define,
-    step.path]);
-  if (errors.length)
-    return {errors:errors};
-  var asmout = FS.readFile(step.prefix+".s", {encoding:'utf8'});
-  putWorkFile(step.prefix+".s", asmout);
+  gatherFiles(step, {mainFilePath:"main.c"});
+  var destpath = step.prefix + '.s';
+  if (staleFiles(step, [destpath])) {
+    var CC65 = cc65({
+      noInitialRun:true,
+      //logReadFiles:true,
+      print:print_fn,
+      printErr:match_fn,
+    });
+    var FS = CC65['FS'];
+    setupFS(FS, '65-'+step.platform.split('-')[0]);
+    populateFiles(step, FS);
+    execMain(step, CC65, ['-T', '-g', /*'-Cl',*/
+      '-Oirs',
+      '-I', '/share/include',
+      '-D' + params.define,
+      step.path]);
+    if (errors.length)
+      return {errors:errors};
+    var asmout = FS.readFile(destpath, {encoding:'utf8'});
+    putWorkFile(destpath, asmout);
+  }
   return {
     nexttool:"ca65",
-    path:step.prefix+".s",
-    args:[step.prefix+".s"]
+    path:destpath,
+    args:[destpath]
   };
 }
 
@@ -779,7 +829,10 @@ function assembleSDASZ80(step) {
   loadNative("sdasz80");
   var objout, lstout, symout;
   var errors = [];
-  {
+  gatherFiles(step, {mainFilePath:"main.asm"});
+  var objpath = step.prefix + ".rel";
+  var lstpath = step.prefix + ".lst";
+  if (staleFiles(step, [objpath, lstpath])) {
     //?ASxxxx-Error-<o> in line 1 of main.asm null
     //              <o> .org in REL area or directive / mnemonic error
     var match_asm_re = / <\w> (.+)/; // TODO
@@ -801,30 +854,31 @@ function assembleSDASZ80(step) {
       printErr:match_asm_fn,
     });
     var FS = ASZ80['FS'];
-    populateFiles(step, FS, {
-      mainFilePath:"main.asm"
-    });
+    populateFiles(step, FS);
     execMain(step, ASZ80, ['-plosgffwy', step.path]);
     if (errors.length) {
       return {errors:errors};
     }
-    objout = FS.readFile(step.prefix+".rel", {encoding:'utf8'});
-    lstout = FS.readFile(step.prefix+".lst", {encoding:'utf8'});
-    putWorkFile(step.prefix+".rel", objout);
-    putWorkFile(step.prefix+".lst", lstout);
-    return {
-      linktool:"sdldz80",
-      files:[step.prefix+".rel", step.prefix+".lst"],
-      args:[step.prefix+".rel"]
-    };
-    //symout = FS.readFile("main.sym", {encoding:'utf8'});
+    objout = FS.readFile(objpath, {encoding:'utf8'});
+    lstout = FS.readFile(lstpath, {encoding:'utf8'});
+    putWorkFile(objpath, objout);
+    putWorkFile(lstpath, lstout);
   }
+  return {
+    linktool:"sdldz80",
+    files:[objpath, lstpath],
+    args:[objpath]
+  };
+  //symout = FS.readFile("main.sym", {encoding:'utf8'});
 }
 
 function linkSDLDZ80(step)
 {
   loadNative("sdldz80");
   var errors = [];
+  gatherFiles(step);
+  var binpath = "main.ihx";
+  if (staleFiles(step, [binpath])) {
     //?ASlink-Warning-Undefined Global '__divsint' referenced by module 'main'
     var match_aslink_re = /\?ASlink-(\w+)-(.+)/;
     function match_aslink_fn(s) {
@@ -883,6 +937,7 @@ function linkSDLDZ80(step)
         symbolmap[toks[1]] = parseInt(toks[2], 16);
       }
     }
+    putWorkFile("main.ihx", hexout);
     return {
       output:parseIHX(hexout, params.rom_start?params.rom_start:params.code_start, params.rom_size),
       asmlines:srclines.length?asmlines:null,
@@ -891,63 +946,67 @@ function linkSDLDZ80(step)
       symbolmap:symbolmap,
       intermediate:{listing:rstout},
     };
+  }
 }
 
 var sdcc;
 function compileSDCC(step) {
   
-  var errors = [];
-  var params = step.params;
-
-  loadNative('sdcc');
-  var SDCC = sdcc({
-    wasmBinary: wasmBlob['sdcc'],
-    noInitialRun:true,
-    noFSInit:true,
-    print:print_fn,
-    printErr:msvcErrorMatcher(errors),
-    TOTAL_MEMORY:256*1024*1024,
-  });
-  var FS = SDCC['FS'];
-  populateFiles(step, FS, {
+  gatherFiles(step, {
     mainFilePath:"main.c" // not used
   });
-  // load source file and preprocess
-  var code = workfs[step.path].data; // TODO
-  var preproc = preprocessMCPP(code, step.platform);
-  if (preproc.errors) return preproc;
-  else code = preproc.code;
-  // pipe file to stdin
-  setupStdin(FS, code);
-  setupFS(FS, 'sdcc');
-  var args = ['--vc', '--std-sdcc99', '-mz80', //'-Wall',
-    '--c1mode', // '--debug',
-    //'-S', 'main.c',
-    //'--asm=sdasz80',
-    //'--reserve-regs-iy',
-    '--less-pedantic',
-    ///'--fomit-frame-pointer',
-    '--opt-code-speed',
-    //'--oldralloc', // TODO: does this make it fater?
-    //'--cyclomatic',
-    //'--nooverlay','--nogcse','--nolabelopt','--noinvariant','--noinduction','--nojtbound','--noloopreverse','--no-peep','--nolospre',
-    '-o', step.prefix+'.asm'];
-  if (params.extra_compile_args) {
-    args.push.apply(args, params.extra_compile_args);
+  var outpath = step.prefix + ".asm";
+  if (staleFiles(step, [outpath])) {
+    var errors = [];
+    var params = step.params;
+    loadNative('sdcc');
+    var SDCC = sdcc({
+      wasmBinary: wasmBlob['sdcc'],
+      noInitialRun:true,
+      noFSInit:true,
+      print:print_fn,
+      printErr:msvcErrorMatcher(errors),
+      TOTAL_MEMORY:256*1024*1024,
+    });
+    var FS = SDCC['FS'];
+    populateFiles(step, FS);
+    // load source file and preprocess
+    var code = workfs[step.path].data; // TODO
+    var preproc = preprocessMCPP(code, step.platform);
+    if (preproc.errors) return preproc;
+    else code = preproc.code;
+    // pipe file to stdin
+    setupStdin(FS, code);
+    setupFS(FS, 'sdcc');
+    var args = ['--vc', '--std-sdcc99', '-mz80', //'-Wall',
+      '--c1mode', // '--debug',
+      //'-S', 'main.c',
+      //'--asm=sdasz80',
+      //'--reserve-regs-iy',
+      '--less-pedantic',
+      ///'--fomit-frame-pointer',
+      '--opt-code-speed',
+      //'--oldralloc', // TODO: does this make it fater?
+      //'--cyclomatic',
+      //'--nooverlay','--nogcse','--nolabelopt','--noinvariant','--noinduction','--nojtbound','--noloopreverse','--no-peep','--nolospre',
+      '-o', outpath];
+    if (params.extra_compile_args) {
+      args.push.apply(args, params.extra_compile_args);
+    }
+    execMain(step, SDCC, args);
+    // TODO: preprocessor errors w/ correct file
+    if (errors.length /* && nwarnings < msvc_errors.length*/) {
+      return {errors:errors};
+    }
+    // massage the asm output
+    var asmout = FS.readFile(outpath, {encoding:'utf8'});
+    asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
+    putWorkFile(outpath, asmout);
   }
-  execMain(step, SDCC, args);
-  // TODO: preprocessor errors w/ correct file
-  if (errors.length /* && nwarnings < msvc_errors.length*/) {
-    return {errors:errors};
-  }
-  // massage the asm output
-  var asmout = FS.readFile(step.prefix+".asm", {encoding:'utf8'});
-  asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
-  putWorkFile(step.prefix+".asm", asmout);
   return {
     nexttool:"sdasz80",
-    path:step.prefix+".asm",
-    args:[step.prefix+".asm"]
+    path:outpath,
+    args:[outpath]
   };
 }
 
@@ -1356,34 +1415,7 @@ var TOOL_PRELOADFS = {
   'sdcc': 'sdcc',
 }
 
-function handleMessage(data) {
-  // preload file system
-  if (data.preload) {
-    var fs = TOOL_PRELOADFS[data.preload];
-    if (!fs && data.platform)
-      fs = TOOL_PRELOADFS[data.preload+'-'+data.platform.split('-')[0]];
-    if (fs && !fsMeta[fs])
-      loadFilesystem(fs);
-    return;
-  }
-  // (code,platform,tool,dependencies)
-  buildsteps = [];
-  // file updates
-  if (data.updates) {
-    for (var i=0; i<data.updates.length; i++) {
-      var u = data.updates[i];
-      putWorkFile(u.path, u.data);
-    }
-  }
-  // build steps
-  if (data.buildsteps) {
-    buildsteps.push.apply(buildsteps, data.buildsteps);
-  }
-  // single-file
-  if (data.code) {
-    buildsteps.push(data);
-  }
-  // execute build steps
+function executeBuildSteps() {
   while (buildsteps.length) {
     var step = buildsteps.shift(); // get top of array
     var code = step.code;
@@ -1441,6 +1473,40 @@ function handleMessage(data) {
         step.generated = asmstep.files;
       }
     }
+  }
+}
+
+function handleMessage(data) {
+  // preload file system
+  if (data.preload) {
+    var fs = TOOL_PRELOADFS[data.preload];
+    if (!fs && data.platform)
+      fs = TOOL_PRELOADFS[data.preload+'-'+data.platform.split('-')[0]];
+    if (fs && !fsMeta[fs])
+      loadFilesystem(fs);
+    return;
+  }
+  // (code,platform,tool,dependencies)
+  buildsteps = [];
+  // file updates
+  if (data.updates) {
+    for (var i=0; i<data.updates.length; i++) {
+      var u = data.updates[i];
+      putWorkFile(u.path, u.data);
+    }
+  }
+  // build steps
+  if (data.buildsteps) {
+    buildsteps.push.apply(buildsteps, data.buildsteps);
+  }
+  // single-file
+  if (data.code) {
+    buildsteps.push(data);
+  }
+  // execute build steps
+  if (buildsteps.length) {
+    var result = executeBuildSteps();
+    return result ? result : {unchanged:true};
   }
   // TODO: cache results
   // message not recognized

@@ -141,5 +141,55 @@ describe('Worker', function() {
     ];
     doBuild(msgs, done, 8192, 1, 0);
   });
+  it('should not build unchanged files with CC65', function(done) {
+    var m = {
+        "updates":[
+            {"path":"main.c", "data":"extern int mul2(int x);\n int main() { return mul2(2); }\n"},
+            {"path":"fn.c", "data":"int mul2(int x) { return x*x; }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"nes-conio", "tool":"cc65"},
+            {"path":"fn.c", "platform":"nes-conio", "tool":"cc65"}
+        ]
+    };
+    var m2 = {
+        "updates":[
+            {"path":"main.c", "data":"extern int mul2(int x); \nint main() { return mul2(2); }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"nes-conio", "tool":"cc65"},
+            {"path":"fn.c", "platform":"nes-conio", "tool":"cc65"}
+        ]
+    };
+    var msgs = [
+    {"preload":"cc65"},
+    m, m, m2];
+    doBuild(msgs, done, 40976, 1, 0);
+  });
+  it('should not build unchanged files with SDCC', function(done) {
+    var m = {
+        "updates":[
+            {"path":"main.c", "data":"extern int mul2(int x);\n int main() { return mul2(2); }\n"},
+            {"path":"fn.c", "data":"int mul2(int x) { return x*x; }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"mw8080bw", "tool":"sdcc"},
+            {"path":"fn.c", "platform":"mw8080bw", "tool":"sdcc"}
+        ]
+    };
+    var m2 = {
+        "updates":[
+            {"path":"main.c", "data":"extern int mul2(int x); \nint main() { return mul2(2); }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"mw8080bw", "tool":"sdcc"},
+            {"path":"fn.c", "platform":"mw8080bw", "tool":"sdcc"}
+        ]
+    };
+    var msgs = [
+    {"preload":"sdcc"},
+    m, m, m2];
+    doBuild(msgs, done, 8192, 1, 0);
+  });
 
 });
