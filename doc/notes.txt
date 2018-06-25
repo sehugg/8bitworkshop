@@ -18,6 +18,7 @@ TODO:
 - can't step after reset (or when funky frame; TIA frame is out of sync)
 - break on BRK/illegal opcode?
 - multiple breakpoints, expression breakpoints
+- use localForage (https://github.com/localForage/localForage)
 
 - cc65 listing file parsing
 - better disasm/listing selection

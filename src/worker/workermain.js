@@ -60,14 +60,13 @@ var PLATFORM_PARAMS = {
   'coleco': {
     rom_start: 0x8000,
     code_start: 0x8100,
-    code_offset: 0x8147, // TODO: right after cv_start()
     rom_size: 0x8000,
     data_start: 0x7000,
     data_size: 0x400,
     stack_end: 0x8000,
     extra_preproc_args: ['-I', '/share/include/coleco'],
     extra_link_args: ['-k', '/share/lib/coleco',
-      '-l', 'libcv', '-l', 'libcvu', '/share/lib/coleco/crt0.rel',
+      '-l', 'libcv', '-l', 'libcvu', 'crt0.rel', //'/share/lib/coleco/crt0.rel',
       //'-l', 'comp.lib', '-l', 'cvlib.lib', '-l', 'getput.lib', '/share/lib/coleco/crtcv.rel',
       'main.rel'],
   },
@@ -140,6 +139,7 @@ var workfs = {};
 function putWorkFile(path, data) {
   var encoding = (typeof data === 'string') ? 'utf8' : 'binary';
   var entry = workfs[path];
+  // TODO: comparison doesn't work
   if (!entry || entry.data != data) {
     workfs[path] = entry = {path:path, data:data, encoding:encoding, dirty:true};
   }
@@ -239,82 +239,12 @@ function loadNative(modulename, debug) {
   }
 }
 
-var ATARI_CFG =
-   "FEATURES {\nSTARTADDRESS: default = $9000;\n}\n"
-+  "MEMORY {\n"
-+  "     ZP:  file = \"\", start = $82, size = $7E, type = rw, define = yes;\n"
-+  "    RAM:  file = \"\", start = $0200, size = $1e00, define = yes;\n"
-+  "    ROM:  file = %O, start = $9000, size = $7000;\n"
-+  "   ROMV:  file = %O, start = $FFFA, size = $0006, fill = yes;\n"
-+  "}\n"
-+  "SEGMENTS {\n"
-+  "ZEROPAGE: load = ZP,  type = zp, define = yes;\n"
-+  " STARTUP: load = ROM, type = ro, define = yes;\n"
-+  "    ONCE: load = ROM, type = ro, define = yes;\n"
-+  "    CODE: load = ROM, type = ro, define = yes;\n"
-+  "    DATA: load = RAM, type = rw, define = yes, run = RAM;\n"
-+  "    INIT: load = RAM, type = rw, define = yes;\n"
-+  "     BSS: load = RAM, type = bss, define = yes;\n"
-+  "    HEAP: load = RAM, type = bss, optional = yes;\n"
-+  "  RODATA: load = ROM, type = ro;\n"
-+  "}\n"
-+  "FEATURES {\n"
-+  "    CONDES:    segment = STARTUP,\n"
-+  "               type    = constructor,\n"
-+  "               label   = __CONSTRUCTOR_TABLE__,\n"
-+  "               count   = __CONSTRUCTOR_COUNT__;\n"
-+  "    CONDES:    segment = STARTUP,\n"
-+  "               type    = destructor,\n"
-+  "               label   = __DESTRUCTOR_TABLE__,\n"
-+  "               count   = __DESTRUCTOR_COUNT__;\n"
-+  "}\n"
-+  "SYMBOLS {\n"
-+  "    __STACKSIZE__:       type = weak,   value = $0400;\n"
-+  "    __LC_LAST__:       type = weak,   value = $0400;\n"
-+  "    __LC_START__:       type = weak,   value = $0400;\n"
-+  "}\n"
-;
-/*
-+  "MEMORY {\n"
-+  "    ZP:   file = \"\", define = yes, start = $0082, size = $007E;\n"
-+  "    MAIN: file = %O, define = yes, start = %S,    size = $BC20 - __STACKSIZE__ - __RESERVED_MEMORY__ - %S;\n"
-+  "}\n"
-+  "SEGMENTS {\n"
-+  "    ZEROPAGE: load = ZP,   type = zp,                optional = yes;\n"
-+  "    EXTZP:    load = ZP,   type = zp,                optional = yes;\n"
-+  "    STARTUP:  load = MAIN, type = ro,  define = yes, optional = yes;\n"
-+  "    LOWCODE:  load = MAIN, type = ro,  define = yes, optional = yes;\n"
-+  "    ONCE:     load = MAIN, type = ro,                optional = yes;\n"
-+  "    CODE:     load = MAIN, type = ro,  define = yes;\n"
-+  "    RODATA:   load = MAIN, type = ro,                optional = yes;\n"
-+  "    DATA:     load = MAIN, type = rw,                optional = yes;\n"
-+  "    BSS:      load = MAIN, type = bss, define = yes, optional = yes;\n"
-+  "    INIT:     load = MAIN, type = bss,               optional = yes;\n"
-+  "}\n"
-+  "FEATURES {\n"
-+  "    CONDES: type    = constructor,\n"
-+  "            label   = __CONSTRUCTOR_TABLE__,\n"
-+  "            count   = __CONSTRUCTOR_COUNT__,\n"
-+  "            segment = ONCE;\n"
-+  "    CONDES: type    = destructor,\n"
-+  "            label   = __DESTRUCTOR_TABLE__,\n"
-+  "            count   = __DESTRUCTOR_COUNT__,\n"
-+  "            segment = RODATA;\n"
-+  "    CONDES: type    = interruptor,\n"
-+  "            label   = __INTERRUPTOR_TABLE__,\n"
-+  "            count   = __INTERRUPTOR_COUNT__,\n"
-+  "            segment = RODATA,\n"
-+  "            import  = __CALLIRQ__;\n"
-+  "}\n";
-*/
-
 // mount the filesystem at /share
 function setupFS(FS, name) {
   FS.mkdir('/share');
   FS.mount(FS.filesystems['WORKERFS'], {
     packages: [{ metadata: fsMeta[name], blob: fsBlob[name] }]
   }, '/share');
-  FS.writeFile("/vector-ataricolor.cfg", ATARI_CFG); // TODO: remove
 }
 
 var DASM_PREAMBLE = "\tprocessor 6502\n";
@@ -907,7 +837,7 @@ function linkSDLDZ80(step)
       }
     }
     var params = step.params;
-    var updateListing = !params.extra_link_args; // TODO
+    var updateListing = true;
     var LDZ80 = sdldz80({
       wasmBinary: wasmBlob['sdldz80'],
       noInitialRun:true,
@@ -918,18 +848,20 @@ function linkSDLDZ80(step)
     var FS = LDZ80['FS'];
     setupFS(FS, 'sdcc');
     populateFiles(step, FS);
+    // TODO: coleco hack so that -u flag works
+    if (step.platform == "coleco") {
+      FS.writeFile('crt0.rel', FS.readFile('/share/lib/coleco/crt0.rel', {encoding:'utf8'}));
+      FS.writeFile('crt0.lst', '\n'); // TODO: needed so -u flag works
+    }
     var args = ['-mjwxy'+(updateListing?'u':''),
       '-i', 'main.ihx', // TODO: main?
       '-b', '_CODE=0x'+params.code_start.toString(16),
       '-b', '_DATA=0x'+params.data_start.toString(16),
       '-k', '/share/lib/z80',
       '-l', 'z80'];
-    if (params.extra_link_args) {
-      // TODO? what this for?
+    if (params.extra_link_args)
       args.push.apply(args, params.extra_link_args);
-    } else {
-      args.push.apply(args, step.args);
-    }
+    args.push.apply(args, step.args);
     execMain(step, LDZ80, args);
     var hexout = FS.readFile("main.ihx", {encoding:'utf8'});
     var mapout = FS.readFile("main.noi", {encoding:'utf8'});
@@ -940,9 +872,9 @@ function linkSDLDZ80(step)
       rstout = FS.readFile("main.lst", {encoding:'utf8'}); // TODO: could be different filename
     //var dbgout = FS.readFile("main.cdb", {encoding:'utf8'});
     //   0000 21 02 00      [10]   52 	ld	hl, #2
-    // TODO: use map to find code_offset
-    var asmlines = parseListing(rstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2, params.code_offset); //, 5, 3);
-    var srclines = parseSourceLines(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i, params.code_offset);
+    // TODO: use -u flag to find code_offset
+    var asmlines = parseListing(rstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2); //, 5, 3);
+    var srclines = parseSourceLines(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
     // parse symbol map
     var symbolmap = {};
     for (var s of mapout.split("\n")) {
@@ -1454,12 +1386,12 @@ function handleMessage(data) {
   // execute build steps
   while (buildsteps.length) {
     var step = buildsteps.shift(); // get top of array
-    console.log(step);
     var code = step.code;
     var platform = step.platform;
     var toolfn = TOOLS[step.tool];
     if (!toolfn) throw "no tool named " + step.tool;
     step.params = PLATFORM_PARAMS[platform];
+    console.log(step.platform + " " + step.tool);
     try {
       step.result = toolfn(step);
     } catch (e) {
