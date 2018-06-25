@@ -570,32 +570,57 @@ function compilePLASMA(code) {
   return assembleACME(outstr);
 }
 
-function parseCA65Listing(code, mapfile) {
-  // CODE                  00603E  00637C  00033F  00001
-  var mapMatch = /^CODE\s+([0-9A-F]+)/m.exec(mapfile);
-  var codeofs = 0x6000; // TODO
-  if (mapMatch) {
-    var codeofs = parseInt(mapMatch[1], 16);
-  }
+    /*
+    000000r 1               .segment        "CODE"
+    000000r 1               ; int main() { return mul2(2); }
+    000000r 1                       .dbg    line, "main.c", 3
+    000000r 1  A2 00                ldx     #$00
+    */
+function parseCA65Listing(code, symbols, dbg) {
+  var segofs = 0;
   // .dbg	line, "main.c", 1
-  var dbgLineMatch = /([0-9a-fA-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+line,\s+\S+,\s+(\d+)/;
-  var errors = [];
+  var segLineMatch = /[.]segment\s+"(\w+)"/;
+  //var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+line,\s+\S+,\s+(\d+)/;
+  var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+line,\s+"(\w+[.]c)", (\d+)/;
+  var insnLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/;
   var lines = [];
-  var lastlinenum = 0;
+  var linenum = 0;
   for (var line of code.split(/\r?\n/)) {
-    var linem = dbgLineMatch.exec(line);
-    if (linem && linem[1]) {
-      var offset = parseInt(linem[1], 16);
-      var linenum = parseInt(linem[4]);
-      lines.push({
-        line:linenum,
-        offset:offset + codeofs,
-        insns:null
-      });
-      //console.log(linem, lastlinenum, lines[lines.length-1]);
+    linenum++;
+    var segm = segLineMatch.exec(line);
+    if (segm) {
+      var segname = segm[1];
+      var segsym = '__'+segname+'_RUN__';
+      // TODO: doesn't work on apple2, needs __MAIN_START__?
+      segofs = parseInt(symbols[segsym])|0;
+    }
+    if (dbg) {
+      var linem = dbgLineMatch.exec(line);
+      if (linem && linem[1]) {
+        var offset = parseInt(linem[1], 16);
+        lines.push({
+          // TODO: sourcefile
+          line:parseInt(linem[5]),
+          offset:offset + segofs,
+          insns:null
+        });
+      }
+    } else {
+      var linem = insnLineMatch.exec(line);
+      if (linem && linem[1]) {
+        var offset = parseInt(linem[1], 16);
+        var insns = linem[4].trim();
+        if (insns.length) {
+          lines.push({
+            line:linenum,
+            offset:offset + segofs,
+            insns:insns
+          });
+        }
+      }
     }
   }
-  return {lines:lines, errors:errors};
+  return lines;
 }
 
 function assembleCA65(step) {
@@ -665,12 +690,6 @@ function linkLD65(step) {
     var aout = FS.readFile("main", {encoding:'binary'});
     var mapout = FS.readFile("main.map", {encoding:'utf8'});
     var viceout = FS.readFile("main.vice", {encoding:'utf8'});
-    // TODO: multiple listing files
-    var lstout = FS.readFile("main.lst", {encoding:'utf8'});
-    var listing = parseCA65Listing(lstout, mapout);
-    //console.log(lstout);
-    //console.log(mapout);
-    var srclines = parseSourceLines(lstout, /[.]dbg\s+line, "main[.]c", (\d+)/i, /^\s*([0-9A-F]+)r/i, params.code_offset);
     // parse symbol map (TODO: omit segments, constants)
     var symbolmap = {};
     for (var s of viceout.split("\n")) {
@@ -679,14 +698,21 @@ function linkLD65(step) {
         symbolmap[toks[2].substr(1)] = parseInt(toks[1], 16);
       }
     }
+    // TODO: multiple listing files
+    var lstout = FS.readFile("main.lst", {encoding:'utf8'});
+    var asmlines = parseCA65Listing(lstout, symbolmap, false);
+    var srclines = parseCA65Listing(lstout, symbolmap, true);
     putWorkFile("main", aout);
+    putWorkFile("main.lst", lstout);
+    putWorkFile("main.map", mapout);
+    putWorkFile("main.vice", viceout);
     return {
-      output:aout.slice(0),
-      lines:listing.lines,
-      srclines:srclines,
-      errors:listing.errors,
+      output:aout, //.slice(0),
+      asmlines:srclines.length?asmlines:null,
+      lines:srclines.length?srclines:asmlines,
+      errors:errors,
       symbolmap:symbolmap,
-      intermediate:{listing:lstout+"\n"+mapout+"\n"+viceout, map:mapout, symbols:viceout}, // TODO
+      intermediate:{listing:lstout, map:mapout, symbols:viceout},
     };
   }
 }
@@ -781,7 +807,7 @@ l_main00101                     = 0003, L: test
 */
     var amap = FS.readFile(step.prefix+".map", {'encoding':'utf8'}); // TODO
     var aout = FS.readFile(step.prefix+".bin", {'encoding':'binary'});
-    var asmlines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/i, 1, 2, 3); // TODO: , params.rom_start|0);
+    var asmlines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/i, 1, 2, 3);
     var srclines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+;[(]null[)]:(\d+)/i, 3, 2, 1);
     return {
       output:aout,
@@ -984,7 +1010,7 @@ function linkSDLDZ80(step)
     //var dbgout = FS.readFile("main.cdb", {encoding:'utf8'});
     //   0000 21 02 00      [10]   52 	ld	hl, #2
     // TODO: use -u flag to find code_offset
-    var asmlines = parseListing(rstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2); //, 5, 3);
+    var asmlines = parseListing(rstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2);
     var srclines = parseSourceLines(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
     // parse symbol map
     var symbolmap = {};
@@ -1102,7 +1128,7 @@ function assembleXASM6809(code, platform) {
     return {errors:errors};
   var aout = FS.readFile("main.bin", {encoding:'binary'});
   // 00001    0000 [ 2] 1048                asld
-  var asmlines = parseListing(alst, /^\s*([0-9A-F]+)\s+([0-9A-F]+)\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 1, 2, 4, params.code_offset); //, 5, 3);
+  var asmlines = parseListing(alst, /^\s*([0-9A-F]+)\s+([0-9A-F]+)\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 1, 2, 4);
   return {
       output:aout,
       errors:errors,
@@ -1179,7 +1205,7 @@ function assembleNAKEN(code, platform) {
   var alst = FS.readFile("out.lst", {encoding:'utf8'});
   //console.log(alst);
   // 0x0000: 77        ld (hl),a                                cycles: 4
-  var asmlines = parseListing(alst, /^0x([0-9a-f]+):\s+([0-9a-f]+)\s+(.+)cycles: (\d+)/i, 0, 1, 2); //, 3);
+  var asmlines = parseListing(alst, /^0x([0-9a-f]+):\s+([0-9a-f]+)\s+(.+)cycles: (\d+)/i, 0, 1, 2);
   return {
     output:aout,
     errors:errors,

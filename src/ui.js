@@ -498,7 +498,7 @@ function setCompileOutput(data) {
     div.appendChild(tooltip);
     editor.setGutterMarker(line, "gutter-info", div);
   }
-  if (data.errors.length > 0) {
+  if (data.errors && data.errors.length > 0) {
     // TODO: move cursor to error line if offscreen?
     toolbar.addClass("has-errors");
     editor.clearGutter("gutter-info");

@@ -20,6 +20,7 @@ TODO:
 - multiple breakpoints, expression breakpoints
 - use localForage (https://github.com/localForage/localForage)
 
+- run apple CPU until boot
 - cc65 listing file parsing
 - better disasm/listing selection
 - disasm for z80
@@ -51,3 +52,6 @@ implicit rules
 only build files that have changed
 
 build options
+
+build project files
+

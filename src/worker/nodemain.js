@@ -1,4 +1,6 @@
 
+// TODO: merge with workertestutils
+
 var assert = require('assert');
 var fs = require('fs');
 var vm = require('vm');
@@ -69,6 +71,16 @@ if (require.main == module) {
   var msgs = JSON.parse(data);
   for (var i=0; i<msgs.length; i++) {
     var result = handleMessage(msgs[i]);
-    console.log(result);
+    //console.log(result);
+    if (result && result.intermediate) {
+      for (var fn in result.intermediate) {
+        console.log("==="+fn);
+        console.log(result.intermediate[fn]);
+      }
+    }
+    for (var fn in workfs) {
+      if (fn.endsWith('.lstxxx'))
+        console.log(workfs[fn].data);
+    }
   }
 }

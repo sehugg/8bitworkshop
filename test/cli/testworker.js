@@ -4,6 +4,7 @@ var fs = require('fs');
 var wtu = require('./workertestutils.js');
 
 global.onmessage({data:{preload:'cc65', platform:'nes'}});
+global.onmessage({data:{preload:'ca65', platform:'nes'}});
 global.onmessage({data:{preload:'sdcc'}});
 
 //
@@ -63,6 +64,9 @@ describe('Worker', function() {
   });
   it('should NOT compile CC65', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes-conio', done, 0, 0, 1);
+  });
+  it('should assemble CA65', function(done) {
+    compile('ca65', '\t.segment "HEADER"\n\t.segment "STARTUP"\n\t.segment "CHARS"\n\t.segment "VECTORS"\n\tlda #0\n\tsta $1\n', 'nes-conio', done, 40976, 2);
   });
   /*
   it('should assemble Z80ASM', function(done) {
