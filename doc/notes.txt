@@ -1,13 +1,11 @@
 
 TODO:
 
-- download ROM file
 - NaN in cycle count for macros
 - debugging of scan line overflow
 - confuse code/data in listing
 - show memory locations hovering over lines
 - don't play sound when debugging
-- coalesce compile events
 - don't check against ROM signatures
 - better errors when ROM format wrong
 - debugging inside of bank switching??? relocated segs?
@@ -17,12 +15,38 @@ TODO:
 - show other TIA internal values
 - case sensisitvity looking for mismatch variables
 - remove pulldown when no preset?
-- some units test maybe
 - can't step after reset (or when funky frame; TIA frame is out of sync)
 - break on BRK/illegal opcode?
-- last used filename for each platform
-- skeleton for each platform/tool
-- disassembler/debugger
 - multiple breakpoints, expression breakpoints
 
+- cc65 listing file parsing
+- better disasm/listing selection
+- disasm for z80
+- projects w/ include files
+- watchpoints
+- breakpoints
+- debug inspector
+- MAME single step (?)
+- step over
+- slowdown beam for all platforms?
+- kbd shortcuts
 
+
+WEB WORKER FORMAT
+
+{code,platform,tool,dependencies}
+{preload}
+
+new:
+
+{infiles,buildsteps}
+[{filepath,platform,tool}]
+
+implicit rules
+- push/shift build steps
+- preprocessor, compile, assemble, link
+- access to intermediate files
+
+only build files that have changed
+
+build options

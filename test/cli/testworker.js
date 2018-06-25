@@ -9,6 +9,11 @@ global.onmessage({data:{preload:'sdcc'}});
 //
 
 function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
+  var msgs = [{code:code, platform:platform, tool:tool}];
+  doBuild(msgs, callback, outlen, nlines, nerrors);
+}
+
+function doBuild(msgs, callback, outlen, nlines, nerrors) {
     global.postMessage = function(msg) {
         if (msg.errors && msg.errors.length) {
           console.log(msg.errors);
@@ -20,9 +25,9 @@ function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
         }
         callback(null, msg);
     };
-    global.onmessage({
-        data:{code:code, platform:platform, tool:tool}
-    });
+    for (var i=0; i<msgs.length; i++) {
+      global.onmessage({data:msgs[i]});
+    } 
 }
 
 describe('Worker', function() {
@@ -32,13 +37,13 @@ describe('Worker', function() {
   it('should NOT assemble DASM', function(done) {
     compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo xxx #0\n', 'vcs', done, 0, 0, 1);
   });
+  /*
   it('should assemble ACME', function(done) {
     compile('acme', 'foo: lda #0\n', 'vcs', done, 2, 0); // TODO
   });
   it('should NOT assemble ACME', function(done) {
     compile('acme', 'foo: xxx #0\n', 'vcs', done, 0, 0, 2); // TODO
   });
-  /*
   it('should compile PLASMA', function(done) {
     compile('plasm', 'word x = 0', 'apple2', done, 5, 0);
   });
@@ -52,12 +57,14 @@ describe('Worker', function() {
   it('should NOT compile CC65', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes-conio', done, 0, 0, 1);
   });
+  /*
   it('should assemble Z80ASM', function(done) {
     compile('z80asm', '\tMODULE test\n\tXREF _puts\n\tld	hl,$0000\n\tret\n', 'mw8080bw', done, 4, 2, 0);
   });
   it('should NOT assemble Z80ASM', function(done) {
     compile('z80asm', 'ddwiuweq', 'none', done, 0, 0, 1);
   });
+  */
   it('should assemble SDASZ80', function(done) {
     compile('sdasz80', '\tld	hl,#0\n\tret\n', 'mw8080bw', done, 8192, 2);
   });
@@ -118,4 +125,21 @@ describe('Worker', function() {
     compile('xasm6809', '\tasld\n\tasld\n', 'mw8080bw', done, 4, 2, 0);
   });
   */
+  it('should link two files with SDCC', function(done) {
+    var msgs = [
+    {"preload":"sdcc"},
+    {
+        "updates":[
+            {"path":"main.c", "data":"extern int mul2(int x);\nint main() { return mul2(2); }\n"},
+            {"path":"fn.c", "data":"int mul2(int x) { return x*x; }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"mw8080bw", "tool":"sdcc"},
+            {"path":"fn.c", "platform":"mw8080bw", "tool":"sdcc"}
+        ]
+    }
+    ];
+    doBuild(msgs, done, 8192, 1, 0);
+  });
+
 });

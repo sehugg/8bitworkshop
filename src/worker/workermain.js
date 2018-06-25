@@ -132,6 +132,62 @@ var _t1, _t2;
 function starttime() { _t1 = new Date(); }
 function endtime(msg) { _t2 = new Date(); console.log(msg, _t2.getTime() - _t1.getTime(), "ms"); }
 
+/// working file store and build steps
+
+var buildsteps = [];
+var workfs = {};
+
+function putWorkFile(path, data) {
+  var encoding = (typeof data === 'string') ? 'utf8' : 'binary';
+  var entry = workfs[path];
+  if (!entry || entry.data != data) {
+    workfs[path] = entry = {path:path, data:data, encoding:encoding, dirty:true};
+  }
+  console.log(entry.path, entry.encoding, entry.data.length, entry.dirty);
+  return entry;
+}
+
+function populateFiles(step, fs, options) {
+  var dirty = false;
+  // TODO?
+  if (step.code && options.mainFilePath) {
+    var path = options.mainFilePath;
+    var code = step.code;
+    if (options.transform) code = options.transform(code);
+    var entry = putWorkFile(path, code);
+    dirty |= entry.dirty;
+    fs.writeFile(path, entry.data, {encoding:entry.encoding});
+    step.path = path;
+    console.log("Wrote " + path);
+  }
+  else if (step.files) {
+    for (var i=0; i<step.files.length; i++) {
+      var path = step.files[i];
+      var entry = workfs[path];
+      fs.writeFile(path, entry.data, {encoding:entry.encoding});
+      console.log("Wrote " + path);
+    }
+  }
+  else if (step.path) {
+    var path = step.path;
+    var entry = workfs[path];
+    fs.writeFile(path, entry.data, {encoding:entry.encoding});
+    console.log("Wrote " + path);
+  }
+  if (step.path && !step.prefix) {
+    step.prefix = step.path.split(/[./]/)[0]; // TODO
+  }
+  return dirty;
+}
+
+function execMain(step, mod, args) {
+  starttime();
+  mod.callMain(args);
+  endtime(step.tool);
+}
+
+/// asm.js / WASM / filesystem loading
+
 var fsMeta = {};
 var fsBlob = {};
 var wasmBlob = {};
@@ -178,7 +234,6 @@ function loadNative(modulename, debug) {
   // detect WASM
   if (typeof WebAssembly === 'object') {
     loadWASM(modulename);
-    return wasmBlob['sdcc'];
   } else {
     load(modulename);
   }
@@ -259,10 +314,9 @@ function setupFS(FS, name) {
   FS.mount(FS.filesystems['WORKERFS'], {
     packages: [{ metadata: fsMeta[name], blob: fsBlob[name] }]
   }, '/share');
-  FS.writeFile("/vector-ataricolor.cfg", ATARI_CFG);
+  FS.writeFile("/vector-ataricolor.cfg", ATARI_CFG); // TODO: remove
 }
 
-var DASM_MAIN_FILENAME = "main.a";
 var DASM_PREAMBLE = "\tprocessor 6502\n";
 var DASM_PREAMBLE_LINES = 1;
 
@@ -361,7 +415,7 @@ function parseSourceLines(code, lineMatch, offsetMatch, origin) {
   return lines;
 }
 
-function parseDASMListing(code, unresolved) {
+function parseDASMListing(code, unresolved, mainFilename) {
   //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
   var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([0-9a-f][0-9a-f ]+)?\s+(.+)?/;
   var equMatch = /\bequ\b/;
@@ -377,7 +431,7 @@ function parseDASMListing(code, unresolved) {
       var insns = linem[4];
       var restline = linem[5];
       // inside of main file?
-      if (filename == DASM_MAIN_FILENAME) {
+      if (filename == mainFilename) {
         if (insns && !restline.match(equMatch)) {
           lines.push({
             line:linenum,
@@ -420,7 +474,7 @@ function parseDASMListing(code, unresolved) {
   return {lines:lines, errors:errors};
 }
 
-function assembleDASM(code) {
+function assembleDASM(step) {
   load("dasm");
   var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
   var unresolved = {};
@@ -435,12 +489,18 @@ function assembleDASM(code) {
     print:match_fn
   });
   var FS = Module['FS'];
-  FS.writeFile(DASM_MAIN_FILENAME, DASM_PREAMBLE + code);
-  Module.callMain([DASM_MAIN_FILENAME, "-la.lst"/*, "-v3", "-sa.sym"*/]);
-  var aout = FS.readFile("a.out");
-  var alst = FS.readFile("a.lst", {'encoding':'utf8'});
+  var srcfn = 'main.a';
+  populateFiles(step, FS, {
+    mainFilePath:srcfn,
+    transform:function(code) { return DASM_PREAMBLE + code; }
+  });
+  execMain(step, Module, [step.path, "-l"+step.prefix+".lst", "-o"+step.prefix+".bin"/*, "-v3", "-sa.sym"*/]);
+  var aout = FS.readFile(step.prefix+".bin");
+  var alst = FS.readFile(step.prefix+".lst", {'encoding':'utf8'});
+  putWorkFile(step.prefix+".bin", aout);
+  putWorkFile(step.prefix+".lst", alst);
   //var asym = FS.readFile("a.sym", {'encoding':'utf8'});
-  var listing = parseDASMListing(alst, unresolved);
+  var listing = parseDASMListing(alst, unresolved, srcfn);
   return {
     output:aout.slice(2),
     lines:listing.lines,
@@ -570,11 +630,8 @@ function parseCA65Listing(code, mapfile) {
   return {lines:lines, errors:errors};
 }
 
-function assemblelinkCA65(code, platform) {
-  var params = PLATFORM_PARAMS[platform];
-  if (!params) throw Error("Platform not supported: " + platform);
+function assembleCA65(step) {
   loadNative("ca65");
-  loadNative("ld65");
   var errors = [];
   var objout, lstout;
   {
@@ -586,81 +643,81 @@ function assemblelinkCA65(code, platform) {
       printErr:msvcErrorMatcher(errors),
     });
     var FS = CA65['FS'];
-    setupFS(FS, '65-'+platform.split('-')[0]);
-    FS.writeFile("main.s", code, {encoding:'utf8'});
-    starttime();
-    CA65.callMain(['-v', '-g', '-I', '/share/asminc', '-l', 'main.lst', "main.s"]);
-    endtime("assemble");
-    try {
-      objout = FS.readFile("main.o", {encoding:'binary'});
-      lstout = FS.readFile("main.lst", {encoding:'utf8'});
-    } catch (e) {
-      errors.push({line:1, msg:e+""});
-      return {errors:errors}; // TODO
-    }
+    setupFS(FS, '65-'+step.platform.split('-')[0]);
+    populateFiles(step, FS, {mainFilePath:"main.s"});
+    execMain(step, CA65, ['-v', '-g', '-I', '/share/asminc', '-l', step.prefix+'.lst', step.prefix+".s"]);
     if (errors.length)
       return {errors:errors};
-  }{
-    var LD65 = ld65({
-      wasmBinary: wasmBlob['ld65'],
-      noInitialRun:true,
-      //logReadFiles:true,
-      print:print_fn,
-      printErr:makeErrorMatcher(errors, /[(](\d+)[)]: (.+)/, 1, 2),
-    });
-    var FS = LD65['FS'];
-    var cfgfile = '/' + platform + '.cfg';
-    setupFS(FS, '65-'+platform.split('-')[0]);
-    FS.writeFile("main.o", objout, {encoding:'binary'});
-    var libargs = params.libargs;
-    starttime();
-    LD65.callMain(['--cfg-path', '/share/cfg',
-      '--lib-path', '/share/lib',
-      '--lib-path', '/share/target/apple2/drv', // TODO
-      '-D', '__EXEHDR__=0', // TODO
-      '-C', params.cfgfile,
-      '-Ln', 'main.vice',
-      //'--dbgfile', 'main.dbg',
-      '-o', 'main', '-m', 'main.map', 'main.o'].concat(libargs));
-    endtime("link");
-    if (errors.length) {
-      return {errors:errors};
-    }
-    try {
-      var aout = FS.readFile("main", {encoding:'binary'});
-      var mapout = FS.readFile("main.map", {encoding:'utf8'});
-      var viceout = FS.readFile("main.vice", {encoding:'utf8'});
-    } catch (e) {
-      errors.push({line:1, msg:e+""});
-      return {errors:errors}; // TODO
-    }
-    var listing = parseCA65Listing(lstout, mapout);
-    //console.log(lstout);
-    //console.log(mapout);
-    var srclines = parseSourceLines(lstout, /[.]dbg\s+line, "main[.]c", (\d+)/i, /^\s*([0-9A-F]+)r/i, params.code_offset);
-    // parse symbol map (TODO: omit segments, constants)
-    var symbolmap = {};
-    for (var s of viceout.split("\n")) {
-      var toks = s.split(" ");
-      if (toks[0] == 'al') {
-        symbolmap[toks[2].substr(1)] = parseInt(toks[1], 16);
-      }
-    }
+    objout = FS.readFile(step.prefix+".o", {encoding:'binary'});
+    lstout = FS.readFile(step.prefix+".lst", {encoding:'utf8'});
+    putWorkFile(step.prefix+".o", objout);
+    putWorkFile(step.prefix+".lst", lstout);
     return {
-      output:aout.slice(0),
-      lines:listing.lines,
-      srclines:srclines,
-      errors:listing.errors,
-      symbolmap:symbolmap,
-      intermediate:{listing:lstout+"\n"+mapout+"\n"+viceout, map:mapout, symbols:viceout}, // TODO
+      linktool:"ld65",
+      files:[step.prefix+".o", step.prefix+".lst"],
+      args:[step.prefix+".o"]
     };
   }
 }
 
-function compileCC65(code, platform) {
-  var params = PLATFORM_PARAMS[platform];
-  if (!params) throw Error("Platform not supported: " + platform);
+function linkLD65(step) {
+  loadNative("ld65");
+  var params = step.params;
+  var platform = step.platform;
+  var errors = [];
+  var LD65 = ld65({
+    wasmBinary: wasmBlob['ld65'],
+    noInitialRun:true,
+    //logReadFiles:true,
+    print:print_fn,
+    printErr:makeErrorMatcher(errors, /[(](\d+)[)]: (.+)/, 1, 2),
+  });
+  var FS = LD65['FS'];
+  var cfgfile = '/' + platform + '.cfg';
+  setupFS(FS, '65-'+platform.split('-')[0]);
+  populateFiles(step, FS);
+  var libargs = params.libargs;
+  var args = ['--cfg-path', '/share/cfg',
+    '--lib-path', '/share/lib',
+    '--lib-path', '/share/target/apple2/drv', // TODO
+    '-D', '__EXEHDR__=0', // TODO
+    '-C', params.cfgfile,
+    '-Ln', 'main.vice',
+    //'--dbgfile', 'main.dbg',
+    '-o', 'main', '-m', 'main.map'].concat(step.args, libargs);
+  execMain(step, LD65, args);
+  if (errors.length)
+    return {errors:errors};
+  var aout = FS.readFile("main", {encoding:'binary'});
+  var mapout = FS.readFile("main.map", {encoding:'utf8'});
+  var viceout = FS.readFile("main.vice", {encoding:'utf8'});
+  // TODO: multiple listing files
+  var lstout = FS.readFile("main.lst", {encoding:'utf8'});
+  var listing = parseCA65Listing(lstout, mapout);
+  //console.log(lstout);
+  //console.log(mapout);
+  var srclines = parseSourceLines(lstout, /[.]dbg\s+line, "main[.]c", (\d+)/i, /^\s*([0-9A-F]+)r/i, params.code_offset);
+  // parse symbol map (TODO: omit segments, constants)
+  var symbolmap = {};
+  for (var s of viceout.split("\n")) {
+    var toks = s.split(" ");
+    if (toks[0] == 'al') {
+      symbolmap[toks[2].substr(1)] = parseInt(toks[1], 16);
+    }
+  }
+  return {
+    output:aout.slice(0),
+    lines:listing.lines,
+    srclines:srclines,
+    errors:listing.errors,
+    symbolmap:symbolmap,
+    intermediate:{listing:lstout+"\n"+mapout+"\n"+viceout, map:mapout, symbols:viceout}, // TODO
+  };
+}
+
+function compileCC65(step) {
   load("cc65");
+  var params = step.params;
   // stderr
   var re_err1 = /.*?(\d+).*?: (.+)/;
   var errors = [];
@@ -683,29 +740,25 @@ function compileCC65(code, platform) {
     printErr:match_fn,
   });
   var FS = CC65['FS'];
-  setupFS(FS, '65-'+platform.split('-')[0]);
-  FS.writeFile("main.c", code, {encoding:'utf8'});
-  starttime();
-  CC65.callMain(['-T', '-g', /*'-Cl',*/
+  setupFS(FS, '65-'+step.platform.split('-')[0]);
+  populateFiles(step, FS, {mainFilePath:"main.c"});
+  execMain(step, CC65, ['-T', '-g', /*'-Cl',*/
     '-Oirs',
     '-I', '/share/include',
     '-D' + params.define,
-    "main.c"]);
-  endtime("compile");
-  try {
-    var asmout = FS.readFile("main.s", {encoding:'utf8'});
-    //console.log(asmout);
-    var result = assemblelinkCA65(asmout, platform, errors);
-    //result.asmlines = result.lines;
-    //result.lines = result.srclines;
-    result.srclines = null;
-    return result;
-  } catch(e) {
+    step.path]);
+  if (errors.length)
     return {errors:errors};
-  }
+  var asmout = FS.readFile(step.prefix+".s", {encoding:'utf8'});
+  putWorkFile(step.prefix+".s", asmout);
+  return {
+    nexttool:"ca65",
+    path:step.prefix+".s",
+    args:[step.prefix+".s"]
+  };
 }
 
-function assembleZ80ASM(code, platform) {
+function assembleZ80ASM(step) {
   load("z80asm");
   var origin = 0; // TODO: configurable
   var Module = z80asm({
@@ -718,15 +771,20 @@ function assembleZ80ASM(code, platform) {
   var FS = Module['FS'];
   //setupFS(FS);
   // changes for dialect
-  code = code.replace(".optsdcc -mz80","");
-  code = code.replace(/^(\w+)\s*=/gim,"DEFC $1 =");
-  code = code.replace(/\tXREF /gi,"\tEXTERN ");
-  code = code.replace(/\tXDEF /gi,"\tPUBLIC ");
-  FS.writeFile("main.asm", code);
+  populateFiles(step, FS, {
+    mainFilePath:"main.asm",
+    transform:function(code) {
+      code = code.replace(".optsdcc -mz80","");
+      code = code.replace(/^(\w+)\s*=/gim,"DEFC $1 =");
+      code = code.replace(/\tXREF /gi,"\tEXTERN ");
+      code = code.replace(/\tXDEF /gi,"\tPUBLIC ");
+      return code;
+    }
+  });
   try {
-    Module.callMain(["-b", "-s", "-l", "-m", "-g", "--origin=" + origin.toString(16), "main.asm"]);
+    execMain(step, Module, ["-b", "-s", "-l", "-m", "-g", "--origin=" + origin.toString(16), step.prefix+".asm"]);
     try {
-      var aerr = FS.readFile("main.err", {'encoding':'utf8'}); // TODO
+      var aerr = FS.readFile(step.prefix+".err", {'encoding':'utf8'}); // TODO
       if (aerr.length) {
         return {errors:extractErrors(/.+? line (\d+): (.+)/, aerr.split("\n"))};
       }
@@ -737,13 +795,13 @@ function assembleZ80ASM(code, platform) {
 77    0000              ;test.c:5: return 0;
 78    0000  21 00 00    	ld	hl,$0000
 */
-    var alst = FS.readFile("main.lst", {'encoding':'utf8'}); // TODO
+    var alst = FS.readFile(step.prefix+".lst", {'encoding':'utf8'}); // TODO
 /*
 _main                           = 0000, G: test
 l_main00101                     = 0003, L: test
 */
-    var amap = FS.readFile("main.map", {'encoding':'utf8'}); // TODO
-    var aout = FS.readFile("main.bin", {'encoding':'binary'});
+    var amap = FS.readFile(step.prefix+".map", {'encoding':'utf8'}); // TODO
+    var aout = FS.readFile(step.prefix+".bin", {'encoding':'binary'});
     var asmlines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/i, 1, 2, 3); // TODO: , params.rom_start|0);
     var srclines = parseListing(alst, /^(\d+)\s+([0-9A-F]+)\s+;[(]null[)]:(\d+)/i, 3, 2, 1);
     return {
@@ -787,12 +845,9 @@ function parseIHX(ihx, rom_start, rom_size) {
   }
 }
 
-function assemblelinkSDASZ80(code, platform) {
+function assembleSDASZ80(step) {
   loadNative("sdasz80");
-  loadNative("sdldz80");
   var objout, lstout, symout;
-  var params = PLATFORM_PARAMS[platform];
-  if (!params) throw Error("Platform not supported: " + platform);
   var errors = [];
   {
     //?ASxxxx-Error-<o> in line 1 of main.asm null
@@ -816,17 +871,30 @@ function assemblelinkSDASZ80(code, platform) {
       printErr:match_asm_fn,
     });
     var FS = ASZ80['FS'];
-    FS.writeFile("main.asm", code, {encoding:'utf8'});
-    starttime();
-    ASZ80.callMain(['-plosgffwy', 'main.asm']);
-    endtime("assemble");
+    populateFiles(step, FS, {
+      mainFilePath:"main.asm"
+    });
+    execMain(step, ASZ80, ['-plosgffwy', step.path]);
     if (errors.length) {
       return {errors:errors};
     }
-    objout = FS.readFile("main.rel", {encoding:'utf8'});
-    lstout = FS.readFile("main.lst", {encoding:'utf8'});
+    objout = FS.readFile(step.prefix+".rel", {encoding:'utf8'});
+    lstout = FS.readFile(step.prefix+".lst", {encoding:'utf8'});
+    putWorkFile(step.prefix+".rel", objout);
+    putWorkFile(step.prefix+".lst", lstout);
+    return {
+      linktool:"sdldz80",
+      files:[step.prefix+".rel", step.prefix+".lst"],
+      args:[step.prefix+".rel"]
+    };
     //symout = FS.readFile("main.sym", {encoding:'utf8'});
-  }{
+  }
+}
+
+function linkSDLDZ80(step)
+{
+  loadNative("sdldz80");
+  var errors = [];
     //?ASlink-Warning-Undefined Global '__divsint' referenced by module 'main'
     var match_aslink_re = /\?ASlink-(\w+)-(.+)/;
     function match_aslink_fn(s) {
@@ -838,7 +906,8 @@ function assemblelinkSDASZ80(code, platform) {
         });
       }
     }
-    var updateListing = !params.extra_link_args;
+    var params = step.params;
+    var updateListing = !params.extra_link_args; // TODO
     var LDZ80 = sdldz80({
       wasmBinary: wasmBlob['sdldz80'],
       noInitialRun:true,
@@ -848,32 +917,32 @@ function assemblelinkSDASZ80(code, platform) {
     });
     var FS = LDZ80['FS'];
     setupFS(FS, 'sdcc');
-    FS.writeFile("main.rel", objout, {encoding:'utf8'});
-    if (updateListing) {
-      FS.writeFile("main.lst", lstout, {encoding:'utf8'});
-    }
+    populateFiles(step, FS);
     var args = ['-mjwxy'+(updateListing?'u':''),
-      '-i', 'main.ihx',
+      '-i', 'main.ihx', // TODO: main?
       '-b', '_CODE=0x'+params.code_start.toString(16),
       '-b', '_DATA=0x'+params.data_start.toString(16),
       '-k', '/share/lib/z80',
       '-l', 'z80'];
     if (params.extra_link_args) {
+      // TODO? what this for?
       args.push.apply(args, params.extra_link_args);
     } else {
-      args.push('main.rel');
+      args.push.apply(args, step.args);
     }
-    starttime();
-    LDZ80.callMain(args);
-    endtime("link");
+    execMain(step, LDZ80, args);
     var hexout = FS.readFile("main.ihx", {encoding:'utf8'});
     var mapout = FS.readFile("main.noi", {encoding:'utf8'});
-    var rstout = updateListing ? FS.readFile("main.rst", {encoding:'utf8'}) : lstout;
+    var rstout;
+    if (updateListing)
+      rstout = FS.readFile("main.rst", {encoding:'utf8'}); // TODO: could be different filename
+    else
+      rstout = FS.readFile("main.lst", {encoding:'utf8'}); // TODO: could be different filename
     //var dbgout = FS.readFile("main.cdb", {encoding:'utf8'});
     //   0000 21 02 00      [10]   52 	ld	hl, #2
     // TODO: use map to find code_offset
-    var asmlines = parseListing(lstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2, params.code_offset); //, 5, 3);
-    var srclines = parseSourceLines(lstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i, params.code_offset);
+    var asmlines = parseListing(rstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2, params.code_offset); //, 5, 3);
+    var srclines = parseSourceLines(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i, params.code_offset);
     // parse symbol map
     var symbolmap = {};
     for (var s of mapout.split("\n")) {
@@ -884,24 +953,19 @@ function assemblelinkSDASZ80(code, platform) {
     }
     return {
       output:parseIHX(hexout, params.rom_start?params.rom_start:params.code_start, params.rom_size),
-      lines:asmlines,
-      srclines:srclines,
+      asmlines:srclines.length?asmlines:null,
+      lines:srclines.length?srclines:asmlines,
       errors:errors, // TODO?
       symbolmap:symbolmap,
       intermediate:{listing:rstout},
     };
-  }
 }
 
 var sdcc;
-function compileSDCC(code, platform) {
-  var preproc = preprocessMCPP(code, platform);
-  if (preproc.errors) return preproc;
-  else code = preproc.code;
-
-  var params = PLATFORM_PARAMS[platform];
-  if (!params) throw Error("Platform not supported: " + platform);
+function compileSDCC(step) {
+  
   var errors = [];
+  var params = step.params;
 
   loadNative('sdcc');
   var SDCC = sdcc({
@@ -913,9 +977,17 @@ function compileSDCC(code, platform) {
     TOTAL_MEMORY:256*1024*1024,
   });
   var FS = SDCC['FS'];
+  populateFiles(step, FS, {
+    mainFilePath:"main.c" // not used
+  });
+  // load source file and preprocess
+  var code = workfs[step.path].data; // TODO
+  var preproc = preprocessMCPP(code, step.platform);
+  if (preproc.errors) return preproc;
+  else code = preproc.code;
+  // pipe file to stdin
   setupStdin(FS, code);
   setupFS(FS, 'sdcc');
-  //FS.writeFile("main.c", code, {encoding:'utf8'});
   var args = ['--vc', '--std-sdcc99', '-mz80', //'-Wall',
     '--c1mode', // '--debug',
     //'-S', 'main.c',
@@ -927,36 +999,24 @@ function compileSDCC(code, platform) {
     //'--oldralloc', // TODO: does this make it fater?
     //'--cyclomatic',
     //'--nooverlay','--nogcse','--nolabelopt','--noinvariant','--noinduction','--nojtbound','--noloopreverse','--no-peep','--nolospre',
-    '-o', 'main.asm'];
+    '-o', step.prefix+'.asm'];
   if (params.extra_compile_args) {
     args.push.apply(args, params.extra_compile_args);
   }
-  starttime();
-  SDCC.callMain(args);
-  endtime("compile");
+  execMain(step, SDCC, args);
   // TODO: preprocessor errors w/ correct file
   if (errors.length /* && nwarnings < msvc_errors.length*/) {
     return {errors:errors};
   }
-  try {
-    var asmout = FS.readFile("main.asm", {encoding:'utf8'});
-    asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
-    //asmout = asmout.replace(".area _INITIALIZER",".area _CODE");
-  } catch (e) {
-    errors.push({line:1, msg:e+""});
-    return {errors:errors};
-  }
-  var warnings = errors;
-  try {
-    var result = assemblelinkSDASZ80(asmout, platform, true);
-  } catch (e) {
-    errors.push({line:1, msg:e+""});
-    return {errors:errors};
-  }
-  result.asmlines = result.lines;
-  result.lines = result.srclines;
-  result.srclines = null;
-  return result;
+  // massage the asm output
+  var asmout = FS.readFile(step.prefix+".asm", {encoding:'utf8'});
+  asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
+  putWorkFile(step.prefix+".asm", asmout);
+  return {
+    nexttool:"sdasz80",
+    path:step.prefix+".asm",
+    args:[step.prefix+".asm"]
+  };
 }
 
 function assembleXASM6809(code, platform) {
@@ -990,19 +1050,17 @@ function assembleXASM6809(code, platform) {
   //setupFS(FS);
   FS.writeFile("main.asm", code);
   Module.callMain(["-c", "-l", "-s", "-y", "-o=main.bin", "main.asm"]);
-  try {
-    var aout = FS.readFile("main.bin", {encoding:'binary'});
-    // 00001    0000 [ 2] 1048                asld
-    var asmlines = parseListing(alst, /^\s*([0-9A-F]+)\s+([0-9A-F]+)\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 1, 2, 4, params.code_offset); //, 5, 3);
-    return {
+  if (errors.length)
+    return {errors:errors};
+  var aout = FS.readFile("main.bin", {encoding:'binary'});
+  // 00001    0000 [ 2] 1048                asld
+  var asmlines = parseListing(alst, /^\s*([0-9A-F]+)\s+([0-9A-F]+)\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 1, 2, 4, params.code_offset); //, 5, 3);
+  return {
       output:aout,
       errors:errors,
       lines:asmlines,
       intermediate:{listing:alst},
-    };
-  } catch(e) {
-    return {errors:errors}; // TODO
-  }
+  };
 }
 
 function preprocessMCPP(code, platform) {
@@ -1021,6 +1079,7 @@ function preprocessMCPP(code, platform) {
   var FS = MCPP['FS'];
   setupFS(FS, 'sdcc');
   FS.writeFile("main.c", code, {encoding:'utf8'});
+  // TODO: make configurable by other compilers
   var args = [
     "-D", "__8BITWORKSHOP__",
     "-D", platform.toUpperCase().replace('-','_'),
@@ -1032,12 +1091,10 @@ function preprocessMCPP(code, platform) {
     args.push.apply(args, params.extra_preproc_args);
   }
   MCPP.callMain(args);
-  try {
-    var iout = FS.readFile("main.i", {encoding:'utf8'});
-    iout = iout.replace(/^#line /gm,'\n# ');
-  } catch (e) {
-    errors.push({line:1, msg:e+""});
-  }
+  if (errors.length)
+    return {errors:errors};
+  var iout = FS.readFile("main.i", {encoding:'utf8'});
+  iout = iout.replace(/^#line /gm,'\n# ');
   try {
     var errout = FS.readFile("mcpp.err", {encoding:'utf8'});
     if (errout.length) {
@@ -1068,21 +1125,19 @@ function assembleNAKEN(code, platform) {
   //setupFS(FS);
   FS.writeFile("main.asm", code);
   Module.callMain(["-l", "-b", "main.asm"]);
-  try {
-    var aout = FS.readFile("out.bin", {encoding:'binary'});
-    var alst = FS.readFile("out.lst", {encoding:'utf8'});
-    //console.log(alst);
-    // 0x0000: 77        ld (hl),a                                cycles: 4
-    var asmlines = parseListing(alst, /^0x([0-9a-f]+):\s+([0-9a-f]+)\s+(.+)cycles: (\d+)/i, 0, 1, 2); //, 3);
-    return {
-      output:aout,
-      errors:errors,
-      lines:asmlines,
-      intermediate:{listing:alst},
-    };
-  } catch(e) {
+  if (errors.length)
     return {errors:errors};
-  }
+  var aout = FS.readFile("out.bin", {encoding:'binary'});
+  var alst = FS.readFile("out.lst", {encoding:'utf8'});
+  //console.log(alst);
+  // 0x0000: 77        ld (hl),a                                cycles: 4
+  var asmlines = parseListing(alst, /^0x([0-9a-f]+):\s+([0-9a-f]+)\s+(.+)cycles: (\d+)/i, 0, 1, 2); //, 3);
+  return {
+    output:aout,
+    errors:errors,
+    lines:asmlines,
+    intermediate:{listing:alst},
+  };
 }
 
 function detectModuleName(code) {
@@ -1159,20 +1214,15 @@ function compileCASPR(code, platform, options) {
   var arch = code.match(/^[.]arch\s+(\w+)/m);
   var deps = [{prefix:'verilog',filename:arch[1]+'.cfg'}]; // TODO: parse file for ".arch femto8"
   writeDependencies(deps, FS, errors);
-  try {
-    starttime();
-    caspr_mod.callMain(["main.asm"]);
-    endtime("compile");
-    var miffile = FS.readFile("main.mif", {encoding:'utf8'});
-    return {
-      errors:errors,
-      output:parseMIF(miffile),
-      intermediate:{listing:miffile},
-      lines:[]};
-  } catch(e) {
-    errors.push({line:0,msg:e.message});
-    return {errors:errors}; // TODO
-  }
+  starttime();
+  caspr_mod.callMain(["main.asm"]);
+  endtime("compile");
+  var miffile = FS.readFile("main.mif", {encoding:'utf8'});
+  return {
+    errors:errors,
+    output:parseMIF(miffile),
+    intermediate:{listing:miffile},
+    lines:[]};
 }
 
 var jsasm_module_top;
@@ -1347,15 +1397,17 @@ var TOOLS = {
   'acme': assembleACME,
   'plasm': compilePLASMA,
   'cc65': compileCC65,
-  'ca65': assemblelinkCA65,
+  'ca65': assembleCA65,
+  'ld65': linkLD65,
   'z80asm': assembleZ80ASM,
-  'sdasz80': assemblelinkSDASZ80,
+  'sdasz80': assembleSDASZ80,
+  'sdldz80': linkSDLDZ80,
   'sdcc': compileSDCC,
-  'xasm6809': assembleXASM6809,
-  'naken': assembleNAKEN,
+  //'xasm6809': assembleXASM6809,
+  //'naken': assembleNAKEN,
   'verilator': compileVerilator,
   'yosys': compileYosys,
-  'caspr': compileCASPR,
+  //'caspr': compileCASPR,
   'jsasm': compileJSASM,
 }
 
@@ -1373,6 +1425,7 @@ var TOOL_PRELOADFS = {
 }
 
 function handleMessage(data) {
+  // preload file system
   if (data.preload) {
     var fs = TOOL_PRELOADFS[data.preload];
     if (!fs && data.platform)
@@ -1381,15 +1434,85 @@ function handleMessage(data) {
       loadFilesystem(fs);
     return;
   }
-  // (code,platform,tool)
-  var code = data.code;
-  var platform = data.platform;
-  var toolfn = TOOLS[data.tool];
-  if (!toolfn) throw "no tool named " + data.tool;
-  var dependencies = data.dependencies;
-  var result = toolfn(code, platform, data);
-  result.params = PLATFORM_PARAMS[platform];
-  return result;
+  // (code,platform,tool,dependencies)
+  buildsteps = [];
+  // file updates
+  if (data.updates) {
+    for (var i=0; i<data.updates.length; i++) {
+      var u = data.updates[i];
+      putWorkFile(u.path, u.data);
+    }
+  }
+  // build steps
+  if (data.buildsteps) {
+    buildsteps.push.apply(buildsteps, data.buildsteps);
+  }
+  // single-file
+  if (data.code) {
+    buildsteps.push(data);
+  }
+  // execute build steps
+  while (buildsteps.length) {
+    var step = buildsteps.shift(); // get top of array
+    console.log(step);
+    var code = step.code;
+    var platform = step.platform;
+    var toolfn = TOOLS[step.tool];
+    if (!toolfn) throw "no tool named " + step.tool;
+    step.params = PLATFORM_PARAMS[platform];
+    try {
+      step.result = toolfn(step);
+    } catch (e) {
+      console.log(e);
+      return {errors:[{line:1, msg:e+""}]}; // TODO: catch errors already generated?
+    }
+    if (step.result) {
+      // errors? return them
+      if (step.result.errors) {
+        return step.result;
+      }
+      // if we got some output, return it immediately
+      if (step.result.output) {
+        return step.result;
+      }
+      // combine files with a link tool?
+      if (step.result.linktool) {
+        var linkstep = {
+          tool:step.result.linktool,
+          platform:platform,
+          files:step.result.files,
+          args:step.result.args
+        };
+        step.generated = linkstep.files;
+        // find previous link step to combine
+        for (var i=0; i<buildsteps.length; i++) {
+          var ls = buildsteps[i];
+          if (ls.tool == linkstep.tool && ls.platform == linkstep.platform && ls.files) {
+            ls.files = ls.files.concat(linkstep.files);
+            ls.args = ls.args.concat(linkstep.args);
+            linkstep = null;
+            break;
+          }
+        }
+        if (linkstep) buildsteps.push(linkstep);
+      } 
+      // process with another tool?   
+      if (step.result.nexttool) {
+        var asmstep = {
+          tool:step.result.nexttool,
+          platform:platform,
+          files:[step.result.path],
+          path:step.result.path,
+          args:step.result.args
+        };
+        buildsteps.push(asmstep);
+        step.generated = asmstep.files;
+      }
+    }
+  }
+  // TODO: cache results
+  // message not recognized
+  console.log("Unknown message",data);
 }
 
 var ENVIRONMENT_IS_NODE = typeof process === 'object' && typeof require === 'function';
