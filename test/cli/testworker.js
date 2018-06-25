@@ -9,7 +9,14 @@ global.onmessage({data:{preload:'sdcc'}});
 //
 
 function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
+  var msgs = [{code:code, platform:platform, tool:tool}];
+  doBuild(msgs, callback, outlen, nlines, nerrors);
+}
+
+function doBuild(msgs, callback, outlen, nlines, nerrors) {
+    var msgcount = msgs.length;
     global.postMessage = function(msg) {
+      if (!msg.unchanged) {
         if (msg.errors && msg.errors.length) {
           console.log(msg.errors);
           assert.equal(nerrors, msg.errors.length, "errors");
@@ -18,11 +25,16 @@ function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
           assert.equal(msg.output.code?msg.output.code.length:msg.output.length, outlen, "output binary");
           assert.equal(msg.lines.length, nlines, "listing lines");
         }
+      }
+      if (--msgcount == 0)
         callback(null, msg);
+      else
+        console.log(msgcount + ' msgs left');
     };
-    global.onmessage({
-        data:{code:code, platform:platform, tool:tool}
-    });
+    global.onmessage({data:{reset:true}});
+    for (var i=0; i<msgs.length; i++) {
+      global.onmessage({data:msgs[i]});
+    } 
 }
 
 describe('Worker', function() {
@@ -32,13 +44,13 @@ describe('Worker', function() {
   it('should NOT assemble DASM', function(done) {
     compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo xxx #0\n', 'vcs', done, 0, 0, 1);
   });
+  /*
   it('should assemble ACME', function(done) {
     compile('acme', 'foo: lda #0\n', 'vcs', done, 2, 0); // TODO
   });
   it('should NOT assemble ACME', function(done) {
     compile('acme', 'foo: xxx #0\n', 'vcs', done, 0, 0, 2); // TODO
   });
-  /*
   it('should compile PLASMA', function(done) {
     compile('plasm', 'word x = 0', 'apple2', done, 5, 0);
   });
@@ -52,12 +64,14 @@ describe('Worker', function() {
   it('should NOT compile CC65', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes-conio', done, 0, 0, 1);
   });
+  /*
   it('should assemble Z80ASM', function(done) {
     compile('z80asm', '\tMODULE test\n\tEXTERN _puts\n\tld	hl,$0000\n\tret\n', 'mw8080bw', done, 4, 2, 0);
   });
   it('should NOT assemble Z80ASM', function(done) {
     compile('z80asm', 'ddwiuweq', 'mw8080bw', done, 0, 0, 1);
   });
+  */
   it('should assemble SDASZ80', function(done) {
     compile('sdasz80', '\tld	hl,#0\n\tret\n', 'mw8080bw', done, 8192, 2);
   });
@@ -118,4 +132,66 @@ describe('Worker', function() {
     compile('xasm6809', '\tasld\n\tasld\n', 'mw8080bw', done, 4, 2, 0);
   });
   */
+  it('should link two files with SDCC', function(done) {
+    var msgs = [
+    {
+        "updates":[
+            {"path":"main.c", "data":"extern int mul2(int x);\nint main() { return mul2(2); }\n"},
+            {"path":"fn.c", "data":"int mul2(int x) { return x*x; }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"mw8080bw", "tool":"sdcc"},
+            {"path":"fn.c", "platform":"mw8080bw", "tool":"sdcc"}
+        ]
+    }
+    ];
+    doBuild(msgs, done, 8192, 1, 0);
+  });
+  it('should not build unchanged files with CC65', function(done) {
+    var m = {
+        "updates":[
+            {"path":"main.c", "data":"extern int mul2(int x);\n int main() { return mul2(2); }\n"},
+            {"path":"fn.c", "data":"int mul2(int x) { return x*x; }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"nes-conio", "tool":"cc65"},
+            {"path":"fn.c", "platform":"nes-conio", "tool":"cc65"}
+        ]
+    };
+    var m2 = {
+        "updates":[
+            {"path":"main.c", "data":"extern int mul2(int x); \nint main() { return mul2(2); }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"nes-conio", "tool":"cc65"},
+            {"path":"fn.c", "platform":"nes-conio", "tool":"cc65"}
+        ]
+    };
+    var msgs = [m, m, m2];
+    doBuild(msgs, done, 40976, 1, 0);
+  });
+  it('should not build unchanged files with SDCC', function(done) {
+    var m = {
+        "updates":[
+            {"path":"main.c", "data":"extern int mul2(int x);\n int main() { return mul2(2); }\n"},
+            {"path":"fn.c", "data":"int mul2(int x) { return x*x; }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"mw8080bw", "tool":"sdcc"},
+            {"path":"fn.c", "platform":"mw8080bw", "tool":"sdcc"}
+        ]
+    };
+    var m2 = {
+        "updates":[
+            {"path":"main.c", "data":"extern int mul2(int x); \nint main() { return mul2(2); }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"mw8080bw", "tool":"sdcc"},
+            {"path":"fn.c", "platform":"mw8080bw", "tool":"sdcc"}
+        ]
+    };
+    var msgs = [m, m, m2];
+    doBuild(msgs, done, 8192, 1, 0);
+  });
+
 });

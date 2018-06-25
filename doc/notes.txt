@@ -16,13 +16,38 @@ TODO:
 - case sensisitvity looking for mismatch variables
 - remove pulldown when no preset?
 - can't step after reset (or when funky frame; TIA frame is out of sync)
-- break on BRK/illegal opcode? (or warnings?)
-- skeleton for each platform/tool (check?)
-- disassembler/debugger
+- break on BRK/illegal opcode?
 - multiple breakpoints, expression breakpoints
-- current exec. pos in gutter
-- cc65: parse listing
-- faster Z80 compile (maybe split up files?)
-- projects w/ multiple files, navigation (need refactor UI, backend)
-- nes: tools (nesst, tiled) https://shiru.untergrund.net/software.shtml
+- use localForage (https://github.com/localForage/localForage)
 
+- cc65 listing file parsing
+- better disasm/listing selection
+- disasm for z80
+- projects w/ include files
+- watchpoints
+- breakpoints
+- debug inspector
+- MAME single step (?)
+- step over
+- slowdown beam for all platforms?
+- kbd shortcuts
+
+
+WEB WORKER FORMAT
+
+{code,platform,tool,dependencies}
+{preload}
+
+new:
+
+{infiles,buildsteps}
+[{filepath,platform,tool}]
+
+implicit rules
+- push/shift build steps
+- preprocessor, compile, assemble, link
+- access to intermediate files
+
+only build files that have changed
+
+build options

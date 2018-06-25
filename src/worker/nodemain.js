@@ -34,7 +34,7 @@ function Blob(blob) {
 global.XMLHttpRequest = function() {
     this.open = function(a,b,c) {
         if (this.responseType == 'json') {
-            var txt = fs.readFileSync(',/'+b);
+            var txt = fs.readFileSync('./'+b);
             this.response = JSON.parse(txt);
         } else if (this.responseType == 'blob') {
             var data = fs.readFileSync('./'+b, {encoding:'binary'});
@@ -66,6 +66,9 @@ global.ab2str = function(buf) {
 
 if (require.main == module) {
   var data = fs.readFileSync(process.argv[2]);
-  var result = handleMessage(JSON.parse(data));
-  console.log(result);
+  var msgs = JSON.parse(data);
+  for (var i=0; i<msgs.length; i++) {
+    var result = handleMessage(msgs[i]);
+    console.log(result);
+  }
 }

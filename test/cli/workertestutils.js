@@ -40,10 +40,10 @@ global.XMLHttpRequest = function() {
             this.response = JSON.parse(txt);
         } else if (this.responseType == 'blob') {
             var data = fs.readFileSync('src/worker/'+b, {encoding:'binary'});
-            //var buf = new ArrayBuffer(data.length);
-            //var blob = new Uint8Array(buf);
-            //blob.set(data);
             this.response = new Blob(data);
+        } else if (this.responseType == 'arraybuffer') {
+            var data = fs.readFileSync('src/worker/'+b, {encoding:'binary'});
+            this.response = new Blob(data).asArrayBuffer();
         }
     }
     this.send = function() { }
