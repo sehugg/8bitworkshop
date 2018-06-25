@@ -1298,9 +1298,13 @@ function compileInlineASM(code, platform, options, errors, asmlines) {
   return code;
 }
 
-function compileVerilator(code, platform, options) {
+function compileVerilator(step) {
   loadNative("verilator_bin");
   load("verilator2js");
+  var code = step.code;
+  var platform = step.platform || 'verilog';
+  var options = step.options || {};
+  // TODO: make work with files
   var errors = [];
   var asmlines = [];
   code = compileInlineASM(code, platform, options, errors, asmlines);
