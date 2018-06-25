@@ -14,7 +14,9 @@ function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
 }
 
 function doBuild(msgs, callback, outlen, nlines, nerrors) {
+    var msgcount = msgs.length;
     global.postMessage = function(msg) {
+      if (!msg.unchanged) {
         if (msg.errors && msg.errors.length) {
           console.log(msg.errors);
           assert.equal(nerrors, msg.errors.length, "errors");
@@ -23,7 +25,11 @@ function doBuild(msgs, callback, outlen, nlines, nerrors) {
           assert.equal(msg.output.code?msg.output.code.length:msg.output.length, outlen, "output binary");
           assert.equal(msg.lines.length, nlines, "listing lines");
         }
+      }
+      if (--msgcount == 0)
         callback(null, msg);
+      else
+        console.log(msgcount + ' msgs left');
     };
     for (var i=0; i<msgs.length; i++) {
       global.onmessage({data:msgs[i]});
@@ -127,7 +133,6 @@ describe('Worker', function() {
   */
   it('should link two files with SDCC', function(done) {
     var msgs = [
-    {"preload":"sdcc"},
     {
         "updates":[
             {"path":"main.c", "data":"extern int mul2(int x);\nint main() { return mul2(2); }\n"},
@@ -161,9 +166,7 @@ describe('Worker', function() {
             {"path":"fn.c", "platform":"nes-conio", "tool":"cc65"}
         ]
     };
-    var msgs = [
-    {"preload":"cc65"},
-    m, m, m2];
+    var msgs = [m, m, m2];
     doBuild(msgs, done, 40976, 1, 0);
   });
   it('should not build unchanged files with SDCC', function(done) {
@@ -186,9 +189,7 @@ describe('Worker', function() {
             {"path":"fn.c", "platform":"mw8080bw", "tool":"sdcc"}
         ]
     };
-    var msgs = [
-    {"preload":"sdcc"},
-    m, m, m2];
+    var msgs = [m, m, m2];
     doBuild(msgs, done, 8192, 1, 0);
   });
 
