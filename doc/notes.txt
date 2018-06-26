@@ -18,10 +18,7 @@ TODO:
 - can't step after reset (or when funky frame; TIA frame is out of sync)
 - break on BRK/illegal opcode?
 - multiple breakpoints, expression breakpoints
-- use localForage (https://github.com/localForage/localForage)
-
 - run apple CPU until boot
-- cc65 listing file parsing
 - better disasm/listing selection
 - disasm for z80
 - projects w/ include files
@@ -32,6 +29,7 @@ TODO:
 - step over
 - slowdown beam for all platforms?
 - kbd shortcuts
+- PC x86 support
 
 
 WEB WORKER FORMAT

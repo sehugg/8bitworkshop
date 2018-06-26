@@ -261,6 +261,40 @@ function _createNewFile(e) {
   return true;
 }
 
+function _uploadNewFile(e) {
+  $("#uploadFileElem").click();
+}
+
+function handleFileUpload(files) {
+  console.log(files);
+  var index = 0;
+  function uploadNextFile() { 
+    var f = files[index++];
+    if (!f) {
+      console.log("Done uploading");
+      gotoNewLocation();
+    } else {
+      var path = "local/" + f.name;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var data = e.target.result;
+        store.setItem(path, data, function(err, result) {
+          if (err)
+            console.log(err);
+          else {
+            console.log("Uploaded " + path + " " + data.length + " bytes");
+            if (index == 1)
+              qs['file'] = path;
+            uploadNextFile();
+          }
+        });
+      }
+      reader.readAsText(f);
+    }
+  }
+  if (files) uploadNextFile();
+}
+
 function getCurrentFilename() {
   var toks = current_preset_id.split("/");
   return toks[toks.length-1];
@@ -1303,6 +1337,7 @@ function setupDebugControls(){
   $("#dbg_bitmap").click(openBitmapEditorAtCursor);
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
+  $("#item_upload_file").click(_uploadNewFile);
   $("#item_share_file").click(_shareFile);
   $("#item_reset_file").click(_resetPreset);
   if (platform.runEval)

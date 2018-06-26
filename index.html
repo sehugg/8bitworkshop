@@ -34,6 +34,9 @@ ga('send', 'pageview');
 </head>
 <body>
 
+<!-- for file upload -->
+<input type="file" id="uploadFileElem" multiple accept="*" style="display:none" onchange="handleFileUpload(this.files)">
+
 <div id="controls_top">
     <span class="dropdown">
       <a class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -41,6 +44,7 @@ ga('send', 'pageview');
       </a>
       <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
       <li><a class="dropdown-item" href="#" id="item_new_file">New File...</a></li>
+      <li><a class="dropdown-item" href="#" id="item_upload_file">Upload File...</a></li>
       <li><a class="dropdown-item" href="#" id="item_share_file">Share File as GitHub Gist...</a></li>
       <li><a class="dropdown-item" href="#" id="item_reset_file">Revert to Original...</a></li>
       <li><a class="dropdown-item" href="#" id="item_download_file">Download Source File</a></li>
