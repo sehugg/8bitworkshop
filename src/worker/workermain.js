@@ -1034,7 +1034,7 @@ function linkSDLDZ80(step)
 
 var sdcc;
 function compileSDCC(step) {
-  
+
   gatherFiles(step, {
     mainFilePath:"main.c" // not used
   });
@@ -1304,7 +1304,7 @@ var jsasm_module_output;
 var jsasm_module_key;
 
 function compileJSASM(asmcode, platform, options, is_inline) {
-  load("assembler");
+  load("../assembler");
   var asm = new Assembler();
   var includes = [];
   asm.loadJSON = function(filename) {
@@ -1401,7 +1401,7 @@ function compileVerilator(step) {
   var topmod = detectTopModuleName(code);
   var FS = verilator_mod['FS'];
   FS.writeFile(topmod+".v", code);
-  writeDependencies(options.dependencies, FS, errors, function(d, code) {
+  writeDependencies(step.dependencies, FS, errors, function(d, code) {
     return compileInlineASM(code, platform, options, errors, null);
   });
   starttime();

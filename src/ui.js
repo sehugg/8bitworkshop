@@ -41,73 +41,6 @@ var userPaused;
 
 var toolbar = $("#controls_top");
 
-function getBiggestItems(storage) {
-  var items = [];
-  for (var i = 0; i < storage.length; i++) {
-    var key = storage.key(i);
-    var len = storage.getItem(key).length;
-    if (len>=100)
-      items.push([lpad(len+"", 12), key]);
-  }
-  items.sort();
-  return items;
-}
-/*
-  var s = "";
-  for (var i=items.length-5; i<items.length; i++) {
-    s += items[i] + "\n";
-  }
-  return s;
-}*/
-
-var FileStore = function(storage, prefix) {
-  var self = this;
-  this.saveFile = function(name, text) {
-    try {
-      storage.setItem(prefix + name, text);
-    } catch (e) {
-      if (e.name == 'NS_ERROR_DOM_QUOTA_REACHED') {
-        console.log(e);
-        if (confirm("Sorry, you've reached your local storage quota for this browser.\n\nGo to local storage editor?")) {
-          window.location = 'editstorage.html';
-          return;
-        }
-      } else {
-        throw e;
-      }
-    }
-  }
-  this.loadFile = function(name) {
-    return storage.getItem(prefix + name) || storage.getItem(name);
-  }
-  this.getFiles = function(prefix2) {
-    // rename items for compatibility
-    for (var i = 0; i < storage.length; i++) {
-      var key = storage.key(i);
-      if (key.startsWith(prefix2) && platform_id == 'vcs') {
-        this.saveFile(key, storage.getItem(key));
-        storage.removeItem(key);
-        console.log("Renamed",key,'to',prefix+key);
-        i=-1; // reset loop
-      }
-    }
-    // iterate over files with <platform>/<dir> prefix
-    var files = [];
-    for (var i = 0; i < storage.length; i++) {
-      var key = storage.key(i);
-      if (key.startsWith(prefix + prefix2)) {
-        var name = key.substring(prefix.length + prefix2.length);
-        files.push(name);
-      }
-    }
-    return files;
-  }
-  this.deleteFile = function(name) {
-    storage.removeItem(prefix + name);
-    storage.removeItem(prefix + 'local/' + name);
-  }
-}
-
 var SourceFile = function(lines, text) {
   lines = lines || [];
   this.text = text;
@@ -237,7 +170,7 @@ function updatePreset(current_preset_id, text) {
   // TODO: do we have to save all Verilog thingies?
   if (text.trim().length &&
     (originalFileID != current_preset_id || text != originalText || platform_id=='verilog')) {
-    store.saveFile(current_preset_id, text);
+    store.setItem(current_preset_id, text);
   }
 }
 
@@ -255,34 +188,37 @@ function loadCode(text, fileid) {
 function loadFile(fileid, filename, index) {
   current_preset_id = fileid;
   current_preset_index = index;
-  var text = store.loadFile(fileid) || "";
-  if (text) {
-    loadCode(text, fileid);
-  } else if (!text && index >= 0) {
-    if (filename.indexOf('.') <= 0)
-      filename += ".a";
-    console.log("Loading preset", fileid, filename, index, PRESETS[index]);
-    if (text.length == 0) {
-      console.log("Fetching", filename);
-      $.get( filename, function( text ) {
-        console.log("GET",text.length,'bytes');
+  store.getItem(fileid, function(err, text) {
+    if (err) console.log(err);
+    if (!text) text = '';
+    if (text) {
+      loadCode(text, fileid);
+    } else if (!text && index >= 0) {
+      if (filename.indexOf('.') <= 0)
+        filename += ".a";
+      console.log("Loading preset", fileid, filename, index, PRESETS[index]);
+      if (text.length == 0) {
+        console.log("Fetching", filename);
+        $.get( filename, function( text ) {
+          console.log("GET",text.length,'bytes');
+          loadCode(text, fileid);
+        }, 'text')
+        .fail(function() {
+          alert("Could not load preset " + fileid);
+          loadCode("", fileid);
+        });
+      }
+    } else {
+      var ext = platform.getToolForFilename(fileid);
+      $.get( "presets/"+platform_id+"/skeleton."+ext, function( text ) {
         loadCode(text, fileid);
       }, 'text')
       .fail(function() {
-        alert("Could not load preset " + fileid);
+        alert("Could not load skeleton for " + platform_id + "/" + ext);
         loadCode("", fileid);
       });
     }
-  } else {
-    var ext = platform.getToolForFilename(fileid);
-    $.get( "presets/"+platform_id+"/skeleton."+ext, function( text ) {
-      loadCode(text, fileid);
-    }, 'text')
-    .fail(function() {
-      alert("Could not load skeleton for " + platform_id + "/" + ext);
-      loadCode("", fileid);
-    });
-  }
+  });
 }
 
 function loadPreset(preset_id) {
@@ -378,29 +314,38 @@ function _downloadSourceFile(e) {
 }
 
 function populateExamples(sel) {
-  sel.append($("<option />").text("--------- Examples ---------").attr('disabled',true));
-  for (var i=0; i<PRESETS.length; i++) {
-    var preset = PRESETS[i];
-    var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
-    sel.append($("<option />").val(preset.id).text(name).attr('selected',preset.id==current_preset_id));
-  }
+  // make sure to use callback so it follows other sections
+  store.length(function(err, len) {
+    sel.append($("<option />").text("--------- Examples ---------").attr('disabled',true));
+    for (var i=0; i<PRESETS.length; i++) {
+      var preset = PRESETS[i];
+      var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
+      sel.append($("<option />").val(preset.id).text(name).attr('selected',preset.id==current_preset_id));
+    }
+  });
 }
 
-function populateFiles(sel, name, prefix) {
-  sel.append($("<option />").text("------- " + name + " -------").attr('disabled',true));
-  var filenames = store.getFiles(prefix);
-  var foundSelected = false;
-  for (var i = 0; i < filenames.length; i++) {
-    var name = filenames[i];
-    var key = prefix + name;
-    sel.append($("<option />").val(key).text(name).attr('selected',key==current_preset_id));
-    if (key == current_preset_id) foundSelected = true;
-  }
-  if (!foundSelected && current_preset_id && current_preset_id.startsWith(prefix)) {
-    var name = current_preset_id.slice(prefix.length);
-    var key = prefix + name;
-    sel.append($("<option />").val(key).text(name).attr('selected',true));
-  }
+function populateFiles(sel, category, prefix) {
+  store.keys(function(err, keys) {
+    var foundSelected = false;
+    var numFound = 0;
+    if (!keys) keys = [];
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      if (key.startsWith(prefix)) {
+        if (numFound++ == 0)
+          sel.append($("<option />").text("------- " + category + " -------").attr('disabled',true));
+        var name = key.substring(prefix.length);
+        sel.append($("<option />").val(key).text(name).attr('selected',key==current_preset_id));
+        if (key == current_preset_id) foundSelected = true;
+      }
+    }
+    if (!foundSelected && current_preset_id && current_preset_id.startsWith(prefix)) {
+      var name = current_preset_id.slice(prefix.length);
+      var key = prefix + name;
+      sel.append($("<option />").val(key).text(name).attr('selected',true));
+    }
+  });
 }
 
 function updateSelector() {
@@ -422,33 +367,47 @@ function updateSelector() {
   });
 }
 
-function loadFileDependencies(text) {
-  var arr = [];
+function loadFileDependencies(text, callback) {
+  var filenames = [];
   if (platform_id == 'verilog') {
     var re = /^(`include|[.]include)\s+"(.+?)"/gm;
     var m;
     while (m = re.exec(text)) {
-      arr.push({
-        filename:m[2],
-        prefix:platform_id,
-        text:store.loadFile(m[2]) || store.loadFile('local/'+m[2]) // TODO??
+      filenames.push(m[2]);
+    }
+  }
+  var result = [];
+  function loadNextDependency() {
+    var fn = filenames.shift();
+    if (!fn) {
+      callback(result);
+    } else {
+      store.getItem(fn, function(err, value) {
+        result.push({
+          filename:fn,
+          prefix:platform_id,
+          text:value // might be null, that's ok
+        });
+        loadNextDependency();
       });
     }
   }
-  return arr;
+  loadNextDependency(); // load first dependency
 }
 
 function setCode(text) {
   if (pendingWorkerMessages++ > 0)
     return;
-  worker.postMessage({
-    code:text,
-    dependencies:loadFileDependencies(text),
-    platform:platform_id,
-    tool:platform.getToolForFilename(current_preset_id)
-  });
   toolbar.addClass("is-busy");
   $('#compile_spinner').css('visibility', 'visible');
+  loadFileDependencies(text, function(depends) {
+    worker.postMessage({
+      code:text,
+      dependencies:depends,
+      platform:platform_id,
+      tool:platform.getToolForFilename(current_preset_id)
+    });
+  });
 }
 
 function arrayCompare(a,b) {
@@ -1427,7 +1386,14 @@ function preloadWorker(fileid) {
 }
 
 function initPlatform() {
-  store = new FileStore(localStorage, platform_id + '/');
+  //store = new FileStore(localStorage, platform_id + '/');
+  store = localforage.createInstance({
+    //driver: 'oldFileStoreDriver', //localforage.LOCALSTORAGE,
+    name: platform_id,
+    //storeName: platform_id,
+    version: "2.0"
+  });
+  copyFromOldStorageFormat(platform_id, store);
 }
 
 function showBookLink() {
@@ -1525,7 +1491,7 @@ function startUI(loadplatform) {
     // reset file?
     if (qs['file'] && qs['reset']) {
       initPlatform();
-      store.deleteFile(qs['file']);
+      store.removeItem(qs['file']);
       qs['reset'] = '';
       gotoNewLocation();
     } else {

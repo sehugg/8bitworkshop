@@ -11,7 +11,7 @@ typedef unsigned char byte;
 typedef signed char sbyte;
 typedef unsigned short word;
 
-const byte** BASL = 0x28;
+static byte** BASL = (byte**) 0x28;
 
 byte getchar(byte x, byte y) {
   // JSR VTABZ
@@ -108,7 +108,7 @@ void move_player(Player* p) {
   cputcxy(p->x, p->y, p->tail_attr);
   p->x += DIR_X[p->dir];
   p->y += DIR_Y[p->dir];
-  if (getchar(p->x, p->y) & 0x7f != ' ')
+  if ((getchar(p->x, p->y) & 0x7f) != ' ')
     p->collided = 1;
   draw_player(p);
 }

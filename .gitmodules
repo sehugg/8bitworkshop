@@ -19,3 +19,6 @@
 [submodule "gif.js"]
 	path = gif.js
 	url = https://github.com/sehugg/gif.js
+[submodule "localForage"]
+	path = localForage
+	url = https://github.com/localForage/localForage
