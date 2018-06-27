@@ -30,6 +30,8 @@ TODO:
 - slowdown beam for all platforms?
 - kbd shortcuts
 - PC x86 support
+- show errors in list
+- can't see 1st line in editor sometimes
 
 
 WEB WORKER FORMAT
@@ -51,5 +53,42 @@ only build files that have changed
 
 build options
 
-build project files
 
+BUILD PROJECT
+
+local/foo.project/*.*
+build all files in project
+send update for dependencies at startup (single file version)
+should be able to change file w/o reloading (Not platform tho)
+
+pulldown selects file in project, or goes back to parent
+gotta preserve editor windows for each one - window list
+make source/disasm window visible when debugging
+gutter info/errors in all files
+
+
+
+UI REFACTOR
+
+editor
+debugger
+disasm view
+memory
+profile
+
+separate into files
+
+window methods:
+- set
+- mode
+- get
+- changes
+- cursorActivity (inspect)
+- gutters (setCompileOutput)
+- current line / gutter marker (setCurrentLine / clearCurrentLine)
+- source map
+- global symbols
+- pixel editor / find comment (openBitmapEditorAtCursor)
+- update debug window (200 ms)
+
+file store mirrors that on worker

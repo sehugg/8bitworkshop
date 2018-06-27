@@ -77,3 +77,10 @@ SWEET16 - Woz's tiny bytecode interpreter on the Apple ][ integer BASIC ROM.
 Still emcumbered by Apple's copyright for the foreseeable future.
 http://6502.org/source/interpreters/sweet16.htm
 
+Quetzalcoatl - http://www.kdef.com/geek/vic/quetz.html
+
+UC65 - https://code.google.com/archive/p/uc65/
+
+Cowgol - https://github.com/davidgiven/cowgol
+
+AcheronVM - https://github.com/AcheronVM/acheronvm

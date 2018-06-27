@@ -134,6 +134,38 @@ var pc2maxclocks = {};
 var jsrresult = {};
 var MAX_CLOCKS = 76*2;
 
+// [taken, not taken]
+var BRANCH_CONSTRAINTS = [
+  [{N:0},{N:1}],
+  [{N:1},{N:0}],
+  [{V:0},{V:1}],
+  [{V:1},{V:0}],
+  [{C:0},{C:1}],
+  [{C:1},{C:0}],
+  [{Z:0},{Z:1}],
+  [{Z:1},{Z:0}]
+];
+
+function constraintEquals(a,b) {
+  if (a == null || b == null)
+    return null;
+  for (var n in a) {
+    if (b[n] !== 'undefined')
+      return a[n] == b[n];
+  }
+  for (var n in b) {
+    if (a[n] !== 'undefined')
+      return a[n] == b[n];
+  }
+  return null;
+}
+
+function getClockCountsAtPC(pc) {
+  var opcode = platform.readAddress(pc);
+  var meta = platform.getOpcodeMetadata(opcode, pc);
+  return meta; // minCycles, maxCycles
+}
+
 function _traceInstructions(pc, minclocks, maxclocks, subaddr, constraints) {
   //console.log("trace", hex(pc), minclocks, maxclocks);
   if (!minclocks) minclocks = 0;

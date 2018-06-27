@@ -39,7 +39,7 @@ div.CodeMirror {
         <p class="lead">
           Edit a C source file, and see the Z80 assembly output update in real-time.
         </p>
-        <h6>Powered by <a target="_new" href="https://twitter.com/8bitworkshop">@8bitworkshop</a> and the
+        <h6>Powered by <a target="_new" href="http://8bitworkshop.com/">@8bitworkshop</a> and the
         <a href="http://sdcc.sourceforge.net/">Small Device C Compiler</a>.</h6>
         <select id="preset_select" name="">
         </select>
@@ -62,7 +62,10 @@ Javatari = {};
 PLATFORMS = {};
 </script>
 
-<script src="src/cpu/z80.js"></script>
+<script src="localForage/dist/localforage.nopromises.js"></script>
+
+<script src="src/store.js"></script>
+<script src="src/cpu/z80fast.js"></script>
 <script src="src/util.js"></script>
 <script src="src/emu.js"></script>
 <script src="src/ui.js"></script>

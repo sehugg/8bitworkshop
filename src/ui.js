@@ -80,7 +80,7 @@ var TOOL_TO_SOURCE_STYLE = {
 }
 
 var worker = new Worker("./src/worker/workermain.js");
-var main_editor;
+var editor;
 var current_output;
 var current_preset_index = -1;
 var current_preset_id;
@@ -92,7 +92,6 @@ var compparams;
 var trace_pending_at_pc;
 var store;
 var pendingWorkerMessages = 0;
-var editor;
 var disasmview = CodeMirror(document.getElementById('disassembly'), {
   mode: 'z80',
   theme: 'cobalt',
@@ -100,18 +99,13 @@ var disasmview = CodeMirror(document.getElementById('disassembly'), {
   readOnly: true,
   styleActiveLine: true
 });
-scrollProfileView(disasmview);
+//scrollProfileView(disasmview);
+
+var currentDebugLine;
+var lastDebugInfo;
+var lastDebugState;
 
 var memorylist;
-var profilelist;
-
-function scrollProfileView(_ed) {
-  _ed.on('scroll', function(ed, changeobj) {
-    if (profilelist) {
-      profilelist.container.scrollTop = ed.getScrollInfo().top;
-    }
-  });
-}
 
 function newEditor(mode) {
   var isAsm = mode=='6502' || mode =='z80' || mode=='verilog' || mode=='gas'; // TODO
@@ -141,11 +135,11 @@ function newEditor(mode) {
       inspectVariable(editor);
     }
   });
-  scrollProfileView(editor);
+  //scrollProfileView(editor);
   editor.setOption("mode", mode);
 }
 
-function inspectVariable(editor, name) {
+function inspectVariable(ed, name) {
   var val;
   if (platform.inspect) {
     platform.inspect(name);
@@ -176,7 +170,7 @@ function updatePreset(current_preset_id, text) {
 
 function loadCode(text, fileid) {
   var tool = platform.getToolForFilename(fileid);
-  main_editor = newEditor(tool && TOOL_TO_SOURCE_STYLE[tool]);
+  newEditor(tool && TOOL_TO_SOURCE_STYLE[tool]);
   editor.setValue(text); // calls setCode()
   editor.clearHistory();
   current_output = null;
@@ -444,25 +438,6 @@ function setCode(text) {
   });
 }
 
-function arrayCompare(a,b) {
-  if (a == null && b == null) return true;
-  if (a == null) return false;
-  if (b == null) return false;
-  if (a.length != b.length) return false;
-  for (var i=0; i<a.length; i++)
-    if (a[i] != b[i])
-      return false;
-  return true;
-}
-
-function invertMap(m) {
-  var r = {};
-  if (m) {
-    for (var k in m) r[m[k]] = k;
-  }
-  return r;
-}
-
 function setCompileOutput(data) {
   if (data.unchanged) return;
   // TODO: kills current selection
@@ -472,7 +447,7 @@ function setCompileOutput(data) {
   }
   symbolmap = data.symbolmap;
   addr2symbol = invertMap(symbolmap);
-  addr2symbol[0x10000] = '__END__';
+  addr2symbol[0x10000] = '__END__'; // TODO?
   compparams = data.params;
   updatePreset(current_preset_id, editor.getValue()); // update persisted entry
   // errors?
@@ -516,7 +491,7 @@ function setCompileOutput(data) {
         platform.loadROM(getCurrentPresetTitle(), rom);
         if (!userPaused) resume();
         current_output = rom;
-        resetProfiler();
+        //resetProfiler();
         toolbar.removeClass("has-errors");
       } catch (e) {
         console.log(e); // TODO: show error
@@ -575,10 +550,6 @@ worker.onmessage = function(e) {
   }
   setCompileOutput(e.data);
 }
-
-var currentDebugLine;
-var lastDebugInfo;
-var lastDebugState;
 
 function setCurrentLine(line) {
   function addCurrentMarker(line) {
@@ -741,53 +712,6 @@ function clearBreakpoint() {
   showMemory();
 }
 
-function getClockCountsAtPC(pc) {
-  var opcode = platform.readAddress(pc);
-  var meta = platform.getOpcodeMetadata(opcode, pc);
-  return meta; // minCycles, maxCycles
-}
-
-function byte2signed(b) {
-  b &= 0xff;
-  return (b < 0x80) ? b : -(256-b);
-}
-
-// [taken, not taken]
-var BRANCH_CONSTRAINTS = [
-  [{N:0},{N:1}],
-  [{N:1},{N:0}],
-  [{V:0},{V:1}],
-  [{V:1},{V:0}],
-  [{C:0},{C:1}],
-  [{C:1},{C:0}],
-  [{Z:0},{Z:1}],
-  [{Z:1},{Z:0}]
-];
-
-function constraintEquals(a,b) {
-  if (a == null || b == null)
-    return null;
-  for (var n in a) {
-    if (b[n] !== 'undefined')
-      return a[n] == b[n];
-  }
-  for (var n in b) {
-    if (a[n] !== 'undefined')
-      return a[n] == b[n];
-  }
-  return null;
-}
-
-/*
-function showLoopTimingForCurrentLine() {
-  var line = getCurrentLine();
-  var pc = line2offset[line];
-  if (pc) {
-    showLoopTimingForPC(pc);
-  }
-}
-*/
-
 function jumpToLine(ed, i) {
     var t = ed.charCoords({line: i, ch: 0}, "local").top;
     var middleHeight = ed.getScrollerElement().offsetHeight / 2;
@@ -872,7 +796,7 @@ function toggleDisassembly() {
   $("#disassembly").toggle();
   $("#editor").toggle();
   updateDisassembly();
-  if (profilelist) createProfileWindow();
+  //if (profilelist) createProfileWindow();
 }
 
 function resetAndDebug() {
@@ -890,12 +814,14 @@ function resetAndDebug() {
   }
 }
 
+var lastBreakExpr = "c.PC = 0x6000";
 function _breakExpression() {
-  var exprs = window.prompt("Enter break expression", "c.PC == 0x6000"); // TODO
+  var exprs = window.prompt("Enter break expression", lastBreakExpr);
   if (exprs) {
     var fn = new Function('c', 'return (' + exprs + ');');
     setupBreakpoint();
     platform.runEval(fn);
+    lastBreakExpr = exprs;
   }
 }
 
@@ -912,24 +838,9 @@ function getSymbolAtAddress(a) {
 function updateDebugWindows() {
   if (platform.isRunning()) {
     updateMemoryWindow();
-    updateProfileWindow();
+    //updateProfileWindow();
   }
   setTimeout(updateDebugWindows, 200);
-}
-
-function updateProfileWindow() {
-  if (profilelist && sourcefile) {
-    $("#profileview").find('[data-index]').each(function(i,e) {
-      var div = $(e);
-      var lineno = div.attr('data-index') | 0;
-      var newtext = getProfileLine(lineno+1);
-      if (newtext) {
-        var oldtext = div.text();
-        if (oldtext != newtext)
-          div.text(newtext);
-      }
-    });
-  }
 }
 
 function updateMemoryWindow() {
@@ -1058,7 +969,7 @@ function showMemoryWindow() {
 }
 
 function toggleMemoryWindow() {
-  if ($("#profileview").is(':visible')) toggleProfileWindow();
+  //if ($("#profileview").is(':visible')) toggleProfileWindow();
   if ($("#memoryview").is(':visible')) {
     memorylist = null;
     $("#emulator").show();
@@ -1067,92 +978,6 @@ function toggleMemoryWindow() {
     showMemoryWindow();
     $("#emulator").hide();
     $("#memoryview").show();
-  }
-}
-
-function createProfileWindow() {
-  profilelist = new VirtualList({
-    w:$("#emulator").width(),
-    h:$("#emulator").height(),
-    itemHeight: getVisibleEditorLineHeight(),
-    totalRows: getVisibleSourceFile().lineCount(),
-    generatorFn: function(row) {
-      var div = document.createElement("div");
-      div.appendChild(document.createTextNode("."));
-      return div;
-    }
-  });
-  $("#profileview").empty().append(profilelist.container);
-  updateProfileWindow();
-}
-
-var pcdata = {};
-var prof_reads, prof_writes;
-var dumplines;
-
-function resetProfiler() {
-  prof_reads = [];
-  prof_writes = [];
-  pcdata = [];
-  dumplines = null;
-}
-
-function profileWindowCallback(a,v) {
-  if (platform.getPC) {
-    var pc = platform.getPC();
-    var pcd = pcdata[pc];
-    if (!pcd) {
-      pcd = pcdata[pc] = {nv:1};
-    }
-    if (a != pc) {
-      if (v >= 0) {
-        pcd.lastwa = a;
-        pcd.lastwv = v;
-      } else {
-        pcd.lastra = a;
-        pcd.lastrv = platform.readAddress(a);
-      }
-    } else {
-      pcd.nv++;
-    }
-  }
-}
-
-function getProfileLine(line) {
-  var srcfile = getVisibleSourceFile();
-  var offset = srcfile.line2offset[line];
-  var offset2 = srcfile.line2offset[line+1];
-  if (!(offset2 > offset)) offset2 = offset+1;
-  var s = '';
-  var nv = 0;
-  while (offset < offset2) {
-    var pcd = pcdata[offset];
-    if (pcd) {
-      nv += pcd.nv;
-      if (pcd.lastra >= 0) {
-        s += " rd [" + hex(pcd.lastra,4) + "] == " + hex(pcd.lastrv,2);
-      }
-      if (pcd.lastwa >= 0) {
-        s += " wr " + hex(pcd.lastwv,2) + " -> [" + hex(pcd.lastwa,4) + "]";
-      }
-    }
-    offset++;
-  }
-  return nv ? (lpad(nv+"",8) + s) : '.';
-}
-
-function toggleProfileWindow() {
-  if ($("#memoryview").is(':visible')) toggleMemoryWindow();
-  if ($("#profileview").is(':visible')) {
-    profilelist = null;
-    platform.getProbe().deactivate();
-    $("#emulator").show();
-    $("#profileview").hide();
-  } else {
-    createProfileWindow();
-    platform.getProbe().activate(profileWindowCallback);
-    $("#emulator").hide();
-    $("#profileview").show();
   }
 }
 
@@ -1327,9 +1152,9 @@ function setupDebugControls(){
   } else if (platform.readAddress) {
     $("#dbg_memory").click(toggleMemoryWindow).show();
   }
-  if (platform.getProbe) {
+  /*if (platform.getProbe) {
     $("#dbg_profile").click(toggleProfileWindow).show();
-  }
+  }*/
   if (platform.saveState) { // TODO: only show if listing or disasm available
     $("#dbg_disasm").click(toggleDisassembly).show();
   }

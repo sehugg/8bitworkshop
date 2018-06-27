@@ -1,5 +1,11 @@
+"use strict";
 
 function lpad(s,n) { while(s.length<n) s=" "+s; return s; }
+
+function byte2signed(b) {
+  b &= 0xff;
+  return (b < 0x80) ? b : -(256-b);
+}
 
 function hex(v, nd) {
   try {
@@ -11,6 +17,25 @@ function hex(v, nd) {
   } catch (e) {
     return v+"";
   }
+}
+
+function arrayCompare(a,b) {
+  if (a == null && b == null) return true;
+  if (a == null) return false;
+  if (b == null) return false;
+  if (a.length != b.length) return false;
+  for (var i=0; i<a.length; i++)
+    if (a[i] != b[i])
+      return false;
+  return true;
+}
+
+function invertMap(m) {
+  var r = {};
+  if (m) {
+    for (var k in m) r[m[k]] = k;
+  }
+  return r;
 }
 
 function highlightDifferences(s1, s2) {
