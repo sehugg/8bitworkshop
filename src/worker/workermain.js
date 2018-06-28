@@ -163,12 +163,6 @@ function wasChanged(entry) {
   return entry.ts > buildstartseq;
 }
 
-/*function anyFilesChanged() {
-  for (var key in workfs)
-    if (wasChanged(workfs[key])) return true;
-  return false;
-}*/
-
 function populateEntry(fs, path, entry) {
   fs.writeFile(path, entry.data, {encoding:entry.encoding});
   fs.utime(path, entry.ts, entry.ts);
@@ -223,6 +217,18 @@ function staleFiles(step, targets) {
   for (var i=0; i<targets.length; i++) {
     var entry = workfs[targets[i]];
     if (!entry || step.maxts > entry.ts)
+      return true;
+  }
+  console.log("unchanged", step.maxts, targets);
+  return false;
+}
+
+function anyTargetChanged(step, targets) {
+  if (!step.maxts) throw "call populateFiles() first";
+  // see if any target files are more recent than inputs
+  for (var i=0; i<targets.length; i++) {
+    var entry = workfs[targets[i]];
+    if (!entry || entry.ts > step.maxts)
       return true;
   }
   console.log("unchanged", step.maxts, targets);
@@ -623,7 +629,7 @@ function linkLD65(step) {
     putWorkFile("main.map", mapout);
     putWorkFile("main.vice", viceout);
     // return unchanged if no files changed
-    if (!staleFiles(step, ["main", "main.map", "main.vice"]))
+    if (!anyTargetChanged(step, ["main", "main.map", "main.vice"]))
       return;
     // parse symbol map (TODO: omit segments, constants)
     var symbolmap = {};
@@ -830,7 +836,7 @@ function linkSDLDZ80(step)
     putWorkFile("main.ihx", hexout);
     putWorkFile("main.noi", mapout);
     // return unchanged if no files changed
-    if (!staleFiles(step, ["main.ihx", "main.noi"]))
+    if (!anyTargetChanged(step, ["main.ihx", "main.noi"]))
       return;
       
     var listings = {};

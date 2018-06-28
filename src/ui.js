@@ -34,9 +34,6 @@ if (window.Javatari) Javatari.AUTO_START = false;
 var PRESETS; // presets array
 var platform_id;
 var platform; // platform object
-var originalFileID;
-var originalText;
-var userPaused;
 
 var toolbar = $("#controls_top");
 
@@ -80,6 +77,19 @@ var TOOL_TO_SOURCE_STYLE = {
 }
 
 var worker = new Worker("./src/worker/workermain.js");
+
+var disasmview = CodeMirror(document.getElementById('disassembly'), {
+  mode: 'z80',
+  theme: 'cobalt',
+  tabSize: 8,
+  readOnly: true,
+  styleActiveLine: true
+});
+
+var originalFileID;
+var originalText;
+var userPaused;
+
 var editor;
 var current_output;
 var current_preset_entry;
@@ -92,13 +102,6 @@ var compparams;
 var trace_pending_at_pc;
 var store;
 var pendingWorkerMessages = 0;
-var disasmview = CodeMirror(document.getElementById('disassembly'), {
-  mode: 'z80',
-  theme: 'cobalt',
-  tabSize: 8,
-  readOnly: true,
-  styleActiveLine: true
-});
 //scrollProfileView(disasmview);
 
 var currentDebugLine;
@@ -107,7 +110,15 @@ var lastDebugState;
 
 var memorylist;
 
+function deleteEditor() {
+  if (editor) {
+    $("#editor").empty();
+    editor = null;
+  }
+}
+
 function newEditor(mode) {
+  deleteEditor();
   var isAsm = mode=='6502' || mode =='z80' || mode=='verilog' || mode=='gas'; // TODO
   editor = CodeMirror(document.getElementById('editor'), {
     theme: 'mbo',
@@ -188,8 +199,8 @@ function loadFile(fileid, filename, preset) {
     if (text) {
       loadCode(text, fileid);
     } else if (!text && preset) {
-      if (filename.indexOf('.') <= 0)
-        filename += ".a"; // TODO?
+      if (platform_id == 'vcs' && filename.indexOf('.') <= 0)
+        filename += ".a"; // legacy stuff
       console.log("Loading preset", fileid, filename, preset);
       if (text.length == 0) {
         console.log("Fetching", filename);
@@ -215,9 +226,10 @@ function loadFile(fileid, filename, preset) {
   });
 }
 
+// can pass integer or string id
 function loadPreset(preset_id) {
-  // TODO
-  var index = parseInt(preset_id+"");
+  preloadWorker(preset_id); // TODO: what if multiple files
+  var index = parseInt(preset_id+""); // might fail -1
   for (var i=0; i<PRESETS.length; i++)
     if (PRESETS[i].id == preset_id)
       index = i;
@@ -231,13 +243,7 @@ function loadPreset(preset_id) {
   }
 }
 
-function gotoPresetAt(index) {
-  var index = (index + PRESETS.length) % PRESETS.length;
-  qs['file'] = PRESETS[index].id;
-  gotoNewLocation();
-}
-
-function gotoPresetNamed(id) {
+function reloadPresetNamed(id) {
   qs['platform'] = platform_id;
   qs['file'] = id;
   gotoNewLocation();
@@ -385,7 +391,7 @@ function updateSelector() {
   populateExamples(sel);
   // set click handlers
   sel.off('change').change(function(e) {
-    gotoPresetNamed($(this).val());
+    reloadPresetNamed($(this).val());
   });
 }
 
@@ -1299,7 +1305,6 @@ function startPlatform() {
   PRESETS = platform.getPresets();
   if (qs['file']) {
     // start platform and load file
-    preloadWorker(qs['file']);
     platform.start();
     setupDebugControls();
     loadPreset(qs['file']);
@@ -1311,7 +1316,7 @@ function startPlatform() {
     // try to load last file (redirect)
     var lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
     localStorage.removeItem("__lastid");
-    gotoPresetNamed(lastid || PRESETS[0].id);
+    reloadPresetNamed(lastid || PRESETS[0].id);
     return false;
   }
 }

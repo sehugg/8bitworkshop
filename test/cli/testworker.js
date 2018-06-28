@@ -165,6 +165,7 @@ describe('Worker', function() {
     ];
     doBuild(msgs, done, 8192, [1,1], 0);
   });
+  // TODO: doesn't fail
   it('should not build unchanged files with CC65', function(done) {
     var m = {
         "updates":[
