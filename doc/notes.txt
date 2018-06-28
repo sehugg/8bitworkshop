@@ -91,6 +91,7 @@ window methods:
 - global symbols
 - pixel editor / find comment (openBitmapEditorAtCursor)
 - update debug window (200 ms)
+- inspect variable
 
 file store mirrors that on worker
 

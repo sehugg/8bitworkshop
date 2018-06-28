@@ -131,8 +131,9 @@ function endtime(msg) { _t2 = new Date(); console.log(msg, _t2.getTime() - _t1.g
 /// working file store and build steps
 
 var buildsteps = [];
+var buildstartseq = 0;
 var workfs = {};
-var workerseq = 1;
+var workerseq = 0;
 
 function compareData(a,b) {
   if (a.length != b.length) return false;
@@ -151,11 +152,22 @@ function putWorkFile(path, data) {
   var encoding = (typeof data === 'string') ? 'utf8' : 'binary';
   var entry = workfs[path];
   if (!entry || !compareData(entry.data, data) || entry.encoding != encoding) {
-    workfs[path] = entry = {path:path, data:data, encoding:encoding, ts:workerseq++};
+    workfs[path] = entry = {path:path, data:data, encoding:encoding, ts:++workerseq};
     console.log('+++', entry.path, entry.encoding, entry.data.length, entry.ts);
   }
   return entry;
 }
+
+// returns true if file changed during this build step
+function wasChanged(entry) {
+  return entry.ts > buildstartseq;
+}
+
+/*function anyFilesChanged() {
+  for (var key in workfs)
+    if (wasChanged(workfs[key])) return true;
+  return false;
+}*/
 
 function populateEntry(fs, path, entry) {
   fs.writeFile(path, entry.data, {encoding:entry.encoding});
@@ -207,6 +219,7 @@ function populateFiles(step, fs, options) {
 
 function staleFiles(step, targets) {
   if (!step.maxts) throw "call populateFiles() first";
+  // see if any target files are more recent than inputs
   for (var i=0; i<targets.length; i++) {
     var entry = workfs[targets[i]];
     if (!entry || step.maxts > entry.ts)
@@ -606,6 +619,12 @@ function linkLD65(step) {
     var aout = FS.readFile("main", {encoding:'binary'});
     var mapout = FS.readFile("main.map", {encoding:'utf8'});
     var viceout = FS.readFile("main.vice", {encoding:'utf8'});
+    putWorkFile("main", aout);
+    putWorkFile("main.map", mapout);
+    putWorkFile("main.vice", viceout);
+    // return unchanged if no files changed
+    if (!staleFiles(step, ["main", "main.map", "main.vice"]))
+      return;
     // parse symbol map (TODO: omit segments, constants)
     var symbolmap = {};
     for (var s of viceout.split("\n")) {
@@ -629,9 +648,6 @@ function linkLD65(step) {
         };
       }
     }
-    putWorkFile("main", aout);
-    putWorkFile("main.map", mapout);
-    putWorkFile("main.vice", viceout);
     return {
       output:aout, //.slice(0),
       listings:listings,
@@ -811,6 +827,12 @@ function linkSDLDZ80(step)
     execMain(step, LDZ80, args);
     var hexout = FS.readFile("main.ihx", {encoding:'utf8'});
     var mapout = FS.readFile("main.noi", {encoding:'utf8'});
+    putWorkFile("main.ihx", hexout);
+    putWorkFile("main.noi", mapout);
+    // return unchanged if no files changed
+    if (!staleFiles(step, ["main.ihx", "main.noi"]))
+      return;
+      
     var listings = {};
     for (var fn of step.files) {
       if (fn.endsWith('.lst')) {
@@ -834,7 +856,6 @@ function linkSDLDZ80(step)
         symbolmap[toks[1]] = parseInt(toks[2], 16);
       }
     }
-    putWorkFile("main.ihx", hexout);
     return {
       output:parseIHX(hexout, params.rom_start?params.rom_start:params.code_start, params.rom_size),
       listings:listings,
@@ -1218,6 +1239,7 @@ var TOOL_PRELOADFS = {
 }
 
 function executeBuildSteps() {
+  buildstartseq = workerseq;
   while (buildsteps.length) {
     var step = buildsteps.shift(); // get top of array
     var code = step.code;

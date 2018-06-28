@@ -6,7 +6,6 @@ function installErrorHandler() {
       window.onerror = function (msgevent, url, line, col, error) {
         console.log(msgevent, url, line, col);
         console.log(error);
-        //$("#editor").hide();
         if (window.location.host.endsWith('8bitworkshop.com')) {
           ga('send', 'exception', {
             'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
@@ -388,12 +387,6 @@ function updateSelector() {
   sel.off('change').change(function(e) {
     gotoPresetNamed($(this).val());
   });
-  $("#preset_prev").off('click').click(function() {
-    gotoPresetAt(current_preset_index - 1);
-  });
-  $("#preset_next").off('click').click(function() {
-    gotoPresetAt(current_preset_index + 1);
-  });
 }
 
 function loadFileDependencies(text, callback) {
@@ -493,6 +486,7 @@ function setCompileOutput(data) {
     current_output = null;
   } else {
     // load ROM
+    // TODO: don't have to compare anymore; worker does it
     var rom = data.output;
     var rom_changed = false;
     if (rom && rom.code)
@@ -1256,6 +1250,7 @@ var qs = (function (a) {
     return b;
 })(window.location.search.substr(1).split('&'));
 
+// TODO: what if multiple files/tools?
 function preloadWorker(fileid) {
   var tool = platform.getToolForFilename(fileid);
   if (tool) worker.postMessage({preload:tool, platform:platform_id});
