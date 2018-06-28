@@ -75,6 +75,7 @@ debugger
 disasm view
 memory
 profile
+errors
 
 separate into files
 
@@ -92,3 +93,13 @@ window methods:
 - update debug window (200 ms)
 
 file store mirrors that on worker
+
+worker result:
+{
+	output:<rom>
+	sources:{
+		<path>:{lines, asmlines, listing}
+	}
+}
+
+add file to errors

@@ -43,6 +43,7 @@ var toolbar = $("#controls_top");
 
 var SourceFile = function(lines, text) {
   lines = lines || [];
+  this.lines = lines;
   this.text = text;
   this.offset2line = {};
   this.line2offset = {};
@@ -441,10 +442,23 @@ function setCode(text) {
 function setCompileOutput(data) {
   if (data.unchanged) return;
   // TODO: kills current selection
-  sourcefile = new SourceFile(data.lines);
-  if (data.asmlines) {
-    assemblyfile = new SourceFile(data.asmlines, data.intermediate.listing);
+  // choose first listing (TODO:support multiple source files)
+  sourcefile = null;
+  assemblyfile = null;
+  if (data.listings) {
+    var lst;
+    for (var lstname in data.listings) {
+      lst = data.listings[lstname];
+      break;
+    }
+    if (lst) {
+      sourcefile = new SourceFile(lst.lines);
+      if (lst.asmlines) {
+        assemblyfile = new SourceFile(lst.asmlines, lst.text);
+      }
+    }
   }
+  if (!sourcefile)  sourcefile = new SourceFile();
   symbolmap = data.symbolmap;
   addr2symbol = invertMap(symbolmap);
   addr2symbol[0x10000] = '__END__'; // TODO?
@@ -510,7 +524,9 @@ function setCompileOutput(data) {
       editor.clearGutter("gutter-bytes");
       editor.clearGutter("gutter-offset");
       editor.clearGutter("gutter-clock");
-      for (var info of data.lines) {
+      // TODO: support multiple files
+      var lstlines = sourcefile.lines || [];
+      for (var info of lstlines) {
         if (info.offset >= 0) {
           var textel = document.createTextNode(hex(info.offset,4));
           editor.setGutterMarker(info.line-1, "gutter-offset", textel);

@@ -7,10 +7,10 @@ global.onmessage({data:{preload:'cc65', platform:'nes'}});
 global.onmessage({data:{preload:'ca65', platform:'nes'}});
 global.onmessage({data:{preload:'sdcc'}});
 
-//
+// TODO: check msg against spec
 
 function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
-  var msgs = [{code:code, platform:platform, tool:tool}];
+  var msgs = [{code:code, platform:platform, tool:tool, path:'src.'+tool}];
   doBuild(msgs, callback, outlen, nlines, nerrors);
 }
 
@@ -24,7 +24,16 @@ function doBuild(msgs, callback, outlen, nlines, nerrors) {
         } else {
           assert.equal(nerrors||0, 0, "errors");
           assert.equal(msg.output.code?msg.output.code.length:msg.output.length, outlen, "output binary");
-          assert.equal(msg.lines.length, nlines, "listing lines");
+          if (nlines) {
+            if (typeof nlines === 'number')
+              nlines = [nlines];
+            //console.log(msg.listings, nlines);
+            var i = 0;
+            for (var key in msg.listings) {
+              var listing = msg.listings[key];
+              assert.equal(listing.lines.length, nlines[i++], "listing lines");
+            }
+          }
         }
       }
       if (--msgcount == 0)
@@ -119,14 +128,19 @@ describe('Worker', function() {
     var csource = ab2str(fs.readFileSync('presets/coleco/skeleton.sdcc'));
     compile('sdcc', csource, 'coleco', done, 32768, 31, 0);
   });
-  /*
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
-    compile('verilator', csource, 'verilog', done, 3686, 0, 0);
+    compile('verilator', csource, 'verilog', done, 2782, 0, 0);
   });
-  */
-  it('should NOT compile SDCC', function(done) {
-    compile('sdcc', 'foobar', 'mw8080bw', done, 0, 0, 1);
+  it('should compile verilog inline assembler (JSASM)', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/verilog/test2.asm'));
+    var dependfiles = ["hvsync_generator.v", "font_cp437_8x8.v", "ram.v", "tile_renderer.v", "sprite_scanline_renderer.v", "lfsr.v", "sound_generator.v", "cpu16.v", "cpu_platform.v"];
+    var depends = [];
+    for (var dfile of dependfiles) {
+      depends.push({filename:dfile, prefix:"verilog"});
+    }
+    var msgs = [{code:csource, platform:"verilog", tool:"jsasm", dependencies:depends}];
+    doBuild(msgs, done, 2782, 0, 0);
   });
   it('should NOT preprocess SDCC', function(done) {
     compile('sdcc', 'int x=0\n#bah\n', 'mw8080bw', done, 0, 0, 1);
@@ -149,7 +163,7 @@ describe('Worker', function() {
         ]
     }
     ];
-    doBuild(msgs, done, 8192, 1, 0);
+    doBuild(msgs, done, 8192, [1,1], 0);
   });
   it('should not build unchanged files with CC65', function(done) {
     var m = {
@@ -172,7 +186,7 @@ describe('Worker', function() {
         ]
     };
     var msgs = [m, m, m2];
-    doBuild(msgs, done, 40976, 1, 0);
+    doBuild(msgs, done, 40976, [1,1], 0);
   });
   it('should not build unchanged files with SDCC', function(done) {
     var m = {
@@ -195,7 +209,7 @@ describe('Worker', function() {
         ]
     };
     var msgs = [m, m, m2];
-    doBuild(msgs, done, 8192, 1, 0);
+    doBuild(msgs, done, 8192, [1,1], 0);
   });
 
 });
