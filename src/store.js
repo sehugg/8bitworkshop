@@ -63,12 +63,12 @@ var OldFileStoreDriver = {
 localforage.defineDriver(OldFileStoreDriver);
 
 // copy localStorage to new driver
-function copyFromOldStorageFormat(platform_id, newstore) {
-  var alreadyMigratedKey = "__migrated_" + platform_id;
+function copyFromOldStorageFormat(platformid, newstore) {
+  var alreadyMigratedKey = "__migrated_" + platformid;
   //localStorage.removeItem(alreadyMigratedKey);
   if (localStorage.getItem(alreadyMigratedKey))
     return;
-  var oldstore = new OldFileStore(localStorage, platform_id + '/');
+  var oldstore = new OldFileStore(localStorage, platformid + '/');
   var keys = oldstore.getFiles('');
   // no files to convert?
   if (keys.length == 0) {
@@ -99,4 +99,13 @@ function copyFromOldStorageFormat(platform_id, newstore) {
     });
   }
   migrateNext(); // start the conversion
+}
+
+function createNewPersistentStore(platformid) {
+  store = localforage.createInstance({
+    name: platformid,
+    version: "2.0"
+  });
+  copyFromOldStorageFormat(platformid, store);
+  return store;
 }

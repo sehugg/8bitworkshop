@@ -82,8 +82,8 @@ var TOOL_TO_SOURCE_STYLE = {
 var worker = new Worker("./src/worker/workermain.js");
 var editor;
 var current_output;
-var current_preset_index = -1;
-var current_preset_id;
+var current_preset_entry;
+var current_file_id;
 var assemblyfile;
 var sourcefile;
 var symbolmap;
@@ -147,10 +147,10 @@ function inspectVariable(ed, name) {
 }
 
 function getCurrentPresetTitle() {
-  if (current_preset_index < 0)
+  if (!current_preset_entry)
     return "ROM";
   else
-    return PRESETS[current_preset_index].title || PRESETS[current_preset_index].name || "ROM";
+    return current_preset_entry.title || current_preset_entry.name || "ROM";
 }
 
 function setLastPreset(id) {
@@ -160,11 +160,11 @@ function setLastPreset(id) {
   }
 }
 
-function updatePreset(current_preset_id, text) {
+function updatePreset(fileid, text) {
   // TODO: do we have to save all Verilog thingies?
   if (text.trim().length &&
-    (originalFileID != current_preset_id || text != originalText || platform_id=='verilog')) {
-    store.setItem(current_preset_id, text);
+    (originalFileID != fileid || text != originalText || platform_id=='verilog')) {
+    store.setItem(fileid, text);
   }
 }
 
@@ -179,18 +179,18 @@ function loadCode(text, fileid) {
   originalText = text;
 }
 
-function loadFile(fileid, filename, index) {
-  current_preset_id = fileid;
-  current_preset_index = index;
+function loadFile(fileid, filename, preset) {
+  current_file_id = fileid;
+  current_preset_entry = preset;
   store.getItem(fileid, function(err, text) {
     if (err) console.log(err);
     if (!text) text = '';
     if (text) {
       loadCode(text, fileid);
-    } else if (!text && index >= 0) {
+    } else if (!text && preset) {
       if (filename.indexOf('.') <= 0)
-        filename += ".a";
-      console.log("Loading preset", fileid, filename, index, PRESETS[index]);
+        filename += ".a"; // TODO?
+      console.log("Loading preset", fileid, filename, preset);
       if (text.length == 0) {
         console.log("Fetching", filename);
         $.get( filename, function( text ) {
@@ -224,10 +224,10 @@ function loadPreset(preset_id) {
   index = (index + PRESETS.length) % PRESETS.length;
   if (index >= 0) {
     // load the preset
-    loadFile(preset_id, "presets/" + platform_id + "/" + PRESETS[index].id, index);
+    loadFile(preset_id, "presets/" + platform_id + "/" + PRESETS[index].id, PRESETS[index]);
   } else {
     // no preset found? load local
-    loadFile(preset_id, "local/" + platform_id + "/" + preset_id, -1);
+    loadFile(preset_id, "local/" + platform_id + "/" + preset_id);
   }
 }
 
@@ -290,7 +290,7 @@ function handleFileUpload(files) {
 }
 
 function getCurrentFilename() {
-  var toks = current_preset_id.split("/");
+  var toks = current_file_id.split("/");
   return toks[toks.length-1];
 }
 
@@ -318,9 +318,9 @@ function _shareFile(e) {
 }
 
 function _resetPreset(e) {
-  if (current_preset_index < 0) {
+  if (!current_preset_entry) {
     alert("Can only reset built-in file examples.")
-  } else if (confirm("Reset '" + PRESETS[current_preset_index].name + "' to default?")) {
+  } else if (confirm("Reset '" + current_preset_entry.name + "' to default?")) {
     qs['reset'] = '1';
     gotoNewLocation();
   }
@@ -348,7 +348,7 @@ function populateExamples(sel) {
     for (var i=0; i<PRESETS.length; i++) {
       var preset = PRESETS[i];
       var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
-      sel.append($("<option />").val(preset.id).text(name).attr('selected',preset.id==current_preset_id));
+      sel.append($("<option />").val(preset.id).text(name).attr('selected',preset.id==current_file_id));
     }
   });
 }
@@ -364,12 +364,12 @@ function populateFiles(sel, category, prefix) {
         if (numFound++ == 0)
           sel.append($("<option />").text("------- " + category + " -------").attr('disabled',true));
         var name = key.substring(prefix.length);
-        sel.append($("<option />").val(key).text(name).attr('selected',key==current_preset_id));
-        if (key == current_preset_id) foundSelected = true;
+        sel.append($("<option />").val(key).text(name).attr('selected',key==current_file_id));
+        if (key == current_file_id) foundSelected = true;
       }
     }
-    if (!foundSelected && current_preset_id && current_preset_id.startsWith(prefix)) {
-      var name = current_preset_id.slice(prefix.length);
+    if (!foundSelected && current_file_id && current_file_id.startsWith(prefix)) {
+      var name = current_file_id.slice(prefix.length);
       var key = prefix + name;
       sel.append($("<option />").val(key).text(name).attr('selected',true));
     }
@@ -427,7 +427,7 @@ function setCode(text) {
       code:text,
       dependencies:depends,
       platform:platform_id,
-      tool:platform.getToolForFilename(current_preset_id)
+      tool:platform.getToolForFilename(current_file_id)
     });
   });
 }
@@ -456,7 +456,7 @@ function setCompileOutput(data) {
   addr2symbol = invertMap(symbolmap);
   addr2symbol[0x10000] = '__END__'; // TODO?
   compparams = data.params;
-  updatePreset(current_preset_id, editor.getValue()); // update persisted entry
+  updatePreset(current_file_id, editor.getValue()); // update persisted entry
   // errors?
   var lines2errmsg = [];
   function addErrorMarker(line, msg) {
@@ -1257,14 +1257,7 @@ function preloadWorker(fileid) {
 }
 
 function initPlatform() {
-  //store = new FileStore(localStorage, platform_id + '/');
-  store = localforage.createInstance({
-    //driver: 'oldFileStoreDriver', //localforage.LOCALSTORAGE,
-    name: platform_id,
-    //storeName: platform_id,
-    version: "2.0"
-  });
-  copyFromOldStorageFormat(platform_id, store);
+  store = createNewPersistentStore(platform_id);
 }
 
 function showBookLink() {
