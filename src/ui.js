@@ -82,6 +82,45 @@ var CodeProject = function(worker, platform_id, platform, store) {
     }
   }
   
+  self.loadFiles = function(filenames, callback) {
+    var result = [];
+    function loadNext() {
+      var fn = filenames.shift();
+      if (!fn) {
+        callback(null, result); // TODO?
+      } else {
+        store.getItem(fn, function(err, value) {
+          if (err) {
+            callback(err);
+          } else if (value) {
+            result.push({
+              path:fn,
+              data:value
+            });
+            loadNext();
+          } else {
+            var webpath = "presets/" + platform_id + "/" + fn;
+            if (platform_id == 'vcs' && webpath.indexOf('.') <= 0)
+              webpath += ".a"; // legacy stuff
+            $.get( webpath, function( text ) {
+              console.log("GET",webpath,text.length,'bytes');
+              result.push({
+                path:fn,
+                data:text
+              });
+              loadNext();
+            }, 'text')
+            .fail(function() {
+              callback("Could not load preset " + fn);
+            });
+          }
+        });
+      }
+    }
+    loadNext(); // load first file
+  }
+
+  // TODO: merge with loadFiles()
   function loadFileDependencies(text, callback) {
     var filenames = [];
     if (platform_id == 'verilog') {
@@ -275,7 +314,7 @@ function setLastPreset(id) {
   }
 }
 
-function loadCode(text, fileid) {
+function initProject() {
   current_project = new CodeProject(newWorker(), platform_id, platform, store);
   current_project.callbackResendFiles = function() {
     setCode(editor.getValue()); // TODO
@@ -291,7 +330,9 @@ function loadCode(text, fileid) {
     }
     $('#compile_spinner').css('visibility', busy ? 'visible' : 'hidden');
   };
+}
 
+function loadCode(text, fileid) {
   var tool = platform.getToolForFilename(fileid);
   newEditor(tool && TOOL_TO_SOURCE_STYLE[tool]);
   editor.setValue(text); // calls setCode()
@@ -300,44 +341,8 @@ function loadCode(text, fileid) {
   setLastPreset(fileid);
 }
 
-function loadFile(fileid, filename, preset) {
-  current_file_id = fileid;
-  current_preset_entry = preset;
-  store.getItem(fileid, function(err, text) {
-    if (err) console.log(err);
-    if (!text) text = '';
-    if (text) {
-      loadCode(text, fileid);
-    } else if (!text && preset) {
-      if (platform_id == 'vcs' && filename.indexOf('.') <= 0)
-        filename += ".a"; // legacy stuff
-      console.log("Loading preset", fileid, filename, preset);
-      if (text.length == 0) {
-        console.log("Fetching", filename);
-        $.get( filename, function( text ) {
-          console.log("GET",text.length,'bytes');
-          loadCode(text, fileid);
-        }, 'text')
-        .fail(function() {
-          alert("Could not load preset " + fileid);
-          loadCode("", fileid);
-        });
-      }
-    } else {
-      var ext = platform.getToolForFilename(fileid);
-      $.get( "presets/"+platform_id+"/skeleton."+ext, function( text ) {
-        loadCode(text, fileid);
-      }, 'text')
-      .fail(function() {
-        alert("Could not load skeleton for " + platform_id + "/" + ext);
-        loadCode("", fileid);
-      });
-    }
-  });
-}
-
 // can pass integer or string id
-function loadPreset(preset_id) {
+function loadProject(preset_id) {
   var index = parseInt(preset_id+""); // might fail -1
   for (var i=0; i<PRESETS.length; i++)
     if (PRESETS[i].id == preset_id)
@@ -345,11 +350,18 @@ function loadPreset(preset_id) {
   index = (index + PRESETS.length) % PRESETS.length;
   if (index >= 0) {
     // load the preset
-    loadFile(preset_id, "presets/" + platform_id + "/" + PRESETS[index].id, PRESETS[index]);
-  } else {
-    // no preset found? load local
-    loadFile(preset_id, "local/" + platform_id + "/" + preset_id);
+    current_preset_entry = PRESETS[index];
+    preset_id = current_preset_entry.id;
   }
+  // load files from storage or web URLs
+  current_file_id = preset_id;
+  current_project.loadFiles([preset_id], function(err, result) {
+    if (err) {
+      alert(err);
+    } else if (result && result.length) {
+      loadCode(result[0].data);
+    }
+  });
 }
 
 function reloadPresetNamed(id) {
@@ -358,14 +370,35 @@ function reloadPresetNamed(id) {
   gotoNewLocation();
 }
 
+function getSkeletonFile(fileid, callback) {
+  var ext = platform.getToolForFilename(fileid);
+  $.get( "presets/"+platform_id+"/skeleton."+ext, function( text ) {
+    callback(null, text);
+  }, 'text')
+  .fail(function() {
+    alert("Could not load skeleton for " + platform_id + "/" + ext);
+    callback(null, '');
+  });
+}
+
 function _createNewFile(e) {
   var filename = prompt("Create New File", "newfile" + platform.getDefaultExtension());
   if (filename && filename.length) {
     if (filename.indexOf(".") < 0) {
       filename += platform.getDefaultExtension();
     }
-    qs['file'] = "local/" + filename;
-    gotoNewLocation();
+    var path = "local/" + filename;
+    getSkeletonFile(path, function(err, result) {
+      if (result) {
+        store.setItem(path, result, function(err, result) {
+          if (err) alert(err+"");
+          if (result) {
+            qs['file'] = "local/" + filename;
+            gotoNewLocation();
+          }
+        });
+      }
+    });
   }
   return true;
 }
@@ -1356,7 +1389,8 @@ function startPlatform() {
     // start platform and load file
     platform.start();
     setupDebugControls();
-    loadPreset(qs['file']);
+    initProject();
+    loadProject(qs['file']);
     updateSelector();
     showBookLink();
     addPageFocusHandlers();
