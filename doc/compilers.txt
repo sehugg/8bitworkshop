@@ -33,6 +33,13 @@ osXdk - A fork of the Oric SDK. The C compiler has a weird design which
 emits bytecode and then uses a C preprocessor to expand the macros
 into 6502 assembler.
 
+gcc6809 - need to check this out
+
+SmallerC - https://github.com/alexfru/SmallerC
+
+
+OTHER COMPILERS
+
 PLASMA - Language + VM, sort of like SWEET16 meets
 Java. Simple, concise code base. Pretty fast too, in the same ballpark as
 CC65. Focused on the Apple I/II/III family.
@@ -54,13 +61,6 @@ z88dk - A Small C-derived cross-compiler for the Z80, supporting 20 target
 machines.
 
 https://github.com/EtchedPixels/FUZIX/wiki
-
-gcc6809 - need to check this out
-
-SmallerC - https://github.com/alexfru/SmallerC
-
-
-OTHER COMPILERS
 
 Java Grinder - Compile Java bytecode to microcontroller assembly.  Currently
 supporting MSP430, dsPIC, 6502/6510, 68000, MIPS, TMS9900, and Z80 with
