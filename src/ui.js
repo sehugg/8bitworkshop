@@ -64,6 +64,111 @@ var SourceFile = function(lines, text) {
   this.lineCount = function() { return this.line2offset.length; }
 }
 
+var CodeProject = function(worker, platform_id, platform, store) {
+  var self = this;
+  
+  self.callbackResendFiles = function() { }; // TODO?
+  self.callbackBuildResult = function(result) { };
+  self.callbackBuildStatus = function(busy) { };
+  
+  var pendingWorkerMessages = 0;
+
+  var tools_preloaded = {};
+  function preloadWorker(path) {
+    var tool = platform.getToolForFilename(path);
+    if (tool && !tools_preloaded[tool]) {
+      worker.postMessage({preload:tool, platform:platform_id});
+      tools_preloaded[tool] = true;
+    }
+  }
+  
+  function loadFileDependencies(text, callback) {
+    var filenames = [];
+    if (platform_id == 'verilog') {
+      var re = /^(`include|[.]include)\s+"(.+?)"/gm;
+      var m;
+      while (m = re.exec(text)) {
+        filenames.push(m[2]);
+      }
+    }
+    var result = [];
+    function loadNextDependency() {
+      var fn = filenames.shift();
+      if (!fn) {
+        callback(result);
+      } else {
+        store.getItem(fn, function(err, value) {
+          result.push({
+            filename:fn,
+            prefix:platform_id,
+            text:value // might be null, that's ok
+          });
+          loadNextDependency();
+        });
+      }
+    }
+    loadNextDependency(); // load first dependency
+  }
+  
+  function okToSend() {
+    return pendingWorkerMessages++ == 0;
+  }
+
+  function updateFileInStore(path, text) {
+    // protect against accidential whole-file deletion
+    if (text.trim().length) {
+      // TODO? (originalFileID != path || text != originalText)) {
+      store.setItem(path, text);
+    }
+  }
+    
+  self.updateFile = function(path, text, isBinary) {
+    updateFileInStore(path, text); // TODO: isBinary
+    preloadWorker(path);
+    if (okToSend()) {
+      self.callbackBuildStatus(true);
+      loadFileDependencies(text, function(depends) {
+        worker.postMessage({
+          code:text,
+          dependencies:depends,
+          platform:platform_id,
+          tool:platform.getToolForFilename(path)
+        });
+      });
+    }
+  };
+  
+  function processBuildResult(data) {
+    if (data.listings) {
+      for (var lstname in data.listings) {
+        var lst = data.listings[lstname];
+        if (lst.lines)
+          lst.sourcefile = new SourceFile(lst.lines);
+        if (lst.asmlines)
+          lst.assemblyfile = new SourceFile(lst.asmlines, lst.text);
+      }
+    }
+  }
+
+  worker.onmessage = function(e) {
+    if (pendingWorkerMessages > 1) {
+      self.callbackResendFiles(); // TODO: we should handle this internally
+      pendingWorkerMessages = 0;
+    } else {
+      pendingWorkerMessages = 0;
+    }
+    self.callbackBuildStatus(false);
+    if (e.data && !e.data.unchanged) {
+      processBuildResult(e.data);
+      self.callbackBuildResult(e.data);
+    }
+  };
+
+  // TODO: parse output, listings, files, etc
+}
+
+var current_project;
+
 var TOOL_TO_SOURCE_STYLE = {
   'dasm': '6502',
   'acme': '6502',
@@ -76,7 +181,9 @@ var TOOL_TO_SOURCE_STYLE = {
   'jsasm': 'z80'
 }
 
-var worker = new Worker("./src/worker/workermain.js");
+function newWorker() {
+  return new Worker("./src/worker/workermain.js");
+}
 
 var disasmview = CodeMirror(document.getElementById('disassembly'), {
   mode: 'z80',
@@ -86,8 +193,6 @@ var disasmview = CodeMirror(document.getElementById('disassembly'), {
   styleActiveLine: true
 });
 
-var originalFileID;
-var originalText;
 var userPaused;
 
 var editor;
@@ -101,7 +206,6 @@ var addr2symbol;
 var compparams;
 var trace_pending_at_pc;
 var store;
-var pendingWorkerMessages = 0;
 //scrollProfileView(disasmview);
 
 var currentDebugLine;
@@ -171,23 +275,29 @@ function setLastPreset(id) {
   }
 }
 
-function updatePreset(fileid, text) {
-  // TODO: do we have to save all Verilog thingies?
-  if (text.trim().length &&
-    (originalFileID != fileid || text != originalText || platform_id=='verilog')) {
-    store.setItem(fileid, text);
-  }
-}
-
 function loadCode(text, fileid) {
+  current_project = new CodeProject(newWorker(), platform_id, platform, store);
+  current_project.callbackResendFiles = function() {
+    setCode(editor.getValue()); // TODO
+  };
+  current_project.callbackBuildResult = function(result) {
+    setCompileOutput(result);
+  };
+  current_project.callbackBuildStatus = function(busy) {
+    if (busy) {
+      toolbar.addClass("is-busy");
+    } else {
+      toolbar.removeClass("is-busy");
+    }
+    $('#compile_spinner').css('visibility', busy ? 'visible' : 'hidden');
+  };
+
   var tool = platform.getToolForFilename(fileid);
   newEditor(tool && TOOL_TO_SOURCE_STYLE[tool]);
   editor.setValue(text); // calls setCode()
   editor.clearHistory();
   current_output = null;
   setLastPreset(fileid);
-  originalFileID = fileid;
-  originalText = text;
 }
 
 function loadFile(fileid, filename, preset) {
@@ -228,7 +338,6 @@ function loadFile(fileid, filename, preset) {
 
 // can pass integer or string id
 function loadPreset(preset_id) {
-  preloadWorker(preset_id); // TODO: what if multiple files
   var index = parseInt(preset_id+""); // might fail -1
   for (var i=0; i<PRESETS.length; i++)
     if (PRESETS[i].id == preset_id)
@@ -395,52 +504,13 @@ function updateSelector() {
   });
 }
 
-function loadFileDependencies(text, callback) {
-  var filenames = [];
-  if (platform_id == 'verilog') {
-    var re = /^(`include|[.]include)\s+"(.+?)"/gm;
-    var m;
-    while (m = re.exec(text)) {
-      filenames.push(m[2]);
-    }
-  }
-  var result = [];
-  function loadNextDependency() {
-    var fn = filenames.shift();
-    if (!fn) {
-      callback(result);
-    } else {
-      store.getItem(fn, function(err, value) {
-        result.push({
-          filename:fn,
-          prefix:platform_id,
-          text:value // might be null, that's ok
-        });
-        loadNextDependency();
-      });
-    }
-  }
-  loadNextDependency(); // load first dependency
-}
-
 function setCode(text) {
-  if (pendingWorkerMessages++ > 0)
-    return;
-  toolbar.addClass("is-busy");
-  $('#compile_spinner').css('visibility', 'visible');
-  loadFileDependencies(text, function(depends) {
-    worker.postMessage({
-      code:text,
-      dependencies:depends,
-      platform:platform_id,
-      tool:platform.getToolForFilename(current_file_id)
-    });
-  });
+  current_project.updateFile(current_file_id, text, false);
 }
 
 function setCompileOutput(data) {
-  if (data.unchanged) return;
   // TODO: kills current selection
+  // TODO: use current_project
   // choose first listing (TODO:support multiple source files)
   sourcefile = null;
   assemblyfile = null;
@@ -451,10 +521,8 @@ function setCompileOutput(data) {
       break;
     }
     if (lst) {
-      sourcefile = new SourceFile(lst.lines);
-      if (lst.asmlines) {
-        assemblyfile = new SourceFile(lst.asmlines, lst.text);
-      }
+      sourcefile = lst.sourcefile;
+      assemblyfile = lst.assemblyfile;
     }
   }
   if (!sourcefile)  sourcefile = new SourceFile();
@@ -462,7 +530,6 @@ function setCompileOutput(data) {
   addr2symbol = invertMap(symbolmap);
   addr2symbol[0x10000] = '__END__'; // TODO?
   compparams = data.params;
-  updatePreset(current_file_id, editor.getValue()); // update persisted entry
   // errors?
   var lines2errmsg = [];
   function addErrorMarker(line, msg) {
@@ -553,18 +620,6 @@ function setCompileOutput(data) {
     }
   }
   trace_pending_at_pc = null;
-}
-
-worker.onmessage = function(e) {
-  toolbar.removeClass("is-busy");
-  $('#compile_spinner').css('visibility', 'hidden');
-  if (pendingWorkerMessages > 1) {
-    pendingWorkerMessages = 0;
-    setCode(editor.getValue());
-  } else {
-    pendingWorkerMessages = 0;
-  }
-  setCompileOutput(e.data);
 }
 
 function setCurrentLine(line) {
@@ -1256,12 +1311,6 @@ var qs = (function (a) {
     return b;
 })(window.location.search.substr(1).split('&'));
 
-// TODO: what if multiple files/tools?
-function preloadWorker(fileid) {
-  var tool = platform.getToolForFilename(fileid);
-  if (tool) worker.postMessage({preload:tool, platform:platform_id});
-}
-
 function initPlatform() {
   store = createNewPersistentStore(platform_id);
 }
@@ -1332,7 +1381,7 @@ function loadSharedFile(sharekey) {
     console.log("Fetched " + newid, json);
     platform_id = json['platform'];
     initPlatform();
-    updatePreset(newid, val.files[filename].content);
+    current_project.updateFile(newid, val.files[filename].content);
     qs['file'] = newid;
     qs['platform'] = platform_id;
     delete qs['sharekey'];
