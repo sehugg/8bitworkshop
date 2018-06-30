@@ -66,7 +66,7 @@ var disasmview = CodeMirror(document.getElementById('disassembly'), {
 
 var userPaused;
 
-var editor;
+var active_editor;
 var current_output;
 var current_preset_entry;
 var current_file_id;
@@ -84,46 +84,7 @@ var lastDebugInfo;
 var lastDebugState;
 
 var memorylist;
-
-function deleteEditor() {
-  if (editor) {
-    $("#editor").empty();
-    editor = null;
-  }
-}
-
-function newEditor(mode) {
-  deleteEditor();
-  var isAsm = mode=='6502' || mode =='z80' || mode=='verilog' || mode=='gas'; // TODO
-  editor = CodeMirror(document.getElementById('editor'), {
-    theme: 'mbo',
-    lineNumbers: true,
-    matchBrackets: true,
-    tabSize: 8,
-    indentAuto: true,
-    gutters: isAsm ? ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"]
-                   : ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"],
-  });
-  var timer;
-  editor.on('changes', function(ed, changeobj) {
-    clearTimeout(timer);
-    timer = setTimeout(function() {
-      setCode(editor.getValue());
-    }, 200);
-  });
-  editor.on('cursorActivity', function(ed) {
-    var start = editor.getCursor(true);
-    var end = editor.getCursor(false);
-    if (start.line == end.line && start.ch < end.ch) {
-      var name = editor.getSelection();
-      inspectVariable(editor, name);
-    } else {
-      inspectVariable(editor);
-    }
-  });
-  //scrollProfileView(editor);
-  editor.setOption("mode", mode);
-}
+var dumplines;
 
 function inspectVariable(ed, name) {
   var val;
@@ -149,7 +110,7 @@ function setLastPreset(id) {
 function initProject() {
   current_project = new CodeProject(newWorker(), platform_id, platform, store);
   current_project.callbackResendFiles = function() {
-    setCode(editor.getValue()); // TODO
+    setCode(getActiveEditor().getValue()); // TODO
   };
   current_project.callbackBuildResult = function(result) {
     setCompileOutput(result);
@@ -164,13 +125,236 @@ function initProject() {
   };
 }
 
-function loadCode(text, fileid) {
-  var tool = platform.getToolForFilename(fileid);
-  newEditor(tool && TOOL_TO_SOURCE_STYLE[tool]);
-  editor.setValue(text); // calls setCode()
-  editor.clearHistory();
-  current_output = null;
-  setLastPreset(fileid);
+// TODO: remove some calls of global functions
+function SourceEditor(path) {
+  var self = this;
+  var editor;
+
+  function deleteEditor() {
+    if (editor) {
+      $("#editor").empty();
+      editor = null;
+    }
+  }
+
+  function newEditor(mode) {
+    deleteEditor();
+    var isAsm = mode=='6502' || mode =='z80' || mode=='verilog' || mode=='gas'; // TODO
+    editor = CodeMirror(document.getElementById('editor'), {
+      theme: 'mbo',
+      lineNumbers: true,
+      matchBrackets: true,
+      tabSize: 8,
+      indentAuto: true,
+      gutters: isAsm ? ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"]
+                     : ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"],
+    });
+    var timer;
+    editor.on('changes', function(ed, changeobj) {
+      clearTimeout(timer);
+      timer = setTimeout(function() {
+        setCode(editor.getValue());
+      }, 200);
+    });
+    editor.on('cursorActivity', function(ed) {
+      var start = editor.getCursor(true);
+      var end = editor.getCursor(false);
+      if (start.line == end.line && start.ch < end.ch) {
+        var name = editor.getSelection();
+        inspectVariable(editor, name);
+      } else {
+        inspectVariable(editor);
+      }
+    });
+    //scrollProfileView(editor);
+    editor.setOption("mode", mode);
+  }
+
+  self.setText = function(text) {
+    // TODO: refactor out all of this
+    var tool = platform.getToolForFilename(path);
+    newEditor(tool && TOOL_TO_SOURCE_STYLE[tool]);
+    editor.setValue(text); // calls setCode()
+    editor.clearHistory();
+    current_output = null;
+    setLastPreset(path);
+  }
+  
+  self.getValue = function() {
+    return editor.getValue();
+  }
+
+  var lines2errmsg = [];
+  self.addErrorMarker = function(line, msg) {
+    var div = document.createElement("div");
+    div.setAttribute("class", "tooltipbox tooltiperror");
+    div.style.color = '#ff3333'; // TODO
+    div.appendChild(document.createTextNode("\u24cd"));
+    var tooltip = document.createElement("span");
+    tooltip.setAttribute("class", "tooltiptext");
+    if (lines2errmsg[line])
+      msg = lines2errmsg[line] + "\n" + msg;
+    tooltip.appendChild(document.createTextNode(msg));
+    lines2errmsg[line] = msg;
+    div.appendChild(tooltip);
+    editor.setGutterMarker(line, "gutter-info", div);
+  }
+  
+  self.markErrors = function(errors) {
+    // TODO: move cursor to error line if offscreen?
+    toolbar.addClass("has-errors");
+    editor.clearGutter("gutter-info");
+    var numLines = editor.lineCount();
+    for (var info of errors) {
+      var line = info.line-1;
+      if (line < 0 || line >= numLines) line = numLines-1;
+      self.addErrorMarker(line, info.msg);
+    }
+  }
+
+  self.updateListing = function(sourcefile) {
+    // update editor annotations
+    // TODO: do incrementally for performance
+    editor.clearGutter("gutter-info");
+    editor.clearGutter("gutter-bytes");
+    editor.clearGutter("gutter-offset");
+    editor.clearGutter("gutter-clock");
+    // TODO: support multiple files
+    var lstlines = sourcefile.lines || [];
+    for (var info of lstlines) {
+      if (info.offset >= 0) {
+        var textel = document.createTextNode(hex(info.offset,4));
+        editor.setGutterMarker(info.line-1, "gutter-offset", textel);
+      }
+      if (info.insns) {
+        var insnstr = info.insns.length > 9 ? ("...") : info.insns;
+        var textel = document.createTextNode(insnstr);
+        editor.setGutterMarker(info.line-1, "gutter-bytes", textel);
+        if (info.iscode) {
+          var opcode = parseInt(info.insns.split()[0], 16);
+          if (platform.getOpcodeMetadata) {
+            var meta = platform.getOpcodeMetadata(opcode, info.offset);
+            var clockstr = meta.minCycles+"";
+            var textel = document.createTextNode(clockstr);
+            editor.setGutterMarker(info.line-1, "gutter-clock", textel);
+          }
+        }
+      }
+    }
+  }
+  
+  self.setGutterBytes = function(line, s) {
+    var textel = document.createTextNode(s);
+    editor.setGutterMarker(line-1, "gutter-bytes", textel);
+  }
+  
+  self.setCurrentLine = function(line) {
+    function addCurrentMarker(line) {
+      var div = document.createElement("div");
+      div.style.color = '#66ffff'; // TODO
+      div.appendChild(document.createTextNode("\u25b6"));
+      editor.setGutterMarker(line, "gutter-info", div);
+    }
+    self.clearCurrentLine();
+    if (line>0) {
+      addCurrentMarker(line-1);
+      editor.setSelection({line:line,ch:0}, {line:line-1,ch:0}, {scroll:true});
+      currentDebugLine = line;
+    }
+  }
+
+  self.clearCurrentLine = function() {
+    if (currentDebugLine) {
+      editor.clearGutter("gutter-info");
+      editor.setSelection(editor.getCursor()); // TODO??
+      currentDebugLine = 0;
+    }
+  }
+  
+  self.getLine = function(line) {
+    return editor.getLine(line-1);
+  }
+  
+  self.getCurrentLine = function() {
+    return editor.getCursor().line+1;
+  }
+
+  // bitmap editor (TODO: refactor)
+
+  function handleWindowMessage(e) { 
+    //console.log("window message", e.data);
+    if (e.data.bytes) {
+      editor.replaceSelection(e.data.bytestr);
+    }
+    if (e.data.close) {
+      $("#pixeditback").hide();
+    }
+  }
+
+  function openBitmapEditorWithParams(fmt, bytestr, palfmt, palstr) {
+    $("#pixeditback").show();
+    window.addEventListener("message", handleWindowMessage, false); // TODO: remove listener
+    pixeditframe.contentWindow.postMessage({fmt:fmt, bytestr:bytestr, palfmt:palfmt, palstr:palstr}, '*');
+  }
+
+  function lookBackwardsForJSONComment(line, req) {
+    var re = /[/;][*;]([{].+[}])[*;][/;]/;
+    while (--line >= 0) {
+      var s = editor.getLine(line);
+      var m = re.exec(s);
+      if (m) {
+        var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
+        var obj = JSON.parse(jsontxt);
+        if (obj[req]) {
+          var start = {obj:obj, line:line, ch:s.indexOf(m[0])+m[0].length};
+          var line0 = line;
+          var pos0 = start.ch;
+          line--;
+          while (++line < editor.lineCount()) {
+            var l = editor.getLine(line);
+            var endsection;
+            if (platform_id == 'verilog')
+              endsection = l.indexOf('end') >= pos0;
+            else
+              endsection = l.indexOf(';') >= pos0;
+            if (endsection) {
+              var end = {line:line, ch:editor.getLine(line).length};
+              return {obj:obj, start:start, end:end};
+            }
+            pos0 = 0;
+          }
+          line = line0;
+        }
+      }
+    }
+  }
+
+  self.openBitmapEditorAtCursor = function() {
+    if ($("#pixeditback").is(":visible")) {
+      $("#pixeditback").hide(250);
+      return;
+    }
+    var line = editor.getCursor().line + 1;
+    var data = lookBackwardsForJSONComment(self.getCurrentLine(), 'w');
+    if (data && data.obj && data.obj.w>0 && data.obj.h>0) {
+      var paldata = lookBackwardsForJSONComment(data.start.line-1, 'pal');
+      var palbytestr;
+      if (paldata) {
+        palbytestr = editor.getRange(paldata.start, paldata.end);
+        paldata = paldata.obj;
+      }
+      editor.setSelection(data.end, data.start);
+      openBitmapEditorWithParams(data.obj, editor.getSelection(), paldata, palbytestr);
+    } else {
+      alert("To edit graphics, move cursor to a constant array preceded by a comment in the format:\n\n/*{w:,h:,bpp:,count:...}*/\n\n(See code examples)");
+    }
+  }
+  
+}
+
+// TODO: support multiple editors
+function getActiveEditor() {
+  return active_editor;
 }
 
 // can pass integer or string id
@@ -192,7 +376,8 @@ function loadProject(preset_id) {
     if (err) {
       alert(err);
     } else if (result && result.length) {
-      loadCode(result[0].data, preset_id); // TODO
+      active_editor = new SourceEditor(preset_id);
+      active_editor.setText(result[0].data); // TODO
     }
   });
 }
@@ -281,7 +466,7 @@ function _shareFile(e) {
   }
   var github = new Octokat();
   var files = {};
-  var text = editor.getValue();
+  var text = getActiveEditor().getValue();
   files[getCurrentFilename()] = {"content": text};
   var gistdata = {
     "description": '8bitworkshop.com {"platform":"' + platform_id + '"}',
@@ -317,7 +502,7 @@ function _downloadROMImage(e) {
 }
 
 function _downloadSourceFile(e) {
-  var blob = new Blob([editor.getValue()], {type: "text/plain;charset=utf-8"});
+  var blob = new Blob([getActiveEditor().getValue()], {type: "text/plain;charset=utf-8"});
   saveAs(blob, getCurrentFilename());
 }
 
@@ -369,6 +554,7 @@ function updateSelector() {
   });
 }
 
+// TODO
 function setCode(text) {
   current_project.updateFile(current_file_id, text, false);
 }
@@ -395,32 +581,10 @@ function setCompileOutput(data) {
   addr2symbol = invertMap(symbolmap);
   addr2symbol[0x10000] = '__END__'; // TODO?
   compparams = data.params;
+  var sed = getActiveEditor();
   // errors?
-  var lines2errmsg = [];
-  function addErrorMarker(line, msg) {
-    var div = document.createElement("div");
-    div.setAttribute("class", "tooltipbox tooltiperror");
-    div.style.color = '#ff3333'; // TODO
-    div.appendChild(document.createTextNode("\u24cd"));
-    var tooltip = document.createElement("span");
-    tooltip.setAttribute("class", "tooltiptext");
-    if (lines2errmsg[line])
-      msg = lines2errmsg[line] + "\n" + msg;
-    tooltip.appendChild(document.createTextNode(msg));
-    lines2errmsg[line] = msg;
-    div.appendChild(tooltip);
-    editor.setGutterMarker(line, "gutter-info", div);
-  }
   if (data.errors && data.errors.length > 0) {
-    // TODO: move cursor to error line if offscreen?
-    toolbar.addClass("has-errors");
-    editor.clearGutter("gutter-info");
-    var numLines = editor.lineCount();
-    for (info of data.errors) {
-      var line = info.line-1;
-      if (line < 0 || line >= numLines) line = numLines-1;
-      addErrorMarker(line, info.msg);
-    }
+    sed.markErrors(data.errors);
     current_output = null;
   } else {
     // load ROM
@@ -442,7 +606,7 @@ function setCompileOutput(data) {
       } catch (e) {
         console.log(e); // TODO: show error
         toolbar.addClass("has-errors");
-        addErrorMarker(0, e+"");
+        sed.addErrorMarker(0, e+"");
         current_output = null;
       }
     } else if (rom.program_rom_variable) { //TODO: a little wonky...
@@ -450,34 +614,7 @@ function setCompileOutput(data) {
       rom_changed = true;
     }
     if (rom_changed || trace_pending_at_pc) {
-      // update editor annotations
-      // TODO: do incrementally for performance
-      editor.clearGutter("gutter-info");
-      editor.clearGutter("gutter-bytes");
-      editor.clearGutter("gutter-offset");
-      editor.clearGutter("gutter-clock");
-      // TODO: support multiple files
-      var lstlines = sourcefile.lines || [];
-      for (var info of lstlines) {
-        if (info.offset >= 0) {
-          var textel = document.createTextNode(hex(info.offset,4));
-          editor.setGutterMarker(info.line-1, "gutter-offset", textel);
-        }
-        if (info.insns) {
-          var insnstr = info.insns.length > 9 ? ("...") : info.insns;
-          var textel = document.createTextNode(insnstr);
-          editor.setGutterMarker(info.line-1, "gutter-bytes", textel);
-          if (info.iscode) {
-            var opcode = parseInt(info.insns.split()[0], 16);
-            if (platform.getOpcodeMetadata) {
-              var meta = platform.getOpcodeMetadata(opcode, info.offset);
-              var clockstr = meta.minCycles+"";
-              var textel = document.createTextNode(clockstr);
-              editor.setGutterMarker(info.line-1, "gutter-clock", textel);
-            }
-          }
-        }
-      }
+      sed.updateListing(sourcefile);
     }
     updateDisassembly();
     if (trace_pending_at_pc) {
@@ -485,29 +622,6 @@ function setCompileOutput(data) {
     }
   }
   trace_pending_at_pc = null;
-}
-
-function setCurrentLine(line) {
-  function addCurrentMarker(line) {
-    var div = document.createElement("div");
-    div.style.color = '#66ffff'; // TODO
-    div.appendChild(document.createTextNode("\u25b6"));
-    editor.setGutterMarker(line, "gutter-info", div);
-  }
-  clearCurrentLine();
-  if (line>0) {
-    addCurrentMarker(line-1);
-    editor.setSelection({line:line,ch:0}, {line:line-1,ch:0}, {scroll:true});
-    currentDebugLine = line;
-  }
-}
-
-function clearCurrentLine() {
-  if (currentDebugLine) {
-    editor.clearGutter("gutter-info");
-    editor.setSelection(editor.getCursor()); // TODO??
-    currentDebugLine = 0;
-  }
 }
 
 function showMemory(state) {
@@ -538,7 +652,7 @@ function setupBreakpoint() {
       var line = sourcefile.findLineForOffset(PC);
       if (line >= 0) {
         console.log("BREAKPOINT", hex(PC), line);
-        setCurrentLine(line);
+        getActiveEditor().setCurrentLine(line); // TODO
       } else {
         console.log("BREAKPOINT", hex(PC));
         // TODO: switch to disasm
@@ -576,7 +690,7 @@ function _resume() {
 function resume() {
   clearBreakpoint();
   if (! platform.isRunning() ) {
-    clearCurrentLine();
+    getActiveEditor().clearCurrentLine(); // TODO
   }
   _resume();
   userPaused = false;
@@ -592,9 +706,6 @@ function singleFrameStep() {
   platform.runToVsync();
 }
 
-function getCurrentLine() {
-  return editor.getCursor().line+1;
-}
 
 function getDisasmViewPC() {
   var line = disasmview.getCursor().line;
@@ -607,7 +718,7 @@ function getDisasmViewPC() {
 }
 
 function getCurrentPC() {
-  var line = getCurrentLine();
+  var line = getActiveEditor().getCurrentLine(); // TODO
   while (line >= 0) {
     // TODO: what if in disassembler?
     var pc = sourcefile.line2offset[line];
@@ -698,7 +809,7 @@ function updateDisassembly() {
           var disasm = platform.disassemble(a, platform.readAddress);
           var srclinenum = sourcefile.offset2line[a];
           if (srclinenum) {
-            var srcline = editor.getLine(srclinenum-1);
+            var srcline = getActiveEditor().getLine(srclinenum);
             if (srcline && srcline.trim().length) {
               s += "; " + srclinenum + ":\t" + srcline + "\n";
               curline++;
@@ -834,6 +945,7 @@ function getDumpLineAt(line) {
 
 var IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
 
+// TODO: addr2symbol for ca65; and make it work without symbols
 function getDumpLines() {
   if (!dumplines && addr2symbol) {
     dumplines = [];
@@ -917,73 +1029,6 @@ function toggleMemoryWindow() {
   }
 }
 
-function handleWindowMessage(e) {
-  //console.log("window message", e.data);
-  if (e.data.bytes) {
-    editor.replaceSelection(e.data.bytestr);
-  }
-  if (e.data.close) {
-    $("#pixeditback").hide();
-  }
-}
-
-function openBitmapEditorWithParams(fmt, bytestr, palfmt, palstr) {
-  $("#pixeditback").show();
-  pixeditframe.contentWindow.postMessage({fmt:fmt, bytestr:bytestr, palfmt:palfmt, palstr:palstr}, '*');
-}
-
-function lookBackwardsForJSONComment(line, req) {
-  var re = /[/;][*;]([{].+[}])[*;][/;]/;
-  while (--line >= 0) {
-    var s = editor.getLine(line);
-    var m = re.exec(s);
-    if (m) {
-      var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
-      var obj = JSON.parse(jsontxt);
-      if (obj[req]) {
-        var start = {obj:obj, line:line, ch:s.indexOf(m[0])+m[0].length};
-        var line0 = line;
-        var pos0 = start.ch;
-        line--;
-        while (++line < editor.lineCount()) {
-          var l = editor.getLine(line);
-          var endsection;
-          if (platform_id == 'verilog')
-            endsection = l.indexOf('end') >= pos0;
-          else
-            endsection = l.indexOf(';') >= pos0;
-          if (endsection) {
-            var end = {line:line, ch:editor.getLine(line).length};
-            return {obj:obj, start:start, end:end};
-          }
-          pos0 = 0;
-        }
-        line = line0;
-      }
-    }
-  }
-}
-
-function openBitmapEditorAtCursor() {
-  if ($("#pixeditback").is(":visible")) {
-    $("#pixeditback").hide(250);
-    return;
-  }
-  var data = lookBackwardsForJSONComment(getCurrentLine(), 'w');
-  if (data && data.obj && data.obj.w>0 && data.obj.h>0) {
-    var paldata = lookBackwardsForJSONComment(data.start.line-1, 'pal');
-    var palbytestr;
-    if (paldata) {
-      palbytestr = editor.getRange(paldata.start, paldata.end);
-      paldata = paldata.obj;
-    }
-    editor.setSelection(data.end, data.start);
-    openBitmapEditorWithParams(data.obj, editor.getSelection(), paldata, palbytestr);
-  } else {
-    alert("To edit graphics, move cursor to a constant array preceded by a comment in the format:\n\n/*{w:,h:,bpp:,count:...}*/\n\n(See code examples)");
-  }
-}
-
 function _recordVideo() {
   var canvas = $("#emulator").find("canvas")[0];
   if (!canvas) {
@@ -1057,6 +1102,10 @@ function _fastestFrameRate() {
   setFrameRateUI(60);
 }
 
+function _openBitmapEditor() {
+  getActiveEditor().openBitmapEditorAtCursor();
+}
+
 function setupDebugControls(){
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
@@ -1095,7 +1144,7 @@ function setupDebugControls(){
     $("#dbg_disasm").click(toggleDisassembly).show();
   }
   $("#disassembly").hide();
-  $("#dbg_bitmap").click(openBitmapEditorAtCursor);
+  $("#dbg_bitmap").click(_openBitmapEditor);
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);
@@ -1260,7 +1309,6 @@ function loadSharedFile(sharekey) {
 // start
 function startUI(loadplatform) {
   installErrorHandler();
-  window.addEventListener("message", handleWindowMessage, false);
   // add default platform?
   platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
   if (!platform_id) {

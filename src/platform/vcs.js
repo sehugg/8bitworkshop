@@ -290,15 +290,14 @@ function showLoopTimingForPC(pc) {
         s = minclocks + "-" + maxclocks;
       if (maxclocks == MAX_CLOCKS)
         s += "+";
-      var textel = document.createTextNode(s);
-      editor.setGutterMarker(line-1, "gutter-bytes", textel);
+      getActiveEditor().setGutterBytes(line, s);
     }
   }
 }
 
 function traceTiming() {
   trace_pending_at_pc = platform.getOriginPC();
-  setCode(editor.getValue());
+  setCode(getActiveEditor().getValue()); // TODO
 }
 
 ///////////////

@@ -4,7 +4,6 @@ var profilelist;
 
 var pcdata = {};
 var prof_reads, prof_writes;
-var dumplines;
 
 function scrollProfileView(_ed) {
   _ed.on('scroll', function(ed, changeobj) {
