@@ -120,6 +120,8 @@ function initProject() {
       toolbar.addClass("is-busy");
     } else {
       toolbar.removeClass("is-busy");
+      toolbar.removeClass("has-errors"); // may be added in next callback
+      getActiveEditor().clearErrors(); // TODO: add current line marker
     }
     $('#compile_spinner').css('visibility', busy ? 'visible' : 'hidden');
   };
@@ -202,14 +204,18 @@ function SourceEditor(path) {
   
   self.markErrors = function(errors) {
     // TODO: move cursor to error line if offscreen?
+    self.clearErrors();
     toolbar.addClass("has-errors");
-    editor.clearGutter("gutter-info");
     var numLines = editor.lineCount();
     for (var info of errors) {
       var line = info.line-1;
       if (line < 0 || line >= numLines) line = numLines-1;
       self.addErrorMarker(line, info.msg);
     }
+  }
+  
+  self.clearErrors = function() {
+    editor.clearGutter("gutter-info");
   }
 
   self.updateListing = function(sourcefile) {
@@ -460,7 +466,7 @@ function getCurrentFilename() {
 }
 
 function _shareFile(e) {
-  if (current_output == null) {
+  if (current_output == null) { // TODO
     alert("Please fix errors before sharing.");
     return true;
   }
@@ -493,7 +499,7 @@ function _resetPreset(e) {
 }
 
 function _downloadROMImage(e) {
-  if (current_output == null) {
+  if (current_output == null) { // TODO
     alert("Please fix errors before downloading ROM.");
     return true;
   }
@@ -560,33 +566,31 @@ function setCode(text) {
 }
 
 function setCompileOutput(data) {
-  // TODO: kills current selection
-  // TODO: use current_project
-  // choose first listing (TODO:support multiple source files)
-  sourcefile = null;
-  assemblyfile = null;
-  if (data.listings) {
-    var lst;
-    for (var lstname in data.listings) {
-      lst = data.listings[lstname];
-      break;
-    }
-    if (lst) {
-      sourcefile = lst.sourcefile;
-      assemblyfile = lst.assemblyfile;
-    }
-  }
-  if (!sourcefile)  sourcefile = new SourceFile();
-  symbolmap = data.symbolmap;
-  addr2symbol = invertMap(symbolmap);
-  addr2symbol[0x10000] = '__END__'; // TODO?
-  compparams = data.params;
   var sed = getActiveEditor();
   // errors?
   if (data.errors && data.errors.length > 0) {
     sed.markErrors(data.errors);
-    current_output = null;
   } else {
+    // choose first listing (TODO:support multiple source files)
+    sourcefile = null;
+    assemblyfile = null;
+    if (data.listings) {
+      var lst;
+      for (var lstname in data.listings) {
+        lst = data.listings[lstname];
+        break;
+      }
+      if (lst) {
+        sourcefile = lst.sourcefile;
+        assemblyfile = lst.assemblyfile;
+      }
+    }
+    if (!sourcefile)  sourcefile = new SourceFile();
+    symbolmap = data.symbolmap;
+    addr2symbol = invertMap(symbolmap);
+    if (!addr2symbol[0x0]) addr2symbol[0x0] = '__START__'; // needed for ...
+    addr2symbol[0x10000] = '__END__'; // needed for dump memory to work
+    compparams = data.params;
     // load ROM
     // TODO: don't have to compare anymore; worker does it
     var rom = data.output;
@@ -602,7 +606,6 @@ function setCompileOutput(data) {
         if (!userPaused) resume();
         current_output = rom;
         //resetProfiler();
-        toolbar.removeClass("has-errors");
       } catch (e) {
         console.log(e); // TODO: show error
         toolbar.addClass("has-errors");
@@ -794,8 +797,8 @@ function updateDisassembly() {
         }
       }
     }
-    // fall through to platform disassembler?
-    if (platform.disassemble) {
+    // TODO: fall through to platform disassembler?
+    else if (platform.disassemble) {
       var curline = 0;
       var selline = 0;
       // TODO: not perfect disassembler

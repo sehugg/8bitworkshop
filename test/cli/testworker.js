@@ -212,5 +212,6 @@ describe('Worker', function() {
     var msgs = [m, m, m2];
     doBuild(msgs, done, 8192, [1,1], 0);
   });
+  // TODO: test if compile, errors, then compile same file
 
 });

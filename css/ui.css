@@ -83,6 +83,9 @@ div.mem_info {
   z-index: 12;
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   font-size: 12pt;
+  -webkit-box-shadow: 3px 3px 5px rgba(0,0,0,.5);
+  -moz-box-shadow: 3px 3px 5px rgba(0,0,0,.5);
+  box-shadow: 3px 3px 5px rgba(0,0,0,.5);
 }
 .btn_group {
   border-radius:6px;

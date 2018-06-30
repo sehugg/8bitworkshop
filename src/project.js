@@ -162,7 +162,7 @@ function CodeProject(worker, platform_id, platform, store) {
     self.callbackBuildStatus(false);
     if (e.data && !e.data.unchanged) {
       processBuildResult(e.data);
-      self.callbackBuildResult(e.data);
+      self.callbackBuildResult(e.data); // call with data when changed
     }
   };
 
