@@ -22,7 +22,7 @@ var OldFileStore = function(storage, prefix) {
   }
   this.deleteFile = function(name) {
     storage.removeItem(prefix + name);
-    storage.removeItem(prefix + 'local/' + name);
+    storage.removeItem(prefix + 'local/' + name); //TODO?
   }
 }
 
@@ -63,7 +63,7 @@ var OldFileStoreDriver = {
 localforage.defineDriver(OldFileStoreDriver);
 
 // copy localStorage to new driver
-function copyFromOldStorageFormat(platformid, newstore) {
+function copyFromOldStorageFormat(platformid, newstore, callback) {
   var alreadyMigratedKey = "__migrated_" + platformid;
   //localStorage.removeItem(alreadyMigratedKey);
   if (localStorage.getItem(alreadyMigratedKey))
@@ -88,10 +88,14 @@ function copyFromOldStorageFormat(platformid, newstore) {
           migrateNext();
         } else {
           newstore.length(function(err, len) {
+            if (err) throw err;
             console.log("Migrated " + len + " local files to new data store");
             if (len) {
               localStorage.setItem(alreadyMigratedKey, 'true');
-              window.location.reload();
+              if (callback)
+                callback();
+              else
+                window.location.reload();
             }
           });
         }
@@ -101,11 +105,11 @@ function copyFromOldStorageFormat(platformid, newstore) {
   migrateNext(); // start the conversion
 }
 
-function createNewPersistentStore(platformid) {
+function createNewPersistentStore(platformid, callback) {
   var store = localforage.createInstance({
     name: platformid,
     version: "2.0"
   });
-  copyFromOldStorageFormat(platformid, store);
+  copyFromOldStorageFormat(platformid, store, callback);
   return store;
 }

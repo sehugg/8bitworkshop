@@ -32,6 +32,7 @@ TODO:
 - PC x86 support
 - show errors in list
 - can't see 1st line in editor sometimes
+- online help
 
 
 WEB WORKER FORMAT

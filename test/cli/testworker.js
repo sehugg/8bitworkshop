@@ -31,6 +31,7 @@ function doBuild(msgs, callback, outlen, nlines, nerrors) {
             var i = 0;
             for (var key in msg.listings) {
               var listing = msg.listings[key];
+              //console.log(listing);
               assert.equal(listing.lines.length, nlines[i++], "listing lines");
             }
           }

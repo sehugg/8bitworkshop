@@ -24,7 +24,7 @@ function SourceFile(lines, text) {
     }
     return 0;
   }
-  this.lineCount = function() { return this.line2offset.length; }
+  this.lineCount = function() { return lines.length; }
 }
 
 function CodeProject(worker, platform_id, platform, store) {
@@ -44,7 +44,8 @@ function CodeProject(worker, platform_id, platform, store) {
       tools_preloaded[tool] = true;
     }
   }
-  
+
+  // TODO: get local file as well as presets?  
   self.loadFiles = function(filenames, callback) {
     var result = [];
     function loadNext() {
@@ -63,7 +64,7 @@ function CodeProject(worker, platform_id, platform, store) {
             loadNext();
           } else {
             var webpath = "presets/" + platform_id + "/" + fn;
-            if (platform_id == 'vcs' && webpath.indexOf('.') <= 0)
+            if (platform_id == 'vcs' && fn.indexOf('.') <= 0)
               webpath += ".a"; // legacy stuff
             $.get( webpath, function( text ) {
               console.log("GET",webpath,text.length,'bytes');
@@ -126,9 +127,9 @@ function CodeProject(worker, platform_id, platform, store) {
     
   self.updateFile = function(path, text, isBinary) {
     updateFileInStore(path, text); // TODO: isBinary
-    preloadWorker(path);
     if (okToSend()) {
       self.callbackBuildStatus(true);
+      preloadWorker(path);
       loadFileDependencies(text, function(depends) {
         worker.postMessage({
           code:text,
@@ -140,7 +141,7 @@ function CodeProject(worker, platform_id, platform, store) {
     }
   };
   
-  function processBuildResult(data) {
+  self.processBuildResult = function(data) {
     if (data.listings) {
       for (var lstname in data.listings) {
         var lst = data.listings[lstname];
@@ -161,7 +162,7 @@ function CodeProject(worker, platform_id, platform, store) {
     }
     self.callbackBuildStatus(false);
     if (e.data && !e.data.unchanged) {
-      processBuildResult(e.data);
+      self.processBuildResult(e.data);
       self.callbackBuildResult(e.data); // call with data when changed
     }
   };
