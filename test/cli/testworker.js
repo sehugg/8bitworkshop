@@ -14,6 +14,18 @@ function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
   doBuild(msgs, callback, outlen, nlines, nerrors);
 }
 
+function compileFiles(tool, files, platform, callback, outlen, nlines, nerrors) {
+  var msg = {updates:[], buildsteps:[]};
+  for (var fn of files) {
+    var text = ab2str(fs.readFileSync('presets/'+platform+'/'+fn));
+    msg.updates.push({path:fn, data:text});
+    msg.buildsteps.push({path:fn, platform:platform, tool:tool});
+  }
+  doBuild([msg], callback, outlen, nlines, nerrors);
+}
+
+
+
 function doBuild(msgs, callback, outlen, nlines, nerrors) {
     var msgcount = msgs.length;
     global.postMessage = function(msg) {
@@ -29,9 +41,10 @@ function doBuild(msgs, callback, outlen, nlines, nerrors) {
               nlines = [nlines];
             //console.log(msg.listings, nlines);
             var i = 0;
-            for (var key in msg.listings) {
+            var lstkeys = Object.keys(msg.listings);
+            lstkeys.sort();
+            for (var key of lstkeys) {
               var listing = msg.listings[key];
-              //console.log(listing);
               assert.equal(listing.lines.length, nlines[i++], "listing lines");
             }
           }
@@ -101,10 +114,12 @@ describe('Worker', function() {
   it('should compile SDCC w/ include', function(done) {
     compile('sdcc', '#include <string.h>\nvoid main() {\nstrlen(0);\n}\n', 'mw8080bw', done, 8192, 2, 0);
   });
+  /*
   it('should compile vicdual skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/vicdual/skeleton.sdcc'));
     compile('sdcc', csource, 'vicdual', done, 16416, 45, 0);
   });
+  */
   it('should compile mw8080 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/mw8080bw/skeleton.sdcc'));
     compile('sdcc', csource, 'mw8080bw', done, 8192, 84, 0);
@@ -219,6 +234,10 @@ describe('Worker', function() {
     };
     var msgs = [m, m, m2];
     doBuild(msgs, done, 8192, [1,1], 0);
+  });
+  it('should compile vicdual skeleton', function(done) {
+    var files = ['skeleton.sdcc', 'cp437.c'];
+    compileFiles('sdcc', files, 'vicdual', done, 16416, [0,45], 0);
   });
   // TODO: test if compile, errors, then compile same file
 

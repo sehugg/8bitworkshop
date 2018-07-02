@@ -132,7 +132,7 @@ void putstring(byte x, byte y, const char* string) {
 }
 
 // PC font (code page 437)
-//#link "pc437.c"
+//#link "cp437.c"
 extern byte font8x8[0x100][8];
 
 const char BOX_CHARS[8] = { 218, 191, 192, 217, 196, 196, 179, 179 };
