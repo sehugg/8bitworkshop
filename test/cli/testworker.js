@@ -138,10 +138,17 @@ describe('Worker', function() {
     var dependfiles = ["hvsync_generator.v", "font_cp437_8x8.v", "ram.v", "tile_renderer.v", "sprite_scanline_renderer.v", "lfsr.v", "sound_generator.v", "cpu16.v", "cpu_platform.v"];
     var depends = [];
     for (var dfile of dependfiles) {
-      depends.push({filename:dfile, prefix:"verilog"});
+      var code = ab2str(fs.readFileSync('presets/verilog/' + dfile));
+      depends.push({filename:dfile, data:code, prefix:"verilog"});
     }
     var msgs = [{code:csource, platform:"verilog", tool:"jsasm", dependencies:depends}];
-    doBuild(msgs, done, 2782, 0, 0);
+    var done2 = function(err, msg) {
+      var jscode = msg.output.code;
+      var fn = new Function(jscode);
+      assert.ok(fn);
+      done(err, msg);
+    };
+    doBuild(msgs, done2, 253177, 0, 0);
   });
   it('should NOT preprocess SDCC', function(done) {
     compile('sdcc', 'int x=0\n#bah\n', 'mw8080bw', done, 0, 0, 1);

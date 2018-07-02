@@ -11,6 +11,7 @@ TODO:
 - debugging inside of bank switching??? relocated segs?
 - support 6502 test cases
 - DASM: macro forward refs
+- asm: support macro expansion (need addr2line map)
 - support narrow screens
 - show other TIA internal values
 - case sensisitvity looking for mismatch variables
@@ -25,6 +26,7 @@ TODO:
 - watchpoints
 - breakpoints
 - debug inspector
+- better debug buttons
 - MAME single step (?)
 - step over
 - slowdown beam for all platforms?
@@ -33,6 +35,9 @@ TODO:
 - show errors in list
 - can't see 1st line in editor sometimes
 - online help
+- show self-modifying code insns left of editor
+- facade/kbd shortcuts for emulators, focus
+- checkmarks in pulldown menus
 
 
 WEB WORKER FORMAT

@@ -29,6 +29,9 @@ function SourceFile(lines, text) {
 
 function CodeProject(worker, platform_id, platform, store) {
   var self = this;
+
+  var filedata = {};  
+  var listings;
   
   self.callbackResendFiles = function() { }; // TODO?
   self.callbackBuildResult = function(result) { };
@@ -46,36 +49,41 @@ function CodeProject(worker, platform_id, platform, store) {
   }
 
   // TODO: get local file as well as presets?  
-  self.loadFiles = function(filenames, callback) {
+  self.loadFiles = function(paths, callback) {
     var result = [];
     function loadNext() {
-      var fn = filenames.shift();
-      if (!fn) {
+      var path = paths.shift();
+      if (!path) {
         callback(null, result); // TODO?
       } else {
-        store.getItem(fn, function(err, value) {
+        store.getItem(path, function(err, value) {
           if (err) {
             callback(err);
           } else if (value) {
             result.push({
-              path:fn,
+              path:path,
+              filename:getFilenameForPath(path),
               data:value
             });
+            filedata[path] = value;
             loadNext();
           } else {
-            var webpath = "presets/" + platform_id + "/" + fn;
-            if (platform_id == 'vcs' && fn.indexOf('.') <= 0)
+            var webpath = "presets/" + platform_id + "/" + path;
+            if (platform_id == 'vcs' && path.indexOf('.') <= 0)
               webpath += ".a"; // legacy stuff
+            // TODO: cache files
             $.get( webpath, function( text ) {
               console.log("GET",webpath,text.length,'bytes');
               result.push({
-                path:fn,
+                path:path,
+                filename:getFilenameForPath(path),
                 data:text
               });
+              filedata[path] = text;
               loadNext();
             }, 'text')
             .fail(function() {
-              callback("Could not load preset " + fn);
+              callback("Could not load preset " + path);
             });
           }
         });
@@ -83,34 +91,28 @@ function CodeProject(worker, platform_id, platform, store) {
     }
     loadNext(); // load first file
   }
-
-  // TODO: merge with loadFiles()
-  function loadFileDependencies(text, callback) {
-    var filenames = [];
+  
+  function parseFileDependencies(text) {
+    var files = [];
     if (platform_id == 'verilog') {
       var re = /^(`include|[.]include)\s+"(.+?)"/gm;
       var m;
       while (m = re.exec(text)) {
-        filenames.push(m[2]);
+        files.push(m[2]);
+      }
+    } else {
+      var re = /^([;#]|[/][/][#])link\s+"(.+?)"/gm;
+      var m;
+      while (m = re.exec(text)) {
+        files.push(m[2]);
       }
     }
-    var result = [];
-    function loadNextDependency() {
-      var fn = filenames.shift();
-      if (!fn) {
-        callback(result);
-      } else {
-        store.getItem(fn, function(err, value) {
-          result.push({
-            filename:fn,
-            prefix:platform_id,
-            text:value // might be null, that's ok
-          });
-          loadNextDependency();
-        });
-      }
-    }
-    loadNextDependency(); // load first dependency
+    return files;
+  }
+
+  function loadFileDependencies(text, callback) {
+    var paths = parseFileDependencies(text);
+    self.loadFiles(paths, callback);
   }
   
   function okToSend() {
@@ -124,33 +126,75 @@ function CodeProject(worker, platform_id, platform, store) {
       store.setItem(path, text);
     }
   }
-    
+  
+  // TODO: test duplicate files, local paths mixed with presets
+  function buildWorkerMessage(mainpath, maintext, depends) {
+    var msg = {updates:[], buildsteps:[]};
+    // TODO: add preproc directive for __MAINFILE__
+    msg.updates.push({path:getFilenameForPath(mainpath), data:maintext});
+    msg.buildsteps.push({path:getFilenameForPath(mainpath), platform:platform_id, tool:platform.getToolForFilename(mainpath), mainfile:true});
+    for (var i=0; i<depends.length; i++) {
+      var dep = depends[i];
+      if (dep.data) {
+        msg.updates.push({path:dep.filename, data:dep.data});
+        msg.buildsteps.push({path:dep.filename, platform:platform_id, tool:platform.getToolForFilename(dep.path)});
+      }
+    }
+    return msg;
+  }
+  
+  self.getFile = function(path) {
+    return filedata[path];
+  }
+  
+  self.iterateFiles = function(callback) {
+    for (var path in filedata) {
+      callback(path, self.getFile(path));
+    }
+  }
+  
   self.updateFile = function(path, text, isBinary) {
     updateFileInStore(path, text); // TODO: isBinary
+    filedata[path] = text;
     if (okToSend()) {
       self.callbackBuildStatus(true);
       preloadWorker(path);
-      loadFileDependencies(text, function(depends) {
-        worker.postMessage({
-          code:text,
-          dependencies:depends,
-          platform:platform_id,
-          tool:platform.getToolForFilename(path)
-        });
+      loadFileDependencies(text, function(err, depends) {
+        if (err) {
+          console.log(err); // TODO?
+        }
+        if (platform_id != 'verilog') {
+          var workermsg = buildWorkerMessage(path, text, depends);
+          worker.postMessage(workermsg);
+        } else {
+          // TODO: should get rid of this msg format
+          worker.postMessage({
+            code:text,
+            dependencies:depends,
+            platform:platform_id,
+            tool:platform.getToolForFilename(path)
+          });
+        }
       });
     }
   };
   
   self.processBuildResult = function(data) {
-    if (data.listings) {
-      for (var lstname in data.listings) {
-        var lst = data.listings[lstname];
+    // TODO: link listings with source files
+    listings = data.listings;
+    if (listings) {
+      for (var lstname in listings) {
+        var lst = listings[lstname];
         if (lst.lines)
           lst.sourcefile = new SourceFile(lst.lines);
         if (lst.asmlines)
           lst.assemblyfile = new SourceFile(lst.asmlines, lst.text);
       }
     }
+  }
+  
+  self.getListings = function() {
+    return listings;
   }
 
   worker.onmessage = function(e) {
@@ -166,7 +210,5 @@ function CodeProject(worker, platform_id, platform, store) {
       self.callbackBuildResult(e.data); // call with data when changed
     }
   };
-
-  // TODO: parse output, listings, files, etc
 }
 

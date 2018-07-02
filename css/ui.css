@@ -60,12 +60,20 @@ div.editor {
   line-height:1.25;
   font-size:12pt;
 }
+div.memdump {
+  background-color: #333;
+  color: #66ff66;
+  white-space: pre;
+  margin-top: 20px auto 0;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+  font-size: 10pt;
+}
 div.debugwindow {
   position:absolute;
   left:50%;
   top:0;
   width:50%;
-  background-color: #666;
+  background-color: #333;
   color: #66ff66;
   white-space: pre;
   margin-top: 20px auto 0;
@@ -133,9 +141,9 @@ div.booklink {
 }
 div.twitbtn {
   position: fixed;
-  bottom: 0;
-  left: 50%;
-  padding: 6px;
+  bottom: 0%;
+  right: 0%;
+  padding: 10px;
 }
 a {
   color:#333399;
@@ -200,7 +208,7 @@ div.emulator {
   width:100%;
   height:100%;
   padding:5%;
-  background:#333;
+  background:#555;
 }
 .emuvideo {
   border-radius:20px;
@@ -246,4 +254,20 @@ canvas.pixelated {
   background-color:#006600;
   border-style:solid;
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;  
+}
+.nav-tabs > li > a.tab {
+  line-height: 1.0;
+}
+.twitter-follow-button,
+.twitter-follow-button:focus {
+  border-width:3px;
+  border-color:#9999ff;
+  background-color:#333399;
+  border-style:solid;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;  
+  color:#77aaaa;
+  padding:6px;
+}
+.twitter-follow-button:hover {
+  color:#99ffff;
 }

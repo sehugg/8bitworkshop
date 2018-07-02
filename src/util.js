@@ -7,6 +7,11 @@ function byte2signed(b) {
   return (b < 0x80) ? b : -(256-b);
 }
 
+function getFilenameForPath(s) {
+  var toks = s.split('/');
+  return toks[toks.length-1];
+}
+
 function hex(v, nd) {
   try {
     if (!nd) nd = 2;

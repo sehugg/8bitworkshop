@@ -45,6 +45,7 @@ global.localStorage = {
 };
 
 includeInThisContext("localForage/dist/localforage.js");
+includeInThisContext("src/util.js");
 includeInThisContext("src/store.js");
 includeInThisContext("src/project.js");
 
@@ -76,7 +77,7 @@ describe('Store', function() {
     var project = new CodeProject(worker, test_platform_id, platform, store);
     project.loadFiles(['test'], function(err, result) {
      assert.equal(null, err);
-     assert.deepEqual([ { path: 'test', data: 'a' } ], result);
+     assert.deepEqual([ { path: 'test', filename: 'test', data: 'a' } ], result);
      done();
     });
    });
@@ -89,10 +90,14 @@ describe('Store', function() {
    var expectmsgs = [
     true,
     { preload: 'dasm', platform: '_TEST' },
-    { code: ' lda #0',
-      dependencies: [],
-      platform: '_TEST',
-      tool: 'dasm' } 
+    { 
+      buildsteps: [
+       { path: "test.a", platform: "_TEST", tool: "dasm", mainfile:true },
+      ],
+      updates: [
+       { path: "test.a", data: " lda #0" }
+      ]
+    }
    ];
    var store = createNewPersistentStore(test_platform_id);
    var worker = {

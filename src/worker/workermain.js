@@ -183,7 +183,6 @@ function gatherFiles(step, options) {
     var path = step.path ? step.path : options.mainFilePath;
     if (!path) throw "need path or mainFilePath";
     var code = step.code;
-    if (options.transform) code = options.transform(code);
     var entry = putWorkFile(path, code);
     step.path = path;
     step.files = [path];
@@ -302,9 +301,6 @@ function setupFS(FS, name) {
   }, '/share');
 }
 
-var DASM_PREAMBLE = "\tprocessor 6502\n";
-var DASM_PREAMBLE_LINES = 1;
-
 var print_fn = function(s) {
   console.log(s);
   //console.log(new Error().stack);
@@ -410,7 +406,7 @@ function parseDASMListing(code, unresolved, mainFilename) {
   for (var line of code.split(/\r?\n/)) {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
-      var linenum = parseInt(linem[1]) - DASM_PREAMBLE_LINES;
+      var linenum = parseInt(linem[1]);
       var filename = linem[2];
       var offset = parseInt(linem[3], 16);
       var insns = linem[4];
@@ -475,25 +471,34 @@ function assembleDASM(step) {
   });
   var FS = Module['FS'];
   populateFiles(step, FS, {
-    mainFilePath:'main.a',
-    transform:function(code) { return DASM_PREAMBLE + code; }
+    mainFilePath:'main.a'
   });
   var binpath = step.prefix+'.bin';
   var lstpath = step.prefix+'.lst';
-  execMain(step, Module, [step.path, "-l"+lstpath, "-o"+binpath /*, "-v3", "-sa.sym"*/ ]);
+  var sympath = step.prefix+'.sym';
+  execMain(step, Module, [step.path, "-l"+lstpath, "-o"+binpath, "-s"+sympath ]);
   var aout = FS.readFile(binpath);
   var alst = FS.readFile(lstpath, {'encoding':'utf8'});
+  var asym = FS.readFile(lstpath, {'encoding':'utf8'});
   putWorkFile(binpath, aout);
   putWorkFile(lstpath, alst);
-  //var asym = FS.readFile("a.sym", {'encoding':'utf8'});
+  putWorkFile(sympath, asym);
   var listing = parseDASMListing(alst, unresolved, step.path);
   var listings = {};
   listings[lstpath] = {lines:listing.lines};
+  var symbolmap = {};
+  for (var s of asym.split("\n")) {
+    var toks = s.split(" ");
+    if (toks && toks.length >= 2 && !toks[0].startsWith('-')) {
+      symbolmap[toks[0]] = parseInt(toks[1], 16);
+    }
+  }
   return {
     output:aout.slice(2),
     listings:listings,
     errors:listing.errors,
-    intermediate:{listing:alst},
+    symbolmap:symbolmap,
+    intermediate:{listing:alst, symbols:asym},
   };
 }
 
@@ -1003,22 +1008,7 @@ function writeDependencies(depends, FS, errors, callback) {
   if (depends) {
     for (var i=0; i<depends.length; i++) {
       var d = depends[i];
-      var text;
-      if (d.text) {
-        text = d.text;
-      } else {
-        // load from network (hopefully cached)
-        // TODO: get from indexeddb?
-        var path = '../../presets/' + d.prefix + '/' + d.filename;
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", path, false);  // synchronous request
-        xhr.send(null);
-        if (xhr.response) {
-          text = xhr.response;
-        } else {
-          console.log("Could not load " + path);
-        }
-      }
+      var text = d.data;
       if (callback)
         text = callback(d, text);
       if (text && FS)

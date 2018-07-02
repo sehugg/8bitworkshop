@@ -56,14 +56,6 @@ function newWorker() {
   return new Worker("./src/worker/workermain.js");
 }
 
-var disasmview = CodeMirror(document.getElementById('disassembly'), {
-  mode: 'z80',
-  theme: 'cobalt',
-  tabSize: 8,
-  readOnly: true,
-  styleActiveLine: true
-});
-
 var userPaused;
 
 var active_editor;
@@ -77,14 +69,10 @@ var addr2symbol;
 var compparams;
 var trace_pending_at_pc;
 var store;
-//scrollProfileView(disasmview);
 
 var currentDebugLine;
 var lastDebugInfo;
 var lastDebugState;
-
-var memorylist;
-var dumplines;
 
 function inspectVariable(ed, name) {
   var val;
@@ -110,10 +98,12 @@ function setLastPreset(id) {
 function initProject() {
   current_project = new CodeProject(newWorker(), platform_id, platform, store);
   current_project.callbackResendFiles = function() {
-    setCode(getActiveEditor().getValue()); // TODO
+    current_project.updateFile(getActiveEditor().getPath(), getActiveEditor().getValue(), false);
+    // TODO: let CodeProject handle this
   };
   current_project.callbackBuildResult = function(result) {
     setCompileOutput(result);
+    refreshWindowList();
   };
   current_project.callbackBuildStatus = function(busy) {
     if (busy) {
@@ -128,21 +118,23 @@ function initProject() {
 }
 
 // TODO: remove some calls of global functions
-function SourceEditor(path) {
+function SourceEditor(path, mode) {
   var self = this;
   var editor;
-
-  function deleteEditor() {
-    if (editor) {
-      $("#editor").empty();
-      editor = null;
-    }
+  
+  self.createDiv = function(parent, text) {
+    var div = document.createElement('div');
+    div.setAttribute("class", "editor");
+    parent.appendChild(div);
+    newEditor(div);
+    if (text)
+      self.setText(text); // TODO: this calls setCode() and builds... it shouldn't
+    return div;
   }
 
-  function newEditor(mode) {
-    deleteEditor();
+  function newEditor(parent) {
     var isAsm = mode=='6502' || mode =='z80' || mode=='verilog' || mode=='gas'; // TODO
-    editor = CodeMirror(document.getElementById('editor'), {
+    editor = CodeMirror(parent, {
       theme: 'mbo',
       lineNumbers: true,
       matchBrackets: true,
@@ -155,7 +147,7 @@ function SourceEditor(path) {
     editor.on('changes', function(ed, changeobj) {
       clearTimeout(timer);
       timer = setTimeout(function() {
-        setCode(editor.getValue());
+        current_project.updateFile(path, editor.getValue(), false);
       }, 200);
     });
     editor.on('cursorActivity', function(ed) {
@@ -173,18 +165,16 @@ function SourceEditor(path) {
   }
 
   self.setText = function(text) {
-    // TODO: refactor out all of this
-    var tool = platform.getToolForFilename(path);
-    newEditor(tool && TOOL_TO_SOURCE_STYLE[tool]);
     editor.setValue(text); // calls setCode()
     editor.clearHistory();
-    current_output = null;
-    setLastPreset(path);
+    current_output = null; // TODO?
   }
   
   self.getValue = function() {
     return editor.getValue();
   }
+  
+  self.getPath = function() { return path; }
 
   var lines2errmsg = [];
   self.addErrorMarker = function(line, msg) {
@@ -276,6 +266,19 @@ function SourceEditor(path) {
       currentDebugLine = 0;
     }
   }
+
+  self.refresh = function() {
+    var state = lastDebugState;
+    if (state && state.c) {
+      var PC = state.c.PC;
+      var line = sourcefile.findLineForOffset(PC);
+      if (line >= 0) {
+        console.log("BREAKPOINT", hex(PC), line);
+        getActiveEditor().setCurrentLine(line);
+        // TODO: switch to disasm
+      }
+    }
+  }
   
   self.getLine = function(line) {
     return editor.getLine(line-1);
@@ -358,9 +361,358 @@ function SourceEditor(path) {
   
 }
 
-// TODO: support multiple editors
+function DisassemblerView() {
+  var self = this;
+  var disasmview;
+  
+  self.createDiv = function(parent) {
+    var div = document.createElement('div');
+    div.setAttribute("class", "editor");
+    parent.appendChild(div);
+    newEditor(div);
+    return div;
+  }
+  
+  function newEditor(parent) {
+    disasmview = CodeMirror(parent, {
+      mode: 'z80',
+      theme: 'cobalt',
+      tabSize: 8,
+      readOnly: true,
+      styleActiveLine: true
+    });
+  }
+
+  // TODO: too many globals
+  self.refresh = function() {
+    var state = lastDebugState || platform.saveState();
+    var pc = state.c ? state.c.PC : 0;
+    // do we have an assembly listing?
+    if (assemblyfile && assemblyfile.text) {
+      var asmtext = assemblyfile.text;
+      if (platform_id == 'base_z80') { // TODO
+        asmtext = asmtext.replace(/[ ]+\d+\s+;.+\n/g, '');
+        asmtext = asmtext.replace(/[ ]+\d+\s+.area .+\n/g, '');
+      }
+      disasmview.setValue(asmtext);
+      var findPC = platform.getDebugCallback() ? pc : -1;
+      if (findPC >= 0) {
+        var lineno = assemblyfile.findLineForOffset(findPC);
+        if (lineno) {
+          // set cursor while debugging
+          if (platform.getDebugCallback())
+            disasmview.setCursor(lineno-1, 0);
+          jumpToLine(disasmview, lineno-1);
+          return; // success, don't disassemble in next step
+        }
+      }
+    }
+    // TODO: fall through to platform disassembler?
+    else if (platform.disassemble) {
+      var curline = 0;
+      var selline = 0;
+      // TODO: not perfect disassembler
+      function disassemble(start, end) {
+        if (start < 0) start = 0;
+        if (end > 0xffff) end = 0xffff;
+        // TODO: use pc2visits
+        var a = start;
+        var s = "";
+        while (a < end) {
+          var disasm = platform.disassemble(a, platform.readAddress);
+          var srclinenum = sourcefile.offset2line[a];
+          if (srclinenum) {
+            var srcline = getActiveEditor().getLine(srclinenum); // TODO!
+            if (srcline && srcline.trim().length) {
+              s += "; " + srclinenum + ":\t" + srcline + "\n";
+              curline++;
+            }
+          }
+          var bytes = "";
+          for (var i=0; i<disasm.nbytes; i++)
+            bytes += hex(platform.readAddress(a+i));
+          while (bytes.length < 14)
+            bytes += ' ';
+          var dline = hex(parseInt(a)) + "\t" + bytes + "\t" + disasm.line + "\n";
+          s += dline;
+          if (a == pc) selline = curline;
+          curline++;
+          a += disasm.nbytes || 1;
+        }
+        return s;
+      }
+      var text = disassemble(pc-96, pc) + disassemble(pc, pc+96);
+      disasmview.setValue(text);
+      disasmview.setCursor(selline, 0);
+      jumpToLine(disasmview, selline);
+    } else if (current_output && current_output.code) {
+      // show verilog javascript
+      disasmview.setValue(current_output.code);
+    }
+  }
+}
+
+function MemoryView() {
+  var self = this;
+  var memorylist;
+  var dumplines;
+  var div;
+
+  // TODO?
+  function getVisibleEditorLineHeight() {
+    return $(".CodeMirror-line:visible").first().height();
+  }
+
+  self.createDiv = function(parent) {
+    div = document.createElement('div');
+    div.setAttribute("class", "memdump");
+    parent.appendChild(div);
+    showMemoryWindow(div);
+    return div;
+  }
+  
+  function showMemoryWindow(parent) {
+    memorylist = new VirtualList({
+      w:$("#workspace").width(),
+      h:$("#workspace").height(),
+      itemHeight: getVisibleEditorLineHeight(),
+      totalRows: 0x1000,
+      generatorFn: function(row) {
+        var s = getMemoryLineAt(row);
+        var div = document.createElement("div");
+        if (dumplines) {
+          var dlr = dumplines[row];
+          if (dlr) div.classList.add('seg_' + getMemorySegment(dumplines[row].a));
+        }
+        div.appendChild(document.createTextNode(s));
+        return div;
+      }
+    });
+    $(parent).append(memorylist.container);
+    self.tick();
+    if (compparams && dumplines)
+      memorylist.scrollToItem(findMemoryWindowLine(compparams.data_start));
+  }
+  
+  self.tick = function() {
+    if (memorylist) {
+      $(div).find('[data-index]').each(function(i,e) {
+        var div = $(e);
+        var row = div.attr('data-index');
+        var oldtext = div.text();
+        var newtext = getMemoryLineAt(row);
+        if (oldtext != newtext)
+          div.text(newtext);
+      });
+    }
+  }
+
+  function getMemoryLineAt(row) {
+    var offset = row * 16;
+    var n1 = 0;
+    var n2 = 16;
+    var sym;
+    if (getDumpLines()) {
+      var dl = dumplines[row];
+      if (dl) {
+        offset = dl.a & 0xfff0;
+        n1 = dl.a - offset;
+        n2 = n1 + dl.l;
+        sym = dl.s;
+      } else {
+        return '.';
+      }
+    }
+    var s = hex(offset,4) + ' ';
+    for (var i=0; i<n1; i++) s += '   ';
+    if (n1 > 8) s += ' ';
+    for (var i=n1; i<n2; i++) {
+      var read = platform.readAddress(offset+i);
+      if (i==8) s += ' ';
+      s += ' ' + (read>=0?hex(read,2):'??');
+    }
+    for (var i=n2; i<16; i++) s += '   ';
+    if (sym) s += '  ' + sym;
+    return s;
+  }
+
+  function getDumpLineAt(line) {
+    var d = dumplines[line];
+    if (d) {
+      return d.a + " " + d.s;
+    }
+  }
+
+  var IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
+
+  // TODO: addr2symbol for ca65; and make it work without symbols
+  function getDumpLines() {
+    if (!dumplines && addr2symbol) {
+      dumplines = [];
+      var ofs = 0;
+      var sym;
+      for (var nextofs in addr2symbol) {
+        nextofs |= 0;
+        var nextsym = addr2symbol[nextofs];
+        if (sym) {
+          if (IGNORE_SYMS[sym]) {
+            ofs = nextofs;
+          } else {
+            while (ofs < nextofs) {
+              var ofs2 = (ofs + 16) & 0xffff0;
+              if (ofs2 > nextofs) ofs2 = nextofs;
+              //if (ofs < 1000) console.log(ofs, ofs2, nextofs, sym);
+              dumplines.push({a:ofs, l:ofs2-ofs, s:sym});
+              ofs = ofs2;
+            }
+          }
+        }
+        sym = nextsym;
+      }
+    }
+    return dumplines;
+  }
+
+  function getMemorySegment(a) {
+    if (!compparams) return 'unknown';
+    if (a >= compparams.data_start && a < compparams.data_start+compparams.data_size) {
+      if (platform.getSP && a >= platform.getSP() - 15)
+        return 'stack';
+      else
+        return 'data';
+    }
+    else if (a >= compparams.code_start && a < compparams.code_start+compparams.code_size)
+      return 'code';
+    else
+      return 'unknown';
+  }
+
+  function findMemoryWindowLine(a) {
+    for (var i=0; i<dumplines.length; i++)
+      if (dumplines[i].a >= a)
+        return i;
+  }
+
+}
+
+/////
+
+function ProjectWindows(containerdiv) {
+  var id2window = {};
+  var id2createfn = {};
+  var id2div = {};
+  var activewnd;
+  var activediv;
+  
+  this.setCreateFunc = function(id, createfn) {
+    id2createfn[id] = createfn;
+  }
+  
+  this.createOrShow = function(id) {
+    var wnd = id2window[id];
+    if (!wnd) {
+      wnd = id2window[id] = id2createfn[id](id);
+    }
+    var div = id2div[id];
+    if (!div) {
+      div = id2div[id] = wnd.createDiv(containerdiv, current_project.getFile(id));
+    }
+    if (activewnd != wnd) {
+      if (activediv)
+        $(activediv).hide();
+      activediv = div;
+      activewnd = wnd;
+      $(div).show();
+      this.refresh();
+    }
+    return wnd;
+  }
+
+  this.put = function(id, window, category) {
+    id2window[id] = window;
+    if (!categories[category])
+      categories[category] = [];
+    // TODO: remove/replace window
+    if (!(id in categories[category]))
+      categories[category].push(id);
+  }
+  
+  this.filesForCategory = function(id) {
+    return categories[id] || [];
+  }
+  
+  this.refresh = function() {
+    if (activewnd && activewnd.refresh)
+      activewnd.refresh();
+  }
+  
+  this.tick = function() {
+    if (activewnd && activewnd.tick)
+      activewnd.tick();
+  }
+};
+
+var projectWindows = new ProjectWindows($("#workspace")[0]);
+
+// TODO: support multiple editors, this might should go
 function getActiveEditor() {
   return active_editor;
+}
+
+function refreshWindowList() {
+  var ul = $("#windowMenuList").empty();
+  var separate = false;
+  
+  function addWindowItem(id, name, createfn) {
+    if (separate) {
+      ul.append(document.createElement("hr"));
+      separate = false;
+    }
+    var li = document.createElement("li");
+    var a = document.createElement("a");
+    a.setAttribute("class", "dropdown-item");
+    a.setAttribute("href", "#");
+    a.appendChild(document.createTextNode(name));
+    li.appendChild(a);
+    ul.append(li);
+    if (createfn) {
+      projectWindows.setCreateFunc(id, createfn);
+      $(a).click(function() {
+        projectWindows.createOrShow(id);
+      });
+    }
+  }
+  
+  function loadEditor(path) {
+    var tool = platform.getToolForFilename(path);
+    var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
+    return new SourceEditor(path, mode, current_project.getFile(path));
+  }
+
+  // add main file editor
+  var id = current_file_id;
+  addWindowItem(id, getFilenameForPath(id), loadEditor);
+  
+  // add other files
+  separate = true;
+  current_project.iterateFiles(function(id, text) {
+    if (id != current_file_id)
+      addWindowItem(id, getFilenameForPath(id), loadEditor);
+  });
+
+  // add other tools
+  separate = true;
+  if (platform.saveState) { // TODO: only show if listing or disasm available
+    addWindowItem("#disasm", "Disassembly", function() {
+      return new DisassemblerView();
+    });
+  }
+  // TODO
+  if (platform.readAddress && platform_id != 'vcs') {
+    addWindowItem("#memory", "Memory Browser", function() {
+      return new MemoryView();
+    });
+  }
 }
 
 // can pass integer or string id
@@ -377,13 +729,15 @@ function loadProject(preset_id) {
   }
   // set current file ID
   current_file_id = preset_id;
+  setLastPreset(preset_id);
   // load files from storage or web URLs
   current_project.loadFiles([preset_id], function(err, result) {
     if (err) {
       alert(err);
     } else if (result && result.length) {
-      active_editor = new SourceEditor(preset_id);
-      active_editor.setText(result[0].data); // TODO
+      refreshWindowList();
+      // show main file (need create window list first)
+      active_editor = projectWindows.createOrShow(preset_id);
     }
   });
 }
@@ -400,8 +754,8 @@ function getSkeletonFile(fileid, callback) {
     callback(null, text);
   }, 'text')
   .fail(function() {
-    alert("Could not load skeleton for " + platform_id + "/" + ext);
-    callback(null, '');
+    alert("Could not load skeleton for " + platform_id + "/" + ext + "; using blank file");
+    callback(null, '\n');
   });
 }
 
@@ -415,10 +769,10 @@ function _createNewFile(e) {
     getSkeletonFile(path, function(err, result) {
       if (result) {
         store.setItem(path, result, function(err, result) {
-          if (err) alert(err+"");
-          if (result) {
+          if (err)
+            alert(err+"");
+          if (result != null)
             reloadPresetNamed("local/" + filename);
-          }
         });
       }
     });
@@ -560,14 +914,10 @@ function updateSelector() {
   });
 }
 
-// TODO
-function setCode(text) {
-  current_project.updateFile(current_file_id, text, false);
-}
-
 function setCompileOutput(data) {
+  // TODO: support multiple edit windows
   var sed = getActiveEditor();
-  // errors?
+  // errors? mark them in editor
   if (data.errors && data.errors.length > 0) {
     sed.markErrors(data.errors);
   } else {
@@ -619,7 +969,7 @@ function setCompileOutput(data) {
     if (rom_changed || trace_pending_at_pc) {
       sed.updateListing(sourcefile);
     }
-    updateDisassembly();
+    projectWindows.refresh();
     if (trace_pending_at_pc) {
       showLoopTimingForPC(trace_pending_at_pc);
     }
@@ -650,19 +1000,8 @@ function setupBreakpoint() {
   // TODO
   platform.setupDebug(function(state) {
     lastDebugState = state;
-    if (state.c) {
-      var PC = state.c.PC;
-      var line = sourcefile.findLineForOffset(PC);
-      if (line >= 0) {
-        console.log("BREAKPOINT", hex(PC), line);
-        getActiveEditor().setCurrentLine(line); // TODO
-      } else {
-        console.log("BREAKPOINT", hex(PC));
-        // TODO: switch to disasm
-      }
-    }
     showMemory(state);
-    updateDisassembly();
+    projectWindows.refresh();
   });
 }
 
@@ -709,7 +1048,7 @@ function singleFrameStep() {
   platform.runToVsync();
 }
 
-
+// TODO: fix these
 function getDisasmViewPC() {
   var line = disasmview.getCursor().line;
   if (line >= 0) {
@@ -720,7 +1059,8 @@ function getDisasmViewPC() {
   }
 }
 
-function getCurrentPC() {
+// TODO: fix this
+function getEditorPC() {
   var line = getActiveEditor().getCurrentLine(); // TODO
   while (line >= 0) {
     // TODO: what if in disassembler?
@@ -733,7 +1073,7 @@ function getCurrentPC() {
 
 function runToCursor() {
   setupBreakpoint();
-  var pc = getCurrentPC();
+  var pc = getEditorPC();
   if (pc >= 0) {
     console.log("Run to", pc.toString(16));
     if (platform.runToPC) {
@@ -773,82 +1113,6 @@ function getVisibleSourceFile() {
   return div.is(':visible') ? assemblyfile : sourcefile;
 }
 
-function updateDisassembly() {
-  var div = $("#disassembly");
-  if (div.is(':visible')) {
-    var state = lastDebugState || platform.saveState();
-    var pc = state.c ? state.c.PC : 0;
-    // do we have an assembly listing?
-    if (assemblyfile && assemblyfile.text) {
-      var asmtext = assemblyfile.text;
-      if (platform_id == 'base_z80') { // TODO
-        asmtext = asmtext.replace(/[ ]+\d+\s+;.+\n/g, '');
-        asmtext = asmtext.replace(/[ ]+\d+\s+.area .+\n/g, '');
-      }
-      disasmview.setValue(asmtext);
-      var findPC = platform.getDebugCallback() ? pc : getCurrentPC();
-      if (findPC) {
-        var lineno = assemblyfile.findLineForOffset(findPC);
-        if (lineno) {
-          // set cursor while debugging
-          if (platform.getDebugCallback()) disasmview.setCursor(lineno-1, 0);
-          jumpToLine(disasmview, lineno-1);
-          return; // success, don't disassemble in next step
-        }
-      }
-    }
-    // TODO: fall through to platform disassembler?
-    else if (platform.disassemble) {
-      var curline = 0;
-      var selline = 0;
-      // TODO: not perfect disassembler
-      function disassemble(start, end) {
-        if (start < 0) start = 0;
-        if (end > 0xffff) end = 0xffff;
-        // TODO: use pc2visits
-        var a = start;
-        var s = "";
-        while (a < end) {
-          var disasm = platform.disassemble(a, platform.readAddress);
-          var srclinenum = sourcefile.offset2line[a];
-          if (srclinenum) {
-            var srcline = getActiveEditor().getLine(srclinenum);
-            if (srcline && srcline.trim().length) {
-              s += "; " + srclinenum + ":\t" + srcline + "\n";
-              curline++;
-            }
-          }
-          var bytes = "";
-          for (var i=0; i<disasm.nbytes; i++)
-            bytes += hex(platform.readAddress(a+i));
-          while (bytes.length < 14)
-            bytes += ' ';
-          var dline = hex(parseInt(a)) + "\t" + bytes + "\t" + disasm.line + "\n";
-          s += dline;
-          if (a == pc) selline = curline;
-          curline++;
-          a += disasm.nbytes || 1;
-        }
-        return s;
-      }
-      var text = disassemble(pc-96, pc) + disassemble(pc, pc+96);
-      disasmview.setValue(text);
-      disasmview.setCursor(selline, 0);
-      jumpToLine(disasmview, selline);
-    } else if (current_output && current_output.code) {
-      // show verilog javascript
-      disasmview.setValue(current_output.code);
-    }
-  }
-}
-
-function toggleDisassembly() {
-  $("#disassembly").toggle();
-  $("#editor").toggle();
-  updateDisassembly();
-  //if (profilelist) createProfileWindow();
-}
-
 function resetAndDebug() {
   if (platform.setupDebug && platform.readAddress) { // TODO??
     clearBreakpoint();
@@ -885,151 +1149,12 @@ function getSymbolAtAddress(a) {
   return '';
 }
 
+// TODO
 function updateDebugWindows() {
   if (platform.isRunning()) {
-    updateMemoryWindow();
-    //updateProfileWindow();
+    projectWindows.tick();
   }
   setTimeout(updateDebugWindows, 200);
-}
-
-function updateMemoryWindow() {
-  if (memorylist) {
-    $("#memoryview").find('[data-index]').each(function(i,e) {
-      var div = $(e);
-      var row = div.attr('data-index');
-      var oldtext = div.text();
-      var newtext = getMemoryLineAt(row);
-      if (oldtext != newtext)
-        div.text(newtext);
-    });
-  }
-}
-
-function getMemoryLineAt(row) {
-  var offset = row * 16;
-  var n1 = 0;
-  var n2 = 16;
-  var sym;
-  if (getDumpLines()) {
-    var dl = dumplines[row];
-    if (dl) {
-      offset = dl.a & 0xfff0;
-      n1 = dl.a - offset;
-      n2 = n1 + dl.l;
-      sym = dl.s;
-    } else {
-      return '.';
-    }
-  }
-  var s = hex(offset,4) + ' ';
-  for (var i=0; i<n1; i++) s += '   ';
-  if (n1 > 8) s += ' ';
-  for (var i=n1; i<n2; i++) {
-    var read = platform.readAddress(offset+i);
-    if (i==8) s += ' ';
-    s += ' ' + (read>=0?hex(read,2):'??');
-  }
-  for (var i=n2; i<16; i++) s += '   ';
-  if (sym) s += '  ' + sym;
-  return s;
-}
-
-function getVisibleEditorLineHeight() {
-  return $(".CodeMirror-line:visible").first().height();
-}
-
-function getDumpLineAt(line) {
-  var d = dumplines[line];
-  if (d) {
-    return d.a + " " + d.s;
-  }
-}
-
-var IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
-
-// TODO: addr2symbol for ca65; and make it work without symbols
-function getDumpLines() {
-  if (!dumplines && addr2symbol) {
-    dumplines = [];
-    var ofs = 0;
-    var sym;
-    for (var nextofs in addr2symbol) {
-      nextofs |= 0;
-      var nextsym = addr2symbol[nextofs];
-      if (sym) {
-        if (IGNORE_SYMS[sym]) {
-          ofs = nextofs;
-        } else {
-          while (ofs < nextofs) {
-            var ofs2 = (ofs + 16) & 0xffff0;
-            if (ofs2 > nextofs) ofs2 = nextofs;
-            //if (ofs < 1000) console.log(ofs, ofs2, nextofs, sym);
-            dumplines.push({a:ofs, l:ofs2-ofs, s:sym});
-            ofs = ofs2;
-          }
-        }
-      }
-      sym = nextsym;
-    }
-  }
-  return dumplines;
-}
-
-function getMemorySegment(a) {
-  if (!compparams) return 'unknown';
-  if (a >= compparams.data_start && a < compparams.data_start+compparams.data_size) {
-    if (platform.getSP && a >= platform.getSP() - 15)
-      return 'stack';
-    else
-      return 'data';
-  }
-  else if (a >= compparams.code_start && a < compparams.code_start+compparams.code_size)
-    return 'code';
-  else
-    return 'unknown';
-}
-
-function findMemoryWindowLine(a) {
-  for (var i=0; i<dumplines.length; i++)
-    if (dumplines[i].a >= a)
-      return i;
-}
-
-function showMemoryWindow() {
-  memorylist = new VirtualList({
-    w:$("#emulator").width(),
-    h:$("#emulator").height(),
-    itemHeight: getVisibleEditorLineHeight(),
-    totalRows: 0x1000,
-    generatorFn: function(row) {
-      var s = getMemoryLineAt(row);
-      var div = document.createElement("div");
-      if (dumplines) {
-        var dlr = dumplines[row];
-        if (dlr) div.classList.add('seg_' + getMemorySegment(dumplines[row].a));
-      }
-      div.appendChild(document.createTextNode(s));
-      return div;
-    }
-  });
-  $("#memoryview").empty().append(memorylist.container);
-  updateMemoryWindow();
-  if (compparams && dumplines)
-    memorylist.scrollToItem(findMemoryWindowLine(compparams.data_start));
-}
-
-function toggleMemoryWindow() {
-  //if ($("#profileview").is(':visible')) toggleProfileWindow();
-  if ($("#memoryview").is(':visible')) {
-    memorylist = null;
-    $("#emulator").show();
-    $("#memoryview").hide();
-  } else {
-    showMemoryWindow();
-    $("#emulator").hide();
-    $("#memoryview").show();
-  }
 }
 
 function _recordVideo() {
@@ -1137,14 +1262,6 @@ function setupDebugControls(){
 
   if (window.traceTiming) {
     $("#dbg_timing").click(traceTiming).show();
-  } else if (platform.readAddress) {
-    $("#dbg_memory").click(toggleMemoryWindow).show();
-  }
-  /*if (platform.getProbe) {
-    $("#dbg_profile").click(toggleProfileWindow).show();
-  }*/
-  if (platform.saveState) { // TODO: only show if listing or disasm available
-    $("#dbg_disasm").click(toggleDisassembly).show();
   }
   $("#disassembly").hide();
   $("#dbg_bitmap").click(_openBitmapEditor);
