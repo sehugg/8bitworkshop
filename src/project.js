@@ -175,6 +175,7 @@ function CodeProject(worker, platform_id, platform, store, mainpath) {
     updateFileInStore(path, text); // TODO: isBinary
     filedata[path] = text;
     if (okToSend()) {
+      if (!mainpath) mainpath = path;
       self.callbackBuildStatus(true);
       self.sendBuild();
     }
