@@ -166,8 +166,18 @@ function CodeProject(worker, platform_id, platform, store, mainpath) {
       if (err) {
         console.log(err); // TODO?
       }
-      var workermsg = buildWorkerMessage(depends);
-      worker.postMessage(workermsg);
+      if (platform_id == 'verilog') {
+        // TODO: should get rid of this msg format
+        worker.postMessage({
+          code:text,
+          dependencies:depends,
+          platform:platform_id,
+          tool:platform.getToolForFilename(mainpath)
+        });
+      } else {
+        var workermsg = buildWorkerMessage(depends);
+        worker.postMessage(workermsg);
+      }
     });
   }
   
