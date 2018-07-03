@@ -107,7 +107,7 @@ function initProject() {
     } else {
       toolbar.removeClass("is-busy");
       toolbar.removeClass("has-errors"); // may be added in next callback
-      getActiveEditor().clearErrors(); // TODO: remove?
+      projectWindows.setErrors(null);
     }
     $('#compile_spinner').css('visibility', busy ? 'visible' : 'hidden');
   };
@@ -190,12 +190,14 @@ function SourceEditor(path, mode) {
   self.markErrors = function(errors) {
     // TODO: move cursor to error line if offscreen?
     self.clearErrors();
-    toolbar.addClass("has-errors");
     var numLines = editor.lineCount();
     for (var info of errors) {
-      var line = info.line-1;
-      if (line < 0 || line >= numLines) line = 0;
-      self.addErrorMarker(line, info.msg);
+      // only mark errors with this filename, or without any filename
+      if (!info.path || path.endsWith(info.path)) {
+        var line = info.line-1;
+        if (line < 0 || line >= numLines) line = 0;
+        self.addErrorMarker(line, info.msg);
+      }
     }
   }
   
@@ -595,11 +597,13 @@ function MemoryView() {
 /////
 
 function ProjectWindows(containerdiv) {
+  var self = this;
   var id2window = {};
   var id2createfn = {};
   var id2div = {};
   var activewnd;
   var activediv;
+  var lasterrors;
   
   this.setCreateFunc = function(id, createfn) {
     id2createfn[id] = createfn;
@@ -621,6 +625,7 @@ function ProjectWindows(containerdiv) {
       activewnd = wnd;
       $(div).show();
       this.refresh();
+      this.refreshErrors();
     }
     return wnd;
   }
@@ -646,6 +651,20 @@ function ProjectWindows(containerdiv) {
   this.tick = function() {
     if (activewnd && activewnd.tick)
       activewnd.tick();
+  }
+
+  this.setErrors = function(errors) {
+    lasterrors = errors;
+    this.refreshErrors();
+  }
+  
+  this.refreshErrors = function() {
+    if (activewnd && activewnd.markErrors) {
+      if (lasterrors && lasterrors.length)
+        activewnd.markErrors(lasterrors);
+      else
+        activewnd.clearErrors();
+    }
   }
 };
 
@@ -918,7 +937,8 @@ function setCompileOutput(data) {
   var sed = getActiveEditor();
   // errors? mark them in editor
   if (data.errors && data.errors.length > 0) {
-    sed.markErrors(data.errors);
+    projectWindows.setErrors(data.errors);
+    toolbar.addClass("has-errors");
   } else {
     // choose first listing (TODO:support multiple source files)
     sourcefile = null;
@@ -1108,6 +1128,7 @@ function jumpToLine(ed, i) {
 }
 
 function getVisibleSourceFile() {
+// TODO
   var div = $("#disassembly");
   return div.is(':visible') ? assemblyfile : sourcefile;
 }

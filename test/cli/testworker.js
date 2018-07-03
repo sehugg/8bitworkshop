@@ -191,7 +191,7 @@ describe('Worker', function() {
     ];
     doBuild(msgs, done, 8192, [1,1], 0);
   });
-  // TODO: doesn't fail
+  // TODO: tests don't fail if too many compile steps
   it('should not build unchanged files with CC65', function(done) {
     var m = {
         "updates":[
@@ -238,9 +238,27 @@ describe('Worker', function() {
     var msgs = [m, m, m2];
     doBuild(msgs, done, 8192, [1,1], 0);
   });
+  it('should include filename in compile errors', function(done) {
+    var m = {
+        "updates":[
+            {"path":"main.c", "data":"extern int mul2(int x);\n int main() { return mul2(2); }\n"},
+            {"path":"fn.c", "data":"void int mul2(int x) { return x*x; }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"mw8080bw", "tool":"sdcc"},
+            {"path":"fn.c", "platform":"mw8080bw", "tool":"sdcc"}
+        ]
+    };
+    var msgs = [m];
+    doBuild(msgs, function(err, result) {
+      for (var msg of result.errors)
+        assert.equal(msg.path, "fn.c");
+      done();
+    }, 8192, [1,1], 2); // TODO: check error file
+  });
   it('should compile vicdual skeleton', function(done) {
     var files = ['skeleton.sdcc', 'cp437.c'];
-    compileFiles('sdcc', files, 'vicdual', done, 16416, [0,45], 0);
+    compileFiles('sdcc', files, 'vicdual', done, 16416, [0,45], 0); // TODO?
   });
   // TODO: test if compile, errors, then compile same file
 

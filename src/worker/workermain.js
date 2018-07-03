@@ -319,7 +319,7 @@ function msvcErrorMatcher(errors) {
       var errline = parseInt(matches[2]);
       errors.push({
         line:errline,
-        path:matches[1],
+        //path:matches[1],
         type:matches[3],
         msg:matches[4]
       });
