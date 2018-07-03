@@ -338,7 +338,7 @@ function makeErrorMatcher(errors, regex, iline, imsg) {
         msg:matches[imsg]
       });
     } else {
-      console.log(s);
+      console.log("??? "+s);
     }
   }
 }
@@ -603,12 +603,13 @@ function linkLD65(step) {
   var binpath = "main";
   if (staleFiles(step, [binpath])) {
     var errors = [];
+    var errmsg = '';
     var LD65 = ld65({
       wasmBinary: wasmBlob['ld65'],
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
-      printErr:makeErrorMatcher(errors, /[(](\d+)[)]: (.+)/, 1, 2),
+      printErr:function(s) { errmsg += s + '\n'; }
     });
     var FS = LD65['FS'];
     var cfgfile = '/' + platform + '.cfg';
@@ -625,6 +626,8 @@ function linkLD65(step) {
       '-o', 'main', '-m', 'main.map'].concat(step.args, libargs);
     //console.log(args);
     execMain(step, LD65, args);
+    if (errmsg.length)
+      errors.push({line:0, msg:errmsg});
     if (errors.length)
       return {errors:errors};
     var aout = FS.readFile("main", {encoding:'binary'});

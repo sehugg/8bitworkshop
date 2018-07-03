@@ -85,8 +85,11 @@ describe('Worker', function() {
   it('should compile CC65', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nreturn x+2;\n}', 'nes-conio', done, 40976, 3);
   });
-  it('should NOT compile CC65', function(done) {
+  it('should NOT compile CC65 (compile error)', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes-conio', done, 0, 0, 1);
+  });
+  it('should NOT compile CC65 (link error)', function(done) {
+    compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes-conio', done, 0, 0, 1);
   });
   it('should assemble CA65', function(done) {
     compile('ca65', '\t.segment "HEADER"\n\t.segment "STARTUP"\n\t.segment "CHARS"\n\t.segment "VECTORS"\n\tlda #0\n\tsta $1\n', 'nes-conio', done, 40976, 2);
