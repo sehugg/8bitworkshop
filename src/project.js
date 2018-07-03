@@ -131,8 +131,9 @@ function CodeProject(worker, platform_id, platform, store) {
   function buildWorkerMessage(mainpath, maintext, depends) {
     var msg = {updates:[], buildsteps:[]};
     // TODO: add preproc directive for __MAINFILE__
-    msg.updates.push({path:getFilenameForPath(mainpath), data:maintext});
-    msg.buildsteps.push({path:getFilenameForPath(mainpath), platform:platform_id, tool:platform.getToolForFilename(mainpath), mainfile:true});
+    var mainfilename = getFilenameForPath(mainpath);
+    msg.updates.push({path:mainfilename, data:maintext});
+    msg.buildsteps.push({path:mainfilename, platform:platform_id, tool:platform.getToolForFilename(mainpath), mainfile:true});
     for (var i=0; i<depends.length; i++) {
       var dep = depends[i];
       if (dep.data) {

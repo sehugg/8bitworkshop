@@ -180,7 +180,6 @@ function SourceEditor(path, mode) {
   self.addErrorMarker = function(line, msg) {
     var div = document.createElement("div");
     div.setAttribute("class", "tooltipbox tooltiperror");
-    div.style.color = '#ff3333'; // TODO
     div.appendChild(document.createTextNode("\u24cd"));
     var tooltip = document.createElement("span");
     tooltip.setAttribute("class", "tooltiptext");
@@ -206,16 +205,17 @@ function SourceEditor(path, mode) {
   
   self.clearErrors = function() {
     editor.clearGutter("gutter-info");
+    // TODO: set current line marker
   }
 
+  // TODO: update gutter only when refreshing this window
   self.updateListing = function(sourcefile) {
     // update editor annotations
-    // TODO: do incrementally for performance
     editor.clearGutter("gutter-info");
     editor.clearGutter("gutter-bytes");
     editor.clearGutter("gutter-offset");
     editor.clearGutter("gutter-clock");
-    // TODO: support multiple files
+    // TODO: support multiple files (use local sourcefile)
     var lstlines = sourcefile.lines || [];
     for (var info of lstlines) {
       if (info.offset >= 0) {
@@ -247,7 +247,7 @@ function SourceEditor(path, mode) {
   self.setCurrentLine = function(line) {
     function addCurrentMarker(line) {
       var div = document.createElement("div");
-      div.style.color = '#66ffff'; // TODO
+      div.style.color = '#66ffff';
       div.appendChild(document.createTextNode("\u25b6"));
       editor.setGutterMarker(line, "gutter-info", div);
     }
@@ -262,19 +262,20 @@ function SourceEditor(path, mode) {
   self.clearCurrentLine = function() {
     if (currentDebugLine) {
       editor.clearGutter("gutter-info");
-      editor.setSelection(editor.getCursor()); // TODO??
+      editor.setSelection(editor.getCursor());
       currentDebugLine = 0;
     }
   }
 
   self.refresh = function() {
+    // TODO: only use local sourcefile
     var state = lastDebugState;
     if (state && state.c) {
       var PC = state.c.PC;
       var line = sourcefile.findLineForOffset(PC);
       if (line >= 0) {
         console.log("BREAKPOINT", hex(PC), line);
-        getActiveEditor().setCurrentLine(line);
+        self.setCurrentLine(line);
         // TODO: switch to disasm
       }
     }
@@ -935,7 +936,7 @@ function setCompileOutput(data) {
         assemblyfile = lst.assemblyfile;
       }
     }
-    if (!sourcefile)  sourcefile = new SourceFile();
+    if (!sourcefile) sourcefile = new SourceFile();
     symbolmap = data.symbolmap;
     addr2symbol = invertMap(symbolmap);
     if (!addr2symbol[0x0]) addr2symbol[0x0] = '__START__'; // needed for ...
@@ -1149,7 +1150,6 @@ function getSymbolAtAddress(a) {
   return '';
 }
 
-// TODO
 function updateDebugWindows() {
   if (platform.isRunning()) {
     projectWindows.tick();

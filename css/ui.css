@@ -36,6 +36,9 @@
 .tooltipbox:hover .tooltiptext {
     visibility: visible;
 }
+.tooltiperror {
+ color: #ff3333;
+}
 #controls_top {
   position: absolute;
   padding: 0.5em;
