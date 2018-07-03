@@ -12,6 +12,11 @@ function getFilenameForPath(s) {
   return toks[toks.length-1];
 }
 
+function getFilenamePrefix(s) {
+  var pos = s.lastIndexOf('.');
+  return (pos > 0) ? s.substr(0, pos) : s;
+}
+
 function hex(v, nd) {
   try {
     if (!nd) nd = 2;

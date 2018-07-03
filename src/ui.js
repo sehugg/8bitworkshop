@@ -58,12 +58,9 @@ function newWorker() {
 
 var userPaused;
 
-var active_editor;
 var current_output;
 var current_preset_entry;
 var main_file_id;
-var assemblyfile;
-var sourcefile;
 var symbolmap;
 var addr2symbol;
 var compparams;
@@ -117,6 +114,9 @@ function initProject() {
 function SourceEditor(path, mode) {
   var self = this;
   var editor;
+  var fnprefix = getFilenamePrefix(getFilenameForPath(path));
+  var dirtylisting = true;
+  var sourcefile;
   
   self.createDiv = function(parent, text) {
     var div = document.createElement('div');
@@ -203,17 +203,18 @@ function SourceEditor(path, mode) {
   
   self.clearErrors = function() {
     editor.clearGutter("gutter-info");
-    // TODO: set current line marker
+    refreshDebugState();
+    dirtylisting = true;
   }
 
   // TODO: update gutter only when refreshing this window
-  self.updateListing = function(sourcefile) {
+  self.updateListing = function(_sourcefile) {
+    sourcefile = _sourcefile;
     // update editor annotations
     editor.clearGutter("gutter-info");
     editor.clearGutter("gutter-bytes");
     editor.clearGutter("gutter-offset");
     editor.clearGutter("gutter-clock");
-    // TODO: support multiple files (use local sourcefile)
     var lstlines = sourcefile.lines || [];
     for (var info of lstlines) {
       if (info.offset >= 0) {
@@ -264,19 +265,38 @@ function SourceEditor(path, mode) {
       currentDebugLine = 0;
     }
   }
-
-  self.refresh = function() {
-    // TODO: only use local sourcefile
+  
+  function refreshDebugState() {
+    self.clearCurrentLine();
     var state = lastDebugState;
     if (state && state.c) {
       var PC = state.c.PC;
       var line = sourcefile.findLineForOffset(PC);
       if (line >= 0) {
-        console.log("BREAKPOINT", hex(PC), line);
         self.setCurrentLine(line);
-        // TODO: switch to disasm
+        // TODO: switch to disasm?
       }
     }
+  }
+  
+  function refreshListing() {
+    if (!dirtylisting) return;
+    dirtylisting = false;
+    var listings = current_project.getListings();
+    // find matching listing file (TODO: can CodeProject map this?)
+    for (var lstfn in listings) {
+      if (getFilenamePrefix(lstfn) == fnprefix) {
+        var lst = listings[lstfn];
+        if (lst.sourcefile) {
+          self.updateListing(lst.sourcefile); // updates sourcefile variable
+        }
+      }
+    }
+  }
+
+  self.refresh = function() {
+    refreshListing();
+    refreshDebugState();
   }
   
   self.getLine = function(line) {
@@ -285,6 +305,16 @@ function SourceEditor(path, mode) {
   
   self.getCurrentLine = function() {
     return editor.getCursor().line+1;
+  }
+  
+  self.getCursorPC = function() {
+    var line = self.getCurrentLine();
+    while (sourcefile && line >= 0) {
+      var pc = sourcefile.line2offset[line];
+      if (pc >= 0) return pc;
+      line--;
+    }
+    return -1;
   }
 
   // bitmap editor (TODO: refactor)
@@ -357,8 +387,9 @@ function SourceEditor(path, mode) {
       alert("To edit graphics, move cursor to a constant array preceded by a comment in the format:\n\n/*{w:,h:,bpp:,count:...}*/\n\n(See code examples)");
     }
   }
-  
 }
+
+///
 
 function DisassemblerView() {
   var self = this;
@@ -381,11 +412,13 @@ function DisassemblerView() {
       styleActiveLine: true
     });
   }
-
+  
   // TODO: too many globals
   self.refresh = function() {
     var state = lastDebugState || platform.saveState();
     var pc = state.c ? state.c.PC : 0;
+    var assemblyfile;
+    // TODO: match assemblyfile
     // do we have an assembly listing?
     if (assemblyfile && assemblyfile.text) {
       var asmtext = assemblyfile.text;
@@ -419,14 +452,15 @@ function DisassemblerView() {
         var s = "";
         while (a < end) {
           var disasm = platform.disassemble(a, platform.readAddress);
+          /* TODO: find source file in current_project
           var srclinenum = sourcefile.offset2line[a];
           if (srclinenum) {
-            var srcline = getActiveEditor().getLine(srclinenum); // TODO!
+            var srcline = getActiveEditor().getLine(srclinenum);
             if (srcline && srcline.trim().length) {
               s += "; " + srclinenum + ":\t" + srcline + "\n";
               curline++;
             }
-          }
+          }*/
           var bytes = "";
           for (var i=0; i<disasm.nbytes; i++)
             bytes += hex(platform.readAddress(a+i));
@@ -449,7 +483,21 @@ function DisassemblerView() {
       disasmview.setValue(current_output.code);
     }
   }
+
+  self.getCursorPC = function() {
+    var line = disasmview.getCursor().line;
+    if (line >= 0) {
+      var toks = disasmview.getLine(line).split(/\s+/);
+      if (toks && toks.length >= 1) {
+        var pc = parseInt(toks[0], 16);
+        if (pc >= 0) return pc;
+      }
+    }
+    return -1;
+  }
 }
+
+///
 
 function MemoryView() {
   var self = this;
@@ -591,7 +639,6 @@ function MemoryView() {
       if (dumplines[i].a >= a)
         return i;
   }
-
 }
 
 /////
@@ -666,14 +713,18 @@ function ProjectWindows(containerdiv) {
         activewnd.clearErrors();
     }
   }
+  
+  this.getActive = function() { return activewnd; }
+  
+  this.getCurrentText = function() {
+    if (activewnd && activewnd.getValue)
+      return activewnd.getValue();
+    else
+      alert("Please switch to an editor window.");
+  }
 };
 
 var projectWindows = new ProjectWindows($("#workspace")[0]);
-
-// TODO: support multiple editors, this might should go
-function getActiveEditor() {
-  return active_editor;
-}
 
 function refreshWindowList() {
   var ul = $("#windowMenuList").empty();
@@ -755,7 +806,7 @@ function loadProject(preset_id) {
       // we need this to build create functions for the editor (TODO?)
       refreshWindowList();
       // show main file
-      active_editor = projectWindows.createOrShow(preset_id);
+      projectWindows.createOrShow(preset_id);
     }
   });
 }
@@ -842,9 +893,10 @@ function _shareFile(e) {
     alert("Please fix errors before sharing.");
     return true;
   }
+  var text = projectWindows.getCurrentText();
+  if (!text) return false;
   var github = new Octokat();
   var files = {};
-  var text = getActiveEditor().getValue();
   files[getCurrentFilename()] = {"content": text};
   var gistdata = {
     "description": '8bitworkshop.com {"platform":"' + platform_id + '"}',
@@ -880,7 +932,9 @@ function _downloadROMImage(e) {
 }
 
 function _downloadSourceFile(e) {
-  var blob = new Blob([getActiveEditor().getValue()], {type: "text/plain;charset=utf-8"});
+  var text = projectWindows.getCurrentText();
+  if (!text) return false;
+  var blob = new Blob([text], {type: "text/plain;charset=utf-8"});
   saveAs(blob, getCurrentFilename());
 }
 
@@ -933,28 +987,12 @@ function updateSelector() {
 }
 
 function setCompileOutput(data) {
-  // TODO: support multiple edit windows
-  var sed = getActiveEditor();
   // errors? mark them in editor
   if (data.errors && data.errors.length > 0) {
     projectWindows.setErrors(data.errors);
     toolbar.addClass("has-errors");
   } else {
-    // choose first listing (TODO:support multiple source files)
-    sourcefile = null;
-    assemblyfile = null;
-    if (data.listings) {
-      var lst;
-      for (var lstname in data.listings) {
-        lst = data.listings[lstname];
-        break;
-      }
-      if (lst) {
-        sourcefile = lst.sourcefile;
-        assemblyfile = lst.assemblyfile;
-      }
-    }
-    if (!sourcefile) sourcefile = new SourceFile();
+    // process symbol map
     symbolmap = data.symbolmap;
     addr2symbol = invertMap(symbolmap);
     if (!addr2symbol[0x0]) addr2symbol[0x0] = '__START__'; // needed for ...
@@ -976,19 +1014,18 @@ function setCompileOutput(data) {
         current_output = rom;
         //resetProfiler();
       } catch (e) {
-        console.log(e); // TODO: show error
+        console.log(e);
         toolbar.addClass("has-errors");
-        sed.addErrorMarker(0, e+"");
+        projectWindows.setErrors([{line:0,msg:e+""}]);
         current_output = null;
       }
     } else if (rom.program_rom_variable) { //TODO: a little wonky...
       platform.loadROM(rom.program_rom_variable, rom.program_rom);
       rom_changed = true;
     }
-    if (rom_changed || trace_pending_at_pc) {
-      sed.updateListing(sourcefile);
-    }
+    // update all windows (listings)
     projectWindows.refresh();
+    // compute VCS cycle timing?
     if (trace_pending_at_pc) {
       showLoopTimingForPC(trace_pending_at_pc);
     }
@@ -1051,7 +1088,7 @@ function _resume() {
 function resume() {
   clearBreakpoint();
   if (! platform.isRunning() ) {
-    getActiveEditor().clearCurrentLine(); // TODO
+    projectWindows.refresh();
   }
   _resume();
   userPaused = false;
@@ -1067,27 +1104,9 @@ function singleFrameStep() {
   platform.runToVsync();
 }
 
-// TODO: fix these
-function getDisasmViewPC() {
-  var line = disasmview.getCursor().line;
-  if (line >= 0) {
-    var toks = disasmview.getLine(line).split(/\s+/);
-    if (toks && toks[0].length == 4) {
-      return parseInt(toks[0], 16);
-    }
-  }
-}
-
-// TODO: fix this
 function getEditorPC() {
-  var line = getActiveEditor().getCurrentLine(); // TODO
-  while (line >= 0) {
-    // TODO: what if in disassembler?
-    var pc = sourcefile.line2offset[line];
-    if (pc >= 0) return pc;
-    line--;
-  }
-  return getDisasmViewPC();
+  var wnd = projectWindows.getActive();
+  return wnd && wnd.getCursorPC && wnd.getCursorPC();
 }
 
 function runToCursor() {
@@ -1125,12 +1144,6 @@ function jumpToLine(ed, i) {
     var t = ed.charCoords({line: i, ch: 0}, "local").top;
     var middleHeight = ed.getScrollerElement().offsetHeight / 2;
     ed.scrollTo(null, t - middleHeight - 5);
-}
-
-function getVisibleSourceFile() {
-// TODO
-  var div = $("#disassembly");
-  return div.is(':visible') ? assemblyfile : sourcefile;
 }
 
 function resetAndDebug() {
@@ -1250,7 +1263,9 @@ function _fastestFrameRate() {
 }
 
 function _openBitmapEditor() {
-  getActiveEditor().openBitmapEditorAtCursor();
+  var wnd = currentWindows.getActive();
+  if (wnd && wnd.openBitmapEditorAtCursor)
+    openBitmapEditorAtCursor();
 }
 
 function setupDebugControls(){
