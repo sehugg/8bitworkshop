@@ -27,18 +27,17 @@ function SourceFile(lines, text) {
   this.lineCount = function() { return lines.length; }
 }
 
-function CodeProject(worker, platform_id, platform, store) {
+function CodeProject(worker, platform_id, platform, store, mainpath) {
   var self = this;
 
   var filedata = {};  
   var listings;
   
-  self.callbackResendFiles = function() { }; // TODO?
   self.callbackBuildResult = function(result) { };
   self.callbackBuildStatus = function(busy) { };
   
   var pendingWorkerMessages = 0;
-
+  
   var tools_preloaded = {};
   function preloadWorker(path) {
     var tool = platform.getToolForFilename(path);
@@ -46,6 +45,10 @@ function CodeProject(worker, platform_id, platform, store) {
       worker.postMessage({preload:tool, platform:platform_id});
       tools_preloaded[tool] = true;
     }
+  }
+  
+  self.setMainPath = function(path) {
+    mainpath = path;
   }
 
   // TODO: get local file as well as presets?  
@@ -128,15 +131,18 @@ function CodeProject(worker, platform_id, platform, store) {
   }
   
   // TODO: test duplicate files, local paths mixed with presets
-  function buildWorkerMessage(mainpath, maintext, depends) {
+  function buildWorkerMessage(depends) {
+    preloadWorker(mainpath);
     var msg = {updates:[], buildsteps:[]};
     // TODO: add preproc directive for __MAINFILE__
     var mainfilename = getFilenameForPath(mainpath);
+    var maintext = self.getFile(mainpath);
     msg.updates.push({path:mainfilename, data:maintext});
     msg.buildsteps.push({path:mainfilename, platform:platform_id, tool:platform.getToolForFilename(mainpath), mainfile:true});
     for (var i=0; i<depends.length; i++) {
       var dep = depends[i];
       if (dep.data) {
+        preloadWorker(dep.filename);
         msg.updates.push({path:dep.filename, data:dep.data});
         msg.buildsteps.push({path:dep.filename, platform:platform_id, tool:platform.getToolForFilename(dep.path)});
       }
@@ -154,29 +160,23 @@ function CodeProject(worker, platform_id, platform, store) {
     }
   }
   
+  self.sendBuild = function() {
+    var text = self.getFile(mainpath);
+    loadFileDependencies(text, function(err, depends) {
+      if (err) {
+        console.log(err); // TODO?
+      }
+      var workermsg = buildWorkerMessage(depends);
+      worker.postMessage(workermsg);
+    });
+  }
+  
   self.updateFile = function(path, text, isBinary) {
     updateFileInStore(path, text); // TODO: isBinary
     filedata[path] = text;
     if (okToSend()) {
       self.callbackBuildStatus(true);
-      preloadWorker(path);
-      loadFileDependencies(text, function(err, depends) {
-        if (err) {
-          console.log(err); // TODO?
-        }
-        if (platform_id != 'verilog') {
-          var workermsg = buildWorkerMessage(path, text, depends);
-          worker.postMessage(workermsg);
-        } else {
-          // TODO: should get rid of this msg format
-          worker.postMessage({
-            code:text,
-            dependencies:depends,
-            platform:platform_id,
-            tool:platform.getToolForFilename(path)
-          });
-        }
-      });
+      self.sendBuild();
     }
   };
   
@@ -200,7 +200,7 @@ function CodeProject(worker, platform_id, platform, store) {
 
   worker.onmessage = function(e) {
     if (pendingWorkerMessages > 1) {
-      self.callbackResendFiles(); // TODO: we should handle this internally
+      self.sendBuild();
       pendingWorkerMessages = 0;
     } else {
       pendingWorkerMessages = 0;

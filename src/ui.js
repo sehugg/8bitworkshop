@@ -61,7 +61,7 @@ var userPaused;
 var active_editor;
 var current_output;
 var current_preset_entry;
-var current_file_id;
+var main_file_id;
 var assemblyfile;
 var sourcefile;
 var symbolmap;
@@ -97,10 +97,6 @@ function setLastPreset(id) {
 
 function initProject() {
   current_project = new CodeProject(newWorker(), platform_id, platform, store);
-  current_project.callbackResendFiles = function() {
-    current_project.updateFile(getActiveEditor().getPath(), getActiveEditor().getValue(), false);
-    // TODO: let CodeProject handle this
-  };
   current_project.callbackBuildResult = function(result) {
     setCompileOutput(result);
     refreshWindowList();
@@ -111,7 +107,7 @@ function initProject() {
     } else {
       toolbar.removeClass("is-busy");
       toolbar.removeClass("has-errors"); // may be added in next callback
-      getActiveEditor().clearErrors(); // TODO: add current line marker
+      getActiveEditor().clearErrors(); // TODO: remove?
     }
     $('#compile_spinner').css('visibility', busy ? 'visible' : 'hidden');
   };
@@ -198,7 +194,7 @@ function SourceEditor(path, mode) {
     var numLines = editor.lineCount();
     for (var info of errors) {
       var line = info.line-1;
-      if (line < 0 || line >= numLines) line = numLines-1;
+      if (line < 0 || line >= numLines) line = 0;
       self.addErrorMarker(line, info.msg);
     }
   }
@@ -691,13 +687,13 @@ function refreshWindowList() {
   }
 
   // add main file editor
-  var id = current_file_id;
+  var id = main_file_id;
   addWindowItem(id, getFilenameForPath(id), loadEditor);
   
   // add other files
   separate = true;
   current_project.iterateFiles(function(id, text) {
-    if (id != current_file_id)
+    if (id != main_file_id)
       addWindowItem(id, getFilenameForPath(id), loadEditor);
   });
 
@@ -729,15 +725,17 @@ function loadProject(preset_id) {
     preset_id = current_preset_entry.id;
   }
   // set current file ID
-  current_file_id = preset_id;
+  main_file_id = preset_id;
   setLastPreset(preset_id);
+  current_project.setMainPath(preset_id);
   // load files from storage or web URLs
   current_project.loadFiles([preset_id], function(err, result) {
     if (err) {
       alert(err);
     } else if (result && result.length) {
+      // we need this to build create functions for the editor (TODO?)
       refreshWindowList();
-      // show main file (need create window list first)
+      // show main file
       active_editor = projectWindows.createOrShow(preset_id);
     }
   });
@@ -816,7 +814,7 @@ function handleFileUpload(files) {
 }
 
 function getCurrentFilename() {
-  var toks = current_file_id.split("/");
+  var toks = main_file_id.split("/");
   return toks[toks.length-1];
 }
 
@@ -874,7 +872,7 @@ function populateExamples(sel) {
     for (var i=0; i<PRESETS.length; i++) {
       var preset = PRESETS[i];
       var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
-      sel.append($("<option />").val(preset.id).text(name).attr('selected',preset.id==current_file_id));
+      sel.append($("<option />").val(preset.id).text(name).attr('selected',preset.id==main_file_id));
     }
   });
 }
@@ -890,12 +888,12 @@ function populateFiles(sel, category, prefix) {
         if (numFound++ == 0)
           sel.append($("<option />").text("------- " + category + " -------").attr('disabled',true));
         var name = key.substring(prefix.length);
-        sel.append($("<option />").val(key).text(name).attr('selected',key==current_file_id));
-        if (key == current_file_id) foundSelected = true;
+        sel.append($("<option />").val(key).text(name).attr('selected',key==main_file_id));
+        if (key == main_file_id) foundSelected = true;
       }
     }
-    if (!foundSelected && current_file_id && current_file_id.startsWith(prefix)) {
-      var name = current_file_id.slice(prefix.length);
+    if (!foundSelected && main_file_id && main_file_id.startsWith(prefix)) {
+      var name = main_file_id.slice(prefix.length);
       var key = prefix + name;
       sel.append($("<option />").val(key).text(name).attr('selected',true));
     }

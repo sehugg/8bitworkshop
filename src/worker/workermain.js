@@ -805,7 +805,7 @@ function linkSDLDZ80(step)
       var matches = match_aslink_re.exec(s);
       if (matches) {
         errors.push({
-          line:1,
+          line:0,
           msg:matches[2]
         });
       }
@@ -976,7 +976,7 @@ function preprocessMCPP(code, platform, toolname) {
       // //main.c:2: error: Can't open include file "stdiosd.h"
       var errors = extractErrors(/[^:]+:(\d+): (.+)/, errout.split("\n"));
       if (errors.length == 0) {
-        errors = [{line:1, msg:errout}];
+        errors = [{line:0, msg:errout}];
       }
       return {errors: errors};
     }
@@ -1234,6 +1234,14 @@ var TOOL_PRELOADFS = {
   'sccz80': 'sccz80',
 }
 
+function applyDefaultErrorPath(errors, path) {
+  if (!path) return;
+  for (var i=0; i<errors.length; i++) {
+    var err = errors[i];
+    if (!err.path && err.line) err.path = path;
+  }
+}
+
 function executeBuildSteps() {
   buildstartseq = workerseq;
   while (buildsteps.length) {
@@ -1248,11 +1256,12 @@ function executeBuildSteps() {
       step.result = toolfn(step);
     } catch (e) {
       console.log("EXCEPTION", e.stack);
-      return {errors:[{line:1, msg:e+""}]}; // TODO: catch errors already generated?
+      return {errors:[{line:0, msg:e+""}]}; // TODO: catch errors already generated?
     }
     if (step.result) {
       // errors? return them
       if (step.result.errors) {
+        applyDefaultErrorPath(step.result.errors, step.path);
         return step.result;
       }
       // if we got some output, return it immediately
