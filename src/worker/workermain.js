@@ -477,13 +477,20 @@ function assembleDASM(step) {
   var lstpath = step.prefix+'.lst';
   var sympath = step.prefix+'.sym';
   execMain(step, Module, [step.path, "-l"+lstpath, "-o"+binpath, "-s"+sympath ]);
-  var aout = FS.readFile(binpath);
   var alst = FS.readFile(lstpath, {'encoding':'utf8'});
+  var listing = parseDASMListing(alst, unresolved, step.path);
+  if (listing.errors.length) {
+    return {errors:listing.errors};
+  }
+  var aout = FS.readFile(binpath);
   var asym = FS.readFile(lstpath, {'encoding':'utf8'});
   putWorkFile(binpath, aout);
   putWorkFile(lstpath, alst);
   putWorkFile(sympath, asym);
-  var listing = parseDASMListing(alst, unresolved, step.path);
+  // return unchanged if no files changed
+  // TODO: what if listing or symbols change?
+  if (!anyTargetChanged(step, [binpath/*, lstpath, sympath*/]))
+    return;
   var listings = {};
   listings[lstpath] = {lines:listing.lines};
   var symbolmap = {};
@@ -1110,7 +1117,7 @@ function compileInlineASM(code, platform, options, errors, asmlines) {
   return code;
 }
 
-// TODO: make with multiple files
+// TODO: make compliant with standard msg format
 function compileVerilator(step) {
   loadNative("verilator_bin");
   load("../verilator2js");
@@ -1128,7 +1135,7 @@ function compileVerilator(step) {
   });
   var topmod = detectTopModuleName(code);
   var FS = verilator_mod['FS'];
-  FS.writeFile(topmod+".v", code);
+  populateFiles(step, FS, {mainFilePath:topmod+".v"});
   writeDependencies(step.dependencies, FS, errors, function(d, code) {
     return compileInlineASM(code, platform, step, errors, null);
   });
@@ -1149,6 +1156,9 @@ function compileVerilator(step) {
     var h_file = FS.readFile("obj_dir/V"+topmod+".h", {encoding:'utf8'});
     var cpp_file = FS.readFile("obj_dir/V"+topmod+".cpp", {encoding:'utf8'});
     var rtn = translateVerilatorOutputToJS(h_file, cpp_file);
+    putWorkFile("main.js", rtn.output.code);
+    if (!anyTargetChanged(step, ["main.js"]))
+      return;
     rtn.errors = errors;
     rtn.intermediate = {listing:h_file + cpp_file}; // TODO
     rtn.listings = {};

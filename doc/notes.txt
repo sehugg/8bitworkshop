@@ -38,6 +38,9 @@ TODO:
 - show self-modifying code insns left of editor
 - facade/kbd shortcuts for emulators, focus
 - checkmarks in pulldown menus
+- update Javatari version? (and others?)
+- WASM takes too long to load (esp. verilog)
+  (https://developers.google.com/web/updates/2018/04/loading-wasm)
 
 
 WEB WORKER FORMAT

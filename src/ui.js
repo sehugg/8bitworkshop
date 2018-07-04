@@ -1,43 +1,17 @@
 "use strict";
 
-// catch errors
-function installErrorHandler() {
-  if (typeof window.onerror == "object") {
-      window.onerror = function (msgevent, url, line, col, error) {
-        console.log(msgevent, url, line, col);
-        console.log(error);
-        if (window.location.host.endsWith('8bitworkshop.com')) {
-          ga('send', 'exception', {
-            'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
-            'exFatal': true
-          });
-        }
-        alert(msgevent+"");
-      };
-  }
-}
-
-function uninstallErrorHandler() {
-  window.onerror = null;
-}
-
-function gotoNewLocation() {
-  uninstallErrorHandler();
-  window.location = "?" + $.param(qs);
-}
+// 8bitworkshop IDE user interface
 
 // make sure VCS doesn't start
 if (window.Javatari) Javatari.AUTO_START = false;
 
-// 8bitworkshop IDE user interface
-
-var PRESETS; // presets array
-var platform_id;
-var platform; // platform object
+var PRESETS;		// presets array
+var platform_id;	// platform ID string
+var platform;		// platform object
 
 var toolbar = $("#controls_top");
 
-var current_project;
+var current_project;	// current CodeProject object
 
 // TODO: codemirror multiplex support?
 var TOOL_TO_SOURCE_STYLE = {
@@ -56,20 +30,19 @@ function newWorker() {
   return new Worker("./src/worker/workermain.js");
 }
 
-var userPaused;
+var userPaused;			// did user explicitly pause?
 
-var current_output;
-var current_preset_entry;
-var main_file_id;
-var symbolmap;
-var addr2symbol;
-var compparams;
-var trace_pending_at_pc;
-var store;
+var current_output;		// current ROM
+var current_preset_entry;	// current preset object (if selected)
+var main_file_id;		// main file ID
+var symbolmap;			// symbol map
+var addr2symbol;		// address to symbol name map
+var compparams;			// received build params from worker
+var trace_pending_at_pc;	// true if clock trace (vcs)
+var store;			// persistent store
 
-var currentDebugLine;
-var lastDebugInfo;
-var lastDebugState;
+var lastDebugInfo;		// last debug info (CPU text)
+var lastDebugState;		// last debug state (object)
 
 function inspectVariable(ed, name) {
   var val;
@@ -116,6 +89,7 @@ function SourceEditor(path, mode) {
   var editor;
   var dirtylisting = true;
   var sourcefile;
+  var currentDebugLine;
   
   self.createDiv = function(parent, text) {
     var div = document.createElement('div');
@@ -162,7 +136,6 @@ function SourceEditor(path, mode) {
   self.setText = function(text) {
     editor.setValue(text); // calls setCode()
     editor.clearHistory();
-    current_output = null; // TODO?
   }
   
   self.getValue = function() {
@@ -648,6 +621,7 @@ function ProjectWindows(containerdiv) {
   var activewnd;
   var activediv;
   var lasterrors;
+  // TODO: delete windows ever?
   
   this.setCreateFunc = function(id, createfn) {
     id2createfn[id] = createfn;
@@ -1008,14 +982,8 @@ function setCompileOutput(data) {
     addr2symbol[0x10000] = '__END__'; // needed for dump memory to work
     compparams = data.params;
     // load ROM
-    // TODO: don't have to compare anymore; worker does it
     var rom = data.output;
-    var rom_changed = false;
-    if (rom && rom.code)
-      rom_changed = !current_output || rom.code != current_output.code;
-    else if (rom)
-      rom_changed = !arrayCompare(rom, current_output);
-    if (rom_changed) {
+    if (rom) {
       try {
         //console.log("Loading ROM length", rom.length);
         platform.loadROM(getCurrentPresetTitle(), rom);
@@ -1030,7 +998,6 @@ function setCompileOutput(data) {
       }
     } else if (rom.program_rom_variable) { //TODO: a little wonky...
       platform.loadROM(rom.program_rom_variable, rom.program_rom);
-      rom_changed = true;
     }
     // update all windows (listings)
     projectWindows.refresh();
@@ -1387,6 +1354,32 @@ var qs = (function (a) {
     }
     return b;
 })(window.location.search.substr(1).split('&'));
+
+// catch errors
+function installErrorHandler() {
+  if (typeof window.onerror == "object") {
+      window.onerror = function (msgevent, url, line, col, error) {
+        console.log(msgevent, url, line, col);
+        console.log(error);
+        if (window.location.host.endsWith('8bitworkshop.com')) {
+          ga('send', 'exception', {
+            'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
+            'exFatal': true
+          });
+        }
+        alert(msgevent+"");
+      };
+  }
+}
+
+function uninstallErrorHandler() {
+  window.onerror = null;
+}
+
+function gotoNewLocation() {
+  uninstallErrorHandler();
+  window.location = "?" + $.param(qs);
+}
 
 function initPlatform() {
   store = createNewPersistentStore(platform_id);
