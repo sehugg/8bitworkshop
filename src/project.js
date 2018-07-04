@@ -209,6 +209,17 @@ function CodeProject(worker, platform_id, platform, store, mainpath) {
     return listings;
   }
 
+  // returns first listing in format [prefix].lst (TODO: could be better)
+  self.getListingForFile = function(path) {
+    var fnprefix = getFilenamePrefix(getFilenameForPath(path));
+    var listings = self.getListings();
+    for (var lstfn in listings) {
+      if (getFilenamePrefix(lstfn) == fnprefix) {
+        return listings[lstfn];
+      }
+    }
+  }
+
   worker.onmessage = function(e) {
     if (pendingWorkerMessages > 1) {
       self.sendBuild();

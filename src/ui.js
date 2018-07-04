@@ -114,7 +114,6 @@ function initProject() {
 function SourceEditor(path, mode) {
   var self = this;
   var editor;
-  var fnprefix = getFilenamePrefix(getFilenameForPath(path));
   var dirtylisting = true;
   var sourcefile;
   
@@ -282,15 +281,9 @@ function SourceEditor(path, mode) {
   function refreshListing() {
     if (!dirtylisting) return;
     dirtylisting = false;
-    var listings = current_project.getListings();
-    // find matching listing file (TODO: can CodeProject map this?)
-    for (var lstfn in listings) {
-      if (getFilenamePrefix(lstfn) == fnprefix) {
-        var lst = listings[lstfn];
-        if (lst.sourcefile) {
-          self.updateListing(lst.sourcefile); // updates sourcefile variable
-        }
-      }
+    var lst = current_project.getListingForFile(path);
+    if (lst && lst.sourcefile) {
+      self.updateListing(lst.sourcefile); // updates sourcefile variable
     }
   }
 
@@ -395,6 +388,8 @@ function DisassemblerView() {
   var self = this;
   var disasmview;
   
+  self.getDisasmView = function() { return disasmview; }
+ 
   self.createDiv = function(parent) {
     var div = document.createElement('div');
     div.setAttribute("class", "editor");
@@ -405,83 +400,56 @@ function DisassemblerView() {
   
   function newEditor(parent) {
     disasmview = CodeMirror(parent, {
-      mode: 'z80',
+      mode: 'z80', // TODO: pick correct one
       theme: 'cobalt',
       tabSize: 8,
       readOnly: true,
       styleActiveLine: true
     });
   }
-  
+
   // TODO: too many globals
   self.refresh = function() {
     var state = lastDebugState || platform.saveState();
     var pc = state.c ? state.c.PC : 0;
-    var assemblyfile;
-    // TODO: match assemblyfile
-    // do we have an assembly listing?
-    if (assemblyfile && assemblyfile.text) {
-      var asmtext = assemblyfile.text;
-      if (platform_id == 'base_z80') { // TODO
-        asmtext = asmtext.replace(/[ ]+\d+\s+;.+\n/g, '');
-        asmtext = asmtext.replace(/[ ]+\d+\s+.area .+\n/g, '');
-      }
-      disasmview.setValue(asmtext);
-      var findPC = platform.getDebugCallback() ? pc : -1;
-      if (findPC >= 0) {
-        var lineno = assemblyfile.findLineForOffset(findPC);
-        if (lineno) {
-          // set cursor while debugging
-          if (platform.getDebugCallback())
-            disasmview.setCursor(lineno-1, 0);
-          jumpToLine(disasmview, lineno-1);
-          return; // success, don't disassemble in next step
+    var curline = 0;
+    var selline = 0;
+    // TODO: not perfect disassembler
+    function disassemble(start, end) {
+      if (start < 0) start = 0;
+      if (end > 0xffff) end = 0xffff;
+      // TODO: use pc2visits
+      var a = start;
+      var s = "";
+      while (a < end) {
+        var disasm = platform.disassemble(a, platform.readAddress);
+        /* TODO: look thru all source files
+        var srclinenum = sourcefile && sourcefile.offset2line[a];
+        if (srclinenum) {
+          var srcline = getActiveEditor().getLine(srclinenum);
+          if (srcline && srcline.trim().length) {
+            s += "; " + srclinenum + ":\t" + srcline + "\n";
+            curline++;
+          }
         }
+        */
+        var bytes = "";
+        for (var i=0; i<disasm.nbytes; i++)
+          bytes += hex(platform.readAddress(a+i));
+        while (bytes.length < 14)
+          bytes += ' ';
+        var dline = hex(parseInt(a)) + "\t" + bytes + "\t" + disasm.line + "\n";
+        s += dline;
+        if (a == pc) selline = curline;
+        curline++;
+        a += disasm.nbytes || 1;
       }
+      return s;
     }
-    // TODO: fall through to platform disassembler?
-    else if (platform.disassemble) {
-      var curline = 0;
-      var selline = 0;
-      // TODO: not perfect disassembler
-      function disassemble(start, end) {
-        if (start < 0) start = 0;
-        if (end > 0xffff) end = 0xffff;
-        // TODO: use pc2visits
-        var a = start;
-        var s = "";
-        while (a < end) {
-          var disasm = platform.disassemble(a, platform.readAddress);
-          /* TODO: find source file in current_project
-          var srclinenum = sourcefile.offset2line[a];
-          if (srclinenum) {
-            var srcline = getActiveEditor().getLine(srclinenum);
-            if (srcline && srcline.trim().length) {
-              s += "; " + srclinenum + ":\t" + srcline + "\n";
-              curline++;
-            }
-          }*/
-          var bytes = "";
-          for (var i=0; i<disasm.nbytes; i++)
-            bytes += hex(platform.readAddress(a+i));
-          while (bytes.length < 14)
-            bytes += ' ';
-          var dline = hex(parseInt(a)) + "\t" + bytes + "\t" + disasm.line + "\n";
-          s += dline;
-          if (a == pc) selline = curline;
-          curline++;
-          a += disasm.nbytes || 1;
-        }
-        return s;
-      }
-      var text = disassemble(pc-96, pc) + disassemble(pc, pc+96);
-      disasmview.setValue(text);
-      disasmview.setCursor(selline, 0);
-      jumpToLine(disasmview, selline);
-    } else if (current_output && current_output.code) {
-      // show verilog javascript
-      disasmview.setValue(current_output.code);
-    }
+    var text = disassemble(pc-96, pc) + disassemble(pc, pc+96);
+    disasmview.setValue(text);
+    disasmview.setCursor(selline, 0);
+    jumpToLine(disasmview, selline);
   }
 
   self.getCursorPC = function() {
@@ -494,6 +462,35 @@ function DisassemblerView() {
       }
     }
     return -1;
+  }
+}
+
+///
+
+function ListingView(assemblyfile) {
+  var self = this;
+  this.__proto__ = new DisassemblerView();
+
+  self.refresh = function() {
+    var state = lastDebugState || platform.saveState();
+    var pc = state.c ? state.c.PC : 0;
+    var asmtext = assemblyfile.text;
+    var disasmview = self.getDisasmView();
+    if (platform_id == 'base_z80') { // TODO
+      asmtext = asmtext.replace(/[ ]+\d+\s+;.+\n/g, '');
+      asmtext = asmtext.replace(/[ ]+\d+\s+.area .+\n/g, '');
+    }
+    disasmview.setValue(asmtext);
+    var findPC = platform.getDebugCallback() ? pc : -1;
+    if (findPC >= 0) {
+      var lineno = assemblyfile.findLineForOffset(findPC);
+      if (lineno) {
+        // set cursor while debugging
+        if (platform.getDebugCallback())
+          disasmview.setCursor(lineno-1, 0);
+        jumpToLine(disasmview, lineno-1);
+      }
+    }
   }
 }
 
@@ -755,26 +752,38 @@ function refreshWindowList() {
     var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
     return new SourceEditor(path, mode, current_project.getFile(path));
   }
-
+  
   // add main file editor
   var id = main_file_id;
   addWindowItem(id, getFilenameForPath(id), loadEditor);
   
-  // add other files
+  // add other source files
   separate = true;
   current_project.iterateFiles(function(id, text) {
     if (id != main_file_id)
       addWindowItem(id, getFilenameForPath(id), loadEditor);
   });
+  
+  // add listings
+  var listings = current_project.getListings();
+  if (listings) {
+    for (var lstfn in listings) {
+      var lst = listings[lstfn];
+      if (lst.assemblyfile) {
+        addWindowItem(lstfn, getFilenameForPath(lstfn), function(path) {
+          return new ListingView(lst.assemblyfile);
+        });
+      }
+    }
+  }
 
   // add other tools
   separate = true;
-  if (platform.saveState) { // TODO: only show if listing or disasm available
+  if (platform.disassemble) {
     addWindowItem("#disasm", "Disassembly", function() {
       return new DisassemblerView();
     });
   }
-  // TODO
   if (platform.readAddress && platform_id != 'vcs') {
     addWindowItem("#memory", "Memory Browser", function() {
       return new MemoryView();
@@ -1141,9 +1150,9 @@ function clearBreakpoint() {
 }
 
 function jumpToLine(ed, i) {
-    var t = ed.charCoords({line: i, ch: 0}, "local").top;
-    var middleHeight = ed.getScrollerElement().offsetHeight / 2;
-    ed.scrollTo(null, t - middleHeight - 5);
+  var t = ed.charCoords({line: i, ch: 0}, "local").top;
+  var middleHeight = ed.getScrollerElement().offsetHeight / 2;
+  ed.scrollTo(null, t - middleHeight - 5);
 }
 
 function resetAndDebug() {
