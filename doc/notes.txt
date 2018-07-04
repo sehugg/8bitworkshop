@@ -41,6 +41,8 @@ TODO:
 - update Javatari version? (and others?)
 - WASM takes too long to load (esp. verilog)
   (https://developers.google.com/web/updates/2018/04/loading-wasm)
+- unify versioning
+- more UI tests
 
 
 WEB WORKER FORMAT
@@ -50,7 +52,7 @@ WEB WORKER FORMAT
 
 new:
 
-{infiles,buildsteps}
+{updates,buildsteps}
 [{filepath,platform,tool}]
 
 implicit rules

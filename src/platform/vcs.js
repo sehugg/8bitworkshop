@@ -271,7 +271,7 @@ function _traceInstructions(pc, minclocks, maxclocks, subaddr, constraints) {
   }
 }
 
-function showLoopTimingForPC(pc) {
+function showLoopTimingForPC(pc, sourcefile, ed) {
   pc2minclocks = {};
   pc2maxclocks = {};
   jsrresult = {};
@@ -290,14 +290,9 @@ function showLoopTimingForPC(pc) {
         s = minclocks + "-" + maxclocks;
       if (maxclocks == MAX_CLOCKS)
         s += "+";
-      getActiveEditor().setGutterBytes(line, s);
+      ed.setGutterBytes(line, s);
     }
   }
-}
-
-function traceTiming() {
-  trace_pending_at_pc = platform.getOriginPC();
-  setCode(getActiveEditor().getValue()); // TODO
 }
 
 ///////////////

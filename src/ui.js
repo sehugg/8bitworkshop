@@ -38,7 +38,6 @@ var main_file_id;		// main file ID
 var symbolmap;			// symbol map
 var addr2symbol;		// address to symbol name map
 var compparams;			// received build params from worker
-var trace_pending_at_pc;	// true if clock trace (vcs)
 var store;			// persistent store
 
 var lastDebugInfo;		// last debug info (CPU text)
@@ -178,6 +177,8 @@ function SourceEditor(path, mode) {
     refreshDebugState();
     dirtylisting = true;
   }
+  
+  self.getSourceFile = function() { return sourcefile; }
 
   // TODO: update gutter only when refreshing this window
   self.updateListing = function(_sourcefile) {
@@ -1001,12 +1002,7 @@ function setCompileOutput(data) {
     }
     // update all windows (listings)
     projectWindows.refresh();
-    // compute VCS cycle timing?
-    if (trace_pending_at_pc) {
-      showLoopTimingForPC(trace_pending_at_pc);
-    }
   }
-  trace_pending_at_pc = null;
 }
 
 function showMemory(state) {
@@ -1239,9 +1235,17 @@ function _fastestFrameRate() {
 }
 
 function _openBitmapEditor() {
-  var wnd = currentWindows.getActive();
+  var wnd = projectWindows.getActive();
   if (wnd && wnd.openBitmapEditorAtCursor)
-    openBitmapEditorAtCursor();
+    wnd.openBitmapEditorAtCursor();
+}
+
+function traceTiming() {
+  projectWindows.refresh();
+  var wnd = projectWindows.getActive();
+  if (wnd.getSourceFile && wnd.setGutterBytes) { // is editor active?
+    showLoopTimingForPC(0, wnd.getSourceFile(), wnd);
+  }
 }
 
 function setupDebugControls(){
@@ -1270,7 +1274,7 @@ function setupDebugControls(){
   else
     $("#dbg_stepback").hide();
 
-  if (window.traceTiming) {
+  if (window.showLoopTimingForPC) { // VCS-only (TODO: put in platform)
     $("#dbg_timing").click(traceTiming).show();
   }
   $("#disassembly").hide();

@@ -25,3 +25,6 @@ web:
 	ifconfig | grep inet
 	python2 -m SimpleHTTPServer 2>> http.out
 
+tsweb:
+	ifconfig | grep inet
+	node ../nodejs-typescript-webserver/bin/FileServer.js .
