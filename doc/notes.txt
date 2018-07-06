@@ -22,7 +22,6 @@ TODO:
 - run apple CPU until boot
 - better disasm/listing selection
 - disasm for z80
-- projects w/ include files
 - watchpoints
 - breakpoints
 - debug inspector
@@ -45,6 +44,7 @@ TODO:
 - more UI tests
 - base-36 encoding for LZG
 - disassembler for uploaded ROMs
+- show tool-specific (readonly) include files
 
 
 WEB WORKER FORMAT

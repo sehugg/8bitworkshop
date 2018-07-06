@@ -9,7 +9,6 @@ var addr2symbol : {[addr:number]:string};
 var current_project;
 var VirtualList;
 var lastDebugState;
-var pixeditframe;
 
 // TODO: functions
 var inspectVariable;
@@ -238,7 +237,7 @@ function SourceEditor(path, mode) {
   function openBitmapEditorWithParams(fmt, bytestr, palfmt, palstr) {
     $("#pixeditback").show();
     window.addEventListener("message", handleWindowMessage, false); // TODO: remove listener
-    pixeditframe.contentWindow.postMessage({fmt:fmt, bytestr:bytestr, palfmt:palfmt, palstr:palstr}, '*');
+    window['pixeditframe'].contentWindow.postMessage({fmt:fmt, bytestr:bytestr, palfmt:palfmt, palstr:palstr}, '*');
   }
 
   function lookBackwardsForJSONComment(line, req) {

@@ -185,40 +185,49 @@ export class CodeProject {
   
   // TODO: get local file as well as presets?  
   loadFiles(paths:string[], callback:LoadFilesCallback) {
-    var result = [];
+    var result : Dependency[] = [];
+    function addResult(path, data) {
+      result.push({
+        path:path,
+        filename:getFilenameForPath(path),
+        data:data
+      });
+    }
     var loadNext = () => {
       var path = paths.shift();
       if (!path) {
-        callback(null, result); // TODO?
+        // finished loading all files; return result
+        callback(null, result);
       } else {
+        // look in store
         this.store.getItem(path, (err, value) => {
-          if (err) {
+          if (err) { // err fetching from store
             callback(err, result);
-          } else if (value) {
-            result.push({
-              path:path,
-              filename:getFilenameForPath(path),
-              data:value
-            });
+          } else if (value) { // found in store?
             this.filedata[path] = value;
+            addResult(path, value);
             loadNext();
-          } else {
+          } else if (path in this.filedata) { // found in cache?
+            var data = this.filedata[path];
+            if (data)
+              addResult(path, data);
+            loadNext();
+          } else { // found on remote fetch?
             var webpath = "presets/" + this.platform_id + "/" + path;
             if (this.platform_id == 'vcs' && path.indexOf('.') <= 0)
               webpath += ".a"; // legacy stuff
-            // TODO: cache files
             this.callbackGetRemote( webpath, (text:string) => {
               console.log("GET",webpath,text.length,'bytes');
-              result.push({
-                path:path,
-                filename:getFilenameForPath(path),
-                data:text
-              });
               this.filedata[path] = text;
+              addResult(path, text);
               loadNext();
             }, 'text')
-            .fail(function() {
-              callback("Could not load preset " + path, result);
+            .fail( (err:XMLHttpRequest) => {
+              console.log("Could not load preset", path, err);
+              // only cache result if status is 404 (not found)
+              if (err.status && err.status == 404)
+                this.filedata[path] = null;
+              loadNext();
             });
           }
         });

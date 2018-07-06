@@ -688,15 +688,12 @@ function showWelcomeMessage() {
   if (!localStorage.getItem("8bitworkshop.hello")) {
     // Instance the tour
     var is_vcs = platform_id == 'vcs';
-    var tour = new Tour({
-      autoscroll:false,
-      //storage:false,
-      steps: [
+    var steps = [
         {
-          element: "#editor",
+          element: "#workspace",
           title: "Welcome to 8bitworkshop!",
           content: is_vcs ? "Type your 6502 assembly code into the editor, and it'll be assembled in real-time. All changes are saved to browser local storage."
-                          : "Type your C source code into the editor, and it'll be compiled in real-time. All changes are saved to browser local storage."
+                          : "Type your source code into the editor, and it'll be compiled in real-time. All changes are saved to browser local storage."
         },
         {
           element: "#emulator",
@@ -719,8 +716,19 @@ function showWelcomeMessage() {
           element: "#dropdownMenuButton",
           title: "Main Menu",
           content: "Click the menu to switch between platforms, create new files, or share your work with others."
-        },
-    ]});
+        }];
+    if (!is_vcs) {
+      steps.push({
+        element: "#windowMenuButton",
+        title: "Window List",
+        content: "Switch between editor windows, assembly listings, and other tools like disassembler and memory dump."
+      });
+    }
+    var tour = new Tour({
+      autoscroll:false,
+      //storage:false,
+      steps:steps
+    });
     tour.init();
     setTimeout(function() { tour.start(); }, 2000);
   }
