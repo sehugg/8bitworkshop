@@ -8,3 +8,7 @@ before_install:
 language: node_js
 node_js:
   - "6.5.0"
+script:
+  - npm run build
+  - npm test
+ 

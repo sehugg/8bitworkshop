@@ -1,23 +1,23 @@
 "use strict";
 
-function lpad(s,n) { while(s.length<n) s=" "+s; return s; }
+function lpad(s:string, n:number):string { while(s.length<n) s=" "+s; return s; }
 
-function byte2signed(b) {
+function byte2signed(b:number):number {
   b &= 0xff;
   return (b < 0x80) ? b : -(256-b);
 }
 
-function getFilenameForPath(s) {
+function getFilenameForPath(s:string):string {
   var toks = s.split('/');
   return toks[toks.length-1];
 }
 
-function getFilenamePrefix(s) {
+function getFilenamePrefix(s:string):string {
   var pos = s.lastIndexOf('.');
   return (pos > 0) ? s.substr(0, pos) : s;
 }
 
-function hex(v, nd) {
+function hex(v:number, nd?:number) {
   try {
     if (!nd) nd = 2;
     var s = v.toString(16).toUpperCase();
@@ -29,7 +29,7 @@ function hex(v, nd) {
   }
 }
 
-function arrayCompare(a,b) {
+function arrayCompare(a:any[], b:any[]):boolean {
   if (a == null && b == null) return true;
   if (a == null) return false;
   if (b == null) return false;
@@ -40,7 +40,7 @@ function arrayCompare(a,b) {
   return true;
 }
 
-function invertMap(m) {
+function invertMap(m:{}):{} {
   var r = {};
   if (m) {
     for (var k in m) r[m[k]] = k;
@@ -48,7 +48,7 @@ function invertMap(m) {
   return r;
 }
 
-function highlightDifferences(s1, s2) {
+function highlightDifferences(s1:string, s2:string):string {
   var split1 = s1.split(/(\S+\s+)/).filter(function(n) {return n});
   var split2 = s2.split(/(\S+\s+)/).filter(function(n) {return n});
   var i = 0;
@@ -104,7 +104,7 @@ function lzgmini() {
 
   // Decode LZG coded data. The function returns the size of the decoded data.
   // Use any of the get* methods to retrieve the decoded data.
-  this.decode = function(data) {
+  this.decode = function(data:number[]):number[] {
     // Start by clearing the decompressed array in this object
     outdata = null;
 
@@ -112,7 +112,7 @@ function lzgmini() {
     if ((data.length < LZG_HEADER_SIZE) || (data[0] != 76) ||
          (data[1] != 90) || (data[2] != 71))
     {
-      return 0;
+      return null;
     }
 
     // Calculate & check the checksum
@@ -122,7 +122,7 @@ function lzgmini() {
                    (data[14] & 0xff);
     if (calcChecksum(data) != checksum)
     {
-      return 0;
+      return null;
     }
 
     // Check which method to use
@@ -223,13 +223,13 @@ function lzgmini() {
   }
 
   // Get the decoded byte array
-  this.getByteArray = function()
+  this.getByteArray = function():number[]
   {
     return outdata;
   }
 
   // Get the decoded string from a Latin 1 (or ASCII) encoded array
-  this.getStringLatin1 = function()
+  this.getStringLatin1 = function():string
   {
     var str = "";
     if (outdata != null)
@@ -245,7 +245,7 @@ function lzgmini() {
   }
 
   // Get the decoded string from an UTF-8 encoded array
-  this.getStringUTF8 = function()
+  this.getStringUTF8 = function():string
   {
     var str = "";
     if (outdata != null)

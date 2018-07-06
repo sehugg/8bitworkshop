@@ -207,6 +207,13 @@ ga('send', 'pageview');
 <script src="codemirror/addon/selection/active-line.js"></script>
 <link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
 
+<script>
+var exports = {};
+function require(modname) {
+  if (modname == 'jquery') return $;
+}
+</script>
+
 <script src="javatari.js/release/javatari/javatari.js"></script>
 <script src="src/cpu/z80fast.js"></script>
 <!--<script src="src/cpu/6809.js"></script>-->
@@ -232,9 +239,11 @@ ga('send', 'pageview');
 <script src="src/vlist.js"></script>
 <script src="src/emu.js"></script>
 <script src="src/audio.js"></script>
-<script src="src/util.js"></script>
+<script src="gen/util.js"></script>
 <script src="src/cpu/disasm6502.js"></script>
-<script src="src/project.js"></script>
+<script src="gen/project.js"></script>
+<script src="gen/windows.js"></script>
+<script src="gen/views.js"></script>
 <script src="src/ui.js"></script>
 <!-- <script src="src/audio/votrax.js"></script> -->
 

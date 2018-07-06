@@ -45,9 +45,9 @@ global.localStorage = {
 };
 
 includeInThisContext("localForage/dist/localforage.js");
-includeInThisContext("src/util.js");
+includeInThisContext("gen/util.js");
 includeInThisContext("src/store.js");
-includeInThisContext("src/project.js");
+var prj = require("../../gen/project.js");
 
 var test_platform_id = "_TEST";
 
@@ -74,7 +74,7 @@ describe('Store', function() {
    var store = createNewPersistentStore(test_platform_id, function() {
     var worker = {};
     var platform = {};
-    var project = new CodeProject(worker, test_platform_id, platform, store);
+    var project = new prj.CodeProject(worker, test_platform_id, platform, store);
     project.loadFiles(['test'], function(err, result) {
      assert.equal(null, err);
      assert.deepEqual([ { path: 'test', filename: 'test', data: 'a' } ], result);
@@ -106,7 +106,7 @@ describe('Store', function() {
    var platform = {
     getToolForFilename: function(fn) { return 'dasm'; },
    };
-   var project = new CodeProject(worker, test_platform_id, platform, store);
+   var project = new prj.CodeProject(worker, test_platform_id, platform, store);
    project.callbackBuildStatus = function(b) { msgs.push(b) };
    project.updateFile('test.a', ' lda #0');
    project.updateFile('test.a', ' lda #1'); // don't send twice (yet)
@@ -129,7 +129,7 @@ describe('Store', function() {
    };
    var platform = {
    };
-   var project = new CodeProject(worker, test_platform_id, platform, store);
+   var project = new prj.CodeProject(worker, test_platform_id, platform, store);
    project.callbackBuildStatus = function(b) { msgs.push(b) };
    var buildresult = {
     listings: {
@@ -143,8 +143,8 @@ describe('Store', function() {
    var lst = buildresult.listings.test;
    console.log(lst);
    assert.equal(3, lst.sourcefile.findLineForOffset(61440+15));
-   assert.equal(0, lst.sourcefile.findLineForOffset(61440+16));
-   assert.equal(0, lst.sourcefile.findLineForOffset(61440-1));
+   assert.equal(null, lst.sourcefile.findLineForOffset(61440+16));
+   assert.equal(null, lst.sourcefile.findLineForOffset(61440-1));
    assert.equal(1, lst.sourcefile.lineCount());
    done();
   });

@@ -7,7 +7,7 @@ var includeInThisContext = function(path) {
     vm.runInThisContext(code, path);
 };
 
-includeInThisContext("src/util.js");
+includeInThisContext("gen/util.js");
 includeInThisContext("src/pixed/pixeleditor.js");
 
 describe('Pixel editor', function() {

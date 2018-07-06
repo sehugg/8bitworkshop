@@ -4,6 +4,7 @@
   "author": "Steven Hugg",
   "dependencies": {},
   "devDependencies": {
+    "@types/jquery": "^3.3.4",
     "mocha": "^3.2.0",
     "mocha-phantomjs": "^4.1.0",
     "wavedrom-cli": "^0.5.0"
@@ -15,6 +16,7 @@
     "test": "tests"
   },
   "scripts": {
+    "build": "tsc",
     "test": "npm run test-node && npm run test-browser",
     "test-one": "mocha --recursive --timeout 20000",
     "test-node": "mocha --recursive --timeout 20000 test/cli",
