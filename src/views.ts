@@ -114,6 +114,7 @@ function SourceEditor(path, mode) {
     editor.clearGutter("gutter-info");
     refreshDebugState();
     dirtylisting = true;
+    lines2errmsg = [];
   }
   
   self.getSourceFile = function() { return sourcefile; }

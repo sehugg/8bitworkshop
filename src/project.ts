@@ -126,7 +126,8 @@ export class CodeProject {
       this.tools_preloaded[tool] = true;
     }
   }
-  
+
+  // TODO: support link-time and compile-time (include) dependencies  
   parseFileDependencies(text:string):string[] {
     var files = [];
     if (this.platform_id == 'verilog') {
@@ -192,7 +193,7 @@ export class CodeProject {
       } else {
         this.store.getItem(path, (err, value) => {
           if (err) {
-            callback(err);
+            callback(err, result);
           } else if (value) {
             result.push({
               path:path,
@@ -217,7 +218,7 @@ export class CodeProject {
               loadNext();
             }, 'text')
             .fail(function() {
-              callback("Could not load preset " + path);
+              callback("Could not load preset " + path, result);
             });
           }
         });
@@ -244,6 +245,7 @@ export class CodeProject {
       if (err) {
         console.log(err); // TODO?
       }
+      if (!depends) depends = [];
       if (this.platform_id == 'verilog') {
         // TODO: should get rid of this msg format
         this.worker.postMessage({

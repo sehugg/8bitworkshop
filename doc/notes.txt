@@ -44,6 +44,7 @@ TODO:
 - unify versioning
 - more UI tests
 - base-36 encoding for LZG
+- disassembler for uploaded ROMs
 
 
 WEB WORKER FORMAT

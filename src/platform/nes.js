@@ -5,6 +5,7 @@ var NES_NESLIB_PRESETS = [
   {id:'neslib2.c', name:'Sprites'},
   {id:'neslib3.c', name:'Cursor'},
   {id:'neslib4.c', name:'Metasprites'},
+  {id:'chase/game.c', name:'Chase (example game)'},
 ];
 
 var NES_CONIO_PRESETS = [

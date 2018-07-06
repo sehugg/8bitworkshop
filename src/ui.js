@@ -748,12 +748,10 @@ function installErrorHandler() {
       window.onerror = function (msgevent, url, line, col, error) {
         console.log(msgevent, url, line, col);
         console.log(error);
-        if (window.location.host.endsWith('8bitworkshop.com')) {
-          ga('send', 'exception', {
-            'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
-            'exFatal': true
-          });
-        }
+        ga('send', 'exception', {
+          'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
+          'exFatal': true
+        });
         alert(msgevent+"");
       };
   }
