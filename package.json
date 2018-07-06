@@ -4,6 +4,7 @@
   "author": "Steven Hugg",
   "dependencies": {},
   "devDependencies": {
+    "typescript": "^2.9.2",
     "@types/jquery": "^3.3.4",
     "mocha": "^3.2.0",
     "mocha-phantomjs": "^4.1.0",

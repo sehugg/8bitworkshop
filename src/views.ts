@@ -13,7 +13,12 @@ var pixeditframe;
 
 // TODO: functions
 var inspectVariable;
-var jumpToLine;
+
+function jumpToLine(ed, i:number) {
+  var t = ed.charCoords({line: i, ch: 0}, "local").top;
+  var middleHeight = ed.getScrollerElement().offsetHeight / 2;
+  ed.scrollTo(null, t - middleHeight - 5);
+}
 
 // TODO: remove some calls of global functions
 function SourceEditor(path, mode) {

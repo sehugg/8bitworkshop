@@ -501,12 +501,6 @@ function clearBreakpoint() {
   showMemory();
 }
 
-function jumpToLine(ed, i) {
-  var t = ed.charCoords({line: i, ch: 0}, "local").top;
-  var middleHeight = ed.getScrollerElement().offsetHeight / 2;
-  ed.scrollTo(null, t - middleHeight - 5);
-}
-
 function resetAndDebug() {
   if (platform.setupDebug && platform.readAddress) { // TODO??
     clearBreakpoint();
