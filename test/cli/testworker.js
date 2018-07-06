@@ -149,7 +149,14 @@ describe('Worker', function() {
   });
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
-    compile('verilator', csource, 'verilog', done, 2782, 0, 0);
+    var msgs = [{code:csource, platform:"verilog", tool:"verilator", dependencies:[]}];
+    var done2 = function(err, msg) {
+      var jscode = msg.output.code;
+      var fn = new Function(jscode);
+      assert.ok(fn);
+      done(err, msg);
+    };
+    doBuild(msgs, done2, 2782, 0, 0);
   });
   it('should compile verilog inline assembler (JSASM)', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/test2.asm'));
