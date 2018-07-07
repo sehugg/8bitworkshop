@@ -729,6 +729,12 @@ function showWelcomeMessage() {
         content: "Switch between editor windows, assembly listings, and other tools like disassembler and memory dump."
       });
     }
+    steps.push({
+      element: "#booksMenuButton",
+      placement: 'left',
+      title: "Bookstore",
+      content: "Get some books that explain how to program all of this stuff!"
+    });
     var tour = new Tour({
       autoscroll:false,
       //storage:false,

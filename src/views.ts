@@ -1,45 +1,70 @@
 "use strict";
 
+import $ = require("jquery");
+import { SourceFile, WorkerError, CodeProject } from "./project";
+
+export interface ProjectView {
+  createDiv(parent:HTMLElement, text:string);
+  refresh();
+  getCursorPC?() : number;
+  getSourceFile?() : SourceFile;
+  setGutterBytes?(line:number, s:string);
+  openBitmapEditorAtCursor?();
+  // TODO
+};
+
 // TODO: move to different namespace
-var CodeMirror;
-var platform;
-var platform_id : string;
-var compparams;
-var addr2symbol : {[addr:number]:string};
-var current_project;
-var VirtualList;
-var lastDebugState;
+declare var CodeMirror;
+declare var platform;
+declare var platform_id : string;
+declare var compparams;
+declare var addr2symbol : {[addr:number]:string};
+declare var current_project : CodeProject;
+declare var VirtualList;
+declare var lastDebugState;
 
 // TODO: functions
-var inspectVariable;
+declare function inspectVariable(ed, name?:string);
 
+// helper function for editor
 function jumpToLine(ed, i:number) {
   var t = ed.charCoords({line: i, ch: 0}, "local").top;
   var middleHeight = ed.getScrollerElement().offsetHeight / 2;
   ed.scrollTo(null, t - middleHeight - 5);
 }
 
-// TODO: remove some calls of global functions
-function SourceEditor(path, mode) {
-  var self = this;
-  var editor;
-  var dirtylisting = true;
-  var sourcefile;
-  var currentDebugLine;
+function getVisibleEditorLineHeight() : number{
+  return $(".CodeMirror-line:visible").first().height();
+}
+
+/////
+
+class SourceEditor implements ProjectView {
+  constructor(path:string, mode:string) {
+    this.path = path;
+    this.mode = mode;
+  }
+  path : string;
+  mode : string;
+  editor;
+  dirtylisting = true;
+  sourcefile : SourceFile;
+  currentDebugLine : number;
+  lines2errmsg = [];
   
-  self.createDiv = function(parent, text) {
+  createDiv(parent:HTMLElement, text:string) {
     var div = document.createElement('div');
     div.setAttribute("class", "editor");
     parent.appendChild(div);
-    newEditor(div);
+    this.newEditor(div);
     if (text)
-      self.setText(text); // TODO: this calls setCode() and builds... it shouldn't
+      this.setText(text); // TODO: this calls setCode() and builds... it shouldn't
     return div;
   }
 
-  function newEditor(parent) {
-    var isAsm = mode=='6502' || mode =='z80' || mode=='verilog' || mode=='gas'; // TODO
-    editor = CodeMirror(parent, {
+  newEditor(parent:HTMLElement) {
+    var isAsm = this.mode=='6502' || this.mode =='z80' || this.mode=='verilog' || this.mode=='gas'; // TODO
+    this.editor = CodeMirror(parent, {
       theme: 'mbo',
       lineNumbers: true,
       matchBrackets: true,
@@ -49,173 +74,174 @@ function SourceEditor(path, mode) {
                      : ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"],
     });
     var timer;
-    editor.on('changes', function(ed, changeobj) {
+    this.editor.on('changes', (ed, changeobj) => {
       clearTimeout(timer);
-      timer = setTimeout(function() {
-        current_project.updateFile(path, editor.getValue(), false);
+      timer = setTimeout( () => {
+        current_project.updateFile(this.path, this.editor.getValue());
       }, 200);
     });
-    editor.on('cursorActivity', function(ed) {
-      var start = editor.getCursor(true);
-      var end = editor.getCursor(false);
+    this.editor.on('cursorActivity', (ed) => {
+      var start = this.editor.getCursor(true);
+      var end = this.editor.getCursor(false);
       if (start.line == end.line && start.ch < end.ch) {
-        var name = editor.getSelection();
-        inspectVariable(editor, name);
+        var name = this.editor.getSelection();
+        inspectVariable(this.editor, name);
       } else {
-        inspectVariable(editor);
+        inspectVariable(this.editor);
       }
     });
     //scrollProfileView(editor);
-    editor.setOption("mode", mode);
+    this.editor.setOption("mode", this.mode);
   }
 
-  self.setText = function(text) {
-    editor.setValue(text); // calls setCode()
-    editor.clearHistory();
+  setText(text:string) {
+    this.editor.setValue(text); // calls setCode()
+    this.editor.clearHistory();
   }
   
-  self.getValue = function() {
-    return editor.getValue();
+  getValue() : string {
+    return this.editor.getValue();
   }
   
-  self.getPath = function() { return path; }
+  getPath() : string { return this.path; }
 
-  var lines2errmsg = [];
-  self.addErrorMarker = function(line, msg) {
+  addErrorMarker(line:number, msg:string) {
     var div = document.createElement("div");
     div.setAttribute("class", "tooltipbox tooltiperror");
     div.appendChild(document.createTextNode("\u24cd"));
     var tooltip = document.createElement("span");
     tooltip.setAttribute("class", "tooltiptext");
-    if (lines2errmsg[line])
-      msg = lines2errmsg[line] + "\n" + msg;
+    if (this.lines2errmsg[line])
+      msg = this.lines2errmsg[line] + "\n" + msg;
     tooltip.appendChild(document.createTextNode(msg));
-    lines2errmsg[line] = msg;
+    this.lines2errmsg[line] = msg;
     div.appendChild(tooltip);
-    editor.setGutterMarker(line, "gutter-info", div);
+    this.editor.setGutterMarker(line, "gutter-info", div);
   }
   
-  self.markErrors = function(errors) {
+  markErrors(errors:WorkerError[]) {
     // TODO: move cursor to error line if offscreen?
-    self.clearErrors();
-    var numLines = editor.lineCount();
+    this.clearErrors();
+    var numLines = this.editor.lineCount();
     for (var info of errors) {
       // only mark errors with this filename, or without any filename
-      if (!info.path || path.endsWith(info.path)) {
+      if (!info.path || this.path.endsWith(info.path)) {
         var line = info.line-1;
         if (line < 0 || line >= numLines) line = 0;
-        self.addErrorMarker(line, info.msg);
+        this.addErrorMarker(line, info.msg);
       }
     }
   }
   
-  self.clearErrors = function() {
-    editor.clearGutter("gutter-info");
-    refreshDebugState();
-    dirtylisting = true;
-    lines2errmsg = [];
+  clearErrors() {
+    this.editor.clearGutter("gutter-info");
+    this.refreshDebugState();
+    this.dirtylisting = true;
+    this.lines2errmsg = [];
   }
   
-  self.getSourceFile = function() { return sourcefile; }
+  getSourceFile() : SourceFile { return this.sourcefile; }
 
   // TODO: update gutter only when refreshing this window
-  self.updateListing = function(_sourcefile) {
-    sourcefile = _sourcefile;
+  updateListing(_sourcefile : SourceFile) {
+    this.sourcefile = _sourcefile;
     // update editor annotations
-    editor.clearGutter("gutter-info");
-    editor.clearGutter("gutter-bytes");
-    editor.clearGutter("gutter-offset");
-    editor.clearGutter("gutter-clock");
-    var lstlines = sourcefile.lines || [];
+    this.editor.clearGutter("gutter-info");
+    this.editor.clearGutter("gutter-bytes");
+    this.editor.clearGutter("gutter-offset");
+    this.editor.clearGutter("gutter-clock");
+    var lstlines = this.sourcefile.lines || [];
     for (var info of lstlines) {
       if (info.offset >= 0) {
         var textel = document.createTextNode(hex(info.offset,4));
-        editor.setGutterMarker(info.line-1, "gutter-offset", textel);
+        this.editor.setGutterMarker(info.line-1, "gutter-offset", textel);
       }
       if (info.insns) {
         var insnstr = info.insns.length > 9 ? ("...") : info.insns;
         var textel = document.createTextNode(insnstr);
-        editor.setGutterMarker(info.line-1, "gutter-bytes", textel);
+        this.editor.setGutterMarker(info.line-1, "gutter-bytes", textel);
         if (info.iscode) {
-          var opcode = parseInt(info.insns.split()[0], 16);
+          var opcode = parseInt(info.insns.split(" ")[0], 16);
           if (platform.getOpcodeMetadata) {
             var meta = platform.getOpcodeMetadata(opcode, info.offset);
             var clockstr = meta.minCycles+"";
             var textel = document.createTextNode(clockstr);
-            editor.setGutterMarker(info.line-1, "gutter-clock", textel);
+            this.editor.setGutterMarker(info.line-1, "gutter-clock", textel);
           }
         }
       }
     }
   }
   
-  self.setGutterBytes = function(line, s) {
+  setGutterBytes(line:number, s:string) {
     var textel = document.createTextNode(s);
-    editor.setGutterMarker(line-1, "gutter-bytes", textel);
+    this.editor.setGutterMarker(line-1, "gutter-bytes", textel);
   }
   
-  self.setCurrentLine = function(line) {
-    function addCurrentMarker(line) {
+  setCurrentLine(line:number) {
+
+    var addCurrentMarker = (line:number) => {
       var div = document.createElement("div");
       div.style.color = '#66ffff';
       div.appendChild(document.createTextNode("\u25b6"));
-      editor.setGutterMarker(line, "gutter-info", div);
+      this.editor.setGutterMarker(line, "gutter-info", div);
     }
-    self.clearCurrentLine();
+
+    this.clearCurrentLine();
     if (line>0) {
       addCurrentMarker(line-1);
-      editor.setSelection({line:line,ch:0}, {line:line-1,ch:0}, {scroll:true});
-      currentDebugLine = line;
+      this.editor.setSelection({line:line,ch:0}, {line:line-1,ch:0}, {scroll:true});
+      this.currentDebugLine = line;
     }
   }
 
-  self.clearCurrentLine = function() {
-    if (currentDebugLine) {
-      editor.clearGutter("gutter-info");
-      editor.setSelection(editor.getCursor());
-      currentDebugLine = 0;
+  clearCurrentLine() {
+    if (this.currentDebugLine) {
+      this.editor.clearGutter("gutter-info");
+      this.editor.setSelection(this.editor.getCursor());
+      this.currentDebugLine = 0;
     }
   }
   
-  function refreshDebugState() {
-    self.clearCurrentLine();
+  refreshDebugState() {
+    this.clearCurrentLine();
     var state = lastDebugState;
     if (state && state.c) {
       var PC = state.c.PC;
-      var line = sourcefile.findLineForOffset(PC);
+      var line = this.sourcefile.findLineForOffset(PC);
       if (line >= 0) {
-        self.setCurrentLine(line);
+        this.setCurrentLine(line);
         // TODO: switch to disasm?
       }
     }
   }
   
-  function refreshListing() {
-    if (!dirtylisting) return;
-    dirtylisting = false;
-    var lst = current_project.getListingForFile(path);
+  refreshListing() {
+    if (!this.dirtylisting) return;
+    this.dirtylisting = false;
+    var lst = current_project.getListingForFile(this.path);
     if (lst && lst.sourcefile) {
-      self.updateListing(lst.sourcefile); // updates sourcefile variable
+      this.updateListing(lst.sourcefile); // updates sourcefile variable
     }
   }
 
-  self.refresh = function() {
-    refreshListing();
-    refreshDebugState();
+  refresh() {
+    this.refreshListing();
+    this.refreshDebugState();
   }
   
-  self.getLine = function(line) {
-    return editor.getLine(line-1);
+  getLine(line : number) {
+    return this.editor.getLine(line-1);
   }
   
-  self.getCurrentLine = function() {
-    return editor.getCursor().line+1;
+  getCurrentLine() : number {
+    return this.editor.getCursor().line+1;
   }
   
-  self.getCursorPC = function() {
-    var line = self.getCurrentLine();
-    while (sourcefile && line >= 0) {
-      var pc = sourcefile.line2offset[line];
+  getCursorPC() : number {
+    var line = this.getCurrentLine();
+    while (this.sourcefile && line >= 0) {
+      var pc = this.sourcefile.line2offset[line];
       if (pc >= 0) return pc;
       line--;
     }
@@ -224,26 +250,27 @@ function SourceEditor(path, mode) {
 
   // bitmap editor (TODO: refactor)
 
-  function handleWindowMessage(e) { 
-    //console.log("window message", e.data);
-    if (e.data.bytes) {
-      editor.replaceSelection(e.data.bytestr);
-    }
-    if (e.data.close) {
-      $("#pixeditback").hide();
-    }
-  }
+  openBitmapEditorWithParams(fmt, bytestr, palfmt, palstr) {
 
-  function openBitmapEditorWithParams(fmt, bytestr, palfmt, palstr) {
+    var handleWindowMessage = (e) => { 
+      //console.log("window message", e.data);
+      if (e.data.bytes) {
+        this.editor.replaceSelection(e.data.bytestr);
+      }
+      if (e.data.close) {
+        $("#pixeditback").hide();
+      }
+    }
+
     $("#pixeditback").show();
     window.addEventListener("message", handleWindowMessage, false); // TODO: remove listener
     window['pixeditframe'].contentWindow.postMessage({fmt:fmt, bytestr:bytestr, palfmt:palfmt, palstr:palstr}, '*');
   }
 
-  function lookBackwardsForJSONComment(line, req) {
+  lookBackwardsForJSONComment(line, req) {
     var re = /[/;][*;]([{].+[}])[*;][/;]/;
     while (--line >= 0) {
-      var s = editor.getLine(line);
+      var s = this.editor.getLine(line);
       var m = re.exec(s);
       if (m) {
         var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
@@ -253,15 +280,15 @@ function SourceEditor(path, mode) {
           var line0 = line;
           var pos0 = start.ch;
           line--;
-          while (++line < editor.lineCount()) {
-            var l = editor.getLine(line);
+          while (++line < this.editor.lineCount()) {
+            var l = this.editor.getLine(line);
             var endsection;
             if (platform_id == 'verilog')
               endsection = l.indexOf('end') >= pos0;
             else
               endsection = l.indexOf(';') >= pos0;
             if (endsection) {
-              var end = {line:line, ch:editor.getLine(line).length};
+              var end = {line:line, ch:this.editor.getLine(line).length};
               return {obj:obj, start:start, end:end};
             }
             pos0 = 0;
@@ -272,22 +299,22 @@ function SourceEditor(path, mode) {
     }
   }
 
-  self.openBitmapEditorAtCursor = function() {
+  openBitmapEditorAtCursor() {
     if ($("#pixeditback").is(":visible")) {
       $("#pixeditback").hide(250);
       return;
     }
-    var line = editor.getCursor().line + 1;
-    var data = lookBackwardsForJSONComment(self.getCurrentLine(), 'w');
+    var line = this.editor.getCursor().line + 1;
+    var data = this.lookBackwardsForJSONComment(this.getCurrentLine(), 'w');
     if (data && data.obj && data.obj.w>0 && data.obj.h>0) {
-      var paldata = lookBackwardsForJSONComment(data.start.line-1, 'pal');
+      var paldata = this.lookBackwardsForJSONComment(data.start.line-1, 'pal');
       var palbytestr;
       if (paldata) {
-        palbytestr = editor.getRange(paldata.start, paldata.end);
+        palbytestr = this.editor.getRange(paldata.start, paldata.end);
         paldata = paldata.obj;
       }
-      editor.setSelection(data.end, data.start);
-      openBitmapEditorWithParams(data.obj, editor.getSelection(), paldata, palbytestr);
+      this.editor.setSelection(data.end, data.start);
+      this.openBitmapEditorWithParams(data.obj, this.editor.getSelection(), paldata, palbytestr);
     } else {
       alert("To edit graphics, move cursor to a constant array preceded by a comment in the format:\n\n/*{w:,h:,bpp:,count:...}*/\n\n(See code examples)");
     }
@@ -296,22 +323,21 @@ function SourceEditor(path, mode) {
 
 ///
 
-function DisassemblerView() {
-  var self = this;
-  var disasmview;
+class DisassemblerView implements ProjectView {
+  disasmview;
   
-  self.getDisasmView = function() { return disasmview; }
+  getDisasmView() { return this.disasmview; }
  
-  self.createDiv = function(parent) {
+  createDiv(parent : HTMLElement) {
     var div = document.createElement('div');
     div.setAttribute("class", "editor");
     parent.appendChild(div);
-    newEditor(div);
+    this.newEditor(div);
     return div;
   }
   
-  function newEditor(parent) {
-    disasmview = CodeMirror(parent, {
+  newEditor(parent : HTMLElement) {
+    this.disasmview = CodeMirror(parent, {
       mode: 'z80', // TODO: pick correct one
       theme: 'cobalt',
       tabSize: 8,
@@ -321,13 +347,13 @@ function DisassemblerView() {
   }
 
   // TODO: too many globals
-  self.refresh = function() {
+  refresh() {
     var state = lastDebugState || platform.saveState();
     var pc = state.c ? state.c.PC : 0;
     var curline = 0;
     var selline = 0;
     // TODO: not perfect disassembler
-    function disassemble(start, end) {
+    var disassemble = (start, end) => {
       if (start < 0) start = 0;
       if (end > 0xffff) end = 0xffff;
       // TODO: use pc2visits
@@ -336,7 +362,7 @@ function DisassemblerView() {
       while (a < end) {
         var disasm = platform.disassemble(a, platform.readAddress);
         /* TODO: look thru all source files
-        var srclinenum = sourcefile && sourcefile.offset2line[a];
+        var srclinenum = sourcefile && this.sourcefile.offset2line[a];
         if (srclinenum) {
           var srcline = getActiveEditor().getLine(srclinenum);
           if (srcline && srcline.trim().length) {
@@ -359,15 +385,15 @@ function DisassemblerView() {
       return s;
     }
     var text = disassemble(pc-96, pc) + disassemble(pc, pc+96);
-    disasmview.setValue(text);
-    disasmview.setCursor(selline, 0);
-    jumpToLine(disasmview, selline);
+    this.disasmview.setValue(text);
+    this.disasmview.setCursor(selline, 0);
+    jumpToLine(this.disasmview, selline);
   }
 
-  self.getCursorPC = function() {
-    var line = disasmview.getCursor().line;
+  getCursorPC() : number {
+    var line = this.disasmview.getCursor().line;
     if (line >= 0) {
-      var toks = disasmview.getLine(line).split(/\s+/);
+      var toks = this.disasmview.getLine(line).split(/\s+/);
       if (toks && toks.length >= 1) {
         var pc = parseInt(toks[0], 16);
         if (pc >= 0) return pc;
@@ -379,15 +405,19 @@ function DisassemblerView() {
 
 ///
 
-function ListingView(assemblyfile) {
-  var self = this;
-  this.__proto__ = new DisassemblerView();
+class ListingView extends DisassemblerView implements ProjectView {
+  assemblyfile : SourceFile;
 
-  self.refresh = function() {
+  constructor(assemblyfile : SourceFile) {
+    super();
+    this.assemblyfile = assemblyfile;
+  }
+
+  refresh() {
     var state = lastDebugState || platform.saveState();
     var pc = state.c ? state.c.PC : 0;
-    var asmtext = assemblyfile.text;
-    var disasmview = self.getDisasmView();
+    var asmtext = this.assemblyfile.text;
+    var disasmview = this.getDisasmView();
     if (platform_id == 'base_z80') { // TODO
       asmtext = asmtext.replace(/[ ]+\d+\s+;.+\n/g, '');
       asmtext = asmtext.replace(/[ ]+\d+\s+.area .+\n/g, '');
@@ -395,7 +425,7 @@ function ListingView(assemblyfile) {
     disasmview.setValue(asmtext);
     var findPC = platform.getDebugCallback() ? pc : -1;
     if (findPC >= 0) {
-      var lineno = assemblyfile.findLineForOffset(findPC);
+      var lineno = this.assemblyfile.findLineForOffset(findPC);
       if (lineno) {
         // set cursor while debugging
         if (platform.getDebugCallback())
@@ -408,68 +438,67 @@ function ListingView(assemblyfile) {
 
 ///
 
-function MemoryView() {
-  var self = this;
-  var memorylist;
-  var dumplines;
-  var div;
+class MemoryView implements ProjectView {
+  memorylist;
+  dumplines;
+  maindiv : HTMLElement;
+  static IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
 
-  // TODO?
-  function getVisibleEditorLineHeight() {
-    return $(".CodeMirror-line:visible").first().height();
-  }
-
-  self.createDiv = function(parent) {
-    div = document.createElement('div');
+  createDiv(parent : HTMLElement) {
+    var div = document.createElement('div');
     div.setAttribute("class", "memdump");
     parent.appendChild(div);
-    showMemoryWindow(div);
-    return div;
+    this.showMemoryWindow(div);
+    return this.maindiv = div;
   }
-  
-  function showMemoryWindow(parent) {
-    memorylist = new VirtualList({
+
+  showMemoryWindow(parent : HTMLElement) {
+    this.memorylist = new VirtualList({
       w:$("#workspace").width(),
       h:$("#workspace").height(),
       itemHeight: getVisibleEditorLineHeight(),
       totalRows: 0x1000,
-      generatorFn: function(row) {
-        var s = getMemoryLineAt(row);
-        var div = document.createElement("div");
-        if (dumplines) {
-          var dlr = dumplines[row];
-          if (dlr) div.classList.add('seg_' + getMemorySegment(dumplines[row].a));
+      generatorFn: (row : number) => {
+        var s = this.getMemoryLineAt(row);
+        var linediv = document.createElement("div");
+        if (this.dumplines) {
+          var dlr = this.dumplines[row];
+          if (dlr) linediv.classList.add('seg_' + this.getMemorySegment(this.dumplines[row].a));
         }
-        div.appendChild(document.createTextNode(s));
-        return div;
+        linediv.appendChild(document.createTextNode(s));
+        return linediv;
       }
     });
-    $(parent).append(memorylist.container);
-    self.tick();
-    if (compparams && dumplines)
-      memorylist.scrollToItem(findMemoryWindowLine(compparams.data_start));
+    $(parent).append(this.memorylist.container);
+    this.tick();
+    if (compparams && this.dumplines)
+      this.memorylist.scrollToItem(this.findMemoryWindowLine(compparams.data_start));
   }
   
-  self.tick = function() {
-    if (memorylist) {
-      $(div).find('[data-index]').each(function(i,e) {
+  refresh() {
+    this.tick();
+  }
+  
+  tick() {
+    if (this.memorylist) {
+      $(this.maindiv).find('[data-index]').each( (i,e) => {
         var div = $(e);
-        var row = div.attr('data-index');
+        var row = parseInt(div.attr('data-index'));
         var oldtext = div.text();
-        var newtext = getMemoryLineAt(row);
+        var newtext = this.getMemoryLineAt(row);
         if (oldtext != newtext)
           div.text(newtext);
       });
     }
   }
 
-  function getMemoryLineAt(row) {
+  getMemoryLineAt(row : number) : string {
     var offset = row * 16;
     var n1 = 0;
     var n2 = 16;
     var sym;
-    if (getDumpLines()) {
-      var dl = dumplines[row];
+    if (this.getDumpLines()) {
+      var dl = this.dumplines[row];
       if (dl) {
         offset = dl.a & 0xfff0;
         n1 = dl.a - offset;
@@ -492,33 +521,31 @@ function MemoryView() {
     return s;
   }
 
-  function getDumpLineAt(line) {
-    var d = dumplines[line];
+  getDumpLineAt(line : number) {
+    var d = this.dumplines[line];
     if (d) {
       return d.a + " " + d.s;
     }
   }
 
-  var IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
-
   // TODO: addr2symbol for ca65; and make it work without symbols
-  function getDumpLines() {
-    if (!dumplines && addr2symbol) {
-      dumplines = [];
+  getDumpLines() {
+    if (!this.dumplines && addr2symbol) {
+      this.dumplines = [];
       var ofs = 0;
       var sym;
       for (const _nextofs of Object.keys(addr2symbol)) { 
         var nextofs = parseInt(_nextofs); // convert from string (stupid JS)
         var nextsym = addr2symbol[nextofs];
         if (sym) {
-          if (IGNORE_SYMS[sym]) {
+          if (MemoryView.IGNORE_SYMS[sym]) {
             ofs = nextofs;
           } else {
             while (ofs < nextofs) {
               var ofs2 = (ofs + 16) & 0xffff0;
               if (ofs2 > nextofs) ofs2 = nextofs;
               //if (ofs < 1000) console.log(ofs, ofs2, nextofs, sym);
-              dumplines.push({a:ofs, l:ofs2-ofs, s:sym});
+              this.dumplines.push({a:ofs, l:ofs2-ofs, s:sym});
               ofs = ofs2;
             }
           }
@@ -526,10 +553,10 @@ function MemoryView() {
         sym = nextsym;
       }
     }
-    return dumplines;
+    return this.dumplines;
   }
 
-  function getMemorySegment(a) {
+  getMemorySegment(a:number) : string {
     if (!compparams) return 'unknown';
     if (a >= compparams.data_start && a < compparams.data_start+compparams.data_size) {
       if (platform.getSP && a >= platform.getSP() - 15)
@@ -543,9 +570,9 @@ function MemoryView() {
       return 'unknown';
   }
 
-  function findMemoryWindowLine(a) {
-    for (var i=0; i<dumplines.length; i++)
-      if (dumplines[i].a >= a)
+  findMemoryWindowLine(a:number) : number {
+    for (var i=0; i<this.dumplines.length; i++)
+      if (this.dumplines[i].a >= a)
         return i;
   }
 }

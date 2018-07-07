@@ -2,28 +2,31 @@
 
 type FileData = string | Uint8Array;
 
-interface SourceLine {
+export interface SourceLine {
   offset:number;
   line:number;
+  insns?:string;
+  iscode?:boolean;
 }
 
-interface Dependency {
+export interface Dependency {
   path:string,
   filename:string,
   data:FileData // TODO: or binary?
 }
 
-interface WorkerFileUpdate { path:string, data:FileData };
-interface WorkerBuildStep { path:string, platform:string, tool:string, mainfile?:boolean };
+export interface WorkerFileUpdate { path:string, data:FileData };
+export interface WorkerBuildStep { path:string, platform:string, tool:string, mainfile?:boolean };
 
-interface WorkerMessage {
+export interface WorkerMessage {
   updates:WorkerFileUpdate[],
   buildsteps:WorkerBuildStep[]
 }
 
-interface WorkerError {
+export interface WorkerError {
   line:number,
   msg:string,
+  path?:string
   //TODO
 }
 

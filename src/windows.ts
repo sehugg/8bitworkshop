@@ -1,7 +1,10 @@
 "use strict";
 
 import $ = require("jquery");
-import { CodeProject } from "./project";
+import { WorkerError, CodeProject } from "./project";
+import { ProjectView } from "./views";
+
+type WindowCreateFunction = (id:string) => ProjectView;
 
 function ProjectWindows(containerdiv:HTMLElement, project:CodeProject) {
   var self = this;
@@ -13,11 +16,11 @@ function ProjectWindows(containerdiv:HTMLElement, project:CodeProject) {
   var lasterrors;
   // TODO: delete windows ever?
   
-  this.setCreateFunc = function(id, createfn) {
+  this.setCreateFunc = function(id:string, createfn:WindowCreateFunction) {
     id2createfn[id] = createfn;
   }
   
-  this.createOrShow = function(id) {
+  this.createOrShow = function(id:string) {
     var wnd = id2window[id];
     if (!wnd) {
       wnd = id2window[id] = id2createfn[id](id);
@@ -38,7 +41,7 @@ function ProjectWindows(containerdiv:HTMLElement, project:CodeProject) {
     return wnd;
   }
 
-  this.put = function(id, window) {
+  this.put = function(id:string, window:ProjectView) {
     id2window[id] = window;
   }
   
@@ -52,7 +55,7 @@ function ProjectWindows(containerdiv:HTMLElement, project:CodeProject) {
       activewnd.tick();
   }
 
-  this.setErrors = function(errors) {
+  this.setErrors = function(errors:WorkerError[]) {
     lasterrors = errors;
     this.refreshErrors();
   }
@@ -66,9 +69,9 @@ function ProjectWindows(containerdiv:HTMLElement, project:CodeProject) {
     }
   }
   
-  this.getActive = function() { return activewnd; }
+  this.getActive = function() : ProjectView { return activewnd; }
   
-  this.getCurrentText = function() {
+  this.getCurrentText = function() : string {
     if (activewnd && activewnd.getValue)
       return activewnd.getValue();
     else

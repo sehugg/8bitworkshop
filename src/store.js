@@ -66,7 +66,7 @@ localforage.defineDriver(OldFileStoreDriver);
 */
 
 // copy localStorage to new driver
-function copyFromOldStorageFormat(platformid:string, newstore, callback) {
+function copyFromOldStorageFormat(platformid, newstore, callback) {
   var alreadyMigratedKey = "__migrated_" + platformid;
   //localStorage.removeItem(alreadyMigratedKey);
   if (localStorage.getItem(alreadyMigratedKey))
