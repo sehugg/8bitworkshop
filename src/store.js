@@ -1,5 +1,7 @@
 "use strict";
 
+//import * as localforage from "localforage";
+
 var OldFileStore = function(storage, prefix) {
   var self = this;
   this.saveFile = function(name, text) {
@@ -26,6 +28,7 @@ var OldFileStore = function(storage, prefix) {
   }
 }
 
+/*
 // localforage-compatible driver for old file store format
 var OldFileStoreDriver = {
     _driver: 'oldFileStoreDriver',
@@ -59,11 +62,11 @@ var OldFileStoreDriver = {
       callback();
     }
 }
-
 localforage.defineDriver(OldFileStoreDriver);
+*/
 
 // copy localStorage to new driver
-function copyFromOldStorageFormat(platformid, newstore, callback) {
+function copyFromOldStorageFormat(platformid:string, newstore, callback) {
   var alreadyMigratedKey = "__migrated_" + platformid;
   //localStorage.removeItem(alreadyMigratedKey);
   if (localStorage.getItem(alreadyMigratedKey))
@@ -108,7 +111,7 @@ function copyFromOldStorageFormat(platformid, newstore, callback) {
 function createNewPersistentStore(platformid, callback) {
   var store = localforage.createInstance({
     name: platformid,
-    version: "2.0"
+    version: 2.0
   });
   copyFromOldStorageFormat(platformid, store, callback);
   return store;

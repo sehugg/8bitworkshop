@@ -42,7 +42,8 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <div id="controls_top">
     <span class="dropdown">
       <a class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Menu">
-        &#9776; <span class="caret"></span>
+        <span class="glyphicon glyphicon-menu-hamburger" aria-hidden="true"></span></button>
+        <span class="caret"></span>
       </a>
       <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
       <li><a class="dropdown-item" href="#" id="item_new_file">New File...</a></li>
@@ -89,7 +90,8 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 
   <span class="dropdown">
     <a class="btn btn-secondary dropdown-toggle" id="windowMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Window Select">
-      &#9775; <span class="caret"></span>
+      <span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span></button>
+      <span class="caret"></span>
     </a>
     <ul class="dropdown-menu" aria-labelledby="windowMenuButton" id="windowMenuList">
     </ul>
@@ -213,6 +215,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 var exports = {};
 function require(modname) {
   if (modname == 'jquery') return $;
+  else console.log("Unknown require()", modname);
 }
 </script>
 

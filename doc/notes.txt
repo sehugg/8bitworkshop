@@ -25,13 +25,12 @@ TODO:
 - watchpoints
 - breakpoints
 - debug inspector
-- better debug buttons
 - MAME single step (?)
 - step over
 - slowdown beam for all platforms?
 - kbd shortcuts
 - PC x86 support
-- show errors in list
+- show errors in list (maybe window list?)
 - can't see 1st line in editor sometimes
 - online help
 - show self-modifying code insns left of editor

@@ -413,13 +413,19 @@ function showMemory(state) {
   }
 }
 
-function setupBreakpoint() {
-  // TODO
+function setDebugButtonState(btnid, btnstate) {
+  $("#debug_bar").find("button").removeClass("btn_active").removeClass("btn_stopped");
+  $("#dbg_"+btnid).addClass("btn_"+btnstate);
+}
+
+function setupBreakpoint(btnid) {
   platform.setupDebug(function(state) {
     lastDebugState = state;
     showMemory(state);
     projectWindows.refresh();
+    if (btnid) setDebugButtonState(btnid, "stopped");
   });
+  if (btnid) setDebugButtonState(btnid, "active");
 }
 
 function _pause() {
@@ -427,8 +433,7 @@ function _pause() {
     platform.pause();
     console.log("Paused");
   }
-  $("#dbg_pause").addClass("btn_stopped");
-  $("#dbg_go").removeClass("btn_active");
+  setDebugButtonState("pause", "stopped");
 }
 
 function pause() {
@@ -442,8 +447,7 @@ function _resume() {
     platform.resume();
     console.log("Resumed");
   }
-  $("#dbg_pause").removeClass("btn_stopped");
-  $("#dbg_go").addClass("btn_active");
+  setDebugButtonState("go", "active");
 }
 
 function resume() {
@@ -456,12 +460,12 @@ function resume() {
 }
 
 function singleStep() {
-  setupBreakpoint();
+  setupBreakpoint("step");
   platform.step();
 }
 
 function singleFrameStep() {
-  setupBreakpoint();
+  setupBreakpoint("tovsync");
   platform.runToVsync();
 }
 
@@ -471,7 +475,7 @@ function getEditorPC() {
 }
 
 function runToCursor() {
-  setupBreakpoint();
+  setupBreakpoint("toline");
   var pc = getEditorPC();
   if (pc >= 0) {
     console.log("Run to", pc.toString(16));
@@ -486,12 +490,12 @@ function runToCursor() {
 }
 
 function runUntilReturn() {
-  setupBreakpoint();
+  setupBreakpoint("stepout");
   platform.runUntilReturn();
 }
 
 function runStepBackwards() {
-  setupBreakpoint();
+  setupBreakpoint("stepback");
   platform.stepBack();
 }
 
@@ -506,7 +510,7 @@ function resetAndDebug() {
     clearBreakpoint();
     _resume();
     platform.reset();
-    setupBreakpoint();
+    setupBreakpoint("reset");
     if (platform.runEval)
       platform.runEval(function(c) { return true; }); // break immediately
     else
@@ -614,6 +618,7 @@ function _slowestFrameRate() {
 }
 
 function _fastestFrameRate() {
+  _resume();
   setFrameRateUI(60);
 }
 
