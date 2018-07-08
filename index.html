@@ -211,14 +211,6 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <script src="codemirror/addon/selection/active-line.js"></script>
 <link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
 
-<script>
-var exports = {};
-function require(modname) {
-  if (modname == 'jquery') return $;
-  else console.log("Unknown require()", modname);
-}
-</script>
-
 <script src="javatari.js/release/javatari/javatari.js"></script>
 <script src="src/cpu/z80fast.js"></script>
 <!--<script src="src/cpu/6809.js"></script>-->
@@ -226,10 +218,6 @@ function require(modname) {
 <script src="jsnes/build/jsnes.min.js"></script>
 <script src="jsnes/lib/dynamicaudio-min.js" type="text/javascript" charset="utf-8"></script>
 -->
-<script src="tss/js/tss/PsgDeviceChannel.js"></script>
-<script src="tss/js/tss/MasterChannel.js"></script>
-<script src="tss/js/tss/AudioLooper.js"></script>
-<script src="tss/js/Log.js"></script>
 <!--
 <script src="local/williams/defender.js"></script>
 <script src="local/williams/robotron.js"></script>
@@ -240,6 +228,20 @@ function require(modname) {
 <script src="gif.js/dist/gif.js"></script>
 <script src="localForage/dist/localforage.nopromises.js"></script>
 
+<script>
+var exports = {};
+function require(modname) {
+  if (modname == 'jquery') return $;
+  else if (modname.startsWith('.')) return exports;
+  else { console.log("Unknown require()", modname); return exports; }
+}
+</script>
+
+<script src="tss/js/tss/PsgDeviceChannel.js"></script>
+<script src="tss/js/tss/MasterChannel.js"></script>
+<script src="tss/js/tss/AudioLooper.js"></script>
+<script src="tss/js/Log.js"></script>
+
 <script src="src/store.js"></script>
 <script src="src/vlist.js"></script>
 <script src="src/emu.js"></script>
@@ -249,7 +251,7 @@ function require(modname) {
 <script src="gen/project.js"></script>
 <script src="gen/windows.js"></script>
 <script src="gen/views.js"></script>
-<script src="src/ui.js"></script>
+<script src="gen/ui.js"></script>
 <!-- <script src="src/audio/votrax.js"></script> -->
 
 <script>

@@ -4,13 +4,16 @@ import $ = require("jquery");
 import { SourceFile, WorkerError, CodeProject } from "./project";
 
 export interface ProjectView {
-  createDiv(parent:HTMLElement, text:string);
-  refresh();
+  createDiv(parent:HTMLElement, text:string) : HTMLElement;
+  refresh() : void;
+  tick?() : void;
+  getValue?() : string;
   getCursorPC?() : number;
   getSourceFile?() : SourceFile;
-  setGutterBytes?(line:number, s:string);
-  openBitmapEditorAtCursor?();
-  // TODO
+  setGutterBytes?(line:number, s:string) : void;
+  openBitmapEditorAtCursor?() : void;
+  markErrors?(errors:WorkerError[]) : void;
+  clearErrors?() : void;
 };
 
 // TODO: move to different namespace
@@ -39,7 +42,7 @@ function getVisibleEditorLineHeight() : number{
 
 /////
 
-class SourceEditor implements ProjectView {
+export class SourceEditor implements ProjectView {
   constructor(path:string, mode:string) {
     this.path = path;
     this.mode = mode;
@@ -323,7 +326,7 @@ class SourceEditor implements ProjectView {
 
 ///
 
-class DisassemblerView implements ProjectView {
+export class DisassemblerView implements ProjectView {
   disasmview;
   
   getDisasmView() { return this.disasmview; }
@@ -405,7 +408,7 @@ class DisassemblerView implements ProjectView {
 
 ///
 
-class ListingView extends DisassemblerView implements ProjectView {
+export class ListingView extends DisassemblerView implements ProjectView {
   assemblyfile : SourceFile;
 
   constructor(assemblyfile : SourceFile) {
@@ -438,7 +441,7 @@ class ListingView extends DisassemblerView implements ProjectView {
 
 ///
 
-class MemoryView implements ProjectView {
+export class MemoryView implements ProjectView {
   memorylist;
   dumplines;
   maindiv : HTMLElement;

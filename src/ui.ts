@@ -2,18 +2,68 @@
 
 // 8bitworkshop IDE user interface
 
-// make sure VCS doesn't start
-if (window.Javatari) Javatari.AUTO_START = false;
+import $ = require("jquery");
+import * as bootstrap from "bootstrap";
+import { SourceFile, CodeProject } from "./project";
+import { ProjectWindows } from "./windows";
+import * as Views from "./views";
 
-var PRESETS;		// presets array
-var platform_id;	// platform ID string
-var platform;		// platform object
+// external libs (TODO)
+declare var Octokat, ga, Tour, GIF, saveAs;
+declare function createNewPersistentStore(platform_id : string);
+declare function showLoopTimingForPC(pc:number, sourcefile:SourceFile, wnd:Views.ProjectView);
+// loaded by platform js file
+declare var PLATFORMS;
+
+// make sure VCS doesn't start
+if (window['Javatari']) window['Javatari'].AUTO_START = false;
+
+interface Preset {
+  id : string;
+  name : string;
+  chapter? : number;
+  title? : string;
+}
+
+interface Platform {
+  start() : void;
+  reset() : void;
+  isRunning() : boolean;
+  getToolForFilename(s:string) : string;
+  getDefaultExtension() : string;
+  getPresets() : Preset[];
+  pause() : void;
+  resume() : void;
+  loadROM(title:string, rom:Uint8Array);
+  
+  inspect?(ident:string) : void;
+  disassemble?(addr:number, readfn:(addr:number)=>number) : any; // TODO
+  readAddress?(addr:number) : number;
+  setFrameRate?(fps:number) : void;
+  getFrameRate?() : number;
+  cpuStateToLongString?(state) : string;
+  ramStateToLongString?(state) : string;
+  getRasterPosition() : {x:number, y:number};
+  setupDebug?(debugfn : (state)=>void) : void;
+  clearDebug?() : void;
+  step?() : void;
+  runToVsync?() : void;
+  runToPC?(pc:number) : void;
+  runUntilReturn?() : void;
+  stepBack?() : void;
+  //TODO runEval?(evalfn : (cpustate) => boolean) : void;
+  runEval?(evalfn : Function) : void;
+}
+
+var PRESETS : Preset[];		// presets array
+var platform_id : string;	// platform ID string
+var platform : Platform;	// platform object
 
 var toolbar = $("#controls_top");
 
-var current_project;	// current CodeProject object
+var current_project : CodeProject;	// current CodeProject object
 
-var projectWindows;	// window manager
+var projectWindows : ProjectWindows;	// window manager
 
 
 // TODO: codemirror multiplex support?
@@ -33,11 +83,11 @@ function newWorker() {
   return new Worker("./src/worker/workermain.js");
 }
 
-var userPaused;			// did user explicitly pause?
+var userPaused : boolean;		// did user explicitly pause?
 
-var current_output;		// current ROM
-var current_preset_entry;	// current preset object (if selected)
-var main_file_id;		// main file ID
+var current_output;			// current ROM
+var current_preset_entry : Preset;	// current preset object (if selected)
+var main_file_id : string;	// main file ID
 var symbolmap;			// symbol map
 var addr2symbol;		// address to symbol name map
 var compparams;			// received build params from worker
@@ -114,7 +164,7 @@ function refreshWindowList() {
   function loadEditor(path) {
     var tool = platform.getToolForFilename(path);
     var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
-    return new SourceEditor(path, mode, current_project.getFile(path));
+    return new Views.SourceEditor(path, mode);
   }
   
   // add main file editor
@@ -135,7 +185,7 @@ function refreshWindowList() {
       var lst = listings[lstfn];
       if (lst.assemblyfile) {
         addWindowItem(lstfn, getFilenameForPath(lstfn), function(path) {
-          return new ListingView(lst.assemblyfile);
+          return new Views.ListingView(lst.assemblyfile);
         });
       }
     }
@@ -145,12 +195,12 @@ function refreshWindowList() {
   separate = true;
   if (platform.disassemble) {
     addWindowItem("#disasm", "Disassembly", function() {
-      return new DisassemblerView();
+      return new Views.DisassemblerView();
     });
   }
   if (platform.readAddress && platform_id != 'vcs') {
     addWindowItem("#memory", "Memory Browser", function() {
-      return new MemoryView();
+      return new Views.MemoryView();
     });
   }
 }
@@ -314,17 +364,17 @@ function _downloadSourceFile(e) {
 function populateExamples(sel) {
   // make sure to use callback so it follows other sections
   store.length(function(err, len) {
-    sel.append($("<option />").text("--------- Examples ---------").attr('disabled',true));
+    sel.append($("<option />").text("--------- Examples ---------").attr('disabled','true'));
     for (var i=0; i<PRESETS.length; i++) {
       var preset = PRESETS[i];
       var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
-      sel.append($("<option />").val(preset.id).text(name).attr('selected',preset.id==main_file_id));
+      sel.append($("<option />").val(preset.id).text(name).attr('selected',(preset.id==main_file_id)?'selected':null));
     }
   });
 }
 
 function populateFiles(sel, category, prefix) {
-  store.keys(function(err, keys) {
+  store.keys(function(err, keys : string[]) {
     var foundSelected = false;
     var numFound = 0;
     if (!keys) keys = [];
@@ -332,16 +382,16 @@ function populateFiles(sel, category, prefix) {
       var key = keys[i];
       if (key.startsWith(prefix)) {
         if (numFound++ == 0)
-          sel.append($("<option />").text("------- " + category + " -------").attr('disabled',true));
+          sel.append($("<option />").text("------- " + category + " -------").attr('disabled','true'));
         var name = key.substring(prefix.length);
-        sel.append($("<option />").val(key).text(name).attr('selected',key==main_file_id));
+        sel.append($("<option />").val(key).text(name).attr('selected',(key==main_file_id)?'selected':null));
         if (key == main_file_id) foundSelected = true;
       }
     }
     if (!foundSelected && main_file_id && main_file_id.startsWith(prefix)) {
-      var name = main_file_id.slice(prefix.length);
+      var name = main_file_id.substring(prefix.length);
       var key = prefix + name;
-      sel.append($("<option />").val(key).text(name).attr('selected',true));
+      sel.append($("<option />").val(key).text(name).attr('selected','true'));
     }
   });
 }
@@ -394,7 +444,7 @@ function setCompileOutput(data) {
   }
 }
 
-function showMemory(state) {
+function showMemory(state?) {
   var s = state && platform.cpuStateToLongString && platform.cpuStateToLongString(state.c);
   if (s) {
     if (platform.getRasterPosition) {
@@ -418,7 +468,7 @@ function setDebugButtonState(btnid, btnstate) {
   $("#dbg_"+btnid).addClass("btn_"+btnstate);
 }
 
-function setupBreakpoint(btnid) {
+function setupBreakpoint(btnid? : string) {
   platform.setupDebug(function(state) {
     lastDebugState = state;
     showMemory(state);
@@ -662,7 +712,7 @@ function setupDebugControls(){
   else
     $("#dbg_stepback").hide();
 
-  if (window.showLoopTimingForPC) { // VCS-only (TODO: put in platform)
+  if (window['showLoopTimingForPC']) { // VCS-only (TODO: put in platform)
     $("#dbg_timing").click(traceTiming).show();
   }
   $("#disassembly").hide();
@@ -747,8 +797,8 @@ function showWelcomeMessage() {
 
 ///////////////////////////////////////////////////
 
-var qs = (function (a) {
-    if (!a || a == "")
+var qs = (function (a : string[]) {
+    if (!a || a.length == 0)
         return {};
     var b = {};
     for (var i = 0; i < a.length; ++i) {
@@ -782,7 +832,7 @@ function uninstallErrorHandler() {
 
 function gotoNewLocation() {
   uninstallErrorHandler();
-  window.location = "?" + $.param(qs);
+  window.location.href = "?" + $.param(qs);
 }
 
 function initPlatform() {

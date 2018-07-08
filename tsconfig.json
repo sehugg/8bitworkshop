@@ -7,7 +7,9 @@
         "lib": [
             "es2016",
             "dom"
-        ]
+        ],
+        "noImplicitThis": false,
+        "noImplicitAny": false
     },
     "include": [
         "./src/*.ts",

@@ -5,7 +5,8 @@
   "dependencies": {},
   "devDependencies": {
     "typescript": "^2.9.2",
-    "@types/jquery": "^3.3.4",
+    "@types/jquery": "^2.x",
+    "@types/bootstrap": "^3.x",
     "mocha": "^3.2.0",
     "mocha-phantomjs": "^4.1.0",
     "wavedrom-cli": "^0.5.0"

@@ -6,34 +6,42 @@ import { ProjectView } from "./views";
 
 type WindowCreateFunction = (id:string) => ProjectView;
 
-function ProjectWindows(containerdiv:HTMLElement, project:CodeProject) {
-  var self = this;
-  var id2window = {};
-  var id2createfn = {};
-  var id2div = {};
-  var activewnd;
-  var activediv;
-  var lasterrors;
+export class ProjectWindows {
+  containerdiv:HTMLElement;
+  project:CodeProject;
+
+  id2window : {[id:string]:ProjectView} = {};
+  id2createfn : {[id:string]:WindowCreateFunction} = {};
+  id2div : {[id:string]:HTMLElement} = {};
+  activewnd : ProjectView;
+  activediv : HTMLElement;
+  lasterrors : WorkerError[];
+  
+  constructor(containerdiv:HTMLElement, project:CodeProject) {
+    this.containerdiv = containerdiv;
+    this.project = project;
+  }
   // TODO: delete windows ever?
   
-  this.setCreateFunc = function(id:string, createfn:WindowCreateFunction) {
-    id2createfn[id] = createfn;
+  setCreateFunc(id:string, createfn:WindowCreateFunction) {
+    this.id2createfn[id] = createfn;
   }
   
-  this.createOrShow = function(id:string) {
-    var wnd = id2window[id];
+  createOrShow(id:string) {
+    var wnd = this.id2window[id];
     if (!wnd) {
-      wnd = id2window[id] = id2createfn[id](id);
+      wnd = this.id2window[id] = this.id2createfn[id](id);
     }
-    var div = id2div[id];
+    var div = this.id2div[id];
     if (!div) {
-      div = id2div[id] = wnd.createDiv(containerdiv, project.getFile(id));
+      var data = this.project.getFile(id)+""; // TODO: binary files
+      div = this.id2div[id] = wnd.createDiv(this.containerdiv, data);
     }
-    if (activewnd != wnd) {
-      if (activediv)
-        $(activediv).hide();
-      activediv = div;
-      activewnd = wnd;
+    if (this.activewnd != wnd) {
+      if (this.activediv)
+        $(this.activediv).hide();
+      this.activediv = div;
+      this.activewnd = wnd;
       $(div).show();
       this.refresh();
       this.refreshErrors();
@@ -41,39 +49,39 @@ function ProjectWindows(containerdiv:HTMLElement, project:CodeProject) {
     return wnd;
   }
 
-  this.put = function(id:string, window:ProjectView) {
-    id2window[id] = window;
+  put(id:string, window:ProjectView) {
+    this.id2window[id] = window;
   }
   
-  this.refresh = function() {
-    if (activewnd && activewnd.refresh)
-      activewnd.refresh();
+  refresh() {
+    if (this.activewnd && this.activewnd.refresh)
+      this.activewnd.refresh();
   }
   
-  this.tick = function() {
-    if (activewnd && activewnd.tick)
-      activewnd.tick();
+  tick() {
+    if (this.activewnd && this.activewnd.tick)
+      this.activewnd.tick();
   }
 
-  this.setErrors = function(errors:WorkerError[]) {
-    lasterrors = errors;
+  setErrors(errors:WorkerError[]) {
+    this.lasterrors = errors;
     this.refreshErrors();
   }
   
-  this.refreshErrors = function() {
-    if (activewnd && activewnd.markErrors) {
-      if (lasterrors && lasterrors.length)
-        activewnd.markErrors(lasterrors);
+  refreshErrors() {
+    if (this.activewnd && this.activewnd.markErrors) {
+      if (this.lasterrors && this.lasterrors.length)
+        this.activewnd.markErrors(this.lasterrors);
       else
-        activewnd.clearErrors();
+        this.activewnd.clearErrors();
     }
   }
   
-  this.getActive = function() : ProjectView { return activewnd; }
+  getActive() : ProjectView { return this.activewnd; }
   
-  this.getCurrentText = function() : string {
-    if (activewnd && activewnd.getValue)
-      return activewnd.getValue();
+  getCurrentText() : string {
+    if (this.activewnd && this.activewnd.getValue)
+      return this.activewnd.getValue();
     else
       alert("Please switch to an editor window.");
   }
