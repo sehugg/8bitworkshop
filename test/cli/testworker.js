@@ -36,6 +36,7 @@ function doBuild(msgs, callback, outlen, nlines, nerrors) {
         } else {
           assert.equal(nerrors||0, 0, "errors");
           assert.equal(msg.output.code?msg.output.code.length:msg.output.length, outlen, "output binary");
+          assert.ok(msg.output.code || msg.output instanceof Uint8Array);
           if (nlines) {
             if (typeof nlines === 'number')
               nlines = [nlines];

@@ -1,7 +1,8 @@
 "use strict";
 
 import $ = require("jquery");
-import { SourceFile, WorkerError, CodeProject } from "./project";
+import { CodeProject } from "./project";
+import { SourceFile, WorkerError } from "./workertypes";
 import { Platform } from "./baseplatform";
 
 export interface ProjectView {

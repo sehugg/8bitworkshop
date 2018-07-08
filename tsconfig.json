@@ -9,7 +9,8 @@
             "dom"
         ],
         "noImplicitThis": false,
-        "noImplicitAny": false
+        "noImplicitAny": false,
+        "alwaysStrict": true
     },
     "include": [
         "./src/*.ts",

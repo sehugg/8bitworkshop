@@ -1,7 +1,8 @@
 "use strict";
 
 import $ = require("jquery");
-import { WorkerError, CodeProject } from "./project";
+import { CodeProject } from "./project";
+import { WorkerError } from "./workertypes";
 import { ProjectView } from "./views";
 
 type WindowCreateFunction = (id:string) => ProjectView;

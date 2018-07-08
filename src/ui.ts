@@ -4,7 +4,8 @@
 
 import $ = require("jquery");
 import * as bootstrap from "bootstrap";
-import { SourceFile, CodeProject } from "./project";
+import { CodeProject } from "./project";
+import { WorkerResult, SourceFile } from "./workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset } from "./baseplatform";
 import * as Views from "./views";
@@ -43,7 +44,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'jsasm': 'z80'
 }
 
-function newWorker() {
+function newWorker() : Worker {
   return new Worker("./src/worker/workermain.js");
 }
 
@@ -60,21 +61,21 @@ var store;			// persistent store
 var lastDebugInfo;		// last debug info (CPU text)
 var lastDebugState;		// last debug state (object)
 
-function inspectVariable(ed, name) {
+function inspectVariable(ed, name) { // TODO: ed?
   var val;
   if (platform.inspect) {
     platform.inspect(name);
   }
 }
 
-function getCurrentPresetTitle() {
+function getCurrentPresetTitle() : string {
   if (!current_preset_entry)
     return "ROM";
   else
     return current_preset_entry.title || current_preset_entry.name || "ROM";
 }
 
-function setLastPreset(id) {
+function setLastPreset(id:string) {
   if (platform_id != 'base_z80') { // TODO
     localStorage.setItem("__lastplatform", platform_id);
     localStorage.setItem("__lastid_"+platform_id, id);
@@ -125,7 +126,7 @@ function refreshWindowList() {
     }
   }
   
-  function loadEditor(path) {
+  function loadEditor(path:string) {
     var tool = platform.getToolForFilename(path);
     var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
     return new Views.SourceEditor(path, mode);
@@ -170,7 +171,7 @@ function refreshWindowList() {
 }
 
 // can pass integer or string id
-function loadProject(preset_id) {
+function loadProject(preset_id:string) {
   var index = parseInt(preset_id+""); // might fail -1
   for (var i=0; i<PRESETS.length; i++)
     if (PRESETS[i].id == preset_id)
@@ -198,13 +199,13 @@ function loadProject(preset_id) {
   });
 }
 
-function reloadPresetNamed(id) {
+function reloadPresetNamed(id:string) {
   qs['platform'] = platform_id;
   qs['file'] = id;
   gotoNewLocation();
 }
 
-function getSkeletonFile(fileid, callback) {
+function getSkeletonFile(fileid:string, callback) {
   var ext = platform.getToolForFilename(fileid);
   $.get( "presets/"+platform_id+"/skeleton."+ext, function( text ) {
     callback(null, text);
@@ -240,7 +241,7 @@ function _uploadNewFile(e) {
   $("#uploadFileElem").click();
 }
 
-function handleFileUpload(files) {
+function handleFileUpload(files: File[]) {
   console.log(files);
   var index = 0;
   function uploadNextFile() { 
@@ -270,7 +271,7 @@ function handleFileUpload(files) {
   if (files) uploadNextFile();
 }
 
-function getCurrentFilename() {
+function getCurrentFilename() : string {
   var toks = main_file_id.split("/");
   return toks[toks.length-1];
 }
@@ -373,7 +374,7 @@ function updateSelector() {
   });
 }
 
-function setCompileOutput(data) {
+function setCompileOutput(data: WorkerResult) {
   // errors? mark them in editor
   if (data.errors && data.errors.length > 0) {
     projectWindows.setErrors(data.errors);
@@ -387,7 +388,7 @@ function setCompileOutput(data) {
     compparams = data.params;
     // load ROM
     var rom = data.output;
-    if (rom) {
+    if (rom instanceof Uint8Array) {
       try {
         //console.log("Loading ROM length", rom.length);
         platform.loadROM(getCurrentPresetTitle(), rom);
@@ -427,7 +428,7 @@ function showMemory(state?) {
   }
 }
 
-function setDebugButtonState(btnid, btnstate) {
+function setDebugButtonState(btnid:string, btnstate:string) {
   $("#debug_bar").find("button").removeClass("btn_active").removeClass("btn_stopped");
   $("#dbg_"+btnid).addClass("btn_"+btnstate);
 }
@@ -483,7 +484,7 @@ function singleFrameStep() {
   platform.runToVsync();
 }
 
-function getEditorPC() {
+function getEditorPC() : number {
   var wnd = projectWindows.getActive();
   return wnd && wnd.getCursorPC && wnd.getCursorPC();
 }
@@ -545,7 +546,7 @@ function _breakExpression() {
   }
 }
 
-function getSymbolAtAddress(a) {
+function getSymbolAtAddress(a : number) {
   if (addr2symbol[a]) return addr2symbol[a];
   var i=0;
   while (--a >= 0) {
@@ -607,7 +608,7 @@ function _recordVideo() {
   f();
 }
 
-function setFrameRateUI(fps) {
+function setFrameRateUI(fps:number) {
   platform.setFrameRate(fps);
   if (fps > 0.01)
     $("#fps_label").text(fps.toFixed(2));
@@ -859,7 +860,7 @@ function startPlatform() {
   }
 }
 
-function loadSharedFile(sharekey) {
+function loadSharedFile(sharekey : string) {
   var github = new Octokat();
   var gist = github.gists(sharekey);
   gist.fetch().done(function(val) {
@@ -881,7 +882,7 @@ function loadSharedFile(sharekey) {
 }
 
 // start
-function startUI(loadplatform) {
+function startUI(loadplatform : boolean) {
   installErrorHandler();
   // add default platform?
   platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
