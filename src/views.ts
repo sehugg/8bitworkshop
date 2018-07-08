@@ -2,6 +2,7 @@
 
 import $ = require("jquery");
 import { SourceFile, WorkerError, CodeProject } from "./project";
+import { Platform } from "./baseplatform";
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
@@ -18,7 +19,7 @@ export interface ProjectView {
 
 // TODO: move to different namespace
 declare var CodeMirror;
-declare var platform;
+declare var platform : Platform;
 declare var platform_id : string;
 declare var compparams;
 declare var addr2symbol : {[addr:number]:string};

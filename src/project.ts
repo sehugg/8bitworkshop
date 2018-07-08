@@ -94,9 +94,9 @@ export class CodeProject {
   tools_preloaded = {};
   callbackBuildResult : BuildResultCallback;
   callbackBuildStatus : BuildStatusCallback;
-  worker: any;
+  worker : Worker;
   platform_id : string;
-  platform: any;
+  platform: any; // TODO: use type
   store: any;
   callbackGetRemote : GetRemoteCallback;
   mainPath: string;
