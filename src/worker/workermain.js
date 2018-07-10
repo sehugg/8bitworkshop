@@ -1,5 +1,32 @@
 "use strict";
 
+// WebAssembly module cache
+// TODO: leaks memory even when disabled...
+var _WASM_module_cache = {};
+var CACHE_WASM_MODULES = ENVIRONMENT_IS_WORKER;
+function getWASMModule(module_id) {
+  var module = _WASM_module_cache[module_id];
+  if (!module) {
+    starttime();
+    module = new WebAssembly.Module(wasmBlob[module_id]);
+    if (CACHE_WASM_MODULES) {
+      _WASM_module_cache[module_id] = module;
+      delete wasmBlob[module_id];
+    }
+    endtime("module creation " + module_id);
+  }
+  return module;
+}
+// function for use with instantiateWasm
+function moduleInstFn(module_id) {
+  return function(imports,ri) {
+    var mod = getWASMModule(module_id);
+    var inst = new WebAssembly.Instance(mod, imports);
+    ri(inst);
+    return inst.exports;
+  }
+}
+
 var PLATFORM_PARAMS = {
   'mw8080bw': {
     code_start: 0x0,
@@ -124,9 +151,9 @@ var document = noop();
 document.documentElement = noop();
 document.documentElement.style = noop();
 
-var _t1, _t2;
+var _t1;
 function starttime() { _t1 = new Date(); }
-function endtime(msg) { _t2 = new Date(); console.log(msg, _t2.getTime() - _t1.getTime(), "ms"); }
+function endtime(msg) { var _t2 = new Date(); console.log(msg, _t2.getTime() - _t1.getTime(), "ms"); }
 
 /// working file store and build steps
 
@@ -276,7 +303,7 @@ function loadWASM(modulename, debug) {
     xhr.open("GET", "wasm/"+modulename+".wasm", false);  // synchronous request
     xhr.send(null);
     if (xhr.response) {
-      wasmBlob[modulename] = xhr.response; //new Uint8Array(xhr.response);
+      wasmBlob[modulename] = new Uint8Array(xhr.response);
       console.log("Loaded " + modulename + ".wasm");
       loaded[modulename] = 1;
     } else {
@@ -578,7 +605,7 @@ function assembleCA65(step) {
   if (staleFiles(step, [objpath, lstpath])) {
     var objout, lstout;
     var CA65 = ca65({
-      wasmBinary: wasmBlob['ca65'],
+      instantiateWasm: moduleInstFn('ca65'),
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
@@ -612,7 +639,7 @@ function linkLD65(step) {
     var errors = [];
     var errmsg = '';
     var LD65 = ld65({
-      wasmBinary: wasmBlob['ld65'],
+      instantiateWasm: moduleInstFn('ld65'),
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
@@ -777,7 +804,7 @@ function assembleSDASZ80(step) {
       }
     }
     var ASZ80 = sdasz80({
-      wasmBinary: wasmBlob['sdasz80'],
+      instantiateWasm: moduleInstFn('sdasz80'),
       noInitialRun:true,
       //logReadFiles:true,
       print:match_asm_fn,
@@ -822,7 +849,7 @@ function linkSDLDZ80(step)
     }
     var params = step.params;
     var LDZ80 = sdldz80({
-      wasmBinary: wasmBlob['sdldz80'],
+      instantiateWasm: moduleInstFn('sdldz80'),
       noInitialRun:true,
       //logReadFiles:true,
       print:match_aslink_fn,
@@ -899,12 +926,12 @@ function compileSDCC(step) {
     var params = step.params;
     loadNative('sdcc');
     var SDCC = sdcc({
-      wasmBinary: wasmBlob['sdcc'],
+      instantiateWasm: moduleInstFn('sdcc'),
       noInitialRun:true,
       noFSInit:true,
       print:print_fn,
       printErr:msvcErrorMatcher(errors),
-      TOTAL_MEMORY:256*1024*1024,
+      //TOTAL_MEMORY:256*1024*1024,
     });
     var FS = SDCC['FS'];
     populateFiles(step, FS);
@@ -1128,7 +1155,7 @@ function compileVerilator(step) {
   code = compileInlineASM(code, platform, step, errors, asmlines);
   var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?:)?(\d+)?[:]?\s*(.+)/i, 3, 4);
   var verilator_mod = verilator_bin({
-    wasmBinary:wasmBlob['verilator_bin'],
+    instantiateWasm: moduleInstFn('verilator_bin'),
     noInitialRun:true,
     print:print_fn,
     printErr:match_fn,
@@ -1182,7 +1209,7 @@ function compileYosys(step) {
   var match_fn = makeErrorMatcher(errors, /ERROR: (.+?) in line (.+?[.]v):(\d+)[: ]+(.+)/i, 3, 4);
   starttime();
   var yosys_mod = yosys({
-    wasmBinary:wasmBlob['yosys'],
+    instantiateWasm: moduleInstFn('yosys'),
     noInitialRun:true,
     print:print_fn,
     printErr:match_fn,
