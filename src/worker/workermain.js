@@ -1,5 +1,9 @@
 "use strict";
 
+var ENVIRONMENT_IS_NODE = typeof process === 'object' && typeof require === 'function';
+var ENVIRONMENT_IS_WEB = typeof window === 'object';
+var ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
+
 // WebAssembly module cache
 // TODO: leaks memory even when disabled...
 var _WASM_module_cache = {};
@@ -313,7 +317,7 @@ function loadWASM(modulename, debug) {
 }
 function loadNative(modulename, debug) {
   // detect WASM
-  if (typeof WebAssembly === 'object') {
+  if (CACHE_WASM_MODULES && typeof WebAssembly === 'object') {
     loadWASM(modulename);
   } else {
     load(modulename);
@@ -1388,10 +1392,6 @@ function handleMessage(data) {
   // message not recognized
   console.log("Unknown message",data);
 }
-
-var ENVIRONMENT_IS_NODE = typeof process === 'object' && typeof require === 'function';
-var ENVIRONMENT_IS_WEB = typeof window === 'object';
-var ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
 
 if (ENVIRONMENT_IS_WORKER) {
   onmessage = function(e) {
