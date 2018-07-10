@@ -150,7 +150,7 @@ describe('Worker', function() {
   });
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
-    var msgs = [{code:csource, platform:"verilog", tool:"verilator", dependencies:[]}];
+    var msgs = [{code:csource, platform:"verilog", tool:"verilator", dependencies:[], path:'main.v'}];
     var done2 = function(err, msg) {
       var jscode = msg.output.code;
       var fn = new Function(jscode);
@@ -167,7 +167,7 @@ describe('Worker', function() {
       var code = ab2str(fs.readFileSync('presets/verilog/' + dfile));
       depends.push({filename:dfile, data:code, prefix:"verilog"});
     }
-    var msgs = [{code:csource, platform:"verilog", tool:"jsasm", dependencies:depends}];
+    var msgs = [{code:csource, platform:"verilog", tool:"jsasm", dependencies:depends, path:'main.asm'}];
     var done2 = function(err, msg) {
       var jscode = msg.output.code;
       var fn = new Function(jscode);

@@ -36,7 +36,7 @@ function compileVerilator(code, callback, nerrors) {
         callback(null, msg);
     };
     global.onmessage({
-        data:{code:code, platform:'verilog', tool:'verilator'}
+        data:{code:code, platform:'verilog', tool:'verilator', path:'main.v'}
     });
 }
 

@@ -1062,7 +1062,7 @@ function compileJSASM(asmcode, platform, options, is_inline) {
       var main_filename = includes[includes.length-1];
       var code = '`include "' + main_filename + '"\n';
       code += "/* module " + top_module + " */\n";
-      var voutput = compileVerilator({code:code, platform:platform, dependencies:options.dependencies}); // TODO
+      var voutput = compileVerilator({code:code, platform:platform, dependencies:options.dependencies, path:options.path}); // TODO
       if (voutput.errors.length)
         return voutput.errors[0].msg;
       jsasm_module_output = voutput;
@@ -1141,10 +1141,11 @@ function compileVerilator(step) {
   });
   starttime();
   try {
-    verilator_mod.callMain(["--cc", "-O3", "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
+    var args = ["--cc", "-O3", "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
       "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
       "--x-assign", "fast", "--noassert", "--pins-bv", "33",
-      "--top-module", topmod, step.path]);
+      "--top-module", topmod, step.path]
+    verilator_mod.callMain(args);
   } catch (e) {
     console.log(e);
     errors.push({line:0,msg:"Compiler internal error: " + e});
