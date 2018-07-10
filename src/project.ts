@@ -32,11 +32,10 @@ export class CodeProject {
     worker.onmessage = (e) => {
       if (this.pendingWorkerMessages > 1) {
         this.sendBuild();
-        this.pendingWorkerMessages = 0;
       } else {
-        this.pendingWorkerMessages = 0;
+        if (this.callbackBuildStatus) this.callbackBuildStatus(false);
       }
-      if (this.callbackBuildStatus) this.callbackBuildStatus(false);
+      this.pendingWorkerMessages = 0;
       if (e.data && !e.data.unchanged) {
         this.processBuildResult(e.data);
         if (this.callbackBuildResult) this.callbackBuildResult(e.data); // call with data when changed
@@ -184,6 +183,7 @@ export class CodeProject {
         // TODO: should get rid of this msg format
         this.worker.postMessage({
           code:text,
+          path:this.mainpath,
           dependencies:depends,
           platform:this.platform_id,
           tool:this.platform.getToolForFilename(this.mainpath)

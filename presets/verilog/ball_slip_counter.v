@@ -13,11 +13,17 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   reg [8:0] ball_htimer;
   reg [8:0] ball_vtimer;
   
-  reg [8:0] ball_horiz_move = -2;
-  reg [8:0] ball_vert_move = 2;
-  
-  localparam ball_horiz_stop = 204;
-  localparam ball_vert_stop = 251;
+  // motion codes
+  reg [3:0] ball_horiz_move;
+  reg [3:0] ball_vert_move;
+
+  // stop codes
+  localparam ball_horiz_stop = 4'd12;
+  localparam ball_vert_stop = 4'd11;
+
+  // 5-bit constants to load into counters
+  localparam ball_horiz_prefix = 5'b01100; // 192
+  localparam ball_vert_prefix = 5'b01111; // 240
   
   hvsync_generator hvsync_gen(
     .clk(clk),
@@ -30,15 +36,14 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   );
   
   // update horizontal timer
-  always @(posedge clk or posedge reset)
-  begin
-    if (reset)
-      ball_htimer <= ball_horiz_stop - 128;
-    else if (ball_htimer == 0) begin
-      if (ball_vtimer == 0)
-        ball_htimer <= ball_horiz_stop + ball_horiz_move;
-      else
-        ball_htimer <= ball_horiz_stop;
+  always @(posedge clk or posedge reset) begin
+    if (reset || ball_htimer == 0) begin
+      if (reset) // center-ish of screen
+        ball_htimer <= {5'b11000, ball_horiz_move};
+      else if (ball_vtimer == 0) // nudge ball in horiz. dir
+        ball_htimer <= {ball_horiz_prefix, ball_horiz_move};
+      else // reset timer but don't move ball horizontally
+        ball_htimer <= {ball_horiz_prefix, ball_horiz_stop};
     end else
       ball_htimer <= ball_htimer + 1;
   end
@@ -46,10 +51,10 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   // update vertical timer
   always @(posedge hsync or posedge reset)
   begin
-    if (reset)
-      ball_vtimer <= ball_vert_stop - 128;
-    else if (ball_vtimer == 0)
-      ball_vtimer <= ball_vert_stop + ball_vert_move;
+    if (reset) // center-ish of screen
+      ball_vtimer <= {5'b11000, ball_vert_move};
+    else if (ball_vtimer == 0) // reset timer
+      ball_vtimer <= {ball_vert_prefix, ball_vert_move};
     else
       ball_vtimer <= ball_vtimer + 1;
   end
@@ -59,15 +64,21 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   wire ball_horiz_collide = ball_hgfx && hpos >= 256 && vpos == 255;
   
   // vertical bounce
-  always @(posedge ball_vert_collide)
+  always @(posedge ball_vert_collide or posedge reset)
   begin
-    ball_vert_move <= -ball_vert_move;
+    if (reset)
+      ball_vert_move <= 4'd10;
+    else
+      ball_vert_move <= 4'b0110 ^ ball_vert_move; // change dir.
   end
 
   // horizontal bounce
-  always @(posedge ball_horiz_collide)
+  always @(posedge ball_horiz_collide or posedge reset)
   begin
-    ball_horiz_move <= -ball_horiz_move;
+    if (reset)
+      ball_horiz_move <= 4'd11;
+    else
+      ball_horiz_move <= 4'b0110 ^ ball_horiz_move; // change dir.
   end
 
   // compute ball display

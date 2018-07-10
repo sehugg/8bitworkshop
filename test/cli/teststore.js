@@ -47,8 +47,8 @@ global.localStorage = {
 includeInThisContext("localForage/dist/localforage.js");
 includeInThisContext("gen/util.js");
 includeInThisContext("src/store.js");
+//var wtypes = require("../../gen/workertypes.js");
 var prj = require("../../gen/project.js");
-var prj = require("../../gen/workertypes.js");
 
 var test_platform_id = "_TEST";
 

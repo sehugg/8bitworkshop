@@ -388,7 +388,7 @@ function setCompileOutput(data: WorkerResult) {
     compparams = data.params;
     // load ROM
     var rom = data.output;
-    if (rom instanceof Uint8Array) {
+    if (rom) { // TODO instanceof Uint8Array) {
       try {
         //console.log("Loading ROM length", rom.length);
         platform.loadROM(getCurrentPresetTitle(), rom);
@@ -401,8 +401,10 @@ function setCompileOutput(data: WorkerResult) {
         projectWindows.setErrors([{line:0,msg:e+""}]);
         current_output = null;
       }
+    /* TODO?
     } else if (rom.program_rom_variable) { //TODO: a little wonky...
       platform.loadROM(rom.program_rom_variable, rom.program_rom);
+    */
     }
     // update all windows (listings)
     projectWindows.refresh();

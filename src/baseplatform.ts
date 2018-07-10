@@ -13,7 +13,7 @@ export interface Platform {
   getPresets() : Preset[];
   pause() : void;
   resume() : void;
-  loadROM(title:string, rom:Uint8Array);
+  loadROM(title:string, rom:any); // TODO: Uint8Array
   
   inspect?(ident:string) : void;
   disassemble?(addr:number, readfn:(addr:number)=>number) : any; // TODO

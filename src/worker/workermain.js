@@ -1135,7 +1135,7 @@ function compileVerilator(step) {
   });
   var topmod = detectTopModuleName(code);
   var FS = verilator_mod['FS'];
-  populateFiles(step, FS, {mainFilePath:topmod+".v"});
+  populateFiles(step, FS, {mainFilePath:step.path});
   writeDependencies(step.dependencies, FS, errors, function(d, code) {
     return compileInlineASM(code, platform, step, errors, null);
   });
@@ -1144,8 +1144,9 @@ function compileVerilator(step) {
     verilator_mod.callMain(["--cc", "-O3", "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
       "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
       "--x-assign", "fast", "--noassert", "--pins-bv", "33",
-      "--top-module", topmod, topmod+".v"]);
+      "--top-module", topmod, step.path]);
   } catch (e) {
+    console.log(e);
     errors.push({line:0,msg:"Compiler internal error: " + e});
   }
   endtime("compile");
