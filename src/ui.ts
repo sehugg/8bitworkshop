@@ -537,7 +537,7 @@ function resetAndDebug() {
   }
 }
 
-var lastBreakExpr = "c.PC = 0x6000";
+var lastBreakExpr = "c.PC == 0x6000";
 function _breakExpression() {
   var exprs = window.prompt("Enter break expression", lastBreakExpr);
   if (exprs) {

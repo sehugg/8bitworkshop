@@ -26,7 +26,7 @@
 
 var window = {};
 
-importScripts("../emu.js");
+importScripts("../../gen/emu.js");
 importScripts("../cpu/z80.js");
 
 window.buildZ80({
