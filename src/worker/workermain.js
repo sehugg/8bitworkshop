@@ -299,6 +299,12 @@ function load(modulename, debug) {
     loaded[modulename] = 1;
   }
 }
+function loadGen(modulename) {
+  if (!loaded[modulename]) {
+    importScripts('../../gen/'+modulename+".js");
+    loaded[modulename] = 1;
+  }
+}
 function loadWASM(modulename, debug) {
   if (!loaded[modulename]) {
     importScripts("wasm/" + modulename+(debug?"."+debug+".js":".js"));
@@ -1063,7 +1069,7 @@ var jsasm_module_output;
 var jsasm_module_key;
 
 function compileJSASM(asmcode, platform, options, is_inline) {
-  load("../assembler");
+  loadGen("worker/assembler");
   var asm = new Assembler();
   var includes = [];
   asm.loadJSON = function(filename) {
@@ -1151,7 +1157,7 @@ function compileInlineASM(code, platform, options, errors, asmlines) {
 // TODO: make compliant with standard msg format
 function compileVerilator(step) {
   loadNative("verilator_bin");
-  load("../verilator2js");
+  loadGen("worker/verilator2js");
   var code = step.code;
   var platform = step.platform || 'verilog';
   var errors = [];

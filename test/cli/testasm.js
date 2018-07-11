@@ -38,7 +38,7 @@ var includeInThisContext = function(path) {
     vm.runInThisContext(code, path);
 };
 
-includeInThisContext("src/worker/assembler.js");
+includeInThisContext("gen/worker/assembler.js");
 
 describe('Assemble', function() {
   it('Should assemble', function() {

@@ -1,19 +1,74 @@
 
-var Assembler = function(spec) {
+type AssemblerVar = {
+  bits : number,
+  toks : string[],
+  iprel? : boolean,
+  ipofs? : number
+}
+
+type AssemblerRule = {
+  fmt : string,
+  bits : (string | number)[],
+  // added at runtime
+  re? : RegExp,
+  prefix? : string,
+  varlist? : string[]
+}
+
+type AssemblerVarList = {[name:string] : AssemblerVar};
+
+type AssemblerLine = {line:number, offset:number, nbits:number, insns?:string};
+
+type AssemblerFixup = {
+  sym:string,
+  ofs:number,
+  bitlen:number,
+  bitofs:number,
+  line:number,
+  iprel:boolean,
+  ipofs:number
+};
+
+type AssemblerSpec = {
+  name : string,
+  width : number,
+  vars : AssemblerVarList,
+  rules : AssemblerRule[]
+}
+
+type AssemblerInstruction = {opcode:number, nbits : number};
+
+type AssemblerLineResult = {error:string} | AssemblerInstruction;
+
+type AssemblerError = {msg:string, line:number};
+
+type AssemblerState = {
+  ip: number,
+  line: number,
+  origin: number,
+  codelen: number,
+  intermediate: any,
+  output: number[],
+  lines: AssemblerLine[],
+  errors: AssemblerError[],
+  fixups: AssemblerFixup[]
+}
+
+var Assembler = function(spec : AssemblerSpec) {
   var self = this;
   var ip = 0;
   var origin = 0;
   var linenum = 0;
-  var symbols = {};
-  var errors = [];
-  var outwords = [];
-  var asmlines = [];
-  var fixups = [];
+  var symbols : {[name:string] : {value:number}} = {};
+  var errors : AssemblerError[] = [];
+  var outwords : number[] = [];
+  var asmlines : AssemblerLine[] = [];
+  var fixups : AssemblerFixup[] = [];
   var width = 8;
   var codelen = 0;
   var aborted = false;
 
-  function rule2regex(rule, vars) {
+  function rule2regex(rule : AssemblerRule, vars : AssemblerVarList) {
     var s = rule.fmt;
     var varlist = [];
     rule.prefix = s.split(/\s+/)[0];
@@ -24,7 +79,7 @@ var Assembler = function(spec) {
     s = s.replace(/\]/g, '\\]');
     s = s.replace(/\./g, '\\.');
     // TODO: more escapes?
-    s = s.replace(/~\w+/g, function(varname) {
+    s = s.replace(/~\w+/g, function(varname:string) {
       varname = varname.substr(1);
       var v = vars[varname];
       varlist.push(varname);
@@ -49,17 +104,17 @@ var Assembler = function(spec) {
   }
   if (spec) preprocessRules();
 
-  function warning(msg, line) {
+  function warning(msg:string, line?:number) {
     errors.push({msg:msg, line:line?line:linenum});
   }
-  function fatal(msg, line) {
+  function fatal(msg:string, line?:number) {
     warning(msg, line);
     aborted = true;
   }
-  function fatalIf(msg, line) {
+  function fatalIf(msg?:string, line?:number) {
     if (msg) fatal(msg, line);
   }
-  function hex(v, nd) {
+  function hex(v:number, nd:number) {
     try {
       if (!nd) nd = 2;
       var s = v.toString(16).toUpperCase();
@@ -70,7 +125,7 @@ var Assembler = function(spec) {
       return v+"";
     }
   }
-  function addBytes(result) {
+  function addBytes(result:AssemblerInstruction) {
     asmlines.push({
       line:linenum,
       offset:ip,
@@ -82,7 +137,7 @@ var Assembler = function(spec) {
       outwords[ip++ - origin] = (op >> (nb-1-i)*width) & ((1<<width)-1);
     }
   }
-  function addWords(data) {
+  function addWords(data:number[]) {
     asmlines.push({
       line:linenum,
       offset:ip,
@@ -93,7 +148,7 @@ var Assembler = function(spec) {
     }
   }
 
-  function parseData(toks) {
+  function parseData(toks:string[]) : number[] {
     var data = [];
     for (var i=0; i<toks.length; i++) {
       data[i] = parseConst(toks[i]);
@@ -101,7 +156,7 @@ var Assembler = function(spec) {
     return data;
   }
 
-  function stringToData(s) {
+  function stringToData(s:string) : number[] {
     var data = [];
     for (var i=0; i<s.length; i++) {
       data[i] = s.charCodeAt(i);
@@ -116,17 +171,15 @@ var Assembler = function(spec) {
       ip = Math.floor((ip+align-1)/align)*align;
   }
 
-  function parseConst(s, nbits) {
+  function parseConst(s:string, nbits?:number) : number {
     // TODO: check bit length
-    if (!s.length)
-      return s;
-    else if (s.startsWith("$"))
+    if (s.startsWith("$"))
       return parseInt(s.substr(1), 16);
     else
       return parseInt(s);
   }
 
-  self.buildInstruction = function(rule, m) {
+  self.buildInstruction = function(rule:AssemblerRule, m:string[]) : AssemblerLineResult {
     var opcode = 0;
     var oplen = 0;
     // iterate over each component of the rule output ("bits")
@@ -135,7 +188,7 @@ var Assembler = function(spec) {
       var n,x;
       // is a string? then it's a bit constant
       // TODO
-      if (b.length) {
+      if (typeof b == "string") {
         n = b.length;
         x = parseInt(b,2);
       } else {
@@ -176,7 +229,7 @@ var Assembler = function(spec) {
     return {opcode:opcode, nbits:oplen};
   }
 
-  self.loadArch = function(arch) {
+  self.loadArch = function(arch:string) {
     if (self.loadJSON) {
       var json = self.loadJSON(arch + ".json");
       if (json && json.vars && json.rules) {
@@ -214,7 +267,7 @@ var Assembler = function(spec) {
       warning("Unrecognized directive: " + tokens);
   }
 
-  self.assemble = function(line) {
+  self.assemble = function(line) : AssemblerInstruction {
     linenum++;
     // remove comments
     line = line.replace(/[;].*/g, '').trim();
@@ -253,7 +306,7 @@ var Assembler = function(spec) {
     warning(lastError ? lastError : ("Could not decode instruction: " + line));
   }
 
-  self.finish = function() {
+  self.finish = function() : AssemblerState {
     // apply fixups
     for (var i=0; i<fixups.length; i++) {
       var fix = fixups[i];
@@ -262,7 +315,7 @@ var Assembler = function(spec) {
         var ofs = fix.ofs + Math.floor(fix.bitofs/width);
         var shift = fix.bitofs & (width-1);
         var mask = ((1<<fix.bitlen)-1);
-        var value = parseConst(sym.value, fix.bitlen);
+        var value = parseConst(sym.value+"", fix.bitlen);
         if (fix.iprel)
           value -= fix.ofs + fix.ipofs;
         if (value > mask || value < -mask)
@@ -292,7 +345,7 @@ var Assembler = function(spec) {
     return self.state();
   }
 
-  self.assembleFile = function(text) {
+  self.assembleFile = function(text) : AssemblerState {
     var lines = text.split(/\n/g);
     for (var i=0; i<lines.length && !aborted; i++) {
       try {
@@ -305,14 +358,16 @@ var Assembler = function(spec) {
     return self.finish();
   }
 
-  self.state = function() {
+  self.state = function() : AssemblerState {
     return {ip:ip, line:linenum, origin:origin, codelen:codelen,
       intermediate:{}, // TODO: listing, symbols?
       output:outwords, lines:asmlines, errors:errors, fixups:fixups};
   }
 }
 
+/*
 // Main
+declare var module;
 if (typeof module !== 'undefined' && require.main === module) {
   var fs = require('fs');
   var stdinBuffer = fs.readFileSync(0);
@@ -331,3 +386,4 @@ if (typeof module !== 'undefined' && require.main === module) {
   var out = asm.assembleFile(code);
   console.log(out);
 }
+*/

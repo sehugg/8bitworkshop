@@ -1,7 +1,34 @@
 
-var moduleName, symsName;
+type V2JS_Var = {
+  wordlen:number,
+  name:string,
+  len:number,
+  ofs:number,
+  arrdim?:number[]
+}
 
-function parseDecls(text, arr, name, bin, bout) {
+type V2JS_Code = {
+  name:string,
+  ports:V2JS_Var[],
+  signals:V2JS_Var[],
+  funcs:string[],
+}
+
+type V2JS_Output = {
+  output:{
+    code:V2JS_Code,
+    name:string,
+    ports:V2JS_Var[],
+    signals:V2JS_Var[],
+  }
+}
+
+function translateVerilatorOutputToJS(htext:string, cpptext:string) {
+
+var moduleName : string;
+var symsName : string;
+
+function parseDecls(text:string, arr:V2JS_Var[], name:string, bin?:boolean, bout?:boolean) {
   var re = new RegExp(name + "(\\d*)[(](\\w+),(\\d+),(\\d+)[)]", 'gm');
   var m;
   while ((m = re.exec(text))) {
@@ -36,7 +63,7 @@ function parseDecls(text, arr, name, bin, bout) {
   }
 }
 
-function buildModule(o) {
+function buildModule(o : V2JS_Code) : string {
   var m = '"use strict";\n';
   m += '\tvar self = this;\n';
   for (var i=0; i<o.ports.length; i++) {
@@ -61,7 +88,7 @@ function buildModule(o) {
   return m;
 }
 
-function translateFunction(text) {
+function translateFunction(text : string) : string {
   text = text.trim();
   var funcname = text.match(/(\w+)/)[1];
   text = text.replace(symsName + "* __restrict ", "");
@@ -88,7 +115,7 @@ function translateFunction(text) {
   return "function " + text + "\nself." + funcname + " = " + funcname + ";\n";
 }
 
-function translateStaticVars(text) {
+function translateStaticVars(text : string) : string {
   var s = "";
   var m;
   var re = /VL_ST_SIG(\d+)[(](\w+?)::(\w+).(\d+).,(\d+),(\d+)[)]/g;
@@ -98,7 +125,6 @@ function translateStaticVars(text) {
   return s;
 }
 
-function translateVerilatorOutputToJS(htext, cpptext) {
   // parse header file
   moduleName = /VL_MODULE.(\w+)./.exec(htext)[1];
   symsName = moduleName + "__Syms";
@@ -132,4 +158,6 @@ function translateVerilatorOutputToJS(htext, cpptext) {
       signals:signals,
     }
   };
+
 }
+
