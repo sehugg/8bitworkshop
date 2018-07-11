@@ -1,11 +1,11 @@
 "use strict";
 
-function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
+function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, thumbnails?) {
   var self = this;
   var width = fmt.w;
   var height = fmt.h;
 
-  function createCanvas(parent) {
+  function createCanvas() {
     var c = document.createElement('canvas');
     c.width = width;
     c.height = height;
@@ -142,7 +142,7 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
       dragcol = getPixel(pos.x, pos.y) == curpalcol ? 0 : curpalcol;
       setPixel(pos.x, pos.y, curpalcol);
       dragging = true;
-      pixcanvas.setCapture();
+      // TODO: pixcanvas.setCapture();
     })
     .mousemove(function(e) {
       var pos = getPositionFromEvent(e);
@@ -155,7 +155,7 @@ function PixelEditor(parentDiv, fmt, palette, initialData, thumbnails) {
       setPixel(pos.x, pos.y, dragcol);
       dragging = false;
       commit();
-      pixcanvas.releaseCapture();
+      // TODO: pixcanvas.releaseCapture();
     });
   }
 
@@ -453,14 +453,14 @@ function pixelEditorReceiveMessage(e) {
 
 function createThumbnailForImage(parentdiv, i) {
   var span = $('<span class="thumb">');
-  var thumb = new PixelEditor(span, currentFormat, palette, allimages[i]);
+  var thumb = new PixelEditor(span[0], currentFormat, palette, allimages[i]);
   parentdiv.append(span);
   span.click(function() { createEditorForImage(i) });
   return thumb;
 }
 
 function createEditorForImage(i) {
-  currentPixelEditor = new PixelEditor(maineditor, currentFormat, palette, allimages[i], [allthumbs[i]]);
+  currentPixelEditor = new PixelEditor(document.getElementById('maineditor'), currentFormat, palette, allimages[i], [allthumbs[i]]);
   currentPixelEditor.resize();
   currentPixelEditor.makeEditable();
   currentPixelEditor.createPaletteButtons();

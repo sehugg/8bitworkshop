@@ -3,7 +3,7 @@ var assert = require('assert');
 var fs = require('fs');
 var wtu = require('./workertestutils.js');
 
-includeInThisContext('src/emu.js');
+includeInThisContext('gen/emu.js');
 includeInThisContext('src/platform/verilog.js');
 
 function loadPlatform(msg) {

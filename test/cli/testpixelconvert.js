@@ -8,7 +8,7 @@ var includeInThisContext = function(path) {
 };
 
 includeInThisContext("gen/util.js");
-includeInThisContext("src/pixed/pixeleditor.js");
+includeInThisContext("gen/pixed/pixeleditor.js");
 
 describe('Pixel editor', function() {
   it('Should decode', function() {

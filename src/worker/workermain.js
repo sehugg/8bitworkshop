@@ -7,7 +7,7 @@ var ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
 // WebAssembly module cache
 // TODO: leaks memory even when disabled...
 var _WASM_module_cache = {};
-var CACHE_WASM_MODULES = ENVIRONMENT_IS_WORKER;
+var CACHE_WASM_MODULES = true;
 function getWASMModule(module_id) {
   var module = _WASM_module_cache[module_id];
   if (!module) {

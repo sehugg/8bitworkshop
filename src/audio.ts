@@ -1,5 +1,7 @@
 "use strict";
 
+declare var MasterChannel, AudioLooper, PsgDeviceChannel;
+
 var MasterAudio = function() {
   this.master = new MasterChannel();
   this.looper = new AudioLooper(512);
@@ -83,14 +85,14 @@ var POKEYDeviceChannel = function() {
   var FREQ_17_APPROX    = 1787520.0  /* approximate 1.79 MHz clock freq */
 
   // LFSR sequences
-  var bit1 = [ 0,1 ];
-  var bit4 = [ 1,1,0,1,1,1,0,0,0,0,1,0,1,0,0 ];
-  var bit5 = [ 0,0,1,1,0,0,0,1,1,1,1,0,0,1,0,1,0,1,1,0,1,1,1,0,1,0,0,0,0,0,1 ];
+  var bit1 = new Uint8Array( [ 0,1 ] );
+  var bit4 = new Uint8Array( [ 1,1,0,1,1,1,0,0,0,0,1,0,1,0,0 ] );
+  var bit5 = new Uint8Array( [ 0,0,1,1,0,0,0,1,1,1,1,0,0,1,0,1,0,1,1,0,1,1,1,0,1,0,0,0,0,0,1 ] );
   var bit17 = new Uint8Array(1<<17);
   var bit17_5 = new Uint8Array(1<<17);
   var bit5_4 = new Uint8Array(1<<17);
   for (var i=0; i<bit17.length; i++) {
-    bit17[i] = Math.random() > 0.5;
+    bit17[i] = Math.random() > 0.5 ? 1 : 0;
     bit17_5[i] = bit17[i] & bit5[i % bit5.length];
     bit5_4[i] = bit5[i % bit5.length] & bit4[i % bit4.length];
   }
@@ -207,50 +209,6 @@ var POKEYDeviceChannel = function() {
   }
 }
 
-////// CPU sound (unused)
-
-var CPUSoundChannel = function(cpu, clockRate) {
-  var sampleRate;
-  var buffer;
-  var lastbufpos=0;
-  var curSample=0;
-  var clocksPerSample;
-
-  this.setBufferLength = function (length) {
-    buffer = new Int32Array(length);
-  };
-
-  this.getBuffer = function () {
-    return buffer;
-  };
-
-  this.setSampleRate = function (rate) {
-    sampleRate = rate;
-  };
-
-  this.getSetDACFunction = function() {
-    return function(a,v) {
-      var bufpos = Math.floor(cpu.getTstates() / clocksPerSample);
-      while (lastbufpos < bufpos)
-        buffer[lastbufpos++] = curSample;
-      lastbufpos = bufpos;
-      curSample = v;
-    };
-  };
-
-  this.generate = function (length) {
-    clocksPerSample = clockRate * 1.0 / sampleRate;
-    var clocks = Math.round(length * clocksPerSample);
-    if (cpu.getTstates && cpu.runFrame) {
-      cpu.setTstates(0);
-      lastbufpos = 0;
-      cpu.runFrame(cpu.getTstates() + totalClocks);
-      while (lastbufpos < length)
-        buffer[lastbufpos++] = curSample;
-    }
-  };
-}
-
 ////// Worker sound
 
 var WorkerSoundChannel = function(worker) {
@@ -334,7 +292,7 @@ var SampleAudio = function(clockfreq) {
   }
 
   function createContext() {
-    var AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext;
+    var AudioContext = window['AudioContext'] || window['webkitAudioContext'] || window['mozAudioContext'];
     if (! AudioContext) {
       console.log("no web audio context");
       return;

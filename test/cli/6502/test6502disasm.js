@@ -7,7 +7,7 @@ var includeInThisContext = function(path) {
     vm.runInThisContext(code, path);
 };
 
-includeInThisContext("src/cpu/disasm6502.js");
+includeInThisContext("gen/cpu/disasm6502.js");
 
 describe('6502 disassembler', function() {
   it('Should work', function() {

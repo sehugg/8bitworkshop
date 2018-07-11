@@ -46,7 +46,8 @@ global.localStorage = {
 
 includeInThisContext("localForage/dist/localforage.js");
 includeInThisContext("gen/util.js");
-includeInThisContext("src/store.js");
+includeInThisContext("gen/store.js");
+//var sto = require("../../gen/store.js");
 //var wtypes = require("../../gen/workertypes.js");
 var prj = require("../../gen/project.js");
 

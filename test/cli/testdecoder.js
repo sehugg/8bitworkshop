@@ -6,7 +6,7 @@ var includeInThisContext = function(path) {
     vm.runInThisContext(code, path);
 };
 
-includeInThisContext("src/emu.js");
+includeInThisContext("gen/emu.js");
 
 function assert(b, msg) {
   if (!b) { throw new Error(msg); }

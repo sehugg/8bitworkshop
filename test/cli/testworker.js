@@ -3,6 +3,9 @@ var assert = require('assert');
 var fs = require('fs');
 var wtu = require('./workertestutils.js');
 
+// TODO: why memory leak?
+CACHE_WASM_MODULES = false;
+
 global.onmessage({data:{preload:'cc65', platform:'nes'}});
 global.onmessage({data:{preload:'ca65', platform:'nes'}});
 global.onmessage({data:{preload:'sdcc'}});

@@ -258,7 +258,7 @@ var OPS_6502 = [
   {mn:"ISB",am:"AAAA,x",nb:3,il:1,c1:7,c2:1}, // FF
 ];
 
-function disassemble6502(pc, b0, b1, b2) {
+function disassemble6502(pc:number, b0:number, b1:number, b2:number) : {line:string, nbytes:number} {
 
   function formatHex(number, len) {
     if (typeof number === "undefined" || number === null || isNaN(number)) {

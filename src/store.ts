@@ -1,8 +1,10 @@
 "use strict";
 
+// TODO: use modules; export type for LocalForageDbMethods
 //import * as localforage from "localforage";
+declare var localforage;
 
-var OldFileStore = function(storage, prefix) {
+var OldFileStore = function(storage, prefix:string) {
   var self = this;
   this.saveFile = function(name, text) {
     storage.setItem(prefix + name, text);
@@ -66,7 +68,7 @@ localforage.defineDriver(OldFileStoreDriver);
 */
 
 // copy localStorage to new driver
-function copyFromOldStorageFormat(platformid, newstore, callback) {
+function copyFromOldStorageFormat(platformid:string, newstore, callback:()=>void) {
   var alreadyMigratedKey = "__migrated_" + platformid;
   //localStorage.removeItem(alreadyMigratedKey);
   if (localStorage.getItem(alreadyMigratedKey))
@@ -108,7 +110,7 @@ function copyFromOldStorageFormat(platformid, newstore, callback) {
   migrateNext(); // start the conversion
 }
 
-function createNewPersistentStore(platformid, callback) {
+function createNewPersistentStore(platformid:string, callback:()=>void) {
   var store = localforage.createInstance({
     name: platformid,
     version: 2.0

@@ -1,16 +1,19 @@
 "use strict";
 
+// external modules
+declare var jt, Javatari, Z80_fast, CPU6809;
+
 // Emulator classes
 
 var PLATFORMS = {};
 
-var frameUpdateFunction = null;
+var frameUpdateFunction : (Canvas) => void = null;
 
 function noise() {
   return (Math.random() * 256) & 0xff;
 }
 
-function __createCanvas(mainElement, width, height) {
+function __createCanvas(mainElement:HTMLElement, width:number, height:number) {
   // TODO
   var fsElement = document.createElement('div');
   fsElement.classList.add("emubevel");
@@ -19,14 +22,14 @@ function __createCanvas(mainElement, width, height) {
   canvas.width = width;
   canvas.height = height;
   canvas.classList.add("emuvideo");
-  canvas.tabIndex = "-1";               // Make it focusable
+  canvas.tabIndex = -1;               // Make it focusable
 
   fsElement.appendChild(canvas);
   mainElement.appendChild(fsElement);
   return canvas;
 }
 
-var RasterVideo = function(mainElement, width, height, options) {
+var RasterVideo = function(mainElement:HTMLElement, width:number, height:number, options?) {
   var self = this;
   var canvas, ctx;
   var imageData, arraybuf, buf8, datau32;
@@ -131,7 +134,7 @@ mainElement.appendChild(borderElement);
 */
 }
 
-var VectorVideo = function(mainElement, width, height) {
+var VectorVideo = function(mainElement:HTMLElement, width:number, height:number) {
   var self = this;
   var canvas, ctx;
   var persistenceAlpha = 0.5;
@@ -204,12 +207,12 @@ var VectorVideo = function(mainElement, width, height) {
   }
 }
 
-var RAM = function(size) {
+var RAM = function(size:number) {
   var memArray = new ArrayBuffer(size);
   this.mem = new Uint8Array(memArray);
 }
 
-var AnimationTimer = function(frequencyHz, callback) {
+var AnimationTimer = function(frequencyHz:number, callback:() => void) {
   var intervalMsec = 1000.0 / frequencyHz;
   var running;
   var lastts = 0;
@@ -265,8 +268,8 @@ var AnimationTimer = function(frequencyHz, callback) {
 
 //
 
-function cpuStateToLongString_6502(c) {
-  function decodeFlags(c, flags) {
+function cpuStateToLongString_6502(c) : string {
+  function decodeFlags(c) {
     var s = "";
     s += c.N ? " N" : " -";
     s += c.V ? " V" : " -";
@@ -893,7 +896,10 @@ var BusProbe = function(bus) {
 
 /// MAME SUPPORT
 
+declare var FS, ENV, Module; // mame emscripten
+
 var BaseMAMEPlatform = function() {
+
   var self = this;
 
   var loaded = false;
@@ -903,7 +909,7 @@ var BaseMAMEPlatform = function() {
   var video;
   var preload_files;
   var running = false;
-  var console_vars = {};
+  var console_vars : {[varname:string]:string[]} = {};
   var console_varname;
   var initluavars = false;
   var luadebugscript;
@@ -978,11 +984,11 @@ var BaseMAMEPlatform = function() {
       '-debug',
       '-debugger', 'none',
       '-verbose', '-window', '-nokeepaspect',
-      '-resolution', canvas.width+'x'+canvas.height
+      '-resolution', video.canvas.width+'x'+video.canvas.height
     ];
     if (romfn) modargs.push('-cart', romfn);
-    window.JSMESS = {};
-    window.Module = {
+    window['JSMESS'] = {};
+    window['Module'] = {
       arguments: modargs,
       screenIsReadOnly: true,
       print: bufferConsoleOutput,
@@ -1039,7 +1045,7 @@ var BaseMAMEPlatform = function() {
       oReq1.responseType = "arraybuffer";
       oReq1.onload = function(oEvent) {
         opts.biosdata = new Uint8Array(oReq1.response);
-        console.log("loaded " + opts.biosfile + " (" + oEvent.total + " bytes)");
+        console.log("loaded " + opts.biosfile); // + " (" + oEvent.total + " bytes)");
         fetch_bios.resolve();
       };
       oReq1.send();
@@ -1058,7 +1064,7 @@ var BaseMAMEPlatform = function() {
       oReq2.responseType = "arraybuffer";
       oReq2.onload = function(oEvent) {
         console.log("loaded WASM file");
-        window.Module.wasmBinary = new Uint8Array(oReq2.response);
+        window['Module'].wasmBinary = new Uint8Array(oReq2.response);
         fetch_wasm.resolve();
       };
       oReq2.send();
