@@ -4,6 +4,7 @@
   "author": "Steven Hugg",
   "dependencies": {},
   "devDependencies": {
+    "heapdump": "^0.3.9",
     "typescript": "^2.9.2",
     "@types/jquery": "^2.x",
     "@types/bootstrap": "^3.x",

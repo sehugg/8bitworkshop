@@ -2,6 +2,7 @@
 var assert = require('assert');
 var fs = require('fs');
 var wtu = require('./workertestutils.js');
+var heapdump = require('heapdump');
 
 // TODO: why memory leak?
 CACHE_WASM_MODULES = false;
@@ -54,9 +55,10 @@ function doBuild(msgs, callback, outlen, nlines, nerrors) {
           }
         }
       }
-      if (--msgcount == 0)
+      if (--msgcount == 0) {
         callback(null, msg);
-      else
+        //heapdump.writeSnapshot();
+      } else
         console.log(msgcount + ' msgs left');
     };
     global.onmessage({data:{reset:true}});

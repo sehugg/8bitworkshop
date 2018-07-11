@@ -44,6 +44,8 @@ TODO:
 - base-36 encoding for LZG
 - disassembler for uploaded ROMs
 - show tool-specific (readonly) include files
+- verilog debugging makes it slow
+- fix VCS mame
 
 
 WEB WORKER FORMAT
