@@ -119,7 +119,7 @@ function getToolForFilename_6502(fn:string) : string {
   return "dasm"; // .a
 }
 
-abstract class Base6502Platform extends BaseDebugPlatform {
+export abstract class Base6502Platform extends BaseDebugPlatform {
 
   newCPU(membus : MemoryBus) {
     var cpu = new jt.M6502();
@@ -284,7 +284,7 @@ function BusProbe(bus : MemoryBus) {
   }
 }
 
-abstract class BaseZ80Platform extends BaseDebugPlatform {
+export abstract class BaseZ80Platform extends BaseDebugPlatform {
 
   _cpu;
   probe;
@@ -421,7 +421,7 @@ function getToolForFilename_z80(fn) {
 declare var FS, ENV, Module; // mame emscripten
 
 // TODO: make class
-var BaseMAMEPlatform = function() {
+export function BaseMAMEPlatform() {
 
   var self = this;
 

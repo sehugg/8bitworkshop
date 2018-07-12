@@ -9,17 +9,19 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
+  reg ball_reset;
   
+  // 9-bit ball timers
   reg [8:0] ball_htimer;
   reg [8:0] ball_vtimer;
   
-  // motion codes
+  // 4-bit motion codes
   reg [3:0] ball_horiz_move;
   reg [3:0] ball_vert_move;
 
-  // stop codes
-  localparam ball_horiz_stop = 4'd12;
-  localparam ball_vert_stop = 4'd11;
+  // 4-bit stop codes
+  localparam ball_horiz_stop = 4'd11;
+  localparam ball_vert_stop = 4'd10;
 
   // 5-bit constants to load into counters
   localparam ball_horiz_prefix = 5'b01100; // 192
@@ -36,11 +38,10 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   );
   
   // update horizontal timer
-  always @(posedge clk or posedge reset) begin
-    if (reset || ball_htimer == 0) begin
-      if (reset) // center-ish of screen
-        ball_htimer <= {5'b11000, ball_horiz_move};
-      else if (ball_vtimer == 0) // nudge ball in horiz. dir
+  always @(posedge clk or posedge ball_reset)
+  begin
+    if (ball_reset || &ball_htimer) begin
+      if (ball_reset || &ball_vtimer) // nudge ball in horiz. dir
         ball_htimer <= {ball_horiz_prefix, ball_horiz_move};
       else // reset timer but don't move ball horizontally
         ball_htimer <= {ball_horiz_prefix, ball_horiz_stop};
@@ -49,15 +50,22 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   end
 
   // update vertical timer
-  always @(posedge hsync or posedge reset)
+  always @(posedge hsync or posedge ball_reset)
   begin
-    if (reset) // center-ish of screen
-      ball_vtimer <= {5'b11000, ball_vert_move};
-    else if (ball_vtimer == 0) // reset timer
+    if (ball_reset || &ball_vtimer) // reset timer
       ball_vtimer <= {ball_vert_prefix, ball_vert_move};
     else
       ball_vtimer <= ball_vtimer + 1;
   end
+
+  // reset ball position
+  always @(posedge clk or posedge reset)
+    begin
+      if (reset)
+        ball_reset <= 1;
+      else if (hpos == 128 && vpos == 128)
+        ball_reset <= 0;
+    end
   
   // collide with vertical and horizontal boundaries
   wire ball_vert_collide = ball_vgfx && vpos >= 240;
@@ -67,18 +75,18 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   always @(posedge ball_vert_collide or posedge reset)
   begin
     if (reset)
-      ball_vert_move <= 4'd10;
+      ball_vert_move <= 4'd9;
     else
-      ball_vert_move <= 4'b0110 ^ ball_vert_move; // change dir.
+      ball_vert_move <= (4'd9 ^ 4'd11) ^ ball_vert_move; // change dir.
   end
 
   // horizontal bounce
   always @(posedge ball_horiz_collide or posedge reset)
   begin
     if (reset)
-      ball_horiz_move <= 4'd11;
+      ball_horiz_move <= 4'd10;
     else
-      ball_horiz_move <= 4'b0110 ^ ball_horiz_move; // change dir.
+      ball_horiz_move <= (4'd10 ^ 4'd12) ^ ball_horiz_move; // change dir.
   end
 
   // compute ball display

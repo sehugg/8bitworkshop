@@ -46,6 +46,7 @@ TODO:
 - show tool-specific (readonly) include files
 - verilog debugging makes it slow
 - fix VCS mame
+- checkmarks for active window
 
 
 WEB WORKER FORMAT

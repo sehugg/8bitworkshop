@@ -1158,17 +1158,18 @@ function compileInlineASM(code, platform, options, errors, asmlines) {
 function compileVerilator(step) {
   loadNative("verilator_bin");
   loadGen("worker/verilator2js");
-  var code = step.code;
   var platform = step.platform || 'verilog';
   var errors = [];
   var asmlines = [];
-  code = compileInlineASM(code, platform, step, errors, asmlines);
+  step.code = compileInlineASM(step.code, platform, step, errors, asmlines);
+  var code = step.code;
   var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?:)?(\d+)?[:]?\s*(.+)/i, 3, 4);
   var verilator_mod = verilator_bin({
     instantiateWasm: moduleInstFn('verilator_bin'),
     noInitialRun:true,
     print:print_fn,
     printErr:match_fn,
+    //TOTAL_MEMORY:64*1024*1024,
   });
   var topmod = detectTopModuleName(code);
   var FS = verilator_mod['FS'];

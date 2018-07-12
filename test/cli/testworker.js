@@ -165,6 +165,23 @@ describe('Worker', function() {
     doBuild(msgs, done2, 2782, 0, 0);
   });
   it('should compile verilog inline assembler (JSASM)', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/verilog/racing_game_cpu.v'));
+    var dependfiles = ["hvsync_generator.v", "sprite_bitmap.v", "sprite_renderer.v", "cpu8.v"];
+    var depends = [];
+    for (var dfile of dependfiles) {
+      var code = ab2str(fs.readFileSync('presets/verilog/' + dfile));
+      depends.push({filename:dfile, data:code, prefix:"verilog"});
+    }
+    var msgs = [{code:csource, platform:"verilog", tool:"verilator", dependencies:depends, path:'racing_game_cpu.v'}];
+    var done2 = function(err, msg) {
+      var jscode = msg.output.code;
+      var fn = new Function(jscode);
+      assert.ok(fn);
+      done(err, msg);
+    };
+    doBuild(msgs, done2, 49317, 0, 0);
+  });
+  it('should compile verilog assembler file (JSASM)', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/test2.asm'));
     var dependfiles = ["hvsync_generator.v", "font_cp437_8x8.v", "ram.v", "tile_renderer.v", "sprite_scanline_renderer.v", "lfsr.v", "sound_generator.v", "cpu16.v", "cpu_platform.v"];
     var depends = [];
