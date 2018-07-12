@@ -7,10 +7,15 @@
 `include "sound_generator.v"
 `include "cpu16.v"
 
-module cpu_platform(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
+module cpu_platform(clk, reset, hsync, vsync, 
+                    hpaddle, vpaddle, 
+                    switches_p1, switches_p2,
+                    rgb);
 
   input clk, reset;
   input hpaddle, vpaddle;
+  input [7:0] switches_p1;
+  input [7:0] switches_p2;
   output hsync, vsync;
   output [3:0] rgb;
 
@@ -30,6 +35,7 @@ module cpu_platform(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
   wire sprite_reading;
   wire [14:0] mux_ram_addr; // 15-bit RAM access
   
+  // multiplexor for sprite/tile/CPU RAM
   always @(*)
     if (cpu_busy) begin
       if (sprite_reading)
@@ -49,6 +55,7 @@ module cpu_platform(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
   wire [3:0] tile_rgb;
   wire [3:0] sprite_rgb;
   
+  // video sync generator
   hvsync_generator hvsync_gen(
     .clk(clk),
     .reset(reset),
@@ -68,6 +75,7 @@ module cpu_platform(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
     .we(ram_writeenable)
   );
   
+  // tile graphics
   tile_renderer tile_gen(
     .clk(clk),
     .reset(reset),
@@ -81,6 +89,7 @@ module cpu_platform(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
     .rgb(tile_rgb)
   );
 
+  // sprite scanline renderer
   sprite_scanline_renderer ssr(
     .clk(clk),
     .reset(reset),
@@ -94,11 +103,13 @@ module cpu_platform(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
     .rgb(sprite_rgb)
   );
   
+  // tile ROM
   font_cp437_8x8 tile_rom(
     .addr(tile_rom_addr),
     .data(tile_rom_data)
   );
 
+  // sprite ROM
   example_bitmap_rom bitmap_rom(
     .addr(sprite_rom_addr),
     .data(sprite_rom_data)
@@ -116,32 +127,39 @@ module cpu_platform(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
   wire busy;
   wire [15:0] cpu_bus;
   wire [15:0] flags = {11'b0, vsync, hsync, vpaddle, hpaddle, display_on};
+  wire [15:0] switches = {switches_p2, switches_p1};
   
-  assign cpu_bus = cpu_ram_addr[15]
-    ? (cpu_ram_addr == 16'hffff) 
-    ? flags
-    : program_rom[cpu_ram_addr[9:0]]
-    : ram_read;
-  
+  // select ROM, RAM, switches ($FFFE) or flags ($FFFF)
+  always @(*)
+    casez (cpu_ram_addr)
+      16'hfffe: cpu_bus = switches;
+      16'hffff: cpu_bus = flags;
+      16'b0???????????????: cpu_bus = ram_read;
+      16'b1???????????????: cpu_bus = program_rom[cpu_ram_addr[14:0]];
+    endcase
+
+  // 16-bit CPU
   CPU16 cpu(
     .clk(clk),
     .reset(reset),
-    .hold(tile_reading | sprite_reading),
-    .busy(cpu_busy),
+    .hold(tile_reading | sprite_reading), // hold input
+    .busy(cpu_busy),			  // busy output
     .address(cpu_ram_addr),
     .data_in(cpu_bus),
     .data_out(ram_write),
     .write(ram_writeenable));
 
-  reg [15:0] program_rom[0:1023];
+  // program ROM ($8000-$FFFE)
+  reg [15:0] program_rom[0:32767];
   
+  // example ROM program code
 `ifdef EXT_INLINE_ASM
   initial begin
     program_rom = '{
       __asm
 .arch femto16
 .org 0x8000
-.len 1024
+.len 32768
       mov       sp,@$6fff
       mov	dx,@InitPageTable
       jsr	dx
@@ -182,6 +200,7 @@ ClearSLoop:
         inc	bx
 	dec	cx
         bnz	ClearSLoop
+        rts
       __endasm
     };
   end
