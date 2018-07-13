@@ -345,7 +345,7 @@ var VerilogPlatform = function(mainElement, options) {
     updateVideoFrameCycles(cyclesPerFrame * fps/60 + 1, sync, trace);
     //if (trace) displayTraceBuffer();
     updateInspectionFrame();
-    updateAnimateScope(trace);
+    updateAnimateScope();
     updateInspectionPostFrame();
     self.restartDebugState();
     gen.__unreset();
@@ -354,18 +354,20 @@ var VerilogPlatform = function(mainElement, options) {
   function updateAnimateScope() {
     var fps = self.getFrameRate();
     var trace = fps < 0.02;
+    var ctx = video.getContext();
     if (scope_a > 0.01) {
-      video.getContext().fillStyle = "black";
-      video.getContext().fillRect(0, 0, videoWidth, videoHeight);
+      ctx.fillStyle = "black";
+      ctx.fillRect(0, 0, videoWidth, videoHeight);
       var vidyoffset = Math.round(scope_a*(-framey+videoHeight/6));
       video.updateFrame(0, vidyoffset, 0, 0, videoWidth, videoHeight);
-      video.getContext().fillStyle = "white";
-      video.getContext().fillRect(framex, framey+vidyoffset, 1, 1);
+      ctx.fillStyle = "white";
+      ctx.fillRect(framex, framey+vidyoffset, 1, 1);
       scope_index_offset = (trace_index - trace_signals.length*scopeWidth + trace_buffer.length) % trace_buffer.length;
       scope_x_offset = 0;
       updateScopeOverlay(trace_signals);
     } else {
-      video.updateFrame();
+      dirty = true;
+      updateScopeFrame();
       scope_index_offset = 0;
     }
     // smooth transition
@@ -537,12 +539,12 @@ var VerilogPlatform = function(mainElement, options) {
 		$(video.canvas).mousedown(function(e) {
 			scope_time_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 16);
       mouse_pressed = true;
-      if (e.target.setCapture) e.target.setCapture();
+      if (e.target.setCapture) e.target.setCapture(); // TODO: pointer capture
       redrawFrame();
 		});
 		$(video.canvas).mouseup(function(e) {
       mouse_pressed = false;
-      if (e.target.setCapture) e.target.releaseCapture();
+      if (e.target.setCapture) e.target.releaseCapture(); // TODO: pointer capture
       redrawFrame();
 		});
 		$(video.canvas).keydown(function(e) {
