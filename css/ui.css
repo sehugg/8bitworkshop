@@ -274,3 +274,9 @@ canvas.pixelated {
 .twitter-follow-button:hover {
   color:#99ffff;
 }
+.dropdown-item-checked::before {
+  position: absolute;
+  left: .4rem;
+  content: '\2713';
+  font-weight: 400;
+}

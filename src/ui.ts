@@ -120,8 +120,10 @@ function refreshWindowList() {
     ul.append(li);
     if (createfn) {
       projectWindows.setCreateFunc(id, createfn);
-      $(a).click(function() {
+      $(a).click(function(e) {
         projectWindows.createOrShow(id);
+        ul.find('a').removeClass("dropdown-item-checked");
+        ul.find(e.target).addClass("dropdown-item-checked");
       });
     }
   }
@@ -194,7 +196,7 @@ function loadProject(preset_id:string) {
       // we need this to build create functions for the editor (TODO?)
       refreshWindowList();
       // show main file
-      projectWindows.createOrShow(preset_id);
+      projectWindows.createOrShow(preset_id); // TODO: add checkmark
     }
   });
 }

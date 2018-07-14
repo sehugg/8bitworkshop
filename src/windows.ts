@@ -14,6 +14,7 @@ export class ProjectWindows {
   id2window : {[id:string]:ProjectView} = {};
   id2createfn : {[id:string]:WindowCreateFunction} = {};
   id2div : {[id:string]:HTMLElement} = {};
+  activeid : string;
   activewnd : ProjectView;
   activediv : HTMLElement;
   lasterrors : WorkerError[];
@@ -47,6 +48,7 @@ export class ProjectWindows {
       this.refresh();
       this.refreshErrors();
     }
+    this.activeid = id;
     return wnd;
   }
 
@@ -79,6 +81,8 @@ export class ProjectWindows {
   }
   
   getActive() : ProjectView { return this.activewnd; }
+  
+  getActiveID() : string { return this.activeid; }
   
   getCurrentText() : string {
     if (this.activewnd && this.activewnd.getValue)

@@ -1169,7 +1169,7 @@ function compileVerilator(step) {
     noInitialRun:true,
     print:print_fn,
     printErr:match_fn,
-    //TOTAL_MEMORY:64*1024*1024,
+    TOTAL_MEMORY:256*1024*1024,
   });
   var topmod = detectTopModuleName(code);
   var FS = verilator_mod['FS'];

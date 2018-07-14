@@ -46,7 +46,6 @@ TODO:
 - show tool-specific (readonly) include files
 - verilog debugging makes it slow
 - fix VCS mame
-- checkmarks for active window
 - remove FPS and play controls when Verilog scope paused
 
 
