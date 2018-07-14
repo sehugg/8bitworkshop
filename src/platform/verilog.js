@@ -366,8 +366,7 @@ var VerilogPlatform = function(mainElement, options) {
       scope_x_offset = 0;
       updateScopeOverlay(trace_signals);
     } else {
-      dirty = true;
-      updateScopeFrame();
+      video.updateFrame();
       scope_index_offset = 0;
     }
     // smooth transition
@@ -531,6 +530,7 @@ var VerilogPlatform = function(mainElement, options) {
       if (mouse_pressed) {
         scope_y_offset = clamp(Math.min(0,-scope_max_y+videoHeight), 0, scope_y_offset + new_y - paddle_y);
   			scope_time_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 16);
+  			dirty = true;
         redrawFrame();
       }
 			paddle_x = clamp(8, 240, new_x);
@@ -540,17 +540,19 @@ var VerilogPlatform = function(mainElement, options) {
 			scope_time_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 16);
       mouse_pressed = true;
       if (e.target.setCapture) e.target.setCapture(); // TODO: pointer capture
+			dirty = true;
       redrawFrame();
 		});
 		$(video.canvas).mouseup(function(e) {
       mouse_pressed = false;
       if (e.target.setCapture) e.target.releaseCapture(); // TODO: pointer capture
+  		dirty = true;
       redrawFrame();
 		});
 		$(video.canvas).keydown(function(e) {
       switch (e.keyCode) {
-        case 37: scope_time_x--; redrawFrame(); break;
-        case 39: scope_time_x++; redrawFrame(); break;
+        case 37: scope_time_x--; dirty=true; redrawFrame(); break;
+        case 39: scope_time_x++; dirty=true; redrawFrame(); break;
       }
 		});
     idata = video.getFrameData();
@@ -558,17 +560,17 @@ var VerilogPlatform = function(mainElement, options) {
 			if (!self.isRunning())
 				return;
       gen.switches = switches[0];
-      if (gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined)
-        updateVideoFrame();
-      else
-        updateScopeFrame();
+      redrawFrame();
     };
     trace_buffer = new Uint32Array(0x10000);
     self.setFrameRate(60);
   }
-
+  
   function redrawFrame() {
-    updateAnimateScope();
+    if (gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined)
+      updateVideoFrame();
+    else
+      updateScopeFrame();
   }
 
   this.printErrorCodeContext = function(e, code) {
