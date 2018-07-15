@@ -1,5 +1,4 @@
 `include "hvsync_generator.v"
-`include "cpu8.v"
 `include "cpu16.v"
 
 // uncomment to see scope view
@@ -85,9 +84,9 @@ module frame_buffer_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
   reg hold;
   wire busy;
   reg [15:0] vline[0:31]; // 32x16 bits = 256 4-color pixels
-  reg [4:0] vindex;
-  reg [15:0] vshift;
-  reg [3:0] palette[0:3] = '{0,1,4,7};
+  reg [4:0] vindex; // index into line array
+  reg [15:0] vshift; // shift register with current word to output
+  reg [3:0] palette[0:3] = '{0,1,4,7}; // simple palette
   
   always @(posedge clk) begin
     // has CPU released the bus?

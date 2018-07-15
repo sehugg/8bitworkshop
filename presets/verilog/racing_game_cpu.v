@@ -47,9 +47,9 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
   parameter TRACKPOS_LO = 8;
   parameter TRACKPOS_HI = 9;
 
-  parameter IN_HPOS = 8'b01000000;
-  parameter IN_VPOS = 8'b01000001;
-  parameter IN_FLAGS = 8'b01000010;
+  parameter IN_HPOS = 8'h40;
+  parameter IN_VPOS = 8'h41;
+  parameter IN_FLAGS = 8'h42;
 
   reg [7:0] ram[0:63];
   reg [7:0] rom[0:127];
@@ -81,7 +81,7 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
                           vsync, hsync, vpaddle, hpaddle, display_on};
       // ROM
       8'b1???????: to_cpu = rom[address_bus[6:0]];
-      default: ;
+      default: to_cpu = 8'bxxxxxxxx;
     endcase
   
   hvsync_generator hvsync_gen(

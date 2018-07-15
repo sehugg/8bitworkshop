@@ -318,6 +318,8 @@ var VerilogPlatform = function(mainElement, options) {
         framey = 0;
         framex = 0;
         frameidx = 0;
+        gen.hpaddle = 0;
+        gen.vpaddle = 0;
       } else {
         var wasvsync = framevsync;
         framevsync = false;
@@ -524,6 +526,7 @@ var VerilogPlatform = function(mainElement, options) {
     ctx.fillStyle = "white";
     ctx.textAlign = "left";
     setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
+    // TODO: make it stop incrementing time when clicked
 		$(video.canvas).mousemove(function(e) {
       var new_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 20);
       var new_y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height() - 20);

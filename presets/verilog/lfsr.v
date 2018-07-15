@@ -15,8 +15,8 @@ module LFSR(clk,reset,enable,lfsr);
 
   always @(posedge clk)
   begin
-    if (reset) // initialize to 1
-      lfsr <= {lfsr[NBITS-2:1], 1'b0, 1'b1};
+    if (reset)
+      lfsr <= {lfsr[NBITS-2:0], ~lfsr[0]};
     else if (enable)
       lfsr <= {lfsr[NBITS-2:0], 1'b0} ^ (feedback ? TAPS : 0);
   end

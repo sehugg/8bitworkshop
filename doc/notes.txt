@@ -47,6 +47,7 @@ TODO:
 - verilog debugging makes it slow
 - fix VCS mame
 - remove FPS and play controls when Verilog scope paused
+- compile stuck when errors unchanged
 
 
 WEB WORKER FORMAT

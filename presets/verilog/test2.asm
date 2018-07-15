@@ -12,7 +12,7 @@
 
 .arch femto16
 .org 0x8000
-.len 1024
+.len 32768
 
 .define ScreenBuffer $6000
 .define PageTable $7e00

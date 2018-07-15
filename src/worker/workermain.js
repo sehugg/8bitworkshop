@@ -1204,7 +1204,7 @@ function compileVerilator(step) {
     rtn.listings = {};
     // TODO: what if found in non-top-module?
     if (asmlines.length)
-      rtn.listings[topmod+'.v'] = {lines:asmlines};
+      rtn.listings[step.path] = {lines:asmlines};
     return rtn;
   } catch(e) {
     console.log(e);
