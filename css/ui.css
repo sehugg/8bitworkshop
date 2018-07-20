@@ -39,6 +39,10 @@
 .tooltiperror {
  color: #ff3333;
 }
+.tooltiperrorline {
+ color:#ffcccc;
+ background-color:#660000;
+}
 #controls_top {
   position: absolute;
   padding: 0.5em;

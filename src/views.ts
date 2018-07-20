@@ -55,7 +55,7 @@ export class SourceEditor implements ProjectView {
   dirtylisting = true;
   sourcefile : SourceFile;
   currentDebugLine : number;
-  lines2errmsg = [];
+  errorwidgets = [];
   
   createDiv(parent:HTMLElement, text:string) {
     var div = document.createElement('div');
@@ -83,7 +83,7 @@ export class SourceEditor implements ProjectView {
       clearTimeout(timer);
       timer = setTimeout( () => {
         current_project.updateFile(this.path, this.editor.getValue());
-      }, 200);
+      }, 300);
     });
     this.editor.on('cursorActivity', (ed) => {
       var start = this.editor.getCursor(true);
@@ -111,18 +111,14 @@ export class SourceEditor implements ProjectView {
   getPath() : string { return this.path; }
 
   addErrorMarker(line:number, msg:string) {
+    var tooltip = document.createElement("span");
+    tooltip.setAttribute("class", "tooltiperrorline");
     var div = document.createElement("div");
     div.setAttribute("class", "tooltipbox tooltiperror");
     div.appendChild(document.createTextNode("\u24cd"));
-    var tooltip = document.createElement("span");
-    tooltip.setAttribute("class", "tooltiptext");
-    if (this.lines2errmsg[line])
-      msg = this.lines2errmsg[line] + "\n" + msg;
-    tooltip.appendChild(document.createTextNode(msg));
-    this.lines2errmsg[line] = msg;
-    div.appendChild(tooltip);
     this.editor.setGutterMarker(line, "gutter-info", div);
-    //this.editor.addLineWidget(line, div);
+    tooltip.appendChild(document.createTextNode(msg));
+    this.errorwidgets.push(this.editor.addLineWidget(line, tooltip));
   }
   
   markErrors(errors:WorkerError[]) {
@@ -142,8 +138,11 @@ export class SourceEditor implements ProjectView {
   clearErrors() {
     this.editor.clearGutter("gutter-info");
     this.refreshDebugState();
+    //this.lines2errmsg = [];
     this.dirtylisting = true;
-    this.lines2errmsg = [];
+    // clear line widgets
+    while (this.errorwidgets.length)
+      this.errorwidgets.shift().clear();
   }
   
   getSourceFile() : SourceFile { return this.sourcefile; }
