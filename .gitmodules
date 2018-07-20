@@ -6,7 +6,7 @@
 	url = https://github.com/sehugg/dasm
 [submodule "codemirror"]
 	path = codemirror
-	url = https://github.com/sehugg/codemirror
+	url = https://github.com/codemirror/CodeMirror
 [submodule "octokat.js"]
 	path = octokat.js
 	url = https://github.com/philschatz/octokat.js

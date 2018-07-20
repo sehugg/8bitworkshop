@@ -35,7 +35,6 @@ TODO:
 - online help
 - show self-modifying code insns left of editor
 - facade/kbd shortcuts for emulators, focus
-- checkmarks in pulldown menus
 - update Javatari version? (and others?)
 - WASM takes too long to load (esp. verilog)
   (https://developers.google.com/web/updates/2018/04/loading-wasm)
@@ -44,11 +43,11 @@ TODO:
 - base-36 encoding for LZG
 - disassembler for uploaded ROMs
 - show tool-specific (readonly) include files
-- verilog debugging makes it slow
+- verilog debugging/reloading makes it slow
 - fix VCS mame
 - remove FPS and play controls when Verilog scope paused
 - compile stuck when errors unchanged
-
+- sound mute?
 
 WEB WORKER FORMAT
 

@@ -122,6 +122,7 @@ export class SourceEditor implements ProjectView {
     this.lines2errmsg[line] = msg;
     div.appendChild(tooltip);
     this.editor.setGutterMarker(line, "gutter-info", div);
+    //this.editor.addLineWidget(line, div);
   }
   
   markErrors(errors:WorkerError[]) {
