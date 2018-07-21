@@ -1189,6 +1189,9 @@ function compileVerilator(step) {
     errors.push({line:0,msg:"Compiler internal error: " + e});
   }
   endtime("compile");
+  // remove boring errors
+  errors = errors.filter(function(e) { return !/Exiting due to \d+/.exec(e.msg); }, errors);
+  errors = errors.filter(function(e) { return !/Use ["][/][*]/.exec(e.msg); }, errors);
   if (errors.length) {
     return {errors:errors};
   }

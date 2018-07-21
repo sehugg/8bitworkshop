@@ -26,7 +26,7 @@ module sound_generator(clk, reset, spkr,
 
   reg [15:0] lfsr;		// LFSR output
   
-  LFSR #(16,16'b1000000001011,0) lfsr_gen(
+  LFSR #(16'b1000000001011,0) lfsr_gen(
     .clk(clk),
     .reset(reset),
     .enable(div16 == 0 && noise_count == 0),

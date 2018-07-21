@@ -3,9 +3,9 @@
 
 module LFSR(clk,reset,enable,lfsr);
   
-  parameter NBITS  = 8;
   parameter TAPS   = 8'b11101;
   parameter INVERT = 0;
+  localparam NBITS  = $size(TAPS);
   
   input clk, reset;
   input enable;

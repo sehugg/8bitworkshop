@@ -24,7 +24,7 @@ module starfield_top(clk, reset, hsync, vsync, rgb);
   wire star_enable = !hpos[8] & !vpos[8];
   
   // LFSR with period = 2^16-1 = 256*256-1
-  LFSR #(16,16'b1000000001011,0) lfsr_gen(
+  LFSR #(16'b1000000001011,0) lfsr_gen(
     .clk(clk),
     .reset(reset),
     .enable(star_enable),

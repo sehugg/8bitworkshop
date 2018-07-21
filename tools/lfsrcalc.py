@@ -1,8 +1,10 @@
 #!/usr/bin/python
 
-print "Period,nbits,feedback,mask"
+MAXBITS=16
 
-for n in range(1,18):
+print("Period,nbits,feedback,mask")
+
+for n in range(1,MAXBITS):
     mask = (1<<n)-1
     hibit = (1<<(n-1))
     for i in range(0,1<<n):
@@ -25,4 +27,4 @@ for n in range(1,18):
                 seqindex = seq.index(x)
                 seqlen = len(seq) - seqindex
                 if seqlen>1:
-                    print seqlen, "#(%d,%d'%s,%d)" % (n,n,bin(i)[1:],invert), seqindex
+                    print(seqlen, "#(%d,%d'%s,%d)" % (n,n,bin(i)[1:],invert), seqindex)
