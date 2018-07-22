@@ -86,7 +86,7 @@ module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits,
 endmodule
 
 
-module test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
+module sprite_render_test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
 
   input clk;
   input hpaddle, vpaddle;

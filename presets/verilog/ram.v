@@ -46,4 +46,25 @@ module RAM_async(clk, addr, din, dout, we);
 
 endmodule
 
+module RAM_async_tristate(clk, addr, data, we);
+  
+  parameter A = 10; // # of address bits
+  parameter D = 8;  // # of data bits
+  
+  input  clk;		// clock
+  input  [A-1:0] addr;	// address
+  inout  [D-1:0] data;	// data in/out
+  input  we;		// write enable
+  
+  reg [D-1:0] mem [0:(1<<A)-1]; // (1<<A)xD bit memory
+  
+  always @(posedge clk) begin
+    if (we)		 // if write enabled
+      mem[addr] <= data; // write memory from data
+  end
+
+  assign data = !we ? mem[addr] : {D{1'bz}}; // read memory to data (async)
+
+endmodule
+
 `endif

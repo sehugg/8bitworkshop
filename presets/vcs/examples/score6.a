@@ -64,9 +64,9 @@ NextFrame
         TIMER_WAIT
 
 	TIMER_SETUP 30
-        lda #1
-        ldx #0
-        ldy #0
+        lda #$01
+        ldx #$00
+        ldy #$00
         jsr AddScore
         TIMER_WAIT
         jmp NextFrame

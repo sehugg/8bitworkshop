@@ -183,7 +183,7 @@ export class CodeProject {
         // TODO: should get rid of this msg format
         this.worker.postMessage({
           code:text,
-          path:this.mainpath,
+          path:getFilenameForPath(this.mainpath),
           dependencies:depends,
           platform:this.platform_id,
           tool:this.platform.getToolForFilename(this.mainpath)

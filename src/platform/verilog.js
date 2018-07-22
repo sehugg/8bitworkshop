@@ -601,6 +601,7 @@ var VerilogPlatform = function(mainElement, options) {
       // compile Verilog code
       var base = new VerilatorBase();
       gen = new mod(base);
+      //$.extend(gen, base);
       gen.__proto__ = base;
       current_output = output;
       module_name = output.name ? output.name.substr(1) : "top";

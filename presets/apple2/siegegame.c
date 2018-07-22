@@ -115,13 +115,16 @@ void move_player(Player* p) {
 
 void human_control(Player* p) {
   byte dir = 0xff;
-  byte joy;
+  byte key;
   if (!p->human) return;
-  joy = joy_read (JOY_1);
-  if (joy & JOY_LEFT_MASK) dir = D_LEFT;
-  if (joy & JOY_RIGHT_MASK) dir = D_RIGHT;
-  if (joy & JOY_UP_MASK) dir = D_UP;
-  if (joy & JOY_DOWN_MASK) dir = D_DOWN;
+  if (!kbhit()) return;
+  key = cgetc();
+  switch (key) {
+    case 'i': dir = D_UP; break;
+    case 'j': dir = D_LEFT; break;
+    case 'k': dir = D_RIGHT; break;
+    case 'm': dir = D_DOWN; break;
+  }
   // don't let the player reverse
   if (dir < 0x80 && dir != (p->dir ^ 2)) {
     p->dir = dir;

@@ -2,7 +2,7 @@
 `include "sprite_bitmap.v"
 `include "sprite_renderer.v"
 
-module sprite_multiple_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
+module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
 
   input clk;
   input hpaddle, vpaddle;
