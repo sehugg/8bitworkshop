@@ -88,6 +88,23 @@ function buildModule(o : V2JS_Code) : string {
   return m;
 }
 
+function getStats(o : V2JS_Code) {
+  var nmembits = 0;
+  var nlines = 0;
+  for (var sig of o.signals.concat(o.ports)) {
+    var len = sig.len || 0;
+    if (sig.arrdim)
+      for (var n of sig.arrdim)
+        len *= n;
+    nmembits += len;
+  }
+  for (var fn of o.funcs) {
+    nlines += fn.split('\n').length;
+  }
+  //console.log(nmembits,'bits',nlines,'lines');
+  return {bits:nmembits, lines:nlines};
+}
+
 function translateFunction(text : string) : string {
   text = text.trim();
   var funcname = text.match(/(\w+)/)[1];
@@ -110,6 +127,7 @@ function translateFunction(text : string) : string {
   text = text.replace(/^#/gm, '//#');
   text = text.replace(/VL_LIKELY/g, '!!');
   text = text.replace(/VL_UNLIKELY/g, '!!');
+  //[%0t] %Error: scoreboard.v:53: Assertion failed in %Nscoreboard_top.scoreboard_gen: reset 64 -935359306 Vscoreboard_top
   text = text.replace(/Verilated::(\w+)Error/g, 'console.log');
   text = text.replace(/vlSymsp.name[(][)]/g, '"'+moduleName+'"');
   return "function " + text + "\nself." + funcname + " = " + funcname + ";\n";
@@ -144,18 +162,21 @@ function translateStaticVars(text : string) : string {
     var fntxt = translateFunction(functexts[i]);
     funcs.push(fntxt);
   }
-
+  
+  var modinput = {
+    name:moduleName,
+    ports:ports,
+    signals:signals,
+    funcs:funcs,
+  };
+  
   return {
     output:{
-      code:buildModule({
-        name:moduleName,
-        ports:ports,
-        signals:signals,
-        funcs:funcs,
-      }),
+      code:buildModule(modinput),
       name:moduleName,
       ports:ports,
       signals:signals,
+      //stats:getStats(modinput),
     }
   };
 

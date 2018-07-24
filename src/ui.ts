@@ -893,6 +893,7 @@ function startUI(loadplatform : boolean) {
   if (!platform_id) {
     platform_id = qs['platform'] = "vcs";
   }
+  $("#item_platform_"+platform_id).addClass("dropdown-item-checked");
   // parse query string
   // is this a share URL?
   if (qs['sharekey']) {

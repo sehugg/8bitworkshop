@@ -1,8 +1,6 @@
 `ifndef RAM_H
 `define RAM_H
 
-`include "hvsync_generator.v"
-
 module RAM_sync(clk, addr, din, dout, we);
   
   parameter A = 10; // # of address bits

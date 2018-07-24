@@ -9,6 +9,8 @@ includeInThisContext('src/platform/verilog.js');
 function loadPlatform(msg) {
   var platform = new VerilogPlatform();
   try {
+    //console.log(msg.output.ports);
+    //console.log(msg.output.signals);
     platform.loadROM("ROM", msg.output);
     vl_finished = vl_stopped = false;
     for (var i=0; i<10000 && !(vl_finished||vl_stopped); i++)
@@ -53,6 +55,7 @@ describe('Verilog Worker', function() {
 
   testVerilator('presets/verilog/hvsync_generator.v');
   testVerilator('presets/verilog/lfsr.v');
+  testVerilator('presets/verilog/ram.v');
   // TODO: how to include files?
 
   //testVerilator('test/cli/verilog/t_tri_gate.v');

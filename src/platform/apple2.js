@@ -5,6 +5,7 @@ var APPLE2_PRESETS = [
   {id:'mandel.c', name:'Mandelbrot'},
   {id:'tgidemo.c', name:'TGI Graphics Demo'},
   {id:'siegegame.c', name:'Siege Game'},
+  {id:'hgrtest.a', name:"HGR Test (asm)"},
   {id:'conway.a', name:"Conway's Game of Life (asm)"},
 //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
 ];
@@ -273,6 +274,14 @@ var Apple2Platform = function(mainElement) {
   }
   this.reset = function() {
     cpu.reset();
+    // execute until $c600 boot
+    for (var i=0; i<2000000; i++) {
+      cpu.clockPulse();
+      if (this.getCPUState().PC == 0xc602) {
+        cpu.clockPulse();
+        break;
+      }
+    }
   }
   this.readAddress = function(addr) {
     return bus.read(addr);

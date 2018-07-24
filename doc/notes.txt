@@ -19,7 +19,6 @@ TODO:
 - can't step after reset (or when funky frame; TIA frame is out of sync)
 - break on BRK/illegal opcode?
 - multiple breakpoints, expression breakpoints
-- run apple CPU until boot
 - better disasm/listing selection
 - disasm for z80
 - watchpoints
@@ -48,6 +47,7 @@ TODO:
 - remove FPS and play controls when Verilog scope paused
 - compile stuck when errors unchanged
 - sound mute?
+- $error updates source editor
 
 WEB WORKER FORMAT
 

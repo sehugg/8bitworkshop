@@ -14,7 +14,7 @@
         lda .loop+2	; increment hi byte of instruction
         clc
         adc #1
-        sta .loop+2
+        sta .loop+2	; self-modifying code
         cmp #$40
         bne .loop
         lda #$20	; reset to $2000

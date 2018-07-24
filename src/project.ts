@@ -55,13 +55,14 @@ export class CodeProject {
   parseFileDependencies(text:string):string[] {
     var files = [];
     if (this.platform_id == 'verilog') {
-      var re = /^(`include|[.]include)\s+"(.+?)"/gm;
+      var re = /^\s*(`include|[.]include)\s+"(.+?)"/gm;
       var m;
       while (m = re.exec(text)) {
         files.push(m[2]);
+        files.push('local/'+m[2]); // TODO?
       }
     } else {
-      var re = /^([;#]|[/][/][#])link\s+"(.+?)"/gm;
+      var re = /^\s*([;#]|[/][/][#])link\s+"(.+?)"/gm;
       var m;
       while (m = re.exec(text)) {
         files.push(m[2]);
@@ -123,38 +124,42 @@ export class CodeProject {
         // finished loading all files; return result
         callback(null, result);
       } else {
-        // look in store
-        this.store.getItem(path, (err, value) => {
-          if (err) { // err fetching from store
-            callback(err, result);
-          } else if (value) { // found in store?
-            this.filedata[path] = value;
-            addResult(path, value);
-            loadNext();
-          } else if (path in this.filedata) { // found in cache?
-            var data = this.filedata[path];
-            if (data)
-              addResult(path, data);
-            loadNext();
-          } else { // found on remote fetch?
-            var webpath = "presets/" + this.platform_id + "/" + path;
-            if (this.platform_id == 'vcs' && path.indexOf('.') <= 0)
-              webpath += ".a"; // legacy stuff
-            this.callbackGetRemote( webpath, (text:string) => {
-              console.log("GET",webpath,text.length,'bytes');
-              this.filedata[path] = text;
-              addResult(path, text);
+        // look in cache
+        if (path in this.filedata) { // found in cache?
+          var data = this.filedata[path];
+          if (data)
+            addResult(path, data);
+          loadNext();
+        } else {
+          // look in store
+          this.store.getItem(path, (err, value) => {
+            if (err) { // err fetching from store
+              callback(err, result);
+            } else if (value) { // found in store?
+              this.filedata[path] = value;
+              addResult(path, value);
               loadNext();
-            }, 'text')
-            .fail( (err:XMLHttpRequest) => {
-              console.log("Could not load preset", path, err);
-              // only cache result if status is 404 (not found)
-              if (err.status && err.status == 404)
-                this.filedata[path] = null;
-              loadNext();
-            });
-          }
-        });
+            } else {
+              // found on remote fetch?
+              var webpath = "presets/" + this.platform_id + "/" + path;
+              if (this.platform_id == 'vcs' && path.indexOf('.') <= 0)
+                webpath += ".a"; // legacy stuff
+              this.callbackGetRemote( webpath, (text:string) => {
+                console.log("GET",webpath,text.length,'bytes');
+                this.filedata[path] = text;
+                addResult(path, text);
+                loadNext();
+              }, 'text')
+              .fail( (err:XMLHttpRequest) => {
+                console.log("Could not load preset", path, err);
+                // only cache result if status is 404 (not found)
+                if (err.status && err.status == 404)
+                  this.filedata[path] = null;
+                loadNext();
+              });
+            }
+          });
+        }
       }
     }
     loadNext(); // load first file
