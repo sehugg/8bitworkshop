@@ -14,7 +14,7 @@ export interface ProjectView {
   getSourceFile?() : SourceFile;
   setGutterBytes?(line:number, s:string) : void;
   openBitmapEditorAtCursor?() : void;
-  markErrors?(errors:WorkerError[]) : void;
+  markErrors?(errors:WorkerError[], intermediate?:boolean) : void;
   clearErrors?() : void;
 };
 
@@ -56,6 +56,7 @@ export class SourceEditor implements ProjectView {
   sourcefile : SourceFile;
   currentDebugLine : number;
   errorwidgets = [];
+  lines2errmsg = [];
   
   createDiv(parent:HTMLElement, text:string) {
     var div = document.createElement('div');
@@ -110,18 +111,29 @@ export class SourceEditor implements ProjectView {
   
   getPath() : string { return this.path; }
 
-  addErrorMarker(line:number, msg:string) {
-    var tooltip = document.createElement("span");
-    tooltip.setAttribute("class", "tooltiperrorline");
+  addErrorMarker(line:number, msg:string, intermediate:boolean) {
+    // add line widget w/ error msg
+    if (!intermediate) {
+      var errspan = document.createElement("span");
+      errspan.setAttribute("class", "tooltiperrorline");
+      errspan.appendChild(document.createTextNode(msg));
+      this.errorwidgets.push(this.editor.addLineWidget(line, errspan));
+    }
+    // concatenate error msgs for tooltip text
     var div = document.createElement("div");
     div.setAttribute("class", "tooltipbox tooltiperror");
     div.appendChild(document.createTextNode("\u24cd"));
-    this.editor.setGutterMarker(line, "gutter-info", div);
+    if (this.lines2errmsg[line])
+      msg = this.lines2errmsg[line] + "\n" + msg;
+    this.lines2errmsg[line] = msg;
+    var tooltip = document.createElement("span");
+    tooltip.setAttribute("class", "tooltiptext");
     tooltip.appendChild(document.createTextNode(msg));
-    this.errorwidgets.push(this.editor.addLineWidget(line, tooltip));
+    div.appendChild(tooltip);
+    this.editor.setGutterMarker(line, "gutter-info", div);
   }
   
-  markErrors(errors:WorkerError[]) {
+  markErrors(errors:WorkerError[], intermediate?:boolean) {
     // TODO: move cursor to error line if offscreen?
     this.clearErrors();
     var numLines = this.editor.lineCount();
@@ -130,7 +142,7 @@ export class SourceEditor implements ProjectView {
       if (!info.path || this.path.endsWith(info.path)) {
         var line = info.line-1;
         if (line < 0 || line >= numLines) line = 0;
-        this.addErrorMarker(line, info.msg);
+        this.addErrorMarker(line, info.msg, intermediate);
       }
     }
   }
@@ -138,7 +150,7 @@ export class SourceEditor implements ProjectView {
   clearErrors() {
     this.editor.clearGutter("gutter-info");
     this.refreshDebugState();
-    //this.lines2errmsg = [];
+    this.lines2errmsg = [];
     this.dirtylisting = true;
     // clear line widgets
     while (this.errorwidgets.length)
