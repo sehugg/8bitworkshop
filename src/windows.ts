@@ -74,7 +74,7 @@ export class ProjectWindows {
   refreshErrors(embedlines?:boolean) {
     if (this.activewnd && this.activewnd.markErrors) {
       if (this.lasterrors && this.lasterrors.length)
-        this.activewnd.markErrors(this.lasterrors, embedlines);
+        this.activewnd.markErrors(this.lasterrors); // TODO?, embedlines);
       else
         this.activewnd.clearErrors();
     }

@@ -1,10 +1,10 @@
 "use strict";
 
 var APPLE2_PRESETS = [
-  {id:'sieve.c', name:'Sieve'},
-  {id:'mandel.c', name:'Mandelbrot'},
-  {id:'tgidemo.c', name:'TGI Graphics Demo'},
-  {id:'siegegame.c', name:'Siege Game'},
+  {id:'sieve.c', name:'Sieve (C)'},
+  {id:'mandel.c', name:'Mandelbrot (C)'},
+  {id:'tgidemo.c', name:'TGI Graphics Demo (C)'},
+  {id:'siegegame.c', name:'Siege Game (C)'},
   {id:'hgrtest.a', name:"HGR Test (asm)"},
   {id:'conway.a', name:"Conway's Game of Life (asm)"},
 //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
