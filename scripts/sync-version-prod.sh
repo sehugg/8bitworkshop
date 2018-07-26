@@ -20,9 +20,7 @@ rm -fr $TMPDIR
 mkdir -p $TMPDIR
 git archive $VERSION | tar x -C $TMPDIR
 echo "Copying to $DESTPATH..."
-rsync --stats --exclude '.*' --exclude 'scripts/*' --exclude=node_modules --copy-dest=$DEVPATH -aril -e "ssh -p 2222" $TMPDIR/ $SUBMODS $DESTPATH
-rsync -a -e "ssh -p 2222" redir.html $DESTPATH/../index.html
-#git ls-files -z | 
-git archive --format tar.gz --prefix 8bitworkshop- HEAD tools/ > release/8bitworkshop-tools.tgz
+rsync --stats --exclude '.*' --exclude 'scripts/*' --exclude=node_modules --copy-dest=$DEVPATH -rilz -e "ssh -p 2222" $TMPDIR/ $SUBMODS $DESTPATH
+git archive --format tar.gz --prefix 8bitworkshop- HEAD tools/ > release/8bitworkshop-tools-$VERSION.tgz
 #rsync --stats -arilvz -e "ssh -p 2222" ./mame  $DESTPATH/
 echo "Done."
