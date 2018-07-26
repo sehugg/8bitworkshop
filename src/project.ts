@@ -2,7 +2,7 @@
 
 import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, WorkerResult } from "./workertypes";
 
-type BuildResultCallback = (result:WorkerResult, intermediate:boolean) => void;
+type BuildResultCallback = (result:WorkerResult) => void;
 type BuildStatusCallback = (busy:boolean) => void;
 type LoadFilesCallback = (err:string, result?:Dependency[]) => void;
 type IterateFilesCallback = (path:string, data:FileData) => void;
@@ -39,8 +39,7 @@ export class CodeProject {
       this.pendingWorkerMessages = 0;
       if (e.data && !e.data.unchanged) {
         this.processBuildResult(e.data);
-        var intermediate = false; // TODO?
-        if (this.callbackBuildResult) this.callbackBuildResult(e.data, intermediate); // call with data when changed
+        if (this.callbackBuildResult) this.callbackBuildResult(e.data); // call with data when changed
       }
     };
   }

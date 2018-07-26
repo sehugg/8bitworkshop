@@ -37,7 +37,8 @@
     visibility: visible;
 }
 .tooltiperror {
- color: #ff3333;
+ color: #ff6666;
+ font-weight: bold;
 }
 .tooltiperrorline {
  color:#ffcccc;

@@ -14,7 +14,7 @@ export interface ProjectView {
   getSourceFile?() : SourceFile;
   setGutterBytes?(line:number, s:string) : void;
   openBitmapEditorAtCursor?() : void;
-  markErrors?(errors:WorkerError[], intermediate?:boolean) : void;
+  markErrors?(errors:WorkerError[], embedlines:boolean) : void;
   clearErrors?() : void;
 };
 
@@ -111,9 +111,9 @@ export class SourceEditor implements ProjectView {
   
   getPath() : string { return this.path; }
 
-  addErrorMarker(line:number, msg:string, intermediate:boolean) {
+  addErrorMarker(line:number, msg:string, embedlines:boolean) {
     // add line widget w/ error msg
-    if (!intermediate) {
+    if (embedlines) {
       var errspan = document.createElement("span");
       errspan.setAttribute("class", "tooltiperrorline");
       errspan.appendChild(document.createTextNode(msg));
@@ -133,7 +133,7 @@ export class SourceEditor implements ProjectView {
     this.editor.setGutterMarker(line, "gutter-info", div);
   }
   
-  markErrors(errors:WorkerError[], intermediate?:boolean) {
+  markErrors(errors:WorkerError[], embedlines:boolean) {
     // TODO: move cursor to error line if offscreen?
     this.clearErrors();
     var numLines = this.editor.lineCount();
@@ -142,7 +142,7 @@ export class SourceEditor implements ProjectView {
       if (!info.path || this.path.endsWith(info.path)) {
         var line = info.line-1;
         if (line < 0 || line >= numLines) line = 0;
-        this.addErrorMarker(line, info.msg, intermediate);
+        this.addErrorMarker(line, info.msg, embedlines);
       }
     }
   }

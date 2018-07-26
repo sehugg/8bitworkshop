@@ -86,8 +86,8 @@ function initProject() {
   current_project = new CodeProject(newWorker(), platform_id, platform, store);
   projectWindows = new ProjectWindows($("#workspace")[0], current_project);
   current_project.callbackGetRemote = $.get;
-  current_project.callbackBuildResult = (result:WorkerResult, intermediate:boolean) => {
-    setCompileOutput(result, intermediate);
+  current_project.callbackBuildResult = (result:WorkerResult) => {
+    setCompileOutput(result);
     refreshWindowList();
   };
   current_project.callbackBuildStatus = (busy:boolean) => {
@@ -96,7 +96,7 @@ function initProject() {
     } else {
       toolbar.removeClass("is-busy");
       toolbar.removeClass("has-errors"); // may be added in next callback
-      projectWindows.setErrors(null, false);
+      projectWindows.setErrors(null);
     }
     $('#compile_spinner').css('visibility', busy ? 'visible' : 'hidden');
   };
@@ -376,10 +376,10 @@ function updateSelector() {
   });
 }
 
-function setCompileOutput(data: WorkerResult, intermediate:boolean) {
+function setCompileOutput(data: WorkerResult) {
   // errors? mark them in editor
   if (data.errors && data.errors.length > 0) {
-    projectWindows.setErrors(data.errors, intermediate);
+    projectWindows.setErrors(data.errors);
     toolbar.addClass("has-errors");
   } else {
     // process symbol map
@@ -400,7 +400,7 @@ function setCompileOutput(data: WorkerResult, intermediate:boolean) {
       } catch (e) {
         console.log(e);
         toolbar.addClass("has-errors");
-        projectWindows.setErrors([{line:0,msg:e+""}], false);
+        projectWindows.setErrors([{line:0,msg:e+""}]);
         current_output = null;
       }
     /* TODO?

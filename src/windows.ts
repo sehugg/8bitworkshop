@@ -46,7 +46,7 @@ export class ProjectWindows {
       this.activewnd = wnd;
       $(div).show();
       this.refresh();
-      this.refreshErrors(false);
+      this.refreshErrors();
     }
     this.activeid = id;
     return wnd;
@@ -66,15 +66,15 @@ export class ProjectWindows {
       this.activewnd.tick();
   }
 
-  setErrors(errors:WorkerError[], intermediate:boolean) {
+  setErrors(errors:WorkerError[]) {
     this.lasterrors = errors;
-    this.refreshErrors(intermediate);
+    this.refreshErrors();
   }
   
-  refreshErrors(intermediate:boolean) {
+  refreshErrors(embedlines?:boolean) {
     if (this.activewnd && this.activewnd.markErrors) {
       if (this.lasterrors && this.lasterrors.length)
-        this.activewnd.markErrors(this.lasterrors, intermediate);
+        this.activewnd.markErrors(this.lasterrors, embedlines);
       else
         this.activewnd.clearErrors();
     }

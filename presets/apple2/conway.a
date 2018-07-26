@@ -51,7 +51,7 @@ EXITDOS       equ $03D0
 ; Build Options
 ; ------------------------------------
  
-NOISY           equ 1                           ; 0 = Sound off, 1 = Sound on
+NOISY           equ 0                           ; 0 = Sound off, 1 = Sound on
 CHARSET         equ 1                           ; 0 = Olde Skoole, 1 = Pixel, 2 = Inverse, 3 = Small O's, 4 = Enhanced
 INIT_PATTERN    equ 0                           ; 0 = Glider gun, 1 = "Random", 2 = Edge test
 TEST_PERF       equ 0                           ; 0 = Normal, 1 = Instrument for emulator cycle counting (forces Glider gun layout and sound off)
