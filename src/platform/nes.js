@@ -20,33 +20,152 @@ new jt.M6502(); // to get Javatari.getOpcodeMetadata
 
 /// JSNES
 
+var JSNES_KEYCODE_MAP = makeKeycodeMap([
+  [Keys.VK_Z,     0, 0],
+  [Keys.VK_X,     0, 1],
+  [Keys.VK_2,     0, 2],
+  [Keys.VK_1,     0, 3],
+  [Keys.VK_UP,    0, 4],
+  [Keys.VK_DOWN,  0, 5],
+  [Keys.VK_LEFT,  0, 6],
+  [Keys.VK_RIGHT, 0, 7],
+  [Keys.VK_Q,     1, 0],
+  [Keys.VK_E,     1, 1],
+  [Keys.VK_4,     1, 2],
+  [Keys.VK_3,     1, 3],
+  [Keys.VK_W,     1, 4],
+  [Keys.VK_S,     1, 5],
+  [Keys.VK_A,     1, 6],
+  [Keys.VK_D,     1, 7],
+]);
+
 var JSNESPlatform = function(mainElement) {
   var self = this;
+  this.__proto__ = new Base6502Platform();
+  this.debugPCDelta = 1;
+
   var nes;
   var rom;
+  var video, audio, timer;
+  var audioFrequency = 44100;
 
-  this.getPresets = function() { return NES_PRESETS; }
+  this.getPresets = function() { return NES_CONIO_PRESETS; }
 
   this.start = function() {
-    nes = new JSNES({
-      'ui': $('#emulator').JSNESUI({})
+    video = new RasterVideo(mainElement,256,224);
+    audio = new SampleAudio(audioFrequency);
+    video.create();
+    var idata = video.getFrameData();
+    nes = new jsnes.NES({
+      onFrame: function(frameBuffer) {
+        for (var i=0; i<frameBuffer.length; i++)
+          idata[i] = frameBuffer[i] | 0xff000000;
+        video.updateFrame();
+        self.restartDebugState();
+      },
+      onAudioSample: function(left, right) {
+        audio.feedSample(left+right, 1);
+      },
+      onStatusUpdate: function(s) {
+        console.log(s);
+      },
+      //onBatteryRamWrite
+    });
+    nes.stop = function() {
+      self.pause();// TODO
+      console.log(nes.cpu.toJSON()); // TODO
+      throw ("CPU STOPPED");
+    };
+    // insert debug hook
+    nes.cpu._emulate = nes.cpu.emulate;
+    nes.cpu.emulate = function() {
+      var cycles = nes.cpu._emulate();
+      //if (self.debugCondition && !self.debugBreakState && self.debugClock < 100) console.log(self.debugClock, nes.cpu.REG_PC);
+      self.evalDebugCondition();
+      return cycles;
+    }
+    timer = new AnimationTimer(60, function() {
+      nes.frame();
+    });
+    // set keyboard map
+    setKeyboardFromMap(video, [], JSNES_KEYCODE_MAP, function(o,key,code,flags) {
+      if (flags & 1)
+        nes.buttonDown(o.index+1, o.mask); // controller, button
+      else
+        nes.buttonUp(o.index+1, o.mask); // controller, button
     });
   }
 
   this.loadROM = function(title, data) {
-    nes.loadRom(data);
+    var romstr = String.fromCharCode.apply(null, data);
+    nes.loadROM(romstr);
   }
 
   this.getOpcodeMetadata = Javatari.getOpcodeMetadata;
   this.getToolForFilename = getToolForFilename_6502;
   this.getDefaultExtension = function() { return ".c"; };
-
-  this.isRunning = function() { return nes.isRunning; }
-  this.pause = function() { if (rom) nes.stop(); }
-  this.resume = function() { if (rom) nes.start(); }
-
-  this.clearDebug = function() { // TODO
+  
+  this.reset = function() {
+    //nes.cpu.reset(); // doesn't work right, crashes
+    nes.cpu.requestIrq(nes.cpu.IRQ_RESET);
   }
+  this.isRunning = function() {
+    return timer.isRunning();
+  }
+  this.pause = function() {
+    timer.stop();
+    audio.stop();
+  }
+  this.resume = function() {
+    timer.start();
+    audio.start();
+  }
+
+  this.getCPUState = function() {
+    var c = nes.cpu.toJSON();
+    this.copy6502REGvars(c);
+    return c;
+  }
+  this.saveState = function() {
+    //var s = $.extend(true, {}, nes);
+    var s = nes.toJSON();
+    s.c = s.cpu;
+    this.copy6502REGvars(s.c);
+    s.cpu.mem = s.cpu.mem.slice(0);
+    s.ppu.vramMem = s.ppu.vramMem.slice(0);
+    s.ppu.spriteMem = s.ppu.spriteMem.slice(0);
+    return s;
+  }
+  this.loadState = function(state) {
+    nes.fromJSON(state);
+    //nes.cpu.fromJSON(state.cpu);
+    //nes.mmap.fromJSON(state.mmap);
+    //nes.ppu.fromJSON(state.ppu);
+    nes.cpu.mem = state.cpu.mem.slice(0);
+    nes.ppu.vramMem = state.ppu.vramMem.slice(0);
+    nes.ppu.spriteMem = state.ppu.spriteMem.slice(0);
+    //$.extend(nes, state);
+  }
+  this.readAddress = function(addr) {
+    return nes.cpu.mem[addr] & 0xff;
+  }
+  this.copy6502REGvars = function(c) {
+    c.T = 0;
+    c.PC = c.REG_PC;
+    c.A = c.REG_ACC;
+    c.X = c.REG_X;
+    c.Y = c.REG_Y;
+    c.SP = c.REG_SP;
+    c.Z = c.F_ZERO;
+    c.N = c.F_SIGN;
+    c.V = c.F_OVERFLOW;
+    c.D = c.F_DECIMAL;
+    c.C = c.F_CARRY;
+    c.R = 1;
+    c.o = this.readAddress(c.PC+1);
+    return c;
+  }
+
 }
 
 /// MAME support
@@ -102,7 +221,7 @@ var NESLibPlatform = function(mainElement) {
 
 ///
 
-//PLATFORMS['nes'] = JSNESPlatform;
+PLATFORMS['nes'] = JSNESPlatform;
 PLATFORMS['nes-lib'] = NESLibPlatform;
 PLATFORMS['nes-conio'] = NESConIOPlatform;
 

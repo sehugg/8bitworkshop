@@ -102,6 +102,11 @@ var PLATFORM_PARAMS = {
       //'main.rel'
       ],
   },
+  'nes': { //TODO
+    define: '__NES__',
+    cfgfile: 'neslib.cfg',
+    libargs: ['neslib.lib', 'nes.lib'],
+  },
   'nes-conio': {
     cfgfile: 'nes.cfg',
     define: '__NES__',

@@ -109,32 +109,14 @@ abstract class BaseDebugPlatform {
   }
 }
 
-////// 6502
+abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
+  debugPCDelta = -1;
 
-function getToolForFilename_6502(fn:string) : string {
-  if (fn.endsWith(".pla")) return "plasm";
-  if (fn.endsWith(".c")) return "cc65";
-  if (fn.endsWith(".s")) return "ca65";
-  if (fn.endsWith(".acme")) return "acme";
-  return "dasm"; // .a
-}
-
-export abstract class Base6502Platform extends BaseDebugPlatform {
-
-  newCPU(membus : MemoryBus) {
-    var cpu = new jt.M6502();
-    cpu.connectBus(membus);
-    return cpu;
+  evalDebugCondition() {
+    if (this.debugCondition && !this.debugBreakState) {
+      this.debugCondition();
+    }
   }
-
-  getOpcodeMetadata(opcode, offset) {
-    return Javatari.getOpcodeMetadata(opcode, offset); // TODO
-  }
-
-  getOriginPC() : number {
-    return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
-  }
-
   restartDebugState() {
     if (this.debugCondition && !this.debugBreakState) {
       this.debugSavedState = this.saveState();
@@ -145,24 +127,38 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
   breakpointHit(targetClock : number) {
     this.debugTargetClock = targetClock;
     this.debugBreakState = this.saveState();
-    this.debugBreakState.c.PC = (this.debugBreakState.c.PC-1) & 0xffff;
+    this.debugBreakState.c.PC = (this.debugBreakState.c.PC + this.debugPCDelta) & 0xffff;
     console.log("Breakpoint at clk", this.debugClock, "PC", this.debugBreakState.c.PC.toString(16));
     this.pause();
     if (this.onBreakpointHit) {
       this.onBreakpointHit(this.debugBreakState);
     }
   }
-  // TODO: lower bound of clock value
+  runEval(evalfunc : DebugEvalCondition) {
+    this.setDebugCondition( () => {
+      if (this.debugClock++ >= this.debugTargetClock) {
+        var cpuState = this.getCPUState();
+        cpuState.PC = (cpuState.PC + this.debugPCDelta) & 0xffff;
+        if (evalfunc(cpuState)) {
+          this.breakpointHit(this.debugClock-1);
+          return true;
+        } else {
+          return false;
+        }
+      }
+    });
+  }
   step() {
     var previousPC = -1;
     this.setDebugCondition( () => {
-      if (this.debugClock++ > this.debugTargetClock) {
+      //console.log(this.debugClock, this.debugTargetClock, this.getCPUState().PC, this.getCPUState());
+      if (this.debugClock++ >= this.debugTargetClock) {
         var thisState = this.getCPUState();
         if (previousPC < 0) {
           previousPC = thisState.PC;
         } else {
+          // doesn't work w/ endless loops
           if (thisState.PC != previousPC && thisState.T == 0) {
-            //console.log(previousPC.toString(16), thisPC.toString(16));
             this.breakpointHit(this.debugClock-1);
             return true;
           }
@@ -188,20 +184,34 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
       return false;
     });
   }
-  runEval(evalfunc : DebugEvalCondition) {
-    this.setDebugCondition( () => {
-      if (this.debugClock++ > this.debugTargetClock) {
-        var cpuState = this.getCPUState();
-        cpuState.PC = (cpuState.PC-1)&0xffff;
-        if (evalfunc(cpuState)) {
-          this.breakpointHit(this.debugClock-1);
-          return true;
-        } else {
-          return false;
-        }
-      }
-    });
+}
+
+////// 6502
+
+function getToolForFilename_6502(fn:string) : string {
+  if (fn.endsWith(".pla")) return "plasm";
+  if (fn.endsWith(".c")) return "cc65";
+  if (fn.endsWith(".s")) return "ca65";
+  if (fn.endsWith(".acme")) return "acme";
+  return "dasm"; // .a
+}
+
+export abstract class Base6502Platform extends BaseFrameBasedPlatform {
+
+  newCPU(membus : MemoryBus) {
+    var cpu = new jt.M6502();
+    cpu.connectBus(membus);
+    return cpu;
   }
+
+  getOpcodeMetadata(opcode, offset) {
+    return Javatari.getOpcodeMetadata(opcode, offset); // TODO
+  }
+
+  getOriginPC() : number {
+    return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
+  }
+
   runUntilReturn() {
     var depth = 1;
     this.runEval( (c:CpuState) => {
@@ -214,6 +224,7 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
       return false;
     });
   }
+
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
   }
@@ -336,7 +347,6 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   breakpointHit(targetClock : number) {
     this.debugTargetClock = targetClock;
     this.debugBreakState = this.saveState();
-    //this.debugBreakState.c.PC = (this.debugBreakState.c.PC-1) & 0xffff;
     console.log("Breakpoint at clk", this.debugBreakState.c.T, "PC", this.debugBreakState.c.PC.toString(16));
     this.pause();
     if (this.onBreakpointHit) {

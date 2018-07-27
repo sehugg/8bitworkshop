@@ -279,6 +279,7 @@ var Apple2Platform = function(mainElement) {
       cpu.clockPulse();
       if (this.getCPUState().PC == 0xc602) {
         cpu.clockPulse();
+        cpu.clockPulse();
         break;
       }
     }
