@@ -1,5 +1,17 @@
 "use strict";
 
+var JSNES_PRESETS = [
+  {id:'ex0.asm', name:'Initialization (ASM)'},
+  {id:'ex1.asm', name:'Scrolling Demo (ASM)'},
+//  {id:'hello.c', name:'C: Hello PPU'},
+//  {id:'conio.c', name:'C: Hello Console I/O'},
+  {id:'siegegame.c', name:'Siege Game (C)'},
+  {id:'neslib1.c', name:'Text (C)'},
+  {id:'neslib2.c', name:'Sprites (C)'},
+  {id:'neslib3.c', name:'Cursor (C)'},
+  {id:'neslib4.c', name:'Metasprites (C)'},
+];
+
 var NES_NESLIB_PRESETS = [
   {id:'neslib1.c', name:'Text'},
   {id:'neslib2.c', name:'Sprites'},
@@ -49,7 +61,7 @@ var JSNESPlatform = function(mainElement) {
   var video, audio, timer;
   var audioFrequency = 44100;
 
-  this.getPresets = function() { return NES_CONIO_PRESETS; }
+  this.getPresets = function() { return JSNES_PRESETS; }
 
   this.start = function() {
     video = new RasterVideo(mainElement,256,224);

@@ -29,16 +29,38 @@
 
     <script src="jquery/jquery-2.2.3.min.js"></script>
 
-    <script src="javatari.js/release/javatari/javatari.js"></script>
-    <script src="src/cpu/z80fast.js"></script>
-    <script src="gen/emu.js"></script>
-    <script src="gen/util.js"></script>
-    <script src="gen/cpu/disasm6502.js"></script>
-    <script src="src/platform/vcs.js"></script>
-    <script src="src/platform/mw8080bw.js"></script>
-    <script src="src/platform/vicdual.js"></script>
-    <script src="src/platform/williams.js"></script>
-    <script src="src/platform/galaxian.js"></script>
+<script src="javatari.js/release/javatari/javatari.js"></script>
+<script src="src/cpu/z80fast.js"></script>
+<script src="jsnes/jsnes.min.js"></script>
+<script src="localForage/dist/localforage.nopromises.js"></script>
+
+<script>
+var exports = {};
+function require(modname) {
+  if (modname == 'jquery') return $;
+  else if (modname.startsWith('.')) return exports;
+  else { console.log("Unknown require()", modname); return exports; }
+}
+</script>
+
+<script src="tss/js/tss/PsgDeviceChannel.js"></script>
+<script src="tss/js/tss/MasterChannel.js"></script>
+<script src="tss/js/tss/AudioLooper.js"></script>
+<script src="tss/js/Log.js"></script>
+
+<script src="gen/store.js"></script>
+<script src="src/vlist.js"></script>
+<script src="gen/emu.js"></script>
+<script src="gen/baseplatform.js"></script>
+<script src="gen/audio.js"></script>
+<script src="gen/util.js"></script>
+<script src="gen/cpu/disasm6502.js"></script>
+<script src="gen/workertypes.js"></script>
+<script src="gen/project.js"></script>
+<script src="gen/windows.js"></script>
+<script src="gen/views.js"></script>
+<script src="gen/ui.js"></script>
+
 
     <script src="test/ui/testemus.js"></script>
     <script>

@@ -5,6 +5,14 @@
 #include <nes.h>
 #include <joystick.h>
 
+#include "neslib.h"
+
+//#link "tileset1.c"
+
+extern unsigned char palSprites[16];
+extern unsigned char TILESET[8*256];
+
+
 #define COLS 32
 #define ROWS 28
 
@@ -36,7 +44,7 @@ byte getchar(byte x, byte y) {
   return rd;
 }
 
-void delay(byte count) {
+void vdelay(byte count) {
   while (count--) waitvsync();
 }
 
@@ -177,7 +185,7 @@ void flash_colliders() {
     //cv_set_attenuation(CV_SOUNDCHANNEL_0, i/2);
     if (players[0].collided) players[0].head_attr ^= 0x80;
     if (players[1].collided) players[1].head_attr ^= 0x80;
-    delay(2);
+    vdelay(2);
     draw_player(&players[0]);
     draw_player(&players[1]);
   }
@@ -188,7 +196,7 @@ void make_move() {
   byte i;
   for (i=0; i<frames_per_move; i++) {
     human_control(&players[0]);
-    delay(1);
+    vdelay(1);
   }
   ai_control(&players[0]);
   ai_control(&players[1]);
@@ -202,12 +210,12 @@ void declare_winner(byte winner) {
   clrscr();
   for (i=0; i<ROWS/2-3; i++) {
     draw_box(i,i,COLS-1-i,ROWS-1-i,BOX_CHARS);
-    delay(1);
+    vdelay(1);
   }
   cputsxy(12,10,"WINNER:");
   cputsxy(12,13,"PLAYER ");
   cputcxy(12+7, 13, '1'+winner);
-  delay(75);
+  vdelay(75);
   gameover = 1;
 }
 
@@ -272,6 +280,7 @@ void play_game() {
 }
 
 void main() {
+  vram_write((unsigned char*)TILESET, 0x0, sizeof(TILESET));
   joy_install (joy_static_stddrv);
   play_game();
 }
