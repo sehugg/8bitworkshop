@@ -76,18 +76,6 @@ div.memdump {
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   font-size: 10pt;
 }
-div.debugwindow {
-  position:absolute;
-  left:50%;
-  top:0;
-  width:50%;
-  background-color: #333;
-  color: #66ff66;
-  white-space: pre;
-  margin-top: 20px auto 0;
-  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
-  font-size: 10pt;
-}
 div.mem_info {
   position: fixed;
   left: 51%;

@@ -10,6 +10,7 @@ var JSNES_PRESETS = [
   {id:'neslib2.c', name:'Sprites (C)'},
   {id:'neslib3.c', name:'Cursor (C)'},
   {id:'neslib4.c', name:'Metasprites (C)'},
+  {id:'neslib5.c', name:'RLE Unpack (C)'},
 ];
 
 var NES_NESLIB_PRESETS = [
@@ -114,7 +115,6 @@ var JSNESPlatform = function(mainElement) {
   }
 
   this.getOpcodeMetadata = Javatari.getOpcodeMetadata;
-  this.getToolForFilename = getToolForFilename_6502;
   this.getDefaultExtension = function() { return ".c"; };
   
   this.reset = function() {

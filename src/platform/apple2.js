@@ -1000,7 +1000,6 @@ var Apple2MAMEPlatform = function(mainElement) {
   }
 
   this.getOpcodeMetadata = Javatari.getOpcodeMetadata;
-  this.getToolForFilename = getToolForFilename_6502;
   this.getDefaultExtension = function() { return ".c"; };
 
   this.getPresets = function() { return APPLE2_PRESETS; }

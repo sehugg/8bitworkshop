@@ -414,6 +414,7 @@ function setCompileOutput(data: WorkerResult) {
 }
 
 function showMemory(state?) {
+  var meminfo = $("#mem_info");
   var s = state && platform.cpuStateToLongString && platform.cpuStateToLongString(state.c);
   if (s) {
     if (platform.getRasterPosition) {
@@ -424,10 +425,10 @@ function showMemory(state?) {
       s += platform.ramStateToLongString(state);
     }
     var hs = lastDebugInfo ? highlightDifferences(lastDebugInfo, s) : s;
-    $("#mem_info").show().html(hs);
+    meminfo.show().html(hs);
     lastDebugInfo = s;
   } else {
-    $("#mem_info").hide();
+    meminfo.hide();
     lastDebugInfo = null;
   }
 }
