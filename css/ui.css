@@ -91,6 +91,18 @@ div.mem_info {
   -moz-box-shadow: 3px 3px 5px rgba(0,0,0,.5);
   box-shadow: 3px 3px 5px rgba(0,0,0,.5);
 }
+div.mem_info a {
+  color: #99ff99;
+  font-weight: bold;
+  text-decoration: underline;
+}
+div.mem_info a:hover {
+  background-color: #333399;
+  cursor: pointer;
+}
+div.mem_info a.selected {
+ color: #ffffff;
+}
 .btn_group {
   border-radius:6px;
   padding:6px;
@@ -141,7 +153,7 @@ div.twitbtn {
   right: 0%;
   padding: 10px;
 }
-a {
+a.twitbtn {
   color:#333399;
   font-weight: bold;
 }
@@ -229,7 +241,7 @@ canvas.pixelated {
   height:2em;
   border-style:none;
 }
-.selected {
+.palbtn .selected {
   border-width:2px;
   border-color:white;
   border-style:dotted;

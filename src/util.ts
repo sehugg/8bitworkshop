@@ -18,9 +18,18 @@ function getFilenamePrefix(s:string):string {
 }
 
 function hex(v:number, nd?:number) {
+  if (!nd) nd = 2;
+  return toradix(v,nd,16);
+}
+
+function tobin(v:number, nd?:number) {
+  if (!nd) nd = 8;
+  return toradix(v,nd,2);
+}
+
+function toradix(v:number, nd:number, radix:number) {
   try {
-    if (!nd) nd = 2;
-    var s = v.toString(16).toUpperCase();
+    var s = v.toString(radix).toUpperCase();
     while (s.length < nd)
       s = "0" + s;
     return s;

@@ -60,6 +60,7 @@ var store;			// persistent store
 
 var lastDebugInfo;		// last debug info (CPU text)
 var lastDebugState;		// last debug state (object)
+var debugCategory;		// current debug category
 
 function inspectVariable(ed, name) { // TODO: ed?
   var val;
@@ -413,19 +414,33 @@ function setCompileOutput(data: WorkerResult) {
   }
 }
 
-function showMemory(state?) {
+function showDebugInfo(state?) {
   var meminfo = $("#mem_info");
-  var s = state && platform.cpuStateToLongString && platform.cpuStateToLongString(state.c);
+  var allcats = platform.getDebugCategories && platform.getDebugCategories();
+  if (allcats && !debugCategory)
+    debugCategory = allcats[0];
+  var s = state && platform.getDebugInfo && platform.getDebugInfo(debugCategory, state);
   if (s) {
-    if (platform.getRasterPosition) {
-      var pos = platform.getRasterPosition();
-      s += "H:" + pos.x + "  V:" + pos.y + "\n"; // TODO: padding
-    }
-    if (platform.ramStateToLongString) {
-      s += platform.ramStateToLongString(state);
-    }
     var hs = lastDebugInfo ? highlightDifferences(lastDebugInfo, s) : s;
     meminfo.show().html(hs);
+    var catspan = $('<span>');
+    var addCategoryLink = (cat:string) => {
+      var catlink = $('<a>'+cat+'</a>');
+      if (cat == debugCategory)
+        catlink.addClass('selected');
+      catlink.click((e) => {
+        debugCategory = cat;
+        lastDebugInfo = null;
+        showDebugInfo(lastDebugState);
+      });
+      catspan.append(catlink);
+      catspan.append('<span> </span>');
+    }
+    for (var cat of allcats) {
+      addCategoryLink(cat);
+    }
+    meminfo.append('<br>');
+    meminfo.append(catspan);
     lastDebugInfo = s;
   } else {
     meminfo.hide();
@@ -441,7 +456,7 @@ function setDebugButtonState(btnid:string, btnstate:string) {
 function setupBreakpoint(btnid? : string) {
   platform.setupDebug(function(state) {
     lastDebugState = state;
-    showMemory(state);
+    showDebugInfo(state);
     projectWindows.refresh();
     if (btnid) setDebugButtonState(btnid, "stopped");
   });
@@ -522,7 +537,7 @@ function runStepBackwards() {
 function clearBreakpoint() {
   lastDebugState = null;
   if (platform.clearDebug) platform.clearDebug();
-  showMemory();
+  showDebugInfo();
 }
 
 function resetAndDebug() {

@@ -30,9 +30,6 @@ export interface Platform {
   readAddress?(addr:number) : number;
   setFrameRate?(fps:number) : void;
   getFrameRate?() : number;
-  cpuStateToLongString?(state) : string;
-  ramStateToLongString?(state) : string;
-  getRasterPosition() : {x:number, y:number};
   setupDebug?(debugfn : (state)=>void) : void;
   clearDebug?() : void;
   step?() : void;
@@ -47,6 +44,9 @@ export interface Platform {
   saveState?() : EmuState;
   getDebugCallback?() : any; // TODO
   getSP?() : number;
+
+  getDebugCategories() : string[];
+  getDebugInfo(category:string, state:EmuState) : string;
 }
 
 export interface Preset {
@@ -228,11 +228,14 @@ export abstract class Base6502Platform extends BaseFrameBasedPlatform {
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
   }
-  cpuStateToLongString(c:CpuState) : string {
-    return cpuStateToLongString_6502(c);
-  }
   getToolForFilename = getToolForFilename_6502;
   getDefaultExtension() { return ".a"; };
+  
+  // TODO: Memory category
+  getDebugCategories() { return ["CPU"]; }
+  getDebugInfo(category:string, state:EmuState) {
+    return cpuStateToLongString_6502(state.c);
+  }
 }
 
 function cpuStateToLongString_6502(c) : string {
@@ -409,13 +412,15 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
       return false;
     });
   }
-  cpuStateToLongString(c) {
-    return cpuStateToLongString_Z80(c);
-  }
   getToolForFilename = getToolForFilename_z80;
   getDefaultExtension() { return ".c"; };
   // TODO
   //this.getOpcodeMetadata = function() { }
+
+  getDebugCategories() { return ["CPU"]; }
+  getDebugInfo(category:string, state:EmuState) {
+    return cpuStateToLongString_Z80(state.c);
+  }
 }
 
 function getToolForFilename_z80(fn) {

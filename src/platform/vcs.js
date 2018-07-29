@@ -125,6 +125,40 @@ var VCSPlatform = function() {
     return "dasm";
   }
   this.getDefaultExtension = function() { return ".a"; };
+
+  this.getDebugCategories = function() {
+    return ['CPU','Memory','PIA','TIA'];
+  }
+  this.getDebugInfo = function(category, state) {
+    switch (category) {
+      case 'CPU':    return this.cpuStateToLongString(state.c);
+      case 'Memory': return this.ramStateToLongString(state);
+      case 'PIA':    return this.piaStateToLongString(state.p);
+      case 'TIA':    return this.tiaStateToLongString(state.t);
+    }
+  }
+  this.piaStateToLongString = function(p) {
+    return "Timer  " + p.t + "/" + p.c + "\n";
+  }
+  this.tiaStateToLongString = function(t) {
+    var pos = this.getRasterPosition();
+    var s = '';
+    s += "H " + pos.x + "  V " + pos.y + "\n";
+    s += (t.vs?"VSYNC ":"- ") + (t.vb?"VBLANK ":"- ") + "\n";
+    s += "Playfield " + t.f + "\n";
+    // TODO? s += "    Color {color:0x" + hex(t.fc)  + "} {color:0x" + hex(t.fb) + "}\n";
+    for (var j=0; j<2; j++) {
+      var i = "p"+j;
+      s += "Player"+j+ "   " + t[i+'co'] + " " + t[i+'sc'] + " " + t[i+'ss'] + " " + (t[i+'v']?"DELAY":"") + " " + (t[i+'cc']?"CLOSECOPY":"") + " " + (t[i+'mc']?"MEDCOPY":"") + " " + (t[i+'wc']?"WIDECOPY":"") + " " + (t[i+'r']?"REFLECT":"") + "\n";
+      s += "          " + tobin(t[i]) + " " + tobin(t[i+'d']) + "\n";
+    }
+    for (var j=0; j<2; j++) {
+      var i = "m"+j;
+      s += "Missile"+j+ "  " + t[i+'co'] + " " + t[i+'sc'] + " " + t[i+'ss'] + "\n";
+    }
+    s += "Ball      " + t['bco'] + " " + t['bsc'] + " " + t['bss'] + "\n";
+    return s;
+  }
 };
 
 /// VCS TIMING ANALYSIS
