@@ -394,6 +394,8 @@ function extractErrors(regex, strings) {
   return errors;
 }
 
+// TODO: "of" doesn't work in MSIE
+
 function parseListing(code, lineMatch, iline, ioffset, iinsns, origin) {
   var lines = [];
   origin |= 0;
@@ -725,7 +727,7 @@ function compileCC65(step) {
   load("cc65");
   var params = step.params;
   // stderr
-  var re_err1 = /.*?(\d+).*?: (.+)/;
+  var re_err1 = /.*?[(](\d+)[)].*?: (.+)/;
   var errors = [];
   var errline = 0;
   function match_fn(s) {
