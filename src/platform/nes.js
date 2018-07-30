@@ -167,17 +167,77 @@ var JSNESPlatform = function(mainElement) {
     c.A = c.REG_ACC;
     c.X = c.REG_X;
     c.Y = c.REG_Y;
-    c.SP = c.REG_SP;
+    c.SP = c.REG_SP & 0xff;
     c.Z = c.F_ZERO;
     c.N = c.F_SIGN;
     c.V = c.F_OVERFLOW;
     c.D = c.F_DECIMAL;
     c.C = c.F_CARRY;
+    c.I = c.F_INTERRUPT;
     c.R = 1;
     c.o = this.readAddress(c.PC+1);
     return c;
   }
 
+  this.getDebugCategories = function() {
+    return ['CPU','ZPRAM','PPU'];
+  }
+  this.getDebugInfo = function(category, state) {
+    switch (category) {
+      case 'CPU':    return cpuStateToLongString_6502(state.c);
+      case 'ZPRAM': return dumpRAM(state.cpu.mem, 0, 0x100);
+      case 'PPU': return this.ppuStateToLongString(state.ppu);
+    }
+  }
+  this.ppuStateToLongString = function(ppu) {
+    var s = '';
+    var PPUFLAGS = [
+      ["f_nmiOnVblank","NMI_ON_VBLANK"],
+      ["f_spVisibility","SPRITES"],
+      ["f_spClipping","CLIP_SPRITES"],
+      ["f_dispType","MONOCHROME"],
+      ["f_bgVisibility","BACKGROUND"],
+      ["f_bgClipping","CLIP_BACKGROUND"],
+    ];
+    for (var i=0; i<PPUFLAGS.length; i++) {
+      var flag = PPUFLAGS[i];
+      //if (ppu[flag[0]]) s += flag[1] + "\n";
+      s += (flag[1] ? flag[1] : "-") + " ";
+      if (i==2 || i==5) s += "\n";
+    }
+    s += "\n";
+    s += "BgColor " + ['black','blue','green','red'][ppu.f_color] + "\n";
+    if (ppu.f_spVisibility) {
+      s += "SprSize " + (ppu.f_spriteSize ? "8x16" : "8x8") + "\n";
+      s += "SprBase $" + (ppu.f_spPatternTable ? "1000" : "0000") + "\n";
+    }
+    if (ppu.f_bgVisibility) {
+      s += " BgBase $" + (ppu.f_bgPatternTable ? "1000" : "0000") + "\n";
+      s += " NTBase $" + hex(ppu.f_nTblAddress*0x400+0x2000) + "\n";
+      s += "AddrInc " + (ppu.f_addrInc ? "32" : "1") + "\n";
+    }
+    s += " VRAM " + (ppu.firstWrite?"@":"?") + " $" + hex(ppu.vramAddress,4) + "\n";
+    var PPUREGS = [
+      'cntFV',
+      'cntV',
+      'cntH',
+      'cntVT',
+      'cntHT',
+      'regFV',
+      'regV',
+      'regH',
+      'regVT',
+      'regHT',
+      'regFH',
+      'regS',
+    ];
+    s += "\n";
+    for (var i=0; i<PPUREGS.length; i++) {
+      var reg = PPUREGS[i];
+      s += lpad(reg.toUpperCase(),7) + " $" + hex(ppu[reg]) + " (" + ppu[reg] + ")\n";
+    }
+    return s;
+  }
 }
 
 /// MAME support

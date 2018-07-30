@@ -246,7 +246,7 @@ function cpuStateToLongString_6502(c) : string {
     s += c.D ? " D" : " -";
     s += c.Z ? " Z" : " -";
     s += c.C ? " C" : " -";
-  //  s += c.I ? " I" : " -";
+    s += c.I ? " I" : " -";
     return s;
   }
   return "PC " + hex(c.PC,4) + "  " + decodeFlags(c) + "\n"
