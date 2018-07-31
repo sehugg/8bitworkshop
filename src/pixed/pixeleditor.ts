@@ -224,6 +224,14 @@ var pixel_re = /([0#]?)([x$%]|\d'[bh])([0-9a-f]+)/gi;
 function parseHexBytes(s) {
   var arr = [];
   var m;
+  // convert 'hex ....' asm format
+  s = s.replace(/(\shex\s+)([0-9a-f]+)/ig, function(m,hexprefix,hexstr) {
+    var rtn = hexprefix;
+    for (var i=0; i<hexstr.length; i+=2) {
+      rtn += '0x'+hexstr.substr(i,2)+',';
+    }
+    return rtn;
+  });
   while (m = pixel_re.exec(s)) {
     var n;
     if (m[2].startsWith('%') || m[2].endsWith("b"))
@@ -259,6 +267,12 @@ function replaceHexBytes(s, bytes) {
       result += m[1] + bytes[i++].toString();
   }
   result += s.slice(li);
+  // convert 'hex ....' asm format
+  result = result.replace(/(\shex\s+)([,x0-9a-f]+)/ig, function(m,hexprefix,hexstr) {
+    var rtn = hexprefix + hexstr;
+    rtn = rtn.replace(/0x/,'').replace(',','')
+    return rtn;
+  });
   return result;
 }
 
