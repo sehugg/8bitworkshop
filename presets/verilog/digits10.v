@@ -3,12 +3,14 @@
 
 `include "hvsync_generator.v"
 
+// module for 10-digit bitmap ROM
 module digits10_case(digit, yofs, bits);
   
-  input [3:0] digit;
-  input [2:0] yofs;
-  output reg [4:0] bits;
+  input [3:0] digit;		// digit 0-9
+  input [2:0] yofs;		// vertical offset (0-4)
+  output reg [4:0] bits;	// output (5 bits)
 
+  // combine {digit,yofs} into single ROM address
   wire [6:0] caseexpr = {digit,yofs};
   
   always @(*)
@@ -79,13 +81,13 @@ endmodule
 
 module digits10_array(digit, yofs, bits);
   
-  input [3:0] digit;
-  input [2:0] yofs;
-  output [4:0] bits;
+  input [3:0] digit;		// digit 0-9
+  input [2:0] yofs;		// vertical offset (0-4)
+  output [4:0] bits;		// output (5 bits)
 
-  reg [4:0] bitarray[0:15][0:4];
+  reg [4:0] bitarray[0:15][0:4];	// ROM array
 
-  assign bits = bitarray[digit][yofs];
+  assign bits = bitarray[digit][yofs];	// assign module output
   
   integer i,j;
   
@@ -157,6 +159,7 @@ module digits10_array(digit, yofs, bits);
   end
 endmodule
 
+// test module
 module test_numbers_top(clk, reset, hsync, vsync, rgb);
   
   input clk, reset;

@@ -1,3 +1,4 @@
+
 `include "hvsync_generator.v"
 `include "ram.v"
 
@@ -53,14 +54,12 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
   output [15:0] rom_addr; // sprite ROM address
   input [15:0] rom_data;  // sprite ROM data
   
-  // copy of sprite data from RAM
+  // copy of sprite data from RAM (N entries)
   reg [7:0] sprite_xpos[0:N-1];
   reg [7:0] sprite_ypos[0:N-1];
   reg [7:0] sprite_attr[0:N-1];
-  
-  // mapping of N sprites to M line slots
-  reg [NB-1:0] sprite_to_line[0:M-1];
 
+  // M sprite slots
   reg [7:0] line_xpos[0:M-1]; // X pos for M slots
   reg [7:0] line_yofs[0:M-1]; // Y pos for M slots
   reg [7:0] line_attr[0:M-1]; // attr for M slots
@@ -74,6 +73,7 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
   reg [8:0] write_ofs;
   reg [15:0] out_bitmap;
   reg [7:0] out_attr;
+  reg romload;
 
   // which sprite are we currently reading?
   wire [NB-1:0] load_index = hpos[NB:1];
@@ -122,43 +122,49 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
         endcase
       end
     end else if (hpos < N*2) begin
+      // setup vars for next phase
       k <= 0;
+      romload <= 0;
       // select the sprites that will appear in this scanline
       case (hpos[0])
         // compute Y offset of sprite relative to scanline
         0: z <= 8'(vpos - sprite_ypos[i]);
-        // sprite is active if Y offset is 0..15
         1: begin
+          // sprite is active if Y offset is 0..15
           if (z < 16) begin
+            line_xpos[j] <= sprite_xpos[i]; // save X pos
             line_yofs[j] <= z; // save Y offset
-            sprite_to_line[j] <= i; // save main array index
+            line_attr[j] <= sprite_attr[i]; // save attr
             line_active[j] <= 1; // mark sprite active
             j <= j + 1; // inc counter
           end
           i <= i + 1; // inc main array counter
         end
       endcase
-    end else if (hpos < N*2+M*24) begin
+    end else if (hpos < N*2+M*18) begin
+      // setup vars for next phase
       j <= 0;
-      // divide hpos by 24 (8 setup + 16 render)
-      if ((hpos[3:0] < 8) ^^ hpos[4]) begin
-        // render sprites into write buffer
-        case (hpos[3:0])
-          // grab index into main sprite array
-          0: i <= sprite_to_line[k];
-          // load scanline buffer offset to write
-          1: write_ofs <= {~vpos[0], sprite_xpos[i]};
-          // set ROM address and fetch bitmap
-          2: rom_addr <= {4'b0, sprite_attr[i][7:4], line_yofs[k]};
-          // fetch 0 if sprite is inactive
-          3: out_bitmap <= line_active[k] ? rom_data : 0;
-          // load attribute for sprite
-          4: out_attr <= sprite_attr[i];
-          // disable sprite for next scanline
-          6: line_active[k] <= 0;
-          // go to next sprite in 2ndary buffer
-          7: k <= k + 1;
+      // if sprite shift register is empty, load new sprite
+      if (out_bitmap == 0) begin
+        case (romload)
+          0: begin
+            // set ROM address and fetch bitmap
+            rom_addr <= {4'b0, line_attr[k][7:4], line_yofs[k]};
+          end
+          1: begin
+            // load scanline buffer offset to write
+            write_ofs <= {~vpos[0], line_xpos[k]};
+            // fetch 0 if sprite is inactive
+            out_bitmap <= line_active[k] ? rom_data : 0;
+            // load attribute for sprite
+            out_attr <= line_attr[k];
+            // disable sprite for next scanline
+            line_active[k] <= 0;
+            // go to next sprite in 2ndary buffer
+            k <= k + 1;
+          end
         endcase
+        romload <= !romload;
       end else begin
         // write color to scanline buffer if low bit == 1
         if (out_bitmap[0])

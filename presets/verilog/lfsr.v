@@ -1,15 +1,15 @@
 `ifndef LFSR_V
 `define LFSR_V
 
-module LFSR(clk,reset,enable,lfsr);
+module LFSR(clk, reset, enable, lfsr);
   
-  parameter TAPS   = 8'b11101;
-  parameter INVERT = 0;
-  localparam NBITS  = $size(TAPS);
+  parameter TAPS   = 8'b11101;	// bitmask for taps
+  parameter INVERT = 0;		// invert feedback bit?
+  localparam NBITS  = $size(TAPS); // bit width (derived from TAPS)
   
   input clk, reset;
-  input enable;
-  output reg [NBITS-1:0] lfsr;
+  input enable;			// only perform shift when enable=1
+  output reg [NBITS-1:0] lfsr;  // shift register
 
   wire feedback = lfsr[NBITS-1] ^ INVERT;
 

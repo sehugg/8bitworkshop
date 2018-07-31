@@ -60,7 +60,7 @@ export class CodeProject {
       var m;
       while (m = re.exec(text)) {
         files.push(m[2]);
-        files.push('local/'+m[2]); // TODO?
+        //files.push('local/'+m[2]); // TODO: shows up 2x in interface
       }
     } else {
       var re = /^\s*([;#]|[/][/][#])link\s+"(.+?)"/gm;

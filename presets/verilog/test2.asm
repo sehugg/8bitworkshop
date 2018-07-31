@@ -1,4 +1,4 @@
-
+﻿
 .include "hvsync_generator.v"
 .include "font_cp437_8x8.v"
 .include "ram.v"
@@ -140,11 +140,15 @@ MoveSprites:
 	mov	dx,@SpriteTable
         mov	cx,#5
 MoveSLoop:
-	mov	ax,[dx]	; x/y pos
-        mov	bx,[dx+1] ; attributes/dir
-        and	bx,#3	; bx = direction (0-3)
+	mov	ax,[dx]    ; x/y pos
+        mov	bx,[dx+1]  ; direction
+        rol	bx
+        rol	bx
+        rol	bx
+        rol	bx
+        and	bx,#3	   ; bx = direction (0-3)
         add	bx,@DirectionXY
-	add	ax,[bx] ; lookup & add to x/y
+	add	ax,[bx]    ; lookup & add to x/y
         ; make sure we don't collide with wall
         mov	ex,ax
         add	ex,#$08
@@ -170,19 +174,18 @@ MoveSLoop:
         bz	DoNotUpdatePos
         ; update x/y position
         mov	[dx],ax	; store x/y pos
-	inc	dx
-	inc	dx
 NextSLoop:
+        add	dx,#2
         dec	cx
         bnz	MoveSLoop
         rts
 ; Choose a new direction
 DoNotUpdatePos:
-        mov	bx,[dx+1] ; attributes/dir
-        inc	bx
-        inc	dx
+        add	dx,#1
+        mov	bx,[dx] ; direction
+        add	bx,@$1000
         mov	[dx],bx
-        inc	dx
+        sub	dx,#1
 	jmp	NextSLoop
 
 HelloWorld:
@@ -190,6 +193,7 @@ HelloWorld:
 .data 0
 
 SpriteInitData:
+.data $b373 $1233
 .data $8363 $3456
 .data $8373 $4567
 .data $8383 $5678

@@ -10,9 +10,11 @@ module paddles_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
   wire [8:0] hpos;
   wire [8:0] vpos;
 
+  // player position (only set at VSYNC)
   reg [7:0] player_x;
   reg [7:0] player_y;
   
+  // paddle position (set continuously during frame)
   reg [7:0] paddle_x;
   reg [7:0] paddle_y;
 

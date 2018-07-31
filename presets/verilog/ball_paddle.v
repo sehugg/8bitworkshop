@@ -13,34 +13,34 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   wire [8:0] hpos;
   wire [8:0] vpos;
   
-  reg [8:0] paddle_pos;
+  reg [8:0] paddle_pos;	// paddle X position
   
-  reg [8:0] ball_x;
-  reg [8:0] ball_y;
-  reg ball_dir_x;
-  reg ball_speed_x;
-  reg ball_dir_y;
+  reg [8:0] ball_x;	// ball X position
+  reg [8:0] ball_y;	// ball Y position
+  reg ball_dir_x;	// ball X direction (0=left, 1=right)
+  reg ball_speed_x;	// ball speed (0=1 pixel/frame, 1=2 pixels/frame)
+  reg ball_dir_y;	// ball Y direction (0=up, 1=down)
   
   reg brick_array [0:BRICKS_H*BRICKS_V-1]; // 16*8 = 128 bits
 
-  wire [3:0] score0;
-  wire [3:0] score1;
-  wire [3:0] lives;
-  reg incscore;
+  wire [3:0] score0;	// score right digit
+  wire [3:0] score1;	// score left digit
+  wire [3:0] lives;	// # lives remaining
+  reg incscore;		// incscore signal 
   reg declives = 0; // TODO
   
-  localparam BRICKS_H = 16;
-  localparam BRICKS_V = 8;
+  localparam BRICKS_H = 16;	// # of bricks across
+  localparam BRICKS_V = 8;	// # of bricks down
 
   localparam BALL_DIR_LEFT = 0;
   localparam BALL_DIR_RIGHT = 1;
-
   localparam BALL_DIR_DOWN = 1;
   localparam BALL_DIR_UP = 0;
   
-  localparam PADDLE_WIDTH = 31;
-  localparam BALL_SIZE = 6;
-  
+  localparam PADDLE_WIDTH = 31;	// horizontal paddle size
+  localparam BALL_SIZE = 6;	// square ball size
+
+  // video sync generator  
   hvsync_generator hvsync_gen(
     .clk(clk),
     .reset(reset),
@@ -52,35 +52,37 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   );
   
   // scoreboard
-
+  wire score_gfx; // output from score generator
   player_stats stats(.reset(reset), 
                      .score0(score0), .score1(score1), .incscore(incscore),
                      .lives(lives), .declives(declives));
-
-  wire score_gfx;
-  
   scoreboard_generator score_gen(
     .score0(score0), .score1(score1), .lives(lives),
     .vpos(vpos), .hpos(hpos), 
     .board_gfx(score_gfx));
 
-  wire [5:0] hcell = hpos[8:3];
-  wire [5:0] vcell = vpos[8:3];
-  wire lr_border = hcell==0 || hcell==31;
+  wire [5:0] hcell = hpos[8:3];		// horizontal brick index
+  wire [5:0] vcell = vpos[8:3];		// vertical brick index
+  wire lr_border = hcell==0 || hcell==31; // along horizontal border?
 
   // TODO: unsigned compare doesn't work in JS
   wire [8:0] paddle_rel_x = ((hpos-paddle_pos) & 9'h1ff);
+
+  // player paddle graphics signal
   wire paddle_gfx = (vcell == 28) && (paddle_rel_x < PADDLE_WIDTH);
 
-  wire [8:0] ball_rel_x = (hpos-ball_x);
-  wire [8:0] ball_rel_y = (vpos-ball_y);
-  
+  // difference between ball position and video beam
+  wire [8:0] ball_rel_x = (hpos - ball_x);
+  wire [8:0] ball_rel_y = (vpos - ball_y);
+
+  // ball graphics signal
   wire ball_gfx = ball_rel_x < BALL_SIZE
   	       && ball_rel_y < BALL_SIZE;
 
-  reg main_gfx;
-  reg brick_present;
-  reg [6:0] brick_index;
+  reg main_gfx;		// main graphics signal (bricks and borders)
+  reg brick_present;	// 1 when we are drawing a brick
+  reg [6:0] brick_index;// index into array of current brick
+  // brick graphics signal
   wire brick_gfx = lr_border || (brick_present && vpos[2:0] != 0 && hpos[3:1] != 4);
   
   // scan bricks: compute brick_index and brick_present flag
@@ -92,14 +94,11 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
       if (hpos[3:0] == 8) begin
         // compute brick index
         brick_index <= {vpos[5:3], hpos[7:4]};
-        //main_gfx <= 0; // 2 pixel horiz spacing between bricks
       end
       // every 17th pixel
       else if (hpos[3:0] == 9) begin
         // load brick bit from array
         brick_present <= brick_array[brick_index];
-      end else begin
-        //main_gfx <= brick_present && vpos[2:0] != 0; // 1 pixel vert. spacing
       end
     end else begin
       brick_present <= 0;
@@ -111,6 +110,7 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
     if (!hpaddle)
       paddle_pos <= vpos;
 
+  // 1 when ball signal intersects main (brick + border) signal
   wire ball_pixel_collide = main_gfx & ball_gfx;
   
   /* verilator lint_off MULTIDRIVEN */
@@ -141,6 +141,7 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
       incscore <= 0; // reset incscore
     end
 
+  // computes position of ball in relation to center of paddle
   wire signed [8:0] ball_paddle_dx = ball_x - paddle_pos + 8;
 
   // ball bounce: determine new velocity/direction
@@ -189,9 +190,11 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
   always @(negedge vsync or posedge reset)
     begin
       if (reset) begin
+        // reset ball position to top center
         ball_x <= 128;
         ball_y <= 180;
       end else begin
+        // move ball horizontal and vertical position
         if (ball_dir_x == BALL_DIR_RIGHT)
           ball_x <= ball_x + (ball_speed_x?1:0) + 1;
         else
@@ -223,8 +226,8 @@ module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
       endcase
     end
 
+  // combine signals to RGB output
   wire grid_gfx = (((hpos&7)==0) || ((vpos&7)==0));
-  
   wire r = display_on && (ball_gfx | paddle_gfx);
   wire g = display_on && (main_gfx | ball_gfx);
   wire b = display_on && (grid_gfx | ball_gfx | brick_present);

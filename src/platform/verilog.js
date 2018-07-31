@@ -592,27 +592,28 @@ var VerilogPlatform = function(mainElement, options) {
   this.loadROM = function(title, output) {
     var mod;
     if (output.code) {
-      try {
-        mod = new Function('base', output.code);
-      } catch (e) {
-        this.printErrorCodeContext(e, output.code);
-        throw e;
+      // is code identical?
+      if (current_output && current_output.code == output.code) {
+      } else {
+        try {
+          mod = new Function('base', output.code);
+        } catch (e) {
+          this.printErrorCodeContext(e, output.code);
+          throw e;
+        }
+        // compile Verilog code
+        var base = new VerilatorBase();
+        gen = new mod(base);
+        //$.extend(gen, base);
+        gen.__proto__ = base;
+        current_output = output;
+        module_name = output.name ? output.name.substr(1) : "top";
+        trace_ports = current_output.ports;
+        trace_signals = current_output.ports.concat(current_output.signals);
+        trace_index = 0;
+        // power on module
+        this.poweron();
       }
-      // compile Verilog code
-      var base = new VerilatorBase();
-      gen = new mod(base);
-      //$.extend(gen, base);
-      gen.__proto__ = base;
-      current_output = output;
-      module_name = output.name ? output.name.substr(1) : "top";
-      trace_ports = current_output.ports;
-      trace_signals = current_output.ports.concat(current_output.signals);
-      trace_index = 0;
-      // power on module
-      this.poweron();
-    } else {
-      // TODO: :^P
-      output = {program_rom_variable: title, program_rom: output};
     }
     // replace program ROM, if using the assembler
     if (output.program_rom && output.program_rom_variable) {
@@ -624,6 +625,7 @@ var VerilogPlatform = function(mainElement, options) {
       } else {
         alert("No program_rom variable found (" + output.program_rom_variable + ")");
       }
+      this.reset();
     }
     // restart audio
     restartAudio();

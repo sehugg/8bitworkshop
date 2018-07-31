@@ -9,7 +9,6 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
-  reg ball_reset;
   
   // 9-bit ball timers
   reg [8:0] ball_htimer;
@@ -26,7 +25,11 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   // 5-bit constants to load into counters
   localparam ball_horiz_prefix = 5'b01100; // 192
   localparam ball_vert_prefix = 5'b01111; // 240
+
+  // reset ball; will be unset when video beam reaches center position
+  reg ball_reset;
   
+  // video sync generator
   hvsync_generator hvsync_gen(
     .clk(clk),
     .reset(reset),
@@ -64,10 +67,10 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
       if (reset)
         ball_reset <= 1;
       else if (hpos == 128 && vpos == 128)
-        ball_reset <= 0;
+        ball_reset <= 0;	// un-reset when beam reaches center position
     end
   
-  // collide with vertical and horizontal boundaries
+  // collide with vertical and horizontal boundaries?
   wire ball_vert_collide = ball_vgfx && vpos >= 240;
   wire ball_horiz_collide = ball_hgfx && hpos >= 256 && vpos == 255;
   
@@ -75,7 +78,7 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   always @(posedge ball_vert_collide or posedge reset)
   begin
     if (reset)
-      ball_vert_move <= 4'd9;
+      ball_vert_move <= 4'd9; // initial vertical velocity
     else
       ball_vert_move <= (4'd9 ^ 4'd11) ^ ball_vert_move; // change dir.
   end
@@ -84,13 +87,13 @@ module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
   always @(posedge ball_horiz_collide or posedge reset)
   begin
     if (reset)
-      ball_horiz_move <= 4'd10;
+      ball_horiz_move <= 4'd10;	// initial horizontal velocity
     else
       ball_horiz_move <= (4'd10 ^ 4'd12) ^ ball_horiz_move; // change dir.
   end
 
   // compute ball display
-  wire ball_hgfx = ball_htimer >= 508;
+  wire ball_hgfx = ball_htimer >= 508;	// 512-508 = 4 pixel ball
   wire ball_vgfx = ball_vtimer >= 508;
   wire ball_gfx = ball_hgfx && ball_vgfx;
 

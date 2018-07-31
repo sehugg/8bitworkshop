@@ -12,17 +12,22 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   wire [8:0] hpos;
   wire [8:0] vpos;
 
+  // player car position (set at VSYNC)
   reg [7:0] player_x;
   reg [7:0] player_y;  
+  // paddle position (set continuously during frame)
   reg [7:0] paddle_x;
   reg [7:0] paddle_y;
+  // enemy car position
   reg [7:0] enemy_x = 128;
   reg [7:0] enemy_y = 128;
-  reg enemy_dir = 0;
+  // enemy car direction, 1=right, 0=left
+  reg enemy_dir = 0;	
   
-  reg [15:0] track_pos = 0;
-  reg [7:0] speed = 31;
+  reg [15:0] track_pos = 0;	// player position along track (16 bits)
+  reg [7:0] speed = 31;		// player velocity along track (8 bits)
   
+  // video sync generator
   hvsync_generator hvsync_gen(
     .clk(clk),
     .reset(0),
@@ -33,6 +38,14 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .vpos(vpos)
   );
   
+  // set paddle registers
+  always @(posedge hsync)
+    begin
+      if (!hpaddle) paddle_x <= vpos[7:0];
+      if (!vpaddle) paddle_y <= vpos[7:0];
+    end
+  
+  // wire up car sprite ROM
   wire [3:0] car_sprite_yofs;
   wire [7:0] car_sprite_bits;
   
@@ -40,16 +53,19 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .yofs(car_sprite_yofs), 
     .bits(car_sprite_bits));
   
+  // signals for player sprite generator
   wire player_vstart = {1'd0,player_y} == vpos;
   wire player_hstart = {1'd0,player_x} == hpos;
   wire player_gfx;
   wire player_is_drawing;
 
+  // signals for enemy sprite generator
   wire enemy_vstart = {1'd0,enemy_y} == vpos;
   wire enemy_hstart = {1'd0,enemy_x} == hpos;
   wire enemy_gfx;
   wire enemy_is_drawing;
   
+  // player sprite generator
   sprite_renderer player_renderer(
     .clk(clk),
     .vstart(player_vstart),
@@ -60,6 +76,7 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .gfx(player_gfx),
     .in_progress(player_is_drawing));
 
+  // enemy sprite generator
   sprite_renderer enemy_renderer(
     .clk(clk),
     .vstart(enemy_vstart),
@@ -69,17 +86,14 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .rom_bits(car_sprite_bits),
     .gfx(enemy_gfx),
     .in_progress(player_is_drawing));
-  
-  always @(posedge hsync)
-    begin
-      if (!hpaddle) paddle_x <= vpos[7:0];
-      if (!vpaddle) paddle_y <= vpos[7:0];
-    end
-  
+
+  // signals for enemy bouncing off left/right borders  
   wire enemy_hit_left = (enemy_x == 64);
   wire enemy_hit_right = (enemy_x == 192);
   wire enemy_hit_edge = enemy_hit_left || enemy_hit_right;
   
+  // update player, enemy, track counters
+  // runs once per frame
   always @(posedge vsync)
     begin
       player_x <= paddle_x;
@@ -101,6 +115,7 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
         speed <= speed - 1;
     end
   
+  // set to 1 when player collides with enemy or track
   reg frame_collision;
   
   always @(posedge clk)
@@ -109,10 +124,12 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     else if (vsync)
       frame_collision <= 0;
   
+  // track graphics signals
   wire track_offside = (hpos[7:5]==0) || (hpos[7:5]==7);
   wire track_shoulder = (hpos[7:3]==3) || (hpos[7:3]==28);
   wire track_gfx = (vpos[5:1]!=track_pos[5:1]) && track_offside;
   
+  // combine signals for RGB output
   wire r = display_on && (player_gfx || enemy_gfx || track_shoulder);
   wire g = display_on && (player_gfx || track_gfx);
   wire b = display_on && (enemy_gfx || track_shoulder);

@@ -1120,6 +1120,8 @@ function compileJSASM(asmcode, platform, options, is_inline) {
     result.output.program_rom = asmout;
     // cpu_platform__DOT__program_rom
     result.output.program_rom_variable = jsasm_module_top + "__DOT__program_rom";
+    result.listings = {};
+    result.listings[options.path] = {lines:result.lines};
   }
   return result;
 }

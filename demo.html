@@ -34,9 +34,10 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
     <nav class="navbar navbar-inverse navbar-fixed-top">
       <div class="container">
         <div class="navbar-header">
-          <a class="navbar-brand" href="https://twitter.com/8bitworkshop">@8bitworkshop</a>
+          <span class="navbar-brand"><a target="_new" href="https://twitter.com/8bitworkshop" class="twitter-follow-button" data-show-count="false">Follow @8bitworkshop</a></span>
+          <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
           <a class="navbar-brand" href="./blog/">Blog</a>
-          <a class="navbar-brand" href="https://www.amazon.com/default/e/B01N7J10NF/ref=dp_byline_cont_pop_book_1">Books</a>
+          <a class="navbar-brand" href="https://www.amazon.com/default/e/B01N7J10NF/ref=dp_byline_cont_pop_book_1" target="_blank" onclick="ga('send', 'event', 'books', 'click');">Books</a>
         </div>
         <div id="navbar" class="hidden-sm hidden-xs">
          <form class="navbar-form navbar-right">
@@ -80,11 +81,12 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
           We've got debugging tools too; single step through your code and use our CPU Cycle Analyzer to
           develop that perfect Stella kernel.
           </p>
+          <img class="img-responsive" src="images/atarivcs.jpg">
         </div>
         <div class="col-md-4">
           <h2>Arcade Games</h2>
           <p>
-          You can develop your own games on classic arcade game hardware, using our in-browser C compiler.
+          You can develop your own games on classic arcade game hardware, using our in-browser C compiler targeting the Z80 CPU.
           Platforms include
           <a href="redir.html?platform=vicdual">VIC Dual</a>,
           <a href="redir.html?platform=mw8080bw">Midway 8080</a>,
@@ -92,7 +94,53 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
           <a href="redir.html?platform=vector-z80color">Atari Vector</a>,
           and
           <a href="redir.html?platform=williams-z80">Williams</a>.
+          <img class="img-responsive" src="images/arcadegames.jpg">
           </p>
+       </div>
+       <div class="col-md-4">
+<p>
+We're always adding new things here, so subscribe to our mailing list for updates!
+</p>
+<style> .gumroad-follow-form-embed { zoom: 1; } .gumroad-follow-form-embed:before, .gumroad-follow-form-embed:after { display: table; line-height: 0; content: ""; } .gumroad-follow-form-embed:after { clear: both; } .gumroad-follow-form-embed * { margin: 0; border: 0; padding: 0; outline: 0; box-sizing: border-box !important; float: left !important; } .gumroad-follow-form-embed input { border-radius: 4px; border-top-right-radius: 0; border-bottom-right-radius: 0; font-family: -apple-system, ".SFNSDisplay-Regular", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 15px; line-height: 20px; background: #fff; border: 1px solid #ddd; border-right: 0; color: #aaa; padding: 10px; box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.02); background-position: top right; background-repeat: no-repeat; text-rendering: optimizeLegibility; font-smoothing: antialiased; -webkit-appearance: none; -moz-appearance: caret; width: 65% !important; height: 40px !important; } .gumroad-follow-form-embed button { border-radius: 4px; border-top-left-radius: 0; border-bottom-left-radius: 0; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.12); -webkit-transition: all .05s ease-in-out; transition: all .05s ease-in-out; display: inline-block; padding: 11px 15px 12px; cursor: pointer; color: #fff; font-size: 15px; line-height: 100%; font-family: -apple-system, ".SFNSDisplay-Regular", "Helvetica Neue", Helvetica, Arial, sans-serif; background: #36a9ae; border: 1px solid #31989d; filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr=#5ccfd4, endColorstr=#329ca1, GradientType=0)"; background: -webkit-linear-gradient(#5ccfd4, #329ca1); background: linear-gradient(to bottom, #5ccfd4, #329ca1); height: 40px !important; width: 35% !important; } </style> <form action="https://gumroad.com/follow_from_embed_form" class="form gumroad-follow-form-embed" method="post"> <input name="seller_id" type="hidden" value="1507538753888"> <input name="email" placeholder="Your email address" type="email"> <button data-custom-highlight-color="" type="submit">Subscribe</button> </form>
+<p></p>
+<!-- Begin MailChimp Signup Form -->
+<!--
+<link href="//cdn-images.mailchimp.com/embedcode/classic-10_7.css" rel="stylesheet" type="text/css">
+<style type="text/css">
+	#mc_embed_signup{background:#fff; clear:left; font:14px Helvetica,Arial,sans-serif; }
+	/* Add your own MailChimp form style overrides in your site stylesheet or in this style block.
+	   We recommend moving this block and the preceding CSS link to the HEAD of your HTML file. */
+</style>
+<div id="mc_embed_signup">
+<form action="https://8bitworkshop.us19.list-manage.com/subscribe/post?u=819ee5274c8c9c1afe2005023&amp;id=75411a270f" method="post" id="mc-embedded-subscribe-form" name="mc-embedded-subscribe-form" class="validate" target="_blank" novalidate>
+    <div id="mc_embed_signup_scroll">
+	<h2>We're always adding new things here, so subscribe to our mailing list for updates!</h2>
+<div class="indicates-required"><span class="asterisk">*</span> indicates required</div>
+<div class="mc-field-group">
+	<label for="mce-EMAIL">Email Address  <span class="asterisk">*</span>
+</label>
+	<input type="email" value="" name="EMAIL" class="required email" id="mce-EMAIL">
+</div>
+<div class="mc-field-group">
+	<label for="mce-FNAME">First Name (optional)</label>
+	<input type="text" value="" name="FNAME" class="" id="mce-FNAME">
+</div>
+<div class="mc-field-group">
+	<label for="mce-LNAME">Last Name (optional)</label>
+	<input type="text" value="" name="LNAME" class="" id="mce-LNAME">
+</div>
+	<div id="mce-responses" class="clear">
+		<div class="response" id="mce-error-response" style="display:none"></div>
+		<div class="response" id="mce-success-response" style="display:none"></div>
+	</div>
+    <div style="position: absolute; left: -5000px;" aria-hidden="true"><input type="text" name="b_819ee5274c8c9c1afe2005023_75411a270f" tabindex="-1" value=""></div>
+    <div class="clear"><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" class="button"></div>
+    </div>
+</form>
+</div>
+<script type='text/javascript' src='//s3.amazonaws.com/downloads.mailchimp.com/js/mc-validate.js'></script><script type='text/javascript'>(function($) {window.fnames = new Array(); window.ftypes = new Array();fnames[0]='EMAIL';ftypes[0]='email';fnames[1]='FNAME';ftypes[1]='text';fnames[2]='LNAME';ftypes[2]='text';fnames[3]='ADDRESS';ftypes[3]='address';fnames[4]='PHONE';ftypes[4]='phone';}(jQuery));var $mcj = jQuery.noConflict(true);</script>
+-->
+<!--End mc_embed_signup-->
        </div>
        <!--
        <div class="col-md-4">
@@ -113,12 +161,12 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
     <div class="container">
       <div class="row">
         <div class="col-md-3">
-        <a target="_blank"  href="https://www.amazon.com/gp/product/1541021304/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1541021304&linkCode=as2&tag=pzp-20&linkId=c149f6365c0a676065eb6d7c5f8dd6ae">
+        <a target="_blank"  href="https://www.amazon.com/gp/product/1541021304/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1541021304&linkCode=as2&tag=pzp-20&linkId=c149f6365c0a676065eb6d7c5f8dd6ae" onclick="ga('send', 'event', 'books', 'click', 'vcs');">
 <img border="0" src="//ws-na.amazon-adsystem.com/widgets/q?_encoding=UTF8&MarketPlace=US&ASIN=1541021304&ServiceVersion=20070822&ID=AsinImage&WS=1&Format=_SL250_&tag=pzp-20" ></a>
 <img src="//ir-na.amazon-adsystem.com/e/ir?t=pzp-20&l=am2&o=1&a=1541021304" />
         </div>
         <div class="col-md-8">
-        <a target="_blank"  href="https://www.amazon.com/gp/product/1541021304/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1541021304&linkCode=as2&tag=pzp-20&linkId=c149f6365c0a676065eb6d7c5f8dd6ae">
+        <a target="_blank"  href="https://www.amazon.com/gp/product/1541021304/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1541021304&linkCode=as2&tag=pzp-20&linkId=c149f6365c0a676065eb6d7c5f8dd6ae" onclick="ga('send', 'event', 'books', 'click', 'vcs');">
           <h3>Making Games For The Atari 2600</h3>
         </a>
         <p>The Atari 2600 was released in 1977, and now there's finally a book about how to write games for it! You'll learn about the 6502 CPU, NTSC frames, scanlines, cycle counting, players, missiles, collisions, procedural generation, pseudo-3D, and more. While using the manual, take advantage of our Web-based IDE to write 6502 assembly code, and see your code run instantly in the browser. We'll cover the same programming tricks that master programmers used to make classic games. Create your own graphics and sound, and share your games with friends!</p>
@@ -126,18 +174,31 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
       </div>
       <div class="row">
         <div class="col-md-3">
-<a target="_blank"  href="https://www.amazon.com/gp/product/1545484759/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1545484759&linkCode=as2&tag=pzp-20&linkId=2f3c42111bffe3466830939fff4053fc">
+        <a target="_blank"  href="https://www.amazon.com/gp/product/1545484759/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1545484759&linkCode=as2&tag=pzp-20&linkId=2f3c42111bffe3466830939fff4053fc" onclick="ga('send', 'event', 'books', 'click', 'arcade');">
 <img border="0" src="//ws-na.amazon-adsystem.com/widgets/q?_encoding=UTF8&MarketPlace=US&ASIN=1545484759&ServiceVersion=20070822&ID=AsinImage&WS=1&Format=_SL250_&tag=pzp-20" ></a>
 <img src="//ir-na.amazon-adsystem.com/e/ir?t=pzp-20&l=am2&o=1&a=1545484759" />
         </div>
         <div class="col-md-8">
-        <a target="_blank"  href="https://www.amazon.com/gp/product/1545484759/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1545484759&linkCode=as2&tag=pzp-20&linkId=2f3c42111bffe3466830939fff4053fc">
+        <a target="_blank"  href="https://www.amazon.com/gp/product/1545484759/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1545484759&linkCode=as2&tag=pzp-20&linkId=2f3c42111bffe3466830939fff4053fc" onclick="ga('send', 'event', 'books', 'click', 'arcade');">
           <h3>Making 8-Bit Arcade Games in C</h3>
         </a>
         <p>With this book, you'll learn all about the hardware of Golden Age 8-bit arcade games produced in the late 1970s to early 1980s. We'll learn how to use the C programming language to write code for the Z80 CPU. The following arcade platforms are covered: * Midway 8080 (Space Invaders) * VIC Dual (Carnival) * Galaxian/Scramble (Namco) * Atari Color Vector * Williams (Defender, Robotron) We'll describe how to create video and sound for each platform. Use the online 8bitworkshop IDE to compile your C programs and play them right in the browser!</p>
         </div>
       </div>
     </div>
+
+
+    <div class="container">
+      <div class="row">
+        <div class="col-md-3">
+        </div>
+        <div class="col-md-6">
+        </div>
+        <div class="col-md-3">
+        </div>
+      </div>
+    </div>
+
     
       <hr>
 

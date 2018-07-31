@@ -48,6 +48,9 @@ TODO:
 - compile stuck when errors unchanged
 - sound mute?
 - $error updates source editor
+- Revert loads cached files?
+- Verilog compile spins forever?
+- how to revert included files?
 
 WEB WORKER FORMAT
 
