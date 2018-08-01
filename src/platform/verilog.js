@@ -346,11 +346,31 @@ var VerilogPlatform = function(mainElement, options) {
     var trace = fps < 0.02;
     updateVideoFrameCycles(cyclesPerFrame * fps/60 + 1, sync, trace);
     //if (trace) displayTraceBuffer();
+    self.restartDebugState();
+    gen.__unreset();
+    refreshVideoFrame();
+  }
+  
+  function refreshVideoFrame() {
     updateInspectionFrame();
     updateAnimateScope();
     updateInspectionPostFrame();
-    self.restartDebugState();
-    gen.__unreset();
+  }
+
+  function updateFrame() {
+    if (!gen) return;
+    if (gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined)
+      updateVideoFrame();
+    else
+      updateScopeFrame();
+  }
+
+  function refreshFrame() {
+    if (!gen) return;
+    if (gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined)
+      refreshVideoFrame();
+    else
+      refreshScopeOverlay(trace_ports);
   }
 
   function updateAnimateScope() {
@@ -366,7 +386,7 @@ var VerilogPlatform = function(mainElement, options) {
       ctx.fillRect(framex, framey+vidyoffset, 1, 1);
       scope_index_offset = (trace_index - trace_signals.length*scopeWidth + trace_buffer.length) % trace_buffer.length;
       scope_x_offset = 0;
-      updateScopeOverlay(trace_signals);
+      refreshScopeOverlay(trace_signals);
     } else {
       video.updateFrame();
       scope_index_offset = 0;
@@ -432,10 +452,10 @@ var VerilogPlatform = function(mainElement, options) {
     if (!dirty) return;
     dirty = false;
     scope_y_top = 0;
-    updateScopeOverlay(trace_ports);
+    refreshScopeOverlay(trace_ports);
   }
 
-  function updateScopeOverlay(arr) {
+  function refreshScopeOverlay(arr) {
     if (!sdata) {
       scopeImageData = video.getContext().createImageData(scopeWidth,scopeHeight);
       sdata = new Uint32Array(scopeImageData.data.buffer);
@@ -518,7 +538,6 @@ var VerilogPlatform = function(mainElement, options) {
   }
 
   this.start = function() {
-    // TODO
     video = new RasterVideo(mainElement,videoWidth,videoHeight);
     video.create();
     var ctx = video.getContext();
@@ -526,36 +545,36 @@ var VerilogPlatform = function(mainElement, options) {
     ctx.fillStyle = "white";
     ctx.textAlign = "left";
     setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
-    // TODO: make it stop incrementing time when clicked
-		$(video.canvas).mousemove(function(e) {
-      var new_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 20);
-      var new_y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height() - 20);
+    var vcanvas = $(video.canvas);
+		vcanvas.mousemove(function(e) {
+      var new_x = Math.floor(e.offsetX * video.canvas.width / vcanvas.width() - 20);
+      var new_y = Math.floor(e.offsetY * video.canvas.height / vcanvas.height() - 20);
       if (mouse_pressed) {
         scope_y_offset = clamp(Math.min(0,-scope_max_y+videoHeight), 0, scope_y_offset + new_y - paddle_y);
-  			scope_time_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 16);
+  			scope_time_x = Math.floor(e.offsetX * video.canvas.width / vcanvas.width() - 16);
   			dirty = true;
-        redrawFrame();
+        refreshFrame();
       }
 			paddle_x = clamp(8, 240, new_x);
 			paddle_y = clamp(8, 240, new_y);
 		});
-		$(video.canvas).mousedown(function(e) {
-			scope_time_x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width() - 16);
+		vcanvas.mousedown(function(e) {
+			scope_time_x = Math.floor(e.offsetX * video.canvas.width / vcanvas.width() - 16);
       mouse_pressed = true;
       if (e.target.setCapture) e.target.setCapture(); // TODO: pointer capture
 			dirty = true;
-      redrawFrame();
+      refreshFrame();
 		});
-		$(video.canvas).mouseup(function(e) {
+		vcanvas.mouseup(function(e) {
       mouse_pressed = false;
       if (e.target.setCapture) e.target.releaseCapture(); // TODO: pointer capture
   		dirty = true;
-      redrawFrame();
+      refreshFrame();
 		});
-		$(video.canvas).keydown(function(e) {
+		vcanvas.keydown(function(e) {
       switch (e.keyCode) {
-        case 37: scope_time_x--; dirty=true; redrawFrame(); break;
-        case 39: scope_time_x++; dirty=true; redrawFrame(); break;
+        case 37: scope_time_x--; dirty=true; refreshFrame(); break;
+        case 39: scope_time_x++; dirty=true; refreshFrame(); break;
       }
 		});
     idata = video.getFrameData();
@@ -563,19 +582,12 @@ var VerilogPlatform = function(mainElement, options) {
 			if (!self.isRunning())
 				return;
       gen.switches = switches[0];
-      redrawFrame();
+      updateFrame();
     };
     trace_buffer = new Uint32Array(0x10000);
     self.setFrameRate(60);
   }
   
-  function redrawFrame() {
-    if (gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined)
-      updateVideoFrame();
-    else
-      updateScopeFrame();
-  }
-
   this.printErrorCodeContext = function(e, code) {
     if (e.lineNumber && e.message) {
       var lines = code.split('\n');
