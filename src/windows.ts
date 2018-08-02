@@ -45,7 +45,7 @@ export class ProjectWindows {
       this.activediv = div;
       this.activewnd = wnd;
       $(div).show();
-      this.refresh();
+      this.refresh(true);
       this.refreshErrors();
     }
     this.activeid = id;
@@ -56,9 +56,9 @@ export class ProjectWindows {
     this.id2window[id] = window;
   }
   
-  refresh() {
+  refresh(moveCursor:boolean) {
     if (this.activewnd && this.activewnd.refresh)
-      this.activewnd.refresh();
+      this.activewnd.refresh(moveCursor);
   }
   
   tick() {

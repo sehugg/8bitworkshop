@@ -83,9 +83,10 @@ var JSNESPlatform = function(mainElement) {
       //onBatteryRamWrite
     });
     nes.stop = function() {
-      self.pause();// TODO
-      console.log(nes.cpu.toJSON()); // TODO
-      throw ("CPU STOPPED");
+      // TODO: trigger breakpoint
+      self.pause();
+      console.log(nes.cpu.toJSON());
+      throw ("CPU STOPPED @ PC $" + hex(nes.cpu.REG_PC));
     };
     // insert debug hook
     nes.cpu._emulate = nes.cpu.emulate;
@@ -199,8 +200,7 @@ var JSNESPlatform = function(mainElement) {
     ];
     for (var i=0; i<PPUFLAGS.length; i++) {
       var flag = PPUFLAGS[i];
-      //if (ppu[flag[0]]) s += flag[1] + "\n";
-      s += (flag[1] ? flag[1] : "-") + " ";
+      s += (ppu[flag[0]] ? flag[1] : "-") + " ";
       if (i==2 || i==5) s += "\n";
     }
     s += "\n";

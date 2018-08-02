@@ -393,24 +393,19 @@ function setCompileOutput(data: WorkerResult) {
     var rom = data.output;
     if (rom) { // TODO instanceof Uint8Array) {
       try {
-        //console.log("Loading ROM length", rom.length);
         platform.loadROM(getCurrentPresetTitle(), rom);
         if (!userPaused) resume();
         current_output = rom;
-        //resetProfiler();
+        // TODO: reset profiler etc? (Tell views?)
       } catch (e) {
         console.log(e);
         toolbar.addClass("has-errors");
-        projectWindows.setErrors([{line:0,msg:e+""}]);
+        projectWindows.setErrors([{line:1,msg:e+""}]); // TODO: doesn't work
         current_output = null;
       }
-    /* TODO?
-    } else if (rom.program_rom_variable) { //TODO: a little wonky...
-      platform.loadROM(rom.program_rom_variable, rom.program_rom);
-    */
     }
     // update all windows (listings)
-    projectWindows.refresh();
+    projectWindows.refresh(false);
   }
 }
 
@@ -457,7 +452,7 @@ function setupBreakpoint(btnid? : string) {
   platform.setupDebug(function(state) {
     lastDebugState = state;
     showDebugInfo(state);
-    projectWindows.refresh();
+    projectWindows.refresh(true);
     if (btnid) setDebugButtonState(btnid, "stopped");
   });
   if (btnid) setDebugButtonState(btnid, "active");
@@ -488,7 +483,7 @@ function _resume() {
 function resume() {
   clearBreakpoint();
   if (! platform.isRunning() ) {
-    projectWindows.refresh();
+    projectWindows.refresh(false);
   }
   _resume();
   userPaused = false;
@@ -664,7 +659,7 @@ function _openBitmapEditor() {
 }
 
 function traceTiming() {
-  projectWindows.refresh();
+  projectWindows.refresh(false);
   var wnd = projectWindows.getActive();
   if (wnd.getSourceFile && wnd.setGutterBytes) { // is editor active?
     showLoopTimingForPC(0, wnd.getSourceFile(), wnd);

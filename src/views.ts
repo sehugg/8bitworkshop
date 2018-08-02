@@ -7,7 +7,7 @@ import { Platform } from "./baseplatform";
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
-  refresh() : void;
+  refresh(moveCursor:boolean) : void;
   tick?() : void;
   getValue?() : string;
   getCursorPC?() : number;
@@ -153,7 +153,7 @@ export class SourceEditor implements ProjectView {
   
   clearErrors() {
     this.editor.clearGutter("gutter-info");
-    this.refreshDebugState();
+    this.refreshDebugState(false);
     this.dirtylisting = true;
     // clear line widgets
     this.errormsgs = [];
@@ -199,7 +199,7 @@ export class SourceEditor implements ProjectView {
     this.editor.setGutterMarker(line-1, "gutter-bytes", textel);
   }
   
-  setCurrentLine(line:number) {
+  setCurrentLine(line:number, moveCursor:boolean) {
 
     var addCurrentMarker = (line:number) => {
       var div = document.createElement("div");
@@ -211,7 +211,8 @@ export class SourceEditor implements ProjectView {
     this.clearCurrentLine();
     if (line>0) {
       addCurrentMarker(line-1);
-      this.editor.setSelection({line:line,ch:0}, {line:line-1,ch:0}, {scroll:true});
+      if (moveCursor)
+        this.editor.setSelection({line:line,ch:0}, {line:line-1,ch:0}, {scroll:true});
       this.currentDebugLine = line;
     }
   }
@@ -224,14 +225,14 @@ export class SourceEditor implements ProjectView {
     }
   }
   
-  refreshDebugState() {
+  refreshDebugState(moveCursor:boolean) {
     this.clearCurrentLine();
     var state = lastDebugState;
     if (state && state.c) {
       var PC = state.c.PC;
       var line = this.sourcefile.findLineForOffset(PC);
       if (line >= 0) {
-        this.setCurrentLine(line);
+        this.setCurrentLine(line, moveCursor);
         // TODO: switch to disasm?
       }
     }
@@ -246,9 +247,9 @@ export class SourceEditor implements ProjectView {
     }
   }
 
-  refresh() {
+  refresh(moveCursor: boolean) {
     this.refreshListing();
-    this.refreshDebugState();
+    this.refreshDebugState(moveCursor);
   }
   
   getLine(line : number) {
@@ -368,7 +369,7 @@ export class DisassemblerView implements ProjectView {
   }
 
   // TODO: too many globals
-  refresh() {
+  refresh(moveCursor: boolean) {
     var state = lastDebugState || platform.saveState();
     var pc = state.c ? state.c.PC : 0;
     var curline = 0;
@@ -407,8 +408,10 @@ export class DisassemblerView implements ProjectView {
     }
     var text = disassemble(pc-96, pc) + disassemble(pc, pc+96);
     this.disasmview.setValue(text);
-    this.disasmview.setCursor(selline, 0);
-    jumpToLine(this.disasmview, selline);
+    if (moveCursor) {
+      this.disasmview.setCursor(selline, 0);
+      jumpToLine(this.disasmview, selline);
+    }
   }
 
   getCursorPC() : number {
@@ -434,7 +437,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
     this.assemblyfile = assemblyfile;
   }
 
-  refresh() {
+  refresh(moveCursor: boolean) {
     var state = lastDebugState || platform.saveState();
     var pc = state.c ? state.c.PC : 0;
     var asmtext = this.assemblyfile.text;
@@ -447,7 +450,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
     var findPC = platform.getDebugCallback() ? pc : -1;
     if (findPC >= 0) {
       var lineno = this.assemblyfile.findLineForOffset(findPC);
-      if (lineno) {
+      if (lineno && moveCursor) {
         // set cursor while debugging
         if (platform.getDebugCallback())
           disasmview.setCursor(lineno-1, 0);

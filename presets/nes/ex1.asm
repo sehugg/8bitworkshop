@@ -1,3 +1,4 @@
+﻿
 
 ;;;;; CONSTANTS
 
@@ -18,31 +19,33 @@ DMC_FREQ	equ $4010
 	org $0
 
 ScrollPos	byte	; used during NMI
+Rand		byte
 
 ;;;;; CARTRIDGE FILE HEADER
 
+NES_MAP_HORIZ	equ	0
+NES_MAP_VERT	equ	1
+NES_MAP_QUAD	equ	8
+
+	MAC NES_HEADER
 	processor 6502
 	seg Header
         org $7FF0
-
-NES_MAPPER	equ 0	;mapper number
-NES_PRG_BANKS	equ 2	;number of 16K PRG banks, change to 2 for NROM256
-NES_CHR_BANKS	equ 1	;number of 8K CHR banks (0 = RAM)
-NES_MIRRORING	equ 1	;0 horizontal, 1 vertical, 8 four screen
-
-	.byte $4e,$45,$53,$1a ; header
-	.byte NES_PRG_BANKS
-	.byte NES_CHR_BANKS
-	.byte NES_MIRRORING|(NES_MAPPER<<4)
-	.byte NES_MAPPER&$f0
-	.byte 0,0,0,0,0,0,0,0 ; reserved, set to zero
-
-;;;;; CODE
-
+.NES_MAPPER	SET {1}	;mapper number
+.NES_PRG_BANKS	SET {2}	;number of 16K PRG banks, change to 2 for NROM256
+.NES_CHR_BANKS	SET {3}	;number of 8K CHR banks (0 = RAM)
+.NES_MIRRORING	SET {4}	;0 horizontal, 1 vertical, 8 four screen
+	byte $4e,$45,$53,$1a ; header
+	byte .NES_PRG_BANKS
+	byte .NES_CHR_BANKS
+	byte .NES_MIRRORING|(.NES_MAPPER<<4)
+	byte .NES_MAPPER&$f0
+	byte 0,0,0,0,0,0,0,0 ; reserved, set to zero
 	seg Code
 	org $8000
-start:
-_exit:
+	ENDM
+        
+        MAC NES_INIT
         sei			;disable IRQs
         cld			;decimal mode not supported
         ldx #$ff
@@ -51,22 +54,18 @@ _exit:
         stx PPU_MASK		;disable rendering
         stx DMC_FREQ		;disable DMC interrupts
         stx PPU_CTRL		;disable NMI interrupts
-        jsr WaitSyncSafe	;wait for VSYNC
-; clear RAM -- not a subroutine because we clear the stack too
-	lda #0
-        tax
-.clearRAM
-	sta $0,x
-	sta $100,x
-        ; skip $200-$2FF, used for OAM display list
-	sta $300,x
-	sta $400,x
-	sta $500,x
-	sta $600,x
-	sta $700,x
-        inx
-        bne .clearRAM
-; end of clear RAM routine
+	bit PPU_STATUS		;clear VBL flag
+        ENDM
+
+	NES_HEADER 0,2,1,1 ; mapper 0, 2 PRGs, 1 CHR, vertical
+
+start:
+_exit:
+	NES_INIT		; set up stack pointer, turn off PPU
+        jsr WaitSync
+        jsr WaitSync
+        jsr ClearRAM
+        jsr WaitSync		;wait for VSYNC
 	jsr SetPalette		;set colors
         jsr FillVRAM		;set PPU RAM
         jsr WaitSync		;wait for VSYNC (and PPU warmup)
@@ -84,7 +83,27 @@ _exit:
 
 ;;;;; SUBROUTINES
 
+ClearRAM: subroutine
+	lda #0
+        tax
+.clearRAM
+	sta $0,x
+        cpx #$fe	; don't clear last 2 bytes of stack
+        bcs .skipStack
+	sta $100,x
+.skipStack
+        ; skip $200-$2FF, used for OAM display list
+	sta $300,x
+	sta $400,x
+	sta $500,x
+	sta $600,x
+	sta $700,x
+        inx
+        bne .clearRAM
+        rts
+
 ; set palette colors
+
 SetPalette: subroutine
         ldy #$0
 	lda #$3f
@@ -108,7 +127,7 @@ FillVRAM: subroutine
 	ldy #$10
 .loop:
 	sta PPU_DATA
-        adc #1
+        adc #7
 	inx
 	bne .loop
 	dey
@@ -116,8 +135,6 @@ FillVRAM: subroutine
         rts
 
 ; wait for VSYNC to start
-WaitSyncSafe: subroutine
-	bit PPU_STATUS
 WaitSync:
 	bit PPU_STATUS
 	bpl WaitSync
