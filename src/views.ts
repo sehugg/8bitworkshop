@@ -162,7 +162,7 @@ export class SourceEditor implements ProjectView {
   }
   
   getSourceFile() : SourceFile { return this.sourcefile; }
-
+  
   // TODO: update gutter only when refreshing this window
   updateListing(_sourcefile : SourceFile) {
     this.sourcefile = _sourcefile;
@@ -174,29 +174,35 @@ export class SourceEditor implements ProjectView {
     var lstlines = this.sourcefile.lines || [];
     for (var info of lstlines) {
       if (info.offset >= 0) {
-        var textel = document.createTextNode(hex(info.offset,4));
-        this.editor.setGutterMarker(info.line-1, "gutter-offset", textel);
+        this.setGutter("gutter-offset", info.line-1, hex(info.offset&0xffff,4));
       }
       if (info.insns) {
         var insnstr = info.insns.length > 9 ? ("...") : info.insns;
-        var textel = document.createTextNode(insnstr);
-        this.editor.setGutterMarker(info.line-1, "gutter-bytes", textel);
+        this.setGutter("gutter-bytes", info.line-1, insnstr);
         if (info.iscode) {
           var opcode = parseInt(info.insns.split(" ")[0], 16);
           if (platform.getOpcodeMetadata) {
             var meta = platform.getOpcodeMetadata(opcode, info.offset);
             var clockstr = meta.minCycles+"";
-            var textel = document.createTextNode(clockstr);
-            this.editor.setGutterMarker(info.line-1, "gutter-clock", textel);
+            this.setGutter("gutter-clock", info.line-1, clockstr);
           }
         }
       }
     }
   }
   
+  setGutter(type:string, line:number, text:string) {
+    var lineinfo = this.editor.lineInfo(line);
+    if (lineinfo.gutterMarkers && lineinfo.gutterMarkers[type]) {
+      // do not replace existing marker
+    } else {
+      var textel = document.createTextNode(text);
+      this.editor.setGutterMarker(line, type, textel);
+    }
+  }
+  
   setGutterBytes(line:number, s:string) {
-    var textel = document.createTextNode(s);
-    this.editor.setGutterMarker(line-1, "gutter-bytes", textel);
+    this.setGutter("gutter-bytes", line-1, s);
   }
   
   setCurrentLine(line:number, moveCursor:boolean) {
