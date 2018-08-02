@@ -59,6 +59,7 @@ var JSNESPlatform = function(mainElement) {
   var rom;
   var video, audio, timer;
   var audioFrequency = 44100;
+  var frameindex = 0;
 
   this.getPresets = function() { return JSNES_PRESETS; }
 
@@ -73,9 +74,13 @@ var JSNESPlatform = function(mainElement) {
           idata[i] = frameBuffer[i] | 0xff000000;
         video.updateFrame();
         self.restartDebugState();
+        frameindex++;
       },
       onAudioSample: function(left, right) {
-        audio.feedSample(left+right, 1);
+        if (frameindex < 10)
+          audio.feedSample(0, 1); // avoid popping at powerup
+        else
+          audio.feedSample(left+right, 1);
       },
       onStatusUpdate: function(s) {
         console.log(s);
@@ -132,6 +137,11 @@ var JSNESPlatform = function(mainElement) {
     audio.start();
   }
 
+  this.runToVsync = function() {
+    var frame0 = frameindex;
+    platform.runEval(function(c) { return frameindex>frame0; });
+  }
+
   this.getCPUState = function() {
     var c = nes.cpu.toJSON();
     this.copy6502REGvars(c);
@@ -185,10 +195,10 @@ var JSNESPlatform = function(mainElement) {
     switch (category) {
       case 'CPU':    return cpuStateToLongString_6502(state.c);
       case 'ZPRAM': return dumpRAM(state.cpu.mem, 0, 0x100);
-      case 'PPU': return this.ppuStateToLongString(state.ppu);
+      case 'PPU': return this.ppuStateToLongString(state.ppu, state.cpu.mem);
     }
   }
-  this.ppuStateToLongString = function(ppu) {
+  this.ppuStateToLongString = function(ppu, mem) {
     var s = '';
     var PPUFLAGS = [
       ["f_nmiOnVblank","NMI_ON_VBLANK"],
@@ -203,6 +213,10 @@ var JSNESPlatform = function(mainElement) {
       s += (ppu[flag[0]] ? flag[1] : "-") + " ";
       if (i==2 || i==5) s += "\n";
     }
+    var status = mem[0x2002];
+    s += "\n Status ";
+    s += (status & 0x80) ? "VBLANK " : "- ";
+    s += (status & 0x40) ? "SPRITE0HIT " : "- ";
     s += "\n";
     s += "BgColor " + ['black','blue','green','red'][ppu.f_color] + "\n";
     if (ppu.f_spVisibility) {
@@ -214,19 +228,23 @@ var JSNESPlatform = function(mainElement) {
       s += " NTBase $" + hex(ppu.f_nTblAddress*0x400+0x2000) + "\n";
       s += "AddrInc " + (ppu.f_addrInc ? "32" : "1") + "\n";
     }
+    var scrollX = ppu.regFH + ppu.regHT*8;
+    var scrollY = ppu.regFV + ppu.regVT*8;
+    s += "ScrollX $" + hex(scrollX) + " (" + ppu.regHT + " * 8 + " + ppu.regFH + " = " + scrollX + ")\n";
+    s += "ScrollY $" + hex(scrollY) + " (" + ppu.regVT + " * 8 + " + ppu.regFV + " = " + scrollY + ")\n";
+    s += " Vstart $" + hex(ppu.vramTmpAddress,4) + "\n";
+    s += "\n";
+    s += "   Scan Y: " + ppu.scanline + "  X: " + ppu.curX + "\n";
     s += " VRAM " + (ppu.firstWrite?"@":"?") + " $" + hex(ppu.vramAddress,4) + "\n";
+    /*
     var PPUREGS = [
       'cntFV',
       'cntV',
       'cntH',
       'cntVT',
       'cntHT',
-      'regFV',
       'regV',
       'regH',
-      'regVT',
-      'regHT',
-      'regFH',
       'regS',
     ];
     s += "\n";
@@ -234,6 +252,7 @@ var JSNESPlatform = function(mainElement) {
       var reg = PPUREGS[i];
       s += lpad(reg.toUpperCase(),7) + " $" + hex(ppu[reg]) + " (" + ppu[reg] + ")\n";
     }
+    */
     return s;
   }
 }

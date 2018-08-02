@@ -1,4 +1,4 @@
-﻿
+
 .include "hvsync_generator.v"
 .include "font_cp437_8x8.v"
 .include "ram.v"
