@@ -999,7 +999,7 @@ var Apple2MAMEPlatform = function(mainElement) {
     });
   }
 
-  this.getOpcodeMetadata = Javatari.getOpcodeMetadata;
+  this.getOpcodeMetadata = getOpcodeMetadata_6502;
   this.getDefaultExtension = function() { return ".c"; };
 
   this.getPresets = function() { return APPLE2_PRESETS; }

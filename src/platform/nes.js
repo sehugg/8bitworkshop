@@ -29,8 +29,6 @@ var NES_CONIO_PRESETS = [
   {id:'siegegame.c', name:'C: Siege Game'},
 ];
 
-new jt.M6502(); // to get Javatari.getOpcodeMetadata
-
 /// JSNES
 
 var JSNES_KEYCODE_MAP = makeKeycodeMap([
@@ -114,7 +112,7 @@ var JSNESPlatform = function(mainElement) {
     nes.loadROM(romstr);
   }
 
-  this.getOpcodeMetadata = Javatari.getOpcodeMetadata;
+  this.getOpcodeMetadata = getOpcodeMetadata_6502;
   this.getDefaultExtension = function() { return ".c"; };
   
   this.reset = function() {
@@ -262,7 +260,7 @@ var NESMAMEPlatform = function(mainElement, lzgRom, romSize) {
     });
   }
 
-  this.getOpcodeMetadata = Javatari.getOpcodeMetadata;
+  this.getOpcodeMetadata = getOpcodeMetadata_6502;
   this.getToolForFilename = getToolForFilename_6502;
   this.getDefaultExtension = function() { return ".c"; };
 }
