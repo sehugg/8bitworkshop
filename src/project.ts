@@ -52,8 +52,7 @@ export class CodeProject {
     }
   }
 
-  // TODO: support link-time and compile-time (include) dependencies  
-  parseFileDependencies(text:string):string[] {
+  parseIncludeDependencies(text:string):string[] {
     var files = [];
     if (this.platform_id == 'verilog') {
       var re = /^\s*(`include|[.]include)\s+"(.+?)"/gm;
@@ -63,6 +62,21 @@ export class CodeProject {
         //files.push('local/'+m[2]); // TODO: shows up 2x in interface
       }
     } else {
+      // for .asm -- [.]include "file"
+      var re2 = /^\s+([.]?include)\s+"(.+?)"/gm;
+      while (m = re2.exec(text)) {
+        files.push(m[2]);
+      }
+    }
+    return files;
+  }
+
+  parseLinkDependencies(text:string):string[] {
+    var files = [];
+    if (this.platform_id == 'verilog') {
+      //
+    } else {
+      // for .c -- //#link "file" (or ;link or #link)
       var re = /^\s*([;#]|[/][/][#])link\s+"(.+?)"/gm;
       var m;
       while (m = re.exec(text)) {
@@ -73,8 +87,15 @@ export class CodeProject {
   }
 
   loadFileDependencies(text:string, callback:LoadFilesCallback) {
-    var paths = this.parseFileDependencies(text);
-    this.loadFiles(paths, callback);
+    var includes = this.parseIncludeDependencies(text);
+    var linkfiles = this.parseLinkDependencies(text);
+    var allfiles = includes.concat(linkfiles);
+    this.loadFiles(allfiles, (err:string, result?:Dependency[]) => {
+      if (result)
+        for (var dep of result)
+          dep.link = linkfiles.indexOf(dep.filename) >= 0;
+      callback(err, result);
+    });
   }
   
   okToSend():boolean {
@@ -96,11 +117,17 @@ export class CodeProject {
     // TODO: add preproc directive for __MAINFILE__
     var mainfilename = getFilenameForPath(this.mainpath);
     var maintext = this.getFile(this.mainpath);
+    var files = [mainfilename];
     msg.updates.push({path:mainfilename, data:maintext});
-    msg.buildsteps.push({path:mainfilename, platform:this.platform_id, tool:this.platform.getToolForFilename(this.mainpath), mainfile:true});
-    for (var i=0; i<depends.length; i++) {
-      var dep = depends[i];
-      if (dep.data) {
+    for (var dep of depends) {
+      if (!dep.link) {
+        msg.updates.push({path:dep.filename, data:dep.data});
+        files.push(dep.filename);
+      }
+    }
+    msg.buildsteps.push({path:mainfilename, files:files, platform:this.platform_id, tool:this.platform.getToolForFilename(this.mainpath), mainfile:true});
+    for (var dep of depends) {
+      if (dep.data && dep.link) {
         this.preloadWorker(dep.filename);
         msg.updates.push({path:dep.filename, data:dep.data});
         msg.buildsteps.push({path:dep.filename, platform:this.platform_id, tool:this.platform.getToolForFilename(dep.path)});
@@ -116,6 +143,7 @@ export class CodeProject {
       result.push({
         path:path,
         filename:getFilenameForPath(path),
+        link:true,
         data:data
       });
     }
@@ -170,6 +198,7 @@ export class CodeProject {
     return this.filedata[path];
   }
   
+  // TODO: purge files not included in latest build?
   iterateFiles(callback:IterateFilesCallback) {
     for (var path in this.filedata) {
       callback(path, this.getFile(path));

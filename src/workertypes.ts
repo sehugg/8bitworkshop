@@ -45,6 +45,7 @@ export class SourceFile {
 export interface Dependency {
   path:string,
   filename:string,
+  link:boolean,
   data:FileData // TODO: or binary?
 }
 

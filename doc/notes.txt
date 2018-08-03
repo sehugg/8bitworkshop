@@ -51,6 +51,7 @@ TODO:
 - Revert loads cached files?
 - Verilog compile spins forever?
 - how to revert included files?
+- go to error in include files
 
 WEB WORKER FORMAT
 

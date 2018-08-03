@@ -1,8 +1,9 @@
 "use strict";
 
 var JSNES_PRESETS = [
-  {id:'ex0.asm', name:'Initialization (ASM)'},
-  {id:'ex1.asm', name:'Scrolling Demo (ASM)'},
+  {id:'ex0.asm', name:'Initialization'},
+  {id:'ex1.asm', name:'Scrolling Demo'},
+  {id:'ex2.asm', name:'Sprite Demo'},
 //  {id:'hello.c', name:'C: Hello PPU'},
 //  {id:'conio.c', name:'C: Hello Console I/O'},
   {id:'siegegame.c', name:'Siege Game (C)'},

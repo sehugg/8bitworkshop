@@ -503,10 +503,13 @@ function assembleDASM(step) {
   load("dasm");
   var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
   var unresolved = {};
+  var errors = [];
   function match_fn(s) {
     var matches = re_usl.exec(s);
     if (matches) {
       unresolved[matches[1]] = 0;
+    } else if (s.startsWith("Warning:")) {
+      errors.push({line:1, msg:s.substr(9)});
     }
   }
   var Module = DASM({
@@ -523,8 +526,9 @@ function assembleDASM(step) {
   execMain(step, Module, [step.path, "-l"+lstpath, "-o"+binpath, "-s"+sympath ]);
   var alst = FS.readFile(lstpath, {'encoding':'utf8'});
   var listing = parseDASMListing(alst, unresolved, step.path);
-  if (listing.errors.length) {
-    return {errors:listing.errors};
+  errors = errors.concat(listing.errors);
+  if (errors.length) {
+    return {errors:errors};
   }
   var aout = FS.readFile(binpath);
   var asym = FS.readFile(lstpath, {'encoding':'utf8'});
@@ -547,7 +551,7 @@ function assembleDASM(step) {
   return {
     output:aout.slice(2),
     listings:listings,
-    errors:listing.errors,
+    errors:errors,
     symbolmap:symbolmap,
     intermediate:{listing:alst, symbols:asym},
   };
