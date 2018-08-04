@@ -117,6 +117,7 @@ var JSNESPlatform = function(mainElement) {
   this.loadROM = function(title, data) {
     var romstr = String.fromCharCode.apply(null, data);
     nes.loadROM(romstr);
+    frameindex = 0;
   }
 
   this.getOpcodeMetadata = getOpcodeMetadata_6502;

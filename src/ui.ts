@@ -198,6 +198,8 @@ function loadProject(preset_id:string) {
       refreshWindowList();
       // show main file
       projectWindows.createOrShow(preset_id); // TODO: add checkmark
+      // build project
+      current_project.setMainFile(preset_id);
     }
   });
 }

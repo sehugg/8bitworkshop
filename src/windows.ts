@@ -57,6 +57,8 @@ export class ProjectWindows {
   }
   
   refresh(moveCursor:boolean) {
+    // TODO: activate window that contains debug line?
+    // refresh current window
     if (this.activewnd && this.activewnd.refresh)
       this.activewnd.refresh(moveCursor);
   }

@@ -79,13 +79,13 @@ describe('Store', function() {
     var project = new prj.CodeProject(worker, test_platform_id, platform, store);
     project.loadFiles(['test'], function(err, result) {
      assert.equal(null, err);
-     assert.deepEqual([ { path: 'test', filename: 'test', data: 'a' } ], result);
+     assert.deepEqual([ { path: 'test', filename: 'test', data: 'a', link:true } ], result);
      done();
     });
    });
   });
   
-  it('Should build project', function(done) {
+  it('Should build linked project', function(done) {
    localStorage.clear();
    localItems['__migrated__TEST'] = 'true';
    var msgs = [];
@@ -94,7 +94,7 @@ describe('Store', function() {
     { preload: 'dasm', platform: '_TEST' },
     { 
       buildsteps: [
-       { path: "test.a", platform: "_TEST", tool: "dasm", mainfile:true },
+       { path: "test.a", platform: "_TEST", tool: "dasm", mainfile:true, files:["test.a"] },
       ],
       updates: [
        { path: "test.a", data: " lda #0" }
@@ -111,6 +111,7 @@ describe('Store', function() {
    var project = new prj.CodeProject(worker, test_platform_id, platform, store);
    project.callbackBuildStatus = function(b) { msgs.push(b) };
    project.updateFile('test.a', ' lda #0');
+   project.setMainFile('test.a');
    project.updateFile('test.a', ' lda #1'); // don't send twice (yet)
    assert.deepEqual(msgs, expectmsgs);
    store.getItem('test.a', function(err, result) {
@@ -122,7 +123,7 @@ describe('Store', function() {
 
   // lines: [ { line: 3, offset: 61440, insns: 'a9 00', iscode: true } ] }
 
-  it('Should build project', function(done) {
+  it('Should build asm project', function(done) {
    localStorage.clear();
    localItems['__migrated__TEST'] = 'true';
    var msgs = [];

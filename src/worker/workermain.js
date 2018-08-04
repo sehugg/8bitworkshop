@@ -525,10 +525,20 @@ function assembleDASM(step) {
   var sympath = step.prefix+'.sym';
   execMain(step, Module, [step.path, "-l"+lstpath, "-o"+binpath, "-s"+sympath ]);
   var alst = FS.readFile(lstpath, {'encoding':'utf8'});
+  // parse main listing, get errors
   var listing = parseDASMListing(alst, unresolved, step.path);
   errors = errors.concat(listing.errors);
   if (errors.length) {
     return {errors:errors};
+  }
+  var listings = {};
+  listings[lstpath] = {lines:listing.lines};
+  // parse include files
+  for (var fn of step.files) {
+    if (fn != step.path) {
+      var lst = parseDASMListing(alst, unresolved, fn);
+      listings[fn] = lst; // TODO: foo.asm.lst
+    }
   }
   var aout = FS.readFile(binpath);
   var asym = FS.readFile(lstpath, {'encoding':'utf8'});
@@ -539,8 +549,6 @@ function assembleDASM(step) {
   // TODO: what if listing or symbols change?
   if (!anyTargetChanged(step, [binpath/*, lstpath, sympath*/]))
     return;
-  var listings = {};
-  listings[lstpath] = {lines:listing.lines};
   var symbolmap = {};
   for (var s of asym.split("\n")) {
     var toks = s.split(" ");

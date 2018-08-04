@@ -65,6 +65,7 @@ export class SourceEditor implements ProjectView {
     this.newEditor(div);
     if (text)
       this.setText(text); // TODO: this calls setCode() and builds... it shouldn't
+    this.setupEditor();
     return div;
   }
 
@@ -79,6 +80,9 @@ export class SourceEditor implements ProjectView {
       gutters: isAsm ? ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"]
                      : ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"],
     });
+  }
+  
+  setupEditor() {
     var timer;
     this.editor.on('changes', (ed, changeobj) => {
       clearTimeout(timer);
@@ -231,16 +235,22 @@ export class SourceEditor implements ProjectView {
     }
   }
   
-  refreshDebugState(moveCursor:boolean) {
-    this.clearCurrentLine();
+  getActiveLine() {
     var state = lastDebugState;
-    if (state && state.c) {
+    if (state && state.c && this.sourcefile) {
       var PC = state.c.PC;
       var line = this.sourcefile.findLineForOffset(PC);
-      if (line >= 0) {
-        this.setCurrentLine(line, moveCursor);
-        // TODO: switch to disasm?
-      }
+      return line;
+    } else
+      return -1;
+  }
+  
+  refreshDebugState(moveCursor:boolean) {
+    this.clearCurrentLine();
+    var line = this.getActiveLine();
+    if (line >= 0) {
+      this.setCurrentLine(line, moveCursor);
+      // TODO: switch to disasm?
     }
   }
   
@@ -454,7 +464,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
     }
     disasmview.setValue(asmtext);
     var findPC = platform.getDebugCallback() ? pc : -1;
-    if (findPC >= 0) {
+    if (findPC >= 0 && this.assemblyfile) {
       var lineno = this.assemblyfile.findLineForOffset(findPC);
       if (lineno && moveCursor) {
         // set cursor while debugging

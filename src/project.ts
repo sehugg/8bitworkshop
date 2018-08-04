@@ -206,7 +206,7 @@ export class CodeProject {
   }
   
   sendBuild() {
-    var self = this;
+    if (!this.mainpath) throw "need to call setMainFile first";
     var maindata = this.getFile(this.mainpath);
     var text = typeof maindata === "string" ? maindata : '';
     this.loadFileDependencies(text, (err, depends) => {
@@ -233,12 +233,17 @@ export class CodeProject {
   updateFile(path:string, text:FileData) {
     this.updateFileInStore(path, text); // TODO: isBinary
     this.filedata[path] = text;
-    if (this.okToSend()) {
-      if (!this.mainpath) this.mainpath = path;
+    if (this.okToSend() && this.mainpath) {
       if (this.callbackBuildStatus) this.callbackBuildStatus(true);
       this.sendBuild();
     }
   };
+  
+  setMainFile(path:string) {
+    this.mainpath = path;
+    if (this.callbackBuildStatus) this.callbackBuildStatus(true);
+    this.sendBuild();
+  }
   
   processBuildResult(data:WorkerResult) {
     // TODO: link listings with source files
