@@ -116,6 +116,8 @@ function refreshWindowList() {
     var a = document.createElement("a");
     a.setAttribute("class", "dropdown-item");
     a.setAttribute("href", "#");
+    if (id == projectWindows.getActiveID())
+      $(a).addClass("dropdown-item-checked");
     a.appendChild(document.createTextNode(name));
     li.appendChild(a);
     ul.append(li);
@@ -197,7 +199,7 @@ function loadProject(preset_id:string) {
       // we need this to build create functions for the editor (TODO?)
       refreshWindowList();
       // show main file
-      projectWindows.createOrShow(preset_id); // TODO: add checkmark
+      projectWindows.createOrShow(preset_id);
       // build project
       current_project.setMainFile(preset_id);
     }
@@ -276,9 +278,12 @@ function handleFileUpload(files: File[]) {
   if (files) uploadNextFile();
 }
 
-function getCurrentFilename() : string {
-  var toks = main_file_id.split("/");
-  return toks[toks.length-1];
+function getCurrentMainFilename() : string {
+  return getFilenameForPath(main_file_id);
+}
+
+function getCurrentEditorFilename() : string {
+  return getFilenameForPath(projectWindows.getActiveID());
 }
 
 function _shareFile(e) {
@@ -290,7 +295,7 @@ function _shareFile(e) {
   if (!text) return false;
   var github = new Octokat();
   var files = {};
-  files[getCurrentFilename()] = {"content": text};
+  files[getCurrentEditorFilename()] = {"content": text};
   var gistdata = {
     "description": '8bitworkshop.com {"platform":"' + platform_id + '"}',
     "public": true,
@@ -321,14 +326,14 @@ function _downloadROMImage(e) {
     return true;
   }
   var blob = new Blob([current_output], {type: "application/octet-stream"});
-  saveAs(blob, getCurrentFilename()+".rom");
+  saveAs(blob, getCurrentMainFilename()+".rom");
 }
 
 function _downloadSourceFile(e) {
   var text = projectWindows.getCurrentText();
   if (!text) return false;
   var blob = new Blob([text], {type: "text/plain;charset=utf-8"});
-  saveAs(blob, getCurrentFilename());
+  saveAs(blob, getCurrentEditorFilename());
 }
 
 function populateExamples(sel) {

@@ -1,12 +1,14 @@
 "use strict";
 
 var APPLE2_PRESETS = [
-  {id:'sieve.c', name:'Sieve (C)'},
-  {id:'mandel.c', name:'Mandelbrot (C)'},
-  {id:'tgidemo.c', name:'TGI Graphics Demo (C)'},
-  {id:'siegegame.c', name:'Siege Game (C)'},
-  {id:'hgrtest.a', name:"HGR Test (asm)"},
-  {id:'conway.a', name:"Conway's Game of Life (asm)"},
+  {id:'sieve.c', name:'Sieve'},
+  {id:'mandel.c', name:'Mandelbrot'},
+  {id:'tgidemo.c', name:'TGI Graphics Demo'},
+  {id:'siegegame.c', name:'Siege Game'},
+  {id:'cosmic.c', name:'Cosmic Impalas'},
+  {id:'hgrtest.a', name:"HGR Test"},
+  {id:'conway.a', name:"Conway's Game of Life"},
+  {id:'lz4fh.a', name:"LZ4FH Graphics Compression"},
 //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
 ];
 
@@ -153,7 +155,7 @@ var Apple2Platform = function(mainElement) {
       // since we're an Apple II+, we don't do lowercase
       if (flags & 1) {
         if (code) {
-          if (code >= 0xe1 && code <= 0xfa)
+          if (code >= 0x61 && code <= 0x7a)
              code -= 0x20;
           kbdlatch = (code | 0x80) & 0xff;
         } else if (key) {
@@ -169,17 +171,26 @@ var Apple2Platform = function(mainElement) {
       // 262.5 scanlines per frame
       var clock = 0;
       var debugCond = self.getDebugCallback();
+      var rendered = false;
       for (var sl=0; sl<262; sl++) {
         for (var i=0; i<cpuCyclesPerLine; i++) {
-          if (debugCond && debugCond()) { debugCond = null; }
+          if (debugCond && debugCond()) {
+            grparams.dirty = grdirty;
+            grparams.grswitch = grswitch;
+            ap2disp.updateScreen();
+            debugCond = null;
+            rendered = true;
+          }
           clock++;
           cpu.clockPulse();
           audio.feedSample(soundstate, 1);
         }
       }
-      grparams.dirty = grdirty;
-      grparams.grswitch = grswitch;
-      ap2disp.updateScreen();
+      if (!rendered) {
+        grparams.dirty = grdirty;
+        grparams.grswitch = grswitch;
+        ap2disp.updateScreen();
+      }
       video.updateFrame();
       soundstate = 0; // to prevent clicking
       self.restartDebugState(); // reset debug start state
@@ -509,7 +520,7 @@ var Apple2Display = function(pixels, apple) {
               pixels[yb+i] = colors_lut[d1*7+i];
            var d2 = (((b1&0x40)<<2) | b2 | b3<<9) & 0x3ff;
            for (var i=0; i<7; i++)
-              pixels[yb+7+i] = colors_lut[d1*7+7168+i];
+              pixels[yb+7+i] = colors_lut[d2*7+7168+i];
            yb += 14;
            base += 2;
            b = b2;

@@ -289,3 +289,10 @@ function lzgmini() {
     return str;
   }
 }
+
+function stringToByteArray(s:string) : Uint8Array {
+  var a = new Uint8Array(s.length);
+  for (var i=0; i<s.length; i++)
+    a[i] = s.charCodeAt(i);
+  return a;
+}

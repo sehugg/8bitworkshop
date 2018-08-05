@@ -85,7 +85,7 @@ export class ProjectWindows {
   getActive() : ProjectView { return this.activewnd; }
   
   getActiveID() : string { return this.activeid; }
-  
+
   getCurrentText() : string {
     if (this.activewnd && this.activewnd.getValue)
       return this.activewnd.getValue();

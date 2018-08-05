@@ -19,22 +19,6 @@ ClearRAM: subroutine
         bne .clearRAM
         rts
 
-; fill video RAM
-FillVRAM: subroutine
-	txa
-	ldy #$20
-	sty PPU_ADDR
-	sta PPU_ADDR
-	ldy #$10
-.loop:
-	sta PPU_DATA
-        adc #7
-	inx
-	bne .loop
-	dey
-	bne .loop
-        rts
-
 ; wait for VSYNC to start
 WaitSync:
 	bit PPU_STATUS

@@ -197,7 +197,7 @@ export class SourceEditor implements ProjectView {
   
   setGutter(type:string, line:number, text:string) {
     var lineinfo = this.editor.lineInfo(line);
-    if (lineinfo.gutterMarkers && lineinfo.gutterMarkers[type]) {
+    if (lineinfo && lineinfo.gutterMarkers && lineinfo.gutterMarkers[type]) {
       // do not replace existing marker
     } else {
       var textel = document.createTextNode(text);

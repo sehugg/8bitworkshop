@@ -3,24 +3,37 @@
 
 ;;;;; CONSTANTS
 
-PPU_CTRL	equ $2000
-PPU_MASK	equ $2001
-PPU_STATUS	equ $2002
-OAM_ADDR	equ $2003
-OAM_DATA	equ $2004
-PPU_SCROLL	equ $2005
-PPU_ADDR	equ $2006
-PPU_DATA	equ $2007
-PPU_OAM_DMA	equ $4014
-DMC_FREQ	equ $4010
-APU_STATUS	equ $4015
+PPU_CTRL	= $2000
+PPU_MASK	= $2001
+PPU_STATUS	= $2002
+OAM_ADDR	= $2003
+OAM_DATA	= $2004
+PPU_SCROLL	= $2005
+PPU_ADDR	= $2006
+PPU_DATA	= $2007
+
+PPU_OAM_DMA	= $4014
+DMC_FREQ	= $4010
+APU_STATUS	= $4015
+APU_NOISE_VOL   = $400C
+APU_NOISE_FREQ  = $400E
+APU_NOISE_TIMER = $400F
+APU_DMC_CTRL    = $4010
+APU_CHAN_CTRL   = $4015
+APU_FRAME       = $4017
+
+; NOTE: I've put this outside of the PPU & APU, because it is a feature
+; of the APU that is primarily of use to the PPU.
+OAM_DMA         = $4014
+; OAM local RAM copy goes from $0200-$02FF:
+OAM_RAM         = $0200
 
 
 ;;;;; CARTRIDGE FILE HEADER
 
-NES_MIRR_HORIZ	equ	0
-NES_MIRR_VERT	equ	1
-NES_MIRR_QUAD	equ	8
+NES_MIRR_HORIZ	= 0
+NES_MIRR_VERT	= 1
+NES_MIRR_QUAD	= 8
 
 	MAC NES_HEADER
 	seg Header
@@ -51,6 +64,11 @@ NES_MIRR_QUAD	equ	8
         stx DMC_FREQ		;disable DMC interrupts
         stx PPU_CTRL		;disable NMI interrupts
 	bit PPU_STATUS		;clear VBL flag
+        bit APU_CHAN_CTRL	;ack DMC IRQ bit 7
+	lda #$40
+	sta APU_FRAME		;disable APU Frame IRQ
+	lda #$0F
+	sta APU_CHAN_CTRL	;disable DMC, enable/init other channels.        
         ENDM
 
 ;;;;; NES_VECTORS - CPU vectors at end of address space

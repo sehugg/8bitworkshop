@@ -36,6 +36,23 @@ Start:
 .endless
 	jmp .endless		;endless loop
 
+; fill video RAM
+FillVRAM: subroutine
+	txa
+	ldy #$20
+	sty PPU_ADDR
+	sta PPU_ADDR
+	ldy #$10
+.loop:
+	sta PPU_DATA
+        adc #7
+	inx
+	bne .loop
+	dey
+	bne .loop
+        rts
+
+;
 InitSprites: subroutine
 	lda #1
         ldx #0
@@ -46,6 +63,7 @@ InitSprites: subroutine
         bne .loop
         rts
 
+;
 MoveSprites: subroutine
 	lda #1
         ldx #0

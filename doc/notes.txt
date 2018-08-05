@@ -52,6 +52,7 @@ TODO:
 - Verilog compile spins forever?
 - how to revert included files?
 - go to error in include files
+- BOM in upload/download?
 
 WEB WORKER FORMAT
 

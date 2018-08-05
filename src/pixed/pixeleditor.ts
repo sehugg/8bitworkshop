@@ -221,17 +221,20 @@ function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, thumbnail
 
 var pixel_re = /([0#]?)([x$%]|\d'[bh])([0-9a-f]+)/gi;
 
-function parseHexBytes(s) {
-  var arr = [];
-  var m;
+function convertToHexStatements(s) {
   // convert 'hex ....' asm format
-  s = s.replace(/(\shex\s+)([0-9a-f]+)/ig, function(m,hexprefix,hexstr) {
+  return s.replace(/(\shex\s+)([0-9a-f]+)/ig, function(m,hexprefix,hexstr) {
     var rtn = hexprefix;
     for (var i=0; i<hexstr.length; i+=2) {
       rtn += '0x'+hexstr.substr(i,2)+',';
     }
     return rtn;
   });
+}
+
+function parseHexBytes(s) {
+  var arr = [];
+  var m;
   while (m = pixel_re.exec(s)) {
     var n;
     if (m[2].startsWith('%') || m[2].endsWith("b"))
@@ -270,7 +273,7 @@ function replaceHexBytes(s, bytes) {
   // convert 'hex ....' asm format
   result = result.replace(/(\shex\s+)([,x0-9a-f]+)/ig, function(m,hexprefix,hexstr) {
     var rtn = hexprefix + hexstr;
-    rtn = rtn.replace(/0x/,'').replace(',','')
+    rtn = rtn.replace(/0x/ig,'').replace(/,/ig,'')
     return rtn;
   });
   return result;
@@ -397,10 +400,10 @@ function pixelEditorDecodeMessage(e) {
   parentSource = e.source;
   parentOrigin = e.origin;
   currentFormat = e.data.fmt;
-  currentByteStr = e.data.bytestr;
   currentPaletteFmt = e.data.palfmt;
   currentPaletteStr = e.data.palstr;
-  var bytes = parseHexBytes(e.data.bytestr);
+  currentByteStr = convertToHexStatements(e.data.bytestr);
+  var bytes = parseHexBytes(currentByteStr);
   allimages = convertBytesToImages(bytes, e.data.fmt);
   palette = [0xff000000, 0xffffffff]; // TODO
   if (currentPaletteStr) {
