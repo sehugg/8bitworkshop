@@ -121,6 +121,7 @@ var PLATFORM_PARAMS = {
     define: '__APPLE2__',
     cfgfile: 'apple2-hgr.cfg',
     libargs: ['apple2.lib'],
+    __CODE_RUN__: 16384,
   },
   'apple2-e': {
     define: '__APPLE2__',
@@ -597,7 +598,7 @@ function setupStdin(fs, code) {
     000000r 1                       .dbg    line, "main.c", 3
     000000r 1  A2 00                ldx     #$00
     */
-function parseCA65Listing(code, symbols, dbg) {
+function parseCA65Listing(code, symbols, params, dbg) {
   var segofs = 0;
   // .dbg	line, "main.c", 1
   var segLineMatch = /[.]segment\s+"(\w+)"/;
@@ -612,8 +613,7 @@ function parseCA65Listing(code, symbols, dbg) {
     if (segm) {
       var segname = segm[1];
       var segsym = '__'+segname+'_RUN__';
-      // TODO: doesn't work on apple2, needs __MAIN_START__?
-      segofs = parseInt(symbols[segsym])|0;
+      segofs = parseInt(symbols[segsym] || params[segsym]) || 0;
     }
     if (dbg) {
       var linem = dbgLineMatch.exec(line);
@@ -734,8 +734,8 @@ function linkLD65(step) {
     for (var fn of step.files) {
       if (fn.endsWith('.lst')) {
         var lstout = FS.readFile(fn, {encoding:'utf8'});
-        var asmlines = parseCA65Listing(lstout, symbolmap, false);
-        var srclines = parseCA65Listing(lstout, symbolmap, true);
+        var asmlines = parseCA65Listing(lstout, symbolmap, params, false);
+        var srclines = parseCA65Listing(lstout, symbolmap, params, true);
         putWorkFile(fn, lstout);
         listings[fn] = {
           asmlines:srclines.length ? asmlines : null,

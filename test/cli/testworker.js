@@ -9,6 +9,8 @@ CACHE_WASM_MODULES = false;
 
 global.onmessage({data:{preload:'cc65', platform:'nes'}});
 global.onmessage({data:{preload:'ca65', platform:'nes'}});
+global.onmessage({data:{preload:'cc65', platform:'apple2'}});
+global.onmessage({data:{preload:'ca65', platform:'apple2'}});
 global.onmessage({data:{preload:'sdcc'}});
 
 // TODO: check msg against spec
@@ -289,6 +291,10 @@ describe('Worker', function() {
   it('should compile vicdual skeleton', function(done) {
     var files = ['skeleton.sdcc', 'cp437.c'];
     compileFiles('sdcc', files, 'vicdual', done, 16416, [0,45], 0); // TODO?
+  });
+  it('should compile apple2 skeleton with CC65', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/apple2/skeleton.cc65'));
+    compile('cc65', csource, 'apple2', done, 17349, 4, 0);
   });
   // TODO: test if compile, errors, then compile same file
 
