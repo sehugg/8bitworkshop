@@ -144,7 +144,7 @@ function refreshWindowList() {
   // add other source files
   separate = true;
   current_project.iterateFiles(function(id, text) {
-    if (id != main_file_id)
+    if (text && id != main_file_id)
       addWindowItem(id, getFilenameForPath(id), loadEditor);
   });
   

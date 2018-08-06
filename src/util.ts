@@ -1,6 +1,10 @@
 "use strict";
 
-function lpad(s:string, n:number):string { while(s.length<n) s=" "+s; return s; }
+function lpad(s:string, n:number):string {
+  s += ''; // convert to string
+  while (s.length<n) s=" "+s;
+  return s;
+}
 
 function byte2signed(b:number):number {
   b &= 0xff;

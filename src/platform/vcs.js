@@ -127,13 +127,12 @@ var VCSPlatform = function() {
   this.getDefaultExtension = function() { return ".a"; };
 
   this.getDebugCategories = function() {
-    return ['CPU','Memory','PIA','TIA'];
+    return ['CPU','PIA','TIA'];
   }
   this.getDebugInfo = function(category, state) {
     switch (category) {
       case 'CPU':    return this.cpuStateToLongString(state.c);
-      case 'Memory': return this.ramStateToLongString(state);
-      case 'PIA':    return this.piaStateToLongString(state.p);
+      case 'PIA':    return this.ramStateToLongString(state) + "\n" + this.piaStateToLongString(state.p);
       case 'TIA':    return this.tiaStateToLongString(state.t);
     }
   }
@@ -143,23 +142,36 @@ var VCSPlatform = function() {
   this.tiaStateToLongString = function(t) {
     var pos = this.getRasterPosition();
     var s = '';
-    s += "H " + pos.x + "  V " + pos.y + "\n";
+    s += "H" + lpad(pos.x,5) + "  V" + lpad(pos.y,5) + "   ";
     s += (t.vs?"VSYNC ":"- ") + (t.vb?"VBLANK ":"- ") + "\n";
+    s += "\n";
     s += "Playfield " + t.f + "\n";
-    // TODO? s += "    Color {color:0x" + hex(t.fc)  + "} {color:0x" + hex(t.fb) + "}\n";
+    s += "          " + (t.fr?"REFLECT ":"- ") + (t.fs?"SCOREMODE ":"- ") + (t.ft?"PRIORITY ":"- ") + "\n";
     for (var j=0; j<2; j++) {
       var i = "p"+j;
-      s += "Player"+j+ "   " + t[i+'co'] + " " + t[i+'sc'] + " " + t[i+'ss'] + " " + (t[i+'v']?"DELAY":"") + " " + (t[i+'cc']?"CLOSECOPY":"") + " " + (t[i+'mc']?"MEDCOPY":"") + " " + (t[i+'wc']?"WIDECOPY":"") + " " + (t[i+'r']?"REFLECT":"") + "\n";
-      s += "          " + tobin(t[i]) + " " + tobin(t[i+'d']) + "\n";
+      s += "Player"+j+ lpad(tobin(t[i]),11) + lpad(tobin(t[i+'d']),11) + "\n";
+    }
+    s += "\n";
+    // TODO? s += "    Color {color:0x" + hex(t.fc)  + "} {color:0x" + hex(t.fb) + "}\n";
+    s += "          Count Scan Speed\n";
+    for (var j=0; j<2; j++) {
+      var i = "p"+j;
+      s += "Player"+j+ lpad(t[i+'co'],8) + lpad(nonegstr(t[i+'sc']),5) + lpad(t[i+'ss'],6);
+      s += " " + (t[i+'rr']?"RESET":"") + " " + (t[i+'v']?"DELAY":"") + " " + (t[i+'cc']?"CLOSECOPY":"") + " " + (t[i+'mc']?"MEDCOPY":"") + " " + (t[i+'wc']?"WIDECOPY":"") + " " + (t[i+'r']?"REFLECT":"") + "\n";
     }
     for (var j=0; j<2; j++) {
       var i = "m"+j;
-      s += "Missile"+j+ "  " + t[i+'co'] + " " + t[i+'sc'] + " " + t[i+'ss'] + "\n";
+      s += "Missile"+j+ lpad(t[i+'co'],7) + lpad(nonegstr(t[i+'sc']),5) + lpad(t[i+'ss'],6);
+      s += " " + (t[i+'rr']?"RESET":"") + " " + (t[i+'r']?"RESET2PLAYER":"") + "\n";
     }
-    s += "Ball      " + t['bco'] + " " + t['bsc'] + " " + t['bss'] + "\n";
+    s += "Ball"+ lpad(t['bco'],11) + lpad(nonegstr(t['bsc']),5) + lpad(t['bss'],6) + "\n";
     return s;
   }
 };
+
+function nonegstr(n) {
+  return n < 0 ? "-" : n.toString();
+}
 
 /// VCS TIMING ANALYSIS
 

@@ -170,8 +170,10 @@ export class CodeProject {
               loadNext();
             } else {
               // found on remote fetch?
-              var webpath = "presets/" + this.platform_id + "/" + path;
-              if (this.platform_id == 'vcs' && path.indexOf('.') <= 0)
+              var preset_id = this.platform_id;
+              preset_id = preset_id.replace("-mame","");
+              var webpath = "presets/" + preset_id + "/" + path;
+              if (this.platform_id.startsWith('vcs') && path.indexOf('.') <= 0)
                 webpath += ".a"; // legacy stuff
               this.callbackGetRemote( webpath, (text:string) => {
                 console.log("GET",webpath,text.length,'bytes');
@@ -180,7 +182,7 @@ export class CodeProject {
                 loadNext();
               }, 'text')
               .fail( (err:XMLHttpRequest) => {
-                console.log("Could not load preset", path, err);
+                console.log("Could not load preset", path, err.status);
                 // only cache result if status is 404 (not found)
                 if (err.status && err.status == 404)
                   this.filedata[path] = null;
