@@ -63,8 +63,12 @@ describe('Store', function() {
     assert.equal('true', localItems['__migrated__TEST']);
     store.getItem('test', function(err, result) {
       if (err) done(err);
+      // did it convert?
       assert.equal(result, 'a');
       assert.equal(7, localMods);
+      // did we not mess with original storage?
+      assert.equal(localStorage.getItem('_TEST/test'), 'a');
+      assert.equal(localStorage.getItem('_TEST/local/test'), 'b');
       done();
     });
    });

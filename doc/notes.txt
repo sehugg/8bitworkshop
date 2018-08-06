@@ -53,6 +53,8 @@ TODO:
 - how to revert included files?
 - go to error in include files
 - BOM in upload/download?
+- don't mess with localStorage when migrating!
+
 
 WEB WORKER FORMAT
 

@@ -337,10 +337,29 @@ function loadNative(modulename, debug) {
 
 // mount the filesystem at /share
 function setupFS(FS, name) {
+  var WORKERFS = FS.filesystems['WORKERFS']
   FS.mkdir('/share');
-  FS.mount(FS.filesystems['WORKERFS'], {
+  FS.mount(WORKERFS, {
     packages: [{ metadata: fsMeta[name], blob: fsBlob[name] }]
   }, '/share');
+  // fix for slow Blob operations by caching typed arrays
+  // https://github.com/kripken/emscripten/blob/incoming/src/library_workerfs.js
+  var reader = WORKERFS.reader;
+  var blobcache = {};
+  WORKERFS.stream_ops.read = function (stream, buffer, offset, length, position) {
+    if (position >= stream.node.size) return 0;
+    var contents = blobcache[stream.path];
+    if (!contents) {
+      var ab = reader.readAsArrayBuffer(stream.node.contents);
+      contents = blobcache[stream.path] = new Uint8Array(ab);
+    }
+    if (position + length > contents.length)
+      length = contents.length - position;
+    for (var i=0; i<length; i++) {
+      buffer[offset+i] = contents[position+i];
+    }
+    return length;
+  };
 }
 
 var print_fn = function(s) {
