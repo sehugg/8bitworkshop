@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 . ./scripts/env.sh
 VERSION=`git tag | tail -1`
@@ -9,7 +9,7 @@ if [ "$VERSION" == "" ]; then
 fi
 DESTPATH=$RSYNC_PATH/v$VERSION
 DEVPATH=/var/www/8bitworkshop.com/dev
-TMPDIR=/tmp/8bitws/$VERSION
+TMPDIR=./tmp/$VERSION
 grep "var VERSION" redir.html
 echo "Upload version $VERSION to production? (edited redir.html?)"
 read

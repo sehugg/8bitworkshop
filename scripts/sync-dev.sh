@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 . ./scripts/env.sh
 DESTPATH=$RSYNC_PATH/dev/

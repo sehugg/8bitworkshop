@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 . ./scripts/env.sh
 rsync --stats -rilv -e "ssh -p 2222" ./blog/  $RSYNC_PATH/blog/
