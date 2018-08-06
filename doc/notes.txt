@@ -5,7 +5,6 @@ TODO:
 - debugging of scan line overflow
 - confuse code/data in listing
 - show memory locations hovering over lines
-- don't play sound when debugging
 - don't check against ROM signatures
 - better errors when ROM format wrong
 - debugging inside of bank switching??? relocated segs?
@@ -13,7 +12,6 @@ TODO:
 - DASM: macro forward refs
 - asm: support macro expansion
 - support narrow screens
-- show other TIA internal values
 - case sensisitvity looking for mismatch variables
 - remove pulldown when no preset?
 - can't step after reset (or when funky frame; TIA frame is out of sync)

@@ -67,23 +67,26 @@ var VCSPlatform = function() {
   }
 
   this.isRunning = function() { return Javatari.room && Javatari.room.console.isRunning(); }
-  this.pause = function() { Javatari.room.console.pause(); }
-  this.resume = function() { Javatari.room.console.go(); }
+  this.pause = function() { Javatari.room.console.pause(); Javatari.room.speaker.mute(); }
+  this.resume = function() { Javatari.room.console.go(); Javatari.room.speaker.play(); }
   this.step = function() { Javatari.room.console.debugSingleStepCPUClock(); }
   this.stepBack = function() { Javatari.room.console.debugStepBackInstruction(); }
   this.runEval = function(evalfunc) { Javatari.room.console.debugEval(evalfunc); }
 
   this.setupDebug = function(callback) {
     Javatari.room.console.onBreakpointHit = callback;
+    Javatari.room.speaker.mute();
   }
   this.clearDebug = function() {
     Javatari.room.console.disableDebug();
     Javatari.room.console.onBreakpointHit = null;
+    if (this.isRunning()) Javatari.room.speaker.play();
   }
   this.reset = function() {
     Javatari.room.console.powerOff();
     Javatari.room.console.resetDebug();
     Javatari.room.console.powerOn();
+    Javatari.room.speaker.play();
   }
   this.getOriginPC = function() {
     return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;

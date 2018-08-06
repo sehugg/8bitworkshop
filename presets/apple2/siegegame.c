@@ -1,3 +1,4 @@
+
 #include <stdlib.h>
 #include <string.h>
 #include <conio.h>
@@ -120,10 +121,10 @@ void human_control(Player* p) {
   if (!kbhit()) return;
   key = cgetc();
   switch (key) {
-    case 'i': dir = D_UP; break;
-    case 'j': dir = D_LEFT; break;
-    case 'k': dir = D_RIGHT; break;
-    case 'm': dir = D_DOWN; break;
+    case 'I': dir = D_UP; break;
+    case 'J': dir = D_LEFT; break;
+    case 'K': dir = D_RIGHT; break;
+    case 'M': dir = D_DOWN; break;
   }
   // don't let the player reverse
   if (dir < 0x80 && dir != (p->dir ^ 2)) {

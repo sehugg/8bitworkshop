@@ -1,5 +1,7 @@
-﻿
+
 #include <string.h>
+#include <conio.h>
+#include <apple2.h>
 
 typedef unsigned char byte;
 typedef signed char sbyte;
@@ -456,27 +458,29 @@ void move_player() {
   if (attract) {
     if (bullet_y == 0) fire_bullet();
   } else {
-    char key = PEEK(0xc000);
-    if (key & 0x80) {
+    char key;
+    // handle keyboard 
+    if (kbhit()) {
+      key = cgetc();
       switch (key) {
-         case 0xc1:
-           player_dir = player_dir < 0 ? 0 : -2;
-           break;
-         case 0xda:
-           player_dir = player_dir > 0 ? 0 : 2;
-           break;
-         case 0xa0:
-           if (bullet_y == 0) {
-             fire_bullet();
-           }
-           break;
+        case 'A':
+          player_dir = player_dir < 0 ? 0 : -2;
+          break;
+        case 'Z':
+          player_dir = player_dir > 0 ? 0 : 2;
+          break;
+        case ' ':
+          if (bullet_y == 0) {
+            fire_bullet();
+          }
+          break;
       }
-      STROBE(0xc010);
     }
+    // move player
     if (player_dir < 0 && player_x > 0)
-      	player_x += player_dir;
+      player_x += player_dir;
     else if (player_dir > 0 && player_x < VHEIGHT-28)
-      	player_x += player_dir;
+      player_x += player_dir;
   }
   draw_sprite(player_bitmap, player_x, 1);
 }
