@@ -300,3 +300,10 @@ function stringToByteArray(s:string) : Uint8Array {
     a[i] = s.charCodeAt(i);
   return a;
 }
+
+function removeBOM(s:string) {
+  if (s.charCodeAt(0) === 0xFEFF) {
+    s = s.substr(1);
+  }
+  return s;
+}

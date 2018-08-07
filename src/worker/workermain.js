@@ -554,6 +554,7 @@ function assembleDASM(step) {
   var listings = {};
   listings[lstpath] = {lines:listing.lines};
   // parse include files
+  // TODO: kinda wasted effort
   for (var fn of step.files) {
     if (fn != step.path) {
       var lst = parseDASMListing(alst, unresolved, fn);
@@ -1083,8 +1084,6 @@ function detectModuleName(code) {
 function detectTopModuleName(code) {
   var topmod = detectModuleName(code) || "top";
   var m = /\bmodule\s+(\w+?_top)/.exec(code);
-  if (m && m[1]) topmod = m[1];
-  m = /\bmodule\s+(\w+?_top)/.exec(code);
   if (m && m[1]) topmod = m[1];
   return topmod;
 }

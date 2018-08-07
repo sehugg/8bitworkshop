@@ -85,7 +85,7 @@ module digits10_array(digit, yofs, bits);
   input [2:0] yofs;		// vertical offset (0-4)
   output [4:0] bits;		// output (5 bits)
 
-  reg [4:0] bitarray[0:15][0:4];	// ROM array
+  reg [4:0] bitarray[16][5];	// ROM array (16 x 5 x 5 bits)
 
   assign bits = bitarray[digit][yofs];	// assign module output
   

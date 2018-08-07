@@ -1,16 +1,17 @@
-﻿
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;                              ;
-; LZ4FH uncompression for 6502 ;
-; By Andy McFadden             ;
-; Version 1.0.1, August 2015   ;
-;                              ;
-; Refactored for size & speed  ;
-; by Peter Ferrie.             ;
-;                              ;
-; Developed with Merlin-16     ;
-;                              ;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;                              
+; LZ4FH uncompression for 6502 
+; By Andy McFadden             
+; Version 1.0.1, August 2015   
+;                              
+; Refactored for size & speed  
+; by Peter Ferrie.             
+;                              
+; Developed with Merlin-16     
+; Ported to DASM by Steven Hugg 
+; Apache 2.0 license           
+; http://www.apache.org/licenses/LICENSE-2.0
+;                              
 
 	processor 6502
 
@@ -241,7 +242,7 @@ ClrScr:
         rts
 
 LZDATA:
-
+; WORLDMAP file
  hex 661f7f1400002001002900b040014019
  hex 0000007c000008290041030600032a00
  hex 43065433002900980000403f00002603
