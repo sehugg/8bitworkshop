@@ -326,6 +326,7 @@ function showLoopTimingForPC(pc, sourcefile, ed) {
   jsrresult = {};
   // recurse through all traces
   _traceInstructions(pc | platform.getOriginPC(), MAX_CLOCKS, MAX_CLOCKS);
+  ed.editor.clearGutter("gutter-bytes");
   // show the lines
   for (var line in sourcefile.line2offset) {
     var pc = sourcefile.line2offset[line];
