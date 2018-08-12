@@ -1,8 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
-
-#include "cv.h"
-#include "cvu.h"
+#include <cv.h>
+#include <cvu.h>
 
 #define PATTERN ((const cv_vmemp)0x0000)
 #define COLOR ((const cv_vmemp)0x2000)

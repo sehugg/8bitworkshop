@@ -5,9 +5,8 @@
 // Nodes from HUFFMAN_BS to HUFFMAN_RS - 1 do not have child nodes.
 // Nodes from HUFFMAN_RS onward only have a left child node.
 
-#include "cvu_compression.h"
-
-#include "cvu.h"
+#include <cvu_compression.h>
+#include <cvu.h>
 
 #define RLE_ESCAPE (const uint8_t)(253)
 

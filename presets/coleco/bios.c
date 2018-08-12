@@ -1,9 +1,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-#include "cv.h"
-#include "cvu.h"
+#include <cv.h>
+#include <cvu.h>
 
 #define DEFINE_BIOS_FN(name,address) \
 int name() { __asm call address __endasm; }

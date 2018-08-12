@@ -1,5 +1,6 @@
-#include "cv.h"
-#include "cvu.h"
+
+#include <cv.h>
+#include <cvu.h>
 
 #define PATTERN 0x0000
 #define IMAGE   0x0800

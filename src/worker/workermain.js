@@ -986,7 +986,7 @@ function compileSDCC(step) {
     populateFiles(step, FS);
     // load source file and preprocess
     var code = workfs[step.path].data; // TODO
-    var preproc = preprocessMCPP(code, step.platform);
+    var preproc = preprocessMCPP(step);
     if (preproc.errors) return preproc;
     else code = preproc.code;
     // pipe file to stdin
@@ -1024,8 +1024,9 @@ function compileSDCC(step) {
   };
 }
 
-function preprocessMCPP(code, platform, toolname) {
+function preprocessMCPP(step) {
   load("mcpp");
+  var platform = step.platform;
   var params = PLATFORM_PARAMS[platform];
   if (!params) throw Error("Platform not supported: " + platform);
   // <stdin>:2: error: Can't open include file "foo.h"
@@ -1039,7 +1040,7 @@ function preprocessMCPP(code, platform, toolname) {
   });
   var FS = MCPP['FS'];
   setupFS(FS, 'sdcc'); // TODO: toolname
-  FS.writeFile("main.c", code, {encoding:'utf8'});
+  populateFiles(step, FS);
   // TODO: make configurable by other compilers
   var args = [
     "-D", "__8BITWORKSHOP__",
@@ -1047,7 +1048,7 @@ function preprocessMCPP(code, platform, toolname) {
     "-D", "__SDCC_z80",
     "-I", "/share/include",
     "-Q",
-    "main.c", "main.i"];
+    step.path, "main.i"];
   if (params.extra_preproc_args) {
     args.push.apply(args, params.extra_preproc_args);
   }

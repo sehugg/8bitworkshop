@@ -1,9 +1,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-#include "cv.h"
-#include "cvu.h"
+#include <cv.h>
+#include <cvu.h>
 
 #define SPRITE_PATTERNS ((const cv_vmemp)0x3800)
 #define SPRITES ((const cv_vmemp)0x3c00)

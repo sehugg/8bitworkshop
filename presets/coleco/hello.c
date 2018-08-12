@@ -2,9 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-
-#include "cv.h"
-#include "cvu.h"
+#include <cv.h>
+#include <cvu.h>
 
 #define IMAGE ((const cv_vmemp)0x1c00)
 

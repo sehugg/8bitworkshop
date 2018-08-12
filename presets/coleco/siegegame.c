@@ -1,77 +1,20 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <cv.h>
+#include <cvu.h>
 
-#include "cv.h"
-#include "cvu.h"
-
-#define COLOR ((const cv_vmemp)0x2000)
-#define IMAGE ((const cv_vmemp)0x1c00)
-
-#define COLS 32
-#define ROWS 24
-
-typedef unsigned char byte;
-typedef signed char sbyte;
-typedef unsigned short word;
-
-uintptr_t __at(0x6a) font_bitmap_a;
-uintptr_t __at(0x6c) font_bitmap_0;
-
-volatile bool vint;
-volatile uint_fast8_t vint_counter;
-
-void vint_handler(void)
-{
-  vint = true;
-  vint_counter++;
-}
+#include "common.h"
+//#link "common.c"
 
 void setup_32_column_font() {
   cv_set_image_table(IMAGE);
-  cvu_memtovmemcpy(0x1800, (void *)(font_bitmap_0 - '0'*8), 256*8);
-  cv_set_character_pattern_t(0x1800);
+    cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - 16*8), 96*8);
+  cv_set_character_pattern_t(PATTERN);
   cv_set_screen_mode(CV_SCREENMODE_STANDARD);
   cv_set_color_table(COLOR);
   cvu_vmemset(COLOR, 0x30, 8); // set color for chars 0-63
   cvu_vmemset(COLOR+8, 0x50, 32-8); // set chars 63-255
-}
-
-char cursor_x;
-char cursor_y;
-
-void clrscr() {
-  cvu_vmemset(IMAGE, ' ', COLS*ROWS);
-}
-
-#define LOCHAR 0x0
-#define HICHAR 0xff
-
-#define CHAR(ch) (ch-LOCHAR)
-
-byte getchar(byte x, byte y) {
-  return cvu_vinb(IMAGE + y*COLS + x);
-}
-
-void putchar(byte x, byte y, byte attr) {
-  cvu_voutb(attr, IMAGE + y*COLS + x);
-}
-
-void putstring(byte x, byte y, const char* string) {
-  while (*string) {
-    putchar(x++, y, CHAR(*string++));
-  }
-}
-
-void wait_vsync() {
-  vint = false;
-  while (!vint) ;
-}
-
-void delay(byte i) {
-  while (i--) {
-    wait_vsync();
-  }
 }
 
 ////////// GAME DATA
@@ -98,7 +41,9 @@ byte frames_per_move;
 
 ///////////
 
-const char BOX_CHARS[8] = { '+', '+', '+', '+', '-', '-', '!', '!' };
+const char BOX_CHARS[8] = {
+  CHAR('+'), CHAR('+'), CHAR('+'), CHAR('+'),
+  CHAR('-'), CHAR('-'), CHAR('!'), CHAR('!') };
 
 void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
   byte x1 = x;
@@ -132,8 +77,8 @@ void init_game() {
   memset(players, 0, sizeof(players));
   players[0].head_attr = CHAR('1');
   players[1].head_attr = CHAR('2');
-  players[0].tail_attr = '@';
-  players[1].tail_attr = '%';
+  players[0].tail_attr = CHAR('@');
+  players[1].tail_attr = CHAR('%');
   frames_per_move = START_SPEED;
 }
 

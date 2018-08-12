@@ -63,7 +63,8 @@ export class CodeProject {
       }
     } else {
       // for .asm -- [.]include "file"
-      var re2 = /^\s+([.]?include)\s+"(.+?)"/gm;
+      // for .c -- #include "file"
+      var re2 = /^\s+([.#]?include)\s+"(.+?)"/gm;
       while (m = re2.exec(text)) {
         files.push(m[2]);
       }
@@ -117,20 +118,20 @@ export class CodeProject {
     // TODO: add preproc directive for __MAINFILE__
     var mainfilename = getFilenameForPath(this.mainpath);
     var maintext = this.getFile(this.mainpath);
-    var files = [mainfilename];
+    var depfiles = [];
     msg.updates.push({path:mainfilename, data:maintext});
     for (var dep of depends) {
       if (!dep.link) {
         msg.updates.push({path:dep.filename, data:dep.data});
-        files.push(dep.filename);
+        depfiles.push(dep.filename);
       }
     }
-    msg.buildsteps.push({path:mainfilename, files:files, platform:this.platform_id, tool:this.platform.getToolForFilename(this.mainpath), mainfile:true});
+    msg.buildsteps.push({path:mainfilename, files:[mainfilename].concat(depfiles), platform:this.platform_id, tool:this.platform.getToolForFilename(this.mainpath), mainfile:true});
     for (var dep of depends) {
       if (dep.data && dep.link) {
         this.preloadWorker(dep.filename);
         msg.updates.push({path:dep.filename, data:dep.data});
-        msg.buildsteps.push({path:dep.filename, platform:this.platform_id, tool:this.platform.getToolForFilename(dep.path)});
+        msg.buildsteps.push({path:dep.filename, files:[dep.filename].concat(depfiles), platform:this.platform_id, tool:this.platform.getToolForFilename(dep.path)});
       }
     }
     return msg;
@@ -211,6 +212,7 @@ export class CodeProject {
     if (!this.mainpath) throw "need to call setMainFile first";
     var maindata = this.getFile(this.mainpath);
     var text = typeof maindata === "string" ? maindata : '';
+    // TODO: load dependencies of non-main files
     this.loadFileDependencies(text, (err, depends) => {
       if (err) {
         console.log(err); // TODO?

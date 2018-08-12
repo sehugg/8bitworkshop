@@ -1,45 +1,15 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <cv.h>
+#include <cvu.h>
 
-#include "cv.h"
-#include "cvu.h"
+#include "common.h"
+//#link "common.c"
 
-/* VRAM map
-   0x0000 - 0x17ff character pattern table
-   0x1800 - 0x1aff image table
-   0x2000 - 0x37ff color table
-   0x3800 - 0x3bff sprite pattern table
-   0x3c00 - 0x3fff sprite attribute table
-*/
-
-const cv_vmemp PATTERN = 0x0000;
-const cv_vmemp IMAGE = 0x1800;
-const cv_vmemp COLOR = 0x2000;
-const cv_vmemp SPRITE_PATTERNS = 0x3800;
-const cv_vmemp SPRITES = 0x3c00;
-
-#define COLS 32
-#define ROWS 24
 #define NSPRITES 16
 #define NMISSILES 8
 #define YOFFSCREEN 239
-
-typedef unsigned char byte;
-typedef signed char sbyte;
-typedef unsigned short word;
-
-uintptr_t __at(0x6a) font_bitmap_a;
-uintptr_t __at(0x6c) font_bitmap_0;
-
-volatile bool vint;
-volatile uint_fast8_t vint_counter;
-
-void vint_handler(void)
-{
-  vint = true;
-  vint_counter++;
-}
 
 static byte pattern_table[8*2] = {
   /*{w:16,h:8,remap:[3,0,1,2]}*/
@@ -176,85 +146,6 @@ void setup_32_column_font() {
     set_shifted_pattern(pattern_table, PATTERN+67*8+i*3*8, i);
 }
 
-#define LOCHAR 0x20
-#define HICHAR 0xff
-
-#define CHAR(ch) (ch-LOCHAR)
-
-#define BLANK 0
-
-void clrscr() {
-  cvu_vmemset(IMAGE, CHAR(' '), COLS*ROWS);
-}
-
-byte getchar(byte x, byte y) {
-  return cvu_vinb(IMAGE + y*COLS + x);
-}
-
-void putchar(byte x, byte y, byte attr) {
-  cvu_voutb(attr, IMAGE + y*COLS + x);
-}
-
-void putstring(byte x, byte y, const char* string) {
-  while (*string) {
-    putchar(x++, y, CHAR(*string++));
-  }
-}
-
-void wait_vsync() {
-  vint = false;
-  while (!vint) ;
-}
-
-void delay(byte i) {
-  while (i--) {
-    wait_vsync();
-  }
-}
-
-void memset_safe(void* _dest, char ch, word size) {
-  byte* dest = _dest;
-  while (size--) {
-    *dest++ = ch;
-  }
-}
-
-char in_rect(byte x, byte y, byte x0, byte y0, byte w, byte h) {
-  return ((byte)(x-x0) < w && (byte)(y-y0) < h); // unsigned
-}
-
-void draw_bcd_word(byte x, byte y, word bcd) {
-  byte j;
-  x += 3;
-  for (j=0; j<4; j++) {
-    putchar(x, y, CHAR('0'+(bcd&0xf)));
-    x--;
-    bcd >>= 4;
-  }
-}
-
-// add two 16-bit BCD values
-word bcd_add(word a, word b) {
-  a; b; // to avoid warning
-__asm
-        ld      hl,#4
-        add     hl,sp
-        ld      iy,#2
-        add     iy,sp
-        ld      a,0 (iy)
-        add     a, (hl)
-        daa
-        ld      c,a
-        ld      a,1 (iy)
-        inc     hl
-        adc     a, (hl)
-        daa
-        ld      b,a
-        ld      l, c
-        ld      h, b
-__endasm;
-}
-
 // GAME CODE
 
 typedef struct {
@@ -346,6 +237,8 @@ void setup_formation() {
   }
   enemies_left = MAX_IN_FORMATION;
 }
+
+#define BLANK 0
 
 void draw_row(byte row) {
   byte i;

@@ -1,34 +1,11 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <cv.h>
+#include <cvu.h>
 
-#include "cv.h"
-#include "cvu.h"
-
-#define PATTERN ((const cv_vmemp)0x1000)
-#define IMAGE ((const cv_vmemp)0x1800)
-#define COLOR ((const cv_vmemp)0x2000)
-#define SPRITE_PATTERNS ((const cv_vmemp)0x3800)
-#define SPRITES ((const cv_vmemp)0x3c00)
-
-#define COLS 32
-#define ROWS 24
-
-typedef unsigned char byte;
-typedef signed char sbyte;
-typedef unsigned short word;
-
-uintptr_t __at(0x6a) font_bitmap_a;
-uintptr_t __at(0x6c) font_bitmap_0;
-
-volatile bool vint;
-volatile uint_fast8_t vint_counter;
-
-void vint_handler(void)
-{
-  vint = true;
-  vint_counter++;
-}
+#include "common.h"
+//#link "common.c"
 
 #define XOFS 12 // sprite horiz. offset
 
@@ -143,20 +120,6 @@ const byte sprite_table[NUM_SPRITE_PATTERNS*2][16*2] = {
 
 ///
 
-const unsigned char reverse_lookup[16] = {
-0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe, 0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf, };
-
-byte reverse_bits(byte n) {
-  return (reverse_lookup[n&0b1111] << 4) | reverse_lookup[n>>4];
-}
-
-void flip_sprite_patterns(word dest, const byte* patterns, word len) {
-  word i;
-  for (i=0; i<len; i++) {
-    cvu_voutb(reverse_bits(*patterns++), dest++ ^ 16); // swap left/right chars
-  }
-}
-
 #define BGCOL CV_COLOR_BLUE
 
 void setup_32_column_font() {
@@ -167,7 +130,7 @@ void setup_32_column_font() {
   cv_set_image_table(IMAGE);
   cv_set_character_pattern_t(PATTERN);
   
-  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - '0'*8), 0x800);
+  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - 16*8), 96*8);
   cvu_memtovmemcpy(PATTERN+8*64, char_table, sizeof(char_table));
   cvu_memtovmemcpy(PATTERN+8*128, static_sprite_table, sizeof(static_sprite_table));
   
@@ -181,43 +144,6 @@ void setup_32_column_font() {
   cv_set_sprite_pattern_table(SPRITE_PATTERNS);
   cv_set_sprite_attribute_table(SPRITES);
   cv_set_sprite_big(true);
-}
-
-char cursor_x;
-char cursor_y;
-
-void clrscr() {
-  cvu_vmemset(IMAGE, ' ', COLS*ROWS);
-}
-
-#define LOCHAR 0x0
-#define HICHAR 0xff
-
-#define CHAR(ch) (ch-LOCHAR)
-
-byte getchar(byte x, byte y) {
-  return cvu_vinb(IMAGE + y*COLS + x);
-}
-
-void putchar(byte x, byte y, byte attr) {
-  cvu_voutb(attr, IMAGE + y*COLS + x);
-}
-
-void putstring(byte x, byte y, const char* string) {
-  while (*string) {
-    putchar(x++, y, CHAR(*string++));
-  }
-}
-
-void wait_vsync() {
-  vint = false;
-  while (!vint) ;
-}
-
-void delay(byte i) {
-  while (i--) {
-    wait_vsync();
-  }
 }
 
 ///
@@ -248,10 +174,6 @@ bool is_in_gap(byte x, byte gap) {
 
 bool ladder_in_gap(byte x, byte gap) {
   return gap && x >= gap && x < gap+GAPSIZE*2;
-}
-
-byte rndint(byte a, byte b) {
-  return ((byte)rand() % (b-a+1)) + a;
 }
 
 void make_levels() {
