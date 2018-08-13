@@ -1,17 +1,17 @@
 "use strict";
 
 var JSNES_PRESETS = [
-  {id:'ex0.asm', name:'Initialization'},
-  {id:'ex1.asm', name:'Scrolling Demo'},
-  {id:'ex2.asm', name:'Sprite Demo'},
+  {id:'ex0.asm', name:'Initialization (ASM)'},
+  {id:'ex1.asm', name:'Scrolling Demo (ASM)'},
+  {id:'ex2.asm', name:'Sprite Demo (ASM)'},
 //  {id:'hello.c', name:'C: Hello PPU'},
 //  {id:'conio.c', name:'C: Hello Console I/O'},
-  {id:'siegegame.c', name:'Siege Game (C)'},
-  {id:'neslib1.c', name:'Text (C)'},
-  {id:'neslib2.c', name:'Sprites (C)'},
-  {id:'neslib3.c', name:'Cursor (C)'},
-  {id:'neslib4.c', name:'Metasprites (C)'},
-  {id:'neslib5.c', name:'RLE Unpack (C)'},
+  {id:'neslib1.c', name:'Text'},
+  {id:'neslib2.c', name:'Sprites'},
+  {id:'neslib3.c', name:'Cursor'},
+  {id:'neslib4.c', name:'Metasprites'},
+  {id:'neslib5.c', name:'RLE Unpack'},
+  {id:'siegegame.c', name:'Siege Game'},
 ];
 
 var NES_NESLIB_PRESETS = [

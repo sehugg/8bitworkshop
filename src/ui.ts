@@ -920,7 +920,7 @@ function startUI(loadplatform : boolean) {
     // reset file?
     if (qs['file'] && qs['reset']) {
       initPlatform();
-      store.removeItem(qs['file']);
+      store.removeItem(qs['fileview'] || qs['file']);
       qs['reset'] = '';
       gotoNewLocation();
     } else {

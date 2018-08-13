@@ -1,121 +1,37 @@
 
-;;;;; CONSTANTS
+	include "nesdefs.asm"
 
-PPU_CTRL	equ $2000
-PPU_MASK	equ $2001
-PPU_STATUS	equ $2002
-OAM_ADDR	equ $2003
-OAM_DATA	equ $2004
-PPU_SCROLL	equ $2005
-PPU_ADDR	equ $2006
-PPU_DATA	equ $2007
-PPU_OAM_DMA	equ $4014
-DMC_FREQ	equ $4010
+;;;;; VARIABLES
 
-;;;;; ZERO-PAGE VARIABLES
-
-        seg.u ZPVars
+	seg.u RAM
 	org $0
 
 ScrollPos	byte	; used during NMI
-Rand		byte
 
-;;;;; CARTRIDGE FILE HEADER
+;;;;; NES CARTRIDGE HEADER
 
-NES_MAP_HORIZ	equ	0
-NES_MAP_VERT	equ	1
-NES_MAP_QUAD	equ	8
+	NES_HEADER 0,2,1,0 ; mapper 0, 2 PRGs, 1 CHR, vertical
 
-	MAC NES_HEADER
-	processor 6502
-	seg Header
-        org $7FF0
-.NES_MAPPER	SET {1}	;mapper number
-.NES_PRG_BANKS	SET {2}	;number of 16K PRG banks, change to 2 for NROM256
-.NES_CHR_BANKS	SET {3}	;number of 8K CHR banks (0 = RAM)
-.NES_MIRRORING	SET {4}	;0 horizontal, 1 vertical, 8 four screen
-	byte $4e,$45,$53,$1a ; header
-	byte .NES_PRG_BANKS
-	byte .NES_CHR_BANKS
-	byte .NES_MIRRORING|(.NES_MAPPER<<4)
-	byte .NES_MAPPER&$f0
-	byte 0,0,0,0,0,0,0,0 ; reserved, set to zero
-	seg Code
-	org $8000
-	ENDM
-        
-        MAC NES_INIT
-        sei			;disable IRQs
-        cld			;decimal mode not supported
-        ldx #$ff
-        txs			;set up stack pointer
-        inx			;increment X to 0
-        stx PPU_MASK		;disable rendering
-        stx DMC_FREQ		;disable DMC interrupts
-        stx PPU_CTRL		;disable NMI interrupts
-	bit PPU_STATUS		;clear VBL flag
-        ENDM
+;;;;; START OF CODE
 
-	NES_HEADER 0,2,1,1 ; mapper 0, 2 PRGs, 1 CHR, vertical
-
-start:
-_exit:
-	NES_INIT		; set up stack pointer, turn off PPU
-        jsr WaitSync
-        jsr WaitSync
-        jsr ClearRAM
-        jsr WaitSync		;wait for VSYNC
-	jsr SetPalette		;set colors
-        jsr FillVRAM		;set PPU RAM
-        jsr WaitSync		;wait for VSYNC (and PPU warmup)
+Start:
+	NES_INIT	; set up stack pointer, turn off PPU
+        jsr WaitSync	; wait for VSYNC
+        jsr ClearRAM	; clear RAM
+	jsr SetPalette	; set palette colors
+        jsr FillVRAM	; set PPU video RAM
+        jsr WaitSync	; wait for VSYNC (and PPU warmup)
         lda #0
         sta PPU_ADDR
-        sta PPU_ADDR		;PPU addr = 0
+        sta PPU_ADDR	; PPU addr = $0000
         sta PPU_SCROLL
-        sta PPU_SCROLL		;scroll = 0
+        sta PPU_SCROLL  ; scroll = $0000
         lda #$90
-        sta PPU_CTRL		;enable NMI
+        sta PPU_CTRL	; enable NMI
         lda #$1e
-        sta PPU_MASK		;enable rendering
+        sta PPU_MASK 	; enable rendering
 .endless
-	jmp .endless		;endless loop
-
-;;;;; SUBROUTINES
-
-ClearRAM: subroutine
-	lda #0
-        tax
-.clearRAM
-	sta $0,x
-        cpx #$fe	; don't clear last 2 bytes of stack
-        bcs .skipStack
-	sta $100,x
-.skipStack
-        ; skip $200-$2FF, used for OAM display list
-	sta $300,x
-	sta $400,x
-	sta $500,x
-	sta $600,x
-	sta $700,x
-        inx
-        bne .clearRAM
-        rts
-
-; set palette colors
-
-SetPalette: subroutine
-        ldy #$0
-	lda #$3f
-	sta PPU_ADDR
-	sty PPU_ADDR
-	ldx #4
-.loop:
-	lda Palette,y
-	sta PPU_DATA
-        iny
-	dex
-	bne .loop
-        rts
+	jmp .endless	; endless loop
 
 ; fill video RAM
 FillVRAM: subroutine
@@ -133,41 +49,59 @@ FillVRAM: subroutine
 	bne .loop
         rts
 
-; wait for VSYNC to start
-WaitSync:
-	bit PPU_STATUS
-	bpl WaitSync
+; set palette colors
+SetPalette: subroutine
+        ldy #$00
+	lda #$3f
+	sta PPU_ADDR
+	sty PPU_ADDR
+	ldx #32
+.loop:
+	lda Palette,y
+	sta PPU_DATA
+        iny
+	dex
+	bne .loop
         rts
+
+
+;;;;; COMMON SUBROUTINES
+
+	include "nesppu.asm"
 
 ;;;;; INTERRUPT HANDLERS
 
-nmi:
-irq:
+NMIHandler:
 ; save registers
 	pha	; save A
-; update scroll position
+; update scroll position (must be done after VRAM updates)
 	inc ScrollPos
         lda ScrollPos
         sta PPU_SCROLL
+        lda #0
         sta PPU_SCROLL
+; TODO: write high bits to PPUCTRL
+	lda ScrollPos
+        and #0
+	ora #$90	; enable NMI
+        sta PPU_CTRL
 ; reload registers
         pla	; reload A
 	rti
 
 ;;;;; CONSTANT DATA
 
+	align $100
 Palette:
-	hex 1f001020 ; black, gray, lt gray, white
-TextString:
-	byte "HELLO WORLD!"
-        byte 0
+	hex 1f		;background
+	hex 09091900	;bg0
+        hex 09091900	;bg1
+        hex 09091900	;bg2
+        hex 09091900	;bg3
 
 ;;;;; CPU VECTORS
 
-	org $fffa
-       	.word nmi	;$fffa vblank nmi
-	.word start	;$fffc reset
-	.word irq	;$fffe irq / brk
+	NES_VECTORS
 
 ;;;;; TILE SETS
 

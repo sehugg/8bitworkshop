@@ -139,7 +139,7 @@ byte ai_try_dir(Player* p, dir_t dir, byte shift) {
   dir &= 3;
   x = p->x + (DIR_X[dir] << shift);
   y = p->y + (DIR_Y[dir] << shift);
-  if (x < COLS && y < ROWS && getchar(x, y) == ' ') {
+  if (x < COLS && y < ROWS && (getchar(x, y) & 0x7f) == ' ') {
     p->dir = dir;
     return 1;
   } else {
@@ -197,7 +197,7 @@ void declare_winner(byte winner) {
   cputsxy(12,10,"WINNER:");
   cputsxy(12,13,"PLAYER ");
   cputcxy(12+7, 13, '1'+winner);
-  delay(75);
+  delay(200);
   gameover = 1;
 }
 

@@ -28,6 +28,38 @@ OAM_DMA         = $4014
 ; OAM local RAM copy goes from $0200-$02FF:
 OAM_RAM         = $0200
 
+; PPU_CTRL flags
+CTRL_NMI	= %10000000	; Execute Non-Maskable Interrupt on VBlank
+CTRL_8x8	= %00000000 	; Use 8x8 Sprites
+CTRL_8x16	= %00100000 	; Use 8x16 Sprites
+CTRL_BG_0000	= %00000000 	; Background Pattern Table at $0000 in VRAM
+CTRL_BG_1000	= %00010000 	; Background Pattern Table at $1000 in VRAM
+CTRL_SPR_0000	= %00000000 	; Sprite Pattern Table at $0000 in VRAM
+CTRL_SPR_1000	= %00001000 	; Sprite Pattern Table at $1000 in VRAM
+CTRL_INC_1	= %00000000 	; Increment PPU Address by 1 (Horizontal rendering)
+CTRL_INC_32	= %00000100 	; Increment PPU Address by 32 (Vertical rendering)
+CTRL_NT_2000	= %00000000 	; Name Table Address at $2000
+CTRL_NT_2400	= %00000001 	; Name Table Address at $2400
+CTRL_NT_2800	= %00000010 	; Name Table Address at $2800
+CTRL_NT_2C00	= %00000011 	; Name Table Address at $2C00
+
+; PPU_MASK flags
+MASK_TINT_RED	= %00100000	; Red Background
+MASK_TINT_BLUE	= %01000000	; Blue Background
+MASK_TINT_GREEN	= %10000000	; Green Background
+MASK_SPR	= %00010000 	; Sprites Visible
+MASK_BG		= %00001000 	; Backgrounds Visible
+MASK_SPR_CLIP	= %00000100 	; Sprites clipped on left column
+MASK_BG_CLIP	= %00000010 	; Background clipped on left column
+MASK_COLOR	= %00000000 	; Display in Color
+MASK_MONO	= %00000001 	; Display in Monochrome
+
+; read flags
+F_BLANK		= %10000000 	; VBlank Active
+F_SPRITE0	= %01000000 	; VBlank hit Sprite 0
+F_SCAN8		= %00100000 	; More than 8 sprites on current scanline
+F_WIGNORE	= %00010000 	; VRAM Writes currently ignored.
+
 
 ;;;;; CARTRIDGE FILE HEADER
 

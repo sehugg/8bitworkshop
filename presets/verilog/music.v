@@ -1,3 +1,4 @@
+
 `include "hvsync_generator.v"
 
 module sound_psg(clk, reset, out, reg_sel, reg_data, reg_write);

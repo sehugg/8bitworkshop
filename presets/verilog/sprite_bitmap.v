@@ -1,3 +1,4 @@
+
 `ifndef SPRITE_BITMAP_H
 `define SPRITE_BITMAP_H
 

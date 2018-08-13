@@ -1,4 +1,5 @@
-﻿#include "neslib.h"
+
+#include "neslib.h"
 
 //#define DEBUG
 #define HAS_DEBUGGER

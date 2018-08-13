@@ -1,4 +1,4 @@
-﻿
+
 	include "nesdefs.asm"
 
 ;;;;; ZERO-PAGE VARIABLES

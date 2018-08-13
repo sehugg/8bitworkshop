@@ -1,3 +1,4 @@
+
 `ifndef HVSYNC_GENERATOR_H
 `define HVSYNC_GENERATOR_H
 

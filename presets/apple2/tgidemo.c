@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <cc65.h>
@@ -6,8 +7,6 @@
 #include <modload.h>
 #include <tgi.h>
 
-
-
 #ifndef DYN_DRV
 #  define DYN_DRV       0
 #endif
@@ -15,25 +14,18 @@
 #define COLOR_BACK      TGI_COLOR_BLACK
 #define COLOR_FORE      TGI_COLOR_WHITE
 
-
 /*****************************************************************************/
 /*                                   Data                                    */
 /*****************************************************************************/
-
-
 
 /* Driver stuff */
 static unsigned MaxX;
 static unsigned MaxY;
 static unsigned AspectRatio;
 
-
-
 /*****************************************************************************/
 /*                                   Code                                    */
 /*****************************************************************************/
-
-
 
 static void CheckError (const char* S)
 {
@@ -46,8 +38,6 @@ static void CheckError (const char* S)
         exit (EXIT_FAILURE);
     }
 }
-
-
 
 #if DYN_DRV
 static void DoWarning (void)
@@ -62,8 +52,6 @@ static void DoWarning (void)
     printf ("OK. Please wait patiently...\n");
 }
 #endif
-
-
 
 static void DoCircles (void)
 {

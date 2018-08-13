@@ -1,103 +1,46 @@
 
-;;;;; CONSTANTS
+	include "nesdefs.asm"
 
-PPU_CTRL	equ $2000
-PPU_MASK	equ $2001
-PPU_STATUS	equ $2002
-PPU_SCROLL	equ $2005
-PPU_ADDR	equ $2006
-PPU_DATA	equ $2007
-DMC_FREQ	equ $4010
+;;;;; VARIABLES
 
-;;;;; CARTRIDGE FILE HEADER
+	seg.u RAM
+	org $0
 
-	processor 6502
-	seg Header
-        org $7FF0
+;;;;; NES CARTRIDGE HEADER
 
-NES_MAPPER	equ 0	;mapper number
-NES_PRG_BANKS	equ 2	;number of 16K PRG banks, change to 2 for NROM256
-NES_CHR_BANKS	equ 1	;number of 8K CHR banks (0 = RAM)
-NES_MIRRORING	equ 1	;0 horizontal, 1 vertical, 8 four screen
+	NES_HEADER 0,2,1,0 ; mapper 0, 2 PRGs, 1 CHR, vertical
 
-	.byte $4e,$45,$53,$1a ; header
-	.byte NES_PRG_BANKS
-	.byte NES_CHR_BANKS
-	.byte NES_MIRRORING|(NES_MAPPER<<4)
-	.byte NES_MAPPER&$f0
-	.byte 0,0,0,0,0,0,0,0 ; reserved, set to zero
+;;;;; START OF CODE
 
-;;;;; CODE
+Start:
+	NES_INIT	; set up stack pointer, turn off PPU
+        jsr WaitSync	; wait for VSYNC
+        jsr ClearRAM	; clear RAM
+        jsr WaitSync	; wait for VSYNC (and PPU warmup)
 
-	seg Code
-	org $8000
-start:
-_exit:
-        sei			;disable IRQs
-        cld			;decimal mode not supported
-        ldx #$ff
-        txs			;set up stack pointer
-        inx			;increment X to 0
-        stx PPU_MASK		;disable rendering
-        stx DMC_FREQ		;disable DMC interrupts
-        stx PPU_CTRL		;disable NMI interrupts
-        jsr WaitSyncSafe	;wait for VSYNC
-; clear RAM -- not a subroutine because we clear the stack too
-	lda #0
-        tax
-.clearRAM
-	sta $0,x
-	sta $100,x
-        ; skip $200-$2FF, used for OAM display list
-	sta $300,x
-	sta $400,x
-	sta $500,x
-	sta $600,x
-	sta $700,x
-        inx
-        bne .clearRAM
-; wait for PPU warmup        
-        jsr WaitSync
-; set palette background
-        ldy #$0
-	lda #$3f
-	sta PPU_ADDR
-	sty PPU_ADDR
-        lda #$1c
-        sta PPU_DATA
-; enable PPU rendering
-        lda #0
-        sta PPU_ADDR
-        sta PPU_ADDR		;PPU addr = 0
-        sta PPU_SCROLL
-        sta PPU_SCROLL		;scroll = 0
-        lda #$90
-        sta PPU_CTRL		;enable NMI
-        lda #$1e
-        sta PPU_MASK		;enable rendering
+	lda #$3f	; $3F -> A register
+        ldy #$00	; $00 -> Y register
+        sta PPU_ADDR	; write high byte first
+        sty PPU_ADDR    ; $3F00 -> PPU address
+        lda #$1c	; $1C = light blue color
+        sta PPU_DATA    ; $1C -> PPU data
+        lda #CTRL_NMI
+        sta PPU_CTRL	; enable NMI
+        lda #MASK_COLOR
+        sta PPU_MASK	; enable rendering
 .endless
-	jmp .endless		;endless loop
+	jmp .endless	; endless loop
 
-;;;;; SUBROUTINES
+;;;;; COMMON SUBROUTINES
 
-; wait for VSYNC to start
-WaitSyncSafe: subroutine
-	bit PPU_STATUS
-WaitSync:
-	bit PPU_STATUS
-	bpl WaitSync
-        rts
+	include "nesppu.asm"
 
 ;;;;; INTERRUPT HANDLERS
 
-nmi:
-irq:
+NMIHandler:
 	rti
 
 ;;;;; CPU VECTORS
 
-	org $fffa
-       	.word nmi	;$fffa vblank nmi
-	.word start	;$fffc reset
-	.word irq	;$fffe irq / brk
+	NES_VECTORS
 

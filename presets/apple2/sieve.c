@@ -1,8 +1,7 @@
+
 /*
 ** Calculate all primes up to a specific number.
 */
-
-
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -10,45 +9,32 @@
 #include <time.h>
 #include <conio.h>
 
-
 /* Workaround missing clock stuff */
 #ifdef __APPLE2__
 #  define clock()               0
 #  define CLOCKS_PER_SEC        1
 #endif
 
-
-
 /*****************************************************************************/
 /*                                   Data                                    */
 /*****************************************************************************/
-
-
 
 #define COUNT           4096           /* Up to what number? */
 #define SQRT_COUNT      64             /* Sqrt of COUNT */
 
 static unsigned char Sieve[COUNT];
 
-
-
 /*****************************************************************************/
 /*                                   Code                                    */
 /*****************************************************************************/
 
-
-
 #pragma static-locals(1);
-
-
 
 static char ReadUpperKey (void)
 /* Read a key from console, convert to upper case and return */
 {
     return toupper (cgetc ());
 }
-
-
 
 int main (void)
 {
@@ -118,4 +104,3 @@ int main (void)
 
     return EXIT_SUCCESS;
 }
-

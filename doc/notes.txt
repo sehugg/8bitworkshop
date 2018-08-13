@@ -48,6 +48,7 @@ TODO:
 - how to revert included files?
 - go to error in include files
 - BOM in upload/download?
+- find version of neslib.h compatible with cc65
 
 FYI: Image links for the books on http://8bitworkshop.com/ are broken
 On the website the additional grey spacing next to the program line numbers is not dynamically resized when the web browser window size is changed.  Intentional?

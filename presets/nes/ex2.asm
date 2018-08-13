@@ -1,9 +1,9 @@
 
 	include "nesdefs.asm"
 
-;;;;; ZERO-PAGE VARIABLES
+;;;;; VARIABLES
 
-	seg.u Zeropage	
+	seg.u RAM
 	org $0
 
 ScrollPos	byte	; used during NMI
@@ -12,7 +12,11 @@ Temp1		byte
 
 SpriteBuf	equ	$200
 
+;;;;; NES CARTRIDGE HEADER
+
 	NES_HEADER 0,2,1,0 ; mapper 0, 2 PRGs, 1 CHR, vertical
+
+;;;;; START OF CODE
 
 Start:
 	NES_INIT		; set up stack pointer, turn off PPU

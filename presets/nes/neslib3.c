@@ -1,3 +1,4 @@
+
 //this example shows how to set up a palette and use 8x8 HW sprites
 //also shows how fast (or slow) C code is
 

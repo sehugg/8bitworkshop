@@ -1,3 +1,4 @@
+
 `include "hvsync_generator.v"
 
 module paddles_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);

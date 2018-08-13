@@ -1,3 +1,4 @@
+
 module gates(clk, out_not, out_and, out_or, out_xor, in);
   
   input  clk;

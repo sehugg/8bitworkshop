@@ -1,3 +1,4 @@
+
 `include "hvsync_generator.v"
 
 module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);

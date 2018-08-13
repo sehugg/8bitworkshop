@@ -1,4 +1,4 @@
-﻿
+
 #include <string.h>
 #include <conio.h>
 #include <apple2.h>

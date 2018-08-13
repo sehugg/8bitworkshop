@@ -1,3 +1,4 @@
+
 	processor 6502
 	seg program
 	org $803
