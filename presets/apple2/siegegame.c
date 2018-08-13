@@ -3,7 +3,6 @@
 #include <string.h>
 #include <conio.h>
 #include <apple2.h>
-#include <joystick.h>
 
 #define COLS 40
 #define ROWS 24
@@ -12,13 +11,14 @@ typedef unsigned char byte;
 typedef signed char sbyte;
 typedef unsigned short word;
 
+// BASL = text address of cursor position
 static byte** BASL = (byte**) 0x28;
 
 byte getchar(byte x, byte y) {
   // JSR VTABZ
   // LDA (BASL) ($28)
-  gotoxy(x,y);
-  return (*BASL)[x];
+  gotoxy(x,y);		// set cursor position
+  return (*BASL)[x];	// lookup value @ cursor address
 }
 
 void delay(byte count) {
@@ -45,6 +45,7 @@ Player players[2];
 
 byte credits = 0;
 byte frames_per_move;
+byte gameover;
 
 #define START_SPEED 12
 #define MAX_SPEED 5
@@ -73,22 +74,22 @@ void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
 
 void draw_playfield() {
   draw_box(0,1,COLS-1,ROWS-1,BOX_CHARS);
-  cputsxy(0,0,"Plyr1:");
-  cputsxy(20,0,"Plyr2:");
-  cputcxy(7,0,players[0].score+'0');
-  cputcxy(27,0,players[1].score+'0');
+  cputsxy( 0, 0, "Plyr1:");
+  cputsxy(20, 0, "Plyr2:");
+  cputcxy( 7, 0, players[0].score+'0');
+  cputcxy(27, 0, players[1].score+'0');
 }
 
 typedef enum { D_RIGHT, D_DOWN, D_LEFT, D_UP } dir_t;
-const char DIR_X[4] = { 1, 0, -1, 0 };
-const char DIR_Y[4] = { 0, 1, 0, -1 };
+const sbyte DIR_X[4] = { 1, 0, -1, 0 };
+const sbyte DIR_Y[4] = { 0, 1, 0, -1 };
 
 void init_game() {
   memset(players, 0, sizeof(players));
   players[0].head_attr = '1';
   players[1].head_attr = '2';
-  players[0].tail_attr = 1;
-  players[1].tail_attr = 9;
+  players[0].tail_attr = '#';
+  players[1].tail_attr = '*';
   frames_per_move = START_SPEED;
 }
 
@@ -120,13 +121,14 @@ void human_control(Player* p) {
   if (!p->human) return;
   if (!kbhit()) return;
   key = cgetc();
+  // I/J/K/M cursor movement
   switch (key) {
     case 'I': dir = D_UP; break;
     case 'J': dir = D_LEFT; break;
     case 'K': dir = D_RIGHT; break;
     case 'M': dir = D_DOWN; break;
   }
-  // don't let the player reverse
+  // don't let the player reverse direction
   if (dir < 0x80 && dir != (p->dir ^ 2)) {
     p->dir = dir;
   }
@@ -159,21 +161,17 @@ void ai_control(Player* p) {
   }
 }
 
-byte gameover;
-
 void flash_colliders() {
   byte i;
   // flash players that collided
   for (i=0; i<56; i++) {
-    //cv_set_frequency(CV_SOUNDCHANNEL_0, 1000+i*8);
-    //cv_set_attenuation(CV_SOUNDCHANNEL_0, i/2);
-    if (players[0].collided) players[0].head_attr ^= 0x80;
-    if (players[1].collided) players[1].head_attr ^= 0x80;
     delay(2);
+    revers(players[0].collided && (i&1));
     draw_player(&players[0]);
+    revers(players[1].collided && (i&1));
     draw_player(&players[1]);
   }
-  //cv_set_attenuation(CV_SOUNDCHANNEL_0, 28);
+  revers(0);
 }
 
 void make_move() {
@@ -237,6 +235,5 @@ void play_game() {
 }
 
 void main() {
-  joy_install (joy_static_stddrv);
   play_game();
 }

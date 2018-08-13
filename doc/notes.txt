@@ -28,7 +28,7 @@ TODO:
 - kbd shortcuts
 - PC x86 support
 - show errors in list (maybe window list?)
-- can't see 1st line in editor sometimes
+- can't see 1st line in editor sometimes (when scrolling cursor past bottom of screen)
 - online help
 - show self-modifying code insns left of editor
 - facade/kbd shortcuts for emulators, focus

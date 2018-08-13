@@ -152,13 +152,19 @@ var Apple2Platform = function(mainElement) {
     audio = new SampleAudio(cpuFrequency);
     video.create();
     video.setKeyboardEvents(function(key,code,flags) {
-      // since we're an Apple II+, we don't do lowercase
       if (flags & 1) {
         if (code) {
+          // convert to uppercase for Apple ][
           if (code >= 0x61 && code <= 0x7a)
-             code -= 0x20;
+             code -= 0x20; 
           kbdlatch = (code | 0x80) & 0xff;
         } else if (key) {
+          switch (key) {
+            case 37: key=8; break;	// left
+            case 39: key=21; break; // right
+            case 38: key=11; break; // up
+            case 40: key=10; break; // down
+          }
           kbdlatch = (key | 0x80) & 0xff;
         }
       }
