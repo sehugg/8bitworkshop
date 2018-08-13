@@ -298,6 +298,7 @@ export class SourceEditor implements ProjectView {
       if (e.data.close) {
         $("#pixeditback").hide();
       }
+      e.target.removeEventListener("message", handleWindowMessage);
     }
 
     $("#pixeditback").show();

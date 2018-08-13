@@ -504,6 +504,7 @@ function pixelEditorResize(e) {
 
 function pixelEditorKeypress(e) {
   if (!currentPixelEditor) return;
+  //console.log(e);
   var c = e.charCode;
   if (c >= 48 && c <= 57) {
     currentPixelEditor.setCurrentColor(c-48);
@@ -511,16 +512,16 @@ function pixelEditorKeypress(e) {
     currentPixelEditor.setCurrentColor(c-97+10);
   } else {
     switch (e.keyCode) {
-      case 33: // PgUp
+      case 82: // 'R'
         currentPixelEditor.rotate(-90);
         break;
-      case 34: // PgDn
+      case 114: // 'r'
         currentPixelEditor.rotate(90);
         break;
-      case 35: // Home
+      case 84: // 'T'
         currentPixelEditor.rotate(-45);
         break;
-      case 36: // End
+      case 116: // 't'
         currentPixelEditor.rotate(45);
         break;
     }
