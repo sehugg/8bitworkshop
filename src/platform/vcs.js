@@ -388,4 +388,4 @@ var VCSMAMEPlatform = function(mainElement) {
 ////////////////
 
 PLATFORMS['vcs'] = VCSPlatform;
-PLATFORMS['vcs-mame'] = VCSMAMEPlatform;
+PLATFORMS['vcs.mame'] = VCSMAMEPlatform;

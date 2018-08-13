@@ -172,7 +172,7 @@ export class CodeProject {
             } else {
               // found on remote fetch?
               var preset_id = this.platform_id;
-              preset_id = preset_id.replace("-mame","");
+              preset_id = preset_id.replace(/[.]\w+/,''); // remove .suffix from preset name
               var webpath = "presets/" + preset_id + "/" + path;
               if (this.platform_id.startsWith('vcs') && path.indexOf('.') <= 0)
                 webpath += ".a"; // legacy stuff

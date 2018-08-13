@@ -926,7 +926,7 @@ function startUI(loadplatform : boolean) {
     } else {
       // load and start platform object
       if (loadplatform) {
-        var scriptfn = 'src/platform/' + platform_id.split('-')[0] + '.js';
+        var scriptfn = 'src/platform/' + platform_id.split(/[.-]/)[0] + '.js';
         var script = document.createElement('script');
         script.onload = function() {
           console.log("loaded platform", platform_id);
