@@ -4,6 +4,13 @@
 
 #include "neslib.h"
 
+#pragma bss-name (push,"ZEROPAGE")
+unsigned char oam_off;
+#pragma bss-name (pop)
+
+#pragma data-name (push,"CHARS")
+#pragma data-name(pop)
+
 //#link "tileset1.c"
 
 // palette for balls, there are four sets for different ball colors
@@ -35,7 +42,8 @@ static unsigned char ball_dy[BALLS_MAX];
 void main(void)
 {
 	//copy tileset to RAM
-	vram_write((unsigned char*)TILESET, 0x0, sizeof(TILESET));
+  	vram_adr(0x0);
+	vram_write((unsigned char*)TILESET, sizeof(TILESET));
   
         pal_spr(palSprites);//set palette for sprites
         oam_size(1);
@@ -69,7 +77,7 @@ void main(void)
 
         while(1)
         {
-                ppu_waitnmi();//wait for next TV frame
+                ppu_wait_nmi();//wait for next TV frame
 
                 spr=0;
 

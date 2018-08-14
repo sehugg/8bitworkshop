@@ -105,7 +105,13 @@ var PLATFORM_PARAMS = {
   'nes': { //TODO
     define: '__NES__',
     cfgfile: 'neslib.cfg',
-    libargs: ['neslib.lib', 'nes.lib'],
+    libargs: ['crt0.o', 'nes.lib', 
+      '-D', 'NES_MAPPER=0',
+      '-D', 'NES_PRG_BANKS=2',
+      '-D', 'NES_CHR_BANKS=0', // TODO: >0 doesn't seem to work
+      '-D', 'NES_MIRRORING=0',
+      ],
+    extrafiles: ['crt0.o'],
   },
   'nes-conio': {
     cfgfile: 'nes.cfg',
@@ -244,6 +250,28 @@ function populateFiles(step, fs, options) {
   for (var i=0; i<step.files.length; i++) {
     var path = step.files[i];
     populateEntry(fs, path, workfs[path]);
+  }
+}
+
+function populateExtraFiles(step, fs) {
+  // TODO: cache extra files
+  var extrafiles = step.params.extrafiles;
+  if (extrafiles) {
+    for (var i=0; i<extrafiles.length; i++) {
+      var xfn = extrafiles[i];
+      var xpath = "lib/" + step.platform + "/" + xfn;
+      var xhr = new XMLHttpRequest();
+      xhr.responseType = 'arraybuffer';
+      xhr.open("GET", xpath, false);  // synchronous request
+      xhr.send(null);
+      if (xhr.response && xhr.status == 200) {
+        var data = new Uint8Array(xhr.response);
+        fs.writeFile(xfn, data, {encoding:'binary'});
+        console.log(":::",xfn);
+      } else {
+        throw Error("Could not load extra file " + xpath);
+      }
+    }
   }
 }
 
@@ -698,6 +726,7 @@ function linkLD65(step) {
     var cfgfile = '/' + platform + '.cfg';
     setupFS(FS, '65-'+platform.split('-')[0]);
     populateFiles(step, FS);
+    populateExtraFiles(step, FS);
     var libargs = params.libargs;
     var args = ['--cfg-path', '/share/cfg',
       '--lib-path', '/share/lib',

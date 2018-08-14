@@ -1,20 +1,27 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <conio.h>
 #include <nes.h>
 #include <joystick.h>
 
 #include "neslib.h"
+
+#pragma bss-name (push,"ZEROPAGE")
+unsigned char oam_off;
+#pragma bss-name (pop)
+
+#pragma data-name (push,"CHARS")
+#pragma data-name(pop)
 
 //#link "tileset1.c"
 
 extern unsigned char palSprites[16];
 extern unsigned char TILESET[8*256];
 
-
 #define COLS 32
 #define ROWS 28
+
+#define NTADR(x,y) ((0x2000|((y)<<5)|(x)))
 
 typedef unsigned char byte;
 typedef signed char sbyte;
@@ -27,25 +34,68 @@ typedef unsigned short word;
 // back to the start of the frame.
 byte getchar(byte x, byte y) {
   // compute VRAM read address
-  word addr = 0x2020+x+y*32;
+  word addr = NTADR(x,y);
   byte rd;
   // wait for VBLANK to start
   waitvsync();
-  // set VRAM read address in PPU
-  PPU.vram.address = addr>>8;
-  PPU.vram.address = addr&0xff;
-  // read the char from PPUDATA
-  rd = PPU.vram.data; // discard
-  rd = PPU.vram.data; // keep this one
-  // reset the VRAM address to start of frame
-  PPU.vram.address = 0x00;
-  PPU.vram.address = 0x00;
-  // return result
-  return rd;
+  vram_adr(addr);
+  vram_read(&rd, 1);
+  vram_adr(0x0);
+  return rd + 0x20;
+}
+
+// VRAM UPDATE BUFFER
+
+byte updbuf[64];
+byte updptr = 0;
+
+void cendbuf() {
+  updbuf[updptr] = NT_UPD_EOF;
+}
+
+void cflushnow() {
+  cendbuf();
+  waitvsync();
+  flush_vram_update(updbuf);
+  updptr = 0;
+  cendbuf();
+  vram_adr(0x0);
 }
 
 void vdelay(byte count) {
-  while (count--) waitvsync();
+  while (count--) cflushnow();
+}
+
+void cputcxy(byte x, byte y, char ch) {
+  word addr = NTADR(x,y);
+  if (updptr >= 60) cflushnow();
+  updbuf[updptr++] = addr >> 8;
+  updbuf[updptr++] = addr & 0xff;
+  updbuf[updptr++] = ch - 0x20;
+  cendbuf();
+}
+
+void cputsxy(byte x, byte y, char* str) {
+  word addr = NTADR(x,y);
+  byte len = strlen(str);
+  if (updptr >= 60 - len) cflushnow();
+  updbuf[updptr++] = (addr >> 8) | NT_UPD_HORZ;
+  updbuf[updptr++] = addr & 0xff;
+  updbuf[updptr++] = len;
+  while (len--) {
+    	updbuf[updptr++] = *str++ - 0x20;
+  }
+  cendbuf();
+}
+
+void clrscr() {
+  updptr = 0;
+  cendbuf();
+  ppu_off();
+  vram_adr(0x2000);
+  vram_fill(0, 32*28);
+  vram_adr(0x0);
+  ppu_on_bg();
 }
 
 ////////// GAME DATA
@@ -63,7 +113,8 @@ typedef struct {
 
 Player players[2];
 
-byte credits = 0;
+byte attract;
+byte gameover;
 byte frames_per_move;
 
 #define START_SPEED 12
@@ -72,7 +123,7 @@ byte frames_per_move;
 
 ///////////
 
-const char BOX_CHARS[8] = { 17, 8, 20, 18, 11, 11, 14, 14 };
+const char BOX_CHARS[8] = { '+','+','+','+','-','-','!','!' };
 
 void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
   byte x1 = x;
@@ -91,11 +142,15 @@ void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
 }
 
 void draw_playfield() {
-  draw_box(0,1,COLS-1,ROWS-1,BOX_CHARS);
-  cputsxy(0,0,"Plyr1:");
-  cputsxy(20,0,"Plyr2:");
-  cputcxy(7,0,players[0].score+'0');
-  cputcxy(27,0,players[1].score+'0');
+  draw_box(1,2,COLS-2,ROWS-1,BOX_CHARS);
+  cputcxy(9,1,players[0].score+'0');
+  cputcxy(28,1,players[1].score+'0');
+  if (attract) {
+    cputsxy(5,ROWS-1,"ATTRACT MODE - PRESS 1");
+  } else {
+    cputsxy(1,1,"PLYR1:");
+    cputsxy(20,1,"PLYR2:");
+  }
 }
 
 typedef enum { D_RIGHT, D_DOWN, D_LEFT, D_UP } dir_t;
@@ -106,8 +161,8 @@ void init_game() {
   memset(players, 0, sizeof(players));
   players[0].head_attr = '1';
   players[1].head_attr = '2';
-  players[0].tail_attr = 1;
-  players[1].tail_attr = 9;
+  players[0].tail_attr = '#';
+  players[1].tail_attr = '*';
   frames_per_move = START_SPEED;
 }
 
@@ -136,8 +191,12 @@ void move_player(Player* p) {
 void human_control(Player* p) {
   byte dir = 0xff;
   byte joy;
-  if (!p->human) return;
   joy = joy_read (JOY_1);
+  // start game if attract mode
+  if (attract && (joy & JOY_START_MASK))
+    gameover = 1;
+  // do not allow movement unless human player
+  if (!p->human) return;
   if (joy & JOY_LEFT_MASK) dir = D_LEFT;
   if (joy & JOY_RIGHT_MASK) dir = D_RIGHT;
   if (joy & JOY_UP_MASK) dir = D_UP;
@@ -174,8 +233,6 @@ void ai_control(Player* p) {
     ai_try_dir(p, dir, rand() & 3);
   }
 }
-
-byte gameover;
 
 void flash_colliders() {
   byte i;
@@ -219,13 +276,13 @@ void declare_winner(byte winner) {
   gameover = 1;
 }
 
-#define AE(a,b,c,d) (((a)<<0)|((b)<<2)|((c)<<4)|((d)<<6))
+#define AE(tl,tr,bl,br) (((tl)<<0)|((tr)<<2)|((bl)<<4)|((br)<<6))
 
 // this is attribute table data, 
 // each 2 bits defines a color palette
 // for a 16x16 box
 const unsigned char Attrib_Table[0x40]={
-AE(3,3,1,1),AE(3,3,1,1),AE(3,3,1,1),AE(3,3,1,1), AE(2,2,1,1),AE(2,2,1,1),AE(2,2,1,1),AE(2,2,1,1),
+AE(3,3,1,0),AE(3,3,0,0),AE(3,3,0,0),AE(3,3,0,0), AE(2,2,0,0),AE(2,2,0,0),AE(2,2,0,0),AE(2,2,0,1),
 AE(1,0,1,0),AE(0,0,0,0),AE(0,0,0,0),AE(0,0,0,0), AE(0,0,0,0),AE(0,0,0,0),AE(0,0,0,0),AE(0,1,0,1),
 AE(1,0,1,0),AE(0,0,0,0),AE(0,0,0,0),AE(0,0,0,0), AE(0,0,0,0),AE(0,0,0,0),AE(0,0,0,0),AE(0,1,0,1),
 AE(1,0,1,0),AE(0,0,0,0),AE(0,0,0,0),AE(0,0,0,0), AE(0,0,0,0),AE(0,0,0,0),AE(0,0,0,0),AE(0,1,0,1),
@@ -235,24 +292,37 @@ AE(1,0,1,0),AE(0,0,0,0),AE(0,0,0,0),AE(0,0,0,0), AE(0,0,0,0),AE(0,0,0,0),AE(0,0,
 AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1), AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1),
 };
 
+// this is palette data
+const unsigned char Palette_Table[16]={
+  0x02,
+  0x31,0x31,0x31,0x00,
+  0x34,0x34,0x34,0x00,
+  0x39,0x39,0x39,0x00,
+};
+
 // put 8x8 grid of palette entries into the PPU
 void setup_attrib_table() {
-  byte index;
-  waitvsync(); // wait for VBLANK
-  PPU.vram.address = 0x23;
-  PPU.vram.address = 0xc0;
-  for( index = 0; index < 0x40; ++index ){
-    PPU.vram.data = Attrib_Table[index];
-  }
+  vram_adr(0x23c0);
+  vram_write(Attrib_Table, 0x40);
+}
+
+void setup_palette() {
+  int i;
+  // only set palette entries 0-15 (background only)
+  for (i=0; i<15; i++)
+    pal_col(i, Palette_Table[i] ^ attract);
 }
 
 void play_round() {
-  reset_players();
-  clrscr();
+  ppu_off();
   setup_attrib_table();
+  setup_palette();
+  clrscr();
   draw_playfield();
+  reset_players();
   while (1) {
     make_move();
+    if (gameover) return; // attract mode -> start
     if (players[0].collided || players[1].collided) break;
   }
   flash_colliders();
@@ -273,14 +343,21 @@ void play_round() {
 void play_game() {
   gameover = 0;
   init_game();
-  players[0].human = 1;
+  if (!attract)
+    players[0].human = 1;
   while (!gameover) {
     play_round();
   }
 }
 
 void main() {
-  vram_write((unsigned char*)TILESET, 0x0, sizeof(TILESET));
+  vram_adr(0x0);
+  vram_write((unsigned char*)TILESET, sizeof(TILESET));
   joy_install (joy_static_stddrv);
-  play_game();
+  while (1) {
+    attract = 1;
+    play_game();
+    attract = 0;
+    play_game();
+  }
 }

@@ -12,6 +12,7 @@ var JSNES_PRESETS = [
   {id:'neslib4.c', name:'Metasprites'},
   {id:'neslib5.c', name:'RLE Unpack'},
   {id:'siegegame.c', name:'Siege Game'},
+  {id:'shoot2.c', name:'Solarian Game'},
 ];
 
 var NES_NESLIB_PRESETS = [

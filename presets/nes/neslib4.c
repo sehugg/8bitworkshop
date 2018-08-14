@@ -1,6 +1,13 @@
 
 #include "neslib.h"
 
+#pragma bss-name (push,"ZEROPAGE")
+unsigned char oam_off;
+#pragma bss-name (pop)
+
+#pragma data-name (push,"CHARS")
+#pragma data-name(pop)
+
 //#link "tileset1.c"
 
 // tile set, two planes for 4 colors
@@ -54,7 +61,8 @@ const unsigned char metaCat2[]={
 void main(void)
 {
         //copy tileset to RAM
-        vram_write((unsigned char*)TILESET, 0x0, sizeof(TILESET));
+	vram_adr(0x0);
+        vram_write((unsigned char*)TILESET, sizeof(TILESET));
   
         ppu_on_all();//enable rendering
 
@@ -74,7 +82,7 @@ void main(void)
 
         while(1)
         {
-                ppu_waitnmi();//wait for next TV frame
+                ppu_wait_nmi();//wait for next TV frame
 
                 //flashing color for touch
                 

@@ -2,7 +2,16 @@
 //this example shows how to set up a palette and use 8x8 HW sprites
 //also shows how fast (or slow) C code is
 
+#include <string.h>
+
 #include "neslib.h"
+
+#pragma bss-name (push,"ZEROPAGE")
+unsigned char oam_off;
+#pragma bss-name (pop)
+
+#pragma data-name (push,"CHARS")
+#pragma data-name(pop)
 
 //#link "tileset1.c"
 
@@ -12,9 +21,6 @@ extern unsigned char TILESET[8*256];
 //this example shows how to poll the gamepad
 //and how to use nametable update system that allows to modify nametable
 //while rendering is enabled
-
-#include "neslib.h"
-
 
 //these macro are needed to simplify defining update list constants
 
@@ -35,27 +41,27 @@ static unsigned char list[6*3];
 //init data for the update list, it contains MSB and LSB of a tile address
 //in the nametable, then the tile number
 
-const unsigned char list_init[6*3]={
-        MSB(NTADR(2,2)),LSB(NTADR(2,2)),0,
-        MSB(NTADR(3,2)),LSB(NTADR(3,2)),0,
-        MSB(NTADR(4,2)),LSB(NTADR(4,2)),0,
-        MSB(NTADR(6,2)),LSB(NTADR(6,2)),0,
-        MSB(NTADR(7,2)),LSB(NTADR(7,2)),0,
-        MSB(NTADR(8,2)),LSB(NTADR(8,2)),0
+const unsigned char list_init[6*3+1]={
+  MSB(NTADR(2,2)),LSB(NTADR(2,2)),0,
+  MSB(NTADR(3,2)),LSB(NTADR(3,2)),0,
+  MSB(NTADR(4,2)),LSB(NTADR(4,2)),0,
+  MSB(NTADR(6,2)),LSB(NTADR(6,2)),0,
+  MSB(NTADR(7,2)),LSB(NTADR(7,2)),0,
+  MSB(NTADR(8,2)),LSB(NTADR(8,2)),0,
+  NT_UPD_EOF
 };
-
-
 
 void main(void)
 {
         //copy tileset to RAM
-        vram_write((unsigned char*)TILESET, 0x0, sizeof(TILESET));
+  	vram_adr(0x0);
+        vram_write((unsigned char*)TILESET, sizeof(TILESET));
 
         pal_col(1,0x21);//blue color for text
         pal_col(17,0x30);//white color for sprite
 
         memcpy(list,list_init,sizeof(list_init));
-        set_vram_update(6,list);
+        set_vram_update(list);
 
         ppu_on_all();//enable rendering
 
@@ -66,7 +72,7 @@ void main(void)
 
         while(1)
         {
-                ppu_waitnmi();//wait for next TV frame
+                ppu_wait_nmi();//wait for next TV frame
 
                 oam_spr(x,y,0x41,0,0);//put sprite
 

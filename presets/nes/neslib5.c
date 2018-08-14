@@ -4,6 +4,13 @@
 
 #include "neslib.h"
 
+#pragma bss-name (push,"ZEROPAGE")
+unsigned char oam_off;
+#pragma bss-name (pop)
+
+#pragma data-name (push,"CHARS")
+#pragma data-name(pop)
+
 const unsigned char test[308]={
 0x01,0x00,0x01,0xa3,0x10,0x01,0x04,0x00,0x10,0x01,0x04,0x00,0x10,0x01,0x04,0x00,
 0x10,0x01,0x04,0x00,0x01,0x0a,0x10,0x00,0x01,0x02,0x10,0x00,0x01,0x04,0x10,0x00,
@@ -41,10 +48,12 @@ void main(void)
 	pal_bg(palette);//set background palette from an array
 
 	//copy tileset to RAM
-	vram_write((unsigned char*)TILESET, 0x0, sizeof(TILESET));
+  	vram_adr(0x0);
+	vram_write((unsigned char*)TILESET, sizeof(TILESET));
   
 	//unpack nametable into the VRAM
-	unrle_vram(test,0x2000);
+	vram_adr(0x2000);
+	vram_unrle(test);
 
   	//enable rendering
 	ppu_on_all();

@@ -332,6 +332,7 @@ function convertBytesToImages(bytes, fmt) {
 }
 
 function convertImagesToBytes(images, fmt) {
+  if (fmt.destfmt) fmt = fmt.destfmt;
   var width = fmt.w;
   var height = fmt.h;
   var count = fmt.count || 1;

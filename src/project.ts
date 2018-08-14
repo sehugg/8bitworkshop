@@ -92,9 +92,10 @@ export class CodeProject {
     var linkfiles = this.parseLinkDependencies(text);
     var allfiles = includes.concat(linkfiles);
     this.loadFiles(allfiles, (err:string, result?:Dependency[]) => {
+      // set 'link' property on files that are link dependencies (must match filename)
       if (result)
         for (var dep of result)
-          dep.link = linkfiles.indexOf(dep.filename) >= 0;
+          dep.link = linkfiles.indexOf(dep.filename) >= 0 || linkfiles.indexOf('local/'+dep.filename) >= 0; //TODO!!!
       callback(err, result);
     });
   }

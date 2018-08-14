@@ -184,6 +184,7 @@ export class SourceEditor implements ProjectView {
         var insnstr = info.insns.length > 9 ? ("...") : info.insns;
         this.setGutter("gutter-bytes", info.line-1, insnstr);
         if (info.iscode) {
+          // TODO: labels trick this part?
           var opcode = parseInt(info.insns.split(" ")[0], 16);
           if (platform.getOpcodeMetadata) {
             var meta = platform.getOpcodeMetadata(opcode, info.offset);
@@ -415,7 +416,18 @@ export class DisassemblerView implements ProjectView {
           bytes += hex(platform.readAddress(a+i));
         while (bytes.length < 14)
           bytes += ' ';
-        var dline = hex(parseInt(a)) + "\t" + bytes + "\t" + disasm.line + "\n";
+        var dstr = disasm.line;
+        if (addr2symbol) {
+          dstr = dstr.replace(/([^#])[$]([0-9A-F]+)/, (substr:string, ...args:any[]):string => {
+            var addr = parseInt(args[1], 16);
+            var sym = addr2symbol[addr];
+            if (sym) return (args[0] + sym);
+            sym = addr2symbol[addr+1];
+            if (sym) return (args[0] + sym + "+1");
+            return substr;
+          });
+        }
+        var dline = hex(parseInt(a)) + "\t" + bytes + "\t" + dstr + "\n";
         s += dline;
         if (a == pc) selline = curline;
         curline++;

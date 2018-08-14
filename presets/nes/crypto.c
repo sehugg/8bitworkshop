@@ -1,5 +1,8 @@
-
+﻿
 #include "neslib.h"
+
+#pragma data-name (push,"CHARS")
+#pragma data-name (pop)
 
 //#define DEBUG
 #define HAS_DEBUGGER
@@ -33,6 +36,8 @@ static const unsigned char paused_palette[]={
 
 #pragma bss-name(push,"ZEROPAGE")
 #pragma data-name(push,"ZEROPAGE")
+
+unsigned char oam_off;
 
 static unsigned char i, j;
 
@@ -2632,14 +2637,20 @@ void __fastcall__ init(void){
     bank_spr(0);
     bank_bg(1);
 	
-	unrle_vram(bg_top_left, NAMETABLE_A);
-	unrle_vram(bg_top_right, NAMETABLE_B);
-	unrle_vram(bg_bottom_left, NAMETABLE_C);
-	unrle_vram(bg_bottom_right, NAMETABLE_D);
+  vram_adr(NAMETABLE_A);
+  vram_unrle(bg_top_left);
+  vram_adr(NAMETABLE_B);
+  vram_unrle(bg_top_right);
+  vram_adr(NAMETABLE_C);
+  vram_unrle(bg_bottom_left);
+  vram_adr(NAMETABLE_D);
+  vram_unrle(bg_bottom_right);
   
   // copy tilesets
-  vram_write((unsigned char*)0x0000, 0x0, 0x2000);
-  vram_write((unsigned char*)0x2000, 0x0, 0x2000);
+  vram_adr(0x0);
+  vram_write((unsigned char*)0x0000, 0x2000);
+  vram_adr(0x2000);
+  vram_write((unsigned char*)0x2000, 0x2000);
 	
 	ppu_on_all();
     
@@ -2823,20 +2834,21 @@ void main(void){
     while(1){
         pal_all(paused_palette);
         scroll(0, 0);
-        ppu_waitnmi();
+        ppu_wait_nmi();
         
         
         ppu_off();
-	unrle_vram(bg_menu, NAMETABLE_A);
+        vram_adr(NAMETABLE_A);
+	vram_unrle(bg_menu);
         ppu_on_all();
         
         pal_all(palette);
-        ppu_waitnmi();
+        ppu_wait_nmi();
         
         
-        ppu_waitnmi();
+        ppu_wait_nmi();
         while(1){
-            ppu_waitnmi();
+            ppu_wait_nmi();
             spr=0;
             oam_clear();
             frame++;
@@ -2894,20 +2906,21 @@ void main(void){
         oam_clear();
         
         pal_all(paused_palette);
-        ppu_waitnmi();
+        ppu_wait_nmi();
         
         
         ppu_off();
-	unrle_vram(bg_top_left, NAMETABLE_A);
+        vram_adr(NAMETABLE_A);
+	vram_unrle(bg_top_left);
         ppu_on_all();
         
-        ppu_waitnmi();
+        ppu_wait_nmi();
         
         difficulty = 0;
         next_level = 1;
         
         while(1){
-            ppu_waitnmi();
+            ppu_wait_nmi();
             spr=0;
             oam_clear();
             
@@ -2941,7 +2954,7 @@ void main(void){
                 frame = 0;
                 while(1)
                 {
-                    ppu_waitnmi();
+                    ppu_wait_nmi();
                     frame++;
                     if((frame > 100) && (frame == 255 || ((pad_trigger(0)|pad_trigger(1))&(PAD_A|PAD_B|PAD_START))))
                     {
@@ -2981,7 +2994,7 @@ void main(void){
                 frame = 0;
                 while(1)
                 {
-                    ppu_waitnmi();
+                    ppu_wait_nmi();
                     frame++;
                     if(frame == 255)
                     {
@@ -3014,7 +3027,7 @@ void main(void){
 
                 while(!(pad_trigger(0) & PAD_START))
                 {
-                    ppu_waitnmi();
+                    ppu_wait_nmi();
                 }
 
                 pal_all(palette);
