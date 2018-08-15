@@ -11,6 +11,7 @@ var JSNES_PRESETS = [
   {id:'neslib3.c', name:'Cursor'},
   {id:'neslib4.c', name:'Metasprites'},
   {id:'neslib5.c', name:'RLE Unpack'},
+  {id:'music.c', name:'Music Player'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot2.c', name:'Solarian Game'},
 ];

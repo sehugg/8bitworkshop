@@ -1,10 +1,6 @@
 
 #include "neslib.h"
 
-#pragma bss-name (push,"ZEROPAGE")
-unsigned char oam_off;
-#pragma bss-name (pop)
-
 #pragma data-name (push,"CHARS")
 #pragma data-name(pop)
 

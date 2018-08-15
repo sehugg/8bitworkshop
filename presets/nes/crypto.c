@@ -1,4 +1,4 @@
-﻿
+
 #include "neslib.h"
 
 #pragma data-name (push,"CHARS")
@@ -36,8 +36,6 @@ static const unsigned char paused_palette[]={
 
 #pragma bss-name(push,"ZEROPAGE")
 #pragma data-name(push,"ZEROPAGE")
-
-unsigned char oam_off;
 
 static unsigned char i, j;
 

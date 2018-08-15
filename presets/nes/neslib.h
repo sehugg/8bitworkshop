@@ -243,6 +243,9 @@ void __fastcall__ oam_clear_fast(void);
 void __fastcall__ oam_meta_spr_pal(unsigned char x,unsigned char y,unsigned char pal,const unsigned char *metasprite);
 void __fastcall__ oam_meta_spr_clip(signed int x,unsigned char y,const unsigned char *metasprite);
 
+// set NMI callback
+void __fastcall__ nmi_set_callback(void (*callback)(void));
+
 
 
 #define PAD_A			0x01

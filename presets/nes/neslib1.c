@@ -3,10 +3,6 @@
 
 #include "neslib.h"
 
-#pragma bss-name (push,"ZEROPAGE")
-unsigned char oam_off;
-#pragma bss-name (pop)
-
 #pragma data-name (push,"CHARS")
 
 const unsigned char TILESET[8*128] = {/*{w:8,h:8,bpp:1,count:128,brev:1}*/

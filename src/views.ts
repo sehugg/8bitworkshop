@@ -422,7 +422,7 @@ export class DisassemblerView implements ProjectView {
             var addr = parseInt(args[1], 16);
             var sym = addr2symbol[addr];
             if (sym) return (args[0] + sym);
-            sym = addr2symbol[addr+1];
+            sym = addr2symbol[addr-1];
             if (sym) return (args[0] + sym + "+1");
             return substr;
           });

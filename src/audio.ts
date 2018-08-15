@@ -270,7 +270,7 @@ var SampleAudio = function(clockfreq) {
   var sfrac, sinc, accum;
   var buffer, bufpos, bufferlist;
   var idrain, ifill;
-  var nbuffers = 3;
+  var nbuffers = 4;
 
   function mix(ape) {
     var buflen=ape.outputBuffer.length;
@@ -361,7 +361,12 @@ var SampleAudio = function(clockfreq) {
       bufpos = 0;
       bufferlist[ifill] = buffer;
       var inext = (ifill + 1) % bufferlist.length;
-      if (inext != idrain) ifill = inext;
+      //if (inext != idrain) ifill = inext;
+      if (inext == idrain) {
+        ifill = (idrain + bufferlist.length/2) % bufferlist.length;
+      } else {
+        ifill = inext;
+      }
       buffer = bufferlist[ifill];
     }
   }

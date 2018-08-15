@@ -71,7 +71,12 @@ $("#btn_cancel").click(function(e) {
   }
 });
 $("#btn_saveandclose").click(function(e) {
-  postToParentWindow({close:true,save:true});
+  try {
+    postToParentWindow({close:true,save:true});
+  } catch (ex) {
+    alert("Could not convert to bytes: " + ex);
+    throw ex;
+  }
 });
 
 </script>

@@ -267,7 +267,7 @@ function populateExtraFiles(step, fs) {
       if (xhr.response && xhr.status == 200) {
         var data = new Uint8Array(xhr.response);
         fs.writeFile(xfn, data, {encoding:'binary'});
-        console.log(":::",xfn);
+        console.log(":::",xfn,data.length);
       } else {
         throw Error("Could not load extra file " + xpath);
       }
@@ -816,6 +816,7 @@ function compileCC65(step) {
     populateFiles(step, FS);
     execMain(step, CC65, ['-T', '-g', /*'-Cl',*/
       '-Oirs',
+      '-Cl', // static locals
       '-I', '/share/include',
       '-D' + params.define,
       step.path]);
