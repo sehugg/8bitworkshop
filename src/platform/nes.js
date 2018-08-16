@@ -12,6 +12,7 @@ var JSNES_PRESETS = [
   {id:'neslib4.c', name:'Metasprites'},
   {id:'neslib5.c', name:'RLE Unpack'},
   {id:'music.c', name:'Music Player'},
+  {id:'musicdemo.asm', name:'Famitone Demo'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot2.c', name:'Solarian Game'},
 ];
@@ -61,8 +62,9 @@ var JSNESPlatform = function(mainElement) {
   var nes;
   var rom;
   var video, audio, timer;
-  var audioFrequency = 44100;
+  var audioFrequency = 44030; //44100
   var frameindex = 0;
+  var nsamples = 0;
 
   this.getPresets = function() { return JSNES_PRESETS; }
 
@@ -78,17 +80,19 @@ var JSNESPlatform = function(mainElement) {
         video.updateFrame();
         self.restartDebugState();
         frameindex++;
+        //if (frameindex == 2000) console.log(nsamples*60/frameindex,'Hz');
       },
       onAudioSample: function(left, right) {
         if (frameindex < 10)
           audio.feedSample(0, 1); // avoid popping at powerup
         else
           audio.feedSample(left+right, 1);
+        //nsamples++;
       },
       onStatusUpdate: function(s) {
         console.log(s);
       },
-      //onBatteryRamWrite
+      //TODO: onBatteryRamWrite
     });
     nes.stop = function() {
       // TODO: trigger breakpoint

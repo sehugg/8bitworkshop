@@ -216,21 +216,27 @@ var AnimationTimer = function(frequencyHz:number, callback:() => void) {
   var intervalMsec = 1000.0 / frequencyHz;
   var running;
   var lastts = 0;
-  var useReqAnimFrame = window.requestAnimationFrame ? (frequencyHz>40) : false;
+  var useReqAnimFrame = false; //window.requestAnimationFrame ? (frequencyHz>40) : false;
   var nframes, startts; // for FPS calc
   this.frameRate = frequencyHz;
 
-  function scheduleFrame() {
+  function scheduleFrame(msec:number) {
     if (useReqAnimFrame)
       window.requestAnimationFrame(nextFrame);
     else
-      setTimeout(nextFrame, intervalMsec);
+      setTimeout(nextFrame, msec);
   }
-  function nextFrame(ts) {
-    if (running) {
-      scheduleFrame();
+  function nextFrame(ts:number) {
+    if (!ts) ts = Date.now();
+    if (ts - lastts < intervalMsec*10) {
+      lastts += intervalMsec;
+    } else {
+      lastts = ts + intervalMsec; // frames skipped, catch up
     }
-    if (!useReqAnimFrame || ts - lastts > intervalMsec/2) {
+    if (running) {
+      scheduleFrame(lastts - ts);
+    }
+    if (!useReqAnimFrame || lastts - ts > intervalMsec/2) {
       if (running) {
         try {
           callback();
@@ -238,11 +244,6 @@ var AnimationTimer = function(frequencyHz:number, callback:() => void) {
           running = false;
           throw e;
         }
-      }
-      if (ts - lastts < intervalMsec*30) {
-        lastts += intervalMsec;
-      } else {
-        lastts = ts;
       }
       if (nframes == 0) startts = ts;
       if (nframes++ == 300) {
@@ -258,7 +259,7 @@ var AnimationTimer = function(frequencyHz:number, callback:() => void) {
       running = true;
       lastts = 0;
       nframes = 0;
-      scheduleFrame();
+      scheduleFrame(0);
     }
   }
   this.stop = function() {

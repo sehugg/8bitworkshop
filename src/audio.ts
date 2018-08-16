@@ -299,7 +299,7 @@ var SampleAudio = function(clockfreq) {
     }
     self.context = new AudioContext();
     self.sr=self.context.sampleRate;
-    self.bufferlen=(self.sr > 44100) ? 4096 : 2048;
+    self.bufferlen=2048;
 
     // Amiga 500 fixed filter at 6kHz. WebAudio lowpass is 12dB/oct, whereas
     // older Amigas had a 6dB/oct filter at 4900Hz.
@@ -361,9 +361,9 @@ var SampleAudio = function(clockfreq) {
       bufpos = 0;
       bufferlist[ifill] = buffer;
       var inext = (ifill + 1) % bufferlist.length;
-      //if (inext != idrain) ifill = inext;
       if (inext == idrain) {
-        ifill = (idrain + bufferlist.length/2) % bufferlist.length;
+        ifill = Math.floor(idrain + nbuffers/2) % bufferlist.length;
+        //console.log('audio skipped', idrain, ifill);
       } else {
         ifill = inext;
       }
@@ -375,7 +375,7 @@ var SampleAudio = function(clockfreq) {
     while (count-- > 0) {
       accum += value;
       sfrac += sinc;
-      if (sfrac >= 1) {
+      while (sfrac >= 1) {
         sfrac -= 1;
         value *= sfrac;
         this.addSingleSample(accum - value);
