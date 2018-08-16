@@ -1,5 +1,9 @@
-
 "use strict";
+
+import { Platform, BaseZ80Platform  } from "../baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
+import { hex } from "../util";
+
 var VICDUAL_PRESETS = [
   {id:'minimal.c', name:'Minimal Example'},
   {id:'hello.c', name:'Hello World'},
@@ -12,7 +16,7 @@ var VICDUAL_PRESETS = [
 
 var VicDualPlatform = function(mainElement) {
   var self = this;
-  this.__proto__ = new BaseZ80Platform();
+  this.__proto__ = new (BaseZ80Platform as any)();
 
   var cpu, ram, membus, iobus, rom;
   var video, audio, psg, timer, pixels;
@@ -99,11 +103,11 @@ var VicDualPlatform = function(mainElement) {
   this.start = function() {
     ram = new RAM(0x1000);
     membus = {
-      read: new AddressDecoder([
+      read: newAddressDecoder([
 				[0x0000, 0x7fff, 0x3fff, function(a) { return rom ? rom[a] : null; }],
 				[0x8000, 0xffff, 0x0fff, function(a) { return ram.mem[a]; }],
 			]),
-			write: new AddressDecoder([
+			write: newAddressDecoder([
 				[0x8000, 0xffff, 0x0fff, function(a,v) { ram.mem[a] = v; }],
 			]),
       isContended: function() { return false; },

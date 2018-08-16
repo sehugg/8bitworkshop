@@ -745,6 +745,7 @@ function linkLD65(step) {
     var aout = FS.readFile("main", {encoding:'binary'});
     var mapout = FS.readFile("main.map", {encoding:'utf8'});
     var viceout = FS.readFile("main.vice", {encoding:'utf8'});
+    //var dbgout = FS.readFile("main.dbg", {encoding:'utf8'});
     putWorkFile("main", aout);
     putWorkFile("main.map", mapout);
     putWorkFile("main.vice", viceout);
@@ -814,7 +815,7 @@ function compileCC65(step) {
     var FS = CC65['FS'];
     setupFS(FS, '65-'+step.platform.split('-')[0]);
     populateFiles(step, FS);
-    execMain(step, CC65, ['-T', '-g', /*'-Cl',*/
+    execMain(step, CC65, ['-T', '-g',
       '-Oirs',
       '-Cl', // static locals
       '-I', '/share/include',

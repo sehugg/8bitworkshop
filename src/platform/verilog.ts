@@ -1,5 +1,8 @@
 "use strict";
 
+import { Platform } from "../baseplatform";
+import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
+
 var VERILOG_PRESETS = [
   {id:'clock_divider.v', name:'Clock Divider'},
   {id:'hvsync_generator.v', name:'Video Sync Generator'},
@@ -53,12 +56,14 @@ var VERILOG_KEYCODE_MAP = makeKeycodeMap([
 var vl_finished = false;
 var vl_stopped = false;
 
-  var VL_UL = function(x) { return x|0; }
-  var VL_ULL = function(x) { return x|0; }
-  var VL_TIME_Q = function() { return (new Date().getTime())|0; }
+// TODO: these have to be global
+
+  var VL_UL = this.VL_UL = function(x) { return x|0; }
+  var VL_ULL = this.VL_ULL = function(x) { return x|0; }
+  var VL_TIME_Q = this.VL_TIME_Q = function() { return (new Date().getTime())|0; }
 
   /// Return true if data[bit] set
-  var VL_BITISSET_I = this.VL_BITISSET_I = function(data,bit) { return (data & (VL_UL(1)<<VL_BITBIT_I(bit))); }
+  var VL_BITISSET_I = this.VL_BITISSET_I = function(data,bit) { return (data & (VL_UL(1)<<VL_UL(bit))); }
 
   var VL_EXTENDSIGN_I = this.VL_EXTENDSIGN_I = function(lbits, lhs) { return (-((lhs)&(VL_UL(1)<<(lbits-1)))); }
 
@@ -73,16 +78,16 @@ var vl_stopped = false;
   var VL_NEGATE_I = this.VL_NEGATE_I = function(x) { return -x; }
 
   var VL_LTS_III = this.VL_LTS_III = function(x,lbits,y,lhs,rhs) {
-    return 0 | (VL_EXTENDS_II(x,lbits,lhs) < VL_EXTENDS_II(x,lbits,rhs)); }
+    return (VL_EXTENDS_II(x,lbits,lhs) < VL_EXTENDS_II(x,lbits,rhs)) ? 1 : 0; }
 
   var VL_GTS_III = this.VL_GTS_III = function(x,lbits,y,lhs,rhs) {
-    return 0 | (VL_EXTENDS_II(x,lbits,lhs) > VL_EXTENDS_II(x,lbits,rhs)); }
+    return (VL_EXTENDS_II(x,lbits,lhs) > VL_EXTENDS_II(x,lbits,rhs)) ? 1 : 0; }
 
   var VL_LTES_III = this.VL_LTES_III = function(x,lbits,y,lhs,rhs) {
-    return 0 | (VL_EXTENDS_II(x,lbits,lhs) <= VL_EXTENDS_II(x,lbits,rhs)); }
+    return (VL_EXTENDS_II(x,lbits,lhs) <= VL_EXTENDS_II(x,lbits,rhs)) ? 1 : 0; }
 
   var VL_GTES_III = this.VL_GTES_III = function(x,lbits,y,lhs,rhs) {
-    return 0 | (VL_EXTENDS_II(x,lbits,lhs) >= VL_EXTENDS_II(x,lbits,rhs)); }
+    return (VL_EXTENDS_II(x,lbits,lhs) >= VL_EXTENDS_II(x,lbits,rhs)) ? 1 : 0; }
 
   var VL_MODDIV_III = this.VL_MODDIV_III = function(lbits,lhs,rhs) {
     return (((rhs)==0)?0:(lhs)%(rhs)); }
@@ -561,13 +566,13 @@ var VerilogPlatform = function(mainElement, options) {
 		vcanvas.mousedown(function(e) {
 			scope_time_x = Math.floor(e.offsetX * video.canvas.width / vcanvas.width() - 16);
       mouse_pressed = true;
-      if (e.target.setCapture) e.target.setCapture(); // TODO: pointer capture
+      //if (e.target.setCapture) e.target.setCapture(); // TODO: pointer capture
 			dirty = true;
       refreshFrame();
 		});
 		vcanvas.mouseup(function(e) {
       mouse_pressed = false;
-      if (e.target.setCapture) e.target.releaseCapture(); // TODO: pointer capture
+      //if (e.target.setCapture) e.target.releaseCapture(); // TODO: pointer capture
   		dirty = true;
       refreshFrame();
 		});
@@ -841,17 +846,6 @@ var VerilogPlatform = function(mainElement, options) {
   }
 
 };
-
-function traceTiming() {
-  // TODO: merge with main setCode(text)
-  var text = editor.getValue();
-  worker.postMessage({
-    code:text,
-    dependencies:loadFileDependencies(text),
-    platform:platform_id,
-    tool:'yosys'
-  });
-}
 
 ////////////////
 

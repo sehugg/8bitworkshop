@@ -1,17 +1,24 @@
 
+import { RAM, RasterVideo, dumpRAM, dumpStackToString } from "./emu";
+import { hex } from "./util";
+
+declare var Z80_fast, jt, CPU6809;
+
 export interface OpcodeMetadata {
   minCycles: number;
   maxCycles: number;
-  insnLength: number;
+  insnlength: number;
+  opcode: number;
 }
 
 interface CpuState {
-  PC:number, T?:number, o?:number/*opcode*/,
+  PC:number, T?:number, o?:number,/*opcode*/
+  SP?:number
   /*
   A:number, X:number, Y:number, SP:number, R:boolean, 
   N,V,D,Z,C:boolean*/
 };
-interface EmuState {c:CpuState};
+interface EmuState {c:CpuState, b?:number[]};
 type DisasmLine = {line:string, nbytes:number};
 
 export interface Platform {
@@ -44,6 +51,7 @@ export interface Platform {
   saveState?() : EmuState;
   getDebugCallback?() : any; // TODO
   getSP?() : number;
+  getOriginPC?() : number;
 
   getDebugCategories() : string[];
   getDebugInfo(category:string, state:EmuState) : string;
@@ -188,7 +196,7 @@ abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
 
 ////// 6502
 
-function getToolForFilename_6502(fn:string) : string {
+export function getToolForFilename_6502(fn:string) : string {
   if (fn.endsWith(".pla")) return "plasm";
   if (fn.endsWith(".c")) return "cc65";
   if (fn.endsWith(".s")) return "ca65";
@@ -231,14 +239,19 @@ export abstract class Base6502Platform extends BaseFrameBasedPlatform {
   getToolForFilename = getToolForFilename_6502;
   getDefaultExtension() { return ".a"; };
   
-  // TODO: Memory category
-  getDebugCategories() { return ["CPU"]; }
-  getDebugInfo(category:string, state:EmuState) {
-    return cpuStateToLongString_6502(state.c);
+  getDebugCategories() {
+    return ['CPU','ZPRAM','Stack'];
+  }
+  getDebugInfo(category:string, state:EmuState) : string {
+    switch (category) {
+      case 'CPU':   return cpuStateToLongString_6502(state.c);
+      case 'ZPRAM': return dumpRAM(state.b, 0x0, 0x100);
+      case 'Stack': return dumpStackToString(state.b, 0x100, 0x1ff, 0x100+state.c.SP);
+    }
   }
 }
 
-function cpuStateToLongString_6502(c) : string {
+export function cpuStateToLongString_6502(c) : string {
   function decodeFlags(c) {
     var s = "";
     s += c.N ? " N" : " -";
@@ -270,7 +283,7 @@ var OPMETA_6502 = {
   ],
 }
 
-function getOpcodeMetadata_6502(opcode, address) {
+export function getOpcodeMetadata_6502(opcode, address) {
   // TODO: more intelligent maximum cycles
   return {
     opcode:opcode,
@@ -282,7 +295,7 @@ function getOpcodeMetadata_6502(opcode, address) {
 
 ////// Z80
 
-function cpuStateToLongString_Z80(c) {
+export function cpuStateToLongString_Z80(c) {
   function decodeFlags(flags) {
     var flagspec = "SZ-H-VNC";
     var s = "";
@@ -298,7 +311,7 @@ function cpuStateToLongString_Z80(c) {
        ;
 }
 
-function BusProbe(bus : MemoryBus) {
+export function BusProbe(bus : MemoryBus) {
   var active = false;
   var callback;
   this.activate = function(_callback) {
@@ -328,7 +341,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   _cpu;
   probe;
 
-  newCPU(membus, iobus) {
+  newCPU(membus : MemoryBus, iobus : MemoryBus) {
     this.probe = new BusProbe(membus);
     this._cpu = Z80_fast({
      display: {},
@@ -442,18 +455,76 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   // TODO
   //this.getOpcodeMetadata = function() { }
 
-  getDebugCategories() { return ["CPU"]; }
-  getDebugInfo(category:string, state:EmuState) {
-    return cpuStateToLongString_Z80(state.c);
+  getDebugCategories() {
+    return ['CPU'];
+  }
+  getDebugInfo(category:string, state:EmuState) : string {
+    switch (category) {
+      case 'CPU':   return cpuStateToLongString_Z80(state.c);
+    }
   }
 }
 
-function getToolForFilename_z80(fn) {
+export function getToolForFilename_z80(fn) {
   if (fn.endsWith(".c")) return "sdcc";
   if (fn.endsWith(".s")) return "sdasz80";
   if (fn.endsWith(".ns")) return "naken";
   if (fn.endsWith(".scc")) return "sccz80";
   return "z80asm";
+}
+
+////// 6809
+
+export function cpuStateToLongString_6809(c) {
+  function decodeFlags(flags) {
+    var flagspec = "EFHINZVC";
+    var s = "";
+    for (var i=0; i<8; i++)
+      s += (flags & (128>>i)) ? flagspec.slice(i,i+1) : "-";
+    return s; // TODO
+  }
+  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.CC) + "\n"
+       + "SP " + hex(c.SP,4) + "\n"
+       + " A " + hex(c.A,2) + "\n"
+       + " B " + hex(c.B,2) + "\n"
+       + " X " + hex(c.X,4) + "\n"
+       + " Y " + hex(c.Y,4) + "\n"
+       + " U " + hex(c.U,4) + "\n"
+       ;
+}
+
+export abstract class Base6809Platform extends BaseZ80Platform {
+
+  newCPU(membus : MemoryBus) {
+    var cpu = new CPU6809();
+    cpu.init(membus.write, membus.read, 0);
+    return cpu;
+  }
+
+	runUntilReturn() {
+    var depth = 1;
+    this.runEval((c:CpuState) => {
+      if (depth <= 0)
+        return true;
+			var op = this.readAddress(c.PC);
+      // TODO: 6809 opcodes
+      if (op == 0x9d || op == 0xad || op == 0xbd) // CALL
+        depth++;
+      else if (op == 0x3b || op == 0x39) // RET
+        --depth;
+      return false;
+    });
+  }
+
+	cpuStateToLongString(c:CpuState) {
+    return cpuStateToLongString_6809(c);
+  }
+  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
+    // TODO: don't create new CPU
+    return new CPU6809().disasm(read(pc), read(pc+1), read(pc+2), read(pc+3), read(pc+4), pc);
+  }
+  getDefaultExtension() { return ".asm"; };
+  //this.getOpcodeMetadata = function() { }
 }
 
 /// MAME SUPPORT
@@ -733,3 +804,4 @@ export function BaseMAMEPlatform() {
       return null; // TODO
   }
 }
+

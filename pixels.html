@@ -36,6 +36,16 @@ body {
 <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
 <script src="bootstrap/js/bootstrap.min.js"></script>
 <script src="FileSaver.js/FileSaver.min.js"></script>
+
+<script>
+var exports = {};
+function require(modname) {
+  if (modname == 'jquery') return $;
+  else if (modname.startsWith('.')) return exports;
+  else { console.log("Unknown require()", modname); return exports; }
+}
+</script>
+
 <script src="gen/util.js"></script>
 <script src="gen/pixed/pixeleditor.js"></script>
 

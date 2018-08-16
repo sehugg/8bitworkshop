@@ -1,5 +1,9 @@
 "use strict";
 
+import { Platform, BaseZ80Platform  } from "../baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
+import { hex } from "../util";
+
 var GALAXIAN_PRESETS = [
   {id:'gfxtest.c', name:'Graphics Test'},
   {id:'shoot2.c', name:'Solarian Game'},
@@ -35,7 +39,7 @@ var SCRAMBLE_KEYCODE_MAP = makeKeycodeMap([
 
 var GalaxianPlatform = function(mainElement, options) {
   var self = this;
-  this.__proto__ = new BaseZ80Platform();
+  this.__proto__ = new (BaseZ80Platform as any)();
 
   options = options || {};
   var romSize = options.romSize || 0x4000;
@@ -45,7 +49,9 @@ var GalaxianPlatform = function(mainElement, options) {
   var missileWidth = options.missileWidth || 4;
   var missileOffset = options.missileOffset || 0;
 
-  var cpu, ram, vram, oram, membus, iobus, rom, palette, outlatches;
+  var cpu;
+  var ram, vram, oram : RAM;
+  var membus, iobus, rom, palette, outlatches;
   var video, audio, timer, pixels;
   var psg1, psg2;
   var inputs;
@@ -96,7 +102,7 @@ var GalaxianPlatform = function(mainElement, options) {
     for (var sprnum=7; sprnum>=0; sprnum--) {
       var base = (sprnum<<2) + 0x40;
       var base0 = oram.mem[base];
-      var sy = 240 - (base0 - (sprnum<3)); // the first three sprites match against y-1
+      var sy = 240 - (base0 - ((sprnum<3)?1:0)); // the first three sprites match against y-1
       var yy = (sl - sy);
       if (yy >= 0 && yy < 16) {
         var sx = oram.mem[base+3] + 1; // +1 pixel offset from tiles
@@ -133,7 +139,7 @@ var GalaxianPlatform = function(mainElement, options) {
     var missile = 0xff;
     for (var which=0; which<8; which++) {
       var sy = oram.mem[0x60 + (which<<2)+1];
-      if (((sy + sl - (which<3))&0xff) == 0xff) {
+      if (((sy + sl - ((which<3)?1:0))&0xff) == 0xff) {
         if (which != 7)
           shell = which;
         else
@@ -202,7 +208,7 @@ var GalaxianPlatform = function(mainElement, options) {
     if (options.scramble) {
       inputs = [0xff,0xfc,0xf1];
       membus = {
-        read: new AddressDecoder([
+        read: newAddressDecoder([
   				[0x0000, 0x3fff, 0,      function(a) { return rom ? rom[a] : null; }],
   				[0x4000, 0x47ff, 0x7ff,  function(a) { return ram.mem[a]; }],
 //          [0x4800, 0x4fff, 0x3ff,  function(a) { return vram.mem[a]; }],
@@ -220,7 +226,7 @@ var GalaxianPlatform = function(mainElement, options) {
           [0x9212, 0x9212, 0,      function(a) { return m_protection_result; }], // scramble (protection)
           //[0, 0xffff, 0, function(a) { console.log(hex(a)); return 0; }]
   			]),
-  			write: new AddressDecoder([
+  			write: newAddressDecoder([
   				[0x4000, 0x47ff, 0x7ff,  function(a,v) { ram.mem[a] = v; }],
           [0x4800, 0x4fff, 0x3ff,  function(a,v) { vram.mem[a] = v; }],
   				[0x5000, 0x5fff, 0xff,   function(a,v) { oram.mem[a] = v; }],
@@ -240,7 +246,7 @@ var GalaxianPlatform = function(mainElement, options) {
     } else {
       inputs = [0xe,0x8,0x0];
       membus = {
-        read: new AddressDecoder([
+        read: newAddressDecoder([
   				[0x0000, 0x3fff, 0,      function(a) { return rom ? rom[a] : null; }],
   				[0x4000, 0x47ff, 0x3ff,  function(a) { return ram.mem[a]; }],
   				[0x5000, 0x57ff, 0x3ff,  function(a) { return vram.mem[a]; }],
@@ -250,7 +256,7 @@ var GalaxianPlatform = function(mainElement, options) {
   				[0x7000, 0x7000, 0,      function(a) { return inputs[2]; }],
   				[0x7800, 0x7800, 0,      function(a) { watchdog_counter = INITIAL_WATCHDOG; }],
   			]),
-  			write: new AddressDecoder([
+  			write: newAddressDecoder([
   				[0x4000, 0x47ff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
   				[0x5000, 0x57ff, 0x3ff,  function(a,v) { vram.mem[a] = v; }],
   				[0x5800, 0x5fff, 0xff,   function(a,v) { oram.mem[a] = v; }],

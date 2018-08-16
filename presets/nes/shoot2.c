@@ -692,41 +692,38 @@ void new_player_ship() {
 }
 
 void set_sounds() {
-  /*
   byte i;
+  byte enable = 0x1 | 0x2 | 0x8;
   // missile fire sound
-  if (missiles[7].ypos != YOFFSCREEN) {
-    cv_set_frequency(CV_SOUNDCHANNEL_0, 2000-missiles[7].ypos*4);
-    cv_set_attenuation(CV_SOUNDCHANNEL_0, 18);
+  if (missiles[PLYRMISSILE].ypos != YOFFSCREEN) {
+    APU.pulse[0].period_low = missiles[PLYRMISSILE].ypos ^ 0xff;
+    APU.pulse[0].len_period_high = 0;
+    APU.pulse[0].control = 0x80 | 0x30 | 6;
   } else {
-    cv_set_attenuation(CV_SOUNDCHANNEL_0, 32);
+    APU.pulse[0].control = 0x30;
   }
   // enemy explosion sound
-  if (enemy_exploding) {
-    cv_set_frequency(CV_SOUNDCHANNEL_1, 500+enemy_exploding*64);
-    cv_set_attenuation(CV_SOUNDCHANNEL_1, 14);
-  } else {
-    cv_set_attenuation(CV_SOUNDCHANNEL_1, 32);
+  if (player_exploding && player_exploding < 8) {
+    APU.noise.control = 4;
+    APU.noise.period = 8 + player_exploding;
+    APU.noise.len = 15;
+  } else if (enemy_exploding) {
+    APU.noise.control = 2;
+    APU.noise.period = 8 + enemy_exploding;
+    APU.noise.len = 8;
   }
-  cv_set_attenuation(CV_SOUNDCHANNEL_2, 32);
-  // player explosion
-  if (player_exploding && player_exploding < 15) {
-    cv_set_frequency(CV_SOUNDCHANNEL_2, player_exploding*256);
-    cv_set_attenuation(CV_SOUNDCHANNEL_NOISE, 4+player_exploding);
-    cv_set_noise(true, 3);
-  } else {
-    // set diving sounds for spaceships
-    cv_set_attenuation(CV_SOUNDCHANNEL_NOISE, 32);
-    for (i=0; i<3; i++) {
-      byte y = attackers[i].y >> 8;
-      if (y >= 0x80) {
-        cv_set_frequency(CV_SOUNDCHANNEL_2, 4000+y*8);
-        cv_set_attenuation(CV_SOUNDCHANNEL_2, 28);
-        break;
-      }
+  // set diving sounds for spaceships
+  for (i=0; i<2; i++) {
+    register AttackingEnemy* a = i ? &attackers[4] : &attackers[0];
+    if (a->findex && !a->returning) {
+      byte y = a->y >> 8;
+      APU.triangle.counter = 0xc0;
+      APU.triangle.period_low = y;
+      APU.triangle.len_period_high = 1;
+      enable |= 0x4;
     }
   }
-  */
+  APU.status = enable;
 }
 
 static char starx[32];
@@ -843,8 +840,24 @@ void setup_tileset() {
   }
 }
 
+const byte APUINIT[0x13] = {
+  0x30,0x08,0x00,0x00,
+  0x30,0x08,0x00,0x00,
+  0x80,0x00,0x00,0x00,
+  0x30,0x00,0x00,0x00,
+  0x00,0x00,0x00
+};
+
+void init_apu() {
+  // from https://wiki.nesdev.com/w/index.php/APU_basics
+  memcpy((void*)0x4000, APUINIT, sizeof(APUINIT));
+  APU.fcontrol = 0x40; // frame counter 5-step
+  APU.status = 0x0f; // turn on all channels except DMC
+}
+
 void main() {  
   setup_tileset();
+  init_apu();
   init_stars();
   player_score = 0;
   while (1) {

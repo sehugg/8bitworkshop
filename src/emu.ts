@@ -1,15 +1,17 @@
 "use strict";
 
+import { hex } from "./util";
+
 // external modules
 declare var jt, Javatari, Z80_fast, CPU6809;
 
 // Emulator classes
 
-var PLATFORMS = {};
+export var PLATFORMS = {};
 
-var frameUpdateFunction : (Canvas) => void = null;
+export var frameUpdateFunction : (Canvas) => void = null;
 
-function noise() {
+export function noise() {
   return (Math.random() * 256) & 0xff;
 }
 
@@ -29,7 +31,7 @@ function __createCanvas(mainElement:HTMLElement, width:number, height:number) {
   return canvas;
 }
 
-var RasterVideo = function(mainElement:HTMLElement, width:number, height:number, options?) {
+export var RasterVideo = function(mainElement:HTMLElement, width:number, height:number, options?) {
   var self = this;
   var canvas, ctx;
   var imageData, arraybuf, buf8, datau32;
@@ -134,7 +136,7 @@ mainElement.appendChild(borderElement);
 */
 }
 
-var VectorVideo = function(mainElement:HTMLElement, width:number, height:number) {
+export var VectorVideo = function(mainElement:HTMLElement, width:number, height:number) {
   var self = this;
   var canvas, ctx;
   var persistenceAlpha = 0.5;
@@ -207,12 +209,14 @@ var VectorVideo = function(mainElement:HTMLElement, width:number, height:number)
   }
 }
 
-var RAM = function(size:number) {
-  var memArray = new ArrayBuffer(size);
-  this.mem = new Uint8Array(memArray);
+export class RAM {
+  mem : Uint8Array;
+  constructor(size:number) {
+    this.mem = new Uint8Array(new ArrayBuffer(size));
+  }
 }
 
-var AnimationTimer = function(frequencyHz:number, callback:() => void) {
+export var AnimationTimer = function(frequencyHz:number, callback:() => void) {
   var intervalMsec = 1000.0 / frequencyHz;
   var running;
   var lastts = 0;
@@ -269,7 +273,7 @@ var AnimationTimer = function(frequencyHz:number, callback:() => void) {
 
 //
 
-function dumpRAM(ram:number[], ramofs:number, ramlen:number) : string {
+export function dumpRAM(ram:number[], ramofs:number, ramlen:number) : string {
   var s = "";
   // TODO: show scrollable RAM for other platforms
   for (var ofs=0; ofs<ramlen; ofs+=0x10) {
@@ -285,7 +289,7 @@ function dumpRAM(ram:number[], ramofs:number, ramlen:number) : string {
   return s;
 }
 
-var Keys = {
+export const Keys = {
     VK_ESCAPE: {c: 27, n: "Esc"},
     VK_F1: {c: 112, n: "F1"},
     VK_F2: {c: 113, n: "F2"},
@@ -393,7 +397,7 @@ function _metakeyflags(e) {
   return (e.shiftKey?2:0) | (e.ctrlKey?4:0) | (e.altKey?8:0) | (e.metaKey?16:0);
 }
 
-function setKeyboardFromMap(video, switches, map, func) {
+export function setKeyboardFromMap(video, switches, map, func?) {
   video.setKeyboardEvents(function(key,code,flags) {
     var o = map[key];
     if (o && func) {
@@ -415,7 +419,7 @@ function setKeyboardFromMap(video, switches, map, func) {
   });
 }
 
-function makeKeycodeMap(table) {
+export function makeKeycodeMap(table) {
   var map = {};
   for (var i=0; i<table.length; i++) {
     var entry = table[i];
@@ -424,7 +428,7 @@ function makeKeycodeMap(table) {
   return map;
 }
 
-function padBytes(data, len) {
+export function padBytes(data, len) {
   if (data.length > len) {
     throw Error("Data too long, " + data.length + " > " + len);
   }
@@ -433,8 +437,12 @@ function padBytes(data, len) {
   return r.mem;
 }
 
+type AddressReadWriteFn = ((a:number) => number) | ((a:number,v:number) => void);
+type AddressDecoderEntry = [number, number, number, AddressReadWriteFn];
+type AddressDecoderOptions = {gmask:number}
+
 // TODO: better performance, check values
-function AddressDecoder(table, options) {
+export function AddressDecoder(table : AddressDecoderEntry[], options?:AddressDecoderOptions) {
   var self = this;
   function makeFunction(lo, hi) {
     var s = "";
@@ -458,3 +466,45 @@ function AddressDecoder(table, options) {
   return makeFunction(0x0, 0xffff).bind(self);
 }
 
+export function newAddressDecoder(table : AddressDecoderEntry[], options?:AddressDecoderOptions) : (a:number,v?:number) => number {
+  return new (AddressDecoder as any)(table, options);
+}
+
+// STACK DUMP
+
+declare var addr2symbol;		// address to symbol name map (TODO: import)
+
+function lookupSymbol(addr) {
+  var start = addr;
+  while (addr >= 0) {
+    var sym = addr2symbol[addr];
+    // TODO: what about asm?
+    if (sym && sym.startsWith('_')) {
+      return addr2symbol[addr] + " + " + (start-addr);
+    }
+    addr--;
+  }
+}
+
+export function dumpStackToString(mem:number[], start:number, end:number, sp:number) : string {
+  var s = "";
+  var nraw = 0;
+  //s = dumpRAM(mem.slice(start,start+end+1), start, end-start+1);
+  while (sp < end) {
+    sp++;
+    var addr = mem[sp] + mem[sp+1]*256;
+    var opcode = mem[addr-2];
+    if (opcode == 0x20) { // JSR
+      s += "\n$" + hex(sp) + ": ";
+      s += hex(addr,4) + " " + lookupSymbol(addr);
+      sp++;
+      nraw = 0;
+    } else {
+      if (nraw == 0)
+        s += "\n$" + hex(sp) + ": ";
+      s += hex(mem[sp+1]) + " ";
+      if (++nraw == 8) nraw = 0;
+    }
+  }
+  return s+"\n";
+}

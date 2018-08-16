@@ -3,10 +3,6 @@
 var vm = require('vm');
 var fs = require('fs');
 var assert = require('assert');
-var includeInThisContext = function(path) {
-    var code = fs.readFileSync(path);
-    vm.runInThisContext(code, path);
-};
 
 var localItems = {};
 var localMods = 0;
@@ -44,12 +40,10 @@ global.localStorage = {
  }
 };
 
-includeInThisContext("localForage/dist/localforage.js");
-includeInThisContext("gen/util.js");
-includeInThisContext("gen/store.js");
-//var sto = require("../../gen/store.js");
-//var wtypes = require("../../gen/workertypes.js");
-var prj = require("../../gen/project.js");
+global.localforage = require("localForage/dist/localforage.js");
+var util = require("gen/util.js");
+var mstore = require("gen/store.js");
+var prj = require("gen/project.js");
 
 var test_platform_id = "_TEST";
 
@@ -59,7 +53,7 @@ describe('Store', function() {
    localStorage.setItem('_TEST/test', 'a');
    localStorage.setItem('_TEST/local/test', 'b');
    assert.equal(2, localMods);
-   var store = createNewPersistentStore(test_platform_id, function() {
+   var store = mstore.createNewPersistentStore(test_platform_id, function() {
     assert.equal('true', localItems['__migrated__TEST']);
     store.getItem('test', function(err, result) {
       if (err) done(err);
@@ -77,7 +71,7 @@ describe('Store', function() {
   it('Should load local project', function(done) {
    localStorage.clear();
    localStorage.setItem('_TEST/test', 'a');
-   var store = createNewPersistentStore(test_platform_id, function() {
+   var store = mstore.createNewPersistentStore(test_platform_id, function() {
     var worker = {};
     var platform = {};
     var project = new prj.CodeProject(worker, test_platform_id, platform, store);
@@ -105,7 +99,7 @@ describe('Store', function() {
       ]
     }
    ];
-   var store = createNewPersistentStore(test_platform_id);
+   var store = mstore.createNewPersistentStore(test_platform_id);
    var worker = {
     postMessage: function(m) { msgs.push(m); },
    };
@@ -131,7 +125,7 @@ describe('Store', function() {
    localStorage.clear();
    localItems['__migrated__TEST'] = 'true';
    var msgs = [];
-   var store = createNewPersistentStore(test_platform_id);
+   var store = mstore.createNewPersistentStore(test_platform_id);
    var worker = {
    };
    var platform = {

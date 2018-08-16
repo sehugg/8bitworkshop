@@ -1,5 +1,11 @@
 "use strict";
 
+import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502 } from "../baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM } from "../emu";
+import { hex, lzgmini } from "../util";
+
+declare var jt; // 6502
+
 var APPLE2_PRESETS = [
   {id:'sieve.c', name:'Sieve'},
   {id:'mandel.c', name:'Mandelbrot'},
@@ -19,6 +25,8 @@ var GR_HIRES    = 8;
 
 var Apple2Platform = function(mainElement) {
   var self = this;
+  this.__proto__ = new (Base6502Platform as any)();
+  
   var cpuFrequency = 1023000;
   var cpuCyclesPerLine = 65;
   var cpu, ram, bus;
@@ -39,9 +47,7 @@ var Apple2Platform = function(mainElement) {
   // value to add when reading & writing each of these banks
   // bank 1 is E000-FFFF, bank 2 is D000-DFFF
   var bank2rdoffset=0, bank2wroffset=0;
-
-  this.__proto__ = new Base6502Platform();
-
+  
   this.getPresets = function() {
     return APPLE2_PRESETS;
   }

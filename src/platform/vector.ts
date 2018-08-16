@@ -1,5 +1,9 @@
 "use strict";
 
+import { Platform, BaseZ80Platform, Base6502Platform  } from "../baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, VectorVideo, Keys, makeKeycodeMap } from "../emu";
+import { hex } from "../util";
+
 // http://www.computerarcheology.com/Arcade/Asteroids/DVG.html
 // http://arcarc.xmission.com/Tech/neilw_xy.txt
 
@@ -58,7 +62,7 @@ var AtariVectorPlatform = function(mainElement) {
   var switches = new RAM(16).mem;
   var nmicount = cpuCyclesPerNMI;
 
-  this.__proto__ = new Base6502Platform();
+  this.__proto__ = new (Base6502Platform as any)();
 
   this.getPresets = function() {
     return VECTOR_PRESETS;
@@ -72,7 +76,7 @@ var AtariVectorPlatform = function(mainElement) {
     // bus
     bus = {
 
-      read: new AddressDecoder([
+      read: newAddressDecoder([
         [0x0,    0x3ff,  0x3ff,  function(a) { return cpuram.mem[a]; }],
         [0x2001, 0x2001, 0,      function(a) { return ((clock/500) & 1) ? 0xff : 0x00; }],
         [0x2000, 0x2007, 0x7,    function(a) { return switches[a]; }],
@@ -82,7 +86,7 @@ var AtariVectorPlatform = function(mainElement) {
         [0x6800, 0x7fff, 0,      function(a) { return rom[a - 0x6800]; }],
       ], {gmask:0x7fff}),
 
-      write: new AddressDecoder([
+      write: newAddressDecoder([
         [0x0,    0x3ff,  0x3ff,  function(a,v) { cpuram.mem[a] = v; }],
         [0x3000, 0x3000, 0,      function(a,v) { dvg.runUntilHalt(0); }],
         // TODO: draw asynchronous or allow poll of HALT ($2002)
@@ -183,7 +187,7 @@ var AtariColorVectorPlatform = function(mainElement) {
   var nmicount = cpuCyclesPerNMI;
   var earom_offset, earom_data;
 
-  this.__proto__ = new Base6502Platform();
+  this.__proto__ = new (Base6502Platform as any)();
 
   this.getPresets = function() {
     return VECTOR_PRESETS;
@@ -201,7 +205,7 @@ var AtariColorVectorPlatform = function(mainElement) {
     // bus
     bus = {
 
-      read: new AddressDecoder([
+      read: newAddressDecoder([
         [0x0,    0x7ff,  0x7ff,  function(a) { return cpuram.mem[a]; }],
         [0x2000, 0x27ff, 0x7ff,  function(a) { return dvgram.mem[a]; }],
         [0x2800, 0x5fff, 0x7fff, function(a) { return vecrom[a - 0x2800]; }],
@@ -217,7 +221,7 @@ var AtariColorVectorPlatform = function(mainElement) {
         [0x9000, 0xffff, 0xffff, function(a) { return rom[a - 0x9000]; }],
       ]),
 
-      write: new AddressDecoder([
+      write: newAddressDecoder([
         [0x0,    0x7ff,  0x7ff,  function(a,v) { cpuram.mem[a] = v; }],
         [0x2000, 0x27ff, 0x7ff,  function(a,v) { dvgram.mem[a] = v; }],
         [0x6000, 0x67ff, 0xf,    function(a,v) { audio.pokey1.setRegister(a, v); }],
@@ -324,7 +328,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
   var switches = new RAM(16).mem;
   var mathram = new RAM(16).mem;
 
-  this.__proto__ = new BaseZ80Platform();
+  this.__proto__ = new (BaseZ80Platform as any)();
 
   this.getPresets = function() {
     return VECTOR_PRESETS;
@@ -351,7 +355,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
     // bus
     bus = {
 
-      read: new AddressDecoder([
+      read: newAddressDecoder([
         [0x0,    0x7fff, 0,      function(a) { return rom[a]; }],
         [0x8000, 0x800f, 0xf,    function(a) { return switches[a]; }],
         [0x8100, 0x810f, 0xf,    function(a) { return mathram[a]; } ],
@@ -359,7 +363,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
         [0xe000, 0xffff, 0x1fff, function(a) { return cpuram.mem[a]; }],
       ]),
 
-      write: new AddressDecoder([
+      write: newAddressDecoder([
         [0x8000, 0x800f, 0xf,    function(a,v) { audio.pokey1.setRegister(a, v); }],
         [0x8010, 0x801f, 0xf,    function(a,v) { audio.pokey2.setRegister(a, v); }],
         [0x8100, 0x810e, 0xf,    function(a,v) { mathram[a] = v; } ],

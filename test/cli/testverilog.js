@@ -3,8 +3,11 @@ var assert = require('assert');
 var fs = require('fs');
 var wtu = require('./workertestutils.js');
 
-includeInThisContext('gen/emu.js');
-includeInThisContext('src/platform/verilog.js');
+var emu = require('gen/emu.js');
+var verilog = require('gen/platform/verilog.js');
+var VerilogPlatform = emu.PLATFORMS['verilog'];
+
+Object.assign(global, verilog); // copy global VL_* properties
 
 function loadPlatform(msg) {
   var platform = new VerilogPlatform();

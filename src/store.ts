@@ -110,7 +110,7 @@ function copyFromOldStorageFormat(platformid:string, newstore, callback:()=>void
   migrateNext(); // start the conversion
 }
 
-function createNewPersistentStore(platformid:string, callback:()=>void) {
+export function createNewPersistentStore(platformid:string, callback:()=>void) {
   var store = localforage.createInstance({
     name: "__" + platformid,
     version: 2.0

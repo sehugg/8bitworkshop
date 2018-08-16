@@ -1,5 +1,8 @@
 "use strict";
 
+import { Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../baseplatform";
+import { PLATFORMS } from "../emu";
+
 var Atari8_PRESETS = [
   {id:'hello.a', name:'Hello World (ASM)'},
   {id:'hellopm.a', name:'Hello Sprites (ASM)'},

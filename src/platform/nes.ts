@@ -1,5 +1,11 @@
 "use strict";
 
+import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502 } from "../baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, dumpStackToString } from "../emu";
+import { hex, lpad, lzgmini } from "../util";
+
+declare var jsnes : any;
+
 var JSNES_PRESETS = [
   {id:'ex0.asm', name:'Initialization (ASM)'},
   {id:'ex1.asm', name:'Scrolling Demo (ASM)'},
@@ -56,7 +62,7 @@ var JSNES_KEYCODE_MAP = makeKeycodeMap([
 
 var JSNESPlatform = function(mainElement) {
   var self = this;
-  this.__proto__ = new Base6502Platform();
+  this.__proto__ = new (Base6502Platform as any)();
   this.debugPCDelta = 1;
 
   var nes;
@@ -147,7 +153,7 @@ var JSNESPlatform = function(mainElement) {
 
   this.runToVsync = function() {
     var frame0 = frameindex;
-    platform.runEval(function(c) { return frameindex>frame0; });
+    this.runEval(function(c) { return frameindex>frame0; });
   }
 
   this.getCPUState = function() {
@@ -160,7 +166,7 @@ var JSNESPlatform = function(mainElement) {
     var s = nes.toJSON();
     s.c = s.cpu;
     this.copy6502REGvars(s.c);
-    s.cpu.mem = s.cpu.mem.slice(0);
+    s.b = s.cpu.mem = s.cpu.mem.slice(0);
     s.ppu.vramMem = s.ppu.vramMem.slice(0);
     s.ppu.spriteMem = s.ppu.spriteMem.slice(0);
     return s;
@@ -197,13 +203,14 @@ var JSNESPlatform = function(mainElement) {
   }
 
   this.getDebugCategories = function() {
-    return ['CPU','ZPRAM','PPU'];
+    return ['CPU','ZPRAM','Stack','PPU'];
   }
   this.getDebugInfo = function(category, state) {
     switch (category) {
-      case 'CPU':    return cpuStateToLongString_6502(state.c);
-      case 'ZPRAM': return dumpRAM(state.cpu.mem, 0, 0x100);
-      case 'PPU': return this.ppuStateToLongString(state.ppu, state.cpu.mem);
+      case 'CPU':   return cpuStateToLongString_6502(state.c);
+      case 'ZPRAM': return dumpRAM(state.b, 0x0, 0x100);
+      case 'Stack': return dumpStackToString(state.b, 0x100, 0x1ff, 0x100+state.c.SP);
+      case 'PPU': return this.ppuStateToLongString(state.ppu, state.b);
     }
   }
   this.ppuStateToLongString = function(ppu, mem) {

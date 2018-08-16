@@ -1,5 +1,8 @@
-
 "use strict";
+
+import { Platform, BaseZ80Platform, BaseMAMEPlatform } from "../baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes } from "../emu";
+
 var BASEZ80_PRESETS = [
   {id:'simple1.c', name:'Multiply by 2'},
   {id:'simple2.c', name:'Divide by 4'},
@@ -11,7 +14,7 @@ var BASEZ80_PRESETS = [
 
 var Base_Z80Platform = function(mainElement) {
   var self = this;
-  this.__proto__ = new BaseZ80Platform();
+  this.__proto__ = new (BaseZ80Platform as any)();
 
   var cpu, ram, membus, iobus, rom, timer;
 
@@ -22,13 +25,13 @@ var Base_Z80Platform = function(mainElement) {
   this.start = function() {
     ram = new RAM(0x8000);
     membus = {
-      read: new AddressDecoder([
-				[0x0000, 0x7fff, 0x7fff, function(a) { return rom ? rom[a] : null; }],
-				[0x8000, 0xffff, 0x7fff, function(a) { return ram.mem[a]; }],
-			]),
-			write: new AddressDecoder([
-				[0x8000, 0xffff, 0x7fff, function(a,v) { ram.mem[a] = v; }],
-			]),
+      read: newAddressDecoder([
+	[0x0000, 0x7fff, 0x7fff, function(a) { return rom ? rom[a] : null; }],
+	[0x8000, 0xffff, 0x7fff, function(a) { return ram.mem[a]; }],
+      ]),
+      write: newAddressDecoder([
+        [0x8000, 0xffff, 0x7fff, function(a,v) { ram.mem[a] = v; }],
+      ]),
       isContended: function() { return false; },
     };
     this.readAddress = membus.read;

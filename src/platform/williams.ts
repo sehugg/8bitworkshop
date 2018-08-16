@@ -1,5 +1,9 @@
 "use strict";
 
+import { Platform, BaseZ80Platform, Base6809Platform  } from "../baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
+import { hex } from "../util";
+
 var WILLIAMS_PRESETS = [
   {id:'gfxtest.c', name:'Graphics Test'},
   {id:'sprites.c', name:'Sprite Test'},
@@ -81,14 +85,14 @@ var WilliamsPlatform = function(mainElement, proto) {
 
   // Defender
 
-  var ioread_defender = new AddressDecoder([
+  var ioread_defender = newAddressDecoder([
     [0x400, 0x5ff, 0x1ff, function(a) { return nvram.mem[a]; }],
     [0x800, 0x800, 0,     function(a) { return video_counter; }],
     [0xc00, 0xc07, 0x7,   function(a) { return pia6821[a]; }],
     [0x0,   0xfff, 0,     function(a) { /*console.log('ioread',hex(a));*/ }],
   ]);
 
-  var iowrite_defender = new AddressDecoder([
+  var iowrite_defender = newAddressDecoder([
     [0x0,   0xf,   0xf,   setPalette],
     [0x3fc, 0x3ff, 0,     function(a,v) { if (v == 0x38) watchdog_counter = INITIAL_WATCHDOG; }],
     [0x400, 0x5ff, 0x1ff, function(a,v) { nvram.mem[a] = v; }],
@@ -96,7 +100,7 @@ var WilliamsPlatform = function(mainElement, proto) {
     [0x0,   0xfff, 0,     function(a,v) { console.log('iowrite',hex(a),hex(v)); }],
   ]);
 
-  var memread_defender = new AddressDecoder([
+  var memread_defender = newAddressDecoder([
     [0x0000, 0xbfff, 0xffff, function(a) { return ram.mem[a]; }],
     [0xc000, 0xcfff, 0x0fff, function(a) {
       switch (banksel) {
@@ -111,7 +115,7 @@ var WilliamsPlatform = function(mainElement, proto) {
     [0xd000, 0xffff, 0xffff, function(a) { return rom ? rom[a-0xd000] : 0; }],
   ]);
 
-  var memwrite_defender = new AddressDecoder([
+  var memwrite_defender = newAddressDecoder([
     [0x0000, 0x97ff, 0,      write_display_byte],
     [0x9800, 0xbfff, 0,      function(a,v) { ram.mem[a] = v; }],
     [0xc000, 0xcfff, 0x0fff, iowrite_defender],
@@ -121,7 +125,7 @@ var WilliamsPlatform = function(mainElement, proto) {
 
   // Robotron, Joust, Bubbles, Stargate
 
-  var ioread_williams = new AddressDecoder([
+  var ioread_williams = newAddressDecoder([
     [0x804, 0x807, 0x3,   function(a) { return pia6821[a]; }],
     [0x80c, 0x80f, 0x3,   function(a) { return pia6821[a+4]; }],
     [0xb00, 0xbff, 0,     function(a) { return video_counter; }],
@@ -129,7 +133,7 @@ var WilliamsPlatform = function(mainElement, proto) {
     [0x0,   0xfff, 0,     function(a) { /* console.log('ioread',hex(a)); */ }],
   ]);
 
-  var iowrite_williams = new AddressDecoder([
+  var iowrite_williams = newAddressDecoder([
     [0x0,   0xf,   0xf,   setPalette],
     [0x80c, 0x80c, 0xf,   function(a,v) { if (worker) worker.postMessage({command:v}); }],
     //[0x804, 0x807, 0x3,   function(a,v) { console.log('iowrite',a); }], // TODO: sound
@@ -141,14 +145,14 @@ var WilliamsPlatform = function(mainElement, proto) {
     //[0x0,   0xfff, 0,     function(a,v) { console.log('iowrite',hex(a),hex(v)); }],
   ]);
 
-  var memread_williams = new AddressDecoder([
+  var memread_williams = newAddressDecoder([
     [0x0000, 0x8fff, 0xffff, function(a) { return banksel ? rom[a] : ram.mem[a]; }],
     [0x9000, 0xbfff, 0xffff, function(a) { return ram.mem[a]; }],
     [0xc000, 0xcfff, 0x0fff, ioread_williams],
     [0xd000, 0xffff, 0xffff, function(a) { return rom ? rom[a-0x4000] : 0; }],
   ]);
 
-  var memwrite_williams = new AddressDecoder([
+  var memwrite_williams = newAddressDecoder([
     [0x0000, 0x97ff, 0,      write_display_byte],
     [0x9800, 0xbfff, 0,      function(a,v) { ram.mem[a] = v; }],
     [0xc000, 0xcfff, 0x0fff, iowrite_williams],
@@ -166,7 +170,7 @@ var WilliamsPlatform = function(mainElement, proto) {
     }
   }
 
-  function write_display_byte(a,v) {
+  function write_display_byte(a:number,v:number) {
     ram.mem[a] = v;
     drawDisplayByte(a, v);
     if (displayPCs) displayPCs[a] = cpu.getPC(); // save program counter
@@ -228,7 +232,7 @@ var WilliamsPlatform = function(mainElement, proto) {
       else
         sstart += syinc;
     }
-    return w * h * (2 + ((flags&0x4)!=0)); // # of memory accesses
+    return w * h * (2 + ((flags&0x4)>>2)); // # of memory accesses
   }
 
   function blit_pixel(dstaddr, srcdata, flags) {

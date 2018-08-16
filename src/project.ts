@@ -1,6 +1,7 @@
 "use strict";
 
 import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, WorkerResult } from "./workertypes";
+import { getFilenameForPath, getFilenamePrefix } from "./util";
 
 type BuildResultCallback = (result:WorkerResult) => void;
 type BuildStatusCallback = (busy:boolean) => void;

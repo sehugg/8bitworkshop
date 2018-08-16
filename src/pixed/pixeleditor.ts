@@ -1,6 +1,8 @@
 "use strict";
 
-function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, thumbnails?) {
+import { hex } from "../util";
+
+export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, thumbnails?) {
   var self = this;
   var width = fmt.w;
   var height = fmt.h;
@@ -232,7 +234,7 @@ function convertToHexStatements(s) {
   });
 }
 
-function parseHexBytes(s) {
+export function parseHexBytes(s) {
   var arr = [];
   var m;
   while (m = pixel_re.exec(s)) {
@@ -248,7 +250,7 @@ function parseHexBytes(s) {
   return arr;
 }
 
-function replaceHexBytes(s, bytes) {
+export function replaceHexBytes(s, bytes) {
   var result = "";
   var m;
   var li = 0;
@@ -384,20 +386,20 @@ function convertPaletteBytes(arr,r0,r1,g0,g1,b0,b1) {
   return result;
 }
 
-var palette;
-var paletteSets;
-var paletteSetIndex=0;
-var currentPixelEditor;
-var parentSource;
-var parentOrigin;
-var allimages;
-var currentFormat;
-var currentByteStr;
-var currentPaletteStr;
-var currentPaletteFmt;
-var allthumbs;
+export var palette;
+export var paletteSets;
+export var paletteSetIndex=0;
+export var currentPixelEditor;
+export var parentSource;
+export var parentOrigin;
+export var allimages;
+export var currentFormat;
+export var currentByteStr;
+export var currentPaletteStr;
+export var currentPaletteFmt;
+export var allthumbs;
 
-function pixelEditorDecodeMessage(e) {
+export function pixelEditorDecodeMessage(e) {
   parentSource = e.source;
   parentOrigin = e.origin;
   currentFormat = e.data.fmt;

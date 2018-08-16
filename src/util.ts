@@ -1,37 +1,37 @@
 "use strict";
 
-function lpad(s:string, n:number):string {
+export function lpad(s:string, n:number):string {
   s += ''; // convert to string
   while (s.length<n) s=" "+s;
   return s;
 }
 
-function byte2signed(b:number):number {
+export function byte2signed(b:number):number {
   b &= 0xff;
   return (b < 0x80) ? b : -(256-b);
 }
 
-function getFilenameForPath(s:string):string {
+export function getFilenameForPath(s:string):string {
   var toks = s.split('/');
   return toks[toks.length-1];
 }
 
-function getFilenamePrefix(s:string):string {
+export function getFilenamePrefix(s:string):string {
   var pos = s.lastIndexOf('.');
   return (pos > 0) ? s.substr(0, pos) : s;
 }
 
-function hex(v:number, nd?:number) {
+export function hex(v:number, nd?:number) {
   if (!nd) nd = 2;
   return toradix(v,nd,16);
 }
 
-function tobin(v:number, nd?:number) {
+export function tobin(v:number, nd?:number) {
   if (!nd) nd = 8;
   return toradix(v,nd,2);
 }
 
-function toradix(v:number, nd:number, radix:number) {
+export function toradix(v:number, nd:number, radix:number) {
   try {
     var s = v.toString(radix).toUpperCase();
     while (s.length < nd)
@@ -42,7 +42,7 @@ function toradix(v:number, nd:number, radix:number) {
   }
 }
 
-function arrayCompare(a:any[], b:any[]):boolean {
+export function arrayCompare(a:any[], b:any[]):boolean {
   if (a == null && b == null) return true;
   if (a == null) return false;
   if (b == null) return false;
@@ -53,7 +53,7 @@ function arrayCompare(a:any[], b:any[]):boolean {
   return true;
 }
 
-function invertMap(m:{}):{} {
+export function invertMap(m:{}):{} {
   var r = {};
   if (m) {
     for (var k in m) r[m[k]] = k;
@@ -61,7 +61,7 @@ function invertMap(m:{}):{} {
   return r;
 }
 
-function highlightDifferences(s1:string, s2:string):string {
+export function highlightDifferences(s1:string, s2:string):string {
   var split1 = s1.split(/(\S+\s+)/).filter(function(n) {return n});
   var split2 = s2.split(/(\S+\s+)/).filter(function(n) {return n});
   var i = 0;
@@ -87,7 +87,7 @@ function highlightDifferences(s1:string, s2:string):string {
   return result;
 }
 
-function lzgmini() {
+export function lzgmini() {
 
   // Constants
   var LZG_HEADER_SIZE = 16;
@@ -294,14 +294,14 @@ function lzgmini() {
   }
 }
 
-function stringToByteArray(s:string) : Uint8Array {
+export function stringToByteArray(s:string) : Uint8Array {
   var a = new Uint8Array(s.length);
   for (var i=0; i<s.length; i++)
     a[i] = s.charCodeAt(i);
   return a;
 }
 
-function removeBOM(s:string) {
+export function removeBOM(s:string) {
   if (s.charCodeAt(0) === 0xFEFF) {
     s = s.substr(1);
   }

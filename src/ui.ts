@@ -1,5 +1,7 @@
 "use strict";
 
+import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap } from "./util";
+
 // 8bitworkshop IDE user interface
 
 import $ = require("jquery");
@@ -8,14 +10,13 @@ import { CodeProject } from "./project";
 import { WorkerResult, SourceFile } from "./workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset } from "./baseplatform";
+import { PLATFORMS } from "./emu";
 import * as Views from "./views";
 
 // external libs (TODO)
 declare var Octokat, ga, Tour, GIF, saveAs;
 declare function createNewPersistentStore(platform_id : string);
 declare function showLoopTimingForPC(pc:number, sourcefile:SourceFile, wnd:Views.ProjectView);
-// loaded by platform js file
-declare var PLATFORMS;
 
 // make sure VCS doesn't start
 if (window['Javatari']) window['Javatari'].AUTO_START = false;
@@ -926,7 +927,7 @@ function startUI(loadplatform : boolean) {
     } else {
       // load and start platform object
       if (loadplatform) {
-        var scriptfn = 'src/platform/' + platform_id.split(/[.-]/)[0] + '.js';
+        var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
         var script = document.createElement('script');
         script.onload = function() {
           console.log("loaded platform", platform_id);

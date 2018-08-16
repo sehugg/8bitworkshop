@@ -1,10 +1,15 @@
 "use strict";
+
+import { Platform, BaseZ80Platform  } from "../baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
+import { hex } from "../util";
+
 var KONAMISOUND_PRESETS = [
 ];
 
 var KonamiSoundPlatform = function(mainElement) {
   var self = this;
-  this.__proto__ = new BaseZ80Platform();
+  this.__proto__ = new (BaseZ80Platform as any)();
 
   var cpu, ram, rom, membus, iobus;
   var audio, master;
@@ -25,11 +30,11 @@ var KonamiSoundPlatform = function(mainElement) {
   this.start = function() {
     ram = new RAM(0x400);
     membus = {
-      read: new AddressDecoder([
+      read: newAddressDecoder([
 				[0x0000, 0x3fff, 0x3fff, function(a) { return rom ? rom[a] : null; }],
 				[0x4000, 0x5fff, 0x3ff,  function(a) { return ram.mem[a]; }]
 			]),
-			write: new AddressDecoder([
+			write: newAddressDecoder([
 				[0x4000, 0x5fff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
 			]),
       isContended: function() { return false; },

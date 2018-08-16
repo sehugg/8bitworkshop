@@ -1,5 +1,9 @@
 "use strict";
 
+import { Platform, BaseZ80Platform  } from "../baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
+import { hex } from "../util";
+
 // http://www.computerarcheology.com/Arcade/
 
 var MW8080BW_PRESETS = [
@@ -10,7 +14,7 @@ var MW8080BW_PRESETS = [
 
 var Midway8080BWPlatform = function(mainElement) {
   var self = this;
-  this.__proto__ = new BaseZ80Platform();
+  this.__proto__ = new (BaseZ80Platform as any)();
 
   var cpu, ram, membus, iobus, rom;
   var probe;
@@ -45,11 +49,11 @@ var Midway8080BWPlatform = function(mainElement) {
     ram = new RAM(0x2000);
     //displayPCs = new Uint16Array(new ArrayBuffer(0x2000*2));
     membus = {
-      read: new AddressDecoder([
+      read: newAddressDecoder([
 				[0x0000, 0x1fff, 0x1fff, function(a) { return rom ? rom[a] : 0; }],
 				[0x2000, 0x3fff, 0x1fff, function(a) { return ram.mem[a]; }],
 			]),
-			write: new AddressDecoder([
+			write: newAddressDecoder([
 				[0x2000, 0x23ff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
 				[0x2400, 0x3fff, 0x1fff, function(a,v) {
 					ram.mem[a] = v;

@@ -4,6 +4,7 @@ import $ = require("jquery");
 import { CodeProject } from "./project";
 import { SourceFile, WorkerError } from "./workertypes";
 import { Platform } from "./baseplatform";
+import { hex } from "./util";
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;

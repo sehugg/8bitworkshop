@@ -1,5 +1,13 @@
 "use strict";
 
+import { Platform, cpuStateToLongString_6502, BaseMAMEPlatform } from "../baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, dumpRAM } from "../emu";
+import { hex, lpad, tobin, byte2signed } from "../util";
+
+declare var platform : Platform; // global platform object
+declare var Javatari : any;
+declare var jt : any; // 6502
+
 var VCS_PRESETS = [
   {id:'examples/hello', chapter:4, name:'Hello 6502 and TIA'},
   {id:'examples/vsync', chapter:5, name:'Painting on the CRT', title:'Color Bars'},
@@ -100,7 +108,7 @@ var VCSPlatform = function() {
   }
   */
   this.readAddress = function(addr) {
-    return current_output[addr & 0xfff]; // TODO: use bus to read
+    return this.current_output[addr & 0xfff]; // TODO: use bus to read
   }
   this.runUntilReturn = function() {
     var depth = 1;
@@ -215,7 +223,7 @@ function getClockCountsAtPC(pc) {
   return meta; // minCycles, maxCycles
 }
 
-function _traceInstructions(pc, minclocks, maxclocks, subaddr, constraints) {
+function _traceInstructions(pc:number, minclocks:number, maxclocks:number, subaddr:number, constraints) {
   //console.log("trace", hex(pc), minclocks, maxclocks);
   if (!minclocks) minclocks = 0;
   if (!maxclocks) maxclocks = 0;
@@ -274,7 +282,7 @@ function _traceInstructions(pc, minclocks, maxclocks, subaddr, constraints) {
         pc = addr; // TODO: make sure in ROM space
         break;
       case 0x60: // RTS
-        if (subaddr) {
+        if (subaddr) { // TODO: 0 doesn't work
           // TODO: combine with previous result
           var result = jsrresult[subaddr];
           if (!result) {
@@ -325,7 +333,7 @@ function showLoopTimingForPC(pc, sourcefile, ed) {
   pc2maxclocks = {};
   jsrresult = {};
   // recurse through all traces
-  _traceInstructions(pc | platform.getOriginPC(), MAX_CLOCKS, MAX_CLOCKS);
+  _traceInstructions(pc | platform.getOriginPC(), MAX_CLOCKS, MAX_CLOCKS, 0, {});
   ed.editor.clearGutter("gutter-bytes");
   // show the lines
   for (var line in sourcefile.line2offset) {

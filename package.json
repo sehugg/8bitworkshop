@@ -20,10 +20,10 @@
   "scripts": {
     "build": "tsc",
     "test": "npm run test-node",
-    "test-one": "mocha --recursive --timeout 60000",
-    "test-node": "mocha --recursive --timeout 60000 test/cli",
-    "test-worker": "mocha --recursive --timeout 60000 test/cli/testworker.js",
-    "test-profile": "mocha --recursive --timeout 60000 --prof test/cli"
+    "test-one": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000",
+    "test-node": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli",
+    "test-worker": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli/testworker.js",
+    "test-profile": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --prof test/cli"
   },
   "repository": {
     "type": "git",
