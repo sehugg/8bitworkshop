@@ -226,7 +226,8 @@ var JSNESPlatform = function(mainElement) {
     s += (status & 0x80) ? "VBLANK " : "- ";
     s += (status & 0x40) ? "SPRITE0HIT " : "- ";
     s += "\n";
-    s += "BgColor " + ['black','blue','green','red'][ppu.f_color] + "\n";
+    if (ppu.f_color)
+      s += "   Tint " + ((ppu.f_color&1)?"RED ":"") + ((ppu.f_color&2)?"BLUE ":"") + ((ppu.f_color&4)?"GREEN ":"") + "\n";
     if (ppu.f_spVisibility) {
       s += "SprSize " + (ppu.f_spriteSize ? "8x16" : "8x8") + "\n";
       s += "SprBase $" + (ppu.f_spPatternTable ? "1000" : "0000") + "\n";

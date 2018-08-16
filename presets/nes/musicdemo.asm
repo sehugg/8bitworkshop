@@ -3,16 +3,18 @@
 
 ;;;;; VARIABLES
 
-	seg.u RAM
-	org $0
+		seg.u RAM
+		org $0
 
-FT_BASE_ADR             = $0300 ;page in the RAM used for FT2 variables, should be $xx00
-FT_TEMP                 = $00   ;3 bytes in zeropage used by the library as a scratchpad
-FT_DPCM_OFF             = $c000 ;$c000..$ffc0, 64-byte steps
+; Famitracker constants
+FT_TEMP		ds 3		;3 bytes in zeropage used by the library as a scratchpad
+
+FT_BASE_ADR     = $0300 	;page in the RAM used for FT2 variables, should be $xx00
+FT_DPCM_OFF     = DMCSamples	;$c000..$ffc0, 64-byte steps
 FT_SFX_STREAMS  = 4             ;number of sound effects played at once, 1..4
-;FT_DPCM_ENABLE  = 1             ;undefine to exclude all DMC code
+FT_DPCM_ENABLE  = 1             ;undefine to exclude all DMC code
 ;FT_SFX_ENABLE   = 1             ;undefine to exclude all sound effects code
-;FT_THREAD       = 1                     ;undefine if you are calling sound effects from the same thread as the sound update call
+;FT_THREAD       = 1             ;undefine if you are calling sound effects from the same thread as the sound update call
 FT_PAL_SUPPORT  = 1             ;undefine to exclude PAL support
 FT_NTSC_SUPPORT = 1             ;undefine to exclude NTSC support
 
@@ -28,15 +30,22 @@ Start:
         jsr ClearRAM	; clear RAM
         jsr WaitSync	; wait for VSYNC (and PPU warmup)
 
-	lda #$3f	; $3F -> A register
-        ldy #$00	; $00 -> Y register
-        sta PPU_ADDR	; write high byte first
-        sty PPU_ADDR    ; $3F00 -> PPU address
-        lda #$1c	; $1C = light blue color
-        sta PPU_DATA    ; $1C -> PPU data
+	PPU_SETADDR  $3f00	; background color
+        PPU_SETVALUE $01
+	PPU_SETADDR  $3f01	; first palette color
+        PPU_SETVALUE $38
+	PPU_SETADDR  $0000	; first byte of tileset
+        PPU_SETVALUE $18	; dash
+        PPU_SETVALUE $18	; dash
+        PPU_SETVALUE $18	; dash
+        PPU_SETVALUE $18	; dash
+        PPU_SETVALUE $18	; dash
+        PPU_SETVALUE $18	; dash
+        PPU_SETVALUE $18	; dash
+        PPU_SETVALUE $18	; dash
         lda #CTRL_NMI
         sta PPU_CTRL	; enable NMI
-        lda #MASK_COLOR
+        lda #MASK_BG
         sta PPU_MASK	; enable rendering
         
         ldx #<music_data
@@ -47,10 +56,24 @@ Start:
         lda #0
         jsr FamiToneMusicPlay
         
-.endless
-        jsr WaitSync	; wait for VSYNC
-	jsr FamiToneUpdate
+.endless:
 	jmp .endless	; endless loop
+
+ShowTimeStart:
+	ldx #0
+        ldy #5
+.delay
+        dex
+        bne .delay
+        dey
+        bne .delay
+        lda #MASK_BG
+        sta PPU_MASK
+	rts
+ShowTimeEnd:
+        lda #0
+        sta PPU_MASK
+        rts
 
 ;;;;; COMMON SUBROUTINES
 
@@ -61,6 +84,11 @@ Start:
 ;;;;; INTERRUPT HANDLERS
 
 NMIHandler:
+	SAVE_REGS
+        jsr ShowTimeStart
+	jsr FamiToneUpdate
+        jsr ShowTimeEnd
+	RESTORE_REGS
 	rti
 
 
@@ -1172,6 +1200,175 @@ sounds: subroutine
 .sfx_pal_3:
 	.byte $86,$81,$87,$62,$88,$00,$01,$87,$68,$01,$87,$62,$01,$87,$68,$01
 	.byte $87,$62,$01,$00
+
+;;;;; SAMPLES
+
+	org	$c000
+DMCSamples
+	hex	a97ee93ffc3ff00f0700000000000000
+	hex	00000000f8ffffffffffffffabaaaaaa
+	hex	aaaaaaaa4a42880882101001054a0009
+	hex	50ad2409000080da7badb6adb6dbb6b6
+	hex	ad6dbbad7deb577bd54a5555a5529224
+	hex	2492549224494929a54a55955655ad6a
+	hex	d56aadd5daba6db5765b6bdb5a6b5b5b
+	hex	ad5a5555552a95942449294992242549
+	hex	925292524aa9aaaaaaaad56aadb5b6d6
+	hex	d6d65ab556abd5aaaa5a55a5aaaa4a55
+	hex	a5aa5455aa4a5555a5aa5455aa525555
+	hex	5555abaa55ad5a5555ab545555555555
+	hex	00000000000000000000000000000000
+	hex	00000000000000000000000000000000
+	hex	00000000000000000000000000000000
+	hex	00000000000000000000000000000000
+	hex	a9aa2a2ac3b79ae3ff1f3d600078180c
+	hex	0b020040ddd7fdffffffff3bf33e26a4
+	hex	06000000000088db367e7efef3ffffff
+	hex	3f1780000e008218c3018309f305ffff
+	hex	7fd52dd6c5de93ee7160200384050ee3
+	hex	09a1b147f1fdcfefbfb83706e80f58f0
+	hex	6860a6c0030c83f3e63b37d58c1ddff3
+	hex	e63bafca1c008c30208b21789c86f2ed
+	hex	f74f9f5f7c88fb203ec68103474088b0
+	hex	3aecba65b3dfe9f4f9496f6671b09810
+	hex	e4984058e331c762fafcf896ff066f5d
+	hex	68b0f340c2288246d13857e3cee5788f
+	hex	7a07ef39e75060660c6b4ae6204bd8c6
+	hex	63ea9ed34dcf791a3a3cf480893ecab2
+	hex	8ac89671a9f9e4746ad195adcb611cc5
+	hex	991a57b1368a6691d58c973c33abc587
+	hex	6ee456f228aa29b5b4702bb3aaa671aa
+	hex	2ca92d2db36acaf2683a56d5a46a1ea3
+	hex	aaaa8a715952cd6aab9caaa9ca66b999
+	hex	4a33aaaca98ea33229cb625d65ada596
+	hex	aaaa5aad6a19d3a4c932a54e55b532e6
+	hex	92b59aa66aaa5965b39a92294b2dadb2
+	hex	aa349356adaaaaa9aa59aaaaaa655599
+	hex	aaaae2d4aaaaacaad24c55cbaa9a3ad5
+	hex	a8aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+	hex	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+	hex	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+	hex	aa000000000000000000000000000000
+	hex	09005fbd7fffff7f007f000000000000
+	hex	fc2ff6ffffffffffffbf00b80000f003
+	hex	000000000060f98fffffffffffff7f00
+	hex	7e800000000000f82c00fcff80bdfeff
+	hex	ffffffff0700300000001c0003f87ff8
+	hex	ffff1f10fffff106f403008cc40fe03b
+	hex	fc0003fe01fc2f5507f4ffff29a9ff04
+	hex	14001ca03800ffc03ef0ffff1ff8036e
+	hex	02ca13ff0f001c8c79047e9fa118e5c3
+	hex	1f5eff07f8f04883f82f02a11b388bb8
+	hex	8f82877f70d28bff770e804776b8ec63
+	hex	600400ff0fdcc0df2d0f9372dcf4e897
+	hex	8e2f808e2b0611ff000b1e1fdece568d
+	hex	53c7fe1307aa621e649e528b82de1370
+	hex	d8ff5001fe77806fdfaa0252c7b400fe
+	hex	594725ad4d15c1df1e7458938acaef16
+	hex	07f30e14877efc80e04327af95bd06d5
+	hex	2936b63459552fa4d65255cb2e145e45
+	hex	11737ec74bd46b30554def86841e50b5
+	hex	ea357569446b345b5c95daa91734b14d
+	hex	dd814d555552dabda834a9666c0df554
+	hex	55d5545575565db0125ec19ab14debb4
+	hex	431769752c4b95d533a85a55ad524d35
+	hex	252bb26657555571558f74e364b322a9
+	hex	a5d50a766a1569e857d5436aa5b56a9a
+	hex	2b764a16c51657955674252e68eb5555
+	hex	554d55ad6ae55a94aa4b4ca5b4d48a96
+	hex	34596b5dadea8cdda431ad1833555589
+	hex	4a5b67a945ab95a55a55358f55e9a82a
+	hex	b5aca94a553219b59da45d55555574d3
+	hex	aae9aa4a54556d695255b45495aa5a57
+	hex	555535554deda8aa5a4a6555b5b45255
+	hex	694569aab65a555555ab5c6aab942a55
+	hex	59555555555555a5aa6a55555955a5aa
+	hex	00000000000000000000000000000000
+	hex	00000000000000000000000000000000
+	hex	a9aaaaaa0a00001cfffcffffff7f1f0e
+	hex	3c14020000600000a86abbb7bdfbfdff
+	hex	ffff9f2aa512200800000000a89aaafa
+	hex	ffffffffffffd72cd512000000000000
+	hex	a0aada7bffffffffffffadca0a100000
+	hex	00000084a8aaedbfffffffff7ff7b5aa
+	hex	020102042151aaaab5ddf7efefb7b7db
+	hex	aa5452128280008288a4d45adbeefbbd
+	hex	020102042151aaaab5ddf7efefb7b7db
+	hex	aa5452128280008288a4d45adbeefbbd
+	hex	bdf7beae55558a8444100a41882429b5
+	hex	aef776efeab65b6bb5aa525292a4a492
+	hex	9452a56655ad566bab5a6b555555aaaa
+	hex	52000000000000000000000000000000
+	hex	00000000000000000000000000000000
+	hex	00000000000000000000000000000000
+	hex	a96a553bfc15f087038a0a1ea8aaaaaa
+	hex	aaaaaaaabadbaee95f51575555555555
+	hex	5555555555a552a9944aa94a954a2995
+	hex	52ad54a5aaaaaa55ab5a55adaa56b5aa
+	hex	5a55abaa5ab556d5aaaaaaaa525595aa
+	hex	54aaaaaa5495aa2a5555555555555555
+	hex	d5aaaaaa55b5aaaa6a55b5aa5a55b5aa
+	hex	aa5a555555aaaa4a55a9aa5495aaaa4a
+	hex	55a5aa525555555555555555adaa6a55
+	hex	d5aaaaaaaaaa55555555555555555555
+	hex	70000000000000000000000000000000
+	hex	00000000000000000000000000000000
+	hex	555555555555555529d55ab596aa54a9
+	hex	5aab5455555552da56dbaa5252555525
+	hex	69b5b64a5556ab2aa5aada2d51496d4a
+	hex	95ea56bd9594d497802475ab5beb96d4
+	hex	8648b2bf4455741555a95ddaaf90da57
+	hex	0088daaabd7d976c0520f23f84b5b692
+	hex	aa5497f62be83f01007449dffe9f500b
+	hex	84de1380fd2d91d635a5fe8afe0200e0
+	hex	17e8efff037a40f60500f47fd105fe92
+	hex	f6df1b0000e00ffadfff007e803f0002
+	hex	ff1f5c807fdaff0f000005faefff826e
+	hex	915f0000f0ff4522f6ddff0f000058e9
+	hex	5ff64bff1f000060d77d9576fd3f0000
+	hex	f0937e5522fbff0300e05fc02f2bf5ff
+	hex	0f00005ec87f5bd2ff1f0000784d76d5
+	hex	76ff0f0000fe4077abd4ff1f0000fc2f
+	hex	92aaeaff3f00007e2d512adaffff0000
+	hex	f057e892daff3f0000f0fb4a5590f7ff
+	hex	0100f0ff004becfeff0100e0d755b4a2
+	hex	deff070080ff112b69f7ff010080ff2b
+	hex	5544fdff030000ff3f40addeff070000
+	hex	fe3f90aafaff070000fe3f8854f7ff03
+	hex	0000feff0116ddff070000feff0168fd
+	hex	ff070000fcff019afcff070000f8ff03
+	hex	68fbff070000f8ff0798f4ff0f0000f8
+	hex	ff0f80fafd7f0000e0ff0760d5ffff00
+	hex	0080ff3f80a27eff0f0000fcff9028f5
+	hex	ff1f0000f8fa5355e1fdff000080ff3f
+	hex	a0227bff1f00007cfd0f20a87fff7f00
+	hex	0000deff04aef6affe070000e0ff1f90
+	hex	52fdafff080000fcb50b7477ff97ba00
+	hex	0000f8ff5f5549eddbae001280b6f4de
+	hex	b654777713a04aa05f8992da575555bb
+	hex	5249aa5555bd422aa45baa555bdf5522
+	hex	15415f554b52aa56a9dbdb5a950801dd
+	hex	5b2b2555d55a55d5de4d8200d4fddd36
+	hex	11c9aa92cc7a6f564a12b2b6d5b65255
+	hex	940851f6ffaf941025a96a556dbbad22
+	hex	0051bbdfbd2a954892d2da55dba5944a
+	hex	09aa6edbb6b50891da565555d5aaaa4a
+	hex	91d4d6566db52a9454add6564955d5aa
+	hex	2a55a4b25b5555d5aaaa524ada565555
+	hex	5555d5aa54a9aaa4da6ad5aa55a95255
+	hex	4569adb56a9552555529555b555555a5
+	hex	d556499555552aadaab5ad4a24595b55
+	hex	55555555ab94aa55555555a95655a5aa
+	hex	d552555555b5aa5255a9aaaaaa6a6dab
+	hex	9254a9aa52ab55d55a9554555555a594
+	hex	7555ab54ad5495aa4a75556d95525955
+	hex	5555aa55b52a5555b5545595aaaaaa59
+	hex	b5aa2a55695555aa546bb5aa5255b5aa
+	hex	5411b56d6da552d52a95aad45ab5a954
+	hex	554b55a5546bd554aad5b5a494a4da56
+	hex	ad5455d5aa5251da55ab525555555555
+	hex	55000000000000000000000000000000
+	hex	00000000000000000000000000000000
 
 ;;;;; CPU VECTORS
 

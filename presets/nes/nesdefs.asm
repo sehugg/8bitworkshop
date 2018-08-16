@@ -1,4 +1,4 @@
-
+﻿
 	processor 6502
 
 ;;;;; CONSTANTS
@@ -112,3 +112,41 @@ NES_MIRR_QUAD	= 8
 	.word Start		;$fffc reset
 	.word NMIHandler	;$fffe irq / brk (not used)
 	ENDM
+
+;;;;; PPU_SETADDR <address> - set 16-bit PPU address
+
+	MAC PPU_SETADDR
+        lda #>{1}
+        ldy #<{1}
+        sta PPU_ADDR
+        sty PPU_ADDR
+        ENDM
+
+;;;;; PPU_SETVALUE <value> - feed 8-bit value to PPU
+        
+        MAC PPU_SETVALUE
+        lda #{1}
+        sta PPU_DATA
+        ENDM
+
+;;;;; SAVE_REGS - save flags/A/X/Y registers
+
+        MAC SAVE_REGS
+        php
+        pha
+        txa
+        pha
+        tya
+        pha
+        ENDM
+
+;;;;; SAVE_REGS - restore Y/X/A/flags registers
+
+        MAC RESTORE_REGS
+        pla
+        tay
+        pla
+        tax
+        pla
+        plp
+        ENDM
