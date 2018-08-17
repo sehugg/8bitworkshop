@@ -116,7 +116,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
     <button id="dbg_fastest" type="submit" title="Faster"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
   </span>
   <span class="btn_group view_group" id="extra_bar">
-    <button id="dbg_timing" type="submit" title="See Timing" style="display:none"><span class="glyphicon glyphicon-time" aria-hidden="true"></span></button>
+    <button id="dbg_timing" type="submit" title="Analyze CPU Timing" style="display:none"><span class="glyphicon glyphicon-time" aria-hidden="true"></span></button>
     <button id="dbg_disasm" type="submit" title="Show Disassembly" style="display:none"><span class="glyphicon glyphicon-list" aria-hidden="true"></span></button>
     <button id="dbg_memory" type="submit" title="Show Memory" style="display:none"><span class="glyphicon glyphicon-sunglasses" aria-hidden="true"></span></button>
     <button id="dbg_profile" type="submit" title="Show Profile" style="display:none"><span class="glyphicon glyphicon-stats" aria-hidden="true"></span></button>
@@ -245,12 +245,13 @@ function require(modname) {
 <script src="tss/js/tss/AudioLooper.js"></script>
 <script src="tss/js/Log.js"></script>
 
+<script src="gen/util.js"></script>
 <script src="gen/store.js"></script>
 <script src="src/vlist.js"></script>
 <script src="gen/emu.js"></script>
 <script src="gen/baseplatform.js"></script>
+<script src="gen/analysis.js"></script>
 <script src="gen/audio.js"></script>
-<script src="gen/util.js"></script>
 <script src="gen/cpu/disasm6502.js"></script>
 <script src="gen/workertypes.js"></script>
 <script src="gen/project.js"></script>

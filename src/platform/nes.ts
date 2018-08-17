@@ -3,6 +3,7 @@
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502 } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, dumpStackToString } from "../emu";
 import { hex, lpad, lzgmini } from "../util";
+import { CodeAnalyzer_nes } from "../analysis";
 
 declare var jsnes : any;
 
@@ -131,7 +132,12 @@ var JSNESPlatform = function(mainElement) {
     nes.loadROM(romstr);
     frameindex = 0;
   }
-
+  this.newCodeAnalyzer = function() {
+    return new CodeAnalyzer_nes(this);
+  }
+  this.getOriginPC = function() {	// TODO: is actually NMI
+    return (this.readAddress(0xfffa) | (this.readAddress(0xfffb) << 8)) & 0xffff;
+  }
   this.getOpcodeMetadata = getOpcodeMetadata_6502;
   this.getDefaultExtension = function() { return ".c"; };
   

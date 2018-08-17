@@ -1,11 +1,12 @@
 ﻿
 	include "nesdefs.asm"
 
-;;;;; VARIABLES
+;;;;; ZERO-PAGE VARIABLES
 
 	seg.u ZEROPAGE
 	org $0
 
+;;;;; OTHER VARIABLES
 
 	seg.u RAM
 	org $300
@@ -34,7 +35,7 @@ Start:
         sta PPU_SCROLL  ; scroll = $0000
         lda #CTRL_NMI
         sta PPU_CTRL	; enable NMI
-        lda #MASK_BG
+        lda #MASK_BG|MASK_SPR
         sta PPU_MASK 	; enable rendering
 .endless
 	jmp .endless	; endless loop
@@ -70,6 +71,16 @@ SetPalette: subroutine
 	bne .loop
         rts
 
+; set sprite 0
+SetSprite0: subroutine
+	sta $200	;y
+        lda #1		;code
+        sta $201
+        lda #0		;flags
+        sta $202
+        lda #8		;xpos
+        sta $203
+	rts
 
 ;;;;; COMMON SUBROUTINES
 
@@ -79,6 +90,17 @@ SetPalette: subroutine
 
 NMIHandler: subroutine
 	SAVE_REGS
+        lda #112
+        jsr SetSprite0
+; load sprites
+	lda #$02
+        sta PPU_OAM_DMA
+; wait for sprite 0
+.wait0	bit PPU_STATUS
+        bvs .wait0
+.wait1	bit PPU_STATUS
+        bvc .wait1
+; alter horiz. scroll position for each scanline
         ldy #0
 .loop
 	tya
@@ -91,10 +113,9 @@ NMIHandler: subroutine
         sta PPU_SCROLL	; horiz byte
         lda #0
         sta PPU_SCROLL	; vert byte
-        ldx #15
-.delay
-        dex
-        bne .delay
+        REPEAT 25
+        bit $0000
+        REPEND
         iny
         cpy #224
         bne .loop

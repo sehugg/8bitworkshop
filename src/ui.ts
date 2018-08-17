@@ -1,6 +1,5 @@
 "use strict";
 
-import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap } from "./util";
 
 // 8bitworkshop IDE user interface
 
@@ -12,11 +11,11 @@ import { ProjectWindows } from "./windows";
 import { Platform, Preset } from "./baseplatform";
 import { PLATFORMS } from "./emu";
 import * as Views from "./views";
+import { createNewPersistentStore } from "./store";
+import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap } from "./util";
 
 // external libs (TODO)
 declare var Octokat, ga, Tour, GIF, saveAs;
-declare function createNewPersistentStore(platform_id : string);
-declare function showLoopTimingForPC(pc:number, sourcefile:SourceFile, wnd:Views.ProjectView);
 
 // make sure VCS doesn't start
 if (window['Javatari']) window['Javatari'].AUTO_START = false;
@@ -669,8 +668,10 @@ function _openBitmapEditor() {
 function traceTiming() {
   projectWindows.refresh(false);
   var wnd = projectWindows.getActive();
-  if (wnd.getSourceFile && wnd.setGutterBytes) { // is editor active?
-    showLoopTimingForPC(0, wnd.getSourceFile(), wnd);
+  if (wnd.getSourceFile && wnd.setTimingResult) { // is editor active?
+    var analyzer = platform.newCodeAnalyzer();
+    analyzer.showLoopTimingForPC(0);
+    wnd.setTimingResult(analyzer);
   }
 }
 
@@ -689,7 +690,7 @@ function setupDebugControls(){
     $("#dbg_tovsync").hide();
   if ((platform.runEval || platform.runToPC) && platform_id != 'verilog')
     $("#dbg_toline").click(runToCursor).show();
-  else
+                                    else
     $("#dbg_toline").hide();
   if (platform.runUntilReturn)
     $("#dbg_stepout").click(runUntilReturn).show();
@@ -700,7 +701,7 @@ function setupDebugControls(){
   else
     $("#dbg_stepback").hide();
 
-  if (window['showLoopTimingForPC']) { // VCS-only (TODO: put in platform)
+  if (platform.newCodeAnalyzer) {
     $("#dbg_timing").click(traceTiming).show();
   }
   $("#disassembly").hide();
@@ -823,10 +824,6 @@ function gotoNewLocation() {
   window.location.href = "?" + $.param(qs);
 }
 
-function initPlatform() {
-  store = createNewPersistentStore(platform_id);
-}
-
 function showBookLink() {
   if (platform_id == 'vcs')
     $("#booklink_vcs").show();
@@ -860,7 +857,6 @@ function addPageFocusHandlers() {
 }
 
 function startPlatform() {
-  initPlatform();
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
   PRESETS = platform.getPresets();
@@ -893,11 +889,12 @@ function loadSharedFile(sharekey : string) {
     var json = JSON.parse(val.description.slice(val.description.indexOf(' ')+1));
     console.log("Fetched " + newid, json);
     platform_id = json['platform'];
-    initPlatform();
-    current_project.updateFile(newid, val.files[filename].content);
-    reloadPresetNamed(newid);
-    delete qs['sharekey'];
-    gotoNewLocation();
+    store = createNewPersistentStore(platform_id, () => {
+      current_project.updateFile(newid, val.files[filename].content);
+      reloadPresetNamed(newid);
+      delete qs['sharekey'];
+      gotoNewLocation();
+    });
   }).fail(function(err) {
     alert("Error loading share file: " + err.message);
   });
@@ -918,9 +915,9 @@ function startUI(loadplatform : boolean) {
   if (qs['sharekey']) {
     loadSharedFile(qs['sharekey']);
   } else {
+    store = createNewPersistentStore(platform_id, null);
     // reset file?
     if (qs['file'] && qs['reset']) {
-      initPlatform();
       store.removeItem(qs['fileview'] || qs['file']);
       qs['reset'] = '';
       gotoNewLocation();

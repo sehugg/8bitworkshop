@@ -1,6 +1,7 @@
 
 import { RAM, RasterVideo, dumpRAM, dumpStackToString } from "./emu";
 import { hex } from "./util";
+import { CodeAnalyzer } from "./analysis";
 
 declare var Z80_fast, jt, CPU6809;
 
@@ -52,6 +53,7 @@ export interface Platform {
   getDebugCallback?() : any; // TODO
   getSP?() : number;
   getOriginPC?() : number;
+  newCodeAnalyzer() : CodeAnalyzer;
 
   getDebugCategories() : string[];
   getDebugInfo(category:string, state:EmuState) : string;

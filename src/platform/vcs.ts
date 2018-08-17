@@ -3,6 +3,7 @@
 import { Platform, cpuStateToLongString_6502, BaseMAMEPlatform } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, dumpRAM } from "../emu";
 import { hex, lpad, tobin, byte2signed } from "../util";
+import { CodeAnalyzer_vcs } from "../analysis";
 
 declare var platform : Platform; // global platform object
 declare var Javatari : any;
@@ -99,6 +100,9 @@ var VCSPlatform = function() {
   this.getOriginPC = function() {
     return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
   }
+  this.newCodeAnalyzer = function() {
+    return new CodeAnalyzer_vcs(this);
+  }
   /*
   this.saveState = function() {
     return Javatari.room.console.saveState(); // TODO
@@ -182,175 +186,6 @@ var VCSPlatform = function() {
 
 function nonegstr(n) {
   return n < 0 ? "-" : n.toString();
-}
-
-/// VCS TIMING ANALYSIS
-
-var pc2minclocks = {};
-var pc2maxclocks = {};
-var jsrresult = {};
-var MAX_CLOCKS = 76*2;
-
-// [taken, not taken]
-var BRANCH_CONSTRAINTS = [
-  [{N:0},{N:1}],
-  [{N:1},{N:0}],
-  [{V:0},{V:1}],
-  [{V:1},{V:0}],
-  [{C:0},{C:1}],
-  [{C:1},{C:0}],
-  [{Z:0},{Z:1}],
-  [{Z:1},{Z:0}]
-];
-
-function constraintEquals(a,b) {
-  if (a == null || b == null)
-    return null;
-  for (var n in a) {
-    if (b[n] !== 'undefined')
-      return a[n] == b[n];
-  }
-  for (var n in b) {
-    if (a[n] !== 'undefined')
-      return a[n] == b[n];
-  }
-  return null;
-}
-
-function getClockCountsAtPC(pc) {
-  var opcode = platform.readAddress(pc);
-  var meta = platform.getOpcodeMetadata(opcode, pc);
-  return meta; // minCycles, maxCycles
-}
-
-function _traceInstructions(pc:number, minclocks:number, maxclocks:number, subaddr:number, constraints) {
-  //console.log("trace", hex(pc), minclocks, maxclocks);
-  if (!minclocks) minclocks = 0;
-  if (!maxclocks) maxclocks = 0;
-  if (!constraints) constraints = {};
-  var modified = true;
-  var abort = false;
-  for (var i=0; i<1000 && modified && !abort; i++) {
-    modified = false;
-    var meta = getClockCountsAtPC(pc);
-    var lob = platform.readAddress(pc+1);
-    var hib = platform.readAddress(pc+2);
-    var addr = lob + (hib << 8);
-    var pc0 = pc;
-    if (!pc2minclocks[pc0] || minclocks < pc2minclocks[pc0]) {
-      pc2minclocks[pc0] = minclocks;
-      modified = true;
-    }
-    if (!pc2maxclocks[pc0] || maxclocks > pc2maxclocks[pc0]) {
-      pc2maxclocks[pc0] = maxclocks;
-      modified = true;
-    }
-    //console.log(hex(pc),minclocks,maxclocks,meta);
-    if (!meta.insnlength) {
-      console.log("Illegal instruction!", hex(pc), hex(meta.opcode), meta);
-      break;
-    }
-    pc += meta.insnlength;
-    var oldconstraints = constraints;
-    constraints = null;
-    // TODO: if jump to zero-page, maybe assume RTS?
-    switch (meta.opcode) {
-      /*
-      case 0xb9: // TODO: hack for zero page,y
-        if (addr < 0x100)
-          meta.maxCycles -= 1;
-        break;
-      */
-      case 0x85:
-        if (lob == 0x2) { // STA WSYNC
-          minclocks = maxclocks = 0;
-          meta.minCycles = meta.maxCycles = 0;
-        }
-        break;
-      case 0x20: // JSR
-        _traceInstructions(addr, minclocks, maxclocks, addr, constraints);
-        var result = jsrresult[addr];
-        if (result) {
-          minclocks = result.minclocks;
-          maxclocks = result.maxclocks;
-        } else {
-          console.log("No JSR result!", hex(pc), hex(addr));
-          return;
-        }
-        break;
-      case 0x4c: // JMP
-        pc = addr; // TODO: make sure in ROM space
-        break;
-      case 0x60: // RTS
-        if (subaddr) { // TODO: 0 doesn't work
-          // TODO: combine with previous result
-          var result = jsrresult[subaddr];
-          if (!result) {
-            result = {minclocks:minclocks, maxclocks:maxclocks};
-          } else {
-            result = {
-              minclocks:Math.min(minclocks,result.minclocks),
-              maxclocks:Math.max(maxclocks,result.maxclocks)
-            }
-          }
-          jsrresult[subaddr] = result;
-          console.log("RTS", hex(pc), hex(subaddr), jsrresult[subaddr]);
-        }
-        return;
-      case 0x10: case 0x30: // branch
-      case 0x50: case 0x70:
-      case 0x90: case 0xB0:
-      case 0xD0: case 0xF0:
-        var newpc = pc + byte2signed(lob);
-        var crosspage = (pc>>8) != (newpc>>8);
-        if (!crosspage) meta.maxCycles--;
-        // TODO: other instructions might modify flags too
-        var cons = BRANCH_CONSTRAINTS[Math.floor((meta.opcode-0x10)/0x20)];
-        var cons0 = constraintEquals(oldconstraints, cons[0]);
-        var cons1 = constraintEquals(oldconstraints, cons[1]);
-        if (cons0 !== false) {
-          _traceInstructions(newpc, minclocks+meta.maxCycles, maxclocks+meta.maxCycles, subaddr, cons[0]);
-        }
-        if (cons1 === false) {
-          console.log("abort", hex(pc), oldconstraints, cons[1]);
-          abort = true;
-        }
-        constraints = cons[1]; // not taken
-        meta.maxCycles = meta.minCycles; // branch not taken, no extra clock(s)
-        break;
-      case 0x6c:
-        console.log("Instruction not supported!", hex(pc), hex(meta.opcode), meta); // TODO
-        return;
-    }
-    // TODO: wraparound?
-    minclocks = Math.min(MAX_CLOCKS, minclocks + meta.minCycles);
-    maxclocks = Math.min(MAX_CLOCKS, maxclocks + meta.maxCycles);
-  }
-}
-
-function showLoopTimingForPC(pc, sourcefile, ed) {
-  pc2minclocks = {};
-  pc2maxclocks = {};
-  jsrresult = {};
-  // recurse through all traces
-  _traceInstructions(pc | platform.getOriginPC(), MAX_CLOCKS, MAX_CLOCKS, 0, {});
-  ed.editor.clearGutter("gutter-bytes");
-  // show the lines
-  for (var line in sourcefile.line2offset) {
-    var pc = sourcefile.line2offset[line];
-    var minclocks = pc2minclocks[pc];
-    var maxclocks = pc2maxclocks[pc];
-    if (minclocks>=0 && maxclocks>=0) {
-      var s;
-      if (maxclocks == minclocks)
-        s = minclocks + "";
-      else
-        s = minclocks + "-" + maxclocks;
-      if (maxclocks == MAX_CLOCKS)
-        s += "+";
-      ed.setGutterBytes(line, s);
-    }
-  }
 }
 
 ///////////////

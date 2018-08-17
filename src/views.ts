@@ -5,6 +5,7 @@ import { CodeProject } from "./project";
 import { SourceFile, WorkerError } from "./workertypes";
 import { Platform } from "./baseplatform";
 import { hex } from "./util";
+import { CodeAnalyzer } from "./analysis";
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
@@ -17,6 +18,7 @@ export interface ProjectView {
   openBitmapEditorAtCursor?() : void;
   markErrors?(errors:WorkerError[]) : void;
   clearErrors?() : void;
+  setTimingResult?(result:CodeAnalyzer) : void;
 };
 
 // TODO: move to different namespace
@@ -209,6 +211,26 @@ export class SourceEditor implements ProjectView {
   
   setGutterBytes(line:number, s:string) {
     this.setGutter("gutter-bytes", line-1, s);
+  }
+  
+  setTimingResult(result:CodeAnalyzer) : void {
+    this.editor.clearGutter("gutter-bytes");
+    // show the lines
+    for (const line in Object.keys(this.sourcefile.line2offset)) {
+      var pc = this.sourcefile.line2offset[line];
+      var minclocks = result.pc2minclocks[pc];
+      var maxclocks = result.pc2maxclocks[pc];
+      if (minclocks>=0 && maxclocks>=0) {
+        var s;
+        if (maxclocks == minclocks)
+          s = minclocks + "";
+        else
+          s = minclocks + "-" + maxclocks;
+        if (maxclocks == result.MAX_CLOCKS)
+          s += "+";
+        this.setGutterBytes(parseInt(line), s);
+      }
+    }
   }
   
   setCurrentLine(line:number, moveCursor:boolean) {

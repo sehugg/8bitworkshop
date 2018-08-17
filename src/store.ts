@@ -68,7 +68,7 @@ localforage.defineDriver(OldFileStoreDriver);
 */
 
 // copy localStorage to new driver
-function copyFromOldStorageFormat(platformid:string, newstore, callback:()=>void) {
+function copyFromOldStorageFormat(platformid:string, newstore, conversioncallback:()=>void) {
   var alreadyMigratedKey = "__migrated_" + platformid;
   //localStorage.removeItem(alreadyMigratedKey);
   if (localStorage.getItem(alreadyMigratedKey))
@@ -97,8 +97,8 @@ function copyFromOldStorageFormat(platformid:string, newstore, callback:()=>void
             console.log("Migrated " + len + " local files to new data store");
             if (len) {
               localStorage.setItem(alreadyMigratedKey, 'true');
-              if (callback)
-                callback();
+              if (conversioncallback)
+                conversioncallback();
               else
                 window.location.reload();
             }
