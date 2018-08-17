@@ -8,11 +8,11 @@
 
 ;;;;; NES CARTRIDGE HEADER
 
-	NES_HEADER 0,2,1,0 ; mapper 0, 2 PRGs, 1 CHR, vertical
+	NES_HEADER 0,2,1,NES_MIRR_HORIZ ; mapper 0, 2 PRGs, 1 CHR
 
 ;;;;; START OF CODE
 
-Start:
+Start:	subroutine
 	NES_INIT	; set up stack pointer, turn off PPU
         jsr WaitSync	; wait for VSYNC
         jsr ClearRAM	; clear RAM
@@ -37,7 +37,9 @@ Start:
 
 ;;;;; INTERRUPT HANDLERS
 
-NMIHandler:
+NMIHandler: subroutine
+	SAVE_REGS
+	RESTORE_REGS
 	rti
 
 ;;;;; CPU VECTORS

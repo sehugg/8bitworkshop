@@ -439,7 +439,7 @@ export function padBytes(data, len) {
 
 type AddressReadWriteFn = ((a:number) => number) | ((a:number,v:number) => void);
 type AddressDecoderEntry = [number, number, number, AddressReadWriteFn];
-type AddressDecoderOptions = {gmask:number}
+type AddressDecoderOptions = {gmask?:number};
 
 // TODO: better performance, check values
 export function AddressDecoder(table : AddressDecoderEntry[], options?:AddressDecoderOptions) {

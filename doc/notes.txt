@@ -49,6 +49,7 @@ TODO:
 - go to error in include files
 - BOM in upload/download?
 - stack view for Z80 platforms using memory map
+- online tools for music etc
 
 FYI: Image links for the books on http://8bitworkshop.com/ are broken
 On the website the additional grey spacing next to the program line numbers is not dynamically resized when the web browser window size is changed.  Intentional?

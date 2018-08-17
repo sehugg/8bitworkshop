@@ -99,7 +99,7 @@ abstract class BaseDebugPlatform {
   clearDebug() {
     this.debugSavedState = null;
     this.debugBreakState = null;
-    this.debugTargetClock = 0;
+    this.debugTargetClock = -1;
     this.debugClock = 0;
     this.onBreakpointHit = null;
     this.debugCondition = null;
@@ -144,7 +144,7 @@ abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
   }
   runEval(evalfunc : DebugEvalCondition) {
     this.setDebugCondition( () => {
-      if (this.debugClock++ >= this.debugTargetClock) {
+      if (this.debugClock++ > this.debugTargetClock) {
         var cpuState = this.getCPUState();
         cpuState.PC = (cpuState.PC + this.debugPCDelta) & 0xffff;
         if (evalfunc(cpuState)) {
