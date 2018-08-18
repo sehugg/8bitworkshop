@@ -15,7 +15,9 @@ export function noise() {
   return (Math.random() * 256) & 0xff;
 }
 
-function __createCanvas(mainElement:HTMLElement, width:number, height:number) {
+type KeyboardCallback = (which:number, charCode:number, flags:number) => void;
+
+function __createCanvas(mainElement:HTMLElement, width:number, height:number) : HTMLElement {
   // TODO
   var fsElement = document.createElement('div');
   fsElement.classList.add("emubevel");
@@ -31,8 +33,19 @@ function __createCanvas(mainElement:HTMLElement, width:number, height:number) {
   return canvas;
 }
 
+function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
+  canvas.onkeydown = function(e) {
+    callback(e.which, 0, 1|_metakeyflags(e));
+  };
+  canvas.onkeyup = function(e) {
+    callback(e.which, 0, 0|_metakeyflags(e));
+  };
+  canvas.onkeypress = function(e) {
+    callback(e.which, e.charCode, 1|_metakeyflags(e));
+  };
+};
+
 export var RasterVideo = function(mainElement:HTMLElement, width:number, height:number, options?) {
-  var self = this;
   var canvas, ctx;
   var imageData, arraybuf, buf8, datau32;
 
@@ -49,9 +62,9 @@ export var RasterVideo = function(mainElement:HTMLElement, width:number, height:
   }
 
   this.create = function() {
-    self.canvas = canvas = __createCanvas(mainElement, width, height);
+    this.canvas = canvas = __createCanvas(mainElement, width, height);
     if (options && options.rotate) {
-      self.setRotate(options.rotate);
+      this.setRotate(options.rotate);
     }
     ctx = canvas.getContext('2d');
     imageData = ctx.createImageData(width, height);
@@ -64,24 +77,15 @@ export var RasterVideo = function(mainElement:HTMLElement, width:number, height:
     datau32 = new Uint32Array(imageData.data.buffer);
   }
 
-  // TODO: common function (canvas)
   this.setKeyboardEvents = function(callback) {
-    canvas.onkeydown = function(e) {
-      callback(e.which, 0, 1|_metakeyflags(e));
-    };
-    canvas.onkeyup = function(e) {
-      callback(e.which, 0, 0|_metakeyflags(e));
-    };
-    canvas.onkeypress = function(e) {
-      callback(e.which, e.charCode, 1|_metakeyflags(e));
-    };
-  };
+    _setKeyboardEvents(canvas, callback);
+  }
 
   this.getFrameData = function() { return datau32; }
 
   this.getContext = function() { return ctx; }
 
-  this.updateFrame = function(sx, sy, dx, dy, width, height) {
+  this.updateFrame = function(sx:number, sy:number, dx:number, dy:number, width?:number, height?:number) {
     //imageData.data.set(buf8); // TODO: slow w/ partial updates
     if (width && height)
       ctx.putImageData(imageData, sx, sy, dx, dy, width, height);
@@ -89,51 +93,6 @@ export var RasterVideo = function(mainElement:HTMLElement, width:number, height:
       ctx.putImageData(imageData, 0, 0);
     if (frameUpdateFunction) frameUpdateFunction(canvas);
   }
-
-/*
-mainElement.style.position = "relative";
-mainElement.style.overflow = "hidden";
-mainElement.style.outline = "none";
-mainElement.tabIndex = "-1";               // Make it focusable
-
-borderElement = document.createElement('div');
-borderElement.style.position = "relative";
-borderElement.style.overflow = "hidden";
-borderElement.style.background = "black";
-borderElement.style.border = "0 solid black";
-borderElement.style.borderWidth = "" + borderTop + "px " + borderLateral + "px " + borderBottom + "px";
-if (Javatari.SCREEN_CONTROL_BAR === 2) {
-    borderElement.style.borderImage = "url(" + IMAGE_PATH + "screenborder.png) " +
-        borderTop + " " + borderLateral + " " + borderBottom + " repeat stretch";
-}
-
-fsElement = document.createElement('div');
-fsElement.style.position = "relative";
-fsElement.style.width = "100%";
-fsElement.style.height = "100%";
-fsElement.style.overflow = "hidden";
-fsElement.style.background = "black";
-
-document.addEventListener("fullscreenchange", fullScreenChanged);
-document.addEventListener("webkitfullscreenchange", fullScreenChanged);
-document.addEventListener("mozfullscreenchange", fullScreenChanged);
-document.addEventListener("msfullscreenchange", fullScreenChanged);
-
-borderElement.appendChild(fsElement);
-
-canvas.style.position = "absolute";
-canvas.style.display = "block";
-canvas.style.left = canvas.style.right = 0;
-canvas.style.top = canvas.style.bottom = 0;
-canvas.style.margin = "auto";
-canvas.tabIndex = "-1";               // Make it focusable
-canvas.style.outline = "none";
-fsElement.appendChild(canvas);
-
-setElementsSizes(jt.CanvasDisplay.DEFAULT_STARTING_WIDTH, jt.CanvasDisplay.DEFAULT_STARTING_HEIGHT);
-
-mainElement.appendChild(borderElement);
-*/
 }
 
 export var VectorVideo = function(mainElement:HTMLElement, width:number, height:number) {
@@ -146,22 +105,13 @@ export var VectorVideo = function(mainElement:HTMLElement, width:number, height:
   var sy = height/1024.0;
 
   this.create = function() {
-    canvas = __createCanvas(mainElement, width, height);
+    this.canvas = canvas = __createCanvas(mainElement, width, height);
     ctx = canvas.getContext('2d');
   }
 
-  // TODO: common function (canvas)
   this.setKeyboardEvents = function(callback) {
-    canvas.onkeydown = function(e) {
-      callback(e.which, 0, 1|_metakeyflags(e));
-    };
-    canvas.onkeyup = function(e) {
-      callback(e.which, 0, 0|_metakeyflags(e));
-    };
-    canvas.onkeypress = function(e) {
-      callback(e.which, e.charCode, 1|_metakeyflags(e));
-    };
-  };
+    _setKeyboardEvents(canvas, callback);
+  }
 
   this.clear = function() {
     ctx.globalCompositeOperation = 'source-over';
@@ -184,8 +134,8 @@ export var VectorVideo = function(mainElement:HTMLElement, width:number, height:
     '#ffffff'
   ];
 
-  this.drawLine = function(x1, y1, x2, y2, intensity, color) {
-    //console.log(x1, y1, x2, y2, intensity);
+  this.drawLine = function(x1:number, y1:number, x2:number, y2:number, intensity:number, color:number) {
+    //console.log(x1,y1,x2,y2,intensity,color);
     if (intensity > 0) {
       // TODO: landscape vs portrait
       var alpha = Math.pow(intensity / 255.0, gamma);
@@ -476,14 +426,17 @@ declare var addr2symbol;		// address to symbol name map (TODO: import)
 
 function lookupSymbol(addr) {
   var start = addr;
+  var foundsym;
   while (addr >= 0) {
     var sym = addr2symbol[addr];
-    // TODO: what about asm?
-    if (sym && sym.startsWith('_')) {
+    if (sym && sym.startsWith('_')) { // return first C symbol we find
       return addr2symbol[addr] + " + " + (start-addr);
+    } else if (sym && !foundsym) { // cache first non-C symbol found
+      foundsym = sym;
     }
     addr--;
   }
+  return foundsym || "";
 }
 
 export function dumpStackToString(mem:number[], start:number, end:number, sp:number) : string {
@@ -492,8 +445,10 @@ export function dumpStackToString(mem:number[], start:number, end:number, sp:num
   //s = dumpRAM(mem.slice(start,start+end+1), start, end-start+1);
   while (sp < end) {
     sp++;
+    // see if there's a JSR on the stack here
+    // TODO: make work with roms and memory maps
     var addr = mem[sp] + mem[sp+1]*256;
-    var opcode = mem[addr-2];
+    var opcode = mem[addr-2]; // might be out of bounds
     if (opcode == 0x20) { // JSR
       s += "\n$" + hex(sp) + ": ";
       s += hex(addr,4) + " " + lookupSymbol(addr);

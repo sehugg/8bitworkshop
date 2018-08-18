@@ -53,12 +53,15 @@ function newPOKEYAudio() {
 
 var AtariVectorPlatform = function(mainElement) {
   var self = this;
-  var cpuFrequency = 1500000.0;
-  var cpuCyclesPerNMI = 6000;
+  var XTAL = 12096000;
+  var cpuFrequency = XTAL/8;
+  var cpuCyclesPer3khz = Math.round(cpuFrequency/(XTAL/4096)); // ~3 Khz
+  var cpuCyclesPerNMI = Math.round(cpuFrequency*12/(XTAL/4096)); // ~250 Hz
   var cpuCyclesPerFrame = Math.round(cpuFrequency/60);
   var cpu, cpuram, dvgram, rom, vecrom, bus, dvg;
   var video, audio, timer;
   var clock;
+  var watchdog = 0;
   var switches = new RAM(16).mem;
   var nmicount = cpuCyclesPerNMI;
 
@@ -71,14 +74,14 @@ var AtariVectorPlatform = function(mainElement) {
   this.start = function() {
     cpuram = new RAM(0x400);
     dvgram = new RAM(0x2000);
-    switches[5] = 0xff;
-    switches[7] = 0xff;
+    //switches[5] = 0xff;
+    //switches[7] = 0xff;
     // bus
     bus = {
 
       read: newAddressDecoder([
         [0x0,    0x3ff,  0x3ff,  function(a) { return cpuram.mem[a]; }],
-        [0x2001, 0x2001, 0,      function(a) { return ((clock/500) & 1) ? 0xff : 0x00; }],
+        [0x2001, 0x2001, 0,      function(a) { return ((clock / cpuCyclesPer3khz) & 1) ? 0xff : 0x00; }],
         [0x2000, 0x2007, 0x7,    function(a) { return switches[a]; }],
         [0x2400, 0x2407, 0x7,    function(a) { return switches[a+8]; }],
         [0x4000, 0x4fff, 0xfff,  function(a) { return dvgram.mem[a]; }],
@@ -89,6 +92,7 @@ var AtariVectorPlatform = function(mainElement) {
       write: newAddressDecoder([
         [0x0,    0x3ff,  0x3ff,  function(a,v) { cpuram.mem[a] = v; }],
         [0x3000, 0x3000, 0,      function(a,v) { dvg.runUntilHalt(0); }],
+        [0x3400, 0x3400, 0,      function(a,v) { watchdog = 0; }],
         // TODO: draw asynchronous or allow poll of HALT ($2002)
         [0x4000, 0x5fff, 0x1fff, function(a,v) { dvgram.mem[a] = v; }],
       ], {gmask:0x7fff})
@@ -113,11 +117,11 @@ var AtariVectorPlatform = function(mainElement) {
           var n = cpu.setNMIAndWait();
           clock += n;
           nmicount = cpuCyclesPerNMI - n;
-          //console.log(n, clock, nmicount);
         }
         cpu.clockPulse();
         //cpu.executeInstruction();
       }
+      //if (++watchdog == 256) { watchdog = 0; cpu.reset(); }
       self.restartDebugState();
     });
     setKeyboardFromMap(video, switches, ASTEROIDS_KEYCODE_MAP);
@@ -130,10 +134,6 @@ var AtariVectorPlatform = function(mainElement) {
     rom = data.slice(0,0x1800);
     vecrom = data.slice(0x1800,0x2000);
     this.reset();
-  }
-
-  this.getRasterPosition = function() {
-    return {x:0, y:0}; // TODO
   }
 
   this.isRunning = function() {
@@ -154,7 +154,7 @@ var AtariVectorPlatform = function(mainElement) {
 
   this.loadState = function(state) {
     cpu.loadState(state.c);
-    cpuram.mem.set(state.cb);
+    cpuram.mem.set(state.b);
     dvgram.mem.set(state.db);
     switches.set(state.sw);
     nmicount = state.nmic;
@@ -162,7 +162,7 @@ var AtariVectorPlatform = function(mainElement) {
   this.saveState = function() {
     return {
       c:cpu.saveState(),
-      cb:cpuram.mem.slice(0),
+      b:cpuram.mem.slice(0),
       db:dvgram.mem.slice(0),
       sw:switches.slice(0),
       nmic:nmicount
@@ -275,10 +275,6 @@ var AtariColorVectorPlatform = function(mainElement) {
     this.reset();
   }
 
-  this.getRasterPosition = function() {
-    return {x:0, y:0}; // TODO
-  }
-
   this.isRunning = function() {
     return timer && timer.isRunning();
   }
@@ -297,7 +293,7 @@ var AtariColorVectorPlatform = function(mainElement) {
 
   this.loadState = function(state) {
     cpu.loadState(state.c);
-    cpuram.mem.set(state.cb);
+    cpuram.mem.set(state.b);
     dvgram.mem.set(state.db);
     switches.set(state.sw);
     nmicount = state.nmic;
@@ -305,7 +301,7 @@ var AtariColorVectorPlatform = function(mainElement) {
   this.saveState = function() {
     return {
       c:cpu.saveState(),
-      cb:cpuram.mem.slice(0),
+      b:cpuram.mem.slice(0),
       db:dvgram.mem.slice(0),
       sw:switches.slice(0),
       nmic:nmicount
@@ -402,10 +398,6 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
     this.reset();
   }
 
-  this.getRasterPosition = function() {
-    return {x:0, y:0}; // TODO
-  }
-
   this.isRunning = function() {
     return timer && timer.isRunning();
   }
@@ -424,7 +416,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
 
   this.loadState = function(state) {
     cpu.loadState(state.c);
-    cpuram.mem.set(state.cb);
+    cpuram.mem.set(state.b);
     dvgram.mem.set(state.db);
     switches.set(state.sw);
     mathram.set(state.mr);
@@ -432,7 +424,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
   this.saveState = function() {
     return {
       c:cpu.saveState(),
-      cb:cpuram.mem.slice(0),
+      b:cpuram.mem.slice(0),
       db:dvgram.mem.slice(0),
       sw:switches.slice(0),
       mr:mathram.slice(0),
@@ -515,7 +507,7 @@ var DVGBWStateMachine = function(bus, video, bofs) {
         var z = w2 >> 12;
         var x2 = x + ((decodeSigned(w2, 10) << 7) >> sc);
         var y2 = y + ((decodeSigned(w, 10) << 7) >> sc);
-        video.drawLine(x, y, x2, y2, z, 255);
+        video.drawLine(x, y, x2, y2, z*32, 7);
         //console.log(pc.toString(16), w.toString(16), w2.toString(16), gsc, sc, x, y, x2, y2);
         x = x2;
         y = y2;
@@ -545,7 +537,7 @@ var DVGBWStateMachine = function(bus, video, bofs) {
         var x2 = x + ((decodeSigned(w, 2) << 7) >> sc);
         var y2 = y + ((decodeSigned(w>>8, 2) << 7) >> sc);
         var z = (w >> 4) & 0xf;
-        video.drawLine(x, y, x2, y2, z, 255);
+        video.drawLine(x, y, x2, y2, z*32, 7);
         x = x2;
         y = y2;
         break;
