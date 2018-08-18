@@ -1,6 +1,5 @@
 "use strict";
 
-
 // 8bitworkshop IDE user interface
 
 import $ = require("jquery");

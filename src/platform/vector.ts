@@ -449,7 +449,9 @@ var DVGBWStateMachine = function(bus, video, bofs) {
 
   function readWord(a) {
     a &= 0xfff;
-    return bus.read(a*2+bofs) + (bus.read(a*2+bofs+1) << 8);
+    var v = bus.read(a*2+bofs) + (bus.read(a*2+bofs+1) << 8);
+    //console.log(hex(a*2+bofs,4), hex(v,4), hex(x>>2), hex(y>>2));
+    return v;
   }
 
   function decodeSigned(w, o2) {
@@ -488,7 +490,7 @@ var DVGBWStateMachine = function(bus, video, bofs) {
     if (!running) return;
     var w = readWord(pc);
     var op = w >> 12;
-    //console.log(hex(pc), hex(w));
+    //console.log(hex(pc*2+bofs), hex(w), hex(x>>2), hex(y>>2));
     pc++;
     switch (op) {
       // VEC

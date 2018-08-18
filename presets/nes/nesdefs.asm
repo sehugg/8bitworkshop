@@ -1,4 +1,4 @@
-﻿
+
 	processor 6502
 
 ;;;;; CONSTANTS
@@ -129,10 +129,9 @@ NES_MIRR_QUAD	= 8
         sta PPU_DATA
         ENDM
 
-;;;;; SAVE_REGS - save flags/A/X/Y registers
+;;;;; SAVE_REGS - save A/X/Y registers
 
         MAC SAVE_REGS
-        php
         pha
         txa
         pha
@@ -140,7 +139,7 @@ NES_MIRR_QUAD	= 8
         pha
         ENDM
 
-;;;;; SAVE_REGS - restore Y/X/A/flags registers
+;;;;; SAVE_REGS - restore Y/X/A registers
 
         MAC RESTORE_REGS
         pla
@@ -148,5 +147,35 @@ NES_MIRR_QUAD	= 8
         pla
         tax
         pla
-        plp
         ENDM
+
+;-------------------------------------------------------------------------------
+; SLEEP clockcycles
+; Original author: Thomas Jentzsch
+; Inserts code which takes the specified number of cycles to execute.  This is
+; useful for code where precise timing is required.
+; LEGAL OPCODE VERSION MAY AFFECT FLAGS (uses 'bit' opcode)
+
+NO_ILLEGAL_OPCODES = 1
+
+            MAC SLEEP            ;usage: SLEEP n (n>1)
+.CYCLES     SET {1}
+
+                IF .CYCLES < 2
+                    ECHO "MACRO ERROR: 'SLEEP': Duration must be > 1"
+                    ERR
+                ENDIF
+
+                IF .CYCLES & 1
+                    IFNCONST NO_ILLEGAL_OPCODES
+                        nop 0
+                    ELSE
+                        bit $00
+                    ENDIF
+.CYCLES             SET .CYCLES - 3
+                ENDIF
+            
+                REPEAT .CYCLES / 2
+                    nop
+                REPEND
+            ENDM

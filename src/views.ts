@@ -170,9 +170,7 @@ export class SourceEditor implements ProjectView {
   
   getSourceFile() : SourceFile { return this.sourcefile; }
   
-  // TODO: update gutter only when refreshing this window
-  updateListing(_sourcefile : SourceFile) {
-    this.sourcefile = _sourcefile;
+  updateListing() {
     // update editor annotations
     this.editor.clearGutter("gutter-info");
     this.editor.clearGutter("gutter-bytes");
@@ -263,7 +261,7 @@ export class SourceEditor implements ProjectView {
     var state = lastDebugState;
     if (state && state.c && this.sourcefile) {
       var PC = state.c.PC;
-      var line = this.sourcefile.findLineForOffset(PC);
+      var line = this.sourcefile.findLineForOffset(PC, 15);
       return line;
     } else
       return -1;
@@ -279,12 +277,15 @@ export class SourceEditor implements ProjectView {
   }
   
   refreshListing() {
-    if (!this.dirtylisting) return;
-    this.dirtylisting = false;
+    // lookup corresponding sourcefile for this file, using listing
     var lst = current_project.getListingForFile(this.path);
-    if (lst && lst.sourcefile) {
-      this.updateListing(lst.sourcefile); // updates sourcefile variable
+    if (lst && lst.sourcefile && lst.sourcefile != this.sourcefile) {
+      this.sourcefile = lst.sourcefile;
+      this.dirtylisting = true;
     }
+    if (!this.sourcefile || !this.dirtylisting) return;
+    this.dirtylisting = false;
+    this.updateListing();
   }
 
   refresh(moveCursor: boolean) {
@@ -501,7 +502,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
     disasmview.setValue(asmtext);
     var findPC = platform.getDebugCallback() ? pc : -1;
     if (findPC >= 0 && this.assemblyfile) {
-      var lineno = this.assemblyfile.findLineForOffset(findPC);
+      var lineno = this.assemblyfile.findLineForOffset(findPC, 15);
       if (lineno && moveCursor) {
         // set cursor while debugging
         if (platform.getDebugCallback())

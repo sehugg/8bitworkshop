@@ -59,14 +59,15 @@ export class CodeProject {
       var re = /^\s*(`include|[.]include)\s+"(.+?)"/gm;
       var m;
       while (m = re.exec(text)) {
+        files.push('local/'+m[2]);
         files.push(m[2]);
-        //files.push('local/'+m[2]); // TODO: shows up 2x in interface
       }
     } else {
       // for .asm -- [.]include "file"
       // for .c -- #include "file"
       var re2 = /^\s+([.#]?include)\s+"(.+?)"/gm;
       while (m = re2.exec(text)) {
+        files.push('local/'+m[2]);
         files.push(m[2]);
       }
     }
@@ -82,6 +83,7 @@ export class CodeProject {
       var re = /^\s*([;#]|[/][/][#])link\s+"(.+?)"/gm;
       var m;
       while (m = re.exec(text)) {
+        files.push('local/' + m[2]);
         files.push(m[2]);
       }
     }
@@ -171,7 +173,8 @@ export class CodeProject {
               this.filedata[path] = value;
               addResult(path, value);
               loadNext();
-            } else {
+            } else if (!path.startsWith("local/")) {
+              // don't load local/
               // found on remote fetch?
               var preset_id = this.platform_id;
               preset_id = preset_id.replace(/[.]\w+/,''); // remove .suffix from preset name
@@ -191,6 +194,9 @@ export class CodeProject {
                   this.filedata[path] = null;
                 loadNext();
               });
+            } else {
+              // not gonna find it, keep going
+              loadNext();
             }
           });
         }

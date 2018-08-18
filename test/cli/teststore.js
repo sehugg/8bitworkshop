@@ -70,14 +70,17 @@ describe('Store', function() {
 
   it('Should load local project', function(done) {
    localStorage.clear();
-   localStorage.setItem('_TEST/test', 'a');
+   localStorage.setItem('_TEST/local/test', 'a');
    var store = mstore.createNewPersistentStore(test_platform_id, function() {
     var worker = {};
     var platform = {};
     var project = new prj.CodeProject(worker, test_platform_id, platform, store);
-    project.loadFiles(['test'], function(err, result) {
+    var remote = [];
+    project.callbackGetRemote = function(path) { remote.push(path); return {fail:function(failfn){failfn({status:404})}} };
+    project.loadFiles(['local/test','test'], function(err, result) {
      assert.equal(null, err);
-     assert.deepEqual([ { path: 'test', filename: 'test', data: 'a', link:true } ], result);
+     assert.deepEqual(["presets/_TEST/test"], remote);
+     assert.deepEqual([ { path: 'local/test', filename: 'test', data: 'a', link:true } ], result);
      done();
     });
    });

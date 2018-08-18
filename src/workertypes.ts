@@ -27,9 +27,9 @@ export class SourceFile {
       }
     }
   }
-  findLineForOffset(PC:number):number {
+  findLineForOffset(PC:number, lookbehind:number):number {
     if (this.offset2line) {
-      for (var i=0; i<16; i++) {
+      for (var i=0; i<=lookbehind; i++) {
         var line = this.offset2line[PC];
         if (line >= 0) {
           return line;
