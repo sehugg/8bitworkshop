@@ -399,7 +399,7 @@ var print_fn = function(s) {
 // test.c(6) : warning 85: in function main unreferenced local variable : 'x'
 // main.a (4): error: Unknown Mnemonic 'xxx'.
 // at 2: warning 190: ISO C forbids an empty source file
-var re_msvc  = /([^(]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
+var re_msvc  = /[/]*([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
 var re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
 
 function msvcErrorMatcher(errors) {
@@ -409,7 +409,7 @@ function msvcErrorMatcher(errors) {
       var errline = parseInt(matches[2]);
       errors.push({
         line:errline,
-        //path:matches[1],
+        path:matches[1],
         type:matches[3],
         msg:matches[4]
       });
@@ -419,13 +419,14 @@ function msvcErrorMatcher(errors) {
   }
 }
 
-function makeErrorMatcher(errors, regex, iline, imsg) {
+function makeErrorMatcher(errors, regex, iline, imsg, path) {
   return function(s) {
     var matches = regex.exec(s);
     if (matches) {
       errors.push({
         line:parseInt(matches[iline]) || 1,
-        msg:matches[imsg]
+        msg:matches[imsg],
+        path:path
       });
     } else {
       console.log("??? "+s);
@@ -433,9 +434,9 @@ function makeErrorMatcher(errors, regex, iline, imsg) {
   }
 }
 
-function extractErrors(regex, strings) {
+function extractErrors(regex, strings, path) {
   var errors = [];
-  var matcher = makeErrorMatcher(errors, regex, 1, 2);
+  var matcher = makeErrorMatcher(errors, regex, 1, 2, path);
   for (var i=0; i<strings.length; i++) {
     matcher(strings[i]);
   }
@@ -539,6 +540,7 @@ function parseDASMListing(code, unresolved, mainFilename) {
     var errm = re_msvc.exec(line);
     if (errm) {
       errors.push({
+        path:errm[1],
         line:parseInt(errm[2]),
         msg:errm[4]
       })
@@ -876,9 +878,10 @@ function assembleSDASZ80(step) {
     function match_asm_fn(s) {
       var matches = match_asm_re.exec(s);
       if (matches) {
-        var errline = parseInt(matches[2]);
+        //var errline = parseInt(matches[2]);
         errors.push({
-          line:1, // TODO: errline,
+          line:1, // TODO
+          path:step.path,
           msg:matches[1]
         });
       }
@@ -1062,7 +1065,7 @@ function preprocessMCPP(step) {
   if (!params) throw Error("Platform not supported: " + platform);
   // <stdin>:2: error: Can't open include file "foo.h"
   var errors = [];
-  var match_fn = makeErrorMatcher(errors, /<stdin>:(\d+): (.+)/, 1, 2);
+  var match_fn = makeErrorMatcher(errors, /<stdin>:(\d+): (.+)/, 1, 2, step.path);
   var MCPP = mcpp({
     noInitialRun:true,
     noFSInit:true,
@@ -1092,7 +1095,7 @@ function preprocessMCPP(step) {
     var errout = FS.readFile("mcpp.err", {encoding:'utf8'});
     if (errout.length) {
       // //main.c:2: error: Can't open include file "stdiosd.h"
-      var errors = extractErrors(/[^:]+:(\d+): (.+)/, errout.split("\n"));
+      var errors = extractErrors(/[^:]+:(\d+): (.+)/, errout.split("\n"), step.path);
       if (errors.length == 0) {
         errors = [{line:0, msg:errout}];
       }

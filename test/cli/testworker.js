@@ -15,29 +15,36 @@ global.onmessage({data:{preload:'sdcc'}});
 
 // TODO: check msg against spec
 
-function compile(tool, code, platform, callback, outlen, nlines, nerrors) {
+function compile(tool, code, platform, callback, outlen, nlines, nerrors, options) {
   var msgs = [{code:code, platform:platform, tool:tool, path:'src.'+tool}];
-  doBuild(msgs, callback, outlen, nlines, nerrors);
+  doBuild(msgs, callback, outlen, nlines, nerrors, options);
 }
 
-function compileFiles(tool, files, platform, callback, outlen, nlines, nerrors) {
+function compileFiles(tool, files, platform, callback, outlen, nlines, nerrors, options) {
   var msg = {updates:[], buildsteps:[]};
   for (var fn of files) {
     var text = ab2str(fs.readFileSync('presets/'+platform+'/'+fn));
     msg.updates.push({path:fn, data:text});
     msg.buildsteps.push({path:fn, platform:platform, tool:tool});
   }
-  doBuild([msg], callback, outlen, nlines, nerrors);
+  doBuild([msg], callback, outlen, nlines, nerrors, options);
 }
 
 
 
-function doBuild(msgs, callback, outlen, nlines, nerrors) {
+function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
     var msgcount = msgs.length;
     global.postMessage = function(msg) {
       if (!msg.unchanged) {
         if (msg.errors && msg.errors.length) {
-          console.log(msg.errors);
+          for (var err of msg.errors) {
+            console.log(err);
+            assert.ok(err.line >= 0);
+            if (options && !options.ignoreErrorPath) {
+              assert.equal(msgs[0].path, err.path);
+            }
+            assert.ok(err.msg);
+          }
           assert.equal(nerrors, msg.errors.length, "errors");
         } else {
           assert.equal(nerrors||0, 0, "errors");
@@ -97,7 +104,10 @@ describe('Worker', function() {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes-conio', done, 0, 0, 1);
   });
   it('should NOT compile CC65 (link error)', function(done) {
-    compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes-conio', done, 0, 0, 1);
+    compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes-conio', done, 0, 0, 1, {ignoreErrorPath:true});
+  });
+  it('should NOT compile CC65 (preproc error)', function(done) {
+    compile('cc65', '#include "NOSUCH.file"\n', 'nes-conio', done, 0, 0, 1, {ignoreErrorPath:true});
   });
   it('should assemble CA65', function(done) {
     compile('ca65', '\t.segment "HEADER"\n\t.segment "STARTUP"\n\t.segment "CHARS"\n\t.segment "VECTORS"\n\tlda #0\n\tsta $1\n', 'nes-conio', done, 40976, 2);
@@ -116,8 +126,8 @@ describe('Worker', function() {
   it('should NOT assemble SDASZ80', function(done) {
     compile('sdasz80', '\txxx hl,#0\n\tret\n', 'mw8080bw', done, 0, 0, 1);
   });
-  it('should NOT assemble SDASZ80', function(done) {
-    compile('sdasz80', '\tcall divxxx\n', 'mw8080bw', done, 0, 0, 1);
+  it('should NOT link SDASZ80', function(done) {
+    compile('sdasz80', '\tcall divxxx\n', 'mw8080bw', done, 0, 0, 1, {ignoreErrorPath:true});
   });
   it('should compile SDCC', function(done) {
     compile('sdcc', 'int foo=0; // comment\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}\n', 'mw8080bw', done, 8192, 3, 0);
@@ -166,6 +176,11 @@ describe('Worker', function() {
       done(err, msg);
     };
     doBuild(msgs, done2, 2799, 0, 0);
+  });
+  it('should NOT compile verilog example', function(done) {
+    var csource = "foobar";
+    var msgs = [{code:csource, platform:"verilog", tool:"verilator", dependencies:[], path:'foomain.v'}];
+    doBuild(msgs, done, 0, 0, 1);
   });
   it('should compile verilog inline assembler (JSASM)', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/racing_game_cpu.v'));
@@ -280,14 +295,11 @@ describe('Worker', function() {
         "buildsteps":[
             {"path":"main.c", "platform":"mw8080bw", "tool":"sdcc"},
             {"path":"fn.c", "platform":"mw8080bw", "tool":"sdcc"}
-        ]
+        ],
+        "path":"fn.c"
     };
     var msgs = [m];
-    doBuild(msgs, function(err, result) {
-      for (var msg of result.errors)
-        assert.equal(msg.path, "fn.c");
-      done();
-    }, 8192, [1,1], 2); // TODO: check error file
+    doBuild(msgs, done, 8192, [1,1], 2); // TODO: check error file
   });
   it('should compile vicdual skeleton', function(done) {
     var files = ['skeleton.sdcc', 'cp437.c'];

@@ -11,17 +11,17 @@ var JSNES_PRESETS = [
   {id:'ex0.asm', name:'Initialization (ASM)'},
   {id:'ex1.asm', name:'Scrolling Demo (ASM)'},
   {id:'ex2.asm', name:'Sprite Demo (ASM)'},
-//  {id:'hello.c', name:'C: Hello PPU'},
-//  {id:'conio.c', name:'C: Hello Console I/O'},
   {id:'neslib1.c', name:'Text'},
   {id:'neslib2.c', name:'Sprites'},
   {id:'neslib3.c', name:'Cursor'},
   {id:'neslib4.c', name:'Metasprites'},
   {id:'neslib5.c', name:'RLE Unpack'},
   {id:'music.c', name:'Music Player'},
-  {id:'musicdemo.asm', name:'Famitone Demo'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot2.c', name:'Solarian Game'},
+  {id:'scrollrt.asm', name:'Split Screen Scroll (ASM)'},
+  {id:'road.asm', name:'3-D Road (ASM)'},
+  {id:'musicdemo.asm', name:'Famitone Demo (ASM)'},
 ];
 
 var NES_NESLIB_PRESETS = [

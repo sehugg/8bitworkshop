@@ -287,6 +287,7 @@ var OPMETA_6502 = {
 
 export function getOpcodeMetadata_6502(opcode, address) {
   // TODO: more intelligent maximum cycles
+  // TODO: must always be new object, b/c we might modify it
   return {
     opcode:opcode,
     minCycles:OPMETA_6502.cycletime[opcode],

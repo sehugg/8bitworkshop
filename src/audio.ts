@@ -306,11 +306,6 @@ var SampleAudio = function(clockfreq) {
     self.filterNode=self.context.createBiquadFilter();
     self.filterNode.frequency.value=6000;
 
-    // "LED filter" at 3275kHz - off by default
-    self.lowpassNode=self.context.createBiquadFilter();
-    self.lowpassNode.frequency.value=28867;
-    self.filter=false;
-
     // mixer
     if ( typeof self.context.createScriptProcessor === 'function') {
       self.mixerNode=self.context.createScriptProcessor(self.bufferlen, 1, 1);
@@ -326,8 +321,7 @@ var SampleAudio = function(clockfreq) {
 
     // patch up some cables :)
     self.mixerNode.connect(self.filterNode);
-    self.filterNode.connect(self.lowpassNode);
-    self.lowpassNode.connect(self.compressorNode);
+    self.filterNode.connect(self.compressorNode);
     self.compressorNode.connect(self.context.destination);
   }
 

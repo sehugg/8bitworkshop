@@ -216,7 +216,7 @@ export class SourceEditor implements ProjectView {
   setTimingResult(result:CodeAnalyzer) : void {
     this.editor.clearGutter("gutter-bytes");
     // show the lines
-    for (const line in Object.keys(this.sourcefile.line2offset)) {
+    for (const line of Object.keys(this.sourcefile.line2offset)) {
       var pc = this.sourcefile.line2offset[line];
       var minclocks = result.pc2minclocks[pc];
       var maxclocks = result.pc2maxclocks[pc];
