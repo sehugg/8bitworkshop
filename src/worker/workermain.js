@@ -592,7 +592,7 @@ function assembleDASM(step) {
     }
   }
   var aout = FS.readFile(binpath);
-  var asym = FS.readFile(lstpath, {'encoding':'utf8'});
+  var asym = FS.readFile(sympath, {'encoding':'utf8'});
   putWorkFile(binpath, aout);
   putWorkFile(lstpath, alst);
   putWorkFile(sympath, asym);
@@ -602,7 +602,7 @@ function assembleDASM(step) {
     return;
   var symbolmap = {};
   for (var s of asym.split("\n")) {
-    var toks = s.split(" ");
+    var toks = s.split(/\s+/);
     if (toks && toks.length >= 2 && !toks[0].startsWith('-')) {
       symbolmap[toks[0]] = parseInt(toks[1], 16);
     }
