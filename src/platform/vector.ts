@@ -490,7 +490,7 @@ var DVGBWStateMachine = function(bus, video, bofs) {
     if (!running) return;
     var w = readWord(pc);
     var op = w >> 12;
-    //console.log(hex(pc*2+bofs), hex(w), hex(x>>2), hex(y>>2));
+    //console.log(hex(pc*2+bofs), hex(w), hex(x>>2), hex(y>>2), hex(32-pcstack.length*2));
     pc++;
     switch (op) {
       // VEC

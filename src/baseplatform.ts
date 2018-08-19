@@ -202,6 +202,8 @@ export function getToolForFilename_6502(fn:string) : string {
   if (fn.endsWith(".pla")) return "plasm";
   if (fn.endsWith(".c")) return "cc65";
   if (fn.endsWith(".s")) return "ca65";
+  if (fn.endsWith(".ca65")) return "ca65";
+  if (fn.endsWith(".dasm")) return "dasm";
   if (fn.endsWith(".acme")) return "acme";
   return "dasm"; // .a
 }

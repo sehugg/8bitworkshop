@@ -146,9 +146,10 @@ describe('Store', function() {
    assert.deepEqual([false], msgs);
    var lst = buildresult.listings.test;
    console.log(lst);
-   assert.equal(3, lst.sourcefile.findLineForOffset(61440+15));
-   assert.equal(null, lst.sourcefile.findLineForOffset(61440+16));
-   assert.equal(null, lst.sourcefile.findLineForOffset(61440-1));
+   assert.equal(3, lst.sourcefile.findLineForOffset(61440+15, 15));
+   assert.equal(null, lst.sourcefile.findLineForOffset(61440+16, 15));
+   assert.equal(null, lst.sourcefile.findLineForOffset(61440+1, 0));
+   assert.equal(null, lst.sourcefile.findLineForOffset(61440-1, 16));
    assert.equal(1, lst.sourcefile.lineCount());
    done();
   });

@@ -148,13 +148,14 @@ function refreshWindowList() {
   });
   
   // add listings
+  // TODO: update listing when recompiling
   var listings = current_project.getListings();
   if (listings) {
     for (var lstfn in listings) {
       var lst = listings[lstfn];
       if (lst.assemblyfile) {
         addWindowItem(lstfn, getFilenameForPath(lstfn), function(path) {
-          return new Views.ListingView(lst.assemblyfile);
+          return new Views.ListingView(lstfn);
         });
       }
     }
@@ -309,6 +310,7 @@ function _shareFile(e) {
   return true;
 }
 
+// TODO: reset file, not project
 function _resetPreset(e) {
   if (!current_preset_entry) {
     alert("Can only reset built-in file examples.")
@@ -399,8 +401,9 @@ function setCompileOutput(data: WorkerResult) {
     var rom = data.output;
     if (rom) { // TODO instanceof Uint8Array) {
       try {
+        clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
         platform.loadROM(getCurrentPresetTitle(), rom);
-        if (!userPaused) resume();
+        if (!userPaused) _resume();
         current_output = rom;
         // TODO: reset profiler etc? (Tell views?)
       } catch (e) {

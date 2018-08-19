@@ -404,6 +404,14 @@ const byte SINTBL[32] = {
   -127, -125, -117, -106, -90, -71, -49, -25,
 };
 
+// pre-multiplied by 2
+const int SINTBL2[32] = {
+  0, 25*2, 49*2, 71*2, 90*2, 106*2, 117*2, 125*2,
+  127*2, 125*2, 117*2, 106*2, 90*2, 71*2, 49*2, 25*2,
+  0*2, -25*2, -49*2, -71*2, -90*2, -106*2, -117*2, -125*2,
+  -127*2, -125*2, -117*2, -106*2, -90*2, -71*2, -49*2, -25*2,
+};
+
 signed char isin(byte dir) {
   return SINTBL[dir & 31];
 }
@@ -411,6 +419,29 @@ signed char isin(byte dir) {
 signed char icos(byte dir) {
   return isin(dir+8);
 }
+
+// Fast 8-bit table lookup macro
+// dest:  destination
+// ident: table identifier
+// index: 8-bit index
+#define FASTLUT8(dest,ident,index) \
+	__AX__ = (index); \
+	asm ("tax"); \
+	asm ("lda %v,x", ident); \
+        (dest) = __AX__;
+
+// Fast 16-bit table lookup (single table of 2-byte words, 128 entries max)
+// dest:  destination (16 bits)
+// ident: table identifier
+// index: 8-bit index
+#define FASTLUT16(dest,ident,index) \
+	__AX__ = (index); \
+        asm ("asl"); \
+	asm ("tay"); \
+	asm ("lda %v+1,y", ident); \
+        asm ("tax"); \
+	asm ("lda %v,y", ident); \
+        (dest) = __AX__;
 
 #define FORMATION_X0 0
 #define FORMATION_Y0 19
@@ -467,8 +498,11 @@ void return_attacker(register AttackingEnemy* a) {
 void fly_attacker(register AttackingEnemy* a) {
   byte dir = a->dir;
 #if 1
-  a->x += SINTBL[dir & 31] * 2;
-  a->y += SINTBL[(dir+8) & 31] * 2;
+  int sincos;
+  sincos = FASTLUT16(sincos, SINTBL2, dir&31);
+  a->x += sincos;
+  sincos = FASTLUT16(sincos, SINTBL2, (dir+8)&31);
+  a->y += sincos;
 #else
   a->x += isin(dir) * 2;
   a->y += icos(dir) * 2;
@@ -660,7 +694,7 @@ void does_missile_hit_player() {
     return;
   for (i=0; i<MAX_ATTACKERS; i++) {
     if (missiles[i].ypos != YOFFSCREEN && 
-        in_rect(missiles[i].xpos + 8, missiles[i].ypos + 16, 
+        in_rect(missiles[i].xpos, missiles[i].ypos + 16, 
                 player_x, player_y, 16, 16)) {
       player_exploding = 1;
       break;

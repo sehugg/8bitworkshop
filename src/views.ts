@@ -279,7 +279,7 @@ export class SourceEditor implements ProjectView {
   refreshListing() {
     // lookup corresponding sourcefile for this file, using listing
     var lst = current_project.getListingForFile(this.path);
-    if (lst && lst.sourcefile && lst.sourcefile != this.sourcefile) {
+    if (lst && lst.sourcefile && lst.sourcefile !== this.sourcefile) {
       this.sourcefile = lst.sourcefile;
       this.dirtylisting = true;
     }
@@ -484,13 +484,24 @@ export class DisassemblerView implements ProjectView {
 
 export class ListingView extends DisassemblerView implements ProjectView {
   assemblyfile : SourceFile;
+  path : string;
 
-  constructor(assemblyfile : SourceFile) {
+  constructor(lstfn : string) {
     super();
-    this.assemblyfile = assemblyfile;
+    this.path = lstfn;
+  }
+
+  refreshListing() {
+    // lookup corresponding assemblyfile for this file, using listing
+    var lst = current_project.getListingForFile(this.path);
+    if (lst && lst.assemblyfile && lst.assemblyfile !== this.assemblyfile) {
+      this.assemblyfile = lst.assemblyfile;
+    }
   }
 
   refresh(moveCursor: boolean) {
+    this.refreshListing();
+    if (!this.assemblyfile) return; // TODO?
     var state = lastDebugState || platform.saveState();
     var pc = state.c ? state.c.PC : 0;
     var asmtext = this.assemblyfile.text;
@@ -515,11 +526,21 @@ export class ListingView extends DisassemblerView implements ProjectView {
 
 ///
 
+// TODO: make it use debug state
 export class MemoryView implements ProjectView {
   memorylist;
   dumplines;
   maindiv : HTMLElement;
   static IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
+  /*
+  read(addr:number) {
+    // TODO: b offset ?
+    if (lastDebugState && lastDebugState.b && addr < lastDebugState.b.length)
+      return lastDebugState.b[addr];
+    else
+      return this.platform.readMemory(addr);
+  }
+  */
 
   createDiv(parent : HTMLElement) {
     var div = document.createElement('div');
