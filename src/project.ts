@@ -110,7 +110,6 @@ export class CodeProject {
   updateFileInStore(path:string, text:FileData) {
     // protect against accidential whole-file deletion
     if ((<string>text).trim && (<string>text).trim().length) {
-      // TODO? (originalFileID != path || text != originalText)) {
       this.store.setItem(path, text);
     }
   }
@@ -170,7 +169,7 @@ export class CodeProject {
             if (err) { // err fetching from store
               callback(err, result);
             } else if (value) { // found in store?
-              this.filedata[path] = value;
+              this.filedata[path] = value; // do not update store, just cache
               addResult(path, value);
               loadNext();
             } else if (!path.startsWith("local/")) {
@@ -183,7 +182,7 @@ export class CodeProject {
                 webpath += ".a"; // legacy stuff
               this.callbackGetRemote( webpath, (text:string) => {
                 console.log("GET",webpath,text.length,'bytes');
-                this.filedata[path] = text;
+                this.filedata[path] = text; // do not update store, just cache
                 addResult(path, text);
                 loadNext();
               }, 'text')
@@ -191,7 +190,7 @@ export class CodeProject {
                 console.log("Could not load preset", path, err.status);
                 // only cache result if status is 404 (not found)
                 if (err.status && err.status == 404)
-                  this.filedata[path] = null;
+                  this.filedata[path] = null; // mark cache entry as invalid
                 loadNext();
               });
             } else {

@@ -310,14 +310,16 @@ function _shareFile(e) {
   return true;
 }
 
-// TODO: reset file, not project
-function _resetPreset(e) {
-  if (!current_preset_entry) {
-    alert("Can only reset built-in file examples.")
-  } else if (confirm("Reset '" + current_preset_entry.name + "' to default?")) {
-    qs['reset'] = '1';
-    gotoNewLocation();
-  }
+function _revertFile(e) {
+  var fn = getCurrentEditorFilename();
+  $.get( "presets/"+platform_id+"/"+fn, function(text) {
+    if (confirm("Reset '" + fn + "' to default?")) {
+      projectWindows.getActive().setText(text);
+    }
+  }, 'text')
+  .fail(function() {
+    alert("Can only revert built-in files.");
+  });
   return true;
 }
 
@@ -712,7 +714,7 @@ function setupDebugControls(){
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);
   $("#item_share_file").click(_shareFile);
-  $("#item_reset_file").click(_resetPreset);
+  $("#item_reset_file").click(_revertFile);
   if (platform.runEval)
     $("#item_debug_expr").click(_breakExpression).show();
   else

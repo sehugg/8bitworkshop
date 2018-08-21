@@ -12,6 +12,7 @@ export interface ProjectView {
   refresh(moveCursor:boolean) : void;
   tick?() : void;
   getValue?() : string;
+  setText?(text : string) : void;
   getCursorPC?() : number;
   getSourceFile?() : SourceFile;
   setGutterBytes?(line:number, s:string) : void;
