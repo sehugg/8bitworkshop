@@ -3,6 +3,7 @@
 import { Platform, BaseZ80Platform  } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
 import { hex } from "../util";
+import { MasterAudio, AY38910_Audio } from "../audio";
 
 var VICDUAL_PRESETS = [
   {id:'minimal.c', name:'Minimal Example'},

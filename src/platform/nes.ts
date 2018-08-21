@@ -4,6 +4,7 @@ import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, c
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, dumpStackToString } from "../emu";
 import { hex, lpad, lzgmini } from "../util";
 import { CodeAnalyzer_nes } from "../analysis";
+import { SampleAudio } from "../audio";
 
 declare var jsnes : any;
 

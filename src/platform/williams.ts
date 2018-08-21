@@ -3,6 +3,7 @@
 import { Platform, BaseZ80Platform, Base6809Platform  } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
 import { hex } from "../util";
+import { MasterAudio, WorkerSoundChannel } from "../audio";
 
 var WILLIAMS_PRESETS = [
   {id:'gfxtest.c', name:'Graphics Test'},

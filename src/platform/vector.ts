@@ -3,6 +3,7 @@
 import { Platform, BaseZ80Platform, Base6502Platform  } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, VectorVideo, Keys, makeKeycodeMap } from "../emu";
 import { hex } from "../util";
+import { MasterAudio, POKEYDeviceChannel } from "../audio";
 
 // http://www.computerarcheology.com/Arcade/Asteroids/DVG.html
 // http://arcarc.xmission.com/Tech/neilw_xy.txt

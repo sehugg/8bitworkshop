@@ -3,6 +3,7 @@
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502 } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM } from "../emu";
 import { hex, lzgmini } from "../util";
+import { SampleAudio } from "../audio";
 
 declare var jt; // 6502
 

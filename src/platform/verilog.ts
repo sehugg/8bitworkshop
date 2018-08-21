@@ -2,6 +2,7 @@
 
 import { Platform } from "../baseplatform";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
+import { SampleAudio } from "../audio";
 
 var VERILOG_PRESETS = [
   {id:'clock_divider.v', name:'Clock Divider'},

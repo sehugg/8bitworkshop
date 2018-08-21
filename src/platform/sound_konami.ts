@@ -4,6 +4,9 @@ import { Platform, BaseZ80Platform  } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
 import { hex } from "../util";
 
+// from TSS
+declare var MasterChannel, AudioLooper, PsgDeviceChannel;
+
 var KONAMISOUND_PRESETS = [
 ];
 

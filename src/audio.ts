@@ -1,8 +1,9 @@
 "use strict";
 
+// from TSS
 declare var MasterChannel, AudioLooper, PsgDeviceChannel;
 
-var MasterAudio = function() {
+export var MasterAudio = function() {
   this.master = new MasterChannel();
   this.looper = new AudioLooper(512);
   this.start = function() {
@@ -14,7 +15,7 @@ var MasterAudio = function() {
   }
 }
 
-var AY38910_Audio = function(master) {
+export var AY38910_Audio = function(master) {
   this.psg = new PsgDeviceChannel();
   this.psg.setMode(PsgDeviceChannel.MODE_SIGNED);
   this.psg.setDevice(PsgDeviceChannel.DEVICE_AY_3_8910);
@@ -39,7 +40,7 @@ var AY38910_Audio = function(master) {
 // https://user.xmission.com/~trevin/atari/pokey_regs.html
 // http://krap.pl/mirrorz/atari/homepage.ntlworld.com/kryten_droid/Atari/800XL/atari_hw/pokey.htm
 
-var POKEYDeviceChannel = function() {
+export var POKEYDeviceChannel = function() {
 
   /* definitions for AUDCx (D201, D203, D205, D207) */
   var NOTPOLY5    = 0x80     /* selects POLY5 or direct CLOCK */
@@ -211,7 +212,7 @@ var POKEYDeviceChannel = function() {
 
 ////// Worker sound
 
-var WorkerSoundChannel = function(worker) {
+export var WorkerSoundChannel = function(worker) {
   var sampleRate;
   var output;
   var pending = [];
@@ -265,7 +266,7 @@ var WorkerSoundChannel = function(worker) {
 
 // SampleAudio
 
-var SampleAudio = function(clockfreq) {
+export var SampleAudio = function(clockfreq) {
   var self = this;
   var sfrac, sinc, accum;
   var buffer, bufpos, bufferlist;

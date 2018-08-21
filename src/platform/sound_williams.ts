@@ -3,6 +3,7 @@
 import { Platform, BaseZ80Platform  } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
 import { hex } from "../util";
+import { SampleAudio } from "../audio";
 
 var WILLIAMS_SOUND_PRESETS = [
   {id:'swave.c', name:'Wavetable Synth'},
