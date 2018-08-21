@@ -39,13 +39,8 @@ export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, th
   this.getImageData = function() { return pixints.slice(0); }
 
   function fitCanvas() {
-    var w = $(parentDiv).width();
-    var h = $(parentDiv).height();
-    if (h > w)
-      pixcanvas.style.height = Math.floor(h)+"px";
-    else
-      pixcanvas.style.height = Math.floor(h/2)+"px";
-    // TODO
+    pixcanvas.style.height = '50%'; // TODO?
+    return;
   }
   this.resize = fitCanvas;
 
@@ -56,6 +51,7 @@ export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, th
   for (var i=0; i<pixints.length; i++) {
     pixints[i] = initialData ? palette[initialData[i]] : palette[0];
   }
+  this.canvas = pixcanvas;
 
   updateImage();
 
@@ -458,7 +454,7 @@ function pixelEditorCreateThumbnails(e) {
   allthumbs = [];
   for (var i=0; i<count; i++) {
     if ((i & 15) == 0) {
-      parentdiv = $("#thumbnaildiv").append("<div>");
+      parentdiv = $('<div class="thumbdiv">').appendTo("#thumbnaildiv");
     }
     allthumbs.push(createThumbnailForImage(parentdiv, i));
   }
@@ -474,6 +470,9 @@ function pixelEditorReceiveMessage(e) {
 function createThumbnailForImage(parentdiv, i) {
   var span = $('<span class="thumb">');
   var thumb = new PixelEditor(span[0], currentFormat, palette, allimages[i]);
+  // double size of canvas thumbnail
+  thumb.canvas.style.height = currentFormat.h*2+"px";
+  thumb.canvas.style.width = currentFormat.w*2+"px";
   parentdiv.append(span);
   span.click(function() { createEditorForImage(i) });
   return thumb;

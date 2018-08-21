@@ -7,7 +7,22 @@ body {
   overflow: hidden !important;
   font-size: 11px;
 }
-.thumb {
+.thumbdiv {
+}
+.fcontainer
+{
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     flex-direction: column;
+     height: 100vh;
+}
+.fitem
+{
+     background-color: #f3f2ef;
+     border-radius: 3px;
+     width: 200px;
+     height: 100px; 
 }
 </style>
 <link rel="stylesheet" href="css/ui.css">
@@ -24,10 +39,13 @@ body {
 </div>
 
 <div id="notebook">
-  <!-- TODO: doesn't work properly when screen isn't exactly centered -->
-  <div id="thumbnaildiv" style="float:right;margin-top:20%;transform:scale(2);margin-right:10%">
+  <div style="width:60%;height:100%;position:absolute;left:0">
+    <div id="maineditor" class="fcontainer">
+    </div>
   </div>
-  <div id="maineditor" style="margin-left:10%;margin-top:5%;height:100%">
+  <div style="width:40%;height:100%;position:absolute;right:0">
+    <div id="thumbnaildiv" class="fcontainer">
+    </div>
   </div>
 </div>
 
