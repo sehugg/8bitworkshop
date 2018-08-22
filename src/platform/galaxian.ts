@@ -294,35 +294,36 @@ var GalaxianPlatform = function(mainElement, options) {
     var idata = video.getFrameData();
 		setKeyboardFromMap(video, inputs, keyMap);
     pixels = video.getFrameData();
-    timer = new AnimationTimer(60, function() {
-			if (!self.isRunning())
-				return;
-      var debugCond = self.getDebugCallback();
-      var targetTstates = cpu.getTstates();
-			// TODO: get raster position
-      for (var sl=0; sl<scanlinesPerFrame; sl++) {
-				drawScanline(pixels, sl);
-        targetTstates += cpuCyclesPerLine;
-        if (debugCond) {
-          while (cpu.getTstates() < targetTstates) {
-            if (debugCond && debugCond()) { debugCond = null; }
-            cpu.runFrame(cpu.getTstates() + 1);
-          }
-        } else {
-          cpu.runFrame(targetTstates);
+    timer = new AnimationTimer(60, this.advance.bind(this));
+  }
+
+  this.advance = function(novideo : boolean) {
+    var debugCond = this.getDebugCallback();
+    var targetTstates = cpu.getTstates();
+    for (var sl=0; sl<scanlinesPerFrame; sl++) {
+      if (!novideo) {
+        drawScanline(pixels, sl);
+      }
+      targetTstates += cpuCyclesPerLine;
+      if (debugCond) {
+        while (cpu.getTstates() < targetTstates) {
+          if (debugCond && debugCond()) { debugCond = null; }
+          cpu.runFrame(cpu.getTstates() + 1);
         }
+      } else {
+        cpu.runFrame(targetTstates);
       }
-      // visible area is 256x224 (before rotation)
-      video.updateFrame(0, 0, 0, 0, showOffscreenObjects ? 264 : 256, 264);
-      frameCounter = (frameCounter + 1) & 0xff;
-      if (watchdog_counter-- <= 0) {
-        console.log("WATCHDOG FIRED, PC ", hex(cpu.getPC())); // TODO: alert on video
-        self.reset();
-      }
-      self.restartDebugState();
-      // NMI interrupt @ 0x66
-			if (interruptEnabled) { cpu.nonMaskableInterrupt(); }
-    });
+    }
+    // visible area is 256x224 (before rotation)
+    video.updateFrame(0, 0, 0, 0, showOffscreenObjects ? 264 : 256, 264);
+    frameCounter = (frameCounter + 1) & 0xff;
+    if (watchdog_counter-- <= 0) {
+      console.log("WATCHDOG FIRED, PC ", hex(cpu.getPC())); // TODO: alert on video
+      this.reset();
+    }
+    // NMI interrupt @ 0x66
+    if (interruptEnabled) { cpu.nonMaskableInterrupt(); }
+    this.restartDebugState(); // TODO: after interrupt?
   }
 
 	var bitcolors = [
@@ -397,7 +398,6 @@ var GalaxianPlatform = function(mainElement, options) {
 }
 
 var GalaxianScramblePlatform = function(mainElement) {
-  var self = this;
   this.__proto__ = new GalaxianPlatform(mainElement, {
     romSize: 0x5020,
     gfxBase: 0x4000,

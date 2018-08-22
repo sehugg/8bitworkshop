@@ -12,6 +12,7 @@ import { PLATFORMS } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap } from "./util";
+import { StateRecorderImpl } from "./recorder";
 
 // external libs (TODO)
 declare var Octokat, ga, Tour, GIF, saveAs;
@@ -29,6 +30,7 @@ var current_project : CodeProject;	// current CodeProject object
 
 var projectWindows : ProjectWindows;	// window manager
 
+var stateRecorder : StateRecorderImpl = new StateRecorderImpl();
 
 // TODO: codemirror multiplex support?
 var TOOL_TO_SOURCE_STYLE = {
@@ -460,6 +462,7 @@ function setDebugButtonState(btnid:string, btnstate:string) {
 }
 
 function setupBreakpoint(btnid? : string) {
+  _disableRecording();
   platform.setupDebug(function(state) {
     lastDebugState = state;
     showDebugInfo(state);
@@ -541,6 +544,7 @@ function runStepBackwards() {
 }
 
 function clearBreakpoint() {
+  _disableRecording();
   lastDebugState = null;
   if (platform.clearDebug) platform.clearDebug();
   showDebugInfo();
@@ -679,6 +683,33 @@ function traceTiming() {
   }
 }
 
+var recorderActive = false;
+
+function _disableRecording() {
+  if (recorderActive) {
+    platform.setRecorder(null);
+    $("#dbg_record").removeClass("btn_recording");
+    $("#replaydiv").hide();
+    recorderActive = false;
+  }
+}
+
+function _enableRecording() {
+  stateRecorder.reset();
+  platform.setRecorder(stateRecorder);
+  $("#dbg_record").addClass("btn_recording");
+  $("#replaydiv").show();
+  recorderActive = true;
+}
+
+function _toggleRecording() {
+  if (recorderActive) {
+    _disableRecording();
+  } else {
+    _enableRecording();
+  }
+}
+
 function setupDebugControls(){
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
@@ -730,6 +761,21 @@ function setupDebugControls(){
     $("#dbg_fastest").click(_fastestFrameRate);
   }
   updateDebugWindows();
+  // setup replay slider
+  if (platform.advance) {
+    $("#dbg_record").click(_toggleRecording);
+    var replayslider = $("#replayslider");
+    stateRecorder.callbackStateChanged = () => {
+      replayslider.attr('min', 0);
+      replayslider.attr('max', stateRecorder.numFrames()-1);
+      replayslider.attr('value', stateRecorder.numFrames()-1); // TODO: doesn't always move
+    };
+    replayslider.on('input', function(e) {
+      _pause();
+      stateRecorder.loadFrame(platform, (<any>e.target).value);
+    });
+    $("#replay_bar").show();
+  }
 }
 
 function showWelcomeMessage() {

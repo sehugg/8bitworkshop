@@ -127,6 +127,10 @@ var JSNESPlatform = function(mainElement) {
         nes.buttonUp(o.index+1, o.mask); // controller, button
     });
   }
+  
+  this.advance = function(novideo : boolean) {
+    nes.frame();
+  }
 
   this.loadROM = function(title, data) {
     var romstr = String.fromCharCode.apply(null, data);

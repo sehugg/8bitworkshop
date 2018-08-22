@@ -48,6 +48,7 @@ var Apple2Platform = function(mainElement) {
   // value to add when reading & writing each of these banks
   // bank 1 is E000-FFFF, bank 2 is D000-DFFF
   var bank2rdoffset=0, bank2wroffset=0;
+  var grparams;
   
   this.getPresets = function() {
     return APPLE2_PRESETS;
@@ -177,37 +178,40 @@ var Apple2Platform = function(mainElement) {
       }
     });
     var idata = video.getFrameData();
-    var grparams = {dirty:grdirty, grswitch:grswitch, mem:ram.mem};
+    grparams = {dirty:grdirty, grswitch:grswitch, mem:ram.mem};
     ap2disp = new Apple2Display(idata, grparams);
-    var colors = [0xffff0000, 0xff00ff00];
-    timer = new AnimationTimer(60, function() {
-      // 262.5 scanlines per frame
-      var clock = 0;
-      var debugCond = self.getDebugCallback();
-      var rendered = false;
-      for (var sl=0; sl<262; sl++) {
-        for (var i=0; i<cpuCyclesPerLine; i++) {
-          if (debugCond && debugCond()) {
-            grparams.dirty = grdirty;
-            grparams.grswitch = grswitch;
-            ap2disp.updateScreen();
-            debugCond = null;
-            rendered = true;
-          }
-          clock++;
-          cpu.clockPulse();
-          audio.feedSample(soundstate, 1);
+    timer = new AnimationTimer(60, this.advance.bind(this));
+  }
+
+  this.advance = function(novideo : boolean) {
+    // 262.5 scanlines per frame
+    var clock = 0;
+    var debugCond = this.getDebugCallback();
+    var rendered = false;
+    for (var sl=0; sl<262; sl++) {
+      for (var i=0; i<cpuCyclesPerLine; i++) {
+        if (debugCond && debugCond()) {
+          grparams.dirty = grdirty;
+          grparams.grswitch = grswitch;
+          ap2disp.updateScreen();
+          debugCond = null;
+          rendered = true;
         }
+        clock++;
+        cpu.clockPulse();
+        audio.feedSample(soundstate, 1);
       }
+    }
+    if (!novideo) {
       if (!rendered) {
         grparams.dirty = grdirty;
         grparams.grswitch = grswitch;
         ap2disp.updateScreen();
       }
       video.updateFrame();
-      soundstate = 0; // to prevent clicking
-      self.restartDebugState(); // reset debug start state
-    });
+    }
+    //soundstate = 0; // to prevent clicking
+    this.restartDebugState(); // reset debug start state
   }
 
   function doLanguageCardIO(address, value)

@@ -113,38 +113,40 @@ var Midway8080BWPlatform = function(mainElement) {
     var idata = video.getFrameData();
 		setKeyboardFromMap(video, inputs, SPACEINV_KEYCODE_MAP);
     pixels = video.getFrameData();
-    timer = new AnimationTimer(60, function() {
-			if (!self.isRunning())
-				return;
-      var debugCond = self.getDebugCallback();
-      var targetTstates = cpu.getTstates();
-      for (var sl=0; sl<224; sl++) {
-        targetTstates += cpuCyclesPerLine;
-        if (debugCond) {
-          while (cpu.getTstates() < targetTstates) {
-            if (debugCond && debugCond()) {
-              debugCond = null;
-              break;
-            }
-            cpu.runFrame(cpu.getTstates() + 1);
-          }
-          if (!debugCond)
+    timer = new AnimationTimer(60, this.advance.bind(this));
+  }
+  
+  this.advance = function(novideo : boolean) {
+    var debugCond = this.getDebugCallback();
+    var targetTstates = cpu.getTstates();
+    for (var sl=0; sl<224; sl++) {
+      targetTstates += cpuCyclesPerLine;
+      if (debugCond) {
+        while (cpu.getTstates() < targetTstates) {
+          if (debugCond && debugCond()) {
+            debugCond = null;
             break;
-        } else {
-          cpu.runFrame(targetTstates);
+          }
+          cpu.runFrame(cpu.getTstates() + 1);
         }
-        if (sl == 95)
-          cpu.requestInterrupt(0x8); // RST $8
-        else if (sl == 223)
-          cpu.requestInterrupt(0x10); // RST $10
+        if (!debugCond)
+          break;
+      } else {
+        cpu.runFrame(targetTstates);
       }
+      if (sl == 95)
+        cpu.requestInterrupt(0x8); // RST $8
+      else if (sl == 223)
+        cpu.requestInterrupt(0x10); // RST $10
+    }
+    if (!novideo) {
       video.updateFrame();
-      if (watchdog_counter-- <= 0) {
-        console.log("WATCHDOG FIRED"); // TODO: alert on video
-        self.reset();
-      }
-      self.restartDebugState();
-    });
+    }
+    if (watchdog_counter-- <= 0) {
+      console.log("WATCHDOG FIRED"); // TODO: alert on video
+      this.reset();
+    }
+    this.restartDebugState();
   }
 
   this.loadROM = function(title, data) {

@@ -142,23 +142,24 @@ var VicDualPlatform = function(mainElement) {
       reset_disable_timer = setTimeout(function() { reset_disable = false; }, 1100);
 		});
     pixels = video.getFrameData();
-    timer = new AnimationTimer(60, function() {
-			if (!self.isRunning())
-				return;
-      var debugCond = self.getDebugCallback();
-      var targetTstates = cpu.getTstates();
-      for (var sl=0; sl<scanlinesPerFrame; sl++) {
-        inputs[2] &= ~0x8;
-        inputs[2] |= ((cpu.getTstates() / cyclesPerTimerTick) & 1) << 3;
-				drawScanline(pixels, sl);
-        targetTstates += cpuCyclesPerLine;
-				if (sl == vblankStart) inputs[1] |= 0x8;
-				if (sl == vsyncEnd) inputs[1] &= ~0x8;
-        self.runCPU(cpu, targetTstates - cpu.getTstates());
+    timer = new AnimationTimer(60, this.advance.bind(this));
+  }
+
+  this.advance = function(novideo : boolean) {
+    var targetTstates = cpu.getTstates();
+    for (var sl=0; sl<scanlinesPerFrame; sl++) {
+      inputs[2] &= ~0x8;
+      inputs[2] |= ((cpu.getTstates() / cyclesPerTimerTick) & 1) << 3;
+      if (!novideo) {
+        drawScanline(pixels, sl);
       }
-      video.updateFrame();
-      self.restartDebugState();
-    });
+      targetTstates += cpuCyclesPerLine;
+      if (sl == vblankStart) inputs[1] |= 0x8;
+      if (sl == vsyncEnd) inputs[1] &= ~0x8;
+      this.runCPU(cpu, targetTstates - cpu.getTstates());
+    }
+    video.updateFrame();
+    this.restartDebugState();
   }
 
   this.loadROM = function(title, data) {

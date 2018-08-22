@@ -25,6 +25,12 @@
 ****************************************************************************/
 
 var window = {};
+var exports = {};
+function require(modname) {
+  if (modname == 'jquery') return $;
+  else if (modname.startsWith('.')) return exports;
+  else { console.log("Unknown require()", modname); return exports; }
+}
 
 importScripts("../../gen/emu.js");
 importScripts("../cpu/z80.js");

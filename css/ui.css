@@ -122,6 +122,9 @@ div.mem_info a.selected {
 .btn_stopped {
   color: #ff9933;
 }
+.btn_recording {
+  color: #ff3333;
+}
 .seg_code { color: #ff9966; }
 .seg_data { color: #66ff66; }
 .seg_stack { color: #ffff66; }
@@ -284,4 +287,13 @@ canvas.pixelated {
   left: .4rem;
   content: '\2713';
   font-weight: 400;
+}
+div.replaydiv {
+  position:absolute;
+  padding:20px;
+  left:50%;
+  bottom:0;
+  width:50%;
+  background-color: #666;
+  margin-top: 20px auto 0;
 }

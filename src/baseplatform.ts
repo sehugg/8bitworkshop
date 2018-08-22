@@ -12,15 +12,15 @@ export interface OpcodeMetadata {
   opcode: number;
 }
 
-interface CpuState {
+export interface CpuState {
   PC:number, T?:number, o?:number,/*opcode*/
   SP?:number
   /*
   A:number, X:number, Y:number, SP:number, R:boolean, 
   N,V,D,Z,C:boolean*/
 };
-interface EmuState {c:CpuState, b?:number[]};
-type DisasmLine = {line:string, nbytes:number};
+export interface EmuState {c:CpuState, b?:number[]};
+export type DisasmLine = {line:string, nbytes:number};
 
 export interface Platform {
   start() : void;
@@ -57,6 +57,9 @@ export interface Platform {
 
   getDebugCategories() : string[];
   getDebugInfo(category:string, state:EmuState) : string;
+  
+  setRecorder?(recorder : EmuRecorder) : void;
+  advance?(novideo? : boolean) : void;
 }
 
 export interface Preset {
@@ -75,6 +78,11 @@ type DebugCondition = () => boolean;
 type DebugEvalCondition = (c:CpuState) => boolean;
 type BreakpointCallback = (EmuState) => void;
 
+export interface EmuRecorder {
+  frameRequested() : boolean;
+  recordFrame(platform : Platform, state : EmuState);
+}
+
 /////
 
 abstract class BaseDebugPlatform {
@@ -84,6 +92,7 @@ abstract class BaseDebugPlatform {
   debugBreakState : EmuState = null;
   debugTargetClock : number = 0;
   debugClock : number = 0;
+  recorder : EmuRecorder = null;
 
   abstract getCPUState() : CpuState;
   abstract saveState() : EmuState;
@@ -117,6 +126,15 @@ abstract class BaseDebugPlatform {
     this.debugBreakState = null;
     this.resume();
   }
+  setRecorder?(recorder : EmuRecorder) : void {
+    this.recorder = recorder;
+  }
+  updateRecorder() {
+    // are we recording and do we need to save a frame?
+    if (this.recorder && (<Platform><any>this).isRunning() && this.recorder.frameRequested()) {
+      this.recorder.recordFrame(<Platform><any>this, this.saveState());
+    }
+  }
 }
 
 abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
@@ -128,11 +146,14 @@ abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
     }
   }
   restartDebugState() {
-    if (this.debugCondition && !this.debugBreakState) {
+    // save state every frame and rewind debug clocks
+    var debugging = this.debugCondition && !this.debugBreakState;
+    if (debugging) {
       this.debugSavedState = this.saveState();
       this.debugTargetClock -= this.debugClock;
       this.debugClock = 0;
     }
+    this.updateRecorder();
   }
   breakpointHit(targetClock : number) {
     this.debugTargetClock = targetClock;
@@ -389,6 +410,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
       this.debugSavedState.c.T = 0;
       this.loadState(this.debugSavedState);
     }
+    this.updateRecorder();
   }
   breakpointHit(targetClock : number) {
     this.debugTargetClock = targetClock;

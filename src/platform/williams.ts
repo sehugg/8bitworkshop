@@ -306,38 +306,38 @@ var WilliamsPlatform = function(mainElement, proto) {
     var idata = video.getFrameData();
     setKeyboardFromMap(video, pia6821, ROBOTRON_KEYCODE_MAP);
     pixels = video.getFrameData();
-    timer = new AnimationTimer(60, function() {
-			if (!self.isRunning())
-				return;
-      var cpuCyclesPerSection = Math.round(cpuCyclesPerFrame / 65);
-      for (var sl=0; sl<256; sl+=4) {
-        video_counter = sl;
-        // interrupts happen every 1/4 of the screen
-        if (sl == 0 || sl == 0x3c || sl == 0xbc || sl == 0xfc) {
-          if (membus.read != memread_defender || pia6821[7] == 0x3c) { // TODO?
-            if (cpu.interrupt)
-              cpu.interrupt();
-            if (cpu.requestInterrupt)
-              cpu.requestInterrupt();
-          }
+    timer = new AnimationTimer(60, this.advance.bind(this));
+  }
+
+  this.advance = function(novideo:boolean) {
+    var cpuCyclesPerSection = Math.round(cpuCyclesPerFrame / 65);
+    for (var sl=0; sl<256; sl+=4) {
+      video_counter = sl;
+      // interrupts happen every 1/4 of the screen
+      if (sl == 0 || sl == 0x3c || sl == 0xbc || sl == 0xfc) {
+        if (membus.read != memread_defender || pia6821[7] == 0x3c) { // TODO?
+          if (cpu.interrupt)
+            cpu.interrupt();
+          if (cpu.requestInterrupt)
+            cpu.requestInterrupt();
         }
-        self.runCPU(cpu, cpuCyclesPerSection);
-        if (sl < 256) video.updateFrame(0, 0, 256-4-sl, 0, 4, 304);
       }
-      // last 6 lines
-      self.runCPU(cpu, cpuCyclesPerSection*2);
-      if (screenNeedsRefresh) {
-        for (var i=0; i<0x9800; i++)
-          drawDisplayByte(i, ram.mem[i]);
-        screenNeedsRefresh = false;
-      }
-      if (watchdog_counter-- <= 0) {
-        console.log("WATCHDOG FIRED, PC =", cpu.getPC().toString(16)); // TODO: alert on video
-        // TODO: self.breakpointHit(cpu.T());
-        self.reset();
-      }
-      self.restartDebugState();
-    });
+      this.runCPU(cpu, cpuCyclesPerSection);
+      if (sl < 256) video.updateFrame(0, 0, 256-4-sl, 0, 4, 304);
+    }
+    // last 6 lines
+    this.runCPU(cpu, cpuCyclesPerSection*2);
+    if (screenNeedsRefresh && !novideo) {
+      for (var i=0; i<0x9800; i++)
+        drawDisplayByte(i, ram.mem[i]);
+      screenNeedsRefresh = false;
+    }
+    if (watchdog_counter-- <= 0) {
+      console.log("WATCHDOG FIRED, PC =", cpu.getPC().toString(16)); // TODO: alert on video
+      // TODO: this.breakpointHit(cpu.T());
+      this.reset();
+    }
+    this.restartDebugState();
   }
 
   this.loadSoundROM = function(data) {
