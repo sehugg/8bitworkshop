@@ -19,8 +19,16 @@ export interface CpuState {
   A:number, X:number, Y:number, SP:number, R:boolean, 
   N,V,D,Z,C:boolean*/
 };
-export interface EmuState {c:CpuState, b?:number[]};
-export type DisasmLine = {line:string, nbytes:number};
+export interface EmuState {
+  c:CpuState,	 // CPU state
+  b?:number[]	 // RAM
+};
+export interface EmuControlsState {
+}
+export type DisasmLine = {
+  line:string,
+  nbytes:number
+};
 
 export interface Platform {
   start() : void;
@@ -60,6 +68,8 @@ export interface Platform {
   
   setRecorder?(recorder : EmuRecorder) : void;
   advance?(novideo? : boolean) : void;
+  loadControlsState?(state : EmuControlsState) : void;
+  saveControlsState?() : EmuControlsState;
 }
 
 export interface Preset {
@@ -80,7 +90,7 @@ type BreakpointCallback = (EmuState) => void;
 
 export interface EmuRecorder {
   frameRequested() : boolean;
-  recordFrame(platform : Platform, state : EmuState);
+  recordFrame(state : EmuState);
 }
 
 /////
@@ -132,7 +142,7 @@ abstract class BaseDebugPlatform {
   updateRecorder() {
     // are we recording and do we need to save a frame?
     if (this.recorder && (<Platform><any>this).isRunning() && this.recorder.frameRequested()) {
-      this.recorder.recordFrame(<Platform><any>this, this.saveState());
+      this.recorder.recordFrame(this.saveState());
     }
   }
 }

@@ -30,7 +30,7 @@ var current_project : CodeProject;	// current CodeProject object
 
 var projectWindows : ProjectWindows;	// window manager
 
-var stateRecorder : StateRecorderImpl = new StateRecorderImpl();
+var stateRecorder : StateRecorderImpl;
 
 // TODO: codemirror multiplex support?
 var TOOL_TO_SOURCE_STYLE = {
@@ -771,7 +771,7 @@ function setupDebugControls(){
     };
     replayslider.on('input', function(e) {
       _pause();
-      stateRecorder.loadFrame(platform, (<any>e.target).value);
+      stateRecorder.loadFrame((<any>e.target).value);
     });
     $("#replay_bar").show();
   }
@@ -908,6 +908,7 @@ function addPageFocusHandlers() {
 function startPlatform() {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
+  stateRecorder = new StateRecorderImpl(platform);
   PRESETS = platform.getPresets();
   if (qs['file']) {
     // start platform and load file

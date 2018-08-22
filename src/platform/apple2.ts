@@ -335,6 +335,14 @@ var Apple2Platform = function(mainElement) {
       lc:{s:auxRAMselected,b:auxRAMbank,w:writeinhibit},
     };
   }
+  this.loadControlsState = function(state) {
+    kbdlatch = state.kbd;
+  }
+  this.saveControlsState = function() {
+    return {
+      kbd:kbdlatch,
+    };
+  }
   this.getCPUState = function() {
     return cpu.saveState();
   }
