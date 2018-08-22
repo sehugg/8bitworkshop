@@ -1,6 +1,6 @@
 "use strict";
 
-import { Platform, cpuStateToLongString_6502, BaseMAMEPlatform } from "../baseplatform";
+import { Platform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, dumpRAM } from "../emu";
 import { hex, lpad, tobin, byte2signed } from "../util";
 import { CodeAnalyzer_vcs } from "../analysis";
@@ -49,12 +49,20 @@ Javatari.AUDIO_BUFFER_SIZE = 256;
 
 var VCSPlatform = function() {
   var self = this;
+  this.paused = true;
 
   this.getPresets = function() { return VCS_PRESETS; }
 
   this.start = function() {
     $("#javatari-div").show();
     Javatari.start();
+    // intercept clockPulse function
+    Javatari.room.console.oldClockPulse = Javatari.room.console.clockPulse;
+    Javatari.room.console.clockPulse = function() {
+      this.oldClockPulse();
+      self.updateRecorder();
+    }
+    this.paused = false;
   }
 
   this.loadROM = function(title, data) {
@@ -75,15 +83,39 @@ var VCSPlatform = function() {
     return {x:xpos, y:ypos};
   }
 
-  this.isRunning = function() { return Javatari.room && Javatari.room.console.isRunning(); }
-  this.pause = function() { Javatari.room.console.pause(); Javatari.room.speaker.mute(); }
-  this.resume = function() { Javatari.room.console.go(); Javatari.room.speaker.play(); }
+  // TODO: Clock changes this on event, so it may not be current
+  this.isRunning = function() {
+    return Javatari.room && Javatari.room.console.isRunning();
+  }
+  this.pause = function() {	
+    //console.log('pause', this.paused, this.isRunning());
+    if (!this.paused) {
+      this.paused = true;
+      Javatari.room.console.pause();
+      Javatari.room.speaker.mute();
+    }
+  }
+  this.resume = function() {
+    //console.log('resume', this.paused, this.isRunning());
+    if (this.paused) {
+      this.paused = false;
+      Javatari.room.console.go();
+      Javatari.room.speaker.play();
+    }
+  }
+  this.advance = function() {
+    Javatari.room.console.clockPulse();
+  }
+
   this.step = function() { Javatari.room.console.debugSingleStepCPUClock(); }
   this.stepBack = function() { Javatari.room.console.debugStepBackInstruction(); }
   this.runEval = function(evalfunc) { Javatari.room.console.debugEval(evalfunc); }
-
+  
   this.setupDebug = function(callback) {
-    Javatari.room.console.onBreakpointHit = callback;
+    Javatari.room.console.onBreakpointHit = function(state) {
+      self.paused = true;
+      callback(state);
+    }
     Javatari.room.speaker.mute();
   }
   this.clearDebug = function() {
@@ -91,6 +123,7 @@ var VCSPlatform = function() {
     Javatari.room.console.onBreakpointHit = null;
     if (this.isRunning()) Javatari.room.speaker.play();
   }
+  
   this.reset = function() {
     Javatari.room.console.powerOff();
     Javatari.room.console.resetDebug();
@@ -103,14 +136,12 @@ var VCSPlatform = function() {
   this.newCodeAnalyzer = function() {
     return new CodeAnalyzer_vcs(this);
   }
-  /*
   this.saveState = function() {
-    return Javatari.room.console.saveState(); // TODO
+    return Javatari.room.console.saveState();
   }
   this.loadState = function(state) {
-    return Javatari.room.console.loadState(state); // TODO
+    return Javatari.room.console.loadState(state);
   }
-  */
   this.readAddress = function(addr) {
     return this.current_output[addr & 0xfff]; // TODO: use bus to read
   }
@@ -182,6 +213,16 @@ var VCSPlatform = function() {
     s += "Ball"+ lpad(t['bco'],11) + lpad(nonegstr(t['bsc']),5) + lpad(t['bss'],6) + "\n";
     return s;
   }
+
+  this.setRecorder = function(recorder : EmuRecorder) : void {
+    this.recorder = recorder;
+  }
+  this.updateRecorder = function() {
+    // are we recording and do we need to save a frame?
+    if (this.recorder && !this.paused && this.isRunning() && this.recorder.frameRequested()) {
+      this.recorder.recordFrame(this, this.saveState());
+    }
+  }
 };
 
 function nonegstr(n) {
@@ -226,6 +267,7 @@ var VCSMAMEPlatform = function(mainElement) {
     return Javatari.getOpcodeMetadata(opcode, offset);
   }
   */
+
 }
 
 ////////////////

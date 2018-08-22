@@ -172,6 +172,7 @@ var JSNESPlatform = function(mainElement) {
     this.copy6502REGvars(c);
     return c;
   }
+  // TODO don't need to save ROM?
   this.saveState = function() {
     //var s = $.extend(true, {}, nes);
     var s = nes.toJSON();

@@ -544,7 +544,6 @@ function runStepBackwards() {
 }
 
 function clearBreakpoint() {
-  _disableRecording();
   lastDebugState = null;
   if (platform.clearDebug) platform.clearDebug();
   showDebugInfo();
