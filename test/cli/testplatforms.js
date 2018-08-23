@@ -30,10 +30,15 @@ var emu = require('gen/emu.js');
 var Keys = emu.Keys;
 var audio = require('gen/audio.js');
 var recorder = require('gen/recorder.js');
-var _vicdual = require('gen/platform/vicdual.js');
 var _apple2 = require('gen/platform/apple2.js');
 var _vcs = require('gen/platform/vcs.js');
 var _nes = require('gen/platform/nes.js');
+var _vicdual = require('gen/platform/vicdual.js');
+var _mw8080bw = require('gen/platform/mw8080bw.js');
+var _galaxian = require('gen/platform/galaxian.js');
+var _vector = require('gen/platform/vector.js');
+var _williams = require('gen/platform/williams.js');
+var _sound_williams = require('gen/platform/sound_williams.js');
 
 //
 
@@ -52,13 +57,29 @@ var keycallback;
 emu.RasterVideo = function(mainElement, width, height, options) {
   var datau32;
   this.create = function() {
-      datau32 = new Uint32Array(width*height);
+    datau32 = new Uint32Array(width*height);
   }
   this.setKeyboardEvents = function(callback) {
     keycallback = callback;
   }
   this.getFrameData = function() { return datau32; }
-  this.updateFrame = function() { }
+  this.updateFrame = function() {}
+}
+
+emu.VectorVideo = function(mainElement, width, height, options) {
+  this.create = function() {
+    this.drawops = 0;
+  }
+  this.setKeyboardEvents = function(callback) {
+    keycallback = callback;
+  }
+  this.clear = function() { }
+  this.drawLine = function() { this.drawops++; }
+}
+
+global.Worker = function() {
+  this.msgcount = 0;
+  this.postMessage = function() { this.msgcount++; }
 }
 
 //
@@ -107,16 +128,68 @@ describe('Platform Replay', () => {
       }
     });
     assert.equal(platform.saveState().p.SA, 0xff ^ 0x40);
+    assert.equal(60, platform.readAddress(0x80)); // player x pos
   });
 
   it('Should run nes', () => {
     var platform = testPlatform('nes', 'shoot2.c.rom', 70, (platform, frameno) => {
       if (frameno == 60) {
-        keycallback(Keys.VK_Z.c, Keys.VK_Z.c, 1);
+        keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
       }
     });
-    assert.equal(65, platform.saveControlsState().c1[0]);
+    assert.equal(120-10, platform.readAddress(0x41d)); // player x pos
   });
 
+  it('Should run vicdual', () => {
+    var platform = testPlatform('vicdual', 'snake1.c.rom', 70, (platform, frameno) => {
+      if (frameno == 60) {
+        keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
+      }
+    });
+  });
+
+  it('Should run mw8080bw', () => {
+    var platform = testPlatform('mw8080bw', 'game2.c.rom', 70, (platform, frameno) => {
+      if (frameno == 60) {
+        keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
+      }
+    });
+    assert.equal(96-9*2, platform.readAddress(0x2006)); // player x pos
+  });
+
+  it('Should run galaxian', () => {
+    var platform = testPlatform('galaxian-scramble', 'shoot2.c.rom', 70, (platform, frameno) => {
+      if (frameno == 60) {
+        keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
+      }
+    });
+    assert.equal(112-10, platform.readAddress(0x4074)); // player x pos
+  });
+
+  it('Should run vector', () => {
+    var platform = testPlatform('vector-z80color', 'game.c.rom', 70, (platform, frameno) => {
+      if (frameno == 60) {
+        keycallback(Keys.VK_UP.c, Keys.VK_UP.c, 1);
+      }
+    });
+  });
+
+  it('Should run williams', () => {
+    var platform = testPlatform('williams-z80', 'game1.c.rom', 70, (platform, frameno) => {
+      if (frameno == 60) {
+        keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
+      }
+    });
+  });
+/*
+  it('Should run sound_williams', () => {
+    var platform = testPlatform('sound_williams-z80', 'swave.c.rom', 70, (platform, frameno) => {
+      if (frameno == 60) {
+        keycallback(Keys.VK_2.c, Keys.VK_2.c, 1);
+      }
+    });
+  });
+*/
 });
+
 

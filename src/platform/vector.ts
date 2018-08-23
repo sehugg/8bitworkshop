@@ -106,8 +106,12 @@ var AtariVectorPlatform = function(mainElement) {
     dvg = new DVGBWStateMachine(bus, video, 0x4000);
     audio = newPOKEYAudio();
     video.create();
-    timer = new AnimationTimer(60, function() {
-      video.clear();
+    timer = new AnimationTimer(60, this.nextFrame.bind(this));
+    setKeyboardFromMap(video, switches, ASTEROIDS_KEYCODE_MAP);
+  }
+  
+  this.advance = function(novideo) {
+      if (!novideo) video.clear();
       var debugCond = self.getDebugCallback();
       clock = 0;
       for (var i=0; i<cpuCyclesPerFrame; i++) {
@@ -123,9 +127,6 @@ var AtariVectorPlatform = function(mainElement) {
         //cpu.executeInstruction();
       }
       //if (++watchdog == 256) { watchdog = 0; cpu.reset(); }
-      self.restartDebugState();
-    });
-    setKeyboardFromMap(video, switches, ASTEROIDS_KEYCODE_MAP);
   }
 
   this.loadROM = function(title, data) {
@@ -257,8 +258,12 @@ var AtariColorVectorPlatform = function(mainElement) {
     dvg = new DVGColorStateMachine(bus, video, 0x2000);
     audio = newPOKEYAudio();
     video.create();
-    timer = new AnimationTimer(60, function() {
-      video.clear();
+    timer = new AnimationTimer(60, this.nextFrame.bind(this));
+    setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
+  }
+  
+  this.advance = function(novideo) {
+      if (!novideo) video.clear();
       var debugCond = self.getDebugCallback();
       clock = 0;
       for (var i=0; i<cpuCyclesPerFrame; i++) {
@@ -274,9 +279,6 @@ var AtariColorVectorPlatform = function(mainElement) {
         cpu.clockPulse();
         //cpu.executeInstruction();
       }
-      self.restartDebugState();
-    });
-    setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
   }
 
   this.loadROM = function(title, data) {
@@ -396,18 +398,19 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
     dvg = new DVGColorStateMachine(bus, video, 0xa000);
     audio = newPOKEYAudio();
     video.create();
-    timer = new AnimationTimer(60, function() {
-      video.clear();
+    timer = new AnimationTimer(60, this.nextFrame.bind(this));
+    setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
+  }
+  
+  this.advance = function(novideo) {
+      if (!novideo) video.clear();
       self.runCPU(cpu, cpuCyclesPerFrame);
       cpu.requestInterrupt();
-      self.restartDebugState();
       switches[0xf] = (switches[0xf] + 1) & 0x3;
       if (--switches[0xe] <= 0) {
         console.log("WATCHDOG FIRED"); // TODO: alert on video
         self.reset(); // watchdog reset
       }
-    });
-    setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
   }
 
   this.loadROM = function(title, data) {

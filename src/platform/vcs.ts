@@ -49,7 +49,6 @@ Javatari.AUDIO_BUFFER_SIZE = 256;
 
 class VCSPlatform {
 
-  current_output;
   recorder : EmuRecorder;
   paused : boolean = true;
 
@@ -70,7 +69,6 @@ class VCSPlatform {
 
   loadROM(title, data) {
     Javatari.loadROM(title, data);
-    this.current_output = data; // TODO: use bus
   }
 
   getOpcodeMetadata(opcode, offset) {
@@ -155,9 +153,11 @@ class VCSPlatform {
   loadControlsState(state) {
     Javatari.room.console.loadControlsState(state);
   }
-  // TODO: load/save controls state
   readAddress(addr) {
-    return this.current_output[addr & 0xfff]; // TODO: use bus to read
+    return Javatari.room.console.readAddress(addr);
+  }
+  writeAddress(addr,value) {
+    Javatari.room.console.writeAddress(addr,value);
   }
   runUntilReturn() {
     var depth = 1;

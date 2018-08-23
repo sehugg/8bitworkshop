@@ -21,7 +21,7 @@ export interface CpuState {
 };
 export interface EmuState {
   c:CpuState,	 // CPU state
-  b?:number[]	 // RAM
+  b?:number[]	 // RAM (TODO: not for vcs)
 };
 export interface EmuControlsState {
 }
