@@ -24,7 +24,8 @@ export class StateRecorderImpl implements EmuRecorder {
         this.checkpoints = [];
         this.framerecs = [];
         this.frameCount = 0;
-        this.lastSeekFrame = -1;
+        this.lastSeekFrame = 0;
+        if (this.callbackStateChanged) this.callbackStateChanged();
     }
 
     frameRequested() : boolean {
@@ -32,30 +33,33 @@ export class StateRecorderImpl implements EmuRecorder {
         if (this.checkpoints.length >= this.maxCheckpoints) {
             return false;
         }
-        // record the control state, if available
-        if (this.platform.saveControlsState) {
-            this.framerecs.push({
-                controls:this.platform.saveControlsState(),
-                seed:getNoiseSeed()
-            });
+        var controls = {
+          controls:this.platform.saveControlsState(),
+          seed:getNoiseSeed()
+        };
+        var requested = false;
+        // are we replaying? then we don't need to save a frame, just replace controls
+        if (this.lastSeekFrame < this.frameCount) {
+            this.loadControls(this.lastSeekFrame);
+        } else {
+            // record the control state, if available
+            if (this.platform.saveControlsState) {
+                this.framerecs.push(controls);
+            }
+            // time to save next frame?
+            requested = (this.frameCount++ % this.checkpointInterval) == 0;
         }
-        // pick up where we left off, if we used the seek function
-        if (this.lastSeekFrame >= 0) {
-            this.frameCount = this.lastSeekFrame;
-            this.lastSeekFrame = -1;
-            // truncate buffers
-            this.checkpoints = this.checkpoints.slice(0, Math.floor((this.frameCount + this.checkpointInterval - 1) / this.checkpointInterval));
-            this.framerecs = this.framerecs.slice(0, this.frameCount);
-        }
-        // time to save next frame?
-        if (this.callbackStateChanged) {
-            this.callbackStateChanged();
-        }
-        return (this.frameCount++ % this.checkpointInterval) == 0;
+        this.lastSeekFrame++;
+        if (this.callbackStateChanged) this.callbackStateChanged();
+        return requested;
     }
     
     numFrames() : number {
         return this.frameCount;
+    }
+    
+    currentFrame() : number {
+        return this.lastSeekFrame;
     }
     
     recordFrame(state : EmuState) {
@@ -79,8 +83,7 @@ export class StateRecorderImpl implements EmuRecorder {
             this.platform.loadState(state);
             while (frame < seekframe) {
                 if (frame < this.framerecs.length) {
-                    this.platform.loadControlsState(this.framerecs[frame].controls);
-                    setNoiseSeed(this.framerecs[frame].seed);
+                    this.loadControls(frame);
                 }
                 frame++;
                 this.platform.advance(frame < seekframe); // TODO: infinite loop?
@@ -90,5 +93,11 @@ export class StateRecorderImpl implements EmuRecorder {
         } else {
             return 0;
         }
+    }
+    
+    loadControls(frame : number) {
+        if (this.platform.loadControlsState)
+            this.platform.loadControlsState(this.framerecs[frame].controls);
+        setNoiseSeed(this.framerecs[frame].seed);
     }
 }

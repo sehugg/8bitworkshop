@@ -406,6 +406,7 @@ function setCompileOutput(data: WorkerResult) {
     if (rom) { // TODO instanceof Uint8Array) {
       try {
         clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
+        _resetRecording();
         platform.loadROM(getCurrentPresetTitle(), rom);
         if (!userPaused) _resume();
         current_output = rom;
@@ -550,6 +551,7 @@ function clearBreakpoint() {
 }
 
 function resetAndDebug() {
+  _disableRecording();
   if (platform.setupDebug && platform.readAddress) { // TODO??
     clearBreakpoint();
     _resume();
@@ -693,6 +695,12 @@ function _disableRecording() {
   }
 }
 
+function _resetRecording() {
+  if (recorderActive) {
+    stateRecorder.reset();
+  }
+}
+
 function _enableRecording() {
   stateRecorder.reset();
   platform.setRecorder(stateRecorder);
@@ -790,8 +798,8 @@ function setupReplaySlider() {
     stateRecorder.callbackStateChanged = () => {
       replayslider.attr('min', 1);
       replayslider.attr('max', stateRecorder.numFrames());
-      replayslider.val(stateRecorder.numFrames());
-      updateFrameNo(stateRecorder.numFrames());
+      replayslider.val(stateRecorder.currentFrame());
+      updateFrameNo(stateRecorder.currentFrame());
     };
     replayslider.on('input', sliderChanged);
     replayslider.on('change', sliderChanged);

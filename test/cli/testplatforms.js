@@ -24,15 +24,16 @@ global.Log = require('tss/js/Log.js').Log;
 includeInThisContext('tss/js/tss/PsgDeviceChannel.js');
 includeInThisContext('tss/js/tss/MasterChannel.js');
 includeInThisContext('tss/js/tss/AudioLooper.js');
-
-var jsnes = require("jsnes/jsnes.min.js");
+includeInThisContext("jsnes/jsnes.min.js");
 
 var emu = require('gen/emu.js');
+var Keys = emu.Keys;
 var audio = require('gen/audio.js');
 var recorder = require('gen/recorder.js');
 var _vicdual = require('gen/platform/vicdual.js');
 var _apple2 = require('gen/platform/apple2.js');
 var _vcs = require('gen/platform/vcs.js');
+var _nes = require('gen/platform/nes.js');
 
 //
 
@@ -106,6 +107,15 @@ describe('Platform Replay', () => {
       }
     });
     assert.equal(platform.saveState().p.SA, 0xff ^ 0x40);
+  });
+
+  it('Should run nes', () => {
+    var platform = testPlatform('nes', 'shoot2.c.rom', 70, (platform, frameno) => {
+      if (frameno == 60) {
+        keycallback(Keys.VK_Z.c, Keys.VK_Z.c, 1);
+      }
+    });
+    assert.equal(65, platform.saveControlsState().c1[0]);
   });
 
 });

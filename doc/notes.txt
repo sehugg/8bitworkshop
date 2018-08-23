@@ -51,10 +51,7 @@ TODO:
 - tools (memory, disasm) use debugging state
 - text log debugging script
 - NES crt should mark raster pos when debugging
-- make sure we don't store files in local storage unnecc.
-- state buffer/replay
 - intro/help text for each platform
-- make sure controls work with replay feature (we'll have to save control state every frame)
 - vscode/atom extension?
 - navigator.getGamepads
 
