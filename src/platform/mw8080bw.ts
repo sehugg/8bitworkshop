@@ -6,15 +6,13 @@ import { hex } from "../util";
 
 // http://www.computerarcheology.com/Arcade/
 
-var MW8080BW_PRESETS = [
+const MW8080BW_PRESETS = [
   {id:'gfxtest.c', name:'Graphics Test'},
   {id:'shifter.c', name:'Sprite w/ Bit Shifter'},
   {id:'game2.c', name:'Cosmic Impalas'},
 ];
 
-var Midway8080BWPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new (BaseZ80Platform as any)();
+const _Midway8080BWPlatform = function(mainElement) {
 
   var cpu, ram, membus, iobus, rom;
   var probe;
@@ -23,13 +21,13 @@ var Midway8080BWPlatform = function(mainElement) {
   var bitshift_offset = 0;
   var bitshift_register = 0;
   var watchdog_counter;
-  var cpuFrequency = 1996800;
-  var cpuCyclesPerLine = cpuFrequency/(60*224); // TODO
-  var INITIAL_WATCHDOG = 256;
-  var PIXEL_ON = 0xffeeeeee;
-  var PIXEL_OFF = 0xff000000;
+  const cpuFrequency = 1996800;
+  const cpuCyclesPerLine = cpuFrequency/(60*224); // TODO
+  const INITIAL_WATCHDOG = 256;
+  const PIXEL_ON = 0xffeeeeee;
+  const PIXEL_OFF = 0xff000000;
 
-	var SPACEINV_KEYCODE_MAP = makeKeycodeMap([
+	const SPACEINV_KEYCODE_MAP = makeKeycodeMap([
 		[Keys.VK_SPACE, 1, 0x10], // P1
 		[Keys.VK_LEFT, 1, 0x20],
 		[Keys.VK_RIGHT, 1, 0x40],
@@ -40,12 +38,14 @@ var Midway8080BWPlatform = function(mainElement) {
 		[Keys.VK_1, 1, 0x4],
 		[Keys.VK_2, 1, 0x2],
   ]);
+  
+ class Midway8080BWPlatform extends BaseZ80Platform {
 
-  this.getPresets = function() {
+  getPresets() {
     return MW8080BW_PRESETS;
   }
 
-  this.start = function() {
+  start = function() {
     ram = new RAM(0x2000);
     //displayPCs = new Uint16Array(new ArrayBuffer(0x2000*2));
     membus = {
@@ -65,7 +65,6 @@ var Midway8080BWPlatform = function(mainElement) {
 			]),
       isContended: function() { return false; },
     };
-    this.readAddress = membus.read;
     iobus = {
       read: function(addr) {
 				addr &= 0x3;
@@ -115,8 +114,12 @@ var Midway8080BWPlatform = function(mainElement) {
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, this.advance.bind(this));
   }
+
+  readAddress(addr) {
+    return membus.read(addr);
+  }
   
-  this.advance = function(novideo : boolean) {
+  advance(novideo : boolean) {
     var debugCond = this.getDebugCallback();
     var targetTstates = cpu.getTstates();
     for (var sl=0; sl<224; sl++) {
@@ -149,12 +152,12 @@ var Midway8080BWPlatform = function(mainElement) {
     this.restartDebugState();
   }
 
-  this.loadROM = function(title, data) {
+  loadROM(title, data) {
     rom = padBytes(data, 0x2000);
-    self.reset();
+    this.reset();
   }
 
-  this.loadState = function(state) {
+  loadState(state) {
     cpu.loadState(state.c);
     ram.mem.set(state.b);
     bitshift_register = state.bsr;
@@ -164,9 +167,9 @@ var Midway8080BWPlatform = function(mainElement) {
     inputs[1] = state.in1;
     inputs[2] = state.in2;
   }
-  this.saveState = function() {
+  saveState() {
     return {
-      c:self.getCPUState(),
+      c:this.getCPUState(),
       b:ram.mem.slice(0),
       bsr:bitshift_register,
       bso:bitshift_offset,
@@ -176,24 +179,38 @@ var Midway8080BWPlatform = function(mainElement) {
       in2:inputs[2],
     };
   }
-  this.getCPUState = function() {
+  loadControlsState(state) {
+    inputs[0] = state.in0;
+    inputs[1] = state.in1;
+    inputs[2] = state.in2;
+  }
+  saveControlsState() {
+    return {
+      in0:inputs[0],
+      in1:inputs[1],
+      in2:inputs[2],
+    };
+  }
+  getCPUState() {
     return cpu.saveState();
   }
 
-  this.isRunning = function() {
+  isRunning() {
     return timer && timer.isRunning();
   }
-  this.pause = function() {
+  pause() {
     timer.stop();
   }
-  this.resume = function() {
+  resume() {
     timer.start();
   }
-  this.reset = function() {
+  reset() {
     cpu.reset();
     cpu.setTstates(0);
     watchdog_counter = INITIAL_WATCHDOG;
   }
+ }
+  return new Midway8080BWPlatform();
 }
 
-PLATFORMS['mw8080bw'] = Midway8080BWPlatform;
+PLATFORMS['mw8080bw'] = _Midway8080BWPlatform;

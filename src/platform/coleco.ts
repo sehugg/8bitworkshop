@@ -33,13 +33,10 @@ var ColecoVision_PRESETS = [
 
 /// MAME support
 
-var ColecoVisionMAMEPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new BaseMAMEPlatform();
+class ColecoVisionMAMEPlatform extends BaseMAMEPlatform {
 
-//
-  this.start = function() {
-    self.startModule(mainElement, {
+  start() {
+    this.startModule(this.mainElement, {
       jsfile:'mamecoleco.js',
       cfgfile:'coleco.cfg',
       biosfile:'coleco/313 10031-4005 73108a.u2',
@@ -53,15 +50,15 @@ var ColecoVisionMAMEPlatform = function(mainElement) {
     });
   }
 
-  this.loadROM = function(title, data) {
+  loadROM(title, data) {
     this.loadROMFile(data);
     this.loadRegion(":coleco_cart:rom", data);
   }
 
-  this.getPresets = function() { return ColecoVision_PRESETS; }
+  getPresets() { return ColecoVision_PRESETS; }
 
-  this.getToolForFilename = getToolForFilename_z80;
-  this.getDefaultExtension = function() { return ".c"; };
+  getToolForFilename = getToolForFilename_z80;
+  getDefaultExtension() { return ".c"; };
 }
 
 ///

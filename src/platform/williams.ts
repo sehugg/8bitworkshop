@@ -364,7 +364,7 @@ var WilliamsPlatform = function(mainElement, proto) {
     cpu.loadState(state.c);
     ram.mem.set(state.b);
     nvram.mem.set(state.nvram);
-    //pia6821.set(state.pia);
+    pia6821.set(state.pia);
     blitregs.set(state.blt);
     watchdog_counter = state.wdc;
     banksel = state.bs;
@@ -380,6 +380,14 @@ var WilliamsPlatform = function(mainElement, proto) {
       wdc:watchdog_counter,
       bs:banksel,
       ps:portsel,
+    };
+  }
+  this.loadControlsState = function(state) {
+    pia6821.set(state.pia);
+  }
+  this.saveControlsState = function() {
+    return {
+      pia:pia6821.slice(0),
     };
   }
   this.getCPUState = function() {

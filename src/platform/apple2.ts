@@ -7,7 +7,7 @@ import { SampleAudio } from "../audio";
 
 declare var jt; // 6502
 
-var APPLE2_PRESETS = [
+const APPLE2_PRESETS = [
   {id:'sieve.c', name:'Sieve'},
   {id:'mandel.c', name:'Mandelbrot'},
   {id:'tgidemo.c', name:'TGI Graphics Demo'},
@@ -19,15 +19,12 @@ var APPLE2_PRESETS = [
 //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
 ];
 
-var GR_TXMODE   = 1;
-var GR_MIXMODE  = 2;
-var GR_PAGE1    = 4;
-var GR_HIRES    = 8;
+const GR_TXMODE   = 1;
+const GR_MIXMODE  = 2;
+const GR_PAGE1    = 4;
+const GR_HIRES    = 8;
 
-var Apple2Platform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new (Base6502Platform as any)();
-  
+const _Apple2Platform = function(mainElement) {
   var cpuFrequency = 1023000;
   var cpuCyclesPerLine = 65;
   var cpu, ram, bus;
@@ -50,11 +47,12 @@ var Apple2Platform = function(mainElement) {
   var bank2rdoffset=0, bank2wroffset=0;
   var grparams;
   
-  this.getPresets = function() {
+ class Apple2Platform extends Base6502Platform {
+
+  getPresets() {
     return APPLE2_PRESETS;
   }
-
-  this.start = function() {
+  start() {
     cpu = new jt.M6502();
     ram = new RAM(0x13000); // 64K + 16K LC RAM - 4K hardware
     // ROM
@@ -183,7 +181,7 @@ var Apple2Platform = function(mainElement) {
     timer = new AnimationTimer(60, this.advance.bind(this));
   }
 
-  this.advance = function(novideo : boolean) {
+  advance(novideo : boolean) {
     // 262.5 scanlines per frame
     var clock = 0;
     var debugCond = this.getDebugCallback();
@@ -213,6 +211,70 @@ var Apple2Platform = function(mainElement) {
     //soundstate = 0; // to prevent clicking
     this.restartDebugState(); // reset debug start state
   }
+
+  loadROM(title, data) {
+    pgmbin = data;
+    this.reset();
+  }
+
+  isRunning() {
+    return timer.isRunning();
+  }
+  pause() {
+    timer.stop();
+    audio.stop();
+  }
+  resume() {
+    timer.start();
+    audio.start();
+  }
+  reset() {
+    cpu.reset();
+    // execute until $c600 boot
+    for (var i=0; i<2000000; i++) {
+      cpu.clockPulse();
+      if (this.getCPUState().PC == 0xc602) {
+        cpu.clockPulse();
+        cpu.clockPulse();
+        break;
+      }
+    }
+  }
+  readAddress(addr) {
+    return bus.read(addr);
+  }
+
+  loadState(state) {
+    cpu.loadState(state.c);
+    ram.mem.set(state.b);
+    kbdlatch = state.kbd;
+    grswitch = state.gr;
+    auxRAMselected = state.lc.s;
+    auxRAMbank = state.lc.b;
+    writeinhibit = state.lc.w;
+    setupLanguageCardConstants();
+  }
+  saveState() {
+    return {
+      c:cpu.saveState(),
+      b:ram.mem.slice(0),
+      kbd:kbdlatch,
+      gr:grswitch,
+      lc:{s:auxRAMselected,b:auxRAMbank,w:writeinhibit},
+    };
+  }
+  loadControlsState(state) {
+    kbdlatch = state.kbd;
+  }
+  saveControlsState() {
+    return {
+      kbd:kbdlatch,
+    };
+  }
+  getCPUState() {
+    return cpu.saveState();
+  }
+ }
 
   function doLanguageCardIO(address, value)
   {
@@ -284,68 +346,7 @@ var Apple2Platform = function(mainElement) {
         bank2wroffset = 0x3000; // map 0xd000-0xdfff -> 0x10000-0x10fff
   }
 
-  this.loadROM = function(title, data) {
-    pgmbin = data;
-    this.reset();
-  }
-
-  this.isRunning = function() {
-    return timer.isRunning();
-  }
-  this.pause = function() {
-    timer.stop();
-    audio.stop();
-  }
-  this.resume = function() {
-    timer.start();
-    audio.start();
-  }
-  this.reset = function() {
-    cpu.reset();
-    // execute until $c600 boot
-    for (var i=0; i<2000000; i++) {
-      cpu.clockPulse();
-      if (this.getCPUState().PC == 0xc602) {
-        cpu.clockPulse();
-        cpu.clockPulse();
-        break;
-      }
-    }
-  }
-  this.readAddress = function(addr) {
-    return bus.read(addr);
-  }
-
-  this.loadState = function(state) {
-    cpu.loadState(state.c);
-    ram.mem.set(state.b);
-    kbdlatch = state.kbd;
-    grswitch = state.gr;
-    auxRAMselected = state.lc.s;
-    auxRAMbank = state.lc.b;
-    writeinhibit = state.lc.w;
-    setupLanguageCardConstants();
-  }
-  this.saveState = function() {
-    return {
-      c:cpu.saveState(),
-      b:ram.mem.slice(0),
-      kbd:kbdlatch,
-      gr:grswitch,
-      lc:{s:auxRAMselected,b:auxRAMbank,w:writeinhibit},
-    };
-  }
-  this.loadControlsState = function(state) {
-    kbdlatch = state.kbd;
-  }
-  this.saveControlsState = function() {
-    return {
-      kbd:kbdlatch,
-    };
-  }
-  this.getCPUState = function() {
-    return cpu.saveState();
-  }
+  return new Apple2Platform(); // return inner class from constructor
 };
 
 var Apple2Display = function(pixels, apple) {
@@ -1015,12 +1016,10 @@ var APPLEIIGO_LZG = [
 
 /// MAME support
 
-var Apple2MAMEPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new BaseMAMEPlatform();
+class Apple2MAMEPlatform extends BaseMAMEPlatform {
 
-  this.start = function() {
-    self.startModule(mainElement, {
+  start () {
+    this.startModule(this.mainElement, {
       jsfile:'mameapple2e.js',
       biosfile:['apple2e.zip'],
       //cfgfile:'nes.cfg',
@@ -1035,16 +1034,16 @@ var Apple2MAMEPlatform = function(mainElement) {
     });
   }
 
-  this.getOpcodeMetadata = getOpcodeMetadata_6502;
-  this.getDefaultExtension = function() { return ".c"; };
+  getOpcodeMetadata = getOpcodeMetadata_6502;
+  getDefaultExtension () { return ".c"; };
 
-  this.getPresets = function() { return APPLE2_PRESETS; }
+  getPresets () { return APPLE2_PRESETS; }
 
-  this.loadROM = function(title, data) {
+  loadROM (title, data) {
     this.loadROMFile(data);
     // TODO
   }
 }
 
-PLATFORMS['apple2'] = Apple2Platform;
+PLATFORMS['apple2'] = _Apple2Platform;
 PLATFORMS['apple2-e'] = Apple2MAMEPlatform;

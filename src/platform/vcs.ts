@@ -9,7 +9,7 @@ declare var platform : Platform; // global platform object
 declare var Javatari : any;
 declare var jt : any; // 6502
 
-var VCS_PRESETS = [
+const VCS_PRESETS = [
   {id:'examples/hello', chapter:4, name:'Hello 6502 and TIA'},
   {id:'examples/vsync', chapter:5, name:'Painting on the CRT', title:'Color Bars'},
   {id:'examples/playfield', chapter:6, name:'Playfield Graphics'},
@@ -47,13 +47,16 @@ Javatari.CARTRIDGE_CHANGE_DISABLED = true;
 Javatari.DEBUG_SCANLINE_OVERFLOW = false; // TODO: make a switch
 Javatari.AUDIO_BUFFER_SIZE = 256;
 
-var VCSPlatform = function() {
-  var self = this;
-  this.paused = true;
+class VCSPlatform {
 
-  this.getPresets = function() { return VCS_PRESETS; }
+  current_output;
+  recorder : EmuRecorder;
+  paused : boolean = true;
 
-  this.start = function() {
+  getPresets() { return VCS_PRESETS; }
+
+  start() {
+    var self = this;
     $("#javatari-div").show();
     Javatari.start();
     // intercept clockPulse function
@@ -65,16 +68,16 @@ var VCSPlatform = function() {
     this.paused = false;
   }
 
-  this.loadROM = function(title, data) {
+  loadROM(title, data) {
     Javatari.loadROM(title, data);
     this.current_output = data; // TODO: use bus
   }
 
-  this.getOpcodeMetadata = function(opcode, offset) {
+  getOpcodeMetadata(opcode, offset) {
     return Javatari.getOpcodeMetadata(opcode, offset);
   }
 
-  this.getRasterPosition = function() {
+  getRasterPosition() {
     var clkfs = Javatari.room.console.getClocksFromFrameStart() - 1;
     var row = Math.floor(clkfs/76);
     var col = clkfs - row*76;
@@ -84,10 +87,10 @@ var VCSPlatform = function() {
   }
 
   // TODO: Clock changes this on event, so it may not be current
-  this.isRunning = function() {
+  isRunning() {
     return Javatari.room && Javatari.room.console.isRunning();
   }
-  this.pause = function() {	
+  pause() {	
     //console.log('pause', this.paused, this.isRunning());
     if (!this.paused) {
       this.paused = true;
@@ -95,7 +98,7 @@ var VCSPlatform = function() {
       Javatari.room.speaker.mute();
     }
   }
-  this.resume = function() {
+  resume() {
     //console.log('resume', this.paused, this.isRunning());
     if (this.paused) {
       this.paused = false;
@@ -103,51 +106,52 @@ var VCSPlatform = function() {
       Javatari.room.speaker.play();
     }
   }
-  this.advance = function() {
+  advance() {
     Javatari.room.console.clockPulse();
   }
 
-  this.step = function() { Javatari.room.console.debugSingleStepCPUClock(); }
-  this.stepBack = function() { Javatari.room.console.debugStepBackInstruction(); }
-  this.runEval = function(evalfunc) { Javatari.room.console.debugEval(evalfunc); }
+  step() { Javatari.room.console.debugSingleStepCPUClock(); }
+  stepBack() { Javatari.room.console.debugStepBackInstruction(); }
+  runEval(evalfunc) { Javatari.room.console.debugEval(evalfunc); }
   
-  this.setupDebug = function(callback) {
-    Javatari.room.console.onBreakpointHit = function(state) {
-      self.paused = true;
+  setupDebug(callback) {
+    Javatari.room.console.onBreakpointHit = (state) => {
+      this.paused = true;
       callback(state);
     }
     Javatari.room.speaker.mute();
   }
-  this.clearDebug = function() {
+  clearDebug() {
     Javatari.room.console.disableDebug();
     Javatari.room.console.onBreakpointHit = null;
     if (this.isRunning()) Javatari.room.speaker.play();
   }
   
-  this.reset = function() {
+  reset() {
     Javatari.room.console.powerOff();
     Javatari.room.console.resetDebug();
     Javatari.room.console.powerOn();
     Javatari.room.speaker.play();
   }
-  this.getOriginPC = function() {
+  getOriginPC() {
     return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
   }
-  this.newCodeAnalyzer = function() {
+  newCodeAnalyzer() {
     return new CodeAnalyzer_vcs(this);
   }
-  this.saveState = function() {
+  saveState() {
     return Javatari.room.console.saveState();
   }
-  this.loadState = function(state) {
+  loadState(state) {
     return Javatari.room.console.loadState(state);
   }
-  this.readAddress = function(addr) {
+  // TODO: load/save controls state
+  readAddress(addr) {
     return this.current_output[addr & 0xfff]; // TODO: use bus to read
   }
-  this.runUntilReturn = function() {
+  runUntilReturn() {
     var depth = 1;
-    self.runEval(function(c) {
+    this.runEval(function(c) {
       if (depth <= 0 && c.T == 0)
         return true;
       if (c.o == 0x20)
@@ -157,38 +161,38 @@ var VCSPlatform = function() {
       return false;
     });
   }
-  this.cpuStateToLongString = function(c) {
+  cpuStateToLongString(c) {
     return cpuStateToLongString_6502(c);
   }
-  this.getRAMForState = function(state) {
+  getRAMForState(state) {
     return jt.Util.byteStringToUInt8Array(atob(state.r.b));
   }
-  this.ramStateToLongString = function(state) {
-    var ram = self.getRAMForState(state);
+  ramStateToLongString(state) {
+    var ram = this.getRAMForState(state);
     return "\n" + dumpRAM(ram, 0x80, 0x80);
   }
-  this.getToolForFilename = function(fn) {
+  getToolForFilename(fn) {
     return "dasm";
   }
-  this.getDefaultExtension = function() { return ".a"; };
+  getDefaultExtension() { return ".a"; };
 
-  this.getDebugCategories = function() {
+  getDebugCategories() {
     return ['CPU','PIA','TIA'];
   }
-  this.getDebugInfo = function(category, state) {
+  getDebugInfo(category, state) {
     switch (category) {
       case 'CPU':    return this.cpuStateToLongString(state.c);
       case 'PIA':    return this.ramStateToLongString(state) + "\n" + this.piaStateToLongString(state.p);
       case 'TIA':    return this.tiaStateToLongString(state.t);
     }
   }
-  this.piaStateToLongString = function(p) {
+  piaStateToLongString(p) {
     return "Timer  " + p.t + "/" + p.c + "\n";
   }
-  this.tiaStateToLongString = function(t) {
+  tiaStateToLongString(t) {
     var pos = this.getRasterPosition();
     var s = '';
-    s += "H" + lpad(pos.x,5) + "  V" + lpad(pos.y,5) + "   ";
+    s += "H" + lpad(pos.x.toString(),5) + "  V" + lpad(pos.y.toString(),5) + "   ";
     s += (t.vs?"VSYNC ":"- ") + (t.vb?"VBLANK ":"- ") + "\n";
     s += "\n";
     s += "Playfield " + t.f + "\n";
@@ -214,13 +218,13 @@ var VCSPlatform = function() {
     return s;
   }
 
-  this.setRecorder = function(recorder : EmuRecorder) : void {
+  setRecorder(recorder : EmuRecorder) : void {
     this.recorder = recorder;
   }
-  this.updateRecorder = function() {
+  updateRecorder() {
     // are we recording and do we need to save a frame?
     if (this.recorder && !this.paused && this.isRunning() && this.recorder.frameRequested()) {
-      this.recorder.recordFrame(this, this.saveState());
+      this.recorder.recordFrame(this.saveState());
     }
   }
 };
@@ -231,13 +235,12 @@ function nonegstr(n) {
 
 ///////////////
 
-var VCSMAMEPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new BaseMAMEPlatform();
+class VCSMAMEPlatform extends BaseMAMEPlatform {
 
 //  MCFG_SCREEN_RAW_PARAMS( MASTER_CLOCK_NTSC, 228, 26, 26 + 160 + 16, 262, 24 , 24 + 192 + 31 )
-  this.start = function() {
-    self.startModule(mainElement, {
+
+  start = function() {
+    this.startModule(this.mainElement, {
       jsfile:'mamea2600.js',
       driver:'a2600',
       width:176*2,
@@ -247,27 +250,21 @@ var VCSMAMEPlatform = function(mainElement) {
     });
   }
 
-  this.loadROM = function(title, data) {
+  loadROM = function(title, data) {
     this.loadROMFile(data);
     this.loadRegion(":cartslot:cart:rom", data);
   }
 
-  this.getPresets = function() { return VCS_PRESETS; }
+  getPresets = function() { return VCS_PRESETS; }
 
-  this.getToolForFilename = function(fn) {
+  getToolForFilename = function(fn) {
     return "dasm";
   }
-  this.getDefaultExtension = function() { return ".a"; };
+  getDefaultExtension = function() { return ".a"; };
 
-  this.getOriginPC = function() {
+  getOriginPC = function() {
     return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
   }
-  /*
-  this.getOpcodeMetadata = function(opcode, offset) {
-    return Javatari.getOpcodeMetadata(opcode, offset);
-  }
-  */
-
 }
 
 ////////////////

@@ -951,6 +951,13 @@ function loadSharedFile(sharekey : string) {
   return true;
 }
 
+function loadScript(scriptfn, onload) {
+  var script = document.createElement('script');
+  script.onload = onload;
+  script.src = scriptfn;
+  document.getElementsByTagName('head')[0].appendChild(script);
+}
+
 // start
 function startUI(loadplatform : boolean) {
   installErrorHandler();
@@ -975,14 +982,11 @@ function startUI(loadplatform : boolean) {
       // load and start platform object
       if (loadplatform) {
         var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
-        var script = document.createElement('script');
-        script.onload = function() {
+        loadScript(scriptfn, () => {
           console.log("loaded platform", platform_id);
           startPlatform();
           showWelcomeMessage();
-        };
-        script.src = scriptfn;
-        document.getElementsByTagName('head')[0].appendChild(script);
+        });
       } else {
         startPlatform();
         showWelcomeMessage();

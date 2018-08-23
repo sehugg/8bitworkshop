@@ -5,7 +5,7 @@ import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap,
 import { hex } from "../util";
 import { MasterAudio, AY38910_Audio } from "../audio";
 
-var VICDUAL_PRESETS = [
+const VICDUAL_PRESETS = [
   {id:'minimal.c', name:'Minimal Example'},
   {id:'hello.c', name:'Hello World'},
   {id:'gfxtest.c', name:'Graphics Test'},
@@ -15,31 +15,30 @@ var VICDUAL_PRESETS = [
   {id:'music.c', name:'Music Player'},
 ];
 
-var VicDualPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new (BaseZ80Platform as any)();
+const _VicDualPlatform = function(mainElement) {
 
   var cpu, ram, membus, iobus, rom;
   var video, audio, psg, timer, pixels;
   var inputs = [0xff, 0xff, 0xff, 0xff^0x8]; // most things active low
 	var palbank = 0;
 
-  var XTAL = 15468000.0;
-  var scanlinesPerFrame = 0x106;
-  var vblankStart = 0xe0;
-	var vsyncStart = 0xec;
-	var vsyncEnd = 0xf0;
-  var cpuFrequency = XTAL/8;
-  var hsyncFrequency = XTAL/3/scanlinesPerFrame;
-  var vsyncFrequency = hsyncFrequency/0x148;
-  var cpuCyclesPerLine = cpuFrequency/hsyncFrequency;
-	var timerFrequency = 500; // input 2 bit 0x8
-  var cyclesPerTimerTick = cpuFrequency / (2 * timerFrequency);
+  const XTAL = 15468000.0;
+  const scanlinesPerFrame = 0x106;
+  const vblankStart = 0xe0;
+	const vsyncStart = 0xec;
+	const vsyncEnd = 0xf0;
+  const cpuFrequency = XTAL/8;
+  const hsyncFrequency = XTAL/3/scanlinesPerFrame;
+  const vsyncFrequency = hsyncFrequency/0x148;
+  const cpuCyclesPerLine = cpuFrequency/hsyncFrequency;
+	const timerFrequency = 500; // input 2 bit 0x8
+  const cyclesPerTimerTick = cpuFrequency / (2 * timerFrequency);
+
   var reset_disable = false;
   var reset_disable_timer;
   var framestats;
 
-	var palette = [
+	const palette = [
 		0xff000000, // black
 		0xff0000ff, // red
 		0xff00ff00, // green
@@ -50,6 +49,7 @@ var VicDualPlatform = function(mainElement) {
 		0xffffffff  // white
 	];
 
+	// default PROM
 	var colorprom = [
     0xe0,0x60,0x20,0x60, 0xc0,0x60,0x40,0xc0,
     0x20,0x40,0x60,0x80, 0xa0,0xc0,0xe0,0x0e,
@@ -85,7 +85,7 @@ var VicDualPlatform = function(mainElement) {
 		}
 	}
 
-	var CARNIVAL_KEYCODE_MAP = makeKeycodeMap([
+	const CARNIVAL_KEYCODE_MAP = makeKeycodeMap([
 		[Keys.VK_SPACE, 2, -0x20],
     [Keys.VK_SHIFT, 2, -0x40],
 		[Keys.VK_LEFT, 1, -0x10],
@@ -96,12 +96,14 @@ var VicDualPlatform = function(mainElement) {
 		[Keys.VK_2, 3, -0x20],
 		[Keys.VK_5, 3, 0x8],
   ]);
+  
+ class VicDualPlatform extends BaseZ80Platform {
 
-  this.getPresets = function() {
+  getPresets() {
     return VICDUAL_PRESETS;
   }
 
-  this.start = function() {
+  start() {
     ram = new RAM(0x1000);
     membus = {
       read: newAddressDecoder([
@@ -113,7 +115,6 @@ var VicDualPlatform = function(mainElement) {
 			]),
       isContended: function() { return false; },
     };
-    this.readAddress = membus.read;
     iobus = {
       read: function(addr) {
         return inputs[addr&3];
@@ -145,7 +146,11 @@ var VicDualPlatform = function(mainElement) {
     timer = new AnimationTimer(60, this.advance.bind(this));
   }
 
-  this.advance = function(novideo : boolean) {
+  readAddress(addr) {
+    return membus.read(addr);
+  }
+
+  advance(novideo : boolean) {
     var targetTstates = cpu.getTstates();
     for (var sl=0; sl<scanlinesPerFrame; sl++) {
       inputs[2] &= ~0x8;
@@ -162,26 +167,23 @@ var VicDualPlatform = function(mainElement) {
     this.restartDebugState();
   }
 
-  this.loadROM = function(title, data) {
+  loadROM(title, data) {
     if (data.length >= 0x4020 && (data[0x4000] || data[0x401f])) {
       colorprom = data.slice(0x4000,0x4020);
     }
     rom = padBytes(data, 0x4040);
-    self.reset();
+    this.reset();
   }
 
-  this.loadState = function(state) {
+  loadState(state) {
     cpu.loadState(state.c);
     ram.mem.set(state.b);
-    inputs[0] = state.in0;
-    inputs[1] = state.in1;
-    inputs[2] = state.in2;
-		inputs[3] = state.in3;
+    this.loadControlsState(state);
 		palbank = state.pb;
   }
-  this.saveState = function() {
+  saveState() {
     return {
-      c:self.getCPUState(),
+      c:this.getCPUState(),
       b:ram.mem.slice(0),
       in0:inputs[0],
       in1:inputs[1],
@@ -190,32 +192,48 @@ var VicDualPlatform = function(mainElement) {
 			pb:palbank,
     };
   }
-  this.getCPUState = function() {
+  loadControlsState(state) {
+    inputs[0] = state.in0;
+    inputs[1] = state.in1;
+    inputs[2] = state.in2;
+		inputs[3] = state.in3;
+  }
+  saveControlsState() {
+    return {
+      in0:inputs[0],
+      in1:inputs[1],
+      in2:inputs[2],
+			in3:inputs[3]
+    };
+  }
+  getCPUState() {
     return cpu.saveState();
   }
 
-  this.isRunning = function() {
+  isRunning() {
     return timer && timer.isRunning();
   }
-  this.pause = function() {
+  pause() {
     timer.stop();
     audio.stop();
   }
-  this.resume = function() {
+  resume() {
     timer.start();
     audio.start();
   }
-  this.reset = function() {
+  reset() {
     cpu.reset();
 		psg.reset();
     if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
   }
-  this.setFrameStats = function(on) {
+  setFrameStats(on) {
     framestats = on ? {
       palette: palette,
       layers: {width:256, height:224, tiles:[]}
     } : null;
   }
+ }
+  return new VicDualPlatform();
 }
 
-PLATFORMS['vicdual'] = VicDualPlatform;
+PLATFORMS['vicdual'] = _VicDualPlatform;

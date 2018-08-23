@@ -569,71 +569,75 @@ export abstract class Base6809Platform extends BaseZ80Platform {
 declare var FS, ENV, Module; // mame emscripten
 
 // TODO: make class
-export function BaseMAMEPlatform() {
+export abstract class BaseMAMEPlatform {
 
-  var self = this;
+  loaded = false;
+  preinitted = false;
+  romfn;
+  romdata;
+  video;
+  preload_files;
+  running = false;
+  console_vars : {[varname:string]:string[]} = {};
+  console_varname;
+  initluavars = false;
+  luadebugscript;
+  js_lua_string;
+  onBreakpointHit;
+  mainElement;
+  
+  constructor(mainElement) {
+    this.mainElement = mainElement;
+  }
 
-  var loaded = false;
-  var preinitted = false;
-  var romfn;
-  var romdata;
-  var video;
-  var preload_files;
-  var running = false;
-  var console_vars : {[varname:string]:string[]} = {};
-  var console_varname;
-  var initluavars = false;
-  var luadebugscript;
-  var js_lua_string;
-
-  this.luareset = function() {
-    console_vars = {};
+  luareset() {
+    this.console_vars = {};
   }
 
   // http://docs.mamedev.org/techspecs/luaengine.html
-  this.luacall = function(s) {
-    console_varname = null;
+  luacall(s) {
+    this.console_varname = null;
     //Module.ccall('_Z13js_lua_stringPKc', 'void', ['string'], [s+""]);
-    if (!js_lua_string) js_lua_string = Module.cwrap('_Z13js_lua_stringPKc', 'void', ['string']);
-    js_lua_string(s || "");
+    if (!this.js_lua_string) this.js_lua_string = Module.cwrap('_Z13js_lua_stringPKc', 'void', ['string']);
+    this.js_lua_string(s || "");
   }
 
-  this.pause = function() {
-    if (loaded && running) {
+  pause() {
+    if (this.loaded && this.running) {
       this.luacall('emu.pause()');
-      running = false;
+      this.running = false;
     }
   }
 
-  this.resume = function() {
-    if (loaded && !running) { // TODO
+  resume() {
+    if (this.loaded && !this.running) { // TODO
       this.luacall('emu.unpause()');
-      running = true;
+      this.running = true;
     }
   }
 
-  this.reset = function() {
+  reset() {
     this.luacall('manager:machine():soft_reset()');
-    running = true;
-    initluavars = false;
+    this.running = true;
+    this.initluavars = false;
   }
 
-  this.isRunning = function() {
-    return running;
+  isRunning() {
+    return this.running;
   }
 
-  function bufferConsoleOutput(s) {
+  bufferConsoleOutput(s) {
     if (!s) return;
     if (s.startsWith(">>>")) {
-      console_varname = s.length > 3 ? s.slice(3) : null;
-      if (console_varname) console_vars[console_varname] = [];
-    } else if (console_varname) {
-      console_vars[console_varname].push(s);
-      if (console_varname == 'debug_stopped') {
-        var debugSaveState = self.preserveState();
-        self.pause();
-        if (onBreakpointHit) {
-          onBreakpointHit(debugSaveState);
+      this.console_varname = s.length > 3 ? s.slice(3) : null;
+      if (this.console_varname) this.console_vars[this.console_varname] = [];
+    } else if (this.console_varname) {
+      this.console_vars[this.console_varname].push(s);
+      if (this.console_varname == 'debug_stopped') {
+        var debugSaveState = this.preserveState();
+        this.pause();
+        if (this.onBreakpointHit) {
+          this.onBreakpointHit(debugSaveState);
         }
       }
     } else {
@@ -641,12 +645,11 @@ export function BaseMAMEPlatform() {
     }
   }
 
-  this.startModule = function(mainElement, opts) {
-    romfn = opts.romfn;
-    if (opts.romdata) romdata = opts.romdata;
-    if (!romdata) romdata = new RAM(opts.romsize).mem;
+  startModule(mainElement, opts) {
+    var romfn = this.romfn = this.romfn || opts.romfn;
+    var romdata = this.romdata = this.romdata || opts.romdata || new RAM(opts.romsize).mem;
     // create canvas
-    video = new RasterVideo(mainElement, opts.width, opts.height);
+    var video = this.video = new RasterVideo(this.mainElement, opts.width, opts.height);
     video.create();
     $(video.canvas).attr('id','canvas');
     // load asm.js module
@@ -662,11 +665,11 @@ export function BaseMAMEPlatform() {
     window['Module'] = {
       arguments: modargs,
       screenIsReadOnly: true,
-      print: bufferConsoleOutput,
+      print: this.bufferConsoleOutput,
       canvas:video.canvas,
       doNotCaptureKeyboard:true,
       keyboardListeningElement:video.canvas,
-      preInit: function () {
+      preInit: () => {
         console.log("loading FS");
         ENV.SDL_EMSCRIPTEN_KEYBOARD_ELEMENT = 'canvas';
         if (opts.cfgfile) {
@@ -685,14 +688,14 @@ export function BaseMAMEPlatform() {
         if (opts.preInit) {
           opts.preInit(self);
         }
-        preinitted = true;
+        this.preinitted = true;
       },
       preRun: [
-        function() {
-          $(video.canvas).click(function(e) {
+        () => {
+          $(video.canvas).click((e) =>{
             video.canvas.focus();
           });
-          loaded = true;
+          this.loaded = true;
           console.log("about to run...");
         }
       ]
@@ -704,7 +707,7 @@ export function BaseMAMEPlatform() {
     var fetch_wasm = $.Deferred();
     // fetch config file
     if (opts.cfgfile) {
-      fetch_cfg = $.get('mame/cfg/' + opts.cfgfile, function(data) {
+      fetch_cfg = $.get('mame/cfg/' + opts.cfgfile, (data) => {
         opts.cfgdata = data;
         console.log("loaded " + opts.cfgfile);
       }, 'text');
@@ -714,7 +717,7 @@ export function BaseMAMEPlatform() {
       var oReq1 = new XMLHttpRequest();
       oReq1.open("GET", 'mame/roms/' + opts.biosfile, true);
       oReq1.responseType = "arraybuffer";
-      oReq1.onload = function(oEvent) {
+      oReq1.onload = (oEvent) => {
         opts.biosdata = new Uint8Array(oReq1.response);
         console.log("loaded " + opts.biosfile); // + " (" + oEvent.total + " bytes)");
         fetch_bios.resolve();
@@ -724,8 +727,8 @@ export function BaseMAMEPlatform() {
       fetch_bios.resolve();
     }
     // load debugger Lua script
-    fetch_lua = $.get('mame/debugger.lua', function(data) {
-      luadebugscript = data;
+    fetch_lua = $.get('mame/debugger.lua', (data) => {
+      this.luadebugscript = data;
       console.log("loaded debugger.lua");
     }, 'text');
     // load WASM
@@ -733,7 +736,7 @@ export function BaseMAMEPlatform() {
       var oReq2 = new XMLHttpRequest();
       oReq2.open("GET", 'mame/' + opts.jsfile.replace('.js','.wasm'), true);
       oReq2.responseType = "arraybuffer";
-      oReq2.onload = function(oEvent) {
+      oReq2.onload = (oEvent) => {
         console.log("loaded WASM file");
         window['Module'].wasmBinary = new Uint8Array(oReq2.response);
         fetch_wasm.resolve();
@@ -741,7 +744,7 @@ export function BaseMAMEPlatform() {
       oReq2.send();
     }
     // start loading script
-    $.when(fetch_lua, fetch_cfg, fetch_bios, fetch_wasm).done(function() {
+    $.when(fetch_lua, fetch_cfg, fetch_bios, fetch_wasm).done( () => {
       var script = document.createElement('script');
       script.src = 'mame/' + opts.jsfile;
       document.getElementsByTagName('head')[0].appendChild(script);
@@ -749,32 +752,32 @@ export function BaseMAMEPlatform() {
     });
   }
 
-  this.loadROMFile = function(data) {
-    romdata = data;
-    if (preinitted && romfn) {
-      FS.writeFile(romfn, data, {encoding:'binary'});
+  loadROMFile(data) {
+    this.romdata = data;
+    if (this.preinitted && this.romfn) {
+      FS.writeFile(this.romfn, data, {encoding:'binary'});
     }
   }
 
-  this.loadRegion = function(region, data) {
-    if (loaded) {
-      //self.luacall('cart=manager:machine().images["cart"]\nprint(cart:filename())\ncart:load("' + romfn + '")\n');
+  loadRegion(region, data) {
+    if (this.loaded) {
+      //this.luacall('cart=manager:machine().images["cart"]\nprint(cart:filename())\ncart:load("' + romfn + '")\n');
       var s = 'rgn = manager:machine():memory().regions["' + region + '"]\n';
       //s += 'print(rgn.size)\n';
       for (var i=0; i<data.length; i+=4) {
         var v = data[i] + (data[i+1]<<8) + (data[i+2]<<16) + (data[i+3]<<24);
         s += 'rgn:write_u32(' + i + ',' + v + ')\n'; // TODO: endian?
       }
-      self.luacall(s);
-      self.reset();
+      this.luacall(s);
+      this.reset();
     }
   }
 
-  this.preserveState = function() {
+  preserveState() {
     var state = {c:{}};
-    for (var k in console_vars) {
+    for (var k in this.console_vars) {
       if (k.startsWith("cpu_")) {
-        var v = parseInt(console_vars[k][0]);
+        var v = parseInt(this.console_vars[k][0]);
         state.c[k.slice(4)] = v;
       }
     }
@@ -782,59 +785,57 @@ export function BaseMAMEPlatform() {
     return state;
   }
 
-  this.saveState = function() {
+  saveState() {
     this.luareset();
     this.luacall('mamedbg.printstate()');
-    return self.preserveState();
+    return this.preserveState();
   }
 
-  this.initlua = function() {
-    if (!initluavars) {
-      self.luacall(luadebugscript);
-      self.luacall('mamedbg.init()')
-      initluavars = true;
+  initlua() {
+    if (!this.initluavars) {
+      this.luacall(this.luadebugscript);
+      this.luacall('mamedbg.init()')
+      this.initluavars = true;
     }
   }
 
-  this.readAddress = function(a) {
-    self.initlua();
-    self.luacall('print(">>>v"); print(mem:read_u8(' + a + '))');
-    return parseInt(console_vars.v[0]);
+  readAddress(a) {
+    this.initlua();
+    this.luacall('print(">>>v"); print(mem:read_u8(' + a + '))');
+    return parseInt(this.console_vars.v[0]);
   }
 
   // DEBUGGING SUPPORT
 
-  var onBreakpointHit;
-
-  this.clearDebug = function() {
-    onBreakpointHit = null;
+  clearDebug() {
+    this.onBreakpointHit = null;
   }
-  this.getDebugCallback = function() {
-    return onBreakpointHit;// TODO?
+  getDebugCallback() {
+    return this.onBreakpointHit;// TODO?
   }
-  this.setupDebug = function(callback) {
-    self.initlua();
-    self.luareset();
-    onBreakpointHit = callback;
+  setupDebug(callback) {
+    this.initlua();
+    this.luareset();
+    this.onBreakpointHit = callback;
   }
-  this.runToPC = function(pc) {
-    self.luacall('mamedbg.runTo(' + pc + ')');
-    self.resume();
+  runToPC(pc) {
+    this.luacall('mamedbg.runTo(' + pc + ')');
+    this.resume();
   }
-  this.runToVsync = function() {
-    self.luacall('mamedbg.runToVsync()');
-    self.resume();
+  runToVsync() {
+    this.luacall('mamedbg.runToVsync()');
+    this.resume();
   }
-  this.runUntilReturn = function() {
-    self.luacall('mamedbg.runUntilReturn()');
-    self.resume();
+  runUntilReturn() {
+    this.luacall('mamedbg.runUntilReturn()');
+    this.resume();
   }
-  this.step = function() {
-    self.luacall('mamedbg.step()');
-    self.resume();
+  step() {
+    this.luacall('mamedbg.step()');
+    this.resume();
   }
   // TODO: other than z80
-  this.cpuStateToLongString = function(c) {
+  cpuStateToLongString(c) {
     if (c.HL)
       return cpuStateToLongString_Z80(c);
     else

@@ -5,12 +5,12 @@ import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap,
 import { hex } from "../util";
 import { MasterAudio, AY38910_Audio } from "../audio";
 
-var GALAXIAN_PRESETS = [
+const GALAXIAN_PRESETS = [
   {id:'gfxtest.c', name:'Graphics Test'},
   {id:'shoot2.c', name:'Solarian Game'},
 ];
 
-var GALAXIAN_KEYCODE_MAP = makeKeycodeMap([
+const GALAXIAN_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_SPACE, 0, 0x10], // P1
   [Keys.VK_LEFT, 0, 0x4],
   [Keys.VK_RIGHT, 0, 0x8],
@@ -22,7 +22,7 @@ var GALAXIAN_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_2, 1, 0x2],
 ]);
 
-var SCRAMBLE_KEYCODE_MAP = makeKeycodeMap([
+const SCRAMBLE_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_UP,    0, -0x1], // P1
   [Keys.VK_SHIFT, 0, -0x2], // fire
   [Keys.VK_7,     0, -0x4], // credit
@@ -38,10 +38,7 @@ var SCRAMBLE_KEYCODE_MAP = makeKeycodeMap([
 ]);
 
 
-var GalaxianPlatform = function(mainElement, options) {
-  var self = this;
-  this.__proto__ = new (BaseZ80Platform as any)();
-
+const _GalaxianPlatform = function(mainElement, options) {
   options = options || {};
   var romSize = options.romSize || 0x4000;
   var gfxBase = options.gfxBase || 0x2800;
@@ -169,10 +166,6 @@ var GalaxianPlatform = function(mainElement, options) {
     }
 	}
 
-  this.getPresets = function() {
-    return GALAXIAN_PRESETS;
-  }
-
   var m_protection_state = 0;
   var m_protection_result = 0;
   function scramble_protection_w(addr,data) {
@@ -200,8 +193,20 @@ var GalaxianPlatform = function(mainElement, options) {
     var bit = (m_protection_result >> 7) & 1;
     return (bit << 5) | ((bit^1) << 7);
   }
+  
+	const bitcolors = [
+		0x000021, 0x000047, 0x000097, // red
+		0x002100, 0x004700, 0x009700, // green
+		0x510000, 0xae0000            // blue
+	];
 
-  this.start = function() {
+ class GalaxianPlatform extends BaseZ80Platform {
+
+  getPresets() {
+    return GALAXIAN_PRESETS;
+  }
+
+  start() {
     ram = new RAM(0x800);
     vram = new RAM(0x400);
     oram = new RAM(0x100);
@@ -271,9 +276,6 @@ var GalaxianPlatform = function(mainElement, options) {
         isContended: function() { return false; },
       };
     }
-    this.readAddress = function(a) {
-      return (a == 0x7000 || a == 0x7800) ? null : membus.read(a); // ignore watchdog
-    };
     audio = new MasterAudio();
     psg1 = new AY38910_Audio(audio);
     psg2 = new AY38910_Audio(audio);
@@ -288,7 +290,7 @@ var GalaxianPlatform = function(mainElement, options) {
 				if (addr & 0x8) { psg2.setData(val); };
     	}
     };
-    cpu = self.newCPU(membus, iobus);
+    cpu = this.newCPU(membus, iobus);
     video = new RasterVideo(mainElement,264,264,{rotate:90});
     video.create();
     var idata = video.getFrameData();
@@ -297,7 +299,11 @@ var GalaxianPlatform = function(mainElement, options) {
     timer = new AnimationTimer(60, this.advance.bind(this));
   }
 
-  this.advance = function(novideo : boolean) {
+  readAddress(a) {
+    return (a == 0x7000 || a == 0x7800) ? null : membus.read(a); // ignore watchdog
+  }
+  
+  advance(novideo : boolean) {
     var debugCond = this.getDebugCallback();
     var targetTstates = cpu.getTstates();
     for (var sl=0; sl<scanlinesPerFrame; sl++) {
@@ -326,13 +332,7 @@ var GalaxianPlatform = function(mainElement, options) {
     this.restartDebugState(); // TODO: after interrupt?
   }
 
-	var bitcolors = [
-		0x000021, 0x000047, 0x000097, // red
-		0x002100, 0x004700, 0x009700, // green
-		0x510000, 0xae0000            // blue
-	];
-
-  this.loadROM = function(title, data) {
+  loadROM(title, data) {
     rom = padBytes(data, romSize);
 
 		palette = new Uint32Array(new ArrayBuffer(32*4));
@@ -343,10 +343,10 @@ var GalaxianPlatform = function(mainElement, options) {
 				if (((1<<j) & b))
 					palette[i] += bitcolors[j];
 		}
-    self.reset();
+    this.reset();
   }
 
-  this.loadState = function(state) {
+  loadState(state) {
     cpu.loadState(state.c);
     ram.mem.set(state.b);
 		vram.mem.set(state.bv);
@@ -359,9 +359,9 @@ var GalaxianPlatform = function(mainElement, options) {
     inputs[1] = state.in1;
     inputs[2] = state.in2;
   }
-  this.saveState = function() {
+  saveState() {
     return {
-      c:self.getCPUState(),
+      c:this.getCPUState(),
       b:ram.mem.slice(0),
 			bv:vram.mem.slice(0),
 			bo:oram.mem.slice(0),
@@ -374,31 +374,46 @@ var GalaxianPlatform = function(mainElement, options) {
       in2:inputs[2],
     };
   }
-  this.getCPUState = function() {
+  loadControlsState(state) {
+    inputs[0] = state.in0;
+    inputs[1] = state.in1;
+    inputs[2] = state.in2;
+  }
+  saveControlsState() {
+    return {
+      in0:inputs[0],
+      in1:inputs[1],
+      in2:inputs[2],
+    };
+  }
+  getCPUState() {
     return cpu.saveState();
   }
 
-  this.isRunning = function() {
+  isRunning() {
     return timer && timer.isRunning();
   }
-  this.pause = function() {
+  pause() {
     timer.stop();
     audio.stop();
   }
-  this.resume = function() {
+  resume() {
     timer.start();
     audio.start();
   }
-  this.reset = function() {
+  reset() {
     cpu.reset();
 		//audio.reset();
     if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
     watchdog_counter = INITIAL_WATCHDOG;
   }
+ }
+  
+  return new GalaxianPlatform();
 }
 
-var GalaxianScramblePlatform = function(mainElement) {
-  this.__proto__ = new GalaxianPlatform(mainElement, {
+const _GalaxianScramblePlatform = function(mainElement) {
+  return _GalaxianPlatform(mainElement, {
     romSize: 0x5020,
     gfxBase: 0x4000,
     palBase: 0x5000,
@@ -409,5 +424,5 @@ var GalaxianScramblePlatform = function(mainElement) {
   });
 }
 
-PLATFORMS['galaxian'] = GalaxianPlatform;
-PLATFORMS['galaxian-scramble'] = GalaxianScramblePlatform;
+PLATFORMS['galaxian'] = _GalaxianPlatform;
+PLATFORMS['galaxian-scramble'] = _GalaxianScramblePlatform;

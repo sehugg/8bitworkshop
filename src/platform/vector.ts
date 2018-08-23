@@ -169,6 +169,14 @@ var AtariVectorPlatform = function(mainElement) {
       nmic:nmicount
     }
   }
+  this.loadControlsState = function(state) {
+    switches.set(state.sw);
+  }
+  this.saveControlsState = function() {
+    return {
+      sw:switches.slice(0),
+    }
+  }
   this.getCPUState = function() {
     return cpu.saveState();
   }
@@ -308,6 +316,14 @@ var AtariColorVectorPlatform = function(mainElement) {
       nmic:nmicount
     }
   }
+  this.loadControlsState = function(state) {
+    switches.set(state.sw);
+  }
+  this.saveControlsState = function() {
+    return {
+      sw:switches.slice(0),
+    }
+  }
   this.getCPUState = function() {
     return cpu.saveState();
   }
@@ -429,6 +445,14 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
       db:dvgram.mem.slice(0),
       sw:switches.slice(0),
       mr:mathram.slice(0),
+    }
+  }
+  this.loadControlsState = function(state) {
+    switches.set(state.sw);
+  }
+  this.saveControlsState = function() {
+    return {
+      sw:switches.slice(0),
     }
   }
   this.getCPUState = function() {

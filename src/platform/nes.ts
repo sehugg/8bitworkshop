@@ -8,7 +8,7 @@ import { SampleAudio } from "../audio";
 
 declare var jsnes : any;
 
-var JSNES_PRESETS = [
+const JSNES_PRESETS = [
   {id:'ex0.asm', name:'Initialization (ASM)'},
   {id:'ex1.asm', name:'Scrolling Demo (ASM)'},
   {id:'ex2.asm', name:'Sprite Demo (ASM)'},
@@ -25,7 +25,7 @@ var JSNES_PRESETS = [
   {id:'musicdemo.asm', name:'Famitone Demo (ASM)'},
 ];
 
-var NES_NESLIB_PRESETS = [
+const NES_NESLIB_PRESETS = [
   {id:'neslib1.c', name:'Text'},
   {id:'neslib2.c', name:'Sprites'},
   {id:'neslib3.c', name:'Cursor'},
@@ -33,7 +33,7 @@ var NES_NESLIB_PRESETS = [
   {id:'chase/game.c', name:'Chase (example game)'},
 ];
 
-var NES_CONIO_PRESETS = [
+const NES_CONIO_PRESETS = [
   {id:'ex0.asm', name:'ASM: Initialization'},
   {id:'ex1.asm', name:'ASM: Scrolling Demo'},
   {id:'hello.c', name:'C: Hello PPU'},
@@ -43,7 +43,7 @@ var NES_CONIO_PRESETS = [
 
 /// JSNES
 
-var JSNES_KEYCODE_MAP = makeKeycodeMap([
+const JSNES_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_Z,     0, 0],
   [Keys.VK_X,     0, 1],
   [Keys.VK_2,     0, 2],
@@ -62,21 +62,22 @@ var JSNES_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_D,     1, 7],
 ]);
 
-var JSNESPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new (Base6502Platform as any)();
-  this.debugPCDelta = 1;
+const _JSNESPlatform = function(mainElement) {
 
   var nes;
   var rom;
   var video, audio, timer;
-  var audioFrequency = 44030; //44100
+  const audioFrequency = 44030; //44100
   var frameindex = 0;
   var nsamples = 0;
+  
+ class JSNESPlatform extends Base6502Platform {
+  debugPCDelta = 1;
 
-  this.getPresets = function() { return JSNES_PRESETS; }
+  getPresets() { return JSNES_PRESETS; }
 
-  this.start = function() {
+  start() {
+    var self = this;
     video = new RasterVideo(mainElement,256,224);
     audio = new SampleAudio(audioFrequency);
     video.create();
@@ -128,52 +129,51 @@ var JSNESPlatform = function(mainElement) {
     });
   }
   
-  this.advance = function(novideo : boolean) {
+  advance(novideo : boolean) {
     nes.frame();
   }
 
-  this.loadROM = function(title, data) {
+  loadROM(title, data) {
     var romstr = String.fromCharCode.apply(null, data);
     nes.loadROM(romstr);
     frameindex = 0;
   }
-  this.newCodeAnalyzer = function() {
+  newCodeAnalyzer() {
     return new CodeAnalyzer_nes(this);
   }
-  this.getOriginPC = function() {	// TODO: is actually NMI
+  getOriginPC() {	// TODO: is actually NMI
     return (this.readAddress(0xfffa) | (this.readAddress(0xfffb) << 8)) & 0xffff;
   }
-  this.getOpcodeMetadata = getOpcodeMetadata_6502;
-  this.getDefaultExtension = function() { return ".c"; };
+  getDefaultExtension() { return ".c"; };
   
-  this.reset = function() {
+  reset() {
     //nes.cpu.reset(); // doesn't work right, crashes
     nes.cpu.requestIrq(nes.cpu.IRQ_RESET);
   }
-  this.isRunning = function() {
+  isRunning() {
     return timer.isRunning();
   }
-  this.pause = function() {
+  pause() {
     timer.stop();
     audio.stop();
   }
-  this.resume = function() {
+  resume() {
     timer.start();
     audio.start();
   }
 
-  this.runToVsync = function() {
+  runToVsync() {
     var frame0 = frameindex;
     this.runEval(function(c) { return frameindex>frame0; });
   }
 
-  this.getCPUState = function() {
+  getCPUState() {
     var c = nes.cpu.toJSON();
     this.copy6502REGvars(c);
     return c;
   }
   // TODO don't need to save ROM?
-  this.saveState = function() {
+  saveState() {
     //var s = $.extend(true, {}, nes);
     var s = nes.toJSON();
     s.c = s.cpu;
@@ -181,9 +181,10 @@ var JSNESPlatform = function(mainElement) {
     s.b = s.cpu.mem = s.cpu.mem.slice(0);
     s.ppu.vramMem = s.ppu.vramMem.slice(0);
     s.ppu.spriteMem = s.ppu.spriteMem.slice(0);
+    s.ctrl = this.saveControlsState();
     return s;
   }
-  this.loadState = function(state) {
+  loadState(state) {
     nes.fromJSON(state);
     //nes.cpu.fromJSON(state.cpu);
     //nes.mmap.fromJSON(state.mmap);
@@ -191,12 +192,23 @@ var JSNESPlatform = function(mainElement) {
     nes.cpu.mem = state.cpu.mem.slice(0);
     nes.ppu.vramMem = state.ppu.vramMem.slice(0);
     nes.ppu.spriteMem = state.ppu.spriteMem.slice(0);
+    this.loadControlsState(state.ctrl);
     //$.extend(nes, state);
   }
-  this.readAddress = function(addr) {
+  saveControlsState() {
+    return {
+      c1: nes.controllers[1].state.slice(0),
+      c2: nes.controllers[2].state.slice(0),
+    };
+  }
+  loadControlsState(state) {
+    nes.controllers[1].state = state.c1;
+    nes.controllers[2].state = state.c2;
+  }
+  readAddress(addr) {
     return nes.cpu.mem[addr] & 0xff;
   }
-  this.copy6502REGvars = function(c) {
+  copy6502REGvars(c) {
     c.T = 0;
     c.PC = c.REG_PC;
     c.A = c.REG_ACC;
@@ -214,10 +226,10 @@ var JSNESPlatform = function(mainElement) {
     return c;
   }
 
-  this.getDebugCategories = function() {
+  getDebugCategories() {
     return ['CPU','ZPRAM','Stack','PPU'];
   }
-  this.getDebugInfo = function(category, state) {
+  getDebugInfo(category, state) {
     switch (category) {
       case 'CPU':   return cpuStateToLongString_6502(state.c);
       case 'ZPRAM': return dumpRAM(state.b, 0x0, 0x100);
@@ -225,7 +237,7 @@ var JSNESPlatform = function(mainElement) {
       case 'PPU': return this.ppuStateToLongString(state.ppu, state.b);
     }
   }
-  this.ppuStateToLongString = function(ppu, mem) {
+  ppuStateToLongString(ppu, mem) {
     var s = '';
     var PPUFLAGS = [
       ["f_nmiOnVblank","NMI_ON_VBLANK"],
@@ -283,54 +295,57 @@ var JSNESPlatform = function(mainElement) {
     */
     return s;
   }
+ }
+  return new JSNESPlatform();
 }
 
 /// MAME support
 
-var NESMAMEPlatform = function(mainElement, lzgRom, romSize) {
-  var self = this;
-  this.__proto__ = new BaseMAMEPlatform();
+class NESMAMEPlatform extends BaseMAMEPlatform {
+// = function(mainElement, lzgRom, romSize) {
+  lzgRom;
+  romSize;
 
-//
-  this.start = function() {
-    self.startModule(mainElement, {
+  start() {
+    this.startModule(this.mainElement, {
       jsfile:'mamenes.js',
       //cfgfile:'nes.cfg',
       driver:'nes',
       width:256*2,
       height:240*2,
       romfn:'/emulator/cart.nes',
-      romsize:romSize,
-      romdata:new Uint8Array(new lzgmini().decode(lzgRom).slice(0, romSize)),
+      romsize:this.romSize,
+      romdata:new Uint8Array(new lzgmini().decode(this.lzgRom).slice(0, this.romSize)),
       preInit:function(_self) {
       },
     });
   }
 
-  this.getOpcodeMetadata = getOpcodeMetadata_6502;
-  this.getToolForFilename = getToolForFilename_6502;
-  this.getDefaultExtension = function() { return ".c"; };
+  getOpcodeMetadata = getOpcodeMetadata_6502;
+  getToolForFilename = getToolForFilename_6502;
+  getDefaultExtension() { return ".c"; };
 }
 
-var NESConIOPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new NESMAMEPlatform(mainElement, NES_CONIO_ROM_LZG, 0xa010);
+class NESConIOPlatform extends NESMAMEPlatform {
+  lzgRom = NES_CONIO_ROM_LZG;
+  romSize = 0xa010;
 
-  this.getPresets = function() { return NES_CONIO_PRESETS; }
+  getPresets() { return NES_CONIO_PRESETS; }
 
-  this.loadROM = function(title, data) {
+  loadROM(title, data) {
     this.loadROMFile(data);
     this.loadRegion(":nes_slot:cart:prg_rom", data.slice(0x10, 0x8010));
     this.loadRegion(":nes_slot:cart:chr_rom", data.slice(0x8010, 0xa010));
   }
 }
-var NESLibPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new NESMAMEPlatform(mainElement, NES_NESLIB_ROM_LZG, 0x8010);
 
-  this.getPresets = function() { return NES_NESLIB_PRESETS; }
+class NESLibPlatform extends NESMAMEPlatform {
+  lzgRom = NES_NESLIB_ROM_LZG;
+  romSize = 0x8010;
 
-  this.loadROM = function(title, data) {
+  getPresets() { return NES_NESLIB_PRESETS; }
+
+  loadROM(title, data) {
     this.loadROMFile(data);
     this.loadRegion(":nes_slot:cart:prg_rom", data.slice(0x10, 0x8010));
   }
@@ -338,7 +353,7 @@ var NESLibPlatform = function(mainElement) {
 
 ///
 
-PLATFORMS['nes'] = JSNESPlatform;
+PLATFORMS['nes'] = _JSNESPlatform;
 PLATFORMS['nes-lib'] = NESLibPlatform;
 PLATFORMS['nes-conio'] = NESConIOPlatform;
 

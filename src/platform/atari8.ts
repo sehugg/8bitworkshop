@@ -12,7 +12,7 @@ var Atari8_PRESETS = [
 
 var Atari8MAMEPlatform = function(mainElement) {
   var self = this;
-  this.__proto__ = new BaseMAMEPlatform();
+  this.__proto__ = new (BaseMAMEPlatform as any)();
 
   this.loadROM = function(title, data) {
     this.loadROMFile(data);
@@ -47,7 +47,7 @@ var Atari800Platform = function(mainElement) {
 
 var Atari5200Platform = function(mainElement) {
   var self = this;
-  this.__proto__ = new Atari8MAMEPlatform(mainElement);
+  this.__proto__ = new (Atari8MAMEPlatform as any)(mainElement);
 
   this.start = function() {
     self.startModule(mainElement, {
