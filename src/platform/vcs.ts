@@ -62,8 +62,8 @@ class VCSPlatform {
     // intercept clockPulse function
     Javatari.room.console.oldClockPulse = Javatari.room.console.clockPulse;
     Javatari.room.console.clockPulse = function() {
-      self.updateRecorder();
       this.oldClockPulse();
+      self.updateRecorder();
     }
     this.paused = false;
   }

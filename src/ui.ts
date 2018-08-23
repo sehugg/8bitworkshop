@@ -899,6 +899,11 @@ function gotoNewLocation() {
   window.location.href = "?" + $.param(qs);
 }
 
+function replaceURLState() {
+  if (platform_id) qs['platform'] = platform_id;
+  history.replaceState({}, "", "?" + $.param(qs));
+}
+
 function showBookLink() {
   if (platform_id == 'vcs')
     $("#booklink_vcs").show();
@@ -936,23 +941,22 @@ function startPlatform() {
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
   stateRecorder = new StateRecorderImpl(platform);
   PRESETS = platform.getPresets();
-  if (qs['file']) {
-    // start platform and load file
-    platform.start();
-    setupDebugControls();
-    initProject();
-    loadProject(qs['file']);
-    updateSelector();
-    showBookLink();
-    addPageFocusHandlers();
-    return true;
-  } else {
+  if (!qs['file']) {
     // try to load last file (redirect)
     var lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
     localStorage.removeItem("__lastid");
-    reloadPresetNamed(lastid || PRESETS[0].id);
-    return false;
+    qs['file'] = lastid || PRESETS[0].id;
+    replaceURLState();
   }
+  // start platform and load file
+  platform.start();
+  setupDebugControls();
+  initProject();
+  loadProject(qs['file']);
+  updateSelector();
+  showBookLink();
+  addPageFocusHandlers();
+  return true;
 }
 
 function loadSharedFile(sharekey : string) {
@@ -966,6 +970,7 @@ function loadSharedFile(sharekey : string) {
     console.log("Fetched " + newid, json);
     platform_id = json['platform'];
     store = createNewPersistentStore(platform_id, () => {
+      // runs after migration, if it happens
       current_project.updateFile(newid, val.files[filename].content);
       reloadPresetNamed(newid);
       delete qs['sharekey'];
