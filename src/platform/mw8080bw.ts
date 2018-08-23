@@ -112,7 +112,7 @@ const _Midway8080BWPlatform = function(mainElement) {
     var idata = video.getFrameData();
 		setKeyboardFromMap(video, inputs, SPACEINV_KEYCODE_MAP);
     pixels = video.getFrameData();
-    timer = new AnimationTimer(60, this.advance.bind(this));
+    timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
 
   readAddress(addr) {
@@ -149,7 +149,6 @@ const _Midway8080BWPlatform = function(mainElement) {
       console.log("WATCHDOG FIRED"); // TODO: alert on video
       this.reset();
     }
-    this.restartDebugState();
   }
 
   loadROM(title, data) {

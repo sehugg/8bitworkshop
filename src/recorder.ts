@@ -1,5 +1,8 @@
 
 import { Platform, EmuState, EmuControlsState, EmuRecorder } from "./baseplatform";
+import { getNoiseSeed, setNoiseSeed } from "./emu";
+
+type FrameRec = {controls:EmuControlsState, seed:number};
 
 export class StateRecorderImpl implements EmuRecorder {
     checkpointInterval : number = 60;
@@ -7,8 +10,8 @@ export class StateRecorderImpl implements EmuRecorder {
     maxCheckpoints : number = 120;
     
     platform : Platform;
-    buffer : EmuState[];
-    controls : EmuControlsState[];
+    checkpoints : EmuState[];
+    framerecs : FrameRec[];
     frameCount : number;
     lastSeekFrame : number = -1;
     
@@ -18,35 +21,37 @@ export class StateRecorderImpl implements EmuRecorder {
     }
 
     reset() {
-        this.buffer = [];
-        this.controls = [];
+        this.checkpoints = [];
+        this.framerecs = [];
         this.frameCount = 0;
         this.lastSeekFrame = -1;
     }
 
     frameRequested() : boolean {
-        // buffer full?
-        if (this.buffer.length >= this.maxCheckpoints) {
+        // checkpoints full?
+        if (this.checkpoints.length >= this.maxCheckpoints) {
             return false;
         }
         // record the control state, if available
         if (this.platform.saveControlsState) {
-            this.controls.push(this.platform.saveControlsState());
+            this.framerecs.push({
+                controls:this.platform.saveControlsState(),
+                seed:getNoiseSeed()
+            });
         }
         // pick up where we left off, if we used the seek function
         if (this.lastSeekFrame >= 0) {
             this.frameCount = this.lastSeekFrame;
             this.lastSeekFrame = -1;
             // truncate buffers
-            this.buffer = this.buffer.slice(0, Math.floor((this.frameCount + this.checkpointInterval - 1) / this.checkpointInterval));
-            this.controls = this.controls.slice(0, this.frameCount);
+            this.checkpoints = this.checkpoints.slice(0, Math.floor((this.frameCount + this.checkpointInterval - 1) / this.checkpointInterval));
+            this.framerecs = this.framerecs.slice(0, this.frameCount);
         }
         // time to save next frame?
-        this.frameCount++;
         if (this.callbackStateChanged) {
             this.callbackStateChanged();
         }
-        return (this.frameCount % this.checkpointInterval) == 0;
+        return (this.frameCount++ % this.checkpointInterval) == 0;
     }
     
     numFrames() : number {
@@ -54,30 +59,36 @@ export class StateRecorderImpl implements EmuRecorder {
     }
     
     recordFrame(state : EmuState) {
-        this.buffer.push(state);
+        this.checkpoints.push(state);
     }
 
     getStateAtOrBefore(frame : number) : {frame : number, state : EmuState} {
         var bufidx = Math.floor(frame / this.checkpointInterval);
-        var foundidx = bufidx < this.buffer.length ? bufidx : this.buffer.length-1;
+        var foundidx = bufidx < this.checkpoints.length ? bufidx : this.checkpoints.length-1;
         var foundframe = foundidx * this.checkpointInterval;
-        return {frame:foundframe, state:this.buffer[foundidx]};
+        return {frame:foundframe, state:this.checkpoints[foundidx]};
     }
 
-    loadFrame(seekframe : number) {
-        let {frame,state} = this.getStateAtOrBefore(seekframe);
+    loadFrame(seekframe : number) : number {
+        if (seekframe == this.lastSeekFrame)
+            return seekframe; // already set to this frame
+        // TODO: what if < 1?
+        let {frame,state} = this.getStateAtOrBefore(seekframe-1);
         if (state) {
             this.platform.pause();
             this.platform.loadState(state);
             while (frame < seekframe) {
-                if (frame < this.controls.length) {
-                    this.platform.loadControlsState(this.controls[frame]);
+                if (frame < this.framerecs.length) {
+                    this.platform.loadControlsState(this.framerecs[frame].controls);
+                    setNoiseSeed(this.framerecs[frame].seed);
                 }
-                this.platform.advance(true); // TODO: infinite loop?
                 frame++;
+                this.platform.advance(frame < seekframe); // TODO: infinite loop?
             }
-            this.platform.advance();
             this.lastSeekFrame = seekframe;
+            return seekframe;
+        } else {
+            return 0;
         }
     }
 }

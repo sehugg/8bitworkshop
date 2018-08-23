@@ -306,7 +306,7 @@ var WilliamsPlatform = function(mainElement, proto) {
     var idata = video.getFrameData();
     setKeyboardFromMap(video, pia6821, ROBOTRON_KEYCODE_MAP);
     pixels = video.getFrameData();
-    timer = new AnimationTimer(60, this.advance.bind(this));
+    timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
 
   this.advance = function(novideo:boolean) {
@@ -337,7 +337,6 @@ var WilliamsPlatform = function(mainElement, proto) {
       // TODO: this.breakpointHit(cpu.T());
       this.reset();
     }
-    this.restartDebugState();
   }
 
   this.loadSoundROM = function(data) {

@@ -110,6 +110,7 @@ abstract class BaseDebugPlatform {
   abstract pause() : void;
   abstract resume() : void;
   abstract readAddress?(addr:number) : number;
+  abstract advance?(novideo? : boolean) : void;
 
   getDebugCallback() : DebugCondition {
     return this.debugCondition;
@@ -145,6 +146,16 @@ abstract class BaseDebugPlatform {
       this.recorder.recordFrame(this.saveState());
     }
   }
+  preFrame() {
+    this.updateRecorder();
+  }
+  postFrame() {
+  }
+  nextFrame(novideo : boolean) {
+    this.preFrame();
+    this.advance(novideo);
+    this.postFrame();
+  }
 }
 
 abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
@@ -155,7 +166,7 @@ abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
       this.debugCondition();
     }
   }
-  restartDebugState() {
+  postFrame() {
     // save state every frame and rewind debug clocks
     var debugging = this.debugCondition && !this.debugBreakState;
     if (debugging) {
@@ -163,7 +174,6 @@ abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
       this.debugTargetClock -= this.debugClock;
       this.debugClock = 0;
     }
-    this.updateRecorder();
   }
   breakpointHit(targetClock : number) {
     this.debugTargetClock = targetClock;
@@ -412,7 +422,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
     }
     return cpu.getTstates() - targetTstates;
   }
-  restartDebugState() {
+  postFrame() {
     if (this.debugCondition && !this.debugBreakState) {
       this.debugSavedState = this.saveState();
       if (this.debugTargetClock > 0)
@@ -420,7 +430,6 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
       this.debugSavedState.c.T = 0;
       this.loadState(this.debugSavedState);
     }
-    this.updateRecorder();
   }
   breakpointHit(targetClock : number) {
     this.debugTargetClock = targetClock;

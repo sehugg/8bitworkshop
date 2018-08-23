@@ -87,7 +87,6 @@ const _JSNESPlatform = function(mainElement) {
         for (var i=0; i<frameBuffer.length; i++)
           idata[i] = frameBuffer[i] | 0xff000000;
         video.updateFrame();
-        self.restartDebugState();
         frameindex++;
         //if (frameindex == 2000) console.log(nsamples*60/frameindex,'Hz');
       },
@@ -117,9 +116,7 @@ const _JSNESPlatform = function(mainElement) {
       self.evalDebugCondition();
       return cycles;
     }
-    timer = new AnimationTimer(60, function() {
-      nes.frame();
-    });
+    timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // set keyboard map
     setKeyboardFromMap(video, [], JSNES_KEYCODE_MAP, function(o,key,code,flags) {
       if (flags & 1)
@@ -131,7 +128,7 @@ const _JSNESPlatform = function(mainElement) {
   
   advance(novideo : boolean) {
     nes.frame();
-  }
+      }
 
   loadROM(title, data) {
     var romstr = String.fromCharCode.apply(null, data);

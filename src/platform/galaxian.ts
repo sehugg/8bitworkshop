@@ -296,7 +296,7 @@ const _GalaxianPlatform = function(mainElement, options) {
     var idata = video.getFrameData();
 		setKeyboardFromMap(video, inputs, keyMap);
     pixels = video.getFrameData();
-    timer = new AnimationTimer(60, this.advance.bind(this));
+    timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
 
   readAddress(a) {
@@ -321,7 +321,9 @@ const _GalaxianPlatform = function(mainElement, options) {
       }
     }
     // visible area is 256x224 (before rotation)
-    video.updateFrame(0, 0, 0, 0, showOffscreenObjects ? 264 : 256, 264);
+    if (!novideo) {
+      video.updateFrame(0, 0, 0, 0, showOffscreenObjects ? 264 : 256, 264);
+    }
     frameCounter = (frameCounter + 1) & 0xff;
     if (watchdog_counter-- <= 0) {
       console.log("WATCHDOG FIRED, PC ", hex(cpu.getPC())); // TODO: alert on video
@@ -329,7 +331,6 @@ const _GalaxianPlatform = function(mainElement, options) {
     }
     // NMI interrupt @ 0x66
     if (interruptEnabled) { cpu.nonMaskableInterrupt(); }
-    this.restartDebugState(); // TODO: after interrupt?
   }
 
   loadROM(title, data) {

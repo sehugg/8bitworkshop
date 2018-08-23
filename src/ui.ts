@@ -762,19 +762,45 @@ function setupDebugControls(){
   updateDebugWindows();
   // setup replay slider
   if (platform.advance) {
-    $("#dbg_record").click(_toggleRecording);
-    var replayslider = $("#replayslider");
-    stateRecorder.callbackStateChanged = () => {
-      replayslider.attr('min', 0);
-      replayslider.attr('max', stateRecorder.numFrames()-1);
-      replayslider.attr('value', stateRecorder.numFrames()-1); // TODO: doesn't always move
-    };
-    replayslider.on('input', function(e) {
-      _pause();
-      stateRecorder.loadFrame((<any>e.target).value);
-    });
-    $("#replay_bar").show();
+    setupReplaySlider();
   }
+}
+
+function setupReplaySlider() {
+    var replayslider = $("#replayslider");
+    var replayframeno = $("#replay_frame");
+    var updateFrameNo = (n) => {
+      replayframeno.text(n+"");
+    };
+    var sliderChanged = (e) => {
+      _pause();
+      var frame = (<any>e.target).value;
+      if (stateRecorder.loadFrame(frame)) {
+        updateFrameNo(frame);
+      }
+    };
+    var setFrameTo = (frame:number) => {
+      _pause();
+      if (stateRecorder.loadFrame(frame)) {
+        replayslider.val(frame);
+        updateFrameNo(frame);
+        console.log('seek to frame',frame);
+      }
+    };
+    stateRecorder.callbackStateChanged = () => {
+      replayslider.attr('min', 1);
+      replayslider.attr('max', stateRecorder.numFrames());
+      replayslider.val(stateRecorder.numFrames());
+      updateFrameNo(stateRecorder.numFrames());
+    };
+    replayslider.on('input', sliderChanged);
+    replayslider.on('change', sliderChanged);
+    $("#replay_min").click(() => { setFrameTo(1) });
+    $("#replay_max").click(() => { setFrameTo(stateRecorder.numFrames()); });
+    $("#replay_back").click(() => { setFrameTo(parseInt(replayslider.val()) - 1); });
+    $("#replay_fwd").click(() => { setFrameTo(parseInt(replayslider.val()) + 1); });
+    $("#replay_bar").show();
+    $("#dbg_record").click(_toggleRecording);
 }
 
 function showWelcomeMessage() {

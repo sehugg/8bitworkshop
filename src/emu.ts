@@ -11,8 +11,22 @@ export var PLATFORMS = {};
 
 export var frameUpdateFunction : (Canvas) => void = null;
 
+var _random_state = 1;
+
 export function noise() {
-  return (Math.random() * 256) & 0xff;
+	let x = _random_state;
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	return (_random_state = x) & 0xff;
+}
+
+export function getNoiseSeed() {
+  return _random_state;
+}
+
+export function setNoiseSeed(x : number) {
+  _random_state = x;
 }
 
 type KeyboardCallback = (which:number, charCode:number, flags:number) => void;

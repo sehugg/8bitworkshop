@@ -24,9 +24,17 @@ const GR_MIXMODE  = 2;
 const GR_PAGE1    = 4;
 const GR_HIRES    = 8;
 
+type AppleGRParams = {dirty:boolean[], grswitch:number, mem:number[]};
+
 const _Apple2Platform = function(mainElement) {
-  var cpuFrequency = 1023000;
-  var cpuCyclesPerLine = 65;
+  const cpuFrequency = 1023000;
+  const cpuCyclesPerLine = 65;
+
+  const VM_BASE = 0x803; // where to JMP after pr#6
+  const LOAD_BASE = VM_BASE; //0x7c9; // where to load ROM
+  const PGM_BASE = VM_BASE; //0x800; // where to load ROM
+  const HDR_SIZE = PGM_BASE - LOAD_BASE;
+  
   var cpu, ram, bus;
   var video, ap2disp, audio, timer;
   var grdirty = new Array(0xc000 >> 7);
@@ -34,10 +42,6 @@ const _Apple2Platform = function(mainElement) {
   var kbdlatch = 0;
   var soundstate = 0;
   var pgmbin;
-  var VM_BASE = 0x803; // where to JMP after pr#6
-  var LOAD_BASE = VM_BASE; //0x7c9; // where to load ROM
-  var PGM_BASE = VM_BASE; //0x800; // where to load ROM
-  var HDR_SIZE = PGM_BASE - LOAD_BASE;
   // language card switches
   var auxRAMselected = false;
   var auxRAMbank = 1;
@@ -45,7 +49,7 @@ const _Apple2Platform = function(mainElement) {
   // value to add when reading & writing each of these banks
   // bank 1 is E000-FFFF, bank 2 is D000-DFFF
   var bank2rdoffset=0, bank2wroffset=0;
-  var grparams;
+  var grparams : AppleGRParams;
   
  class Apple2Platform extends Base6502Platform {
 
@@ -157,7 +161,7 @@ const _Apple2Platform = function(mainElement) {
     video = new RasterVideo(mainElement,280,192);
     audio = new SampleAudio(cpuFrequency);
     video.create();
-    video.setKeyboardEvents(function(key,code,flags) {
+    video.setKeyboardEvents((key,code,flags) => {
       if (flags & 1) {
         if (code) {
           // convert to uppercase for Apple ][
@@ -178,9 +182,9 @@ const _Apple2Platform = function(mainElement) {
     var idata = video.getFrameData();
     grparams = {dirty:grdirty, grswitch:grswitch, mem:ram.mem};
     ap2disp = new Apple2Display(idata, grparams);
-    timer = new AnimationTimer(60, this.advance.bind(this));
+    timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
-
+  
   advance(novideo : boolean) {
     // 262.5 scanlines per frame
     var clock = 0;
@@ -208,8 +212,6 @@ const _Apple2Platform = function(mainElement) {
       }
       video.updateFrame();
     }
-    //soundstate = 0; // to prevent clicking
-    this.restartDebugState(); // reset debug start state
   }
 
   loadROM(title, data) {
@@ -253,6 +255,7 @@ const _Apple2Platform = function(mainElement) {
     auxRAMbank = state.lc.b;
     writeinhibit = state.lc.w;
     setupLanguageCardConstants();
+    ap2disp.invalidate(); // repaint entire screen
   }
   saveState() {
     return {
@@ -268,7 +271,7 @@ const _Apple2Platform = function(mainElement) {
   }
   saveControlsState() {
     return {
-      kbd:kbdlatch,
+      kbd:kbdlatch
     };
   }
   getCPUState() {
@@ -349,7 +352,7 @@ const _Apple2Platform = function(mainElement) {
   return new Apple2Platform(); // return inner class from constructor
 };
 
-var Apple2Display = function(pixels, apple) {
+var Apple2Display = function(pixels : number[], apple : AppleGRParams) {
   var XSIZE = 280;
   var YSIZE = 192;
   var PIXELON = 0xffffffff;
@@ -358,22 +361,22 @@ var Apple2Display = function(pixels, apple) {
   var oldgrmode = -1;
   var textbuf = new Array(40*24);
 
-  var flashInterval = 500;
+  const flashInterval = 500;
 
-  var loresColor = [
+  const loresColor = [
      (0xff000000), (0xffff00ff), (0xff00007f), (0xff7f007f),
      (0xff007f00), (0xff7f7f7f), (0xff0000bf), (0xff0000ff),
      (0xffbf7f00), (0xffffbf00), (0xffbfbfbf), (0xffff7f7f),
      (0xff00ff00), (0xffffff00), (0xff00bf7f), (0xffffffff),
   ];
 
-  var text_lut = [
+  const text_lut = [
      0x000, 0x080, 0x100, 0x180, 0x200, 0x280, 0x300, 0x380,
      0x028, 0x0a8, 0x128, 0x1a8, 0x228, 0x2a8, 0x328, 0x3a8,
      0x050, 0x0d0, 0x150, 0x1d0, 0x250, 0x2d0, 0x350, 0x3d0
   ];
 
-  var hires_lut = [
+  const hires_lut = [
      0x0000, 0x0400, 0x0800, 0x0c00, 0x1000, 0x1400, 0x1800, 0x1c00,
      0x0080, 0x0480, 0x0880, 0x0c80, 0x1080, 0x1480, 0x1880, 0x1c80,
      0x0100, 0x0500, 0x0900, 0x0d00, 0x1100, 0x1500, 0x1900, 0x1d00,
@@ -627,7 +630,7 @@ var Apple2Display = function(pixels, apple) {
               for (var x=0; x<40; x++)
                  textbuf[y*40+x] = -1;
         }
-        for (var i=0; i<384; i++)
+        for (var i=0; i<apple.dirty.length; i++)
            apple.dirty[i] = true;
      }
 
@@ -658,14 +661,18 @@ var Apple2Display = function(pixels, apple) {
            for (y=20; y<24; y++)
               drawLoresLine(y);
      }
-     for (var i=0; i<384; i++)
+     for (var i=0; i<apple.dirty.length; i++)
         apple.dirty[i] = false;
+  }
+  
+  this.invalidate = function() {
+    oldgrmode = -1;
   }
 }
 
 /*exported apple2_charset */
 
-var apple2_charset = [
+const apple2_charset = [
     0x00,0x1c,0x22,0x2a,0x2e,0x2c,0x20,0x1e,
     0x00,0x08,0x14,0x22,0x22,0x3e,0x22,0x22,
     0x00,0x3c,0x22,0x22,0x3c,0x22,0x22,0x3c,
@@ -925,7 +932,7 @@ var apple2_charset = [
 ];
 
 // public domain ROM
-var APPLEIIGO_LZG = [
+const APPLEIIGO_LZG = [
   76,90,71,0,0,48,0,0,0,10,174,5,108,198,141,1,25,52,55,59,65,80,80,76,69,73,73,71,79,32,82,79,
   77,49,46,49,255,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,3,133,109,132,110,56,165,150,229,155,133,94,
   168,165,151,229,156,170,232,152,240,35,165,150,56,229,94,133,150,176,3,198,151,56,165,148,55,3,148,176,8,198,149,144,

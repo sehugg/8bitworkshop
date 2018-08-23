@@ -143,7 +143,7 @@ const _VicDualPlatform = function(mainElement) {
       reset_disable_timer = setTimeout(function() { reset_disable = false; }, 1100);
 		});
     pixels = video.getFrameData();
-    timer = new AnimationTimer(60, this.advance.bind(this));
+    timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
 
   readAddress(addr) {
@@ -164,7 +164,6 @@ const _VicDualPlatform = function(mainElement) {
       this.runCPU(cpu, targetTstates - cpu.getTstates());
     }
     video.updateFrame();
-    this.restartDebugState();
   }
 
   loadROM(title, data) {
