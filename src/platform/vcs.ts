@@ -62,8 +62,8 @@ class VCSPlatform {
     // intercept clockPulse function
     Javatari.room.console.oldClockPulse = Javatari.room.console.clockPulse;
     Javatari.room.console.clockPulse = function() {
-      this.oldClockPulse();
       self.updateRecorder();
+      this.oldClockPulse();
     }
     this.paused = false;
   }
@@ -109,6 +109,10 @@ class VCSPlatform {
   advance() {
     Javatari.room.console.clockPulse();
   }
+  // for unit test
+  nextFrame() {
+    Javatari.room.console.clockPulse();
+  }
 
   step() { Javatari.room.console.debugSingleStepCPUClock(); }
   stepBack() { Javatari.room.console.debugStepBackInstruction(); }
@@ -144,6 +148,12 @@ class VCSPlatform {
   }
   loadState(state) {
     return Javatari.room.console.loadState(state);
+  }
+  saveControlsState() {
+    return Javatari.room.console.saveControlsState();
+  }
+  loadControlsState(state) {
+    Javatari.room.console.loadControlsState(state);
   }
   // TODO: load/save controls state
   readAddress(addr) {

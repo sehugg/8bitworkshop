@@ -56,6 +56,7 @@ TODO:
 - intro/help text for each platform
 - make sure controls work with replay feature (we'll have to save control state every frame)
 - vscode/atom extension?
+- navigator.getGamepads
 
 FYI: Image links for the books on http://8bitworkshop.com/ are broken
 On the website the additional grey spacing next to the program line numbers is not dynamically resized when the web browser window size is changed.  Intentional?
