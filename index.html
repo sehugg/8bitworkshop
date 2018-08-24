@@ -48,11 +48,11 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
       <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
       <li><a class="dropdown-item" href="#" id="item_new_file">New Project...</a></li>
       <li><a class="dropdown-item" href="#" id="item_upload_file">Upload File...</a></li>
-      <!--<li><a class="dropdown-item" href="#" id="item_share_file">Share File as GitHub Gist...</a></li>-->
       <li><a class="dropdown-item" href="#" id="item_reset_file">Revert to Original...</a></li>
       <li><a class="dropdown-item" href="#" id="item_download_file">Download Source File</a></li>
       <li><a class="dropdown-item" href="#" id="item_download_rom">Download ROM Image</a></li>
       <li><a class="dropdown-item" href="#" id="item_record_video">Record Video...</a></li>
+      <li><a class="dropdown-item" href="#" id="item_share_file">Share Playable Link...</a></li>
       <li class="dropdown dropdown-submenu">
         <a tabindex="-1" href="#">Debug</a>
         <ul class="dropdown-menu">
@@ -221,6 +221,27 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
     </div>
   </div>
 </div>
+<div id="embedLinkModal" class="modal fade">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Share Playable Link</h3>
+      </div>
+      <div class="modal-body">
+        <p>Here's a direct link to a playable version of your game:</p>
+        <textarea rows="4" cols="80" id="embedLinkTextarea" class="cliptext"></textarea>
+        <button type="button" class="btn btn-primary" data-clipboard-target="#embedLinkTextarea">Copy Direct Link</button>
+        <p>You can also embed it into an IFRAME:</p>
+        <textarea rows="4" cols="80" id="embedIframeTextarea" class="cliptext"></textarea>
+        <button type="button" class="btn btn-primary" data-clipboard-target="#embedIframeTextarea">Copy IFRAME Tag</button>
+      </div>
+      <div class="modal-footer">
+        Choose one (or none) then
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="jquery/jquery-2.2.3.min.js"></script>
 
@@ -256,8 +277,6 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <script src="local/atarivec/gravitar/gravitar.js"></script>
 -->
 <script src="FileSaver.js/FileSaver.min.js"></script>
-<script src="octokat.js/dist/octokat.js"></script>
-<script src="gif.js/dist/gif.js"></script>
 <script src="localForage/dist/localforage.nopromises.js"></script>
 
 <script>

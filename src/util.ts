@@ -127,6 +127,9 @@ export function lzgmini() {
     {
       return null;
     }
+    
+    // what's the length?
+    var uncomplen = data[6] | (data[5]<<8) | (data[4]<<16) | (data[3]<<24);
 
     // Calculate & check the checksum
     var checksum = ((data[11] & 0xff) << 24) |
@@ -138,6 +141,7 @@ export function lzgmini() {
       return null;
     }
 
+    var dst = new Array();
     // Check which method to use
     var method = data[15] & 0xff;
     if (method == LZG_METHOD_LZG1)
@@ -150,7 +154,6 @@ export function lzgmini() {
 
       // Main decompression loop
       var symbol, b, b2, b3, len, offset;
-      var dst = new Array();
       var dstlen = 0;
       var k = LZG_HEADER_SIZE + 4;
       var datalen = data.length;
@@ -211,28 +214,26 @@ export function lzgmini() {
         }
       }
 
-      // Store the decompressed data in the lzgmini object for later retrieval
-      outdata = dst;
-      return outdata;
     }
     else if (method == LZG_METHOD_COPY)
     {
       // Plain copy
-      var dst = new Array();
       var dstlen = 0;
       var datalen = data.length;
       for (var i = LZG_HEADER_SIZE; i < datalen; i++)
       {
         dst[dstlen++] = data[i] & 0xff;
       }
-      outdata = dst;
-      return outdata;
     }
     else
     {
       // Unknown method
       return null;
     }
+    // Store the decompressed data in the lzgmini object for later retrieval
+    if (dst.length < uncomplen) return null; // data too short
+    outdata = dst.slice(0, uncomplen);
+    return outdata;
   }
 
   // Get the decoded byte array
@@ -242,19 +243,8 @@ export function lzgmini() {
   }
 
   // Get the decoded string from a Latin 1 (or ASCII) encoded array
-  this.getStringLatin1 = function():string
-  {
-    var str = "";
-    if (outdata != null)
-    {
-      var charLUT = new Array();
-      for (var i = 0; i < 256; ++i)
-        charLUT[i] = String.fromCharCode(i);
-      var outlen = outdata.length;
-      for (var i = 0; i < outlen; i++)
-        str += charLUT[outdata[i]];
-    }
-    return str;
+  this.getStringLatin1 = function():string {
+    return byteArrayToString(outdata);
   }
 
   // Get the decoded string from an UTF-8 encoded array
@@ -301,9 +291,42 @@ export function stringToByteArray(s:string) : Uint8Array {
   return a;
 }
 
+export function byteArrayToString(outdata : number[] | Uint8Array) : string {
+  var str = "";
+  if (outdata != null) {
+    var charLUT = new Array();
+    for (var i = 0; i < 256; ++i)
+      charLUT[i] = String.fromCharCode(i);
+    var outlen = outdata.length;
+    for (var i = 0; i < outlen; i++)
+      str += charLUT[outdata[i]];
+  }
+  return str;
+}
+
 export function removeBOM(s:string) {
   if (s.charCodeAt(0) === 0xFEFF) {
     s = s.substr(1);
   }
   return s;
+}
+
+// need to load liblzg.js first
+export function compressLZG(em_module, inBuffer:number[], levelArg?:boolean) : Uint8Array {
+  var level = levelArg || 9;
+  var inLen = inBuffer.length;
+  var inPtr = em_module._malloc(inLen + 1);
+  for (var i = 0; i < inLen; i++) {
+      em_module.setValue(inPtr + i, inBuffer[i], 'i8');
+  }
+  var maxEncSize = em_module._LZG_MaxEncodedSize(inLen);
+  var outPtr = em_module._malloc(maxEncSize + 1);
+  var compLen = em_module.ccall('compress_lzg', 'number', ['number', 'number', 'number', 'number', 'number'], [level, inPtr, inLen, maxEncSize, outPtr]);
+  em_module._free(inPtr);
+  var outBuffer = new Uint8Array(compLen);
+  for (var i = 0; i < compLen; i++) {
+      outBuffer[i] = em_module.getValue(outPtr + i, 'i8');
+  }
+  em_module._free(outPtr);
+  return outBuffer;
 }

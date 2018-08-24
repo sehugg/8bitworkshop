@@ -61,7 +61,7 @@ const _Apple2Platform = function(mainElement) {
     cpu = new jt.M6502();
     ram = new RAM(0x13000); // 64K + 16K LC RAM - 4K hardware
     // ROM
-    var rom = new lzgmini().decode(APPLEIIGO_LZG).slice(0,0x3000);
+    var rom = new lzgmini().decode(APPLEIIGO_LZG);
     ram.mem.set(rom, 0xd000);
     ram.mem[0xbf00] = 0x4c; // fake DOS detect for C
     ram.mem[0xbf6f] = 0x01; // fake DOS detect for C

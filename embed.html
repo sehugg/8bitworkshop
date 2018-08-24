@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>8bitworkshop IDE</title>
+<style type="text/css" media="screen">
+#emulator {
+  position:absolute;
+  left:0;
+  top:0;
+  width:100%;
+  height:100%;
+  background-color:#555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.emuvideo {
+  height:80%;
+  border-radius:20px;
+  border: 4px solid #222;
+  outline-color: #666;
+  padding: 30px;
+  background: #000;
+}
+</style>
+<script>
+window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+if (window.location.host.endsWith('8bitworkshop.com')) {
+  ga('create', 'UA-54497476-9', 'auto');
+  ga('set', 'anonymizeIp', true);
+  ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+</head>
+<body>
+
+  <div id="emulator">
+    <div id="javatari-div" style="margin:10px; display:none">
+      <div id="javatari-screen" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
+      <div id="javatari-console-panel" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
+    </div>
+  </div>
+
+<script src="jquery/jquery-2.2.3.min.js"></script>
+
+<script src="javatari.js/release/javatari/javatari.js"></script>
+<script src="src/cpu/z80fast.js"></script>
+<script src="jsnes/jsnes.min.js"></script>
+<!--<script src="src/cpu/6809.js"></script>-->
+
+<script>
+var exports = {};
+function require(modname) {
+  if (modname == 'jquery') return $;
+  else if (modname.startsWith('.')) return exports;
+  else { console.log("Unknown require()", modname); return exports; }
+}
+</script>
+
+<script src="tss/js/tss/PsgDeviceChannel.js"></script>
+<script src="tss/js/tss/MasterChannel.js"></script>
+<script src="tss/js/tss/AudioLooper.js"></script>
+<script src="tss/js/Log.js"></script>
+
+<script src="gen/util.js"></script>
+<script src="gen/store.js"></script>
+<script src="src/vlist.js"></script>
+<script src="gen/emu.js"></script>
+<script src="gen/baseplatform.js"></script>
+<script src="gen/audio.js"></script>
+<script src="gen/recorder.js"></script>
+
+<script src="lib/liblzg.js"></script>
+
+<script>
+
+window.Javatari.AUTO_START = false;
+var PLATFORMS = exports.PLATFORMS;
+var platform, platform_id;
+
+var qs = (function (a) {
+    if (!a || a.length == 0)
+        return {};
+    var b = {};
+    for (var i = 0; i < a.length; ++i) {
+        var p = a[i].split('=', 2);
+        if (p.length == 1)
+            b[p[0]] = "";
+        else
+            b[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
+    }
+    return b;
+})(window.location.search.substr(1).split('&'));
+
+// catch errors
+function installErrorHandler() {
+  if (typeof window.onerror == "object") {
+      window.onerror = function (msgevent, url, line, col, error) {
+        ga('send', 'exception', {
+          'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
+          'exFatal': true
+        });
+        //alert(msgevent+"");
+      };
+  }
+}
+
+function uninstallErrorHandler() {
+  window.onerror = null;
+}
+
+function addPageFocusHandlers() {
+  var hidden = false;
+  document.addEventListener("visibilitychange", function() {
+    if (document.visibilityState == 'hidden' && platform.isRunning()) {
+      platform.pause();
+      hidden = true;
+    } else if (document.visibilityState == 'visible' && hidden) {
+      platform.resume();
+      hidden = false;
+    }
+  });
+  $(window).on("focus", function() {
+    if (hidden) {
+      platform.resume();
+      hidden = false;
+    }
+  });
+  $(window).on("blur", function() {
+    if (platform.isRunning()) {
+      platform.pause();
+      hidden = true;
+    }
+  });
+}
+
+function startPlatform() {
+  if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
+  platform = new PLATFORMS[platform_id]($("#emulator")[0]);
+  platform.start();
+  var title = qs['n'] || 'Game';
+  var lzgrom = stringToByteArray(atob(qs['r']));
+  var rom = new lzgmini().decode(lzgrom);
+  console.log(rom.length + ' bytes');
+  platform.loadROM(title, rom);
+  platform.resume();
+  return true;
+}
+
+function loadScript(scriptfn, onload) {
+  var script = document.createElement('script');
+  script.onload = onload;
+  script.src = scriptfn;
+  document.getElementsByTagName('head')[0].appendChild(script);
+}
+
+// start
+function startEmbed() {
+  installErrorHandler();
+  // add default platform?
+  platform_id = qs['p'];
+  if (!platform_id) throw('No platform variable!');
+  var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
+  loadScript(scriptfn, () => {
+    console.log("loaded platform", platform_id);
+    startPlatform();
+  });
+}
+
+startEmbed();
+
+</script>
+
+</body>
+</html>

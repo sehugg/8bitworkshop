@@ -35,7 +35,6 @@ TODO:
 - update Javatari version? (and others?)
 - unify versioning
 - more UI tests
-- base-36 encoding for LZG
 - disassembler for uploaded ROMs
 - show tool-specific (readonly) include files
 - verilog debugging/reloading makes it slow

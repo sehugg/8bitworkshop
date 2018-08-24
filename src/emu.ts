@@ -32,18 +32,12 @@ export function setNoiseSeed(x : number) {
 type KeyboardCallback = (which:number, charCode:number, flags:number) => void;
 
 function __createCanvas(mainElement:HTMLElement, width:number, height:number) : HTMLElement {
-  // TODO
-  var fsElement = document.createElement('div');
-  fsElement.classList.add("emubevel");
-
   var canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   canvas.classList.add("emuvideo");
   canvas.tabIndex = -1;               // Make it focusable
-
-  fsElement.appendChild(canvas);
-  mainElement.appendChild(fsElement);
+  mainElement.appendChild(canvas);
   return canvas;
 }
 

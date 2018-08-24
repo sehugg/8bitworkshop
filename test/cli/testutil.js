@@ -107,6 +107,6 @@ var NES_CONIO_ROM_LZG = [
 describe('LZG', function() {
   it('Should decode LZG', function() {
    var rom = new Uint8Array(new util.lzgmini().decode(NES_CONIO_ROM_LZG));
-   assert.equal(40977, rom.length);
+   assert.equal(40976, rom.length);
   });
 });

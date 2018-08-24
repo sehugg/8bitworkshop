@@ -11,11 +11,13 @@ import { Platform, Preset } from "./baseplatform";
 import { PLATFORMS } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
-import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap } from "./util";
+import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG } from "./util";
 import { StateRecorderImpl } from "./recorder";
 
 // external libs (TODO)
-declare var Octokat, ga, Tour, GIF, saveAs;
+declare var ga, Tour, GIF, saveAs;
+// in index.html
+declare var exports;
 
 // make sure VCS doesn't start
 if (window['Javatari']) window['Javatari'].AUTO_START = false;
@@ -288,14 +290,15 @@ function getCurrentEditorFilename() : string {
   return getFilenameForPath(projectWindows.getActiveID());
 }
 
-function _shareFile(e) {
+function _shareFileAsGist(e) {
+ loadScript("octokat.js/dist/octokat.js", () => {
   if (current_output == null) { // TODO
     alert("Please fix errors before sharing.");
     return true;
   }
   var text = projectWindows.getCurrentText();
   if (!text) return false;
-  var github = new Octokat();
+  var github = new exports['Octokat']();
   var files = {};
   files[getCurrentEditorFilename()] = {"content": text};
   var gistdata = {
@@ -308,6 +311,40 @@ function _shareFile(e) {
     window.prompt("Copy link to clipboard (Ctrl+C, Enter)", url);
   }).fail(function(err) {
     alert("Error sharing file: " + err.message);
+  });
+ });
+}
+
+function _shareEmbedLink(e) {
+  if (current_output == null) { // TODO
+    alert("Please fix errors before sharing.");
+    return true;
+  }
+  loadScript('lib/clipboard.min.js', () => {
+    var ClipboardJS = exports['ClipboardJS'];
+    new ClipboardJS(".btn");
+  });
+  loadScript('lib/liblzg.js', () => {
+    // TODO: Module is bad var name
+    var lzgrom = compressLZG( window['Module'], current_output );
+    window['Module'] = null; // so we load it again next time
+    var lzgb64 = btoa(byteArrayToString(lzgrom));
+    var embed = {
+      p: platform_id,
+      //n: main_file_id,
+      r: lzgb64
+    };
+    var linkqs = $.param(embed);
+    console.log(linkqs);
+    var loc = window.location;
+    var prefix = loc.pathname.replace('index.html','');
+    var protocol = (loc.host == '8bitworkshop.com') ? 'https:' : loc.protocol;
+    var fulllink = protocol+'//'+loc.host+prefix+'embed.html?' + linkqs;
+    var iframelink = '<iframe width=640 height=600 src="' + fulllink + '">';
+    $("#embedLinkTextarea").text(fulllink);
+    $("#embedIframeTextarea").text(iframelink);
+    $("#embedLinkModal").modal('show');
+    //document.execCommand("copy");
   });
   return true;
 }
@@ -595,6 +632,7 @@ function updateDebugWindows() {
 }
 
 function _recordVideo() {
+ loadScript("gif.js/dist/gif.js", () => {
   var canvas = $("#emulator").find("canvas")[0];
   if (!canvas) {
     alert("Could not find canvas element to record video!");
@@ -607,6 +645,7 @@ function _recordVideo() {
     else if (canvas.style.transform.indexOf("rotate(90deg)") >= 0)
       rotate = 1;
   }
+  // TODO: recording indicator?
   var gif = new GIF({
     workerScript: 'gif.js/dist/gif.worker.js',
     workers: 4,
@@ -637,6 +676,7 @@ function _recordVideo() {
     }
   };
   f();
+ });
 }
 
 function setFrameRateUI(fps:number) {
@@ -751,7 +791,7 @@ function setupDebugControls(){
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);
-  $("#item_share_file").click(_shareFile);
+  $("#item_share_file").click(_shareEmbedLink);
   $("#item_reset_file").click(_revertFile);
   if (platform.runEval)
     $("#item_debug_expr").click(_breakExpression).show();
@@ -968,7 +1008,8 @@ function startPlatform() {
 }
 
 function loadSharedFile(sharekey : string) {
-  var github = new Octokat();
+ loadScript("octokat.js/dist/octokat.js", () => {
+  var github = new exports['Octokat']();
   var gist = github.gists(sharekey);
   gist.fetch().done(function(val) {
     var filename;
@@ -987,7 +1028,7 @@ function loadSharedFile(sharekey : string) {
   }).fail(function(err) {
     alert("Error loading share file: " + err.message);
   });
-  return true;
+ });
 }
 
 function loadScript(scriptfn, onload) {
