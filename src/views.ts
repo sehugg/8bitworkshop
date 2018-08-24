@@ -528,6 +528,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
 ///
 
 // TODO: make it use debug state
+// TODO: make it safe (load/restore state?)
 export class MemoryView implements ProjectView {
   memorylist;
   dumplines;
@@ -613,7 +614,7 @@ export class MemoryView implements ProjectView {
     for (var i=n1; i<n2; i++) {
       var read = platform.readAddress(offset+i);
       if (i==8) s += ' ';
-      s += ' ' + (read>=0?hex(read,2):'??');
+      s += ' ' + (read!==null?hex(read,2):'??');
     }
     for (var i=n2; i<16; i++) s += '   ';
     if (sym) s += '  ' + sym;

@@ -9,6 +9,7 @@ declare var jt; // 6502
 
 const APPLE2_PRESETS = [
   {id:'sieve.c', name:'Sieve'},
+  {id:'keyboardtest.c', name:'Keyboard Test'},
   {id:'mandel.c', name:'Mandelbrot'},
   {id:'tgidemo.c', name:'TGI Graphics Demo'},
   {id:'siegegame.c', name:'Siege Game'},
@@ -170,10 +171,16 @@ const _Apple2Platform = function(mainElement) {
           kbdlatch = (code | 0x80) & 0xff;
         } else if (key) {
           switch (key) {
+            case 16: return; // shift
+            case 17: return; // ctrl
+            case 18: return; // alt
             case 37: key=8; break;	// left
             case 39: key=21; break; // right
             case 38: key=11; break; // up
             case 40: key=10; break; // down
+          }
+          if (key >= 65 && key < 65+26) {
+            if (flags & 5) key -= 64; // ctrl
           }
           kbdlatch = (key | 0x80) & 0xff;
         }
@@ -242,8 +249,8 @@ const _Apple2Platform = function(mainElement) {
       }
     }
   }
-  readAddress(addr) {
-    return bus.read(addr);
+  readAddress(addr : number) {
+    return ((addr & 0xf000) != 0xc000) ? bus.read(addr) : null; // ignore I/O space
   }
 
   loadState(state) {

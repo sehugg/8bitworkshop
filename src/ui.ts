@@ -170,7 +170,7 @@ function refreshWindowList() {
       return new Views.DisassemblerView();
     });
   }
-  if (platform.readAddress && platform_id != 'vcs') {
+  if (platform.readAddress) {
     addWindowItem("#memory", "Memory Browser", function() {
       return new Views.MemoryView();
     });

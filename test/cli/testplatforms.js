@@ -97,6 +97,10 @@ function testPlatform(platid, romname, maxframes, callback) {
     for (var i=0; i<maxframes; i++) {
       if (callback) callback(platform, i);
       platform.nextFrame();
+      if (i==10) {
+        for (var j=0; j<0x10000; j++)
+          platform.readAddress(j);
+      }
     }
     platform.pause();
     assert.equal(maxframes, rec.numFrames());
