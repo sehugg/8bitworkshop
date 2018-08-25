@@ -15,7 +15,7 @@ import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap,
 import { StateRecorderImpl } from "./recorder";
 
 // external libs (TODO)
-declare var ga, Tour, GIF, saveAs;
+declare var ga, Tour, GIF, saveAs, JSZip;
 // in index.html
 declare var exports;
 
@@ -379,6 +379,19 @@ function _downloadSourceFile(e) {
   if (!text) return false;
   var blob = new Blob([text], {type: "text/plain;charset=utf-8"});
   saveAs(blob, getCurrentEditorFilename());
+}
+
+function _downloadProjectZipFile(e) {
+  loadScript('lib/jszip.min.js', () => {
+    var zip = new JSZip();
+    current_project.iterateFiles(function(id, text) {
+      if (text)
+        zip.file(getFilenameForPath(id), text);
+    });
+    zip.generateAsync({type:"blob"}).then( (content) => {
+      saveAs(content, getCurrentMainFilename() + ".zip");
+    });
+  });
 }
 
 function populateExamples(sel) {
@@ -802,6 +815,7 @@ function setupDebugControls(){
     $("#item_debug_expr").hide();
   $("#item_download_rom").click(_downloadROMImage);
   $("#item_download_file").click(_downloadSourceFile);
+  $("#item_download_zip").click(_downloadProjectZipFile);
   $("#item_record_video").click(_recordVideo);
   if (platform.setFrameRate && platform.getFrameRate) {
     $("#speed_bar").show();
