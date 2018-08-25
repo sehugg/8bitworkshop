@@ -491,11 +491,14 @@ function parseSourceLines(code, lineMatch, offsetMatch, origin) {
 
 function parseDASMListing(code, unresolved, mainFilename) {
   //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
-  var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([0-9a-f][0-9a-f ]+)?\s+(.+)?/;
-  var equMatch = /\bequ\b/;
+  var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
+  var equMatch = /\bequ\b/i;
+  var macroMatch = /\bMAC\s+(.+)?/i;
   var errors = [];
   var lines = [];
+  var macrolines = [];
   var lastline = 0;
+  var macros = {};
   for (var line of code.split(/\r?\n/)) {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
@@ -504,9 +507,15 @@ function parseDASMListing(code, unresolved, mainFilename) {
       var offset = parseInt(linem[3], 16);
       var insns = linem[4];
       var restline = linem[5];
+      if (insns && insns.startsWith('?')) insns = null;
       // inside of main file?
       if (filename == mainFilename) {
-        if (insns && !restline.match(equMatch)) {
+        // look for MAC statement
+        var macmatch = macroMatch.exec(restline);
+        if (macmatch) {
+          macros[macmatch[1]] = {line:parseInt(linem[1]), file:linem[2].toLowerCase()};
+        }
+        else if (insns && !restline.match(equMatch)) {
           lines.push({
             line:linenum,
             offset:offset,
@@ -522,6 +531,16 @@ function parseDASMListing(code, unresolved, mainFilename) {
             line:lastline+1,
             offset:offset,
             insns:null
+          });
+        }
+        // inside of macro?
+        var mac = macros[filename.toLowerCase()];
+        if (insns && mac) {
+          macrolines.push({
+            filename:mac.file,
+            line:mac.line+linenum,
+            offset:offset,
+            insns:insns
           });
         }
       }
@@ -546,7 +565,8 @@ function parseDASMListing(code, unresolved, mainFilename) {
       })
     }
   }
-  return {lines:lines, errors:errors};
+  // TODO: use macrolines
+  return {lines:lines, macrolines:macrolines, errors:errors};
 }
 
 function assembleDASM(step) {
@@ -582,7 +602,7 @@ function assembleDASM(step) {
     return {errors:errors};
   }
   var listings = {};
-  listings[lstpath] = {lines:listing.lines};
+  listings[lstpath] = listing;
   // parse include files
   // TODO: kinda wasted effort
   for (var fn of step.files) {

@@ -304,21 +304,11 @@ const _GalaxianPlatform = function(mainElement, options) {
   }
   
   advance(novideo : boolean) {
-    var debugCond = this.getDebugCallback();
-    var targetTstates = cpu.getTstates();
     for (var sl=0; sl<scanlinesPerFrame; sl++) {
       if (!novideo) {
         drawScanline(pixels, sl);
       }
-      targetTstates += cpuCyclesPerLine;
-      if (debugCond) {
-        while (cpu.getTstates() < targetTstates) {
-          if (debugCond && debugCond()) { debugCond = null; }
-          cpu.runFrame(cpu.getTstates() + 1);
-        }
-      } else {
-        cpu.runFrame(targetTstates);
-      }
+      this.runCPU(cpu, cpuCyclesPerLine);
     }
     // visible area is 256x224 (before rotation)
     if (!novideo) {

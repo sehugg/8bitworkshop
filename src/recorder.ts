@@ -13,7 +13,7 @@ export class StateRecorderImpl implements EmuRecorder {
     checkpoints : EmuState[];
     framerecs : FrameRec[];
     frameCount : number;
-    lastSeekFrame : number = -1;
+    lastSeekFrame : number;
     
     constructor(platform : Platform) {
         this.reset();
@@ -29,10 +29,6 @@ export class StateRecorderImpl implements EmuRecorder {
     }
 
     frameRequested() : boolean {
-        // checkpoints full?
-        if (this.checkpoints.length >= this.maxCheckpoints) {
-            return false;
-        }
         var controls = {
           controls:this.platform.saveControlsState(),
           seed:getNoiseSeed()
@@ -64,6 +60,14 @@ export class StateRecorderImpl implements EmuRecorder {
     
     recordFrame(state : EmuState) {
         this.checkpoints.push(state);
+        // checkpoints full?
+        if (this.checkpoints.length > this.maxCheckpoints) {
+            this.checkpoints.shift(); // remove 1st checkpoint
+            this.framerecs = this.framerecs.slice(this.checkpointInterval);
+            this.lastSeekFrame -= this.checkpointInterval;
+            this.frameCount -= this.checkpointInterval;
+            if (this.callbackStateChanged) this.callbackStateChanged();
+        }
     }
 
     getStateAtOrBefore(frame : number) : {frame : number, state : EmuState} {

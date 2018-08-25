@@ -1,5 +1,5 @@
 
-import { RAM, RasterVideo, dumpRAM, dumpStackToString } from "./emu";
+import { RAM, RasterVideo, dumpRAM, lookupSymbol } from "./emu";
 import { hex } from "./util";
 import { CodeAnalyzer } from "./analysis";
 
@@ -291,7 +291,7 @@ export abstract class Base6502Platform extends BaseFrameBasedPlatform {
     switch (category) {
       case 'CPU':   return cpuStateToLongString_6502(state.c);
       case 'ZPRAM': return dumpRAM(state.b, 0x0, 0x100);
-      case 'Stack': return dumpStackToString(state.b, 0x100, 0x1ff, 0x100+state.c.SP);
+      case 'Stack': return dumpStackToString(<Platform><any>this, state.b, 0x100, 0x1ff, 0x100+state.c.SP, 0x20);
     }
   }
 }
@@ -502,11 +502,18 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   //this.getOpcodeMetadata = function() { }
 
   getDebugCategories() {
-    return ['CPU'];
+    return ['CPU','Stack'];
   }
   getDebugInfo(category:string, state:EmuState) : string {
     switch (category) {
       case 'CPU':   return cpuStateToLongString_Z80(state.c);
+      case 'Stack': {
+        var sp = state.c.SP;
+        var start = ((sp-1) & 0xff00);
+        var end = start + 0xff;
+        if (sp == 0) sp = 0x10000;
+        return dumpStackToString(<Platform><any>this, [], start, end, sp, 0xcd);
+      }
     }
   }
 }
@@ -852,3 +859,32 @@ export abstract class BaseMAMEPlatform {
   }
 }
 
+export function dumpStackToString(platform:Platform, mem:number[], start:number, end:number, sp:number, jsrop:number) : string {
+  var s = "";
+  var nraw = 0;
+  //s = dumpRAM(mem.slice(start,start+end+1), start, end-start+1);
+  function read(addr) {
+    if (addr < mem.length) return mem[addr];
+    else return platform.readAddress(addr);
+  }
+  while (sp < end) {
+    sp++;
+    // see if there's a JSR on the stack here
+    // TODO: make work with roms and memory maps
+    var addr = read(sp) + read(sp+1)*256;
+    var jsrofs = (jsrop == 0xcd) ? -3 : -2;
+    var opcode = read(addr + jsrofs); // might be out of bounds
+    if (opcode == jsrop) { // JSR
+      s += "\n$" + hex(sp) + ": ";
+      s += hex(addr,4) + " " + lookupSymbol(addr);
+      sp++;
+      nraw = 0;
+    } else {
+      if (nraw == 0)
+        s += "\n$" + hex(sp) + ": ";
+      s += hex(read(sp+1)) + " ";
+      if (++nraw == 8) nraw = 0;
+    }
+  }
+  return s+"\n";
+}

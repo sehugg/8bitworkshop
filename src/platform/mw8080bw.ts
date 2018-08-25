@@ -120,23 +120,8 @@ const _Midway8080BWPlatform = function(mainElement) {
   }
   
   advance(novideo : boolean) {
-    var debugCond = this.getDebugCallback();
-    var targetTstates = cpu.getTstates();
     for (var sl=0; sl<224; sl++) {
-      targetTstates += cpuCyclesPerLine;
-      if (debugCond) {
-        while (cpu.getTstates() < targetTstates) {
-          if (debugCond && debugCond()) {
-            debugCond = null;
-            break;
-          }
-          cpu.runFrame(cpu.getTstates() + 1);
-        }
-        if (!debugCond)
-          break;
-      } else {
-        cpu.runFrame(targetTstates);
-      }
+      this.runCPU(cpu, cpuCyclesPerLine);
       if (sl == 95)
         cpu.requestInterrupt(0x8); // RST $8
       else if (sl == 223)

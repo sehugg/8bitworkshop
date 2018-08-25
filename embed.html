@@ -79,7 +79,7 @@ window.Javatari.AUTO_START = false;
 var PLATFORMS = exports.PLATFORMS;
 var platform, platform_id;
 
-var qs = (function (a) {
+var _qs = (function (a) {
     if (!a || a.length == 0)
         return {};
     var b = {};
@@ -135,7 +135,7 @@ function addPageFocusHandlers() {
   });
 }
 
-function startPlatform() {
+function startPlatform(qs) {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
   platform.start();
@@ -148,6 +148,17 @@ function startPlatform() {
   return true;
 }
 
+function loadPlatform(qs) {
+  if (qs.data) qs = qs.data;
+  platform_id = qs['p'];
+  if (!platform_id) throw('No platform variable!');
+  var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
+  loadScript(scriptfn, () => {
+    console.log("loaded platform", platform_id);
+    startPlatform(qs);
+  });
+}
+
 function loadScript(scriptfn, onload) {
   var script = document.createElement('script');
   script.onload = onload;
@@ -158,14 +169,8 @@ function loadScript(scriptfn, onload) {
 // start
 function startEmbed() {
   installErrorHandler();
-  // add default platform?
-  platform_id = qs['p'];
-  if (!platform_id) throw('No platform variable!');
-  var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
-  loadScript(scriptfn, () => {
-    console.log("loaded platform", platform_id);
-    startPlatform();
-  });
+  window.addEventListener("message", loadPlatform, false);
+  if (_qs['p']) loadPlatform(_qs);
 }
 
 startEmbed();

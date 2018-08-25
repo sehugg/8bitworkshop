@@ -1,7 +1,7 @@
 "use strict";
 
-import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502 } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, dumpStackToString } from "../emu";
+import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString } from "../baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM } from "../emu";
 import { hex, lpad, lzgmini } from "../util";
 import { CodeAnalyzer_nes } from "../analysis";
 import { SampleAudio } from "../audio";
@@ -114,6 +114,7 @@ const _JSNESPlatform = function(mainElement) {
       var cycles = nes.cpu._emulate();
       //if (self.debugCondition && !self.debugBreakState && self.debugClock < 100) console.log(self.debugClock, nes.cpu.REG_PC);
       self.evalDebugCondition();
+      // TODO: doesn't stop on breakpoint
       return cycles;
     }
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
@@ -230,7 +231,7 @@ const _JSNESPlatform = function(mainElement) {
     switch (category) {
       case 'CPU':   return cpuStateToLongString_6502(state.c);
       case 'ZPRAM': return dumpRAM(state.b, 0x0, 0x100);
-      case 'Stack': return dumpStackToString(state.b, 0x100, 0x1ff, 0x100+state.c.SP);
+      case 'Stack': return dumpStackToString(this, state.b, 0x100, 0x1ff, 0x100+state.c.SP, 0x20);
       case 'PPU': return this.ppuStateToLongString(state.ppu, state.b);
     }
   }

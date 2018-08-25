@@ -13,7 +13,7 @@ module RAM_sync(clk, addr, din, dout, we);
   output [D-1:0] dout;	// data output
   input  we;		// write enable
   
-  reg [D-1:0] mem [0:(1<<A)-1]; // (1<<A)xD bit memory
+  reg [D-1:0] mem [1<<A]; // (1<<A)xD bit memory
   
   always @(posedge clk) begin
     if (we)		// if write enabled
@@ -34,7 +34,7 @@ module RAM_async(clk, addr, din, dout, we);
   output [D-1:0] dout;	// data output
   input  we;		// write enable
   
-  reg [D-1:0] mem [0:(1<<A)-1]; // (1<<A)xD bit memory
+  reg [D-1:0] mem [1<<A]; // (1<<A)xD bit memory
   
   always @(posedge clk) begin
     if (we)		// if write enabled
@@ -55,7 +55,7 @@ module RAM_async_tristate(clk, addr, data, we);
   inout  [D-1:0] data;	// data in/out
   input  we;		// write enable
   
-  reg [D-1:0] mem [0:(1<<A)-1]; // (1<<A)xD bit memory
+  reg [D-1:0] mem [1<<A]; // (1<<A)xD bit memory
   
   always @(posedge clk) begin
     if (we)		 // if write enabled

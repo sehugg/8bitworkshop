@@ -115,7 +115,10 @@ var AtariVectorPlatform = function(mainElement) {
       var debugCond = self.getDebugCallback();
       clock = 0;
       for (var i=0; i<cpuCyclesPerFrame; i++) {
-        if (debugCond && debugCond()) { debugCond = null; }
+        if (debugCond && debugCond()) {
+          debugCond = null;
+          break;
+        }
         clock++;
         if (--nmicount == 0) {
           //console.log("NMI", cpu.saveState());
@@ -267,7 +270,10 @@ var AtariColorVectorPlatform = function(mainElement) {
       var debugCond = self.getDebugCallback();
       clock = 0;
       for (var i=0; i<cpuCyclesPerFrame; i++) {
-        if (debugCond && debugCond()) { debugCond = null; }
+        if (debugCond && debugCond()) {
+          debugCond = null;
+          break;
+        }
         clock++;
         if (--nmicount == 0) {
           //console.log("NMI", cpu.saveState());

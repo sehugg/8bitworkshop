@@ -57,7 +57,7 @@ var current_output;			// current ROM
 var current_preset_entry : Preset;	// current preset object (if selected)
 var main_file_id : string;	// main file ID
 var symbolmap;			// symbol map
-var addr2symbol;		// address to symbol name map
+declare var addr2symbol;		// address to symbol name map
 var compparams;			// received build params from worker
 var store;			// persistent store
 
@@ -344,7 +344,10 @@ function _shareEmbedLink(e) {
     $("#embedLinkTextarea").text(fulllink);
     $("#embedIframeTextarea").text(iframelink);
     $("#embedLinkModal").modal('show');
-    //document.execCommand("copy");
+    $("#embedAdviceWarnAll").hide();
+    $("#embedAdviceWarnIE").hide();
+    if (fulllink.length >= 65536) $("#embedAdviceWarnAll").show();
+    else if (fulllink.length >= 5120) $("#embedAdviceWarnIE").show();
   });
   return true;
 }

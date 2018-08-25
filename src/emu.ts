@@ -430,12 +430,12 @@ export function newAddressDecoder(table : AddressDecoderEntry[], options?:Addres
 
 // STACK DUMP
 
-declare var addr2symbol;		// address to symbol name map (TODO: import)
+var addr2symbol = {};		// address to symbol name map (TODO: import)
 
-function lookupSymbol(addr) {
+export function lookupSymbol(addr) {
   var start = addr;
   var foundsym;
-  while (addr >= 0) {
+  while (addr2symbol && addr >= 0) {
     var sym = addr2symbol[addr];
     if (sym && sym.startsWith('_')) { // return first C symbol we find
       return addr2symbol[addr] + " + " + (start-addr);
@@ -447,27 +447,3 @@ function lookupSymbol(addr) {
   return foundsym || "";
 }
 
-export function dumpStackToString(mem:number[], start:number, end:number, sp:number) : string {
-  var s = "";
-  var nraw = 0;
-  //s = dumpRAM(mem.slice(start,start+end+1), start, end-start+1);
-  while (sp < end) {
-    sp++;
-    // see if there's a JSR on the stack here
-    // TODO: make work with roms and memory maps
-    var addr = mem[sp] + mem[sp+1]*256;
-    var opcode = mem[addr-2]; // might be out of bounds
-    if (opcode == 0x20) { // JSR
-      s += "\n$" + hex(sp) + ": ";
-      s += hex(addr,4) + " " + lookupSymbol(addr);
-      sp++;
-      nraw = 0;
-    } else {
-      if (nraw == 0)
-        s += "\n$" + hex(sp) + ": ";
-      s += hex(mem[sp+1]) + " ";
-      if (++nraw == 8) nraw = 0;
-    }
-  }
-  return s+"\n";
-}

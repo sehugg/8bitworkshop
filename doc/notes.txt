@@ -34,7 +34,6 @@ TODO:
 - facade/kbd shortcuts for emulators, focus
 - update Javatari version? (and others?)
 - unify versioning
-- more UI tests
 - disassembler for uploaded ROMs
 - show tool-specific (readonly) include files
 - verilog debugging/reloading makes it slow
@@ -45,14 +44,13 @@ TODO:
 - Verilog compile spins forever?
 - go to error in include files
 - BOM in upload/download?
-- stack view for Z80 platforms using memory map
 - online tools for music etc
-- tools (memory, disasm) use debugging state
 - text log debugging script
 - NES crt should mark raster pos when debugging
 - intro/help text for each platform
 - vscode/atom extension?
 - navigator.getGamepads
+- VCS library
 
 FYI: Image links for the books on http://8bitworkshop.com/ are broken
 On the website the additional grey spacing next to the program line numbers is not dynamically resized when the web browser window size is changed.  Intentional?

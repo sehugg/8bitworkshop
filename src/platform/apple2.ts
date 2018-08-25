@@ -196,15 +196,12 @@ const _Apple2Platform = function(mainElement) {
     // 262.5 scanlines per frame
     var clock = 0;
     var debugCond = this.getDebugCallback();
-    var rendered = false;
     for (var sl=0; sl<262; sl++) {
       for (var i=0; i<cpuCyclesPerLine; i++) {
         if (debugCond && debugCond()) {
-          grparams.dirty = grdirty;
-          grparams.grswitch = grswitch;
-          ap2disp.updateScreen();
           debugCond = null;
-          rendered = true;
+          sl = 999;
+          break;
         }
         clock++;
         cpu.clockPulse();
@@ -212,11 +209,9 @@ const _Apple2Platform = function(mainElement) {
       }
     }
     if (!novideo) {
-      if (!rendered) {
-        grparams.dirty = grdirty;
-        grparams.grswitch = grswitch;
-        ap2disp.updateScreen();
-      }
+      grparams.dirty = grdirty;
+      grparams.grswitch = grswitch;
+      ap2disp.updateScreen();
       video.updateFrame();
     }
   }

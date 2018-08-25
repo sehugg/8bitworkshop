@@ -99,33 +99,50 @@ function testPlatform(platid, romname, maxframes, callback) {
       platform.nextFrame();
       if (i==10) {
         for (var j=0; j<0x10000; j++)
-          platform.readAddress(j);
+          platform.readAddress(j); // make sure readAddress() doesn't leave side effects
       }
     }
+    // test replay feature
     platform.pause();
+    if (maxframes > 120*60)
+      maxframes = 120*60;
     assert.equal(maxframes, rec.numFrames());
     var state1 = platform.saveState();
     assert.equal(1, rec.loadFrame(1));
     assert.equal(maxframes, rec.loadFrame(maxframes));
     var state2 = platform.saveState();
     assert.deepEqual(state1, state2);
+    // test debug info
+    var debugs = platform.getDebugCategories();
+    for (var dcat of debugs) {
+      var dinfo = platform.getDebugInfo(dcat, state2);
+      console.log(dcat, dinfo);
+      assert.ok(dinfo && dinfo.length > 0, dcat + " empty");
+      assert.ok(dinfo.length < 80*24, dcat + " too long");
+      assert.ok(dinfo.indexOf('undefined') < 0, dcat + " undefined");
+    }
     return platform;
 }
 
 describe('Platform Replay', () => {
 
   it('Should run apple2', () => {
-    var platform = testPlatform('apple2', 'cosmic.c.rom', 70, (platform, frameno) => {
-      if (frameno == 60) {
+    var platform = testPlatform('apple2', 'cosmic.c.rom', 72, (platform, frameno) => {
+      if (frameno == 62) {
         keycallback(32, 32, 1); // space bar
       }
     });
     assert.equal(platform.saveState().kbd, 0x20); // strobe cleared
   });
 
+  it('Should run > 120 secs', () => {
+    var platform = testPlatform('apple2', 'mandel.c.rom', 122*60, (platform, frameno) => {
+    });
+  });
+
   it('Should run vcs', () => {
-    var platform = testPlatform('vcs', 'brickgame.rom', 70, (platform, frameno) => {
-      if (frameno == 60) {
+    var platform = testPlatform('vcs', 'brickgame.rom', 72, (platform, frameno) => {
+      if (frameno == 62) {
         var cstate = platform.saveControlsState();
         cstate.SA = 0xff ^ 0x40; // stick left
         platform.loadControlsState(cstate);
@@ -136,8 +153,8 @@ describe('Platform Replay', () => {
   });
 
   it('Should run nes', () => {
-    var platform = testPlatform('nes', 'shoot2.c.rom', 70, (platform, frameno) => {
-      if (frameno == 60) {
+    var platform = testPlatform('nes', 'shoot2.c.rom', 72, (platform, frameno) => {
+      if (frameno == 62) {
         keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
       }
     });
@@ -145,16 +162,16 @@ describe('Platform Replay', () => {
   });
 
   it('Should run vicdual', () => {
-    var platform = testPlatform('vicdual', 'snake1.c.rom', 70, (platform, frameno) => {
-      if (frameno == 60) {
+    var platform = testPlatform('vicdual', 'snake1.c.rom', 72, (platform, frameno) => {
+      if (frameno == 62) {
         keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
       }
     });
   });
 
   it('Should run mw8080bw', () => {
-    var platform = testPlatform('mw8080bw', 'game2.c.rom', 70, (platform, frameno) => {
-      if (frameno == 60) {
+    var platform = testPlatform('mw8080bw', 'game2.c.rom', 72, (platform, frameno) => {
+      if (frameno == 62) {
         keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
       }
     });
@@ -162,8 +179,8 @@ describe('Platform Replay', () => {
   });
 
   it('Should run galaxian', () => {
-    var platform = testPlatform('galaxian-scramble', 'shoot2.c.rom', 70, (platform, frameno) => {
-      if (frameno == 60) {
+    var platform = testPlatform('galaxian-scramble', 'shoot2.c.rom', 72, (platform, frameno) => {
+      if (frameno == 62) {
         keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
       }
     });
@@ -171,23 +188,23 @@ describe('Platform Replay', () => {
   });
 
   it('Should run vector', () => {
-    var platform = testPlatform('vector-z80color', 'game.c.rom', 70, (platform, frameno) => {
-      if (frameno == 60) {
+    var platform = testPlatform('vector-z80color', 'game.c.rom', 72, (platform, frameno) => {
+      if (frameno == 62) {
         keycallback(Keys.VK_UP.c, Keys.VK_UP.c, 1);
       }
     });
   });
 
   it('Should run williams', () => {
-    var platform = testPlatform('williams-z80', 'game1.c.rom', 70, (platform, frameno) => {
-      if (frameno == 60) {
+    var platform = testPlatform('williams-z80', 'game1.c.rom', 72, (platform, frameno) => {
+      if (frameno == 62) {
         keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
       }
     });
   });
 /*
   it('Should run sound_williams', () => {
-    var platform = testPlatform('sound_williams-z80', 'swave.c.rom', 70, (platform, frameno) => {
+    var platform = testPlatform('sound_williams-z80', 'swave.c.rom', 72, (platform, frameno) => {
       if (frameno == 60) {
         keycallback(Keys.VK_2.c, Keys.VK_2.c, 1);
       }
