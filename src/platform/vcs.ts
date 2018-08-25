@@ -1,6 +1,6 @@
 "use strict";
 
-import { Platform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder } from "../baseplatform";
+import { Platform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder, dumpStackToString } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, dumpRAM } from "../emu";
 import { hex, lpad, tobin, byte2signed } from "../util";
 import { CodeAnalyzer_vcs } from "../analysis";
@@ -181,11 +181,12 @@ class VCSPlatform {
   getDefaultExtension() { return ".a"; };
 
   getDebugCategories() {
-    return ['CPU','PIA','TIA'];
+    return ['CPU','Stack','PIA','TIA'];
   }
   getDebugInfo(category, state) {
     switch (category) {
       case 'CPU':    return this.cpuStateToLongString(state.c);
+      case 'Stack':	 return dumpStackToString(this, this.getRAMForState(state), 0x100, 0x1ff, 0x100+state.c.SP, 0x20);
       case 'PIA':    return this.ramStateToLongString(state) + "\n" + this.piaStateToLongString(state.p);
       case 'TIA':    return this.tiaStateToLongString(state.t);
     }
