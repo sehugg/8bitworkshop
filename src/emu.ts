@@ -176,7 +176,8 @@ export class RAM {
 
 export var AnimationTimer = function(frequencyHz:number, callback:() => void) {
   var intervalMsec = 1000.0 / frequencyHz;
-  var running;
+  var running : boolean = false;
+  var pulsing : boolean = false;
   var lastts = 0;
   var useReqAnimFrame = false; //window.requestAnimationFrame ? (frequencyHz>40) : false;
   var nframes, startts; // for FPS calc
@@ -197,6 +198,8 @@ export var AnimationTimer = function(frequencyHz:number, callback:() => void) {
     }
     if (running) {
       scheduleFrame(lastts - ts);
+    } else {
+      pulsing = false;
     }
     if (!useReqAnimFrame || lastts - ts > intervalMsec/2) {
       if (running) {
@@ -221,7 +224,10 @@ export var AnimationTimer = function(frequencyHz:number, callback:() => void) {
       running = true;
       lastts = 0;
       nframes = 0;
-      scheduleFrame(0);
+      if (!pulsing) {
+        scheduleFrame(0);
+        pulsing = true;
+      }
     }
   }
   this.stop = function() {

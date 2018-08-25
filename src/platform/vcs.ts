@@ -50,7 +50,6 @@ Javatari.AUDIO_BUFFER_SIZE = 256;
 class VCSPlatform {
 
   recorder : EmuRecorder;
-  paused : boolean = true;
 
   getPresets() { return VCS_PRESETS; }
 
@@ -64,11 +63,12 @@ class VCSPlatform {
       self.updateRecorder();
       this.oldClockPulse();
     }
-    this.paused = false;
   }
 
   loadROM(title, data) {
+    var wasrunning = this.isRunning();
     Javatari.loadROM(title, data);
+    if (!wasrunning) this.pause();
   }
 
   getOpcodeMetadata(opcode, offset) {
@@ -86,23 +86,16 @@ class VCSPlatform {
 
   // TODO: Clock changes this on event, so it may not be current
   isRunning() {
+    //console.log(Javatari.room.console.isRunning(), Javatari.room.console.isPowerOn);
     return Javatari.room && Javatari.room.console.isRunning();
   }
   pause() {	
-    //console.log('pause', this.paused, this.isRunning());
-    if (!this.paused) {
-      this.paused = true;
-      Javatari.room.console.pause();
-      Javatari.room.speaker.mute();
-    }
+    Javatari.room.console.pause();
+    Javatari.room.speaker.mute();
   }
   resume() {
-    //console.log('resume', this.paused, this.isRunning());
-    if (this.paused) {
-      this.paused = false;
-      Javatari.room.console.go();
-      Javatari.room.speaker.play();
-    }
+    Javatari.room.console.go();
+    Javatari.room.speaker.play();
   }
   advance() {
     Javatari.room.console.clockPulse();
@@ -118,7 +111,8 @@ class VCSPlatform {
   
   setupDebug(callback) {
     Javatari.room.console.onBreakpointHit = (state) => {
-      this.paused = true;
+      Javatari.room.console.pause();
+      Javatari.room.speaker.mute();
       callback(state);
     }
     Javatari.room.speaker.mute();
@@ -233,7 +227,7 @@ class VCSPlatform {
   }
   updateRecorder() {
     // are we recording and do we need to save a frame?
-    if (this.recorder && !this.paused && this.isRunning() && this.recorder.frameRequested()) {
+    if (this.recorder && this.isRunning() && this.recorder.frameRequested()) {
       this.recorder.recordFrame(this.saveState());
     }
   }
