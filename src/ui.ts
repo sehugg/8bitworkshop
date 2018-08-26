@@ -951,6 +951,7 @@ function installErrorHandler() {
           'exFatal': true
         });
         alert(msgevent+"");
+        _pause();
       };
   }
 }

@@ -196,24 +196,19 @@ export var AnimationTimer = function(frequencyHz:number, callback:() => void) {
     } else {
       lastts = ts + intervalMsec; // frames skipped, catch up
     }
-    if (running) {
-      scheduleFrame(lastts - ts);
-    } else {
-      pulsing = false;
-    }
     if (!useReqAnimFrame || lastts - ts > intervalMsec/2) {
       if (running) {
-        try {
-          callback();
-        } catch (e) {
-          running = false;
-          throw e;
-        }
+        callback();
       }
       if (nframes == 0) startts = ts;
       if (nframes++ == 300) {
         console.log("Avg framerate: " + nframes*1000/(ts-startts) + " fps");
       }
+    }
+    if (running) {
+      scheduleFrame(lastts - ts);
+    } else {
+      pulsing = false;
     }
   }
   this.isRunning = function() {
