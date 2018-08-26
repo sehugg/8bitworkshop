@@ -200,7 +200,7 @@ const _GalaxianPlatform = function(mainElement, options) {
 		0x510000, 0xae0000            // blue
 	];
 
- class GalaxianPlatform extends BaseZ80Platform {
+ class GalaxianPlatform extends BaseZ80Platform implements Platform {
 
   getPresets() {
     return GALAXIAN_PRESETS;

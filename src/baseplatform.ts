@@ -40,12 +40,18 @@ export interface Platform {
   pause() : void;
   resume() : void;
   loadROM(title:string, rom:any); // TODO: Uint8Array
+
+  loadState?(state : EmuState) : void;
+  saveState?() : EmuState;
+  loadControlsState?(state : EmuControlsState) : void;
+  saveControlsState?() : EmuControlsState;
   
   inspect?(ident:string) : void;
   disassemble?(addr:number, readfn:(addr:number)=>number) : DisasmLine;
   readAddress?(addr:number) : number;
   setFrameRate?(fps:number) : void;
   getFrameRate?() : number;
+
   setupDebug?(debugfn : (state)=>void) : void;
   clearDebug?() : void;
   step?() : void;
@@ -54,22 +60,18 @@ export interface Platform {
   runUntilReturn?() : void;
   stepBack?() : void;
   runEval?(evalfunc/* : DebugEvalCondition*/) : void;
+  getDebugCallback?() : any; // TODO
   
   getOpcodeMetadata?(opcode:number, offset:number) : OpcodeMetadata; //TODO
-  loadState?(state : EmuState) : void;
-  saveState?() : EmuState;
-  getDebugCallback?() : any; // TODO
   getSP?() : number;
   getOriginPC?() : number;
-  newCodeAnalyzer() : CodeAnalyzer;
+  newCodeAnalyzer?() : CodeAnalyzer;
 
-  getDebugCategories() : string[];
-  getDebugInfo(category:string, state:EmuState) : string;
+  getDebugCategories?() : string[];
+  getDebugInfo?(category:string, state:EmuState) : string;
   
   setRecorder?(recorder : EmuRecorder) : void;
   advance?(novideo? : boolean) : void;
-  loadControlsState?(state : EmuControlsState) : void;
-  saveControlsState?() : EmuControlsState;
 }
 
 export interface Preset {
@@ -584,7 +586,6 @@ export abstract class Base6809Platform extends BaseZ80Platform {
 
 declare var FS, ENV, Module; // mame emscripten
 
-// TODO: make class
 export abstract class BaseMAMEPlatform {
 
   loaded = false;
@@ -801,12 +802,13 @@ export abstract class BaseMAMEPlatform {
     return state;
   }
 
+/*
   saveState() {
     this.luareset();
     this.luacall('mamedbg.printstate()');
     return this.preserveState();
   }
-
+*/
   initlua() {
     if (!this.initluavars) {
       this.luacall(this.luadebugscript);

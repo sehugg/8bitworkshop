@@ -33,7 +33,7 @@ var ColecoVision_PRESETS = [
 
 /// MAME support
 
-class ColecoVisionMAMEPlatform extends BaseMAMEPlatform {
+class ColecoVisionMAMEPlatform extends BaseMAMEPlatform implements Platform {
 
   start() {
     this.startModule(this.mainElement, {

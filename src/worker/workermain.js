@@ -544,12 +544,13 @@ function parseDASMListing(code, unresolved, mainFilename) {
           });
         }
       }
-      // TODO: check filename too
       // TODO: better symbol test (word boundaries)
+      // TODO: ignore IFCONST and IFNCONST usage
       for (var key in unresolved) {
         var pos = restline ? restline.indexOf(key) : line.indexOf(key);
         if (pos >= 0) {
           errors.push({
+            path:filename,
             line:linenum,
             msg:"Unresolved symbol '" + key + "'"
           });
@@ -577,7 +578,10 @@ function assembleDASM(step) {
   function match_fn(s) {
     var matches = re_usl.exec(s);
     if (matches) {
-      unresolved[matches[1]] = 0;
+      var key = matches[1];
+      if (key != 'NO_ILLEGAL_OPCODES') { // TODO
+        unresolved[matches[1]] = 0;
+      }
     } else if (s.startsWith("Warning:")) {
       errors.push({line:1, msg:s.substr(9)});
     }

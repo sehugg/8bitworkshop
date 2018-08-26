@@ -240,7 +240,7 @@ function nonegstr(n) {
 
 ///////////////
 
-class VCSMAMEPlatform extends BaseMAMEPlatform {
+class VCSMAMEPlatform extends BaseMAMEPlatform implements Platform {
 
 //  MCFG_SCREEN_RAW_PARAMS( MASTER_CLOCK_NTSC, 228, 26, 26 + 160 + 16, 262, 24 , 24 + 192 + 31 )
 

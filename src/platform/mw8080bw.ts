@@ -39,7 +39,7 @@ const _Midway8080BWPlatform = function(mainElement) {
 		[Keys.VK_2, 1, 0x2],
   ]);
   
- class Midway8080BWPlatform extends BaseZ80Platform {
+ class Midway8080BWPlatform extends BaseZ80Platform implements Platform {
 
   getPresets() {
     return MW8080BW_PRESETS;

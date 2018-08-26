@@ -71,7 +71,7 @@ const _JSNESPlatform = function(mainElement) {
   var frameindex = 0;
   var nsamples = 0;
   
- class JSNESPlatform extends Base6502Platform {
+ class JSNESPlatform extends Base6502Platform implements Platform {
   debugPCDelta = 1;
 
   getPresets() { return JSNES_PRESETS; }
@@ -299,7 +299,7 @@ const _JSNESPlatform = function(mainElement) {
 
 /// MAME support
 
-class NESMAMEPlatform extends BaseMAMEPlatform {
+class NESMAMEPlatform extends BaseMAMEPlatform implements Platform {
 // = function(mainElement, lzgRom, romSize) {
   lzgRom;
   romSize;
@@ -319,6 +319,14 @@ class NESMAMEPlatform extends BaseMAMEPlatform {
     });
   }
 
+  loadROM(title, data) {
+    this.loadROMFile(data);
+    this.loadRegion(":nes_slot:cart:prg_rom", data.slice(0x10, 0x8010));
+    if (data.length > 0x8010)
+      this.loadRegion(":nes_slot:cart:chr_rom", data.slice(0x8010, 0xa010));
+  }
+
+  getPresets() { return JSNES_PRESETS; }
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getToolForFilename = getToolForFilename_6502;
   getDefaultExtension() { return ".c"; };

@@ -1,6 +1,6 @@
 "use strict";
 
-import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502 } from "../baseplatform";
+import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM } from "../emu";
 import { hex, lzgmini } from "../util";
 import { SampleAudio } from "../audio";
@@ -52,7 +52,7 @@ const _Apple2Platform = function(mainElement) {
   var bank2rdoffset=0, bank2wroffset=0;
   var grparams : AppleGRParams;
   
- class Apple2Platform extends Base6502Platform {
+ class Apple2Platform extends Base6502Platform implements Platform {
 
   getPresets() {
     return APPLE2_PRESETS;
@@ -1025,7 +1025,7 @@ const APPLEIIGO_LZG = [
 
 /// MAME support
 
-class Apple2MAMEPlatform extends BaseMAMEPlatform {
+class Apple2MAMEPlatform extends BaseMAMEPlatform implements Platform {
 
   start () {
     this.startModule(this.mainElement, {
@@ -1045,6 +1045,7 @@ class Apple2MAMEPlatform extends BaseMAMEPlatform {
 
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtension () { return ".c"; };
+  getToolForFilename = getToolForFilename_6502;
 
   getPresets () { return APPLE2_PRESETS; }
 

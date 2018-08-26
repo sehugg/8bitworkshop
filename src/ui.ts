@@ -74,9 +74,9 @@ function inspectVariable(ed, name) { // TODO: ed?
 
 function getCurrentPresetTitle() : string {
   if (!current_preset_entry)
-    return "ROM";
+    return main_file_id || "ROM";
   else
-    return current_preset_entry.title || current_preset_entry.name || "ROM";
+    return current_preset_entry.title || current_preset_entry.name || main_file_id || "ROM";
 }
 
 function setLastPreset(id:string) {
@@ -325,7 +325,7 @@ function _shareEmbedLink(e) {
     new ClipboardJS(".btn");
   });
   loadScript('lib/liblzg.js', () => {
-    // TODO: Module is bad var name
+    // TODO: Module is bad var name (conflicts with MAME)
     var lzgrom = compressLZG( window['Module'], current_output );
     window['Module'] = null; // so we load it again next time
     var lzgb64 = btoa(byteArrayToString(lzgrom));
