@@ -51,20 +51,20 @@ BitmapY		equ	$f0	; next line of bitmap
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 	MAC PULSE
-        TIMER_SETUP 35
+        TIMER_SETUP 33
         jsr DutyCycle	; cycle notes
         jsr Pulse	; decrement duration timer
         lda Chan0note
         sta COLUBK
         lda Chan1note
         sta COLUPF
-        jsr DrawBitmap	; draw ~34 lines of bitmap
+        jsr DrawBitmap	; draw ~33 lines of bitmap
         ENDM
 
 	MAC DUTYCYCLE
-        TIMER_SETUP 34
+        TIMER_SETUP 32
         jsr DutyCycle	; cycle notes
-        jsr DrawBitmap	; draw ~33 lines of bitmap
+        jsr DrawBitmap	; draw ~32 lines of bitmap
         ENDM
 
 Start

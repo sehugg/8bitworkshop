@@ -42,7 +42,9 @@ SpriteHeight	equ 16
 
 Start
 	CLEAN_START
+
 Data0        
+; set up pointers to playfield and sprites
         lda #<Data0
         sta PFPtr
         lda #>Data0
@@ -63,6 +65,7 @@ Data0
         sta ColorPtr1
         lda #>ColorFrame0
         sta ColorPtr1+1
+; set up initial positions
         lda #242
         sta YPos0
         lda #200
@@ -103,7 +106,6 @@ NextFrame
         sta HMOVE	; gotta apply HMOVE
 ; Wait for end of VBLANK
 	TIMER_WAIT
-        sta WSYNC
         lda #0
         sta VBLANK
         SLEEP 31	; so timing analysis works out
@@ -144,7 +146,7 @@ KernelLoop
 
 NoMoreLines
 ; Set up overscan timer
-	TIMER_SETUP 30
+	TIMER_SETUP 27
 	lda #2
         sta VBLANK
         jsr MoveJoystick

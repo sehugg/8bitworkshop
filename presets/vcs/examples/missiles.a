@@ -48,8 +48,8 @@ start	CLEAN_START
 nextframe
 	VERTICAL_SYNC
 	
-; 37 lines of VBLANK
-	ldx #37
+; 36 lines of VBLANK
+	ldx #36
 lvblank	sta WSYNC
 	dex
 	bne lvblank

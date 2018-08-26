@@ -80,7 +80,7 @@ NextFrame
         sta ENABL
         sta ENAM1	; turn off missile and ball
 ; Overscan
-	TIMER_SETUP 30
+	TIMER_SETUP 29
         TIMER_WAIT
         lda #0
         sta COLUBK	; clear ground color

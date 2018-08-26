@@ -43,10 +43,7 @@ NextFrame
 	jsr SetHorizPos
         sta WSYNC
         sta HMOVE
-
 	TIMER_WAIT
-
-	TIMER_SETUP 192
 
         lda #$54
         sta COLUP0
@@ -87,7 +84,7 @@ NoLine
         jmp NextScan
 DoneLine
 
-	TIMER_SETUP 30
+	TIMER_SETUP 29
 
 ; Change slope of line
         lda Slope

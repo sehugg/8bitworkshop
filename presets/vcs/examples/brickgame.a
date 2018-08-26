@@ -1,4 +1,4 @@
-
+j
 	processor 6502
         include "vcs.h"
         include "macro.h"
@@ -227,7 +227,7 @@ ScanLoop3b
         sta Temp		; 'brickheight' scan lines for each row
         cpy #NBrickRows		; done drawing all brick rows?
         bcc ScanSkipSync	; no -- but don't have time to draw ball!
-        jmp DoneBrickDraw	; exit outer loop
+        bcs DoneBrickDraw	; exit outer loop
 ScanLoop3a
 ; These instructions are skipped on lines after the brick row changes.
 ; We need the extra cycles.
@@ -260,7 +260,7 @@ ScanSkipSync
         bne ScanLoop3a	; branch always taken
 ; Clear playfield from bricks loop
 DoneBrickDraw
-	SLEEP 6
+	sta WSYNC
 	lda #0
         sta PF0
         sta PF1
@@ -310,7 +310,7 @@ ScanLoop5
         lda #0
         sta GRP0
         inx
-        cpx #192
+        cpx #190
         bne ScanLoop5
 
 ; Disable ball
@@ -319,11 +319,11 @@ ScanLoop5
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; 30 lines of overscan needed, but we have lots of logic to do.
+; 29 lines of overscan needed, but we have lots of logic to do.
 ; So we're going to use the PIA timer to let us know when
-; almost 30 lines of overscan have passed.
+; almost 29 lines of overscan have passed.
 ; This handy macro does a WSYNC and then sets up the timer.
-	TIMER_SETUP 30
+	TIMER_SETUP 29
 
 ; Check for collisions
         lda #%01000000
@@ -507,7 +507,7 @@ SkipMoveRight
 NoAudio
 
 ; Wait until our timer expires and then WSYNC, so then we'll have
-; passed 30 scanlines. This handy macro does this.
+; passed 29 scanlines. This handy macro does this.
 	TIMER_WAIT
 ; Goto next frame
         jmp NextFrame

@@ -74,7 +74,6 @@ NextFrame
         sta HMOVE	; gotta apply HMOVE
 ; Wait for end of VBLANK
 	TIMER_WAIT
-        sta WSYNC
         lda #0
         sta VBLANK
 
@@ -153,7 +152,7 @@ NoMoreSegs
         TIMER_WAIT
 
 ; Set up overscan timer
-	TIMER_SETUP 30
+	TIMER_SETUP 29
 	lda #2
         sta VBLANK
         jsr MoveJoystick

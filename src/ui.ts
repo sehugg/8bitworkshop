@@ -352,8 +352,14 @@ function _shareEmbedLink(e) {
   return true;
 }
 
+function fixFilename(fn : string) : string {
+  if (platform_id.startsWith('vcs') && fn.indexOf('.') <= 0)
+    fn += ".a"; // legacy stuff
+  return fn;
+}
+
 function _revertFile(e) {
-  var fn = getCurrentEditorFilename();
+  var fn = fixFilename(projectWindows.getActiveID());
   $.get( "presets/"+platform_id+"/"+fn, function(text) {
     if (confirm("Reset '" + fn + "' to default?")) {
       projectWindows.getActive().setText(text);
@@ -390,6 +396,28 @@ function _downloadProjectZipFile(e) {
     });
     zip.generateAsync({type:"blob"}).then( (content) => {
       saveAs(content, getCurrentMainFilename() + ".zip");
+    });
+  });
+}
+
+function _downloadAllFilesZipFile(e) {
+  loadScript('lib/jszip.min.js', () => {
+    var zip = new JSZip();
+    var count = 0;
+    store.keys( (err, keys : string[]) => {
+      if (err) throw err;
+      keys.forEach((path) => {
+        store.getItem(path, (err, text) => {
+          if (text) {
+            zip.file(fixFilename(getFilenameForPath(path)), text);
+          }
+          if (++count == keys.length) {
+            zip.generateAsync({type:"blob"}).then( (content) => {
+              saveAs(content, platform_id + "-all.zip");
+            });
+          }
+        });
+      });
     });
   });
 }
@@ -467,8 +495,9 @@ function setCompileOutput(data: WorkerResult) {
       } catch (e) {
         console.log(e);
         toolbar.addClass("has-errors");
-        projectWindows.setErrors([{line:1,msg:e+""}]); // TODO: doesn't work
+        projectWindows.setErrors([{line:1,msg:e+""}]); // TODO: doesn't work (use alert?)
         current_output = null;
+        return;
       }
     }
     // update all windows (listings)
@@ -816,6 +845,7 @@ function setupDebugControls(){
   $("#item_download_rom").click(_downloadROMImage);
   $("#item_download_file").click(_downloadSourceFile);
   $("#item_download_zip").click(_downloadProjectZipFile);
+  $("#item_download_allzip").click(_downloadAllFilesZipFile);
   $("#item_record_video").click(_recordVideo);
   if (platform.setFrameRate && platform.getFrameRate) {
     $("#speed_bar").show();

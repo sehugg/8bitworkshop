@@ -20,8 +20,8 @@ start	CLEAN_START
 nextframe
 	VERTICAL_SYNC
 	
-; 37 lines of VBLANK
-	ldx #35
+; 34 lines of VBLANK
+	ldx #34
 lvblank	sta WSYNC
 	dex
 	bne lvblank
@@ -36,7 +36,7 @@ lvblank	sta WSYNC
 ; The easy way on the 6502 is to subtract in a loop.
 ; Note that this also conveniently adds 5 CPU cycles
 ; (15 TIA clocks) per iteration.
-	sta WSYNC	; 36th line
+	sta WSYNC	; 35th line
 	sta HMCLR	; reset the old horizontal position
 DivideLoop
 	sbc #15		; subtract 15
@@ -56,7 +56,7 @@ DivideLoop
 ; previous instructions, position 0 won't be exactly on the left side.
 	sta RESP0
 ; Finally we'll do a WSYNC followed by HMOVE to apply the fine offset.
-	sta WSYNC	; 37th line
+	sta WSYNC	; 36th line
 	sta HMOVE	; apply offset
 
 ; We'll see this method again, and it can be made into a subroutine

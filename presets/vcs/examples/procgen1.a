@@ -79,7 +79,7 @@ NextFrame
 ; Set up VBLANK timer
 ; We'll do four fewer lines than usual, so we can
 ; load the playfield registers in the first four lines.
-	TIMER_SETUP 33
+	TIMER_SETUP 37-4
         lda #$68
         sta COLUP0	; player color
         lda #1
@@ -102,7 +102,6 @@ NextFrame
         sta CXCLR	; clear collisions
 ; Wait for end of VBLANK
 	TIMER_WAIT
-        sta WSYNC
 
 KernelLoop
 ; Phase 0: Fetch PF0 byte
@@ -133,7 +132,7 @@ NoMoreLines
 
 ; Set up overscan timer
 ; We'll take back those four lines we skipped earlier.
-	TIMER_SETUP 34
+	TIMER_SETUP 30+4
         lda #0
         sta PF0
         sta PF1

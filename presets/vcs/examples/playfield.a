@@ -15,11 +15,11 @@ Counter	equ $81
 Start	CLEAN_START
 
 NextFrame
-; This macro efficiently gives us 3 lines of VSYNC
+; This macro efficiently gives us 1 + 3 lines of VSYNC
 	VERTICAL_SYNC
 	
-; 37 lines of VBLANK
-	ldx #37
+; 36 lines of VBLANK
+	ldx #36
 LVBlank	sta WSYNC
 	dex
 	bne LVBlank

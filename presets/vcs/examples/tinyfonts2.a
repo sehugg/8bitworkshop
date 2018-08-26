@@ -76,7 +76,7 @@ NextFrame
 
         TIMER_WAIT
 
-	TIMER_SETUP 30
+	TIMER_SETUP 29
         TIMER_WAIT
         jmp NextFrame
 

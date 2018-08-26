@@ -72,10 +72,10 @@ export class ProjectWindows {
     this.refreshErrors();
   }
   
-  refreshErrors(embedlines?:boolean) {
+  refreshErrors() {
     if (this.activewnd && this.activewnd.markErrors) {
       if (this.lasterrors && this.lasterrors.length)
-        this.activewnd.markErrors(this.lasterrors); // TODO?, embedlines);
+        this.activewnd.markErrors(this.lasterrors);
       else
         this.activewnd.clearErrors();
     }

@@ -37,6 +37,7 @@ const VCS_PRESETS = [
   {id:'examples/bankswitching', chapter:35, name:'Bankswitching'},
   {id:'examples/wavetable', chapter:36, name:'Wavetable Sound'},
   {id:'examples/fracpitch', name:'Fractional Pitch'},
+  {id:'examples/pal', name:'PAL Video Output'},
 //  {id:'examples/music2', name:'Pitch-Accurate Music'},
 //  {id:'examples/fullgame', name:'Thru Hike: The Game', title:'Thru Hike'},
 ];
@@ -66,8 +67,12 @@ class VCSPlatform {
   }
 
   loadROM(title, data) {
+    if (data.length == 0 || ((data.length & 0x3ff) != 0))
+      throw Error("Invalid ROM length: " + data.length);
+    // TODO: parse Log messages from Javatari?
     var wasrunning = this.isRunning();
     Javatari.loadROM(title, data);
+    if (!this.isRunning()) throw Error("Could not load ROM");
     if (!wasrunning) this.pause();
   }
 

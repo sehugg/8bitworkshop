@@ -57,7 +57,7 @@ ScanLoop
         sta PF1
         sta PF2		; clear playfield
 
-	TIMER_SETUP 29
+	TIMER_SETUP 28
         TIMER_WAIT
         jmp NextFrame
 

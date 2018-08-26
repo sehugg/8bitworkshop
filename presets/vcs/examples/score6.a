@@ -64,7 +64,7 @@ NextFrame
 
         TIMER_WAIT
 
-	TIMER_SETUP 30
+	TIMER_SETUP 29
         lda #$01
         ldx #$00
         ldy #$00

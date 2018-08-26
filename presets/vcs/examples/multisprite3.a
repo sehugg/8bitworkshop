@@ -77,6 +77,15 @@ MinYDist	equ 7	; min. Y distance to consider sprite
 .Ok
         ENDM
 
+; Set the timer value to $FF.
+; Use this at the beginning of a region to start
+; using timer table routines.
+	MAC TIMER_TABLE_SETUP
+    	lda #$FF
+        sta WSYNC
+        sta TIM64T
+	ENDM
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 	seg Code
@@ -115,7 +124,7 @@ InitLoop2
 NextFrame
 ; VSYNC and VBLANK periods
 	VERTICAL_SYNC
-	TIMER_SETUP 24
+	TIMER_SETUP 27
 ; Do joystick movement
         jsr MoveJoystick
 ; Do one iteration of bubble sort on sprite indices
@@ -135,9 +144,9 @@ SortLoop
 ; end of VBLANK
 
 ; Scanline loop
-        TIMER_SETUP 216	; timer <- #$ff
         lda #$90
         sta COLUBK
+        TIMER_TABLE_SETUP
 NextFindSprite
 ; Try to schedule sprites to both players
 	jsr FindAnotherSprite
@@ -163,8 +172,8 @@ NoMoreScanlines
 	stx COLUP0
 	stx COLUP1
 	stx COLUPF
-; 30-2 lines of overscan
-	TIMER_SETUP 28
+; 29 lines of overscan
+	TIMER_SETUP 29
         TIMER_WAIT
 ; Go to next frame
 	jmp NextFrame
@@ -381,7 +390,7 @@ MoveJoystick subroutine
 	lda #%00010000	;Up?
 	bit SWCHA
 	bne .SkipMoveUp
-        cpx #8
+        cpx #10
         bcc .SkipMoveUp
         dex
 .SkipMoveUp
@@ -420,9 +429,7 @@ MoveJoystick subroutine
 ;  X=2: missile 0
 ;  X=3: missile 1
 ;  X=4: ball
-; NOTE: This version of the routine does a NEWLINE after executing
-; because when the beam is at the far right side of the screen
-; there is little time to do so before wrapping to the next line.
+; NOTE: This version of the routine does a NEWLINE before executing.
 ; It does NOT do a HMOVE and HCLR.
 SetHorizPos subroutine
 	sta WSYNC	; start a new line
