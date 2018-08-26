@@ -1,3 +1,9 @@
+﻿
+/*
+ * An Apple ][ port of the Cosmic Impalas game 
+ * described in the book
+ * "Making 8-bit Arcade Games in C"
+ */
 
 #include <string.h>
 #include <conio.h>
@@ -14,6 +20,7 @@ typedef unsigned short word;
 #define PEEK(addr)         (*(unsigned char*) (addr))
 #define PEEKW(addr)        (*(unsigned*) (addr))
 #define STROBE(addr)       __asm__ ("sta %w", addr)
+
 // speaker click
 #define CLICK		   STROBE(0xc030)
 
@@ -78,8 +85,6 @@ const byte MOD7[256] = {
 // bitmask table
 const byte BIT7[7] = { 1, 2, 4, 8, 16, 32, 64 };
 
-#pragma static-locals(on)
-
 /// SOUND FUNCTIONS
 
 void tone(byte period, byte dur, sbyte mod) {
@@ -93,6 +98,7 @@ void tone(byte period, byte dur, sbyte mod) {
 
 /// GRAPHICS FUNCTIONS
 
+// clear screen and set graphics mode
 void clrscr() {
   STROBE(0xc052); // turn off mixed-mode
   STROBE(0xc054); // page 1
@@ -101,6 +107,7 @@ void clrscr() {
   memset((byte*)0x2000, 0, 0x2000); // clear page 1
 }
 
+// draw (xor) vertical line
 void xor_vline(byte x, byte y1, byte y2) {
   byte xb = DIV7[x];		// divide x by 7
   byte mask = BIT7[MOD7[x]];	// lookup bitmask for remainder
@@ -111,6 +118,7 @@ void xor_vline(byte x, byte y1, byte y2) {
   }
 }
 
+// draw (xor) a pixel
 void xor_pixel(byte x, byte y) {
   xor_vline(x, y, y);		// draw line with 1-pixel height
 }
@@ -119,6 +127,7 @@ typedef enum {
   OP_DRAW, OP_XOR, OP_ERASE
 } GraphicsOperation;
 
+// render a sprite with the given graphics operation
 byte render_sprite(const byte* src, byte x, byte y, byte op) {
   byte i,j;
   byte w = *src++;	// get width from 1st byte of sprite
@@ -481,9 +490,9 @@ void move_bomb() {
   byte leftover = xor_sprite(bomb_bitmap, bomb_x, bomb_y); // erase
   if (bomb_y > 192-12) {
     bomb_y = 0;
-  } else if (leftover) {
+  } else if (leftover & 0x7f) { // don't count hi bit
     erase_sprite(bomb_bitmap, bomb_x, bomb_y); // erase bunker
-    if (bomb_y > 192-22) {
+    if (bomb_y > 192-23) {
       // player was hit (probably)
       destroy_player();
     }

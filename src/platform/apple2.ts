@@ -121,7 +121,7 @@ const _Apple2Platform = function(mainElement) {
                 if (address == 0xc070)
                    return noise() | 0x80;
              case 8:
-                return 0; // TODO doLanguageCardIO(address, value);
+                return doLanguageCardIO(address);
              case 9: case 10: case 11: case 12: case 13: case 14: case 15:
                 return noise(); // return slots[slot-8].doIO(address, value);
           }
@@ -281,7 +281,7 @@ const _Apple2Platform = function(mainElement) {
   }
  }
 
-  function doLanguageCardIO(address, value)
+  function doLanguageCardIO(address:number)
   {
      switch (address & 0x0f) {
          // Select aux RAM bank 2, write protected.
