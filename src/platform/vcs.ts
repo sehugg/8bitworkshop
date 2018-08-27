@@ -38,6 +38,7 @@ const VCS_PRESETS = [
   {id:'examples/wavetable', chapter:36, name:'Wavetable Sound'},
   {id:'examples/fracpitch', name:'Fractional Pitch'},
   {id:'examples/pal', name:'PAL Video Output'},
+  {id:'examples/testlibrary', name:'VCS Library Demo'},
 //  {id:'examples/music2', name:'Pitch-Accurate Music'},
 //  {id:'examples/fullgame', name:'Thru Hike: The Game', title:'Thru Hike'},
 ];
