@@ -52,6 +52,8 @@ TODO:
 - navigator.getGamepads
 - VCS library
 - better VCS single stepping, maybe also listings
+- New File (include file)
+- VCS skips step on lsr/lsr after run to line
 
 FYI: Image links for the books on http://8bitworkshop.com/ are broken
 On the website the additional grey spacing next to the program line numbers is not dynamically resized when the web browser window size is changed.  Intentional?

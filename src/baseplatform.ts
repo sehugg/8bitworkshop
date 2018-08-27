@@ -46,7 +46,7 @@ export interface Platform {
   loadControlsState?(state : EmuControlsState) : void;
   saveControlsState?() : EmuControlsState;
   
-  inspect?(ident:string) : void;
+  inspect?(ident:string) : string;
   disassemble?(addr:number, readfn:(addr:number)=>number) : DisasmLine;
   readAddress?(addr:number) : number;
   setFrameRate?(fps:number) : void;
@@ -97,22 +97,36 @@ export interface EmuRecorder {
 
 /////
 
-abstract class BaseDebugPlatform {
+export abstract class BasePlatform {
+  recorder : EmuRecorder = null;
+
+  abstract loadState(state : EmuState) : void;
+  abstract saveState() : EmuState;
+  abstract pause() : void;
+  abstract resume() : void;
+
+  setRecorder(recorder : EmuRecorder) : void {
+    this.recorder = recorder;
+  }
+  updateRecorder() {
+    // are we recording and do we need to save a frame?
+    if (this.recorder && (<Platform><any>this).isRunning() && this.recorder.frameRequested()) {
+      this.recorder.recordFrame(this.saveState());
+    }
+  }
+}
+
+export abstract class BaseDebugPlatform extends BasePlatform {
   onBreakpointHit : BreakpointCallback;
   debugCondition : DebugCondition;
   debugSavedState : EmuState = null;
   debugBreakState : EmuState = null;
   debugTargetClock : number = 0;
   debugClock : number = 0;
-  recorder : EmuRecorder = null;
 
   abstract getCPUState() : CpuState;
-  abstract saveState() : EmuState;
-  abstract loadState?(state : EmuState) : void;
-  abstract pause() : void;
-  abstract resume() : void;
-  abstract readAddress?(addr:number) : number;
-  abstract advance?(novideo? : boolean) : void;
+  abstract readAddress(addr:number) : number;
+  abstract advance(novideo? : boolean) : void;
 
   getDebugCallback() : DebugCondition {
     return this.debugCondition;
@@ -139,15 +153,6 @@ abstract class BaseDebugPlatform {
     this.debugBreakState = null;
     this.resume();
   }
-  setRecorder?(recorder : EmuRecorder) : void {
-    this.recorder = recorder;
-  }
-  updateRecorder() {
-    // are we recording and do we need to save a frame?
-    if (this.recorder && (<Platform><any>this).isRunning() && this.recorder.frameRequested()) {
-      this.recorder.recordFrame(this.saveState());
-    }
-  }
   preFrame() {
     this.updateRecorder();
   }
@@ -160,7 +165,7 @@ abstract class BaseDebugPlatform {
   }
 }
 
-abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
+export abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
   debugPCDelta = -1;
 
   evalDebugCondition() {

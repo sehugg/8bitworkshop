@@ -1,6 +1,6 @@
 "use strict";
 
-import { Platform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder, dumpStackToString, DisasmLine } from "../baseplatform";
+import { Platform, BasePlatform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder, dumpStackToString, DisasmLine } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, dumpRAM } from "../emu";
 import { hex, lpad, tobin, byte2signed } from "../util";
 import { CodeAnalyzer_vcs } from "../analysis";
@@ -48,9 +48,9 @@ Javatari.CARTRIDGE_CHANGE_DISABLED = true;
 Javatari.DEBUG_SCANLINE_OVERFLOW = false; // TODO: make a switch
 Javatari.AUDIO_BUFFER_SIZE = 256;
 
-class VCSPlatform {
+class VCSPlatform extends BasePlatform {
 
-  recorder : EmuRecorder;
+  lastDebugState;
 
   getPresets() { return VCS_PRESETS; }
 
@@ -119,11 +119,13 @@ class VCSPlatform {
       state.c.PC = (state.c.PC - 1) & 0xffff;
       Javatari.room.console.pause();
       Javatari.room.speaker.mute();
+      this.lastDebugState = state;
       callback(state);
     }
     Javatari.room.speaker.mute();
   }
   clearDebug() {
+    this.lastDebugState = null;
     Javatari.room.console.disableDebug();
     Javatari.room.console.onBreakpointHit = null;
     if (this.isRunning()) Javatari.room.speaker.play();
@@ -147,6 +149,9 @@ class VCSPlatform {
   loadState(state) {
     return Javatari.room.console.loadState(state);
   }
+  getCPUState() {
+    return Javatari.room.console.saveState().c;
+  }
   saveControlsState() {
     return Javatari.room.console.saveControlsState();
   }
@@ -154,7 +159,11 @@ class VCSPlatform {
     Javatari.room.console.loadControlsState(state);
   }
   readAddress(addr) {
-    return Javatari.room.console.readAddress(addr);
+    // TODO: shouldn't have to do this when debugging
+    if (this.lastDebugState && addr >= 0x80 && addr < 0x100)
+      return this.getRAMForState(this.lastDebugState)[addr & 0x7f];
+    else
+      return Javatari.room.console.readAddress(addr);
   }
   writeAddress(addr,value) {
     Javatari.room.console.writeAddress(addr,value);
@@ -233,15 +242,6 @@ class VCSPlatform {
     return s;
   }
 
-  setRecorder(recorder : EmuRecorder) : void {
-    this.recorder = recorder;
-  }
-  updateRecorder() {
-    // are we recording and do we need to save a frame?
-    if (this.recorder && this.isRunning() && this.recorder.frameRequested()) {
-      this.recorder.recordFrame(this.saveState());
-    }
-  }
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
   }

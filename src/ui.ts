@@ -65,13 +65,6 @@ var lastDebugInfo;		// last debug info (CPU text)
 var lastDebugState;		// last debug state (object)
 var debugCategory;		// current debug category
 
-function inspectVariable(ed, name) { // TODO: ed?
-  var val;
-  if (platform.inspect) {
-    platform.inspect(name);
-  }
-}
-
 function getCurrentPresetTitle() : string {
   if (!current_preset_entry)
     return main_file_id || "ROM";

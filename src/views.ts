@@ -1,6 +1,7 @@
 "use strict";
 
 import $ = require("jquery");
+//import CodeMirror = require("codemirror");
 import { CodeProject } from "./project";
 import { SourceFile, WorkerError } from "./workertypes";
 import { Platform } from "./baseplatform";
@@ -27,13 +28,11 @@ declare var CodeMirror;
 declare var platform : Platform;
 declare var platform_id : string;
 declare var compparams;
+declare var symbolmap : {[ident:string]:number};
 declare var addr2symbol : {[addr:number]:string};
 declare var current_project : CodeProject;
 declare var VirtualList;
 declare var lastDebugState;
-
-// TODO: functions
-declare function inspectVariable(ed, name?:string);
 
 // helper function for editor
 function jumpToLine(ed, i:number) {
@@ -61,6 +60,7 @@ export class SourceEditor implements ProjectView {
   currentDebugLine : number;
   errormsgs = [];
   errorwidgets = [];
+  inspectWidget;
   
   createDiv(parent:HTMLElement, text:string) {
     var div = document.createElement('div');
@@ -97,15 +97,46 @@ export class SourceEditor implements ProjectView {
     this.editor.on('cursorActivity', (ed) => {
       var start = this.editor.getCursor(true);
       var end = this.editor.getCursor(false);
-      if (start.line == end.line && start.ch < end.ch) {
+      if (start.line == end.line && start.ch < end.ch && end.ch-start.ch < 80) {
         var name = this.editor.getSelection();
-        inspectVariable(this.editor, name);
+        this.inspect(name);
       } else {
-        inspectVariable(this.editor);
+        this.inspect(null);
       }
     });
     //scrollProfileView(editor);
     this.editor.setOption("mode", this.mode);
+  }
+  
+  inspect(ident : string) : void {
+    var result;
+    if (platform.inspect) {
+      result = platform.inspect(ident);
+    } else if (!platform.isRunning() && platform.readAddress) { // only inspect when stopped
+      // TODO: platform should know its symbols
+      var addr = symbolmap[ident];
+      if (addr) {
+        var size=4;
+        result = "$" + hex(addr,4) + ":";
+        for (var i=0; i<size; i++) {
+          var byte = platform.readAddress(addr+i);
+          result += " $" + hex(byte,2) + " (" + byte + ")";
+          if (addr2symbol[addr+1]) break; // stop if we hit another symbol
+          else if (i==size-1) result += " ...";
+        }
+      }
+    }
+    if (this.inspectWidget) {
+      this.inspectWidget.clear();
+      this.inspectWidget = null;
+    }
+    if (result) {
+      var infospan = document.createElement("span");
+      infospan.setAttribute("class", "tooltipinfoline");
+      infospan.appendChild(document.createTextNode(result));
+      var line = this.editor.getCursor().line;
+      this.inspectWidget = this.editor.addLineWidget(line, infospan, {above:false});
+    }
   }
 
   setText(text:string) {
