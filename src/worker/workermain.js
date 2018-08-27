@@ -567,6 +567,7 @@ function parseDASMListing(code, unresolved, mainFilename) {
     }
   }
   // TODO: use macrolines
+  // TODO: return {text:code, asmlines:lines, macrolines:macrolines, errors:errors};
   return {lines:lines, macrolines:macrolines, errors:errors};
 }
 
@@ -636,7 +637,6 @@ function assembleDASM(step) {
     listings:listings,
     errors:errors,
     symbolmap:symbolmap,
-    intermediate:{listing:alst, symbols:asym},
   };
 }
 
@@ -806,7 +806,6 @@ function linkLD65(step) {
       listings:listings,
       errors:errors,
       symbolmap:symbolmap,
-      //TODOintermediate:{listing:lstout, map:mapout, symbols:viceout},
     };
   }
 }
@@ -1016,7 +1015,6 @@ function linkSDLDZ80(step)
       listings:listings,
       errors:errors,
       symbolmap:symbolmap,
-      //TODO intermediate:{listing:rstout},
     };
   }
 }

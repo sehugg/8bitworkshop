@@ -512,12 +512,13 @@ export class ListingView extends DisassemblerView implements ProjectView {
       asmtext = asmtext.replace(/[ ]+\d+\s+.area .+\n/g, '');
     }
     disasmview.setValue(asmtext);
-    var findPC = platform.getDebugCallback() ? pc : -1;
+    var debugging = platform.getDebugCallback && platform.getDebugCallback();
+    var findPC = debugging ? pc : -1;
     if (findPC >= 0 && this.assemblyfile) {
       var lineno = this.assemblyfile.findLineForOffset(findPC, 15);
       if (lineno && moveCursor) {
         // set cursor while debugging
-        if (platform.getDebugCallback())
+        if (debugging)
           disasmview.setCursor(lineno-1, 0);
         jumpToLine(disasmview, lineno-1);
       }

@@ -706,7 +706,7 @@ function _recordVideo() {
     $("#videoPreviewModal").modal('show');
   });
   var intervalMsec = 17;
-  var maxFrames = 500;
+  var maxFrames = 420;
   var nframes = 0;
   console.log("Recording video", canvas);
   var f = function() {

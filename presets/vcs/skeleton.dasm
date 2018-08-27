@@ -24,7 +24,7 @@ Start
 NextFrame
         lsr SWCHB	; test Game Reset switch
         bcc Start	; reset?
-; 3 lines of VSYNC
+; 1 + 3 lines of VSYNC
 	VERTICAL_SYNC
 ; 37 lines of underscan
 	TIMER_SETUP 37
@@ -32,10 +32,10 @@ NextFrame
 ; 192 lines of frame
 	TIMER_SETUP 192
         TIMER_WAIT
-; 30 lines of overscan
-	TIMER_SETUP 30
+; 29 lines of overscan
+	TIMER_SETUP 29
         TIMER_WAIT
-; go to next frame
+; total = 262 lines, go to next frame
         jmp NextFrame
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

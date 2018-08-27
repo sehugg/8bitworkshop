@@ -1,6 +1,6 @@
 "use strict";
 
-import { Platform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder, dumpStackToString } from "../baseplatform";
+import { Platform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder, dumpStackToString, DisasmLine } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, dumpRAM } from "../emu";
 import { hex, lpad, tobin, byte2signed } from "../util";
 import { CodeAnalyzer_vcs } from "../analysis";
@@ -116,6 +116,7 @@ class VCSPlatform {
   
   setupDebug(callback) {
     Javatari.room.console.onBreakpointHit = (state) => {
+      state.c.PC = (state.c.PC - 1) & 0xffff;
       Javatari.room.console.pause();
       Javatari.room.speaker.mute();
       callback(state);
@@ -160,7 +161,7 @@ class VCSPlatform {
   }
   runUntilReturn() {
     var depth = 1;
-    this.runEval(function(c) {
+    this.runEval( (c) => {
       if (depth <= 0 && c.T == 0)
         return true;
       if (c.o == 0x20)
@@ -169,6 +170,10 @@ class VCSPlatform {
         --depth;
       return false;
     });
+  }
+  runToVsync() {
+    this.advance();
+    this.runEval( (c) => { return true; } );
   }
   cpuStateToLongString(c) {
     return cpuStateToLongString_6502(c);
@@ -197,7 +202,7 @@ class VCSPlatform {
     }
   }
   piaStateToLongString(p) {
-    return "Timer  " + p.t + "/" + p.c + "\n";
+    return "Timer  " + p.t + "/" + p.c + "\nINTIM  $" + hex(p.IT,2) + " (" + p.IT + ")\nINSTAT $" + hex(p.IS,2) + "\n";
   }
   tiaStateToLongString(t) {
     var pos = this.getRasterPosition();
@@ -237,7 +242,11 @@ class VCSPlatform {
       this.recorder.recordFrame(this.saveState());
     }
   }
+  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
+    return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
+  }
 };
+// TODO: mixin for Base6502Platform?
 
 function nonegstr(n) {
   return n < 0 ? "-" : n.toString();
