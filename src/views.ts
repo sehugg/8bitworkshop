@@ -112,19 +112,6 @@ export class SourceEditor implements ProjectView {
     var result;
     if (platform.inspect) {
       result = platform.inspect(ident);
-    } else if (!platform.isRunning() && platform.readAddress) { // only inspect when stopped
-      // TODO: platform should know its symbols
-      var addr = symbolmap[ident];
-      if (addr) {
-        var size=4;
-        result = "$" + hex(addr,4) + ":";
-        for (var i=0; i<size; i++) {
-          var byte = platform.readAddress(addr+i);
-          result += " $" + hex(byte,2) + " (" + byte + ")";
-          if (addr2symbol[addr+1]) break; // stop if we hit another symbol
-          else if (i==size-1) result += " ...";
-        }
-      }
     }
     if (this.inspectWidget) {
       this.inspectWidget.clear();
@@ -483,7 +470,7 @@ export class DisassemblerView implements ProjectView {
             return substr;
           });
         }
-        var dline = hex(parseInt(a)) + "\t" + bytes + "\t" + dstr + "\n";
+        var dline = hex(parseInt(a), 4) + "\t" + bytes + "\t" + dstr + "\n";
         s += dline;
         if (a == pc) selline = curline;
         curline++;

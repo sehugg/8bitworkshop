@@ -56,8 +56,9 @@ TODO:
 - VCS skips step on lsr/lsr after run to line
 - update window list after building 2nd time?
 - stop debugging where mouse clicked
+- bring back the profiler!
+- vcs disasm is broken
 
-FYI: Image links for the books on http://8bitworkshop.com/ are broken
 On the website the additional grey spacing next to the program line numbers is not dynamically resized when the web browser window size is changed.  Intentional?
 
 

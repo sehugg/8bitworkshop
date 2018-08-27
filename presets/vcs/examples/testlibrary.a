@@ -40,7 +40,7 @@ InitLoop
         sta YPos0,x
         sta Flags0,x
         clc
-        adc #13
+        adc #23
         iny
         iny
         iny
@@ -68,6 +68,9 @@ InitLoop
         sta PF1Ptr+1
         lda #>Start+1
         sta PF2Ptr+1
+        lda YPos0+1
+        adc #9
+        sta YPos0+1
 
 ; Next frame loop
 NextFrame
@@ -76,12 +79,12 @@ NextFrame
 ; Do joystick movement
 	ldy #1
         jsr MoveJoystick
-	jsr Digit6Setup
         jsr GetDigitPtrs
         jsr MSpritePre
         TIMER_WAIT
 ; end of VBLANK
 
+; Needed for single-line kernel
         TIMER_TABLE_SETUP
 ; Scoreboard
         jsr DrawDigits
@@ -90,7 +93,6 @@ NextFrame
         sta COLUBK
         lda #22
         jsr MSpriteDraw2
-
 ; Overscan
 	TIMER_SETUP 28
 ; Clear all colors to black before overscan
@@ -99,6 +101,11 @@ NextFrame
 	stx COLUP0
 	stx COLUP1
 	stx COLUPF
+; add score
+	ldy #0
+        ldx #0
+        lda #1
+        jsr AddScore
 ; 30-2 lines of overscan
         TIMER_WAIT
 ; Go to next frame

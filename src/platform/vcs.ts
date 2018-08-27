@@ -4,10 +4,15 @@ import { Platform, BasePlatform, cpuStateToLongString_6502, BaseMAMEPlatform, Em
 import { PLATFORMS, RAM, newAddressDecoder, dumpRAM } from "../emu";
 import { hex, lpad, tobin, byte2signed } from "../util";
 import { CodeAnalyzer_vcs } from "../analysis";
+import { disassemble6502 } from "../cpu/disasm6502";
 
 declare var platform : Platform; // global platform object
 declare var Javatari : any;
 declare var jt : any; // 6502
+
+// TODO: import or put in platform
+declare var symbolmap : {[ident:string]:number};
+declare var addr2symbol : {[addr:number]:string};
 
 const VCS_PRESETS = [
   {id:'examples/hello', chapter:4, name:'Hello 6502 and TIA'},
@@ -38,7 +43,7 @@ const VCS_PRESETS = [
   {id:'examples/wavetable', chapter:36, name:'Wavetable Sound'},
   {id:'examples/fracpitch', name:'Fractional Pitch'},
   {id:'examples/pal', name:'PAL Video Output'},
-  {id:'examples/testlibrary', name:'VCS Library Demo'},
+//  {id:'examples/testlibrary', name:'VCS Library Demo'},
 //  {id:'examples/music2', name:'Pitch-Accurate Music'},
 //  {id:'examples/fullgame', name:'Thru Hike: The Game', title:'Thru Hike'},
 ];
@@ -245,6 +250,22 @@ class VCSPlatform extends BasePlatform {
 
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
+  }
+  inspect(ident : string) : string {
+    if (this.isRunning()) return; // only inspect when stopped
+    var result;
+    var addr = symbolmap && (symbolmap[ident]); // || symbolmap['_'+ident]);
+    if (addr >= 0x80 && addr < 0x100) { // in RAM?
+      var size=4;
+      result = "$" + hex(addr,4) + ":";
+      for (var i=0; i<size; i++) {
+        var byte = platform.readAddress(addr+i);
+        result += " $" + hex(byte,2) + " (" + byte + ")";
+        if (addr2symbol[addr+1]) break; // stop if we hit another symbol
+        else if (i==size-1) result += " ...";
+      }
+    }
+    return result;
   }
 };
 // TODO: mixin for Base6502Platform?

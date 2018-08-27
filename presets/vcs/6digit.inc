@@ -17,35 +17,6 @@ THREE_COPIES    equ %011 ; for NUSIZ registers
 
 	seg Code
 
-; setup 6-digit score
-Digit6Setup: subroutine
-        lda #$18
-        sta COLUP0
-        lda #$28
-        sta COLUP1
-        lda #THREE_COPIES
-        sta NUSIZ0
-        sta NUSIZ1
-; set horizontal position of player objects
-        sta WSYNC
-        SLEEP 26
-        sta RESP0
-        sta RESP1
-        lda #$10
-        sta HMP1
-        sta WSYNC
-        sta HMOVE
-        sta HMCLR
-        lda #0
-        sta REFP0
-        sta REFP1
-        sta GRP0
-        sta GRP1
-        lda #1
-        sta VDELP0
-        sta VDELP1
-        rts
-
 ; Adds value to 6-BCD-digit score.
 ; A = 1st BCD digit
 ; X = 2nd BCD digit
@@ -97,13 +68,40 @@ GetDigitPtrs: subroutine
 
 ; Display the resulting 48x8 bitmap
 ; using the Digit0-5 pointers.
+; A = color of scoreboard
 DrawDigits: subroutine
 .temp	equ Temp1
 .count	equ Temp2
-	sta WSYNC
-	SLEEP 40	; start near end of scanline
-        lda #7
-        sta .count
+; clear player bitmaps first
+	jsr ClearGRP
+; set colors
+        sta COLUP0
+        sta COLUP1
+; set horizontal position of player objects
+        sta WSYNC
+; instead of SLEEP 26...
+        lda #THREE_COPIES
+        sta NUSIZ0
+        sta NUSIZ1
+        lda #1
+        sta VDELP0
+        sta VDELP1
+        lda #$10
+        sta HMP1
+        stx HMP0	; x = 0
+        nop
+; set player positions (26 cycles later)
+        stx RESP0
+        stx RESP1
+        stx REFP0
+        stx REFP1
+; apply fine adjustment
+        sta WSYNC
+        sta HMOVE
+        sta HMCLR
+        lda #8
+        sta .count	; 8 scanlines
+        jsr ClearGRP	; just killing some time...
 .bigloop
 	ldy .count	; counts backwards
         lda (Digit0),y	; load B0 (1st sprite byte)
@@ -119,18 +117,19 @@ DrawDigits: subroutine
         tax		; -> X
         lda (Digit3),y	; load B3 -> A
         ldy .temp	; load B5 -> Y
+.storegrp
         sta GRP1	; B3 -> [GRP1]; B2 -> GRP0
         stx GRP0	; B4 -> [GRP0]; B3 -> GRP1
         sty GRP1	; B5 -> [GRP1]; B4 -> GRP0
         sta GRP0	; ?? -> [GRP0]; B5 -> GRP1
         dec .count	; go to next line
 	bpl .bigloop	; repeat until < 0
-        
-        lda #0		; clear the sprite registers
-        sta GRP0
-        sta GRP1
-        sta GRP0
-        sta GRP1
+ClearGRP
+        ldx #0		; empty out player bitmaps
+        stx GRP0
+        stx GRP1
+        stx GRP0
+        stx GRP1
         rts
 
 ; Font table for digits 0-9 (8x8 pixels)
@@ -141,4 +140,4 @@ Digit6Font:
         hex 0006067f661e0e06003c6606067c607e
         hex 003c66667c60663c00181818180c667e
         hex 003c66663c66663c003c66063e66663c
-
+	hex 00 ; so top of 9 is clean

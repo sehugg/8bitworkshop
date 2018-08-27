@@ -2,6 +2,8 @@
 import { RAM, RasterVideo, dumpRAM, lookupSymbol } from "./emu";
 import { hex } from "./util";
 import { CodeAnalyzer } from "./analysis";
+import { disassemble6502 } from "./cpu/disasm6502";
+import { disassembleZ80 } from "./cpu/disasmz80";
 
 declare var Z80_fast, jt, CPU6809;
 
@@ -522,6 +524,9 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
         return dumpStackToString(<Platform><any>this, [], start, end, sp, 0xcd);
       }
     }
+  }
+  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
+    return disassembleZ80(pc, read(pc), read(pc+1), read(pc+2), read(pc+3));
   }
 }
 

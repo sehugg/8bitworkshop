@@ -1,13 +1,8 @@
 
 var assert = require('assert');
-var vm = require('vm');
 var fs = require('fs');
-var includeInThisContext = function(path) {
-    var code = fs.readFileSync(path);
-    vm.runInThisContext(code, path);
-};
 
-includeInThisContext("gen/cpu/disasm6502.js");
+var disassemble6502 = require("gen/cpu/disasm6502.js").disassemble6502;
 
 describe('6502 disassembler', function() {
   it('Should work', function() {

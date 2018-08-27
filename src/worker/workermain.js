@@ -151,6 +151,13 @@ var PLATFORM_PARAMS = {
   },
   'verilog': {
   },
+  'astrocade': {
+    code_start: 0x2000,
+    rom_size: 0x2000,
+    data_start: 0x4e00,
+    data_size: 0x200,
+    stack_end: 0x5000,
+  },
 };
 
 // shim out window and document objects for security
@@ -995,6 +1002,7 @@ function linkSDLDZ80(step)
         var asmlines = parseListing(rstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2);
         var srclines = parseSourceLines(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
         putWorkFile(fn, rstout);
+        // TODO: you have to get rid of all source lines to get asm listing
         listings[fn] = {
           asmlines:srclines.length ? asmlines : null,
           lines:srclines.length ? srclines : asmlines,

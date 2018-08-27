@@ -1,4 +1,6 @@
 
+import { hex } from "../util";
+
 var OPS_6502 = [
   {mn:"BRK",am:"",nb:1,il:0,c1:7,c2:0}, // 00
   {mn:"ORA",am:"(aa,x)",nb:2,il:0,c1:6,c2:0}, // 01
@@ -258,24 +260,7 @@ var OPS_6502 = [
   {mn:"ISB",am:"AAAA,x",nb:3,il:1,c1:7,c2:1}, // FF
 ];
 
-function disassemble6502(pc:number, b0:number, b1:number, b2:number) : {line:string, nbytes:number} {
-
-  function formatHex(number, len) {
-    if (typeof number === "undefined" || number === null || isNaN(number)) {
-      throw new Error("Invalid value \"" + number + "\" passed to formatHex()");
-    }
-    var str = number.toString(16).toUpperCase();
-    if (!len) {
-      if (str.length % 2 == 1) {
-        len = str.length+1;
-      }
-    }
-    while (str.length < len) {
-      str = "0" + str;
-    }
-    return str;
-  }
-
+export function disassemble6502(pc:number, b0:number, b1:number, b2:number) : {line:string, nbytes:number} {
 
   var op = OPS_6502[b0];
   var s = op.mn;
@@ -283,10 +268,10 @@ function disassemble6502(pc:number, b0:number, b1:number, b2:number) : {line:str
   if (am == 'branch') {
     var offset = (b1 < 0x80) ? (pc+2+b1) : (pc+2-(256-b1));
     offset &= 0xffff;
-    am = '$'+formatHex(offset, 4);
+    am = '$'+hex(offset, 4);
   } else {
-    am = am.replace('aa','$'+formatHex(b1, 2));
-    am = am.replace('AAAA','$'+formatHex(b1+(b2<<8), 4));
+    am = am.replace('aa','$'+hex(b1, 2));
+    am = am.replace('AAAA','$'+hex(b1+(b2<<8), 4));
   }
   return {line:op.mn + " " + am, nbytes:op.nb};
 };

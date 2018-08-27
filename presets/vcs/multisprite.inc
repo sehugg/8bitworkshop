@@ -45,16 +45,20 @@
 ; MSpriteDraw1 - Single-line sprites, no playfield.
 ; This kernel requires TIMER_TABLE_SETUP at the 0th
 ; scanline, as it uses the timer to figure out the
-; current scanline.
+; current scanline. No vertical clipping is performed.
+; In fact, if sprites go past the bottom, it will
+; mess up the vertical sync.
 
 ; MSpriteDraw2 - Double-line sprites with playfield.
 ; The playfield is updated and the sprites are positioned
 ; in 8-scanline segments.
 ; This kernel uses the timer internally, but does not
 ; use the timer table or TIMER_TABLE_SETUP.
+; Sprites are clipped on the bottom edge, but disappear
+; off the top edge.
 
 ; Your program must call MSpriteInit when it starts,
-; and MSpritePre between every frame.
+; and MSpriteFrame between every frame.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -119,7 +123,7 @@ MSpriteInit subroutine
 	rts
 
 ; call between frames
-MSpritePre subroutine
+MSpriteFrame subroutine
 ; Do one iteration of bubble sort on sprite indices
 	ldx #NSprites-2
 .SortLoop
@@ -127,19 +131,17 @@ MSpritePre subroutine
         dex
         bpl .SortLoop	; loop until <= 0
 ; Reset scanline counter and sprite objects
-	ldx #0
+	jsr ResetCounters
         stx CurIndex
-        stx SIndx0
-        stx SIndx1
-        stx SSize0
-        stx SSize1
 	rts
 
-; single-line kernel routine
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; SINGLE-LINE KERNEL
+
 MSpriteDraw1 subroutine
 .NextFindSprite
 ; Try to schedule sprites to both players
-	jsr FindAnotherSprite
 	jsr FindAnotherSprite
 ; Apply fine offsets
 	sta WSYNC	; start next scanline
@@ -157,6 +159,106 @@ MSpriteDraw1 subroutine
         lda #191
         jmp WaitForScanline
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; DOUBLE-LINE KERNEL WITH BACKGROUND
+
+MSpritePrefill2 subroutine
+        lda #0
+        sta Scanline
+	jsr FindAnotherSprite2
+	jsr FindAnotherSprite2
+        sta WSYNC
+	sta HMOVE	; apply the previous fine position(s)
+        sta HMCLR	; clear motion registers
+	rts
+
+MSpriteDraw2 subroutine
+	sta WSYNC
+        sta PFIndex	; 24 * 4 scanlines = 96 2xlines
+        lda #0
+        sta PFCount
+        sta VDELP1
+        lda #1
+        sta VDELP0	; updates to GRP0 will be delayed
+        jmp .NewSprites
+.Draw8Lines
+; Phase 0: Fetch PF0 byte
+        jsr DrawSprites2
+	ldy PFIndex
+        lda (PF0Ptr),y	; load PF0
+        sta tmpPF0
+; Phase 1: Fetch PF1 byte
+        jsr DrawSprites2
+	ldy PFIndex
+        lda (PF1Ptr),y	; load PF1
+        sta tmpPF1
+; Phase 2: Fetch PF2 byte
+        jsr DrawSprites2
+	ldy PFIndex
+        lda (PF2Ptr),y	; load PF2
+        sty PFIndex
+        sta tmpPF2
+; Phase 3: Write PF0/PF1/PF2 registers
+        jsr DrawSprites2
+	lda tmpPF0
+        sta PF0
+        lda tmpPF1
+        sta PF1
+        lda tmpPF2
+        sta PF2
+; Go to next scanline, unless playfield is done 
+; or unless this segment is done
+	dec PFIndex
+        bmi .NoMoreLines	; playfield done
+	dec PFCount
+        bpl .Draw8Lines		; keep drawing
+; done drawing, reset player counters
+	jsr ResetCounters
+.NewSprites
+        lda PFIndex
+        asl
+        asl
+        eor #$7f
+        sbc #34
+        sta Scanline	; Scanlines = 127 - PFIndex*4
+; Set up 0-2 player objects taking up to 8 scanlines
+	TIMER_SETUP 7
+	jsr FindAnotherSprite2
+        jsr CalcSpriteEnd
+; Update playfield
+	ldy PFIndex
+        lda (PF0Ptr),y	; load PF0 -> X
+        tax
+        lda (PF1Ptr),y	; load PF1 -> tmp
+        sta tmpPF1
+        lda (PF2Ptr),y	; load PF2 -> Y
+        tay
+; Apply fine offsets
+	TIMER_WAIT	; wait for 8th scanlines and WSYNC
+	sta HMOVE	; apply the previous fine position(s)
+        sta HMCLR	; clear motion registers
+; Store playfield registers
+        stx PF0
+        lda tmpPF1
+        sta PF1
+        sty PF2
+        dec PFIndex	; no more playfield?
+        bmi .NoMoreLines
+        lda PFCount
+        bne .Draw8Lines
+        sta WSYNC	; one more line
+        beq .NewSprites
+.NoMoreLines
+	rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; SPRITE DRAWING ROUTINES
+; used by kernels
+; need to set SIndx0/1, SSize0/1, PData0/1, PColr0/1
+; all players must already be setup
+
 ; called by single-line kernel
 DrawSprites1 subroutine
 ; Wait for next precise scanline
@@ -166,6 +268,7 @@ DrawSprites1 subroutine
         lda Timer2Scanline,y ; lookup scanline #
         beq .AnotherScanline ; not if zero!
         sta Scanline         ; save it
+DrawSprites1a
 ; Calculate # of lines to draw for each sprite
 ; Sprite Y - current scanline + sprite height
 	lda SIndx0
@@ -193,6 +296,7 @@ DrawSprites1 subroutine
 	tax		; X = # of lines left to draw
         beq .NoSprites	; X = 0? we're done
         sta WSYNC	; next scanline
+DrawSprites1b
 .DrawNextScanline
 ; Make sure player 0 index is within bounds
 	ldy SIndx0
@@ -227,10 +331,7 @@ DrawSprites1 subroutine
 	dex
         bne .DrawNextScanline
 ; Free up both player objects by zeroing them out
-	stx SIndx0
-        stx SIndx1
-        stx SSize0
-        stx SSize1
+	jsr ResetCounters
 	sta WSYNC
 	stx GRP0
 	stx GRP1
@@ -245,86 +346,41 @@ DrawSprites1 subroutine
         sta COLUP0
         beq .DrawSprite1 ; always taken due to lda #0
 
-MSpriteDraw2 subroutine
-        sta WSYNC
-        sta PFIndex	; 24 * 4 scanlines = 96 2xlines
-        lda #0
-        sta PFCount
-        sta VDELP1
-        lda #1
-        sta VDELP0	; updates to GRP0 will be delayed
-.KernelLoop
-	dec PFCount
-        bmi .NewSprites
-.Draw8Lines
-; Phase 0: Fetch PF0 byte
-        jsr DrawSprites2
-	ldy PFIndex
-        lda (PF0Ptr),y	; load PF0
-        sta tmpPF0
-; Phase 1: Fetch PF1 byte
-        jsr DrawSprites2
-	ldy PFIndex
-        lda (PF1Ptr),y	; load PF1
-        sta tmpPF1
-; Phase 2: Fetch PF2 byte
-        jsr DrawSprites2
-	ldy PFIndex
-        lda (PF2Ptr),y	; load PF2
-        sty PFIndex
-        sta tmpPF2
-; Phase 3: Write PF0/PF1/PF2 registers
-        jsr DrawSprites2
-	lda tmpPF0
-        sta PF0
-        lda tmpPF1
-        sta PF1
-        lda tmpPF2
-        sta PF2
-; Go to next scanline, unless playfield is done
-	dec PFIndex
-        bpl .KernelLoop
-.NoMoreLines
-	rts
-.NewSprites
-;        lda PFIndex
-;        sta COLUBK
-        lda PFIndex
-        asl
-        asl
-        eor #$7f
-        sbc #34
-        sta Scanline	; Scanlines = 127 - PFIndex*4
-; Set up 0-2 player objects taking up to 8 scanlines
-	TIMER_SETUP 8
-        ldx #0
-        stx SSize0
-        stx SSize1
-        stx SIndx0
-        stx SIndx1
-	jsr FindAnotherSprite2
-;	jsr FindAnotherSprite2
-        jsr CalcSpriteEnd
-; Update playfield
-	ldy PFIndex
-        lda (PF0Ptr),y	; load PF0 -> X
+; called by 2-line kernel
+DrawSprites2 subroutine
+; Fetch sprite 0 values
+        lda SSize0	; height in 2xlines
+        sec
+        isb SIndx0		; INC yp0, then SBC yp0
+        bcs DoDraw0		; inside bounds?
+        lda #0			; no, load the padding offset (0)
+DoDraw0
+        tay			; -> Y
+        lda (PColr0),y	; color for both lines
+        sta Colp0		; -> colp0
+	lda (PData0),y	; bitmap for first line
+        sta GRP0		; -> [GRP0] (delayed due to VDEL)
+; Fetch sprite 1 values
+        lda SSize1	; height in 2xlines
+        sec
+        isb SIndx1		; INC yp0, then SBC yp0
+        bcs DoDraw1		; inside bounds?
+        lda #0			; no, load the padding offset (0)
+DoDraw1
+        tay			; -> Y
+        lda (PColr1),y	; color for both lines
         tax
-        lda (PF1Ptr),y	; load PF1 -> tmp
-        sta tmpPF1
-        lda (PF2Ptr),y	; load PF2 -> Y
+	lda (PData1),y	; bitmap for first line
         tay
-; Apply fine offsets
-	TIMER_WAIT	; wait for 8th scanlines and WSYNC
-	sta HMOVE	; apply the previous fine position(s)
-        sta HMCLR	; clear motion registers
-; Store playfield registers
-        stx PF0
-        lda tmpPF1
-        sta PF1
-        sty PF2
-        dec PFIndex	; no more playfield?
-        bpl .KernelLoop
-        jmp .NoMoreLines
+; WSYNC and store sprite values
+        lda Colp0
+; still have about 30 cycles left...
+	sta WSYNC
+        sty GRP1		; GRP0 is also updated due to VDELP0 flag
+        stx COLUP1
+        sta COLUP0
+; Return to caller
+	rts
 
 CalcSpriteEnd subroutine
 ; Calculate # of lines to draw for each sprite
@@ -355,16 +411,24 @@ CalcSpriteEnd subroutine
 ; Compute the number of 8x lines in this section
 	eor #$ff
 	clc
-        adc #5
+        adc #1
         lsr
         lsr
         sta PFCount
 	rts
 
-;;;
-;;; COMMON ROUTINES
-;;;
-        
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; COMMON ROUTINES
+
+ResetCounters subroutine
+        ldx #0
+        stx SSize0
+        stx SSize1
+        stx SIndx0
+        stx SIndx1
+	rts
+
 ; We were too late to display a sprite.
 ; Put it earlier in the sort order and try next frame.
 ; X = sort index
@@ -406,6 +470,7 @@ FindAnotherSprite2 ; alternate entry point when scanline known
 ; Due to timing issues, we have artifacts if player 1 is
 ; too close to the left edge of the screen. So we'd prefer to
 ; put those sprites in the player 0 slot.
+; TODO: disable for 2-line sprite kernel
         cmp #34		; X < 34
         bcc .Plyr1NotReady
 ; First let's set its horizontal offset
@@ -436,7 +501,7 @@ FindAnotherSprite2 ; alternate entry point when scanline known
         ldy #0
         lda (PColr1),y
         sta SSize1
-        inc SSize1	; +1 to size
+        inc SSize1	; +1 to height
         jmp .SetupDone
 .Plyr1NotReady
         ldx SIndx0
@@ -465,45 +530,10 @@ FindAnotherSprite2 ; alternate entry point when scanline known
         ldy #0
         lda (PColr0),y
         sta SSize0
-        inc SSize0	; +1 to size
+        inc SSize0	; +1 to height
 .SetupDone
 	inc CurIndex	; go to next sprite in sort order
 .NoNearSprite
-	rts
-
-; called by 2-line kernel
-DrawSprites2 subroutine
-; Fetch sprite 0 values
-        lda SSize0	; height in 2xlines
-        sec
-        isb SIndx0		; INC yp0, then SBC yp0
-        bcs DoDraw0		; inside bounds?
-        lda #0			; no, load the padding offset (0)
-DoDraw0
-        tay			; -> Y
-        lda (PColr0),y	; color for both lines
-        sta Colp0		; -> colp0
-	lda (PData0),y	; bitmap for first line
-        sta GRP0		; -> [GRP0] (delayed due to VDEL)
-; Fetch sprite 1 values
-        lda SSize1	; height in 2xlines
-        sec
-        isb SIndx1		; INC yp0, then SBC yp0
-        bcs DoDraw1		; inside bounds?
-        lda #0			; no, load the padding offset (0)
-DoDraw1
-        tay			; -> Y
-        lda (PColr1),y	; color for both lines
-        tax
-	lda (PData1),y	; bitmap for first line
-        tay
-; WSYNC and store sprite values
-        lda Colp0
-	sta WSYNC
-        sty GRP1		; GRP0 is also updated due to VDELP0 flag
-        stx COLUP1
-        sta COLUP0
-; Return to caller
 	rts
 
 ; Perform one sort iteration
