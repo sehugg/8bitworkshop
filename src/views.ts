@@ -5,7 +5,7 @@ import $ = require("jquery");
 import { CodeProject } from "./project";
 import { SourceFile, WorkerError } from "./workertypes";
 import { Platform } from "./baseplatform";
-import { hex } from "./util";
+import { hex, lpad, rpad } from "./util";
 import { CodeAnalyzer } from "./analysis";
 
 export interface ProjectView {
@@ -455,12 +455,13 @@ export class DisassemblerView implements ProjectView {
         }
         */
         var bytes = "";
+        var comment = "";
         for (var i=0; i<disasm.nbytes; i++)
           bytes += hex(platform.readAddress(a+i));
         while (bytes.length < 14)
           bytes += ' ';
         var dstr = disasm.line;
-        if (addr2symbol) {
+        if (addr2symbol && disasm.isaddr) {
           dstr = dstr.replace(/([^#])[$]([0-9A-F]+)/, (substr:string, ...args:any[]):string => {
             var addr = parseInt(args[1], 16);
             var sym = addr2symbol[addr];
@@ -470,7 +471,13 @@ export class DisassemblerView implements ProjectView {
             return substr;
           });
         }
-        var dline = hex(parseInt(a), 4) + "\t" + bytes + "\t" + dstr + "\n";
+        if (addr2symbol) {
+          var sym = addr2symbol[a];
+          if (sym) {
+            comment = "; " + sym;
+          }
+        }
+        var dline = hex(parseInt(a), 4) + "\t" + rpad(bytes,14) + "\t" + rpad(dstr,30) + comment + "\n";
         s += dline;
         if (a == pc) selline = curline;
         curline++;

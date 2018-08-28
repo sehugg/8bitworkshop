@@ -18,7 +18,6 @@ TODO:
 - break on BRK/illegal opcode?
 - multiple breakpoints, expression breakpoints
 - better disasm/listing selection
-- disasm for z80
 - watchpoints
 - breakpoints
 - debug inspector

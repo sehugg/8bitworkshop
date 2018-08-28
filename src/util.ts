@@ -6,6 +6,12 @@ export function lpad(s:string, n:number):string {
   return s;
 }
 
+export function rpad(s:string, n:number):string {
+  s += ''; // convert to string
+  while (s.length<n) s+=" ";
+  return s;
+}
+
 export function byte2signed(b:number):number {
   b &= 0xff;
   return (b < 0x80) ? b : -(256-b);

@@ -257,7 +257,7 @@ function handleFileUpload(files: File[]) {
       var path = "local/" + f.name;
       var reader = new FileReader();
       reader.onload = function(e) {
-        var data = e.target.result;
+        var data = (<any>e.target).result;
         store.setItem(path, data, function(err, result) {
           if (err)
             console.log(err);
@@ -849,7 +849,7 @@ function setupDebugControls(){
   }
   updateDebugWindows();
   // setup replay slider
-  if (platform.advance) {
+  if (platform.setRecorder && platform.advance) {
     setupReplaySlider();
   }
 }
@@ -888,7 +888,7 @@ function setupReplaySlider() {
     $("#replay_back").click(() => { setFrameTo(parseInt(replayslider.val()) - 1); });
     $("#replay_fwd").click(() => { setFrameTo(parseInt(replayslider.val()) + 1); });
     $("#replay_bar").show();
-    $("#dbg_record").click(_toggleRecording);
+    $("#dbg_record").click(_toggleRecording).show();
 }
 
 function showWelcomeMessage() {

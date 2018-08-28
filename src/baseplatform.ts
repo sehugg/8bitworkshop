@@ -29,7 +29,8 @@ export interface EmuControlsState {
 }
 export type DisasmLine = {
   line:string,
-  nbytes:number
+  nbytes:number,
+  isaddr:boolean
 };
 
 export interface Platform {

@@ -260,18 +260,22 @@ var OPS_6502 = [
   {mn:"ISB",am:"AAAA,x",nb:3,il:1,c1:7,c2:1}, // FF
 ];
 
-export function disassemble6502(pc:number, b0:number, b1:number, b2:number) : {line:string, nbytes:number} {
+export function disassemble6502(pc:number, b0:number, b1:number, b2:number) : {line:string, nbytes:number, isaddr:boolean} {
 
   var op = OPS_6502[b0];
   var s = op.mn;
   var am = op.am;
+  var isaddr = false;
   if (am == 'branch') {
     var offset = (b1 < 0x80) ? (pc+2+b1) : (pc+2-(256-b1));
     offset &= 0xffff;
     am = '$'+hex(offset, 4);
+    isaddr = true;
   } else {
     am = am.replace('aa','$'+hex(b1, 2));
     am = am.replace('AAAA','$'+hex(b1+(b2<<8), 4));
+    if (am.indexOf('#') < 0 && am.indexOf('$') >= 0)
+      isaddr = true;
   }
-  return {line:op.mn + " " + am, nbytes:op.nb};
+  return {line:op.mn + " " + am, nbytes:op.nb, isaddr:isaddr};
 };
