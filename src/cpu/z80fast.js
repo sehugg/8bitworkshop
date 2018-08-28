@@ -106,7 +106,7 @@ memory.write(regPairs[11], regPairs[12] & 0xff);;
 					l = (tstates += ( 3), memory.read(inttemp));
 					inttemp = (inttemp+1) & 0xffff;
 					h = (tstates += ( 3), memory.read(inttemp));
-					console.log(hex(interruptDataBus), hex(inttemp), hex(l), hex(h));
+					//console.log(hex(interruptDataBus), hex(inttemp), hex(l), hex(h));
 					regPairs[12] = (h<<8) | l;
 					tstates += 7;
 					break;

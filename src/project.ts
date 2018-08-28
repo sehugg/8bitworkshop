@@ -56,7 +56,7 @@ export class CodeProject {
   parseIncludeDependencies(text:string):string[] {
     var files = [];
     if (this.platform_id == 'verilog') {
-      var re = /^\s*(`include|[.]include)\s+"(.+?)"/gm;
+      var re = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
       var m;
       while (m = re.exec(text)) {
         files.push('local/'+m[2]);
@@ -65,7 +65,7 @@ export class CodeProject {
     } else {
       // for .asm -- [.]include "file"
       // for .c -- #include "file"
-      var re2 = /^\s+([.#]?include)\s+"(.+?)"/gm;
+      var re2 = /^\s+([.#]?include)\s+"(.+?)"/gmi;
       while (m = re2.exec(text)) {
         files.push('local/'+m[2]);
         files.push(m[2]);

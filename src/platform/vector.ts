@@ -45,8 +45,8 @@ function newPOKEYAudio() {
   var pokey1 = new POKEYDeviceChannel();
   var pokey2 = new POKEYDeviceChannel();
   var audio = new MasterAudio();
-  audio.pokey1 = pokey1;
-  audio.pokey2 = pokey2;
+  audio['pokey1'] = pokey1; // TODO: cheezy
+  audio['pokey2'] = pokey2;
   audio.master.addChannel(pokey1);
   audio.master.addChannel(pokey2);
   return audio;

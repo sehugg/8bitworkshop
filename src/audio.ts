@@ -3,36 +3,41 @@
 // from TSS
 declare var MasterChannel, AudioLooper, PsgDeviceChannel;
 
-export var MasterAudio = function() {
-  this.master = new MasterChannel();
-  this.looper = new AudioLooper(512);
-  this.start = function() {
+export class MasterAudio {
+  master = new MasterChannel();
+  looper = new AudioLooper(512);
+  start() {
     this.looper.setChannel(this.master);
     this.looper.activate();
   }
-  this.stop = function() {
+  stop() {
     this.looper.setChannel(null);
   }
 }
 
-export var AY38910_Audio = function(master) {
-  this.psg = new PsgDeviceChannel();
-  this.psg.setMode(PsgDeviceChannel.MODE_SIGNED);
-  this.psg.setDevice(PsgDeviceChannel.DEVICE_AY_3_8910);
-  master.master.addChannel(this.psg);
-  var curreg = 0;
+export class AY38910_Audio {
+  master : MasterAudio;
+  psg = new PsgDeviceChannel();
+  curreg = 0;
+  
+  constructor(master : MasterAudio) {
+    this.master = master;
+    this.psg.setMode(PsgDeviceChannel.MODE_SIGNED);
+    this.psg.setDevice(PsgDeviceChannel.DEVICE_AY_3_8910);
+    master.master.addChannel(this.psg);
+  }
 
-  this.reset = function() {
+  reset() {
     for (var i=15; i>=0; i--) {
       this.selectRegister(i);
       this.setData(0);
     }
   }
-  this.selectRegister = function(val) {
-    curreg = val & 0xf;
+  selectRegister(val : number) {
+    this.curreg = val & 0xf;
   }
-  this.setData = function(val) {
-    this.psg.writeRegisterAY(curreg, val & 0xff);
+  setData(val : number) {
+    this.psg.writeRegisterAY(this.curreg, val & 0xff);
   }
 }
 

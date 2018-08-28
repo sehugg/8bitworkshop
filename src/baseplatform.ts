@@ -168,6 +168,7 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   }
 }
 
+// TODO: what's the diff? why z80 not use? unify these things
 export abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
   debugPCDelta = -1;
 
@@ -245,6 +246,12 @@ export abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
       return false;
     });
   }
+  /*
+  runToVsync() {
+    this.nextFrame(false);
+    this.runEval(() => { return true; });
+  }
+  */
 }
 
 ////// 6502
