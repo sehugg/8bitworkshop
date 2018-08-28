@@ -452,10 +452,12 @@ function extractErrors(regex, strings, path) {
 
 // TODO: "of" doesn't work in MSIE
 
-function parseListing(code, lineMatch, iline, ioffset, iinsns, origin) {
+var re_crlf = /\r?\n/;
+
+function parseListing(code, lineMatch, iline, ioffset, iinsns) {
   var lines = [];
   origin |= 0;
-  for (var line of code.split(/\r?\n/)) {
+  for (var line of code.split(re_crlf)) {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
       var linenum = parseInt(linem[iline]);
@@ -477,7 +479,7 @@ function parseSourceLines(code, lineMatch, offsetMatch, origin) {
   var lines = [];
   var lastlinenum = 0;
   origin |= 0;
-  for (var line of code.split(/\r?\n/)) {
+  for (var line of code.split(re_crlf)) {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
       lastlinenum = parseInt(linem[1]);
@@ -506,7 +508,7 @@ function parseDASMListing(code, unresolved, mainFilename) {
   var macrolines = [];
   var lastline = 0;
   var macros = {};
-  for (var line of code.split(/\r?\n/)) {
+  for (var line of code.split(re_crlf)) {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
       var linenum = parseInt(linem[1]);
@@ -669,7 +671,7 @@ function parseCA65Listing(code, symbols, params, dbg) {
   var insnLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/;
   var lines = [];
   var linenum = 0;
-  for (var line of code.split(/\r?\n/)) {
+  for (var line of code.split(re_crlf)) {
     linenum++;
     var segm = segLineMatch.exec(line);
     if (segm) {
@@ -892,6 +894,7 @@ function parseIHX(ihx, rom_start, rom_size) {
       }
     }
   }
+  return output;
 }
 
 function assembleSDASZ80(step) {
@@ -1361,12 +1364,13 @@ function compileYosys(step) {
 
 function assembleZMAC(step) {
   loadNative("zmac");
-  var objout, lstout, symout;
+  var hexout, lstout;
   var errors = [];
+  var params = step.params;
   gatherFiles(step, {mainFilePath:"main.asm"});
-  var binpath = "zout/" + step.prefix + ".cim";
-  var lstpath = "zout/" + step.prefix + ".lst";
-  if (staleFiles(step, [binpath, lstpath])) {
+  var hexpath = step.prefix + ".hex";
+  var lstpath = step.prefix + ".lst";
+  if (staleFiles(step, [hexpath, lstpath])) {
   /*
 error1.asm(4) : 'l18d4' Undeclared
        JP      L18D4
@@ -1384,23 +1388,38 @@ error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
     });
     var FS = ZMAC['FS'];
     populateFiles(step, FS);
-    execMain(step, ZMAC, ['-z', '--oo', 'lst,cim', step.path]);
+    // TODO: don't know why CIM (hexary) doesn't work
+    execMain(step, ZMAC, ['-z', '--oo', 'lst,hex', step.path]);
     if (errors.length) {
       return {errors:errors};
     }
-    objout = FS.readFile(binpath, {encoding:'utf8'});
-    lstout = FS.readFile(lstpath, {encoding:'utf8'});
-    putWorkFile(binpath, objout);
+    hexout = FS.readFile("zout/"+hexpath, {encoding:'utf8'});
+    lstout = FS.readFile("zout/"+lstpath, {encoding:'utf8'});
+    putWorkFile(hexpath, hexout);
     putWorkFile(lstpath, lstout);
-    //  230: 1739+7    017A  1600      L017A: LD      D,00h
-    var listing = parseListing(lstout, /\s*(\d+):\s*(\d+)[+](\d+)\s+([0-9a-f]+)\s+([0-9a-f]+)\s+(.+)/i, 1, 4, 5);
+    if (!anyTargetChanged(step, [hexpath, lstpath]))
+      return;
+    //  230: 1739+7+x   017A  1600      L017A: LD      D,00h
+    var lines = parseListing(lstout, /\s*(\d+):\s*([0-9+]+)\s+([0-9a-f]+)\s+([0-9a-f]+)\s+(.+)/i, 1, 3, 4);
     var listings = {};
-    listings[lstpath] = listing;
+    listings[lstpath] = {lines:lines};
+    // parse symbol table
+    var symbolmap = {};
+    var sympos = lstout.indexOf('Symbol Table:');
+    if (sympos > 0) {
+      var symout = lstout.slice(sympos+14);
+      symout.split('\n').forEach(function(l) {
+        var m = l.match(/(\S+)\s+([= ]*)([0-9a-f]+)/i);
+        if (m) {
+          symbolmap[m[1]] = parseInt(m[3],16);
+        }
+      });
+    }
     return {
-      output:binpath,
+      output:parseIHX(hexout, params.rom_start||params.code_start, params.rom_size),
       listings:listings,
       errors:errors,
-      //symbolmap:symbolmap
+      symbolmap:symbolmap
     };
   }
 }

@@ -44,7 +44,8 @@ var TOOL_TO_SOURCE_STYLE = {
   'sdasz80': 'z80',
   'sdcc': 'text/x-csrc',
   'verilator': 'verilog',
-  'jsasm': 'z80'
+  'jsasm': 'z80',
+  'zmac': 'z80',
 }
 
 function newWorker() : Worker {
