@@ -1359,6 +1359,55 @@ function compileYosys(step) {
   }
 }
 
+function assembleZMAC(step) {
+  loadNative("zmac");
+  var objout, lstout, symout;
+  var errors = [];
+  gatherFiles(step, {mainFilePath:"main.asm"});
+  var binpath = "zout/" + step.prefix + ".cim";
+  var lstpath = "zout/" + step.prefix + ".lst";
+  if (staleFiles(step, [binpath, lstpath])) {
+  /*
+error1.asm(4) : 'l18d4' Undeclared
+       JP      L18D4
+
+error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
+	Add a colon or move to first column to stop this warning.
+1 errors (see listing if no diagnostics appeared here)
+  */
+    var ZMAC = zmac({
+      instantiateWasm: moduleInstFn('zmac'),
+      noInitialRun:true,
+      //logReadFiles:true,
+      print:print_fn,
+      printErr:makeErrorMatcher(errors, /([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+)/, 2, 3, step.path),
+    });
+    var FS = ZMAC['FS'];
+    populateFiles(step, FS);
+    execMain(step, ZMAC, ['-z', '--oo', 'lst,cim', step.path]);
+    if (errors.length) {
+      return {errors:errors};
+    }
+    objout = FS.readFile(binpath, {encoding:'utf8'});
+    lstout = FS.readFile(lstpath, {encoding:'utf8'});
+    putWorkFile(binpath, objout);
+    putWorkFile(lstpath, lstout);
+    //  230: 1739+7    017A  1600      L017A: LD      D,00h
+    var listing = parseListing(lstout, /\s*(\d+):\s*(\d+)[+](\d+)\s+([0-9a-f]+)\s+([0-9a-f]+)\s+(.+)/i, 1, 4, 5);
+    var listings = {};
+    listings[lstpath] = listing;
+    return {
+      output:binpath,
+      listings:listings,
+      errors:errors,
+      //symbolmap:symbolmap
+    };
+  }
+}
+
+
+////////////////////////////
+
 var TOOLS = {
   'dasm': assembleDASM,
 
@@ -1378,6 +1427,7 @@ var TOOLS = {
   'yosys': compileYosys,
   //'caspr': compileCASPR,
   'jsasm': compileJSASMStep,
+  'zmac': assembleZMAC,
 }
 
 var TOOL_PRELOADFS = {
