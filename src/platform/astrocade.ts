@@ -11,7 +11,7 @@ const ASTROCADE_PRESETS = [
   {id:'03-horcbpal.asm', name:'Paddle Demo'},
 ];
 
-// TODO: fix keys, more controllers, paddles, vibrato/noise, border color
+// TODO: fix keys, more controllers, paddles, vibrato/noise, border color, full refresh
 
 const ASTROCADE_KEYCODE_MAP = makeKeycodeMap([
   // player 1
@@ -53,10 +53,8 @@ const ASTROCADE_KEYCODE_MAP = makeKeycodeMap([
 const _BallyAstrocadePlatform = function(mainElement) {
 
   var cpu, ram, membus, iobus, rom, bios;
-  var probe;
   var video, timer, pixels;
   var audio, psg;
-  var inputs = new Uint8Array(0x20);
   //var watchdog_counter;
   const swidth = 160;
   const sheight = 102;
@@ -66,6 +64,8 @@ const _BallyAstrocadePlatform = function(mainElement) {
   const PIXEL_ON = 0xffeeeeee;
   const PIXEL_OFF = 0xff000000;
 
+  // state variables
+  var inputs = new Uint8Array(0x20);
   var magicop = 0;
   var xpand = 0;
   var xplower = false;
@@ -157,8 +157,11 @@ const _BallyAstrocadePlatform = function(mainElement) {
 
   start = function() {
     ram = new RAM(0x2000);
-    bios = new lzgmini().decode(stringToByteArray(atob(window['ASTROCADE_LZGROM'])));
-    //displayPCs = new Uint16Array(new ArrayBuffer(0x2000*2));
+    var lzgrom = window['ASTROCADE_LZGROM'];
+    if (lzgrom)
+      bios = new lzgmini().decode(stringToByteArray(atob(lzgrom)));
+    else
+      bios = padBytes([0xf3, 0x31, 0x00, 0x50, 0x21, 0x05, 0x20, 0x7e, 0x23, 0x66, 0x6f, 0xe9], 0x2000); // SP=$5000, jump to ($2005)
     membus = {
       read: newAddressDecoder([
 				[0x0000, 0x1fff, 0x1fff, function(a) { return bios ? bios[a] : 0; }],
@@ -281,14 +284,32 @@ const _BallyAstrocadePlatform = function(mainElement) {
     cpu.loadState(state.c);
     ram.mem.set(state.b);
     palette.set(state.palette);
+    magicop = state.magicop;
+    xpand = state.xpand;
+    xplower = state.xplower;
+    shift2 = state.shift2;
+    horcb = state.horcb;
+    inmod = state.inmod;
+    inlin = state.inlin;
+    infbk = state.infbk;
+    verbl = state.verbl;
     this.loadControlsState(state);
   }
   saveState() {
     return {
-      c:this.getCPUState(),
-      b:ram.mem.slice(0),
-      in:inputs.slice(0),
-      palette:palette.slice(0),
+      c: this.getCPUState(),
+      b: ram.mem.slice(0),
+      in: inputs.slice(0),
+      palette: palette.slice(0),
+      magicop: magicop,
+      xpand: xpand,
+      xplower: xplower,
+      shift2: shift2,
+      horcb: horcb,
+      inmod: inmod,
+      inlin: inlin,
+      infbk: infbk,
+      verbl: verbl,
     };
   }
   loadControlsState(state) {

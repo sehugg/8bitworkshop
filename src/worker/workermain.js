@@ -917,6 +917,9 @@ function assembleSDASZ80(step) {
           path:step.path,
           msg:matches[1]
         });
+      } else {
+        // ?ASxxxx-Error-<q> in line 1627 of cosmic.asm
+        //    <q> missing or improper operators, terminators, or delimiters
       }
     }
     var ASZ80 = sdasz80({

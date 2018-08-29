@@ -1,0 +1,8 @@
+
+//#link "acheader.s"
+
+#include <string.h>
+
+void main() {
+  memset((void*)0x4000, 0, 0xe00); // clear screen, avoid vars and stack (1e00-1fff)
+}
