@@ -65,21 +65,20 @@ function parseDecls(text:string, arr:V2JS_Var[], name:string, bin?:boolean, bout
 
 function buildModule(o : V2JS_Code) : string {
   var m = '"use strict";\n';
-  m += '\tvar self = this;\n';
   for (var i=0; i<o.ports.length; i++) {
-    m += "\tself." + o.ports[i].name + ";\n";
+    m += "\tthis." + o.ports[i].name + ";\n";
   }
   for (var i=0; i<o.signals.length; i++) {
     var sig = o.signals[i];
     if (sig.arrdim) {
       if (sig.arrdim.length == 1) {
-        m += "\tvar " + sig.name + " = self." + sig.name + " = [];\n";
+        m += "\tvar " + sig.name + " = this." + sig.name + " = [];\n";
       } else if (sig.arrdim.length == 2) {
-        m += "\tvar " + sig.name + " = self." + sig.name + " = [];\n";
+        m += "\tvar " + sig.name + " = this." + sig.name + " = [];\n";
         m += "\tfor(var i=0; i<" + sig.arrdim[0] + "; i++) { " + sig.name + "[i] = []; }\n";
       }
     } else {
-      m += "\tself." + sig.name + ";\n";
+      m += "\tthis." + sig.name + ";\n";
     }
   }
   for (var i=0; i<o.funcs.length; i++) {
@@ -121,16 +120,16 @@ function translateFunction(text : string) : string {
   text = text.replace(/\bQData /g, 'var ');
   text = text.replace(/\bbool /g, '');
   text = text.replace(/\bint /g, 'var ');
-  text = text.replace(/(\w+ = VL_RAND_RESET_)/g, 'self.$1'); // TODO?
-  //text = text.replace(/^\s*(\w+ = \d+;)/gm, 'self.$1'); // TODO?
-  //text = text.replace(/(\w+\[\w+\] = VL_RAND_RESET_I)/g, 'self.$1');
+  text = text.replace(/(\w+ = VL_RAND_RESET_)/g, 'this.$1'); // TODO?
+  //text = text.replace(/^\s*(\w+ = \d+;)/gm, 'this.$1'); // TODO?
+  //text = text.replace(/(\w+\[\w+\] = VL_RAND_RESET_I)/g, 'this.$1');
   text = text.replace(/^#/gm, '//#');
   text = text.replace(/VL_LIKELY/g, '!!');
   text = text.replace(/VL_UNLIKELY/g, '!!');
   //[%0t] %Error: scoreboard.v:53: Assertion failed in %Nscoreboard_top.scoreboard_gen: reset 64 -935359306 Vscoreboard_top
   text = text.replace(/Verilated::(\w+)Error/g, 'console.log');
   text = text.replace(/vlSymsp.name[(][)]/g, '"'+moduleName+'"');
-  return "function " + text + "\nself." + funcname + " = " + funcname + ";\n";
+  return "function " + text + "\nthis." + funcname + " = " + funcname + ";\n";
 }
 
 function translateStaticVars(text : string) : string {

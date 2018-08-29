@@ -60,8 +60,8 @@ TODO:
 - links to external tools in ide
 - error msg when #link doesn't work
 - figure out folders for projects for real
-
-On the website the additional grey spacing next to the program line numbers is not dynamically resized when the web browser window size is changed.  Intentional?
+- verilog download rom
+- why loadState() on verilog kill perf?
 
 
 

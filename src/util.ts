@@ -336,3 +336,27 @@ export function compressLZG(em_module, inBuffer:number[], levelArg?:boolean) : U
   em_module._free(outPtr);
   return outBuffer;
 }
+
+// only does primitives, 1D arrays and no recursion
+export function safe_extend(deep, dest, src) {
+  // TODO: deep ignored
+  for (var key in src) {
+    var val = src[key];
+    var type = typeof(val);
+    if (val === null || type == 'undefined') {
+      dest[key] = val;
+    } else if (type == 'function') {
+      // ignore function
+    } else if (type == 'object') {
+      if (val['slice']) { // array?
+        dest[key] = val.slice();
+      } else {
+        // ignore object
+      }
+    } else {
+      dest[key] = val;
+    }
+  }
+  return dest;
+}
+

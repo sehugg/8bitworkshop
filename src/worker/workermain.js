@@ -456,7 +456,6 @@ var re_crlf = /\r?\n/;
 
 function parseListing(code, lineMatch, iline, ioffset, iinsns) {
   var lines = [];
-  origin |= 0;
   for (var line of code.split(re_crlf)) {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
@@ -466,7 +465,7 @@ function parseListing(code, lineMatch, iline, ioffset, iinsns) {
       if (insns) {
         lines.push({
           line:linenum,
-          offset:offset + origin,
+          offset:offset,
           insns:insns,
         });
       }
@@ -475,10 +474,9 @@ function parseListing(code, lineMatch, iline, ioffset, iinsns) {
   return lines;
 }
 
-function parseSourceLines(code, lineMatch, offsetMatch, origin) {
+function parseSourceLines(code, lineMatch, offsetMatch) {
   var lines = [];
   var lastlinenum = 0;
-  origin |= 0;
   for (var line of code.split(re_crlf)) {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
@@ -489,7 +487,7 @@ function parseSourceLines(code, lineMatch, offsetMatch, origin) {
         var offset = parseInt(linem[1], 16);
         lines.push({
           line:lastlinenum,
-          offset:offset + origin,
+          offset:offset,
         });
         lastlinenum = 0;
       }

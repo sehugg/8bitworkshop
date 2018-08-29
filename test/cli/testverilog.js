@@ -15,10 +15,17 @@ function loadPlatform(msg) {
     //console.log(msg.output.ports);
     //console.log(msg.output.signals);
     platform.loadROM("ROM", msg.output);
-    vl_finished = vl_stopped = false;
-    for (var i=0; i<10000 && !(vl_finished||vl_stopped); i++)
+    platform.loadROM("ROM", msg.output);
+    platform.loadROM("ROM", msg.output);
+    verilog.vl_finished = verilog.vl_stopped = false;
+    for (var i=0; i<10000 && !(verilog.vl_finished||verilog.vl_stopped); i++) {
       platform.tick();
-    assert.ok(!vl_stopped);
+    }
+    assert.ok(!verilog.vl_stopped);
+    var state = platform.saveState();
+    platform.reset();
+    platform.loadState(state);
+    assert.deepEqual(state, platform.saveState());
   } catch (e) {
     //platform.printErrorCodeContext(e, msg.output.code);
     console.log(msg.intermediate.listing);
@@ -29,7 +36,28 @@ function loadPlatform(msg) {
   return platform;
 }
 
-function compileVerilator(code, callback, nerrors) {
+function testPerf(msg) {
+  var platform = new VerilogPlatform();
+  platform.loadROM("ROM", msg.output);
+  var niters = 2000000;
+
+  console.time("before");
+  for (var i=0; i<niters; i++)
+    platform.tick();
+  console.timeEnd("before");
+
+  var state = platform.saveState();
+  platform.reset();
+  platform.loadState(state);
+  console.time("after");
+  for (var i=0; i<niters; i++)
+    platform.tick();
+  console.timeEnd("after");
+
+  return platform;
+}
+
+function compileVerilator(filename, code, callback, nerrors) {
     global.postMessage = function(msg) {
         if (msg.errors && msg.errors.length) {
           console.log(msg.errors);
@@ -37,6 +65,10 @@ function compileVerilator(code, callback, nerrors) {
         } else {
           assert.equal(nerrors||0, 0, "errors");
           loadPlatform(msg);
+          //testPerf(msg);
+          if (filename.indexOf('t_') >= 0) {
+            //assert.ok(verilog.vl_finished);
+          }
         }
         callback(null, msg);
     };
@@ -50,7 +82,7 @@ function testVerilator(filename, disables, nerrors) {
     var csource = ab2str(fs.readFileSync(filename));
     for (var i=0; i<(disables||[]).length; i++)
       csource = "/* verilator lint_off " + disables[i] + " */\n" + csource;
-    compileVerilator(csource, done, nerrors||0);
+    compileVerilator(filename, csource, done, nerrors||0);
   });
 }
 

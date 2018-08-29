@@ -366,12 +366,17 @@ function _revertFile(e) {
 }
 
 function _downloadROMImage(e) {
-  if (current_output == null) { // TODO
-    alert("Please fix errors before downloading ROM.");
+  if (current_output == null) {
+    alert("Please finish compiling with no errors before downloading ROM.");
     return true;
   }
-  var blob = new Blob([current_output], {type: "application/octet-stream"});
-  saveAs(blob, getCurrentMainFilename()+".rom");
+  if (current_output.code) { // TODO
+    var blob = new Blob([current_output.code], {type: "text/plain"});
+    saveAs(blob, getCurrentMainFilename()+".js");
+  } else {
+    var blob = new Blob([current_output], {type: "application/octet-stream"});
+    saveAs(blob, getCurrentMainFilename()+".rom");
+  }
 }
 
 function _downloadSourceFile(e) {

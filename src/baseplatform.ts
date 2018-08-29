@@ -22,8 +22,10 @@ export interface CpuState {
   N,V,D,Z,C:boolean*/
 };
 export interface EmuState {
-  c:CpuState,	 // CPU state
-  b?:number[]	 // RAM (TODO: not for vcs)
+  c?:CpuState,	// CPU state
+  b?:number[], 	// RAM (TODO: not for vcs)
+  o?:{},				// verilog
+  T?:number,		// verilog
 };
 export interface EmuControlsState {
 }
@@ -107,6 +109,7 @@ export abstract class BasePlatform {
   abstract saveState() : EmuState;
   abstract pause() : void;
   abstract resume() : void;
+  abstract advance(novideo? : boolean) : void;
 
   setRecorder(recorder : EmuRecorder) : void {
     this.recorder = recorder;
@@ -129,7 +132,6 @@ export abstract class BaseDebugPlatform extends BasePlatform {
 
   abstract getCPUState() : CpuState;
   abstract readAddress(addr:number) : number;
-  abstract advance(novideo? : boolean) : void;
 
   getDebugCallback() : DebugCondition {
     return this.debugCondition;
