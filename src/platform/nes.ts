@@ -225,14 +225,12 @@ const _JSNESPlatform = function(mainElement) {
   }
 
   getDebugCategories() {
-    return ['CPU','ZPRAM','Stack','PPU'];
+    return super.getDebugCategories().concat(['PPU']);
   }
   getDebugInfo(category, state) {
     switch (category) {
-      case 'CPU':   return cpuStateToLongString_6502(state.c);
-      case 'ZPRAM': return dumpRAM(state.b, 0x0, 0x100);
-      case 'Stack': return dumpStackToString(this, state.b, 0x100, 0x1ff, 0x100+state.c.SP, 0x20);
       case 'PPU': return this.ppuStateToLongString(state.ppu, state.b);
+      default: return super.getDebugInfo(category, state);
     }
   }
   ppuStateToLongString(ppu, mem) {

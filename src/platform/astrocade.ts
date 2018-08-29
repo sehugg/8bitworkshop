@@ -11,7 +11,7 @@ const ASTROCADE_PRESETS = [
   {id:'03-horcbpal.asm', name:'Paddle Demo'},
 ];
 
-// TODO: fix keys, more controllers, paddles, vibrato/noise, border color, full refresh
+// TODO: fix keys, more controllers, paddles, vibrato/noise, border color, full refresh, debug info
 
 const ASTROCADE_KEYCODE_MAP = makeKeycodeMap([
   // player 1
@@ -79,6 +79,8 @@ const _BallyAstrocadePlatform = function(mainElement) {
   // default palette
   for (var i=0; i<8; i++)
     palette[i] = ASTROCADE_PALETTE[i];
+    
+  var refreshlines = 0;
   
   function ramwrite(a:number, v:number) {
     ram.mem[a] = v;
@@ -88,6 +90,12 @@ const _BallyAstrocadePlatform = function(mainElement) {
       pixels[ofs--] = palette[lr + (v & 3)];
       v >>= 2;
     }
+  }
+  
+  function refreshline(y:number) {
+    var ofs = y*swidth/4;
+    for (var i=0; i<swidth/4; i++)
+      ramwrite(ofs+i, ram.mem[ofs+i]);
   }
   
   function magicwrite(a:number, v:number) {
@@ -142,6 +150,7 @@ const _BallyAstrocadePlatform = function(mainElement) {
   
   function setpalette(a:number, v:number) {
     palette[a&7] = ASTROCADE_PALETTE[v&0xff];
+    refreshlines = sheight;
   }
   
   function setbordercolor() {
@@ -262,6 +271,10 @@ const _BallyAstrocadePlatform = function(mainElement) {
       this.runCPU(cpu, cpuCyclesPerLine);
       if (sl == inlin && (inmod & 0x8)) {
         cpu.requestInterrupt(infbk);
+      }
+      if (refreshlines>0) {
+        refreshline(sl);
+        refreshlines--;
       }
     }
     if (!novideo) {

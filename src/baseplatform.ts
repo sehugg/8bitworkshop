@@ -1,6 +1,6 @@
 
 import { RAM, RasterVideo, dumpRAM, lookupSymbol } from "./emu";
-import { hex } from "./util";
+import { hex, printFlags } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { disassemble6502 } from "./cpu/disasm6502";
 import { disassembleZ80 } from "./cpu/disasmz80";
@@ -362,11 +362,7 @@ export function getOpcodeMetadata_6502(opcode, address) {
 
 export function cpuStateToLongString_Z80(c) {
   function decodeFlags(flags) {
-    var flagspec = "SZ-H-VNC";
-    var s = "";
-    for (var i=0; i<8; i++)
-      s += (flags & (128>>i)) ? flagspec.slice(i,i+1) : "-";
-    return s; // TODO
+    return printFlags(flags, ["S","Z",,"H",,"V","N","C"], true);
   }
   return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.AF) + "\n"
        + "SP " + hex(c.SP,4) + "  IR " + hex(c.IR,4) + "\n"
@@ -553,11 +549,7 @@ export function getToolForFilename_z80(fn) {
 
 export function cpuStateToLongString_6809(c) {
   function decodeFlags(flags) {
-    var flagspec = "EFHINZVC";
-    var s = "";
-    for (var i=0; i<8; i++)
-      s += (flags & (128>>i)) ? flagspec.slice(i,i+1) : "-";
-    return s; // TODO
+    return printFlags(flags, ["E","F","H","I", "N","Z","V","C"], true);
   }
   return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.CC) + "\n"
        + "SP " + hex(c.SP,4) + "\n"
