@@ -1,8 +1,13 @@
 
+import { hex } from "../util";
+
 var font;
 
-var params = {
+declare var FONTLIST : string;
+
+var FONT_DEFAULT_PARAMS = {
     bpp:1,
+    np:1,
     wbytes:1,
     width:8,
     height:8,
@@ -12,7 +17,10 @@ var params = {
     xflip:false,
     yflip:false,
     msbfirst:false,
+    output:'c_nested',
 };
+
+var params;
 
 var errors;
 
@@ -20,13 +28,77 @@ var previewCanvas = $("#previewCanvas");
 var codeTextarea = $("#codeTextarea");
 var paramsForm = $("#paramsForm");
 
-function refreshPreset(item) {
-  console.log(item);
-  w2ui.toolbar.set('bpp',    {value:'1'});
-  w2ui.toolbar.set('width',  {value:'8'});
-  w2ui.toolbar.set('height', {value:'8'});
-  w2ui.toolbar.set('lochar', {value:'32'});
-  w2ui.toolbar.set('hichar', {value:'95'});
+var FONT_PRESETS = {
+      _8x8: { },
+    apple2: { width:7 },
+       vcs: { output:'dasm', msbfirst:true },
+  mw8080bw: { rotate:true, flip:true, msbfirst:true },
+       nes: { np:2, msbfirst:true },
+};
+
+function loadPreset(preset_id) {
+  params = $.extend({}, FONT_DEFAULT_PARAMS, FONT_PRESETS[preset_id]);
+  refreshToolbar();
+}
+
+function updateToolbarValue(event, id:string) {
+  event.item = w2ui.toolbar.get(id);
+  event.item.value = event.target.value;
+  refreshToolbar(event);
+}
+
+function refreshToolbar(event?) {
+  // update params from toolbar item?
+  console.log(event);
+  if (event && event.item) {
+    switch (event.item.id) {
+      case 'width':
+      case 'height':
+      case 'lochar':
+      case 'hichar':
+        params[event.item.id] = parseInt(event.item.value);
+        break;
+      case 'rotate':
+      case 'xflip':
+      case 'yflip':
+      case 'msbfirst':
+        params[event.item.id] = event.item.checked;
+        break;
+      case 'bpp':
+        if (event.subItem)
+          params[event.item.id] = parseInt(event.subItem.text);
+        break;
+      case 'preset':
+        if (event.subItem)
+          loadPreset(event.subItem.id);
+        break;
+      case 'charsel':
+        if (event.subItem)
+          loadCharSel(event.subItem.id);
+        break;
+    }
+  }
+  // set derived params
+  params.wbytes = Math.floor((params.width*params.bpp+7)/8);
+  // set toolbar items
+  Object.keys(params).forEach(function(key) {
+    var val = params[key];
+    var item = w2ui.toolbar.get(key);
+    switch (item && item.type) {
+      case 'check': item.checked = val; break;
+      case 'html': item.value = val; break;
+      case 'menu-radio': item.selected = val; break;
+    }
+  });
+  w2ui.toolbar.refresh();
+  updateEncoding();
+  previewFont();
+}
+
+function loadCharSel(id) {
+  var toks = id.split('-');
+  params.lochar = parseInt(toks[0]);
+  params.hichar = parseInt(toks[1]);
 }
 
 function parseBDF(text) {
@@ -80,12 +152,20 @@ function loadFont(rec) {
         font.rec = rec;
         font.path = path;
         console.log(font);
+        updateEncoding();
         previewFont();
-        codeTextarea.text(encodeFont());
     });
 }
 
+function updateEncoding() {
+  if (font) {
+    codeTextarea.text(encodeFont());
+  }
+}
+
 function renderGlyph(glyph, putPixel) {
+  if (glyph.ord < params.lochar || glyph.ord > params.hichar)
+    return {w:8,h:8};
   var w = glyph.bbx[0];
   var h = glyph.bbx[1];
   var dx = glyph.bbx[2];
@@ -95,11 +175,14 @@ function renderGlyph(glyph, putPixel) {
           if (glyph.bytes[glyph.bytes.length-y-1] & (0x800000 >> x)) {
               var xx = x+dx;
               var yy = y+dy;
+              /*
               font.pixbounds[0] = Math.min(font.pixbounds[0], xx);
               font.pixbounds[1] = Math.min(font.pixbounds[1], yy);
               font.pixbounds[2] = Math.max(font.pixbounds[2], xx);
               font.pixbounds[3] = Math.max(font.pixbounds[3], yy);
-              putPixel(xx, yy);
+              */
+              if (xx >= 0 && yy >= 0 && xx < params.width && yy < params.height)
+                putPixel(xx, yy);
           }
       }
   }
@@ -107,7 +190,7 @@ function renderGlyph(glyph, putPixel) {
 }
 
 function drawChar(x0, y0, chord) {
-    var ctx = previewCanvas[0].getContext('2d');
+    var ctx = (previewCanvas[0] as any).getContext('2d');
     ctx.fillStyle = "black";
     var glyph = font.chars[chord];
     if (glyph) {
@@ -134,7 +217,8 @@ var TEST_SENTENCES = [
 ];
 
 function previewFont() {
-    var ctx = previewCanvas[0].getContext('2d');
+    if (!font) return;
+    var ctx = (previewCanvas[0] as any).getContext('2d');
     ctx.fillStyle = "white";
     ctx.fillRect( 0, 0, 1024, 1024 );
     var x = 8;
@@ -151,11 +235,11 @@ function encodeGlyph(glyph, bytes) {
     renderGlyph(glyph, function(x,y) {
         //x -= font.pixbounds[0];
         //y -= font.pixbounds[1];
+        if (params.yflip) { y = params.height-1-y; }
+        if (params.xflip ^ params.rotate) { x = params.width-1-x; }
         if (params.rotate) {
            var y2 = x; var x2 = y; x = x2; y = y2;
         }
-        if (params.yflip) { y = params.height-1-y; }
-        if (params.xflip) { x = params.width-1-x; }
         var xoutrange = (x <  0 || x >= params.width);
         var youtrange = (y <  0 || y >= params.height);
         if (xoutrange || youtrange) {
@@ -173,23 +257,36 @@ function encodeGlyph(glyph, bytes) {
 }
 
 function encodeFont() {
-    var s = '/* ' + JSON.stringify(params) + JSON.stringify(font.bounds) + JSON.stringify(font.pixbounds) + ' */\n';
-    s += "#define LOCHAR " + params.lochar + "\n";
-    s += "#define HICHAR " + params.hichar + "\n";
-    s += "#define FONT_HEIGHT " + params.height + "\n";
-    s += "const char FONT[HICHAR-LOCHAR+1][FONT_HEIGHT] = {\n";
+    var s = '';
+    if (params.output.startsWith('c_')) {
+      //s += '/* ' + JSON.stringify(params) + JSON.stringify(font.bounds) + JSON.stringify(font.pixbounds) + ' */\n';
+      s += "#define LOCHAR " + params.lochar + "\n";
+      s += "#define HICHAR " + params.hichar + "\n";
+      s += "#define FONT_BWIDTH " + (params.wbytes*params.np) + "\n";
+      s += "#define FONT_HEIGHT " + params.height + "\n";
+      s += "const char FONT[HICHAR-LOCHAR+1][FONT_HEIGHT*FONT_BWIDTH] = {\n";
+    } else {
+      s += "LOCHAR\t\t= " + params.lochar + "\n";
+      s += "HICHAR\t\t= " + params.hichar + "\n";
+      s += "FONT_HEIGHT\t= " + params.height + "\n";
+      s += "FontData:\n";
+    }
     errors = [];
     for (var chord=params.lochar; chord<=params.hichar; chord++) {
         var glyph = font.chars[chord];
-        var bytes = new Uint8Array(params.wbytes*params.height);
+        var bytes = new Uint8Array(params.wbytes*params.height*params.np);
         if (glyph) {
             encodeGlyph(glyph, bytes);
-            s += "{ ";
+            if (params.output=='c_nested') s += "{ ";
+            else if (params.output=='dasm') s += "\thex\t";
             for (var i=0; i<bytes.length; i++) {
-                s += "0x" + bytes[i].toString(16) + ",";
+              if (params.output.startsWith('c_'))
+                s += "0x" + hex(bytes[i]) + ",";
+              else if (params.output == 'dasm')
+                s += hex(bytes[i]);
             }
-            s += " },";
-            s += "\n";
+            if (params.output=='c_nested') s += " },";
+            if (!params.output.startsWith('c_') || params.newline) s += "\n";
         }
     }
     s += "};\n";
@@ -208,22 +305,22 @@ for (var line of FONTLIST.split("\n")) {
     var ltoks = line.split("|");
     var ftoks = ltoks[1].split("-");
     var rec = {
-        recid: ++li,
-        path: ltoks[0],
-        foundry: ftoks[1],
-        family: ftoks[2],
-        weight: ftoks[3].toLowerCase(),
-        slant: ftoks[4].toUpperCase(),
-        setwidth: ftoks[5],
-        addstyle: ftoks[6],
+            recid: ++li,
+             path: ltoks[0],
+          foundry: ftoks[1],
+           family: ftoks[2],
+           weight: ftoks[3].toLowerCase(),
+            slant: ftoks[4].toUpperCase(),
+         setwidth: ftoks[5],
+         addstyle: ftoks[6],
         pixelsize: parseInt(ftoks[7]),
         pointsize: parseInt(ftoks[8]),
-        resx: parseInt(ftoks[9]),
-        resy: parseInt(ftoks[10]),
-        spacing: ftoks[11].toUpperCase(),
-        avgwidth: ftoks[12]/10,
-        registry: ftoks[13],
-        encoding: ftoks[14],
+             resx: parseInt(ftoks[9]),
+             resy: parseInt(ftoks[10]),
+          spacing: ftoks[11].toUpperCase(),
+         avgwidth: parseFloat(ftoks[12])/10,
+         registry: ftoks[13],
+         encoding: ftoks[14],
     };
     FONTRECS.push(rec);
 }
@@ -232,7 +329,7 @@ function toolbarHTMLItem(id, title, maxchars) {
     return function(item) {
         var html = '<div style="padding: 3px 5px;">' + title + '&nbsp;' +
             '<input size=' + maxchars + ' maxlength=' + maxchars +
-            ' onchange="var el = w2ui.toolbar.set(\'' + id + '\', { value: this.value });" '+
+            ' onchange="updateToolbarValue(event, \'' + id + '\');" '+
             ' value="'+ (item.value || '') + '"/></div>';
         return html;
     };
@@ -240,39 +337,48 @@ function toolbarHTMLItem(id, title, maxchars) {
 
 $().w2toolbar({
 	name: 'toolbar',
+	onClick: function(event) {
+	  // TODO?
+	  setTimeout(function() { refreshToolbar(event); }, 1);
+	},
+	tooltip: 'bottom',
 	items: [
 		{ type: 'menu-radio', id: 'preset', caption: 'Presets', img: 'icon-folder',
-		  text: function(item) { refreshPreset(item); return item.caption; },
+		  tooltip: 'Preset encoding options for specific platforms',
+		  //text: function(item) { refreshPreset(item); return item.caption; },
 		  items: [
-			{ text: 'Generic 8x8',		id: '8x8' }, 
-			{ text: 'Atari 2600',			id: 'vcs' }, 
-			{ text: 'Midway 8080',		id: 'mw8080bw' }, 
-			{ text: 'NES',						id: 'nes' }
-		]},
-		{ type: 'check',  id: 'rotate', caption: 'Rotate' },
-		{ type: 'check',  id: 'yflip', caption: 'Flip' },
-		{ type: 'menu-radio', id: 'bpp', caption: 'BPP', img: 'fas fa-star', items: [
-			{ text: '1' }, 
-			{ text: '2' }, 
-			{ text: '4' },
-			{ text: '8' }
-		]},
+			 { text: 'Generic C 8x8', id: '_8x8' }, 
+			 { text: 'Atari 2600',    id: 'vcs' }, 
+			 { text: 'Midway 8080',   id: 'mw8080bw' }, 
+			 { text: 'NES',           id: 'nes' },
+			 { text: 'Apple ][',    	id: 'apple2' },
+		  ]},
+		{ type: 'check',  id: 'rotate', caption: 'Rotate', img: 'fas fa-sync', tooltip: 'Rotate 90 degrees (swap X/Y)' },
+		{ type: 'check',  id: 'xflip', caption: 'Mirror', img: 'fas fa-arrows-alt-h', tooltip: 'Flip X axis' },
+		{ type: 'check',  id: 'yflip', caption: 'Flip', img: 'fas fa-arrows-alt-v', tooltip: 'Flip Y axis' },
+		{ type: 'check',  id: 'msbfirst', caption: 'MSB First', img: 'fas fa-arrow-alt-circle-right', tooltip: 'If selected, MSB (left) to LSB (right)' },
+		{ type: 'menu-radio', id: 'bpp', caption: 'BPP', img: 'fas fa-dice-one', tooltip: 'Bits per pixel',
+		  items: [
+			 { text: '1' }, 
+			 { text: '2' }, 
+			 { text: '4' },
+			 { text: '8' }
+  		]},
 		{ type: 'html', id: 'width', html: toolbarHTMLItem('width','Width:',2) },
 		{ type: 'html', id: 'height', html: toolbarHTMLItem('height','Height:',2) },
 		{ type: 'break', id: 'break1' },
-		{ type: 'menu-radio', id: 'charsel', caption: 'Characters', img: 'icon-folder', items: [
-			//{ text: 'ISO (256 chars)', value:'0-255' }, 
-			{ text: 'ASCII (upper+lower)', id:'32-95' }, 
-			{ text: 'ASCII (upper only)', id:'32-127' }
-		]},
+		{ type: 'menu-radio', id: 'charsel', caption: 'Characters', img: 'icon-folder', 
+		  tooltip: 'Range of characters to encode, from first to last',
+		  //text: function(item) { refreshCharSel(item); return item.caption; },
+		  items: [
+			 //{ text: 'ISO (256 chars)', value:'0-255' }, 
+			 { text: 'ASCII (upper only)', id:'32-95' }, 
+			 { text: 'ASCII (upper+lower)', id:'32-127' }
+		  ]},
 		{ type: 'html', id: 'lochar', html: toolbarHTMLItem('lochar','First:',3) },
 		{ type: 'html', id: 'hichar', html: toolbarHTMLItem('hichar','Last:',3) },
-		/*
+		/*	
 		{ type: 'spacer' },
-		{ type: 'check',  id: 'item1', caption: 'Check', img: 'icon-page', checked: true },
-		{ type: 'break',  id: 'break0' },
-		{ type: 'radio',  id: 'item3',  group: '1', caption: 'Radio 1', icon: 'fa-star', checked: true },
-		{ type: 'radio',  id: 'item4',  group: '1', caption: 'Radio 2', icon: 'fa-star-empty' },
 		{ type: 'button',  id: 'item5',  caption: 'Item 5', icon: 'fa-home' }
 		*/
 	]
@@ -312,10 +418,10 @@ $('#layout').w2layout({
     name: 'layout',
     panels: [
         { type: 'top',  size: 50, resizable: false, style: pstyle, content: 'top' },
-        { type: 'left', size: 200, resizable: true, style: pstyle, content: paramsForm },
+//        { type: 'left', size: 200, resizable: true, style: pstyle, content: paramsForm },
         { type: 'main', style: pstyle, content: codeTextarea },
         { type: 'preview', size: '50%', resizable: true, style: pstyle, content: previewCanvas },
-        { type: 'right', size: 200, resizable: true, style: pstyle, content: 'right' },
+        { type: 'left', size: '25%', resizable: true, style: pstyle, content: $("#instructions") },
         { type: 'bottom', size: 200, resizable: true, style: pstyle, content: 'bottom' }
     ]
 });
@@ -323,10 +429,4 @@ $('#layout').w2layout({
 w2ui['layout'].content('top', w2ui['toolbar']);
 w2ui['layout'].content('bottom', w2ui['fontGrid']);
 
-w2ui.toolbar.set('preset', {selected:'8x8'});
-w2ui.toolbar.set('bpp',    {value:'1'});
-w2ui.toolbar.set('width',  {value:'8'});
-w2ui.toolbar.set('height', {value:'8'});
-w2ui.toolbar.set('lochar', {value:'32'});
-w2ui.toolbar.set('hichar', {value:'95'});
-
+loadPreset('_8x8');

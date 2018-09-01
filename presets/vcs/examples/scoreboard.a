@@ -68,8 +68,7 @@ ScanLoop1a
         lda #0
 	sta WSYNC
         sta PF1
-; Turn playfield reflection off, since our brick field
-; will be drawn asymetrically (and turn score mode off)
+; Turn playfield reflection off (and turn score mode off)
         lda #%00010100	; no reflection + ball priority + 2 pixel ball
         sta CTRLPF
 

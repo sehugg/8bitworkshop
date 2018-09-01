@@ -22,8 +22,21 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 </div>
 
 <div style="display:none">
+
   <canvas id="previewCanvas" width=640 height=256></canvas>
+
   <textarea id="codeTextarea" cols=80 rows=8>/* output appears here */</textarea>
+
+  <div id="instructions">
+    <p><a href="http://8bitworkshop.com/">8bitworkshop</a> Bitmap Font Encoder</p>
+    <ol>
+      <li>Select a font below (check out the search and filter options.)</li>
+      <li>Choose a preset platform, or your own encoding options.</li>
+      <li>Select a range of characters.</li>
+      <li>Check out the preview bitmap to make sure none of your characters are visibly cut off, or increase your height/width (if your platform supports it.)</li>
+      <li>Copy the output to the clipboard, paste it into your code.</li>
+    </ol>
+  </div>
 </div>
 
 <script src="../../jquery/jquery-2.2.3.min.js"></script>
@@ -33,9 +46,24 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <!--
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css" integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
 -->
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/solid.css" integrity="sha384-VGP9aw4WtGH/uPAOseYxZ+Vz/vaTb1ehm1bwx92Fm8dTrE+3boLfF1SpAtB1z7HW" crossorigin="anonymous">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/fontawesome.css" integrity="sha384-1rquJLNOM3ijoueaaeS5m+McXPJCGdr5HcA03/VHXxcp2kX2sUrQDmFc3jR5i/C7" crossorigin="anonymous">
+
+<script>
+var exports = {};
+function require(modname) {
+  if (modname == 'jquery') return $;
+  else if (modname.startsWith('.')) return exports;
+  else { console.log("Unknown require()", modname); return exports; }
+}
+</script>
+
+<link rel="stylesheet" href="../../bootstrap/css/bootstrap.min.css">
+<script src="../../bootstrap/js/bootstrap.min.js"></script>
 
 <script src="./fontlist.js"></script>
-<script src="./uifont.js"></script>
+<script src="../../gen/util.js"></script>
+<script src="../../gen/tools/uifont.js"></script>
 
 </body>
 </html>

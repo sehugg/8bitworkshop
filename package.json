@@ -6,6 +6,7 @@
   "devDependencies": {
     "@types/bootstrap": "^3.x",
     "@types/jquery": "^2.x",
+    "@types/w2ui": "^1.4.32",
     "atob": "^2.1.2",
     "btoa": "^1.2.1",
     "clipboard": "^2.0.1",
