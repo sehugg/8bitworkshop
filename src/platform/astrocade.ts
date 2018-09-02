@@ -9,6 +9,7 @@ const ASTROCADE_PRESETS = [
   {id:'01-helloworlds.asm', name:'Hello World'},
   {id:'02-telephone.asm', name:'Telephone'},
   {id:'03-horcbpal.asm', name:'Paddle Demo'},
+  {id:'cosmic.c', name:'Cosmic Impalas Game'},
 ];
 
 // TODO: fix keys, more controllers, paddles, vibrato/noise, border color, full refresh, debug info
@@ -150,12 +151,16 @@ const _BallyAstrocadePlatform = function(mainElement) {
   
   function setpalette(a:number, v:number) {
     palette[a&7] = ASTROCADE_PALETTE[v&0xff];
-    refreshlines = sheight;
+    refreshall();
   }
   
   function setbordercolor() {
     var col = horcb >> 6;
     // TODO
+  }
+  
+  function refreshall() {
+    refreshlines = sheight;
   }
   
  class BallyAstrocadePlatform extends BaseZ80Platform implements Platform {
@@ -208,9 +213,11 @@ const _BallyAstrocadePlatform = function(mainElement) {
           case 9:   // HORCB (horizontal boundary byte)
             horcb = val;
             setbordercolor();
+            refreshall();
             break;
           case 0xa: // VERBL (vertical blank)
             verbl = val >> 1;
+            refreshall();
             break;
           case 0xb: // OTIR (set palette)
              setpalette(cpu.getBC()>>8, membus.read(cpu.getHL()));
@@ -278,7 +285,7 @@ const _BallyAstrocadePlatform = function(mainElement) {
       }
     }
     if (!novideo) {
-      video.updateFrame(0, 0, 0, 0, swidth, verbl+2);
+      video.updateFrame(0, 0, 0, 0, swidth, verbl);
     }
     /*
     if (watchdog_counter-- <= 0) {

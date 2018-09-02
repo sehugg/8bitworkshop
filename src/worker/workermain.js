@@ -154,8 +154,8 @@ var PLATFORM_PARAMS = {
   'astrocade': {
     code_start: 0x2000,
     rom_size: 0x2000,
-    data_start: 0x4e00,
-    data_size: 0x200,
+    data_start: 0x4e10,
+    data_size: 0x1f0,
     stack_end: 0x5000,
   },
 };

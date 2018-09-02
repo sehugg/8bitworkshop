@@ -1,6 +1,8 @@
 
 import { hex } from "../util";
 
+// TODO: outline, gradient, pixel colors (>=2 bpp), proportional fonts, select C/ASM output, fine offset
+
 var font;
 
 declare var FONTLIST : string;
@@ -12,7 +14,7 @@ var FONT_DEFAULT_PARAMS = {
     width:8,
     height:8,
     lochar:32,
-    hichar:95,
+    hichar:127,
     rotate:false,
     xflip:false,
     yflip:false,
@@ -146,7 +148,7 @@ function parseBDF(text) {
 
 function loadFont(rec) {
     font = {};
-    var path = 'bitmap-fonts/bitmap/' + rec.path;
+    var path = '../fonts/' + rec.path;
     $.get(path, function(text) {
         font = parseBDF(text);
         font.rec = rec;
@@ -303,6 +305,8 @@ var FONTRECS = [];
 var li = 0;
 for (var line of FONTLIST.split("\n")) {
     var ltoks = line.split("|");
+    if (ltoks.length < 2)
+      continue;
     var ftoks = ltoks[1].split("-");
     var rec = {
             recid: ++li,

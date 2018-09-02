@@ -64,6 +64,8 @@ TODO:
 - why loadState() on verilog kill perf?
 - click to break on raster position
 - restructure folders
+- update memory browser window if view before 1st compile, update symbols
+- spinner disappears sometimes
 
 
 WEB WORKER FORMAT

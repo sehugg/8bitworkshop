@@ -19,3 +19,9 @@
 [submodule "localForage"]
 	path = localForage
 	url = https://github.com/localForage/localForage
+[submodule "tools/fonts/bitmap-fonts"]
+	path = tools/fonts/bitmap-fonts
+	url = https://github.com/Tecate/bitmap-fonts
+[submodule "tools/fonts/ibmfonts"]
+	path = tools/fonts/ibmfonts
+	url = https://github.com/farsil/ibmfonts
