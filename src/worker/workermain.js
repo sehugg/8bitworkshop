@@ -153,10 +153,17 @@ var PLATFORM_PARAMS = {
   },
   'astrocade': {
     code_start: 0x2000,
-    rom_size: 0x2000,
+      rom_size: 0x2000,
     data_start: 0x4e10,
-    data_size: 0x1f0,
-    stack_end: 0x5000,
+     data_size: 0x1f0,
+     stack_end: 0x5000,
+  },
+  'astrocade-arcade': {
+    code_start: 0x0000,
+      rom_size: 0x4000,
+    data_start: 0x7de0,
+     data_size: 0x220,
+     stack_end: 0x8000,
   },
 };
 
@@ -1390,7 +1397,7 @@ error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
     var FS = ZMAC['FS'];
     populateFiles(step, FS);
     // TODO: don't know why CIM (hexary) doesn't work
-    execMain(step, ZMAC, ['-z', '--oo', 'lst,hex', step.path]);
+    execMain(step, ZMAC, ['-z', '-c', '--oo', 'lst,hex', step.path]);
     if (errors.length) {
       return {errors:errors};
     }
@@ -1401,7 +1408,7 @@ error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
     if (!anyTargetChanged(step, [hexpath, lstpath]))
       return;
     //  230: 1739+7+x   017A  1600      L017A: LD      D,00h
-    var lines = parseListing(lstout, /\s*(\d+):\s*([0-9+]+)\s+([0-9a-f]+)\s+([0-9a-f]+)\s+(.+)/i, 1, 3, 4);
+    var lines = parseListing(lstout, /\s*(\d+):\s*([0-9a-f]+)\s+([0-9a-f]+)\s+(.+)/i, 1, 2, 3);
     var listings = {};
     listings[lstpath] = {lines:lines};
     // parse symbol table
