@@ -172,7 +172,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
 
   start = function() {
     ram = new RAM(arcade ? 0x5000 : 0x1000);
-    var lzgrom = window['ASTROCADE_LZGROM'];
+    var lzgrom = window['ASTROCADE_LZGROM'] || window['ASTROCADE_BIOS_LZG'];
     if (lzgrom)
       bios = new lzgmini().decode(stringToByteArray(atob(lzgrom)));
     else
@@ -320,6 +320,11 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     this.reset();
   }
 
+  loadBIOS(title, data) {
+    bios = padBytes(data, 0x2000);
+    this.reset();
+  }
+
   loadState(state) {
     cpu.loadState(state.c);
     ram.mem.set(state.b);
@@ -426,9 +431,16 @@ const _BallyArcadePlatform = function(mainElement) {
   this.loadControlsState(_in);
 }
 
+const _BallyAstrocadeBIOSPlatform = function(mainElement) {
+  this.__proto__ = new (_BallyAstrocadePlatform as any)(mainElement);
+
+  this.loadROM = this.loadBIOS;
+}
+
 /////
 
 PLATFORMS['astrocade'] = _BallyAstrocadePlatform;
+PLATFORMS['astrocade-bios'] = _BallyAstrocadeBIOSPlatform;
 PLATFORMS['astrocade-arcade'] = _BallyArcadePlatform;
 
 //http://glankonian.com/~lance/astrocade_palette.html
@@ -439,3 +451,5 @@ for (var i=0; i<256; i++) {
   x = ((x&0xff)<<16) | ((x>>16)&0xff) | (x&0x00ff00);
   ASTROCADE_PALETTE[i] = x | 0xff000000;
 }
+
+//var ASTROCADE_BIOS_LZG = decodeURIComponent();

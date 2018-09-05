@@ -5,7 +5,7 @@
 import $ = require("jquery");
 import * as bootstrap from "bootstrap";
 import { CodeProject } from "./project";
-import { WorkerResult, SourceFile } from "./workertypes";
+import { WorkerResult, SourceFile, WorkerError } from "./workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset } from "./baseplatform";
 import { PLATFORMS } from "./emu";
@@ -95,6 +95,7 @@ function initProject() {
       toolbar.removeClass("is-busy");
       toolbar.removeClass("has-errors"); // may be added in next callback
       projectWindows.setErrors(null);
+      $("#error_alert").hide();
     }
     $('#compile_spinner').css('visibility', busy ? 'visible' : 'hidden');
   };
@@ -469,11 +470,24 @@ function updateSelector() {
   });
 }
 
+function showErrorAlert(errors : WorkerError[]) {
+  var div = $("#error_alert_msg").empty();
+  for (var err of errors.slice(0,10)) {
+    var s = '';
+    if (err.path) s += err.path + ":";
+    if (err.line) s += err.line + ":";
+    s += err.msg;
+    div.append($("<p>").text(s));
+  }
+  $("#error_alert").show();
+}
+
 function setCompileOutput(data: WorkerResult) {
   // errors? mark them in editor
   if (data.errors && data.errors.length > 0) {
-    projectWindows.setErrors(data.errors);
     toolbar.addClass("has-errors");
+    projectWindows.setErrors(data.errors);
+    showErrorAlert(data.errors);
   } else {
     // process symbol map
     symbolmap = data.symbolmap;

@@ -13,6 +13,7 @@ var FONT_DEFAULT_PARAMS = {
     wbytes:1,
     width:8,
     height:8,
+    yoffset:0,
     lochar:32,
     hichar:127,
     rotate:false,
@@ -36,6 +37,7 @@ var FONT_PRESETS = {
        vcs: { output:'dasm', msbfirst:true },
   mw8080bw: { rotate:true, flip:true, msbfirst:true },
        nes: { np:2, msbfirst:true },
+ astrocade: { output:'zmac', msbfirst:true },
 };
 
 function loadPreset(preset_id) {
@@ -58,6 +60,7 @@ function refreshToolbar(event?) {
       case 'height':
       case 'lochar':
       case 'hichar':
+      case 'yoffset':
         params[event.item.id] = parseInt(event.item.value);
         break;
       case 'rotate':
@@ -77,6 +80,10 @@ function refreshToolbar(event?) {
       case 'charsel':
         if (event.subItem)
           loadCharSel(event.subItem.id);
+        break;
+      case 'output':
+        if (event.subItem)
+          params[event.item.id] = event.subItem.id;
         break;
     }
   }
@@ -172,19 +179,27 @@ function renderGlyph(glyph, putPixel) {
   var h = glyph.bbx[1];
   var dx = glyph.bbx[2];
   var dy = glyph.bbx[3];
+  var error_logged = false;
   for (var y=0; y<glyph.bytes.length; y++) {
       for (var x=0; x<w; x++) {
           if (glyph.bytes[glyph.bytes.length-y-1] & (0x800000 >> x)) {
               var xx = x+dx;
               var yy = y+dy;
+              yy += params.yoffset || 0;
               /*
               font.pixbounds[0] = Math.min(font.pixbounds[0], xx);
               font.pixbounds[1] = Math.min(font.pixbounds[1], yy);
               font.pixbounds[2] = Math.max(font.pixbounds[2], xx);
               font.pixbounds[3] = Math.max(font.pixbounds[3], yy);
               */
-              if (xx >= 0 && yy >= 0 && xx < params.width && yy < params.height)
+              var xoutrange = xx < 0 || x >= params.width;
+              var youtrange = yy < 0 || y >= params.width;
+              if (!xoutrange && !youtrange) {
                 putPixel(xx, yy);
+              } else if (!error_logged) {
+                errors.push((xoutrange?"X":"Y") + " out of range on character " + String.fromCharCode(glyph.ord) + " " + x + "," + y);
+                error_logged = true;
+              }
           }
       }
   }
@@ -244,12 +259,6 @@ function encodeGlyph(glyph, bytes) {
         }
         var xoutrange = (x <  0 || x >= params.width);
         var youtrange = (y <  0 || y >= params.height);
-        if (xoutrange || youtrange) {
-            if (!abort) {
-                errors.push((xoutrange?"X":"Y") + " out of range on character " + String.fromCharCode(glyph.ord) + " " + x + "," + y);
-                abort = true;
-            }
-        }
         var bpb = 8 / (params.bpp||1);
         var ofs = Math.floor(x/bpb) + (params.height-1-y)*params.wbytes;
         var bit = x % bpb;
@@ -260,7 +269,8 @@ function encodeGlyph(glyph, bytes) {
 
 function encodeFont() {
     var s = '';
-    if (params.output.startsWith('c_')) {
+    var c_output = params.output.startsWith('c_');
+    if (c_output) {
       //s += '/* ' + JSON.stringify(params) + JSON.stringify(font.bounds) + JSON.stringify(font.pixbounds) + ' */\n';
       s += "#define LOCHAR " + params.lochar + "\n";
       s += "#define HICHAR " + params.hichar + "\n";
@@ -268,9 +278,9 @@ function encodeFont() {
       s += "#define FONT_HEIGHT " + params.height + "\n";
       s += "const char FONT[HICHAR-LOCHAR+1][FONT_HEIGHT*FONT_BWIDTH] = {\n";
     } else {
-      s += "LOCHAR\t\t= " + params.lochar + "\n";
-      s += "HICHAR\t\t= " + params.hichar + "\n";
-      s += "FONT_HEIGHT\t= " + params.height + "\n";
+      s += "LOCHAR\t\tequ " + params.lochar + "\n";
+      s += "HICHAR\t\tequ " + params.hichar + "\n";
+      s += "FONT_HEIGHT\tequ " + params.height + "\n";
       s += "FontData:\n";
     }
     errors = [];
@@ -281,19 +291,23 @@ function encodeFont() {
             encodeGlyph(glyph, bytes);
             if (params.output=='c_nested') s += "{ ";
             else if (params.output=='dasm') s += "\thex\t";
+            else if (params.output=='zmac') s += "\tdb\t";
             for (var i=0; i<bytes.length; i++) {
-              if (params.output.startsWith('c_'))
-                s += "0x" + hex(bytes[i]) + ",";
-              else if (params.output == 'dasm')
+              if (params.output == 'dasm')
                 s += hex(bytes[i]);
+              else
+                s += "0x" + hex(bytes[i]) + ((i<bytes.length-1)?",":"");
             }
             if (params.output=='c_nested') s += " },";
-            if (!params.output.startsWith('c_') || params.newline) s += "\n";
+            if (!c_output || params.newline) s += "\n";
         }
     }
-    s += "};\n";
+    if (c_output) s += "};\n";
     while (errors.length) {
+      if (c_output)
         s = "/* " + errors.pop() + " */\n" + s;
+      else
+        s = ";; " + errors.pop() + "\n" + s;
     }
     return s;
 }
@@ -356,6 +370,7 @@ $().w2toolbar({
 			 { text: 'Midway 8080',   id: 'mw8080bw' }, 
 			 { text: 'NES',           id: 'nes' },
 			 { text: 'Apple ][',    	id: 'apple2' },
+			 { text: 'Astrocade',    	id: 'astrocade' },
 		  ]},
 		{ type: 'check',  id: 'rotate', caption: 'Rotate', img: 'fas fa-sync', tooltip: 'Rotate 90 degrees (swap X/Y)' },
 		{ type: 'check',  id: 'xflip', caption: 'Mirror', img: 'fas fa-arrows-alt-h', tooltip: 'Flip X axis' },
@@ -370,10 +385,19 @@ $().w2toolbar({
   		]},
 		{ type: 'html', id: 'width', html: toolbarHTMLItem('width','Width:',2) },
 		{ type: 'html', id: 'height', html: toolbarHTMLItem('height','Height:',2) },
+		{ type: 'html', id: 'yoffset', html: toolbarHTMLItem('yoffset','Y Offset:',2) },
+		{ type: 'menu-radio', id: 'output', caption: 'Output', img: 'icon-folder',
+		  tooltip: 'Output format',
+		  items: [
+			 { text: 'C array (nested)', id: 'c_nested' }, 
+			 { text: 'C array (flat)',   id: 'c_flat' }, 
+			 { text: 'Assembler (DASM)', id: 'dasm' }, 
+			 { text: 'Assembler (zmac)', id: 'zmac' },
+		  ]},
 		{ type: 'break', id: 'break1' },
-		{ type: 'menu-radio', id: 'charsel', caption: 'Characters', img: 'icon-folder', 
+		
+		{ type: 'menu-radio', id: 'charsel', caption: 'Chars', img: 'icon-folder', 
 		  tooltip: 'Range of characters to encode, from first to last',
-		  //text: function(item) { refreshCharSel(item); return item.caption; },
 		  items: [
 			 //{ text: 'ISO (256 chars)', value:'0-255' }, 
 			 { text: 'ASCII (upper only)', id:'32-95' }, 

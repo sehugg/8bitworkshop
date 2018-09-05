@@ -65,7 +65,7 @@ TODO:
 - click to break on raster position
 - restructure folders
 - update memory browser window if view before 1st compile, update symbols
-- spinner disappears sometimes
+- spinner disappears sometimes (and compiles even when not spinning...)
 
 
 WEB WORKER FORMAT

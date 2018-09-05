@@ -496,7 +496,7 @@ export class DisassemblerView implements ProjectView {
   getCursorPC() : number {
     var line = this.disasmview.getCursor().line;
     if (line >= 0) {
-      var toks = this.disasmview.getLine(line).split(/\s+/);
+      var toks = this.disasmview.getLine(line).trim().split(/\s+/);
       if (toks && toks.length >= 1) {
         var pc = parseInt(toks[0], 16);
         if (pc >= 0) return pc;

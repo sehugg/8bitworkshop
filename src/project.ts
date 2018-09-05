@@ -258,8 +258,8 @@ export class CodeProject {
   
   processBuildResult(data:WorkerResult) {
     // TODO: link listings with source files
-    this.listings = data.listings;
-    if (this.listings) {
+    if (data.listings) {
+      this.listings = data.listings;
       for (var lstname in this.listings) {
         var lst = this.listings[lstname];
         if (lst.lines)

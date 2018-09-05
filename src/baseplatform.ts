@@ -523,8 +523,8 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
     switch (category) {
       case 'CPU':   return cpuStateToLongString_Z80(state.c);
       case 'Stack': {
-        var sp = state.c.SP;
-        var start = ((sp-1) & 0xff00);
+        var sp = state.c.SP-1;
+        var start = sp & 0xff00;
         var end = start + 0xff;
         if (sp == 0) sp = 0x10000;
         return dumpStackToString(<Platform><any>this, [], start, end, sp, 0xcd);
@@ -897,7 +897,7 @@ export function dumpStackToString(platform:Platform, mem:number[], start:number,
     } else {
       if (nraw == 0)
         s += "\n$" + hex(sp) + ": ";
-      s += hex(read(sp+1)) + " ";
+      s += hex(read(sp)) + " ";
       if (++nraw == 8) nraw = 0;
     }
   }

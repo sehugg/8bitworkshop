@@ -165,6 +165,13 @@ var PLATFORM_PARAMS = {
      data_size: 0x220,
      stack_end: 0x8000,
   },
+  'astrocade-bios': {
+    code_start: 0x0000,
+      rom_size: 0x2000,
+    data_start: 0x4fce,
+     data_size: 50,
+     stack_end: 0x4fce,
+  },
 };
 
 // shim out window and document objects for security
@@ -598,7 +605,7 @@ function assembleDASM(step) {
         unresolved[matches[1]] = 0;
       }
     } else if (s.startsWith("Warning:")) {
-      errors.push({line:1, msg:s.substr(9)});
+      errors.push({line:0, msg:s.substr(9)});
     }
   }
   var Module = DASM({
@@ -918,7 +925,7 @@ function assembleSDASZ80(step) {
       if (matches) {
         //var errline = parseInt(matches[2]);
         errors.push({
-          line:1, // TODO
+          line:0, // TODO
           path:step.path,
           msg:matches[1]
         });
