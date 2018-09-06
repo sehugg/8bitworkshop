@@ -186,14 +186,8 @@ function renderGlyph(glyph, putPixel) {
               var xx = x+dx;
               var yy = y+dy;
               yy += params.yoffset || 0;
-              /*
-              font.pixbounds[0] = Math.min(font.pixbounds[0], xx);
-              font.pixbounds[1] = Math.min(font.pixbounds[1], yy);
-              font.pixbounds[2] = Math.max(font.pixbounds[2], xx);
-              font.pixbounds[3] = Math.max(font.pixbounds[3], yy);
-              */
               var xoutrange = xx < 0 || x >= params.width;
-              var youtrange = yy < 0 || y >= params.width;
+              var youtrange = yy < 0 || y >= params.height;
               if (!xoutrange && !youtrange) {
                 putPixel(xx, yy);
               } else if (!error_logged) {
@@ -250,8 +244,6 @@ function previewFont() {
 function encodeGlyph(glyph, bytes) {
     var abort = false;
     renderGlyph(glyph, function(x,y) {
-        //x -= font.pixbounds[0];
-        //y -= font.pixbounds[1];
         if (params.yflip) { y = params.height-1-y; }
         if (params.xflip ^ params.rotate) { x = params.width-1-x; }
         if (params.rotate) {
