@@ -21,14 +21,14 @@
 `define OP_SBB  4'hf
 
 
-module ALU(A, B, Y, aluop, carry);
+module ALU(A, B, carry, aluop, Y);
 
-  parameter N = 8;
-  input  [N-1:0] A;
-  input  [N-1:0] B;
-  output [N:0] Y;
-  input  [3:0] aluop;
-  input  carry;
+  parameter N = 8;	// default width = 8 bits
+  input  [N-1:0] A;	// A input
+  input  [N-1:0] B;	// B input
+  input  carry;		// carry input
+  input  [3:0] aluop;	// alu operation
+  output [N:0] Y;	// Y output + carry
   
   always @(*)
     case (aluop)
@@ -312,8 +312,8 @@ module test_CPU16_top(
 .org 0x8000
 .len 256
       mov	sp,@$6fff
-      mov dx,@Fib
-      jsr dx
+      mov	dx,@Fib
+      jsr	dx
       reset
 Fib:
       mov	ax,#1
@@ -322,8 +322,8 @@ Loop:
       mov	cx,ax
       add	ax,bx
       mov	bx,cx
-      push ax
-      pop ax
+      push	ax
+      pop	ax
       mov	[42],ax
       mov	ax,[42]
       bcc	Loop

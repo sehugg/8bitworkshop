@@ -5,30 +5,30 @@
 // ALU operations
 `define OP_ZERO		4'h0
 `define OP_LOAD_A	4'h1
-`define OP_INC	4'h2
-`define OP_DEC	4'h3
-`define OP_ASL	4'h4
-`define OP_LSR	4'h5
-`define OP_ROL	4'h6
-`define OP_ROR	4'h7
-`define OP_OR	4'h8
-`define OP_AND	4'h9
-`define OP_XOR	4'ha
+`define OP_INC		4'h2
+`define OP_DEC		4'h3
+`define OP_ASL		4'h4
+`define OP_LSR		4'h5
+`define OP_ROL		4'h6
+`define OP_ROR		4'h7
+`define OP_OR		4'h8
+`define OP_AND		4'h9
+`define OP_XOR		4'ha
 `define OP_LOAD_B	4'hb
-`define OP_ADD	4'hc
-`define OP_SUB	4'hd
-`define OP_ADC	4'he
-`define OP_SBB	4'hf
+`define OP_ADD		4'hc
+`define OP_SUB		4'hd
+`define OP_ADC		4'he
+`define OP_SBB		4'hf
 
+// ALU module
+module ALU(A, B, carry, aluop, Y);
 
-module ALU(A, B, Y, aluop, carry);
-
-  parameter N = 8;
-  input  [N-1:0] A;
-  input  [N-1:0] B;
-  output [N:0] Y;
-  input  [3:0] aluop;
-  input  carry;
+  parameter N = 8;	// default width = 8 bits
+  input  [N-1:0] A;	// A input
+  input  [N-1:0] B;	// B input
+  input  carry;		// carry input
+  input  [3:0] aluop;	// alu operation
+  output [N:0] Y;	// Y output + carry
   
   always @(*)
     case (aluop)
@@ -176,11 +176,6 @@ module CPU(clk, reset, address, data_in, data_out, write);
               address <= {4'b0, data_in[3:0]};
               data_out <= A;
               write <= 1;
-              state <= S_SELECT;
-            end
-            // clear carry
-            8'b10001000: begin
-              carry <= 0;
               state <= S_SELECT;
             end
             // swap A,B

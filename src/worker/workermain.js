@@ -1284,6 +1284,9 @@ function compileVerilator(step) {
   var errors = [];
   var asmlines = [];
   step.code = compileInlineASM(step.code, platform, step, errors, asmlines);
+  if (errors.length) {
+    return {errors:errors};
+  }
   var code = step.code;
   var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?:)?(\d+)?[:]?\s*(.+)/i, 3, 4);
   var verilator_mod = verilator_bin({
