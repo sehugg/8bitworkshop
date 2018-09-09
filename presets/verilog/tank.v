@@ -140,7 +140,7 @@ module tank_game_top(clk, reset, hsync, vsync, rgb, switches_p1, switches_p2);
   );
 
   // multiplex player 1 and 2 load times during hsync
-  wire p2sel = hpos[3];
+  wire p2sel = hpos > 280;
   // sprite ROM inputs for each player
   wire [7:0] tank1_sprite_addr;
   wire [7:0] tank2_sprite_addr;

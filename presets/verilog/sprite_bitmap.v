@@ -65,13 +65,14 @@ module sprite_bitmap_top(clk, reset, hsync, vsync, rgb);
     .yofs(car_sprite_yofs), 
     .bits(car_sprite_bits));
 
+  // start Y counter when we hit the top border (player_y)
   always @(posedge hsync)
-    // start sprite?
     if (vpos == player_y)
       car_sprite_yofs <= 15;
     else if (car_sprite_yofs != 0)
       car_sprite_yofs <= car_sprite_yofs - 1;
   
+  // restart X counter when we hit the left border (player_x)
   always @(posedge clk)
     if (hpos == player_x)
       car_sprite_xofs <= 15;
