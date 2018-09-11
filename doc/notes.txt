@@ -65,7 +65,8 @@ TODO:
 - click to break on raster position
 - restructure folders
 - update memory browser window if view before 1st compile, update symbols
-- spinner disappears sometimes (and compiles even when not spinning...)
+- spinner disappears sometimes (and compiles even when not spinning...) (undo?)
+- z80 illegal opcode kills platform
 
 
 WEB WORKER FORMAT

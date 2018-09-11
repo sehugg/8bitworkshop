@@ -287,9 +287,9 @@ export class SourceEditor implements ProjectView {
   }
   
   refreshDebugState(moveCursor:boolean) {
-    this.clearCurrentLine();
     var line = this.getActiveLine();
     if (line >= 0) {
+      this.clearCurrentLine();
       this.setCurrentLine(line, moveCursor);
       // TODO: switch to disasm?
     }
@@ -443,7 +443,7 @@ export class DisassemblerView implements ProjectView {
       var a = start;
       var s = "";
       while (a < end) {
-        var disasm = platform.disassemble(a, platform.readAddress);
+        var disasm = platform.disassemble(a, platform.readAddress.bind(platform));
         /* TODO: look thru all source files
         var srclinenum = sourcefile && this.sourcefile.offset2line[a];
         if (srclinenum) {
@@ -574,14 +574,14 @@ export class MemoryView implements ProjectView {
     var div = document.createElement('div');
     div.setAttribute("class", "memdump");
     parent.appendChild(div);
-    this.showMemoryWindow(div);
+    this.showMemoryWindow(parent, div);
     return this.maindiv = div;
   }
 
-  showMemoryWindow(parent : HTMLElement) {
+  showMemoryWindow(workspace:HTMLElement, parent:HTMLElement) {
     this.memorylist = new VirtualList({
-      w:$("#workspace").width(),
-      h:$("#workspace").height(),
+      w: $(workspace).width(),
+      h: $(workspace).height(),
       itemHeight: getVisibleEditorLineHeight(),
       totalRows: 0x1000,
       generatorFn: (row : number) => {

@@ -22,7 +22,8 @@ export class CodeProject {
   platform: any; // TODO: use type
   store: any;
   callbackGetRemote : GetRemoteCallback;
-  mainPath: string;
+  mainPath : string;
+  isCompiling : boolean = false;
   
   constructor(worker, platform_id:string, platform, store) {
     this.worker = worker;
@@ -36,6 +37,8 @@ export class CodeProject {
         this.sendBuild();
       } else {
         if (this.callbackBuildStatus) this.callbackBuildStatus(false);
+        if (!this.isCompiling) { console.log(this.pendingWorkerMessages); console.trace(); } // debug compile problems
+        this.isCompiling = false;
       }
       this.pendingWorkerMessages = 0;
       if (e.data && !e.data.unchanged) {
@@ -238,6 +241,7 @@ export class CodeProject {
         var workermsg = this.buildWorkerMessage(depends);
         this.worker.postMessage(workermsg);
       }
+      this.isCompiling = true;
     });
   }
   

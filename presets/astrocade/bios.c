@@ -58,26 +58,26 @@ byte __at (0x0000) vmagic[VHEIGHT][VBWIDTH];
 byte __at (0x4000) vidmem[VHEIGHT][VBWIDTH];
 
 // Used by MUSIC PROCESSOR:
-word MUZPC;   //     $4FCE   // MUSic Program Counter
-word MUZSP;   //     $4FD0   // MUSic Stack Pointer
-byte PVOLAB;  //     $4FD2   // Preset VOLume for tones A and B
-byte PVOLMC;  //     $4FD3   // Preset VOLuMe for tone C and Noise Mode
-byte VOICES;  //     $4FD4   // music VOICES mask
+volatile word MUZPC;   //     $4FCE   // MUSic Program Counter
+volatile word MUZSP;   //     $4FD0   // MUSic Stack Pointer
+volatile byte PVOLAB;  //     $4FD2   // Preset VOLume for tones A and B
+volatile byte PVOLMC;  //     $4FD3   // Preset VOLuMe for tone C and Noise Mode
+volatile byte VOICES;  //     $4FD4   // music VOICES mask
 // COUNTER TIMERS (used by DECCTS,ACTINT,CTIMER):
-byte CT[8];
+volatile byte CT[8];
 // Used by SENTRY to track controls:
-byte CNT;     //     $4FDD   // Counter update & Number Tracking
-byte SEMI4S;  //     $4FDE   // SEMAPHORE flag bitS
-byte OPOT[4]; //     $4FDF   // Old POT 0 tracking byte
-byte KEYSEX;  //     $4FE3   // KEYS-EX tracking byte
-byte OSW[4];  //     $4FE4   // Old SWitch 0 tracking byte
-word COLLST;  //     $4FE8   // COLset LaST address for P.B. A
+volatile byte CNT;     //     $4FDD   // Counter update & Number Tracking
+volatile byte SEMI4S;  //     $4FDE   // SEMAPHORE flag bitS
+volatile byte OPOT[4]; //     $4FDF   // Old POT 0 tracking byte
+volatile byte KEYSEX;  //     $4FE3   // KEYS-EX tracking byte
+volatile byte OSW[4];  //     $4FE4   // Old SWitch 0 tracking byte
+volatile word COLLST;  //     $4FE8   // COLset LaST address for P.B. A
 // Used by STIMER:
-byte DURAT;   //     $4FEA   // note DURATion
-byte TMR60;   //     $4FEB   // TiMeR for SIXTY'ths of sec
-byte TIMOUT;  //     $4FEC   // TIMer for blackOUT
-byte GTSECS;  //     $4FED   // Game Time SECondS
-byte GTMINS;  //     $4FEE   // Game Time MINuteS
+volatile byte DURAT;   //     $4FEA   // note DURATion
+volatile byte TMR60;   //     $4FEB   // TiMeR for SIXTY'ths of sec
+volatile byte TIMOUT;  //     $4FEC   // TIMer for blackOUT
+volatile byte GTSECS;  //     $4FED   // Game Time SECondS
+volatile byte GTMINS;  //     $4FEE   // Game Time MINuteS
 // Used by MENU:
 long RANSHT;  //     $4FEF   // RANdom number SHifT register
 byte NUMPLY;  //     $4FF3   // NUMber of PLaYers
@@ -93,20 +93,26 @@ word* USERTB;  //     $4FFD   // USER Table Base + routine = JumP address
 // start routine @ 0x0
 void bios_start()  __naked {
 __asm
-  DI
-  LD	SP,#0x4fce
-  CALL	_bios_init
-  LD	HL,#0x2005
+  DI			; disable interrupts
+  LD	SP,#0x4fce	; position stack below BIOS vars
+  LD	HL,#0x2000
+  LD	A,(HL)		; A <- mem[0x2000]
+  CP	#0x55		; found sentinel byte? ($55)
+  JP	Z,FoundSentinel	; yes, load program
+#ifndef TEST
+  JP	0x2000		; jump to $2000
+#else
+  JP	_main		; jump to test program
+#endif
+FoundSentinel:
+  CALL	_bios_init	; misc. bios init routines
+  LD	HL,#0x2005	; cartridge start vector
   LD	A,(HL)
   INC	HL
-#ifndef TEST
   LD	H,(HL)
   LD	L,A
-  JP	(HL)
-#else
-  JP	_main
-#endif
-  .ds	0x38 - 0xf	; skip to 0x38
+  JP	(HL)		; jump to cart start vector
+  .ds	0x38 - 0x1b	; eat up space until 0x38
 __endasm;
 }
 
@@ -120,8 +126,8 @@ __asm
   push	iy
   ld	hl,#0
   add	hl,sp
-  push	hl
-  call	_SYSCALL
+  push	hl		; HL points to context block
+  call	_SYSCALL	; syscall handler
   pop	hl
   pop	iy
   pop	ix
@@ -144,9 +150,9 @@ void DOPE()  __naked {
 __asm
   JP	_STIMER
   JP	_CTIMER
-  .db	0x20, 8, 8, 1, 7
+  .db	0x20, 8, 8, 1, 7	; Font descriptor (big font)
   .dw	_BIGFONT
-  .db	0xa0, 4, 6, 1, 5
+  .db	0xa0, 4, 6, 1, 5	; Font descriptor (small font)
   .dw	_SMLFONT
 __endasm;
 }
@@ -243,6 +249,49 @@ void EXIT(ContextBlock *ctx) {
 // jumps to HL
 void RCALL(ContextBlock *ctx) {
   ((Routine*)ctx->regs.w.hl)();
+}
+
+// start interpreting at HL
+void MCALL(ContextBlock *ctx) {
+  ctx; // TODO
+}
+
+// exit MCALL loop
+void MRET(ContextBlock *ctx) {
+  ctx; // TODO
+}
+
+// jump within MCALL
+void MJUMP(ContextBlock *ctx) {
+  ctx->params = (byte*) ctx->regs.w.hl; // TODO?
+}
+
+void suckParams(ContextBlock *ctx, byte argmask) {
+  byte* dest = (byte*) ctx;
+  byte* src = ctx->params;
+  if (argmask & REG_IX) {
+    ctx->regs.b.ixl = *src++;
+    ctx->regs.b.ixh = *src++;
+  }
+  if (argmask & REG_E)
+    ctx->regs.b.e = *src++;
+  if (argmask & REG_D)
+    ctx->regs.b.d = *src++;
+  if (argmask & REG_C)
+    ctx->regs.b.c = *src++;
+  if (argmask & REG_B)
+    ctx->regs.b.b = *src++;
+  if (argmask & REG_A)
+    ctx->regs.b.a = *src++;
+  if (argmask & REG_HL) {
+    ctx->regs.b.l = *src++;
+    ctx->regs.b.h = *src++;
+  }
+  ctx->params = src;
+}
+
+void SUCK(ContextBlock* ctx) {
+  suckParams(ctx, ctx->regs.b.b);
 }
 
 void ACTINT(ContextBlock *ctx) {
@@ -344,15 +393,20 @@ void draw_string(ContextBlock *ctx, const char* str, byte x, byte y, byte op) {
   } while (1);
 }
 
-// String display routine
-void STRDIS(ContextBlock *ctx) {
+// String display routine (pass pointer to string)
+void STRDIS2(ContextBlock *ctx, char *str) {
   byte opts = ctx->regs.b.c;
   byte x = ctx->regs.b.e;
   byte y = ctx->regs.b.d;
-  char* str = (char*) ctx->regs.w.hl;
   void* fontdesc = (void*) ctx->regs.w.ix;
   hw_xpand = opts & 0xf;
   draw_string(ctx, str, x, y, 3&(opts>>4)); // TODO: opts
+}
+
+// String display routine
+void STRDIS(ContextBlock *ctx) {
+  char* str = (char*) ctx->regs.w.hl;
+  STRDIS2(ctx, str);
 }
 
 // Character display routine
@@ -360,8 +414,21 @@ void CHRDIS(ContextBlock *ctx) {
   char chstr[2];
   chstr[0] = ctx->regs.b.a;
   chstr[1] = 0;
-  ctx->regs.w.hl = (word) &chstr;
-  STRDIS(ctx);
+  STRDIS2(ctx, chstr);
+}
+
+// BCD routine
+const char BCDTAB[17] = "0123456789*+,-./";
+
+void DISNUM(ContextBlock *ctx) {
+  // TODO: options, B
+  word oldhl = ctx->regs.w.hl;
+  byte val = *(byte*) oldhl;
+  char bcdstr[3];
+  bcdstr[0] = BCDTAB[val >> 4];
+  bcdstr[1] = BCDTAB[val & 15];
+  bcdstr[2] = 0;
+  STRDIS2(ctx, bcdstr);
 }
 
 typedef struct {
@@ -369,17 +436,29 @@ typedef struct {
   byte xsize, ysize;
   byte pattern[0];
 } PatternBlock;
+// TODO
+
+void wait_vsync() {
+  byte x = TMR60;
+  while (x == TMR60) ; // wait until timer/60 changes
+}
+
+void PAWS(ContextBlock *ctx) {
+  while (ctx->regs.b.b--) {
+    wait_vsync();
+  }
+}
 
 const SysCallEntry SYSCALL_TABLE[64] = {
   /* 0 */
   { &INTPC,	0 },
   { &EXIT,	0 },
   { &RCALL,	REG_HL },
-  { 0, 0 },
-  { 0, 0 },
+  { &MCALL,	REG_HL },
+  { &MRET, 	0 },
   /* 10 */
-  { 0, 0 },
-  { 0, 0 },
+  { &MJUMP,	REG_HL },
+  { &SUCK,	REG_B },
   { &ACTINT,	0 },
   { 0, 0 },
   { 0, 0 },
@@ -404,7 +483,7 @@ const SysCallEntry SYSCALL_TABLE[64] = {
   /* 50 */
   { &CHRDIS,	REG_E|REG_D|REG_C|REG_A },
   { &STRDIS,	REG_E|REG_D|REG_C|REG_HL },
-  { 0, 0 },
+  { &DISNUM,	REG_E|REG_D|REG_C|REG_HL },
   { 0, 0 },
   { 0, 0 },
   /* 60 */
@@ -420,7 +499,7 @@ const SysCallEntry SYSCALL_TABLE[64] = {
   { 0, 0 },
   { 0, 0 },
   /* 80 */
-  { 0, 0 },
+  { &PAWS,	REG_B },
   { 0, 0 },
   { 0, 0 },
   { 0, 0 },
@@ -449,30 +528,6 @@ const SysCallEntry SYSCALL_TABLE[64] = {
   { 0, 0 },
   { 0, 0 },
 };
-
-void suckParams(ContextBlock *ctx, byte argmask) {
-  byte* dest = (byte*) ctx;
-  byte* src = ctx->params;
-  if (argmask & REG_IX) {
-    ctx->regs.b.ixl = *src++;
-    ctx->regs.b.ixh = *src++;
-  }
-  if (argmask & REG_E)
-    ctx->regs.b.e = *src++;
-  if (argmask & REG_D)
-    ctx->regs.b.d = *src++;
-  if (argmask & REG_C)
-    ctx->regs.b.c = *src++;
-  if (argmask & REG_B)
-    ctx->regs.b.b = *src++;
-  if (argmask & REG_A)
-    ctx->regs.b.a = *src++;
-  if (argmask & REG_HL) {
-    ctx->regs.b.l = *src++;
-    ctx->regs.b.h = *src++;
-  }
-  ctx->params = src;
-}
 
 void SYSCALL(ContextBlock *ctx) {
   byte op = *ctx->params++;
