@@ -585,6 +585,10 @@ var VerilogPlatform = function(mainElement, options) {
         this.poweron();
         // query output
         this.hasvideo = gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined;
+        if (this.hasvideo) {
+          const IGNORE_SIGNALS = ['clk','reset'];
+          trace_signals = trace_signals.filter((v) => { return IGNORE_SIGNALS.indexOf(v.name)<0; }); // remove clk, reset
+        }
       }
     }
     // replace program ROM, if using the assembler
@@ -607,7 +611,7 @@ var VerilogPlatform = function(mainElement, options) {
       this.waveview = null;
     }
   }
-
+  
   restartAudio() {
     // stop/start audio
     var hasAudio = gen && gen.spkr !== undefined && frameRate > 1;

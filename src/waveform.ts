@@ -156,7 +156,7 @@ export class WaveformView {
   }
   
   setZoom(zoom : number) {
-    this.zoom = Math.max(1, zoom);
+    this.zoom = Math.max(1, Math.min(64, zoom));
     this.clocksPerPage = Math.ceil(this.pageWidth/this.zoom); // TODO: refactor into other one
     this.refresh();
   }
@@ -181,19 +181,30 @@ export class WaveformView {
     // clear to black
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     // draw waveform
-    ctx.strokeStyle = "#66ff66";
-    var b = 4;
-    var h2 = h-16-b;
+    ctx.strokeStyle = ctx.fillStyle = "#66ff66";
+    var fh = 12;
+    var b1 = fh+4;
+    var b2 = 4;
+    var h2 = h-b1-b2;
     var yrange = ((1<<meta.len)-1) || 0;
     var data = this.wfp.getSignalData(row, this.t0, Math.ceil(w/this.zoom));
     this.clockMax = Math.max(this.clockMax, this.t0 + data.length);
+    var printvals = meta.len > 1 && this.zoom >= 32;
+    var ycen = b1+h2-1;
+    // draw waveform
     ctx.beginPath();
     var x = 0;
     var y = 0;
+    var lastval = -1;
     for (var i=0; i<data.length; i++) {
+      var val = data[i];
+      if (printvals && val != lastval) {
+        ctx.fillText(val.toString(), x+this.zoom/4, ycen);
+      }
+      lastval = val;
       if (i>0)
         ctx.lineTo(x,y);
-      y = b + (1.0 - data[i]/yrange) * h2;
+      y = b1 + (1.0 - val/yrange) * h2;
       if (!isclk) x += this.zoom*(1/8);
       if (i==0)
         ctx.moveTo(x,y);
@@ -217,7 +228,7 @@ export class WaveformView {
       var val = data[this.tsel - this.t0];
       ctx.textAlign = 'right';
       if (val !== undefined) {
-        ctx.fillText(val.toString(), w-b*2, h);
+        ctx.fillText(val.toString(), w-fh, ycen);
       }
     }
     // draw labels
@@ -225,7 +236,7 @@ export class WaveformView {
     ctx.textAlign = "left";
     var name = meta.name;
     name = name.replace(/__DOT__/g, ".");	// make nicer name
-    ctx.fillText(name, 5, h-b);
+    ctx.fillText(name, 5, fh);
   }
 }
 
