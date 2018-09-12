@@ -215,9 +215,21 @@ div.emulator {
   left:50%;
   top:0;
   width:50%;
+  height:100%;
   background-color: #666;
   margin-top: 20px auto 0;
+}
+div.emuoverlay {
+  position:absolute;
+  left:0;
+  top:0;
+  width:100%;
   height:100%;
+}
+div.emuscope {
+  background-color: #333;
+}
+div.emuspacer {
 }
 /* has to be here b/c renders differently after first load if in inline style */
 .emuvideo {
@@ -299,4 +311,15 @@ div.replaydiv {
 .slider {
  margin-left: 1em;
  margin-right: 1em;
+}
+.gutter {
+  background-color: #555;
+  background-repeat: no-repeat;
+  background-position: 50%;
+}
+.gutter.gutter-vertical {
+  background-image:  url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFAQMAAABo7865AAAABlBMVEVHcEzMzMzyAv2sAAAAAXRSTlMAQObYZgAAABBJREFUeF5jOAMEEAIEEFwAn3kMwcB6I2AAAAAASUVORK5CYII=')
+}
+.gutter.gutter-horizontal {
+  background-image:  url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==')
 }

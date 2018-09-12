@@ -7,37 +7,14 @@ body {
   overflow: hidden !important;
   font-size: 11px;
 }
-.pixeditback {
-  position:absolute;
-  z-index:100;
-  width:100%;
-  height:100%;
-  padding:50px;
-  border-width:4px;
-  border-color:#333;
-  border-style:solid;
-  background-color:rgba(64, 64, 64, 0.5);
-}
-#pixeditframe {
-  width:100%;
-  height:100%;
+.waverow {
+  background: #000;
+  color: #99ff99;
 }
 </style>
 <link rel="stylesheet" href="css/ui.css">
-<script>
-window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
-if (window.location.host.endsWith('8bitworkshop.com')) {
-  ga('create', 'UA-54497476-9', 'auto');
-  ga('set', 'anonymizeIp', true);
-  ga('send', 'pageview');
-}
-</script>
-<script async src='https://www.google-analytics.com/analytics.js'></script>
 </head>
 <body>
-
-<!-- for file upload -->
-<input type="file" id="uploadFileElem" multiple accept="*" style="display:none" onchange="handleFileUpload(this.files)">
 
 <div id="controls_top">
     <span class="dropdown">
@@ -134,13 +111,6 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
     <button id="dbg_stepout" type="submit" title="Step Out of Subroutine"><span class="glyphicon glyphicon-hand-up" aria-hidden="true"></span></button>
     <button id="dbg_stepback" type="submit" title="Step Backwards"><span class="glyphicon glyphicon-step-backward" aria-hidden="true"></span></button>
   </span>
-  <span class="btn_group view_group" id="speed_bar" style="display:none">
-    <button id="dbg_slowest" type="submit" title="Slowest"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
-    <button id="dbg_slower" type="submit" title="Slower"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
-    <span class="label"><span id="fps_label">60.00</span> fps</span>
-    <button id="dbg_faster" type="submit" title="Faster"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
-    <button id="dbg_fastest" type="submit" title="Faster"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
-  </span>
   <span class="btn_group view_group" id="extra_bar">
     <button id="dbg_timing" type="submit" title="Analyze CPU Timing" style="display:none"><span class="glyphicon glyphicon-time" aria-hidden="true"></span></button>
     <button id="dbg_disasm" type="submit" title="Show Disassembly" style="display:none"><span class="glyphicon glyphicon-list" aria-hidden="true"></span></button>
@@ -163,99 +133,31 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
           <img src="images/book_arcade.png"/>
           &nbsp;&nbsp;<b>Making 8-bit Arcade Games in C</b><!-- (Print Edition)-->
         </a>
-        <!--
-        <a class="dropdown-item dropdown-link" target="_book_arcade_pdf" href="https://gumroad.com/l/8bitworkshoparcadebook">
-          <img src="images/book_arcade.png"/>
-          &nbsp;&nbsp;<b>Making 8-bit Arcade Games in C</b> (Downloadable PDF)
-        </a>
-        -->
       </li>
     </ul>
   </span>
-  <!--<span id="best_in_firefox" style="display:none;font-size:12px;font-style:italic;float:right;color:#666">Note: Works best in Firefox</span>-->
+  <span class="btn_group view_group" id="scope_bar">
+    <button id="scope_go_start" type="submit" title="Go to beginning of trace"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
+    <button id="scope_go_back" type="submit" title="Go back a page"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
+    <input id="scope_index_text" size="5"></input>
+    <button id="scope_go_fwd" type="submit" title="Go forward a page"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
+    <button id="scope_go_end" type="submit" title="Go to end of trace"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
+  </span>
 </div>
 <div id="notebook">
   <div id="workspace">
   </div>
   <div class="emulator" id="emulator">
-    <div id="javatari-div" style="margin:10px; display:none">
-      <div id="javatari-screen" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
-      <div id="javatari-console-panel" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
+    <div class="emuoverlay" id="emuoverlay">
+      <div id="scope" class="emuscope">
+      </div>
+      <div id="scope2" class="emuscope">
+      </div>
     </div>
-    <div id="emuoverlay" class="emuoverlay">
-    </div>
-  </div>
-  <div id="mem_info" class="mem_info" style="display:none">
-  </div>
-  <div id="replaydiv" class="replaydiv" style="display:none">
-   <div style="display:flex">
-    <button id="replay_min" type="submit" title="Start of replay"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
-    <button id="replay_back" type="submit" title="Back one frame"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
-    <span id="replay_frame" style="text-align:center;width:3em;margin-left:1em;color:#ccc">-</span>
-    <input type="range" min="0" max="0" value="0" class="slider" id="replayslider">
-    <button id="replay_fwd" type="submit" title="Ahead one frame"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
-    <button id="replay_max" type="submit" title="End of replay"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
-   </div>
   </div>
   <div id="error_alert" class="alert alert-danger alert-dismissable" style="position:absolute;right:0;top:0;display:none">
     <!--<button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>-->
     <div id="error_alert_msg"></div>
-  </div>
-</div>
-<!--
-<div class="twitbtn">
-  <a target="_new" href="https://twitter.com/8bitworkshop" class="twitter-follow-button" data-show-count="false">Follow @8bitworkshop</a>-->
-  <!--<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>-->
-<!--</div>-->
-<div id="pixeditback" class="pixeditback" style="display:none">
-  <iframe id="pixeditframe" src="pixels.html">
-  </iframe>
-</div>
-<div id="pleaseWaitModal" class="modal fade">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <div class="modal-body">
-        Please wait...
-      </div>
-    </div>
-  </div>
-</div>
-<div id="videoPreviewModal" class="modal fade">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title">Video Preview - Right-click to save</h3>
-      </div>
-      <div class="modal-body">
-        <img id="videoPreviewImage">
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-<div id="embedLinkModal" class="modal fade">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title">Share Playable Link</h3>
-      </div>
-      <div class="modal-body">
-        <p>Here's a direct link to a playable version of your game:</p>
-        <textarea rows="4" cols="80" id="embedLinkTextarea" class="cliptext"></textarea>
-        <button type="button" class="btn btn-primary" data-clipboard-target="#embedLinkTextarea">Copy Direct Link</button>
-        <p>You can also embed it into an IFRAME:</p>
-        <textarea rows="4" cols="80" id="embedIframeTextarea" class="cliptext"></textarea>
-        <button type="button" class="btn btn-primary" data-clipboard-target="#embedIframeTextarea">Copy IFRAME Tag</button>
-        <p id="embedAdviceWarnIE">Note: These links may be too long for IE/Edge browsers.</p>
-        <p id="embedAdviceWarnAll">Note: These links may be too long for some browsers.</p>
-      </div>
-      <div class="modal-footer">
-        Choose one (or none) then
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -263,33 +165,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 
 <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
 <script src="bootstrap/js/bootstrap.min.js"></script>
-<link rel="stylesheet" href="bootstrap/css/bootstrap-tour.min.css">
-<script src="bootstrap/js/bootstrap-tour.min.js"></script>
 
-<script src="src/codemirror/codemirror.js"></script>
-<script src="codemirror/mode/clike/clike.js"></script>
-<script src="src/codemirror/6502.js"></script>
-<script src="codemirror/mode/z80/z80.js"></script>
-<script src="codemirror/mode/verilog/verilog.js"></script>
-<link rel="stylesheet" href="css/codemirror.css">
-<script src="codemirror/addon/edit/matchbrackets.js"></script>
-<script src="codemirror/addon/search/search.js"></script>
-<script src="codemirror/addon/search/searchcursor.js"></script>
-<script src="codemirror/addon/search/jump-to-line.js"></script>
-<script src="codemirror/addon/dialog/dialog.js"></script>
-<script src="codemirror/addon/selection/active-line.js"></script>
-<link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
-<script src="javatari.js/release/javatari/javatari.js"></script>
-<!--
-<script src="javatari.js/src/main/Javatari.js"></script>
-<script src="javatari.js/temp/javatari.part.concat.js"></script>
--->
-<script src="src/cpu/z80fast.js"></script>
-<script src="jsnes/jsnes.min.js"></script>
-<!--<script src="src/cpu/6809.js"></script>-->
-<!--<script src="jsnes/lib/dynamicaudio-min.js" type="text/javascript" charset="utf-8"></script>-->
-<script src="FileSaver.js/FileSaver.min.js"></script>
-<script src="localForage/dist/localforage.nopromises.js"></script>
 <script src="lib/mousetrap.min.js"></script>
 <script src="lib/split.min.js"></script>
 
@@ -308,34 +184,57 @@ function require(modname) {
 <script src="tss/js/Log.js"></script>
 
 <script src="gen/util.js"></script>
-<script src="gen/store.js"></script>
 <script src="src/vlist.js"></script>
 <script src="gen/emu.js"></script>
 <script src="gen/baseplatform.js"></script>
-<script src="gen/analysis.js"></script>
-<script src="gen/audio.js"></script>
-<script src="gen/cpu/disasm6502.js"></script>
-<script src="gen/cpu/disasmz80.js"></script>
-<script src="gen/workertypes.js"></script>
-<script src="gen/project.js"></script>
-<script src="gen/windows.js"></script>
-<script src="gen/views.js"></script>
-<script src="gen/recorder.js"></script>
 <script src="gen/waveform.js"></script>
-<script src="gen/ui.js"></script>
-<!-- <script src="src/audio/votrax.js"></script> -->
-
-<script src="local/lzg.js"></script>
 
 <script>
-  startUI(true);
-</script>
 
-<script>
+var wfp = {
+  getSignalMetadata: function() {
+    return [
+      {name:'clk', len:1},
+      {name:'big_signal_name__DOT__which_is_big', len:2},
+      {name:'sig3', len:3},
+      {name:'sig4', len:4},
+      {name:'sig5', len:5},
+      {name:'sig6', len:6},
+      {name:'sig7', len:7},
+      {name:'sig8', len:8},
+      {name:'sig9', len:9},
+      {name:'sig', len:1},{name:'sig', len:1},{name:'sig', len:1},{name:'sig', len:1},{name:'sig', len:1},{name:'sig', len:1},{name:'sig', len:1},
+    ];
+  },
+  getSignalData: function(i,s,l) {
+    l += s;
+    var arr = [];
+    while (s++<l) {
+      arr.push(s & (1<<(this.getSignalMetadata()[i].len)-1));
+    }
+    return arr;
+  },
+};
+var wfv = new WaveformView($('#scope')[0], wfp);
+var wfv2 = new WaveformView($('#scope2')[0], wfp);
+
+Split(['#scope', '#scope2'], {
+    minSize: [50, 50],
+    direction: 'vertical',
+    onDrag: function() {
+      wfv.recreate();
+      wfv2.recreate();
+    },
+});
+
 /*
-  var isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
-  if (!isFirefox && platform_id != 'vcs') { $("#best_in_firefox").show(); }
+function update() {
+  wfv.setOrgTime(wfv.t0+1); 
+  setTimeout(update, 1000/10);
+}
+update();
 */
+
 </script>
 
 </body>

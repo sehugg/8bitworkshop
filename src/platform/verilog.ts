@@ -4,6 +4,9 @@ import { Platform, BasePlatform } from "../baseplatform";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
 import { SampleAudio } from "../audio";
 import { safe_extend } from "../util";
+import { WaveformView, WaveformProvider, WaveformMeta } from "../waveform";
+
+declare var Split;
 
 var VERILOG_PRESETS = [
   {id:'clock_divider.v', name:'Clock Divider'},
@@ -224,28 +227,12 @@ var VerilogPlatform = function(mainElement, options) {
   var inspect_obj, inspect_sym;
   var inspect_data = new Uint32Array(videoWidth * videoHeight);
 
-  // for scope  
-  var scope_time_x = 0; // scope cursor
-  var scope_x_offset = 0;
-  var scope_y_offset = 0;
-  var scope_index_offset = 0;
-  var scope_max_y = 0;
-  var scope_y_top = 0;
-  var scope_a = 0; // used for transitions
-  var scopeWidth = videoWidth;
-  var scopeHeight = videoHeight;
-  var scopeImageData;
-  var sdata; // scope data
+  // for scope
   var module_name;
-  var yposlist = [];
-  var lasty = [];
-  var lastval = [];
-  var trace_ports;
+  //var trace_ports;
   var trace_signals;
   var trace_buffer;
   var trace_index;
-  var mouse_pressed;
-  var dirty = false;
 
   // for virtual CRT
   var framex=0;
@@ -308,7 +295,12 @@ var VerilogPlatform = function(mainElement, options) {
 
   // inner Platform class
     
- class _VerilogPlatform extends BasePlatform {
+ class _VerilogPlatform extends BasePlatform implements WaveformProvider {
+ 
+  waveview : WaveformView;
+  wavediv : JQuery;
+  split;
+  hasvideo : boolean;
 
   getPresets() { return VERILOG_PRESETS; }
 
@@ -321,37 +313,6 @@ var VerilogPlatform = function(mainElement, options) {
     ctx.textAlign = "left";
     setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
     var vcanvas = $(video.canvas);
-		vcanvas.mousemove( (e) => {
-      var new_x = Math.floor(e.offsetX * video.canvas.width / vcanvas.width() - 20);
-      var new_y = Math.floor(e.offsetY * video.canvas.height / vcanvas.height() - 20);
-      if (mouse_pressed) {
-        scope_y_offset = clamp(Math.min(0,-scope_max_y+videoHeight), 0, scope_y_offset + new_y - paddle_y);
-  			scope_time_x = Math.floor(e.offsetX * video.canvas.width / vcanvas.width() - 16);
-  			dirty = true;
-        this.refreshFrame();
-      }
-			paddle_x = clamp(8, 240, new_x);
-			paddle_y = clamp(8, 240, new_y);
-		});
-		vcanvas.mousedown( (e) => {
-			scope_time_x = Math.floor(e.offsetX * video.canvas.width / vcanvas.width() - 16);
-      mouse_pressed = true;
-      //if (e.target.setCapture) e.target.setCapture(); // TODO: pointer capture
-			dirty = true;
-      this.refreshFrame();
-		});
-		vcanvas.mouseup( (e) => {
-      mouse_pressed = false;
-      //if (e.target.setCapture) e.target.releaseCapture(); // TODO: pointer capture
-  		dirty = true;
-      this.refreshFrame();
-		});
-		vcanvas.keydown( (e) => {
-      switch (e.keyCode) {
-        case 37: scope_time_x--; dirty=true; this.refreshFrame(); break;
-        case 39: scope_time_x++; dirty=true; this.refreshFrame(); break;
-      }
-		});
     idata = video.getFrameData();
     timerCallback = () => {
 			if (!this.isRunning())
@@ -359,8 +320,30 @@ var VerilogPlatform = function(mainElement, options) {
       gen.switches = switches[0];
       this.updateFrame();
     };
-    trace_buffer = new Uint32Array(0x10000);
     this.setFrameRate(60);
+    // setup scope
+    trace_buffer = new Uint32Array(0x20000);
+    var overlay = $("#emuoverlay");
+    var topdiv = $('<div class="emuspacer">').appendTo(overlay);
+    this.wavediv = $('<div class="emuscope">').appendTo(overlay);
+    this.split = Split( [topdiv[0], this.wavediv[0]], {
+      minSize: [0,0],
+      sizes: [99,1],
+      direction: 'vertical',
+      gutterSize: 16,
+      onDrag: () => {
+        if (this.waveview) this.waveview.recreate();
+      },
+    });
+    // setup mouse events
+		topdiv.mousemove( (e) => {
+		  var x = e.pageX - vcanvas.offset().left;
+		  var y = e.pageY - vcanvas.offset().top;
+      var new_x = Math.floor(x * video.canvas.width / vcanvas.width() - 20);
+      var new_y = Math.floor(y * video.canvas.height / vcanvas.height() - 20);
+			paddle_x = clamp(8, 240, new_x);
+			paddle_y = clamp(8, 240, new_y);
+		});
   }
   
   setGenInputs() {
@@ -382,12 +365,19 @@ var VerilogPlatform = function(mainElement, options) {
     }
     // paint into frame, synched with vsync if full speed
     var sync = fps > 45;
-    var trace = fps < 0.02;
+    var trace = this.isScopeVisible();
     this.updateVideoFrameCycles(cyclesPerFrame * fps/60 + 1, sync, trace);
-    //if (trace) displayTraceBuffer();
     //this.restartDebugState();
     gen.__unreset();
     this.refreshVideoFrame();
+    // set scope offset
+    if (trace && this.waveview) {
+      this.waveview.setEndTime(Math.floor(trace_index/trace_signals.length));
+    }
+  }
+  
+  isScopeVisible() {
+    return this.split.getSizes()[1] > 2; // TODO?
   }
 
   // TODO: merge with prev func  
@@ -402,47 +392,40 @@ var VerilogPlatform = function(mainElement, options) {
   
   refreshVideoFrame() {
     this.updateInspectionFrame();
-    this.updateAnimateScope();
+    video.updateFrame();
     this.updateInspectionPostFrame();
+  }
+  
+  refreshScopeOverlay() {
+    // TODO
+  }
+  
+  updateScopeFrame() {
+    this.split.setSizes([0,100]); // ensure scope visible
+    var done = this.fillTraceBuffer(32 * trace_signals.length); // TODO: const
+    if (done)
+      this.pause(); // TODO?
+    // TODO
+  }
+  
+  updateScope() {
+    // create scope, if visible
+    if (this.isScopeVisible()) {
+      if (!this.waveview) {
+        this.waveview = new WaveformView(this.wavediv[0], this);
+      } else {
+        this.waveview.refresh();
+      }
+    }
   }
 
   updateFrame() {
     if (!gen) return;
-    if (gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined)
+    if (this.hasvideo)
       this.updateVideoFrame();
     else
       this.updateScopeFrame();
-  }
-
-  refreshFrame() {
-    if (!gen) return;
-    if (gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined)
-      this.refreshVideoFrame();
-    else
-      this.refreshScopeOverlay(trace_ports);
-  }
-
-  updateAnimateScope() {
-    var fps = this.getFrameRate();
-    var trace = fps < 0.02;
-    var ctx = video.getContext();
-    if (scope_a > 0.01) {
-      ctx.fillStyle = "black";
-      ctx.fillRect(0, 0, videoWidth, videoHeight);
-      var vidyoffset = Math.round(scope_a*(-framey+videoHeight/6));
-      video.updateFrame(0, vidyoffset, 0, 0, videoWidth, videoHeight);
-      ctx.fillStyle = "white";
-      ctx.fillRect(framex, framey+vidyoffset, 1, 1);
-      scope_index_offset = (trace_index - trace_signals.length*scopeWidth + trace_buffer.length) % trace_buffer.length;
-      scope_x_offset = 0;
-      this.refreshScopeOverlay(trace_signals);
-    } else {
-      video.updateFrame();
-      scope_index_offset = 0;
-    }
-    // smooth transition
-    scope_a = scope_a * 0.9 + (trace?1.0:0.0) * 0.1;
-    scope_y_top = (1 - scope_a*0.7) * videoHeight - (1 - scope_a) * scope_y_offset;
+    this.updateScope();
   }
 
   updateInspectionFrame() {
@@ -471,12 +454,15 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
-  updateVideoFrameCycles(ncycles, sync, trace) {
+  updateVideoFrameCycles(ncycles:number, sync:boolean, trace:boolean) {
     ncycles |= 0;
     var inspect = inspect_obj && inspect_sym;
+    var trace0 = trace_index;
     while (ncycles--) {
-      if (trace)
-        this.snapshotTrace(true);
+      if (trace) {
+        this.snapshotTrace();
+        if (trace_index == trace0) trace = false; // kill trace when wraps around
+      }
       vidtick();
       if (framex++ < videoWidth) {
         if (framey < videoHeight) {
@@ -513,123 +499,50 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
-  displayTraceBuffer() {
-    var skip = trace_signals.length;
-    var src = trace_index;
-    for (var dest=0; dest<idata.length; dest+=videoWidth) {
-      for (var i=0; i<skip; i++) {
-        if (--src < 0) src = trace_buffer.length-1;
-        var v = trace_buffer[src];
-        idata[dest+i] = RGBLOOKUP[v & 15]; // TODO?
-      }
-    }
-  }
-
-  snapshotTrace(signals) {
-    var arr = signals ? trace_signals : trace_ports;
+  snapshotTrace() {
+    var arr = trace_signals;
     for (var i=0; i<arr.length; i++) {
       var v = arr[i];
       var z = gen[v.name];
-      trace_buffer[trace_index++] = z;
-      if (trace_index >= trace_buffer.length) trace_index = 0;
+      if (typeof(z) === 'number')
+        trace_buffer[trace_index] = z;
+      trace_index++;
     }
+    if (trace_index >= trace_buffer.length - arr.length)
+      trace_index = 0;
   }
 
-  fillTraceBuffer(count) {
-    var max_index = Math.min(trace_buffer.length - trace_ports.length, trace_index + count);
+  fillTraceBuffer(count:number) : boolean {
+    var max_index = Math.min(trace_buffer.length - trace_signals.length, trace_index + count);
     while (trace_index < max_index) {
       gen.clk ^= 1;
       gen.eval();
-      this.snapshotTrace(false);
-      dirty = true;
+      this.snapshotTrace();
+      if (trace_index == 0)
+        break;
     }
     gen.__unreset();
+    return (trace_index == 0);
   }
-
-  updateScopeFrame() {
-    this.fillTraceBuffer(Math.floor(videoWidth/4) * trace_ports.length);
-    if (!dirty) return;
-    dirty = false;
-    scope_y_top = 0;
-    this.refreshScopeOverlay(trace_ports);
+  
+  getSignalMetadata() : WaveformMeta[] {
+    return trace_signals;
   }
-
-  refreshScopeOverlay(arr) {
-    if (!sdata) {
-      scopeImageData = video.getContext().createImageData(scopeWidth,scopeHeight);
-      sdata = new Uint32Array(scopeImageData.data.buffer);
+  
+  getSignalData(index:number, start:number, len:number) : number[] {
+    // TODO: not efficient
+    var skip = this.getSignalMetadata().length;
+    var last = trace_buffer.length - trace_signals.length; // TODO: refactor, and not correct
+    var wrap = this.hasvideo; // TODO?
+    var a = [];
+    index += skip * start;
+    while (index < last && a.length < len) {
+      a.push(trace_buffer[index]);
+      index += skip;
+      if (wrap && index >= last) // TODO: what if starts with index==last
+        index = 0;
     }
-    var COLOR_BLACK  = 0xff000000;
-    var COLOR_SIGNAL = 0xff22ff22;
-    var COLOR_BORDER = 0xff662222;
-    var COLOR_TRANS_SIGNAL = 0xff226622;
-    var COLOR_BLIP_SIGNAL = 0xff226622;
-    sdata.fill(0xff000000);
-    var jstart = scope_x_offset * arr.length + scope_index_offset;
-    var j = jstart;
-    for (var x=0; x<scopeWidth; x++) {
-      var yb = 8;
-      var y1 = scope_y_offset;
-      for (var i=0; i<arr.length; i++) {
-        var v = arr[i];
-        var lo = 0; // TODO? v.ofs?
-        var hi = ((1 << v.len)-1);
-        var ys = hi>1 ? v.len*2+8 : 8;
-        var y2 = y1+ys;
-        var z = trace_buffer[j++];
-        if (j >= trace_buffer.length) j = 0;
-        var y = Math.round(y2 - ys*((z-lo)/hi));
-        yposlist[i] = y2 + scope_y_top;
-        var ly = lasty[i];
-        if (x > 0 && ly != y) {
-          var dir = ly < y ? 1 : -1;
-          while ((ly += dir) != y && ly >= y1 && ly <= y2) {
-            sdata[x + ly * scopeWidth] = COLOR_TRANS_SIGNAL;
-          }
-        }
-        sdata[x + y * scopeWidth] = lastval[i]==z ? COLOR_SIGNAL : COLOR_BLIP_SIGNAL;
-        lasty[i] = y;
-        lastval[i] = z;
-        y1 += ys+yb;
-      }
-    }
-    scope_max_y = y1 - scope_y_offset;
-    video.getContext().putImageData(scopeImageData, 0, scope_y_top);
-    // draw labels
-    var ctx = video.getContext();
-    for (var i=0; i<arr.length; i++) {
-      var yp = yposlist[i];
-      if (yp < 20 || yp > videoHeight) continue;
-      var v = arr[i];
-      var name = v.name;
-      ctx.fillStyle = name == inspect_sym ? "yellow" : "white";
-      name = name.replace(/__DOT__/g,'.');
-      name = name.replace(module_name+'.','');
-      ctx.textAlign = 'left';
-      ctx.fillStyle = "white";
-      shadowText(ctx, name, 1, yposlist[i]);
-      if (scope_time_x > 0) {
-        ctx.textAlign = 'right';
-        var value = (arr.length * scope_time_x + i + jstart) % trace_buffer.length;
-        shadowText(ctx, ""+trace_buffer[value], videoWidth-1, yp);
-      }
-    }
-    // draw scope line & label
-    if (scope_time_x > 0) {
-      ctx.fillStyle = "cyan";
-      shadowText(ctx, ""+(scope_time_x+scope_x_offset),
-        (scope_time_x>10)?(scope_time_x-2):(scope_time_x+20), videoHeight-2);
-      ctx.fillRect(scope_time_x, 0, 1, 4000);
-    }
-    // scroll left/right
-    if (scope_time_x >= videoWidth && scope_x_offset < (trace_buffer.length / arr.length) - videoWidth) {
-      scope_x_offset += 1 + (scope_time_x - videoWidth);
-      dirty = true;
-    }
-    else if (scope_time_x < 0 && scope_x_offset > 0) {
-      scope_x_offset = Math.max(0, scope_x_offset + scope_time_x);
-      dirty = true;
-    }
+    return a;
   }
 
   printErrorCodeContext(e, code) {
@@ -664,11 +577,14 @@ var VerilogPlatform = function(mainElement, options) {
         gen.__proto__ = base;
         current_output = output;
         module_name = output.name ? output.name.substr(1) : "top";
-        trace_ports = current_output.ports;
-        trace_signals = current_output.ports.concat(current_output.signals);
+        //trace_ports = current_output.ports;
+        trace_signals = current_output.ports.concat(current_output.signals);	// combine ports + signals
+        trace_signals = trace_signals.filter((v) => { return !v.name.startsWith("__V"); }); // remove __Vclklast etc
         trace_index = 0;
         // power on module
         this.poweron();
+        // query output
+        this.hasvideo = gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined;
       }
     }
     // replace program ROM, if using the assembler
@@ -685,6 +601,11 @@ var VerilogPlatform = function(mainElement, options) {
     }
     // restart audio
     this.restartAudio();
+    // destroy scope
+    if (this.waveview) {
+      this.waveview.destroy();
+      this.waveview = null;
+    }
   }
 
   restartAudio() {
@@ -735,9 +656,8 @@ var VerilogPlatform = function(mainElement, options) {
   }
   reset() {
     gen.__reset();
-    trace_index = scope_x_offset = 0;
+    trace_index = 0;
     if (trace_buffer) trace_buffer.fill(0);
-    dirty = true;
     if (video) video.setRotate(gen.rotate ? -90 : 0);
   }
   tick() {
@@ -769,7 +689,6 @@ var VerilogPlatform = function(mainElement, options) {
     } else {
       inspect_obj = inspect_sym = null;
     }
-    dirty = true;
   }
 
   // DEBUGGING
