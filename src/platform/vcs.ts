@@ -123,6 +123,7 @@ class VCSPlatform extends BasePlatform {
   setupDebug(callback) {
     Javatari.room.console.onBreakpointHit = (state) => {
       state.c.PC = (state.c.PC - 1) & 0xffff;
+      this.fixState(state);
       Javatari.room.console.pause();
       Javatari.room.speaker.mute();
       this.lastDebugState = state;
@@ -150,7 +151,12 @@ class VCSPlatform extends BasePlatform {
     return new CodeAnalyzer_vcs(this);
   }
   saveState() {
-    return Javatari.room.console.saveState();
+    var state = Javatari.room.console.saveState();
+    this.fixState(state);
+    return state;
+  }
+  fixState(state) {
+    state.c.EPC = state.c.PC + (state.ca.bo || 0); // effective PC for ROM
   }
   loadState(state) {
     return Javatari.room.console.loadState(state);
@@ -210,7 +216,7 @@ class VCSPlatform extends BasePlatform {
   }
   getDebugInfo(category, state) {
     switch (category) {
-      case 'CPU':    return this.cpuStateToLongString(state.c);
+      case 'CPU':    return (state.ca.bo ? ("BankOffset "+hex(state.ca.bo)+"\n"):"") + this.cpuStateToLongString(state.c);
       case 'Stack':	 return dumpStackToString(this, this.getRAMForState(state), 0x100, 0x1ff, 0x100+state.c.SP, 0x20);
       case 'PIA':    return this.ramStateToLongString(state) + "\n" + this.piaStateToLongString(state.p);
       case 'TIA':    return this.tiaStateToLongString(state.t);

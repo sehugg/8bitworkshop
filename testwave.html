@@ -22,70 +22,6 @@ body {
         <span class="glyphicon glyphicon-menu-hamburger" aria-hidden="true"></span></button>
         <span class="caret"></span>
       </a>
-      <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-      <li><a class="dropdown-item" href="#" id="item_new_file">New Project...</a></li>
-      <li><a class="dropdown-item" href="#" id="item_upload_file">Upload File...</a></li>
-      <li><a class="dropdown-item" href="#" id="item_reset_file">Revert to Original...</a></li>
-      <li class="dropdown dropdown-submenu">
-        <a tabindex="-1" href="#">Download</a>
-        <ul class="dropdown-menu">
-          <li><a class="dropdown-item" href="#" id="item_download_file">Download Source File</a></li>
-          <li><a class="dropdown-item" href="#" id="item_download_rom">Download ROM Image</a></li>
-          <li><a class="dropdown-item" href="#" id="item_download_zip">Download Project as ZIP</a></li>
-          <li><a class="dropdown-item" href="#" id="item_download_allzip">Download All Changes as ZIP</a></li>
-        </ul>
-      </li>
-      <li class="dropdown dropdown-submenu">
-        <a tabindex="-1" href="#">Share</a>
-        <ul class="dropdown-menu">
-          <li><a class="dropdown-item" href="#" id="item_record_video">Record Video...</a></li>
-          <li><a class="dropdown-item" href="#" id="item_share_file">Share Playable Link...</a></li>
-        </ul>
-      </li>
-      <li class="dropdown dropdown-submenu">
-        <a tabindex="-1" href="#">Debug</a>
-        <ul class="dropdown-menu">
-          <li><a class="dropdown-item" href="#" id="item_debug_expr">Break Expression...</a></li>
-        </ul>
-      </li>
-      <li class="dropdown dropdown-submenu">
-        <a tabindex="-1" href="#">Tools</a>
-        <ul class="dropdown-menu">
-          <li><a class="dropdown-item" target="_8bws_tools" href="./tools/fontgen/">Bitmap Font Generator</a></li>
-        </ul>
-      </li>
-      <hr>
-      <li class="dropdown dropdown-submenu">
-        <a tabindex="-1" href="#">Platform</a>
-        <ul class="dropdown-menu">
-          <li class="dropdown dropdown-submenu">
-             <a tabindex="-1" href="#">Game Consoles</a>
-             <ul class="dropdown-menu">
-               <li><a class="dropdown-item" href="?platform=vcs" id="item_platform_vcs">Atari 2600/VCS</a></li>
-             </ul>
-          </li>
-          <li class="dropdown dropdown-submenu">
-             <a tabindex="-1" href="#">Computers</a>
-             <ul class="dropdown-menu">
-               <li><a class="dropdown-item" href="?platform=apple2" id="item_platform_apple2">Apple ][+</a></li>
-             </ul>
-          </li>
-          <li class="dropdown dropdown-submenu">
-             <a tabindex="-1" href="#">Arcade Systems</a>
-             <ul class="dropdown-menu">
-               <!--<li><a class="dropdown-item" href="?platform=vcs-mame" id="item_platform_vcs">Atari VCS (MAME)</a></li>-->
-               <!--<li><a class="dropdown-item" href="?platform=apple2" id="item_platform_apple2">Apple ][</a></li>-->
-               <li><a class="dropdown-item" href="?platform=vicdual" id="item_platform_vicdual">VIC Dual</a></li>
-               <li><a class="dropdown-item" href="?platform=mw8080bw" id="item_platform_mw8080bw">Midway 8080</a></li>
-               <li><a class="dropdown-item" href="?platform=galaxian-scramble" id="item_platform_galaxian_scramble">Galaxian/Scramble Hardware</a></li>
-               <li><a class="dropdown-item" href="?platform=vector-z80color" id="item_platform_vector_z80color">Atari Color Vector (Z80)</a></li>
-               <li><a class="dropdown-item" href="?platform=williams-z80" id="item_platform_williams_z80">Williams (Z80)</a></li>
-               <li><a class="dropdown-item" href="?platform=sound_williams-z80" id="item_platform_sound_williams_z80">Williams Sound (Z80)</a></li>
-             </ul>
-          </li>
-        </ul>
-      </li>
-    </ul>
   </span>
 
   <select id="preset_select" name="" title="Project Select">
@@ -101,54 +37,27 @@ body {
   </span>
 
   <img id="compile_spinner" src="images/spinner.gif" height="20em" style="visibility:hidden;margin-left:8px;margin-right:8px">
-  <span class="btn_group debug_group" id="debug_bar">
-    <button id="dbg_reset" type="submit" title="Reset and Break"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></button>
-    <button id="dbg_pause" type="button" title="Pause"><span class="glyphicon glyphicon-pause" aria-hidden="true"></span></button>
-    <button id="dbg_go" type="button" title="Run"><span class="glyphicon glyphicon-play" aria-hidden="true"></span></button>
-    <button id="dbg_step" type="submit" title="Step"><span class="glyphicon glyphicon-step-forward" aria-hidden="true"></span></button>
-    <button id="dbg_tovsync" type="submit" title="Single Frame"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
-    <button id="dbg_toline" type="submit" title="Run To Line"><span class="glyphicon glyphicon-save" aria-hidden="true"></span></button>
-    <button id="dbg_stepout" type="submit" title="Step Out of Subroutine"><span class="glyphicon glyphicon-hand-up" aria-hidden="true"></span></button>
-    <button id="dbg_stepback" type="submit" title="Step Backwards"><span class="glyphicon glyphicon-step-backward" aria-hidden="true"></span></button>
-  </span>
-  <span class="btn_group view_group" id="extra_bar">
-    <button id="dbg_timing" type="submit" title="Analyze CPU Timing" style="display:none"><span class="glyphicon glyphicon-time" aria-hidden="true"></span></button>
-    <button id="dbg_disasm" type="submit" title="Show Disassembly" style="display:none"><span class="glyphicon glyphicon-list" aria-hidden="true"></span></button>
-    <button id="dbg_memory" type="submit" title="Show Memory" style="display:none"><span class="glyphicon glyphicon-sunglasses" aria-hidden="true"></span></button>
-    <button id="dbg_profile" type="submit" title="Show Profile" style="display:none"><span class="glyphicon glyphicon-stats" aria-hidden="true"></span></button>
-    <button id="dbg_bitmap" type="submit" title="Edit Bitmap"><span class="glyphicon glyphicon-camera" aria-hidden="true"></span></button>
-    <button id="dbg_record" type="submit" title="Start/Stop Replay Recording" style="display:none"><span class="glyphicon glyphicon-record" aria-hidden="true"></span></button>
-  </span>
   <span class="dropdown" style="float:right">
     <a class="btn btn-secondary dropdown-toggle" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
       GET BOOKS <span class="caret"></span>
     </a>
-    <ul class="dropdown-menu pull-right" aria-labelledby="dropdownMenuButton">
-      <li>
-        <a class="dropdown-item dropdown-link" target="_book_a2600" href="https://www.amazon.com/gp/product/1541021304/ref=as_li_qf_sp_asin_il_tl?ie=UTF8&tag=pzp-20&camp=1789&creative=9325&linkCode=as2&creativeASIN=B01N4DSRIZ&linkId=04d39e274c06e6c93b93d20a9a977111">
-          <img src="images/book_a2600.png"/>
-          &nbsp;&nbsp;<b>Making Games For The Atari 2600</b><!-- (Print/Kindle Editions)-->
-        </a>
-        <a class="dropdown-item dropdown-link" target="_book_arcade" href="https://www.amazon.com/gp/product/1545484759/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1545484759&linkCode=as2&tag=pzp-20&linkId=b27709c022d2ebe639e90316d9f4fd5b">
-          <img src="images/book_arcade.png"/>
-          &nbsp;&nbsp;<b>Making 8-bit Arcade Games in C</b><!-- (Print Edition)-->
-        </a>
-      </li>
-    </ul>
   </span>
-  <span class="btn_group view_group" id="scope_bar">
-    <button id="scope_go_start" type="submit" title="Go to beginning of trace"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
-    <button id="scope_go_back" type="submit" title="Go back a page"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
-    <input id="scope_index_text" size="5"></input>
-    <button id="scope_go_fwd" type="submit" title="Go forward a page"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
-    <button id="scope_go_end" type="submit" title="Go to end of trace"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
-  </span>
+  
+
 </div>
 <div id="notebook">
   <div id="workspace">
   </div>
   <div class="emulator" id="emulator">
     <div class="emuoverlay" id="emuoverlay">
+        <span class="btn-group" role="group">
+          <button type="button" class="btn btn-xs" onclick="this.blur();" title="Go to start of trace"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
+          <button type="button" class="btn btn-xs" onclick="this.blur();" title="Go backward"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
+          <button type="button" class="btn btn-xs" onclick="this.blur();" title="Go forward"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
+          <button type="button" class="btn btn-xs" onclick="this.blur();" title="Go to end of trace"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
+          <button type="button" class="btn btn-xs" onclick="this.blur();" title="Zoom out"><span class="glyphicon glyphicon-zoom-out" aria-hidden="true"></span></button>
+          <button type="button" class="btn btn-xs" onclick="this.blur();" title="Zoom in"><span class="glyphicon glyphicon-zoom-in" aria-hidden="true"></span></button>
+        </span>
       <div id="scope" class="emuscope">
       </div>
       <div id="scope2" class="emuscope">
@@ -194,16 +103,16 @@ function require(modname) {
 var wfp = {
   getSignalMetadata: function() {
     return [
-      {name:'clk', len:1},
-      {name:'big_signal_name__DOT__which_is_big', len:2},
-      {name:'sig3', len:3},
-      {name:'sig4', len:4},
-      {name:'sig5', len:5},
-      {name:'sig6', len:6},
-      {name:'sig7', len:7},
-      {name:'sig8', len:8},
-      {name:'sig9', len:9},
-      {name:'sig', len:1},{name:'sig', len:1},{name:'sig', len:1},{name:'sig', len:1},{name:'sig', len:1},{name:'sig', len:1},{name:'sig', len:1},
+      {label:'clk', len:1},
+      {label:'big_signal_name__DOT__which_is_big', len:2},
+      {label:'sig3', len:3},
+      {label:'sig4', len:4},
+      {label:'sig5', len:5},
+      {label:'sig6', len:6},
+      {label:'sig7', len:7},
+      {label:'sig8', len:8},
+      {label:'sig9', len:9},
+      {label:'sig', len:1},{label:'sig', len:1},{label:'sig', len:1},{label:'sig', len:1},{label:'sig', len:1},{label:'sig', len:1},{label:'sig', len:1},
     ];
   },
   getSignalData: function(i,s,l) {

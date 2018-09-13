@@ -182,7 +182,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
       <div id="javatari-screen" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
       <div id="javatari-console-panel" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
     </div>
-    <div id="emuoverlay" class="emuoverlay">
+    <div id="emuoverlay" class="emuoverlay" style="display:none">
     </div>
   </div>
   <div id="mem_info" class="mem_info" style="display:none">
@@ -291,6 +291,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <script src="FileSaver.js/FileSaver.min.js"></script>
 <script src="localForage/dist/localforage.nopromises.js"></script>
 <script src="lib/mousetrap.min.js"></script>
+<script src="lib/mousetrap-global-bind.min.js"></script>
 <script src="lib/split.min.js"></script>
 
 <script>
@@ -328,6 +329,7 @@ function require(modname) {
 <script src="local/lzg.js"></script>
 
 <script>
+  //Split(["#workspace", "#emulator"], {sizes: [50,50]});
   startUI(true);
 </script>
 

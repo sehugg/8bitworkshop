@@ -3,7 +3,7 @@ declare var VirtualList;
 declare var Mousetrap;
 
 export interface WaveformMeta {
-  name : string;
+  label : string;
   len : number;
 }
 
@@ -44,7 +44,7 @@ export class WaveformView {
   destroy() {
     // remove old thing
     if (this.wavelist) {
-      $(this.parent).empty();
+      $(this.wavelist.container).remove();
     }
   }
   
@@ -61,7 +61,7 @@ export class WaveformView {
       itemHeight: rowHeight,
       totalRows: this.meta.length,
       generatorFn: (row : number) => {
-        var s = this.meta[row].name;
+        var s = this.meta[row].label;
         var linediv = document.createElement("div");
         var canvas = document.createElement("canvas");
         canvas.width = width - 4;
@@ -79,7 +79,7 @@ export class WaveformView {
     $(this.parent).append(wlc);
     var down = false;
     var selfn = (e) => {
-      this.setSelTime(e.offsetX / this.zoom + this.t0);
+      this.setSelTime(e.offsetX / this.zoom + this.t0 - 0.5);
     };
     $(wlc).mousedown( (e) => {
       down = true;
@@ -92,6 +92,9 @@ export class WaveformView {
     $(wlc).mouseup( (e) => {
       down = false;
       //if (e['pointerId']) e.target.releasePointerCapture(e['pointerId']);
+    });
+    Mousetrap(wlc).bind('=', (e,combo) => {
+      this.setZoom(this.zoom * 2);
     });
     Mousetrap(wlc).bind('+', (e,combo) => {
       this.setZoom(this.zoom * 2);
@@ -111,22 +114,13 @@ export class WaveformView {
     Mousetrap(wlc).bind('ctrl+right', (e,combo) => {
       this.setSelTime(this.tsel + this.clocksPerPage/4);
     });
+    Mousetrap(wlc).bind('ctrl+shift+left', (e,combo) => {
+      this.setSelTime(0);
+      this.setOrgTime(0);
+    });
     $(window).resize(() => {
       this.recreate();
     }); // TODO: remove?
-    // assign buttons
-    $("#scope_go_start").click(() => {
-      this.setOrgTime(0);
-    });
-    $("#scope_go_end").click(() => {
-      // TODO
-    });
-    $("#scope_go_fwd").click(() => {
-      this.setOrgTime(this.t0 + this.clocksPerPage/4);
-    });
-    $("#scope_go_back").click(() => {
-      this.setOrgTime(this.t0 - this.clocksPerPage/4);
-    });
   }
   
   roundT(t : number) {
@@ -147,9 +141,9 @@ export class WaveformView {
   
   setSelTime(t : number) {
     t = this.roundT(t);
-    if (t > this.t0 + this.clocksPerPage)
+    if (t >= this.t0 + this.clocksPerPage - 1)
       this.t0 += this.clocksPerPage / 4;
-    if (t < this.t0)
+    if (t <= this.t0 + 2)
       this.t0 -= this.clocksPerPage / 4;
     this.tsel = t;
     this.setOrgTime(this.t0);
@@ -173,7 +167,7 @@ export class WaveformView {
     var canvas = this.lines[row];
     var meta = this.meta[row];
     if (!canvas || !meta) return;
-    var isclk = (meta.name == 'clk');
+    var isclk = (meta.label == 'clk');
     var w = canvas.width;
     var h = canvas.height;
     var ctx = canvas.getContext("2d");
@@ -234,9 +228,7 @@ export class WaveformView {
     // draw labels
     ctx.fillStyle = "white";
     ctx.textAlign = "left";
-    var name = meta.name;
-    name = name.replace(/__DOT__/g, ".");	// make nicer name
-    ctx.fillText(name, 5, fh);
+    ctx.fillText(meta.label, 5, fh);
   }
 }
 

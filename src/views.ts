@@ -279,8 +279,8 @@ export class SourceEditor implements ProjectView {
   getActiveLine() {
     var state = lastDebugState;
     if (state && state.c && this.sourcefile) {
-      var PC = state.c.PC;
-      var line = this.sourcefile.findLineForOffset(PC, 15);
+      var EPC = state.c.EPC || state.c.PC;
+      var line = this.sourcefile.findLineForOffset(EPC, 15);
       return line;
     } else
       return -1;
@@ -529,7 +529,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
     this.refreshListing();
     if (!this.assemblyfile) return; // TODO?
     var state = lastDebugState || platform.saveState();
-    var pc = state.c ? state.c.PC : 0;
+    var pc = state.c ? (state.c.PC || state.c.EPC) : 0;
     var asmtext = this.assemblyfile.text;
     var disasmview = this.getDisasmView();
     if (platform_id == 'base_z80') { // TODO

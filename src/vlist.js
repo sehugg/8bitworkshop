@@ -136,6 +136,7 @@ VirtualList.prototype._renderChunk = function(node, from) {
 
 VirtualList.createContainer = function(w, h) {
   var c = document.createElement('div');
+  c.classList.add('vlist');
   c.style.width = w;
   c.style.height = h;
   c.style.overflow = 'auto';

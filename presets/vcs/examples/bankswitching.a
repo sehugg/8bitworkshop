@@ -1,4 +1,4 @@
-
+﻿
 	processor 6502
         include "vcs.h"
         include "macro.h"
@@ -35,18 +35,33 @@ Temp	.byte
         jmp BankSwitch
         ENDM
 
+; Bank prologue that handles reset
+; no matter which bank is selected at powerup
+; it switches to bank 0 and jumps to Reset_0
+	MAC BANK_PROLOGUE
+        lda #>(Reset_0-1)
+        ldy #<(Reset_0-1)
+        ldx #$ff
+        txs		; set up stack pointer
+        inx		; X = 0
+        ENDM
+
+; Bank epilogue -- 6502 vectors
+	MAC BANK_VECTORS
+	.word Start      ; NMI
+	.word Start      ; RESET
+	.word Start	 ; BRK
+        ENDM
+
 	seg Code
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; BANK 0
 
-	org $1000
-	rorg $F000
+	org  $1000
+	rorg $1000
 ;----The following code is the same on both banks----
 Start
-; Ensure that bank 0 is selected
-        lda #>(Reset_0-1)
-        ldy #<(Reset_0-1)
-        ldx #0
+	BANK_PROLOGUE
 BankSwitch
 	BANK_SWITCH_TRAMPOLINE
 ;----End of bank-identical code----
@@ -63,23 +78,18 @@ Reset_0
         jmp BankSwitch
 
 ; Bank 0 epilogue
-	org $1FFA
+	org  $1FFA
 	rorg $FFFA
-	.word Start      ; NMI
-	.word Start      ; RESET
-	.word Start	 ; BRK
+	BANK_VECTORS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; BANK 1
 
-	org $2000
-	rorg $F000
+	org  $2000
+	rorg $1000
 ;----The following code is the same on both banks----
 Start
-; Ensure that bank 0 is selected
-        lda #>(Reset_0-1)
-        ldy #<(Reset_0-1)
-        ldx #0
+	BANK_PROLOGUE
 BankSwitch
 	BANK_SWITCH_TRAMPOLINE
 ;----End of bank-identical code----
@@ -92,8 +102,6 @@ Main_1
         BANK_SWITCH 0,Reset_0
 
 ; Bank 1 epilogue
-	org $2FFA
+	org  $2FFA
 	rorg $FFFA
-	.word Start      ; NMI
-	.word Start      ; RESET
-	.word Start	 ; BRK
+	BANK_VECTORS

@@ -15,7 +15,7 @@ import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap,
 import { StateRecorderImpl } from "./recorder";
 
 // external libs (TODO)
-declare var ga, Tour, GIF, saveAs, JSZip;
+declare var ga, Tour, GIF, saveAs, JSZip, Mousetrap;
 // in index.html
 declare var exports;
 
@@ -223,7 +223,8 @@ function getSkeletonFile(fileid:string, callback) {
 }
 
 function _createNewFile(e) {
-  var filename = prompt("Create New File", "newfile" + platform.getDefaultExtension());
+  // TODO: support spaces
+  var filename = prompt("Create New File (no spaces)", "newfile" + platform.getDefaultExtension());
   if (filename && filename.length) {
     if (filename.indexOf(".") < 0) {
       filename += platform.getDefaultExtension();
@@ -599,6 +600,13 @@ function resume() {
   userPaused = false;
 }
 
+function togglePause() {
+  if (platform.isRunning())
+    pause();
+  else
+    resume();
+}
+
 function singleStep() {
   setupBreakpoint("step");
   platform.step();
@@ -816,29 +824,41 @@ function _toggleRecording() {
 }
 
 function setupDebugControls(){
+
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
   $("#dbg_go").click(resume);
+  Mousetrap.bindGlobal('ctrl+alt+p', togglePause);
+  Mousetrap.bindGlobal('ctrl+alt+r', resetAndDebug);
 
-  if (platform.step)
+  if (platform.step) {
     $("#dbg_step").click(singleStep).show();
-  else
+    Mousetrap.bindGlobal('ctrl+alt+s', singleStep);
+  } else
     $("#dbg_step").hide();
-  if (platform.runToVsync)
+
+  if (platform.runToVsync) {
     $("#dbg_tovsync").click(singleFrameStep).show();
-  else
+    Mousetrap.bindGlobal('ctrl+alt+v', singleFrameStep);
+  } else
     $("#dbg_tovsync").hide();
-  if ((platform.runEval || platform.runToPC) && platform_id != 'verilog')
+
+  if ((platform.runEval || platform.runToPC) && platform_id != 'verilog') {
     $("#dbg_toline").click(runToCursor).show();
-                                    else
+    Mousetrap.bindGlobal('ctrl+alt+l', runToCursor);
+  } else
     $("#dbg_toline").hide();
-  if (platform.runUntilReturn)
+
+  if (platform.runUntilReturn) {
     $("#dbg_stepout").click(runUntilReturn).show();
-  else
+    Mousetrap.bindGlobal('ctrl+alt+o', runUntilReturn);
+  } else
     $("#dbg_stepout").hide();
-  if (platform.stepBack)
+
+  if (platform.stepBack) {
     $("#dbg_stepback").click(runStepBackwards).show();
-  else
+    Mousetrap.bindGlobal('ctrl+alt+b', runStepBackwards);
+  } else
     $("#dbg_stepback").hide();
 
   if (platform.newCodeAnalyzer) {

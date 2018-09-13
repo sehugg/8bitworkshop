@@ -323,7 +323,7 @@ var VerilogPlatform = function(mainElement, options) {
     this.setFrameRate(60);
     // setup scope
     trace_buffer = new Uint32Array(0x20000);
-    var overlay = $("#emuoverlay");
+    var overlay = $("#emuoverlay").show();
     var topdiv = $('<div class="emuspacer">').appendTo(overlay);
     this.wavediv = $('<div class="emuscope">').appendTo(overlay);
     this.split = Split( [topdiv[0], this.wavediv[0]], {
@@ -580,6 +580,9 @@ var VerilogPlatform = function(mainElement, options) {
         //trace_ports = current_output.ports;
         trace_signals = current_output.ports.concat(current_output.signals);	// combine ports + signals
         trace_signals = trace_signals.filter((v) => { return !v.name.startsWith("__V"); }); // remove __Vclklast etc
+        for (var v of trace_signals) {
+          v.label = v.name.replace(/__DOT__/g, ".");	// make nicer name
+        }
         trace_index = 0;
         // power on module
         this.poweron();

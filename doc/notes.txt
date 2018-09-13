@@ -40,7 +40,6 @@ TODO:
 - compile stuck when errors unchanged
 - sound mute?
 - $error updates source editor
-- Verilog compile spins forever?
 - go to error in include files
 - BOM in upload/download?
 - online tools for music etc
@@ -53,14 +52,10 @@ TODO:
 - better VCS single stepping, maybe also listings
 - New File (include file)
 - VCS skips step on lsr/lsr after run to line
-- update window list after building 2nd time?
-- stop debugging where mouse clicked
 - bring back the profiler!
-- vcs disasm is broken
 - links to external tools in ide
 - error msg when #link doesn't work
 - figure out folders for projects for real
-- verilog download rom
 - why loadState() on verilog kill perf?
 - click to break on raster position
 - restructure folders
@@ -68,6 +63,9 @@ TODO:
 - spinner disappears sometimes (and compiles even when not spinning...) (undo?)
 - z80 illegal opcode kills platform
 - quantify verilog "graph iterations"
+- debug bankswitching for funky formats
+- "invalid ROM" error should show up better
+- spaces in filename don't parse code listing (DASM, maybe more)
 
 
 WEB WORKER FORMAT
