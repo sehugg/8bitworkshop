@@ -124,7 +124,7 @@ export function VL_RANDOM_I(bits) { return 0 | Math.floor(Math.random() * (1<<bi
 abstract class VerilatorBase {
 
   totalTicks = 0;
-  maxVclockLoop = 1;
+  maxVclockLoop = 0;
   clk = 0;
   reset = 0;
 
@@ -182,7 +182,11 @@ abstract class VerilatorBase {
     }
     if (__VclockLoop > this.maxVclockLoop) {
       this.maxVclockLoop = __VclockLoop;
-      console.log("Graph took " + this.maxVclockLoop + " iterations to stabilize");
+      if (this.maxVclockLoop > 1) {
+        console.log("Graph took " + this.maxVclockLoop + " iterations to stabilize");
+        $("#verilog_bar").show();
+        $("#settle_label").text(this.maxVclockLoop+"");
+      }
     }
     this.totalTicks++;
   }
@@ -666,6 +670,7 @@ var VerilogPlatform = function(mainElement, options) {
     trace_index = 0;
     if (trace_buffer) trace_buffer.fill(0);
     if (video) video.setRotate(gen.rotate ? -90 : 0);
+    $("#verilog_bar").hide();
   }
   tick() {
     gen.tick2();

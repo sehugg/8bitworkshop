@@ -66,6 +66,10 @@ TODO:
 - debug bankswitching for funky formats
 - "invalid ROM" error should show up better
 - spaces in filename don't parse code listing (DASM, maybe more)
+- zmac: item_lookup needs better hash function
+- 'undefined' for bitmap replacer
+- astrocade: run to cursor in hello world messes up emulation
+- requestInterrupt needs to be disabled after breakpoint?
 
 
 WEB WORKER FORMAT

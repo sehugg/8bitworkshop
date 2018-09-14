@@ -86,6 +86,10 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   
   function ramwrite(a:number, v:number) {
     ram.mem[a] = v;
+    ramupdate(a, v);
+  }
+  
+  function ramupdate(a:number, v:number) {
     var ofs = a*4+3; // 4 pixels per byte
     for (var i=0; i<4; i++) {
       var lr = ((a % swbytes) >= (horcb & 0x3f)) ? 0 : 4;
@@ -97,7 +101,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   function refreshline(y:number) {
     var ofs = y*swidth/4;
     for (var i=0; i<swidth/4; i++)
-      ramwrite(ofs+i, ram.mem[ofs+i]);
+      ramupdate(ofs+i, ram.mem[ofs+i]);
   }
   
   function magicwrite(a:number, v:number) {
@@ -295,9 +299,10 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   
   advance(novideo : boolean) {
     for (var sl=0; sl<sheight; sl++) {
+      //console.log(sl, hex(cpu.getPC(),4), cpu.saveState());
       this.runCPU(cpu, cpuCyclesPerLine);
       if (sl == inlin && (inmod & 0x8)) {
-        cpu.requestInterrupt(infbk);
+        this.requestInterrupt(cpu, infbk);
       }
       if (refreshlines>0) {
         refreshline(sl);
@@ -326,7 +331,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   }
 
   loadState(state) {
-    cpu.loadState(state.c);
+    cpu.loadState(state.c); // TODO: this causes problems on reset+debug
     ram.mem.set(state.b);
     palette.set(state.palette);
     magicop = state.magicop;
@@ -339,6 +344,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     infbk = state.infbk;
     verbl = state.verbl;
     this.loadControlsState(state);
+    refreshall();
   }
   saveState() {
     return {
@@ -408,7 +414,6 @@ class AstrocadeAudio extends AY38910_Audio {
         var j = val*2+1;
         this.psg.writeRegisterAY(i, j&0xff); // freq lo
         this.psg.writeRegisterAY(i+1, (j>>8)&0xff); // freq hi
-        console.log(i,j);
         break;
       case 5:
         this.psg.writeRegisterAY(10, val & 0xf); // tone c vol

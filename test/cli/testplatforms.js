@@ -39,6 +39,7 @@ var _galaxian = require('gen/platform/galaxian.js');
 var _vector = require('gen/platform/vector.js');
 var _williams = require('gen/platform/williams.js');
 var _sound_williams = require('gen/platform/sound_williams.js');
+var _astrocade = require('gen/platform/astrocade.js');
 
 //
 
@@ -211,6 +212,14 @@ describe('Platform Replay', () => {
     });
   });
 */
+
+  it('Should run astrocade', () => {
+    var platform = testPlatform('astrocade', 'cosmic.c.rom', 92, (platform, frameno) => {
+      if (frameno == 62) {
+        keycallback(Keys.VK_SPACE.c, Keys.VK_SPACE.c, 1);
+      }
+    });
+  });
 });
 
 

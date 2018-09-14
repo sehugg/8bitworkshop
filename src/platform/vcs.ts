@@ -156,7 +156,10 @@ class VCSPlatform extends BasePlatform {
     return state;
   }
   fixState(state) {
-    state.c.EPC = state.c.PC + (state.ca.bo || 0); // effective PC for ROM
+    var ofs = state.ca.bo || 0;
+    if (state.ca.fo && (state.c.PC & 0xfff) >= 2048)
+      ofs = state.ca.fo; // 3E/3F fixed-slice formats
+    state.c.EPC = state.c.PC + ofs; // ofs = effective PC for ROM
   }
   loadState(state) {
     return Javatari.room.console.loadState(state);
@@ -216,11 +219,14 @@ class VCSPlatform extends BasePlatform {
   }
   getDebugInfo(category, state) {
     switch (category) {
-      case 'CPU':    return (state.ca.bo ? ("BankOffset "+hex(state.ca.bo)+"\n"):"") + this.cpuStateToLongString(state.c);
+      case 'CPU':    return this.cpuStateToLongString(state.c) + this.bankSwitchStateToString(state);
       case 'Stack':	 return dumpStackToString(this, this.getRAMForState(state), 0x100, 0x1ff, 0x100+state.c.SP, 0x20);
       case 'PIA':    return this.ramStateToLongString(state) + "\n" + this.piaStateToLongString(state.p);
       case 'TIA':    return this.tiaStateToLongString(state.t);
     }
+  }
+  bankSwitchStateToString(state) {
+    return (state.ca.bo !== undefined ? ("BankOffset "+hex(state.ca.bo,4)+"\n"):"");
   }
   piaStateToLongString(p) {
     return "Timer  " + p.t + "/" + p.c + "\nINTIM  $" + hex(p.IT,2) + " (" + p.IT + ")\nINSTAT $" + hex(p.IS,2) + "\n";

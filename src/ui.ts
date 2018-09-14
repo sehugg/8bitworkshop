@@ -224,8 +224,12 @@ function getSkeletonFile(fileid:string, callback) {
 
 function _createNewFile(e) {
   // TODO: support spaces
-  var filename = prompt("Create New File (no spaces)", "newfile" + platform.getDefaultExtension());
+  var filename = prompt("Create New File", "newfile" + platform.getDefaultExtension());
   if (filename && filename.length) {
+    if (filename.indexOf(" ") >= 0) {
+      alert("No spaces, please.");
+      return;
+    }
     if (filename.indexOf(".") < 0) {
       filename += platform.getDefaultExtension();
     }
@@ -828,8 +832,9 @@ function setupDebugControls(){
   $("#dbg_reset").click(resetAndDebug);
   $("#dbg_pause").click(pause);
   $("#dbg_go").click(resume);
-  Mousetrap.bindGlobal('ctrl+alt+p', togglePause);
-  Mousetrap.bindGlobal('ctrl+alt+r', resetAndDebug);
+  Mousetrap.bindGlobal('ctrl+alt+p', pause);
+  Mousetrap.bindGlobal('ctrl+alt+r', resume);
+  Mousetrap.bindGlobal('ctrl+alt+.', resetAndDebug);
 
   if (platform.step) {
     $("#dbg_step").click(singleStep).show();

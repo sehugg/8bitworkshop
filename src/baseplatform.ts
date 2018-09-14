@@ -15,7 +15,10 @@ export interface OpcodeMetadata {
 }
 
 export interface CpuState {
-  PC:number, T?:number, o?:number,/*opcode*/
+  PC:number;
+  EPC?:number; // effective PC (for bankswitching)
+  T?:number;
+  o?:number;/*opcode*/
   SP?:number
   /*
   A:number, X:number, Y:number, SP:number, R:boolean, 
@@ -425,7 +428,6 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
     var targetTstates = cpu.getTstates() + cycles;
     if (debugCond) { // || trace) {
       while (cpu.getTstates() < targetTstates) {
-        //_trace(); // TODO
         if (debugCond && debugCond()) {
           debugCond = null;
           break;
@@ -436,6 +438,10 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
       cpu.runFrame(targetTstates);
     }
     return cpu.getTstates() - targetTstates;
+  }
+  requestInterrupt(cpu, data) {
+    if (!this.wasBreakpointHit())
+      cpu.requestInterrupt(data);
   }
   postFrame() {
     if (this.debugCondition && !this.debugBreakState) {
