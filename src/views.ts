@@ -602,7 +602,9 @@ export class MemoryView implements ProjectView {
   }
   
   refresh() {
-    this.tick();
+    this.dumplines = null;
+    this.memorylist.clear();
+    //this.tick();
   }
   
   tick() {
@@ -656,13 +658,17 @@ export class MemoryView implements ProjectView {
 
   // TODO: addr2symbol for ca65; and make it work without symbols
   getDumpLines() {
-    if (!this.dumplines && addr2symbol) {
+    var addr2sym = addr2symbol;
+    if (!addr2sym) addr2sym = {};
+    if (!addr2sym[0x0]) addr2sym[0x0] = '__START__';
+    addr2sym[0x10000] = '__END__';
+    if (!this.dumplines) {
       this.dumplines = [];
       var ofs = 0;
       var sym;
-      for (const _nextofs of Object.keys(addr2symbol)) { 
+      for (const _nextofs of Object.keys(addr2sym)) { 
         var nextofs = parseInt(_nextofs); // convert from string (stupid JS)
-        var nextsym = addr2symbol[nextofs];
+        var nextsym = addr2sym[nextofs];
         if (sym) {
           if (MemoryView.IGNORE_SYMS[sym]) {
             ofs = nextofs;

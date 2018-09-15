@@ -513,7 +513,7 @@ function setCompileOutput(data: WorkerResult) {
       } catch (e) {
         console.log(e);
         toolbar.addClass("has-errors");
-        projectWindows.setErrors([{line:1,msg:e+""}]); // TODO: doesn't work (use alert?)
+        showErrorAlert([{msg:e+"",line:0}]);
         current_output = null;
         return;
       }

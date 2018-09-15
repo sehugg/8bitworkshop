@@ -160,3 +160,15 @@ VirtualList.createScroller = function(h) {
 VirtualList.prototype.scrollToItem = function(index) {
   this.container.scrollTop = this.itemHeight * index;
 };
+
+VirtualList.prototype.clear = function() {
+  var badNodes = document.querySelectorAll('[data-index]');
+  for (var i = 0, l = badNodes.length; i < l; i++) {
+    try {
+      this.container.removeChild(badNodes[i]);
+    } catch (e) {
+      //
+    }
+  }
+  this._renderChunk(this.container, 0);
+};

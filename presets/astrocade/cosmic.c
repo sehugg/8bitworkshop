@@ -12,8 +12,6 @@
 #define EXIT_CLIPY(y) if (((unsigned char)y)>=VHEIGHT) return
 #define EXIT_CLIPDEST(addr) if ((((word)addr)&0xfff) >= 0xe10) return
 
-//#link "acheader.s"
-
 typedef unsigned char byte;
 typedef signed char sbyte;
 typedef unsigned short word;

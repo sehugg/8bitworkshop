@@ -55,12 +55,10 @@ TODO:
 - figure out folders for projects for real
 - why loadState() on verilog kill perf?
 - click to break on raster position
-- restructure folders
-- update memory browser window if view before 1st compile, update symbols
+- restructure src/ folders
 - spinner disappears sometimes (and compiles even when not spinning...) (undo?)
 - quantify verilog "graph iterations"
 - debug bankswitching for funky formats
-- "invalid ROM" error should show up better
 - spaces in filename don't parse code listing (DASM, maybe more)
 - zmac: item_lookup needs better hash function
 - 'undefined' for bitmap replacer
