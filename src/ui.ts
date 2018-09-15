@@ -562,14 +562,18 @@ function setDebugButtonState(btnid:string, btnstate:string) {
   $("#dbg_"+btnid).addClass("btn_"+btnstate);
 }
 
-function setupBreakpoint(btnid? : string) {
-  _disableRecording();
+function setupDebugCallback(btnid? : string) {
   platform.setupDebug(function(state) {
     lastDebugState = state;
     showDebugInfo(state);
     projectWindows.refresh(true);
-    if (btnid) setDebugButtonState(btnid, "stopped");
+    setDebugButtonState(btnid||"pause", "stopped");
   });
+}
+
+function setupBreakpoint(btnid? : string) {
+  _disableRecording();
+  setupDebugCallback(btnid);
   if (btnid) setDebugButtonState(btnid, "active");
 }
 
@@ -654,6 +658,7 @@ function runStepBackwards() {
 function clearBreakpoint() {
   lastDebugState = null;
   if (platform.clearDebug) platform.clearDebug();
+  setupDebugCallback(); // in case of BRK/trap
   showDebugInfo();
 }
 

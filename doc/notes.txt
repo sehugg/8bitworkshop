@@ -6,8 +6,6 @@ TODO:
 - confuse code/data in listing
 - show memory locations hovering over lines
 - don't check against ROM signatures
-- better errors when ROM format wrong
-- debugging inside of bank switching??? relocated segs?
 - support 6502 test cases
 - DASM: macro forward refs
 - asm: support macro expansion
@@ -24,7 +22,7 @@ TODO:
 - MAME single step (?)
 - step over
 - slowdown beam for all platforms?
-- kbd shortcuts
+- more kbd shortcuts
 - PC x86 support
 - show errors in list (maybe window list?)
 - can't see 1st line in editor sometimes (when scrolling cursor past bottom of screen)
@@ -34,7 +32,6 @@ TODO:
 - update Javatari version? (and others?)
 - unify versioning
 - disassembler for uploaded ROMs
-- show tool-specific (readonly) include files
 - verilog debugging/reloading makes it slow
 - remove FPS and play controls when Verilog scope paused
 - compile stuck when errors unchanged
@@ -61,7 +58,6 @@ TODO:
 - restructure folders
 - update memory browser window if view before 1st compile, update symbols
 - spinner disappears sometimes (and compiles even when not spinning...) (undo?)
-- z80 illegal opcode kills platform
 - quantify verilog "graph iterations"
 - debug bankswitching for funky formats
 - "invalid ROM" error should show up better

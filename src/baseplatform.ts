@@ -426,16 +426,21 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
       return 0;
     var debugCond = this.getDebugCallback();
     var targetTstates = cpu.getTstates() + cycles;
-    if (debugCond) { // || trace) {
-      while (cpu.getTstates() < targetTstates) {
-        if (debugCond && debugCond()) {
-          debugCond = null;
-          break;
+    try {
+      if (debugCond) { // || trace) {
+        while (cpu.getTstates() < targetTstates) {
+          if (debugCond && debugCond()) {
+            debugCond = null;
+            break;
+          }
+          cpu.runFrame(cpu.getTstates() + 1);
         }
-        cpu.runFrame(cpu.getTstates() + 1);
+      } else {
+        cpu.runFrame(targetTstates);
       }
-    } else {
-      cpu.runFrame(targetTstates);
+    } catch (e) {
+      // TODO: show alert w/ error msg
+      this.breakpointHit(cpu.getTstates());
     }
     return cpu.getTstates() - targetTstates;
   }
