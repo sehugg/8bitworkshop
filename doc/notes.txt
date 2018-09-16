@@ -64,6 +64,9 @@ TODO:
 - 'undefined' for bitmap replacer
 - astrocade: run to cursor in hello world messes up emulation
 - requestInterrupt needs to be disabled after breakpoint?
+- verilog resets randomly (lfsr enable bit)
+- verilog: when paused scope doesn't work
+- verilog: don't need fps controls when no video
 
 
 WEB WORKER FORMAT

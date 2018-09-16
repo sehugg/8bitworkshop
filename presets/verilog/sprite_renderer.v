@@ -1,4 +1,4 @@
-
+﻿
 `ifndef SPRITE_RENDERER_H
 `define SPRITE_RENDERER_H
 
@@ -17,22 +17,23 @@ module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits,
   output gfx;		// output pixel
   output in_progress;	// 0 if waiting for vstart
   
-  assign in_progress = state != WAIT_FOR_VSTART;
-
   reg [2:0] state;	// current state #
   reg [3:0] ycount;	// number of scanlines drawn so far
   reg [3:0] xcount;	// number of horiz. pixels in this line
   
   reg [7:0] outbits;	// register to store bits from ROM
   
-  // states
+  // states for state machine
   localparam WAIT_FOR_VSTART = 0;
   localparam WAIT_FOR_LOAD   = 1;
   localparam LOAD1_SETUP     = 2;
   localparam LOAD1_FETCH     = 3;
   localparam WAIT_FOR_HSTART = 4;
   localparam DRAW            = 5;
-  
+
+  // assign in_progress output bit
+  assign in_progress = state != WAIT_FOR_VSTART;
+
   always @(posedge clk)
     begin
       case (state)
@@ -86,6 +87,7 @@ module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits,
   
 endmodule
 
+/// TEST MODULE
 
 module sprite_render_test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
 
@@ -97,12 +99,15 @@ module sprite_render_test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   wire [8:0] hpos;
   wire [8:0] vpos;
 
+  // player position
   reg [7:0] player_x;
   reg [7:0] player_y;
   
+  // paddle position
   reg [7:0] paddle_x;
   reg [7:0] paddle_y;
   
+  // video sync generator
   hvsync_generator hvsync_gen(
     .clk(clk),
     .reset(0),
@@ -113,6 +118,7 @@ module sprite_render_test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .vpos(vpos)
   );
   
+  // car bitmap ROM and associated wires
   wire [3:0] car_sprite_addr;
   wire [7:0] car_sprite_bits;
   
@@ -120,11 +126,14 @@ module sprite_render_test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .yofs(car_sprite_addr), 
     .bits(car_sprite_bits));
    
-  wire vstart = {1'd0,player_y} == vpos;
-  wire hstart = {1'd0,player_x} == hpos;
-  wire car_gfx;
-  wire in_progress;
+  // convert player X/Y to 9 bits and compare to CRT hpos/vpos
+  wire vstart = {1'b0,player_y} == vpos;
+  wire hstart = {1'b0,player_x} == hpos;
   
+  wire car_gfx;		// car sprite video signal
+  wire in_progress;	// 1 = rendering taking place on scanline
+
+  // sprite renderer module
   sprite_renderer renderer(
     .clk(clk),
     .vstart(vstart),
@@ -135,6 +144,7 @@ module sprite_render_test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
     .gfx(car_gfx),
     .in_progress(in_progress));
 
+  // measure paddle position
   always @(posedge hpaddle)
     paddle_x <= vpos[7:0];
 
@@ -147,6 +157,7 @@ module sprite_render_test_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
       player_y <= paddle_y;
     end
 
+  // video RGB output
   wire r = display_on && car_gfx;
   wire g = display_on && car_gfx;
   wire b = display_on && in_progress;

@@ -5,14 +5,10 @@ import { PLATFORMS, RAM, newAddressDecoder, dumpRAM } from "../emu";
 import { hex, lpad, tobin, byte2signed } from "../util";
 import { CodeAnalyzer_vcs } from "../analysis";
 import { disassemble6502 } from "../cpu/disasm6502";
+import { platform, symbolmap, addr2symbol } from "../ui";
 
-declare var platform : Platform; // global platform object
 declare var Javatari : any;
 declare var jt : any; // 6502
-
-// TODO: import or put in platform
-declare var symbolmap : {[ident:string]:number};
-declare var addr2symbol : {[addr:number]:string};
 
 const VCS_PRESETS = [
   {id:'examples/hello', chapter:4, name:'Hello 6502 and TIA'},

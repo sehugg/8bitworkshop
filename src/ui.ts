@@ -23,12 +23,13 @@ declare var exports;
 if (window['Javatari']) window['Javatari'].AUTO_START = false;
 
 var PRESETS : Preset[];		// presets array
-var platform_id : string;	// platform ID string
-var platform : Platform;	// platform object
+
+export var platform_id : string;	// platform ID string
+export var platform : Platform;	// platform object
 
 var toolbar = $("#controls_top");
 
-var current_project : CodeProject;	// current CodeProject object
+export var current_project : CodeProject;	// current CodeProject object
 
 var projectWindows : ProjectWindows;	// window manager
 
@@ -57,13 +58,14 @@ var userPaused : boolean;		// did user explicitly pause?
 var current_output;			// current ROM
 var current_preset_entry : Preset;	// current preset object (if selected)
 var main_file_id : string;	// main file ID
-var symbolmap;			// symbol map
-declare var addr2symbol;		// address to symbol name map
-var compparams;			// received build params from worker
 var store;			// persistent store
 
+export var symbolmap;			// symbol map
+export var addr2symbol;		// address to symbol name map
+export var compparams;			// received build params from worker
+export var lastDebugState;		// last debug state (object)
+
 var lastDebugInfo;		// last debug info (CPU text)
-var lastDebugState;		// last debug state (object)
 var debugCategory;		// current debug category
 
 function getCurrentPresetTitle() : string {
@@ -563,7 +565,7 @@ function setDebugButtonState(btnid:string, btnstate:string) {
 }
 
 function setupDebugCallback(btnid? : string) {
-  platform.setupDebug(function(state) {
+  if (platform.setupDebug) platform.setupDebug((state) => {
     lastDebugState = state;
     showDebugInfo(state);
     projectWindows.refresh(true);
@@ -1130,7 +1132,7 @@ function loadScript(scriptfn, onload) {
 }
 
 // start
-function startUI(loadplatform : boolean) {
+export function startUI(loadplatform : boolean) {
   installErrorHandler();
   // add default platform?
   platform_id = qs['platform'] || localStorage.getItem("__lastplatform");

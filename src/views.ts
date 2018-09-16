@@ -4,9 +4,10 @@ import $ = require("jquery");
 //import CodeMirror = require("codemirror");
 import { CodeProject } from "./project";
 import { SourceFile, WorkerError } from "./workertypes";
-import { Platform } from "./baseplatform";
+import { Platform, EmuState } from "./baseplatform";
 import { hex, lpad, rpad } from "./util";
 import { CodeAnalyzer } from "./analysis";
+import { platform, platform_id, compparams, symbolmap, addr2symbol, current_project, lastDebugState } from "./ui";
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
@@ -25,14 +26,7 @@ export interface ProjectView {
 
 // TODO: move to different namespace
 declare var CodeMirror;
-declare var platform : Platform;
-declare var platform_id : string;
-declare var compparams;
-declare var symbolmap : {[ident:string]:number};
-declare var addr2symbol : {[addr:number]:string};
-declare var current_project : CodeProject;
 declare var VirtualList;
-declare var lastDebugState;
 
 // helper function for editor
 function jumpToLine(ed, i:number) {
