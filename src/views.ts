@@ -7,7 +7,7 @@ import { SourceFile, WorkerError } from "./workertypes";
 import { Platform, EmuState } from "./baseplatform";
 import { hex, lpad, rpad } from "./util";
 import { CodeAnalyzer } from "./analysis";
-import { platform, platform_id, compparams, symbolmap, addr2symbol, current_project, lastDebugState } from "./ui";
+import { platform, platform_id, compparams, current_project, lastDebugState } from "./ui";
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
@@ -429,6 +429,7 @@ export class DisassemblerView implements ProjectView {
     var pc = state.c ? state.c.PC : 0;
     var curline = 0;
     var selline = 0;
+    var addr2symbol = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
     // TODO: not perfect disassembler
     var disassemble = (start, end) => {
       if (start < 0) start = 0;
@@ -652,10 +653,7 @@ export class MemoryView implements ProjectView {
 
   // TODO: addr2symbol for ca65; and make it work without symbols
   getDumpLines() {
-    var addr2sym = addr2symbol;
-    if (!addr2sym) addr2sym = {};
-    if (!addr2sym[0x0]) addr2sym[0x0] = '__START__';
-    addr2sym[0x10000] = '__END__';
+    var addr2sym = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
     if (!this.dumplines) {
       this.dumplines = [];
       var ofs = 0;

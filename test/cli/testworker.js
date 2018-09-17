@@ -175,7 +175,7 @@ describe('Worker', function() {
       assert.ok(fn);
       done(err, msg);
     };
-    doBuild(msgs, done2, 2781, 0, 0);
+    doBuild(msgs, done2, 2764, 0, 0);
   });
   it('should NOT compile verilog example', function(done) {
     var csource = "foobar";

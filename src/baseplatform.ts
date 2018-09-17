@@ -1,6 +1,6 @@
 
 import { RAM, RasterVideo, dumpRAM, lookupSymbol } from "./emu";
-import { hex, printFlags } from "./util";
+import { hex, printFlags, invertMap } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { disassemble6502 } from "./cpu/disasm6502";
 import { disassembleZ80 } from "./cpu/disasmz80";
@@ -37,6 +37,21 @@ export type DisasmLine = {
   nbytes:number,
   isaddr:boolean
 };
+
+export type SymbolMap = {[ident:string]:number};
+export type AddrSymbolMap = {[address:number]:string};
+
+export class DebugSymbols {
+  symbolmap : SymbolMap;				// symbol -> address
+  addr2symbol : AddrSymbolMap;	// address -> symbol
+  
+  constructor(symbolmap : SymbolMap) {
+    this.symbolmap = symbolmap;
+    this.addr2symbol = invertMap(symbolmap);
+    if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = '__START__'; // needed for ...
+    this.addr2symbol[0x10000] = '__END__'; // ... dump memory to work
+  }
+}
 
 export interface Platform {
   start() : void;
@@ -80,6 +95,8 @@ export interface Platform {
   
   setRecorder?(recorder : EmuRecorder) : void;
   advance?(novideo? : boolean) : void;
+  
+  debugSymbols? : DebugSymbols;
 }
 
 export interface Preset {
@@ -107,6 +124,7 @@ export interface EmuRecorder {
 
 export abstract class BasePlatform {
   recorder : EmuRecorder = null;
+  debugSymbols : DebugSymbols;
 
   abstract loadState(state : EmuState) : void;
   abstract saveState() : EmuState;
@@ -534,10 +552,11 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
     switch (category) {
       case 'CPU':   return cpuStateToLongString_Z80(state.c);
       case 'Stack': {
-        var sp = state.c.SP-1;
+        var sp = (state.c.SP-1) & 0xffff;
         var start = sp & 0xff00;
         var end = start + 0xff;
         if (sp == 0) sp = 0x10000;
+        console.log(sp,start,end);
         return dumpStackToString(<Platform><any>this, [], start, end, sp, 0xcd);
       }
     }

@@ -7,7 +7,7 @@ import * as bootstrap from "bootstrap";
 import { CodeProject } from "./project";
 import { WorkerResult, SourceFile, WorkerError } from "./workertypes";
 import { ProjectWindows } from "./windows";
-import { Platform, Preset } from "./baseplatform";
+import { Platform, Preset, DebugSymbols } from "./baseplatform";
 import { PLATFORMS } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
@@ -60,8 +60,6 @@ var current_preset_entry : Preset;	// current preset object (if selected)
 var main_file_id : string;	// main file ID
 var store;			// persistent store
 
-export var symbolmap;			// symbol map
-export var addr2symbol;		// address to symbol name map
 export var compparams;			// received build params from worker
 export var lastDebugState;		// last debug state (object)
 
@@ -497,10 +495,7 @@ function setCompileOutput(data: WorkerResult) {
     showErrorAlert(data.errors);
   } else {
     // process symbol map
-    symbolmap = data.symbolmap;
-    addr2symbol = invertMap(symbolmap);
-    if (!addr2symbol[0x0]) addr2symbol[0x0] = '__START__'; // needed for ...
-    addr2symbol[0x10000] = '__END__'; // needed for dump memory to work
+    platform.debugSymbols = new DebugSymbols(data.symbolmap);
     compparams = data.params;
     // load ROM
     var rom = data.output;
@@ -692,11 +687,14 @@ function _breakExpression() {
 }
 
 function getSymbolAtAddress(a : number) {
-  if (addr2symbol[a]) return addr2symbol[a];
-  var i=0;
-  while (--a >= 0) {
-    i++;
-    if (addr2symbol[a]) return addr2symbol[a] + '+' + i;
+  var addr2symbol = platform.debugSymbols && platform.debugSymbols.addr2symbol;
+  if (addr2symbol) {
+    if (addr2symbol[a]) return addr2symbol[a];
+    var i=0;
+    while (--a >= 0) {
+      i++;
+      if (addr2symbol[a]) return addr2symbol[a] + '+' + i;
+    }
   }
   return '';
 }

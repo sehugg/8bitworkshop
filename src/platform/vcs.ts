@@ -5,7 +5,6 @@ import { PLATFORMS, RAM, newAddressDecoder, dumpRAM } from "../emu";
 import { hex, lpad, tobin, byte2signed } from "../util";
 import { CodeAnalyzer_vcs } from "../analysis";
 import { disassemble6502 } from "../cpu/disasm6502";
-import { platform, symbolmap, addr2symbol } from "../ui";
 
 declare var Javatari : any;
 declare var jt : any; // 6502
@@ -258,22 +257,6 @@ class VCSPlatform extends BasePlatform {
 
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
-  }
-  inspect(ident : string) : string {
-    if (this.isRunning()) return; // only inspect when stopped
-    var result;
-    var addr = symbolmap && (symbolmap[ident]); // || symbolmap['_'+ident]);
-    if (addr >= 0x80 && addr < 0x100) { // in RAM?
-      var size=4;
-      result = "$" + hex(addr,4) + ":";
-      for (var i=0; i<size; i++) {
-        var byte = platform.readAddress(addr+i);
-        result += " $" + hex(byte,2) + " (" + byte + ")";
-        if (addr2symbol[addr+1]) break; // stop if we hit another symbol
-        else if (i==size-1) result += " ...";
-      }
-    }
-    return result;
   }
 };
 // TODO: mixin for Base6502Platform?
