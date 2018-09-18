@@ -232,7 +232,7 @@ export var AnimationTimer = function(frequencyHz:number, callback:() => void) {
 
 // TODO: move to util?
 
-export function dumpRAM(ram:number[], ramofs:number, ramlen:number) : string {
+export function dumpRAM(ram:Uint8Array|number[], ramofs:number, ramlen:number) : string {
   var s = "";
   // TODO: show scrollable RAM for other platforms
   for (var ofs=0; ofs<ramlen; ofs+=0x10) {

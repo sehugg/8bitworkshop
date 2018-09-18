@@ -175,7 +175,6 @@ export class WaveformView {
     // clear to black
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     // draw waveform
-    ctx.strokeStyle = ctx.fillStyle = "#66ff66";
     var fh = 12;
     var b1 = fh+4;
     var b2 = 4;
@@ -185,6 +184,9 @@ export class WaveformView {
     this.clockMax = Math.max(this.clockMax, this.t0 + data.length);
     var printvals = meta.len > 1 && this.zoom >= 32;
     var ycen = b1+h2-1;
+    ctx.fillStyle = "#336633";
+    ctx.fillRect(0, fh/2, 3, b1+h2-fh/2); // draw left tag
+    ctx.strokeStyle = ctx.fillStyle = "#66ff66";
     // draw waveform
     ctx.beginPath();
     var x = 0;

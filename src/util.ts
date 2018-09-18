@@ -372,3 +372,7 @@ export function printFlags(val:number, names:string[], r2l:boolean) {
   return s;
 }
 
+export function rgb2bgr(x) {
+  return ((x&0xff)<<16) | ((x>>16)&0xff) | (x&0x00ff00);
+}
+

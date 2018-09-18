@@ -42,7 +42,7 @@ TODO:
 - online tools for music etc
 - text log debugging script
 - NES crt should mark raster pos when debugging
-- intro/help text for each platform
+- intro/help text for each platform (+ memory map)
 - vscode/atom extension?
 - navigator.getGamepads
 - VCS library
@@ -64,9 +64,8 @@ TODO:
 - 'undefined' for bitmap replacer
 - astrocade: run to cursor in hello world messes up emulation
 - requestInterrupt needs to be disabled after breakpoint?
-- verilog resets randomly (lfsr enable bit)
 - verilog: when paused scope doesn't work
-- verilog: don't need fps controls when no video
+- resize memory dump window
 
 
 WEB WORKER FORMAT

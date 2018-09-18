@@ -26,7 +26,7 @@ export interface CpuState {
 };
 export interface EmuState {
   c?:CpuState,	// CPU state
-  b?:number[], 	// RAM (TODO: not for vcs)
+  b?:Uint8Array|number[], 	// RAM (TODO: not for vcs, support Uint8Array)
   o?:{},				// verilog
   T?:number,		// verilog
 };
@@ -904,7 +904,7 @@ export abstract class BaseMAMEPlatform {
   }
 }
 
-export function dumpStackToString(platform:Platform, mem:number[], start:number, end:number, sp:number, jsrop:number) : string {
+export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], start:number, end:number, sp:number, jsrop:number) : string {
   var s = "";
   var nraw = 0;
   //s = dumpRAM(mem.slice(start,start+end+1), start, end-start+1);

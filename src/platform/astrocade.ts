@@ -2,7 +2,7 @@
 
 import { Platform, BaseZ80Platform  } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
-import { hex, lzgmini, stringToByteArray } from "../util";
+import { hex, lzgmini, stringToByteArray, rgb2bgr } from "../util";
 import { MasterAudio, AY38910_Audio } from "../audio";
 
 const ASTROCADE_PRESETS = [
@@ -453,8 +453,7 @@ var ASTROCADE_PALETTE = [0x000000,0x242424,0x484848,0x6D6D6D,0x919191,0xB6B6B6,0
 // swap palette RGB to BGR
 for (var i=0; i<256; i++) {
   var x = ASTROCADE_PALETTE[i];
-  x = ((x&0xff)<<16) | ((x>>16)&0xff) | (x&0x00ff00);
-  ASTROCADE_PALETTE[i] = x | 0xff000000;
+  ASTROCADE_PALETTE[i] = rgb2bgr(x) | 0xff000000;
 }
 
 //var ASTROCADE_BIOS_LZG = decodeURIComponent();

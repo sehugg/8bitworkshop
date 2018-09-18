@@ -891,7 +891,6 @@ function setupDebugControls(){
   $("#item_download_allzip").click(_downloadAllFilesZipFile);
   $("#item_record_video").click(_recordVideo);
   if (platform.setFrameRate && platform.getFrameRate) {
-    $("#speed_bar").show();
     $("#dbg_slower").click(_slowerFrameRate);
     $("#dbg_faster").click(_fasterFrameRate);
     $("#dbg_slowest").click(_slowestFrameRate);

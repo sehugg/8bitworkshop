@@ -578,7 +578,7 @@ export class MemoryView implements ProjectView {
       w: $(workspace).width(),
       h: $(workspace).height(),
       itemHeight: getVisibleEditorLineHeight(),
-      totalRows: 0x1000,
+      totalRows: 0x2000,
       generatorFn: (row : number) => {
         var s = this.getMemoryLineAt(row);
         var linediv = document.createElement("div");
@@ -598,8 +598,7 @@ export class MemoryView implements ProjectView {
   
   refresh() {
     this.dumplines = null;
-    this.memorylist.clear();
-    //this.tick();
+    this.tick();
   }
   
   tick() {
@@ -631,7 +630,7 @@ export class MemoryView implements ProjectView {
         return '.';
       }
     }
-    var s = hex(offset,4) + ' ';
+    var s = hex(offset+n1,4) + ' ';
     for (var i=0; i<n1; i++) s += '   ';
     if (n1 > 8) s += ' ';
     for (var i=n1; i<n2; i++) {

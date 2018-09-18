@@ -40,6 +40,7 @@ var _vector = require('gen/platform/vector.js');
 var _williams = require('gen/platform/williams.js');
 var _sound_williams = require('gen/platform/sound_williams.js');
 var _astrocade = require('gen/platform/astrocade.js');
+var _atari8 = require('gen/platform/atari8.js');
 
 //
 
@@ -215,6 +216,13 @@ describe('Platform Replay', () => {
 
   it('Should run astrocade', () => {
     var platform = testPlatform('astrocade', 'cosmic.c.rom', 92, (platform, frameno) => {
+      if (frameno == 62) {
+        keycallback(Keys.VK_SPACE.c, Keys.VK_SPACE.c, 1);
+      }
+    });
+  });
+  it('Should run atari8-5200', () => {
+    var platform = testPlatform('atari8-5200', 'hello.a.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_SPACE.c, Keys.VK_SPACE.c, 1);
       }
