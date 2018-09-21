@@ -213,6 +213,7 @@ function reloadPresetNamed(id:string) {
 
 function getSkeletonFile(fileid:string, callback) {
   var ext = platform.getToolForFilename(fileid);
+  // TODO: .mame
   $.get( "presets/"+platform_id+"/skeleton."+ext, function( text ) {
     callback(null, text);
   }, 'text')
@@ -360,6 +361,7 @@ function fixFilename(fn : string) : string {
 
 function _revertFile(e) {
   var fn = fixFilename(projectWindows.getActiveID());
+  // TODO: .mame
   $.get( "presets/"+platform_id+"/"+fn, function(text) {
     if (confirm("Reset '" + fn + "' to default?")) {
       projectWindows.getActive().setText(text);

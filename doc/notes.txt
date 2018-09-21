@@ -66,6 +66,7 @@ TODO:
 - requestInterrupt needs to be disabled after breakpoint?
 - verilog: when paused scope doesn't work
 - resize memory dump window
+- C/asm formatter
 
 
 WEB WORKER FORMAT

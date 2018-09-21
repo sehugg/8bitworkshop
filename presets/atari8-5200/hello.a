@@ -1,4 +1,4 @@
-
+﻿
 ; Atari 5200 "Hello World" sample code
 ; Written by Daniel Boris (dboris@comcast.net)
 ;
@@ -16,8 +16,7 @@ sDLISTH equ     $06             ;Display list hi shadow
 CHBASE  equ     $D409           ;Character set base
 CHACTL  equ     $D401           ;Character control
 NMIEN   equ     $D40E           ;NMI Enable
-COLOR1  equ     $0D             ;Color 1 shadow
-COLOR2  equ     $0E             ;Color 2 shadow
+COLOR0  equ     $0C             ;Color 0 shadow
 
         org     $4000           ;Start of cartridge area
         sei                     ;Disable interrupts
@@ -48,7 +47,7 @@ crloop3
         cmp     #$40            ;Check if end of RAM
         bne     crloop2         ;Branch if not
 
-        ldx     #$21
+        ldx     #$2f
 dlloop                          ;Create Display List
         lda     dlist,x         ;Get byte
         sta     $1000,x         ;Copy to RAM
@@ -67,12 +66,17 @@ dlloop                          ;Create Display List
         sta     $204            ;to BIOS routine
         lda     #$FC
         sta     $205
-        lda     #$03
+        lda     #$06
         sta     CHACTL          ;Set Character Control
         lda     #$84            ;Set color PF2
-        sta     COLOR2             
+        sta     COLOR0+2             
+        sta     COLOR0+4	; bakground
         lda     #$0F            ;Set color PF1
-        sta     COLOR1
+        sta     COLOR0+1
+        lda	#$3f
+        sta     COLOR0+0
+        lda	#$58
+        sta     COLOR0+3
         lda     #$00            ;Set Display list pointer
         sta     sDLISTL
         sta     DLISTL
@@ -91,24 +95,36 @@ print
         cld
 prloop
         lda     text1,y         ;Get character
+        beq	wait
+        cmp	#$60
+        bcs	lower
         sec
         sbc     #$20            ;Convert to ATASCII
+lower
         sta     $1800,y         ;Store in video memory
         iny                     ;Next character
-        cpy     #11             
         bne     prloop
 wait
+	nop
         jmp     wait
 
         ;Display list data
         org     $b000
-dlist   .byte     $70,$70,$70,$42,$00,$18,$02,$02,$02,$02,$02,$02,$02
-        .byte     $02,$02,$02,$02,$02,$02,$02,$02,$02,$02,$02,$02,$02
-        .byte      $02,$02,$02,$41,$00,$10
+dlist   .byte	$70,$70,$70
+	.byte	$42,$00,$18,$02
+	.byte	$43,$00,$18,$02
+	.byte	$44,$00,$18,$02
+	.byte	$45,$00,$18,$02
+	.byte	$46,$00,$18,$06
+	.byte	$47,$00,$18,$06
+        .byte   $02,$02,$02,$02
+        .byte   $41,$00,$10
 
         ;Text data
-         org     $b100
-text1   .byte      "HELLO WORLD"
+         org    $b100
+text1   .byte   "Howdy Bagel! "
+	.byte	$a1,$a2,$a3
+	.byte	0
 
         org     $bffd
         .byte   $FF         ;Don't display Atari logo

@@ -75,6 +75,7 @@ class ANTIC {
   scanaddr : number = 0;  // Scan Address (via LMS)
   startaddr: number = 0;	// Start of line Address
   pfbyte : number = 0;		// playfield byte fetched
+  ch : number = 0;				// char read
   linesleft : number = 0; // # of lines left in mode
   yofs : number = 0;			// yofs fine
   v : number = 0;					// vertical scanline #
@@ -96,6 +97,7 @@ class ANTIC {
       scanaddr: this.scanaddr,
       startaddr: this.startaddr,
       pfbyte: this.pfbyte,
+      ch: this.ch,
       linesleft: this.linesleft,
       yofs: this.yofs,
       v: this.v,
@@ -111,6 +113,7 @@ class ANTIC {
     this.scanaddr = s.scanaddr;
     this.startaddr = s.startaddr;
     this.pfbyte = s.pfbyte;
+    this.ch = s.ch;
     this.linesleft = s.linesleft;
     this.yofs = s.yofs;
     this.v = s.v;
@@ -129,13 +132,17 @@ class ANTIC {
     switch (a) {
       case DMACTL:
         this.pfwidth = this.regs[DMACTL] & 3;
-        this.left = PF_LEFT[this.pfwidth]-4; // TODO
-        this.right = PF_RIGHT[this.pfwidth]-4; // TODO
+        this.setLeftRight();
         break;
       case NMIRES:
         this.regs[NMIST] = 0;
         break;
     }
+  }
+  setLeftRight() {
+    let offset = 4 << MODE_PERIOD[this.mode & 0xf];
+    this.left = PF_LEFT[this.pfwidth];
+    this.right = PF_RIGHT[this.pfwidth];
   }
   readReg(a:number) {
     switch (a) {
@@ -154,6 +161,7 @@ class ANTIC {
       if (this.mode & 0x80)
         this.triggerInterrupt(0x80); // Display List Interrupt (DLI)
       this.mode = this.nextInsn();
+      this.setLeftRight();
       stolen++;
       if ((this.mode & 0xf) == 0) { // N Blank Lines
         this.linesleft = (this.mode >> 4) + 1;
@@ -247,14 +255,39 @@ class ANTIC {
         case 8: nc -= this.startline3(); break;
         case 12: nc -= this.startline4(); break;
         default:
+          let mode = this.mode & 0xf;
           if (h >= 48 && h < 120) nc--; // steal 1 clock for memory refresh
-          if (h >= this.left && h < this.right) { // fetch screen byte?
+          if (h >= this.left && h < this.right && mode >= 2) { // fetch screen byte?
             if (((h>>2) & this.period) == 0) { // use period interval
-              if ((this.mode & 0xf) < 8) {	// character mode
-                let ch = this.nextScreen();
+              if (mode < 8) {	// character mode
+                let ch = this.ch = this.nextScreen();
+                let addrofs = this.yofs;
+                // modes 6 & 7
+                if ((mode & 0xe) == 6) { // or 7
+                  ch &= 0x3f;
+                } else {
+                  ch &= 0x7f;
+                }
                 let addr = (ch<<3) + (this.regs[CHBASE]<<8);
-                this.pfbyte = this.read(addr + this.yofs);
-                //console.log(hex(addr), this.yofs, hex(this.scanaddr), this.h, this.v, ch);
+                // modes 2 & 3
+                if ((mode & 0xe) == 2) { // or 3
+                  let chactl = this.regs[CHACTL];
+                  if (mode == 3 && ch >= 0x60) {
+                    // TODO
+                  }
+                  if (chactl & 4)
+                    this.pfbyte = this.read(addr + (addrofs ^ 7)); // mirror
+                  else
+                    this.pfbyte = this.read(addr + addrofs);
+                  if (this.ch & 0x80) {
+                    if (chactl & 1)
+                      this.pfbyte = 0x0; // blank
+                    if (chactl & 2)
+                      this.pfbyte ^= 0xff; // invert
+                  }
+                } else {
+                  this.pfbyte = this.read(addr + addrofs);
+                }
                 nc -= 2;
               } else {	// map mode
                 this.pfbyte = this.nextScreen();
@@ -288,6 +321,9 @@ const GRAFP0 = 0x0d;
 const GRAFM = 0x11;
 const COLPM0 = 0x12;
 const COLPF0 = 0x16;
+const COLPF1 = 0x17;
+const COLPF2 = 0x18;
+const COLPF3 = 0x19;
 const COLBK = 0x1a;
 const PRIOR = 0x1b;
 const VDELAY = 0x1c;
@@ -327,13 +363,48 @@ class GTIA {
     }
   }  
   clockPulse() : number {
-    let colreg = (this.antic.pfbyte & 128) ? COLPF0 : COLBK;
-    if ((this.count & this.antic.period) == 0)
-      this.antic.pfbyte <<= 1;
-    let colidx = this.regs[colreg];
+    let pixel = (this.antic.pfbyte & 128) ? 1 : 0;
+    let col = 0;
+    switch (this.antic.mode & 0xf) {
+      // blank line
+      case 0:
+      case 1:
+        col = this.regs[COLBK];
+        break;
+      // normal text mode
+      case 2:
+      case 3:
+      default:
+        if (pixel)
+          col = (this.regs[COLPF1] & 0xf) | (this.regs[COLPF2] & 0xf0);
+        else
+          col = this.regs[COLPF2];
+        if ((this.count & this.antic.period) == 0)
+          this.antic.pfbyte <<= 1;
+        break;
+      // 4bpp mode	
+      case 4:
+      case 5:
+        col = (this.antic.pfbyte>>6) & 3;
+        if ((this.antic.ch & 0x80) && col==3)
+          col = 4; // 5th color
+        col = col ? this.regs[COLPF0-1+col] : this.regs[COLBK];
+        if ((this.count & 1) == 0)
+          this.antic.pfbyte <<= 2;
+        break;
+      // 4 colors per 64 chars mode
+      case 6:
+      case 7:
+        if (pixel)
+          col = this.regs[COLPF0 + (this.antic.ch>>6)];
+        else
+          col = this.regs[COLBK];
+        if ((this.count & this.antic.period) == 0)
+          this.antic.pfbyte <<= 1;
+        break;
+    }
     this.count = (this.count + 1) & 0xff;
-    // TODO
-    return COLORS_RGBA[colidx];
+    return COLORS_RGBA[col];
   }
   static stateToLongString(state) : string {
     let s = "";
@@ -396,7 +467,7 @@ const _Atari8Platform = function(mainElement) {
     antic = new ANTIC(bus.read);
     gtia = new GTIA(antic);
     // create video/audio
-    video = new RasterVideo(mainElement, 384, 192);
+    video = new RasterVideo(mainElement, 352, 192);
     audio = newPOKEYAudio();
     video.create();
     video.setKeyboardEvents((key,code,flags) => {
@@ -454,7 +525,7 @@ const _Atari8Platform = function(mainElement) {
           cpu.clockPulse();
         }
         // 4 ANTIC pulses = 8 pixels
-        if (antic.h >= 32 && antic.h < 32+192) { // TODO
+        if (antic.v >= 24 && antic.h >= 44 && antic.h < 44+176) { // TODO: const
           for (var j=0; j<8; j++) {
             rgb = gtia.clockPulse();
             idata[iofs++] = rgb;
@@ -473,6 +544,7 @@ const _Atari8Platform = function(mainElement) {
 
   loadROM(title, data) {
     rom = padBytes(data, romLength);
+    rom[rom.length-3] = 0xff; // TODO
     this.reset();
   }
 
@@ -551,27 +623,19 @@ const _Atari5200Platform = function(mainElement) {
 
 /// MAME support
 
-var Atari8MAMEPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new (BaseMAMEPlatform as any)();
-
-  this.loadROM = function(title, data) {
+abstract class Atari8MAMEPlatform extends BaseMAMEPlatform {
+  loadROM(title, data) {
     this.loadROMFile(data);
     this.loadRegion(":cartleft:cart:rom", data);
   }
-
-  this.getPresets = function() { return Atari8_PRESETS; }
-
-  this.getToolForFilename = getToolForFilename_6502;
-  this.getDefaultExtension = function() { return ".c"; };
+  getPresets() { return Atari8_PRESETS; }
+  getToolForFilename = getToolForFilename_6502;
+  getDefaultExtension() { return ".c"; };
 }
 
-var Atari800MAMEPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new Atari8MAMEPlatform(mainElement);
-
-  this.start = function() {
-    self.startModule(mainElement, {
+class Atari800MAMEPlatform extends Atari8MAMEPlatform implements Platform {
+  start() {
+    this.startModule(this.mainElement, {
       jsfile:'mameatari400.js',
       biosfile:'a400.zip', // TODO: load multiple files
       //cfgfile:'atari5200.cfg',
@@ -586,12 +650,9 @@ var Atari800MAMEPlatform = function(mainElement) {
   }
 }
 
-var Atari5200MAMEPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new (Atari8MAMEPlatform as any)(mainElement);
-
-  this.start = function() {
-    self.startModule(mainElement, {
+class Atari5200MAMEPlatform extends Atari8MAMEPlatform implements Platform {
+  start() {
+    this.startModule(this.mainElement, {
       jsfile:'mameatari400.js',
       biosfile:'a5200/5200.rom',
       //cfgfile:'atari5200.cfg',

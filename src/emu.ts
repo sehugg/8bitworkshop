@@ -1,6 +1,6 @@
 "use strict";
 
-import { hex } from "./util";
+import { hex, clamp } from "./util";
 
 // external modules
 declare var jt, Javatari, Z80_fast, CPU6809;
@@ -56,7 +56,8 @@ function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
 export var RasterVideo = function(mainElement:HTMLElement, width:number, height:number, options?) {
   var canvas, ctx;
   var imageData, arraybuf, buf8, datau32;
-
+  var vcanvas;
+  
   this.setRotate = function(rotate) {
     if (rotate) {
       // TODO: aspect ratio?
@@ -71,17 +72,12 @@ export var RasterVideo = function(mainElement:HTMLElement, width:number, height:
 
   this.create = function() {
     this.canvas = canvas = __createCanvas(mainElement, width, height);
+    vcanvas = $(canvas);
     if (options && options.rotate) {
       this.setRotate(options.rotate);
     }
     ctx = canvas.getContext('2d');
     imageData = ctx.createImageData(width, height);
-    /*
-    arraybuf = new ArrayBuffer(imageData.data.length);
-    buf8 = new Uint8Array(arraybuf); // TODO: Uint8ClampedArray
-    datau32 = new Uint32Array(arraybuf);
-    buf8 = imageData.data;
-    */
     datau32 = new Uint32Array(imageData.data.buffer);
   }
 
@@ -94,13 +90,25 @@ export var RasterVideo = function(mainElement:HTMLElement, width:number, height:
   this.getContext = function() { return ctx; }
 
   this.updateFrame = function(sx:number, sy:number, dx:number, dy:number, width?:number, height?:number) {
-    //imageData.data.set(buf8); // TODO: slow w/ partial updates
     if (width && height)
       ctx.putImageData(imageData, sx, sy, dx, dy, width, height);
     else
       ctx.putImageData(imageData, 0, 0);
     if (frameUpdateFunction) frameUpdateFunction(canvas);
   }
+
+  this.setupMouseEvents = function(el? : HTMLElement) {
+    if (!el) el = canvas;
+		$(el).mousemove( (e) => {
+		  // TODO: get coords right
+		  var x = e.pageX - vcanvas.offset().left;
+		  var y = e.pageY - vcanvas.offset().top;
+      var new_x = Math.floor(x * 255 / vcanvas.width() - 20);
+      var new_y = Math.floor(y * 255 / vcanvas.height() - 20);
+			this.paddle_x = clamp(0, 255, new_x);
+			this.paddle_y = clamp(0, 255, new_y);
+		});
+  };
 }
 
 export var VectorVideo = function(mainElement:HTMLElement, width:number, height:number) {

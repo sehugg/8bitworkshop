@@ -677,9 +677,11 @@ export abstract class BaseMAMEPlatform {
   }
 
   reset() {
-    this.luacall('manager:machine():soft_reset()');
-    this.running = true;
-    this.initluavars = false;
+    if (this.loaded) {
+      this.luacall('manager:machine():soft_reset()');
+      this.running = true;
+      this.initluavars = false;
+    }
   }
 
   isRunning() {
@@ -875,8 +877,10 @@ export abstract class BaseMAMEPlatform {
     return this.onBreakpointHit;// TODO?
   }
   setupDebug(callback) {
-    this.initlua();
-    this.luareset();
+    if (this.loaded) { // TODO?
+      this.initlua();
+      this.luareset();
+    }
     this.onBreakpointHit = callback;
   }
   runToPC(pc) {

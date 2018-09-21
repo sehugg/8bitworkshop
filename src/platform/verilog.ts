@@ -3,7 +3,7 @@
 import { Platform, BasePlatform } from "../baseplatform";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
 import { SampleAudio } from "../audio";
-import { safe_extend } from "../util";
+import { safe_extend, clamp } from "../util";
 import { WaveformView, WaveformProvider, WaveformMeta } from "../waveform";
 
 declare var Split;
@@ -277,10 +277,6 @@ var VerilogPlatform = function(mainElement, options) {
       audio.feedSample(gen.spkr*(1.0/255.0), 1);
     if (debugCond && debugCond())
       debugCond = null;
-  }
-
-  function clamp(minv,maxv,v) {
-    return (v < minv) ? minv : (v > maxv) ? maxv : v;
   }
 
   function shadowText(ctx, txt, x, y) {

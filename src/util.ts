@@ -376,3 +376,7 @@ export function rgb2bgr(x) {
   return ((x&0xff)<<16) | ((x>>16)&0xff) | (x&0x00ff00);
 }
 
+export function clamp(minv:number, maxv:number, v:number) {
+  return (v < minv) ? minv : (v > maxv) ? maxv : v;
+}
+

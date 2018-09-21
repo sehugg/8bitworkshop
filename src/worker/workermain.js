@@ -142,7 +142,8 @@ var PLATFORM_PARAMS = {
   'atari8-5200': {
     define: '__ATARI5200__',
     cfgfile: 'atari5200.cfg',
-    libargs: ['atari5200.lib'],
+    libargs: ['atari5200.lib',
+      '-D', '__CARTFLAGS__=255'],
   },
   'c64': {
     define: '__C64__',
@@ -919,19 +920,26 @@ function assembleSDASZ80(step) {
   if (staleFiles(step, [objpath, lstpath])) {
     //?ASxxxx-Error-<o> in line 1 of main.asm null
     //              <o> .org in REL area or directive / mnemonic error
-    var match_asm_re = / <\w> (.+)/; // TODO
+    // ?ASxxxx-Error-<q> in line 1627 of cosmic.asm
+    //    <q> missing or improper operators, terminators, or delimiters
+    var match_asm_re1 = / in line (\d+) of (\S+)/; // TODO
+    var match_asm_re2 = / <\w> (.+)/; // TODO
+    var errline = 0;
+    var errpath = step.path;
     function match_asm_fn(s) {
-      var matches = match_asm_re.exec(s);
-      if (matches) {
-        //var errline = parseInt(matches[2]);
-        errors.push({
-          line:0, // TODO
-          path:step.path,
-          msg:matches[1]
-        });
+      var m = match_asm_re1.exec(s);
+      if (m) {
+        errline = parseInt(m[1]);
+        errpath = m[2];
       } else {
-        // ?ASxxxx-Error-<q> in line 1627 of cosmic.asm
-        //    <q> missing or improper operators, terminators, or delimiters
+        m = match_asm_re2.exec(s);
+        if (m) {
+          errors.push({
+            line:errline,
+            path:errpath,
+            msg:m[1]
+          });
+        }
       }
     }
     var ASZ80 = sdasz80({
@@ -1527,7 +1535,7 @@ function executeBuildSteps() {
         // find previous link step to combine
         for (var i=0; i<buildsteps.length; i++) {
           var ls = buildsteps[i];
-          if (ls.tool == linkstep.tool && ls.platform == linkstep.platform && ls.files) {
+          if (ls.tool == linkstep.tool && ls.platform == linkstep.platform && ls.files && ls.args) {
             ls.files = ls.files.concat(linkstep.files);
             ls.args = ls.args.concat(linkstep.args);
             linkstep = null;
@@ -1545,7 +1553,7 @@ function executeBuildSteps() {
           path:step.result.path,
           args:step.result.args
         };
-        buildsteps.push(asmstep);
+        buildsteps.push(asmstep); // TODO: unshift changes order
         step.generated = asmstep.files;
       }
     }

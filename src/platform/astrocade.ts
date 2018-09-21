@@ -2,7 +2,7 @@
 
 import { Platform, BaseZ80Platform  } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
-import { hex, lzgmini, stringToByteArray, rgb2bgr } from "../util";
+import { hex, lzgmini, stringToByteArray, rgb2bgr, clamp } from "../util";
 import { MasterAudio, AY38910_Audio } from "../audio";
 
 const ASTROCADE_PRESETS = [
@@ -12,7 +12,11 @@ const ASTROCADE_PRESETS = [
   {id:'cosmic.c', name:'Cosmic Impalas Game'},
 ];
 
-// TODO: fix keys, more controllers, paddles, vibrato/noise, border color, full refresh, debug info
+const ASTROCADE_BIOS_PRESETS = [
+  {id:'bios.c', name:'BIOS'},
+];
+
+// TODO: fix keys, more controllers, vibrato/noise, border color, debug info
 
 const ASTROCADE_KEYCODE_MAP = makeKeycodeMap([
   // player 1
@@ -287,6 +291,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     psg = new AstrocadeAudio(audio);
     video = new RasterVideo(mainElement,swidth,sheight,{});
     video.create();
+    video.setupMouseEvents();
     var idata = video.getFrameData();
 		setKeyboardFromMap(video, inputs, ASTROCADE_KEYCODE_MAP);
     pixels = video.getFrameData();
@@ -297,7 +302,13 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     return membus.read(addr);
   }
   
+  loadControls() {
+    inputs[0x1c] = video.paddle_x & 0xff;
+    inputs[0x1d] = video.paddle_y & 0xff;
+  }
+  
   advance(novideo : boolean) {
+    this.loadControls();
     for (var sl=0; sl<sheight; sl++) {
       //console.log(sl, hex(cpu.getPC(),4), cpu.saveState());
       this.runCPU(cpu, cpuCyclesPerLine);
@@ -438,6 +449,10 @@ const _BallyArcadePlatform = function(mainElement) {
 
 const _BallyAstrocadeBIOSPlatform = function(mainElement) {
   this.__proto__ = new (_BallyAstrocadePlatform as any)(mainElement);
+
+  this.getPresets = function() {
+    return ASTROCADE_BIOS_PRESETS;
+  }
 
   this.loadROM = this.loadBIOS;
 }
