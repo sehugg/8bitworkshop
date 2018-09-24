@@ -67,6 +67,7 @@ TODO:
 - verilog: when paused scope doesn't work
 - resize memory dump window
 - C/asm formatter
+- fix WebAudio (https://news.ycombinator.com/item?id=18066474)
 
 
 WEB WORKER FORMAT

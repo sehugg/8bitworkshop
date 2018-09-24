@@ -77,7 +77,7 @@ typedef enum {
 
 void main();
 
-void start() {
+void start() __naked {
 __asm
 	LD      SP,#0x4800
         EI
@@ -87,8 +87,17 @@ __asm
         LD    DE, #s__INITIALIZED
         LD    HL, #s__INITIALIZER
         LDIR
+  	JP    _main
+; padding to get to offset 0x66
+  	.ds   0x66 - (. - _start)
 __endasm;
-	main();
+}
+
+volatile byte video_framecount; // actual framecount
+
+// starts at address 0x66
+void rst_66() __interrupt {
+  video_framecount++;
 }
 
 const char __at (0x5000) palette[32] = {/*{pal:332,n:4}*/
@@ -136,24 +145,8 @@ void clrscr() {
   memset_safe(vram, BLANK, sizeof(vram));
 }
 
-volatile byte video_framecount; // actual framecount
-
 void reset_video_framecount() __critical {
   video_framecount = 0;
-}
-
-void _buffer() {
-__asm
-; padding to get to offset 0x66
-  ld ix,#0
-  ld ix,#0
-  ld ix,#0
-  nop
-__endasm;
-}
-
-void rst_66() __interrupt {
-  video_framecount++;
 }
 
 byte getchar(byte x, byte y) {

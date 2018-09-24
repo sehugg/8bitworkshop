@@ -1,4 +1,4 @@
-
+﻿
 #include <string.h>
 
 typedef unsigned char byte;
@@ -28,27 +28,27 @@ void scanline224() __interrupt;
 void main();
 // start routine @ 0x0
 // set stack pointer, enable interrupts
-void start() {
+void start() __naked {
 __asm
 	LD      SP,#0x2400
         EI
         NOP
+  	JP	_main
 __endasm;
-	main();
 }
 
 // scanline 96 interrupt @ 0x8
 // we don't have enough bytes to make this an interrupt
 // because the next routine is at 0x10
-void _RST_8()  {
+void _RST_8() __naked {
 __asm
 	NOP
         NOP
         NOP
         NOP
         NOP
+  	JP	_scanline96
 __endasm;
-	scanline96();
 }
 
 // scanline 224 interrupt @ 0x10
