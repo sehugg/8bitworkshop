@@ -128,6 +128,7 @@ var PLATFORM_PARAMS = {
     cfgfile: 'apple2-hgr.cfg',
     libargs: ['apple2.lib'],
     __CODE_RUN__: 16384,
+    code_start: 0x803,
   },
   'apple2-e': {
     define: '__APPLE2__',
@@ -1514,8 +1515,9 @@ function executeBuildSteps() {
       return {errors:[{line:0, msg:e+""}]}; // TODO: catch errors already generated?
     }
     if (step.result) {
+      step.result.params = step.params;
       // errors? return them
-      if (step.result.errors) {
+      if (step.result.errors && step.result.errors.length) {
         applyDefaultErrorPath(step.result.errors, step.path);
         return step.result;
       }

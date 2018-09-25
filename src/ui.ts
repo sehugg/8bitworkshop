@@ -353,6 +353,39 @@ function _shareEmbedLink(e) {
   return true;
 }
 
+function _downloadCassetteFile(e) {
+  if (current_output == null) { // TODO
+    alert("Please fix errors before exporting.");
+    return true;
+  }
+  var addr = compparams && compparams.code_start;
+  if (addr === undefined) {
+    alert("Cassette export is not supported on this platform.");
+    return true;
+  }
+  loadScript('lib/c2t.js', () => {
+    var stdout = '';
+    var print_fn = function(s) { stdout += s + "\n"; }
+    var c2t = window['c2t']({
+      noInitialRun:true,
+      print:print_fn,
+      printErr:print_fn
+    });
+    var FS = c2t['FS'];
+    var rompath = getCurrentMainFilename() + ".bin";
+    var audpath = getCurrentMainFilename() + ".wav";
+    FS.writeFile(rompath, current_output, {encoding:'binary'});
+    var args = ["-2bc", rompath+','+addr.toString(16), audpath];
+    c2t.callMain(args);
+    var audout = FS.readFile(audpath, {'encoding':'binary'});
+    if (audout) {
+      var blob = new Blob([audout], {type: "audio/wav"});
+      saveAs(blob, audpath);
+      alert(stdout);
+    }
+  });
+}
+
 function fixFilename(fn : string) : string {
   if (platform_id.startsWith('vcs') && fn.indexOf('.') <= 0)
     fn += ".a"; // legacy stuff
@@ -892,6 +925,10 @@ function setupDebugControls(){
   $("#item_download_zip").click(_downloadProjectZipFile);
   $("#item_download_allzip").click(_downloadAllFilesZipFile);
   $("#item_record_video").click(_recordVideo);
+  if (platform_id == 'apple2')
+    $("#item_export_cassette").click(_downloadCassetteFile);
+  else
+    $("#item_export_cassette").hide();
   if (platform.setFrameRate && platform.getFrameRate) {
     $("#dbg_slower").click(_slowerFrameRate);
     $("#dbg_faster").click(_fasterFrameRate);
