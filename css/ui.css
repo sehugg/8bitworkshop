@@ -225,11 +225,13 @@ div.emuoverlay {
   top:0;
   width:100%;
   height:100%;
+  pointer-events:none;
 }
 div.emuscope {
   background-color: #333;
 }
 div.emuspacer {
+  width:0;
 }
 /* has to be here b/c renders differently after first load if in inline style */
 .emuvideo {
@@ -242,6 +244,7 @@ div.emuspacer {
   margin-left:7.5%;
   margin-right:7.5%;
   width: 85%;
+  pointer-events:auto;
 }
 canvas.pixelated {
   image-rendering: optimizeSpeed;             /* Older versions of FF          */
