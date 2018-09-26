@@ -8,6 +8,7 @@
 #include <string.h>
 #include <conio.h>
 #include <apple2.h>
+#include <peekpoke.h>
 
 // type aliases for byte/signed byte/unsigned 16-bit
 typedef unsigned char byte;
@@ -15,10 +16,6 @@ typedef signed char sbyte;
 typedef unsigned short word;
 
 // peeks, pokes, and strobes
-#define POKE(addr,val)     (*(unsigned char*) (addr) = (val))
-#define POKEW(addr,val)    (*(unsigned*) (addr) = (val))
-#define PEEK(addr)         (*(unsigned char*) (addr))
-#define PEEKW(addr)        (*(unsigned*) (addr))
 #define STROBE(addr)       __asm__ ("sta %w", addr)
 
 // speaker click

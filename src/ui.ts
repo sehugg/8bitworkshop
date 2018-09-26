@@ -381,6 +381,7 @@ function _downloadCassetteFile(e) {
     if (audout) {
       var blob = new Blob([audout], {type: "audio/wav"});
       saveAs(blob, audpath);
+      stdout += "Then connect your audio output to the cassette input, turn up the volume, and play the audio file.";
       alert(stdout);
     }
   });
