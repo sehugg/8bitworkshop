@@ -227,8 +227,6 @@ var VerilogPlatform = function(mainElement, options) {
   var current_output;
 
   // control inputs
-  var paddle_x = 0;
-  var paddle_y = 0;
   var switches = [0,0,0];
 
   // inspect feature  
@@ -340,14 +338,7 @@ var VerilogPlatform = function(mainElement, options) {
       },
     });
     // setup mouse events
-		topdiv.mousemove( (e) => {
-		  var x = e.pageX - vcanvas.offset().left;
-		  var y = e.pageY - vcanvas.offset().top;
-      var new_x = Math.floor(x * video.canvas.width / vcanvas.width() - 20);
-      var new_y = Math.floor(y * video.canvas.height / vcanvas.height() - 20);
-			paddle_x = clamp(8, 240, new_x);
-			paddle_y = clamp(8, 240, new_y);
-		});
+    video.setupMouseEvents();
   }
   
   setGenInputs() {
@@ -482,8 +473,8 @@ var VerilogPlatform = function(mainElement, options) {
         framehsync = false;
         framex = 0;
         framey++;
-        gen.hpaddle = framey > paddle_x ? 1 : 0;
-        gen.vpaddle = framey > paddle_y ? 1 : 0;
+        gen.hpaddle = framey > video.paddle_x ? 1 : 0;
+        gen.vpaddle = framey > video.paddle_y ? 1 : 0;
       }
       if (framey > maxVideoLines || gen.vsync) {
         framevsync = true;
@@ -725,16 +716,16 @@ var VerilogPlatform = function(mainElement, options) {
   }
   saveControlsState() {
     return {
-      p1x: paddle_x,
-      p1y: paddle_y,
+      p1x: video.paddle_x,
+      p1y: video.paddle_y,
       sw0: switches[0],
       sw1: switches[1],
       sw2: switches[2],
     };
   }
   loadControlsState(state) {
-    paddle_x = state.p1x;
-    paddle_y = state.p1y;
+    video.paddle_x = state.p1x;
+    video.paddle_y = state.p1y;
     switches[0] = state.sw0;
     switches[1] = state.sw1;
     switches[2] = state.sw2;
