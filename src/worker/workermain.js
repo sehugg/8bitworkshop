@@ -1391,12 +1391,13 @@ function compileYosys(step) {
 
 function assembleZMAC(step) {
   loadNative("zmac");
-  var hexout, lstout;
+  var hexout, lstout, binout;
   var errors = [];
   var params = step.params;
   gatherFiles(step, {mainFilePath:"main.asm"});
   var hexpath = step.prefix + ".hex";
   var lstpath = step.prefix + ".lst";
+  var binpath = step.prefix + ".cim";
   if (staleFiles(step, [hexpath, lstpath])) {
   /*
 error1.asm(4) : 'l18d4' Undeclared
@@ -1416,15 +1417,15 @@ error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
     var FS = ZMAC['FS'];
     populateFiles(step, FS);
     // TODO: don't know why CIM (hexary) doesn't work
-    execMain(step, ZMAC, ['-z', '-c', '--oo', 'lst,hex', step.path]);
+    execMain(step, ZMAC, ['-z', '-c', '--oo', 'lst,cim', step.path]);
     if (errors.length) {
       return {errors:errors};
     }
-    hexout = FS.readFile("zout/"+hexpath, {encoding:'utf8'});
     lstout = FS.readFile("zout/"+lstpath, {encoding:'utf8'});
-    putWorkFile(hexpath, hexout);
+    binout = FS.readFile("zout/"+binpath, {encoding:'binary'});
+    putWorkFile(binpath, binout);
     putWorkFile(lstpath, lstout);
-    if (!anyTargetChanged(step, [hexpath, lstpath]))
+    if (!anyTargetChanged(step, [binpath, lstpath]))
       return;
     //  230: 1739+7+x   017A  1600      L017A: LD      D,00h
     var lines = parseListing(lstout, /\s*(\d+):\s*([0-9a-f]+)\s+([0-9a-f]+)\s+(.+)/i, 1, 2, 3);
@@ -1443,7 +1444,7 @@ error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
       });
     }
     return {
-      output:parseIHX(hexout, params.rom_start||params.code_start, params.rom_size),
+      output:binout,
       listings:listings,
       errors:errors,
       symbolmap:symbolmap
