@@ -187,7 +187,7 @@ export var AnimationTimer = function(frequencyHz:number, callback:() => void) {
   var running : boolean = false;
   var pulsing : boolean = false;
   var lastts = 0;
-  var useReqAnimFrame = false; //window.requestAnimationFrame ? (frequencyHz>40) : false;
+  var useReqAnimFrame = false; //TODO window.requestAnimationFrame ? (frequencyHz>40) : false;
   var nframes, startts; // for FPS calc
   this.frameRate = frequencyHz;
 

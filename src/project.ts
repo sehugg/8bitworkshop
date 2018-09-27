@@ -35,12 +35,13 @@ export class CodeProject {
       var notfinal = this.pendingWorkerMessages > 1;
       if (notfinal) {
         this.sendBuild();
+        this.pendingWorkerMessages = 1;
       } else {
         if (this.callbackBuildStatus) this.callbackBuildStatus(false);
         if (!this.isCompiling) { console.log(this.pendingWorkerMessages); console.trace(); } // debug compile problems
         this.isCompiling = false;
+        this.pendingWorkerMessages = 0;
       }
-      this.pendingWorkerMessages = 0;
       if (e.data && !e.data.unchanged) {
         this.processBuildResult(e.data);
         if (this.callbackBuildResult) this.callbackBuildResult(e.data); // call with data when changed
