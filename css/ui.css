@@ -229,6 +229,7 @@ div.emuoverlay {
 }
 div.emuscope {
   background-color: #333;
+  pointer-events:auto;
 }
 div.emuspacer {
   width:0;
@@ -319,6 +320,7 @@ div.replaydiv {
   background-color: #555;
   background-repeat: no-repeat;
   background-position: 50%;
+  pointer-events:auto;
 }
 .gutter.gutter-vertical {
   background-image:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFAQMAAABo7865AAAABlBMVEVHcEzMzMzyAv2sAAAAAXRSTlMAQObYZgAAABBJREFUeF5jOAMEEAIEEFwAn3kMwcB6I2AAAAAASUVORK5CYII=');

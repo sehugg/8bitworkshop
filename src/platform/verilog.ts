@@ -336,6 +336,12 @@ var VerilogPlatform = function(mainElement, options) {
       onDrag: () => {
         if (this.waveview) this.waveview.recreate();
       },
+      onDragStart: () => {
+        $(".emuoverlay").css("pointer-events", "auto"); // allow drag
+      },
+      onDragEnd: () => {
+        $(".emuoverlay").css("pointer-events", "none"); // disallow drag
+      },
     });
     // setup mouse events
     video.setupMouseEvents();

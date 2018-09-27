@@ -68,6 +68,7 @@ TODO:
 - resize memory dump window
 - C/asm formatter
 - fix WebAudio (https://news.ycombinator.com/item?id=18066474)
+- Safari: verilog scope doesn't work
 
 
 WEB WORKER FORMAT
