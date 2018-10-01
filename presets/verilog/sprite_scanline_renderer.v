@@ -1,4 +1,4 @@
-
+﻿
 `include "hvsync_generator.v"
 `include "ram.v"
 
@@ -42,10 +42,10 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
   localparam N = 1<<NB; // number of sprites
   localparam M = 1<<MB; // slots per scanline
   
-  input clk, reset;
-  input [8:0] hpos;
-  input [8:0] vpos;
-  output [3:0] rgb;
+  input clk, reset;	// clock and reset inputs
+  input [8:0] hpos;	// horiz. sync pos
+  input [8:0] vpos;	// vert. sync pos
+  output [3:0] rgb;	// rgb output
 
   output [NB:0] ram_addr; // RAM for sprite data
   input [15:0] ram_data;  // (2 words per sprite)
@@ -55,9 +55,9 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
   input [15:0] rom_data;  // sprite ROM data
   
   // copy of sprite data from RAM (N entries)
-  reg [7:0] sprite_xpos[0:N-1];
-  reg [7:0] sprite_ypos[0:N-1];
-  reg [7:0] sprite_attr[0:N-1];
+  reg [7:0] sprite_xpos[0:N-1]; // X positions
+  reg [7:0] sprite_ypos[0:N-1]; // Y positions
+  reg [7:0] sprite_attr[0:N-1]; // attributes
 
   // M sprite slots
   reg [7:0] line_xpos[0:M-1]; // X pos for M slots
@@ -83,20 +83,8 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
   
   // which offset in scanline buffer to read?
   wire [8:0] read_bufidx = {vpos[0], hpos[7:0]};
-  
-  /*
-  0: read sprite_ypos[i]
-  1: check ypos, write line_ypos[j]
-  ...
-  0: read line_xpos[0]
-  1: store xpos
-  2: read line_ypos[0]
-  3: store ypos
-  4: read line_attr[0]
-  5: store attr
-  8: write 16 pixels
-  */
-  
+
+  // always block (every clock cycle)
   always @(posedge clk) begin
     
     ram_busy <= 0;

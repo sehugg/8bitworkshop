@@ -1,9 +1,10 @@
-
+﻿
 `ifndef SPRITE_ROTATION_H
 `define SPRITE_ROTATION_H
 
 `include "hvsync_generator.v"
 
+// tank bitmap ROM module
 module tank_bitmap(addr, bits);
   
   input [7:0] addr;
@@ -101,6 +102,7 @@ module tank_bitmap(addr, bits);
   end
 endmodule
 
+// 16x16 sprite renderer that supports rotation
 module sprite_renderer2(clk, vstart, load, hstart, rom_addr, rom_bits, 
                        hmirror, vmirror,
                        gfx, busy);
@@ -180,30 +182,31 @@ module sprite_renderer2(clk, vstart, load, hstart, rom_addr, rom_bits,
   
 endmodule
 
+// converts 0..15 rotation value to bitmap index / mirror bits
 module rotation_selector(rotation, bitmap_num, hmirror, vmirror);
   
-  input [3:0] rotation;
-  output [2:0] bitmap_num;
-  output hmirror, vmirror;
+  input [3:0] rotation;	   // angle (0..15)
+  output [2:0] bitmap_num; // bitmap index (0..4)
+  output hmirror, vmirror; // horiz & vert mirror bits
   
   always @(*)
-    case (rotation[3:2])
-      0: begin
+    case (rotation[3:2])	// 4 quadrants
+      0: begin			// 0..3 -> 0..3
         bitmap_num = {1'b0, rotation[1:0]};
         hmirror = 0;
         vmirror = 0;
       end
-      1: begin
+      1: begin			// 4..7 -> 4..1
         bitmap_num = -rotation[2:0];
         hmirror = 0;
         vmirror = 1;
       end
-      2: begin
+      2: begin			// 8-11 -> 0..3
         bitmap_num = {1'b0, rotation[1:0]};
         hmirror = 1;
         vmirror = 1;
       end
-      3: begin
+      3: begin			// 12-15 -> 4..1
         bitmap_num = -rotation[2:0];
         hmirror = 1;
         vmirror = 0;
@@ -212,6 +215,7 @@ module rotation_selector(rotation, bitmap_num, hmirror, vmirror);
 
 endmodule
 
+// tank controller module -- handles rendering and movement
 module tank_controller(clk, reset, hpos, vpos, hsync, vsync, 
                        sprite_addr, sprite_bits, gfx,
                        playfield,
@@ -276,18 +280,17 @@ module tank_controller(clk, reset, hpos, vpos, hsync, vsync,
       player_rot <= initial_rot;
       player_speed <= 0;
     end else begin
-      frame <= frame + 1;
-      // rotation
-      if (frame[0]) begin
+      frame <= frame + 1; // increment frame counter
+      if (frame[0]) begin // only update every other frame
         if (switch_left)
-          player_rot <= player_rot - 1;
+          player_rot <= player_rot - 1; // turn left
         else if (switch_right)
-          player_rot <= player_rot + 1;
+          player_rot <= player_rot + 1; // turn right
         if (switch_up) begin
-          if (player_speed != 15)
+          if (player_speed != 15) // max accel
             player_speed <= player_speed + 1;
         end else
-          player_speed <= 0;
+          player_speed <= 0; // stop
       end
     end
   end
@@ -301,18 +304,17 @@ module tank_controller(clk, reset, hpos, vpos, hsync, vsync,
     else if (collision_gfx)
       collision_detected <= 1;
   
-  // sine lookup (4 bits input, 4 signed bits output)
-  
+  // sine lookup (4 bits input, 4 signed bits output)  
   function signed [3:0] sin_16x4;
-    input [3:0] in;
+    input [3:0] in;	// input angle 0..15
     integer y;
-    case (in[1:0])
+    case (in[1:0])	// 4 values per quadrant
       0: y = 0;
       1: y = 3;
       2: y = 5;
       3: y = 6;
     endcase
-    case (in[3:2])
+    case (in[3:2])	// 4 quadrants
       0: sin_16x4 = 4'(y);
       1: sin_16x4 = 4'(7-y);
       2: sin_16x4 = 4'(-y);
@@ -322,16 +324,18 @@ module tank_controller(clk, reset, hpos, vpos, hsync, vsync,
   
   always @(posedge hsync or posedge reset)
     if (reset) begin
+      // set initial position
       player_x_fixed <= initial_x << 4;
       player_y_fixed <= initial_y << 4;
     end else begin
-      // movement
+      // collision detected? move backwards
       if (collision_detected && vpos[3:1] == 0) begin
         if (vpos[0])
           player_x_fixed <= player_x_fixed + 12'(sin_16x4(player_rot+8));
         else
           player_y_fixed <= player_y_fixed - 12'(sin_16x4(player_rot+12));
       end else
+      // forward movement
       if (vpos < 9'(player_speed)) begin
         if (vpos[0])
           player_x_fixed <= player_x_fixed + 12'(sin_16x4(player_rot));

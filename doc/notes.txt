@@ -69,6 +69,8 @@ TODO:
 - C/asm formatter
 - fix WebAudio (https://news.ycombinator.com/item?id=18066474)
 - Safari: verilog scope doesn't work
+- share playable link w/ verilog?
+- pixedit Sprite Rotation bitmap wrong (bpw?)
 
 
 WEB WORKER FORMAT
