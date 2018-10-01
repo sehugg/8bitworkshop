@@ -2,6 +2,13 @@
 `include "hvsync_generator.v"
 `include "lfsr.v"
 
+/*
+Sound generator module.
+This module has a square-wave oscillator (VCO) which can
+be modulated by a low-frequency oscillator (LFO) and also
+mixed with a LFSR noise source.
+*/
+
 module sound_generator(clk, reset, spkr,
                lfo_freq,noise_freq, vco_freq,
                vco_select, noise_select, lfo_shift, mixer);

@@ -3,6 +3,11 @@
 `include "font_cp437_8x8.v"
 `include "ram.v"
 
+/*
+Displays a 32x30 grid of 8x8 tiles, whose attributes are
+  fetched from RAM, and whose bitmap patterns are in ROM.
+*/
+
 module tile_renderer(clk, reset, hpos, vpos,
                      rgb,
                      ram_addr, ram_read, ram_busy,

@@ -1,4 +1,9 @@
 
+/*
+A clock divider in Verilog, using both the cascading
+flip-flop method and the counter method.
+*/
+
 module clock_divider(
   input clk,
   input reset,

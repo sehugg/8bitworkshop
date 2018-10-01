@@ -5,6 +5,8 @@
 
 	org  $f000
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Now, we'll finally put everything together and
 ; make a little person with a hat that can move
 ; back and forth and throw rocks. We'll use one player
@@ -21,6 +23,8 @@
 ;
 ; Note: the Y coordinate goes bottom-top, not top-bottom
 ; as in the next section.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 counter	equ $81 ; increments each frame
 yplyr	equ $82	; player y pos

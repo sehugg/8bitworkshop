@@ -3,8 +3,8 @@
 	include "vcs.h"
 	include "macro.h"
 
-	org  $f000
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Besides the two 8x1 sprites ("players") the TIA has
 ; two "missiles" and one "ball", which are just variable-length
 ; dots or dashes. They have similar positioning and display
@@ -12,6 +12,10 @@
 ; set the horizontal position of any of them.
 ; But we can also use the HMPx/HMOVE registers directly to move the
 ; objects by small offsets without using this routine every time.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	org  $f000
 
 counter	equ $81
 

@@ -4,6 +4,14 @@
         include "macro.h"
         include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This example drives the VCS audio DAC directly to generate
+; 4-voice music. Unfortunately, the CPU is 100% utilized so
+; we can't display anything.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 	seg.u   Variables
 	org	$80
 

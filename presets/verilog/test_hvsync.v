@@ -1,6 +1,10 @@
 
 `include "hvsync_generator.v"
 
+/*
+A simple test pattern using the hvsync_generator module.
+*/
+
 module test_hvsync_top(clk, reset, hsync, vsync, rgb);
 
   input clk, reset;

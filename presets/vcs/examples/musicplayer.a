@@ -6,26 +6,30 @@
 
 	org  $f000
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; This program demonstrates a VCS music player based on tracks
 ; and patterns. A pattern is a list of variable-length notes,
 ; each of which is defined by a pitch and duration.
 ; There are two tracks, one for each audio channel.
 ; Each track consists of a list of patterns, each entry being
 ; a byte offset into the Patterns array.
-
+;
 ; The patterns in the tracks are played in-order until one ends,
 ; and then both tracks are restarted. It's up to the composer
 ; to make sure the durations in each track line up properly.
-
+;
 ; Patterns consist of NOTE or TONE commands. TONE sets the
 ; tone of the channel (the AUDCx register) and NOTE plays a note
 ; with a duration taken from a lookup table.
 ; TONE 0 ends a pattern.
-
+;
 ; Both channels share the same logical array for tracks and patterns,
 ; so both tracks can take up to 255 bytes total, and all patterns
 ; can use up to 255 bytes total.
 ; The music player uses 8 bytes of RAM (not counting stack).
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 Trk0idx		equ	$e0	; offset into tracks for channel 0
 Trk1idx		equ	$e1	; offset into tracks for channel 1

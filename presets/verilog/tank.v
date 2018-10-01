@@ -3,6 +3,15 @@
 `include "digits10.v"
 `include "sprite_rotation.v"
 
+/*
+Tank game.
+
+minefield - Displays the minefield.
+playfield - Displays the playfield maze.
+tank_game_top - Runs the tank game, using two tank_controller
+  modules.
+*/
+
 module minefield(hpos, vpos, mine_gfx);
 
   input [8:0] hpos;

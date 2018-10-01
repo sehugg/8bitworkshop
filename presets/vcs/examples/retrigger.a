@@ -4,6 +4,18 @@
         include "macro.h"
         include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; The sprite retrigger trick relies on a behavior when the
+; NUSIZ register is set to display multiple copies of objects
+; (usually two). Basically, if the RESPx register is strobed
+; multiple times on a given scanline, the first (leftmost) copy
+; of the object will be hidden, and the TIA will draw the other
+; copy. You can keep strobing the register to output multiple
+; copies on the same scanline.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 	org  $f000
 
 CurRow		equ $8f

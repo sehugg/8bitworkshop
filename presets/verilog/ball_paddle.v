@@ -3,6 +3,10 @@
 `include "digits10.v"
 `include "scoreboard.v"
 
+/*
+A brick-smashing ball-and-paddle game.
+*/
+
 module ball_paddle_top(clk, reset, hpaddle, hsync, vsync, rgb);
 
   input clk;

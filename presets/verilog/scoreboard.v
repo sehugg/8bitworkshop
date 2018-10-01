@@ -5,6 +5,11 @@
 `include "hvsync_generator.v"
 `include "digits10.v"
 
+/*
+player_stats - Holds two-digit score and one-digit lives counter.
+scoreboard_generator - Outputs video signal with score/lives digits.
+*/
+
 module player_stats(reset, score0, score1, lives, incscore, declives);
   
   input reset;

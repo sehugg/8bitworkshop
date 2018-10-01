@@ -5,12 +5,16 @@
 
 	org  $f000
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; We're going to try to animate sprites horizontally.
 ; Remember, we have to pause the CPU until the exact moment the
 ; scanline hits the desired horizontal position of the sprite.
 ; Since we can't hard-code the SLEEP macro we'll have to do it
 ; dynamically somehow. But since the TIA beam is racing so much
 ; faster than the CPU clock, we'll have to be clever.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 counter	equ $81
 

@@ -2,6 +2,11 @@
 `include "hvsync_generator.v"
 
 /*
+seven_segment_decoder - Decodes a digit into 7 segments.
+
+segments_to_bitmap - Encodes a 7-segment bitmask into
+  a 5x5 bitmap.
+
 Segment bit indices:
 
        6666

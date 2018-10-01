@@ -3,6 +3,10 @@
 `include "digits10.v"
 `include "ram.v"
 
+/*
+Displays a grid of digits on the CRT using a RAM module.
+*/
+
 module test_ram1_top(clk, reset, hsync, vsync, rgb);
 
   input clk, reset;

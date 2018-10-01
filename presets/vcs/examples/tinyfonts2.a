@@ -4,9 +4,29 @@
         include "macro.h"
         include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Now that we know how to draw extra-wide sprites, we can
+; apply this technique to another type of object: text.
+;
+; We can draw scoreboards and other kinds of text using the
+; playfield registers. However, these are pretty blocky, and
+; limited to 40 pixels in width. But we can draw lines of text
+; that are 48 pixels width by five pixels high using the
+; sprite retriggering trick.
+;
+; Instead of fetching our bitmap data from ROM, we build a 
+; bitmap in RAM using lookup tables. Building the bitmap array
+; efficiently is a challenge, because we've got to look up 60
+; bytes in memory and combine those into 30 bytes. If we did
+; this without regard to performance, it might consume a few
+; thousand CPU cycles, which would require 30 or 40 scanlines
+; just to set up the sprite.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
         seg.u Variables
 	org $80
-
 
 Temp		.byte
 WriteOfs	.byte ; offset into dest. array FontBuf	

@@ -1,7 +1,9 @@
-﻿
+
 `include "hvsync_generator.v"
 
 /*
+Switch test program.
+
 Player 1 Keys: arrow keys + space + shift
 Player 2 Keys: A/D/W/S + Z + X
 */

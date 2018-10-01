@@ -3,6 +3,30 @@
         include "macro.h"
         include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This example draws a pseudo-3D road using the two missiles
+; and ball objects. With these, we'll draw the two shoulders
+; of the road, and also the dashed center line.
+;
+; Our plan is this: The two missiles and ball all start at the
+; same position on the horizon. As we go down the screen, we'll
+; move the three objects slightly based on the curve of the road.
+; The left shoulder of the road will be biased a little more to
+; the left, and the right shoulder will bias a little more right.
+; We can use the HMOVE registers for movement, since each object
+; will not need to move more than seven pixels on any given 
+; scanline.
+; 
+; It'd be easier if the scanlines went from bottom to top,
+; because we could just start at the horizontal center of the
+; screen and follow the road curve to the horizon, ending up
+; wherever the road takes us. But scanlines go top to bottom,
+; so we have to also do some preprocessing before the frame begins
+; to figure out where the road ends up.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
         seg.u Variables
 	org $80
 

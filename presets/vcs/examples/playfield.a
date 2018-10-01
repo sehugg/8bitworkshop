@@ -4,11 +4,15 @@
 	include "macro.h"
 
 	org  $f000
-	
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;	
 ; We're going to mess with the playfield registers, PF0, PF1 and PF2.
 ; Between them, they represent 20 bits of bitmap information
 ; which are replicated over 40 wide pixels for each scanline.
 ; By changing the registers before each scanline, we can draw bitmaps.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 Counter	equ $81
 

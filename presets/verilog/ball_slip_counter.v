@@ -1,6 +1,11 @@
 
 `include "hvsync_generator.v"
 
+/*
+A bouncing ball using the "slipping counter" method, as
+used in Pong, Computer Space, and other early arcade games.
+*/
+
 module ball_slip_counter_top(clk, reset, hsync, vsync, rgb);
 
   input clk;

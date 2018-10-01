@@ -2,6 +2,17 @@
 `ifndef RAM_H
 `define RAM_H
 
+/*
+RAM_sync - Synchronous RAM module.
+RAM_async - Asynchronous RAM module.
+RAM_async_tristate - Async RAM module with bidirectional data bus.
+
+Module parameters:
+
+A - number of address bits (default = 10)
+D - number of data bits (default = 8)
+*/
+
 module RAM_sync(clk, addr, din, dout, we);
   
   parameter A = 10; // # of address bits

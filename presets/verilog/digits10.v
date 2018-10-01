@@ -4,6 +4,15 @@
 
 `include "hvsync_generator.v"
 
+/*
+ROM module with 5x5 bitmaps for the digits 0-9.
+
+digits10_case - Uses the case statement.
+digits10_array - Uses an array and initial block.
+
+These two modules are functionally equivalent.
+*/
+
 // module for 10-digit bitmap ROM
 module digits10_case(digit, yofs, bits);
   

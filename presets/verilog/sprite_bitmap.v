@@ -4,6 +4,13 @@
 
 `include "hvsync_generator.v"
 
+/*
+Simple sprite renderer example.
+
+car_bitmap - ROM for a car sprite.
+sprite_bitmap_top - Example sprite rendering module.
+*/
+
 module car_bitmap(yofs, bits);
   
   input [3:0] yofs;

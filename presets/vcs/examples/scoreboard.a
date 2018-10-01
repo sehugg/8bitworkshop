@@ -4,6 +4,15 @@
         include "macro.h"
         include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This example draws a scoreboard using the playfield
+; and a 4x5 font. We encode the left and right digits in a
+; single byte, so we just mask one side or the other, and
+; combine them into a 8-bit byte to draw a digit.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 	seg.u Variables
         org $80
 

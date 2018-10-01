@@ -5,6 +5,8 @@
 
 	org  $f000
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; We're going to use a more clever way to position sprites
 ; ("players") which relies on additional TIA features.
 ; Because the CPU timing is 3 times as coarse as the TIA's,
@@ -12,6 +14,8 @@
 ; CPU delays alone.
 ; Additional TIA registers let us nudge the final position
 ; by discrete TIA clocks and thus target all 160 positions.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 counter	equ $81
 

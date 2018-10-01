@@ -1,6 +1,10 @@
 
 `include "hvsync_generator.v"
 
+/*
+A bouncing ball using absolute coordinates.
+*/
+
 module ball_absolute_top(clk, reset, hsync, vsync, rgb);
 
   input clk;

@@ -1,9 +1,13 @@
-﻿
+
 `ifndef SPRITE_RENDERER_H
 `define SPRITE_RENDERER_H
 
 `include "hvsync_generator.v"
 `include "sprite_bitmap.v"
+
+/*
+Displays a 16x16 sprite (8 bits mirrored left/right).
+*/
 
 module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits, 
                        gfx, in_progress);
