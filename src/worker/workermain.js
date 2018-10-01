@@ -1395,10 +1395,9 @@ function assembleZMAC(step) {
   var errors = [];
   var params = step.params;
   gatherFiles(step, {mainFilePath:"main.asm"});
-  var hexpath = step.prefix + ".hex";
   var lstpath = step.prefix + ".lst";
   var binpath = step.prefix + ".cim";
-  if (staleFiles(step, [hexpath, lstpath])) {
+  if (staleFiles(step, [binpath, lstpath])) {
   /*
 error1.asm(4) : 'l18d4' Undeclared
        JP      L18D4
