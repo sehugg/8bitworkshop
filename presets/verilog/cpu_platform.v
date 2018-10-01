@@ -8,6 +8,18 @@
 `include "sound_generator.v"
 `include "cpu16.v"
 
+/*
+A full video game console, with the following components:
+
+  64 kilobytes (32,678 16-bit words) of RAM
+  16-bit CPU running at 4.857 MHz
+  32x30 tile graphics with 256 x 8 tile ROM
+  32 16x16 sprites per frame with sprite ROM
+  16 colors (two per tile, one per sprite)
+  Two game controllers (four direction switches, two buttons)
+  One paddle/analog stick controller
+*/
+
 module cpu_platform(clk, reset, hsync, vsync, 
                     hpaddle, vpaddle, 
                     switches_p1, switches_p2,

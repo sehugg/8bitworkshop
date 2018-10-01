@@ -4,6 +4,12 @@
 
 `include "hvsync_generator.v"
 
+/*
+tank_bitmap - ROM for tank bitmaps (5 different rotations)
+sprite_renderer2 - Displays a 16x16 sprite.
+tank_controller - Handles display and movement for one tank.
+*/
+
 module tank_bitmap(addr, bits);
   
   input [7:0] addr;

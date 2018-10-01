@@ -2,6 +2,10 @@
 `ifndef LFSR_V
 `define LFSR_V
 
+/*
+Configurable Linear Feedback Shift Register.
+*/
+
 module LFSR(clk, reset, enable, lfsr);
   
   parameter TAPS   = 8'b11101;	// bitmask for taps

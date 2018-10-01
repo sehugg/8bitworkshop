@@ -2,6 +2,10 @@
 `include "hvsync_generator.v"
 `include "lfsr.v"
 
+/*
+Scrolling starfield generator using a period (2^16-1) LFSR.
+*/
+
 module starfield_top(clk, reset, hsync, vsync, rgb);
 
   input clk, reset;

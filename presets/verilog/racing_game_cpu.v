@@ -4,6 +4,11 @@
 `include "sprite_renderer.v"
 `include "cpu8.v"
 
+/*
+A simple racing game with two sprites and a scrolling playfield.
+This version uses the 8-bit CPU.
+*/
+
 // uncomment to see scope view
 //`define DEBUG
 

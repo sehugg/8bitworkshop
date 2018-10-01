@@ -2,6 +2,13 @@
 `include "hvsync_generator.v"
 `include "ram.v"
 
+/*
+sprite_scanline_renderer - Module that renders multiple
+  sprites whose attributes are fetched from shared RAM,
+  and whose bitmaps are stored in ROM. Made to be paired
+  with the FEMTO-16 CPU.
+*/
+
 module example_bitmap_rom(addr, data);
   
   input [15:0] addr;

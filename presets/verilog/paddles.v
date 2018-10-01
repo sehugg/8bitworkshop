@@ -1,6 +1,10 @@
 
 `include "hvsync_generator.v"
 
+/*
+Paddle demonstration.
+*/
+
 module paddles_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
 
   input clk, reset;

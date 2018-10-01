@@ -3,6 +3,11 @@
 `include "sprite_bitmap.v"
 `include "sprite_renderer.v"
 
+/*
+A simple racing game with two sprites and a scrolling playfield.
+This version does not use a CPU; all logic is straight Verilog.
+*/
+
 module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
 
   input clk;
