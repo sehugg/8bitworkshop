@@ -1,4 +1,4 @@
-
+﻿
 `include "hvsync_generator.v"
 `include "sprite_bitmap.v"
 `include "sprite_renderer.v"
@@ -106,22 +106,26 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
   );
   
   // flags for player sprite renderer module
-  wire player_vstart = {1'0,ram[PLAYER_Y]} == vpos;
-  wire player_hstart = {1'0,ram[PLAYER_X]} == hpos;
+  wire player_vstart = {1'b0,ram[PLAYER_Y]} == vpos;
+  wire player_hstart = {1'b0,ram[PLAYER_X]} == hpos;
   wire player_gfx;
   wire player_is_drawing;
 
   // flags for enemy sprite renderer module
-  wire enemy_vstart = {1'0,ram[ENEMY_Y]} == vpos;
-  wire enemy_hstart = {1'0,ram[ENEMY_X]} == hpos;
+  wire enemy_vstart = {1'b0,ram[ENEMY_Y]} == vpos;
+  wire enemy_hstart = {1'b0,ram[ENEMY_X]} == hpos;
   wire enemy_gfx;
   wire enemy_is_drawing;
 
-  // flags shared between sprite renderer modules
-  wire [3:0] car_sprite_yofs;
-  wire [7:0] car_sprite_bits;
-  
-  // car bitmap ROM
+  // select player or enemy access to ROM
+  wire player_load = (hpos >= 256) && (hpos < 260);
+  wire enemy_load = (hpos >= 260);
+  // wire up car sprite ROM
+  // multiplex between player and enemy ROM address
+  wire [3:0] player_sprite_yofs;
+  wire [3:0] enemy_sprite_yofs;
+  wire [3:0] car_sprite_yofs = player_load ? player_sprite_yofs : enemy_sprite_yofs;  
+  wire [7:0] car_sprite_bits;  
   car_bitmap car(
     .yofs(car_sprite_yofs), 
     .bits(car_sprite_bits));
@@ -131,8 +135,8 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
     .clk(clk),
     .vstart(player_vstart),
     .hstart(player_hstart),
-    .load(hpos == 256), //TODO?
-    .rom_addr(car_sprite_yofs),
+    .load(player_load),
+    .rom_addr(player_sprite_yofs),
     .rom_bits(car_sprite_bits),
     .gfx(player_gfx),
     .in_progress(player_is_drawing));
@@ -142,8 +146,8 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
     .clk(clk),
     .vstart(enemy_vstart),
     .hstart(enemy_hstart),
-    .load(hpos == 260), //TODO?
-    .rom_addr(car_sprite_yofs),
+    .load(enemy_load),
+    .rom_addr(enemy_sprite_yofs),
     .rom_bits(car_sprite_bits),
     .gfx(enemy_gfx),
     .in_progress(player_is_drawing));
