@@ -4,6 +4,14 @@
         include "macro.h"
         include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This example uses a linear-feedback shift register to
+; procedurally generate random rooms for the player to walk
+; through.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 	seg.u   Variables
 	org	$80
 

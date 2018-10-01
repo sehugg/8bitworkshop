@@ -5,6 +5,8 @@
 
 	org  $f000
 	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Sprites are a tricky beast on the 2600.
 ; You only have two of them.
 ; They are 8 bits wide and 1 bit high.
@@ -14,6 +16,8 @@
 ; To position Y, you simply wait until the desired scanline and
 ; set the bits of your sprite to a non-zero value.
 ; Having fun yet? :)
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 Counter	equ $81
 

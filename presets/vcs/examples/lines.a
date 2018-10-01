@@ -4,6 +4,13 @@
         include "macro.h"
         include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This example draws a moving line using 16-bit fixed-point
+; math and a missile object.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
         seg.u Variables
 	org $80
 

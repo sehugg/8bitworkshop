@@ -1,22 +1,24 @@
-j
+
 	processor 6502
         include "vcs.h"
         include "macro.h"
         include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; We've got collisions working, but now we'd like some more
 ; interaction. We can make a little "breakout" style game
 ; where the ball knocks out rows of bricks. We'll need to
 ; draw several rows of bricks, any or all of which might be
 ; missing.
-
+;
 ; We'll use a technique called "asychronous playfields".
 ; Remember that the playfield is either symmetric (20 pixels
 ; followed by the same 20 pixels reversed) or repeated (20 pixels
 ; repeated twice). But if we change the playfield registers
 ; *during* the scanline, we can make the second half a
 ; different bitmap than the first half.
-
+;
 ; We're going to move away from the HMPx/HMOVE method of
 ; setting object position and use the SetHorizPos method, since
 ; we really need to know the X position of both player and ball
@@ -24,13 +26,15 @@ j
 ; two scanlines per object. But we do it during the overscan
 ; period at the end of the frame, and we've got the cycles
 ; to spare.
-
+;
 ; Also, we're going to keep score and have a rudimentary
 ; scoreboard, which makes this sort of an actual game!
-
+;
 ; Fun fact: Messing with the HMOVE register causes a "comb"
 ; effect on the left 8 pixels of the screen, which can be seen
 ; at the bottom of the screen in the overscan region.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         seg.u Variables
         org $80

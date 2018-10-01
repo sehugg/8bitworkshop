@@ -6,6 +6,12 @@ GPLv2
 
 ---
 
+https://github.com/gasman/jsspeccy2
+
+GPLv3
+
+---
+
 https://github.com/sehugg/javatari.js
 
 GNU Affero General Public License v3.0

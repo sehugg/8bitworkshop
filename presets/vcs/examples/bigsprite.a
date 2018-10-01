@@ -4,6 +4,18 @@
         include "macro.h"
         include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This example demonstrates 48-pixel sprites.
+; We'll use a technique similar to the Asynchronous Playfields
+; trick -- reprogramming the TIA registers on-the-fly, writing
+; to each register multiple times during the scanline. If we
+; time our writes carefully, we'll be able to draw six unique
+; sprites per scanline, for example to draw a six-digit
+; scoreboard, or one large 48-pixel sprite.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 	seg.u Variables
         org $80
 
@@ -11,8 +23,6 @@ Temp		byte
 LoopCount	byte
 
 THREE_COPIES    equ %011
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 	seg Code
 	org $f000

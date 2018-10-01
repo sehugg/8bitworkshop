@@ -1,9 +1,23 @@
-﻿
+
 	processor 6502
         include "vcs.h"
         include "macro.h"
         include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; The VCS only supports 4096 bytes of address space for
+; cartridge ROMs, but you can use 8192 or more bytes by
+; using a bank-switching scheme. This lets you map segments
+; of address space to multiple ROM segments.
+;
+; This example demonstrates standard Atari bank-switching, 
+; which just lets you switch multiple segments into the main
+; $1000 bytes of cartridge ROM. Because all bytes must be
+; switched at once, this forces you to build a trampoline --
+; a segment of code that remains valid during the bank-switch
+; process.
+;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         seg.u Variables

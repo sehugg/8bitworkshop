@@ -4,6 +4,14 @@
         include "macro.h"
         include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This example demonstrates a scene with a full-screen
+; playfield, and two sprites overlapping it. This takes more
+; CPU time, so our kernel operates in 4-line chunks.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
         seg.u Variables
 	org $80
 

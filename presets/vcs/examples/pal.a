@@ -6,6 +6,8 @@
 
 	org  $f000
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; To output a PAL signal, you need the following:
 ;
 ; - 3 scanlines of VSYNC
@@ -14,23 +16,25 @@
 ; - 36 blank lines
 ;
 ; Total = 312 lines (vs 262 for NTSC)
-
+;
 ; PAL runs at 50 Hz (vs 60 Hz for NTSC)
 ; so your game will run more slowly.
 ; Since you have extra cycles to play with, you could just
 ; call your position update routine twice every five frames.
-
+;
 ; Note also that PAL has different colors than NTSC.
 ; (See http://www.randomterrain.com/atari-2600-memories-tia-color-charts.html)
-
+;
 ; The TIMER_SETUP macro only goes up to 215 lines,
 ; so for the PAL visible frame you would need to use
 ; multiple sections (say 215 + 13 = 228) or count manually
 ; like we do in this example.
-
+;
 ; Many VCS games use conditional defines
 ; (IFCONST and IFNCONST in DASM)
 ; to switch between NTSC and PAL constants.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; background color
 BGColor	equ $81

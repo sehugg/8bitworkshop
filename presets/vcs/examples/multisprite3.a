@@ -4,13 +4,15 @@
 	include "macro.h"
 	include "xmacro.h"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; For lots of games, we'd like to display more than two sprites.
 ; There are lots of different ways to tackle this on the VCS,
 ; but we're going to try for a generalized approach that lets
 ; use have N different sprites at any X-Y coordinate, each with
 ; its own bitmap and color table. This is tricky because we can
 ; only do so much on each scanline.
-
+;
 ; Our approach is to separate the problem into three phases.
 ; In the sort phase, we sort all sprites by Y coordinate.
 ; We do one sort pass per frame, so it may take several frames
@@ -20,7 +22,7 @@
 ; coming up. We then allocate it to one of the two player
 ; objects in hardware and set its position using the SetHorizPos
 ; method. We can set one or both of the player objects this way.
-
+;
 ; In the display phase, we display the objects which we previously
 ; assigned and positioned. First we figure out how many scanlines are
 ; required. If only one object is scheduled, we just use its height.
@@ -30,7 +32,7 @@
 ; registers at the appropriate time. We don't have time to do much
 ; else, so we don't look for any new objects to schedule until
 ; we're done with this loop.
-
+;
 ; This scheme can only display up to two objects on a given
 ; scanline, so if the system tries to schedule a third, it will 
 ; be ignored. Also, the positioning routine takes a few scanlines
@@ -41,6 +43,8 @@
 ; sprite entry is missed. In the sort phase, we move those sprites
 ; ahead of lower priority sprites in the sort order. This makes
 ; overlapping sprites flicker instead of randomly disappear.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 	seg.u Variables
         org $80
