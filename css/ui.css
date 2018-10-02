@@ -168,7 +168,7 @@ a.dropdown-toggle {
   color:#66ee66;
   padding:3px;
 }
-// http://stackoverflow.com/questions/18023493/bootstrap-3-dropdown-sub-menu-missing
+/* http://stackoverflow.com/questions/18023493/bootstrap-3-dropdown-sub-menu-missing */
 .dropdown-submenu {
     position:relative;
 }

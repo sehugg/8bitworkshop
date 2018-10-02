@@ -65,7 +65,7 @@ export class WaveformView {
         var s = this.meta[row].label;
         var linediv = document.createElement("div");
         var canvas = document.createElement("canvas");
-        canvas.width = width - 4;
+        canvas.width = width - 12;
         canvas.height = rowHeight;
         linediv.appendChild(canvas); //document.createTextNode(s));
         linediv.classList.add('waverow');

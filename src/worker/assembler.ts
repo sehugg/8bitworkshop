@@ -365,14 +365,14 @@ var Assembler = function(spec : AssemblerSpec) {
   }
 }
 
-/*
 // Main
-declare var module;
+/*
+declare var module, require;
 if (typeof module !== 'undefined' && require.main === module) {
   var fs = require('fs');
   var stdinBuffer = fs.readFileSync(0);
   var code = stdinBuffer.toString();
-  var asm = new Assembler();
+  var asm = new (Assembler as any)();
   asm.loadJSON = function(filename) {
     return JSON.parse(fs.readFileSync(filename, 'utf8'));
   };
