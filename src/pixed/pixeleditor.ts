@@ -2,6 +2,32 @@
 
 import { hex } from "../util";
 
+type PixelEditorImageFormat = {
+  w:number
+  h:number
+  count?:number
+  bpp?:number
+  np?:number
+  bpw?:number
+  sl?:number
+  pofs?:number
+  remap?:number[]
+  brev?:boolean
+  destfmt?:PixelEditorImageFormat
+};
+
+type PixelEditorPaletteFormat = {
+  pal?:number
+  n?:number
+};
+
+type PixelEditorMessage = {
+  fmt : PixelEditorImageFormat
+  palfmt : PixelEditorPaletteFormat
+  bytestr : string
+  palstr : string
+};
+
 export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, thumbnails?) {
   var self = this;
   var width = fmt.w;
@@ -219,7 +245,7 @@ export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, th
 
 var pixel_re = /([0#]?)([x$%]|\d'[bh])([0-9a-f]+)/gi;
 
-function convertToHexStatements(s) {
+function convertToHexStatements(s:string) {
   // convert 'hex ....' asm format
   return s.replace(/(\shex\s+)([0-9a-f]+)/ig, function(m,hexprefix,hexstr) {
     var rtn = hexprefix;
@@ -230,11 +256,12 @@ function convertToHexStatements(s) {
   });
 }
 
-export function parseHexBytes(s) {
+export function parseHexWords(s:string) {
   var arr = [];
   var m;
   while (m = pixel_re.exec(s)) {
     var n;
+    console.log(m);
     if (m[2].startsWith('%') || m[2].endsWith("b"))
       n = parseInt(m[3],2);
     else if (m[2].startsWith('x') || m[2].startsWith('$') || m[2].endsWith('h'))
@@ -246,7 +273,7 @@ export function parseHexBytes(s) {
   return arr;
 }
 
-export function replaceHexBytes(s, bytes) {
+export function replaceHexWords(s:string, words:number[]) {
   var result = "";
   var m;
   var li = 0;
@@ -255,17 +282,17 @@ export function replaceHexBytes(s, bytes) {
     result += s.slice(li, pixel_re.lastIndex - m[0].length);
     li = pixel_re.lastIndex;
     if (m[2].startsWith('%'))
-      result += m[1] + "%" + bytes[i++].toString(2);
+      result += m[1] + "%" + words[i++].toString(2);
     else if (m[2].endsWith('b'))
-      result += m[1] + m[2] + bytes[i++].toString(2); // TODO
+      result += m[1] + m[2] + words[i++].toString(2); // TODO
     else if (m[2].endsWith('h'))
-      result += m[1] + m[2] + bytes[i++].toString(16); // TODO
+      result += m[1] + m[2] + words[i++].toString(16); // TODO
     else if (m[2].startsWith('x'))
-      result += m[1] + "x" + hex(bytes[i++]);
+      result += m[1] + "x" + hex(words[i++]);
     else if (m[2].startsWith('$'))
-      result += m[1] + "$" + hex(bytes[i++]);
+      result += m[1] + "$" + hex(words[i++]);
     else
-      result += m[1] + bytes[i++].toString();
+      result += m[1] + words[i++].toString();
   }
   result += s.slice(li);
   // convert 'hex ....' asm format
@@ -277,7 +304,7 @@ export function replaceHexBytes(s, bytes) {
   return result;
 }
 
-function remapBits(x, arr) {
+function remapBits(x:number, arr:number[]) {
   if (!arr) return x;
   var y = 0;
   for (var i=0; i<arr.length; i++) {
@@ -293,27 +320,27 @@ function remapBits(x, arr) {
   return y;
 }
 
-function convertBytesToImages(bytes, fmt) {
+function convertWordsToImages(words:number[], fmt:PixelEditorImageFormat) {
   var width = fmt.w;
   var height = fmt.h;
   var count = fmt.count || 1;
   var bpp = fmt.bpp || 1;
   var nplanes = fmt.np || 1;
   var bitsperword = fmt.bpw || 8;
-  var bytesperline = fmt.sl || Math.ceil(width * bpp / bitsperword);
+  var wordsperline = fmt.sl || Math.ceil(width * bpp / bitsperword);
   var mask = (1 << bpp)-1;
-  var pofs = fmt.pofs || bytesperline*height*count;
+  var pofs = fmt.pofs || wordsperline*height*count;
   var images = [];
   for (var n=0; n<count; n++) {
     var imgdata = [];
     for (var y=0; y<height; y++) {
-      var ofs0 = n*bytesperline*height + y*bytesperline;
+      var ofs0 = n*wordsperline*height + y*wordsperline;
       var shift = 0;
       for (var x=0; x<width; x++) {
         var color = 0;
         var ofs = remapBits(ofs0, fmt.remap);
         for (var p=0; p<nplanes; p++) {
-          var byte = bytes[ofs + p*pofs];
+          var byte = words[ofs + p*pofs];
           color |= ((fmt.brev ? byte>>(bitsperword-shift-bpp) : byte>>shift) & mask) << (p*bpp);
         }
         imgdata.push(color);
@@ -329,7 +356,7 @@ function convertBytesToImages(bytes, fmt) {
   return images;
 }
 
-function convertImagesToBytes(images, fmt) {
+function convertImagesToWords(images, fmt:PixelEditorImageFormat) : number[] {
   if (fmt.destfmt) fmt = fmt.destfmt;
   var width = fmt.w;
   var height = fmt.h;
@@ -337,26 +364,26 @@ function convertImagesToBytes(images, fmt) {
   var bpp = fmt.bpp || 1;
   var nplanes = fmt.np || 1;
   var bitsperword = fmt.bpw || 8;
-  var bytesperline = fmt.sl || Math.ceil(fmt.w * bpp / bitsperword);
+  var wordsperline = fmt.sl || Math.ceil(fmt.w * bpp / bitsperword);
   var mask = (1 << bpp)-1;
-  var pofs = fmt.pofs || bytesperline*height*count;
-  var bytes;
+  var pofs = fmt.pofs || wordsperline*height*count;
+  var words;
   if (bitsperword <= 8)
-    bytes = new Uint8Array(bytesperline*height*count*nplanes);
+    words = new Uint8Array(wordsperline*height*count*nplanes);
   else
-    bytes = new Uint32Array(bytesperline*height*count*nplanes);
+    words = new Uint32Array(wordsperline*height*count*nplanes);
   for (var n=0; n<count; n++) {
     var imgdata = images[n];
     var i = 0;
     for (var y=0; y<height; y++) {
-      var ofs0 = n*bytesperline*height + y*bytesperline;
+      var ofs0 = n*wordsperline*height + y*wordsperline;
       var shift = 0;
       for (var x=0; x<width; x++) {
         var color = imgdata[i++];
         var ofs = remapBits(ofs0, fmt.remap);
         for (var p=0; p<nplanes; p++) {
           var c = (color >> (p*bpp)) & mask;
-          bytes[ofs + p*pofs] |= (fmt.brev ? (c << (bitsperword-shift-bpp)) : (c << shift));
+          words[ofs + p*pofs] |= (fmt.brev ? (c << (bitsperword-shift-bpp)) : (c << shift));
         }
         shift += bpp;
         if (shift >= bitsperword) {
@@ -366,7 +393,7 @@ function convertImagesToBytes(images, fmt) {
       }
     }
   }
-  return bytes;
+  return words;
 }
 
 function convertPaletteBytes(arr,r0,r1,g0,g1,b0,b1) {
@@ -389,24 +416,25 @@ export var currentPixelEditor;
 export var parentSource;
 export var parentOrigin;
 export var allimages;
-export var currentFormat;
-export var currentByteStr;
-export var currentPaletteStr;
-export var currentPaletteFmt;
+export var currentFormat : PixelEditorImageFormat;
+export var currentByteStr : string;
+export var currentPaletteStr : string;
+export var currentPaletteFmt : PixelEditorPaletteFormat;
 export var allthumbs;
 
 export function pixelEditorDecodeMessage(e) {
   parentSource = e.source;
   parentOrigin = e.origin;
+  let data : PixelEditorMessage = e.data;
   currentFormat = e.data.fmt;
-  currentPaletteFmt = e.data.palfmt;
-  currentPaletteStr = e.data.palstr;
-  currentByteStr = convertToHexStatements(e.data.bytestr);
-  var bytes = parseHexBytes(currentByteStr);
-  allimages = convertBytesToImages(bytes, e.data.fmt);
+  currentPaletteFmt = data.palfmt;
+  currentPaletteStr = data.palstr;
+  currentByteStr = convertToHexStatements(data.bytestr);
+  var words = parseHexWords(currentByteStr);
+  allimages = convertWordsToImages(words, data.fmt);
   palette = [0xff000000, 0xffffffff]; // TODO
   if (currentPaletteStr) {
-    var palbytes = parseHexBytes(e.data.palstr);
+    var palbytes = parseHexWords(data.palstr);
     var pal = currentPaletteFmt.pal;
     if (pal > 0) {
       var rr = Math.floor(Math.abs(pal/100) % 10);
@@ -491,8 +519,8 @@ function postToParentWindow(data) {
     for (var i=0; i<allthumbs.length; i++) {
       allimgs.push(allthumbs[i].getImageColors());
     }
-    data.bytes = convertImagesToBytes(allimgs, currentFormat);
-    data.bytestr = replaceHexBytes(currentByteStr, data.bytes);
+    data.bytes = convertImagesToWords(allimgs, currentFormat);
+    data.bytestr = replaceHexWords(currentByteStr, data.bytes);
   }
   if (parentSource) parentSource.postMessage(data, "*");
   return data;

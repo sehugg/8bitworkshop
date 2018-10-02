@@ -19,22 +19,22 @@ module example_bitmap_rom(addr, data);
   assign data = bitarray[addr & 15];
   
   initial begin/*{w:16,h:16,bpw:16,count:1}*/
-    bitarray[8'h00] = 16'b11110000000;
-    bitarray[8'h01] = 16'b100001000000;
-    bitarray[8'h02] = 16'b1111111100000;
-    bitarray[8'h03] = 16'b1111111100000;
-    bitarray[8'h04] = 16'b11110000000;
-    bitarray[8'h05] = 16'b11111111110000;
-    bitarray[8'h06] = 16'b111100001111000;
-    bitarray[8'h07] = 16'b1111101101111100;
-    bitarray[8'h08] = 16'b1101100001101111;
-    bitarray[8'h09] = 16'b1101111111100110;
-    bitarray[8'h0a] = 16'b1001111111100000;
-    bitarray[8'h0b] = 16'b1111111100000;
-    bitarray[8'h0c] = 16'b1110011100000;
-    bitarray[8'h0d] = 16'b1100001100000;
-    bitarray[8'h0e] = 16'b1100001100000;
-    bitarray[8'h0f] = 16'b11100001110000;
+    bitarray['h00] = 16'b11110000000;
+    bitarray['h01] = 16'b100001000000;
+    bitarray['h02] = 16'b1111111100000;
+    bitarray['h03] = 16'b1111111100000;
+    bitarray['h04] = 16'b11110000000;
+    bitarray['h05] = 16'b11111111110000;
+    bitarray['h06] = 16'b111100001111000;
+    bitarray['h07] = 16'b1111101101111100;
+    bitarray['h08] = 16'b1101100001101111;
+    bitarray['h09] = 16'b1101111111100110;
+    bitarray['h0a] = 16'b1001111111100000;
+    bitarray['h0b] = 16'b1111111100000;
+    bitarray['h0c] = 16'b1110011100000;
+    bitarray['h0d] = 16'b1100001100000;
+    bitarray['h0e] = 16'b1100001100000;
+    bitarray['h0f] = 16'b11100001110000;
   end
 
 endmodule
