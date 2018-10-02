@@ -1,4 +1,4 @@
-
+﻿
 `include "hvsync_generator.v"
 `include "sprite_bitmap.v"
 `include "sprite_renderer.v"
@@ -50,24 +50,30 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
       if (!hpaddle) paddle_x <= vpos[7:0];
       if (!vpaddle) paddle_y <= vpos[7:0];
     end
+
   
+  // select player or enemy access to ROM
+  wire player_load = (hpos >= 256) && (hpos < 260);
+  wire enemy_load = (hpos >= 260);
   // wire up car sprite ROM
-  wire [3:0] car_sprite_yofs;
-  wire [7:0] car_sprite_bits;
-  
+  // multiplex between player and enemy ROM address
+  wire [3:0] player_sprite_yofs;
+  wire [3:0] enemy_sprite_yofs;
+  wire [3:0] car_sprite_yofs = player_load ? player_sprite_yofs : enemy_sprite_yofs;  
+  wire [7:0] car_sprite_bits;  
   car_bitmap car(
     .yofs(car_sprite_yofs), 
     .bits(car_sprite_bits));
   
   // signals for player sprite generator
-  wire player_vstart = {1'd0,player_y} == vpos;
-  wire player_hstart = {1'd0,player_x} == hpos;
+  wire player_vstart = {1'b0,player_y} == vpos;
+  wire player_hstart = {1'b0,player_x} == hpos;
   wire player_gfx;
   wire player_is_drawing;
 
   // signals for enemy sprite generator
-  wire enemy_vstart = {1'd0,enemy_y} == vpos;
-  wire enemy_hstart = {1'd0,enemy_x} == hpos;
+  wire enemy_vstart = {1'b0,enemy_y} == vpos;
+  wire enemy_hstart = {1'b0,enemy_x} == hpos;
   wire enemy_gfx;
   wire enemy_is_drawing;
   
@@ -75,9 +81,9 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   sprite_renderer player_renderer(
     .clk(clk),
     .vstart(player_vstart),
-    .load(hpos == 256),
+    .load(player_load),
     .hstart(player_hstart),
-    .rom_addr(car_sprite_yofs),
+    .rom_addr(player_sprite_yofs),
     .rom_bits(car_sprite_bits),
     .gfx(player_gfx),
     .in_progress(player_is_drawing));
@@ -86,9 +92,9 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   sprite_renderer enemy_renderer(
     .clk(clk),
     .vstart(enemy_vstart),
-    .load(hpos == 258),
+    .load(enemy_load),
     .hstart(enemy_hstart),
-    .rom_addr(car_sprite_yofs),
+    .rom_addr(enemy_sprite_yofs),
     .rom_bits(car_sprite_bits),
     .gfx(enemy_gfx),
     .in_progress(player_is_drawing));

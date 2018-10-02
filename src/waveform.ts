@@ -24,6 +24,7 @@ export class WaveformView {
   pageWidth : number;
   clocksPerPage : number;
   clockMax : number;
+  hexformat : boolean = false;
 
   constructor(parent:HTMLElement, wfp:WaveformProvider) {
     this.parent = parent;
@@ -117,6 +118,10 @@ export class WaveformView {
     Mousetrap(wlc).bind('ctrl+shift+left', (e,combo) => {
       this.setSelTime(0);
       this.setOrgTime(0);
+    });
+    Mousetrap(wlc).bind('h', (e,combo) => {
+      this.hexformat = !this.hexformat;
+      this.refresh();
     });
     $(window).resize(() => {
       this.recreate();
@@ -224,7 +229,8 @@ export class WaveformView {
       var val = data[this.tsel - this.t0];
       ctx.textAlign = 'right';
       if (val !== undefined) {
-        ctx.fillText(val.toString(), w-fh, ycen);
+        var s = this.hexformat ? val.toString(16) : val.toString();
+        ctx.fillText(s, w-fh, ycen);
       }
     }
     // draw labels
