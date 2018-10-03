@@ -197,7 +197,7 @@ describe('Worker', function() {
       assert.ok(fn);
       done(err, msg);
     };
-    doBuild(msgs, done2, 49339, 0, 0);
+    doBuild(msgs, done2, 49699, 0, 0);
   });
   it('should compile verilog assembler file (JSASM)', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/test2.asm'));
@@ -214,7 +214,7 @@ describe('Worker', function() {
       assert.ok(fn);
       done(err, msg);
     };
-    doBuild(msgs, done2, 1997609, 0, 0);
+    doBuild(msgs, done2, 1997608, 0, 0);
   });
   it('should NOT preprocess SDCC', function(done) {
     compile('sdcc', 'int x=0\n#bah\n', 'mw8080bw', done, 0, 0, 1);

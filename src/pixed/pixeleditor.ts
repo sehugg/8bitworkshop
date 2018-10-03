@@ -261,7 +261,6 @@ export function parseHexWords(s:string) {
   var m;
   while (m = pixel_re.exec(s)) {
     var n;
-    console.log(m);
     if (m[2].startsWith('%') || m[2].endsWith("b"))
       n = parseInt(m[3],2);
     else if (m[2].startsWith('x') || m[2].startsWith('$') || m[2].endsWith('h'))

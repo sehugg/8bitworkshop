@@ -1,4 +1,4 @@
-﻿
+
 `include "hvsync_generator.v"
 `include "ram.v"
 

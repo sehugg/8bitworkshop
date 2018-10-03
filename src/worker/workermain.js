@@ -1167,15 +1167,15 @@ function preprocessMCPP(step) {
 // TODO: must be a better way to do all this
 
 function detectModuleName(code) {
-  var m = /\bmodule\s+(\w+_top)\b/.exec(code)
-       || /\bmodule\s+(top)\b/.exec(code)
-       || /\bmodule\s+(\w+)\b/.exec(code);
+  var m = /^\s*module\s+(\w+_top)\b/m.exec(code)
+       || /^\s*module\s+(top)\b/m.exec(code)
+       || /^\s*module\s+(\w+)\b/m.exec(code);
   return m ? m[1] : null;
 }
 
 function detectTopModuleName(code) {
   var topmod = detectModuleName(code) || "top";
-  var m = /\bmodule\s+(\w+?_top)/.exec(code);
+  var m = /^\s*module\s+(\w+?_top)/m.exec(code);
   if (m && m[1]) topmod = m[1];
   return topmod;
 }
@@ -1227,7 +1227,7 @@ function compileJSASM(asmcode, platform, options, is_inline) {
       jsasm_module_top = top_module;
       var main_filename = includes[includes.length-1];
       var code = '`include "' + main_filename + '"\n';
-      code += "/* module " + top_module + " */\n";
+      code += "/*\nmodule " + top_module + "\n*/\n";
       var voutput = compileVerilator({code:code, platform:platform, dependencies:options.dependencies, path:options.path}); // TODO
       if (voutput.errors.length)
         return voutput.errors[0].msg;

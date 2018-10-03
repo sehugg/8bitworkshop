@@ -58,6 +58,9 @@ export var RasterVideo = function(mainElement:HTMLElement, width:number, height:
   var imageData, arraybuf, buf8, datau32;
   var vcanvas;
   
+  this.paddle_x = 255;
+  this.paddle_y = 255;
+  
   this.setRotate = function(rotate) {
     if (rotate) {
       // TODO: aspect ratio?

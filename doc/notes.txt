@@ -73,6 +73,7 @@ TODO:
 - no errors for verilog inline asm?
 - allow download of JSASM output
 - update bootstrap/jquery
+- clean BOM from verilog
 
 
 WEB WORKER FORMAT

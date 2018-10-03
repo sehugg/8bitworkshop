@@ -1,4 +1,4 @@
-﻿
+
 `include "hvsync_generator.v"
 `include "sprite_bitmap.v"
 `include "sprite_renderer.v"

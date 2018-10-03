@@ -19,8 +19,8 @@ global['$'] = require("jquery/jquery-2.2.3.min.js");
 includeInThisContext("javatari.js/release/javatari/javatari.js");
 Javatari.AUTO_START = false;
 includeInThisContext('src/cpu/z80fast.js');
-//includeInThisContext('tss/js/Log.js');
-global.Log = require('tss/js/Log.js').Log;
+includeInThisContext('tss/js/Log.js');
+//global.Log = require('tss/js/Log.js').Log;
 includeInThisContext('tss/js/tss/PsgDeviceChannel.js');
 includeInThisContext('tss/js/tss/MasterChannel.js');
 includeInThisContext('tss/js/tss/AudioLooper.js');
@@ -66,6 +66,7 @@ emu.RasterVideo = function(mainElement, width, height, options) {
   }
   this.getFrameData = function() { return datau32; }
   this.updateFrame = function() {}
+  this.setupMouseEvents = function() { }
 }
 
 emu.VectorVideo = function(mainElement, width, height, options) {
@@ -221,6 +222,7 @@ describe('Platform Replay', () => {
       }
     });
   });
+/* TODO
   it('Should run atari8-5200', () => {
     var platform = testPlatform('atari8-5200', 'hello.a.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
@@ -228,6 +230,7 @@ describe('Platform Replay', () => {
       }
     });
   });
+*/
 });
 
 
