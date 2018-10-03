@@ -113,6 +113,12 @@ div.mem_info a.selected {
   margin-left:8px;
   background-color: #666;
 }
+.btn_group button {
+  padding-left:3px;
+  padding-right:3px;
+  padding-top:0px;
+  padding-bottom:0px;
+}
 .btn_label {
   color: #ccc;
 }
