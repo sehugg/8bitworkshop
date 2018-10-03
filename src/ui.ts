@@ -1011,7 +1011,7 @@ function showWelcomeMessage() {
         {
           element: "#dropdownMenuButton",
           title: "Main Menu",
-          content: "Click the menu to switch between platforms, create new files, or share your work with others."
+          content: "Click the menu to download your code, switch between platforms, create new files, or share your work with others."
         }];
     if (!is_vcs) {
       steps.push({

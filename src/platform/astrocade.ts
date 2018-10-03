@@ -16,7 +16,8 @@ const ASTROCADE_BIOS_PRESETS = [
   {id:'bios.c', name:'BIOS'},
 ];
 
-// TODO: fix keys, more controllers, vibrato/noise, border color, debug info
+// TODO: fix keys, more controllers, vibrato/noise, border color, debug info, rotate
+// http://atariage.com/forums/topic/251416-programming-the-bally-arcadeastrocade/
 
 const ASTROCADE_KEYCODE_MAP = makeKeycodeMap([
   // player 1
