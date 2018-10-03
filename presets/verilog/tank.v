@@ -1,6 +1,5 @@
 
 `include "hvsync_generator.v"
-`include "digits10.v"
 `include "sprite_rotation.v"
 
 /*
@@ -122,10 +121,13 @@ module tank_game_top(clk, reset, hsync, vsync, rgb, switches_p1, switches_p2);
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
-  wire mine_gfx;
-  wire playfield_gfx;
-  wire tank1_gfx, tank2_gfx;
   
+  wire mine_gfx;		// minefield video
+  wire playfield_gfx;		// playfield video
+  wire tank1_gfx;		// player 1 tank video
+  wire tank2_gfx;		// player 2 tank video
+
+  // video sync generator  
   hvsync_generator hvsync_gen(
     .clk(clk),
     .reset(0),
@@ -136,12 +138,14 @@ module tank_game_top(clk, reset, hsync, vsync, rgb, switches_p1, switches_p2);
     .vpos(vpos)
   );
   
+  // minefield (video output -> mine_gfx)
   minefield mine_gen(
     .hpos(hpos),
     .vpos(vpos),
     .mine_gfx(mine_gfx)
   );
 
+  // playfield (video output -> playfield_gfx)
   playfield playfield_gen(
     .hpos(hpos),
     .vpos(vpos),
@@ -150,9 +154,11 @@ module tank_game_top(clk, reset, hsync, vsync, rgb, switches_p1, switches_p2);
 
   // multiplex player 1 and 2 load times during hsync
   wire p2sel = hpos > 280;
+  
   // sprite ROM inputs for each player
   wire [7:0] tank1_sprite_addr;
   wire [7:0] tank2_sprite_addr;
+  
   // multiplex sprite ROM output
   wire [7:0] tank_sprite_bits;
   
@@ -160,7 +166,8 @@ module tank_game_top(clk, reset, hsync, vsync, rgb, switches_p1, switches_p2);
   tank_bitmap tank_bmp(
     .addr(p2sel ? tank2_sprite_addr : tank1_sprite_addr), 
     .bits(tank_sprite_bits));
-  
+
+  // player 1 tank controller  
   tank_controller #(16,36,4) tank1(
     .clk(clk),
     .reset(reset),
@@ -177,6 +184,7 @@ module tank_game_top(clk, reset, hsync, vsync, rgb, switches_p1, switches_p2);
     .switch_up(switches_p1[2])
   );
 
+  // player 2 tank controller
   tank_controller #(220,190,12) tank2(
     .clk(clk),
     .reset(reset),
@@ -193,6 +201,7 @@ module tank_game_top(clk, reset, hsync, vsync, rgb, switches_p1, switches_p2);
     .switch_up(switches_p2[2])
   );
 
+  // video signal mixer
   wire r = display_on && (mine_gfx || tank2_gfx);
   wire g = display_on && tank1_gfx;
   wire b = display_on && (playfield_gfx || tank2_gfx);
