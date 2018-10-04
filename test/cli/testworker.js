@@ -2,7 +2,7 @@
 var assert = require('assert');
 var fs = require('fs');
 var wtu = require('./workertestutils.js');
-var heapdump = require('heapdump');
+//var heapdump = require('heapdump');
 
 // TODO: why memory leak?
 CACHE_WASM_MODULES = false;
