@@ -5,13 +5,16 @@ var vm = require('vm');
 
 var worker = {};
 
+global.window = global;
+global.exports = {};
+
 global.includeInThisContext = function(path) {
-    var code = fs.readFileSync(path);
-    vm.runInThisContext(code, path);
+  var code = fs.readFileSync(path);
+  vm.runInThisContext(code, path);
 };
 
 global.importScripts = function(path) {
-    includeInThisContext('src/worker/'+path);
+  includeInThisContext('gen/worker/'+path);
 }
 
 function Blob(blob) {
@@ -58,7 +61,7 @@ global.FileReaderSync = function() {
 global.onmessage = null;
 global.postMessage = null;
 
-includeInThisContext("src/worker/workermain.js");
+includeInThisContext("gen/worker/workermain.js");
 
 global.ab2str = function(buf) {
   return String.fromCharCode.apply(null, new Uint16Array(buf));

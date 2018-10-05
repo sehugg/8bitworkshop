@@ -1,6 +1,12 @@
 "use strict";
 
-var ENVIRONMENT_IS_NODE = typeof process === 'object' && typeof require === 'function';
+import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency } from "../workertypes";
+
+const emglobal : any = this['window'] || this['global'] || this;
+declare var WebAssembly;
+declare function importScripts(path:string);
+declare function postMessage(msg);
+
 var ENVIRONMENT_IS_WEB = typeof window === 'object';
 var ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
 
@@ -8,7 +14,7 @@ var ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
 // TODO: leaks memory even when disabled...
 var _WASM_module_cache = {};
 var CACHE_WASM_MODULES = true;
-function getWASMModule(module_id) {
+function getWASMModule(module_id:string) {
   var module = _WASM_module_cache[module_id];
   if (!module) {
     starttime();
@@ -22,7 +28,7 @@ function getWASMModule(module_id) {
   return module;
 }
 // function for use with instantiateWasm
-function moduleInstFn(module_id) {
+function moduleInstFn(module_id:string) {
   return function(imports,ri) {
     var mod = getWASMModule(module_id);
     var inst = new WebAssembly.Instance(mod, imports);
@@ -176,32 +182,46 @@ var PLATFORM_PARAMS = {
   },
 };
 
-// shim out window and document objects for security
-// https://github.com/mbostock/d3/issues/1053
-var noop = function() { return new Function(); };
-var window = noop();
-window.CSSStyleDeclaration = noop();
-window.CSSStyleDeclaration.setProperty = noop();
-window.Element = noop();
-window.Element.setAttribute = noop();
-window.Element.setAttributeNS = noop();
-window.navigator = noop();
-var document = noop();
-document.documentElement = noop();
-document.documentElement.style = noop();
-
 var _t1;
 function starttime() { _t1 = new Date(); }
 function endtime(msg) { var _t2 = new Date(); console.log(msg, _t2.getTime() - _t1.getTime(), "ms"); }
 
 /// working file store and build steps
 
-var buildsteps = [];
-var buildstartseq = 0;
-var workfs = {};
-var workerseq = 0;
+type FileData = string | Uint8Array;
 
-function compareData(a,b) {
+type FileEntry = {
+  path: string
+  encoding: string
+  data: FileData
+  ts: number
+};
+
+type BuildOptions = {
+  mainFilePath : string
+};
+
+// TODO
+interface BuildStep extends WorkerBuildStep {
+  files? : string[]
+  args? : string[]
+  nextstep? : BuildStep
+  linkstep? : BuildStep
+  params?
+  result?
+  code?
+  generated?
+  prefix?
+  maxts?
+  dependencies?
+};
+
+var buildsteps : BuildStep[] = [];
+var buildstartseq : number = 0;
+var workfs : {[path:string]:FileEntry} = {};
+var workerseq : number = 0;
+
+function compareData(a:FileData, b:FileData) : boolean {
   if (a.length != b.length) return false;
   if (typeof a === 'string' && typeof b === 'string')
     return a==b;
@@ -214,7 +234,7 @@ function compareData(a,b) {
   }
 }
 
-function putWorkFile(path, data) {
+function putWorkFile(path:string, data:FileData) {
   var encoding = (typeof data === 'string') ? 'utf8' : 'binary';
   var entry = workfs[path];
   if (!entry || !compareData(entry.data, data) || entry.encoding != encoding) {
@@ -225,18 +245,18 @@ function putWorkFile(path, data) {
 }
 
 // returns true if file changed during this build step
-function wasChanged(entry) {
+function wasChanged(entry:FileEntry) : boolean {
   return entry.ts > buildstartseq;
 }
 
-function populateEntry(fs, path, entry) {
+function populateEntry(fs, path:string, entry:FileEntry) {
   fs.writeFile(path, entry.data, {encoding:entry.encoding});
   fs.utime(path, entry.ts, entry.ts);
   console.log("<<<", path, entry.data.length);
 }
 
 // can call multiple times (from populateFiles)
-function gatherFiles(step, options) {
+function gatherFiles(step:BuildStep, options?:BuildOptions) {
   var maxts = 0;
   if (step.files) {
     for (var i=0; i<step.files.length; i++) {
@@ -246,7 +266,7 @@ function gatherFiles(step, options) {
     }
   }
   else if (step.code) {
-    var path = step.path ? step.path : options.mainFilePath;
+    var path = step.path ? step.path : options.mainFilePath; // TODO: what if options null
     if (!path) throw "need path or mainFilePath";
     var code = step.code;
     var entry = putWorkFile(path, code);
@@ -267,7 +287,7 @@ function gatherFiles(step, options) {
   return maxts;
 }
 
-function populateFiles(step, fs, options) {
+function populateFiles(step:BuildStep, fs, options?:BuildOptions) {
   gatherFiles(step, options);
   if (!step.files) throw "call gatherFiles() first";
   for (var i=0; i<step.files.length; i++) {
@@ -276,7 +296,7 @@ function populateFiles(step, fs, options) {
   }
 }
 
-function populateExtraFiles(step, fs) {
+function populateExtraFiles(step:BuildStep, fs) {
   // TODO: cache extra files
   var extrafiles = step.params.extrafiles;
   if (extrafiles) {
@@ -298,7 +318,7 @@ function populateExtraFiles(step, fs) {
   }
 }
 
-function staleFiles(step, targets) {
+function staleFiles(step:BuildStep, targets:string[]) {
   if (!step.maxts) throw "call populateFiles() first";
   // see if any target files are more recent than inputs
   for (var i=0; i<targets.length; i++) {
@@ -310,7 +330,7 @@ function staleFiles(step, targets) {
   return false;
 }
 
-function anyTargetChanged(step, targets) {
+function anyTargetChanged(step:BuildStep, targets:string[]) {
   if (!step.maxts) throw "call populateFiles() first";
   // see if any target files are more recent than inputs
   for (var i=0; i<targets.length; i++) {
@@ -322,7 +342,7 @@ function anyTargetChanged(step, targets) {
   return false;
 }
 
-function execMain(step, mod, args) {
+function execMain(step:BuildStep, mod, args:string[]) {
   starttime();
   mod.callMain(args);
   endtime(step.tool);
@@ -334,40 +354,43 @@ var fsMeta = {};
 var fsBlob = {};
 var wasmBlob = {};
 
+const PSRC = "../../src/";
+const PWORKER = PSRC+"worker/";
+
 // load filesystems for CC65 and others asynchronously
-function loadFilesystem(name) {
+function loadFilesystem(name:string) {
   var xhr = new XMLHttpRequest();
   xhr.responseType = 'blob';
-  xhr.open("GET", "fs/fs"+name+".data", false);  // synchronous request
+  xhr.open("GET", PWORKER+"fs/fs"+name+".data", false);  // synchronous request
   xhr.send(null);
   fsBlob[name] = xhr.response;
   xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
-  xhr.open("GET", "fs/fs"+name+".js.metadata", false);  // synchronous request
+  xhr.open("GET", PWORKER+"fs/fs"+name+".js.metadata", false);  // synchronous request
   xhr.send(null);
   fsMeta[name] = xhr.response;
   console.log("Loaded "+name+" filesystem", fsMeta[name].files.length, 'files', fsBlob[name].size, 'bytes');
 }
 
 var loaded = {}
-function load(modulename, debug) {
+function load(modulename:string, debug?:boolean) {
   if (!loaded[modulename]) {
-    importScripts('asmjs/'+modulename+(debug?"."+debug+".js":".js"));
+    importScripts(PWORKER+'asmjs/'+modulename+(debug?"."+debug+".js":".js"));
     loaded[modulename] = 1;
   }
 }
-function loadGen(modulename) {
+function loadGen(modulename:string) {
   if (!loaded[modulename]) {
     importScripts('../../gen/'+modulename+".js");
     loaded[modulename] = 1;
   }
 }
-function loadWASM(modulename, debug) {
+function loadWASM(modulename:string, debug?:boolean) {
   if (!loaded[modulename]) {
-    importScripts("wasm/" + modulename+(debug?"."+debug+".js":".js"));
+    importScripts(PWORKER+"wasm/" + modulename+(debug?"."+debug+".js":".js"));
     var xhr = new XMLHttpRequest();
     xhr.responseType = 'arraybuffer';
-    xhr.open("GET", "wasm/"+modulename+".wasm", false);  // synchronous request
+    xhr.open("GET", PWORKER+"wasm/"+modulename+".wasm", false);  // synchronous request
     xhr.send(null);
     if (xhr.response) {
       wasmBlob[modulename] = new Uint8Array(xhr.response);
@@ -378,7 +401,7 @@ function loadWASM(modulename, debug) {
     }
   }
 }
-function loadNative(modulename, debug) {
+function loadNative(modulename:string) {
   // detect WASM
   if (CACHE_WASM_MODULES && typeof WebAssembly === 'object') {
     loadWASM(modulename);
@@ -388,7 +411,7 @@ function loadNative(modulename, debug) {
 }
 
 // mount the filesystem at /share
-function setupFS(FS, name) {
+function setupFS(FS, name:string) {
   var WORKERFS = FS.filesystems['WORKERFS']
   FS.mkdir('/share');
   FS.mount(WORKERFS, {
@@ -414,7 +437,7 @@ function setupFS(FS, name) {
   };
 }
 
-var print_fn = function(s) {
+var print_fn = function(s:string) {
   console.log(s);
   //console.log(new Error().stack);
 }
@@ -425,15 +448,15 @@ var print_fn = function(s) {
 var re_msvc  = /[/]*([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
 var re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
 
-function msvcErrorMatcher(errors) {
-  return function(s) {
+function msvcErrorMatcher(errors:WorkerError[]) {
+  return function(s:string) {
     var matches = re_msvc.exec(s) || re_msvc2.exec(s);
     if (matches) {
       var errline = parseInt(matches[2]);
       errors.push({
         line:errline,
         path:matches[1],
-        type:matches[3],
+        //type:matches[3],
         msg:matches[4]
       });
     } else {
@@ -442,7 +465,7 @@ function msvcErrorMatcher(errors) {
   }
 }
 
-function makeErrorMatcher(errors, regex, iline, imsg, path) {
+function makeErrorMatcher(errors:WorkerError[], regex, iline:number, imsg:number, path:string) {
   return function(s) {
     var matches = regex.exec(s);
     if (matches) {
@@ -457,7 +480,7 @@ function makeErrorMatcher(errors, regex, iline, imsg, path) {
   }
 }
 
-function extractErrors(regex, strings, path) {
+function extractErrors(regex, strings:string[], path:string) {
   var errors = [];
   var matcher = makeErrorMatcher(errors, regex, 1, 2, path);
   for (var i=0; i<strings.length; i++) {
@@ -470,7 +493,7 @@ function extractErrors(regex, strings, path) {
 
 var re_crlf = /\r?\n/;
 
-function parseListing(code, lineMatch, iline, ioffset, iinsns) {
+function parseListing(code:string, lineMatch, iline:number, ioffset:number, iinsns:number) {
   var lines = [];
   for (var line of code.split(re_crlf)) {
     var linem = lineMatch.exec(line);
@@ -490,7 +513,7 @@ function parseListing(code, lineMatch, iline, ioffset, iinsns) {
   return lines;
 }
 
-function parseSourceLines(code, lineMatch, offsetMatch) {
+function parseSourceLines(code:string, lineMatch, offsetMatch) {
   var lines = [];
   var lastlinenum = 0;
   for (var line of code.split(re_crlf)) {
@@ -512,7 +535,7 @@ function parseSourceLines(code, lineMatch, offsetMatch) {
   return lines;
 }
 
-function parseDASMListing(code, unresolved, mainFilename) {
+function parseDASMListing(code:string, unresolved:{}, mainFilename:string) {
   //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
   var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
   var equMatch = /\bequ\b/i;
@@ -594,11 +617,12 @@ function parseDASMListing(code, unresolved, mainFilename) {
   return {lines:lines, macrolines:macrolines, errors:errors};
 }
 
-function assembleDASM(step) {
+function assembleDASM(step:BuildStep) {
   load("dasm");
   var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
   var unresolved = {};
   var errors = [];
+  var errorMatcher = msvcErrorMatcher(errors);
   function match_fn(s) {
     var matches = re_usl.exec(s);
     if (matches) {
@@ -608,9 +632,11 @@ function assembleDASM(step) {
       }
     } else if (s.startsWith("Warning:")) {
       errors.push({line:0, msg:s.substr(9)});
+    } else {
+      errorMatcher(s);
     }
   }
-  var Module = DASM({
+  var Module = emglobal.DASM({
     noInitialRun:true,
     print:match_fn
   });
@@ -663,7 +689,7 @@ function assembleDASM(step) {
   };
 }
 
-function setupStdin(fs, code) {
+function setupStdin(fs, code:string) {
   var i = 0;
   fs.init(
     function() { return i<code.length ? code.charCodeAt(i++) : null; }
@@ -722,7 +748,7 @@ function parseCA65Listing(code, symbols, params, dbg) {
   return lines;
 }
 
-function assembleCA65(step) {
+function assembleCA65(step:BuildStep) {
   loadNative("ca65");
   var errors = [];
   gatherFiles(step, {mainFilePath:"main.s"});
@@ -730,7 +756,7 @@ function assembleCA65(step) {
   var lstpath = step.prefix+".lst";
   if (staleFiles(step, [objpath, lstpath])) {
     var objout, lstout;
-    var CA65 = ca65({
+    var CA65 = emglobal.ca65({
       instantiateWasm: moduleInstFn('ca65'),
       noInitialRun:true,
       //logReadFiles:true,
@@ -755,7 +781,7 @@ function assembleCA65(step) {
   };
 }
 
-function linkLD65(step) {
+function linkLD65(step:BuildStep) {
   loadNative("ld65");
   var params = step.params;
   var platform = step.platform;
@@ -764,7 +790,7 @@ function linkLD65(step) {
   if (staleFiles(step, [binpath])) {
     var errors = [];
     var errmsg = '';
-    var LD65 = ld65({
+    var LD65 = emglobal.ld65({
       instantiateWasm: moduleInstFn('ld65'),
       noInitialRun:true,
       //logReadFiles:true,
@@ -833,7 +859,7 @@ function linkLD65(step) {
   }
 }
 
-function compileCC65(step) {
+function compileCC65(step:BuildStep) {
   load("cc65");
   var params = step.params;
   // stderr
@@ -854,7 +880,7 @@ function compileCC65(step) {
   gatherFiles(step, {mainFilePath:"main.c"});
   var destpath = step.prefix + '.s';
   if (staleFiles(step, [destpath])) {
-    var CC65 = cc65({
+    var CC65 = emglobal.cc65({
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
@@ -911,7 +937,7 @@ function parseIHX(ihx, rom_start, rom_size) {
   return output;
 }
 
-function assembleSDASZ80(step) {
+function assembleSDASZ80(step:BuildStep) {
   loadNative("sdasz80");
   var objout, lstout, symout;
   var errors = [];
@@ -927,7 +953,7 @@ function assembleSDASZ80(step) {
     var match_asm_re2 = / <\w> (.+)/; // TODO
     var errline = 0;
     var errpath = step.path;
-    function match_asm_fn(s) {
+    var match_asm_fn = (s:string) => {
       var m = match_asm_re1.exec(s);
       if (m) {
         errline = parseInt(m[1]);
@@ -943,7 +969,7 @@ function assembleSDASZ80(step) {
         }
       }
     }
-    var ASZ80 = sdasz80({
+    var ASZ80 = emglobal.sdasz80({
       instantiateWasm: moduleInstFn('sdasz80'),
       noInitialRun:true,
       //logReadFiles:true,
@@ -969,7 +995,7 @@ function assembleSDASZ80(step) {
   //symout = FS.readFile("main.sym", {encoding:'utf8'});
 }
 
-function linkSDLDZ80(step)
+function linkSDLDZ80(step:BuildStep)
 {
   loadNative("sdldz80");
   var errors = [];
@@ -978,7 +1004,7 @@ function linkSDLDZ80(step)
   if (staleFiles(step, [binpath])) {
     //?ASlink-Warning-Undefined Global '__divsint' referenced by module 'main'
     var match_aslink_re = /\?ASlink-(\w+)-(.+)/;
-    function match_aslink_fn(s) {
+    var match_aslink_fn = (s:string) => {
       var matches = match_aslink_re.exec(s);
       if (matches) {
         errors.push({
@@ -988,7 +1014,7 @@ function linkSDLDZ80(step)
       }
     }
     var params = step.params;
-    var LDZ80 = sdldz80({
+    var LDZ80 = emglobal.sdldz80({
       instantiateWasm: moduleInstFn('sdldz80'),
       noInitialRun:true,
       //logReadFiles:true,
@@ -1055,7 +1081,7 @@ function linkSDLDZ80(step)
 }
 
 var sdcc;
-function compileSDCC(step) {
+function compileSDCC(step:BuildStep) {
 
   gatherFiles(step, {
     mainFilePath:"main.c" // not used
@@ -1076,7 +1102,7 @@ function compileSDCC(step) {
     var FS = SDCC['FS'];
     populateFiles(step, FS);
     // load source file and preprocess
-    var code = workfs[step.path].data; // TODO
+    var code = workfs[step.path].data as string; // TODO
     var preproc = preprocessMCPP(step);
     if (preproc.errors) return preproc;
     else code = preproc.code;
@@ -1115,7 +1141,7 @@ function compileSDCC(step) {
   };
 }
 
-function preprocessMCPP(step) {
+function preprocessMCPP(step:BuildStep) {
   load("mcpp");
   var platform = step.platform;
   var params = PLATFORM_PARAMS[platform];
@@ -1123,7 +1149,7 @@ function preprocessMCPP(step) {
   // <stdin>:2: error: Can't open include file "foo.h"
   var errors = [];
   var match_fn = makeErrorMatcher(errors, /<stdin>:(\d+): (.+)/, 1, 2, step.path);
-  var MCPP = mcpp({
+  var MCPP = emglobal.mcpp({
     noInitialRun:true,
     noFSInit:true,
     print:print_fn,
@@ -1166,21 +1192,21 @@ function preprocessMCPP(step) {
 
 // TODO: must be a better way to do all this
 
-function detectModuleName(code) {
+function detectModuleName(code:string) {
   var m = /^\s*module\s+(\w+_top)\b/m.exec(code)
        || /^\s*module\s+(top)\b/m.exec(code)
        || /^\s*module\s+(\w+)\b/m.exec(code);
   return m ? m[1] : null;
 }
 
-function detectTopModuleName(code) {
+function detectTopModuleName(code:string) {
   var topmod = detectModuleName(code) || "top";
   var m = /^\s*module\s+(\w+?_top)/m.exec(code);
   if (m && m[1]) topmod = m[1];
   return topmod;
 }
 
-function writeDependencies(depends, FS, errors, callback) {
+function writeDependencies(depends:Dependency[], FS, errors:WorkerError[], callback?) {
   if (depends) {
     for (var i=0; i<depends.length; i++) {
       var d = depends[i];
@@ -1197,9 +1223,9 @@ var jsasm_module_top;
 var jsasm_module_output;
 var jsasm_module_key;
 
-function compileJSASM(asmcode, platform, options, is_inline) {
+function compileJSASM(asmcode:string, platform, options, is_inline) {
   loadGen("worker/assembler");
-  var asm = new Assembler();
+  var asm = new (Assembler as any)();
   var includes = [];
   asm.loadJSON = function(filename) {
     // TODO: what if it comes from dependencies?
@@ -1228,7 +1254,7 @@ function compileJSASM(asmcode, platform, options, is_inline) {
       var main_filename = includes[includes.length-1];
       var code = '`include "' + main_filename + '"\n';
       code += "/*\nmodule " + top_module + "\n*/\n";
-      var voutput = compileVerilator({code:code, platform:platform, dependencies:options.dependencies, path:options.path}); // TODO
+      var voutput = compileVerilator({code:code, platform:platform, dependencies:options.dependencies, path:options.path, tool:'verilator'}); // TODO
       if (voutput.errors.length)
         return voutput.errors[0].msg;
       jsasm_module_output = voutput;
@@ -1248,14 +1274,14 @@ function compileJSASM(asmcode, platform, options, is_inline) {
   return result;
 }
 
-function compileJSASMStep(step) {
+function compileJSASMStep(step:BuildStep) {
   // TODO
   var code = step.code;
   var platform = step.platform || 'verilog';
-  return compileJSASM(code, platform, step); // TODO
+  return compileJSASM(code, platform, step, false); // TODO
 }
 
-function compileInlineASM(code, platform, options, errors, asmlines) {
+function compileInlineASM(code:string, platform, options, errors, asmlines) {
   code = code.replace(/__asm\b([\s\S]+?)\b__endasm\b/g, function(s,asmcode,index) {
     var firstline = code.substr(0,index).match(/\n/g).length;
     var asmout = compileJSASM(asmcode, platform, options, true);
@@ -1266,7 +1292,7 @@ function compileInlineASM(code, platform, options, errors, asmlines) {
       }
       return "";
     } else if (asmout.output) {
-      var s = "";
+      let s = "";
       var out = asmout.output;
       for (var i=0; i<out.length; i++) {
         if (i>0) s += ",";
@@ -1286,7 +1312,7 @@ function compileInlineASM(code, platform, options, errors, asmlines) {
 }
 
 // TODO: make compliant with standard msg format
-function compileVerilator(step) {
+function compileVerilator(step:BuildStep) {
   loadNative("verilator_bin");
   loadGen("worker/verilator2js");
   var platform = step.platform || 'verilog';
@@ -1297,8 +1323,8 @@ function compileVerilator(step) {
     return {errors:errors};
   }
   var code = step.code;
-  var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?:)?(\d+)?[:]?\s*(.+)/i, 3, 4);
-  var verilator_mod = verilator_bin({
+  var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?:)?(\d+)?[:]?\s*(.+)/i, 3, 4, step.path);
+  var verilator_mod = emglobal.verilator_bin({
     instantiateWasm: moduleInstFn('verilator_bin'),
     noInitialRun:true,
     print:print_fn,
@@ -1336,13 +1362,16 @@ function compileVerilator(step) {
     putWorkFile("main.js", rtn.output.code);
     if (!anyTargetChanged(step, ["main.js"]))
       return;
-    rtn.errors = errors;
-    rtn.intermediate = {listing:h_file + cpp_file}; // TODO
-    rtn.listings = {};
+    //rtn.intermediate = {listing:h_file + cpp_file}; // TODO
+    var listings = {};
     // TODO: what if found in non-top-module?
     if (asmlines.length)
-      rtn.listings[step.path] = {lines:asmlines};
-    return rtn;
+      listings[step.path] = {lines:asmlines};
+    return {
+      output: rtn.output,
+      errors: errors,
+      listings: {},
+    };
   } catch(e) {
     console.log(e);
     return {errors:errors};
@@ -1350,13 +1379,13 @@ function compileVerilator(step) {
 }
 
 // TODO: test
-function compileYosys(step) {
+function compileYosys(step:BuildStep) {
   loadNative("yosys");
   var code = step.code;
   var errors = [];
-  var match_fn = makeErrorMatcher(errors, /ERROR: (.+?) in line (.+?[.]v):(\d+)[: ]+(.+)/i, 3, 4);
+  var match_fn = makeErrorMatcher(errors, /ERROR: (.+?) in line (.+?[.]v):(\d+)[: ]+(.+)/i, 3, 4, step.path);
   starttime();
-  var yosys_mod = yosys({
+  var yosys_mod = emglobal.yosys({
     instantiateWasm: moduleInstFn('yosys'),
     noInitialRun:true,
     print:print_fn,
@@ -1389,7 +1418,7 @@ function compileYosys(step) {
   }
 }
 
-function assembleZMAC(step) {
+function assembleZMAC(step:BuildStep) {
   loadNative("zmac");
   var hexout, lstout, binout;
   var errors = [];
@@ -1406,7 +1435,7 @@ error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
 	Add a colon or move to first column to stop this warning.
 1 errors (see listing if no diagnostics appeared here)
   */
-    var ZMAC = zmac({
+    var ZMAC = emglobal.zmac({
       instantiateWasm: moduleInstFn('zmac'),
       noInitialRun:true,
       //logReadFiles:true,
@@ -1490,7 +1519,7 @@ var TOOL_PRELOADFS = {
   'sccz80': 'sccz80',
 }
 
-function applyDefaultErrorPath(errors, path) {
+function applyDefaultErrorPath(errors:WorkerError[], path:string) {
   if (!path) return;
   for (var i=0; i<errors.length; i++) {
     var err = errors[i];

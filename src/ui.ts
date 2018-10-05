@@ -50,7 +50,7 @@ var TOOL_TO_SOURCE_STYLE = {
 }
 
 function newWorker() : Worker {
-  return new Worker("./src/worker/workermain.js");
+  return new Worker("./src/worker/loader.js");
 }
 
 var userPaused : boolean;		// did user explicitly pause?

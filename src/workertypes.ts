@@ -49,8 +49,16 @@ export interface Dependency {
   data:FileData // TODO: or binary?
 }
 
-export interface WorkerFileUpdate { path:string, data:FileData };
-export interface WorkerBuildStep { path:string, platform:string, tool:string, mainfile?:boolean };
+export interface WorkerFileUpdate {
+  path:string,
+  data:FileData
+};
+export interface WorkerBuildStep {
+  path?:string
+  platform:string
+  tool:string
+  mainfile?:boolean
+};
 
 export interface WorkerMessage {
   updates:WorkerFileUpdate[],
