@@ -41,6 +41,8 @@ function getVisibleEditorLineHeight() : number{
 
 /////
 
+const MAX_ERRORS = 200;
+
 export class SourceEditor implements ProjectView {
   constructor(path:string, mode:string) {
     this.path = path;
@@ -161,6 +163,7 @@ export class SourceEditor implements ProjectView {
     // TODO: move cursor to error line if offscreen?
     this.clearErrors();
     var numLines = this.editor.lineCount();
+    errors = errors.slice(0, MAX_ERRORS);
     for (var info of errors) {
       // only mark errors with this filename, or without any filename
       if (!info.path || this.path.endsWith(info.path)) {
