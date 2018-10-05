@@ -8,12 +8,12 @@ A simple racing game with two sprites and a scrolling playfield.
 This version does not use a CPU; all logic is straight Verilog.
 */
 
-module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
+module racing_game_top(clk, reset, out, hpaddle, vpaddle);
 
-  input clk;
+  input clk, reset;
   input hpaddle, vpaddle;
-  output hsync, vsync;
-  output [2:0] rgb;
+  output [1:0] out;
+  wire hsync, vsync;
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
@@ -33,10 +33,15 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   reg [15:0] track_pos = 0;	// player position along track (16 bits)
   reg [7:0] speed = 31;		// player velocity along track (8 bits)
   
+  reg clk2;
+  always @(posedge clk) begin
+    clk2 <= !clk2;
+  end
+
   // video sync generator
-  hvsync_generator hvsync_gen(
-    .clk(clk),
-    .reset(0),
+  hvsync_generator #(256,60,40,25) hvsync_gen(
+    .clk(clk2),
+    .reset(reset),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(display_on),
@@ -79,7 +84,8 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   
   // player sprite generator
   sprite_renderer player_renderer(
-    .clk(clk),
+    .clk(clk2),
+    .reset(reset),
     .vstart(player_vstart),
     .load(player_load),
     .hstart(player_hstart),
@@ -90,7 +96,8 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
 
   // enemy sprite generator
   sprite_renderer enemy_renderer(
-    .clk(clk),
+    .clk(clk2),
+    .reset(reset),
     .vstart(enemy_vstart),
     .load(enemy_load),
     .hstart(enemy_hstart),
@@ -108,7 +115,7 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   // runs once per frame
   always @(posedge vsync)
     begin
-      player_x <= paddle_x;
+      player_x <= 64; //paddle_x;
       player_y <= 180;
       track_pos <= track_pos + {11'b0,speed[7:4]};
       enemy_y <= enemy_y + {3'b0, speed[7:4]};
@@ -123,14 +130,14 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
         speed <= 16;
       else if (speed < ~paddle_y)
         speed <= speed + 1;
-      else
+      else if (speed > 16)
         speed <= speed - 1;
     end
   
   // set to 1 when player collides with enemy or track
   reg frame_collision;
   
-  always @(posedge clk)
+  always @(posedge clk2)
     if (player_gfx && (enemy_gfx || track_gfx))
       frame_collision <= 1;
     else if (vsync)
@@ -142,9 +149,10 @@ module racing_game_top(clk, hsync, vsync, rgb, hpaddle, vpaddle);
   wire track_gfx = (vpos[5:1]!=track_pos[5:1]) && track_offside;
   
   // combine signals for RGB output
-  wire r = display_on && (player_gfx || enemy_gfx || track_shoulder);
+  wire r = display_on && (enemy_gfx || track_shoulder);
   wire g = display_on && (player_gfx || track_gfx);
-  wire b = display_on && (enemy_gfx || track_shoulder);
-  assign rgb = {b,g,r};
+  wire b = display_on && (player_gfx || track_shoulder);
+
+  assign out = (hsync||vsync) ? 0 : (1+g+(r|b));
 
 endmodule

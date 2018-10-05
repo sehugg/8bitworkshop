@@ -9,15 +9,18 @@ A simple racing game with two sprites and a scrolling playfield.
 This version uses the 8-bit CPU.
 */
 
-module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
+// uncomment to see scope view
+//`define DEBUG
+
+module racing_game_top(clk, reset, out, hpaddle, vpaddle);
 
   input clk, reset;
   input hpaddle, vpaddle;
-  output hsync, vsync;
+  output [1:0] out;
+  wire hsync, vsync;
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
-  output [3:0] rgb;
   
   parameter PADDLE_X = 0;	// paddle X coordinate
   parameter PADDLE_Y = 1;	// paddle Y coordinate
@@ -43,8 +46,13 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
   wire [7:0] from_cpu;		// data bus from CPU
   wire write_enable;		// write enable bit from CPU
   
+  reg clk2;
+  always @(posedge clk) begin
+    clk2 <= !clk2;
+  end
+
   // 8-bit CPU module
-  CPU cpu(.clk(clk),
+  CPU cpu(.clk(clk2),
           .reset(reset),
           .address(address_bus),
           .data_in(to_cpu),
@@ -52,15 +60,15 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
           .write(write_enable));
 
   // RAM write from CPU
-  always @(posedge clk)
+  always @(posedge clk2)
     if (write_enable)
-      ram[address_bus[3:0]] <= from_cpu;
+      ram[address_bus[5:0]] <= from_cpu;
   
   // RAM read from CPU
   always @(*)
     casez (address_bus)
       // RAM
-      8'b00??????: to_cpu = ram[address_bus[3:0]];
+      8'b00??????: to_cpu = ram[address_bus[5:0]];
       // special read registers
       IN_HPOS:  to_cpu = hpos[7:0];
       IN_VPOS:  to_cpu = vpos[7:0];
@@ -71,10 +79,10 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
       default: to_cpu = 8'bxxxxxxxx;
     endcase
 
-  // sync generator module
-  hvsync_generator hvsync_gen(
-    .clk(clk),
-    .reset(0),
+  // video sync generator
+  hvsync_generator #(256,60,40,25) hvsync_gen(
+    .clk(clk2),
+    .reset(reset),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(display_on),
@@ -109,7 +117,8 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
   
   // player sprite renderer
   sprite_renderer player_renderer(
-    .clk(clk),
+    .clk(clk2),
+    .reset(reset),
     .vstart(player_vstart),
     .hstart(player_hstart),
     .load(player_load),
@@ -120,7 +129,8 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
 
   // enemy sprite renderer
   sprite_renderer enemy_renderer(
-    .clk(clk),
+    .clk(clk2),
+    .reset(reset),
     .vstart(enemy_vstart),
     .hstart(enemy_hstart),
     .load(enemy_load),
@@ -128,15 +138,15 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
     .rom_bits(car_sprite_bits),
     .gfx(enemy_gfx),
     .in_progress(enemy_is_drawing));
-  
+
   // collision detection logic
   reg frame_collision;
-  always @(posedge clk)
+  always @(posedge clk2)
     if (player_gfx && (enemy_gfx || track_gfx))
       frame_collision <= 1;
     else if (vpos==0)
       frame_collision <= 0;
-  
+
   // track graphics
   wire track_offside = (hpos[7:5]==0) || (hpos[7:5]==7);
   wire track_shoulder = (hpos[7:3]==3) || (hpos[7:3]==28);
@@ -146,128 +156,14 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
   wire r = display_on && (player_gfx || enemy_gfx || track_shoulder);
   wire g = display_on && (player_gfx || track_gfx);
   wire b = display_on && (enemy_gfx || track_shoulder);
-  assign rgb = {1'b0,b,g,r};
+
+  assign out = (hsync||vsync) ? 0 : (1+g+(r|b));
   
   //////////// CPU program code
 
-`ifdef EXT_INLINE_ASM
   initial begin
-    rom = '{
-      __asm
-.arch femto8		; FEMTO-8 architecture
-.org 128		; origin = 128 ($80)
-.len 128		; length = 128 ($80)
-
-; define constants
-.define PADDLE_X 0
-.define PADDLE_Y 1
-.define PLAYER_X 2
-.define PLAYER_Y 3
-.define ENEMY_X 4
-.define ENEMY_Y 5
-.define ENEMY_DIR 6
-.define SPEED 7
-.define TRACKPOS_LO 8
-.define TRACKPOS_HI 9
-
-.define IN_HPOS  $40
-.define IN_VPOS  $41
-.define IN_FLAGS $42
-
-.define F_DISPLAY 1
-.define F_HPADDLE 2
-.define F_VPADDLE 4
-.define F_HSYNC 8
-.define F_VSYNC 16
-.define F_COLLIDE 32
-
-Start:
-	lda	#128		; load initial positions
-	sta	PLAYER_X	; player_x = 128
-	sta	ENEMY_X		; enemy_x = 128
-	sta	ENEMY_Y		; enemy_y = 128
-	lda	#180
-	sta	PLAYER_Y	; player_y = 180
-	zero	A
-	sta	SPEED		; player speed = 0
-        inc	A
-        sta	ENEMY_DIR	; enemy dir = 1 (right)
-; read horizontal paddle position
-DisplayLoop:
-	lda	#F_HPADDLE	; paddle flag -> A
-	ldb	#IN_FLAGS	; addr of IN_FLAGS -> B
-        and	none,[B]	; read B, AND with A
-	bz	DisplayLoop	; loop until paddle flag set
-	ldb	#IN_VPOS
-        mov	A,[B]		; load vertical position -> A
-	sta	PLAYER_X	; store player x position
-; wait for vsync
-	lda	#F_VSYNC
-	ldb	#IN_FLAGS
-WaitForVsyncOn:
-        and	none,[B]
-	bz	WaitForVsyncOn	; wait until VSYNC on
-WaitForVsyncOff:
-        and	none,[B]
-	bnz	WaitForVsyncOff	; wait until VSYNC off
-; check collision
-	lda	#F_COLLIDE
-	ldb	#IN_FLAGS
-        and	none,[B]	; collision flag set?
-	bz	NoCollision	; skip ahead if not
-	lda	#16
-	sta	SPEED		; speed = 16
-NoCollision:
-; update speed
-	ldb	#SPEED
-        mov	A,[B]		; speed -> A
-	inc	A		; increment speed
-	bz	MaxSpeed	; speed wraps to 0?
-	sta	SPEED		; no, store speed
-MaxSpeed:
-	mov	A,[B]		; reload speed -> A
-	lsr	A
-	lsr	A
-	lsr	A
-	lsr	A		; divide speed by 16
-; add to lo byte of track pos
-	ldb	#TRACKPOS_LO
-	add	B,[B]		; B <- speed/16 + trackpos_lo
-	swapab			; swap A <-> B
-	sta	TRACKPOS_LO	; A -> trackpos_lo
-	swapab			; swap A <-> B again
-	bcc	NoCarry		; carry flag from earlier add op
-; add to hi byte of track pos
-	ldb	#TRACKPOS_HI
-	mov	B,[B]		; B <- trackpos_hi
-	inc	b		; increment B
-	swapab			; swap A <-> B
-	sta	TRACKPOS_HI	; A -> trackpos_hi
-	swapab			; swap A <-> B again
-NoCarry:
-; update enemy vert pos
-	ldb	#ENEMY_Y
-        add	A,[B]
-	sta	ENEMY_Y		; enemy_y = enemy_y + speed/16
-; update enemy horiz pos
-      	ldb	#ENEMY_X
-        mov	A,[B]
-        ldb	#ENEMY_DIR
-        add	A,[B]
-        sta	ENEMY_X		; enemy_x = enemy_x + enemy_dir
-        sub	A,#64
-      	and     A,#127		; A <- (enemy_x-64) & 127
-      	bnz     SkipXReverse	; skip if enemy_x is in range
-; load ENEMY_DIR and negate
-      	zero	A
-        sub	A,[B]
-        sta	ENEMY_DIR	; enemy_dir = -enemy_dir
-SkipXReverse:
-; back to display loop
-	jmp	DisplayLoop
-      __endasm
-    };
+    $readmemh("racing.hex", rom);
   end
-`endif
   
 endmodule
+

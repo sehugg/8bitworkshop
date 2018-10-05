@@ -25,7 +25,7 @@ module RAM_sync(clk, addr, din, dout, we);
   input  we;		// write enable
   
   reg [D-1:0] mem [0:(1<<A)-1]; // (1<<A)xD bit memory
-  
+    
   always @(posedge clk) begin
     if (we)		// if write enabled
       mem[addr] <= din;	// write memory from din

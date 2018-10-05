@@ -54,7 +54,7 @@ type AssemblerState = {
   fixups: AssemblerFixup[]
 }
 
-var Assembler = function(spec : AssemblerSpec) {
+export var Assembler = function(spec : AssemblerSpec) {
   var self = this;
   var ip = 0;
   var origin = 0;
@@ -365,25 +365,3 @@ var Assembler = function(spec : AssemblerSpec) {
   }
 }
 
-// Main
-/*
-declare var module, require;
-if (typeof module !== 'undefined' && require.main === module) {
-  var fs = require('fs');
-  var stdinBuffer = fs.readFileSync(0);
-  var code = stdinBuffer.toString();
-  var asm = new (Assembler as any)();
-  asm.loadJSON = function(filename) {
-    return JSON.parse(fs.readFileSync(filename, 'utf8'));
-  };
-  asm.loadInclude = function(filename) {
-    filename = filename.substr(1, filename.length-2); // remove quotes
-    //return fs.readFileSync(filename, 'utf8');
-  };
-  asm.loadModule = function(top_module) {
-   //TODO
-  };
-  var out = asm.assembleFile(code);
-  console.log(out);
-}
-*/

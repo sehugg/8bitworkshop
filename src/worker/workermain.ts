@@ -1225,7 +1225,7 @@ var jsasm_module_key;
 
 function compileJSASM(asmcode:string, platform, options, is_inline) {
   loadGen("worker/assembler");
-  var asm = new (Assembler as any)();
+  var asm = new emglobal.exports.Assembler();
   var includes = [];
   asm.loadJSON = function(filename) {
     // TODO: what if it comes from dependencies?
@@ -1370,7 +1370,7 @@ function compileVerilator(step:BuildStep) {
     return {
       output: rtn.output,
       errors: errors,
-      listings: {},
+      listings: listings,
     };
   } catch(e) {
     console.log(e);

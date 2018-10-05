@@ -18,7 +18,7 @@ var VERILOG_PRESETS = [
   {id:'ball_absolute.v', name:'Ball Motion (absolute position)'},
   {id:'ball_slip_counter.v', name:'Ball Motion (slipping counter)'},
   {id:'ball_paddle.v', name:'Brick Smash Game'},
-  {id:'ram1.v', name:'RAM Text Display'},
+  {id:'chardisplay.v', name:'RAM Text Display'},
   {id:'switches.v', name:'Switch Inputs'},
   {id:'paddles.v', name:'Paddle Inputs'},
   {id:'sprite_bitmap.v', name:'Sprite Bitmaps'},
