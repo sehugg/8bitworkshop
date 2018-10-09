@@ -63,13 +63,23 @@ module ball_paddle_top(clk, reset, hpaddle, out);
   
   // scoreboard
   wire score_gfx; // output from score generator
-  player_stats stats(.reset(reset), 
-                     .score0(score0), .score1(score1), .incscore(incscore),
-                     .lives(lives), .declives(declives));
+  player_stats stats(
+    .reset(reset),
+    .score0(score0),
+    .score1(score1),
+    .incscore(incscore),
+    .lives(lives),
+    .declives(declives)
+  );
+
   scoreboard_generator score_gen(
-    .score0(score0), .score1(score1), .lives(lives),
-    .vpos(vpos), .hpos(hpos), 
-    .board_gfx(score_gfx));
+    .score0(score0),
+    .score1(score1),
+    .lives(lives),
+    .vpos(vpos),
+    .hpos(hpos), 
+    .board_gfx(score_gfx)
+  );
 
   wire [5:0] hcell = hpos[8:3];		// horizontal brick index
   wire [5:0] vcell = vpos[8:3];		// vertical brick index
@@ -108,7 +118,7 @@ module ball_paddle_top(clk, reset, hpaddle, out);
       // every 17th pixel
       else if (hpos[3:0] == 9) begin
         // load brick bit from array
-        brick_present <= brick_array[brick_index];
+        brick_present <= !brick_array[brick_index];
       end
     end else begin
       brick_present <= 0;
@@ -123,29 +133,33 @@ module ball_paddle_top(clk, reset, hpaddle, out);
   // 1 when ball signal intersects main (brick + border) signal
   wire ball_pixel_collide = main_gfx & ball_gfx;
   
-  /* verilator lint_off MULTIDRIVEN */
   reg ball_collide_paddle = 0;
   reg [3:0] ball_collide_bits = 0;
-  /* verilator lint_on MULTIDRIVEN */
 
   // compute ball collisions with paddle and playfield
   always @(posedge clk2)
-    if (ball_pixel_collide) begin
-      // did we collide w/ paddle?
-      if (paddle_gfx) begin
-        ball_collide_paddle <= 1;
+    // clear all collide bits for frame
+    if (vsync) begin
+      ball_collide_bits <= 0; 
+      ball_collide_paddle <= 0;
+    end else begin
+      if (ball_pixel_collide) begin
+        // did we collide w/ paddle?
+        if (paddle_gfx) begin
+          ball_collide_paddle <= 1;
+        end
+        // ball has 4 collision quadrants
+        if (!ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[0] <= 1;
+        if (ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[1] <= 1;
+        if (!ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[2] <= 1;
+        if (ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[3] <= 1;
       end
-      // ball has 4 collision quadrants
-      if (!ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[0] <= 1;
-      if (ball_rel_x[2] & !ball_rel_y[2]) ball_collide_bits[1] <= 1;
-      if (!ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[2] <= 1;
-      if (ball_rel_x[2] & ball_rel_y[2]) ball_collide_bits[3] <= 1;
     end
 
   // compute ball collisions with brick and increment score
   always @(posedge clk2)
     if (ball_pixel_collide && brick_present) begin
-      brick_array[brick_index] <= 0;
+      brick_array[brick_index] <= 1;
       incscore <= 1; // increment score
     end else begin
       incscore <= 0; // reset incscore
@@ -192,8 +206,6 @@ module ball_paddle_top(clk, reset, hpaddle, out);
           default: ;
         endcase
       end
-      ball_collide_bits <= 0; // clear all collide bits for frame
-      ball_collide_paddle <= 0;
     end
   
   // ball motion: update ball position
@@ -217,19 +229,10 @@ module ball_paddle_top(clk, reset, hpaddle, out);
   always @(*)
     begin
       case (vpos[8:3])
-        0: main_gfx = score_gfx; // scoreboard
-        1: main_gfx = score_gfx;
-        2: main_gfx = score_gfx;
+        0,1,2: main_gfx = score_gfx; // scoreboard
         3: main_gfx = 0;
         4: main_gfx = 1; // top border
-        8: main_gfx = brick_gfx; // 1st brick row
-        9: main_gfx = brick_gfx; // ...
-        10: main_gfx = brick_gfx;
-        11: main_gfx = brick_gfx;
-        12: main_gfx = brick_gfx;
-        13: main_gfx = brick_gfx;
-        14: main_gfx = brick_gfx;
-        15: main_gfx = brick_gfx; // 8th brick row
+        8,9,10,11,12,13,14,15: main_gfx = brick_gfx; // brick rows 1-8
         28: main_gfx = paddle_gfx | lr_border; // paddle
         29: main_gfx = hpos[0] ^ vpos[0]; // bottom border
         default: main_gfx = lr_border; // left/right borders

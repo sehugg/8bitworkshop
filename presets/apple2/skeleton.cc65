@@ -4,8 +4,6 @@
 #include <ctype.h>
 #include <conio.h>
 
-#pragma static-locals(1);
-
 int main (void)
 {
   printf("\nHello! Press a key to reboot...\n");
