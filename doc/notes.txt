@@ -70,10 +70,10 @@ TODO:
 - fix WebAudio (https://news.ycombinator.com/item?id=18066474)
 - Safari: verilog scope doesn't work
 - share playable link w/ verilog?
-- no errors for verilog inline asm?
 - allow download of JSASM output
 - update bootstrap/jquery
 - clean BOM from verilog
+- $readmemb/h
 
 
 WEB WORKER FORMAT

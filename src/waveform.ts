@@ -197,10 +197,11 @@ export class WaveformView {
     var x = 0;
     var y = 0;
     var lastval = -1;
+    var radix = this.hexformat ? 16 : 10;
     for (var i=0; i<data.length; i++) {
       var val = data[i];
-      if (printvals && val != lastval) {
-        ctx.fillText(val.toString(), x+this.zoom/4, ycen);
+      if (printvals && val != lastval && x < w-100) { // close to right edge? omit
+        ctx.fillText(val.toString(radix), x+this.zoom/4, ycen);
       }
       lastval = val;
       if (i>0)
@@ -229,7 +230,7 @@ export class WaveformView {
       var val = data[this.tsel - this.t0];
       ctx.textAlign = 'right';
       if (val !== undefined) {
-        var s = this.hexformat ? val.toString(16) : val.toString();
+        var s = val.toString(radix);
         ctx.fillText(s, w-fh, ycen);
       }
     }

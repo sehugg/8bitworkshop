@@ -671,6 +671,7 @@ var VerilogPlatform = function(mainElement, options) {
     if (trace_buffer) trace_buffer.fill(0);
     if (video) video.setRotate(gen.rotate ? -90 : 0);
     $("#verilog_bar").hide();
+    if (!this.hasvideo) this.resume(); // TODO?
   }
   tick() {
     gen.tick2();

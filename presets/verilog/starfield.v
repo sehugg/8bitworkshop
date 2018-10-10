@@ -26,6 +26,7 @@ module starfield_top(clk, reset, hsync, vsync, rgb);
     .vpos(vpos)
   );
   
+  // enable LFSR only in 256x256 area
   wire star_enable = !hpos[8] & !vpos[8];
   
   // LFSR with period = 2^16-1 = 256*256-1
@@ -35,7 +36,7 @@ module starfield_top(clk, reset, hsync, vsync, rgb);
     .enable(star_enable),
     .lfsr(lfsr));
 
-  wire star_on = &lfsr[15:9];
+  wire star_on = &lfsr[15:9]; // all 7 bits must be set
   assign rgb = display_on && star_on ? lfsr[2:0] : 0;
 
 endmodule
