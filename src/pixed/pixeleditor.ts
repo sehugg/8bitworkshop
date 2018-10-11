@@ -496,7 +496,7 @@ function pixelEditorReceiveMessage(e) {
 
 function createThumbnailForImage(parentdiv, i) {
   var span = $('<span class="thumb">');
-  var thumb = new PixelEditor(span[0], currentFormat, palette, allimages[i]);
+  var thumb = new PixelEditor(span[0] as HTMLElement, currentFormat, palette, allimages[i]);
   // double size of canvas thumbnail
   thumb.canvas.style.height = currentFormat.h*2+"px";
   thumb.canvas.style.width = currentFormat.w*2+"px";

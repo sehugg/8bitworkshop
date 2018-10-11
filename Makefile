@@ -1,4 +1,6 @@
 
+TSC=./node_modules/typescript/bin/tsc
+
 all: src/cpu/z80fast.js
 
 src/cpu/z80.js: src/cpu/z80.coffee
@@ -27,6 +29,6 @@ web:
 
 tsweb:
 	ifconfig | grep inet
-	tsc -w &
+	$(TSC) -w &
 	python2 -m SimpleHTTPServer 2>> http.out
 	#node ../nodejs-typescript-webserver/bin/FileServer.js .

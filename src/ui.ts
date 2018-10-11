@@ -82,7 +82,7 @@ function setLastPreset(id:string) {
 
 function initProject() {
   current_project = new CodeProject(newWorker(), platform_id, platform, store);
-  projectWindows = new ProjectWindows($("#workspace")[0], current_project);
+  projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
   current_project.callbackGetRemote = $.get;
   current_project.callbackBuildResult = (result:WorkerResult) => {
     setCompileOutput(result);
@@ -744,7 +744,7 @@ function updateDebugWindows() {
 
 function _recordVideo() {
  loadScript("gif.js/dist/gif.js", () => {
-  var canvas = $("#emulator").find("canvas")[0];
+  var canvas = $("#emulator").find("canvas")[0] as HTMLElement;
   if (!canvas) {
     alert("Could not find canvas element to record video!");
     return;

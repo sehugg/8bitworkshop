@@ -413,7 +413,7 @@ var VerilogPlatform = function(mainElement, options) {
     // create scope, if visible
     if (this.isScopeVisible()) {
       if (!this.waveview) {
-        this.waveview = new WaveformView(this.wavediv[0], this);
+        this.waveview = new WaveformView(this.wavediv[0] as HTMLElement, this);
       } else {
         this.waveview.refresh();
       }
