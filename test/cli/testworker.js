@@ -197,7 +197,7 @@ describe('Worker', function() {
       assert.ok(fn);
       done(err, msg);
     };
-    doBuild(msgs, done2, 49699, 0, 0);
+    doBuild(msgs, done2, 51459, 0, 0);
   });
   it('should compile verilog assembler file (JSASM)', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/test2.asm'));

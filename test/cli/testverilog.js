@@ -9,8 +9,11 @@ var VerilogPlatform = emu.PLATFORMS['verilog'];
 
 Object.assign(global, verilog); // copy global VL_* properties
 
+// TODO: must define $
+
 function loadPlatform(msg) {
   var platform = new VerilogPlatform();
+  platform.resume = function() { }; // prevent resume after reset
   try {
     //console.log(msg.output.ports);
     //console.log(msg.output.signals);
@@ -28,7 +31,7 @@ function loadPlatform(msg) {
     assert.deepEqual(state, platform.saveState());
   } catch (e) {
     //platform.printErrorCodeContext(e, msg.output.code);
-    console.log(msg.intermediate.listing);
+    //console.log(msg.intermediate.listing);
     console.log(msg.output.code);
     console.log(e);
     throw e;

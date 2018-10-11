@@ -38,7 +38,7 @@ var includeInThisContext = function(path) {
     vm.runInThisContext(code, path);
 };
 
-includeInThisContext("gen/worker/assembler.js");
+var assembler = require("gen/worker/assembler.js");
 
 describe('Assemble', function() {
   it('Should assemble', function() {
@@ -76,7 +76,7 @@ WaitVsync:
         sta	0
 	      jmp	DisplayLoop
 `;
-    var asm = new Assembler(EXAMPLE_SPEC);
+    var asm = new assembler.Assembler(EXAMPLE_SPEC);
     var result = asm.assembleFile(source);
     //console.log(result);
     //assert.equal(result, {});
