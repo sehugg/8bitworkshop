@@ -146,3 +146,6 @@ worker result:
 }
 
 add file to errors
+
+http://www.playvectrex.com/designit/chrissalo/vectordisplay.htm
+http://oldies.malban.de/secondvectrex/index.htm

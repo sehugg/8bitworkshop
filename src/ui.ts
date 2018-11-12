@@ -540,8 +540,8 @@ function setCompileOutput(data: WorkerResult) {
         clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
         _resetRecording();
         platform.loadROM(getCurrentPresetTitle(), rom);
-        if (!userPaused) _resume();
         current_output = rom;
+        if (!userPaused) _resume();
         // TODO: reset profiler etc? (Tell views?)
       } catch (e) {
         console.log(e);
@@ -625,7 +625,11 @@ function pause() {
 }
 
 function _resume() {
-  if (! platform.isRunning()) {
+  if (current_output == null) {
+    alert("Can't resume emulation until ROM is successfully built.");
+    return;
+  }
+  if (!platform.isRunning()) {
     platform.resume();
     console.log("Resumed");
   }
