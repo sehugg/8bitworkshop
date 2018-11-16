@@ -74,6 +74,7 @@ TODO:
 - update bootstrap/jquery
 - clean BOM from verilog
 - $readmemb/h
+- maybe don't have grey space with line numbers until inline ASM used?
 
 
 WEB WORKER FORMAT
