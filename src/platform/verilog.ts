@@ -744,4 +744,24 @@ var VerilogPlatform = function(mainElement, options) {
 
 ////////////////
 
+var VERILOG_SIM_PRESETS = [
+  {id:'clock_divider.v', name:'Clock Divider'},
+  {id:'lfsr.v', name:'Linear Feedback Shift Register'},
+  {id:'hvsync_generator.v', name:'Video Sync Generator'},
+  {id:'test_hvsync.v', name:'Test Pattern'},
+  {id:'starfield.v', name:'Scrolling Starfield'},
+  {id:'chardisplay.v', name:'RAM Text Display'},
+  {id:'sound_generator.v', name:'Sound Generator'},
+];
+
+
+var VerilogSimulatorPlatform = function(mainElement, options) {
+  this.__proto__ = new (VerilogPlatform as any)(mainElement, options);
+
+  this.getPresets = function() { return VERILOG_SIM_PRESETS; }
+}
+
+////////////////
+
 PLATFORMS['verilog'] = VerilogPlatform;
+PLATFORMS['verilog.sim'] = VerilogSimulatorPlatform;

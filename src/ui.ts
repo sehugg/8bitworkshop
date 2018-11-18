@@ -893,7 +893,7 @@ function setupDebugControls(){
   } else
     $("#dbg_tovsync").hide();
 
-  if ((platform.runEval || platform.runToPC) && platform_id != 'verilog') {
+  if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog')) {
     $("#dbg_toline").click(runToCursor).show();
     Mousetrap.bindGlobal('ctrl+alt+l', runToCursor);
   } else

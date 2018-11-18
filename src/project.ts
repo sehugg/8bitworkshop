@@ -59,7 +59,7 @@ export class CodeProject {
 
   parseIncludeDependencies(text:string):string[] {
     var files = [];
-    if (this.platform_id == 'verilog') {
+    if (this.platform_id.startsWith('verilog')) {
       var re = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
       var m;
       while (m = re.exec(text)) {
@@ -80,7 +80,7 @@ export class CodeProject {
 
   parseLinkDependencies(text:string):string[] {
     var files = [];
-    if (this.platform_id == 'verilog') {
+    if (this.platform_id.startsWith('verilog')) {
       //
     } else {
       // for .c -- //#link "file" (or ;link or #link)
@@ -229,7 +229,7 @@ export class CodeProject {
         console.log(err); // TODO?
       }
       if (!depends) depends = [];
-      if (this.platform_id == 'verilog') {
+      if (this.platform_id.startsWith('verilog')) {
         // TODO: should get rid of this msg format
         this.worker.postMessage({
           code:text,
