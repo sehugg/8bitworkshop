@@ -1,4 +1,4 @@
-
+﻿
 	include "nesdefs.asm"
 
 ;;;;; VARIABLES
@@ -26,9 +26,9 @@ Start:
         sta PPU_ADDR	; PPU addr = $0000
         sta PPU_SCROLL
         sta PPU_SCROLL  ; scroll = $0000
-        lda #$90
+        lda #CTRL_NMI
         sta PPU_CTRL	; enable NMI
-        lda #$1e
+        lda #MASK_SPR|MASK_BG|MASK_SPR_CLIP|MASK_BG_CLIP
         sta PPU_MASK 	; enable rendering
 .endless
 	jmp .endless	; endless loop
@@ -38,15 +38,15 @@ FillVRAM: subroutine
 	txa
 	ldy #$20
 	sty PPU_ADDR
-	sta PPU_ADDR
-	ldy #$10
+	sta PPU_ADDR	; PPU addr = $2000
+	ldy #$10	; $10 (16) 256-byte pages
 .loop:
-	sta PPU_DATA
-        adc #7
+	sta PPU_DATA	; write to VRAM
+        adc #7		; add 7 to make randomish pattern
 	inx
 	bne .loop
-	dey
-	bne .loop
+	dey		; next page
+	bne .loop	; out of pages?
         rts
 
 ; set palette colors
@@ -54,14 +54,14 @@ SetPalette: subroutine
         ldy #$00
 	lda #$3f
 	sta PPU_ADDR
-	sty PPU_ADDR
-	ldx #32
+	sty PPU_ADDR	; PPU addr = 0x3f00
+	ldx #32		; 32 palette colors
 .loop:
-	lda Palette,y
-	sta PPU_DATA
+	lda Palette,y	; load from ROM
+	sta PPU_DATA	; store to palette
         iny
 	dex
-	bne .loop
+	bne .loop	; loop until 32 colors stored
         rts
 
 
@@ -77,14 +77,9 @@ NMIHandler:
 ; update scroll position (must be done after VRAM updates)
 	inc ScrollPos
         lda ScrollPos
-        sta PPU_SCROLL
+        sta PPU_SCROLL	; X scroll position
         lda #0
-        sta PPU_SCROLL
-; TODO: write high bits to PPUCTRL
-	lda ScrollPos
-        and #0
-	ora #$90	; enable NMI
-        sta PPU_CTRL
+        sta PPU_SCROLL	; Y scroll position
 ; reload registers
         pla	; reload A
 	rti

@@ -19,7 +19,7 @@ export class AY38910_Audio {
   master : MasterAudio;
   psg = new PsgDeviceChannel();
   curreg = 0;
-  
+
   constructor(master : MasterAudio) {
     this.master = master;
     this.psg.setMode(PsgDeviceChannel.MODE_SIGNED);
@@ -38,6 +38,21 @@ export class AY38910_Audio {
   }
   setData(val : number) {
     this.psg.writeRegisterAY(this.curreg, val & 0xff);
+  }
+}
+
+export class SN76489_Audio {
+  master : MasterAudio;
+  psg = new PsgDeviceChannel();
+
+  constructor(master : MasterAudio) {
+    this.master = master;
+    this.psg.setMode(PsgDeviceChannel.MODE_SIGNED);
+    this.psg.setDevice(PsgDeviceChannel.DEVICE_SN76489);
+    master.master.addChannel(this.psg);
+  }
+  setData(val : number) {
+    this.psg.writeRegisterSN(0, val & 0xff);
   }
 }
 

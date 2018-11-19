@@ -111,7 +111,7 @@ var PLATFORM_PARAMS = {
   'nes': { //TODO
     define: '__NES__',
     cfgfile: 'neslib.cfg',
-    libargs: ['crt0.o', 'nes.lib', 
+    libargs: ['crt0.o', 'nes.lib',
       '-D', 'NES_MAPPER=0',
       '-D', 'NES_PRG_BANKS=2',
       '-D', 'NES_CHR_BANKS=0', // TODO: >0 doesn't seem to work
@@ -181,6 +181,8 @@ var PLATFORM_PARAMS = {
      stack_end: 0x4fce,
   },
 };
+
+PLATFORM_PARAMS['coleco.mame'] = PLATFORM_PARAMS['coleco'];
 
 var _t1;
 function starttime() { _t1 = new Date(); }
@@ -1025,7 +1027,7 @@ function linkSDLDZ80(step:BuildStep)
     setupFS(FS, 'sdcc');
     populateFiles(step, FS);
     // TODO: coleco hack so that -u flag works
-    if (step.platform == "coleco") {
+    if (step.platform.startsWith("coleco")) {
       FS.writeFile('crt0.rel', FS.readFile('/share/lib/coleco/crt0.rel', {encoding:'utf8'}));
       FS.writeFile('crt0.lst', '\n'); // TODO: needed so -u flag works
     }
@@ -1046,7 +1048,7 @@ function linkSDLDZ80(step:BuildStep)
     // return unchanged if no files changed
     if (!anyTargetChanged(step, ["main.ihx", "main.noi"]))
       return;
-      
+
     var listings = {};
     for (var fn of step.files) {
       if (fn.endsWith('.lst')) {
@@ -1161,7 +1163,7 @@ function preprocessMCPP(step:BuildStep) {
   // TODO: make configurable by other compilers
   var args = [
     "-D", "__8BITWORKSHOP__",
-    "-D", platform.toUpperCase().replace('-','_'),
+    "-D", platform.toUpperCase().replace(/[-.]/g,'_'),
     "-D", "__SDCC_z80",
     "-I", "/share/include",
     "-Q",

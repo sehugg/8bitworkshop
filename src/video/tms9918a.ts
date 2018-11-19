@@ -1,3 +1,4 @@
+'use strict';
 /*
  * js99'er - TI-99/4A emulator written in JavaScript
  *
@@ -9,7 +10,7 @@
  * GNU General Public License v2.0
  */
 
-'use strict';
+ import { hex } from "../util";
 
 enum TMS9918A_Mode {
   GRAPHICS = 0,
@@ -32,6 +33,7 @@ export function TMS9918A(canvas, cru, enableFlicker) {
 
     this.ram = new Uint8Array(16384); // VDP RAM
     this.registers = new Uint8Array(8);
+    this.spriteBuffer = new Uint8Array(256);
     this.addressRegister = null;
     this.statusRegister = null;
 
@@ -178,7 +180,8 @@ TMS9918A.prototype = {
             var y1 = y - vBorder;
             // Pre-process sprites
             if (!textMode) {
-                var spriteBuffer = new Uint8Array(drawWidth);
+                var spriteBuffer = this.spriteBuffer;
+                spriteBuffer.fill(0);
                 var spritesOnLine = 0;
                 var endMarkerFound = false;
                 var spriteAttributeAddr = spriteAttributeTable;
@@ -550,11 +553,11 @@ TMS9918A.prototype = {
     getRegsString: function () {
         var s = "";
         for (var i = 0; i < this.registers.length; i++) {
-            s += "VR" + i + ":" + this.registers[i].toHexByte() + " ";
+            s += "VR" + i + ":" + hex(this.registers[i],2) + " ";
         }
-        s += "\nSIT:" + this.nameTable.toHexWord() + " PDT:" + this.charPatternTable.toHexWord() + " (" + this.patternTableSize().toHexWord() + ")" +
-             " CT:" + this.colorTable.toHexWord() + " (" + this.colorTableSize().toHexWord() + ") SDT:" + this.spritePatternTable.toHexWord() +
-             " SAL:" + this.spriteAttributeTable.toHexWord() + "\nVDP: " + this.addressRegister.toHexWord();
+        s += "\nSIT:" + hex(this.nameTable,4) + " PDT:" + hex(this.charPatternTable,4) + " (" + hex(this.patternTableSize(),4) + ")" +
+             " CT:" + hex(this.colorTable,4) + " (" + hex(this.colorTableSize(),4) + ") SDT:" + hex(this.spritePatternTable,4) +
+             " SAL:" + hex(this.spriteAttributeTable,4) + "\nVDP: " + hex(this.addressRegister,4);
         return s;
     },
 
