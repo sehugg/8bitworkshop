@@ -42,6 +42,7 @@ var _williams = require('gen/platform/williams.js');
 var _sound_williams = require('gen/platform/sound_williams.js');
 var _astrocade = require('gen/platform/astrocade.js');
 var _atari8 = require('gen/platform/atari8.js');
+var _coleco = require('gen/platform/coleco.js');
 
 //
 
@@ -50,7 +51,7 @@ dom.window.HTMLCanvasElement.prototype.getContext = function() {
     getImageData: function(x,y,w,h) { return {data: new Uint32Array(w*h) }; },
     fillRect: function(x,y,w,h) { },
     drawImage: function(img,x,y,w,h) { },
-    putImageData: function(data,w,h) { }
+    putImageData: function(data,w,h) { },
   };
 }
 global.navigator = {};
@@ -223,6 +224,15 @@ describe('Platform Replay', () => {
       }
     });
   });
+/*
+  it('Should run coleco', () => {
+    var platform = testPlatform('coleco', 'shoot.c.rom', 92, (platform, frameno) => {
+      if (frameno == 62) {
+        keycallback(Keys.VK_SPACE.c, Keys.VK_SPACE.c, 1);
+      }
+    });
+  });
+*/
 /* TODO
   it('Should run atari8-5200', () => {
     var platform = testPlatform('atari8-5200', 'hello.a.rom', 92, (platform, frameno) => {

@@ -25,17 +25,54 @@ enum TMS9918A_Mode {
 /**
  * @constructor
  */
-export function TMS9918A(canvas, cru, enableFlicker) {
+export class TMS9918A {
+
+  canvas;
+
+  cru : { setVDPInterrupt: (b:boolean) => void };
+  enableFlicker : boolean;
+
+  ram = new Uint8Array(16384); // VDP RAM
+  registers = new Uint8Array(8);
+  spriteBuffer = new Uint8Array(256);
+  addressRegister : number;
+  statusRegister : number;
+
+  palette : [number, number, number][];
+
+  latch : boolean;
+  prefetchByte : number;
+
+  displayOn = null;
+  interruptsOn = null;
+  screenMode : number;
+  bitmapMode : boolean;
+  textMode : boolean;
+  colorTable : number;
+  nameTable : number;
+  charPatternTable : number;
+  spriteAttributeTable : number;
+  spritePatternTable : number;
+  colorTableMask : number;
+  patternTableMask : number;
+  ramMask : number;
+  fgColor : number;
+  bgColor : number;
+
+  flicker : boolean;
+  redrawRequired : boolean;
+
+  canvasContext;
+  imageData;
+
+  width : number;
+  height : number;
+
+  constructor(canvas, cru, enableFlicker:boolean) {
 
     this.canvas = canvas;
     this.cru = cru;
     this.enableFlicker = enableFlicker;
-
-    this.ram = new Uint8Array(16384); // VDP RAM
-    this.registers = new Uint8Array(8);
-    this.spriteBuffer = new Uint8Array(256);
-    this.addressRegister = null;
-    this.statusRegister = null;
 
     this.palette = [
         [0, 0, 0],
@@ -56,41 +93,11 @@ export function TMS9918A(canvas, cru, enableFlicker) {
         [255, 255, 255]
     ];
 
-    this.latch = null;
-    this.prefetchByte = null;
-
-    this.displayOn = null;
-    this.interruptsOn = null;
-    this.screenMode = null;
-    this.bitmapMode = null;
-    this.textMode = null;
-    this.colorTable = null;
-    this.nameTable = null;
-    this.charPatternTable = null;
-    this.spriteAttributeTable = null;
-    this.spritePatternTable = null;
-    this.colorTableMask = null;
-    this.patternTableMask = null;
-    this.ramMask = null;
-    this.fgColor = null;
-    this.bgColor = null;
-
-    this.flicker = null;
-    this.redrawRequired = null;
-
     this.canvasContext = this.canvas.getContext("2d");
-    this.imageData = null;
-    this.width = null;
-    this.height = null;
-
-    //this.log = Log.getLog();
-
     this.reset();
-}
+  }
 
-TMS9918A.prototype = {
-
-    reset: function () {
+    reset() {
 
         var i;
         for (i = 0; i < this.ram.length; i++) {
@@ -133,9 +140,9 @@ TMS9918A.prototype = {
         this.imageData = this.canvasContext.getImageData(0, 0, this.canvas.width, this.canvas.height);
         this.width = this.canvas.width;
         this.height = this.canvas.height;
-    },
+    }
 
-    drawFrame: function (timestamp) {
+    drawFrame(timestamp:number) {
         if (this.redrawRequired) {
             for (var y = 0; y < this.height; y++) {
                 this.drawScanline(y);
@@ -143,12 +150,12 @@ TMS9918A.prototype = {
             this.updateCanvas();
             this.redrawRequired = false;
         }
-    },
+    }
 
-    initFrame: function (timestamp) {
-    },
+    initFrame(timestamp:number) {
+    }
 
-    drawScanline: function (y) {
+    drawScanline(y:number) {
         var imageData = this.imageData.data,
             width = this.width,
             imageDataAddr = (y * width) << 2,
@@ -344,13 +351,13 @@ TMS9918A.prototype = {
         if (fifthSprite) {
             this.statusRegister |= 0x40;
         }
-    },
+    }
 
-    updateCanvas: function () {
+    updateCanvas() {
         this.canvasContext.putImageData(this.imageData, 0, 0);
-    },
+    }
 
-    writeAddress: function (i) {
+    writeAddress(i:number) {
         if (!this.latch) {
             this.addressRegister = (this.addressRegister & 0xFF00) | i;
         }
@@ -427,9 +434,9 @@ TMS9918A.prototype = {
             this.redrawRequired = true;
         }
         this.latch = !this.latch;
-    },
+    }
 
-    updateMode: function (reg0, reg1) {
+    updateMode(reg0:number, reg1:number) {
         this.bitmapMode = (reg0 & 0x02) !== 0;
         this.textMode = (reg1 & 0x10) !== 0;
         // Check bitmap mode bit, not text or multicolor
@@ -483,9 +490,9 @@ TMS9918A.prototype = {
         this.nameTable = (this.registers[2] & 0xf) << 10;
         this.spriteAttributeTable = (this.registers[5] & 0x7f) << 7;
         this.spritePatternTable = (this.registers[6] & 0x7) << 11;
-    },
+    }
 
-    updateTableMasks: function () {
+    updateTableMasks() {
         if (this.screenMode === TMS9918A_Mode.BITMAP) {
             this.colorTableMask = ((this.registers[3] & 0x7F) << 6) | 0x3F; // 000CCCCCCC111111
             this.patternTableMask  = ((this.registers[4] & 0x03) << 11) | (this.colorTableMask & 0x7FF); // 000PPCCCCC111111
@@ -500,15 +507,15 @@ TMS9918A.prototype = {
             this.colorTableMask = this.ramMask;
             this.patternTableMask = this.ramMask;
         }
-    },
+    }
 
-    writeData: function (i) {
+    writeData(i:number) {
         this.ram[this.addressRegister++] = i;
         this.addressRegister &= this.ramMask;
         this.redrawRequired = true;
-    },
+    }
 
-    readStatus: function () {
+    readStatus() : number {
         var i = this.statusRegister;
         this.statusRegister = 0x1F;
         if (this.interruptsOn) {
@@ -516,20 +523,20 @@ TMS9918A.prototype = {
         }
         this.latch = false;
         return i;
-    },
+    }
 
-    readData: function () {
+    readData() : number {
         var i = this.prefetchByte;
         this.prefetchByte = this.ram[this.addressRegister++];
         this.addressRegister &= this.ramMask;
         return i;
-    },
+    }
 
-    getRAM: function () {
+    getRAM() : Uint8Array {
         return this.ram;
-    },
+    }
 
-    colorTableSize: function () {
+    colorTableSize() : number {
         if (this.screenMode === TMS9918A_Mode.GRAPHICS) {
             return 0x20;
         }
@@ -539,18 +546,18 @@ TMS9918A.prototype = {
         else {
             return 0;
         }
-    },
+    }
 
-    patternTableSize: function () {
+    patternTableSize() : number {
         if (this.bitmapMode) {
             return Math.min(this.patternTableMask + 1, 0x1800);
         }
         else {
             return 0x800;
         }
-    },
+    }
 
-    getRegsString: function () {
+    getRegsString() : string {
         var s = "";
         for (var i = 0; i < this.registers.length; i++) {
             s += "VR" + i + ":" + hex(this.registers[i],2) + " ";
@@ -559,36 +566,36 @@ TMS9918A.prototype = {
              " CT:" + hex(this.colorTable,4) + " (" + hex(this.colorTableSize(),4) + ") SDT:" + hex(this.spritePatternTable,4) +
              " SAL:" + hex(this.spriteAttributeTable,4) + "\nVDP: " + hex(this.addressRegister,4);
         return s;
-    },
+    }
 
-    hexView: function (start, length, anchorAddr) {
+    hexView(start:number, length:number, anchorAddr:number) : {text,lineCount,anchorLine} {
         var text = "";
         var anchorLine = null;
         var addr = start;
         var line = 0;
         for (var i = 0; i < length && addr < 0x4000; addr++, i++) {
             if ((i & 0x000F) === 0) {
-                text += "\n" + addr.toHexWord() + ":";
+                text += "\n" + hex(addr,4) + ":";
                 line++;
             }
             text += " ";
             if (anchorAddr && anchorAddr === addr) {
                 anchorLine = line;
             }
-            var hex = this.ram[addr].toString(16).toUpperCase();
-            if (hex.length === 1) {
+            var hx = this.ram[addr].toString(16).toUpperCase();
+            if (hx.length === 1) {
                 text += "0";
             }
-            text += hex;
+            text += hx;
         }
         return {text: text.substr(1), lineCount: line, anchorLine: anchorLine - 1};
-    },
+    }
 
-    getWord: function (addr) {
+    getWord(addr:number) : number {
         return addr < 0x4000 ? this.ram[addr] << 8 | this.ram[addr+1] : 0;
-    },
+    }
 
-    getCharAt: function (x, y) {
+    getCharAt(x:number, y:number) : number {
         x -= 24;
         y -= 24;
         if (!this.textMode) {
@@ -597,14 +604,14 @@ TMS9918A.prototype = {
         else {
             return this.ram[this.nameTable + Math.floor((x - 8) / 6) + Math.floor(y / 8)  * 40];
         }
-    },
+    }
 
-    setFlicker: function (value) {
+    setFlicker(value:boolean) {
         this.flicker = value;
         this.enableFlicker = value;
-    },
+    }
 
-    getState: function () {
+    getState() {
         return {
             ram: this.ram,
             registers: this.registers,
@@ -629,9 +636,9 @@ TMS9918A.prototype = {
             bgColor: this.bgColor,
             flicker: this.flicker
         };
-    },
+    }
 
-    restoreState: function (state) {
+    restoreState(state) {
         this.ram = state.ram;
         this.registers = state.registers;
         this.addressRegister = state.addressRegister;
