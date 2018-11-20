@@ -670,8 +670,15 @@ function assembleDASM(step:BuildStep) {
       listings[fn] = lst; // TODO: foo.asm.lst
     }
   }
-  var aout = FS.readFile(binpath);
-  var asym = FS.readFile(sympath, {'encoding':'utf8'});
+  var aout, asym;
+  aout = FS.readFile(binpath);
+  try {
+    asym = FS.readFile(sympath, {'encoding':'utf8'});
+  } catch (e) {
+    console.log(e);
+    errors.push({line:0,msg:"No symbol table generated, maybe segment overflow?"});
+    return {errors:errors}
+  }
   putWorkFile(binpath, aout);
   putWorkFile(lstpath, alst);
   putWorkFile(sympath, asym);
@@ -1541,6 +1548,7 @@ function compileBatariBasic(step:BuildStep) {
       print:addasmout_fn,
       printErr:match_fn,
       noFSInit:true,
+      TOTAL_MEMORY:64*1024*1024,
     });
     var FS = BB['FS'];
     populateFiles(step, FS);

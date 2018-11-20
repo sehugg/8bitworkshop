@@ -44,7 +44,9 @@ const VCS_PRESETS = [
   {id:'bb/helloworld.bas', name:'Hello World (batariBASIC)'},
   {id:'bb/draw.bas', name:'Playfield Draw (batariBASIC)'},
   {id:'bb/sample.bas', name:'Sprite Test (batariBASIC)'},
+  {id:'bb/FIFA1977.bas', name:'2P Soccer Game (batariBASIC)'},
   {id:'bb/duck_chase.bas', name:'Duck Chase (batariBASIC)'},
+  {id:'bb/rblast106.bas', name:'Road Blasters (batariBASIC)'},
 ];
 
 Javatari.AUTO_START = false;

@@ -47,6 +47,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'verilator': 'verilog',
   'jsasm': 'z80',
   'zmac': 'z80',
+  'bataribasic': 'bataribasic',
 }
 
 function newWorker() : Worker {
@@ -873,6 +874,11 @@ function _toggleRecording() {
   }
 }
 
+function _lookupHelp() {
+  // TODO
+  window.open("help/bataribasic/manual.html", "_help");
+}
+
 function setupDebugControls(){
 
   $("#dbg_reset").click(resetAndDebug);
@@ -940,6 +946,9 @@ function setupDebugControls(){
     $("#dbg_faster").click(_fasterFrameRate);
     $("#dbg_slowest").click(_slowestFrameRate);
     $("#dbg_fastest").click(_fastestFrameRate);
+  }
+  if (platform.getToolForFilename(main_file_id) == 'bataribasic') {
+    $("#dbg_help").show().click(_lookupHelp);
   }
   updateDebugWindows();
   // setup replay slider
@@ -1133,9 +1142,9 @@ function startPlatform() {
   }
   // start platform and load file
   platform.start();
-  setupDebugControls();
   initProject();
   loadProject(qs['file']);
+  setupDebugControls();
   updateSelector();
   showBookLink();
   addPageFocusHandlers();

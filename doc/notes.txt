@@ -75,6 +75,7 @@ TODO:
 - clean BOM from verilog
 - $readmemb/h
 - maybe don't have grey space with line numbers until inline ASM used?
+- batariBasic: proper line numbers, listing, syntax highlighting
 
 
 WEB WORKER FORMAT
