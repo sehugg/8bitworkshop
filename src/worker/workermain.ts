@@ -649,7 +649,10 @@ function assembleDASM(step:BuildStep) {
   var binpath = step.prefix+'.bin';
   var lstpath = step.prefix+'.lst';
   var sympath = step.prefix+'.sym';
-  execMain(step, Module, [step.path, "-l"+lstpath, "-o"+binpath, "-s"+sympath ]);
+  execMain(step, Module, [step.path,
+    "-l"+lstpath,
+    "-o"+binpath,
+    "-s"+sympath ]);
   var alst = FS.readFile(lstpath, {'encoding':'utf8'});
   // parse main listing, get errors
   var listing = parseDASMListing(alst, unresolved, step.path);
@@ -905,7 +908,8 @@ function compileCC65(step:BuildStep) {
   return {
     nexttool:"ca65",
     path:destpath,
-    args:[destpath]
+    args:[destpath],
+    files:[destpath],
   };
 }
 
@@ -1139,7 +1143,8 @@ function compileSDCC(step:BuildStep) {
   return {
     nexttool:"sdasz80",
     path:outpath,
-    args:[outpath]
+    args:[outpath],
+    files:[outpath],
   };
 }
 
@@ -1482,6 +1487,72 @@ error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
   }
 }
 
+function compileBatariBasic(step:BuildStep) {
+  load("bb2600basic");
+  var params = step.params;
+  // stdout
+  var asmout = "";
+  function addasmout_fn(s) {
+    asmout += s;
+    asmout += "\n";
+  }
+  // stderr
+  var re_err1 = /[(](\d+)[)]:?\s*(.+)/;
+  var errors = [];
+  var errline = 0;
+  function match_fn(s) {
+    console.log(s);
+    var matches = re_err1.exec(s);
+    if (matches) {
+      errline = parseInt(matches[1]);
+      errors.push({
+        line:errline,
+        msg:matches[2]
+      });
+    }
+  }
+  gatherFiles(step, {mainFilePath:"main.bas"});
+  var destpath = step.prefix + '.asm';
+  if (staleFiles(step, [destpath])) {
+    var BB = emglobal.bb2600basic({
+      noInitialRun:true,
+      //logReadFiles:true,
+      print:addasmout_fn,
+      printErr:match_fn,
+      noFSInit:true,
+    });
+    var FS = BB['FS'];
+    populateFiles(step, FS);
+    // pipe file to stdin
+    var code = workfs[step.path].data as string; // TODO
+    setupStdin(FS, code);
+    setupFS(FS, '2600basic');
+    execMain(step, BB, ["-i", "/share", step.path]);
+    if (errors.length)
+      return {errors:errors};
+    // build final assembly output from include file list
+    var includesout = FS.readFile("includes.bB", {encoding:'utf8'});
+    var redefsout = FS.readFile("2600basic_variable_redefs.h", {encoding:'utf8'});
+    var includes = includesout.trim().split("\n");
+    var combinedasm = "";
+    for (var incfile of includes) {
+      var inctext = (incfile=="bB.asm") ? asmout : FS.readFile("/share/includes/"+incfile, {encoding:'utf8'});
+      console.log(incfile, inctext.length);
+      combinedasm += "\n\n;;;" + incfile + "\n\n";
+      combinedasm += inctext;
+    }
+    // TODO: ; bB.asm file is split here
+    putWorkFile(destpath, combinedasm);
+    putWorkFile("2600basic.h", FS.readFile("/share/includes/2600basic.h"));
+    putWorkFile("2600basic_variable_redefs.h", redefsout);
+  }
+  return {
+    nexttool:"dasm",
+    path:destpath,
+    args:[destpath],
+    files:[destpath, "2600basic.h", "2600basic_variable_redefs.h"]
+  };
+}
 
 ////////////////////////////
 
@@ -1505,6 +1576,7 @@ var TOOLS = {
   //'caspr': compileCASPR,
   'jsasm': compileJSASMStep,
   'zmac': assembleZMAC,
+  'bataribasic': compileBatariBasic,
 }
 
 var TOOL_PRELOADFS = {
@@ -1519,6 +1591,7 @@ var TOOL_PRELOADFS = {
   'sdasz80': 'sdcc',
   'sdcc': 'sdcc',
   'sccz80': 'sccz80',
+  'bataribasic': '2600basic',
 }
 
 function applyDefaultErrorPath(errors:WorkerError[], path:string) {
@@ -1582,7 +1655,7 @@ function executeBuildSteps() {
         var asmstep = {
           tool:step.result.nexttool,
           platform:platform,
-          files:[step.result.path],
+          files:step.result.files,
           path:step.result.path,
           args:step.result.args
         };

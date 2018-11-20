@@ -41,6 +41,7 @@ const VCS_PRESETS = [
 //  {id:'examples/testlibrary', name:'VCS Library Demo'},
 //  {id:'examples/music2', name:'Pitch-Accurate Music'},
 //  {id:'examples/fullgame', name:'Thru Hike: The Game', title:'Thru Hike'},
+  {id:'bb/helloworld.bas', name:'Hello World (batariBASIC)'},
 ];
 
 Javatari.AUTO_START = false;
@@ -95,7 +96,7 @@ class VCSPlatform extends BasePlatform {
     //console.log(Javatari.room.console.isRunning(), Javatari.room.console.isPowerOn);
     return Javatari.room && Javatari.room.console.isRunning();
   }
-  pause() {	
+  pause() {
     Javatari.room.console.pause();
     Javatari.room.speaker.mute();
   }
@@ -114,7 +115,7 @@ class VCSPlatform extends BasePlatform {
   step() { Javatari.room.console.debugSingleStepCPUClock(); }
   stepBack() { Javatari.room.console.debugStepBackInstruction(); }
   runEval(evalfunc) { Javatari.room.console.debugEval(evalfunc); }
-  
+
   setupDebug(callback) {
     Javatari.room.console.onBreakpointHit = (state) => {
       state.c.PC = (state.c.PC - 1) & 0xffff;
@@ -132,7 +133,7 @@ class VCSPlatform extends BasePlatform {
     Javatari.room.console.onBreakpointHit = null;
     if (this.isRunning()) Javatari.room.speaker.play();
   }
-  
+
   reset() {
     Javatari.room.console.powerOff();
     Javatari.room.console.resetDebug();
@@ -205,6 +206,7 @@ class VCSPlatform extends BasePlatform {
     return "\n" + dumpRAM(ram, 0x80, 0x80);
   }
   getToolForFilename(fn) {
+    if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
     return "dasm";
   }
   getDefaultExtension() { return ".a"; };
