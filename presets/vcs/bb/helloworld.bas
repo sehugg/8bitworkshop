@@ -1,4 +1,4 @@
-﻿ rem Hello World
+ rem Hello World
 
  playfield:
 ................................

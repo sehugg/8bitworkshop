@@ -152,6 +152,7 @@ function refreshWindowList() {
   if (listings) {
     for (var lstfn in listings) {
       var lst = listings[lstfn];
+      // TODO: add assembly listings? (lines, macrolines, sourcefile)
       if (lst.assemblyfile) {
         addWindowItem(lstfn, getFilenameForPath(lstfn), function(path) {
           return new Views.ListingView(lstfn);

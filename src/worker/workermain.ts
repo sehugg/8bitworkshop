@@ -1487,6 +1487,27 @@ error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
   }
 }
 
+function preprocessBatariBasic(code:string) : string {
+  load("bbpreprocess");
+  var bbout = "";
+  function addbbout_fn(s) {
+    bbout += s;
+    bbout += "\n";
+  }
+  var BBPRE = emglobal.preprocess({
+    noInitialRun:true,
+    //logReadFiles:true,
+    print:addbbout_fn,
+    printErr:print_fn,
+    noFSInit:true,
+  });
+  var FS = BBPRE['FS'];
+  setupStdin(FS, code);
+  BBPRE.callMain([]);
+  console.log("preprocess " + code.length + " -> " + bbout.length + " bytes");
+  return bbout;
+}
+
 function compileBatariBasic(step:BuildStep) {
   load("bb2600basic");
   var params = step.params;
@@ -1523,8 +1544,9 @@ function compileBatariBasic(step:BuildStep) {
     });
     var FS = BB['FS'];
     populateFiles(step, FS);
-    // pipe file to stdin
+    // preprocess, pipe file to stdin
     var code = workfs[step.path].data as string; // TODO
+    code = preprocessBatariBasic(code);
     setupStdin(FS, code);
     setupFS(FS, '2600basic');
     execMain(step, BB, ["-i", "/share", step.path]);
@@ -1535,8 +1557,15 @@ function compileBatariBasic(step:BuildStep) {
     var redefsout = FS.readFile("2600basic_variable_redefs.h", {encoding:'utf8'});
     var includes = includesout.trim().split("\n");
     var combinedasm = "";
+    var splitasm = asmout.split("bB.asm file is split here");
     for (var incfile of includes) {
-      var inctext = (incfile=="bB.asm") ? asmout : FS.readFile("/share/includes/"+incfile, {encoding:'utf8'});
+      var inctext;
+      if (incfile=="bB.asm")
+        inctext = splitasm[0];
+      else if (incfile=="bB2.asm")
+        inctext = splitasm[1];
+      else
+        inctext = FS.readFile("/share/includes/"+incfile, {encoding:'utf8'});
       console.log(incfile, inctext.length);
       combinedasm += "\n\n;;;" + incfile + "\n\n";
       combinedasm += inctext;

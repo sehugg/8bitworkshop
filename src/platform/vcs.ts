@@ -42,6 +42,9 @@ const VCS_PRESETS = [
 //  {id:'examples/music2', name:'Pitch-Accurate Music'},
 //  {id:'examples/fullgame', name:'Thru Hike: The Game', title:'Thru Hike'},
   {id:'bb/helloworld.bas', name:'Hello World (batariBASIC)'},
+  {id:'bb/draw.bas', name:'Playfield Draw (batariBASIC)'},
+  {id:'bb/sample.bas', name:'Sprite Test (batariBASIC)'},
+  {id:'bb/duck_chase.bas', name:'Duck Chase (batariBASIC)'},
 ];
 
 Javatari.AUTO_START = false;
