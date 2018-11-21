@@ -57,7 +57,7 @@ export class SourceEditor implements ProjectView {
   errormsgs = [];
   errorwidgets = [];
   inspectWidget;
-  
+
   createDiv(parent:HTMLElement, text:string) {
     var div = document.createElement('div');
     div.setAttribute("class", "editor");
@@ -81,7 +81,7 @@ export class SourceEditor implements ProjectView {
                      : ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"],
     });
   }
-  
+
   setupEditor() {
     var timer;
     this.editor.on('changes', (ed, changeobj) => {
@@ -103,7 +103,7 @@ export class SourceEditor implements ProjectView {
     //scrollProfileView(editor);
     this.editor.setOption("mode", this.mode);
   }
-  
+
   inspect(ident : string) : void {
     var result;
     if (platform.inspect) {
@@ -126,11 +126,11 @@ export class SourceEditor implements ProjectView {
     this.editor.setValue(text); // calls setCode()
     this.editor.clearHistory();
   }
-  
+
   getValue() : string {
     return this.editor.getValue();
   }
-  
+
   getPath() : string { return this.path; }
 
   addErrorMarker(line:number, msg:string) {
@@ -144,21 +144,21 @@ export class SourceEditor implements ProjectView {
       this.expandErrors();
     });
   }
-  
+
   addErrorLine(line:number, msg:string) {
     var errspan = document.createElement("span");
     errspan.setAttribute("class", "tooltiperrorline");
     errspan.appendChild(document.createTextNode(msg));
     this.errorwidgets.push(this.editor.addLineWidget(line, errspan));
   }
-  
+
   expandErrors() {
     var e;
     while (e = this.errormsgs.shift()) {
       this.addErrorLine(e.line, e.msg);
     }
   }
-  
+
   markErrors(errors:WorkerError[]) {
     // TODO: move cursor to error line if offscreen?
     this.clearErrors();
@@ -173,7 +173,7 @@ export class SourceEditor implements ProjectView {
       }
     }
   }
-  
+
   clearErrors() {
     this.editor.clearGutter("gutter-info");
     this.refreshDebugState(false);
@@ -183,9 +183,9 @@ export class SourceEditor implements ProjectView {
     while (this.errorwidgets.length)
       this.errorwidgets.shift().clear();
   }
-  
+
   getSourceFile() : SourceFile { return this.sourcefile; }
-  
+
   updateListing() {
     // update editor annotations
     this.editor.clearGutter("gutter-info");
@@ -212,7 +212,7 @@ export class SourceEditor implements ProjectView {
       }
     }
   }
-  
+
   setGutter(type:string, line:number, text:string) {
     var lineinfo = this.editor.lineInfo(line);
     if (lineinfo && lineinfo.gutterMarkers && lineinfo.gutterMarkers[type]) {
@@ -222,11 +222,11 @@ export class SourceEditor implements ProjectView {
       this.editor.setGutterMarker(line, type, textel);
     }
   }
-  
+
   setGutterBytes(line:number, s:string) {
     this.setGutter("gutter-bytes", line-1, s);
   }
-  
+
   setTimingResult(result:CodeAnalyzer) : void {
     this.editor.clearGutter("gutter-bytes");
     // show the lines
@@ -246,7 +246,7 @@ export class SourceEditor implements ProjectView {
       }
     }
   }
-  
+
   setCurrentLine(line:number, moveCursor:boolean) {
 
     var addCurrentMarker = (line:number) => {
@@ -272,7 +272,7 @@ export class SourceEditor implements ProjectView {
       this.currentDebugLine = 0;
     }
   }
-  
+
   getActiveLine() {
     var state = lastDebugState;
     if (state && state.c && this.sourcefile) {
@@ -282,7 +282,7 @@ export class SourceEditor implements ProjectView {
     } else
       return -1;
   }
-  
+
   refreshDebugState(moveCursor:boolean) {
     var line = this.getActiveLine();
     if (line >= 0) {
@@ -291,7 +291,7 @@ export class SourceEditor implements ProjectView {
       // TODO: switch to disasm?
     }
   }
-  
+
   refreshListing() {
     // lookup corresponding sourcefile for this file, using listing
     var lst = current_project.getListingForFile(this.path);
@@ -308,15 +308,15 @@ export class SourceEditor implements ProjectView {
     this.refreshListing();
     this.refreshDebugState(moveCursor);
   }
-  
+
   getLine(line : number) {
     return this.editor.getLine(line-1);
   }
-  
+
   getCurrentLine() : number {
     return this.editor.getCursor().line+1;
   }
-  
+
   getCursorPC() : number {
     var line = this.getCurrentLine();
     while (this.sourcefile && line >= 0) {
@@ -331,7 +331,7 @@ export class SourceEditor implements ProjectView {
 
   openBitmapEditorWithParams(fmt, bytestr, palfmt, palstr) {
 
-    var handleWindowMessage = (e) => { 
+    var handleWindowMessage = (e) => {
       //console.log("window message", e.data);
       if (e.data.bytes) {
         this.editor.replaceSelection(e.data.bytestr);
@@ -405,9 +405,9 @@ export class SourceEditor implements ProjectView {
 
 export class DisassemblerView implements ProjectView {
   disasmview;
-  
+
   getDisasmView() { return this.disasmview; }
- 
+
   createDiv(parent : HTMLElement) {
     var div = document.createElement('div');
     div.setAttribute("class", "editor");
@@ -415,7 +415,7 @@ export class DisassemblerView implements ProjectView {
     this.newEditor(div);
     return div;
   }
-  
+
   newEditor(parent : HTMLElement) {
     this.disasmview = CodeMirror(parent, {
       mode: 'z80', // TODO: pick correct one
@@ -598,12 +598,12 @@ export class MemoryView implements ProjectView {
     if (compparams && this.dumplines)
       this.memorylist.scrollToItem(this.findMemoryWindowLine(compparams.data_start));
   }
-  
+
   refresh() {
     this.dumplines = null;
     this.tick();
   }
-  
+
   tick() {
     if (this.memorylist) {
       $(this.maindiv).find('[data-index]').each( (i,e) => {
@@ -660,7 +660,7 @@ export class MemoryView implements ProjectView {
       this.dumplines = [];
       var ofs = 0;
       var sym;
-      for (const _nextofs of Object.keys(addr2sym)) { 
+      for (const _nextofs of Object.keys(addr2sym)) {
         var nextofs = parseInt(_nextofs); // convert from string (stupid JS)
         var nextsym = addr2sym[nextofs];
         if (sym) {
@@ -702,4 +702,3 @@ export class MemoryView implements ProjectView {
         return i;
   }
 }
-

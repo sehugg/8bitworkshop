@@ -46,7 +46,7 @@ CodeMirror.defineMode('bataribasic', function(_config, parserConfig) {
   for (var s of directives_list)
     directives[s] = 'keyword';
 
-  var numbers = /^([$][0-9a-f]+|[%][01]+|[0-9.]+)\b/i;
+  var numbers = /^([$][0-9a-f]+|[%][01]+|[0-9.]+)/i;
 
   return {
     startState: function() {
@@ -68,7 +68,7 @@ CodeMirror.defineMode('bataribasic', function(_config, parserConfig) {
         return null;
 
       var w;
-      if (stream.eatWhile(/\w/)) {
+      if (stream.eatWhile(/[$%A-Z0-9]/i)) {
         w = stream.current();
         var cur = w.toLowerCase();
         var style = directives[cur];
@@ -79,9 +79,8 @@ CodeMirror.defineMode('bataribasic', function(_config, parserConfig) {
         if (style)
           return style;
 
-        if (state.context == 4 && numbers.test(w)) {
-          return 'number';
-        } else if (stream.match(numbers)) {
+        console.log(w, numbers.test(w));
+        if (numbers.test(w)) {
           return 'number';
         } else {
           return null;

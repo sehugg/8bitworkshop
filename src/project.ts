@@ -24,7 +24,7 @@ export class CodeProject {
   callbackGetRemote : GetRemoteCallback;
   mainPath : string;
   isCompiling : boolean = false;
-  
+
   constructor(worker, platform_id:string, platform, store) {
     this.worker = worker;
     this.platform_id = platform_id;
@@ -48,7 +48,7 @@ export class CodeProject {
       }
     };
   }
-  
+
   preloadWorker(path:string) {
     var tool = this.platform.getToolForFilename(path);
     if (tool && !this.tools_preloaded[tool]) {
@@ -106,7 +106,7 @@ export class CodeProject {
       callback(err, result);
     });
   }
-  
+
   okToSend():boolean {
     return this.pendingWorkerMessages++ == 0;
   }
@@ -117,7 +117,7 @@ export class CodeProject {
       this.store.setItem(path, text);
     }
   }
-  
+
   // TODO: test duplicate files, local paths mixed with presets
   buildWorkerMessage(depends:Dependency[]) {
     this.preloadWorker(this.mainpath);
@@ -143,8 +143,8 @@ export class CodeProject {
     }
     return msg;
   }
-  
-  // TODO: get local file as well as presets?  
+
+  // TODO: get local file as well as presets?
   loadFiles(paths:string[], callback:LoadFilesCallback) {
     var result : Dependency[] = [];
     function addResult(path, data) {
@@ -207,18 +207,18 @@ export class CodeProject {
     }
     loadNext(); // load first file
   }
-  
+
   getFile(path:string):FileData {
     return this.filedata[path];
   }
-  
+
   // TODO: purge files not included in latest build?
   iterateFiles(callback:IterateFilesCallback) {
     for (var path in this.filedata) {
       callback(path, this.getFile(path));
     }
   }
-  
+
   sendBuild() {
     if (!this.mainpath) throw "need to call setMainFile first";
     var maindata = this.getFile(this.mainpath);
@@ -245,7 +245,7 @@ export class CodeProject {
       this.isCompiling = true;
     });
   }
-  
+
   updateFile(path:string, text:FileData) {
     this.updateFileInStore(path, text); // TODO: isBinary
     this.filedata[path] = text;
@@ -254,13 +254,13 @@ export class CodeProject {
       this.sendBuild();
     }
   };
-  
+
   setMainFile(path:string) {
     this.mainpath = path;
     if (this.callbackBuildStatus) this.callbackBuildStatus(true);
     this.sendBuild();
   }
-  
+
   processBuildResult(data:WorkerResult) {
     // TODO: link listings with source files
     if (data.listings) {
@@ -274,7 +274,7 @@ export class CodeProject {
       }
     }
   }
-  
+
   getListings() : CodeListingMap {
     return this.listings;
   }
@@ -290,4 +290,3 @@ export class CodeProject {
     }
   }
 }
-

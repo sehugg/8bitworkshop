@@ -693,6 +693,13 @@ function assembleDASM(step:BuildStep) {
       symbolmap[toks[0]] = parseInt(toks[1], 16);
     }
   }
+  // for bataribasic (TODO)
+  if (step['bblines']) {
+    let lst = listings[lstpath];
+    lst.asmlines = lst.lines;
+    lst.text = alst;
+    lst.lines = [];
+  }
   return {
     output:aout.slice(2),
     listings:listings,
@@ -1587,7 +1594,8 @@ function compileBatariBasic(step:BuildStep) {
     nexttool:"dasm",
     path:destpath,
     args:[destpath],
-    files:[destpath, "2600basic.h", "2600basic_variable_redefs.h"]
+    files:[destpath, "2600basic.h", "2600basic_variable_redefs.h"],
+    bblines:true,
   };
 }
 
@@ -1689,13 +1697,9 @@ function executeBuildSteps() {
       }
       // process with another tool?
       if (step.result.nexttool) {
-        var asmstep = {
-          tool:step.result.nexttool,
-          platform:platform,
-          files:step.result.files,
-          path:step.result.path,
-          args:step.result.args
-        };
+        var asmstep = step.result;
+        asmstep.tool = step.result.nexttool;
+        asmstep.platform = platform;
         buildsteps.push(asmstep); // TODO: unshift changes order
         step.generated = asmstep.files;
       }

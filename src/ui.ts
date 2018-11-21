@@ -105,7 +105,7 @@ function initProject() {
 function refreshWindowList() {
   var ul = $("#windowMenuList").empty();
   var separate = false;
-  
+
   function addWindowItem(id, name, createfn) {
     if (separate) {
       ul.append(document.createElement("hr"));
@@ -129,24 +129,24 @@ function refreshWindowList() {
       });
     }
   }
-  
+
   function loadEditor(path:string) {
     var tool = platform.getToolForFilename(path);
     var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
     return new Views.SourceEditor(path, mode);
   }
-  
+
   // add main file editor
   var id = main_file_id;
   addWindowItem(id, getFilenameForPath(id), loadEditor);
-  
+
   // add other source files
   separate = true;
   current_project.iterateFiles(function(id, text) {
     if (text && id != main_file_id)
       addWindowItem(id, getFilenameForPath(id), loadEditor);
   });
-  
+
   // add listings
   // TODO: update listing when recompiling
   var listings = current_project.getListings();
@@ -155,8 +155,8 @@ function refreshWindowList() {
       var lst = listings[lstfn];
       // TODO: add assembly listings? (lines, macrolines, sourcefile)
       if (lst.assemblyfile) {
-        addWindowItem(lstfn, getFilenameForPath(lstfn), function(path) {
-          return new Views.ListingView(lstfn);
+        addWindowItem(lstfn, getFilenameForPath(lstfn), (path) => {
+          return new Views.ListingView(path);
         });
       }
     }
@@ -258,7 +258,7 @@ function _uploadNewFile(e) {
 function handleFileUpload(files: File[]) {
   console.log(files);
   var index = 0;
-  function uploadNextFile() { 
+  function uploadNextFile() {
     var f = files[index++];
     if (!f) {
       console.log("Done uploading");
