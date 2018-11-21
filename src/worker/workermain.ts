@@ -1599,6 +1599,37 @@ function compileBatariBasic(step:BuildStep) {
   };
 }
 
+function setupRequireFunction() {
+  var exports = {};
+  exports['jsdom'] = {
+    JSDOM: function(a,b) {
+      this.window = {};
+    }
+  };
+  emglobal['require'] = (modname:string) => {
+    console.log('require',modname);
+    return exports[modname];
+  }
+}
+
+function translateShowdown(step:BuildStep) {
+  setupRequireFunction();
+  load("showdown.min");
+  var showdown = emglobal['showdown'];
+  var converter = new showdown.Converter({
+    tables:'true',
+    smoothLivePreview:'true',
+    requireSpaceBeforeHeadingText:'true',
+    emoji:'true',
+  });
+  var code = workfs[step.path].data as string; // TODO
+  var html = converter.makeHtml(code);
+  delete emglobal['require'];
+  return {
+    output:html
+  };
+}
+
 ////////////////////////////
 
 var TOOLS = {
@@ -1622,6 +1653,7 @@ var TOOLS = {
   'jsasm': compileJSASMStep,
   'zmac': assembleZMAC,
   'bataribasic': compileBatariBasic,
+  'markdown': translateShowdown,
 }
 
 var TOOL_PRELOADFS = {

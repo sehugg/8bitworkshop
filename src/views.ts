@@ -71,12 +71,14 @@ export class SourceEditor implements ProjectView {
 
   newEditor(parent:HTMLElement) {
     var isAsm = this.mode=='6502' || this.mode =='z80' || this.mode=='verilog' || this.mode=='gas'; // TODO
+    var lineWrap = this.mode=='markdown';
     this.editor = CodeMirror(parent, {
       theme: 'mbo',
       lineNumbers: true,
       matchBrackets: true,
       tabSize: 8,
       indentAuto: true,
+      lineWrapping: lineWrap,
       gutters: isAsm ? ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"]
                      : ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"],
     });

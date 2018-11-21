@@ -286,7 +286,7 @@ canvas.pixelated {
   border-color:#99ff99;
   background-color:#006600;
   border-style:solid;
-  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;  
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
 }
 .nav-tabs > li > a.tab {
   line-height: 1.0;
@@ -297,7 +297,7 @@ canvas.pixelated {
   border-color:#9999ff;
   background-color:#333399;
   border-style:solid;
-  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;  
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   color:#77aaaa;
   padding:6px;
 }
@@ -334,4 +334,10 @@ div.replaydiv {
 .gutter.gutter-horizontal {
   background-image:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
   height:100%;
+}
+div.markdown {
+ background-color: #fff;
+ width:94%;
+ margin:3%;
+ padding:1em;
 }

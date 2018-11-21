@@ -48,6 +48,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'jsasm': 'z80',
   'zmac': 'z80',
   'bataribasic': 'bataribasic',
+  'markdown': 'markdown',
 }
 
 function newWorker() : Worker {
