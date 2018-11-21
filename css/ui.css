@@ -341,3 +341,12 @@ div.markdown {
  margin:3%;
  padding:1em;
 }
+div.markdown table {
+ margin:1em;
+}
+div.markdown td {
+ padding:0.2em;
+}
+div.markdown th {
+ padding:0.2em;
+}

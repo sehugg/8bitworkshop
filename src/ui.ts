@@ -510,7 +510,7 @@ function updateSelector() {
   populateExamples(sel);
   // set click handlers
   sel.off('change').change(function(e) {
-    reloadPresetNamed($(this).val());
+    reloadPresetNamed($(this).val().toString());
   });
 }
 
@@ -989,8 +989,8 @@ function setupReplaySlider() {
     replayslider.on('change', sliderChanged);
     $("#replay_min").click(() => { setFrameTo(1) });
     $("#replay_max").click(() => { setFrameTo(stateRecorder.numFrames()); });
-    $("#replay_back").click(() => { setFrameTo(parseInt(replayslider.val()) - 1); });
-    $("#replay_fwd").click(() => { setFrameTo(parseInt(replayslider.val()) + 1); });
+    $("#replay_back").click(() => { setFrameTo(parseInt(replayslider.val().toString()) - 1); });
+    $("#replay_fwd").click(() => { setFrameTo(parseInt(replayslider.val().toString()) + 1); });
     $("#replay_bar").show();
     $("#dbg_record").click(_toggleRecording).show();
 }
