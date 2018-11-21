@@ -51,6 +51,9 @@ export class SN76489_Audio {
     this.psg.setDevice(PsgDeviceChannel.DEVICE_SN76489);
     master.master.addChannel(this.psg);
   }
+  reset() {
+    // TODO
+  }
   setData(val : number) {
     this.psg.writeRegisterSN(0, val & 0xff);
   }

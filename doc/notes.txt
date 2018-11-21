@@ -76,6 +76,8 @@ TODO:
 - $readmemb/h
 - maybe don't have grey space with line numbers until inline ASM used?
 - batariBasic: proper line numbers, listing, syntax highlighting
+- show player controls for each platform, allow touch support
+- granular control over time scrubbing, show CPU state
 
 
 WEB WORKER FORMAT

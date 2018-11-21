@@ -21,7 +21,7 @@ import { TMS9918A } from "../video/tms9918a";
 var ColecoVision_PRESETS = [
   {id:'text.c', name:'Text Mode'},
   {id:'hello.c', name:'Scrolling Text'},
-  {id:'text32.c', name:'32-Column Text'},
+  {id:'text32.c', name:'32-Column Color Text'},
   {id:'stars.c', name:'Scrolling Starfield'},
   {id:'cursorsmooth.c', name:'Moving Cursor'},
   {id:'simplemusic.c', name:'Simple Music'},
@@ -201,6 +201,8 @@ const _ColecoVisionPlatform = function(mainElement) {
     reset() {
       cpu.reset();
       cpu.setTstates(0);
+      vdp.reset();
+      psg.reset();
     }
 
     getDebugCategories() {
