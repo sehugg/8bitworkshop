@@ -95,6 +95,7 @@ export interface Platform {
 
   setRecorder?(recorder : EmuRecorder) : void;
   advance?(novideo? : boolean) : void;
+  showHelp?(tool:string, ident?:string) : void;
 
   debugSymbols? : DebugSymbols;
 }

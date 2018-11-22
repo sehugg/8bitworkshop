@@ -40,7 +40,9 @@ class MarkdownPlatform implements Platform {
       {id:'hello.md', name:'Hello'},
     ];
   }
-
+  showHelp() {
+    window.open("https://github.com/showdownjs/showdown/wiki/Showdown's-Markdown-syntax", "_help");
+  }
 }
 
 PLATFORMS['markdown'] = MarkdownPlatform;

@@ -269,7 +269,16 @@ class VCSPlatform extends BasePlatform {
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
   }
+  
+  showHelp(tool:string, ident:string) {
+    if (tool == 'bataribasic')
+      window.open("help/bataribasic/manual.html", "_help");
+    else
+      window.open("https://alienbill.com/2600/101/docs/stella.html", "_help"); // TODO
+  }
+  
 };
+
 // TODO: mixin for Base6502Platform?
 
 function nonegstr(n) {

@@ -649,7 +649,7 @@ function assembleDASM(step:BuildStep) {
   var binpath = step.prefix+'.bin';
   var lstpath = step.prefix+'.lst';
   var sympath = step.prefix+'.sym';
-  execMain(step, Module, [step.path,
+  execMain(step, Module, [step.path, '-f3',
     "-l"+lstpath,
     "-o"+binpath,
     "-s"+sympath ]);
@@ -701,7 +701,7 @@ function assembleDASM(step:BuildStep) {
     lst.lines = [];
   }
   return {
-    output:aout.slice(2),
+    output:aout,
     listings:listings,
     errors:errors,
     symbolmap:symbolmap,

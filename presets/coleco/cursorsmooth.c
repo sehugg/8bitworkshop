@@ -1,82 +1,89 @@
-
+﻿
 #include <stdint.h>
 #include <stdlib.h>
 #include <cv.h>
 #include <cvu.h>
 
-const uint8_t sprite[0x1][0x20] = {/*{w:16,h:16,remap:[4,0,1,2,3],brev:1}*/
-  {0xE0, 0xC0, 0xA0, 0x10, 0x0A, 0x04, 0x0B, 0x03, 0x03, 0x0B, 0x04, 0x0A, 0x10, 0xA0, 0xC0, 0xE0, 0x07, 0x03, 0x05, 0x08, 0x50, 0x20, 0xD0, 0xC0, 0xC0, 0xD0, 0x20, 0x50, 0x08, 0x05, 0x03, 0x07}
-};
+// number of sprite patterns
+#define NUM_SPRITE_PATTERNS 1
 
-/* VRAM map
-   0x0000 - 0x17ff character pattern table
-   0x1800 - 0x1aff image table
-   0x2000 - 0x37ff color table
-   0x3800 - 0x3bff sprite pattern table
-   0x3c00 - 0x3fff sprite attribute table
-*/
+// Sprite bitmap -- can edit with Edit Bitmap button
+const uint8_t sprite_data[NUM_SPRITE_PATTERNS][32] = {/*{w:16,h:16,remap:[4,0,1,2,3],brev:1}*/
+  {0xE0, 0xC0, 0xA0, 0x11, 0x0B, 0x05, 0x0B, 0x1F, 0x1F, 0x0F, 0x05, 0x0B, 0x11, 0xA0, 0xC0, 0xE0, 0x07, 0x03, 0x05, 0x88, 0xD0, 0xA0, 0xD0, 0xF8, 0xF8, 0xD0, 0xA0, 0xD0, 0x88, 0x05, 0x03, 0x07}
+};
 
 const cv_vmemp IMAGE = 0x1800;
 const cv_vmemp SPRITES = 0x3c00;
 const cv_vmemp SPRITE_PATTERNS = 0x3800;
 
-volatile bool step;	// Has to be volatile since it's modified in the NMI handler.
+// Make this variable volatile since it's modified in the NMI handler.
+volatile bool vblank;	
 
-void move_cursor(struct cvu_sprite *s)
-{
+// NMI handler routine.
+void nmi(void) {
+  vblank = true;
+}
+
+// Wait for next VBLANK (next frame)
+void waitvblank() {
+  vblank = false; // reset vblank flag
+  while(!vblank); // wait for the NMI handler to set this flag.
+}
+
+// Move sprite s with specified controller.
+void move_cursor(struct cvu_sprite *s, int controller) {
   int x, y;
   struct cv_controller_state cs;
 
-  cv_get_controller_state(&cs, 0);	// Read the controller.
+  // Read the game controller state.
+  cv_get_controller_state(&cs, controller);
 
-  x = cvu_get_sprite_x(s);
-  y = cvu_get_sprite_y(s);
+  // Copy the sprite X and Y coordinates to local variables.
+  x = s->x;
+  y = s->y;
 
-  if(cs.joystick & CV_RIGHT)	// Move cursor to the right by one pixel.
-    x++;
-  else if(cs.joystick & CV_LEFT)	// Move the cursor to the left by one pixel.
-    x--;
-  if(cs.joystick & CV_DOWN)	// Move the cursor down by one pixel.
-    y++;
-  else if(cs.joystick & CV_UP)	// Move the cursor up by one pixel.
-    y--;
+  // Move one pixel in the direction the joystick is pointed.
+  if (cs.joystick & CV_RIGHT) x++;
+  if (cs.joystick & CV_LEFT) x--;
+  if (cs.joystick & CV_DOWN) y++;
+  if (cs.joystick & CV_UP) y--;
 
-  // Move cursor by how much the wheels on the super action controllers or the ball in the roller controller indicate.
+  // Move cursor by the spinner controllers (if present)
   x += cvu_get_spinner(0);
   y += cvu_get_spinner(1);
 
-  // Limit to area.
-  if(x > 239)
-    x = 239;
-  else if(x < 0)
-    x = 0;
-  if(y > 152)
-    y = 152;
-  else if(y < 0)
-    y = 0;
+  // Make sure cursor doesn't leave the screen.
+  if(x < 0) x = 0;
+  if(x > 239) x = 239;
+  if(y < 0) y = 0;
+  if(y > 152) y = 152;
 
-  cvu_set_sprite_xy(s, x, y);
+  // Update the cursor struct in CPU RAM.
+  s->x = x;
+  s->y = y;
 }
 
-void nmi(void)
-{
-	step = true;
-  cv_set_colors(0, CV_COLOR_YELLOW);
-}
-
-void waitvblank() {
-  step = false;
-  while(!step);	// Wait until the NMI handler sets step to true.
-  cv_set_colors(0, CV_COLOR_RED);
-}
-
-void shuffle_sprites(struct cvu_sprite* s) {
-  int i;
-  for (i=1; i<32; i++) {
-    s->x = i*16;
-    s->y = i*8;
-    cvu_set_sprite(SPRITES, i, s);	// Update the cursor on the screen.
+// Set all sprites offscreen.
+void set_sprites_offscreen() {
+  struct cvu_sprite s;
+  s.x = 0;
+  s.y = 208; // set offscreen
+  s.name = 0;
+  s.tag = 0;
+  for (int i=0; i<32; i++) {
+    cvu_set_sprite(SPRITES, i, &s); // set sprite in Video RAM
   }
+}
+
+void setup_vdp() {
+  cv_set_screen_active(false);	// Switch screen off.
+  cv_set_color_table(0x3fff);
+  cv_set_character_pattern_t(0x1fff);
+  cv_set_image_table(IMAGE);
+  cv_set_sprite_pattern_table(SPRITE_PATTERNS);
+  cv_set_sprite_attribute_table(SPRITES);
+  cv_set_screen_mode(CV_SCREENMODE_BITMAP);	// Doesn't really matter much here. We only need a screen mode that supports sprites.
+  cvu_vmemset(0, 0, 0x4000); // clear Video RAM
 }
 
 void main(void)
@@ -84,40 +91,50 @@ void main(void)
   struct cvu_sprite s;	// The sprite used for the player cursor.
   struct cvu_sprite s2;	// The sprite used for the target cursor.
 
-  cv_set_screen_active(false);	// Switch screen off.
+  setup_vdp();
 
-  cv_set_color_table(0x3fff);
-  cv_set_character_pattern_t(0x1fff);
-  cv_set_image_table(IMAGE);
-  cv_set_sprite_pattern_table(SPRITE_PATTERNS);
-  cv_set_sprite_attribute_table(SPRITES);
-  cv_set_screen_mode(CV_SCREENMODE_BITMAP);	// Doesn't really matter much here. We only need a screen mode that supports sprites.
-  cvu_vmemset(0, 0, 0x4000);
-
-  cv_set_sprite_magnification(false);
+  cv_set_sprite_magnification(false); // no sprite magnification
   cv_set_sprite_big(true);	// 16x16 pixel sprites.
 
-  cvu_set_sprite_x(&s, 60);	// Set initial cursor position.
-  cvu_set_sprite_y(&s, 60);	// Set initial cursor position.
-  cvu_set_sprite_color(&s, CV_COLOR_WHITE);
-  cvu_set_sprite_color(&s2, CV_COLOR_GREEN);
+  // Set all sprites offscreen initially.
+  // This ensures they won't set the collision bit.
+  set_sprites_offscreen();
+  
+  // Set attributes for sprite 0.
+  s.x = 60;
+  s.y = 60;
   s.name = 0;	// Use sprite pattern number 0.
+  cvu_set_sprite_color(&s, CV_COLOR_WHITE);
+  // Set attributes for sprite 1.
+  s2.x = 120;
+  s2.y = 60;
   s2.name = 0;
-  cvu_memtovmemcpy(SPRITE_PATTERNS, sprite, 0x20);	// Copy sprite pattern number 0 to graphics memory.
+  cvu_set_sprite_color(&s2, CV_COLOR_YELLOW);
+  // Copy sprite pattern number 0 to graphics memory.
+  // Each sprite takes up 16*2 = 32 bytes.
+  cvu_memtovmemcpy(SPRITE_PATTERNS,
+                   sprite_data,
+                   NUM_SPRITE_PATTERNS*32);
   
-  cv_set_screen_active(true);	// Switch screen on.
+  // Turn on video display.
+  cv_set_screen_active(true);
 
-  shuffle_sprites(&s2);
-  
+  // Set NMI handler so we can detect VBLANK.
   cv_set_vint_handler(nmi);
+  // Set background color
+  cv_set_colors(0, CV_COLOR_BLUE);
   for(;;)
   {
-    cv_set_colors(0, 0);
+    // Wait for VBLANK (next frame).
     waitvblank();
-    cv_set_colors(0, CV_COLOR_LIGHT_GREEN);
+    // Turn sprite 0 red if there was a collision last frame.
     cvu_set_sprite_color(&s, cv_get_sprite_collission() ? 
                          CV_COLOR_RED : CV_COLOR_WHITE);
-    move_cursor(&s);
-    cvu_set_sprite(SPRITES, 0, &s);	// Update the cursor on the screen.
+    // Move both cursors by their corresponding joystick.
+    move_cursor(&s, 0);
+    move_cursor(&s2, 1);
+    // Update VRAM with new sprite records.
+    cvu_set_sprite(SPRITES, 0, &s);
+    cvu_set_sprite(SPRITES, 1, &s2);
   }
 }

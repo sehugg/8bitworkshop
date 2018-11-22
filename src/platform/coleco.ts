@@ -132,7 +132,7 @@ const _ColecoVisionPlatform = function(mainElement) {
           }
         }
       };
-      vdp = new TMS9918A(video.canvas, cru, false);
+      vdp = new TMS9918A(video.canvas, cru, true); // true = 4 sprites/line
       setKeyboardFromMap(video, inputs, COLECOVISION_KEYCODE_MAP);
       timer = new AnimationTimer(60, this.nextFrame.bind(this));
     }

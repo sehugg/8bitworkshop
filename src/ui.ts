@@ -876,8 +876,10 @@ function _toggleRecording() {
 }
 
 function _lookupHelp() {
-  // TODO
-  window.open("help/bataribasic/manual.html", "_help");
+  if (platform.showHelp) {
+    let tool = platform.getToolForFilename(main_file_id);
+    platform.showHelp(tool); // TODO: tool, identifier
+  }
 }
 
 function setupDebugControls(){
@@ -948,7 +950,7 @@ function setupDebugControls(){
     $("#dbg_slowest").click(_slowestFrameRate);
     $("#dbg_fastest").click(_fastestFrameRate);
   }
-  if (platform.getToolForFilename(main_file_id) == 'bataribasic') {
+  if (platform.showHelp) {
     $("#dbg_help").show().click(_lookupHelp);
   }
   updateDebugWindows();
