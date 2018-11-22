@@ -17,6 +17,10 @@ import { TMS9918A } from "../video/tms9918a";
 // http://www.colecovision.dk/tools.htm?refreshed
 // http://www.theadamresource.com/manuals/technical/ColecoVision%20Coding%20Guide.pdf
 // http://www.unige.ch/medecine/nouspikel/ti99/tms9918a.htm
+// http://map.grauw.nl/articles/vdp_tut.php
+// http://www.msxcomputermagazine.nl/mccw/91/msx1demos1/en.html
+// http://www.segordon.com/colecovision.php
+// http://samdal.com/svvideo.htm
 
 var ColecoVision_PRESETS = [
   {id:'text.c', name:'Text Mode'},
