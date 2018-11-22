@@ -83,8 +83,10 @@ export interface CodeListing {
 export type CodeListingMap = {[path:string]:CodeListing};
 
 // TODO
-export type WorkerOutput = Uint8Array | 
-  {program_rom_variable:string, program_rom:Uint8Array, code:{}, name:string, ports:any[], signals:any[]};
+export type VerilogOutput =
+  {program_rom_variable:string, program_rom:Uint8Array, code:string, name:string, ports:any[], signals:any[]};
+
+export type WorkerOutput = Uint8Array | VerilogOutput;
 
 export interface WorkerResult {
   output:WorkerOutput,

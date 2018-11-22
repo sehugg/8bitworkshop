@@ -5,7 +5,7 @@
 import $ = require("jquery");
 import * as bootstrap from "bootstrap";
 import { CodeProject } from "./project";
-import { WorkerResult, SourceFile, WorkerError } from "./workertypes";
+import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError } from "./workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols } from "./baseplatform";
 import { PLATFORMS } from "./emu";
@@ -57,7 +57,7 @@ function newWorker() : Worker {
 
 var userPaused : boolean;		// did user explicitly pause?
 
-var current_output;			// current ROM
+var current_output : WorkerOutput;  // current ROM
 var current_preset_entry : Preset;	// current preset object (if selected)
 var main_file_id : string;	// main file ID
 var store;			// persistent store
@@ -324,13 +324,17 @@ function _shareEmbedLink(e) {
     alert("Please fix errors before sharing.");
     return true;
   }
+  if (!(current_output instanceof Uint8Array)) {
+    alert("Can't share a Verilog executable yet. (It's not actually a ROM...)");
+    return true;
+  }
   loadScript('lib/clipboard.min.js', () => {
     var ClipboardJS = exports['ClipboardJS'];
     new ClipboardJS(".btn");
   });
   loadScript('lib/liblzg.js', () => {
     // TODO: Module is bad var name (conflicts with MAME)
-    var lzgrom = compressLZG( window['Module'], current_output );
+    var lzgrom = compressLZG( window['Module'], Array.from(<Uint8Array>current_output) );
     window['Module'] = null; // so we load it again next time
     var lzgb64 = btoa(byteArrayToString(lzgrom));
     var embed = {
@@ -415,12 +419,12 @@ function _downloadROMImage(e) {
     alert("Please finish compiling with no errors before downloading ROM.");
     return true;
   }
-  if (current_output.code) { // TODO
-    var blob = new Blob([current_output.code], {type: "text/plain"});
-    saveAs(blob, getCurrentMainFilename()+".js");
-  } else {
+  if (current_output instanceof Uint8Array) {
     var blob = new Blob([current_output], {type: "application/octet-stream"});
     saveAs(blob, getCurrentMainFilename()+".rom");
+  } else {
+    var blob = new Blob([(<VerilogOutput>current_output).code], {type: "text/plain"});
+    saveAs(blob, getCurrentMainFilename()+".js");
   }
 }
 

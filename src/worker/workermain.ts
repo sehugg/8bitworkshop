@@ -1162,6 +1162,10 @@ function compileSDCC(step:BuildStep) {
   };
 }
 
+function makeCPPSafe(s:string) : string {
+  return s.replace(/[^A-Za-z0-9_]/g,'_');
+}
+
 function preprocessMCPP(step:BuildStep) {
   load("mcpp");
   var platform = step.platform;
@@ -1182,8 +1186,9 @@ function preprocessMCPP(step:BuildStep) {
   // TODO: make configurable by other compilers
   var args = [
     "-D", "__8BITWORKSHOP__",
-    "-D", platform.toUpperCase().replace(/[-.]/g,'_'),
     "-D", "__SDCC_z80",
+    "-D", makeCPPSafe(platform.toUpperCase()),
+    "-D", "FILE__" + makeCPPSafe(step.path+""),
     "-I", "/share/include",
     "-Q",
     step.path, "main.i"];
