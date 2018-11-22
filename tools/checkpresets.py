@@ -10,7 +10,7 @@ for root, dirs, files in os.walk("./presets"):
             with open(path,'r') as f:
                 data = f.read()
             if data[0] != '\n':
-                print(path,'no initial newline')
+                print((path,'no initial newline'))
         except:
-            print(path,sys.exc_info()[0])
+            print((path,sys.exc_info()[0]))
 

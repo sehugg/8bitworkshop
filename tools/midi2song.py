@@ -71,7 +71,7 @@ def find_common_substrings(s):
 
 def get_best_substring(ss):
     best = (0,0,0)
-    for k,v in ss.items():
+    for k,v in list(ss.items()):
       if v[0] > best[2]:
           best = (k,v[1],v[0])
     return best
@@ -88,7 +88,7 @@ def replace_substrings(s, bss):
     i,l,n = bss
     count = (n+1)/(l-1)
     match = s[i:i+l]
-    print i,l,n,count,repr(match)
+    print((i,l,n,count,repr(match)))
     r = s[0:i]
     while i<len(s):
         r += chr(g_code)
@@ -99,7 +99,7 @@ def replace_substrings(s, bss):
         i = p
     g_subs.append(match + chr(0xff))
     g_code += 1
-    print len(s), len(r)+n+l
+    print((len(s), len(r)+n+l))
     assert len(s) == len(r)+n+l
     return r
 
@@ -111,10 +111,10 @@ def channels_for_track(track):
     return list(channels)
 
 if not args.midichannels:
-    print mid
-    print mid.length, 'seconds'
+    print(mid)
+    print((mid.length, 'seconds'))
     for i, track in enumerate(mid.tracks):
-        print('Track {}: {} ({}) {}'.format(i, track.name, len(track), channels_for_track(track)))
+        print(('Track {}: {} ({}) {}'.format(i, track.name, len(track), channels_for_track(track))))
         #for msg in track:
         #    print(msg)
 else:
@@ -123,9 +123,9 @@ else:
     nnotes = 0
     nvoices = 0
     curchans = 0
-    channels = [int(x) for x in string.split(args.midichannels, ',')]
-    print
-    print "// %s %s" % (mid, channels)
+    channels = [int(x) for x in args.midichannels.split(',')]
+    print ('')
+    print(("// %s %s" % (mid, channels)))
     output = []
     for msg in mid:
         gtime += msg.time * tempo
@@ -150,22 +150,22 @@ else:
                         curchans |= 1<<msg.channel
     output.append(0xff)
     if coutput:
-        print string.join([hex2(x) for x in output], ',')
+        print((','.join([hex2(x) for x in output])))
     else:
-        bighex = string.join([hex1(x) for x in output], '')
+        bighex = ''.join([hex1(x) for x in output])
         for i in range(0,len(bighex)+32,32):
-            print '\thex', bighex[i:i+32]
+            print(('\thex', bighex[i:i+32]))
     if compress:
         # replace common substrings
         bout = ''.join(chr(i) for i in output)
         for iter in range(0,32):
           ss = find_common_substrings(bout)
           bss = get_best_substring(ss)
-          print bss
+          print(bss)
           if bss[1] == 0:
               break
           bout = replace_substrings(bout, bss)
-          print repr(bout)
+          print((repr(bout)))
         # build substring table
         ofs = (len(g_subs)+1)*2
         zout = offset2str(ofs)
@@ -178,5 +178,5 @@ else:
         for ss in g_subs:
             zout += ss
         # print output
-        print string.join([hex2(ord(x)) for x in zout], ',')
-        print "// compressed %d -> %d bytes" % (len(output), len(zout))
+        print((','.join([hex2(ord(x)) for x in zout])))
+        print(("// compressed %d -> %d bytes" % (len(output), len(zout))))

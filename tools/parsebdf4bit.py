@@ -50,16 +50,16 @@ with open(args.bdffile,'r') as f:
                         if bytes[y] & (0x40 >> x):
                             b |= 0x0f
                         output.append(b)
-                print 'const char CH_%d[] = { %s };' % ( chord, string.join([tohex2(x) for x in output], ',') )
+                print('const char CH_%d[] = { %s };' % ( chord, string.join([tohex2(x) for x in output], ',') ))
                 chars[chord] = 'CH_%d' % chord
         elif inbitmap and len(toks) == 1:
             byte = int(toks[0],16)
             bytes.append(byte)
 
-print 'const char* const FONT_TABLE[%d] = {' % (hichar-lochar+1),
+print('const char* const FONT_TABLE[%d] = {' % (hichar-lochar+1), end=' ')
 for ch in range(lochar, hichar+1):
     if chars.get(ch):
-        print '%s,' % chars[ch],
+        print('%s,' % chars[ch], end=' ')
     else:
-        print '0,',
-print "};"
+        print('0,', end=' ')
+print("};")

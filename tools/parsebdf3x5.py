@@ -13,7 +13,6 @@ with open(sys.argv[1],'r') as f:
     for l in lines:
         l = l.strip()
         toks = l.split()
-        #print l,toks
         if toks[0] == 'ENCODING':
             chord = int(toks[1])
         elif toks[0] == 'BITMAP':
@@ -26,7 +25,7 @@ with open(sys.argv[1],'r') as f:
                     bytes.insert(0,0)
                 assert(len(bytes) == height)
                 bytes.reverse()
-                print chord,bytes
+                print((chord,bytes))
                 chars[chord] = bytes
         elif inbitmap and len(toks) == 1:
             byte = int(toks[0],16)
@@ -63,10 +62,10 @@ def tohex2(v):
 def tobin(v):
     return "bitarray[0][0]=3'b{0:3b};\n".format(v)
 
-print '\thex ' + string.join(map(tohex,output),'')
-print string.join(map(tohex2,output),',')
-print '\thex ' + string.join(map(tohex,outputlo),'')
-print '\thex ' + string.join(map(tohex,outputhi),'')
-print string.join(map(tobin,output),'')
+print(('\thex ' + ''.join(map(tohex,output))))
+print((''.join(map(tohex2,output))))
+print(('\thex ' + ''.join(map(tohex,outputlo))))
+print(('\thex ' + ''.join(map(tohex,outputhi))))
+print((''.join(map(tobin,output))))
 
-print len(output),len(outputlo),len(outputhi)
+print((len(output),len(outputlo),len(outputhi)))

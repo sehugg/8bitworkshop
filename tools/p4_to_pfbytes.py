@@ -23,22 +23,22 @@ def out(i, pix, lb, hb, reverse=0, shift=0):
 with open(sys.argv[1],'rb') as f:
     # read PBM header
     header = f.readline().strip()
-    assert(header == 'P4')
+    assert(header == b'P4')
     dims = f.readline().strip()
-    if dims[0] == '#':
+    if dims[0:1] == b'#':
         dims = f.readline().strip()
-    width,height = map(int, dims.split())
+    print(dims)
+    width,height = list(map(int, dims.split()))
     assert(width==40)
     # read bitmap rows
     for y in range(0,height):
-        row = bytes(f.read(5) + '\0\0\0') # pad to 8 bytes
+        row = bytes(f.read(5) + b'\0\0\0') # pad to 8 bytes
         # convert bytes from MSB first to LSB first
-        row2 = ''
+        row2 = []
         for i in range(0,8):
-            row2 += chr(rev(ord(row[i])))
+            row2.append(rev(row[i]))
         # convert to 64-bit integer
-        pix = struct.unpack('<q',row2)[0]
-        #print '%010lx' % pix
+        pix = struct.unpack('<q',bytes(row2))[0]
         # generate playfield bytes
         out(0, pix, 0, 4, 0, 4)
         out(1, pix, 4, 12, 1)
@@ -49,14 +49,12 @@ with open(sys.argv[1],'rb') as f:
 
 # output bitmap tables
 for c in range(0,6):
-    #print "\talign $100"
-    print "PFBitmap%d" % c
-    #print "\thex 00"
+    print(("PFBitmap%d" % c))
     s = '\thex '
     for i in range(0,height):
         s += '%02x' % output[c][height-i-1]
         if i % 16 == 15:
-            print s
+            print(s)
             s = '\thex '
     if len(s)>5:
-        print s
+        print(s)

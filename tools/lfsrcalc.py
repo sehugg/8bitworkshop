@@ -27,4 +27,4 @@ for n in range(1,MAXBITS):
                 seqindex = seq.index(x)
                 seqlen = len(seq) - seqindex
                 if seqlen>1:
-                    print(seqlen, "#(%d,%d'%s,%d)" % (n,n,bin(i)[1:],invert), seqindex)
+                    print((seqlen, "#(%d,%d'%s,%d)" % (n,n,bin(i)[1:],invert), seqindex))

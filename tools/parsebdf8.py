@@ -99,20 +99,20 @@ def tohexv(v):
 
 for arr in [output]:
     if args.asmhex:
-        print '\thex ' + string.join(map(tohex,arr),'')
+        print('\thex ' + string.join(list(map(tohex,arr)),''))
     if args.asmdb:
         for i in range(0,len(output),height):
-            print '.DB', string.join(map(tohex2,arr[i:i+height]),','), ';%d'%(i/height+lochar)
+            print('.DB', string.join(list(map(tohex2,arr[i:i+height])),','), ';%d'%(i/height+lochar))
     if args.carray:
-        print "static char FONT[%d][%d] = {" % (hichar-lochar+1, height)
+        print("static char FONT[%d][%d] = {" % (hichar-lochar+1, height))
         for i in range(0,len(output),height):
-            print '{', string.join(map(tohex2,arr[i:i+height]),','), '},',
-        print
-        print "};"
+            print('{', string.join(list(map(tohex2,arr[i:i+height])),','), '},', end=' ')
+        print()
+        print("};")
     if args.flatcarray:
-        print "static char FONT[%d] = {" % ((hichar-lochar+1) * height)
-        print string.join(map(tohex2,arr),',')
-        print "}";
+        print("static char FONT[%d] = {" % ((hichar-lochar+1) * height))
+        print(string.join(list(map(tohex2,arr)),','))
+        print("}");
     if args.verilog:
         j = 0
         for i in range(0,len(output),height):
@@ -121,5 +121,5 @@ for arr in [output]:
             #print "rom["+str(j)+"] = 32'h" + string.join(map(tohex,arr[i+height/2:i+height]),'') + ";"
             #j += 1
             #print "rom["+str(j)+"] = 64'h" + string.join(map(tohex,arr[i:i+height]),'') + ";"
-            print string.join(map(tohexv,arr[i:i+height]),',') + ", //%d" % (i/height)
+            print(string.join(list(map(tohexv,arr[i:i+height])),',') + ", //%d" % (i/height))
             j += 1

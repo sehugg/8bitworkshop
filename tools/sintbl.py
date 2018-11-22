@@ -11,6 +11,6 @@ n = 4
 m = 7
 
 for i in range(0,n*4):
-    print '%d,' % int(round(math.sin(i*math.pi/2/n)*m)),
+    print('%d,' % int(round(math.sin(i*math.pi/2/n)*m)), end='')
     if i % 16 == 15:
-        print
+        print('')

@@ -45,21 +45,18 @@ for a440 in range(4200,4600):
         if period3 < s or period3 > 32*s:
             tonehz3 = -10000
         error += min(abs(notehz-tonehz), abs(notehz-tonehz2), abs(notehz-tonehz3))
-        #print a440,note,notehz,notehz-tonehz,period
-        #if a440 == 4405:
-        #  print '%d,%f,%d' % (note,tonehz-notehz,period)
     results.append((error, a440))
 
 results.sort()
 best_error, best_a440 = results[0]
 best_a440 /= 10.0
-print '//', best_a440, best_error, test_notes
+print('//', best_a440, best_error, test_notes)
 
 periods = []
 tones = []
 bits = []
 
-print "const int note_table[%d] = {" % final_notes
+print("const int note_table[%d] = {" % final_notes)
 for note in range(0,final_notes):
     notehz = best_a440 * math.pow(2.0, (note - 49) / 12.0);
     bestperiod = 255
@@ -75,8 +72,8 @@ for note in range(0,final_notes):
                 bestperiod = period
                 besthz = hz
             
-    #print '%d,' % period,
-    print note, besthz, bestperiod, notehz
+    #print(note, besthz, bestperiod, notehz)
+    print('%d,' % period, end='')
     periods.append(bestperiod / s - 1)
     bits.append(bittable[bestperiod & (s-1)])
     if besthz==basehz:
@@ -87,8 +84,8 @@ for note in range(0,final_notes):
         tones.append(6)
     else:
         tones.append(0)
-print "};"
+print("};")
 
-print periods
-print bits
-print tones
+print(periods)
+print(bits)
+print(tones)

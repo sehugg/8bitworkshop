@@ -27,11 +27,11 @@ with open(sys.argv[1],'rb') as f:
     width,height = map(int, dims.split())
     wbytes = (width+7)/8
     data = f.read()
-    print "{%d,%d," % (wbytes,height),
+    print("{%d,%d," % (wbytes,height), end='')
     for i in range(0,len(data)):
         if i>0:
             sys.stdout.write(",")
         ofs = i+wbytes-(i%wbytes)*2-1
         sys.stdout.write( "0x%02x" % ord(data[ofs]) )
-    print "}"
+    print("}")
 

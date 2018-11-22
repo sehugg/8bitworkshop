@@ -35,14 +35,14 @@ for a440 in range(4300,4500):
 results.sort()
 best_error, best_a440 = results[0]
 best_a440 /= 10.0
-print '//', args
-print '//', best_a440, best_error, test_notes
+print('//', args)
+print('//', best_a440, best_error, test_notes)
 
-print "const int note_table[%d] = {" % final_notes
+print("const int note_table[%d] = {" % final_notes)
 for note in range(0,final_notes):
     notehz = best_a440 * math.pow(2.0, (note - 49) / 12.0);
     period = int(round(basehz / notehz)) - bias
     while period > maxval:
         period /= 2
-    print '%d,' % period,
-print "};"
+    print('%d,' % period, end='')
+print("};")
