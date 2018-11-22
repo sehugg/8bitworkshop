@@ -26,6 +26,9 @@ class MarkdownPlatform implements Platform {
   isRunning() {
     return false;
   }
+  isDebugging() : boolean {
+    return false;
+  }
   getToolForFilename(fn : string) : string {
     return "markdown";
   }

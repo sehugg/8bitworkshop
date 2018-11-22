@@ -11,7 +11,6 @@ var KONAMISOUND_PRESETS = [
 ];
 
 var KonamiSoundPlatform = function(mainElement) {
-  var self = this;
   this.__proto__ = new (BaseZ80Platform as any)();
 
   var cpu, ram, rom, membus, iobus;
@@ -91,10 +90,10 @@ var KonamiSoundPlatform = function(mainElement) {
         */
       }
     });
-    timer = new AnimationTimer(60, function() {
-			if (!self.isRunning())
+    timer = new AnimationTimer(60, () => {
+			if (!this.isRunning())
 				return;
-      var debugCond = self.getDebugCallback();
+      var debugCond = this.getDebugCallback();
       var targetTstates = cpu.getTstates() + cpuCyclesPerFrame;
       if (debugCond) {
         while (cpu.getTstates() < targetTstates) {
@@ -118,7 +117,7 @@ var KonamiSoundPlatform = function(mainElement) {
   }
   this.saveState = function() {
     return {
-      c:self.getCPUState(),
+      c:this.getCPUState(),
       b:ram.mem.slice(0),
     };
   }

@@ -132,6 +132,9 @@ class VCSPlatform extends BasePlatform {
     }
     Javatari.room.speaker.mute();
   }
+  isDebugging() : boolean {
+    return Javatari.room.console.onBreakpointHit != null;
+  }
   clearDebug() {
     this.lastDebugState = null;
     Javatari.room.console.disableDebug();
@@ -160,7 +163,8 @@ class VCSPlatform extends BasePlatform {
     var ofs = state.ca.bo || 0;
     if (state.ca.fo && (state.c.PC & 0xfff) >= 2048)
       ofs = state.ca.fo; // 3E/3F fixed-slice formats
-    state.c.EPC = state.c.PC + ofs; // ofs = effective PC for ROM
+    // TODO: for batari BASIC
+    state.c.EPC = state.c.PC + ofs; // EPC = effective PC for ROM
   }
   loadState(state) {
     return Javatari.room.console.loadState(state);

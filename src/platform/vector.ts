@@ -53,7 +53,6 @@ function newPOKEYAudio() {
 }
 
 var AtariVectorPlatform = function(mainElement) {
-  var self = this;
   var XTAL = 12096000;
   var cpuFrequency = XTAL/8;
   var cpuCyclesPer3khz = Math.round(cpuFrequency/(XTAL/4096)); // ~3 Khz
@@ -100,7 +99,7 @@ var AtariVectorPlatform = function(mainElement) {
 
     };
     this.readAddress = bus.read;
-    cpu = self.newCPU(bus);
+    cpu = this.newCPU(bus);
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGBWStateMachine(bus, video, 0x4000);
@@ -109,10 +108,10 @@ var AtariVectorPlatform = function(mainElement) {
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
     setKeyboardFromMap(video, switches, ASTEROIDS_KEYCODE_MAP);
   }
-  
-  this.advance = function(novideo) {
+
+  this.advance = (novideo) => {
       if (!novideo) video.clear();
-      var debugCond = self.getDebugCallback();
+      var debugCond = this.getDebugCallback();
       clock = 0;
       for (var i=0; i<cpuCyclesPerFrame; i++) {
         if (debugCond && debugCond()) {
@@ -187,7 +186,6 @@ var AtariVectorPlatform = function(mainElement) {
 }
 
 var AtariColorVectorPlatform = function(mainElement) {
-  var self = this;
   var masterFrequency = 12096000.0;
   var cpuFrequency = masterFrequency / 8;
   var nmiFrequency = masterFrequency / 4096 / 12;
@@ -255,7 +253,7 @@ var AtariColorVectorPlatform = function(mainElement) {
 
     };
     this.readAddress = bus.read;
-    cpu = self.newCPU(bus);
+    cpu = this.newCPU(bus);
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGColorStateMachine(bus, video, 0x2000);
@@ -264,10 +262,10 @@ var AtariColorVectorPlatform = function(mainElement) {
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
     setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
   }
-  
-  this.advance = function(novideo) {
+
+  this.advance = (novideo) => {
       if (!novideo) video.clear();
-      var debugCond = self.getDebugCallback();
+      var debugCond = this.getDebugCallback();
       clock = 0;
       for (var i=0; i<cpuCyclesPerFrame; i++) {
         if (debugCond && debugCond()) {
@@ -340,7 +338,6 @@ var AtariColorVectorPlatform = function(mainElement) {
 //
 
 var Z80ColorVectorPlatform = function(mainElement, proto) {
-  var self = this;
   var cpuFrequency = 4000000.0;
   var cpuCyclesPerFrame = Math.round(cpuFrequency/60);
   var cpu, cpuram, dvgram, rom, bus, dvg;
@@ -398,7 +395,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
 
     };
     this.readAddress = bus.read;
-    cpu = self.newCPU(bus);
+    cpu = this.newCPU(bus);
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGColorStateMachine(bus, video, 0xa000);
@@ -407,15 +404,15 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
     setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
   }
-  
-  this.advance = function(novideo) {
+
+  this.advance = (novideo) => {
       if (!novideo) video.clear();
-      self.runCPU(cpu, cpuCyclesPerFrame);
+      this.runCPU(cpu, cpuCyclesPerFrame);
       cpu.requestInterrupt();
       switches[0xf] = (switches[0xf] + 1) & 0x3;
       if (--switches[0xe] <= 0) {
         console.log("WATCHDOG FIRED"); // TODO: alert on video
-        self.reset(); // watchdog reset
+        this.reset(); // watchdog reset
       }
   }
 
@@ -472,7 +469,6 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
 // DIGITAL VIDEO GENERATOR
 
 var DVGBWStateMachine = function(bus, video, bofs) {
-  var self = this;
   var pc = 0;
   var x = 0;
   var y = 0;
@@ -583,7 +579,6 @@ var DVGBWStateMachine = function(bus, video, bofs) {
 }
 
 var DVGColorStateMachine = function(bus, video, bofs) {
-  var self = this;
   var pc = 0;
   var x = 0;
   var y = 0;

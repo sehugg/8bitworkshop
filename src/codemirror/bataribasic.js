@@ -79,7 +79,6 @@ CodeMirror.defineMode('bataribasic', function(_config, parserConfig) {
         if (style)
           return style;
 
-        console.log(w, numbers.test(w));
         if (numbers.test(w)) {
           return 'number';
         } else {

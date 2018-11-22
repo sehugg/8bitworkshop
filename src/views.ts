@@ -529,15 +529,11 @@ export class ListingView extends DisassemblerView implements ProjectView {
     this.refreshListing();
     if (!this.assemblyfile) return; // TODO?
     var state = lastDebugState || platform.saveState();
-    var pc = state.c ? (state.c.PC || state.c.EPC) : 0;
+    var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
     var asmtext = this.assemblyfile.text;
     var disasmview = this.getDisasmView();
-    if (platform_id == 'base_z80') { // TODO
-      asmtext = asmtext.replace(/[ ]+\d+\s+;.+\n/g, '');
-      asmtext = asmtext.replace(/[ ]+\d+\s+.area .+\n/g, '');
-    }
     disasmview.setValue(asmtext);
-    var debugging = platform.getDebugCallback && platform.getDebugCallback();
+    var debugging = platform.isDebugging && platform.isDebugging();
     var findPC = debugging ? pc : -1;
     if (findPC >= 0 && this.assemblyfile) {
       var lineno = this.assemblyfile.findLineForOffset(findPC, 15);

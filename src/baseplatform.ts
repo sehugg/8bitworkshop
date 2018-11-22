@@ -21,7 +21,7 @@ export interface CpuState {
   o?:number;/*opcode*/
   SP?:number
   /*
-  A:number, X:number, Y:number, SP:number, R:boolean, 
+  A:number, X:number, Y:number, SP:number, R:boolean,
   N,V,D,Z,C:boolean*/
 };
 export interface EmuState {
@@ -44,7 +44,7 @@ export type AddrSymbolMap = {[address:number]:string};
 export class DebugSymbols {
   symbolmap : SymbolMap;				// symbol -> address
   addr2symbol : AddrSymbolMap;	// address -> symbol
-  
+
   constructor(symbolmap : SymbolMap) {
     this.symbolmap = symbolmap;
     this.addr2symbol = invertMap(symbolmap);
@@ -68,13 +68,14 @@ export interface Platform {
   saveState?() : EmuState;
   loadControlsState?(state : EmuControlsState) : void;
   saveControlsState?() : EmuControlsState;
-  
+
   inspect?(ident:string) : string;
   disassemble?(addr:number, readfn:(addr:number)=>number) : DisasmLine;
   readAddress?(addr:number) : number;
   setFrameRate?(fps:number) : void;
   getFrameRate?() : number;
 
+  isDebugging() : boolean;
   setupDebug?(debugfn : (state)=>void) : void;
   clearDebug?() : void;
   step?() : void;
@@ -83,8 +84,7 @@ export interface Platform {
   runUntilReturn?() : void;
   stepBack?() : void;
   runEval?(evalfunc/* : DebugEvalCondition*/) : void;
-  getDebugCallback?() : any; // TODO
-  
+
   getOpcodeMetadata?(opcode:number, offset:number) : OpcodeMetadata; //TODO
   getSP?() : number;
   getOriginPC?() : number;
@@ -92,10 +92,10 @@ export interface Platform {
 
   getDebugCategories?() : string[];
   getDebugInfo?(category:string, state:EmuState) : string;
-  
+
   setRecorder?(recorder : EmuRecorder) : void;
   advance?(novideo? : boolean) : void;
-  
+
   debugSymbols? : DebugSymbols;
 }
 
@@ -156,6 +156,9 @@ export abstract class BaseDebugPlatform extends BasePlatform {
 
   getDebugCallback() : DebugCondition {
     return this.debugCondition;
+  }
+  isDebugging() : boolean {
+    return this.debugCondition != null;
   }
   setupDebug(callback : BreakpointCallback) {
     this.onBreakpointHit = callback;
@@ -323,7 +326,7 @@ export abstract class Base6502Platform extends BaseFrameBasedPlatform {
   }
   getToolForFilename = getToolForFilename_6502;
   getDefaultExtension() { return ".a"; };
-  
+
   getDebugCategories() {
     return ['CPU','ZPRAM','Stack'];
   }
@@ -645,7 +648,7 @@ export abstract class BaseMAMEPlatform {
   js_lua_string;
   onBreakpointHit;
   mainElement;
-  
+
   constructor(mainElement) {
     this.mainElement = mainElement;
   }
@@ -875,6 +878,9 @@ export abstract class BaseMAMEPlatform {
   }
   getDebugCallback() {
     return this.onBreakpointHit;// TODO?
+  }
+  isDebugging() : boolean {
+    return this.onBreakpointHit != null;
   }
   setupDebug(callback) {
     if (this.loaded) { // TODO?
