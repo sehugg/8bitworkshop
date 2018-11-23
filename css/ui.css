@@ -66,7 +66,8 @@
 }
 #workspace {
   background-color:#333;
-  width:50%;
+  float:left;
+  height:100%;
 }
 div.editor {
   line-height:1.25;
@@ -217,16 +218,13 @@ a.dropdown-toggle {
     border-radius:6px 0 6px 6px;
 }
 div.emulator {
-  position:absolute;
-  right:0;
-  top:0;
-  width:50%;
+  float:left;
   height:100%;
   background-color: #666;
   margin-top: 20px auto 0;
 }
 div.emuoverlay {
-  position:absolute;
+  position:relative;
   left:0;
   top:0;
   width:100%;
@@ -238,7 +236,7 @@ div.emuscope {
   pointer-events:auto;
 }
 div.emuspacer {
-  width:0;
+  width:100%;
 }
 /* has to be here b/c renders differently after first load if in inline style */
 .emuvideo {
@@ -312,10 +310,10 @@ canvas.pixelated {
 }
 div.replaydiv {
   position:absolute;
-  padding:20px;
+  padding:15px;
   left:50%;
   bottom:0;
-  width:50%;
+  right:0;
   background-color: #666;
 }
 .slider {
@@ -328,12 +326,25 @@ div.replaydiv {
   background-position: 50%;
   pointer-events:auto;
 }
+.gutter.gutter-horizontal {
+  background-image: url('grips/vertical.png');
+  cursor: col-resize;
+}
+.gutter.gutter-vertical {
+  background-image: url('grips/horizontal.png');
+  cursor: row-resize;
+}
 .gutter.gutter-vertical {
   background-image:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFAQMAAABo7865AAAABlBMVEVHcEzMzMzyAv2sAAAAAXRSTlMAQObYZgAAABBJREFUeF5jOAMEEAIEEFwAn3kMwcB6I2AAAAAASUVORK5CYII=');
 }
 .gutter.gutter-horizontal {
   background-image:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
   height:100%;
+}
+.split,
+.gutter.gutter-horizontal {
+    float: left;
+    height: 100%;
 }
 div.markdown {
  background-color: #fff;

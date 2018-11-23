@@ -301,6 +301,7 @@ var VerilogPlatform = function(mainElement, options) {
  
   waveview : WaveformView;
   wavediv : JQuery;
+  topdiv : JQuery;
   split;
   hasvideo : boolean;
 
@@ -326,15 +327,18 @@ var VerilogPlatform = function(mainElement, options) {
     // setup scope
     trace_buffer = new Uint32Array(0x20000);
     var overlay = $("#emuoverlay").show();
-    var topdiv = $('<div class="emuspacer">').appendTo(overlay);
+    this.topdiv = $('<div class="emuspacer">').appendTo(overlay);
+    vcanvas.appendTo(this.topdiv);
     this.wavediv = $('<div class="emuscope">').appendTo(overlay);
-    this.split = Split( [topdiv[0], this.wavediv[0]], {
+    this.split = Split( [this.topdiv[0], this.wavediv[0]], {
       minSize: [0,0],
       sizes: [99,1],
       direction: 'vertical',
       gutterSize: 16,
       onDrag: () => {
         if (this.waveview) this.waveview.recreate();
+        vcanvas.css('position','relative');
+        vcanvas.css('top', -this.wavediv.height()+'px');
       },
       onDragStart: () => {
         $(".emuoverlay").css("pointer-events", "auto"); // allow drag
@@ -356,6 +360,7 @@ var VerilogPlatform = function(mainElement, options) {
   }
   
   updateVideoFrame() {
+    this.topdiv.show(); //show crt
     this.setGenInputs();
     var fps = this.getFrameRate();
     // darken the previous frame?
@@ -403,6 +408,7 @@ var VerilogPlatform = function(mainElement, options) {
   
   updateScopeFrame() {
     this.split.setSizes([0,100]); // ensure scope visible
+    this.topdiv.hide();// hide crt
     var done = this.fillTraceBuffer(32 * trace_signals.length); // TODO: const
     if (done)
       this.pause(); // TODO?

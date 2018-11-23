@@ -15,7 +15,7 @@ import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap,
 import { StateRecorderImpl } from "./recorder";
 
 // external libs (TODO)
-declare var ga, Tour, GIF, saveAs, JSZip, Mousetrap;
+declare var ga, Tour, GIF, saveAs, JSZip, Mousetrap, Split;
 // in index.html
 declare var exports;
 
@@ -1189,6 +1189,24 @@ function loadScript(scriptfn, onload) {
   document.getElementsByTagName('head')[0].appendChild(script);
 }
 
+export function setupSplits() {
+  const splitName = 'workspace-split-' + platform_id;
+  var sizes = [50, 50];
+  var sizesStr = localStorage.getItem(splitName)
+  if (sizesStr) {
+    try {
+      sizes = JSON.parse(sizesStr);
+    } catch (e) { console.log(e); }
+  }
+  var split;
+  split = Split(['#workspace', '#emulator'], {
+    sizes: sizes,
+    onDragEnd: function() {
+      localStorage.setItem(splitName, JSON.stringify(split.getSizes()))
+    },
+  });
+}
+
 // start
 export function startUI(loadplatform : boolean) {
   installErrorHandler();
@@ -1198,6 +1216,7 @@ export function startUI(loadplatform : boolean) {
     platform_id = qs['platform'] = "vcs";
   }
   $("#item_platform_"+platform_id).addClass("dropdown-item-checked");
+  setupSplits();
   // parse query string
   // is this a share URL?
   if (qs['sharekey']) {
@@ -1225,3 +1244,4 @@ export function startUI(loadplatform : boolean) {
     }
   }
 }
+

@@ -78,7 +78,7 @@ TODO:
 - batariBasic: proper line numbers, listing, syntax highlighting
 - show player controls for each platform, allow touch support
 - granular control over time scrubbing, show CPU state
-- __MAIN__ for main C file
+- error showing replay div before rom starts
 
 
 WEB WORKER FORMAT
