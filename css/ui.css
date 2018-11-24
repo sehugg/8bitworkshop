@@ -68,6 +68,7 @@
   background-color:#333;
   float:left;
   height:100%;
+  overflow:hidden;
 }
 div.editor {
   line-height:1.25;
@@ -83,7 +84,7 @@ div.memdump {
 }
 div.mem_info {
   position: fixed;
-  left: 51%;
+  right: 10px;
   bottom: 10px;
   background-color: #333;
   color: #66ff66;
@@ -302,7 +303,7 @@ canvas.pixelated {
 .twitter-follow-button:hover {
   color:#99ffff;
 }
-.dropdown-item-checked::before {
+.dropdown-menu .dropdown-item-checked::before {
   position: absolute;
   left: .4rem;
   content: '\2713';
@@ -360,4 +361,25 @@ div.markdown td {
 }
 div.markdown th {
  padding:0.2em;
+}
+#sidebar {
+ float:left;
+}
+#sidebar ul {
+  list-style-type:none;
+  padding:1em;
+}
+#sidebar a {
+  color:#ddffdd;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  overflow:hidden;
+  display:block;
+}
+#sidebar a:focus {
+  text-decoration:none;
+}
+#sidebar .dropdown-item-checked {
+  font-weight:bold;
+  background-color:#333;
 }

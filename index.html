@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
 <style type="text/css" media="screen">
 body {
-  overflow: hidden !important;
+  overflow: hidden;
   font-size: 11px;
 }
 .pixeditback {
@@ -128,15 +128,6 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
   <select id="preset_select" name="" title="Project Select">
   </select>
 
-  <span class="dropdown">
-    <a class="btn btn-secondary dropdown-toggle" id="windowMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Window Select">
-      <span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span>
-      <span class="caret"></span>
-    </a>
-    <ul class="dropdown-menu" aria-labelledby="windowMenuButton" id="windowMenuList">
-    </ul>
-  </span>
-
   <img id="compile_spinner" src="images/spinner.gif" height="20em" style="visibility:hidden;margin-left:8px;margin-right:8px">
   <span class="btn_group debug_group" id="debug_bar">
     <button id="dbg_reset" type="button" title="Reset and Break"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></button>
@@ -194,10 +185,14 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
   <!--<span id="best_in_firefox" style="display:none;font-size:12px;font-style:italic;float:right;color:#666">Note: Works best in Firefox</span>-->
 </div>
 <div id="notebook">
+  <div id="sidebar">
+    <ul id="windowMenuList">
+    </ul>
+  </div>
   <div id="workspace">
   </div>
   <div class="emulator" id="emulator">
-    <div id="javatari-div" style="margin:10px; display:none">
+    <div id="javatari-div" style="float:center;margin:10px;display:none">
       <div id="javatari-screen" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
       <div id="javatari-console-panel" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
     </div>

@@ -142,7 +142,6 @@ function refreshWindowList() {
   addWindowItem(id, getFilenameForPath(id), loadEditor);
 
   // add other source files
-  separate = true;
   current_project.iterateFiles(function(id, text) {
     if (text && id != main_file_id)
       addWindowItem(id, getFilenameForPath(id), loadEditor);
@@ -150,6 +149,7 @@ function refreshWindowList() {
 
   // add listings
   // TODO: update listing when recompiling
+  separate = true;
   var listings = current_project.getListings();
   if (listings) {
     for (var lstfn in listings) {
@@ -1190,8 +1190,8 @@ function loadScript(scriptfn, onload) {
 }
 
 export function setupSplits() {
-  const splitName = 'workspace-split-' + platform_id;
-  var sizes = [50, 50];
+  const splitName = 'workspace-split3-' + platform_id;
+  var sizes = [0, 50, 50];
   var sizesStr = localStorage.getItem(splitName)
   if (sizesStr) {
     try {
@@ -1199,8 +1199,9 @@ export function setupSplits() {
     } catch (e) { console.log(e); }
   }
   var split;
-  split = Split(['#workspace', '#emulator'], {
+  split = Split(['#sidebar', '#workspace', '#emulator'], {
     sizes: sizes,
+    minSize: [0, 250, 250],
     onDragEnd: function() {
       localStorage.setItem(splitName, JSON.stringify(split.getSizes()))
     },
