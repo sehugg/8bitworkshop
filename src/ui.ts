@@ -603,6 +603,14 @@ function setDebugButtonState(btnid:string, btnstate:string) {
   $("#dbg_"+btnid).addClass("btn_"+btnstate);
 }
 
+function checkRunReady() {
+  if (current_output == null) {
+    alert("Can't resume emulation until ROM is successfully built.");
+    return false;
+  } else
+    return true;
+}
+
 function setupDebugCallback(btnid? : string) {
   if (platform.setupDebug) platform.setupDebug((state) => {
     lastDebugState = state;
@@ -613,6 +621,7 @@ function setupDebugCallback(btnid? : string) {
 }
 
 function setupBreakpoint(btnid? : string) {
+  if (!checkRunReady()) return;
   _disableRecording();
   setupDebugCallback(btnid);
   if (btnid) setDebugButtonState(btnid, "active");
@@ -633,10 +642,7 @@ function pause() {
 }
 
 function _resume() {
-  if (current_output == null) {
-    alert("Can't resume emulation until ROM is successfully built.");
-    return;
-  }
+  if (!checkRunReady()) return;
   if (!platform.isRunning()) {
     platform.resume();
     console.log("Resumed");
@@ -676,6 +682,7 @@ function getEditorPC() : number {
 }
 
 function runToCursor() {
+  if (!checkRunReady()) return;
   setupBreakpoint("toline");
   var pc = getEditorPC();
   if (pc >= 0) {
