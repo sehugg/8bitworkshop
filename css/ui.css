@@ -386,3 +386,10 @@ div.markdown th {
   font-weight:bold;
   background-color:#333;
 }
+.logo-gradient {
+  font-size: 1.5em;
+  background: linear-gradient(to right, #ff9999, #ffff99, #99ff99, #99ffff);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color:rgba(0,0,0,0);
+}
