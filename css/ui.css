@@ -109,6 +109,9 @@ div.mem_info a:hover {
 div.mem_info a.selected {
  color: #ffffff;
 }
+.mem_info_links {
+ text-align:right;
+}
 .btn_group {
   border-radius:6px;
   padding:8px;

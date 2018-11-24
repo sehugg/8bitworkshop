@@ -229,7 +229,7 @@ function getSkeletonFile(fileid:string, callback) {
 function _createNewFile(e) {
   // TODO: support spaces
   var filename = prompt("Create New File", "newfile" + platform.getDefaultExtension());
-  if (filename && filename.length) {
+  if (filename && filename.trim().length > 0) {
     if (filename.indexOf(" ") >= 0) {
       alert("No spaces, please.");
       return;
@@ -409,6 +409,7 @@ function _revertFile(e) {
     }
   }, 'text')
   .fail(function() {
+    // TODO: delete file
     alert("Can only revert built-in files.");
   });
   return true;
@@ -572,7 +573,7 @@ function showDebugInfo(state?) {
   if (s) {
     var hs = lastDebugInfo ? highlightDifferences(lastDebugInfo, s) : s;
     meminfo.show().html(hs);
-    var catspan = $('<span>');
+    var catspan = $('<div class="mem_info_links">');
     var addCategoryLink = (cat:string) => {
       var catlink = $('<a>'+cat+'</a>');
       if (cat == debugCategory)
@@ -890,7 +891,7 @@ function addFileToProject(type, ext, linefn) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.insertText) {
     var filename = prompt("Add "+type+" File to Project", "filename"+ext);
-    if (filename) {
+    if (filename && filename.trim().length > 0) {
       var path = "local/" + filename;
       var newline = "\n" + linefn(filename) + "\n";
       current_project.loadFiles([path], (err, result) => {
@@ -913,10 +914,10 @@ function _addIncludeFile() {
   var tool = platform.getToolForFilename(fn);
   if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65')
     addFileToProject("Header", ".h", (s) => { return '#include "'+s+'"' });
-  else if (tool == 'dasm')
-    addFileToProject("Include File", ".h", (s) => { return '\tinclude "'+s+'"' });
-  else if (tool == 'ca65' || tool == 'sdasz80' || tool == 'zmac')
-    addFileToProject("Include File", ".h", (s) => { return '\t.include "'+s+'"' });
+  else if (tool == 'dasm' || tool == 'zmac')
+    addFileToProject("Include File", ".inc", (s) => { return '\tinclude "'+s+'"' });
+  else if (tool == 'ca65' || tool == 'sdasz80')
+    addFileToProject("Include File", ".inc", (s) => { return '\t.include "'+s+'"' });
   else if (tool == 'verilator')
     addFileToProject("Verilog File", ".v", (s) => { return '`include "'+s+'"' });
   else

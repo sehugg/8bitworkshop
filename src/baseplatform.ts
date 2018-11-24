@@ -286,6 +286,7 @@ export abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
 export function getToolForFilename_6502(fn:string) : string {
   if (fn.endsWith(".pla")) return "plasm";
   if (fn.endsWith(".c")) return "cc65";
+  if (fn.endsWith(".h")) return "cc65";
   if (fn.endsWith(".s")) return "ca65";
   if (fn.endsWith(".ca65")) return "ca65";
   if (fn.endsWith(".dasm")) return "dasm";
@@ -572,6 +573,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
 
 export function getToolForFilename_z80(fn) {
   if (fn.endsWith(".c")) return "sdcc";
+  if (fn.endsWith(".h")) return "sdcc";
   if (fn.endsWith(".s")) return "sdasz80";
   if (fn.endsWith(".ns")) return "naken";
   if (fn.endsWith(".scc")) return "sccz80";
