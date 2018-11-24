@@ -15,6 +15,7 @@ export interface ProjectView {
   tick?() : void;
   getValue?() : string;
   setText?(text : string) : void;
+  insertText?(text : string) : void;
   getCursorPC?() : number;
   getSourceFile?() : SourceFile;
   setGutterBytes?(line:number, s:string) : void;
@@ -127,6 +128,11 @@ export class SourceEditor implements ProjectView {
   setText(text:string) {
     this.editor.setValue(text); // calls setCode()
     this.editor.clearHistory();
+  }
+
+  insertText(text:string) {
+    var cur = this.editor.getCursor();
+    this.editor.replaceRange(text, cur, cur);
   }
 
   getValue() : string {

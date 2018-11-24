@@ -886,6 +886,52 @@ function _lookupHelp() {
   }
 }
 
+function addFileToProject(type, ext, linefn) {
+  var wnd = projectWindows.getActive();
+  if (wnd && wnd.insertText) {
+    var filename = prompt("Add "+type+" File to Project", "filename"+ext);
+    if (filename) {
+      var path = "local/" + filename;
+      var newline = "\n" + linefn(filename) + "\n";
+      current_project.loadFiles([path], (err, result) => {
+        if (result && result.length) {
+          alert(filename + " already exists");
+        } else {
+          current_project.updateFile(path, "\n");
+        }
+        wnd.insertText(newline);
+        refreshWindowList();
+      });
+    }
+  } else {
+    alert("Can't insert text in this window -- switch back to main file");
+  }
+}
+
+function _addIncludeFile() {
+  var fn = getCurrentMainFilename();
+  var tool = platform.getToolForFilename(fn);
+  if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65')
+    addFileToProject("Header", ".h", (s) => { return '#include "'+s+'"' });
+  else if (tool == 'dasm')
+    addFileToProject("Include File", ".h", (s) => { return '\tinclude "'+s+'"' });
+  else if (tool == 'ca65' || tool == 'sdasz80' || tool == 'zmac')
+    addFileToProject("Include File", ".h", (s) => { return '\t.include "'+s+'"' });
+  else if (tool == 'verilator')
+    addFileToProject("Verilog File", ".v", (s) => { return '`include "'+s+'"' });
+  else
+    alert("Can't add include file to this project type (" + tool + ")");
+}
+
+function _addLinkFile() {
+  var fn = getCurrentMainFilename();
+  var tool = platform.getToolForFilename(fn);
+  if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65')
+    addFileToProject("Linked C", ".c", (s) => { return '//#link "'+s+'"' });
+  else
+    alert("Can't add linked file to this project type (" + tool + ")");
+}
+
 function setupDebugControls(){
 
   $("#dbg_reset").click(resetAndDebug);
@@ -957,6 +1003,8 @@ function setupDebugControls(){
   if (platform.showHelp) {
     $("#dbg_help").show().click(_lookupHelp);
   }
+  $("#item_addfile_include").click(_addIncludeFile);
+  $("#item_addfile_link").click(_addLinkFile);
   updateDebugWindows();
   // setup replay slider
   if (platform.setRecorder && platform.advance) {
