@@ -78,7 +78,7 @@ const _JSNESPlatform = function(mainElement) {
 
   start() {
     var self = this;
-    video = new RasterVideo(mainElement,256,224);
+    video = new RasterVideo(mainElement,256,224,{overscan:true});
     audio = new SampleAudio(audioFrequency);
     video.create();
     var idata = video.getFrameData();

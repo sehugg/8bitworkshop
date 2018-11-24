@@ -123,7 +123,7 @@ const _ColecoVisionPlatform = function(mainElement) {
       	}
       };
       cpu = this.newCPU(membus, iobus);
-      video = new RasterVideo(mainElement,canvasWidth,numVisibleScanlines);
+      video = new RasterVideo(mainElement,canvasWidth,numVisibleScanlines,{overscan:true});
       video.create();
       audio = new MasterAudio();
       psg = new SN76489_Audio(audio);

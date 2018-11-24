@@ -53,7 +53,9 @@ function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
   };
 };
 
-export var RasterVideo = function(mainElement:HTMLElement, width:number, height:number, options?) {
+type VideoCanvasOptions = {rotate?:number, overscan?:boolean};
+
+export var RasterVideo = function(mainElement:HTMLElement, width:number, height:number, options?:VideoCanvasOptions) {
   var canvas, ctx;
   var imageData, arraybuf, buf8, datau32;
   var vcanvas;
@@ -78,6 +80,9 @@ export var RasterVideo = function(mainElement:HTMLElement, width:number, height:
     vcanvas = $(canvas);
     if (options && options.rotate) {
       this.setRotate(options.rotate);
+    }
+    if (options && options.overscan) {
+      vcanvas.css('padding','0px');
     }
     ctx = canvas.getContext('2d');
     imageData = ctx.createImageData(width, height);

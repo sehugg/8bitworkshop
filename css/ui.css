@@ -244,12 +244,12 @@ div.emuspacer {
   border-radius:20px;
   border: 4px solid #222;
   outline-color: #666;
-  padding: 30px;
+  padding: 20px;
   background: #000;
   margin-top:40px;
-  margin-left:7.5%;
-  margin-right:7.5%;
-  width: 85%;
+  margin-left:5%;
+  margin-right:5%;
+  width:90%;
   pointer-events:auto;
 }
 canvas.pixelated {
