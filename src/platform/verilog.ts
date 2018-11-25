@@ -308,7 +308,7 @@ var VerilogPlatform = function(mainElement, options) {
   getPresets() { return VERILOG_PRESETS; }
 
   start() {
-    video = new RasterVideo(mainElement,videoWidth,videoHeight);
+    video = new RasterVideo(mainElement,videoWidth,videoHeight,{overscan:true});
     video.create();
     var ctx = video.getContext();
     ctx.font = "8px TinyFont";
