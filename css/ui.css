@@ -287,6 +287,14 @@ canvas.pixelated {
   background-color:#006600;
   border-style:solid;
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+  position:relative;
+  top:-0.25em;
+}
+a.dropdown-toggle {
+}
+a.dropdown-toggle:hover {
+ color:#ffffff;
+ text-shadow: 1px 1px 2px black;
 }
 .nav-tabs > li > a.tab {
   line-height: 1.0;
