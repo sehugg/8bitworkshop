@@ -10,7 +10,7 @@
  * GNU General Public License v2.0
  */
 
- import { hex } from "../util";
+import { hex, lpad } from "../util";
 
 enum TMS9918A_Mode {
   GRAPHICS = 0,
@@ -558,13 +558,28 @@ export class TMS9918A {
     }
 
     getRegsString() : string {
-        var s = "";
+        const w = 20;
+        var s = "Registers:";
         for (var i = 0; i < this.registers.length; i++) {
-            s += "VR" + i + ":" + hex(this.registers[i],2) + " ";
+            s += " " + hex(this.registers[i],2);
         }
-        s += "\nSIT:" + hex(this.nameTable,4) + " PDT:" + hex(this.charPatternTable,4) + " (" + hex(this.patternTableSize(),4) + ")" +
-             " CT:" + hex(this.colorTable,4) + " (" + hex(this.colorTableSize(),4) + ") SDT:" + hex(this.spritePatternTable,4) +
-             " SAL:" + hex(this.spriteAttributeTable,4) + "\nVDP: " + hex(this.addressRegister,4);
+        s += "\n\n";
+        var tables : [string,number,number][] = [
+            ["Pattern Table", this.charPatternTable, this.patternTableSize()],
+            ["Image Table", this.nameTable, 0x300],
+            ["Color Table", this.colorTable, this.colorTableSize()],
+            ["Sprite Patterns", this.spritePatternTable, 64*32],
+            ["Sprite Attributes", this.spriteAttributeTable, 4*32],
+        ];
+        for (var row of tables) {
+            if (row[2] > 0)
+                s += lpad(row[0], w) + ": $" + hex(row[1],4) + " - $" + hex(row[1]+row[2]-1,4) + "\n";
+        }
+        s += lpad("Address Register",w) + ": $" + hex(this.addressRegister,4) + "\n";
+        s += lpad("Screen Mode",w) + ":  " + this.screenMode + "\n";
+        s += lpad("Display On",w) + ":  " + this.displayOn + "\n";
+        if (this.ramMask != 0x3fff)
+            s += lpad("RAM Mask",w) + ":  " + this.ramMask + "\n";
         return s;
     }
 
