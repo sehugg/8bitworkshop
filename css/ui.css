@@ -226,16 +226,12 @@ div.emulator {
   margin-top: 20px auto 0;
 }
 div.emuoverlay {
-  position:relative;
-  left:0;
-  top:0;
-  width:100%;
+  display:flex;
+  flex-direction:column;
   height:100%;
-  pointer-events:none;
 }
 div.emuscope {
   background-color: #333;
-  pointer-events:auto;
 }
 div.emuspacer {
   width:100%;

@@ -1258,7 +1258,10 @@ export function setupSplits() {
   split = Split(['#sidebar', '#workspace', '#emulator'], {
     sizes: sizes,
     minSize: [0, 250, 250],
-    onDragEnd: function() {
+    onDrag: () => {
+      if (platform && platform.resize) platform.resize();
+    },
+    onDragEnd: () => {
       localStorage.setItem(splitName, JSON.stringify(split.getSizes()))
     },
   });
