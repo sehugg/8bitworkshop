@@ -337,18 +337,16 @@ var VerilogPlatform = function(mainElement, options) {
       gutterSize: 16,
       onDrag: () => {
         if (this.waveview) this.waveview.recreate();
-        vcanvas.css('position','relative');
-        vcanvas.css('top', -this.wavediv.height()+'px');
-      },
-      onDragStart: () => {
-        $(".emuoverlay").css("pointer-events", "auto"); // allow drag
-      },
-      onDragEnd: () => {
-        $(".emuoverlay").css("pointer-events", "none"); // disallow drag
+        //vcanvas.css('position','relative');
+        //vcanvas.css('top', -this.wavediv.height()+'px');
       },
     });
     // setup mouse events
     video.setupMouseEvents();
+  }
+  
+  resize() {
+    if (this.waveview) this.waveview.recreate();
   }
   
   setGenInputs() {
