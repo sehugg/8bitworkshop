@@ -231,7 +231,8 @@ div.emuoverlay {
   height:100%;
 }
 div.emuscope {
-  background-color: #333;
+  background-color:#333;
+  z-index:1;
 }
 div.emuspacer {
   width:100%;
@@ -331,6 +332,7 @@ div.replaydiv {
   background-repeat: no-repeat;
   background-position: 50%;
   pointer-events:auto;
+  z-index:1;
 }
 .gutter.gutter-horizontal {
   background-image: url('grips/vertical.png');
