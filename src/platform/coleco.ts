@@ -21,6 +21,8 @@ import { TMS9918A } from "../video/tms9918a";
 // http://www.msxcomputermagazine.nl/mccw/91/msx1demos1/en.html
 // http://www.segordon.com/colecovision.php
 // http://samdal.com/svvideo.htm
+// https://github.com/tursilion/convert9918
+// http://www.harmlesslion.com/cgi-bin/showprog.cgi?ColecoVision
 
 var ColecoVision_PRESETS = [
   {id:'text.c', name:'Text Mode'},
