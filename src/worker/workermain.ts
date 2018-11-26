@@ -1130,16 +1130,25 @@ function compileSDCC(step:BuildStep) {
     setupStdin(FS, code);
     setupFS(FS, 'sdcc');
     var args = ['--vc', '--std-sdcc99', '-mz80', //'-Wall',
-      '--c1mode', // '--debug',
+      '--c1mode',
+      //'--debug',
       //'-S', 'main.c',
       //'--asm=sdasz80',
       //'--reserve-regs-iy',
       '--less-pedantic',
       ///'--fomit-frame-pointer',
       '--opt-code-speed',
-      //'--oldralloc', // TODO: does this make it fater?
+      '--oldralloc',
       //'--cyclomatic',
-      //'--nooverlay','--nogcse','--nolabelopt','--noinvariant','--noinduction','--nojtbound','--noloopreverse','--no-peep','--nolospre',
+      //'--nooverlay',
+      //'--nogcse',
+      //'--nolabelopt',
+      //'--noinvariant',
+      //'--noinduction',
+      //'--nojtbound',
+      //'--noloopreverse',
+      '--no-peep',
+      '--nolospre',
       '-o', outpath];
     if (params.extra_compile_args) {
       args.push.apply(args, params.extra_compile_args);

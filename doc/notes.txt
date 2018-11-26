@@ -79,6 +79,7 @@ TODO:
 - show player controls for each platform, allow touch support
 - granular control over time scrubbing, show CPU state
 - error showing replay div before rom starts
+- compiler flags for final ROM build
 
 
 WEB WORKER FORMAT
