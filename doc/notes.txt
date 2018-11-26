@@ -15,14 +15,12 @@ TODO:
 - can't step after reset (or when funky frame; TIA frame is out of sync)
 - break on BRK/illegal opcode?
 - multiple breakpoints, expression breakpoints
-- better disasm/listing selection
 - watchpoints
 - breakpoints
 - debug inspector
 - MAME single step (?)
 - step over
 - slowdown beam for all platforms?
-- more kbd shortcuts
 - PC x86 support
 - show errors in list (maybe window list?)
 - can't see 1st line in editor sometimes (when scrolling cursor past bottom of screen)
@@ -47,7 +45,6 @@ TODO:
 - navigator.getGamepads
 - VCS library
 - better VCS single stepping, maybe also listings
-- New File (include file)
 - VCS skips step on lsr/lsr after run to line
 - bring back the profiler!
 - links to external tools in ide
@@ -56,7 +53,6 @@ TODO:
 - why loadState() on verilog kill perf?
 - click to break on raster position
 - restructure src/ folders
-- spinner disappears sometimes (and compiles even when not spinning...) (undo?)
 - quantify verilog "graph iterations"
 - debug bankswitching for funky formats
 - spaces in filename don't parse code listing (DASM, maybe more)
@@ -65,21 +61,20 @@ TODO:
 - astrocade: run to cursor in hello world messes up emulation
 - requestInterrupt needs to be disabled after breakpoint?
 - verilog: when paused scope doesn't work
-- resize memory dump window
 - C/asm formatter
 - fix WebAudio (https://news.ycombinator.com/item?id=18066474)
-- Safari: verilog scope doesn't work
 - share playable link w/ verilog?
 - allow download of JSASM output
-- update bootstrap/jquery
+- update bootstrap
 - clean BOM from verilog
 - $readmemb/h
-- maybe don't have grey space with line numbers until inline ASM used?
-- batariBasic: proper line numbers, listing, syntax highlighting
+- batariBasic: proper line numbers, debugging
 - show player controls for each platform, allow touch support
 - granular control over time scrubbing, show CPU state
 - error showing replay div before rom starts
 - compiler flags for final ROM build
+- coleco sprites need brev
+- workermain: split build functions, better msg types
 
 
 WEB WORKER FORMAT

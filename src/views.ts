@@ -71,7 +71,7 @@ export class SourceEditor implements ProjectView {
   }
 
   newEditor(parent:HTMLElement) {
-    var isAsm = this.mode=='6502' || this.mode =='z80' || this.mode=='verilog' || this.mode=='gas'; // TODO
+    var isAsm = this.mode=='6502' || this.mode =='z80' || this.mode=='jsasm' || this.mode=='gas'; // TODO
     var lineWrap = this.mode=='markdown';
     this.editor = CodeMirror(parent, {
       theme: 'mbo',
