@@ -82,6 +82,8 @@ TODO:
 - can't upload files already exist
 - upload files w/o new project
 - what if .c and .s names collide?
+- live coding URL
+- memory viewer: ROM/RAM/VRAM/etc
 
 
 WEB WORKER FORMAT
