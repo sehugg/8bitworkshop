@@ -79,6 +79,9 @@ TODO:
 - rename, delete, save as
 - sdcc: can't link asm files before c files
 - what if >1 file with same name? (local/nonlocal/directory)
+- can't upload files already exist
+- upload files w/o new project
+- what if .c and .s names collide?
 
 
 WEB WORKER FORMAT

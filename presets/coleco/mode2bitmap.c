@@ -12,7 +12,7 @@
 
 /* link in MODE 2 bitmap data */
 
-//#link "bitmaps/sailboat.s"
+//#link "sailboat.s"
 
 extern const unsigned char msx_bitmap[0x3807];
 

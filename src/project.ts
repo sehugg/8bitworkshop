@@ -63,7 +63,7 @@ export class CodeProject {
     files.push(fn);
     // look for files in current (main file) folder
     var dir = getFolderForPath(this.mainpath);
-    if (dir.length > 0)
+    if (dir.length > 0 && dir != 'local') // TODO
       files.push(dir + '/' + fn);
   }
 

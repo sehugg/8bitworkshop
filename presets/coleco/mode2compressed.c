@@ -14,7 +14,7 @@
 
 //#link "lzg.c"
 
-//#link "bitmaps/sailboat-lzg.s"
+//#link "sailboat-lzg.s"
 
 extern const unsigned char msx_bitmap_lzg[];
 
