@@ -26,6 +26,9 @@ typedef unsigned short word;
 uintptr_t __at(0x6a) font_bitmap_a;
 uintptr_t __at(0x6c) font_bitmap_0;
 
+#define COLOR_FGBG(fg,bg) (((fg)<<4)|(bg))
+#define COLOR_FG(fg) (((fg)<<4))
+
 #define LOCHAR 0x20
 #define HICHAR 0xff
 
@@ -56,5 +59,8 @@ extern char in_rect(byte x, byte y, byte x0, byte y0, byte w, byte h);
 extern void draw_bcd_word(byte x, byte y, word bcd);
 // add two 16-bit BCD values
 extern word bcd_add(word a, word b);
+
+extern void vdp_setup();
+extern void set_shifted_pattern(const byte* src, word dest, byte shift);
 
 #endif

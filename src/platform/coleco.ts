@@ -33,11 +33,12 @@ var ColecoVision_PRESETS = [
   {id:'simplemusic.c', name:'Simple Music'},
   {id:'musicplayer.c', name:'Multivoice Music'},
   {id:'mode2bitmap.c', name:'Mode 2 Bitmap'},
+  {id:'mode2compressed.c', name:'Mode 2 Bitmap (LZG)'},
   {id:'lines.c', name:'Mode 2 Lines'},
   {id:'multicolor.c', name:'Multicolor Mode'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot.c', name:'Solarian Game'},
-  {id:'platform.c', name:'Platform Game'},
+  {id:'climber.c', name:'Platform Game'},
 ];
 
 var COLECOVISION_KEYCODE_MAP = makeKeycodeMap([

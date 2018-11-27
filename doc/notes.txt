@@ -75,6 +75,10 @@ TODO:
 - compiler flags for final ROM build
 - coleco sprites need brev
 - workermain: split build functions, better msg types
+- vcs: INPTx needs to be added to control state
+- rename, delete, save as
+- sdcc: can't link asm files before c files
+- what if >1 file with same name? (local/nonlocal/directory)
 
 
 WEB WORKER FORMAT

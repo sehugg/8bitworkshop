@@ -1,7 +1,7 @@
 "use strict";
 
 import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, WorkerResult } from "./workertypes";
-import { getFilenameForPath, getFilenamePrefix } from "./util";
+import { getFilenameForPath, getFilenamePrefix, getFolderForPath } from "./util";
 
 type BuildResultCallback = (result:WorkerResult) => void;
 type BuildStatusCallback = (busy:boolean) => void;
@@ -56,6 +56,16 @@ export class CodeProject {
       this.tools_preloaded[tool] = true;
     }
   }
+  
+  pushAllFiles(files:string[], fn:string) {
+    // look for local and preset files
+    files.push('local/'+fn);
+    files.push(fn);
+    // look for files in current (main file) folder
+    var dir = getFolderForPath(this.mainpath);
+    if (dir.length > 0)
+      files.push(dir + '/' + fn);
+  }
 
   parseIncludeDependencies(text:string):string[] {
     var files = [];
@@ -63,16 +73,14 @@ export class CodeProject {
       var re = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
       var m;
       while (m = re.exec(text)) {
-        files.push('local/'+m[2]);
-        files.push(m[2]);
+        this.pushAllFiles(files, m[2]);
       }
     } else {
       // for .asm -- [.]include "file"
       // for .c -- #include "file"
       var re2 = /^\s+([.#]?include)\s+"(.+?)"/gmi;
       while (m = re2.exec(text)) {
-        files.push('local/'+m[2]);
-        files.push(m[2]);
+        this.pushAllFiles(files, m[2]);
       }
     }
     return files;
@@ -87,8 +95,7 @@ export class CodeProject {
       var re = /^\s*([;#]|[/][/][#])link\s+"(.+?)"/gm;
       var m;
       while (m = re.exec(text)) {
-        files.push('local/' + m[2]);
-        files.push(m[2]);
+        this.pushAllFiles(files, m[2]);
       }
     }
     return files;
@@ -102,7 +109,7 @@ export class CodeProject {
       // set 'link' property on files that are link dependencies (must match filename)
       if (result)
         for (var dep of result)
-          dep.link = linkfiles.indexOf(dep.filename) >= 0 || linkfiles.indexOf('local/'+dep.filename) >= 0; //TODO!!!
+          dep.link = linkfiles.indexOf(dep.path) >= 0;
       callback(err, result);
     });
   }

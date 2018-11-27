@@ -1,4 +1,4 @@
-﻿
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <cv.h>
@@ -76,7 +76,6 @@ void set_sprites_offscreen() {
 }
 
 void setup_vdp() {
-  cv_set_screen_active(false);	// Switch screen off.
   cv_set_color_table(0x3fff);
   cv_set_character_pattern_t(0x1fff);
   cv_set_image_table(IMAGE);
@@ -91,7 +90,8 @@ void main(void)
   struct cvu_sprite s;	// The sprite used for the player cursor.
   struct cvu_sprite s2;	// The sprite used for the target cursor.
 
-  setup_vdp();
+  cv_set_screen_active(false);	// Switch screen off.
+  setup_vdp();	// Setup VDP tables, erase video RAM
 
   cv_set_sprite_magnification(false); // no sprite magnification
   cv_set_sprite_big(true);	// 16x16 pixel sprites.

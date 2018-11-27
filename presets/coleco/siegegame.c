@@ -7,16 +7,6 @@
 #include "common.h"
 //#link "common.c"
 
-void setup_32_column_font() {
-  cv_set_image_table(IMAGE);
-    cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - 16*8), 96*8);
-  cv_set_character_pattern_t(PATTERN);
-  cv_set_screen_mode(CV_SCREENMODE_STANDARD);
-  cv_set_color_table(COLOR);
-  cvu_vmemset(COLOR, 0x30, 8); // set color for chars 0-63
-  cvu_vmemset(COLOR+8, 0x50, 32-8); // set chars 63-255
-}
-
 ////////// GAME DATA
 
 typedef struct {
@@ -224,11 +214,18 @@ void play_game() {
   }
 }
 
+void setup_32_column_font() {
+  cv_set_colors(0, CV_COLOR_BLUE);
+  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - 16*8), 96*8);
+  cvu_vmemset(COLOR, COLOR_FG(CV_COLOR_YELLOW), 8); // set color for chars 0-63
+  cvu_vmemset(COLOR+8, COLOR_FG(CV_COLOR_WHITE), 32-8); // set chars 63-255
+}
+
 void main() {
+  vdp_setup();
   setup_32_column_font();
   cv_set_screen_active(true);
   cv_set_vint_handler(&vint_handler);
-
   draw_playfield();
   play_game();
 }

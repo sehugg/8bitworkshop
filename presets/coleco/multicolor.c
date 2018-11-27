@@ -1,6 +1,5 @@
 
 #include <stdlib.h>
-#include <string.h>
 #include <cv.h>
 #include <cvu.h>
 
@@ -14,33 +13,36 @@ typedef unsigned char byte;
 typedef signed char sbyte;
 typedef unsigned short word;
 
-uintptr_t __at(0x6a) font_bitmap_a;
-uintptr_t __at(0x6c) font_bitmap_0;
+void multicolor_fullscreen_image_table(word ofs) {
+  byte x,y;
+  for (y=0; y<48; y++) {
+    for (x=0; x<32; x++) {
+      cvu_voutb(x + (y>>2)*32, ofs++);
+    }
+  }
+}
 
 void setup_multicolor() {
   cvu_vmemset(0, 0, 0x4000);
   cv_set_image_table(IMAGE);
   cv_set_character_pattern_t(PATTERN);
   cv_set_screen_mode(CV_SCREENMODE_MULTICOLOR); // mode 3
-  // set image table
-  {
-    byte x,y;
-    word ofs = IMAGE;
-    for (y=0; y<ROWS; y++) {
-      for (x=0; x<COLS/2; x++) {
-        cvu_voutb(x + (y>>2)*COLS/2, ofs++);
-      }
-    }
-  }
+  multicolor_fullscreen_image_table(IMAGE);
 }
 
-static word next_pg[4] = { 0, 0, 0, 0 };
+typedef void SetPixelFunc(byte x, byte y, byte color);
 
 void set_pixel(byte x, byte y, byte color) {
-  word pg = (x>>1) * 8 + (y & 7) + (y & ~7)*32;
+  word pg = (x>>1)*8 + (y & 7) + (y & ~7)*32 + PATTERN;
   byte b = cvu_vinb(pg);
   b |= (x & 1) ? color : color<<4;
-  cvu_voutb(b, PATTERN + pg);
+  cvu_voutb(b, pg);
+}
+
+void set_two_pixels(byte x, byte y, byte leftcolor, byte rightcolor) {
+  word pg = (x>>1)*8 + (y & 7) + (y & ~7)*32 + PATTERN;
+  byte b = rightcolor | (leftcolor << 4);
+  cvu_voutb(b, pg);
 }
 
 void draw_line(sbyte x0, sbyte y0, sbyte x1, sbyte y1, byte color)
@@ -82,6 +84,15 @@ void main() {
   set_pixel(7, 7, 5);
   set_pixel(8, 8, 5);
   draw_line(0, 0, COLS-1, ROWS-1, 2);
+  draw_line(COLS-1, 0, 0, ROWS-1, 3);
   cv_set_screen_active(true);
+  {
+    for (int y=0; y<ROWS; y++) {
+      	for (int x=0; x<COLS; x+=2) {
+ 	    	//set_pixel(x, y, rand());
+ 	    	set_two_pixels(x, y, rand(), rand());
+        }
+    }
+  }
   while (1);
 }

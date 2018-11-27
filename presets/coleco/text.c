@@ -11,8 +11,9 @@ uintptr_t __at(0x6c) font_bitmap_0;
 void setup_text_mode() {
   cv_set_screen_mode(CV_SCREENMODE_TEXT);
   cv_set_image_table(IMAGE);
-  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - '0'*8), 256*8);
   cv_set_character_pattern_t(PATTERN);
+  cvu_vmemset(0, 0, 0x4000);
+  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - '0'*8), 256*8);
 }
 
 void show_text() {

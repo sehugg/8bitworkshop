@@ -13,7 +13,7 @@
 #define CH_FLOOR 65
 #define CH_LADDER 66
 
-const byte char_table[][8] = {
+const byte char_table[8][8] = {
   /*{w:8,h:8,count:8}*/ 
   {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF},
   {0xFF,0xBF,0xBF,0x00,0xFF,0xFB,0xFB,0x00},
@@ -25,17 +25,22 @@ const byte char_table[][8] = {
   {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
 };
 
-const byte static_sprite_table[][16*2] = {
-  /*{w:16,h:16,remap:[-5,0,1,2,3,5,6,7,8,9],count:1}*/ 
+const byte static_sprite_table[2][16*2] = {
+  /*{w:16,h:16,remap:[-5,0,1,2,3,5,6,7,8,9],count:4}*/ 
   {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x02, 0x3F,
   0x35, 0x2A, 0x20, 0x20, 0x20, 0x20, 0x20, 0x3F,
   0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x40, 0xFC,
   0x54, 0xAC, 0x04, 0x04, 0x04, 0x04, 0x04, 0xFC,
+  },{
+  0x00, 0x19, 0x1F, 0x0A, 0x05, 0x07, 0x0E, 0x1C,
+  0x3A, 0x2A, 0x3C, 0x2E, 0x1E, 0x18, 0x0E, 0x07,
+  0x00, 0x80, 0x00, 0x00, 0x00, 0xC0, 0xF0, 0x38,
+  0xFC, 0xF4, 0x7C, 0xB4, 0xB8, 0x68, 0xF0, 0xE0,
   }
 };
 
-const byte blimp_sprite_table[][16*2] = {
+const byte blimp_sprite_table[4][16*2] = {
   /*{w:16,h:16,remap:[-5,0,1,2,3,5,6,7,8,9],count:4}*/ 
   {
   0x00, 0x01, 0x03, 0xE7, 0xFF, 0xFE, 0xFE, 0xFE,
@@ -122,30 +127,6 @@ const byte sprite_table[NUM_SPRITE_PATTERNS*2][16*2] = {
 
 #define BGCOL CV_COLOR_BLUE
 
-void setup_32_column_font() {
-  cvu_vmemset(0, 0, 0x4000); // clear video memory
-  
-  cv_set_screen_mode(CV_SCREENMODE_STANDARD);
-  cv_set_color_table(COLOR);
-  cv_set_image_table(IMAGE);
-  cv_set_character_pattern_t(PATTERN);
-  
-  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - 16*8), 96*8);
-  cvu_memtovmemcpy(PATTERN+8*64, char_table, sizeof(char_table));
-  cvu_memtovmemcpy(PATTERN+8*128, static_sprite_table, sizeof(static_sprite_table));
-  
-  cvu_vmemset(COLOR, 0x30|BGCOL, 8); // set color for chars 0-63
-  cvu_vmemset(COLOR+8, 0x0|BGCOL, 32-8); // set chars 63-255
-  cvu_vmemset(COLOR+16, 0xb0|BGCOL, 1); // set chars 128-128+8
-  
-  cvu_memtovmemcpy(SPRITE_PATTERNS, sprite_table, sizeof(sprite_table));
-  flip_sprite_patterns(SPRITE_PATTERNS + 512, (const byte*)sprite_table, sizeof(sprite_table));
-  flip_sprite_patterns(SPRITE_PATTERNS + 384, (const byte*)blimp_sprite_table, sizeof(blimp_sprite_table));
-  cv_set_sprite_pattern_table(SPRITE_PATTERNS);
-  cv_set_sprite_attribute_table(SPRITES);
-  cv_set_sprite_big(true);
-}
-
 ///
 
 typedef struct Level {
@@ -189,16 +170,18 @@ void make_levels() {
       lev->gap = i>0 ? rndint(0,13) : 0;
     } while (ladder_in_gap(prevlev->ladder1, lev->gap) || 
              ladder_in_gap(prevlev->ladder2, lev->gap));
-    lev->objtype = 1;
+    lev->objtype = rndint(1,2);
     lev->objpos = rndint(1,14);
     lev->ypos = y;
     y += lev->height;
     prevlev = lev;
   }
+  // top level is special
   levels[MAX_LEVELS-1].height = 15;
   levels[MAX_LEVELS-1].gap = 0;
   levels[MAX_LEVELS-1].ladder1 = 0;
   levels[MAX_LEVELS-1].ladder2 = 0;
+  levels[MAX_LEVELS-1].objtype = 0;
 }
 
 static byte scroll_y = 0;
@@ -606,11 +589,25 @@ void play_scene() {
   blimp_pickup_scene();
 }
 
-void main() {
-  setup_32_column_font();
-  cv_set_screen_active(true);
-  cv_set_vint_handler(&vint_handler);
+void setup_graphics() {
+  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - '0'*8), 0x800);
+  cvu_memtovmemcpy(PATTERN+8*64, char_table, sizeof(char_table));
+  cvu_memtovmemcpy(PATTERN+8*128, static_sprite_table, sizeof(static_sprite_table));
   
+  cvu_vmemset(COLOR, 0x30|BGCOL, 8); // set color for chars 0-63
+  cvu_vmemset(COLOR+8, 0x0|BGCOL, 32-8); // set chars 63-255
+  cvu_vmemset(COLOR+16, 0xb0|BGCOL, 1); // set chars 128-128+8
+  
+  cvu_memtovmemcpy(SPRITE_PATTERNS, sprite_table, sizeof(sprite_table));
+  flip_sprite_patterns(SPRITE_PATTERNS + 512, (const byte*)sprite_table, sizeof(sprite_table));
+  flip_sprite_patterns(SPRITE_PATTERNS + 384, (const byte*)blimp_sprite_table, sizeof(blimp_sprite_table));
+}
+
+void main() {
+  vdp_setup();
+  setup_graphics();
+  cv_set_screen_active(true);
+  cv_set_vint_handler(&vint_handler);  
   make_levels();
   play_scene();
 }

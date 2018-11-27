@@ -903,7 +903,7 @@ function addFileToProject(type, ext, linefn) {
       var newline = "\n" + linefn(filename) + "\n";
       current_project.loadFiles([path], (err, result) => {
         if (result && result.length) {
-          alert(filename + " already exists");
+          alert(filename + " already exists; including anyway");
         } else {
           current_project.updateFile(path, "\n");
         }

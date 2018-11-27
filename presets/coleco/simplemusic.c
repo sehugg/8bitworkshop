@@ -10,7 +10,9 @@ struct cvu_music music;
 
 void play(void)
 {
+	cv_set_colors(CV_COLOR_BLACK, CV_COLOR_BLUE);
 	cvu_play_music(&music);
+	cv_set_colors(CV_COLOR_BLACK, CV_COLOR_BLACK);
 }
 
 void main(void)
@@ -18,7 +20,6 @@ void main(void)
 	cvu_init_music(&music);
 	music.notes = notes;
 	cv_set_vint_handler(&play);
-	cv_set_colors(CV_COLOR_BLACK, CV_COLOR_BLACK);
 	cv_set_screen_active(true);
 	for(;;);
 }

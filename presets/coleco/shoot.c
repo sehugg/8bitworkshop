@@ -110,42 +110,6 @@ static byte sprite_table[][16*2] = {
 #define COLOR_SCORE		CV_COLOR_LIGHT_BLUE
 #define COLOR_EXPLOSION		CV_COLOR_RED
 
-void set_shifted_pattern(const byte* src, word dest, byte shift) {
-  byte y;
-  for (y=0; y<8; y++) {
-    byte a = src[y+8];
-    byte b = src[y];
-    cvu_voutb(a>>shift, dest);
-    cvu_voutb(b>>shift | a<<(8-shift), dest+8);
-    cvu_voutb(b<<(8-shift), dest+16);
-    dest++;
-  }
-}
-
-/*
-PATTERN TABLE:
-0-95		6x8 font, starting at ' '
-67-82		shifted enemy sprites
-*/
-
-void setup_32_column_font() {
-  byte i;
-  cv_set_image_table(IMAGE);
-//  cvu_vmemset(PATTERN, 0, 8);
-  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - 16*8), 96*8);
-  cvu_memtovmemcpy(SPRITE_PATTERNS, sprite_table, sizeof(sprite_table));
-  cv_set_character_pattern_t(PATTERN);
-  cv_set_screen_mode(CV_SCREENMODE_STANDARD);
-  cv_set_color_table(COLOR);
-  cvu_vmemset(COLOR, COLOR_SCORE<<4, 8); // set color for chars 0-63
-  cvu_vmemset(COLOR+8, COLOR_FORMATION<<4, 32-8); // set chars 63-255
-  cv_set_sprite_pattern_table(SPRITE_PATTERNS);
-  cv_set_sprite_attribute_table(SPRITES);
-  cv_set_sprite_big(true);
-  for (i=0; i<8; i++)
-    set_shifted_pattern(pattern_table, PATTERN+67*8+i*3*8, i);
-}
-
 // GAME CODE
 
 typedef struct {
@@ -659,9 +623,25 @@ void play_round() {
   }
 }
 
+/*
+PATTERN TABLE:
+0-95		6x8 font, starting at ' '
+67-82		shifted enemy sprites
+*/
+
+void setup_graphics() {
+  byte i;
+  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - 16*8), 96*8);
+  cvu_memtovmemcpy(SPRITE_PATTERNS, sprite_table, sizeof(sprite_table));
+  cvu_vmemset(COLOR, COLOR_SCORE<<4, 8); // set color for chars 0-63
+  cvu_vmemset(COLOR+8, COLOR_FORMATION<<4, 32-8); // set chars 63-255
+  for (i=0; i<8; i++)
+    set_shifted_pattern(pattern_table, PATTERN+67*8+i*3*8, i);
+}
+
 void main() {
-  cv_set_screen_active(false);
-  setup_32_column_font();
+  vdp_setup();
+  setup_graphics();
   clrscr();
   cv_set_vint_handler(&vint_handler);
   cv_set_screen_active(true);

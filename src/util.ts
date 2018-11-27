@@ -22,6 +22,10 @@ export function getFilenameForPath(s:string):string {
   return toks[toks.length-1];
 }
 
+export function getFolderForPath(s:string):string {
+  return s.substring(0, s.lastIndexOf('/'));
+}
+
 export function getFilenamePrefix(s:string):string {
   var pos = s.lastIndexOf('.');
   return (pos > 0) ? s.substr(0, pos) : s;

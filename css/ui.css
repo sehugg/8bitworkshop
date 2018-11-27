@@ -400,3 +400,6 @@ div.markdown th {
   -ms-user-select: none;
   user-select: none;
 }
+.alert {
+ z-index:2;
+}

@@ -108,3 +108,25 @@ __asm
 __endasm;
 }
 
+void vdp_setup() {
+  cv_set_screen_active(false);
+  cv_set_screen_mode(CV_SCREENMODE_STANDARD);
+  cv_set_image_table(IMAGE);
+  cv_set_character_pattern_t(PATTERN);
+  cv_set_color_table(COLOR);
+  cv_set_sprite_pattern_table(SPRITE_PATTERNS);
+  cv_set_sprite_attribute_table(SPRITES);
+  cv_set_sprite_big(true);
+}
+
+void set_shifted_pattern(const byte* src, word dest, byte shift) {
+  byte y;
+  for (y=0; y<8; y++) {
+    byte a = src[y+8];
+    byte b = src[y];
+    cvu_voutb(a>>shift, dest);
+    cvu_voutb(b>>shift | a<<(8-shift), dest+8);
+    cvu_voutb(b<<(8-shift), dest+16);
+    dest++;
+  }
+}

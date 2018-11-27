@@ -164,7 +164,7 @@ describe('Worker', function() {
   it('should compile coleco skeleton', function(done) {
     // TODO: can't do skeleton b/c of dependencies
     var csource = ab2str(fs.readFileSync('presets/coleco/text.c'));
-    compile('sdcc', csource, 'coleco', done, 32768, 14, 0);
+    compile('sdcc', csource, 'coleco', done, 32768, 15, 0);
   });
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
