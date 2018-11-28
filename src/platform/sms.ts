@@ -5,11 +5,16 @@ import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap,
 import { hex, lzgmini, stringToByteArray } from "../util";
 import { MasterAudio, SN76489_Audio } from "../audio";
 import { TMS9918A } from "../video/tms9918a";
+import { ColecoVision_PRESETS } from "./coleco";
 
 // http://www.smspower.org/Development/Index
 // http://www.smspower.org/uploads/Development/sg1000.txt
 
-var SG1000_PRESETS = [
+// TODO: merge w/ coleco
+export var SG1000_PRESETS = [
+  {id:'text.c', name:'Text Mode'},
+  {id:'hello.c', name:'Scrolling Text'},
+  {id:'text32.c', name:'32-Column Color Text'},
   {id:'stars.c', name:'Scrolling Starfield'},
   {id:'cursorsmooth.c', name:'Moving Cursor'},
   {id:'simplemusic.c', name:'Simple Music'},
@@ -18,7 +23,11 @@ var SG1000_PRESETS = [
   {id:'mode2compressed.c', name:'Mode 2 Bitmap (LZG)'},
   {id:'lines.c', name:'Mode 2 Lines'},
   {id:'multicolor.c', name:'Multicolor Mode'},
+  {id:'siegegame.c', name:'Siege Game'},
+  {id:'shoot.c', name:'Solarian Game'},
+  {id:'climber.c', name:'Platform Game'},
 ];
+
 
 var SG1000_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_UP,    0, 0x1],

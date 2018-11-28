@@ -375,6 +375,8 @@ export class SourceEditor implements ProjectView {
             var endsection;
             if (platform_id == 'verilog')
               endsection = l.indexOf('end') >= pos0;
+            else if (s.startsWith(';;'))
+              endsection = l.indexOf(';;') >= pos0;
             else
               endsection = l.indexOf(';') >= pos0;
             if (endsection) {

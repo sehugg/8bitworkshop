@@ -24,7 +24,7 @@ import { TMS9918A } from "../video/tms9918a";
 // https://github.com/tursilion/convert9918
 // http://www.harmlesslion.com/cgi-bin/showprog.cgi?ColecoVision
 
-var ColecoVision_PRESETS = [
+export var ColecoVision_PRESETS = [
   {id:'text.c', name:'Text Mode'},
   {id:'hello.c', name:'Scrolling Text'},
   {id:'text32.c', name:'32-Column Color Text'},
