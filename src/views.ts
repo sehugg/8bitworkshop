@@ -63,15 +63,16 @@ export class SourceEditor implements ProjectView {
     var div = document.createElement('div');
     div.setAttribute("class", "editor");
     parent.appendChild(div);
-    this.newEditor(div);
+    var asmOverride = text && this.mode=='verilog' && /__asm\b([\s\S]+?)\b__endasm\b/.test(text);
+    this.newEditor(div, asmOverride);
     if (text)
       this.setText(text); // TODO: this calls setCode() and builds... it shouldn't
     this.setupEditor();
     return div;
   }
 
-  newEditor(parent:HTMLElement) {
-    var isAsm = this.mode=='6502' || this.mode =='z80' || this.mode=='jsasm' || this.mode=='gas'; // TODO
+  newEditor(parent:HTMLElement, isAsmOverride?:boolean) {
+    var isAsm = isAsmOverride || this.mode=='6502' || this.mode =='z80' || this.mode=='jsasm' || this.mode=='gas'; // TODO
     var lineWrap = this.mode=='markdown';
     this.editor = CodeMirror(parent, {
       theme: 'mbo',
