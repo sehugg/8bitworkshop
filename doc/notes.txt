@@ -84,6 +84,7 @@ TODO:
 - what if .c and .s names collide?
 - live coding URL
 - memory viewer: ROM/RAM/VRAM/etc
+- resize memory browser when split resize
 
 
 WEB WORKER FORMAT

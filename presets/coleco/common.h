@@ -23,8 +23,10 @@ typedef unsigned char byte;
 typedef signed char sbyte;
 typedef unsigned short word;
 
+#ifndef CV_SMS
 uintptr_t __at(0x6a) font_bitmap_a;
 uintptr_t __at(0x6c) font_bitmap_0;
+#endif
 
 #define COLOR_FGBG(fg,bg) (((fg)<<4)|(bg))
 #define COLOR_FG(fg) (((fg)<<4))

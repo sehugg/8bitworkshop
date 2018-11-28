@@ -162,10 +162,15 @@ describe('Worker', function() {
     compile('sdcc', csource, 'sound_williams-z80', done, 16384, 6, 0);
   });
   it('should compile coleco skeleton', function(done) {
-    // TODO: can't do skeleton b/c of dependencies
     var csource = ab2str(fs.readFileSync('presets/coleco/text.c'));
     compile('sdcc', csource, 'coleco', done, 32768, 15, 0);
   });
+  /* TODO: load extra files
+  it('should compile sg1000 skeleton', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/sg1000/text.c'));
+    compile('sdcc', csource, 'sg1000', done, 32768, 15, 0);
+  });
+  */
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
     var msgs = [{code:csource, platform:"verilog", tool:"verilator", dependencies:[], path:'main.v'}];

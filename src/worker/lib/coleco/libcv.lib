@@ -1,0 +1,1584 @@
+<SDCCLIB>
+
+<INDEX>
+      3211
+<MODULE>
+cv_init 9
+.__.ABS.
+_cv_init
+_cv_spint_handler
+_cv_vdpstat
+_cv_vdpreg
+_cv_vint_indicator
+_cv_vint_handler
+</MODULE>
+
+<MODULE>
+cv_vint 1162
+.__.ABS.
+_cv_vint
+</MODULE>
+
+<MODULE>
+cv_vdpout 1900
+.__.ABS.
+_cv_vdpout
+</MODULE>
+
+<MODULE>
+cv_get_vint_handler 2301
+.__.ABS.
+_cv_get_vint_handler
+</MODULE>
+
+<MODULE>
+cv_set_vint_handler 2858
+.__.ABS.
+_cv_set_vint_handler
+</MODULE>
+
+<MODULE>
+cv_get_vint_frequency 3470
+.__.ABS.
+_cv_get_vint_frequency
+</MODULE>
+
+<MODULE>
+cv_get_machine 4006
+.__.ABS.
+_cv_get_machine
+</MODULE>
+
+<MODULE>
+cv_machine_config 4565
+.__.ABS.
+_cv_machine_config
+</MODULE>
+
+<MODULE>
+cv_get_r 4860
+.__.ABS.
+_cv_get_r
+</MODULE>
+
+<MODULE>
+cv_get_controller_state 5078
+.__.ABS.
+_cv_get_controller_state
+</MODULE>
+
+<MODULE>
+cv_set_spint_handler 6586
+.__.ABS.
+_cv_set_spint_handler
+</MODULE>
+
+<MODULE>
+cv_get_external_video 7177
+.__.ABS.
+_cv_get_external_video
+</MODULE>
+
+<MODULE>
+cv_set_external_video 7764
+.__.ABS.
+_cv_set_external_video
+</MODULE>
+
+<MODULE>
+cv_get_screen_active 8446
+.__.ABS.
+_cv_get_screen_active
+</MODULE>
+
+<MODULE>
+cv_set_screen_active 9030
+.__.ABS.
+_cv_set_screen_active
+</MODULE>
+
+<MODULE>
+cv_get_screen_mode 9878
+.__.ABS.
+_cv_get_screen_mode
+</MODULE>
+
+<MODULE>
+cv_set_screen_mode 10468
+.__.ABS.
+_cv_set_screen_mode
+</MODULE>
+
+<MODULE>
+cv_get_sprite_big 11305
+.__.ABS.
+_cv_get_sprite_big
+</MODULE>
+
+<MODULE>
+cv_set_sprite_big 11880
+.__.ABS.
+_cv_set_sprite_big
+</MODULE>
+
+<MODULE>
+cv_get_sprite_collission 12719
+.__.ABS.
+_cv_get_sprite_collission
+</MODULE>
+
+<MODULE>
+cv_get_sprite_invalid 13316
+.__.ABS.
+_cv_get_sprite_invalid
+</MODULE>
+
+<MODULE>
+cv_get_sprite_magnification 14040
+.__.ABS.
+_cv_get_sprite_magnification
+</MODULE>
+
+<MODULE>
+cv_set_sprite_magnification 14624
+.__.ABS.
+_cv_set_sprite_magnification
+</MODULE>
+
+<MODULE>
+cv_set_character_pattern_table 15321
+.__.ABS.
+_cv_set_character_pattern_t
+</MODULE>
+
+<MODULE>
+cv_set_color_table 15984
+.__.ABS.
+_cv_set_color_table
+</MODULE>
+
+<MODULE>
+cv_set_colors 16650
+.__.ABS.
+_cv_set_colors
+</MODULE>
+
+<MODULE>
+cv_set_image_table 17269
+.__.ABS.
+_cv_set_image_table
+</MODULE>
+
+<MODULE>
+cv_set_sprite_attribute_table 17897
+.__.ABS.
+_cv_set_sprite_attribute_table
+</MODULE>
+
+<MODULE>
+cv_set_sprite_pattern_table 18596
+.__.ABS.
+_cv_set_sprite_pattern_table
+</MODULE>
+
+<MODULE>
+cv_set_read_vram_address 19254
+.__.ABS.
+_cv_set_read_vram_address
+</MODULE>
+
+<MODULE>
+cv_set_write_vram_address 19700
+.__.ABS.
+_cv_set_write_vram_address
+</MODULE>
+
+<MODULE>
+cv_memtovmemcpy_slow 20170
+.__.ABS.
+_cv_memtovmemcpy_slow
+</MODULE>
+
+<MODULE>
+cv_vmemtomemcpy_slow 20634
+.__.ABS.
+_cv_vmemtomemcpy_slow
+</MODULE>
+
+<MODULE>
+cv_vmemset_slow 21113
+.__.ABS.
+_cv_vmemset_slow
+</MODULE>
+
+<MODULE>
+cv_memtovmemcpy_fast 21529
+.__.ABS.
+_cv_memtovmemcpy_fast
+</MODULE>
+
+<MODULE>
+cv_vmemtomemcpy_fast 21984
+.__.ABS.
+_cv_vmemtomemcpy_fast
+</MODULE>
+
+<MODULE>
+cv_vmemset_fast 22439
+.__.ABS.
+_cv_vmemset_fast
+</MODULE>
+
+<MODULE>
+cv_voutb 22852
+.__.ABS.
+</MODULE>
+
+<MODULE>
+cv_vinb 23261
+.__.ABS.
+</MODULE>
+
+<MODULE>
+cv_set_attenuation 23668
+.__.ABS.
+_cv_set_attenuation
+</MODULE>
+
+<MODULE>
+cv_set_frequency 24437
+.__.ABS.
+_cv_set_frequency
+</MODULE>
+
+<MODULE>
+cv_set_noise 25281
+.__.ABS.
+_cv_set_noise
+</MODULE>
+
+</INDEX>
+
+<FILES>
+
+<FILE>
+cv_init
+<REL>
+XL2
+H 9 areas 8 global symbols
+M cv_init
+O -mz80
+S .__.ABS. Def0000
+S _cv_set_attenuation Ref0000
+A _CODE size 2B flags 0 addr 0
+S _cv_init Def0000
+A _DATA size 6 flags 0 addr 0
+S _cv_spint_handler Def0000
+S _cv_vdpstat Def0002
+S _cv_vdpreg Def0004
+S _cv_vint_indicator Def0003
+A _INITIALIZED size 2 flags 0 addr 0
+S _cv_vint_handler Def0000
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 2 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 01 00
+T 00 00
+R 00 00 01 00
+T 02 00
+R 00 00 01 00
+T 02 00
+R 00 00 01 00
+T 03 00
+R 00 00 01 00
+T 03 00
+R 00 00 01 00
+T 04 00
+R 00 00 01 00
+T 04 00
+R 00 00 01 00
+T 00 00
+R 00 00 02 00
+T 00 00
+R 00 00 02 00
+T 00 00
+R 00 00 00 00
+T 00 00 21 05 00 36 A0 AF F5 33 AF F5 33 CD 00 00
+R 00 00 00 00 00 03 01 00 02 0E 01 00
+T 0E 00 F1 AF 57 1E 02 D5 CD 00 00 F1 AF 57 1E 04
+R 00 00 00 00 02 09 01 00
+T 1C 00 D5 CD 00 00 F1 AF 57 1E 06 D5 CD 00 00 F1
+R 00 00 00 00 02 04 01 00 02 0D 01 00
+T 2A 00 C9
+R 00 00 00 00
+T 00 00
+R 00 00 07 00
+T 00 00 00 00
+R 00 00 07 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_vint
+<REL>
+XL2
+H 9 areas 6 global symbols
+M cv_vint
+O -mz80
+S _cv_vint_handler Ref0000
+S _cv_vdpstat Ref0000
+S .__.ABS. Def0000
+S ___sdcc_call_hl Ref0000
+S _cv_vint_indicator Ref0000
+A _CODE size 1B flags 0 addr 0
+S _cv_vint Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 21 00 00 36 FF DB BF 32 00 00 FD 21 00 00
+R 00 00 00 00 02 03 04 00 02 0A 01 00 02 0E 00 00
+T 0E 00 FD 7E 01 FD B6 00 C8 2A 00 00 C3 00 00
+R 00 00 00 00 02 0A 00 00 02 0D 03 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_vdpout
+<REL>
+XL2
+H 1 areas 3 global symbols
+M cv_vdpout
+S .__.ABS. Def0000
+S _cv_vint_indicator Ref0000
+A _CODE size 18 flags 0 addr 0
+S _cv_vdpout Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 E1 C1 C5
+R 00 00 00 00
+T 03 00
+R 00 00 00 00
+T 03 00 DB BF AF 32 00 00 78 D3 BF 3E 80 B1 D3 BF
+R 00 00 00 00 02 06 01 00
+T 11 00 3A 00 00 B7 20 EC E9
+R 00 00 00 00 02 03 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_vint_handler
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_get_vint_handler
+O -mz80
+S _cv_vint_handler Ref0000
+S .__.ABS. Def0000
+A _CODE size 4 flags 0 addr 0
+S _cv_get_vint_handler Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 2A 00 00 C9
+R 00 00 00 00 02 03 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_vint_handler
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_set_vint_handler
+O -mz80
+S _cv_vint_handler Ref0000
+S .__.ABS. Def0000
+A _CODE size F flags 0 addr 0
+S _cv_set_vint_handler Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 F3 11 00 00 21 02 00 39 01 02 00 ED B0 FB
+R 00 00 00 00 02 04 00 00
+T 0E 00 C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_vint_frequency
+<REL>
+XL2
+H 9 areas 2 global symbols
+M cv_get_vint_frequency
+O -mz80
+S .__.ABS. Def0000
+A _CODE size 8 flags 0 addr 0
+S _cv_get_vint_frequency Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 FD 21 69 00 FD 6E 00 C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_machine
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_get_machine
+O -mz80
+S _cv_machine_config Ref0000
+S .__.ABS. Def0000
+A _CODE size 9 flags 0 addr 0
+S _cv_get_machine Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 3A 00 00 07 07 E6 03 6F C9
+R 00 00 00 00 02 03 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_machine_config
+<REL>
+XL2
+H 3 areas 2 global symbols
+M cv_machine_config
+S .__.ABS. Def0000
+A _CODE size 0 flags 0 addr 0
+A _DATA size 1 flags 0 addr 0
+S _cv_machine_config Def0000
+A _GSINIT size 0 flags 0 addr 0
+T 00 00
+R 00 00 01 00
+T 00 00
+R 00 00 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_r
+<REL>
+XL2
+H 1 areas 2 global symbols
+M cv_get_r
+S .__.ABS. Def0000
+A _CODE size 4 flags 0 addr 0
+S _cv_get_r Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 ED 5F 6F C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_controller_state
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_get_controller_state
+O -mz80
+S .__.ABS. Def0000
+S ___sdcc_enter_ix Ref0000
+A _CODE size 7A flags 0 addr 0
+S _cv_get_controller_state Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 CD 00 00 3B 3E 2A D3 80 DD 7E 06 B7 28 04
+R 00 00 00 00 02 03 01 00
+T 0E 00 DB FF 18 02
+R 00 00 00 00
+T 12 00
+R 00 00 00 00
+T 12 00 DB FC
+R 00 00 00 00
+T 14 00
+R 00 00 00 00
+T 14 00 DD 77 FF DD 4E 04 DD 46 05 21 6A 00 DD 7E
+R 00 00 00 00 00 0C 00 00
+T 22 00 FF E6 0F 5F 16 00 19 7E 02 3E 2A D3 C0 DD
+R 00 00 00 00
+T 30 00 7E 06 B7 28 04 DB FF 18 02
+R 00 00 00 00
+T 39 00
+R 00 00 00 00
+T 39 00 DB FC
+R 00 00 00 00
+T 3B 00
+R 00 00 00 00
+T 3B 00 2F DD CB FF 76 20 05 6F CB FD 18 03
+R 00 00 00 00
+T 47 00
+R 00 00 00 00
+T 47 00 6F CB BD
+R 00 00 00 00
+T 4A 00
+R 00 00 00 00
+T 4A 00 7B D6 08 B2 20 04 CB E5 18 02
+R 00 00 00 00
+T 54 00
+R 00 00 00 00
+T 54 00 CB A5
+R 00 00 00 00
+T 56 00
+R 00 00 00 00
+T 56 00 7B D6 04 B2 20 05 7D CB EF 18 03
+R 00 00 00 00
+T 61 00
+R 00 00 00 00
+T 61 00 7D CB AF
+R 00 00 00 00
+T 64 00
+R 00 00 00 00
+T 64 00 03 02 33 DD E1 C9
+R 00 00 00 00
+T 6A 00
+R 00 00 00 00
+T 6A 00 0F 08 04 05 0F 07 0B 02 0F 0A 00 09 03 01
+R 00 00 00 00
+T 78 00 06 0F
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_spint_handler
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_set_spint_handler
+O -mz80
+S _cv_spint_handler Ref0000
+S .__.ABS. Def0000
+A _CODE size E flags 0 addr 0
+S _cv_set_spint_handler Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 F3 D1 C1 C5 D5 ED 43 00 00 78 B1 C8 FB C9
+R 00 00 00 00 02 09 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_external_video
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_get_external_video
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpreg Ref0000
+A _CODE size E flags 0 addr 0
+S _cv_get_external_video Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 3A 00 00 E6 02 F6 00 C6 FF 3E 00 17 6F C9
+R 00 00 00 00 02 03 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_external_video
+<REL>
+XL2
+H 9 areas 4 global symbols
+M cv_set_external_video
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpreg Ref0000
+S _cv_vdpout Ref0000
+A _CODE size 1B flags 0 addr 0
+S _cv_set_external_video Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 21 00 00 4E CB 81 FD 21 02 00 FD 39 FD 7E
+R 00 00 00 00 02 03 01 00
+T 0E 00 00 B1 77 F5 33 AF F5 33 CD 00 00 F1 C9
+R 00 00 00 00 02 0B 02 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_screen_active
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_get_screen_active
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpreg Ref0000
+A _CODE size E flags 0 addr 0
+S _cv_get_screen_active Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 3A 01 00 E6 40 F6 00 C6 FF 3E 00 17 6F C9
+R 00 00 00 00 02 03 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_screen_active
+<REL>
+XL2
+H 9 areas 5 global symbols
+M cv_set_screen_active
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpreg Ref0000
+S ___sdcc_enter_ix Ref0000
+S _cv_vdpout Ref0000
+A _CODE size 25 flags 0 addr 0
+S _cv_set_screen_active Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 CD 00 00 DD CB 04 46 28 05 01 40 00 18 03
+R 00 00 00 00 02 03 02 00
+T 0E 00
+R 00 00 00 00
+T 0E 00 01 00 00
+R 00 00 00 00
+T 11 00
+R 00 00 00 00
+T 11 00 3A 01 00 CB B7 B1 32 01 00 57 1E 01 D5 CD
+R 00 00 00 00 02 03 01 00 02 09 01 00
+T 1F 00 00 00 F1 DD E1 C9
+R 00 00 00 00 02 02 03 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_screen_mode
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_get_screen_mode
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpreg Ref0000
+A _CODE size E flags 0 addr 0
+S _cv_get_screen_mode Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 3A 00 00 E6 06 4F 3A 01 00 E6 18 B1 6F C9
+R 00 00 00 00 02 03 01 00 02 09 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_screen_mode
+<REL>
+XL2
+H 9 areas 5 global symbols
+M cv_set_screen_mode
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpreg Ref0000
+S ___sdcc_enter_ix Ref0000
+S _cv_vdpout Ref0000
+A _CODE size 32 flags 0 addr 0
+S _cv_set_screen_mode Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 CD 00 00 01 00 00 DD 5E 04 7B E6 06 57 0A
+R 00 00 00 00 02 03 02 00 02 06 01 00
+T 0E 00 E6 F9 B2 02 C5 F5 33 AF F5 33 CD 00 00 F1
+R 00 00 00 00 02 0D 03 00
+T 1C 00 C1 03 7B E6 18 5F 0A E6 E7 B3 02 57 1E 01
+R 00 00 00 00
+T 2A 00 D5 CD 00 00 F1 DD E1 C9
+R 00 00 00 00 02 04 03 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_sprite_big
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_get_sprite_big
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpreg Ref0000
+A _CODE size E flags 0 addr 0
+S _cv_get_sprite_big Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 3A 01 00 E6 02 F6 00 C6 FF 3E 00 17 6F C9
+R 00 00 00 00 02 03 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_sprite_big
+<REL>
+XL2
+H 9 areas 5 global symbols
+M cv_set_sprite_big
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpreg Ref0000
+S ___sdcc_enter_ix Ref0000
+S _cv_vdpout Ref0000
+A _CODE size 25 flags 0 addr 0
+S _cv_set_sprite_big Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 CD 00 00 DD CB 04 46 28 05 01 02 00 18 03
+R 00 00 00 00 02 03 02 00
+T 0E 00
+R 00 00 00 00
+T 0E 00 01 00 00
+R 00 00 00 00
+T 11 00
+R 00 00 00 00
+T 11 00 3A 01 00 CB 8F B1 32 01 00 57 1E 01 D5 CD
+R 00 00 00 00 02 03 01 00 02 09 01 00
+T 1F 00 00 00 F1 DD E1 C9
+R 00 00 00 00 02 02 03 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_sprite_collission
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_get_sprite_collission
+O -mz80
+S _cv_vdpstat Ref0000
+S .__.ABS. Def0000
+A _CODE size E flags 0 addr 0
+S _cv_get_sprite_collission Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 3A 00 00 E6 20 F6 00 C6 FF 3E 00 17 6F C9
+R 00 00 00 00 02 03 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_sprite_invalid
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_get_sprite_invalid
+O -mz80
+S _cv_vdpstat Ref0000
+S .__.ABS. Def0000
+A _CODE size 21 flags 0 addr 0
+S _cv_get_sprite_invalid Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 21 03 00 39 7E 2B B6 28 0A D1 C1 C5 D5 3A
+R 00 00 00 00
+T 0E 00 00 00 E6 1F 02
+R 00 00 00 00 02 02 00 00
+T 13 00
+R 00 00 00 00
+T 13 00 3A 00 00 E6 40 F6 00 C6 FF 3E 00 17 6F C9
+R 00 00 00 00 02 03 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_get_sprite_magnification
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_get_sprite_magnification
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpreg Ref0000
+A _CODE size 7 flags 0 addr 0
+S _cv_get_sprite_magnification Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 3A 01 00 E6 01 6F C9
+R 00 00 00 00 02 03 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_sprite_magnification
+<REL>
+XL2
+H 9 areas 4 global symbols
+M cv_set_sprite_magnification
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpreg Ref0000
+S _cv_vdpout Ref0000
+A _CODE size 1A flags 0 addr 0
+S _cv_set_sprite_magnification Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 21 01 00 4E CB 81 FD 21 02 00 FD 39 FD 7E
+R 00 00 00 00 02 03 01 00
+T 0E 00 00 B1 77 57 1E 01 D5 CD 00 00 F1 C9
+R 00 00 00 00 02 0A 02 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_character_pattern_table
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_set_character_pattern_table
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpout Ref0000
+A _CODE size 18 flags 0 addr 0
+S _cv_set_character_pattern_t Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 21 03 00 39 7E 0F 0F 0F E6 1F 47 0E 00 C5
+R 00 00 00 00
+T 0E 00 33 3E 04 F5 33 CD 00 00 F1 C9
+R 00 00 00 00 02 08 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_color_table
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_set_color_table
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpout Ref0000
+A _CODE size 15 flags 0 addr 0
+S _cv_set_color_table Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 C1 D1 D5 C5 06 06
+R 00 00 00 00
+T 06 00
+R 00 00 00 00
+T 06 00 CB 3A CB 1B 10 FA 53 1E 03 D5 CD 00 00 F1
+R 00 00 00 00 02 0D 01 00
+T 14 00 C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_colors
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_set_colors
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpout Ref0000
+A _CODE size 19 flags 0 addr 0
+S _cv_set_colors Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 21 02 00 39 7E 07 07 07 07 E6 F0 21 03 00
+R 00 00 00 00
+T 0E 00 39 B6 57 1E 07 D5 CD 00 00 F1 C9
+R 00 00 00 00 02 09 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_image_table
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_set_image_table
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpout Ref0000
+A _CODE size 17 flags 0 addr 0
+S _cv_set_image_table Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 21 03 00 39 7E 0F 0F E6 3F 47 0E 00 C5 33
+R 00 00 00 00
+T 0E 00 3E 02 F5 33 CD 00 00 F1 C9
+R 00 00 00 00 02 07 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_sprite_attribute_table
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_set_sprite_attribute_table
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpout Ref0000
+A _CODE size 15 flags 0 addr 0
+S _cv_set_sprite_attribute_table Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 C1 D1 D5 C5 06 07
+R 00 00 00 00
+T 06 00
+R 00 00 00 00
+T 06 00 CB 3A CB 1B 10 FA 53 1E 05 D5 CD 00 00 F1
+R 00 00 00 00 02 0D 01 00
+T 14 00 C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_sprite_pattern_table
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_set_sprite_pattern_table
+O -mz80
+S .__.ABS. Def0000
+S _cv_vdpout Ref0000
+A _CODE size 18 flags 0 addr 0
+S _cv_set_sprite_pattern_table Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 21 03 00 39 7E 0F 0F 0F E6 1F 47 0E 00 C5
+R 00 00 00 00
+T 0E 00 33 3E 06 F5 33 CD 00 00 F1 C9
+R 00 00 00 00 02 08 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_read_vram_address
+<REL>
+XL2
+H 1 areas 3 global symbols
+M cv_set_read_vram_address
+S .__.ABS. Def0000
+S _cv_vint_indicator Ref0000
+A _CODE size 18 flags 0 addr 0
+S _cv_set_read_vram_address Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 FD E1 E1 E5
+R 00 00 00 00
+T 04 00
+R 00 00 00 00
+T 04 00 DB BF AF 32 00 00 7D D3 BF 7C D3 BF 3A
+R 00 00 00 00 02 06 01 00
+T 11 00 00 00 B7 20 EE FD E9
+R 00 00 00 00 02 02 01 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_write_vram_address
+<REL>
+XL2
+H 1 areas 3 global symbols
+M cv_set_write_vram_address
+S .__.ABS. Def0000
+S _cv_vint_indicator Ref0000
+A _CODE size 1B flags 0 addr 0
+S _cv_set_write_vram_address Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 FD E1 E1 E5
+R 00 00 00 00
+T 04 00
+R 00 00 00 00
+T 04 00 DB BF AF 32 00 00 7D D3 BF 7C F6 40 D3 BF
+R 00 00 00 00 02 06 01 00
+T 12 00 3A 00 00 B7 C2 04 00 FD E9
+R 00 00 00 00 02 03 01 00 00 07 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_memtovmemcpy_slow
+<REL>
+XL2
+H 1 areas 2 global symbols
+M cv_memtovmemcpy_slow
+S .__.ABS. Def0000
+A _CODE size 21 flags 0 addr 0
+S _cv_memtovmemcpy_slow Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 21 02 00 39 5E 23 56 23 46 23 7E EB 57 B0
+R 00 00 00 00
+T 0E 00 28 10 0E BE 78 B7 28 01 14
+R 00 00 00 00
+T 17 00
+R 00 00 00 00
+T 17 00 ED A3 00 C2 17 00 15 20 F7
+R 00 00 00 00 00 06 00 00
+T 20 00
+R 00 00 00 00
+T 20 00 C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_vmemtomemcpy_slow
+<REL>
+XL2
+H 1 areas 2 global symbols
+M cv_vmemtomemcpy_slow
+S .__.ABS. Def0000
+A _CODE size 22 flags 0 addr 0
+S _cv_vmemtomemcpy_slow Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 21 02 00 39 5E 23 56 23 46 23 7E EB 57 B0
+R 00 00 00 00
+T 0E 00 28 11 0E BE 78 B7 28 01 14
+R 00 00 00 00
+T 17 00
+R 00 00 00 00
+T 17 00 ED A2 00 C2 17 00 15 C2 17 00
+R 00 00 00 00 00 06 00 00 00 0A 00 00
+T 21 00
+R 00 00 00 00
+T 21 00 C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_vmemset_slow
+<REL>
+XL2
+H 1 areas 2 global symbols
+M cv_vmemset_slow
+S .__.ABS. Def0000
+A _CODE size 1A flags 0 addr 0
+S _cv_vmemset_slow Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 E1 D1 C1 C5 D5 78 41 4F B0 28 0E 78 B7 7B
+R 00 00 00 00
+T 0E 00 28 01 0C
+R 00 00 00 00
+T 11 00
+R 00 00 00 00
+T 11 00 D3 BE 1B 10 FB 0D 20 F8
+R 00 00 00 00
+T 19 00
+R 00 00 00 00
+T 19 00 E9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_memtovmemcpy_fast
+<REL>
+XL2
+H 1 areas 2 global symbols
+M cv_memtovmemcpy_fast
+S .__.ABS. Def0000
+A _CODE size 1E flags 0 addr 0
+S _cv_memtovmemcpy_fast Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 21 02 00 39 5E 23 56 23 46 23 7E EB 57 B0
+R 00 00 00 00
+T 0E 00 28 0D 0E BE 78 B7 28 01 14
+R 00 00 00 00
+T 17 00
+R 00 00 00 00
+T 17 00 ED B3 15 C2 17 00
+R 00 00 00 00 00 06 00 00
+T 1D 00
+R 00 00 00 00
+T 1D 00 C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_vmemtomemcpy_fast
+<REL>
+XL2
+H 1 areas 2 global symbols
+M cv_vmemtomemcpy_fast
+S .__.ABS. Def0000
+A _CODE size 1E flags 0 addr 0
+S _cv_vmemtomemcpy_fast Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 21 02 00 39 5E 23 56 23 46 23 7E EB 57 B0
+R 00 00 00 00
+T 0E 00 28 0D 0E BE 78 B7 28 01 14
+R 00 00 00 00
+T 17 00
+R 00 00 00 00
+T 17 00 ED B2 15 C2 17 00
+R 00 00 00 00 00 06 00 00
+T 1D 00
+R 00 00 00 00
+T 1D 00 C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_vmemset_fast
+<REL>
+XL2
+H 1 areas 2 global symbols
+M cv_vmemset_fast
+S .__.ABS. Def0000
+A _CODE size 19 flags 0 addr 0
+S _cv_vmemset_fast Def0000
+T 00 00
+R 00 00 00 00
+T 00 00 E1 D1 C1 C5 D5 78 41 4F B0 28 0D 78 B7 7B
+R 00 00 00 00
+T 0E 00 28 01 0C
+R 00 00 00 00
+T 11 00
+R 00 00 00 00
+T 11 00 D3 BE 10 FC 0D 20 F9
+R 00 00 00 00
+T 18 00
+R 00 00 00 00
+T 18 00 E9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_voutb
+<REL>
+XL2
+H 9 areas 1 global symbols
+M cv_voutb
+O -mz80
+S .__.ABS. Def0000
+A _CODE size 0 flags 0 addr 0
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_vinb
+<REL>
+XL2
+H 9 areas 1 global symbols
+M cv_vinb
+O -mz80
+S .__.ABS. Def0000
+A _CODE size 0 flags 0 addr 0
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_attenuation
+<REL>
+XL2
+H 9 areas 3 global symbols
+M cv_set_attenuation
+O -mz80
+S .__.ABS. Def0000
+S ___sdcc_enter_ix Ref0000
+A _CODE size 2E flags 0 addr 0
+S _cv_set_attenuation Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 CD 00 00 DD 34 04 DD CB 05 3E DD 7E 05 E6
+R 00 00 00 00 02 03 01 00
+T 0E 00 0F DD 77 05 B7 20 04 DD 36 05 0F
+R 00 00 00 00
+T 19 00
+R 00 00 00 00
+T 19 00 DD 7E 04 07 07 07 07 E6 F0 4F CB F9 DD 7E
+R 00 00 00 00
+T 27 00 05 B1 D3 FF DD E1 C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_frequency
+<REL>
+XL2
+H 9 areas 2 global symbols
+M cv_set_frequency
+O -mz80
+S .__.ABS. Def0000
+A _CODE size 40 flags 0 addr 0
+S _cv_set_frequency Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 06 05
+R 00 00 00 00
+T 02 00
+R 00 00 00 00
+T 02 00 FD 21 03 00 FD 39 FD CB 01 3E FD CB 00 1E
+R 00 00 00 00
+T 10 00 10 F0 21 02 00 39 7E 07 07 07 07 E6 F0 4F
+R 00 00 00 00
+T 1E 00 CB F9 FD 21 03 00 FD 39 FD 7E 00 E6 0F B1
+R 00 00 00 00
+T 2C 00 D3 FF FD 4E 00 FD 5E 01 06 04
+R 00 00 00 00
+T 36 00
+R 00 00 00 00
+T 36 00 CB 3B CB 19 10 FA 79 D3 FF C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+<FILE>
+cv_set_noise
+<REL>
+XL2
+H 9 areas 2 global symbols
+M cv_set_noise
+O -mz80
+S .__.ABS. Def0000
+A _CODE size 15 flags 0 addr 0
+S _cv_set_noise Def0000
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _DABS size 0 flags 8 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 0 flags 0 addr 0
+A _GSFINAL size 0 flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _CABS size 0 flags 8 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 0E E0 21 02 00 39 CB 46 28 02 0E E4
+R 00 00 00 00
+T 0C 00
+R 00 00 00 00
+T 0C 00 79 21 03 00 39 B6 D3 FF C9
+R 00 00 00 00
+</REL>
+<ADB>
+</ADB>
+</FILE>
+
+</FILES>
+
+</SDCCLIB>

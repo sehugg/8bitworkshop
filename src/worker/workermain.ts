@@ -102,11 +102,19 @@ var PLATFORM_PARAMS = {
     data_size: 0x400,
     stack_end: 0x8000,
     extra_preproc_args: ['-I', '/share/include/coleco'],
-    extra_link_args: ['-k', '/share/lib/coleco',
-      '-l', 'libcv', '-l', 'libcvu', 'crt0.rel', //'/share/lib/coleco/crt0.rel',
-      //'-l', 'comp.lib', '-l', 'cvlib.lib', '-l', 'getput.lib', '/share/lib/coleco/crtcv.rel',
-      //'main.rel'
-      ],
+    extra_link_args: ['-k', '/share/lib/coleco', '-l', 'libcv', '-l', 'libcvu', 'crt0.rel'],
+  },
+  'sg1000': {
+    rom_start: 0x0000,
+    code_start: 0x0100,
+    rom_size: 0xc000,
+    data_start: 0xc000,
+    data_size: 0x400,
+    stack_end: 0xe000,
+    extra_preproc_args: ['-I', '.', '-D', 'CV_SMS'],
+    extra_link_args: ['-k', '.', '-l', 'libcv-sms', '-l', 'libcvu-sms', 'crt0-sms.rel'],
+    extra_link_files: ['libcv-sms.lib', 'libcvu-sms.lib', 'crt0-sms.rel', 'crt0-sms.lst'],
+    extra_compile_files: ['cv.h','cv_graphics.h','cv_input.h','cv_sound.h','cv_support.h','cvu.h','cvu_c.h','cvu_compression.h','cvu_f.h','cvu_graphics.h','cvu_input.h','cvu_sound.h'],
   },
   'nes': { //TODO
     define: '__NES__',
@@ -117,7 +125,7 @@ var PLATFORM_PARAMS = {
       '-D', 'NES_CHR_BANKS=0', // TODO: >0 doesn't seem to work
       '-D', 'NES_MIRRORING=0',
       ],
-    extrafiles: ['crt0.o'],
+    extra_link_files: ['crt0.o'],
   },
   'nes-conio': {
     cfgfile: 'nes.cfg',
@@ -302,9 +310,8 @@ function populateFiles(step:BuildStep, fs, options?:BuildOptions) {
   }
 }
 
-function populateExtraFiles(step:BuildStep, fs) {
+function populateExtraFiles(step:BuildStep, fs, extrafiles) {
   // TODO: cache extra files
-  var extrafiles = step.params.extrafiles;
   if (extrafiles) {
     for (var i=0; i<extrafiles.length; i++) {
       var xfn = extrafiles[i];
@@ -824,7 +831,7 @@ function linkLD65(step:BuildStep) {
     var cfgfile = '/' + platform + '.cfg';
     setupFS(FS, '65-'+platform.split('-')[0]);
     populateFiles(step, FS);
-    populateExtraFiles(step, FS);
+    populateExtraFiles(step, FS, params.extra_link_files);
     var libargs = params.libargs;
     var args = ['--cfg-path', '/share/cfg',
       '--lib-path', '/share/lib',
@@ -955,6 +962,8 @@ function parseIHX(ihx, rom_start, rom_size) {
         }
       } else if (rectype == 1) {
         return output;
+      } else {
+        console.log(s); // unknown record type
       }
     }
   }
@@ -1048,6 +1057,7 @@ function linkSDLDZ80(step:BuildStep)
     var FS = LDZ80['FS'];
     setupFS(FS, 'sdcc');
     populateFiles(step, FS);
+    populateExtraFiles(step, FS, params.extra_link_files);
     // TODO: coleco hack so that -u flag works
     if (step.platform.startsWith("coleco")) {
       FS.writeFile('crt0.rel', FS.readFile('/share/lib/coleco/crt0.rel', {encoding:'utf8'}));
@@ -1062,9 +1072,11 @@ function linkSDLDZ80(step:BuildStep)
     if (params.extra_link_args)
       args.push.apply(args, params.extra_link_args);
     args.push.apply(args, step.args);
+    //console.log(args);
     execMain(step, LDZ80, args);
     var hexout = FS.readFile("main.ihx", {encoding:'utf8'});
     var mapout = FS.readFile("main.noi", {encoding:'utf8'});
+    //console.log(mapout);
     putWorkFile("main.ihx", hexout);
     putWorkFile("main.noi", mapout);
     // return unchanged if no files changed
@@ -1096,7 +1108,7 @@ function linkSDLDZ80(step:BuildStep)
       }
     }
     return {
-      output:parseIHX(hexout, params.rom_start?params.rom_start:params.code_start, params.rom_size),
+      output:parseIHX(hexout, params.rom_start!==undefined?params.rom_start:params.code_start, params.rom_size),
       listings:listings,
       errors:errors,
       symbolmap:symbolmap,
@@ -1196,6 +1208,7 @@ function preprocessMCPP(step:BuildStep) {
   var FS = MCPP['FS'];
   setupFS(FS, 'sdcc'); // TODO: toolname
   populateFiles(step, FS);
+  populateExtraFiles(step, FS, params.extra_compile_files);
   // TODO: make configurable by other compilers
   var args = [
     "-D", "__8BITWORKSHOP__",

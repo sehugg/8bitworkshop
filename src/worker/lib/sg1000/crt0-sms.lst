@@ -1,0 +1,126 @@
+                              1 ; crt0.s for Colecovision cart
+                              2 
+                              3 	.module crt0
+                              4 	.globl _main
+                              5 	.globl _cv_init
+                              6 	.globl _cv_spint_handler
+                              7 	.globl _cv_vint
+                              8 	.globl _cv_start
+                              9 	.globl ___sdcc_call_hl
+                             10 
+                             11 	.area _HEADER(ABS)
+   0000                      12 	.org 0x0000
+                             13 
+   0000 C3r00r00      [10]   14 	jp	_cv_start
+                             15 
+   0038                      16 	.org 0x0038
+   0038 C3r10r00      [10]   17 	jp	vint
+                             18 
+   0066                      19 	.org 0x0066
+   0066 C3r22r00      [10]   20 	jp	pint
+                             21 
+                             22 	; Ordering of segments for the linker - copied from sdcc crt0.s
+                             23 	.area	_CODE
+                             24 	.area	_INITIALIZER
+                             25 	.area	_HOME
+                             26 	.area	_GSINIT
+                             27 	.area	_GSFINAL
+                             28 	.area	_DATA
+                             29 	.area	_INITIALIZED
+                             30 	.area	_BSEG
+                             31 	.area	_BSS
+                             32 	.area	_HEAP
+                             33 
+                             34 	.area	_CODE
+                             35 
+   0000                      36 _cv_start:
+   0000 F3            [ 4]   37 	di
+   0001 31 00 E0      [10]   38 	ld sp, #0xe000			; Set stack pointer directly above top of memory.
+   0004 ED 56         [ 8]   39 	im	1
+                             40 
+   0006 CDr00r00      [17]   41 	call gsinit			; Initialize global and static variables.
+                             42 
+   0009 CDr00r00      [17]   43 	call _cv_init			; Initialize Colecovision specific stuff.
+   000C CDr00r00      [17]   44 	call _main
+   000F C7            [11]   45 	rst 0x0				; Restart when main() returns.
+                             46 
+   0010                      47 vint:
+   0010 F5            [11]   48 	push	af
+   0011 C5            [11]   49 	push	bc
+   0012 D5            [11]   50 	push	de
+   0013 E5            [11]   51 	push	hl
+   0014 FD E5         [15]   52 	push	iy
+   0016 CDr00r00      [17]   53 	call	_cv_vint
+   0019 FD E1         [14]   54 	pop	iy
+   001B E1            [10]   55 	pop	hl
+   001C D1            [10]   56 	pop	de
+   001D C1            [10]   57 	pop	bc
+   001E F1            [10]   58 	pop	af
+   001F FB            [ 4]   59 	ei
+   0020 ED 4D         [14]   60 	reti
+                             61 
+   0022                      62 pint:
+   0022 F5            [11]   63 	push	af
+   0023 C5            [11]   64 	push	bc
+   0024 D5            [11]   65 	push	de
+   0025 E5            [11]   66 	push	hl
+   0026 FD E5         [15]   67 	push	iy
+                             68 	
+   0028 FD E1         [14]   69 	pop	iy
+   002A E1            [10]   70 	pop	hl
+   002B D1            [10]   71 	pop	de
+   002C C1            [10]   72 	pop	bc
+   002D F1            [10]   73 	pop	af
+   002E ED 45         [14]   74 	retn
+                             75 
+                             76 	.area   _GSINIT
+   0000                      77 gsinit::
+                             78 
+                             79 ; Delay for Mark III
+   0000 16 04         [ 7]   80     ld d, #0x04
+   0002                      81 label0:
+   0002 1E FF         [ 7]   82     ld e, #0xff
+   0004                      83 label1:
+   0004 3E FF         [ 7]   84     ld a, #0xff
+   0006                      85 label2:
+   0006 3D            [ 4]   86     dec a
+   0007 C2r06r00      [10]   87     jp NZ, label2
+   000A 1D            [ 4]   88     dec	e
+   000B C2r04r00      [10]   89     jp NZ, label1
+   000E 15            [ 4]   90     dec d
+   000F C2r02r00      [10]   91     jp NZ, label0
+                             92 
+                             93 	; Implicitly zeroed global and static variables.
+   0012 01r00r00      [10]   94 	ld	bc, #l__DATA
+   0015 78            [ 4]   95 	ld	a, b
+   0016 B1            [ 4]   96 	or	a, c
+   0017 28 0F         [12]   97 	jr	Z, zeroed_data
+   0019 21r00r00      [10]   98 	ld	hl,	#s__DATA
+   001C 36 00         [10]   99 	ld	(hl), #0x00
+   001E 0B            [ 6]  100 	dec	bc
+   001F 78            [ 4]  101 	ld	a, b
+   0020 B1            [ 4]  102 	or	a, c
+   0021 28 05         [12]  103 	jr	Z, zeroed_data
+   0023 5D            [ 4]  104 	ld	e, l
+   0024 54            [ 4]  105 	ld	d, h
+   0025 13            [ 6]  106 	inc	de
+   0026 ED B0         [21]  107 	ldir
+   0028                     108 zeroed_data:
+                            109 
+                            110 	; Explicitly initialized global variables.
+   0028 01r00r00      [10]  111 	ld	bc, #l__INITIALIZER
+   002B 78            [ 4]  112 	ld	a, b
+   002C B1            [ 4]  113 	or	a, c
+   002D 28 08         [12]  114 	jr	Z, gsinit_static
+   002F 11r00r00      [10]  115 	ld	de, #s__INITIALIZED
+   0032 21r00r00      [10]  116 	ld	hl, #s__INITIALIZER
+   0035 ED B0         [21]  117 	ldir
+                            118 
+   0037                     119 gsinit_static:
+                            120 	; Explicitly initialized static variables inserted by compiler here.
+                            121 
+                            122 	.area   _GSFINAL
+   0000 C9            [10]  123 	ret
+                            124 
+                            125 	.area _HOME
+                            126 
