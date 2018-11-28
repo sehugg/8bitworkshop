@@ -104,7 +104,7 @@ var PLATFORM_PARAMS = {
     extra_preproc_args: ['-I', '/share/include/coleco'],
     extra_link_args: ['-k', '/share/lib/coleco', '-l', 'libcv', '-l', 'libcvu', 'crt0.rel'],
   },
-  'sg1000': {
+  'sms-sg1000': {
     rom_start: 0x0000,
     code_start: 0x0100,
     rom_size: 0xc000,

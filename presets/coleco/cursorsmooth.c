@@ -48,10 +48,6 @@ void move_cursor(struct cvu_sprite *s, int controller) {
   if (cs.joystick & CV_DOWN) y++;
   if (cs.joystick & CV_UP) y--;
 
-  // Move cursor by the spinner controllers (if present)
-  x += cvu_get_spinner(0);
-  y += cvu_get_spinner(1);
-
   // Make sure cursor doesn't leave the screen.
   if(x < 0) x = 0;
   if(x > 239) x = 239;

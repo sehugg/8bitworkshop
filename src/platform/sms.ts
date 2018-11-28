@@ -196,4 +196,4 @@ const _SG1000Platform = function(mainElement) {
 
 ///
 
-PLATFORMS['sg1000'] = _SG1000Platform;
+PLATFORMS['sms-sg1000'] = _SG1000Platform;

@@ -197,6 +197,7 @@ export class SourceEditor implements ProjectView {
 
   updateListing() {
     // update editor annotations
+    // TODO: recreate editor if gutter-bytes is used (verilog)
     this.editor.clearGutter("gutter-info");
     this.editor.clearGutter("gutter-bytes");
     this.editor.clearGutter("gutter-offset");
