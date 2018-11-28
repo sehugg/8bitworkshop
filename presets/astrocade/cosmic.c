@@ -165,24 +165,24 @@ void draw_bcd_word(word bcd, byte x, byte y, byte op) {
 }
 
 // add two 16-bit BCD values
-word bcd_add(word a, word b) {
+word bcd_add(word a, word b) __naked {
   a; b; // to avoid warning
 __asm
-        ld      hl,#4
-        add     hl,sp
-        ld      iy,#2
-        add     iy,sp
-        ld      a,0 (iy)
-        add     a, (hl)
-        daa
-        ld      c,a
-        ld      a,1 (iy)
-        inc     hl
-        adc     a, (hl)
-        daa
-        ld      b,a
-        ld      l, c
-        ld      h, b
+ 	push	ix
+ 	ld	ix,#0
+	add	ix,sp
+ 	ld	a,4 (ix)
+ 	add	a, 6 (ix)
+	daa
+	ld	c,a
+ 	ld	a,5 (ix)
+ 	adc	a, 7 (ix)
+	daa
+ 	ld	b,a
+ 	ld	l, c
+ 	ld	h, b
+	pop	ix
+ 	ret
 __endasm;
 }
 

@@ -85,6 +85,7 @@ TODO:
 - live coding URL
 - memory viewer: ROM/RAM/VRAM/etc
 - resize memory browser when split resize
+- preroll the emulator so optimizer does its thing before loading rom
 
 
 WEB WORKER FORMAT
