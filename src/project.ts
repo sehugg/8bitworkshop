@@ -70,10 +70,16 @@ export class CodeProject {
   parseIncludeDependencies(text:string):string[] {
     var files = [];
     if (this.platform_id.startsWith('verilog')) {
-      var re = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
+      var re1 = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
       var m;
-      while (m = re.exec(text)) {
+      while (m = re1.exec(text)) {
         this.pushAllFiles(files, m[2]);
+      }
+      // include .arch (json) statements
+      var re2 = /^\s*([.]arch)\s+(\w+)/gmi;
+      var m;
+      while (m = re2.exec(text)) {
+        this.pushAllFiles(files, m[2]+".json");
       }
     } else {
       // for .asm -- [.]include "file"

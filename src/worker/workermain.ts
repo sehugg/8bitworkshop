@@ -251,6 +251,10 @@ function wasChanged(entry:FileEntry) : boolean {
   return entry.ts > buildstartseq;
 }
 
+function getWorkFileAsString(path:string) : string {
+  return workfs[path] && workfs[path].data as string; // TODO
+}
+
 function populateEntry(fs, path:string, entry:FileEntry) {
   fs.writeFile(path, entry.data, {encoding:entry.encoding});
   fs.utime(path, entry.ts, entry.ts);
@@ -1122,7 +1126,7 @@ function compileSDCC(step:BuildStep) {
     var FS = SDCC['FS'];
     populateFiles(step, FS);
     // load source file and preprocess
-    var code = workfs[step.path].data as string; // TODO
+    var code = getWorkFileAsString(step.path);
     var preproc = preprocessMCPP(step);
     if (preproc.errors) return preproc;
     else code = preproc.code;
@@ -1262,14 +1266,15 @@ function compileJSASM(asmcode:string, platform, options, is_inline) {
   loadGen("worker/assembler");
   var asm = new emglobal.exports.Assembler();
   var includes = [];
-  asm.loadJSON = function(filename) {
-    // TODO: what if it comes from dependencies?
-    var path = '../../presets/' + platform + '/' + filename;
-    var xhr = new XMLHttpRequest();
-    xhr.responseType = 'json';
-    xhr.open("GET", path, false);  // synchronous request
-    xhr.send(null);
-    return xhr.response;
+  asm.loadJSON = (filename:string) => {
+    var jsontext : string;
+    for (var dep of options.dependencies) {
+      if (dep.filename == filename)
+        jsontext = dep.data as string;
+    }
+    // TODO: var jsontext = getWorkFileAsString(filename) || getWorkFileAsString("local/"+filename);
+    if (!jsontext) throw "could not load " + filename;
+    return JSON.parse(jsontext);
   };
   asm.loadInclude = function(filename) {
     if (!filename.startsWith('"') || !filename.endsWith('"'))
@@ -1353,6 +1358,7 @@ function compileVerilator(step:BuildStep) {
   var platform = step.platform || 'verilog';
   var errors = [];
   var asmlines = [];
+  // TODO? gatherFiles(step);
   step.code = compileInlineASM(step.code, platform, step, errors, asmlines);
   if (errors.length) {
     return {errors:errors};
@@ -1574,7 +1580,7 @@ function compileBatariBasic(step:BuildStep) {
     var FS = BB['FS'];
     populateFiles(step, FS);
     // preprocess, pipe file to stdin
-    var code = workfs[step.path].data as string; // TODO
+    var code = getWorkFileAsString(step.path);
     code = preprocessBatariBasic(code);
     setupStdin(FS, code);
     setupFS(FS, '2600basic');
@@ -1636,7 +1642,7 @@ function translateShowdown(step:BuildStep) {
     requireSpaceBeforeHeadingText:'true',
     emoji:'true',
   });
-  var code = workfs[step.path].data as string; // TODO
+  var code = getWorkFileAsString(step.path);
   var html = converter.makeHtml(code);
   delete emglobal['require'];
   return {
