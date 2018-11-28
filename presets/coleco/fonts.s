@@ -1,4 +1,4 @@
-﻿
+
 	.area	_CODE
 	.globl	_font_bitmap_a
 	.globl	_font_bitmap_0

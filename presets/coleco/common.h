@@ -26,6 +26,9 @@ typedef unsigned short word;
 #ifndef CV_SMS
 uintptr_t __at(0x6a) font_bitmap_a;
 uintptr_t __at(0x6c) font_bitmap_0;
+#else
+extern char font_bitmap_a[];
+extern char font_bitmap_0[];
 #endif
 
 #define COLOR_FGBG(fg,bg) (((fg)<<4)|(bg))
@@ -35,6 +38,8 @@ uintptr_t __at(0x6c) font_bitmap_0;
 #define HICHAR 0xff
 
 #define CHAR(ch) (ch-LOCHAR)
+
+#define wait_vsync() __asm__("halt")
 
 extern volatile bool vint;
 extern volatile uint_fast8_t vint_counter;
@@ -51,7 +56,6 @@ extern void clrscr();
 extern byte getchar(byte x, byte y);
 extern void putchar(byte x, byte y, byte attr);
 extern void putstring(byte x, byte y, const char* string);
-extern void wait_vsync();
 extern void delay(byte i);
 extern byte rndint(byte a, byte b);
 

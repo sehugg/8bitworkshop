@@ -9,6 +9,7 @@ import { ColecoVision_PRESETS } from "./coleco";
 
 // http://www.smspower.org/Development/Index
 // http://www.smspower.org/uploads/Development/sg1000.txt
+// http://www.smspower.org/uploads/Development/richard.txt
 
 // TODO: merge w/ coleco
 export var SG1000_PRESETS = [

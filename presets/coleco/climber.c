@@ -6,6 +6,7 @@
 
 #include "common.h"
 //#link "common.c"
+//#link "fonts.s"
 
 #define XOFS 12 // sprite horiz. offset
 

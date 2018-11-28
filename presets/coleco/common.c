@@ -6,12 +6,9 @@
 
 #include "common.h"
 
-volatile bool vint;
 volatile uint_fast8_t vint_counter;
 
-void vint_handler(void)
-{
-  vint = true;
+void vint_handler(void) {
   vint_counter++;
 }
 
@@ -48,11 +45,6 @@ void putstring(byte x, byte y, const char* string) {
   while (*string) {
     putchar(x++, y, CHAR(*string++));
   }
-}
-
-void wait_vsync() {
-  vint = false;
-  while (!vint) ;
 }
 
 void delay(byte i) {
