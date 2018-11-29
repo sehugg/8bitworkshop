@@ -401,18 +401,22 @@ function fixFilename(fn : string) : string {
 }
 
 function _revertFile(e) {
-  var fn = fixFilename(projectWindows.getActiveID());
-  // TODO: .mame
-  $.get( "presets/"+platform_id+"/"+fn, function(text) {
-    if (confirm("Reset '" + fn + "' to default?")) {
-      projectWindows.getActive().setText(text);
-    }
-  }, 'text')
-  .fail(function() {
-    // TODO: delete file
-    alert("Can only revert built-in files.");
-  });
-  return true;
+  var wnd = projectWindows.getActive();
+  if (wnd && wnd.setText) {
+    var fn = fixFilename(projectWindows.getActiveID());
+    // TODO: .mame
+    $.get( "presets/"+platform_id+"/"+fn, function(text) {
+      if (confirm("Reset '" + fn + "' to default?")) {
+        wnd.setText(text);
+      }
+    }, 'text')
+    .fail(function() {
+      // TODO: delete file
+      alert("Can only revert built-in files.");
+    });
+  } else {
+    alert("Cannot revert the active window.");
+  }
 }
 
 function _downloadROMImage(e) {

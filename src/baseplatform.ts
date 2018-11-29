@@ -274,12 +274,6 @@ export abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
       return false;
     });
   }
-  /*
-  runToVsync() {
-    this.nextFrame(false);
-    this.runEval(() => { return true; });
-  }
-  */
 }
 
 ////// 6502
@@ -545,6 +539,9 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
         --depth;
       return false;
     });
+  }
+  runToVsync() {
+    this.runEval((c) => { return c['intp']; });
   }
   getToolForFilename = getToolForFilename_z80;
   getDefaultExtension() { return ".c"; };
