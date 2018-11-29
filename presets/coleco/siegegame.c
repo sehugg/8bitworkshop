@@ -7,6 +7,10 @@
 #include "common.h"
 //#link "common.c"
 
+#ifdef CV_SMS
+//#link "fonts.s"
+#endif
+
 ////////// GAME DATA
 
 typedef struct {

@@ -1214,10 +1214,12 @@ function preprocessMCPP(step:BuildStep) {
     "-D", "__8BITWORKSHOP__",
     "-D", "__SDCC_z80",
     "-D", makeCPPSafe(platform.toUpperCase()),
-    "-D", "FILE__" + makeCPPSafe(step.path+""),
     "-I", "/share/include",
     "-Q",
     step.path, "main.i"];
+  if (step.mainfile) {
+    args.unshift.apply(args, ["-D", "__MAIN__"]);
+  }
   if (params.extra_preproc_args) {
     args.push.apply(args, params.extra_preproc_args);
   }

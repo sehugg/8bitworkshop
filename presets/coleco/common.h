@@ -41,7 +41,6 @@ extern char font_bitmap_0[];
 
 #define wait_vsync() __asm__("halt")
 
-extern volatile bool vint;
 extern volatile uint_fast8_t vint_counter;
 
 extern void vint_handler(void);

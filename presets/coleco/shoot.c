@@ -7,18 +7,25 @@
 #include "common.h"
 //#link "common.c"
 
+#include "stars.h"
+//#link "stars.c"
+
+#ifdef CV_SMS
+//#link "fonts.s"
+#endif
+
 #define NSPRITES 16
 #define NMISSILES 8
 #define YOFFSCREEN 239
 
 static byte pattern_table[8*2] = {
-  /*{w:16,h:8,remap:[3,0,1,2]}*/
+  /*{w:16,h:8,brev:1,remap:[-4,0,1,2]}*/
   0xCC, 0xF2, 0xD0, 0xFC, 0xF3, 0xE8, 0xC4, 0x03,
   0x0C, 0x13, 0x02, 0x0F, 0x33, 0x05, 0x08, 0x30,
 };
 
 static byte sprite_table[][16*2] = {
-  /*{w:16,h:16,remap:[-5,0,1,2,3,5,6,7,8,9],count:15}*/ 
+  /*{w:16,h:16,brev:1,remap:[4,0,1,2,3,5,6,7,8,9],count:15}*/ 
   {
   0x01, 0x03, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01,
   0x03, 0x86, 0xCD, 0xBE, 0x9F, 0xB1, 0xC0, 0x80,
@@ -205,30 +212,28 @@ void setup_formation() {
 #define BLANK 0
 
 void draw_row(byte row) {
-  byte i;
+  byte i,j;
   byte x = formation_offset_x / 8;
   byte xd = (formation_offset_x & 7) * 3;
   byte y = 3 + row * 2;
-  //vcolumns[y].attrib = 0x2;
-  //vcolumns[y].scroll = formation_offset_x;
   for (i=0; i<x; i++)
-    putchar(i, y, BLANK);
+    putchar(i, y, starfield_get_tile_xy(i,y));
   for (i=0; i<ENEMIES_PER_ROW; i++) {
     byte shape = formation[i + row*ENEMIES_PER_ROW].shape;
     if (shape) {
       shape += xd;
-      putchar(x, y, shape);
-      putchar(x+1, y, shape+1);
-      putchar(x+2, y, shape+2);
+      for (j=0; j<3; j++) {
+        putchar(x++, y, shape++);
+      }
     } else {
-      putchar(x, y, BLANK);
-      putchar(x+1, y, BLANK);
-      putchar(x+2, y, BLANK);
+      for (j=0; j<3; j++) {
+        putchar(x, y, starfield_get_tile_xy(x,y));
+        x++;
+      }
     }
-    x += 3;
   }
   for (; x<COLS; x++)
-    putchar(x, y, BLANK);
+    putchar(x, y, starfield_get_tile_xy(x,y));
 }
 
 void draw_next_row() {
@@ -620,6 +625,7 @@ void play_round() {
     if (!enemies_left) end_timer--;
     wait_for_frame();
     copy_sprites();
+    starfield_update();
   }
 }
 
@@ -643,6 +649,7 @@ void main() {
   vdp_setup();
   setup_graphics();
   clrscr();
+  starfield_setup();
   cv_set_vint_handler(&vint_handler);
   cv_set_screen_active(true);
   play_round();
