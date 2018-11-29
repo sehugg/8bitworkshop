@@ -206,4 +206,4 @@ const _SG1000Platform = function(mainElement) {
 
 ///
 
-PLATFORMS['sms-sg1000'] = _SG1000Platform;
+PLATFORMS['sms-sg1000-libcv'] = _SG1000Platform;
