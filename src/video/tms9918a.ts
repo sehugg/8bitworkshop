@@ -10,7 +10,7 @@
  * GNU General Public License v2.0
  */
 
-import { hex, lpad } from "../util";
+import { hex, lpad, RGBA } from "../util";
 
 enum TMS9918A_Mode {
   GRAPHICS = 0,
@@ -38,7 +38,7 @@ export class TMS9918A {
   addressRegister : number;
   statusRegister : number;
 
-  palette : [number, number, number][];
+  palette : number[];
 
   latch : boolean;
   prefetchByte : number;
@@ -64,6 +64,7 @@ export class TMS9918A {
 
   canvasContext;
   imageData;
+  datau32;
 
   width : number;
   height : number;
@@ -75,22 +76,22 @@ export class TMS9918A {
     this.enableFlicker = enableFlicker;
 
     this.palette = [
-        [0, 0, 0],
-        [0, 0, 0],
-        [33, 200, 66],
-        [94, 220, 120],
-        [84, 85, 237],
-        [125, 118, 252],
-        [212, 82, 77],
-        [66, 235, 245],
-        [252, 85, 84],
-        [255, 121, 120],
-        [212, 193, 84],
-        [230, 206, 128],
-        [33, 176, 59],
-        [201, 91, 186],
-        [204, 204, 204],
-        [255, 255, 255]
+        RGBA(0, 0, 0),
+        RGBA(0, 0, 0),
+        RGBA(33, 200, 66),
+        RGBA(94, 220, 120),
+        RGBA(84, 85, 237),
+        RGBA(125, 118, 252),
+        RGBA(212, 82, 77),
+        RGBA(66, 235, 245),
+        RGBA(252, 85, 84),
+        RGBA(255, 121, 120),
+        RGBA(212, 193, 84),
+        RGBA(230, 206, 128),
+        RGBA(33, 176, 59),
+        RGBA(201, 91, 186),
+        RGBA(204, 204, 204),
+        RGBA(255, 255, 255)
     ];
 
     this.canvasContext = this.canvas.getContext("2d");
@@ -133,11 +134,12 @@ export class TMS9918A {
 
         this.canvas.width = 304;
         this.canvas.height = 240;
-        this.canvasContext.fillStyle = 'rgba(' + this.palette[7].join(',') + ',1.0)';
+        this.canvasContext.fillStyle = '#'+hex(this.palette[7],6);
         this.canvasContext.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         // Build the array containing the canvas bitmap (256 * 192 * 4 bytes (r,g,b,a) format each pixel)
         this.imageData = this.canvasContext.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        this.datau32 = new Uint32Array(this.imageData.data.buffer);
         this.width = this.canvas.width;
         this.height = this.canvas.height;
     }
@@ -156,9 +158,9 @@ export class TMS9918A {
     }
 
     drawScanline(y:number) {
-        var imageData = this.imageData.data,
+        var imageData = this.datau32,
             width = this.width,
-            imageDataAddr = (y * width) << 2,
+            imageDataAddr = (y * width),
             screenMode = this.screenMode,
             textMode = this.textMode,
             bitmapMode = this.bitmapMode,
@@ -320,20 +322,14 @@ export class TMS9918A {
                     color = bgColor;
                 }
                 rgbColor = palette[color];
-                imageData[imageDataAddr++] = rgbColor[0]; // R
-                imageData[imageDataAddr++] = rgbColor[1]; // G
-                imageData[imageDataAddr++] = rgbColor[2]; // B
-                imageDataAddr++; // Skip alpha
+                imageData[imageDataAddr++] = rgbColor;
             }
         }
         // Top/bottom border
         else {
             rgbColor = palette[bgColor];
             for (x = 0; x < width; x++) {
-                imageData[imageDataAddr++] = rgbColor[0]; // R
-                imageData[imageDataAddr++] = rgbColor[1]; // G
-                imageData[imageDataAddr++] = rgbColor[2]; // B
-                imageDataAddr++; // Skip alpha
+                imageData[imageDataAddr++] = rgbColor;
             }
         }
         if (y === vBorder + drawHeight) {
