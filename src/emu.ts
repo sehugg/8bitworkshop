@@ -445,22 +445,3 @@ export function newAddressDecoder(table : AddressDecoderEntry[], options?:Addres
   return new (AddressDecoder as any)(table, options);
 }
 
-// STACK DUMP
-
-var addr2symbol = {};		// address to symbol name map (TODO: import)
-
-export function lookupSymbol(addr) {
-  var start = addr;
-  var foundsym;
-  while (addr2symbol && addr >= 0) {
-    var sym = addr2symbol[addr];
-    if (sym && sym.startsWith('_')) { // return first C symbol we find
-      return addr2symbol[addr] + " + " + (start-addr);
-    } else if (sym && !foundsym) { // cache first non-C symbol found
-      foundsym = sym;
-    }
-    addr--;
-  }
-  return foundsym || "";
-}
-

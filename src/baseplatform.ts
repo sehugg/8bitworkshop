@@ -1,5 +1,5 @@
 
-import { RAM, RasterVideo, dumpRAM, lookupSymbol } from "./emu";
+import { RAM, RasterVideo, dumpRAM } from "./emu";
 import { hex, printFlags, invertMap } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { disassemble6502 } from "./cpu/disasm6502";
@@ -932,7 +932,7 @@ export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], st
     var opcode = read(addr + jsrofs); // might be out of bounds
     if (opcode == jsrop) { // JSR
       s += "\n$" + hex(sp) + ": ";
-      s += hex(addr,4) + " " + lookupSymbol(addr);
+      s += hex(addr,4) + " " + lookupSymbol(platform, addr);
       sp++;
       nraw = 0;
     } else {
@@ -944,3 +944,20 @@ export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], st
   }
   return s+"\n";
 }
+
+export function lookupSymbol(platform:Platform, addr:number) {
+  var start = addr;
+  var foundsym;
+  var addr2symbol = platform.debugSymbols && platform.debugSymbols.addr2symbol;
+  while (addr2symbol && addr >= 0) {
+    var sym = addr2symbol[addr];
+    if (sym && sym.startsWith('_')) { // return first C symbol we find
+      return addr2symbol[addr] + " + " + (start-addr);
+    } else if (sym && !foundsym) { // cache first non-C symbol found
+      foundsym = sym;
+    }
+    addr--;
+  }
+  return foundsym || "";
+}
+
