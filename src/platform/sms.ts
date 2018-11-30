@@ -141,7 +141,7 @@ const _SG1000Platform = function(mainElement, isSMS:boolean) {
     }
 
     loadROM(title, data) {
-      rom = padBytes(data, 0xc000);
+      rom = padBytes(data, 0xc000); // TODO
       this.reset();
     }
 

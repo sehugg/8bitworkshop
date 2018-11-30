@@ -20,6 +20,7 @@ enum TMS9918A_Mode {
   BITMAP_TEXT = 4,
   BITMAP_MULTICOLOR = 5,
   ILLEGAL = 6,
+  MODE4 = 7,
 };
 
 /**
@@ -427,8 +428,7 @@ export class TMS9918A {
     writeAddress(i:number) {
         if (!this.latch) {
             this.addressRegister = (this.addressRegister & 0xFF00) | i;
-        }
-        else {
+        } else {
             switch ((i & 0xc0) >> 6) {
                 // Set read address
                 case 0:
@@ -442,6 +442,7 @@ export class TMS9918A {
                 case 2:
                     this.setVDPWriteRegister(i);
                     break;
+                // Color RAM (SMS only)
                 case 3:
                     this.setVDPWriteCommand3(i);
                     break;
@@ -699,8 +700,19 @@ export class SMSVDP extends TMS9918A {
 
     writeToCRAM : boolean;
     cram = new Uint8Array(32); // color RAM
+    cpalette = new Uint32Array(32); // color RAM (RGBA)
     registers = new Uint8Array(16); // 8 more registers
 
+    updateMode(reg0:number, reg1:number) {
+        if (reg0 & 0x04) {
+            this.screenMode = TMS9918A_Mode.MODE4;
+            this.nameTable = (this.registers[2] & 0xf) << 10;
+            this.spriteAttributeTable = (this.registers[5] & 0x7f) << 7;
+            this.spritePatternTable = (this.registers[6] & 0x7) << 11;
+        } else {
+            super.updateMode(reg0, reg1);
+        }
+    }
     setReadAddress(i:number) {
         super.setReadAddress(i);
         this.writeToCRAM = false;
@@ -718,7 +730,9 @@ export class SMSVDP extends TMS9918A {
     }
     writeData(i:number) {
         if (this.writeToCRAM) {
-            this.cram[this.addressRegister++ & (this.cram.length-1)] = i;
+            var palindex = this.addressRegister++ & (this.cram.length-1);
+            this.cram[palindex] = i;
+            this.cpalette[palindex] = RGBA((i&3)<<6, ((i>>2)&3)<<6, ((i>>4)&3)<<6);
             this.addressRegister &= this.ramMask;
             this.redrawRequired = true;
         } else {
@@ -734,5 +748,165 @@ export class SMSVDP extends TMS9918A {
         super.restoreState(state);
         this.cram.set(state.cram);
     }
+    drawScanline(y:number) {
+        if (this.screenMode == TMS9918A_Mode.MODE4) // TODO: check for other uses
+            this.drawScanlineMode4(y);	// special mode 4
+        else
+            super.drawScanline(y);
+    }
+    drawScanlineMode4(y:number) {
+        var imageData = this.datau32,
+            width = this.width,
+            imageDataAddr = (y * width),
+            drawWidth = 256,
+            drawHeight = 192, // TODO
+            hBorder = (width - drawWidth) >> 1,
+            vBorder = (this.height - drawHeight) >> 1,
+            fgColor = this.fgColor,
+            bgColor = this.bgColor,
+            ram = this.ram,
+            nameTable = this.nameTable,
+            patternTableMask = this.patternTableMask,
+            spriteAttributeTable = this.spriteAttributeTable,
+            spritePatternTable = this.spritePatternTable,
+            spriteSize = (this.registers[1] & 0x2) !== 0,
+            spriteMagnify = this.registers[1] & 0x1,
+            spriteDimension = (spriteSize ? 16 : 8) << (spriteMagnify ? 1 : 0),
+            maxSpritesOnLine = this.flicker ? 8 : 64,
+            cpalette = this.cpalette,
+            collision = false, ninthSprite = false, ninthSpriteIndex = 63,
+            x, color, rgbColor, name;
+        if (y >= vBorder && y < vBorder + drawHeight && this.displayOn) {
+            var y1 = y - vBorder;
+            // Pre-process sprites
+            if (true) {
+                var spriteBuffer = this.spriteBuffer;
+                spriteBuffer.fill(0);
+                var spritesOnLine = 0;
+                var endMarkerFound = false;
+                var s;
+                for (s = 0; s < 64 && spritesOnLine <= maxSpritesOnLine && !endMarkerFound; s++) {
+                    var sy = ram[spriteAttributeTable + s];
+                    if (sy !== 0xD0) {
+                        if (sy > 0xD0) {
+                            sy -= 256;
+                        }
+                        sy++;
+                        var sy1 = sy + spriteDimension;
+                        var y2 = -1;
+                        if (s < 8 /*|| !bitmapMode*/) { // TODO?
+                            if (y1 >= sy && y1 < sy1) {
+                                y2 = y1;
+                            }
+                        }
+                        else {
+                            // Emulate sprite duplication bug
+                            var yMasked = y1 & (((this.registers[4] & 0x03) << 6) | 0x3F);
+                            if (yMasked >= sy && yMasked < sy1) {
+                                y2 = yMasked;
+                            }
+                            else if (y1 >= 64 && y1 < 128 && y1 >= sy && y1 < sy1) {
+                                y2 = y1;
+                            }
+                        }
+                        if (y2 !== -1) {
+                            if (spritesOnLine < maxSpritesOnLine) {
+                                var sx = ram[spriteAttributeTable + s*2 + 0x80];
+                                var sPatternNo = ram[spriteAttributeTable + s*2 + 0x81];
+                                var sColor = 0; // TODO
+                                //var sColor = ram[spriteAttributeAddr + 3] & 0x0F;
+                                //if ((ram[spriteAttributeAddr + 3] & 0x80) !== 0) {
+                                //    sx -= 32;
+                                //}
+                                var sLine = (y2 - sy) >> spriteMagnify;
+                                var sPatternBase = spritePatternTable + (sPatternNo << 3) + sLine;
+                                for (var sx1 = 0; sx1 < spriteDimension; sx1++) {
+                                    var sx2 = sx + sx1;
+                                    if (sx2 >= 0 && sx2 < drawWidth) {
+                                        var sx3 = sx1 >> spriteMagnify;
+                                        var sPatternByte = ram[sPatternBase + (sx3 >= 8 ? 16 : 0)];
+                                        if ((sPatternByte & (0x80 >> (sx3 & 0x07))) !== 0) {
+                                            if (spriteBuffer[sx2] === 0) {
+                                                spriteBuffer[sx2] = sColor + 1;
+                                            }
+                                            else {
+                                                collision = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            spritesOnLine++;
+                        }
+                    }
+                    else {
+                        endMarkerFound = true;
+                    }
+                }
+                if (spritesOnLine > 8) {
+                    ninthSprite = true;
+                    ninthSpriteIndex = s;
+                }
+            }
+            // Draw
+            var rowOffset = (y1 >> 3) << 6;
+            var lineOffset = y1 & 7;
+            for (x = 0; x < width; x++) {
+                if (x >= hBorder && x < hBorder + drawWidth) {
+                    var x1 = x - hBorder;
+                    var nameOfs = nameTable + rowOffset + ((x1 >> 3) << 1);
+                    name = ram[nameOfs] + (ram[nameOfs+1] << 8);
+                    var patofs = ((((name & 0x1ff) << 3) + lineOffset) << 2);
+                    var pat0 = ram[patofs+0];
+                    var pat1 = ram[patofs+1];
+                    var pat2 = ram[patofs+2];
+                    var pat3 = ram[patofs+3];
+                    pat0 >>= x1 & 7;
+                    pat1 >>= x1 & 7;
+                    pat2 >>= x1 & 7;
+                    pat3 >>= x1 & 7;
+                    color = (pat0&1) | ((pat1&1)<<1) | ((pat2&1)<<2) | ((pat3&1)<<3);
+                    if (color === 0) {
+                        color = bgColor;
+                    }
+                    // Sprites
+                    if (true) {
+                        var spriteColor = spriteBuffer[x1] - 1;
+                        if (spriteColor > 0) {
+                            color = spriteColor;
+                        }
+                    }
+                }
+                else {
+                    color = bgColor;
+                }
+                rgbColor = cpalette[color];
+                imageData[imageDataAddr++] = rgbColor;
+            }
+        }
+        // Top/bottom border
+        else {
+            rgbColor = this.cpalette[bgColor]; // TODO?
+            for (x = 0; x < width; x++) {
+                imageData[imageDataAddr++] = rgbColor;
+            }
+        }
+        if (y === vBorder + drawHeight) {
+            this.statusRegister |= 0x80;
+            if (this.interruptsOn) {
+                this.cru.setVDPInterrupt(true);
+            }
+        }
+        if (collision) {
+            this.statusRegister |= 0x20;
+        }
+        if ((this.statusRegister & 0x40) === 0) {
+            this.statusRegister |= ninthSpriteIndex;
+        }
+        if (ninthSprite) {
+            this.statusRegister |= 0x40;
+        }
+    }
+
 };
 
