@@ -5,13 +5,13 @@
 import $ = require("jquery");
 import * as bootstrap from "bootstrap";
 import { CodeProject } from "./project";
-import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError } from "./workertypes";
+import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "./workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols } from "./baseplatform";
 import { PLATFORMS } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
-import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG } from "./util";
+import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG, byteArrayToUTF8 } from "./util";
 import { StateRecorderImpl } from "./recorder";
 
 // external libs (TODO)
@@ -259,19 +259,31 @@ function _uploadNewFile(e) {
 function handleFileUpload(files: File[]) {
   console.log(files);
   var index = 0;
+  var gotoMainFile = (files.length == 1);
   function uploadNextFile() {
     var f = files[index++];
     if (!f) {
       console.log("Done uploading");
-      gotoNewLocation();
+      if (gotoMainFile)
+        gotoNewLocation(); // TODO: upload w/o starting new project?
+      else
+        alert("Files uploaded.");
     } else {
       var path = "local/" + f.name;
       var reader = new FileReader();
       reader.onload = function(e) {
-        var data = (<any>e.target).result;
+        var arrbuf = (<any>e.target).result as ArrayBuffer;
+        var data : FileData = new Uint8Array(arrbuf);
+        // convert to UTF8, unless it's a binary file (TODO)
+        if (path.endsWith("bin")) {
+          gotoMainFile = false;
+        } else {
+          data = byteArrayToUTF8(data);
+        }
+        // store in local forage
         store.setItem(path, data, function(err, result) {
           if (err)
-            console.log(err);
+            alert("Error uploading " + path + ": " + err);
           else {
             console.log("Uploaded " + path + " " + data.length + " bytes");
             if (index == 1)
@@ -280,7 +292,7 @@ function handleFileUpload(files: File[]) {
           }
         });
       }
-      reader.readAsText(f);
+      reader.readAsArrayBuffer(f); // read as binary
     }
   }
   if (files) uploadNextFile();
@@ -460,6 +472,7 @@ function _downloadAllFilesZipFile(e) {
     store.keys( (err, keys : string[]) => {
       if (err) throw err;
       keys.forEach((path) => {
+        // TODO: handle binary files
         store.getItem(path, (err, text) => {
           if (text) {
             zip.file(fixFilename(getFilenameForPath(path)), text);

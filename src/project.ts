@@ -84,7 +84,7 @@ export class CodeProject {
     } else {
       // for .asm -- [.]include "file"
       // for .c -- #include "file"
-      var re2 = /^\s+([.#]?include)\s+"(.+?)"/gmi;
+      var re2 = /^\s+([.#]?include|incbin)\s+"(.+?)"/gmi;
       while (m = re2.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }

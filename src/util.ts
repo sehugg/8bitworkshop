@@ -258,39 +258,8 @@ export function lzgmini() {
   }
 
   // Get the decoded string from an UTF-8 encoded array
-  this.getStringUTF8 = function():string
-  {
-    var str = "";
-    if (outdata != null)
-    {
-      var charLUT = new Array();
-      for (var i = 0; i < 128; ++i)
-        charLUT[i] = String.fromCharCode(i);
-      var c;
-      var outlen = outdata.length;
-      for (var i = 0; i < outlen;)
-      {
-        c = outdata[i++];
-        if (c < 128)
-        {
-          str += charLUT[c];
-        }
-        else
-        {
-          if ((c > 191) && (c < 224))
-          {
-            c = ((c & 31) << 6) | (outdata[i++] & 63);
-          }
-          else
-          {
-            c = ((c & 15) << 12) | ((outdata[i] & 63) << 6) | (outdata[i+1] & 63);
-            i += 2;
-          }
-          str += String.fromCharCode(c);
-        }
-      }
-    }
-    return str;
+  this.getStringUTF8 = function():string {
+    return byteArrayToUTF8(outdata);
   }
 }
 
@@ -310,6 +279,38 @@ export function byteArrayToString(outdata : number[] | Uint8Array) : string {
     var outlen = outdata.length;
     for (var i = 0; i < outlen; i++)
       str += charLUT[outdata[i]];
+  }
+  return str;
+}
+
+export function byteArrayToUTF8(outdata : number[] | Uint8Array) : string {
+  var str = "";
+  var charLUT = new Array();
+  for (var i = 0; i < 128; ++i)
+    charLUT[i] = String.fromCharCode(i);
+  var c;
+  var outlen = outdata.length;
+  for (var i = 0; i < outlen;)
+  {
+    c = outdata[i++];
+    if (c < 128)
+    {
+      str += charLUT[c];
+    }
+    else
+    {
+      if ((c > 191) && (c < 224))
+      {
+        c = ((c & 31) << 6) | (outdata[i++] & 63);
+      }
+      else
+      {
+        c = ((c & 15) << 12) | ((outdata[i] & 63) << 6) | (outdata[i+1] & 63);
+        i += 2;
+        if (c == 0xfeff) continue; // ignore BOM
+      }
+      str += String.fromCharCode(c);
+    }
   }
   return str;
 }
