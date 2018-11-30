@@ -24,10 +24,9 @@ archive:
 
 web:
 	ifconfig | grep inet
-	python2 -m SimpleHTTPServer 2>> http.out
+	python3 scripts/serveit.py 2>> http.out
 
 tsweb:
 	ifconfig | grep inet
 	$(TSC) -w &
-	python2 -m SimpleHTTPServer 2>> http.out
-	#node ../nodejs-typescript-webserver/bin/FileServer.js .
+	python3 scripts/serveit.py 2>> http.out
