@@ -1,4 +1,4 @@
-
+﻿
 #include <stdlib.h>
 #include <cv.h>
 #include <cvu.h>
@@ -35,7 +35,10 @@ typedef void SetPixelFunc(byte x, byte y, byte color);
 void set_pixel(byte x, byte y, byte color) {
   word pg = (x>>1)*8 + (y & 7) + (y & ~7)*32 + PATTERN;
   byte b = cvu_vinb(pg);
-  b |= (x & 1) ? color : color<<4;
+  if (x&1)
+    b = color | (b & 0xf0);
+  else
+    b = (color<<4) | (b & 0xf);
   cvu_voutb(b, pg);
 }
 
@@ -45,54 +48,27 @@ void set_two_pixels(byte x, byte y, byte leftcolor, byte rightcolor) {
   cvu_voutb(b, pg);
 }
 
-void draw_line(sbyte x0, sbyte y0, sbyte x1, sbyte y1, byte color)
-{
-    int dx, dy, p, x, y;
-    dx=x1-x0;
-    dy=y1-y0;
-    x=x0;
-    y=y0;
-    p=2*dy-dx;
-    while(x<x1)
-    {
-        if(p>=0)
-        {
-            set_pixel(x,y,color);
-            y=y+1;
-            p=p+2*dy-2*dx;
-        }
-        else
-        {
-            set_pixel(x,y,color);
-            p=p+2*dy;
-        }
-        x=x+1;
-    }
+void draw_line(int x0, int y0, int x1, int y1, byte color) {
+  int dx = abs(x1-x0);
+  int sx = x0<x1 ? 1 : -1;
+  int dy = abs(y1-y0);
+  int sy = y0<y1 ? 1 : -1;
+  int err = (dx>dy ? dx : -dy)>>1;
+  int e2;
+  for(;;) {
+    set_pixel(x0, y0, color);
+    if (x0==x1 && y0==y1) break;
+    e2 = err;
+    if (e2 > -dx) { err -= dy; x0 += sx; }
+    if (e2 < dy) { err += dx; y0 += sy; }
+  }
 }
  
 void main() {
   setup_multicolor();
-  set_pixel(0, 0, 4);
-  set_pixel(1, 0, 4);
-  set_pixel(COLS-1, 0, 4);
-  set_pixel(0, 1, 6);
-  set_pixel(0, 2, 6);
-  set_pixel(0, 3, 6);
-  set_pixel(1, 4, 4);
-  set_pixel(2, 6, 5);
-  set_pixel(4, 7, 5);
-  set_pixel(7, 7, 5);
-  set_pixel(8, 8, 5);
-  draw_line(0, 0, COLS-1, ROWS-1, 2);
-  draw_line(COLS-1, 0, 0, ROWS-1, 3);
   cv_set_screen_active(true);
-  {
-    for (int y=0; y<ROWS; y++) {
-      	for (int x=0; x<COLS; x+=2) {
- 	    	//set_pixel(x, y, rand());
- 	    	set_two_pixels(x, y, rand(), rand());
-        }
-    }
+  while(1) {
+    draw_line(rand()%64, rand()%48, rand()%64, rand()%48, rand()&15);
   }
   while (1);
 }

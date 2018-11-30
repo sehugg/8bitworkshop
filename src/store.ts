@@ -30,43 +30,6 @@ var OldFileStore = function(storage, prefix:string) {
   }
 }
 
-/*
-// localforage-compatible driver for old file store format
-var OldFileStoreDriver = {
-    _driver: 'oldFileStoreDriver',
-    _initStorage: function(options) {
-        this._store = new OldFileStore(localStorage, options.name + '/');
-    },
-    clear: function(callback) {
-      // Custom implementation here...
-    },
-    getItem: function(key, callback) {
-      callback(null, this._store.loadFile(key));
-    },
-    iterate: function(iteratorCallback, successCallback) {
-      // Custom implementation here...
-    },
-    key: function(n, callback) {
-        // Custom implementation here...
-    },
-    keys: function(callback) {
-      callback(this._store.getFiles(''));
-    },
-    length: function(callback) {
-      callback(this._store.getFiles('').length);
-    },
-    removeItem: function(key, callback) {
-      this._store.deleteFile(key);
-      callback();
-    },
-    setItem: function(key, value, callback) {
-      this._store.saveFile(key, value);
-      callback();
-    }
-}
-localforage.defineDriver(OldFileStoreDriver);
-*/
-
 // copy localStorage to new driver
 function copyFromOldStorageFormat(platformid:string, newstore, conversioncallback:()=>void) {
   var alreadyMigratedKey = "__migrated_" + platformid;

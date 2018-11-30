@@ -84,11 +84,11 @@ const _SG1000Platform = function(mainElement) {
         read: function(addr) {
   				addr &= 0xff;
           //console.log('IO read', hex(addr,4));
-          switch (addr) {
-            case 0xbe: return vdp.readData();
-            case 0xbf: return vdp.readStatus();
-            case 0xc0: case 0xdc: return inputs[0] ^ 0xff;
-            case 0xc1: case 0xdd: return inputs[1] ^ 0xff;
+          switch (addr & 0xc1) {
+            case 0x80: return vdp.readData();
+            case 0x81: return vdp.readStatus();
+            case 0xc0: return inputs[0] ^ 0xff;
+            case 0xc1: return inputs[1] ^ 0xff;
           }
           return 0;
       	},
@@ -96,10 +96,11 @@ const _SG1000Platform = function(mainElement) {
   				addr &= 0xff;
   				val &= 0xff;
           //console.log('IO write', hex(addr,4), hex(val,2));
-          switch (addr) {
-            case 0xbe: return vdp.writeData(val);
-            case 0xbf: return vdp.writeAddress(val);
-            case 0x7e: case 0x7f: return psg.setData(val);
+          switch (addr & 0xc1) {
+            case 0x80: return vdp.writeData(val);
+            case 0x81: return vdp.writeAddress(val);
+            case 0x40:
+            case 0x41: return psg.setData(val);
           }
       	}
       };
