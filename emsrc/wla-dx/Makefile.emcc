@@ -1,0 +1,59 @@
+
+# make clean
+# rm CMakeCache.txt 
+# cmake -G "Unix Makefiles" .
+# make
+# zip -9r optables binaries/gen_*
+# make clean
+# rm CMakeCache.txt 
+# emmake cmake -G "Unix Makefiles" .
+# unzip -o optables && touch binaries/gen_*
+# emmake make
+# (repeat until it works)
+
+
+all:\
+js/wla-6502.js\
+js/wla-6510.js\
+js/wla-65816.js\
+js/wla-65c02.js\
+js/wlab.js\
+js/wla-gb.js\
+js/wla-huc6280.js\
+js/wlalink.js\
+js/wla-spc700.js\
+js/wla-z80.js\
+wasm/wla-6502.js\
+wasm/wla-6510.js\
+wasm/wla-65816.js\
+wasm/wla-65c02.js\
+wasm/wlab.js\
+wasm/wla-gb.js\
+wasm/wla-huc6280.js\
+wasm/wlalink.js\
+wasm/wla-spc700.js\
+wasm/wla-z80.js\
+
+
+js/%.js: bin/%.bc
+	emcc -O2 --memory-init-file 0 \
+		-s WASM=0 \
+		-s MODULARIZE=1 \
+		-s EXPORT_NAME=\"'$(subst -,_,$*)'\" \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s FORCE_FILESYSTEM=1 \
+		$< -o $@ $(ARGS_$*)
+
+wasm/%.js: bin/%.bc
+	emcc -O2 --memory-init-file 0 \
+		-s WASM=1 \
+		-s MODULARIZE=1 \
+		-s EXPORT_NAME=\"'$(subst -,_,$*)'\" \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s FORCE_FILESYSTEM=1 \
+		$< -o $@ $(ARGS_$*)
+
+bin/%.bc: binaries/%
+	mkdir -p bin js wasm
+	cp $< $@
+

@@ -1,4 +1,4 @@
-
+﻿
 #include <stdlib.h>
 #include <string.h>
 #include <cv.h>
@@ -6,7 +6,10 @@
 
 #include "common.h"
 //#link "common.c"
+
+#ifdef CV_SMS
 //#link "fonts.s"
+#endif
 
 #define XOFS 12 // sprite horiz. offset
 

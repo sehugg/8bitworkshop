@@ -1,4 +1,4 @@
-
+﻿
 #include <stdlib.h>
 #include <string.h>
 #include <cv.h>
@@ -169,8 +169,9 @@ void copy_sprites() {
   ofs = SPRITES + NSPRITES*4;
   for (i=0; i<NMISSILES; i++) {
     // sprite struct: {y, x, name, tag}
-    cvu_voutb(missiles[i].ypos, ofs);
-    cvu_voutb(missiles[i].xpos, ofs+1);
+    cv_set_write_vram_address(ofs);
+    cv_voutb(missiles[i].ypos);
+    cv_voutb(missiles[i].xpos);
     ofs += 4;
   }
 }
@@ -216,24 +217,26 @@ void draw_row(byte row) {
   byte x = formation_offset_x / 8;
   byte xd = (formation_offset_x & 7) * 3;
   byte y = 3 + row * 2;
+  cv_set_write_vram_address(IMAGE + y*32);
   for (i=0; i<x; i++)
-    putchar(i, y, starfield_get_tile_xy(i,y));
+    cv_graphics_port = starfield_get_tile_xy(i,y);
   for (i=0; i<ENEMIES_PER_ROW; i++) {
     byte shape = formation[i + row*ENEMIES_PER_ROW].shape;
     if (shape) {
       shape += xd;
       for (j=0; j<3; j++) {
-        putchar(x++, y, shape++);
+        cv_graphics_port = shape++;
+        x++;
       }
     } else {
       for (j=0; j<3; j++) {
-        putchar(x, y, starfield_get_tile_xy(x,y));
+        cv_graphics_port = starfield_get_tile_xy(x,y);
         x++;
       }
     }
   }
   for (; x<COLS; x++)
-    putchar(x, y, starfield_get_tile_xy(x,y));
+    cv_graphics_port = starfield_get_tile_xy(x,y);
 }
 
 void draw_next_row() {

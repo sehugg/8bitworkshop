@@ -52,6 +52,7 @@ extern char cursor_y;
 
 extern void clrscr();
 
+extern word getimageaddr(byte x, byte y);
 extern byte getchar(byte x, byte y);
 extern void putchar(byte x, byte y, byte attr);
 extern void putstring(byte x, byte y, const char* string);

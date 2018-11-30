@@ -33,12 +33,16 @@ void clrscr() {
   cvu_vmemset(IMAGE, 0, COLS*ROWS);
 }
 
+word getimageaddr(byte x, byte y) {
+  return IMAGE + y*COLS + x;
+}
+
 byte getchar(byte x, byte y) {
-  return cvu_vinb(IMAGE + y*COLS + x);
+  return cvu_vinb(getimageaddr(x,y));
 }
 
 void putchar(byte x, byte y, byte attr) {
-  cvu_voutb(attr, IMAGE + y*COLS + x);
+  cvu_voutb(attr, getimageaddr(x,y));
 }
 
 void putstring(byte x, byte y, const char* string) {
