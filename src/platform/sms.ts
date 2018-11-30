@@ -4,7 +4,7 @@ import { Platform, BaseMAMEPlatform, BaseZ80Platform, getToolForFilename_z80 } f
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
 import { hex, lzgmini, stringToByteArray } from "../util";
 import { MasterAudio, SN76489_Audio } from "../audio";
-import { TMS9918A } from "../video/tms9918a";
+import { TMS9918A, SMSVDP } from "../video/tms9918a";
 import { ColecoVision_PRESETS } from "./coleco";
 
 // http://www.smspower.org/Development/Index
@@ -49,7 +49,7 @@ var SG1000_KEYCODE_MAP = makeKeycodeMap([
 
 /// standard emulator
 
-const _SG1000Platform = function(mainElement) {
+const _SG1000Platform = function(mainElement, isSMS:boolean) {
 
   const cpuFrequency = 3579545; // MHz
   const canvasWidth = 304;
@@ -63,28 +63,30 @@ const _SG1000Platform = function(mainElement) {
   var inputs = new Uint8Array(4);
 
   class SG1000Platform extends BaseZ80Platform implements Platform {
+  
+    currentScanline;
 
     getPresets() { return SG1000_PRESETS; }
-    getToolForFilename = getToolForFilename_z80;
-    getDefaultExtension() { return ".c"; };
 
     start() {
-       ram = new RAM(1024);
+       var ramSize = isSMS ? 0x2000 : 0x400;
+       ram = new RAM(ramSize);
        membus = {
          read: newAddressDecoder([
-           [0xc000, 0xdfff,  0x3ff, function(a) { return ram.mem[a]; }],
-           [0x0000, 0xbfff, 0xffff, function(a) { return rom ? rom[a] : 0; }],
+           [0xc000, 0xffff, ramSize-1, function(a) { return ram.mem[a]; }],
+           [0x0000, 0xbfff, 0xffff,    function(a) { return rom ? rom[a] : 0; }],
 	       ]),
          write: newAddressDecoder([
-           [0xc000, 0xdfff,  0x3ff, function(a,v) { ram.mem[a] = v; }],
+           [0xc000, 0xffff, ramSize-1, function(a,v) { ram.mem[a] = v; }],
          ]),
          isContended: function() { return false; },
       };
       iobus = {
-        read: function(addr) {
+        read: (addr:number) => {
   				addr &= 0xff;
           //console.log('IO read', hex(addr,4));
           switch (addr & 0xc1) {
+            case 0x40: return isSMS ? this.currentScanline : 0;
             case 0x80: return vdp.readData();
             case 0x81: return vdp.readStatus();
             case 0xc0: return inputs[0] ^ 0xff;
@@ -92,7 +94,7 @@ const _SG1000Platform = function(mainElement) {
           }
           return 0;
       	},
-      	write: function(addr, val) {
+      	write: (addr:number, val:number) => {
   				addr &= 0xff;
   				val &= 0xff;
           //console.log('IO write', hex(addr,4), hex(val,2));
@@ -118,7 +120,8 @@ const _SG1000Platform = function(mainElement) {
           }
         }
       };
-      vdp = new TMS9918A(video.canvas, cru, true); // true = 4 sprites/line
+      var vdpclass = isSMS ? SMSVDP : TMS9918A;
+      vdp = new vdpclass(video.canvas, cru, true); // true = 4 sprites/line
       setKeyboardFromMap(video, inputs, SG1000_KEYCODE_MAP);
       timer = new AnimationTimer(60, this.nextFrame.bind(this));
     }
@@ -129,6 +132,7 @@ const _SG1000Platform = function(mainElement) {
 
     advance(novideo : boolean) {
       for (var sl=0; sl<numTotalScanlines; sl++) {
+        this.currentScanline = sl;
         this.runCPU(cpu, cpuCyclesPerLine);
         if (sl < numVisibleScanlines)
           vdp.drawScanline(sl);
@@ -156,15 +160,11 @@ const _SG1000Platform = function(mainElement) {
       };
     }
     loadControlsState(state) {
-      inputs[0] = state.in0;
-      inputs[1] = state.in1;
-      inputs[2] = state.in2;
+      inputs.set(state.in);
     }
     saveControlsState() {
       return {
-        in0:inputs[0],
-        in1:inputs[1],
-        in2:inputs[2],
+        in:inputs.slice(0)
       };
     }
     getCPUState() {
@@ -207,4 +207,11 @@ const _SG1000Platform = function(mainElement) {
 
 ///
 
+const _SMSPlatform = function(mainElement) {
+  this.__proto__ = new (_SG1000Platform as any)(mainElement, true);
+}
+
+///
+
 PLATFORMS['sms-sg1000-libcv'] = _SG1000Platform;
+PLATFORMS['sms-sms-libcv'] = _SMSPlatform;

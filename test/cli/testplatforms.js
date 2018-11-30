@@ -43,6 +43,7 @@ var _sound_williams = require('gen/platform/sound_williams.js');
 var _astrocade = require('gen/platform/astrocade.js');
 var _atari8 = require('gen/platform/atari8.js');
 var _coleco = require('gen/platform/coleco.js');
+var _sms = require('gen/platform/sms.js');
 
 //
 
@@ -59,16 +60,26 @@ global.navigator = {};
 var keycallback;
 
 emu.RasterVideo = function(mainElement, width, height, options) {
+  var buffer;
+  var datau8;
   var datau32;
   this.create = function() {
-    datau32 = new Uint32Array(width*height);
+    buffer = new ArrayBuffer(width*height*4);
+    datau8 = new Uint8Array(buffer);
+    datau32 = new Uint32Array(buffer);
   }
   this.setKeyboardEvents = function(callback) {
     keycallback = callback;
   }
   this.getFrameData = function() { return datau32; }
+  this.getImageData = function() { return {data:datau8, width:width, height:height}; }
   this.updateFrame = function() {}
   this.setupMouseEvents = function() { }
+  this.canvas = this;
+  this.getContext = function() { return this; }
+  this.fillRect = function() { }
+  this.fillStyle = '';
+  this.putImageData = function() { }
 }
 
 emu.VectorVideo = function(mainElement, width, height, options) {
@@ -224,7 +235,6 @@ describe('Platform Replay', () => {
       }
     });
   });
-/*
   it('Should run coleco', () => {
     var platform = testPlatform('coleco', 'shoot.c.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
@@ -232,7 +242,13 @@ describe('Platform Replay', () => {
       }
     });
   });
-*/
+  it('Should run sms-sg1000-libcv', () => {
+    var platform = testPlatform('sms-sg1000-libcv', 'shoot.c.rom', 92, (platform, frameno) => {
+      if (frameno == 62) {
+        keycallback(Keys.VK_SPACE.c, Keys.VK_SPACE.c, 1);
+      }
+    });
+  });
 /* TODO
   it('Should run atari8-5200', () => {
     var platform = testPlatform('atari8-5200', 'hello.a.rom', 92, (platform, frameno) => {

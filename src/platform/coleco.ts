@@ -76,8 +76,6 @@ const _ColecoVisionPlatform = function(mainElement) {
   class ColecoVisionPlatform extends BaseZ80Platform implements Platform {
 
     getPresets() { return ColecoVision_PRESETS; }
-    getToolForFilename = getToolForFilename_z80;
-    getDefaultExtension() { return ".c"; };
 
     start() {
        ram = new RAM(1024);
@@ -179,15 +177,11 @@ const _ColecoVisionPlatform = function(mainElement) {
       };
     }
     loadControlsState(state) {
-      inputs[0] = state.in0;
-      inputs[1] = state.in1;
-      inputs[2] = state.in2;
+      inputs.set(state.in);
     }
     saveControlsState() {
       return {
-        in0:inputs[0],
-        in1:inputs[1],
-        in2:inputs[2],
+        in:inputs.slice(0)
       };
     }
     getCPUState() {

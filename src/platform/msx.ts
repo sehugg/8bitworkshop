@@ -58,8 +58,6 @@ const _MSXPlatform = function(mainElement) {
   class MSXPlatform extends BaseZ80Platform implements Platform {
 
     getPresets() { return MSX_PRESETS; }
-    getToolForFilename = getToolForFilename_z80;
-    getDefaultExtension() { return ".c"; };
 
     start() {
        ram = new RAM(0x10000);

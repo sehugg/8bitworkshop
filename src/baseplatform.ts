@@ -196,8 +196,22 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   }
 }
 
-// TODO: what's the diff? why z80 not use? unify these things
-export abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
+////// 6502
+
+export function getToolForFilename_6502(fn:string) : string {
+  if (fn.endsWith(".pla")) return "plasm";
+  if (fn.endsWith(".c")) return "cc65";
+  if (fn.endsWith(".h")) return "cc65";
+  if (fn.endsWith(".s")) return "ca65";
+  if (fn.endsWith(".ca65")) return "ca65";
+  if (fn.endsWith(".dasm")) return "dasm";
+  if (fn.endsWith(".acme")) return "acme";
+  return "dasm"; // .a
+}
+
+// TODO: can merge w/ Z80?
+export abstract class Base6502Platform extends BaseDebugPlatform {
+
   debugPCDelta = -1;
 
   evalDebugCondition() {
@@ -274,22 +288,6 @@ export abstract class BaseFrameBasedPlatform extends BaseDebugPlatform {
       return false;
     });
   }
-}
-
-////// 6502
-
-export function getToolForFilename_6502(fn:string) : string {
-  if (fn.endsWith(".pla")) return "plasm";
-  if (fn.endsWith(".c")) return "cc65";
-  if (fn.endsWith(".h")) return "cc65";
-  if (fn.endsWith(".s")) return "ca65";
-  if (fn.endsWith(".ca65")) return "ca65";
-  if (fn.endsWith(".dasm")) return "dasm";
-  if (fn.endsWith(".acme")) return "acme";
-  return "dasm"; // .a
-}
-
-export abstract class Base6502Platform extends BaseFrameBasedPlatform {
 
   newCPU(membus : MemoryBus) {
     var cpu = new jt.M6502();

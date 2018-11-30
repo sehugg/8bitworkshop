@@ -356,7 +356,78 @@ export class TMS9918A {
     updateCanvas() {
         this.canvasContext.putImageData(this.imageData, 0, 0);
     }
+    
+    setReadAddress(i:number) {
+        this.addressRegister = ((i & 0x3f) << 8) | (this.addressRegister & 0x00FF);
+        this.prefetchByte = this.ram[this.addressRegister++];
+        this.addressRegister &= 0x3FFF;
+    }
+    
+    setWriteAddress(i:number) {
+        this.addressRegister = ((i & 0x3f) << 8) | (this.addressRegister & 0x00FF);
+    }
+    
+    setVDPWriteRegister(i:number) {
+        var regmask = this.registers.length-1;
+        this.registers[i & regmask] = this.addressRegister & 0x00FF;
+        switch (i & regmask) {
+            // Mode
+            case 0:
+                this.updateMode(this.registers[0], this.registers[1]);
+                break;
+            case 1:
+                this.ramMask = (this.registers[1] & 0x80) !== 0 ? 0x3FFF : 0x1FFF;
+                this.displayOn = (this.registers[1] & 0x40) !== 0;
+                this.interruptsOn = (this.registers[1] & 0x20) !== 0;
+                this.updateMode(this.registers[0], this.registers[1]);
+                break;
+            // Name table
+            case 2:
+                this.nameTable = (this.registers[2] & 0xf) << 10;
+                break;
+            // Color table
+            case 3:
+                if (this.bitmapMode) {
+                    this.colorTable = (this.registers[3] & 0x80) << 6;
+                }
+                else {
+                    this.colorTable = this.registers[3] << 6;
+                }
+                this.updateTableMasks();
+                break;
+            // Pattern table
+            case 4:
+                if (this.bitmapMode) {
+                    this.charPatternTable = (this.registers[4] & 0x4) << 11;
+                }
+                else {
+                    this.charPatternTable = (this.registers[4] & 0x7) << 11;
+                }
+                this.updateTableMasks();
+                break;
+            // Sprite attribute table
+            case 5:
+                this.spriteAttributeTable = (this.registers[5] & 0x7f) << 7;
+                break;
+            // Sprite pattern table
+            case 6:
+                this.spritePatternTable = (this.registers[6] & 0x7) << 11;
+                break;
+            // Background
+            case 7:
+                this.fgColor = (this.registers[7] & 0xf0) >> 4;
+                this.bgColor = this.registers[7] & 0x0f;
+                break;
+        }
+        // this.logRegisters();
+        // this.log.info("Name table: " + this.nameTable.toHexWord());
+        // this.log.info("Pattern table: " + this.charPatternTable.toHexWord());
+    }
 
+    setVDPWriteCommand3(i:number) {
+            this.setVDPWriteRegister(i);
+    }
+    
     writeAddress(i:number) {
         if (!this.latch) {
             this.addressRegister = (this.addressRegister & 0xFF00) | i;
@@ -365,70 +436,18 @@ export class TMS9918A {
             switch ((i & 0xc0) >> 6) {
                 // Set read address
                 case 0:
-                    this.addressRegister = ((i & 0x3f) << 8) | (this.addressRegister & 0x00FF);
-                    this.prefetchByte = this.ram[this.addressRegister++];
-                    this.addressRegister &= 0x3FFF;
+                    this.setReadAddress(i);
                     break;
                 // Set write address
                 case 1:
-                    this.addressRegister = ((i & 0x3f) << 8) | (this.addressRegister & 0x00FF);
+                    this.setWriteAddress(i);
                     break;
                 // Write register
                 case 2:
+                    this.setVDPWriteRegister(i);
+                    break;
                 case 3:
-                    this.registers[i & 0x7] = this.addressRegister & 0x00FF;
-                    switch (i & 0x7) {
-                        // Mode
-                        case 0:
-                            this.updateMode(this.registers[0], this.registers[1]);
-                            break;
-                        case 1:
-                            this.ramMask = (this.registers[1] & 0x80) !== 0 ? 0x3FFF : 0x1FFF;
-                            this.displayOn = (this.registers[1] & 0x40) !== 0;
-                            this.interruptsOn = (this.registers[1] & 0x20) !== 0;
-                            this.updateMode(this.registers[0], this.registers[1]);
-                            break;
-                        // Name table
-                        case 2:
-                            this.nameTable = (this.registers[2] & 0xf) << 10;
-                            break;
-                        // Color table
-                        case 3:
-                            if (this.bitmapMode) {
-                                this.colorTable = (this.registers[3] & 0x80) << 6;
-                            }
-                            else {
-                                this.colorTable = this.registers[3] << 6;
-                            }
-                            this.updateTableMasks();
-                            break;
-                        // Pattern table
-                        case 4:
-                            if (this.bitmapMode) {
-                                this.charPatternTable = (this.registers[4] & 0x4) << 11;
-                            }
-                            else {
-                                this.charPatternTable = (this.registers[4] & 0x7) << 11;
-                            }
-                            this.updateTableMasks();
-                            break;
-                        // Sprite attribute table
-                        case 5:
-                            this.spriteAttributeTable = (this.registers[5] & 0x7f) << 7;
-                            break;
-                        // Sprite pattern table
-                        case 6:
-                            this.spritePatternTable = (this.registers[6] & 0x7) << 11;
-                            break;
-                        // Background
-                        case 7:
-                            this.fgColor = (this.registers[7] & 0xf0) >> 4;
-                            this.bgColor = this.registers[7] & 0x0f;
-                            break;
-                    }
-                    // this.logRegisters();
-                    // this.log.info("Name table: " + this.nameTable.toHexWord());
-                    // this.log.info("Pattern table: " + this.charPatternTable.toHexWord());
+                    this.setVDPWriteCommand3(i);
                     break;
             }
             this.redrawRequired = true;
@@ -579,7 +598,7 @@ export class TMS9918A {
         s += lpad("Screen Mode",w) + ":  " + this.screenMode + "\n";
         s += lpad("Display On",w) + ":  " + this.displayOn + "\n";
         if (this.ramMask != 0x3fff)
-            s += lpad("RAM Mask",w) + ":  " + this.ramMask + "\n";
+            s += lpad("RAM Mask",w) + ": $" + hex(this.ramMask) + "\n";
         return s;
     }
 
@@ -628,8 +647,8 @@ export class TMS9918A {
 
     getState() {
         return {
-            ram: this.ram,
-            registers: this.registers,
+            ram: this.ram.slice(0),
+            registers: this.registers.slice(0),
             addressRegister: this.addressRegister,
             statusRegister: this.statusRegister,
             latch: this.latch,
@@ -654,8 +673,8 @@ export class TMS9918A {
     }
 
     restoreState(state) {
-        this.ram = state.ram;
-        this.registers = state.registers;
+        this.ram.set(state.ram);
+        this.registers.set(state.registers);
         this.addressRegister = state.addressRegister;
         this.statusRegister = state.statusRegister;
         this.latch = state.latch;
@@ -679,3 +698,45 @@ export class TMS9918A {
         this.redrawRequired = true;
     }
 };
+
+export class SMSVDP extends TMS9918A {
+
+    writeToCRAM : boolean;
+    cram = new Uint8Array(32); // color RAM
+    registers = new Uint8Array(16); // 8 more registers
+
+    setReadAddress(i:number) {
+        super.setReadAddress(i);
+        this.writeToCRAM = false;
+    }
+    setWriteAddress(i:number) {
+        super.setWriteAddress(i);
+        this.writeToCRAM = false;
+    }
+    setVDPWriteRegister(i:number) {
+        super.setVDPWriteRegister(i);
+        this.writeToCRAM = false;
+    }
+    setVDPWriteCommand3(i:number) {
+        this.writeToCRAM = true;
+    }
+    writeData(i:number) {
+        if (this.writeToCRAM) {
+            this.cram[this.addressRegister++ & (this.cram.length-1)] = i;
+            this.addressRegister &= this.ramMask;
+            this.redrawRequired = true;
+        } else {
+            super.writeData(i);
+        }
+    }
+    getState() {
+        var state = super.getState();
+        state['cram'] = this.cram.slice(0);
+        return state;
+    }
+    restoreState(state) {
+        super.restoreState(state);
+        this.cram.set(state.cram);
+    }
+};
+
