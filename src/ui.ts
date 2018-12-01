@@ -136,15 +136,22 @@ function refreshWindowList() {
     var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
     return new Views.SourceEditor(path, mode);
   }
+  
+  function addEditorItem(id:string) {
+    var data = current_project.getFile(id);
+    if (typeof data === 'string')
+      addWindowItem(id, getFilenameForPath(id), loadEditor);
+    else if (data instanceof Uint8Array)
+      addWindowItem(id, getFilenameForPath(id), () => { return new Views.BinaryFileView(data as Uint8Array); });
+  }
 
   // add main file editor
-  var id = main_file_id;
-  addWindowItem(id, getFilenameForPath(id), loadEditor);
+  addEditorItem(main_file_id);
 
   // add other source files
   current_project.iterateFiles(function(id, text) {
     if (text && id != main_file_id)
-      addWindowItem(id, getFilenameForPath(id), loadEditor);
+      addEditorItem(id);
   });
 
   // add listings
@@ -198,7 +205,8 @@ function loadProject(preset_id:string) {
     if (err) {
       alert(err);
     } else if (result && result.length) {
-      // we need this to build create functions for the editor (TODO?)
+      // we need this to build create functions for the editor
+      // TODO: can't use binary file as main
       refreshWindowList();
       // show main file
       projectWindows.createOrShow(preset_id);

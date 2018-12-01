@@ -710,3 +710,57 @@ export class MemoryView implements ProjectView {
         return i;
   }
 }
+
+///
+
+export class BinaryFileView implements ProjectView {
+  memorylist;
+  maindiv : HTMLElement;
+  data;
+
+  constructor(data:Uint8Array) {
+    this.data = data;
+  }
+
+  createDiv(parent : HTMLElement) {
+    var div = document.createElement('div');
+    div.setAttribute("class", "memdump");
+    parent.appendChild(div);
+    this.showMemoryWindow(parent, div);
+    return this.maindiv = div;
+  }
+
+  showMemoryWindow(workspace:HTMLElement, parent:HTMLElement) {
+    this.memorylist = new VirtualList({
+      w: $(workspace).width(),
+      h: $(workspace).height(),
+      itemHeight: getVisibleEditorLineHeight(),
+      totalRows: ((this.data.length+15) >> 4),
+      generatorFn: (row : number) => {
+        var s = this.getMemoryLineAt(row);
+        var linediv = document.createElement("div");
+        linediv.appendChild(document.createTextNode(s));
+        return linediv;
+      }
+    });
+    $(parent).append(this.memorylist.container);
+  }
+
+  getMemoryLineAt(row : number) : string {
+    var offset = row * 16;
+    var n1 = 0;
+    var n2 = 16;
+    var s = hex(offset+n1,4) + ' ';
+    for (var i=0; i<n1; i++) s += '   ';
+    if (n1 > 8) s += ' ';
+    for (var i=n1; i<n2; i++) {
+      var read = this.data[offset+i];
+      if (i==8) s += ' ';
+      s += ' ' + (read>=0?hex(read,2):'  ');
+    }
+    return s;
+  }
+
+  refresh() {
+  }
+}
