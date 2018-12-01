@@ -14,6 +14,7 @@
     "jsdom": "^12.0.x",
     "lzg": "^1.0.x",
     "mocha": "^5.2.x",
+    "pngjs": "^3.3.3",
     "typescript": "^3.x",
     "wavedrom-cli": "^0.5.x"
   },

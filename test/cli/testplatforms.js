@@ -2,7 +2,7 @@
 var assert = require('assert');
 var fs = require('fs');
 var wtu = require('./workertestutils.js');
-global.includeInThisContext('src/cpu/z80fast.js');
+var PNG = require('pngjs').PNG;
 
 const jsdom = require('jsdom');
 const { JSDOM } = jsdom;
@@ -16,6 +16,7 @@ global.Image = function() { }
 global.btoa = require('btoa');
 global.atob = require('atob');
 global['$'] = require("jquery/jquery-2.2.3.min.js");
+global.includeInThisContext('src/cpu/z80fast.js');
 includeInThisContext("javatari.js/release/javatari/javatari.js");
 Javatari.AUTO_START = false;
 includeInThisContext('src/cpu/z80fast.js');
@@ -58,15 +59,19 @@ dom.window.HTMLCanvasElement.prototype.getContext = function() {
 global.navigator = {};
 
 var keycallback;
+var lastrastervideo;
 
 emu.RasterVideo = function(mainElement, width, height, options) {
   var buffer;
   var datau8;
   var datau32;
   this.create = function() {
+    this.width = width;
+    this.height = height;
     buffer = new ArrayBuffer(width*height*4);
     datau8 = new Uint8Array(buffer);
     datau32 = new Uint32Array(buffer);
+    lastrastervideo = this;
   }
   this.setKeyboardEvents = function(callback) {
     keycallback = callback;
@@ -136,6 +141,17 @@ function testPlatform(platid, romname, maxframes, callback) {
       assert.ok(dinfo && dinfo.length > 0, dcat + " empty");
       assert.ok(dinfo.length < 80*24, dcat + " too long");
       assert.ok(dinfo.indexOf('undefined') < 0, dcat + " undefined");
+    }
+    if (lastrastervideo) {
+      var png = new PNG({width:lastrastervideo.width, height:lastrastervideo.height});
+      png.data = lastrastervideo.getImageData().data;
+      var pngbuffer = PNG.sync.write(png);
+      assert(pngbuffer.length > 500); // make sure PNG is big enough
+      try { fs.mkdirSync("./test"); } catch(e) { }
+      try { fs.mkdirSync("./test/output"); } catch(e) { }
+      try {
+        fs.writeFileSync("./test/output/"+platid+"-"+romname+".png", pngbuffer);
+      } catch (e) { console.log(e) }
     }
     return platform;
 }
@@ -259,5 +275,3 @@ describe('Platform Replay', () => {
   });
 */
 });
-
-

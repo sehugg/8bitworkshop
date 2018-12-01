@@ -4,3 +4,4 @@ blog
 local
 release
 gen
+test/output

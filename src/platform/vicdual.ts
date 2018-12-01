@@ -96,7 +96,7 @@ const _VicDualPlatform = function(mainElement) {
 		[Keys.VK_2, 3, -0x20],
 		[Keys.VK_5, 3, 0x8],
   ]);
-  
+
  class VicDualPlatform extends BaseZ80Platform implements Platform {
 
   getPresets() {

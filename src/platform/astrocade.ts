@@ -5,6 +5,8 @@ import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap,
 import { hex, lzgmini, stringToByteArray, rgb2bgr, clamp } from "../util";
 import { MasterAudio, AY38910_Audio } from "../audio";
 
+// http://metopal.com/projects/ballybook/doku.php
+
 const ASTROCADE_PRESETS = [
   {id:'01-helloworlds.asm', name:'Hello World'},
   {id:'02-telephone.asm', name:'Telephone'},
@@ -86,14 +88,14 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   // default palette
   for (var i=0; i<8; i++)
     palette[i] = ASTROCADE_PALETTE[i];
-    
+
   var refreshlines = 0;
-  
+
   function ramwrite(a:number, v:number) {
     ram.mem[a] = v;
     ramupdate(a, v);
   }
-  
+
   function ramupdate(a:number, v:number) {
     var ofs = a*4+3; // 4 pixels per byte
     for (var i=0; i<4; i++) {
@@ -102,13 +104,13 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       v >>= 2;
     }
   }
-  
+
   function refreshline(y:number) {
     var ofs = y*swidth/4;
     for (var i=0; i<swidth/4; i++)
       ramupdate(ofs+i, ram.mem[ofs+i]);
   }
-  
+
   function magicwrite(a:number, v:number) {
     // expand
     if (magicop & 0x8) {
@@ -158,21 +160,21 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     // commit write to ram/screen
     ramwrite(a, v);
   }
-  
+
   function setpalette(a:number, v:number) {
     palette[a&7] = ASTROCADE_PALETTE[v&0xff];
     refreshall();
   }
-  
+
   function setbordercolor() {
     var col = horcb >> 6;
     // TODO
   }
-  
+
   function refreshall() {
     refreshlines = sheight;
   }
-  
+
  class BallyAstrocadePlatform extends BaseZ80Platform implements Platform {
 
   getPresets() {
@@ -185,7 +187,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     if (lzgrom)
       bios = new lzgmini().decode(stringToByteArray(atob(lzgrom)));
     else
-      bios = padBytes([0xf3, 0x31, 0x00, 0x50, 0x21, 0x05, 0x20, 0x7e, 0x23, 0x66, 0x6f, 0xe9], 0x2000); // SP=$5000, jump to ($2005)
+      bios = padBytes(ASTROCADE_MINIMAL_BIOS, 0x2000);
     if (!arcade) {
       // game console
       membus = {
@@ -302,12 +304,12 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   readAddress(addr) {
     return membus.read(addr);
   }
-  
+
   loadControls() {
     inputs[0x1c] = video.paddle_x & 0xff;
     inputs[0x1d] = video.paddle_y & 0xff;
   }
-  
+
   advance(novideo : boolean) {
     this.loadControls();
     for (var sl=0; sl<sheight; sl++) {
@@ -471,5 +473,28 @@ for (var i=0; i<256; i++) {
   var x = ASTROCADE_PALETTE[i];
   ASTROCADE_PALETTE[i] = rgb2bgr(x) | 0xff000000;
 }
+
+/*
+0000 F3            [ 4]  196 	DI	; disable interrupts
+0001 21 00 20      [10]  197 	LD	HL,#0x2000
+0004 7E            [ 7]  198 	LD	A,(HL) ; A <- mem[0x2000]
+0005 FE 55         [ 7]  199 	CP	#0x55 ; found sentinel byte? ($55)
+0007 CA 0D 00      [10]  200 	JP	Z,FoundSentinel ; yes, load program
+000A C3 AB 0E      [10]  201 	JP	_main ; jump to test program
+000D                     202 	FoundSentinel:
+000D 31 CE 4F      [10]  203 	LD	SP,#0x4fce ; position stack below BIOS vars
+0010 CD 84 02      [17]  204 	CALL	_bios_init ; misc. bios init routines
+0013 21 05 20      [10]  205 	LD	HL,#0x2005 ; cartridge start vector
+0016 7E            [ 7]  206 	LD	A,(HL)
+0017 23            [ 6]  207 	INC	HL
+0018 66            [ 7]  208 	LD	H,(HL)
+0019 6F            [ 4]  209 	LD	L,A
+001A E9            [ 4]  210 	JP	(HL) ; jump to cart start vector
+*/
+var ASTROCADE_MINIMAL_BIOS = [
+  0xf3, 0x21, 0x00, 0x20, 0x7e, 0xfe, 0x55, 0xca, 0x0d, 0x00, 0xc3, 0xab, 0x0e,
+  0x31, 0xce, 0x4f, 0xcd, 0x84, 0x02, 0x21, 0x05, 0x20, 0x7e, 0x23, 0x66, 0x6f,
+  0xe9,
+];
 
 //var ASTROCADE_BIOS_LZG = decodeURIComponent();
