@@ -10,6 +10,7 @@ import { ColecoVision_PRESETS } from "./coleco";
 // http://www.smspower.org/Development/Index
 // http://www.smspower.org/uploads/Development/sg1000.txt
 // http://www.smspower.org/uploads/Development/richard.txt
+// http://www.smspower.org/uploads/Development/msvdp-20021112.txt
 
 // TODO: merge w/ coleco
 export var SG1000_PRESETS = [
@@ -68,8 +69,8 @@ class SG1000Platform extends BaseZ80Platform {
   inputs = new Uint8Array(4);
   mainElement : HTMLElement;
 
-  isSMS = false; // TODO: remove
   currentScanline : number;
+  startLineTstates : number;
   
   constructor(mainElement : HTMLElement) {
     super();
@@ -96,13 +97,19 @@ class SG1000Platform extends BaseZ80Platform {
     };
   }
   
+  getVCounter() : number { return 0; }
+  getHCounter() : number { return 0; }
+  setMemoryControl(v:number) { }
+  setIOPortControl(v:number) { }
+  
   newIOBus() {
     return {
       read: (addr:number) => {
         addr &= 0xff;
         //console.log('IO read', hex(addr,4));
         switch (addr & 0xc1) {
-          case 0x40: return this.isSMS ? this.currentScanline : 0;
+          case 0x40: return this.getVCounter();
+          case 0x41: return this.getHCounter();
           case 0x80: return this.vdp.readData();
           case 0x81: return this.vdp.readStatus();
           case 0xc0: return this.inputs[0] ^ 0xff;
@@ -115,10 +122,12 @@ class SG1000Platform extends BaseZ80Platform {
         val &= 0xff;
         //console.log('IO write', hex(addr,4), hex(val,2));
         switch (addr & 0xc1) {
-          case 0x80: return this.vdp.writeData(val);
-          case 0x81: return this.vdp.writeAddress(val);
+          case 0x00: return this.setMemoryControl(val);
+          case 0x01: return this.setIOPortControl(val);
           case 0x40:
           case 0x41: return this.psg.setData(val);
+          case 0x80: return this.vdp.writeData(val);
+          case 0x81: return this.vdp.writeAddress(val);
         }
       }
     };
@@ -159,6 +168,7 @@ class SG1000Platform extends BaseZ80Platform {
   advance(novideo : boolean) {
     for (var sl=0; sl<this.numTotalScanlines; sl++) {
       this.currentScanline = sl;
+      this.startLineTstates = this.cpu.getTstates();
       this.runCPU(this.cpu, this.cpuCyclesPerLine);
       this.vdp.drawScanline(sl);
     }
@@ -232,20 +242,41 @@ class SG1000Platform extends BaseZ80Platform {
 
 class SMSPlatform extends SG1000Platform {
 
-  isSMS = true;
-  
   cartram : RAM = new RAM(0);
   pagingRegisters = new Uint8Array(4);
   romPageMask : number;
+  // TODO: add to state
+  latchedHCounter = 0;
+  ioControlFlags = 0;
   // TODO: hide bottom scanlines
   
   reset() {
     super.reset();
     this.pagingRegisters.set([0,0,1,2]);
   }
-  
+
   newVDP(frameData, cru, flicker) {
     return new SMSVDP(frameData, cru, flicker);
+  }
+  
+  getVCounter() {
+    var y = this.currentScanline;
+    return (y <= 0xda) ? (y) : (y - 6);
+  }
+  getHCounter() {
+    return this.latchedHCounter;
+  }
+  computeHCounter() {
+    var t0 = this.startLineTstates;
+    var t1 = this.cpu.getTstates();
+    return (t1-t0) & 0xff; // TODO
+  }
+  setIOPortControl(v:number) {
+    if ((v ^ this.ioControlFlags) & 0xa0) { // either joystick TH pin
+      this.latchedHCounter = this.computeHCounter();
+      //console.log("H:"+hex(this.latchedHCounter)+" V:"+hex(this.getVCounter()));
+    }
+    this.ioControlFlags = v;
   }
   
   newRAM() { return new RAM(0x2000); }

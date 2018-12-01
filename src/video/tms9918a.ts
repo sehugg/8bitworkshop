@@ -43,8 +43,8 @@ export class TMS9918A {
   latch : boolean;
   prefetchByte : number;
 
-  displayOn = null;
-  interruptsOn = null;
+  displayOn : boolean = false;
+  interruptsOn : boolean = false;
   screenMode : number;
   bitmapMode : boolean;
   textMode : boolean;
@@ -493,6 +493,7 @@ export class TMS9918A {
 
     writeData(i:number) {
         this.ram[this.addressRegister++] = i;
+        this.prefetchByte = i;
         this.addressRegister &= this.ramMask;
         this.latch = false;
         this.redrawRequired = true;
@@ -674,6 +675,9 @@ export class SMSVDP extends TMS9918A {
     cpalette = new Uint32Array(32); // color RAM (RGBA)
     registers = new Uint8Array(16); // 8 more registers (actually only 5)
     vramUntwiddled = new Uint8Array(0x8000);
+    numVisibleLines = 192;
+    lineCounter = 0; // TODO: state
+    lineInterruptPending = false; // TODO: state
 
     reset() {
         super.reset();
@@ -681,6 +685,10 @@ export class SMSVDP extends TMS9918A {
         this.cram.fill(0);
         this.cpalette.fill(0);
         this.vramUntwiddled.fill(0);        
+    }
+    readStatus() {
+        this.lineInterruptPending = false;
+        return super.readStatus();
     }
     updateMode(reg0:number, reg1:number) {
         if (reg0 & 0x04) {
@@ -713,6 +721,7 @@ export class SMSVDP extends TMS9918A {
             var palindex = this.addressRegister++ & (this.cram.length-1);
             this.cram[palindex] = i;
             this.cpalette[palindex] = RGBA((i&3)<<6, ((i>>2)&3)<<6, ((i>>4)&3)<<6);
+            this.prefetchByte = i;
             this.addressRegister &= this.ramMask;
             this.redrawRequired = true;
         } else {
@@ -722,16 +731,6 @@ export class SMSVDP extends TMS9918A {
         }
         this.latch = false;
     }
-    readData() : number {
-        if (this.writeToCRAM) {
-            var palindex = this.addressRegister++ & (this.cram.length-1);
-            this.addressRegister &= this.ramMask;
-            return this.cram[palindex];
-        } else {
-            return super.readData();
-        }
-    }
-
     writeTwiddled(vdp_addr:number, val:number) {
         var planarBase = vdp_addr & 0x3ffc;
         var twiddledBase = planarBase * 2;
@@ -934,25 +933,24 @@ export class SMSVDP extends TMS9918A {
         count = count | 0;
         const borderIndex = 16 + (this.registers[7] & 0xf);
         const borderRGB = this.cpalette[borderIndex];
-        for (var i = 0; i < count; i++)
-            this.fb32[lineAddr + i] = borderRGB;
+        this.fb32.fill(borderRGB, lineAddr, lineAddr+count);
     }
 
     rasterize_line(line:number) {
+        line |= 0;
         var vdp_regs = this.registers;
-        var drawHeight = 192; // TODO?
-        var hBorder = (this.width - 256) >> 1;
-        var vBorder = (this.height - 192) >> 1; // TODO?
-        line = (line - vBorder*0) | 0; // TODO?
-        const startAddr = (line * this.width) | 0;
+        var drawWidth = 256;
+        var drawHeight = this.numVisibleLines; // TODO?
+        var hBorder = (this.width - drawWidth) >> 1;
+        var vBorder = (this.height - drawHeight) >> 1; // TODO?
+        const startAddr = ((line + vBorder) * this.width) | 0;
         const lineAddr = (startAddr + hBorder) | 0;
-        if (!(line >= 0 && line < 224 && this.displayOn)) {
-            this.border_clear(startAddr, this.width);
-        }
-        else if ((vdp_regs[1] & 64) === 0) {
-            this.border_clear(startAddr, this.width);
-        }
-        else {
+        if (!this.displayOn || line < 0 || line >= drawHeight) {
+            if (line < this.height)
+                this.border_clear(startAddr, this.width);
+            else if (line >= 262-vBorder)
+                this.border_clear((line-262+vBorder)*this.width, this.width);
+        } else {
             var effectiveLine = line + vdp_regs[9];
             if (effectiveLine >= 224) {
                 effectiveLine -= 224;
@@ -973,10 +971,27 @@ export class SMSVDP extends TMS9918A {
                 this.border_clear(lineAddr, 8);
             }
         }
+        // frame interrupts
         if (line == drawHeight) {
             this.statusRegister |= 0x80;
             if (this.interruptsOn) {
                 this.cru.setVDPInterrupt(true);
+            }
+        }
+        // line interrupts
+        if (line <= drawHeight) {
+            if (this.lineCounter > 0) {
+                this.lineCounter--;
+            } else {
+                this.lineCounter = this.registers[0xa];
+                this.lineInterruptPending = true;
+            }
+        } else {
+            this.lineCounter = this.registers[0xa];
+        }
+        if (this.lineInterruptPending) {
+            if (this.registers[0] & 0x10) {
+                // TODO this.cru.setVDPInterrupt(true);
             }
         }
     }
