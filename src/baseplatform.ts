@@ -83,7 +83,7 @@ export interface Platform {
   runToPC?(pc:number) : void;
   runUntilReturn?() : void;
   stepBack?() : void;
-  runEval?(evalfunc/* : DebugEvalCondition*/) : void;
+  runEval?(evalfunc : DebugEvalCondition) : void;
 
   getOpcodeMetadata?(opcode:number, offset:number) : OpcodeMetadata; //TODO
   getSP?() : number;
@@ -113,9 +113,9 @@ export interface MemoryBus {
   write : (address:number, value:number) => void;
 }
 
-type DebugCondition = () => boolean;
-type DebugEvalCondition = (c:CpuState) => boolean;
-type BreakpointCallback = (EmuState) => void;
+export type DebugCondition = () => boolean;
+export type DebugEvalCondition = (c:CpuState) => boolean;
+export type BreakpointCallback = (s:EmuState) => void;
 
 export interface EmuRecorder {
   frameRequested() : boolean;

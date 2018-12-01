@@ -47,182 +47,294 @@ var SG1000_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_1, 1, 0x10],
 ]);
 
-/// standard emulator
+class SG1000Platform extends BaseZ80Platform {
 
-const _SG1000Platform = function(mainElement, isSMS:boolean) {
+  cpuFrequency = 3579545; // MHz
+  canvasWidth = 304;
+  numTotalScanlines = 262;
+  numVisibleScanlines = 240;
+  cpuCyclesPerLine;
 
-  const cpuFrequency = 3579545; // MHz
-  const canvasWidth = 304;
-  const numTotalScanlines = 262;
-  const numVisibleScanlines = 240;
-  const cpuCyclesPerLine = Math.round(cpuFrequency / 60 / numTotalScanlines);
+  cpu;
+  ram : RAM;
+  membus;
+  iobus;
+  rom = new Uint8Array(0);
+  video;
+  vdp;
+  timer;
+  audio;
+  psg;
+  inputs = new Uint8Array(4);
+  mainElement : HTMLElement;
 
-  var cpu, ram, membus, iobus, rom;
-  var video, vdp, timer;
-  var audio, psg;
-  var inputs = new Uint8Array(4);
-
-  class SG1000Platform extends BaseZ80Platform implements Platform {
+  isSMS = false; // TODO: remove
+  currentScanline : number;
   
-    currentScanline;
+  constructor(mainElement : HTMLElement) {
+    super();
+    this.mainElement = mainElement;
+  }
 
-    getPresets() { return SG1000_PRESETS; }
-
-    start() {
-       var ramSize = isSMS ? 0x2000 : 0x400;
-       ram = new RAM(ramSize);
-       membus = {
-         read: newAddressDecoder([
-           [0xc000, 0xffff, ramSize-1, function(a) { return ram.mem[a]; }],
-           [0x0000, 0xbfff, 0xffff,    function(a) { return rom ? rom[a] : 0; }],
-	       ]),
-         write: newAddressDecoder([
-           [0xc000, 0xffff, ramSize-1, function(a,v) { ram.mem[a] = v; }],
-         ]),
-         isContended: function() { return false; },
-      };
-      iobus = {
-        read: (addr:number) => {
-  				addr &= 0xff;
-          //console.log('IO read', hex(addr,4));
-          switch (addr & 0xc1) {
-            case 0x40: return isSMS ? this.currentScanline : 0;
-            case 0x80: return vdp.readData();
-            case 0x81: return vdp.readStatus();
-            case 0xc0: return inputs[0] ^ 0xff;
-            case 0xc1: return inputs[1] ^ 0xff;
-          }
-          return 0;
-      	},
-      	write: (addr:number, val:number) => {
-  				addr &= 0xff;
-  				val &= 0xff;
-          //console.log('IO write', hex(addr,4), hex(val,2));
-          switch (addr & 0xc1) {
-            case 0x80: return vdp.writeData(val);
-            case 0x81: return vdp.writeAddress(val);
-            case 0x40:
-            case 0x41: return psg.setData(val);
-          }
-      	}
-      };
-      cpu = this.newCPU(membus, iobus);
-      video = new RasterVideo(mainElement,canvasWidth,numVisibleScanlines,{overscan:true});
-      video.create();
-      audio = new MasterAudio();
-      psg = new SN76489_Audio(audio);
-      var cru = {
-        setVDPInterrupt: (b) => {
-          if (b) {
-            cpu.nonMaskableInterrupt();
-          } else {
-            // TODO: reset interrupt?
-          }
+  getPresets() { return SG1000_PRESETS; }
+    
+  newRAM() {
+    return new RAM(0x400);
+  }
+    
+  newMembus() {
+    var ramSize = this.ram.mem.length;
+    return {
+       read: newAddressDecoder([
+         [0xc000, 0xffff, ramSize-1, (a) => { return this.ram.mem[a]; }],
+         [0x0000, 0xbfff, 0xffff,    (a) => { return this.rom[a]; }],
+       ]),
+       write: newAddressDecoder([
+         [0xc000, 0xffff, ramSize-1, (a,v) => { this.ram.mem[a] = v; }],
+       ]),
+       isContended: () => { return false; },
+    };
+  }
+  
+  newIOBus() {
+    return {
+      read: (addr:number) => {
+        addr &= 0xff;
+        //console.log('IO read', hex(addr,4));
+        switch (addr & 0xc1) {
+          case 0x40: return this.isSMS ? this.currentScanline : 0;
+          case 0x80: return this.vdp.readData();
+          case 0x81: return this.vdp.readStatus();
+          case 0xc0: return this.inputs[0] ^ 0xff;
+          case 0xc1: return this.inputs[1] ^ 0xff;
         }
-      };
-      var vdpclass = isSMS ? SMSVDP : TMS9918A;
-      vdp = new vdpclass(video.getFrameData(), cru, true); // true = 4 sprites/line
-      setKeyboardFromMap(video, inputs, SG1000_KEYCODE_MAP);
-      timer = new AnimationTimer(60, this.nextFrame.bind(this));
-    }
-
-    readAddress(addr) {
-      return membus.read(addr);
-    }
-
-    advance(novideo : boolean) {
-      for (var sl=0; sl<numTotalScanlines; sl++) {
-        this.currentScanline = sl;
-        this.runCPU(cpu, cpuCyclesPerLine);
-        vdp.drawScanline(sl);
-      }
-      video.updateFrame();
-    }
-
-    loadROM(title, data) {
-      if (data.length < 0xc000) {
-        rom = padBytes(data, 0xc000);
-      } else {
-        switch (data.length) {
-          case 0x10000:
-          case 0x20000:
-          case 0x40000:
-            rom = data;
-            break;
-          default:
-            throw "Unknown rom size: $" + hex(data.length);
+        return 0;
+      },
+      write: (addr:number, val:number) => {
+        addr &= 0xff;
+        val &= 0xff;
+        //console.log('IO write', hex(addr,4), hex(val,2));
+        switch (addr & 0xc1) {
+          case 0x80: return this.vdp.writeData(val);
+          case 0x81: return this.vdp.writeAddress(val);
+          case 0x40:
+          case 0x41: return this.psg.setData(val);
         }
       }
-      this.reset();
-    }
-
-    loadState(state) {
-      cpu.loadState(state.c);
-      ram.mem.set(state.b);
-      vdp.restoreState(state.vdp);
-      inputs.set(state.in);
-    }
-    saveState() {
-      return {
-        c:this.getCPUState(),
-        b:ram.mem.slice(0),
-        vdp:vdp.getState(),
-        in:inputs.slice(0),
-      };
-    }
-    loadControlsState(state) {
-      inputs.set(state.in);
-    }
-    saveControlsState() {
-      return {
-        in:inputs.slice(0)
-      };
-    }
-    getCPUState() {
-      return cpu.saveState();
-    }
-
-    isRunning() {
-      return timer && timer.isRunning();
-    }
-    pause() {
-      timer.stop();
-      audio.stop();
-    }
-    resume() {
-      timer.start();
-      audio.start();
-    }
-    reset() {
-      cpu.reset();
-      cpu.setTstates(0);
-      vdp.reset();
-      psg.reset();
-    }
-
-    getDebugCategories() {
-      return super.getDebugCategories().concat(['VDP']);
-    }
-    getDebugInfo(category, state) {
-      switch (category) {
-        case 'VDP': return this.vdpStateToLongString(state.vdp);
-        default: return super.getDebugInfo(category, state);
+    };
+  }
+  
+  newVDP(frameData, cru, flicker) {
+    return new TMS9918A(frameData, cru, flicker);
+  }
+  
+  start() {
+    this.cpuCyclesPerLine = Math.round(this.cpuFrequency / 60 / this.numTotalScanlines);
+    this.ram = this.newRAM();
+    this.membus = this.newMembus();
+    this.iobus = this.newIOBus();
+    this.cpu = this.newCPU(this.membus, this.iobus);
+    this.video = new RasterVideo(this.mainElement, this.canvasWidth, this.numVisibleScanlines, {overscan:true});
+    this.video.create();
+    this.audio = new MasterAudio();
+    this.psg = new SN76489_Audio(this.audio);
+    var cru = {
+      setVDPInterrupt: (b) => {
+        if (b) {
+          this.cpu.nonMaskableInterrupt();
+        } else {
+          // TODO: reset interrupt?
+        }
       }
+    };
+    this.vdp = this.newVDP(this.video.getFrameData(), cru, true); // true = 4 sprites/line
+    setKeyboardFromMap(this.video, this.inputs, SG1000_KEYCODE_MAP); // TODO
+    this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
+  }
+  
+  readAddress(addr) {
+    return this.membus.read(addr);
+  }
+
+  advance(novideo : boolean) {
+    for (var sl=0; sl<this.numTotalScanlines; sl++) {
+      this.currentScanline = sl;
+      this.runCPU(this.cpu, this.cpuCyclesPerLine);
+      this.vdp.drawScanline(sl);
     }
-    vdpStateToLongString(ppu) {
-      return vdp.getRegsString();
+    this.video.updateFrame();
+  }
+
+  loadROM(title, data) {
+    this.rom = padBytes(data, 0xc000);
+    this.reset();
+  }
+
+  loadState(state) {
+    this.cpu.loadState(state.c);
+    this.ram.mem.set(state.b);
+    this.vdp.restoreState(state.vdp);
+    this.inputs.set(state.in);
+  }
+  saveState() {
+    return {
+      c:this.getCPUState(),
+      b:this.ram.mem.slice(0),
+      vdp:this.vdp.getState(),
+      in:this.inputs.slice(0),
+    };
+  }
+  loadControlsState(state) {
+    this.inputs.set(state.in);
+  }
+  saveControlsState() {
+    return {
+      in:this.inputs.slice(0)
+    };
+  }
+  getCPUState() {
+    return this.cpu.saveState();
+  }
+
+  isRunning() {
+    return this.timer && this.timer.isRunning();
+  }
+  pause() {
+    this.timer.stop();
+    this.audio.stop();
+  }
+  resume() {
+    this.timer.start();
+    this.audio.start();
+  }
+  reset() {
+    this.cpu.reset();
+    this.cpu.setTstates(0);
+    this.vdp.reset();
+    this.psg.reset();
+  }
+
+  getDebugCategories() {
+    return super.getDebugCategories().concat(['VDP']);
+  }
+  getDebugInfo(category, state) {
+    switch (category) {
+      case 'VDP': return this.vdpStateToLongString(state.vdp);
+      default: return super.getDebugInfo(category, state);
     }
   }
-  return new SG1000Platform();
+  vdpStateToLongString(ppu) {
+    return this.vdp.getRegsString();
+  }
 }
 
 ///
 
-const _SMSPlatform = function(mainElement) {
-  this.__proto__ = new (_SG1000Platform as any)(mainElement, true);
+class SMSPlatform extends SG1000Platform {
+
+  isSMS = true;
+  
+  cartram : RAM = new RAM(0);
+  pagingRegisters = new Uint8Array(4);
+  romPageMask : number;
+  // TODO: hide bottom scanlines
+  
+  reset() {
+    super.reset();
+    this.pagingRegisters.set([0,0,1,2]);
+  }
+  
+  newVDP(frameData, cru, flicker) {
+    return new SMSVDP(frameData, cru, flicker);
+  }
+  
+  newRAM() { return new RAM(0x2000); }
+  
+  getPagedROM(a:number, reg:number) {
+    //if (!(a&0xff)) console.log(hex(a), reg, this.pagingRegisters[reg], this.romPageMask);
+    return this.rom[a + ((this.pagingRegisters[reg] & this.romPageMask) << 14)]; // * $4000
+  }
+
+  newMembus() {
+    return {
+       read: newAddressDecoder([
+         [0xc000, 0xffff, 0x1fff, (a) => { return this.ram.mem[a]; }],
+         [0x0000, 0x03ff,  0x3ff, (a) => { return this.rom[a]; }],
+         [0x0400, 0x3fff, 0x3fff, (a) => { return this.getPagedROM(a,1); }],
+         [0x4000, 0x7fff, 0x3fff, (a) => { return this.getPagedROM(a,2); }],
+         [0x8000, 0xbfff, 0x3fff, (a) => {
+           var reg0 = this.pagingRegisters[0]; // RAM select?
+           if (reg0 & 0x8) {
+             return this.cartram.mem[(reg0 & 0x4) ? a+0x4000 : a];
+           } else {
+             return this.getPagedROM(a,3);
+           }
+         }],
+       ]),
+       write: newAddressDecoder([
+         [0xc000, 0xfffb, 0x1fff, (a,v) => {
+           this.ram.mem[a] = v;
+         }],
+         [0xfffc, 0xffff,    0x3, (a,v) => {
+           this.pagingRegisters[a] = v;
+           this.ram.mem[a+0x1ffc] = v;
+         }],
+         [0x8000, 0xbfff, 0x3fff, (a,v) => {
+           var reg0 = this.pagingRegisters[0]; // RAM select?
+           if (reg0 & 0x8) {
+             if (this.cartram.mem.length == 0)
+               this.cartram = new RAM(0x8000); // create cartridge RAM lazily
+             this.cartram.mem[(reg0 & 0x4) ? a+0x4000 : a] = v;
+           }
+         }],
+       ]),
+       isContended: () => { return false; },
+    };
+  }
+
+  loadROM(title, data) {
+    if (data.length <= 0xc000) {
+      this.rom = padBytes(data, 0xc000);
+      this.romPageMask = 3; // only pages 0, 1, 2
+    } else {
+      switch (data.length) {
+        case 0x10000:
+        case 0x20000:
+        case 0x40000:
+        case 0x80000:
+          this.rom = data;
+          this.romPageMask = (data.length >> 14) - 1; // div $4000
+          break;
+        default:
+          throw "Unknown rom size: $" + hex(data.length);
+      }
+    }
+    //console.log("romPageMask: " + hex(this.romPageMask));
+    this.reset();
+  }
+
+  loadState(state) {
+    super.loadState(state);
+    this.pagingRegisters.set(state.pr);
+    this.cartram.mem.set(state.cr);
+  }
+  saveState() {
+    var state = super.saveState();
+    state['pr'] = this.pagingRegisters.slice(0);
+    state['cr'] = this.cartram.mem.slice(0);
+    return state;
+  }
+  getDebugInfo(category, state) {
+    switch (category) {
+      case 'CPU':
+        return super.getDebugInfo(category, state) +
+          "\nBank Regs: " + this.pagingRegisters + "\n";
+      default: return super.getDebugInfo(category, state);
+    }
+  }
 }
 
 ///
 
-PLATFORMS['sms-sg1000-libcv'] = _SG1000Platform;
-PLATFORMS['sms-sms-libcv'] = _SMSPlatform;
+PLATFORMS['sms-sg1000-libcv'] = SG1000Platform;
+PLATFORMS['sms-sms-libcv'] = SMSPlatform;

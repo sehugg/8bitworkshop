@@ -7,7 +7,7 @@ import * as bootstrap from "bootstrap";
 import { CodeProject } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "./workertypes";
 import { ProjectWindows } from "./windows";
-import { Platform, Preset, DebugSymbols } from "./baseplatform";
+import { Platform, Preset, DebugSymbols, DebugEvalCondition } from "./baseplatform";
 import { PLATFORMS } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
@@ -716,7 +716,7 @@ function runToCursor() {
     if (platform.runToPC) {
       platform.runToPC(pc);
     } else {
-      platform.runEval(function(c) {
+      platform.runEval((c) => {
         return c.PC == pc;
       });
     }
@@ -748,7 +748,7 @@ function resetAndDebug() {
     platform.reset();
     setupBreakpoint("reset");
     if (platform.runEval)
-      platform.runEval(function(c) { return true; }); // break immediately
+      platform.runEval((c) => { return true; }); // break immediately
     else
       ; // TODO???
   } else {
@@ -760,9 +760,9 @@ var lastBreakExpr = "c.PC == 0x6000";
 function _breakExpression() {
   var exprs = window.prompt("Enter break expression", lastBreakExpr);
   if (exprs) {
-    var fn = new Function('c', 'return (' + exprs + ');');
+    var fn = new Function('c', 'return (' + exprs + ');').bind(platform);
     setupBreakpoint();
-    platform.runEval(fn);
+    platform.runEval(fn as DebugEvalCondition);
     lastBreakExpr = exprs;
   }
 }

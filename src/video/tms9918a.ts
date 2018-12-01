@@ -91,19 +91,14 @@ export class TMS9918A {
         RGBA(204, 204, 204),
         RGBA(255, 255, 255)
     ];
-
-    this.reset();
   }
 
     reset() {
 
         var i;
-        for (i = 0; i < this.ram.length; i++) {
-            this.ram[i] = 0;
-        }
-        for (i = 0; i < this.registers.length; i++) {
-            this.registers[i] = 0;
-        }
+        this.ram.fill(0);
+        this.registers.fill(0);
+        
         this.addressRegister = 0;
         this.statusRegister = 0;
 
@@ -499,6 +494,7 @@ export class TMS9918A {
     writeData(i:number) {
         this.ram[this.addressRegister++] = i;
         this.addressRegister &= this.ramMask;
+        this.latch = false;
         this.redrawRequired = true;
     }
 
@@ -516,6 +512,7 @@ export class TMS9918A {
         var i = this.prefetchByte;
         this.prefetchByte = this.ram[this.addressRegister++];
         this.addressRegister &= this.ramMask;
+        this.latch = false;
         return i;
     }
 
@@ -678,6 +675,13 @@ export class SMSVDP extends TMS9918A {
     registers = new Uint8Array(16); // 8 more registers (actually only 5)
     vramUntwiddled = new Uint8Array(0x8000);
 
+    reset() {
+        super.reset();
+        this.writeToCRAM = false;
+        this.cram.fill(0);
+        this.cpalette.fill(0);
+        this.vramUntwiddled.fill(0);        
+    }
     updateMode(reg0:number, reg1:number) {
         if (reg0 & 0x04) {
             this.screenMode = TMS9918A_Mode.MODE4;
@@ -697,11 +701,12 @@ export class SMSVDP extends TMS9918A {
     }
     setVDPWriteRegister(i:number) {
         super.setVDPWriteRegister(i);
-        this.writeToCRAM = false;
+        //this.writeToCRAM = false; // TODO?
         this.ramMask = 0x3fff;
     }
     setVDPWriteCommand3(i:number) {
         this.writeToCRAM = true;
+        //this.addressRegister &= 0x1f; // TODO?
     }
     writeData(i:number) {
         if (this.writeToCRAM) {
@@ -715,7 +720,18 @@ export class SMSVDP extends TMS9918A {
             super.writeData(i);
             this.writeTwiddled(oldAddress, i);
         }
+        this.latch = false;
     }
+    readData() : number {
+        if (this.writeToCRAM) {
+            var palindex = this.addressRegister++ & (this.cram.length-1);
+            this.addressRegister &= this.ramMask;
+            return this.cram[palindex];
+        } else {
+            return super.readData();
+        }
+    }
+
     writeTwiddled(vdp_addr:number, val:number) {
         var planarBase = vdp_addr & 0x3ffc;
         var twiddledBase = planarBase * 2;
