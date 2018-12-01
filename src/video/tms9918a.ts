@@ -501,7 +501,7 @@ export class TMS9918A {
 
     readStatus() : number {
         var i = this.statusRegister;
-        this.statusRegister = 0x1F; // TODO: &= 0x1f?
+        this.statusRegister = 0x1F; // TODO: & 0x1f?
         if (this.interruptsOn) {
             this.cru.setVDPInterrupt(false);
         }
@@ -564,6 +564,7 @@ export class TMS9918A {
                 s += lpad(row[0], w) + ": $" + hex(row[1],4) + " - $" + hex(row[1]+row[2]-1,4) + "\n";
         }
         s += lpad("Address Register",w) + ": $" + hex(this.addressRegister,4) + "\n";
+        s += lpad("Status Register",w) + ": $" + hex(this.statusRegister,2) + "\n";
         s += lpad("Screen Mode",w) + ":  " + this.screenMode + "\n";
         s += lpad("Display On",w) + ":  " + this.displayOn + "\n";
         if (this.ramMask != 0x3fff)
@@ -757,8 +758,7 @@ export class SMSVDP extends TMS9918A {
         this.cram.set(state.cram);
     }
     drawScanline(y:number) {
-        if (this.screenMode == TMS9918A_Mode.MODE4) // TODO: check for other uses
-            //this.drawScanlineMode4(y);
+        if (this.screenMode == TMS9918A_Mode.MODE4)
             this.rasterize_line(y);	// special mode 4
         else
             super.drawScanline(y);

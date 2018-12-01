@@ -166,10 +166,12 @@ class SG1000Platform extends BaseZ80Platform {
   }
 
   advance(novideo : boolean) {
+    var extraCycles = 0;
     for (var sl=0; sl<this.numTotalScanlines; sl++) {
       this.currentScanline = sl;
-      this.startLineTstates = this.cpu.getTstates();
-      this.runCPU(this.cpu, this.cpuCyclesPerLine);
+      this.startLineTstates = this.cpu.getTstates() + extraCycles;
+      extraCycles = this.runCPU(this.cpu, this.cpuCyclesPerLine - extraCycles); // TODO: HALT opcode?
+      //debug//this.video.getFrameData()[sl] = -1>>>extraCycles;
       this.vdp.drawScanline(sl);
     }
     this.video.updateFrame();

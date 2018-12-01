@@ -7,7 +7,7 @@ GPLv2
 ---
 
 https://github.com/gasman/jsspeccy2
-
+Z80 emulator
 GPLv3
 
 ---
