@@ -121,7 +121,7 @@ const _SG1000Platform = function(mainElement, isSMS:boolean) {
         }
       };
       var vdpclass = isSMS ? SMSVDP : TMS9918A;
-      vdp = new vdpclass(video.canvas, cru, true); // true = 4 sprites/line
+      vdp = new vdpclass(video.getFrameData(), cru, true); // true = 4 sprites/line
       setKeyboardFromMap(video, inputs, SG1000_KEYCODE_MAP);
       timer = new AnimationTimer(60, this.nextFrame.bind(this));
     }
@@ -134,10 +134,9 @@ const _SG1000Platform = function(mainElement, isSMS:boolean) {
       for (var sl=0; sl<numTotalScanlines; sl++) {
         this.currentScanline = sl;
         this.runCPU(cpu, cpuCyclesPerLine);
-        if (sl < numVisibleScanlines)
-          vdp.drawScanline(sl);
+        vdp.drawScanline(sl);
       }
-      vdp.updateCanvas();
+      video.updateFrame();
     }
 
     loadROM(title, data) {

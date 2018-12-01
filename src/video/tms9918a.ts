@@ -17,18 +17,17 @@ enum TMS9918A_Mode {
   TEXT = 1,
   BITMAP = 2,
   MULTICOLOR = 3,
-  BITMAP_TEXT = 4,
-  BITMAP_MULTICOLOR = 5,
-  ILLEGAL = 6,
-  MODE4 = 7,
+  MODE4 = 4,
+  BITMAP_TEXT = 5,
+  BITMAP_MULTICOLOR = 6,
+  ILLEGAL = 7,
 };
 
-/**
- * @constructor
- */
-export class TMS9918A {
+interface CPUInterface {
+    setVDPInterrupt(b:boolean);
+}
 
-  canvas;
+export class TMS9918A {
 
   cru : { setVDPInterrupt: (b:boolean) => void };
   enableFlicker : boolean;
@@ -63,16 +62,14 @@ export class TMS9918A {
   flicker : boolean;
   redrawRequired : boolean;
 
-  canvasContext;
-  imageData;
-  datau32;
+  fb32 : Uint32Array;
 
   width : number;
   height : number;
 
-  constructor(canvas, cru, enableFlicker:boolean) {
+  constructor(fb32:Uint32Array, cru:CPUInterface, enableFlicker:boolean) {
 
-    this.canvas = canvas;
+    this.fb32 = fb32;
     this.cru = cru;
     this.enableFlicker = enableFlicker;
 
@@ -95,7 +92,6 @@ export class TMS9918A {
         RGBA(255, 255, 255)
     ];
 
-    this.canvasContext = this.canvas.getContext("2d");
     this.reset();
   }
 
@@ -133,33 +129,12 @@ export class TMS9918A {
         this.flicker = this.enableFlicker;
         this.redrawRequired = true;
 
-        this.canvas.width = 304;
-        this.canvas.height = 240;
-        this.canvasContext.fillStyle = '#'+hex(this.palette[7],6);
-        this.canvasContext.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Build the array containing the canvas bitmap (256 * 192 * 4 bytes (r,g,b,a) format each pixel)
-        this.imageData = this.canvasContext.getImageData(0, 0, this.canvas.width, this.canvas.height);
-        this.datau32 = new Uint32Array(this.imageData.data.buffer);
-        this.width = this.canvas.width;
-        this.height = this.canvas.height;
-    }
-
-    drawFrame(timestamp:number) {
-        if (this.redrawRequired) {
-            for (var y = 0; y < this.height; y++) {
-                this.drawScanline(y);
-            }
-            this.updateCanvas();
-            this.redrawRequired = false;
-        }
-    }
-
-    initFrame(timestamp:number) {
+        this.width = 304;
+        this.height = 240;
     }
 
     drawScanline(y:number) {
-        var imageData = this.datau32,
+        var imageData = this.fb32,
             width = this.width,
             imageDataAddr = (y * width),
             screenMode = this.screenMode,
@@ -350,10 +325,6 @@ export class TMS9918A {
         }
     }
 
-    updateCanvas() {
-        this.canvasContext.putImageData(this.imageData, 0, 0);
-    }
-    
     setReadAddress(i:number) {
         this.addressRegister = ((i & 0x3f) << 8) | (this.addressRegister & 0x00FF);
         this.prefetchByte = this.ram[this.addressRegister++];
@@ -533,7 +504,7 @@ export class TMS9918A {
 
     readStatus() : number {
         var i = this.statusRegister;
-        this.statusRegister = 0x1F;
+        this.statusRegister = 0x1F; // TODO: &= 0x1f?
         if (this.interruptsOn) {
             this.cru.setVDPInterrupt(false);
         }
@@ -572,7 +543,16 @@ export class TMS9918A {
             return 0x800;
         }
     }
-
+    getDebugTables() {
+        var tables : [string,number,number][] = [
+            ["Pattern Table", this.charPatternTable, this.patternTableSize()],
+            ["Name Table", this.nameTable, 0x300],
+            ["Color Table", this.colorTable, this.colorTableSize()],
+            ["Sprite Patterns", this.spritePatternTable, 64*32],
+            ["Sprite Attributes", this.spriteAttributeTable, 4*32],
+        ];
+        return tables;
+    }
     getRegsString() : string {
         const w = 20;
         var s = "Registers:";
@@ -580,13 +560,7 @@ export class TMS9918A {
             s += " " + hex(this.registers[i],2);
         }
         s += "\n\n";
-        var tables : [string,number,number][] = [
-            ["Pattern Table", this.charPatternTable, this.patternTableSize()],
-            ["Image Table", this.nameTable, 0x300],
-            ["Color Table", this.colorTable, this.colorTableSize()],
-            ["Sprite Patterns", this.spritePatternTable, 64*32],
-            ["Sprite Attributes", this.spriteAttributeTable, 4*32],
-        ];
+        var tables = this.getDebugTables();
         for (var row of tables) {
             if (row[2] > 0)
                 s += lpad(row[0], w) + ": $" + hex(row[1],4) + " - $" + hex(row[1]+row[2]-1,4) + "\n";
@@ -701,14 +675,15 @@ export class SMSVDP extends TMS9918A {
     writeToCRAM : boolean;
     cram = new Uint8Array(32); // color RAM
     cpalette = new Uint32Array(32); // color RAM (RGBA)
-    registers = new Uint8Array(16); // 8 more registers
+    registers = new Uint8Array(16); // 8 more registers (actually only 5)
+    vramUntwiddled = new Uint8Array(0x8000);
+    spriteBufferBackground = new Uint8Array(256);
 
     updateMode(reg0:number, reg1:number) {
         if (reg0 & 0x04) {
             this.screenMode = TMS9918A_Mode.MODE4;
-            this.nameTable = (this.registers[2] & 0xf) << 10;
-            this.spriteAttributeTable = (this.registers[5] & 0x7f) << 7;
-            this.spritePatternTable = (this.registers[6] & 0x7) << 11;
+            this.nameTable = ((this.registers[2] & 0xf) << 10) & 0x3800;
+            this.spriteAttributeTable = (this.registers[5] & 0x7e) << 7;
         } else {
             super.updateMode(reg0, reg1);
         }
@@ -724,6 +699,7 @@ export class SMSVDP extends TMS9918A {
     setVDPWriteRegister(i:number) {
         super.setVDPWriteRegister(i);
         this.writeToCRAM = false;
+        this.ramMask = 0x3fff;
     }
     setVDPWriteCommand3(i:number) {
         this.writeToCRAM = true;
@@ -736,7 +712,25 @@ export class SMSVDP extends TMS9918A {
             this.addressRegister &= this.ramMask;
             this.redrawRequired = true;
         } else {
+            var oldAddress = this.addressRegister;
             super.writeData(i);
+            this.writeTwiddled(oldAddress, i);
+        }
+    }
+    writeTwiddled(vdp_addr:number, val:number) {
+        var planarBase = vdp_addr & 0x3ffc;
+        var twiddledBase = planarBase * 2;
+        var val0 = this.ram[planarBase];
+        var val1 = this.ram[planarBase + 1];
+        var val2 = this.ram[planarBase + 2];
+        var val3 = this.ram[planarBase + 3];
+        for (var i = 0; i < 8; ++i) {
+            var effectiveBit = 7 - i;
+            var index = (((val0 >>> effectiveBit) & 1))
+                | (((val1 >>> effectiveBit) & 1) << 1)
+                | (((val2 >>> effectiveBit) & 1) << 2)
+                | (((val3 >>> effectiveBit) & 1) << 3);
+            this.vramUntwiddled[twiddledBase + i] = index;
         }
     }
     getState() {
@@ -750,12 +744,13 @@ export class SMSVDP extends TMS9918A {
     }
     drawScanline(y:number) {
         if (this.screenMode == TMS9918A_Mode.MODE4) // TODO: check for other uses
-            this.drawScanlineMode4(y);	// special mode 4
+            //this.drawScanlineMode4(y);
+            this.rasterize_line(y);	// special mode 4
         else
             super.drawScanline(y);
     }
     drawScanlineMode4(y:number) {
-        var imageData = this.datau32,
+        var imageData = this.fb32,
             width = this.width,
             imageDataAddr = (y * width),
             drawWidth = 256,
@@ -814,7 +809,6 @@ export class SMSVDP extends TMS9918A {
                                 var sx = ram[spriteAttributeTable + s*2 + 0x80];
                                 var sPatternNo = ram[spriteAttributeTable + s*2 + 0x81];
                                 var sColor = 0; // TODO
-                                //var sColor = ram[spriteAttributeAddr + 3] & 0x0F;
                                 //if ((ram[spriteAttributeAddr + 3] & 0x80) !== 0) {
                                 //    sx -= 32;
                                 //}
@@ -857,15 +851,7 @@ export class SMSVDP extends TMS9918A {
                     var nameOfs = nameTable + rowOffset + ((x1 >> 3) << 1);
                     name = ram[nameOfs] + (ram[nameOfs+1] << 8);
                     var patofs = ((((name & 0x1ff) << 3) + lineOffset) << 2);
-                    var pat0 = ram[patofs+0];
-                    var pat1 = ram[patofs+1];
-                    var pat2 = ram[patofs+2];
-                    var pat3 = ram[patofs+3];
-                    pat0 >>= x1 & 7;
-                    pat1 >>= x1 & 7;
-                    pat2 >>= x1 & 7;
-                    pat3 >>= x1 & 7;
-                    color = (pat0&1) | ((pat1&1)<<1) | ((pat2&1)<<2) | ((pat3&1)<<3);
+                    color = this.vramUntwiddled[patofs*2 + (x1&7)];
                     if (color === 0) {
                         color = bgColor;
                     }
@@ -908,5 +894,232 @@ export class SMSVDP extends TMS9918A {
         }
     }
 
+    findSprites(line:number) {
+        var spriteInfo = this.spriteAttributeTable;
+        var active = [];
+        var spriteHeight = 8;
+        var i;
+        if (this.registers[1] & 2) {
+            spriteHeight = 16;
+        }
+        for (i = 0; i < 64; i++) {
+            var y = this.ram[spriteInfo + i];
+            if (y === 208) {
+                break;
+            }
+            if (y >= 240) y -= 256;
+            if (line >= y && line < (y + spriteHeight)) {
+                if (active.length === 8) {
+                    this.statusRegister |= 0x40;  // Sprite overflow
+                    break;
+                }
+                active.push([
+                    this.ram[spriteInfo + 128 + i * 2],
+                    this.ram[spriteInfo + 128 + i * 2 + 1],
+                    y]);
+            }
+        }
+        return active;
+    }
+
+
+    rasterize_background(lineAddr:number, pixelOffset:number, tileData:number, tileDef:number, transparent:boolean) {
+        lineAddr = lineAddr | 0;
+        pixelOffset = pixelOffset | 0;
+        tileData = tileData | 0;
+        tileDef = (tileDef | 0) * 2;
+        var i, tileDefInc;
+        if ((tileData & (1 << 9))) {
+            tileDefInc = -1;
+            tileDef += 7;
+        } else {
+            tileDefInc = 1;
+        }
+        const paletteOffset = (tileData & (1 << 11)) ? 16 : 0;
+        var index;
+        if (transparent && paletteOffset === 0) {
+            for (i = 0; i < 8; i++) {
+                index = this.vramUntwiddled[tileDef];
+                tileDef += tileDefInc;
+                if (index !== 0) this.fb32[lineAddr + pixelOffset] = this.cpalette[index];
+                pixelOffset = (pixelOffset + 1) & 255;
+            }
+        } else {
+            for (i = 0; i < 8; i++) {
+                index = this.vramUntwiddled[tileDef] + paletteOffset;
+                tileDef += tileDefInc;
+                this.fb32[lineAddr + pixelOffset] = this.cpalette[index];
+                pixelOffset = (pixelOffset + 1) & 255;
+            }
+        }
+    }
+
+    
+    clear_background(lineAddr:number, pixelOffset:number) {
+        lineAddr = lineAddr | 0;
+        pixelOffset = pixelOffset | 0;
+        var i;
+        const rgb = this.cpalette[0];
+        for (i = 0; i < 8; ++i) {
+            this.fb32[lineAddr + pixelOffset] = rgb;
+            pixelOffset = (pixelOffset + 1) & 255;
+        }
+    }
+
+    rasterize_background_line(lineAddr:number, pixelOffset:number, nameAddr:number, yMod:number) {
+        lineAddr = lineAddr | 0;
+        pixelOffset = pixelOffset | 0;
+        nameAddr = nameAddr | 0;
+        const yOffset = (yMod | 0) * 4;
+        for (var i = 0; i < 32; i++) {
+            // TODO: static left-hand rows.
+            var tileData = this.ram[nameAddr + i * 2] | (this.ram[nameAddr + i * 2 + 1] << 8);
+            var tileNum = tileData & 511;
+            var tileDef = 32 * tileNum;
+            if (tileData & (1 << 10)) {
+                tileDef += 28 - yOffset;
+            } else {
+                tileDef += yOffset;
+            }
+            if ((tileData & (1 << 12)) === 0) {
+                this.rasterize_background(lineAddr, pixelOffset, tileData, tileDef, false);
+            } else {
+                this.clear_background(lineAddr, pixelOffset);
+            }
+            pixelOffset = (pixelOffset + 8) & 255;
+        }
+    }
+
+    rasterize_foreground_line(lineAddr:number, pixelOffset:number, nameAddr:number, yMod:number) {
+        lineAddr = lineAddr | 0;
+        pixelOffset = pixelOffset | 0;
+        nameAddr = nameAddr | 0;
+        const yOffset = (yMod | 0) * 4;
+        for (var i = 0; i < 32; i++) {
+            // TODO: static left-hand rows.
+            var tileData = this.ram[nameAddr + i * 2] | (this.ram[nameAddr + i * 2 + 1] << 8);
+            if ((tileData & (1 << 12)) === 0) continue;
+            var tileNum = tileData & 511;
+            var tileDef = 32 * tileNum;
+            if (tileData & (1 << 10)) {
+                tileDef += 28 - yOffset;
+            } else {
+                tileDef += yOffset;
+            }
+            this.rasterize_background(lineAddr, ((i * 8) + pixelOffset & 0xff), tileData, tileDef, true);
+        }
+    }
+
+
+    rasterize_sprites(line:number, lineAddr:number, pixelOffset:number, sprites) {
+        lineAddr = lineAddr | 0;
+        pixelOffset = pixelOffset | 0;
+        const spriteBase = (this.registers[6] & 4) ? 0x2000 : 0;
+        // TODO: sprite X-8 shift
+        // TODO: sprite double size
+        for (var i = 0; i < 256; ++i) {
+            var xPos = i;//(i + this.registers[8]) & 0xff;
+            var spriteFoundThisX = false;
+            var writtenTo = false;
+            var minDistToNext = 256;
+            for (var k = 0; k < sprites.length; k++) {
+                var sprite = sprites[k];
+                var offset = xPos - sprite[0];
+                // Sprite to the right of the current X?
+                if (offset < 0) {
+                    // Find out how far it would be to skip to this sprite
+                    var distToSprite = -offset;
+                    // Keep the minimum distance to the next sprite to the right.
+                    if (distToSprite < minDistToNext) minDistToNext = distToSprite;
+                    continue;
+                }
+                if (offset >= 8) continue;
+                spriteFoundThisX = true;
+                var spriteLine = line - sprite[2];
+                var spriteAddr = spriteBase + sprite[1] * 32 + spriteLine * 4;
+                var untwiddledAddr = spriteAddr * 2 + offset;
+                var index = this.vramUntwiddled[untwiddledAddr];
+                if (index === 0) {
+                    continue;
+                }
+                if (writtenTo) {
+                    // We have a collision!.
+                    this.statusRegister |= 0x20;
+                    break;
+                }
+                this.fb32[lineAddr + ((pixelOffset + i - this.registers[8]) & 0xff)] = this.cpalette[16 + index];
+                writtenTo = true;
+            }
+            if (!spriteFoundThisX && minDistToNext > 1) {
+                // If we didn't find a sprite on this X, then we can skip ahead by the minimum
+                // dist to next (minus one to account for loop add)
+                i += minDistToNext - 1;
+            }
+        }
+    }
+
+    border_clear(lineAddr:number, count:number) {
+        lineAddr = lineAddr | 0;
+        count = count | 0;
+        const borderIndex = 16 + (this.registers[7] & 0xf);
+        const borderRGB = this.cpalette[borderIndex];
+        for (var i = 0; i < count; i++)
+            this.fb32[lineAddr + i] = borderRGB;
+    }
+
+    rasterize_line(line:number) {
+        var vdp_regs = this.registers;
+        var drawHeight = 192; // TODO?
+        var hBorder = (this.width - 256) >> 1;
+        var vBorder = (this.height - 192) >> 1; // TODO?
+        line = (line - vBorder) | 0; // TODO?
+        const lineAddr = (line * this.width + hBorder) | 0;
+        if (!(line >= 0 && line < 224 && this.displayOn)) {
+            this.border_clear(lineAddr, this.width);
+            return;
+        }
+        if ((vdp_regs[1] & 64) === 0) {
+            this.border_clear(lineAddr, this.width);
+            return;
+        }
+
+        var effectiveLine = line + vdp_regs[9];
+        if (effectiveLine >= 224) {
+            effectiveLine -= 224;
+        }
+        const sprites = this.findSprites(line);
+        const pixelOffset = ((vdp_regs[0] & 64) && line < 16) ? 0 : vdp_regs[8];
+        const nameAddr = this.nameTable + (effectiveLine >>> 3) * 64;
+        const yMod = effectiveLine & 7;
+
+        this.rasterize_background_line(lineAddr, pixelOffset, nameAddr, yMod);
+        this.rasterize_sprites(line, lineAddr, pixelOffset, sprites);
+        this.rasterize_foreground_line(lineAddr, pixelOffset, nameAddr, yMod);
+
+        if (vdp_regs[0] & (1 << 5)) {
+            // Blank out left hand column.
+            this.border_clear(lineAddr, 8);
+        }
+
+        if (line == drawHeight) {
+            this.statusRegister |= 0x80;
+            if (this.interruptsOn) {
+                this.cru.setVDPInterrupt(true);
+            }
+        }
+    }
+
+    getDebugTables() {
+        if (this.screenMode == TMS9918A_Mode.MODE4) {
+            var tables : [string,number,number][] = [
+                ["Pattern Table", 0, 512*32],
+                ["Name Table", this.nameTable, 32*32*2], // TODO: size
+                ["Sprite Attributes", this.spriteAttributeTable, 256],
+            ]
+            return tables;
+        } else {
+            return super.getDebugTables();
+        }
+    }
 };
 

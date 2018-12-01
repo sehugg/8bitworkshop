@@ -137,7 +137,7 @@ const _ColecoVisionPlatform = function(mainElement) {
           }
         }
       };
-      vdp = new TMS9918A(video.canvas, cru, true); // true = 4 sprites/line
+      vdp = new TMS9918A(video.getFrameData(), cru, true); // true = 4 sprites/line
       setKeyboardFromMap(video, inputs, COLECOVISION_KEYCODE_MAP);
       timer = new AnimationTimer(60, this.nextFrame.bind(this));
     }
@@ -149,10 +149,9 @@ const _ColecoVisionPlatform = function(mainElement) {
     advance(novideo : boolean) {
       for (var sl=0; sl<numTotalScanlines; sl++) {
         this.runCPU(cpu, cpuCyclesPerLine);
-        if (sl < numVisibleScanlines)
-          vdp.drawScanline(sl);
+        vdp.drawScanline(sl);
       }
-      vdp.updateCanvas();
+      video.updateFrame();
     }
 
     loadROM(title, data) {
