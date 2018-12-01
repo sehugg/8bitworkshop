@@ -140,7 +140,19 @@ const _SG1000Platform = function(mainElement, isSMS:boolean) {
     }
 
     loadROM(title, data) {
-      rom = padBytes(data, 0xc000); // TODO
+      if (data.length < 0xc000) {
+        rom = padBytes(data, 0xc000);
+      } else {
+        switch (data.length) {
+          case 0x10000:
+          case 0x20000:
+          case 0x40000:
+            rom = data;
+            break;
+          default:
+            throw "Unknown rom size: $" + hex(data.length);
+        }
+      }
       this.reset();
     }
 

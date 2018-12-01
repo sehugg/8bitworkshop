@@ -677,7 +677,6 @@ export class SMSVDP extends TMS9918A {
     cpalette = new Uint32Array(32); // color RAM (RGBA)
     registers = new Uint8Array(16); // 8 more registers (actually only 5)
     vramUntwiddled = new Uint8Array(0x8000);
-    spriteBufferBackground = new Uint8Array(256);
 
     updateMode(reg0:number, reg1:number) {
         if (reg0 & 0x04) {
@@ -748,150 +747,6 @@ export class SMSVDP extends TMS9918A {
             this.rasterize_line(y);	// special mode 4
         else
             super.drawScanline(y);
-    }
-    drawScanlineMode4(y:number) {
-        var imageData = this.fb32,
-            width = this.width,
-            imageDataAddr = (y * width),
-            drawWidth = 256,
-            drawHeight = 192, // TODO
-            hBorder = (width - drawWidth) >> 1,
-            vBorder = (this.height - drawHeight) >> 1,
-            fgColor = this.fgColor,
-            bgColor = this.bgColor,
-            ram = this.ram,
-            nameTable = this.nameTable,
-            patternTableMask = this.patternTableMask,
-            spriteAttributeTable = this.spriteAttributeTable,
-            spritePatternTable = this.spritePatternTable,
-            spriteSize = (this.registers[1] & 0x2) !== 0,
-            spriteMagnify = this.registers[1] & 0x1,
-            spriteDimension = (spriteSize ? 16 : 8) << (spriteMagnify ? 1 : 0),
-            maxSpritesOnLine = this.flicker ? 8 : 64,
-            cpalette = this.cpalette,
-            collision = false, ninthSprite = false, ninthSpriteIndex = 63,
-            x, color, rgbColor, name;
-        if (y >= vBorder && y < vBorder + drawHeight && this.displayOn) {
-            var y1 = y - vBorder;
-            // Pre-process sprites
-            if (true) {
-                var spriteBuffer = this.spriteBuffer;
-                spriteBuffer.fill(0);
-                var spritesOnLine = 0;
-                var endMarkerFound = false;
-                var s;
-                for (s = 0; s < 64 && spritesOnLine <= maxSpritesOnLine && !endMarkerFound; s++) {
-                    var sy = ram[spriteAttributeTable + s];
-                    if (sy !== 0xD0) {
-                        if (sy > 0xD0) {
-                            sy -= 256;
-                        }
-                        sy++;
-                        var sy1 = sy + spriteDimension;
-                        var y2 = -1;
-                        if (s < 8 /*|| !bitmapMode*/) { // TODO?
-                            if (y1 >= sy && y1 < sy1) {
-                                y2 = y1;
-                            }
-                        }
-                        else {
-                            // Emulate sprite duplication bug
-                            var yMasked = y1 & (((this.registers[4] & 0x03) << 6) | 0x3F);
-                            if (yMasked >= sy && yMasked < sy1) {
-                                y2 = yMasked;
-                            }
-                            else if (y1 >= 64 && y1 < 128 && y1 >= sy && y1 < sy1) {
-                                y2 = y1;
-                            }
-                        }
-                        if (y2 !== -1) {
-                            if (spritesOnLine < maxSpritesOnLine) {
-                                var sx = ram[spriteAttributeTable + s*2 + 0x80];
-                                var sPatternNo = ram[spriteAttributeTable + s*2 + 0x81];
-                                var sColor = 0; // TODO
-                                //if ((ram[spriteAttributeAddr + 3] & 0x80) !== 0) {
-                                //    sx -= 32;
-                                //}
-                                var sLine = (y2 - sy) >> spriteMagnify;
-                                var sPatternBase = spritePatternTable + (sPatternNo << 3) + sLine;
-                                for (var sx1 = 0; sx1 < spriteDimension; sx1++) {
-                                    var sx2 = sx + sx1;
-                                    if (sx2 >= 0 && sx2 < drawWidth) {
-                                        var sx3 = sx1 >> spriteMagnify;
-                                        var sPatternByte = ram[sPatternBase + (sx3 >= 8 ? 16 : 0)];
-                                        if ((sPatternByte & (0x80 >> (sx3 & 0x07))) !== 0) {
-                                            if (spriteBuffer[sx2] === 0) {
-                                                spriteBuffer[sx2] = sColor + 1;
-                                            }
-                                            else {
-                                                collision = true;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            spritesOnLine++;
-                        }
-                    }
-                    else {
-                        endMarkerFound = true;
-                    }
-                }
-                if (spritesOnLine > 8) {
-                    ninthSprite = true;
-                    ninthSpriteIndex = s;
-                }
-            }
-            // Draw
-            var rowOffset = (y1 >> 3) << 6;
-            var lineOffset = y1 & 7;
-            for (x = 0; x < width; x++) {
-                if (x >= hBorder && x < hBorder + drawWidth) {
-                    var x1 = x - hBorder;
-                    var nameOfs = nameTable + rowOffset + ((x1 >> 3) << 1);
-                    name = ram[nameOfs] + (ram[nameOfs+1] << 8);
-                    var patofs = ((((name & 0x1ff) << 3) + lineOffset) << 2);
-                    color = this.vramUntwiddled[patofs*2 + (x1&7)];
-                    if (color === 0) {
-                        color = bgColor;
-                    }
-                    // Sprites
-                    if (true) {
-                        var spriteColor = spriteBuffer[x1] - 1;
-                        if (spriteColor > 0) {
-                            color = spriteColor;
-                        }
-                    }
-                }
-                else {
-                    color = bgColor;
-                }
-                rgbColor = cpalette[color];
-                imageData[imageDataAddr++] = rgbColor;
-            }
-        }
-        // Top/bottom border
-        else {
-            rgbColor = this.cpalette[bgColor]; // TODO?
-            for (x = 0; x < width; x++) {
-                imageData[imageDataAddr++] = rgbColor;
-            }
-        }
-        if (y === vBorder + drawHeight) {
-            this.statusRegister |= 0x80;
-            if (this.interruptsOn) {
-                this.cru.setVDPInterrupt(true);
-            }
-        }
-        if (collision) {
-            this.statusRegister |= 0x20;
-        }
-        if ((this.statusRegister & 0x40) === 0) {
-            this.statusRegister |= ninthSpriteIndex;
-        }
-        if (ninthSprite) {
-            this.statusRegister |= 0x40;
-        }
     }
 
     findSprites(line:number) {
@@ -1072,35 +927,36 @@ export class SMSVDP extends TMS9918A {
         var drawHeight = 192; // TODO?
         var hBorder = (this.width - 256) >> 1;
         var vBorder = (this.height - 192) >> 1; // TODO?
-        line = (line - vBorder) | 0; // TODO?
-        const lineAddr = (line * this.width + hBorder) | 0;
+        line = (line - vBorder*0) | 0; // TODO?
+        const startAddr = (line * this.width) | 0;
+        const lineAddr = (startAddr + hBorder) | 0;
         if (!(line >= 0 && line < 224 && this.displayOn)) {
-            this.border_clear(lineAddr, this.width);
-            return;
+            this.border_clear(startAddr, this.width);
         }
-        if ((vdp_regs[1] & 64) === 0) {
-            this.border_clear(lineAddr, this.width);
-            return;
+        else if ((vdp_regs[1] & 64) === 0) {
+            this.border_clear(startAddr, this.width);
         }
+        else {
+            var effectiveLine = line + vdp_regs[9];
+            if (effectiveLine >= 224) {
+                effectiveLine -= 224;
+            }
+            const sprites = this.findSprites(line);
+            const pixelOffset = ((vdp_regs[0] & 64) && line < 16) ? 0 : vdp_regs[8];
+            const nameAddr = this.nameTable + (effectiveLine >>> 3) * 64;
+            const yMod = effectiveLine & 7;
 
-        var effectiveLine = line + vdp_regs[9];
-        if (effectiveLine >= 224) {
-            effectiveLine -= 224;
+            this.rasterize_background_line(lineAddr, pixelOffset, nameAddr, yMod);
+            this.rasterize_sprites(line, lineAddr, pixelOffset, sprites);
+            this.rasterize_foreground_line(lineAddr, pixelOffset, nameAddr, yMod);
+
+            this.border_clear(startAddr, hBorder);
+            this.border_clear(lineAddr + 256, hBorder);
+            if (vdp_regs[0] & (1 << 5)) {
+                // Blank out left hand column.
+                this.border_clear(lineAddr, 8);
+            }
         }
-        const sprites = this.findSprites(line);
-        const pixelOffset = ((vdp_regs[0] & 64) && line < 16) ? 0 : vdp_regs[8];
-        const nameAddr = this.nameTable + (effectiveLine >>> 3) * 64;
-        const yMod = effectiveLine & 7;
-
-        this.rasterize_background_line(lineAddr, pixelOffset, nameAddr, yMod);
-        this.rasterize_sprites(line, lineAddr, pixelOffset, sprites);
-        this.rasterize_foreground_line(lineAddr, pixelOffset, nameAddr, yMod);
-
-        if (vdp_regs[0] & (1 << 5)) {
-            // Blank out left hand column.
-            this.border_clear(lineAddr, 8);
-        }
-
         if (line == drawHeight) {
             this.statusRegister |= 0x80;
             if (this.interruptsOn) {

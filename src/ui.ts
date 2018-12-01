@@ -271,10 +271,12 @@ function handleFileUpload(files: File[]) {
     var f = files[index++];
     if (!f) {
       console.log("Done uploading");
-      if (gotoMainFile)
-        gotoNewLocation(); // TODO: upload w/o starting new project?
-      else
+      if (gotoMainFile) {
+        gotoNewLocation();
+      } else {
+        updateSelector();
         alert("Files uploaded.");
+      }
     } else {
       var path = "local/" + f.name;
       var reader = new FileReader();
