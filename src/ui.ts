@@ -206,7 +206,6 @@ function loadProject(preset_id:string) {
       alert(err);
     } else if (result && result.length) {
       // we need this to build create functions for the editor
-      // TODO: can't use binary file as main
       refreshWindowList();
       // show main file
       projectWindows.createOrShow(preset_id);

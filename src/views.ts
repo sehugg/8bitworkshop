@@ -25,7 +25,6 @@ export interface ProjectView {
   setTimingResult?(result:CodeAnalyzer) : void;
 };
 
-// TODO: move to different namespace
 declare var CodeMirror;
 declare var VirtualList;
 
@@ -36,8 +35,9 @@ function jumpToLine(ed, i:number) {
   ed.scrollTo(null, t - middleHeight - 5);
 }
 
+// TODO: https://stackoverflow.com/questions/10463518/converting-em-to-px-in-javascript-and-getting-default-font-size
 function getVisibleEditorLineHeight() : number{
-  return $(".CodeMirror-line:visible").first().height();
+  return $("#booksMenuButton").first().height();
 }
 
 /////

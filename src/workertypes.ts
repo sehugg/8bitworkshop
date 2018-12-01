@@ -94,4 +94,6 @@ export interface WorkerResult {
   listings:CodeListingMap,
   symbolmap:{[sym:string]:number},
   params:{},
+  unchanged?:boolean,
 }
+

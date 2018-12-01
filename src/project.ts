@@ -32,21 +32,25 @@ export class CodeProject {
     this.store = store;
 
     worker.onmessage = (e) => {
-      var notfinal = this.pendingWorkerMessages > 1;
-      if (notfinal) {
-        this.sendBuild();
-        this.pendingWorkerMessages = 1;
-      } else {
-        if (this.callbackBuildStatus) this.callbackBuildStatus(false);
-        if (!this.isCompiling) { console.log(this.pendingWorkerMessages); console.trace(); } // debug compile problems
-        this.isCompiling = false;
-        this.pendingWorkerMessages = 0;
-      }
-      if (e.data && !e.data.unchanged) {
-        this.processBuildResult(e.data);
-        if (this.callbackBuildResult) this.callbackBuildResult(e.data); // call with data when changed
-      }
+      this.receiveWorkerMessage(e.data);
     };
+  }
+  
+  receiveWorkerMessage(data : WorkerResult) {
+    var notfinal = this.pendingWorkerMessages > 1;
+    if (notfinal) {
+      this.sendBuild();
+      this.pendingWorkerMessages = 1;
+    } else {
+      if (this.callbackBuildStatus) this.callbackBuildStatus(false);
+      if (!this.isCompiling) { console.log(this.pendingWorkerMessages); console.trace(); } // debug compile problems
+      this.isCompiling = false;
+      this.pendingWorkerMessages = 0;
+    }
+    if (data && !data.unchanged) {
+      this.processBuildResult(data);
+      if (this.callbackBuildResult) this.callbackBuildResult(data); // call with data when changed
+    }
   }
 
   preloadWorker(path:string) {
@@ -235,6 +239,19 @@ export class CodeProject {
   sendBuild() {
     if (!this.mainpath) throw "need to call setMainFile first";
     var maindata = this.getFile(this.mainpath);
+    // if binary blob, just return it as ROM
+    if (maindata instanceof Uint8Array) {
+      this.isCompiling = true;
+      this.receiveWorkerMessage({
+        output:maindata,
+        errors:[],
+        listings:null,
+        symbolmap:null,
+        params:{}
+      });
+      return;
+    }
+    // otherwise, make it a string
     var text = typeof maindata === "string" ? maindata : '';
     // TODO: load dependencies of non-main files
     this.loadFileDependencies(text, (err, depends) => {
