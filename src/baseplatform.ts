@@ -1,5 +1,5 @@
 
-import { RAM, RasterVideo, dumpRAM } from "./emu";
+import { RAM, RasterVideo, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes } from "./emu";
 import { hex, printFlags, invertMap } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { disassemble6502 } from "./cpu/disasm6502";
@@ -195,6 +195,8 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.postFrame();
   }
 }
+
+//////
 
 ////// 6502
 
@@ -436,7 +438,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   getSP() { return this._cpu.getSP(); }
 
   // TODO: refactor other parts into here
-  runCPU(cpu, cycles) {
+  runCPU(cpu, cycles:number) {
     this._cpu = cpu; // TODO?
     if (this.wasBreakpointHit())
       return 0;
@@ -957,5 +959,118 @@ export function lookupSymbol(platform:Platform, addr:number) {
     addr--;
   }
   return foundsym || "";
+}
+
+///// Basic Platforms
+
+export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
+
+  cpuFrequency : number;
+  canvasWidth : number;
+  numTotalScanlines : number;
+  numVisibleScanlines : number;
+  defaultROMSize : number;
+
+  cpuCyclesPerLine : number;
+  currentScanline : number;
+  startLineTstates : number;
+  
+  cpu;
+  membus : MemoryBus;
+  iobus : MemoryBus;
+  ram = new Uint8Array(0);
+  rom = new Uint8Array(0);
+  video;
+  timer;
+  audio;
+  psg;
+  inputs = new Uint8Array(16);
+  mainElement : HTMLElement;
+
+  abstract newRAM() : Uint8Array;
+  abstract newMembus() : MemoryBus;
+  abstract newIOBus() : MemoryBus;
+  abstract getVideoOptions();
+  abstract getKeyboardMap();
+  abstract startScanline(sl : number);
+  abstract drawScanline(sl : number);
+  
+  constructor(mainElement : HTMLElement) {
+    super();
+    this.mainElement = mainElement;
+  }
+  
+  start() {
+    this.cpuCyclesPerLine = Math.round(this.cpuFrequency / 60 / this.numTotalScanlines);
+    this.ram = this.newRAM();
+    this.membus = this.newMembus();
+    this.iobus = this.newIOBus();
+    this.cpu = this.newCPU(this.membus, this.iobus);
+    this.video = new RasterVideo(this.mainElement, this.canvasWidth, this.numVisibleScanlines, this.getVideoOptions());
+    this.video.create();
+    setKeyboardFromMap(this.video, this.inputs, this.getKeyboardMap())
+    this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
+  }
+
+  readAddress(addr) {
+    return this.membus.read(addr);
+  }
+
+  advance(novideo : boolean) {
+    var extraCycles = 0;
+    for (var sl=0; sl<this.numTotalScanlines; sl++) {
+      this.startLineTstates = this.cpu.getTstates();
+      this.currentScanline = sl;
+      this.startScanline(sl);
+      extraCycles = this.runCPU(this.cpu, this.cpuCyclesPerLine - extraCycles); // TODO: HALT opcode?
+      this.drawScanline(sl);
+    }
+    this.video.updateFrame();
+  }
+
+  loadROM(title, data) {
+    this.rom = padBytes(data, this.defaultROMSize);
+    this.reset();
+  }
+
+  loadState(state) {
+    this.cpu.loadState(state.c);
+    this.ram.set(state.b);
+    this.inputs.set(state.in);
+  }
+  saveState() {
+    return {
+      c:this.getCPUState(),
+      b:this.ram.slice(0),
+      in:this.inputs.slice(0),
+    };
+  }
+  loadControlsState(state) {
+    this.inputs.set(state.in);
+  }
+  saveControlsState() {
+    return {
+      in:this.inputs.slice(0)
+    };
+  }
+  getCPUState() {
+    return this.cpu.saveState();
+  }
+
+  isRunning() {
+    return this.timer && this.timer.isRunning();
+  }
+  pause() {
+    this.timer.stop();
+    if (this.audio) this.audio.stop();
+  }
+  resume() {
+    this.timer.start();
+    if (this.audio) this.audio.start();
+  }
+  reset() {
+    this.cpu.reset();
+    this.cpu.setTstates(0);
+  }
 }
 

@@ -1,6 +1,6 @@
 "use strict";
 
-import { Platform, BaseMAMEPlatform, BaseZ80Platform, getToolForFilename_z80 } from "../baseplatform";
+import { Platform, BasicZ80ScanlinePlatform } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
 import { hex, lzgmini, stringToByteArray } from "../util";
 import { MasterAudio, SN76489_Audio } from "../audio";
@@ -48,50 +48,34 @@ var SG1000_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_1, 1, 0x10],
 ]);
 
-class SG1000Platform extends BaseZ80Platform {
+class SG1000Platform extends BasicZ80ScanlinePlatform implements Platform {
 
   cpuFrequency = 3579545; // MHz
   canvasWidth = 304;
   numTotalScanlines = 262;
   numVisibleScanlines = 240;
-  cpuCyclesPerLine;
-
-  cpu;
-  ram : RAM;
-  membus;
-  iobus;
-  rom = new Uint8Array(0);
-  video;
-  vdp;
-  timer;
-  audio;
-  psg;
-  inputs = new Uint8Array(4);
-  mainElement : HTMLElement;
-
-  currentScanline : number;
-  startLineTstates : number;
+  defaultROMSize = 0xc000;
   
-  constructor(mainElement : HTMLElement) {
-    super();
-    this.mainElement = mainElement;
-  }
-
+  vdp : TMS9918A;
+  
   getPresets() { return SG1000_PRESETS; }
-    
+  
+  getKeyboardMap() { return SG1000_KEYCODE_MAP; }
+  
+  getVideoOptions() { return {overscan:true}; }
+
   newRAM() {
-    return new RAM(0x400);
+    return new Uint8Array(0x400);
   }
     
   newMembus() {
-    var ramSize = this.ram.mem.length;
     return {
        read: newAddressDecoder([
-         [0xc000, 0xffff, ramSize-1, (a) => { return this.ram.mem[a]; }],
-         [0x0000, 0xbfff, 0xffff,    (a) => { return this.rom[a]; }],
+         [0xc000, 0xffff,  0x3ff, (a) => { return this.ram[a]; }],
+         [0x0000, 0xbfff, 0xffff, (a) => { return this.rom[a]; }],
        ]),
        write: newAddressDecoder([
-         [0xc000, 0xffff, ramSize-1, (a,v) => { this.ram.mem[a] = v; }],
+         [0xc000, 0xffff,  0x3ff, (a,v) => { this.ram[a] = v; }],
        ]),
        isContended: () => { return false; },
     };
@@ -138,13 +122,7 @@ class SG1000Platform extends BaseZ80Platform {
   }
   
   start() {
-    this.cpuCyclesPerLine = Math.round(this.cpuFrequency / 60 / this.numTotalScanlines);
-    this.ram = this.newRAM();
-    this.membus = this.newMembus();
-    this.iobus = this.newIOBus();
-    this.cpu = this.newCPU(this.membus, this.iobus);
-    this.video = new RasterVideo(this.mainElement, this.canvasWidth, this.numVisibleScanlines, {overscan:true});
-    this.video.create();
+    super.start();
     this.audio = new MasterAudio();
     this.psg = new SN76489_Audio(this.audio);
     var cru = {
@@ -157,71 +135,26 @@ class SG1000Platform extends BaseZ80Platform {
       }
     };
     this.vdp = this.newVDP(this.video.getFrameData(), cru, true); // true = 4 sprites/line
-    setKeyboardFromMap(this.video, this.inputs, SG1000_KEYCODE_MAP); // TODO
-    this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
   
-  readAddress(addr) {
-    return this.membus.read(addr);
+  startScanline(sl : number) {
   }
-
-  advance(novideo : boolean) {
-    var extraCycles = 0;
-    for (var sl=0; sl<this.numTotalScanlines; sl++) {
-      this.currentScanline = sl;
-      this.startLineTstates = this.cpu.getTstates() + extraCycles;
-      extraCycles = this.runCPU(this.cpu, this.cpuCyclesPerLine - extraCycles); // TODO: HALT opcode?
-      //debug//this.video.getFrameData()[sl] = -1>>>extraCycles;
-      this.vdp.drawScanline(sl);
-    }
-    this.video.updateFrame();
-  }
-
-  loadROM(title, data) {
-    this.rom = padBytes(data, 0xc000);
-    this.reset();
+  
+  drawScanline(sl : number) {
+    this.vdp.drawScanline(sl);
   }
 
   loadState(state) {
-    this.cpu.loadState(state.c);
-    this.ram.mem.set(state.b);
-    this.vdp.restoreState(state.vdp);
-    this.inputs.set(state.in);
+    super.loadState(state);
+    this.vdp.restoreState(state['vdp']);
   }
   saveState() {
-    return {
-      c:this.getCPUState(),
-      b:this.ram.mem.slice(0),
-      vdp:this.vdp.getState(),
-      in:this.inputs.slice(0),
-    };
-  }
-  loadControlsState(state) {
-    this.inputs.set(state.in);
-  }
-  saveControlsState() {
-    return {
-      in:this.inputs.slice(0)
-    };
-  }
-  getCPUState() {
-    return this.cpu.saveState();
-  }
-
-  isRunning() {
-    return this.timer && this.timer.isRunning();
-  }
-  pause() {
-    this.timer.stop();
-    this.audio.stop();
-  }
-  resume() {
-    this.timer.start();
-    this.audio.start();
+    var state = super.saveState();
+    state['vdp'] = this.vdp.getState();
+    return state;
   }
   reset() {
-    this.cpu.reset();
-    this.cpu.setTstates(0);
+    super.reset();
     this.vdp.reset();
     this.psg.reset();
   }
@@ -244,10 +177,9 @@ class SG1000Platform extends BaseZ80Platform {
 
 class SMSPlatform extends SG1000Platform {
 
-  cartram : RAM = new RAM(0);
+  cartram = new Uint8Array(0);
   pagingRegisters = new Uint8Array(4);
   romPageMask : number;
-  // TODO: add to state
   latchedHCounter = 0;
   ioControlFlags = 0;
   // TODO: hide bottom scanlines
@@ -281,7 +213,9 @@ class SMSPlatform extends SG1000Platform {
     this.ioControlFlags = v;
   }
   
-  newRAM() { return new RAM(0x2000); }
+  newRAM() {
+    return new Uint8Array(0x2000);
+  }
   
   getPagedROM(a:number, reg:number) {
     //if (!(a&0xff)) console.log(hex(a), reg, this.pagingRegisters[reg], this.romPageMask);
@@ -291,14 +225,14 @@ class SMSPlatform extends SG1000Platform {
   newMembus() {
     return {
        read: newAddressDecoder([
-         [0xc000, 0xffff, 0x1fff, (a) => { return this.ram.mem[a]; }],
+         [0xc000, 0xffff, 0x1fff, (a) => { return this.ram[a]; }],
          [0x0000, 0x03ff,  0x3ff, (a) => { return this.rom[a]; }],
          [0x0400, 0x3fff, 0x3fff, (a) => { return this.getPagedROM(a,1); }],
          [0x4000, 0x7fff, 0x3fff, (a) => { return this.getPagedROM(a,2); }],
          [0x8000, 0xbfff, 0x3fff, (a) => {
            var reg0 = this.pagingRegisters[0]; // RAM select?
            if (reg0 & 0x8) {
-             return this.cartram.mem[(reg0 & 0x4) ? a+0x4000 : a];
+             return this.cartram[(reg0 & 0x4) ? a+0x4000 : a];
            } else {
              return this.getPagedROM(a,3);
            }
@@ -306,18 +240,18 @@ class SMSPlatform extends SG1000Platform {
        ]),
        write: newAddressDecoder([
          [0xc000, 0xfffb, 0x1fff, (a,v) => {
-           this.ram.mem[a] = v;
+           this.ram[a] = v;
          }],
          [0xfffc, 0xffff,    0x3, (a,v) => {
            this.pagingRegisters[a] = v;
-           this.ram.mem[a+0x1ffc] = v;
+           this.ram[a+0x1ffc] = v;
          }],
          [0x8000, 0xbfff, 0x3fff, (a,v) => {
            var reg0 = this.pagingRegisters[0]; // RAM select?
            if (reg0 & 0x8) {
-             if (this.cartram.mem.length == 0)
-               this.cartram = new RAM(0x8000); // create cartridge RAM lazily
-             this.cartram.mem[(reg0 & 0x4) ? a+0x4000 : a] = v;
+             if (this.cartram.length == 0)
+               this.cartram = new Uint8Array(0x8000); // create cartridge RAM lazily
+             this.cartram[(reg0 & 0x4) ? a+0x4000 : a] = v;
            }
          }],
        ]),
@@ -349,12 +283,16 @@ class SMSPlatform extends SG1000Platform {
   loadState(state) {
     super.loadState(state);
     this.pagingRegisters.set(state.pr);
-    this.cartram.mem.set(state.cr);
+    this.cartram.set(state.cr);
+    this.latchedHCounter = state.lhc;
+    this.ioControlFlags = state.iocf;
   }
   saveState() {
     var state = super.saveState();
     state['pr'] = this.pagingRegisters.slice(0);
-    state['cr'] = this.cartram.mem.slice(0);
+    state['cr'] = this.cartram.slice(0);
+    state['lhc'] = this.latchedHCounter;
+    state['iocf'] = this.ioControlFlags;
     return state;
   }
   getDebugInfo(category, state) {
