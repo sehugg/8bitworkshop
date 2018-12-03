@@ -31,7 +31,7 @@ export function setNoiseSeed(x : number) {
 
 type KeyboardCallback = (which:number, charCode:number, flags:number) => void;
 
-function __createCanvas(mainElement:HTMLElement, width:number, height:number) : HTMLElement {
+function __createCanvas(mainElement:HTMLElement, width:number, height:number) : HTMLCanvasElement {
   var canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -55,15 +55,33 @@ function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
 
 type VideoCanvasOptions = {rotate?:number, overscan?:boolean};
 
-export var RasterVideo = function(mainElement:HTMLElement, width:number, height:number, options?:VideoCanvasOptions) {
-  var canvas, ctx;
-  var imageData, arraybuf, buf8, datau32;
-  var vcanvas;
+export class RasterVideo {
+
+  mainElement : HTMLElement;
+  width : number;
+  height : number;
+  options : VideoCanvasOptions;
+
+  constructor(mainElement:HTMLElement, width:number, height:number, options?:VideoCanvasOptions) {
+    this.mainElement = mainElement;
+    this.width = width;
+    this.height = height;
+    this.options = options;
+  }
   
-  this.paddle_x = 255;
-  this.paddle_y = 255;
+  canvas : HTMLCanvasElement;
+  ctx;
+  imageData;
+  arraybuf;
+  buf8;
+  datau32;
+  vcanvas;
   
-  this.setRotate = function(rotate) {
+  paddle_x = 255;
+  paddle_y = 255;
+  
+  setRotate(rotate:number) {
+    var canvas = this.canvas;
     if (rotate) {
       // TODO: aspect ratio?
       canvas.style.transform = "rotate("+rotate+"deg)";
@@ -75,79 +93,77 @@ export var RasterVideo = function(mainElement:HTMLElement, width:number, height:
     }
   }
 
-  this.create = function() {
-    this.canvas = canvas = __createCanvas(mainElement, width, height);
-    vcanvas = $(canvas);
-    if (options && options.rotate) {
-      this.setRotate(options.rotate);
+  create() {
+    var canvas;
+    this.canvas = canvas = __createCanvas(this.mainElement, this.width, this.height);
+    this.vcanvas = $(canvas);
+    if (this.options && this.options.rotate) {
+      this.setRotate(this.options.rotate);
     }
-    if (options && options.overscan) {
-      vcanvas.css('padding','0px');
+    if (this.options && this.options.overscan) {
+      this.vcanvas.css('padding','0px');
     }
-    ctx = canvas.getContext('2d');
-    imageData = ctx.createImageData(width, height);
-    datau32 = new Uint32Array(imageData.data.buffer);
+    this.ctx = canvas.getContext('2d');
+    this.imageData = this.ctx.createImageData(this.width, this.height);
+    this.datau32 = new Uint32Array(this.imageData.data.buffer);
   }
 
-  this.setKeyboardEvents = function(callback) {
-    _setKeyboardEvents(canvas, callback);
+  setKeyboardEvents(callback) {
+    _setKeyboardEvents(this.canvas, callback);
   }
 
-  this.getFrameData = function() { return datau32; }
+  getFrameData() { return this.datau32; }
 
-  this.getContext = function() { return ctx; }
+  getContext() { return this.ctx; }
 
-  this.updateFrame = function(sx:number, sy:number, dx:number, dy:number, width?:number, height?:number) {
-    if (width && height)
-      ctx.putImageData(imageData, sx, sy, dx, dy, width, height);
+  updateFrame(sx:number, sy:number, dx:number, dy:number, w?:number, h?:number) {
+    if (w && h)
+      this.ctx.putImageData(this.imageData, sx, sy, dx, dy, w, h);
     else
-      ctx.putImageData(imageData, 0, 0);
-    if (frameUpdateFunction) frameUpdateFunction(canvas);
+      this.ctx.putImageData(this.imageData, 0, 0);
+    if (frameUpdateFunction) frameUpdateFunction(this.canvas);
   }
 
-  this.setupMouseEvents = function(el? : HTMLElement) {
-    if (!el) el = canvas;
+  setupMouseEvents(el? : HTMLElement) {
+    if (!el) el = this.canvas;
 		$(el).mousemove( (e) => {
 		  // TODO: get coords right
-		  var x = e.pageX - vcanvas.offset().left;
-		  var y = e.pageY - vcanvas.offset().top;
-      var new_x = Math.floor(x * 255 / vcanvas.width() - 20);
-      var new_y = Math.floor(y * 255 / vcanvas.height() - 20);
+		  var x = e.pageX - this.vcanvas.offset().left;
+		  var y = e.pageY - this.vcanvas.offset().top;
+      var new_x = Math.floor(x * 255 / this.vcanvas.width() - 20);
+      var new_y = Math.floor(y * 255 / this.vcanvas.height() - 20);
 			this.paddle_x = clamp(0, 255, new_x);
 			this.paddle_y = clamp(0, 255, new_y);
 		});
   };
 }
 
-export var VectorVideo = function(mainElement:HTMLElement, width:number, height:number) {
-  var self = this;
-  var canvas, ctx;
-  var persistenceAlpha = 0.5;
-  var jitter = 1.0;
-  var gamma = 0.8;
-  var sx = width/1024.0;
-  var sy = height/1024.0;
+export class VectorVideo extends RasterVideo {
 
-  this.create = function() {
-    this.canvas = canvas = __createCanvas(mainElement, width, height);
-    ctx = canvas.getContext('2d');
+  persistenceAlpha = 0.5;
+  jitter = 1.0;
+  gamma = 0.8;
+  sx : number;
+  sy : number;
+  
+  create() {
+    super.create();
+    this.sx = this.width/1024.0;
+    this.sy = this.height/1024.0;
   }
 
-  this.setKeyboardEvents = function(callback) {
-    _setKeyboardEvents(canvas, callback);
-  }
-
-  this.clear = function() {
+  clear() {
+    var ctx = this.ctx;
     ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = persistenceAlpha;
+    ctx.globalAlpha = this.persistenceAlpha;
     ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, this.width, this.height);
     ctx.globalAlpha = 1.0;
     ctx.globalCompositeOperation = 'lighter';
-    if (frameUpdateFunction) frameUpdateFunction(canvas);
+    if (frameUpdateFunction) frameUpdateFunction(this.canvas);
   }
 
-  var COLORS = [
+  COLORS = [
     '#111111',
     '#1111ff',
     '#11ff11',
@@ -158,26 +174,29 @@ export var VectorVideo = function(mainElement:HTMLElement, width:number, height:
     '#ffffff'
   ];
 
-  this.drawLine = function(x1:number, y1:number, x2:number, y2:number, intensity:number, color:number) {
+  drawLine(x1:number, y1:number, x2:number, y2:number, intensity:number, color:number) {
+    var ctx = this.ctx;
+    var sx = this.sx;
+    var sy = this.sy;
     //console.log(x1,y1,x2,y2,intensity,color);
     if (intensity > 0) {
       // TODO: landscape vs portrait
-      var alpha = Math.pow(intensity / 255.0, gamma);
+      var alpha = Math.pow(intensity / 255.0, this.gamma);
       ctx.globalAlpha = alpha;
       ctx.beginPath();
       // TODO: bright dots
-      var jx = jitter * (Math.random() - 0.5);
-      var jy = jitter * (Math.random() - 0.5);
+      var jx = this.jitter * (Math.random() - 0.5);
+      var jy = this.jitter * (Math.random() - 0.5);
       x1 += jx;
       x2 += jx;
       y1 += jy;
       y2 += jy;
-      ctx.moveTo(x1*sx, height-y1*sy);
+      ctx.moveTo(x1*sx, this.height-y1*sy);
       if (x1 == x2 && y1 == y2)
-        ctx.lineTo(x2*sx+1, height-y2*sy);
+        ctx.lineTo(x2*sx+1, this.height-y2*sy);
       else
-        ctx.lineTo(x2*sx, height-y2*sy);
-      ctx.strokeStyle = COLORS[color & 7];
+        ctx.lineTo(x2*sx, this.height-y2*sy);
+      ctx.strokeStyle = this.COLORS[color & 7];
       ctx.stroke();
     }
   }

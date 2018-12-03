@@ -70,20 +70,25 @@ export class CodeProject {
     if (dir.length > 0 && dir != 'local') // TODO
       files.push(dir + '/' + fn);
   }
-
+  
   parseIncludeDependencies(text:string):string[] {
     var files = [];
+    var m;
     if (this.platform_id.startsWith('verilog')) {
+      // include verilog includes
       var re1 = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
-      var m;
       while (m = re1.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
       // include .arch (json) statements
       var re2 = /^\s*([.]arch)\s+(\w+)/gmi;
-      var m;
       while (m = re2.exec(text)) {
         this.pushAllFiles(files, m[2]+".json");
+      }
+      // include $readmem[bh] (TODO)
+      var re3 = /\b\$readmem[bh]\("(.+?)"/gmi;
+      while (m = re3.exec(text)) {
+        this.pushAllFiles(files, m[2]);
       }
     } else {
       // for .asm -- [.]include "file"
@@ -98,12 +103,12 @@ export class CodeProject {
 
   parseLinkDependencies(text:string):string[] {
     var files = [];
+    var m;
     if (this.platform_id.startsWith('verilog')) {
       //
     } else {
       // for .c -- //#link "file" (or ;link or #link)
       var re = /^\s*([;#]|[/][/][#])link\s+"(.+?)"/gm;
-      var m;
       while (m = re.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }

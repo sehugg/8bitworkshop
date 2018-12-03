@@ -73,19 +73,17 @@ TODO:
 - granular control over time scrubbing, show CPU state
 - error showing replay div before rom starts
 - compiler flags for final ROM build
-- coleco sprites need brev
 - workermain: split build functions, better msg types
 - vcs: INPTx needs to be added to control state
 - rename, delete, save as
 - sdcc: can't link asm files before c files
 - what if >1 file with same name? (local/nonlocal/directory)
-- can't upload files already exist
-- upload files w/o new project
 - what if .c and .s names collide?
 - live coding URL
 - memory viewer: ROM/RAM/VRAM/etc
 - resize memory browser when split resize
 - preroll the emulator so optimizer does its thing before loading rom
+- wasm dynamic linking of emulators (https://github.com/WebAssembly/tool-conventions/blob/master/DynamicLinking.md)
 
 
 WEB WORKER FORMAT
