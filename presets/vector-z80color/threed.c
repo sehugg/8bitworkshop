@@ -108,6 +108,8 @@ typedef struct {
   const sbyte* edges; // array of vertex indices (edges)
 } Wireframe;
 
+const Matrix IDENTITY = {{{127,0,0},{0,127,0},{0,0,127}}};
+
 void mat_identity(Matrix* m) {
   memset(m, 0, sizeof(*m));
   m->m[0][0] = 127;
@@ -200,13 +202,11 @@ void xform_vertices(Vector16* dest, const Vector8* src, const Matrix* m, byte nv
   }
 }
 
-void draw_wireframe_ortho(const Wireframe* wf, const Matrix* m) {
+void draw_wireframe(const Wireframe* wf, Vector16* scrnverts) {
   const char* e = wf->edges;
   byte bright = 0;
   int x1 = 0;
   int y1 = 0;
-  Vector16 scrnverts[16];
-  xform_vertices(scrnverts, wf->verts, m, wf->numverts);
   do {
     sbyte i = *e++;
     if (i == -1)
@@ -222,6 +222,12 @@ void draw_wireframe_ortho(const Wireframe* wf, const Matrix* m) {
     }
     bright = 2;
   } while (1);
+}
+
+void draw_wireframe_ortho(const Wireframe* wf, const Matrix* m) {
+  Vector16 scrnverts[16];
+  xform_vertices(scrnverts, wf->verts, m, wf->numverts);
+  draw_wireframe(wf, scrnverts);
 }
 
 ///
