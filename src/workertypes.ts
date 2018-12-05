@@ -60,7 +60,10 @@ export interface WorkerBuildStep {
   mainfile?:boolean
 };
 
-export interface WorkerMessage {
+export interface WorkerMessage extends WorkerBuildStep {
+  preload:string,
+  reset:boolean,
+  code:string,
   updates:WorkerFileUpdate[],
   buildsteps:WorkerBuildStep[]
 }

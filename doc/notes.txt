@@ -19,7 +19,7 @@ TODO:
 - breakpoints
 - debug inspector
 - MAME single step (?)
-- step over
+- step over (line, instruction)
 - slowdown beam for all platforms?
 - PC x86 support
 - show errors in list (maybe window list?)
@@ -76,14 +76,15 @@ TODO:
 - workermain: split build functions, better msg types
 - vcs: INPTx needs to be added to control state
 - rename, delete, save as
-- sdcc: can't link asm files before c files
+- sdcc: can't link asm files before c files (e.g. acheader.s must be last)
 - what if >1 file with same name? (local/nonlocal/directory)
 - what if .c and .s names collide?
 - live coding URL
 - memory viewer: ROM/RAM/VRAM/etc
-- resize memory browser when split resize
+- resize memory browser when split resize (any div resize)
 - preroll the emulator so optimizer does its thing before loading rom
 - wasm dynamic linking of emulators (https://github.com/WebAssembly/tool-conventions/blob/master/DynamicLinking.md)
+- z80 HALT works?
 
 
 WEB WORKER FORMAT

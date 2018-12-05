@@ -70,6 +70,10 @@ export var Assembler = function(spec : AssemblerSpec) {
 
   function rule2regex(rule : AssemblerRule, vars : AssemblerVarList) {
     var s = rule.fmt;
+    if (!s || !(typeof s === 'string'))
+      throw Error('Each rule must have a "fmt" string field');
+    if (!rule.bits || !(rule.bits instanceof Array))
+      throw Error('Each rule must have a "bits" array field');
     var varlist = [];
     rule.prefix = s.split(/\s+/)[0];
     s = s.replace(/\+/g, '\\+');
@@ -84,13 +88,17 @@ export var Assembler = function(spec : AssemblerSpec) {
       var v = vars[varname];
       varlist.push(varname);
       if (!v)
-        throw Error("Could not find rule for ~" + varname);
+        throw Error('Could not find variable definition for "~' + varname + '"');
       else if (v.toks)
         return '(\\w+)';
       else
         return '([0-9]+|[$][0-9a-f]+|\\w+)';
     });
-    rule.re = new RegExp('^'+s+'$', 'i');
+    try {
+      rule.re = new RegExp('^'+s+'$', 'i');
+    } catch (e) {
+      throw Error("Bad regex for rule \"" + rule.fmt + "\": /" + s + "/ -- " + e);
+    }
     rule.varlist = varlist;
     // TODO: check rule constraints
     return rule;

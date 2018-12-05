@@ -1775,7 +1775,7 @@ function executeBuildSteps() {
   }
 }
 
-function handleMessage(data) {
+function handleMessage(data : WorkerMessage) : WorkerResult {
   // preload file system
   if (data.preload) {
     var fs = TOOL_PRELOADFS[data.preload];

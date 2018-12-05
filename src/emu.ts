@@ -228,13 +228,14 @@ export class AnimationTimer {
   }
 
   scheduleFrame(msec:number) {
+    var fn = () => { this.nextFrame(); }
     if (this.useReqAnimFrame)
-      window.requestAnimationFrame(this.nextFrame.bind(this));
+      window.requestAnimationFrame(fn);
     else
-      setTimeout(this.nextFrame.bind(this), msec);
+      setTimeout(fn, msec);
   }
   
-  nextFrame(ts:number) {
+  nextFrame(ts?:number) {
     if (!ts) ts = Date.now();
     if (ts - this.lastts < this.intervalMsec*10) {
       this.lastts += this.intervalMsec;
