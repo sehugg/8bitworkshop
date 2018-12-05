@@ -458,6 +458,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
       }
     } catch (e) {
       // TODO: show alert w/ error msg
+      console.log(e);
       this.breakpointHit(cpu.getTstates());
     }
     return cpu.getTstates() - targetTstates;

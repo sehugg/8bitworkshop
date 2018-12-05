@@ -1,7 +1,7 @@
 "use strict";
 
-import { Platform, BaseZ80Platform, getToolForFilename_z80 } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
+import { Platform, BasicZ80ScanlinePlatform } from "../baseplatform";
+import { PLATFORMS, newAddressDecoder, padBytes, noise, makeKeycodeMap, Keys } from "../emu";
 import { hex, lzgmini, stringToByteArray } from "../util";
 import { MasterAudio, SN76489_Audio } from "../audio";
 import { TMS9918A } from "../video/tms9918a";
@@ -35,190 +35,160 @@ var MSX_KEYCODE_MAP = makeKeycodeMap([
 
 /// standard emulator
 
-const _MSXPlatform = function(mainElement) {
+interface MSXSlot {
+  read(addr:number) : number;
+  write(addr:number, val:number) : void;
+}
 
-  const cpuFrequency = 3579545; // MHz
-  const canvasWidth = 304;
-  const numTotalScanlines = 262;
-  const numVisibleScanlines = 240;
-  const cpuCyclesPerLine = Math.round(cpuFrequency / 60 / numTotalScanlines);
+class MSXPlatform extends BasicZ80ScanlinePlatform implements Platform {
 
-  var cpu, ram, membus, iobus, rom, bios;
-  var video, vdp, timer;
-  var audio, psg;
-  var inputs = new Uint8Array(4);
-  var slotmask = 0;
-  var slots : MSXSlot[];
+  cpuFrequency = 3579545; // MHz
+  canvasWidth = 304;
+  numTotalScanlines = 262;
+  numVisibleScanlines = 240;
+  defaultROMSize = 0x10000;
+
+  vdp : TMS9918A;
+  bios : Uint8Array;
+  slots : MSXSlot[];
+  slotmask : number = 0;
   
-  interface MSXSlot {
-    read(addr:number) : number;
-    write(addr:number, val:number) : void;
+  getPresets() { return MSX_PRESETS; }
+
+  getKeyboardMap() { return MSX_KEYCODE_MAP; }
+  
+  getVideoOptions() { return {overscan:true}; }
+
+  newRAM() {
+    return new Uint8Array(0x10000);
   }
-
-  class MSXPlatform extends BaseZ80Platform implements Platform {
-
-    getPresets() { return MSX_PRESETS; }
-
-    start() {
-       ram = new RAM(0x10000);
-       bios = new lzgmini().decode(stringToByteArray(atob(MSX1_BIOS_LZG)));
-       slots = [
-         // slot 0 : BIOS
-         {
-           read: (a) => { return bios[a] | 0; },
-           write: (a,v) => { }
-         },
-         // slot 1: cartridge
-         {
-           read: (a) => { return rom[a] | 0; },
-           write: (a,v) => { }
-         },
-         // slot 2 : empty
-         null,
-         // slot 3 : RAM
-         {
-           read: (a) => { return ram[a] | 0; },
-           write: (a,v) => { ram[a] = v; }
-         },
-       ];
-       // slot mapper
-       membus = {
-         read: (a) => {
-           let shift = (a >> 14) << 1;
-           let slotnum = (slotmask >> shift) & 3;
-           let slot = slots[slotnum];
-           return slot ? slot.read(a) : 0;
-         },
-         write: (a,v) => {
-           let shift = (a >> 14) << 1;
-           let slotnum = (slotmask >> shift) & 3;
-           let slot = slots[slotnum];
-           if (slot) slot.write(a, v);
-         },
-         isContended: function() { return false; },
-      };
-      iobus = {
-        read: function(addr) {
-  				addr &= 0xff;
-          //console.log('IO read', hex(addr,4));
-          switch (addr) {
-            case 0x98: return vdp.readData();
-            case 0x99: return vdp.readStatus();
-            case 0xa8: return slotmask;
-          }
-          return 0;
-      	},
-      	write: function(addr, val) {
-  				addr &= 0xff;
-  				val &= 0xff;
-          //console.log('IO write', hex(addr,4), hex(val,2));
-          switch (addr) {
-            case 0x98: vdp.writeData(val); break;
-            case 0x99: vdp.writeAddress(val); break;
-            case 0xa8: slotmask = val; break;
-          }
-      	}
-      };
-      cpu = this.newCPU(membus, iobus);
-      video = new RasterVideo(mainElement,canvasWidth,numVisibleScanlines);
-      video.create();
-      audio = new MasterAudio();
-      psg = new SN76489_Audio(audio);
-      var cru = {
-        setVDPInterrupt: (b) => {
-          if (b) {
-            cpu.nonMaskableInterrupt();
-          } else {
-            // TODO: reset interrupt?
-          }
+  
+  newMembus() {
+     // slot mapper
+     return {
+       read: (a) => {
+         let shift = (a >> 14) << 1;
+         let slotnum = (this.slotmask >> shift) & 3;
+         let slot = this.slots[slotnum];
+         return slot ? slot.read(a) : 0;
+       },
+       write: (a,v) => {
+         let shift = (a >> 14) << 1;
+         let slotnum = (this.slotmask >> shift) & 3;
+         let slot = this.slots[slotnum];
+         if (slot) slot.write(a, v);
+       },
+       isContended: () => { return false; },
+    };
+  }
+  
+  newIOBus() {
+    return {
+      read: (addr) => {
+        addr &= 0xff;
+        //console.log('IO read', hex(addr,4));
+        switch (addr) {
+          case 0x98: return this.vdp.readData();
+          case 0x99: return this.vdp.readStatus();
+          case 0xa8: return this.slotmask;
         }
-      };
-      vdp = new TMS9918A(video.canvas, cru, false);
-      setKeyboardFromMap(video, inputs, MSX_KEYCODE_MAP);
-      timer = new AnimationTimer(60, this.nextFrame.bind(this));
-    }
-
-    readAddress(addr) {
-      return membus.read(addr);
-    }
-
-    advance(novideo : boolean) {
-      for (var sl=0; sl<numTotalScanlines; sl++) {
-        this.runCPU(cpu, cpuCyclesPerLine);
-        if (sl < numVisibleScanlines)
-          vdp.drawScanline(sl);
+        return 0;
+      },
+      write: (addr, val) => {
+        addr &= 0xff;
+        val &= 0xff;
+        //console.log('IO write', hex(addr,4), hex(val,2));
+        switch (addr) {
+          case 0x98: this.vdp.writeData(val); break;
+          case 0x99: this.vdp.writeAddress(val); break;
+          case 0xa8: this.slotmask = val; break;
+        }
       }
-      vdp.updateCanvas();
-    }
+    };
+  }
 
-    loadROM(title, data) {
-      rom = padBytes(data, 0x10000);
-      this.reset();
-    }
-
-    loadState(state) {
-      cpu.loadState(state.c);
-      ram.mem.set(state.b);
-      vdp.restoreState(state.vdp);
-      inputs.set(state.in);
-      slotmask = state.sm;
-    }
-    saveState() {
-      return {
-        c:this.getCPUState(),
-        b:ram.mem.slice(0),
-        vdp:vdp.getState(),
-        in:inputs.slice(0),
-        sm:slotmask,
-      };
-    }
-    loadControlsState(state) {
-      inputs.set(state.in);
-    }
-    saveControlsState() {
-      return {
-        in:inputs.slice(0)
-      };
-    }
-    getCPUState() {
-      return cpu.saveState();
-    }
-
-    isRunning() {
-      return timer && timer.isRunning();
-    }
-    pause() {
-      timer.stop();
-      audio.stop();
-    }
-    resume() {
-      timer.start();
-      audio.start();
-    }
-    reset() {
-      cpu.reset();
-      cpu.setTstates(0);
-    }
-
-    getDebugCategories() {
-      return super.getDebugCategories().concat(['VDP']);
-    }
-    getDebugInfo(category, state) {
-      switch (category) {
-        case 'VDP': return this.vdpStateToLongString(state.vdp);
-        default: return super.getDebugInfo(category, state);
+  start() {
+    super.start();
+    this.bios = new lzgmini().decode(stringToByteArray(atob(MSX1_BIOS_LZG)));
+    this.slots = [
+       // slot 0 : BIOS
+       {
+         read: (a) => { return this.bios[a] | 0; },
+         write: (a,v) => { }
+       },
+       // slot 1: cartridge
+       {
+         read: (a) => { return this.rom[a] | 0; },
+         write: (a,v) => { }
+       },
+       // slot 2 : empty
+       null,
+       // slot 3 : RAM
+       {
+         read: (a) => { return this.ram[a] | 0; },
+         write: (a,v) => { this.ram[a] = v; }
+       },
+    ];
+    this.audio = new MasterAudio();
+    this.psg = new SN76489_Audio(this.audio);
+    var cru = {
+      setVDPInterrupt: (b) => {
+        if (b) {
+          this.cpu.nonMaskableInterrupt();
+        } else {
+          // TODO: reset interrupt?
+        }
       }
-    }
-    vdpStateToLongString(ppu) {
-      return vdp.getRegsString();
+    };
+    this.vdp = this.newVDP(this.video.getFrameData(), cru, true); // true = 4 sprites/line
+  }
+
+  newVDP(frameData, cru, flicker) {
+    return new TMS9918A(frameData, cru, flicker);
+  }
+  
+  startScanline(sl : number) {
+  }
+  
+  drawScanline(sl : number) {
+    this.vdp.drawScanline(sl);
+  }
+
+  loadState(state) {
+    super.loadState(state);
+    this.vdp.restoreState(state['vdp']);
+    this.slotmask = state['slotmask'];
+  }
+  saveState() {
+    var state = super.saveState();
+    state['vdp'] = this.vdp.getState();
+    state['slotmask'] = this.slotmask;
+    return state;
+  }
+  reset() {
+    super.reset();
+    this.vdp.reset();
+    this.psg.reset();
+    this.slotmask = 0;
+  }
+
+  getDebugCategories() {
+    return super.getDebugCategories().concat(['VDP']);
+  }
+  getDebugInfo(category, state) {
+    switch (category) {
+      case 'VDP': return this.vdpStateToLongString(state.vdp);
+      default: return super.getDebugInfo(category, state);
     }
   }
-  return new MSXPlatform();
+  vdpStateToLongString(ppu) {
+    return this.vdp.getRegsString();
+  }
 }
 
 ///
 
-PLATFORMS['msx'] = _MSXPlatform;
+PLATFORMS['msx'] = MSXPlatform;
 
 ///
 
