@@ -57,7 +57,7 @@ Javatari.AUDIO_BUFFER_SIZE = 256;
 
 class VCSPlatform extends BasePlatform {
 
-  lastDebugState;
+  lastBreakState; // last breakpoint state
 
   getPresets() { return VCS_PRESETS; }
 
@@ -71,6 +71,23 @@ class VCSPlatform extends BasePlatform {
       self.updateRecorder();
       this.oldClockPulse();
     }
+    // setup mouse events
+    var rasterPosBreakFn = (e) => {
+      if (e.ctrlKey) {
+        Javatari.room.console.resetDebug();
+        var vcanvas = $(e.target);
+        var x = e.pageX - vcanvas.offset().left;
+        var y = e.pageY - vcanvas.offset().top;
+        var new_x = Math.floor(x * 152 / vcanvas.width());
+        var new_y = Math.floor((y-37) * (210+37) / vcanvas.height());
+        this.runEval( (c) => {
+          var pos = this.getRasterPosition();
+          return (pos.x >= new_x) && (pos.y >= new_y);
+        });
+      }
+    };
+    var jacanvas = $("#javatari-screen").find("canvas");
+    jacanvas.mousedown(rasterPosBreakFn);
   }
 
   loadROM(title, data) {
@@ -87,7 +104,7 @@ class VCSPlatform extends BasePlatform {
     return Javatari.getOpcodeMetadata(opcode, offset);
   }
 
-  getRasterPosition() {
+  getRasterPosition() : {x:number,y:number} {
     var clkfs = Javatari.room.console.getClocksFromFrameStart() - 1;
     var row = Math.floor(clkfs/76);
     var col = clkfs - row*76;
@@ -127,7 +144,7 @@ class VCSPlatform extends BasePlatform {
       this.fixState(state);
       Javatari.room.console.pause();
       Javatari.room.speaker.mute();
-      this.lastDebugState = state;
+      this.lastBreakState = state;
       callback(state);
     }
     Javatari.room.speaker.mute();
@@ -136,7 +153,7 @@ class VCSPlatform extends BasePlatform {
     return Javatari.room.console.onBreakpointHit != null;
   }
   clearDebug() {
-    this.lastDebugState = null;
+    this.lastBreakState = null;
     Javatari.room.console.disableDebug();
     Javatari.room.console.onBreakpointHit = null;
     if (this.isRunning()) Javatari.room.speaker.play();
@@ -180,8 +197,8 @@ class VCSPlatform extends BasePlatform {
   }
   readAddress(addr) {
     // TODO: shouldn't have to do this when debugging
-    if (this.lastDebugState && addr >= 0x80 && addr < 0x100)
-      return this.getRAMForState(this.lastDebugState)[addr & 0x7f];
+    if (this.lastBreakState && addr >= 0x80 && addr < 0x100)
+      return this.getRAMForState(this.lastBreakState)[addr & 0x7f];
     else
       return Javatari.room.console.readAddress(addr);
   }
