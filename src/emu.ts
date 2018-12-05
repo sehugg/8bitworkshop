@@ -209,59 +209,70 @@ export class RAM {
   }
 }
 
-export var AnimationTimer = function(frequencyHz:number, callback:() => void) {
-  var intervalMsec = 1000.0 / frequencyHz;
-  var running : boolean = false;
-  var pulsing : boolean = false;
-  var lastts = 0;
-  var useReqAnimFrame = false; //TODO window.requestAnimationFrame ? (frequencyHz>40) : false;
-  var nframes, startts; // for FPS calc
-  this.frameRate = frequencyHz;
+export class AnimationTimer {
 
-  function scheduleFrame(msec:number) {
-    if (useReqAnimFrame)
-      window.requestAnimationFrame(nextFrame);
+  callback;  
+  running : boolean = false;
+  pulsing : boolean = false;
+  lastts = 0;
+  useReqAnimFrame = false; //TODO window.requestAnimationFrame ? (frequencyHz>40) : false;
+  nframes;
+  startts; // for FPS calc
+  frameRate;
+  intervalMsec;
+  
+  constructor(frequencyHz:number, callback:() => void) {
+    this.frameRate = frequencyHz;
+    this.intervalMsec = 1000.0 / frequencyHz;
+    this.callback = callback;
+  }
+
+  scheduleFrame(msec:number) {
+    if (this.useReqAnimFrame)
+      window.requestAnimationFrame(this.nextFrame.bind(this));
     else
-      setTimeout(nextFrame, msec);
+      setTimeout(this.nextFrame.bind(this), msec);
   }
-  function nextFrame(ts:number) {
+  
+  nextFrame(ts:number) {
     if (!ts) ts = Date.now();
-    if (ts - lastts < intervalMsec*10) {
-      lastts += intervalMsec;
+    if (ts - this.lastts < this.intervalMsec*10) {
+      this.lastts += this.intervalMsec;
     } else {
-      lastts = ts + intervalMsec; // frames skipped, catch up
+      this.lastts = ts + this.intervalMsec; // frames skipped, catch up
     }
-    if (!useReqAnimFrame || lastts - ts > intervalMsec/2) {
-      if (running) {
-        callback();
+    if (!this.useReqAnimFrame || this.lastts - ts > this.intervalMsec/2) {
+      if (this.running) {
+        this.callback();
       }
-      if (nframes == 0) startts = ts;
-      if (nframes++ == 300) {
-        console.log("Avg framerate: " + nframes*1000/(ts-startts) + " fps");
+      if (this.nframes == 0)
+        this.startts = ts;
+      if (this.nframes++ == 300) {
+        console.log("Avg framerate: " + this.nframes*1000/(ts-this.startts) + " fps");
       }
     }
-    if (running) {
-      scheduleFrame(lastts - ts);
+    if (this.running) {
+      this.scheduleFrame(this.lastts - ts);
     } else {
-      pulsing = false;
+      this.pulsing = false;
     }
   }
-  this.isRunning = function() {
-    return running;
+  isRunning() {
+    return this.running;
   }
-  this.start = function() {
-    if (!running) {
-      running = true;
-      lastts = 0;
-      nframes = 0;
-      if (!pulsing) {
-        scheduleFrame(0);
-        pulsing = true;
+  start() {
+    if (!this.running) {
+      this.running = true;
+      this.lastts = 0;
+      this.nframes = 0;
+      if (!this.pulsing) {
+        this.scheduleFrame(0);
+        this.pulsing = true;
       }
     }
   }
-  this.stop = function() {
-    running = false;
+  stop() {
+    this.running = false;
   }
 }
 
