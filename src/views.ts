@@ -698,7 +698,7 @@ export class MemoryView implements ProjectView {
       else
         return 'data';
     }
-    else if (a >= compparams.code_start && a < compparams.code_start+compparams.code_size)
+    else if (a >= compparams.code_start && a < compparams.code_start+(compparams.code_size||compparams.rom_size))
       return 'code';
     else
       return 'unknown';

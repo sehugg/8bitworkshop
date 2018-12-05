@@ -9,8 +9,6 @@ declare var jt, Javatari, Z80_fast, CPU6809;
 
 export var PLATFORMS = {};
 
-export var frameUpdateFunction : (Canvas) => void = null;
-
 var _random_state = 1;
 
 export function noise() {
@@ -121,7 +119,6 @@ export class RasterVideo {
       this.ctx.putImageData(this.imageData, sx, sy, dx, dy, w, h);
     else
       this.ctx.putImageData(this.imageData, 0, 0);
-    if (frameUpdateFunction) frameUpdateFunction(this.canvas);
   }
 
   setupMouseEvents(el? : HTMLElement) {
@@ -160,7 +157,6 @@ export class VectorVideo extends RasterVideo {
     ctx.fillRect(0, 0, this.width, this.height);
     ctx.globalAlpha = 1.0;
     ctx.globalCompositeOperation = 'lighter';
-    if (frameUpdateFunction) frameUpdateFunction(this.canvas);
   }
 
   COLORS = [

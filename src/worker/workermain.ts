@@ -38,6 +38,12 @@ function moduleInstFn(module_id:string) {
 }
 
 var PLATFORM_PARAMS = {
+  'vcs': {
+    code_start: 0x1000,
+    code_size: 0xf000,
+    data_start: 0x80,
+    data_size: 0x80,
+  },
   'mw8080bw': {
     code_start: 0x0,
     rom_size: 0x2000,
