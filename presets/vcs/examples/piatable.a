@@ -10,8 +10,6 @@
 	org $80
 
 Temp	.byte
-Temp2	.byte
-CSJump	.word
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -28,17 +26,9 @@ NextFrame
 
 	TIMER_SETUP 37
         inc Temp
-        lda Temp
-        and #$1f
-        eor #$ff
-        clc
-        adc #<ClockslideEnd
-        sta CSJump
-        lda #>ClockslideEnd
-        sta CSJump+1
         TIMER_WAIT
 
-	TIMER_SETUP 216
+	TIMER_SETUP 213
 
 	lda Temp
         and #$7f
@@ -52,19 +42,6 @@ NextFrame
         jsr WaitForScanline
         jmp TimerDone
 
-	jmp (CSJump)
-	REPEAT 36
-        .byte $c9
-        REPEND
-        .byte $c9,$c5
-ClockslideEnd
-	nop
-ScanLoop
-        ldy INTIM
-        beq TimerDone
-        lda Timer2Scanline,y
-        sta COLUBK
-        jmp ScanLoop
 TimerDone
 	lda #0
         sta COLUBK
