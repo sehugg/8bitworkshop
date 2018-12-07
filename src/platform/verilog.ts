@@ -318,8 +318,8 @@ var VerilogPlatform = function(mainElement, options) {
     var vcanvas = $(video.canvas);
     idata = video.getFrameData();
     timerCallback = () => {
-			if (!this.isRunning())
-				return;
+      if (!this.isRunning())
+        return;
       gen.switches = switches[0];
       this.updateFrame();
     };
@@ -336,7 +336,8 @@ var VerilogPlatform = function(mainElement, options) {
       direction: 'vertical',
       gutterSize: 16,
       onDrag: () => {
-        if (this.waveview) this.waveview.recreate();
+        this.resize();
+        //if (this.waveview) this.waveview.recreate();
         //vcanvas.css('position','relative');
         //vcanvas.css('top', -this.wavediv.height()+'px');
       },
@@ -358,7 +359,7 @@ var VerilogPlatform = function(mainElement, options) {
   }
   
   updateVideoFrame() {
-    this.topdiv.show(); //show crt
+    //this.topdiv.show(); //show crt
     this.setGenInputs();
     var fps = this.getFrameRate();
     // darken the previous frame?
@@ -406,7 +407,7 @@ var VerilogPlatform = function(mainElement, options) {
   
   updateScopeFrame() {
     this.split.setSizes([0,100]); // ensure scope visible
-    this.topdiv.hide();// hide crt
+    //this.topdiv.hide();// hide crt
     var done = this.fillTraceBuffer(32 * trace_signals.length); // TODO: const
     if (done)
       this.pause(); // TODO?

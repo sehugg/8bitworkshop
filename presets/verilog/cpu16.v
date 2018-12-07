@@ -1,4 +1,4 @@
-
+﻿
 `ifndef CPU16_H
 `define CPU16_H
 
@@ -64,10 +64,9 @@ endmodule
 00110aaa ########	store zero page
 01001aaa #####bbb	load [B+#] -> A
 01010aaa #####bbb	store A -> [B+#]
-01101aaa 0++++000	operation A+[imm16] -> A
-01110aaa 00cccbbb	store A -> [B+#], C -> IP
+01101aaa 0++++000	store A -> A+[imm16]
+01110aaa 00cccbbb	store A -> [B], C -> IP
 1000tttt ########	conditional branch
-11+++aaa ########	immediate binary operation
 */
 
 module CPU16(clk, reset, hold, busy,

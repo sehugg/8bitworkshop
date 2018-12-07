@@ -14,6 +14,7 @@ type PixelEditorImageFormat = {
   remap?:number[]
   brev?:boolean
   destfmt?:PixelEditorImageFormat
+  xform?
 };
 
 type PixelEditorPaletteFormat = {
@@ -28,8 +29,11 @@ type PixelEditorMessage = {
   palstr : string
 };
 
-export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, thumbnails?) {
-  var self = this;
+export function PixelEditor(parentDiv:HTMLElement,
+                            fmt:PixelEditorImageFormat,
+                            palette:Uint32Array,
+                            initialData:Uint32Array,
+                            thumbnails?) {
   var width = fmt.w;
   var height = fmt.h;
 
@@ -52,9 +56,9 @@ export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, th
   function commit() {
     if (!thumbnails) return;
     for (var i=0; i<thumbnails.length; i++) {
-      thumbnails[i].copyImageFrom(self);
+      thumbnails[i].copyImageFrom(this);
     }
-    initialData.set(self.getImageColors());
+    initialData.set(this.getImageColors());
   }
 
   this.copyImageFrom = function(src) {
@@ -95,13 +99,13 @@ export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, th
       var btn = $('<button class="palbtn">');
       var rgb = palette[i] & 0xffffff;
       var color = "#" + hex(revrgb(rgb), 6);
-      btn.click(self.setCurrentColor.bind(this, i));
+      btn.click(this.setCurrentColor.bind(this, i));
       btn.attr('id', 'palcol_' + i);
       btn.css('backgroundColor', color).text(i.toString(16));
       if ((rgb & 0x808080) != 0x808080) { btn.css('color', 'white'); }
       span.append(btn);
     }
-    self.setCurrentColor(1);
+    this.setCurrentColor(1);
   }
 
   function getPixelByOffset(ofs) {
@@ -155,26 +159,26 @@ export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, th
         $("#palcol_" + col).addClass('selected');
       }
     }
-    self.setCurrentColor = setCurrentColor;
+    this.setCurrentColor = setCurrentColor;
 
     var dragcol = 1;
     var dragging = false;
 
     var pxls = $(pixcanvas);
-    pxls.mousedown(function(e) {
+    pxls.mousedown( (e) => {
       var pos = getPositionFromEvent(e);
       dragcol = getPixel(pos.x, pos.y) == curpalcol ? 0 : curpalcol;
       setPixel(pos.x, pos.y, curpalcol);
       dragging = true;
       // TODO: pixcanvas.setCapture();
     })
-    .mousemove(function(e) {
+    .mousemove( (e) => {
       var pos = getPositionFromEvent(e);
       if (dragging) {
         setPixel(pos.x, pos.y, dragcol);
       }
     })
-    .mouseup(function(e) {
+    .mouseup( (e) => {
       var pos = getPositionFromEvent(e);
       setPixel(pos.x, pos.y, dragcol);
       dragging = false;
@@ -196,7 +200,7 @@ export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, th
     console.log("rotate " + deg);
     var s1 = Math.sin(deg * Math.PI / 180);
     var c1 = Math.cos(deg * Math.PI / 180);
-    var p = self.getImageColors();
+    var p = this.getImageColors();
     var i = 0;
     for (var y=0; y<height; y++) {
       for (var x=0; x<width; x++) {
@@ -214,7 +218,7 @@ export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, th
 
   this.flipy = function() {
     console.log("flipy");
-    var p = self.getImageColors();
+    var p = this.getImageColors();
     var i = 0;
     for (var y=0; y<height; y++) {
       for (var x=0; x<width; x++) {
@@ -228,7 +232,7 @@ export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, th
 
   this.flipx = function() {
     console.log("flipx");
-    var p = self.getImageColors();
+    var p = this.getImageColors();
     var i = 0;
     for (var y=0; y<height; y++) {
       for (var x=0; x<width; x++) {
@@ -245,7 +249,7 @@ export function PixelEditor(parentDiv:HTMLElement, fmt, palette, initialData, th
 
 var pixel_re = /([0#]?)([x$%]|\d'[bh])([0-9a-f]+)/gi;
 
-function convertToHexStatements(s:string) {
+function convertToHexStatements(s:string) : string {
   // convert 'hex ....' asm format
   return s.replace(/(\shex\s+)([0-9a-f]+)/ig, function(m,hexprefix,hexstr) {
     var rtn = hexprefix;
@@ -256,7 +260,7 @@ function convertToHexStatements(s:string) {
   });
 }
 
-export function parseHexWords(s:string) {
+export function parseHexWords(s:string) : number[] {
   var arr = [];
   var m;
   while (m = pixel_re.exec(s)) {
@@ -272,7 +276,7 @@ export function parseHexWords(s:string) {
   return arr;
 }
 
-export function replaceHexWords(s:string, words:number[]) {
+export function replaceHexWords(s:string, words:number[]) : string {
   var result = "";
   var m;
   var li = 0;
@@ -295,7 +299,7 @@ export function replaceHexWords(s:string, words:number[]) {
   }
   result += s.slice(li);
   // convert 'hex ....' asm format
-  result = result.replace(/(\shex\s+)([,x0-9a-f]+)/ig, function(m,hexprefix,hexstr) {
+  result = result.replace(/(\shex\s+)([,x0-9a-f]+)/ig, (m,hexprefix,hexstr) => {
     var rtn = hexprefix + hexstr;
     rtn = rtn.replace(/0x/ig,'').replace(/,/ig,'')
     return rtn;
@@ -303,7 +307,7 @@ export function replaceHexWords(s:string, words:number[]) {
   return result;
 }
 
-function remapBits(x:number, arr:number[]) {
+function remapBits(x:number, arr:number[]) : number {
   if (!arr) return x;
   var y = 0;
   for (var i=0; i<arr.length; i++) {
@@ -319,7 +323,7 @@ function remapBits(x:number, arr:number[]) {
   return y;
 }
 
-function convertWordsToImages(words:number[], fmt:PixelEditorImageFormat) {
+function convertWordsToImages(words:number[], fmt:PixelEditorImageFormat) : Uint8Array[] {
   var width = fmt.w;
   var height = fmt.h;
   var count = fmt.count || 1;
@@ -355,7 +359,7 @@ function convertWordsToImages(words:number[], fmt:PixelEditorImageFormat) {
   return images;
 }
 
-function convertImagesToWords(images, fmt:PixelEditorImageFormat) : number[] {
+function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) : number[] {
   if (fmt.destfmt) fmt = fmt.destfmt;
   var width = fmt.w;
   var height = fmt.h;
@@ -395,7 +399,7 @@ function convertImagesToWords(images, fmt:PixelEditorImageFormat) : number[] {
   return words;
 }
 
-function convertPaletteBytes(arr,r0,r1,g0,g1,b0,b1) {
+function convertPaletteBytes(arr:number[],r0,r1,g0,g1,b0,b1) : number[] {
   var result = [];
   for (var i=0; i<arr.length; i++) {
     var d = arr[i];
@@ -408,7 +412,7 @@ function convertPaletteBytes(arr,r0,r1,g0,g1,b0,b1) {
   return result;
 }
 
-export var palette;
+export var palette : Uint32Array;
 export var paletteSets;
 export var paletteSetIndex=0;
 export var currentPixelEditor;
@@ -431,7 +435,7 @@ export function pixelEditorDecodeMessage(e) {
   currentByteStr = convertToHexStatements(data.bytestr);
   var words = parseHexWords(currentByteStr);
   allimages = convertWordsToImages(words, data.fmt);
-  palette = [0xff000000, 0xffffffff]; // TODO
+  var newpalette = [0xff000000, 0xffffffff]; // TODO
   if (currentPaletteStr) {
     var palbytes = parseHexWords(data.palstr);
     var pal = currentPaletteFmt.pal;
@@ -441,36 +445,36 @@ export function pixelEditorDecodeMessage(e) {
       var bb = Math.floor(Math.abs(pal) % 10);
       // TODO: n
       if (currentPaletteFmt.pal >= 0)
-        palette = convertPaletteBytes(palbytes, 0, rr, rr, gg, rr+gg, bb);
+        newpalette = convertPaletteBytes(palbytes, 0, rr, rr, gg, rr+gg, bb);
       else
-        palette = convertPaletteBytes(palbytes, rr+gg, bb, rr, gg, 0, rr);
+        newpalette = convertPaletteBytes(palbytes, rr+gg, bb, rr, gg, 0, rr);
     } else {
       var paltable = PREDEF_PALETTES[pal];
       if (paltable) {
-        palette = palbytes.map(function(i) { return paltable[i]; });
+        newpalette = palbytes.map((i) => { return paltable[i]; });
       } else {
         alert("No palette named " + pal);
       }
     }
     if (currentPaletteFmt.n) {
       paletteSets = [];
-      for (var i=0; i<palette.length; i+=currentPaletteFmt.n) {
-        paletteSets.push(palette.slice(i, i+currentPaletteFmt.n));
+      for (var i=0; i<newpalette.length; i+=currentPaletteFmt.n) {
+        paletteSets.push(newpalette.slice(i, i+currentPaletteFmt.n));
       }
-      palette = paletteSets[paletteSetIndex = 0];
+      newpalette = paletteSets[paletteSetIndex = 0];
       // TODO: swap palettes
     }
   } else {
     var ncols = (currentFormat.bpp || 1) * (currentFormat.np || 1);
     switch (ncols) {
       case 2:
-        palette = [0xff000000, 0xffff00ff, 0xffffff00, 0xffffffff];
+        newpalette = [0xff000000, 0xffff00ff, 0xffffff00, 0xffffffff];
         break;
       // TODO
     }
     // TODO: default palette?
   }
-  palette = new Uint32Array(palette);
+  palette = new Uint32Array(newpalette);
 }
 
 function pixelEditorCreateThumbnails(e) {
@@ -501,7 +505,7 @@ function createThumbnailForImage(parentdiv, i) {
   thumb.canvas.style.height = currentFormat.h*2+"px";
   thumb.canvas.style.width = currentFormat.w*2+"px";
   parentdiv.append(span);
-  span.click(function() { createEditorForImage(i) });
+  span.click(() => { createEditorForImage(i) });
   return thumb;
 }
 

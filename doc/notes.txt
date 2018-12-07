@@ -159,3 +159,10 @@ add file to errors
 
 http://www.playvectrex.com/designit/chrissalo/vectordisplay.htm
 http://oldies.malban.de/secondvectrex/index.htm
+
+
+PIXEL EDITOR
+
+everything is an editor
+back/forward propogation
+encoded <-> raw + spec + palette(s) <-> bitmap <-> tile/sprite preview(s)
