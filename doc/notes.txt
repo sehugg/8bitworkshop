@@ -84,6 +84,7 @@ TODO:
 - resize memory browser when split resize (any div resize)
 - preroll the emulator so optimizer does its thing before loading rom
 - wasm dynamic linking of emulators (https://github.com/WebAssembly/tool-conventions/blob/master/DynamicLinking.md)
+- upload text/binary detection
 
 
 WEB WORKER FORMAT
@@ -165,4 +166,4 @@ PIXEL EDITOR
 
 everything is an editor
 back/forward propogation
-encoded <-> raw + spec + palette(s) <-> bitmap <-> tile/sprite preview(s)
+encoded <-> raw + spec + palette(s) <-> full tilemap <-> selected tile/sprite/metasprite

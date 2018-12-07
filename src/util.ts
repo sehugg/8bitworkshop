@@ -270,42 +270,35 @@ export function stringToByteArray(s:string) : Uint8Array {
   return a;
 }
 
-export function byteArrayToString(outdata : number[] | Uint8Array) : string {
+export function byteArrayToString(data : number[] | Uint8Array) : string {
   var str = "";
-  if (outdata != null) {
+  if (data != null) {
     var charLUT = new Array();
     for (var i = 0; i < 256; ++i)
       charLUT[i] = String.fromCharCode(i);
-    var outlen = outdata.length;
-    for (var i = 0; i < outlen; i++)
-      str += charLUT[outdata[i]];
+    var len = data.length;
+    for (var i = 0; i < len; i++)
+      str += charLUT[data[i]];
   }
   return str;
 }
 
-export function byteArrayToUTF8(outdata : number[] | Uint8Array) : string {
+export function byteArrayToUTF8(data : number[] | Uint8Array) : string {
   var str = "";
   var charLUT = new Array();
   for (var i = 0; i < 128; ++i)
     charLUT[i] = String.fromCharCode(i);
   var c;
-  var outlen = outdata.length;
-  for (var i = 0; i < outlen;)
-  {
-    c = outdata[i++];
-    if (c < 128)
-    {
+  var len = data.length;
+  for (var i = 0; i < len;) {
+    c = data[i++];
+    if (c < 128) {
       str += charLUT[c];
-    }
-    else
-    {
-      if ((c > 191) && (c < 224))
-      {
-        c = ((c & 31) << 6) | (outdata[i++] & 63);
-      }
-      else
-      {
-        c = ((c & 15) << 12) | ((outdata[i] & 63) << 6) | (outdata[i+1] & 63);
+    } else {
+      if ((c >= 192) && (c < 224)) {
+        c = ((c & 31) << 6) | (data[i++] & 63);
+      } else {
+        c = ((c & 15) << 12) | ((data[i] & 63) << 6) | (data[i+1] & 63);
         i += 2;
         if (c == 0xfeff) continue; // ignore BOM
       }
@@ -320,6 +313,38 @@ export function removeBOM(s:string) {
     s = s.substr(1);
   }
   return s;
+}
+
+export function isProbablyBinary(data : number[] | Uint8Array) : boolean {
+  var score = 0;
+  // decode as UTF-8
+  for (var i = 0; i < data.length;) {
+    let c = data[i++];
+    if ((c & 0x80) == 0) {
+      // more likely binary if we see a NUL or obscure control character
+      if (c < 9 || (c >= 14 && c < 26) || c == 0x7f) {
+        score++;
+        break;
+      }
+    } else {
+      // look for invalid unicode sequences
+      var nextra = 0;
+      if ((c & 0xe0) == 0xc0) nextra = 1;
+      else if ((c & 0xf0) == 0xe0) nextra = 2;
+      else if ((c & 0xf8) == 0xf0) nextra = 3;
+      else {
+        score++;
+        break;
+      }
+      while (nextra--) {
+        if ((data[i++] & 0xc0) != 0x80) {
+          score++;
+          break;
+        }
+      }
+    }
+  }
+  return score > 0;
 }
 
 // need to load liblzg.js first

@@ -110,3 +110,12 @@ describe('LZG', function() {
    assert.equal(40976, rom.length);
   });
 });
+
+describe('string functions', function() {
+  it('Should detect binary', function() {
+    assert.ok(!util.isProbablyBinary([32,32,10,13,9,32,32,10,13]));
+    assert.ok(util.isProbablyBinary([32,32,0x80]));
+    assert.ok(!util.isProbablyBinary([32,32,0xc1,0x81,32,32,10,13]));
+    assert.ok(util.isProbablyBinary(NES_CONIO_ROM_LZG));
+  });
+});

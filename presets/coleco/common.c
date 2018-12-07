@@ -26,9 +26,6 @@ void flip_sprite_patterns(word dest, const byte* patterns, word len) {
   }
 }
 
-char cursor_x;
-char cursor_y;
-
 void clrscr() {
   cvu_vmemset(IMAGE, 0, COLS*ROWS);
 }

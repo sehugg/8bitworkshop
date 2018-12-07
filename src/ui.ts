@@ -11,7 +11,8 @@ import { Platform, Preset, DebugSymbols, DebugEvalCondition } from "./baseplatfo
 import { PLATFORMS } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
-import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG, byteArrayToUTF8 } from "./util";
+import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
+         byteArrayToUTF8, isProbablyBinary } from "./util";
 import { StateRecorderImpl } from "./recorder";
 
 // external libs (TODO)
@@ -283,8 +284,8 @@ function handleFileUpload(files: File[]) {
       reader.onload = function(e) {
         var arrbuf = (<any>e.target).result as ArrayBuffer;
         var data : FileData = new Uint8Array(arrbuf);
-        // convert to UTF8, unless it's a binary file (TODO)
-        if (path.endsWith("bin")) {
+        // convert to UTF8, unless it's a binary file
+        if (isProbablyBinary(data)) { // path.endsWith("bin")) {
           gotoMainFile = false;
         } else {
           data = byteArrayToUTF8(data);
