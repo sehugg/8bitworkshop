@@ -36,7 +36,6 @@ TODO:
 - sound mute?
 - $error updates source editor
 - go to error in include files
-- BOM in upload/download?
 - online tools for music etc
 - text log debugging script
 - NES crt should mark raster pos when debugging
@@ -66,7 +65,6 @@ TODO:
 - share playable link w/ verilog?
 - allow download of JSASM output
 - update bootstrap
-- clean BOM from verilog
 - $readmemb/h
 - batariBasic: proper line numbers, debugging
 - show player controls for each platform, allow touch support

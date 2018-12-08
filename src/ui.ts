@@ -500,8 +500,8 @@ function _downloadROMImage(e) {
 function _downloadSourceFile(e) {
   var text = projectWindows.getCurrentText();
   if (!text) return false;
-  var blob = new Blob([text], {type: "text/plain;charset=utf-8"});
-  saveAs(blob, getCurrentEditorFilename());
+  var blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+  saveAs(blob, getCurrentEditorFilename(), {autoBom:false});
 }
 
 function _downloadProjectZipFile(e) {

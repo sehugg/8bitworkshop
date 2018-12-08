@@ -1,4 +1,4 @@
-﻿
+
 `ifndef CPU16_H
 `define CPU16_H
 

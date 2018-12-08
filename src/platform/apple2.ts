@@ -12,11 +12,12 @@ const APPLE2_PRESETS = [
   {id:'keyboardtest.c', name:'Keyboard Test'},
   {id:'mandel.c', name:'Mandelbrot'},
   {id:'tgidemo.c', name:'TGI Graphics Demo'},
+  {id:'Eliza.c', name:'Eliza'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'cosmic.c', name:'Cosmic Impalas'},
-  {id:'hgrtest.a', name:"HGR Test"},
-  {id:'conway.a', name:"Conway's Game of Life"},
-  {id:'lz4fh.a', name:"LZ4FH Graphics Compression"},
+  {id:'hgrtest.a', name:"HGR Test (ASM)"},
+  {id:'conway.a', name:"Conway's Game of Life (ASM)"},
+  {id:'lz4fh.a', name:"LZ4FH Graphics Compression (ASM)"},
 //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
 ];
 
