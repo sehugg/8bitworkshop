@@ -84,7 +84,8 @@ TODO:
 - resize memory browser when split resize (any div resize)
 - preroll the emulator so optimizer does its thing before loading rom
 - wasm dynamic linking of emulators (https://github.com/WebAssembly/tool-conventions/blob/master/DynamicLinking.md)
-- upload text/binary detection
+- use alternate confirm/prompt dialogs
+- https://github.com/jvilk/BrowserFS
 
 
 WEB WORKER FORMAT

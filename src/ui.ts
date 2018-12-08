@@ -143,7 +143,7 @@ function refreshWindowList() {
     if (typeof data === 'string')
       addWindowItem(id, getFilenameForPath(id), loadEditor);
     else if (data instanceof Uint8Array)
-      addWindowItem(id, getFilenameForPath(id), () => { return new Views.BinaryFileView(data as Uint8Array); });
+      addWindowItem(id, getFilenameForPath(id), () => { return new Views.BinaryFileView(id, data as Uint8Array); });
   }
 
   // add main file editor
@@ -438,6 +438,48 @@ function _revertFile(e) {
     });
   } else {
     alert("Cannot revert the active window.");
+  }
+}
+
+function _deleteFile(e) {
+  var wnd = projectWindows.getActive();
+  if (wnd && wnd.getPath) {
+    var fn = projectWindows.getActiveID();
+    if (fn.startsWith("local/")) {
+      if (confirm("Delete '" + fn + "'?")) {
+        store.removeItem(fn, () => {
+          alert("Deleted " + fn);
+          updateSelector();
+          // TODO: rebuild?
+          //gotoNewLocation();
+        });
+      }
+    } else {
+      alert("Can only delete local files.");
+    }
+  } else {
+    alert("Cannot delete the active window.");
+  }
+}
+
+function _renameFile(e) {
+  var wnd = projectWindows.getActive();
+  if (wnd && wnd.getPath && current_project.getFile(wnd.getPath())) {
+    var fn = projectWindows.getActiveID();
+    var newfn = prompt("Rename '" + fn + "' to?", fn);
+    var data = current_project.getFile(wnd.getPath());
+    if (newfn && data && newfn.startsWith("local/")) {
+      store.removeItem(fn, () => {
+        store.setItem(newfn, data, () => {
+          alert("Renamed " + fn + " to " + newfn);
+          updateSelector();
+          // TODO: rebuild?
+          //gotoNewLocation();
+        });
+      });
+    }
+  } else {
+    alert("Cannot rename the active window.");
   }
 }
 
@@ -1016,6 +1058,8 @@ function setupDebugControls(){
   $("#item_upload_file").click(_uploadNewFile);
   $("#item_share_file").click(_shareEmbedLink);
   $("#item_reset_file").click(_revertFile);
+  $("#item_rename_file").click(_renameFile);
+  $("#item_delete_file").click(_deleteFile);
   if (platform.runEval)
     $("#item_debug_expr").click(_breakExpression).show();
   else

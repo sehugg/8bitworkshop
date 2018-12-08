@@ -13,6 +13,7 @@ export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
   refresh(moveCursor:boolean) : void;
   tick?() : void;
+  getPath?() : string;
   getValue?() : string;
   setText?(text : string) : void;
   insertText?(text : string) : void;
@@ -716,9 +717,11 @@ export class MemoryView implements ProjectView {
 export class BinaryFileView implements ProjectView {
   memorylist;
   maindiv : HTMLElement;
-  data;
+  path:string;
+  data:Uint8Array;
 
-  constructor(data:Uint8Array) {
+  constructor(path:string, data:Uint8Array) {
+    this.path = path;
     this.data = data;
   }
 
@@ -763,4 +766,6 @@ export class BinaryFileView implements ProjectView {
 
   refresh() {
   }
+  
+  getPath() { return this.path; }
 }

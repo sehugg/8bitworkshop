@@ -48,11 +48,15 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
       </a>
       <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
       <li><a class="dropdown-item" href="#" id="item_new_file">New Project...</a></li>
-      <li><a class="dropdown-item" href="#" id="item_upload_file">Upload File...</a></li>
-      <li><a class="dropdown-item" href="#" id="item_reset_file">Revert to Original...</a></li>
+      <li><a class="dropdown-item" href="#" id="item_upload_file">Upload...</a></li>
+      <hr>
       <li class="dropdown dropdown-submenu">
-        <a tabindex="-1" href="#">Add Files to Project</a>
+        <a tabindex="-1" href="#">File</a>
         <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="#" id="item_reset_file">Revert to Original...</a></li>
+          <li><a class="dropdown-item" href="#" id="item_rename_file">Rename File...</a></li>
+          <li><a class="dropdown-item" href="#" id="item_delete_file">Delete File...</a></li>
+          <hr>
           <li><a class="dropdown-item" href="#" id="item_addfile_include">Add Include File...</a></li>
           <li><a class="dropdown-item" href="#" id="item_addfile_link">Add Linked File...</a></li>
         </ul>
