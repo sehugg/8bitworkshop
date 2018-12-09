@@ -423,7 +423,8 @@ export function setKeyboardFromMap(video, switches, map, func?) {
       var mask = o.mask;
       if (mask < 0) { // negative mask == active low
         mask = -mask;
-        flags ^= KeyFlags.KeyDown;
+        if (flags & (KeyFlags.KeyDown | KeyFlags.KeyUp))
+          flags ^= KeyFlags.KeyDown | KeyFlags.KeyUp;
       }
       if (flags & KeyFlags.KeyDown) {
         switches[o.index] |= mask;
