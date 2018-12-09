@@ -1,7 +1,7 @@
 "use strict";
 
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM } from "../emu";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, KeyFlags, makeKeycodeMap, dumpRAM } from "../emu";
 import { hex, lzgmini } from "../util";
 import { SampleAudio } from "../audio";
 
@@ -164,27 +164,28 @@ const _Apple2Platform = function(mainElement) {
     audio = new SampleAudio(cpuFrequency);
     video.create();
     video.setKeyboardEvents((key,code,flags) => {
-      if (flags & 1) {
-        if (code) {
-          // convert to uppercase for Apple ][
-          if (code >= 0x61 && code <= 0x7a)
-             code -= 0x20; 
+      if (flags & KeyFlags.KeyPress) {
+        // convert to uppercase for Apple ][
+        if (code >= 0x61 && code <= 0x7a)
+           code -= 32; 
+        if (code >= 32) {
+          if (code >= 65 && code < 65+26) {
+            if (flags & KeyFlags.Ctrl)
+              code -= 64; // ctrl
+          }
           kbdlatch = (code | 0x80) & 0xff;
-        } else if (key) {
-          switch (key) {
-            case 16: return; // shift
-            case 17: return; // ctrl
-            case 18: return; // alt
-            case 37: key=8; break;	// left
-            case 39: key=21; break; // right
-            case 38: key=11; break; // up
-            case 40: key=10; break; // down
-          }
-          if (key >= 65 && key < 65+26) {
-            if (flags & 5) key -= 64; // ctrl
-          }
-          kbdlatch = (key | 0x80) & 0xff;
         }
+      } else if (flags & KeyFlags.KeyDown) {
+        code = 0;
+        switch (key) {
+          case 13: code=13; break; // return
+          case 37: code=8; break; // left
+          case 39: code=21; break; // right
+          case 38: code=11; break; // up
+          case 40: code=10; break; // down
+        }
+        if (code)
+          kbdlatch = (code | 0x80) & 0xff;
       }
     });
     var idata = video.getFrameData();

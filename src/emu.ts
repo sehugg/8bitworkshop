@@ -27,7 +27,7 @@ export function setNoiseSeed(x : number) {
   _random_state = x;
 }
 
-type KeyboardCallback = (which:number, charCode:number, flags:number) => void;
+type KeyboardCallback = (which:number, charCode:number, flags:KeyFlags) => void;
 
 function __createCanvas(mainElement:HTMLElement, width:number, height:number) : HTMLCanvasElement {
   var canvas = document.createElement('canvas');
@@ -39,15 +39,25 @@ function __createCanvas(mainElement:HTMLElement, width:number, height:number) : 
   return canvas;
 }
 
+export enum KeyFlags {
+  KeyDown = 1,
+  Shift = 2,
+  Ctrl = 4,
+  Alt = 8,
+  Meta = 16,
+  KeyUp = 64,
+  KeyPress = 128,
+}
+
 function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
   canvas.onkeydown = function(e) {
-    callback(e.which, 0, 1|_metakeyflags(e));
+    callback(e.which, 0, KeyFlags.KeyDown|_metakeyflags(e));
   };
   canvas.onkeyup = function(e) {
-    callback(e.which, 0, 0|_metakeyflags(e));
+    callback(e.which, 0, KeyFlags.KeyUp|_metakeyflags(e));
   };
   canvas.onkeypress = function(e) {
-    callback(e.which, e.charCode, 1|_metakeyflags(e));
+    callback(e.which, e.charCode, KeyFlags.KeyPress|_metakeyflags(e));
   };
 };
 
@@ -396,7 +406,10 @@ export const Keys = {
 };
 
 function _metakeyflags(e) {
-  return (e.shiftKey?2:0) | (e.ctrlKey?4:0) | (e.altKey?8:0) | (e.metaKey?16:0);
+  return (e.shiftKey?KeyFlags.Shift:0) |
+        (e.ctrlKey?KeyFlags.Ctrl:0) | 
+        (e.altKey?KeyFlags.Alt:0) | 
+        (e.metaKey?KeyFlags.Meta:0);
 }
 
 export function setKeyboardFromMap(video, switches, map, func?) {
@@ -410,11 +423,11 @@ export function setKeyboardFromMap(video, switches, map, func?) {
       var mask = o.mask;
       if (mask < 0) { // negative mask == active low
         mask = -mask;
-        flags ^= 1;
+        flags ^= KeyFlags.KeyDown;
       }
-      if (flags & 1) {
+      if (flags & KeyFlags.KeyDown) {
         switches[o.index] |= mask;
-      } else {
+      } else if (flags & KeyFlags.KeyUp) {
         switches[o.index] &= ~mask;
       }
     }
