@@ -84,6 +84,7 @@ TODO:
 - wasm dynamic linking of emulators (https://github.com/WebAssembly/tool-conventions/blob/master/DynamicLinking.md)
 - use alternate confirm/prompt dialogs
 - https://github.com/jvilk/BrowserFS
+- verilog: in .asm file editing .v files doesnt update
 
 
 WEB WORKER FORMAT

@@ -58,8 +58,9 @@ module tile_renderer(clk, reset, hpos, vpos,
       case (hpos)
         // assert busy 5 cycles before first RAM read
         HLOAD-8: ram_busy <= 1;
-        // read page base for row
+        // set address for row in page base table
         HLOAD-3: ram_addr <= {page_base, 3'b000, row};
+        // read row_base from page table (2 bytes)
         HLOAD-1: row_base <= ram_read;
         // deassert BUSY and increment row counter
         HLOAD+34: begin
@@ -70,18 +71,23 @@ module tile_renderer(clk, reset, hpos, vpos,
       // load row of tile data from RAM
       // (last two twice)
       if (hpos >= HLOAD && hpos < HLOAD+34) begin
+        // set address bus to (row_base + hpos)
         ram_addr <= row_base + 16'(hpos[4:0]);
-        row_buffer[hpos[4:0] - 5'd2] <= ram_read;
+        // store value on data bus from (row_base + hpos - 2)
+        // which was read two cycles ago
+        row_buffer[hpos[4:0] - 2] <= ram_read;
       end
     end
     // latch character data
     if (hpos < 256) begin
       case (hpos[2:0])
         7: begin
+          // read next cell
           cur_cell <= row_buffer[col+1];
         end
       endcase
     end else if (hpos == 308) begin
+      // read first cell of next row
       cur_cell <= row_buffer[0];
     end
   end
@@ -152,6 +158,7 @@ module test_tilerender_top(clk, reset, hsync, vsync, rgb);
     .data(rom_data)
   );
   
+  // draw border around edges of tile map
   initial begin
     for (int i=0; i<32; i++) begin
       ram.mem[16'h7e00 + 16'(i)] = 16'(i*32);
