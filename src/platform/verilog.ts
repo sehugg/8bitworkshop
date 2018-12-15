@@ -10,6 +10,7 @@ declare var Split;
 
 var VERILOG_PRESETS = [
   {id:'clock_divider.v', name:'Clock Divider'},
+  {id:'binary_counter.v', name:'Binary Counter'},
   {id:'hvsync_generator.v', name:'Video Sync Generator'},
   {id:'test_hvsync.v', name:'Test Pattern'},
   {id:'7segment.v', name:'7-Segment Decoder'},
