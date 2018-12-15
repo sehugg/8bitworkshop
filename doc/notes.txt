@@ -85,6 +85,7 @@ TODO:
 - use alternate confirm/prompt dialogs
 - https://github.com/jvilk/BrowserFS
 - what if error in include file you can't edit b/c it never appears?
+- markdown: can't share
 
 
 WEB WORKER FORMAT

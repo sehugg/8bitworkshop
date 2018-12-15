@@ -18,7 +18,7 @@ lint:
 # https://github.com/Kentzo/git-archive-all
 archive:
 	mkdir -p release
-	git-archive-all --prefix 8bitworkshop-3.2.1/ release/8bitworkshop-3.2.1.zip
+	git-archive-all --prefix 8bitworkshop-latest/ release/8bitworkshop-latest.zip
 	git archive --prefix 8bitworkshop- -o release/8bitworkshop-tools.zip HEAD tools
 
 
