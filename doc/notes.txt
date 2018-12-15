@@ -84,7 +84,7 @@ TODO:
 - wasm dynamic linking of emulators (https://github.com/WebAssembly/tool-conventions/blob/master/DynamicLinking.md)
 - use alternate confirm/prompt dialogs
 - https://github.com/jvilk/BrowserFS
-- verilog: in .asm file editing .v files doesnt update
+- what if error in include file you can't edit b/c it never appears?
 
 
 WEB WORKER FORMAT

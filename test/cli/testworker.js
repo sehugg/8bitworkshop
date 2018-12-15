@@ -173,7 +173,7 @@ describe('Worker', function() {
   */
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
-    var msgs = [{code:csource, platform:"verilog", tool:"verilator", dependencies:[], path:'main.v'}];
+    var msgs = [{code:csource, platform:"verilog", tool:"verilator", path:'main.v'}];
     var done2 = function(err, msg) {
       var jscode = msg.output.code;
       var fn = new Function(jscode);
@@ -184,18 +184,20 @@ describe('Worker', function() {
   });
   it('should NOT compile verilog example', function(done) {
     var csource = "foobar";
-    var msgs = [{code:csource, platform:"verilog", tool:"verilator", dependencies:[], path:'foomain.v'}];
+    var msgs = [{code:csource, platform:"verilog", tool:"verilator", path:'foomain.v'}];
     doBuild(msgs, done, 0, 0, 1);
   });
   it('should compile verilog inline assembler (JSASM)', function(done) {
-    var csource = ab2str(fs.readFileSync('presets/verilog/racing_game_cpu.v'));
-    var dependfiles = ["hvsync_generator.v", "sprite_bitmap.v", "sprite_renderer.v", "cpu8.v", "femto8.json"];
+    var dependfiles = ["racing_game_cpu.v", "hvsync_generator.v", "sprite_bitmap.v", "sprite_renderer.v", "cpu8.v", "femto8.json"];
     var depends = [];
     for (var dfile of dependfiles) {
       var code = ab2str(fs.readFileSync('presets/verilog/' + dfile));
-      depends.push({filename:dfile, data:code, prefix:"verilog"});
+      depends.push({path:dfile, data:code});
     }
-    var msgs = [{code:csource, platform:"verilog", tool:"verilator", dependencies:depends, path:'racing_game_cpu.v'}];
+    var msgs = [{
+      updates:depends,
+      buildsteps:[{platform:"verilog", tool:"verilator", path:'racing_game_cpu.v', files:dependfiles}]
+    }];
     var done2 = function(err, msg) {
       var jscode = msg.output.code;
       var fn = new Function(jscode);
@@ -205,14 +207,16 @@ describe('Worker', function() {
     doBuild(msgs, done2, 51459, 0, 0);
   });
   it('should compile verilog assembler file (JSASM)', function(done) {
-    var csource = ab2str(fs.readFileSync('presets/verilog/test2.asm'));
-    var dependfiles = ["hvsync_generator.v", "font_cp437_8x8.v", "ram.v", "tile_renderer.v", "sprite_scanline_renderer.v", "lfsr.v", "sound_generator.v", "cpu16.v", "cpu_platform.v", "femto16.json"];
+    var dependfiles = ["test2.asm", "hvsync_generator.v", "font_cp437_8x8.v", "ram.v", "tile_renderer.v", "sprite_scanline_renderer.v", "lfsr.v", "sound_generator.v", "cpu16.v", "cpu_platform.v", "femto16.json"];
     var depends = [];
     for (var dfile of dependfiles) {
       var code = ab2str(fs.readFileSync('presets/verilog/' + dfile));
-      depends.push({filename:dfile, data:code, prefix:"verilog"});
+      depends.push({path:dfile, data:code});
     }
-    var msgs = [{code:csource, platform:"verilog", tool:"jsasm", dependencies:depends, path:'main.asm'}];
+    var msgs = [{
+      updates:depends,
+      buildsteps:[{platform:"verilog", tool:"jsasm", path:'test2.asm', files:dependfiles}]
+    }];
     var done2 = function(err, msg) {
       var jscode = msg.output.code;
       var fn = new Function(jscode);

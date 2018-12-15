@@ -264,19 +264,8 @@ export class CodeProject {
         console.log(err); // TODO?
       }
       if (!depends) depends = [];
-      if (this.platform_id.startsWith('verilog')) {
-        // TODO: should get rid of this msg format
-        this.worker.postMessage({
-          code:text,
-          path:getFilenameForPath(this.mainpath),
-          dependencies:depends,
-          platform:this.platform_id,
-          tool:this.platform.getToolForFilename(this.mainpath)
-        });
-      } else {
-        var workermsg = this.buildWorkerMessage(depends);
-        this.worker.postMessage(workermsg);
-      }
+      var workermsg = this.buildWorkerMessage(depends);
+      this.worker.postMessage(workermsg);
       this.isCompiling = true;
     });
   }

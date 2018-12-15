@@ -215,7 +215,8 @@ type FileEntry = {
 };
 
 type BuildOptions = {
-  mainFilePath : string
+  mainFilePath : string,
+  processFn?: (FileData) => FileData
 };
 
 // TODO
@@ -230,7 +231,6 @@ interface BuildStep extends WorkerBuildStep {
   generated?
   prefix?
   maxts?
-  dependencies?
 };
 
 var buildsteps : BuildStep[] = [];
@@ -270,8 +270,11 @@ function getWorkFileAsString(path:string) : string {
   return workfs[path] && workfs[path].data as string; // TODO
 }
 
-function populateEntry(fs, path:string, entry:FileEntry) {
-  fs.writeFile(path, entry.data, {encoding:entry.encoding});
+function populateEntry(fs, path:string, entry:FileEntry, options:BuildOptions) {
+  var data = entry.data;
+  if (options && options.processFn)
+    data = options.processFn(data);
+  fs.writeFile(path, data, {encoding:entry.encoding});
   fs.utime(path, entry.ts, entry.ts);
   console.log("<<<", path, entry.data.length);
 }
@@ -283,7 +286,11 @@ function gatherFiles(step:BuildStep, options?:BuildOptions) {
     for (var i=0; i<step.files.length; i++) {
       var path = step.files[i];
       var entry = workfs[path];
-      maxts = Math.max(maxts, entry.ts);
+      if (!entry) {
+        throw new Error("No entry for path '" + path + "'");
+      } else {
+        maxts = Math.max(maxts, entry.ts);
+      }
     }
   }
   else if (step.code) {
@@ -313,7 +320,7 @@ function populateFiles(step:BuildStep, fs, options?:BuildOptions) {
   if (!step.files) throw "call gatherFiles() first";
   for (var i=0; i<step.files.length; i++) {
     var path = step.files[i];
-    populateEntry(fs, path, workfs[path]);
+    populateEntry(fs, path, workfs[path], options);
   }
 }
 
@@ -485,14 +492,14 @@ function msvcErrorMatcher(errors:WorkerError[]) {
   }
 }
 
-function makeErrorMatcher(errors:WorkerError[], regex, iline:number, imsg:number, path:string) {
+function makeErrorMatcher(errors:WorkerError[], regex, iline:number, imsg:number, mainpath:string, ifilename?:number) {
   return function(s) {
     var matches = regex.exec(s);
     if (matches) {
       errors.push({
         line:parseInt(matches[iline]) || 1,
         msg:matches[imsg],
-        path:path
+        path:ifilename ? matches[ifilename] : mainpath
       });
     } else {
       console.log("??? "+s);
@@ -1268,19 +1275,7 @@ function detectTopModuleName(code:string) {
   return topmod;
 }
 
-function writeDependencies(depends:Dependency[], FS, errors:WorkerError[], callback?) {
-  if (depends) {
-    for (var i=0; i<depends.length; i++) {
-      var d = depends[i];
-      var text = d.data;
-      if (callback)
-        text = callback(d, text);
-      if (text && FS)
-        FS.writeFile(d.filename, text, {encoding:'utf8'});
-    }
-  }
-}
-
+// cached stuff (TODO)
 var jsasm_module_top;
 var jsasm_module_output;
 var jsasm_module_key;
@@ -1290,12 +1285,7 @@ function compileJSASM(asmcode:string, platform, options, is_inline) {
   var asm = new emglobal.exports.Assembler();
   var includes = [];
   asm.loadJSON = (filename:string) => {
-    var jsontext : string;
-    for (var dep of options.dependencies) {
-      if (dep.filename == filename)
-        jsontext = dep.data as string;
-    }
-    // TODO: var jsontext = getWorkFileAsString(filename) || getWorkFileAsString("local/"+filename);
+    var jsontext = getWorkFileAsString(filename);
     if (!jsontext) throw "could not load " + filename;
     return JSON.parse(jsontext);
   };
@@ -1307,24 +1297,26 @@ function compileJSASM(asmcode:string, platform, options, is_inline) {
   };
   var loaded_module = false;
   asm.loadModule = function(top_module) {
-    // TODO: cache module
     // compile last file in list
     loaded_module = true;
     var key = top_module + '/' + includes;
-    if (key != jsasm_module_key) {
+    if (jsasm_module_key != key) {
       jsasm_module_key = key;
-      jsasm_module_top = top_module;
-      var main_filename = includes[includes.length-1];
-      var code = '`include "' + main_filename + '"\n';
-      code += "/*\nmodule " + top_module + "\n*/\n";
-      var voutput = compileVerilator({code:code, platform:platform, dependencies:options.dependencies, path:options.path, tool:'verilator'}); // TODO
-      if (voutput.errors.length)
-        return voutput.errors[0].msg;
-      jsasm_module_output = voutput;
+      jsasm_module_output = null;
     }
+    jsasm_module_top = top_module;
+    var main_filename = includes[includes.length-1];
+    // TODO: take out .asm dependency
+    var voutput = compileVerilator({platform:platform, files:includes, path:main_filename, tool:'verilator'});
+    if (voutput)
+      jsasm_module_output = voutput;
   }
   var result = asm.assembleFile(asmcode);
   if (loaded_module && jsasm_module_output) {
+    // errors? return them
+    if (jsasm_module_output.errors && jsasm_module_output.errors.length)
+      return jsasm_module_output;
+    // return program ROM array
     var asmout = result.output;
     // TODO: unify
     result.output = jsasm_module_output.output;
@@ -1338,10 +1330,10 @@ function compileJSASM(asmcode:string, platform, options, is_inline) {
 }
 
 function compileJSASMStep(step:BuildStep) {
-  // TODO
-  var code = step.code;
+  gatherFiles(step);
+  var code = getWorkFileAsString(step.path);
   var platform = step.platform || 'verilog';
-  return compileJSASM(code, platform, step, false); // TODO
+  return compileJSASM(code, platform, step, false);
 }
 
 function compileInlineASM(code:string, platform, options, errors, asmlines) {
@@ -1374,58 +1366,62 @@ function compileInlineASM(code:string, platform, options, errors, asmlines) {
   return code;
 }
 
-// TODO: make compliant with standard msg format
 function compileVerilator(step:BuildStep) {
   loadNative("verilator_bin");
   loadGen("worker/verilator2js");
   var platform = step.platform || 'verilog';
   var errors = [];
   var asmlines = [];
-  // TODO? gatherFiles(step);
-  step.code = compileInlineASM(step.code, platform, step, errors, asmlines);
-  if (errors.length) {
-    return {errors:errors};
-  }
-  var code = step.code;
-  var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?:)?(\d+)?[:]?\s*(.+)/i, 3, 4, step.path);
-  var verilator_mod = emglobal.verilator_bin({
-    instantiateWasm: moduleInstFn('verilator_bin'),
-    noInitialRun:true,
-    print:print_fn,
-    printErr:match_fn,
-    TOTAL_MEMORY:256*1024*1024,
-  });
-  var topmod = detectTopModuleName(code);
-  var FS = verilator_mod['FS'];
-  populateFiles(step, FS, {mainFilePath:step.path});
-  writeDependencies(step.dependencies, FS, errors, function(d, code) {
-    return compileInlineASM(code, platform, step, errors, null);
-  });
-  starttime();
-  try {
-    var args = ["--cc", "-O3", "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
-      "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
-      "--x-assign", "fast", "--noassert", "--pins-bv", "33",
-      "--top-module", topmod, step.path]
-    verilator_mod.callMain(args);
-  } catch (e) {
-    console.log(e);
-    errors.push({line:0,msg:"Compiler internal error: " + e});
-  }
-  endtime("compile");
-  // remove boring errors
-  errors = errors.filter(function(e) { return !/Exiting due to \d+/.exec(e.msg); }, errors);
-  errors = errors.filter(function(e) { return !/Use ["][/][*]/.exec(e.msg); }, errors);
-  if (errors.length) {
-    return {errors:errors};
-  }
-  try {
-    var h_file = FS.readFile("obj_dir/V"+topmod+".h", {encoding:'utf8'});
-    var cpp_file = FS.readFile("obj_dir/V"+topmod+".cpp", {encoding:'utf8'});
-    var rtn = translateVerilatorOutputToJS(h_file, cpp_file);
-    putWorkFile("main.js", rtn.output.code);
-    if (!anyTargetChanged(step, ["main.js"]))
-      return;
+  gatherFiles(step);
+  // compile verilog if files are stale
+  var outjs = "main.js";
+  if (staleFiles(step, [outjs])) {
+    var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
+    var verilator_mod = emglobal.verilator_bin({
+      instantiateWasm: moduleInstFn('verilator_bin'),
+      noInitialRun:true,
+      print:print_fn,
+      printErr:match_fn,
+      TOTAL_MEMORY:256*1024*1024,
+    });
+    var code = getWorkFileAsString(step.path);
+    var topmod = detectTopModuleName(code);
+    var FS = verilator_mod['FS'];
+    populateFiles(step, FS, {
+      mainFilePath:step.path,
+      processFn:(code) => {
+        return compileInlineASM(code, platform, step, errors, asmlines);
+      }
+    });
+    starttime();
+    try {
+      var args = ["--cc", "-O3", "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
+        "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
+        "--x-assign", "fast", "--noassert", "--pins-bv", "33",
+        "--top-module", topmod, step.path]
+      verilator_mod.callMain(args);
+    } catch (e) {
+      console.log(e);
+      errors.push({line:0,msg:"Compiler internal error: " + e});
+    }
+    endtime("compile");
+    // remove boring errors
+    errors = errors.filter(function(e) { return !/Exiting due to \d+/.exec(e.msg); }, errors);
+    errors = errors.filter(function(e) { return !/Use ["][/][*]/.exec(e.msg); }, errors);
+    if (errors.length) {
+      return {errors:errors};
+    }
+    try {
+      var h_file = FS.readFile("obj_dir/V"+topmod+".h", {encoding:'utf8'});
+      var cpp_file = FS.readFile("obj_dir/V"+topmod+".cpp", {encoding:'utf8'});
+      var rtn = translateVerilatorOutputToJS(h_file, cpp_file);
+      putWorkFile(outjs, rtn.output.code);
+      if (!anyTargetChanged(step, [outjs]))
+        return;
+    } catch(e) {
+      console.log(e);
+      return {errors:errors};
+    }
     //rtn.intermediate = {listing:h_file + cpp_file}; // TODO
     var listings = {};
     // TODO: what if found in non-top-module?
@@ -1436,9 +1432,6 @@ function compileVerilator(step:BuildStep) {
       errors: errors,
       listings: listings,
     };
-  } catch(e) {
-    console.log(e);
-    return {errors:errors};
   }
 }
 
@@ -1459,7 +1452,6 @@ function compileYosys(step:BuildStep) {
   var topmod = detectTopModuleName(code);
   var FS = yosys_mod['FS'];
   FS.writeFile(topmod+".v", code);
-  writeDependencies(step.dependencies, FS, errors);
   starttime();
   try {
     yosys_mod.callMain(["-q", "-o", topmod+".json", "-S", topmod+".v"]);
@@ -1726,7 +1718,6 @@ function executeBuildSteps() {
   buildstartseq = workerseq;
   while (buildsteps.length) {
     var step = buildsteps.shift(); // get top of array
-    var code = step.code;
     var platform = step.platform;
     var toolfn = TOOLS[step.tool];
     if (!toolfn) throw "no tool named " + step.tool;
@@ -1797,7 +1788,6 @@ function handleMessage(data : WorkerMessage) : WorkerResult {
     workfs = {};
     return;
   }
-  // (code,platform,tool,dependencies)
   buildsteps = [];
   // file updates
   if (data.updates) {
