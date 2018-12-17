@@ -86,6 +86,7 @@ TODO:
 - https://github.com/jvilk/BrowserFS
 - what if error in include file you can't edit b/c it never appears?
 - markdown: can't share
+- https://www.crowdsupply.com/tinyfpga/tinyfpga-bx
 
 
 WEB WORKER FORMAT
