@@ -15,12 +15,6 @@ check:
 lint:
 	gjslint -r src
 
-# https://github.com/Kentzo/git-archive-all
-archive:
-	mkdir -p release
-	git-archive-all --prefix 8bitworkshop-latest/ release/8bitworkshop-latest.zip
-	git archive --prefix 8bitworkshop- -o release/8bitworkshop-tools.zip HEAD tools
-
 
 web:
 	ifconfig | grep inet
