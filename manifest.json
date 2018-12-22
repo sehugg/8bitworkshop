@@ -1,0 +1,9 @@
+{
+  "name": "8bitworkshop",
+  "short_name": "8bitworkshop",
+  "lang": "en-US",
+  "start_url": "index.html",
+  "display": "standalone",
+  "theme_color": "#ffffff",
+  "orientation": "landscape"
+}
