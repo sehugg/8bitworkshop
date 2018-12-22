@@ -672,6 +672,7 @@ var VerilogPlatform = function(mainElement, options) {
     this.reset();
   }
   reset() {
+    if (!gen) return;
     gen.__reset();
     trace_index = 0;
     if (trace_buffer) trace_buffer.fill(0);

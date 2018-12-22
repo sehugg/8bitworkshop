@@ -69,6 +69,17 @@ export var lastDebugState;		// last debug state (object)
 var lastDebugInfo;		// last debug info (CPU text)
 var debugCategory;		// current debug category
 
+var hasLocalStorage : boolean = function() {
+  try {
+    const key = "__some_random_key_you_are_not_going_to_use__";
+    localStorage.setItem(key, key);
+    localStorage.removeItem(key);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}();
+
 function getCurrentPresetTitle() : string {
   if (!current_preset_entry)
     return main_file_id || "ROM";
@@ -77,7 +88,7 @@ function getCurrentPresetTitle() : string {
 }
 
 function setLastPreset(id:string) {
-  if (platform_id != 'base_z80') { // TODO
+  if (hasLocalStorage) {
     localStorage.setItem("__lastplatform", platform_id);
     localStorage.setItem("__lastid_"+platform_id, id);
   }
@@ -1129,7 +1140,7 @@ function setupReplaySlider() {
 }
 
 function showWelcomeMessage() {
-  if (!localStorage.getItem("8bitworkshop.hello")) {
+  if (hasLocalStorage && !localStorage.getItem("8bitworkshop.hello")) {
     // Instance the tour
     var is_vcs = platform_id == 'vcs';
     var steps = [
@@ -1269,8 +1280,11 @@ function startPlatform() {
   PRESETS = platform.getPresets();
   if (!qs['file']) {
     // try to load last file (redirect)
-    var lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
-    localStorage.removeItem("__lastid");
+    var lastid;
+    if (hasLocalStorage) {
+      lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
+      localStorage.removeItem("__lastid");
+    }
     qs['file'] = lastid || PRESETS[0].id;
     replaceURLState();
   }
@@ -1319,7 +1333,7 @@ function loadScript(scriptfn, onload) {
 export function setupSplits() {
   const splitName = 'workspace-split3-' + platform_id;
   var sizes = [0, 50, 50];
-  var sizesStr = localStorage.getItem(splitName)
+  var sizesStr = hasLocalStorage && localStorage.getItem(splitName);
   if (sizesStr) {
     try {
       sizes = JSON.parse(sizesStr);
@@ -1333,7 +1347,8 @@ export function setupSplits() {
       if (platform && platform.resize) platform.resize();
     },
     onDragEnd: () => {
-      localStorage.setItem(splitName, JSON.stringify(split.getSizes()))
+      if (hasLocalStorage)
+        localStorage.setItem(splitName, JSON.stringify(split.getSizes()))
     },
   });
 }
