@@ -126,7 +126,7 @@ describe('Verilog Worker', function() {
   //testVerilator('test/cli/verilog/t_order_clkinst.v');
   //testVerilator('test/cli/verilog/t_order_comboloop.v', ['BLKSEQ']);
   testVerilator('test/cli/verilog/t_order_first.v');
-  testVerilator('test/cli/verilog/t_order_loop_bad.v', ['BLKSEQ'], 10);
+  //testVerilator('test/cli/verilog/t_order_loop_bad.v', ['BLKSEQ'], 10);
   testVerilator('test/cli/verilog/t_order_multialways.v');
   testVerilator('test/cli/verilog/t_order_multidriven.v', ['UNDRIVEN']);
   //testVerilator('test/cli/verilog/t_order_quad.v');

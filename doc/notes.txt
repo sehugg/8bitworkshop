@@ -87,9 +87,8 @@ TODO:
 - what if error in include file you can't edit b/c it never appears?
 - markdown, verilog: can't share
 - https://www.crowdsupply.com/tinyfpga/tinyfpga-bx
-- "rotate to landscape pls" message
-- instead of VL_RAND_RESET_Q, make warning about >32 bits
 - HTTPS warning
+- Safari: scope doesn't show while CRT in use
 
 
 WEB WORKER FORMAT

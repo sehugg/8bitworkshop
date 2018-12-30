@@ -1420,6 +1420,7 @@ function compileVerilator(step:BuildStep) {
         return;
     } catch(e) {
       console.log(e);
+      errors.push({line:0,msg:""+e});
       return {errors:errors};
     }
     //rtn.intermediate = {listing:h_file + cpp_file}; // TODO

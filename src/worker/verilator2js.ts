@@ -106,6 +106,8 @@ function getStats(o : V2JS_Code) {
 
 function translateFunction(text : string) : string {
   text = text.trim();
+  if (text.match(/VL_RAND_RESET_Q/))
+    throw Error("Values longer than 32 bits are not supported");
   var funcname = text.match(/(\w+)/)[1];
   text = text.replace(symsName + "* __restrict ", "");
   text = text.replace(moduleName + "* __restrict vlTOPp VL_ATTR_UNUSED", "var vlTOPp");
@@ -161,14 +163,14 @@ function translateStaticVars(text : string) : string {
     var fntxt = translateFunction(functexts[i]);
     funcs.push(fntxt);
   }
-  
+
   var modinput = {
     name:moduleName,
     ports:ports,
     signals:signals,
     funcs:funcs,
   };
-  
+
   return {
     output:{
       code:buildModule(modinput),
@@ -180,4 +182,3 @@ function translateStaticVars(text : string) : string {
   };
 
 }
-
