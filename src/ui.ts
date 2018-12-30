@@ -148,7 +148,7 @@ function refreshWindowList() {
     var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
     return new Views.SourceEditor(path, mode);
   }
-  
+
   function addEditorItem(id:string) {
     var data = current_project.getFile(id);
     if (typeof data === 'string')
@@ -1139,6 +1139,27 @@ function setupReplaySlider() {
     $("#dbg_record").click(_toggleRecording).show();
 }
 
+
+function isLandscape() {
+  try {
+    var object = window.screen['orientation'] || window.screen.msOrientation || window.screen['mozOrientation'] || null;
+    if (object) {
+      if (object.type.indexOf('landscape') !== -1) { return true; }
+      if (object.type.indexOf('portrait') !== -1) { return false; }
+    }
+    if ('orientation' in window) {
+      var value = window.orientation;
+      if (value === 0 || value === 180) {
+        return false;
+      } else if (value === 90 || value === 270) {
+        return true;
+      }
+    }
+  } catch (e) { }
+  // fallback to comparing width to height
+  return window.innerWidth > window.innerHeight;
+}
+
 function showWelcomeMessage() {
   if (hasLocalStorage && !localStorage.getItem("8bitworkshop.hello")) {
     // Instance the tour
@@ -1171,20 +1192,27 @@ function showWelcomeMessage() {
           element: "#dropdownMenuButton",
           title: "Main Menu",
           content: "Click the menu to download your code, switch between platforms, create new files, or share your work with others."
-        }];
-    if (!is_vcs) {
-      steps.push({
-        element: "#windowMenuButton",
-        title: "Window List",
-        content: "Switch between editor windows, assembly listings, and other tools like disassembler and memory dump."
-      });
-    }
+        },
+        {
+          element: "#sidebar",
+          title: "Sidebar",
+          content: "Switch between editor windows, assembly listings, and other tools like disassembler and memory dump."
+        }
+      ];
     steps.push({
       element: "#booksMenuButton",
       placement: 'left',
       title: "Bookstore",
       content: "Get some books that explain how to program all of this stuff!"
     });
+    if (!isLandscape()) {
+      steps.unshift({
+        element: "#controls_top",
+        placement: 'bottom',
+        title: "Portrait mode detected",
+        content: "This site works best on desktop browsers. For best results, rotate your device to landscape orientation."
+      });
+    }
     var tour = new Tour({
       autoscroll:false,
       //storage:false,
@@ -1390,4 +1418,3 @@ export function startUI(loadplatform : boolean) {
     }
   }
 }
-

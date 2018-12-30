@@ -85,8 +85,11 @@ TODO:
 - use alternate confirm/prompt dialogs
 - https://github.com/jvilk/BrowserFS
 - what if error in include file you can't edit b/c it never appears?
-- markdown: can't share
+- markdown, verilog: can't share
 - https://www.crowdsupply.com/tinyfpga/tinyfpga-bx
+- "rotate to landscape pls" message
+- instead of VL_RAND_RESET_Q, make warning about >32 bits
+- HTTPS warning
 
 
 WEB WORKER FORMAT
