@@ -887,6 +887,7 @@ function _recordVideo() {
   };
   f();
  });
+ return true;
 }
 
 function setFrameRateUI(fps:number) {

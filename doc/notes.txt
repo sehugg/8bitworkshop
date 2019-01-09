@@ -89,6 +89,7 @@ TODO:
 - https://www.crowdsupply.com/tinyfpga/tinyfpga-bx
 - HTTPS warning
 - Safari: scope doesn't show while CRT in use
+- recording video indicator
 
 
 WEB WORKER FORMAT

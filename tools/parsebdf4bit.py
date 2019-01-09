@@ -50,7 +50,7 @@ with open(args.bdffile,'r') as f:
                         if bytes[y] & (0x40 >> x):
                             b |= 0x0f
                         output.append(b)
-                print('const char CH_%d[] = { %s };' % ( chord, string.join([tohex2(x) for x in output], ',') ))
+                print('const char CH_%d[] = { %s };' % ( chord, ','.join([tohex2(x) for x in output]) ))
                 chars[chord] = 'CH_%d' % chord
         elif inbitmap and len(toks) == 1:
             byte = int(toks[0],16)
