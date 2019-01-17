@@ -708,7 +708,7 @@ function setupBreakpoint(btnid? : string) {
 }
 
 function _pause() {
-  if (platform.isRunning()) {
+  if (platform && platform.isRunning()) {
     platform.pause();
     console.log("Paused");
   }

@@ -90,6 +90,7 @@ TODO:
 - HTTPS warning
 - Safari: scope doesn't show while CRT in use
 - recording video indicator
+- verilog: support VGA/multisync monitor?
 
 
 WEB WORKER FORMAT
