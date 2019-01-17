@@ -344,7 +344,7 @@ function _shareFileAsGist(e) {
     "files": files
   };
   var gist = github.gists.create(gistdata).done(function(val) {
-    var url = "http://8bitworkshop.com/?sharekey=" + val.id;
+    var url = "http://8bitworkshop.com/?gistkey=" + val.id;
     window.prompt("Copy link to clipboard (Ctrl+C, Enter)", url);
   }).fail(function(err) {
     alert("Error sharing file: " + err.message);
@@ -1328,24 +1328,21 @@ function startPlatform() {
   return true;
 }
 
-function loadSharedFile(sharekey : string) {
+function loadSharedGist(gistkey : string) {
  loadScript("octokat.js/dist/octokat.js", () => {
   var github = new exports['Octokat']();
-  var gist = github.gists(sharekey);
+  var gist = github.gists(gistkey);
   gist.fetch().done(function(val) {
     var filename;
-    for (filename in val.files) { break; }
-    var newid = 'shared/' + filename;
-    var json = JSON.parse(val.description.slice(val.description.indexOf(' ')+1));
-    console.log("Fetched " + newid, json);
-    platform_id = json['platform'];
-    store = createNewPersistentStore(platform_id, () => {
-      // runs after migration, if it happens
-      current_project.updateFile(newid, val.files[filename].content);
-      reloadPresetNamed(newid);
-      delete qs['sharekey'];
-      gotoNewLocation();
-    });
+    var newid;
+    console.log("Fetched " + gistkey, val);
+    store = createNewPersistentStore(platform_id, null);
+    for (filename in val.files) {
+      store.setItem('shared/'+filename, val.files[filename].content);
+      if (!newid) newid = 'shared/'+filename;
+    }
+    delete qs['gistkey'];
+    reloadPresetNamed(newid);
   }).fail(function(err) {
     alert("Error loading share file: " + err.message);
   });
@@ -1394,8 +1391,8 @@ export function startUI(loadplatform : boolean) {
   setupSplits();
   // parse query string
   // is this a share URL?
-  if (qs['sharekey']) {
-    loadSharedFile(qs['sharekey']);
+  if (qs['gistkey']) {
+    loadSharedGist(qs['gistkey']);
   } else {
     store = createNewPersistentStore(platform_id, null);
     // reset file?
