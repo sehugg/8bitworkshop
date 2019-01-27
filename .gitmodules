@@ -9,7 +9,7 @@
 	url = https://github.com/philschatz/octokat.js
 [submodule "tss"]
 	path = tss
-	url = https://github.com/toyoshim/tss
+	url = https://github.com/sehugg/tss
 [submodule "FileSaver.js"]
 	path = FileSaver.js
 	url = https://github.com/eligrey/FileSaver.js
