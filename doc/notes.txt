@@ -91,6 +91,8 @@ TODO:
 - Safari: scope doesn't show while CRT in use
 - recording video indicator
 - verilog: support VGA/multisync monitor?
+- stego shareable images (http://pico-8.wikia.com/wiki/P8PNGFileFormat)
+- https://makecode.com/language?
 
 
 WEB WORKER FORMAT

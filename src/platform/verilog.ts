@@ -295,7 +295,7 @@ var VerilogPlatform = function(mainElement, options) {
     ctx.fillText(txt, x, y);
     ctx.shadowOffsetX = 0;
   }
-
+  
   // inner Platform class
     
  class _VerilogPlatform extends BasePlatform implements WaveformProvider {
@@ -307,6 +307,13 @@ var VerilogPlatform = function(mainElement, options) {
   hasvideo : boolean;
 
   getPresets() { return VERILOG_PRESETS; }
+
+  setVideoParams(width:number, height:number, clock:number) {
+    videoWidth = width;
+    videoHeight = height;
+    cyclesPerFrame = clock;
+    maxVideoLines = height+40;
+  }
 
   start() {
     video = new RasterVideo(mainElement,videoWidth,videoHeight,{overscan:true});
@@ -751,24 +758,21 @@ var VerilogPlatform = function(mainElement, options) {
 
 ////////////////
 
-var VERILOG_SIM_PRESETS = [
-  {id:'clock_divider.v', name:'Clock Divider'},
-  {id:'lfsr.v', name:'Linear Feedback Shift Register'},
+var VERILOG_VGA_PRESETS = [
   {id:'hvsync_generator.v', name:'Video Sync Generator'},
   {id:'test_hvsync.v', name:'Test Pattern'},
-  {id:'starfield.v', name:'Scrolling Starfield'},
-  {id:'chardisplay.v', name:'RAM Text Display'},
-  {id:'sound_generator.v', name:'Sound Generator'},
 ];
 
 
-var VerilogSimulatorPlatform = function(mainElement, options) {
+var VerilogVGAPlatform = function(mainElement, options) {
   this.__proto__ = new (VerilogPlatform as any)(mainElement, options);
 
-  this.getPresets = function() { return VERILOG_SIM_PRESETS; }
+  this.getPresets = function() { return VERILOG_VGA_PRESETS; }
+
+  this.setVideoParams(800-64, 520, 25000000);
 }
 
 ////////////////
 
 PLATFORMS['verilog'] = VerilogPlatform;
-PLATFORMS['verilog.sim'] = VerilogSimulatorPlatform;
+PLATFORMS['verilog-vga'] = VerilogVGAPlatform;
