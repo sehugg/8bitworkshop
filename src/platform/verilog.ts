@@ -761,6 +761,9 @@ var VerilogPlatform = function(mainElement, options) {
 var VERILOG_VGA_PRESETS = [
   {id:'hvsync_generator.v', name:'Video Sync Generator'},
   {id:'test_hvsync.v', name:'Test Pattern'},
+  {id:'chardisplay.v', name:'RAM Text Display'},
+  {id:'starfield.v', name:'Scrolling Starfield'},
+  {id:'ball_paddle.v', name:'Brick Smash Game'},
 ];
 
 

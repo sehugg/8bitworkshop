@@ -3,7 +3,8 @@
 `define HVSYNC_GENERATOR_H
 
 /*
-Video sync generator, used to drive a simulated CRT.
+Video sync generator, used to drive a VGA monitor.
+Timing from: https://en.wikipedia.org/wiki/Video_Graphics_Array
 To use:
 - Wire the hsync and vsync signals to top level outputs
 - Add a 3-bit (or more) "rgb" output to the top level
@@ -15,20 +16,20 @@ module hvsync_generator(clk, reset, hsync, vsync, display_on, hpos, vpos);
   input reset;
   output reg hsync, vsync;
   output display_on;
-  output reg [8:0] hpos;
-  output reg [8:0] vpos;
+  output reg [9:0] hpos;
+  output reg [9:0] vpos;
 
   // declarations for TV-simulator sync parameters
   // horizontal constants
-  parameter H_DISPLAY       = 256; // horizontal display width
-  parameter H_BACK          =  23; // horizontal left border (back porch)
-  parameter H_FRONT         =   7; // horizontal right border (front porch)
-  parameter H_SYNC          =  23; // horizontal sync width
+  parameter H_DISPLAY       = 640; // horizontal display width
+  parameter H_BACK          =  48; // horizontal left border (back porch)
+  parameter H_FRONT         =  16; // horizontal right border (front porch)
+  parameter H_SYNC          =  96; // horizontal sync width
   // vertical constants
-  parameter V_DISPLAY       = 240; // vertical display height
-  parameter V_TOP           =   5; // vertical top border
-  parameter V_BOTTOM        =  14; // vertical bottom border
-  parameter V_SYNC          =   3; // vertical sync # lines
+  parameter V_DISPLAY       = 480; // vertical display height
+  parameter V_TOP           =  33; // vertical top border
+  parameter V_BOTTOM        =  10; // vertical bottom border
+  parameter V_SYNC          =   2; // vertical sync # lines
   // derived constants
   parameter H_SYNC_START    = H_DISPLAY + H_FRONT;
   parameter H_SYNC_END      = H_DISPLAY + H_FRONT + H_SYNC - 1;

@@ -11,8 +11,8 @@ module test_hvsync_top(clk, reset, hsync, vsync, rgb);
   output hsync, vsync;
   output [2:0] rgb;
   wire display_on;
-  wire [8:0] hpos;
-  wire [8:0] vpos;
+  wire [9:0] hpos;
+  wire [9:0] vpos;
 
   hvsync_generator hvsync_gen(
     .clk(clk),
