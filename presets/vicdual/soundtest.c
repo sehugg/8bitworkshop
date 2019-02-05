@@ -2,7 +2,7 @@
 #include <string.h>
 
 typedef unsigned char byte;
-typedef unsigned char word;
+typedef unsigned short word;
 
 __sfr __at (0x0) input0;
 __sfr __at (0x1) input1;

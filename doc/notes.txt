@@ -93,6 +93,7 @@ TODO:
 - verilog: support VGA/multisync monitor?
 - stego shareable images (http://pico-8.wikia.com/wiki/P8PNGFileFormat)
 - https://makecode.com/language?
+- show .map file in listings?
 
 
 WEB WORKER FORMAT
@@ -175,3 +176,19 @@ PIXEL EDITOR
 everything is an editor
 back/forward propogation
 encoded <-> raw + spec + palette(s) <-> full tilemap <-> selected tile/sprite/metasprite
+need references
+panes: source code, metadata tree, graphics panes
+decoded info:
+- CHR tiles
+- palettes
+- maps/rooms
+- metasprites
+- metatiles
+- sprite data (williams etc)
+store in intermediate single file or embed in C/ASM?
+we'd then have to generate C/ASM probably automatically
+intermediate file could still be edited
+switch between hex/graphic editor? (palettes should edit via hex)
+final display types: number, color, sprite, etc
+CHR editor has palette selector, obj selector
+
