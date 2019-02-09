@@ -94,6 +94,7 @@ TODO:
 - stego shareable images (http://pico-8.wikia.com/wiki/P8PNGFileFormat)
 - https://makecode.com/language?
 - show .map file in listings?
+- open ROM from URL?
 
 
 WEB WORKER FORMAT
@@ -191,4 +192,19 @@ intermediate file could still be edited
 switch between hex/graphic editor? (palettes should edit via hex)
 final display types: number, color, sprite, etc
 CHR editor has palette selector, obj selector
+individual objects in single file or multiple files?
+RLE compression
+
+Types
+- byte
+- RGBA color
+- structured object
+  - metasprite
+  - metatile
+  - level actor
+- bitmap
+- array of stuff, array can have a shape (width,height) like numpy
+Mappers can refer to multiple objs
+Slice (window) of array for selections
+
 
