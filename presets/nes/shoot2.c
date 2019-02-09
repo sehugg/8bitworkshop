@@ -5,9 +5,6 @@
 
 #include "neslib.h"
 
-#pragma data-name (push,"CHARS")
-#pragma data-name(pop)
-
 #define COLS 32
 #define ROWS 28
 

@@ -1,9 +1,6 @@
 
 #include "neslib.h"
 
-#pragma data-name (push,"CHARS")
-#pragma data-name(pop)
-
 //#link "tileset1.c"
 
 // tile set, two planes for 4 colors

@@ -10,8 +10,9 @@ declare var jsnes : any;
 
 const JSNES_PRESETS = [
   {id:'ex0.asm', name:'Initialization (ASM)'},
-  {id:'ex1.asm', name:'Scrolling Demo (ASM)'},
-  {id:'ex2.asm', name:'Sprite Demo (ASM)'},
+  {id:'ex1.asm', name:'Hello World (ASM)'},
+  {id:'ex2.asm', name:'Scrolling Demo (ASM)'},
+  {id:'ex3.asm', name:'Sprite Demo (ASM)'},
   {id:'neslib1.c', name:'Text'},
   {id:'neslib2.c', name:'Sprites'},
   {id:'neslib3.c', name:'Cursor'},

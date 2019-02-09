@@ -1,9 +1,6 @@
 
 #include "neslib.h"
 
-#pragma data-name (push,"CHARS")
-#pragma data-name (pop)
-
 //#define DEBUG
 #define HAS_DEBUGGER
 

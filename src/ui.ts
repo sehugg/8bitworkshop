@@ -296,7 +296,7 @@ function handleFileUpload(files: File[]) {
         var arrbuf = (<any>e.target).result as ArrayBuffer;
         var data : FileData = new Uint8Array(arrbuf);
         // convert to UTF8, unless it's a binary file
-        if (isProbablyBinary(data)) { // path.endsWith("bin")) {
+        if (isProbablyBinary(path, data)) {
           gotoMainFile = false;
         } else {
           data = byteArrayToUTF8(data);

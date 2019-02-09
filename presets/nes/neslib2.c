@@ -4,9 +4,6 @@
 
 #include "neslib.h"
 
-#pragma data-name (push,"CHARS")
-#pragma data-name(pop)
-
 //#link "tileset1.c"
 
 // palette for balls, there are four sets for different ball colors

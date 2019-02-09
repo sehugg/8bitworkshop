@@ -1,7 +1,7 @@
 "use strict";
 
 import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, WorkerResult } from "./workertypes";
-import { getFilenameForPath, getFilenamePrefix, getFolderForPath } from "./util";
+import { getFilenameForPath, getFilenamePrefix, getFolderForPath, isProbablyBinary } from "./util";
 
 type BuildResultCallback = (result:WorkerResult) => void;
 type BuildStatusCallback = (busy:boolean) => void;
@@ -206,12 +206,13 @@ export class CodeProject {
               var webpath = "presets/" + preset_id + "/" + path;
               if (this.platform_id.startsWith('vcs') && path.indexOf('.') <= 0)
                 webpath += ".a"; // legacy stuff
-              this.callbackGetRemote( webpath, (text:string) => {
+              // try to GET file, use file ext to determine text/binary
+              this.callbackGetRemote( webpath, (text:FileData) => {
                 console.log("GET",webpath,text.length,'bytes');
                 this.filedata[path] = text; // do not update store, just cache
                 addResult(path, text);
                 loadNext();
-              }, 'text')
+              }, isProbablyBinary(path) ? 'arraybuffer' : 'text')
               .fail( (err:XMLHttpRequest) => {
                 console.log("Could not load preset", path, err.status);
                 // only cache result if status is 404 (not found)

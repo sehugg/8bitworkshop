@@ -315,10 +315,16 @@ export function removeBOM(s:string) {
   return s;
 }
 
-export function isProbablyBinary(data : number[] | Uint8Array) : boolean {
+export function isProbablyBinary(path:string, data?:number[] | Uint8Array) : boolean {
   var score = 0;
+  // check extensions
+  if (path) {
+    path = path.toUpperCase();
+    if (path.endsWith('.CHR') || path.endsWith('.BIN'))
+      score++;
+  }
   // decode as UTF-8
-  for (var i = 0; i < data.length;) {
+  for (var i = 0; i < (data?data.length:0);) {
     let c = data[i++];
     if ((c & 0x80) == 0) {
       // more likely binary if we see a NUL or obscure control character
