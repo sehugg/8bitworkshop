@@ -126,10 +126,10 @@ var PLATFORM_PARAMS = {
     define: '__NES__',
     cfgfile: 'neslib.cfg',
     libargs: ['crt0.o', 'nes.lib',
-      '-D', 'NES_MAPPER=0',
-      '-D', 'NES_PRG_BANKS=2',
+      '-D', 'NES_MAPPER=2', // UxROM
+      '-D', 'NES_PRG_BANKS=2', // 2 PRG banks
       '-D', 'NES_CHR_BANKS=0', // TODO: >0 doesn't seem to work
-      '-D', 'NES_MIRRORING=0',
+      '-D', 'NES_MIRRORING=0', // horizontal mirroring
       ],
     extra_link_files: ['crt0.o'],
   },

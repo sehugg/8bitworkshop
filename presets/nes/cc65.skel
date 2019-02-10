@@ -1,0 +1,19 @@
+
+#include "neslib.h"
+
+//#link "jroatch.c"
+extern unsigned char jroatch_chr[0x1000];
+#define TILESET jroatch_chr
+
+void main(void)
+{
+	//copy tileset to RAM
+  	vram_adr(0x0);
+	vram_write((unsigned char*)TILESET, sizeof(TILESET));
+        pal_col(1,0x04);
+        pal_col(2,0x20);
+        pal_col(3,0x30);
+        put_str(NTADR_A(2,2),"HELLO, WORLD!");
+        ppu_on_all();//enable rendering
+        while(1);//do nothing, infinite loop
+}
