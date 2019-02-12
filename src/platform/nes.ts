@@ -72,7 +72,6 @@ const _JSNESPlatform = function(mainElement) {
   var frameindex = 0;
   var ntvideo;
   var ntlastbuf;
-  var ntvisible;
   
  class JSNESPlatform extends Base6502Platform implements Platform {
   debugPCDelta = 1;
@@ -89,7 +88,6 @@ const _JSNESPlatform = function(mainElement) {
     ntvideo = new RasterVideo(mainElement,512,480,{overscan:false});
     ntvideo.create();
     $(ntvideo.canvas).hide();
-    ntvisible = false;
     ntlastbuf = new Uint32Array(0x1000);
     ntlastbuf.fill(-1);
     // toggle buttons
@@ -146,7 +144,9 @@ const _JSNESPlatform = function(mainElement) {
   }
   
   updateDebugViews() {
-   //console.log(nes.ppu); 
+   // don't update if view is hidden
+   if (! $(ntvideo.canvas).is(":visible"))
+     return;
    var a = 0;
    var attraddr = 0;
    var idata = ntvideo.getFrameData();
@@ -169,17 +169,15 @@ const _JSNESPlatform = function(mainElement) {
          var coloradd = ((attr >> attrshift) & 3) << 2;
          for (var y=0; y<8; y++) {
            for (var x=0; x<8; x++) {
-             var color = t.pix[j++] + coloradd;
+             var color = t.pix[j++];
+             if (color) color += coloradd;
              var rgb = nes.ppu.imgPalette[color];
-             idata[i++] = rgb;
+             idata[i++] = rgb | 0xff000000;
            }
            i += 64*8-8;
          }
        }
      }
-   }
-   for (var i=0; i<idata.length; i++) {
-     idata[i] = idata[i] | 0xff000000;
    }
    ntvideo.updateFrame();
   }
