@@ -70,7 +70,9 @@ const _JSNESPlatform = function(mainElement) {
   var video, audio, timer;
   const audioFrequency = 44030; //44100
   var frameindex = 0;
-  var nsamples = 0;
+  var ntvideo;
+  var ntlastbuf;
+  var ntvisible;
   
  class JSNESPlatform extends Base6502Platform implements Platform {
   debugPCDelta = 1;
@@ -79,24 +81,35 @@ const _JSNESPlatform = function(mainElement) {
 
   start() {
     var self = this;
-    video = new RasterVideo(mainElement,256,224,{overscan:true});
+    var debugbar = $("<div>").appendTo(mainElement);
     audio = new SampleAudio(audioFrequency);
+    video = new RasterVideo(mainElement,256,224,{overscan:true});
     video.create();
+    // debugging view
+    ntvideo = new RasterVideo(mainElement,512,480,{overscan:false});
+    ntvideo.create();
+    $(ntvideo.canvas).hide();
+    ntvisible = false;
+    ntlastbuf = new Uint32Array(0x1000);
+    ntlastbuf.fill(-1);
+    // toggle buttons
+    $('<button>').text("Video").appendTo(debugbar).click(() => { $(video.canvas).toggle() });
+    $('<button>').text("Nametable").appendTo(debugbar).click(() => { $(ntvideo.canvas).toggle() });
+    
     var idata = video.getFrameData();
     nes = new jsnes.NES({
-      onFrame: function(frameBuffer) {
+      onFrame: (frameBuffer : number[]) => {
         for (var i=0; i<frameBuffer.length; i++)
           idata[i] = frameBuffer[i] | 0xff000000;
         video.updateFrame();
         frameindex++;
-        //if (frameindex == 2000) console.log(nsamples*60/frameindex,'Hz');
+        this.updateDebugViews();
       },
-      onAudioSample: function(left, right) {
+      onAudioSample: (left:number, right:number) => {
         if (frameindex < 10)
           audio.feedSample(0, 1); // avoid popping at powerup
         else
           audio.feedSample(left+right, 1);
-        //nsamples++;
       },
       onStatusUpdate: function(s) {
         console.log(s);
@@ -130,7 +143,46 @@ const _JSNESPlatform = function(mainElement) {
   
   advance(novideo : boolean) {
     nes.frame();
-      }
+  }
+  
+  updateDebugViews() {
+   //console.log(nes.ppu); 
+   var a = 0;
+   var attraddr = 0;
+   var idata = ntvideo.getFrameData();
+   var baseTile = nes.ppu.regS === 0 ? 0 : 256;
+   for (var row=0; row<60; row++) {
+     for (var col=0; col<64; col++) {
+       a = 0x2000 + (col&31) + ((row%30)*32);
+       if (col >= 32) a += 0x400;
+       if (row >= 30) a += 0x800;
+       var name = nes.ppu.mirroredLoad(a) + baseTile;
+       var t = nes.ppu.ptTile[name];
+       attraddr = (a & 0x2c00) | 0x3c0 | (a & 0x0C00) | ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
+       var attr = nes.ppu.mirroredLoad(attraddr);
+       var tag = name ^ (attr<<9);
+       if (tag != ntlastbuf[a & 0xfff]) {
+         ntlastbuf[a & 0xfff] = tag;
+         var i = row*64*8*8 + col*8;
+         var j = 0;
+         var attrshift = (col&2) + ((a&0x40)>>4);
+         var coloradd = ((attr >> attrshift) & 3) << 2;
+         for (var y=0; y<8; y++) {
+           for (var x=0; x<8; x++) {
+             var color = t.pix[j++] + coloradd;
+             var rgb = nes.ppu.imgPalette[color];
+             idata[i++] = rgb;
+           }
+           i += 64*8-8;
+         }
+       }
+     }
+   }
+   for (var i=0; i<idata.length; i++) {
+     idata[i] = idata[i] | 0xff000000;
+   }
+   ntvideo.updateFrame();
+  }
 
   loadROM(title, data) {
     var romstr = String.fromCharCode.apply(null, data);

@@ -3,11 +3,12 @@
 #include <string.h>
 
 #include "neslib.h"
+#include "nes.h"
 
 typedef unsigned char byte;
 typedef signed char sbyte;
 typedef unsigned short word;
-typedef enum { false, true} bool;
+typedef enum { false, true } bool;
 
 // TILES
 
@@ -23,19 +24,22 @@ extern unsigned char jroatch_chr[0x1000];
 #define ACTOR_MIN_X 16
 #define ACTOR_SCROLL_UP_Y 110
 #define ACTOR_SCROLL_DOWN_Y 140
-#define BOTTOM_LEVEL_Y 1
+#define BOTTOM_LEVEL_Y 2
+#define JUMP_VELOCITY 17
 
 #define BGCOL CV_COLOR_BLUE
 
 #define CH_BORDER 64
-#define CH_FLOOR 127
-#define CH_LADDER 212
-#define CH_FRUIT 204
-#define BLANK 32
+#define CH_FLOOR 0xf4
+#define CH_LADDER 0xd4
+#define CH_FRUIT 0xcc
+#define BLANK 0x20
 
 byte rndint(byte a, byte b) {
   return (rand8() % (b-a)) + a;
 }
+
+#define OAMBUF ((unsigned char*) 0x200)
 
 // VRAM UPDATE BUFFER
 
@@ -72,8 +76,22 @@ word getntaddr(byte x, byte y) {
   return addr;
 }
 
-void putchar(byte x, byte y, char ch) {
-  word addr = getntaddr(x,y);
+word nt2attraddr(word a) {
+  return (a & 0x2c00) | 0x3c0 | (a & 0x0C00) | 
+    ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
+}
+
+word getattraddr(byte row) {
+  word addr;
+  if (row < 15) {
+    addr = NAMETABLE_A + 0x3c0 + (row>>1)*8;
+  } else {
+    addr = NAMETABLE_C + 0x3c0 + ((row-15)>>1)*8;
+  }
+  return addr;
+}
+
+void putchar(word addr, char ch) {
   if (updptr >= VBUFSIZE-4) cflushnow();
   updbuf[updptr++] = addr >> 8;
   updbuf[updptr++] = addr & 0xff;
@@ -81,8 +99,7 @@ void putchar(byte x, byte y, char ch) {
   cendbuf();
 }
 
-void putbytes(byte x, byte y, char* str, byte len) {
-  word addr = getntaddr(x,y);
+void putbytes(word addr, char* str, byte len) {
   if (updptr >= VBUFSIZE-4-len) cflushnow();
   updbuf[updptr++] = (addr >> 8) | NT_UPD_HORZ;
   updbuf[updptr++] = addr & 0xff;
@@ -94,7 +111,7 @@ void putbytes(byte x, byte y, char* str, byte len) {
 }
 
 void putstring(byte x, byte y, char* str) {
-  putbytes(x, y, str, strlen(str));
+  putbytes(getntaddr(x,y), str, strlen(str));
 }
 
 void clrscr() {
@@ -109,66 +126,45 @@ void clrscr() {
 
 /// METASPRITES
 
-const unsigned char playerStand[]={
-        0,      0,      0xd8,   0,
-        8,      0,      0xd9,   0,
-        0,      8,      0xda,   0,
-        8,      8,      0xdb,   0,
-        128
-};
+#define DEF_METASPRITE_4x4(name,code,pal)\
+const unsigned char name[]={\
+        0,      0,      (code)+0,   pal, \
+        8,      0,      (code)+1,   pal, \
+        0,      8,      (code)+2,   pal, \
+        8,      8,      (code)+3,   pal, \
+        128};
 
-const unsigned char playerRun1[]={
-        0,      0,      0xdc,   0,
-        8,      0,      0xdd,   0,
-        0,      8,      0xde,   0,
-        8,      8,      0xdf,   0,
-        128
-};
+#define DEF_METASPRITE_4x4_FLIP(name,code,pal)\
+const unsigned char name[]={\
+        8,      0,      (code)+0,   (pal)|OAM_FLIP_H, \
+        0,      0,      (code)+1,   (pal)|OAM_FLIP_H, \
+        8,      8,      (code)+2,   (pal)|OAM_FLIP_H, \
+        0,      8,      (code)+3,   (pal)|OAM_FLIP_H, \
+        128};
 
-const unsigned char playerRun2[]={
-        0,      0,      0xe0,   0,
-        8,      0,      0xe1,   0,
-        0,      8,      0xe2,   0,
-        8,      8,      0xe3,   0,
-        128
-};
+DEF_METASPRITE_4x4(playerRStand, 0xd8, 0);
+DEF_METASPRITE_4x4(playerRRun1, 0xdc, 0);
+DEF_METASPRITE_4x4(playerRRun2, 0xe0, 0);
+DEF_METASPRITE_4x4(playerRRun3, 0xe4, 0);
+DEF_METASPRITE_4x4(playerRJump, 0xe8, 0);
+DEF_METASPRITE_4x4(playerRClimb, 0xec, 0);
+DEF_METASPRITE_4x4(playerRSad, 0xf0, 0);
 
-const unsigned char playerRun3[]={
-        0,      0,      0xe4,   0,
-        8,      0,      0xe5,   0,
-        0,      8,      0xe6,   0,
-        8,      8,      0xe7,   0,
-        128
-};
+DEF_METASPRITE_4x4_FLIP(playerLStand, 0xd8, 0);
+DEF_METASPRITE_4x4_FLIP(playerLRun1, 0xdc, 0);
+DEF_METASPRITE_4x4_FLIP(playerLRun2, 0xe0, 0);
+DEF_METASPRITE_4x4_FLIP(playerLRun3, 0xe4, 0);
+DEF_METASPRITE_4x4_FLIP(playerLJump, 0xe8, 0);
+DEF_METASPRITE_4x4_FLIP(playerLClimb, 0xec, 0);
+DEF_METASPRITE_4x4_FLIP(playerLSad, 0xf0, 0);
 
-const unsigned char playerJump[]={
-        0,      0,      0xe8,   0,
-        8,      0,      0xe9,   0,
-        0,      8,      0xea,   0,
-        8,      8,      0xeb,   0,
-        128
-};
-
-const unsigned char playerClimb[]={
-        0,      0,      0xec,   0,
-        8,      0,      0xed,   0,
-        0,      8,      0xee,   0,
-        8,      8,      0xef,   0,
-        128
-};
-
-const unsigned char playerSad[]={
-        0,      0,      0xf0,   0,
-        8,      0,      0xf1,   0,
-        0,      8,      0xf2,   0,
-        8,      8,      0xf3,   0,
-        128
-};
-
-const unsigned char* playerRunSeq[8] = {
-  playerRun1, playerRun2, playerRun3, 
-  playerRun1, playerRun2, playerRun3, 
-  playerRun1, playerRun2,
+const unsigned char* const playerRunSeq[16] = {
+  playerLRun1, playerLRun2, playerLRun3, 
+  playerLRun1, playerLRun2, playerLRun3, 
+  playerLRun1, playerLRun2,
+  playerRRun1, playerRRun2, playerRRun3, 
+  playerRRun1, playerRRun2, playerRRun3, 
+  playerRRun1, playerRRun2,
 };
 
 /// GAME LOGIC
@@ -184,7 +180,7 @@ typedef struct Level {
 } Level;
 
 #define MAX_LEVELS 32
-#define GAPSIZE 3
+#define GAPSIZE 4
 
 Level levels[MAX_LEVELS];
 
@@ -207,15 +203,20 @@ void make_levels() {
   Level* prevlev = &levels[0];
   for (i=0; i<MAX_LEVELS; i++) {
     Level* lev = &levels[i];
-    lev->height = rndint(4,7);
-    lev->ladder1 = rndint(1,14);
-    lev->ladder2 = rndint(1,14);
+    lev->height = rndint(2,5)*2;
     do {
       lev->gap = i>0 ? rndint(0,13) : 0;
     } while (ladder_in_gap(prevlev->ladder1, lev->gap) || 
              ladder_in_gap(prevlev->ladder2, lev->gap));
+    do {
+      lev->ladder1 = rndint(1,14);
+      lev->ladder2 = rndint(1,14);
+    } while (ladder_in_gap(lev->ladder1, lev->gap) || 
+             ladder_in_gap(lev->ladder2, lev->gap));
     lev->objtype = rndint(1,3);
-    lev->objpos = rndint(1,14);
+    do {
+      lev->objpos = rndint(1,14);
+    } while (ladder_in_gap(lev->objpos, lev->gap));
     lev->ypos = y;
     y += lev->height;
     prevlev = lev;
@@ -238,18 +239,30 @@ static byte player_screen_y = 0;
 
 void create_actors_on_level(byte i);
 
+// TODO: crashes when drawing top floor
 void draw_level_line(byte screen_y) {
   char buf[COLS];
-  byte i;
-  byte y = screen_y; // + scroll_tile_y
-  for (i=0; i<MAX_LEVELS; i++) {
-    Level* lev = &levels[i];
+  char attrs[8];
+  byte level, i;
+  byte y = screen_y;
+  byte rowy;
+  word addr;
+  for (level=0; level<MAX_LEVELS; level++) {
+    Level* lev = &levels[level];
     byte dy = y - lev->ypos;
     // is this level visible on-screen?
     if (dy < lev->height) {
-      if (dy == 0) {
+      if (dy <= 1) {
         // draw floor
-        memset(buf, CH_FLOOR, COLS);
+        for (i=0; i<COLS; i+=2) {
+          if (dy) {
+            buf[i] = CH_FLOOR;
+            buf[i+1] = CH_FLOOR+1;
+          } else {
+            buf[i] = CH_FLOOR+2;
+            buf[i+1] = CH_FLOOR+3;
+          }
+        }
         // draw the gap
 	if (lev->gap)
           memset(buf+lev->gap*2, 0, GAPSIZE);
@@ -257,8 +270,8 @@ void draw_level_line(byte screen_y) {
         // draw empty space
         memset(buf, 0, sizeof(buf));
         // draw walls
-        if (i < MAX_LEVELS-1) {
-          buf[0] = CH_FLOOR;
+        if (level < MAX_LEVELS-1) {
+          buf[0] = CH_FLOOR+1;
           buf[COLS-1] = CH_FLOOR;
         }
         // draw ladders
@@ -271,25 +284,41 @@ void draw_level_line(byte screen_y) {
           buf[lev->ladder2*2+1] = CH_LADDER+1;
         }
       }
-//buf[0] = i+'a';buf[1] = y;buf[2] = dy+'0';buf[3] = lev->ypos;buf[4] = lev->height+'0';
       // draw object, if it exists
       if (lev->objtype) {
         byte ch = lev->objtype*4 + CH_FRUIT - 4;
-        if (dy == 1) {
+        if (dy == 2) {
           buf[lev->objpos*2] = ch+2;
           buf[lev->objpos*2+1] = ch+3;
         }
-        else if (dy == 2) {
+        else if (dy == 3) {
           buf[lev->objpos*2] = ch+0;
           buf[lev->objpos*2+1] = ch+1;
         }
       }
+      // compute row in name buffer and address
+      rowy = (ROWS-1) - (screen_y%60);
+      addr = getntaddr(1, rowy);
+      // copy attribute table (every 4th row)
+      if ((addr & 0x60) == 0) {
+        byte a;
+        if (dy==1)
+          a = 0x05;
+        else if (dy==3)
+          a = 0x50;
+        else
+          a = 0x00;
+        memset(attrs, a, 8);
+        // TODO: this misses one row at the end?
+        putbytes(nt2attraddr(addr), attrs, 8);
+      }
       // copy line to screen buffer
-      putbytes(1, (ROWS-1)-(screen_y%60), buf, COLS);
+      putbytes(addr, buf, COLS);
       // create actors on this level, if needed
       // TODO: maybe this happens too early?
-      if (dy == 0)
-        create_actors_on_level(i);
+      if (dy == 0 && level > 0) {
+        create_actors_on_level(level);
+      }
       break;
     }
   }
@@ -303,16 +332,17 @@ void draw_screen() {
 }
 
 word get_floor_yy(byte level) {
-  return levels[level].ypos * 8 + 8;
+  return levels[level].ypos * 8 + 16;
 }
 
 word get_ceiling_yy(byte level) {
-  return (levels[level].ypos + levels[level].height) * 8 + 8;
+  return (levels[level].ypos + levels[level].height) * 8 + 16;
 }
 
 void set_scroll_pixel_yy(int yy) {
   if ((yy & 7) == 0) {
     // draw an offscreen line
+    // TODO: doesn't work when going downward
     draw_level_line(scroll_tile_y+30);
   }
   scroll_pixel_yy = yy;
@@ -323,7 +353,7 @@ void set_scroll_pixel_yy(int yy) {
 void refresh_level(byte level) {
   byte y = levels[level].ypos;
   draw_level_line(y+2);
-  draw_level_line(y+1);
+  draw_level_line(y+3);
 }
 
 // ACTORS
@@ -366,12 +396,14 @@ void create_actors_on_level(byte level_index) {
     a->x = level->ladder1 ^ (level->ladder2<<3) ^ (level->gap<<6);
     a->yy = get_floor_yy(level_index);
     a->level = level_index;
+    a->onscreen = 1;
   }
 }
 
 byte draw_actor(byte oam_id, byte i) {
   struct Actor* a = &actors[i];
-  const unsigned char* meta = playerStand;
+  bool dir = a->dir;
+  const unsigned char* meta;
   byte x,y; // sprite variables
   int screen_y = SCREEN_Y_BOTTOM - a->yy + scroll_pixel_yy;
   if (screen_y > 192+8 || screen_y < -18) {
@@ -383,30 +415,34 @@ byte draw_actor(byte oam_id, byte i) {
       a->onscreen = 0;
       return oam_id; // inactive, offscreen
     case STANDING:
-      meta = playerStand;
+      meta = dir ? playerLStand : playerRStand;
       break;
     case WALKING:
-      meta = playerRunSeq[(a->x >> 1) & 7];
+      meta = playerRunSeq[((a->x >> 1) & 7) + (dir?0:8)];
       break;
     case JUMPING:
-      meta = playerJump;
+      meta = dir ? playerLJump : playerRJump;
       break;
     case FALLING:
-      meta = playerSad;
+      meta = dir ? playerLSad : playerRSad;
       break;
     case CLIMBING:
-      meta = playerClimb;
+      meta = (a->yy & 4) ? playerLClimb : playerRClimb;
       break;
   }
   // set sprite values
   x = a->x;
   y = screen_y;
-  /*
-  tag = a->color1 | 0x80;
-  */
-  if (i == 0)
-    player_screen_y = y;
   oam_id = oam_meta_spr(x, y, oam_id, meta);
+  // actor 0 is player sprite
+  if (i == 0) {
+    player_screen_y = y; // last screen Y position
+    // set special palette for player sprites
+    OAMBUF[0+2] |= 3;
+    OAMBUF[4+2] |= 3;
+    OAMBUF[8+2] |= 3;
+    OAMBUF[12+2] |= 3;
+  }
   a->onscreen = 1;
   return oam_id;
 }
@@ -483,7 +519,7 @@ void move_actor(struct Actor* actor, byte joystick, bool scroll) {
       if (joystick & PAD_A) {
         actor->state = JUMPING;
         actor->u.jumping.xvel = 0;
-        actor->u.jumping.yvel = 15;
+        actor->u.jumping.yvel = JUMP_VELOCITY;
         if (joystick & PAD_LEFT) actor->u.jumping.xvel = -1;
         if (joystick & PAD_RIGHT) actor->u.jumping.xvel = 1;
       } else if (joystick & PAD_LEFT) {
@@ -528,8 +564,12 @@ void move_actor(struct Actor* actor, byte joystick, bool scroll) {
       }
       break;
       
-    case JUMPING:
     case FALLING:
+      if (scroll) {
+        check_scroll_up();
+        check_scroll_down();
+      }
+    case JUMPING:
       actor->x += actor->u.jumping.xvel;
       actor->yy += actor->u.jumping.yvel/4;
       actor->u.jumping.yvel -= 1;
@@ -647,22 +687,20 @@ void play_scene() {
   while (actors[0].level != MAX_LEVELS-1) {
     //set_scroll_pixel_yy(scroll_pixel_yy+1);
     cflushnow();
-    //ppu_wait_frame();
     refresh_actors();
     move_player();
     // move all the actors
     for (i=1; i<MAX_ACTORS; i++) {
-      move_actor(&actors[i], rand(), false);
+      move_actor(&actors[i], rand8(), false);
     }
     // see if the player hit another actor
-    /* TODO
-    if (cv_get_sprite_collission()) {
+    // test sprite 0 collision flag
+    if (PPU.status & 0x40) {
       if (actors[0].level > BOTTOM_LEVEL_Y 
         && check_collision(&actors[0])) {
         fall_down(&actors[0]);
       }
     }
-    */
   }
   
   blimp_pickup_scene();
@@ -683,6 +721,7 @@ const char PALETTE[32] = {
 };
 
 void setup_graphics() {
+  ppu_off();
   vram_adr(0x0);
   vram_write((unsigned char*)TILESET, sizeof(TILESET));
   pal_all(PALETTE);
@@ -691,7 +730,9 @@ void setup_graphics() {
 }
 
 void main() {
-  setup_graphics();
-  make_levels();
-  play_scene();
+  while (1) {
+    setup_graphics();
+    make_levels();
+    play_scene();
+  }
 }
