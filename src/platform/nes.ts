@@ -21,6 +21,7 @@ const JSNES_PRESETS = [
   {id:'music.c', name:'Music Player'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot2.c', name:'Solarian Game'},
+  {id:'climber.c', name:'Platform Game'},
   {id:'scrollrt.asm', name:'Split Screen Scroll (ASM)'},
   {id:'road.asm', name:'3-D Road (ASM)'},
   {id:'musicdemo.asm', name:'Famitone Demo (ASM)'},

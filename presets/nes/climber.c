@@ -27,17 +27,17 @@ extern unsigned char jroatch_chr[0x1000];
 #define COLS 30		// floor width in tiles
 #define ROWS 60		// total nametable height in tiles
 
-#define MAX_FLOORS 32	// total # of floors in a stage
+#define MAX_FLOORS 24	// total # of floors in a stage
 #define GAPSIZE 4	// gap size in tiles
-#define MAX_ACTORS 8	// max # of moving actors
+#define BOTTOM_FLOOR_Y 2	// offset for bottommost floor
 
+#define MAX_ACTORS 8		// max # of moving actors
 #define SCREEN_Y_BOTTOM 208	// bottom of screen in pixels
 #define ACTOR_MIN_X 16		// leftmost position of actor
 #define ACTOR_MAX_X 228		// rightmost position of actor
 #define ACTOR_SCROLL_UP_Y 110	// min Y position to scroll up
 #define ACTOR_SCROLL_DOWN_Y 140	// max Y position to scroll down
-#define BOTTOM_FLOOR_Y 2	// offset for bottommost floor
-#define JUMP_VELOCITY 17	// Y velocity when jumping
+#define JUMP_VELOCITY 18	// Y velocity when jumping
 
 // constants for various tiles
 #define CH_BORDER 0x40
@@ -328,7 +328,6 @@ void draw_floor_line(byte screen_y) {
         else
           a = 0x00;
         memset(attrs, a, 8);
-        // TODO: this misses one row at the end?
         putbytes(nt2attraddr(addr), attrs, 8);
       }
       // copy line to screen buffer
@@ -653,8 +652,7 @@ bool check_collision(Actor* a) {
   if (a->state == FALLING) return false;
   for (i=1; i<MAX_ACTORS; i++) {
     Actor* b = &actors[i];
-    // actors must be on same floor
-    // no need to apply XOFS because both sprites are offset
+    // actors must be on same floor and within 8 pixels
     if (a->floor == b->floor && 
         iabs(a->yy - b->yy) < 8 && 
         iabs(a->x - b->x) < 8) {
@@ -676,10 +674,10 @@ void type_message(const char* charptr) {
   char ch;
   byte x,y;
   x = 2;
-  y = ROWS + 39 - scroll_tile_y; // TODO
+  y = ROWS*3 + 39 - scroll_tile_y; // TODO
   while ((ch = *charptr++)) {
     vdelay(5);
-    if (y >= 60) y -= 60;
+    while (y >= 60) y -= 60;
     if (ch == '\n') {
       x = 2;
       y++;
@@ -706,8 +704,8 @@ void play_scene() {
   actors[0].state = STANDING;
   actors[0].name = ACTOR_PLAYER;
   actors[0].x = 64;
-  actors[0].yy = get_floor_yy(0);
   actors[0].floor = 0;
+  actors[0].yy = get_floor_yy(0);
   
   set_scroll_pixel_yy(0);
   draw_entire_stage();

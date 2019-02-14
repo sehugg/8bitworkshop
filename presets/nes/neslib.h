@@ -293,8 +293,3 @@ void __fastcall__ nmi_set_callback(void (*callback)(void));
 
 #define MSB(x)			(((x)>>8))
 #define LSB(x)			(((x)&0xff))
-
-// ensure CHARS segment is defined
-
-#pragma data-name(push,"CHARS")
-#pragma data-name(pop)
