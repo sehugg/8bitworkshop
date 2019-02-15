@@ -113,9 +113,13 @@ describe('LZG', function() {
 
 describe('string functions', function() {
   it('Should detect binary', function() {
-    assert.ok(!util.isProbablyBinary([32,32,10,13,9,32,32,10,13]));
-    assert.ok(util.isProbablyBinary([32,32,0x80]));
-    assert.ok(!util.isProbablyBinary([32,32,0xc1,0x81,32,32,10,13]));
-    assert.ok(util.isProbablyBinary(NES_CONIO_ROM_LZG));
+    assert.ok(!util.isProbablyBinary(null, [32,32,10,13,9,32,32,10,13]));
+    assert.ok(util.isProbablyBinary(null, [32,32,0x80]));
+    assert.ok(!util.isProbablyBinary(null, [32,32,0xc1,0x81,32,32,10,13]));
+    assert.ok(util.isProbablyBinary(null, NES_CONIO_ROM_LZG));
+    assert.ok(util.isProbablyBinary('test.bin'));
+    assert.ok(util.isProbablyBinary('test.chr'));
+    assert.ok(!util.isProbablyBinary('test.txt'));
+    assert.ok(!util.isProbablyBinary('test.dat'));
   });
 });

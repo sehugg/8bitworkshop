@@ -1143,7 +1143,7 @@ function setupReplaySlider() {
 
 function isLandscape() {
   try {
-    var object = window.screen['orientation'] || window.screen.msOrientation || window.screen['mozOrientation'] || null;
+    var object = window.screen['orientation'] || window.screen['msOrientation'] || window.screen['mozOrientation'] || null;
     if (object) {
       if (object.type.indexOf('landscape') !== -1) { return true; }
       if (object.type.indexOf('portrait') !== -1) { return false; }
