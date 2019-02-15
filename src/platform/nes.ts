@@ -13,6 +13,7 @@ const JSNES_PRESETS = [
   {id:'ex1.asm', name:'Hello World (ASM)'},
   {id:'ex2.asm', name:'Scrolling Demo (ASM)'},
   {id:'ex3.asm', name:'Sprite Demo (ASM)'},
+  {id:'ex4.asm', name:'Controller Demo (ASM)'},
   {id:'neslib1.c', name:'Text'},
   {id:'neslib2.c', name:'Sprites'},
   {id:'neslib3.c', name:'Cursor'},

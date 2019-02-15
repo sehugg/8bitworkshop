@@ -96,6 +96,7 @@ TODO:
 - show .map file in listings?
 - open ROM from URL?
 - #include can't have comment immediately on line before
+- NES: breakpoint on illegal instruction
 
 
 WEB WORKER FORMAT
