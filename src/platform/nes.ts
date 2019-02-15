@@ -15,16 +15,17 @@ const JSNES_PRESETS = [
   {id:'ex3.asm', name:'Sprite Demo (ASM)'},
   {id:'ex4.asm', name:'Controller Demo (ASM)'},
   {id:'neslib1.c', name:'Text'},
-  {id:'neslib2.c', name:'Sprites'},
-  {id:'neslib3.c', name:'Cursor'},
-  {id:'neslib4.c', name:'Metasprites'},
+  {id:'scroll.c', name:'Scrolling'},
+  {id:'statusbar.c', name:'Status Bar'},
+  {id:'sprites.c', name:'Sprites'},
+  {id:'metasprites.c', name:'Metasprites'},
+  {id:'metacursor.c', name:'Controllers'},
   {id:'neslib5.c', name:'RLE Unpack'},
   {id:'music.c', name:'Music Player'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot2.c', name:'Solarian Game'},
   {id:'climber.c', name:'Platform Game'},
   {id:'scrollrt.asm', name:'Split Screen Scroll (ASM)'},
-  {id:'road.asm', name:'3-D Road (ASM)'},
   {id:'musicdemo.asm', name:'Famitone Demo (ASM)'},
 ];
 
@@ -76,7 +77,6 @@ const _JSNESPlatform = function(mainElement) {
   var ntlastbuf;
   
  class JSNESPlatform extends Base6502Platform implements Platform {
-  debugPCDelta = 1;
 
   getPresets() { return JSNES_PRESETS; }
 
@@ -142,13 +142,21 @@ const _JSNESPlatform = function(mainElement) {
   }
   
   advance(novideo : boolean) {
-    nes.frame();
+    try {
+      nes.frame();
+    } catch (e) {
+      // TODO?
+      alert(e);
+      console.log(e);
+      this.breakpointHit(this.debugClock);
+    }
   }
   
   updateDebugViews() {
    // don't update if view is hidden
    if (! $(ntvideo.canvas).is(":visible"))
      return;
+  // TODO: doesn't work on scrolling example
    var a = 0;
    var attraddr = 0;
    var idata = ntvideo.getFrameData();

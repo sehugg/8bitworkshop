@@ -16,11 +16,11 @@ typedef signed char sbyte;
 typedef unsigned short word;
 typedef enum { false, true } bool;
 
-///// TILESET DATA
+///// PATTERN TABLE
 
 //#link "jroatch.c"
 extern unsigned char jroatch_chr[0x1000];
-#define TILESET jroatch_chr
+#define PATTERN_TABLE jroatch_chr
 
 ///// DEFINES
 
@@ -46,10 +46,33 @@ extern unsigned char jroatch_chr[0x1000];
 #define CH_ITEM 0xc4
 #define CH_BLANK 0x20
 
+///// GLOBALS
+
+// vertical scroll amount in pixels
+static int scroll_pixel_yy = 0;
+
+// vertical scroll amount in tiles
+static byte scroll_tile_y = 0;
+
+// last screen Y position of player sprite
+static byte player_screen_y = 0;
+
+// score (BCD)
+static byte score = 0;
+
 // random byte between (a ... b-1)
 // use rand() because rand8() has a cycle of 255
 byte rndint(byte a, byte b) {
   return (rand() % (b-a)) + a;
+}
+
+byte bcdadd(byte a, byte b) {
+  byte c = (a & 0xf) + (b & 0xf);
+  if (c < 10) {
+    return a + b;
+  } else {
+    return (c-10) + 0x10 + (a & 0xf0) + (b & 0xf0);
+  }
 }
 
 ///// OAM buffer (for sprites)
@@ -95,11 +118,6 @@ void cflushnow() {
   // clear the buffer
   updptr = 0;
   cendbuf();
-}
-
-// delay <count> frames and flush buffer
-void vdelay(byte count) {
-  while (count--) cflushnow();
 }
 
 // add single character to update buffer
@@ -244,15 +262,6 @@ void make_floors() {
   floors[MAX_FLOORS-1].ladder2 = 0;
   floors[MAX_FLOORS-1].objtype = 0;
 }
-
-// vertical scroll amount in pixels
-static int scroll_pixel_yy = 0;
-
-// vertical scroll amount in tiles
-static byte scroll_tile_y = 0;
-
-// last screen Y position of player sprite
-static byte player_screen_y = 0;
 
 void create_actors_on_floor(byte i);
 
@@ -481,12 +490,20 @@ byte draw_actor(byte oam_id, byte i) {
   return oam_id;
 }
 
-void refresh_actors() {
+byte draw_scoreboard(byte oam_id) {
+  oam_id = oam_spr(24+0, 24, '0'+(score >> 4), 2, oam_id);
+  oam_id = oam_spr(24+8, 24, '0'+(score & 0xf), 2, oam_id);
+  return oam_id;
+}
+
+void refresh_sprites() {
   byte i;
   // draw all actors
   byte oam_id = 0;
   for (i=0; i<MAX_ACTORS; i++)
     oam_id = draw_actor(oam_id, i);
+  // draw scoreboard
+  oam_id = draw_scoreboard(oam_id);
   // hide rest of actors
   oam_hide_rest(oam_id);
 }
@@ -631,6 +648,8 @@ void pickup_object(Actor* actor) {
       // did we hit a mine?
       if (objtype == ITEM_MINE) {
         fall_down(actor);
+      } else {
+        score = bcdadd(score, 1);
       }
     }
   }
@@ -676,7 +695,6 @@ void type_message(const char* charptr) {
   x = 2;
   y = ROWS*3 + 39 - scroll_tile_y; // TODO
   while ((ch = *charptr++)) {
-    vdelay(5);
     while (y >= 60) y -= 60;
     if (ch == '\n') {
       x = 2;
@@ -685,6 +703,9 @@ void type_message(const char* charptr) {
       putchar(getntaddr(x, y), ch);
       x++;
     }
+    // flush buffer and wait a few frames
+    cflushnow();
+    delay(5);
   }
 }
 
@@ -692,9 +713,10 @@ void rescue_scene() {
   // make player face to the left
   actors[0].dir = 1;
   actors[0].state = STANDING;
-  refresh_actors();
+  refresh_sprites();
   type_message(RESCUE_TEXT);
-  vdelay(120);
+  // wait 2 seconds
+  delay(100);
 }
 
 void play_scene() {
@@ -713,18 +735,15 @@ void play_scene() {
   while (actors[0].floor != MAX_FLOORS-1) {
     //set_scroll_pixel_yy(scroll_pixel_yy+1);
     cflushnow();
-    refresh_actors();
+    refresh_sprites();
     move_player();
     // move all the actors
     for (i=1; i<MAX_ACTORS; i++) {
       move_actor(&actors[i], rand8(), false);
     }
     // see if the player hit another actor
-    // test sprite 0 collision flag
-    if (PPU.status & 0x40) {
-      if (check_collision(&actors[0])) {
-        fall_down(&actors[0]);
-      }
+    if (check_collision(&actors[0])) {
+      fall_down(&actors[0]);
     }
   }
   
@@ -741,7 +760,7 @@ const char PALETTE[32] = {
 
   0x16,0x35,0x24, 0,	// enemy sprites
   0x00,0x37,0x25, 0,	// rescue person
-  0x31,0x35,0x3c, 0,
+  0x0d,0x2d,0x3a, 0,
   0x0d,0x27,0x2a	// player sprites
 };
 
@@ -749,7 +768,7 @@ void setup_graphics() {
   ppu_off();
   oam_hide_rest(0);
   vram_adr(0x0);
-  vram_write((unsigned char*)TILESET, sizeof(TILESET));
+  vram_write((unsigned char*)PATTERN_TABLE, sizeof(PATTERN_TABLE));
   pal_all(PALETTE);
   vram_adr(0x2000);
   vram_fill(CH_BLANK, 0x1000);

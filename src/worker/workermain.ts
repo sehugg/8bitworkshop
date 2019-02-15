@@ -903,6 +903,34 @@ function linkLD65(step:BuildStep) {
   }
 }
 
+function fixParamsWithDefines(path:string, libargs:string[]){
+  if (path && libargs) {
+    var code = getWorkFileAsString(path);
+    if (code) {
+      var ident2index = {};
+      // find all lib args "IDENT=VALUE"
+      for (var i=0; i<libargs.length; i++) {
+        var toks = libargs[i].split('=');
+        if (toks.length == 2) {
+          ident2index[toks[0]] = i;
+        }
+      }
+      // find #defines and replace them
+      var re = /^#define\s+(\w+)\s+(.+)/gmi;
+      var m;
+      while (m = re.exec(code)) {
+        var ident = m[1];
+        var value = m[2];
+        var index = ident2index[ident];
+        if (index >= 0) {
+          libargs[index] = ident + "=" + value;
+          console.log(index, libargs[index]);
+        }
+      }
+    }
+  }
+}
+
 function compileCC65(step:BuildStep) {
   load("cc65");
   var params = step.params;
@@ -933,6 +961,7 @@ function compileCC65(step:BuildStep) {
     var FS = CC65['FS'];
     setupFS(FS, '65-'+step.platform.split('-')[0]);
     populateFiles(step, FS);
+    fixParamsWithDefines(step.path, params.libargs);
     execMain(step, CC65, ['-T', '-g',
       '-Oirs',
       '-Cl', // static locals

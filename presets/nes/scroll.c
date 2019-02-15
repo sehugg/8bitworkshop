@@ -17,6 +17,25 @@ void put_str(unsigned int adr, const char *str) {
   vram_write(str, strlen(str)); // write bytes to PPU
 }
 
+// function to scroll window up and down until end
+void scroll_demo() {
+  int x = 0;   // x scroll position
+  int y = 0;   // y scroll position
+  int dy = 1;  // y scroll direction
+  // infinite loop
+  while (1) {
+    // wait for next frame
+    ppu_wait_frame();
+    // set scroll register
+    scroll(x, y);
+    // update y variable
+    y += dy;
+    // change direction when hitting either edge of scroll area
+    if (y >= 479) dy = -1;
+    if (y == 0) dy = 1;
+  }
+}
+
 // main function, run after console reset
 void main(void) {
   // copy pattern table to PRG RAM
@@ -29,14 +48,16 @@ void main(void) {
   pal_col(3,0x30);
 
   // write text to name table
-  put_str(NTADR_A(2,2),"HELLO, WORLD!");
-  put_str(NTADR_A(2,4),"THIS CODE PRINTS SOME TEXT");
-  put_str(NTADR_A(2,5),"USING ASCII-ENCODED CHARACTER");
-  put_str(NTADR_A(2,6),"SET WITH CAPITAL LETTERS ONLY");
+  put_str(NTADR_A(2,0), "Nametable A, Line 0");
+  put_str(NTADR_A(2,15), "Nametable A, Line 15");
+  put_str(NTADR_A(2,29),"Nametable A, Line 29");
+  put_str(NTADR_C(2,0), "Nametable C, Line 0");
+  put_str(NTADR_C(2,15), "Nametable C, Line 15");
+  put_str(NTADR_C(2,29),"Nametable C, Line 29");
 
   // enable PPU rendering (turn on screen)
   ppu_on_all();
 
-  // infinite loop
-  while (1) ;
+  // scroll window back and forth
+  scroll_demo();
 }
