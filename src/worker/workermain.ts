@@ -752,11 +752,11 @@ function parseCA65Listing(code, symbols, params, dbg) {
   var segLineMatch = /[.]segment\s+"(\w+)"/;
   //var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+line,\s+\S+,\s+(\d+)/;
   var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+line,\s+"(\w+[.]\w+)", (\d+)/;
-  var insnLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+([0-9A-F][0-9A-F ]*[0-9A-F])\s+/;
+  var insnLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+([0-9A-Fr ]*)\s*(.*)/;
   var lines = [];
   var linenum = 0;
   for (var line of code.split(re_crlf)) {
-    linenum++;
+    // TODO: not right when multiple .segment directives
     var segm = segLineMatch.exec(line);
     if (segm) {
       var segname = segm[1];
@@ -764,18 +764,19 @@ function parseCA65Listing(code, symbols, params, dbg) {
       segofs = parseInt(symbols[segsym] || params[segsym]) || 0;
     }
     if (dbg) {
-      var linem = dbgLineMatch.exec(line);
-      if (linem && linem[1]) {
-        var offset = parseInt(linem[1], 16);
+      var dbgm = dbgLineMatch.exec(line);
+      if (dbgm && dbgm[1]) {
+        var offset = parseInt(dbgm[1], 16);
         lines.push({
           // TODO: sourcefile
-          line:parseInt(linem[5]),
+          line:parseInt(dbgm[5]),
           offset:offset + segofs,
           insns:null
         });
       }
     } else {
       var linem = insnLineMatch.exec(line);
+      if (linem) linenum++;
       if (linem && linem[1]) {
         var offset = parseInt(linem[1], 16);
         var insns = linem[4].trim();
@@ -785,6 +786,8 @@ function parseCA65Listing(code, symbols, params, dbg) {
             offset:offset + segofs,
             insns:insns
           });
+          // take back one to honor the long .byte line
+          if (linem[5].length == 0) linenum--;
         }
       }
     }

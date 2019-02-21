@@ -534,6 +534,9 @@ export class ListingView extends DisassemblerView implements ProjectView {
     if (lst && lst.assemblyfile && lst.assemblyfile !== this.assemblyfile) {
       this.assemblyfile = lst.assemblyfile;
     }
+    else if (lst && lst.sourcefile && lst.sourcefile !== this.assemblyfile) {
+      this.assemblyfile = lst.sourcefile;
+    }
   }
 
   refresh(moveCursor: boolean) {

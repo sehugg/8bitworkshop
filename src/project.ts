@@ -292,9 +292,9 @@ export class CodeProject {
       this.listings = data.listings;
       for (var lstname in this.listings) {
         var lst = this.listings[lstname];
-        if (lst.lines)
-          lst.sourcefile = new SourceFile(lst.lines);
-        if (lst.asmlines)
+        if (lst.lines && lst.text)
+          lst.sourcefile = new SourceFile(lst.lines, lst.text);
+        if (lst.asmlines && lst.text)
           lst.assemblyfile = new SourceFile(lst.asmlines, lst.text);
       }
     }

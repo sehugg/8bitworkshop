@@ -117,6 +117,11 @@ unsigned char __fastcall__ oam_meta_spr(unsigned char x, unsigned char y,
 void __fastcall__ oam_hide_rest(unsigned char sprid);
 
 
+// initialize the FamiTone system
+void __fastcall__ famitone_init(void* music_data);
+
+// initialize the FamiTone SFX system
+void __fastcall__ sfx_init(void* sounds_data);
 
 // play a music in FamiTone format
 void __fastcall__ music_play(unsigned char song);

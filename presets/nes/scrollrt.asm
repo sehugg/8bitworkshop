@@ -1,4 +1,4 @@
-﻿
+
 	include "nesdefs.asm"
 
 ;;;;; ZERO-PAGE VARIABLES
@@ -100,9 +100,9 @@ NMIHandler: subroutine
         bvs .wait0
 .wait1	bit PPU_STATUS
         bvc .wait1
-; alter horiz. scroll position for each scanline
         ldy #0
 .loop
+; alter horiz. scroll position for each scanline
 	tya
         sec
 	adc LineXLo,y
@@ -113,9 +113,8 @@ NMIHandler: subroutine
         sta PPU_SCROLL	; horiz byte
         lda #0
         sta PPU_SCROLL	; vert byte
-        REPEAT 25
-        bit $0000
-        REPEND
+; pad out rest of scanline
+	SLEEP 72
         iny
         cpy #224
         bne .loop
