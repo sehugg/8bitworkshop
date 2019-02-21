@@ -410,15 +410,20 @@ div.markdown th {
   background-color:#999;
 }
 .segment.segment-ram {
-  background-color:#aaffaa;
+  background-color:#aaeeaa;
 }
 .segment.segment-rom {
-  background-color:#ddddff;
-  padding-top:1em;
-  padding-bottom:1em;
+  background-color:#ccddff;
+}
+.segment.segment-io {
+  background-color:#ffcccc;
 }
 .segment-offset {
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   font-size: 12pt;
   color:#66dd66;
+}
+.vertical-scroll {
+ height:100%;
+ overflow-y:auto;
 }

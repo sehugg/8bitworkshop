@@ -50,6 +50,9 @@ var PLATFORM_PARAMS = {
     data_start: 0x2000,
     data_size: 0x400,
     stack_end: 0x2400,
+    extra_segments:[
+      {name:'Frame Buffer',start:0x2400,size:7168,type:'ram'},
+    ],
   },
   'vicdual': {
     code_start: 0x0,
@@ -57,6 +60,10 @@ var PLATFORM_PARAMS = {
     data_start: 0xe400,
     data_size: 0x400,
     stack_end: 0xe800,
+    extra_segments:[
+      {name:'Cell RAM',start:0xe000,size:32*32,type:'ram'},
+      {name:'Tile RAM',start:0xe800,size:256*8,type:'ram'},
+    ],
   },
   'galaxian': {
     code_start: 0x0,
@@ -71,6 +78,11 @@ var PLATFORM_PARAMS = {
     data_start: 0x4000,
     data_size: 0x400,
     stack_end: 0x4800,
+    extra_segments:[
+      {name:'Video RAM',start:0x5000,size:0x400,type:'ram'},
+      {name:'Sprite RAM',start:0x5800,size:0x100,type:'ram'},
+      {name:'I/O Registers',start:0x6000,size:0x2000,type:'io'},
+    ],
   },
   'williams-z80': {
     code_start: 0x0,
@@ -78,6 +90,10 @@ var PLATFORM_PARAMS = {
     data_start: 0x9800,
     data_size: 0x2800,
     stack_end: 0xc000,
+    extra_segments:[
+      {name:'Video RAM',start:0x0000,size:0xc000,type:'ram'},
+      {name:'I/O Registers',start:0xc000,size:0x1000,type:'io'},
+    ],
   },
   'vector-z80color': {
     code_start: 0x0,
@@ -85,6 +101,12 @@ var PLATFORM_PARAMS = {
     data_start: 0xe000,
     data_size: 0x2000,
     stack_end: 0x0,
+    extra_segments:[
+      {name:'Switches/POKEY I/O',start:0x8000,size:0x100,type:'io'},
+      {name:'Math Box I/O',start:0x8100,size:0x100,type:'io'},
+      {name:'DVG I/O',start:0x8800,size:0x100,type:'io'},
+      {name:'DVG RAM',start:0xa000,size:0x4000,type:'ram'},
+    ],
   },
   'sound_williams-z80': {
     code_start: 0x0,
@@ -109,6 +131,10 @@ var PLATFORM_PARAMS = {
     stack_end: 0x8000,
     extra_preproc_args: ['-I', '/share/include/coleco'],
     extra_link_args: ['-k', '/share/lib/coleco', '-l', 'libcv', '-l', 'libcvu', 'crt0.rel'],
+    extra_segments:[
+      {name:'BIOS',start:0x0,size:0x2000,type:'rom'},
+      {name:'Cartridge Header',start:0x8000,size:0x100,type:'rom'},
+    ],
   },
   'sms-sg1000-libcv': {
     rom_start: 0x0000,
@@ -132,6 +158,13 @@ var PLATFORM_PARAMS = {
       '-D', 'NES_MIRRORING=0', // horizontal mirroring
       ],
     extra_link_files: ['crt0.o'],
+    extra_segments:[
+      //{name:'Work RAM',start:0x0,size:0x800,type:'ram'},
+      {name:'OAM Buffer',start:0x200,size:0x100,type:'ram'},
+      {name:'PPU Registers',start:0x2000,size:0x8,type:'io'},
+      {name:'APU Registers',start:0x4000,size:0x20,type:'io'},
+      {name:'Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
+    ],
   },
   'nes-conio': {
     cfgfile: 'nes.cfg',
@@ -149,6 +182,10 @@ var PLATFORM_PARAMS = {
     libargs: ['apple2.lib'],
     __CODE_RUN__: 16384,
     code_start: 0x803,
+    extra_segments:[
+      {name:'I/O',start:0xc000,size:0x1000,type:'io'},
+      {name:'ROM',start:0xd000,size:0x3000-6,type:'rom'},
+    ],
   },
   'apple2-e': {
     define: '__APPLE2__',
@@ -876,7 +913,6 @@ function linkLD65(step:BuildStep) {
       return;
     // parse symbol map (TODO: omit segments, constants)
     var symbolmap = {};
-    var seg_re = /^__(\w+)_SIZE__$/;
     for (var s of viceout.split("\n")) {
       var toks = s.split(" ");
       if (toks[0] == 'al') {
@@ -886,8 +922,11 @@ function linkLD65(step:BuildStep) {
       }
     }
     // build segment map
-    var segments = [];
-    segments.push({name:'Stack',start:0x100,size:0x100,type:'ram'});
+    var seg_re = /^__(\w+)_SIZE__$/;
+    var segments = [].concat(params.extra_segments||[]);
+    segments.push({name:'CPU Stack',start:0x100,size:0x100,type:'ram'});
+    segments.push({name:'CPU Vectors',start:0xfffc,size:0x6,type:'rom'});
+    // TODO: CHR, banks, etc
     for (let ident in symbolmap) {
       let m = seg_re.exec(ident);
       if (m) {
@@ -1143,10 +1182,9 @@ function linkSDLDZ80(step:BuildStep)
     //console.log(args);
     execMain(step, LDZ80, args);
     var hexout = FS.readFile("main.ihx", {encoding:'utf8'});
-    var mapout = FS.readFile("main.noi", {encoding:'utf8'});
-    //console.log(mapout);
+    var noiout = FS.readFile("main.noi", {encoding:'utf8'});
     putWorkFile("main.ihx", hexout);
-    putWorkFile("main.noi", mapout);
+    putWorkFile("main.noi", noiout);
     // return unchanged if no files changed
     if (!anyTargetChanged(step, ["main.ihx", "main.noi"]))
       return;
@@ -1169,10 +1207,29 @@ function linkSDLDZ80(step:BuildStep)
     }
     // parse symbol map
     var symbolmap = {};
-    for (var s of mapout.split("\n")) {
+    for (var s of noiout.split("\n")) {
       var toks = s.split(" ");
       if (toks[0] == 'DEF' && !toks[1].startsWith("A$main$")) {
         symbolmap[toks[1]] = parseInt(toks[2], 16);
+      }
+    }
+    // build segment map
+    var seg_re = /^s__(\w+)$/;
+    var segments = [].concat(params.extra_segments||[]);
+    // TODO: use stack params for stack segment
+    for (let ident in symbolmap) {
+      let m = seg_re.exec(ident);
+      if (m) {
+        let seg = m[1];
+        let segstart = symbolmap[ident]; // s__SEG
+        let segsize = symbolmap['l__'+seg]; // l__SEG
+        if (segstart >= 0 && segsize > 0) {
+          var type = null;
+          if (['CODE','INITIALIZER','GSINIT','GSFINAL'].includes(seg)) type = 'rom';
+          else if (['DATA','INITIALIZED'].includes(seg)) type = 'ram';
+          if (type == 'rom' || segstart > 0) // ignore HEADER0, CABS0, etc (TODO?)
+            segments.push({name:seg, start:segstart, size:segsize, type:type});
+        }
       }
     }
     return {
@@ -1180,6 +1237,7 @@ function linkSDLDZ80(step:BuildStep)
       listings:listings,
       errors:errors,
       symbolmap:symbolmap,
+      segments:segments
     };
   }
 }

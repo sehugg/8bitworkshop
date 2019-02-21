@@ -779,13 +779,13 @@ export class MemoryMapView implements ProjectView {
   maindiv : JQuery;
 
   createDiv(parent : HTMLElement) {
-    this.maindiv = $("<div>");
-    //div.setAttribute("class", "memdump");
+    this.maindiv = $('<div class="vertical-scroll"/>');
     $(parent).append(this.maindiv);
     this.refresh();
     return this.maindiv[0];
   }
   
+  // TODO: overlapping segments (e.g. ROM + LC)
   addSegment(seg : Segment) {
     var offset = $('<div class="col-md-1 segment-offset"/>');
     offset.text('$'+hex(seg.start,4));
@@ -813,11 +813,11 @@ export class MemoryMapView implements ProjectView {
     if (segments) {
       var curofs = 0;
       for (var seg of segments) {
-        var used = seg.last ? (seg.last-seg.start) : seg.size;
+        //var used = seg.last ? (seg.last-seg.start) : seg.size;
         if (curofs != seg.start)
           this.addSegment({name:'',start:curofs, size:seg.start-curofs});
         this.addSegment(seg);
-        curofs = seg.start + used;
+        curofs = seg.start + seg.size;
       }
     }
   }
