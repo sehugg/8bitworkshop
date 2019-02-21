@@ -1,6 +1,6 @@
 "use strict";
 
-import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, WorkerResult } from "./workertypes";
+import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult } from "./workertypes";
 import { getFilenameForPath, getFilenamePrefix, getFolderForPath, isProbablyBinary } from "./util";
 
 type BuildResultCallback = (result:WorkerResult) => void;
@@ -12,6 +12,7 @@ type GetRemoteCallback = any; // TODO (path:string, (text:string) => FileData) =
 export class CodeProject {
   filedata : {[path:string]:FileData} = {};
   listings : CodeListingMap;
+  segments : Segment[];
   mainpath : string;
   pendingWorkerMessages = 0;
   tools_preloaded = {};
@@ -297,6 +298,11 @@ export class CodeProject {
         if (lst.asmlines && lst.text)
           lst.assemblyfile = new SourceFile(lst.asmlines, lst.text);
       }
+    }
+    // save and sort segment list
+    this.segments = data.segments;
+    if (this.segments) {
+      this.segments.sort((a,b) => {return a.start-b.start});
     }
   }
 

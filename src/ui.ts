@@ -194,6 +194,11 @@ function refreshWindowList() {
       return new Views.MemoryView();
     });
   }
+  if (current_project.segments) {
+    addWindowItem("#memmap", "Memory Map", function() {
+      return new Views.MemoryMapView();
+    });
+  }
 }
 
 // can pass integer or string id

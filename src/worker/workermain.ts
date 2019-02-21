@@ -886,7 +886,8 @@ function linkLD65(step:BuildStep) {
       }
     }
     // build segment map
-    var segments = {};
+    var segments = [];
+    segments.push({name:'Stack',start:0x100,size:0x100,type:'ram'});
     for (let ident in symbolmap) {
       let m = seg_re.exec(ident);
       if (m) {
@@ -894,8 +895,11 @@ function linkLD65(step:BuildStep) {
         let segstart = symbolmap['__'+seg+'_RUN__'] || symbolmap['__'+seg+'_START__'];
         let segsize = symbolmap['__'+seg+'_SIZE__'];
         let seglast = symbolmap['__'+seg+'_LAST__'];
-        if (segstart >= 0 && segsize > 0) {
-          segments[seg] = {start:segstart, size:segsize, last:seglast};
+        if (segstart >= 0 && segsize > 0 && seg != 'PRG' && seg != 'RAM') { // TODO
+          var type = null;
+          if (seg == 'CODE' || seg == 'STARTUP' || seg == 'RODATA') type = 'rom';
+          else if (seg == 'ZP' || seg == 'RAM' || seg == 'DATA' || seg == 'BSS') type = 'ram';
+          segments.push({name:seg, start:segstart, size:segsize, last:seglast, type:type});
         }
       }
     }

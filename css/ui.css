@@ -403,3 +403,22 @@ div.markdown th {
 .alert {
  z-index:2;
 }
+.segment {
+  border: 2px solid rgba(0,0,0,0.2);
+  border-radius:8px;
+  color: #333;
+  background-color:#999;
+}
+.segment.segment-ram {
+  background-color:#aaffaa;
+}
+.segment.segment-rom {
+  background-color:#ddddff;
+  padding-top:1em;
+  padding-bottom:1em;
+}
+.segment-offset {
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+  font-size: 12pt;
+  color:#66dd66;
+}

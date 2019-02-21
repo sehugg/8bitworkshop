@@ -3,7 +3,7 @@
 import $ = require("jquery");
 //import CodeMirror = require("codemirror");
 import { CodeProject } from "./project";
-import { SourceFile, WorkerError } from "./workertypes";
+import { SourceFile, WorkerError, Segment } from "./workertypes";
 import { Platform, EmuState } from "./baseplatform";
 import { hex, lpad, rpad } from "./util";
 import { CodeAnalyzer } from "./analysis";
@@ -771,4 +771,55 @@ export class BinaryFileView implements ProjectView {
   }
   
   getPath() { return this.path; }
+}
+
+///
+
+export class MemoryMapView implements ProjectView {
+  maindiv : JQuery;
+
+  createDiv(parent : HTMLElement) {
+    this.maindiv = $("<div>");
+    //div.setAttribute("class", "memdump");
+    $(parent).append(this.maindiv);
+    this.refresh();
+    return this.maindiv[0];
+  }
+  
+  addSegment(seg : Segment) {
+    var offset = $('<div class="col-md-1 segment-offset"/>');
+    offset.text('$'+hex(seg.start,4));
+    var segdiv = $('<div class="col-md-4 segment"/>');
+    if (seg.last)
+      segdiv.text(seg.name+" ("+(seg.last-seg.start)+" / "+seg.size+" bytes used)");
+    else
+      segdiv.text(seg.name+" ("+seg.size+" bytes)");
+    if (seg.size >= 256) {
+      var pad = (Math.log(seg.size) - Math.log(256)) * 0.5;
+      segdiv.css('padding-top', pad+'em');
+      segdiv.css('padding-bottom', pad+'em');
+    }
+    if (seg.type) {
+      segdiv.addClass('segment-'+seg.type);
+    }
+    var row = $('<div class="row"/>').append(offset, segdiv);
+    var container = $('<div class="container"/>').append(row);
+    this.maindiv.append(container);
+  }
+
+  refresh() {
+    this.maindiv.empty();
+    var segments = current_project.segments;
+    if (segments) {
+      var curofs = 0;
+      for (var seg of segments) {
+        var used = seg.last ? (seg.last-seg.start) : seg.size;
+        if (curofs != seg.start)
+          this.addSegment({name:'',start:curofs, size:seg.start-curofs});
+        this.addSegment(seg);
+        curofs = seg.start + used;
+      }
+    }
+  }
+  
 }
