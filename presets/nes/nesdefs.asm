@@ -22,6 +22,9 @@ APU_DMC_CTRL    = $4010
 APU_CHAN_CTRL   = $4015
 APU_FRAME       = $4017
 
+JOYPAD1		= $4016
+JOYPAD2		= $4017
+
 ; NOTE: I've put this outside of the PPU & APU, because it is a feature
 ; of the APU that is primarily of use to the PPU.
 OAM_DMA         = $4014
@@ -139,7 +142,7 @@ NES_MIRR_QUAD	= 8
         pha
         ENDM
 
-;;;;; SAVE_REGS - restore Y/X/A registers
+;;;;; RESTORE_REGS - restore Y/X/A registers
 
         MAC RESTORE_REGS
         pla

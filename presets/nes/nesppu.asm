@@ -42,3 +42,20 @@ PrevRandom subroutine
 .NoEor:
         rts
 
+;;;;; CONTROLLER READING
+
+ReadJoypad subroutine
+        lda #$01
+        sta JOYPAD1	; set strobe bit
+        tax		; X = 1
+        lsr        	; now A is 0
+        sta JOYPAD1	; clear strobe bit
+.loop:
+        lda JOYPAD1	; load controller state
+        lsr        	; bit 0 -> carry
+        txa		; X -> A
+        rol		; carry -> bit 0 of result, bit 7 -> carry
+        tax		; A -> X
+        bcc .loop	; repeat until 1 shifted out
+        rts		; controller bits returned in A
+

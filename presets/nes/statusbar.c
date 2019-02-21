@@ -5,12 +5,8 @@
 // vertical mirroring (horizontal scroling)
 #define NES_MIRRORING 1
 
-// link the pattern table into PRG ROM
-// we'll write it into CHR RAM on startup
-
-//#link "jroatch.c"
-extern unsigned char jroatch_chr[0x1000];
-#define PATTERN_TABLE jroatch_chr
+// link the pattern table into CHR ROM
+//#link "chr_generic.s"
 
 // function to write a string into the name table
 //   adr = start address in name table
@@ -40,10 +36,6 @@ void scroll_demo() {
 
 // main function, run after console reset
 void main(void) {
-  // copy pattern table to PRG RAM
-  vram_adr(0x0);
-  vram_write((unsigned char*)PATTERN_TABLE, sizeof(PATTERN_TABLE));
-
   // set palette colors
   pal_col(0,0x00);
   pal_col(1,0x04);

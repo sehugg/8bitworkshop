@@ -1,11 +1,19 @@
 
 #include "neslib.h"
 
+#pragma data-name (push,"CHARS")
+#pragma data-name (pop)
+
 //#define DEBUG
 #define HAS_DEBUGGER
 
 #define PLAYER_1 0
 #define PLAYER_2 1
+
+void sfx_play(char a, char b) {
+  a=a;
+  b=b;
+}
 
 static const unsigned char palette[]={ 
 0xD, 0x00, 0x3D, 0x3c,
@@ -33,6 +41,8 @@ static const unsigned char paused_palette[]={
 
 #pragma bss-name(push,"ZEROPAGE")
 #pragma data-name(push,"ZEROPAGE")
+
+unsigned char oam_off;
 
 static unsigned char i, j;
 
@@ -2823,7 +2833,7 @@ void __fastcall__ reset(void){
 void main(void){
 	init();
     
-    music_play(0);
+//    music_play(0);
     oam_clear();
 
     while(1){

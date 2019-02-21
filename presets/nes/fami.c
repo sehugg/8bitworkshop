@@ -1,9 +1,8 @@
 
 #include "neslib.h"
 
-//#link "jroatch.c"
-extern unsigned char jroatch_chr[0x1000];
-#define TILESET jroatch_chr
+// link the pattern table into CHR ROM
+//#link "chr_generic.s"
 
 //#link "famitone2.s"
 void __fastcall__ famitone_update(void);
@@ -16,9 +15,6 @@ extern char demo_sounds[];
 
 void main(void)
 {
-  //copy tileset to RAM
-  vram_adr(0x0);
-  vram_write((unsigned char*)TILESET, sizeof(TILESET));
   pal_col(1,0x04);
   pal_col(2,0x20);
   pal_col(3,0x30);

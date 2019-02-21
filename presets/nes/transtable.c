@@ -1,9 +1,12 @@
-﻿
+
 //this example code shows how to put some text in nametable
 
 #include "neslib.h"
 
 #include <string.h>
+
+#pragma data-name (push,"CHARS")
+#pragma data-name(pop)
 
 const unsigned char TILESET[48*16] = {/*{w:8,h:8,bpp:1,count:48,brev:1,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}*/
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,

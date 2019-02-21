@@ -126,9 +126,9 @@ var PLATFORM_PARAMS = {
     define: '__NES__',
     cfgfile: 'neslib.cfg',
     libargs: ['crt0.o', 'nes.lib',
-      '-D', 'NES_MAPPER=2', // UxROM
+      '-D', 'NES_MAPPER=0', // UxROM
       '-D', 'NES_PRG_BANKS=2', // 2 PRG banks
-      '-D', 'NES_CHR_BANKS=0', // TODO: >0 doesn't seem to work
+      '-D', 'NES_CHR_BANKS=1', // 1 CHR bank
       '-D', 'NES_MIRRORING=0', // horizontal mirroring
       ],
     extra_link_files: ['crt0.o'],
@@ -876,13 +876,30 @@ function linkLD65(step:BuildStep) {
       return;
     // parse symbol map (TODO: omit segments, constants)
     var symbolmap = {};
+    var seg_re = /^__(\w+)_SIZE__$/;
     for (var s of viceout.split("\n")) {
       var toks = s.split(" ");
       if (toks[0] == 'al') {
-        symbolmap[toks[2].substr(1)] = parseInt(toks[1], 16);
+        let ident = toks[2].substr(1);
+        let ofs = parseInt(toks[1], 16);
+        symbolmap[ident] = ofs;
       }
     }
-    // TODO: "of" in IE?
+    // build segment map
+    var segments = {};
+    for (let ident in symbolmap) {
+      let m = seg_re.exec(ident);
+      if (m) {
+        let seg = m[1];
+        let segstart = symbolmap['__'+seg+'_RUN__'] || symbolmap['__'+seg+'_START__'];
+        let segsize = symbolmap['__'+seg+'_SIZE__'];
+        let seglast = symbolmap['__'+seg+'_LAST__'];
+        if (segstart >= 0 && segsize > 0) {
+          segments[seg] = {start:segstart, size:segsize, last:seglast};
+        }
+      }
+    }
+    // build listings
     var listings = {};
     for (var fn of step.files) {
       if (fn.endsWith('.lst')) {
@@ -902,6 +919,7 @@ function linkLD65(step:BuildStep) {
       listings:listings,
       errors:errors,
       symbolmap:symbolmap,
+      segments:segments
     };
   }
 }

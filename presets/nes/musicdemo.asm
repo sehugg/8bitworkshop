@@ -12,10 +12,10 @@ FT_TEMP		ds 3		;3 bytes in zeropage used by the library as a scratchpad
 FT_BASE_ADR     = $0500 	;page in the RAM used for FT2 variables, should be $xx00
 FT_DPCM_OFF     = DMCSamples	;$c000..$ffc0, 64-byte steps
 FT_SFX_STREAMS  = 4             ;number of sound effects played at once, 1..4
-FT_DPCM_ENABLE  = 1             ;undefine to exclude all DMC code
+;FT_DPCM_ENABLE  = 1             ;undefine to exclude all DMC code
 FT_SFX_ENABLE   = 1             ;undefine to exclude all sound effects code
 ;FT_THREAD       = 1             ;undefine if you are calling sound effects from the same thread as the sound update call
-;FT_PAL_SUPPORT  = 1             ;undefine to exclude PAL support
+FT_PAL_SUPPORT  = 1             ;undefine to exclude PAL support
 FT_NTSC_SUPPORT = 1             ;undefine to exclude NTSC support
 
 ;;;;; NES CARTRIDGE HEADER
@@ -52,6 +52,7 @@ Start:
         ldy #>music_data
         lda PPU_STATUS
         and #$80 ;NTSC_MODE
+        eor #$80
         jsr FamiToneInit
         lda #0
         jsr FamiToneMusicPlay

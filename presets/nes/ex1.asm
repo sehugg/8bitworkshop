@@ -46,7 +46,7 @@ HelloVRAM: subroutine
 	bne .loop	; loop
 .end
         rts		; return to caller
-
+3
 ; ASCII message to display on screen
 HelloMsg:
 	.byte "Hello, World!"

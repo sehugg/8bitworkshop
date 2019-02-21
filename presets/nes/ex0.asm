@@ -8,7 +8,7 @@
 
 ;;;;; NES CARTRIDGE HEADER
 
-	NES_HEADER 0,2,1,0 ; mapper 0, 2 PRGs, 1 CHR, vertical
+	NES_HEADER 0,2,1,0 ; mapper 0, 2 PRGs, 1 CHR, horiz. mirror
 
 ;;;;; START OF CODE
 

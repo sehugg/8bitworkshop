@@ -3,18 +3,13 @@
 #include <string.h>
 
 // include NESLIB header
-
 #include "neslib.h"
 
 // include CC65 NES Header (PPU)
-
 #include <nes.h>
 
-///// PATTERN TABLE
-
-//#link "jroatch.c"
-extern unsigned char jroatch_chr[0x1000];
-#define PATTERN_TABLE jroatch_chr
+// link the pattern table into CHR ROM
+//#link "chr_generic.s"
 
 
 const char PALETTE[32] = {
@@ -33,9 +28,6 @@ const char PALETTE[32] = {
 
 // setup PPU and tables
 void setup_graphics() {
-  // set pattern table
-  vram_adr(0x0);
-  vram_write((unsigned char*)PATTERN_TABLE, sizeof(PATTERN_TABLE));
   // clear sprites
   oam_clear();
   // set palette colors

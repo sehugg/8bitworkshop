@@ -3,24 +3,19 @@
 #include <string.h>
 
 // include NESLIB header
-
 #include "neslib.h"
 
 // include CC65 NES Header (PPU)
-
 #include <nes.h>
+
+// link the pattern table into CHR ROM
+//#link "chr_generic.s"
 
 // define basic types
 typedef unsigned char byte;
 typedef signed char sbyte;
 typedef unsigned short word;
 typedef enum { false, true } bool;
-
-///// PATTERN TABLE
-
-//#link "jroatch.c"
-extern unsigned char jroatch_chr[0x1000];
-#define PATTERN_TABLE jroatch_chr
 
 ///// DEFINES
 
@@ -766,9 +761,7 @@ const char PALETTE[32] = {
 
 void setup_graphics() {
   ppu_off();
-  oam_hide_rest(0);
-  vram_adr(0x0);
-  vram_write((unsigned char*)PATTERN_TABLE, sizeof(PATTERN_TABLE));
+  oam_clear();
   pal_all(PALETTE);
   vram_adr(0x2000);
   vram_fill(CH_BLANK, 0x1000);

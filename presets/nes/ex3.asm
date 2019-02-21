@@ -6,11 +6,8 @@
 	seg.u RAM
 	org $0
 
-ScrollPos	byte	; used during NMI
-Rand		byte
-Temp1		byte
-
-SpriteBuf	equ	$200
+ScrollX	byte	; used during NMI
+ScrollY	byte	; used during NMI
 
 ;;;;; NES CARTRIDGE HEADER
 
@@ -27,7 +24,6 @@ Start:
 	jsr SetPalette		;set colors
         jsr FillVRAM		;set PPU RAM
         jsr WaitSync		;wait for VSYNC (and PPU warmup)
-        jsr InitSprites
         lda #0
         sta PPU_ADDR
         sta PPU_ADDR		;PPU addr = 0
@@ -55,33 +51,6 @@ FillVRAM: subroutine
 	bne .loop
         rts
 
-;
-InitSprites: subroutine
-	lda #1
-        ldx #0
-.loop
-	sta SpriteBuf,x
-        jsr NextRandom
-        inx
-        bne .loop
-        rts
-
-;
-MoveSprites: subroutine
-	lda #1
-        ldx #0
-.loop
-	sta Temp1
-        and #3
-        clc
-        adc SpriteBuf,x
-	sta SpriteBuf,x
-        lda Temp1
-        jsr NextRandom
-        inx
-        bne .loop
-        rts
-
 ; set palette colors
 
 SetPalette: subroutine
@@ -107,21 +76,34 @@ SetPalette: subroutine
 
 NMIHandler:
 	SAVE_REGS
-; load sprites
-	lda #$02
-        sta PPU_OAM_DMA
 ; update scroll position (must be done after VRAM updates)
-	inc ScrollPos
-        lda ScrollPos
+	jsr ReadJoypad
+        pha
+        and #$03
+        tay
+        lda ScrollDirTab,y
+        clc
+        adc ScrollX
+        sta ScrollX
         sta PPU_SCROLL
-        lda #0
+        pla
+        lsr
+        lsr
+        and #$03
+        tay
+        lda ScrollDirTab,y
+        clc
+        adc ScrollY
+        sta ScrollY
         sta PPU_SCROLL
-; move sprites
-	jsr MoveSprites
 ; reload registers
         RESTORE_REGS
 	rti
 
+; Scroll direction lookup table
+ScrollDirTab:
+	hex 00 01 ff 00
+ 
 ;;;;; CONSTANT DATA
 
 	align $100

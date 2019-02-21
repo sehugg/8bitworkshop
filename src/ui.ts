@@ -538,7 +538,7 @@ function _downloadAllFilesZipFile(e) {
         // TODO: handle binary files
         store.getItem(path, (err, text) => {
           if (text) {
-            zip.file(fixFilename(getFilenameForPath(path)), text);
+            zip.file(fixFilename(path), text);
           }
           if (++count == keys.length) {
             zip.generateAsync({type:"blob"}).then( (content) => {
