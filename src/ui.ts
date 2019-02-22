@@ -173,8 +173,8 @@ function refreshWindowList() {
   if (listings) {
     for (var lstfn in listings) {
       var lst = listings[lstfn];
-      // TODO: add assembly listings? (lines, macrolines, sourcefile)
-      if (lst.assemblyfile || lst.sourcefile) {
+      // add listing if source/assembly file exists and has text
+      if ((lst.assemblyfile && lst.assemblyfile.text) || (lst.sourcefile && lst.sourcefile.text)) {
         addWindowItem(lstfn, getFilenameForPath(lstfn), (path) => {
           return new Views.ListingView(path);
         });
