@@ -19,6 +19,7 @@ const JSNES_PRESETS = [
   {id:'statusbar.c', name:'Status Bar'},
   {id:'sprites.c', name:'Sprites'},
   {id:'metasprites.c', name:'Metasprites'},
+  {id:'flicker.c', name:'Flickering Sprites'},
   {id:'metacursor.c', name:'Controllers'},
   {id:'neslib5.c', name:'RLE Unpack'},
   {id:'music.c', name:'Music Player'},
@@ -92,7 +93,6 @@ const _JSNESPlatform = function(mainElement) {
     ntvideo.create();
     $(ntvideo.canvas).hide();
     ntlastbuf = new Uint32Array(0x1000);
-    ntlastbuf.fill(-1);
     // toggle buttons
     $('<button>').text("Video").appendTo(debugbar).click(() => { $(video.canvas).toggle() });
     $('<button>').text("Nametable").appendTo(debugbar).click(() => { $(ntvideo.canvas).toggle() });
@@ -157,7 +157,6 @@ const _JSNESPlatform = function(mainElement) {
    // don't update if view is hidden
    if (! $(ntvideo.canvas).is(":visible"))
      return;
-  // TODO: doesn't work on scrolling example
    var a = 0;
    var attraddr = 0;
    var idata = ntvideo.getFrameData();
@@ -171,7 +170,7 @@ const _JSNESPlatform = function(mainElement) {
        var t = nes.ppu.ptTile[name];
        attraddr = (a & 0x2c00) | 0x3c0 | (a & 0x0C00) | ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
        var attr = nes.ppu.mirroredLoad(attraddr);
-       var tag = name ^ (attr<<9);
+       var tag = name ^ (attr<<9) ^ 0x80000000;
        if (tag != ntlastbuf[a & 0xfff]) {
          ntlastbuf[a & 0xfff] = tag;
          var i = row*64*8*8 + col*8;

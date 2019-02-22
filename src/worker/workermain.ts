@@ -43,6 +43,12 @@ var PLATFORM_PARAMS = {
     code_size: 0xf000,
     data_start: 0x80,
     data_size: 0x80,
+    extra_segments:[
+      {name:'TIA Registers',start:0x00,size:0x80,type:'io'},
+      {name:'PIA RAM',start:0x80,size:0x80,type:'ram'},
+      {name:'PIA Ports and Timer',start:0x280,size:0x18,type:'io'},
+      {name:'Cartridge ROM',start:0xf000,size:0x1000,type:'rom'},
+    ],
   },
   'mw8080bw': {
     code_start: 0x0,
@@ -762,11 +768,13 @@ function assembleDASM(step:BuildStep) {
     lst.text = alst;
     lst.lines = [];
   }
+  var segments = step.params.extra_segments;
   return {
     output:aout,
     listings:listings,
     errors:errors,
     symbolmap:symbolmap,
+    segments:segments
   };
 }
 
