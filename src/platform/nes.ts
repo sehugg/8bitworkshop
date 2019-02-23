@@ -21,6 +21,7 @@ const JSNES_PRESETS = [
   {id:'metasprites.c', name:'Metasprites'},
   {id:'flicker.c', name:'Flickering Sprites'},
   {id:'metacursor.c', name:'Controllers'},
+  {id:'metatrigger.c', name:'Trigger Mode + Vbright'},
   {id:'neslib5.c', name:'RLE Unpack'},
   {id:'music.c', name:'Music Player'},
   {id:'siegegame.c', name:'Siege Game'},

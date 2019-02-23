@@ -75,7 +75,7 @@ const char PALETTE[32] = {
 // setup PPU and tables
 void setup_graphics() {
   // clear sprites
-  oam_clear();
+  oam_hide_rest(0);
   // set palette colors
   pal_all(PALETTE);
   // turn on PPU
@@ -92,33 +92,57 @@ char actor_y[NUM_ACTORS];
 char actor_dx[NUM_ACTORS];
 char actor_dy[NUM_ACTORS];
 
+// OAM buffer pointer, in case we want to manipulate directly
+#define OAMBUF ((unsigned char*) 0x200)
+
 // main program
 void main() {
   char i;
   char oam_id;
+  char pad; // controller flags
+  char vbright = 4;
   
   setup_graphics();
   // initialize actors with random values
   for (i=0; i<NUM_ACTORS; i++) {
-    actor_x[i] = rand();
-    actor_y[i] = rand();
-    actor_dx[i] = (rand() & 7) - 3;
-    actor_dy[i] = (rand() & 7) - 3;
+    actor_x[i] = i*32+128;
+    actor_y[i] = i*8+64;
+    actor_dx[i] = 0;
+    actor_dy[i] = 0;
   }
   // loop forever
   while (1) {
     // start with OAMid/sprite 0
     oam_id = 0;
+    // set player 0/1 velocity based on controller
+    for (i=0; i<2; i++) {
+      // poll controller i (0-1)
+      pad = pad_trigger(i);
+      // move actor[i] left/right
+      if (pad&PAD_LEFT && actor_x[i]>0) actor_dx[i]=-2;
+      else if (pad&PAD_RIGHT && actor_x[i]<240) actor_dx[i]=2;
+      else actor_dx[i]=0;
+      // set virtual bright up/down
+      if (pad&PAD_A) vbright--;
+      if (pad&PAD_B) vbright++;
+      // get pad state
+      pad = pad_state(i);
+      // move actor[i] up/down
+      if (pad&PAD_UP && actor_y[i]>0) actor_dy[i]=-2;
+      else if (pad&PAD_DOWN && actor_y[i]<212) actor_dy[i]=2;
+      else actor_dy[i]=0;
+    }
     // draw and move all actors
     for (i=0; i<NUM_ACTORS; i++) {
-      oam_id = oam_meta_spr(actor_x[i], actor_y[i], oam_id,
-                            playerRunSeq[i&15]);
+      oam_id = oam_meta_spr(actor_x[i], actor_y[i], oam_id, playerRunSeq[i&15]);
       actor_x[i] += actor_dx[i];
       actor_y[i] += actor_dy[i];
     }
     // hide rest of sprites
     // if we haven't wrapped oam_id around to 0
     if (oam_id!=0) oam_hide_rest(oam_id);
+    // set virtual bright
+    pal_bright(vbright);
     // wait for next frame
     ppu_wait_frame();
   }

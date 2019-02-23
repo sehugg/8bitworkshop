@@ -17,8 +17,8 @@
 #define DEF_METASPRITE_2x2(name,code,pal)\
 const unsigned char name[]={\
         0,      0,      (code)+0,   pal, \
-        8,      0,      (code)+1,   pal, \
-        0,      8,      (code)+2,   pal, \
+        0,      8,      (code)+1,   pal, \
+        8,      0,      (code)+2,   pal, \
         8,      8,      (code)+3,   pal, \
         128};
 
@@ -26,8 +26,8 @@ const unsigned char name[]={\
 #define DEF_METASPRITE_2x2_FLIP(name,code,pal)\
 const unsigned char name[]={\
         8,      0,      (code)+0,   (pal)|OAM_FLIP_H, \
-        0,      0,      (code)+1,   (pal)|OAM_FLIP_H, \
-        8,      8,      (code)+2,   (pal)|OAM_FLIP_H, \
+        8,      8,      (code)+1,   (pal)|OAM_FLIP_H, \
+        0,      0,      (code)+2,   (pal)|OAM_FLIP_H, \
         0,      8,      (code)+3,   (pal)|OAM_FLIP_H, \
         128};
 
@@ -119,7 +119,7 @@ void main() {
       pad = pad_poll(i);
       // move actor[i] left/right
       if (pad&PAD_LEFT && actor_x[i]>0) actor_dx[i]=-2;
-      else if (pad&PAD_RIGHT && actor_x[i]<232) actor_dx[i]=2;
+      else if (pad&PAD_RIGHT && actor_x[i]<240) actor_dx[i]=2;
       else actor_dx[i]=0;
       // move actor[i] up/down
       if (pad&PAD_UP && actor_y[i]>0) actor_dy[i]=-2;
@@ -128,7 +128,7 @@ void main() {
     }
     // draw and move all actors
     for (i=0; i<NUM_ACTORS; i++) {
-      oam_id = oam_meta_spr(actor_x[i], actor_y[i], oam_id, playerRunSeq[i]);
+      oam_id = oam_meta_spr(actor_x[i], actor_y[i], oam_id, playerRunSeq[i&15]);
       actor_x[i] += actor_dx[i];
       actor_y[i] += actor_dy[i];
     }

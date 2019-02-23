@@ -46,9 +46,6 @@ char actor_y[NUM_ACTORS];
 char actor_dx[NUM_ACTORS];
 char actor_dy[NUM_ACTORS];
 
-// OAM buffer pointer, in case we want to manipulate directly
-#define OAMBUF ((unsigned char*) 0x200)
-
 // main program
 void main() {
   char i;

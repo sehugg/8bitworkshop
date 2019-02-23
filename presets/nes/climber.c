@@ -11,6 +11,17 @@
 // link the pattern table into CHR ROM
 //#link "chr_generic.s"
 
+// famitone2 library
+//#link "famitone2.s"
+
+// music and sfx
+//#link "music_dangerstreets.s"
+extern char danger_streets_music_data[];
+//#link "demosounds.s"
+extern char demo_sounds[];
+
+typedef enum { SND_START, SND_HIT, SND_COIN, SND_JUMP } SFXIndex;
+
 // define basic types
 typedef unsigned char byte;
 typedef signed char sbyte;
@@ -54,6 +65,9 @@ static byte player_screen_y = 0;
 
 // score (BCD)
 static byte score = 0;
+
+// flash animation (virtual bright)
+static byte vbright = 4;
 
 // random byte between (a ... b-1)
 // use rand() because rand8() has a cycle of 255
@@ -115,16 +129,8 @@ void cflushnow() {
   cendbuf();
 }
 
-// add single character to update buffer
-void putchar(word addr, char ch) {
-  if (updptr >= VBUFSIZE-4) cflushnow();
-  updbuf[updptr++] = addr >> 8;
-  updbuf[updptr++] = addr & 0xff;
-  updbuf[updptr++] = ch;
-  cendbuf();
-}
-
 // add multiple characters to update buffer
+// using horizontal increment
 void putbytes(word addr, char* str, byte len) {
   if (updptr >= VBUFSIZE-4-len) cflushnow();
   updbuf[updptr++] = (addr >> 8) | NT_UPD_HORZ;
@@ -136,19 +142,14 @@ void putbytes(word addr, char* str, byte len) {
   cendbuf();
 }
 
-// add string to update buffer
-void putstring(word addr, char* str) {
-  putbytes(addr, str, strlen(str));
-}
-
 /// METASPRITES
 
 // define a 2x2 metasprite
 #define DEF_METASPRITE_2x2(name,code,pal)\
 const unsigned char name[]={\
         0,      0,      (code)+0,   pal, \
-        8,      0,      (code)+1,   pal, \
-        0,      8,      (code)+2,   pal, \
+        0,      8,      (code)+1,   pal, \
+        8,      0,      (code)+2,   pal, \
         8,      8,      (code)+3,   pal, \
         128};
 
@@ -156,8 +157,8 @@ const unsigned char name[]={\
 #define DEF_METASPRITE_2x2_FLIP(name,code,pal)\
 const unsigned char name[]={\
         8,      0,      (code)+0,   (pal)|OAM_FLIP_H, \
-        0,      0,      (code)+1,   (pal)|OAM_FLIP_H, \
-        8,      8,      (code)+2,   (pal)|OAM_FLIP_H, \
+        8,      8,      (code)+1,   (pal)|OAM_FLIP_H, \
+        0,      0,      (code)+2,   (pal)|OAM_FLIP_H, \
         0,      8,      (code)+3,   (pal)|OAM_FLIP_H, \
         128};
 
@@ -280,9 +281,9 @@ void draw_floor_line(byte screen_y) {
         for (i=0; i<COLS; i+=2) {
           if (dy) {
             buf[i] = CH_FLOOR;
-            buf[i+1] = CH_FLOOR+1;
+            buf[i+1] = CH_FLOOR+2;
           } else {
-            buf[i] = CH_FLOOR+2;
+            buf[i] = CH_FLOOR+1;
             buf[i+1] = CH_FLOOR+3;
           }
         }
@@ -311,12 +312,12 @@ void draw_floor_line(byte screen_y) {
       if (lev->objtype) {
         byte ch = lev->objtype*4 + CH_ITEM;
         if (dy == 2) {
-          buf[lev->objpos*2] = ch+2;
+          buf[lev->objpos*2] = ch+1;
           buf[lev->objpos*2+1] = ch+3;
         }
         else if (dy == 3) {
           buf[lev->objpos*2] = ch+0;
-          buf[lev->objpos*2+1] = ch+1;
+          buf[lev->objpos*2+1] = ch+2;
         }
       }
       // compute row in name buffer and address
@@ -564,6 +565,8 @@ void move_actor(struct Actor* actor, byte joystick, bool scroll) {
         actor->u.jumping.yvel = JUMP_VELOCITY;
         if (joystick & PAD_LEFT) actor->u.jumping.xvel = -1;
         if (joystick & PAD_RIGHT) actor->u.jumping.xvel = 1;
+        // play sound for player
+        if (scroll) sfx_play(SND_JUMP,0);
       } else if (joystick & PAD_LEFT) {
         actor->x--;
         actor->dir = 1;
@@ -643,8 +646,11 @@ void pickup_object(Actor* actor) {
       // did we hit a mine?
       if (objtype == ITEM_MINE) {
         fall_down(actor);
+        sfx_play(SND_HIT,0);
+        vbright = 8; // flash
       } else {
         score = bcdadd(score, 1);
+        sfx_play(SND_COIN,0);
       }
     }
   }
@@ -695,7 +701,7 @@ void type_message(const char* charptr) {
       x = 2;
       y++;
     } else {
-      putchar(getntaddr(x, y), ch);
+      putbytes(getntaddr(x, y), &ch, 1);
       x++;
     }
     // flush buffer and wait a few frames
@@ -739,6 +745,11 @@ void play_scene() {
     // see if the player hit another actor
     if (check_collision(&actors[0])) {
       fall_down(&actors[0]);
+      sfx_play(SND_HIT,0);
+      vbright = 8; // flash
+    }
+    if (vbright > 4) {
+      pal_bright(--vbright);
     }
   }
   
@@ -770,10 +781,19 @@ void setup_graphics() {
   ppu_on_all();
 }
 
+void setup_sounds() {
+  famitone_init(danger_streets_music_data);
+  sfx_init(demo_sounds);
+  nmi_set_callback(famitone_update);
+}
+
 void main() {
+  setup_sounds();
   while (1) {
     setup_graphics();
+    sfx_play(SND_START,0);
     make_floors();
+    music_play(0);
     play_scene();
   }
 }

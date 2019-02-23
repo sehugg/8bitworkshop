@@ -138,6 +138,8 @@ void __fastcall__ sfx_play(unsigned char sound, unsigned char channel);
 // play a DPCM sample, 1..63
 void __fastcall__ sample_play(unsigned char sample);
 
+// call from NMI once per frame
+void __fastcall__ famitone_update(void);
 
 
 // poll controller and return flags like PAD_LEFT etc, input is pad number (0 or 1)
@@ -152,7 +154,7 @@ unsigned char __fastcall__ pad_trigger(unsigned char pad);
 unsigned char __fastcall__ pad_state(unsigned char pad);
 
 
-// set scroll, including rhe top bits
+// set scroll, including the top bits
 // it is always applied at beginning of a TV frame, not at the function call
 void __fastcall__ scroll(unsigned int x, unsigned int y);
 
