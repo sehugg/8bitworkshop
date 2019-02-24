@@ -1,3 +1,5 @@
+#ifndef _NESLIB_H
+#define _NESLIB_H
 /*
  (C) 2015 Alex Semenov (Shiru)
  (C) 2016 Lauri Kasanen
@@ -30,8 +32,14 @@
 //           unrle_vram renamed to vram_unrle, with adr argument removed
 //  060414 - many fixes and improvements, including sequental VRAM updates
 //  previous versions were created since mid-2011, there were many updates
+//  xxxx19 - updated by sehugg@8bitworkshop
 
 
+// define basic types for convenience
+typedef unsigned char byte;	// 8-bit unsigned
+typedef signed char sbyte;	// 8-bit signed
+typedef unsigned short word;	// 16-bit signed
+typedef enum { false, true } bool;	// boolean
 
 
 
@@ -300,3 +308,6 @@ void __fastcall__ nmi_set_callback(void (*callback)(void));
 
 #define MSB(x)			(((x)>>8))
 #define LSB(x)			(((x)&0xff))
+
+#endif /* neslib.h */
+

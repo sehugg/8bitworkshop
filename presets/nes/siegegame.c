@@ -12,13 +12,7 @@ extern unsigned char palSprites[16];
 extern unsigned char TILESET[8*256];
 
 #define COLS 32
-#define ROWS 28
-
-#define NTADR(x,y) ((0x2000|((y)<<5)|(x)))
-
-typedef unsigned char byte;
-typedef signed char sbyte;
-typedef unsigned short word;
+#define ROWS 27
 
 // read a character from VRAM.
 // this is tricky because we have to wait
@@ -27,10 +21,10 @@ typedef unsigned short word;
 // back to the start of the frame.
 byte getchar(byte x, byte y) {
   // compute VRAM read address
-  word addr = NTADR(x,y);
+  word addr = NTADR_A(x,y);
   byte rd;
   // wait for VBLANK to start
-  waitvsync();
+  ppu_wait_nmi();
   vram_adr(addr);
   vram_read(&rd, 1);
   vram_adr(0x0);
@@ -60,7 +54,7 @@ void vdelay(byte count) {
 }
 
 void cputcxy(byte x, byte y, char ch) {
-  word addr = NTADR(x,y);
+  word addr = NTADR_A(x,y);
   if (updptr >= 60) cflushnow();
   updbuf[updptr++] = addr >> 8;
   updbuf[updptr++] = addr & 0xff;
@@ -69,7 +63,7 @@ void cputcxy(byte x, byte y, char ch) {
 }
 
 void cputsxy(byte x, byte y, char* str) {
-  word addr = NTADR(x,y);
+  word addr = NTADR_A(x,y);
   byte len = strlen(str);
   if (updptr >= 60 - len) cflushnow();
   updbuf[updptr++] = (addr >> 8) | NT_UPD_HORZ;

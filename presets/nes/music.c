@@ -4,7 +4,8 @@
 
 #include "neslib.h"
 
-typedef unsigned char byte;
+#include "apu.h"
+//#link "apu.c"
 
 //
 // MUSIC ROUTINES
@@ -41,13 +42,6 @@ byte next_music_byte() {
   return *music_ptr++;
 }
 
-#define DUTY_75 0xc0
-#define DUTY_50 0x80
-#define DUTY_25 0x40
-#define DUTY_12 0x00
-
-#define DUTY (DUTY_25 | 0x1)	// decay rate == 1
-
 void play_music() {
   static byte ch = 0;
   if (music_ptr) {
@@ -56,25 +50,9 @@ void play_music() {
       if ((note & 0x80) == 0) {
         int period = note_table[note & 63];
         if (ch == 0) {
-          APU.pulse[0].period_low = period & 0xff;
-          APU.pulse[0].len_period_high = period >> 8;
-          APU.pulse[0].control = DUTY;
+          APU_PULSE_DECAY(0, period, DUTY_25, 2, 10);
         } else {
-          APU.pulse[1].period_low = period & 0xff;
-          APU.pulse[1].len_period_high = period >> 8;
-          APU.pulse[1].control = DUTY;
-          /*
-          //period = note_table_tri[note & 63];
-          period >>= 1;
-          APU.triangle.counter = 0xc0;
-          APU.triangle.period_low = period & 0xff;
-          APU.triangle.len_period_high = period >> 8;
-          */
-          /*
-          APU.noise.control = 0x4;
-          APU.noise.period = 0xe;
-          APU.noise.len = 0xf;
-          */
+          APU_PULSE_DECAY(1, period, DUTY_25, 2, 10);
         }
         ch = ch^1;
       } else {
@@ -92,24 +70,9 @@ void start_music(const byte* music) {
   cur_duration = 0;
 }
 
-const byte APUINIT[0x13] = {
-  0x30,0x08,0x00,0x00,
-  0x30,0x08,0x00,0x00,
-  0x80,0x00,0x00,0x00,
-  0x30,0x00,0x00,0x00,
-  0x00,0x00,0x00
-};
-
-void init_apu() {
-  // from https://wiki.nesdev.com/w/index.php/APU_basics
-  memcpy((void*)0x4000, APUINIT, sizeof(APUINIT));
-  APU.fcontrol = 0x40; // frame counter 5-step
-  APU.status = 0x0f; // turn on all channels except DMC
-}
-
 void main(void)
 {
-  init_apu();
+  apu_init();
   music_ptr = 0;
   while (1) {
     if (!music_ptr) start_music(music1);

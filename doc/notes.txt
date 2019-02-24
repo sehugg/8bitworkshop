@@ -95,6 +95,7 @@ TODO:
 - show .map file in listings? memory map view?
 - open ROM from URL?
 - NES: disassembly not aligned on PC
+- NES: vrambuf.c for Solarian
 
 
 WEB WORKER FORMAT

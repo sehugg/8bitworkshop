@@ -5,16 +5,22 @@
 
 #include "neslib.h"
 
+// APU (sound) support
+#include "apu.h"
+//#link "apu.c"
+
+// BCD arithmetic support
+#include "bcd.h"
+//#link "bcd.c"
+
+// VRAM update buffer
+#include "vrambuf.h"
+//#link "vrambuf.c"
+
 #define COLS 32
 #define ROWS 28
 
 //#define DEBUG_FRAMERATE
-
-typedef unsigned char byte;
-typedef signed char sbyte;
-typedef unsigned short word;
-
-///
 
 const char PALETTE[32] = {
   0x0f,
@@ -131,59 +137,11 @@ const char TILESET[128*8*2] = {/*{w:8,h:8,bpp:1,count:128,brev:1,np:2,pofs:8,rem
 #define CHAR(x) ((x)-' ')
 #define BLANK 0
 
-// VRAM UPDATE BUFFER
-
-#define VBUFSIZE 96
-byte updbuf[VBUFSIZE];
-byte updptr = 0;
-
-void cendbuf() {
-  updbuf[updptr] = NT_UPD_EOF;
-}
-
-void cflushnow() {
-  cendbuf();
-  ppu_wait_nmi();
-  flush_vram_update(updbuf);
-  updptr = 0;
-  cendbuf();
-  vram_adr(0x0);
-}
-
-void vdelay(byte count) {
-  while (count--) cflushnow();
-}
-
-void putchar(byte x, byte y, char ch) {
-  word addr = NTADR_A(x,y);
-  if (updptr >= VBUFSIZE-4) cflushnow();
-  updbuf[updptr++] = addr >> 8;
-  updbuf[updptr++] = addr & 0xff;
-  updbuf[updptr++] = ch;
-  cendbuf();
-}
-
-void putbytes(byte x, byte y, char* str, byte len) {
-  word addr = NTADR_A(x,y);
-  if (updptr >= VBUFSIZE-4-len) cflushnow();
-  updbuf[updptr++] = (addr >> 8) | NT_UPD_HORZ;
-  updbuf[updptr++] = addr & 0xff;
-  updbuf[updptr++] = len;
-  while (len--) {
-    	updbuf[updptr++] = *str++;
-  }
-  cendbuf();
-}
-
-void putstring(byte x, byte y, char* str) {
-  putbytes(x, y, str, strlen(str));
-}
-
 void clrscr() {
   updptr = 0;
   cendbuf();
   ppu_off();
-  vram_adr(0x2000);
+  vram_adr(NAMETABLE_A);
   vram_fill(BLANK, 32*28);
   vram_adr(0x0);
   ppu_on_all();
@@ -203,26 +161,7 @@ void draw_bcd_word(byte col, byte row, word bcd) {
     buf[j] = CHAR('0'+(bcd&0xf));
     bcd >>= 4;
   }
-  putbytes(col, row, buf, 5);
-}
-
-word bcd_add(word a, word b) {
-  word result = 0;
-  byte c = 0;
-  byte shift = 0;
-  while (shift < 16) {
-    byte d = (a & 0xf) + (b & 0xf) + c;
-    c = 0;
-    while (d >= 10) {
-      c++;
-      d -= 10;
-    }
-    result |= d << shift;
-    shift += 4;
-    a >>= 4;
-    b >>= 4;
-  }
-  return result;
+  putbytes(NTADR_A(col, row), buf, 5);
 }
 
 // GAME CODE
@@ -261,17 +200,17 @@ typedef struct {
 } AttackingEnemy;
 
 typedef struct {
-  signed char dx;
   byte xpos;
-  signed char dy;
   byte ypos;
+  signed char dx;
+  signed char dy;
 } Missile;
 
 typedef struct {
-  byte name;
-  byte tag;
   byte x;
   byte y;
+  byte name;
+  byte tag;
 } Sprite;
 
 #define ENEMIES_PER_ROW 8
@@ -366,7 +305,7 @@ void draw_row(byte row) {
     }
     x += 3;
   }
-  putbytes(0, y, buf, sizeof(buf));
+  putbytes(NTADR_A(0, y), buf, sizeof(buf));
 }
 
 void draw_next_row() {
@@ -724,37 +663,30 @@ void new_player_ship() {
 
 void set_sounds() {
   byte i;
-  byte enable = 0x1 | 0x2 | 0x8;
+  // these channels decay, so ok to always enable
+  byte enable = ENABLE_PULSE0|ENABLE_PULSE1|ENABLE_NOISE;
   // missile fire sound
   if (missiles[PLYRMISSILE].ypos != YOFFSCREEN) {
-    APU.pulse[0].period_low = missiles[PLYRMISSILE].ypos ^ 0xff;
-    APU.pulse[0].len_period_high = 0;
-    APU.pulse[0].control = 0x80 | 0x30 | 6;
+    APU_PULSE_SUSTAIN(0, missiles[PLYRMISSILE].ypos ^ 0xff, DUTY_50, 6);
   } else {
-    APU.pulse[0].control = 0x30;
+    APU_PULSE_CONTROL(0, DUTY_50, 1);
   }
   // enemy explosion sound
   if (player_exploding && player_exploding < 8) {
-    APU.noise.control = 4;
-    APU.noise.period = 8 + player_exploding;
-    APU.noise.len = 15;
+    APU_NOISE_DECAY(8 + player_exploding, 5, 15);
   } else if (enemy_exploding) {
-    APU.noise.control = 2;
-    APU.noise.period = 8 + enemy_exploding;
-    APU.noise.len = 8;
+    APU_NOISE_DECAY(8 + enemy_exploding, 2, 8);
   }
   // set diving sounds for spaceships
   for (i=0; i<2; i++) {
     register AttackingEnemy* a = i ? &attackers[4] : &attackers[0];
     if (a->findex && !a->returning) {
       byte y = a->y >> 8;
-      APU.triangle.counter = 0xc0;
-      APU.triangle.period_low = y;
-      APU.triangle.len_period_high = 1;
-      enable |= 0x4;
+      APU_TRIANGLE_SUSTAIN(0x100 | y);
+      enable |= ENABLE_TRIANGLE;
     }
   }
-  APU.status = enable;
+  APU_ENABLE(enable);
 }
 
 static char starx[32];
@@ -783,7 +715,7 @@ void play_round() {
   register byte t0;
   byte end_timer = 255;
   add_score(0);
-  putstring(0, 0, "PLAYER 1");
+  //putbytes(NTADR_A(0, 1), "PLAYER 1", 8);
   setup_formation();
   clrobjs();
   formation_direction = 1;
@@ -851,7 +783,7 @@ void set_shifted_pattern(const byte* src, word dest, byte shift) {
   vram_write(buf, sizeof(buf));
 }
 
-void setup_tileset() {
+void setup_graphics() {
   byte i;
   word src;
   word dest;
@@ -869,26 +801,14 @@ void setup_tileset() {
     set_shifted_pattern(&TILESET[src], dest, i);
     dest += 3*16;
   }
-}
-
-const byte APUINIT[0x13] = {
-  0x30,0x08,0x00,0x00,
-  0x30,0x08,0x00,0x00,
-  0x80,0x00,0x00,0x00,
-  0x30,0x00,0x00,0x00,
-  0x00,0x00,0x00
-};
-
-void init_apu() {
-  // from https://wiki.nesdev.com/w/index.php/APU_basics
-  memcpy((void*)0x4000, APUINIT, sizeof(APUINIT));
-  APU.fcontrol = 0x40; // frame counter 5-step
-  APU.status = 0x0f; // turn on all channels except DMC
+  // activate vram buffer
+  cendbuf();
+  set_vram_update(updbuf);
 }
 
 void main() {  
-  setup_tileset();
-  init_apu();
+  setup_graphics();
+  apu_init();
   init_stars();
   player_score = 0;
   while (1) {

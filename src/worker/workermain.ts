@@ -881,13 +881,12 @@ function linkLD65(step:BuildStep) {
   var binpath = "main";
   if (staleFiles(step, [binpath])) {
     var errors = [];
-    var errmsg = '';
     var LD65 = emglobal.ld65({
       instantiateWasm: moduleInstFn('ld65'),
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
-      printErr:function(s) { errmsg += s + '\n'; }
+      printErr:function(s) { errors.push({msg:s,line:0}); }
     });
     var FS = LD65['FS'];
     var cfgfile = '/' + platform + '.cfg';
@@ -905,8 +904,6 @@ function linkLD65(step:BuildStep) {
       '-o', 'main', '-m', 'main.map'].concat(step.args, libargs);
     //console.log(args);
     execMain(step, LD65, args);
-    if (errmsg.length)
-      errors.push({line:0, msg:errmsg});
     if (errors.length)
       return {errors:errors};
     var aout = FS.readFile("main", {encoding:'binary'});

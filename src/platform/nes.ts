@@ -17,6 +17,7 @@ const JSNES_PRESETS = [
   {id:'neslib1.c', name:'Text'},
   {id:'scroll.c', name:'Scrolling'},
   {id:'statusbar.c', name:'Status Bar'},
+  {id:'horizmask.c', name:'Horizontal Scrolling'},
   {id:'sprites.c', name:'Sprites'},
   {id:'metasprites.c', name:'Metasprites'},
   {id:'flicker.c', name:'Flickering Sprites'},
@@ -118,6 +119,7 @@ const _JSNESPlatform = function(mainElement) {
       },
       //TODO: onBatteryRamWrite
     });
+    //nes.ppu.clipToTvSize = false;
     nes.stop = function() {
       // TODO: trigger breakpoint
       self.pause();
@@ -300,10 +302,10 @@ const _JSNESPlatform = function(mainElement) {
     var PPUFLAGS = [
       ["f_nmiOnVblank","NMI_ON_VBLANK"],
       ["f_spVisibility","SPRITES"],
-      ["f_spClipping","CLIP_SPRITES"],
+      ["f_spClipping","NO_CLIP_SPRITES"],
       ["f_dispType","MONOCHROME"],
       ["f_bgVisibility","BACKGROUND"],
-      ["f_bgClipping","CLIP_BACKGROUND"],
+      ["f_bgClipping","NO_CLIP_BACKGROUND"],
     ];
     for (var i=0; i<PPUFLAGS.length; i++) {
       var flag = PPUFLAGS[i];

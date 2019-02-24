@@ -8,6 +8,14 @@
 // include CC65 NES Header (PPU)
 #include <nes.h>
 
+// BCD arithmetic support
+#include "bcd.h"
+//#link "bcd.c"
+
+// VRAM update buffer
+#include "vrambuf.h"
+//#link "vrambuf.c"
+
 // link the pattern table into CHR ROM
 //#link "chr_generic.s"
 
@@ -21,12 +29,6 @@ extern char danger_streets_music_data[];
 extern char demo_sounds[];
 
 typedef enum { SND_START, SND_HIT, SND_COIN, SND_JUMP } SFXIndex;
-
-// define basic types
-typedef unsigned char byte;
-typedef signed char sbyte;
-typedef unsigned short word;
-typedef enum { false, true } bool;
 
 ///// DEFINES
 
@@ -66,22 +68,13 @@ static byte player_screen_y = 0;
 // score (BCD)
 static byte score = 0;
 
-// flash animation (virtual bright)
+// screen flash animation (virtual bright)
 static byte vbright = 4;
 
 // random byte between (a ... b-1)
 // use rand() because rand8() has a cycle of 255
 byte rndint(byte a, byte b) {
   return (rand() % (b-a)) + a;
-}
-
-byte bcdadd(byte a, byte b) {
-  byte c = (a & 0xf) + (b & 0xf);
-  if (c < 10) {
-    return a + b;
-  } else {
-    return (c-10) + 0x10 + (a & 0xf0) + (b & 0xf0);
-  }
 }
 
 ///// OAM buffer (for sprites)
@@ -102,44 +95,8 @@ word getntaddr(byte x, byte y) {
 
 // convert nametable address to attribute address
 word nt2attraddr(word a) {
-  return (a & 0x2c00) | 0x3c0 | (a & 0x0C00) | 
+  return (a & 0x2c00) | 0x3c0 |
     ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
-}
-
-///// VRAM UPDATE BUFFER
-
-#define VBUFSIZE 64
-byte updbuf[VBUFSIZE];	// update buffer
-byte updptr = 0;	// index to end of buffer
-
-// add EOF marker to buffer
-void cendbuf() {
-  updbuf[updptr] = NT_UPD_EOF;
-}
-
-// flush buffer now, waiting for next frame
-void cflushnow() {
-  // make sure buffer has EOF marker
-  cendbuf();
-  // wait for next frame to flush update buffer
-  // this will also set the scroll registers properly
-  ppu_wait_frame();
-  // clear the buffer
-  updptr = 0;
-  cendbuf();
-}
-
-// add multiple characters to update buffer
-// using horizontal increment
-void putbytes(word addr, char* str, byte len) {
-  if (updptr >= VBUFSIZE-4-len) cflushnow();
-  updbuf[updptr++] = (addr >> 8) | NT_UPD_HORZ;
-  updbuf[updptr++] = addr & 0xff;
-  updbuf[updptr++] = len;
-  while (len--) {
-    	updbuf[updptr++] = *str++;
-  }
-  cendbuf();
 }
 
 /// METASPRITES
@@ -178,7 +135,13 @@ DEF_METASPRITE_2x2_FLIP(playerLJump, 0xe8, 0);
 DEF_METASPRITE_2x2_FLIP(playerLClimb, 0xec, 0);
 DEF_METASPRITE_2x2_FLIP(playerLSad, 0xf0, 0);
 
-DEF_METASPRITE_2x2(personToSave, 0xba, 1);
+//DEF_METASPRITE_2x2(personToSave, 0xba, 1);
+const unsigned char personToSave[]={
+        0,      0,      (0xba)+0,   3, 
+        0,      8,      (0xba)+2,   0, 
+        8,      0,      (0xba)+1,   3, 
+        8,      8,      (0xba)+3,   0, 
+        128};
 
 const unsigned char* const playerRunSeq[16] = {
   playerLRun1, playerLRun2, playerLRun3, 
@@ -353,6 +316,8 @@ void draw_entire_stage() {
   byte y;
   for (y=0; y<ROWS; y++) {
     draw_floor_line(y);
+    // allow buffer to flush, delaying a frame
+    cflushnow();
   }
 }
 
@@ -649,7 +614,7 @@ void pickup_object(Actor* actor) {
         sfx_play(SND_HIT,0);
         vbright = 8; // flash
       } else {
-        score = bcdadd(score, 1);
+        score = bcd_add(score, 1);
         sfx_play(SND_COIN,0);
       }
     }
