@@ -37,6 +37,16 @@ function moduleInstFn(module_id:string) {
   }
 }
 
+// get platform ID without . emulator
+function getBasePlatform(platform : string) : string {
+  return platform.split('.')[0];
+}
+
+// get platform ID without - specialization
+function getRootPlatform(platform : string) : string {
+  return platform.split('-')[0];
+}
+
 var PLATFORM_PARAMS = {
   'vcs': {
     code_start: 0x1000,
@@ -856,7 +866,7 @@ function assembleCA65(step:BuildStep) {
       printErr:msvcErrorMatcher(errors),
     });
     var FS = CA65['FS'];
-    setupFS(FS, '65-'+step.platform.split('-')[0]);
+    setupFS(FS, '65-'+getRootPlatform(step.platform));
     populateFiles(step, FS);
     execMain(step, CA65, ['-v', '-g', '-I', '/share/asminc', '-o', objpath, '-l', lstpath, step.path]);
     if (errors.length)
@@ -890,7 +900,7 @@ function linkLD65(step:BuildStep) {
     });
     var FS = LD65['FS'];
     var cfgfile = '/' + platform + '.cfg';
-    setupFS(FS, '65-'+platform.split('-')[0]);
+    setupFS(FS, '65-'+getRootPlatform(platform));
     populateFiles(step, FS);
     populateExtraFiles(step, FS, params.extra_link_files);
     var libargs = params.libargs;
@@ -1028,7 +1038,7 @@ function compileCC65(step:BuildStep) {
       printErr:match_fn,
     });
     var FS = CC65['FS'];
-    setupFS(FS, '65-'+step.platform.split('-')[0]);
+    setupFS(FS, '65-'+getRootPlatform(step.platform));
     populateFiles(step, FS);
     fixParamsWithDefines(step.path, params.libargs);
     execMain(step, CC65, ['-T', '-g',
@@ -1326,7 +1336,7 @@ function makeCPPSafe(s:string) : string {
 function preprocessMCPP(step:BuildStep) {
   load("mcpp");
   var platform = step.platform;
-  var params = PLATFORM_PARAMS[platform];
+  var params = PLATFORM_PARAMS[getBasePlatform(platform)];
   if (!params) throw Error("Platform not supported: " + platform);
   // <stdin>:2: error: Can't open include file "foo.h"
   var errors = [];
@@ -1839,7 +1849,7 @@ function executeBuildSteps() {
     var platform = step.platform;
     var toolfn = TOOLS[step.tool];
     if (!toolfn) throw "no tool named " + step.tool;
-    step.params = PLATFORM_PARAMS[platform];
+    step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
     console.log(step.platform + " " + step.tool);
     try {
       step.result = toolfn(step);
@@ -1896,7 +1906,7 @@ function handleMessage(data : WorkerMessage) : WorkerResult {
   if (data.preload) {
     var fs = TOOL_PRELOADFS[data.preload];
     if (!fs && data.platform)
-      fs = TOOL_PRELOADFS[data.preload+'-'+data.platform.split('-')[0]];
+      fs = TOOL_PRELOADFS[data.preload+'-'+getRootPlatform(data.platform)];
     if (fs && !fsMeta[fs])
       loadFilesystem(fs);
     return;

@@ -1,7 +1,7 @@
 "use strict";
 
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM } from "../emu";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags } from "../emu";
 import { hex, lpad, lzgmini } from "../util";
 import { CodeAnalyzer_nes } from "../analysis";
 import { SampleAudio } from "../audio";
@@ -54,8 +54,8 @@ const NES_CONIO_PRESETS = [
 const JSNES_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_Z,     0, 0],
   [Keys.VK_X,     0, 1],
-  [Keys.VK_2,     0, 2],
-  [Keys.VK_1,     0, 3],
+  [Keys.VK_SPACE, 0, 2],
+  [Keys.VK_ENTER, 0, 3],
   [Keys.VK_UP,    0, 4],
   [Keys.VK_DOWN,  0, 5],
   [Keys.VK_LEFT,  0, 6],
@@ -138,9 +138,9 @@ const _JSNESPlatform = function(mainElement) {
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // set keyboard map
     setKeyboardFromMap(video, [], JSNES_KEYCODE_MAP, function(o,key,code,flags) {
-      if (flags & 1)
+      if (flags & KeyFlags.KeyDown)
         nes.buttonDown(o.index+1, o.mask); // controller, button
-      else
+      else if (flags & KeyFlags.KeyUp)
         nes.buttonUp(o.index+1, o.mask); // controller, button
     });
   }

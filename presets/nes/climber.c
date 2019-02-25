@@ -28,6 +28,7 @@ extern char danger_streets_music_data[];
 //#link "demosounds.s"
 extern char demo_sounds[];
 
+// indices of sound effects (0..3)
 typedef enum { SND_START, SND_HIT, SND_COIN, SND_JUMP } SFXIndex;
 
 ///// DEFINES
@@ -156,13 +157,13 @@ const unsigned char* const playerRunSeq[16] = {
 
 // struct definition for a single floor
 typedef struct Floor {
-  byte ypos;
-  byte height; // TODO: why does bitmask not work?
-  int gap:4;
-  int ladder1:4;
-  int ladder2:4;
-  int objtype:4;
-  int objpos:4;
+  byte ypos;		// # of tiles from ground
+  int height:4;		// # of tiles to next floor
+  int gap:4;		// X position of gap
+  int ladder1:4;	// X position of first ladder
+  int ladder2:4;	// X position of second ladder
+  int objtype:4;	// item type (FloorItem)
+  int objpos:4;		// X position of object
 } Floor;
 
 // various items the player can pick up
@@ -222,9 +223,9 @@ void make_floors() {
   floors[MAX_FLOORS-1].objtype = 0;
 }
 
-void create_actors_on_floor(byte i);
+void create_actors_on_floor(byte floor_index);
 
-// draw a nsmetable line into the frame buffer at <screen_y>
+// draw a nametable line into the frame buffer at <screen_y>
 // 0 == bottom of stage
 void draw_floor_line(byte screen_y) {
   char buf[COLS];
@@ -364,17 +365,17 @@ typedef enum ActorType {
 };
 
 typedef struct Actor {
-  word yy;
-  byte x;
-  byte name; // TODO
-  byte floor;
-  int state:4;
-  int dir:1;
-  int onscreen:1;
+  word yy;		// Y position in pixels (16 bit)
+  byte x;		// X position in pixels (8 bit)
+  byte floor;		// floor index
+  byte state;		// ActorState
+  int name:2;		// ActorType
+  int dir:1;		// direction (0=right, 1=left)
+  int onscreen:1;	// is actor onscreen?
   union {
-    struct {
-      sbyte yvel;
-      sbyte xvel;
+    struct {		// when jumping...
+      sbyte yvel;	// Y velocity
+      sbyte xvel;	// X velocity
     } jumping;
   } u;
 } Actor;
@@ -388,7 +389,7 @@ void create_actors_on_floor(byte floor_index) {
     Floor *floor = &floors[floor_index];
     a->state = STANDING;
     a->name = ACTOR_ENEMY;
-    a->x = floor->ladder1 ^ (floor->ladder2<<3) ^ (floor->gap<<6);
+    a->x = rand8();
     a->yy = get_floor_yy(floor_index);
     a->floor = floor_index;
     a->onscreen = 1;
@@ -633,12 +634,17 @@ byte iabs(int x) {
 
 bool check_collision(Actor* a) {
   byte i;
-  if (a->floor == 0) return false;
+  byte afloor = a->floor;
+  // can't fall through basement
+  if (afloor == 0) return false;
+  // can't fall if already falling
   if (a->state == FALLING) return false;
+  // iterate through entire list of actors
   for (i=1; i<MAX_ACTORS; i++) {
     Actor* b = &actors[i];
     // actors must be on same floor and within 8 pixels
-    if (a->floor == b->floor && 
+    if (b->onscreen &&
+        afloor == b->floor && 
         iabs(a->yy - b->yy) < 8 && 
         iabs(a->x - b->x) < 8) {
       return true;
@@ -659,7 +665,8 @@ void type_message(const char* charptr) {
   char ch;
   byte x,y;
   x = 2;
-  y = ROWS*3 + 39 - scroll_tile_y; // TODO
+  // compute message y position relative to scroll
+  y = ROWS*3 + 39 - scroll_tile_y;
   while ((ch = *charptr++)) {
     while (y >= 60) y -= 60;
     if (ch == '\n') {

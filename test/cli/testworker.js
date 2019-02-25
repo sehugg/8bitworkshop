@@ -104,7 +104,7 @@ describe('Worker', function() {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes-conio', done, 0, 0, 1);
   });
   it('should NOT compile CC65 (link error)', function(done) {
-    compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes-conio', done, 0, 0, 1, {ignoreErrorPath:true});
+    compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes-conio', done, 0, 0, 3, {ignoreErrorPath:true});
   });
   it('should NOT compile CC65 (preproc error)', function(done) {
     compile('cc65', '#include "NOSUCH.file"\n', 'nes-conio', done, 0, 0, 1, {ignoreErrorPath:true});
