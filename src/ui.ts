@@ -32,7 +32,7 @@ var toolbar = $("#controls_top");
 
 export var current_project : CodeProject;	// current CodeProject object
 
-var projectWindows : ProjectWindows;	// window manager
+export var projectWindows : ProjectWindows;	// window manager
 
 var stateRecorder : StateRecorderImpl;
 

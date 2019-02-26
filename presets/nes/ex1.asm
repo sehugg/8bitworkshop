@@ -54,18 +54,17 @@ HelloMsg:
 
 ; set palette colors
 SetPalette: subroutine
-        ldy #$00
-	lda #$3f
-	sta PPU_ADDR
-	sty PPU_ADDR
-	ldx #32
+        ldy #$00	; Y = $00 (also palette index)
+	lda #$3f	; A = $3F
+	sta PPU_ADDR	; $3F?? -> PPU address
+	sty PPU_ADDR	; $3F00 -> PPU address
 .loop:
-	lda Palette,y
-	sta PPU_DATA
-        iny
-	dex
-	bne .loop
-        rts
+	lda Palette,y	; lookup byte in ROM
+	sta PPU_DATA	; store byte to PPU data
+        iny		; Y = Y + 1
+        cpy #32		; is Y equal to 32?
+	bne .loop	; not yet, loop
+        rts		; return to caller
 
 ;;;;; COMMON SUBROUTINES
 

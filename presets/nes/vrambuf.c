@@ -28,7 +28,7 @@ void cflushnow(void) {
 
 // add multiple characters to update buffer
 // using horizontal increment
-void putbytes(word addr, char* str, byte len) {
+void putbytes(word addr, const char* str, byte len) {
   if (updptr >= VBUFSIZE-4-len) cflushnow();
   updbuf[updptr++] = (addr >> 8) ^ NT_UPD_HORZ;
   updbuf[updptr++] = addr & 0xff;

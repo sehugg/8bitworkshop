@@ -6,10 +6,12 @@
 
 #include "neslib.h"
 
-//#link "tileset1.c"
+// VRAM buffer module
+#include "vrambuf.h"
+//#link "vrambuf.c"
 
-extern unsigned char palSprites[16];
-extern unsigned char TILESET[8*256];
+// link the pattern table into CHR ROM
+//#link "chr_generic.s"
 
 #define COLS 32
 #define ROWS 27
@@ -31,48 +33,13 @@ byte getchar(byte x, byte y) {
   return rd + 0x20;
 }
 
-// VRAM UPDATE BUFFER
-
-byte updbuf[64];
-byte updptr = 0;
-
-void cendbuf() {
-  updbuf[updptr] = NT_UPD_EOF;
-}
-
-void cflushnow() {
-  cendbuf();
-  waitvsync();
-  flush_vram_update(updbuf);
-  updptr = 0;
-  cendbuf();
-  vram_adr(0x0);
-}
-
-void vdelay(byte count) {
-  while (count--) cflushnow();
-}
 
 void cputcxy(byte x, byte y, char ch) {
-  word addr = NTADR_A(x,y);
-  if (updptr >= 60) cflushnow();
-  updbuf[updptr++] = addr >> 8;
-  updbuf[updptr++] = addr & 0xff;
-  updbuf[updptr++] = ch - 0x20;
-  cendbuf();
+  putbytes(NTADR_A(x,y), &ch, 1);
 }
 
-void cputsxy(byte x, byte y, char* str) {
-  word addr = NTADR_A(x,y);
-  byte len = strlen(str);
-  if (updptr >= 60 - len) cflushnow();
-  updbuf[updptr++] = (addr >> 8) | NT_UPD_HORZ;
-  updbuf[updptr++] = addr & 0xff;
-  updbuf[updptr++] = len;
-  while (len--) {
-    	updbuf[updptr++] = *str++ - 0x20;
-  }
-  cendbuf();
+void cputsxy(byte x, byte y, const char* str) {
+  putbytes(NTADR_A(x,y), str, strlen(str));
 }
 
 void clrscr() {
@@ -133,7 +100,7 @@ void draw_playfield() {
   cputcxy(9,1,players[0].score+'0');
   cputcxy(28,1,players[1].score+'0');
   if (attract) {
-    cputsxy(5,ROWS-1,"ATTRACT MODE - PRESS 1");
+    cputsxy(3,ROWS-1,"ATTRACT MODE - PRESS ENTER");
   } else {
     cputsxy(1,1,"PLYR1:");
     cputsxy(20,1,"PLYR2:");
@@ -229,7 +196,8 @@ void flash_colliders() {
     //cv_set_attenuation(CV_SOUNDCHANNEL_0, i/2);
     if (players[0].collided) players[0].head_attr ^= 0x80;
     if (players[1].collided) players[1].head_attr ^= 0x80;
-    vdelay(2);
+    cflushnow();
+    cflushnow();
     draw_player(&players[0]);
     draw_player(&players[1]);
   }
@@ -240,7 +208,7 @@ void make_move() {
   byte i;
   for (i=0; i<frames_per_move; i++) {
     human_control(&players[0]);
-    vdelay(1);
+    cflushnow();
   }
   ai_control(&players[0]);
   ai_control(&players[1]);
@@ -254,12 +222,13 @@ void declare_winner(byte winner) {
   clrscr();
   for (i=0; i<ROWS/2-3; i++) {
     draw_box(i,i,COLS-1-i,ROWS-1-i,BOX_CHARS);
-    vdelay(1);
+    cflushnow();
   }
   cputsxy(12,10,"WINNER:");
   cputsxy(12,13,"PLAYER ");
   cputcxy(12+7, 13, '1'+winner);
-  vdelay(75);
+  cflushnow();
+  delay(75);
   gameover = 1;
 }
 
@@ -338,9 +307,9 @@ void play_game() {
 }
 
 void main() {
-  vram_adr(0x0);
-  vram_write((unsigned char*)TILESET, sizeof(TILESET));
   joy_install (joy_static_stddrv);
+  cendbuf();
+  set_vram_update(updbuf);
   while (1) {
     attract = 1;
     play_game();

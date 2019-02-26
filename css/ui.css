@@ -409,6 +409,10 @@ div.markdown th {
   color: #333;
   background-color:#999;
 }
+.segment:hover {
+  border-color: #ffffff;
+  cursor: pointer;
+}
 .segment.segment-ram {
   background-color:#aaeeaa;
 }

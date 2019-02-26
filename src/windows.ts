@@ -25,11 +25,11 @@ export class ProjectWindows {
   }
   // TODO: delete windows ever?
   
-  setCreateFunc(id:string, createfn:WindowCreateFunction) {
+  setCreateFunc(id:string, createfn:WindowCreateFunction) : void {
     this.id2createfn[id] = createfn;
   }
   
-  createOrShow(id:string) {
+  createOrShow(id:string) : ProjectView {
     var wnd = this.id2window[id];
     if (!wnd) {
       wnd = this.id2window[id] = this.id2createfn[id](id);
@@ -52,27 +52,27 @@ export class ProjectWindows {
     return wnd;
   }
 
-  put(id:string, window:ProjectView) {
+  put(id:string, window:ProjectView) : void {
     this.id2window[id] = window;
   }
   
-  refresh(moveCursor:boolean) {
+  refresh(moveCursor:boolean) : void {
     // refresh current window
     if (this.activewnd && this.activewnd.refresh)
       this.activewnd.refresh(moveCursor);
   }
   
-  tick() {
+  tick() : void {
     if (this.activewnd && this.activewnd.tick)
       this.activewnd.tick();
   }
 
-  setErrors(errors:WorkerError[]) {
+  setErrors(errors:WorkerError[]) : void {
     this.lasterrors = errors;
     this.refreshErrors();
   }
   
-  refreshErrors() {
+  refreshErrors() : void {
     if (this.activewnd && this.activewnd.markErrors) {
       if (this.lasterrors && this.lasterrors.length)
         this.activewnd.markErrors(this.lasterrors);

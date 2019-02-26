@@ -33,6 +33,6 @@ void cflushnow(void);
 
 // add multiple characters to update buffer
 // using horizontal increment
-void putbytes(word addr, char* str, byte len);
+void putbytes(word addr, const char* str, byte len);
 
 #endif // vrambuf.h

@@ -21,17 +21,24 @@ void put_str(unsigned int adr, const char *str) {
   vram_write(str, strlen(str)); // write bytes to PPU
 }
 
-static word x_scroll = 0;
-static byte bldg_height = 8;
-static byte bldg_width = 8;
-static byte bldg_char = 1;
-static byte bldg_attr = 0x55;
+word x_scroll;		// X scroll amount in pixels
+byte bldg_height;	// building height in tiles
+byte bldg_width;	// building width in tiles
+byte bldg_char;		// character to draw
+byte bldg_attr;		// attribute table value
 
 #define PLAYROWS 24
 
 word nt2attraddr(word a) {
   return (a & 0x2c00) | 0x3c0 |
     ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
+}
+
+void new_building() {
+  bldg_height = (rand8() & 7) + 2;
+  bldg_width = (rand8() & 3) * 4 + 4;
+  bldg_char = (rand8() & 15);
+  bldg_attr = rand8();
 }
 
 void update_nametable() {
@@ -47,6 +54,8 @@ void update_nametable() {
   // create vertical slice
   // clear empty space
   memset(buf, 0, PLAYROWS-bldg_height);
+  // draw a random star
+  buf[rand8() & 31] = '.';
   // draw roof
   buf[PLAYROWS-bldg_height-1] = bldg_char & 3;
   // draw rest of building
@@ -66,15 +75,15 @@ void update_nametable() {
   }
   // generate new building?
   if (--bldg_width == 0) {
-    bldg_height = (rand8() & 7) + 2;
-    bldg_width = (rand8() & 3) * 4 + 4;
-    bldg_char = (rand8() & 15);
-    bldg_attr = rand8();
+    new_building();
   }
 }
 
 // function to scroll window up and down until end
 void scroll_demo() {
+  // make 1st building
+  new_building();
+  x_scroll = 0;
   // infinite loop
   while (1) {
     // update nametable every 8 pixels

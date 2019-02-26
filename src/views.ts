@@ -7,7 +7,7 @@ import { SourceFile, WorkerError, Segment } from "./workertypes";
 import { Platform, EmuState } from "./baseplatform";
 import { hex, lpad, rpad } from "./util";
 import { CodeAnalyzer } from "./analysis";
-import { platform, platform_id, compparams, current_project, lastDebugState } from "./ui";
+import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
@@ -608,7 +608,11 @@ export class MemoryView implements ProjectView {
     $(parent).append(this.memorylist.container);
     this.tick();
     if (compparams && this.dumplines)
-      this.memorylist.scrollToItem(this.findMemoryWindowLine(compparams.data_start));
+      this.scrollToAddress(compparams.data_start);
+  }
+  
+  scrollToAddress(addr : number) {
+    this.memorylist.scrollToItem(this.findMemoryWindowLine(addr));
   }
 
   refresh() {
@@ -694,6 +698,7 @@ export class MemoryView implements ProjectView {
     return this.dumplines;
   }
 
+  // TODO: use segments list?
   getMemorySegment(a:number) : string {
     if (!compparams) return 'unknown';
     if (a >= compparams.data_start && a < compparams.data_start+compparams.data_size) {
@@ -805,6 +810,11 @@ export class MemoryMapView implements ProjectView {
     var row = $('<div class="row"/>').append(offset, segdiv);
     var container = $('<div class="container"/>').append(row);
     this.maindiv.append(container);
+    segdiv.click(() => {
+      var memview = projectWindows.createOrShow('#memory') as MemoryView;
+      memview.scrollToAddress(seg.start);
+      // TODO: this doesn't update nav bar
+    });
   }
 
   refresh() {

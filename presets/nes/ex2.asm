@@ -38,31 +38,30 @@ Start:
 FillVRAM: subroutine
 	txa
 	ldy #$20
-	sty PPU_ADDR
-	sta PPU_ADDR
-	ldy #$10
+	sty PPU_ADDR	; $20?? -> PPU address
+	sta PPU_ADDR	; $2000 -> PPU address
+	ldy #$10	; set $10 pages ($1000 bytes)
 .loop:
-	stx PPU_DATA
-	inx
-	bne .loop
-	dey
-	bne .loop
-        rts
+	stx PPU_DATA	; X -> PPU data port
+	inx		; X = X + 1
+	bne .loop	; repeat until 256 bytes
+	dey		; Y = Y - 1
+	bne .loop	; repeat until Y is 0
+        rts		; return to caller
 
 ; set palette colors
 SetPalette: subroutine
-        ldy #$00
-	lda #$3f
-	sta PPU_ADDR
-	sty PPU_ADDR
-	ldx #32
+        ldy #$00	; Y = $00 (also palette index)
+	lda #$3f	; A = $3F
+	sta PPU_ADDR	; $3F?? -> PPU address
+	sty PPU_ADDR	; $3F00 -> PPU address
 .loop:
-	lda Palette,y
-	sta PPU_DATA
-        iny
-	dex
-	bne .loop
-        rts
+	lda Palette,y	; lookup byte in ROM
+	sta PPU_DATA	; store byte to PPU data
+        iny		; Y = Y + 1
+        cpy #32		; is Y equal to 32?
+	bne .loop	; not yet, loop
+        rts		; return to caller
 
 
 ;;;;; COMMON SUBROUTINES
