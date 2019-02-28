@@ -119,10 +119,10 @@ NES_MIRR_QUAD	= 8
 ;;;;; PPU_SETADDR <address> - set 16-bit PPU address
 
 	MAC PPU_SETADDR
-        lda #>{1}
-        ldy #<{1}
+        lda #>{1}	; upper byte
         sta PPU_ADDR
-        sty PPU_ADDR
+        lda #<{1}	; lower byte
+        sta PPU_ADDR
         ENDM
 
 ;;;;; PPU_SETVALUE <value> - feed 8-bit value to PPU

@@ -33,11 +33,9 @@ Start:
 
 ; fill video RAM with "Hello World" msg
 HelloVRAM: subroutine
-	ldy #$20
-        lda #$21	; PPU addr = $2021
-	sty PPU_ADDR
-	sta PPU_ADDR	; -> PPU_ADDR
-	ldy #0
+; set PPU address to name table A (row 1, col 1)
+	PPU_SETADDR	$2021
+	ldy #0		; set Y counter to 0
 .loop:
 	lda HelloMsg,y	; get next character
         beq .end	; is 0? exit loop
@@ -46,7 +44,7 @@ HelloVRAM: subroutine
 	bne .loop	; loop
 .end
         rts		; return to caller
-3
+
 ; ASCII message to display on screen
 HelloMsg:
 	.byte "Hello, World!"
@@ -54,10 +52,8 @@ HelloMsg:
 
 ; set palette colors
 SetPalette: subroutine
-        ldy #$00	; Y = $00 (also palette index)
-	lda #$3f	; A = $3F
-	sta PPU_ADDR	; $3F?? -> PPU address
-	sty PPU_ADDR	; $3F00 -> PPU address
+; set PPU address to palette start
+	PPU_SETADDR	$3f00
 .loop:
 	lda Palette,y	; lookup byte in ROM
 	sta PPU_DATA	; store byte to PPU data
@@ -73,17 +69,16 @@ SetPalette: subroutine
 ;;;;; INTERRUPT HANDLERS
 
 NMIHandler:
-	rti
+	rti		; return from interrupt
 
 ;;;;; CONSTANT DATA
 
-	align $100
 Palette:
-	hex 1f		;background
-	hex 09092c00	;bg0
-        hex 09091900	;bg1
-        hex 09091500	;bg2
-        hex 09092500	;bg3
+	hex 1f		;screen color
+	hex 09092c00	;background 0
+        hex 09091900	;background 1
+        hex 09091500	;background 2
+        hex 09092500	;background 3
 
 ;;;;; CPU VECTORS
 

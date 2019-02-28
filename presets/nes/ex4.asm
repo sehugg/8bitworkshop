@@ -38,10 +38,7 @@ Start:
 
 ; fill video RAM
 FillVRAM: subroutine
-	txa
-	ldy #$20
-	sty PPU_ADDR
-	sta PPU_ADDR
+	PPU_SETADDR	$2000
 	ldy #$10
 .loop:
 	stx PPU_DATA
@@ -54,10 +51,7 @@ FillVRAM: subroutine
 ; set palette colors
 
 SetPalette: subroutine
-        ldy #$00
-	lda #$3f
-	sta PPU_ADDR
-	sty PPU_ADDR
+	PPU_SETADDR	$3f00
 	ldx #32
 .loop:
 	lda Palette,y

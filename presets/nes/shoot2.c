@@ -5,6 +5,9 @@
 
 #include "neslib.h"
 
+#define NES_MAPPER 2	// mapper 2 (UxROM mapper)
+#define NES_CHR_BANKS 0	// CHR RAM
+
 // APU (sound) support
 #include "apu.h"
 //#link "apu.c"
@@ -348,20 +351,15 @@ const int SINTBL2[32] = {
   -127*2, -125*2, -117*2, -106*2, -90*2, -71*2, -49*2, -25*2,
 };
 
-signed char isin(byte dir) {
-  return SINTBL[dir & 31];
-}
-
-signed char icos(byte dir) {
-  return isin(dir+8);
-}
+#define ISIN(x) (SINTBL2[(x) & 31])
+#define ICOS(x) ISIN(x+8)
 
 // Fast 8-bit table lookup macro
 // dest:  destination
 // ident: table identifier
 // index: 8-bit index
 #define FASTLUT8(dest,ident,index) \
-	__AX__ = (index); \
+	__A__ = (index); \
 	asm ("tax"); \
 	asm ("lda %v,x", ident); \
         (dest) = __AX__;
@@ -371,7 +369,7 @@ signed char icos(byte dir) {
 // ident: table identifier
 // index: 8-bit index
 #define FASTLUT16(dest,ident,index) \
-	__AX__ = (index); \
+	__A__ = (index); \
         asm ("asl"); \
 	asm ("tay"); \
 	asm ("lda %v+1,y", ident); \
@@ -431,17 +429,22 @@ void return_attacker(register AttackingEnemy* a) {
   }
 }
 
+#pragma bss-name (push,"ZEROPAGE")
+#pragma data-name (push,"ZEROPAGE")
+int sincos;
+#pragma data-name(pop)
+#pragma bss-name (pop)
+
 void fly_attacker(register AttackingEnemy* a) {
-  byte dir = a->dir;
 #if 1
-  int sincos;
-  sincos = FASTLUT16(sincos, SINTBL2, dir&31);
+  //register int sincos;
+  sincos = FASTLUT16(sincos, SINTBL2, a->dir&31);
   a->x += sincos;
-  sincos = FASTLUT16(sincos, SINTBL2, (dir+8)&31);
+  sincos = FASTLUT16(sincos, SINTBL2, (a->dir+8)&31);
   a->y += sincos;
 #else
-  a->x += isin(dir) * 2;
-  a->y += icos(dir) * 2;
+  a->x += ISIN(a->dir);
+  a->y += ICOS(a->dir);
 #endif
   if ((a->y >> 8) == 0) {
     a->returning = 1;
@@ -689,8 +692,8 @@ void set_sounds() {
   APU_ENABLE(enable);
 }
 
-static char starx[32];
-static byte starofs;
+static char starx[32];	// array of star X coords
+static byte starofs;	// Y offset of all stars
 
 void init_stars() {
   byte i;

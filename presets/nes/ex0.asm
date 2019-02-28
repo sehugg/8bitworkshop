@@ -19,9 +19,9 @@ Start:
         jsr WaitSync	; wait for VSYNC (and PPU warmup)
 
 	lda #$3f	; $3F -> A register
-        ldy #$00	; $00 -> Y register
         sta PPU_ADDR	; write high byte first
-        sty PPU_ADDR    ; $3F00 -> PPU address
+	lda #$00	; $00 -> A register
+        sta PPU_ADDR    ; $3F00 -> PPU address
         lda #$1c	; $1C = light blue color
         sta PPU_DATA    ; $1C -> PPU data
         lda #CTRL_NMI
