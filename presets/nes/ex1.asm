@@ -13,17 +13,21 @@
 ;;;;; START OF CODE
 
 Start:
+; wait for PPU warmup; clear CPU RAM
 	NES_INIT	; set up stack pointer, turn off PPU
         jsr WaitSync	; wait for VSYNC
         jsr ClearRAM	; clear RAM
         jsr WaitSync	; wait for VSYNC (and PPU warmup)
+; set palette and nametable VRAM
 	jsr SetPalette	; set palette colors
-        jsr HelloVRAM	; set PPU video RAM
+        jsr HelloVRAM	; print message in name table
+; reset PPU address and scroll registers
         lda #0
         sta PPU_ADDR
         sta PPU_ADDR	; PPU addr = $0000
         sta PPU_SCROLL
-        sta PPU_SCROLL  ; scroll = $0000
+        sta PPU_SCROLL  ; PPU scroll = $0000
+; activate PPU graphics
         lda #CTRL_NMI
         sta PPU_CTRL	; enable NMI
         lda #MASK_BG
@@ -88,4 +92,3 @@ Palette:
 
 	org $10000
         incbin "jroatch.chr"
-

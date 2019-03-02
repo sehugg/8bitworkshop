@@ -7,7 +7,7 @@ type BuildResultCallback = (result:WorkerResult) => void;
 type BuildStatusCallback = (busy:boolean) => void;
 type LoadFilesCallback = (err:string, result?:Dependency[]) => void;
 type IterateFilesCallback = (path:string, data:FileData) => void;
-type GetRemoteCallback = any; // TODO (path:string, (text:string) => FileData) => void;
+type GetRemoteCallback = (path:string, callback:(data:FileData) => void, datatype:'text'|'arraybuffer') => any;
 
 export class CodeProject {
   filedata : {[path:string]:FileData} = {};
@@ -36,7 +36,7 @@ export class CodeProject {
       this.receiveWorkerMessage(e.data);
     };
   }
-  
+
   receiveWorkerMessage(data : WorkerResult) {
     var notfinal = this.pendingWorkerMessages > 1;
     if (notfinal) {
@@ -61,7 +61,7 @@ export class CodeProject {
       this.tools_preloaded[tool] = true;
     }
   }
-  
+
   pushAllFiles(files:string[], fn:string) {
     // look for local and preset files
     files.push('local/'+fn);
@@ -71,7 +71,7 @@ export class CodeProject {
     if (dir.length > 0 && dir != 'local') // TODO
       files.push(dir + '/' + fn);
   }
-  
+
   parseIncludeDependencies(text:string):string[] {
     var files = [];
     var m;
@@ -94,7 +94,7 @@ export class CodeProject {
     } else {
       // for .asm -- [.]include "file"
       // for .c -- #include "file"
-      var re2 = /^\s*([.#]?include|incbin)\s+"(.+?)"/gmi;
+      var re2 = /^\s*[.#]?(include|incbin)\s+"(.+?)"/gmi;
       while (m = re2.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
@@ -208,14 +208,16 @@ export class CodeProject {
               if (this.platform_id.startsWith('vcs') && path.indexOf('.') <= 0)
                 webpath += ".a"; // legacy stuff
               // try to GET file, use file ext to determine text/binary
-              this.callbackGetRemote( webpath, (text:FileData) => {
-                console.log("GET",webpath,text.length,'bytes');
-                this.filedata[path] = text; // do not update store, just cache
-                addResult(path, text);
+              this.callbackGetRemote( webpath, (data:FileData) => {
+                if (data instanceof ArrayBuffer)
+                  data = new Uint8Array(data); // convert to typed array
+                console.log("GET",webpath,data.length,'bytes');
+                this.filedata[path] = data; // do not update store, just cache
+                addResult(path, data);
                 loadNext();
               }, isProbablyBinary(path) ? 'arraybuffer' : 'text')
               .fail( (err:XMLHttpRequest) => {
-                console.log("Could not load preset", path, err.status);
+                console.log("Could not load preset file", path, err.status);
                 // only cache result if status is 404 (not found)
                 if (err.status && err.status == 404)
                   this.filedata[path] = null; // mark cache entry as invalid

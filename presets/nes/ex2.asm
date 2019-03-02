@@ -15,18 +15,21 @@ ScrollPos	word	; used during NMI
 ;;;;; START OF CODE
 
 Start:
+; wait for PPU warmup; clear CPU RAM
 	NES_INIT	; set up stack pointer, turn off PPU
         jsr WaitSync	; wait for VSYNC
         jsr ClearRAM	; clear RAM
         jsr WaitSync	; wait for VSYNC (and PPU warmup)
-
+; set palette and nametable VRAM
 	jsr SetPalette	; set palette colors
         jsr FillVRAM	; set PPU video RAM
+; reset PPU address and scroll registers
         lda #0
         sta PPU_ADDR
         sta PPU_ADDR	; PPU addr = $0000
         sta PPU_SCROLL
         sta PPU_SCROLL  ; scroll = $0000
+; activate PPU graphics
         lda #CTRL_NMI
         sta PPU_CTRL	; enable NMI
         lda #MASK_BG
@@ -41,7 +44,7 @@ FillVRAM: subroutine
 .loop:
 	tya		; Y -> A
         ora #$40	; A = A OR $40
-	sta PPU_DATA	; X -> PPU data port
+	sta PPU_DATA	; A -> PPU data port
 	inx		; X = X + 1
 	bne .loop	; repeat until 256 bytes
 	dey		; Y = Y - 1

@@ -43,55 +43,53 @@ Start:
 
 ; fill video RAM
 FillVRAM: subroutine
-	PPU_SETADDR	$2000
+	PPU_SETADDR $2000
 	ldy #$10
 .loop:
-	stx PPU_DATA
-	inx
-	bne .loop
-	dey
-	bne .loop
-        rts
+	stx PPU_DATA	; X -> PPU data port
+	inx		; X = X + 1
+	bne .loop	; repeat until 256 bytes
+	dey		; Y = Y - 1
+	bne .loop	; repeat until Y is 0
+        rts		; return to caller
 
-;
+; initialize OAM data
 InitSprites: subroutine
-	lda #1
-        ldx #0
+	lda #1		; A = 1
+        ldx #0		; X = 0
 .loop
-	sta SpriteBuf,x
-        jsr NextRandom
-        inx
-        bne .loop
-        rts
+	sta SpriteBuf,x	; store to OAM buffer
+        jsr NextRandom	; get next random number
+        inx		; X = X + 1
+        bne .loop	; loop until X wraps
+        rts		; return to caller
 
-;
+; move sprite data
 MoveSprites: subroutine
-	lda #1
-        ldx #0
+	lda #1		; A = 1
+        ldx #0		; X = 0
 .loop
-	sta Temp1
-        and #3
-        clc
-        adc SpriteBuf,x
-	sta SpriteBuf,x
-        lda Temp1
-        jsr NextRandom
-        inx
-        bne .loop
-        rts
+	sta Temp1	; save A
+        and #3		; keep lower 2 bits
+        clc		; clear carry before add
+        adc SpriteBuf,x	; add to sprite buffer
+	sta SpriteBuf,x ; store in sprite buffer
+        lda Temp1	; restore A
+        jsr NextRandom	; get next random number
+        inx		; X = X + 1
+        bne .loop	; loop until X wraps
+        rts		; return to caller
 
 ; set palette colors
-
 SetPalette: subroutine
-	PPU_SETADDR	$3f00
-	ldx #32
+	PPU_SETADDR $3f00
 .loop:
-	lda Palette,y
-	sta PPU_DATA
-        iny
-	dex
-	bne .loop
-        rts
+	lda Palette,y	; lookup byte in ROM
+	sta PPU_DATA	; store byte to PPU data
+        iny		; Y = Y + 1
+        cpy #32		; is Y equal to 32?
+	bne .loop	; not yet, loop
+        rts		; return to caller
 
 
 ;;;;; COMMON SUBROUTINES

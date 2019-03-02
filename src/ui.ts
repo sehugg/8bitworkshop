@@ -94,10 +94,21 @@ function setLastPreset(id:string) {
   }
 }
 
+// firefox doesn't do GET with binary files
+function getWithBinary(url:string, success:(text:FileData)=>void, datatype:'text'|'arraybuffer') {
+  var oReq = new XMLHttpRequest();
+  oReq.open("GET", url, true);
+  oReq.responseType = datatype;
+  oReq.onload = function (oEvent) {
+    success(oReq.response);
+  }
+  oReq.send(null);
+}
+
 function initProject() {
   current_project = new CodeProject(newWorker(), platform_id, platform, store);
   projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
-  current_project.callbackGetRemote = $.get;
+  current_project.callbackGetRemote = getWithBinary;
   current_project.callbackBuildResult = (result:WorkerResult) => {
     setCompileOutput(result);
     refreshWindowList();

@@ -80,13 +80,13 @@ const _JSNESPlatform = function(mainElement) {
   var frameindex = 0;
   var ntvideo;
   var ntlastbuf;
-  
+
  class JSNESPlatform extends Base6502Platform implements Platform {
 
   getPresets() { return JSNES_PRESETS; }
 
   start() {
-    var self = this;
+    this.debugPCDelta = 1;
     var debugbar = $("<div>").appendTo(mainElement);
     audio = new SampleAudio(audioFrequency);
     video = new RasterVideo(mainElement,256,224,{overscan:true});
@@ -99,7 +99,7 @@ const _JSNESPlatform = function(mainElement) {
     // toggle buttons
     $('<button>').text("Video").appendTo(debugbar).click(() => { $(video.canvas).toggle() });
     $('<button>').text("Nametable").appendTo(debugbar).click(() => { $(ntvideo.canvas).toggle() });
-    
+
     var idata = video.getFrameData();
     nes = new jsnes.NES({
       onFrame: (frameBuffer : number[]) => {
@@ -121,31 +121,31 @@ const _JSNESPlatform = function(mainElement) {
       //TODO: onBatteryRamWrite
     });
     //nes.ppu.clipToTvSize = false;
-    nes.stop = function() {
+    nes.stop = () => {
       // TODO: trigger breakpoint
-      self.pause();
+      this.pause();
       console.log(nes.cpu.toJSON());
       throw ("CPU STOPPED @ PC $" + hex(nes.cpu.REG_PC));
     };
     // insert debug hook
     nes.cpu._emulate = nes.cpu.emulate;
-    nes.cpu.emulate = function() {
+    nes.cpu.emulate = () => {
       var cycles = nes.cpu._emulate();
       //if (self.debugCondition && !self.debugBreakState && self.debugClock < 100) console.log(self.debugClock, nes.cpu.REG_PC);
-      self.evalDebugCondition();
+      this.evalDebugCondition();
       // TODO: doesn't stop on breakpoint
       return cycles;
     }
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // set keyboard map
-    setKeyboardFromMap(video, [], JSNES_KEYCODE_MAP, function(o,key,code,flags) {
+    setKeyboardFromMap(video, [], JSNES_KEYCODE_MAP, (o,key,code,flags) => {
       if (flags & KeyFlags.KeyDown)
         nes.buttonDown(o.index+1, o.mask); // controller, button
       else if (flags & KeyFlags.KeyUp)
         nes.buttonUp(o.index+1, o.mask); // controller, button
     });
   }
-  
+
   advance(novideo : boolean) {
     try {
       nes.frame();
@@ -156,7 +156,7 @@ const _JSNESPlatform = function(mainElement) {
       this.breakpointHit(this.debugClock);
     }
   }
-  
+
   updateDebugViews() {
    // don't update if view is hidden
    if (! $(ntvideo.canvas).is(":visible"))
@@ -208,7 +208,7 @@ const _JSNESPlatform = function(mainElement) {
     return (this.readAddress(0xfffa) | (this.readAddress(0xfffb) << 8)) & 0xffff;
   }
   getDefaultExtension() { return ".c"; };
-  
+
   reset() {
     //nes.cpu.reset(); // doesn't work right, crashes
     nes.cpu.requestIrq(nes.cpu.IRQ_RESET);

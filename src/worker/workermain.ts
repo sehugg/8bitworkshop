@@ -712,6 +712,8 @@ function assembleDASM(step:BuildStep) {
       }
     } else if (s.startsWith("Warning:")) {
       errors.push({line:0, msg:s.substr(9)});
+    } else if (s.startsWith("unable ")) {
+      errors.push({line:0, msg:s});
     } else {
       errorMatcher(s);
     }
