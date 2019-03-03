@@ -4,7 +4,7 @@ import $ = require("jquery");
 //import CodeMirror = require("codemirror");
 import { CodeProject } from "./project";
 import { SourceFile, WorkerError, Segment } from "./workertypes";
-import { Platform, EmuState } from "./baseplatform";
+import { Platform, EmuState, ProfilerOutput, lookupSymbol } from "./baseplatform";
 import { hex, lpad, rpad } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
@@ -610,7 +610,7 @@ export class MemoryView implements ProjectView {
     if (compparams && this.dumplines)
       this.scrollToAddress(compparams.data_start);
   }
-  
+
   scrollToAddress(addr : number) {
     this.memorylist.scrollToItem(this.findMemoryWindowLine(addr));
   }
@@ -774,7 +774,7 @@ export class BinaryFileView implements ProjectView {
 
   refresh() {
   }
-  
+
   getPath() { return this.path; }
 }
 
@@ -789,7 +789,7 @@ export class MemoryMapView implements ProjectView {
     this.refresh();
     return this.maindiv[0];
   }
-  
+
   // TODO: overlapping segments (e.g. ROM + LC)
   addSegment(seg : Segment) {
     var offset = $('<div class="col-md-1 segment-offset"/>');
@@ -831,5 +831,84 @@ export class MemoryMapView implements ProjectView {
       }
     }
   }
-  
+
+}
+
+///
+
+export class ProfileView implements ProjectView {
+  profilelist;
+  prof : ProfilerOutput;
+  maindiv : HTMLElement;
+  symcache : {};
+
+  createDiv(parent : HTMLElement) {
+    var div = document.createElement('div');
+    div.setAttribute("class", "memdump");
+    parent.appendChild(div);
+    this.showMemoryWindow(parent, div);
+    return this.maindiv = div;
+  }
+
+  showMemoryWindow(workspace:HTMLElement, parent:HTMLElement) {
+    this.profilelist = new VirtualList({
+      w: $(workspace).width(),
+      h: $(workspace).height(),
+      itemHeight: getVisibleEditorLineHeight(),
+      totalRows: 262,
+      generatorFn: (row : number) => {
+        var s = this.getProfileLineAt(row);
+        var linediv = document.createElement("div");
+        linediv.appendChild(document.createTextNode(s));
+        return linediv;
+      }
+    });
+    $(parent).append(this.profilelist.container);
+    this.symcache = {};
+    this.tick();
+  }
+
+  getProfileLineAt(row : number) : string {
+    var s = lpad(row+': ',5);
+    if (!this.prof) return s;
+    var f = this.prof.frame;
+    if (!f) return s;
+    var l = f.lines[row];
+    if (!l) return s;
+    var lastsym = '';
+    for (var i=l.start; i<=l.end; i++) {
+      var pc = f.iptab[i];
+      var sym = this.symcache[pc];
+      if (!sym) {
+        sym = lookupSymbol(platform, pc, false);
+        this.symcache[pc] = sym;
+      }
+      if (sym != lastsym) {
+        s += sym + ' ';
+        lastsym = sym;
+      }
+    }
+    return s;
+  }
+
+  refresh() {
+    this.tick();
+  }
+
+  tick() {
+    if (this.profilelist) {
+      $(this.maindiv).find('[data-index]').each( (i,e) => {
+        var div = $(e);
+        var row = parseInt(div.attr('data-index'));
+        var oldtext = div.text();
+        var newtext = this.getProfileLineAt(row);
+        if (oldtext != newtext)
+          div.text(newtext);
+      });
+    }
+    // TODO: better way to keep it profiling? also, it clears the buffer
+    if (platform.isRunning()) {
+      this.prof = platform.startProfiling();
+    }
+  }
 }

@@ -98,6 +98,9 @@ export interface Platform {
   showHelp?(tool:string, ident?:string) : void;
   resize?() : void;
 
+  startProfiling?() : ProfilerOutput;
+  getRasterScanline?() : number;
+
   debugSymbols? : DebugSymbols;
 }
 
@@ -120,6 +123,17 @@ export type BreakpointCallback = (s:EmuState) => void;
 export interface EmuRecorder {
   frameRequested() : boolean;
   recordFrame(state : EmuState);
+}
+
+export interface ProfilerScanline {
+  start,end : number; // start/end frameindex
+}
+export interface ProfilerFrame {
+  iptab : Uint32Array; // array of IPs
+  lines : ProfilerScanline[];
+}
+export interface ProfilerOutput {
+  frame : ProfilerFrame;
 }
 
 /////
@@ -194,9 +208,30 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.advance(novideo);
     this.postFrame();
   }
+  startProfiling() : ProfilerOutput {
+    var frame = null;
+    var output = {frame:null};
+    var i = 0;
+    var lastsl = 9999;
+    var start = 0;
+    (this as any).runEval((c:CpuState) => {
+      var sl = (this as any).getRasterScanline();
+      if (sl != lastsl) {
+        if (frame) frame.lines.push({start:start,end:i});
+        if (sl < lastsl) {
+          output.frame = frame;
+          frame = {iptab:new Uint32Array(14672), lines:[]};
+          i = 0;
+        }
+        start = i+1;
+        lastsl = sl;
+      }
+      frame.iptab[i++] = c.EPC || c.PC;
+      return false; // profile forever
+    });
+    return output;
+  }
 }
-
-//////
 
 ////// 6502
 
@@ -933,7 +968,7 @@ export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], st
     var opcode = read(addr + jsrofs); // might be out of bounds
     if (opcode == jsrop) { // JSR
       s += "\n$" + hex(sp) + ": ";
-      s += hex(addr,4) + " " + lookupSymbol(platform, addr);
+      s += hex(addr,4) + " " + lookupSymbol(platform, addr, true);
       sp++;
       nraw = 0;
     } else {
@@ -946,20 +981,18 @@ export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], st
   return s+"\n";
 }
 
-export function lookupSymbol(platform:Platform, addr:number) {
+export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
   var start = addr;
-  var foundsym;
   var addr2symbol = platform.debugSymbols && platform.debugSymbols.addr2symbol;
   while (addr2symbol && addr >= 0) {
     var sym = addr2symbol[addr];
-    if (sym && sym.startsWith('_')) { // return first C symbol we find
-      return addr2symbol[addr] + " + " + (start-addr);
-    } else if (sym && !foundsym) { // cache first non-C symbol found
-      foundsym = sym;
+    if (sym) { // return first symbol we find
+      var sym = addr2symbol[addr];
+      return extra ? (sym + " + " + (start-addr)) : sym;
     }
     addr--;
   }
-  return foundsym || "";
+  return "";
 }
 
 ///// Basic Platforms
@@ -975,7 +1008,7 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
   cpuCyclesPerLine : number;
   currentScanline : number;
   startLineTstates : number;
-  
+
   cpu;
   membus : MemoryBus;
   iobus : MemoryBus;
@@ -995,12 +1028,12 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
   abstract getKeyboardMap();
   abstract startScanline(sl : number);
   abstract drawScanline(sl : number);
-  
+
   constructor(mainElement : HTMLElement) {
     super();
     this.mainElement = mainElement;
   }
-  
+
   start() {
     this.cpuCyclesPerLine = Math.round(this.cpuFrequency / 60 / this.numTotalScanlines);
     this.ram = this.newRAM();
@@ -1074,4 +1107,3 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
     this.cpu.setTstates(0);
   }
 }
-

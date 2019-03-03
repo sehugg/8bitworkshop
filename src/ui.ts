@@ -100,7 +100,12 @@ function getWithBinary(url:string, success:(text:FileData)=>void, datatype:'text
   oReq.open("GET", url, true);
   oReq.responseType = datatype;
   oReq.onload = function (oEvent) {
-    success(oReq.response);
+    if (oReq.status == 200)
+      success(oReq.response);
+    else if (oReq.status == 404)
+      success(null);
+    else
+      throw "Error " + oReq.status + " loading " + url;
   }
   oReq.send(null);
 }
@@ -208,6 +213,11 @@ function refreshWindowList() {
   if (current_project.segments) {
     addWindowItem("#memmap", "Memory Map", function() {
       return new Views.MemoryMapView();
+    });
+  }
+  if (platform.startProfiling && platform.runEval && platform.getRasterScanline) {
+    addWindowItem("#profiler", "Profiler", function() {
+      return new Views.ProfileView();
     });
   }
 }

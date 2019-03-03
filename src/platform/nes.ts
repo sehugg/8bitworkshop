@@ -1,6 +1,6 @@
 "use strict";
 
-import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString } from "../baseplatform";
+import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString, ProfilerOutput } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags } from "../emu";
 import { hex, lpad, lzgmini } from "../util";
 import { CodeAnalyzer_nes } from "../analysis";
@@ -131,9 +131,7 @@ const _JSNESPlatform = function(mainElement) {
     nes.cpu._emulate = nes.cpu.emulate;
     nes.cpu.emulate = () => {
       var cycles = nes.cpu._emulate();
-      //if (self.debugCondition && !self.debugBreakState && self.debugClock < 100) console.log(self.debugClock, nes.cpu.REG_PC);
       this.evalDebugCondition();
-      // TODO: doesn't stop on breakpoint
       return cycles;
     }
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
@@ -227,7 +225,35 @@ const _JSNESPlatform = function(mainElement) {
 
   runToVsync() {
     var frame0 = frameindex;
-    this.runEval(function(c) { return frameindex>frame0; });
+    this.runEval((c) => { return frameindex>frame0; });
+  }
+
+  getRasterScanline() : number {
+    return nes.ppu.scanline;
+  }
+  startProfiling() : ProfilerOutput {
+    var frame0 = frameindex;
+    var frame = null;
+    var output = {frame:null};
+    var i = 0;
+    var lastsl = 9999;
+    var start = 0;
+    this.runEval((c) => {
+      var sl = this.getRasterScanline();
+      if (sl != lastsl) {
+        if (frame) frame.lines.push({start:start,end:i});
+        if (sl < lastsl) {
+          output.frame = frame;
+          frame = {iptab:new Uint32Array(14672), lines:[]};
+          i = 0;
+        }
+        start = i+1;
+        lastsl = sl;
+      }
+      frame.iptab[i++] = c.EPC || c.PC;
+      return false; //frameindex>frame0; // TODO
+    });
+    return output;
   }
 
   getCPUState() {

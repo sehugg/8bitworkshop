@@ -934,8 +934,10 @@ function linkLD65(step:BuildStep) {
       var toks = s.split(" ");
       if (toks[0] == 'al') {
         let ident = toks[2].substr(1);
-        let ofs = parseInt(toks[1], 16);
-        symbolmap[ident] = ofs;
+        if (ident.length != 5 || !ident.startsWith('L')) { // no line numbers
+          let ofs = parseInt(toks[1], 16);
+          symbolmap[ident] = ofs;
+        }
       }
     }
     // build segment map
@@ -1226,7 +1228,7 @@ function linkSDLDZ80(step:BuildStep)
     var symbolmap = {};
     for (var s of noiout.split("\n")) {
       var toks = s.split(" ");
-      if (toks[0] == 'DEF' && !toks[1].startsWith("A$main$")) {
+      if (toks[0] == 'DEF' && !toks[1].startsWith("A$")) {
         symbolmap[toks[1]] = parseInt(toks[2], 16);
       }
     }

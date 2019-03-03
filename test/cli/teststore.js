@@ -76,7 +76,10 @@ describe('Store', function() {
     var platform = {};
     var project = new prj.CodeProject(worker, test_platform_id, platform, store);
     var remote = [];
-    project.callbackGetRemote = function(path) { remote.push(path); return {fail:function(failfn){failfn({status:404})}} };
+    project.callbackGetRemote = function(path, success, datatype) {
+      remote.push(path);
+      success();
+    };
     project.loadFiles(['local/test','test'], function(err, result) {
      assert.equal(null, err);
      assert.deepEqual(["presets/_TEST/test"], remote);
@@ -85,7 +88,7 @@ describe('Store', function() {
     });
    });
   });
-  
+
   it('Should build linked project', function(done) {
    localStorage.clear();
    localItems['__migrated__TEST'] = 'true';
@@ -93,7 +96,7 @@ describe('Store', function() {
    var expectmsgs = [
     true,
     { preload: 'dasm', platform: '_TEST' },
-    { 
+    {
       buildsteps: [
        { path: "test.a", platform: "_TEST", tool: "dasm", mainfile:true, files:["test.a"] },
       ],

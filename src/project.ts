@@ -209,20 +209,18 @@ export class CodeProject {
                 webpath += ".a"; // legacy stuff
               // try to GET file, use file ext to determine text/binary
               this.callbackGetRemote( webpath, (data:FileData) => {
-                if (data instanceof ArrayBuffer)
-                  data = new Uint8Array(data); // convert to typed array
-                console.log("GET",webpath,data.length,'bytes');
-                this.filedata[path] = data; // do not update store, just cache
-                addResult(path, data);
-                loadNext();
-              }, isProbablyBinary(path) ? 'arraybuffer' : 'text')
-              .fail( (err:XMLHttpRequest) => {
-                console.log("Could not load preset file", path, err.status);
-                // only cache result if status is 404 (not found)
-                if (err.status && err.status == 404)
+                if (data == null) {
+                  console.log("Could not load preset file", path);
                   this.filedata[path] = null; // mark cache entry as invalid
+                } else {
+                  if (data instanceof ArrayBuffer)
+                    data = new Uint8Array(data); // convert to typed array
+                  console.log("GET",webpath,data.length,'bytes');
+                  this.filedata[path] = data; // do not update store, just cache
+                  addResult(path, data);
+                }
                 loadNext();
-              });
+              }, isProbablyBinary(path) ? 'arraybuffer' : 'text');
             } else {
               // not gonna find it, keep going
               loadNext();
