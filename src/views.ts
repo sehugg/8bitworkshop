@@ -11,6 +11,7 @@ import { platform, platform_id, compparams, current_project, lastDebugState, pro
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
+  dispose?() : void;
   refresh(moveCursor:boolean) : void;
   tick?() : void;
   getPath?() : string;
@@ -24,6 +25,7 @@ export interface ProjectView {
   markErrors?(errors:WorkerError[]) : void;
   clearErrors?() : void;
   setTimingResult?(result:CodeAnalyzer) : void;
+  recreateOnResize? : boolean;
 };
 
 declare var CodeMirror;
@@ -34,6 +36,13 @@ function jumpToLine(ed, i:number) {
   var t = ed.charCoords({line: i, ch: 0}, "local").top;
   var middleHeight = ed.getScrollerElement().offsetHeight / 2;
   ed.scrollTo(null, t - middleHeight - 5);
+}
+
+function createTextSpan(text:string, className:string) : HTMLElement {
+  var span = document.createElement("span");
+  span.setAttribute("class", className);
+  span.appendChild(document.createTextNode(text));
+  return span;
 }
 
 // TODO: https://stackoverflow.com/questions/10463518/converting-em-to-px-in-javascript-and-getting-default-font-size
@@ -119,9 +128,7 @@ export class SourceEditor implements ProjectView {
       this.inspectWidget = null;
     }
     if (result) {
-      var infospan = document.createElement("span");
-      infospan.setAttribute("class", "tooltipinfoline");
-      infospan.appendChild(document.createTextNode(result));
+      var infospan = createTextSpan(result, "tooltipinfoline");
       var line = this.editor.getCursor().line;
       this.inspectWidget = this.editor.addLineWidget(line, infospan, {above:false});
     }
@@ -156,9 +163,7 @@ export class SourceEditor implements ProjectView {
   }
 
   addErrorLine(line:number, msg:string) {
-    var errspan = document.createElement("span");
-    errspan.setAttribute("class", "tooltiperrorline");
-    errspan.appendChild(document.createTextNode(msg));
+    var errspan = createTextSpan(msg, "tooltiperrorline");
     this.errorwidgets.push(this.editor.addLineWidget(line, errspan));
   }
 
@@ -547,7 +552,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
     var asmtext = this.assemblyfile.text;
     var disasmview = this.getDisasmView();
     disasmview.setValue(asmtext);
-    var debugging = platform.isDebugging && platform.isDebugging();
+    var debugging = true; // TODO: platform.isDebugging && platform.isDebugging();
     var findPC = debugging ? pc : -1;
     if (findPC >= 0 && this.assemblyfile) {
       var lineno = this.assemblyfile.findLineForOffset(findPC, 15);
@@ -570,6 +575,7 @@ export class MemoryView implements ProjectView {
   dumplines;
   maindiv : HTMLElement;
   static IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
+  recreateOnResize = true;
   /*
   read(addr:number) {
     // TODO: b offset ?
@@ -727,6 +733,7 @@ export class BinaryFileView implements ProjectView {
   maindiv : HTMLElement;
   path:string;
   data:Uint8Array;
+  recreateOnResize = true;
 
   constructor(path:string, data:Uint8Array) {
     this.path = path;
@@ -841,10 +848,11 @@ export class ProfileView implements ProjectView {
   prof : ProfilerOutput;
   maindiv : HTMLElement;
   symcache : {};
+  recreateOnResize = true;
 
   createDiv(parent : HTMLElement) {
     var div = document.createElement('div');
-    div.setAttribute("class", "memdump");
+    div.setAttribute("class", "profiler");
     parent.appendChild(div);
     this.showMemoryWindow(parent, div);
     return this.maindiv = div;
@@ -857,9 +865,8 @@ export class ProfileView implements ProjectView {
       itemHeight: getVisibleEditorLineHeight(),
       totalRows: 262,
       generatorFn: (row : number) => {
-        var s = this.getProfileLineAt(row);
         var linediv = document.createElement("div");
-        linediv.appendChild(document.createTextNode(s));
+        this.addProfileLine(linediv, row);
         return linediv;
       }
     });
@@ -868,13 +875,13 @@ export class ProfileView implements ProjectView {
     this.tick();
   }
 
-  getProfileLineAt(row : number) : string {
-    var s = lpad(row+': ',5);
-    if (!this.prof) return s;
+  addProfileLine(div : HTMLElement, row : number) : void {
+    div.appendChild(createTextSpan(lpad(row+':',4), "profiler-lineno"));
+    if (!this.prof) return;
     var f = this.prof.frame;
-    if (!f) return s;
+    if (!f) return;
     var l = f.lines[row];
-    if (!l) return s;
+    if (!l) return;
     var lastsym = '';
     for (var i=l.start; i<=l.end; i++) {
       var pc = f.iptab[i];
@@ -884,11 +891,14 @@ export class ProfileView implements ProjectView {
         this.symcache[pc] = sym;
       }
       if (sym != lastsym) {
-        s += sym + ' ';
+        var cls = "profiler";
+        if (sym.startsWith('_')) cls = "profiler-cident";
+        else if (sym.startsWith('@')) cls = "profiler-local";
+        else if (/^\d*[.]/.exec(sym)) cls = "profiler-local";
+        div.appendChild(createTextSpan(' '+sym, cls));
         lastsym = sym;
       }
     }
-    return s;
   }
 
   refresh() {
@@ -900,15 +910,17 @@ export class ProfileView implements ProjectView {
       $(this.maindiv).find('[data-index]').each( (i,e) => {
         var div = $(e);
         var row = parseInt(div.attr('data-index'));
-        var oldtext = div.text();
-        var newtext = this.getProfileLineAt(row);
-        if (oldtext != newtext)
-          div.text(newtext);
+        div.empty();
+        this.addProfileLine(div[0], row);
       });
     }
-    // TODO: better way to keep it profiling? also, it clears the buffer
-    if (platform.isRunning()) {
+    // TODO: better way to keep it profiling single-frame? also, it clears the buffer
+    if (platform.isRunning() /* && !platform.isDebugging()*/ ) {
       this.prof = platform.startProfiling();
     }
+  }
+
+  dispose() : void {
+    platform.clearDebug();
   }
 }

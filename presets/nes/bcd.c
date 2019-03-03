@@ -9,7 +9,7 @@ word bcd_add(word a, word b) {
     byte d = (a & 0xf) + (b & 0xf) + c;
     c = 0;
     while (d >= 10) {
-      c++;
+      ++c;
       d -= 10;
     }
     result |= d << shift;

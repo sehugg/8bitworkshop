@@ -82,8 +82,9 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
       <li class="dropdown dropdown-submenu">
         <a tabindex="-1" href="#">Share</a>
         <ul class="dropdown-menu">
-          <li><a class="dropdown-item" href="#" id="item_record_video">Record Video...</a></li>
+          <li><a class="dropdown-item" href="#" id="item_share_github">Share File on Github...</a></li>
           <li><a class="dropdown-item" href="#" id="item_share_file">Share Playable Link...</a></li>
+          <li><a class="dropdown-item" href="#" id="item_record_video">Record Video...</a></li>
           <li><a class="dropdown-item" href="#" id="item_export_cassette">Make Cassette Audio...</a></li>
         </ul>
       </li>
@@ -178,7 +179,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
   <span id="verilog_bar" style="display:none">
     <span class="label"><span id="settle_label"></span> evals/clk</span>
   </span>
-  
+
   <span class="dropdown" style="float:right">
     <span class="logo-gradient hidden-xs hidden-sm">8bitworkshop</span>
     &nbsp;
@@ -287,6 +288,31 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
       </div>
       <div class="modal-footer">
         Choose one (or none) then
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="embedGistModal" class="modal fade">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Share Code on Github</h3>
+      </div>
+      <div class="modal-body">
+        <p>If you have a Github account, you can share your code as a Github gist.</p>
+        <ul>
+          <li>Make sure the correct platform is selected.
+          <li>Go to <a href="https://gist.github.com/" target="_8bitgist">gist.github.com</a>
+          <li>Create a gist with your source code.
+          <li>Paste the final gist URL below.
+        </ul>
+        <textarea rows="2" cols="100" id="embedGistURL" class="cliptext"></textarea>
+        <p>The shareable URL will appear here:</p>
+        <textarea rows="2" cols="100" id="embedGistShareURL" class="cliptext"></textarea><br>
+        <button type="button" class="btn btn-primary" data-clipboard-target="#embedGistShareURL">Copy Shareable Link</button>
+      </div>
+      <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
       </div>
     </div>

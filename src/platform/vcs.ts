@@ -153,6 +153,7 @@ class VCSPlatform extends BasePlatform {
     Javatari.room.speaker.mute();
   }
   isDebugging() : boolean {
+    // TODO: always true
     return Javatari.room.console.onBreakpointHit != null;
   }
   clearDebug() {

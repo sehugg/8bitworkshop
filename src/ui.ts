@@ -354,28 +354,24 @@ function getCurrentEditorFilename() : string {
 }
 
 function _shareFileAsGist(e) {
- loadScript("octokat.js/dist/octokat.js", () => {
-  if (current_output == null) { // TODO
-    alert("Please fix errors before sharing.");
-    return true;
-  }
-  var text = projectWindows.getCurrentText();
-  if (!text) return false;
-  var github = new exports['Octokat']();
-  var files = {};
-  files[getCurrentEditorFilename()] = {"content": text};
-  var gistdata = {
-    "description": '8bitworkshop.com {"platform":"' + platform_id + '"}',
-    "public": true,
-    "files": files
-  };
-  var gist = github.gists.create(gistdata).done(function(val) {
-    var url = "http://8bitworkshop.com/?gistkey=" + val.id;
-    window.prompt("Copy link to clipboard (Ctrl+C, Enter)", url);
-  }).fail(function(err) {
-    alert("Error sharing file: " + err.message);
+  var gisturl_ta = $("#embedGistURL");
+  var shareurl_ta = $("#embedGistShareURL");
+  loadClipboardLibrary();
+  gisturl_ta.change(() => {
+    var gisturl = gisturl_ta.val() + '';
+    var pos = gisturl.lastIndexOf('/');
+    if (pos >= 0) {
+      var gistkey = gisturl.substring(pos+1);
+      var embed = {
+        platform: platform_id,
+        gistkey: gistkey
+      };
+      var linkqs = $.param(embed);
+      var fulllink = get8bitworkshopLink(linkqs, 'redir.html');
+      shareurl_ta.val(fulllink);
+    }
   });
- });
+  $("#embedGistModal").modal('show');
 }
 
 function _shareEmbedLink(e) {
@@ -387,10 +383,7 @@ function _shareEmbedLink(e) {
     alert("Can't share a Verilog executable yet. (It's not actually a ROM...)");
     return true;
   }
-  loadScript('lib/clipboard.min.js', () => {
-    var ClipboardJS = exports['ClipboardJS'];
-    new ClipboardJS(".btn");
-  });
+  loadClipboardLibrary();
   loadScript('lib/liblzg.js', () => {
     // TODO: Module is bad var name (conflicts with MAME)
     var lzgrom = compressLZG( window['Module'], Array.from(<Uint8Array>current_output) );
@@ -402,11 +395,7 @@ function _shareEmbedLink(e) {
       r: lzgb64
     };
     var linkqs = $.param(embed);
-    console.log(linkqs);
-    var loc = window.location;
-    var prefix = loc.pathname.replace('index.html','');
-    var protocol = (loc.host == '8bitworkshop.com') ? 'https:' : loc.protocol;
-    var fulllink = protocol+'//'+loc.host+prefix+'embed.html?' + linkqs;
+    var fulllink = get8bitworkshopLink(linkqs, 'embed.html');
     var iframelink = '<iframe width=640 height=600 src="' + fulllink + '">';
     $("#embedLinkTextarea").text(fulllink);
     $("#embedIframeTextarea").text(iframelink);
@@ -417,6 +406,22 @@ function _shareEmbedLink(e) {
     else if (fulllink.length >= 5120) $("#embedAdviceWarnIE").show();
   });
   return true;
+}
+
+function loadClipboardLibrary() {
+  loadScript('lib/clipboard.min.js', () => {
+    var ClipboardJS = exports['ClipboardJS'];
+    new ClipboardJS(".btn");
+  });
+}
+
+function get8bitworkshopLink(linkqs : string, fn : string) {
+  console.log(linkqs);
+  var loc = window.location;
+  var prefix = loc.pathname.replace('index.html','');
+  var protocol = (loc.host == '8bitworkshop.com') ? 'https:' : loc.protocol;
+  var fulllink = protocol+'//'+loc.host+prefix+fn+'?' + linkqs;
+  return fulllink;
 }
 
 function _downloadCassetteFile(e) {
@@ -860,9 +865,15 @@ function getSymbolAtAddress(a : number) {
   return '';
 }
 
+var debugTickPaused = false;
+
 function updateDebugWindows() {
   if (platform.isRunning()) {
     projectWindows.tick();
+    debugTickPaused = false;
+  } else if (!debugTickPaused) { // final tick after pausing
+    projectWindows.tick();
+    debugTickPaused = true;
   }
   setTimeout(updateDebugWindows, 200);
 }
@@ -1094,6 +1105,7 @@ function setupDebugControls(){
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);
+  $("#item_share_github").click(_shareFileAsGist);
   $("#item_share_file").click(_shareEmbedLink);
   $("#item_reset_file").click(_revertFile);
   $("#item_rename_file").click(_renameFile);
@@ -1385,14 +1397,15 @@ function loadScript(scriptfn, onload) {
 export function setupSplits() {
   const splitName = 'workspace-split3-' + platform_id;
   var sizes = [0, 50, 50];
+  if (platform_id != 'vcs') // TODO
+    sizes = [12, 44, 44];
   var sizesStr = hasLocalStorage && localStorage.getItem(splitName);
   if (sizesStr) {
     try {
       sizes = JSON.parse(sizesStr);
     } catch (e) { console.log(e); }
   }
-  var split;
-  split = Split(['#sidebar', '#workspace', '#emulator'], {
+  var split = Split(['#sidebar', '#workspace', '#emulator'], {
     sizes: sizes,
     minSize: [0, 250, 250],
     onDrag: () => {
@@ -1401,6 +1414,7 @@ export function setupSplits() {
     onDragEnd: () => {
       if (hasLocalStorage)
         localStorage.setItem(splitName, JSON.stringify(split.getSizes()))
+      projectWindows.resize();
     },
   });
 }

@@ -431,3 +431,20 @@ div.markdown th {
  height:100%;
  overflow-y:auto;
 }
+div.profiler {
+  background-color: #333;
+  color: #ddd;
+  white-space: pre;
+  margin-top: 20px auto 0;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+  font-size: 10pt;
+}
+span.profiler-lineno {
+  color: #fff;
+}
+span.profiler-local {
+  color: #999;
+}
+span.profiler-cident {
+  color: #99ffff;
+}

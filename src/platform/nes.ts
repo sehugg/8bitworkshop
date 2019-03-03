@@ -231,30 +231,6 @@ const _JSNESPlatform = function(mainElement) {
   getRasterScanline() : number {
     return nes.ppu.scanline;
   }
-  startProfiling() : ProfilerOutput {
-    var frame0 = frameindex;
-    var frame = null;
-    var output = {frame:null};
-    var i = 0;
-    var lastsl = 9999;
-    var start = 0;
-    this.runEval((c) => {
-      var sl = this.getRasterScanline();
-      if (sl != lastsl) {
-        if (frame) frame.lines.push({start:start,end:i});
-        if (sl < lastsl) {
-          output.frame = frame;
-          frame = {iptab:new Uint32Array(14672), lines:[]};
-          i = 0;
-        }
-        start = i+1;
-        lastsl = sl;
-      }
-      frame.iptab[i++] = c.EPC || c.PC;
-      return false; //frameindex>frame0; // TODO
-    });
-    return output;
-  }
 
   getCPUState() {
     var c = nes.cpu.toJSON();

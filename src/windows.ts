@@ -10,7 +10,6 @@ type WindowCreateFunction = (id:string) => ProjectView;
 export class ProjectWindows {
   containerdiv:HTMLElement;
   project:CodeProject;
-
   id2window : {[id:string]:ProjectView} = {};
   id2createfn : {[id:string]:WindowCreateFunction} = {};
   id2div : {[id:string]:HTMLElement} = {};
@@ -18,17 +17,17 @@ export class ProjectWindows {
   activewnd : ProjectView;
   activediv : HTMLElement;
   lasterrors : WorkerError[];
-  
+
   constructor(containerdiv:HTMLElement, project:CodeProject) {
     this.containerdiv = containerdiv;
     this.project = project;
   }
   // TODO: delete windows ever?
-  
+
   setCreateFunc(id:string, createfn:WindowCreateFunction) : void {
     this.id2createfn[id] = createfn;
   }
-  
+
   createOrShow(id:string) : ProjectView {
     var wnd = this.id2window[id];
     if (!wnd) {
@@ -42,6 +41,8 @@ export class ProjectWindows {
     if (this.activewnd != wnd) {
       if (this.activediv)
         $(this.activediv).hide();
+      if (this.activewnd && this.activewnd.dispose)
+        this.activewnd.dispose();
       this.activediv = div;
       this.activewnd = wnd;
       $(div).show();
@@ -55,13 +56,13 @@ export class ProjectWindows {
   put(id:string, window:ProjectView) : void {
     this.id2window[id] = window;
   }
-  
+
   refresh(moveCursor:boolean) : void {
     // refresh current window
     if (this.activewnd && this.activewnd.refresh)
       this.activewnd.refresh(moveCursor);
   }
-  
+
   tick() : void {
     if (this.activewnd && this.activewnd.tick)
       this.activewnd.tick();
@@ -71,7 +72,7 @@ export class ProjectWindows {
     this.lasterrors = errors;
     this.refreshErrors();
   }
-  
+
   refreshErrors() : void {
     if (this.activewnd && this.activewnd.markErrors) {
       if (this.lasterrors && this.lasterrors.length)
@@ -80,9 +81,9 @@ export class ProjectWindows {
         this.activewnd.clearErrors();
     }
   }
-  
+
   getActive() : ProjectView { return this.activewnd; }
-  
+
   getActiveID() : string { return this.activeid; }
 
   getCurrentText() : string {
@@ -91,5 +92,13 @@ export class ProjectWindows {
     else
       alert("Please switch to an editor window.");
   }
-};
 
+  resize() : void {
+    if (this.activeid && this.activewnd && this.activewnd.recreateOnResize) {
+      this.activewnd = null;
+      this.id2window[this.activeid] = null;
+      this.id2div[this.activeid] = null;
+      this.createOrShow(this.activeid);
+    }
+  }
+};

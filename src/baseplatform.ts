@@ -157,6 +157,31 @@ export abstract class BasePlatform {
       this.recorder.recordFrame(this.saveState());
     }
   }
+  startProfiling() : ProfilerOutput {
+    var frame = null;
+    var output = {frame:null};
+    var i = 0;
+    var lastsl = 9999;
+    var start = 0;
+    (this as any).runEval((c:CpuState) => {
+      var sl = (this as any).getRasterScanline();
+      if (sl != lastsl) {
+        if (frame) {
+          frame.lines.push({start:start,end:i-1});
+        }
+        if (sl < lastsl) {
+          output.frame = frame;
+          frame = {iptab:new Uint32Array(0x8000), lines:[]}; // TODO: const
+          i = 0;
+        }
+        start = i;
+        lastsl = sl;
+      }
+      frame.iptab[i++] = c.EPC || c.PC;
+      return false; // profile forever
+    });
+    return output;
+  }
 }
 
 export abstract class BaseDebugPlatform extends BasePlatform {
@@ -207,29 +232,6 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.preFrame();
     this.advance(novideo);
     this.postFrame();
-  }
-  startProfiling() : ProfilerOutput {
-    var frame = null;
-    var output = {frame:null};
-    var i = 0;
-    var lastsl = 9999;
-    var start = 0;
-    (this as any).runEval((c:CpuState) => {
-      var sl = (this as any).getRasterScanline();
-      if (sl != lastsl) {
-        if (frame) frame.lines.push({start:start,end:i});
-        if (sl < lastsl) {
-          output.frame = frame;
-          frame = {iptab:new Uint32Array(14672), lines:[]};
-          i = 0;
-        }
-        start = i+1;
-        lastsl = sl;
-      }
-      frame.iptab[i++] = c.EPC || c.PC;
-      return false; // profile forever
-    });
-    return output;
   }
 }
 
@@ -1028,6 +1030,7 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
   abstract getKeyboardMap();
   abstract startScanline(sl : number);
   abstract drawScanline(sl : number);
+  getRasterScanline() { return this.currentScanline; }
 
   constructor(mainElement : HTMLElement) {
     super();
