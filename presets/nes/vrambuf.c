@@ -2,14 +2,8 @@
 #include "neslib.h"
 #include "vrambuf.h"
 
-#pragma bss-name(push,"ZEROPAGE")
-#pragma data-name(push,"ZEROPAGE")
-
 // index to end of buffer
 byte updptr = 0;
-
-#pragma bss-name(pop)
-#pragma data-name(pop)
 
 // add EOF marker to buffer
 void cendbuf(void) {
@@ -35,13 +29,18 @@ void cflushnow(void) {
 // add multiple characters to update buffer
 // using horizontal increment
 void putbytes(word addr, const char* str, byte len) {
+  // if bytes won't fit, wait for vsync and flush buffer
   if (updptr >= VBUFSIZE-4-len) cflushnow();
+  // add vram address
   updbuf[updptr] = (addr >> 8) ^ NT_UPD_HORZ;
   updbuf[++updptr] = addr & 0xff;
+  // add length
   updbuf[++updptr] = len;
+  // add bytes
   while (len--) {
     	updbuf[++updptr] = *str++;
   }
   ++updptr;
+  // add EOF mark
   cendbuf();
 }

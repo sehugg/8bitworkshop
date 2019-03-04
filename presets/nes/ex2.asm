@@ -10,7 +10,7 @@ ScrollPos	word	; used during NMI
 
 ;;;;; NES CARTRIDGE HEADER
 
-	NES_HEADER 0,2,1,1 ; mapper 0, 2 PRGs, 1 CHR, horiz. mirror
+	NES_HEADER 0,2,1,1 ; mapper 0, 2 PRGs, 1 CHR, vert. mirror
 
 ;;;;; START OF CODE
 
@@ -54,6 +54,7 @@ FillVRAM: subroutine
 ; set palette colors
 SetPalette: subroutine
 	PPU_SETADDR $3f00
+        ldy #0
 .loop:
 	lda Palette,y	; lookup byte in ROM
 	sta PPU_DATA	; store byte to PPU data

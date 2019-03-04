@@ -42,7 +42,6 @@ typedef unsigned short word;	// 16-bit signed
 typedef enum { false, true } bool;	// boolean
 
 
-
 // set bg and spr palettes, data is 32 bytes array
 void __fastcall__ pal_all(const char *data);
 
@@ -308,6 +307,17 @@ void __fastcall__ nmi_set_callback(void (*callback)(void));
 
 #define MSB(x)			(((x)>>8))
 #define LSB(x)			(((x)&0xff))
+
+// OAM buffer @ $200-$2FF
+
+typedef struct OAMSprite {
+  byte y;	// Y coordinate
+  byte name;	// tile index in name table
+  byte attr;	// attribute flags
+  byte x;	// X coordinate
+} OAMSprite;
+
+#define OAMBUF			((OAMSprite*) 0x200)
 
 #endif /* neslib.h */
 

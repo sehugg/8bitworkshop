@@ -38,8 +38,9 @@ Start:
 
 ; fill video RAM
 FillVRAM: subroutine
-	PPU_SETADDR	$2000
+	PPU_SETADDR $2000
 	ldy #$10
+        ldx #0
 .loop:
 	stx PPU_DATA
 	inx
@@ -49,17 +50,16 @@ FillVRAM: subroutine
         rts
 
 ; set palette colors
-
 SetPalette: subroutine
-	PPU_SETADDR	$3f00
-	ldx #32
+	PPU_SETADDR $3f00
+        ldy #0
 .loop:
-	lda Palette,y
-	sta PPU_DATA
-        iny
-	dex
-	bne .loop
-        rts
+	lda Palette,y	; lookup byte in ROM
+	sta PPU_DATA	; store byte to PPU data
+        iny		; Y = Y + 1
+        cpy #32		; is Y equal to 32?
+	bne .loop	; not yet, loop
+        rts		; return to caller
 
 
 ;;;;; COMMON SUBROUTINES

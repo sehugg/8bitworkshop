@@ -38,7 +38,7 @@ Start:
 ; fill video RAM with "Hello World" msg
 HelloVRAM: subroutine
 ; set PPU address to name table A (row 1, col 1)
-	PPU_SETADDR	$2021
+	PPU_SETADDR $2021
 	ldy #0		; set Y counter to 0
 .loop:
 	lda HelloMsg,y	; get next character
@@ -57,7 +57,8 @@ HelloMsg:
 ; set palette colors
 SetPalette: subroutine
 ; set PPU address to palette start
-	PPU_SETADDR	$3f00
+	PPU_SETADDR $3f00
+        ldy #0
 .loop:
 	lda Palette,y	; lookup byte in ROM
 	sta PPU_DATA	; store byte to PPU data

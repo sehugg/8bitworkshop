@@ -78,10 +78,6 @@ byte rndint(byte a, byte b) {
   return (rand() % (b-a)) + a;
 }
 
-///// OAM buffer (for sprites)
-
-#define OAMBUF ((unsigned char*) 0x200)
-
 // return nametable address for tile (x,y)
 // assuming vertical scrolling (horiz. mirroring)
 word getntaddr(byte x, byte y) {
@@ -397,6 +393,7 @@ void create_actors_on_floor(byte floor_index) {
     if (floor_index == MAX_FLOORS-1) {
       a->name = ACTOR_RESCUE;
       a->state = PACING;
+      a->x = 0;
     }
   }
 }
@@ -439,14 +436,15 @@ byte draw_actor(byte oam_id, byte i) {
   x = a->x;
   y = screen_y;
   oam_id = oam_meta_spr(x, y, oam_id, meta);
-  // actor 0 is player sprite
+  // is this actor 0? (player sprite)
   if (i == 0) {
     player_screen_y = y; // last screen Y position
-    // set special palette for player sprites
-    OAMBUF[0+2] |= 3;
-    OAMBUF[4+2] |= 3;
-    OAMBUF[8+2] |= 3;
-    OAMBUF[12+2] |= 3;
+    // set special palette for the player's sprites
+    // directly in OAM buffer
+    OAMBUF[0].attr |= 3;
+    OAMBUF[1].attr |= 3;
+    OAMBUF[2].attr |= 3;
+    OAMBUF[3].attr |= 3;
   }
   a->onscreen = 1;
   return oam_id;

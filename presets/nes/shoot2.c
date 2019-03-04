@@ -692,25 +692,19 @@ void set_sounds() {
   APU_ENABLE(enable);
 }
 
-static char starx[32];	// array of star X coords
-static byte starofs;	// Y offset of all stars
-
 void init_stars() {
+  byte oamid = 0; // 32 slots = 128 bytes
   byte i;
-  for (i=0; i<sizeof(starx); i++) {
-    starx[i] = rand();
+  for (i=0; i<32; i++) {
+    oamid = oam_spr(rand(), i*8, 103+(i&3), 0, oamid);
   }
 }
 
 void draw_stars() {
   byte i;
-  byte oamid = 0; // 32 slots = 128 bytes
-  byte yofs = starofs;
   for (i=0; i<32; i++) {
-    oamid = oam_spr(starx[i], yofs, 102+(i&3), 0, oamid);
-    yofs += 8; // 32*8 = 256, wraps around
+    ++OAMBUF[i].y;
   }
-  starofs++;
 }
 
 void play_round() {
@@ -812,13 +806,13 @@ void setup_graphics() {
 void main() {  
   setup_graphics();
   apu_init();
-  init_stars();
   player_score = 0;
   while (1) {
     pal_all(PALETTE);
     oam_clear();
     oam_size(1); // 8x16 sprites
     clrscr();
+    init_stars();
     play_round();
   }
 }

@@ -92,9 +92,6 @@ char actor_y[NUM_ACTORS];
 char actor_dx[NUM_ACTORS];
 char actor_dy[NUM_ACTORS];
 
-// OAM buffer pointer, in case we want to manipulate directly
-#define OAMBUF ((unsigned char*) 0x200)
-
 // main program
 void main() {
   char i;
@@ -138,6 +135,11 @@ void main() {
       actor_x[i] += actor_dx[i];
       actor_y[i] += actor_dy[i];
     }
+    // set sprites 0-3 palette directly in OAM buffer
+    OAMBUF[0].attr |= 3;
+    OAMBUF[1].attr |= 3;
+    OAMBUF[2].attr |= 3;
+    OAMBUF[3].attr |= 3;
     // hide rest of sprites
     // if we haven't wrapped oam_id around to 0
     if (oam_id!=0) oam_hide_rest(oam_id);

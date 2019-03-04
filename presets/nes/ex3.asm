@@ -45,6 +45,7 @@ Start:
 FillVRAM: subroutine
 	PPU_SETADDR $2000
 	ldy #$10
+        ldx #0
 .loop:
 	stx PPU_DATA	; X -> PPU data port
 	inx		; X = X + 1
@@ -83,6 +84,7 @@ MoveSprites: subroutine
 ; set palette colors
 SetPalette: subroutine
 	PPU_SETADDR $3f00
+        ldy #0
 .loop:
 	lda Palette,y	; lookup byte in ROM
 	sta PPU_DATA	; store byte to PPU data

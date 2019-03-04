@@ -96,6 +96,7 @@ TODO:
 - open ROM from URL?
 - NES: disassembly not aligned on PC
 - NES: vrambuf.c for Solarian
+- game starts even if switched away before first load
 
 
 WEB WORKER FORMAT
