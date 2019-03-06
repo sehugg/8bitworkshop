@@ -98,6 +98,10 @@ void main() {
   char oam_id;
   char pad; // controller flags
   
+  // print instructions
+  vram_adr(NTADR_A(2,2));
+  vram_write("\x1c\x1d\x1e\x1f to move metasprite", 24);
+  // setup graphics
   setup_graphics();
   // initialize actors with random values
   for (i=0; i<NUM_ACTORS; i++) {

@@ -744,14 +744,14 @@ void play_round() {
     } else {
       switch (framecount & 3) {
         case 1: animate_enemy_explosion(); // continue...
-        case 3: does_missile_hit_player(); break;
-        case 2: draw_stars(); break;
+        case 2: does_missile_hit_player(); break;
+        case 3: draw_stars(); break;
       }
       set_sounds();
       if (!enemies_left) end_timer--;
       draw_next_row();
     }
-    //cflushnow();
+    cflushnow();
     copy_sprites();
 #ifdef DEBUG_FRAMERATE
     putchar(t0 & 31, 27, CHAR(' '));

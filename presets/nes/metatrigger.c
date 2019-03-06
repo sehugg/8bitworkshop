@@ -99,6 +99,14 @@ void main() {
   char pad; // controller flags
   char vbright = 4;
   
+  // print instructions
+  vram_adr(NTADR_A(2,2));
+  vram_write("Press A/B to dec/inc", 20);
+  vram_adr(NTADR_A(2,3));
+  vram_write("virtual bright level", 20);
+  vram_adr(NTADR_A(2,5));
+  vram_write("\x1e \x1f uses pad_trigger()", 22);
+  // setup graphics
   setup_graphics();
   // initialize actors with random values
   for (i=0; i<NUM_ACTORS; i++) {
@@ -135,11 +143,11 @@ void main() {
       actor_x[i] += actor_dx[i];
       actor_y[i] += actor_dy[i];
     }
-    // set sprites 0-3 palette directly in OAM buffer
-    OAMBUF[0].attr |= 3;
-    OAMBUF[1].attr |= 3;
-    OAMBUF[2].attr |= 3;
-    OAMBUF[3].attr |= 3;
+    // set sprites 0-3 attribute byte directly in OAM buffer
+    OAMBUF[0].attr |= 3 | OAM_BEHIND;
+    OAMBUF[1].attr |= 3 | OAM_BEHIND;
+    OAMBUF[2].attr |= 3 | OAM_BEHIND;
+    OAMBUF[3].attr |= 3 | OAM_BEHIND;
     // hide rest of sprites
     // if we haven't wrapped oam_id around to 0
     if (oam_id!=0) oam_hide_rest(oam_id);

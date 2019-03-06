@@ -97,6 +97,7 @@ void main() {
   char i;
   char oam_id;
   
+  // setup graphics
   setup_graphics();
   // initialize actors with random values
   for (i=0; i<NUM_ACTORS; i++) {
