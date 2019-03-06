@@ -13,22 +13,27 @@
 // index to end of buffer
 extern byte updptr;
 
-// macros
+// macro to add a multibyte header
 #define VRAMBUF_PUT(addr,len,flags)\
-  updbuf[updptr++] = ((addr) >> 8) | (flags);\
-  updbuf[updptr++] = (addr) & 0xff;\
-  updbuf[updptr++] = (len);
+  VRAMBUF_ADD(((addr) >> 8) | (flags));\
+  VRAMBUF_ADD(addr);\
+  VRAMBUF_ADD(len);
 
+// macro to add a single byte to buffer
 #define VRAMBUF_ADD(b)\
-  updbuf[updptr++] = (b);
+  __A__ = (b);\
+  asm("ldy %v", updptr);\
+  asm("sta $100,y");\
+  asm("inc %v", updptr);
 
-// add EOF marker to buffer
+// add EOF marker to buffer (but don't increment pointer)
 void cendbuf(void);
 
-// clear update buffer
+// clear vram buffer and place EOF marker
 void cclearbuf(void);
 
-// flush buffer now, waiting for next frame
+// wait for next frame, then clear buffer
+// this assumes the NMI will call flush_vram_update()
 void cflushnow(void);
 
 // add multiple characters to update buffer

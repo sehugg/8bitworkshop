@@ -24,7 +24,7 @@ const JSNES_PRESETS = [
   {id:'metatrigger.c', name:'Trigger Mode + Vbright'},
   {id:'neslib5.c', name:'RLE Unpack'},
   {id:'statusbar.c', name:'Split Status Bar'},
-  {id:'horizmask.c', name:'Horizontal Scrolling'},
+  {id:'horizmask.c', name:'Offscreen Scrolling'},
   {id:'music.c', name:'Music Player'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot2.c', name:'Solarian Game'},

@@ -696,7 +696,7 @@ void init_stars() {
   byte oamid = 0; // 32 slots = 128 bytes
   byte i;
   for (i=0; i<32; i++) {
-    oamid = oam_spr(rand(), i*8, 103+(i&3), 0, oamid);
+    oamid = oam_spr(rand(), i*8, 103+(i&3), 0|OAM_BEHIND, oamid);
   }
 }
 
