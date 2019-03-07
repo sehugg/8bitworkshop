@@ -140,17 +140,17 @@ GetBCDBitmap subroutine
 	org $FF00
 
 ; Bitmap pattern for digits
-DigitsBitmap ;;{w:8,h:6,count:10,brev:1};;
-        .byte $EE,$AA,$AA,$AA,$EE,$00
-        .byte $22,$22,$22,$22,$22,$00
-        .byte $EE,$22,$EE,$88,$EE,$00
-        .byte $EE,$22,$66,$22,$EE,$00
-        .byte $AA,$AA,$EE,$22,$22,$00
-        .byte $EE,$88,$EE,$22,$EE,$00
-        .byte $EE,$88,$EE,$AA,$EE,$00
-        .byte $EE,$22,$22,$22,$22,$00
-        .byte $EE,$AA,$EE,$AA,$EE,$00
-        .byte $EE,$AA,$EE,$22,$EE,$00
+DigitsBitmap ;;{w:8,h:5,count:10,brev:1};;
+        .byte $EE,$AA,$AA,$AA,$EE
+        .byte $22,$22,$22,$22,$22
+        .byte $EE,$22,$EE,$88,$EE
+        .byte $EE,$22,$66,$22,$EE
+        .byte $AA,$AA,$EE,$22,$22
+        .byte $EE,$88,$EE,$22,$EE
+        .byte $EE,$88,$EE,$AA,$EE
+        .byte $EE,$22,$22,$22,$22
+        .byte $EE,$AA,$EE,$AA,$EE
+        .byte $EE,$AA,$EE,$22,$EE
         
 ; Epilogue
 	org $fffc
