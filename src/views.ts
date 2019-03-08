@@ -11,7 +11,7 @@ import { platform, platform_id, compparams, current_project, lastDebugState, pro
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
-  dispose?() : void;
+  setVisible?(showing : boolean) : void;
   refresh(moveCursor:boolean) : void;
   tick?() : void;
   getPath?() : string;
@@ -914,13 +914,12 @@ export class ProfileView implements ProjectView {
         this.addProfileLine(div[0], row);
       });
     }
-    // TODO: better way to keep it profiling single-frame? also, it clears the buffer
-    if (platform.isRunning() /* && !platform.isDebugging()*/ ) {
-      this.prof = platform.startProfiling();
-    }
   }
 
-  dispose() : void {
-    platform.clearDebug();
+  setVisible(showing : boolean) : void {
+    if (showing)
+      this.prof = platform.startProfiling();
+    else
+      platform.stopProfiling();
   }
 }

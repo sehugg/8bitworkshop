@@ -42,12 +42,13 @@ export type SymbolMap = {[ident:string]:number};
 export type AddrSymbolMap = {[address:number]:string};
 
 export class DebugSymbols {
-  symbolmap : SymbolMap;				// symbol -> address
+  symbolmap : SymbolMap;	// symbol -> address
   addr2symbol : AddrSymbolMap;	// address -> symbol
 
   constructor(symbolmap : SymbolMap) {
     this.symbolmap = symbolmap;
     this.addr2symbol = invertMap(symbolmap);
+    // TODO: shouldn't be necc.
     if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = '__START__'; // needed for ...
     this.addr2symbol[0x10000] = '__END__'; // ... dump memory to work
   }
@@ -75,8 +76,7 @@ export interface Platform {
   setFrameRate?(fps:number) : void;
   getFrameRate?() : number;
 
-  isDebugging() : boolean;
-  setupDebug?(debugfn : (state)=>void) : void;
+  setupDebug?(callback : BreakpointCallback) : void;
   clearDebug?() : void;
   step?() : void;
   runToVsync?() : void;
@@ -99,6 +99,7 @@ export interface Platform {
   resize?() : void;
 
   startProfiling?() : ProfilerOutput;
+  stopProfiling?() : void;
   getRasterScanline?() : number;
 
   debugSymbols? : DebugSymbols;
@@ -119,6 +120,25 @@ export interface MemoryBus {
 export type DebugCondition = () => boolean;
 export type DebugEvalCondition = (c:CpuState) => boolean;
 export type BreakpointCallback = (s:EmuState) => void;
+// for composite breakpoints w/ single debug function
+export class BreakpointList {
+  id2bp : {[id:string] : Breakpoint} = {};
+  getDebugCondition() : DebugCondition {
+    if (Object.keys(this.id2bp).length == 0) {
+      return null; // no breakpoints
+    } else {
+      // evaluate all breakpoints
+      return () => {
+        var result = false;
+        for (var id in this.id2bp)
+          if (this.id2bp[id].cond())
+            result = true;
+        return result;
+      };
+    }
+  }
+}
+export type Breakpoint = {cond:DebugCondition};
 
 export interface EmuRecorder {
   frameRequested() : boolean;
@@ -157,13 +177,38 @@ export abstract class BasePlatform {
       this.recorder.recordFrame(this.saveState());
     }
   }
+}
+
+export abstract class BaseDebugPlatform extends BasePlatform {
+  onBreakpointHit : BreakpointCallback;
+  debugCallback : DebugCondition;
+  debugSavedState : EmuState = null;
+  debugBreakState : EmuState = null;
+  debugTargetClock : number = 0;
+  debugClock : number = 0;
+  breakpoints : BreakpointList = new BreakpointList();
+
+  abstract getCPUState() : CpuState;
+  abstract readAddress(addr:number) : number;
+
+  setBreakpoint(id : string, cond : DebugCondition) {
+    if (cond) {
+      this.breakpoints.id2bp[id] = {cond:cond};
+      this.restartDebugging();
+    } else {
+      this.clearBreakpoint(id);
+    }
+  }
+  clearBreakpoint(id : string) {
+    delete this.breakpoints.id2bp[id];
+  }
   startProfiling() : ProfilerOutput {
     var frame = null;
     var output = {frame:null};
     var i = 0;
     var lastsl = 9999;
     var start = 0;
-    (this as any).runEval((c:CpuState) => {
+    this.setBreakpoint('profile', () => {
       var sl = (this as any).getRasterScanline();
       if (sl != lastsl) {
         if (frame) {
@@ -177,31 +222,19 @@ export abstract class BasePlatform {
         start = i;
         lastsl = sl;
       }
+      var c = this.getCPUState();
       frame.iptab[i++] = c.EPC || c.PC;
       return false; // profile forever
     });
     return output;
   }
-}
-
-export abstract class BaseDebugPlatform extends BasePlatform {
-  onBreakpointHit : BreakpointCallback;
-  debugCondition : DebugCondition;
-  debugSavedState : EmuState = null;
-  debugBreakState : EmuState = null;
-  debugTargetClock : number = 0;
-  debugClock : number = 0;
-
-  abstract getCPUState() : CpuState;
-  abstract readAddress(addr:number) : number;
-
+  stopProfiling() {
+    this.clearBreakpoint('profile');
+  }
   getDebugCallback() : DebugCondition {
-    return this.debugCondition;
+    return this.breakpoints.getDebugCondition();
   }
-  isDebugging() : boolean {
-    return this.debugCondition != null;
-  }
-  setupDebug(callback : BreakpointCallback) {
+  setupDebug(callback : BreakpointCallback) : void {
     this.onBreakpointHit = callback;
   }
   clearDebug() {
@@ -210,16 +243,19 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.debugTargetClock = -1;
     this.debugClock = 0;
     this.onBreakpointHit = null;
-    this.debugCondition = null;
+    this.clearBreakpoint('debug');
   }
   setDebugCondition(debugCond : DebugCondition) {
+    this.setBreakpoint('debug', debugCond);
+  }
+  restartDebugging() {
     if (this.debugSavedState) {
       this.loadState(this.debugSavedState);
     } else {
       this.debugSavedState = this.saveState();
     }
     this.debugClock = 0;
-    this.debugCondition = debugCond;
+    this.debugCallback = this.getDebugCallback();
     this.debugBreakState = null;
     this.resume();
   }
@@ -254,13 +290,13 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
   debugPCDelta = -1;
 
   evalDebugCondition() {
-    if (this.debugCondition && !this.debugBreakState) {
-      this.debugCondition();
+    if (this.debugCallback && !this.debugBreakState) {
+      this.debugCallback();
     }
   }
   postFrame() {
     // save state every frame and rewind debug clocks
-    var debugging = this.debugCondition && !this.debugBreakState;
+    var debugging = this.debugCallback && !this.debugBreakState;
     if (debugging) {
       this.debugSavedState = this.saveState();
       this.debugTargetClock -= this.debugClock;
@@ -505,7 +541,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
       cpu.requestInterrupt(data);
   }
   postFrame() {
-    if (this.debugCondition && !this.debugBreakState) {
+    if (this.debugCallback && !this.debugBreakState) {
       this.debugSavedState = this.saveState();
       if (this.debugTargetClock > 0)
         this.debugTargetClock -= this.debugSavedState.c.T;
@@ -917,9 +953,6 @@ export abstract class BaseMAMEPlatform {
   }
   getDebugCallback() {
     return this.onBreakpointHit;// TODO?
-  }
-  isDebugging() : boolean {
-    return this.onBreakpointHit != null;
   }
   setupDebug(callback) {
     if (this.loaded) { // TODO?
