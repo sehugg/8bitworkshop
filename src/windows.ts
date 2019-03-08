@@ -41,13 +41,15 @@ export class ProjectWindows {
     if (this.activewnd != wnd) {
       if (this.activediv)
         $(this.activediv).hide();
-      if (this.activewnd && this.activewnd.dispose)
-        this.activewnd.dispose();
+      if (this.activewnd && this.activewnd.setVisible)
+        this.activewnd.setVisible(false);
       this.activediv = div;
       this.activewnd = wnd;
       $(div).show();
       this.refresh(true);
       this.refreshErrors();
+      if (wnd.setVisible)
+        wnd.setVisible(true);
     }
     this.activeid = id;
     return wnd;
