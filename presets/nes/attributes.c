@@ -3,19 +3,15 @@
 #include <string.h>
 #include <stdlib.h>
 
-// link the pattern table into PRG ROM
-// we'll write it into CHR RAM on startup
+// link the pattern table into CHR ROM
+//#link "chr_generic.s"
 
-//#link "jroatch.c"
-extern unsigned char jroatch_chr[0x1000];
-#define PATTERN_TABLE jroatch_chr
-
-// palette for balls, there are four sets for different ball colors
-const unsigned char bg_palette[16]={/*{pal:"nes",n:4,sets:4}*/
-  0x0f,0x17,0x27,0x37,
-  0x0f,0x11,0x21,0x31,
-  0x0f,0x15,0x25,0x35,
-  0x0f,0x19,0x29,0x39
+const char PALETTE[16] = {
+  0x03,
+  0x11,0x30,0x27, 0,
+  0x1c,0x20,0x2c, 0,
+  0x00,0x10,0x20, 0,
+  0x06,0x16,0x26
 };
 
 // convert nametable address to attribute address
@@ -63,7 +59,8 @@ void color_demo(void) {
   while (1) {
     char x = rand() & 0x3f;
     char y = rand() & 0x3f;
-    put_pixel(x, y, 2);
+    char color = rand() & 3;
+    put_pixel(x, y, color);
     // reset scroll position
     vram_adr(0);
   }
@@ -94,16 +91,8 @@ void color_demo1(void) {
 
 // main function, run after console reset
 void main(void) {
-  // copy pattern table to PRG RAM
-  vram_adr(0x0);
-  vram_write((unsigned char*)PATTERN_TABLE, sizeof(PATTERN_TABLE));
-
-  // clear name tables
-  vram_adr(0x2000);
-  vram_fill(0, 0x800);
-
   // set palette colors
-  pal_bg(bg_palette);
+  pal_bg(PALETTE);
 
   // enable PPU rendering (turn on screen)
   ppu_on_all();

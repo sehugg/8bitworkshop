@@ -1,48 +1,34 @@
 
-#include <nes.h>
+#include "neslib.h"
+#include <string.h>
 
-const unsigned char TEXT[]="Hello PPU!!!!";
+// link the pattern table into CHR ROM
+//#link "chr_generic.s"
 
-const unsigned char PALETTE[]={0x1, 0x00, 0x10, 0x20}; // blue, gray, lt gray, white
+// function to write a string into the name table
+//   adr = start address in name table
+//   str = pointer to string
+void put_str(unsigned int adr, const char *str) {
+  vram_adr(adr);        // set PPU read/write address
+  vram_write(str, strlen(str)); // write bytes to PPU
+}
 
-void main (void) {
-  unsigned char index; // used in 'for' loops
+// main function, run after console reset
+void main(void) {
+  // set palette colors
+  pal_col(1,0x04);
+  pal_col(2,0x20);
+  pal_col(3,0x30);
 
-  // if we've just powered on,
-  // wait for PPU to warm-up
-  waitvsync();
-  waitvsync();
+  // write text to name table
+  put_str(NTADR_A(2,2),"HELLO, WORLD!");
+  put_str(NTADR_A(2,4),"THIS CODE PRINTS SOME TEXT");
+  put_str(NTADR_A(2,5),"USING ASCII-ENCODED CHARACTER");
+  put_str(NTADR_A(2,6),"SET WITH CAPITAL LETTERS ONLY");
 
-  // turn off screen
-  PPU.control = 0x0; // NMI off
-  PPU.mask = 0x0; // screen off
-
-  // load the palette
-  // set PPU address to 0x3f00
-  PPU.vram.address = 0x3f;
-  PPU.vram.address = 0x00;
-  for (index = 0; index < sizeof(PALETTE); index++) {
-    PPU.vram.data = PALETTE[index];
-  }
-
-  // load the text into VRAM
-  // set PPU address to 0x21c9
-  PPU.vram.address = 0x21;
-  PPU.vram.address = 0xc9;
-  for (index = 0; index < sizeof(TEXT); index++) {
-    PPU.vram.data = TEXT[index];
-  }
-
-  // reset the scroll position to 0
-  PPU.scroll = 0;
-  PPU.scroll = 0;
-  // reset the PPU address to 0x2000 (frame start)
-  PPU.vram.address = 0x20;
-  PPU.vram.address = 0x00;
- 
-  // turn on the screen
-  PPU.mask = 0x1e;
+  // enable PPU rendering (turn on screen)
+  ppu_on_all();
 
   // infinite loop
-  while (1);
+  while (1) ;
 }

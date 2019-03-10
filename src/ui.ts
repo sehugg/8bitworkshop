@@ -843,6 +843,7 @@ function resetAndDebug() {
 
 var lastBreakExpr = "c.PC == 0x6000";
 function _breakExpression() {
+  console.log(platform.saveState());
   var exprs = window.prompt("Enter break expression", lastBreakExpr);
   if (exprs) {
     var fn = new Function('c', 'return (' + exprs + ');').bind(platform);

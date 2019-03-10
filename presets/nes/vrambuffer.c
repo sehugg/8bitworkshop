@@ -28,7 +28,7 @@ void scroll_demo() {
     // wait for next frame
     // and flush VRAM buffer
     cflushnow();
-    // set scroll register
+    // set scroll (shadow) registers
     scroll(x, y);
     // update y variable
     y += dy;

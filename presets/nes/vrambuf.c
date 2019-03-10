@@ -7,7 +7,7 @@ byte updptr = 0;
 
 // add EOF marker to buffer (but don't increment pointer)
 void cendbuf(void) {
-  updbuf[updptr] = NT_UPD_EOF;
+  VRAMBUF_SET(NT_UPD_EOF);
 }
 
 // clear vram buffer and place EOF marker

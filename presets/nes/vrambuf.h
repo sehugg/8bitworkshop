@@ -8,7 +8,7 @@
 #define VBUFSIZE 128
 
 // update buffer starts at $100 (stack page)
-#define updbuf ((byte*)0x100)
+#define updbuf ((byte* const)0x100)
 
 // index to end of buffer
 extern byte updptr;
@@ -19,11 +19,15 @@ extern byte updptr;
   VRAMBUF_ADD(addr);\
   VRAMBUF_ADD(len);
 
-// macro to add a single byte to buffer
-#define VRAMBUF_ADD(b)\
+// macro to set a single byte in buffer
+#define VRAMBUF_SET(b)\
   __A__ = (b);\
   asm("ldy %v", updptr);\
-  asm("sta $100,y");\
+  asm("sta $100,y");
+
+// macro to set a single byte to buffer, then increment
+#define VRAMBUF_ADD(b)\
+  VRAMBUF_SET(b)\
   asm("inc %v", updptr);
 
 // add EOF marker to buffer (but don't increment pointer)

@@ -69,34 +69,33 @@ SetPalette: subroutine
 ;;;;; INTERRUPT HANDLERS
 
 NMIHandler:
-	SAVE_REGS
+	SAVE_REGS	; save registers
 ; update scroll position (must be done after VRAM updates)
-	jsr ReadJoypad
-        pha
-        and #$03
-        tay
-        lda ScrollDirTab,y
+	jsr ReadJoypad0	; read first controller
+        pha		; push joypad bitmask
+        and #$03	; only keep first 2 bits
+        tay		; A -> Y
+        lda ScrollDirTab,y	; lookup table
         clc
-        adc ScrollX
-        sta ScrollX
-        sta PPU_SCROLL
-        pla
+        adc ScrollX	; A = A + ScrollX
+        sta ScrollX	; -> ScrollX
+        sta PPU_SCROLL	; -> first scroll byte
+        pla		; pop joypad bitmask
         lsr
         lsr
-        and #$03
-        tay
-        lda ScrollDirTab,y
+        and #$03	; take next two bits
+        tay		
+        lda ScrollDirTab,y ; do another lookup
         clc
-        adc ScrollY
-        sta ScrollY
-        sta PPU_SCROLL
-; reload registers
-        RESTORE_REGS
+        adc ScrollY	; A = A + ScrollY
+        sta ScrollY	; -> ScrollY
+        sta PPU_SCROLL	; -> second scroll byte
+        RESTORE_REGS	; restore registers
 	rti
 
 ; Scroll direction lookup table
 ScrollDirTab:
-	hex 00 01 ff 00
+	hex 00 01 ff 00	; 0,1,-1,0
  
 ;;;;; CONSTANT DATA
 

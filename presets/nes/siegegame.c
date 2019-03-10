@@ -26,13 +26,15 @@ byte getchar(byte x, byte y) {
   word addr = NTADR_A(x,y);
   byte rd;
   // wait for VBLANK to start
-  ppu_wait_nmi();
+  ppu_wait_frame();
+  // set vram address and read byte
   vram_adr(addr);
   vram_read(&rd, 1);
+  // scroll registers are corrupt
+  // fix by setting vram address
   vram_adr(0x0);
-  return rd + 0x20;
+  return rd;
 }
-
 
 void cputcxy(byte x, byte y, char ch) {
   putbytes(NTADR_A(x,y), &ch, 1);
@@ -137,7 +139,7 @@ void move_player(Player* p) {
   cputcxy(p->x, p->y, p->tail_attr);
   p->x += DIR_X[p->dir];
   p->y += DIR_Y[p->dir];
-  if (getchar(p->x, p->y) != ' ')
+  if (getchar(p->x, p->y) != 0)
     p->collided = 1;
   draw_player(p);
 }

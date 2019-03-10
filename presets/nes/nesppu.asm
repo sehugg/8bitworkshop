@@ -44,18 +44,21 @@ PrevRandom subroutine
 
 ;;;;; CONTROLLER READING
 
-ReadJoypad subroutine
+ReadJoypad0 subroutine
+	ldy #0
+ReadJoypadY
         lda #$01
-        sta JOYPAD1	; set strobe bit
-        tax		; X = 1
+        sta JOYPAD1,y	; set strobe bit
         lsr        	; now A is 0
-        sta JOYPAD1	; clear strobe bit
+        sta JOYPAD1,y	; clear strobe bit
+        ldx #8		; read 8 bits
 .loop:
-        lda JOYPAD1	; load controller state
+	pha		; save A (result)
+        lda JOYPAD1,y	; load controller state
         lsr        	; bit 0 -> carry
-        txa		; X -> A
-        rol		; carry -> bit 0 of result, bit 7 -> carry
-        tax		; A -> X
-        bcc .loop	; repeat until 1 shifted out
+        pla		; restore A (result)
+        rol		; carry -> bit 0 of result
+        dex		; X = X - 1
+        bne .loop	; repeat if X is 0
         rts		; controller bits returned in A
 

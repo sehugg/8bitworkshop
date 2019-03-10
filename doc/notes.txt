@@ -97,7 +97,8 @@ TODO:
 - NES: disassembly not aligned on PC
 - NES: vrambuf.c for Solarian
 - game starts even if switched away before first load
-
+- vcs: break on # of lines changed (maybe using getRasterPosition?)
+- profiler restarts when paused
 
 WEB WORKER FORMAT
 
