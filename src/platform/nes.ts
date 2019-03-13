@@ -33,6 +33,7 @@ const JSNES_PRESETS = [
   {id:'scrollrt.asm', name:'Split Screen Scroll (ASM)'},
   {id:'fami.c', name:'Famitone Demo'},
   {id:'musicdemo.asm', name:'Famitone Demo (ASM)'},
+  {id:'bankswitch.c', name:'Bank Switching'},
 ];
 
 const NES_NESLIB_PRESETS = [
@@ -54,8 +55,8 @@ const NES_CONIO_PRESETS = [
 /// JSNES
 
 const JSNES_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_Z,     0, 0],
-  [Keys.VK_X,     0, 1],
+  [Keys.VK_X,     0, 0],
+  [Keys.VK_Z,     0, 1],
   [Keys.VK_SPACE, 0, 2],
   [Keys.VK_ENTER, 0, 3],
   [Keys.VK_UP,    0, 4],

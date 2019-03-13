@@ -97,6 +97,7 @@ describe('Worker', function() {
     compile('plasm', 'word x = ', 'apple2', done, 0, 0, 1);
   });
   */
+  // TODO: test NES bank switching, mapper
   it('should compile CC65', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nreturn x+2;\n}', 'nes-conio', done, 40976, 3);
   });

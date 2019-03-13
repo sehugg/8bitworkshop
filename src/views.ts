@@ -831,7 +831,7 @@ export class MemoryMapView implements ProjectView {
       var curofs = 0;
       for (var seg of segments) {
         //var used = seg.last ? (seg.last-seg.start) : seg.size;
-        if (curofs != seg.start)
+        if (seg.start > curofs)
           this.addSegment({name:'',start:curofs, size:seg.start-curofs});
         this.addSegment(seg);
         curofs = seg.start + seg.size;

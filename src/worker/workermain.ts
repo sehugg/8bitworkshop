@@ -168,12 +168,12 @@ var PLATFORM_PARAMS = {
     define: '__NES__',
     cfgfile: 'neslib.cfg',
     libargs: ['crt0.o', 'nes.lib',
-      '-D', 'NES_MAPPER=0', // UxROM
-      '-D', 'NES_PRG_BANKS=2', // 2 PRG banks
+      '-D', 'NES_MAPPER=0', // NROM
+      '-D', 'NES_PRG_BANKS=2', // 2 16K PRG banks
       '-D', 'NES_CHR_BANKS=1', // 1 CHR bank
       '-D', 'NES_MIRRORING=0', // horizontal mirroring
       ],
-    extra_link_files: ['crt0.o'],
+    extra_link_files: ['crt0.o', 'nesbanked.cfg'],
     extra_segments:[
       //{name:'Work RAM',start:0x0,size:0x800,type:'ram'},
       {name:'OAM Buffer',start:0x200,size:0x100,type:'ram'},
@@ -492,7 +492,8 @@ function loadNative(modulename:string) {
 
 // mount the filesystem at /share
 function setupFS(FS, name:string) {
-  var WORKERFS = FS.filesystems['WORKERFS']
+  var WORKERFS = FS.filesystems['WORKERFS'];
+  if (!fsMeta[name]) throw "No filesystem for '" + name + "'";
   FS.mkdir('/share');
   FS.mount(WORKERFS, {
     packages: [{ metadata: fsMeta[name], blob: fsBlob[name] }]
@@ -901,16 +902,16 @@ function linkLD65(step:BuildStep) {
       printErr:function(s) { errors.push({msg:s,line:0}); }
     });
     var FS = LD65['FS'];
-    var cfgfile = '/' + platform + '.cfg';
     setupFS(FS, '65-'+getRootPlatform(platform));
     populateFiles(step, FS);
     populateExtraFiles(step, FS, params.extra_link_files);
     var libargs = params.libargs;
+    var cfgfile = params.cfgfile;
     var args = ['--cfg-path', '/share/cfg',
       '--lib-path', '/share/lib',
       '--lib-path', '/share/target/apple2/drv', // TODO
       '-D', '__EXEHDR__=0', // TODO
-      '-C', params.cfgfile,
+      '-C', cfgfile,
       '-Ln', 'main.vice',
       //'--dbgfile', 'main.dbg',
       '-o', 'main', '-m', 'main.map'].concat(step.args, libargs);
@@ -944,7 +945,7 @@ function linkLD65(step:BuildStep) {
     var seg_re = /^__(\w+)_SIZE__$/;
     var segments = [].concat(params.extra_segments||[]);
     segments.push({name:'CPU Stack',start:0x100,size:0x100,type:'ram'});
-    segments.push({name:'CPU Vectors',start:0xfffc,size:0x6,type:'rom'});
+    segments.push({name:'CPU Vectors',start:0xfffa,size:0x6,type:'rom'});
     // TODO: CHR, banks, etc
     for (let ident in symbolmap) {
       let m = seg_re.exec(ident);
@@ -953,9 +954,9 @@ function linkLD65(step:BuildStep) {
         let segstart = symbolmap['__'+seg+'_RUN__'] || symbolmap['__'+seg+'_START__'];
         let segsize = symbolmap['__'+seg+'_SIZE__'];
         let seglast = symbolmap['__'+seg+'_LAST__'];
-        if (segstart >= 0 && segsize > 0 && seg != 'PRG' && seg != 'RAM') { // TODO
+        if (segstart >= 0 && segsize > 0 && !seg.startsWith('PRG') && seg != 'RAM') { // TODO
           var type = null;
-          if (seg == 'CODE' || seg == 'STARTUP' || seg == 'RODATA') type = 'rom';
+          if (seg.startsWith('CODE') || seg == 'STARTUP' || seg == 'RODATA') type = 'rom';
           else if (seg == 'ZP' || seg == 'RAM' || seg == 'DATA' || seg == 'BSS') type = 'ram';
           segments.push({name:seg, start:segstart, size:segsize, last:seglast, type:type});
         }
@@ -986,7 +987,8 @@ function linkLD65(step:BuildStep) {
   }
 }
 
-function fixParamsWithDefines(path:string, libargs:string[]){
+function fixParamsWithDefines(path:string, params){
+  var libargs = params.libargs;
   if (path && libargs) {
     var code = getWorkFileAsString(path);
     if (code) {
@@ -999,7 +1001,7 @@ function fixParamsWithDefines(path:string, libargs:string[]){
         }
       }
       // find #defines and replace them
-      var re = /^#define\s+(\w+)\s+(.+)/gmi;
+      var re = /^#define\s+(\w+)\s+(\S+)/gmi;
       var m;
       while (m = re.exec(code)) {
         var ident = m[1];
@@ -1007,7 +1009,12 @@ function fixParamsWithDefines(path:string, libargs:string[]){
         var index = ident2index[ident];
         if (index >= 0) {
           libargs[index] = ident + "=" + value;
-          console.log(index, libargs[index]);
+          console.log('Using libargs', index, libargs[index]);
+          // TODO: MMC3 mapper switch
+          if (ident == 'NES_MAPPER' && value == '4') {
+            params.cfgfile = 'nesbanked.cfg';
+            console.log('Using config file', params.cfgfile);
+          }
         }
       }
     }
@@ -1044,7 +1051,7 @@ function compileCC65(step:BuildStep) {
     var FS = CC65['FS'];
     setupFS(FS, '65-'+getRootPlatform(step.platform));
     populateFiles(step, FS);
-    fixParamsWithDefines(step.path, params.libargs);
+    fixParamsWithDefines(step.path, params);
     execMain(step, CC65, ['-T', '-g',
       '-Oirs',
       '-Cl', // static locals
