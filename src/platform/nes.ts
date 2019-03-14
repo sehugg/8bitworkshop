@@ -2,7 +2,7 @@
 
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString, ProfilerOutput } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags } from "../emu";
-import { hex, lpad, lzgmini } from "../util";
+import { hex, lpad, lzgmini, byteArrayToString } from "../util";
 import { CodeAnalyzer_nes } from "../analysis";
 import { SampleAudio } from "../audio";
 
@@ -197,7 +197,7 @@ const _JSNESPlatform = function(mainElement) {
   }
 
   loadROM(title, data) {
-    var romstr = String.fromCharCode.apply(null, data);
+    var romstr = byteArrayToString(data);
     nes.loadROM(romstr);
     frameindex = 0;
   }
