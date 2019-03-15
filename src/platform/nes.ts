@@ -233,6 +233,9 @@ const _JSNESPlatform = function(mainElement) {
   getRasterScanline() : number {
     return nes.ppu.scanline;
   }
+  readVRAMAddress(addr : number) : number {
+    return nes.ppu.vramMem[addr & 0x7fff];
+  }
 
   getCPUState() {
     var c = nes.cpu.toJSON();

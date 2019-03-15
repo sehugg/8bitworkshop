@@ -73,6 +73,7 @@ export interface Platform {
   inspect?(ident:string) : string;
   disassemble?(addr:number, readfn:(addr:number)=>number) : DisasmLine;
   readAddress?(addr:number) : number;
+  readVRAMAddress?(addr:number) : number;
   setFrameRate?(fps:number) : void;
   getFrameRate?() : number;
 

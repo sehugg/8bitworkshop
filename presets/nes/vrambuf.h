@@ -8,16 +8,10 @@
 #define VBUFSIZE 128
 
 // update buffer starts at $100 (stack page)
-#define updbuf ((byte* const)0x100)
+#define updbuf ((byte*)0x100)
 
 // index to end of buffer
 extern byte updptr;
-
-// macro to add a multibyte header
-#define VRAMBUF_PUT(addr,len,flags)\
-  VRAMBUF_ADD(((addr) >> 8) | (flags));\
-  VRAMBUF_ADD(addr);\
-  VRAMBUF_ADD(len);
 
 // macro to set a single byte in buffer
 #define VRAMBUF_SET(b)\
@@ -29,6 +23,9 @@ extern byte updptr;
 #define VRAMBUF_ADD(b)\
   VRAMBUF_SET(b)\
   asm("inc %v", updptr);
+
+//#define VRAMBUF_SET(b) updbuf[updptr] = (b);
+//#define VRAMBUF_ADD(b) VRAMBUF_SET(b); ++updptr
 
 // add EOF marker to buffer (but don't increment pointer)
 void cendbuf(void);

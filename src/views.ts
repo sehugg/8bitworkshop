@@ -659,13 +659,17 @@ export class MemoryView implements ProjectView {
     for (var i=0; i<n1; i++) s += '   ';
     if (n1 > 8) s += ' ';
     for (var i=n1; i<n2; i++) {
-      var read = platform.readAddress(offset+i);
+      var read = this.readAddress(offset+i);
       if (i==8) s += ' ';
       s += ' ' + (read!==null?hex(read,2):'??');
     }
     for (var i=n2; i<16; i++) s += '   ';
     if (sym) s += '  ' + sym;
     return s;
+  }
+  
+  readAddress(n : number) {
+    return platform.readAddress(n);
   }
 
   getDumpLineAt(line : number) {
@@ -723,6 +727,18 @@ export class MemoryView implements ProjectView {
     for (var i=0; i<this.dumplines.length; i++)
       if (this.dumplines[i].a >= a)
         return i;
+  }
+}
+
+export class VRAMMemoryView extends MemoryView {
+  readAddress(n : number) {
+    return platform.readVRAMAddress(n);
+  }
+  getMemorySegment(a:number) : string {
+    return 'video';
+  }
+  getDumpLines() {
+    return null;
   }
 }
 

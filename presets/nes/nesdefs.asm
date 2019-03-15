@@ -109,11 +109,11 @@ NES_MIRR_QUAD	= 8
 ;;;;; NES_VECTORS - CPU vectors at end of address space
 
 	MAC NES_VECTORS
-	seg Vectors
-	org $fffa
-       	.word NMIHandler	;$fffa vblank nmi
-	.word Start		;$fffc reset
-	.word NMIHandler	;$fffe irq / brk (not used)
+	seg Vectors		; segment "Vectors"
+	org $fffa		; start at address $fffa
+       	.word NMIHandler	; $fffa vblank nmi
+	.word Start		; $fffc reset
+	.word NMIHandler	; $fffe irq / brk
 	ENDM
 
 ;;;;; PPU_SETADDR <address> - set 16-bit PPU address
