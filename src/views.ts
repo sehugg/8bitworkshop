@@ -659,13 +659,17 @@ export class MemoryView implements ProjectView {
     for (var i=0; i<n1; i++) s += '   ';
     if (n1 > 8) s += ' ';
     for (var i=n1; i<n2; i++) {
-      var read = platform.readAddress(offset+i);
+      var read = this.readAddress(offset+i);
       if (i==8) s += ' ';
       s += ' ' + (read!==null?hex(read,2):'??');
     }
     for (var i=n2; i<16; i++) s += '   ';
     if (sym) s += '  ' + sym;
     return s;
+  }
+  
+  readAddress(n : number) {
+    return platform.readAddress(n);
   }
 
   getDumpLineAt(line : number) {
@@ -706,23 +710,45 @@ export class MemoryView implements ProjectView {
 
   // TODO: use segments list?
   getMemorySegment(a:number) : string {
-    if (!compparams) return 'unknown';
-    if (a >= compparams.data_start && a < compparams.data_start+compparams.data_size) {
-      if (platform.getSP && a >= platform.getSP() - 15)
-        return 'stack';
-      else
-        return 'data';
+    if (compparams) {
+      if (a >= compparams.data_start && a < compparams.data_start+compparams.data_size) {
+        if (platform.getSP && a >= platform.getSP() - 15)
+          return 'stack';
+        else
+          return 'data';
+      }
+      else if (a >= compparams.code_start && a < compparams.code_start+(compparams.code_size||compparams.rom_size))
+        return 'code';
     }
-    else if (a >= compparams.code_start && a < compparams.code_start+(compparams.code_size||compparams.rom_size))
-      return 'code';
-    else
-      return 'unknown';
+    var segments = current_project.segments;
+    if (segments) {
+      for (var seg of segments) {
+        if (a >= seg.start && a < seg.start+seg.size) {
+          if (seg.type == 'rom') return 'code';
+          if (seg.type == 'ram') return 'data';
+          if (seg.type == 'io') return 'io';
+        }
+      }
+    }
+    return 'unknown';
   }
 
   findMemoryWindowLine(a:number) : number {
     for (var i=0; i<this.dumplines.length; i++)
       if (this.dumplines[i].a >= a)
         return i;
+  }
+}
+
+export class VRAMMemoryView extends MemoryView {
+  readAddress(n : number) {
+    return platform.readVRAMAddress(n);
+  }
+  getMemorySegment(a:number) : string {
+    return 'video';
+  }
+  getDumpLines() {
+    return null;
   }
 }
 

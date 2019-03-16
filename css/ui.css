@@ -138,10 +138,6 @@ div.mem_info a.selected {
 .btn_recording {
   color: #ff3333;
 }
-.seg_code { color: #ff9966; }
-.seg_data { color: #66ff66; }
-.seg_stack { color: #ffff66; }
-.seg_unknown { color: #cccccc; }
 span.hilite {
   color: #ff66ff;
 }
@@ -413,6 +409,11 @@ div.markdown th {
   border-color: #ffffff;
   cursor: pointer;
 }
+.seg_code { color: #ccddff; }
+.seg_data { color: #aaeeaa; }
+.seg_io { color: #ffcccc; }
+.seg_stack { color: #ffff66; }
+.seg_unknown { color: #cccccc; }
 .segment.segment-ram {
   background-color:#aaeeaa;
 }

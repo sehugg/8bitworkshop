@@ -92,6 +92,7 @@ TODO:
 - game starts even if switched away before first load
 - vcs: break on # of lines changed (maybe using getRasterPosition?)
 - profiler restarts when paused
+- it's pretty easy to add a new file named like a library file (bcd.c)
 
 WEB WORKER FORMAT
 

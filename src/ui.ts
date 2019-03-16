@@ -210,6 +210,11 @@ function refreshWindowList() {
       return new Views.MemoryView();
     });
   }
+  if (platform.readVRAMAddress) {
+    addWindowItem("#memvram", "VRAM Browser", function() {
+      return new Views.VRAMMemoryView();
+    });
+  }
   if (current_project.segments) {
     addWindowItem("#memmap", "Memory Map", function() {
       return new Views.MemoryMapView();
