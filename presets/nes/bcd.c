@@ -2,21 +2,12 @@
 #include "neslib.h"
 
 word bcd_add(word a, word b) {
-  word result = 0;
-  byte c = 0;
-  byte shift = 0;
-  while (shift < 16) {
-    byte d = (a & 0xf) + (b & 0xf) + c;
-    c = 0;
-    while (d >= 10) {
-      ++c;
-      d -= 10;
-    }
-    result |= d << shift;
-    shift += 4;
-    a >>= 4;
-    b >>= 4;
-  }
-  return result;
+  register word c, d;      // intermediate values
+  c = a + 0x0666;          // add 6 to each BCD digit
+  d = c ^ b;               // sum without carry propagation
+  c += b;                  // provisional sum
+  d = ~(c ^ d) & 0x1110;   // just the BCD carry bits
+  d = (d >> 2) | (d >> 3); // correction
+  return c - d;            // corrected BCD sum
 }
 

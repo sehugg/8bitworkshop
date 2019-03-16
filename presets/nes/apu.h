@@ -43,15 +43,25 @@
 #define APU_PULSE_CONTROL(channel,duty,decay)\
   APU.pulse[channel].control = (duty) | (decay);
 
+#define APU_PULSE_SWEEP(channel,period,shift,up)\
+  APU.pulse[channel].ramp = 0x80 | (period<<4) | (up?8:0) | shift;
+
+#define APU_PULSE_SWEEP_DISABLE(channel)\
+  APU.pulse[channel].ramp = 0;
 
 // triangle channel
 #define TRIANGLE_LC_HALT	0x80
 #define TRIANGLE_LC_MASK	0x7f
 
+#define APU_TRIANGLE_LENGTH(period,len)\
+  APU.triangle.counter = 0x7f;\
+  APU.triangle.period_low = (period)&0xff;\
+  APU.triangle.len_period_high = (((period)>>8)&7) | ((len)<<3);
+
 #define APU_TRIANGLE_SUSTAIN(period)\
-  APU.triangle.counter = 0xc0;\
-  APU.triangle.period_low = (period) & 0xff;\
-  APU.triangle.len_period_high = (period) >> 8;
+  APU.triangle.counter = 0xff;\
+  APU.triangle.period_low = (period)&0xff;\
+  APU.triangle.len_period_high = (((period)>>8)&7);
 
 // noise channel
 #define NOISE_ENVLOOP	0x20

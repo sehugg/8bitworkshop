@@ -26,6 +26,7 @@ const JSNES_PRESETS = [
   {id:'statusbar.c', name:'Split Status Bar'},
   {id:'horizmask.c', name:'Offscreen Scrolling'},
   {id:'attributes.c', name:'Attribute Table + Pixels'},
+  {id:'aputest.c', name:'Sound Tester'},
   {id:'music.c', name:'Music Player'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot2.c', name:'Solarian Game'},

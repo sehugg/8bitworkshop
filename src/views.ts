@@ -710,17 +710,27 @@ export class MemoryView implements ProjectView {
 
   // TODO: use segments list?
   getMemorySegment(a:number) : string {
-    if (!compparams) return 'unknown';
-    if (a >= compparams.data_start && a < compparams.data_start+compparams.data_size) {
-      if (platform.getSP && a >= platform.getSP() - 15)
-        return 'stack';
-      else
-        return 'data';
+    if (compparams) {
+      if (a >= compparams.data_start && a < compparams.data_start+compparams.data_size) {
+        if (platform.getSP && a >= platform.getSP() - 15)
+          return 'stack';
+        else
+          return 'data';
+      }
+      else if (a >= compparams.code_start && a < compparams.code_start+(compparams.code_size||compparams.rom_size))
+        return 'code';
     }
-    else if (a >= compparams.code_start && a < compparams.code_start+(compparams.code_size||compparams.rom_size))
-      return 'code';
-    else
-      return 'unknown';
+    var segments = current_project.segments;
+    if (segments) {
+      for (var seg of segments) {
+        if (a >= seg.start && a < seg.start+seg.size) {
+          if (seg.type == 'rom') return 'code';
+          if (seg.type == 'ram') return 'data';
+          if (seg.type == 'io') return 'io';
+        }
+      }
+    }
+    return 'unknown';
   }
 
   findMemoryWindowLine(a:number) : number {

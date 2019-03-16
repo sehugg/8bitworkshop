@@ -24,8 +24,15 @@ extern byte updptr;
   VRAMBUF_SET(b)\
   asm("inc %v", updptr);
 
+// C versions of macros
 //#define VRAMBUF_SET(b) updbuf[updptr] = (b);
 //#define VRAMBUF_ADD(b) VRAMBUF_SET(b); ++updptr
+
+// macro to add a raw header (useful for single bytes)
+#define VRAMBUF_PUT(addr,len,flags)\
+  VRAMBUF_ADD(((addr) >> 8) | (flags));\
+  VRAMBUF_ADD(addr);\
+  VRAMBUF_ADD(len);
 
 // add EOF marker to buffer (but don't increment pointer)
 void cendbuf(void);
