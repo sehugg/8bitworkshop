@@ -474,7 +474,7 @@ function loadWASM(modulename:string, debug?:boolean) {
     xhr.send(null);
     if (xhr.response) {
       wasmBlob[modulename] = new Uint8Array(xhr.response);
-      console.log("Loaded " + modulename + ".wasm");
+      console.log("Loaded " + modulename + ".wasm (" + wasmBlob[modulename].length + " bytes)");
       loaded[modulename] = 1;
     } else {
       throw Error("Could not load WASM file " + modulename + ".wasm");
@@ -1022,7 +1022,7 @@ function fixParamsWithDefines(path:string, params){
 }
 
 function compileCC65(step:BuildStep) {
-  load("cc65");
+  loadNative("cc65");
   var params = step.params;
   // stderr
   var re_err1 = /.*?[(](\d+)[)].*?: (.+)/;
@@ -1043,6 +1043,7 @@ function compileCC65(step:BuildStep) {
   var destpath = step.prefix + '.s';
   if (staleFiles(step, [destpath])) {
     var CC65 = emglobal.cc65({
+      instantiateWasm: moduleInstFn('cc65'),
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
@@ -1053,7 +1054,7 @@ function compileCC65(step:BuildStep) {
     populateFiles(step, FS);
     fixParamsWithDefines(step.path, params);
     execMain(step, CC65, ['-T', '-g',
-      '-Oirs',
+      '-Oirs', // don't inline CodeSizeFactor 200? (no -Oi)
       '-Cl', // static locals
       '-I', '/share/include',
       '-D' + params.define,

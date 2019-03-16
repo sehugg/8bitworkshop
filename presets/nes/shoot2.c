@@ -429,15 +429,9 @@ void return_attacker(register AttackingEnemy* a) {
   }
 }
 
-#pragma bss-name (push,"ZEROPAGE")
-#pragma data-name (push,"ZEROPAGE")
-int sincos;
-#pragma data-name(pop)
-#pragma bss-name (pop)
-
 void fly_attacker(register AttackingEnemy* a) {
-#if 1
-  //register int sincos;
+#ifdef USE_FASTLUT
+  static int sincos;
   sincos = FASTLUT16(sincos, SINTBL2, a->dir&31);
   a->x += sincos;
   sincos = FASTLUT16(sincos, SINTBL2, (a->dir+8)&31);
@@ -765,6 +759,10 @@ void play_round() {
 #endif
   }
 }
+
+// turn off aggressive inlining to save a few bytes
+// functions after this point aren't called often
+#pragma codesize(100)
 
 void set_shifted_pattern(const byte* src, word dest, byte shift) {
   static byte buf[16*3];

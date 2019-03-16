@@ -16,8 +16,7 @@ TODO:
 - break on BRK/illegal opcode?
 - multiple breakpoints, expression breakpoints
 - watchpoints
-- breakpoints
-- debug inspector
+- debug inspector for variables
 - MAME single step (?)
 - step over (line, instruction)
 - slowdown beam for all platforms?
@@ -39,13 +38,12 @@ TODO:
 - online tools for music etc
 - text log debugging script
 - NES crt should mark raster pos when debugging
-- intro/help text for each platform (+ memory map)
+- intro/help text for each platform
 - vscode/atom extension?
 - navigator.getGamepads
-- VCS library
+- VCS asm library
 - better VCS single stepping, maybe also listings
 - VCS skips step on lsr/lsr after run to line
-- bring back the profiler!
 - links to external tools in ide
 - error msg when #link doesn't work
 - figure out folders for projects for real
@@ -55,7 +53,6 @@ TODO:
 - quantify verilog "graph iterations"
 - debug bankswitching for funky formats
 - spaces in filename don't parse code listing (DASM, maybe more)
-- zmac: item_lookup needs better hash function
 - 'undefined' for bitmap replacer
 - astrocade: run to cursor in hello world messes up emulation
 - requestInterrupt needs to be disabled after breakpoint?
@@ -73,13 +70,11 @@ TODO:
 - compiler flags for final ROM build
 - workermain: split build functions, better msg types
 - vcs: INPTx needs to be added to control state
-- rename, delete, save as
 - sdcc: can't link asm files before c files (e.g. acheader.s must be last)
 - what if >1 file with same name? (local/nonlocal/directory)
 - what if .c and .s names collide?
 - live coding URL
-- memory viewer: ROM/RAM/VRAM/etc
-- resize memory browser when split resize (any div resize)
+- resize memory browser when vertical div resize
 - preroll the emulator so optimizer does its thing before loading rom
 - wasm dynamic linking of emulators (https://github.com/WebAssembly/tool-conventions/blob/master/DynamicLinking.md)
 - use alternate confirm/prompt dialogs
@@ -94,8 +89,6 @@ TODO:
 - https://makecode.com/language?
 - show .map file in listings? memory map view?
 - open ROM from URL?
-- NES: disassembly not aligned on PC
-- NES: vrambuf.c for Solarian
 - game starts even if switched away before first load
 - vcs: break on # of lines changed (maybe using getRasterPosition?)
 - profiler restarts when paused
