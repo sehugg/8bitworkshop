@@ -31,9 +31,11 @@ const int note_table_63[64] = {
 const int note_table_tri[64] = {
 2138, 2018, 1905, 1798, 1697, 1602, 1512, 1427, 1347, 1272, 1200, 1133, 1069, 1009, 953, 899, 849, 801, 756, 714, 674, 636, 601, 567, 535, 505, 477, 450, 425, 401, 379, 358, 338, 319, 301, 284, 268, 253, 239, 226, 213, 201, 190, 179, 169, 160, 151, 142, 135, 127, 120, 113, 107, 101, 95, 90, 85, 80, 76, 72, 68, 64, 60, 57, };
 
-#define note_table note_table_49
+#define NOTE_TABLE note_table_49
+#define BASS_NOTE 36
 byte music_index = 0;
 byte cur_duration = 0;
+
 
 const byte music1[]; // music data -- see end of file
 const byte* music_ptr = music1;
@@ -52,8 +54,8 @@ void play_music() {
       // is this a note?
       if ((note & 0x80) == 0) {
         // pulse plays higher notes, triangle for lower if it's free
-        if (note >= 36 || (chs & 4)) {
-          int period = note_table[note & 63];
+        if (note >= BASS_NOTE || (chs & 4)) {
+          int period = NOTE_TABLE[note & 63];
           // see which pulse generator is free
           if (!(chs & 1)) {
             APU_PULSE_DECAY(0, period, DUTY_25, 2, 10);

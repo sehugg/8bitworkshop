@@ -38,6 +38,7 @@ function Blob(blob) {
 
 global.XMLHttpRequest = function() {
     this.open = function(a,b,c) {
+        //console.log(':::xml',a,'src/worker/'+b,c,this.responseType);
         if (this.responseType == 'json') {
             var txt = fs.readFileSync('src/worker/'+b);
             this.response = JSON.parse(txt);
@@ -48,6 +49,8 @@ global.XMLHttpRequest = function() {
             var data = fs.readFileSync('src/worker/'+b, {encoding:'binary'});
             this.response = new Blob(data).asArrayBuffer();
         }
+        this.status = this.response ? 200 : 404;
+        //console.log(':::xml',this.response.length);
     }
     this.send = function() { }
 }

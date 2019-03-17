@@ -87,12 +87,13 @@ TODO:
 - recording video indicator
 - stego shareable images (http://pico-8.wikia.com/wiki/P8PNGFileFormat)
 - https://makecode.com/language?
-- show .map file in listings? memory map view?
 - open ROM from URL?
 - game starts even if switched away before first load
 - vcs: break on # of lines changed (maybe using getRasterPosition?)
 - profiler restarts when paused
 - it's pretty easy to add a new file named like a library file (bcd.c)
+- put globals into view/controller objects
+
 
 WEB WORKER FORMAT
 
@@ -204,4 +205,15 @@ Types
 Mappers can refer to multiple objs
 Slice (window) of array for selections
 
+AssetEditorView
+- scan files for assets
+- build hierarchical view of assets
+- expand/collapse
+- create editor upon expansion
+- double-click to source file
+
+Assets come from:
+- chr files
+- bitmap data in files
+- structured data (palette, sprites, metasprites, levels, etc)
 

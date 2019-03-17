@@ -99,16 +99,19 @@ describe('Worker', function() {
   */
   // TODO: test NES bank switching, mapper
   it('should compile CC65', function(done) {
-    compile('cc65', 'int main() {\nint x=1;\nreturn x+2;\n}', 'nes-conio', done, 40976, 3);
+    compile('cc65', 'int main() {\nint x=1;\nreturn x+2;\n}', 'nes', done, 40976, 3);
+  });
+  it('should compile CC65 banked', function(done) {
+    compile('cc65', '#define NES_MAPPER 4\nint main() {\nint x=1;\nreturn x+2;\n}', 'nes', done, 131088, 3);
   });
   it('should NOT compile CC65 (compile error)', function(done) {
-    compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes-conio', done, 0, 0, 1);
+    compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes', done, 0, 0, 1);
   });
   it('should NOT compile CC65 (link error)', function(done) {
-    compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes-conio', done, 0, 0, 3, {ignoreErrorPath:true});
+    compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes', done, 0, 0, 3, {ignoreErrorPath:true});
   });
   it('should NOT compile CC65 (preproc error)', function(done) {
-    compile('cc65', '#include "NOSUCH.file"\n', 'nes-conio', done, 0, 0, 1, {ignoreErrorPath:true});
+    compile('cc65', '#include "NOSUCH.file"\n', 'nes', done, 0, 0, 1, {ignoreErrorPath:true});
   });
   it('should assemble CA65', function(done) {
     compile('ca65', '\t.segment "HEADER"\n\t.segment "STARTUP"\n\t.segment "CHARS"\n\t.segment "VECTORS"\n\tlda #0\n\tsta $1\n', 'nes-conio', done, 40976, 2);
@@ -136,12 +139,6 @@ describe('Worker', function() {
   it('should compile SDCC w/ include', function(done) {
     compile('sdcc', '#include <string.h>\nvoid main() {\nstrlen(0);\n}\n', 'mw8080bw', done, 8192, 2, 0);
   });
-  /*
-  it('should compile vicdual skeleton', function(done) {
-    var csource = ab2str(fs.readFileSync('presets/vicdual/skeleton.sdcc'));
-    compile('sdcc', csource, 'vicdual', done, 16416, 45, 0);
-  });
-  */
   it('should compile mw8080 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/mw8080bw/skeleton.sdcc'));
     compile('sdcc', csource, 'mw8080bw', done, 8192, 84, 0);
@@ -166,12 +163,10 @@ describe('Worker', function() {
     var csource = ab2str(fs.readFileSync('presets/coleco/text.c'));
     compile('sdcc', csource, 'coleco', done, 32768, 15, 0);
   });
-  /* TODO: load extra files
   it('should compile sg1000 skeleton', function(done) {
-    var csource = ab2str(fs.readFileSync('presets/sg1000/text.c'));
-    compile('sdcc', csource, 'sg1000', done, 32768, 15, 0);
+    var csource = ab2str(fs.readFileSync('presets/sms-sg1000-libcv/text.c'));
+    compile('sdcc', csource, 'sms-sg1000-libcv', done, 49152, 15, 0);
   });
-  */
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
     var msgs = [{code:csource, platform:"verilog", tool:"verilator", path:'main.v'}];
@@ -257,8 +252,8 @@ describe('Worker', function() {
             {"path":"fn.c", "data":"int mul2(int x) { return x*x; }\n"}
         ],
         "buildsteps":[
-            {"path":"main.c", "platform":"nes-conio", "tool":"cc65"},
-            {"path":"fn.c", "platform":"nes-conio", "tool":"cc65"}
+            {"path":"main.c", "platform":"nes", "tool":"cc65"},
+            {"path":"fn.c", "platform":"nes", "tool":"cc65"}
         ]
     };
     var m2 = {
@@ -266,8 +261,8 @@ describe('Worker', function() {
             {"path":"main.c", "data":"extern int mul2(int x); \nint main() { return mul2(2); }\n"}
         ],
         "buildsteps":[
-            {"path":"main.c", "platform":"nes-conio", "tool":"cc65"},
-            {"path":"fn.c", "platform":"nes-conio", "tool":"cc65"}
+            {"path":"main.c", "platform":"nes", "tool":"cc65"},
+            {"path":"fn.c", "platform":"nes", "tool":"cc65"}
         ]
     };
     var msgs = [m, m, m2];
