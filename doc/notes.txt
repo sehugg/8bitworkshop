@@ -93,6 +93,7 @@ TODO:
 - profiler restarts when paused
 - it's pretty easy to add a new file named like a library file (bcd.c)
 - put globals into view/controller objects
+- open asset editor twice first time?
 
 
 WEB WORKER FORMAT
@@ -216,4 +217,5 @@ Assets come from:
 - chr files
 - bitmap data in files
 - structured data (palette, sprites, metasprites, levels, etc)
+- think about new comment format, platform-specific types
 

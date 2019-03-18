@@ -177,8 +177,8 @@ var PLATFORM_PARAMS = {
     extra_segments:[
       //{name:'Work RAM',start:0x0,size:0x800,type:'ram'},
       {name:'OAM Buffer',start:0x200,size:0x100,type:'ram'},
-      {name:'PPU Registers',start:0x2000,size:0x8,type:'io'},
-      {name:'APU Registers',start:0x4000,size:0x20,type:'io'},
+      {name:'PPU Registers',start:0x2000,last:0x2008,size:0x2000,type:'io'},
+      {name:'APU Registers',start:0x4000,last:0x4020,size:0x2000,type:'io'},
       {name:'Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
     ],
   },

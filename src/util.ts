@@ -420,3 +420,6 @@ export function clamp(minv:number, maxv:number, v:number) {
   return (v < minv) ? minv : (v > maxv) ? maxv : v;
 }
 
+export function safeident(s : string) : string {
+  return s.replace(/\W+/g, "_");
+}

@@ -225,6 +225,9 @@ function refreshWindowList() {
       return new Views.ProfileView();
     });
   }
+  addWindowItem('#asseteditor', 'Asset Editor', function() {
+    return new Views.AssetEditorView();
+  });
 }
 
 // can pass integer or string id
@@ -554,9 +557,10 @@ function _downloadSourceFile(e) {
 function _downloadProjectZipFile(e) {
   loadScript('lib/jszip.min.js', () => {
     var zip = new JSZip();
-    current_project.iterateFiles(function(id, text) {
-      if (text)
-        zip.file(getFilenameForPath(id), text);
+    current_project.iterateFiles( (id, data) => {
+      if (data) {
+        zip.file(getFilenameForPath(id), data);
+      }
     });
     zip.generateAsync({type:"blob"}).then( (content) => {
       saveAs(content, getCurrentMainFilename() + ".zip");

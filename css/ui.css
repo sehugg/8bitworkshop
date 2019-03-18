@@ -449,3 +449,26 @@ span.profiler-local {
 span.profiler-cident {
   color: #99ffff;
 }
+div.asset_file {
+  border: 2px solid black;
+  border-radius:8px;
+  color: #ddd;
+  background-color:#666;
+  margin:0.5em;
+  padding:1em;
+}
+div.asset_file_header {
+  font-weight: bold;
+  color: white;
+}
+div.asset_grid {
+  line-height:0;
+  margin: 1em;
+}
+div.asset_grid span {
+  white-space: nowrap;
+}
+div.asset_grid canvas {
+  padding: 0px;
+  border: 1px solid black;
+}

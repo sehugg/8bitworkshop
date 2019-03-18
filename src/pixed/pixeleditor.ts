@@ -1,6 +1,7 @@
 "use strict";
 
 import { hex } from "../util";
+import { current_project } from "../ui";
 
 type PixelEditorImageFormat = {
   w:number
@@ -14,7 +15,7 @@ type PixelEditorImageFormat = {
   remap?:number[]
   brev?:boolean
   destfmt?:PixelEditorImageFormat
-  xform?
+  xform?:string
 };
 
 type PixelEditorPaletteFormat = {
@@ -323,7 +324,7 @@ function remapBits(x:number, arr:number[]) : number {
   return y;
 }
 
-function convertWordsToImages(words:number[], fmt:PixelEditorImageFormat) : Uint8Array[] {
+function convertWordsToImages(words:number[] | Uint8Array, fmt:PixelEditorImageFormat) : Uint8Array[] {
   var width = fmt.w;
   var height = fmt.h;
   var count = fmt.count || 1;
@@ -562,7 +563,7 @@ function pixelEditorKeypress(e) {
       case 104:
         currentPixelEditor.flipx();
         break;
-      case 118:
+
         currentPixelEditor.flipy();
         break;
       default:
@@ -584,3 +585,148 @@ var PREDEF_PALETTES = {
      ,0xFFF8D878 ,0xFFD8F878 ,0xFFB8F8B8 ,0xFFB8F8D8 ,0xFF00FCFC ,0xFFF8D8F8 ,0xFF000000 ,0xFF000000
    ]
 };
+
+/////
+
+export abstract class PixelNode {
+  left : PixelNode;	// toward text editor
+  right : PixelNode;	// toward pixel editor
+  input?
+  output?
+  
+  abstract updateLeft();	// update coming from right
+  abstract updateRight();	// update coming from left
+  
+  refreshLeft() {
+    var p : PixelNode = this;
+    while (p) {
+      p.updateLeft();
+      p = p.left;
+    }
+  }
+  refreshRight() {
+    var p : PixelNode = this;
+    while (p) {
+      p.updateRight();
+      p = p.right;
+    }
+  }
+  addRight(node : PixelNode) {
+    this.right = node;
+    node.left = this;
+  }
+}
+
+export class PixelFileDataNode extends PixelNode {
+  fileid : string;
+  output : Uint8Array;
+  
+  constructor(fileid, data) {
+    super();
+    this.fileid = fileid;
+    this.output = data;
+  }
+  updateLeft() {
+    current_project.updateFile(this.fileid, this.output);
+  }
+  updateRight() {
+  }
+}
+
+export class PixelTextDataNode extends PixelNode {
+  fileid : string;
+  text : string;
+  start : number;
+  end : number;
+  output : Uint8Array;
+
+  constructor(fileid, text, start, end) {
+    super();
+    this.fileid = fileid;
+    this.text = text;
+    this.start = start;
+    this.end = end;
+  }  
+  updateLeft() {
+    // TODO: reload editors?
+    current_project.updateFile(this.fileid, this.text);
+  }
+  updateRight() {
+    var datastr = this.text.substring(this.start, this.end);
+    var words = parseHexWords(datastr);
+    this.output = new Uint8Array(words); // TODO: 16/32?
+  }
+}
+
+export class PixelMapper extends PixelNode {
+
+  fmt : PixelEditorImageFormat;
+  input : number[] | Uint8Array;
+  output : Uint8Array[];
+  
+  updateLeft() {
+    //TODO
+    this.input = convertImagesToWords(this.output, this.fmt);
+  }
+  updateRight() {
+    // convert each word array to images
+    this.input = this.left.output;
+    this.output = convertWordsToImages(this.input, this.fmt);
+  }
+
+}
+
+export class PixelPalettizer extends PixelNode {
+
+  input : Uint8Array[];
+  output : Uint32Array[];
+  palette : Uint32Array;
+  
+  updateLeft() {
+    //TODO
+  }
+  updateRight() {
+    var mask = this.palette.length - 1; // must be power of 2
+    this.input = this.left.output;
+    // for each image, map bytes to RGB colors
+    this.output = this.input.map( (im:Uint8Array) => {
+      var out = new Uint32Array(im.length);
+      for (var i=0; i<im.length; i++) {
+        out[i] = this.palette[im[i] & mask];
+      }
+      return out;
+    });
+  }
+}
+
+export class PixelViewer {
+
+  parentdiv : HTMLElement;
+  width : number;
+  height : number;
+  canvas : HTMLCanvasElement;
+  ctx : CanvasRenderingContext2D;
+  pixdata : ImageData;
+
+  recreate() {
+    this.canvas = this.newCanvas();
+    this.ctx = this.canvas.getContext('2d');
+    this.pixdata = this.ctx.createImageData(this.width, this.height);
+  }
+
+  newCanvas() : HTMLCanvasElement {
+    var c = document.createElement('canvas');
+    c.width = this.width;
+    c.height = this.height;
+    //if (fmt.xform) c.style.transform = fmt.xform;
+    c.classList.add("pixels");
+    c.classList.add("pixelated");
+    return c;
+  }
+
+  updateImage(imdata : Uint32Array) {
+    new Uint32Array(this.pixdata.data.buffer).set(imdata);
+    this.ctx.putImageData(this.pixdata, 0, 0);
+  }
+}
+

@@ -3,11 +3,12 @@
 import $ = require("jquery");
 //import CodeMirror = require("codemirror");
 import { CodeProject } from "./project";
-import { SourceFile, WorkerError, Segment } from "./workertypes";
+import { SourceFile, WorkerError, Segment, FileData } from "./workertypes";
 import { Platform, EmuState, ProfilerOutput, lookupSymbol } from "./baseplatform";
-import { hex, lpad, rpad } from "./util";
+import { hex, lpad, rpad, safeident } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
+import { PixelViewer, PixelMapper, PixelPalettizer, PixelFileDataNode, PixelTextDataNode, parseHexWords } from "./pixed/pixeleditor";
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
@@ -819,7 +820,6 @@ export class MemoryMapView implements ProjectView {
   createDiv(parent : HTMLElement) {
     this.maindiv = $('<div class="vertical-scroll"/>');
     $(parent).append(this.maindiv);
-    this.refresh();
     return this.maindiv[0];
   }
 
@@ -949,3 +949,133 @@ export class ProfileView implements ProjectView {
       platform.stopProfiling();
   }
 }
+
+///
+
+export class AssetEditorView implements ProjectView {
+  maindiv : JQuery;
+
+  createDiv(parent : HTMLElement) {
+    this.maindiv = $('<div class="vertical-scroll"/>');
+    $(parent).append(this.maindiv);
+    return this.maindiv[0];
+  }
+  
+  scanFileTextForAssets(id : string, data : string) {
+    // scan file for assets
+    // /*{json}*/ or ;;{json};;
+    var result = [];
+    var re1 = /[/;][*;]([{].+[}])[*;][/;]/g;
+    var m;
+    while (m = re1.exec(data)) {
+      var start = m.index + m[0].length;
+      var end;
+      // TODO: verilog end
+      if (m[0].startsWith(';;')) {
+        end = data.indexOf(';;', start); // asm
+      } else {
+        end = data.indexOf(';', start); // C
+      }
+      console.log(id, start, end, m[1]);
+      if (end > start) {
+        try {
+          var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
+          var json = JSON.parse(jsontxt);
+          // TODO: name?
+          result.push({fileid:id,fmt:json,start:start,end:end});
+        } catch (e) {
+          console.log(e);
+        }
+      }
+    }
+    return result;
+  }
+  
+  addPixelEditor(filediv:JQuery, firstnode:PixelFileDataNode|PixelTextDataNode, fmt?) {
+    var adual = $('<div class="asset_dual"/>');
+    // create tile set
+    var aedit = $('<div class="asset_grid"/>');
+    adual.append(aedit);
+    filediv.append(adual);
+    // data -> pixels
+    var mapper = new PixelMapper();
+    fmt = fmt || {w:8,h:8,bpp:1,count:256/*(data.length>>4)*/,brev:true,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}; // TODO
+    fmt.xform = 'scale(2)';
+    mapper.fmt = fmt;
+    var imgsperline = fmt.w == 8 ? 16 : 8; // TODO
+    // TODO: rotate node?
+    firstnode.addRight(mapper);
+    // pixels -> RGBA
+    var palizer = new PixelPalettizer();
+    if (fmt.bpp*(fmt.np|1) == 1)
+      palizer.palette = new Uint32Array([0xff000000, 0xffffffff]);
+    else
+      palizer.palette = new Uint32Array([0xff000000, 0xffff00ff, 0xffffff00, 0xffffffff]); // TODO
+    mapper.addRight(palizer);
+    // refresh
+    firstnode.refreshRight();
+    // add view objects (TODO)
+    // TODO: they need to update when refreshed from right
+    var i = 0;
+    var span = null;
+    for (var imdata of palizer.output) {
+      var viewer = new PixelViewer();
+      viewer.width = mapper.fmt.w | 0;
+      viewer.height = mapper.fmt.h | 0;
+      viewer.recreate();
+      viewer.canvas.style.width = (viewer.width*2)+'px'; // TODO
+      viewer.updateImage(imdata); // TODO
+      $(viewer.canvas).click((e) => {
+        console.log(e); // TODO
+      });
+      if (!span) {
+        span = $('<span/>');
+        aedit.append(span);
+      }
+      span.append(viewer.canvas);
+      if (++i == imgsperline) {
+        aedit.append($("<br/>"));
+        span = null;
+        i = 0;
+      }
+    }
+  }
+  
+  refreshAssetsInFile(fileid : string, data : FileData) {
+    let filediv = $('#'+this.getFileDivId(fileid)).empty();
+    // TODO
+    // TODO: check if open
+    if (fileid.endsWith('.chr') && data instanceof Uint8Array) {
+      let node = new PixelFileDataNode(fileid, data);
+      this.addPixelEditor(filediv, node);
+    } else if (typeof data === 'string') {
+      let textfrags = this.scanFileTextForAssets(fileid, data);
+      for (let frag of textfrags) {
+        // is this a bitmap?
+        if (frag.fmt && frag.fmt.w > 0 && frag.fmt.h > 0) {
+          let node = new PixelTextDataNode(fileid, data, frag.start, frag.end);
+          this.addPixelEditor(filediv, node, frag.fmt);
+        } else {
+          // TODO: other kinds of resources?
+        }
+      }
+    }
+  }
+  
+  getFileDivId(id : string) {
+    return '__asset__' + safeident(id);
+  }
+
+  refresh() {
+    this.maindiv.empty();
+    current_project.iterateFiles((id, data) => {
+      var divid = this.getFileDivId(id);
+      var header = $('<div class="asset_file_header"/>').text(id);
+      var body = $('<div/>').attr('id',divid);
+      var filediv = $('<div class="asset_file"/>').append(header, body).appendTo(this.maindiv);
+      this.refreshAssetsInFile(id, data);
+    });
+  }
+
+}
+
