@@ -3,7 +3,7 @@
 import { hex } from "../util";
 import { current_project } from "../ui";
 
-type PixelEditorImageFormat = {
+export type PixelEditorImageFormat = {
   w:number
   h:number
   count?:number
@@ -18,7 +18,7 @@ type PixelEditorImageFormat = {
   xform?:string
 };
 
-type PixelEditorPaletteFormat = {
+export type PixelEditorPaletteFormat = {
   pal?:number
   n?:number
 };
@@ -400,7 +400,8 @@ function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) :
   return words;
 }
 
-function convertPaletteBytes(arr:number[],r0,r1,g0,g1,b0,b1) : number[] {
+// TODO
+function convertPaletteBytes(arr:number[]|Uint8Array,r0,r1,g0,g1,b0,b1) : number[] {
   var result = [];
   for (var i=0; i<arr.length; i++) {
     var d = arr[i];
@@ -426,6 +427,29 @@ export var currentPaletteStr : string;
 export var currentPaletteFmt : PixelEditorPaletteFormat;
 export var allthumbs;
 
+function convertPaletteFormat(palbytes: number[]|Uint8Array, palfmt: PixelEditorPaletteFormat) : number[] {
+  var pal = palfmt.pal;
+  var newpalette;
+  if (pal > 0) {
+    var rr = Math.floor(Math.abs(pal/100) % 10);
+    var gg = Math.floor(Math.abs(pal/10) % 10);
+    var bb = Math.floor(Math.abs(pal) % 10);
+    // TODO: n
+    if (currentPaletteFmt.pal >= 0)
+      newpalette = convertPaletteBytes(palbytes, 0, rr, rr, gg, rr+gg, bb);
+    else
+      newpalette = convertPaletteBytes(palbytes, rr+gg, bb, rr, gg, 0, rr);
+  } else {
+    var paltable = PREDEF_PALETTES[pal];
+    if (paltable) {
+      newpalette = new Uint32Array(palbytes).map((i) => { return paltable[i & (paltable.length-1)]; });
+    } else {
+      throw new Error("No palette named " + pal);
+    }
+  }
+  return newpalette;
+}
+
 export function pixelEditorDecodeMessage(e) {
   parentSource = e.source;
   parentOrigin = e.origin;
@@ -439,24 +463,7 @@ export function pixelEditorDecodeMessage(e) {
   var newpalette = [0xff000000, 0xffffffff]; // TODO
   if (currentPaletteStr) {
     var palbytes = parseHexWords(data.palstr);
-    var pal = currentPaletteFmt.pal;
-    if (pal > 0) {
-      var rr = Math.floor(Math.abs(pal/100) % 10);
-      var gg = Math.floor(Math.abs(pal/10) % 10);
-      var bb = Math.floor(Math.abs(pal) % 10);
-      // TODO: n
-      if (currentPaletteFmt.pal >= 0)
-        newpalette = convertPaletteBytes(palbytes, 0, rr, rr, gg, rr+gg, bb);
-      else
-        newpalette = convertPaletteBytes(palbytes, rr+gg, bb, rr, gg, 0, rr);
-    } else {
-      var paltable = PREDEF_PALETTES[pal];
-      if (paltable) {
-        newpalette = palbytes.map((i) => { return paltable[i]; });
-      } else {
-        alert("No palette named " + pal);
-      }
-    }
+    newpalette = convertPaletteFormat(palbytes, currentPaletteFmt) || newpalette;
     if (currentPaletteFmt.n) {
       paletteSets = [];
       for (var i=0; i<newpalette.length; i+=currentPaletteFmt.n) {
@@ -573,6 +580,7 @@ function pixelEditorKeypress(e) {
   }
 }
 
+// TODO: reversed?
 var PREDEF_PALETTES = {
   'nes':[
       0xFF7C7C7C ,0xFF0000FC ,0xFF0000BC ,0xFF4428BC ,0xFF940084 ,0xFFA80020 ,0xFFA81000 ,0xFF881400
@@ -591,6 +599,7 @@ var PREDEF_PALETTES = {
 export abstract class PixelNode {
   left : PixelNode;	// toward text editor
   right : PixelNode;	// toward pixel editor
+  // TODO: in/out(...) for each type?
   input?
   output?
   
@@ -699,9 +708,28 @@ export class PixelPalettizer extends PixelNode {
   }
 }
 
+export class PixelPaletteFormatToRGB extends PixelNode {
+
+  input : Uint8Array;
+  output : Uint32Array[];
+  palette : Uint32Array;
+  palfmt : PixelEditorPaletteFormat;
+
+  updateLeft() {
+    //TODO
+  }
+  updateRight() {
+    this.input = this.left.output;
+    this.palette = new Uint32Array(convertPaletteFormat(this.input, this.palfmt));
+    this.output = [];
+    this.palette.forEach( (rgba:number) => {
+      this.output.push(new Uint32Array([rgba]));
+    });
+  }
+}
+
 export class PixelViewer {
 
-  parentdiv : HTMLElement;
   width : number;
   height : number;
   canvas : HTMLCanvasElement;
@@ -710,8 +738,14 @@ export class PixelViewer {
 
   recreate() {
     this.canvas = this.newCanvas();
-    this.ctx = this.canvas.getContext('2d');
     this.pixdata = this.ctx.createImageData(this.width, this.height);
+  }
+
+  createWith(pv : PixelViewer) {
+    this.width = pv.width;
+    this.height = pv.height;
+    this.pixdata = pv.pixdata;
+    this.canvas = this.newCanvas();
   }
 
   newCanvas() : HTMLCanvasElement {
@@ -721,11 +755,14 @@ export class PixelViewer {
     //if (fmt.xform) c.style.transform = fmt.xform;
     c.classList.add("pixels");
     c.classList.add("pixelated");
+    this.ctx = c.getContext('2d');
     return c;
   }
 
   updateImage(imdata : Uint32Array) {
-    new Uint32Array(this.pixdata.data.buffer).set(imdata);
+    if (imdata) {
+      new Uint32Array(this.pixdata.data.buffer).set(imdata);
+    }
     this.ctx.putImageData(this.pixdata, 0, 0);
   }
 }

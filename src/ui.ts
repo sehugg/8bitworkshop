@@ -1458,6 +1458,7 @@ export function startUI(loadplatform : boolean) {
           console.log("loaded platform", platform_id);
           startPlatform();
           showWelcomeMessage();
+          document.title = document.title + " [" + platform_id + "] - " + main_file_id;
         });
       } else {
         startPlatform();

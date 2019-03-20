@@ -472,3 +472,16 @@ div.asset_grid canvas {
   padding: 0px;
   border: 1px solid black;
 }
+div.asset_grid canvas:hover {
+  border: 1px solid white;
+}
+div.asset_dual {
+ display: flex;
+ align-items: center;
+}
+div.asset_editor {
+  border-radius:16px;
+  padding:16px;
+  margin:16px;
+  background-color:#999;
+}

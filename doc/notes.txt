@@ -40,7 +40,6 @@ TODO:
 - NES crt should mark raster pos when debugging
 - intro/help text for each platform
 - vscode/atom extension?
-- navigator.getGamepads
 - VCS asm library
 - better VCS single stepping, maybe also listings
 - VCS skips step on lsr/lsr after run to line
@@ -64,7 +63,6 @@ TODO:
 - update bootstrap
 - $readmemb/h
 - batariBasic: proper line numbers, debugging
-- show player controls for each platform, allow touch support
 - granular control over time scrubbing, show CPU state
 - error showing replay div before rom starts
 - compiler flags for final ROM build
@@ -93,7 +91,13 @@ TODO:
 - profiler restarts when paused
 - it's pretty easy to add a new file named like a library file (bcd.c)
 - put globals into view/controller objects
-- open asset editor twice first time?
+- cr/lf in files
+- upload binary files doesn't do what's expected, changing pulldown and whatnot
+- chrome autostart audio: https://github.com/processing/p5.js-sound/issues/249
+- show player controls for each platform, allow touch support, navigator.getGamepads
+- better undo/diff for mistakes?
+- get rid of "illegal PC" instruction, replace with status msg
+
 
 
 WEB WORKER FORMAT

@@ -8,7 +8,7 @@ import { Platform, EmuState, ProfilerOutput, lookupSymbol } from "./baseplatform
 import { hex, lpad, rpad, safeident } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
-import { PixelViewer, PixelMapper, PixelPalettizer, PixelFileDataNode, PixelTextDataNode, parseHexWords } from "./pixed/pixeleditor";
+import { PixelEditorImageFormat, PixelViewer, PixelMapper, PixelPalettizer, PixelFileDataNode, PixelTextDataNode, PixelPaletteFormatToRGB, parseHexWords } from "./pixed/pixeleditor";
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
@@ -954,11 +954,25 @@ export class ProfileView implements ProjectView {
 
 export class AssetEditorView implements ProjectView {
   maindiv : JQuery;
+  cureditordiv : JQuery;
 
   createDiv(parent : HTMLElement) {
     this.maindiv = $('<div class="vertical-scroll"/>');
     $(parent).append(this.maindiv);
     return this.maindiv[0];
+  }
+  
+  setCurrentEditor(div : JQuery) {
+    if (this.cureditordiv != div) {
+      if (this.cureditordiv) {
+        this.cureditordiv.hide(250);
+        this.cureditordiv = null;
+      }
+      if (div) {
+        this.cureditordiv = div;
+        this.cureditordiv.show(250);
+      }
+    }
   }
   
   scanFileTextForAssets(id : string, data : string) {
@@ -991,18 +1005,51 @@ export class AssetEditorView implements ProjectView {
     return result;
   }
   
+  addPixelEditorViews(filediv : JQuery, images : Uint32Array[], fmt : PixelEditorImageFormat) {
+    var adual = $('<div class="asset_dual"/>'); // contains grid and editor
+    var agrid = $('<div class="asset_grid"/>'); // grid (or 1) of preview images
+    var aeditor = $('<div class="asset_editor"/>').hide(); // contains editor, when selected
+    adual.append(agrid, aeditor).appendTo(filediv);
+    // TODO: they need to update when refreshed from right
+    var imgsperline = fmt.w <= 8 ? 16 : 8; // TODO
+    // TODO?
+    var cscale = Math.ceil(16/fmt.w);
+    var escale = Math.ceil(192/fmt.w);
+    var i = 0;
+    var span = null;
+    images.forEach( (imdata) => {
+      var viewer = new PixelViewer();
+      viewer.width = fmt.w | 0;
+      viewer.height = fmt.h | 0;
+      viewer.recreate();
+      viewer.canvas.style.width = (viewer.width*cscale)+'px'; // TODO
+      viewer.updateImage(imdata); // TODO
+      $(viewer.canvas).click((e) => {
+        var editview = new PixelViewer();
+        editview.createWith(viewer);
+        editview.updateImage(null);
+        editview.canvas.style.width = (viewer.width*escale)+'px'; // TODO
+        aeditor.empty().append(editview.canvas);
+        this.setCurrentEditor(aeditor);
+      });
+      if (!span) {
+        span = $('<span/>');
+        agrid.append(span);
+      }
+      span.append(viewer.canvas);
+      if (++i == imgsperline) {
+        agrid.append($("<br/>"));
+        span = null;
+        i = 0;
+      }
+    });
+  }
+  
   addPixelEditor(filediv:JQuery, firstnode:PixelFileDataNode|PixelTextDataNode, fmt?) {
-    var adual = $('<div class="asset_dual"/>');
-    // create tile set
-    var aedit = $('<div class="asset_grid"/>');
-    adual.append(aedit);
-    filediv.append(adual);
     // data -> pixels
     var mapper = new PixelMapper();
-    fmt = fmt || {w:8,h:8,bpp:1,count:256/*(data.length>>4)*/,brev:true,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}; // TODO
     fmt.xform = 'scale(2)';
     mapper.fmt = fmt;
-    var imgsperline = fmt.w == 8 ? 16 : 8; // TODO
     // TODO: rotate node?
     firstnode.addRight(mapper);
     // pixels -> RGBA
@@ -1010,35 +1057,23 @@ export class AssetEditorView implements ProjectView {
     if (fmt.bpp*(fmt.np|1) == 1)
       palizer.palette = new Uint32Array([0xff000000, 0xffffffff]);
     else
-      palizer.palette = new Uint32Array([0xff000000, 0xffff00ff, 0xffffff00, 0xffffffff]); // TODO
+      palizer.palette = new Uint32Array([0x00000000, 0xffff00ff, 0xffffff00, 0xffffffff]); // TODO
     mapper.addRight(palizer);
     // refresh
     firstnode.refreshRight();
     // add view objects (TODO)
-    // TODO: they need to update when refreshed from right
-    var i = 0;
-    var span = null;
-    for (var imdata of palizer.output) {
-      var viewer = new PixelViewer();
-      viewer.width = mapper.fmt.w | 0;
-      viewer.height = mapper.fmt.h | 0;
-      viewer.recreate();
-      viewer.canvas.style.width = (viewer.width*2)+'px'; // TODO
-      viewer.updateImage(imdata); // TODO
-      $(viewer.canvas).click((e) => {
-        console.log(e); // TODO
-      });
-      if (!span) {
-        span = $('<span/>');
-        aedit.append(span);
-      }
-      span.append(viewer.canvas);
-      if (++i == imgsperline) {
-        aedit.append($("<br/>"));
-        span = null;
-        i = 0;
-      }
-    }
+    this.addPixelEditorViews(filediv, palizer.output, fmt);
+  }
+
+  addPaletteEditor(filediv:JQuery, firstnode:PixelFileDataNode|PixelTextDataNode, palfmt?) {
+    // palette -> RGBA
+    var pal2rgb = new PixelPaletteFormatToRGB();
+    pal2rgb.palfmt = palfmt;
+    firstnode.addRight(pal2rgb);
+    firstnode.refreshRight();
+    // add view objects (TODO)
+    var imgfmt = {w:1,h:1};
+    this.addPixelEditorViews(filediv, pal2rgb.output, imgfmt);
   }
   
   refreshAssetsInFile(fileid : string, data : FileData) {
@@ -1046,8 +1081,10 @@ export class AssetEditorView implements ProjectView {
     // TODO
     // TODO: check if open
     if (fileid.endsWith('.chr') && data instanceof Uint8Array) {
+      // is this a NES CHR?
       let node = new PixelFileDataNode(fileid, data);
-      this.addPixelEditor(filediv, node);
+      const neschrfmt = {w:8,h:8,bpp:1,count:(data.length>>4),brev:true,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}; // TODO
+      this.addPixelEditor(filediv, node, neschrfmt);
     } else if (typeof data === 'string') {
       let textfrags = this.scanFileTextForAssets(fileid, data);
       for (let frag of textfrags) {
@@ -1055,6 +1092,11 @@ export class AssetEditorView implements ProjectView {
         if (frag.fmt && frag.fmt.w > 0 && frag.fmt.h > 0) {
           let node = new PixelTextDataNode(fileid, data, frag.start, frag.end);
           this.addPixelEditor(filediv, node, frag.fmt);
+        }
+        // is this a palette?
+        else if (frag.fmt && frag.fmt.pal) {
+          let node = new PixelTextDataNode(fileid, data, frag.start, frag.end);
+          this.addPaletteEditor(filediv, node, frag.fmt);
         } else {
           // TODO: other kinds of resources?
         }
@@ -1066,6 +1108,7 @@ export class AssetEditorView implements ProjectView {
     return '__asset__' + safeident(id);
   }
 
+// TODO: recreate editors when refreshing
   refresh() {
     this.maindiv.empty();
     current_project.iterateFiles((id, data) => {
@@ -1074,6 +1117,7 @@ export class AssetEditorView implements ProjectView {
       var body = $('<div/>').attr('id',divid);
       var filediv = $('<div class="asset_file"/>').append(header, body).appendTo(this.maindiv);
       this.refreshAssetsInFile(id, data);
+      // TODO: what if crash while parsing?
     });
   }
 
