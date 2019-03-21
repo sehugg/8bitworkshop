@@ -1805,6 +1805,55 @@ function translateShowdown(step:BuildStep) {
   };
 }
 
+// TODO
+function assembleXASM6809(step:BuildStep) {
+  load("xasm6809");
+  var origin = 0; // TODO: configurable
+  var alst = "";
+  var lasterror = null;
+  var errors = [];
+  function match_fn(s) {
+    alst += s;
+    alst += "\n";
+    if (lasterror) {
+      var line = parseInt(s.slice(0,5));
+      errors.push({
+        line:line,
+        msg:lasterror
+      });
+      lasterror = null;
+    }
+    else if (s.startsWith("***** ")) {
+      lasterror = s.slice(6);
+    }
+  }
+  var Module = emglobal.xasm6809({
+    noInitialRun:true,
+    //logReadFiles:true,
+    print:match_fn,
+    printErr:print_fn
+  });
+  var FS = Module['FS'];
+  //setupFS(FS);
+  var code = getWorkFileAsString(step.path);
+  FS.writeFile("main.asm", code);
+  Module.callMain(["-c", "-l", "-s", "-y", "-o=main.bin", "main.asm"]);
+  if (errors.length)
+    return {errors:errors};
+  var aout = FS.readFile("main.bin", {encoding:'binary'});
+  putWorkFile('main.bin', aout);
+  // 00001    0000 [ 2] 1048                asld
+  var asmlines = parseListing(alst, /^\s*([0-9A-F]+)\s+([0-9A-F]+)\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 1, 2, 4);
+  // TODO
+  return {
+      output:aout,
+      errors:errors,
+      lines:asmlines,
+      intermediate:{listing:alst},
+  };
+}
+
+
 ////////////////////////////
 
 var TOOLS = {
@@ -1820,7 +1869,7 @@ var TOOLS = {
   'sdasz80': assembleSDASZ80,
   'sdldz80': linkSDLDZ80,
   'sdcc': compileSDCC,
-  //'xasm6809': assembleXASM6809,
+  'xasm6809': assembleXASM6809,
   //'naken': assembleNAKEN,
   'verilator': compileVerilator,
   'yosys': compileYosys,

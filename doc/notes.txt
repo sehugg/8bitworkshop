@@ -98,7 +98,7 @@ TODO:
 - better undo/diff for mistakes?
 - get rid of "illegal PC" instruction, replace with status msg
 - ide bug/feature visualizer for sponsors
-
+- optimization flags for sdcc (oldralloc)
 
 
 WEB WORKER FORMAT

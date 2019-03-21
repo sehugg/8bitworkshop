@@ -644,7 +644,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   }
 }
 
-export function getToolForFilename_z80(fn) {
+export function getToolForFilename_z80(fn) : string {
   if (fn.endsWith(".c")) return "sdcc";
   if (fn.endsWith(".h")) return "sdcc";
   if (fn.endsWith(".s")) return "sdasz80";
@@ -700,8 +700,18 @@ export abstract class Base6809Platform extends BaseZ80Platform {
     // TODO: don't create new CPU
     return new CPU6809().disasm(read(pc), read(pc+1), read(pc+2), read(pc+3), read(pc+4), pc);
   }
-  getDefaultExtension() { return ".asm"; };
+  getDefaultExtension() : string { return ".asm"; };
   //this.getOpcodeMetadata = function() { }
+  getToolForFilename = () => { return "xasm6809"; }
+  getDebugCategories() {
+    return ['CPU','Stack'];
+  }
+  getDebugInfo(category:string, state:EmuState) : string {
+    switch (category) {
+      case 'CPU':   return cpuStateToLongString_6809(state.c);
+      default:      return super.getDebugInfo(category, state);
+    }
+  }
 }
 
 /// MAME SUPPORT
