@@ -1045,7 +1045,7 @@ export class AssetEditorView implements ProjectView {
     });
   }
   
-  addPixelEditor(filediv:JQuery, firstnode:PixelFileDataNode|PixelTextDataNode, fmt?) {
+  addPixelEditor(filediv:JQuery, firstnode:PixelFileDataNode|PixelTextDataNode, fmt:PixelEditorImageFormat) {
     // data -> pixels
     var mapper = new PixelMapper();
     fmt.xform = 'scale(2)';
@@ -1097,7 +1097,8 @@ export class AssetEditorView implements ProjectView {
         else if (frag.fmt && frag.fmt.pal) {
           let node = new PixelTextDataNode(fileid, data, frag.start, frag.end);
           this.addPaletteEditor(filediv, node, frag.fmt);
-        } else {
+        }
+        else {
           // TODO: other kinds of resources?
         }
       }

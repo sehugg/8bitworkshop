@@ -97,12 +97,8 @@ describe('Worker', function() {
     compile('plasm', 'word x = ', 'apple2', done, 0, 0, 1);
   });
   */
-  // TODO: test NES bank switching, mapper
   it('should compile CC65', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nreturn x+2;\n}', 'nes', done, 40976, 3);
-  });
-  it('should compile CC65 banked', function(done) {
-    compile('cc65', '#define NES_MAPPER 4\nint main() {\nint x=1;\nreturn x+2;\n}', 'nes', done, 131088, 3);
   });
   it('should NOT compile CC65 (compile error)', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes', done, 0, 0, 1);
@@ -226,7 +222,7 @@ describe('Worker', function() {
   });
   /*
   it('should compile XASM6809', function(done) {
-    compile('xasm6809', '\tasld\n\tasld\n', 'mw8080bw', done, 4, 2, 0);
+    compile('xasm6809', '\tasld\n\tasld\n', 'williams', done, 4, 2, 0);
   });
   */
   it('should link two files with SDCC', function(done) {
@@ -315,5 +311,9 @@ describe('Worker', function() {
     compile('cc65', csource, 'apple2', done, 17349, 4, 0);
   });
   // TODO: test if compile, errors, then compile same file
+  // TODO: params persist because of fixParamsWithDefines()
+  it('should compile CC65 banked', function(done) {
+    compile('cc65', '#define NES_MAPPER 4\nint main() {\nint x=1;\nreturn x+2;\n}', 'nes', done, 131088, 3);
+  });
 
 });

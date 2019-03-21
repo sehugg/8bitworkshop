@@ -1,7 +1,7 @@
 "use strict";
 
 import { hex } from "../util";
-import { current_project } from "../ui";
+import { CodeProject } from "../project";
 
 export type PixelEditorImageFormat = {
   w:number
@@ -19,8 +19,9 @@ export type PixelEditorImageFormat = {
 };
 
 export type PixelEditorPaletteFormat = {
-  pal?:number
+  pal?:number|string
   n?:number
+  layout?:string
 };
 
 type PixelEditorMessage = {
@@ -430,7 +431,7 @@ export var allthumbs;
 function convertPaletteFormat(palbytes: number[]|Uint8Array, palfmt: PixelEditorPaletteFormat) : number[] {
   var pal = palfmt.pal;
   var newpalette;
-  if (pal > 0) {
+  if (typeof pal === 'number') {
     var rr = Math.floor(Math.abs(pal/100) % 10);
     var gg = Math.floor(Math.abs(pal/10) % 10);
     var bb = Math.floor(Math.abs(pal) % 10);
@@ -594,6 +595,20 @@ var PREDEF_PALETTES = {
    ]
 };
 
+var PREDEF_LAYOUTS = {
+  'nes_full':[
+    ['Screen Color',  1],
+    ['Background 1',  3], [null, 1],
+    ['Background 2',  3], [null, 1],
+    ['Background 3',  3], [null, 1],
+    ['Background 4',  3], [null, 1],
+    ['Sprite 1',      3], [null, 1],
+    ['Sprite 2',      3], [null, 1],
+    ['Sprite 3',      3], [null, 1],
+    ['Sprite 4',      3]
+  ],
+};
+
 /////
 
 export abstract class PixelNode {
@@ -626,8 +641,12 @@ export abstract class PixelNode {
   }
 }
 
-export class PixelFileDataNode extends PixelNode {
+abstract class PixelCodeProjectDataNode extends PixelNode {
   fileid : string;
+  project : CodeProject;
+}
+
+export class PixelFileDataNode extends PixelCodeProjectDataNode {
   output : Uint8Array;
   
   constructor(fileid, data) {
@@ -636,14 +655,15 @@ export class PixelFileDataNode extends PixelNode {
     this.output = data;
   }
   updateLeft() {
-    current_project.updateFile(this.fileid, this.output);
+    if (this.project) {
+      this.project.updateFile(this.fileid, this.output);
+    }
   }
   updateRight() {
   }
 }
 
-export class PixelTextDataNode extends PixelNode {
-  fileid : string;
+export class PixelTextDataNode extends PixelCodeProjectDataNode {
   text : string;
   start : number;
   end : number;
@@ -658,7 +678,9 @@ export class PixelTextDataNode extends PixelNode {
   }  
   updateLeft() {
     // TODO: reload editors?
-    current_project.updateFile(this.fileid, this.text);
+    if (this.project) {
+      this.project.updateFile(this.fileid, this.text);
+    }
   }
   updateRight() {
     var datastr = this.text.substring(this.start, this.end);
@@ -709,6 +731,21 @@ export class PixelPalettizer extends PixelNode {
   }
 }
 
+function dedupPalette(cols : number[]) : Uint32Array {
+  var dup = new Map();
+  var res = new Uint32Array(cols.length);
+  var ndups = 0;
+  for (var i=0; i<cols.length; i++) {
+    var n = cols[i];
+    while (dup[n]) {
+      n ^= ++ndups;
+    }
+    res[i] = n;
+    dup[n] = 1;
+  }
+  return res;
+}
+
 export class PixelPaletteFormatToRGB extends PixelNode {
 
   input : Uint8Array;
@@ -721,7 +758,7 @@ export class PixelPaletteFormatToRGB extends PixelNode {
   }
   updateRight() {
     this.input = this.left.output;
-    this.palette = new Uint32Array(convertPaletteFormat(this.input, this.palfmt));
+    this.palette = dedupPalette(convertPaletteFormat(this.input, this.palfmt));
     this.output = [];
     this.palette.forEach( (rgba:number) => {
       this.output.push(new Uint32Array([rgba]));
@@ -729,7 +766,7 @@ export class PixelPaletteFormatToRGB extends PixelNode {
   }
 }
 
-export class PixelViewer {
+export class PixelViewer { // TODO: make PixelNode
 
   width : number;
   height : number;

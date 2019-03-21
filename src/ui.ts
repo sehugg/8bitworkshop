@@ -334,7 +334,7 @@ function handleFileUpload(files: File[]) {
         if (isProbablyBinary(path, data)) {
           gotoMainFile = false;
         } else {
-          data = byteArrayToUTF8(data);
+          data = byteArrayToUTF8(data).replace('\r\n','\n'); // convert CRLF to LF
         }
         // store in local forage
         store.setItem(path, data, function(err, result) {
