@@ -662,6 +662,7 @@ export class PixelTextDataNode extends PixelNode {
   }
   updateRight() {
     var datastr = this.text.substring(this.start, this.end);
+    datastr = convertToHexStatements(datastr); // TODO?
     var words = parseHexWords(datastr);
     this.output = new Uint8Array(words); // TODO: 16/32?
   }

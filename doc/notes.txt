@@ -91,12 +91,13 @@ TODO:
 - profiler restarts when paused
 - it's pretty easy to add a new file named like a library file (bcd.c)
 - put globals into view/controller objects
-- cr/lf in files
+- cr/lf in uploaded files?
 - upload binary files doesn't do what's expected, changing pulldown and whatnot
 - chrome autostart audio: https://github.com/processing/p5.js-sound/issues/249
 - show player controls for each platform, allow touch support, navigator.getGamepads
 - better undo/diff for mistakes?
 - get rid of "illegal PC" instruction, replace with status msg
+- ide bug/feature visualizer for sponsors
 
 
 

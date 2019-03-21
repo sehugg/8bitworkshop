@@ -8,7 +8,7 @@ import { CodeProject } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "./workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols, DebugEvalCondition } from "./baseplatform";
-import { PLATFORMS } from "./emu";
+import { PLATFORMS, EmuHalt } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
@@ -1292,13 +1292,17 @@ var qs = (function (a : string[]) {
 function installErrorHandler() {
   if (typeof window.onerror == "object") {
       window.onerror = function (msgevent, url, line, col, error) {
-        console.log(msgevent, url, line, col);
-        console.log(error);
-        ga('send', 'exception', {
-          'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
-          'exFatal': true
-        });
-        alert(msgevent+"");
+        var msgstr = msgevent+"";
+        console.log(msgevent, url, line, col, error);
+        if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
+          showErrorAlert([ {msg:msgstr, line:0} ]);
+        } else {
+          ga('send', 'exception', {
+            'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
+            'exFatal': true
+          });
+          alert(msgevent+"");
+        }
         _pause();
       };
   }

@@ -215,6 +215,9 @@ export class RAM {
   }
 }
 
+export class EmuHalt extends Error {
+}
+
 export class AnimationTimer {
 
   callback;  
@@ -234,7 +237,15 @@ export class AnimationTimer {
   }
 
   scheduleFrame(msec:number) {
-    var fn = () => { this.nextFrame(); }
+    var fn = () => {
+      try {
+        this.nextFrame();
+      } catch (e) {
+        this.running = false;
+        this.pulsing = false;
+        throw e;
+      }
+    }
     if (this.useReqAnimFrame)
       window.requestAnimationFrame(fn);
     else

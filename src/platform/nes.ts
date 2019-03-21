@@ -1,7 +1,7 @@
 "use strict";
 
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString, ProfilerOutput } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags } from "../emu";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags, EmuHalt } from "../emu";
 import { hex, lpad, lzgmini, byteArrayToString } from "../util";
 import { CodeAnalyzer_nes } from "../analysis";
 import { SampleAudio } from "../audio";
@@ -126,9 +126,8 @@ const _JSNESPlatform = function(mainElement) {
     //nes.ppu.clipToTvSize = false;
     nes.stop = () => {
       // TODO: trigger breakpoint
-      this.pause();
       console.log(nes.cpu.toJSON());
-      throw ("CPU STOPPED @ PC $" + hex(nes.cpu.REG_PC));
+      throw new EmuHalt("CPU STOPPED @ PC $" + hex(nes.cpu.REG_PC));
     };
     // insert debug hook
     nes.cpu._emulate = nes.cpu.emulate;
@@ -148,14 +147,7 @@ const _JSNESPlatform = function(mainElement) {
   }
 
   advance(novideo : boolean) {
-    try {
-      nes.frame();
-    } catch (e) {
-      // TODO?
-      alert(e);
-      console.log(e);
-      this.breakpointHit(this.debugClock);
-    }
+    nes.frame();
   }
 
   updateDebugViews() {
