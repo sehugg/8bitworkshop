@@ -2,13 +2,12 @@
 
 import $ = require("jquery");
 //import CodeMirror = require("codemirror");
-import { CodeProject } from "./project";
 import { SourceFile, WorkerError, Segment, FileData } from "./workertypes";
 import { Platform, EmuState, ProfilerOutput, lookupSymbol } from "./baseplatform";
-import { hex, lpad, rpad, safeident } from "./util";
+import { hex, lpad, rpad, safeident, rgb2bgr } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
-import { PixelEditorImageFormat, PixelViewer, PixelMapper, PixelPalettizer, PixelFileDataNode, PixelTextDataNode, PixelPaletteFormatToRGB, parseHexWords } from "./pixed/pixeleditor";
+import * as pixed from "./pixed/pixeleditor";
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
@@ -342,6 +341,11 @@ export class SourceEditor implements ProjectView {
       line--;
     }
     return -1;
+  }
+  
+  replaceSelection(start:number, end:number, text:string) {
+    this.editor.setSelection(end, start);
+    this.editor.replaceSelection(text);
   }
 
   // bitmap editor (TODO: refactor)
@@ -955,6 +959,7 @@ export class ProfileView implements ProjectView {
 export class AssetEditorView implements ProjectView {
   maindiv : JQuery;
   cureditordiv : JQuery;
+  cureditelem : JQuery;
 
   createDiv(parent : HTMLElement) {
     this.maindiv = $('<div class="vertical-scroll"/>');
@@ -962,7 +967,7 @@ export class AssetEditorView implements ProjectView {
     return this.maindiv[0];
   }
   
-  setCurrentEditor(div : JQuery) {
+  setCurrentEditor(div : JQuery, editing : JQuery) {
     if (this.cureditordiv != div) {
       if (this.cureditordiv) {
         this.cureditordiv.hide(250);
@@ -972,6 +977,14 @@ export class AssetEditorView implements ProjectView {
         this.cureditordiv = div;
         this.cureditordiv.show(250);
       }
+    }
+    if (this.cureditelem) {
+      this.cureditelem.removeClass('asset_editing');
+      this.cureditelem = null;
+    }
+    if (editing) {
+      this.cureditelem = editing;
+      this.cureditelem.addClass('asset_editing');
     }
   }
   
@@ -990,7 +1003,7 @@ export class AssetEditorView implements ProjectView {
       } else {
         end = data.indexOf(';', start); // C
       }
-      console.log(id, start, end, m[1]);
+      //console.log(id, start, end, m[1]);
       if (end > start) {
         try {
           var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
@@ -1005,55 +1018,82 @@ export class AssetEditorView implements ProjectView {
     return result;
   }
   
-  addPixelEditorViews(filediv : JQuery, images : Uint32Array[], fmt : PixelEditorImageFormat) {
+  addPixelEditorViews(filediv:JQuery, images:Uint32Array[], fmt:pixed.PixelEditorImageFormat) {
     var adual = $('<div class="asset_dual"/>'); // contains grid and editor
-    var agrid = $('<div class="asset_grid"/>'); // grid (or 1) of preview images
     var aeditor = $('<div class="asset_editor"/>').hide(); // contains editor, when selected
-    adual.append(agrid, aeditor).appendTo(filediv);
+
+    var chooser = new pixed.ImageChooser();
+    chooser.rgbimgs = images;
+    chooser.width = fmt.w || 1;
+    chooser.height = fmt.h || 1;
+    chooser.recreate(adual, (index, viewer) => {
+      console.log("???",index);
+      var escale = Math.ceil(192/fmt.w);
+      var editview = new pixed.Viewer();
+      editview.createWith(viewer);
+      editview.updateImage(null);
+      editview.canvas.style.width = (viewer.width*escale)+'px'; // TODO
+      aeditor.empty().append(editview.canvas);
+      this.setCurrentEditor(aeditor, $(viewer.canvas));
+    });
+    adual.append(aeditor).appendTo(filediv);
+  }
+  
+  addPaletteEditorViews(filediv:JQuery, words, palette, layout, allcolors, callback) {
+    var adual = $('<div class="asset_dual"/>').appendTo(filediv);
+    var aeditor = $('<div class="asset_editor"/>').hide(); // contains editor, when selected
     // TODO: they need to update when refreshed from right
-    var imgsperline = fmt.w <= 8 ? 16 : 8; // TODO
-    // TODO?
-    var cscale = Math.ceil(16/fmt.w);
-    var escale = Math.ceil(192/fmt.w);
-    var i = 0;
-    var span = null;
-    images.forEach( (imdata) => {
-      var viewer = new PixelViewer();
-      viewer.width = fmt.w | 0;
-      viewer.height = fmt.h | 0;
-      viewer.recreate();
-      viewer.canvas.style.width = (viewer.width*cscale)+'px'; // TODO
-      viewer.updateImage(imdata); // TODO
-      $(viewer.canvas).click((e) => {
-        var editview = new PixelViewer();
-        editview.createWith(viewer);
-        editview.updateImage(null);
-        editview.canvas.style.width = (viewer.width*escale)+'px'; // TODO
-        aeditor.empty().append(editview.canvas);
-        this.setCurrentEditor(aeditor);
-      });
-      if (!span) {
-        span = $('<span/>');
-        agrid.append(span);
+    var allrgbimgs = [];
+    allcolors.forEach((rgba) => { allrgbimgs.push(new Uint32Array([rgba])); }); // array of array of 1 rgb color (for picker)
+    var atable = $('<table/>').appendTo(adual);
+    aeditor.appendTo(adual);
+    // make default layout if not exists
+    if (!layout) {
+      var imgsperline = palette.length > 32 ? 8 : 4;
+      var len = allcolors.length;
+      layout = [];
+      for (var i=0; i<len; i+=imgsperline) {
+        layout.push(["", i, Math.min(len-i,imgsperline)]);
       }
-      span.append(viewer.canvas);
-      if (++i == imgsperline) {
-        agrid.append($("<br/>"));
-        span = null;
-        i = 0;
+    }
+    // iterate over each row of the layout
+    layout.forEach( ([name, start, len]) => {
+      if (start < palette.length) { // skip row if out of range
+        var arow = $('<tr/>').appendTo(atable);
+        $('<td/>').text(name).appendTo(arow);
+        var inds = [];
+        for (var k=start; k<start+len; k++)
+          inds.push(k);
+        inds.forEach( (i) => {
+          var val = words[i];
+          var rgb = palette[i];
+          var hexcol = '#'+hex(rgb2bgr(rgb),6);
+          var textcol = (rgb & 0x008000) ? 'black' : 'white';
+          var cell = $('<td/>').addClass('asset_cell asset_editable').text(hex(val,2)).css('background-color',hexcol).css('color',textcol).appendTo(arow);
+          cell.click((e) => {
+            var chooser = new pixed.ImageChooser();
+            chooser.rgbimgs = allrgbimgs;
+            chooser.width = 1;
+            chooser.height = 1;
+            chooser.recreate(aeditor, (index, newvalue) => {
+              callback(i, index);
+            });
+            this.setCurrentEditor(aeditor, cell);
+          });
+        });
       }
     });
   }
   
-  addPixelEditor(filediv:JQuery, firstnode:PixelFileDataNode|PixelTextDataNode, fmt:PixelEditorImageFormat) {
+  addPixelEditor(filediv:JQuery, firstnode:pixed.Node, fmt:pixed.PixelEditorImageFormat) {
     // data -> pixels
-    var mapper = new PixelMapper();
+    var mapper = new pixed.Mapper();
     fmt.xform = 'scale(2)';
     mapper.fmt = fmt;
     // TODO: rotate node?
     firstnode.addRight(mapper);
     // pixels -> RGBA
-    var palizer = new PixelPalettizer();
+    var palizer = new pixed.Palettizer();
     if (fmt.bpp*(fmt.np|1) == 1)
       palizer.palette = new Uint32Array([0xff000000, 0xffffffff]);
     else
@@ -1061,48 +1101,64 @@ export class AssetEditorView implements ProjectView {
     mapper.addRight(palizer);
     // refresh
     firstnode.refreshRight();
-    // add view objects (TODO)
-    this.addPixelEditorViews(filediv, palizer.output, fmt);
+    // add view objects
+    this.addPixelEditorViews(filediv, palizer.rgbimgs, fmt);
   }
 
-  addPaletteEditor(filediv:JQuery, firstnode:PixelFileDataNode|PixelTextDataNode, palfmt?) {
+  addPaletteEditor(filediv:JQuery, firstnode:pixed.Node, palfmt?) {
     // palette -> RGBA
-    var pal2rgb = new PixelPaletteFormatToRGB();
+    var pal2rgb = new pixed.PaletteFormatToRGB();
     pal2rgb.palfmt = palfmt;
     firstnode.addRight(pal2rgb);
     firstnode.refreshRight();
-    // add view objects (TODO)
-    var imgfmt = {w:1,h:1};
-    this.addPixelEditorViews(filediv, pal2rgb.output, imgfmt);
+    // add view objects
+    // TODO: show which one is selected?
+    this.addPaletteEditorViews(filediv, firstnode.words,
+      pal2rgb.palette, pal2rgb.layout, pal2rgb.getAllColors(),
+      (index, newvalue) => {
+        console.log('set entry', index, '=', newvalue);
+        firstnode.words[index] = newvalue;
+        //firstnode.refreshRight();
+        firstnode.refreshLeft();
+      });
   }
   
-  refreshAssetsInFile(fileid : string, data : FileData) {
+  refreshAssetsInFile(fileid : string, data : FileData) : number {
+    let nassets = 0;
     let filediv = $('#'+this.getFileDivId(fileid)).empty();
     // TODO
     // TODO: check if open
     if (fileid.endsWith('.chr') && data instanceof Uint8Array) {
       // is this a NES CHR?
-      let node = new PixelFileDataNode(fileid, data);
+      let node = new pixed.FileDataNode(projectWindows, fileid, data);
       const neschrfmt = {w:8,h:8,bpp:1,count:(data.length>>4),brev:true,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}; // TODO
       this.addPixelEditor(filediv, node, neschrfmt);
     } else if (typeof data === 'string') {
       let textfrags = this.scanFileTextForAssets(fileid, data);
       for (let frag of textfrags) {
+        let node : pixed.Node = new pixed.TextDataNode(projectWindows, fileid, data, frag.start, frag.end);
+        if (frag.fmt.comp == 'rletag') {
+          node.addRight(new pixed.Compressor());
+          node.refreshRight(); // TODO
+          node = node.right;
+          console.log(node);
+        }
         // is this a bitmap?
         if (frag.fmt && frag.fmt.w > 0 && frag.fmt.h > 0) {
-          let node = new PixelTextDataNode(fileid, data, frag.start, frag.end);
           this.addPixelEditor(filediv, node, frag.fmt);
+          nassets++;
         }
         // is this a palette?
         else if (frag.fmt && frag.fmt.pal) {
-          let node = new PixelTextDataNode(fileid, data, frag.start, frag.end);
           this.addPaletteEditor(filediv, node, frag.fmt);
+          nassets++;
         }
         else {
           // TODO: other kinds of resources?
         }
       }
     }
+    return nassets;
   }
   
   getFileDivId(id : string) {
@@ -1117,8 +1173,13 @@ export class AssetEditorView implements ProjectView {
       var header = $('<div class="asset_file_header"/>').text(id);
       var body = $('<div/>').attr('id',divid);
       var filediv = $('<div class="asset_file"/>').append(header, body).appendTo(this.maindiv);
-      this.refreshAssetsInFile(id, data);
-      // TODO: what if crash while parsing?
+      try {
+        var nassets = this.refreshAssetsInFile(id, data);
+        if (nassets == 0) filediv.hide();
+      } catch (e) {
+        console.log(e);
+        filediv.text(e+""); // TODO: error msg?
+      }
     });
   }
 

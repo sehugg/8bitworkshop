@@ -167,6 +167,7 @@ NUMBERS ;;{w:8,h:6,count:10,brev:1};;
         .byte $EE,$22,$22,$22,$22,$00
         .byte $EE,$AA,$EE,$AA,$EE,$00
         .byte $EE,$AA,$EE,$22,$EE,$00
+;;end
 
 ; Epilogue
 	org $fffc

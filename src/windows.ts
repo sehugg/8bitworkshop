@@ -2,14 +2,14 @@
 
 import $ = require("jquery");
 import { CodeProject } from "./project";
-import { WorkerError } from "./workertypes";
+import { WorkerError, FileData } from "./workertypes";
 import { ProjectView } from "./views";
 
 type WindowCreateFunction = (id:string) => ProjectView;
 
 export class ProjectWindows {
-  containerdiv:HTMLElement;
-  project:CodeProject;
+  containerdiv : HTMLElement;
+  project : CodeProject;
   id2window : {[id:string]:ProjectView} = {};
   id2createfn : {[id:string]:WindowCreateFunction} = {};
   id2div : {[id:string]:HTMLElement} = {};
@@ -103,4 +103,17 @@ export class ProjectWindows {
       this.createOrShow(this.activeid);
     }
   }
+  
+  updateFile(fileid : string, data : FileData) {
+    var wnd = this.id2window[fileid];
+    if (wnd && wnd.setText && typeof data === 'string') {
+      wnd.setText(data);
+    } else {
+      this.project.updateFile(fileid, data);
+      if (wnd) {
+        wnd.refresh(false);
+      }
+    }
+  }
+
 };

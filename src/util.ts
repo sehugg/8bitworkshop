@@ -423,3 +423,24 @@ export function clamp(minv:number, maxv:number, v:number) {
 export function safeident(s : string) : string {
   return s.replace(/\W+/g, "_");
 }
+
+export function rle_unpack(src : Uint8Array) : Uint8Array {
+  var i = 0;
+  var tag = src[i++];
+  var dest = [];
+  var data = tag;
+  while (i < src.length) {
+    var ch = src[i++];
+    if (ch == tag) {
+      var count = src[i++];
+      for (var j=0; j<count; j++)
+        dest.push(data);
+      if (count == 0)
+        break;
+    } else {
+      data = ch;
+      dest.push(data);
+    }
+  }
+  return new Uint8Array(dest);
+}

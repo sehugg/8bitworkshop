@@ -460,6 +460,9 @@ div.asset_file {
 div.asset_file_header {
   font-weight: bold;
   color: white;
+  background-color: #333;
+  border-radius: 8px;
+  padding-left: 1em;
 }
 div.asset_grid {
   line-height:0;
@@ -468,16 +471,28 @@ div.asset_grid {
 div.asset_grid span {
   white-space: nowrap;
 }
-div.asset_grid canvas {
+.asset_cell {
   padding: 0px;
   border: 1px solid black;
 }
-div.asset_grid canvas:hover {
+.asset_cell:hover {
   border: 1px solid white;
 }
+.asset_editing {
+  border: 1px dotted white !important;
+  box-shadow: 0px 0px 1em rgba(255,255,255,1);
+}
+td.asset_editable {
+  padding:0.3em;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+}
 div.asset_dual {
- display: flex;
- align-items: center;
+  display: flex;
+  align-items: center;
+}
+div.asset_dual table {
+  border-spacing: 10px;
+  border-collapse: separate;
 }
 div.asset_editor {
   border-radius:16px;

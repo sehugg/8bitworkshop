@@ -664,6 +664,7 @@ DigitsBitmap ;;{w:8,h:5,count:10,brev:1};;
         .byte $EE,$22,$22,$22,$22
         .byte $EE,$AA,$EE,$AA,$EE
         .byte $EE,$AA,$EE,$22,$EE
+;;end
 
 ; Playfield bitmasks for all 40 brick columns
 PFMaskTable

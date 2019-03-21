@@ -144,6 +144,7 @@ const _JSNESPlatform = function(mainElement) {
       else if (flags & KeyFlags.KeyUp)
         nes.buttonUp(o.index+1, o.mask); // controller, button
     });
+    //var s = ''; nes.ppu.palTable.curTable.forEach((rgb) => { s += "0x"+hex(rgb,6)+", "; }); console.log(s);
   }
 
   advance(novideo : boolean) {

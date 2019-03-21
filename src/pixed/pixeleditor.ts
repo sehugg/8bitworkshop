@@ -1,7 +1,9 @@
 "use strict";
 
-import { hex } from "../util";
-import { CodeProject } from "../project";
+import { hex, rgb2bgr, rle_unpack } from "../util";
+import { ProjectWindows } from "../windows";
+
+export type UintArray = number[] | Uint8Array | Uint16Array | Uint32Array; //{[i:number]:number};
 
 export type PixelEditorImageFormat = {
   w:number
@@ -23,6 +25,8 @@ export type PixelEditorPaletteFormat = {
   n?:number
   layout?:string
 };
+
+export type PixelEditorPaletteLayout = [string, number, number][];
 
 type PixelEditorMessage = {
   fmt : PixelEditorImageFormat
@@ -87,20 +91,13 @@ export function PixelEditor(parentDiv:HTMLElement,
 
   updateImage();
 
-  function revrgb(x) {
-    var y = 0;
-    y |= ((x >> 0) & 0xff) << 16;
-    y |= ((x >> 8) & 0xff) << 8;
-    y |= ((x >> 16) & 0xff) << 0;
-    return y;
-  }
 
   this.createPaletteButtons = function() {
     var span = $("#palette_group").empty();
     for (var i=0; i<palette.length; i++) {
       var btn = $('<button class="palbtn">');
       var rgb = palette[i] & 0xffffff;
-      var color = "#" + hex(revrgb(rgb), 6);
+      var color = "#" + hex(rgb2bgr(rgb), 6);
       btn.click(this.setCurrentColor.bind(this, i));
       btn.attr('id', 'palcol_' + i);
       btn.css('backgroundColor', color).text(i.toString(16));
@@ -278,7 +275,7 @@ export function parseHexWords(s:string) : number[] {
   return arr;
 }
 
-export function replaceHexWords(s:string, words:number[]) : string {
+export function replaceHexWords(s:string, words:UintArray) : string {
   var result = "";
   var m;
   var li = 0;
@@ -325,7 +322,7 @@ function remapBits(x:number, arr:number[]) : number {
   return y;
 }
 
-function convertWordsToImages(words:number[] | Uint8Array, fmt:PixelEditorImageFormat) : Uint8Array[] {
+function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat) : Uint8Array[] {
   var width = fmt.w;
   var height = fmt.h;
   var count = fmt.count || 1;
@@ -402,7 +399,7 @@ function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) :
 }
 
 // TODO
-function convertPaletteBytes(arr:number[]|Uint8Array,r0,r1,g0,g1,b0,b1) : number[] {
+function convertPaletteBytes(arr:UintArray,r0,r1,g0,g1,b0,b1) : number[] {
   var result = [];
   for (var i=0; i<arr.length; i++) {
     var d = arr[i];
@@ -428,7 +425,24 @@ export var currentPaletteStr : string;
 export var currentPaletteFmt : PixelEditorPaletteFormat;
 export var allthumbs;
 
-function convertPaletteFormat(palbytes: number[]|Uint8Array, palfmt: PixelEditorPaletteFormat) : number[] {
+export function getPaletteLength(palfmt: PixelEditorPaletteFormat) : number {
+  var pal = palfmt.pal;
+  if (typeof pal === 'number') {
+    var rr = Math.floor(Math.abs(pal/100) % 10);
+    var gg = Math.floor(Math.abs(pal/10) % 10);
+    var bb = Math.floor(Math.abs(pal) % 10);
+    return 1<<(rr+gg+bb);
+  } else {
+    var paltable = PREDEF_PALETTES[pal];
+    if (paltable) {
+      return paltable.length;
+    } else {
+      throw new Error("No palette named " + pal);
+    }
+  }
+}
+
+function convertPaletteFormat(palbytes:UintArray, palfmt: PixelEditorPaletteFormat) : number[] {
   var pal = palfmt.pal;
   var newpalette;
   if (typeof pal === 'number') {
@@ -436,14 +450,14 @@ function convertPaletteFormat(palbytes: number[]|Uint8Array, palfmt: PixelEditor
     var gg = Math.floor(Math.abs(pal/10) % 10);
     var bb = Math.floor(Math.abs(pal) % 10);
     // TODO: n
-    if (currentPaletteFmt.pal >= 0)
+    if (pal >= 0)
       newpalette = convertPaletteBytes(palbytes, 0, rr, rr, gg, rr+gg, bb);
     else
       newpalette = convertPaletteBytes(palbytes, rr+gg, bb, rr, gg, 0, rr);
   } else {
     var paltable = PREDEF_PALETTES[pal];
     if (paltable) {
-      newpalette = new Uint32Array(palbytes).map((i) => { return paltable[i & (paltable.length-1)]; });
+      newpalette = new Uint32Array(palbytes).map((i) => { return paltable[i & (paltable.length-1)] | 0xff000000; });
     } else {
       throw new Error("No palette named " + pal);
     }
@@ -584,93 +598,91 @@ function pixelEditorKeypress(e) {
 // TODO: reversed?
 var PREDEF_PALETTES = {
   'nes':[
-      0xFF7C7C7C ,0xFF0000FC ,0xFF0000BC ,0xFF4428BC ,0xFF940084 ,0xFFA80020 ,0xFFA81000 ,0xFF881400
-     ,0xFF503000 ,0xFF007800 ,0xFF006800 ,0xFF005800 ,0xFF004058 ,0xFF000000 ,0xFF000000 ,0xFF000000
-     ,0xFFBCBCBC ,0xFF0078F8 ,0xFF0058F8 ,0xFF6844FC ,0xFFD800CC ,0xFFE40058 ,0xFFF83800 ,0xFFE45C10
-     ,0xFFAC7C00 ,0xFF00B800 ,0xFF00A800 ,0xFF00A844 ,0xFF008888 ,0xFF000000 ,0xFF000000 ,0xFF000000
-     ,0xFFF8F8F8 ,0xFF3CBCFC ,0xFF6888FC ,0xFF9878F8 ,0xFFF878F8 ,0xFFF85898 ,0xFFF87858 ,0xFFFCA044
-     ,0xFFF8B800 ,0xFFB8F818 ,0xFF58D854 ,0xFF58F898 ,0xFF00E8D8 ,0xFF787878 ,0xFF000000 ,0xFF000000
-     ,0xFFFCFCFC ,0xFFA4E4FC ,0xFFB8B8F8 ,0xFFD8B8F8 ,0xFFF8B8F8 ,0xFFF8A4C0 ,0xFFF0D0B0 ,0xFFFCE0A8
-     ,0xFFF8D878 ,0xFFD8F878 ,0xFFB8F8B8 ,0xFFB8F8D8 ,0xFF00FCFC ,0xFFF8D8F8 ,0xFF000000 ,0xFF000000
+     0x525252, 0xB40000, 0xA00000, 0xB1003D, 0x740069, 0x00005B, 0x00005F, 0x001840, 0x002F10, 0x084A08, 0x006700, 0x124200, 0x6D2800, 0x000000, 0x000000, 0x000000,
+     0xC4D5E7, 0xFF4000, 0xDC0E22, 0xFF476B, 0xD7009F, 0x680AD7, 0x0019BC, 0x0054B1, 0x006A5B, 0x008C03, 0x00AB00, 0x2C8800, 0xA47200, 0x000000, 0x000000, 0x000000,
+     0xF8F8F8, 0xFFAB3C, 0xFF7981, 0xFF5BC5, 0xFF48F2, 0xDF49FF, 0x476DFF, 0x00B4F7, 0x00E0FF, 0x00E375, 0x03F42B, 0x78B82E, 0xE5E218, 0x787878, 0x000000, 0x000000,
+     0xFFFFFF, 0xFFF2BE, 0xF8B8B8, 0xF8B8D8, 0xFFB6FF, 0xFFC3FF, 0xC7D1FF, 0x9ADAFF, 0x88EDF8, 0x83FFDD, 0xB8F8B8, 0xF5F8AC, 0xFFFFB0, 0xF8D8F8, 0x000000, 0x000000
    ]
 };
 
-var PREDEF_LAYOUTS = {
-  'nes_full':[
-    ['Screen Color',  1],
-    ['Background 1',  3], [null, 1],
-    ['Background 2',  3], [null, 1],
-    ['Background 3',  3], [null, 1],
-    ['Background 4',  3], [null, 1],
-    ['Sprite 1',      3], [null, 1],
-    ['Sprite 2',      3], [null, 1],
-    ['Sprite 3',      3], [null, 1],
-    ['Sprite 4',      3]
+var PREDEF_LAYOUTS : {[id:string]:PixelEditorPaletteLayout} = {
+  'nes':[
+    ['Screen Color',  0x00, 1],
+    ['Background 1',  0x01, 3],
+    ['Background 2',  0x05, 3],
+    ['Background 3',  0x09, 3],
+    ['Background 4',  0x0d, 3],
+    ['Sprite 1',      0x11, 3],
+    ['Sprite 2',      0x15, 3],
+    ['Sprite 3',      0x19, 3],
+    ['Sprite 4',      0x1d, 3]
   ],
 };
 
 /////
 
-export abstract class PixelNode {
-  left : PixelNode;	// toward text editor
-  right : PixelNode;	// toward pixel editor
-  // TODO: in/out(...) for each type?
-  input?
-  output?
+export abstract class Node {
+  left : Node;		// toward text editor
+  right : Node;		// toward pixel editor
+
+  words? : UintArray;		// file data
+  images? : Uint8Array[];	// array of indexed image data
+  rgbimgs? : Uint32Array[];	// array of rgba imgages
   
   abstract updateLeft();	// update coming from right
   abstract updateRight();	// update coming from left
   
   refreshLeft() {
-    var p : PixelNode = this;
+    var p : Node = this;
     while (p) {
       p.updateLeft();
       p = p.left;
     }
   }
   refreshRight() {
-    var p : PixelNode = this;
+    var p : Node = this;
     while (p) {
       p.updateRight();
       p = p.right;
     }
   }
-  addRight(node : PixelNode) {
+  addRight(node : Node) {
     this.right = node;
     node.left = this;
   }
 }
 
-abstract class PixelCodeProjectDataNode extends PixelNode {
+abstract class CodeProjectDataNode extends Node {
+  project : ProjectWindows;
   fileid : string;
-  project : CodeProject;
+  words : UintArray;
 }
 
-export class PixelFileDataNode extends PixelCodeProjectDataNode {
-  output : Uint8Array;
+export class FileDataNode extends CodeProjectDataNode {
   
-  constructor(fileid, data) {
+  constructor(project:ProjectWindows, fileid:string, data:Uint8Array) {
     super();
+    this.project = project;
     this.fileid = fileid;
-    this.output = data;
+    this.words = data;
   }
   updateLeft() {
     if (this.project) {
-      this.project.updateFile(this.fileid, this.output);
+      this.project.updateFile(this.fileid, this.words as Uint8Array);
     }
   }
   updateRight() {
   }
 }
 
-export class PixelTextDataNode extends PixelCodeProjectDataNode {
+export class TextDataNode extends CodeProjectDataNode {
   text : string;
   start : number;
   end : number;
-  output : Uint8Array;
 
-  constructor(fileid, text, start, end) {
+  constructor(project:ProjectWindows, fileid:string, text:string, start:number, end:number) {
     super();
+    this.project = project;
     this.fileid = fileid;
     this.text = text;
     this.start = start;
@@ -678,50 +690,84 @@ export class PixelTextDataNode extends PixelCodeProjectDataNode {
   }  
   updateLeft() {
     // TODO: reload editors?
+    var datastr = this.text.substring(this.start, this.end);
+    datastr = replaceHexWords(datastr, this.words);
+    this.text = this.text.substring(0, this.start) + datastr + this.text.substring(this.end);
     if (this.project) {
       this.project.updateFile(this.fileid, this.text);
+      //this.project.replaceTextRange(this.fileid, this.start, this.end, datastr);
     }
   }
   updateRight() {
     var datastr = this.text.substring(this.start, this.end);
     datastr = convertToHexStatements(datastr); // TODO?
     var words = parseHexWords(datastr);
-    this.output = new Uint8Array(words); // TODO: 16/32?
+    this.words = words; //new Uint8Array(words); // TODO: 16/32?
   }
 }
 
-export class PixelMapper extends PixelNode {
+export class Compressor extends Node {
+
+  words : UintArray;
+
+  updateLeft() {
+    // TODO
+  }
+  updateRight() {
+    this.words = rle_unpack(new Uint8Array(this.left.words));
+  }
+
+}
+
+export class Mapper extends Node {
 
   fmt : PixelEditorImageFormat;
-  input : number[] | Uint8Array;
-  output : Uint8Array[];
+  words : UintArray;
+  images : Uint8Array[];
   
   updateLeft() {
-    //TODO
-    this.input = convertImagesToWords(this.output, this.fmt);
+    this.images = this.right.images;
+    this.words = convertImagesToWords(this.images, this.fmt);
   }
   updateRight() {
     // convert each word array to images
-    this.input = this.left.output;
-    this.output = convertWordsToImages(this.input, this.fmt);
+    this.words = this.left.words;
+    this.images = convertWordsToImages(this.words, this.fmt);
   }
-
 }
 
-export class PixelPalettizer extends PixelNode {
+class RGBAPalette {
+  palcols;
+  constructor(palcols : Uint32Array) {
+    this.palcols = palcols;
+  }
+  indexOf(rgba : number) : number {
+    return this.palcols.find(rgba);
+  }
+}
 
-  input : Uint8Array[];
-  output : Uint32Array[];
+export class Palettizer extends Node {
+
+  images : Uint8Array[];
+  rgbimgs : Uint32Array[];
   palette : Uint32Array;
   
   updateLeft() {
-    //TODO
+    this.rgbimgs = this.right.rgbimgs;
+    var pal = new RGBAPalette(this.palette);
+    this.images = this.rgbimgs.map( (im:Uint32Array) => {
+      var out = new Uint8Array(im.length);
+      for (var i=0; i<im.length; i++) {
+        out[i] = pal.indexOf(im[i]);
+      }
+      return out;
+    });
   }
   updateRight() {
+    this.images = this.left.images;
     var mask = this.palette.length - 1; // must be power of 2
-    this.input = this.left.output;
     // for each image, map bytes to RGB colors
-    this.output = this.input.map( (im:Uint8Array) => {
+    this.rgbimgs = this.images.map( (im:Uint8Array) => {
       var out = new Uint32Array(im.length);
       for (var i=0; i<im.length; i++) {
         out[i] = this.palette[im[i] & mask];
@@ -731,7 +777,7 @@ export class PixelPalettizer extends PixelNode {
   }
 }
 
-function dedupPalette(cols : number[]) : Uint32Array {
+function dedupPalette(cols : UintArray) : Uint32Array {
   var dup = new Map();
   var res = new Uint32Array(cols.length);
   var ndups = 0;
@@ -746,27 +792,35 @@ function dedupPalette(cols : number[]) : Uint32Array {
   return res;
 }
 
-export class PixelPaletteFormatToRGB extends PixelNode {
+export class PaletteFormatToRGB extends Node {
 
-  input : Uint8Array;
-  output : Uint32Array[];
+  words : UintArray;
+  rgbimgs : Uint32Array[];
   palette : Uint32Array;
   palfmt : PixelEditorPaletteFormat;
+  layout : PixelEditorPaletteLayout;
 
   updateLeft() {
     //TODO
   }
   updateRight() {
-    this.input = this.left.output;
-    this.palette = dedupPalette(convertPaletteFormat(this.input, this.palfmt));
-    this.output = [];
+    this.words = this.left.words;
+    this.palette = dedupPalette(convertPaletteFormat(this.words, this.palfmt));
+    this.layout = PREDEF_LAYOUTS[this.palfmt.layout];
+    this.rgbimgs = [];
     this.palette.forEach( (rgba:number) => {
-      this.output.push(new Uint32Array([rgba]));
+      this.rgbimgs.push(new Uint32Array([rgba]));
     });
+  }
+  getAllColors() {
+    var arr = [];
+    for (var i=0; i<getPaletteLength(this.palfmt); i++)
+      arr.push(i);
+    return convertPaletteFormat(arr, this.palfmt);
   }
 }
 
-export class PixelViewer { // TODO: make PixelNode
+export class Viewer { // TODO: make Node
 
   width : number;
   height : number;
@@ -779,7 +833,7 @@ export class PixelViewer { // TODO: make PixelNode
     this.pixdata = this.ctx.createImageData(this.width, this.height);
   }
 
-  createWith(pv : PixelViewer) {
+  createWith(pv : Viewer) {
     this.width = pv.width;
     this.height = pv.height;
     this.pixdata = pv.pixdata;
@@ -805,3 +859,42 @@ export class PixelViewer { // TODO: make PixelNode
   }
 }
 
+export class ImageChooser {
+
+  rgbimgs : Uint32Array[];
+  width : number;
+  height : number;
+  
+  recreate(parentdiv:JQuery, onclick) {
+    var agrid = $('<div class="asset_grid"/>'); // grid (or 1) of preview images
+    parentdiv.empty().append(agrid);
+    var cscale = Math.max(2, Math.ceil(16/this.width)); // TODO
+    var imgsperline = this.width <= 8 ? 16 : 8; // TODO
+    var span = null;
+    this.rgbimgs.forEach((imdata, i) => {
+      var viewer = new Viewer();
+      viewer.width = this.width;
+      viewer.height = this.height;
+      viewer.recreate();
+      viewer.canvas.style.width = (viewer.width*cscale)+'px'; // TODO
+      viewer.updateImage(imdata);
+      $(viewer.canvas).addClass('asset_cell');
+      $(viewer.canvas).click((e) => {
+        onclick(i, viewer);
+      });
+      if (!span) {
+        span = $('<span/>');
+        agrid.append(span);
+      }
+      span.append(viewer.canvas);
+      var brk = (i % imgsperline) == imgsperline-1;
+      if (brk) {
+        agrid.append($("<br/>"));
+        span = null;
+      }
+    });
+  }
+  
+}
+
+// TODO: scroll editors into view

@@ -58,7 +58,7 @@ const unsigned char* const playerRunSeq[16] = {
   playerRRun1, playerRRun2,
 };
 
-const char PALETTE[32] = {
+const char PALETTE[32] = { /*{pal:"nes",layout:"nes"}*/
   0x03,			// background color
 
   0x11,0x30,0x27, 0,	// ladders and pickups

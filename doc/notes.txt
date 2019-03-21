@@ -97,6 +97,8 @@ TODO:
 - better undo/diff for mistakes?
 - ide bug/feature visualizer for sponsors
 - optimization flags for sdcc (oldralloc)
+- 'src is undefined' when committing old image editor
+- editor: select palette for chr, select charmap for map (dependencies?)
 
 
 WEB WORKER FORMAT

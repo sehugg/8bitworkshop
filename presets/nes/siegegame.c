@@ -251,7 +251,7 @@ AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1), AE(1,1,1,1),AE(1,1,1,1),AE(1,1,
 };
 
 // this is palette data
-const unsigned char Palette_Table[16]={
+const unsigned char Palette_Table[16]={ /*{pal:"nes",layout:"nes"}*/
   0x02,
   0x31,0x31,0x31,0x00,
   0x34,0x34,0x34,0x00,

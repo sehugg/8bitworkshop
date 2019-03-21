@@ -6,7 +6,7 @@
 // link the pattern table into CHR ROM
 //#link "chr_generic.s"
 
-const char PALETTE[16] = {
+const char PALETTE[16] = { /*{pal:"nes",layout:"nes"}*/
   0x03,
   0x11,0x30,0x27, 0,
   0x1c,0x20,0x2c, 0,

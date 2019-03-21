@@ -25,7 +25,7 @@
 
 //#define DEBUG_FRAMERATE
 
-const char PALETTE[32] = {
+const char PALETTE[32] = { /*{pal:"nes",layout:"nes"}*/
   0x0f,
 
   0x11,0x24,0x3c, 0,
