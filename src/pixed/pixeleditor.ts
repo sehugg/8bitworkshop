@@ -5,8 +5,24 @@ import { ProjectWindows } from "../windows";
 
 export type UintArray = number[] | Uint8Array | Uint16Array | Uint32Array; //{[i:number]:number};
 
+// TODO: separate view/controller
 export interface EditorContext {
-  setCurrentEditor(div : JQuery, editing : JQuery) : void;
+  setCurrentEditor(div:JQuery, editing:JQuery) : void;
+  getPalettes(matchlen : number) : SelectablePalette[];
+  getTilemaps(matchlen : number) : SelectableTilemap[];
+}
+
+export type SelectablePalette = {
+  node:PixNode
+  name:string
+  palette:Uint32Array
+}
+
+export type SelectableTilemap = {
+  node:PixNode
+  name:string
+  images:Uint8Array[]
+  rgbimgs:Uint32Array[] // TODO: different palettes?
 }
 
 export type PixelEditorImageFormat = {
@@ -599,7 +615,7 @@ function pixelEditorKeypress(e) {
   }
 }
 
-// TODO: reversed?
+// TODO: illegal colors?
 var PREDEF_PALETTES = {
   'nes':[
      0x525252, 0xB40000, 0xA00000, 0xB1003D, 0x740069, 0x00005B, 0x00005F, 0x001840, 0x002F10, 0x084A08, 0x006700, 0x124200, 0x6D2800, 0x000000, 0x000000, 0x000000,
@@ -665,6 +681,7 @@ export abstract class PixNode {
 abstract class CodeProjectDataNode extends PixNode {
   project : ProjectWindows;
   fileid : string;
+  label : string;
   words : UintArray;
 }
 
@@ -674,6 +691,7 @@ export class FileDataNode extends CodeProjectDataNode {
     super();
     this.project = project;
     this.fileid = fileid;
+    this.label = fileid;
     this.words = data;
   }
   updateLeft() {
@@ -690,10 +708,11 @@ export class TextDataNode extends CodeProjectDataNode {
   start : number;
   end : number;
 
-  constructor(project:ProjectWindows, fileid:string, text:string, start:number, end:number) {
+  constructor(project:ProjectWindows, fileid:string, label:string, text:string, start:number, end:number) {
     super();
     this.project = project;
     this.fileid = fileid;
+    this.label = label;
     this.text = text;
     this.start = start;
     this.end = end;
@@ -762,6 +781,18 @@ export class Palettizer extends PixNode {
   rgbimgs : Uint32Array[];
   palette : Uint32Array;
   
+  ncolors : number;
+  context : EditorContext;
+  options : SelectablePalette[];
+  selindex : number = 0;
+  
+// TODO: control to select palette for bitmaps
+
+  constructor(context:EditorContext, fmt:PixelEditorImageFormat) {
+    super();
+    this.context = context;
+    this.ncolors = 1 << ((fmt.bpp||1) * (fmt.np||1));
+  }
   updateLeft() {
     this.rgbimgs = this.right.rgbimgs;
     var pal = new RGBAPalette(this.palette);
@@ -774,6 +805,7 @@ export class Palettizer extends PixNode {
     });
   }
   updateRight() {
+    this.updatePalette();
     this.images = this.left.images;
     var mask = this.palette.length - 1; // must be power of 2
     // for each image, map bytes to RGB colors
@@ -784,6 +816,20 @@ export class Palettizer extends PixNode {
       }
       return out;
     });
+  }
+  updatePalette() {
+    if (this.context != null) {
+      this.options = this.context.getPalettes(this.ncolors);
+      if (this.options && this.options.length > 0) {
+        this.palette = this.options[this.selindex].palette;
+      }
+    }
+    if (this.palette == null) {
+      if (this.ncolors <= 2)
+        this.palette = new Uint32Array([0xff000000, 0xffffffff]);
+      else
+        this.palette = new Uint32Array([0xff000000, 0xffff00ff, 0xffffff00, 0xffffffff]); // TODO: more palettes
+    }
   }
 }
 
@@ -829,6 +875,83 @@ export class PaletteFormatToRGB extends PixNode {
     return convertPaletteFormat(arr, this.palfmt);
   }
 }
+
+export class NESNametableConverter extends PixNode {
+
+  palette : Uint32Array;
+  tilemap : Uint8Array[];	// tilemap images
+  rgbimgs : Uint32Array[];	// output (1 image)
+  width : number;
+  height : number;
+  cols : number;
+  rows : number;
+  baseofs : number;
+
+  context : EditorContext;
+  paloptions : SelectablePalette[];
+  tileoptions : SelectableTilemap[];
+  palindex : number = 0;
+  tileindex : number = 0;
+
+  constructor(context:EditorContext) {
+    super();
+    this.context = context;
+  }
+  updateLeft() {
+    // TODO
+  }  
+  updateRight() {
+    this.words = this.left.words;
+    this.updatePalette();
+    this.cols = 32;
+    this.rows = 30;
+    this.width = this.cols * 8;
+    this.height = this.rows * 8;
+    this.baseofs = 0;
+    var idata = new Uint32Array(this.width * this.height);
+    this.rgbimgs = [idata];
+    var a = 0;
+    var attraddr;
+    for (var row=0; row<this.rows; row++) {
+      for (var col=0; col<this.cols; col++) {
+         var name = this.words[this.baseofs + a];
+         var t = this.tilemap[name];
+         attraddr = (a & 0x2c00) | 0x3c0 | (a & 0x0C00) | ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
+         var attr = this.words[attraddr];
+         var tag = name ^ (attr<<9) ^ 0x80000000;
+         var i = row*this.cols*8*8 + col*8;
+         var j = 0;
+         var attrshift = (col&2) + ((a&0x40)>>4);
+         var coloradd = ((attr >> attrshift) & 3) << 2;
+         for (var y=0; y<8; y++) {
+           for (var x=0; x<8; x++) {
+             var color = t[j++];
+             if (color) color += coloradd;
+             var rgb = this.palette[color];
+             idata[i++] = rgb | 0xff000000;
+           }
+           i += this.cols*8-8;
+         }
+         a++;
+      }
+    }
+    // TODO
+  }
+  updatePalette() {
+    if (this.context != null) {
+      this.paloptions = this.context.getPalettes(16);
+      if (this.paloptions && this.paloptions.length > 0) {
+        this.palette = this.paloptions[this.palindex].palette;
+      }
+      this.tileoptions = this.context.getTilemaps(256);
+      if (this.tileoptions && this.tileoptions.length > 0) {
+        this.tilemap = this.tileoptions[this.tileindex].images;
+      }
+    }
+  }
+}
+
+///// UI CONTROLS
 
 export class Viewer { // TODO: make PixNode
 
@@ -933,6 +1056,7 @@ export class CharmapEditor extends PixNode {
     var adual = newDiv(this.parentdiv.empty(), "asset_dual"); // contains grid and editor
     var agrid = newDiv(adual);
     var aeditor = newDiv(adual, "asset_editor").hide(); // contains editor, when selected
+    // add image chooser grid
     var chooser = new ImageChooser();
     chooser.rgbimgs = this.rgbimgs;
     chooser.width = this.fmt.w || 1;
@@ -946,6 +1070,23 @@ export class CharmapEditor extends PixNode {
       aeditor.empty().append(editview.canvas);
       this.context.setCurrentEditor(aeditor, $(viewer.canvas));
     });
+    // add palette selector
+    // TODO: only view when editing?
+    var palizer = this.left;
+    if (palizer instanceof Palettizer && palizer.options.length > 1) {
+      var palselect = $(document.createElement('select'));
+      palizer.options.forEach((palopt, i) => {
+        // TODO: full identifier
+        var sel = $(document.createElement('option')).text(palopt.name).val(i).appendTo(palselect);
+        if (i == (palizer as Palettizer).selindex)
+          sel.attr('selected','selected');
+      });
+      palselect.appendTo(agrid).change((e) => {
+        var index = $(e.target).val() as number;
+        (palizer as Palettizer).selindex = index;
+        palizer.refreshRight();
+      });
+    }
   }
 
 }

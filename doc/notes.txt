@@ -100,6 +100,7 @@ TODO:
 - 'src is undefined' when committing old image editor
 - editor: select palette for chr, select charmap for map (dependencies?)
 - global undo/redo at checkpoints (when rom changes)
+- asset editor still refreshes twice
 
 
 WEB WORKER FORMAT

@@ -967,6 +967,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   cureditordiv : JQuery;
   cureditelem : JQuery;
   rootnodes : pixed.PixNode[];
+  deferrednodes : pixed.PixNode[];
 
   createDiv(parent : HTMLElement) {
     this.maindiv = newDiv(parent, "vertical-scroll");
@@ -975,10 +976,68 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   
   clearAssets() {
     this.rootnodes = [];
+    this.deferrednodes = [];
   }
   
-  registerAsset(type:string, node:pixed.PixNode) {
+  registerAsset(type:string, node:pixed.PixNode, deferred:boolean) {
     this.rootnodes.push(node);
+    if (deferred) {
+      this.deferrednodes.push(node);
+    } else {
+      node.refreshRight();
+    }
+  }
+  
+  getPalettes(matchlen : number) : pixed.SelectablePalette[] {
+    var result = [];
+    this.rootnodes.forEach((node) => {
+      while (node != null) {
+        if (node instanceof pixed.PaletteFormatToRGB) {
+          // TODO: move to node class?
+          var palette = node.palette;
+          // match full palette length?
+          if (matchlen == palette.length) {
+            result.push({node:node, name:"Palette", palette:palette});
+          }
+          // look at palette slices
+          if (node.layout) {
+            node.layout.forEach(([name, start, len]) => {
+              if (start < palette.length) {
+                if (len == matchlen) {
+                  var rgbs = palette.slice(start, start+len);
+                  result.push({node:node, name:name, palette:rgbs});
+                } else if (len+1 == matchlen) {
+                  var rgbs = new Uint32Array(matchlen);
+                  rgbs[0] = palette[0];
+                  rgbs.set(palette.slice(start, start+len), 1);
+                  result.push({node:node, name:name, palette:rgbs});
+                }
+              }
+            });
+          }
+          break;
+        }
+        node = node.right;
+      }
+    });
+    return result;
+  }
+
+  getTilemaps(matchlen : number) : pixed.SelectableTilemap[] {
+    var result = [];
+    this.rootnodes.forEach((node) => {
+      while (node != null) {
+        if (node instanceof pixed.Palettizer) {
+          // TODO: move to node class?
+          var rgbimgs = node.rgbimgs;
+          if (rgbimgs.length >= matchlen) {
+            result.push({node:node, name:"Tilemap", images:node.images, rgbimgs:rgbimgs}); // TODO
+          }
+        }
+        node = node.right;
+      }
+    });
+    return result;
   }
   
   setCurrentEditor(div : JQuery, editing : JQuery) {
@@ -1087,11 +1146,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     // TODO: rotate node?
     firstnode.addRight(mapper);
     // pixels -> RGBA
-    var palizer = new pixed.Palettizer();
-    if (fmt.bpp*(fmt.np|1) == 1)
-      palizer.palette = new Uint32Array([0xff000000, 0xffffffff]);
-    else
-      palizer.palette = new Uint32Array([0x00000000, 0xffff00ff, 0xffffff00, 0xffffffff]); // TODO
+    var palizer = new pixed.Palettizer(this, fmt);
     mapper.addRight(palizer);
     // add view objects
     palizer.addRight(new pixed.CharmapEditor(this, newDiv(parentdiv), fmt));
@@ -1127,29 +1182,41 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       let node = new pixed.FileDataNode(projectWindows, fileid, data);
       const neschrfmt = {w:8,h:8,bpp:1,count:(data.length>>4),brev:true,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}; // TODO
       this.addPixelEditor(filediv, node, neschrfmt);
-      this.registerAsset("charmap", node);
+      this.registerAsset("charmap", node, true);
     } else if (typeof data === 'string') {
       let textfrags = this.scanFileTextForAssets(fileid, data);
       for (let frag of textfrags) {
-        let node : pixed.PixNode = new pixed.TextDataNode(projectWindows, fileid, data, frag.start, frag.end);
-        let first = node;
-        if (frag.fmt.comp == 'rletag') {
-          node = node.addRight(new pixed.Compressor());
-        }
-        // is this a bitmap?
-        if (frag.fmt && frag.fmt.w > 0 && frag.fmt.h > 0) {
-          this.addPixelEditor(filediv, node, frag.fmt);
-          this.registerAsset("charmap", first);
-          nassets++;
-        }
-        // is this a palette?
-        else if (frag.fmt && frag.fmt.pal) {
-          this.addPaletteEditor(filediv, node, frag.fmt);
-          this.registerAsset("palette", first);
-          nassets++;
-        }
-        else {
-          // TODO: other kinds of resources?
+        if (frag.fmt) {
+          let label = fileid; // TODO: label
+          let node : pixed.PixNode = new pixed.TextDataNode(projectWindows, fileid, label, data, frag.start, frag.end);
+          let first = node;
+          // rle-compressed?
+          if (frag.fmt.comp == 'rletag') {
+            node = node.addRight(new pixed.Compressor());
+          }
+          // is this a nes nametable?
+          if (frag.fmt.map == 'nesnt') {
+            node = node.addRight(new pixed.NESNametableConverter(this)); // TODO?
+            const fmt = {w:8*32,h:8*30,count:1}; // TODO
+            node = node.addRight(new pixed.CharmapEditor(this, newDiv(filediv), fmt));
+            this.registerAsset("nametable", first, true);
+            nassets++;
+          }
+          // is this a bitmap?
+          else if (frag.fmt.w > 0 && frag.fmt.h > 0) {
+            this.addPixelEditor(filediv, node, frag.fmt);
+            this.registerAsset("charmap", first, true);
+            nassets++;
+          }
+          // is this a palette?
+          else if (frag.fmt.pal) {
+            this.addPaletteEditor(filediv, node, frag.fmt);
+            this.registerAsset("palette", first, false);
+            nassets++;
+          }
+          else {
+            // TODO: other kinds of resources?
+          }
         }
       }
     }
@@ -1177,8 +1244,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         filediv.text(e+""); // TODO: error msg?
       }
     });
-    // refresh all assets
-    this.rootnodes.forEach((node) => { node.refreshRight(); });
+    this.deferrednodes.forEach((node) => { node.refreshRight(); });
+    this.deferrednodes = [];
   }
 
 // TODO: scroll editors into view

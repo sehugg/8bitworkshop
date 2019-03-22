@@ -1,13 +1,13 @@
 .export _climbr_title_pal
 .export _climbr_title_rle
 
-_climbr_title_pal:
 ;;{pal:"nes",layout:"nes"};;
+_climbr_title_pal:
  .byte $0F,$11,$25,$35,$0F,$01,$21,$30
  .byte $0F,$06,$1C,$3C,$0F,$11,$28,$38
 ;;
-_climbr_title_rle:
 ;;{w:32,h:30,bpp:8,comp:"rletag",map:"nesnt"};;
+_climbr_title_rle:
  .byte $01,$00,$01,$10,$80,$01,$02,$00
  .byte $80,$00,$80,$00,$01,$1f,$80,$80
  .byte $00,$01,$07,$41,$4e,$00,$38,$42

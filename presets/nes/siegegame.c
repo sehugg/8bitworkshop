@@ -250,8 +250,8 @@ AE(1,0,1,0),AE(0,0,0,0),AE(0,0,0,0),AE(0,0,0,0), AE(0,0,0,0),AE(0,0,0,0),AE(0,0,
 AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1), AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1),
 };
 
-// this is palette data
-const unsigned char Palette_Table[16]={ /*{pal:"nes",layout:"nes"}*/
+/*{pal:"nes",layout:"nes"}*/
+const unsigned char Palette_Table[16]={ 
   0x02,
   0x31,0x31,0x31,0x00,
   0x34,0x34,0x34,0x00,
