@@ -99,6 +99,7 @@ TODO:
 - optimization flags for sdcc (oldralloc)
 - 'src is undefined' when committing old image editor
 - editor: select palette for chr, select charmap for map (dependencies?)
+- global undo/redo at checkpoints (when rom changes)
 
 
 WEB WORKER FORMAT

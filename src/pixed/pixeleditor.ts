@@ -5,6 +5,10 @@ import { ProjectWindows } from "../windows";
 
 export type UintArray = number[] | Uint8Array | Uint16Array | Uint32Array; //{[i:number]:number};
 
+export interface EditorContext {
+  setCurrentEditor(div : JQuery, editing : JQuery) : void;
+}
+
 export type PixelEditorImageFormat = {
   w:number
   h:number
@@ -621,9 +625,9 @@ var PREDEF_LAYOUTS : {[id:string]:PixelEditorPaletteLayout} = {
 
 /////
 
-export abstract class Node {
-  left : Node;		// toward text editor
-  right : Node;		// toward pixel editor
+export abstract class PixNode {
+  left : PixNode;		// toward text editor
+  right : PixNode;		// toward pixel editor
 
   words? : UintArray;		// file data
   images? : Uint8Array[];	// array of indexed image data
@@ -633,26 +637,32 @@ export abstract class Node {
   abstract updateRight();	// update coming from left
   
   refreshLeft() {
-    var p : Node = this;
+    var p : PixNode = this;
     while (p) {
       p.updateLeft();
       p = p.left;
     }
   }
   refreshRight() {
-    var p : Node = this;
+    var p : PixNode = this;
     while (p) {
       p.updateRight();
       p = p.right;
     }
   }
-  addRight(node : Node) {
+  addRight(node : PixNode) {
     this.right = node;
     node.left = this;
+    return node;
+  }
+  addLeft(node : PixNode) {
+    this.left = node;
+    node.right = this;
+    return node;
   }
 }
 
-abstract class CodeProjectDataNode extends Node {
+abstract class CodeProjectDataNode extends PixNode {
   project : ProjectWindows;
   fileid : string;
   words : UintArray;
@@ -706,12 +716,12 @@ export class TextDataNode extends CodeProjectDataNode {
   }
 }
 
-export class Compressor extends Node {
+export class Compressor extends PixNode {
 
   words : UintArray;
 
   updateLeft() {
-    // TODO
+    // TODO: can't modify length of rle bytes
   }
   updateRight() {
     this.words = rle_unpack(new Uint8Array(this.left.words));
@@ -719,7 +729,7 @@ export class Compressor extends Node {
 
 }
 
-export class Mapper extends Node {
+export class Mapper extends PixNode {
 
   fmt : PixelEditorImageFormat;
   words : UintArray;
@@ -746,7 +756,7 @@ class RGBAPalette {
   }
 }
 
-export class Palettizer extends Node {
+export class Palettizer extends PixNode {
 
   images : Uint8Array[];
   rgbimgs : Uint32Array[];
@@ -792,7 +802,7 @@ function dedupPalette(cols : UintArray) : Uint32Array {
   return res;
 }
 
-export class PaletteFormatToRGB extends Node {
+export class PaletteFormatToRGB extends PixNode {
 
   words : UintArray;
   rgbimgs : Uint32Array[];
@@ -820,7 +830,7 @@ export class PaletteFormatToRGB extends Node {
   }
 }
 
-export class Viewer { // TODO: make Node
+export class Viewer { // TODO: make PixNode
 
   width : number;
   height : number;
@@ -893,8 +903,50 @@ export class ImageChooser {
         span = null;
       }
     });
-  }
-  
+  }  
 }
 
-// TODO: scroll editors into view
+function newDiv(parent?, cls? : string) {
+  var div = $(document.createElement("div"));
+  if (parent) div.appendTo(parent)
+  if (cls) div.addClass(cls);
+  return div;
+}
+
+export class CharmapEditor extends PixNode {
+
+  context;
+  parentdiv;
+  fmt;
+
+  constructor(context:EditorContext, parentdiv:JQuery, fmt:PixelEditorImageFormat) {
+    super();
+    this.context = context;
+    this.parentdiv = parentdiv;
+    this.fmt = fmt;
+  }
+  
+  updateLeft() { } // TODO
+  
+  updateRight() {
+    this.rgbimgs = this.left.rgbimgs;
+    var adual = newDiv(this.parentdiv.empty(), "asset_dual"); // contains grid and editor
+    var agrid = newDiv(adual);
+    var aeditor = newDiv(adual, "asset_editor").hide(); // contains editor, when selected
+    var chooser = new ImageChooser();
+    chooser.rgbimgs = this.rgbimgs;
+    chooser.width = this.fmt.w || 1;
+    chooser.height = this.fmt.h || 1;
+    chooser.recreate(agrid, (index, viewer) => {
+      var escale = Math.ceil(192 / this.fmt.w);
+      var editview = new Viewer();
+      editview.createWith(viewer);
+      editview.updateImage(null);
+      editview.canvas.style.width = (viewer.width*escale)+'px'; // TODO
+      aeditor.empty().append(editview.canvas);
+      this.context.setCurrentEditor(aeditor, $(viewer.canvas));
+    });
+  }
+
+}
+

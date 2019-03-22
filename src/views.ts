@@ -50,6 +50,13 @@ function getVisibleEditorLineHeight() : number{
   return $("#booksMenuButton").first().height();
 }
 
+function newDiv(parent?, cls? : string) {
+  var div = $(document.createElement("div"));
+  if (parent) div.appendTo(parent)
+  if (cls) div.addClass(cls);
+  return div;
+}
+
 /////
 
 const MAX_ERRORS = 200;
@@ -822,8 +829,7 @@ export class MemoryMapView implements ProjectView {
   maindiv : JQuery;
 
   createDiv(parent : HTMLElement) {
-    this.maindiv = $('<div class="vertical-scroll"/>');
-    $(parent).append(this.maindiv);
+    this.maindiv = newDiv(parent, 'vertical-scroll');
     return this.maindiv[0];
   }
 
@@ -956,15 +962,23 @@ export class ProfileView implements ProjectView {
 
 ///
 
-export class AssetEditorView implements ProjectView {
+export class AssetEditorView implements ProjectView, pixed.EditorContext {
   maindiv : JQuery;
   cureditordiv : JQuery;
   cureditelem : JQuery;
+  rootnodes : pixed.PixNode[];
 
   createDiv(parent : HTMLElement) {
-    this.maindiv = $('<div class="vertical-scroll"/>');
-    $(parent).append(this.maindiv);
+    this.maindiv = newDiv(parent, "vertical-scroll");
     return this.maindiv[0];
+  }
+  
+  clearAssets() {
+    this.rootnodes = [];
+  }
+  
+  registerAsset(type:string, node:pixed.PixNode) {
+    this.rootnodes.push(node);
   }
   
   setCurrentEditor(div : JQuery, editing : JQuery) {
@@ -991,6 +1005,7 @@ export class AssetEditorView implements ProjectView {
   scanFileTextForAssets(id : string, data : string) {
     // scan file for assets
     // /*{json}*/ or ;;{json};;
+    // TODO: put before ident, look for = {
     var result = [];
     var re1 = /[/;][*;]([{].+[}])[*;][/;]/g;
     var m;
@@ -1018,29 +1033,8 @@ export class AssetEditorView implements ProjectView {
     return result;
   }
   
-  addPixelEditorViews(filediv:JQuery, images:Uint32Array[], fmt:pixed.PixelEditorImageFormat) {
-    var adual = $('<div class="asset_dual"/>'); // contains grid and editor
-    var aeditor = $('<div class="asset_editor"/>').hide(); // contains editor, when selected
-
-    var chooser = new pixed.ImageChooser();
-    chooser.rgbimgs = images;
-    chooser.width = fmt.w || 1;
-    chooser.height = fmt.h || 1;
-    chooser.recreate(adual, (index, viewer) => {
-      console.log("???",index);
-      var escale = Math.ceil(192/fmt.w);
-      var editview = new pixed.Viewer();
-      editview.createWith(viewer);
-      editview.updateImage(null);
-      editview.canvas.style.width = (viewer.width*escale)+'px'; // TODO
-      aeditor.empty().append(editview.canvas);
-      this.setCurrentEditor(aeditor, $(viewer.canvas));
-    });
-    adual.append(aeditor).appendTo(filediv);
-  }
-  
-  addPaletteEditorViews(filediv:JQuery, words, palette, layout, allcolors, callback) {
-    var adual = $('<div class="asset_dual"/>').appendTo(filediv);
+  addPaletteEditorViews(parentdiv:JQuery, words, palette, layout, allcolors, callback) {
+    var adual = $('<div class="asset_dual"/>').appendTo(parentdiv);
     var aeditor = $('<div class="asset_editor"/>').hide(); // contains editor, when selected
     // TODO: they need to update when refreshed from right
     var allrgbimgs = [];
@@ -1085,7 +1079,7 @@ export class AssetEditorView implements ProjectView {
     });
   }
   
-  addPixelEditor(filediv:JQuery, firstnode:pixed.Node, fmt:pixed.PixelEditorImageFormat) {
+  addPixelEditor(parentdiv:JQuery, firstnode:pixed.PixNode, fmt:pixed.PixelEditorImageFormat) {
     // data -> pixels
     var mapper = new pixed.Mapper();
     fmt.xform = 'scale(2)';
@@ -1099,21 +1093,20 @@ export class AssetEditorView implements ProjectView {
     else
       palizer.palette = new Uint32Array([0x00000000, 0xffff00ff, 0xffffff00, 0xffffffff]); // TODO
     mapper.addRight(palizer);
-    // refresh
-    firstnode.refreshRight();
     // add view objects
-    this.addPixelEditorViews(filediv, palizer.rgbimgs, fmt);
+    palizer.addRight(new pixed.CharmapEditor(this, newDiv(parentdiv), fmt));
   }
 
-  addPaletteEditor(filediv:JQuery, firstnode:pixed.Node, palfmt?) {
+  addPaletteEditor(parentdiv:JQuery, firstnode:pixed.PixNode, palfmt?) {
     // palette -> RGBA
     var pal2rgb = new pixed.PaletteFormatToRGB();
     pal2rgb.palfmt = palfmt;
     firstnode.addRight(pal2rgb);
+    // TODO: refresh twice?
     firstnode.refreshRight();
-    // add view objects
+    // TODO: add view objects
     // TODO: show which one is selected?
-    this.addPaletteEditorViews(filediv, firstnode.words,
+    this.addPaletteEditorViews(parentdiv, firstnode.words,
       pal2rgb.palette, pal2rgb.layout, pal2rgb.getAllColors(),
       (index, newvalue) => {
         console.log('set entry', index, '=', newvalue);
@@ -1126,31 +1119,33 @@ export class AssetEditorView implements ProjectView {
   refreshAssetsInFile(fileid : string, data : FileData) : number {
     let nassets = 0;
     let filediv = $('#'+this.getFileDivId(fileid)).empty();
-    // TODO
-    // TODO: check if open
+    // TODO: check fmt w/h/etc limits
+    // TODO: defer editor creation
+    // TODO: only refresh when needed
     if (fileid.endsWith('.chr') && data instanceof Uint8Array) {
       // is this a NES CHR?
       let node = new pixed.FileDataNode(projectWindows, fileid, data);
       const neschrfmt = {w:8,h:8,bpp:1,count:(data.length>>4),brev:true,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}; // TODO
       this.addPixelEditor(filediv, node, neschrfmt);
+      this.registerAsset("charmap", node);
     } else if (typeof data === 'string') {
       let textfrags = this.scanFileTextForAssets(fileid, data);
       for (let frag of textfrags) {
-        let node : pixed.Node = new pixed.TextDataNode(projectWindows, fileid, data, frag.start, frag.end);
+        let node : pixed.PixNode = new pixed.TextDataNode(projectWindows, fileid, data, frag.start, frag.end);
+        let first = node;
         if (frag.fmt.comp == 'rletag') {
-          node.addRight(new pixed.Compressor());
-          node.refreshRight(); // TODO
-          node = node.right;
-          console.log(node);
+          node = node.addRight(new pixed.Compressor());
         }
         // is this a bitmap?
         if (frag.fmt && frag.fmt.w > 0 && frag.fmt.h > 0) {
           this.addPixelEditor(filediv, node, frag.fmt);
+          this.registerAsset("charmap", first);
           nassets++;
         }
         // is this a palette?
         else if (frag.fmt && frag.fmt.pal) {
           this.addPaletteEditor(filediv, node, frag.fmt);
+          this.registerAsset("palette", first);
           nassets++;
         }
         else {
@@ -1168,11 +1163,12 @@ export class AssetEditorView implements ProjectView {
 // TODO: recreate editors when refreshing
   refresh() {
     this.maindiv.empty();
+    this.clearAssets();
     current_project.iterateFiles((id, data) => {
       var divid = this.getFileDivId(id);
-      var header = $('<div class="asset_file_header"/>').text(id);
-      var body = $('<div/>').attr('id',divid);
-      var filediv = $('<div class="asset_file"/>').append(header, body).appendTo(this.maindiv);
+      var filediv = newDiv(this.maindiv, 'asset_file');
+      var header = newDiv(filediv, 'asset_file_header').text(id);
+      var body = newDiv(filediv).attr('id',divid);
       try {
         var nassets = this.refreshAssetsInFile(id, data);
         if (nassets == 0) filediv.hide();
@@ -1181,7 +1177,11 @@ export class AssetEditorView implements ProjectView {
         filediv.text(e+""); // TODO: error msg?
       }
     });
+    // refresh all assets
+    this.rootnodes.forEach((node) => { node.refreshRight(); });
   }
+
+// TODO: scroll editors into view
 
 }
 
