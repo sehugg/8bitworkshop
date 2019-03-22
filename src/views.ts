@@ -1029,8 +1029,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       while (node != null) {
         if (node instanceof pixed.Palettizer) {
           // TODO: move to node class?
-          var rgbimgs = node.rgbimgs;
-          if (rgbimgs.length >= matchlen) {
+          var rgbimgs = node.rgbimgs; // TODO: why is null?
+          if (rgbimgs && rgbimgs.length >= matchlen) {
             result.push({node:node, name:"Tilemap", images:node.images, rgbimgs:rgbimgs}); // TODO
           }
         }
@@ -1072,7 +1072,9 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       var start = m.index + m[0].length;
       var end;
       // TODO: verilog end
-      if (m[0].startsWith(';;')) {
+      if (platform_id == 'verilog') {
+        end = data.indexOf("end", start); // asm
+      } else if (m[0].startsWith(';;')) {
         end = data.indexOf(';;', start); // asm
       } else {
         end = data.indexOf(';', start); // C
@@ -1088,6 +1090,24 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           console.log(e);
         }
       }
+    }
+    // look for DEF_METASPRITE_2x2(playerRStand, 0xd8, 0)
+    // TODO: could also look in ROM
+    var re2 = /DEF_METASPRITE_(\d+)x(\d+)[(](\w+),\s*(\w+),\s*(\w+)/gi;
+    while (m = re2.exec(data)) {
+      var width = parseInt(m[1]);
+      var height = parseInt(m[2]);
+      var ident = m[3];
+      var tile = parseInt(m[4]);
+      var attr = parseInt(m[5]);
+      var metadefs = [];
+      for (var x=0; x<width; x++) {
+        for (var y=0; y<height; y++) {
+          metadefs.push({x:x*8, y:y*8, tile:tile, attr:attr});
+        }
+      }
+      var meta = {defs:metadefs,width:width*8,height:height*8};
+      result.push({fileid:id,label:ident,meta:meta});
     }
     return result;
   }
@@ -1197,6 +1217,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           // is this a nes nametable?
           if (frag.fmt.map == 'nesnt') {
             node = node.addRight(new pixed.NESNametableConverter(this)); // TODO?
+            node = node.addRight(new pixed.Palettizer(this, {w:8,h:8,bpp:4})); // TODO?
             const fmt = {w:8*32,h:8*30,count:1}; // TODO
             node = node.addRight(new pixed.CharmapEditor(this, newDiv(filediv), fmt));
             this.registerAsset("nametable", first, true);

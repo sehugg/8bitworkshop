@@ -783,8 +783,8 @@ export class Palettizer extends PixNode {
   
   ncolors : number;
   context : EditorContext;
-  options : SelectablePalette[];
-  selindex : number = 0;
+  paloptions : SelectablePalette[];
+  palindex : number = 0;
   
 // TODO: control to select palette for bitmaps
 
@@ -805,7 +805,7 @@ export class Palettizer extends PixNode {
     });
   }
   updateRight() {
-    this.updatePalette();
+    this.updateRefs();
     this.images = this.left.images;
     var mask = this.palette.length - 1; // must be power of 2
     // for each image, map bytes to RGB colors
@@ -817,11 +817,11 @@ export class Palettizer extends PixNode {
       return out;
     });
   }
-  updatePalette() {
+  updateRefs() {
     if (this.context != null) {
-      this.options = this.context.getPalettes(this.ncolors);
-      if (this.options && this.options.length > 0) {
-        this.palette = this.options[this.selindex].palette;
+      this.paloptions = this.context.getPalettes(this.ncolors);
+      if (this.paloptions && this.paloptions.length > 0) {
+        this.palette = this.paloptions[this.palindex].palette;
       }
     }
     if (this.palette == null) {
@@ -876,40 +876,79 @@ export class PaletteFormatToRGB extends PixNode {
   }
 }
 
-export class NESNametableConverter extends PixNode {
+export abstract class Compositor extends PixNode {
 
-  palette : Uint32Array;
   tilemap : Uint8Array[];	// tilemap images
-  rgbimgs : Uint32Array[];	// output (1 image)
+  images : Uint8Array[];	// output (1 image)
   width : number;
   height : number;
-  cols : number;
-  rows : number;
-  baseofs : number;
-
+  
   context : EditorContext;
-  paloptions : SelectablePalette[];
   tileoptions : SelectableTilemap[];
-  palindex : number = 0;
   tileindex : number = 0;
 
   constructor(context:EditorContext) {
     super();
     this.context = context;
   }
+  updateRefs() {
+    if (this.context != null) {
+      this.tileoptions = this.context.getTilemaps(256);
+      if (this.tileoptions && this.tileoptions.length > 0) {
+        this.tilemap = this.tileoptions[this.tileindex].images;
+      }
+    }
+  }
+}
+
+export type MetaspriteEntry = {
+  x:number, y:number, tile:number, attr:number
+};
+
+export class MetaspriteCompositor extends Compositor {
+
+  metadefs : MetaspriteEntry[];
+
+  constructor(context:EditorContext, metadefs) {
+    super(context);
+    this.metadefs = metadefs;
+  }
+  updateLeft() {
+    // TODO
+  }  
+  updateRight() {
+    this.updateRefs();
+    this.width = 16; // TODO
+    this.height = 16; // TODO
+    var idata = new Uint8Array(this.width * this.height);
+    this.images = [idata];
+    this.metadefs.forEach((meta) => {
+      // TODO
+    });
+  }
+}
+
+export class NESNametableConverter extends Compositor {
+
+  cols : number;
+  rows : number;
+  baseofs : number;
+  constructor(context:EditorContext) {
+    super(context);
+  }
   updateLeft() {
     // TODO
   }  
   updateRight() {
     this.words = this.left.words;
-    this.updatePalette();
+    this.updateRefs();
     this.cols = 32;
     this.rows = 30;
     this.width = this.cols * 8;
     this.height = this.rows * 8;
     this.baseofs = 0;
-    var idata = new Uint32Array(this.width * this.height);
-    this.rgbimgs = [idata];
+    var idata = new Uint8Array(this.width * this.height);
+    this.images = [idata];
     var a = 0;
     var attraddr;
     for (var row=0; row<this.rows; row++) {
@@ -927,8 +966,7 @@ export class NESNametableConverter extends PixNode {
            for (var x=0; x<8; x++) {
              var color = t[j++];
              if (color) color += coloradd;
-             var rgb = this.palette[color];
-             idata[i++] = rgb | 0xff000000;
+             idata[i++] = color;
            }
            i += this.cols*8-8;
          }
@@ -936,18 +974,6 @@ export class NESNametableConverter extends PixNode {
       }
     }
     // TODO
-  }
-  updatePalette() {
-    if (this.context != null) {
-      this.paloptions = this.context.getPalettes(16);
-      if (this.paloptions && this.paloptions.length > 0) {
-        this.palette = this.paloptions[this.palindex].palette;
-      }
-      this.tileoptions = this.context.getTilemaps(256);
-      if (this.tileoptions && this.tileoptions.length > 0) {
-        this.tilemap = this.tileoptions[this.tileindex].images;
-      }
-    }
   }
 }
 
@@ -1073,17 +1099,17 @@ export class CharmapEditor extends PixNode {
     // add palette selector
     // TODO: only view when editing?
     var palizer = this.left;
-    if (palizer instanceof Palettizer && palizer.options.length > 1) {
+    if (palizer instanceof Palettizer && palizer.paloptions.length > 1) {
       var palselect = $(document.createElement('select'));
-      palizer.options.forEach((palopt, i) => {
+      palizer.paloptions.forEach((palopt, i) => {
         // TODO: full identifier
         var sel = $(document.createElement('option')).text(palopt.name).val(i).appendTo(palselect);
-        if (i == (palizer as Palettizer).selindex)
+        if (i == (palizer as Palettizer).palindex)
           sel.attr('selected','selected');
       });
       palselect.appendTo(agrid).change((e) => {
         var index = $(e.target).val() as number;
-        (palizer as Palettizer).selindex = index;
+        (palizer as Palettizer).palindex = index;
         palizer.refreshRight();
       });
     }
