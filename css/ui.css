@@ -257,7 +257,7 @@ canvas.pixelated {
   height:2em;
   border-style:none;
 }
-.palbtn .selected {
+.palbtn.selected {
   border-width:2px;
   border-color:white;
   border-style:dotted;

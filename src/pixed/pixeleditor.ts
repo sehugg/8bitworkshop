@@ -56,215 +56,6 @@ type PixelEditorMessage = {
   palstr : string
 };
 
-export function PixelEditor(parentDiv:HTMLElement,
-                            fmt:PixelEditorImageFormat,
-                            palette:Uint32Array,
-                            initialData:Uint32Array,
-                            thumbnails?) {
-  var width = fmt.w;
-  var height = fmt.h;
-
-  function createCanvas() {
-    var c = document.createElement('canvas');
-    c.width = width;
-    c.height = height;
-    if (fmt.xform) c.style.transform = fmt.xform;
-    c.classList.add("pixels");
-    c.classList.add("pixelated");
-    //canvas.tabIndex = "-1";               // Make it focusable
-    $(parentDiv).empty().append(c);
-    return c;
-  }
-
-  function updateImage() {
-    ctx.putImageData(pixdata, 0, 0);
-  }
-
-  function commit() {
-    if (!thumbnails) return;
-    for (var i=0; i<thumbnails.length; i++) {
-      thumbnails[i].copyImageFrom(this);
-    }
-    initialData.set(this.getImageColors());
-  }
-
-  this.copyImageFrom = function(src) {
-    pixints.set(src.getImageData());
-    updateImage();
-  }
-
-  this.getImageData = function() { return pixints.slice(0); }
-
-  function fitCanvas() {
-    pixcanvas.style.height = '50%'; // TODO?
-    return;
-  }
-  this.resize = fitCanvas;
-
-  var pixcanvas = createCanvas();
-  var ctx = pixcanvas.getContext('2d');
-  var pixdata = ctx.createImageData(width, height);
-  var pixints = new Uint32Array(pixdata.data.buffer);
-  for (var i=0; i<pixints.length; i++) {
-    pixints[i] = initialData ? palette[initialData[i]] : palette[0];
-  }
-  this.canvas = pixcanvas;
-
-  updateImage();
-
-
-  this.createPaletteButtons = function() {
-    var span = $("#palette_group").empty();
-    for (var i=0; i<palette.length; i++) {
-      var btn = $('<button class="palbtn">');
-      var rgb = palette[i] & 0xffffff;
-      var color = "#" + hex(rgb2bgr(rgb), 6);
-      btn.click(this.setCurrentColor.bind(this, i));
-      btn.attr('id', 'palcol_' + i);
-      btn.css('backgroundColor', color).text(i.toString(16));
-      if ((rgb & 0x808080) != 0x808080) { btn.css('color', 'white'); }
-      span.append(btn);
-    }
-    this.setCurrentColor(1);
-  }
-
-  function getPixelByOffset(ofs) {
-    var oldrgba = pixints[ofs] & 0xffffff;
-    for (var i=0; i<palette.length; i++) {
-      if (oldrgba == (palette[i] & 0xffffff)) return i;
-    }
-    return 0;
-  }
-
-  function getPixel(x, y) {
-    var ofs = x+y*width;
-    return getPixelByOffset(ofs);
-  }
-
-  function setPixel(x, y, col) {
-    if (x < 0 || x >= width || y < 0 || y >= height) return;
-    var ofs = x+y*width;
-    var oldrgba = pixints[ofs];
-    var rgba = palette[col];
-    if (oldrgba != rgba) {
-      pixints[ofs] = rgba;
-      updateImage();
-    }
-  }
-
-  this.getImageColors = function() {
-    var pixcols = new Uint8Array(pixints.length);
-    for (var i=0; i<pixints.length; i++)
-      pixcols[i] = getPixelByOffset(i);
-    return pixcols;
-  }
-
-  ///
-
-  this.makeEditable = function() {
-    var curpalcol = -1;
-    setCurrentColor(1);
-
-    function getPositionFromEvent(e) {
-      var x = Math.floor(e.offsetX * width / pxls.width());
-      var y = Math.floor(e.offsetY * height / pxls.height());
-      return {x:x, y:y};
-    }
-
-    function setCurrentColor(col) {
-      if (curpalcol != col) {
-        if (curpalcol >= 0)
-          $("#palcol_" + curpalcol).removeClass('selected');
-        curpalcol = col;
-        $("#palcol_" + col).addClass('selected');
-      }
-    }
-    this.setCurrentColor = setCurrentColor;
-
-    var dragcol = 1;
-    var dragging = false;
-
-    var pxls = $(pixcanvas);
-    pxls.mousedown( (e) => {
-      var pos = getPositionFromEvent(e);
-      dragcol = getPixel(pos.x, pos.y) == curpalcol ? 0 : curpalcol;
-      setPixel(pos.x, pos.y, curpalcol);
-      dragging = true;
-      // TODO: pixcanvas.setCapture();
-    })
-    .mousemove( (e) => {
-      var pos = getPositionFromEvent(e);
-      if (dragging) {
-        setPixel(pos.x, pos.y, dragcol);
-      }
-    })
-    .mouseup( (e) => {
-      var pos = getPositionFromEvent(e);
-      setPixel(pos.x, pos.y, dragcol);
-      dragging = false;
-      commit();
-      // TODO: pixcanvas.releaseCapture();
-    });
-  }
-
-  function setPixels(p) {
-    var i = 0;
-    for (var y=0; y<height; y++) {
-      for (var x=0; x<width; x++) {
-        setPixel(x, y, p[i++]);
-      }
-    }
-  }
-
-  this.rotate = function(deg) {
-    console.log("rotate " + deg);
-    var s1 = Math.sin(deg * Math.PI / 180);
-    var c1 = Math.cos(deg * Math.PI / 180);
-    var p = this.getImageColors();
-    var i = 0;
-    for (var y=0; y<height; y++) {
-      for (var x=0; x<width; x++) {
-        var xx = x + 0.5 - width/2.0;
-        var yy = y + 0.5 - height/2.0;
-        var xx2 = xx*c1 - yy*s1 + width/2.0 - 0.5;
-        var yy2 = yy*c1 + xx*s1 + height/2.0 - 0.5;
-        var col = getPixel(Math.round(xx2), Math.round(yy2));
-        p[i++] = col;
-      }
-    }
-    setPixels(p);
-    commit();
-  }
-
-  this.flipy = function() {
-    console.log("flipy");
-    var p = this.getImageColors();
-    var i = 0;
-    for (var y=0; y<height; y++) {
-      for (var x=0; x<width; x++) {
-        var col = getPixel(x, height-1-y);
-        p[i++] = col;
-      }
-    }
-    setPixels(p);
-    commit();
-  }
-
-  this.flipx = function() {
-    console.log("flipx");
-    var p = this.getImageColors();
-    var i = 0;
-    for (var y=0; y<height; y++) {
-      for (var x=0; x<width; x++) {
-        var col = getPixel(width-1-x, y);
-        p[i++] = col;
-      }
-    }
-    setPixels(p);
-    commit();
-  }
-}
-
 /////////////////
 
 var pixel_re = /([0#]?)([x$%]|\d'[bh])([0-9a-f]+)/gi;
@@ -435,19 +226,6 @@ function convertPaletteBytes(arr:UintArray,r0,r1,g0,g1,b0,b1) : number[] {
   return result;
 }
 
-export var palette : Uint32Array;
-export var paletteSets;
-export var paletteSetIndex=0;
-export var currentPixelEditor;
-export var parentSource;
-export var parentOrigin;
-export var allimages;
-export var currentFormat : PixelEditorImageFormat;
-export var currentByteStr : string;
-export var currentPaletteStr : string;
-export var currentPaletteFmt : PixelEditorPaletteFormat;
-export var allthumbs;
-
 export function getPaletteLength(palfmt: PixelEditorPaletteFormat) : number {
   var pal = palfmt.pal;
   if (typeof pal === 'number') {
@@ -488,136 +266,6 @@ function convertPaletteFormat(palbytes:UintArray, palfmt: PixelEditorPaletteForm
   return newpalette;
 }
 
-export function pixelEditorDecodeMessage(e) {
-  parentSource = e.source;
-  parentOrigin = e.origin;
-  let data : PixelEditorMessage = e.data;
-  currentFormat = e.data.fmt;
-  currentPaletteFmt = data.palfmt;
-  currentPaletteStr = data.palstr;
-  currentByteStr = convertToHexStatements(data.bytestr);
-  var words = parseHexWords(currentByteStr);
-  allimages = convertWordsToImages(words, data.fmt);
-  var newpalette = [0xff000000, 0xffffffff]; // TODO
-  if (currentPaletteStr) {
-    var palbytes = parseHexWords(data.palstr);
-    newpalette = convertPaletteFormat(palbytes, currentPaletteFmt) || newpalette;
-    if (currentPaletteFmt.n) {
-      paletteSets = [];
-      for (var i=0; i<newpalette.length; i+=currentPaletteFmt.n) {
-        paletteSets.push(newpalette.slice(i, i+currentPaletteFmt.n));
-      }
-      newpalette = paletteSets[paletteSetIndex = 0];
-      // TODO: swap palettes
-    }
-  } else {
-    var ncols = (currentFormat.bpp || 1) * (currentFormat.np || 1);
-    switch (ncols) {
-      case 2:
-        newpalette = [0xff000000, 0xffff00ff, 0xffffff00, 0xffffffff];
-        break;
-      // TODO
-    }
-    // TODO: default palette?
-  }
-  palette = new Uint32Array(newpalette);
-}
-
-function pixelEditorCreateThumbnails(e) {
-  // create thumbnail for all images
-  $("#thumbnaildiv").empty();
-  var parentdiv;
-  var count = e.data.fmt.count || 1;
-  allthumbs = [];
-  for (var i=0; i<count; i++) {
-    if ((i & 15) == 0) {
-      parentdiv = $('<div class="thumbdiv">').appendTo("#thumbnaildiv");
-    }
-    allthumbs.push(createThumbnailForImage(parentdiv, i));
-  }
-}
-
-function pixelEditorReceiveMessage(e) {
-  pixelEditorDecodeMessage(e);
-  pixelEditorCreateThumbnails(e);
-  // create initial editor
-  createEditorForImage(0);
-}
-
-function createThumbnailForImage(parentdiv, i) {
-  var span = $('<span class="thumb">');
-  var thumb = new PixelEditor(span[0] as HTMLElement, currentFormat, palette, allimages[i]);
-  // double size of canvas thumbnail
-  thumb.canvas.style.height = currentFormat.h*2+"px";
-  thumb.canvas.style.width = currentFormat.w*2+"px";
-  parentdiv.append(span);
-  span.click(() => { createEditorForImage(i) });
-  return thumb;
-}
-
-function createEditorForImage(i) {
-  currentPixelEditor = new PixelEditor(document.getElementById('maineditor'), currentFormat, palette, allimages[i], [allthumbs[i]]);
-  currentPixelEditor.resize();
-  currentPixelEditor.makeEditable();
-  currentPixelEditor.createPaletteButtons();
-}
-
-function postToParentWindow(data) {
-  if (data.save) {
-    var allimgs = [];
-    for (var i=0; i<allthumbs.length; i++) {
-      allimgs.push(allthumbs[i].getImageColors());
-    }
-    data.bytes = convertImagesToWords(allimgs, currentFormat);
-    data.bytestr = replaceHexWords(currentByteStr, data.bytes);
-  }
-  if (parentSource) parentSource.postMessage(data, "*");
-  return data;
-}
-
-function pixelEditorResize(e) {
-  if (currentPixelEditor) {
-    currentPixelEditor.resize();
-  }
-}
-
-function pixelEditorKeypress(e) {
-  if (!currentPixelEditor) return;
-  //console.log(e);
-  var c = e.charCode;
-  if (c >= 48 && c <= 57) {
-    currentPixelEditor.setCurrentColor(c-48);
-  } else if (c >= 97 && c <= 102) {
-    currentPixelEditor.setCurrentColor(c-97+10);
-  } else {
-    switch (e.keyCode) {
-      case 82: // 'R'
-        currentPixelEditor.rotate(-90);
-        break;
-      case 114: // 'r'
-        currentPixelEditor.rotate(90);
-        break;
-      case 84: // 'T'
-        currentPixelEditor.rotate(-45);
-        break;
-      case 116: // 't'
-        currentPixelEditor.rotate(45);
-        break;
-    }
-    switch (e.charCode) {
-      case 104:
-        currentPixelEditor.flipx();
-        break;
-
-        currentPixelEditor.flipy();
-        break;
-      default:
-        console.log(e);
-        break;
-    }
-  }
-}
-
 // TODO: illegal colors?
 var PREDEF_PALETTES = {
   'nes':[
@@ -655,10 +303,11 @@ export abstract class PixNode {
   words? : UintArray;		// file data
   images? : Uint8Array[];	// array of indexed image data
   rgbimgs? : Uint32Array[];	// array of rgba imgages
-  
+  palette? : Uint32Array; // array of rgba
+
   abstract updateLeft();	// update coming from right
   abstract updateRight();	// update coming from left
-  
+
   refreshLeft() {
     var p : PixNode = this;
     while (p) {
@@ -693,7 +342,7 @@ abstract class CodeProjectDataNode extends PixNode {
 }
 
 export class FileDataNode extends CodeProjectDataNode {
-  
+
   constructor(project:ProjectWindows, fileid:string, data:Uint8Array) {
     super();
     this.project = project;
@@ -702,6 +351,7 @@ export class FileDataNode extends CodeProjectDataNode {
     this.words = data;
   }
   updateLeft() {
+    this.words = this.right.words;
     if (this.project) {
       this.project.updateFile(this.fileid, this.words as Uint8Array);
     }
@@ -723,8 +373,9 @@ export class TextDataNode extends CodeProjectDataNode {
     this.text = text;
     this.start = start;
     this.end = end;
-  }  
+  }
   updateLeft() {
+    this.words = this.right.words;
     // TODO: reload editors?
     var datastr = this.text.substring(this.start, this.end);
     datastr = replaceHexWords(datastr, this.words);
@@ -760,7 +411,11 @@ export class Mapper extends PixNode {
   fmt : PixelEditorImageFormat;
   words : UintArray;
   images : Uint8Array[];
-  
+
+  constructor(fmt) {
+    super();
+    this.fmt = fmt;
+  }
   updateLeft() {
     this.images = this.right.images;
     this.words = convertImagesToWords(this.images, this.fmt);
@@ -778,7 +433,7 @@ class RGBAPalette {
     this.palcols = palcols;
   }
   indexOf(rgba : number) : number {
-    return this.palcols.find(rgba);
+    return this.palcols.indexOf(rgba);
   }
 }
 
@@ -787,12 +442,12 @@ export class Palettizer extends PixNode {
   images : Uint8Array[];
   rgbimgs : Uint32Array[];
   palette : Uint32Array;
-  
+
   ncolors : number;
   context : EditorContext;
   paloptions : SelectablePalette[];
   palindex : number = 0;
-  
+
 // TODO: control to select palette for bitmaps
 
   constructor(context:EditorContext, fmt:PixelEditorImageFormat) {
@@ -863,6 +518,10 @@ export class PaletteFormatToRGB extends PixNode {
   palfmt : PixelEditorPaletteFormat;
   layout : PixelEditorPaletteLayout;
 
+  constructor(palfmt) {
+    super();
+    this.palfmt = palfmt;
+  }
   updateLeft() {
     //TODO
   }
@@ -889,7 +548,7 @@ export abstract class Compositor extends PixNode {
   images : Uint8Array[];	// output (1 image)
   width : number;
   height : number;
-  
+
   context : EditorContext;
   tileoptions : SelectableTilemap[];
   tileindex : number = 0;
@@ -922,7 +581,7 @@ export class MetaspriteCompositor extends Compositor {
   }
   updateLeft() {
     // TODO
-  }  
+  }
   updateRight() {
     this.updateRefs();
     this.width = 16; // TODO
@@ -945,7 +604,7 @@ export class NESNametableConverter extends Compositor {
   }
   updateLeft() {
     // TODO
-  }  
+  }
   updateRight() {
     this.words = this.left.words;
     this.updateRefs();
@@ -986,51 +645,12 @@ export class NESNametableConverter extends Compositor {
 
 ///// UI CONTROLS
 
-export class Viewer { // TODO: make PixNode
-
-  width : number;
-  height : number;
-  canvas : HTMLCanvasElement;
-  ctx : CanvasRenderingContext2D;
-  pixdata : ImageData;
-
-  recreate() {
-    this.canvas = this.newCanvas();
-    this.pixdata = this.ctx.createImageData(this.width, this.height);
-  }
-
-  createWith(pv : Viewer) {
-    this.width = pv.width;
-    this.height = pv.height;
-    this.pixdata = pv.pixdata;
-    this.canvas = this.newCanvas();
-  }
-
-  newCanvas() : HTMLCanvasElement {
-    var c = document.createElement('canvas');
-    c.width = this.width;
-    c.height = this.height;
-    //if (fmt.xform) c.style.transform = fmt.xform;
-    c.classList.add("pixels");
-    c.classList.add("pixelated");
-    this.ctx = c.getContext('2d');
-    return c;
-  }
-
-  updateImage(imdata : Uint32Array) {
-    if (imdata) {
-      new Uint32Array(this.pixdata.data.buffer).set(imdata);
-    }
-    this.ctx.putImageData(this.pixdata, 0, 0);
-  }
-}
-
 export class ImageChooser {
 
   rgbimgs : Uint32Array[];
   width : number;
   height : number;
-  
+
   recreate(parentdiv:JQuery, onclick) {
     var agrid = $('<div class="asset_grid"/>'); // grid (or 1) of preview images
     parentdiv.empty().append(agrid);
@@ -1059,7 +679,7 @@ export class ImageChooser {
         span = null;
       }
     });
-  }  
+  }
 }
 
 function newDiv(parent?, cls? : string) {
@@ -1074,6 +694,7 @@ export class CharmapEditor extends PixNode {
   context;
   parentdiv;
   fmt;
+  chooser;
 
   constructor(context:EditorContext, parentdiv:JQuery, fmt:PixelEditorImageFormat) {
     super();
@@ -1081,27 +702,25 @@ export class CharmapEditor extends PixNode {
     this.parentdiv = parentdiv;
     this.fmt = fmt;
   }
-  
-  updateLeft() { } // TODO
-  
+
+  updateLeft() {
+  }
+
   updateRight() {
     this.rgbimgs = this.left.rgbimgs;
     var adual = newDiv(this.parentdiv.empty(), "asset_dual"); // contains grid and editor
     var agrid = newDiv(adual);
     var aeditor = newDiv(adual, "asset_editor").hide(); // contains editor, when selected
     // add image chooser grid
-    var chooser = new ImageChooser();
+    var chooser = this.chooser = new ImageChooser();
     chooser.rgbimgs = this.rgbimgs;
     chooser.width = this.fmt.w || 1;
     chooser.height = this.fmt.h || 1;
     chooser.recreate(agrid, (index, viewer) => {
       var escale = Math.ceil(192 / this.fmt.w);
-      var editview = new Viewer();
-      editview.createWith(viewer);
-      editview.updateImage(null);
-      editview.canvas.style.width = (viewer.width*escale)+'px'; // TODO
-      aeditor.empty().append(editview.canvas);
+      var editview = this.createEditor(aeditor, viewer, escale);
       this.context.setCurrentEditor(aeditor, $(viewer.canvas));
+      this.rgbimgs[index] = viewer.rgbdata;
     });
     // add palette selector
     // TODO: only view when editing?
@@ -1122,5 +741,191 @@ export class CharmapEditor extends PixNode {
     }
   }
 
+  createEditor(aeditor : JQuery, viewer : Viewer, escale : number) : PixEditor {
+    var im = new PixEditor();
+    im.createWith(viewer);
+    im.updateImage();
+    im.canvas.style.width = (viewer.width*escale)+'px'; // TODO
+    im.makeEditable(this, aeditor, this.left.palette);
+    return im;
+  }
 }
 
+export class Viewer {
+
+  width : number;
+  height : number;
+  canvas : HTMLCanvasElement;
+  ctx : CanvasRenderingContext2D;
+  imagedata : ImageData;
+  rgbdata : Uint32Array;
+  peerviewers : Viewer[];
+
+  recreate() {
+    this.canvas = this.newCanvas();
+    this.imagedata = this.ctx.createImageData(this.width, this.height);
+    this.rgbdata = new Uint32Array(this.imagedata.data.buffer);
+    this.peerviewers = [this];
+  }
+
+  createWith(pv : Viewer) {
+    this.width = pv.width;
+    this.height = pv.height;
+    this.imagedata = pv.imagedata;
+    this.rgbdata = pv.rgbdata;
+    this.canvas = this.newCanvas();
+    this.peerviewers = [this, pv];
+  }
+
+  newCanvas() : HTMLCanvasElement {
+    var c = document.createElement('canvas');
+    c.width = this.width;
+    c.height = this.height;
+    //if (fmt.xform) c.style.transform = fmt.xform;
+    c.classList.add("pixels");
+    c.classList.add("pixelated");
+    this.ctx = c.getContext('2d');
+    return c;
+  }
+
+  updateImage(imdata? : Uint32Array) {
+    if (imdata) {
+      this.rgbdata.set(imdata);
+    }
+    for (let v of this.peerviewers) {
+      v.ctx.putImageData(this.imagedata, 0, 0);
+    }
+  }
+}
+
+class PixEditor extends Viewer {
+
+  left : PixNode;
+  palette : Uint32Array;
+  curpalcol : number = -1;
+  currgba : number;
+  palbtns : JQuery[];
+
+  getPositionFromEvent(e) {
+    var x = Math.floor(e.offsetX * this.width / $(this.canvas).width());
+    var y = Math.floor(e.offsetY * this.height / $(this.canvas).height());
+    return {x:x, y:y};
+  }
+
+  setPaletteColor(col: number) {
+    col &= this.palette.length-1;
+    if (this.curpalcol != col) {
+      if (this.curpalcol >= 0)
+        this.palbtns[this.curpalcol].removeClass('selected');
+      this.curpalcol = col;
+      this.currgba = this.palette[col & this.palette.length-1];
+      this.palbtns[col].addClass('selected');
+    }
+  }
+
+  makeEditable(leftnode:PixNode, aeditor:JQuery, palette:Uint32Array) {
+    this.left = leftnode;
+    this.palette = palette;
+
+    var dragcol;
+    var dragging = false;
+
+    var pxls = $(this.canvas);
+    pxls.mousedown( (e) => {
+      var pos = this.getPositionFromEvent(e);
+      dragcol = this.getPixel(pos.x, pos.y) == this.currgba ? this.palette[0] : this.currgba;
+      this.setPixel(pos.x, pos.y, this.currgba);
+      dragging = true;
+      // TODO: pixcanvas.setCapture();
+    })
+    .mousemove( (e) => {
+      var pos = this.getPositionFromEvent(e);
+      if (dragging) {
+        this.setPixel(pos.x, pos.y, dragcol);
+      }
+    })
+    .mouseup( (e) => {
+      var pos = this.getPositionFromEvent(e);
+      this.setPixel(pos.x, pos.y, dragcol);
+      dragging = false;
+      this.commit();
+      // TODO: pixcanvas.releaseCapture();
+    });
+
+    aeditor.empty();
+    aeditor.append(this.canvas);
+    aeditor.append(this.createPaletteButtons());
+    this.setPaletteColor(1);
+  }
+
+  getPixel(x, y) {
+    var ofs = x+y*this.width;
+    return this.rgbdata[ofs];
+  }
+
+  setPixel(x, y, rgba) {
+    if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
+    var ofs = x+y*this.width;
+    var oldrgba = this.rgbdata[ofs];
+    if (oldrgba != rgba) {
+      this.rgbdata[ofs] = rgba;
+      this.updateImage();
+    }
+  }
+
+  createPaletteButtons() {
+    this.palbtns = [];
+    var span = $(document.createElement('div'));
+    for (var i=0; i<this.palette.length; i++) {
+      var btn = $(document.createElement('button')).addClass('palbtn');
+      var rgb = this.palette[i] & 0xffffff;
+      var color = "#" + hex(rgb2bgr(rgb), 6);
+      btn.click(this.setPaletteColor.bind(this, i));
+      btn.css('backgroundColor', color).text(i.toString(16));
+      btn.css('color', (rgb & 0x008000) ? 'black' : 'white');
+      span.append(btn);
+      this.palbtns.push(btn);
+    }
+    return span;
+  }
+
+  commit() {
+    this.left.refreshLeft();
+  }
+
+  remapPixels(mapfn : (x:number,y:number) => number) {
+    var i = 0;
+    var pixels = new Uint32Array(this.rgbdata.length);
+    for (var y=0; y<this.height; y++) {
+      for (var x=0; x<this.width; x++) {
+        pixels[i] = mapfn(x, y);
+        i++;
+      }
+    }
+    this.rgbdata.set(pixels);
+    this.commit();
+  }
+
+  rotate(deg:number) {
+    var s1 = Math.sin(deg * Math.PI / 180);
+    var c1 = Math.cos(deg * Math.PI / 180);
+    this.remapPixels((x,y) => {
+      var xx = x + 0.5 - this.width/2.0;
+      var yy = y + 0.5 - this.height/2.0;
+      var xx2 = xx*c1 - yy*s1 + this.width/2.0 - 0.5;
+      var yy2 = yy*c1 + xx*s1 + this.height/2.0 - 0.5;
+      return this.getPixel(xx, yy);
+    });
+  }
+  flipx() {
+    this.remapPixels((x,y) => {
+      return this.getPixel(this.width-1-x, y);
+    });
+  }
+  flipy() {
+    this.remapPixels((x,y) => {
+      return this.getPixel(x, this.height-1-y);
+    });
+  }
+
+}

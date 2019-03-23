@@ -967,12 +967,6 @@ function _fastestFrameRate() {
   setFrameRateUI(60);
 }
 
-function _openBitmapEditor() {
-  var wnd = projectWindows.getActive();
-  if (wnd && wnd.openBitmapEditorAtCursor)
-    wnd.openBitmapEditorAtCursor();
-}
-
 function traceTiming() {
   projectWindows.refresh(false);
   var wnd = projectWindows.getActive();
@@ -1112,7 +1106,6 @@ function setupDebugControls(){
     $("#dbg_timing").click(traceTiming).show();
   }
   $("#disassembly").hide();
-  $("#dbg_bitmap").click(_openBitmapEditor);
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);

@@ -21,7 +21,6 @@ export interface ProjectView {
   getCursorPC?() : number;
   getSourceFile?() : SourceFile;
   setGutterBytes?(line:number, s:string) : void;
-  openBitmapEditorAtCursor?() : void;
   markErrors?(errors:WorkerError[]) : void;
   clearErrors?() : void;
   setTimingResult?(result:CodeAnalyzer) : void;
@@ -349,86 +348,12 @@ export class SourceEditor implements ProjectView {
     }
     return -1;
   }
-  
+
   replaceSelection(start:number, end:number, text:string) {
     this.editor.setSelection(end, start);
     this.editor.replaceSelection(text);
   }
 
-  // bitmap editor (TODO: refactor)
-
-  openBitmapEditorWithParams(fmt, bytestr, palfmt, palstr) {
-
-    var handleWindowMessage = (e) => {
-      //console.log("window message", e.data);
-      if (e.data.bytes) {
-        this.editor.replaceSelection(e.data.bytestr);
-      }
-      if (e.data.close) {
-        $("#pixeditback").hide();
-      }
-      e.target.removeEventListener("message", handleWindowMessage);
-    }
-
-    $("#pixeditback").show();
-    window.addEventListener("message", handleWindowMessage, false); // TODO: remove listener
-    window['pixeditframe'].contentWindow.postMessage({fmt:fmt, bytestr:bytestr, palfmt:palfmt, palstr:palstr}, '*');
-  }
-
-  lookBackwardsForJSONComment(line, req) {
-    var re = /[/;][*;]([{].+[}])[*;][/;]/;
-    while (--line >= 0) {
-      var s = this.editor.getLine(line);
-      var m = re.exec(s);
-      if (m) {
-        var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
-        var obj = JSON.parse(jsontxt);
-        if (obj[req]) {
-          var start = {obj:obj, line:line, ch:s.indexOf(m[0])+m[0].length};
-          var line0 = line;
-          var pos0 = start.ch;
-          line--;
-          while (++line < this.editor.lineCount()) {
-            var l = this.editor.getLine(line);
-            var endsection;
-            if (platform_id == 'verilog')
-              endsection = l.indexOf('end') >= pos0;
-            else if (s.startsWith(';;'))
-              endsection = l.indexOf(';;') >= pos0;
-            else
-              endsection = l.indexOf(';') >= pos0;
-            if (endsection) {
-              var end = {line:line, ch:this.editor.getLine(line).length};
-              return {obj:obj, start:start, end:end};
-            }
-            pos0 = 0;
-          }
-          line = line0;
-        }
-      }
-    }
-  }
-
-  openBitmapEditorAtCursor() {
-    if ($("#pixeditback").is(":visible")) {
-      $("#pixeditback").hide(250);
-      return;
-    }
-    var line = this.editor.getCursor().line + 1;
-    var data = this.lookBackwardsForJSONComment(this.getCurrentLine(), 'w');
-    if (data && data.obj && data.obj.w>0 && data.obj.h>0) {
-      var paldata = this.lookBackwardsForJSONComment(data.start.line-1, 'pal');
-      var palbytestr;
-      if (paldata) {
-        palbytestr = this.editor.getRange(paldata.start, paldata.end);
-        paldata = paldata.obj;
-      }
-      this.editor.setSelection(data.end, data.start);
-      this.openBitmapEditorWithParams(data.obj, this.editor.getSelection(), paldata, palbytestr);
-    } else {
-      alert("To edit graphics, move cursor to a constant array preceded by a comment in the format:\n\n/*{w:,h:,bpp:,count:...}*/\n\n(See code examples)");
-    }
-  }
 }
 
 ///
@@ -679,7 +604,7 @@ export class MemoryView implements ProjectView {
     if (sym) s += '  ' + sym;
     return s;
   }
-  
+
   readAddress(n : number) {
     return platform.readAddress(n);
   }
@@ -973,12 +898,12 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     this.maindiv = newDiv(parent, "vertical-scroll");
     return this.maindiv[0];
   }
-  
+
   clearAssets() {
     this.rootnodes = [];
     this.deferrednodes = [];
   }
-  
+
   registerAsset(type:string, node:pixed.PixNode, deferred:boolean) {
     this.rootnodes.push(node);
     if (deferred) {
@@ -987,7 +912,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       node.refreshRight();
     }
   }
-  
+
   getPalettes(matchlen : number) : pixed.SelectablePalette[] {
     var result = [];
     this.rootnodes.forEach((node) => {
@@ -1039,7 +964,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     });
     return result;
   }
-  
+
   setCurrentEditor(div : JQuery, editing : JQuery) {
     if (this.cureditordiv != div) {
       if (this.cureditordiv) {
@@ -1060,7 +985,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       this.cureditelem.addClass('asset_editing');
     }
   }
-  
+
   scanFileTextForAssets(id : string, data : string) {
     // scan file for assets
     // /*{json}*/ or ;;{json};;
@@ -1111,7 +1036,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     }
     return result;
   }
-  
+
   addPaletteEditorViews(parentdiv:JQuery, words, palette, layout, allcolors, callback) {
     var adual = $('<div class="asset_dual"/>').appendTo(parentdiv);
     var aeditor = $('<div class="asset_editor"/>').hide(); // contains editor, when selected
@@ -1157,12 +1082,11 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       }
     });
   }
-  
+
   addPixelEditor(parentdiv:JQuery, firstnode:pixed.PixNode, fmt:pixed.PixelEditorImageFormat) {
     // data -> pixels
-    var mapper = new pixed.Mapper();
     fmt.xform = 'scale(2)';
-    mapper.fmt = fmt;
+    var mapper = new pixed.Mapper(fmt);
     // TODO: rotate node?
     firstnode.addRight(mapper);
     // pixels -> RGBA
@@ -1174,8 +1098,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
 
   addPaletteEditor(parentdiv:JQuery, firstnode:pixed.PixNode, palfmt?) {
     // palette -> RGBA
-    var pal2rgb = new pixed.PaletteFormatToRGB();
-    pal2rgb.palfmt = palfmt;
+    var pal2rgb = new pixed.PaletteFormatToRGB(palfmt);
     firstnode.addRight(pal2rgb);
     // TODO: refresh twice?
     firstnode.refreshRight();
@@ -1190,7 +1113,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         firstnode.refreshLeft();
       });
   }
-  
+
   refreshAssetsInFile(fileid : string, data : FileData) : number {
     let nassets = 0;
     let filediv = $('#'+this.getFileDivId(fileid)).empty();
@@ -1243,33 +1166,34 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     }
     return nassets;
   }
-  
+
   getFileDivId(id : string) {
     return '__asset__' + safeident(id);
   }
 
 // TODO: recreate editors when refreshing
-  refresh() {
-    this.maindiv.empty();
-    this.clearAssets();
-    current_project.iterateFiles((id, data) => {
-      var divid = this.getFileDivId(id);
-      var filediv = newDiv(this.maindiv, 'asset_file');
-      var header = newDiv(filediv, 'asset_file_header').text(id);
-      var body = newDiv(filediv).attr('id',divid);
-      try {
-        var nassets = this.refreshAssetsInFile(id, data);
-        if (nassets == 0) filediv.hide();
-      } catch (e) {
-        console.log(e);
-        filediv.text(e+""); // TODO: error msg?
-      }
-    });
-    this.deferrednodes.forEach((node) => { node.refreshRight(); });
-    this.deferrednodes = [];
+  refresh(moveCursor : boolean) {
+    if (moveCursor) {
+      this.maindiv.empty();
+      this.clearAssets();
+      current_project.iterateFiles((id, data) => {
+        var divid = this.getFileDivId(id);
+        var filediv = newDiv(this.maindiv, 'asset_file');
+        var header = newDiv(filediv, 'asset_file_header').text(id);
+        var body = newDiv(filediv).attr('id',divid);
+        try {
+          var nassets = this.refreshAssetsInFile(id, data);
+          if (nassets == 0) filediv.hide();
+        } catch (e) {
+          console.log(e);
+          filediv.text(e+""); // TODO: error msg?
+        }
+      });
+      this.deferrednodes.forEach((node) => { node.refreshRight(); });
+      this.deferrednodes = [];
+    }
   }
 
 // TODO: scroll editors into view
 
 }
-

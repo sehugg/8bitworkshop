@@ -17,21 +17,6 @@ body {
   overflow: hidden;
   font-size: 11px;
 }
-.pixeditback {
-  position:absolute;
-  z-index:100;
-  width:100%;
-  height:100%;
-  padding:50px;
-  border-width:4px;
-  border-color:#333;
-  border-style:solid;
-  background-color:rgba(64, 64, 64, 0.5);
-}
-#pixeditframe {
-  width:100%;
-  height:100%;
-}
 </style>
 <link rel="stylesheet" href="css/ui.css">
 <script>
@@ -166,7 +151,6 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
     <button id="dbg_disasm" type="button" title="Show Disassembly" style="display:none"><span class="glyphicon glyphicon-list" aria-hidden="true"></span></button>
     <button id="dbg_memory" type="button" title="Show Memory" style="display:none"><span class="glyphicon glyphicon-sunglasses" aria-hidden="true"></span></button>
     <button id="dbg_profile" type="button" title="Show Profile" style="display:none"><span class="glyphicon glyphicon-stats" aria-hidden="true"></span></button>
-    <button id="dbg_bitmap" type="button" title="Edit Bitmap"><span class="glyphicon glyphicon-camera" aria-hidden="true"></span></button>
     <button id="dbg_record" type="button" title="Start/Stop Replay Recording" style="display:none"><span class="glyphicon glyphicon-record" aria-hidden="true"></span></button>
     <button id="dbg_help" type="button" title="Help" style="display:none"><span class="glyphicon glyphicon-question-sign" aria-hidden="true"></span></button>
   </span>
@@ -243,10 +227,6 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
   <a target="_new" href="https://twitter.com/8bitworkshop" class="twitter-follow-button" data-show-count="false">Follow @8bitworkshop</a>-->
   <!--<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>-->
 <!--</div>-->
-<div id="pixeditback" class="pixeditback" style="display:none">
-  <iframe id="pixeditframe" src="pixels.html">
-  </iframe>
-</div>
 <div id="pleaseWaitModal" class="modal fade">
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
