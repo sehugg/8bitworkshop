@@ -101,6 +101,8 @@ TODO:
 - editor: select palette for chr, select charmap for map (dependencies?)
 - global undo/redo at checkpoints (when rom changes)
 - asset editor still refreshes twice
+- pulldown shows wrong file if preset not present
+- landscape mode for arcade ports
 
 
 WEB WORKER FORMAT

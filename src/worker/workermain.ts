@@ -561,9 +561,9 @@ function makeErrorMatcher(errors:WorkerError[], regex, iline:number, imsg:number
   }
 }
 
-function extractErrors(regex, strings:string[], path:string) {
+function extractErrors(regex, strings:string[], path:string, iline, imsg, ifilename) {
   var errors = [];
-  var matcher = makeErrorMatcher(errors, regex, 1, 2, path);
+  var matcher = makeErrorMatcher(errors, regex, iline, imsg, path, ifilename);
   for (var i=0; i<strings.length; i++) {
     matcher(strings[i]);
   }
@@ -1025,17 +1025,18 @@ function compileCC65(step:BuildStep) {
   loadNative("cc65");
   var params = step.params;
   // stderr
-  var re_err1 = /.*?[(](\d+)[)].*?: (.+)/;
-  var errors = [];
+  var re_err1 = /(.*?)[(](\d+)[)].*?: (.+)/;
+  var errors : WorkerError[] = [];
   var errline = 0;
   function match_fn(s) {
     console.log(s);
     var matches = re_err1.exec(s);
     if (matches) {
-      errline = parseInt(matches[1]);
+      errline = parseInt(matches[2]);
       errors.push({
         line:errline,
-        msg:matches[2]
+        msg:matches[3],
+        path:matches[1]
       });
     }
   }
@@ -1386,7 +1387,7 @@ function preprocessMCPP(step:BuildStep) {
     var errout = FS.readFile("mcpp.err", {encoding:'utf8'});
     if (errout.length) {
       // //main.c:2: error: Can't open include file "stdiosd.h"
-      var errors = extractErrors(/[^:]+:(\d+): (.+)/, errout.split("\n"), step.path);
+      var errors = extractErrors(/([^:]+):(\d+): (.+)/, errout.split("\n"), step.path, 2, 3, 1);
       if (errors.length == 0) {
         errors = [{line:0, msg:errout}];
       }

@@ -1122,7 +1122,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     aeditor.appendTo(adual);
     // make default layout if not exists
     if (!layout) {
-      var imgsperline = palette.length > 32 ? 8 : 4;
+      var imgsperline = palette.length > 32 ? 8 : 4; // TODO: use 'n'?
       var len = allcolors.length;
       layout = [];
       for (var i=0; i<len; i+=imgsperline) {

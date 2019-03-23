@@ -22,7 +22,7 @@ unsigned int nt2attraddr(unsigned int a) {
     ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
 }
 
-#define ATTRADR_A(x,y)	 	(NAMETABLE_A|0x3c0|((((y)>>2)<<3)|((x)>>2)))
+#define ATTRADR_A(x,y) (NAMETABLE_A|0x3c0|((((y)>>2)<<3)|((x)>>2)))
 
 void put_pixel(unsigned char px, unsigned char py, char color) {
   int ntaddr, attraddr;

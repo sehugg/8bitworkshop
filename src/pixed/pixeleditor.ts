@@ -38,6 +38,7 @@ export type PixelEditorImageFormat = {
   brev?:boolean
   destfmt?:PixelEditorImageFormat
   xform?:string
+  skip?:number
 };
 
 export type PixelEditorPaletteFormat = {
@@ -352,6 +353,7 @@ function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat) : Uin
   var wordsperline = fmt.sl || Math.ceil(width * bpp / bitsperword);
   var mask = (1 << bpp)-1;
   var pofs = fmt.pofs || wordsperline*height*count;
+  var skip = fmt.skip || 0;
   var images = [];
   for (var n=0; n<count; n++) {
     var imgdata = [];
@@ -362,7 +364,7 @@ function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat) : Uin
         var color = 0;
         var ofs = remapBits(ofs0, fmt.remap);
         for (var p=0; p<nplanes; p++) {
-          var byte = words[ofs + p*pofs];
+          var byte = words[ofs + p*pofs + skip];
           color |= ((fmt.brev ? byte>>(bitsperword-shift-bpp) : byte>>shift) & mask) << (p*bpp);
         }
         imgdata.push(color);
@@ -389,6 +391,7 @@ function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) :
   var wordsperline = fmt.sl || Math.ceil(fmt.w * bpp / bitsperword);
   var mask = (1 << bpp)-1;
   var pofs = fmt.pofs || wordsperline*height*count;
+  var skip = fmt.skip || 0;
   var words;
   if (bitsperword <= 8)
     words = new Uint8Array(wordsperline*height*count*nplanes);
@@ -405,7 +408,7 @@ function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) :
         var ofs = remapBits(ofs0, fmt.remap);
         for (var p=0; p<nplanes; p++) {
           var c = (color >> (p*bpp)) & mask;
-          words[ofs + p*pofs] |= (fmt.brev ? (c << (bitsperword-shift-bpp)) : (c << shift));
+          words[ofs + p*pofs + skip] |= (fmt.brev ? (c << (bitsperword-shift-bpp)) : (c << shift));
         }
         shift += bpp;
         if (shift >= bitsperword) {
@@ -622,20 +625,24 @@ var PREDEF_PALETTES = {
      0xC4D5E7, 0xFF4000, 0xDC0E22, 0xFF476B, 0xD7009F, 0x680AD7, 0x0019BC, 0x0054B1, 0x006A5B, 0x008C03, 0x00AB00, 0x2C8800, 0xA47200, 0x000000, 0x000000, 0x000000,
      0xF8F8F8, 0xFFAB3C, 0xFF7981, 0xFF5BC5, 0xFF48F2, 0xDF49FF, 0x476DFF, 0x00B4F7, 0x00E0FF, 0x00E375, 0x03F42B, 0x78B82E, 0xE5E218, 0x787878, 0x000000, 0x000000,
      0xFFFFFF, 0xFFF2BE, 0xF8B8B8, 0xF8B8D8, 0xFFB6FF, 0xFFC3FF, 0xC7D1FF, 0x9ADAFF, 0x88EDF8, 0x83FFDD, 0xB8F8B8, 0xF5F8AC, 0xFFFFB0, 0xF8D8F8, 0x000000, 0x000000
-   ]
+   ],
+   'ap2lores':[
+     (0x000000), (0xff00ff), (0x00007f), (0x7f007f),  (0x007f00), (0x7f7f7f), (0x0000bf), (0x0000ff),
+     (0xbf7f00), (0xffbf00), (0xbfbfbf), (0xff7f7f),  (0x00ff00), (0xffff00), (0x00bf7f), (0xffffff),
+   ],
 };
 
 var PREDEF_LAYOUTS : {[id:string]:PixelEditorPaletteLayout} = {
   'nes':[
     ['Screen Color',  0x00, 1],
-    ['Background 1',  0x01, 3],
-    ['Background 2',  0x05, 3],
-    ['Background 3',  0x09, 3],
-    ['Background 4',  0x0d, 3],
-    ['Sprite 1',      0x11, 3],
-    ['Sprite 2',      0x15, 3],
-    ['Sprite 3',      0x19, 3],
-    ['Sprite 4',      0x1d, 3]
+    ['Background 0',  0x01, 3],
+    ['Background 1',  0x05, 3],
+    ['Background 2',  0x09, 3],
+    ['Background 3',  0x0d, 3],
+    ['Sprite 0',      0x11, 3],
+    ['Sprite 1',      0x15, 3],
+    ['Sprite 2',      0x19, 3],
+    ['Sprite 3',      0x1d, 3]
   ],
 };
 
