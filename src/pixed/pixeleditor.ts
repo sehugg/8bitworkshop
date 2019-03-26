@@ -317,6 +317,33 @@ var PREDEF_LAYOUTS : {[id:string]:PixelEditorPaletteLayout} = {
 
 /////
 
+function equalArrays(a:UintArray, b:UintArray) : boolean {
+  if (a == null || b == null)
+    return false;
+  if (a.length !== b.length)
+    return false;
+  if (a === b)
+    return true;
+  for (var i=0; i<a.length; i++) {
+    if (a[i] !== b[i])
+      return false;
+  }
+  return true;
+}
+function equalNestedArrays(a:UintArray[], b:UintArray[]) : boolean {
+  if (a == null || b == null)
+    return false;
+  if (a.length !== b.length)
+    return false;
+  if (a === b)
+    return true;
+  for (var i=0; i<a.length; i++) {
+    if (!equalArrays(a[i], b[i]))
+      return false;
+  }
+  return true;
+}
+
 export abstract class PixNode {
   left : PixNode;		// toward text editor
   right : PixNode;		// toward pixel editor
@@ -326,8 +353,8 @@ export abstract class PixNode {
   rgbimgs? : Uint32Array[];	// array of rgba imgages
   palette? : Uint32Array; // array of rgba
 
-  abstract updateLeft();	// update coming from right
-  abstract updateRight();	// update coming from left
+  abstract updateLeft() : boolean;	// update coming from right
+  abstract updateRight() : boolean;	// update coming from left
 
   refreshLeft() {
     var p : PixNode = this;
@@ -364,20 +391,25 @@ abstract class CodeProjectDataNode extends PixNode {
 
 export class FileDataNode extends CodeProjectDataNode {
 
-  constructor(project:ProjectWindows, fileid:string, data:Uint8Array) {
+  constructor(project:ProjectWindows, fileid:string) {
     super();
     this.project = project;
     this.fileid = fileid;
     this.label = fileid;
-    this.words = data;
   }
   updateLeft() {
+    //if (equalArrays(this.words, this.right.words)) return false;
     this.words = this.right.words;
     if (this.project) {
       this.project.updateFile(this.fileid, this.words as Uint8Array);
     }
+    return true;
   }
   updateRight() {
+    if (this.project) {
+      this.words = this.project.project.getFile(this.fileid) as Uint8Array;
+    }
+    return true;
   }
 }
 
@@ -386,12 +418,12 @@ export class TextDataNode extends CodeProjectDataNode {
   start : number;
   end : number;
 
-  constructor(project:ProjectWindows, fileid:string, label:string, text:string, start:number, end:number) {
+  // TODO: what if file size/layout changes?
+  constructor(project:ProjectWindows, fileid:string, label:string, start:number, end:number) {
     super();
     this.project = project;
     this.fileid = fileid;
     this.label = label;
-    this.text = text;
     this.start = start;
     this.end = end;
   }
@@ -407,12 +439,17 @@ export class TextDataNode extends CodeProjectDataNode {
       this.project.updateFile(this.fileid, this.text);
       //this.project.replaceTextRange(this.fileid, this.start, this.end, datastr);
     }
+    return true;
   }
   updateRight() {
+    if (this.project) {
+      this.text = this.project.project.getFile(this.fileid) as string;
+    }
     var datastr = this.text.substring(this.start, this.end);
     datastr = convertToHexStatements(datastr); // TODO?
     var words = parseHexWords(datastr);
     this.words = words; //new Uint8Array(words); // TODO: 16/32?
+    return true;
   }
 }
 
@@ -422,9 +459,11 @@ export class Compressor extends PixNode {
 
   updateLeft() {
     // TODO: can't modify length of rle bytes
+    return false;
   }
   updateRight() {
     this.words = rle_unpack(new Uint8Array(this.left.words));
+    return true;
   }
 
 }
@@ -440,13 +479,17 @@ export class Mapper extends PixNode {
     this.fmt = fmt;
   }
   updateLeft() {
+    //if (equalNestedArrays(this.images, this.right.images)) return false;
     this.images = this.right.images;
     this.words = convertImagesToWords(this.images, this.fmt);
+    return true;
   }
   updateRight() {
+    if (equalArrays(this.words, this.left.words)) return false;
     // convert each word array to images
     this.words = this.left.words;
     this.images = convertWordsToImages(this.words, this.fmt);
+    return true;
   }
 }
 
@@ -481,18 +524,21 @@ export class Palettizer extends PixNode {
   updateLeft() {
     this.rgbimgs = this.right.rgbimgs;
     var pal = new RGBAPalette(this.palette);
-    this.images = this.rgbimgs.map( (im:Uint32Array) => {
+    var newimages = this.rgbimgs.map( (im:Uint32Array) => {
       var out = new Uint8Array(im.length);
       for (var i=0; i<im.length; i++) {
         out[i] = pal.indexOf(im[i]);
       }
       return out;
     });
+    // have to do it this way b/c pixel editor modifies arrays
+    //if (equalNestedArrays(newimages, this.images)) return false;
+    this.images = newimages;
+    return true;
   }
   updateRight() {
-    this.updateRefs();
+    if (!this.updateRefs() && equalNestedArrays(this.images, this.left.images)) return false;
     this.images = this.left.images;
-    if (!this.palette || !this.images) return;
     var mask = this.palette.length - 1; // must be power of 2
     // for each image, map bytes to RGB colors
     this.rgbimgs = this.images.map( (im:Uint8Array) => {
@@ -502,20 +548,25 @@ export class Palettizer extends PixNode {
       }
       return out;
     });
+    return true;
   }
   updateRefs() {
+    var newpalette;
     if (this.context != null) {
       this.paloptions = this.context.getPalettes(this.ncolors);
       if (this.paloptions && this.paloptions.length > 0) {
-        this.palette = this.paloptions[this.palindex].palette;
+        newpalette = this.paloptions[this.palindex].palette;
       }
     }
-    if (this.palette == null) {
+    if (newpalette == null) {
       if (this.ncolors <= 2)
-        this.palette = new Uint32Array([0xff000000, 0xffffffff]);
+        newpalette = new Uint32Array([0xff000000, 0xffffffff]);
       else
-        this.palette = new Uint32Array([0xff000000, 0xffff00ff, 0xffffff00, 0xffffffff]); // TODO: more palettes
+        newpalette = new Uint32Array([0xff000000, 0xffff00ff, 0xffffff00, 0xffffffff]); // TODO: more palettes
     }
+    if (equalArrays(this.palette, newpalette)) return false;
+    this.palette = newpalette;
+    return true;
   }
 }
 
@@ -533,8 +584,8 @@ function dedupPalette(cols : UintArray) : Uint32Array {
   }
   return res;
 }
-
 export class PaletteFormatToRGB extends PixNode {
+
 
   words : UintArray;
   rgbimgs : Uint32Array[];
@@ -548,8 +599,10 @@ export class PaletteFormatToRGB extends PixNode {
   }
   updateLeft() {
     //TODO
+    return true;
   }
   updateRight() {
+    if (equalArrays(this.words, this.left.words)) return false;
     this.words = this.left.words;
     this.palette = dedupPalette(convertPaletteFormat(this.words, this.palfmt));
     this.layout = PREDEF_LAYOUTS[this.palfmt.layout];
@@ -557,6 +610,7 @@ export class PaletteFormatToRGB extends PixNode {
     this.palette.forEach( (rgba:number) => {
       this.rgbimgs.push(new Uint32Array([rgba]));
     });
+    return true;
   }
   getAllColors() {
     var arr = [];
@@ -581,13 +635,15 @@ export abstract class Compositor extends PixNode {
     super();
     this.context = context;
   }
-  updateRefs() {
+  updateRefs() : boolean {
+    var oldtilemap = this.tilemap;
     if (this.context != null) {
       this.tileoptions = this.context.getTilemaps(256);
       if (this.tileoptions && this.tileoptions.length > 0) {
         this.tilemap = this.tileoptions[this.tileindex].images;
       }
     }
+    return !equalNestedArrays(oldtilemap, this.tilemap);
   }
 }
 
@@ -605,6 +661,7 @@ export class MetaspriteCompositor extends Compositor {
   }
   updateLeft() {
     // TODO
+    return false;
   }
   updateRight() {
     this.updateRefs();
@@ -615,6 +672,7 @@ export class MetaspriteCompositor extends Compositor {
     this.metadefs.forEach((meta) => {
       // TODO
     });
+    return true;
   }
 }
 
@@ -628,11 +686,11 @@ export class NESNametableConverter extends Compositor {
   }
   updateLeft() {
     // TODO
+    return false;
   }
   updateRight() {
+    if (!this.updateRefs() && equalArrays(this.words, this.left.words)) return false;
     this.words = this.left.words;
-    this.updateRefs();
-    if (!this.words || !this.tilemap) return;
     this.cols = 32;
     this.rows = 30;
     this.width = this.cols * 8;
@@ -665,6 +723,7 @@ export class NESNametableConverter extends Compositor {
       }
     }
     // TODO
+    return true;
   }
 }
 
@@ -682,7 +741,6 @@ export class ImageChooser {
     var cscale = Math.max(2, Math.ceil(16/this.width)); // TODO
     var imgsperline = this.width <= 8 ? 16 : 8; // TODO
     var span = null;
-    if (!this.rgbimgs) return;
     this.rgbimgs.forEach((imdata, i) => {
       var viewer = new Viewer();
       viewer.width = this.width;
@@ -730,9 +788,11 @@ export class CharmapEditor extends PixNode {
   }
 
   updateLeft() {
+    return true;
   }
 
   updateRight() {
+    if (equalNestedArrays(this.rgbimgs, this.left.rgbimgs)) return false;
     this.rgbimgs = this.left.rgbimgs;
     var adual = newDiv(this.parentdiv.empty(), "asset_dual"); // contains grid and editor
     var agrid = newDiv(adual);
@@ -765,6 +825,7 @@ export class CharmapEditor extends PixNode {
         palizer.refreshRight();
       });
     }
+    return true;
   }
 
   createEditor(aeditor : JQuery, viewer : Viewer, escale : number) : PixEditor {
@@ -901,7 +962,7 @@ class PixEditor extends Viewer {
 
   createPaletteButtons() {
     this.palbtns = [];
-    var span = $(document.createElement('div'));
+    var span = newDiv(null, "asset_toolbar");
     for (var i=0; i<this.palette.length; i++) {
       var btn = $(document.createElement('button')).addClass('palbtn');
       var rgb = this.palette[i] & 0xffffff;

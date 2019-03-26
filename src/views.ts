@@ -974,8 +974,9 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       }
       if (div) {
         this.cureditordiv = div;
-        this.cureditordiv.show(timeout);
+        this.cureditordiv.show();
         this.cureditordiv[0].scrollIntoView({behavior: "smooth", block: "center"});
+        //setTimeout(() => { this.cureditordiv[0].scrollIntoView({behavior: "smooth", block: "center"}) }, timeout);
       }
     }
     if (this.cureditelem) {
@@ -1039,37 +1040,42 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     return result;
   }
 
-  addPaletteEditorViews(parentdiv:JQuery, words, palette, layout, allcolors, callback) {
+  addPaletteEditorViews(parentdiv:JQuery, pal2rgb:pixed.PaletteFormatToRGB, callback) {
     var adual = $('<div class="asset_dual"/>').appendTo(parentdiv);
     var aeditor = $('<div class="asset_editor"/>').hide(); // contains editor, when selected
     // TODO: they need to update when refreshed from right
     var allrgbimgs = [];
-    allcolors.forEach((rgba) => { allrgbimgs.push(new Uint32Array([rgba])); }); // array of array of 1 rgb color (for picker)
+    pal2rgb.getAllColors().forEach((rgba) => { allrgbimgs.push(new Uint32Array([rgba])); }); // array of array of 1 rgb color (for picker)
     var atable = $('<table/>').appendTo(adual);
     aeditor.appendTo(adual);
     // make default layout if not exists
+    var layout = pal2rgb.layout;
     if (!layout) {
-      var len = palette.length;
+      var len = pal2rgb.palette.length;
       var imgsperline = len > 32 ? 8 : 4; // TODO: use 'n'?
       layout = [];
       for (var i=0; i<len; i+=imgsperline) {
         layout.push(["", i, Math.min(len-i,imgsperline)]);
       }
     }
+    function updateCell(cell, j) {
+      var val = pal2rgb.words[j];
+      var rgb = pal2rgb.palette[j];
+      var hexcol = '#'+hex(rgb2bgr(rgb),6);
+      var textcol = (rgb & 0x008000) ? 'black' : 'white';
+      cell.text(hex(val,2)).css('background-color',hexcol).css('color',textcol);
+    }
     // iterate over each row of the layout
     layout.forEach( ([name, start, len]) => {
-      if (start < palette.length) { // skip row if out of range
+      if (start < pal2rgb.palette.length) { // skip row if out of range
         var arow = $('<tr/>').appendTo(atable);
         $('<td/>').text(name).appendTo(arow);
         var inds = [];
         for (var k=start; k<start+len; k++)
           inds.push(k);
         inds.forEach( (i) => {
-          var val = words[i];
-          var rgb = palette[i];
-          var hexcol = '#'+hex(rgb2bgr(rgb),6);
-          var textcol = (rgb & 0x008000) ? 'black' : 'white';
-          var cell = $('<td/>').addClass('asset_cell asset_editable').text(hex(val,2)).css('background-color',hexcol).css('color',textcol).appendTo(arow);
+          var cell = $('<td/>').addClass('asset_cell asset_editable').appendTo(arow);
+          updateCell(cell, i);
           cell.click((e) => {
             var chooser = new pixed.ImageChooser();
             chooser.rgbimgs = allrgbimgs;
@@ -1077,6 +1083,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
             chooser.height = 1;
             chooser.recreate(aeditor, (index, newvalue) => {
               callback(i, index);
+              updateCell(cell, i);
             });
             this.setCurrentEditor(aeditor, cell);
           });
@@ -1106,13 +1113,14 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     firstnode.refreshRight();
     // TODO: add view objects
     // TODO: show which one is selected?
-    this.addPaletteEditorViews(parentdiv, firstnode.words,
-      pal2rgb.palette, pal2rgb.layout, pal2rgb.getAllColors(),
+    this.addPaletteEditorViews(parentdiv, pal2rgb,
       (index, newvalue) => {
         console.log('set entry', index, '=', newvalue);
+        // TODO: this forces update of palette rgb colors and file data
         firstnode.words[index] = newvalue;
-        //firstnode.refreshRight();
-        firstnode.refreshLeft();
+        pal2rgb.words = null;
+        pal2rgb.updateRight();
+        pal2rgb.refreshLeft();
       });
   }
 
@@ -1124,16 +1132,17 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     // TODO: only refresh when needed
     if (fileid.endsWith('.chr') && data instanceof Uint8Array) {
       // is this a NES CHR?
-      let node = new pixed.FileDataNode(projectWindows, fileid, data);
+      let node = new pixed.FileDataNode(projectWindows, fileid);
       const neschrfmt = {w:8,h:8,bpp:1,count:(data.length>>4),brev:true,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}; // TODO
       this.addPixelEditor(filediv, node, neschrfmt);
       this.registerAsset("charmap", node, true);
+      nassets++;
     } else if (typeof data === 'string') {
       let textfrags = this.scanFileTextForAssets(fileid, data);
       for (let frag of textfrags) {
         if (frag.fmt) {
           let label = fileid; // TODO: label
-          let node : pixed.PixNode = new pixed.TextDataNode(projectWindows, fileid, label, data, frag.start, frag.end);
+          let node : pixed.PixNode = new pixed.TextDataNode(projectWindows, fileid, label, frag.start, frag.end);
           let first = node;
           // rle-compressed?
           if (frag.fmt.comp == 'rletag') {
@@ -1194,6 +1203,10 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       console.log("Found " + this.rootnodes.length + " assets");
       this.deferrednodes.forEach((node) => { node.refreshRight(); });
       this.deferrednodes = [];
+    } else {
+      for (var node of this.rootnodes) {
+        node.refreshRight();
+      }
     }
   }
 
