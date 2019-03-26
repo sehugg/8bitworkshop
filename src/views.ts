@@ -966,23 +966,25 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   }
 
   setCurrentEditor(div : JQuery, editing : JQuery) {
+    const timeout = 250;
     if (this.cureditordiv != div) {
       if (this.cureditordiv) {
-        this.cureditordiv.hide(250);
+        this.cureditordiv.hide(timeout);
         this.cureditordiv = null;
       }
       if (div) {
         this.cureditordiv = div;
-        this.cureditordiv.show(250);
+        this.cureditordiv.show(timeout);
+        this.cureditordiv[0].scrollIntoView({behavior: "smooth", block: "center"});
       }
     }
     if (this.cureditelem) {
-      this.cureditelem.removeClass('asset_editing');
+      this.cureditelem.removeClass('selected');
       this.cureditelem = null;
     }
     if (editing) {
       this.cureditelem = editing;
-      this.cureditelem.addClass('asset_editing');
+      this.cureditelem.addClass('selected');
     }
   }
 
@@ -1004,7 +1006,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       } else {
         end = data.indexOf(';', start); // C
       }
-      //console.log(id, start, end, m[1]);
+      //console.log(id, start, end, m[1], data.substring(start,end));
       if (end > start) {
         try {
           var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
@@ -1047,8 +1049,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     aeditor.appendTo(adual);
     // make default layout if not exists
     if (!layout) {
-      var imgsperline = palette.length > 32 ? 8 : 4; // TODO: use 'n'?
-      var len = allcolors.length;
+      var len = palette.length;
+      var imgsperline = len > 32 ? 8 : 4; // TODO: use 'n'?
       layout = [];
       for (var i=0; i<len; i+=imgsperline) {
         layout.push(["", i, Math.min(len-i,imgsperline)]);
@@ -1189,6 +1191,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           filediv.text(e+""); // TODO: error msg?
         }
       });
+      console.log("Found " + this.rootnodes.length + " assets");
       this.deferrednodes.forEach((node) => { node.refreshRight(); });
       this.deferrednodes = [];
     }

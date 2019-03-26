@@ -353,7 +353,8 @@ DivideLoop
 ; add an extra cycle and mess up our timing!
 	org $ff00
 
-; Enemy cat-head graphics data
+;; Enemy cat-head graphics data
+;;{w:8,h:8,brev:1,flip:1};;
 EnemyFrame0
 	.byte #0
         .byte #%00111100;$AE
@@ -364,6 +365,7 @@ EnemyFrame0
         .byte #%01111110;$8E
         .byte #%11000011;$98
         .byte #%10000001;$98
+;;{pal:"vcs"};;
 EnemyColorFrame0
 	.byte #8	; height
         .byte #$AE;
@@ -374,8 +376,8 @@ EnemyColorFrame0
         .byte #$8E;
         .byte #$98;
         .byte #$94;
-
-; Player graphics data, such bitmap
+;; Player graphics data, such bitmap
+;;{w:8,h:10,brev:1,flip:1};;
 Frame0
 	.byte #0
         .byte #%11111111;$0E
@@ -388,6 +390,7 @@ Frame0
         .byte #%01111110;$FA
         .byte #%00111110;$FA
         .byte #%01000001;$FA
+;;{pal:"vcs"};;
 ColorFrame0
 	.byte #10	; height
         .byte #$0E;
@@ -400,7 +403,7 @@ ColorFrame0
         .byte #$FA;
         .byte #$FA;
         .byte #$FA;
-
+;;
 PowersOf2
 	.byte #$1,#$2,#$4,#$8,#$10,#$20,#$40,#$80
 

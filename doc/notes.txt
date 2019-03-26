@@ -97,13 +97,17 @@ TODO:
 - better undo/diff for mistakes?
 - ide bug/feature visualizer for sponsors
 - optimization flags for sdcc (oldralloc)
-- 'src is undefined' when committing old image editor
-- editor: select palette for chr, select charmap for map (dependencies?)
 - global undo/redo at checkpoints (when rom changes)
-- asset editor still refreshes twice
 - pulldown shows wrong file if preset not present
 - landscape mode for arcade ports
-
+- pixel editor
+  - edit sprites and tiles at same time (multiple views)
+  - persist palette selections
+  - more tools for editing
+  - map editor
+  - metasprites
+  - update nested data, palette/tile refs properly
+  - throw errors when bad/no refs
 
 WEB WORKER FORMAT
 

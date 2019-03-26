@@ -387,6 +387,7 @@ DivideLoop
 SpriteHeight equ 17
 
 ; Bitmap data "standing" position
+;;{w:8,h:16,brev:1,flip:1};;
 Frame0
 	.byte #0
         .byte #%01101100;$F6
@@ -405,8 +406,8 @@ Frame0
         .byte #%01111100;$18
         .byte #%11111110;$F2
         .byte #%00111000;$F4
-
-; Bitmap data "throwing" position
+;; Bitmap data "throwing" position
+;;{w:8,h:16,brev:1,flip:1};;
 Frame1
 	.byte #0
         .byte #%01101100;$F6
@@ -425,8 +426,8 @@ Frame1
         .byte #%01111100;$18
         .byte #%11111110;$F2
         .byte #%00111000;$F4
-
-; Color data for each line of sprite
+;; Color data for each line of sprite
+;;{pal:"vcs"};;
 ColorFrame0
 	.byte #$FF	; ball color if not sharing line with player sprite
         .byte #$F6;
@@ -445,8 +446,8 @@ ColorFrame0
         .byte #$18;
         .byte #$F2;
         .byte #$F4;
-
-; Playfield top border bitmap
+;; Playfield top border bitmap
+;;{w:8,h:8,count:3,xtra:"vcspf"};;
 TopBorder0
 	.byte #%11111111
 	.byte #%11111111
@@ -474,7 +475,7 @@ TopBorder2
 	.byte #%00000000
 	.byte #%00000000
 	.byte #%00000000
-
+;;
 ; Epilogue
 	org $fffc
         .word Start

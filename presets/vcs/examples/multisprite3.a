@@ -463,7 +463,8 @@ WaitForScanline subroutine
         bcs WaitForScanline  ; repeat until >=
         rts
 
-; Bitmap data "standing" position
+;; Bitmap data "standing" position
+;;{w:8,h:16,brev:1,flip:1};;
 Frame0
 	.byte #0
 	.byte #%01101100;$F6
@@ -482,8 +483,8 @@ Frame0
 	.byte #%01111100;$18
 	.byte #%11111110;$F2
 	.byte #%00111000;$F4
-
-; Bitmap data "throwing" position
+;; Bitmap data "throwing" position
+;;{w:8,h:16,brev:1,flip:1};;
 Frame1
 	.byte #0
 	.byte #%01101100;$F6
@@ -502,8 +503,8 @@ Frame1
 	.byte #%01111100;$18
 	.byte #%11111110;$F2
 	.byte #%00111000;$F4
-
-; Color data for each line of sprite
+;; Color data for each line of sprite
+;;{pal:"vcs"};;
 ColorFrame0
 	.byte #17	; height
 	.byte #$F6;
@@ -522,8 +523,8 @@ ColorFrame0
 	.byte #$18;
 	.byte #$F2;
 	.byte #$F4;
-
-; Enemy cat-head graphics data
+;; Enemy cat-head graphics data
+;;{w:8,h:8,brev:1,flip:1};;
 EnemyFrame0
 	.byte #0
         .byte #%00111100;$AE
@@ -534,8 +535,8 @@ EnemyFrame0
         .byte #%01111110;$8E
         .byte #%11000011;$98
         .byte #%10000001;$98
-
-; Enemy cat-head color data
+;; Enemy cat-head color data
+;;{pal:"vcs"};;
 EnemyColorFrame0
 	.byte #9	; height
         .byte #$AE;
@@ -546,7 +547,7 @@ EnemyColorFrame0
         .byte #$8E;
         .byte #$98;
         .byte #$94;
-
+;;
 ; Mapping of sprite objects (0-7) to sprite data
 SpriteDataMap
 	.word Frame0,ColorFrame0

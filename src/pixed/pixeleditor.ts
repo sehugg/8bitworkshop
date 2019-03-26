@@ -36,6 +36,7 @@ export type PixelEditorImageFormat = {
   pofs?:number
   remap?:number[]
   brev?:boolean
+  flip?:boolean
   destfmt?:PixelEditorImageFormat
   xform?:string
   skip?:number
@@ -58,7 +59,7 @@ type PixelEditorMessage = {
 
 /////////////////
 
-var pixel_re = /([0#]?)([x$%]|\d'[bh])([0-9a-f]+)/gi;
+var pixel_re = /([0#]?)([x$%]|\d'[bh])([0-9a-f]+)(?:;.*$)?/gim;
 
 function convertToHexStatements(s:string) : string {
   // convert 'hex ....' asm format
@@ -149,7 +150,8 @@ function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat) : Uin
   for (var n=0; n<count; n++) {
     var imgdata = [];
     for (var y=0; y<height; y++) {
-      var ofs0 = n*wordsperline*height + y*wordsperline;
+      var yp = fmt.flip ? height-1-y : y;
+      var ofs0 = n*wordsperline*height + yp*wordsperline;
       var shift = 0;
       for (var x=0; x<width; x++) {
         var color = 0;
@@ -192,7 +194,8 @@ function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) :
     var imgdata = images[n];
     var i = 0;
     for (var y=0; y<height; y++) {
-      var ofs0 = n*wordsperline*height + y*wordsperline;
+      var yp = fmt.flip ? height-1-y : y;
+      var ofs0 = n*wordsperline*height + yp*wordsperline;
       var shift = 0;
       for (var x=0; x<width; x++) {
         var color = imgdata[i++];
@@ -278,6 +281,24 @@ var PREDEF_PALETTES = {
      (0x000000), (0xff00ff), (0x00007f), (0x7f007f),  (0x007f00), (0x7f7f7f), (0x0000bf), (0x0000ff),
      (0xbf7f00), (0xffbf00), (0xbfbfbf), (0xff7f7f),  (0x00ff00), (0xffff00), (0x00bf7f), (0xffffff),
    ],
+   'vcs':[
+     0x000000,0x000000, 0x404040,0x404040, 0x6c6c6c,0x6c6c6c, 0x909090,0x909090, 0xb0b0b0,0xb0b0b0, 0xc8c8c8,0xc8c8c8, 0xdcdcdc,0xdcdcdc, 0xf4f4f4,0xf4f4f4,
+     0x004444,0x004444, 0x106464,0x106464, 0x248484,0x248484, 0x34a0a0,0x34a0a0, 0x40b8b8,0x40b8b8, 0x50d0d0,0x50d0d0, 0x5ce8e8,0x5ce8e8, 0x68fcfc,0x68fcfc,
+     0x002870,0x002870, 0x144484,0x144484, 0x285c98,0x285c98, 0x3c78ac,0x3c78ac, 0x4c8cbc,0x4c8cbc, 0x5ca0cc,0x5ca0cc, 0x68b4dc,0x68b4dc, 0x78c8ec,0x78c8ec,
+     0x001884,0x001884, 0x183498,0x183498, 0x3050ac,0x3050ac, 0x4868c0,0x4868c0, 0x5c80d0,0x5c80d0, 0x7094e0,0x7094e0, 0x80a8ec,0x80a8ec, 0x94bcfc,0x94bcfc,
+     0x000088,0x000088, 0x20209c,0x20209c, 0x3c3cb0,0x3c3cb0, 0x5858c0,0x5858c0, 0x7070d0,0x7070d0, 0x8888e0,0x8888e0, 0xa0a0ec,0xa0a0ec, 0xb4b4fc,0xb4b4fc,
+     0x5c0078,0x5c0078, 0x74208c,0x74208c, 0x883ca0,0x883ca0, 0x9c58b0,0x9c58b0, 0xb070c0,0xb070c0, 0xc084d0,0xc084d0, 0xd09cdc,0xd09cdc, 0xe0b0ec,0xe0b0ec,
+     0x780048,0x780048, 0x902060,0x902060, 0xa43c78,0xa43c78, 0xb8588c,0xb8588c, 0xcc70a0,0xcc70a0, 0xdc84b4,0xdc84b4, 0xec9cc4,0xec9cc4, 0xfcb0d4,0xfcb0d4,
+     0x840014,0x840014, 0x982030,0x982030, 0xac3c4c,0xac3c4c, 0xc05868,0xc05868, 0xd0707c,0xd0707c, 0xe08894,0xe08894, 0xeca0a8,0xeca0a8, 0xfcb4bc,0xfcb4bc,
+     0x880000,0x880000, 0x9c201c,0x9c201c, 0xb04038,0xb04038, 0xc05c50,0xc05c50, 0xd07468,0xd07468, 0xe08c7c,0xe08c7c, 0xeca490,0xeca490, 0xfcb8a4,0xfcb8a4,
+     0x7c1800,0x7c1800, 0x90381c,0x90381c, 0xa85438,0xa85438, 0xbc7050,0xbc7050, 0xcc8868,0xcc8868, 0xdc9c7c,0xdc9c7c, 0xecb490,0xecb490, 0xfcc8a4,0xfcc8a4,
+     0x5c2c00,0x5c2c00, 0x784c1c,0x784c1c, 0x906838,0x906838, 0xac8450,0xac8450, 0xc09c68,0xc09c68, 0xd4b47c,0xd4b47c, 0xe8cc90,0xe8cc90, 0xfce0a4,0xfce0a4,
+     0x2c3c00,0x2c3c00, 0x485c1c,0x485c1c, 0x647c38,0x647c38, 0x809c50,0x809c50, 0x94b468,0x94b468, 0xacd07c,0xacd07c, 0xc0e490,0xc0e490, 0xd4fca4,0xd4fca4,
+     0x003c00,0x003c00, 0x205c20,0x205c20, 0x407c40,0x407c40, 0x5c9c5c,0x5c9c5c, 0x74b474,0x74b474, 0x8cd08c,0x8cd08c, 0xa4e4a4,0xa4e4a4, 0xb8fcb8,0xb8fcb8,
+     0x003814,0x003814, 0x1c5c34,0x1c5c34, 0x387c50,0x387c50, 0x50986c,0x50986c, 0x68b484,0x68b484, 0x7ccc9c,0x7ccc9c, 0x90e4b4,0x90e4b4, 0xa4fcc8,0xa4fcc8,
+     0x00302c,0x00302c, 0x1c504c,0x1c504c, 0x347068,0x347068, 0x4c8c84,0x4c8c84, 0x64a89c,0x64a89c, 0x78c0b4,0x78c0b4, 0x88d4cc,0x88d4cc, 0x9cece0,0x9cece0,
+     0x002844,0x002844, 0x184864,0x184864, 0x306884,0x306884, 0x4484a0,0x4484a0, 0x589cb8,0x589cb8, 0x6cb4d0,0x6cb4d0, 0x7ccce8,0x7ccce8, 0x8ce0fc,0x8ce0fc
+   ]
 };
 
 var PREDEF_LAYOUTS : {[id:string]:PixelEditorPaletteLayout} = {
@@ -375,6 +396,8 @@ export class TextDataNode extends CodeProjectDataNode {
     this.end = end;
   }
   updateLeft() {
+    if (this.right.words.length != this.words.length)
+      throw "Expected " + this.words.length + " bytes; image has " + this.right.words.length;
     this.words = this.right.words;
     // TODO: reload editors?
     var datastr = this.text.substring(this.start, this.end);
@@ -469,6 +492,7 @@ export class Palettizer extends PixNode {
   updateRight() {
     this.updateRefs();
     this.images = this.left.images;
+    if (!this.palette || !this.images) return;
     var mask = this.palette.length - 1; // must be power of 2
     // for each image, map bytes to RGB colors
     this.rgbimgs = this.images.map( (im:Uint8Array) => {
@@ -608,6 +632,7 @@ export class NESNametableConverter extends Compositor {
   updateRight() {
     this.words = this.left.words;
     this.updateRefs();
+    if (!this.words || !this.tilemap) return;
     this.cols = 32;
     this.rows = 30;
     this.width = this.cols * 8;
@@ -657,6 +682,7 @@ export class ImageChooser {
     var cscale = Math.max(2, Math.ceil(16/this.width)); // TODO
     var imgsperline = this.width <= 8 ? 16 : 8; // TODO
     var span = null;
+    if (!this.rgbimgs) return;
     this.rgbimgs.forEach((imdata, i) => {
       var viewer = new Viewer();
       viewer.width = this.width;

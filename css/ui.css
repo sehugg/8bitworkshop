@@ -481,7 +481,7 @@ div.asset_grid span {
 .asset_cell:hover {
   border: 1px solid white;
 }
-.asset_editing {
+.asset_cell.selected {
   border: 1px dotted white !important;
   box-shadow: 0px 0px 1em rgba(255,255,255,1);
 }

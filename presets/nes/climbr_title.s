@@ -4,7 +4,7 @@
 ;;{pal:"nes",layout:"nes"};;
 _climbr_title_pal:
  .byte $0F,$11,$25,$35,$0F,$01,$21,$30
- .byte $0F,$06,$1C,$3C,$0F,$11,$28,$38
+ .byte $0F,$06,$1C,$3C,$0F,$11,$27,$38
 ;;
 ;;{w:32,h:30,bpp:8,comp:"rletag",map:"nesnt"};;
 _climbr_title_rle:
