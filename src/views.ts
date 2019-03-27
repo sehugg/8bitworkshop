@@ -8,6 +8,7 @@ import { hex, lpad, rpad, safeident, rgb2bgr } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
 import * as pixed from "./pixed/pixeleditor";
+declare var Mousetrap;
 
 export interface ProjectView {
   createDiv(parent:HTMLElement, text:string) : HTMLElement;
@@ -25,6 +26,7 @@ export interface ProjectView {
   clearErrors?() : void;
   setTimingResult?(result:CodeAnalyzer) : void;
   recreateOnResize? : boolean;
+  undoStep?() : void;
 };
 
 declare var CodeMirror;
@@ -146,8 +148,8 @@ export class SourceEditor implements ProjectView {
     var oldtext = this.editor.getValue();
     if (oldtext != text) {
       // find minimum range to undo
-      for (var i=0; i<oldtext.length && i<text.length && text[i] == oldtext[i]; i++) { }
-      for (var j=0; j<oldtext.length && j<text.length && text[text.length-1-j] == oldtext[oldtext.length-1-j]; j++) { }
+      for (i=0; i<oldtext.length && i<text.length && text[i] == oldtext[i]; i++) { }
+      for (j=0; j<oldtext.length && j<text.length && text[text.length-1-j] == oldtext[oldtext.length-1-j]; j++) { }
       //console.log(i,j,oldtext.substring(i,oldtext.length-j));
       this.replaceSelection(i, oldtext.length-j, text.substring(i, text.length-j)); // calls setCode()
       // clear history if setting empty editor
@@ -366,6 +368,9 @@ export class SourceEditor implements ProjectView {
     return -1;
   }
 
+  undoStep() {
+    this.editor.execCommand('undo');
+  }
 }
 
 ///
@@ -1203,7 +1208,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         var divid = this.getFileDivId(id);
         var filediv = newDiv(this.maindiv, 'asset_file');
         var header = newDiv(filediv, 'asset_file_header').text(id);
-        var body = newDiv(filediv).attr('id',divid);
+        var body = newDiv(filediv).attr('id',divid).addClass('disable-select');
         try {
           var nassets = this.refreshAssetsInFile(id, data);
           if (nassets == 0) filediv.hide();
@@ -1222,6 +1227,12 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     }
   }
 
-// TODO: scroll editors into view
+  setVisible?(showing : boolean) : void {
+    if (showing) {
+      Mousetrap.bind('ctrl+z', projectWindows.undoStep.bind(projectWindows));
+    } else {
+      Mousetrap.unbind('ctrl+z');
+    }
+  }
 
 }

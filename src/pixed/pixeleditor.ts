@@ -2,6 +2,7 @@
 
 import { hex, rgb2bgr, rle_unpack } from "../util";
 import { ProjectWindows } from "../windows";
+declare var Mousetrap;
 
 export type UintArray = number[] | Uint8Array | Uint16Array | Uint32Array; //{[i:number]:number};
 
@@ -892,6 +893,7 @@ class PixEditor extends Viewer {
   curpalcol : number = -1;
   currgba : number;
   palbtns : JQuery[];
+  offscreen : Map<string, number> = new Map();
 
   getPositionFromEvent(e) {
     var x = Math.floor(e.offsetX * this.width / $(this.canvas).width());
@@ -938,6 +940,16 @@ class PixEditor extends Viewer {
       this.commit();
       // TODO: pixcanvas.releaseCapture();
     });
+    /*    
+    Mousetrap.bind('ctrl+shift+h', this.flipX.bind(this));
+    Mousetrap.bind('ctrl+shift+v', this.flipY.bind(this));
+    Mousetrap.bind('ctrl+shift+9', this.rotate90.bind(this));
+    Mousetrap.bind('ctrl+shift+left', this.translate.bind(this, -1, 0));
+    Mousetrap.bind('ctrl+shift+right', this.translate.bind(this, 1, 0));
+    Mousetrap.bind('ctrl+shift+up', this.translate.bind(this, 0, -1));
+    Mousetrap.bind('ctrl+shift+down', this.translate.bind(this, 0, 1));
+    */
+    // TODO: remove when unbound
 
     aeditor.empty();
     aeditor.append(this.canvas);
@@ -945,18 +957,29 @@ class PixEditor extends Viewer {
     this.setPaletteColor(1);
   }
 
-  getPixel(x, y) {
-    var ofs = x+y*this.width;
-    return this.rgbdata[ofs];
+  getPixel(x:number, y:number) : number {
+    x = Math.round(x);
+    y = Math.round(y);
+    if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+      return this.offscreen[x+','+y] | this.palette[0];
+    } else {
+      var ofs = x+y*this.width;
+      return this.rgbdata[ofs];
+    }
   }
 
-  setPixel(x, y, rgba) {
-    if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
-    var ofs = x+y*this.width;
-    var oldrgba = this.rgbdata[ofs];
-    if (oldrgba != rgba) {
-      this.rgbdata[ofs] = rgba;
-      this.updateImage();
+  setPixel(x:number, y:number, rgba:number) : void {
+    x = Math.round(x);
+    y = Math.round(y);
+    if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+      this.offscreen[x+','+y] = rgba;
+    } else {
+      var ofs = x+y*this.width;
+      var oldrgba = this.rgbdata[ofs];
+      if (oldrgba != rgba) {
+        this.rgbdata[ofs] = rgba;
+        this.updateImage();
+      }
     }
   }
 
@@ -977,6 +1000,7 @@ class PixEditor extends Viewer {
   }
 
   commit() {
+    this.updateImage();
     this.left.refreshLeft();
   }
 
@@ -1004,14 +1028,22 @@ class PixEditor extends Viewer {
       return this.getPixel(xx, yy);
     });
   }
-  flipx() {
+  rotate90() {
+    this.rotate(90);
+  }
+  flipX() {
     this.remapPixels((x,y) => {
       return this.getPixel(this.width-1-x, y);
     });
   }
-  flipy() {
+  flipY() {
     this.remapPixels((x,y) => {
       return this.getPixel(x, this.height-1-y);
+    });
+  }
+  translate(dx:number, dy:number) {
+    this.remapPixels((x,y) => {
+      return this.getPixel(x+dx, y+dy);
     });
   }
 

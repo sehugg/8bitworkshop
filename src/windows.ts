@@ -17,10 +17,12 @@ export class ProjectWindows {
   activewnd : ProjectView;
   activediv : HTMLElement;
   lasterrors : WorkerError[];
+  undofiles : string[];
 
   constructor(containerdiv:HTMLElement, project:CodeProject) {
     this.containerdiv = containerdiv;
     this.project = project;
+    this.undofiles = [];
   }
   // TODO: delete windows ever?
 
@@ -122,6 +124,17 @@ export class ProjectWindows {
       if (wnd) {
         wnd.refresh(false);
       }
+    }
+    this.undofiles.push(fileid);
+  }
+  
+  undoStep() {
+    var fileid = this.undofiles.pop();
+    var wnd = this.id2window[fileid];
+    if (wnd && wnd.undoStep) {
+      wnd.undoStep();
+    } else {
+      alert("No more steps to undo.");
     }
   }
 

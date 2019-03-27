@@ -102,15 +102,13 @@ TODO:
 - landscape mode for arcade ports
 - pixel editor
   - edit sprites and tiles at same time (multiple views)
-  - persist palette selections
+  - persist palette/tilemap selections
   - more tools for editing
   - map editor
   - metasprites
-  - update nested data, palette/tile refs properly
   - throw errors when bad/no refs
-  - careful with mouse capture out of frame
+  - capture so we get mouseUp() out of frame
   - per-View keyboard shortcuts
-  - global undo
 
 WEB WORKER FORMAT
 
