@@ -109,6 +109,8 @@ TODO:
   - update nested data, palette/tile refs properly
   - throw errors when bad/no refs
   - careful with mouse capture out of frame
+  - per-View keyboard shortcuts
+  - global undo
 
 WEB WORKER FORMAT
 

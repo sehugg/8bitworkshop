@@ -81,8 +81,9 @@ export class SourceEditor implements ProjectView {
     parent.appendChild(div);
     var asmOverride = text && this.mode=='verilog' && /__asm\b([\s\S]+?)\b__endasm\b/.test(text);
     this.newEditor(div, asmOverride);
-    if (text)
+    if (text) {
       this.setText(text); // TODO: this calls setCode() and builds... it shouldn't
+    }
     this.setupEditor();
     return div;
   }
@@ -141,13 +142,29 @@ export class SourceEditor implements ProjectView {
   }
 
   setText(text:string) {
-    this.editor.setValue(text); // calls setCode()
-    this.editor.clearHistory();
+    var i,j;
+    var oldtext = this.editor.getValue();
+    if (oldtext != text) {
+      // find minimum range to undo
+      for (var i=0; i<oldtext.length && i<text.length && text[i] == oldtext[i]; i++) { }
+      for (var j=0; j<oldtext.length && j<text.length && text[text.length-1-j] == oldtext[oldtext.length-1-j]; j++) { }
+      //console.log(i,j,oldtext.substring(i,oldtext.length-j));
+      this.replaceSelection(i, oldtext.length-j, text.substring(i, text.length-j)); // calls setCode()
+      // clear history if setting empty editor
+      if (oldtext == '') {
+        this.editor.clearHistory();
+      }
+    }
   }
 
   insertText(text:string) {
     var cur = this.editor.getCursor();
     this.editor.replaceRange(text, cur, cur);
+  }
+
+  replaceSelection(start:number, end:number, text:string) {
+    this.editor.setSelection(this.editor.posFromIndex(start), this.editor.posFromIndex(end));
+    this.editor.replaceSelection(text);
   }
 
   getValue() : string {
@@ -347,11 +364,6 @@ export class SourceEditor implements ProjectView {
       line--;
     }
     return -1;
-  }
-
-  replaceSelection(start:number, end:number, text:string) {
-    this.editor.setSelection(end, start);
-    this.editor.replaceSelection(text);
   }
 
 }

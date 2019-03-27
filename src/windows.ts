@@ -28,16 +28,24 @@ export class ProjectWindows {
     this.id2createfn[id] = createfn;
   }
 
-  createOrShow(id:string) : ProjectView {
+  create(id:string) : ProjectView {
     var wnd = this.id2window[id];
     if (!wnd) {
+      console.log("creating window",id);
       wnd = this.id2window[id] = this.id2createfn[id](id);
     }
     var div = this.id2div[id];
     if (!div) {
       var data = this.project.getFile(id)+""; // TODO: binary files
       div = this.id2div[id] = wnd.createDiv(this.containerdiv, data);
+      $(div).hide();
     }
+    return wnd;
+  }
+
+  createOrShow(id:string) : ProjectView {
+    var wnd = this.create(id);
+    var div = this.id2div[id];
     if (this.activewnd != wnd) {
       if (this.activediv)
         $(this.activediv).hide();
@@ -103,9 +111,10 @@ export class ProjectWindows {
       this.createOrShow(this.activeid);
     }
   }
-  
-  updateFile(fileid : string, data : FileData) {
-    var wnd = this.id2window[fileid];
+
+  updateFile(fileid:string, data:FileData) {
+    // is there an editor? we should create one...
+    var wnd = this.create(fileid);
     if (wnd && wnd.setText && typeof data === 'string') {
       wnd.setText(data);
     } else {

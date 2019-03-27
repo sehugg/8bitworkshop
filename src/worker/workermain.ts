@@ -1912,7 +1912,6 @@ function executeBuildSteps() {
     var toolfn = TOOLS[step.tool];
     if (!toolfn) throw "no tool named " + step.tool;
     step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
-    console.log(step.platform + " " + step.tool);
     try {
       step.result = toolfn(step);
     } catch (e) {
