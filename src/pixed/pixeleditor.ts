@@ -523,7 +523,7 @@ export class Palettizer extends PixNode {
     this.ncolors = 1 << ((fmt.bpp||1) * (fmt.np||1));
   }
   updateLeft() {
-    this.rgbimgs = this.right.rgbimgs;
+    if (this.right) { this.rgbimgs = this.right.rgbimgs; } // TODO: check is for unit test, remove?
     var pal = new RGBAPalette(this.palette);
     var newimages = this.rgbimgs.map( (im:Uint32Array) => {
       var out = new Uint8Array(im.length);
