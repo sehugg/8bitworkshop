@@ -130,10 +130,10 @@ div.mem_info a.selected {
 .btn_group.view_group {
 }
 .btn_active {
-  color: #33cc33;
+  color: #33cc33 !important;
 }
 .btn_stopped {
-  color: #ff9933;
+  color: #ff9933 !important;
 }
 .btn_recording {
   color: #ff3333;
