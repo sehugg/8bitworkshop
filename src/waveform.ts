@@ -1,6 +1,7 @@
 
+import { Toolbar } from "./emu";
+
 declare var VirtualList;
-declare var Mousetrap;
 
 export interface WaveformMeta {
   label : string;
@@ -15,6 +16,7 @@ export interface WaveformProvider {
 export class WaveformView {
   parent : HTMLElement;
   wfp : WaveformProvider;
+  toolbar : Toolbar;
   wavelist;
   meta : WaveformMeta[];
   lines : HTMLCanvasElement[] = [];
@@ -46,6 +48,11 @@ export class WaveformView {
     // remove old thing
     if (this.wavelist) {
       $(this.wavelist.container).remove();
+      this.wavelist = null;
+    }
+    if (this.toolbar) {
+      this.toolbar.destroy();
+      this.toolbar = null;
     }
   }
   
@@ -77,6 +84,7 @@ export class WaveformView {
     var wlc = this.wavelist.container;
     wlc.tabIndex = -1; // make it focusable
     //wlc.style = "overflow-x: hidden"; // TODO?
+    this.toolbar = new Toolbar(this.parent);
     $(this.parent).append(wlc);
     var down = false;
     var selfn = (e) => {
@@ -94,32 +102,32 @@ export class WaveformView {
       down = false;
       //if (e['pointerId']) e.target.releasePointerCapture(e['pointerId']);
     });
-    Mousetrap(wlc).bind('=', (e,combo) => {
+    this.toolbar.add('=', 'Zoom In', 'glyphicon-zoom-in', (e,combo) => {
       this.setZoom(this.zoom * 2);
     });
-    Mousetrap(wlc).bind('+', (e,combo) => {
+    this.toolbar.add('+', 'Zoom In', null, (e,combo) => {
       this.setZoom(this.zoom * 2);
     });
-    Mousetrap(wlc).bind('-', (e,combo) => {
+    this.toolbar.add('-', 'Zoom Out', 'glyphicon-zoom-out', (e,combo) => {
       this.setZoom(this.zoom / 2);
     });
-    Mousetrap(wlc).bind('left', (e,combo) => {
-      this.setSelTime(this.tsel - 1);
-    });
-    Mousetrap(wlc).bind('right', (e,combo) => {
-      this.setSelTime(this.tsel + 1);
-    });
-    Mousetrap(wlc).bind('ctrl+left', (e,combo) => {
-      this.setSelTime(this.tsel - this.clocksPerPage/4);
-    });
-    Mousetrap(wlc).bind('ctrl+right', (e,combo) => {
-      this.setSelTime(this.tsel + this.clocksPerPage/4);
-    });
-    Mousetrap(wlc).bind('ctrl+shift+left', (e,combo) => {
+    this.toolbar.add('ctrl+shift+left', 'Move to beginning', 'glyphicon-backward', (e,combo) => {
       this.setSelTime(0);
       this.setOrgTime(0);
     });
-    Mousetrap(wlc).bind('h', (e,combo) => {
+    this.toolbar.add('ctrl+left', 'Move left 1/4 page', 'glyphicon-fast-backward', (e,combo) => {
+      this.setSelTime(this.tsel - this.clocksPerPage/4);
+    });
+    this.toolbar.add('left', 'Move left 1 clock', 'glyphicon-step-backward', (e,combo) => {
+      this.setSelTime(this.tsel - 1);
+    });
+    this.toolbar.add('right', 'Move right 1 clock', 'glyphicon-step-forward', (e,combo) => {
+      this.setSelTime(this.tsel + 1);
+    });
+    this.toolbar.add('ctrl+right', 'Move right 1/4 page', 'glyphicon-fast-forward', (e,combo) => {
+      this.setSelTime(this.tsel + this.clocksPerPage/4);
+    });
+    this.toolbar.add('h', 'Switch between hex/decimal format', 'glyphicon-barcode', (e,combo) => {
       this.hexformat = !this.hexformat;
       this.refresh();
     });

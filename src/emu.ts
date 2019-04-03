@@ -4,6 +4,7 @@ import { hex, clamp } from "./util";
 
 // external modules
 declare var jt, Javatari, Z80_fast, CPU6809;
+declare var Mousetrap;
 
 // Emulator classes
 
@@ -495,5 +496,50 @@ export function AddressDecoder(table : AddressDecoderEntry[], options?:AddressDe
 
 export function newAddressDecoder(table : AddressDecoderEntry[], options?:AddressDecoderOptions) : (a:number,v?:number) => number {
   return new (AddressDecoder as any)(table, options);
+}
+
+/// TOOLBAR
+
+export class Toolbar {
+  div : JQuery;
+  grp : JQuery;
+  mousetrap;
+  boundkeys = [];
+  
+  constructor(parentDiv:HTMLElement) {
+    this.mousetrap = new Mousetrap(parentDiv);
+    this.div = $(document.createElement("div")).addClass("btn_toolbar");
+    parentDiv.appendChild(this.div[0]);
+    this.newGroup();
+  }
+  destroy() {
+    if (this.div) {
+      this.div.remove();
+      this.div = null;
+    }
+    if (this.mousetrap) {
+      for (var key of this.boundkeys) {
+        this.mousetrap.unbind(key);
+      }
+      this.mousetrap = null;
+    }
+  }
+  newGroup() {
+    this.grp = $(document.createElement("span")).addClass("btn_group").appendTo(this.div);
+  }
+  add(key:string, alttext:string, icon:string, fn:(e,combo) => void) {
+    if (icon) {
+      var btn = $(document.createElement("button")).addClass("btn");
+      if (icon.startsWith('glyphicon')) {
+        icon = '<span class="glyphicon ' + icon + '" aria-hidden="true"></span>';
+      }
+      btn.html(icon);
+      btn.prop("title", alttext + " (" + key + ")");
+      btn.click(fn);
+      this.grp.append(btn);
+    }
+    this.mousetrap.bind(key, fn);
+    this.boundkeys.push(key);
+  }
 }
 
