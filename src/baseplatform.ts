@@ -720,20 +720,20 @@ declare var FS, ENV, Module; // mame emscripten
 
 export abstract class BaseMAMEPlatform {
 
-  loaded = false;
-  preinitted = false;
-  romfn;
-  romdata;
+  loaded : boolean = false;
+  preinitted : boolean = false;
+  started : boolean = false;
+  romfn : string;
+  romdata : Uint8Array;
   video;
-  preload_files;
   running = false;
   console_vars : {[varname:string]:string[]} = {};
-  console_varname;
-  initluavars = false;
-  luadebugscript;
+  console_varname : string;
+  initluavars : boolean = false;
+  luadebugscript : string;
   js_lua_string;
   onBreakpointHit;
-  mainElement;
+  mainElement : HTMLElement;
 
   constructor(mainElement) {
     this.mainElement = mainElement;
@@ -797,6 +797,7 @@ export abstract class BaseMAMEPlatform {
   }
 
   startModule(mainElement, opts) {
+    this.started = true;
     var romfn = this.romfn = this.romfn || opts.romfn;
     var romdata = this.romdata = this.romdata || opts.romdata || new RAM(opts.romsize).mem;
     // create canvas
@@ -833,8 +834,9 @@ export abstract class BaseMAMEPlatform {
           FS.writeFile('/roms/' + opts.biosfile, opts.biosdata, {encoding:'binary'});
         }
         FS.mkdir('/emulator');
-        if (romfn)
+        if (romfn) {
           FS.writeFile(romfn, romdata, {encoding:'binary'});
+        }
         //FS.writeFile('/debug.ini', 'debugger none\n', {encoding:'utf8'});
         if (opts.preInit) {
           opts.preInit(self);
@@ -911,7 +913,7 @@ export abstract class BaseMAMEPlatform {
   }
 
   loadRegion(region, data) {
-    if (this.loaded) {
+    if (this.loaded && data.length > 0) {
       //this.luacall('cart=manager:machine().images["cart"]\nprint(cart:filename())\ncart:load("' + romfn + '")\n');
       var s = 'rgn = manager:machine():memory().regions["' + region + '"]\n';
       //s += 'print(rgn.size)\n';

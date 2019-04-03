@@ -6,11 +6,17 @@
 #define NES_MAPPER 2		// UxROM mapper
 #define NES_CHR_BANKS 0		// CHR RAM
 
-#define PPU_IS_ON() (PPU.mask & (MASK_BG|MASK_SPR))
+bool ppu_is_on = false;
+
+#define DELAYLOOP(n) \
+  __asm__("ldy #%b", n); \
+  __asm__("@1: dey"); \
+  __asm__("bne @1");
 
 void monobitmap_split() {
   // split screen at line 128
   split(0,0);
+  DELAYLOOP(15); // delay until end of line
   PPU.control = PPU.control ^ 0x10; // bg bank 1
 }
 
@@ -21,7 +27,7 @@ void monobitmap_set_pixel(byte x, byte y, byte color) {
   if (y & 64) a |= 8;
   if (y & 128) a |= 0x1000;
   // if PPU is active, wait for next frame
-  if (PPU_IS_ON()) {
+  if (ppu_is_on) {
     ppu_wait_nmi();
   }
   // read old byte
@@ -36,7 +42,7 @@ void monobitmap_set_pixel(byte x, byte y, byte color) {
   vram_adr(a);
   vram_put(b);
   // if PPU is active, reset PPU addr and split screen
-  if (PPU_IS_ON()) {
+  if (ppu_is_on) {
     vram_adr(0);
     monobitmap_split();
   }
@@ -89,13 +95,15 @@ void monobitmap_setup() {
   monobitmap_put_attrib();
   bank_bg(0);
   // setup sprite 0
+  bank_spr(1);
   oam_clear();
   oam_size(0);
-  oam_spr(255, 125, 255, 0, 0);
-  bank_spr(1);
-  // make sprite 255 = white square
+  oam_spr(247, 125, 255, 0, 0);
+  // draw a pixel for it to collide with
+  monobitmap_set_pixel(247, 126, 1);
+  // make sprite 255 = white line
   vram_adr(0x1ff0);
-  vram_fill(0xff, 0x10);
+  vram_fill(0xff, 0x1);
 }
 
 /*{pal:"nes",layout:"nes"}*/
@@ -142,6 +150,7 @@ void main(void)
   ppu_off();
   monobitmap_setup();
   ppu_on_all();
+  ppu_is_on = true;
   monobitmap_demo();
   while(1) {
     ppu_wait_nmi();

@@ -748,6 +748,7 @@ export class ImageChooser {
       viewer.height = this.height;
       viewer.recreate();
       viewer.canvas.style.width = (viewer.width*cscale)+'px'; // TODO
+      viewer.canvas.title = '$'+hex(i);
       viewer.updateImage(imdata);
       $(viewer.canvas).addClass('asset_cell');
       $(viewer.canvas).click((e) => {

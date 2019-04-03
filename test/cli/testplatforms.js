@@ -25,8 +25,8 @@ includeInThisContext('tss/js/Log.js');
 includeInThisContext('tss/js/tss/PsgDeviceChannel.js');
 includeInThisContext('tss/js/tss/MasterChannel.js');
 includeInThisContext('tss/js/tss/AudioLooper.js');
-//includeInThisContext("jsnes/jsnes.min.js");
-global.jsnes = require("jsnes/jsnes.min.js");
+//includeInThisContext("jsnes/dist/jsnes.min.js");
+global.jsnes = require("jsnes/dist/jsnes.min.js");
 
 var emu = require('gen/emu.js');
 var Keys = emu.Keys;

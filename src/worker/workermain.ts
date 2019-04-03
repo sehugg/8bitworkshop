@@ -47,6 +47,10 @@ function getRootPlatform(platform : string) : string {
   return platform.split('-')[0];
 }
 
+function getRootBasePlatform(platform : string) : string {
+  return getRootPlatform(getBasePlatform(platform));
+}
+
 var PLATFORM_PARAMS = {
   'vcs': {
     code_start: 0x1000,
@@ -382,7 +386,7 @@ function populateExtraFiles(step:BuildStep, fs, extrafiles) {
   if (extrafiles) {
     for (var i=0; i<extrafiles.length; i++) {
       var xfn = extrafiles[i];
-      var xpath = "lib/" + step.platform + "/" + xfn;
+      var xpath = "lib/" + getBasePlatform(step.platform) + "/" + xfn;
       var xhr = new XMLHttpRequest();
       xhr.responseType = 'arraybuffer';
       xhr.open("GET", xpath, false);  // synchronous request
@@ -869,7 +873,7 @@ function assembleCA65(step:BuildStep) {
       printErr:msvcErrorMatcher(errors),
     });
     var FS = CA65['FS'];
-    setupFS(FS, '65-'+getRootPlatform(step.platform));
+    setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     execMain(step, CA65, ['-v', '-g', '-I', '/share/asminc', '-o', objpath, '-l', lstpath, step.path]);
     if (errors.length)
@@ -902,7 +906,7 @@ function linkLD65(step:BuildStep) {
       printErr:function(s) { errors.push({msg:s,line:0}); }
     });
     var FS = LD65['FS'];
-    setupFS(FS, '65-'+getRootPlatform(platform));
+    setupFS(FS, '65-'+getRootBasePlatform(platform));
     populateFiles(step, FS);
     populateExtraFiles(step, FS, params.extra_link_files);
     var libargs = params.libargs;
@@ -1051,7 +1055,7 @@ function compileCC65(step:BuildStep) {
       printErr:match_fn,
     });
     var FS = CC65['FS'];
-    setupFS(FS, '65-'+getRootPlatform(step.platform));
+    setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     fixParamsWithDefines(step.path, params);
     execMain(step, CC65, ['-T', '-g',
@@ -1967,7 +1971,7 @@ function handleMessage(data : WorkerMessage) : WorkerResult {
   if (data.preload) {
     var fs = TOOL_PRELOADFS[data.preload];
     if (!fs && data.platform)
-      fs = TOOL_PRELOADFS[data.preload+'-'+getRootPlatform(data.platform)];
+      fs = TOOL_PRELOADFS[data.preload+'-'+getRootBasePlatform(data.platform)];
     if (fs && !fsMeta[fs])
       loadFilesystem(fs);
     return;
