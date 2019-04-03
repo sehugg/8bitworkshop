@@ -25,3 +25,6 @@
 [submodule "tools/fonts/ibmfonts"]
 	path = tools/fonts/ibmfonts
 	url = https://github.com/farsil/ibmfonts
+[submodule "jsnes"]
+	path = jsnes
+	url = https://github.com/sehugg/jsnes

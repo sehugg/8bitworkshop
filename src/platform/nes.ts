@@ -292,11 +292,12 @@ const _JSNESPlatform = function(mainElement) {
   }
 
   getDebugCategories() {
-    return super.getDebugCategories().concat(['PPU']);
+    return super.getDebugCategories().concat(['PPU', 'Mapper']);
   }
   getDebugInfo(category, state) {
     switch (category) {
       case 'PPU': return this.ppuStateToLongString(state.ppu, state.b);
+      case 'Mapper': return this.mapperStateToLongString(state.mmap, state.b);
       default: return super.getDebugInfo(category, state);
     }
   }
@@ -356,6 +357,18 @@ const _JSNESPlatform = function(mainElement) {
       s += lpad(reg.toUpperCase(),7) + " $" + hex(ppu[reg]) + " (" + ppu[reg] + ")\n";
     }
     */
+    return s;
+  }
+  mapperStateToLongString(mmap, mem) {
+    //console.log(mmap, mem);
+    var s = "";
+    s += "\nIRQ Counter: " + mmap.irqCounter;
+    s += "\n  IRQ Latch: " + mmap.irqLatchValue;
+    s += "\n IRQ Reload: " + mmap.irqReload;
+    s += "\n IRQ Enable: " + mmap.irqEnable;
+    s += "\n PRG Select: " + mmap.prgAddressSelect;
+    s += "\n CHR Select: " + mmap.chrAddressSelect;
+    s += "\n";
     return s;
   }
  }

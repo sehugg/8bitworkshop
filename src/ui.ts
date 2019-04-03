@@ -732,11 +732,15 @@ function checkRunReady() {
     return true;
 }
 
+function uiDebugCallback(state) {
+  lastDebugState = state;
+  showDebugInfo(state);
+  projectWindows.refresh(true);
+}
+
 function setupDebugCallback(btnid? : string) {
   if (platform.setupDebug) platform.setupDebug((state) => {
-    lastDebugState = state;
-    showDebugInfo(state);
-    projectWindows.refresh(true);
+    uiDebugCallback(state);
     setDebugButtonState(btnid||"pause", "stopped");
   });
 }
@@ -1290,6 +1294,8 @@ function installErrorHandler() {
         console.log(msgevent, url, line, col, error);
         if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
           showErrorAlert([ {msg:msgstr, line:0} ]);
+          uiDebugCallback(platform.saveState());
+          setDebugButtonState("pause", "stopped"); // TODO?
         } else {
           ga('send', 'exception', {
             'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
