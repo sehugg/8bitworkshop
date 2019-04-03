@@ -121,6 +121,7 @@ div.mem_info a.selected {
   padding-right:4px;
   padding-top:2px;
   padding-bottom:2px;
+  margin:1px;
 }
 .btn_label {
   color: #ccc;
@@ -137,6 +138,9 @@ div.mem_info a.selected {
 }
 .btn_recording {
   color: #ff3333;
+}
+.btn_toolbar {
+ margin:4px;
 }
 span.hilite {
   color: #ff66ff;
