@@ -84,7 +84,7 @@ void setup_graphics() {
 }
 
 // number of actors (4 h/w sprites each)
-#define NUM_ACTORS 48
+#define NUM_ACTORS 24
 
 // actor x/y positions
 char actor_x[NUM_ACTORS];
@@ -113,14 +113,14 @@ void main() {
     oam_id = 0;
     // draw and move all actors
     // (note we don't reset i each loop iteration)
-    while (oam_id < 252) {
+    while (oam_id < 256-4*4) {
       // wrap around actor array
       if (i >= NUM_ACTORS)
         i -= NUM_ACTORS;
       oam_id = oam_meta_spr(actor_x[i], actor_y[i], oam_id, playerRunSeq[i&15]);
       actor_x[i] += actor_dx[i];
       actor_y[i] += actor_dy[i];
-      i++;
+      ++i;
     }
     // hide rest of sprites
     oam_hide_rest(oam_id);

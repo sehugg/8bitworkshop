@@ -338,14 +338,7 @@ const byte DIR_TO_CODE[32] = {
   6|FLIPY, 6|FLIPY, 5|FLIPY, 4|FLIPY, 3|FLIPY, 2|FLIPY, 1|FLIPY, 0|FLIPY,
 };
 
-const byte SINTBL[32] = {
-  0, 25, 49, 71, 90, 106, 117, 125,
-  127, 125, 117, 106, 90, 71, 49, 25,
-  0, -25, -49, -71, -90, -106, -117, -125,
-  -127, -125, -117, -106, -90, -71, -49, -25,
-};
-
-// pre-multiplied by 2
+// sine table, pre-multiplied by 2
 const int SINTBL2[32] = {
   0, 25*2, 49*2, 71*2, 90*2, 106*2, 117*2, 125*2,
   127*2, 125*2, 117*2, 106*2, 90*2, 71*2, 49*2, 25*2,
@@ -355,29 +348,6 @@ const int SINTBL2[32] = {
 
 #define ISIN(x) (SINTBL2[(x) & 31])
 #define ICOS(x) ISIN(x+8)
-
-// Fast 8-bit table lookup macro
-// dest:  destination
-// ident: table identifier
-// index: 8-bit index
-#define FASTLUT8(dest,ident,index) \
-	__A__ = (index); \
-	asm ("tax"); \
-	asm ("lda %v,x", ident); \
-        (dest) = __AX__;
-
-// Fast 16-bit table lookup (single table of 2-byte words, 128 entries max)
-// dest:  destination (16 bits)
-// ident: table identifier
-// index: 8-bit index
-#define FASTLUT16(dest,ident,index) \
-	__A__ = (index); \
-        asm ("asl"); \
-	asm ("tay"); \
-	asm ("lda %v+1,y", ident); \
-        asm ("tax"); \
-	asm ("lda %v,y", ident); \
-        (dest) = __AX__;
 
 #define FORMATION_X0 0
 #define FORMATION_Y0 19
@@ -432,16 +402,8 @@ void return_attacker(register AttackingEnemy* a) {
 }
 
 void fly_attacker(register AttackingEnemy* a) {
-#ifdef USE_FASTLUT
-  static int sincos;
-  sincos = FASTLUT16(sincos, SINTBL2, a->dir&31);
-  a->x += sincos;
-  sincos = FASTLUT16(sincos, SINTBL2, (a->dir+8)&31);
-  a->y += sincos;
-#else
   a->x += ISIN(a->dir);
   a->y += ICOS(a->dir);
-#endif
   if ((a->y >> 8) == 0) {
     a->returning = 1;
   }

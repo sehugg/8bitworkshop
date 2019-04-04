@@ -110,10 +110,11 @@ TODO:
   - throw errors when bad/no refs
   - capture so we get mouseUp() out of frame
   - per-View keyboard shortcuts
-- crt0.s compiled each time?
-- debug highlight doesn't go away when debugging -> running
   - parse labels
   - editing too fast refreshes kills the editor
+- crt0.s compiled each time?
+- debug highlight doesn't go away when debugging -> running
+- replay doesn't work for nes
 
 WEB WORKER FORMAT
 

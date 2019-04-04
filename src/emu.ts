@@ -501,21 +501,21 @@ export function newAddressDecoder(table : AddressDecoderEntry[], options?:Addres
 /// TOOLBAR
 
 export class Toolbar {
-  div : JQuery;
+  span : JQuery;
   grp : JQuery;
   mousetrap;
   boundkeys = [];
   
   constructor(parentDiv:HTMLElement) {
     this.mousetrap = new Mousetrap(parentDiv);
-    this.div = $(document.createElement("div")).addClass("btn_toolbar");
-    parentDiv.appendChild(this.div[0]);
+    this.span = $(document.createElement("span")).addClass("btn_toolbar");
+    parentDiv.appendChild(this.span[0]);
     this.newGroup();
   }
   destroy() {
-    if (this.div) {
-      this.div.remove();
-      this.div = null;
+    if (this.span) {
+      this.span.remove();
+      this.span = null;
     }
     if (this.mousetrap) {
       for (var key of this.boundkeys) {
@@ -525,11 +525,12 @@ export class Toolbar {
     }
   }
   newGroup() {
-    this.grp = $(document.createElement("span")).addClass("btn_group").appendTo(this.div);
+    return this.grp = $(document.createElement("span")).addClass("btn_group").appendTo(this.span);
   }
   add(key:string, alttext:string, icon:string, fn:(e,combo) => void) {
+    var btn = null;
     if (icon) {
-      var btn = $(document.createElement("button")).addClass("btn");
+      btn = $(document.createElement("button")).addClass("btn");
       if (icon.startsWith('glyphicon')) {
         icon = '<span class="glyphicon ' + icon + '" aria-hidden="true"></span>';
       }
@@ -538,8 +539,12 @@ export class Toolbar {
       btn.click(fn);
       this.grp.append(btn);
     }
-    this.mousetrap.bind(key, fn);
-    this.boundkeys.push(key);
+    if (key) {
+      this.mousetrap.bind(key, fn);
+      this.boundkeys.push(key);
+    }
+    return btn;
   }
+  
 }
 

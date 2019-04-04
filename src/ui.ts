@@ -8,7 +8,7 @@ import { CodeProject } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "./workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols, DebugEvalCondition } from "./baseplatform";
-import { PLATFORMS, EmuHalt } from "./emu";
+import { PLATFORMS, EmuHalt, Toolbar } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
@@ -29,6 +29,8 @@ export var platform_id : string;	// platform ID string
 export var platform : Platform;	// platform object
 
 var toolbar = $("#controls_top");
+
+var uitoolbar : Toolbar;
 
 export var current_project : CodeProject;	// current CodeProject object
 
@@ -478,7 +480,7 @@ function _revertFile(e) {
   if (wnd && wnd.setText) {
     var fn = fixFilename(projectWindows.getActiveID());
     // TODO: .mame
-    $.get( "presets/"+platform_id+"/"+fn, function(text) {
+    $.get( "presets/"+getFilenamePrefix(platform_id)+"/"+fn, function(text) {
       if (confirm("Reset '" + fn + "' to default?")) {
         wnd.setText(text);
       }
@@ -488,7 +490,7 @@ function _revertFile(e) {
       alert("Can only revert built-in files.");
     });
   } else {
-    alert("Cannot revert the active window.");
+    alert("Cannot revert the active window. Please choose a text file.");
   }
 }
 
@@ -1067,49 +1069,33 @@ function _addLinkFile() {
     alert("Can't add linked file to this project type (" + tool + ")");
 }
 
-function setupDebugControls(){
-
-  $("#dbg_reset").click(resetAndDebug);
-  $("#dbg_pause").click(pause);
-  $("#dbg_go").click(resume);
-  Mousetrap.bindGlobal('ctrl+alt+p', pause);
-  Mousetrap.bindGlobal('ctrl+alt+r', resume);
-  Mousetrap.bindGlobal('ctrl+alt+.', resetAndDebug);
-
+function setupDebugControls() {
+  // create toolbar buttons
+  uitoolbar = new Toolbar($("#toolbar")[0]);
+  uitoolbar.grp.prop('id','debug_bar');
+  uitoolbar.add('ctrl+alt+.', 'Reset', 'glyphicon-refresh', resetAndDebug).prop('id','dbg_reset');
+  uitoolbar.add('ctrl+alt+P', 'Pause', 'glyphicon-pause', pause).prop('id','dbg_pause');
+  uitoolbar.add('ctrl+alt+R', 'Resume', 'glyphicon-play', resume).prop('id','dbg_go');
   if (platform.step) {
-    $("#dbg_step").click(singleStep).show();
-    Mousetrap.bindGlobal('ctrl+alt+s', singleStep);
-  } else
-    $("#dbg_step").hide();
-
-  if (platform.runToVsync) {
-    $("#dbg_tovsync").click(singleFrameStep).show();
-    Mousetrap.bindGlobal('ctrl+alt+v', singleFrameStep);
-  } else
-    $("#dbg_tovsync").hide();
-
-  if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog')) {
-    $("#dbg_toline").click(runToCursor).show();
-    Mousetrap.bindGlobal('ctrl+alt+l', runToCursor);
-  } else
-    $("#dbg_toline").hide();
-
-  if (platform.runUntilReturn) {
-    $("#dbg_stepout").click(runUntilReturn).show();
-    Mousetrap.bindGlobal('ctrl+alt+o', runUntilReturn);
-  } else
-    $("#dbg_stepout").hide();
-
-  if (platform.stepBack) {
-    $("#dbg_stepback").click(runStepBackwards).show();
-    Mousetrap.bindGlobal('ctrl+alt+b', runStepBackwards);
-  } else
-    $("#dbg_stepback").hide();
-
-  if (platform.newCodeAnalyzer) {
-    $("#dbg_timing").click(traceTiming).show();
+    uitoolbar.add('ctrl+alt+S', 'Single Step', 'glyphicon-step-forward', singleStep).prop('id','dbg_step');
   }
-  $("#disassembly").hide();
+  if (platform.runToVsync) {
+    uitoolbar.add('ctrl+alt+V', 'Next Frame', 'glyphicon-forward', singleFrameStep).prop('id','dbg_tovsync');
+  }
+  if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog')) {
+    uitoolbar.add('ctrl+alt+L', 'Run To Line', 'glyphicon-save', runToCursor).prop('id','dbg_toline');
+  }
+  if (platform.runUntilReturn) {
+    uitoolbar.add('ctrl+alt+O', 'Step Out of Subroutine', 'glyphicon-hand-up', runUntilReturn).prop('id','dbg_stepout');
+  }
+  if (platform.stepBack) {
+    uitoolbar.add('ctrl+alt+B', 'Step Backwards', 'glyphicon-step-backward', runStepBackwards).prop('id','dbg_stepback');
+  }
+  uitoolbar.newGroup();
+  if (platform.newCodeAnalyzer) {
+    uitoolbar.add(null, 'Analyze CPU Timing', 'glyphicon-time', traceTiming);
+  }
+  // add menu clicks
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);
@@ -1137,12 +1123,13 @@ function setupDebugControls(){
     $("#dbg_slowest").click(_slowestFrameRate);
     $("#dbg_fastest").click(_fastestFrameRate);
   }
-  if (platform.showHelp) {
-    $("#dbg_help").show().click(_lookupHelp);
-  }
   $("#item_addfile_include").click(_addIncludeFile);
   $("#item_addfile_link").click(_addLinkFile);
   updateDebugWindows();
+  // show help button?
+  if (platform.showHelp) {
+    uitoolbar.add('ctrl+alt+?', 'Show Help', 'glyphicon-question-sign', _lookupHelp);
+  }
   // setup replay slider
   if (platform.setRecorder && platform.advance) {
     setupReplaySlider();
@@ -1183,7 +1170,7 @@ function setupReplaySlider() {
     $("#replay_back").click(() => { setFrameTo(parseInt(replayslider.val().toString()) - 1); });
     $("#replay_fwd").click(() => { setFrameTo(parseInt(replayslider.val().toString()) + 1); });
     $("#replay_bar").show();
-    $("#dbg_record").click(_toggleRecording).show();
+    uitoolbar.add('ctrl+alt+0', 'Start/Stop Replay Recording', 'glyphicon-record', _toggleRecording).prop('id','dbg_record');
 }
 
 
@@ -1322,13 +1309,6 @@ function replaceURLState() {
   history.replaceState({}, "", "?" + $.param(qs));
 }
 
-function showBookLink() {
-  if (platform_id == 'vcs')
-    $("#booklink_vcs").show();
-  else if (platform_id == 'mw8080bw' || platform_id == 'vicdual' || platform_id == 'galaxian-scramble' || platform_id == 'vector-z80color' || platform_id == 'williams-z80')
-    $("#booklink_arcade").show();
-}
-
 function addPageFocusHandlers() {
   var hidden = false;
   document.addEventListener("visibilitychange", function() {
@@ -1375,7 +1355,6 @@ function startPlatform() {
   loadProject(qs['file']);
   setupDebugControls();
   updateSelector();
-  showBookLink();
   addPageFocusHandlers();
   return true;
 }

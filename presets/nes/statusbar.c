@@ -64,7 +64,7 @@ void main(void) {
   
   // set sprite 0
   oam_clear();
-  oam_spr(0, 30, 1, 1, 0);
+  oam_spr(1, 30, 0xa0, 1, 0);
 
   // enable PPU rendering (turn on screen)
   ppu_on_all();
