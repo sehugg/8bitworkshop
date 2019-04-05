@@ -506,8 +506,8 @@ export class Toolbar {
   mousetrap;
   boundkeys = [];
   
-  constructor(parentDiv:HTMLElement) {
-    this.mousetrap = new Mousetrap(parentDiv);
+  constructor(parentDiv:HTMLElement, focusDiv:HTMLElement) {
+    this.mousetrap = focusDiv ? new Mousetrap(focusDiv) : Mousetrap;
     this.span = $(document.createElement("span")).addClass("btn_toolbar");
     parentDiv.appendChild(this.span[0]);
     this.newGroup();

@@ -47,4 +47,3 @@ void main(void)
   show_title_screen(climbr_title_pal, climbr_title_rle);
   while(1);//do nothing, infinite loop
 }
- 

@@ -13,20 +13,9 @@
 // index to end of buffer
 extern byte updptr;
 
-// macro to set a single byte in buffer
-#define VRAMBUF_SET(b)\
-  __A__ = (b);\
-  asm("ldy %v", updptr);\
-  asm("sta $100,y");
-
-// macro to set a single byte to buffer, then increment
-#define VRAMBUF_ADD(b)\
-  VRAMBUF_SET(b)\
-  asm("inc %v", updptr);
-
 // C versions of macros
-//#define VRAMBUF_SET(b) updbuf[updptr] = (b);
-//#define VRAMBUF_ADD(b) VRAMBUF_SET(b); ++updptr
+#define VRAMBUF_SET(b) updbuf[updptr] = (b);
+#define VRAMBUF_ADD(b) VRAMBUF_SET(b); ++updptr
 
 // macro to add a raw header (useful for single bytes)
 #define VRAMBUF_PUT(addr,len,flags)\

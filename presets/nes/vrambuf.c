@@ -1,6 +1,7 @@
 
 #include "neslib.h"
 #include "vrambuf.h"
+#include <string.h>
 
 // index to end of buffer
 byte updptr = 0;
@@ -30,19 +31,19 @@ void cflushnow(void) {
 
 // add multiple characters to update buffer
 // using horizontal increment
-void putbytes(word addr, const char* str, byte len) {
-  byte i;
+void putbytes(word addr, register const char* str, byte len) {
   // if bytes won't fit, wait for vsync and flush buffer
-  if (updptr >= VBUFSIZE-4-len) cflushnow();
+  if (VBUFSIZE-4-len < updptr) {
+    cflushnow();
+  }
   // add vram address
   VRAMBUF_ADD((addr >> 8) ^ NT_UPD_HORZ);
   VRAMBUF_ADD(addr); // only lower 8 bits
   // add length
   VRAMBUF_ADD(len);
-  // add data
-  for (i=0; i<len; ++i) {
-    	VRAMBUF_ADD(str[i]);
-  }
+  // add data to buffer
+  memcpy(updbuf+updptr, str, len);
+  updptr += len;
   // place EOF mark
   cendbuf();
 }

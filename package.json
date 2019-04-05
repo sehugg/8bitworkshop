@@ -25,7 +25,7 @@
     "test": "tests"
   },
   "scripts": {
-    "build": "./node_modules/typescript/bin/tsc",
+    "build": "make",
     "test": "npm run test-node",
     "test-one": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000",
     "test-node": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli",

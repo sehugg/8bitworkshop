@@ -37,7 +37,7 @@ const unsigned char TEXT5[]={"Bank 5 @ A000"};
 #pragma rodata-name("CODE6")
 const unsigned char TEXT6[]={"Bank 6 @ C000"};
 
-// put functions in bank 0
+// put functions in bank 1
 #pragma code-name("CODE1")
 
 void draw_text(word addr, const char* text) {

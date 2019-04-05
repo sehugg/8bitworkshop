@@ -1228,6 +1228,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   }
 
   setVisible?(showing : boolean) : void {
+    // TODO: make into toolbar?
     if (showing) {
       Mousetrap.bind('ctrl+z', projectWindows.undoStep.bind(projectWindows));
     } else {

@@ -38,6 +38,23 @@ export var projectWindows : ProjectWindows;	// window manager
 
 var stateRecorder : StateRecorderImpl;
 
+var userPaused : boolean;		// did user explicitly pause?
+
+var current_output : WorkerOutput;  // current ROM
+var current_preset_entry : Preset;	// current preset object (if selected)
+var main_file_id : string;	// main file ID
+var store;			// persistent store
+
+export var compparams;			// received build params from worker
+export var lastDebugState;		// last debug state (object)
+
+var lastDebugInfo;		// last debug info (CPU text)
+var debugCategory;		// current debug category
+var debugTickPaused = false;
+var recorderActive = false;
+
+var lastBreakExpr = "c.PC == 0x6000";
+
 // TODO: codemirror multiplex support?
 var TOOL_TO_SOURCE_STYLE = {
   'dasm': '6502',
@@ -58,19 +75,6 @@ var TOOL_TO_SOURCE_STYLE = {
 function newWorker() : Worker {
   return new Worker("./src/worker/loader.js");
 }
-
-var userPaused : boolean;		// did user explicitly pause?
-
-var current_output : WorkerOutput;  // current ROM
-var current_preset_entry : Preset;	// current preset object (if selected)
-var main_file_id : string;	// main file ID
-var store;			// persistent store
-
-export var compparams;			// received build params from worker
-export var lastDebugState;		// last debug state (object)
-
-var lastDebugInfo;		// last debug info (CPU text)
-var debugCategory;		// current debug category
 
 var hasLocalStorage : boolean = function() {
   try {
@@ -857,7 +861,6 @@ function resetAndDebug() {
   }
 }
 
-var lastBreakExpr = "c.PC == 0x6000";
 function _breakExpression() {
   console.log(platform.saveState());
   var exprs = window.prompt("Enter break expression", lastBreakExpr);
@@ -881,8 +884,6 @@ function getSymbolAtAddress(a : number) {
   }
   return '';
 }
-
-var debugTickPaused = false;
 
 function updateDebugWindows() {
   if (platform.isRunning()) {
@@ -983,8 +984,6 @@ function traceTiming() {
   }
 }
 
-var recorderActive = false;
-
 function _disableRecording() {
   if (recorderActive) {
     platform.setRecorder(null);
@@ -1071,25 +1070,25 @@ function _addLinkFile() {
 
 function setupDebugControls() {
   // create toolbar buttons
-  uitoolbar = new Toolbar($("#toolbar")[0]);
+  uitoolbar = new Toolbar($("#toolbar")[0], null);
   uitoolbar.grp.prop('id','debug_bar');
   uitoolbar.add('ctrl+alt+.', 'Reset', 'glyphicon-refresh', resetAndDebug).prop('id','dbg_reset');
-  uitoolbar.add('ctrl+alt+P', 'Pause', 'glyphicon-pause', pause).prop('id','dbg_pause');
-  uitoolbar.add('ctrl+alt+R', 'Resume', 'glyphicon-play', resume).prop('id','dbg_go');
+  uitoolbar.add('ctrl+alt+p', 'Pause', 'glyphicon-pause', pause).prop('id','dbg_pause');
+  uitoolbar.add('ctrl+alt+r', 'Resume', 'glyphicon-play', resume).prop('id','dbg_go');
   if (platform.step) {
-    uitoolbar.add('ctrl+alt+S', 'Single Step', 'glyphicon-step-forward', singleStep).prop('id','dbg_step');
+    uitoolbar.add('ctrl+alt+s', 'Single Step', 'glyphicon-step-forward', singleStep).prop('id','dbg_step');
   }
   if (platform.runToVsync) {
-    uitoolbar.add('ctrl+alt+V', 'Next Frame', 'glyphicon-forward', singleFrameStep).prop('id','dbg_tovsync');
+    uitoolbar.add('ctrl+alt+v', 'Next Frame', 'glyphicon-forward', singleFrameStep).prop('id','dbg_tovsync');
   }
   if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog')) {
-    uitoolbar.add('ctrl+alt+L', 'Run To Line', 'glyphicon-save', runToCursor).prop('id','dbg_toline');
+    uitoolbar.add('ctrl+alt+l', 'Run To Line', 'glyphicon-save', runToCursor).prop('id','dbg_toline');
   }
   if (platform.runUntilReturn) {
-    uitoolbar.add('ctrl+alt+O', 'Step Out of Subroutine', 'glyphicon-hand-up', runUntilReturn).prop('id','dbg_stepout');
+    uitoolbar.add('ctrl+alt+o', 'Step Out of Subroutine', 'glyphicon-hand-up', runUntilReturn).prop('id','dbg_stepout');
   }
   if (platform.stepBack) {
-    uitoolbar.add('ctrl+alt+B', 'Step Backwards', 'glyphicon-step-backward', runStepBackwards).prop('id','dbg_stepback');
+    uitoolbar.add('ctrl+alt+b', 'Step Backwards', 'glyphicon-step-backward', runStepBackwards).prop('id','dbg_stepback');
   }
   uitoolbar.newGroup();
   if (platform.newCodeAnalyzer) {

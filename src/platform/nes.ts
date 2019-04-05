@@ -32,11 +32,11 @@ const JSNES_PRESETS = [
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot2.c', name:'Solarian Game'},
   {id:'climber.c', name:'Platform Game'},
-  {id:'scrollrt.asm', name:'Split Screen Scroll (ASM)'},
   {id:'fami.c', name:'Famitone Demo'},
   {id:'musicdemo.asm', name:'Famitone Demo (ASM)'},
   {id:'bankswitch.c', name:'Bank Switching'},
   {id:'irq.c', name:'IRQ Scanline Counter'},
+  {id:'scrollrt.asm', name:'Line-by-line Scrolling (ASM)'},
 ];
 
 /// JSNES

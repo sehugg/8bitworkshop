@@ -1,7 +1,11 @@
 
 TSC=./node_modules/typescript/bin/tsc
 
-all: src/cpu/z80fast.js
+all:
+	$(TSC)
+	cd jsnes && npm i
+
+z80: src/cpu/z80fast.js
 
 src/cpu/z80.js: src/cpu/z80.coffee
 	coffee -c $<

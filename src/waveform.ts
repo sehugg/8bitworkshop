@@ -84,7 +84,7 @@ export class WaveformView {
     var wlc = this.wavelist.container;
     wlc.tabIndex = -1; // make it focusable
     //wlc.style = "overflow-x: hidden"; // TODO?
-    this.toolbar = new Toolbar(this.parent);
+    this.toolbar = new Toolbar(this.parent, this.parent);
     $(this.parent).append(wlc);
     var down = false;
     var selfn = (e) => {
