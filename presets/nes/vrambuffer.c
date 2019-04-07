@@ -24,10 +24,10 @@ void scroll_demo() {
     // write message to string array
     sprintf(str, "%6x %6d", y, y);
     // write string array into VRAM buffer
-    putbytes(NTADR_A(2,y%30), str, 32);
+    vrambuf_put(NTADR_A(2,y%30), str, 32);
     // wait for next frame
     // and flush VRAM buffer
-    cflushnow();
+    vrambuf_flush();
     // set scroll (shadow) registers
     scroll(x, y);
     // update y variable
@@ -46,7 +46,7 @@ void main(void) {
   pal_col(3,0x30);
   
   // clear vram buffer
-  cclearbuf();
+  vrambuf_clear();
   
   // set NMI handler
   set_vram_update(updbuf);

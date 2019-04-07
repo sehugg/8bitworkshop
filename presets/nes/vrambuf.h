@@ -24,17 +24,17 @@ extern byte updptr;
   VRAMBUF_ADD(len);
 
 // add EOF marker to buffer (but don't increment pointer)
-void cendbuf(void);
+void vrambuf_end(void);
 
 // clear vram buffer and place EOF marker
-void cclearbuf(void);
+void vrambuf_clear(void);
 
 // wait for next frame, then clear buffer
 // this assumes the NMI will call flush_vram_update()
-void cflushnow(void);
+void vrambuf_flush(void);
 
 // add multiple characters to update buffer
 // using horizontal increment
-void putbytes(word addr, const char* str, byte len);
+void vrambuf_put(word addr, const char* str, byte len);
 
 #endif // vrambuf.h

@@ -37,16 +37,15 @@ byte getchar(byte x, byte y) {
 }
 
 void cputcxy(byte x, byte y, char ch) {
-  putbytes(NTADR_A(x,y), &ch, 1);
+  vrambuf_put(NTADR_A(x,y), &ch, 1);
 }
 
 void cputsxy(byte x, byte y, const char* str) {
-  putbytes(NTADR_A(x,y), str, strlen(str));
+  vrambuf_put(NTADR_A(x,y), str, strlen(str));
 }
 
 void clrscr() {
-  updptr = 0;
-  cendbuf();
+  vrambuf_clear();
   ppu_off();
   vram_adr(0x2000);
   vram_fill(0, 32*28);
@@ -198,8 +197,8 @@ void flash_colliders() {
     //cv_set_attenuation(CV_SOUNDCHANNEL_0, i/2);
     if (players[0].collided) players[0].head_attr ^= 0x80;
     if (players[1].collided) players[1].head_attr ^= 0x80;
-    cflushnow();
-    cflushnow();
+    vrambuf_flush();
+    vrambuf_flush();
     draw_player(&players[0]);
     draw_player(&players[1]);
   }
@@ -210,7 +209,7 @@ void make_move() {
   byte i;
   for (i=0; i<frames_per_move; i++) {
     human_control(&players[0]);
-    cflushnow();
+    vrambuf_flush();
   }
   ai_control(&players[0]);
   ai_control(&players[1]);
@@ -224,12 +223,12 @@ void declare_winner(byte winner) {
   clrscr();
   for (i=0; i<ROWS/2-3; i++) {
     draw_box(i,i,COLS-1-i,ROWS-1-i,BOX_CHARS);
-    cflushnow();
+    vrambuf_flush();
   }
   cputsxy(12,10,"WINNER:");
   cputsxy(12,13,"PLAYER ");
   cputcxy(12+7, 13, '1'+winner);
-  cflushnow();
+  vrambuf_flush();
   delay(75);
   gameover = 1;
 }
@@ -310,7 +309,7 @@ void play_game() {
 
 void main() {
   joy_install (joy_static_stddrv);
-  cendbuf();
+  vrambuf_clear();
   set_vram_update(updbuf);
   while (1) {
     attract = 1;

@@ -114,6 +114,8 @@ TODO:
   - editing too fast refreshes kills the editor, also doesn't update palette
 - crt0.s compiled each time?
 - debug highlight doesn't go away when debugging -> running
+  - show breakpoint of PC or highest address on stack
+  - can we highlight line instead of select?
 - replay doesn't work for nes (force background tile redraw)
 - running profiler while replaying? grand unified replay?
 - click on profiler to step to position

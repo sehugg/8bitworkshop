@@ -251,7 +251,9 @@ const _Apple2Platform = function(mainElement) {
   }
 
   loadState(state) {
+    this.unfixPC(state.c);
     cpu.loadState(state.c);
+    this.fixPC(state.c);
     ram.mem.set(state.b);
     kbdlatch = state.kbd;
     grswitch = state.gr;
@@ -263,7 +265,7 @@ const _Apple2Platform = function(mainElement) {
   }
   saveState() {
     return {
-      c:cpu.saveState(),
+      c:this.getCPUState(),
       b:ram.mem.slice(0),
       kbd:kbdlatch,
       gr:grswitch,
@@ -279,7 +281,7 @@ const _Apple2Platform = function(mainElement) {
     };
   }
   getCPUState() {
-    return cpu.saveState();
+    return this.fixPC(cpu.saveState());
   }
  }
 

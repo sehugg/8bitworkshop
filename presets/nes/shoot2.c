@@ -142,8 +142,7 @@ const char TILESET[128*8*2] = {
 #define BLANK 0
 
 void clrscr() {
-  updptr = 0;
-  cendbuf();
+  vrambuf_clear();
   ppu_off();
   vram_adr(NAMETABLE_A);
   vram_fill(BLANK, 32*28);
@@ -165,7 +164,7 @@ void draw_bcd_word(byte col, byte row, word bcd) {
     buf[j] = CHAR('0'+(bcd&0xf));
     bcd >>= 4;
   }
-  putbytes(NTADR_A(col, row), buf, 5);
+  vrambuf_put(NTADR_A(col, row), buf, 5);
 }
 
 // GAME CODE
@@ -309,7 +308,7 @@ void draw_row(byte row) {
     }
     x += 3;
   }
-  putbytes(NTADR_A(0, y), buf, sizeof(buf));
+  vrambuf_put(NTADR_A(0, y), buf, sizeof(buf));
 }
 
 void draw_next_row() {
@@ -721,7 +720,7 @@ void play_round() {
       if (!enemies_left) end_timer--;
       draw_next_row();
     }
-    cflushnow();
+    vrambuf_flush();
     copy_sprites();
 #ifdef DEBUG_FRAMERATE
     putchar(t0 & 31, 27, CHAR(' '));
@@ -773,7 +772,7 @@ void setup_graphics() {
     dest += 3*16;
   }
   // activate vram buffer
-  cendbuf();
+  vrambuf_clear();
   set_vram_update(updbuf);
 }
 

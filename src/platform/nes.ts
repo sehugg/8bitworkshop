@@ -240,7 +240,9 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     return s;
   }
   loadState(state) {
+    this.unfixPC(state.cpu);
     this.nes.fromJSON(state);
+    this.fixPC(state.cpu);
     //this.nes.cpu.fromJSON(state.cpu);
     //this.nes.mmap.fromJSON(state.mmap);
     //this.nes.ppu.fromJSON(state.ppu);
@@ -266,6 +268,7 @@ class JSNESPlatform extends Base6502Platform implements Platform {
   copy6502REGvars(c) {
     c.T = 0;
     c.PC = c.REG_PC;
+    this.fixPC(c);
     c.A = c.REG_ACC;
     c.X = c.REG_X;
     c.Y = c.REG_Y;

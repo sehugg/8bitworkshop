@@ -400,7 +400,7 @@ export class DisassemblerView implements ProjectView {
 
   // TODO: too many globals
   refresh(moveCursor: boolean) {
-    var state = lastDebugState || platform.saveState();
+    var state = lastDebugState || platform.saveState(); // TODO?
     var pc = state.c ? state.c.PC : 0;
     var curline = 0;
     var selline = 0;
@@ -501,7 +501,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
   refresh(moveCursor: boolean) {
     this.refreshListing();
     if (!this.assemblyfile) return; // TODO?
-    var state = lastDebugState || platform.saveState();
+    var state = lastDebugState || platform.saveState(); // TODO?
     var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
     var asmtext = this.assemblyfile.text;
     var disasmview = this.getDisasmView();
@@ -530,15 +530,6 @@ export class MemoryView implements ProjectView {
   maindiv : HTMLElement;
   static IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
   recreateOnResize = true;
-  /*
-  read(addr:number) {
-    // TODO: b offset ?
-    if (lastDebugState && lastDebugState.b && addr < lastDebugState.b.length)
-      return lastDebugState.b[addr];
-    else
-      return this.platform.readMemory(addr);
-  }
-  */
 
   createDiv(parent : HTMLElement) {
     var div = document.createElement('div');
@@ -1207,6 +1198,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   }
 
 // TODO: recreate editors when refreshing
+// TODO: look for changes, not moveCursor
   refresh(moveCursor : boolean) {
     if (moveCursor) {
       this.maindiv.empty();

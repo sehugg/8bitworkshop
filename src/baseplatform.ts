@@ -289,7 +289,11 @@ export function getToolForFilename_6502(fn:string) : string {
 // TODO: can merge w/ Z80?
 export abstract class Base6502Platform extends BaseDebugPlatform {
 
+  // some platforms store their PC one byte before or after the first opcode
+  // so we correct when saving and loading from state
   debugPCDelta = -1;
+  fixPC(c)   { c.PC = (c.PC + this.debugPCDelta) & 0xffff; return c; }
+  unfixPC(c) { c.PC = (c.PC - this.debugPCDelta) & 0xffff; return c;}
 
   evalDebugCondition() {
     if (this.debugCallback && !this.debugBreakState) {
@@ -297,18 +301,21 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
     }
   }
   postFrame() {
-    // save state every frame and rewind debug clocks
-    var debugging = this.debugCallback && !this.debugBreakState;
-    if (debugging) {
-      this.debugSavedState = this.saveState();
-      this.debugTargetClock -= this.debugClock;
-      this.debugClock = 0;
+    if (this.debugCallback) {
+      if (this.debugBreakState) {
+        // reload debug state at end of frame after breakpoint
+        this.loadState(this.debugBreakState);
+      } else {
+        // save state every frame and rewind debug clocks
+        this.debugSavedState = this.saveState();
+        this.debugTargetClock -= this.debugClock;
+        this.debugClock = 0;
+      }
     }
   }
   breakpointHit(targetClock : number) {
     this.debugTargetClock = targetClock;
     this.debugBreakState = this.saveState();
-    this.debugBreakState.c.PC = (this.debugBreakState.c.PC + this.debugPCDelta) & 0xffff;
     console.log("Breakpoint at clk", this.debugClock, "PC", this.debugBreakState.c.PC.toString(16));
     this.pause();
     if (this.onBreakpointHit) {
@@ -319,7 +326,6 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
     this.setDebugCondition( () => {
       if (this.debugClock++ > this.debugTargetClock) {
         var cpuState = this.getCPUState();
-        cpuState.PC = (cpuState.PC + this.debugPCDelta) & 0xffff;
         if (evalfunc(cpuState)) {
           this.breakpointHit(this.debugClock-1);
           return true;
@@ -366,7 +372,7 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
         this.loadState(prevState);
         this.breakpointHit(prevClock-1);
         return true;
-      } else if (this.debugClock > this.debugTargetClock-10 && this.debugClock < this.debugTargetClock) {
+      } else if (this.debugClock > this.debugTargetClock-10 && this.debugClock <= this.debugTargetClock+this.debugPCDelta) { // TODO: why this works?
         if (this.getCPUState().T == 0) {
           prevState = this.saveState();
           prevClock = this.debugClock;
@@ -553,12 +559,18 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
       cpu.requestInterrupt(data);
   }
   postFrame() {
-    if (this.debugCallback && !this.debugBreakState) {
-      this.debugSavedState = this.saveState();
-      if (this.debugTargetClock > 0)
-        this.debugTargetClock -= this.debugSavedState.c.T;
-      this.debugSavedState.c.T = 0;
-      this.loadState(this.debugSavedState);
+    if (this.debugCallback) {
+      if (this.debugBreakState) {
+        // if breakpoint, reload debug state after frame
+        this.loadState(this.debugBreakState);
+      } else {
+        // reset debug target clocks
+        this.debugSavedState = this.saveState();
+        if (this.debugTargetClock > 0)
+          this.debugTargetClock -= this.debugSavedState.c.T;
+        this.debugSavedState.c.T = 0;
+        this.loadState(this.debugSavedState);
+      }
     }
   }
   breakpointHit(targetClock : number) {

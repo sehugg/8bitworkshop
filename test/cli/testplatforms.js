@@ -129,6 +129,8 @@ function testPlatform(platid, romname, maxframes, callback) {
       maxframes = 120*60;
     assert.equal(maxframes, rec.numFrames());
     var state1 = platform.saveState();
+    platform.loadState(state1);
+    assert.deepEqual(state1, platform.saveState());
     assert.equal(1, rec.loadFrame(1));
     assert.equal(maxframes, rec.loadFrame(maxframes));
     var state2 = platform.saveState();

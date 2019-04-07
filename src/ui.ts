@@ -1380,9 +1380,10 @@ function loadSharedGist(gistkey : string) {
  });
 }
 
-function loadScript(scriptfn, onload) {
+function loadScript(scriptfn, onload, onerror?) {
   var script = document.createElement('script');
   script.onload = onload;
+  script.onerror = onerror;
   script.src = scriptfn;
   document.getElementsByTagName('head')[0].appendChild(script);
 }
@@ -1442,6 +1443,8 @@ export function startUI(loadplatform : boolean) {
           startPlatform();
           showWelcomeMessage();
           document.title = document.title + " [" + platform_id + "] - " + main_file_id;
+        }, () => {
+          alert('Platform "' + platform_id + '" not supported.');
         });
       } else {
         startPlatform();

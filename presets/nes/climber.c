@@ -293,10 +293,10 @@ void draw_floor_line(byte screen_y) {
         else
           a = 0x00;
         memset(attrs, a, 8);
-        putbytes(nt2attraddr(addr), attrs, 8);
+        vrambuf_put(nt2attraddr(addr), attrs, 8);
       }
       // copy line to screen buffer
-      putbytes(addr, buf, COLS);
+      vrambuf_put(addr, buf, COLS);
       // create actors on this floor, if needed
       // TODO: maybe this happens too early?
       if (dy == 0 && (floor >= 2)) {
@@ -314,7 +314,7 @@ void draw_entire_stage() {
   for (y=0; y<ROWS; y++) {
     draw_floor_line(y);
     // allow buffer to flush, delaying a frame
-    cflushnow();
+    vrambuf_flush();
   }
 }
 
@@ -671,11 +671,11 @@ void type_message(const char* charptr) {
       x = 2;
       y++;
     } else {
-      putbytes(getntaddr(x, y), &ch, 1);
+      vrambuf_put(getntaddr(x, y), &ch, 1);
       x++;
     }
     // flush buffer and wait a few frames
-    cflushnow();
+    vrambuf_flush();
     delay(5);
   }
 }
@@ -705,7 +705,7 @@ void play_scene() {
   
   while (actors[0].floor != MAX_FLOORS-1) {
     //set_scroll_pixel_yy(scroll_pixel_yy+1);
-    cflushnow();
+    vrambuf_flush();
     refresh_sprites();
     move_player();
     // move all the actors
@@ -747,7 +747,7 @@ void setup_graphics() {
   pal_all(PALETTE);
   vram_adr(0x2000);
   vram_fill(CH_BLANK, 0x1000);
-  cendbuf();
+  vrambuf_clear();
   set_vram_update(updbuf);
   ppu_on_all();
 }

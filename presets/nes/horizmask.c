@@ -61,7 +61,7 @@ void update_nametable() {
   // draw rest of building
   memset(buf+PLAYROWS-bldg_height, bldg_char, bldg_height);
   // draw vertical slice in name table
-  putbytes(addr ^ 0xc000, buf, sizeof(buf));
+  vrambuf_put(addr ^ 0xc000, buf, sizeof(buf));
   // every 4 columns, update attribute table
   if ((x & 3) == 1) {
     // compute attribute table address
@@ -71,7 +71,7 @@ void update_nametable() {
     // put lower attribute block
     addr += 8;
     VRAMBUF_PUT(addr, bldg_attr, 0);
-    cendbuf();
+    vrambuf_end();
   }
   // generate new building?
   if (--bldg_width == 0) {
@@ -93,7 +93,7 @@ void scroll_demo() {
     // manually force vram update
     ppu_wait_nmi();
     flush_vram_update(updbuf);
-    cclearbuf();
+    vrambuf_end();
     // reset ppu address
     vram_adr(0x0);
     // set scroll register
@@ -147,7 +147,7 @@ void main(void) {
   ppu_mask(MASK_SPR|MASK_BG);
   
   // clear vram buffer
-  cclearbuf();
+  vrambuf_clear();
   
   // enable PPU rendering (turn on screen)
   ppu_on_all();
