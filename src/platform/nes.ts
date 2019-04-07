@@ -60,103 +60,108 @@ const JSNES_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_D,     1, 7],
 ]);
 
-const _JSNESPlatform = function(mainElement) {
+class JSNESPlatform extends Base6502Platform implements Platform {
 
-  var nes;
-  var rom;
-  var video, audio, timer;
-  const audioFrequency = 44030; //44100
-  var frameindex = 0;
-  var ntvideo;
-  var ntlastbuf;
-
- class JSNESPlatform extends Base6502Platform implements Platform {
+  mainElement;
+  nes;
+  video;
+  audio;
+  timer;
+  audioFrequency = 44030; //44100
+  frameindex = 0;
+  ntvideo;
+  ntlastbuf;
+  
+  constructor(mainElement) {
+    super();
+    this.mainElement = mainElement;
+  }
 
   getPresets() { return JSNES_PRESETS; }
 
   start() {
     this.debugPCDelta = 1;
-    var debugbar = $("<div>").appendTo(mainElement);
-    audio = new SampleAudio(audioFrequency);
-    video = new RasterVideo(mainElement,256,224,{overscan:true});
-    video.create();
+    var debugbar = $("<div>").appendTo(this.mainElement);
+    this.audio = new SampleAudio(this.audioFrequency);
+    this.video = new RasterVideo(this.mainElement,256,224,{overscan:true});
+    this.video.create();
     // debugging view
-    ntvideo = new RasterVideo(mainElement,512,480,{overscan:false});
-    ntvideo.create();
-    $(ntvideo.canvas).hide();
-    ntlastbuf = new Uint32Array(0x1000);
-    // toggle buttons
-    $('<button>').text("Video").appendTo(debugbar).click(() => { $(video.canvas).toggle() });
-    $('<button>').text("Nametable").appendTo(debugbar).click(() => { $(ntvideo.canvas).toggle() });
+    this.ntvideo = new RasterVideo(this.mainElement,512,480,{overscan:false});
+    this.ntvideo.create();
+    $(this.ntvideo.canvas).hide();
+    this.ntlastbuf = new Uint32Array(0x1000);
+    // toggle buttons (TODO)
+    $('<button>').text("Video").appendTo(debugbar).click(() => { $(this.video.canvas).toggle() });
+    $('<button>').text("Nametable").appendTo(debugbar).click(() => { $(this.ntvideo.canvas).toggle() });
 
-    var idata = video.getFrameData();
-    nes = new jsnes.NES({
+    var idata = this.video.getFrameData();
+    this.nes = new jsnes.NES({
       onFrame: (frameBuffer : number[]) => {
         for (var i=0; i<frameBuffer.length; i++)
           idata[i] = frameBuffer[i] | 0xff000000;
-        video.updateFrame();
-        frameindex++;
+        this.video.updateFrame();
+        this.frameindex++;
         this.updateDebugViews();
       },
       onAudioSample: (left:number, right:number) => {
-        if (frameindex < 10)
-          audio.feedSample(0, 1); // avoid popping at powerup
+        if (this.frameindex < 10)
+          this.audio.feedSample(0, 1); // avoid popping at powerup
         else
-          audio.feedSample(left+right, 1);
+          this.audio.feedSample(left+right, 1);
       },
       onStatusUpdate: function(s) {
         console.log(s);
       },
       //TODO: onBatteryRamWrite
     });
-    //nes.ppu.clipToTvSize = false;
-    nes.stop = () => {
+    //this.nes.ppu.clipToTvSize = false;
+    this.nes.stop = () => {
       // TODO: trigger breakpoint
-      console.log(nes.cpu.toJSON());
-      throw new EmuHalt("CPU STOPPED @ PC $" + hex(nes.cpu.REG_PC));
+      console.log(this.nes.cpu.toJSON());
+      throw new EmuHalt("CPU STOPPED @ PC $" + hex(this.nes.cpu.REG_PC));
     };
     // insert debug hook
-    nes.cpu._emulate = nes.cpu.emulate;
-    nes.cpu.emulate = () => {
-      var cycles = nes.cpu._emulate();
+    this.nes.cpu._emulate = this.nes.cpu.emulate;
+    this.nes.cpu.emulate = () => {
+      var cycles = this.nes.cpu._emulate();
       this.evalDebugCondition();
       return cycles;
     }
-    timer = new AnimationTimer(60, this.nextFrame.bind(this));
+    this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // set keyboard map
-    setKeyboardFromMap(video, [], JSNES_KEYCODE_MAP, (o,key,code,flags) => {
+    setKeyboardFromMap(this.video, [], JSNES_KEYCODE_MAP, (o,key,code,flags) => {
       if (flags & KeyFlags.KeyDown)
-        nes.buttonDown(o.index+1, o.mask); // controller, button
+        this.nes.buttonDown(o.index+1, o.mask); // controller, button
       else if (flags & KeyFlags.KeyUp)
-        nes.buttonUp(o.index+1, o.mask); // controller, button
+        this.nes.buttonUp(o.index+1, o.mask); // controller, button
     });
     //var s = ''; nes.ppu.palTable.curTable.forEach((rgb) => { s += "0x"+hex(rgb,6)+", "; }); console.log(s);
   }
 
   advance(novideo : boolean) {
-    nes.frame();
+    this.nes.frame();
   }
 
   updateDebugViews() {
    // don't update if view is hidden
-   if (! $(ntvideo.canvas).is(":visible"))
+   if (! $(this.ntvideo.canvas).is(":visible"))
      return;
    var a = 0;
    var attraddr = 0;
-   var idata = ntvideo.getFrameData();
-   var baseTile = nes.ppu.regS === 0 ? 0 : 256;
+   var idata = this.ntvideo.getFrameData();
+   var baseTile = this.nes.ppu.regS === 0 ? 0 : 256;
    for (var row=0; row<60; row++) {
      for (var col=0; col<64; col++) {
        a = 0x2000 + (col&31) + ((row%30)*32);
        if (col >= 32) a += 0x400;
        if (row >= 30) a += 0x800;
-       var name = nes.ppu.mirroredLoad(a) + baseTile;
-       var t = nes.ppu.ptTile[name];
+       var name = this.nes.ppu.mirroredLoad(a) + baseTile;
+       var t = this.nes.ppu.ptTile[name];
        attraddr = (a & 0x2c00) | 0x3c0 | (a & 0x0C00) | ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
-       var attr = nes.ppu.mirroredLoad(attraddr);
+       var attr = this.nes.ppu.mirroredLoad(attraddr);
        var tag = name ^ (attr<<9) ^ 0x80000000;
-       if (tag != ntlastbuf[a & 0xfff]) {
-         ntlastbuf[a & 0xfff] = tag;
+       if (tag != this.ntlastbuf[a & 0xfff]) {
+         this.ntlastbuf[a & 0xfff] = tag;
          var i = row*64*8*8 + col*8;
          var j = 0;
          var attrshift = (col&2) + ((a&0x40)>>4);
@@ -165,7 +170,7 @@ const _JSNESPlatform = function(mainElement) {
            for (var x=0; x<8; x++) {
              var color = t.pix[j++];
              if (color) color += coloradd;
-             var rgb = nes.ppu.imgPalette[color];
+             var rgb = this.nes.ppu.imgPalette[color];
              idata[i++] = rgb | 0xff000000;
            }
            i += 64*8-8;
@@ -173,13 +178,13 @@ const _JSNESPlatform = function(mainElement) {
        }
      }
    }
-   ntvideo.updateFrame();
+   this.ntvideo.updateFrame();
   }
 
   loadROM(title, data) {
     var romstr = byteArrayToString(data);
-    nes.loadROM(romstr);
-    frameindex = 0;
+    this.nes.loadROM(romstr);
+    this.frameindex = 0;
   }
   newCodeAnalyzer() {
     return new CodeAnalyzer_nes(this);
@@ -190,42 +195,42 @@ const _JSNESPlatform = function(mainElement) {
   getDefaultExtension() { return ".c"; };
 
   reset() {
-    //nes.cpu.reset(); // doesn't work right, crashes
-    nes.cpu.requestIrq(nes.cpu.IRQ_RESET);
+    //this.nes.cpu.reset(); // doesn't work right, crashes
+    this.nes.cpu.requestIrq(this.nes.cpu.IRQ_RESET);
   }
   isRunning() {
-    return timer.isRunning();
+    return this.timer.isRunning();
   }
   pause() {
-    timer.stop();
-    audio.stop();
+    this.timer.stop();
+    this.audio.stop();
   }
   resume() {
-    timer.start();
-    audio.start();
+    this.timer.start();
+    this.audio.start();
   }
 
   runToVsync() {
-    var frame0 = frameindex;
-    this.runEval((c) => { return frameindex>frame0; });
+    var frame0 = this.frameindex;
+    this.runEval((c) => { return this.frameindex>frame0; });
   }
 
   getRasterScanline() : number {
-    return nes.ppu.scanline;
+    return this.nes.ppu.scanline;
   }
   readVRAMAddress(addr : number) : number {
-    return nes.ppu.vramMem[addr & 0x7fff];
+    return this.nes.ppu.vramMem[addr & 0x7fff];
   }
 
   getCPUState() {
-    var c = nes.cpu.toJSON();
+    var c = this.nes.cpu.toJSON();
     this.copy6502REGvars(c);
     return c;
   }
   // TODO don't need to save ROM?
   saveState() {
-    //var s = $.extend(true, {}, nes);
-    var s = nes.toJSON();
+    //var s = $.extend(true, {}, this.nes);
+    var s = this.nes.toJSON();
     s.c = s.cpu;
     this.copy6502REGvars(s.c);
     s.b = s.cpu.mem = s.cpu.mem.slice(0);
@@ -235,28 +240,28 @@ const _JSNESPlatform = function(mainElement) {
     return s;
   }
   loadState(state) {
-    nes.fromJSON(state);
-    //nes.cpu.fromJSON(state.cpu);
-    //nes.mmap.fromJSON(state.mmap);
-    //nes.ppu.fromJSON(state.ppu);
-    nes.cpu.mem = state.cpu.mem.slice(0);
-    nes.ppu.vramMem = state.ppu.vramMem.slice(0);
-    nes.ppu.spriteMem = state.ppu.spriteMem.slice(0);
+    this.nes.fromJSON(state);
+    //this.nes.cpu.fromJSON(state.cpu);
+    //this.nes.mmap.fromJSON(state.mmap);
+    //this.nes.ppu.fromJSON(state.ppu);
+    this.nes.cpu.mem = state.cpu.mem.slice(0);
+    this.nes.ppu.vramMem = state.ppu.vramMem.slice(0);
+    this.nes.ppu.spriteMem = state.ppu.spriteMem.slice(0);
     this.loadControlsState(state.ctrl);
-    //$.extend(nes, state);
+    //$.extend(this.nes, state);
   }
   saveControlsState() {
     return {
-      c1: nes.controllers[1].state.slice(0),
-      c2: nes.controllers[2].state.slice(0),
+      c1: this.nes.controllers[1].state.slice(0),
+      c2: this.nes.controllers[2].state.slice(0),
     };
   }
   loadControlsState(state) {
-    nes.controllers[1].state = state.c1;
-    nes.controllers[2].state = state.c2;
+    this.nes.controllers[1].state = state.c1;
+    this.nes.controllers[2].state = state.c2;
   }
   readAddress(addr) {
-    return nes.cpu.mem[addr] & 0xff;
+    return this.nes.cpu.mem[addr] & 0xff;
   }
   copy6502REGvars(c) {
     c.T = 0;
@@ -277,7 +282,7 @@ const _JSNESPlatform = function(mainElement) {
   }
 
   getDebugCategories() {
-    return super.getDebugCategories().concat(['PPU', 'Mapper']);
+    return super.getDebugCategories().concat(['PPU','Mapper']);
   }
   getDebugInfo(category, state) {
     switch (category) {
@@ -347,6 +352,9 @@ const _JSNESPlatform = function(mainElement) {
   mapperStateToLongString(mmap, mem) {
     //console.log(mmap, mem);
     var s = "";
+    if (this.nes.rom) {
+      s += "Mapper " + this.nes.rom.mapperType + "\n";
+    }
     if (mmap.irqCounter !== undefined) {
       s += "\nIRQ Counter: " + mmap.irqCounter;
       s += "\n  IRQ Latch: " + mmap.irqLatchValue;
@@ -358,8 +366,6 @@ const _JSNESPlatform = function(mainElement) {
     s += "\n";
     return s;
   }
- }
-  return new JSNESPlatform();
 }
 
 /// MAME support
@@ -384,8 +390,8 @@ class NESMAMEPlatform extends BaseMAMEPlatform implements Platform {
       });
     } else {
       // look at iNES header for PRG and CHR ROM lengths
-      var prgromlen = data[4] * 0x2000;
-      var chrromlen = data[5] * 0x1000;
+      var prgromlen = data[4] * 0x4000;
+      var chrromlen = data[5] * 0x2000;
       this.loadROMFile(data);
       this.loadRegion(":nes_slot:cart:prg_rom", data.slice(0x10, 0x10+prgromlen));
       this.loadRegion(":nes_slot:cart:chr_rom", data.slice(0x10+prgromlen, 0x10+prgromlen+chrromlen));
@@ -400,6 +406,6 @@ class NESMAMEPlatform extends BaseMAMEPlatform implements Platform {
 
 ///
 
-PLATFORMS['nes'] = _JSNESPlatform;
+PLATFORMS['nes'] = JSNESPlatform;
 PLATFORMS['nes.mame'] = NESMAMEPlatform;
 

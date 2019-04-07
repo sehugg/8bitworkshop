@@ -9,9 +9,10 @@
 ;;;;; OTHER VARIABLES
 
 	seg.u RAM
+; page-align to prevent messing up the timing        
 	org $300
-        
 LineXLo	ds 224
+	align $100
 LineXHi	ds 224
 
 ;;;;; NES CARTRIDGE HEADER
@@ -74,11 +75,11 @@ SetPalette: subroutine
 ; set sprite 0
 SetSprite0: subroutine
 	sta $200	;y
-        lda #1		;code
+        lda #$01	;code
         sta $201
-        lda #0		;flags
+        lda #$20	;flags
         sta $202
-        lda #8		;xpos
+        lda #$fe	;xpos
         sta $203
 	rts
 
@@ -90,7 +91,10 @@ SetSprite0: subroutine
 
 NMIHandler: subroutine
 	SAVE_REGS
-        lda #112
+        lda #0
+        sta PPU_SCROLL
+        sta PPU_SCROLL
+        lda #111
         jsr SetSprite0
 ; load sprites
 	lda #$02

@@ -535,7 +535,7 @@ export class Toolbar {
         icon = '<span class="glyphicon ' + icon + '" aria-hidden="true"></span>';
       }
       btn.html(icon);
-      btn.prop("title", alttext + " (" + key + ")");
+      btn.prop("title", key ? (alttext+" ("+key+")") : alttext);
       btn.click(fn);
       this.grp.append(btn);
     }

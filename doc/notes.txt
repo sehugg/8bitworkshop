@@ -116,6 +116,8 @@ TODO:
 - debug highlight doesn't go away when debugging -> running
 - replay doesn't work for nes (force background tile redraw)
 - running profiler while replaying? grand unified replay?
+- click on profiler to step to position
+  - breakpoints stop profiler from running
 
 WEB WORKER FORMAT
 

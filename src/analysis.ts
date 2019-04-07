@@ -106,12 +106,18 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
       constraints = null;
       // TODO: if jump to zero-page, maybe assume RTS?
       switch (meta.opcode) {
-        /*
-        case 0xb9: // TODO: hack for zero page,y
-          if (addr < 0x100)
-            meta.maxCycles -= 1;
+        case 0x19: case 0x1d:
+        case 0x39: case 0x3d:
+        case 0x59: case 0x5d:
+        case 0x79: case 0x7d:
+        case 0x99: case 0x9d:
+        case 0xa9: case 0xad:
+        case 0xb9: case 0xbd: case 0xbc: case 0xbe:
+        case 0xd9: case 0xdd:
+        case 0xf9: case 0xfd:
+          if (lob == 0)
+            meta.maxCycles -= 1; // no page boundary crossed
           break;
-        */
         // TODO: only VCS
         case 0x85:
           if (lob == 0x2) { // STA WSYNC

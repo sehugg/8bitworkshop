@@ -861,9 +861,10 @@ export class ProfileView implements ProjectView {
     var l = f.lines[row];
     if (!l) return;
     var lastsym = '';
-    for (var i=l.start; i<=l.end; i++) {
-      var pc = f.iptab[i];
-      var sym = this.symcache[pc];
+    var canDebug = platform.runToFrameClock;
+    for (let i=l.start; i<=l.end; i++) {
+      let pc = f.iptab[i];
+      let sym = this.symcache[pc];
       if (!sym) {
         sym = lookupSymbol(platform, pc, false);
         this.symcache[pc] = sym;
@@ -873,7 +874,13 @@ export class ProfileView implements ProjectView {
         if (sym.startsWith('_')) cls = "profiler-cident";
         else if (sym.startsWith('@')) cls = "profiler-local";
         else if (/^\d*[.]/.exec(sym)) cls = "profiler-local";
-        div.appendChild(createTextSpan(' '+sym, cls));
+        var span = createTextSpan(' '+sym, cls);
+        if (canDebug) {
+          $(span).click(() => {
+            platform.runToFrameClock(i);
+          });
+        }
+        div.appendChild(span);
         lastsym = sym;
       }
     }

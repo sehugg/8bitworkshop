@@ -85,6 +85,7 @@ export interface Platform {
   runUntilReturn?() : void;
   stepBack?() : void;
   runEval?(evalfunc : DebugEvalCondition) : void;
+  runToFrameClock?(clock : number) : void;
 
   getOpcodeMetadata?(opcode:number, offset:number) : OpcodeMetadata; //TODO
   getSP?() : number;
@@ -325,6 +326,16 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
         } else {
           return false;
         }
+      }
+    });
+  }
+  runToFrameClock?(clock : number) : void {
+    this.restartDebugging();
+    this.debugTargetClock = clock;
+    this.setDebugCondition( () => {
+      if (this.debugClock++ > this.debugTargetClock) {
+        this.breakpointHit(this.debugClock-1);
+        return true;
       }
     });
   }
@@ -678,12 +689,12 @@ export abstract class Base6809Platform extends BaseZ80Platform {
     return cpu;
   }
 
-	runUntilReturn() {
+  runUntilReturn() {
     var depth = 1;
     this.runEval((c:CpuState) => {
       if (depth <= 0)
         return true;
-			var op = this.readAddress(c.PC);
+      var op = this.readAddress(c.PC);
       // TODO: 6809 opcodes
       if (op == 0x9d || op == 0xad || op == 0xbd) // CALL
         depth++;
@@ -693,7 +704,7 @@ export abstract class Base6809Platform extends BaseZ80Platform {
     });
   }
 
-	cpuStateToLongString(c:CpuState) {
+  cpuStateToLongString(c:CpuState) {
     return cpuStateToLongString_6809(c);
   }
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {

@@ -742,6 +742,7 @@ function uiDebugCallback(state) {
   lastDebugState = state;
   showDebugInfo(state);
   projectWindows.refresh(true);
+  debugTickPaused = true;
 }
 
 function setupDebugCallback(btnid? : string) {
