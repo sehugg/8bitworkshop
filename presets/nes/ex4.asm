@@ -102,14 +102,14 @@ ScrollDirTab:
 	align $100
 Palette:
 	hex 1f		;background
-	hex 09090000	;bg0
-        hex 09090c00	;bg1
-        hex 09091c00	;bg2
-        hex 09092c00	;bg3
-        hex 14243400	;sp0
-        hex 15253500	;sp1
-        hex 16263600	;sp2
-        hex 17273700	;sp3
+	hex 01112100	;background 0
+        hex 02122200	;background 1
+        hex 02112100	;background 2
+        hex 01122200	;background 3
+        hex 19293900	;sprite 0
+        hex 1a2a3a00	;sprite 1
+        hex 1b2b3b00	;sprite 2
+        hex 1c2c3c00	;sprite 3
 
 ;;;;; CPU VECTORS
 

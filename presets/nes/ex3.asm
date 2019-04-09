@@ -132,14 +132,14 @@ NMIHandler:
 
 Palette:
 	hex 1f		;screen color
-	hex 09092c00	;background 0
-        hex 09091900	;background 1
-        hex 09091500	;background 2
-        hex 09092500	;background 3
-        hex 14243400	;sprite 0
-        hex 15253500	;sprite 1
-        hex 16263600	;sprite 2
-        hex 17273700	;sprite 3
+	hex 01112100	;background 0
+        hex 02122200	;background 1
+        hex 02112100	;background 2
+        hex 01122200	;background 3
+        hex 19293900	;sprite 0
+        hex 1a2a3a00	;sprite 1
+        hex 1b2b3b00	;sprite 2
+        hex 1c2c3c00	;sprite 3
 
 ;;;;; CPU VECTORS
 

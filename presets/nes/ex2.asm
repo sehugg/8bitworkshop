@@ -40,16 +40,20 @@ Start:
 ; fill video RAM
 FillVRAM: subroutine
 	PPU_SETADDR $2000
-	ldy #$10	; set $10 pages ($1000 bytes)
+	ldy #$8		; set $8 pages ($800 bytes)
 .loop:
-	tya		; Y -> A
-        ora #$40	; A = A OR $40
+	lda PageData,y	; A -> PageData[Y]
 	sta PPU_DATA	; A -> PPU data port
 	inx		; X = X + 1
 	bne .loop	; repeat until 256 bytes
 	dey		; Y = Y - 1
 	bne .loop	; repeat until Y is 0
         rts		; return to caller
+
+PageData:
+	hex 00
+	hex 42424242	; 'B'
+	hex 41414141	; 'A'
 
 ; set palette colors
 SetPalette: subroutine
@@ -97,10 +101,10 @@ NMIHandler:
 
 Palette:
 	hex 1f		;screen color
-	hex 09092c00	;background 0
-        hex 09091900	;background 1
-        hex 09091500	;background 2
-        hex 09092500	;background 3
+	hex 01112100	;background 0
+        hex 02122200	;background 1
+        hex 02112100	;background 2
+        hex 01122200	;background 3
 
 ;;;;; CPU VECTORS
 

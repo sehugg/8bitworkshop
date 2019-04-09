@@ -80,10 +80,10 @@ NMIHandler:
 
 Palette:
 	hex 1f		;screen color
-	hex 09092c00	;background 0
-        hex 09091900	;background 1
-        hex 09091500	;background 2
-        hex 09092500	;background 3
+	hex 01112100	;background 0
+        hex 02122200	;background 1
+        hex 02112100	;background 2
+        hex 01122200	;background 3
 
 ;;;;; CPU VECTORS
 

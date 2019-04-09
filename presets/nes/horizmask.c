@@ -42,7 +42,8 @@ void new_building() {
 }
 
 void update_nametable() {
-  word addr;
+  register word addr;
+  // a buffer drawn to the nametable vertically
   char buf[PLAYROWS];
   // divide x_scroll by 8
   // to get nametable X position
@@ -51,7 +52,6 @@ void update_nametable() {
     addr = NTADR_A(x, 4);
   else
     addr = NTADR_B(x&31, 4);
-  // create vertical slice
   // clear empty space
   memset(buf, 0, PLAYROWS-bldg_height);
   // draw a random star
@@ -91,9 +91,10 @@ void scroll_demo() {
       update_nametable();
     }
     // manually force vram update
+    // flush and clear VRAM buffer after NMI
     ppu_wait_nmi();
     flush_vram_update(updbuf);
-    vrambuf_end();
+    vrambuf_clear();
     // reset ppu address
     vram_adr(0x0);
     // set scroll register
