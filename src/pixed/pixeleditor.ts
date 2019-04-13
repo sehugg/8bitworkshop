@@ -8,7 +8,7 @@ export type UintArray = number[] | Uint8Array | Uint16Array | Uint32Array; //{[i
 
 // TODO: separate view/controller
 export interface EditorContext {
-  setCurrentEditor(div:JQuery, editing:JQuery) : void;
+  setCurrentEditor(div:JQuery, editing:JQuery, node:PixNode) : void;
   getPalettes(matchlen : number) : SelectablePalette[];
   getTilemaps(matchlen : number) : SelectableTilemap[];
 }
@@ -807,7 +807,7 @@ export class CharmapEditor extends PixNode {
     chooser.recreate(agrid, (index, viewer) => {
       var escale = Math.ceil(192 / this.fmt.w);
       var editview = this.createEditor(aeditor, viewer, escale);
-      this.context.setCurrentEditor(aeditor, $(viewer.canvas));
+      this.context.setCurrentEditor(aeditor, $(viewer.canvas), this);
       this.rgbimgs[index] = viewer.rgbdata;
     });
     // add palette selector

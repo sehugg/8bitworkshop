@@ -906,6 +906,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   maindiv : JQuery;
   cureditordiv : JQuery;
   cureditelem : JQuery;
+  cureditnode : pixed.PixNode;
   rootnodes : pixed.PixNode[];
   deferrednodes : pixed.PixNode[];
 
@@ -979,8 +980,16 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     });
     return result;
   }
+  
+  isEditing() {
+    return this.cureditordiv != null;
+  }
+  
+  getCurrentEditNode() {
+    return this.cureditnode;
+  }
 
-  setCurrentEditor(div : JQuery, editing : JQuery) {
+  setCurrentEditor(div:JQuery, editing:JQuery, node:pixed.PixNode) {
     const timeout = 250;
     if (this.cureditordiv != div) {
       if (this.cureditordiv) {
@@ -1002,6 +1011,10 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       this.cureditelem = editing;
       this.cureditelem.addClass('selected');
     }
+    while (node.left) {
+      node = node.left;
+    }
+    this.cureditnode = node;
   }
 
   scanFileTextForAssets(id : string, data : string) {
@@ -1055,6 +1068,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     return result;
   }
 
+  // TODO: move to pixeleditor.ts?
   addPaletteEditorViews(parentdiv:JQuery, pal2rgb:pixed.PaletteFormatToRGB, callback) {
     var adual = $('<div class="asset_dual"/>').appendTo(parentdiv);
     var aeditor = $('<div class="asset_editor"/>').hide(); // contains editor, when selected
@@ -1100,7 +1114,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
               callback(i, index);
               updateCell(cell, i);
             });
-            this.setCurrentEditor(aeditor, cell);
+            this.setCurrentEditor(aeditor, cell, pal2rgb);
           });
         });
       }
@@ -1139,9 +1153,19 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       });
   }
 
+  ensureFileDiv(fileid : string) : JQuery<HTMLElement> {
+    var divid = this.getFileDivId(fileid);
+    var body = $(document.getElementById(divid));
+    if (body.length === 0) {
+      var filediv = newDiv(this.maindiv, 'asset_file');
+      var header = newDiv(filediv, 'asset_file_header').text(fileid);
+      body = newDiv(filediv).attr('id',divid).addClass('disable-select');
+    }
+    return body;
+  }
+
   refreshAssetsInFile(fileid : string, data : FileData) : number {
     let nassets = 0;
-    let filediv = $('#'+this.getFileDivId(fileid)).empty();
     // TODO: check fmt w/h/etc limits
     // TODO: defer editor creation
     // TODO: only refresh when needed
@@ -1149,7 +1173,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       // is this a NES CHR?
       let node = new pixed.FileDataNode(projectWindows, fileid);
       const neschrfmt = {w:8,h:8,bpp:1,count:(data.length>>4),brev:true,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}; // TODO
-      this.addPixelEditor(filediv, node, neschrfmt);
+      this.addPixelEditor(this.ensureFileDiv(fileid), node, neschrfmt);
       this.registerAsset("charmap", node, true);
       nassets++;
     } else if (typeof data === 'string') {
@@ -1168,19 +1192,19 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
             node = node.addRight(new pixed.NESNametableConverter(this)); // TODO?
             node = node.addRight(new pixed.Palettizer(this, {w:8,h:8,bpp:4})); // TODO?
             const fmt = {w:8*32,h:8*30,count:1}; // TODO
-            node = node.addRight(new pixed.CharmapEditor(this, newDiv(filediv), fmt));
+            node = node.addRight(new pixed.CharmapEditor(this, newDiv(this.ensureFileDiv(fileid)), fmt));
             this.registerAsset("nametable", first, true);
             nassets++;
           }
           // is this a bitmap?
           else if (frag.fmt.w > 0 && frag.fmt.h > 0) {
-            this.addPixelEditor(filediv, node, frag.fmt);
+            this.addPixelEditor(this.ensureFileDiv(fileid), node, frag.fmt);
             this.registerAsset("charmap", first, true);
             nassets++;
           }
           // is this a palette?
           else if (frag.fmt.pal) {
-            this.addPaletteEditor(filediv, node, frag.fmt);
+            this.addPaletteEditor(this.ensureFileDiv(fileid), node, frag.fmt);
             this.registerAsset("palette", first, false);
             nassets++;
           }
@@ -1200,28 +1224,28 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
 // TODO: recreate editors when refreshing
 // TODO: look for changes, not moveCursor
   refresh(moveCursor : boolean) {
+    // clear and refresh all files/nodes?
     if (moveCursor) {
       this.maindiv.empty();
       this.clearAssets();
-      current_project.iterateFiles((id, data) => {
-        var divid = this.getFileDivId(id);
-        var filediv = newDiv(this.maindiv, 'asset_file');
-        var header = newDiv(filediv, 'asset_file_header').text(id);
-        var body = newDiv(filediv).attr('id',divid).addClass('disable-select');
+      current_project.iterateFiles((fileid, data) => {
         try {
-          var nassets = this.refreshAssetsInFile(id, data);
-          if (nassets == 0) filediv.hide();
+          var nassets = this.refreshAssetsInFile(fileid, data);
         } catch (e) {
           console.log(e);
-          filediv.text(e+""); // TODO: error msg?
+          this.ensureFileDiv(fileid).text(e+""); // TODO: error msg?
         }
       });
       console.log("Found " + this.rootnodes.length + " assets");
       this.deferrednodes.forEach((node) => { node.refreshRight(); });
       this.deferrednodes = [];
     } else {
+      // only refresh nodes if not actively editing
+      // since we could be in the middle of an operation that hasn't been committed
       for (var node of this.rootnodes) {
-        node.refreshRight();
+        if (node !== this.getCurrentEditNode()) {
+          node.refreshRight();
+        }
       }
     }
   }
