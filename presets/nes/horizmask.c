@@ -44,7 +44,7 @@ void new_building() {
 void update_nametable() {
   register word addr;
   // a buffer drawn to the nametable vertically
-  char buf[PLAYROWS];
+  char buf[32];
   // divide x_scroll by 8
   // to get nametable X position
   byte x = ((x_scroll >> 3)+32) & 63;
@@ -61,7 +61,7 @@ void update_nametable() {
   // draw rest of building
   memset(buf+PLAYROWS-bldg_height, bldg_char, bldg_height);
   // draw vertical slice in name table
-  vrambuf_put(addr ^ 0xc000, buf, sizeof(buf));
+  vrambuf_put(addr ^ 0xc000, buf, PLAYROWS);
   // every 4 columns, update attribute table
   if ((x & 3) == 1) {
     // compute attribute table address
@@ -90,16 +90,13 @@ void scroll_demo() {
     if ((x_scroll & 7) == 0) {
       update_nametable();
     }
-    // manually force vram update
-    // flush and clear VRAM buffer after NMI
+    // ensure VRAM buffer is cleared
     ppu_wait_nmi();
-    flush_vram_update(updbuf);
     vrambuf_clear();
-    // reset ppu address
-    vram_adr(0x0);
-    // set scroll register
-    // and increment x_scroll
-    split(x_scroll++, 0);
+    // split at x_scroll
+    split(x_scroll, 0);
+    // increment x_scroll
+    ++x_scroll;
   }
 }
 
@@ -142,13 +139,14 @@ void main(void) {
   
   // set sprite 0
   oam_clear();
-  oam_spr(1, 30, 0xa0, 1, 0);
+  oam_spr(1, 30, 0xa0, 0, 0);
   
   // clip left 8 pixels of screen
   ppu_mask(MASK_SPR|MASK_BG);
   
   // clear vram buffer
   vrambuf_clear();
+  set_vram_update(updbuf);
   
   // enable PPU rendering (turn on screen)
   ppu_on_all();

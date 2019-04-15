@@ -87,11 +87,11 @@ void setup_graphics() {
 #define NUM_ACTORS 16
 
 // actor x/y positions
-char actor_x[NUM_ACTORS];
-char actor_y[NUM_ACTORS];
-// actor x/y deltas per frame
-char actor_dx[NUM_ACTORS];
-char actor_dy[NUM_ACTORS];
+byte actor_x[NUM_ACTORS];
+byte actor_y[NUM_ACTORS];
+// actor x/y deltas per frame (signed)
+sbyte actor_dx[NUM_ACTORS];
+sbyte actor_dy[NUM_ACTORS];
 
 // main program
 void main() {
@@ -130,7 +130,10 @@ void main() {
     }
     // draw and move all actors
     for (i=0; i<NUM_ACTORS; i++) {
-      oam_id = oam_meta_spr(actor_x[i], actor_y[i], oam_id, playerRunSeq[i&15]);
+      byte runseq = actor_x[i] & 7;
+      if (actor_dx[i] >= 0)
+        runseq += 8;
+      oam_id = oam_meta_spr(actor_x[i], actor_y[i], oam_id, playerRunSeq[runseq]);
       actor_x[i] += actor_dx[i];
       actor_y[i] += actor_dy[i];
     }

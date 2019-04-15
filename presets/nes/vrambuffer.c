@@ -24,26 +24,25 @@ void scroll_demo() {
     // write message to string array
     sprintf(str, "%6x %6d", y, y);
     // write string array into VRAM buffer
+    // if buffer is full this will wait for next frame
     vrambuf_put(NTADR_A(2,y%30), str, 32);
-    // wait for next frame
-    // and flush VRAM buffer
-    vrambuf_flush();
-    // set scroll (shadow) registers
-    scroll(x, y);
     // update y variable
     y += dy;
     // change direction when hitting either edge of scroll area
     if (y >= 479) dy = -1;
     if (y == 0) dy = 1;
+    // set scroll (shadow) registers
+    scroll(x, y);
   }
 }
 
 // main function, run after console reset
 void main(void) {
   // set palette colors
-  pal_col(1,0x04);
-  pal_col(2,0x20);
-  pal_col(3,0x30);
+  pal_col(0,0x02);	// set screen to dark blue
+  pal_col(1,0x14);	// pink
+  pal_col(2,0x20);	// grey
+  pal_col(3,0x30);	// white
   
   // clear vram buffer
   vrambuf_clear();

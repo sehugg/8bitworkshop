@@ -87,11 +87,11 @@ void setup_graphics() {
 #define NUM_ACTORS 16
 
 // actor x/y positions
-char actor_x[NUM_ACTORS];
-char actor_y[NUM_ACTORS];
-// actor x/y deltas per frame
-char actor_dx[NUM_ACTORS];
-char actor_dy[NUM_ACTORS];
+byte actor_x[NUM_ACTORS];
+byte actor_y[NUM_ACTORS];
+// actor x/y deltas per frame (signed)
+sbyte actor_dx[NUM_ACTORS];
+sbyte actor_dy[NUM_ACTORS];
 
 // main program
 void main() {

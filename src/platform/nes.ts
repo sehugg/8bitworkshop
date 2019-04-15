@@ -21,7 +21,6 @@ const JSNES_PRESETS = [
   {id:'metasprites.c', name:'Metasprites'},
   {id:'flicker.c', name:'Flickering Sprites'},
   {id:'metacursor.c', name:'Controllers'},
-  {id:'metatrigger.c', name:'Trigger Mode + Vbright'},
   {id:'rletitle.c', name:'Title Screen RLE'},
   {id:'statusbar.c', name:'Split Status Bar'},
   {id:'horizmask.c', name:'Offscreen Scrolling'},
@@ -114,6 +113,7 @@ class JSNESPlatform extends Base6502Platform implements Platform {
       },
       //TODO: onBatteryRamWrite
     });
+    //this.nes.ppu.showSpr0Hit = true;
     //this.nes.ppu.clipToTvSize = false;
     this.nes.stop = () => {
       // TODO: trigger breakpoint

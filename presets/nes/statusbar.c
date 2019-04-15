@@ -19,14 +19,13 @@ void put_str(unsigned int adr, const char *str) {
 // function to scroll window up and down until end
 void scroll_demo() {
   int x = 0;   // x scroll position
-  int y = 0;   // y scroll position
-  int dx = 1;  // y scroll direction
+  int dx = 1;  // x scroll direction
   // infinite loop
   while (1) {
     // set scroll register
     // waits for NMI, which means no frame-skip?
     split(x, 0);
-    // update y variable
+    // update x variable
     x += dx;
     // change direction when hitting either edge of scroll area
     if (x >= 479) dx = -1;
@@ -64,7 +63,7 @@ void main(void) {
   
   // set sprite 0
   oam_clear();
-  oam_spr(1, 30, 0xa0, 1, 0);
+  oam_spr(1, 30, 0xa0, 0, 0);
 
   // enable PPU rendering (turn on screen)
   ppu_on_all();
