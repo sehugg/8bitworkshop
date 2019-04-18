@@ -36,6 +36,7 @@ const JSNES_PRESETS = [
   {id:'bankswitch.c', name:'Bank Switching'},
   {id:'irq.c', name:'IRQ Scanline Counter'},
   {id:'scrollrt.asm', name:'Line-by-line Scrolling (ASM)'},
+  {id:'xyscroll.asm', name:'XY Split Scrolling (ASM)'},
 ];
 
 /// JSNES

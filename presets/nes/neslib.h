@@ -172,6 +172,11 @@ void __fastcall__ scroll(unsigned int x, unsigned int y);
 // warning: only X scroll could be changed in this version
 void __fastcall__ split(unsigned int x, unsigned int y);
 
+// set scroll after screen split invoked by the sprite 0 hit
+// sets both X and Y, but timing might be iffy depending
+// on exact sprite 0 position
+void __fastcall__ splitxy(unsigned int x, unsigned int y);
+
 
 // select current chr bank for sprites, 0..1
 void __fastcall__ bank_spr(unsigned char n);

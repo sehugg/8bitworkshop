@@ -6,14 +6,14 @@
 	seg.u ZEROPAGE
 	org $0
 
+ScrollX	ds 1
+ScrollY	ds 1
+Temp	ds 1
+
 ;;;;; OTHER VARIABLES
 
 	seg.u RAM
-; page-align to prevent messing up the timing        
 	org $300
-LineXLo	ds 224
-	align $100
-LineXHi	ds 224
 
 ;;;;; NES CARTRIDGE HEADER
 
@@ -98,24 +98,35 @@ NMIHandler: subroutine
         bvs .wait0
 .wait1	bit PPU_STATUS
         bvc .wait1
-        ldy #0
-.loop
-; alter horiz. scroll position for each scanline
-	tya
-        sec
-	adc LineXLo,y
-        sta LineXLo,y
-        lda LineXHi,y
-        adc #0
-        sta LineXHi,y
-        sta PPU_SCROLL	; horiz byte
+; set XY scroll
+; compute first PPU_ADDR write
+	lda ScrollX
+        tax
+        lsr
+        lsr
+        lsr
+        sta Temp
+        lda ScrollY
+        tay
+        and #$f8
+        asl
+        asl
+        ora Temp
+        pha
+; set PPU_ADDR.1
         lda #0
-        sta PPU_SCROLL	; vert byte
-; pad out rest of scanline
-	SLEEP 72
-        iny
-        cpy #224
-        bne .loop
+        sta PPU_ADDR
+; set PPU_SCROLL.1
+        sty PPU_SCROLL
+; set PPU_SCROLL.2
+	stx PPU_SCROLL
+; set PPU_ADDR.2
+        pla
+        sta PPU_ADDR
+; modify scroll positions
+	inc ScrollX
+        inc ScrollY
+; restore registers and return
         RESTORE_REGS
 	rti
 
