@@ -9,12 +9,7 @@ import { SampleAudio } from "../audio";
 declare var jsnes : any;
 
 const JSNES_PRESETS = [
-  {id:'ex0.asm', name:'Initialization (ASM)'},
-  {id:'ex1.asm', name:'Hello World (ASM)'},
-  {id:'ex2.asm', name:'Scrolling Demo (ASM)'},
-  {id:'ex3.asm', name:'Sprite Demo (ASM)'},
-  {id:'ex4.asm', name:'Controller Demo (ASM)'},
-  {id:'hello.c', name:'Text'},
+  {id:'hello.c', name:'Hello World'},
   {id:'scroll.c', name:'Scrolling'},
   {id:'vrambuffer.c', name:'VRAM Buffer'},
   {id:'sprites.c', name:'Sprites'},
@@ -32,9 +27,14 @@ const JSNES_PRESETS = [
   {id:'shoot2.c', name:'Solarian Game'},
   {id:'climber.c', name:'Platform Game'},
   {id:'fami.c', name:'Famitone Demo'},
-  {id:'musicdemo.asm', name:'Famitone Demo (ASM)'},
   {id:'bankswitch.c', name:'Bank Switching'},
   {id:'irq.c', name:'IRQ Scanline Counter'},
+  {id:'ex0.asm', name:'Initialization (ASM)'},
+  {id:'ex1.asm', name:'Hello World (ASM)'},
+  {id:'ex2.asm', name:'Scrolling Demo (ASM)'},
+  {id:'ex3.asm', name:'Sprite Demo (ASM)'},
+  {id:'ex4.asm', name:'Controller Demo (ASM)'},
+  {id:'musicdemo.asm', name:'Famitone Demo (ASM)'},
   {id:'scrollrt.asm', name:'Line-by-line Scrolling (ASM)'},
   {id:'xyscroll.asm', name:'XY Split Scrolling (ASM)'},
 ];

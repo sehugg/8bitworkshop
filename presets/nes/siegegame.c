@@ -26,7 +26,7 @@ byte getchar(byte x, byte y) {
   word addr = NTADR_A(x,y);
   byte rd;
   // wait for VBLANK to start
-  ppu_wait_frame();
+  ppu_wait_nmi();
   // set vram address and read byte
   vram_adr(addr);
   vram_read(&rd, 1);
@@ -116,8 +116,8 @@ void init_game() {
   memset(players, 0, sizeof(players));
   players[0].head_attr = '1';
   players[1].head_attr = '2';
-  players[0].tail_attr = '#';
-  players[1].tail_attr = '*';
+  players[0].tail_attr = 0x06;
+  players[1].tail_attr = 0x07;
   frames_per_move = START_SPEED;
 }
 
@@ -167,7 +167,7 @@ byte ai_try_dir(Player* p, dir_t dir, byte shift) {
   dir &= 3;
   x = p->x + (DIR_X[dir] << shift);
   y = p->y + (DIR_Y[dir] << shift);
-  if (x < COLS && y < ROWS && getchar(x, y) == ' ') {
+  if (x < COLS && y < ROWS && getchar(x, y) == 0) {
     p->dir = dir;
     return 1;
   } else {
@@ -251,10 +251,11 @@ AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1), AE(1,1,1,1),AE(1,1,1,1),AE(1,1,
 
 /*{pal:"nes",layout:"nes"}*/
 const unsigned char Palette_Table[16]={ 
-  0x02,
-  0x31,0x31,0x31,0x00,
-  0x34,0x34,0x34,0x00,
-  0x39,0x39,0x39,0x00,
+  0x00,
+  0x01,0x28,0x31,0x00,
+  0x04,0x24,0x34,0x00,
+  0x09,0x29,0x39,0x00,
+  0x06,0x26,0x36
 };
 
 // put 8x8 grid of palette entries into the PPU
@@ -266,7 +267,7 @@ void setup_attrib_table() {
 void setup_palette() {
   int i;
   // only set palette entries 0-15 (background only)
-  for (i=0; i<15; i++)
+  for (i=0; i<16; i++)
     pal_col(i, Palette_Table[i] ^ attract);
 }
 

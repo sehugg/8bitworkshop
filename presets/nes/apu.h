@@ -40,8 +40,11 @@
   APU.pulse[channel].len_period_high = (((period)>>8)&7);\
   APU.pulse[channel].control = (duty) | (vol) | (PULSE_CONSTVOL|PULSE_ENVLOOP);
 
-#define APU_PULSE_CONTROL(channel,duty,decay)\
+#define APU_PULSE_SET_DECAY(channel,duty,decay)\
   APU.pulse[channel].control = (duty) | (decay);
+
+#define APU_PULSE_SET_VOLUME(channel,duty,vol)\
+  APU.pulse[channel].control = (duty) | (vol) | (PULSE_CONSTVOL|PULSE_ENVLOOP);
 
 #define APU_PULSE_SWEEP(channel,period,shift,up)\
   APU.pulse[channel].ramp = 0x80 | (period<<4) | (up?8:0) | shift;

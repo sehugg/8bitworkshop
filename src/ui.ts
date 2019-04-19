@@ -286,14 +286,19 @@ function getSkeletonFile(fileid:string, callback) {
   });
 }
 
+function checkEnteredFilename(fn : string) : boolean {
+  if (fn.indexOf(" ") >= 0) {
+    alert("No spaces in filenames, please.");
+    return false;
+  }
+  return true;
+}
+
 function _createNewFile(e) {
   // TODO: support spaces
   var filename = prompt("Create New File", "newfile" + platform.getDefaultExtension());
   if (filename && filename.trim().length > 0) {
-    if (filename.indexOf(" ") >= 0) {
-      alert("No spaces, please.");
-      return;
-    }
+    if (!checkEnteredFilename(filename)) return;
     if (filename.indexOf(".") < 0) {
       filename += platform.getDefaultExtension();
     }
@@ -526,6 +531,7 @@ function _renameFile(e) {
     var newfn = prompt("Rename '" + fn + "' to?", fn);
     var data = current_project.getFile(wnd.getPath());
     if (newfn && data && newfn.startsWith("local/")) {
+      if (!checkEnteredFilename(newfn)) return;
       store.removeItem(fn, () => {
         store.setItem(newfn, data, () => {
           alert("Renamed " + fn + " to " + newfn);
@@ -1028,6 +1034,7 @@ function addFileToProject(type, ext, linefn) {
   if (wnd && wnd.insertText) {
     var filename = prompt("Add "+type+" File to Project", "filename"+ext);
     if (filename && filename.trim().length > 0) {
+      if (!checkEnteredFilename(filename)) return;
       var path = "local/" + filename;
       var newline = "\n" + linefn(filename) + "\n";
       current_project.loadFiles([path], (err, result) => {

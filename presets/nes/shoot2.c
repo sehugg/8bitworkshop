@@ -626,9 +626,9 @@ void set_sounds() {
   byte enable = ENABLE_PULSE0|ENABLE_PULSE1|ENABLE_NOISE;
   // missile fire sound
   if (missiles[PLYRMISSILE].ypos != YOFFSCREEN) {
-    APU_PULSE_SUSTAIN(0, missiles[PLYRMISSILE].ypos ^ 0xff, DUTY_50, 6);
+    APU_PULSE_SUSTAIN(0, 255-missiles[PLYRMISSILE].ypos, DUTY_50, 6);
   } else {
-    APU_PULSE_CONTROL(0, DUTY_50, 1);
+    APU_PULSE_SET_VOLUME(0, DUTY_50, 0);
   }
   // enemy explosion sound
   if (player_exploding && player_exploding < 8) {
@@ -643,6 +643,7 @@ void set_sounds() {
       byte y = a->y >> 8;
       APU_TRIANGLE_SUSTAIN(0x100 | y);
       enable |= ENABLE_TRIANGLE;
+      break;
     }
   }
   APU_ENABLE(enable);
