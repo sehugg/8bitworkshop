@@ -625,10 +625,8 @@ var VerilogPlatform = function(mainElement, options) {
     }
     // restart audio
     this.restartAudio();
-    // destroy scope
     if (this.waveview) {
-      this.waveview.destroy();
-      this.waveview = null;
+      this.waveview.recreate();
     }
   }
   
