@@ -926,20 +926,19 @@ class PixEditor extends Viewer {
       dragcol = this.getPixel(pos.x, pos.y) == this.currgba ? this.palette[0] : this.currgba;
       this.setPixel(pos.x, pos.y, this.currgba);
       dragging = true;
-      // TODO: pixcanvas.setCapture();
+      $(document).mouseup( (e) => {
+        var pos = this.getPositionFromEvent(e);
+        this.setPixel(pos.x, pos.y, dragcol);
+        dragging = false;
+        this.commit();
+        $(document).off('mouseup');
+      });
     })
     .mousemove( (e) => {
       var pos = this.getPositionFromEvent(e);
       if (dragging) {
         this.setPixel(pos.x, pos.y, dragcol);
       }
-    })
-    .mouseup( (e) => {
-      var pos = this.getPositionFromEvent(e);
-      this.setPixel(pos.x, pos.y, dragcol);
-      dragging = false;
-      this.commit();
-      // TODO: pixcanvas.releaseCapture();
     });
     /*    
     Mousetrap.bind('ctrl+shift+h', this.flipX.bind(this));

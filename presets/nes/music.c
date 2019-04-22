@@ -33,9 +33,9 @@ const int note_table_tri[64] = {
 
 #define NOTE_TABLE note_table_49
 #define BASS_NOTE 36
+
 byte music_index = 0;
 byte cur_duration = 0;
-
 
 const byte music1[]; // music data -- see end of file
 const byte* music_ptr = music1;

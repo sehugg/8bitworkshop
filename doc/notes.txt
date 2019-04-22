@@ -29,8 +29,6 @@ TODO:
 - update Javatari version? (and others?)
 - unify versioning
 - disassembler for uploaded ROMs
-- verilog debugging/reloading makes it slow
-- remove FPS and play controls when Verilog scope paused
 - compile stuck when errors unchanged
 - sound mute?
 - $error updates source editor
@@ -46,19 +44,15 @@ TODO:
 - links to external tools in ide
 - error msg when #link doesn't work
 - figure out folders for projects for real
-- why loadState() on verilog kill perf?
 - click to break on raster position
 - restructure src/ folders
-- quantify verilog "graph iterations"
 - debug bankswitching for funky formats
 - spaces in filename don't parse code listing (DASM, maybe more)
 - 'undefined' for bitmap replacer
 - astrocade: run to cursor in hello world messes up emulation
 - requestInterrupt needs to be disabled after breakpoint?
-- verilog: when paused scope doesn't work
 - C/asm formatter
 - fix WebAudio (https://news.ycombinator.com/item?id=18066474)
-- share playable link w/ verilog?
 - allow download of JSASM output
 - update bootstrap
 - $readmemb/h
@@ -81,7 +75,6 @@ TODO:
 - markdown, verilog: can't share
 - https://www.crowdsupply.com/tinyfpga/tinyfpga-bx
 - HTTPS warning
-- Safari: scope doesn't show while CRT in use
 - recording video indicator
 - stego shareable images (http://pico-8.wikia.com/wiki/P8PNGFileFormat)
 - https://makecode.com/language?
@@ -107,7 +100,6 @@ TODO:
   - map editor
   - metasprites
   - throw errors when bad/no refs
-  - capture so we get mouseUp() out of frame
   - per-View keyboard shortcuts
   - parse labels
 - crt0.s compiled each time?
@@ -118,6 +110,18 @@ TODO:
 - running profiler while replaying? grand unified replay?
 - click on profiler to step to position
   - breakpoints stop profiler from running
+- https://remotestoragejs.readthedocs.io/en/latest/getting-started/how-to-add.html ?
+- Verilog
+  - larger scope range, better scrolling
+  - remove FPS and play controls when Verilog scope paused
+  - when paused scope doesn't work
+  - Safari: scope doesn't show while CRT in use
+  - verilog debugging/reloading makes it slow
+  - why loadState() on verilog kill perf?
+  - quantify verilog "graph iterations"
+  - toolbar overlaps scope 
+  - CPU debugging
+- disassemble more code around breakpoint
 
 WEB WORKER FORMAT
 

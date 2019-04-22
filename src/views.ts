@@ -325,9 +325,9 @@ export class SourceEditor implements ProjectView {
   }
 
   refreshDebugState(moveCursor:boolean) {
+    this.clearCurrentLine();
     var line = this.getActiveLine();
     if (line >= 0) {
-      this.clearCurrentLine();
       this.setCurrentLine(line, moveCursor);
       // TODO: switch to disasm?
     }
@@ -374,6 +374,8 @@ export class SourceEditor implements ProjectView {
 }
 
 ///
+
+const disasmWindow = 512; // disassemble this many bytes around cursor
 
 export class DisassemblerView implements ProjectView {
   disasmview;
@@ -455,7 +457,7 @@ export class DisassemblerView implements ProjectView {
       }
       return s;
     }
-    var text = disassemble(pc-96, pc) + disassemble(pc, pc+96);
+    var text = disassemble(pc-disasmWindow, pc) + disassemble(pc, pc+disasmWindow);
     this.disasmview.setValue(text);
     if (moveCursor) {
       this.disasmview.setCursor(selline, 0);
@@ -1183,9 +1185,10 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           let label = fileid; // TODO: label
           let node : pixed.PixNode = new pixed.TextDataNode(projectWindows, fileid, label, frag.start, frag.end);
           let first = node;
-          // rle-compressed?
+          // rle-compressed? TODO
           if (frag.fmt.comp == 'rletag') {
-            node = node.addRight(new pixed.Compressor());
+            //node = node.addRight(new pixed.Compressor());
+            continue;
           }
           // is this a nes nametable?
           if (frag.fmt.map == 'nesnt') {
