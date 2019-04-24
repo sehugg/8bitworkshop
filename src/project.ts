@@ -73,29 +73,34 @@ export class CodeProject {
   }
 
   parseIncludeDependencies(text:string):string[] {
-    var files = [];
-    var m;
+    let files = [];
+    let m;
     if (this.platform_id.startsWith('verilog')) {
       // include verilog includes
-      var re1 = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
+      let re1 = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
       while (m = re1.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
       // include .arch (json) statements
-      var re2 = /^\s*([.]arch)\s+(\w+)/gmi;
+      let re2 = /^\s*([.]arch)\s+(\w+)/gmi;
       while (m = re2.exec(text)) {
         this.pushAllFiles(files, m[2]+".json");
       }
       // include $readmem[bh] (TODO)
-      var re3 = /\b\$readmem[bh]\("(.+?)"/gmi;
+      let re3 = /\b\$readmem[bh]\("(.+?)"/gmi;
       while (m = re3.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
     } else {
       // for .asm -- [.]include "file"
       // for .c -- #include "file"
-      var re2 = /^\s*[.#]?(include|incbin)\s+"(.+?)"/gmi;
+      let re2 = /^\s*[.#]?(include|incbin)\s+"(.+?)"/gmi;
       while (m = re2.exec(text)) {
+        this.pushAllFiles(files, m[2]);
+      }
+      // for .c -- //#link "file" (or ;link or #link)
+      let re3 = /^\s*([;#]|[/][/][#])resource\s+"(.+?)"/gm;
+      while (m = re3.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
     }
@@ -103,13 +108,13 @@ export class CodeProject {
   }
 
   parseLinkDependencies(text:string):string[] {
-    var files = [];
-    var m;
+    let files = [];
+    let m;
     if (this.platform_id.startsWith('verilog')) {
       //
     } else {
       // for .c -- //#link "file" (or ;link or #link)
-      var re = /^\s*([;#]|[/][/][#])link\s+"(.+?)"/gm;
+      let re = /^\s*([;#]|[/][/][#])link\s+"(.+?)"/gm;
       while (m = re.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
@@ -118,14 +123,16 @@ export class CodeProject {
   }
 
   loadFileDependencies(text:string, callback:LoadFilesCallback) {
-    var includes = this.parseIncludeDependencies(text);
-    var linkfiles = this.parseLinkDependencies(text);
-    var allfiles = includes.concat(linkfiles);
+    let includes = this.parseIncludeDependencies(text);
+    let linkfiles = this.parseLinkDependencies(text);
+    let allfiles = includes.concat(linkfiles);
     this.loadFiles(allfiles, (err:string, result?:Dependency[]) => {
       // set 'link' property on files that are link dependencies (must match filename)
-      if (result)
-        for (var dep of result)
+      if (result) {
+        for (let dep of result) {
           dep.link = linkfiles.indexOf(dep.path) >= 0;
+        }
+      }
       callback(err, result);
     });
   }

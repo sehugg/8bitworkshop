@@ -320,8 +320,10 @@ export function isProbablyBinary(path:string, data?:number[] | Uint8Array) : boo
   // check extensions
   if (path) {
     path = path.toUpperCase();
-    if (path.endsWith('.CHR') || path.endsWith('.BIN'))
-      score++;
+    const BINEXTS = ['.CHR','.BIN','.PAL','.NAM','.RLE','.LZ4'];
+    for (var ext of BINEXTS) {
+      if (path.endsWith(ext)) score++;
+    }
   }
   // decode as UTF-8
   for (var i = 0; i < (data?data.length:0);) {

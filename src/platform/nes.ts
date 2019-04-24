@@ -19,7 +19,6 @@ const JSNES_PRESETS = [
   {id:'rletitle.c', name:'Title Screen RLE'},
   {id:'statusbar.c', name:'Split Status Bar'},
   {id:'horizmask.c', name:'Offscreen Scrolling'},
-  {id:'attributes.c', name:'Attribute Table + Pixels'},
   {id:'monobitmap.c', name:'Monochrome Bitmap'},
   {id:'aputest.c', name:'Sound Tester'},
   {id:'music.c', name:'Music Player'},

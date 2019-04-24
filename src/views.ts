@@ -1171,12 +1171,19 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     // TODO: check fmt w/h/etc limits
     // TODO: defer editor creation
     // TODO: only refresh when needed
-    if (fileid.endsWith('.chr') && data instanceof Uint8Array) {
+    if (platform_id.startsWith('nes') && fileid.endsWith('.chr') && data instanceof Uint8Array) {
       // is this a NES CHR?
       let node = new pixed.FileDataNode(projectWindows, fileid);
       const neschrfmt = {w:8,h:8,bpp:1,count:(data.length>>4),brev:true,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}; // TODO
       this.addPixelEditor(this.ensureFileDiv(fileid), node, neschrfmt);
       this.registerAsset("charmap", node, true);
+      nassets++;
+    } else if (platform_id.startsWith('nes') && fileid.endsWith('.pal') && data instanceof Uint8Array) {
+      // is this a NES PAL?
+      let node = new pixed.FileDataNode(projectWindows, fileid);
+      const nespalfmt = {pal:"nes",layout:"nes"};
+      this.addPaletteEditor(this.ensureFileDiv(fileid), node, nespalfmt);
+      this.registerAsset("palette", node, false);
       nassets++;
     } else if (typeof data === 'string') {
       let textfrags = this.scanFileTextForAssets(fileid, data);

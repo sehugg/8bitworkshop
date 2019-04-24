@@ -102,6 +102,7 @@ TODO:
   - throw errors when bad/no refs
   - per-View keyboard shortcuts
   - parse labels
+  - parse .incbin directives?
 - crt0.s compiled each time?
 - debug highlight doesn't go away when debugging -> running
   - show breakpoint of PC or highest address on stack
