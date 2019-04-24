@@ -199,6 +199,7 @@ var AtariColorVectorPlatform = function(mainElement) {
   var earom_offset, earom_data;
 
   this.__proto__ = new (Base6502Platform as any)();
+  //this.debugPCDelta = 0;
 
   this.getPresets = function() {
     return VECTOR_PRESETS;
@@ -235,6 +236,7 @@ var AtariColorVectorPlatform = function(mainElement) {
       write: newAddressDecoder([
         [0x0,    0x7ff,  0x7ff,  function(a,v) { cpuram.mem[a] = v; }],
         [0x2000, 0x27ff, 0x7ff,  function(a,v) { dvgram.mem[a] = v; }],
+        [0x2800, 0x5fff, 0x7fff, function(a,v) { vecrom[a - 0x2800] = v; }], // TODO: remove (it's ROM!)
         [0x6000, 0x67ff, 0xf,    function(a,v) { audio.pokey1.setRegister(a, v); }],
         [0x6800, 0x6fff, 0xf,    function(a,v) { audio.pokey2.setRegister(a, v); }],
         [0x8800, 0x8800, 0,      function(a,v) { /* LEDs, etc */ }],
@@ -286,7 +288,8 @@ var AtariColorVectorPlatform = function(mainElement) {
   }
 
   this.loadROM = function(title, data) {
-    rom = padBytes(data, 0x7000);
+    rom = data.slice(0, 0x7000);
+    vecrom = padBytes(data.slice(0x7000), 0x3800);
     this.reset();
   }
 
@@ -307,7 +310,9 @@ var AtariColorVectorPlatform = function(mainElement) {
   }
 
   this.loadState = function(state) {
+    this.unfixPC(state.c);
     cpu.loadState(state.c);
+    this.fixPC(state.c);
     cpuram.mem.set(state.b);
     dvgram.mem.set(state.db);
     switches.set(state.sw);
@@ -315,7 +320,7 @@ var AtariColorVectorPlatform = function(mainElement) {
   }
   this.saveState = function() {
     return {
-      c:cpu.saveState(),
+      c:this.getCPUState(),
       b:cpuram.mem.slice(0),
       db:dvgram.mem.slice(0),
       sw:switches.slice(0),
@@ -331,7 +336,7 @@ var AtariColorVectorPlatform = function(mainElement) {
     }
   }
   this.getCPUState = function() {
-    return cpu.saveState();
+    return this.fixPC(cpu.saveState());
   }
 }
 

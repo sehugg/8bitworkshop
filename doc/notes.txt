@@ -123,6 +123,7 @@ TODO:
   - toolbar overlaps scope 
   - CPU debugging
 - disassemble more code around breakpoint
+- single-stepping vector games makes screen fade
 
 WEB WORKER FORMAT
 

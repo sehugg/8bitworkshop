@@ -1,0 +1,21 @@
+
+
+#include <string.h>
+
+#include "vecops.h"
+//#link "vecops.c"
+
+void main() {
+  while (1) {
+    dvgreset();
+    CNTR();
+    VCTR(100,0,1);
+    VCTR(0,100,2);
+    VCTR(-100,0,3);
+    VCTR(0,-100,4);
+    CNTR();
+    HALT();
+    dvgstart();
+  }
+  main();
+}

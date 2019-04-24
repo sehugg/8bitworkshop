@@ -375,7 +375,7 @@ export class SourceEditor implements ProjectView {
 
 ///
 
-const disasmWindow = 512; // disassemble this many bytes around cursor
+const disasmWindow = 1024; // disassemble this many bytes around cursor
 
 export class DisassemblerView implements ProjectView {
   disasmview;

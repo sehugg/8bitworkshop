@@ -128,6 +128,17 @@ var PLATFORM_PARAMS = {
       {name:'DVG RAM',start:0xa000,size:0x4000,type:'ram'},
     ],
   },
+  'vector-ataricolor': { //TODO
+    define: '__VECTOR__',
+    cfgfile: 'vector-color.cfg',
+    libargs: ['crt0.o', 'sim6502.lib'],
+    extra_link_files: ['crt0.o', 'vector-color.cfg'],
+    extra_segments:[
+      {name:'Switches/POKEY I/O',start:0x7800,size:0x1000,type:'io'},
+      {name:'DVG I/O',start:0x8800,size:0x100,type:'io'},
+      {name:'EAROM',start:0x8900,size:0x100,type:'ram'},
+    ],
+  },
   'sound_williams-z80': {
     code_start: 0x0,
     rom_size: 0x4000,
@@ -497,6 +508,7 @@ function loadNative(modulename:string) {
 // mount the filesystem at /share
 function setupFS(FS, name:string) {
   var WORKERFS = FS.filesystems['WORKERFS'];
+  if (name === '65-vector') name = '65-sim6502'; // TODO
   if (!fsMeta[name]) throw "No filesystem for '" + name + "'";
   FS.mkdir('/share');
   FS.mount(WORKERFS, {
@@ -893,7 +905,6 @@ function assembleCA65(step:BuildStep) {
 function linkLD65(step:BuildStep) {
   loadNative("ld65");
   var params = step.params;
-  var platform = step.platform;
   gatherFiles(step);
   var binpath = "main";
   if (staleFiles(step, [binpath])) {
@@ -906,7 +917,7 @@ function linkLD65(step:BuildStep) {
       printErr:function(s) { errors.push({msg:s,line:0}); }
     });
     var FS = LD65['FS'];
-    setupFS(FS, '65-'+getRootBasePlatform(platform));
+    setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     populateExtraFiles(step, FS, params.extra_link_files);
     var libargs = params.libargs;
@@ -960,8 +971,8 @@ function linkLD65(step:BuildStep) {
         let seglast = symbolmap['__'+seg+'_LAST__'];
         if (segstart >= 0 && segsize > 0 && !seg.startsWith('PRG') && seg != 'RAM') { // TODO
           var type = null;
-          if (seg.startsWith('CODE') || seg == 'STARTUP' || seg == 'RODATA') type = 'rom';
-          else if (seg == 'ZP' || seg == 'RAM' || seg == 'DATA' || seg == 'BSS') type = 'ram';
+          if (seg.startsWith('CODE') || seg == 'STARTUP' || seg == 'RODATA' || seg.endsWith('ROM')) type = 'rom';
+          else if (seg == 'ZP' || seg == 'DATA' || seg == 'BSS' || seg.endsWith('RAM')) type = 'ram';
           segments.push({name:seg, start:segstart, size:segsize, last:seglast, type:type});
         }
       }
@@ -1894,6 +1905,8 @@ var TOOL_PRELOADFS = {
   'ca65-nes': '65-nes',
   'cc65-atari8': '65-atari8',
   'ca65-atari8': '65-atari8',
+  'cc65-vector': '65-sim6502',
+  'ca65-vector': '65-sim6502',
   'sdasz80': 'sdcc',
   'sdcc': 'sdcc',
   'sccz80': 'sccz80',

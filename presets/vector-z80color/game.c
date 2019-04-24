@@ -294,7 +294,7 @@ sbyte isin(byte x0) {
   byte x = x0;
   if (x0 & 0x40) x = 127-x;
   if (x0 & 0x80) {
-    return -sintbl[x+128];
+    return -sintbl[x-128];
   } else {
     return sintbl[x];
   }
