@@ -26,10 +26,10 @@ Start:
         lda #$1c	; $1C = light blue color
         sta PPU_DATA    ; $1C -> PPU data
 ; activate PPU graphics
-        lda #CTRL_NMI
-        sta PPU_CTRL	; enable NMI
         lda #MASK_COLOR
         sta PPU_MASK	; enable rendering
+        lda #CTRL_NMI
+        sta PPU_CTRL	; enable NMI
 .endless
 	jmp .endless	; endless loop
 

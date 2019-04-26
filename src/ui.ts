@@ -12,7 +12,7 @@ import { PLATFORMS, EmuHalt, Toolbar } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
-         byteArrayToUTF8, isProbablyBinary } from "./util";
+         byteArrayToUTF8, isProbablyBinary, getWithBinary } from "./util";
 import { StateRecorderImpl } from "./recorder";
 
 // external libs (TODO)
@@ -99,22 +99,6 @@ function setLastPreset(id:string) {
     localStorage.setItem("__lastplatform", platform_id);
     localStorage.setItem("__lastid_"+platform_id, id);
   }
-}
-
-// firefox doesn't do GET with binary files
-function getWithBinary(url:string, success:(text:FileData)=>void, datatype:'text'|'arraybuffer') {
-  var oReq = new XMLHttpRequest();
-  oReq.open("GET", url, true);
-  oReq.responseType = datatype;
-  oReq.onload = function (oEvent) {
-    if (oReq.status == 200)
-      success(oReq.response);
-    else if (oReq.status == 404)
-      success(null);
-    else
-      throw "Error " + oReq.status + " loading " + url;
-  }
-  oReq.send(null);
 }
 
 function initProject() {

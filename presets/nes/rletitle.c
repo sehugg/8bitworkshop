@@ -12,8 +12,6 @@ extern const byte climbr_title_rle[];
 
 // link title screen palette and RLE nametable
 //#link "climbr_title.s"
-
-
 void fade_in() {
   byte vb;
   for (vb=0; vb<=4; vb++) {

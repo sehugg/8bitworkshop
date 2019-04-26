@@ -5,6 +5,8 @@
 
 	seg.u ZEROPAGE
 	org $0
+        
+Ptr1		.word	; for temporary pointer storage
 
 TrackFrac	.byte	; fractional position along track
 Speed		.byte	; speed of car
@@ -24,9 +26,8 @@ ZOfs		.byte	; counter to draw striped center line
 Weather		.byte	; bitmask for weather
 Heading		.word	; sky scroll pos.
 
-XCenter		= 128
-NumRoadSegments = 28
-
+NumRoadScanlines = 112
+NumRoadSegments = 56
 ; Preprocessing result: X positions for all track segments 
 RoadX0		ds NumRoadSegments
 
@@ -43,7 +44,7 @@ InitialSpeed	equ 10	; starting speed
 
 ;;;;; NES CARTRIDGE HEADER
 
-	NES_HEADER 0,2,1,0 ; mapper 0, 2 PRGs, 1 CHR, horiz. mirror
+	NES_HEADER 0,2,1,1 ; mapper 0, 2 PRGs, 1 CHR, vert mirror
 
 ;;;;; START OF CODE
 
@@ -53,7 +54,6 @@ Start:
         jsr ClearRAM	; clear RAM
         jsr WaitSync	; wait for VSYNC (and PPU warmup)
 
-	jsr SetPalette	; set palette colors
         jsr FillVRAM	; set PPU video RAM
 
         jsr RoadSetup
@@ -63,10 +63,10 @@ Start:
         sta PPU_ADDR	; PPU addr = $0000
         sta PPU_SCROLL
         sta PPU_SCROLL  ; scroll = $0000
+        lda #MASK_BG|MASK_SPR|MASK_BG_CLIP
+        sta PPU_MASK 	; enable rendering (first!)
         lda #CTRL_NMI
         sta PPU_CTRL	; enable NMI
-        lda #MASK_BG|MASK_SPR
-        sta PPU_MASK 	; enable rendering
         
 .endless
 	jmp .endless	; endless loop
@@ -249,43 +249,43 @@ GenTrack subroutine
 
 ; fill video RAM
 FillVRAM: subroutine
-	txa
-	ldy #$20
-	sty PPU_ADDR
-	sta PPU_ADDR
-	ldy #$10
+	PPU_SETADDR $2000
+        lda #<RoadTables
+        sta Ptr1
+        lda #>RoadTables
+        sta Ptr1+1
+	ldx #8
+        ldy #0
 .loop:
+	lda (Ptr1),y
 	sta PPU_DATA
-        adc #7
-	inx
+        iny
 	bne .loop
-	dey
+        inc Ptr1+1
+	dex
 	bne .loop
         rts
 
 ; set palette colors
 SetPalette: subroutine
-        ldy #$00
-	lda #$3f
-	sta PPU_ADDR
-	sty PPU_ADDR
-	ldx #32
+	PPU_SETADDR $3f00
+        ldx #16
 .loop:
 	lda Palette,y
 	sta PPU_DATA
         iny
-	dex
+        dex
 	bne .loop
         rts
 
 ; set sprite 0
 SetSprite0: subroutine
-	sta $200	;y
-        lda #1		;code
+	sta $200	;ypos
+        lda #$00	;code
         sta $201
-        lda #0		;flags
+        lda #$20	;flags
         sta $202
-        lda #8		;xpos
+        lda #$fe	;xpos
         sta $203
 	rts
 
@@ -314,18 +314,26 @@ SetSprite0: subroutine
             ENDM
 
 NMIHandler: subroutine
+; save registers
 	SAVE_REGS
-; setup sky scroll
-	lda Heading+1
-        sta PPU_SCROLL
-        lda #0
-        sta PPU_SCROLL
-; load sprites
-        lda #112
+; cycle palette colors
+	lda TPos		; track position
+        lsr			; / 2
+        and #16			; now either 0 or 16
+        tay			; Y is palette offset
+	jsr SetPalette		; call SetPalette
+        PPU_SETADDR $2000	; reset PPU address
+; load sprite zero
+        lda #109
         jsr SetSprite0
 	lda #$02
         sta PPU_OAM_DMA
-; do road calc
+; setup sky scroll
+	lda Heading+1
+        sta PPU_SCROLL		; X scroll
+        lda #0
+        sta PPU_SCROLL		; Y scroll = 0
+; do road calculations
         jsr RoadPreSetup
         jsr PreprocessCurve
         jsr RoadPostFrame
@@ -337,30 +345,42 @@ NMIHandler: subroutine
 ; alter horiz. scroll position for each scanline
         ldy #0
 .loop
+; pad out rest of scanline
+        SLEEP 78
+; change scroll register
 	tya
-        lsr
-        lsr
+        lsr		; / 2
         tax
-	lda RoadX0,x
+	lda RoadX0,x	; get X offset of scanline
+        eor #$80	; + 128
         sta PPU_SCROLL	; horiz byte
         lda #0
-        sta PPU_SCROLL	; vert byte
-        SLEEP 84
+        sta PPU_SCROLL	; vert byte = 0
+; take extra cycle every 4th line
+	tya
+        and #3
+        bne .skipcyc
+.skipcyc
+; next loop iteration
         iny
-        cpy #112
-        bne .loop
+        cpy #NumRoadScanlines
+        bne .loop	; do next scanline
+; restore registers and return from interrupt
         RESTORE_REGS
 	rti
 
 ;;;;; CONSTANT DATA
 
-	align $100
+;;{pal:"nes",layout:"nes"};;
 Palette:
-	hex 1f		;background
-	hex 09092c00	;bg0
-        hex 09091900	;bg1
-        hex 09091500	;bg2
-        hex 09092500	;bg3
+	hex 0F3F06300F19063F0F1916063F180801
+	hex 0F30163F0F19163F0F1906160F180801
+;;
+RoadTables:
+	incbin "road/nametable.dat"
+	incbin "road/attribute.dat"
+	incbin "road/nametable1.dat"
+	incbin "road/attribute1.dat"
 
 ;;;;; CPU VECTORS
 
@@ -369,4 +389,4 @@ Palette:
 ;;;;; TILE SETS
 
 	org $10000
-	incbin "jroatch.chr"
+	incbin "road/road.chr"

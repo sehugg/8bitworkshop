@@ -29,10 +29,10 @@ Start:
         sta PPU_ADDR		;PPU addr = 0
         sta PPU_SCROLL
         sta PPU_SCROLL		;scroll = 0
-        lda #CTRL_NMI
-        sta PPU_CTRL	; enable NMI
         lda #MASK_BG|MASK_SPR
         sta PPU_MASK 	; enable rendering
+        lda #CTRL_NMI
+        sta PPU_CTRL	; enable NMI
 .endless
 	jmp .endless		;endless loop
 

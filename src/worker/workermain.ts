@@ -342,6 +342,15 @@ function populateEntry(fs, path:string, entry:FileEntry, options:BuildOptions) {
   var data = entry.data;
   if (options && options.processFn)
     data = options.processFn(data);
+  // create subfolders
+  var toks = path.split('/');
+  if (toks.length > 1) {
+    for (var i=0; i<toks.length-1; i++)
+      try {
+        fs.mkdir(toks[i]);
+      } catch (e) { }
+  }
+  // write file
   fs.writeFile(path, data, {encoding:entry.encoding});
   fs.utime(path, entry.ts, entry.ts);
   console.log("<<<", path, entry.data.length);

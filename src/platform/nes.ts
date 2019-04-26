@@ -16,6 +16,7 @@ const JSNES_PRESETS = [
   {id:'metasprites.c', name:'Metasprites'},
   {id:'flicker.c', name:'Flickering Sprites'},
   {id:'metacursor.c', name:'Controllers'},
+  {id:'tint.c', name:'Color Emphasis'},
   {id:'rletitle.c', name:'Title Screen RLE'},
   {id:'statusbar.c', name:'Split Status Bar'},
   {id:'horizmask.c', name:'Offscreen Scrolling'},
@@ -34,8 +35,9 @@ const JSNES_PRESETS = [
   {id:'ex3.asm', name:'Sprite Demo (ASM)'},
   {id:'ex4.asm', name:'Controller Demo (ASM)'},
   {id:'musicdemo.asm', name:'Famitone Demo (ASM)'},
-  {id:'scrollrt.asm', name:'Line-by-line Scrolling (ASM)'},
   {id:'xyscroll.asm', name:'XY Split Scrolling (ASM)'},
+  {id:'scrollrt.asm', name:'Line-by-line Scrolling (ASM)'},
+  {id:'road.asm', name:'3-D Road Demo (ASM)'},
 ];
 
 /// JSNES

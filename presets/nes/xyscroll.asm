@@ -34,10 +34,10 @@ Start:
         sta PPU_ADDR	; PPU addr = $0000
         sta PPU_SCROLL
         sta PPU_SCROLL  ; scroll = $0000
-        lda #CTRL_NMI
-        sta PPU_CTRL	; enable NMI
         lda #MASK_BG|MASK_SPR
         sta PPU_MASK 	; enable rendering
+        lda #CTRL_NMI
+        sta PPU_CTRL	; enable NMI
 .endless
 	jmp .endless	; endless loop
 
@@ -93,26 +93,26 @@ NMIHandler: subroutine
 ; load sprites
 	lda #$02
         sta PPU_OAM_DMA
-; wait for sprite 0
-.wait0	bit PPU_STATUS
-        bvs .wait0
-.wait1	bit PPU_STATUS
-        bvc .wait1
 ; set XY scroll
-; compute first PPU_ADDR write
+; compute second PPU_ADDR write
 	lda ScrollX
-        tax
+        tax		; ScrollX -> X
         lsr
         lsr
         lsr
         sta Temp
         lda ScrollY
-        tay
-        and #$f8
+        tay		; ScrollY -> Y
+        and #$38
         asl
         asl
-        ora Temp
-        pha
+        ora Temp	; (ScrollX >> 3) | ((ScrollY & 0x38) << 2)
+        pha		; push onto stack
+; wait for sprite 0
+.wait0	bit PPU_STATUS
+        bvs .wait0
+.wait1	bit PPU_STATUS
+        bvc .wait1
 ; set PPU_ADDR.1
         lda #0
         sta PPU_ADDR

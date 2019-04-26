@@ -5,6 +5,8 @@
 
 	seg.u ZEROPAGE
 	org $0
+        
+SkipY	ds 1
 
 ;;;;; OTHER VARIABLES
 
@@ -34,10 +36,10 @@ Start:
         sta PPU_ADDR	; PPU addr = $0000
         sta PPU_SCROLL
         sta PPU_SCROLL  ; scroll = $0000
-        lda #CTRL_NMI
-        sta PPU_CTRL	; enable NMI
         lda #MASK_BG|MASK_SPR
         sta PPU_MASK 	; enable rendering
+        lda #CTRL_NMI
+        sta PPU_CTRL	; enable NMI
 .endless
 	jmp .endless	; endless loop
 
@@ -69,7 +71,7 @@ SetPalette: subroutine
 ; set sprite 0
 SetSprite0: subroutine
 	sta $200	;y
-        lda #$01	;code
+        lda #$a0	;code
         sta $201
         lda #$20	;flags
         sta $202
@@ -100,6 +102,13 @@ NMIHandler: subroutine
         bvc .wait1
         ldy #0
 .loop
+; take out cycle every 4th line
+	tya
+        and #3
+        bne .skipcyc	; clks = 2/3/3/3
+.skipcyc
+; pad out rest of scanline
+	SLEEP 65
 ; alter horiz. scroll position for each scanline
 	tya
         sec
@@ -111,10 +120,9 @@ NMIHandler: subroutine
         sta PPU_SCROLL	; horiz byte
         lda #0
         sta PPU_SCROLL	; vert byte
-; pad out rest of scanline
-	SLEEP 72
+; next iteration of loop
         iny
-        cpy #224
+        cpy #112
         bne .loop
         RESTORE_REGS
 	rti

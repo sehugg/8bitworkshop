@@ -30,10 +30,10 @@ Start:
         sta PPU_SCROLL
         sta PPU_SCROLL  ; scroll = $0000
 ; activate PPU graphics
-        lda #CTRL_NMI
-        sta PPU_CTRL	; enable NMI
         lda #MASK_BG
         sta PPU_MASK 	; enable rendering
+        lda #CTRL_NMI
+        sta PPU_CTRL	; enable NMI
 .endless
 	jmp .endless	; endless loop
 

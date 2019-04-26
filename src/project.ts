@@ -1,7 +1,7 @@
 "use strict";
 
 import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult } from "./workertypes";
-import { getFilenameForPath, getFilenamePrefix, getFolderForPath, isProbablyBinary } from "./util";
+import { getFilenamePrefix, getFolderForPath, isProbablyBinary } from "./util";
 
 type BuildResultCallback = (result:WorkerResult) => void;
 type BuildStatusCallback = (busy:boolean) => void;
@@ -153,7 +153,7 @@ export class CodeProject {
     this.preloadWorker(this.mainpath);
     var msg = {updates:[], buildsteps:[]};
     // TODO: add preproc directive for __MAINFILE__
-    var mainfilename = getFilenameForPath(this.mainpath);
+    var mainfilename = this.stripLocalPath(this.mainpath);
     var maintext = this.getFile(this.mainpath);
     var depfiles = [];
     msg.updates.push({path:mainfilename, data:maintext});
@@ -177,10 +177,10 @@ export class CodeProject {
   // TODO: get local file as well as presets?
   loadFiles(paths:string[], callback:LoadFilesCallback) {
     var result : Dependency[] = [];
-    function addResult(path, data) {
+    var addResult = (path, data) => {
       result.push({
         path:path,
-        filename:getFilenameForPath(path),
+        filename:this.stripLocalPath(path),
         link:true,
         data:data
       });
@@ -319,12 +319,23 @@ export class CodeProject {
 
   // returns first listing in format [prefix].lst (TODO: could be better)
   getListingForFile(path) : CodeListing {
-    var fnprefix = getFilenamePrefix(getFilenameForPath(path));
+    var fnprefix = getFilenamePrefix(this.stripLocalPath(path));
     var listings = this.getListings();
     for (var lstfn in listings) {
       if (getFilenamePrefix(lstfn) == fnprefix) {
         return listings[lstfn];
       }
     }
+  }
+  
+  stripLocalPath(path : string) : string {
+    // TODO: strip main path as well
+    if (path.startsWith('local/')) {
+      path = path.substring(6);
+    }
+    if (path.startsWith('share/')) {
+      path = path.substring(6);
+    }
+    return path;
   }
 }

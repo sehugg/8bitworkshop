@@ -3,7 +3,7 @@ window['Javatari'].AUTO_START = false;
 
 import { PLATFORMS } from "./emu";
 import { Platform } from "./baseplatform";
-import { stringToByteArray } from "./util";
+import { stringToByteArray, getWithBinary } from "./util";
 
 export var platform_id : string;	// platform ID string
 export var platform : Platform;	// platform object
@@ -67,17 +67,37 @@ function addPageFocusHandlers() {
   });
 }
 
+function startROM(title, rom) {
+  if (!rom ) {
+    alert("No ROM found.");
+    return;
+  }
+  console.log(rom.length + ' bytes');
+  platform.loadROM(title, rom);
+  platform.resume();
+}
+
 function startPlatform(qs) {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
   platform.start();
   var title = qs['n'] || 'Game';
+  var rom : Uint8Array;
+  var romurl = qs['url'];
   var lzgvar = qs['r'];
-  var lzgrom = stringToByteArray(atob(lzgvar));
-  var rom = new lzgmini().decode(lzgrom);
-  console.log(rom.length + ' bytes');
-  platform.loadROM(title, rom);
-  platform.resume();
+  if (romurl) {
+    // load rom url remotely
+    console.log(romurl);
+    getWithBinary(romurl, (data) => {
+      startROM(title, data);
+    }, 'arraybuffer');
+    return true;
+  } else if (lzgvar) {
+    // decompress from lzg
+    var lzgrom = stringToByteArray(atob(lzgvar));
+    rom = new lzgmini().decode(lzgrom);
+  }
+  startROM(title, rom);
   return true;
 }
 

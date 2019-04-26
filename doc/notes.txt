@@ -103,6 +103,7 @@ TODO:
   - per-View keyboard shortcuts
   - parse labels
   - parse .incbin directives?
+  - can't replace in hex directives
 - crt0.s compiled each time?
 - debug highlight doesn't go away when debugging -> running
   - show breakpoint of PC or highest address on stack
@@ -124,6 +125,7 @@ TODO:
   - CPU debugging
 - disassemble more code around breakpoint
 - single-stepping vector games makes screen fade
+- break on stack overflow, bad op, bad access, etc
 
 WEB WORKER FORMAT
 
