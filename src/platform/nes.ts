@@ -92,8 +92,10 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     $(this.ntvideo.canvas).hide();
     this.ntlastbuf = new Uint32Array(0x1000);
     // toggle buttons (TODO)
+    /*
     $('<button>').text("Video").appendTo(debugbar).click(() => { $(this.video.canvas).toggle() });
     $('<button>').text("Nametable").appendTo(debugbar).click(() => { $(this.ntvideo.canvas).toggle() });
+    */
 
     var idata = this.video.getFrameData();
     this.nes = new jsnes.NES({

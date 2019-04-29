@@ -126,6 +126,9 @@ TODO:
 - disassemble more code around breakpoint
 - single-stepping vector games makes screen fade
 - break on stack overflow, bad op, bad access, etc
+- PPU/TIA register write visualization
+- nes debug view toolbar
+- vcs sound continues when paused
 
 WEB WORKER FORMAT
 
