@@ -32,14 +32,16 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
   </head>
   <body>
 
-    <nav class="navbar navbar-inverse navbar-fixed-top">
-      <div class="container">
+    <nav class="navbar navbar-inverse">
+      <div class="container-fluid">
         <div class="navbar-header">
-          <a class="navbar-brand" target="_new" href="https://twitter.com/8bitworkshop">@8bitworkshop</a>
-          <!-- <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> -->
-          <a class="navbar-brand" href="./blog/">Blog</a>
-          <a class="navbar-brand" href="#books" onclick="ga('send', 'event', 'books', 'click');">Books</a>
+          <a class="navbar-brand" href="#">8bitworkshop</a>
         </div>
+        <ul class="nav navbar-nav">
+          <li class="hidden-xs"><a href="#books">Books</a></li>
+          <li><a href="./blog">Blog</a></li>
+          <li><a target="_new" href="https://twitter.com/8bitworkshop">Twitter</a></li>
+        </ul>
         <div id="navbar" class="hidden-sm hidden-xs">
          <form class="navbar-form navbar-right">
            <a class="btn btn-default" href="redir.html?" role="button">Continue to 8bitworkshop IDE
@@ -53,7 +55,6 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
     <div class="jumbotron">
       <div class="container">
         <div class="col-md-6">
-        <br>
         <h1>Write 8-bit code in your browser.</h1>
           <p>
           Ever wanted to be an old-school game programmer?<br>

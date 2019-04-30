@@ -4,9 +4,11 @@ window['Javatari'].AUTO_START = false;
 import { PLATFORMS } from "./emu";
 import { Platform } from "./baseplatform";
 import { stringToByteArray, getWithBinary } from "./util";
+import { StateRecorderImpl } from "./recorder";
 
 export var platform_id : string;	// platform ID string
 export var platform : Platform;	// platform object
+export var stateRecorder : StateRecorderImpl;
 
 // external libs (TODO)
 declare var ga, lzgmini;
@@ -77,9 +79,20 @@ function startROM(title, rom) {
   platform.resume();
 }
 
+function enableRecording() {
+  stateRecorder = new StateRecorderImpl(platform);
+  stateRecorder.reset();
+  stateRecorder.checkpointInterval = 60*5; // every 5 sec
+  stateRecorder.maxCheckpoints = 360; // 30 minutes
+  platform.setRecorder(stateRecorder);
+}
+
 function startPlatform(qs) {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
+  if (qs['rec']) {
+    enableRecording();
+  }
   platform.start();
   var title = qs['n'] || 'Game';
   var rom : Uint8Array;
@@ -122,7 +135,42 @@ function loadScript(scriptfn, onload) {
 // start
 export function startEmbed() {
   installErrorHandler();
-  window.addEventListener("message", loadPlatform, false);
-  if (_qs['p']) loadPlatform(_qs);
+  if (_qs['p']) {
+    loadPlatform(_qs);
+  }
 }
 
+// iframe API
+
+window.addEventListener("message", receiveMessage, false);
+
+function receiveMessage(event) {
+  if (event.data) {
+    if (event.data.cmd == 'start' && !platform) {
+      loadPlatform(event);
+    }
+    else if (event.data.cmd == 'reset') {
+      platform.reset();
+      stateRecorder.reset();
+    }
+    else if (event.data.cmd == 'getReplay') {
+      var replay = {
+        frameCount: stateRecorder.frameCount,
+        checkpoints: stateRecorder.checkpoints,
+        framerecs: stateRecorder.framerecs,
+        checkpointInterval: stateRecorder.checkpointInterval,
+        maxCheckpoints: stateRecorder.maxCheckpoints,
+      }
+      event.source.postMessage({replay:replay}, event.origin);
+    }
+    else if (event.data.cmd == 'watchState') {
+      var watchfn = new Function('platform', 'state', event.data.fn);
+      stateRecorder.callbackNewCheckpoint = (state) => {
+        event.source.postMessage({state:watchfn(platform, state)}, event.origin);
+      }
+    }
+    else {
+      console.log("Unknown data.cmd: " + event.data.cmd);
+    }
+  }
+}

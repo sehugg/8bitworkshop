@@ -129,6 +129,8 @@ TODO:
 - PPU/TIA register write visualization
 - nes debug view toolbar
 - vcs sound continues when paused
+- upload multiple files/zip file to subdirectory
+  - allow "include graphics.asm" instead of "include project/graphics.asm"
 
 WEB WORKER FORMAT
 

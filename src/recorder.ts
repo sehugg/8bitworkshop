@@ -7,6 +7,7 @@ type FrameRec = {controls:EmuControlsState, seed:number};
 export class StateRecorderImpl implements EmuRecorder {
     checkpointInterval : number = 60;
     callbackStateChanged : () => void;
+    callbackNewCheckpoint : (state:EmuState) => void;
     maxCheckpoints : number = 120;
     
     platform : Platform;
@@ -60,6 +61,7 @@ export class StateRecorderImpl implements EmuRecorder {
     
     recordFrame(state : EmuState) {
         this.checkpoints.push(state);
+        if (this.callbackNewCheckpoint) this.callbackNewCheckpoint(state);
         // checkpoints full?
         if (this.checkpoints.length > this.maxCheckpoints) {
             this.checkpoints.shift(); // remove 1st checkpoint
@@ -103,5 +105,9 @@ export class StateRecorderImpl implements EmuRecorder {
         if (this.platform.loadControlsState)
             this.platform.loadControlsState(this.framerecs[frame].controls);
         setNoiseSeed(this.framerecs[frame].seed);
+    }
+    
+    getLastCheckpoint() : EmuState {
+        return this.checkpoints.length && this.checkpoints[this.checkpoints.length-1];
     }
 }

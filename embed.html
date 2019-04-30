@@ -9,7 +9,6 @@
   top:0;
   width:100%;
   height:100%;
-  background-color:#555;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,6 +75,10 @@ function require(modname) {
 <script src="lib/liblzg.js"></script>
 
 <script>
+// are we not in an iframe?
+if(self === top) {
+  document.body.style.backgroundColor = '#555';
+}
 startEmbed();
 </script>
 
