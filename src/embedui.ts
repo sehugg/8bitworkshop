@@ -11,7 +11,7 @@ export var platform : Platform;	// platform object
 export var stateRecorder : StateRecorderImpl;
 
 // external libs (TODO)
-declare var ga, lzgmini;
+declare var ga, lzgmini, GIF, saveAs;
 
 var _qs = (function (a) {
     if (!a || a.length == 0)
@@ -46,7 +46,7 @@ function uninstallErrorHandler() {
 
 function addPageFocusHandlers() {
   var hidden = false;
-  document.addEventListener("visibilitychange", function() {
+  document.addEventListener("visibilitychange", function(e) {
     if (document.visibilityState == 'hidden' && platform.isRunning()) {
       platform.pause();
       hidden = true;
@@ -85,15 +85,65 @@ function enableRecording() {
   stateRecorder.checkpointInterval = 60*5; // every 5 sec
   stateRecorder.maxCheckpoints = 360; // 30 minutes
   platform.setRecorder(stateRecorder);
+  console.log('start recording');
 }
+
+function findPrimaryCanvas() {
+  return $("#emulator").find('canvas');
+}
+
+function recordVideo(intervalMsec, maxFrames, callback) {
+ loadScript("gif.js/dist/gif.js", () => {
+  var canvas = findPrimaryCanvas()[0] as HTMLCanvasElement;
+  if (!canvas) {
+    alert("Could not find canvas element to record video!");
+    return;
+  }
+  var rotate = 0;
+  if (canvas.style && canvas.style.transform) {
+    if (canvas.style.transform.indexOf("rotate(-90deg)") >= 0)
+      rotate = -1;
+    else if (canvas.style.transform.indexOf("rotate(90deg)") >= 0)
+      rotate = 1;
+  }
+  var gif = new GIF({
+    workerScript: 'gif.js/dist/gif.worker.js',
+    workers: 4,
+    quality: 10,
+    rotate: rotate
+  });
+  gif.on('finished', function(blob) {
+    console.log('finished encoding GIF');
+    callback(blob);
+  });
+  intervalMsec = intervalMsec || 100;
+  maxFrames = maxFrames || 100;
+  var nframes = 0;
+  console.log("Recording video", canvas);
+  var f = () => {
+    if (nframes++ > maxFrames) {
+      console.log("Rendering video");
+      gif.render();
+    } else {
+      gif.addFrame(canvas, {delay: intervalMsec, copy: true});
+      setTimeout(f, intervalMsec);
+    }
+  };
+  f();
+ });
+}
+
 
 function startPlatform(qs) {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
-  if (qs['rec']) {
-    enableRecording();
-  }
   platform.start();
+  // start recorder when click on canvas (TODO?)
+  if (qs['rec']) {
+    findPrimaryCanvas().on('focus', () => {
+      if (!stateRecorder) { enableRecording(); }
+    });
+  }
   var title = qs['n'] || 'Game';
   var rom : Uint8Array;
   var romurl = qs['url'];
@@ -110,6 +160,7 @@ function startPlatform(qs) {
     var lzgrom = stringToByteArray(atob(lzgvar));
     rom = new lzgmini().decode(lzgrom);
   }
+  addPageFocusHandlers();
   startROM(title, rom);
   return true;
 }
@@ -146,14 +197,15 @@ window.addEventListener("message", receiveMessage, false);
 
 function receiveMessage(event) {
   if (event.data) {
-    if (event.data.cmd == 'start' && !platform) {
+    var cmd = event.data.cmd;
+    if (cmd == 'start' && !platform) {
       loadPlatform(event);
     }
-    else if (event.data.cmd == 'reset') {
+    else if (cmd == 'reset') {
       platform.reset();
       stateRecorder.reset();
     }
-    else if (event.data.cmd == 'getReplay') {
+    else if (cmd == 'getReplay') {
       var replay = {
         frameCount: stateRecorder.frameCount,
         checkpoints: stateRecorder.checkpoints,
@@ -161,16 +213,24 @@ function receiveMessage(event) {
         checkpointInterval: stateRecorder.checkpointInterval,
         maxCheckpoints: stateRecorder.maxCheckpoints,
       }
-      event.source.postMessage({replay:replay}, event.origin);
+      event.source.postMessage({ack:cmd, replay:replay}, event.origin);
     }
-    else if (event.data.cmd == 'watchState') {
+    else if (cmd == 'watchState') {
       var watchfn = new Function('platform', 'state', event.data.fn);
       stateRecorder.callbackNewCheckpoint = (state) => {
-        event.source.postMessage({state:watchfn(platform, state)}, event.origin);
+        event.source.postMessage({ack:cmd, state:watchfn(platform, state)}, event.origin);
       }
     }
+    else if (cmd == 'recordVideo') {
+      recordVideo(event.data.intervalMsec, event.data.maxFrames, function(blob) {
+        if (event.data.filename) {
+          saveAs(blob, event.data.filename);
+        }
+        event.source.postMessage({ack:cmd, gif:blob}, event.origin);
+      });
+    }
     else {
-      console.log("Unknown data.cmd: " + event.data.cmd);
+      console.log("Unknown data.cmd: " + cmd);
     }
   }
 }
