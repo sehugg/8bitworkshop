@@ -338,7 +338,7 @@ function handleFileUpload(files: File[]) {
           else {
             console.log("Uploaded " + path + " " + data.length + " bytes");
             if (index == 1)
-              qs['file'] = path;
+              qs['file'] = path; // TODO?
             uploadNextFile();
           }
         });
@@ -514,14 +514,15 @@ function _renameFile(e) {
     var fn = projectWindows.getActiveID();
     var newfn = prompt("Rename '" + fn + "' to?", fn);
     var data = current_project.getFile(wnd.getPath());
-    if (newfn && data && newfn.startsWith("local/")) {
+    if (newfn && data) {
       if (!checkEnteredFilename(newfn)) return;
       store.removeItem(fn, () => {
         store.setItem(newfn, data, () => {
           alert("Renamed " + fn + " to " + newfn);
           updateSelector();
-          // TODO: rebuild?
-          //gotoNewLocation();
+          if (fn == main_file_id) {
+            reloadPresetNamed(newfn);
+          }
         });
       });
     }
@@ -887,6 +888,14 @@ function updateDebugWindows() {
   setTimeout(updateDebugWindows, 200);
 }
 
+function setWaitDialog(b : boolean) {
+  if (b) {
+    $("#pleaseWaitModal").modal('show');
+  } else {
+    $("#pleaseWaitModal").modal('hide');
+  }
+}
+
 function _recordVideo() {
  loadScript("gif.js/dist/gif.js", () => {
   var canvas = $("#emulator").find("canvas")[0] as HTMLElement;
@@ -912,7 +921,7 @@ function _recordVideo() {
   //img.attr('src', 'https://articulate-heroes.s3.amazonaws.com/uploads/rte/kgrtehja_DancingBannana.gif');
   gif.on('finished', function(blob) {
     img.attr('src', URL.createObjectURL(blob));
-    $("#pleaseWaitModal").modal('hide');
+    setWaitDialog(false);
     _resume();
     $("#videoPreviewModal").modal('show');
   });
@@ -923,7 +932,7 @@ function _recordVideo() {
   var f = function() {
     if (nframes++ > maxFrames) {
       console.log("Rendering video");
-      $("#pleaseWaitModal").modal('show');
+      setWaitDialog(true);
       _pause();
       gif.render();
     } else {
@@ -1363,6 +1372,7 @@ function loadSharedGist(gistkey : string) {
       store.setItem('shared/'+filename, val.files[filename].content);
       if (!newid) newid = 'shared/'+filename;
     }
+    // TODO: wait for set?
     delete qs['gistkey'];
     reloadPresetNamed(newid);
   }).fail(function(err) {
@@ -1404,6 +1414,36 @@ export function setupSplits() {
   });
 }
 
+function loadImportedURL(url : string) {
+  // TODO: zip file?
+  setWaitDialog(true);
+  getWithBinary(url, (data) => {
+    if (data) {
+      var path = 'shared/' + getFilenameForPath(url);
+      // TODO: progress dialog
+      console.log("Importing " + data.length + " bytes as " + path);
+      store.getItem(path, (err, olddata) => {
+        setWaitDialog(false);
+        if (!olddata || confirm("Replace existing file '" + path + "'?")) {
+          store.setItem(path, data, (err, result) => {
+            if (err)
+              alert(err+"");
+            if (result != null) {
+              delete qs['importURL'];
+              qs['file'] = path;
+              replaceURLState();
+              loadAndStartPlatform();
+            }
+          });
+        }
+      });
+    } else {
+      alert("Could not load source code from URL: " + url);
+      setWaitDialog(false);
+    }
+  }, 'text');
+}
+
 // start
 export function startUI(loadplatform : boolean) {
   installErrorHandler();
@@ -1415,32 +1455,36 @@ export function startUI(loadplatform : boolean) {
   $("#item_platform_"+platform_id).addClass("dropdown-item-checked");
   setupSplits();
   // parse query string
-  // is this a share URL?
+  // is this a share URL? can't create store until we know platform_id...
   if (qs['gistkey']) {
     loadSharedGist(qs['gistkey']);
-  } else {
+  }
+  // otherwise, open IDE
+  else {
+    // create store for platform
     store = createNewPersistentStore(platform_id, null);
-    // reset file?
-    if (qs['file'] && qs['reset']) {
-      store.removeItem(qs['fileview'] || qs['file']);
-      qs['reset'] = '';
-      gotoNewLocation();
+    // is this an importURL?
+    if (qs['importURL']) {
+      loadImportedURL(qs['importURL']);
+      return;
+    }
+    // load and start platform object
+    if (loadplatform) {
+      loadAndStartPlatform();
     } else {
-      // load and start platform object
-      if (loadplatform) {
-        var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
-        loadScript(scriptfn, () => {
-          console.log("loaded platform", platform_id);
-          startPlatform();
-          showWelcomeMessage();
-          document.title = document.title + " [" + platform_id + "] - " + main_file_id;
-        }, () => {
-          alert('Platform "' + platform_id + '" not supported.');
-        });
-      } else {
-        startPlatform();
-        showWelcomeMessage();
-      }
+      startPlatform();
     }
   }
+}
+
+function loadAndStartPlatform() {
+  var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
+  loadScript(scriptfn, () => {
+    console.log("loaded platform", platform_id);
+    startPlatform();
+    showWelcomeMessage();
+    document.title = document.title + " [" + platform_id + "] - " + main_file_id;
+  }, () => {
+    alert('Platform "' + platform_id + '" not supported.');
+  });
 }

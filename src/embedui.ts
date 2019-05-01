@@ -116,8 +116,8 @@ function recordVideo(intervalMsec, maxFrames, callback) {
     console.log('finished encoding GIF');
     callback(blob);
   });
-  intervalMsec = intervalMsec || 100;
-  maxFrames = maxFrames || 100;
+  intervalMsec = intervalMsec || (100 + ((Math.random()*16)&15));
+  maxFrames = maxFrames || (100 + ((Math.random()*16)&15));
   var nframes = 0;
   console.log("Recording video", canvas);
   var f = () => {

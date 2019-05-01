@@ -131,6 +131,7 @@ TODO:
 - vcs sound continues when paused
 - upload multiple files/zip file to subdirectory
   - allow "include graphics.asm" instead of "include project/graphics.asm"
+- chrome looks blurry on vcs
 
 WEB WORKER FORMAT
 
