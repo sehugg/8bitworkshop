@@ -896,7 +896,9 @@ function setWaitDialog(b : boolean) {
   }
 }
 
+var recordingVideo = false;
 function _recordVideo() {
+  if (recordingVideo) return;
  loadScript("gif.js/dist/gif.js", () => {
   var canvas = $("#emulator").find("canvas")[0] as HTMLElement;
   if (!canvas) {
@@ -925,19 +927,23 @@ function _recordVideo() {
     _resume();
     $("#videoPreviewModal").modal('show');
   });
-  var intervalMsec = 17;
-  var maxFrames = 420;
+  var intervalMsec = 33;
+  var maxFrames = 200;
   var nframes = 0;
   console.log("Recording video", canvas);
+  $("#emulator").css('backgroundColor', '#cc3333');
   var f = function() {
     if (nframes++ > maxFrames) {
       console.log("Rendering video");
+      $("#emulator").css('backgroundColor', 'inherit');
       setWaitDialog(true);
       _pause();
       gif.render();
+      recordingVideo = false;
     } else {
       gif.addFrame(canvas, {delay: intervalMsec, copy: true});
       setTimeout(f, intervalMsec);
+      recordingVideo = true;
     }
   };
   f();
