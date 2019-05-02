@@ -1035,7 +1035,7 @@ export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], st
     // see if there's a JSR on the stack here
     // TODO: make work with roms and memory maps
     var addr = read(sp) + read(sp+1)*256;
-    var jsrofs = (jsrop == 0xcd) ? -3 : -2;
+    var jsrofs = -3;
     var opcode = read(addr + jsrofs); // might be out of bounds
     if (opcode == jsrop) { // JSR
       s += "\n$" + hex(sp) + ": ";
