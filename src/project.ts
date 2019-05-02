@@ -87,9 +87,9 @@ export class CodeProject {
         this.pushAllFiles(files, m[2]+".json");
       }
       // include $readmem[bh] (TODO)
-      let re3 = /\b\$readmem[bh]\("(.+?)"/gmi;
+      let re3 = /\$readmem[bh]\("(.+?)"/gmi;
       while (m = re3.exec(text)) {
-        this.pushAllFiles(files, m[2]);
+        this.pushAllFiles(files, m[1]);
       }
     } else {
       // for .asm -- [.]include "file"

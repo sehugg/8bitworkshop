@@ -120,6 +120,6 @@ describe('string functions', function() {
     assert.ok(util.isProbablyBinary('test.bin'));
     assert.ok(util.isProbablyBinary('test.chr'));
     assert.ok(!util.isProbablyBinary('test.txt'));
-    assert.ok(!util.isProbablyBinary('test.dat'));
+    assert.ok(util.isProbablyBinary('test.dat'));
   });
 });

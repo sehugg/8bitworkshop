@@ -54,8 +54,7 @@ TODO:
 - C/asm formatter
 - fix WebAudio (https://news.ycombinator.com/item?id=18066474)
 - allow download of JSASM output
-- update bootstrap
-- $readmemb/h
+- update bootstrap to 4.0
 - batariBasic: proper line numbers, debugging
 - granular control over time scrubbing, show CPU state
 - error showing replay div before rom starts
@@ -75,7 +74,6 @@ TODO:
 - markdown, verilog: can't share
 - https://www.crowdsupply.com/tinyfpga/tinyfpga-bx
 - HTTPS warning
-- recording video indicator
 - stego shareable images (http://pico-8.wikia.com/wiki/P8PNGFileFormat)
 - https://makecode.com/language?
 - open ROM from URL?
@@ -115,15 +113,15 @@ TODO:
 - https://remotestoragejs.readthedocs.io/en/latest/getting-started/how-to-add.html ?
 - Verilog
   - larger scope range, better scrolling
+  - make scope data wrap around range
   - remove FPS and play controls when Verilog scope paused
   - when paused scope doesn't work
-  - Safari: scope doesn't show while CRT in use
+  - Safari: scope doesn't show while CRT in use (sometimes Firefox too)
   - verilog debugging/reloading makes it slow
   - why loadState() on verilog kill perf?
   - quantify verilog "graph iterations"
-  - toolbar overlaps scope 
+  - toolbar overlaps scope
   - CPU debugging
-- disassemble more code around breakpoint
 - single-stepping vector games makes screen fade
 - break on stack overflow, bad op, bad access, etc
 - PPU/TIA register write visualization

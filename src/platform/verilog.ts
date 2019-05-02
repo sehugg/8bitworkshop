@@ -120,7 +120,11 @@ export function vl_stop(filename,lineno,hier) {
 export function VL_RAND_RESET_I(bits) { return 0 | Math.floor(Math.random() * (1<<bits)); }
 
 export function VL_RANDOM_I(bits) { return 0 | Math.floor(Math.random() * (1<<bits)); }
-  
+
+//export function VL_READMEM_Q(hex,width,depth,array_lsb,fnwords,filename,memp,start,end) {
+  //console.log(hex,width,depth,array_lsb,fnwords,filename,memp,start,end);
+//}
+
 // SIMULATOR BASE
 
 abstract class VerilatorBase {

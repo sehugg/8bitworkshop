@@ -1530,6 +1530,28 @@ function compileInlineASM(code:string, platform, options, errors, asmlines) {
   return code;
 }
 
+// convert $readmem(bh) to array assigns
+function compileReadmemStmts(code, errors) {
+  var re3 = /\$readmem([bh])\("(.+?)",\s*(\w+)\)/gmi;
+  return code.replace(re3, function(_s,type,path,mem,index) {
+    var datafile = getWorkFileAsString(path);
+    if (datafile) {
+      var lines = datafile.split('\n');
+      var out = '';
+      for (var i=0; i<lines.length; i++) {
+        var line = lines[i].trim();
+        if (line !== '') {
+          out += 'mem[' + i + ']=\'' + type + line + ';'
+        }
+      }
+      return out;
+    } else {
+      errors.push({line:0, msg:"Could not load $readmem file '"+path+'"'});
+      return "";
+    }
+  });
+}
+
 function compileVerilator(step:BuildStep) {
   loadNative("verilator_bin");
   loadGen("worker/verilator2js");
@@ -1554,7 +1576,9 @@ function compileVerilator(step:BuildStep) {
     populateFiles(step, FS, {
       mainFilePath:step.path,
       processFn:(code) => {
-        return compileInlineASM(code, platform, step, errors, asmlines);
+        code = compileReadmemStmts(code, errors);
+        code = compileInlineASM(code, platform, step, errors, asmlines);
+        return code;
       }
     });
     starttime();
