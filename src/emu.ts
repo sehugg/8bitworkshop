@@ -84,7 +84,7 @@ export class RasterVideo {
   arraybuf;
   buf8;
   datau32;
-  vcanvas;
+  vcanvas : JQuery;
   
   paddle_x = 255;
   paddle_y = 255;
@@ -132,17 +132,15 @@ export class RasterVideo {
       this.ctx.putImageData(this.imageData, 0, 0);
   }
 
-  setupMouseEvents(el? : HTMLElement) {
+  setupMouseEvents(el? : HTMLCanvasElement) {
     if (!el) el = this.canvas;
-		$(el).mousemove( (e) => {
-		  // TODO: get coords right
-		  var x = e.pageX - this.vcanvas.offset().left;
-		  var y = e.pageY - this.vcanvas.offset().top;
-      var new_x = Math.floor(x * 255 / this.vcanvas.width() - 20);
-      var new_y = Math.floor(y * 255 / this.vcanvas.height() - 20);
-			this.paddle_x = clamp(0, 255, new_x);
-			this.paddle_y = clamp(0, 255, new_y);
-		});
+    $(el).mousemove( (e) => {
+      var pos = getMousePos(el, e);
+      var new_x = Math.floor(pos.x * 255 / this.canvas.width);
+      var new_y = Math.floor(pos.y * 255 / this.canvas.height);
+      this.paddle_x = clamp(0, 255, new_x);
+      this.paddle_y = clamp(0, 255, new_y);
+    });
   };
 }
 
@@ -546,5 +544,17 @@ export class Toolbar {
     return btn;
   }
   
+}
+
+// https://stackoverflow.com/questions/17130395/real-mouse-position-in-canvas
+export function getMousePos(canvas : HTMLCanvasElement, evt) {
+  var rect = canvas.getBoundingClientRect(), // abs. size of element
+      scaleX = canvas.width / rect.width,    // relationship bitmap vs. element for X
+      scaleY = canvas.height / rect.height;  // relationship bitmap vs. element for Y
+
+  return {
+    x: (evt.clientX - rect.left) * scaleX,   // scale mouse coordinates after they have
+    y: (evt.clientY - rect.top) * scaleY     // been adjusted to be relative to element
+  }
 }
 

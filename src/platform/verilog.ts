@@ -1,10 +1,11 @@
 "use strict";
 
 import { Platform, BasePlatform } from "../baseplatform";
-import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
+import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos } from "../emu";
 import { SampleAudio } from "../audio";
 import { safe_extend, clamp } from "../util";
 import { WaveformView, WaveformProvider, WaveformMeta } from "../waveform";
+import { setFrameRateUI } from "../ui";
 
 declare var Split;
 
@@ -352,6 +353,23 @@ var VerilogPlatform = function(mainElement, options) {
     });
     // setup mouse events
     video.setupMouseEvents();
+    // setup mouse click
+    video.vcanvas.click( (e) => {
+      if (!gen) return; // must have created emulator
+      if (!e.ctrlKey) {
+        setFrameRateUI(60);
+        return; // ctrl key must be down
+      }
+      setFrameRateUI(1.0/2048);
+      var pos = getMousePos(video.canvas, e);
+      var new_y = Math.floor(pos.y);
+      var clock = 0;
+      while (framey != new_y || clock++ > 200000) {
+        this.setGenInputs();
+        this.updateVideoFrameCycles(1, true, false);
+        gen.__unreset();
+      }
+    });
   }
   
   resize() {
@@ -371,15 +389,18 @@ var VerilogPlatform = function(mainElement, options) {
     this.setGenInputs();
     var fps = this.getFrameRate();
     // darken the previous frame?
-    if (fps < 45) {
+    var sync = fps > 45;
+    if (!sync) {
       var mask = fps > 5 ? 0xe7ffffff : 0x7fdddddd;
       for (var i=0; i<idata.length; i++)
         idata[i] &= mask;
     }
     // paint into frame, synched with vsync if full speed
-    var sync = fps > 45;
     var trace = this.isScopeVisible();
     this.updateVideoFrameCycles(cyclesPerFrame * fps/60 + 1, sync, trace);
+    if (fps < 0.25) {
+      idata[frameidx] = -1;
+    }
     //this.restartDebugState();
     gen.__unreset();
     this.refreshVideoFrame();

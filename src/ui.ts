@@ -951,7 +951,7 @@ function _recordVideo() {
  //TODO? return true;
 }
 
-function setFrameRateUI(fps:number) {
+export function setFrameRateUI(fps:number) {
   platform.setFrameRate(fps);
   if (fps > 0.01)
     $("#fps_label").text(fps.toFixed(2));
