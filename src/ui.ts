@@ -101,6 +101,13 @@ function setLastPreset(id:string) {
   }
 }
 
+function unsetLastPreset() {
+  if (hasLocalStorage) {
+    delete qs['file'];
+    localStorage.removeItem("__lastid_"+platform_id);
+  }
+}
+
 function initProject() {
   current_project = new CodeProject(newWorker(), platform_id, platform, store);
   projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
@@ -337,8 +344,9 @@ function handleFileUpload(files: File[]) {
             alert("Error uploading " + path + ": " + err);
           else {
             console.log("Uploaded " + path + " " + data.length + " bytes");
-            if (index == 1)
+            if (index == 1) {
               qs['file'] = path; // TODO?
+            }
             uploadNextFile();
           }
         });
@@ -494,10 +502,14 @@ function _deleteFile(e) {
     if (fn.startsWith("local/")) {
       if (confirm("Delete '" + fn + "'?")) {
         store.removeItem(fn, () => {
-          alert("Deleted " + fn);
-          updateSelector();
-          // TODO: rebuild?
-          //gotoNewLocation();
+          // if we delete what is selected
+          if (qs['file'] == fn) {
+            unsetLastPreset();
+            gotoNewLocation();
+          } else {
+            updateSelector();
+            alert("Deleted " + fn);
+          }
         });
       }
     } else {
