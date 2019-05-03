@@ -1376,14 +1376,15 @@ function loadSharedGist(gistkey : string) {
     var filename;
     var newid;
     console.log("Fetched " + gistkey, val);
-    store = createNewPersistentStore(platform_id, null);
-    for (filename in val.files) {
-      store.setItem('shared/'+filename, val.files[filename].content);
-      if (!newid) newid = 'shared/'+filename;
-    }
-    // TODO: wait for set?
-    delete qs['gistkey'];
-    reloadPresetNamed(newid);
+    store = createNewPersistentStore(platform_id, (store) => {
+      for (filename in val.files) {
+        store.setItem('shared/'+filename, val.files[filename].content);
+        if (!newid) newid = 'shared/'+filename;
+      }
+      // TODO: wait for set?
+      delete qs['gistkey'];
+      reloadPresetNamed(newid);
+    });
   }).fail(function(err) {
     alert("Error loading share file: " + err.message);
   });
@@ -1471,18 +1472,19 @@ export function startUI(loadplatform : boolean) {
   // otherwise, open IDE
   else {
     // create store for platform
-    store = createNewPersistentStore(platform_id, null);
-    // is this an importURL?
-    if (qs['importURL']) {
-      loadImportedURL(qs['importURL']);
-      return;
-    }
-    // load and start platform object
-    if (loadplatform) {
-      loadAndStartPlatform();
-    } else {
-      startPlatform();
-    }
+    store = createNewPersistentStore(platform_id, (store) => {
+      // is this an importURL?
+      if (qs['importURL']) {
+        loadImportedURL(qs['importURL']);
+        return;
+      }
+      // load and start platform object
+      if (loadplatform) {
+        loadAndStartPlatform();
+      } else {
+        startPlatform();
+      }
+    });
   }
 }
 

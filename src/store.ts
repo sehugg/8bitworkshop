@@ -4,7 +4,7 @@
 //import * as localforage from "localforage";
 declare var localforage;
 
-var OldFileStore = function(storage, prefix:string) {
+var Ver2xFileStore = function(storage, prefix:string) {
   var self = this;
   this.saveFile = function(name, text) {
     storage.setItem(prefix + name, text);
@@ -31,12 +31,14 @@ var OldFileStore = function(storage, prefix:string) {
 }
 
 // copy localStorage to new driver
-function copyFromOldStorageFormat(platformid:string, newstore, conversioncallback:()=>void) {
+function copyFromVer2xStorageFormat(platformid:string, newstore, callback:(store)=>void) {
   var alreadyMigratedKey = "__migrated_" + platformid;
   //localStorage.removeItem(alreadyMigratedKey);
-  if (localStorage.getItem(alreadyMigratedKey))
+  if (localStorage.getItem(alreadyMigratedKey)) {
+    callback(newstore);
     return;
-  var oldstore = new OldFileStore(localStorage, platformid + '/');
+  }
+  var oldstore = new Ver2xFileStore(localStorage, platformid + '/');
   var keys = oldstore.getFiles('');
   // no files to convert?
   if (keys.length == 0) {
@@ -60,10 +62,7 @@ function copyFromOldStorageFormat(platformid:string, newstore, conversioncallbac
             console.log("Migrated " + len + " local files to new data store");
             if (len) {
               localStorage.setItem(alreadyMigratedKey, 'true');
-              if (conversioncallback)
-                conversioncallback();
-              else
-                window.location.reload();
+              callback(newstore);
             }
           });
         }
@@ -73,11 +72,11 @@ function copyFromOldStorageFormat(platformid:string, newstore, conversioncallbac
   migrateNext(); // start the conversion
 }
 
-export function createNewPersistentStore(platformid:string, callback:()=>void) {
+export function createNewPersistentStore(platformid:string, callback:(store)=>void) {
   var store = localforage.createInstance({
     name: "__" + platformid,
     version: 2.0
   });
-  copyFromOldStorageFormat(platformid, store, callback);
+  copyFromVer2xStorageFormat(platformid, store, callback);
   return store;
 }
