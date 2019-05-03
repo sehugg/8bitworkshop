@@ -598,10 +598,11 @@ function populateExamples(sel) {
       var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
       sel.append($("<option />").val(preset.id).text(name).attr('selected',(preset.id==main_file_id)?'selected':null));
     }
+    // don't create new entry if example not found
   });
 }
 
-function populateFiles(sel, category, prefix) {
+function populateFiles(sel:JQuery, category:string, prefix:string, callback:() => void) {
   store.keys(function(err, keys : string[]) {
     var foundSelected = false;
     var numFound = 0;
@@ -616,21 +617,24 @@ function populateFiles(sel, category, prefix) {
         if (key == main_file_id) foundSelected = true;
       }
     }
+    // create new entry if not found, but it matches our prefix
     if (!foundSelected && main_file_id && main_file_id.startsWith(prefix)) {
       var name = main_file_id.substring(prefix.length);
       var key = prefix + name;
       sel.append($("<option />").val(key).text(name).attr('selected','true'));
     }
+    if (callback) { callback(); }
   });
 }
 
 function updateSelector() {
   var sel = $("#preset_select").empty();
-  if (platform_id != 'base_z80') { // TODO
-    populateFiles(sel, "Local Files", "local/");
-    populateFiles(sel, "Shared", "shared/");
-  }
-  populateExamples(sel);
+  populateFiles(sel, "Local Files", "local/", () => {
+    populateFiles(sel, "Shared", "shared/", () => {
+      populateExamples(sel);
+      sel.css('visibility','visible');
+    });
+  });
   // set click handlers
   sel.off('change').change(function(e) {
     reloadPresetNamed($(this).val().toString());
