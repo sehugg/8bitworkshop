@@ -28,3 +28,6 @@
 [submodule "jsnes"]
 	path = jsnes
 	url = https://github.com/sehugg/jsnes
+[submodule "bootstrap-tourist"]
+	path = bootstrap-tourist
+	url = https://github.com/IGreatlyDislikeJavascript/bootstrap-tourist

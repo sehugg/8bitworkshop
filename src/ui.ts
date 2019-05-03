@@ -1258,7 +1258,6 @@ function showWelcomeMessage() {
       //storage:false,
       steps:steps
     });
-    tour.init();
     setTimeout(function() { tour.start(); }, 2000);
   }
 }
