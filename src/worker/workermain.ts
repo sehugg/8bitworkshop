@@ -834,31 +834,36 @@ function setupStdin(fs, code:string) {
     */
 function parseCA65Listing(code, symbols, params, dbg) {
   var segofs = 0;
-  // .dbg	line, "main.c", 1
-  var segLineMatch = /[.]segment\s+"(\w+)"/;
-  //var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+line,\s+\S+,\s+(\d+)/;
-  var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+line,\s+"([^"]+)", (\d+)/;
+  var offset = 0;
+  var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+(\w+), "([^"]+)", (.+)/;
+  var funcLineMatch = /"(\w+)", (\w+), "(\w+)"/;
   var insnLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+([0-9A-Fr ]*)\s*(.*)/;
   var lines = [];
   var linenum = 0;
+  // TODO: only does .c functions, not all .s files
   for (var line of code.split(re_crlf)) {
-    // TODO: not right when multiple .segment directives
-    var segm = segLineMatch.exec(line);
-    if (segm) {
-      var segname = segm[1];
-      var segsym = '__'+segname+'_RUN__';
-      segofs = parseInt(symbols[segsym] || params[segsym]) || 0;
-    }
     if (dbg) {
       var dbgm = dbgLineMatch.exec(line);
       if (dbgm && dbgm[1]) {
-        var offset = parseInt(dbgm[1], 16);
-        lines.push({
-          // TODO: sourcefile
-          line:parseInt(dbgm[5]),
-          offset:offset + segofs,
-          insns:null
-        });
+        var dbgtype = dbgm[4];
+        offset = parseInt(dbgm[1], 16);
+        if (dbgtype == 'line') {
+          lines.push({
+            // TODO: sourcefile
+            line:parseInt(dbgm[6]),
+            offset:offset + segofs,
+            insns:null
+          });
+        }
+        else if (dbgtype == 'func') {
+          var funcm = funcLineMatch.exec(dbgm[6]);
+          if (funcm) {
+            var funcofs = symbols[funcm[3]];
+            if (typeof funcofs === 'number') {
+              segofs = funcofs - offset;
+            }
+          }
+        }
       }
     } else {
       var linem = insnLineMatch.exec(line);
@@ -874,6 +879,16 @@ function parseCA65Listing(code, symbols, params, dbg) {
           });
           // take back one to honor the long .byte line
           if (linem[5].length == 0) linenum--;
+        } else {
+          var sym = linem[5];
+          if (sym && sym.endsWith(':')) {
+            sym = sym.substring(0, sym.length-1);
+            var symofs = symbols[sym];
+            if (typeof symofs === 'number') {
+              offset = parseInt(linem[1], 16);
+              segofs = symofs - offset;
+            }
+          }
         }
       }
     }

@@ -131,7 +131,6 @@ TODO:
 - upload multiple files/zip file to subdirectory
   - allow "include graphics.asm" instead of "include project/graphics.asm"
 - chrome looks blurry on vcs
-- debug source lines are out of whack when >1 code segment
 
 
 WEB WORKER FORMAT
