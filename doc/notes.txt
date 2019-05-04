@@ -81,6 +81,7 @@ TODO:
 - vcs: break on # of lines changed (maybe using getRasterPosition?)
 - profiler restarts when paused
 - it's pretty easy to add a new file named like a library file (bcd.c)
+  - or have neslib.h in a subdirectory...
 - put globals into view/controller objects
 - upload binary files doesn't do what's expected, changing pulldown and whatnot
 - chrome autostart audio: https://github.com/processing/p5.js-sound/issues/249
@@ -130,6 +131,8 @@ TODO:
 - upload multiple files/zip file to subdirectory
   - allow "include graphics.asm" instead of "include project/graphics.asm"
 - chrome looks blurry on vcs
+- debug source lines are out of whack when >1 code segment
+
 
 WEB WORKER FORMAT
 

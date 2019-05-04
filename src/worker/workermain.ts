@@ -386,7 +386,10 @@ function gatherFiles(step:BuildStep, options?:BuildOptions) {
     step.files = [path];
   }
   if (step.path && !step.prefix) {
-    step.prefix = step.path.split(/[./]/)[0]; // TODO
+    step.prefix = step.path;
+    var pos = step.prefix.lastIndexOf('.');
+    if (pos > 0)
+      step.prefix = step.prefix.substring(0, pos);
   }
   step.maxts = maxts;
   return maxts;
@@ -834,7 +837,7 @@ function parseCA65Listing(code, symbols, params, dbg) {
   // .dbg	line, "main.c", 1
   var segLineMatch = /[.]segment\s+"(\w+)"/;
   //var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+line,\s+\S+,\s+(\d+)/;
-  var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+line,\s+"(\w+[.]\w+)", (\d+)/;
+  var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+line,\s+"([^"]+)", (\d+)/;
   var insnLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+([0-9A-Fr ]*)\s*(.*)/;
   var lines = [];
   var linenum = 0;
@@ -937,7 +940,7 @@ function linkLD65(step:BuildStep) {
       '-D', '__EXEHDR__=0', // TODO
       '-C', cfgfile,
       '-Ln', 'main.vice',
-      //'--dbgfile', 'main.dbg',
+      //'--dbgfile', 'main.dbg', // TODO: get proper line numbers
       '-o', 'main', '-m', 'main.map'].concat(step.args, libargs);
     //console.log(args);
     execMain(step, LD65, args);
@@ -1082,6 +1085,7 @@ function compileCC65(step:BuildStep) {
       '-Oirs', // don't inline CodeSizeFactor 200? (no -Oi)
       '-Cl', // static locals
       '-I', '/share/include',
+      '-I', '.',
       '-D' + params.define,
       step.path]);
     if (errors.length)
