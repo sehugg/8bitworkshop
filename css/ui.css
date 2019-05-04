@@ -367,6 +367,7 @@ div.markdown th {
  padding:0.2em;
 }
 #sidebar {
+  overflow:auto;
 }
 #sidebar ul {
   list-style-type:none;
