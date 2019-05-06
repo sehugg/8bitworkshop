@@ -38,6 +38,7 @@ const JSNES_PRESETS = [
   {id:'xyscroll.asm', name:'XY Split Scrolling (ASM)'},
   {id:'scrollrt.asm', name:'Line-by-line Scrolling (ASM)'},
   {id:'road.asm', name:'3-D Road Demo (ASM)'},
+  {id:'chase/game.c', name:'Shiru\'s Chase Game'},
 ];
 
 /// JSNES

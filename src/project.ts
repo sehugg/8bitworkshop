@@ -2,6 +2,7 @@
 
 import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult } from "./workertypes";
 import { getFilenamePrefix, getFolderForPath, isProbablyBinary } from "./util";
+import { Platform } from "./baseplatform";
 
 type BuildResultCallback = (result:WorkerResult) => void;
 type BuildStatusCallback = (busy:boolean) => void;
@@ -20,8 +21,8 @@ export class CodeProject {
   callbackBuildStatus : BuildStatusCallback;
   worker : Worker;
   platform_id : string;
-  platform: any; // TODO: use type
-  store: any;
+  platform : Platform;
+  store : any;
   callbackGetRemote : GetRemoteCallback;
   mainPath : string;
   isCompiling : boolean = false;
@@ -329,12 +330,9 @@ export class CodeProject {
   }
   
   stripLocalPath(path : string) : string {
-    // TODO: strip main path as well
-    if (path.startsWith('local/')) {
-      path = path.substring(6);
-    }
-    if (path.startsWith('share/')) {
-      path = path.substring(6);
+    var folder = getFolderForPath(this.mainPath);
+    if (folder != '' && path.startsWith(folder)) {
+      path = path.substring(folder.length+1);
     }
     return path;
   }

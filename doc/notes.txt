@@ -131,6 +131,7 @@ TODO:
 - upload multiple files/zip file to subdirectory
   - allow "include graphics.asm" instead of "include project/graphics.asm"
 - chrome looks blurry on vcs
+- don't have to include bootstrap-tourist each time?
 
 
 WEB WORKER FORMAT
@@ -256,3 +257,13 @@ Assets come from:
 - structured data (palette, sprites, metasprites, levels, etc)
 - think about new comment format, platform-specific types
 
+
+Github Support
+
+Import
+Export
+Login
+Pull
+Push
+
+Git metadata kept in local storage

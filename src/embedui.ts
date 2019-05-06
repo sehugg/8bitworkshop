@@ -31,11 +31,8 @@ var _qs = (function (a) {
 function installErrorHandler() {
   if (typeof window.onerror == "object") {
       window.onerror = function (msgevent, url, line, col, error) {
-        ga('send', 'exception', {
-          'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
-          'exFatal': true
-        });
-        //alert(msgevent+"");
+        var msg = msgevent + " " + url + " " + " " + line + ":" + col + ", " + error;
+        $.get("/error?msg=" + encodeURIComponent(msg), "text");
       };
   }
 }

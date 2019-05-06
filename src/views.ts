@@ -1195,7 +1195,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           // rle-compressed? TODO
           if (frag.fmt.comp == 'rletag') {
             //node = node.addRight(new pixed.Compressor());
-            continue;
+            continue; // TODO
           }
           // is this a nes nametable?
           if (frag.fmt.map == 'nesnt') {

@@ -12,11 +12,11 @@ import { PLATFORMS, EmuHalt, Toolbar } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
-         byteArrayToUTF8, isProbablyBinary, getWithBinary } from "./util";
+         byteArrayToUTF8, isProbablyBinary, getWithBinary, stringToByteArray } from "./util";
 import { StateRecorderImpl } from "./recorder";
 
 // external libs (TODO)
-declare var ga, Tour, GIF, saveAs, JSZip, Mousetrap, Split;
+declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, GitHub;
 // in index.html
 declare var exports;
 
@@ -42,7 +42,6 @@ var userPaused : boolean;		// did user explicitly pause?
 
 var current_output : WorkerOutput;  // current ROM
 var current_preset_entry : Preset;	// current preset object (if selected)
-var main_file_id : string;	// main file ID
 var store;			// persistent store
 
 export var compparams;			// received build params from worker
@@ -89,9 +88,9 @@ var hasLocalStorage : boolean = function() {
 
 function getCurrentPresetTitle() : string {
   if (!current_preset_entry)
-    return main_file_id || "ROM";
+    return current_project.mainPath || "ROM";
   else
-    return current_preset_entry.title || current_preset_entry.name || main_file_id || "ROM";
+    return current_preset_entry.title || current_preset_entry.name || current_project.mainPath || "ROM";
 }
 
 function setLastPreset(id:string) {
@@ -149,7 +148,7 @@ function refreshWindowList() {
     ul.append(li);
     if (createfn) {
       projectWindows.setCreateFunc(id, createfn);
-      $(a).click(function(e) {
+      $(a).click( (e) => {
         projectWindows.createOrShow(id);
         ul.find('a').removeClass("dropdown-item-checked");
         ul.find(e.target).addClass("dropdown-item-checked");
@@ -172,11 +171,11 @@ function refreshWindowList() {
   }
 
   // add main file editor
-  addEditorItem(main_file_id);
+  addEditorItem(current_project.mainPath);
 
   // add other source files
-  current_project.iterateFiles(function(id, text) {
-    if (text && id != main_file_id)
+  current_project.iterateFiles( (id, text) => {
+    if (text && id != current_project.mainPath)
       addEditorItem(id);
   });
 
@@ -199,31 +198,31 @@ function refreshWindowList() {
   // add other tools
   separate = true;
   if (platform.disassemble) {
-    addWindowItem("#disasm", "Disassembly", function() {
+    addWindowItem("#disasm", "Disassembly", () => {
       return new Views.DisassemblerView();
     });
   }
   if (platform.readAddress) {
-    addWindowItem("#memory", "Memory Browser", function() {
+    addWindowItem("#memory", "Memory Browser", () => {
       return new Views.MemoryView();
     });
   }
   if (platform.readVRAMAddress) {
-    addWindowItem("#memvram", "VRAM Browser", function() {
+    addWindowItem("#memvram", "VRAM Browser", () => {
       return new Views.VRAMMemoryView();
     });
   }
   if (current_project.segments) {
-    addWindowItem("#memmap", "Memory Map", function() {
+    addWindowItem("#memmap", "Memory Map", () => {
       return new Views.MemoryMapView();
     });
   }
   if (platform.startProfiling && platform.runEval && platform.getRasterScanline) {
-    addWindowItem("#profiler", "Profiler", function() {
+    addWindowItem("#profiler", "Profiler", () => {
       return new Views.ProfileView();
     });
   }
-  addWindowItem('#asseteditor', 'Asset Editor', function() {
+  addWindowItem('#asseteditor', 'Asset Editor', () => {
     return new Views.AssetEditorView();
   });
 }
@@ -241,9 +240,8 @@ function loadProject(preset_id:string) {
     preset_id = current_preset_entry.id;
   }
   // set current file ID
-  main_file_id = preset_id;
-  setLastPreset(preset_id);
   current_project.mainPath = preset_id;
+  setLastPreset(preset_id);
   // load files from storage or web URLs
   current_project.loadFiles([preset_id], function(err, result) {
     if (err) {
@@ -271,7 +269,7 @@ function getSkeletonFile(fileid:string, callback) {
   $.get( "presets/"+platform_id+"/skeleton."+ext, function( text ) {
     callback(null, text);
   }, 'text')
-  .fail(function() {
+  .fail(() => {
     alert("Could not load skeleton for " + platform_id + "/" + ext + "; using blank file");
     callback(null, '\n');
   });
@@ -339,6 +337,7 @@ function handleFileUpload(files: File[]) {
           data = byteArrayToUTF8(data).replace('\r\n','\n'); // convert CRLF to LF
         }
         // store in local forage
+        // TODO: use projectWindows uploadFile()
         store.setItem(path, data, function(err, result) {
           if (err)
             alert("Error uploading " + path + ": " + err);
@@ -358,32 +357,110 @@ function handleFileUpload(files: File[]) {
 }
 
 function getCurrentMainFilename() : string {
-  return getFilenameForPath(main_file_id);
+  return getFilenameForPath(current_project.mainPath);
 }
 
 function getCurrentEditorFilename() : string {
   return getFilenameForPath(projectWindows.getActiveID());
 }
 
-function _shareFileAsGist(e) {
-  var gisturl_ta = $("#embedGistURL");
-  var shareurl_ta = $("#embedGistShareURL");
-  loadClipboardLibrary();
-  gisturl_ta.change(() => {
-    var gisturl = gisturl_ta.val() + '';
-    var pos = gisturl.lastIndexOf('/');
-    if (pos >= 0) {
-      var gistkey = gisturl.substring(pos+1);
-      var embed = {
-        platform: platform_id,
-        gistkey: gistkey
-      };
-      var linkqs = $.param(embed);
-      var fulllink = get8bitworkshopLink(linkqs, 'redir.html');
-      shareurl_ta.val(fulllink);
-    }
+// GITHUB stuff (TODO: move)
+
+function _importProjectFromGithub(e) {
+  var githuburl_ta = $("#importGithubURL");
+  var modal = $("#importGithubModal");
+  var btn = $("#importGithubButton");
+  modal.modal('show');
+  btn.off('click').on('click', () => {
+    importFromGithub(githuburl_ta.val());
   });
-  $("#embedGistModal").modal('show');
+}
+
+function _connectProjectToGithub(e) {
+  var githuburl_ta = $("#connectGithubURL");
+  var modal = $("#connectGithubModal");
+  var btn = $("#connectGithubButton");
+  modal.modal('show');
+  btn.off('click').on('click', () => {
+    connectToGithub(githuburl_ta.val());
+  });
+}
+
+function parseGithubURL(ghurl) {
+  var toks = ghurl.split('/');
+  console.log(toks)
+  if (toks.length < 5) return null;
+  if (toks[0] != 'https:') return null;
+  if (toks[2] != 'github.com') return null;
+  return {user:toks[3], repo:toks[4]};
+}
+
+function getGithubRepo(ghurl, callback) {
+  var urlparse = parseGithubURL(ghurl);
+  if (!urlparse) {
+    alert("Please enter a valid GitHub URL.");
+    return;
+  }
+  loadScript("lib/octokat.js", () => {
+    var github = new exports['Octokat']();
+    var prefix = 'shared/' + urlparse.user + '-' + urlparse.repo + '/';
+    var repo = github.repos(urlparse.user, urlparse.repo);
+    callback(github, repo, prefix);
+  });
+}
+
+function importFromGithub(ghurl) {
+  getGithubRepo(ghurl, (github, repo, prefix) => {
+    repo.commits('master').fetch().then( (sha) => {
+      repo.git.trees(sha.sha).fetch().then( (tree) => {
+        tree.tree.forEach( (item) => {
+          console.log(item);
+          if (item.type == 'blob') {
+            repo.git.blobs(item.sha).readBinary().then( (blob) => {
+              var path = prefix + item.path;
+              var size = item.size;
+              var isBinary = isProbablyBinary(blob);
+              var data = isBinary ? stringToByteArray(blob) : blob; //byteArrayToUTF8(blob);
+              // TODO projectWindows.updateFile(path, data);
+              store.setItem(path, data);
+              // TODO; wait for set?
+              console.log(path, size, isBinary, typeof blob);
+              // TODO: redirect to main file?
+            });
+          }
+        });
+      });
+    });
+  });
+}
+
+function connectToGithub(ghurl) {
+  getGithubRepo(ghurl, (github, repo, prefix) => {
+    // TODO
+  });
+}
+
+function loadSharedGist(gistkey : string) {
+ loadScript("lib/octokat.js", () => {
+  var github = new exports['Octokat']();
+  var gist = github.gists(gistkey);
+  gist.fetch().done( (val) => {
+    var filename;
+    var newid;
+    console.log("Fetched " + gistkey, val);
+    store = createNewPersistentStore(platform_id, (store) => {
+      for (filename in val.files) {
+        store.setItem('shared/'+filename, val.files[filename].content);
+        if (!newid) newid = 'shared/'+filename;
+      }
+      // TODO: wait for set?
+      delete qs['gistkey'];
+      reloadPresetNamed(newid);
+    });
+  }).fail(function(err) {
+    alert("Error loading share file: " + err.message);
+  });
+ });
 }
 
 function _shareEmbedLink(e) {
@@ -403,7 +480,7 @@ function _shareEmbedLink(e) {
     var lzgb64 = btoa(byteArrayToString(lzgrom));
     var embed = {
       p: platform_id,
-      //n: main_file_id,
+      //n: current_project.mainPath,
       r: lzgb64
     };
     var linkqs = $.param(embed);
@@ -486,7 +563,7 @@ function _revertFile(e) {
         wnd.setText(text);
       }
     }, 'text')
-    .fail(function() {
+    .fail(() => {
       // TODO: delete file
       alert("Can only revert built-in files.");
     });
@@ -499,7 +576,7 @@ function _deleteFile(e) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.getPath) {
     var fn = projectWindows.getActiveID();
-    if (fn.startsWith("local/")) {
+    if (fn.startsWith("local/") || fn.startsWith("shared/")) {
       if (confirm("Delete '" + fn + "'?")) {
         store.removeItem(fn, () => {
           // if we delete what is selected
@@ -532,7 +609,7 @@ function _renameFile(e) {
         store.setItem(newfn, data, () => {
           alert("Renamed " + fn + " to " + newfn);
           updateSelector();
-          if (fn == main_file_id) {
+          if (fn == current_project.mainPath) {
             reloadPresetNamed(newfn);
           }
         });
@@ -608,7 +685,7 @@ function populateExamples(sel) {
     for (var i=0; i<PRESETS.length; i++) {
       var preset = PRESETS[i];
       var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
-      sel.append($("<option />").val(preset.id).text(name).attr('selected',(preset.id==main_file_id)?'selected':null));
+      sel.append($("<option />").val(preset.id).text(name).attr('selected',(preset.id==current_project.mainPath)?'selected':null));
     }
     // don't create new entry if example not found
   });
@@ -625,13 +702,13 @@ function populateFiles(sel:JQuery, category:string, prefix:string, callback:() =
         if (numFound++ == 0)
           sel.append($("<option />").text("------- " + category + " -------").attr('disabled','true'));
         var name = key.substring(prefix.length);
-        sel.append($("<option />").val(key).text(name).attr('selected',(key==main_file_id)?'selected':null));
-        if (key == main_file_id) foundSelected = true;
+        sel.append($("<option />").val(key).text(name).attr('selected',(key==current_project.mainPath)?'selected':null));
+        if (key == current_project.mainPath) foundSelected = true;
       }
     }
     // create new entry if not found, but it matches our prefix
-    if (!foundSelected && main_file_id && main_file_id.startsWith(prefix)) {
-      var name = main_file_id.substring(prefix.length);
+    if (!foundSelected && current_project.mainPath && current_project.mainPath.startsWith(prefix)) {
+      var name = current_project.mainPath.substring(prefix.length);
       var key = prefix + name;
       sel.append($("<option />").val(key).text(name).attr('selected','true'));
     }
@@ -936,7 +1013,6 @@ function _recordVideo() {
     rotate: rotate
   });
   var img = $('#videoPreviewImage');
-  //img.attr('src', 'https://articulate-heroes.s3.amazonaws.com/uploads/rte/kgrtehja_DancingBannana.gif');
   gif.on('finished', function(blob) {
     img.attr('src', URL.createObjectURL(blob));
     setWaitDialog(false);
@@ -948,7 +1024,7 @@ function _recordVideo() {
   var nframes = 0;
   console.log("Recording video", canvas);
   $("#emulator").css('backgroundColor', '#cc3333');
-  var f = function() {
+  var f = () => {
     if (nframes++ > maxFrames) {
       console.log("Rendering video");
       $("#emulator").css('backgroundColor', 'inherit');
@@ -1039,7 +1115,7 @@ function _toggleRecording() {
 
 function _lookupHelp() {
   if (platform.showHelp) {
-    let tool = platform.getToolForFilename(main_file_id);
+    let tool = platform.getToolForFilename(current_project.mainPath);
     platform.showHelp(tool); // TODO: tool, identifier
   }
 }
@@ -1121,7 +1197,8 @@ function setupDebugControls() {
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);
-  $("#item_share_github").click(_shareFileAsGist);
+  $("#item_github_import").click(_importProjectFromGithub);
+  $("#item_github_connect").click(_connectProjectToGithub);
   $("#item_share_file").click(_shareEmbedLink);
   $("#item_reset_file").click(_revertFile);
   $("#item_rename_file").click(_renameFile);
@@ -1274,7 +1351,7 @@ function showWelcomeMessage() {
       //storage:false,
       steps:steps
     });
-    setTimeout(function() { tour.start(); }, 2000);
+    setTimeout(() => { tour.start(); }, 2000);
   }
 }
 
@@ -1305,10 +1382,8 @@ function installErrorHandler() {
           uiDebugCallback(platform.saveState());
           setDebugButtonState("pause", "stopped"); // TODO?
         } else {
-          ga('send', 'exception', {
-            'exDescription': msgevent + " " + url + " " + " " + line + ":" + col + ", " + error,
-            'exFatal': true
-          });
+          var msg = msgevent + " " + url + " " + " " + line + ":" + col + ", " + error;
+          $.get("/error?msg=" + encodeURIComponent(msg), "text");
           alert(msgevent+"");
         }
         _pause();
@@ -1332,7 +1407,7 @@ function replaceURLState() {
 
 function addPageFocusHandlers() {
   var hidden = false;
-  document.addEventListener("visibilitychange", function() {
+  document.addEventListener("visibilitychange", () => {
     if (document.visibilityState == 'hidden' && platform.isRunning()) {
       _pause();
       hidden = true;
@@ -1341,13 +1416,13 @@ function addPageFocusHandlers() {
       hidden = false;
     }
   });
-  $(window).on("focus", function() {
+  $(window).on("focus", () => {
     if (hidden) {
       _resume();
       hidden = false;
     }
   });
-  $(window).on("blur", function() {
+  $(window).on("blur", () => {
     if (platform.isRunning()) {
       _pause();
       hidden = true;
@@ -1378,29 +1453,6 @@ function startPlatform() {
   updateSelector();
   addPageFocusHandlers();
   return true;
-}
-
-function loadSharedGist(gistkey : string) {
- loadScript("octokat.js/dist/octokat.js", () => {
-  var github = new exports['Octokat']();
-  var gist = github.gists(gistkey);
-  gist.fetch().done(function(val) {
-    var filename;
-    var newid;
-    console.log("Fetched " + gistkey, val);
-    store = createNewPersistentStore(platform_id, (store) => {
-      for (filename in val.files) {
-        store.setItem('shared/'+filename, val.files[filename].content);
-        if (!newid) newid = 'shared/'+filename;
-      }
-      // TODO: wait for set?
-      delete qs['gistkey'];
-      reloadPresetNamed(newid);
-    });
-  }).fail(function(err) {
-    alert("Error loading share file: " + err.message);
-  });
- });
 }
 
 function loadScript(scriptfn, onload, onerror?) {
@@ -1486,6 +1538,11 @@ export function startUI(loadplatform : boolean) {
     // create store for platform
     store = createNewPersistentStore(platform_id, (store) => {
       // is this an importURL?
+      if (qs['githubURL']) {
+        importFromGithub(qs['githubURL']);
+        return;
+      }
+      // is this an importURL?
       if (qs['importURL']) {
         loadImportedURL(qs['importURL']);
         return;
@@ -1506,7 +1563,7 @@ function loadAndStartPlatform() {
     console.log("loaded platform", platform_id);
     startPlatform();
     showWelcomeMessage();
-    document.title = document.title + " [" + platform_id + "] - " + main_file_id;
+    document.title = document.title + " [" + platform_id + "] - " + current_project.mainPath;
   }, () => {
     alert('Platform "' + platform_id + '" not supported.');
   });
