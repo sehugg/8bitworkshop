@@ -123,6 +123,7 @@ TODO:
   - quantify verilog "graph iterations"
   - toolbar overlaps scope
   - CPU debugging
+  - use $readmem for inline asm programs?
 - single-stepping vector games makes screen fade
 - break on stack overflow, bad op, bad access, etc
 - PPU/TIA register write visualization
@@ -132,6 +133,11 @@ TODO:
   - allow "include graphics.asm" instead of "include project/graphics.asm"
 - chrome looks blurry on vcs
 - don't have to include bootstrap-tourist each time?
+- don't have to include firebase always?
+- Github
+  - write/read metadata w/ main file
+  - push/pull changes
+  - gh-pages branch with embedded 
 
 
 WEB WORKER FORMAT

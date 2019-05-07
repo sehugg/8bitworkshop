@@ -12,11 +12,12 @@ import { PLATFORMS, EmuHalt, Toolbar } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
-         byteArrayToUTF8, isProbablyBinary, getWithBinary, stringToByteArray } from "./util";
+         byteArrayToUTF8, isProbablyBinary, getWithBinary } from "./util";
 import { StateRecorderImpl } from "./recorder";
+import { GithubService } from "./services";
 
 // external libs (TODO)
-declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, GitHub;
+declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, firebase;
 // in index.html
 declare var exports;
 
@@ -366,84 +367,109 @@ function getCurrentEditorFilename() : string {
 
 // GITHUB stuff (TODO: move)
 
+var githubService : GithubService;
+
+function getCookie(name) {
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    for(var i=0;i < ca.length;i++) {
+        var c = ca[i];
+        while (c.charAt(0)==' ') c = c.substring(1,c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+    }
+    return null;
+}
+
+function getGithubService() {
+  if (!githubService) {
+    loadScript("lib/octokat.js", () => {
+      // get github API key from cookie
+      var ghkey = getCookie('__github_key');
+      var ghopts = {token:ghkey};
+      githubService = new GithubService(new exports['Octokat'](ghopts), store, current_project);
+    });
+  }
+  return githubService;
+}
+
 function _importProjectFromGithub(e) {
-  var githuburl_ta = $("#importGithubURL");
+  getGithubService(); // load it
   var modal = $("#importGithubModal");
   var btn = $("#importGithubButton");
   modal.modal('show');
   btn.off('click').on('click', () => {
-    importFromGithub(githuburl_ta.val());
-  });
-}
-
-function _connectProjectToGithub(e) {
-  var githuburl_ta = $("#connectGithubURL");
-  var modal = $("#connectGithubModal");
-  var btn = $("#connectGithubButton");
-  modal.modal('show');
-  btn.off('click').on('click', () => {
-    connectToGithub(githuburl_ta.val());
-  });
-}
-
-function parseGithubURL(ghurl) {
-  var toks = ghurl.split('/');
-  console.log(toks)
-  if (toks.length < 5) return null;
-  if (toks[0] != 'https:') return null;
-  if (toks[2] != 'github.com') return null;
-  return {user:toks[3], repo:toks[4]};
-}
-
-function getGithubRepo(ghurl, callback) {
-  var urlparse = parseGithubURL(ghurl);
-  if (!urlparse) {
-    alert("Please enter a valid GitHub URL.");
-    return;
-  }
-  loadScript("lib/octokat.js", () => {
-    var github = new exports['Octokat']();
-    var prefix = 'shared/' + urlparse.user + '-' + urlparse.repo + '/';
-    var repo = github.repos(urlparse.user, urlparse.repo);
-    callback(github, repo, prefix);
-  });
-}
-
-function importFromGithub(ghurl) {
-  getGithubRepo(ghurl, (github, repo, prefix) => {
-    repo.commits('master').fetch().then( (sha) => {
-      repo.git.trees(sha.sha).fetch().then( (tree) => {
-        tree.tree.forEach( (item) => {
-          console.log(item);
-          if (item.type == 'blob') {
-            repo.git.blobs(item.sha).readBinary().then( (blob) => {
-              var path = prefix + item.path;
-              var size = item.size;
-              var isBinary = isProbablyBinary(blob);
-              var data = isBinary ? stringToByteArray(blob) : blob; //byteArrayToUTF8(blob);
-              // TODO projectWindows.updateFile(path, data);
-              store.setItem(path, data);
-              // TODO; wait for set?
-              console.log(path, size, isBinary, typeof blob);
-              // TODO: redirect to main file?
-            });
-          }
-        });
-      });
+    var githuburl = $("#importGithubURL").val()+"";
+    getGithubService().import(githuburl).then( (sess) => {
+      // TODO : redirect to main file
+      modal.modal('hide');
+    }).catch( (e) => {
+      modal.modal('hide');
+      alert("Could not import " + githuburl + ": " + e);
     });
   });
 }
 
-function connectToGithub(ghurl) {
-  getGithubRepo(ghurl, (github, repo, prefix) => {
-    // TODO
+function _publishProjectToGithub(e) {
+  getGithubService(); // load it
+  var modal = $("#publishGithubModal");
+  var btn = $("#publishGithubButton");
+  modal.modal('show');
+  btn.off('click').on('click', () => {
+    var name = $("#githubRepoName").val()+"";
+    var desc = $("#githubRepoDesc").val()+"";
+    var priv = $("#githubRepoPrivate").val() == 'private';
+    var license = $("#githubRepoLicense").val()+"";
+    getGithubService().publish(name, desc, license, priv).then( (sess) => {
+      modal.modal('hide');
+      // TODO: commit files
+      // TODO: migrate project files
+      console.log(sess);
+      alert("Created repository at " + sess.url);
+      pushChangesToGithub('initial import from 8bitworkshop.com');
+    }).catch( (e) => {
+      modal.modal('hide');
+      alert("Could not create GitHub repository: " + e);
+    });
   });
 }
 
+function _pushProjectToGithub(e) {
+  getGithubService(); // load it
+  var modal = $("#pushGithubModal");
+  var btn = $("#pushGithubButton");
+  modal.modal('show');
+  btn.off('click').on('click', () => {
+    var commitMsg = $("#githubCommitMsg").val()+"";
+    modal.modal('hide');
+    pushChangesToGithub(commitMsg);
+  });
+}
+
+function pushChangesToGithub(message:string) {
+  var ghurl = getGithubService().getBoundURL(current_project.mainPath);
+  console.log("Github URL: " + ghurl);
+  if (!ghurl) {
+    alert("This project is not bound to a GitHub project.");
+    return;
+  }
+  // build file list for push
+  var files = [];
+  for (var path in current_project.filedata) {
+    var newpath = current_project.stripLocalPath(path);
+    files.push({path:newpath, data:current_project.filedata[path]});
+  }
+  // push files
+  setWaitDialog(true);
+  getGithubService().commitPush(ghurl, message, files).then( (sess) => {
+    setWaitDialog(false);
+  });
+}
+
+// TODO: remove?
 function loadSharedGist(gistkey : string) {
  loadScript("lib/octokat.js", () => {
   var github = new exports['Octokat']();
-  var gist = github.gists(gistkey);
+  var gist = this.github.gists(gistkey);
   gist.fetch().done( (val) => {
     var filename;
     var newid;
@@ -983,10 +1009,15 @@ function updateDebugWindows() {
 
 function setWaitDialog(b : boolean) {
   if (b) {
+    $("#pleaseWaitProgressBar").hide();
     $("#pleaseWaitModal").modal('show');
   } else {
     $("#pleaseWaitModal").modal('hide');
   }
+}
+
+function setWaitProgress(prog : number) {
+  $("#pleaseWaitProgressBar").css('width', (prog*100)+'%').show();
 }
 
 var recordingVideo = false;
@@ -1013,7 +1044,10 @@ function _recordVideo() {
     rotate: rotate
   });
   var img = $('#videoPreviewImage');
-  gif.on('finished', function(blob) {
+  gif.on('progress', (prog) => {
+    setWaitProgress(prog);
+  });
+  gif.on('finished', (blob) => {
     img.attr('src', URL.createObjectURL(blob));
     setWaitDialog(false);
     _resume();
@@ -1198,7 +1232,8 @@ function setupDebugControls() {
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);
   $("#item_github_import").click(_importProjectFromGithub);
-  $("#item_github_connect").click(_connectProjectToGithub);
+  $("#item_github_publish").click(_publishProjectToGithub);
+  $("#item_github_push").click(_pushProjectToGithub);
   $("#item_share_file").click(_shareEmbedLink);
   $("#item_reset_file").click(_revertFile);
   $("#item_rename_file").click(_renameFile);
@@ -1455,7 +1490,7 @@ function startPlatform() {
   return true;
 }
 
-function loadScript(scriptfn, onload, onerror?) {
+export function loadScript(scriptfn, onload, onerror?) {
   var script = document.createElement('script');
   script.onload = onload;
   script.onerror = onerror;
@@ -1539,7 +1574,7 @@ export function startUI(loadplatform : boolean) {
     store = createNewPersistentStore(platform_id, (store) => {
       // is this an importURL?
       if (qs['githubURL']) {
-        importFromGithub(qs['githubURL']);
+        getGithubService().import(qs['githubURL']);
         return;
       }
       // is this an importURL?

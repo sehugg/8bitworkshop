@@ -20,7 +20,23 @@ body {
 }
 </style>
 <link rel="stylesheet" href="css/ui.css">
+
+<!-- google analytics -->
+<script>
+window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+if (window.location.host.endsWith('8bitworkshop.com')) {
+  ga('create', 'UA-54497476-9', 'auto');
+  ga('set', 'anonymizeIp', true);
+  ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
 </head>
+
+<!-- firebase libs -->
+<script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-app.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-auth.js"></script>
+<script defer src="config.js"></script>
 
 <body>
 
@@ -54,7 +70,7 @@ body {
           <li><a class="dropdown-item" href="/login.html">Login to GitHub...</a></li>
           <hr>
           <li><a class="dropdown-item" href="#" id="item_github_import">Import Project from GitHub...</a></li>
-          <li><a class="dropdown-item" href="#" id="item_github_connect">Publish Project on GitHub...</a></li>
+          <li><a class="dropdown-item" href="#" id="item_github_publish">Publish Project on GitHub...</a></li>
           <hr>
           <li><a class="dropdown-item" href="#" id="item_github_push">Push Changes to Repository...</a></li>
           <hr>
@@ -234,6 +250,10 @@ body {
     <div class="modal-content">
       <div class="modal-body">
         Please wait...
+        <div class="progress">
+          <div class="progress-bar progress-bar-striped active" role="progressbar" id="pleaseWaitProgressBar">
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -293,18 +313,46 @@ body {
     </div>
   </div>
 </div>
-<div id="connectGithubModal" class="modal fade">
+<div id="publishGithubModal" class="modal fade">
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h3 class="modal-title">Publish Project on GitHub</h3>
       </div>
       <div class="modal-body">
-        <p>This will migrate your existing files to a GitHub repository.</p>
-        <p><input id="connectGithubURL" size="40" placeholder="Enter a project name"></input></p>
-        <p><button type="button" class="btn btn-primary" id="connectGithubButton">Upload Project</button></p>
-        <p>If the destination repository does not exist, it will be created.</p>
+        <p>This will migrate your existing files to a new GitHub repository.</p>
+        <p><input id="githubRepoName" size="50" placeholder="Enter a project name"></input></p>
+        <p><input id="githubRepoDesc" size="50" placeholder="Enter a project description"></input></p>
+        <p>Your repository will be <select id="githubRepoPrivate">
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+        </select></p>
+        <p>License: <select id="githubRepoLicense">
+          <option value="">Will decide later</option>
+          <option value="cc0-1.0">CC Zero (public domain)</option>
+          <option value="mit">MIT (public domain, must preserve notices)</option>
+          <option value="cc-by-4.0">CC BY (must attribute)</option>
+          <option value="cc-by-sa-4.0">CC BY-SA (must attribute, use same license)</option>
+          <option value="gpl-3.0">GPL v3 (must publish source)</option>
+        </select></p>
+        <p><button type="button" class="btn btn-primary" id="publishGithubButton">Upload Project</button></p>
         <p>Your existing file will be moved to a new folder in the IDE.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="pushGithubModal" class="modal fade">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Push Project Changes to GitHub</h3>
+      </div>
+      <div class="modal-body">
+        <p><input id="githubCommitMsg" size="50" placeholder="Enter a commit message"></input></p>
+        <p><button type="button" class="btn btn-primary" id="pushGithubButton">Push Changes</button></p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
@@ -381,6 +429,7 @@ function require(modname) {
 <script src="gen/recorder.js"></script>
 <script src="gen/waveform.js"></script>
 <script src="gen/pixed/pixeleditor.js"></script>
+<script src="gen/services.js"></script>
 <script src="gen/ui.js"></script>
 <!-- <script src="src/audio/votrax.js"></script> -->
 <!-- <script src="local/lzg.js"></script> -->
@@ -404,11 +453,6 @@ $( ".dropdown-submenu" ).click(function(event) {
   if (!isFirefox && platform_id != 'vcs') { $("#best_in_firefox").show(); }
 */
 </script>
-
-<!-- firebase libs -->
-<script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-app.js"></script>
-<script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-auth.js"></script>
-<script defer src="config.js"></script>
 
 </body>
 </html>

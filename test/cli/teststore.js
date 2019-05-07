@@ -4,42 +4,7 @@ var vm = require('vm');
 var fs = require('fs');
 var assert = require('assert');
 
-var localItems = {};
-var localMods = 0;
-
-global.localStorage = {
- clear: function() {
-  localItems = {};
-  localMods = 0;
-  this.length = 0;
- },
- getItem: function(k) {
-  console.log('get',k);
-  return localItems[k];
- },
- setItem: function(k,v) {
-  console.log('set',k,v);
-  if (!localItems[k]) this.length++;
-  localItems[k] = v;
-  localMods++;
- },
- removeItem: function(k) {
-  if (localItems[k]) {
-   this.length--;
-   delete localItems[k];
-   localMods++;
-  }
- },
- length: 0,
- key: function(i) {
-  var keys = [];
-  for (var k in localItems)
-   keys.push(k);
-  console.log(i,keys[i]);
-  return keys[i];
- }
-};
-
+var wtu = require('./workertestutils.js'); // loads localStorage
 global.localforage = require("localForage/dist/localforage.js");
 var util = require("gen/util.js");
 var mstore = require("gen/store.js");
@@ -83,7 +48,7 @@ describe('Store', function() {
     project.loadFiles(['local/test','test'], function(err, result) {
      assert.equal(null, err);
      assert.deepEqual(["presets/_TEST/test"], remote);
-     assert.deepEqual([ { path: 'local/test', filename: 'test', data: 'a', link:true } ], result);
+     assert.deepEqual([ { path: 'local/test', filename: 'local/test', data: 'a', link:true } ], result);
      done();
     });
    });

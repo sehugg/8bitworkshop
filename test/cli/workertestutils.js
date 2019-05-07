@@ -69,3 +69,40 @@ includeInThisContext("gen/worker/workermain.js");
 global.ab2str = function(buf) {
   return String.fromCharCode.apply(null, new Uint16Array(buf));
 }
+
+global.localItems = {};
+global.localMods = 0;
+
+global.localStorage = {
+ clear: function() {
+  localItems = {};
+  localMods = 0;
+  this.length = 0;
+ },
+ getItem: function(k) {
+  console.log('get',k);
+  return localItems[k];
+ },
+ setItem: function(k,v) {
+  console.log('set',k,v.length<100?v:v.length);
+  if (!localItems[k]) this.length++;
+  localItems[k] = v;
+  localMods++;
+ },
+ removeItem: function(k) {
+  if (localItems[k]) {
+   this.length--;
+   delete localItems[k];
+   localMods++;
+  }
+ },
+ length: 0,
+ key: function(i) {
+  var keys = [];
+  for (var k in localItems)
+   keys.push(k);
+  console.log(i,keys[i]);
+  return keys[i];
+ }
+};
+

@@ -43,6 +43,7 @@ function copyFromVer2xStorageFormat(platformid:string, newstore, callback:(store
   // no files to convert?
   if (keys.length == 0) {
     localStorage.setItem(alreadyMigratedKey, 'true');
+    callback(newstore);
     return;
   }
   // convert function

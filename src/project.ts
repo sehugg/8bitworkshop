@@ -330,9 +330,11 @@ export class CodeProject {
   }
   
   stripLocalPath(path : string) : string {
-    var folder = getFolderForPath(this.mainPath);
-    if (folder != '' && path.startsWith(folder)) {
-      path = path.substring(folder.length+1);
+    if (this.mainPath) {
+      var folder = getFolderForPath(this.mainPath);
+      if (folder != '' && path.startsWith(folder)) {
+        path = path.substring(folder.length+1);
+      }
     }
     return path;
   }
