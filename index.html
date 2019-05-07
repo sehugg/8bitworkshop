@@ -51,11 +51,14 @@ body {
       <li class="dropdown dropdown-submenu">
         <a tabindex="-1" href="#">Sync</a>
         <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="/login.html">Login to GitHub...</a></li>
+          <hr>
           <li><a class="dropdown-item" href="#" id="item_github_import">Import Project from GitHub...</a></li>
           <li><a class="dropdown-item" href="#" id="item_github_connect">Publish Project on GitHub...</a></li>
           <hr>
-          <li><a class="dropdown-item" href="#" id="item_github_connect">Pull Latest from Repository</a></li>
-          <li><a class="dropdown-item" href="#" id="item_github_connect">Push Changes to Repository...</a></li>
+          <li><a class="dropdown-item" href="#" id="item_github_push">Push Changes to Repository...</a></li>
+          <hr>
+          <li><a class="dropdown-item" href="#" id="item_github_pull">Pull Latest from Repository</a></li>
         </ul>
       </li>
       <li class="dropdown dropdown-submenu">
@@ -172,10 +175,14 @@ body {
           <img src="images/book_a2600.png"/>
           &nbsp;&nbsp;<b>Making Games For The Atari 2600</b>
         </a>
+      </li>
+      <li>
         <a class="dropdown-item dropdown-link" target="_book_arcade" href="https://www.amazon.com/gp/product/1545484759/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1545484759&linkCode=as2&tag=pzp-20&linkId=b27709c022d2ebe639e90316d9f4fd5b">
           <img src="images/book_arcade.png"/>
           &nbsp;&nbsp;<b>Making 8-bit Arcade Games in C</b>
         </a>
+      </li>
+      <li>
         <a class="dropdown-item dropdown-link" target="_book_verilog" href="https://www.amazon.com/gp/product/1728619440/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1728619440&linkCode=as2&tag=pzp-20">
           <img src="images/book_verilog.png"/>
           &nbsp;&nbsp;<b>Designing Video Game Hardware in Verilog</b>
@@ -399,10 +406,9 @@ $( ".dropdown-submenu" ).click(function(event) {
 </script>
 
 <!-- firebase libs -->
-<script defer src="https://www.gstatic.com/firebasejs/5.10.1/firebase.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-app.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-auth.js"></script>
 <script defer src="config.js"></script>
-<script defer src="https://cdn.firebase.com/libs/firebaseui/3.6.0/firebaseui.js"></script>
-<link defer type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.6.0/firebaseui.css" />
 
 </body>
 </html>

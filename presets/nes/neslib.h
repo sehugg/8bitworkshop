@@ -328,5 +328,10 @@ typedef struct OAMSprite {
 
 #define OAMBUF			((OAMSprite*) 0x200)
 
+// OAM offset for spr_pal and spr_clip
+
+extern byte oam_off;
+#pragma zpsym ("oam_off")
+
 #endif /* neslib.h */
 

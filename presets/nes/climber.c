@@ -36,7 +36,7 @@ typedef enum { SND_START, SND_HIT, SND_COIN, SND_JUMP } SFXIndex;
 #define COLS 30		// floor width in tiles
 #define ROWS 60		// total nametable height in tiles
 
-#define MAX_FLOORS 24	// total # of floors in a stage
+#define MAX_FLOORS 4	// total # of floors in a stage
 #define GAPSIZE 4	// gap size in tiles
 #define BOTTOM_FLOOR_Y 2	// offset for bottommost floor
 
@@ -365,7 +365,8 @@ typedef struct Actor {
   byte x;		// X position in pixels (8 bit)
   byte floor;		// floor index
   byte state;		// ActorState
-  int name:2;		// ActorType
+  int name:2;		// ActorType (2 bits)
+  int pal:2;		// palette color (2 bits)
   int dir:1;		// direction (0=right, 1=left)
   int onscreen:1;	// is actor onscreen?
   union {
@@ -394,11 +395,12 @@ void create_actors_on_floor(byte floor_index) {
       a->name = ACTOR_RESCUE;
       a->state = PACING;
       a->x = 0;
+      a->pal = 1;
     }
   }
 }
 
-byte draw_actor(byte oam_id, byte i) {
+void draw_actor(byte i) {
   struct Actor* a = &actors[i];
   bool dir;
   const unsigned char* meta;
@@ -406,13 +408,13 @@ byte draw_actor(byte oam_id, byte i) {
   int screen_y = SCREEN_Y_BOTTOM - a->yy + scroll_pixel_yy;
   if (screen_y > 192+8 || screen_y < -18) {
     a->onscreen = 0;
-    return oam_id; // offscreen vertically
+    return; // offscreen vertically
   }
   dir = a->dir;
   switch (a->state) {
     case INACTIVE:
       a->onscreen = 0;
-      return oam_id; // inactive, offscreen
+      return; // inactive, offscreen
     case STANDING:
       meta = dir ? playerLStand : playerRStand;
       break;
@@ -435,37 +437,31 @@ byte draw_actor(byte oam_id, byte i) {
   // set sprite values
   x = a->x;
   y = screen_y;
-  oam_id = oam_meta_spr(x, y, oam_id, meta);
+  oam_meta_spr_pal(x, y, a->pal, meta);
   // is this actor 0? (player sprite)
   if (i == 0) {
     player_screen_y = y; // last screen Y position
-    // set special palette for the player's sprites
-    // directly in OAM buffer
-    OAMBUF[0].attr |= 3;
-    OAMBUF[1].attr |= 3;
-    OAMBUF[2].attr |= 3;
-    OAMBUF[3].attr |= 3;
   }
   a->onscreen = 1;
-  return oam_id;
+  return;
 }
 
-byte draw_scoreboard(byte oam_id) {
-  oam_id = oam_spr(24+0, 24, '0'+(score >> 4), 2, oam_id);
-  oam_id = oam_spr(24+8, 24, '0'+(score & 0xf), 2, oam_id);
-  return oam_id;
+void draw_scoreboard() {
+  oam_off = oam_spr(24+0, 24, '0'+(score >> 4), 2, oam_off);
+  oam_off = oam_spr(24+8, 24, '0'+(score & 0xf), 2, oam_off);
 }
 
 void refresh_sprites() {
   byte i;
+  // reset sprite index to 0
+  oam_off = 0;
   // draw all actors
-  byte oam_id = 0;
   for (i=0; i<MAX_ACTORS; i++)
-    oam_id = draw_actor(oam_id, i);
+    draw_actor(i);
   // draw scoreboard
-  oam_id = draw_scoreboard(oam_id);
+  draw_scoreboard();
   // hide rest of actors
-  oam_hide_rest(oam_id);
+  oam_hide_rest(oam_off);
 }
 
 byte is_ladder_close(byte actor_x, byte ladder_pos) {
@@ -696,6 +692,7 @@ void play_scene() {
   memset(actors, 0, sizeof(actors));
   actors[0].state = STANDING;
   actors[0].name = ACTOR_PLAYER;
+  actors[0].pal = 3;
   actors[0].x = 64;
   actors[0].floor = 0;
   actors[0].yy = get_floor_yy(0);
