@@ -183,11 +183,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
 
   start = function() {
     ram = new RAM(arcade ? 0x5000 : 0x1000);
-    var lzgrom = window['ASTROCADE_LZGROM'] || window['ASTROCADE_BIOS_LZG'];
-    if (lzgrom)
-      bios = new lzgmini().decode(stringToByteArray(atob(lzgrom)));
-    else
-      bios = padBytes(ASTROCADE_MINIMAL_BIOS, 0x2000);
+    bios = padBytes(ASTROCADE_MINIMAL_BIOS, 0x2000);
     if (!arcade) {
       // game console
       membus = {
@@ -497,4 +493,3 @@ var ASTROCADE_MINIMAL_BIOS = [
   0xe9,
 ];
 
-//var ASTROCADE_BIOS_LZG = decodeURIComponent();

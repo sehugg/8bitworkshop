@@ -64,6 +64,7 @@ export interface Platform {
   pause() : void;
   resume() : void;
   loadROM(title:string, rom:any); // TODO: Uint8Array
+  loadBIOS?(title:string, rom:Uint8Array);
 
   loadState?(state : EmuState) : void;
   saveState?() : EmuState;

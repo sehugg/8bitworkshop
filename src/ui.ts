@@ -801,6 +801,16 @@ function setCompileOutput(data: WorkerResult) {
   }
 }
 
+function loadBIOSFromProject() {
+  if (platform.loadBIOS) {
+    var biospath = 'local/'+platform_id+'.rom';
+    store.getItem(biospath).then( (biosdata) => {
+      console.log('loading BIOS')
+      platform.loadBIOS('BIOS', biosdata);
+    });
+  }
+}
+
 function showDebugInfo(state?) {
   var meminfo = $("#mem_info");
   var allcats = platform.getDebugCategories && platform.getDebugCategories();
@@ -1482,6 +1492,7 @@ function startPlatform() {
   }
   // start platform and load file
   platform.start();
+  loadBIOSFromProject();
   initProject();
   loadProject(qs['file']);
   setupDebugControls();

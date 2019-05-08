@@ -1,7 +1,7 @@
 "use strict";
 
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM } from "../emu";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, getMousePos } from "../emu";
 import { hex, lzgmini, stringToByteArray, lpad, rpad, rgb2bgr } from "../util";
 import { MasterAudio, POKEYDeviceChannel } from "../audio";
 
@@ -11,6 +11,11 @@ var Atari8_PRESETS = [
   {id:'hello.a', name:'Hello World (ASM)'},
   {id:'hellopm.a', name:'Hello Sprites (ASM)'},
 ];
+
+const ATARI8_KEYCODE_MAP = makeKeycodeMap([
+  [Keys.VK_SPACE, 0, 0],
+  [Keys.VK_ENTER, 0, 0],
+]);
 
 function newPOKEYAudio() {
   var pokey1 = new POKEYDeviceChannel();
@@ -25,6 +30,9 @@ function newPOKEYAudio() {
 // https://www.atarimax.com/jindroush.atari.org/atanttim.html
 // http://www.virtualdub.org/blog/pivot/entry.php?id=243
 // http://www.beipmu.com/Antic_Timings.txt
+// https://user.xmission.com/~trevin/atari/antic_regs.html
+// https://user.xmission.com/~trevin/atari/antic_insns.html
+// http://www.atarimuseum.com/videogames/consoles/5200/conv_to_5200.html
 
 const PF_LEFT  = [999,64,48,32];
 const PF_RIGHT = [999,192,208,224];
@@ -135,7 +143,7 @@ class ANTIC {
         this.setLeftRight();
         break;
       case NMIRES:
-        this.regs[NMIST] = 0;
+        this.regs[NMIST] = 0x1f;
         break;
     }
   }
@@ -158,8 +166,9 @@ class ANTIC {
         this.yofs++;
     }
     if (!this.linesleft) {
-      if (this.mode & 0x80)
+      if (this.mode & 0x80) {
         this.triggerInterrupt(0x80); // Display List Interrupt (DLI)
+      }
       this.mode = this.nextInsn();
       this.setLeftRight();
       stolen++;
@@ -213,7 +222,7 @@ class ANTIC {
   triggerInterrupt(mask : number) {
     if (this.regs[NMIEN] & mask) {
       this.nmiPending = true;
-      //this.regs[NMIST] = mask | 0x1f;
+      this.regs[NMIST] |= mask;
     }
   }
   
@@ -262,13 +271,16 @@ class ANTIC {
               if (mode < 8) {	// character mode
                 let ch = this.ch = this.nextScreen();
                 let addrofs = this.yofs;
+                let chbase = this.regs[CHBASE];
                 // modes 6 & 7
                 if ((mode & 0xe) == 6) { // or 7
                   ch &= 0x3f;
+                  chbase &= 0xfe;
                 } else {
                   ch &= 0x7f;
+                  chbase &= 0xfc;
                 }
-                let addr = (ch<<3) + (this.regs[CHBASE]<<8);
+                let addr = (ch<<3) + (chbase<<8);
                 // modes 2 & 3
                 if ((mode & 0xe) == 2) { // or 3
                   let chactl = this.regs[CHACTL];
@@ -312,6 +324,8 @@ class ANTIC {
 }
 
 // GTIA
+// https://user.xmission.com/~trevin/atari/gtia_regs.html
+
 // write regs
 const HPOSP0 = 0x0;
 const HPOSM0 = 0x4;
@@ -430,7 +444,7 @@ const _Atari8Platform = function(mainElement) {
   var timer; // TODO : AnimationTimer;
   var antic : ANTIC;
   var gtia : GTIA;
-  var kbdlatch = 0;
+  var inputs = new Uint8Array(4);
   
  class Atari8Platform extends Base6502Platform implements Platform {
 
@@ -440,12 +454,7 @@ const _Atari8Platform = function(mainElement) {
   start() {
     cpu = new jt.M6502();
     ram = new RAM(0x4000); // TODO
-    var lzgrom = window['ATARI5200_LZGROM'];
-    if (lzgrom) {
-      bios = new lzgmini().decode(stringToByteArray(atob(lzgrom)));
-    } else {
-      bios = padBytes([0], 0x800); // TODO
-    }
+    bios = new Uint8Array(0x800);
     bus = {
       // TODO: https://github.com/dmlloyd/atari800/blob/master/DOC/cart.txt
       // TODO: http://atariage.com/forums/topic/169971-5200-memory-map/
@@ -470,31 +479,22 @@ const _Atari8Platform = function(mainElement) {
     video = new RasterVideo(mainElement, 352, 192);
     audio = newPOKEYAudio();
     video.create();
-    video.setKeyboardEvents((key,code,flags) => {
-      if (flags & 1) {
-        if (code) {
-          // convert to uppercase for Apple ][
-          if (code >= 0x61 && code <= 0x7a)
-             code -= 0x20; 
-          kbdlatch = (code | 0x80) & 0xff;
-        } else if (key) {
-          switch (key) {
-            case 16: return; // shift
-            case 17: return; // ctrl
-            case 18: return; // alt
-            case 37: key=8; break;	// left
-            case 39: key=21; break; // right
-            case 38: key=11; break; // up
-            case 40: key=10; break; // down
-          }
-          if (key >= 65 && key < 65+26) {
-            if (flags & 5) key -= 64; // ctrl
-          }
-          kbdlatch = (key | 0x80) & 0xff;
-        }
-      }
+    setKeyboardFromMap(video, inputs, ATARI8_KEYCODE_MAP, (o,key,code,flags) => {
+      // TODO
     });
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
+    // setup mouse events
+    var rasterPosBreakFn = (e) => {
+      if (e.ctrlKey) {
+        var clickpos = getMousePos(e.target, e);
+        this.runEval( (c) => {
+          var pos = {x:antic.h, y:this.getRasterScanline()};
+          return (pos.x == (clickpos.x&~3)) && (pos.y == (clickpos.y|0));
+        });
+      }
+    };
+    var jacanvas = $("#emulator").find("canvas");
+    jacanvas.mousedown(rasterPosBreakFn);
   }
   
   advance(novideo : boolean) {
@@ -503,6 +503,9 @@ const _Atari8Platform = function(mainElement) {
     var debugCond = this.getDebugCallback();
     var rgb;
     var freeClocks = 0;
+    // load controls
+    // TODO
+    gtia.regs[0x10] = inputs[0] ^ 1;
     // visible lines
     for (var sl=0; sl<linesPerFrame; sl++) {
       for (var i=0; i<colorClocksPerLine; i+=4) {
@@ -547,6 +550,11 @@ const _Atari8Platform = function(mainElement) {
     rom[rom.length-3] = 0xff; // TODO
     this.reset();
   }
+  
+  loadBIOS(title, data) {
+    bios = padBytes(data, 0x800);
+    this.reset();
+  }
 
   isRunning() {
     return timer.isRunning();
@@ -573,33 +581,37 @@ const _Atari8Platform = function(mainElement) {
   }
 
   loadState(state) {
+    this.unfixPC(state.c);
     cpu.loadState(state.c);
+    this.fixPC(state.c);
     ram.mem.set(state.b);
     antic.loadState(state.antic);
     gtia.loadState(state.gtia);
-    kbdlatch = state.kbd;
+    this.loadControlsState(state);
   }
   saveState() {
     return {
-      c:cpu.saveState(),
+      c:this.getCPUState(),
       b:ram.mem.slice(0),
       antic:antic.saveState(),
       gtia:gtia.saveState(),
-      kbd:kbdlatch,
+      in:inputs.slice(0)
     };
   }
   loadControlsState(state) {
-    kbdlatch = state.kbd;
+    inputs.set(state.in);
   }
   saveControlsState() {
     return {
-      kbd:kbdlatch
+      in:inputs.slice(0)
     };
   }
   getCPUState() {
-    return cpu.saveState();
+    return this.fixPC(cpu.saveState());
   }
-
+  getRasterScanline() {
+    return antic.v;
+  }
   getDebugCategories() {
     return super.getDebugCategories().concat(['ANTIC','GTIA']);
   }
