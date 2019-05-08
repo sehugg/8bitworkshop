@@ -8,13 +8,14 @@ declare var exports;
 declare var firebase;
 
 export interface GHSession {
-  url : string;
-  user : string;
-  reponame : string;
-  repo : any;
-  prefix : string;
+  url : string;		// github url
+  user : string;	// user name
+  reponame : string;	// repo name
+  repopath : string;	// "user/repo"
+  prefix : string;	// file prefix, "local/" or ""
+  repo : any;		// [repo object]
+  mainPath?: string;	// main file path
   paths? : string[];
-  mainPath?: string;
 }
 
 const README_md_template = "$NAME\n=====\n\nCompatible with the [$PLATFORM](http://8bitworkshop.com/redir.html?platform=$PLATFORM&importURL=$GITHUBURL) platform in [8bitworkshop](http://8bitworkshop.com/). Main file is [$MAINFILE]($MAINFILE#mainfile).\n";
@@ -75,13 +76,9 @@ export class GithubService {
     if (toks.length < 5) return null;
     if (toks[0] != 'https:') return null;
     if (toks[2] != 'github.com') return null;
-    return {user:toks[3], repo:toks[4]};
+    return {user:toks[3], repo:toks[4], repopath:toks[3]+'/'+toks[4]};
   }
   
-  getPrefix(user, reponame) : string {
-    return 'shared/' + user + '/' + reponame + '/';
-  }
-
   getGithubSession(ghurl:string) : Promise<GHSession> {
     return new Promise( (yes,no) => {
       var urlparse = this.parseGithubURL(ghurl);
@@ -92,28 +89,26 @@ export class GithubService {
         url: ghurl,
         user: urlparse.user,
         reponame: urlparse.repo,
-        prefix: this.getPrefix(urlparse.user, urlparse.repo),
+        repopath: urlparse.repopath,
+        prefix: '', //this.getPrefix(urlparse.user, urlparse.repo),
         repo: this.github.repos(urlparse.user, urlparse.repo)
       };
       yes(sess);
     });
   }
-
-  // bind a folder path to the Github URL in local storage  
-  bind(sess : GHSession, dobind : boolean) {
-    var key = '__github_url_' + sess.prefix;
-    console.log('bind', key, dobind);
-    if (dobind)
-      localStorage.setItem(key, sess.url);
-    else
-      localStorage.removeItem(key);
+  
+  getRepos() {
+    return JSON.parse(localStorage.getItem('__repos') || '{}');
   }
   
-  getBoundURL(path : string) : string {
-    var p = getFolderForPath(path);
-    var key = '__github_url_' + p + '/';
-    console.log("getBoundURL", key);
-    return localStorage.getItem(key) as string; // TODO
+  bind(sess:GHSession, dobind:boolean) {
+    var repos = this.getRepos();
+    if (dobind) {
+      repos[sess.repopath] = sess.url;
+    } else {
+      delete repos[sess.repopath];
+    }
+    localStorage.setItem('__repos', JSON.stringify(repos));
   }
   
   import(ghurl:string) : Promise<GHSession> {
@@ -147,7 +142,7 @@ export class GithubService {
     });
   }
   
-  pull(ghurl:string) : Promise<GHSession> {
+  pull(ghurl:string, deststore?) : Promise<GHSession> {
     var sess : GHSession;
     return this.getGithubSession(ghurl).then( (session) => {
       sess = session;
@@ -168,7 +163,7 @@ export class GithubService {
             var size = item.size;
             var isBinary = isProbablyBinary(blob);
             var data = isBinary ? stringToByteArray(blob) : blob; //byteArrayToUTF8(blob);
-            return this.store.setItem(path, data);
+            return (deststore || this.store).setItem(path, data);
           });
           blobreads.push(read);
         } else {

@@ -31,14 +31,14 @@ var Ver2xFileStore = function(storage, prefix:string) {
 }
 
 // copy localStorage to new driver
-function copyFromVer2xStorageFormat(platformid:string, newstore, callback:(store)=>void) {
-  var alreadyMigratedKey = "__migrated_" + platformid;
+function copyFromVer2xStorageFormat(storeid:string, newstore, callback:(store)=>void) {
+  var alreadyMigratedKey = "__migrated_" + storeid;
   //localStorage.removeItem(alreadyMigratedKey);
   if (localStorage.getItem(alreadyMigratedKey)) {
     callback(newstore);
     return;
   }
-  var oldstore = new Ver2xFileStore(localStorage, platformid + '/');
+  var oldstore = new Ver2xFileStore(localStorage, storeid + '/');
   var keys = oldstore.getFiles('');
   // no files to convert?
   if (keys.length == 0) {
@@ -73,11 +73,11 @@ function copyFromVer2xStorageFormat(platformid:string, newstore, callback:(store
   migrateNext(); // start the conversion
 }
 
-export function createNewPersistentStore(platformid:string, callback:(store)=>void) {
+export function createNewPersistentStore(storeid:string, callback:(store)=>void) {
   var store = localforage.createInstance({
-    name: "__" + platformid,
+    name: "__" + storeid,
     version: 2.0
   });
-  copyFromVer2xStorageFormat(platformid, store, callback);
+  copyFromVer2xStorageFormat(storeid, store, callback);
   return store;
 }

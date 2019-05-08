@@ -339,13 +339,13 @@ export class CodeProject {
     return path;
   }
   
-  migrateToNewFolder(newprefix : string) {
+  migrateToNewFolder(newprefix : string, newstore?) {
     // TODO: must end with /
     var newPath = newprefix + this.stripLocalPath(this.mainPath);
     console.log(this.mainPath + "->" + newPath);
     var data = this.filedata[this.mainPath];
     console.log(data.length + " bytes");
-    return this.store.setItem(newPath, data).then(() => {
+    return (newstore || this.store).setItem(newPath, data).then(() => {
       //return this.store.removeItem(this.mainPath);
       console.log("moved " + this.mainPath + " to " + newPath);
       this.filedata[newPath] = this.filedata[this.mainPath]; //TODO?

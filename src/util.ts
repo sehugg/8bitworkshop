@@ -468,3 +468,18 @@ export function getWithBinary(url:string, success:(text:string|Uint8Array)=>void
   oReq.send(null);
 }
 
+// get platform ID without . emulator
+export function getBasePlatform(platform : string) : string {
+  return platform.split('.')[0];
+}
+
+// get platform ID without - specialization
+export function getRootPlatform(platform : string) : string {
+  return platform.split('-')[0];
+}
+
+// get platform ID without emulator or specialization
+export function getRootBasePlatform(platform : string) : string {
+  return getRootPlatform(getBasePlatform(platform));
+}
+

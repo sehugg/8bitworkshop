@@ -12,7 +12,7 @@ import { PLATFORMS, EmuHalt, Toolbar } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
-         byteArrayToUTF8, isProbablyBinary, getWithBinary } from "./util";
+         byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform } from "./util";
 import { StateRecorderImpl } from "./recorder";
 import { GHSession, GithubService } from "./services";
 
@@ -24,10 +24,12 @@ declare var exports;
 // make sure VCS doesn't start
 if (window['Javatari']) window['Javatari'].AUTO_START = false;
 
-var PRESETS : Preset[];		// presets array
+var PRESETS : Preset[];			// presets array
 
-export var platform_id : string;	// platform ID string
-export var platform : Platform;	// platform object
+export var platform_id : string;	// platform ID string (platform)
+export var store_id : string;		// store ID string (repo || platform)
+export var repo_id : string;		// repository ID (repo)
+export var platform : Platform;		// emulator object
 
 var toolbar = $("#controls_top");
 
@@ -258,16 +260,17 @@ function loadProject(preset_id:string) {
   });
 }
 
-function reloadPresetNamed(id:string) {
+function reloadProject(id:string, repo?:string) {
   qs['platform'] = platform_id;
   qs['file'] = id;
+  if (repo) qs['repo'] = repo;
   gotoNewLocation();
 }
 
 function getSkeletonFile(fileid:string, callback) {
   var ext = platform.getToolForFilename(fileid);
   // TODO: .mame
-  $.get( "presets/"+platform_id+"/skeleton."+ext, function( text ) {
+  $.get( "presets/"+getBasePlatform(platform_id)+"/skeleton."+ext, function( text ) {
     callback(null, text);
   }, 'text')
   .fail(() => {
@@ -299,7 +302,7 @@ function _createNewFile(e) {
           if (err)
             alert(err+"");
           if (result != null)
-            reloadPresetNamed("local/" + filename);
+            reloadProject("local/" + filename);
         });
       }
     });
@@ -392,11 +395,43 @@ function getGithubService() {
 }
 
 function getBoundGithubURL() : string {
-  console.log("main path: " + current_project.mainPath);
-  var ghurl = getGithubService().getBoundURL(current_project.mainPath);
-  console.log("Github URL: " + ghurl);
-  if (!ghurl) alert("This project (" + current_project.mainPath + ") is not bound to a GitHub project.")
-  return ghurl;
+  var toks = (repo_id||'').split('/');
+  if (toks.length != 2) {
+    alert("This project is not bound to a GitHub project.");
+    return null;
+  }
+  return 'https://github.com/' + toks[0] + '/' + toks[1];
+}
+
+function importProjectFromGithub(githuburl:string, modal?) {
+  var sess : GHSession;
+  // create new repository store
+  var urlparse = getGithubService().parseGithubURL(githuburl);
+  if (!urlparse) {
+    alert('Could not parse Github URL.');
+    if (modal) modal.modal('hide');
+    return;
+  }
+  var newstore = createNewPersistentStore(urlparse.repopath, () => {
+    // import into new store
+    return getGithubService().import(githuburl).then( (sess1:GHSession) => {
+      sess = sess1;
+      return getGithubService().pull(githuburl, newstore);
+    }).then( (sess2:GHSession) => {
+      if (modal) modal.modal('hide');
+      // TODO: only first sessino has mainPath
+      if (sess.mainPath) {
+        reloadProject(sess.mainPath, sess.repopath);
+      } else {
+        updateSelector();
+        alert("Files imported, but no main file was found so you'll have to select this project in the pulldown.");
+      }
+    }).catch( (e) => {
+      if (modal) modal.modal('hide');
+      console.log(e);
+      alert("Could not import " + githuburl + ": " + e);
+    });
+  });
 }
 
 function _importProjectFromGithub(e) {
@@ -405,31 +440,12 @@ function _importProjectFromGithub(e) {
   modal.modal('show');
   btn.off('click').on('click', () => {
     var githuburl = $("#importGithubURL").val()+"";
-    var sess;
-    getGithubService().import(githuburl).then( (sess1:GHSession) => {
-      sess = sess1;
-      return getGithubService().pull(githuburl);
-    }).then( (sess2:GHSession) => {
-      // TODO: only first sessino has mainPath
-      if (sess.mainPath) {
-        reloadPresetNamed(sess.prefix + sess.mainPath);
-      } else {
-        updateSelector();
-        alert("Files imported, but no main file was found so you'll have to select this project in the pulldown.");
-      }
-      // TODO : redirect to main file
-      modal.modal('hide');
-    }).catch( (e) => {
-      modal.modal('hide');
-      console.log(e);
-      alert("Could not import " + githuburl + ": " + e);
-    });
+    importProjectFromGithub(githuburl, modal);
   });
 }
 
 function _publishProjectToGithub(e) {
-  var ghurl = getGithubService().getBoundURL(current_project.mainPath);
-  if (ghurl) {
+  if (repo_id) {
     alert("This project (" + current_project.mainPath + ") is already bound to a Github repository. Choose 'Push Changes' to update.");
     return;
   }
@@ -446,14 +462,11 @@ function _publishProjectToGithub(e) {
     setWaitDialog(true);
     getGithubService().login().then( () => {
       return getGithubService().publish(name, desc, license, priv);
-    }).then( (_sess) => {
-      sess = _sess;
-      console.log(sess);
-      return current_project.migrateToNewFolder(sess.prefix);
-    }).then( () => {
+    }).then( (sess) => {
+      repo_id = qs['repo'] = sess.repopath;
       return pushChangesToGithub('initial import from 8bitworkshop.com');
     }).then( () => {
-      reloadPresetNamed(current_project.mainPath);
+      reloadProject(current_project.mainPath);
     }).catch( (e) => {
       setWaitDialog(false);
       console.log(e);
@@ -508,28 +521,6 @@ function pushChangesToGithub(message:string) {
     setWaitDialog(false);
     console.log(e);
     alert("Could not push GitHub repository: " + e);
-  });
-}
-
-// TODO: remove?
-function loadSharedGist(gistkey : string) {
-  var github = new exports['Octokat']();
-  var gist = this.github.gists(gistkey);
-  gist.fetch().done( (val) => {
-    var filename;
-    var newid;
-    console.log("Fetched " + gistkey, val);
-    store = createNewPersistentStore(platform_id, (store) => {
-      for (filename in val.files) {
-        store.setItem('shared/'+filename, val.files[filename].content);
-        if (!newid) newid = 'shared/'+filename;
-      }
-      // TODO: wait for set?
-      delete qs['gistkey'];
-      reloadPresetNamed(newid);
-    });
-  }).fail(function(err) {
-    alert("Error loading share file: " + err.message);
   });
 }
 
@@ -619,7 +610,7 @@ function _downloadCassetteFile(e) {
 
 function fixFilename(fn : string) : string {
   if (platform_id.startsWith('vcs') && fn.indexOf('.') <= 0)
-    fn += ".a"; // legacy stuff
+    fn += ".a"; // TODO: legacy stuff
   return fn;
 }
 
@@ -628,7 +619,7 @@ function _revertFile(e) {
   if (wnd && wnd.setText) {
     var fn = fixFilename(projectWindows.getActiveID());
     // TODO: .mame
-    $.get( "presets/"+getFilenamePrefix(platform_id)+"/"+fn, function(text) {
+    $.get( "presets/"+getBasePlatform(platform_id)+"/"+fn, function(text) {
       if (confirm("Reset '" + fn + "' to default?")) {
         wnd.setText(text);
       }
@@ -680,7 +671,7 @@ function _renameFile(e) {
           alert("Renamed " + fn + " to " + newfn);
           updateSelector();
           if (fn == current_project.mainPath) {
-            reloadPresetNamed(newfn);
+            reloadProject(newfn);
           }
         });
       });
@@ -788,15 +779,23 @@ function populateFiles(sel:JQuery, category:string, prefix:string, callback:() =
 
 function updateSelector() {
   var sel = $("#preset_select").empty();
-  populateFiles(sel, "Local Files", "local/", () => {
-    populateFiles(sel, "Shared", "shared/", () => {
-      populateExamples(sel);
+  if (!repo_id) {
+    // normal: populate local and shared files
+    populateFiles(sel, "Local Files", "local/", () => {
+      populateFiles(sel, "Shared", "shared/", () => {
+        populateExamples(sel);
+        sel.css('visibility','visible');
+      });
+    });
+  } else {
+    // repo: populate all files
+    populateFiles(sel, "Repository Files", "", () => {
       sel.css('visibility','visible');
     });
-  });
+  }
   // set click handlers
   sel.off('change').change(function(e) {
-    reloadPresetNamed($(this).val().toString());
+    reloadProject($(this).val().toString());
   });
 }
 
@@ -847,7 +846,7 @@ function setCompileOutput(data: WorkerResult) {
 
 function loadBIOSFromProject() {
   if (platform.loadBIOS) {
-    var biospath = 'local/'+platform_id+'.rom';
+    var biospath = 'local/' + platform_id + '.rom';
     store.getItem(biospath).then( (biosdata) => {
       console.log('loading BIOS')
       platform.loadBIOS('BIOS', biosdata);
@@ -1302,7 +1301,7 @@ function setupDebugControls() {
   $("#item_download_zip").click(_downloadProjectZipFile);
   $("#item_download_allzip").click(_downloadAllFilesZipFile);
   $("#item_record_video").click(_recordVideo);
-  if (platform_id == 'apple2')
+  if (platform_id.startsWith('apple2'))
     $("#item_export_cassette").click(_downloadCassetteFile);
   else
     $("#item_export_cassette").hide();
@@ -1386,7 +1385,7 @@ function isLandscape() {
 function showWelcomeMessage() {
   if (hasLocalStorage && !localStorage.getItem("8bitworkshop.hello")) {
     // Instance the tour
-    var is_vcs = platform_id == 'vcs';
+    var is_vcs = platform_id.startsWith('vcs');
     var steps = [
         {
           element: "#workspace",
@@ -1557,7 +1556,7 @@ export function loadScript(scriptfn, onload, onerror?) {
 export function setupSplits() {
   const splitName = 'workspace-split3-' + platform_id;
   var sizes = [0, 50, 50];
-  if (platform_id != 'vcs') // TODO
+  if (platform_id.startsWith('vcs')) // TODO
     sizes = [12, 44, 44];
   var sizesStr = hasLocalStorage && localStorage.getItem(splitName);
   if (sizesStr) {
@@ -1619,33 +1618,28 @@ export function startUI(loadplatform : boolean) {
   }
   $("#item_platform_"+platform_id).addClass("dropdown-item-checked");
   setupSplits();
-  // parse query string
-  // is this a share URL? can't create store until we know platform_id...
-  if (qs['gistkey']) {
-    loadSharedGist(qs['gistkey']);
-  }
-  // otherwise, open IDE
-  else {
-    // create store for platform
-    store = createNewPersistentStore(platform_id, (store) => {
-      // is this an importURL?
-      if (qs['githubURL']) {
-        getGithubService().import(qs['githubURL']);
-        return;
-      }
-      // is this an importURL?
-      if (qs['importURL']) {
-        loadImportedURL(qs['importURL']);
-        return;
-      }
-      // load and start platform object
-      if (loadplatform) {
-        loadAndStartPlatform();
-      } else {
-        startPlatform();
-      }
-    });
-  }
+  // create store
+  repo_id = qs['repo'];
+  store_id = repo_id || getBasePlatform(platform_id);
+  store = createNewPersistentStore(store_id, (store) => {
+    // is this an importURL?
+    // TODO: use repo
+    if (qs['githubURL']) {
+      getGithubService().import(qs['githubURL']);
+      return;
+    }
+    // is this an importURL?
+    if (qs['importURL']) {
+      loadImportedURL(qs['importURL']);
+      return;
+    }
+    // load and start platform object
+    if (loadplatform) {
+      loadAndStartPlatform();
+    } else {
+      startPlatform();
+    }
+  });
 }
 
 function loadAndStartPlatform() {
@@ -1654,7 +1648,7 @@ function loadAndStartPlatform() {
     console.log("loaded platform", platform_id);
     startPlatform();
     showWelcomeMessage();
-    document.title = document.title + " [" + platform_id + "] - " + current_project.mainPath;
+    document.title = document.title + " [" + platform_id + "] - " + (('['+repo_id+'] - ')||'') + current_project.mainPath;
   }, () => {
     alert('Platform "' + platform_id + '" not supported.');
   });

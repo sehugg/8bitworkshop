@@ -19,7 +19,7 @@ function newGH(store, platform_id) {
   var project = new prj.CodeProject({}, platform_id||test_platform_id, null, store);
   project.mainPath = 'local/main.asm';
   project.updateFileInStore(project.mainPath, '\torg $0 ; test\n');
-  return new serv.GithubService(Octokat, 'ec64fdd81dedab8b7547388eabef09288e9243a9', store, project);
+  return new serv.GithubService(Octokat, process.env.TEST8BIT_GITHUB_TOKEN, store, project);
 }
 
 const t0 = new Date().getTime();
@@ -95,11 +95,11 @@ describe('Store', function() {
   it('Should bind paths to Github', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
-      var sess = {prefix:'shared/foo/bar/', url:'_'};
+      var sess = {repopath:'foo/bar', url:'_'};
       gh.bind(sess, true);
-      assert.equal(gh.getBoundURL('shared/foo/bar/'), '_');
+      assert.deepEqual(gh.getRepos(), {'foo/bar':'_'});
       gh.bind(sess, false);
-      assert.equal(gh.getBoundURL('shared/foo/bar/'), null);
+      assert.deepEqual(gh.getRepos(), {});
       done();
     });
   });

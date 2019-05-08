@@ -143,6 +143,8 @@ TODO:
   - what if files already open in editor
   - import twice?
   - un-bind from repo?
+  - repo/platform dichotomy
+  - navigate to/from repo
 
 
 WEB WORKER FORMAT
