@@ -115,17 +115,14 @@ export class ProjectWindows {
   }
 
   updateFile(fileid:string, data:FileData) {
-    // is there an editor? we should create one...
-    var wnd = this.create(fileid);
+    // is there an editor? if so, use it
+    var wnd = this.id2window[fileid];
     if (wnd && wnd.setText && typeof data === 'string') {
       wnd.setText(data);
+      this.undofiles.push(fileid);
     } else {
       this.project.updateFile(fileid, data);
-      if (wnd) {
-        wnd.refresh(false);
-      }
     }
-    this.undofiles.push(fileid);
   }
   
   undoStep() {

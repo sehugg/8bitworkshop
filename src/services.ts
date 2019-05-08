@@ -7,14 +7,17 @@ import { CodeProject } from "./project";
 declare var exports;
 declare var firebase;
 
-interface GHSession {
+export interface GHSession {
   url : string;
   user : string;
   reponame : string;
   repo : any;
   prefix : string;
   paths? : string[];
+  mainPath?: string;
 }
+
+const README_md_template = "$NAME\n=====\n\nCompatible with the [$PLATFORM](http://8bitworkshop.com/redir.html?platform=$PLATFORM&importURL=$GITHUBURL) platform in [8bitworkshop](http://8bitworkshop.com/). Main file is [$MAINFILE]($MAINFILE#mainfile).\n";
 
 export class GithubService {
 
@@ -39,7 +42,6 @@ export class GithubService {
 
   parseGithubURL(ghurl:string) {
     var toks = ghurl.split('/');
-    console.log(toks);
     if (toks.length < 5) return null;
     if (toks[0] != 'https:') return null;
     if (toks[2] != 'github.com') return null;
@@ -47,10 +49,10 @@ export class GithubService {
   }
   
   getPrefix(user, reponame) : string {
-    return 'shared/' + user + '-' + reponame + '/';
+    return 'shared/' + user + '/' + reponame + '/';
   }
 
-  getGithubRepo(ghurl:string) : Promise<GHSession> {
+  getGithubSession(ghurl:string) : Promise<GHSession> {
     return new Promise( (yes,no) => {
       var urlparse = this.parseGithubURL(ghurl);
       if (!urlparse) {
@@ -70,9 +72,6 @@ export class GithubService {
   // bind a folder path to the Github URL in local storage  
   bind(sess : GHSession, dobind : boolean) {
     var key = '__github_url_' + sess.prefix;
-    // TODO: this doesn't work b/c it binds the entire root to a url
-    if (!key.endsWith('/'))
-      key = key + '/';
     console.log('bind', key, dobind);
     if (dobind)
       localStorage.setItem(key, sess.url);
@@ -83,13 +82,43 @@ export class GithubService {
   getBoundURL(path : string) : string {
     var p = getFolderForPath(path);
     var key = '__github_url_' + p + '/';
-    console.log(key);
+    console.log("getBoundURL", key);
     return localStorage.getItem(key) as string; // TODO
   }
-
+  
   import(ghurl:string) : Promise<GHSession> {
     var sess : GHSession;
-    return this.getGithubRepo(ghurl).then( (session) => {
+    return this.getGithubSession(ghurl).then( (session) => {
+      sess = session;
+      // load README
+      return sess.repo.contents('README.md').read();
+    })
+    .catch( () => {
+      return ''; // empty README
+    })
+    .then( (readme) => {
+      var m;
+      // check README for main file
+      const re8main = /\(([^)]+)#mainfile\)/;
+      m = re8main.exec(readme);
+      if (m) {
+        console.log("main path: '" + m[1] + "'");
+        sess.mainPath = m[1];
+      }
+      // check README for proper platform
+      const re8plat = /8bitworkshop.com[^)]+platform=(\w+)/;
+      m = re8plat.exec(readme);
+      if (m && !this.project.platform_id.startsWith(m[1])) {
+        throw "Platform mismatch: Repository is " + m[1] + ", you have " + this.project.platform_id + " selected.";
+      }
+      // get head commit
+      return this.pull(ghurl);
+    });
+  }
+  
+  pull(ghurl:string) : Promise<GHSession> {
+    var sess : GHSession;
+    return this.getGithubSession(ghurl).then( (session) => {
       sess = session;
       return sess.repo.commits(this.branch).fetch();
     })
@@ -124,21 +153,32 @@ export class GithubService {
   }
 
   publish(reponame:string, desc:string, license:string, isprivate:boolean) : Promise<GHSession> {
+    var repo;
     return this.github.user.repos.create({
       name: reponame,
       description: desc,
       private: isprivate,
-      auto_init: true,
+      auto_init: false,
       license_template: license
     })
-    .then( (repo) => {
-      let sess = {
-        url: repo.htmlUrl,
-        user: repo.owner.login,
-        reponame: reponame,
-        repo: repo,
-        prefix : ''
-      };
+    .then( (_repo) => {
+      repo = _repo;
+      // create README.md
+      var s = README_md_template;
+      s = s.replace(/\$NAME/g, reponame);
+      s = s.replace(/\$PLATFORM/g, this.project.platform_id);
+      s = s.replace(/\$IMPORTURL/g, repo.html_url);
+      s = s.replace(/\$MAINFILE/g, this.project.stripLocalPath(this.project.mainPath));
+      var config = {
+        message: '8bitworkshop: updated metadata in README.md',
+        content: btoa(s)
+      }
+      return repo.contents('README.md').add(config);
+    })
+    .then( () => {
+      return this.getGithubSession(repo.htmlUrl);
+    })
+    .then( (sess) => {
       this.bind(sess, true);
       return sess;
     });
@@ -149,7 +189,7 @@ export class GithubService {
     var repo;
     var head;
     var tree;
-    return this.getGithubRepo(ghurl).then( (session) => {
+    return this.getGithubSession(ghurl).then( (session) => {
       sess = session;
       repo = sess.repo;
       return repo.git.refs.heads(this.branch).fetch();

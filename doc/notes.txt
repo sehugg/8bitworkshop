@@ -41,7 +41,6 @@ TODO:
 - VCS asm library
 - better VCS single stepping, maybe also listings
 - VCS skips step on lsr/lsr after run to line
-- links to external tools in ide
 - error msg when #link doesn't work
 - figure out folders for projects for real
 - click to break on raster position
@@ -132,12 +131,19 @@ TODO:
 - upload multiple files/zip file to subdirectory
   - allow "include graphics.asm" instead of "include project/graphics.asm"
 - chrome looks blurry on vcs
+- convert more stuff to Promises
 - don't have to include bootstrap-tourist each time?
 - don't have to include firebase always?
 - Github
-  - write/read metadata w/ main file
-  - push/pull changes
-  - gh-pages branch with embedded 
+  - gh-pages branch with embedded
+  - handle overwrite logic
+  - put extensions on vcs example files
+  - test edge/failure cases
+  - what to do about included files?
+  - what if files already open in editor
+  - import twice?
+  - un-bind from repo?
+  - login/logout?
 
 
 WEB WORKER FORMAT

@@ -14,7 +14,7 @@ import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
          byteArrayToUTF8, isProbablyBinary, getWithBinary } from "./util";
 import { StateRecorderImpl } from "./recorder";
-import { GithubService } from "./services";
+import { GHSession, GithubService } from "./services";
 
 // external libs (TODO)
 declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, firebase;
@@ -382,35 +382,48 @@ function getCookie(name) {
 
 function getGithubService() {
   if (!githubService) {
-    loadScript("lib/octokat.js", () => {
-      // get github API key from cookie
-      var ghkey = getCookie('__github_key');
-      var ghopts = {token:ghkey};
-      githubService = new GithubService(new exports['Octokat'](ghopts), store, current_project);
-    });
+    // get github API key from cookie
+    var ghkey = getCookie('__github_key');
+    var ghopts = {token:ghkey};
+    githubService = new GithubService(new exports['Octokat'](ghopts), store, current_project);
+    console.log("loaded github service");
   }
   return githubService;
 }
 
+function getBoundGithubURL() {
+  console.log("main path: " + current_project.mainPath);
+  var ghurl = getGithubService().getBoundURL(current_project.mainPath);
+  console.log("Github URL: " + ghurl);
+  return ghurl || alert("This project (" + current_project.mainPath + ") is not bound to a GitHub project.");
+}
+
 function _importProjectFromGithub(e) {
-  getGithubService(); // load it
   var modal = $("#importGithubModal");
   var btn = $("#importGithubButton");
   modal.modal('show');
   btn.off('click').on('click', () => {
     var githuburl = $("#importGithubURL").val()+"";
-    getGithubService().import(githuburl).then( (sess) => {
+    getGithubService().import(githuburl).then( (sess:GHSession) => {
+      if (sess.mainPath) {
+        reloadPresetNamed(sess.prefix + sess.mainPath);
+      }
       // TODO : redirect to main file
       modal.modal('hide');
     }).catch( (e) => {
       modal.modal('hide');
+      console.log(e);
       alert("Could not import " + githuburl + ": " + e);
     });
   });
 }
 
 function _publishProjectToGithub(e) {
-  getGithubService(); // load it
+  var ghurl = getGithubService().getBoundURL(current_project.mainPath);
+  if (ghurl) {
+    alert("This project (" + current_project.mainPath + ") is already bound to a Github repository. Choose 'Push Changes' to update.");
+    return;
+  }
   var modal = $("#publishGithubModal");
   var btn = $("#publishGithubButton");
   modal.modal('show');
@@ -419,22 +432,28 @@ function _publishProjectToGithub(e) {
     var desc = $("#githubRepoDesc").val()+"";
     var priv = $("#githubRepoPrivate").val() == 'private';
     var license = $("#githubRepoLicense").val()+"";
-    getGithubService().publish(name, desc, license, priv).then( (sess) => {
-      modal.modal('hide');
-      // TODO: commit files
-      // TODO: migrate project files
+    var sess;
+    modal.modal('hide');
+    setWaitDialog(true);
+    getGithubService().publish(name, desc, license, priv).then( (_sess) => {
+      sess = _sess;
       console.log(sess);
-      alert("Created repository at " + sess.url);
-      pushChangesToGithub('initial import from 8bitworkshop.com');
+      return current_project.migrateToNewFolder(sess.prefix);
+    }).then( () => {
+      return pushChangesToGithub('initial import from 8bitworkshop.com');
+    }).then( () => {
+      reloadPresetNamed(current_project.mainPath);
     }).catch( (e) => {
-      modal.modal('hide');
-      alert("Could not create GitHub repository: " + e);
+      setWaitDialog(false);
+      console.log(e);
+      alert("Could not publish GitHub repository: " + e);
     });
   });
 }
 
 function _pushProjectToGithub(e) {
-  getGithubService(); // load it
+  var ghurl = getBoundGithubURL();
+  if (!ghurl) return;
   var modal = $("#pushGithubModal");
   var btn = $("#pushGithubButton");
   modal.modal('show');
@@ -445,29 +464,42 @@ function _pushProjectToGithub(e) {
   });
 }
 
+function _pullProjectFromGithub(e) {
+  var ghurl = getBoundGithubURL();
+  if (!ghurl) return;
+  setWaitDialog(true);
+  getGithubService().pull(ghurl).then( (sess:GHSession) => {
+    setWaitDialog(false);
+  });
+}
+
 function pushChangesToGithub(message:string) {
-  var ghurl = getGithubService().getBoundURL(current_project.mainPath);
-  console.log("Github URL: " + ghurl);
-  if (!ghurl) {
-    alert("This project is not bound to a GitHub project.");
-    return;
-  }
+  var ghurl = getBoundGithubURL();
+  if (!ghurl) return;
   // build file list for push
   var files = [];
   for (var path in current_project.filedata) {
     var newpath = current_project.stripLocalPath(path);
-    files.push({path:newpath, data:current_project.filedata[path]});
+    var data = current_project.filedata[path];
+    if (newpath && data) {
+      files.push({path:newpath, data:data});
+    }
   }
   // push files
   setWaitDialog(true);
-  getGithubService().commitPush(ghurl, message, files).then( (sess) => {
+  return getGithubService().commitPush(ghurl, message, files).then( (sess) => {
     setWaitDialog(false);
+    alert("Pushed files to " + ghurl);
+    return sess;
+  }).catch( (e) => {
+    setWaitDialog(false);
+    console.log(e);
+    alert("Could not push GitHub repository: " + e);
   });
 }
 
 // TODO: remove?
 function loadSharedGist(gistkey : string) {
- loadScript("lib/octokat.js", () => {
   var github = new exports['Octokat']();
   var gist = this.github.gists(gistkey);
   gist.fetch().done( (val) => {
@@ -486,7 +518,6 @@ function loadSharedGist(gistkey : string) {
   }).fail(function(err) {
     alert("Error loading share file: " + err.message);
   });
- });
 }
 
 function _shareEmbedLink(e) {
@@ -1244,6 +1275,7 @@ function setupDebugControls() {
   $("#item_github_import").click(_importProjectFromGithub);
   $("#item_github_publish").click(_publishProjectToGithub);
   $("#item_github_push").click(_pushProjectToGithub);
+  $("#item_github_pull").click(_pullProjectFromGithub);
   $("#item_share_file").click(_shareEmbedLink);
   $("#item_reset_file").click(_revertFile);
   $("#item_rename_file").click(_renameFile);

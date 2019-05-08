@@ -14,19 +14,47 @@ var Octokat = require('octokat');
 
 var test_platform_id = "_TEST";
 
-function newGH(store) {
+function newGH(store, platform_id) {
   // pzpinfo user
-  return new serv.GithubService(new Octokat({token:'ec64fdd81dedab8b7547388eabef09288e9243a9'}), store);
+  var project = new prj.CodeProject({}, platform_id||test_platform_id, null, store);
+  project.mainPath = 'local/main.asm';
+  project.updateFileInStore(project.mainPath, '\torg $0 ; test\n');
+  return new serv.GithubService(new Octokat({token:'ec64fdd81dedab8b7547388eabef09288e9243a9'}), store, project);
 }
+
+const t0 = new Date().getTime();
 
 describe('Store', function() {
 
-  it('Should import from Github', function(done) {
+  it('Should import from Github (check README)', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
-      gh.import('https://github.com/sehugg/genemedic/extra/garbage').then( (sess) => {
-        assert.equal(4, sess.paths.length);
+      gh.import('https://github.com/pzpinfo/testrepo1557322631070').then( (sess) => {
+        console.log(sess.paths);
+        assert.equal(2, sess.paths.length);
         // TODO: test for presence in local storage, make sure returns keys
+        done();
+      });
+    });
+  });
+
+  it('Should import from Github (no README)', function(done) {
+    var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
+      var gh = newGH(store);
+      gh.import('https://github.com/pzpinfo/testrepo3').then( (sess) => {
+        console.log(sess.paths);
+        assert.equal(3, sess.paths.length);
+        // TODO: test for presence in local storage, make sure returns keys
+        done();
+      });
+    });
+  });
+
+  it('Should import from Github (wrong platform)', function(done) {
+    var store = mstore.createNewPersistentStore('_FOO', function(store) {
+      var gh = newGH(store, '_FOO');
+      gh.import('https://github.com/pzpinfo/testrepo1557326056720').catch( (e) => {
+        assert.ok(e.startsWith('Platform mismatch'));
         done();
       });
     });
@@ -36,7 +64,17 @@ describe('Store', function() {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
       // should fail
-      gh.publish('testrepo4').catch( (e) => {
+      gh.publish('testrepo1').catch( (e) => {
+        done();
+      });
+    });
+  });
+
+  it('Should publish new repository on Github', function(done) {
+    var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
+      var gh = newGH(store);
+      // should fail
+      gh.publish('testrepo'+t0, "new description", "mit", false).then( (sess) => {
         done();
       });
     });
@@ -57,11 +95,11 @@ describe('Store', function() {
   it('Should bind paths to Github', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
-      var sess = {prefix:'prefix', url:'_'};
+      var sess = {prefix:'shared/foo/bar/', url:'_'};
       gh.bind(sess, true);
-      assert.equal(gh.getBoundURL('prefix', '_'));
+      assert.equal(gh.getBoundURL('shared/foo/bar/'), '_');
       gh.bind(sess, false);
-      assert.equal(gh.getBoundURL('prefix', null));
+      assert.equal(gh.getBoundURL('shared/foo/bar/'), null);
       done();
     });
   });

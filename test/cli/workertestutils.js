@@ -8,6 +8,9 @@ var worker = {};
 global.window = global;
 global.exports = {};
 
+global.btoa = require('btoa');
+global.atob = require('atob');
+
 global.includeInThisContext = function(path) {
   var code = fs.readFileSync(path);
   vm.runInThisContext(code, path);

@@ -13,8 +13,6 @@ global.window = dom.window;
 global.document = dom.window.document;
 dom.window.Audio = null;
 global.Image = function() { }
-global.btoa = require('btoa');
-global.atob = require('atob');
 global['$'] = require("jquery/jquery-2.2.3.min.js");
 global.includeInThisContext('src/cpu/z80fast.js');
 includeInThisContext("javatari.js/release/javatari/javatari.js");
