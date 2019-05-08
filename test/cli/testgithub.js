@@ -19,7 +19,7 @@ function newGH(store, platform_id) {
   var project = new prj.CodeProject({}, platform_id||test_platform_id, null, store);
   project.mainPath = 'local/main.asm';
   project.updateFileInStore(project.mainPath, '\torg $0 ; test\n');
-  return new serv.GithubService(new Octokat({token:'ec64fdd81dedab8b7547388eabef09288e9243a9'}), store, project);
+  return new serv.GithubService(Octokat, 'ec64fdd81dedab8b7547388eabef09288e9243a9', store, project);
 }
 
 const t0 = new Date().getTime();
@@ -29,7 +29,7 @@ describe('Store', function() {
   it('Should import from Github (check README)', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
-      gh.import('https://github.com/pzpinfo/testrepo1557322631070').then( (sess) => {
+      gh.importAndPull('https://github.com/pzpinfo/testrepo1557322631070').then( (sess) => {
         console.log(sess.paths);
         assert.equal(2, sess.paths.length);
         // TODO: test for presence in local storage, make sure returns keys
@@ -41,7 +41,7 @@ describe('Store', function() {
   it('Should import from Github (no README)', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
-      gh.import('https://github.com/pzpinfo/testrepo3').then( (sess) => {
+      gh.importAndPull('https://github.com/pzpinfo/testrepo3').then( (sess) => {
         console.log(sess.paths);
         assert.equal(3, sess.paths.length);
         // TODO: test for presence in local storage, make sure returns keys
@@ -53,7 +53,7 @@ describe('Store', function() {
   it('Should import from Github (wrong platform)', function(done) {
     var store = mstore.createNewPersistentStore('_FOO', function(store) {
       var gh = newGH(store, '_FOO');
-      gh.import('https://github.com/pzpinfo/testrepo1557326056720').catch( (e) => {
+      gh.importAndPull('https://github.com/pzpinfo/testrepo1557326056720').catch( (e) => {
         assert.ok(e.startsWith('Platform mismatch'));
         done();
       });

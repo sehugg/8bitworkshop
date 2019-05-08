@@ -143,7 +143,6 @@ TODO:
   - what if files already open in editor
   - import twice?
   - un-bind from repo?
-  - login/logout?
 
 
 WEB WORKER FORMAT

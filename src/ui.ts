@@ -383,19 +383,20 @@ function getCookie(name) {
 function getGithubService() {
   if (!githubService) {
     // get github API key from cookie
+    // TODO: move to service?
     var ghkey = getCookie('__github_key');
-    var ghopts = {token:ghkey};
-    githubService = new GithubService(new exports['Octokat'](ghopts), store, current_project);
+    githubService = new GithubService(exports['Octokat'], ghkey, store, current_project);
     console.log("loaded github service");
   }
   return githubService;
 }
 
-function getBoundGithubURL() {
+function getBoundGithubURL() : string {
   console.log("main path: " + current_project.mainPath);
   var ghurl = getGithubService().getBoundURL(current_project.mainPath);
   console.log("Github URL: " + ghurl);
-  return ghurl || alert("This project (" + current_project.mainPath + ") is not bound to a GitHub project.");
+  if (!ghurl) alert("This project (" + current_project.mainPath + ") is not bound to a GitHub project.")
+  return ghurl;
 }
 
 function _importProjectFromGithub(e) {
@@ -404,9 +405,17 @@ function _importProjectFromGithub(e) {
   modal.modal('show');
   btn.off('click').on('click', () => {
     var githuburl = $("#importGithubURL").val()+"";
-    getGithubService().import(githuburl).then( (sess:GHSession) => {
+    var sess;
+    getGithubService().import(githuburl).then( (sess1:GHSession) => {
+      sess = sess1;
+      return getGithubService().pull(githuburl);
+    }).then( (sess2:GHSession) => {
+      // TODO: only first sessino has mainPath
       if (sess.mainPath) {
         reloadPresetNamed(sess.prefix + sess.mainPath);
+      } else {
+        updateSelector();
+        alert("Files imported, but no main file was found so you'll have to select this project in the pulldown.");
       }
       // TODO : redirect to main file
       modal.modal('hide');
@@ -435,7 +444,9 @@ function _publishProjectToGithub(e) {
     var sess;
     modal.modal('hide');
     setWaitDialog(true);
-    getGithubService().publish(name, desc, license, priv).then( (_sess) => {
+    getGithubService().login().then( () => {
+      return getGithubService().publish(name, desc, license, priv);
+    }).then( (_sess) => {
       sess = _sess;
       console.log(sess);
       return current_project.migrateToNewFolder(sess.prefix);
@@ -487,7 +498,9 @@ function pushChangesToGithub(message:string) {
   }
   // push files
   setWaitDialog(true);
-  return getGithubService().commitPush(ghurl, message, files).then( (sess) => {
+  return getGithubService().login().then( () => {
+    return getGithubService().commitPush(ghurl, message, files);
+  }).then( (sess) => {
     setWaitDialog(false);
     alert("Pushed files to " + ghurl);
     return sess;

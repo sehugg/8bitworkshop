@@ -21,15 +21,45 @@ const README_md_template = "$NAME\n=====\n\nCompatible with the [$PLATFORM](http
 
 export class GithubService {
 
+  githubCons;
+  githubToken;
   github;
   store;
   project : CodeProject;
   branch : string = "master";
 
-  constructor(github, store, project : CodeProject) {
-    this.github = github;
+  constructor(githubCons:() => any, githubToken:string, store, project : CodeProject) {
+    this.githubCons = githubCons;
+    this.githubToken = githubToken;
     this.store = store;
     this.project = project;
+    this.recreateGithub();
+  }
+  
+  recreateGithub() {
+    this.github = new this.githubCons({token:this.githubToken});
+  }
+  
+  login() : Promise<void> {
+    // already logged in? return immediately
+    if (this.githubToken && this.githubToken.length) {
+      return new Promise<void>( (yes,no) => {
+        yes();
+      });
+    }
+    // login via popup
+    var provider = new firebase.auth.GithubAuthProvider();
+    provider.addScope('repo');
+    return firebase.auth().signInWithPopup(provider).then( (result) => {
+      this.githubToken = result.credential.accessToken;
+      var user = result.user;
+      this.recreateGithub();
+      document.cookie = "__github_key=" + this.githubToken + ";path=/;max-age=31536000";
+      console.log("Stored GitHub OAUTH key");
+    }).catch( (error) => {
+      console.log(error);
+      alert("Could not login to GitHub: " + error);
+    });
   }
   
   isFileIgnored(s : string) : boolean {
@@ -94,6 +124,7 @@ export class GithubService {
       return sess.repo.contents('README.md').read();
     })
     .catch( () => {
+      console.log('no README.md found')
       return ''; // empty README
     })
     .then( (readme) => {
@@ -101,7 +132,7 @@ export class GithubService {
       // check README for main file
       const re8main = /\(([^)]+)#mainfile\)/;
       m = re8main.exec(readme);
-      if (m) {
+      if (m && m[1]) {
         console.log("main path: '" + m[1] + "'");
         sess.mainPath = m[1];
       }
@@ -112,7 +143,7 @@ export class GithubService {
         throw "Platform mismatch: Repository is " + m[1] + ", you have " + this.project.platform_id + " selected.";
       }
       // get head commit
-      return this.pull(ghurl);
+      return sess;
     });
   }
   
@@ -149,6 +180,12 @@ export class GithubService {
     .then( (blobs) => {
       this.bind(sess, true);
       return sess;
+    });
+  }
+  
+  importAndPull(ghurl:string) {
+    return this.import(ghurl).then((sess) => {
+      return this.pull(ghurl);
     });
   }
 
