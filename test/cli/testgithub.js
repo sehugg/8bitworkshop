@@ -95,6 +95,7 @@ describe('Store', function() {
   it('Should bind paths to Github', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
+      localStorage.removeItem('__repos');
       var sess = {repopath:'foo/bar', url:'_'};
       gh.bind(sess, true);
       assert.deepEqual(gh.getRepos(), {'foo/bar':'_'});

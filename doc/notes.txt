@@ -145,6 +145,7 @@ TODO:
   - un-bind from repo?
   - repo/platform dichotomy
   - navigate to/from repo
+  - import 'examples/' retains path?
 
 
 WEB WORKER FORMAT

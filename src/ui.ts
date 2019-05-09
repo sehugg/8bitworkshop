@@ -608,16 +608,10 @@ function _downloadCassetteFile(e) {
   });
 }
 
-function fixFilename(fn : string) : string {
-  if (platform_id.startsWith('vcs') && fn.indexOf('.') <= 0)
-    fn += ".a"; // TODO: legacy stuff
-  return fn;
-}
-
 function _revertFile(e) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.setText) {
-    var fn = fixFilename(projectWindows.getActiveID());
+    var fn = projectWindows.getActiveID();
     // TODO: .mame
     $.get( "presets/"+getBasePlatform(platform_id)+"/"+fn, function(text) {
       if (confirm("Reset '" + fn + "' to default?")) {
@@ -726,7 +720,7 @@ function _downloadAllFilesZipFile(e) {
         // TODO: handle binary files
         store.getItem(path, (err, text) => {
           if (text) {
-            zip.file(fixFilename(path), text);
+            zip.file(path, text);
           }
           if (++count == keys.length) {
             zip.generateAsync({type:"blob"}).then( (content) => {
@@ -1534,6 +1528,11 @@ function startPlatform() {
     qs['file'] = lastid || PRESETS[0].id;
     replaceURLState();
   }
+  // legacy vcs stuff
+  if (platform_id == 'vcs' && qs['file'].startsWith('examples/') && !qs['file'].endsWith('.a')) {
+    qs['file'] += '.a';
+    replaceURLState();
+  }
   // start platform and load file
   platform.start();
   loadBIOSFromProject();
@@ -1612,7 +1611,7 @@ function loadImportedURL(url : string) {
 export function startUI(loadplatform : boolean) {
   installErrorHandler();
   // add default platform?
-  platform_id = qs['platform'] || localStorage.getItem("__lastplatform");
+  platform_id = qs['platform'] || (hasLocalStorage && localStorage.getItem("__lastplatform"));
   if (!platform_id) {
     platform_id = qs['platform'] = "vcs";
   }
@@ -1633,6 +1632,8 @@ export function startUI(loadplatform : boolean) {
       loadImportedURL(qs['importURL']);
       return;
     }
+    // is vcs? convert legacy stuff
+    convertLegacyVCS(store);
     // load and start platform object
     if (loadplatform) {
       loadAndStartPlatform();
@@ -1648,8 +1649,26 @@ function loadAndStartPlatform() {
     console.log("loaded platform", platform_id);
     startPlatform();
     showWelcomeMessage();
-    document.title = document.title + " [" + platform_id + "] - " + (('['+repo_id+'] - ')||'') + current_project.mainPath;
+    document.title = document.title + " [" + platform_id + "] - " + (repo_id?('['+repo_id+'] - '):'') + current_project.mainPath;
   }, () => {
     alert('Platform "' + platform_id + '" not supported.');
   });
+}
+
+// TODO: remove eventually
+function convertLegacyVCS(store) {
+  if (platform_id == 'vcs' && hasLocalStorage && !localStorage.getItem("__migratevcs")) {
+    store.keys().then((keys:string[]) => {
+      keys.forEach((key) => {
+        if (key.startsWith('examples/') && !key.endsWith('.a')) {
+          store.getItem(key).then( (val) => {
+            if (val) {
+              return store.setItem(key+'.a', val);
+            }
+          });
+        }
+      });
+      localStorage.setItem("__migratevcs", "1");
+    })
+  }
 }
