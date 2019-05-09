@@ -15,6 +15,7 @@ var Octokat = require('octokat');
 var test_platform_id = "_TEST";
 
 function newGH(store, platform_id) {
+  localStorage.removeItem('__repos');
   // pzpinfo user
   var project = new prj.CodeProject({}, platform_id||test_platform_id, null, store);
   project.mainPath = 'local/main.asm';
@@ -27,24 +28,28 @@ const t0 = new Date().getTime();
 describe('Store', function() {
 
   it('Should import from Github (check README)', function(done) {
-    var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
-      var gh = newGH(store);
-      gh.importAndPull('https://github.com/pzpinfo/testrepo1557322631070').then( (sess) => {
+    var store = mstore.createNewPersistentStore('vcs', function(store) {
+      var gh = newGH(store, 'vcs');
+      gh.importAndPull('https://github.com/pzpinfo/test123123').then( (sess) => {
         console.log(sess.paths);
         assert.equal(2, sess.paths.length);
-        // TODO: test for presence in local storage, make sure returns keys
+        assert.deepEqual(serv.getRepos(), {"pzpinfo/test123123":{url: 'https://github.com/pzpinfo/test123123', platform_id: 'vcs', mainPath:'helloworld.bas'}});
         done();
       });
     });
   });
 
-  it('Should import from Github (no README)', function(done) {
-    var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
-      var gh = newGH(store);
+  it('Should import from Github (binary files)', function(done) {
+    var store = mstore.createNewPersistentStore('vcs', function(store) {
+      var gh = newGH(store, 'vcs');
       gh.importAndPull('https://github.com/pzpinfo/testrepo3').then( (sess) => {
         console.log(sess.paths);
-        assert.equal(3, sess.paths.length);
-        // TODO: test for presence in local storage, make sure returns keys
+        assert.equal(4, sess.paths.length);
+        var txt = localStorage.getItem('__vcs/text.txt');
+        assert.equal(txt, '"hello world"');
+        var bin = localStorage.getItem('__vcs/data.bin');
+        console.log(bin);
+        assert.equal(bin.length, 348+9); // encoded
         done();
       });
     });
@@ -73,8 +78,12 @@ describe('Store', function() {
   it('Should publish new repository on Github', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
+      var reponame = 'testrepo'+t0;
       // should fail
-      gh.publish('testrepo'+t0, "new description", "mit", false).then( (sess) => {
+      gh.publish(reponame, "new description", "mit", false).then( (sess) => {
+        assert.ok(serv.getRepos()[sess.repopath]);
+        return gh.deleteRepository(sess.url);
+      }).then( () => {
         done();
       });
     });
@@ -83,8 +92,12 @@ describe('Store', function() {
   it('Should commit/push to Github', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
+      var binfile = new Uint8Array(256);
+      for (var i=0; i<256; i++)
+        binfile[i] = i;
       var files = [
-        {path:'text.txt', data:'hello world'}
+        {path:'text.txt', data:'hello world'},
+        {path:'data.bin', data:binfile}
       ];
       gh.commitPush('https://github.com/pzpinfo/testrepo3', 'test commit', files).then( (sess) => {
         done();
@@ -95,12 +108,11 @@ describe('Store', function() {
   it('Should bind paths to Github', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
-      localStorage.removeItem('__repos');
-      var sess = {repopath:'foo/bar', url:'_'};
+      var sess = {repopath:'foo/bar', url:'_',platform_id:'vcs',mainPath:'test.c'};
       gh.bind(sess, true);
-      assert.deepEqual(gh.getRepos(), {'foo/bar':'_'});
+      assert.deepEqual(serv.getRepos(), {'foo/bar':{url:'_',platform_id:'vcs',mainPath:'test.c'}});
       gh.bind(sess, false);
-      assert.deepEqual(gh.getRepos(), {});
+      assert.deepEqual(serv.getRepos(), {});
       done();
     });
   });

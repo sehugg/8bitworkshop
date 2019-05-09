@@ -137,15 +137,16 @@ TODO:
 - Github
   - gh-pages branch with embedded
   - handle overwrite logic
-  - put extensions on vcs example files
   - test edge/failure cases
   - what to do about included files?
   - what if files already open in editor
-  - import twice?
   - un-bind from repo?
-  - repo/platform dichotomy
-  - navigate to/from repo
+  - navigate to repo
   - import 'examples/' retains path?
+  - what if import interrupted and partial files?
+  - CORS for some blobs?
+  - confusing when examples load if file not found
+  - don't import useless files
 
 
 WEB WORKER FORMAT

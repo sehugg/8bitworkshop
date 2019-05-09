@@ -1,5 +1,5 @@
 
-import { getFolderForPath, isProbablyBinary, stringToByteArray } from "./util";
+import { getFolderForPath, isProbablyBinary, stringToByteArray, byteArrayToString, byteArrayToUTF8 } from "./util";
 import { FileData } from "./workertypes";
 import { CodeProject } from "./project";
 
@@ -7,19 +7,28 @@ import { CodeProject } from "./project";
 declare var exports;
 declare var firebase;
 
-export interface GHSession {
+export interface GHRepoMetadata {
+  url : string;		// github url
+  platform_id : string; // e.g. "vcs"
+  mainPath?: string;	// main file path
+}
+
+export interface GHSession extends GHRepoMetadata {
   url : string;		// github url
   user : string;	// user name
   reponame : string;	// repo name
   repopath : string;	// "user/repo"
   prefix : string;	// file prefix, "local/" or ""
   repo : any;		// [repo object]
-  mainPath?: string;	// main file path
   paths? : string[];
 }
 
 const README_md_template = "$NAME\n=====\n\nCompatible with the [$PLATFORM](http://8bitworkshop.com/redir.html?platform=$PLATFORM&importURL=$GITHUBURL) platform in [8bitworkshop](http://8bitworkshop.com/). Main file is [$MAINFILE]($MAINFILE#mainfile).\n";
 
+export function getRepos() : {[key:string]:GHRepoMetadata} {
+  return JSON.parse(localStorage.getItem('__repos') || '{}');
+}
+  
 export class GithubService {
 
   githubCons;
@@ -91,20 +100,17 @@ export class GithubService {
         reponame: urlparse.repo,
         repopath: urlparse.repopath,
         prefix: '', //this.getPrefix(urlparse.user, urlparse.repo),
-        repo: this.github.repos(urlparse.user, urlparse.repo)
+        repo: this.github.repos(urlparse.user, urlparse.repo),
+        platform_id: this.project.platform_id
       };
       yes(sess);
     });
   }
   
-  getRepos() {
-    return JSON.parse(localStorage.getItem('__repos') || '{}');
-  }
-  
   bind(sess:GHSession, dobind:boolean) {
-    var repos = this.getRepos();
+    var repos = getRepos();
     if (dobind) {
-      repos[sess.repopath] = sess.url;
+      repos[sess.repopath] = {url:sess.url, platform_id:sess.platform_id, mainPath:sess.mainPath};
     } else {
       delete repos[sess.repopath];
     }
@@ -134,9 +140,14 @@ export class GithubService {
       // check README for proper platform
       const re8plat = /8bitworkshop.com[^)]+platform=(\w+)/;
       m = re8plat.exec(readme);
-      if (m && !this.project.platform_id.startsWith(m[1])) {
-        throw "Platform mismatch: Repository is " + m[1] + ", you have " + this.project.platform_id + " selected.";
+      if (m) {
+        console.log("platform id: '" + m[1] + "'");
+        sess.platform_id = m[1];
+        if (!this.project.platform_id.startsWith(m[1]))
+          throw "Platform mismatch: Repository is " + m[1] + ", you have " + this.project.platform_id + " selected.";
       }
+      // bind to repository
+      this.bind(sess, true);
       // get head commit
       return sess;
     });
@@ -158,11 +169,19 @@ export class GithubService {
         console.log(item.path, item.type, item.size);
         sess.paths.push(item.path);
         if (item.type == 'blob' && !this.isFileIgnored(item.path)) {
-          var read = sess.repo.git.blobs(item.sha).readBinary().then( (blob) => {
+          var read = sess.repo.git.blobs(item.sha).fetch().then( (blob) => {
             var path = sess.prefix + item.path;
             var size = item.size;
-            var isBinary = isProbablyBinary(blob);
-            var data = isBinary ? stringToByteArray(blob) : blob; //byteArrayToUTF8(blob);
+            var encoding = blob.encoding;
+            var isBinary = isProbablyBinary(item.path, blob);
+            var data = blob.content;
+            if (blob.encoding == 'base64') {
+              var bindata = stringToByteArray(atob(data));
+              data = isBinary ? bindata : byteArrayToUTF8(bindata);
+            }
+            if (blob.size != data.length) {
+              data = data.slice(0, blob.size);
+            }
             return (deststore || this.store).setItem(path, data);
           });
           blobreads.push(read);
@@ -173,7 +192,6 @@ export class GithubService {
       return Promise.all(blobreads);
     })
     .then( (blobs) => {
-      this.bind(sess, true);
       return sess;
     });
   }
@@ -197,10 +215,10 @@ export class GithubService {
       repo = _repo;
       // create README.md
       var s = README_md_template;
-      s = s.replace(/\$NAME/g, reponame);
-      s = s.replace(/\$PLATFORM/g, this.project.platform_id);
-      s = s.replace(/\$IMPORTURL/g, repo.html_url);
-      s = s.replace(/\$MAINFILE/g, this.project.stripLocalPath(this.project.mainPath));
+      s = s.replace(/\$NAME/g, encodeURIComponent(reponame));
+      s = s.replace(/\$PLATFORM/g, encodeURIComponent(this.project.platform_id));
+      s = s.replace(/\$GITHUBURL/g, encodeURIComponent(repo.html_url));
+      s = s.replace(/\$MAINFILE/g, encodeURIComponent(this.project.stripLocalPath(this.project.mainPath)));
       var config = {
         message: '8bitworkshop: updated metadata in README.md',
         content: btoa(s)
@@ -231,10 +249,17 @@ export class GithubService {
     }).then( (_tree) => {
       tree = _tree;
       return Promise.all(files.map( (file) => {
-        return repo.git.blobs.create({
-          content: file.data,
-          encoding: 'utf-8'
-        });
+        if (typeof file.data === 'string') {
+          return repo.git.blobs.create({
+            content: file.data,
+            encoding: 'utf-8'
+          });
+        } else {
+          return repo.git.blobs.create({
+            content: btoa(byteArrayToString(file.data)),
+            encoding: 'base64'
+          });
+        }
       }));
     }).then( (blobs) => {
       return repo.git.trees.create({
@@ -262,6 +287,12 @@ export class GithubService {
       });
     }).then( (update) => {
       return sess;
+    });
+  }
+  
+  deleteRepository(ghurl:string) {
+    return this.getGithubSession(ghurl).then( (session) => {
+      return session.repo.remove();
     });
   }
 

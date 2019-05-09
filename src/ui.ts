@@ -14,7 +14,7 @@ import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
          byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform } from "./util";
 import { StateRecorderImpl } from "./recorder";
-import { GHSession, GithubService } from "./services";
+import { GHSession, GithubService, getRepos } from "./services";
 
 // external libs (TODO)
 declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, firebase;
@@ -99,14 +99,14 @@ function getCurrentPresetTitle() : string {
 function setLastPreset(id:string) {
   if (hasLocalStorage) {
     localStorage.setItem("__lastplatform", platform_id);
-    localStorage.setItem("__lastid_"+platform_id, id);
+    localStorage.setItem("__lastid_"+store_id, id);
   }
 }
 
 function unsetLastPreset() {
   if (hasLocalStorage) {
     delete qs['file'];
-    localStorage.removeItem("__lastid_"+platform_id);
+    localStorage.removeItem("__lastid_"+store_id);
   }
 }
 
@@ -230,18 +230,7 @@ function refreshWindowList() {
   });
 }
 
-// can pass integer or string id
 function loadProject(preset_id:string) {
-  var index = parseInt(preset_id+""); // might fail -1
-  for (var i=0; i<PRESETS.length; i++)
-    if (PRESETS[i].id == preset_id)
-      index = i;
-  index = (index + PRESETS.length) % PRESETS.length;
-  if (index >= 0) {
-    // load the preset
-    current_preset_entry = PRESETS[index];
-    preset_id = current_preset_entry.id;
-  }
   // set current file ID
   current_project.mainPath = preset_id;
   setLastPreset(preset_id);
@@ -260,10 +249,14 @@ function loadProject(preset_id:string) {
   });
 }
 
-function reloadProject(id:string, repo?:string) {
-  qs['platform'] = platform_id;
-  qs['file'] = id;
-  if (repo) qs['repo'] = repo;
+function reloadProject(id:string) {
+  // leave repository == '..'
+  if (id == '..') {
+    qs = {};
+  } else {
+    qs['platform'] = platform_id;
+    qs['file'] = id;
+  }
   gotoNewLocation();
 }
 
@@ -403,34 +396,39 @@ function getBoundGithubURL() : string {
   return 'https://github.com/' + toks[0] + '/' + toks[1];
 }
 
-function importProjectFromGithub(githuburl:string, modal?) {
+function importProjectFromGithub(githuburl:string) {
   var sess : GHSession;
-  // create new repository store
   var urlparse = getGithubService().parseGithubURL(githuburl);
   if (!urlparse) {
     alert('Could not parse Github URL.');
-    if (modal) modal.modal('hide');
     return;
   }
-  var newstore = createNewPersistentStore(urlparse.repopath, () => {
-    // import into new store
-    return getGithubService().import(githuburl).then( (sess1:GHSession) => {
-      sess = sess1;
-      return getGithubService().pull(githuburl, newstore);
-    }).then( (sess2:GHSession) => {
-      if (modal) modal.modal('hide');
-      // TODO: only first sessino has mainPath
-      if (sess.mainPath) {
-        reloadProject(sess.mainPath, sess.repopath);
-      } else {
-        updateSelector();
-        alert("Files imported, but no main file was found so you'll have to select this project in the pulldown.");
-      }
-    }).catch( (e) => {
-      if (modal) modal.modal('hide');
-      console.log(e);
-      alert("Could not import " + githuburl + ": " + e);
-    });
+  // redirect to repo if exists
+  var existing = getRepos()[urlparse.repopath];
+  if (existing) {
+    qs = {repo:urlparse.repopath};
+    gotoNewLocation();
+    return;
+  }
+  // create new store for imported repository
+  setWaitDialog(true);
+  var newstore = createNewPersistentStore(urlparse.repopath, () => { });
+  // import into new store
+  setWaitProgress(0.25);
+  return getGithubService().import(githuburl).then( (sess1:GHSession) => {
+    sess = sess1;
+    setWaitProgress(0.75);
+    return getGithubService().pull(githuburl, newstore);
+  }).then( (sess2:GHSession) => {
+    // TODO: only first session has mainPath?
+    // reload repo
+    qs = {repo:sess.repopath}; // file:sess.mainPath, platform:sess.platform_id};
+    setWaitDialog(false);
+    gotoNewLocation();
+  }).catch( (e) => {
+    setWaitDialog(false);
+    console.log(e);
+    alert("Could not import " + githuburl + ": " + e);
   });
 }
 
@@ -440,7 +438,8 @@ function _importProjectFromGithub(e) {
   modal.modal('show');
   btn.off('click').on('click', () => {
     var githuburl = $("#importGithubURL").val()+"";
-    importProjectFromGithub(githuburl, modal);
+    modal.modal('hide');
+    importProjectFromGithub(githuburl);
   });
 }
 
@@ -461,11 +460,14 @@ function _publishProjectToGithub(e) {
     modal.modal('hide');
     setWaitDialog(true);
     getGithubService().login().then( () => {
+      setWaitProgress(0.25);
       return getGithubService().publish(name, desc, license, priv);
     }).then( (sess) => {
+      setWaitProgress(0.5);
       repo_id = qs['repo'] = sess.repopath;
       return pushChangesToGithub('initial import from 8bitworkshop.com');
     }).then( () => {
+      setWaitProgress(1.0);
       reloadProject(current_project.mainPath);
     }).catch( (e) => {
       setWaitDialog(false);
@@ -512,6 +514,7 @@ function pushChangesToGithub(message:string) {
   // push files
   setWaitDialog(true);
   return getGithubService().login().then( () => {
+    setWaitProgress(0.5);
     return getGithubService().commitPush(ghurl, message, files);
   }).then( (sess) => {
     setWaitDialog(false);
@@ -782,6 +785,7 @@ function updateSelector() {
       });
     });
   } else {
+    sel.append($("<option />").val('..').text('Leave Repository'));
     // repo: populate all files
     populateFiles(sel, "Repository Files", "", () => {
       sel.css('visibility','visible');
@@ -1056,9 +1060,10 @@ function updateDebugWindows() {
 
 function setWaitDialog(b : boolean) {
   if (b) {
-    $("#pleaseWaitProgressBar").hide();
+    setWaitProgress(0);
     $("#pleaseWaitModal").modal('show');
   } else {
+    setWaitProgress(1);
     $("#pleaseWaitModal").modal('hide');
   }
 }
@@ -1522,18 +1527,16 @@ function startPlatform() {
     // try to load last file (redirect)
     var lastid;
     if (hasLocalStorage) {
-      lastid = localStorage.getItem("__lastid_"+platform_id) || localStorage.getItem("__lastid");
-      localStorage.removeItem("__lastid");
+      lastid = localStorage.getItem("__lastid_"+store_id);
     }
     qs['file'] = lastid || PRESETS[0].id;
-    replaceURLState();
   }
   // legacy vcs stuff
   if (platform_id == 'vcs' && qs['file'].startsWith('examples/') && !qs['file'].endsWith('.a')) {
     qs['file'] += '.a';
-    replaceURLState();
   }
   // start platform and load file
+  replaceURLState();
   platform.start();
   loadBIOSFromProject();
   initProject();
@@ -1555,7 +1558,7 @@ export function loadScript(scriptfn, onload, onerror?) {
 export function setupSplits() {
   const splitName = 'workspace-split3-' + platform_id;
   var sizes = [0, 50, 50];
-  if (platform_id.startsWith('vcs')) // TODO
+  if (!platform_id.startsWith('vcs'))
     sizes = [12, 44, 44];
   var sizesStr = hasLocalStorage && localStorage.getItem(splitName);
   if (sizesStr) {
@@ -1610,6 +1613,21 @@ function loadImportedURL(url : string) {
 // start
 export function startUI(loadplatform : boolean) {
   installErrorHandler();
+  // import from github?
+  if (qs['githubURL']) {
+    importProjectFromGithub(qs['githubURL']);
+    return;
+  }
+  // lookup repository
+  repo_id = qs['repo'];
+  if (hasLocalStorage && repo_id) {
+    var repo = getRepos()[repo_id];
+    console.log(repo_id, repo);
+    if (repo && !qs['file'])
+      qs['file'] = repo.mainPath;
+    if (repo && !qs['platform'])
+      qs['platform'] = repo.platform_id;
+  }
   // add default platform?
   platform_id = qs['platform'] || (hasLocalStorage && localStorage.getItem("__lastplatform"));
   if (!platform_id) {
@@ -1618,15 +1636,8 @@ export function startUI(loadplatform : boolean) {
   $("#item_platform_"+platform_id).addClass("dropdown-item-checked");
   setupSplits();
   // create store
-  repo_id = qs['repo'];
   store_id = repo_id || getBasePlatform(platform_id);
   store = createNewPersistentStore(store_id, (store) => {
-    // is this an importURL?
-    // TODO: use repo
-    if (qs['githubURL']) {
-      getGithubService().import(qs['githubURL']);
-      return;
-    }
     // is this an importURL?
     if (qs['importURL']) {
       loadImportedURL(qs['importURL']);
