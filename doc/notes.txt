@@ -141,8 +141,7 @@ TODO:
   - what to do about included files?
   - what if files already open in editor
   - un-bind from repo?
-  - navigate to repo
-  - import 'examples/' retains path?
+  - can published files retain path?
   - what if import interrupted and partial files?
   - CORS for some blobs?
   - confusing when examples load if file not found

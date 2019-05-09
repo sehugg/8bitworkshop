@@ -29,6 +29,14 @@ export function getRepos() : {[key:string]:GHRepoMetadata} {
   return JSON.parse(localStorage.getItem('__repos') || '{}');
 }
   
+export function parseGithubURL(ghurl:string) {
+  var toks = ghurl.split('/');
+  if (toks.length < 5) return null;
+  if (toks[0] != 'https:') return null;
+  if (toks[2] != 'github.com') return null;
+  return {user:toks[3], repo:toks[4], repopath:toks[3]+'/'+toks[4]};
+}
+  
 export class GithubService {
 
   githubCons;
@@ -80,28 +88,20 @@ export class GithubService {
     return false;
   }
 
-  parseGithubURL(ghurl:string) {
-    var toks = ghurl.split('/');
-    if (toks.length < 5) return null;
-    if (toks[0] != 'https:') return null;
-    if (toks[2] != 'github.com') return null;
-    return {user:toks[3], repo:toks[4], repopath:toks[3]+'/'+toks[4]};
-  }
-  
   getGithubSession(ghurl:string) : Promise<GHSession> {
     return new Promise( (yes,no) => {
-      var urlparse = this.parseGithubURL(ghurl);
+      var urlparse = parseGithubURL(ghurl);
       if (!urlparse) {
         no("Please enter a valid GitHub URL.");
       }
       var sess = {
-        url: ghurl,
+        url: 'https://github.com/' + urlparse.repopath,
         user: urlparse.user,
         reponame: urlparse.repo,
         repopath: urlparse.repopath,
         prefix: '', //this.getPrefix(urlparse.user, urlparse.repo),
         repo: this.github.repos(urlparse.user, urlparse.repo),
-        platform_id: this.project.platform_id
+        platform_id: this.project ? this.project.platform_id : null
       };
       yes(sess);
     });
@@ -124,7 +124,8 @@ export class GithubService {
       // load README
       return sess.repo.contents('README.md').read();
     })
-    .catch( () => {
+    .catch( (e) => {
+      console.log(e);
       console.log('no README.md found')
       return ''; // empty README
     })
@@ -138,13 +139,14 @@ export class GithubService {
         sess.mainPath = m[1];
       }
       // check README for proper platform
+      // unless we use githubURL=
       const re8plat = /8bitworkshop.com[^)]+platform=(\w+)/;
       m = re8plat.exec(readme);
       if (m) {
         console.log("platform id: '" + m[1] + "'");
-        sess.platform_id = m[1];
-        if (!this.project.platform_id.startsWith(m[1]))
+        if (sess.platform_id && !sess.platform_id.startsWith(m[1]))
           throw "Platform mismatch: Repository is " + m[1] + ", you have " + this.project.platform_id + " selected.";
+        sess.platform_id = m[1];
       }
       // bind to repository
       this.bind(sess, true);

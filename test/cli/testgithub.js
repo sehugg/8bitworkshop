@@ -108,12 +108,16 @@ describe('Store', function() {
   it('Should bind paths to Github', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
-      var sess = {repopath:'foo/bar', url:'_',platform_id:'vcs',mainPath:'test.c'};
+      var sess = {repopath:'foo/bar', url:'_', platform_id:'vcs',mainPath:'test.c'};
       gh.bind(sess, true);
       assert.deepEqual(serv.getRepos(), {'foo/bar':{url:'_',platform_id:'vcs',mainPath:'test.c'}});
       gh.bind(sess, false);
       assert.deepEqual(serv.getRepos(), {});
-      done();
+      gh.getGithubSession('https://github.com/foo/bar/baz').then((sess) => {
+        assert.equal(sess.url, 'https://github.com/foo/bar');
+        assert.equal(sess.repopath, 'foo/bar');
+        done();
+      });
     });
   });
 

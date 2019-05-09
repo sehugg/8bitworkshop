@@ -14,7 +14,7 @@ import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
          byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform } from "./util";
 import { StateRecorderImpl } from "./recorder";
-import { GHSession, GithubService, getRepos } from "./services";
+import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
 
 // external libs (TODO)
 declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, firebase;
@@ -253,6 +253,11 @@ function reloadProject(id:string) {
   // leave repository == '..'
   if (id == '..') {
     qs = {};
+  } else if (id.indexOf('://') >= 0) {
+    var urlparse = parseGithubURL(id);
+    if (urlparse) {
+      qs = {repo:urlparse.repopath};
+    }
   } else {
     qs['platform'] = platform_id;
     qs['file'] = id;
@@ -390,7 +395,7 @@ function getGithubService() {
 function getBoundGithubURL() : string {
   var toks = (repo_id||'').split('/');
   if (toks.length != 2) {
-    alert("This project is not bound to a GitHub project.");
+    alert("You are not in a GitHub repository. Choose Import or Publish first.");
     return null;
   }
   return 'https://github.com/' + toks[0] + '/' + toks[1];
@@ -398,7 +403,7 @@ function getBoundGithubURL() : string {
 
 function importProjectFromGithub(githuburl:string) {
   var sess : GHSession;
-  var urlparse = getGithubService().parseGithubURL(githuburl);
+  var urlparse = parseGithubURL(githuburl);
   if (!urlparse) {
     alert('Could not parse Github URL.');
     return;
@@ -468,7 +473,7 @@ function _publishProjectToGithub(e) {
       return pushChangesToGithub('initial import from 8bitworkshop.com');
     }).then( () => {
       setWaitProgress(1.0);
-      reloadProject(current_project.mainPath);
+      reloadProject(current_project.stripLocalPath(current_project.mainPath));
     }).catch( (e) => {
       setWaitDialog(false);
       console.log(e);
@@ -749,6 +754,23 @@ function populateExamples(sel) {
   });
 }
 
+function populateRepos(sel) {
+  if (hasLocalStorage) {
+    var n = 0;
+    var repos = getRepos();
+    if (repos) {
+      for (let repopath in repos) {
+        var repo = repos[repopath];
+        if (getBasePlatform(repo.platform_id) == getBasePlatform(platform_id)) {
+          if (n++ == 0)
+            sel.append($("<option />").text("------ Repositories ------").attr('disabled','true'));
+          sel.append($("<option />").val(repo.url).text(repo.url.substring(repo.url.indexOf('/'))));
+        }
+      }
+    }
+  }
+}
+
 function populateFiles(sel:JQuery, category:string, prefix:string, callback:() => void) {
   store.keys(function(err, keys : string[]) {
     var foundSelected = false;
@@ -780,6 +802,7 @@ function updateSelector() {
     // normal: populate local and shared files
     populateFiles(sel, "Local Files", "local/", () => {
       populateFiles(sel, "Shared", "shared/", () => {
+        populateRepos(sel);
         populateExamples(sel);
         sel.css('visibility','visible');
       });
@@ -787,7 +810,7 @@ function updateSelector() {
   } else {
     sel.append($("<option />").val('..').text('Leave Repository'));
     // repo: populate all files
-    populateFiles(sel, "Repository Files", "", () => {
+    populateFiles(sel, repo_id, "", () => {
       sel.css('visibility','visible');
     });
   }
