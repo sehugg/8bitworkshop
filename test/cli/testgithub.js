@@ -65,6 +65,17 @@ describe('Store', function() {
     });
   });
 
+  it('Should import from Github (subdirectory tree)', function(done) {
+    var store = mstore.createNewPersistentStore('nes', function(store) {
+      var gh = newGH(store, 'nes');
+      gh.importAndPull('https://github.com/brovador/NESnake/tree/master/src').then( (sess) => {
+        console.log(sess.paths);
+        assert.equal(5, sess.paths.length);
+        done();
+      });
+    });
+  });
+
   it('Should publish (fail) on Github', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
@@ -113,7 +124,7 @@ describe('Store', function() {
       assert.deepEqual(serv.getRepos(), {'foo/bar':{url:'_',platform_id:'vcs',mainPath:'test.c'}});
       gh.bind(sess, false);
       assert.deepEqual(serv.getRepos(), {});
-      gh.getGithubSession('https://github.com/foo/bar/baz').then((sess) => {
+      gh.getGithubSession('https://github.com/foo/bar/tree').then((sess) => {
         assert.equal(sess.url, 'https://github.com/foo/bar');
         assert.equal(sess.repopath, 'foo/bar');
         done();

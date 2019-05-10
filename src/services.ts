@@ -19,7 +19,10 @@ export interface GHSession extends GHRepoMetadata {
   reponame : string;	// repo name
   repopath : string;	// "user/repo"
   prefix : string;	// file prefix, "local/" or ""
+  branch : string;	// "master" is default
   repo : any;		// [repo object]
+  tree? : any;		// [tree object]
+  head? : any;		// [head ref]
   paths? : string[];
 }
 
@@ -30,11 +33,12 @@ export function getRepos() : {[key:string]:GHRepoMetadata} {
 }
   
 export function parseGithubURL(ghurl:string) {
-  var toks = ghurl.split('/');
+  var toks = ghurl.split('/', 8);
   if (toks.length < 5) return null;
   if (toks[0] != 'https:') return null;
   if (toks[2] != 'github.com') return null;
-  return {user:toks[3], repo:toks[4], repopath:toks[3]+'/'+toks[4]};
+  if (toks[5] && toks[5] != 'tree') return null;
+  return {user:toks[3], repo:toks[4], repopath:toks[3]+'/'+toks[4], branch:toks[6], treepath:toks[7]};
 }
   
 export class GithubService {
@@ -44,7 +48,6 @@ export class GithubService {
   github;
   store;
   project : CodeProject;
-  branch : string = "master";
 
   constructor(githubCons:() => any, githubToken:string, store, project : CodeProject) {
     this.githubCons = githubCons;
@@ -99,11 +102,28 @@ export class GithubService {
         user: urlparse.user,
         reponame: urlparse.repo,
         repopath: urlparse.repopath,
+        branch: urlparse.branch || "master",
         prefix: '', //this.getPrefix(urlparse.user, urlparse.repo),
         repo: this.github.repos(urlparse.user, urlparse.repo),
         platform_id: this.project ? this.project.platform_id : null
       };
       yes(sess);
+    });
+  }
+
+  getGithubHEADTree(ghurl:string) : Promise<GHSession> {
+    var sess;
+    return this.getGithubSession(ghurl).then( (session) => {
+      sess = session;
+      return sess.repo.git.refs.heads(sess.branch).fetch();
+    })
+    .then( (head) => {
+      sess.head = head;
+      return sess.repo.git.trees(head.object.sha).fetch();
+    })
+    .then( (tree) => {
+      sess.tree = tree;
+      return sess;
     });
   }
   
@@ -157,17 +177,11 @@ export class GithubService {
   
   pull(ghurl:string, deststore?) : Promise<GHSession> {
     var sess : GHSession;
-    return this.getGithubSession(ghurl).then( (session) => {
+    return this.getGithubHEADTree(ghurl).then( (session) => {
       sess = session;
-      return sess.repo.commits(this.branch).fetch();
-    })
-    .then( (sha) => {
-      return sess.repo.git.trees(sha.sha).fetch();
-    })
-    .then( (tree) => {
       let blobreads = [];
       sess.paths = [];
-      tree.tree.forEach( (item) => {
+      sess.tree.tree.forEach( (item) => {
         console.log(item.path, item.type, item.size);
         sess.paths.push(item.path);
         if (item.type == 'blob' && !this.isFileIgnored(item.path)) {
@@ -238,33 +252,23 @@ export class GithubService {
   
   commitPush( ghurl:string, message:string, files:{path:string,data:FileData}[] ) : Promise<GHSession> {
     var sess : GHSession;
-    var repo;
-    var head;
-    var tree;
-    return this.getGithubSession(ghurl).then( (session) => {
+    return this.getGithubHEADTree(ghurl).then( (session) => {
       sess = session;
-      repo = sess.repo;
-      return repo.git.refs.heads(this.branch).fetch();
-    }).then( (_head) => {
-      head = _head;
-      return repo.git.trees(head.object.sha).fetch();
-    }).then( (_tree) => {
-      tree = _tree;
       return Promise.all(files.map( (file) => {
         if (typeof file.data === 'string') {
-          return repo.git.blobs.create({
+          return sess.repo.git.blobs.create({
             content: file.data,
             encoding: 'utf-8'
           });
         } else {
-          return repo.git.blobs.create({
+          return sess.repo.git.blobs.create({
             content: btoa(byteArrayToString(file.data)),
             encoding: 'base64'
           });
         }
       }));
     }).then( (blobs) => {
-      return repo.git.trees.create({
+      return sess.repo.git.trees.create({
         tree: files.map( (file, index) => {
           return {
             path: file.path,
@@ -273,18 +277,18 @@ export class GithubService {
             sha: blobs[index]['sha']
           };
         }),
-        base_tree: tree.sha
+        base_tree: sess.tree.sha
       });
-    }).then( (tree) => {
-      return repo.git.commits.create({
+    }).then( (newtree) => {
+      return sess.repo.git.commits.create({
         message: message,
-        tree: tree.sha,
+        tree: newtree.sha,
         parents: [
-          head.object.sha
+          sess.head.object.sha
         ]
       });
     }).then( (commit) => {
-      return repo.git.refs.heads(this.branch).update({
+      return sess.head.update({
         sha: commit.sha
       });
     }).then( (update) => {
