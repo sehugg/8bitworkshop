@@ -132,6 +132,7 @@ TODO:
   - allow "include graphics.asm" instead of "include project/graphics.asm"
 - chrome looks blurry on vcs
 - convert more stuff to Promises
+- target ES6
 - don't have to include bootstrap-tourist each time?
 - don't have to include firebase always?
 - Github
@@ -146,6 +147,9 @@ TODO:
   - CORS for some blobs?
   - confusing when examples load if file not found
   - don't import useless files
+  - support projects with subdirectories, file list?
+  - emulator needs reset shortcut for nes
+  - local/ files in repository?
 
 
 WEB WORKER FORMAT

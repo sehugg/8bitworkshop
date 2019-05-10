@@ -265,15 +265,11 @@ function reloadProject(id:string) {
   gotoNewLocation();
 }
 
-function getSkeletonFile(fileid:string, callback) {
+function getSkeletonFile(fileid:string) : Promise<string> {
   var ext = platform.getToolForFilename(fileid);
   // TODO: .mame
-  $.get( "presets/"+getBasePlatform(platform_id)+"/skeleton."+ext, function( text ) {
-    callback(null, text);
-  }, 'text')
-  .fail(() => {
+  return $.get( "presets/"+getBasePlatform(platform_id)+"/skeleton."+ext, 'text').catch((e) => {
     alert("Could not load skeleton for " + platform_id + "/" + ext + "; using blank file");
-    callback(null, '\n');
   });
 }
 
@@ -294,15 +290,10 @@ function _createNewFile(e) {
       filename += platform.getDefaultExtension();
     }
     var path = "local/" + filename;
-    getSkeletonFile(path, function(err, result) {
-      if (result) {
-        store.setItem(path, result, function(err, result) {
-          if (err)
-            alert(err+"");
-          if (result != null)
-            reloadProject("local/" + filename);
-        });
-      }
+    getSkeletonFile(path).then( (result) => {
+      return store.setItem(path, result || "\n");
+    }).then(() => {
+      reloadProject("local/" + filename);
     });
   }
   return true;
@@ -639,9 +630,9 @@ function _deleteFile(e) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.getPath) {
     var fn = projectWindows.getActiveID();
-    if (fn.startsWith("local/") || fn.startsWith("shared/")) {
+    if (repo_id || fn.startsWith("local/") || fn.startsWith("shared/")) {
       if (confirm("Delete '" + fn + "'?")) {
-        store.removeItem(fn, () => {
+        store.removeItem(fn).then( () => {
           // if we delete what is selected
           if (qs['file'] == fn) {
             unsetLastPreset();
@@ -668,14 +659,14 @@ function _renameFile(e) {
     var data = current_project.getFile(wnd.getPath());
     if (newfn && data) {
       if (!checkEnteredFilename(newfn)) return;
-      store.removeItem(fn, () => {
-        store.setItem(newfn, data, () => {
-          alert("Renamed " + fn + " to " + newfn);
-          updateSelector();
-          if (fn == current_project.mainPath) {
-            reloadProject(newfn);
-          }
-        });
+      store.removeItem(fn).then( () => {
+        return store.setItem(newfn, data);
+      }).then( () => {
+        alert("Renamed " + fn + " to " + newfn);
+        updateSelector();
+        if (fn == current_project.mainPath) {
+          reloadProject(newfn);
+        }
       });
     }
   } else {
@@ -721,21 +712,17 @@ function _downloadProjectZipFile(e) {
 function _downloadAllFilesZipFile(e) {
   loadScript('lib/jszip.min.js', () => {
     var zip = new JSZip();
-    var count = 0;
     store.keys( (err, keys : string[]) => {
-      if (err) throw err;
-      keys.forEach((path) => {
-        // TODO: handle binary files
-        store.getItem(path, (err, text) => {
+      return Promise.all(keys.map( (path) => {
+        return store.getItem(path).then( (text) => {
           if (text) {
             zip.file(path, text);
           }
-          if (++count == keys.length) {
-            zip.generateAsync({type:"blob"}).then( (content) => {
-              saveAs(content, platform_id + "-all.zip");
-            });
-          }
         });
+      })).then(() => {
+        return zip.generateAsync({type:"blob"});
+      }).then( (content) => {
+        return saveAs(content, platform_id + "-all.zip");
       });
     });
   });
@@ -743,7 +730,7 @@ function _downloadAllFilesZipFile(e) {
 
 function populateExamples(sel) {
   // make sure to use callback so it follows other sections
-  store.length(function(err, len) {
+  store.length().then( (len) => {
     sel.append($("<option />").text("--------- Examples ---------").attr('disabled','true'));
     for (var i=0; i<PRESETS.length; i++) {
       var preset = PRESETS[i];
@@ -1484,7 +1471,7 @@ var qs = (function (a : string[]) {
 
 // catch errors
 function installErrorHandler() {
-  if (typeof window.onerror == "object") {
+    if (typeof window.onerror == "object") {
       window.onerror = function (msgevent, url, line, col, error) {
         var msgstr = msgevent+"";
         console.log(msgevent, url, line, col, error);
@@ -1499,7 +1486,8 @@ function installErrorHandler() {
         }
         _pause();
       };
-  }
+      window.onunhandledrejection = window.onerror;
+    }
 }
 
 function uninstallErrorHandler() {
