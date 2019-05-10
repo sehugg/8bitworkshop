@@ -141,7 +141,7 @@ TODO:
   - test edge/failure cases
   - what to do about included files?
   - what if files already open in editor
-  - un-bind from repo?
+  - un-bind from repo? delete repo?
   - can published files retain path?
   - what if import interrupted and partial files?
   - CORS for some blobs?
@@ -150,6 +150,9 @@ TODO:
   - support projects with subdirectories, file list?
   - emulator needs reset shortcut for nes
   - local/ files in repository?
+  - build ca65 projects? https://github.com/pinobatch/thwaite-nes/blob/master/makefile
+  - switching platform of a repo?
+  - retaining repo_id in localstorage?
 
 
 WEB WORKER FORMAT

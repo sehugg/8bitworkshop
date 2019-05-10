@@ -30,10 +30,10 @@ describe('Store', function() {
   it('Should import from Github (check README)', function(done) {
     var store = mstore.createNewPersistentStore('vcs', function(store) {
       var gh = newGH(store, 'vcs');
-      gh.importAndPull('https://github.com/pzpinfo/test123123').then( (sess) => {
+      gh.importAndPull('https://github.com/pzpinfo/test123123/').then( (sess) => {
         console.log(sess.paths);
         assert.equal(2, sess.paths.length);
-        assert.deepEqual(serv.getRepos(), {"pzpinfo/test123123":{url: 'https://github.com/pzpinfo/test123123', platform_id: 'vcs', mainPath:'helloworld.bas'}});
+        assert.deepEqual(serv.getRepos(), {"pzpinfo/test123123":{url: 'https://github.com/pzpinfo/test123123/', platform_id: 'vcs', mainPath:'helloworld.bas'}});
         done();
       });
     });
@@ -70,7 +70,7 @@ describe('Store', function() {
       var gh = newGH(store, 'nes');
       gh.importAndPull('https://github.com/brovador/NESnake/tree/master/src').then( (sess) => {
         console.log(sess.paths);
-        assert.equal(5, sess.paths.length);
+        assert.equal(14, sess.paths.length);
         done();
       });
     });
@@ -116,6 +116,24 @@ describe('Store', function() {
     });
   });
 
+  it('Should commit/push to Github (subdirectory tree)', function(done) {
+    var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
+      var gh = newGH(store);
+      var files = [
+        {path:'text.txt', data:'hello world'}
+      ];
+      gh.commitPush('https://github.com/brovador/NESnake/tree/master/src', 'test commit', files)
+      .catch( (e) => {
+        console.log(e);
+        assert.equal(e, 'Sorry, right now you can only commit files to the root directory of a repository.');
+        done();
+      });
+      /*.then( (sess) => {
+        done();
+      });*/
+    });
+  });
+
   it('Should bind paths to Github', function(done) {
     var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
@@ -125,7 +143,7 @@ describe('Store', function() {
       gh.bind(sess, false);
       assert.deepEqual(serv.getRepos(), {});
       gh.getGithubSession('https://github.com/foo/bar/tree').then((sess) => {
-        assert.equal(sess.url, 'https://github.com/foo/bar');
+        assert.equal(sess.url, 'https://github.com/foo/bar/tree');
         assert.equal(sess.repopath, 'foo/bar');
         done();
       });

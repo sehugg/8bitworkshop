@@ -18,6 +18,7 @@ export interface GHSession extends GHRepoMetadata {
   user : string;	// user name
   reponame : string;	// repo name
   repopath : string;	// "user/repo"
+  subtreepath : string;	// tree/master/[...]
   prefix : string;	// file prefix, "local/" or ""
   branch : string;	// "master" is default
   repo : any;		// [repo object]
@@ -38,7 +39,7 @@ export function parseGithubURL(ghurl:string) {
   if (toks[0] != 'https:') return null;
   if (toks[2] != 'github.com') return null;
   if (toks[5] && toks[5] != 'tree') return null;
-  return {user:toks[3], repo:toks[4], repopath:toks[3]+'/'+toks[4], branch:toks[6], treepath:toks[7]};
+  return {user:toks[3], repo:toks[4], repopath:toks[3]+'/'+toks[4], branch:toks[6], subtreepath:toks[7]};
 }
   
 export class GithubService {
@@ -98,11 +99,12 @@ export class GithubService {
         no("Please enter a valid GitHub URL.");
       }
       var sess = {
-        url: 'https://github.com/' + urlparse.repopath,
+        url: ghurl,
         user: urlparse.user,
         reponame: urlparse.repo,
         repopath: urlparse.repopath,
         branch: urlparse.branch || "master",
+        subtreepath: urlparse.subtreepath,
         prefix: '', //this.getPrefix(urlparse.user, urlparse.repo),
         repo: this.github.repos(urlparse.user, urlparse.repo),
         platform_id: this.project ? this.project.platform_id : null
@@ -120,6 +122,17 @@ export class GithubService {
     .then( (head) => {
       sess.head = head;
       return sess.repo.git.trees(head.object.sha).fetch();
+    })
+    .then( (tree) => {
+      if (sess.subtreepath) {
+        for (let subtree of tree.tree) {
+          if (subtree.type == 'tree' && subtree.path == sess.subtreepath && subtree.sha) {
+            return sess.repo.git.trees(subtree.sha).fetch();
+          }
+        }
+        throw "Cannot find subtree '" + sess.subtreepath + "' in tree " + tree.sha;
+      }
+      return tree;
     })
     .then( (tree) => {
       sess.tree = tree;
@@ -254,6 +267,9 @@ export class GithubService {
     var sess : GHSession;
     return this.getGithubHEADTree(ghurl).then( (session) => {
       sess = session;
+      if (sess.subtreepath) {
+        throw "Sorry, right now you can only commit files to the root directory of a repository.";
+      }
       return Promise.all(files.map( (file) => {
         if (typeof file.data === 'string') {
           return sess.repo.git.blobs.create({

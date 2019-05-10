@@ -401,9 +401,7 @@ function importProjectFromGithub(githuburl:string) {
   }
   // redirect to repo if exists
   var existing = getRepos()[urlparse.repopath];
-  if (existing) {
-    qs = {repo:urlparse.repopath};
-    gotoNewLocation();
+  if (existing && !confirm("You've already imported " + urlparse.repopath + " -- do you want to replace all files?")) {
     return;
   }
   // create new store for imported repository
