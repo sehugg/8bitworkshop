@@ -59,7 +59,6 @@ TODO:
 - error showing replay div before rom starts
 - compiler flags for final ROM build
 - workermain: split build functions, better msg types
-- vcs: INPTx needs to be added to control state
 - sdcc: can't link asm files before c files (e.g. acheader.s must be last)
 - what if >1 file with same name? (local/nonlocal/directory)
 - what if .c and .s names collide?
@@ -77,7 +76,6 @@ TODO:
 - https://makecode.com/language?
 - open ROM from URL?
 - game starts even if switched away before first load
-- vcs: break on # of lines changed (maybe using getRasterPosition?)
 - profiler restarts when paused
 - it's pretty easy to add a new file named like a library file (bcd.c)
   - or have neslib.h in a subdirectory...
@@ -129,10 +127,13 @@ TODO:
   - replay doesn't work for nes (force background tile redraw)
   - nes debug view toolbar
   - support NES_HEADER_16K?
-- vcs sound continues when paused
+- vcs
+  - vcs sound continues when paused
+  - vcs: INPTx needs to be added to control state
+  - vcs: break on # of lines changed (maybe using getRasterPosition?)
+  - chrome looks blurry on vcs
 - upload multiple files/zip file to subdirectory
   - allow "include graphics.asm" instead of "include project/graphics.asm"
-- chrome looks blurry on vcs
 - convert more stuff to Promises
 - target ES6
 - don't have to include bootstrap-tourist each time?

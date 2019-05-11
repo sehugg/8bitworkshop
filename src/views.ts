@@ -608,7 +608,7 @@ export class MemoryView implements ProjectView {
     for (var i=n1; i<n2; i++) {
       var read = this.readAddress(offset+i);
       if (i==8) s += ' ';
-      s += ' ' + (read!==null?hex(read,2):'??');
+      s += ' ' + (typeof read == 'number' ? hex(read,2) : '??');
     }
     for (var i=n2; i<16; i++) s += '   ';
     if (sym) s += '  ' + sym;

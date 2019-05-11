@@ -644,14 +644,12 @@ function parseSourceLines(code:string, lineMatch, offsetMatch) {
   return lines;
 }
 
-function parseDASMListing(code:string, unresolved:{}, mainFilename:string) {
+function parseDASMListing(code:string, listings:{}, errors:WorkerError[], unresolved:{}) {
   // TODO: this gets very slow
   //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
   var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
   var equMatch = /\bequ\b/i;
   var macroMatch = /\bMAC\s+(.+)?/i;
-  var errors = [];
-  var lines = [];
   var macrolines = [];
   var lastline = 0;
   var macros = {};
@@ -664,8 +662,10 @@ function parseDASMListing(code:string, unresolved:{}, mainFilename:string) {
       var insns = linem[4];
       var restline = linem[5];
       if (insns && insns.startsWith('?')) insns = null;
-      // inside of main file?
-      if (filename == mainFilename) {
+      // inside of a file?
+      var lst = listings[filename];
+      if (lst) {
+        var lines = lst.lines;
         // look for MAC statement
         var macmatch = macroMatch.exec(restline);
         if (macmatch) {
@@ -708,11 +708,14 @@ function parseDASMListing(code:string, unresolved:{}, mainFilename:string) {
         if (pos >= 0) {
           var cmt = l.indexOf(';');
           if (cmt < 0 || cmt > pos) {
-            errors.push({
-              path:filename,
-              line:linenum,
-              msg:"Unresolved symbol '" + key + "'"
-            });
+            // make sure identifier is flanked by non-word chars
+            if (/\w+/.test(key) && new RegExp("\\b"+key+"\\b").test(key)) {
+              errors.push({
+                path:filename,
+                line:linenum,
+                msg:"Unresolved symbol '" + key + "'"
+              });
+            }
           }
         }
       }
@@ -727,8 +730,6 @@ function parseDASMListing(code:string, unresolved:{}, mainFilename:string) {
     }
   }
   // TODO: use macrolines
-  // TODO: return {text:code, asmlines:lines, macrolines:macrolines, errors:errors};
-  return {lines:lines, macrolines:macrolines, errors:errors};
 }
 
 function assembleDASM(step:BuildStep) {
@@ -768,22 +769,13 @@ function assembleDASM(step:BuildStep) {
     "-o"+binpath,
     "-s"+sympath ]);
   var alst = FS.readFile(lstpath, {'encoding':'utf8'});
-  // parse main listing, get errors
-  var listing = parseDASMListing(alst, unresolved, step.path);
-  errors = errors.concat(listing.errors);
-  if (errors.length) {
-    return {errors:errors};
-  }
+  // parse main listing, get errors and listings for each file
   var listings = {};
-  listings[lstpath] = listing;
-  // parse include files
-  // TODO: kinda wasted effort
-  for (var fn of step.files) {
-    if (fn != step.path) {
-      var lst = parseDASMListing(alst, unresolved, fn);
-      listings[fn] = lst; // TODO: foo.asm.lst
-    }
+  for (let path of step.files) {
+    listings[path] = {lines:[]};
   }
+  parseDASMListing(alst, listings, errors, unresolved);
+  // read binary rom output and symbols
   var aout, asym;
   aout = FS.readFile(binpath);
   try {
