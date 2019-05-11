@@ -374,6 +374,10 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     s += "\n";
     return s;
   }
+  getToolForFilename = (fn:string) : string => {
+    if (fn.endsWith(".asm")) return "ca65"; // .asm uses ca65
+    else return getToolForFilename_6502(fn);
+  }
 }
 
 /// MAME support
@@ -407,8 +411,8 @@ class NESMAMEPlatform extends BaseMAMEPlatform implements Platform {
   }
 
   getPresets() { return JSNES_PRESETS; }
-  getOpcodeMetadata = getOpcodeMetadata_6502;
   getToolForFilename = getToolForFilename_6502;
+  getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtension() { return ".c"; };
 }
 

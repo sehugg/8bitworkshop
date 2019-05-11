@@ -645,6 +645,7 @@ function parseSourceLines(code:string, lineMatch, offsetMatch) {
 }
 
 function parseDASMListing(code:string, unresolved:{}, mainFilename:string) {
+  // TODO: this gets very slow
   //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
   var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
   var equMatch = /\bequ\b/i;
@@ -702,13 +703,17 @@ function parseDASMListing(code:string, unresolved:{}, mainFilename:string) {
       // TODO: better symbol test (word boundaries)
       // TODO: ignore IFCONST and IFNCONST usage
       for (var key in unresolved) {
-        var pos = restline ? restline.indexOf(key) : line.indexOf(key);
+        var l = restline || line;
+        var pos = l.indexOf(key);
         if (pos >= 0) {
-          errors.push({
-            path:filename,
-            line:linenum,
-            msg:"Unresolved symbol '" + key + "'"
-          });
+          var cmt = l.indexOf(';');
+          if (cmt < 0 || cmt > pos) {
+            errors.push({
+              path:filename,
+              line:linenum,
+              msg:"Unresolved symbol '" + key + "'"
+            });
+          }
         }
       }
     }

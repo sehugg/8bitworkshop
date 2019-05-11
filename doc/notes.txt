@@ -106,7 +106,6 @@ TODO:
 - debug highlight doesn't go away when debugging -> running
   - show breakpoint of PC or highest address on stack
   - can we highlight line instead of select?
-- replay doesn't work for nes (force background tile redraw)
 - running profiler while replaying? grand unified replay?
 - click on profiler to step to position
   - breakpoints stop profiler from running
@@ -126,7 +125,10 @@ TODO:
 - single-stepping vector games makes screen fade
 - break on stack overflow, bad op, bad access, etc
 - PPU/TIA register write visualization
-- nes debug view toolbar
+- nes
+  - replay doesn't work for nes (force background tile redraw)
+  - nes debug view toolbar
+  - support NES_HEADER_16K?
 - vcs sound continues when paused
 - upload multiple files/zip file to subdirectory
   - allow "include graphics.asm" instead of "include project/graphics.asm"
@@ -153,6 +155,8 @@ TODO:
   - build ca65 projects? https://github.com/pinobatch/thwaite-nes/blob/master/makefile
   - switching platform of a repo?
   - retaining repo_id in localstorage?
+  - don't like alert() after pushing
+  - should have a preview of commit
 
 
 WEB WORKER FORMAT
@@ -288,3 +292,13 @@ Pull
 Push
 
 Git metadata kept in local storage
+
+Converting from NESASM to DASM
+
+- subroutine keyword on labels
+- [zp],y to (zp),y
+- asl a -> asl
+- LOW(x) and HIGH(x) to <() and >()
+- .db to .byte, .dw to .word
+- use NES_HEADER macros
+- no .bank

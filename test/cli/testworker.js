@@ -81,7 +81,7 @@ describe('Worker', function() {
     compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo lda #0\n', 'vcs', done, 2, 1);
   });
   it('should NOT assemble DASM', function(done) {
-    compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo xxx #0\n', 'vcs', done, 0, 0, 1);
+    compile('dasm', '\tprocessor 6502\n\torg $f000 ; this is a comment\nfoo asl a\n', 'vcs', done, 0, 0, 1);
   });
   /*
   it('should assemble ACME', function(done) {
