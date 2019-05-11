@@ -61,8 +61,7 @@ sbyte actor_dy[NUM_ACTORS];
 
 // main program
 void main() {
-  char i;
-  char oam_id;
+  byte i;
   
   // setup graphics
   setup_graphics();
@@ -76,21 +75,24 @@ void main() {
   // loop forever
   while (1) {
     // start with OAMid/sprite 0
-    oam_id = 0;
+    oam_off = 0;
     // draw and move all actors
     // (note we don't reset i each loop iteration)
-    while (oam_id < 256-4*4) {
-      // wrap around actor array
-      if (i >= NUM_ACTORS)
+    while (oam_off < 256-4*4) {
+      // advance and wrap around actor array
+      if (++i >= NUM_ACTORS)
         i -= NUM_ACTORS;
-      oam_id = oam_meta_spr(actor_x[i], actor_y[i], oam_id, metasprite);
-      actor_x[i] += actor_dx[i];
-      actor_y[i] += actor_dy[i];
-      ++i;
+      // draw and move actor
+      oam_meta_spr_pal(
+        actor_x[i] += actor_dx[i],	// add x+dx and pass param
+        actor_y[i] += actor_dy[i],	// add y+dy and pass param
+        i&3,				// palette color
+        metasprite);			// metasprites
     }
     // hide rest of sprites
-    oam_hide_rest(oam_id);
-    // wait for next frame
-    ppu_wait_frame();
+    oam_hide_rest(oam_off);
+    // wait for next NMI
+    // we don't want to skip frames b/c it makes flicker worse
+    ppu_wait_nmi();
   }
 }

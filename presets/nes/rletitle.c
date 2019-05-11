@@ -16,7 +16,7 @@ extern const byte climbr_title_rle[];
 void fade_in() {
   byte vb;
   for (vb=0; vb<=4; vb++) {
-    // set virtual bright vaule
+    // set virtual bright value
     pal_bright(vb);
     // wait for 4/60 sec
     ppu_wait_frame();

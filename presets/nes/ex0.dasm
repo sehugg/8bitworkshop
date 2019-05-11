@@ -1,5 +1,5 @@
 
-	include "nesdefs.asm"
+	include "nesdefs.dasm"
 
 ;;;;; VARIABLES
 
@@ -35,7 +35,7 @@ Start:
 
 ;;;;; COMMON SUBROUTINES
 
-	include "nesppu.asm"
+	include "nesppu.dasm"
 
 ;;;;; INTERRUPT HANDLERS
 

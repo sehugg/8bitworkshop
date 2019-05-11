@@ -36,7 +36,7 @@ typedef enum { SND_START, SND_HIT, SND_COIN, SND_JUMP } SFXIndex;
 #define COLS 30		// floor width in tiles
 #define ROWS 60		// total nametable height in tiles
 
-#define MAX_FLOORS 4	// total # of floors in a stage
+#define MAX_FLOORS 24	// total # of floors in a stage
 #define GAPSIZE 4	// gap size in tiles
 #define BOTTOM_FLOOR_Y 2	// offset for bottommost floor
 

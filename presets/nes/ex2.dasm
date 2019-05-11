@@ -1,5 +1,5 @@
 
-	include "nesdefs.asm"
+	include "nesdefs.dasm"
 
 ;;;;; VARIABLES
 
@@ -7,79 +7,53 @@
 	org $0
 
 ScrollPos	word	; used during NMI
-Rand		byte	; random number
-Temp1		byte	; temporary
-
-; OAM sprite buffer
-SpriteBuf	equ	$200
 
 ;;;;; NES CARTRIDGE HEADER
 
-	NES_HEADER 0,2,1,1 ; mapper 0, 2 PRGs, 1 CHR, horiz. mirror
+	NES_HEADER 0,2,1,1 ; mapper 0, 2 PRGs, 1 CHR, vert. mirror
 
 ;;;;; START OF CODE
 
 Start:
-	NES_INIT		; set up stack pointer, turn off PPU
-        jsr WaitSync
-        jsr WaitSync
-        jsr ClearRAM
-        jsr WaitSync		;wait for VSYNC
-	jsr SetPalette		;set colors
-        jsr FillVRAM		;set PPU RAM
-        jsr WaitSync		;wait for VSYNC (and PPU warmup)
-        jsr InitSprites
+; wait for PPU warmup; clear CPU RAM
+	NES_INIT	; set up stack pointer, turn off PPU
+        jsr WaitSync	; wait for VSYNC
+        jsr ClearRAM	; clear RAM
+        jsr WaitSync	; wait for VSYNC (and PPU warmup)
+; set palette and nametable VRAM
+	jsr SetPalette	; set palette colors
+        jsr FillVRAM	; set PPU video RAM
+; reset PPU address and scroll registers
         lda #0
         sta PPU_ADDR
-        sta PPU_ADDR		;PPU addr = 0
+        sta PPU_ADDR	; PPU addr = $0000
         sta PPU_SCROLL
-        sta PPU_SCROLL		;scroll = 0
-        lda #MASK_BG|MASK_SPR
+        sta PPU_SCROLL  ; scroll = $0000
+; activate PPU graphics
+        lda #MASK_BG
         sta PPU_MASK 	; enable rendering
         lda #CTRL_NMI
         sta PPU_CTRL	; enable NMI
 .endless
-	jmp .endless		;endless loop
+	jmp .endless	; endless loop
 
 ; fill video RAM
 FillVRAM: subroutine
 	PPU_SETADDR $2000
-	ldy #$10
-        ldx #0
+	ldy #$8		; set $8 pages ($800 bytes)
 .loop:
-	stx PPU_DATA	; X -> PPU data port
+	lda PageData,y	; A -> PageData[Y]
+	sta PPU_DATA	; A -> PPU data port
 	inx		; X = X + 1
 	bne .loop	; repeat until 256 bytes
 	dey		; Y = Y - 1
 	bne .loop	; repeat until Y is 0
         rts		; return to caller
 
-; initialize OAM data
-InitSprites: subroutine
-	lda #1		; A = 1
-        ldx #0		; X = 0
-.loop
-	sta SpriteBuf,x	; store to OAM buffer
-        jsr NextRandom	; get next random number
-        inx		; X = X + 1
-        bne .loop	; loop until X wraps
-        rts		; return to caller
-
-; move sprite data
-MoveSprites: subroutine
-	lda #1		; A = 1
-        ldx #0		; X = 0
-.loop
-	sta Temp1	; save A
-        and #3		; keep lower 2 bits
-        clc		; clear carry before add
-        adc SpriteBuf,x	; add to sprite buffer
-	sta SpriteBuf,x ; store in sprite buffer
-        lda Temp1	; restore A
-        jsr NextRandom	; get next random number
-        inx		; X = X + 1
-        bne .loop	; loop until X wraps
-        rts		; return to caller
+PageData:
+	hex 00
+	hex 42424242	; 'B'
+	hex 41414141	; 'A'
 
 ; set palette colors
 SetPalette: subroutine
@@ -96,7 +70,7 @@ SetPalette: subroutine
 
 ;;;;; COMMON SUBROUTINES
 
-	include "nesppu.asm"
+	include "nesppu.dasm"
 
 ;;;;; INTERRUPT HANDLERS
 
@@ -119,11 +93,6 @@ NMIHandler:
         and #1		; select its low bit
 	ora #CTRL_NMI	; set rest of bits
         sta PPU_CTRL
-; load sprites
-	lda #$02	; page 2 ($0200)
-        sta PPU_OAM_DMA	; start DMA transfer
-; move sprites
-	jsr MoveSprites	; move sprites
 ; restore registers, return from interrupt
         RESTORE_REGS
 	rti
@@ -136,10 +105,6 @@ Palette:
         hex 02122200	;background 1
         hex 02112100	;background 2
         hex 01122200	;background 3
-        hex 19293900	;sprite 0
-        hex 1a2a3a00	;sprite 1
-        hex 1b2b3b00	;sprite 2
-        hex 1c2c3c00	;sprite 3
 
 ;;;;; CPU VECTORS
 
@@ -149,3 +114,4 @@ Palette:
 
 	org $10000
         incbin "jroatch.chr"
+

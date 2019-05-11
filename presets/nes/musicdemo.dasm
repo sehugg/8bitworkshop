@@ -1,5 +1,5 @@
 
-	include "nesdefs.asm"
+	include "nesdefs.dasm"
 
 ;;;;; VARIABLES
 
@@ -78,7 +78,7 @@ ShowTimeEnd:
 
 ;;;;; COMMON SUBROUTINES
 
-	include "nesppu.asm"
+	include "nesppu.dasm"
 
 	include "famitone2.asm"
 

@@ -1,5 +1,5 @@
 
-	include "nesdefs.asm"
+	include "nesdefs.dasm"
 
 ;;;;; ZERO-PAGE VARIABLES
 
@@ -113,7 +113,7 @@ ASCII2Tile:
 
 ;;;;; COMMON SUBROUTINES
 
-	include "nesppu.asm"
+	include "nesppu.dasm"
 
 ;;;;; INTERRUPT HANDLERS
 
