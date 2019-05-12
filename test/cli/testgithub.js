@@ -107,13 +107,14 @@ describe('Store', function() {
       for (var i=0; i<256; i++)
         binfile[i] = i;
       var files = [
-        {path:'text.txt', data:'hello world ' + Math.random()},
+        {path:'text.txt', data:'hello world'},
         {path:'data.bin', data:binfile}
       ];
       gh.commit('https://github.com/pzpinfo/testrepo3', 'test commit', files).then( (sess) => {
         return gh.push(sess);
       }).then( (sess) => {
         console.log(sess.commit);
+        assert.equal(0, sess.commit.files.length);
         done();
       });
     });

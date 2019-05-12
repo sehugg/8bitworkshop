@@ -155,7 +155,6 @@ TODO:
   - local/ files in repository?
   - build ca65 projects w/ no crt0? https://github.com/pinobatch/thwaite-nes/blob/master/makefile
   - switching platform of a repo?
-  - should have a preview of commit
 
 
 WEB WORKER FORMAT

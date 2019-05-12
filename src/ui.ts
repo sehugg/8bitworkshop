@@ -307,7 +307,7 @@ function _createNewFile(e) {
         getSkeletonFile(path).then( (result) => {
           return store.setItem(path, result || "\n");
         }).then(() => {
-          reloadProject("local/" + filename);
+          reloadProject(path);
         });
       }
     }
@@ -509,6 +509,35 @@ function _pullProjectFromGithub(e) {
   });
 }
 
+function confirmCommit(sess) : Promise<GHSession> {
+  return new Promise( (resolve, reject) => {
+    var files = sess.commit.files;
+    console.log(files);
+    // anything changed?
+    if (files.length == 0) {
+      setWaitDialog(false);
+      bootbox.alert("No files changed.");
+    }
+    // build commit confirm message
+    var msg = "";
+    for (var f of files) {
+      msg += f.filename + ": " + f.status;
+      if (f.additions || f.deletions || f.changes) {
+        msg += " (" + f.additions + " additions, " + f.deletions + " deletions, " + f.changes + " changes)";
+      }
+      msg += "<br/>";
+    }
+    // show dialog, continue when yes
+    bootbox.confirm(msg, (ok) => {
+      if (ok) {
+        resolve(sess);
+      } else {
+        setWaitDialog(false);
+      }
+    });
+  });
+}
+
 function pushChangesToGithub(message:string) {
   var ghurl = getBoundGithubURL();
   if (!ghurl) return;
@@ -526,6 +555,8 @@ function pushChangesToGithub(message:string) {
   return getGithubService().login().then( () => {
     setWaitProgress(0.5);
     return getGithubService().commit(ghurl, message, files);
+  }).then( (sess) => {
+    return confirmCommit(sess);
   }).then( (sess) => {
     return getGithubService().push(sess);
   }).then( (sess) => {
