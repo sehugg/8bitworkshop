@@ -303,7 +303,7 @@ function _createNewFile(e) {
         if (filename.indexOf(".") < 0) {
           filename += platform.getDefaultExtension();
         }
-        var path = "local/" + filename;
+        var path = filename;
         getSkeletonFile(path).then( (result) => {
           return store.setItem(path, result || "\n");
         }).then(() => {
@@ -334,7 +334,7 @@ function handleFileUpload(files: File[]) {
         alertInfo("Files uploaded.");
       }
     } else {
-      var path = "local/" + f.name;
+      var path = f.name;
       var reader = new FileReader();
       reader.onload = function(e) {
         var arrbuf = (<any>e.target).result as ArrayBuffer;
@@ -679,24 +679,20 @@ function _deleteFile(e) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.getPath) {
     var fn = projectWindows.getActiveID();
-    if (repo_id || fn.startsWith("local/") || fn.startsWith("shared/")) {
-      bootbox.confirm("Delete '" + fn + "'?", (ok) => {
-        if (ok) {
-          store.removeItem(fn).then( () => {
-            // if we delete what is selected
-            if (qs['file'] == fn) {
-              unsetLastPreset();
-              gotoNewLocation();
-            } else {
-              updateSelector();
-              alertInfo("Deleted " + fn);
-            }
-          });
-        }
-      });
-    } else {
-      alertError("Can only delete local files.");
-    }
+    bootbox.confirm("Delete '" + fn + "'?", (ok) => {
+      if (ok) {
+        store.removeItem(fn).then( () => {
+          // if we delete what is selected
+          if (qs['file'] == fn) {
+            unsetLastPreset();
+            gotoNewLocation();
+          } else {
+            updateSelector();
+            alertInfo("Deleted " + fn);
+          }
+        });
+      }
+    });
   } else {
     alertError("Cannot delete the active window.");
   }
@@ -780,16 +776,15 @@ function _downloadAllFilesZipFile(e) {
 }
 
 function populateExamples(sel) {
-  // make sure to use callback so it follows other sections
-  store.length().then( (len) => {
-    sel.append($("<option />").text("--------- Examples ---------").attr('disabled','true'));
-    for (var i=0; i<PRESETS.length; i++) {
-      var preset = PRESETS[i];
-      var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
-      sel.append($("<option />").val(preset.id).text(name).attr('selected',(preset.id==current_project.mainPath)?'selected':null));
-    }
-    // don't create new entry if example not found
-  });
+  var files = {};
+  sel.append($("<option />").text("--------- Examples ---------").attr('disabled','true'));
+  for (var i=0; i<PRESETS.length; i++) {
+    var preset = PRESETS[i];
+    var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
+    sel.append($("<option />").val(preset.id).text(name).attr('selected',(preset.id==current_project.mainPath)?'selected':null));
+    files[preset.id] = name;
+  }
+  return files;
 }
 
 function populateRepos(sel) {
@@ -809,26 +804,18 @@ function populateRepos(sel) {
   }
 }
 
-function populateFiles(sel:JQuery, category:string, prefix:string, callback:() => void) {
+function populateFiles(sel:JQuery, category:string, prefix:string, foundFiles:{}, callback:() => void) {
   store.keys().then( (keys:string[]) => {
-    var foundSelected = false;
     var numFound = 0;
     if (!keys) keys = [];
     for (var i = 0; i < keys.length; i++) {
       var key = keys[i];
-      if (key.startsWith(prefix)) {
+      if (key.startsWith(prefix) && !foundFiles[key]) {
         if (numFound++ == 0)
           sel.append($("<option />").text("------- " + category + " -------").attr('disabled','true'));
         var name = key.substring(prefix.length);
         sel.append($("<option />").val(key).text(name).attr('selected',(key==current_project.mainPath)?'selected':null));
-        if (key == current_project.mainPath) foundSelected = true;
       }
-    }
-    // create new entry if not found, but it matches our prefix
-    if (!foundSelected && current_project.mainPath && current_project.mainPath.startsWith(prefix)) {
-      var name = current_project.mainPath.substring(prefix.length);
-      var key = prefix + name;
-      sel.append($("<option />").val(key).text(name).attr('selected','true'));
     }
     if (callback) { callback(); }
   });
@@ -837,18 +824,16 @@ function populateFiles(sel:JQuery, category:string, prefix:string, callback:() =
 function updateSelector() {
   var sel = $("#preset_select").empty();
   if (!repo_id) {
+    // normal: populate repos, examples, and local files
     populateRepos(sel);
-    // normal: populate local and shared files
-    populateFiles(sel, "Local Files", "local/", () => {
-      populateFiles(sel, "Shared", "shared/", () => {
-        populateExamples(sel);
-        sel.css('visibility','visible');
-      });
+    var foundFiles = populateExamples(sel);
+    populateFiles(sel, "Local Files", "", foundFiles, () => {
+      sel.css('visibility','visible');
     });
   } else {
     sel.append($("<option />").val('/').text('Leave Repository'));
     // repo: populate all files
-    populateFiles(sel, repo_id, "", () => {
+    populateFiles(sel, repo_id, "", {}, () => {
       sel.css('visibility','visible');
     });
   }
@@ -905,7 +890,7 @@ function setCompileOutput(data: WorkerResult) {
 
 function loadBIOSFromProject() {
   if (platform.loadBIOS) {
-    var biospath = 'local/' + platform_id + '.rom';
+    var biospath = platform_id + '.rom';
     store.getItem(biospath).then( (biosdata) => {
       console.log('loading BIOS')
       platform.loadBIOS('BIOS', biosdata);
@@ -1274,7 +1259,7 @@ function addFileToProject(type, ext, linefn) {
     var filename = prompt("Add "+type+" File to Project", "filename"+ext);
     if (filename && filename.trim().length > 0) {
       if (!checkEnteredFilename(filename)) return;
-      var path = "local/" + filename;
+      var path = filename;
       var newline = "\n" + linefn(filename) + "\n";
       current_project.loadFiles([path], (err, result) => {
         if (result && result.length) {
@@ -1648,7 +1633,7 @@ function loadImportedURL(url : string) {
   setWaitDialog(true);
   getWithBinary(url, (data) => {
     if (data) {
-      var path = 'shared/' + getFilenameForPath(url);
+      var path = 'shared/' + getFilenameForPath(url); // TODO: shared prefix?
       // TODO: progress dialog
       console.log("Importing " + data.length + " bytes as " + path);
       store.getItem(path, (err, olddata) => {

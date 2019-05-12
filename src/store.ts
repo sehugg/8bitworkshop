@@ -26,7 +26,6 @@ var Ver2xFileStore = function(storage, prefix:string) {
   }
   this.deleteFile = function(name) {
     storage.removeItem(prefix + name);
-    storage.removeItem(prefix + 'local/' + name); //TODO?
   }
 }
 

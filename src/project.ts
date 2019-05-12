@@ -1,7 +1,7 @@
 "use strict";
 
 import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult } from "./workertypes";
-import { getFilenamePrefix, getFolderForPath, isProbablyBinary } from "./util";
+import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform } from "./util";
 import { Platform } from "./baseplatform";
 
 type BuildResultCallback = (result:WorkerResult) => void;
@@ -65,7 +65,6 @@ export class CodeProject {
 
   pushAllFiles(files:string[], fn:string) {
     // look for local and preset files
-    files.push('local/'+fn);
     files.push(fn);
     // look for files in current (main file) folder
     var dir = getFolderForPath(this.mainpath);
@@ -207,11 +206,10 @@ export class CodeProject {
               this.filedata[path] = value; // do not update store, just cache
               addResult(path, value);
               loadNext();
-            } else if (!path.startsWith("local/")) {
-              // don't load local/
+            } else {
               // found on remote fetch?
               var preset_id = this.platform_id;
-              preset_id = preset_id.replace(/[.]\w+/,''); // remove .suffix from preset name
+              preset_id = getBasePlatform(preset_id); // remove .suffix from preset name
               var webpath = "presets/" + preset_id + "/" + path;
               // try to GET file, use file ext to determine text/binary
               this.callbackGetRemote( webpath, (data:FileData) => {
@@ -227,9 +225,6 @@ export class CodeProject {
                 }
                 loadNext();
               }, isProbablyBinary(path) ? 'arraybuffer' : 'text');
-            } else {
-              // not gonna find it, keep going
-              loadNext();
             }
           });
         }
