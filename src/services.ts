@@ -24,6 +24,7 @@ export interface GHSession extends GHRepoMetadata {
   repo : any;		// [repo object]
   tree? : any;		// [tree object]
   head? : any;		// [head ref]
+  commit?: any;		// after commit()
   paths? : string[];
 }
 
@@ -263,7 +264,7 @@ export class GithubService {
     });
   }
   
-  commitPush( ghurl:string, message:string, files:{path:string,data:FileData}[] ) : Promise<GHSession> {
+  commit( ghurl:string, message:string, files:{path:string,data:FileData}[] ) : Promise<GHSession> {
     var sess : GHSession;
     return this.getGithubHEADTree(ghurl).then( (session) => {
       sess = session;
@@ -303,10 +304,17 @@ export class GithubService {
           sess.head.object.sha
         ]
       });
+    }).then( (commit1) => {
+      return sess.repo.commits(commit1.sha).fetch();
     }).then( (commit) => {
-      return sess.head.update({
-        sha: commit.sha
-      });
+      sess.commit = commit;
+      return sess;
+    });
+  }
+
+  push(sess:GHSession) : Promise<GHSession> {
+    return sess.head.update({
+      sha: sess.commit.sha
     }).then( (update) => {
       return sess;
     });

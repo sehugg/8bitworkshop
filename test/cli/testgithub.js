@@ -107,10 +107,13 @@ describe('Store', function() {
       for (var i=0; i<256; i++)
         binfile[i] = i;
       var files = [
-        {path:'text.txt', data:'hello world'},
+        {path:'text.txt', data:'hello world ' + Math.random()},
         {path:'data.bin', data:binfile}
       ];
-      gh.commitPush('https://github.com/pzpinfo/testrepo3', 'test commit', files).then( (sess) => {
+      gh.commit('https://github.com/pzpinfo/testrepo3', 'test commit', files).then( (sess) => {
+        return gh.push(sess);
+      }).then( (sess) => {
+        console.log(sess.commit);
         done();
       });
     });
@@ -122,7 +125,7 @@ describe('Store', function() {
       var files = [
         {path:'text.txt', data:'hello world'}
       ];
-      gh.commitPush('https://github.com/brovador/NESnake/tree/master/src', 'test commit', files)
+      gh.commit('https://github.com/brovador/NESnake/tree/master/src', 'test commit', files)
       .catch( (e) => {
         console.log(e);
         assert.equal(e, 'Sorry, right now you can only commit files to the root directory of a repository.');

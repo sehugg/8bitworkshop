@@ -402,7 +402,7 @@ function getGithubService() {
 function getBoundGithubURL() : string {
   var toks = (repo_id||'').split('/');
   if (toks.length != 2) {
-    alertError("You are not in a GitHub repository. Choose Import or Publish first.");
+    alertError("You are not in a GitHub repository. Choose one from the pulldown, or Import or Publish one.");
     return null;
   }
   return 'https://github.com/' + toks[0] + '/' + toks[1];
@@ -525,7 +525,9 @@ function pushChangesToGithub(message:string) {
   setWaitDialog(true);
   return getGithubService().login().then( () => {
     setWaitProgress(0.5);
-    return getGithubService().commitPush(ghurl, message, files);
+    return getGithubService().commit(ghurl, message, files);
+  }).then( (sess) => {
+    return getGithubService().push(sess);
   }).then( (sess) => {
     setWaitDialog(false);
     alertInfo("Pushed files to " + ghurl);
@@ -777,7 +779,7 @@ function populateRepos(sel) {
 }
 
 function populateFiles(sel:JQuery, category:string, prefix:string, callback:() => void) {
-  store.keys(function(err, keys : string[]) {
+  store.keys().then( (keys:string[]) => {
     var foundSelected = false;
     var numFound = 0;
     if (!keys) keys = [];
@@ -804,10 +806,10 @@ function populateFiles(sel:JQuery, category:string, prefix:string, callback:() =
 function updateSelector() {
   var sel = $("#preset_select").empty();
   if (!repo_id) {
+    populateRepos(sel);
     // normal: populate local and shared files
     populateFiles(sel, "Local Files", "local/", () => {
       populateFiles(sel, "Shared", "shared/", () => {
-        populateRepos(sel);
         populateExamples(sel);
         sel.css('visibility','visible');
       });
