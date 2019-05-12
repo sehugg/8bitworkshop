@@ -4,6 +4,7 @@
   "author": "Steven Hugg",
   "dependencies": {},
   "devDependencies": {
+    "@types/bootbox": "^4.4.36",
     "@types/bootstrap": "^3.3.42",
     "@types/jquery": "^3.3.29",
     "@types/w2ui": "^1.4.x",

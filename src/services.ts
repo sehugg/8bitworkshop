@@ -80,7 +80,7 @@ export class GithubService {
       console.log("Stored GitHub OAUTH key");
     }).catch( (error) => {
       console.log(error);
-      alert("Could not login to GitHub: " + error);
+      bootbox.alert("Could not login to GitHub: " + error);
     });
   }
   

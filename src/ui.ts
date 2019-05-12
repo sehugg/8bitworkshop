@@ -74,6 +74,13 @@ var TOOL_TO_SOURCE_STYLE = {
   'xasm6809': 'z80'
 }
 
+function alertError(s:string) {
+  bootbox.alert(s);
+}
+function alertInfo(s:string) {
+  bootbox.alert(s);
+}
+
 function newWorker() : Worker {
   return new Worker("./src/worker/loader.js");
 }
@@ -98,6 +105,10 @@ function getCurrentPresetTitle() : string {
 
 function setLastPreset(id:string) {
   if (hasLocalStorage) {
+    if (repo_id)
+      localStorage.setItem("__lastrepo", repo_id);
+    else
+      localStorage.removeItem("__lastrepo");
     localStorage.setItem("__lastplatform", platform_id);
     localStorage.setItem("__lastid_"+store_id, id);
   }
@@ -237,7 +248,7 @@ function loadProject(preset_id:string) {
   // load files from storage or web URLs
   current_project.loadFiles([preset_id], function(err, result) {
     if (err) {
-      alert(err);
+      alertError(err);
     } else if (result && result.length) {
       // we need this to build create functions for the editor
       refreshWindowList();
@@ -250,9 +261,9 @@ function loadProject(preset_id:string) {
 }
 
 function reloadProject(id:string) {
-  // leave repository == '..'
-  if (id == '..') {
-    qs = {};
+  // leave repository == '/'
+  if (id == '/') {
+    qs = {repo:'/'};
   } else if (id.indexOf('://') >= 0) {
     var urlparse = parseGithubURL(id);
     if (urlparse) {
@@ -269,13 +280,13 @@ function getSkeletonFile(fileid:string) : Promise<string> {
   var ext = platform.getToolForFilename(fileid);
   // TODO: .mame
   return $.get( "presets/"+getBasePlatform(platform_id)+"/skeleton."+ext, 'text').catch((e) => {
-    alert("Could not load skeleton for " + platform_id + "/" + ext + "; using blank file");
+    alertError("Could not load skeleton for " + platform_id + "/" + ext + "; using blank file");
   });
 }
 
 function checkEnteredFilename(fn : string) : boolean {
   if (fn.indexOf(" ") >= 0) {
-    alert("No spaces in filenames, please.");
+    alertError("No spaces in filenames, please.");
     return false;
   }
   return true;
@@ -283,19 +294,24 @@ function checkEnteredFilename(fn : string) : boolean {
 
 function _createNewFile(e) {
   // TODO: support spaces
-  var filename = prompt("Create New File", "newfile" + platform.getDefaultExtension());
-  if (filename && filename.trim().length > 0) {
-    if (!checkEnteredFilename(filename)) return;
-    if (filename.indexOf(".") < 0) {
-      filename += platform.getDefaultExtension();
+  bootbox.prompt({
+    title:"Enter the name of your new main source file.",
+    placeholder:"newfile" + platform.getDefaultExtension(),
+    callback:(filename) => {
+      if (filename && filename.trim().length > 0) {
+        if (!checkEnteredFilename(filename)) return;
+        if (filename.indexOf(".") < 0) {
+          filename += platform.getDefaultExtension();
+        }
+        var path = "local/" + filename;
+        getSkeletonFile(path).then( (result) => {
+          return store.setItem(path, result || "\n");
+        }).then(() => {
+          reloadProject("local/" + filename);
+        });
+      }
     }
-    var path = "local/" + filename;
-    getSkeletonFile(path).then( (result) => {
-      return store.setItem(path, result || "\n");
-    }).then(() => {
-      reloadProject("local/" + filename);
-    });
-  }
+  } as any);
   return true;
 }
 
@@ -315,7 +331,7 @@ function handleFileUpload(files: File[]) {
         gotoNewLocation();
       } else {
         updateSelector();
-        alert("Files uploaded.");
+        alertInfo("Files uploaded.");
       }
     } else {
       var path = "local/" + f.name;
@@ -333,7 +349,7 @@ function handleFileUpload(files: File[]) {
         // TODO: use projectWindows uploadFile()
         store.setItem(path, data, function(err, result) {
           if (err)
-            alert("Error uploading " + path + ": " + err);
+            alertError("Error uploading " + path + ": " + err);
           else {
             console.log("Uploaded " + path + " " + data.length + " bytes");
             if (index == 1) {
@@ -386,7 +402,7 @@ function getGithubService() {
 function getBoundGithubURL() : string {
   var toks = (repo_id||'').split('/');
   if (toks.length != 2) {
-    alert("You are not in a GitHub repository. Choose Import or Publish first.");
+    alertError("You are not in a GitHub repository. Choose Import or Publish first.");
     return null;
   }
   return 'https://github.com/' + toks[0] + '/' + toks[1];
@@ -396,7 +412,7 @@ function importProjectFromGithub(githuburl:string) {
   var sess : GHSession;
   var urlparse = parseGithubURL(githuburl);
   if (!urlparse) {
-    alert('Could not parse Github URL.');
+    alertError('Could not parse Github URL.');
     return;
   }
   // redirect to repo if exists
@@ -422,7 +438,7 @@ function importProjectFromGithub(githuburl:string) {
   }).catch( (e) => {
     setWaitDialog(false);
     console.log(e);
-    alert("Could not import " + githuburl + ": " + e);
+    alertError("Could not import " + githuburl + ": " + e);
   });
 }
 
@@ -439,7 +455,7 @@ function _importProjectFromGithub(e) {
 
 function _publishProjectToGithub(e) {
   if (repo_id) {
-    alert("This project (" + current_project.mainPath + ") is already bound to a Github repository. Choose 'Push Changes' to update.");
+    alertError("This project (" + current_project.mainPath + ") is already bound to a Github repository. Choose 'Push Changes' to update.");
     return;
   }
   var modal = $("#publishGithubModal");
@@ -466,7 +482,7 @@ function _publishProjectToGithub(e) {
     }).catch( (e) => {
       setWaitDialog(false);
       console.log(e);
-      alert("Could not publish GitHub repository: " + e);
+      alertError("Could not publish GitHub repository: " + e);
     });
   });
 }
@@ -512,22 +528,22 @@ function pushChangesToGithub(message:string) {
     return getGithubService().commitPush(ghurl, message, files);
   }).then( (sess) => {
     setWaitDialog(false);
-    alert("Pushed files to " + ghurl);
+    alertInfo("Pushed files to " + ghurl);
     return sess;
   }).catch( (e) => {
     setWaitDialog(false);
     console.log(e);
-    alert("Could not push GitHub repository: " + e);
+    alertError("Could not push GitHub repository: " + e);
   });
 }
 
 function _shareEmbedLink(e) {
   if (current_output == null) { // TODO
-    alert("Please fix errors before sharing.");
+    alertError("Please fix errors before sharing.");
     return true;
   }
   if (!(current_output instanceof Uint8Array)) {
-    alert("Can't share a Verilog executable yet. (It's not actually a ROM...)");
+    alertError("Can't share a Verilog executable yet. (It's not actually a ROM...)");
     return true;
   }
   loadClipboardLibrary();
@@ -573,12 +589,12 @@ function get8bitworkshopLink(linkqs : string, fn : string) {
 
 function _downloadCassetteFile(e) {
   if (current_output == null) { // TODO
-    alert("Please fix errors before exporting.");
+    alertError("Please fix errors before exporting.");
     return true;
   }
   var addr = compparams && compparams.code_start;
   if (addr === undefined) {
-    alert("Cassette export is not supported on this platform.");
+    alertError("Cassette export is not supported on this platform.");
     return true;
   }
   loadScript('lib/c2t.js', () => {
@@ -600,7 +616,7 @@ function _downloadCassetteFile(e) {
       var blob = new Blob([audout], {type: "audio/wav"});
       saveAs(blob, audpath);
       stdout += "Then connect your audio output to the cassette input, turn up the volume, and play the audio file.";
-      alert(stdout);
+      alertInfo(stdout);
     }
   });
 }
@@ -610,17 +626,19 @@ function _revertFile(e) {
   if (wnd && wnd.setText) {
     var fn = projectWindows.getActiveID();
     // TODO: .mame
-    $.get( "presets/"+getBasePlatform(platform_id)+"/"+fn, function(text) {
-      if (confirm("Reset '" + fn + "' to default?")) {
-        wnd.setText(text);
-      }
+    $.get( "presets/"+getBasePlatform(platform_id)+"/"+fn, (text) => {
+      bootbox.confirm("Reset '" + fn + "' to default?", (ok) => {
+        if (ok) {
+          wnd.setText(text);
+        }
+      });
     }, 'text')
     .fail(() => {
       // TODO: delete file
-      alert("Can only revert built-in files.");
+      alertError("Can only revert built-in files.");
     });
   } else {
-    alert("Cannot revert the active window. Please choose a text file.");
+    alertError("Cannot revert the active window. Please choose a text file.");
   }
 }
 
@@ -629,23 +647,25 @@ function _deleteFile(e) {
   if (wnd && wnd.getPath) {
     var fn = projectWindows.getActiveID();
     if (repo_id || fn.startsWith("local/") || fn.startsWith("shared/")) {
-      if (confirm("Delete '" + fn + "'?")) {
-        store.removeItem(fn).then( () => {
-          // if we delete what is selected
-          if (qs['file'] == fn) {
-            unsetLastPreset();
-            gotoNewLocation();
-          } else {
-            updateSelector();
-            alert("Deleted " + fn);
-          }
-        });
-      }
+      bootbox.confirm("Delete '" + fn + "'?", (ok) => {
+        if (ok) {
+          store.removeItem(fn).then( () => {
+            // if we delete what is selected
+            if (qs['file'] == fn) {
+              unsetLastPreset();
+              gotoNewLocation();
+            } else {
+              updateSelector();
+              alertInfo("Deleted " + fn);
+            }
+          });
+        }
+      });
     } else {
-      alert("Can only delete local files.");
+      alertError("Can only delete local files.");
     }
   } else {
-    alert("Cannot delete the active window.");
+    alertError("Cannot delete the active window.");
   }
 }
 
@@ -660,21 +680,21 @@ function _renameFile(e) {
       store.removeItem(fn).then( () => {
         return store.setItem(newfn, data);
       }).then( () => {
-        alert("Renamed " + fn + " to " + newfn);
         updateSelector();
+        alert("Renamed " + fn + " to " + newfn); // need alert() so it pauses
         if (fn == current_project.mainPath) {
           reloadProject(newfn);
         }
       });
     }
   } else {
-    alert("Cannot rename the active window.");
+    alertError("Cannot rename the active window.");
   }
 }
 
 function _downloadROMImage(e) {
   if (current_output == null) {
-    alert("Please finish compiling with no errors before downloading ROM.");
+    alertError("Please finish compiling with no errors before downloading ROM.");
     return true;
   }
   if (current_output instanceof Uint8Array) {
@@ -793,7 +813,7 @@ function updateSelector() {
       });
     });
   } else {
-    sel.append($("<option />").val('..').text('Leave Repository'));
+    sel.append($("<option />").val('/').text('Leave Repository'));
     // repo: populate all files
     populateFiles(sel, repo_id, "", () => {
       sel.css('visibility','visible');
@@ -901,7 +921,7 @@ function setDebugButtonState(btnid:string, btnstate:string) {
 
 function checkRunReady() {
   if (current_output == null) {
-    alert("Can't resume emulation until ROM is successfully built.");
+    alertError("Can't resume emulation until ROM is successfully built.");
     return false;
   } else
     return true;
@@ -1033,6 +1053,7 @@ function resetAndDebug() {
 
 function _breakExpression() {
   console.log(platform.saveState());
+  // TODO: better
   var exprs = window.prompt("Enter break expression", lastBreakExpr);
   if (exprs) {
     var fn = new Function('c', 'return (' + exprs + ');').bind(platform);
@@ -1086,7 +1107,7 @@ function _recordVideo() {
  loadScript("gif.js/dist/gif.js", () => {
   var canvas = $("#emulator").find("canvas")[0] as HTMLElement;
   if (!canvas) {
-    alert("Could not find canvas element to record video!");
+    alertError("Could not find canvas element to record video!");
     return;
   }
   var rotate = 0;
@@ -1224,7 +1245,7 @@ function addFileToProject(type, ext, linefn) {
       var newline = "\n" + linefn(filename) + "\n";
       current_project.loadFiles([path], (err, result) => {
         if (result && result.length) {
-          alert(filename + " already exists; including anyway");
+          alertError(filename + " already exists; including anyway");
         } else {
           current_project.updateFile(path, "\n");
         }
@@ -1233,7 +1254,7 @@ function addFileToProject(type, ext, linefn) {
       });
     }
   } else {
-    alert("Can't insert text in this window -- switch back to main file");
+    alertError("Can't insert text in this window -- switch back to main file");
   }
 }
 
@@ -1249,7 +1270,7 @@ function _addIncludeFile() {
   else if (tool == 'verilator')
     addFileToProject("Verilog File", ".v", (s) => { return '`include "'+s+'"' });
   else
-    alert("Can't add include file to this project type (" + tool + ")");
+    alertError("Can't add include file to this project type (" + tool + ")");
 }
 
 function _addLinkFile() {
@@ -1258,7 +1279,7 @@ function _addLinkFile() {
   if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65')
     addFileToProject("Linked C", ".c", (s) => { return '//#link "'+s+'"' });
   else
-    alert("Can't add linked file to this project type (" + tool + ")");
+    alertError("Can't add linked file to this project type (" + tool + ")");
 }
 
 function setupDebugControls() {
@@ -1480,7 +1501,7 @@ function installErrorHandler() {
         } else {
           var msg = msgevent + " " + url + " " + " " + line + ":" + col + ", " + error;
           $.get("/error?msg=" + encodeURIComponent(msg), "text");
-          alert(msgevent+"");
+          alertError(msgevent+"");
         }
         _pause();
       };
@@ -1602,7 +1623,7 @@ function loadImportedURL(url : string) {
         if (!olddata || confirm("Replace existing file '" + path + "'?")) {
           store.setItem(path, data, (err, result) => {
             if (err)
-              alert(err+"");
+              alert(err+""); // need to wait
             if (result != null) {
               delete qs['importURL'];
               qs['file'] = path;
@@ -1613,7 +1634,7 @@ function loadImportedURL(url : string) {
         }
       });
     } else {
-      alert("Could not load source code from URL: " + url);
+      alertError("Could not load source code from URL: " + url);
       setWaitDialog(false);
     }
   }, 'text');
@@ -1628,14 +1649,19 @@ export function startUI(loadplatform : boolean) {
     return;
   }
   // lookup repository
-  repo_id = qs['repo'];
-  if (hasLocalStorage && repo_id) {
+  repo_id = qs['repo']; // TODO? || (hasLocalStorage && localStorage.getItem("__lastrepo"));
+  if (hasLocalStorage && repo_id && repo_id !== '/') {
     var repo = getRepos()[repo_id];
-    console.log(repo_id, repo);
-    if (repo && !qs['file'])
-      qs['file'] = repo.mainPath;
-    if (repo && !qs['platform'])
-      qs['platform'] = repo.platform_id;
+    if (repo) {
+      qs['repo'] = repo_id;
+      if (!qs['file'])
+        qs['file'] = repo.mainPath;
+      if (!qs['platform'])
+        qs['platform'] = repo.platform_id;
+    }
+  } else {
+    repo_id = '';
+    delete qs['repo'];
   }
   // add default platform?
   platform_id = qs['platform'] || (hasLocalStorage && localStorage.getItem("__lastplatform"));
@@ -1671,7 +1697,7 @@ function loadAndStartPlatform() {
     showWelcomeMessage();
     document.title = document.title + " [" + platform_id + "] - " + (repo_id?('['+repo_id+'] - '):'') + current_project.mainPath;
   }, () => {
-    alert('Platform "' + platform_id + '" not supported.');
+    alertError('Platform "' + platform_id + '" not supported.');
   });
 }
 

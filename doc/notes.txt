@@ -153,10 +153,8 @@ TODO:
   - support projects with subdirectories, file list?
   - emulator needs reset shortcut for nes
   - local/ files in repository?
-  - build ca65 projects? https://github.com/pinobatch/thwaite-nes/blob/master/makefile
+  - build ca65 projects w/ no crt0? https://github.com/pinobatch/thwaite-nes/blob/master/makefile
   - switching platform of a repo?
-  - retaining repo_id in localstorage?
-  - don't like alert() after pushing
   - should have a preview of commit
 
 

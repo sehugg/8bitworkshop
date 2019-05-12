@@ -102,7 +102,7 @@ export class ProjectWindows {
     if (this.activewnd && this.activewnd.getValue)
       return this.activewnd.getValue();
     else
-      alert("Please switch to an editor window.");
+      bootbox.alert("Please switch to an editor window.");
   }
 
   resize() : void {
@@ -131,7 +131,7 @@ export class ProjectWindows {
     if (wnd && wnd.undoStep) {
       wnd.undoStep();
     } else {
-      alert("No more steps to undo.");
+      bootbox.alert("No more steps to undo.");
     }
   }
 
