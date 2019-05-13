@@ -278,7 +278,7 @@ SetPalette: subroutine
 	bne .loop
         rts
 
-; set sprite 0
+; set sprite 0 (A = top scanline)
 SetSprite0: subroutine
 	sta $200	;ypos
         lda #$00	;code
@@ -313,6 +313,10 @@ SetSprite0: subroutine
                 REPEND
             ENDM
 
+;;;
+;;; NMI HANDLER
+;;;
+
 NMIHandler: subroutine
 ; save registers
 	SAVE_REGS
@@ -325,11 +329,11 @@ NMIHandler: subroutine
         PPU_SETADDR $2000	; reset PPU address
 ; load sprite zero
         lda #109
-        jsr SetSprite0
+        jsr SetSprite0		; set sprite 0 position
 	lda #$02
-        sta PPU_OAM_DMA
+        sta PPU_OAM_DMA		; send sprites to PPU
 ; setup sky scroll
-	lda Heading+1
+	lda Heading+1		; heading scroll pos.
         sta PPU_SCROLL		; X scroll
         lda #0
         sta PPU_SCROLL		; Y scroll = 0
@@ -339,27 +343,26 @@ NMIHandler: subroutine
         jsr RoadPostFrame
 ; wait for sprite 0
 .wait0	bit PPU_STATUS
-        bvs .wait0
+        bvs .wait0	; until bit 6 set
 .wait1	bit PPU_STATUS
-        bvc .wait1
+        bvc .wait1	; until bit 6 clear
 ; alter horiz. scroll position for each scanline
         ldy #0
 .loop
 ; pad out rest of scanline
-        SLEEP 78
+        SLEEP 80
 ; change scroll register
-	tya
-        lsr		; / 2
-        tax
+	tya		; Y -> A
+        lsr		; A / 2
+        tax		; A -> X
 	lda RoadX0,x	; get X offset of scanline
         eor #$80	; + 128
         sta PPU_SCROLL	; horiz byte
-        lda #0
-        sta PPU_SCROLL	; vert byte = 0
-; take extra cycle every 4th line
-	tya
-        and #3
-        bne .skipcyc
+        sta PPU_SCROLL	; vert byte (ignored)
+; take back 1 cycle every 4th line
+	tya		; Y -> A
+        and #3		; mask first 2 bits
+        bne .skipcyc	; -1 cycle every 4 lines
 .skipcyc
 ; next loop iteration
         iny

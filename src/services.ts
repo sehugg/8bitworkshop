@@ -234,6 +234,8 @@ export class GithubService {
 
   publish(reponame:string, desc:string, license:string, isprivate:boolean) : Promise<GHSession> {
     var repo;
+    var platform_id = this.project.platform_id;
+    var mainPath = this.project.stripLocalPath(this.project.mainPath);
     return this.github.user.repos.create({
       name: reponame,
       description: desc,
@@ -246,9 +248,9 @@ export class GithubService {
       // create README.md
       var s = README_md_template;
       s = s.replace(/\$NAME/g, encodeURIComponent(reponame));
-      s = s.replace(/\$PLATFORM/g, encodeURIComponent(this.project.platform_id));
+      s = s.replace(/\$PLATFORM/g, encodeURIComponent(platform_id));
       s = s.replace(/\$GITHUBURL/g, encodeURIComponent(repo.html_url));
-      s = s.replace(/\$MAINFILE/g, encodeURIComponent(this.project.stripLocalPath(this.project.mainPath)));
+      s = s.replace(/\$MAINFILE/g, encodeURIComponent(mainPath));
       var config = {
         message: '8bitworkshop: updated metadata in README.md',
         content: btoa(s)

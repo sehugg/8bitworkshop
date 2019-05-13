@@ -369,12 +369,8 @@ typedef struct Actor {
   int pal:2;		// palette color (2 bits)
   int dir:1;		// direction (0=right, 1=left)
   int onscreen:1;	// is actor onscreen?
-  union {
-    struct {		// when jumping...
-      sbyte yvel;	// Y velocity
-      sbyte xvel;	// X velocity
-    } jumping;
-  } u;
+  sbyte yvel;		// Y velocity (when jumping)
+  sbyte xvel;		// X velocity (when jumping)
 } Actor;
 
 Actor actors[MAX_ACTORS];
@@ -509,8 +505,8 @@ void check_scroll_down() {
 void fall_down(struct Actor* actor) {
   actor->floor--;
   actor->state = FALLING;
-  actor->u.jumping.xvel = 0;
-  actor->u.jumping.yvel = 0;
+  actor->xvel = 0;
+  actor->yvel = 0;
 }
 
 void move_actor(struct Actor* actor, byte joystick, bool scroll) {
@@ -521,10 +517,10 @@ void move_actor(struct Actor* actor, byte joystick, bool scroll) {
       // left/right has priority over climbing
       if (joystick & PAD_A) {
         actor->state = JUMPING;
-        actor->u.jumping.xvel = 0;
-        actor->u.jumping.yvel = JUMP_VELOCITY;
-        if (joystick & PAD_LEFT) actor->u.jumping.xvel = -1;
-        if (joystick & PAD_RIGHT) actor->u.jumping.xvel = 1;
+        actor->xvel = 0;
+        actor->yvel = JUMP_VELOCITY;
+        if (joystick & PAD_LEFT) actor->xvel = -1;
+        if (joystick & PAD_RIGHT) actor->xvel = 1;
         // play sound for player
         if (scroll) sfx_play(SND_JUMP,0);
       } else if (joystick & PAD_LEFT) {
@@ -575,9 +571,9 @@ void move_actor(struct Actor* actor, byte joystick, bool scroll) {
         check_scroll_down();
       }
     case JUMPING:
-      actor->x += actor->u.jumping.xvel;
-      actor->yy += actor->u.jumping.yvel/4;
-      actor->u.jumping.yvel -= 1;
+      actor->x += actor->xvel;
+      actor->yy += actor->yvel/4;
+      actor->yvel -= 1;
       if (actor->yy <= get_floor_yy(actor->floor)) {
 	actor->yy = get_floor_yy(actor->floor);
         actor->state = STANDING;

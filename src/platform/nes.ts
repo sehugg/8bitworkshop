@@ -36,7 +36,7 @@ const JSNES_PRESETS = [
   {id:'ex4.dasm', name:'Controller Demo (ASM)'},
   {id:'musicdemo.dasm', name:'Famitone Demo (ASM)'},
   {id:'xyscroll.dasm', name:'XY Split Scrolling (ASM)'},
-  {id:'scrollrt.dasm', name:'Line-by-line Scrolling (ASM)'},
+//  {id:'scrollrt.dasm', name:'Line-by-line Scrolling (ASM)'},
   {id:'road.dasm', name:'3-D Road Demo (ASM)'},
   {id:'chase/game.c', name:'Shiru\'s Chase Game'},
 ];

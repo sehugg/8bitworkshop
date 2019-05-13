@@ -6,8 +6,6 @@
 	seg.u ZEROPAGE
 	org $0
         
-SkipY	ds 1
-
 ;;;;; OTHER VARIABLES
 
 	seg.u RAM
@@ -97,21 +95,21 @@ NMIHandler: subroutine
         sta PPU_OAM_DMA
 ; wait for sprite 0
 .wait0	bit PPU_STATUS
-        bvs .wait0
+        bvs .wait0	; until bit 6 set
 .wait1	bit PPU_STATUS
-        bvc .wait1
+        bvc .wait1	; until bit 6 clear
+        SLEEP 14
         ldy #0
 .loop
-; take out cycle every 4th line
-	tya
-        and #3
-        bne .skipcyc	; clks = 2/3/3/3
+; add two cycles every 6th line
+	lda Div3Table,y ; is non-zero?
+        bne .skipcyc	; branch adds +1 cycle
 .skipcyc
 ; pad out rest of scanline
-	SLEEP 65
+	SLEEP 66
 ; alter horiz. scroll position for each scanline
 	tya
-        sec
+        clc
 	adc LineXLo,y
         sta LineXLo,y
         lda LineXHi,y
@@ -122,14 +120,19 @@ NMIHandler: subroutine
         sta PPU_SCROLL	; vert byte
 ; next iteration of loop
         iny
-        cpy #112
-        bne .loop
+        cpy #112	; out of lines?
+        bne .loop	; no, repeat
         RESTORE_REGS
 	rti
 
 ;;;;; CONSTANT DATA
 
-	align $100
+	align $100	; align to page boundary
+Div3Table:
+	REPEAT 38	; repeat 3*38 times
+        .byte 0,1,1	; repeating 0-1-1 bytes
+        REPEND		; end of repeat block
+        
 Palette:
 	hex 1f		;background
 	hex 09092c00	;bg0

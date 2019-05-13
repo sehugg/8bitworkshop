@@ -138,6 +138,7 @@ TODO:
 - target ES6
 - don't have to include bootstrap-tourist each time?
 - don't have to include firebase always?
+- build ca65 projects w/ no crt0? https://github.com/pinobatch/thwaite-nes/blob/master/makefile
 - Github
   - gh-pages branch with embedded
   - handle overwrite logic
@@ -152,8 +153,6 @@ TODO:
   - don't import useless files
   - support projects with subdirectories, file list?
   - emulator needs reset shortcut for nes
-  - local/ files in repository?
-  - build ca65 projects w/ no crt0? https://github.com/pinobatch/thwaite-nes/blob/master/makefile
   - switching platform of a repo?
 
 
