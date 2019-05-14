@@ -1070,15 +1070,36 @@ function resetAndDebug() {
 }
 
 function _breakExpression() {
-  console.log(platform.saveState());
-  // TODO: better
-  var exprs = window.prompt("Enter break expression", lastBreakExpr);
-  if (exprs) {
-    var fn = new Function('c', 'return (' + exprs + ');').bind(platform);
-    setupBreakpoint();
-    platform.runEval(fn as DebugEvalCondition);
-    lastBreakExpr = exprs;
-  }
+  var modal = $("#debugExprModal");
+  var btn = $("#debugExprSubmit");
+  $("#debugExprInput").val(lastBreakExpr);
+  $("#debugExprExamples").text(getDebugExprExamples());
+  modal.modal('show');
+  btn.off('click').on('click', () => {
+    var exprs = $("#debugExprInput").val()+"";
+    modal.modal('hide');
+    breakExpression(exprs);
+  });
+}
+
+function getDebugExprExamples() : string {
+  var state = platform.saveState && platform.saveState();
+  var cpu = platform.getCPUState && platform.getCPUState();
+  console.log(cpu, state);
+  var s = '';
+  if (cpu.PC) s += "c.PC == 0x" + hex(cpu.PC) + "\n";
+  if (cpu.SP) s += "c.SP < 0x" + hex(cpu.SP) + "\n";
+  if (platform.readAddress) s += "this.readAddress(0x1234) == 0x0\n";
+  if (platform.readVRAMAddress) s += "this.readVRAMAddress(0x1234) != 0x80\n";
+  if (platform.getRasterPosition) s += "this.getRasterPosition().y > 222\n";
+  return s;
+}
+
+function breakExpression(exprs : string) {
+  var fn = new Function('c', 'return (' + exprs + ');').bind(platform);
+  setupBreakpoint();
+  platform.runEval(fn as DebugEvalCondition);
+  lastBreakExpr = exprs;
 }
 
 function getSymbolAtAddress(a : number) {
