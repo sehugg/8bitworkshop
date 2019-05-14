@@ -637,6 +637,8 @@ export class MemoryView implements ProjectView {
         var nextofs = parseInt(_nextofs); // convert from string (stupid JS)
         var nextsym = addr2sym[nextofs];
         if (sym) {
+          if (sym.endsWith('_SIZE__') || sym.endsWith('_LAST__') || sym.endsWith('STACKSIZE__') || sym.endsWith('FILEOFFS__'))
+            sym = '';
           if (MemoryView.IGNORE_SYMS[sym]) {
             ofs = nextofs;
           } else {

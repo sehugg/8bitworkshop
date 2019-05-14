@@ -182,13 +182,13 @@ var PLATFORM_PARAMS = {
   'nes': { //TODO
     define: '__NES__',
     cfgfile: 'neslib.cfg',
-    libargs: ['crt0.o', 'nes.lib',
+    libargs: ['crt0.o', 'nes.lib', 'neslib2.lib',
       '-D', 'NES_MAPPER=0', // NROM
       '-D', 'NES_PRG_BANKS=2', // 2 16K PRG banks
       '-D', 'NES_CHR_BANKS=1', // 1 CHR bank
       '-D', 'NES_MIRRORING=0', // horizontal mirroring
       ],
-    extra_link_files: ['crt0.o', 'nesbanked.cfg'],
+    extra_link_files: ['crt0.o', 'neslib2.lib', 'nesbanked.cfg'],
     extra_segments:[
       //{name:'Work RAM',start:0x0,size:0x800,type:'ram'},
       {name:'OAM Buffer',start:0x200,size:0x100,type:'ram'},
@@ -197,15 +197,10 @@ var PLATFORM_PARAMS = {
       {name:'Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
     ],
   },
-  'nes-conio': {
+  'nes-asm': {
     cfgfile: 'nes.cfg',
     define: '__NES__',
     libargs: ['nes.lib'],
-  },
-  'nes-lib': {
-    define: '__NES__',
-    cfgfile: 'neslib.cfg',
-    libargs: ['neslib.lib', 'nes.lib'],
   },
   'apple2': {
     define: '__APPLE2__',

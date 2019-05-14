@@ -12,7 +12,7 @@ import { PLATFORMS, EmuHalt, Toolbar } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
-         byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform } from "./util";
+         byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, hex } from "./util";
 import { StateRecorderImpl } from "./recorder";
 import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
 
@@ -1084,14 +1084,14 @@ function _breakExpression() {
 
 function getDebugExprExamples() : string {
   var state = platform.saveState && platform.saveState();
-  var cpu = platform.getCPUState && platform.getCPUState();
+  var cpu = state.c;
   console.log(cpu, state);
   var s = '';
   if (cpu.PC) s += "c.PC == 0x" + hex(cpu.PC) + "\n";
   if (cpu.SP) s += "c.SP < 0x" + hex(cpu.SP) + "\n";
   if (platform.readAddress) s += "this.readAddress(0x1234) == 0x0\n";
   if (platform.readVRAMAddress) s += "this.readVRAMAddress(0x1234) != 0x80\n";
-  if (platform.getRasterPosition) s += "this.getRasterPosition().y > 222\n";
+  if (platform['getRasterPosition']) s += "this.getRasterPosition().y > 222\n";
   return s;
 }
 
