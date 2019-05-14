@@ -796,10 +796,12 @@ function assembleDASM(step:BuildStep) {
   }
   // for bataribasic (TODO)
   if (step['bblines']) {
-    let lst = listings[lstpath];
-    lst.asmlines = lst.lines;
-    lst.text = alst;
-    lst.lines = [];
+    let lst = listings[step.path];
+    if (lst) {
+      lst.asmlines = lst.lines;
+      lst.text = alst;
+      lst.lines = [];
+    }
   }
   var segments = step.params.extra_segments;
   return {

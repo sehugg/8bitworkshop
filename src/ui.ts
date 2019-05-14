@@ -241,8 +241,18 @@ function refreshWindowList() {
   });
 }
 
+function loadMainWindow(preset_id:string) {
+  // we need this to build create functions for the editor
+  refreshWindowList();
+  // show main file
+  projectWindows.createOrShow(preset_id);
+  // build project
+  current_project.setMainFile(preset_id);
+}
+
 function loadProject(preset_id:string) {
   // set current file ID
+  // TODO: this is done twice
   current_project.mainPath = preset_id;
   setLastPreset(preset_id);
   // load files from storage or web URLs
@@ -250,12 +260,14 @@ function loadProject(preset_id:string) {
     if (err) {
       alertError(err);
     } else if (result && result.length) {
-      // we need this to build create functions for the editor
-      refreshWindowList();
-      // show main file
-      projectWindows.createOrShow(preset_id);
-      // build project
-      current_project.setMainFile(preset_id);
+      // file found; continue
+      loadMainWindow(preset_id);
+    } else {
+      // no file data, load skeleton file
+      getSkeletonFile(preset_id).then((skel) => {
+        current_project.filedata[preset_id] = skel || "\n";
+        loadMainWindow(preset_id);
+      });
     }
   });
 }
@@ -304,11 +316,7 @@ function _createNewFile(e) {
           filename += platform.getDefaultExtension();
         }
         var path = filename;
-        getSkeletonFile(path).then( (result) => {
-          return store.setItem(path, result || "\n");
-        }).then(() => {
-          reloadProject(path);
-        });
+        reloadProject(path);
       }
     }
   } as any);
@@ -821,6 +829,15 @@ function populateFiles(sel:JQuery, category:string, prefix:string, foundFiles:{}
   });
 }
 
+function finishSelector(sel) {
+  sel.css('visibility','visible');
+  // create option if not selected
+  var main = current_project.mainPath;
+  if (sel.val() != main) {
+    sel.append($("<option />").val(main).text(main).attr('selected','selected'));
+  }
+}
+
 function updateSelector() {
   var sel = $("#preset_select").empty();
   if (!repo_id) {
@@ -828,13 +845,13 @@ function updateSelector() {
     populateRepos(sel);
     var foundFiles = populateExamples(sel);
     populateFiles(sel, "Local Files", "", foundFiles, () => {
-      sel.css('visibility','visible');
+      finishSelector(sel);
     });
   } else {
     sel.append($("<option />").val('/').text('Leave Repository'));
     // repo: populate all files
     populateFiles(sel, repo_id, "", {}, () => {
-      sel.css('visibility','visible');
+      finishSelector(sel);
     });
   }
   // set click handlers
