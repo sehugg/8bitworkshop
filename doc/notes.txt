@@ -94,12 +94,14 @@ TODO:
   - persist palette/tilemap selections
   - more tools for editing
   - map editor
+  - arbitrary nametable editing
   - metasprites
   - throw errors when bad/no refs
   - per-View keyboard shortcuts
   - parse labels
   - parse .incbin directives?
   - can't replace in hex directives
+  - should maybe use same single-canvas editor for map + char editor
 - crt0.s compiled each time?
 - debug highlight doesn't go away when debugging -> running
   - show breakpoint of PC or highest address on stack
@@ -149,7 +151,6 @@ TODO:
   - can published files retain path?
   - what if import interrupted and partial files?
   - CORS for some blobs?
-  - confusing when examples load if file not found
   - don't import useless files
   - support projects with subdirectories, file list?
   - emulator needs reset shortcut for nes

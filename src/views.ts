@@ -924,10 +924,13 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     this.deferrednodes = [];
   }
 
-  registerAsset(type:string, node:pixed.PixNode, deferred:boolean) {
+  registerAsset(type:string, node:pixed.PixNode, deferred:number) {
     this.rootnodes.push(node);
     if (deferred) {
-      this.deferrednodes.push(node);
+      if (deferred > 1)
+        this.deferrednodes.push(node);
+      else
+        this.deferrednodes.unshift(node);
     } else {
       node.refreshRight();
     }
@@ -973,8 +976,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     this.rootnodes.forEach((node) => {
       while (node != null) {
         if (node instanceof pixed.Palettizer) {
-          // TODO: move to node class?
-          var rgbimgs = node.rgbimgs; // TODO: why is null?
+          var rgbimgs = node.rgbimgs;
           if (rgbimgs && rgbimgs.length >= matchlen) {
             result.push({node:node, name:"Tilemap", images:node.images, rgbimgs:rgbimgs}); // TODO
           }
@@ -1178,14 +1180,14 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       let node = new pixed.FileDataNode(projectWindows, fileid);
       const neschrfmt = {w:8,h:8,bpp:1,count:(data.length>>4),brev:true,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}; // TODO
       this.addPixelEditor(this.ensureFileDiv(fileid), node, neschrfmt);
-      this.registerAsset("charmap", node, true);
+      this.registerAsset("charmap", node, 1);
       nassets++;
     } else if (platform_id.startsWith('nes') && fileid.endsWith('.pal') && data instanceof Uint8Array) {
       // is this a NES PAL?
       let node = new pixed.FileDataNode(projectWindows, fileid);
       const nespalfmt = {pal:"nes",layout:"nes"};
       this.addPaletteEditor(this.ensureFileDiv(fileid), node, nespalfmt);
-      this.registerAsset("palette", node, false);
+      this.registerAsset("palette", node, 0);
       nassets++;
     } else if (typeof data === 'string') {
       let textfrags = this.scanFileTextForAssets(fileid, data);
@@ -1194,30 +1196,29 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           let label = fileid; // TODO: label
           let node : pixed.PixNode = new pixed.TextDataNode(projectWindows, fileid, label, frag.start, frag.end);
           let first = node;
-          // rle-compressed? TODO
+          // rle-compressed? TODO: how to edit?
           if (frag.fmt.comp == 'rletag') {
-            //node = node.addRight(new pixed.Compressor());
-            continue; // TODO
+            node = node.addRight(new pixed.Compressor());
           }
           // is this a nes nametable?
           if (frag.fmt.map == 'nesnt') {
-            node = node.addRight(new pixed.NESNametableConverter(this)); // TODO?
-            node = node.addRight(new pixed.Palettizer(this, {w:8,h:8,bpp:4})); // TODO?
-            const fmt = {w:8*32,h:8*30,count:1}; // TODO
-            node = node.addRight(new pixed.CharmapEditor(this, newDiv(this.ensureFileDiv(fileid)), fmt));
-            this.registerAsset("nametable", first, true);
+            node = node.addRight(new pixed.NESNametableConverter(this));
+            node = node.addRight(new pixed.Palettizer(this, {w:8,h:8,bpp:4}));
+            const fmt = {w:8*(frag.fmt.w||32),h:8*(frag.fmt.h||30),count:1}; // TODO: can't do custom sizes
+            node = node.addRight(new pixed.MapEditor(this, newDiv(this.ensureFileDiv(fileid)), fmt));
+            this.registerAsset("nametable", first, 2);
             nassets++;
           }
           // is this a bitmap?
           else if (frag.fmt.w > 0 && frag.fmt.h > 0) {
             this.addPixelEditor(this.ensureFileDiv(fileid), node, frag.fmt);
-            this.registerAsset("charmap", first, true);
+            this.registerAsset("charmap", first, 1);
             nassets++;
           }
           // is this a palette?
           else if (frag.fmt.pal) {
             this.addPaletteEditor(this.ensureFileDiv(fileid), node, frag.fmt);
-            this.registerAsset("palette", first, false);
+            this.registerAsset("palette", first, 0);
             nassets++;
           }
           else {
@@ -1249,7 +1250,14 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         }
       });
       console.log("Found " + this.rootnodes.length + " assets");
-      this.deferrednodes.forEach((node) => { node.refreshRight(); });
+      this.deferrednodes.forEach((node) => {
+        try {
+          node.refreshRight();
+        } catch (e) {
+          console.log(e);
+          alert(e+"");
+        }
+      });
       this.deferrednodes = [];
     } else {
       // only refresh nodes if not actively editing

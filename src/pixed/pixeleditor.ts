@@ -704,7 +704,9 @@ export class NESNametableConverter extends Compositor {
     for (var row=0; row<this.rows; row++) {
       for (var col=0; col<this.cols; col++) {
          var name = this.words[this.baseofs + a];
+         if (typeof name === 'undefined') throw "No name for address " + this.baseofs + " + " + a;
          var t = this.tilemap[name];
+         if (!t) throw "No tilemap found for tile index " + name;
          attraddr = (a & 0x2c00) | 0x3c0 | (a & 0x0C00) | ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
          var attr = this.words[attraddr];
          var tag = name ^ (attr<<9) ^ 0x80000000;
@@ -837,6 +839,40 @@ export class CharmapEditor extends PixNode {
     im.canvas.style.width = (viewer.width*escale)+'px'; // TODO
     im.makeEditable(this, aeditor, this.left.palette);
     return im;
+  }
+}
+
+export class MapEditor extends PixNode {
+
+  context;
+  parentdiv;
+  fmt;
+
+  constructor(context:EditorContext, parentdiv:JQuery, fmt:PixelEditorImageFormat) {
+    super();
+    this.context = context;
+    this.parentdiv = parentdiv;
+    this.fmt = fmt;
+  }
+
+  updateLeft() {
+    return true;
+  }
+
+  updateRight() {
+    if (equalNestedArrays(this.rgbimgs, this.left.rgbimgs)) return false;
+    this.rgbimgs = this.left.rgbimgs;
+    var adual = newDiv(this.parentdiv.empty(), "asset_dual"); // contains grid and editor
+    var agrid = newDiv(adual);
+    var aeditor = newDiv(adual, "asset_editor").hide(); // contains editor, when selected
+    // add image chooser grid
+    var viewer = new Viewer();
+    viewer.width = this.fmt.w;
+    viewer.height = this.fmt.h;
+    viewer.recreate();
+    viewer.updateImage(this.rgbimgs[0]);
+    agrid.append(viewer.canvas);
+    return true;
   }
 }
 
