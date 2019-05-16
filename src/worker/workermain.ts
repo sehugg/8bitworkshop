@@ -242,6 +242,12 @@ var PLATFORM_PARAMS = {
     data_start: 0x4e10,
      data_size: 0x1f0,
      stack_end: 0x5000,
+    extra_segments:[
+      {name:'BIOS',start:0x0,size:0x2000,type:'rom'},
+      //{name:'Cart ROM',start:0x2000,size:0x2000,type:'rom'},
+      //{name:'Magic RAM',start:0x0,size:0x4000,type:'ram'},
+      {name:'Screen RAM',start:0x4000,size:0x1000,type:'ram'},
+    ],
   },
   'astrocade-arcade': {
     code_start: 0x0000,

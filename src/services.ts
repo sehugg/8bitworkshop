@@ -249,7 +249,7 @@ export class GithubService {
       var s = README_md_template;
       s = s.replace(/\$NAME/g, encodeURIComponent(reponame));
       s = s.replace(/\$PLATFORM/g, encodeURIComponent(platform_id));
-      s = s.replace(/\$GITHUBURL/g, encodeURIComponent(repo.html_url));
+      s = s.replace(/\$GITHUBURL/g, encodeURIComponent(repo.htmlUrl));
       s = s.replace(/\$MAINFILE/g, encodeURIComponent(mainPath));
       var config = {
         message: '8bitworkshop: updated metadata in README.md',

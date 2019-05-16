@@ -7,6 +7,9 @@
 #include "apu.h"
 //#link "apu.c"
 
+#include "vrambuf.h"
+//#link "vrambuf.c"
+
 // link the pattern table into CHR ROM
 //#link "chr_generic.s"
 
@@ -79,6 +82,16 @@ void play_sound() {
   APU_NOISE_DECAY(vals[16]|vals[19], vals[17], vals[18]);
 }
 
+void print_status() {
+  byte i;
+  vrambuf_clear();
+  for (i=0; i<APU_DEFCOUNT; i++) {
+    char ch = APU.status & APU_DEFS[i].chmask ? '*' : ' ';
+    vrambuf_put(NTADR_A(29,i+1), &ch, 1);
+  }
+}
+
+
 void main(void)
 {
   pal_col(1,0x04);
@@ -94,7 +107,13 @@ void main(void)
     }
     print_sound();
     play_sound();
-    ppu_on_all();//enable rendering
-    while (!pad_trigger(0)) ; // wait for key
+    vrambuf_clear();
+    set_vram_update(updbuf);
+    ppu_on_all();
+    // wait for key
+    while (!pad_trigger(0)) {
+      ppu_wait_nmi();
+      print_status();
+    }
   }
 }

@@ -468,6 +468,7 @@ function _publishProjectToGithub(e) {
   }
   var modal = $("#publishGithubModal");
   var btn = $("#publishGithubButton");
+  $("#githubRepoName").val(getFilenamePrefix(current_project.mainPath));
   modal.modal('show');
   btn.off('click').on('click', () => {
     var name = $("#githubRepoName").val()+"";
@@ -475,6 +476,10 @@ function _publishProjectToGithub(e) {
     var priv = $("#githubRepoPrivate").val() == 'private';
     var license = $("#githubRepoLicense").val()+"";
     var sess;
+    if (!name) {
+      alertError("You did not enter a project name.");
+      return;
+    }
     modal.modal('hide');
     setWaitDialog(true);
     getGithubService().login().then( () => {

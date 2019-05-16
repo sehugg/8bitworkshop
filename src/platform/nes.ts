@@ -55,8 +55,8 @@ const JSNES_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_RIGHT, 0, 7],
   [Keys.VK_Q,     1, 0],
   [Keys.VK_E,     1, 1],
-  [Keys.VK_4,     1, 2],
-  [Keys.VK_3,     1, 3],
+  [Keys.VK_1,     1, 2],
+  [Keys.VK_2,     1, 3],
   [Keys.VK_W,     1, 4],
   [Keys.VK_S,     1, 5],
   [Keys.VK_A,     1, 6],
@@ -335,10 +335,10 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     var scrollY = ppu.regFV + ppu.regVT*8;
     s += "ScrollX $" + hex(scrollX) + " (" + ppu.regHT + " * 8 + " + ppu.regFH + " = " + scrollX + ")\n";
     s += "ScrollY $" + hex(scrollY) + " (" + ppu.regVT + " * 8 + " + ppu.regFV + " = " + scrollY + ")\n";
-    s += " Vstart $" + hex(ppu.vramTmpAddress,4) + "\n";
     s += "\n";
     s += "   Scan Y: " + ppu.scanline + "  X: " + ppu.curX + "\n";
-    s += " VRAM " + (ppu.firstWrite?"@":"?") + " $" + hex(ppu.vramAddress,4) + "\n";
+    s += "VramCur" + (ppu.firstWrite?" ":"?") + "$" + hex(ppu.vramAddress,4) + "\n";
+    s += "VramTmp $" + hex(ppu.vramTmpAddress,4) + "\n";
     /*
     var PPUREGS = [
       'cntFV',

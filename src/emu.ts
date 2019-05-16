@@ -311,7 +311,9 @@ export function dumpRAM(ram:Uint8Array|number[], ramofs:number, ramlen:number) :
   return s;
 }
 
-export const Keys = {
+interface KeyDef {c:number, n:string};
+
+export const Keys : {[keycode:string]:KeyDef} = {
     VK_ESCAPE: {c: 27, n: "Esc"},
     VK_F1: {c: 112, n: "F1"},
     VK_F2: {c: 113, n: "F2"},
@@ -445,7 +447,7 @@ export function setKeyboardFromMap(video, switches, map, func?) {
   });
 }
 
-export function makeKeycodeMap(table) {
+export function makeKeycodeMap(table : [KeyDef,number,number][]) {
   var map = {};
   for (var i=0; i<table.length; i++) {
     var entry = table[i];
@@ -454,7 +456,7 @@ export function makeKeycodeMap(table) {
   return map;
 }
 
-export function padBytes(data, len) {
+export function padBytes(data:Uint8Array|number[], len:number) : Uint8Array {
   if (data.length > len) {
     throw Error("Data too long, " + data.length + " > " + len);
   }
@@ -547,7 +549,7 @@ export class Toolbar {
 }
 
 // https://stackoverflow.com/questions/17130395/real-mouse-position-in-canvas
-export function getMousePos(canvas : HTMLCanvasElement, evt) {
+export function getMousePos(canvas : HTMLCanvasElement, evt) : {x:number,y:number} {
   var rect = canvas.getBoundingClientRect(), // abs. size of element
       scaleX = canvas.width / rect.width,    // relationship bitmap vs. element for X
       scaleY = canvas.height / rect.height;  // relationship bitmap vs. element for Y
