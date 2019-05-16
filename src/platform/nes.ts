@@ -11,6 +11,7 @@ declare var jsnes : any;
 const JSNES_PRESETS = [
   {id:'hello.c', name:'Hello World'},
   {id:'scroll.c', name:'Scrolling'},
+  {id:'attributes.c', name:'Attribute Table'},
   {id:'vrambuffer.c', name:'VRAM Buffer'},
   {id:'sprites.c', name:'Sprites'},
   {id:'metasprites.c', name:'Metasprites'},
