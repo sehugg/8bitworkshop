@@ -147,7 +147,6 @@ TODO:
   - test edge/failure cases
   - what to do about included files?
   - what if files already open in editor
-  - un-bind from repo? delete repo?
   - can published files retain path?
   - what if import interrupted and partial files?
   - CORS for some blobs?

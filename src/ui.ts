@@ -410,7 +410,7 @@ function getGithubService() {
 function getBoundGithubURL() : string {
   var toks = (repo_id||'').split('/');
   if (toks.length != 2) {
-    alertError("You are not in a GitHub repository. Choose one from the pulldown, or Import or Publish one.");
+    alertError("<p>You are not in a GitHub repository.</p><p>Choose one from the pulldown, or Import or Publish one.</p>");
     return null;
   }
   return 'https://github.com/' + toks[0] + '/' + toks[1];
@@ -532,7 +532,7 @@ function confirmCommit(sess) : Promise<GHSession> {
       msg += f.filename + ": " + f.status;
       if (f.additions || f.deletions || f.changes) {
         msg += " (" + f.additions + " additions, " + f.deletions + " deletions, " + f.changes + " changes)";
-      }
+      };
       msg += "<br/>";
     }
     // show dialog, continue when yes
@@ -575,6 +575,39 @@ function pushChangesToGithub(message:string) {
     setWaitDialog(false);
     console.log(e);
     alertError("Could not push GitHub repository: " + e);
+  });
+}
+
+function _deleteRepository() {
+  var ghurl = getBoundGithubURL();
+  if (!ghurl) return;
+  bootbox.prompt("<p>Are you sure you want to delete this repository (" + ghurl + ") from browser storage?</p><p>All changes since last commit will be lost.</p><p>Type YES to proceed.<p>", (yes) => {
+    if (yes.trim().toUpperCase() == "YES") {
+      deleteRepository();
+    }
+  });
+}
+
+function deleteRepository() {
+  var ghurl = getBoundGithubURL();
+  var gh;
+  setWaitDialog(true);
+  // delete all keys in storage
+  store.keys().then((keys:string[]) => {
+    return Promise.all(keys.map((key) => {
+      return store.removeItem(key);
+    }));
+  }).then(() => {
+    gh = getGithubService();
+    return gh.getGithubSession(ghurl);
+  }).then((sess) => {
+    // un-bind repo from list
+    gh.bind(sess, false);
+  }).then(() => {
+    setWaitDialog(false);
+    // leave repository
+    qs = {repo:'/'};
+    gotoNewLocation();
   });
 }
 
@@ -1372,6 +1405,7 @@ function setupDebugControls() {
   $("#item_github_publish").click(_publishProjectToGithub);
   $("#item_github_push").click(_pushProjectToGithub);
   $("#item_github_pull").click(_pullProjectFromGithub);
+  $("#item_repo_delete").click(_deleteRepository);
   $("#item_share_file").click(_shareEmbedLink);
   $("#item_reset_file").click(_revertFile);
   $("#item_rename_file").click(_renameFile);
