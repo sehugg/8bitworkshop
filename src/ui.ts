@@ -18,6 +18,7 @@ import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
 
 // external libs (TODO)
 declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, firebase;
+declare var ga;
 // in index.html
 declare var exports;
 
@@ -75,6 +76,7 @@ var TOOL_TO_SOURCE_STYLE = {
 }
 
 function alertError(s:string) {
+  if (ga) ga('send', 'event', 'error', 'error', s);
   bootbox.alert(s);
 }
 function alertInfo(s:string) {
@@ -1589,14 +1591,21 @@ function installErrorHandler() {
       window.onerror = function (msgevent, url, line, col, error) {
         var msgstr = msgevent+"";
         console.log(msgevent, url, line, col, error);
+        // emulation threw EmuHalt
         if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
           showErrorAlert([ {msg:msgstr, line:0} ]);
           uiDebugCallback(platform.saveState());
           setDebugButtonState("pause", "stopped"); // TODO?
         } else {
-          var msg = msgevent + " " + url + " " + " " + line + ":" + col + ", " + error;
+          // send exception msg to GA
+          var msg = msgevent + " (" + line + ":" + col + "): " + error + " - " + url;
+          if (msg.length > 256) { msg = msg.substring(0, 256); }
+          if (ga) ga('send', 'exception', {
+            'exDescription': msg,
+            'exFatal': true
+          });
           $.get("/error?msg=" + encodeURIComponent(msg), "text");
-          alertError(msgevent+"");
+          alertError(msg);
         }
         _pause();
       };
@@ -1647,6 +1656,16 @@ function showInstructions() {
   $("#emucontrols-" + getRootBasePlatform(platform_id)).show();
 }
 
+function installGAHooks() {
+  if (ga) {
+    $(".dropdown-item").click((e) => {
+      if (e.target && e.target.id) {
+        ga('send', 'event', 'menu', 'click', e.target.id);
+      }
+    });
+  }
+}
+
 function startPlatform() {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
@@ -1673,6 +1692,7 @@ function startPlatform() {
   setupDebugControls();
   updateSelector();
   addPageFocusHandlers();
+  installGAHooks();
   showInstructions();
   return true;
 }
