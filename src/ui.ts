@@ -12,7 +12,7 @@ import { PLATFORMS, EmuHalt, Toolbar } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
-         byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, hex } from "./util";
+         byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex } from "./util";
 import { StateRecorderImpl } from "./recorder";
 import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
 
@@ -1643,6 +1643,10 @@ function addPageFocusHandlers() {
   });
 }
 
+function showInstructions() {
+  $("#emucontrols-" + getRootBasePlatform(platform_id)).show();
+}
+
 function startPlatform() {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emulator")[0]);
@@ -1669,6 +1673,7 @@ function startPlatform() {
   setupDebugControls();
   updateSelector();
   addPageFocusHandlers();
+  showInstructions();
   return true;
 }
 
