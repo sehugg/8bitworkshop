@@ -3,7 +3,7 @@
 import { hex, clamp } from "./util";
 
 // external modules
-declare var jt, Javatari, Z80_fast, CPU6809;
+declare var jt, Javatari;
 declare var Mousetrap;
 
 // Emulator classes

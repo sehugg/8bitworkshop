@@ -5,7 +5,7 @@ import { CodeAnalyzer } from "./analysis";
 import { disassemble6502 } from "./cpu/disasm6502";
 import { disassembleZ80 } from "./cpu/disasmz80";
 
-declare var Z80_fast, jt, CPU6809;
+declare var buildZ80, jt, CPU6809;
 
 export interface OpcodeMetadata {
   minCycles: number;
@@ -517,7 +517,8 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
 
   newCPU(membus : MemoryBus, iobus : MemoryBus) {
     this.probe = new BusProbe(membus);
-    this._cpu = Z80_fast({
+    var z80opts = {};
+    this._cpu = buildZ80(z80opts)({
      display: {},
      memory: this.probe,
      ioBus: iobus

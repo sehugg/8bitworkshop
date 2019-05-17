@@ -6,7 +6,7 @@ var PNG = require('pngjs').PNG;
 
 const jsdom = require('jsdom');
 const { JSDOM } = jsdom;
-const { window } = new JSDOM();
+//const { window } = new JSDOM();
 
 const dom = new JSDOM(`<!DOCTYPE html><div id="emulator"><div id="javatari-screen"></div></div>`);
 global.window = dom.window;
@@ -14,10 +14,10 @@ global.document = dom.window.document;
 dom.window.Audio = null;
 global.Image = function() { }
 global['$'] = require("jquery/jquery-2.2.3.min.js");
-global.includeInThisContext('src/cpu/z80fast.js');
+includeInThisContext('src/cpu/z80.js');
+global['buildZ80'] = global.window.buildZ80;
 includeInThisContext("javatari.js/release/javatari/javatari.js");
 Javatari.AUTO_START = false;
-includeInThisContext('src/cpu/z80fast.js');
 includeInThisContext('tss/js/Log.js');
 //global.Log = require('tss/js/Log.js').Log;
 includeInThisContext('tss/js/tss/PsgDeviceChannel.js');
