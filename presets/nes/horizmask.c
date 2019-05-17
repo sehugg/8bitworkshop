@@ -47,7 +47,7 @@ void update_nametable() {
   char buf[32];
   // divide x_scroll by 8
   // to get nametable X position
-  byte x = ((x_scroll >> 3)+32) & 63;
+  byte x = (x_scroll/8 + 32) & 63;
   if (x < 32)
     addr = NTADR_A(x, 4);
   else
