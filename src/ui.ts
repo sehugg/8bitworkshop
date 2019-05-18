@@ -387,7 +387,7 @@ function getCurrentEditorFilename() : string {
 
 var githubService : GithubService;
 
-function getCookie(name) {
+function getCookie(name) : string {
     var nameEQ = name + "=";
     var ca = document.cookie.split(';');
     for(var i=0;i < ca.length;i++) {
@@ -1848,3 +1848,32 @@ function convertLegacyVCS(store) {
     })
   }
 }
+
+const useHTTPSCookieName = "__use_https";
+
+function shouldRedirectHTTPS() {
+  // cookie set?
+  if (getCookie(useHTTPSCookieName)) {
+    return true;
+  }
+  // is this our first time here? if so, set a 10yr cookie
+  if (hasLocalStorage && !localStorage.getItem("__lastplatform")) {
+    document.cookie = useHTTPSCookieName + "=1;domain=8bitworkshop.com;path=/;max-age=315360000";
+    return true;
+  }
+  // we can't redirect, might still have HTTP files
+  return false;
+}
+
+function redirectToHTTPS() {
+  if (window.location.protocol == 'http:' && window.location.host == '8bitworkshop.com') {
+    if (shouldRedirectHTTPS()) {
+      window.location.replace(window.location.href.replace(/^http:/, 'https:'));
+    } else {
+      $("#http_warning").show(); // TODO
+    }
+  }
+}
+
+// redirect to HTTPS after script loads?
+redirectToHTTPS();
