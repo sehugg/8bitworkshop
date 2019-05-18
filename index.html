@@ -214,7 +214,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
   </div>
   <div id="workspace">
   </div>
-  <div class="emulator" id="emulator">
+  <div class="emulator disable-select" id="emulator">
     <div id="replaydiv" class="replaydiv" style="display:none">
      <div style="display:flex">
       <button id="replay_min" class="btn" title="Start of replay"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
@@ -226,13 +226,34 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
      </div>
     </div>
     <!-- control instructions -->
-    <div id="emucontrols-nes" class="text-center small control-insns" style="display:none">
+    <div class="emucontrols-vcs text-center small control-insns" style="display:none">
+      <span class="control-def"><span class="control-key">&#x2190;&#x2191;&#x2193;&#x2192;</span> Joystick</span>
+      <span class="control-def"><span class="control-key small">Space</span> Button</span>
+    </div>
+    <div class="emucontrols-nes text-center small control-insns" style="display:none">
       <span class="control-def"><span class="control-key">&#x2190;&#x2191;&#x2193;&#x2192;</span> Joypad</span>
       <span class="control-def"><span class="control-key">X</span> Button A</span>
       <span class="control-def"><span class="control-key">Z</span> Button B</span>
       <span class="control-def"><span class="control-key small">Space</span> Select</span>
       <span class="control-def"><span class="control-key small">Enter</span> Start</span>
     </div>
+    <div class="emucontrols-vicdual emucontrols-galaxian text-center small control-insns" style="display:none">
+      <span class="control-def"><span class="control-key">&#x2190;&#x2191;&#x2193;&#x2192;</span> Joystick</span>
+      <span class="control-def"><span class="control-key small">Space</span> Button 1</span>
+      <span class="control-def"><span class="control-key small">Shift</span> Button 2</span>
+      <span class="control-def"><span class="control-key">1</span> 1p</span>
+      <span class="control-def"><span class="control-key">2</span> 2p</span>
+      <span class="control-def"><span class="control-key">5</span> Coin</span>
+    </div>
+    <div class="emucontrols-mw8080bw text-center small control-insns" style="display:none">
+      <span class="control-def"><span class="control-key">&#x2190;&nbsp;&#x2192;</span> Joystick</span>
+      <span class="control-def"><span class="control-key small">Space</span> Fire</span>
+    </div>
+    <div class="emucontrols-williams text-center small control-insns" style="display:none">
+      <span class="control-def"><span class="control-key">A W S D</span> Move</span>
+      <span class="control-def"><span class="control-key">&#x2190;&#x2191;&#x2193;&#x2192;</span> Fire</span>
+    </div>
+    <!-- -->
     <div id="javatari-div" style="float:center;margin:10px;display:none">
       <div id="javatari-screen" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
       <div id="javatari-console-panel" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>

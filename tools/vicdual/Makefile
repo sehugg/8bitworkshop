@@ -1,6 +1,9 @@
 
 all: cp437.vicdual.c c64.vicdual.c
 
+clean:
+	rm -f cp437.vicdual.c c64.vicdual.c
+
 # convert DOS CP437 font (256 chars)
 cp437.vicdual.c: ../fonts/cp437-8x8.bdf
 	python ../parsebdf8.py $< -r -C > $@

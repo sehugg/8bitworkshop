@@ -1653,7 +1653,17 @@ function addPageFocusHandlers() {
 }
 
 function showInstructions() {
-  $("#emucontrols-" + getRootBasePlatform(platform_id)).show();
+  var div = $(document).find(".emucontrols-" + getRootBasePlatform(platform_id));
+  $("#emulator").append(div);
+  var vcanvas = $("#emulator").find("canvas");
+  if (vcanvas) {
+    vcanvas.on('focus', () => {
+      if (platform.isRunning()) div.fadeIn(200);
+    });
+    vcanvas.on('blur', () => {
+      div.fadeOut(200);
+    });
+  }
 }
 
 function installGAHooks() {

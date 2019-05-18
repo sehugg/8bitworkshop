@@ -223,6 +223,8 @@ a.dropdown-toggle {
 div.emulator {
   background-color: #666;
   margin-top: 20px auto 0;
+  display:flex;
+  flex-direction:column;
 }
 div.emuoverlay {
   display:flex;
@@ -248,6 +250,10 @@ div.emuspacer {
   margin-right:5%;
   width:90%;
   pointer-events:auto;
+}
+.emuvideo:focus {
+  outline:none;
+  border-color:#888;
 }
 canvas.pixelated {
   image-rendering: optimizeSpeed;             /* Older versions of FF          */
@@ -517,7 +523,8 @@ div.asset_toolbar {
   margin:8px;
 }
 .control-insns {
-  margin-top:1em;
+  margin-top: auto;
+  margin-bottom: 2em;
 }
 .control-key {
   border: 2px solid rgba(0,0,0,0.2);

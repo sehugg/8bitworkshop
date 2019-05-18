@@ -1,5 +1,5 @@
 
-all: binaries images/parrot.c
+all: binaries
 
 %.lzg: %
 	lzg -9 $< $@
