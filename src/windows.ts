@@ -135,4 +135,14 @@ export class ProjectWindows {
     }
   }
 
+  updateAllOpenWindows(store) {
+    for (var fileid in this.id2window) {
+      var wnd = this.id2window[fileid];
+      if (wnd && wnd.setText) {
+        store.getItem(fileid).then((data) => {
+          this.updateFile(fileid, data);
+        });
+      }
+    }
+  }
 };

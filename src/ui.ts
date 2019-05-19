@@ -521,6 +521,7 @@ function _pullProjectFromGithub(e) {
   setWaitDialog(true);
   getGithubService().pull(ghurl).then( (sess:GHSession) => {
     setWaitDialog(false);
+    projectWindows.updateAllOpenWindows(store);
   });
 }
 

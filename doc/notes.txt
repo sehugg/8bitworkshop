@@ -146,7 +146,6 @@ TODO:
   - handle overwrite logic
   - test edge/failure cases
   - what to do about included files?
-  - what if files already open in editor
   - can published files retain path?
   - what if import interrupted and partial files?
   - CORS for some blobs?
