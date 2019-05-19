@@ -308,6 +308,8 @@ var WilliamsPlatform = function(mainElement, proto) {
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
+  
+  this.getRasterScanline = function() { return video_counter; }
 
   this.advance = function(novideo:boolean) {
     var cpuCyclesPerSection = Math.round(cpuCyclesPerFrame / 65);

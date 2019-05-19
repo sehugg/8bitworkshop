@@ -201,6 +201,8 @@ const _GalaxianPlatform = function(mainElement, options) {
 	];
 
  class GalaxianPlatform extends BaseZ80Platform implements Platform {
+ 
+  scanline : number;
 
   getPresets() {
     return GALAXIAN_PRESETS;
@@ -305,6 +307,7 @@ const _GalaxianPlatform = function(mainElement, options) {
   
   advance(novideo : boolean) {
     for (var sl=0; sl<scanlinesPerFrame; sl++) {
+      this.scanline = sl;
       if (!novideo) {
         drawScanline(pixels, sl);
       }
@@ -322,6 +325,8 @@ const _GalaxianPlatform = function(mainElement, options) {
     // NMI interrupt @ 0x66
     if (interruptEnabled) { cpu.nonMaskableInterrupt(); }
   }
+  
+  getRasterScanline() { return this.scanline; }
 
   loadROM(title, data) {
     rom = padBytes(data, romSize);

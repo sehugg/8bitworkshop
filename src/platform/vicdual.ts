@@ -98,6 +98,8 @@ const _VicDualPlatform = function(mainElement) {
   ]);
 
  class VicDualPlatform extends BaseZ80Platform implements Platform {
+ 
+   scanline : number = 0;
 
   getPresets() {
     return VICDUAL_PRESETS;
@@ -153,6 +155,7 @@ const _VicDualPlatform = function(mainElement) {
   advance(novideo : boolean) {
     var targetTstates = cpu.getTstates();
     for (var sl=0; sl<scanlinesPerFrame; sl++) {
+      this.scanline = sl;
       inputs[2] &= ~0x8;
       inputs[2] |= ((cpu.getTstates() / cyclesPerTimerTick) & 1) << 3;
       if (!novideo) {
@@ -164,6 +167,10 @@ const _VicDualPlatform = function(mainElement) {
       this.runCPU(cpu, targetTstates - cpu.getTstates());
     }
     video.updateFrame();
+  }
+  
+  getRasterScanline() {
+    return this.scanline;
   }
 
   loadROM(title, data) {
