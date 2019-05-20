@@ -77,9 +77,11 @@ var TOOL_TO_SOURCE_STYLE = {
 
 function alertError(s:string) {
   if (ga) ga('send', 'event', 'error', 'error', s);
+  setWaitDialog(false);
   bootbox.alert(s);
 }
 function alertInfo(s:string) {
+  setWaitDialog(false);
   bootbox.alert(s);
 }
 
@@ -518,10 +520,14 @@ function _pushProjectToGithub(e) {
 function _pullProjectFromGithub(e) {
   var ghurl = getBoundGithubURL();
   if (!ghurl) return;
-  setWaitDialog(true);
-  getGithubService().pull(ghurl).then( (sess:GHSession) => {
-    setWaitDialog(false);
-    projectWindows.updateAllOpenWindows(store);
+  bootbox.confirm("Pull from repository and replace all local files?", (ok) => {
+    if (ok) {
+      setWaitDialog(true);
+      getGithubService().pull(ghurl).then( (sess:GHSession) => {
+        setWaitDialog(false);
+        projectWindows.updateAllOpenWindows(store);
+      });
+    }
   });
 }
 
