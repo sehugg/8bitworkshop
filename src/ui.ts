@@ -1862,18 +1862,16 @@ function convertLegacyVCS(store) {
 
 const useHTTPSCookieName = "__use_https";
 
-function shouldRedirectHTTPS() {
-  // cookie set?
-  if (getCookie(useHTTPSCookieName)) {
-    return true;
+function shouldRedirectHTTPS() : boolean {
+  // cookie set? either true or false
+  var shouldRedir = getCookie(useHTTPSCookieName);
+  if (typeof shouldRedir === 'string') {
+    return !!shouldRedir; // convert to bool
   }
-  // is this our first time here? if so, set a 10yr cookie
-  if (hasLocalStorage && !localStorage.getItem("__lastplatform")) {
-    document.cookie = useHTTPSCookieName + "=1;domain=8bitworkshop.com;path=/;max-age=315360000";
-    return true;
-  }
-  // we can't redirect, might still have HTTP files
-  return false;
+  // set a 10yr cookie, value depends on if it's our first time here
+  var val = hasLocalStorage && !localStorage.getItem("__lastplatform") ? 1 : 0;
+  document.cookie = useHTTPSCookieName + "=" + val + ";domain=8bitworkshop.com;path=/;max-age=315360000";
+  return !!val;
 }
 
 function redirectToHTTPS() {
