@@ -1003,7 +1003,7 @@ function setDebugButtonState(btnid:string, btnstate:string) {
 
 function checkRunReady() {
   if (current_output == null) {
-    alertError("Can't resume emulation until ROM is successfully built.");
+    alertError("Can't do this until build successfully completes.");
     return false;
   } else
     return true;
@@ -1070,11 +1070,13 @@ function togglePause() {
 }
 
 function singleStep() {
+  if (!checkRunReady()) return;
   setupBreakpoint("step");
   platform.step();
 }
 
 function singleFrameStep() {
+  if (!checkRunReady()) return;
   setupBreakpoint("tovsync");
   platform.runToVsync();
 }
@@ -1101,11 +1103,13 @@ function runToCursor() {
 }
 
 function runUntilReturn() {
+  if (!checkRunReady()) return;
   setupBreakpoint("stepout");
   platform.runUntilReturn();
 }
 
 function runStepBackwards() {
+  if (!checkRunReady()) return;
   setupBreakpoint("stepback");
   platform.stepBack();
 }
@@ -1118,6 +1122,7 @@ function clearBreakpoint() {
 }
 
 function resetAndDebug() {
+  if (!checkRunReady()) return;
   _disableRecording();
   if (platform.setupDebug && platform.readAddress) { // TODO??
     clearBreakpoint();
