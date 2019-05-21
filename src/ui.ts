@@ -1661,7 +1661,6 @@ function addPageFocusHandlers() {
 
 function showInstructions() {
   var div = $(document).find(".emucontrols-" + getRootBasePlatform(platform_id));
-  $("#emulator").append(div);
   var vcanvas = $("#emulator").find("canvas");
   if (vcanvas) {
     vcanvas.on('focus', () => {
@@ -1685,7 +1684,7 @@ function installGAHooks() {
 
 function startPlatform() {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
-  platform = new PLATFORMS[platform_id]($("#emulator")[0]);
+  platform = new PLATFORMS[platform_id]($("#emuscreen")[0]);
   stateRecorder = new StateRecorderImpl(platform);
   PRESETS = platform.getPresets();
   if (!qs['file']) {

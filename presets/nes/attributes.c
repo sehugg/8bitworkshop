@@ -34,8 +34,8 @@ void main(void) {
   pal_bg(PALETTE);
   
   // fill nametable with diamonds
-  vram_adr(NAMETABLE_A);
-  vram_fill(0x16, 32*30);
+  vram_adr(NAMETABLE_A);	// start address ($2000)
+  vram_fill(0x16, 32*30);	// fill nametable (960 bytes)
   
   // copy attribute table from PRG ROM to VRAM
   vram_write(ATTRIBUTE_TABLE, sizeof(ATTRIBUTE_TABLE));

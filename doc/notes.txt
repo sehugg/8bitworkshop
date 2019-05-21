@@ -122,6 +122,7 @@ TODO:
   - toolbar overlaps scope
   - CPU debugging
   - use $readmem for inline asm programs?
+  - can't add control instructions b/c of split
 - single-stepping vector games makes screen fade
 - break on stack overflow, bad op, bad access, etc
 - PPU/TIA register write visualization
