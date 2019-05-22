@@ -420,7 +420,7 @@ function getBoundGithubURL() : string {
   return 'https://github.com/' + toks[0] + '/' + toks[1];
 }
 
-function importProjectFromGithub(githuburl:string) {
+function importProjectFromGithub(githuburl:string, replaceURL:boolean) {
   var sess : GHSession;
   var urlparse = parseGithubURL(githuburl);
   if (!urlparse) {
@@ -429,7 +429,7 @@ function importProjectFromGithub(githuburl:string) {
   }
   // redirect to repo if exists
   var existing = getRepos()[urlparse.repopath];
-  if (existing && !confirm("You've already imported " + urlparse.repopath + " -- do you want to replace all files?")) {
+  if (existing && !confirm("You've already imported " + urlparse.repopath + " -- do you want to replace all local files?")) {
     return;
   }
   // create new store for imported repository
@@ -446,7 +446,7 @@ function importProjectFromGithub(githuburl:string) {
     // reload repo
     qs = {repo:sess.repopath}; // file:sess.mainPath, platform:sess.platform_id};
     setWaitDialog(false);
-    gotoNewLocation();
+    gotoNewLocation(replaceURL);
   }).catch( (e) => {
     setWaitDialog(false);
     console.log(e);
@@ -473,7 +473,7 @@ function _importProjectFromGithub(e) {
   btn.off('click').on('click', () => {
     var githuburl = $("#importGithubURL").val()+"";
     modal.modal('hide');
-    importProjectFromGithub(githuburl);
+    importProjectFromGithub(githuburl, false);
   });
 }
 
@@ -1648,9 +1648,12 @@ function uninstallErrorHandler() {
   window.onerror = null;
 }
 
-function gotoNewLocation() {
+function gotoNewLocation(replaceHistory? : boolean) {
   uninstallErrorHandler();
-  window.location.href = "?" + $.param(qs);
+  if (replaceHistory)
+    window.location.replace("?" + $.param(qs));
+  else
+    window.location.href = "?" + $.param(qs);
 }
 
 function replaceURLState() {
@@ -1815,7 +1818,7 @@ export function startUI(loadplatform : boolean) {
   installErrorHandler();
   // import from github?
   if (qs['githubURL']) {
-    importProjectFromGithub(qs['githubURL']);
+    importProjectFromGithub(qs['githubURL'], true);
     return;
   }
   // lookup repository

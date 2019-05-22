@@ -125,11 +125,11 @@ TODO:
   - can't add control instructions b/c of split
 - single-stepping vector games makes screen fade
 - break on stack overflow, bad op, bad access, etc
-- PPU/TIA register write visualization
 - nes
   - replay doesn't work for nes (force background tile redraw)
   - nes debug view toolbar
   - support NES_HEADER_16K?
+  - PPU/TIA register write visualization
 - vcs
   - vcs sound continues when paused
   - vcs: INPTx needs to be added to control state
@@ -141,11 +141,9 @@ TODO:
 - target ES6
 - don't have to include bootstrap-tourist each time?
 - don't have to include firebase always?
-- build ca65 projects w/ no crt0? https://github.com/pinobatch/thwaite-nes/blob/master/makefile
 - Github
   - gh-pages branch with embedded
   - handle overwrite logic
-  - test edge/failure cases
   - what to do about included files?
   - can published files retain path?
   - what if import interrupted and partial files?
@@ -154,7 +152,6 @@ TODO:
   - support projects with subdirectories, file list?
   - emulator needs reset shortcut for nes
   - switching platform of a repo?
-  - what to load if no main file?
 
 
 WEB WORKER FORMAT
