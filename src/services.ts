@@ -28,7 +28,7 @@ export interface GHSession extends GHRepoMetadata {
   paths? : string[];
 }
 
-const README_md_template = "$NAME\n=====\n\nCompatible with the [$PLATFORM](http://8bitworkshop.com/redir.html?platform=$PLATFORM&importURL=$GITHUBURL) platform in [8bitworkshop](http://8bitworkshop.com/). Main file is [$MAINFILE]($MAINFILE#mainfile).\n";
+const README_md_template = "$NAME\n=====\n\n[Open this project in 8bitworkshop](http://8bitworkshop.com/redir.html?platform=$PLATFORM&importURL=$GITHUBURL&file=$MAINFILE).\n";
 
 export function getRepos() : {[key:string]:GHRepoMetadata} {
   return JSON.parse(localStorage.getItem('__repos') || '{}');
@@ -166,7 +166,7 @@ export class GithubService {
     .then( (readme) => {
       var m;
       // check README for main file
-      const re8main = /\(([^)]+)#mainfile\)/;
+      const re8main = /8bitworkshop.com[^)]+file=([^)&]+)/;
       m = re8main.exec(readme);
       if (m && m[1]) {
         console.log("main path: '" + m[1] + "'");

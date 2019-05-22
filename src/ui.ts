@@ -454,6 +454,10 @@ function importProjectFromGithub(githuburl:string) {
   });
 }
 
+function _loginToGithub(e) {
+  getGithubService().login();
+}
+
 function _importProjectFromGithub(e) {
   var modal = $("#importGithubModal");
   var btn = $("#importGithubButton");
@@ -854,7 +858,7 @@ function populateRepos(sel) {
     if (repos) {
       for (let repopath in repos) {
         var repo = repos[repopath];
-        if (getBasePlatform(repo.platform_id) == getBasePlatform(platform_id)) {
+        if (repo.platform_id && getBasePlatform(repo.platform_id) == getBasePlatform(platform_id)) {
           if (n++ == 0)
             sel.append($("<option />").text("------ Repositories ------").attr('disabled','true'));
           sel.append($("<option />").val(repo.url).text(repo.url.substring(repo.url.indexOf('/'))));
@@ -1425,6 +1429,7 @@ function setupDebugControls() {
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);
+  $("#item_github_login").click(_loginToGithub);
   $("#item_github_import").click(_importProjectFromGithub);
   $("#item_github_publish").click(_publishProjectToGithub);
   $("#item_github_push").click(_pushProjectToGithub);
