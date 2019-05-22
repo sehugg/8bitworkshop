@@ -472,7 +472,7 @@ function _publishProjectToGithub(e) {
   }
   var modal = $("#publishGithubModal");
   var btn = $("#publishGithubButton");
-  $("#githubRepoName").val(getFilenamePrefix(current_project.mainPath));
+  $("#githubRepoName").val(getFilenamePrefix(getFilenameForPath(current_project.mainPath)));
   modal.modal('show');
   btn.off('click').on('click', () => {
     var name = $("#githubRepoName").val()+"";

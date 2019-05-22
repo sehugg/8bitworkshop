@@ -44,12 +44,12 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <input type="file" id="uploadFileElem" multiple accept="*" style="display:none" onchange="handleFileUpload(this.files)">
 
 <div id="controls_top" class="disable-select">
-    <span class="dropdown">
-      <a class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Menu">
-        <span class="glyphicon glyphicon-menu-hamburger" aria-hidden="true"></span>
-        <span class="caret"></span>
-      </a>
-      <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+  <span class="dropdown">
+    <a class="btn dropdown-toggle toolbarMenuButton" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Menu">
+      <span class="glyphicon glyphicon-menu-hamburger" aria-hidden="true"></span>
+      <span class="caret"></span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-left" aria-labelledby="dropdownMenuButton">
       <li><a class="dropdown-item" href="#" id="item_new_file">New Project...</a></li>
       <li><a class="dropdown-item" href="#" id="item_upload_file">Upload...</a></li>
       <hr>
@@ -113,10 +113,33 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
           </li>
         </ul>
       </li>
-      <hr>
-      <li class="dropdown dropdown-submenu">
-        <a tabindex="-1" href="#">Platform</a>
-        <ul class="dropdown-menu">
+      <!--
+      <hr><li><a class="dropdown-item" href="/redir.html">Use Latest Version</a></li>
+      -->
+    </ul>
+  </span>
+
+  <select id="preset_select" name="" title="Project Select" style="width:18em;visibility:hidden">
+  </select>
+
+  <img id="compile_spinner" src="images/spinner.gif" height="20em" style="visibility:hidden;margin-left:8px;margin-right:8px">
+  <span id="toolbar" class="hidden-xs"></span>
+  <span class="btn_group view_group hidden-sm hidden-xs" id="speed_bar" style="display:none">
+    <button id="dbg_slowest" class="btn" title="Slowest"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
+    <button id="dbg_slower" class="btn" title="Slower"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
+    <span class="label"><span id="fps_label">60.00</span> fps</span>
+    <button id="dbg_faster" class="btn" title="Faster"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
+    <button id="dbg_fastest" class="btn" title="Faster"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
+  </span>
+  <span id="verilog_bar" style="display:none">
+    <span class="label"><span id="settle_label"></span> evals/clk</span>
+  </span>
+
+  <span class="dropdown">
+    <a class="btn dropdown-toggle hidden-xs toolbarMenuButton" id="platformsMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+      PLATFORMS <span class="caret"></span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="platformsMenuButton">
           <li class="dropdown dropdown-submenu">
              <a tabindex="-1" href="#">Game Consoles</a>
              <ul class="dropdown-menu">
@@ -157,37 +180,13 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
                <li><a class="dropdown-item" href="?platform=markdown" id="item_platform_markdown">Markdown</a></li>
              </ul>
           </li>
-        </ul>
-      </li>
-      <!--
-      <hr><li><a class="dropdown-item" href="/redir.html">Use Latest Version</a></li>
-      -->
     </ul>
   </span>
-
-  <select id="preset_select" name="" title="Project Select" style="width:18em;visibility:hidden">
-  </select>
-
-  <img id="compile_spinner" src="images/spinner.gif" height="20em" style="visibility:hidden;margin-left:8px;margin-right:8px">
-  <span id="toolbar" class="hidden-xs"></span>
-  <span class="btn_group view_group hidden-sm hidden-xs" id="speed_bar" style="display:none">
-    <button id="dbg_slowest" class="btn" title="Slowest"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
-    <button id="dbg_slower" class="btn" title="Slower"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
-    <span class="label"><span id="fps_label">60.00</span> fps</span>
-    <button id="dbg_faster" class="btn" title="Faster"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
-    <button id="dbg_fastest" class="btn" title="Faster"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
-  </span>
-  <span id="verilog_bar" style="display:none">
-    <span class="label"><span id="settle_label"></span> evals/clk</span>
-  </span>
-
-  <span class="dropdown" style="float:right">
-    <span class="logo-gradient hidden-xs hidden-sm hidden-md">8bitworkshop</span>
-    &nbsp;
-    <a class="btn btn-secondary dropdown-toggle hidden-xs" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-      GET BOOKS <span class="caret"></span>
+  <span class="dropdown">
+    <a class="btn dropdown-toggle hidden-xs toolbarMenuButton" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+      BOOKS <span class="caret"></span>
     </a>
-    <ul class="dropdown-menu pull-right" aria-labelledby="dropdownMenuButton">
+    <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="booksMenuButton">
       <li>
         <a class="dropdown-item dropdown-link" target="_book_a2600" href="https://www.amazon.com/gp/product/1541021304/ref=as_li_qf_sp_asin_il_tl?ie=UTF8&tag=pzp-20&camp=1789&creative=9325&linkCode=as2&creativeASIN=B01N4DSRIZ&linkId=04d39e274c06e6c93b93d20a9a977111">
           <img src="images/book_a2600.png"/>
@@ -208,6 +207,9 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
       </li>
     </ul>
   </span>
+
+  <span class="logo-gradient hidden-xs hidden-sm hidden-md pull-right">8bitworkshop</span>
+
   <!--<span id="best_in_firefox" style="display:none;font-size:12px;font-style:italic;float:right;color:#666">Note: Works best in Firefox</span>-->
 </div>
 <div id="notebook">
