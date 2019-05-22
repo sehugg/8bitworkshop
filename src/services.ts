@@ -79,9 +79,21 @@ export class GithubService {
       this.recreateGithub();
       document.cookie = "__github_key=" + this.githubToken + ";path=/;max-age=31536000";
       console.log("Stored GitHub OAUTH key");
-    }).catch( (error) => {
-      console.log(error);
-      bootbox.alert("Could not login to GitHub: " + error);
+    });
+  }
+  
+  logout() : Promise<void> {
+    // already logged out? return immediately
+    if (!(this.githubToken && this.githubToken.length)) {
+      return new Promise<void>( (yes,no) => {
+        yes();
+      });
+    }
+    // logout
+    return firebase.auth().signOut().then(() => {
+      document.cookie = "__github_key=;path=/;max-age=0";
+      this.githubToken = null;
+      this.recreateGithub();
     });
   }
   

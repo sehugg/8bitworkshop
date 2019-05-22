@@ -455,7 +455,15 @@ function importProjectFromGithub(githuburl:string) {
 }
 
 function _loginToGithub(e) {
-  getGithubService().login();
+  getGithubService().login().then(() => {
+    alertInfo("You are signed in to Github.");
+  });
+}
+
+function _logoutOfGithub(e) {
+  getGithubService().logout().then(() => {
+    alertInfo("You are logged out of Github.");
+  });
 }
 
 function _importProjectFromGithub(e) {
@@ -524,7 +532,7 @@ function _pushProjectToGithub(e) {
 function _pullProjectFromGithub(e) {
   var ghurl = getBoundGithubURL();
   if (!ghurl) return;
-  bootbox.confirm("Pull from repository and replace all local files?", (ok) => {
+  bootbox.confirm("Pull from repository and replace all local files? Any changes you've made will be overwritten.", (ok) => {
     if (ok) {
       setWaitDialog(true);
       getGithubService().pull(ghurl).then( (sess:GHSession) => {
@@ -1430,6 +1438,7 @@ function setupDebugControls() {
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);
   $("#item_github_login").click(_loginToGithub);
+  $("#item_github_logout").click(_logoutOfGithub);
   $("#item_github_import").click(_importProjectFromGithub);
   $("#item_github_publish").click(_publishProjectToGithub);
   $("#item_github_push").click(_pushProjectToGithub);
