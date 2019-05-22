@@ -1708,7 +1708,12 @@ function startPlatform() {
     if (hasLocalStorage) {
       lastid = localStorage.getItem("__lastid_"+store_id);
     }
-    qs['file'] = lastid || PRESETS[0].id;
+    // load first preset file, unless we're in a repo
+    var defaultfile = lastid || (repo_id ? null : PRESETS[0].id);
+    qs['file'] = defaultfile || 'DEFAULT';
+    if (!defaultfile) {
+      alertError("There is no default main file for this project. Try selecting one from the pulldown.");
+    }
   }
   // legacy vcs stuff
   if (platform_id == 'vcs' && qs['file'].startsWith('examples/') && !qs['file'].endsWith('.a')) {
