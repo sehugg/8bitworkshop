@@ -98,8 +98,8 @@ export class CodeProject {
       while (m = re2.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
-      // for .c -- //#link "file" (or ;link or #link)
-      let re3 = /^\s*([;#]|[/][/][#])resource\s+"(.+?)"/gm;
+      // for .c -- //#resource "file" (or ;resource or #resource)
+      let re3 = /^\s*([;]|[/][/])#resource\s+"(.+?)"/gm;
       while (m = re3.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
@@ -114,7 +114,7 @@ export class CodeProject {
       //
     } else {
       // for .c -- //#link "file" (or ;link or #link)
-      let re = /^\s*([;#]|[/][/][#])link\s+"(.+?)"/gm;
+      let re = /^\s*([;]|[/][/])#link\s+"(.+?)"/gm;
       while (m = re.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }

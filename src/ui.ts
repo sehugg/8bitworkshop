@@ -472,7 +472,7 @@ function _publishProjectToGithub(e) {
   }
   var modal = $("#publishGithubModal");
   var btn = $("#publishGithubButton");
-  $("#githubRepoName").val(getFilenamePrefix(current_project.mainPath));
+  $("#githubRepoName").val(getFilenamePrefix(getFilenameForPath(current_project.mainPath)));
   modal.modal('show');
   btn.off('click').on('click', () => {
     var name = $("#githubRepoName").val()+"";
@@ -571,6 +571,11 @@ function pushChangesToGithub(message:string) {
     if (newpath && data) {
       files.push({path:newpath, data:data});
     }
+  }
+  // include built ROM file in bin/[mainfile].rom
+  if (current_output instanceof Uint8Array) {
+    let binpath = "bin/"+getCurrentMainFilename()+".rom";
+    files.push({path:binpath, data:current_output});
   }
   // push files
   setWaitDialog(true);
@@ -1003,7 +1008,7 @@ function setDebugButtonState(btnid:string, btnstate:string) {
 
 function checkRunReady() {
   if (current_output == null) {
-    alertError("Can't resume emulation until ROM is successfully built.");
+    alertError("Can't do this until build successfully completes.");
     return false;
   } else
     return true;
@@ -1070,11 +1075,13 @@ function togglePause() {
 }
 
 function singleStep() {
+  if (!checkRunReady()) return;
   setupBreakpoint("step");
   platform.step();
 }
 
 function singleFrameStep() {
+  if (!checkRunReady()) return;
   setupBreakpoint("tovsync");
   platform.runToVsync();
 }
@@ -1101,11 +1108,13 @@ function runToCursor() {
 }
 
 function runUntilReturn() {
+  if (!checkRunReady()) return;
   setupBreakpoint("stepout");
   platform.runUntilReturn();
 }
 
 function runStepBackwards() {
+  if (!checkRunReady()) return;
   setupBreakpoint("stepback");
   platform.stepBack();
 }
@@ -1118,6 +1127,7 @@ function clearBreakpoint() {
 }
 
 function resetAndDebug() {
+  if (!checkRunReady()) return;
   _disableRecording();
   if (platform.setupDebug && platform.readAddress) { // TODO??
     clearBreakpoint();
@@ -1661,7 +1671,6 @@ function addPageFocusHandlers() {
 
 function showInstructions() {
   var div = $(document).find(".emucontrols-" + getRootBasePlatform(platform_id));
-  $("#emulator").append(div);
   var vcanvas = $("#emulator").find("canvas");
   if (vcanvas) {
     vcanvas.on('focus', () => {
@@ -1685,7 +1694,7 @@ function installGAHooks() {
 
 function startPlatform() {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
-  platform = new PLATFORMS[platform_id]($("#emulator")[0]);
+  platform = new PLATFORMS[platform_id]($("#emuscreen")[0]);
   stateRecorder = new StateRecorderImpl(platform);
   PRESETS = platform.getPresets();
   if (!qs['file']) {
@@ -1858,18 +1867,16 @@ function convertLegacyVCS(store) {
 
 const useHTTPSCookieName = "__use_https";
 
-function shouldRedirectHTTPS() {
-  // cookie set?
-  if (getCookie(useHTTPSCookieName)) {
-    return true;
+function shouldRedirectHTTPS() : boolean {
+  // cookie set? either true or false
+  var shouldRedir = getCookie(useHTTPSCookieName);
+  if (typeof shouldRedir === 'string') {
+    return !!shouldRedir; // convert to bool
   }
-  // is this our first time here? if so, set a 10yr cookie
-  if (hasLocalStorage && !localStorage.getItem("__lastplatform")) {
-    document.cookie = useHTTPSCookieName + "=1;domain=8bitworkshop.com;path=/;max-age=315360000";
-    return true;
-  }
-  // we can't redirect, might still have HTTP files
-  return false;
+  // set a 10yr cookie, value depends on if it's our first time here
+  var val = hasLocalStorage && !localStorage.getItem("__lastplatform") ? 1 : 0;
+  document.cookie = useHTTPSCookieName + "=" + val + ";domain=8bitworkshop.com;path=/;max-age=315360000";
+  return !!val;
 }
 
 function redirectToHTTPS() {

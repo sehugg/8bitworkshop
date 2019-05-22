@@ -197,11 +197,6 @@ var PLATFORM_PARAMS = {
       {name:'Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
     ],
   },
-  'nes-asm': {
-    cfgfile: 'nes.cfg',
-    define: '__NES__',
-    libargs: ['nes.lib'],
-  },
   'apple2': {
     define: '__APPLE2__',
     cfgfile: 'apple2-hgr.cfg',
@@ -776,6 +771,9 @@ function assembleDASM(step:BuildStep) {
     listings[path] = {lines:[]};
   }
   parseDASMListing(alst, listings, errors, unresolved);
+  if (errors.length) {
+    return {errors:errors};
+  }
   // read binary rom output and symbols
   var aout, asym;
   aout = FS.readFile(binpath);
@@ -914,6 +912,7 @@ function assembleCA65(step:BuildStep) {
     var FS = CA65['FS'];
     setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
+    fixParamsWithDefines(step.path, step.params);
     execMain(step, CA65, ['-v', '-g', '-I', '/share/asminc', '-o', objpath, '-l', lstpath, step.path]);
     if (errors.length)
       return {errors:errors};
@@ -947,6 +946,10 @@ function linkLD65(step:BuildStep) {
     setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     populateExtraFiles(step, FS, params.extra_link_files);
+    // populate .cfg file, if it is a custom one
+    if (workfs[params.cfgfile]) {
+      populateEntry(FS, params.cfgfile, workfs[params.cfgfile], null);
+    }
     var libargs = params.libargs;
     var cfgfile = params.cfgfile;
     var args = ['--cfg-path', '/share/cfg',
@@ -1034,6 +1037,7 @@ function fixParamsWithDefines(path:string, params){
   if (path && libargs) {
     var code = getWorkFileAsString(path);
     if (code) {
+      var oldcfgfile = params.cfgfile;
       var ident2index = {};
       // find all lib args "IDENT=VALUE"
       for (var i=0; i<libargs.length; i++) {
@@ -1043,7 +1047,7 @@ function fixParamsWithDefines(path:string, params){
         }
       }
       // find #defines and replace them
-      var re = /^#define\s+(\w+)\s+(\S+)/gmi;
+      var re = /^[;]?#define\s+(\w+)\s+(\S+)/gmi; // TODO: empty string?
       var m;
       while (m = re.exec(code)) {
         var ident = m[1];
@@ -1055,8 +1059,13 @@ function fixParamsWithDefines(path:string, params){
           // TODO: MMC3 mapper switch
           if (ident == 'NES_MAPPER' && value == '4') {
             params.cfgfile = 'nesbanked.cfg';
-            console.log('Using config file', params.cfgfile);
+            console.log("using config file", params.cfgfile);
           }
+        } else if (ident == 'CFGFILE' && value) {
+          params.cfgfile = value;
+        } else if (ident == 'LIBARGS' && value) {
+          params.libargs = value.split(',').filter((s) => { return s!=''; });
+          console.log('Using libargs', params.libargs);
         }
       }
     }

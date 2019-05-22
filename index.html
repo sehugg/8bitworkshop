@@ -44,12 +44,12 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <input type="file" id="uploadFileElem" multiple accept="*" style="display:none" onchange="handleFileUpload(this.files)">
 
 <div id="controls_top" class="disable-select">
-    <span class="dropdown">
-      <a class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Menu">
-        <span class="glyphicon glyphicon-menu-hamburger" aria-hidden="true"></span>
-        <span class="caret"></span>
-      </a>
-      <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+  <span class="dropdown">
+    <a class="btn dropdown-toggle toolbarMenuButton" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Menu">
+      <span class="glyphicon glyphicon-menu-hamburger" aria-hidden="true"></span>
+      <span class="caret"></span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-left" aria-labelledby="dropdownMenuButton">
       <li><a class="dropdown-item" href="#" id="item_new_file">New Project...</a></li>
       <li><a class="dropdown-item" href="#" id="item_upload_file">Upload...</a></li>
       <hr>
@@ -113,10 +113,33 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
           </li>
         </ul>
       </li>
-      <hr>
-      <li class="dropdown dropdown-submenu">
-        <a tabindex="-1" href="#">Platform</a>
-        <ul class="dropdown-menu">
+      <!--
+      <hr><li><a class="dropdown-item" href="/redir.html">Use Latest Version</a></li>
+      -->
+    </ul>
+  </span>
+
+  <select id="preset_select" name="" title="Project Select" style="width:18em;visibility:hidden;height:2.3em">
+  </select>
+
+  <img id="compile_spinner" src="images/spinner.gif" style="visibility:hidden;margin-left:8px;margin-right:8px;height:2em">
+  <span id="toolbar" class="hidden-xs"></span>
+  <span class="btn_group view_group hidden-sm hidden-xs" id="speed_bar" style="display:none">
+    <button id="dbg_slowest" class="btn" title="Slowest"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
+    <button id="dbg_slower" class="btn" title="Slower"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
+    <span class="label"><span id="fps_label">60.00</span> fps</span>
+    <button id="dbg_faster" class="btn" title="Faster"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
+    <button id="dbg_fastest" class="btn" title="Faster"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
+  </span>
+  <span id="verilog_bar" style="display:none">
+    <span class="label"><span id="settle_label"></span> evals/clk</span>
+  </span>
+
+  <span class="dropdown">
+    <a class="btn dropdown-toggle hidden-xs toolbarMenuButton" id="platformsMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+      PLATFORMS <span class="caret"></span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="platformsMenuButton">
           <li class="dropdown dropdown-submenu">
              <a tabindex="-1" href="#">Game Consoles</a>
              <ul class="dropdown-menu">
@@ -157,50 +180,29 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
                <li><a class="dropdown-item" href="?platform=markdown" id="item_platform_markdown">Markdown</a></li>
              </ul>
           </li>
-        </ul>
-      </li>
     </ul>
   </span>
-
-  <select id="preset_select" name="" title="Project Select" style="width:18em;visibility:hidden">
-  </select>
-
-  <img id="compile_spinner" src="images/spinner.gif" height="20em" style="visibility:hidden;margin-left:8px;margin-right:8px">
-  <span id="toolbar" class="hidden-xs"></span>
-  <span class="btn_group view_group hidden-sm hidden-xs" id="speed_bar" style="display:none">
-    <button id="dbg_slowest" class="btn" title="Slowest"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
-    <button id="dbg_slower" class="btn" title="Slower"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
-    <span class="label"><span id="fps_label">60.00</span> fps</span>
-    <button id="dbg_faster" class="btn" title="Faster"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
-    <button id="dbg_fastest" class="btn" title="Faster"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
-  </span>
-  <span id="verilog_bar" style="display:none">
-    <span class="label"><span id="settle_label"></span> evals/clk</span>
-  </span>
-
-  <span class="dropdown" style="float:right">
-    <span class="logo-gradient hidden-xs hidden-sm hidden-md">8bitworkshop</span>
-    &nbsp;
-    <a class="btn btn-secondary dropdown-toggle hidden-xs" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-      GET BOOKS <span class="caret"></span>
+  <span class="dropdown">
+    <a class="btn dropdown-toggle hidden-xs toolbarMenuButton" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+      BOOKS <span class="caret"></span>
     </a>
-    <ul class="dropdown-menu pull-right" aria-labelledby="dropdownMenuButton">
+    <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="booksMenuButton">
       <li>
         <a class="dropdown-item dropdown-link" target="_book_a2600" href="https://www.amazon.com/gp/product/1541021304/ref=as_li_qf_sp_asin_il_tl?ie=UTF8&tag=pzp-20&camp=1789&creative=9325&linkCode=as2&creativeASIN=B01N4DSRIZ&linkId=04d39e274c06e6c93b93d20a9a977111">
           <img src="images/book_a2600.png"/>
-          &nbsp;&nbsp;<b>Making Games For The Atari 2600</b>
+          &nbsp;&nbsp;<span class="book-title">Making Games For The Atari 2600</span>
         </a>
       </li>
       <li>
         <a class="dropdown-item dropdown-link" target="_book_arcade" href="https://www.amazon.com/gp/product/1545484759/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1545484759&linkCode=as2&tag=pzp-20&linkId=b27709c022d2ebe639e90316d9f4fd5b">
           <img src="images/book_arcade.png"/>
-          &nbsp;&nbsp;<b>Making 8-bit Arcade Games in C</b>
+          &nbsp;&nbsp;<span class="book-title">Making 8-bit Arcade Games in C</span>
         </a>
       </li>
       <li>
         <a class="dropdown-item dropdown-link" target="_book_verilog" href="https://www.amazon.com/gp/product/1728619440/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1728619440&linkCode=as2&tag=pzp-20">
           <img src="images/book_verilog.png"/>
-          &nbsp;&nbsp;<b>Designing Video Game Hardware in Verilog</b>
+          &nbsp;&nbsp;<span class="book-title">Designing Video Game Hardware in Verilog</span>
         </a>
       </li>
       <li>
@@ -211,6 +213,9 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
       </li>
     </ul>
   </span>
+
+  <span class="logo-gradient hidden-xs hidden-sm hidden-md pull-right" style="margin-left:auto">8bitworkshop</span>
+
   <!--<span id="best_in_firefox" style="display:none;font-size:12px;font-style:italic;float:right;color:#666">Note: Works best in Firefox</span>-->
 </div>
 <div id="notebook">
@@ -230,6 +235,9 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
       <button id="replay_fwd" class="btn" title="Ahead one frame"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
       <button id="replay_max" class="btn" title="End of replay"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
      </div>
+    </div>
+    <!-- emulator video -->
+    <div id="emuscreen">
     </div>
     <!-- control instructions -->
     <div class="emucontrols-vcs text-center small control-insns" style="display:none">
@@ -359,6 +367,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
         <p>Enter the GitHub repository URL:</p>
         <p><input id="importGithubURL" size="60" placeholder="https://github.com/user/repo"></input></p>
         <p>If the project is compatible with 8bitworkshop, it should build automatically.</p>
+        <p>Otherwise, some work may be required -- make sure you've selected the correct platform.</p>
         <p>Source files must be in the root folder of the repository.</p>
         <p><button type="button" class="btn btn-primary" id="importGithubButton">Import Project</button></p>
       </div>
@@ -383,8 +392,8 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
           <option value="private">Private</option>
         </select></p>
         <p>License: <select id="githubRepoLicense">
-          <option value="">Will decide later</option>
-          <option value="cc0-1.0">CC Zero (public domain, recommended)</option>
+          <option value="">Will decide later / all rights reserved</option>
+          <option value="cc0-1.0">CC Zero (public domain, remix-friendly)</option>
           <option value="mit">MIT (must preserve notices)</option>
           <option value="cc-by-4.0">CC BY (must attribute)</option>
           <option value="cc-by-sa-4.0">CC BY-SA (must attribute, use same license)</option>
