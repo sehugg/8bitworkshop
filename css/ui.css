@@ -54,7 +54,6 @@
   height:3em;
   width:100%;
   background-color:#999;
-  display:flex;
 }
 #notebook {
   position:absolute;
