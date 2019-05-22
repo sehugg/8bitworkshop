@@ -49,11 +49,12 @@
  background-color:#000066;
 }
 #controls_top {
-  position: absolute;
-  padding: 0.5em;
+  position:absolute;
+  padding:0.5em;
   height:3em;
   width:100%;
   background-color:#999;
+  display:flex;
 }
 #notebook {
   position:absolute;
@@ -111,7 +112,7 @@ div.mem_info a.selected {
  text-align:right;
 }
 .btn_group {
-  border-radius:6px;
+  border-radius:8px;
   padding:8px;
   margin-left:8px;
   background-color: #666;
