@@ -1,4 +1,9 @@
 
+/*
+Demonstrates the Famitone2 library for sound and music.
+Press controller buttons to hear sound effects.
+*/
+
 #include "neslib.h"
 
 // link the pattern table into CHR ROM

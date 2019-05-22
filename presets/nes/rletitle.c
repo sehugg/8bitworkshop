@@ -1,6 +1,8 @@
 
-// this example code unpacks a RLE'd nametable into the VRAM
-// you can create the source data using NES Screen Tool
+/*
+Unpacks a RLE-compressed nametable+attribute table into VRAM.
+Also uses the pal_bright() function to fade in the palette.
+*/
 
 #include "neslib.h"
 

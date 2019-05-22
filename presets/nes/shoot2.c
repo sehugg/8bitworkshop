@@ -1,4 +1,11 @@
 
+/*
+A shoot-em-up game.
+Uses CHR RAM to draw attacker tiles at 8 different pixels,
+then animates them in the nametable.
+Sprites are used for the player, missiles, attackers, and stars.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 #include <nes.h>

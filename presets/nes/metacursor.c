@@ -1,4 +1,10 @@
 
+/*
+Read from controllers with pad_poll().
+We also demonstrate sprite animation by cycling among
+several different metasprites, which are defined using macros.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 

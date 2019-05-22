@@ -1,4 +1,12 @@
 
+/*
+Creates a monochrome frame buffer in video RAM.
+We map the pattern tables to CHR RAM, using the UxROM (2) mapper.
+By cleverly setting up palettes, and using a split-screen
+CHR bank switch, we split the screen into four different regions
+that display their own pixels.
+*/
+
 #include "neslib.h"
 #include "nes.h"
 #include <stdlib.h>

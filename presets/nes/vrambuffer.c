@@ -1,4 +1,11 @@
 
+/*
+On the NES, you can't write to video RAM while the PPU
+is active, so you have to do it during the vertical blank.
+We have a module (vrambuf) which fills up a buffer with video
+data, then NESLib writes it to VRAM during the NMI interrupt.
+*/
+
 #include "neslib.h"
 #include <string.h>
 #include <stdio.h>

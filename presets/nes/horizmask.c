@@ -1,4 +1,15 @@
 
+/*
+We demonstrate horizontal scrolling of two nametables.
+Vertical mirroring is set, so nametables A and B are
+to the left and right of each other.
+
+New playfield data is randomly generated and updated
+offscreen using the vrambuf module.
+Every 32 pixels, we also update the attribute table.
+We also use the split() function to create a status bar.
+*/
+
 #include "neslib.h"
 #include <string.h>
 
@@ -29,11 +40,13 @@ byte bldg_attr;		// attribute table value
 
 #define PLAYROWS 24
 
+// convert from nametable address to attribute table address
 word nt2attraddr(word a) {
   return (a & 0x2c00) | 0x3c0 |
     ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
 }
 
+// generate new random building data
 void new_building() {
   bldg_height = (rand8() & 7) + 2;
   bldg_width = (rand8() & 3) * 4 + 4;
@@ -41,6 +54,8 @@ void new_building() {
   bldg_attr = rand8();
 }
 
+// update the nametable offscreen
+// called every 8 horizontal pixels
 void update_nametable() {
   register word addr;
   // a buffer drawn to the nametable vertically

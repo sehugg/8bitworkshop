@@ -1,4 +1,10 @@
 
+/*
+Metasprites combine several hardware sprites to make a larger
+sprite. Our demo uses 4 hardware sprites in a 2x2 pattern,
+forming 16x16 pixel sprites.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 

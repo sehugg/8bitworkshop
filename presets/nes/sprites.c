@@ -1,4 +1,9 @@
 
+/*
+Sprite demo.
+Animate all 64 hardware sprites.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 

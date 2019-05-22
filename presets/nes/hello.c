@@ -1,4 +1,11 @@
 
+/*
+A simple "hello world" example.
+Set the screen background color and palette colors.
+Then write a message to the nametable.
+Finally, turn on the PPU to display video.
+*/
+
 #include "neslib.h"
 
 // link the pattern table into CHR ROM

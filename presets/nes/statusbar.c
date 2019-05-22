@@ -1,4 +1,12 @@
 
+/*
+Demo of split screen effect.
+We position sprite 0 at the desired scanline, and when it
+collides with the background, a flag in the PPU is set.
+The split() function waits for this flag, then changes the
+X scroll register in the PPU.
+*/
+
 #include "neslib.h"
 #include <string.h>
 

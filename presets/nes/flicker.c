@@ -1,4 +1,11 @@
 
+/*
+If you have more objects than will fit into the 64 hardware
+sprites, you can omit some of the sprites each frame.
+We also use oam_meta_spr_pal() to change the color of each
+metasprite.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 

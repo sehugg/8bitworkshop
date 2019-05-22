@@ -1,4 +1,10 @@
 
+/*
+A character-based surround-the-opponent game.
+Reads from nametable RAM to determine collisions, and also
+to help the AI avoid walls.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 #include <nes.h>

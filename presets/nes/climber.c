@@ -1,4 +1,14 @@
 
+/*
+A platform game with a randomly generated stage.
+Uses the Famitone2 library for sound and music.
+It scrolls vertically (horizontal mirroring) and nametable
+updates are performed offscreen one row at a time with the
+draw_floor_line() function.
+The enemies use the same movement logic as the player, just
+with random inputs.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 

@@ -1,4 +1,10 @@
 
+/*
+Generates random sounds in the APU, printing the parameters
+to the screen. Also shows an asterisk while each channel is
+playing, i.e. while its length counter is active.
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
