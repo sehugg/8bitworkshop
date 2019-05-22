@@ -572,13 +572,11 @@ function pushChangesToGithub(message:string) {
       files.push({path:newpath, data:data});
     }
   }
-  // TODO: include built ROM file in bin/[mainfile].rom
-  /*
+  // include built ROM file in bin/[mainfile].rom
   if (current_output instanceof Uint8Array) {
     let binpath = "bin/"+getCurrentMainFilename()+".rom";
     files.push({path:binpath, data:current_output});
   }
-  */
   // push files
   setWaitDialog(true);
   return getGithubService().login().then( () => {

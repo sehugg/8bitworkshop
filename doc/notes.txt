@@ -154,6 +154,7 @@ TODO:
   - support projects with subdirectories, file list?
   - emulator needs reset shortcut for nes
   - switching platform of a repo?
+  - what to load if no main file?
 
 
 WEB WORKER FORMAT
