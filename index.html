@@ -44,6 +44,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <input type="file" id="uploadFileElem" multiple accept="*" style="display:none" onchange="handleFileUpload(this.files)">
 
 <div id="controls_top" class="disable-select">
+ <div id="controls_dynamic" style="visibility:hidden">
   <span class="dropdown">
     <a class="btn dropdown-toggle toolbarMenuButton" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Menu">
       <span class="glyphicon glyphicon-menu-hamburger" aria-hidden="true"></span>
@@ -213,11 +214,10 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
       </li>
     </ul>
   </span>
+ </div><!-- controls_dynamic -->
+ <span class="logo-gradient hidden-xs hidden-sm hidden-md pull-right" style="margin-left:auto">8bitworkshop</span>
+</div><!-- controls_top -->
 
-  <span class="logo-gradient hidden-xs hidden-sm hidden-md pull-right" style="margin-left:auto">8bitworkshop</span>
-
-  <!--<span id="best_in_firefox" style="display:none;font-size:12px;font-style:italic;float:right;color:#666">Note: Works best in Firefox</span>-->
-</div>
 <div id="notebook">
   <div id="sidebar">
     <ul id="windowMenuList">

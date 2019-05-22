@@ -1720,7 +1720,12 @@ function startPlatform() {
   addPageFocusHandlers();
   installGAHooks();
   showInstructions();
+  revealTopBar();
   return true;
+}
+
+function revealTopBar() {
+  setTimeout(() => { $("#controls_dynamic").css('visibility','inherit'); }, 250);
 }
 
 export function loadScript(scriptfn, onload, onerror?) {
@@ -1831,6 +1836,7 @@ export function startUI(loadplatform : boolean) {
       loadAndStartPlatform();
     } else {
       startPlatform();
+      revealTopBar();
     }
   });
 }
@@ -1838,10 +1844,14 @@ export function startUI(loadplatform : boolean) {
 function loadAndStartPlatform() {
   var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
   loadScript(scriptfn, () => {
-    console.log("loaded platform", platform_id);
-    startPlatform();
-    showWelcomeMessage();
-    document.title = document.title + " [" + platform_id + "] - " + (repo_id?('['+repo_id+'] - '):'') + current_project.mainPath;
+    console.log("starting platform", platform_id);
+    try {
+      startPlatform();
+      showWelcomeMessage();
+      document.title = document.title + " [" + platform_id + "] - " + (repo_id?('['+repo_id+'] - '):'') + current_project.mainPath;
+    } finally {
+      revealTopBar();
+    }
   }, () => {
     alertError('Platform "' + platform_id + '" not supported.');
   });
