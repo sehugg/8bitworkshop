@@ -1097,11 +1097,12 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
   abstract newRAM() : Uint8Array;
   abstract newMembus() : MemoryBus;
   abstract newIOBus() : MemoryBus;
-  abstract getVideoOptions();
+  abstract getVideoOptions() : {};
   abstract getKeyboardMap();
-  abstract startScanline(sl : number);
-  abstract drawScanline(sl : number);
-  getRasterScanline() { return this.currentScanline; }
+  abstract startScanline(sl : number) : void;
+  abstract drawScanline(sl : number) : void;
+  getRasterScanline() : number { return this.currentScanline; }
+  getKeyboardFunction() { return null; }
 
   constructor(mainElement : HTMLElement) {
     super();
@@ -1116,7 +1117,7 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
     this.cpu = this.newCPU(this.membus, this.iobus);
     this.video = new RasterVideo(this.mainElement, this.canvasWidth, this.numVisibleScanlines, this.getVideoOptions());
     this.video.create();
-    setKeyboardFromMap(this.video, this.inputs, this.getKeyboardMap())
+    setKeyboardFromMap(this.video, this.inputs, this.getKeyboardMap(), this.getKeyboardFunction());
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
 

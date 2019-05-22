@@ -90,6 +90,7 @@ TODO:
 - global undo/redo at checkpoints (when rom changes)
 - pulldown shows wrong file if preset not present
 - landscape mode for arcade ports
+- symmetric load/save state types
 - pixel editor
   - persist palette/tilemap selections
   - more tools for editing
