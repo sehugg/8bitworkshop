@@ -774,20 +774,25 @@ function _renameFile(e) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.getPath && current_project.getFile(wnd.getPath())) {
     var fn = projectWindows.getActiveID();
-    var newfn = prompt("Rename '" + fn + "' to?", fn);
-    var data = current_project.getFile(wnd.getPath());
-    if (newfn && data) {
-      if (!checkEnteredFilename(newfn)) return;
-      store.removeItem(fn).then( () => {
-        return store.setItem(newfn, data);
-      }).then( () => {
-        updateSelector();
-        alert("Renamed " + fn + " to " + newfn); // need alert() so it pauses
-        if (fn == current_project.mainPath) {
-          reloadProject(newfn);
+    bootbox.prompt({
+      title: "Rename '" + fn + "' to?", 
+      value: fn,
+      callback: (newfn) => {
+        var data = current_project.getFile(wnd.getPath());
+        if (newfn && newfn != fn && data) {
+          if (!checkEnteredFilename(newfn)) return;
+          store.removeItem(fn).then( () => {
+            return store.setItem(newfn, data);
+          }).then( () => {
+            updateSelector();
+            alert("Renamed " + fn + " to " + newfn); // need alert() so it pauses
+            if (fn == current_project.mainPath) {
+              reloadProject(newfn);
+            }
+          });
         }
-      });
-    }
+      }
+    });
   } else {
     alertError("Cannot rename the active window.");
   }
@@ -1363,21 +1368,26 @@ function _lookupHelp() {
 function addFileToProject(type, ext, linefn) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.insertText) {
-    var filename = prompt("Add "+type+" File to Project", "filename"+ext);
-    if (filename && filename.trim().length > 0) {
-      if (!checkEnteredFilename(filename)) return;
-      var path = filename;
-      var newline = "\n" + linefn(filename) + "\n";
-      current_project.loadFiles([path], (err, result) => {
-        if (result && result.length) {
-          alertError(filename + " already exists; including anyway");
-        } else {
-          current_project.updateFile(path, "\n");
+    bootbox.prompt({
+      title:"Add "+type+" File to Project",
+      value:"filename"+ext,
+      callback:(filename:string) => {
+        if (filename && filename.trim().length > 0) {
+          if (!checkEnteredFilename(filename)) return;
+          var path = filename;
+          var newline = "\n" + linefn(filename) + "\n";
+          current_project.loadFiles([path], (err, result) => {
+            if (result && result.length) {
+              alertError(filename + " already exists; including anyway");
+            } else {
+              current_project.updateFile(path, "\n");
+            }
+            wnd.insertText(newline);
+            refreshWindowList();
+          });
         }
-        wnd.insertText(newline);
-        refreshWindowList();
-      });
-    }
+      }
+    });
   } else {
     alertError("Can't insert text in this window -- switch back to main file");
   }
@@ -1403,6 +1413,8 @@ function _addLinkFile() {
   var tool = platform.getToolForFilename(fn);
   if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65')
     addFileToProject("Linked C", ".c", (s) => { return '//#link "'+s+'"' });
+  else if (fn.endsWith("asm") || fn.endsWith(".s") || tool == 'ca65')
+    addFileToProject("Linked ASM", ".inc", (s) => { return ';#link "'+s+'"' });
   else
     alertError("Can't add linked file to this project type (" + tool + ")");
 }
