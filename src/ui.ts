@@ -1842,6 +1842,7 @@ export function startUI(loadplatform : boolean) {
     platform_id = qs['platform'] = "vcs";
   }
   $("#item_platform_"+platform_id).addClass("dropdown-item-checked");
+  $("#platform_name").text(platform_id);
   setupSplits();
   // create store
   store_id = repo_id || getBasePlatform(platform_id);

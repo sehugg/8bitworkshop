@@ -1091,6 +1091,7 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
   timer;
   audio;
   psg;
+  pixels : Uint32Array;
   inputs = new Uint8Array(16);
   mainElement : HTMLElement;
 
@@ -1117,6 +1118,7 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
     this.cpu = this.newCPU(this.membus, this.iobus);
     this.video = new RasterVideo(this.mainElement, this.canvasWidth, this.numVisibleScanlines, this.getVideoOptions());
     this.video.create();
+    this.pixels = this.video.getFrameData();
     setKeyboardFromMap(this.video, this.inputs, this.getKeyboardMap(), this.getKeyboardFunction());
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
