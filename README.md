@@ -21,5 +21,7 @@ The 8bitworkshop IDE is licensed under GPLv3 (see LICENSE).
 
 Dependencies retain their original licenses.
 
-All included code samples (presets/*) are licensed under CC0-1.0: https://creativecommons.org/publicdomain/zero/1.0/
+All included code samples (all files under the presets/ directory) are licensed under
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/)
+unless otherwise licensed.
 
