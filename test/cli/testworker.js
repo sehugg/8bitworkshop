@@ -109,9 +109,6 @@ describe('Worker', function() {
   it('should NOT compile CC65 (preproc error)', function(done) {
     compile('cc65', '#include "NOSUCH.file"\n', 'nes', done, 0, 0, 1, {ignoreErrorPath:true});
   });
-  it('should assemble CA65', function(done) {
-    compile('ca65', ';#define LIBARGS ,\n\t.segment "HEADER"\n\t.segment "STARTUP"\n\t.segment "CHARS"\n\t.segment "VECTORS"\n\t.segment "SAMPLES"\n\t.segment "CODE"\n\tlda #0\n\tsta $1\n', 'nes', done, 40976, 2);
-  });
   /*
   it('should assemble Z80ASM', function(done) {
     compile('z80asm', '\tMODULE test\n\tEXTERN _puts\n\tld	hl,$0000\n\tret\n', 'mw8080bw', done, 4, 2, 0);
@@ -314,6 +311,9 @@ describe('Worker', function() {
   // TODO: params persist because of fixParamsWithDefines()
   it('should compile CC65 banked', function(done) {
     compile('cc65', '#define NES_MAPPER 4\nint main() {\nint x=1;\nreturn x+2;\n}', 'nes', done, 131088, 3);
+  });
+  it('should assemble CA65', function(done) {
+    compile('ca65', ';#define LIBARGS ,\n\t.segment "HEADER"\n\t.segment "STARTUP"\n\t.segment "CHARS"\n\t.segment "VECTORS"\n\t.segment "SAMPLES"\n\t.segment "CODE"\n\tlda #0\n\tsta $1\n', 'nes', done, 131088, 2);
   });
 
 });
