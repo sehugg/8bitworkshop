@@ -6,7 +6,6 @@ import { Platform } from "./baseplatform";
 
 type BuildResultCallback = (result:WorkerResult) => void;
 type BuildStatusCallback = (busy:boolean) => void;
-type LoadFilesCallback = (err:string, result?:Dependency[]) => void;
 type IterateFilesCallback = (path:string, data:FileData) => void;
 type GetRemoteCallback = (path:string, callback:(data:FileData) => void, datatype:'text'|'arraybuffer') => any;
 
@@ -122,18 +121,18 @@ export class CodeProject {
     return files;
   }
 
-  loadFileDependencies(text:string, callback:LoadFilesCallback) {
+  loadFileDependencies(text:string) : Promise<Dependency[]> {
     let includes = this.parseIncludeDependencies(text);
     let linkfiles = this.parseLinkDependencies(text);
     let allfiles = includes.concat(linkfiles);
-    this.loadFiles(allfiles, (err:string, result?:Dependency[]) => {
+    return this.loadFiles(allfiles).then((result) => {
       // set 'link' property on files that are link dependencies (must match filename)
       if (result) {
         for (let dep of result) {
           dep.link = linkfiles.indexOf(dep.path) >= 0;
         }
       }
-      callback(err, result);
+      return result;
     });
   }
 
@@ -175,7 +174,8 @@ export class CodeProject {
   }
 
   // TODO: get local file as well as presets?
-  loadFiles(paths:string[], callback:LoadFilesCallback) {
+  loadFiles(paths:string[]) : Promise<Dependency[]> {
+   return new Promise( (yes,no) => {
     var result : Dependency[] = [];
     var addResult = (path, data) => {
       result.push({
@@ -189,7 +189,7 @@ export class CodeProject {
       var path = paths.shift();
       if (!path) {
         // finished loading all files; return result
-        callback(null, result);
+        yes(result);
       } else {
         // look in cache
         if (path in this.filedata) { // found in cache?
@@ -201,7 +201,7 @@ export class CodeProject {
           // look in store
           this.store.getItem(path, (err, value) => {
             if (err) { // err fetching from store
-              callback(err, result);
+              no(err);
             } else if (value) { // found in store?
               this.filedata[path] = value; // do not update store, just cache
               addResult(path, value);
@@ -231,6 +231,7 @@ export class CodeProject {
       }
     }
     loadNext(); // load first file
+   });
   }
 
   getFile(path:string):FileData {
@@ -262,10 +263,7 @@ export class CodeProject {
     // otherwise, make it a string
     var text = typeof maindata === "string" ? maindata : '';
     // TODO: load dependencies of non-main files
-    this.loadFileDependencies(text, (err, depends) => {
-      if (err) {
-        console.log(err); // TODO?
-      }
+    return this.loadFileDependencies(text).then( (depends) => {
       if (!depends) depends = [];
       var workermsg = this.buildWorkerMessage(depends);
       this.worker.postMessage(workermsg);

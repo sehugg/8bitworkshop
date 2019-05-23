@@ -260,10 +260,8 @@ function loadProject(preset_id:string) {
   current_project.mainPath = preset_id;
   setLastPreset(preset_id);
   // load files from storage or web URLs
-  current_project.loadFiles([preset_id], function(err, result) {
-    if (err) {
-      alertError(err);
-    } else if (result && result.length) {
+  current_project.loadFiles([preset_id]).then((result) => {
+    if (result && result.length) {
       // file found; continue
       loadMainWindow(preset_id);
     } else {
@@ -1376,7 +1374,7 @@ function addFileToProject(type, ext, linefn) {
           if (!checkEnteredFilename(filename)) return;
           var path = filename;
           var newline = "\n" + linefn(filename) + "\n";
-          current_project.loadFiles([path], (err, result) => {
+          current_project.loadFiles([path]).then((result) => {
             if (result && result.length) {
               alertError(filename + " already exists; including anyway");
             } else {
