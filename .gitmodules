@@ -28,3 +28,6 @@
 [submodule "bootstrap-tourist"]
 	path = bootstrap-tourist
 	url = https://github.com/IGreatlyDislikeJavascript/bootstrap-tourist
+[submodule "nanoasm"]
+	path = nanoasm
+	url = https://github.com/sehugg/nanoasm

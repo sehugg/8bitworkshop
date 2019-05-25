@@ -37,8 +37,8 @@ type AssemblerSpec = {
 }
 
 type AssemblerInstruction = {opcode:number, nbits : number};
-
-type AssemblerLineResult = {error:string} | AssemblerInstruction;
+type AssemblerErrorResult = {error:string};
+type AssemblerLineResult = AssemblerErrorResult | AssemblerInstruction;
 
 type AssemblerError = {msg:string, line:number};
 
@@ -54,21 +54,51 @@ type AssemblerState = {
   fixups: AssemblerFixup[]
 }
 
-export var Assembler = function(spec : AssemblerSpec) {
-  var self = this;
-  var ip = 0;
-  var origin = 0;
-  var linenum = 0;
-  var symbols : {[name:string] : {value:number}} = {};
-  var errors : AssemblerError[] = [];
-  var outwords : number[] = [];
-  var asmlines : AssemblerLine[] = [];
-  var fixups : AssemblerFixup[] = [];
-  var width = 8;
-  var codelen = 0;
-  var aborted = false;
+const isError = (o: AssemblerLineResult): o is AssemblerErrorResult => (<AssemblerErrorResult>o).error !== undefined
 
-  function rule2regex(rule : AssemblerRule, vars : AssemblerVarList) {
+function hex(v:number, nd:number) {
+  try {
+    if (!nd) nd = 2;
+    var s = v.toString(16).toUpperCase();
+    while (s.length < nd)
+      s = "0" + s;
+    return s;
+  } catch (e) {
+    return v+"";
+  }
+}
+
+function stringToData(s:string) : number[] {
+  var data = [];
+  for (var i=0; i<s.length; i++) {
+    data[i] = s.charCodeAt(i);
+  }
+  return data;
+}
+
+
+export class Assembler {
+  spec : AssemblerSpec;
+  ip = 0;
+  origin = 0;
+  linenum = 0;
+  symbols : {[name:string] : {value:number}} = {};
+  errors : AssemblerError[] = [];
+  outwords : number[] = [];
+  asmlines : AssemblerLine[] = [];
+  fixups : AssemblerFixup[] = [];
+  width = 8;
+  codelen = 0;
+  aborted = false;
+  
+  constructor(spec : AssemblerSpec) {
+    this.spec = spec;
+    if (spec) {
+      this.preprocessRules();
+    }
+  }
+
+  rule2regex(rule : AssemblerRule, vars : AssemblerVarList) {
     var s = rule.fmt;
     if (!s || !(typeof s === 'string'))
       throw Error('Each rule must have a "fmt" string field');
@@ -83,7 +113,7 @@ export var Assembler = function(spec : AssemblerSpec) {
     s = s.replace(/\]/g, '\\]');
     s = s.replace(/\./g, '\\.');
     // TODO: more escapes?
-    s = s.replace(/~\w+/g, function(varname:string) {
+    s = s.replace(/~\w+/g, (varname:string) => {
       varname = varname.substr(1);
       var v = vars[varname];
       varlist.push(varname);
@@ -104,95 +134,75 @@ export var Assembler = function(spec : AssemblerSpec) {
     return rule;
   }
 
-  function preprocessRules() {
-    if (spec.width)
-      width = spec.width|0;
-    for (var i=0; i<spec.rules.length; i++)
-      rule2regex(spec.rules[i], spec.vars);
-  }
-  if (spec) preprocessRules();
-
-  function warning(msg:string, line?:number) {
-    errors.push({msg:msg, line:line?line:linenum});
-  }
-  function fatal(msg:string, line?:number) {
-    warning(msg, line);
-    aborted = true;
-  }
-  function fatalIf(msg?:string, line?:number) {
-    if (msg) fatal(msg, line);
-  }
-  function hex(v:number, nd:number) {
-    try {
-      if (!nd) nd = 2;
-      var s = v.toString(16).toUpperCase();
-      while (s.length < nd)
-        s = "0" + s;
-      return s;
-    } catch (e) {
-      return v+"";
+  preprocessRules() {
+    if (this.spec.width) {
+      this.width = this.spec.width|0;
+    }
+    for (var rule of this.spec.rules) {
+      this.rule2regex(rule, this.spec.vars);
     }
   }
-  function addBytes(result:AssemblerInstruction) {
-    asmlines.push({
-      line:linenum,
-      offset:ip,
+  warning(msg:string, line?:number) {
+    this.errors.push({msg:msg, line:line?line:this.linenum});
+  }
+  fatal(msg:string, line?:number) {
+    this.warning(msg, line);
+    this.aborted = true;
+  }
+  fatalIf(msg?:string, line?:number) {
+    if (msg) this.fatal(msg, line);
+  }
+  addBytes(result:AssemblerInstruction) {
+    this.asmlines.push({
+      line:this.linenum,
+      offset:this.ip,
       nbits:result.nbits
     });
     var op = result.opcode;
-    var nb = result.nbits/width;
+    var nb = result.nbits/this.width;
     for (var i=0; i<nb; i++) {
-      outwords[ip++ - origin] = (op >> (nb-1-i)*width) & ((1<<width)-1);
+      this.outwords[this.ip++ - this.origin] = (op >> (nb-1-i)*this.width) & ((1<<this.width)-1);
     }
   }
-  function addWords(data:number[]) {
-    asmlines.push({
-      line:linenum,
-      offset:ip,
-      nbits:width*data.length
+  addWords(data:number[]) {
+    this.asmlines.push({
+      line:this.linenum,
+      offset:this.ip,
+      nbits:this.width*data.length
     });
     for (var i=0; i<data.length; i++) {
-      outwords[ip++ - origin] = data[i] & ((1<<width)-1);
+      this.outwords[this.ip++ - this.origin] = data[i] & ((1<<this.width)-1);
     }
   }
 
-  function parseData(toks:string[]) : number[] {
+  parseData(toks:string[]) : number[] {
     var data = [];
     for (var i=0; i<toks.length; i++) {
-      data[i] = parseConst(toks[i]);
+      data[i] = this.parseConst(toks[i]);
     }
     return data;
   }
 
-  function stringToData(s:string) : number[] {
-    var data = [];
-    for (var i=0; i<s.length; i++) {
-      data[i] = s.charCodeAt(i);
-    }
-    return data;
-  }
-
-  function alignIP(align) {
-    if (align < 1 || align > codelen)
-      fatal("Invalid alignment value");
+  alignIP(align) {
+    if (align < 1 || align > this.codelen)
+      this.fatal("Invalid alignment value");
     else
-      ip = Math.floor((ip+align-1)/align)*align;
+      this.ip = Math.floor((this.ip+align-1)/align)*align;
   }
 
-  function parseConst(s:string, nbits?:number) : number {
+  parseConst(s:string, nbits?:number) : number {
     // TODO: check bit length
-    if (s.startsWith("$"))
+    if (s && s[0] == '$')
       return parseInt(s.substr(1), 16);
     else
       return parseInt(s);
   }
 
-  self.buildInstruction = function(rule:AssemblerRule, m:string[]) : AssemblerLineResult {
+  buildInstruction(rule:AssemblerRule, m:string[]) : AssemblerLineResult {
     var opcode = 0;
     var oplen = 0;
     // iterate over each component of the rule output ("bits")
-    for (var i=0; i<rule.bits.length; i++) {
-      var b = rule.bits[i];
+    for (var b of rule.bits) {
       var n,x;
       // is a string? then it's a bit constant
       // TODO
@@ -202,7 +212,7 @@ export var Assembler = function(spec : AssemblerSpec) {
       } else {
         // it's an indexed variable, look up its variable
         var id = m[b+1];
-        var v = spec.vars[rule.varlist[b]];
+        var v = this.spec.vars[rule.varlist[b]];
         if (!v) {
           return {error:"Could not find matching identifier for '" + m[0] + "'"};
         }
@@ -211,13 +221,13 @@ export var Assembler = function(spec : AssemblerSpec) {
         if (v.toks) {
           x = v.toks.indexOf(id);
           if (x < 0)
-            return null;
+            return {error:"Can't use '" + id + "' here, only one of: " + v.toks.join(', ')};
         } else {
           // otherwise, parse it as a constant
-          x = parseConst(id, n);
+          x = this.parseConst(id, n);
           // is it a label? add fixup
           if (isNaN(x)) {
-            fixups.push({sym:id, ofs:ip, bitlen:n, bitofs:oplen, line:linenum, iprel:!!v.iprel, ipofs:(v.ipofs+0)});
+            this.fixups.push({sym:id, ofs:this.ip, bitlen:n, bitofs:oplen, line:this.linenum, iprel:!!v.iprel, ipofs:(v.ipofs+0)});
             x = 0;
           }
         }
@@ -229,147 +239,155 @@ export var Assembler = function(spec : AssemblerSpec) {
       oplen += n;
     }
     if (oplen == 0)
-      warning("Opcode had zero length");
+      this.warning("Opcode had zero length");
     else if (oplen > 32)
-      warning("Opcodes > 32 bits not supported");
-    else if ((oplen % width) != 0)
-      warning("Opcode was not word-aligned (" + oplen + " bits)");
+      this.warning("Opcodes > 32 bits not supported");
+    else if ((oplen % this.width) != 0)
+      this.warning("Opcode was not word-aligned (" + oplen + " bits)");
     return {opcode:opcode, nbits:oplen};
   }
 
-  self.loadArch = function(arch:string) {
-    if (self.loadJSON) {
-      var json = self.loadJSON(arch + ".json");
+  loadArch(arch:string) : string {
+    if (this.loadJSON) {
+      var json = this.loadJSON(arch + ".json");
       if (json && json.vars && json.rules) {
-        spec = json;
-        preprocessRules();
+        this.spec = json;
+        this.preprocessRules();
       } else {
-        fatal("Could not load arch file '" + arch + ".json'");
+        return ("Could not load arch file '" + arch + ".json'");
       }
     }
   }
 
-  function parseDirective(tokens) {
+  parseDirective(tokens) {
     var cmd = tokens[0].toLowerCase();
     if (cmd == '.define')
-      symbols[tokens[1].toLowerCase()] = {value:tokens[2]};
+      this.symbols[tokens[1].toLowerCase()] = {value:tokens[2]};
     else if (cmd == '.org')
-      ip = origin = parseInt(tokens[1]);
+      this.ip = this.origin = parseInt(tokens[1]);
     else if (cmd == '.len')
-      codelen = parseInt(tokens[1]);
+      this.codelen = parseInt(tokens[1]);
     else if (cmd == '.width')
-      width = parseInt(tokens[1]);
+      this.width = parseInt(tokens[1]);
     else if (cmd == '.arch')
-      fatalIf(self.loadArch(tokens[1]));
+      this.fatalIf(this.loadArch(tokens[1]));
     else if (cmd == '.include')
-      fatalIf(self.loadInclude(tokens[1]));
+      this.fatalIf(this.loadInclude(tokens[1]));
     else if (cmd == '.module')
-      fatalIf(self.loadModule(tokens[1]));
+      this.fatalIf(this.loadModule(tokens[1]));
     else if (cmd == '.data')
-      addWords(parseData(tokens.slice(1)));
+      this.addWords(this.parseData(tokens.slice(1)));
     else if (cmd == '.string')
-      addWords(stringToData(tokens.slice(1).join(' ')));
+      this.addWords(stringToData(tokens.slice(1).join(' ')));
     else if (cmd == '.align')
-      alignIP(parseConst(tokens[1]));
+      this.alignIP(this.parseConst(tokens[1]));
     else
-      warning("Unrecognized directive: " + tokens);
+      this.warning("Unrecognized directive: " + tokens);
   }
 
-  self.assemble = function(line) : AssemblerInstruction {
-    linenum++;
+  assemble(line:string) : AssemblerInstruction {
+    this.linenum++;
     // remove comments
     line = line.replace(/[;].*/g, '').trim();
     // is it a directive?
     if (line[0] == '.') {
       var tokens = line.split(/\s+/);
-      parseDirective(tokens);
+      this.parseDirective(tokens);
       return;
     }
     // make it lowercase
     line = line.toLowerCase();
     // find labels
-    line = line.replace(/(\w+):/, function(_label, label) {
-      symbols[label] = {value:ip};
+    line = line.replace(/(\w+):/, (_label, label) => {
+      this.symbols[label] = {value:this.ip};
       return ''; // replace label with blank
     });
     line = line.trim();
     if (line == '')
       return; // empty line
     // look at each rule in order
-    if (!spec) { fatal("Need to load .arch first"); return; }
+    if (!this.spec) { this.fatal("Need to load .arch first"); return; }
     var lastError;
-    for (var i=0; i<spec.rules.length; i++) {
-      var rule = spec.rules[i];
+    for (var rule of this.spec.rules) {
       var m = rule.re.exec(line);
       if (m) {
-        var result = self.buildInstruction(rule, m);
-        if (result && result.nbits) {
-          addBytes(result);
+        var result = this.buildInstruction(rule, m);
+        if (!isError(result)) {
+          this.addBytes(result);
           return result;
-        } else if (result && result.error) {
+        } else {
           lastError = result.error;
         }
       }
     }
-    warning(lastError ? lastError : ("Could not decode instruction: " + line));
+    this.warning(lastError ? lastError : ("Could not decode instruction: " + line));
   }
 
-  self.finish = function() : AssemblerState {
+  finish() : AssemblerState {
     // apply fixups
-    for (var i=0; i<fixups.length; i++) {
-      var fix = fixups[i];
-      var sym = symbols[fix.sym];
+    for (var i=0; i<this.fixups.length; i++) {
+      var fix = this.fixups[i];
+      var sym = this.symbols[fix.sym];
       if (sym) {
-        var ofs = fix.ofs + Math.floor(fix.bitofs/width);
-        var shift = fix.bitofs & (width-1);
+        var ofs = fix.ofs + Math.floor(fix.bitofs/this.width);
+        var shift = fix.bitofs & (this.width-1);
         var mask = ((1<<fix.bitlen)-1);
-        var value = parseConst(sym.value+"", fix.bitlen);
+        var value = this.parseConst(sym.value+"", fix.bitlen);
         if (fix.iprel)
           value -= fix.ofs + fix.ipofs;
         if (value > mask || value < -mask)
-          warning("Symbol " + fix.sym + " (" + value + ") does not fit in " + fix.bitlen + " bits", fix.line);
+          this.warning("Symbol " + fix.sym + " (" + value + ") does not fit in " + fix.bitlen + " bits", fix.line);
         value &= mask;
         // TODO: check range
         // TODO: span multiple words?
-        outwords[ofs - origin] ^= value; // TODO: << shift?
+        this.outwords[ofs - this.origin] ^= value; // TODO: << shift?
       } else {
-        warning("Symbol '" + fix.sym + "' not found");
+        this.warning("Symbol '" + fix.sym + "' not found");
       }
     }
     // update asmlines
-    for (var i=0; i<asmlines.length; i++) {
-      var al = asmlines[i];
+    for (var i=0; i<this.asmlines.length; i++) {
+      var al = this.asmlines[i];
       al.insns = '';
-      for (var j=0; j<al.nbits/width; j++) {
-        var word = outwords[al.offset + j - origin];
+      for (var j=0; j<al.nbits/this.width; j++) {
+        var word = this.outwords[al.offset + j - this.origin];
         if (j>0) al.insns += ' ';
-        al.insns += hex(word,width/4);
+        al.insns += hex(word,this.width/4);
       }
     }
-    while (outwords.length < codelen) {
-      outwords.push(0);
+    while (this.outwords.length < this.codelen) {
+      this.outwords.push(0);
     }
-    fixups = [];
-    return self.state();
+    this.fixups = [];
+    return this.state();
   }
 
-  self.assembleFile = function(text) : AssemblerState {
+  assembleFile(text) : AssemblerState {
     var lines = text.split(/\n/g);
-    for (var i=0; i<lines.length && !aborted; i++) {
+    for (var i=0; i<lines.length && !this.aborted; i++) {
       try {
-        self.assemble(lines[i]);
+        this.assemble(lines[i]);
       } catch (e) {
         console.log(e);
-        fatal("Exception during assembly: " + e);
+        this.fatal("Exception during assembly: " + e);
       }
     }
-    return self.finish();
+    return this.finish();
   }
 
-  self.state = function() : AssemblerState {
-    return {ip:ip, line:linenum, origin:origin, codelen:codelen,
+  state() : AssemblerState {
+    return {ip:this.ip, line:this.linenum, origin:this.origin, codelen:this.codelen,
       intermediate:{}, // TODO: listing, symbols?
-      output:outwords, lines:asmlines, errors:errors, fixups:fixups};
+      output:this.outwords,
+      lines:this.asmlines,
+      errors:this.errors,
+      fixups:this.fixups};
   }
+  
+  // methods to implement in subclass
+  
+  loadJSON : (path : string) => any;
+  loadInclude : (path : string) => string;
+  loadModule : (path : string) => string;
 }
 
