@@ -63,6 +63,16 @@ export class SN76489_Audio {
 // https://user.xmission.com/~trevin/atari/pokey_regs.html
 // http://krap.pl/mirrorz/atari/homepage.ntlworld.com/kryten_droid/Atari/800XL/atari_hw/pokey.htm
 
+export function newPOKEYAudio(count:number) {
+  var audio = new MasterAudio();
+  for (var i=1; i<=count; i++) {
+    var pokey = new POKEYDeviceChannel();
+    audio['pokey'+i] = pokey; // TODO: cheezy
+    audio.master.addChannel(pokey);
+  }
+  return audio;
+}
+
 export var POKEYDeviceChannel = function() {
 
   /* definitions for AUDCx (D201, D203, D205, D207) */

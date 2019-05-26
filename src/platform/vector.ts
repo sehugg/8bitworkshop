@@ -3,7 +3,7 @@
 import { Platform, BaseZ80Platform, Base6502Platform  } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, VectorVideo, Keys, makeKeycodeMap } from "../emu";
 import { hex } from "../util";
-import { MasterAudio, POKEYDeviceChannel } from "../audio";
+import { MasterAudio, POKEYDeviceChannel, newPOKEYAudio } from "../audio";
 
 // http://www.computerarcheology.com/Arcade/Asteroids/DVG.html
 // http://arcarc.xmission.com/Tech/neilw_xy.txt
@@ -40,17 +40,6 @@ var GRAVITAR_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_RIGHT, 1, -0x4],
   [Keys.VK_LEFT, 1, -0x8],
 ]);
-
-function newPOKEYAudio() {
-  var pokey1 = new POKEYDeviceChannel();
-  var pokey2 = new POKEYDeviceChannel();
-  var audio = new MasterAudio();
-  audio['pokey1'] = pokey1; // TODO: cheezy
-  audio['pokey2'] = pokey2;
-  audio.master.addChannel(pokey1);
-  audio.master.addChannel(pokey2);
-  return audio;
-}
 
 var AtariVectorPlatform = function(mainElement) {
   var XTAL = 12096000;
@@ -103,7 +92,7 @@ var AtariVectorPlatform = function(mainElement) {
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGBWStateMachine(bus, video, 0x4000);
-    audio = newPOKEYAudio();
+    audio = newPOKEYAudio(2);
     video.create();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
     setKeyboardFromMap(video, switches, ASTEROIDS_KEYCODE_MAP);
@@ -259,7 +248,7 @@ var AtariColorVectorPlatform = function(mainElement) {
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGColorStateMachine(bus, video, 0x2000);
-    audio = newPOKEYAudio();
+    audio = newPOKEYAudio(2);
     video.create();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
     setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
@@ -404,7 +393,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGColorStateMachine(bus, video, 0xa000);
-    audio = newPOKEYAudio();
+    audio = newPOKEYAudio(2);
     video.create();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
     setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);

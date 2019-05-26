@@ -976,8 +976,10 @@ function loadBIOSFromProject() {
   if (platform.loadBIOS) {
     var biospath = platform_id + '.rom';
     store.getItem(biospath).then( (biosdata) => {
-      console.log('loading BIOS')
-      platform.loadBIOS('BIOS', biosdata);
+      if (biosdata instanceof Uint8Array) {
+        console.log('loading BIOS')
+        platform.loadBIOS('BIOS', biosdata);
+      }
     });
   }
 }
