@@ -2,6 +2,12 @@
   "name": "8bitworkshop",
   "version": "3.4.0",
   "author": "Steven Hugg",
+  "description": "A programming IDE for retro hardware.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sehugg/8bitworkshop/"
+  },
+  "license": "GPLv3 and others, see README",
   "dependencies": {},
   "devDependencies": {
     "@types/bootbox": "^4.4.36",
