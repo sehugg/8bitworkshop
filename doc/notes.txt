@@ -71,7 +71,6 @@ TODO:
 - what if error in include file you can't edit b/c it never appears?
 - markdown, verilog: can't share
 - https://www.crowdsupply.com/tinyfpga/tinyfpga-bx
-- HTTPS warning
 - stego shareable images (http://pico-8.wikia.com/wiki/P8PNGFileFormat)
 - https://makecode.com/language?
 - open ROM from URL?

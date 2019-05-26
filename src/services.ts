@@ -10,6 +10,7 @@ declare var firebase;
 export interface GHRepoMetadata {
   url : string;		// github url
   platform_id : string; // e.g. "vcs"
+  sha? : string;	// head commit sha
   mainPath?: string;	// main file path
 }
 
@@ -31,7 +32,16 @@ export interface GHSession extends GHRepoMetadata {
 const README_md_template = "$NAME\n=====\n\n[Open this project in 8bitworkshop](http://8bitworkshop.com/redir.html?platform=$PLATFORM&importURL=$GITHUBURL&file=$MAINFILE).\n";
 
 export function getRepos() : {[key:string]:GHRepoMetadata} {
-  return JSON.parse(localStorage.getItem('__repos') || '{}');
+  var repos = {};
+  for (var i=0; i<localStorage.length; i++) {
+    var key = localStorage.key(i);
+    if (key.startsWith('__repo__')) {
+      var repodata : GHRepoMetadata = JSON.parse(localStorage.getItem(key));
+      var path = key.substring('__repo__'.length);
+      repos[path] = repodata;
+    }
+  }
+  return repos;
 }
   
 export function parseGithubURL(ghurl:string) {
@@ -134,7 +144,8 @@ export class GithubService {
     })
     .then( (head) => {
       sess.head = head;
-      return sess.repo.git.trees(head.object.sha).fetch();
+      sess.sha = head.object.sha;
+      return sess.repo.git.trees(sess.sha).fetch();
     })
     .then( (tree) => {
       if (sess.subtreepath) {
@@ -154,13 +165,13 @@ export class GithubService {
   }
   
   bind(sess:GHSession, dobind:boolean) {
-    var repos = getRepos();
+    var key = '__repo__' + sess.repopath;
     if (dobind) {
-      repos[sess.repopath] = {url:sess.url, platform_id:sess.platform_id, mainPath:sess.mainPath};
+      var repodata : GHRepoMetadata = {url:sess.url, platform_id:sess.platform_id, mainPath:sess.mainPath, sha:sess.sha};
+      localStorage.setItem(key, JSON.stringify(repodata));
     } else {
-      delete repos[sess.repopath];
+      localStorage.removeItem(key);
     }
-    localStorage.setItem('__repos', JSON.stringify(repos));
   }
   
   import(ghurl:string) : Promise<GHSession> {

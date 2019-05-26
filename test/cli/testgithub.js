@@ -15,7 +15,7 @@ var Octokat = require('octokat');
 var test_platform_id = "_TEST";
 
 function newGH(store, platform_id) {
-  localStorage.removeItem('__repos');
+  localStorage.clear();
   // pzpinfo user
   var project = new prj.CodeProject({}, platform_id||test_platform_id, null, store);
   project.mainPath = 'local/main.asm';
@@ -33,7 +33,12 @@ describe('Store', function() {
       gh.importAndPull('https://github.com/pzpinfo/test123123/').then( (sess) => {
         console.log(sess.paths);
         assert.equal(2, sess.paths.length);
-        assert.deepEqual(serv.getRepos(), {"pzpinfo/test123123":{url: 'https://github.com/pzpinfo/test123123/', platform_id: 'vcs', mainPath:'helloworld.bas'}});
+        assert.deepEqual(serv.getRepos(), {"pzpinfo/test123123":{
+          url: 'https://github.com/pzpinfo/test123123/', 
+          platform_id: 'vcs', 
+          mainPath:'helloworld.bas', 
+          //sha:'e466d777810838065b7682587ca592c3eefc0b1c'
+          }});
         done();
       });
     });
