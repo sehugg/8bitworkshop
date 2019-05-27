@@ -9,6 +9,17 @@ void clrscr() {
   memset(vidmem, 0, VHEIGHT*VBWIDTH); // clear page 1
 }
 
+// set entire palette at once (8 bytes to port 0xb)
+// bytes in array should be in reverse
+void set_palette(byte palette[8]) __naked {
+  palette;
+__asm
+  ld bc,#0x80b	; B -> 8, C -> 0xb
+  otir		; write C bytes to B
+  ret		; return
+__endasm;
+}
+
 // draw vertical line
 void vline(byte x, byte y1, byte y2, byte col, byte op) {
   byte xb = x>>2;		// divide x by 4
@@ -33,33 +44,31 @@ void render_sprite(const byte* src, byte x, byte y, byte op) {
   byte i,j;
   byte w = *src++;	// get width from 1st byte of sprite
   byte h = *src++;	// get height from 2nd byte of sprite
-  byte xb = x>>2;		// divide x by 4
-  byte* dest = &vmagic[y][xb];	// destination address
+  byte* dest = &vmagic[y][x>>2];// destination address
   hw_magic = M_SHIFT(x) | op;	// set magic register
-  for (j=0; j<h; j++) {
-    EXIT_CLIPDEST(dest);
-    for (i=0; i<w; i++) {
-      *dest++ = *src++;
-    }
-    *dest = 0;			// rest of shifted byte
-    dest += VBWIDTH-w;		// dest address to next scanline
+  // y clipping off bottom
+  if (y+h >= VHEIGHT) {
+    if (y >= VHEIGHT) return;
+    h = VHEIGHT-y;
   }
-}
-
-// erase a sprite 
-void erase_sprite(const byte* src, byte x, byte y) {
-  byte i,j;
-  byte w = *src++;	// get width from 1st byte of sprite
-  byte h = *src++;	// get height from 2nd byte of sprite
-  byte xb = x>>2;		// divide x by 4
-  byte* dest = &vidmem[y][xb];	// destination address
-  for (j=0; j<h; j++) {
-    EXIT_CLIPDEST(dest);
-    for (i=0; i<w; i++) {
-      *dest++ = 0;
+  // memory copy loop
+  if (op != M_ERASE) {
+    for (j=0; j<h; j++) {
+      for (i=0; i<w; i++) {
+        *dest++ = *src++;
+      }
+      *dest = 0;		// rest of shifted byte
+      dest += VBWIDTH-w;	// dest address to next scanline
     }
-    *dest = 0;			// rest of shifted byte
-    dest += VBWIDTH-w;		// dest address to next scanline
+  // erase sprite loop
+  } else {
+    for (j=0; j<h; j++) {
+      for (i=0; i<w; i++) {
+        *dest++ = 0;
+      }
+      *dest = 0;		// rest of shifted byte
+      dest += VBWIDTH-w;	// dest address to next scanline
+    }
   }
 }
 
@@ -79,8 +88,12 @@ void draw_char(byte ch, byte x, byte y, byte op) {
     EXIT_CLIPDEST(dest);
     *dest++ = b;	// expand lower nibble -> 1st byte
     *dest++ = b;	// expand upper nibble -> 2nd byte
-    *dest++ = 0;	// leftover -> 3rd byte
-    *dest = 0;		// reset upper/lower flag
+    if (x & 3) {
+      *dest++ = 0;	// leftover -> 3rd byte
+      *dest = 0;	// reset upper/lower flag
+    } else {
+      dest++;
+    }
     dest += VBWIDTH-3;	// we incremented 3 bytes for this line
   }
 }
@@ -89,7 +102,7 @@ void draw_string(const char* str, byte x, byte y) {
   do {
     byte ch = *str++;
     if (!ch) break;
-    draw_char(ch, x, y, M_MOVE);
+    draw_char(ch, x, y, M_XOR);
     x += 8;
   } while (1);
 }
@@ -105,24 +118,24 @@ void draw_bcd_word(word bcd, byte x, byte y, byte op) {
 }
 
 // add two 16-bit BCD values
-word bcd_add(word a, word b) {
+word bcd_add(word a, word b) __naked {
   a; b; // to avoid warning
 __asm
-        ld      hl,#4
-        add     hl,sp
-        ld      iy,#2
-        add     iy,sp
-        ld      a,0 (iy)
-        add     a, (hl)
-        daa
-        ld      c,a
-        ld      a,1 (iy)
-        inc     hl
-        adc     a, (hl)
-        daa
-        ld      b,a
-        ld      l, c
-        ld      h, b
+ 	push	ix
+ 	ld	ix,#0
+	add	ix,sp
+ 	ld	a,4 (ix)
+ 	add	a, 6 (ix)
+	daa
+	ld	c,a
+ 	ld	a,5 (ix)
+ 	adc	a, 7 (ix)
+	daa
+ 	ld	b,a
+ 	ld	l, c
+ 	ld	h, b
+	pop	ix
+ 	ret
 __endasm;
 }
 

@@ -72,7 +72,6 @@ var WilliamsSoundPlatform = function(mainElement) {
 			write: newAddressDecoder([
 				[0x4000, 0x7fff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
 			]),
-      isContended: function() { return false; },
     };
     iobus = {
       read: function(addr) {

@@ -955,6 +955,10 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
                 if (len == matchlen) {
                   var rgbs = palette.slice(start, start+len);
                   result.push({node:node, name:name, palette:rgbs});
+                } else if (-len == matchlen) { // reverse order
+                  var rgbs = palette.slice(start, start-len);
+                  rgbs.reverse();
+                  result.push({node:node, name:name, palette:rgbs});
                 } else if (len+1 == matchlen) {
                   var rgbs = new Uint32Array(matchlen);
                   rgbs[0] = palette[0];
@@ -1107,8 +1111,10 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         var arow = $('<tr/>').appendTo(atable);
         $('<td/>').text(name).appendTo(arow);
         var inds = [];
-        for (var k=start; k<start+len; k++)
+        for (var k=start; k<start+Math.abs(len); k++)
           inds.push(k);
+        if (len < 0)
+          inds.reverse();
         inds.forEach( (i) => {
           var cell = $('<td/>').addClass('asset_cell asset_editable').appendTo(arow);
           updateCell(cell, i);

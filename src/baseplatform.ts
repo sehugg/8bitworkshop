@@ -118,6 +118,8 @@ export interface Preset {
 export interface MemoryBus {
   read : (address:number) => number;
   write : (address:number, value:number) => void;
+  contend?: (address:number, cycles:number) => number;
+  isContended?: (address:number) => boolean;
 }
 
 export type DebugCondition = () => boolean;
@@ -508,6 +510,12 @@ export function BusProbe(bus : MemoryBus) {
     }
     bus.write(a,v);
   }
+  this.contend = function(addr,cyc) {
+    return bus.contend(addr,cyc);
+  }
+  this.isContended = function(addr) {
+    return bus.isContended(addr);
+  }
 }
 
 export abstract class BaseZ80Platform extends BaseDebugPlatform {
@@ -515,10 +523,9 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   _cpu;
   probe;
 
-  newCPU(membus : MemoryBus, iobus : MemoryBus) {
+  newCPU(membus : MemoryBus, iobus : MemoryBus, z80opts? : {}) {
     this.probe = new BusProbe(membus);
-    var z80opts = {};
-    this._cpu = buildZ80(z80opts)({
+    this._cpu = buildZ80(z80opts || {})({
      display: {},
      memory: this.probe,
      ioBus: iobus

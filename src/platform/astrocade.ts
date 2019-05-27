@@ -11,6 +11,9 @@ const ASTROCADE_PRESETS = [
   {id:'01-helloworlds.asm', name:'Hello World'},
   {id:'02-telephone.asm', name:'Telephone'},
   {id:'03-horcbpal.asm', name:'Paddle Demo'},
+  {id:'hello.c', name:'Hello World'},
+  {id:'lines.c', name:'Lines'},
+  {id:'sprites.c', name:'Sprites'},
   {id:'cosmic.c', name:'Cosmic Impalas Game'},
 ];
 
@@ -68,7 +71,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   const sheight = arcade ? 204 : 102;
   const swbytes = Math.floor(swidth / 4);
   const cpuFrequency = 1789000;
-  const cpuCyclesPerLine = cpuFrequency/(60*sheight); // TODO: wait states?
+  const cpuCyclesPerLine = cpuFrequency/(60*262);
   const INITIAL_WATCHDOG = 256;
   const PIXEL_ON = 0xffeeeeee;
   const PIXEL_OFF = 0xff000000;
@@ -90,6 +93,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     palette[i] = ASTROCADE_PALETTE[i];
 
   var refreshlines = 0;
+  var vidactive = false;
 
   function ramwrite(a:number, v:number) {
     ram.mem[a] = v;
@@ -176,6 +180,8 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   }
 
  class BallyAstrocadePlatform extends BaseZ80Platform implements Platform {
+ 
+  scanline : number;
 
   getPresets() {
     return ASTROCADE_PRESETS;
@@ -196,7 +202,10 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
           [0x4000, 0x4fff,  0xfff, ramwrite],
           [0x0000, 0x3fff, 0x3fff, magicwrite],
         ]),
-        isContended: function() { return false; },
+        // TODO: correct values?
+        // TODO: no contention on hblank
+        isContended: () => { return true; },
+        contend: () => { return vidactive ? 1 : 0; },
       };
     } else {
       // arcade game
@@ -211,10 +220,17 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
           [0xd000, 0xdfff,  0xfff, function(a,v) { ramwrite(a+0x4000, v); } ], // static RAM
           [0x0000, 0x3fff, 0x3fff, magicwrite],
         ]),
-        isContended: function() { return false; },
+        isContended: () => { return true; },
+        contend: () => { return vidactive ? 1 : 0; },
       };
     }
     iobus = {
+      isULAPort: function(addr) {
+        return false; // TODO?
+      },
+      contend: function(addr) {
+        return 0; // TODO?
+      },
       read: function(addr) {
     	  addr &= 0x1f;
     	  var rtn = inputs[addr];
@@ -285,7 +301,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
         }
     	}
     };
-    cpu = this.newCPU(membus, iobus);
+    cpu = this.newCPU(membus, iobus, {applyContention:true});
     audio = new MasterAudio();
     psg = new AstrocadeAudio(audio);
     video = new RasterVideo(mainElement,swidth,sheight,{});
@@ -308,13 +324,14 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
 
   advance(novideo : boolean) {
     this.loadControls();
-    for (var sl=0; sl<sheight; sl++) {
-      //console.log(sl, hex(cpu.getPC(),4), cpu.saveState());
-      this.runCPU(cpu, cpuCyclesPerLine);
+    for (var sl=0; sl<131; sl++) {
+      this.scanline = sl;
+      vidactive = sl < verbl;
+      this.runCPU(cpu, cpuCyclesPerLine*2); // TODO?
       if (sl == inlin && (inmod & 0x8)) {
         this.requestInterrupt(cpu, infbk);
       }
-      if (refreshlines>0) {
+      if (sl < sheight && refreshlines>0) {
         refreshline(sl);
         refreshlines--;
       }
@@ -329,6 +346,8 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     }
     */
   }
+  
+  getRasterScanline() { return this.scanline; }
 
   loadROM(title, data) {
     rom = padBytes(data, arcade ? 0xb000 : 0x2000);
@@ -476,7 +495,7 @@ for (var i=0; i<256; i++) {
 0004 7E            [ 7]  198 	LD	A,(HL) ; A <- mem[0x2000]
 0005 FE 55         [ 7]  199 	CP	#0x55 ; found sentinel byte? ($55)
 0007 CA 0D 00      [10]  200 	JP	Z,FoundSentinel ; yes, load program
-000A C3 AB 0E      [10]  201 	JP	_main ; jump to test program
+000A C3 00 20      [10]  201 	JP	_main ; jump to test program
 000D                     202 	FoundSentinel:
 000D 31 CE 4F      [10]  203 	LD	SP,#0x4fce ; position stack below BIOS vars
 0010 CD 84 02      [17]  204 	CALL	_bios_init ; misc. bios init routines
@@ -488,7 +507,7 @@ for (var i=0; i<256; i++) {
 001A E9            [ 4]  210 	JP	(HL) ; jump to cart start vector
 */
 var ASTROCADE_MINIMAL_BIOS = [
-  0xf3, 0x21, 0x00, 0x20, 0x7e, 0xfe, 0x55, 0xca, 0x0d, 0x00, 0xc3, 0xab, 0x0e,
+  0xf3, 0x21, 0x00, 0x20, 0x7e, 0xfe, 0x55, 0xca, 0x0d, 0x00, 0xc3, 0x00, 0x20,
   0x31, 0xce, 0x4f, 0xcd, 0x84, 0x02, 0x21, 0x05, 0x20, 0x7e, 0x23, 0x66, 0x6f,
   0xe9,
 ];

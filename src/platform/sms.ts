@@ -78,7 +78,6 @@ class SG1000Platform extends BasicZ80ScanlinePlatform implements Platform {
        write: newAddressDecoder([
          [0xc000, 0xffff,  0x3ff, (a,v) => { this.ram[a] = v; }],
        ]),
-       isContended: () => { return false; },
     };
   }
   

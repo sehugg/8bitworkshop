@@ -78,7 +78,6 @@ class MSXPlatform extends BasicZ80ScanlinePlatform implements Platform {
          let slot = this.slots[slotnum];
          if (slot) slot.write(a, v);
        },
-       isContended: () => { return false; },
     };
   }
   

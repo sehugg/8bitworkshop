@@ -136,7 +136,6 @@ class VicDualPlatform extends BasicZ80ScanlinePlatform implements Platform {
       write: newAddressDecoder([
         [0x8000, 0xffff, 0x0fff, (a, v) => { this.ram[a] = v; }],
       ]),
-      isContended: () => { return false; },
     };
   }
 

@@ -249,7 +249,6 @@ const _GalaxianPlatform = function(mainElement, options) {
           //[0x8200, 0x8203, 0, function(a,v){ /* PPI 1 */ }],
           //[0, 0xffff, 0, function(a,v) { console.log(hex(a),hex(v)); }]
   			]),
-        isContended: function() { return false; },
       };
     } else {
       inputs = [0xe,0x8,0x0];

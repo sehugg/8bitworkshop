@@ -13,6 +13,7 @@
 PrgName:    DB      "HELLO, WORLDS!"; String
             DB      0               ; ... which must be followed by 0
 PrgStart:   DI                      ; Disable interrupts
+;            db $ed,$ff
             SYSTEM  INTPC           ; Begin interpreter mode
             DO      SETOUT          ; Set output ports
             DB      100*2           ; ... with VBLANK line set to line 100

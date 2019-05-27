@@ -32,7 +32,6 @@ var Base_Z80Platform = function(mainElement) {
       write: newAddressDecoder([
         [0x8000, 0xffff, 0x7fff, function(a,v) { ram.mem[a] = v; }],
       ]),
-      isContended: function() { return false; },
     };
     this.readAddress = membus.read;
     iobus = {

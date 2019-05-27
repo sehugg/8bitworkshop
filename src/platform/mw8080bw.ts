@@ -62,7 +62,6 @@ class Midway8080BWPlatform extends BasicZ80ScanlinePlatform implements Platform 
           //if (displayPCs) displayPCs[a] = cpu.getPC(); // save program counter
         }],
       ]),
-      isContended: function() { return false; },
     };
   }
 
