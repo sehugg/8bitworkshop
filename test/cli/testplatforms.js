@@ -77,6 +77,7 @@ emu.RasterVideo = function(mainElement, width, height, options) {
   this.getFrameData = function() { return datau32; }
   this.getImageData = function() { return {data:datau8, width:width, height:height}; }
   this.updateFrame = function() {}
+  this.clearRect = function() {}
   this.setupMouseEvents = function() { }
   this.canvas = this;
   this.getContext = function() { return this; }

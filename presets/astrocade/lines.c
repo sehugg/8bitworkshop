@@ -1,7 +1,7 @@
 
 #include "aclib.h"
 //#link "aclib.c"
-//#link "acheader.s"
+//#link "hdr_autostart.s"
 
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +40,7 @@ void main() {
   setup_registers();
   clrscr();
   hw_xpand = XPAND_COLORS(0, 2);
-  draw_string("Hello, Lines!", 2, 80);
+  draw_string(2, 80, 0, "Hello, Lines!");
   draw_line(0, 0, 159, 95, 1);
   // infinite loop
   srand(1);

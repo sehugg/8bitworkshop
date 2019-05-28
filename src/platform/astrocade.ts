@@ -14,6 +14,7 @@ const ASTROCADE_PRESETS = [
   {id:'hello.c', name:'Hello World'},
   {id:'lines.c', name:'Lines'},
   {id:'sprites.c', name:'Sprites'},
+  {id:'vsync.c', name:'Sprites w/ VSYNC'},
   {id:'cosmic.c', name:'Cosmic Impalas Game'},
 ];
 
@@ -71,7 +72,9 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   const sheight = arcade ? 204 : 102;
   const swbytes = Math.floor(swidth / 4);
   const cpuFrequency = 1789000;
-  const cpuCyclesPerLine = cpuFrequency/(60*262);
+  const cpuCyclesPerLine = Math.floor(cpuFrequency/(60*262.5));
+  const cpuCyclesPerHBlank = Math.floor(cpuCyclesPerLine*0.33);
+  const cpuCyclesPerVisible = cpuCyclesPerLine - cpuCyclesPerHBlank;
   const INITIAL_WATCHDOG = 256;
   const PIXEL_ON = 0xffeeeeee;
   const PIXEL_OFF = 0xff000000;
@@ -88,13 +91,9 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   var infbk = 0;
   var verbl = sheight;
   var palette = new Uint32Array(8);
-  // default palette
-  for (var i=0; i<8; i++)
-    palette[i] = ASTROCADE_PALETTE[i];
-
   var refreshlines = 0;
   var vidactive = false;
-
+  
   function ramwrite(a:number, v:number) {
     ram.mem[a] = v;
     ramupdate(a, v);
@@ -200,7 +199,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
         ]),
         write: newAddressDecoder([
           [0x4000, 0x4fff,  0xfff, ramwrite],
-          [0x0000, 0x3fff, 0x3fff, magicwrite],
+          [0x0000, 0x3fff,  0xfff, magicwrite],
         ]),
         // TODO: correct values?
         // TODO: no contention on hblank
@@ -311,6 +310,9 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
 		setKeyboardFromMap(video, inputs, ASTROCADE_KEYCODE_MAP);
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
+    // default palette
+    for (var i=0; i<8; i++)
+      palette[i] = ASTROCADE_PALETTE[i];
   }
 
   readAddress(addr) {
@@ -323,14 +325,23 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   }
 
   advance(novideo : boolean) {
-    this.loadControls();
+    this.scanline = 0;
+    var extra = 0; // keep track of spare cycles
     for (var sl=0; sl<131; sl++) {
-      this.scanline = sl;
-      vidactive = sl < verbl;
-      this.runCPU(cpu, cpuCyclesPerLine*2); // TODO?
-      if (sl == inlin && (inmod & 0x8)) {
-        this.requestInterrupt(cpu, infbk);
+      // double scanlines in consumer mode
+      for (var i=0; i<2; i++) {
+        // simulate contention during visible part of scanline
+        vidactive = sl < verbl;
+        extra = this.runCPU(cpu, cpuCyclesPerVisible - extra);
+        vidactive = false;
+        extra = this.runCPU(cpu, cpuCyclesPerHBlank - extra);
+        this.scanline++;
       }
+      // interrupt
+      if (sl == inlin && (inmod & 0x8)) {
+        cpu.requestInterrupt(infbk);
+      }
+      // refresh this line in frame buffer?
       if (sl < sheight && refreshlines>0) {
         refreshline(sl);
         refreshlines--;
@@ -338,6 +349,8 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     }
     if (!novideo) {
       video.updateFrame(0, 0, 0, 0, swidth, verbl);
+      video.clearRect(0, verbl, swidth, sheight-verbl);
+      this.loadControls();
     }
     /*
     if (watchdog_counter-- <= 0) {
@@ -360,7 +373,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   }
 
   loadState(state) {
-    cpu.loadState(state.c); // TODO: this causes problems on reset+debug
+    cpu.loadState(state.c);
     ram.mem.set(state.b);
     palette.set(state.palette);
     magicop = state.magicop;
@@ -372,6 +385,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     inlin = state.inlin;
     infbk = state.infbk;
     verbl = state.verbl;
+    this.scanline = state.sl;
     this.loadControlsState(state);
     refreshall();
   }
@@ -390,6 +404,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       inlin: inlin,
       infbk: infbk,
       verbl: verbl,
+      sl: this.scanline,
     };
   }
   loadControlsState(state) {
@@ -418,8 +433,42 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   reset() {
     cpu.reset();
     cpu.setTstates(0);
+    // TODO?
+    magicop = xpand = inmod = inlin = infbk = shift2 = horcb = 0;
+    verbl = sheight;
+    xplower = false;
     //watchdog_counter = INITIAL_WATCHDOG;
   }
+  getDebugCategories() {
+    return super.getDebugCategories().concat(['Astro']);
+  }
+  getDebugInfo(category, state) {
+    switch (category) {
+      case 'Astro': return this.toLongString(state);
+      default: return super.getDebugInfo(category, state);
+    }
+  }
+  toLongString(st) {
+    var s = "";
+    s += " Scanline: " + st.sl;
+    s += "\nMAGICOP: $" + hex(st.magicop);
+    s += "\n  XPAND: $" + hex(st.xpand);
+    s += "\nXPLOWER: " + st.xplower;
+    s += "\n SHIFT2: $" + hex(st.shift2);
+    s += "\n  HORCB: $" + hex(st.horcb);
+    s += "\n  INMOD: $" + hex(st.inmod);
+    s += "\n  INLIN: " + st.inlin;
+    s += "\n  INFBK: " + st.infbk;
+    s += "\n  VERBL: " + st.verbl;
+    /*
+    s += "\nPalette: ";
+    for (var i=0; i<8; i++)
+      s += hex(palette[i]);
+    */
+    s += "\n";
+    return s;
+  }
+
  }
   return new BallyAstrocadePlatform();
 }

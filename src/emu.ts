@@ -132,6 +132,12 @@ export class RasterVideo {
       this.ctx.putImageData(this.imageData, 0, 0);
   }
 
+  clearRect(dx:number, dy:number, w:number, h:number) {
+    var ctx = this.ctx;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(dx, dy, w, h);
+  }
+
   setupMouseEvents(el? : HTMLCanvasElement) {
     if (!el) el = this.canvas;
     $(el).mousemove( (e) => {
@@ -242,7 +248,7 @@ export class AnimationTimer {
       } catch (e) {
         this.running = false;
         this.pulsing = false;
-        throw e;
+        throw new EmuHalt(e);
       }
     }
     if (this.useReqAnimFrame)

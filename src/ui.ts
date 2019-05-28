@@ -1412,7 +1412,7 @@ function _addLinkFile() {
   var fn = getCurrentMainFilename();
   var tool = platform.getToolForFilename(fn);
   if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65')
-    addFileToProject("Linked C", ".c", (s) => { return '//#link "'+s+'"' });
+    addFileToProject("Linked C (or .s)", ".c", (s) => { return '//#link "'+s+'"' });
   else if (fn.endsWith("asm") || fn.endsWith(".s") || tool == 'ca65')
     addFileToProject("Linked ASM", ".inc", (s) => { return ';#link "'+s+'"' });
   else

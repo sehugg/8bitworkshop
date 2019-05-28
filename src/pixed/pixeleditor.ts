@@ -60,7 +60,7 @@ type PixelEditorMessage = {
 
 /////////////////
 
-var pixel_re = /([0#]?)([x$%]|\d'[bh])([0-9a-f]+)(?:;.*$)?/gim;
+var pixel_re = /([0#]?)([bx$%]|\d'[bh])([0-9a-f]+)(?:;.*$)?/gim;
 
 function convertToHexStatements(s:string) : string {
   // convert 'hex ....' asm format
@@ -316,8 +316,8 @@ var PREDEF_LAYOUTS : {[id:string]:PixelEditorPaletteLayout} = {
     ['Sprite 3',      0x1d, 3]
   ],
   'astrocade':[
-    ['Left',   0x04, -4],
-    ['Right',  0x00, -4]
+    ['Left',   0x00, -4],
+    ['Right',  0x04, -4]
   ],
 };
 

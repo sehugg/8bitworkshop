@@ -5,25 +5,24 @@
 #define EXIT_CLIPDEST(addr) if ((((word)addr)&0xfff) >= 0xe10) return
 
 // clear screen and set graphics mode
-void clrscr() {
+void clrscr(void) {
   memset(vidmem, 0, VHEIGHT*VBWIDTH); // clear page 1
 }
 
 // set entire palette at once (8 bytes to port 0xb)
 // bytes in array should be in reverse
-void set_palette(byte palette[8]) __naked {
+void set_palette(byte palette[8]) __z88dk_fastcall {
   palette;
 __asm
   ld bc,#0x80b	; B -> 8, C -> 0xb
-  otir		; write C bytes to B
+  otir		; write C bytes from HL to port[B]
   ret		; return
 __endasm;
 }
 
 // draw vertical line
 void vline(byte x, byte y1, byte y2, byte col, byte op) {
-  byte xb = x>>2;		// divide x by 4
-  byte* dest = &vmagic[y1][xb];	// destination address
+  byte* dest = &vmagic[y1][x>>2];// destination address
   byte y;
   hw_magic = M_SHIFT(x) | op;	// set magic register
   col <<= 6;			// put color in high pixel
@@ -34,14 +33,9 @@ void vline(byte x, byte y1, byte y2, byte col, byte op) {
   }
 }
 
-// draw a pixel
-void pixel(byte x, byte y, byte col, byte op) {
-  vline(x, y, y, col, op);	// draw line with 1-pixel height
-}
-
 // render a sprite with the given graphics operation
 void render_sprite(const byte* src, byte x, byte y, byte op) {
-  byte i,j;
+  byte i;
   byte w = *src++;	// get width from 1st byte of sprite
   byte h = *src++;	// get height from 2nd byte of sprite
   byte* dest = &vmagic[y][x>>2];// destination address
@@ -53,21 +47,18 @@ void render_sprite(const byte* src, byte x, byte y, byte op) {
   }
   // memory copy loop
   if (op != M_ERASE) {
-    for (j=0; j<h; j++) {
+    while (h--) {
       for (i=0; i<w; i++) {
-        *dest++ = *src++;
+        *dest++ = *src++;	// copy bytes
       }
       *dest = 0;		// rest of shifted byte
       dest += VBWIDTH-w;	// dest address to next scanline
     }
   // erase sprite loop
   } else {
-    for (j=0; j<h; j++) {
-      for (i=0; i<w; i++) {
-        *dest++ = 0;
-      }
-      *dest = 0;		// rest of shifted byte
-      dest += VBWIDTH-w;	// dest address to next scanline
+    while (h--) {
+      memset(dest, 0, w+1);	// erase bytes
+      dest += VBWIDTH;		// dest address to next scanline
     }
   }
 }
@@ -80,8 +71,7 @@ const char FONT[HICHAR-LOCHAR+1][FONT_HEIGHT*FONT_BWIDTH] = {
 // draw a letter
 void draw_char(byte ch, byte x, byte y, byte op) {
   const byte* src = &FONT[(ch-LOCHAR)][0];
-  byte xb = x>>2;		// divide x by 4
-  byte* dest = &vmagic[y][xb];	// destination address
+  byte* dest = &vmagic[y][x>>2]; // destination address
   hw_magic = M_SHIFT(x) | M_XPAND | op;
   for (byte i=0; i<8; i++) {
     char b = *src++;
@@ -98,7 +88,8 @@ void draw_char(byte ch, byte x, byte y, byte op) {
   }
 }
 
-void draw_string(const char* str, byte x, byte y) {
+void draw_string(byte x, byte y, byte options, const char* str) {
+  hw_xpand = XPAND_COLORS(0, options);
   do {
     byte ch = *str++;
     if (!ch) break;

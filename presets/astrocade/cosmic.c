@@ -8,10 +8,8 @@
 #include <string.h>
 
 #include "aclib.h"
-
 //#link "aclib.c"
-
-//#link "acheader.s"
+//#link "hdr_autostart.s"
 
 
 //
@@ -119,8 +117,7 @@ void draw_bunker(byte x, byte y, byte y2, byte h, byte w) {
 void draw_playfield() {
   byte i;
   clrscr();
-  hw_xpand = XPAND_COLORS(0, COLOR_SCORE);
-  draw_string("PLAYER 1", 0, 0);
+  draw_string(0, 0, COLOR_SCORE, "PLAYER 1");
   draw_score();
   draw_lives();
   for (i=0; i<PIXWIDTH; i++)
@@ -356,11 +353,11 @@ void game_over_msg() {
   byte y=10;
   hw_xpand = XPAND_COLORS(0, COLOR_SCORE);
   for (i=0; i<50; i++) {
-    draw_string(" *************** ", x, y+0*8);
-    draw_string("***           ***", x, y+1*8);
-    draw_string("**  GAME OVER  **", x, y+2*8);
-    draw_string("***           ***", x, y+3*8);
-    draw_string(" *************** ", x, y+4*8);
+    draw_string(x, y+0*8, COLOR_SCORE, " *************** ");
+    draw_string(x, y+1*8, COLOR_SCORE, "***           ***");
+    draw_string(x, y+2*8, COLOR_SCORE, "**  GAME OVER  **");
+    draw_string(x, y+3*8, COLOR_SCORE, "***           ***");
+    draw_string(x, y+4*8, COLOR_SCORE, " *************** ");
   }
 }
 
