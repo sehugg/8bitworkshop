@@ -421,10 +421,10 @@ _wait_for_vsync:
 ;        .db	1
 
 ; build a SYSSUK block on the stack
-; the caller needs to dec SP before calling
-; so we have room for a RET opcode
-	.globl	__display_string
-__display_string:
+;                <return addr> <5 bytes>
+; <endsuk5> <oldret> rst <cmd> <5 bytes> ret
+	.globl	_display_string
+_display_string:
         ld	h,#(STRDIS+1)
 syssuk5:
 	pop	de		; return address
@@ -432,21 +432,36 @@ syssuk5:
         push	hl		; SYSSUK <command>
         ld	iy,#0
         add	iy,sp		; SP -> IY
+        ld	ix,#7
+        add	ix,sp		; SP+7 -> IX
         push	de		; push return addr
+        ld	e,(ix)		; load what's there
+        push	de		; push it
         ld	d,#0xc9		; ret opcode
-        ld	7(iy),d		; store after params
+        ld	(ix),d		; store after params
+        ld	hl,#endsuk5
+        push	hl
         ld	ix,#0x20d	; alternate font desc.
         jp	(iy)		; jump to RST
 
+endsuk5:
+        pop	de		; old ret value
+	pop	hl		; return address
+        ld	ix,#7
+        add	ix,sp		; SP+7 -> IX
+        ld	(ix),e		; restore old ret value
+	pop	de		; get rid of SYSSUK cmd
+	jp	(hl)		; caller takes care of rest
+
 ; RECTAN x y w h colormask
-	.globl	__paint_rectangle
-__paint_rectangle:
+	.globl	_paint_rectangle
+_paint_rectangle:
         ld	h,#(RECTAN+1)
         jp	syssuk5
 
 ; WRITP x y magic pattern
-	.globl	__write_relative
-__write_relative:
+	.globl	_write_relative
+_write_relative:
         ld	h,#(WRITR+1)
         jp	syssuk5
 
