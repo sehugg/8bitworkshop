@@ -31,12 +31,22 @@ const FontDescriptor __at(0x20d) FNTSML;
 #define OPT_ON(n)	((n)<<2)
 #define OPT_OFF(n)	((n))
 
+#define DISBCD_SML	0x40
+#define DISBCD_NOZERO	0x80
+
 void activate_interrupts(void);
-void wait_for_vsync(void);
+void sleep(byte frames) __z88dk_fastcall;
 
 void display_string(byte x, byte y, byte options, const char* str);
 void paint_rectangle(byte x, byte y, byte w, byte h, byte colormask);
-void write_relative(byte x, byte y, byte magic, const char* pattern);
+void blank_area(byte wb, byte h, byte data, byte* video);
+
+void write_relative(byte x, byte y, byte magic, const byte* pattern);
+void write_pattern(byte x, byte y, byte magic, const byte* pattern);
+
+void display_bcd_number(byte x, byte y, byte options, const byte* number, byte extopt);
+void bcdn_add(byte* dest, byte size, const byte* n);
+void bcdn_sub(byte* dest, byte size, const byte* n);
 
 // QUICK MACROS
 

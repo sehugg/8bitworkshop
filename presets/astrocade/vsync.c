@@ -1,6 +1,7 @@
  
 #include <string.h>
 
+//#resource "astrocade.inc"
 #include "aclib.h"
 //#link "aclib.c"
 //#link "hdr_autostart.s"
@@ -34,10 +35,7 @@ void main() {
   activate_interrupts();
   while (1) {
     write_relative(x, y, M_MOVE, player_bitmap);
-    wait_for_vsync();
+    sleep(1);
     x++;
-//    erase_sprite(player_bitmap, x, y);
-//    x++;
-//    y++;
   }
 }

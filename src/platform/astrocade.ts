@@ -11,7 +11,7 @@ const ASTROCADE_PRESETS = [
   {id:'01-helloworlds.asm', name:'Hello World'},
   {id:'02-telephone.asm', name:'Telephone'},
   {id:'03-horcbpal.asm', name:'Paddle Demo'},
-  {id:'hello.c', name:'Hello World'},
+  {id:'hello.c', name:'Hello Graphics'},
   {id:'lines.c', name:'Lines'},
   {id:'sprites.c', name:'Sprites'},
   {id:'vsync.c', name:'Sprites w/ VSYNC'},
@@ -266,7 +266,8 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
              break;
           case 0xc: // magic register
             magicop = val;
-            shift2 = 0;
+            //shift2 = 0; // TODO?
+            xplower = false;
             break;
           case 0xd: // INFBK (interrupt feedback)
             infbk = val;
@@ -292,7 +293,6 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
             break;
           case 0x19: // XPAND
             xpand = val;
-            xplower = false;
             break;
           default:
             console.log('IO write', hex(addr,4), hex(val,2));

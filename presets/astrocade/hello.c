@@ -1,4 +1,5 @@
 
+//#resource "astrocade.inc"
 #include "aclib.h"
 //#link "aclib.c"
 //#link "hdr_autostart.s"
@@ -26,7 +27,12 @@ const byte BALL[] = {
   0b01111000,
 };
 
-void main() {
+
+// BCD number
+byte bcdnum[3] = {0x56,0x34,0x12};
+byte bcdinc[3] = {0x01,0x00,0x00};
+
+void main(void) {
   // clear screen
   clrscr();
   // setup palette
@@ -34,7 +40,7 @@ void main() {
   // set screen height
   // set horizontal color split (position / 4)
   // set interrupt status
-  SYS_SETOUT(98*2, 23, 0);
+  SYS_SETOUT(89*2, 23, 0);
   // display standard characters
   display_string(2, 2, OPT_ON(1), "HELLO, WORLD!!");
   // 2x2 must have X coordinate multiple of 2
@@ -45,16 +51,21 @@ void main() {
   display_string(4, 38, OPT_4x4|OPT_ON(3)|OPT_OR, "4X4");
   // and XOR mode to invert existing pixels
   // (careful, there's no clipping)
-  display_string(101, 24, OPT_8x8|OPT_ON(3)|OPT_XOR, "?");
+  display_string(109, 24, OPT_8x8|OPT_ON(3)|OPT_XOR, "?");
   // small font must be aligned to multiple of 4
   display_string(4, 80, OPT_ON(1), "\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9");
   // paint a rectangle with a pattern mask (0xa5)
-  paint_rectangle(4, 72, 90, 4, 0xa5);
+  paint_rectangle(4, 72, 100, 4, 0xa5);
   // write from pattern block
   write_relative(50, 80, M_XPAND, BALL);
   write_relative(60, 80, M_XPAND, BALL);
-  write_relative(70, 80, M_XPAND, BALL);
+  // write_pattern() doesn't use the x/y offset
+  write_pattern(70, 80, M_XPAND, BALL+2);
   // infinite loop
+  activate_interrupts();
   while (1) {
+    display_bcd_number(80, 80, OPT_ON(2), bcdnum, 6|DISBCD_SML|DISBCD_NOZERO);
+    bcdn_add(bcdnum, 3, bcdinc);
+    sleep(60);
   }
 }

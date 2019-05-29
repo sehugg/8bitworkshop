@@ -1,29 +1,33 @@
 
 #include "aclib.h"
 //#link "aclib.c"
-//#link "acheader.s"
+//#link "hdr_autostart.s"
+#include "acbios.h"
+//#link "acbios.s"
 
 #include <stdlib.h>
 #include <string.h>
 
-void setup_registers() {
-  // setup colors
-  hw_col0r = 0x00;
-  hw_col1r = 0x2f;
-  hw_col2r = 0xef;
-  hw_col3r = 0xaf;
-  // horizontal palette split
-  hw_horcb = 12;
-  // height of screen
-  hw_verbl = VHEIGHT*2;
-}
+/*{pal:"astrocade",layout:"astrocade"}*/
+const byte palette[8] = {
+  0x77, 0xD4, 0x35, 0x01,
+  0x07, 0xD4, 0x35, 0x01,
+};
 
-void main() {
-  setup_registers();
+void main(void) {
+  // clear screen
   clrscr();
-  hw_xpand = XPAND_COLORS(0, 2);
-  draw_string("Hello, World!", 2, 0);
+  // setup palette
+  set_palette(palette);
+  // set screen height
+  // set horizontal color split (position / 4)
+  // set interrupt status
+  SYS_SETOUT(89*2, 23, 0);
+  // display standard characters
+  display_string(2, 2, OPT_ON(1), "HELLO, WORLD!!");
   // infinite loop
+  activate_interrupts();
   while (1) {
+    sleep(1);
   }
 }
