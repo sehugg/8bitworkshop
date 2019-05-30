@@ -1,4 +1,6 @@
 
+;#link "bioslib.c"
+
 	.module	biosasm
 	.globl	_STIMER,_CTIMER,_BIGFONT,_SMLFONT
 
@@ -93,3 +95,4 @@ ReloadRegs:
         pop	hl
         pop	bc
 	ret
+
