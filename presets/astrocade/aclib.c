@@ -20,6 +20,17 @@ __asm
 __endasm;
 }
 
+// set entire sound registers at once (8 bytes to port 0x18)
+// bytes in array should be in reverse
+void set_sound_registers(byte regs[8]) __z88dk_fastcall {
+  regs;
+__asm
+  ld bc,#0x818	; B -> 8, C -> 0x18
+  otir		; write C bytes from HL to port[B]
+  ret		; return
+__endasm;
+}
+
 // draw vertical line
 void vline(byte x, byte y1, byte y2, byte col, byte op) {
   byte* dest = &vmagic[y1][x>>2];// destination address

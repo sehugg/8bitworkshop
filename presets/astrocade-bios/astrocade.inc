@@ -381,3 +381,12 @@ URINAL  =     0x4FFF   ; WASTER flushes here!
 	.macro	DO CID
        	.db     CID + 1
         .endm
+;
+; EXIT interpreter with context restore:
+	.macro	EXIT
+        .db     XINTC
+;INTPCC  =    0
+        .endm
+;
+ENDx    =     0xC0     ; END of DOIT Table
+;

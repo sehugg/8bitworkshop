@@ -1,6 +1,22 @@
 
+/**
+AstroLibre
+An open source Bally Astrocade BIOS implementation in C
+by Steven Hugg (@sehugg) for 8bitworkshop.com
 
-#define TEST
+To the extent possible under law, the author(s) have
+dedicated all copyright and related and neighboring
+rights to this software to the public domain worldwide.
+This software is distributed without any warranty.
+
+See: http://creativecommons.org/publicdomain/zero/1.0/
+**/
+
+//#resource "astrocade.inc"
+//#link "biosasm.s"
+
+// comment out to build BIOS without demo
+//#link "test1.s"
 
 #include <string.h>
 
@@ -62,7 +78,7 @@ __sfr __at(0x13) hw_p4ctrl;	// player controls
 
 /// GRAPHICS FUNCTIONS
 
-#define VHEIGHT 89	// number of scanlines
+#define VHEIGHT 102	// number of scanlines
 #define VBWIDTH 40	// number of bytes per scanline
 #define PIXWIDTH 160	// 4 pixels per byte
 
@@ -105,82 +121,13 @@ byte SENFLG; 		// sentry control
 byte* UMARGT;		// user mask table (-64 bytes)
 word* USERTB;		// user routine table (-128 bytes)
 
-#ifdef TEST
-#define MAIN _main
-#else
-#define MAIN 0x2000
-#endif
-
-// start routine @ 0x0
-void bios_start()  __naked {
-__asm
-  DI			; disable interrupts
-  LD	HL,#MAIN
-  LD	A,(HL)		; A <- mem[0x2000]
-  CP	#0x55		; found sentinel byte? ($55)
-  JP	Z,FoundSentinel	; yes, load program
-  JP	MAIN
-FoundSentinel:
-  LD	SP,#0x4fce	; position stack below BIOS vars
-  CALL	_bios_init	; misc. bios init routines
-  LD	HL,#(MAIN+5)	; cartridge start vector
-  LD	A,(HL)
-  INC	HL
-  LD	H,(HL)
-  LD	L,A
-  JP	(HL)		; jump to cart start vector
-  .ds	0x38 - 0x1b	; eat up space until 0x38
-__endasm;
-}
-
-void interrupt_0x38() __naked {
-__asm
-  push	hl
-  push	af
-  push	bc
-  push	de
-  push	ix
-  push	iy
-  ld	hl,#0
-  add	hl,sp
-  push	hl		; HL points to context block
-  call	_SYSCALL	; syscall handler
-  pop	hl
-  pop	iy
-  pop	ix
-  pop	de
-  pop	bc
-  pop	af
-  pop	hl
-  ret
-__endasm;
-}
-
-void _predope() __naked {
-__asm
-  .ds	0x200-0x52	; skip to 0x200
-__endasm;
-}
-
-// DOPE vector @ 0x200
-void DOPE()  __naked {
-__asm
-  JP	_STIMER
-  JP	_CTIMER
-  .db	0x20, 8, 8, 1, 7	; Font descriptor (big font)
-  .dw	_BIGFONT
-  .db	0xa0, 4, 6, 1, 5	; Font descriptor (small font)
-  .dw	_SMLFONT
-__endasm;
-}
-
 typedef struct {
-  byte base_ch;
-  byte frame_x;
-  byte frame_y;
-  byte pattern_x;
-  byte pattern_y;
-  const byte* chartab;
+  byte base_ch;		// first char
+  byte frame_x;		// frame width
+  byte frame_y;		// frame height
+  byte pattern_x;	// pattern width
+  byte pattern_y;	// pattern height
+  const byte* chartab;	// pointer to char data
 } FontDescriptor;
 
 #define LOCHAR 0x20
@@ -192,6 +139,10 @@ extern const char SMLFONT[HICHAR-LOCHAR+1][5];
 const FontDescriptor __at(0x206) FNTSYS; // = { 0x20, 8, 8, 1, 7, (byte*)BIGFONT };
 const FontDescriptor __at(0x20d) FNTSML; // = { 0xa0, 4, 6, 1, 5, (byte*)SMLFONT };
 
+
+
+// INTERRUPT HANDLERS
+// must be in 0x200 page
 void hw_interrupt() __interrupt {
   CT[0]++;
   CT[1]++;
@@ -205,12 +156,41 @@ void hw_interrupt() __interrupt {
   }
 }
 
-const void* const actint_vec = &hw_interrupt;
+// TODO
+byte add_counters(byte mask, byte delta) {
+  byte i = 0;
+  byte any0 = 0;
+  while (mask) {
+    if (mask & 1) {
+      if (CT[i]) {
+        if (!(CT[i] += delta))
+          any0 = 1;
+      }
+    }
+    mask >>= 1;
+    i++;
+  }
+  return any0;
+}
 
 void STIMER() {
 }
 
 void CTIMER() {
+}
+
+void TIMEZ() {
+  // updates game timer, blackout timer, and music processor
+}
+
+void TIMEY() {
+  CT[0]--;
+  CT[1]--;
+  CT[2]--;
+  CT[3]--;
+}
+
+void TIMEX() {
 }
 
 ///// INTERPRETER
@@ -325,17 +305,23 @@ void SUCK(ContextBlock* ctx) {
   suckParams(ctx, _B);
 }
 
+
+const void* const actint_vec = &hw_interrupt;
+
 void ACTINT(ContextBlock *ctx) {
   ctx;
-  hw_inlin = 200;
-  hw_infbk = (byte) &actint_vec;
-  hw_inmod = 8;
 __asm
-  LD	A,#0x2	; I = 0x200
+  LD	BC,#(_actint_vec)  ; upper 8 bits of address
+  LD	A,B
   LD	I,A
   IM	2	; mode 2
   EI		; enable interrupts
 __endasm;
+  hw_inlin = 200;
+  hw_infbk = (byte) &actint_vec;
+  hw_inmod = 0x8;
+  TIMEZ();
+  TIMEY();
 }
 
 // Outputs D to port 0A, B to port 09, A to port 0E.
@@ -766,23 +752,3 @@ void bios_init() {
   *((byte*)0x4fce) = 0;
   hw_magic = 0;
 }
-
-#ifdef TEST
-
-void _main() {
-__asm
-#include "astrocade.inc"
-#include "test3.s"
-__endasm;
-}
-
-#else
-
-void _biosend() __naked {
-__asm
-  ; eat up rest of space
-  .ds	0x2000 - (. - __biosend)
-__endasm;
-}
-
-#endif

@@ -2020,8 +2020,14 @@ function executeBuildSteps() {
         for (var i=0; i<buildsteps.length; i++) {
           var ls = buildsteps[i];
           if (ls.tool == linkstep.tool && ls.platform == linkstep.platform && ls.files && ls.args) {
-            ls.files = ls.files.concat(linkstep.files);
-            ls.args = ls.args.concat(linkstep.args);
+            if (step.result.order === 'last') { // TODO: not used
+              ls.files = linkstep.files.concat(ls.files);
+              ls.args = linkstep.args.concat(ls.args);
+            } else {
+              ls.files = ls.files.concat(linkstep.files);
+              ls.args = ls.args.concat(linkstep.args);
+            }
+            console.log(ls);
             linkstep = null;
             break;
           }

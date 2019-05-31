@@ -1182,7 +1182,7 @@ function getDebugExprExamples() : string {
   if (cpu.SP) s += "c.SP < 0x" + hex(cpu.SP) + "\n";
   if (platform.readAddress) s += "this.readAddress(0x1234) == 0x0\n";
   if (platform.readVRAMAddress) s += "this.readVRAMAddress(0x1234) != 0x80\n";
-  if (platform['getRasterPosition']) s += "this.getRasterPosition().y > 222\n";
+  if (platform['getRasterScanline']) s += "this.getRasterScanline() > 222\n";
   return s;
 }
 

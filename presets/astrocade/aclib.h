@@ -81,6 +81,7 @@ byte __at (0x4000) vidmem[VTOTAL][VBWIDTH];
 
 void clrscr();
 void set_palette(byte palette[8]) __z88dk_fastcall; // palette in reverse order
+void set_sound_registers(byte regs[8]) __z88dk_fastcall; // in reverse too
 void vline(byte x, byte y1, byte y2, byte col, byte op);
 void pixel(byte x, byte y, byte col, byte op);
 void render_sprite(const byte* src, byte x, byte y, byte op);

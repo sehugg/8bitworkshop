@@ -15,6 +15,7 @@ const ASTROCADE_PRESETS = [
   {id:'lines.c', name:'Lines'},
   {id:'sprites.c', name:'Sprites'},
   {id:'vsync.c', name:'Sprites w/ VSYNC'},
+  {id:'music.c', name:'Music'},
   {id:'cosmic.c', name:'Cosmic Impalas Game'},
 ];
 
@@ -339,6 +340,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       }
       // interrupt
       if (sl == inlin && (inmod & 0x8)) {
+        // TODO: interrupt mode bit 0x4
         cpu.requestInterrupt(infbk);
       }
       // refresh this line in frame buffer?
@@ -458,7 +460,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     s += "\n  HORCB: $" + hex(st.horcb);
     s += "\n  INMOD: $" + hex(st.inmod);
     s += "\n  INLIN: " + st.inlin;
-    s += "\n  INFBK: " + st.infbk;
+    s += "\n  INFBK: $" + hex(st.infbk);
     s += "\n  VERBL: " + st.verbl;
     /*
     s += "\nPalette: ";

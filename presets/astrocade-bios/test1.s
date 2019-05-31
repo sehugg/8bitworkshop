@@ -1,5 +1,16 @@
 
 
+; need these in 1st file sdcc linker sees
+.area _HOME
+.area _INITIALIZER
+.area _DATA
+.area _INITIALIZED
+.area _BSEG
+.area _BSS
+.area _HEAP
+.area _CODE
+
+	.include "astrocade.inc"
         .globl	_main
 _main:
 	LD	SP,#0x4fce	; position stack below BIOS vars
@@ -62,7 +73,7 @@ _main:
         .dw	3
         .dw	_BCDNUM
         ; exit interpreter
-        DONT	XINTC
+        EXIT
 .loop:
         SYSSUK	DISNUM
         .db	80
@@ -123,3 +134,5 @@ BALL:	.db	0,0
         .db	0b11111101
         .db	0b01111010
 
+RINGING:
+	.db	0x80,0x23,0xB0,0x80,0x00,0x3C,0x17,0x3C,0x11,0xE1,0x50,0x3C,0x17,0x3C,0x11,0xE1,0xA0,0xC3,0x5B,0x23,0x00
