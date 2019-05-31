@@ -102,6 +102,7 @@ TODO:
   - parse .incbin directives?
   - can't replace in hex directives
   - should maybe use same single-canvas editor for map + char editor
+  - Uncaught Expected 12 bytes; image has 6 (380:13): Expected 12 bytes; image has 6 ... over and over ... editing BALL
 - crt0.s compiled each time?
 - debug highlight doesn't go away when debugging -> running
   - show breakpoint of PC or highest address on stack

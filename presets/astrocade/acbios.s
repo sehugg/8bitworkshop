@@ -82,11 +82,11 @@ _bcdn_add:
         SYSTEM	BCDADD
         ret
 
-; BCDSUB arg1 size arg2
-	.globl	_bcdn_sub
-_bcdn_sub:
-	call	load5_edca_hl
-        SYSTEM	BCDSUB
+; RANGED n
+	.globl	_ranged_random
+_ranged_random:
+	ld	a,l
+        SYSTEM	RANGED
         ret
 
 ; BLANK w h data video-addr

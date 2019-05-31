@@ -4,9 +4,9 @@
 //#resource "astrocade.inc"
 #include "aclib.h"
 //#link "aclib.c"
-//#link "hdr_autostart.s"
 #include "acbios.h"
 //#link "acbios.s"
+//#link "hdr_autostart.s"
 
 const byte player_bitmap[] =
 {0,0,	// X, Y offset
@@ -20,18 +20,13 @@ const byte palette[8] = {
   0x07, 0xD4, 0x33, 0x01,
 };
 
-void setup_registers() {
-  set_palette(palette);
-  hw_horcb = 0;
-  hw_verbl = 102*2;
-}
-
 void main() {
   byte x,y;
   x=20;
   y=20;
-  setup_registers();
-  clrscr();
+  set_palette(palette);
+  SYS_SETOUT(98*2, 0, 0x0);
+  SYS_FILL(0x4000, 98*40, 0); // clear screen
   activate_interrupts();
   while (1) {
     write_relative(x, y, M_MOVE, player_bitmap);

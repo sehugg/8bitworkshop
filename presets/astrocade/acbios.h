@@ -47,6 +47,7 @@ void write_pattern(byte x, byte y, byte magic, const byte* pattern);
 void display_bcd_number(byte x, byte y, byte options, const byte* number, byte extopt);
 void bcdn_add(byte* dest, byte size, const byte* n);
 void bcdn_sub(byte* dest, byte size, const byte* n);
+byte ranged_random(byte n) __z88dk_fastcall;
 
 // QUICK MACROS
 
@@ -56,5 +57,12 @@ void bcdn_sub(byte* dest, byte size, const byte* n);
         __asm__(".db "#verbl);\
         __asm__(".db "#horcb);\
         __asm__(".db "#inmod);\
+
+#define SYS_FILL(dest,count,val)\
+	__asm__("rst 0x38");\
+        __asm__(".db 0x1b");\
+        __asm__(".dw "#dest);\
+        __asm__(".dw "#count);\
+        __asm__(".db "#val);\
 
 #endif

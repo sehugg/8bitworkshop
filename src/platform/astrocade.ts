@@ -136,12 +136,11 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     v = v2;
     // flop
     if (magicop & 0x40) {
-      var v2 = 0;
-      for (var i=0; i<4; i++) {
-        v2 |= (v & 3) << (6-i*2);
-        v >>= 2;
-      }
-      v = v2;
+      v = 
+        ((v & 0x03) << 6) |
+        ((v & 0x0c) << 2) |
+        ((v & 0x30) >> 2) |
+        ((v & 0xc0) >> 6);
     }
     // or/xor
     if (magicop & 0x30) {
@@ -435,6 +434,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   reset() {
     cpu.reset();
     cpu.setTstates(0);
+    psg.reset();
     // TODO?
     magicop = xpand = inmod = inlin = infbk = shift2 = horcb = 0;
     verbl = sheight;

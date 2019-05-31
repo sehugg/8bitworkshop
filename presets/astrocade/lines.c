@@ -1,6 +1,9 @@
 
 #include "aclib.h"
 //#link "aclib.c"
+#include "acbios.h"
+#include "acextra.h"
+//#link "acextra.c"
 //#link "hdr_autostart.s"
 
 #include <stdlib.h>
@@ -28,17 +31,10 @@ const byte palette[8] = {
   0x07, 0xD4, 0x35, 0x00,
 };
 
-void setup_registers() {
-  set_palette(palette);
-  // horizontal palette split
-  hw_horcb = 20;
-  // height of screen
-  hw_verbl = VHEIGHT*2;
-}
-
 void main() {
-  setup_registers();
-  clrscr();
+  set_palette(palette);
+  SYS_SETOUT(89*2, 20, 0);
+  SYS_FILL(0x4000, 89*2, 0);
   hw_xpand = XPAND_COLORS(0, 2);
   draw_string(2, 80, 0, "Hello, Lines!");
   draw_line(0, 0, 159, 95, 1);

@@ -64,6 +64,21 @@ _main:
         .db	0x00
         .dw	PATERN
         DO	WRITR
+        .db	0
+        .db	80
+        .db	0x40	;+expand
+        .dw	PATERN
+        DO	WRITR
+        .db	140
+        .db	70
+        .db	0x00|0x08 ;+expand
+        .dw	BALL
+        DO	WRITR
+        .db	0
+        .db	70
+        .db	0x40|0x08 ;flop+expand
+        .dw	BALL
+        DO	WRITR
         .db	67
         .db	80
         .db	0x08|1	;expand

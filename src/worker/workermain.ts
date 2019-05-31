@@ -2027,7 +2027,6 @@ function executeBuildSteps() {
               ls.files = ls.files.concat(linkstep.files);
               ls.args = ls.args.concat(linkstep.args);
             }
-            console.log(ls);
             linkstep = null;
             break;
           }

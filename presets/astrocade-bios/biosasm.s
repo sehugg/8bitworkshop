@@ -9,6 +9,9 @@ TEST	= 1
 BIOSStart:
 	di			; disable interrupts
 	ld	HL,#0x2000
+.if TEST
+	ld	HL,#(_main)
+.endif
 	ld	A,(HL)		; A <- mem[0x2000]
 	cp	#0x55		; found sentinel byte? ($55)
 	jp	Z,FoundSentinel	; yes, load program

@@ -33,16 +33,16 @@ byte bcdnum[3] = {0x56,0x34,0x12};
 byte bcdinc[3] = {0x01,0x00,0x00};
 
 void main(void) {
-  // clear screen
-  clrscr();
   // setup palette
   set_palette(palette);
   // set screen height
   // set horizontal color split (position / 4)
   // set interrupt status
   SYS_SETOUT(89*2, 23, 0);
+  // clear screen
+  SYS_FILL(0x4000, 89*2, 0);
   // display standard characters
-  display_string(2, 2, OPT_ON(1), "HELLO, WORLD!!");
+  display_string(2, 2, OPT_ON(1), "HELLO, WORLD!\xb1\xb2\xb3\xb4\xb5");
   // 2x2 must have X coordinate multiple of 2
   display_string(4, 16, OPT_2x2|OPT_ON(2), "BIG TEXT!");
   // 4x4 must have X coordinate multiple of 4

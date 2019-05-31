@@ -3,6 +3,10 @@
 
 #include "aclib.h"
 //#link "aclib.c"
+#include "acbios.h"
+//#link "acbios.c"
+#include "acextra.h"
+//#link "acextra.c"
 //#link "hdr_autostart.s"
 
 const byte player_bitmap[] =
@@ -14,18 +18,13 @@ const byte palette[8] = {
   0x07, 0xD4, 0x35, 0x01,
 };
 
-void setup_registers() {
-  set_palette(palette);
-  hw_horcb = 0;
-  hw_verbl = 102*2;
-}
-
 void main() {
   byte x,y;
   x=10;
   y=10;
-  setup_registers();
-  clrscr();
+  set_palette(palette);
+  SYS_SETOUT(102*2, 0, 0);
+  SYS_FILL(0x4000, 89*2, 0);
   while (1) {
     render_sprite(player_bitmap, x, y, M_MOVE);
     erase_sprite(player_bitmap, x, y);

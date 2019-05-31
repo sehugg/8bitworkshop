@@ -528,31 +528,47 @@ typedef struct {
 
 // write pattern (E,D,C,B) magic A @ HL
 void WRIT(ContextBlock *ctx) {
-  byte x = _E;
-  byte y = _D;
+  byte magic = _A;
   byte w = _C;
   byte h = _B;
+  byte x = _E;
+  byte y = _D;
   byte* src = (byte*) _HL;
-  byte* dest = &vmagic[y][x>>2];// destination address
-  byte i,j;
-  byte magic = _A;
+  byte* dest = &vmagic[y][0]; // destination address
+  byte xb = (magic & M_FLOP) ? (39-(x>>2)) : (x>>2);
+  byte i,j,b;
+  // iterate through all lines
   for (j=0; j<h; j++) {
     EXIT_CLIPDEST(dest);
-    if ((hw_magic = magic) & M_XPAND) {
-      for (i=0; i<w; i++) {
-        byte b = *src++;
-        *dest++ = b;
-        *dest++ = b;
+    hw_magic = magic;
+    if (magic & M_XPAND) {
+      // when XPAND set, write twice as many bytes
+      for (i=0; i<w*2; i+=2) {
+        b = *src++;
+        // when FLOP set, sprite position is also mirrored
+        if (magic & M_FLOP) {
+          dest[xb-i] = b;
+          dest[xb-i-1] = b;
+        } else {
+          dest[xb+i] = b;
+          dest[xb+i+1] = b;
+        }
       }
-      *dest = 0;
-      dest += VBWIDTH-w*2;
     } else {
       for (i=0; i<w; i++) {
-        *dest++ = *src++;
+        // when FLOP set, sprite position is also mirrored
+        if (magic & M_FLOP) {
+          dest[xb-i] = *src++;
+        } else {
+          dest[xb+i] = *src++;
+        }
       }
-      *dest = 0;
-      dest += VBWIDTH-w;
     }
+    if (magic & M_FLOP)
+      dest[xb-i] = 0;
+    else
+      dest[xb+i] = 0;
+    dest += VBWIDTH;
   }
 }
 
