@@ -1360,7 +1360,6 @@ function compileSDCC(step:BuildStep) {
       '--less-pedantic',
       ///'--fomit-frame-pointer',
       //'--opt-code-speed',
-      '--oldralloc',
       //'--max-allocs-per-node', '1000',
       //'--cyclomatic',
       //'--nooverlay',
@@ -1370,9 +1369,15 @@ function compileSDCC(step:BuildStep) {
       //'--noinduction',
       //'--nojtbound',
       //'--noloopreverse',
-      '--no-peep',
-      '--nolospre',
       '-o', outpath];
+    // if "#pragma opt_code" found do not disable optimziations
+    if (!/^\s*#pragma\s+opt_code/m.exec(code)) {
+      args.push.apply(args, [
+        '--oldralloc',
+        '--no-peep',
+        '--nolospre'
+      ]);
+    }
     if (params.extra_compile_args) {
       args.push.apply(args, params.extra_compile_args);
     }
