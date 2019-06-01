@@ -96,8 +96,25 @@ _main:
         .db	(2<<2)		;opts
         .db	6|0x40|0x80	;ext
         .dw	BCDNUM
-        SYSSUK	PAWS
-        .db	60
+.waitinput:
+        SYSSUK	SENTRY
+        .dw	keymask
+        or	a
+        jp	z,.waitinput
+; draw result of SENTRY
+	push	bc
+        ld	e,#114
+        ld	d,#80
+        ld	c,#0x0c
+        add	a,#0x20
+        SYSTEM	CHRDIS
+        pop	bc
+        ld	a,b
+        ld	e,#114
+        ld	d,#70
+        ld	c,#0x0c
+        add	a,#0x20
+        SYSTEM	CHRDIS
         SYSSUK	BCDADD
         .dw	BCDNUM
         .db	3
@@ -119,6 +136,11 @@ NumString:
 palette:
 	.db	0x77, 0xD4, 0x35, 0x01
 	.db	0x07, 0xD4, 0x35, 0x01
+keymask:
+	.db	0b111111
+	.db	0b111111
+	.db	0b111111
+	.db	0b111111
 
 BCDNUM	= 0x4ea0	; RAM
 _BCDNUM:

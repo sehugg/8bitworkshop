@@ -15,10 +15,13 @@ See: http://creativecommons.org/publicdomain/zero/1.0/
 //#resource "astrocade.inc"
 //#link "biosasm.s"
 
-// comment out to build BIOS without demo
+// demo code
 //#link "test1.s"
 
 #include <string.h>
+
+// uncomment to make code better, but slower compile
+//#pragma opt_code_speed
 
 typedef unsigned char byte;
 typedef signed char sbyte;
@@ -49,6 +52,14 @@ __sfr __at(0x10) hw_p1ctrl;	// player controls
 __sfr __at(0x11) hw_p2ctrl;	// player controls
 __sfr __at(0x12) hw_p3ctrl;	// player controls
 __sfr __at(0x13) hw_p4ctrl;	// player controls
+__sfr __at(0x14) hw_keypad0;
+__sfr __at(0x15) hw_keypad1;
+__sfr __at(0x16) hw_keypad2;
+__sfr __at(0x17) hw_keypad3;
+__sfr __at(0x1c) hw_p1pot;	// player pot
+__sfr __at(0x1d) hw_p2pot;	// player pot
+__sfr __at(0x1e) hw_p3pot;	// player pot
+__sfr __at(0x1f) hw_p4pot;	// player pot
 
 #define M_SHIFT0	0x00
 #define M_SHIFT1	0x01
@@ -97,6 +108,7 @@ volatile byte VOICES;  // voice smask
 
 volatile byte CT[8];   // counter timers
 
+// for SENTRY
 volatile byte CNT;
 volatile byte SEMI4S;
 volatile byte OPOT[4];
@@ -121,6 +133,16 @@ byte SENFLG; 		// sentry control
 byte* UMARGT;		// user mask table (-64 bytes)
 word* USERTB;		// user routine table (-128 bytes)
 
+typedef enum {
+  SNUL,
+  SCT0,SCT1,SCT2,SCT3,SCT4,SCT5,SCT6,SCT7,
+  SF0,SF1,SF2,SF3,SF4,SF5,SF6,SF7,
+  SSEC,
+  SKYU,SKYD,
+  ST0,SJ0,ST1,SJ1,ST2,SJ2,ST3,SJ3,
+  SP0,SP1,SP2,SP3
+} SENTRYCode;
+
 typedef struct {
   byte base_ch;		// first char
   byte frame_x;		// frame width
@@ -143,17 +165,25 @@ const FontDescriptor __at(0x20d) FNTSML; // = { 0xa0, 4, 6, 1, 5, (byte*)SMLFONT
 
 // INTERRUPT HANDLERS
 // must be in 0x200 page
-void hw_interrupt() __interrupt {
+void hw_interrupt() __naked {
+  __asm__("ei");
+  __asm__("exx");
+  __asm__("ex af,af'");
   CT[0]++;
   CT[1]++;
   CT[2]++;
   CT[3]++;
   if (++TMR60 == 60) {
     TMR60 = 0;
+    ++TIMOUT;
+    KEYSEX |= 0x80;
     if (++GTSECS == 60) {
       GTMINS++;
     }
   }
+  __asm__("exx");
+  __asm__("ex af,af'");
+  __asm__("reti");
 }
 
 // TODO
@@ -654,6 +684,102 @@ void RANGED(ContextBlock *ctx) {
   }
 }
 
+// input
+
+void SENTRY(ContextBlock *ctx) {
+  byte i;
+  byte A = SNUL;
+  byte B = 0;
+  byte key = 0;
+  byte val[4];
+  // joysticks and switches
+  val[0] = hw_p1ctrl;
+  val[1] = hw_p2ctrl;
+  val[2] = hw_p3ctrl;
+  val[3] = hw_p4ctrl;
+  for (i=0; i<4; i++) {
+    if (val[i] != OSW[i]) {
+      A = SJ0+i*2;
+      if ((val[i] ^ OSW[i]) & 0x10) {
+        A++;
+      }
+      B = val[i];
+    }
+  }
+  memcpy(OSW, val, 4); // update previous state
+  // keypad
+  val[0] = hw_keypad0;
+  val[1] = hw_keypad1;
+  val[2] = hw_keypad2;
+  val[3] = hw_keypad3;
+  for (i=0; i<4; i++) {
+    // key down? and with mask
+    if (val[i] && (val[i] &= ((byte*)_DE)[i])) {
+      key = i+1;
+      while (val[i]) {
+        key += 4;
+        val[i] >>= 1;
+      }
+    }
+  }
+  // key up?
+  if (key && key != KEYSEX) {
+    B = KEYSEX = key;
+    A = SKYD;
+  }
+  else if (!key && KEYSEX) {
+    if (KEYSEX & 0x80) {
+      A = SSEC;	// second timer
+    } else {
+      A = SKYU;
+    }
+    B = 0;
+    KEYSEX = 0;
+  }
+  // pots
+  val[0] = hw_p1pot;
+  val[1] = hw_p2pot;
+  val[2] = hw_p3pot;
+  val[3] = hw_p4pot;
+  for (i=0; i<4; i++) {
+    if (val[i] != OPOT[i]) {
+      A = SP0+i;
+      B = val[i];
+    }
+  }
+  memcpy(OPOT, val, 4); // update previous state
+  // semiphores
+  if (SEMI4S) {
+    B = SEMI4S;
+    for (i=7; i>=0; i--) {
+      if (B & 0x80) {
+        A = SF0+i;
+        SEMI4S ^= 1 << i;
+        break;
+      }
+      B <<= 1;
+    }
+  }
+  // counters
+  if (SENFLG) {
+    B = SENFLG;
+    for (i=7; i>=0; i--) {
+      if (B & 0x80) {
+        A = SF0+i;
+        SENFLG ^= 1 << i;
+        break;
+      }
+      B <<= 1;
+    }
+  }
+  // clear timeout counter (TODO)
+  if (A >= SKYU) {
+    TIMOUT = 0xff;
+  }
+  _A = A;
+  _B = B;
+}
+
 const SysCallEntry SYSCALL_TABLE[64] = {
   /* 0 */
   { &INTPC,	0 },
@@ -675,9 +801,9 @@ const SysCallEntry SYSCALL_TABLE[64] = {
   { &RECTAN,	REG_A|REG_B|REG_C|REG_D|REG_E },
   /* 30 */
   { /*&VWRITR*/0, 0 },
-  { &WRITR,  REG_E|REG_D|REG_A|REG_HL },
-  { &WRITP,  REG_E|REG_D|REG_A|REG_HL },
-  { &WRIT,   REG_E|REG_D|REG_C|REG_B|REG_A|REG_HL },
+  { &WRITR,  	REG_E|REG_D|REG_A|REG_HL },
+  { &WRITP,  	REG_E|REG_D|REG_A|REG_HL },
+  { &WRIT,   	REG_E|REG_D|REG_C|REG_B|REG_A|REG_HL },
   { /*&WRITA*/0,  0 },
   /* 40 */
   { 0, 0 },
@@ -695,7 +821,7 @@ const SysCallEntry SYSCALL_TABLE[64] = {
   { 0, 0 },
   { 0, 0 },
   { 0, 0 },
-  { 0, 0 },
+  { &SENTRY, 	REG_DE },
   { 0, 0 },
   /* 70 */
   { 0, 0 },
