@@ -11,7 +11,6 @@ void set_palette(byte palette[8]) __z88dk_fastcall {
 __asm
   ld bc,#0x80b	; B -> 8, C -> 0xb
   otir		; write C bytes from HL to port[B]
-  ret		; return
 __endasm;
 }
 
@@ -22,7 +21,6 @@ void set_sound_registers(byte regs[8]) __z88dk_fastcall {
 __asm
   ld bc,#0x818	; B -> 8, C -> 0x18
   otir		; write C bytes from HL to port[B]
-  ret		; return
 __endasm;
 }
 

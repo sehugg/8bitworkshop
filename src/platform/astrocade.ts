@@ -477,6 +477,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
 
 /////
 
+// TODO: https://github.com/mamedev/mame/blob/master/src/devices/sound/astrocde.cpp
 class AstrocadeAudio extends AY38910_Audio {
   setACRegister(addr : number, val : number) {
     addr &= 0x7;

@@ -1,10 +1,7 @@
 
 #pragma opt_code_speed
 
-typedef unsigned char byte;
-typedef signed char sbyte;
-typedef unsigned short word;
-typedef signed short sword;
+#include "bios.h"
 
 extern byte* MUZPC;   // music PC
 extern byte* MUZSP;   // music SP
@@ -68,8 +65,9 @@ void music_update(void) {
   } else if (op < 0x88) {
     portOut( NEXT() | ((op-0x70)<<8) );
   } else if (op == 0x88) {
-    for (byte i=0; i<8; i++)
+    for (byte i=0; i<8; i++) {
       portOut( NEXT() | (0x17-i) );
+    }
   } else switch (op & 0xf0) {
     case 0x90:
       VOICES = NEXT();

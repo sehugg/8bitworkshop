@@ -17,6 +17,8 @@ Start:
         ldir			; clear RAM
 ; initialize INITIALIZED segment
         ld	BC, #l__INITIALIZER
+        ld	a,c
+        or	b
         jp	z,.nomeminit
         ld	A, B
         ld	DE, #s__INITIALIZED

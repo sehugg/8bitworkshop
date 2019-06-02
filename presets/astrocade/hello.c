@@ -27,8 +27,26 @@ const byte BALL[] = {
   0b01111000,
 };
 
+const byte BALL2[] = {
+  0, 0,		// x and y offset
+  1, 6,		// width (bytes) and height (lines)
+  /*{w:16,h:6,brev:1}*/
+  0b1111000,
+  0b11011100,
+  0b10111000,	
+  0b110100,
+  0b11100000,
+  0b1111000,
+  0b1000000,
+  0b11010100,
+  0b10111100,	
+  0b10110100,
+  0b11111000,
+  0b1111000,
+};
+
 // BCD number
-static byte bcdnum[3] = {0x56,0x34,0x12};
+byte bcdnum[3] = {0x56,0x34,0x12};
 const byte bcdinc[3] = {0x01,0x00,0x00};
 const byte keypadMask[4] = { 0x3f,0x3f,0x3f,0x3f };
 

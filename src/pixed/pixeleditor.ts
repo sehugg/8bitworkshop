@@ -967,11 +967,11 @@ class PixEditor extends Viewer {
       this.setPixel(pos.x, pos.y, this.currgba);
       dragging = true;
       $(document).mouseup( (e) => {
+        $(document).off('mouseup');
         var pos = this.getPositionFromEvent(e);
         this.setPixel(pos.x, pos.y, dragcol);
         dragging = false;
         this.commit();
-        $(document).off('mouseup');
       });
     })
     .mousemove( (e) => {

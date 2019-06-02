@@ -35,7 +35,6 @@ TODO:
 - go to error in include files
 - online tools for music etc
 - text log debugging script
-- NES crt should mark raster pos when debugging
 - intro/help text for each platform
 - vscode/atom extension?
 - VCS asm library
@@ -63,7 +62,10 @@ TODO:
   - what if .c and .s names collide?
   - maybe put stuff in examples/ dir?
   - error msg when #link doesn't work
-  - sdcc: can't link asm files before c files (e.g. acheader.s must be last)
+  - warning when ROM too big
+- sdcc:
+  - can't link asm files before c files (e.g. acheader.s must be last)
+  - figure out area names ordering
 - live coding URL
 - resize memory browser when vertical div resize
 - preroll the emulator so optimizer does its thing before loading rom
@@ -87,7 +89,6 @@ TODO:
 - show player controls for each platform, allow touch support, navigator.getGamepads
 - better undo/diff for mistakes?
 - ide bug/feature visualizer for sponsors
-- optimization flags for sdcc (oldralloc)
 - global undo/redo at checkpoints (when rom changes)
 - pulldown shows wrong file if preset not present
 - landscape mode for arcade ports
@@ -104,7 +105,6 @@ TODO:
   - parse .incbin directives?
   - can't replace in hex directives
   - should maybe use same single-canvas editor for map + char editor
-  - Uncaught Expected 12 bytes; image has 6 (380:13): Expected 12 bytes; image has 6 ... over and over ... editing BALL
 - crt0.s compiled each time?
 - debug highlight doesn't go away when debugging -> running
   - show breakpoint of PC or highest address on stack
@@ -133,6 +133,7 @@ TODO:
   - nes debug view toolbar
   - support NES_HEADER_16K?
   - PPU/TIA register write visualization
+  - NES crt should mark raster pos when debugging
 - vcs
   - vcs sound continues when paused
   - vcs: INPTx needs to be added to control state
@@ -157,6 +158,7 @@ TODO:
   - support projects with subdirectories, file list?
   - emulator needs reset shortcut for nes
   - switching platform of a repo?
+  - make sure to flatten subdirs
 - ctrl+alt+l on ubuntu locks screen
 
 WEB WORKER FORMAT

@@ -242,6 +242,7 @@ var PLATFORM_PARAMS = {
       //{name:'Cart ROM',start:0x2000,size:0x2000,type:'rom'},
       //{name:'Magic RAM',start:0x0,size:0x4000,type:'ram'},
       {name:'Screen RAM',start:0x4000,size:0x1000,type:'ram'},
+      {name:'BIOS Variables',start:0x4fce,size:0x5000-0x4fce,type:'ram'},
     ],
   },
   'astrocade-arcade': {
@@ -1133,25 +1134,32 @@ function hexToArray(s, ofs) {
   return arr;
 }
 
-function parseIHX(ihx, rom_start, rom_size) {
+function parseIHX(ihx, rom_start, rom_size, errors) {
   var output = new Uint8Array(new ArrayBuffer(rom_size));
+  var high_size = 0;
   for (var s of ihx.split("\n")) {
     if (s[0] == ':') {
       var arr = hexToArray(s, 1);
       var count = arr[0];
       var address = (arr[1]<<8) + arr[2] - rom_start;
       var rectype = arr[3];
+      //console.log(rectype,address.toString(16),count,arr);
       if (rectype == 0) {
         for (var i=0; i<count; i++) {
           var b = arr[4+i];
           output[i+address] = b;
         }
+        if (i+address > high_size) high_size = i+address;
       } else if (rectype == 1) {
-        return output;
+        break;
       } else {
         console.log(s); // unknown record type
       }
     }
+  }
+  // TODO: return ROM anyway?
+  if (high_size > rom_size) {
+    //errors.push({line:0, msg:"ROM size too large: 0x" + high_size.toString(16) + " > 0x" + rom_size.toString(16)});
   }
   return output;
 }
@@ -1268,6 +1276,10 @@ function linkSDLDZ80(step:BuildStep)
     if (!anyTargetChanged(step, ["main.ihx", "main.noi"]))
       return;
 
+    var binout = parseIHX(hexout, params.rom_start!==undefined?params.rom_start:params.code_start, params.rom_size, errors);
+    if (errors.length) {
+      return {errors:errors};
+    }
     var listings = {};
     for (var fn of step.files) {
       if (fn.endsWith('.lst')) {
@@ -1304,7 +1316,8 @@ function linkSDLDZ80(step:BuildStep)
         let segsize = symbolmap['l__'+seg]; // l__SEG
         if (segstart >= 0 && segsize > 0) {
           var type = null;
-          if (['CODE','INITIALIZER','GSINIT','GSFINAL'].includes(seg)) type = 'rom';
+          if (['INITIALIZER','GSINIT','GSFINAL'].includes(seg)) type = 'rom';
+          else if (seg.startsWith('CODE')) type = 'rom';
           else if (['DATA','INITIALIZED'].includes(seg)) type = 'ram';
           if (type == 'rom' || segstart > 0) // ignore HEADER0, CABS0, etc (TODO?)
             segments.push({name:seg, start:segstart, size:segsize, type:type});
@@ -1312,7 +1325,7 @@ function linkSDLDZ80(step:BuildStep)
       }
     }
     return {
-      output:parseIHX(hexout, params.rom_start!==undefined?params.rom_start:params.code_start, params.rom_size),
+      output:binout,
       listings:listings,
       errors:errors,
       symbolmap:symbolmap,

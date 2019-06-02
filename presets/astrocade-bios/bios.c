@@ -21,86 +21,18 @@ See: http://creativecommons.org/publicdomain/zero/1.0/
 // music processor
 //#link "bmusic.c"
 
+// input
+//#link "input.c"
+
+// graphics
+//#link "gfx.c"
+
 #include <string.h>
 
+#include "bios.h"
+
 // uncomment to make code better, but slower compile
-//#pragma opt_code_speed
-
-typedef unsigned char byte;
-typedef signed char sbyte;
-typedef unsigned short word;
-typedef signed short sword;
-
-/// HARDWARE
-
-__sfr __at(0x00) hw_col0r;	// palette 0
-__sfr __at(0x01) hw_col1r;
-__sfr __at(0x02) hw_col2r;
-__sfr __at(0x03) hw_col3r;
-__sfr __at(0x04) hw_col0l;
-__sfr __at(0x05) hw_col1l;
-__sfr __at(0x06) hw_col2l;
-__sfr __at(0x07) hw_col3l;	// palette 7
-
-__sfr __at(0x08) hw_intst;	// intercept test feedback
-__sfr __at(0x09) hw_horcb;	// horiz color boundary
-__sfr __at(0x0a) hw_verbl;	// vertical blanking line * 2
-__sfr __at(0x0c) hw_magic;	// magic register
-__sfr __at(0x0d) hw_infbk;	// interrupt feedback
-__sfr __at(0x0e) hw_inmod;	// interrupt enable
-__sfr __at(0x0f) hw_inlin;	// interrupt line
-__sfr __at(0x19) hw_xpand;	// expander register
-
-__sfr __at(0x10) hw_p1ctrl;	// player controls
-__sfr __at(0x11) hw_p2ctrl;	// player controls
-__sfr __at(0x12) hw_p3ctrl;	// player controls
-__sfr __at(0x13) hw_p4ctrl;	// player controls
-__sfr __at(0x14) hw_keypad0;
-__sfr __at(0x15) hw_keypad1;
-__sfr __at(0x16) hw_keypad2;
-__sfr __at(0x17) hw_keypad3;
-__sfr __at(0x1c) hw_p1pot;	// player pot
-__sfr __at(0x1d) hw_p2pot;	// player pot
-__sfr __at(0x1e) hw_p3pot;	// player pot
-__sfr __at(0x1f) hw_p4pot;	// player pot
-
-#define M_SHIFT0	0x00
-#define M_SHIFT1	0x01
-#define M_SHIFT2	0x02
-#define M_SHIFT3	0x03
-#define M_XPAND		0x08
-#define M_MOVE		0x00
-#define M_OR		0x10
-#define M_XOR		0x20
-#define M_FLOP		0x40
-#define M_SHIFT(x)	((x)&3)
-#define XPAND_COLORS(off,on) (((off)&3) | (((on)&3)<<2))
-
-// font options
-#define OPT_1x1		0x00
-#define OPT_2x2		0x40
-#define OPT_4x4		0x80
-#define OPT_8x8		0xc0
-#define OPT_XOR		0x20
-#define OPT_OR		0x10
-#define OPT_ON(n)	((n)<<2)
-#define OPT_OFF(n)	((n))
-
-// bcd options
-#define DISBCD_SML	0x40
-#define DISBCD_NOZERO	0x80
-
-/// GRAPHICS FUNCTIONS
-
-#define VHEIGHT 102	// number of scanlines
-#define VBWIDTH 40	// number of bytes per scanline
-#define PIXWIDTH 160	// 4 pixels per byte
-
-//#define EXIT_CLIPDEST(addr) if ((((word)addr)&0xfff) >= 0xe10) return
-#define EXIT_CLIPDEST(addr)
-
-byte __at (0x0000) vmagic[VHEIGHT][VBWIDTH];
-byte __at (0x4000) vidmem[VHEIGHT][VBWIDTH];
+#pragma opt_code_speed
 
 // start @ $4FCE
 volatile word MUZPC;   // music PC
@@ -136,35 +68,7 @@ byte SENFLG; 		// sentry control
 byte* UMARGT;		// user mask table (-64 bytes)
 word* USERTB;		// user routine table (-128 bytes)
 
-typedef enum {
-  SNUL,
-  SCT0,SCT1,SCT2,SCT3,SCT4,SCT5,SCT6,SCT7,
-  SF0,SF1,SF2,SF3,SF4,SF5,SF6,SF7,
-  SSEC,
-  SKYU,SKYD,
-  ST0,SJ0,ST1,SJ1,ST2,SJ2,ST3,SJ3,
-  SP0,SP1,SP2,SP3
-} SENTRYCode;
-
-typedef struct {
-  byte base_ch;		// first char
-  byte frame_x;		// frame width
-  byte frame_y;		// frame height
-  byte pattern_x;	// pattern width
-  byte pattern_y;	// pattern height
-  const byte* chartab;	// pointer to char data
-} FontDescriptor;
-
-#define LOCHAR 0x20
-#define HICHAR 0x63
-
-extern const char BIGFONT[HICHAR-LOCHAR+1][7];
-extern const char SMLFONT[HICHAR-LOCHAR+1][5];
-
-const FontDescriptor __at(0x206) FNTSYS; // = { 0x20, 8, 8, 1, 7, (byte*)BIGFONT };
-const FontDescriptor __at(0x20d) FNTSML; // = { 0xa0, 4, 6, 1, 5, (byte*)SMLFONT };
-
-
+// from bmusic.c
 extern void music_update(void);
 
 // INTERRUPT HANDLERS
@@ -231,59 +135,6 @@ void TIMEY() {
 void TIMEX() {
 }
 
-///// INTERPRETER
-
-typedef struct {
-  union {
-    struct {
-      word iy,ix,de,bc,af,hl;
-    } w;
-    struct {
-      byte iyl,iyh,ixl,ixh,e,d,c,b,f,a,l,h;
-    } b;
-  } regs;
-  byte* params;
-} ContextBlock;
-
-#define REG_IY	0x1
-#define REG_E	0x2
-#define REG_D	0x4
-#define REG_C	0x8
-#define REG_B	0x10
-#define REG_IX  0x20
-#define REG_A	0x40
-#define REG_HL	0x80
-#define REG_DE	(REG_D|REG_E)
-#define REG_BC	(REG_B|REG_C)
-
-#define _IY	(ctx->regs.w.iy)
-#define _IX	(ctx->regs.w.ix)
-#define _DE	(ctx->regs.w.de)
-#define _BC	(ctx->regs.w.bc)
-#define _AF	(ctx->regs.w.af)
-#define _HL	(ctx->regs.w.hl)
-#define _IXL	(ctx->regs.b.ixl)
-#define _IXH	(ctx->regs.b.ixh)
-#define _IYL	(ctx->regs.b.iyl)
-#define _IYH	(ctx->regs.b.iyh)
-#define _E	(ctx->regs.b.e)
-#define _D	(ctx->regs.b.d)
-#define _C	(ctx->regs.b.c)
-#define _B	(ctx->regs.b.b)
-#define _A	(ctx->regs.b.a)
-#define _L	(ctx->regs.b.l)
-#define _H	(ctx->regs.b.h)
-
-typedef void (Routine)();
-typedef void (SysRoutine)(ContextBlock *ctx);
-
-typedef struct {
-  SysRoutine* routine;
-  byte argmask;
-} SysCallEntry;
-
-void SYSCALL(ContextBlock *ctx);
-
 void INTPC(ContextBlock *ctx) {
   while (ctx->params[0] != 2) { // 2 = exit
     SYSCALL(ctx);
@@ -302,7 +153,10 @@ void RCALL(ContextBlock *ctx) {
 
 // start interpreting at HL
 void MCALL(ContextBlock *ctx) {
-  ctx; // TODO
+  ctx->params = (byte*)_HL;
+  while (ctx->params[0] != 8) { // 8 = MRET
+    SYSCALL(ctx);
+  }
 }
 
 // exit MCALL loop
@@ -369,17 +223,19 @@ void SETOUT(ContextBlock *ctx) {
   hw_inmod = _A;
 }
 
+// set entire palette at once (8 bytes to port 0xb)
+// bytes in array should be in reverse
+void set_palette(byte palette[8]) __z88dk_fastcall {
+  palette;
+__asm
+  ld bc,#0x80b	; B -> 8, C -> 0xb
+  otir		; write C bytes from HL to port[B]
+__endasm;
+}
+
 // sets color palettes from (HL)
 void COLSET(ContextBlock *ctx) {
-  byte* palette = (byte*) _HL;
-  hw_col3l = *palette++;
-  hw_col2l = *palette++;
-  hw_col1l = *palette++;
-  hw_col0l = *palette++;
-  hw_col3r = *palette++;
-  hw_col2r = *palette++;
-  hw_col1r = *palette++;
-  hw_col0r = *palette++;
+  set_palette((byte*)_HL);
 }
 
 // Stores A in BC bytes starting at location DE.
@@ -388,248 +244,6 @@ void FILL(ContextBlock *ctx) {
   word count = _BC;
   byte val = _A;
   memset(dest, val, count);
-}
-
-void hline(byte x1, byte x2, byte y, byte pattern) {
-  byte xb1 = x1/4;
-  byte xb2 = x2/4;
-  byte* dest = &vmagic[y][xb1];
-  signed char nbytes = xb2 - xb1;
-  hw_magic = M_SHIFT(x1) | M_XOR;
-  while (--nbytes > 0) {
-    *dest++ = pattern;
-  }
-  if (x2&3) *dest = 0;
-  // TODO
-}
-
-// Fill rect (E,D,C,B) color A
-void RECTAN(const ContextBlock *ctx) {
-  for (byte y=_D; y<_D+_B; y++) {
-    hline(_E, _E+_C, y, _A);
-  }
-}
-
-const char BIGFONT[HICHAR-LOCHAR+1][7] = {/*{count:68,w:8,h:7,brev:1}*/
-{0x00,0x00,0x00,0x00,0x00,0x00,0x00},{0x20,0x20,0x20,0x20,0x00,0x00,0x20},{0x50,0x50,0x00,0x00,0x00,0x00,0x00},{0x48,0xFC,0x48,0x48,0x48,0xFC,0x48},{0x20,0x78,0x80,0x70,0x08,0xF0,0x20},{0x00,0x48,0x10,0x20,0x40,0x90,0x00},{0x60,0x90,0x60,0xA0,0xA8,0x90,0x68},{0x60,0x60,0x20,0x00,0x00,0x00,0x00},{0x20,0x40,0x40,0x40,0x40,0x40,0x20},{0x40,0x20,0x20,0x20,0x20,0x20,0x40},{0x00,0xA8,0x70,0xF8,0x70,0xA8,0x00},{0x00,0x20,0x20,0xF8,0x20,0x20,0x00},{0x00,0x00,0x00,0x00,0x60,0x20,0x40},{0x00,0x00,0x00,0xF0,0x00,0x00,0x00},{0x00,0x00,0x00,0x00,0x00,0x60,0x60},{0x00,0x08,0x10,0x20,0x40,0x80,0x00},{0x70,0x88,0x88,0xA8,0x88,0x88,0x70},{0x20,0x60,0x20,0x20,0x20,0x20,0x70},{0x70,0x88,0x08,0x30,0x40,0x80,0xF8},{0x70,0x88,0x08,0x70,0x08,0x88,0x70},{0x10,0x30,0x50,0x90,0xF8,0x10,0x10},{0xF8,0x80,0x80,0x70,0x08,0x88,0x70},{0x70,0x88,0x80,0xF0,0x88,0x88,0x70},{0xF8,0x88,0x10,0x20,0x20,0x20,0x20},{0x70,0x88,0x88,0x70,0x88,0x88,0x70},{0x70,0x88,0x88,0x78,0x08,0x88,0x70},{0x00,0x00,0x60,0x00,0x60,0x00,0x00},{0x00,0x00,0x60,0x00,0x60,0x20,0x40},{0x10,0x20,0x40,0x80,0x40,0x20,0x10},{0x00,0x00,0xF8,0x00,0xF8,0x00,0x00},{0x40,0x20,0x10,0x08,0x10,0x20,0x40},{0x70,0x08,0x08,0x30,0x20,0x00,0x20},{0x70,0x88,0xB8,0xA8,0x90,0x80,0x70},{0x70,0x88,0x88,0xF8,0x88,0x88,0x88},{0xF0,0x88,0x88,0xF0,0x88,0x88,0xF0},{0x70,0x88,0x80,0x80,0x80,0x88,0x70},{0xF0,0x88,0x88,0x88,0x88,0x88,0xF0},{0xF8,0x80,0x80,0xF0,0x80,0x80,0xF8},{0xF8,0x80,0x80,0xF0,0x80,0x80,0x80},{0x70,0x88,0x80,0xB0,0x88,0x88,0x70},{0x88,0x88,0x88,0xF8,0x88,0x88,0x88},{0x70,0x20,0x20,0x20,0x20,0x20,0x70},{0x08,0x08,0x08,0x08,0x88,0x88,0x70},{0x88,0x90,0xA0,0xC0,0xA0,0x90,0x88},{0x80,0x80,0x80,0x80,0x80,0x80,0xF8},{0x88,0xD8,0xA8,0x88,0x88,0x88,0x88},{0x88,0xC8,0xA8,0xA8,0x98,0x88,0x88},{0xF8,0x88,0x88,0x88,0x88,0x88,0xF8},{0xF0,0x88,0x88,0xF0,0x80,0x80,0x80},{0x70,0x88,0x88,0xA8,0xA8,0x90,0x68},{0xF0,0x88,0x88,0xF0,0x90,0x90,0x88},{0x70,0x88,0x80,0x70,0x08,0x88,0x70},{0xF8,0x20,0x20,0x20,0x20,0x20,0x20},{0x88,0x88,0x88,0x88,0x88,0x88,0x70},{0x88,0x88,0x88,0x88,0x88,0x50,0x20},{0x88,0x88,0x88,0x88,0xA8,0xD8,0x88},{0x88,0x88,0x50,0x20,0x50,0x88,0x88},{0x88,0x88,0x50,0x20,0x20,0x20,0x20},{0xF8,0x08,0x10,0x20,0x40,0x80,0xF8},{0x70,0x40,0x40,0x40,0x40,0x40,0x70},{0x00,0x80,0x40,0x20,0x10,0x08,0x00},{0x70,0x10,0x10,0x10,0x10,0x10,0x70},{0x20,0x70,0xA8,0x20,0x20,0x20,0x00},{0x00,0x20,0x40,0xF8,0x40,0x20,0x00},{0x00,0x20,0x20,0x20,0xA8,0x70,0x20},{0x00,0x20,0x10,0xF8,0x10,0x20,0x00},{0x00,0x88,0x50,0x20,0x50,0x88,0x00},{0x00,0x20,0x00,0xF8,0x00,0x20,0x00}};
-
-const char SMLFONT[HICHAR-LOCHAR+1][5] = {/*{count:68,w:5,h:5,brev:1}*/
-{ 0x00,0x00,0x00,0x00,0x00 },{ 0x40,0x40,0x00,0x40,0x00 },{ 0xA0,0xA0,0x00,0x00,0x00 },{ 0x60,0xF0,0xF0,0x60,0x00 },{ 0x40,0xE0,0xE0,0x40,0x00 },{ 0x90,0x20,0x40,0x90,0x00 },{ 0xC0,0xB0,0xE0,0xD0,0x00 },{ 0x20,0x40,0x00,0x00,0x00 },{ 0x20,0x40,0x40,0x20,0x00 },{ 0x40,0x20,0x20,0x40,0x00 },{ 0x40,0xE0,0x40,0xA0,0x00 },{ 0x00,0x40,0xE0,0x40,0x00 },{ 0x00,0x00,0x00,0x60,0x20 },{ 0x00,0x00,0xE0,0x00,0x00 },{ 0x00,0x00,0x00,0x40,0x00 },{ 0x20,0x20,0x40,0x40,0x00 },{ 0xE0,0xA0,0xA0,0xA0,0xE0 },{ 0xC0,0x40,0x40,0x40,0xE0 },{ 0xE0,0x20,0xE0,0x80,0xE0 },{ 0xE0,0x20,0x60,0x20,0xE0 },{ 0xA0,0xA0,0xE0,0x20,0x20 },{ 0xE0,0x80,0xE0,0x20,0xE0 },{ 0xE0,0x80,0xE0,0xA0,0xE0 },{ 0xE0,0x20,0x40,0x40,0x40 },{ 0xE0,0xA0,0xE0,0xA0,0xE0 },{ 0xE0,0xA0,0xE0,0x20,0xE0 },{ 0x00,0x40,0x00,0x40,0x00 },{ 0x00,0x40,0x00,0x60,0x20 },{ 0x00,0x20,0x40,0x20,0x00 },{ 0x00,0xE0,0x00,0xE0,0x00 },{ 0x00,0x40,0x20,0x40,0x00 },{ 0xE0,0x20,0x60,0x00,0x40 },{ 0xF0,0x90,0x10,0xD0,0xF0 },{ 0x60,0xA0,0xE0,0xA0,0x00 },{ 0xC0,0xE0,0xA0,0xE0,0x00 },{ 0x60,0x80,0x80,0xE0,0x00 },{ 0xC0,0xA0,0xA0,0xC0,0x00 },{ 0xE0,0xC0,0x80,0xE0,0x00 },{ 0xE0,0xC0,0x80,0x80,0x00 },{ 0x60,0x80,0xA0,0xE0,0x00 },{ 0xA0,0xA0,0xE0,0xA0,0x00 },{ 0xE0,0x40,0x40,0xE0,0x00 },{ 0x60,0x20,0xA0,0xE0,0x00 },{ 0xA0,0xC0,0xC0,0xA0,0x00 },{ 0x80,0x80,0x80,0xE0,0x00 },{ 0xE0,0xE0,0xE0,0xA0,0x00 },{ 0xE0,0xA0,0xA0,0xA0,0x00 },{ 0xE0,0xA0,0xA0,0xE0,0x00 },{ 0xE0,0xA0,0xE0,0x80,0x00 },{ 0xE0,0xA0,0xE0,0xF0,0x00 },{ 0xE0,0xA0,0xC0,0xA0,0x00 },{ 0xE0,0x80,0x60,0xE0,0x00 },{ 0xE0,0x40,0x40,0x40,0x00 },{ 0xA0,0xA0,0xA0,0xE0,0x00 },{ 0xA0,0xA0,0xC0,0x80,0x00 },{ 0xA0,0xE0,0xE0,0xE0,0x00 },{ 0xA0,0x40,0xA0,0xA0,0x00 },{ 0xA0,0xE0,0x40,0x40,0x00 },{ 0xE0,0x20,0x40,0xE0,0x00 },{ 0x60,0x40,0x40,0x60,0x00 },{ 0x40,0x40,0x20,0x20,0x00 },{ 0x60,0x20,0x20,0x60,0x00 },{ 0x40,0xA0,0x00,0x00,0x00 },{ 0x00,0x00,0x00,0x00,0xF0 },{ 0x80,0x40,0x00,0x00,0x00 },{ 0x00,0x60,0xA0,0xE0,0x00 },{ 0x80,0xE0,0xA0,0xE0,0x00 },{ 0x00,0x60,0x80,0xE0,0x00 }};
-
-// draw a letter
-byte draw_char(const FontDescriptor* font, byte ch, byte x, byte y, byte op) {
-  const byte* src = font->chartab + (ch-font->base_ch)*font->pattern_y;
-  byte* dest = &vmagic[y][x>>2];// destination address
-  byte magic = M_SHIFT(x) | M_XPAND | (op & 0x30);
-  // big sizes?
-  if (op & 0xc0) {
-    char buf[8];		// expansion buffer
-    char* mbuf = (buf - 0x4000);// make it magic
-    byte sc = 1 << (op >> 6); // 2x2 = 2, 4x4 = 4, 8x8 = 8
-    for (byte i=0; i<font->pattern_y; i++) {
-      // expand into magic buffer onto stack
-      hw_magic = M_XPAND;
-      hw_xpand = 0b1100;	// on = 11, off = 00
-      // 2x2 size
-      mbuf[1] = mbuf[0] = *src++;
-      // 4x4 size
-      if (op & 0x80) {
-        byte b = buf[0];
-        mbuf[3] = mbuf[2] = buf[1];
-        mbuf[1] = mbuf[0] = b;
-      }
-      // 8x8 size
-      if ((op & 0xc0) == 0xc0) {
-        byte b = buf[0];
-        mbuf[7] = mbuf[6] = buf[3];
-        mbuf[5] = mbuf[4] = buf[2];
-        mbuf[3] = mbuf[2] = buf[1];
-        mbuf[1] = mbuf[0] = b;
-      }
-      // draw to screen (magic, again)
-      hw_xpand = op & 0xf;
-      for (byte j=0; j<sc; j++) {
-        hw_magic = magic; // reset flip flop
-        EXIT_CLIPDEST(dest);
-        for (byte k=0; k<sc; k++) {
-          byte b = buf[k];
-          *dest++ = b;
-          *dest++ = b;
-        }
-        dest += VBWIDTH-sc*2;
-      }
-    }
-  } else {
-    hw_xpand = op & 0xf;
-    for (byte i=0; i<font->pattern_y; i++) {
-      char b = *src++;
-      EXIT_CLIPDEST(dest);
-      hw_magic = magic; // reset flip flop
-      *dest++ = b;	// expand lower nibble -> 1st byte
-      *dest++ = b;	// expand upper nibble -> 2nd byte
-      *dest++ = 0;	// leftover -> 3rd byte
-      dest += VBWIDTH-3;	// we incremented 3 bytes for this line
-    }
-  }
-  return font->frame_x << (op >> 6);
-}
-
-#define FONT_IX ((const FontDescriptor*)ctx->regs.w.ix)
-
-void draw_string(ContextBlock *ctx, const char* str, byte x, byte y, byte op) {
-  do {
-    byte ch = *str++;
-    if (!ch) {
-      _E = x;
-      break;
-    }
-    if (ch < 0x20) {
-      x += draw_char(&FNTSYS, ' ', x, y, op); // TODO
-    } else if (ch < 0x64) {
-      x += draw_char(&FNTSYS, ch, x, y, op);
-    } else if (ch >= 0x80) {
-      x += draw_char(FONT_IX, ch, x, y, op);
-    } else {
-      /*
-      if (ch & 0x10) {
-        ctx->regs.b.ixl = *str++;
-        ctx->regs.b.ixh = *str++;
-      }
-      if (ch & 0x1)
-        _E = *str++;
-      if (ch & 0x2)
-        _D = *str++;
-      if (ch & 0x4)
-        _C = *str++;
-      */
-      // TODO: only can change font
-    }
-  } while (1);
-}
-
-// String display routine (pass pointer to string)
-void STRDIS2(ContextBlock *ctx, char *str) {
-  byte opts = _C;
-  byte x = _E;
-  byte y = _D;
-  void* fontdesc = (void*) ctx->regs.w.ix;
-  draw_string(ctx, str, x, y, opts); // TODO: opts
-}
-
-// String display routine
-void STRDIS(ContextBlock *ctx) {
-  char* str = (char*) _HL;
-  STRDIS2(ctx, str);
-}
-
-// Character display routine
-void CHRDIS(ContextBlock *ctx) {
-  char chstr[2];
-  chstr[0] = _A;
-  chstr[1] = 0;
-  STRDIS2(ctx, chstr);
-}
-
-// BCD routine
-const char BCDTAB[17] = "0123456789*+,-./";
-
-// DISNUM - (E.D) x/y (C) options (B) ext (HL) BCD-addr
-void DISNUM(ContextBlock *ctx) {
-  // TODO: options, B
-  byte x = _E;
-  byte y = _D;
-  byte opt = _C;
-  byte ext = _B;
-  byte ndigits = ext & 63;
-  const FontDescriptor* font = (ext&64) ? &FNTSML : &FNTSYS;
-  byte add = (ext&64) ? 128 : 0;
-  byte noleadingzero = ext & 128;
-  byte* pbcd = (byte*) _HL;
-  pbcd += (ndigits-1)/2;
-  while (ndigits--) {
-    byte val = *pbcd;
-    if (ndigits & 1) {
-      val >>= 4;
-    } else {
-      val &= 15;
-      pbcd--;
-    }
-    x += draw_char(font, BCDTAB[val]+add, x, y, opt);
-  }
-}
-
-typedef struct {
-  sbyte xofs, yofs;
-  byte xsize, ysize;
-  byte pattern[0];
-} PatternBlock;
-
-// write pattern (E,D,C,B) magic A @ HL
-void WRIT(ContextBlock *ctx) {
-  byte magic = _A;
-  byte w = _C;
-  byte h = _B;
-  byte x = _E;
-  byte y = _D;
-  byte* src = (byte*) _HL;
-  byte* dest = &vmagic[y][0]; // destination address
-  byte xb = (magic & M_FLOP) ? (39-(x>>2)) : (x>>2);
-  byte i,j,b;
-  // iterate through all lines
-  for (j=0; j<h; j++) {
-    EXIT_CLIPDEST(dest);
-    hw_magic = magic;
-    if (magic & M_XPAND) {
-      // when XPAND set, write twice as many bytes
-      for (i=0; i<w*2; i+=2) {
-        b = *src++;
-        // when FLOP set, sprite position is also mirrored
-        if (magic & M_FLOP) {
-          dest[xb-i] = b;
-          dest[xb-i-1] = b;
-        } else {
-          dest[xb+i] = b;
-          dest[xb+i+1] = b;
-        }
-      }
-    } else {
-      for (i=0; i<w; i++) {
-        // when FLOP set, sprite position is also mirrored
-        if (magic & M_FLOP) {
-          dest[xb-i] = *src++;
-        } else {
-          dest[xb+i] = *src++;
-        }
-      }
-    }
-    if (magic & M_FLOP)
-      dest[xb-i] = 0;
-    else
-      dest[xb+i] = 0;
-    dest += VBWIDTH;
-  }
-}
-
-// write sized pattern (E,D) magic A @ HL
-void WRITP(ContextBlock *ctx) {
-  byte* src = (byte*) _HL;
-  // get size
-  _C = *src++;
-  _B = *src++;
-  // update src
-  _HL = (word) src;
-  WRIT(ctx);
-}
-
-// write relative pattern (E,D) magic A @ HL
-void WRITR(ContextBlock *ctx) {
-  byte* src = (byte*) _HL;
-  // sub offset
-  _E -= *src++;
-  _D -= *src++;
-  // update src
-  _HL = (word) src;
-  WRITP(ctx);
 }
 
 void wait_vsync() {
@@ -694,99 +308,18 @@ void RANGED(ContextBlock *ctx) {
 
 // input
 
-void SENTRY(ContextBlock *ctx) {
-  byte i;
-  byte A = SNUL;
-  byte B = 0;
-  byte key = 0;
-  byte val[4];
-  // joysticks and switches
-  val[0] = hw_p1ctrl;
-  val[1] = hw_p2ctrl;
-  val[2] = hw_p3ctrl;
-  val[3] = hw_p4ctrl;
-  for (i=0; i<4; i++) {
-    if (val[i] != OSW[i]) {
-      A = SJ0+i*2;
-      if ((val[i] ^ OSW[i]) & 0x10) {
-        A++;
-      }
-      B = val[i];
-    }
-  }
-  memcpy(OSW, val, 4); // update previous state
-  // keypad
-  val[0] = hw_keypad0;
-  val[1] = hw_keypad1;
-  val[2] = hw_keypad2;
-  val[3] = hw_keypad3;
-  for (i=0; i<4; i++) {
-    // key down? and with mask
-    if (val[i] && (val[i] &= ((byte*)_DE)[i])) {
-      key = i+1;
-      while (val[i]) {
-        key += 4;
-        val[i] >>= 1;
-      }
-    }
-  }
-  // key up?
-  if (key && key != KEYSEX) {
-    B = KEYSEX = key;
-    A = SKYD;
-  }
-  else if (!key && KEYSEX) {
-    if (KEYSEX & 0x80) {
-      A = SSEC;	// second timer
-    } else {
-      A = SKYU;
-    }
-    B = 0;
-    KEYSEX = 0;
-  }
-  // pots
-  val[0] = hw_p1pot;
-  val[1] = hw_p2pot;
-  val[2] = hw_p3pot;
-  val[3] = hw_p4pot;
-  for (i=0; i<4; i++) {
-    if (val[i] != OPOT[i]) {
-      A = SP0+i;
-      B = val[i];
-    }
-  }
-  memcpy(OPOT, val, 4); // update previous state
-  // semiphores
-  if (SEMI4S) {
-    B = SEMI4S;
-    for (i=7; i>=0; i--) {
-      if (B & 0x80) {
-        A = SF0+i;
-        SEMI4S ^= 1 << i;
-        break;
-      }
-      B <<= 1;
-    }
-  }
-  // counters
-  if (SENFLG) {
-    B = SENFLG;
-    for (i=7; i>=0; i--) {
-      if (B & 0x80) {
-        A = SF0+i;
-        SENFLG ^= 1 << i;
-        break;
-      }
-      B <<= 1;
-    }
-  }
-  // clear timeout counter (TODO)
-  if (A >= SKYU) {
-    TIMOUT = 0xff;
-  }
-  _A = A;
-  _B = B;
+const byte KCTASC_TABLE[25] = {
+  0x00,
+  0x43, 0x5e, 0x5c, 0x25, 0x52, 0x53, 0x3b, 0x2f,
+  0x37, 0x38, 0x39, 0x2a, 0x34, 0x35, 0x36, 0x2d,
+  0x31, 0x32, 0x33, 0x2b, 0x26, 0x30, 0x2e, 0x3d
+};
+
+void KCTASC(ContextBlock *ctx) {
+  _A = KCTASC_TABLE[_B];
 }
+
+// music
 
 void BMUSIC(ContextBlock *ctx) {
   VOICES = _A;
@@ -799,6 +332,22 @@ void EMUSIC(ContextBlock *ctx) {
   ctx;
   VOICES = 0;
 }
+
+// externals
+
+extern void SENTRY(ContextBlock *ctx);
+extern void DOIT(ContextBlock *ctx);
+extern void DOITB(ContextBlock *ctx);
+
+extern void RECTAN(const ContextBlock *ctx);
+extern void WRITR(const ContextBlock *ctx);
+extern void WRITP(const ContextBlock *ctx);
+extern void WRIT(const ContextBlock *ctx);
+extern void CHRDIS(const ContextBlock *ctx);
+extern void STRDIS(const ContextBlock *ctx);
+extern void DISNUM(const ContextBlock *ctx);
+
+// table
 
 const SysCallEntry SYSCALL_TABLE[64] = {
   /* 0 */
@@ -840,11 +389,11 @@ const SysCallEntry SYSCALL_TABLE[64] = {
   /* 60 */
   { 0, 0 },
   { 0, 0 },
-  { 0, 0 },
+  { &KCTASC,	0 },
   { &SENTRY, 	REG_DE },
-  { 0, 0 },
+  { &DOIT,	REG_HL },
   /* 70 */
-  { 0, 0 },
+  { &DOITB,	REG_HL },
   { 0, 0 },
   { 0, 0 },
   { 0, 0 },
