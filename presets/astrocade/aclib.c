@@ -2,6 +2,8 @@
 #include <string.h>
 #include "aclib.h"
 
+#pragma opt_code_speed
+
 // set entire palette at once (8 bytes to port 0xb)
 // bytes in array should be in reverse
 void set_palette(byte palette[8]) __z88dk_fastcall {

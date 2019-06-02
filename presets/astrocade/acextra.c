@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "aclib.h"
+#include "acextra.h"
 
 #define EXIT_CLIPDEST(addr) if ((((word)addr)&0xfff) >= 0xe10) return
 

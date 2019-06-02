@@ -2,6 +2,8 @@
 #ifndef _ACBIOS_H
 #define _ACBIOS_H
 
+#include "aclib.h"
+
 // FONT DESCRIPTORS
 
 typedef struct {
@@ -15,10 +17,6 @@ typedef struct {
 
 const FontDescriptor __at(0x206) FNTSYS;
 const FontDescriptor __at(0x20d) FNTSML;
-
-// BIOS COMMANDS
-
-#define STRDIS	0x34
 
 // FUNCTIONS
 
@@ -36,6 +34,7 @@ const FontDescriptor __at(0x20d) FNTSML;
 
 void activate_interrupts(void);
 void sleep(byte frames) __z88dk_fastcall;
+void fast_vsync(void);
 
 void display_string(byte x, byte y, byte options, const char* str);
 void paint_rectangle(byte x, byte y, byte w, byte h, byte colormask);
@@ -48,6 +47,11 @@ void display_bcd_number(byte x, byte y, byte options, const byte* number, byte e
 void bcdn_add(byte* dest, byte size, const byte* n);
 void bcdn_sub(byte* dest, byte size, const byte* n);
 byte ranged_random(byte n) __z88dk_fastcall;
+
+word sense_transition(const byte* keypad_mask) __z88dk_fastcall;
+
+void begin_music(const byte* stack, byte voices, const byte* musicdata);
+void end_music(void);
 
 // QUICK MACROS
 
@@ -64,5 +68,9 @@ byte ranged_random(byte n) __z88dk_fastcall;
         __asm__(".dw "#dest);\
         __asm__(".dw "#count);\
         __asm__(".db "#val);\
+
+#define RESET_TIMEOUT() \
+	__asm__("ld a,#0xff");\
+        __asm__("ld (0x4FEC),a");
 
 #endif

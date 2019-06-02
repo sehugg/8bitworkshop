@@ -4,6 +4,12 @@
 
 #include "aclib.h"
 
+// font constants
+#define LOCHAR 32
+#define HICHAR 127
+#define FONT_BWIDTH 1
+#define FONT_HEIGHT 8
+
 void clrscr();
 void vline(byte x, byte y1, byte y2, byte col, byte op);
 void pixel(byte x, byte y, byte col, byte op);

@@ -1,7 +1,7 @@
 
 ; Minimal header file for use with Astrocade C programs
 
-	.area _CODE
+	.area	_CODE
 
 	.byte	0x55            ; ... with the code for a normal menued cartridge
 	.word	0x0218          ; Initialize menu

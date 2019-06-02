@@ -71,12 +71,6 @@ byte __at (0x0000) vmagic[VTOTAL][VBWIDTH];
 // regular frame buffer RAM
 byte __at (0x4000) vidmem[VTOTAL][VBWIDTH];
 
-// font constants
-#define LOCHAR 32
-#define HICHAR 127
-#define FONT_BWIDTH 1
-#define FONT_HEIGHT 8
-
 /// GRAPHICS FUNCTIONS
 
 void set_palette(byte palette[8]) __z88dk_fastcall; // palette in reverse order

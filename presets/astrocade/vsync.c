@@ -24,13 +24,17 @@ void main() {
   byte x,y;
   x=20;
   y=20;
+  memset((void*)0x4FCE, 0, 0x5000-0x4FCE);
   set_palette(palette);
   SYS_SETOUT(98*2, 0, 0x0);
   SYS_FILL(0x4000, 98*40, 0); // clear screen
   activate_interrupts();
   while (1) {
     write_relative(x, y, M_MOVE, player_bitmap);
-    sleep(1);
+    write_relative(x, y+20, M_MOVE, player_bitmap);
+    write_relative(x, y+40, M_MOVE, player_bitmap);
+//    write_relative(x, y+60, M_MOVE, player_bitmap);
+    fast_vsync();
     x++;
   }
 }

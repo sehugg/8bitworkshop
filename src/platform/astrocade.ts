@@ -452,16 +452,16 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   }
   toLongString(st) {
     var s = "";
-    s += " Scanline: " + st.sl;
+    s +=   " Scan Y: " + st.sl;
+    s += "\n  INLIN: " + st.inlin;
+    s += "\n  VERBL: " + st.verbl;
     s += "\nMAGICOP: $" + hex(st.magicop);
     s += "\n  XPAND: $" + hex(st.xpand);
     s += "\nXPLOWER: " + st.xplower;
     s += "\n SHIFT2: $" + hex(st.shift2);
     s += "\n  HORCB: $" + hex(st.horcb);
     s += "\n  INMOD: $" + hex(st.inmod);
-    s += "\n  INLIN: " + st.inlin;
     s += "\n  INFBK: $" + hex(st.infbk);
-    s += "\n  VERBL: " + st.verbl;
     /*
     s += "\nPalette: ";
     for (var i=0; i<8; i++)
@@ -481,7 +481,6 @@ class AstrocadeAudio extends AY38910_Audio {
   setACRegister(addr : number, val : number) {
     addr &= 0x7;
     val &= 0xff;
-    //console.log(addr,val);
     switch (addr) {
       case 0:
         this.psg.setClock(1789000 * 16 / (val + 1));

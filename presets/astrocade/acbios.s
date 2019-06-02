@@ -3,7 +3,7 @@
 
 ;;; C functions
 
-	.area	CODE
+	.area	_LIB
 
 ; activate interrupts
 	.globl	_activate_interrupts
@@ -20,6 +20,16 @@ _sleep:
 	ld	b,l
 	SYSTEM  PAWS
         ret
+
+	.globl	_fast_vsync
+_fast_vsync:
+	ld	hl,#TMR60
+        ld	c,(hl)
+.lvsync:
+        ld	a,(hl)
+        sub	c
+        jp	z,.lvsync
+	ret
 
 ; load 5 bytes from stack into registers
 load5_edca_hl:
@@ -96,3 +106,27 @@ _blank_area:
         SYSTEM	BLANK
         ret
 
+; SENTRY mask-addr
+	.globl	_sense_transition
+_sense_transition:
+	ld	l,e
+        ld	h,d
+        SYSTEM	SENTRY
+        ld	l,a
+        ld	h,b
+        ret
+
+; BMUSIC stack-addr voices score-addr
+	.globl  _begin_music
+_begin_music:
+	call	load5_edca_hl
+        push	de
+        pop	ix
+        SYSTEM	BMUSIC
+	ret
+
+; EMUSIC
+	.globl	_end_music
+_end_music:
+	SYSTEM	EMUSIC
+	ret

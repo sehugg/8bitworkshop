@@ -34,7 +34,7 @@ const byte palette[8] = {
 void main() {
   set_palette(palette);
   SYS_SETOUT(89*2, 20, 0);
-  SYS_FILL(0x4000, 89*2, 0);
+  SYS_FILL(0x4000, 89*40, 0);
   hw_xpand = XPAND_COLORS(0, 2);
   draw_string(2, 80, 0, "Hello, Lines!");
   draw_line(0, 0, 159, 95, 1);

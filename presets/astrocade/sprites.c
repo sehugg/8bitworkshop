@@ -24,7 +24,7 @@ void main() {
   y=10;
   set_palette(palette);
   SYS_SETOUT(102*2, 0, 0);
-  SYS_FILL(0x4000, 89*2, 0);
+  SYS_FILL(0x4000, 89*40, 0);
   while (1) {
     render_sprite(player_bitmap, x, y, M_MOVE);
     erase_sprite(player_bitmap, x, y);

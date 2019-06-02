@@ -55,6 +55,13 @@ SYSCALL38:
 	pop	hl
 	ret
 
+; out to port
+	.globl	_portOut
+_portOut:
+	ld	c,h
+	out	(c),l
+	ret
+
 ; TODO?
 ReloadRegs:
 	ld	c,(hl)

@@ -18,6 +18,9 @@ See: http://creativecommons.org/publicdomain/zero/1.0/
 // demo code
 //#link "test1.s"
 
+// music processor
+//#link "bmusic.c"
+
 #include <string.h>
 
 // uncomment to make code better, but slower compile
@@ -162,6 +165,7 @@ const FontDescriptor __at(0x206) FNTSYS; // = { 0x20, 8, 8, 1, 7, (byte*)BIGFONT
 const FontDescriptor __at(0x20d) FNTSML; // = { 0xa0, 4, 6, 1, 5, (byte*)SMLFONT };
 
 
+extern void music_update(void);
 
 // INTERRUPT HANDLERS
 // must be in 0x200 page
@@ -176,9 +180,17 @@ void hw_interrupt() __naked {
   if (++TMR60 == 60) {
     TMR60 = 0;
     ++TIMOUT;
-    KEYSEX |= 0x80;
+    KEYSEX |= 0x80; // notify SENTRY
     if (++GTSECS == 60) {
       GTMINS++;
+    }
+  }
+  // TODO?
+  if (VOICES) {
+    if (DURAT) {
+      DURAT--;
+    } else {
+      music_update();
     }
   }
   __asm__("exx");
@@ -186,21 +198,20 @@ void hw_interrupt() __naked {
   __asm__("reti");
 }
 
-// TODO
-byte add_counters(byte mask, byte delta) {
+void add_counters(byte mask, byte delta) {
   byte i = 0;
-  byte any0 = 0;
   while (mask) {
     if (mask & 1) {
       if (CT[i]) {
-        if (!(CT[i] += delta))
-          any0 = 1;
+        // notify SENTRY if counters go to 0
+        if (!(CT[i] += delta)) {
+          SENFLG |= 1<<i;
+        }
       }
     }
     mask >>= 1;
     i++;
   }
-  return any0;
 }
 
 void STIMER() {
@@ -214,10 +225,7 @@ void TIMEZ() {
 }
 
 void TIMEY() {
-  CT[0]--;
-  CT[1]--;
-  CT[2]--;
-  CT[3]--;
+  add_counters(0x0f, -1);
 }
 
 void TIMEX() {
@@ -780,6 +788,18 @@ void SENTRY(ContextBlock *ctx) {
   _B = B;
 }
 
+void BMUSIC(ContextBlock *ctx) {
+  VOICES = _A;
+  MUZPC = _HL;
+  MUZSP = _IX;
+  DURAT = 0;
+}
+
+void EMUSIC(ContextBlock *ctx) {
+  ctx;
+  VOICES = 0;
+}
+
 const SysCallEntry SYSCALL_TABLE[64] = {
   /* 0 */
   { &INTPC,	0 },
@@ -792,9 +812,9 @@ const SysCallEntry SYSCALL_TABLE[64] = {
   { &SUCK,	REG_B },
   { &ACTINT,	0 },
   { 0, 0 },
-  { 0, 0 },
+  { &BMUSIC,    REG_HL|REG_IX|REG_A },
   /* 20 */
-  { 0, 0 },
+  { &EMUSIC,    },
   { &SETOUT,	REG_D|REG_B|REG_A },
   { &COLSET,	REG_HL },
   { &FILL,	REG_A|REG_BC|REG_DE },
@@ -893,4 +913,7 @@ void bios_init() {
   hw_magic = 0;
   *((byte*)0x4fce) = 0;
   hw_magic = 0;
+  // call SENTRY once to set current values
+  // (context block doesn't matter)
+  SENTRY((ContextBlock*)0x4fce);
 }
