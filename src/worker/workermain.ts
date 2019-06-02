@@ -292,7 +292,6 @@ interface BuildStep extends WorkerBuildStep {
   params?
   result?
   code?
-  generated?
   prefix?
   maxts?
 };
@@ -1989,6 +1988,7 @@ function applyDefaultErrorPath(errors:WorkerError[], path:string) {
 
 function executeBuildSteps() {
   buildstartseq = workerseq;
+  var linkstep : BuildStep = null;
   while (buildsteps.length) {
     var step = buildsteps.shift(); // get top of array
     var platform = step.platform;
@@ -2014,37 +2014,29 @@ function executeBuildSteps() {
       }
       // combine files with a link tool?
       if (step.result.linktool) {
-        var linkstep = {
-          tool:step.result.linktool,
-          platform:platform,
-          files:step.result.files,
-          args:step.result.args
-        };
-        step.generated = linkstep.files;
-        // find previous link step to combine
-        for (var i=0; i<buildsteps.length; i++) {
-          var ls = buildsteps[i];
-          if (ls.tool == linkstep.tool && ls.platform == linkstep.platform && ls.files && ls.args) {
-            if (step.result.order === 'last') { // TODO: not used
-              ls.files = linkstep.files.concat(ls.files);
-              ls.args = linkstep.args.concat(ls.args);
-            } else {
-              ls.files = ls.files.concat(linkstep.files);
-              ls.args = ls.args.concat(linkstep.args);
-            }
-            linkstep = null;
-            break;
-          }
+        if (linkstep) {
+          linkstep.files = linkstep.files.concat(step.result.files);
+          linkstep.args = linkstep.args.concat(step.result.args);
+        } else {
+          linkstep = {
+            tool:step.result.linktool,
+            platform:platform,
+            files:step.result.files,
+            args:step.result.args
+          };
         }
-        if (linkstep) buildsteps.push(linkstep);
       }
       // process with another tool?
       if (step.result.nexttool) {
         var asmstep = step.result;
         asmstep.tool = step.result.nexttool;
         asmstep.platform = platform;
-        buildsteps.push(asmstep); // TODO: unshift changes order
-        step.generated = asmstep.files;
+        buildsteps.push(asmstep);
+      }
+      // process final step?
+      if (buildsteps.length == 0 && linkstep) {
+        buildsteps.push(linkstep);
+        linkstep = null;
       }
     }
   }

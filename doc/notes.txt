@@ -41,7 +41,6 @@ TODO:
 - VCS asm library
 - better VCS single stepping, maybe also listings
 - VCS skips step on lsr/lsr after run to line
-- error msg when #link doesn't work
 - figure out folders for projects for real
 - click to break on raster position
 - restructure src/ folders
@@ -59,9 +58,12 @@ TODO:
 - error showing replay div before rom starts
 - compiler flags for final ROM build
 - workermain: split build functions, better msg types
-- sdcc: can't link asm files before c files (e.g. acheader.s must be last)
-- what if >1 file with same name? (local/nonlocal/directory)
-- what if .c and .s names collide?
+- builds:
+  - what if >1 file with same name? (local/nonlocal/directory)
+  - what if .c and .s names collide?
+  - maybe put stuff in examples/ dir?
+  - error msg when #link doesn't work
+  - sdcc: can't link asm files before c files (e.g. acheader.s must be last)
 - live coding URL
 - resize memory browser when vertical div resize
 - preroll the emulator so optimizer does its thing before loading rom
@@ -156,6 +158,7 @@ TODO:
 - z80
   - can't single step on PUSH insns in listings?
   - order of acheader.s
+- ctrl+alt+l on ubuntu locks screen
 
 WEB WORKER FORMAT
 
