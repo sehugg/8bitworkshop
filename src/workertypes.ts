@@ -11,15 +11,15 @@ export interface SourceLine {
 export class SourceFile {
   lines: SourceLine[];
   text: string;
-  offset2line: {[offset:number]:number};
-  line2offset: {[line:number]:number};
+  offset2line: Map<number,number>; //{[offset:number]:number};
+  line2offset: Map<number,number>; //{[line:number]:number};
   
   constructor(lines:SourceLine[], text?:string) {
     lines = lines || [];
     this.lines = lines;
     this.text = text;
-    this.offset2line = {};
-    this.line2offset = {};
+    this.offset2line = new Map();
+    this.line2offset = new Map();
     for (var info of lines) {
       if (info.offset >= 0) {
         this.offset2line[info.offset] = info.line;
@@ -32,6 +32,7 @@ export class SourceFile {
       for (var i=0; i<=lookbehind; i++) {
         var line = this.offset2line[PC];
         if (line >= 0) {
+          //console.log(this.lines.length, PC.toString(16), line);
           return line;
         }
         PC--;

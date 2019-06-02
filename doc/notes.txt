@@ -155,9 +155,6 @@ TODO:
   - support projects with subdirectories, file list?
   - emulator needs reset shortcut for nes
   - switching platform of a repo?
-- z80
-  - can't single step on PUSH insns in listings?
-  - order of acheader.s
 - ctrl+alt+l on ubuntu locks screen
 
 WEB WORKER FORMAT

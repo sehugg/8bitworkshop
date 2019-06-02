@@ -1273,7 +1273,7 @@ function linkSDLDZ80(step:BuildStep)
       if (fn.endsWith('.lst')) {
         var rstout = FS.readFile(fn.replace('.lst','.rst'), {encoding:'utf8'});
         //   0000 21 02 00      [10]   52 	ld	hl, #2
-        var asmlines = parseListing(rstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2);
+        var asmlines = parseListing(rstout, /^\s*([0-9A-F]{4})\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+(\[[0-9 ]+\])?\s+(\d+) (.*)/i, 4, 1, 2);
         var srclines = parseSourceLines(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
         putWorkFile(fn, rstout);
         // TODO: you have to get rid of all source lines to get asm listing

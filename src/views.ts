@@ -492,10 +492,11 @@ export class ListingView extends DisassemblerView implements ProjectView {
   refreshListing() {
     // lookup corresponding assemblyfile for this file, using listing
     var lst = current_project.getListingForFile(this.path);
-    if (lst && lst.assemblyfile && lst.assemblyfile !== this.assemblyfile) {
+    // TODO?
+    if (lst && lst.assemblyfile) {
       this.assemblyfile = lst.assemblyfile;
     }
-    else if (lst && lst.sourcefile && lst.sourcefile !== this.assemblyfile) {
+    else if (lst && lst.sourcefile) {
       this.assemblyfile = lst.sourcefile;
     }
   }
