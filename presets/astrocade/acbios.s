@@ -3,7 +3,7 @@
 
 ;;; C functions
 
-	.area	_LIB
+	.area	_CODE_ACBIOS
 
 ; activate interrupts
 	.globl	_activate_interrupts
@@ -99,6 +99,13 @@ _ranged_random:
         SYSTEM	RANGED
         ret
 
+; KCTASC n
+	.globl	_keycode_to_ascii
+_keycode_to_ascii:
+	ld	a,l
+        SYSTEM	KCTASC
+        ret
+
 ; BLANK w h data video-addr
 	.globl	_blank_area
 _blank_area:
@@ -115,6 +122,20 @@ _sense_transition:
         ld	l,a
         ld	h,b
         ret
+
+; DOIT table-addr
+	.globl	_respond_to_input
+_respond_to_input:
+	call	load5_edca_hl
+	SYSTEM	DOIT
+	ret
+
+; DOITB table-addr
+	.globl	_respond_to_input_b
+_respond_to_input_b:
+	call	load5_edca_hl
+	SYSTEM	DOIT
+	ret
 
 ; BMUSIC stack-addr voices score-addr
 	.globl  _begin_music

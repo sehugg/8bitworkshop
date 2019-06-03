@@ -52,14 +52,16 @@ __sfr __at(0x18) hw_sndbx;
 #define M_SHIFT1	0x01
 #define M_SHIFT2	0x02
 #define M_SHIFT3	0x03
+#define M_ROTATE	0x04
 #define M_XPAND		0x08
 #define M_MOVE		0x00
 #define M_OR		0x10
 #define M_XOR		0x20
 #define M_FLOP		0x40
+
 #define M_SHIFT(x)	((x)&3)
+
 #define XPAND_COLORS(off,on) (((off)&3) | (((on)&3)<<2))
-#define M_ERASE		0x04	// special case for draw_sprite()
 
 #define VTOTAL 102	// number of total scanlines
 #define VHEIGHT 89	// number of scanlines in use

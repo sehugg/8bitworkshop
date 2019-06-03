@@ -55,6 +55,7 @@ void SENTRY(ContextBlock *ctx) {
     }
   }
   // key up?
+  // TODO: race condition with KEYSEX and interrupt
   if (key && key != KEYSEX) {
     B = KEYSEX = key;
     A = SKYD;

@@ -27,28 +27,12 @@ const byte BALL[] = {
   0b01111000,
 };
 
-const byte BALL2[] = {
-  0, 0,		// x and y offset
-  1, 6,		// width (bytes) and height (lines)
-  /*{w:16,h:6,brev:1}*/
-  0b1111000,
-  0b11011100,
-  0b10111000,	
-  0b110100,
-  0b11100000,
-  0b1111000,
-  0b1000000,
-  0b11010100,
-  0b10111100,	
-  0b10110100,
-  0b11111000,
-  0b1111000,
-};
-
 // BCD number
 byte bcdnum[3] = {0x56,0x34,0x12};
 const byte bcdinc[3] = {0x01,0x00,0x00};
-const byte keypadMask[4] = { 0x3f,0x3f,0x3f,0x3f };
+
+void _clear() {
+}
 
 void main(void) {
   // setup palette
@@ -58,7 +42,7 @@ void main(void) {
   // set interrupt status
   SYS_SETOUT(89*2, 23, 0);
   // clear screen
-  SYS_FILL(0x4000, 89*2, 0);
+  SYS_FILL(0x4000, 89*40, 0);
   // display standard characters
   display_string(2, 2, OPT_ON(1), "HELLO, WORLD!\xb1\xb2\xb3\xb4\xb5");
   // 2x2 must have X coordinate multiple of 2
@@ -87,8 +71,20 @@ void main(void) {
   // make sure screen doesn't black out
   RESET_TIMEOUT();
   while (1) {
-    display_bcd_number(80, 80, OPT_ON(2), bcdnum, 6|DISBCD_SML|DISBCD_NOZERO);
-    bcdn_add(bcdnum, 3, bcdinc);
-    while (sense_transition(keypadMask) == 0);
+    // wait for SENTRY result
+    word code;
+    do {
+      code = sense_transition(ALKEYS);
+    } while (code == 0);
+    // respond to SENTRY
+    switch (code & 0xff) {
+      case SSEC:
+        display_bcd_number(80, 80, OPT_ON(2), bcdnum, 6|DISBCD_SML|DISBCD_NOZERO);
+        bcdn_add(bcdnum, 3, bcdinc);
+        break;
+      case SP0:
+        hw_horcb = (code>>8)>>2;
+        break;
+    }
   }
 }

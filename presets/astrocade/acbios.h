@@ -15,8 +15,41 @@ typedef struct {
   const byte* chartab;
 } FontDescriptor;
 
-const FontDescriptor __at(0x206) FNTSYS;
-const FontDescriptor __at(0x20d) FNTSML;
+const FontDescriptor __at(0x206) FNTSYS; // system font
+const FontDescriptor __at(0x20d) FNTSML; // small font
+const byte __at(0x214) ALKEYS[4]; // "all keys" keyboard mask
+
+// SENTRY
+
+typedef enum {
+  SNUL,
+  SCT0,SCT1,SCT2,SCT3,SCT4,SCT5,SCT6,SCT7,
+  SF0,SF1,SF2,SF3,SF4,SF5,SF6,SF7,
+  SSEC,
+  SKYU,SKYD,
+  ST0,SJ0,ST1,SJ1,ST2,SJ2,ST3,SJ3,
+  SP0,SP1,SP2,SP3
+} SENTRYCode;
+
+typedef struct {
+  byte code;
+  word address;
+} DOITEntry;
+
+#define DOIT_END	0xff
+
+// PATTERNS
+
+typedef struct {
+  sbyte xofs, yofs;
+  byte xsize, ysize;
+  byte pattern[0];
+} RelativeBlock;
+
+typedef struct {
+  byte xsize, ysize;
+  byte pattern[0];
+} PatternBlock;
 
 // FUNCTIONS
 
@@ -47,8 +80,11 @@ void display_bcd_number(byte x, byte y, byte options, const byte* number, byte e
 void bcdn_add(byte* dest, byte size, const byte* n);
 void bcdn_sub(byte* dest, byte size, const byte* n);
 byte ranged_random(byte n) __z88dk_fastcall;
+byte keycode_to_ascii(byte n) __z88dk_fastcall;
 
-word sense_transition(const byte* keypad_mask) __z88dk_fastcall;
+word sense_transition(const byte keypad_mask[4]) __z88dk_fastcall;
+void respond_to_input(const DOITEntry* doit_table, byte a);
+void respond_to_input_b(const DOITEntry* doit_table, byte b);
 
 void begin_music(const byte* stack, byte voices, const byte* musicdata);
 void end_music(void);
@@ -68,6 +104,13 @@ void end_music(void);
         __asm__(".dw "#dest);\
         __asm__(".dw "#count);\
         __asm__(".db "#val);\
+
+#define SYS_MOVE(dest,src,count)\
+	__asm__("rst 0x38");\
+        __asm__(".db 0x5f");\
+        __asm__(".dw "#dest);\
+        __asm__(".dw "#count);\
+        __asm__(".dw "#src);\
 
 #define RESET_TIMEOUT() \
 	__asm__("ld a,#0xff");\

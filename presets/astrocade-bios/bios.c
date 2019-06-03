@@ -71,12 +71,16 @@ word* USERTB;		// user routine table (-128 bytes)
 // from bmusic.c
 extern void music_update(void);
 
-// INTERRUPT HANDLERS
-// must be in 0x200 page
-void hw_interrupt() __naked {
-  __asm__("ei");
-  __asm__("exx");
+// INTERRUPT HANDLER
+//#define USE_ALT_REGS
+void hw_interrupt()
+#ifdef USE_ALT_REGS
+__naked {
   __asm__("ex af,af'");
+  __asm__("exx");
+#else
+__interrupt {
+#endif
   CT[0]++;
   CT[1]++;
   CT[2]++;
@@ -97,9 +101,12 @@ void hw_interrupt() __naked {
       music_update();
     }
   }
+#ifdef USE_ALT_REGS
   __asm__("exx");
   __asm__("ex af,af'");
+  __asm__("ei");
   __asm__("reti");
+#endif
 }
 
 void add_counters(byte mask, byte delta) {
@@ -134,11 +141,18 @@ void TIMEY() {
 
 void TIMEX() {
 }
+  
+void DECCTS(ContextBlock *ctx) {
+  add_counters(_C, -1);
+}
+
+// INTERPRETER
 
 void INTPC(ContextBlock *ctx) {
   while (ctx->params[0] != 2) { // 2 = exit
     SYSCALL(ctx);
   }
+  ctx->params++; // skip EXIT opcode
 }
 
 // never called, hopefully
@@ -162,6 +176,10 @@ void MCALL(ContextBlock *ctx) {
 // exit MCALL loop
 void MRET(ContextBlock *ctx) {
   ctx; // TODO
+}
+
+void NOOP(ContextBlock *ctx) {
+  ctx;
 }
 
 // jump within MCALL
@@ -225,13 +243,7 @@ void SETOUT(ContextBlock *ctx) {
 
 // set entire palette at once (8 bytes to port 0xb)
 // bytes in array should be in reverse
-void set_palette(byte palette[8]) __z88dk_fastcall {
-  palette;
-__asm
-  ld bc,#0x80b	; B -> 8, C -> 0xb
-  otir		; write C bytes from HL to port[B]
-__endasm;
-}
+void set_palette(byte palette[8]) __z88dk_fastcall;
 
 // sets color palettes from (HL)
 void COLSET(ContextBlock *ctx) {
@@ -260,25 +272,10 @@ void PAWS(ContextBlock *ctx) {
 // MATH
 
 void MOVE(ContextBlock *ctx) {
-  byte* dest = (byte*) _DE;
-  const byte* src = (const byte*) _HL;
-  word nb = _BC;
-  memcpy(dest, src, nb);
+  memcpy((byte*)_DE, (const byte*)_HL, _BC);
 }
 
-word bcdadd8(byte a, byte b, byte c) {
-  a;b;c;
-__asm
-  ld  a,6(ix)	; carry
-  rrc a		; set carry bit
-  ld  h,#0	; carry goes here
-  ld  a,4(ix)	; a -> A
-  adc a,5(ix)	; a + b -> A
-  daa		; BCD conversion
-  ld  l,a	; result -> L
-  rl  h		; carry -> H
-__endasm;
-}
+word bcdadd8(byte a, byte b, byte c);
 
 void BCDADD(ContextBlock *ctx) {
   byte* dest = (byte*) _DE;
@@ -308,12 +305,7 @@ void RANGED(ContextBlock *ctx) {
 
 // input
 
-const byte KCTASC_TABLE[25] = {
-  0x00,
-  0x43, 0x5e, 0x5c, 0x25, 0x52, 0x53, 0x3b, 0x2f,
-  0x37, 0x38, 0x39, 0x2a, 0x34, 0x35, 0x36, 0x2d,
-  0x31, 0x32, 0x33, 0x2b, 0x26, 0x30, 0x2e, 0x3d
-};
+extern const byte KCTASC_TABLE[25];
 
 void KCTASC(ContextBlock *ctx) {
   _A = KCTASC_TABLE[_B];
@@ -360,7 +352,7 @@ const SysCallEntry SYSCALL_TABLE[64] = {
   { &MJUMP,	REG_HL },
   { &SUCK,	REG_B },
   { &ACTINT,	0 },
-  { 0, 0 },
+  { &DECCTS,	REG_C },
   { &BMUSIC,    REG_HL|REG_IX|REG_A },
   /* 20 */
   { &EMUSIC,    },
@@ -369,64 +361,64 @@ const SysCallEntry SYSCALL_TABLE[64] = {
   { &FILL,	REG_A|REG_BC|REG_DE },
   { &RECTAN,	REG_A|REG_B|REG_C|REG_D|REG_E },
   /* 30 */
-  { /*&VWRITR*/0, 0 },
+  { &NOOP,	REG_HL|REG_IX },	// VWRITR
   { &WRITR,  	REG_E|REG_D|REG_A|REG_HL },
   { &WRITP,  	REG_E|REG_D|REG_A|REG_HL },
   { &WRIT,   	REG_E|REG_D|REG_C|REG_B|REG_A|REG_HL },
-  { /*&WRITA*/0,  0 },
+  { &NOOP,	REG_E|REG_D|REG_C|REG_B|REG_A|REG_HL },	// WRITA
   /* 40 */
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
+  { &NOOP,	REG_E|REG_D|REG_IX },	// VBLANK
+  { &NOOP,	REG_E|REG_D|REG_B|REG_HL },	// BLANK
+  { &NOOP,	REG_B|REG_C|REG_DE|REG_HL },	// SAVE
+  { &NOOP,	REG_DE|REG_HL },	// RESTORE
+  { &NOOP,	REG_B|REG_C|REG_DE|REG_HL },	// SCROLL
   /* 50 */
   { &CHRDIS,	REG_E|REG_D|REG_C|REG_A },
   { &STRDIS,	REG_E|REG_D|REG_C|REG_HL },
   { &DISNUM,	REG_E|REG_D|REG_C|REG_B|REG_HL },
-  { 0, 0 },
-  { 0, 0 },
+  { &NOOP,	REG_DE|REG_A },	// RELABS
+  { &NOOP,	REG_E|REG_D|REG_A },	// RELAB1
   /* 60 */
-  { 0, 0 },
-  { 0, 0 },
+  { &NOOP,	REG_IX|REG_HL|REG_C },	// VECTC
+  { &NOOP,	REG_IX|REG_HL },	// VECT
   { &KCTASC,	0 },
   { &SENTRY, 	REG_DE },
   { &DOIT,	REG_HL },
   /* 70 */
   { &DOITB,	REG_HL },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
+  { &NOOP,	0 },	// PIZBRK
+  { &NOOP,	REG_DE|REG_HL },	// MENU
+  { &NOOP,	REG_BC|REG_HL },	// GETPAR
+  { &NOOP,	REG_B|REG_C|REG_D|REG_E|REG_HL },	// GETNUM
   /* 80 */
   { &PAWS,	REG_B },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
+  { &NOOP,	REG_E|REG_D|REG_C },	// DISTIM
+  { &NOOP,	REG_HL },	// INCSCR
+  { &NOOP,	REG_C|REG_HL },	// INDEXN
+  { &NOOP,	REG_HL },	// STOREN
   /* 90 */
-  { 0, 0 },
-  { 0, 0 },
+  { &NOOP,	REG_A|REG_HL },	// INDEXW
+  { &NOOP,	REG_A|REG_HL },	// INDEXB
   { &MOVE,	REG_DE|REG_BC|REG_HL },
-  { 0, 0 },
+  { &NOOP,	0 },	// SHIFTU
   { &BCDADD,	REG_DE|REG_B|REG_HL },
   /* 100 */
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
+  { &NOOP,	0 },	// BCDSUB
+  { &NOOP,	0 },	// BCDMUL
+  { &NOOP,	0 },	// BCDDIV
+  { &NOOP,	0 },	// BCDCHS
+  { &NOOP,	0 },	// BCDNEG
   /* 110 */
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
+  { &NOOP,	0 },	// DADD
+  { &NOOP,	0 },	// DSMG
+  { &NOOP,	0 },	// DABS
+  { &NOOP,	0 },	// NEGT
   { &RANGED,	REG_A },
   /* 120 */
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
+  { &NOOP,	0 },	// QUIT
+  { &NOOP,	REG_A|REG_HL },	// SETB
+  { &NOOP,	REG_DE|REG_HL },	// SETW
+  { &NOOP,	REG_C|REG_DE|REG_HL },	// MSKTD
 };
 
 void SYSCALL(ContextBlock *ctx) {
@@ -447,22 +439,17 @@ void SYSCALL(ContextBlock *ctx) {
     suckParams(ctx, argmask);
   }
   // call the routine
-  if (routine) {
-    routine(ctx);
-  }
+  routine(ctx);
 }
 
 void bios_init() {
+  ContextBlock ctx;
   memset((void*)0x4fce, 0, 0x5000-0x4fce);
   ACTINT(0);
   hw_verbl = 96*2;
   hw_horcb = 41;
   hw_inmod = 0x8;
-  // clear shifter
-  hw_magic = 0;
-  *((byte*)0x4fce) = 0;
-  hw_magic = 0;
   // call SENTRY once to set current values
   // (context block doesn't matter)
-  SENTRY((ContextBlock*)0x4fce);
+  SENTRY(&ctx);
 }

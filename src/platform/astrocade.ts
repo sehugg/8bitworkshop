@@ -145,18 +145,17 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     // or/xor
     if (magicop & 0x30) {
       var oldv = ram.mem[a];
+      // collision detect
+      var icpt = 0;
+      if ((oldv & 0xc0) && (v & 0xc0)) icpt |= 0x1;
+      if ((oldv & 0x30) && (v & 0x30)) icpt |= 0x2;
+      if ((oldv & 0x0c) && (v & 0x0c)) icpt |= 0x4;
+      if ((oldv & 0x03) && (v & 0x03)) icpt |= 0x8;
+      // apply op
       if (magicop & 0x10)
         v |= oldv;
       if (magicop & 0x20)
         v ^= oldv; // TODO: what if both?
-      // collision detect
-      var icpt = 0;
-      for (var i=0; i<8; i+=2) {
-        icpt <<= 1;
-        // pixel changed from off to on?
-        if ( !((oldv>>i)&3) && ((v>>i)&3) )
-          icpt |= 1;
-      }
       // upper 4 bits persist, lower are just since last write
       inputs[8] = (inputs[8] & 0xf0) | icpt | (icpt<<4);
     }
@@ -202,9 +201,8 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
           [0x0000, 0x3fff,  0xfff, magicwrite],
         ]),
         // TODO: correct values?
-        // TODO: no contention on hblank
         isContended: () => { return true; },
-        contend: () => { return vidactive ? 1 : 0; },
+        contend: (addr:number) => { return vidactive && addr >= 0x4000 ? 1 : 0; },
       };
     } else {
       // arcade game
@@ -220,7 +218,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
           [0x0000, 0x3fff, 0x3fff, magicwrite],
         ]),
         isContended: () => { return true; },
-        contend: () => { return vidactive ? 1 : 0; },
+        contend: (addr:number) => { return vidactive ? 1 : 0; },
       };
     }
     iobus = {
@@ -266,7 +264,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
              break;
           case 0xc: // magic register
             magicop = val;
-            //shift2 = 0; // TODO?
+            shift2 = 0; // TODO?
             xplower = false;
             break;
           case 0xd: // INFBK (interrupt feedback)

@@ -652,7 +652,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   }
   getToolForFilename = getToolForFilename_z80;
   getDefaultExtension() { return ".c"; };
-  // TODO
+  // TODO: Z80 opcode metadata
   //this.getOpcodeMetadata = function() { }
 
   getDebugCategories() {

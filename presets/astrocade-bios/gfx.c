@@ -147,7 +147,7 @@ void CHRDIS(ContextBlock *ctx) {
 }
 
 // BCD routine
-const char BCDTAB[17] = "0123456789*+,-./";
+const char BCDTAB[18] = "0123456789*+,-./ ";
 
 // DISNUM - (E.D) x/y (C) options (B) ext (HL) BCD-addr
 void DISNUM(ContextBlock *ctx) {
@@ -169,6 +169,11 @@ void DISNUM(ContextBlock *ctx) {
     } else {
       val &= 15;
       pbcd--;
+    }
+    if (val == 0 && noleadingzero) {
+      val = 16;
+    } else {
+      noleadingzero = 0;
     }
     x += draw_char(font, BCDTAB[val]+add, x, y, opt);
   }

@@ -46,7 +46,6 @@ TODO:
 - debug bankswitching for funky formats
 - spaces in filename don't parse code listing (DASM, maybe more)
 - 'undefined' for bitmap replacer
-- astrocade: run to cursor in hello world messes up emulation
 - requestInterrupt needs to be disabled after breakpoint?
 - C/asm formatter
 - fix WebAudio (https://news.ycombinator.com/item?id=18066474)
@@ -66,6 +65,7 @@ TODO:
 - sdcc:
   - can't link asm files before c files (e.g. acheader.s must be last)
   - figure out area names ordering
+  - debug inline asm
 - live coding URL
 - resize memory browser when vertical div resize
 - preroll the emulator so optimizer does its thing before loading rom
@@ -146,7 +146,7 @@ TODO:
 - don't have to include bootstrap-tourist each time?
 - don't have to include firebase always?
   - squelch error msgs? 
-  - test offline?
+  - test offline? (if window.firebase)
 - Github
   - gh-pages branch with embedded
   - handle overwrite logic

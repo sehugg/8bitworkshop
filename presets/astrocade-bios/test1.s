@@ -19,7 +19,7 @@ _main:
   	pop	ix
         SYSTEM	INTPC
         DO	SETOUT
-        .db	89*2, 23, 0x00
+        .db	102*2, 23, 0x00
         DONT	EMUSIC
         DONT	ACTINT
         DO	COLSET
@@ -89,11 +89,12 @@ _main:
         .dw	3
         .dw	_BCDNUM
         DO	BMUSIC
-        .dw	0x4000
+        .dw	0x4e80
         .db	0b11111100
         .dw	ANTHEM
         ; exit interpreter
         EXIT
+        nop
 .loop:
         SYSSUK	DISNUM
         .db	80
@@ -149,7 +150,7 @@ keymask:
 
 BCDNUM	= 0x4ea0	; RAM
 _BCDNUM:
-	.db	0x97,0x34,0x12
+	.db	0x97,0x99,0x09
 BCDINC:
         .db	0x01,0x00,0x00
 ; Critter Pattern

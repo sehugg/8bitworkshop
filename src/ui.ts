@@ -448,13 +448,15 @@ function importProjectFromGithub(githuburl:string, replaceURL:boolean) {
   }).catch( (e) => {
     setWaitDialog(false);
     console.log(e);
-    alertError("Could not import " + githuburl + ": " + e);
+    alertError("<p>Could not import " + githuburl + ".</p>" + e);
   });
 }
 
 function _loginToGithub(e) {
   getGithubService().login().then(() => {
     alertInfo("You are signed in to Github.");
+  }).catch( (e) => {
+    alertError("<p>Could not sign in.</p>" + e);
   });
 }
 
@@ -1180,6 +1182,7 @@ function getDebugExprExamples() : string {
   var s = '';
   if (cpu.PC) s += "c.PC == 0x" + hex(cpu.PC) + "\n";
   if (cpu.SP) s += "c.SP < 0x" + hex(cpu.SP) + "\n";
+  if (cpu['HL']) s += "c.HL == 0x4000\n";
   if (platform.readAddress) s += "this.readAddress(0x1234) == 0x0\n";
   if (platform.readVRAMAddress) s += "this.readVRAMAddress(0x1234) != 0x80\n";
   if (platform['getRasterScanline']) s += "this.getRasterScanline() > 222\n";
@@ -1641,7 +1644,9 @@ function installErrorHandler() {
           setDebugButtonState("pause", "stopped"); // TODO?
         } else {
           // send exception msg to GA
-          var msg = msgevent + " (" + line + ":" + col + "): " + error + " - " + url;
+          var msg = msgstr;
+          if (typeof error == 'string') msg += ": " + error;
+          if (line) msg += " (" + line + ":" + col + ")";
           if (msg.length > 256) { msg = msg.substring(0, 256); }
           if (ga) ga('send', 'exception', {
             'exDescription': msg,
@@ -1909,6 +1914,8 @@ function convertLegacyVCS(store) {
     })
   }
 }
+
+// HTTPS REDIRECT
 
 const useHTTPSCookieName = "__use_https";
 
