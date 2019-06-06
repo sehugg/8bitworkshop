@@ -78,4 +78,10 @@ byte __at (0x4000) vidmem[VTOTAL][VBWIDTH];
 void set_palette(byte palette[8]) __z88dk_fastcall; // palette in reverse order
 void set_sound_registers(byte regs[8]) __z88dk_fastcall; // in reverse too
 
+// INTERRUPTS
+
+typedef void (*t_interrupt_handler)(void) __interrupt;
+
+void set_interrupt_vector(t_interrupt_handler*ih) __z88dk_fastcall;
+
 #endif

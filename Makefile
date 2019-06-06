@@ -29,3 +29,6 @@ tsweb:
 	ifconfig | grep inet
 	$(TSC) -w &
 	python3 scripts/serveit.py 2>> http.out
+
+astrolibre.b64.txt: astrolibre.rom
+	lzg -9 $< | base64 -w 0 > $@

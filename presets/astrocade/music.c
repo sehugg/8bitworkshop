@@ -4,7 +4,7 @@
 
 //#resource "astrocade.inc"
 #include "aclib.h"
-//#link "aclib.c"
+//#link "aclib.s"
 //#link "hdr_autostart.s"
 #include "acbios.h"
 //#link "acbios.s"
@@ -87,7 +87,6 @@ void init_sound() {
 }
 
 void main() {
-  clrscr();
   init_sound();
   activate_interrupts();
   while (1) {

@@ -11,7 +11,7 @@
 #include "acbios.h"
 //#link "acbios.s"
 #include "aclib.h"
-//#link "aclib.c"
+//#link "aclib.s"
 #include "acextra.h"
 //#link "acextra.c"
 //#link "hdr_autostart.s"

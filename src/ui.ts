@@ -1751,6 +1751,7 @@ function startPlatform() {
   // start platform and load file
   replaceURLState();
   platform.start();
+  // TODO: ordering of loads?
   loadBIOSFromProject();
   initProject();
   loadProject(qs['file']);

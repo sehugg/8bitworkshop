@@ -149,7 +149,7 @@ void DECCTS(ContextBlock *ctx) {
 // INTERPRETER
 
 void INTPC(ContextBlock *ctx) {
-  while (ctx->params[0] != 2) { // 2 = exit
+  while (ctx->params[0] > 2) { // 0,2 = exit
     SYSCALL(ctx);
   }
   ctx->params++; // skip EXIT opcode
@@ -303,6 +303,25 @@ void RANGED(ContextBlock *ctx) {
   }
 }
 
+void INDEXB(ContextBlock *ctx) {
+  word addr = _HL + _A;
+  _HL = addr;
+  _A = *((byte*)addr);
+}
+
+void INDEXW(ContextBlock *ctx) {
+  word addr = _HL + _A*2;
+  _HL = addr;
+  _DE = *((word*)addr);
+}
+
+void INDEXN(ContextBlock *ctx) {
+  byte ofs = _C;
+  word addr = _HL + ofs/2;
+  byte val = *((byte*)addr);
+  _A = (ofs & 1) ? (val>>4) : (val&0xf);
+}
+
 // input
 
 extern const byte KCTASC_TABLE[25];
@@ -394,11 +413,11 @@ const SysCallEntry SYSCALL_TABLE[64] = {
   { &PAWS,	REG_B },
   { &NOOP,	REG_E|REG_D|REG_C },	// DISTIM
   { &NOOP,	REG_HL },	// INCSCR
-  { &NOOP,	REG_C|REG_HL },	// INDEXN
+  { &INDEXN,	REG_C|REG_HL },	// INDEXN
   { &NOOP,	REG_HL },	// STOREN
   /* 90 */
-  { &NOOP,	REG_A|REG_HL },	// INDEXW
-  { &NOOP,	REG_A|REG_HL },	// INDEXB
+  { &INDEXW,	REG_A|REG_HL },	// INDEXW
+  { &INDEXB,	REG_A|REG_HL },	// INDEXB
   { &MOVE,	REG_DE|REG_BC|REG_HL },
   { &NOOP,	0 },	// SHIFTU
   { &BCDADD,	REG_DE|REG_B|REG_HL },

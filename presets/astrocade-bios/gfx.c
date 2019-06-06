@@ -6,17 +6,24 @@
 #define LOCHAR 0x20
 #define HICHAR 0x63
 
+const byte LMASK[4] = {0xff, 0x3f, 0x0f, 0x03};
+
 static void hline(byte x1, byte x2, byte y, byte pattern) {
   byte xb1 = x1/4;
   byte xb2 = x2/4;
-  byte* dest = &vmagic[y][xb1];
-  signed char nbytes = xb2 - xb1;
-  hw_magic = M_SHIFT(x1) | M_XOR;
-  while (--nbytes > 0) {
-    *dest++ = pattern;
+  byte* dest = &vidmem[y][xb1];
+  byte mask = LMASK[x1&3];
+  if (xb1 == xb2) {
+    mask &= ~LMASK[x2&3];
   }
-  if (x2&3) *dest = 0;
-  // TODO
+  *dest = *dest & ~mask | (mask & pattern);
+  if (xb1 != xb2) {
+    dest++;
+    while (++xb1 < xb2) {
+      *dest++ = pattern;
+    }
+    *dest = *dest & LMASK[x2&3] | (~LMASK[x2&3] & pattern);
+  }
 }
 
 // Fill rect (E,D,C,B) color A
@@ -181,11 +188,11 @@ void DISNUM(ContextBlock *ctx) {
 
 // write pattern (E,D,C,B) magic A @ HL
 void WRIT(ContextBlock *ctx) {
-  byte magic = _A;
   byte w = _C;
   byte h = _B;
   byte x = _E;
   byte y = _D;
+  byte magic = _A | (x & 3);	// add X shift
   byte* src = (byte*) _HL;
   byte* dest = &vmagic[y][0]; // destination address
   byte xb = (magic & M_FLOP) ? (39-(x>>2)) : (x>>2);

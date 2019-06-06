@@ -1,7 +1,7 @@
 
 //#resource "astrocade.inc"
 #include "aclib.h"
-//#link "aclib.c"
+//#link "aclib.s"
 #include "acbios.h"
 //#link "acbios.s"
 //#link "acfast.s"
@@ -26,6 +26,7 @@ const byte SPRITE[] = {
 };
 
 extern void fast_sprite_8(const byte* pattern, byte* dst);
+extern void fast_sprite_16(const byte* pattern, byte* dst);
 
 #define MAX_SPRITES 8
 
@@ -69,7 +70,7 @@ void main(void) {
   // fill array
   for (i=0; i<MAX_SPRITES; i++) {
     actors[i].x = rand() & 0x7f;
-    actors[i].y = (i*4);
+    actors[i].y = (i*8) & 0x3f;
     actors[i].pattern = SPRITE;
     draw_actor(&actors[i]);
   }

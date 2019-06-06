@@ -58,7 +58,13 @@ _main:
         .db	72
         .db	100
         .db	4
-        .db	0xa5
+        .db	0xaa
+        DO	RECTAN
+        .db	6
+        .db	74
+        .db	100
+        .db	4
+        .db	0x55
         DO	WRITR
         .db	50
         .db	80

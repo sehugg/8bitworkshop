@@ -1,8 +1,9 @@
  
 #include <string.h>
 
+//#resource "astrocade.inc"
 #include "aclib.h"
-//#link "aclib.c"
+//#link "aclib.s"
 #include "acbios.h"
 //#link "acbios.c"
 #include "acextra.h"
