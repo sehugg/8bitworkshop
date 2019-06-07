@@ -10,10 +10,6 @@ TODO:
 - DASM: macro forward refs
 - asm: support macro expansion
 - support narrow screens
-- case sensisitvity looking for mismatch variables
-- remove pulldown when no preset?
-- can't step after reset (or when funky frame; TIA frame is out of sync)
-- break on BRK/illegal opcode?
 - multiple breakpoints, expression breakpoints
 - watchpoints
 - debug inspector for variables
@@ -22,6 +18,8 @@ TODO:
 - slowdown beam for all platforms?
 - PC x86 support
 - show errors in list (maybe window list?)
+  - click to go to error
+  - what if error in include file you can't edit b/c it never appears?
 - can't see 1st line in editor sometimes (when scrolling cursor past bottom of screen)
 - online help
 - show self-modifying code insns left of editor
@@ -29,18 +27,12 @@ TODO:
 - update Javatari version? (and others?)
 - unify versioning
 - disassembler for uploaded ROMs
-- compile stuck when errors unchanged
 - sound mute?
 - $error updates source editor
-- go to error in include files
 - online tools for music etc
 - text log debugging script
 - intro/help text for each platform
 - vscode/atom extension?
-- VCS asm library
-- better VCS single stepping, maybe also listings
-- VCS skips step on lsr/lsr after run to line
-- figure out folders for projects for real
 - click to break on raster position
 - restructure src/ folders
 - debug bankswitching for funky formats
@@ -53,7 +45,6 @@ TODO:
 - update bootstrap to 4.0
 - batariBasic: proper line numbers, debugging
 - granular control over time scrubbing, show CPU state
-- error showing replay div before rom starts
 - compiler flags for final ROM build
 - workermain: split build functions, better msg types
 - builds:
@@ -70,16 +61,13 @@ TODO:
 - resize memory browser when vertical div resize
 - preroll the emulator so optimizer does its thing before loading rom
 - wasm dynamic linking of emulators (https://github.com/WebAssembly/tool-conventions/blob/master/DynamicLinking.md)
-- use alternate confirm/prompt dialogs
 - https://github.com/jvilk/BrowserFS
-- what if error in include file you can't edit b/c it never appears?
 - markdown, verilog: can't share
 - https://www.crowdsupply.com/tinyfpga/tinyfpga-bx
 - stego shareable images (http://pico-8.wikia.com/wiki/P8PNGFileFormat)
 - https://makecode.com/language?
 - open ROM from URL?
 - game starts even if switched away before first load
-- profiler restarts when paused
 - it's pretty easy to add a new file named like a library file (bcd.c)
   - or have neslib.h in a subdirectory...
 - put globals into view/controller objects
@@ -109,9 +97,12 @@ TODO:
 - debug highlight doesn't go away when debugging -> running
   - show breakpoint of PC or highest address on stack
   - can we highlight line instead of select?
-- running profiler while replaying? grand unified replay?
-- click on profiler to step to position
-  - breakpoints stop profiler from running
+- profiler
+  - profiler restarts when paused
+  - running profiler while replaying? grand unified replay?
+  - click on profiler to step to position
+    - breakpoints stop profiler from running
+  - single-screen profiler
 - https://remotestoragejs.readthedocs.io/en/latest/getting-started/how-to-add.html ?
 - Verilog
   - larger scope range, better scrolling
@@ -127,7 +118,7 @@ TODO:
   - use $readmem for inline asm programs?
   - can't add control instructions b/c of split
 - single-stepping vector games makes screen fade
-- break on stack overflow, bad op, bad access, etc
+- break on stack overflow, illegal op, bad access, BRK, etc
 - nes
   - replay doesn't work for nes (force background tile redraw)
   - nes debug view toolbar
@@ -139,6 +130,9 @@ TODO:
   - vcs: INPTx needs to be added to control state
   - vcs: break on # of lines changed (maybe using getRasterPosition?)
   - chrome looks blurry on vcs
+  - VCS asm library
+  - VCS skips step on lsr/lsr after run to line
+  - better VCS single stepping, maybe also listings
 - upload multiple files/zip file to subdirectory
   - allow "include graphics.asm" instead of "include project/graphics.asm"
 - convert more stuff to Promises
