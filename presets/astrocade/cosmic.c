@@ -21,20 +21,22 @@
 // GAME GRAPHICS
 //
 
-const byte player_bitmap[] =
-{3,14,/*{w:12,h:16,bpp:2,brev:1}*/0x00,0x3C,0x00,0x00,0x18,0x00,0x00,0x3C,0x00,0x00,0x18,0x00,0x04,0x18,0x20,0x0C,0x3C,0x30,0x3C,0x3C,0x3C,0x1F,0xE7,0xF4,0x1F,0x66,0xF4,0x17,0xE7,0xE4,0x17,0xE7,0xE4,0x1C,0x7E,0x34,0x1C,0xFF,0x34,0x3C,0x18,0x3C,0x0C,0x18,0x30,0x04,0x18,0x20};
+const byte player_bitmap[2+9*3] =
+{3,9,/*{w:12,h:9,bpp:2,brev:1}*/0x00,0x00,0x00,0x00,0xFF,0x00,0x00,0x14,0x00,0x30,0x3C,0x0C,0x3A,0xBE,0xAC,0x3E,0xFF,0xBC,0x3F,0xFF,0xFC,0x37,0x7D,0xDC,0x3C,0x3C,0x3C};
 const byte bomb_bitmap[] =
-{1,5,/*{w:4,h:5,bpp:2,brev:1}*/0x88,0x55,0x77,0x55,0x88};
+{1,3,/*{w:4,h:3,bpp:2,brev:1}*/0xF8,0x3E,0xF8};
 const byte bullet_bitmap[] =
-{1,5,/*{w:4,h:5,bpp:2,brev:1}*/0x14,0x28,0x14,0x14,0x28};
-const byte enemy1_bitmap[] =
-{2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x00,0x00,0x70,0x38,0xF8,0x7C,0xFC,0xFC,0xFE,0xFC,0xFE,0xFF,0xFC,0xFF,0xF8,0x7F,0xF0,0x3F,0x88,0x47,0xF0,0x3F,0xF0,0x3F,0xD0,0x2F,0x8C,0xC7,0x48,0x48,0x80,0x04};
+{1,5,/*{w:4,h:5,bpp:2,brev:1}*/0x08,0x24,0x18,0x10,0x04};
+const byte enemy1_bitmap[18] =
+{2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x02,0x80,0x0B,0xE0,0x3F,0xFC,0x37,0xDC,0x3F,0xFC,0x0C,0x30,0x30,0x0C,0x0C,0x30};
 const byte enemy2_bitmap[] =
-{2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x00,0x00,0x30,0x0C,0x14,0x28,0x2E,0x74,0x08,0x10,0x20,0x04,0xE0,0x07,0xD0,0x0B,0xB0,0x0D,0xB2,0x4D,0x19,0x98,0x8E,0x71,0x82,0x41,0xB1,0x8D,0x59,0x9A,0x4A,0x52};
+{2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x0C,0x30,0x30,0x0C,0x17,0xE8,0x23,0xC4,0x0B,0xD0,0x2C,0x34,0x2F,0xF4,0x10,0x08};
 const byte enemy3_bitmap[] =
-{2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x00,0x00,0x00,0x00,0x04,0x20,0x05,0xA0,0x05,0xA0,0x25,0xA4,0xA7,0xE5,0xF7,0xEF,0xF7,0xEF,0xFE,0x7F,0xFC,0x3F,0xBC,0x3D,0xE4,0x27,0x20,0x00,0x00,0x00,0x00,0x00};
+{2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x0F,0xC0,0x00,0xC0,0x10,0xC4,0x26,0xD8,0x27,0x98,0x26,0xD8,0x14,0x14,0x10,0x04};
 const byte enemy4_bitmap[] =
-{2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x00,0x00,0x00,0x00,0xF0,0x0F,0xF8,0x1F,0xD8,0x1B,0xF8,0x1F,0xF8,0x1F,0xF8,0x1F,0xF0,0x0F,0xA8,0x15,0xCC,0x33,0xE8,0x17,0x66,0x66,0x33,0xCC,0x61,0x86,0x40,0x02};
+{2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x30,0x0C,0x3C,0x3C,0x0F,0xF0,0x3A,0xE8,0x3B,0xEC,0x3F,0xFC,0x30,0x0C,0x00,0x00};
+const byte explode_bitmap[18] =
+{2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x40,0x44,0x10,0x40,0x06,0x81,0x0B,0xE4,0x5B,0xE0,0x02,0x81,0x04,0x10,0x10,0x44};
 
 const byte* const enemy_bitmaps[4] = {
   enemy1_bitmap,
@@ -43,27 +45,34 @@ const byte* const enemy_bitmaps[4] = {
   enemy4_bitmap
 };
 
+/*{pal:"astrocade",layout:"astrocade"}*/
+const byte palette[8] = {
+  0x07, 0xD4, 0x35, 0x01,
+  0x07, 0xD4, 0x35, 0x01,
+};
+
 #define COLOR_BUNKER 1
 #define COLOR_GROUND 2
-#define COLOR_SCORE  3
+#define COLOR_SCORE  2
 
 //
 // GAME CODE
 //
 
 #define MAXLIVES 5
-#define PLYRHEIGHT 14
-#define ENEMY_SPACING_X 17
+#define PLYRHEIGHT 9
+#define ENEMY_SPACING_X 14
 #define ENEMY_SPACING_Y 11
 #define ENEMY_MARCH_X 1
 #define ENEMY_MARCH_Y 2
+#define EXPLODE_TIME 8
 
 typedef struct {
   byte x,y;
   const byte* shape; // need const here
 } Enemy;
 
-#define MAX_ENEMIES 28
+#define MAX_ENEMIES 40
 
 Enemy enemies[MAX_ENEMIES];
 byte enemy_index;
@@ -86,6 +95,9 @@ byte bullet_x;
 byte bullet_y;
 byte bomb_x;
 byte bomb_y;
+byte explode_x;
+byte explode_y;
+byte explode_timer;
 
 void draw_lives() {
   byte i;
@@ -142,7 +154,7 @@ void xor_player_derez() {
   byte i,j;
   byte x = player_x+13;
   byte y = player_y+PLYRHEIGHT-1;
-  byte* rand = (byte*) &clrscr; // use code as random #'s
+  byte* rand = (byte*) &xor_player_derez; // use code as random #'s
   for (j=1; j<=0xf; j++) {
     for (i=0; i<100; i++) {
       signed char xx = x + (*rand++ & 0xf) - 15;
@@ -154,7 +166,7 @@ void xor_player_derez() {
 
 void destroy_player() {
   xor_player_derez(); // xor derez pattern
-  render_sprite(player_bitmap, player_x, VHEIGHT-PLYRHEIGHT, M_XOR); // erase ship via xor
+  render_sprite(player_bitmap, player_x, player_y, M_XOR); // erase ship via xor
   xor_player_derez(); // xor 2x to erase derez pattern
   player_x = 0xff;
   lives--;
@@ -187,6 +199,9 @@ void init_enemies() {
 
 void delete_enemy(Enemy* e) {
   erase_sprite(e->shape, e->x, e->y);
+  explode_x = e->x;
+  explode_y = e->y;
+  explode_timer = EXPLODE_TIME;
   memmove(e, e+1, sizeof(Enemy)*(enemies-e+MAX_ENEMIES-1));
   num_enemies--; // update_next_enemy() will check enemy_index
 }
@@ -198,8 +213,8 @@ void update_next_enemy() {
     memcpy(&this_mode, &next_mode, sizeof(this_mode));
   }
   e = &enemies[enemy_index];
-  erase_sprite(e->shape, e->x, e->y);
   if (this_mode.down) {
+    erase_sprite(e->shape, e->x, e->y);
     e->y += ENEMY_MARCH_Y;
     // if too close to ground, end game
     if (e->y > VHEIGHT-ENEMY_SPACING_Y) {
@@ -222,12 +237,12 @@ void update_next_enemy() {
       }
     }
   }
-  render_sprite(e->shape, e->x, e->y, M_XOR);
+  render_sprite(e->shape, e->x, e->y, M_MOVE);
   enemy_index++;
 }
 
 char in_rect(Enemy* e, byte x, byte y, byte w, byte h) {
-  byte ew = e->shape[0]*8;
+  byte ew = e->shape[0]*4;
   byte eh = e->shape[1];
   return (x >= e->x-w && x <= e->x+ew && y >= e->y-h && y <= e->y+eh);
 }
@@ -236,7 +251,7 @@ Enemy* find_enemy_at(byte x, byte y) {
   byte i;
   for (i=0; i<num_enemies; i++) {
     Enemy* e = &enemies[i];
-    if (in_rect(e, x, y, 0, 2)) {
+    if (in_rect(e, x, y, 4, 5)) {
       return e;
     }
   }
@@ -254,21 +269,20 @@ void check_bullet_hit(byte x, byte y) {
 void fire_bullet() {
   bullet_x = player_x + 4;
   bullet_y = VHEIGHT-PLYRHEIGHT-6;
-  render_sprite(bullet_bitmap, bullet_x, bullet_y, M_XOR); // draw
+  //render_sprite(bullet_bitmap, bullet_x, bullet_y, M_XOR); // draw
 }
 
 void move_bullet() {
   byte leftover;
+  erase_sprite(bullet_bitmap, bullet_x, bullet_y);
   hw_intst; // reset intercept counters
-  render_sprite(bullet_bitmap, bullet_x, bullet_y, M_XOR); // erase
+  bullet_y -= 2;
+  render_sprite(bullet_bitmap, bullet_x, bullet_y, M_OR); // erase
   leftover = (hw_intst & 0xf0); // any pixels leftover?
   if (leftover || bullet_y < 10) {
     erase_sprite(bullet_bitmap, bullet_x, bullet_y);
     check_bullet_hit(bullet_x, bullet_y+2);
     bullet_y = 0;
-  } else {
-    bullet_y -= 4;
-    render_sprite(bullet_bitmap, bullet_x, bullet_y, M_XOR); // draw
   }
 }
 
@@ -276,24 +290,23 @@ void drop_bomb() {
   Enemy* e = &enemies[enemy_index];
   bomb_x = e->x + 7;
   bomb_y = e->y + 16;
-  render_sprite(bomb_bitmap, bomb_x, bomb_y, M_XOR);
 }
 
 void move_bomb() {
   hw_intst; // reset intercept counters
-  render_sprite(bomb_bitmap, bomb_x, bomb_y, M_XOR); // erase
-  if (bomb_y > VHEIGHT-12) {
-    bomb_y = 0;
-  } else if (hw_intst & 0xf0) { // any pixels leftover?
-    erase_sprite(bomb_bitmap, bomb_x, bomb_y); // erase bunker
-    if (bomb_y > VHEIGHT-23) {
-      // player was hit (probably)
-      destroy_player();
-    }
+  erase_sprite(bomb_bitmap, bomb_x, bomb_y); // erase bunker
+  if (bomb_y >= VHEIGHT-5) {
     bomb_y = 0;
   } else {
-    bomb_y += 3;
-    render_sprite(bomb_bitmap, bomb_x, bomb_y, M_XOR);
+    bomb_y += 1;
+    render_sprite(bomb_bitmap, bomb_x, bomb_y, M_OR); // erase
+    if (hw_intst & 0xf0) { // any pixels leftover?
+      if (bomb_y >= player_y) {
+        // player was hit (probably)
+        destroy_player();
+        bomb_y = 0;
+      }
+    }
   }
 }
 
@@ -324,11 +337,20 @@ void move_player() {
   render_sprite(player_bitmap, player_x, player_y, M_MOVE);
 }
 
+void animate_explosion() {
+  if (--explode_timer == 0) {
+    erase_sprite(explode_bitmap, explode_x, explode_y);
+  } else {
+    render_sprite(explode_bitmap, explode_x, explode_y, M_OR);
+  }
+}
+
 void play_round() {
   draw_playfield();
   player_x = PIXWIDTH/2-8;
   bullet_y = 0;
   bomb_y = 0;
+  explode_timer = 0;
   frame = 0;
   while (player_x != 0xff && num_enemies) {
     move_player();
@@ -342,6 +364,9 @@ void play_round() {
       } else {
         move_bomb();
       }
+    }
+    if (explode_timer) {
+      animate_explosion();
     }
     frame++;
   }
@@ -387,18 +412,10 @@ void attract_mode() {
   }
 }
 
-void setup_registers() {
-  hw_col0r = 0x00;
-  hw_col1r = 0x2f;
-  hw_col2r = 0xef;
-  hw_col3r = 0xaf;
-  hw_horcb = 0;
-  hw_verbl = VHEIGHT*2;
-}
-
-
 void main() {
-  setup_registers();
+  hw_horcb = 40;
+  hw_verbl = VHEIGHT*2;
+  set_palette(palette);
   // NOTE: initializers don't get run, so we init here
   while (1) {
     //attract_mode();
