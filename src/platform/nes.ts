@@ -45,22 +45,23 @@ const JSNES_PRESETS = [
 /// JSNES
 
 const JSNES_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_X,     0, 0],
-  [Keys.VK_Z,     0, 1],
-  [Keys.VK_SPACE, 0, 2],
-  [Keys.VK_ENTER, 0, 3],
-  [Keys.VK_UP,    0, 4],
-  [Keys.VK_DOWN,  0, 5],
-  [Keys.VK_LEFT,  0, 6],
-  [Keys.VK_RIGHT, 0, 7],
-  [Keys.VK_Q,     1, 0],
-  [Keys.VK_E,     1, 1],
-  [Keys.VK_1,     1, 2],
-  [Keys.VK_2,     1, 3],
-  [Keys.VK_W,     1, 4],
-  [Keys.VK_S,     1, 5],
-  [Keys.VK_A,     1, 6],
-  [Keys.VK_D,     1, 7],
+  [Keys.A,        0, 0],
+  [Keys.B,        0, 1],
+  [Keys.SELECT,   0, 2],
+  [Keys.START,    0, 3],
+  [Keys.UP,       0, 4],
+  [Keys.DOWN,     0, 5],
+  [Keys.LEFT,     0, 6],
+  [Keys.RIGHT,    0, 7],
+  
+  [Keys.P2_A,      1, 0],
+  [Keys.P2_B,      1, 1],
+  [Keys.P2_SELECT, 1, 2],
+  [Keys.P2_START,  1, 3],
+  [Keys.P2_UP,     1, 4],
+  [Keys.P2_DOWN,   1, 5],
+  [Keys.P2_LEFT,   1, 6],
+  [Keys.P2_RIGHT,  1, 7],
 ]);
 
 class JSNESPlatform extends Base6502Platform implements Platform {

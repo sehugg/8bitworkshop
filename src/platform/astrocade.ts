@@ -31,11 +31,11 @@ const ASTROCADE_BIOS_PRESETS = [
 
 const ASTROCADE_KEYCODE_MAP = makeKeycodeMap([
   // player 1
-  [Keys.VK_UP,    0x10, 0x1],
-  [Keys.VK_DOWN,	0x10, 0x2],
-  [Keys.VK_LEFT,  0x10, 0x4],
-  [Keys.VK_RIGHT, 0x10, 0x8],
-  [Keys.VK_SPACE, 0x10, 0x10],
+  [Keys.UP,    0x10, 0x1],
+  [Keys.DOWN,  0x10, 0x2],
+  [Keys.LEFT,  0x10, 0x4],
+  [Keys.RIGHT, 0x10, 0x8],
+  [Keys.A,     0x10, 0x10],
   // keypad $14
   [Keys.VK_P,     0x14, 0x1],
   [Keys.VK_SLASH,	0x14, 0x2],
@@ -487,6 +487,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     s += "\n  HORCB: $" + hex(st.horcb);
     s += "\n  INMOD: $" + hex(st.inmod);
     s += "\n  INFBK: $" + hex(st.infbk);
+    s += "\n  INTST: $" + hex(st.in[8]); // intercept status
     /*
     s += "\nPalette: ";
     for (var i=0; i<8; i++)

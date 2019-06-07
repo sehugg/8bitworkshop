@@ -33,20 +33,20 @@ export var SG1000_PRESETS = [
 
 
 var SG1000_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_UP,    0, 0x1],
-  [Keys.VK_DOWN,  0, 0x2],
-  [Keys.VK_LEFT,  0, 0x4],
-  [Keys.VK_RIGHT, 0, 0x8],
-  [Keys.VK_SPACE, 0, 0x10],
-  [Keys.VK_CONTROL, 0, 0x20],
+  [Keys.UP,    0, 0x1],
+  [Keys.DOWN,  0, 0x2],
+  [Keys.LEFT,  0, 0x4],
+  [Keys.RIGHT, 0, 0x8],
+  [Keys.A,     0, 0x10],
+  [Keys.B,     0, 0x20],
 
-  [Keys.VK_R, 0, 0x40],
-  [Keys.VK_F, 0, 0x80],
-  [Keys.VK_D, 1, 0x1],
-  [Keys.VK_G, 1, 0x2],
-  [Keys.VK_A, 1, 0x4],
-  [Keys.VK_S, 1, 0x8],
-  [Keys.VK_1, 1, 0x10],
+  [Keys.P2_UP,    0, 0x40],
+  [Keys.A,        0, 0x80],
+  [Keys.P2_RIGHT, 1, 0x1],
+  [Keys.B,        1, 0x2],
+  [Keys.P2_LEFT,  1, 0x4],
+  [Keys.P2_DOWN,  1, 0x8],
+  [Keys.START,    1, 0x10],
 ]);
 
 class SG1000Platform extends BasicZ80ScanlinePlatform implements Platform {

@@ -66,15 +66,15 @@ class VicDualDisplay {
 }
 
 const CARNIVAL_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_SPACE, 2, -0x20],
-  [Keys.VK_SHIFT, 2, -0x40],
-  [Keys.VK_LEFT, 1, -0x10],
-  [Keys.VK_RIGHT, 1, -0x20],
-  [Keys.VK_UP, 1, -0x40],
-  [Keys.VK_DOWN, 1, -0x80],
-  [Keys.VK_1, 2, -0x10],
-  [Keys.VK_2, 3, -0x20],
-  [Keys.VK_5, 3, 0x8],
+  [Keys.A,        2, -0x20],
+  [Keys.B,        2, -0x40],
+  [Keys.LEFT,     1, -0x10],
+  [Keys.RIGHT,    1, -0x20],
+  [Keys.UP,       1, -0x40],
+  [Keys.DOWN,     1, -0x80],
+  [Keys.START,    2, -0x10],
+  [Keys.P2_START, 3, -0x20],
+  [Keys.SELECT,   3, 0x8],
 ]);
 
 const XTAL = 15468000.0;

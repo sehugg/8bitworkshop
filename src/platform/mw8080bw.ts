@@ -13,15 +13,15 @@ const MW8080BW_PRESETS = [
 ];
 
 const SPACEINV_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_SPACE, 1, 0x10], // P1
-  [Keys.VK_LEFT, 1, 0x20],
-  [Keys.VK_RIGHT, 1, 0x40],
-  [Keys.VK_S, 2, 0x10], // P2
-  [Keys.VK_A, 2, 0x20],
-  [Keys.VK_D, 2, 0x40],
-  [Keys.VK_5, 1, 0x1],
-  [Keys.VK_1, 1, 0x4],
-  [Keys.VK_2, 1, 0x2],
+  [Keys.A,        1, 0x10], // P1
+  [Keys.LEFT,     1, 0x20],
+  [Keys.RIGHT,    1, 0x40],
+  [Keys.P2_A,     2, 0x10], // P2
+  [Keys.P2_LEFT,  2, 0x20],
+  [Keys.P2_RIGHT, 2, 0x40],
+  [Keys.SELECT,   1, 0x1],
+  [Keys.START,    1, 0x4],
+  [Keys.P2_START, 1, 0x2],
 ]);
 
 const INITIAL_WATCHDOG = 256;

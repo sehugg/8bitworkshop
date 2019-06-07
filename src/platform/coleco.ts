@@ -42,19 +42,19 @@ export var ColecoVision_PRESETS = [
 ];
 
 var COLECOVISION_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_UP,    0, 0x1],
-  [Keys.VK_DOWN,  0, 0x4],
-  [Keys.VK_LEFT,  0, 0x8],
-  [Keys.VK_RIGHT, 0, 0x2],
-  [Keys.VK_SPACE, 0, 0x40],
-  [Keys.VK_CONTROL, 1, 0x40],
+  [Keys.UP,    0, 0x1],
+  [Keys.DOWN,  0, 0x4],
+  [Keys.LEFT,  0, 0x8],
+  [Keys.RIGHT, 0, 0x2],
+  [Keys.A,		 0, 0x40],
+  [Keys.B,		 1, 0x40],
 
-  [Keys.VK_W, 2, 0x1],
-  [Keys.VK_S, 2, 0x4],
-  [Keys.VK_A, 2, 0x8],
-  [Keys.VK_D, 2, 0x2],
-  [Keys.VK_Z, 2, 0x40],
-  [Keys.VK_X, 3, 0x40],
+  [Keys.P2_UP,    2, 0x1],
+  [Keys.P2_DOWN,  2, 0x4],
+  [Keys.P2_LEFT,  2, 0x8],
+  [Keys.P2_RIGHT, 2, 0x2],
+  [Keys.P2_A,     2, 0x40],
+  [Keys.P2_B,     3, 0x40],
 ]);
 
 /// standard emulator

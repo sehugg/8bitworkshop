@@ -11,29 +11,29 @@ const GALAXIAN_PRESETS = [
 ];
 
 const GALAXIAN_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_SPACE, 0, 0x10], // P1
-  [Keys.VK_LEFT, 0, 0x4],
-  [Keys.VK_RIGHT, 0, 0x8],
-  [Keys.VK_S, 1, 0x10], // P2
-  [Keys.VK_A, 1, 0x4],
-  [Keys.VK_D, 1, 0x8],
-  [Keys.VK_5, 0, 0x1],
-  [Keys.VK_1, 1, 0x1],
+  [Keys.A,     0, 0x10], // P1
+  [Keys.LEFT,  0, 0x4],
+  [Keys.RIGHT, 0, 0x8],
+  [Keys.P2_A,     1, 0x10], // P2
+  [Keys.P2_LEFT,  1, 0x4],
+  [Keys.P2_RIGHT, 1, 0x8],
+  [Keys.SELECT, 0, 0x1],
+  [Keys.START,  1, 0x1],
   [Keys.VK_2, 1, 0x2],
 ]);
 
 const SCRAMBLE_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_UP,    0, -0x1], // P1
-  [Keys.VK_SHIFT, 0, -0x2], // fire
+  [Keys.UP,       0, -0x1], // P1
+  [Keys.B,        0, -0x2], // fire
   [Keys.VK_7,     0, -0x4], // credit
-  [Keys.VK_SPACE, 0, -0x8], // bomb
-  [Keys.VK_RIGHT, 0, -0x10],
-  [Keys.VK_LEFT,  0, -0x20],
+  [Keys.A,        0, -0x8], // bomb
+  [Keys.RIGHT,    0, -0x10],
+  [Keys.LEFT,     0, -0x20],
   [Keys.VK_6,     0, -0x40],
-  [Keys.VK_5,     0, -0x80],
-  [Keys.VK_1,     1, -0x80],
+  [Keys.SELECT,   0, -0x80],
+  [Keys.START,    1, -0x80],
   [Keys.VK_2,     1, -0x40],
-  [Keys.VK_DOWN,  2, -0x40],
+  [Keys.DOWN,     2, -0x40],
   //[Keys.VK_UP,    2, -0x10],
 ]);
 

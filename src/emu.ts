@@ -317,9 +317,38 @@ export function dumpRAM(ram:Uint8Array|number[], ramofs:number, ramlen:number) :
   return s;
 }
 
-interface KeyDef {c:number, n:string};
+interface KeyDef {
+  c:number,	// key code
+  n:string,	// name
+  // for gamepad
+  plyr?:number,
+  xaxis?:number,
+  yaxis?:number,
+  button?:number
+  };
 
 export const Keys : {[keycode:string]:KeyDef} = {
+    // gamepad and keyboard (player 0)
+    UP:       {c: 38,  n: "Up",    plyr:0, yaxis:-1},
+    DOWN:     {c: 40,  n: "Down",  plyr:0, yaxis:1},
+    LEFT:     {c: 37,  n: "Left",  plyr:0, xaxis:-1},
+    RIGHT:    {c: 39,  n: "Right", plyr:0, xaxis:1},
+    A: 				{c: 32,  n: "Space", plyr:0, button:0},
+    B: 				{c: 17,  n: "Ctrl",  plyr:0, button:1},
+    GP_A: 		{c: 88,  n: "X",     plyr:0, button:0},
+    GP_B: 		{c: 90,  n: "Z",     plyr:0, button:1},
+    SELECT:   {c: 220, n: "\\",    plyr:0, button:8},
+    START:    {c: 13,  n: "Enter", plyr:0, button:9},
+    // gamepad and keyboard (player 1)
+    P2_UP:       {c: 87, n: "W",  plyr:1, yaxis:-1},
+    P2_DOWN:     {c: 83, n: "S",  plyr:1, yaxis:1},
+    P2_LEFT:     {c: 65, n: "A",  plyr:1, xaxis:-1},
+    P2_RIGHT:    {c: 68, n: "D",  plyr:1, xaxis:1},
+    P2_A: 		 	 {c: 84, n: "T",  plyr:1, button:0},
+    P2_B: 			 {c: 82, n: "R",  plyr:1, button:1},
+    P2_SELECT:   {c: 70, n: "F",  plyr:1, button:8},
+    P2_START:    {c: 71, n: "G",  plyr:1, button:9},
+    // keyboard only
     VK_ESCAPE: {c: 27, n: "Esc"},
     VK_F1: {c: 112, n: "F1"},
     VK_F2: {c: 113, n: "F2"},
@@ -454,7 +483,7 @@ export function setKeyboardFromMap(video, switches, map, func?) {
 }
 
 export function makeKeycodeMap(table : [KeyDef,number,number][]) {
-  var map = {};
+  var map = new Map();
   for (var i=0; i<table.length; i++) {
     var entry = table[i];
     map[entry[0].c] = {index:entry[1], mask:entry[2]};

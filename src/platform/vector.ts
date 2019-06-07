@@ -16,29 +16,29 @@ var VECTOR_PRESETS = [
 ]
 
 var ASTEROIDS_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_SHIFT, 3, 0xff],
-  [Keys.VK_SPACE, 4, 0xff],
-  [Keys.VK_5, 8, 0xff],
-  [Keys.VK_6, 9, 0xff],
-  [Keys.VK_7, 10, 0xff],
-  [Keys.VK_1, 11, 0xff],
-  [Keys.VK_2, 12, 0xff],
-  [Keys.VK_UP, 13, 0xff],
-  [Keys.VK_RIGHT, 14, 0xff],
-  [Keys.VK_LEFT, 15, 0xff],
+  [Keys.B,      3, 0xff],
+  [Keys.A,      4, 0xff],
+  [Keys.SELECT, 8, 0xff],
+  [Keys.VK_6,   9, 0xff],
+  [Keys.VK_7,   10, 0xff],
+  [Keys.START,  11, 0xff],
+  [Keys.P2_START, 12, 0xff],
+  [Keys.UP,     13, 0xff],
+  [Keys.RIGHT,  14, 0xff],
+  [Keys.LEFT,   15, 0xff],
 ]);
 
 var GRAVITAR_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_SHIFT, 1, -0x1],
-  [Keys.VK_SPACE, 1, -0x2],
-  [Keys.VK_5, 0, 0x2],
-  [Keys.VK_6, 0, 0x1],
-  [Keys.VK_1, 2, 0x20],
-  [Keys.VK_2, 2, 0x40],
-  [Keys.VK_UP, 1, -0x10],
-  [Keys.VK_DOWN, 1, -0x20],
-  [Keys.VK_RIGHT, 1, -0x4],
-  [Keys.VK_LEFT, 1, -0x8],
+  [Keys.B,      1, -0x1],
+  [Keys.A,      1, -0x2],
+  [Keys.VK_5,   0, 0x2],
+  [Keys.VK_6,   0, 0x1],
+  [Keys.START,  2, 0x20],
+  [Keys.P2_START, 2, 0x40],
+  [Keys.UP,     1, -0x10],
+  [Keys.DOWN,   1, -0x20],
+  [Keys.RIGHT,  1, -0x4],
+  [Keys.LEFT,   1, -0x8],
 ]);
 
 var AtariVectorPlatform = function(mainElement) {
