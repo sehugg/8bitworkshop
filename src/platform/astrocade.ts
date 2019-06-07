@@ -201,6 +201,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
  class BallyAstrocadePlatform extends BaseZ80Platform implements Platform {
  
   scanline : number;
+  poller;
 
   getPresets() {
     return ASTROCADE_PRESETS;
@@ -328,7 +329,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     video.create();
     video.setupMouseEvents();
     var idata = video.getFrameData();
-		setKeyboardFromMap(video, inputs, ASTROCADE_KEYCODE_MAP);
+    this.poller = setKeyboardFromMap(video, inputs, ASTROCADE_KEYCODE_MAP);
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // default palette
@@ -344,6 +345,8 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     inputs[0x1c] = video.paddle_x & 0xff;
     inputs[0x1d] = video.paddle_y & 0xff;
   }
+
+  pollControls() { this.poller.poll(); }
 
   advance(novideo : boolean) {
     this.scanline = 0;

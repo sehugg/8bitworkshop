@@ -1,7 +1,7 @@
 "use strict";
 
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString, ProfilerOutput } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags, EmuHalt } from "../emu";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags, EmuHalt, ControllerPoller } from "../emu";
 import { hex, lpad, lzgmini, byteArrayToString } from "../util";
 import { CodeAnalyzer_nes } from "../analysis";
 import { SampleAudio } from "../audio";
@@ -71,6 +71,7 @@ class JSNESPlatform extends Base6502Platform implements Platform {
   video;
   audio;
   timer;
+  poller : ControllerPoller;
   audioFrequency = 44030; //44100
   frameindex = 0;
   ntvideo;
@@ -136,7 +137,7 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     }
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // set keyboard map
-    setKeyboardFromMap(this.video, [], JSNES_KEYCODE_MAP, (o,key,code,flags) => {
+    this.poller = setKeyboardFromMap(this.video, [], JSNES_KEYCODE_MAP, (o,key,code,flags) => {
       if (flags & KeyFlags.KeyDown)
         this.nes.buttonDown(o.index+1, o.mask); // controller, button
       else if (flags & KeyFlags.KeyUp)
@@ -144,6 +145,8 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     });
     //var s = ''; nes.ppu.palTable.curTable.forEach((rgb) => { s += "0x"+hex(rgb,6)+", "; }); console.log(s);
   }
+  
+  pollControls() { this.poller.poll(); }
 
   advance(novideo : boolean) {
     this.nes.frame();

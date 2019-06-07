@@ -51,13 +51,13 @@ export enum KeyFlags {
 }
 
 function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
-  canvas.onkeydown = function(e) {
+  canvas.onkeydown = (e) => {
     callback(e.which, 0, KeyFlags.KeyDown|_metakeyflags(e));
   };
-  canvas.onkeyup = function(e) {
+  canvas.onkeyup = (e) => {
     callback(e.which, 0, KeyFlags.KeyUp|_metakeyflags(e));
   };
-  canvas.onkeypress = function(e) {
+  canvas.onkeypress = (e) => {
     callback(e.which, e.charCode, KeyFlags.KeyPress|_metakeyflags(e));
   };
 };
@@ -327,16 +327,24 @@ interface KeyDef {
   button?:number
   };
 
+interface KeyMapEntry {
+  index:number;
+  mask:number;
+  def:KeyDef;
+}
+
+type KeyCodeMap = Map<number,KeyMapEntry>;
+
 export const Keys : {[keycode:string]:KeyDef} = {
     // gamepad and keyboard (player 0)
     UP:       {c: 38,  n: "Up",    plyr:0, yaxis:-1},
     DOWN:     {c: 40,  n: "Down",  plyr:0, yaxis:1},
     LEFT:     {c: 37,  n: "Left",  plyr:0, xaxis:-1},
     RIGHT:    {c: 39,  n: "Right", plyr:0, xaxis:1},
-    A: 				{c: 32,  n: "Space", plyr:0, button:0},
-    B: 				{c: 17,  n: "Ctrl",  plyr:0, button:1},
-    GP_A: 		{c: 88,  n: "X",     plyr:0, button:0},
-    GP_B: 		{c: 90,  n: "Z",     plyr:0, button:1},
+    A:        {c: 32,  n: "Space", plyr:0, button:0},
+    B:        {c: 17,  n: "Ctrl",  plyr:0, button:1},
+    GP_A:     {c: 88,  n: "X",     plyr:0, button:0},
+    GP_B:     {c: 90,  n: "Z",     plyr:0, button:1},
     SELECT:   {c: 220, n: "\\",    plyr:0, button:8},
     START:    {c: 13,  n: "Enter", plyr:0, button:9},
     // gamepad and keyboard (player 1)
@@ -344,8 +352,8 @@ export const Keys : {[keycode:string]:KeyDef} = {
     P2_DOWN:     {c: 83, n: "S",  plyr:1, yaxis:1},
     P2_LEFT:     {c: 65, n: "A",  plyr:1, xaxis:-1},
     P2_RIGHT:    {c: 68, n: "D",  plyr:1, xaxis:1},
-    P2_A: 		 	 {c: 84, n: "T",  plyr:1, button:0},
-    P2_B: 			 {c: 82, n: "R",  plyr:1, button:1},
+    P2_A:        {c: 84, n: "T",  plyr:1, button:0},
+    P2_B:        {c: 82, n: "R",  plyr:1, button:1},
     P2_SELECT:   {c: 70, n: "F",  plyr:1, button:8},
     P2_START:    {c: 71, n: "G",  plyr:1, button:9},
     // keyboard only
@@ -459,9 +467,11 @@ function _metakeyflags(e) {
         (e.metaKey?KeyFlags.Meta:0);
 }
 
-export function setKeyboardFromMap(video, switches, map, func?) {
-  video.setKeyboardEvents(function(key,code,flags) {
-    var o = map[key];
+type KeyMapFunction = (o:KeyMapEntry, key:number, code:number, flags:number) => void;
+
+export function setKeyboardFromMap(video:RasterVideo, switches:number[]|Uint8Array, map:KeyCodeMap, func?:KeyMapFunction) {
+  var handler = (key,code,flags) => {
+    var o : KeyMapEntry = map[key];
     if (o && func) {
       func(o, key, code, flags);
     }
@@ -479,17 +489,91 @@ export function setKeyboardFromMap(video, switches, map, func?) {
         switches[o.index] &= ~mask;
       }
     }
-  });
+  };
+  video.setKeyboardEvents(handler);
+  return new ControllerPoller(map, handler);
 }
 
-export function makeKeycodeMap(table : [KeyDef,number,number][]) {
-  var map = new Map();
+export function makeKeycodeMap(table : [KeyDef,number,number][]) : KeyCodeMap {
+  var map = new Map<number,KeyMapEntry>();
   for (var i=0; i<table.length; i++) {
     var entry = table[i];
-    map[entry[0].c] = {index:entry[1], mask:entry[2]};
+    var val : KeyMapEntry = {index:entry[1], mask:entry[2], def:entry[0]};
+    map[entry[0].c] = val;
   }
   return map;
 }
+
+export class ControllerPoller {
+  active = false;
+  map : KeyCodeMap;
+  handler;
+  state = new Int8Array(32);
+  lastState = new Int8Array(32);
+  AXIS0 = 24; // first joystick axis index
+  constructor(map:KeyCodeMap, handler:(key,code,flags) => void) {
+    this.map = map;
+    this.handler = handler;
+    window.addEventListener("gamepadconnected", (event) => {
+      console.log("Gamepad connected:", event);
+      this.active = typeof navigator.getGamepads === 'function';
+    });
+    window.addEventListener("gamepaddisconnected", (event) => {
+      console.log("Gamepad disconnected:", event);
+    });
+  }
+  poll() {
+    if (!this.active) return;
+    var gamepads = navigator.getGamepads();
+    for (var gpi=0; gpi<gamepads.length; gpi++) {
+      var gp = gamepads[gpi];
+      if (gp) {
+        for (var i=0; i<gp.axes.length; i++) {
+          var k = i + this.AXIS0;
+          this.state[k] = Math.round(gp.axes[i]);
+          if (this.state[k] != this.lastState[k]) {
+            this.handleStateChange(gpi,k);
+          }
+        }
+        for (var i=0; i<gp.buttons.length; i++) {
+          this.state[i] = gp.buttons[i].pressed ? 1 : 0;
+          if (this.state[i] != this.lastState[i]) {
+            this.handleStateChange(gpi,i);
+          }
+        }
+        this.lastState.set(this.state);
+      }
+    }
+  }
+  handleStateChange(gpi:number, k:number) {
+    var axis = k - this.AXIS0;
+    for (var code in this.map) {
+      var entry = this.map[code];
+      var def = entry.def;
+      // is this a gamepad entry? same player #?
+      if (def && def.plyr == gpi) {
+        var state = this.state[k];
+        var lastState = this.lastState[k];
+        // check for button/axis match
+        if (k == def.button || (axis == 0 && def.xaxis == state) || (axis == 1 && def.yaxis == state)) {
+          //console.log(gpi,k,state,entry);
+          if (state != 0) {
+            this.handler(code, 0, KeyFlags.KeyDown);
+          } else {
+            this.handler(code, 0, KeyFlags.KeyUp);
+          }
+          break;
+        }
+        // joystick released?
+        else if (state == 0 && (axis == 0 && def.xaxis == lastState) || (axis == 1 && def.yaxis == lastState)) {
+          this.handler(code, 0, KeyFlags.KeyUp);
+          break;
+        }
+      }
+    }
+  }
+}
+
 
 export function padBytes(data:Uint8Array|number[], len:number) : Uint8Array {
   if (data.length > len) {

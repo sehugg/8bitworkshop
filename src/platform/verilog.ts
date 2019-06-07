@@ -223,6 +223,7 @@ var VerilogPlatform = function(mainElement, options) {
   this.__proto__ = new (BasePlatform as any)();
   
   var video, audio;
+  var poller;
   var useAudio = false;
   var videoWidth  = 292;
   var videoHeight = 256;
@@ -327,7 +328,7 @@ var VerilogPlatform = function(mainElement, options) {
     ctx.font = "8px TinyFont";
     ctx.fillStyle = "white";
     ctx.textAlign = "left";
-    setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
+    poller = setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
     var vcanvas = $(video.canvas);
     idata = video.getFrameData();
     timerCallback = () => {
@@ -375,6 +376,8 @@ var VerilogPlatform = function(mainElement, options) {
       }
     });
   }
+  
+  // TODO: pollControls() { poller.poll(); }
   
   resize() {
     if (this.waveview) this.waveview.recreate();

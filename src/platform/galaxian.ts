@@ -203,6 +203,7 @@ const _GalaxianPlatform = function(mainElement, options) {
  class GalaxianPlatform extends BaseZ80Platform implements Platform {
  
   scanline : number;
+  poller;
 
   getPresets() {
     return GALAXIAN_PRESETS;
@@ -295,10 +296,12 @@ const _GalaxianPlatform = function(mainElement, options) {
     video = new RasterVideo(mainElement,264,264,{rotate:90});
     video.create();
     var idata = video.getFrameData();
-		setKeyboardFromMap(video, inputs, keyMap);
+    this.poller = setKeyboardFromMap(video, inputs, keyMap);
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
+  
+  pollControls() { this.poller.poll(); }
 
   readAddress(a) {
     return (a == 0x7000 || a == 0x7800) ? null : membus.read(a); // ignore watchdog

@@ -86,7 +86,7 @@ TODO:
 - upload binary files doesn't do what's expected, changing pulldown and whatnot
 - chrome autostart audio: https://github.com/processing/p5.js-sound/issues/249
 - firefox autostart audio: https://support.mozilla.org/en-US/kb/block-autoplay
-- show player controls for each platform, allow touch support, navigator.getGamepads
+- show player controls for each platform, allow touch support
 - better undo/diff for mistakes?
 - ide bug/feature visualizer for sponsors
 - global undo/redo at checkpoints (when rom changes)

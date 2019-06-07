@@ -72,6 +72,7 @@ const _ColecoVisionPlatform = function(mainElement) {
   var audio, psg;
   var inputs = new Uint8Array(4);
   var keypadMode = false;
+  var poller;
 
   class ColecoVisionPlatform extends BaseZ80Platform implements Platform {
 
@@ -137,9 +138,11 @@ const _ColecoVisionPlatform = function(mainElement) {
         }
       };
       vdp = new TMS9918A(video.getFrameData(), cru, true); // true = 4 sprites/line
-      setKeyboardFromMap(video, inputs, COLECOVISION_KEYCODE_MAP);
+      poller = setKeyboardFromMap(video, inputs, COLECOVISION_KEYCODE_MAP);
       timer = new AnimationTimer(60, this.nextFrame.bind(this));
     }
+    
+    pollControls() { poller.poll(); }
 
     readAddress(addr) {
       return membus.read(addr);

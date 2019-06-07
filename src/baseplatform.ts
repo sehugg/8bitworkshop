@@ -1,5 +1,5 @@
 
-import { RAM, RasterVideo, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes } from "./emu";
+import { RAM, RasterVideo, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes, ControllerPoller } from "./emu";
 import { hex, printFlags, invertMap } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { disassemble6502 } from "./cpu/disasm6502";
@@ -265,11 +265,14 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.resume();
   }
   preFrame() {
-    this.updateRecorder();
   }
   postFrame() {
   }
+  pollControls() {
+  }
   nextFrame(novideo : boolean) {
+    this.pollControls();
+    this.updateRecorder();
     this.preFrame();
     this.advance(novideo);
     this.postFrame();
@@ -1101,6 +1104,7 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
   pixels : Uint32Array;
   inputs = new Uint8Array(16);
   mainElement : HTMLElement;
+  poller : ControllerPoller;
 
   abstract newRAM() : Uint8Array;
   abstract newMembus() : MemoryBus;
@@ -1126,13 +1130,15 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
     this.video = new RasterVideo(this.mainElement, this.canvasWidth, this.numVisibleScanlines, this.getVideoOptions());
     this.video.create();
     this.pixels = this.video.getFrameData();
-    setKeyboardFromMap(this.video, this.inputs, this.getKeyboardMap(), this.getKeyboardFunction());
+    this.poller = setKeyboardFromMap(this.video, this.inputs, this.getKeyboardMap(), this.getKeyboardFunction());
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
 
   readAddress(addr) {
     return this.membus.read(addr);
   }
+  
+  pollControls() { this.poller.poll(); }
 
   advance(novideo : boolean) {
     var extraCycles = 0;
