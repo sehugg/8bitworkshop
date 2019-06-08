@@ -32,7 +32,7 @@ void main() {
   while (1) {
     write_relative(x, y, M_MOVE, player_bitmap);
     write_relative(x, y+20, M_MOVE, player_bitmap);
-    write_relative(x, y+40, M_MOVE, player_bitmap);
+    write_relative(x, y+40, M_MOVE|M_FLOP, player_bitmap);
 //    write_relative(x, y+60, M_MOVE, player_bitmap);
     fast_vsync();
     x++;

@@ -95,10 +95,12 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   var infbk = 0;
   var verbl = sheight;
   var palette = new Uint32Array(8);
+  var palinds = new Uint8Array(8);
   var refreshlines = 0;
   var vidactive = false;
   var rotdata = new Uint8Array(4);
   var rotcount = 0;
+  var intst = 0;
   
   function ramwrite(a:number, v:number) {
     ram.mem[a] = v;
@@ -178,13 +180,14 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       if (magicop & 0x20)
         v ^= oldv; // TODO: what if both?
       // upper 4 bits persist, lower are just since last write
-      inputs[8] = (inputs[8] & 0xf0) | icpt | (icpt<<4);
+      intst = (intst & 0xf0) | icpt | (icpt<<4);
     }
     // commit write to ram/screen
     ramwrite(a, v);
   }
 
   function setpalette(a:number, v:number) {
+    palinds[a&7] = v&0xff;
     palette[a&7] = ASTROCADE_PALETTE[v&0xff];
     refreshall();
   }
@@ -253,11 +256,18 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       },
       read: function(addr) {
     	  addr &= 0x1f;
-    	  var rtn = inputs[addr];
-    	  if (addr == 8)
-    	    inputs[addr] = 0;
-        // $10 = watchdog
-    	  return rtn;
+    	  var rtn;
+    	  switch (addr) {
+    	    case 8:
+      	    rtn = intst;
+      	    intst = 0;
+      	    break;
+          default:
+        	  rtn = inputs[addr];
+        	  break;
+          // $10 = watchdog
+        }
+     	  return rtn;
     	},
     	write: function(addr, val) {
     	  addr &= 0x1f;
@@ -333,8 +343,10 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // default palette
-    for (var i=0; i<8; i++)
+    for (var i=0; i<8; i++) {
+      palinds[i] = i;
       palette[i] = ASTROCADE_PALETTE[i];
+    }
   }
 
   readAddress(addr) {
@@ -401,6 +413,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     cpu.loadState(state.c);
     ram.mem.set(state.b);
     palette.set(state.palette);
+    palinds.set(state.palinds);
     magicop = state.magicop;
     xpand = state.xpand;
     xplower = state.xplower;
@@ -412,6 +425,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     verbl = state.verbl;
     rotcount = state.rotcount;
     rotdata.set(state.rotdata);
+    intst = state.intst;
     this.scanline = state.sl;
     this.loadControlsState(state);
     refreshall();
@@ -422,6 +436,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       b: ram.mem.slice(0),
       in: inputs.slice(0),
       palette: palette.slice(0),
+      palinds: palinds.slice(0),
       magicop: magicop,
       xpand: xpand,
       xplower: xplower,
@@ -433,6 +448,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       verbl: verbl,
       rotcount: rotcount,
       rotdata: rotdata.slice(0),
+      intst: intst,
       sl: this.scanline,
     };
   }
@@ -490,12 +506,10 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     s += "\n  HORCB: $" + hex(st.horcb);
     s += "\n  INMOD: $" + hex(st.inmod);
     s += "\n  INFBK: $" + hex(st.infbk);
-    s += "\n  INTST: $" + hex(st.in[8]); // intercept status
-    /*
+    s += "\n  INTST: $" + hex(st.intst); // intercept status
     s += "\nPalette: ";
     for (var i=0; i<8; i++)
-      s += hex(palette[i]);
-    */
+      s += hex(palinds[i]);
     s += "\n";
     return s;
   }

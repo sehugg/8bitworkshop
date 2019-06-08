@@ -4,6 +4,8 @@
 #include "aclib.h"
 #include "acextra.h"
 
+#pragma opt_code_speed
+
 #define EXIT_CLIPDEST(addr) if ((((word)addr)&0xfff) >= 0xe10) return
 
 // clear screen and set graphics mode
@@ -14,13 +16,14 @@ void clrscr(void) {
 // draw vertical line
 void vline(byte x, byte y1, byte y2, byte col, byte op) {
   byte* dest = &vmagic[y1][x>>2];// destination address
-  byte y;
+  col <<= 6;			// color goes in top 2 bits
   hw_magic = M_SHIFT(x) | op;	// set magic register
-  col <<= 6;			// put color in high pixel
-  for (y=y1; y<=y2; y++) {
-    EXIT_CLIPDEST(dest);
-    *dest = col;		// shift + xor color
-    dest += VBWIDTH;		// dest address to next scanline
+  if (y2 >= VHEIGHT) y2 = VHEIGHT-1;	// clipping
+  if (y1 > y2) return;
+  *dest = col;
+  while (++y1 <= y2) {
+    dest += VBWIDTH;	// dest address to next scanline
+    *dest = col;
   }
 }
 

@@ -57,7 +57,7 @@ _display_string:
 _paint_rectangle:
 	call	load5_edca_hl
         ld	b,l
-        ld	h,a
+        ld	a,h
         SYSTEM	RECTAN
         ret
 

@@ -4,6 +4,7 @@
 //#link "aclib.s"
 #include "acbios.h"
 //#link "acbios.s"
+#include "acfast.h"
 //#link "acfast.s"
 //#link "hdr_autostart.s"
 
@@ -24,9 +25,6 @@ const byte SPRITE[] = {
   0x01,0x40, 0x06,0x90, 0x15,0x54, 0x47,0x51,
   0x45,0xD1, 0x05,0x50, 0x04,0x10, 0x3C,0x3C,
 };
-
-extern void fast_sprite_8(const byte* pattern, byte* dst);
-extern void fast_sprite_16(const byte* pattern, byte* dst);
 
 #define MAX_SPRITES 8
 

@@ -23,7 +23,7 @@ PrgStart:   DI                      ; Disable interrupts
             DW      Palettes        ; ... with the values at Palettes
             DO      FILL            ; Set background fill
             DW      NORMEM          ; ... starting at the beginning of screen RAM
-            DW      100*BYTEPL      ; ... and going for 100 lines
+            DW      98*BYTEPL      ; ... and going for 100 lines
             DB      00010010b       ; ... with a fill pattern of three different colored pixels
             DO      STRDIS          ; Set string display
             DB      0               ; ... starting 0 pixels from the left of the screen

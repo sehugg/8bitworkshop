@@ -68,7 +68,8 @@ void main(void) {
   // small font must be aligned to multiple of 4
   display_string(4, 80, OPT_ON(1), "\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9");
   // paint a rectangle with a pattern mask (0xa5)
-  paint_rectangle(4, 72, 100, 4, 0xa5);
+  paint_rectangle(4, 72, 100, 5, 0x55);
+  paint_rectangle(6, 74, 100, 4, 0xaa);
   // write from pattern block
   write_relative(50, 80, M_XPAND, BALL);
   write_relative(60, 80, M_XPAND, BALL);

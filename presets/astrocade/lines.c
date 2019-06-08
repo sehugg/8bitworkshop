@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#pragma opt_code_speed
+
 void draw_line(int x0, int y0, int x1, int y1, byte color) {
   int dx = abs(x1-x0);
   int sx = x0<x1 ? 1 : -1;

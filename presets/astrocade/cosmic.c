@@ -6,6 +6,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 
 //#resource "astrocade.inc"
 #include "acbios.h"
@@ -26,15 +27,17 @@ const byte player_bitmap[2+9*3] =
 const byte bomb_bitmap[] =
 {1,3,/*{w:4,h:3,bpp:2,brev:1}*/0xF8,0x3E,0xF8};
 const byte bullet_bitmap[] =
-{1,5,/*{w:4,h:5,bpp:2,brev:1}*/0x08,0x24,0x18,0x10,0x04};
+{1,5,/*{w:4,h:5,bpp:2,brev:1}*/0x0C,0x24,0x18,0x10,0x04};
 const byte enemy1_bitmap[18] =
-{2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x02,0x80,0x0B,0xE0,0x3F,0xFC,0x37,0xDC,0x3F,0xFC,0x0C,0x30,0x30,0x0C,0x0C,0x30};
+{2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x22,0x88,0x2A,0xA8,0x3F,0xFC,0x37,0xDC,0x3F,0xFC,0x38,0x2C,0x30,0x0C,0x0C,0x30};
 const byte enemy2_bitmap[] =
 {2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x0C,0x30,0x30,0x0C,0x17,0xE8,0x23,0xC4,0x0B,0xD0,0x2C,0x34,0x2F,0xF4,0x10,0x08};
 const byte enemy3_bitmap[] =
 {2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x0F,0xC0,0x00,0xC0,0x10,0xC4,0x26,0xD8,0x27,0x98,0x26,0xD8,0x14,0x14,0x10,0x04};
 const byte enemy4_bitmap[] =
 {2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x30,0x0C,0x3C,0x3C,0x0F,0xF0,0x3A,0xE8,0x3B,0xEC,0x3F,0xFC,0x30,0x0C,0x00,0x00};
+const byte mothership_bitmap[2+3*6] =
+{3,6,/*{w:12,h:6,bpp:2,brev:1}*/0x00,0x28,0x00,0x02,0xBE,0x80,0x2A,0xFF,0xA8,0x25,0x55,0x58,0x0A,0xAA,0xA0,0x02,0xAA,0x80};
 const byte explode_bitmap[18] =
 {2,8,/*{w:8,h:8,bpp:2,brev:1}*/0x40,0x44,0x10,0x40,0x06,0x81,0x0B,0xE4,0x5B,0xE0,0x02,0x81,0x04,0x10,0x10,0x44};
 
@@ -63,6 +66,7 @@ const byte palette[8] = {
 #define PLYRHEIGHT 9
 #define ENEMY_SPACING_X 14
 #define ENEMY_SPACING_Y 11
+#define ENEMY_WIDTH 8
 #define ENEMY_MARCH_X 1
 #define ENEMY_MARCH_Y 2
 #define EXPLODE_TIME 8
@@ -85,7 +89,6 @@ typedef struct {
 
 MarchMode this_mode, next_mode;
 
-byte attract;
 word score;
 byte lives;
 
@@ -123,11 +126,11 @@ void draw_bunker(byte x, byte y, byte y2, byte h, byte w) {
   for (i=0; i<h; i++) {
     a = y-y2-i*2;
     b = y-i;
-    vline(x+i, a, b, M_XOR, COLOR_BUNKER);
-    vline(x+h*2+w-i-1, a, b, M_XOR, COLOR_BUNKER);
+    vline(x+i, a, b, COLOR_BUNKER, M_XOR);
+    vline(x+h*2+w-i-1, a, b, COLOR_BUNKER, M_XOR);
   }
   for (i=0; i<w; i++) {
-    vline(x+h+i, a, b, M_XOR, COLOR_BUNKER);
+    vline(x+h+i, a, b, COLOR_BUNKER, M_XOR);
   }
 }
 
@@ -140,12 +143,11 @@ void draw_playfield() {
   for (i=0; i<PIXWIDTH; i++)
     pixel(i, VHEIGHT-1, COLOR_GROUND, M_OR);
   // TODO: const
-  draw_bunker(20, 65, 15, 15, 20);
-  draw_bunker(100, 65, 15, 15, 20);
+  draw_bunker(20, 75, 5, 5, 20);
+  draw_bunker(100, 75, 5, 5, 20);
 }
 
 void add_score(word pts) {
-  if (attract) return;
   score = bcd_add(score, pts);
   draw_score();
 }
@@ -199,9 +201,11 @@ void init_enemies() {
 
 void delete_enemy(Enemy* e) {
   erase_sprite(e->shape, e->x, e->y);
-  explode_x = e->x;
-  explode_y = e->y;
-  explode_timer = EXPLODE_TIME;
+  if (explode_timer == 0) {
+    explode_x = e->x;
+    explode_y = e->y;
+    explode_timer = EXPLODE_TIME;
+  }
   memmove(e, e+1, sizeof(Enemy)*(enemies-e+MAX_ENEMIES-1));
   num_enemies--; // update_next_enemy() will check enemy_index
 }
@@ -217,7 +221,7 @@ void update_next_enemy() {
     erase_sprite(e->shape, e->x, e->y);
     e->y += ENEMY_MARCH_Y;
     // if too close to ground, end game
-    if (e->y > VHEIGHT-ENEMY_SPACING_Y) {
+    if (e->y >= player_y) {
       destroy_player();
       lives = 0;
     }
@@ -244,7 +248,7 @@ void update_next_enemy() {
 char in_rect(Enemy* e, byte x, byte y, byte w, byte h) {
   byte ew = e->shape[0]*4;
   byte eh = e->shape[1];
-  return (x >= e->x-w && x <= e->x+ew && y >= e->y-h && y <= e->y+eh);
+  return (x >= e->x-w && x <= e->x+ew+w && y >= e->y-h && y <= e->y+eh+h);
 }
 
 Enemy* find_enemy_at(byte x, byte y) {
@@ -266,19 +270,24 @@ void check_bullet_hit(byte x, byte y) {
   }
 }
 
+void xor_bullet() {
+  render_sprite(bullet_bitmap, bullet_x, bullet_y, M_XOR);
+}
+
 void fire_bullet() {
   bullet_x = player_x + 4;
   bullet_y = VHEIGHT-PLYRHEIGHT-6;
-  //render_sprite(bullet_bitmap, bullet_x, bullet_y, M_XOR); // draw
+  xor_bullet();
 }
 
 void move_bullet() {
   byte leftover;
-  erase_sprite(bullet_bitmap, bullet_x, bullet_y);
+  xor_bullet();
+  //erase_sprite(bullet_bitmap, bullet_x, bullet_y);
   hw_intst; // reset intercept counters
   bullet_y -= 2;
-  render_sprite(bullet_bitmap, bullet_x, bullet_y, M_OR); // erase
-  leftover = (hw_intst & 0xf0); // any pixels leftover?
+  xor_bullet();
+  leftover = hw_intst; // any pixels leftover?
   if (leftover || bullet_y < 10) {
     erase_sprite(bullet_bitmap, bullet_x, bullet_y);
     check_bullet_hit(bullet_x, bullet_y+2);
@@ -286,26 +295,37 @@ void move_bullet() {
   }
 }
 
+void xor_bomb() {
+  render_sprite(bomb_bitmap, bomb_x, bomb_y, M_XOR);
+}
+
 void drop_bomb() {
-  Enemy* e = &enemies[enemy_index];
-  bomb_x = e->x + 7;
-  bomb_y = e->y + 16;
+  byte i = rand() % num_enemies;
+  Enemy* e = &enemies[i];
+  // don't drop on someone else!
+  if (find_enemy_at(e->x, e->y+ENEMY_SPACING_Y*2)) {
+    return;
+  }
+  bomb_x = e->x + ENEMY_WIDTH/4;
+  bomb_y = e->y + ENEMY_SPACING_Y;
+  xor_bomb();
 }
 
 void move_bomb() {
-  hw_intst; // reset intercept counters
-  erase_sprite(bomb_bitmap, bomb_x, bomb_y); // erase bunker
+  xor_bomb();
   if (bomb_y >= VHEIGHT-5) {
     bomb_y = 0;
   } else {
     bomb_y += 1;
-    render_sprite(bomb_bitmap, bomb_x, bomb_y, M_OR); // erase
+    hw_intst; // reset intercept counters
+    xor_bomb();
     if (hw_intst & 0xf0) { // any pixels leftover?
+      erase_sprite(bomb_bitmap, bomb_x, bomb_y);
       if (bomb_y >= player_y) {
         // player was hit (probably)
         destroy_player();
-        bomb_y = 0;
       }
+      bomb_y = 0;
     }
   }
 }
@@ -314,23 +334,18 @@ byte frame;
 signed char player_dir = 0;
 
 void move_player() {
-  if (attract) {
-    if (bullet_y == 0) fire_bullet();
-    player_dir = 0;
-  } else {
-    byte mask = hw_p1ctrl;
-    if (mask & 0x4) {
-      if (player_x > 0)
-        player_x--;
-    }
-    if (mask & 0x8) {
-      if (player_x < PIXWIDTH-16)
-        player_x++;
-    }
-    if (mask & 0x10) {
-      if (bullet_y == 0) {
-        fire_bullet();
-      }
+  byte mask = hw_p1ctrl;
+  if (mask & 0x4) {
+    if (player_x > 0)
+      player_x--;
+  }
+  if (mask & 0x8) {
+    if (player_x < PIXWIDTH-16)
+      player_x++;
+  }
+  if (mask & 0x10) {
+    if (bullet_y == 0) {
+      fire_bullet();
     }
   }
   // move player
@@ -392,7 +407,6 @@ void game_over_msg() {
 }
 
 void play_game() {
-  attract = 0;
   init_game();
   init_enemies();
   while (lives) {
@@ -402,14 +416,6 @@ void play_game() {
     }
   }
   game_over_msg();
-}
-
-void attract_mode() {
-  attract = 1;
-  while (1) {
-    init_enemies();
-    play_round();
-  }
 }
 
 void main() {

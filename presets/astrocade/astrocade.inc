@@ -196,7 +196,7 @@ XPAND   =     0x19     ;&(25)= ; eXPANDer pixel definition port
 INTST   =     0x08     ; =&(8) ; read INTercept STatus
 VERAF   =     0x0E     ;=&(14) ; read VERtical Address Feedback
 HORAF   =     0x0F     ;=&(15) ; read HORizontal Address Feedback
-;
+ ;
 ; HAND CONTROL INPUT Ports:
 SW0     =     0x10     ;=&(16) ; read SWitch bank 0 for player 1 hand control
 SW1     =     0x11     ;=&(17) ; read SWitch bank 1 for player 2 hand control

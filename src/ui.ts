@@ -1645,7 +1645,7 @@ function installErrorHandler() {
         } else {
           // send exception msg to GA
           var msg = msgstr;
-          if (typeof error == 'string') msg += ": " + error;
+          //if (typeof error == 'string') msg += ": " + error;
           if (line) msg += " (" + line + ":" + col + ")";
           if (msg.length > 256) { msg = msg.substring(0, 256); }
           if (ga) ga('send', 'exception', {

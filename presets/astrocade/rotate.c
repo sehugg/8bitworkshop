@@ -15,7 +15,7 @@ const byte palette[8] = {
   0x07, 0xD4, 0x35, 0x01,
 };
 
-const byte BALL[] = {
+const byte SPRITE[] = {
   0, 0,		// x and y offset
   1, 4,		// width (bytes) and height (lines)
   /*{w:4,h:4,bpp:2,brev:1}*/
@@ -26,17 +26,17 @@ const byte BALL[] = {
 };
 
 void draw_pattern(byte x) {
-  vmagic[0][x] = BALL[4];
-  vmagic[1][x] = BALL[5];
-  vmagic[2][x] = BALL[6];
-  vmagic[3][x] = BALL[7];
+  vmagic[0][x] = SPRITE[4];
+  vmagic[1][x] = SPRITE[5];
+  vmagic[2][x] = SPRITE[6];
+  vmagic[3][x] = SPRITE[7];
 }
 
 void draw_pattern_inv(byte x) {
-  vmagic[3][x] = BALL[4];
-  vmagic[2][x] = BALL[5];
-  vmagic[1][x] = BALL[6];
-  vmagic[0][x] = BALL[7];
+  vmagic[3][x] = SPRITE[4];
+  vmagic[2][x] = SPRITE[5];
+  vmagic[1][x] = SPRITE[6];
+  vmagic[0][x] = SPRITE[7];
 }
 
 void main(void) {
