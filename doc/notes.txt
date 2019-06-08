@@ -20,7 +20,6 @@ TODO:
 - show errors in list (maybe window list?)
   - click to go to error
   - what if error in include file you can't edit b/c it never appears?
-- can't see 1st line in editor sometimes (when scrolling cursor past bottom of screen)
 - online help
 - show self-modifying code insns left of editor
 - facade/kbd shortcuts for emulators, focus

@@ -2,10 +2,9 @@
 
 .CodeMirror {
   /* Set height, width, borders, and global font properties here */
-  border: 1px solid #eee;
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   font-size: 0.8em;
-  height: 96vh;
+  height: 94vh;
 }
 
 /* PADDING */
