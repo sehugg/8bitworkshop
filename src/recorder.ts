@@ -1,6 +1,9 @@
 
 import { Platform, EmuState, EmuControlsState, EmuRecorder } from "./baseplatform";
+import { BaseDebugPlatform, EmuProfiler, ProfilerOutput } from "./baseplatform";
 import { getNoiseSeed, setNoiseSeed } from "./emu";
+
+// RECORDER
 
 type FrameRec = {controls:EmuControlsState, seed:number};
 
@@ -110,4 +113,45 @@ export class StateRecorderImpl implements EmuRecorder {
     getLastCheckpoint() : EmuState {
         return this.checkpoints.length && this.checkpoints[this.checkpoints.length-1];
     }
+}
+
+// PROFILER
+
+export class EmuProfilerImpl implements EmuProfiler {
+
+  platform : Platform;
+  
+  constructor(platform : Platform) {
+    this.platform = platform;
+  }
+
+  start() : ProfilerOutput {
+    var frame = null;
+    var output = {frame:null};
+    var i = 0;
+    var lastsl = 9999;
+    var start = 0;
+    this.platform.setBreakpoint('profile', () => {
+      var sl = this.platform.getRasterScanline();
+      if (sl != lastsl) {
+        if (frame) {
+          frame.lines.push({start:start,end:i-1});
+        }
+        if (sl < lastsl) {
+          output.frame = frame;
+          frame = {iptab:new Uint32Array(0x8000), lines:[]}; // TODO: const
+          i = 0;
+        }
+        start = i;
+        lastsl = sl;
+      }
+      var c = this.platform.getCPUState();
+      frame.iptab[i++] = c.EPC || c.PC;
+      return false; // profile forever
+    });
+    return output;
+  }
+  stop() {
+    this.platform.clearBreakpoint('profile');
+  }
 }

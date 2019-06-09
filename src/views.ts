@@ -3,10 +3,11 @@
 import $ = require("jquery");
 //import CodeMirror = require("codemirror");
 import { SourceFile, WorkerError, Segment, FileData } from "./workertypes";
-import { Platform, EmuState, ProfilerOutput, lookupSymbol } from "./baseplatform";
+import { Platform, EmuState, ProfilerOutput, lookupSymbol, BaseDebugPlatform } from "./baseplatform";
 import { hex, lpad, rpad, safeident, rgb2bgr } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
+import { EmuProfilerImpl } from "./recorder";
 import * as pixed from "./pixed/pixeleditor";
 declare var Mousetrap;
 
@@ -819,8 +820,9 @@ export class MemoryMapView implements ProjectView {
 ///
 
 export class ProfileView implements ProjectView {
+  prof : EmuProfilerImpl;
   profilelist;
-  prof : ProfilerOutput;
+  out : ProfilerOutput;
   maindiv : HTMLElement;
   symcache : {};
   recreateOnResize = true;
@@ -852,8 +854,8 @@ export class ProfileView implements ProjectView {
 
   addProfileLine(div : HTMLElement, row : number) : void {
     div.appendChild(createTextSpan(lpad(row+':',4), "profiler-lineno"));
-    if (!this.prof) return;
-    var f = this.prof.frame;
+    if (!this.out) return;
+    var f = this.out.frame;
     if (!f) return;
     var l = f.lines[row];
     if (!l) return;
@@ -899,10 +901,13 @@ export class ProfileView implements ProjectView {
   }
 
   setVisible(showing : boolean) : void {
+    if (!this.prof) {
+      this.prof = new EmuProfilerImpl(platform);
+    }
     if (showing)
-      this.prof = platform.startProfiling();
+      this.out = this.prof.start();
     else
-      platform.stopProfiling();
+      this.prof.stop();
   }
 }
 

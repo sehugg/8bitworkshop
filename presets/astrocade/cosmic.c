@@ -64,6 +64,8 @@ const byte palette[8] = {
 
 #define MAXLIVES 5
 #define PLYRHEIGHT 9
+#define ENEMY_WIDTH 8
+#define ENEMY_HEIGHT 8
 #define ENEMY_SPACING_X 14
 #define ENEMY_SPACING_Y 11
 #define ENEMY_WIDTH 8
@@ -208,6 +210,7 @@ void delete_enemy(Enemy* e) {
   }
   memmove(e, e+1, sizeof(Enemy)*(enemies-e+MAX_ENEMIES-1));
   num_enemies--; // update_next_enemy() will check enemy_index
+  // TODO: enemy_index might skip updating an enemy
 }
 
 void update_next_enemy() {
@@ -255,7 +258,7 @@ Enemy* find_enemy_at(byte x, byte y) {
   byte i;
   for (i=0; i<num_enemies; i++) {
     Enemy* e = &enemies[i];
-    if (in_rect(e, x, y, 4, 5)) {
+    if (in_rect(e, x, y, 4, 1)) {
       return e;
     }
   }
@@ -303,11 +306,11 @@ void drop_bomb() {
   byte i = rand() % num_enemies;
   Enemy* e = &enemies[i];
   // don't drop on someone else!
-  if (find_enemy_at(e->x, e->y+ENEMY_SPACING_Y*2)) {
+  if (find_enemy_at(e->x, e->y+ENEMY_HEIGHT+ENEMY_SPACING_Y+1)) {
     return;
   }
   bomb_x = e->x + ENEMY_WIDTH/4;
-  bomb_y = e->y + ENEMY_SPACING_Y;
+  bomb_y = e->y + ENEMY_HEIGHT;
   xor_bomb();
 }
 
@@ -321,7 +324,7 @@ void move_bomb() {
     xor_bomb();
     if (hw_intst & 0xf0) { // any pixels leftover?
       erase_sprite(bomb_bitmap, bomb_x, bomb_y);
-      if (bomb_y >= player_y) {
+      if (bomb_y >= player_y-2) {
         // player was hit (probably)
         destroy_player();
       }

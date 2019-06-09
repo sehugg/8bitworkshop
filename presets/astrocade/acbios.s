@@ -146,8 +146,3 @@ _begin_music:
         SYSTEM	BMUSIC
 	ret
 
-; EMUSIC
-	.globl	_end_music
-_end_music:
-	SYSTEM	EMUSIC
-	ret

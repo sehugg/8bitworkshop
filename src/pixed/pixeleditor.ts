@@ -435,7 +435,7 @@ export class TextDataNode extends CodeProjectDataNode {
   }
   updateLeft() {
     if (this.right.words.length != this.words.length)
-      throw "Expected " + this.words.length + " bytes; image has " + this.right.words.length;
+      throw "Expected " + this.right.words.length + " bytes; image has " + this.words.length;
     this.words = this.right.words;
     // TODO: reload editors?
     var datastr = this.text.substring(this.start, this.end);

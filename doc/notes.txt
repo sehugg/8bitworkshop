@@ -103,6 +103,8 @@ TODO:
   - click on profiler to step to position
     - breakpoints stop profiler from running
   - single-screen profiler
+  - hide labels that aren't available, like BIOS addrs
+  - show interrupts, other events
 - https://remotestoragejs.readthedocs.io/en/latest/getting-started/how-to-add.html ?
 - Verilog
   - larger scope range, better scrolling
@@ -153,6 +155,8 @@ TODO:
   - emulator needs reset shortcut for nes
   - switching platform of a repo?
   - make sure to flatten subdirs
+- astrocade
+  - EI should trigger interrupt if pending? (see stash, might need z80 option)
 - ctrl+alt+l on ubuntu locks screen
 
 WEB WORKER FORMAT

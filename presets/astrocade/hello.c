@@ -51,8 +51,9 @@ void main(void) {
   // set screen height
   // set horizontal color split (position / 4)
   // set interrupt status
+  // use SYS_SETOUT macro
   SYS_SETOUT(89*2, 23, 0);
-  // clear screen
+  // clear screen w/ SYS_FILL macro
   SYS_FILL(0x4000, 89*40, 0);
   // display standard characters
   display_string(2, 2, OPT_ON(1), "HELLO, WORLD!\xb1\xb2\xb3\xb4\xb5");
@@ -69,7 +70,8 @@ void main(void) {
   display_string(4, 80, OPT_ON(1), "\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9");
   // paint a rectangle with a pattern mask (0xa5)
   paint_rectangle(4, 72, 100, 5, 0x55);
-  paint_rectangle(6, 74, 100, 4, 0xaa);
+  // more compact macro
+  SYS_RECTAN(6, 74, 100, 4, 0xaa);
   // write from pattern block
   write_relative(50, 80, M_XPAND, BALL);
   write_relative(60, 80, M_XPAND, BALL);
@@ -83,6 +85,7 @@ void main(void) {
   // make sure screen doesn't black out
   RESET_TIMEOUT();
   // play music
+  //SYS_BMUSIC(_music_stack, 0b11111100, _MUSICDATA);
   //begin_music(music_stack, 0b11111100, MUSICDATA);
   while (1) {
     // wait for SENTRY result

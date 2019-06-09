@@ -235,7 +235,7 @@ function refreshWindowList() {
       return new Views.MemoryMapView();
     });
   }
-  if (platform.startProfiling && platform.runEval && platform.getRasterScanline) {
+  if (platform.getRasterScanline && platform.setBreakpoint && platform.getCPUState) { // TODO: use profiler class to determine compat
     addWindowItem("#profiler", "Profiler", () => {
       return new Views.ProfileView();
     });
@@ -1506,6 +1506,7 @@ function setupReplaySlider() {
       var frame = (<any>e.target).value;
       if (stateRecorder.loadFrame(frame)) {
         updateFrameNo(frame);
+        projectWindows.tick();
       }
     };
     var setFrameTo = (frame:number) => {
@@ -1513,6 +1514,7 @@ function setupReplaySlider() {
       if (stateRecorder.loadFrame(frame)) {
         replayslider.val(frame);
         updateFrameNo(frame);
+        projectWindows.tick();
         console.log('seek to frame',frame);
       }
     };

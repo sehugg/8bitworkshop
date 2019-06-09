@@ -91,6 +91,15 @@ void end_music(void);
 
 // QUICK MACROS
 
+#define SYS_ACTINT()\
+	__asm__("rst 0x38");\
+        __asm__(".db 0x0f");\
+
+#define SYS_PAWS(frames)\
+	__asm__("rst 0x38");\
+        __asm__(".db 0x51");\
+        __asm__(".db "#frames);\
+
 #define SYS_SETOUT(verbl,horcb,inmod)\
 	__asm__("rst 0x38");\
         __asm__(".db 0x17");\
@@ -111,6 +120,26 @@ void end_music(void);
         __asm__(".dw "#dest);\
         __asm__(".dw "#count);\
         __asm__(".dw "#src);\
+
+#define SYS_RECTAN(x,y,width,height,color)\
+	__asm__("rst 0x38");\
+        __asm__(".db 0x1d");\
+        __asm__(".db "#x);\
+        __asm__(".db "#y);\
+        __asm__(".db "#width);\
+        __asm__(".db "#height);\
+        __asm__(".db "#color);\
+
+#define SYS_BMUSIC(stack,voices,musicdata)\
+	__asm__("rst 0x38");\
+        __asm__(".db 0x13");\
+        __asm__(".dw "#stack);\
+        __asm__(".db "#voices);\
+        __asm__(".dw "#musicdata);\
+
+#define SYS_EMUSIC()\
+	__asm__("rst 0x38");\
+        __asm__(".db 0x15");\
 
 #define RESET_TIMEOUT() \
 	__asm__("ld a,#0xff");\

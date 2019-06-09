@@ -104,6 +104,9 @@ export interface Platform {
   startProfiling?() : ProfilerOutput;
   stopProfiling?() : void;
   getRasterScanline?() : number;
+  setBreakpoint?(id : string, cond : DebugCondition);
+  clearBreakpoint?(id : string);
+  getCPUState?() : CpuState;
 
   debugSymbols? : DebugSymbols;
 }
@@ -160,6 +163,10 @@ export interface ProfilerFrame {
 export interface ProfilerOutput {
   frame : ProfilerFrame;
 }
+export interface EmuProfiler {
+  start() : ProfilerOutput;
+  stop();
+}
 
 /////
 
@@ -206,35 +213,6 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   }
   clearBreakpoint(id : string) {
     delete this.breakpoints.id2bp[id];
-  }
-  startProfiling() : ProfilerOutput {
-    var frame = null;
-    var output = {frame:null};
-    var i = 0;
-    var lastsl = 9999;
-    var start = 0;
-    this.setBreakpoint('profile', () => {
-      var sl = (this as any).getRasterScanline();
-      if (sl != lastsl) {
-        if (frame) {
-          frame.lines.push({start:start,end:i-1});
-        }
-        if (sl < lastsl) {
-          output.frame = frame;
-          frame = {iptab:new Uint32Array(0x8000), lines:[]}; // TODO: const
-          i = 0;
-        }
-        start = i;
-        lastsl = sl;
-      }
-      var c = this.getCPUState();
-      frame.iptab[i++] = c.EPC || c.PC;
-      return false; // profile forever
-    });
-    return output;
-  }
-  stopProfiling() {
-    this.clearBreakpoint('profile');
   }
   getDebugCallback() : DebugCondition {
     return this.breakpoints.getDebugCondition();
