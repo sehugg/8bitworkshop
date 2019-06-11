@@ -6,6 +6,7 @@ export interface SourceLine {
   line:number;
   insns?:string;
   iscode?:boolean;
+  cycles?:number;
 }
 
 export class SourceFile {

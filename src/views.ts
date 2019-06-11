@@ -244,8 +244,10 @@ export class SourceEditor implements ProjectView {
         this.setGutter("gutter-bytes", info.line-1, insnstr);
         if (info.iscode) {
           // TODO: labels trick this part?
-          var opcode = parseInt(info.insns.split(" ")[0], 16);
-          if (platform.getOpcodeMetadata) {
+          if (info.cycles) {
+            this.setGutter("gutter-clock", info.line-1, info.cycles+"");
+          } else if (platform.getOpcodeMetadata) {
+            var opcode = parseInt(info.insns.split(" ")[0], 16);
             var meta = platform.getOpcodeMetadata(opcode, info.offset);
             var clockstr = meta.minCycles+"";
             this.setGutter("gutter-clock", info.line-1, clockstr);
