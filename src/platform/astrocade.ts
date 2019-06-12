@@ -381,7 +381,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       }
       // interrupt
       if (sl == inlin && (inmod & 0x8)) {
-        // TODO: interrupt mode bit 0x4
+        cpu.retryInterrupts = !(inmod & 0x4);
         cpu.requestInterrupt(infbk);
       }
       // refresh this line in frame buffer?

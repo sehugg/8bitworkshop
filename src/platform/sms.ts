@@ -41,12 +41,12 @@ var SG1000_KEYCODE_MAP = makeKeycodeMap([
   [Keys.B,     0, 0x20],
 
   [Keys.P2_UP,    0, 0x40],
-  [Keys.A,        0, 0x80],
-  [Keys.P2_RIGHT, 1, 0x1],
-  [Keys.B,        1, 0x2],
-  [Keys.P2_LEFT,  1, 0x4],
-  [Keys.P2_DOWN,  1, 0x8],
-  [Keys.START,    1, 0x10],
+  [Keys.P2_DOWN,  0, 0x80],
+  [Keys.P2_LEFT,  1, 0x1],
+  [Keys.P2_RIGHT, 1, 0x2],
+  [Keys.P2_A,     1, 0x4],
+  [Keys.P2_B,     1, 0x8],
+  [Keys.VK_BACK_SLASH,    1, 0x10], // reset
 ]);
 
 class SG1000Platform extends BasicZ80ScanlinePlatform implements Platform {

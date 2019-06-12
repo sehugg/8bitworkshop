@@ -156,7 +156,7 @@ TODO:
   - switching platform of a repo?
   - make sure to flatten subdirs
 - astrocade
-  - EI should trigger interrupt if pending? (see stash, might need z80 option)
+  - what if update earlier part of screen with different palette? it'd be nice to have instant updates when debugging tho...
 - ctrl+alt+l on ubuntu locks screen
 
 WEB WORKER FORMAT
