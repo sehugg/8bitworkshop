@@ -103,14 +103,20 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   var palette = new Uint32Array(8);
   var palinds = new Uint8Array(8);
   var refreshlines = 0;
+  var dirtylines = new Uint8Array(arcade ? 262 : 131);
   var vidactive = false;
   var rotdata = new Uint8Array(4);
   var rotcount = 0;
   var intst = 0;
   
   function ramwrite(a:number, v:number) {
+    // set RAM
     ram.mem[a] = v;
-    ramupdate(a, v);
+    // mark scanline as dirty
+    dirtylines[Math.floor((a & 0xfff)/swbytes)] = 1;
+    // this was old behavior where we updated instantly
+    // but it had problems if we had mid-screen palette changes
+    //ramupdate(a, v);
   }
 
   function ramupdate(a:number, v:number) {
@@ -386,8 +392,13 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       }
       // refresh this line in frame buffer?
       if (sl < sheight && refreshlines>0) {
+        dirtylines[sl] = 0;
         refreshline(sl);
         refreshlines--;
+      }
+      else if (dirtylines[sl]) {
+        dirtylines[sl] = 0;
+        refreshline(sl);
       }
     }
     if (!novideo) {
