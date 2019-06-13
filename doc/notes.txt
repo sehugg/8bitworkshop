@@ -77,7 +77,6 @@ TODO:
 - better undo/diff for mistakes?
 - ide bug/feature visualizer for sponsors
 - global undo/redo at checkpoints (when rom changes)
-- pulldown shows wrong file if preset not present
 - landscape mode for arcade ports
 - symmetric load/save state types
 - pixel editor
@@ -93,18 +92,21 @@ TODO:
   - can't replace in hex directives
   - should maybe use same single-canvas editor for map + char editor
   - undo doesn't refresh editor
+  - editing sometimes messes up cursor movement (CURBS)
 - crt0.s compiled each time?
 - debug highlight doesn't go away when debugging -> running
   - show breakpoint of PC or highest address on stack
   - can we highlight line instead of select?
 - profiler
-  - profiler restarts when paused
+  - profiler restarts emulator when paused
   - running profiler while replaying? grand unified replay?
   - click on profiler to step to position
     - breakpoints stop profiler from running
   - single-screen profiler
   - hide labels that aren't available, like BIOS addrs
   - show interrupts, other events
+  - sometimes interleaves two different PCs? like two profilers running simultaneously?
+    - ah, symbols persist across builds
 - https://remotestoragejs.readthedocs.io/en/latest/getting-started/how-to-add.html ?
 - Verilog
   - larger scope range, better scrolling

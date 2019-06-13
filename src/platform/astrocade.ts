@@ -20,6 +20,7 @@ const ASTROCADE_PRESETS = [
   {id:'rotate.c', name:'Rotate Op'},
   {id:'rainbow.c', name:'Rainbow'},
   {id:'cosmic.c', name:'Cosmic Impalas Game'},
+  {id:'racing.c', name:'Pseudo 3-D Racing Game'},
 ];
 
 const ASTROCADE_BIOS_PRESETS = [

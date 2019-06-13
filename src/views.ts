@@ -826,7 +826,7 @@ export class ProfileView implements ProjectView {
   profilelist;
   out : ProfilerOutput;
   maindiv : HTMLElement;
-  symcache : {};
+  symcache : Map<number,symbol> = new Map();
   recreateOnResize = true;
 
   createDiv(parent : HTMLElement) {
@@ -850,8 +850,8 @@ export class ProfileView implements ProjectView {
       }
     });
     $(parent).append(this.profilelist.container);
-    this.symcache = {};
-    this.tick();
+    this.symcache = new Map();
+    this.refresh();
   }
 
   addProfileLine(div : HTMLElement, row : number) : void {
@@ -889,6 +889,7 @@ export class ProfileView implements ProjectView {
 
   refresh() {
     this.tick();
+    this.symcache.clear();
   }
 
   tick() {
