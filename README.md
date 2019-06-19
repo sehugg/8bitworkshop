@@ -15,7 +15,9 @@
 > Web-based IDE for 8-bit retro consoles like Atari 2600
 >
 > Ever wanted to be an old-school game programmer?
+>
 > Learn how classic game hardware worked.
+>
 > Write code and see it run instantly.
 
 ### 🏠 [Homepage](http://8bitworkshop.com/)
