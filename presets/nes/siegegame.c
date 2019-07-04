@@ -1,10 +1,8 @@
-
 /*
 A character-based surround-the-opponent game.
 Reads from nametable RAM to determine collisions, and also
 to help the AI avoid walls.
 */
-
 #include <stdlib.h>
 #include <string.h>
 #include <nes.h>
@@ -30,10 +28,11 @@ to help the AI avoid walls.
 byte getchar(byte x, byte y) {
   // compute VRAM read address
   word addr = NTADR_A(x,y);
+  // result goes into rd
   byte rd;
   // wait for VBLANK to start
   ppu_wait_nmi();
-  // set vram address and read byte
+  // set vram address and read byte into rd
   vram_adr(addr);
   vram_read(&rd, 1);
   // scroll registers are corrupt

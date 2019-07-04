@@ -1,25 +1,13 @@
-
 /*
 Setting the attribute table, which controls palette selection
 for the nametable. We copy it from an array in ROM to video RAM.
 */
-
 #include "neslib.h"
 #include <string.h>
 #include <stdlib.h>
 
 // link the pattern table into CHR ROM
 //#link "chr_generic.s"
-
-/*{pal:"nes",layout:"nes"}*/
-const char PALETTE[16] = { 
-  0x03,			// screen color
-
-  0x11,0x30,0x27,0x0,	// background palette 0
-  0x1c,0x20,0x2c,0x0,	// background palette 1
-  0x00,0x10,0x20,0x0,	// background palette 2
-  0x06,0x16,0x26        // background palette 3
-};
 
 // attribute table in PRG ROM
 const char ATTRIBUTE_TABLE[0x40] = {
@@ -31,6 +19,16 @@ const char ATTRIBUTE_TABLE[0x40] = {
   0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, // rows 20-23
   0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, // rows 24-27
   0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f  // rows 28-29
+};
+
+/*{pal:"nes",layout:"nes"}*/
+const char PALETTE[16] = { 
+  0x03,			// screen color
+
+  0x11,0x30,0x27,0x0,	// background palette 0
+  0x1c,0x20,0x2c,0x0,	// background palette 1
+  0x00,0x10,0x20,0x0,	// background palette 2
+  0x06,0x16,0x26        // background palette 3
 };
 
 // main function, run after console reset

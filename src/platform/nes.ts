@@ -17,15 +17,15 @@ const JSNES_PRESETS = [
   {id:'flicker.c', name:'Flickering Sprites'},
   {id:'metacursor.c', name:'Controllers'},
   {id:'vrambuffer.c', name:'VRAM Buffer'},
-  {id:'tint.c', name:'Color Emphasis'},
-  {id:'rletitle.c', name:'Title Screen RLE'},
   {id:'statusbar.c', name:'Split Status Bar'},
   {id:'horizmask.c', name:'Offscreen Scrolling'},
-  {id:'monobitmap.c', name:'Monochrome Bitmap'},
+  {id:'siegegame.c', name:'Siege Game'},
+  {id:'tint.c', name:'Color Emphasis'},
+  {id:'rletitle.c', name:'Title Screen RLE'},
   {id:'aputest.c', name:'Sound Tester'},
   {id:'music.c', name:'Music Player'},
+  {id:'monobitmap.c', name:'Monochrome Bitmap'},
   {id:'fami.c', name:'Famitone Demo'},
-  {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot2.c', name:'Solarian Game'},
   {id:'climber.c', name:'Platform Game'},
   {id:'bankswitch.c', name:'Bank Switching'},
@@ -114,7 +114,7 @@ class JSNESPlatform extends Base6502Platform implements Platform {
         if (this.frameindex < 10)
           this.audio.feedSample(0, 1); // avoid popping at powerup
         else
-          this.audio.feedSample(left+right, 1);
+          this.audio.feedSample((left+right)*0.5, 1);
       },
       onStatusUpdate: function(s) {
         console.log(s);

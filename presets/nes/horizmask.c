@@ -59,7 +59,7 @@ void new_building() {
 void update_nametable() {
   register word addr;
   // a buffer drawn to the nametable vertically
-  char buf[32];
+  char buf[PLAYROWS];
   // divide x_scroll by 8
   // to get nametable X position
   byte x = (x_scroll/8 + 32) & 63;
@@ -68,9 +68,9 @@ void update_nametable() {
   else
     addr = NTADR_B(x&31, 4);
   // clear empty space
-  memset(buf, 0, PLAYROWS-bldg_height);
+  memset(buf, 0, sizeof(buf));
   // draw a random star
-  buf[rand8() & 31] = '.';
+  buf[rand8() & 15] = '.';
   // draw roof
   buf[PLAYROWS-bldg_height-1] = bldg_char & 3;
   // draw rest of building
