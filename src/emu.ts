@@ -342,7 +342,7 @@ export const Keys : {[keycode:string]:KeyDef} = {
     LEFT:     {c: 37,  n: "Left",  plyr:0, xaxis:-1},
     RIGHT:    {c: 39,  n: "Right", plyr:0, xaxis:1},
     A:        {c: 32,  n: "Space", plyr:0, button:0},
-    B:        {c: 17,  n: "Ctrl",  plyr:0, button:1},
+    B:        {c: 16,  n: "Shift", plyr:0, button:1},
     GP_A:     {c: 88,  n: "X",     plyr:0, button:0},
     GP_B:     {c: 90,  n: "Z",     plyr:0, button:1},
     SELECT:   {c: 220, n: "\\",    plyr:0, button:8},
