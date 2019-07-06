@@ -44,14 +44,15 @@ _fast_sprite_16:
   add	ix,sp		; IX = arg pointer
   ld	l,4(ix)		; src (HL)
   ld	h,5(ix)
-  ld	e,6(ix)		; dst (DE)
-  ld	d,7(ix)
   inc	hl		; skip width
   ld	c,(hl)		; load height -> C
+fast_sprite_16_clip_entry:
   sla	c
   sla	c		; C *= 4
   ld	b,#0		; B always 0 (BC < 256)
   inc	hl		; move HL to pattern start
+  ld	e,6(ix)		; dst (DE)
+  ld	d,7(ix)
 001$:
   ldi
   ldi
@@ -69,3 +70,15 @@ _fast_sprite_16:
 002$:
   pop	ix
   ret
+
+;void fast_sprite_16_yclip(const byte* src, byte* dst, byte height) {
+.globl	_fast_sprite_16_yclip
+_fast_sprite_16_yclip:
+  push	ix
+  ld	ix,#0
+  add	ix,sp		; IX = arg pointer
+  ld	l,4(ix)		; src (HL)
+  ld	h,5(ix)
+  ld	c,8(ix)		; height (C)
+  inc	hl		; skip width
+  jp	fast_sprite_16_clip_entry

@@ -98,12 +98,28 @@ byte __at (0x0000) vmagic[VTOTAL][VBWIDTH];
 // regular frame buffer RAM
 byte __at (0x4000) vidmem[VTOTAL][VBWIDTH];
 
+byte __at(0xfff) WASTER; // to soak up shifter residue
+
+
 /// GRAPHICS FUNCTIONS
 
 void set_palette(byte palette[8]) __z88dk_fastcall; // palette in reverse order
+
+#define SET_PALETTE(palette)\
+__asm__("ld hl,#"#palette);\
+__asm__("ld bc,#0x80b");\
+__asm__("otir");\
+
+#define SET_RIGHT_PALETTE(palette)\
+__asm__("ld hl,#"#palette);\
+__asm__("ld bc,#0x40b");\
+__asm__("otir");\
+
+/// SOUND FUNCTIONS
+
 void set_sound_registers(byte regs[8]) __z88dk_fastcall; // in reverse too
 
-// INTERRUPTS
+/// INTERRUPTS
 
 typedef void (*t_interrupt_handler)(void) __interrupt;
 

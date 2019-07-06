@@ -159,6 +159,10 @@ TODO:
   - make sure to flatten subdirs
 - astrocade
 - ctrl+alt+l on ubuntu locks screen
+- cookie
+  - list of stuff for policy
+  - popup
+
 
 WEB WORKER FORMAT
 

@@ -220,8 +220,6 @@ byte get1z(byte x) __z88dk_fastcall {
 #define PAT_SKY 0x55
 #define PAT_GROUND 0xaa
 
-byte __at(0xfff) WASTER; // to soak up shifter residue
-
 byte road_width = 142;
 byte road_cenx = 80;
 int road_inc = 0;
@@ -427,7 +425,7 @@ void position_cars() {
 
 void main(void) {
   // setup palette
-  set_palette(palette);`
+  set_palette(palette);
   // set screen height
   // set horizontal color split (position / 4)
   // set interrupt status
