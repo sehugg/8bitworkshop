@@ -17,6 +17,7 @@ TODO:
 - step over (line, instruction)
 - slowdown beam for all platforms?
 - PC x86 support
+  - https://bellard.org/tcc/
 - show errors in list (maybe window list?)
   - click to go to error
   - what if error in include file you can't edit b/c it never appears?
@@ -130,6 +131,7 @@ TODO:
   - PPU/TIA register write visualization
   - NES crt should mark raster pos when debugging
 - vcs
+  - need Chapter 8 example?
   - vcs sound continues when paused
   - vcs: INPTx needs to be added to control state
   - vcs: break on # of lines changed (maybe using getRasterPosition?)
@@ -162,6 +164,7 @@ TODO:
 - cookie
   - list of stuff for policy
   - popup
+- convert binary to hex stmts
 
 
 WEB WORKER FORMAT

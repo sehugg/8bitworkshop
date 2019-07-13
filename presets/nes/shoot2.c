@@ -767,10 +767,10 @@ void setup_graphics() {
   word dest;
   // copy background
   vram_adr(0x0);
-  vram_write((unsigned char*)TILESET, sizeof(TILESET));
+  vram_write(TILESET, sizeof(TILESET));
   // copy sprites
   vram_adr(0x1000);
-  vram_write((unsigned char*)TILESET, sizeof(TILESET));
+  vram_write(TILESET, sizeof(TILESET));
   // write shifted versions of formation ships
   src = SSRC_FORM1*16;
   dest = SDST_FORM1*16;

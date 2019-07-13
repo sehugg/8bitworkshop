@@ -39,6 +39,9 @@ ship1.pbm: ship1.png
 %.prom:
 	cat $* | hexdump -v -e '" \n defb  " 32/1 "$$%02x,"' | cut -c 2-134
 
+%.s:
+	cat $* | hexdump -v -e '" \n .byte  " 32/1 "$$%02x,"' | cut -c 2-135
+
 %.rot.pbm: %.pbm
 	convert $< -transpose -bordercolor white -border 4x4 $@
 

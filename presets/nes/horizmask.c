@@ -156,9 +156,6 @@ void main(void) {
   oam_clear();
   oam_spr(1, 30, 0xa0, 0, 0);
   
-  // clip left 8 pixels of screen
-  ppu_mask(MASK_SPR|MASK_BG);
-  
   // clear vram buffer
   vrambuf_clear();
   set_vram_update(updbuf);
