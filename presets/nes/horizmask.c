@@ -76,7 +76,7 @@ void update_nametable() {
   // draw rest of building
   memset(buf+PLAYROWS-bldg_height, bldg_char, bldg_height);
   // draw vertical slice in name table
-  vrambuf_put(addr ^ 0xc000, buf, PLAYROWS);
+  vrambuf_put(addr | VRAMBUF_VERT, buf, PLAYROWS);
   // every 4 columns, update attribute table
   if ((x & 3) == 1) {
     // compute attribute table address
