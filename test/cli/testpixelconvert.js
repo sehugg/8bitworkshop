@@ -60,5 +60,14 @@ describe('Pixel editor', function() {
       pixed.replaceHexWords(paldatastr, pixed.parseHexWords(paldatastr)));
     node3.refreshLeft();
     assert.deepEqual(node2.images, [[0,0,0,0,14,15,14,15,14,0,0,0,0,0,0,0,14,14,14,14,15,14,14,14,14,0,0,0,0,14,14,13,14,15,14,15,14,13,14,14,0,0,0,14,14,14,13,13,13,13,13,14,14,14,0,0,0,14,14,14,14,13,13,14,14,14,14,14,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,0,0,14,13,13,13,14,0,0,0,0,13,13,13,13,13,14,14,14,14,14,13,13,13,13,0,0,13,14,14,14,14,14,14,14,14,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,13,13,13,13,13,0,13,14,0,0,0,13,0,0,14,14,0,14,14,0,0,13,0,0,0,0,0,0,14,13,0,14,14,0,0,0,0,0,0,0,0,13,13,13,0,13,13,13,0,0,1,8]]);
+    
+    var datastr2 = "const char PALETTE[32] = { \n  0x03,			// screen color\n\n  0x11,0x30,0x27,0x0,	// background palette 0\n  0x1c,0x20,0x2c,0x0,	// background palette 1\n};";
+    var words2 = pixed.parseHexWords(datastr2);
+    assert.deepEqual(words2, [0x03,0x11,0x30,0x27,0x00,0x1c,0x20,0x2c,0x00]);
+
+    var datastr3 = "      7'o00: bits = 5'b11111; ";
+    var words3 = pixed.parseHexWords(datastr3);
+    assert.deepEqual(words3, [31]);
+    assert.equal(datastr3, pixed.replaceHexWords(datastr3, pixed.parseHexWords(datastr3)));
   });
 });

@@ -60,7 +60,7 @@ type PixelEditorMessage = {
 
 /////////////////
 
-var pixel_re = /([0#]?)([bx$%]|\d'[bh])([0-9a-f]+)(?:;.*$)?/gim;
+var pixel_re = /([0#]?)([x$%]|\d'h)([0-9a-f]+)|(\d'b)([01]+)/gim;
 
 function convertToHexStatements(s:string) : string {
   // convert 'hex ....' asm format
@@ -78,7 +78,9 @@ export function parseHexWords(s:string) : number[] {
   var m;
   while (m = pixel_re.exec(s)) {
     var n;
-    if (m[2].startsWith('%') || m[2].endsWith("b"))
+    if (typeof m[4] !== 'undefined')
+      n = parseInt(m[5],2);
+    else if (m[2].startsWith('%') || m[2].endsWith("b"))
       n = parseInt(m[3],2);
     else if (m[2].startsWith('x') || m[2].startsWith('$') || m[2].endsWith('h'))
       n = parseInt(m[3],16);
@@ -97,7 +99,9 @@ export function replaceHexWords(s:string, words:UintArray) : string {
   while (m = pixel_re.exec(s)) {
     result += s.slice(li, pixel_re.lastIndex - m[0].length);
     li = pixel_re.lastIndex;
-    if (m[2].startsWith('%'))
+    if (typeof m[4] !== 'undefined')
+      result += m[4] + words[i++].toString(2);
+    else if (m[2].startsWith('%'))
       result += m[1] + "%" + words[i++].toString(2);
     else if (m[2].endsWith('b'))
       result += m[1] + m[2] + words[i++].toString(2); // TODO
