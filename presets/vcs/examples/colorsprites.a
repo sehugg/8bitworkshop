@@ -1,0 +1,103 @@
+
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; We can draw a color sprite by setting two registers
+; on every scanline:
+; GRP0 (the bitmap) and COLUP0 (the player color).
+; There's a separate lookup table for each.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SpriteHeight	equ 8
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Variables segment
+
+        seg.u Variables
+	org $80
+
+YPos		.byte
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Code segment
+
+	seg Code
+        org $f000
+
+Start
+	CLEAN_START
+        
+        lda #5
+        sta YPos
+
+NextFrame
+        lsr SWCHB	; test Game Reset switch
+        bcc Start	; reset?
+; 1 + 3 lines of VSYNC
+	VERTICAL_SYNC
+; 37 lines of underscan
+	ldx #37
+LVBlank	sta WSYNC
+	dex
+	bne LVBlank
+; 192 lines of frame
+	ldx #192	; X = 192 scanlines
+LVScan
+	txa		; X -> A
+        sec		; set carry for subtract
+        sbc YPos	; local coordinate
+        cmp #SpriteHeight ; in sprite?
+        bcc InSprite	; yes, skip over next
+        lda #0		; not in sprite, load 0
+InSprite
+	tay		; local coord -> Y
+        lda Frame0,y	; lookup color
+        sta WSYNC	; sync w/ scanline
+        sta GRP0	; store bitmap
+        lda ColorFrame0,y ; lookup color
+        sta COLUP0	; store color
+        dex		; decrement X
+        bne LVScan	; repeat until 192 lines
+
+; 29 lines of overscan
+	ldx #29
+LVOver	sta WSYNC
+	dex
+	bne LVOver
+; total = 262 lines, go to next frame
+        jmp NextFrame
+
+; Cat-head graphics data
+Frame0
+        .byte #0        ; zero padding, also clears register
+        .byte #%00111100
+        .byte #%01000010
+        .byte #%11100111
+        .byte #%11111111
+        .byte #%10011001
+        .byte #%01111110
+        .byte #%11000011
+        .byte #%10000001
+
+; Cat-head color data
+ColorFrame0
+        .byte #0        ; unused (for now)
+        .byte #$AE
+        .byte #$AC
+        .byte #$A8
+        .byte #$AC
+        .byte #$8E
+        .byte #$8E
+        .byte #$98
+        .byte #$94
+        
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Epilogue
+
+	org $fffc
+        .word Start	; reset vector
+        .word Start	; BRK vector

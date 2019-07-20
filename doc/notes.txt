@@ -130,6 +130,11 @@ TODO:
   - support NES_HEADER_16K?
   - PPU/TIA register write visualization
   - NES crt should mark raster pos when debugging
+- JSNES
+  - doesn't support hiding >8 sprites
+  - doesn't do sprite zero test right
+  - doesn't do clip right
+  - doesn't do b/w tint
 - vcs
   - need Chapter 8 example?
   - vcs sound continues when paused
