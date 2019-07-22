@@ -612,8 +612,8 @@ function pushChangesToGithub(message:string) {
 function _deleteRepository() {
   var ghurl = getBoundGithubURL();
   if (!ghurl) return;
-  bootbox.prompt("<p>Are you sure you want to delete this repository (" + ghurl + ") from browser storage?</p><p>All changes since last commit will be lost.</p><p>Type YES to proceed.<p>", (yes) => {
-    if (yes.trim().toUpperCase() == "YES") {
+  bootbox.prompt("<p>Are you sure you want to delete this repository (" + ghurl + ") from browser storage?</p><p>All changes since last commit will be lost.</p><p>Type DELETE to proceed.<p>", (yes) => {
+    if (yes.trim().toUpperCase() == "DELETE") {
       deleteRepository();
     }
   });
