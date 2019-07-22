@@ -80,7 +80,7 @@ ShowTimeEnd:
 
 	include "nesppu.dasm"
 
-	include "famitone2.asm"
+	include "famitone2.dasm"
 
 ;;;;; INTERRUPT HANDLERS
 

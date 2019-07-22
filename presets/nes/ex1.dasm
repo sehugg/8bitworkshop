@@ -35,6 +35,19 @@ Start:
 .endless
 	jmp .endless	; endless loop
 
+; set palette colors
+SetPalette: subroutine
+; set PPU address to palette start
+	PPU_SETADDR $3f00
+        ldy #0
+.loop:
+	lda Palette,y	; lookup byte in ROM
+	sta PPU_DATA	; store byte to PPU data
+        iny		; Y = Y + 1
+        cpy #32		; is Y equal to 32?
+	bne .loop	; not yet, loop
+        rts		; return to caller
+
 ; fill video RAM with "Hello World" msg
 HelloVRAM: subroutine
 ; set PPU address to name table A (row 1, col 1)
@@ -53,19 +66,6 @@ HelloVRAM: subroutine
 HelloMsg:
 	.byte "Hello, World!"
         .byte 0		; zero terminator
-
-; set palette colors
-SetPalette: subroutine
-; set PPU address to palette start
-	PPU_SETADDR $3f00
-        ldy #0
-.loop:
-	lda Palette,y	; lookup byte in ROM
-	sta PPU_DATA	; store byte to PPU data
-        iny		; Y = Y + 1
-        cpy #32		; is Y equal to 32?
-	bne .loop	; not yet, loop
-        rts		; return to caller
 
 ;;;;; COMMON SUBROUTINES
 

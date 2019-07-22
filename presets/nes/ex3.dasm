@@ -41,6 +41,18 @@ Start:
 .endless
 	jmp .endless		;endless loop
 
+; set palette colors
+SetPalette: subroutine
+	PPU_SETADDR $3f00
+        ldy #0
+.loop:
+	lda Palette,y	; lookup byte in ROM
+	sta PPU_DATA	; store byte to PPU data
+        iny		; Y = Y + 1
+        cpy #32		; is Y equal to 32?
+	bne .loop	; not yet, loop
+        rts		; return to caller
+
 ; fill video RAM
 FillVRAM: subroutine
 	PPU_SETADDR $2000
@@ -81,18 +93,6 @@ MoveSprites: subroutine
         bne .loop	; loop until X wraps
         rts		; return to caller
 	
-; set palette colors
-SetPalette: subroutine
-	PPU_SETADDR $3f00
-        ldy #0
-.loop:
-	lda Palette,y	; lookup byte in ROM
-	sta PPU_DATA	; store byte to PPU data
-        iny		; Y = Y + 1
-        cpy #32		; is Y equal to 32?
-	bne .loop	; not yet, loop
-        rts		; return to caller
-
 
 ;;;;; COMMON SUBROUTINES
 
