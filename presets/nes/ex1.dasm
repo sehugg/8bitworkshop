@@ -84,6 +84,10 @@ Palette:
         hex 02122200	;background 1
         hex 02112100	;background 2
         hex 01122200	;background 3
+        hex 19293900	;sprite 0
+        hex 1a2a3a00	;sprite 1
+        hex 1b2b3b00	;sprite 2
+        hex 1c2c3c	;sprite 3
 
 ;;;;; CPU VECTORS
 

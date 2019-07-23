@@ -109,7 +109,7 @@ Palette:
         hex 19293900	;sprite 0
         hex 1a2a3a00	;sprite 1
         hex 1b2b3b00	;sprite 2
-        hex 1c2c3c00	;sprite 3
+        hex 1c2c3c	;sprite 3
 
 ;;;;; CPU VECTORS
 
