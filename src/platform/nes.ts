@@ -18,7 +18,7 @@ const JSNES_PRESETS = [
   {id:'metacursor.c', name:'Controllers'},
   {id:'vrambuffer.c', name:'VRAM Buffer'},
   {id:'statusbar.c', name:'Split Status Bar'},
-  {id:'horizmask.c', name:'Offscreen Scrolling'},
+  {id:'horizscroll.c', name:'Offscreen Scrolling'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'tint.c', name:'Color Emphasis'},
   {id:'rletitle.c', name:'Title Screen RLE'},
