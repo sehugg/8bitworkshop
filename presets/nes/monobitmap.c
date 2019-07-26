@@ -16,11 +16,13 @@ that display their own pixels.
 
 bool ppu_is_on = false;
 
+// simple 6502 delay loop (5 cycles per loop)
 #define DELAYLOOP(n) \
   __asm__("ldy #%b", n); \
   __asm__("@1: dey"); \
   __asm__("bne @1");
 
+// call every frame to split screen
 void monobitmap_split() {
   // split screen at line 128
   split(0,0);
@@ -28,6 +30,7 @@ void monobitmap_split() {
   PPU.control = PPU.control ^ 0x10; // bg bank 1
 }
 
+// set a pixel at (x,y) color 1=set, 0=clear
 void monobitmap_set_pixel(byte x, byte y, byte color) {
   byte b;
   // compute pattern table address
@@ -56,6 +59,7 @@ void monobitmap_set_pixel(byte x, byte y, byte color) {
   }
 }
 
+// draw a line from (x0,y0) to (x1,y1)
 void monobitmap_draw_line(int x0, int y0, int x1, int y1, byte color) {
   int dx = abs(x1-x0);
   int sx = x0<x1 ? 1 : -1;
@@ -72,24 +76,26 @@ void monobitmap_draw_line(int x0, int y0, int x1, int y1, byte color) {
   }
 }
 
-// write values 0..255
+// write values 0..255 to nametable
 void monobitmap_put_256inc() {
   word i;
   for (i=0; i<256; i++)
     vram_put(i);
 }
 
+// sets up attribute table
 void monobitmap_put_attrib() {
   vram_fill(0x00, 0x10); // first palette
   vram_fill(0x55, 0x10); // second palette
 }
 
+// clears pattern table
 void monobitmap_clear() {
-  // clear pattern table
   vram_adr(0x0);
   vram_fill(0x0, 0x2000);
 }
 
+// sets up PPU for monochrome bitmap
 void monobitmap_setup() {
   monobitmap_clear();
   // setup nametable A and B
@@ -123,6 +129,7 @@ const byte MONOBMP_PALETTE[16] = {
   0x03, 0x30, 0x30
 };
 
+// demo function, draws a bunch of lines
 void monobitmap_demo() {
   byte i;
   static const byte x1 = 16;
@@ -147,17 +154,21 @@ void monobitmap_demo() {
 
 void main(void)
 {
+  // setup and draw some lines
   monobitmap_setup();
   pal_bg(MONOBMP_PALETTE);
   monobitmap_demo();
   ppu_on_all();
+  // wait for key press
   while (!pad_trigger(0)) {
     ppu_wait_nmi();
     monobitmap_split();
   }
+  // set up again
   ppu_off();
   monobitmap_setup();
   ppu_on_all();
+  // realtime display where 1 pixel per frame
   ppu_is_on = true;
   monobitmap_demo();
   while(1) {

@@ -140,6 +140,7 @@ void update_offscreen() {
   }
 }
 
+// scrolls the screen left one pixel
 void scroll_left() {
   // update nametable every 16 pixels
   if ((x_scroll & 15) == 0) {
@@ -149,7 +150,7 @@ void scroll_left() {
   ++x_scroll;
 }
 
-// function to scroll window up and down until end
+// main loop, scrolls left continuously
 void scroll_demo() {
   // get data for initial segment
   new_segment();
@@ -159,7 +160,7 @@ void scroll_demo() {
     // ensure VRAM buffer is cleared
     ppu_wait_nmi();
     vrambuf_clear();
-    // split at x_scroll
+    // split at sprite zero and set X scroll
     split(x_scroll, 0);
     // scroll to the left
     scroll_left();
