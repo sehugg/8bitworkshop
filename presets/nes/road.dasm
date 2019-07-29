@@ -26,6 +26,8 @@ ZOfs		.byte	; counter to draw striped center line
 Weather		.byte	; bitmask for weather
 Heading		.word	; sky scroll pos.
 
+NMITmp		.byte
+
 NumRoadScanlines = 112
 NumRoadSegments = 56
 ; Preprocessing result: X positions for all track segments 
@@ -285,7 +287,7 @@ SetSprite0: subroutine
         sta $201
         lda #$20	;flags
         sta $202
-        lda #$fe	;xpos
+        lda #$f0	;xpos
         sta $203
 	rts
 
@@ -346,11 +348,18 @@ NMIHandler: subroutine
         bvs .wait0	; until bit 6 set
 .wait1	bit PPU_STATUS
         bvc .wait1	; until bit 6 clear
-; alter horiz. scroll position for each scanline
-        ldy #0
+; start scanline loop
+        ldy #0		; scanline counter
+        lda #3
+        sta NMITmp	; count every 3 lines
 .loop
-; pad out rest of scanline
-        SLEEP 80
+; take back 1 cycle every 3rd line
+	dec NMITmp	; decrement 3-line counter
+        beq .resetx	; has it been 3 lines?
+; pad out rest of the scanline
+        SLEEP 10
+.skipcyc
+        SLEEP 70
 ; change scroll register
 	tya		; Y -> A
         lsr		; A / 2
@@ -359,18 +368,20 @@ NMIHandler: subroutine
         eor #$80	; + 128
         sta PPU_SCROLL	; horiz byte
         sta PPU_SCROLL	; vert byte (ignored)
-; take back 1 cycle every 4th line
-	tya		; Y -> A
-        and #3		; mask first 2 bits
-        bne .skipcyc	; -1 cycle every 4 lines
-.skipcyc
 ; next loop iteration
         iny
         cpy #NumRoadScanlines
-        bne .loop	; do next scanline
+        bcc .loop	; do next scanline
 ; restore registers and return from interrupt
         RESTORE_REGS
 	rti
+; this resets the 3-line counter
+; and returns to a different loop entry point
+; since we wasted 8 cycles doing this
+.resetx
+	lda #3
+        sta NMITmp	; reset 3-line counter
+        bne .skipcyc	; go back to loop
 
 ;;;;; CONSTANT DATA
 
