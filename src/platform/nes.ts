@@ -28,7 +28,7 @@ const JSNES_PRESETS = [
   {id:'monobitmap.c', name:'Monochrome Bitmap'},
   {id:'fami.c', name:'Famitone Demo'},
   {id:'shoot2.c', name:'Solarian Game'},
-  {id:'climber.c', name:'Platform Game'},
+  {id:'climber.c', name:'Climber Game'},
   {id:'bankswitch.c', name:'Bank Switching'},
   {id:'irq.c', name:'IRQ Scanline Counter'},
   {id:'ex0.dasm', name:'Initialization (ASM)'},

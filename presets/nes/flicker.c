@@ -68,9 +68,9 @@ sbyte actor_dy[NUM_ACTORS];
 
 // main program
 void main() {
-  byte i;
+  byte i;	// actor index
   
-  // setup graphics
+  // setup PPU
   setup_graphics();
   // initialize actors with random values
   for (i=0; i<NUM_ACTORS; i++) {

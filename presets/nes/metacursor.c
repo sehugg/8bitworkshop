@@ -101,9 +101,9 @@ sbyte actor_dy[NUM_ACTORS];
 
 // main program
 void main() {
-  char i;
-  char oam_id;
-  char pad; // controller flags
+  char i;	// actor index
+  char oam_id;	// sprite ID
+  char pad;	// controller flags
   
   // print instructions
   vram_adr(NTADR_A(2,2));

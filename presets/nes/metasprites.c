@@ -67,9 +67,10 @@ sbyte actor_dy[NUM_ACTORS];
 
 // main program
 void main() {
-  char i;
-  char oam_id;
+  char i;	// actor index
+  char oam_id;	// sprite ID
   
+  // initialize PPU
   setup_graphics();
   // initialize actors with random values
   for (i=0; i<NUM_ACTORS; i++) {
