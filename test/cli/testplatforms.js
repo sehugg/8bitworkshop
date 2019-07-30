@@ -102,6 +102,10 @@ global.Worker = function() {
   this.postMessage = function() { this.msgcount++; }
 }
 
+global.Mousetrap = function() {
+  this.bind = function() { }
+}
+
 //
 
 function testPlatform(platid, romname, maxframes, callback) {
