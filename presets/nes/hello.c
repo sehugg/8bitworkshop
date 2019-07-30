@@ -13,7 +13,7 @@ Finally, turn on the PPU to display video.
 
 // main function, run after console reset
 void main(void) {
-  int x;
+
   // set palette colors
   pal_col(0,0x02);	// set screen to dark blue
   pal_col(1,0x14);	// pink
@@ -27,10 +27,6 @@ void main(void) {
   // enable PPU rendering (turn on screen)
   ppu_on_all();
 
-  for (x=0; x<500; x++) {
-    ppu_wait_frame();
-  }
-  ppu_off();
   // infinite loop
   while (1) ;
 }

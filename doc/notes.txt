@@ -166,6 +166,7 @@ TODO:
   - make sure to flatten subdirs
 - astrocade
 - ctrl+alt+l on ubuntu locks screen
+- alt-D doesn't work anymore
 - cookie
   - list of stuff for policy
   - popup
