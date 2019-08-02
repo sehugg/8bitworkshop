@@ -130,6 +130,7 @@ TODO:
   - support NES_HEADER_16K?
   - PPU/TIA register write visualization
   - NES crt should mark raster pos when debugging
+  - OAMDMA in profiler? (haltCycles)
 - JSNES
   - doesn't support hiding >8 sprites
   - doesn't do sprite zero test right
