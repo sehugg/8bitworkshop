@@ -3,7 +3,7 @@
 
 ;;;;; ZERO-PAGE VARIABLES
 
-	seg.u Zeropage	
+	seg.u ZEROPAGE
 	org $0
         
 RLEPtr	word

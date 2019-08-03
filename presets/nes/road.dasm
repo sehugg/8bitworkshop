@@ -404,3 +404,4 @@ RoadTables:
 
 	org $10000
 	incbin "road/road.chr"
+	incbin "road/road.chr"

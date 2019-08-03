@@ -3,7 +3,7 @@
 
 ;;;;; VARIABLES
 
-		seg.u RAM
+		seg.u ZEROPAGE
 		org $0
 
 ; Famitracker constants

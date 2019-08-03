@@ -3,7 +3,7 @@
 
 ;;;;; VARIABLES
 
-	seg.u RAM
+	seg.u ZEROPAGE
 	org $0
 
 ScrollPos	word	; used during NMI
@@ -148,4 +148,5 @@ Palette:
 ;;;;; TILE SETS
 
 	org $10000
+        incbin "jroatch.chr"
         incbin "jroatch.chr"

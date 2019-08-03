@@ -148,3 +148,4 @@ Palette:
 
 	org $10000
 	incbin "jroatch.chr"
+	incbin "jroatch.chr"
