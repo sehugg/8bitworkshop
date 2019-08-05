@@ -52,6 +52,7 @@ const _Apple2Platform = function(mainElement) {
   // bank 1 is E000-FFFF, bank 2 is D000-DFFF
   var bank2rdoffset=0, bank2wroffset=0;
   var grparams : AppleGRParams;
+  var scanline : number;
   
  class Apple2Platform extends Base6502Platform implements Platform {
 
@@ -199,6 +200,7 @@ const _Apple2Platform = function(mainElement) {
     var clock = 0;
     var debugCond = this.getDebugCallback();
     for (var sl=0; sl<262; sl++) {
+      scanline = sl;
       for (var i=0; i<cpuCyclesPerLine; i++) {
         if (debugCond && debugCond()) {
           debugCond = null;
@@ -216,6 +218,10 @@ const _Apple2Platform = function(mainElement) {
       ap2disp.updateScreen();
       video.updateFrame();
     }
+  }
+  
+  getRasterScanline() : number {
+    return scanline;
   }
 
   loadROM(title, data) {

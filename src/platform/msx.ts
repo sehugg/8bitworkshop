@@ -12,6 +12,7 @@ import { TMS9918A } from "../video/tms9918a";
 // https://openmsx.org/manual/setup.html
 // https://www.msx.org/wiki/Slots
 // https://www.msx.org/wiki/SDCC
+// http://cbios.sourceforge.net/
 
 var MSX_PRESETS = [
   {id:'helloworld.asm', name:'Hello World (ASM)'},
