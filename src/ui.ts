@@ -1426,14 +1426,14 @@ function setupDebugControls() {
   // create toolbar buttons
   uitoolbar = new Toolbar($("#toolbar")[0], null);
   uitoolbar.grp.prop('id','debug_bar');
-  uitoolbar.add('ctrl+alt+.', 'Reset', 'glyphicon-refresh', resetAndDebug).prop('id','dbg_reset');
-  uitoolbar.add('ctrl+alt+p', 'Pause', 'glyphicon-pause', pause).prop('id','dbg_pause');
-  uitoolbar.add('ctrl+alt+r', 'Resume', 'glyphicon-play', resume).prop('id','dbg_go');
+  uitoolbar.add('ctrl+alt+r', 'Reset', 'glyphicon-refresh', resetAndDebug).prop('id','dbg_reset');
+  uitoolbar.add('ctrl+alt+,', 'Pause', 'glyphicon-pause', pause).prop('id','dbg_pause');
+  uitoolbar.add('ctrl+alt+.', 'Resume', 'glyphicon-play', resume).prop('id','dbg_go');
   if (platform.step) {
     uitoolbar.add('ctrl+alt+s', 'Single Step', 'glyphicon-step-forward', singleStep).prop('id','dbg_step');
   }
   if (platform.runToVsync) {
-    uitoolbar.add('ctrl+alt+v', 'Next Frame', 'glyphicon-forward', singleFrameStep).prop('id','dbg_tovsync');
+    uitoolbar.add('ctrl+alt+n', 'Next Frame/Interrupt', 'glyphicon-forward', singleFrameStep).prop('id','dbg_tovsync');
   }
   if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog')) {
     uitoolbar.add('ctrl+alt+l', 'Run To Line', 'glyphicon-save', runToCursor).prop('id','dbg_toline');
