@@ -1,0 +1,57 @@
+
+#include <cv.h>
+#include <cvu.h>
+
+#define PATTERN		0x0000	// 256*8 = 2048 bytes
+#define IMAGE		0x0800	// 32*24 = 768 bytes
+#define COLOR		0x0b00	// 32 bytes
+#define SPRITE_PATTERNS 0x3800	// 32*32 = 1024 bytes
+#define SPRITES		0x3c00	// 4*32 = 128 bytes
+
+const char PALETTE[32] = {
+  0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8,
+  0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+  0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
+  0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
+};
+
+/*{w:8,h:8,bpp:1,count:1,brev:1,np:4,pofs:1,sl:4}*/
+const char PATTERNS[32] = {
+  0x1, 0x2, 0x3, 0x4,
+  0x5, 0x6, 0x7, 0x8,
+  0xff, 0xff, 0xff, 0xff,
+  0x55, 0x66, 0x77, 0xff,
+  0xc0, 0xc0, 0xc0, 0xc0,
+  0x5, 0x6, 0x7, 0x8,
+  0x0, 0x0, 0x0, 0x0,
+  0x0, 0x0, 0x0, 0x0,
+};
+
+void setup_graphics() {
+  cv_set_screen_mode(CV_SCREENMODE_4);
+  /*
+  cv_set_colors(0x2, 0x5);
+  cv_set_character_pattern_t(PATTERN | 0x3000);
+  cv_set_image_table(IMAGE | 0x400);
+  cv_set_color_table(COLOR | 0xfff);
+  cv_set_sprite_pattern_table(SPRITE_PATTERNS | 0x1800);
+  cv_set_sprite_attribute_table(SPRITES);
+  */
+  cvu_memtovmemcpy(PATTERN, PATTERNS, 32);
+  cvu_memtocmemcpy(0xc000, PALETTE, 32);
+}
+
+void show_text() {
+  cvu_vmemset(IMAGE, 0, 32*24);
+  cvu_memtovmemcpy(IMAGE + 1, "Hello Professor Falken", 22);
+}
+
+void main() {
+  char i=0;
+  setup_graphics();
+  show_text();
+  cv_set_screen_active(true);
+  while (1) {
+//    cvu_vmemset(COLOR, i++, 8); // set color for chars 0-63
+  }
+}

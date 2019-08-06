@@ -187,6 +187,9 @@ class ColecoVisionPlatform extends BasicZ80ScanlinePlatform implements Platform 
   vdpStateToLongString(ppu) {
     return this.vdp.getRegsString();
   }
+  readVRAMAddress(a : number) : number {
+    return this.vdp.ram[a & 0x3fff];
+  }
 }
 
 var COLECO_BIOS_LZG = `
