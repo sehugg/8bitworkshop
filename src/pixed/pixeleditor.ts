@@ -60,7 +60,8 @@ type PixelEditorMessage = {
 
 /////////////////
 
-var pixel_re = /([0#]?)([x$%]|\d'h)([0-9a-f]+)|(\d'b)([01]+)/gim;
+// 0xabcd, #$abcd, 5'010101, 0b010101, etc
+var pixel_re = /([0#]?)([x$%]|\d'h)([0-9a-f]+)|(\d'b|0b)([01]+)/gim;
 
 function convertToHexStatements(s:string) : string {
   // convert 'hex ....' asm format

@@ -259,6 +259,11 @@ var PLATFORM_PARAMS = {
      data_size: 50,
      stack_end: 0x4fce,
   },
+  'atari7800': {
+    define: '__ATARI7800__',
+    cfgfile: 'atari7800.cfg',
+    libargs: ['atari7800.lib'],
+  },
 };
 
 PLATFORM_PARAMS['coleco.mame'] = PLATFORM_PARAMS['coleco'];

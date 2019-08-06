@@ -128,6 +128,7 @@ TODO:
   - nes debug view toolbar
   - support NES_HEADER_16K?
   - PPU/TIA register write visualization
+  - show cur/tmp vram addresses
   - NES crt should mark raster pos when debugging
   - OAMDMA in profiler? (haltCycles)
 - JSNES

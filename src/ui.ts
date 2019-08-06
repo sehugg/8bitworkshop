@@ -292,7 +292,6 @@ function reloadProject(id:string) {
 
 function getSkeletonFile(fileid:string) : Promise<string> {
   var ext = platform.getToolForFilename(fileid);
-  // TODO: .mame
   return $.get( "presets/"+getBasePlatform(platform_id)+"/skeleton."+ext, 'text').catch((e) => {
     alertError("Could not load skeleton for " + platform_id + "/" + ext + "; using blank file");
   });
@@ -693,7 +692,7 @@ function get8bitworkshopLink(linkqs : string, fn : string) {
 }
 
 function _downloadCassetteFile(e) {
-  if (current_output == null) { // TODO
+  if (current_output == null) {
     alertError("Please fix errors before exporting.");
     return true;
   }
@@ -730,7 +729,6 @@ function _revertFile(e) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.setText) {
     var fn = projectWindows.getActiveID();
-    // TODO: .mame
     $.get( "presets/"+getBasePlatform(platform_id)+"/"+fn, (text) => {
       bootbox.confirm("Reset '" + fn + "' to default?", (ok) => {
         if (ok) {
@@ -739,7 +737,6 @@ function _revertFile(e) {
       });
     }, 'text')
     .fail(() => {
-      // TODO: delete file
       alertError("Can only revert built-in files.");
     });
   } else {
@@ -1250,7 +1247,6 @@ function _recordVideo() {
     else if (canvas.style.transform.indexOf("rotate(90deg)") >= 0)
       rotate = 1;
   }
-  // TODO: recording indicator?
   var gif = new GIF({
     workerScript: 'gif.js/dist/gif.worker.js',
     workers: 4,
@@ -1288,7 +1284,6 @@ function _recordVideo() {
   };
   f();
  });
- //TODO? return true;
 }
 
 export function setFrameRateUI(fps:number) {
@@ -1643,7 +1638,7 @@ function installErrorHandler() {
         if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
           showErrorAlert([ {msg:msgstr, line:0} ]);
           uiDebugCallback(platform.saveState());
-          setDebugButtonState("pause", "stopped"); // TODO?
+          setDebugButtonState("pause", "stopped");
         } else {
           // send exception msg to GA
           var msg = msgstr;
