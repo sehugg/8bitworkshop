@@ -104,6 +104,17 @@ var PLATFORM_PARAMS = {
       {name:'I/O Registers',start:0x6000,size:0x2000,type:'io'},
     ],
   },
+  'williams': {
+    code_start: 0x0,
+    rom_size: 0xc000,
+    data_start: 0x9800,
+    data_size: 0x2800,
+    stack_end: 0xc000,
+    extra_segments:[
+      {name:'Video RAM',start:0x0000,size:0xc000,type:'ram'},
+      {name:'I/O Registers',start:0xc000,size:0x1000,type:'io'},
+    ],
+  },
   'williams-z80': {
     code_start: 0x0,
     rom_size: 0x9800,
@@ -1908,10 +1919,9 @@ function translateShowdown(step:BuildStep) {
   };
 }
 
-// TODO
+// http://datapipe-blackbeltsystems.com/windows/flex/asm09.html
 function assembleXASM6809(step:BuildStep) {
   load("xasm6809");
-  var origin = 0; // TODO: configurable
   var alst = "";
   var lasterror = null;
   var errors = [];
@@ -1938,21 +1948,37 @@ function assembleXASM6809(step:BuildStep) {
   });
   var FS = Module['FS'];
   //setupFS(FS);
-  var code = getWorkFileAsString(step.path);
-  FS.writeFile("main.asm", code);
-  Module.callMain(["-c", "-l", "-s", "-y", "-o=main.bin", "main.asm"]);
+  populateFiles(step, FS, {
+    mainFilePath:'main.asm'
+  });
+  var binpath = step.prefix + '.bin';
+  var lstpath = step.prefix + '.lst'; // in stdout
+  Module.callMain(["-c", "-l", "-s", "-y", "-o="+binpath, step.path]);
   if (errors.length)
     return {errors:errors};
-  var aout = FS.readFile("main.bin", {encoding:'binary'});
-  putWorkFile('main.bin', aout);
-  // 00001    0000 [ 2] 1048                asld
-  var asmlines = parseListing(alst, /^\s*([0-9A-F]+)\s+([0-9A-F]+)\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 1, 2, 4);
-  // TODO
+  var aout = FS.readFile(binpath, {encoding:'binary'});
+  if (aout.length == 0) {
+    console.log(alst);
+    errors.push({line:0, msg:"Empty output file"});
+    return {errors:errors};
+  }
+  putWorkFile(binpath, aout);
+  putWorkFile(lstpath, alst);
+  // TODO: symbol map
+  //mond09     0000     
+  var symbolmap = {};
+  //00005  W 0003 [ 8] A6890011            lda   >PALETTE,x
+  //00012    0011      0C0203              fcb   12,2,3
+  var asmlines = parseListing(alst, /^\s*([0-9]+) .+ ([0-9A-F]+)\s+\[([0-9 ]+)\]\s+([0-9A-F]+) (.*)/i, 1, 2, 4, 3);
+  var listings = {};
+  listings[step.prefix+'.lst'] = {lines:asmlines, text:alst};
+  var segments = step.params.extra_segments;
   return {
-      output:aout,
-      errors:errors,
-      lines:asmlines,
-      intermediate:{listing:alst},
+    output:aout,
+    listings:listings,
+    errors:errors,
+    symbolmap:symbolmap,
+    segments:segments
   };
 }
 
