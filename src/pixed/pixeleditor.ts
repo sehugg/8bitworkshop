@@ -192,7 +192,9 @@ function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) :
   var pofs = fmt.pofs || wordsperline*height*count;
   var skip = fmt.skip || 0;
   var words;
-  if (bitsperword <= 8)
+  if (nplanes > 0 && fmt.sl) // TODO?
+    words = new Uint8Array(wordsperline*height*count);
+  else if (bitsperword <= 8)
     words = new Uint8Array(wordsperline*height*count*nplanes);
   else
     words = new Uint32Array(wordsperline*height*count*nplanes);

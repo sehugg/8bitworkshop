@@ -69,5 +69,6 @@ describe('Pixel editor', function() {
     var words3 = pixed.parseHexWords(datastr3);
     assert.deepEqual(words3, [31]);
     assert.equal(datastr3, pixed.replaceHexWords(datastr3, pixed.parseHexWords(datastr3)));
+    // TODO: test (nplanes > 0 && fmt.sl)
   });
 });
