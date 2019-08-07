@@ -3,21 +3,17 @@
 #define _CV_COMMON_H
 
 /* VRAM map
-   0x0000 - 0x17ff character pattern table
-   0x1800 - 0x1aff image table
-   0x2000 - 0x37ff color table
-   0x3800 - 0x3bff sprite pattern table
+   0x0000 - 0x3fff character pattern table
+   0x3000 - 0x36ff image table
    0x3c00 - 0x3fff sprite attribute table
 */
 
 #define PATTERN		((const cv_vmemp)0x0000)
-#define IMAGE		((const cv_vmemp)0x1800)
-#define COLOR		((const cv_vmemp)0x2000)
-#define SPRITE_PATTERNS ((const cv_vmemp)0x3800)
+#define IMAGE		((const cv_vmemp)0x3000)
 #define SPRITES		((const cv_vmemp)0x3c00)
 
 #define COLS 32
-#define ROWS 24
+#define ROWS 28
 
 typedef unsigned char byte;
 typedef signed char sbyte;

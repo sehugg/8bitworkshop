@@ -22,16 +22,16 @@ byte reverse_bits(byte n) {
 void flip_sprite_patterns(word dest, const byte* patterns, word len) {
   word i;
   for (i=0; i<len; i++) {
-    cvu_voutb(reverse_bits(*patterns++), dest++ ^ 16); // swap left/right chars
+    cvu_voutb(reverse_bits(*patterns++), dest++); // swap left/right chars
   }
 }
 
 void clrscr() {
-  cvu_vmemset(IMAGE, 0, COLS*ROWS);
+  cvu_vmemset(IMAGE, 0, COLS*2*ROWS);
 }
 
 word getimageaddr(byte x, byte y) {
-  return IMAGE + y*COLS + x;
+  return IMAGE + y*COLS*2 + x;
 }
 
 byte getchar(byte x, byte y) {
@@ -103,11 +103,11 @@ __endasm;
 
 void vdp_setup() {
   cv_set_screen_active(false);
-  cv_set_screen_mode(CV_SCREENMODE_STANDARD);
-  cv_set_image_table(IMAGE);
-  cv_set_character_pattern_t(PATTERN);
-  cv_set_color_table(COLOR);
-  cv_set_sprite_pattern_table(SPRITE_PATTERNS);
+  cv_set_screen_mode(CV_SCREENMODE_4_224);
+  cv_set_character_pattern_t(PATTERN | 0x3000);
+  cv_set_image_table(IMAGE | 0x400);
+//  cv_set_color_table(COLOR | 0xfff);
+//  cv_set_sprite_pattern_table(SPRITE_PATTERNS | 0x1800);
   cv_set_sprite_attribute_table(SPRITES);
   cv_set_sprite_big(true);
 }
