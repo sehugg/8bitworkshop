@@ -44,7 +44,7 @@ typedef enum { SND_START, SND_HIT, SND_COIN, SND_JUMP } SFXIndex;
 ///// DEFINES
 
 #define COLS 30		// floor width in tiles
-#define ROWS 60		// total nametable height in tiles
+#define ROWS 60		// total scrollable height in tiles
 
 #define MAX_FLOORS 20		// total # of floors in a stage
 #define GAPSIZE 4		// gap size in tiles
@@ -64,6 +64,7 @@ typedef enum { SND_START, SND_HIT, SND_COIN, SND_JUMP } SFXIndex;
 #define CH_LADDER 0xd4
 #define CH_ITEM 0xc4
 #define CH_BLANK 0x20
+#define CH_BASEMENT 0x97
 
 ///// GLOBALS
 
@@ -235,21 +236,26 @@ void make_floors() {
 // creete actors on floor_index, if slot is empty
 void create_actors_on_floor(byte floor_index);
 
-// draw a nametable line into the frame buffer at <screen_y>
+// draw a nametable line into the frame buffer at <row_height>
 // 0 == bottom of stage
-void draw_floor_line(byte screen_y) {
-  char buf[COLS];
-  char attrs[8];
-  byte floor, i;
-  byte y = screen_y;
-  byte rowy;
-  word addr;
+void draw_floor_line(byte row_height) {
+  char buf[COLS];	// nametable buffer
+  char attrs[8];	// attribute buffer 
+  byte floor;		// floor counter
+  byte dy;		// height in rows above floor
+  byte rowy;		// row in nametable (0-59)
+  word addr;		// nametable address
+  byte i;		// loop counter
+  // loop over all floors
   for (floor=0; floor<MAX_FLOORS; floor++) {
     Floor* lev = &floors[floor];
-    byte dy = y - lev->ypos;
-    if (dy >= 254) dy = 0; // if below BOTTOM_Y_FLOOR
-    // is this floor visible on-screen?
+    // compute height in rows above floor
+    dy = row_height - lev->ypos;
+    // if below bottom floor (in basement)
+    if (dy >= 255 - BOTTOM_FLOOR_Y) dy = 0;
+    // does this floor intersect the desired row?
     if (dy < lev->height) {
+      // first two rows (floor)?
       if (dy <= 1) {
         // iterate through all 32 columns
         for (i=0; i<COLS; i+=2) {
@@ -274,12 +280,12 @@ void draw_floor_line(byte screen_y) {
         }
         // draw ladders
         if (lev->ladder1) {
-          buf[lev->ladder1*2] = CH_LADDER;
-          buf[lev->ladder1*2+1] = CH_LADDER+1;
+          buf[lev->ladder1*2] = CH_LADDER;	// left
+          buf[lev->ladder1*2+1] = CH_LADDER+1;	// right
         }
         if (lev->ladder2) {
-          buf[lev->ladder2*2] = CH_LADDER;
-          buf[lev->ladder2*2+1] = CH_LADDER+1;
+          buf[lev->ladder2*2] = CH_LADDER;	// left
+          buf[lev->ladder2*2+1] = CH_LADDER+1;	// right
         }
       }
       // draw object, if it exists
@@ -294,31 +300,31 @@ void draw_floor_line(byte screen_y) {
           buf[lev->objpos*2+1] = ch+2;	// top-right
         }
       }
-      // compute row in name buffer and address
-      rowy = (ROWS-1) - (screen_y%60);
-      addr = getntaddr(1, rowy);
-      // copy attribute table (every 4th row)
-      if ((addr & 0x60) == 0) {
-        byte a;
-        if (dy==1)
-          a = 0x05;	// top of attribute block
-        else if (dy==3)
-          a = 0x50;	// bottom of attribute block
-        else
-          a = 0x00;	// does not intersect attr. block
-        // write entire row of attribute blocks
-        memset(attrs, a, 8);
-        vrambuf_put(nt2attraddr(addr), attrs, 8);
-      }
-      // copy line to screen buffer
-      vrambuf_put(addr, buf, COLS);
-      // create actors on this floor, if needed
-      // TODO: maybe this happens too early?
-      if (dy == 0 && (floor >= 2)) {
-        create_actors_on_floor(floor);
-      }
       break;
     }
+  }
+  // compute row in name buffer and address
+  rowy = (ROWS-1) - (row_height % ROWS);
+  addr = getntaddr(1, rowy);
+  // copy attribute table (every 4th row)
+  if ((addr & 0x60) == 0) {
+    byte a;
+    if (dy==1)
+      a = 0x05;	// top of attribute block
+    else if (dy==3)
+      a = 0x50;	// bottom of attribute block
+    else
+      a = 0x00;	// does not intersect attr. block
+    // write entire row of attribute blocks
+    memset(attrs, a, 8);
+    vrambuf_put(nt2attraddr(addr), attrs, 8);
+  }
+  // copy line to screen buffer
+  vrambuf_put(addr, buf, COLS);
+  // create actors on this floor, if needed
+  // TODO: maybe this happens too early?
+  if (dy == 0 && (floor >= 2)) {
+    create_actors_on_floor(floor);
   }
 }
 
@@ -349,22 +355,22 @@ void set_scroll_pixel_yy(int yy) {
   if ((yy & 7) == 0) {
     // scrolling upward or downward?
     if (yy > scroll_pixel_yy)
-      draw_floor_line(scroll_tile_y+30);
+      draw_floor_line(scroll_tile_y + 30);	// above
     else
-      draw_floor_line(scroll_tile_y-30);
+      draw_floor_line(scroll_tile_y - 30);	// below
   }
   // set scroll variables
-  scroll_pixel_yy = yy;
-  scroll_tile_y = yy >> 3; // divide by 8
+  scroll_pixel_yy = yy;		// get scroll pos. in pixels
+  scroll_tile_y = yy >> 3; 	// divide by 8
   // set scroll registers
   scroll(0, 479 - ((yy + 224) % 480));
 }
 
 // redraw a floor when object picked up
 void refresh_floor(byte floor) {
-  byte y = floors[floor].ypos;
-  draw_floor_line(y+2);
-  draw_floor_line(y+3);
+  byte y = floors[floor].ypos;	// get floor bottom coordinate
+  draw_floor_line(y+2);		// redraw 3rd line
+  draw_floor_line(y+3);		// redraw 4th line
 }
 
 ///// ACTORS
@@ -518,14 +524,14 @@ byte mount_ladder(Actor* player, signed char floor_adjust) {
 // should we scroll the screen upward?
 void check_scroll_up() {
   if (player_screen_y < ACTOR_SCROLL_UP_Y) {
-    set_scroll_pixel_yy(scroll_pixel_yy + 1);
+    set_scroll_pixel_yy(scroll_pixel_yy + 1);	// scroll up
   }
 }
 
 // should we scroll the screen downward?
 void check_scroll_down() {
   if (player_screen_y > ACTOR_SCROLL_DOWN_Y && scroll_pixel_yy > 0) {
-    set_scroll_pixel_yy(scroll_pixel_yy - 1);
+    set_scroll_pixel_yy(scroll_pixel_yy - 1);	// scroll down
   }
 }
 
