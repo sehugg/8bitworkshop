@@ -540,6 +540,7 @@ function setupFS(FS, name:string) {
   }, '/share');
   // fix for slow Blob operations by caching typed arrays
   // https://github.com/kripken/emscripten/blob/incoming/src/library_workerfs.js
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=349304#c30
   var reader = WORKERFS.reader;
   var blobcache = {};
   WORKERFS.stream_ops.read = function (stream, buffer, offset, length, position) {

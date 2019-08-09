@@ -21,7 +21,7 @@ metasprite.
 ///// METASPRITES
 
 #define TILE 0xd8
-#define ATTR 0
+#define ATTR 0x0
 
 // define a 2x2 metasprite
 const unsigned char metasprite[]={
