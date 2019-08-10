@@ -28,9 +28,13 @@ export var SG1000_PRESETS = [
   {id:'multicolor.c', name:'Multicolor Mode'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot.c', name:'Solarian Game'},
-  {id:'climber.c', name:'Platform Game'},
+  {id:'climber.c', name:'Climber Game'},
 ];
 
+export var SMS_PRESETS = [
+  {id:'mode4test.c', name:'Mode 4 Test'},
+  {id:'climber.c', name:'Climber Game'},
+];
 
 var SG1000_KEYCODE_MAP = makeKeycodeMap([
   [Keys.UP,    0, 0x1],
@@ -186,6 +190,8 @@ class SMSPlatform extends SG1000Platform {
   latchedHCounter = 0;
   ioControlFlags = 0;
   // TODO: hide bottom scanlines
+  
+  getPresets() { return SMS_PRESETS; }
   
   reset() {
     super.reset();
