@@ -197,7 +197,7 @@ export class GithubService {
       }
       // check README for proper platform
       // unless we use githubURL=
-      const re8plat = /8bitworkshop.com[^)]+platform=(\w+)/;
+      const re8plat = /8bitworkshop.com[^)]+platform=([A-Za-z0-9._\-]+)/;
       m = re8plat.exec(readme);
       if (m) {
         console.log("platform id: '" + m[1] + "'");
