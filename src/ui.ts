@@ -109,12 +109,12 @@ function getCurrentPresetTitle() : string {
 
 function setLastPreset(id:string) {
   if (hasLocalStorage) {
-    if (repo_id)
-      localStorage.setItem("__lastrepo", repo_id);
+    if (repo_id && platform_id)
+      localStorage.setItem("__lastrepo_" + platform_id, repo_id);
     else
-      localStorage.removeItem("__lastrepo");
+      localStorage.removeItem("__lastrepo_" + platform_id);
     localStorage.setItem("__lastplatform", platform_id);
-    localStorage.setItem("__lastid_"+store_id, id);
+    localStorage.setItem("__lastid_" + store_id, id);
   }
 }
 
@@ -1836,8 +1836,13 @@ export function startUI(loadplatform : boolean) {
     importProjectFromGithub(qs['githubURL'], true);
     return;
   }
+  // add default platform?
+  platform_id = qs['platform'] || (hasLocalStorage && localStorage.getItem("__lastplatform"));
+  if (!platform_id) {
+    platform_id = qs['platform'] = "vcs";
+  }
   // lookup repository
-  repo_id = qs['repo']; // TODO? || (hasLocalStorage && localStorage.getItem("__lastrepo"));
+  repo_id = qs['repo'] || (hasLocalStorage && localStorage.getItem("__lastrepo_" + platform_id));
   if (hasLocalStorage && repo_id && repo_id !== '/') {
     var repo = getRepos()[repo_id];
     if (repo) {
@@ -1845,17 +1850,13 @@ export function startUI(loadplatform : boolean) {
       if (!qs['file'])
         qs['file'] = repo.mainPath;
       if (!qs['platform'])
-        qs['platform'] = repo.platform_id;
+        qs['platform'] = platform_id = repo.platform_id;
     }
   } else {
     repo_id = '';
     delete qs['repo'];
   }
-  // add default platform?
-  platform_id = qs['platform'] || (hasLocalStorage && localStorage.getItem("__lastplatform"));
-  if (!platform_id) {
-    platform_id = qs['platform'] = "vcs";
-  }
+  // update UI
   $("#item_platform_"+platform_id).addClass("dropdown-item-checked");
   $("#platform_name").text(platform_id);
   setupSplits();

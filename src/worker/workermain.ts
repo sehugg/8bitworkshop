@@ -1296,11 +1296,12 @@ function linkSDLDZ80(step:BuildStep)
     // return unchanged if no files changed
     if (!anyTargetChanged(step, ["main.ihx", "main.noi"]))
       return;
-
+    // parse binary file
     var binout = parseIHX(hexout, params.rom_start!==undefined?params.rom_start:params.code_start, params.rom_size, errors);
     if (errors.length) {
       return {errors:errors};
     }
+    // parse listings
     var listings = {};
     for (var fn of step.files) {
       if (fn.endsWith('.lst')) {

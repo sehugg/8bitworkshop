@@ -721,7 +721,7 @@ export class SMSVDP extends TMS9918A {
         if (this.writeToCRAM) {
             var palindex = this.addressRegister++ & (this.cram.length-1);
             this.cram[palindex] = i;
-            this.cpalette[palindex] = RGBA((i&3)<<6, ((i>>2)&3)<<6, ((i>>4)&3)<<6);
+            this.cpalette[palindex] = RGBA((i&3)*85, ((i>>2)&3)*85, ((i>>4)&3)*85);
             this.prefetchByte = i;
             this.addressRegister &= this.ramMask;
             this.redrawRequired = true;

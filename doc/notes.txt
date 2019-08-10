@@ -175,6 +175,7 @@ TODO:
   - popup
 - convert binary to hex stmts
 - "suggestions" (vblank overrun, variable # scanlines, etc)
+- spinner doesn't always spin on sms
 
 
 WEB WORKER FORMAT
