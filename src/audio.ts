@@ -122,9 +122,18 @@ export var POKEYDeviceChannel = function() {
   var bit1 = new Uint8Array( [ 0,1 ] );
   var bit4 = new Uint8Array( [ 1,1,0,1,1,1,0,0,0,0,1,0,1,0,0 ] );
   var bit5 = new Uint8Array( [ 0,0,1,1,0,0,0,1,1,1,1,0,0,1,0,1,0,1,1,0,1,1,1,0,1,0,0,0,0,0,1 ] );
+  var bit9 = new Uint8Array( [ 0,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,1,1,1,0,0,1,0,1,0,0,1,1,1,1,1,0,0,1,1,0,1,1,0,1,0,1,1,1,0,1,1,0,0,1,0,0,1,1,1,1,0,1,0,0,0,0,1,1,0,1,1,0,0,0,1,0,0,0,1,1,1,1,0,1,0,1,1,0,1,0,1,0,0,0,0,1,1,0,1,0,1,0,0,0,1,0,1,0,0,0,1,1,1,0,0,1,1,0,1,1,0,0,1,1,1,1,1,0,0,1,1,0,0,0,1,1,0,1,0,0,0,1,1,0,0,1,1,1,1,0,0,1,0,0,0,1,1,1,0,0,1,1,0,1,0,1,1,0,1,1,0,1,0,0,1,0,0,1,1,1,1,1,1,0,1,1,1,1,0,1,1,0,0,0,0,1,1,1,1,1,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,1,0,0,0,0,1,0,1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,0,1,1,1,0,1,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,1,1,0,0,1,0,0,1,0,1,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,1,1,1,1,0,0,0,1,1,1,0,0,0,1,0,0,1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,0,1,0,1,1,1,1,0,0,1,0,1,0,1,1,1,0,0,0,0,0,1,1,0,1,1,0,0,0,1,0,1,0,1,0,0,0,0,1,0,1,1,1,0,0,0,0,1,0,0,1,0,1,0,0,0,1,0,1,1,1,0,0,1,1,1,1,1,1,1,0,0,0,0,0,1,0,0,1,1,0,1,0,0,1,0,0,0,1,0,0,1,0,1,0,0,0,1,1,0,1,0,0,0,0,0,1,1,1,1,0,0,1,0,0,1,0,1,1,1,1,1,1,1,0,1,0,0,1,0,0,0,1,1,0,1,1,1,0,0,0,1,0,1,0,0,1,0,1,0,1,0,1,1,1,0,0,1,0,1,1,0,0,1,1,1,1,1,0,0,0,1,1,0 ] );
+  var div31 = new Uint8Array( [ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0 ] );
   var bit17 = new Uint8Array(1<<17);
   var bit17_5 = new Uint8Array(1<<17);
-  var bit5_4 = new Uint8Array(1<<17);
+  var bit5_4 = new Uint8Array(1<<9);
+  // TODO
+  var bit6 = bit9;
+  var bit15_4 = bit5_4;
+  var bit5_2 = bit5_4;
+  var bit5_6 = bit5_4;
+  var bit31 = bit9;
+  var bit93 = bit31;
   for (var i=0; i<bit17.length; i++) {
     bit17[i] = Math.random() > 0.5 ? 1 : 0;
     bit17_5[i] = bit17[i] & bit5[i % bit5.length];
@@ -133,6 +142,12 @@ export var POKEYDeviceChannel = function() {
   var wavetones = [
     bit17_5, bit5, bit5_4, bit5,
     bit17, bit1, bit4, bit1
+  ];
+  var tiawavetones = [
+    bit1, bit4, bit15_4, bit5_4,
+    bit1, bit1, bit31, bit5_2,
+    bit9, bit5, bit31, bit1,
+    bit6, bit6, bit93, bit5_6
   ];
 
   // registers
@@ -212,6 +227,24 @@ export var POKEYDeviceChannel = function() {
       }
     }
   }
+  
+  this.setTIARegister = function(addr, value) {
+    switch (addr) {
+      case 0x17:
+      case 0x18:
+        regs[(addr&1)*4] = value & 0x1f;
+        dirty = true;
+        break;
+      case 0x15:
+      case 0x16:
+        waveforms[(addr&1)*2] = tiawavetones[value & 0xf];
+        break;
+      case 0x19:
+      case 0x1a:
+        volume[(addr&1)*2] = value & 0xf;
+        break;
+    }
+  }
 
   this.generate = function (length) {
     if (dirty) {
@@ -236,7 +269,7 @@ export var POKEYDeviceChannel = function() {
           }
         }
       }
-      sample *= 128;
+      sample *= 64;
       buffer[s] = sample;
       buffer[s+1] = sample;
     }

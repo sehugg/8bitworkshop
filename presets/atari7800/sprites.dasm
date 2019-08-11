@@ -213,7 +213,9 @@ DLLloop2
 
     	
 ;***************** Setup Maria Registers ****************
-	
+
+	lda	#$80
+        sta	BACKGRND	;background color
         lda     #$18            ;DLL at $1800
 	sta	DPPH
 	lda	#$00
@@ -394,7 +396,8 @@ DLPOINTL
 
 
 ;************** Graphic Data *****************************
-        org $a000
+;set org and fill character
+        org $a000,0
         .byte     %00111100
         org $a100
         .byte     %00111100

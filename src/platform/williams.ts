@@ -23,6 +23,7 @@ var WilliamsPlatform = function(mainElement, proto) {
   var portsel = 0;
   var banksel = 0;
   var watchdog_counter;
+  var watchdog_enabled = false;
   var pia6821 = new RAM(8).mem;
   var blitregs = new RAM(8).mem;
 
@@ -334,7 +335,7 @@ var WilliamsPlatform = function(mainElement, proto) {
         drawDisplayByte(i, ram.mem[i]);
       screenNeedsRefresh = false;
     }
-    if (watchdog_counter-- <= 0) {
+    if (watchdog_enabled && watchdog_counter-- <= 0) {
       console.log("WATCHDOG FIRED, PC =", cpu.getPC().toString(16)); // TODO: alert on video
       // TODO: this.breakpointHit(cpu.T());
       this.reset();

@@ -575,12 +575,15 @@ export class ControllerPoller {
 }
 
 
-export function padBytes(data:Uint8Array|number[], len:number) : Uint8Array {
+export function padBytes(data:Uint8Array|number[], len:number, padstart?:boolean) : Uint8Array {
   if (data.length > len) {
     throw Error("Data too long, " + data.length + " > " + len);
   }
   var r = new RAM(len);
-  r.mem.set(data);
+  if (padstart)
+    r.mem.set(data, len-data.length);
+  else
+    r.mem.set(data);
   return r.mem;
 }
 

@@ -514,7 +514,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
    return this._cpu;
   }
 
-  getProbe() { return this.probe; }
+  getProbe() { return this.probe; } // TODO?
   getPC() { return this._cpu.getPC(); }
   getSP() { return this._cpu.getSP(); }
 
@@ -690,6 +690,9 @@ export abstract class Base6809Platform extends BaseZ80Platform {
     cpu.init(membus.write, membus.read, 0);
     return cpu;
   }
+
+  getPC() { return this._cpu.PC; }
+  getSP() { return this._cpu.SP; }
 
   runUntilReturn() {
     var depth = 1;

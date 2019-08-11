@@ -15,6 +15,7 @@ dom.window.Audio = null;
 global.Image = function() { }
 global['$'] = require("jquery/jquery-2.2.3.min.js");
 includeInThisContext('src/cpu/z80.js');
+includeInThisContext('src/cpu/6809.js');
 global['buildZ80'] = global.window.buildZ80;
 includeInThisContext("javatari.js/release/javatari/javatari.js");
 Javatari.AUTO_START = false;
@@ -232,7 +233,14 @@ describe('Platform Replay', () => {
     });
   });
 
-  it('Should run williams', () => {
+  it('Should run williams 6809', () => {
+    var platform = testPlatform('williams', 'vidfill.asm.rom', 72, (platform, frameno) => {
+      if (frameno == 62) {
+        keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
+      }
+    });
+  });
+  it('Should run williams-z80', () => {
     var platform = testPlatform('williams-z80', 'game1.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
