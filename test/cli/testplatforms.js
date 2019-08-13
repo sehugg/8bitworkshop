@@ -42,6 +42,7 @@ var _williams = require('gen/platform/williams.js');
 var _sound_williams = require('gen/platform/sound_williams.js');
 var _astrocade = require('gen/platform/astrocade.js');
 var _atari8 = require('gen/platform/atari8.js');
+var _atari7800 = require('gen/platform/atari7800.js');
 var _coleco = require('gen/platform/coleco.js');
 var _sms = require('gen/platform/sms.js');
 
@@ -278,13 +279,11 @@ describe('Platform Replay', () => {
       }
     });
   });
-/* TODO
-  it('Should run atari8-5200', () => {
-    var platform = testPlatform('atari8-5200', 'hello.a.rom', 92, (platform, frameno) => {
+  it('Should run atari7800', () => {
+    var platform = testPlatform('atari7800', 'sprites.dasm.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
-        keycallback(Keys.VK_SPACE.c, Keys.VK_SPACE.c, 1);
+        keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
       }
     });
   });
-*/
 });

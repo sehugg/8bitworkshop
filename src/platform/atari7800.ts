@@ -16,22 +16,21 @@ var Atari7800_PRESETS = [
 ];
 
 const SWCHA = 0;
-const SWCHB = 1;
-const INPT4 = 2;
-const INPT5 = 3;
+const SWCHB = 2;
+const INPT0 = 8;
 
 const Atari7800_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.A,        INPT4, -0x80],
-  //[Keys.B,        0, 1],
-  //[Keys.SELECT,   0, 2],
-  //[Keys.START,    0, 3],
+  [Keys.A,        INPT0+0, 0x80],
+  [Keys.B,        INPT0+1, 0x80],
+  [Keys.SELECT,   SWCHB, -0x02],
+  [Keys.START,    SWCHB, -0x01],
   [Keys.UP,       SWCHA, -0x10],
   [Keys.DOWN,     SWCHA, -0x20],
   [Keys.LEFT,     SWCHA, -0x40],
   [Keys.RIGHT,    SWCHA, -0x80],
   
-  [Keys.P2_A,      INPT5, -0x80],
-  //[Keys.P2_B,      1, 1],
+  [Keys.P2_A,     INPT0+2, 0x80],
+  [Keys.P2_B,     INPT0+3, 0x80],
   //[Keys.P2_SELECT, 1, 2],
   //[Keys.P2_START,  1, 3],
   [Keys.P2_UP,     SWCHA, -0x01],
@@ -46,7 +45,8 @@ const CLK = 3579545;
 const cpuFrequency = 1789772;
 const linesPerFrame = 262;
 const numVisibleLines = 258-16;
-const colorClocksPerLine = 454;
+const colorClocksPerLine = 454; // 456?
+const colorClocksPreDMA = 28;
 const romLength = 0xc000;
 
 // TIA chip
@@ -55,7 +55,7 @@ class TIA {
   regs = new Uint8Array(0x20);
   
   reset() {
-    // TODO
+    this.regs.fill(0);
   }
   read(a : number) : number {
     return this.regs[a] | 0;
@@ -83,6 +83,7 @@ class TIA {
 
 class MARIA {
   bus;
+  profiler;
   cycles : number = 0;
   regs = new Uint8Array(0x20);
   offset : number = -1;
@@ -92,15 +93,17 @@ class MARIA {
   h16 : boolean = false;
   h8 : boolean = false;
   pixels = new Uint8Array(320);
+  WSYNC : number = 0;
 
   reset() {
-    // TODO
+    this.regs.fill(0);
   }
   read(a : number) : number {
     return this.regs[a] | 0;
   }
   write(a : number, v : number) {
     this.regs[a] = v;
+    if (a == 0x04) this.WSYNC++;
     //console.log(hex(a), '=', hex(v));
   }
   saveState() {
@@ -143,15 +146,15 @@ class MARIA {
     }
   }
   readDLLEntry(bus) {
+    this.profiler && this.profiler.logRead(this.dll);
     var x = bus.read(this.dll);
     this.offset = (x & 0xf);
-    this.dli = (x & 0x80) != 0;
     this.h16 = (x & 0x40) != 0;
     this.h8  = (x & 0x20) != 0;
     this.dlstart = (bus.read(this.dll+1)<<8) + bus.read(this.dll+2);
     //console.log(hex(this.dll,4), this.offset, hex(this.dlstart,4));
-    this.dll = (this.dll + 3) & 0xffff; // TODO: can only cross 1 page
-    this.cycles += 8;
+    this.dll = (this.dll + 3) & 0xffff; // TODO: can also only cross 1 page?
+    this.dli = (bus.read(this.dll) & 0x80) != 0; // DLI flag is from next DLL entry
   }
   isHoley(a : number) : boolean {
     if (a & 0x8000) {
@@ -165,11 +168,13 @@ class MARIA {
       return 0;
     else {
       this.cycles += 3;
+      //this.profiler && this.profiler.logRead(a);
       return this.bus.read(a);
     }
   }
-  doDMA(bus) {
-    this.bus = bus;
+  doDMA(platform : Atari7800Platform) {
+    var bus = this.bus = platform.bus;
+    var profiler = this.profiler = platform.profiler;
     this.cycles = 0;
     this.pixels.fill(this.regs[0x0]);
     if (this.isDMAEnabled()) {
@@ -183,31 +188,33 @@ class MARIA {
       var dlofs = this.dlstart & 0xff;
       do {
         // read DL entry
+        profiler && profiler.logRead(dlhi + ((dlofs+0) & 0x1ff));
         var b0 = bus.read(dlhi + ((dlofs+0) & 0x1ff));
         var b1 = bus.read(dlhi + ((dlofs+1) & 0x1ff));
         if (b1 == 0) break; // end of DL
         var b2 = bus.read(dlhi + ((dlofs+2) & 0x1ff));
         var b3 = bus.read(dlhi + ((dlofs+3) & 0x1ff));
-        var writemode = 0;
         var indirect = false;
         // extended header?
         if ((b1 & 31) == 0) {
           var pal = b3 >> 5;
           var width = 32 - (b3 & 31);
           var xpos = bus.read(dlhi + ((dlofs+4) & 0x1ff));
-          writemode = b1 & 0x80;
+          var writemode = b1 & 0x80;
           indirect = (b1 & 0x20) != 0;
           dlofs += 5;
+          this.cycles += 10;
         } else {
           // direct mode
           var xpos = b3;
           var pal = b1 >> 5;
           var width = 32 - (b1 & 31);
+          var writemode = 0;
           dlofs += 4;
+          this.cycles += 8;
         }
         var gfxadr = b0 + (((b2 + (indirect?0:this.offset)) & 0xff) << 8);
         xpos *= 2;
-        this.cycles += 4;
         // copy graphics data (direct)
         // TODO
         var readmode = (this.regs[0x1c] & 0x3) + (writemode?4:0);
@@ -229,27 +236,32 @@ class MARIA {
                 xpos = (xpos + 2) & 0x1ff;
               }
               break;
-            case 2:	// 320 B/D
+            case 2:	// 320 B/D (TODO?)
             case 3:	// 320 A/C
               for (var j=0; j<8; j++) {
-                var col = data & 1;
+                var col = (data & 128) ? 1 : 0;
                 if (col > 0) {
                   this.pixels[xpos] = this.regs[(pal<<2) + col];
                 }
-                data >>= 1;
+                data <<= 1;
                 xpos = (xpos + 1) & 0x1ff;
               }
               break;
           }
         }
-      } while (1);
+      } while (this.cycles < colorClocksPerLine); // TODO?
       // decrement offset
       this.offset -= 1;
     }
     return this.cycles;
   }
   doInterrupt() : boolean {
-    return this.dli && this.offset == 0;
+    if (this.dli && this.offset < 0) {
+      this.dli = false;
+      return true;
+    } else
+      return false;
+    //return this.dli;// && this.offset == 1;
   }
   static stateToLongString(state) : string {
     let s = "";
@@ -275,7 +287,7 @@ class Atari7800Platform extends Base6502Platform implements Platform {
   video;
   audio;
   timer : AnimationTimer;
-  inputs = new Uint8Array(8);
+  inputs = new Uint8Array(16);
   regs6532 = new Uint8Array(4);
   scanline : number = 0;
   tia : TIA = new TIA();
@@ -284,24 +296,31 @@ class Atari7800Platform extends Base6502Platform implements Platform {
   constructor(mainElement : HTMLElement) {
     super();
     this.mainElement = mainElement;
-    this.inputs.fill(0xff);
   }
 
   getPresets() {
     return Atari7800_PRESETS;
   }
+  
+  readInput(a:number) : number {
+    this.profiler && this.profiler.logRead(a+0x20);
+    switch (a) {
+      case 0xc: return ~this.inputs[0x8] & 0x80; //INPT4
+      case 0xd: return ~this.inputs[0x9] & 0x80; //INPT5
+      default: return this.inputs[a]|0;
+    }
+  }
 
   start() {
     this.cpu = new jt.M6502();
-    this.ram = new Uint8Array(0x2800 - 0x1600);
-    this.bios = new Uint8Array(0x1000); // TODO
+    this.ram = new Uint8Array(0x1000);
+    //this.bios = new Uint8Array(0x1000); // TODO
     // TODO: TIA access wastes a cycle
     this.bus = {
       read: newAddressDecoder([
-        [0x0008, 0x000b,   0x04, (a) => { return this.inputs[a]; }],
-        [0x000c, 0x000d,   0x01, (a) => { return (this.inputs[INPT4 + a] & 0x80) ? 0x80 : 0x00; }],
+        [0x0008, 0x000d,   0x0f, (a) => { return this.readInput(a); }],
         [0x0000, 0x001f,   0x1f, (a) => { return this.tia.read(a); }],
-        [0x0020, 0x003f,   0x1f, (a) => { return this.maria.read(a); }],
+        [0x0020, 0x003f,   0x1f, (a) => { return this.maria.read(a); this.profiler && this.profiler.logRead(a+0x20);  }],
         [0x0040, 0x00ff,   0xff, (a) => { return this.ram[a + 0x800]; }],
         [0x0100, 0x013f,   0xff, (a) => { return this.bus.read(a); }], // shadow
         [0x0140, 0x01ff,  0x1ff, (a) => { return this.ram[a + 0x800]; }],
@@ -309,18 +328,19 @@ class Atari7800Platform extends Base6502Platform implements Platform {
         [0x1800, 0x27ff, 0xffff, (a) => { return this.ram[a - 0x1800]; }],
         [0x2800, 0x3fff,  0x7ff, (a) => { return this.bus.read(a | 0x2000); }], // shadow
         [0x4000, 0xffff, 0xffff, (a) => { return this.rom ? this.rom[a - 0x4000] : 0; }],
-        [0x0000, 0xffff, 0xffff, (a) => { throw new EmuHalt("Read @ " + hex(a,4)); }]
+        [0x0000, 0xffff, 0xffff, (a) => { throw new EmuHalt("Read @ " + hex(a,4)); }],
       ]),
       write: newAddressDecoder([
         [0x0015, 0x001A,   0x1f, (a,v) => { this.audio.pokey1.setTIARegister(a, v); }],
-        [0x0000, 0x001f,   0x1f, (a,v) => { this.tia.write(a,v); }],
-        [0x0020, 0x003f,   0x1f, (a,v) => { this.maria.write(a,v); }],
+        [0x0000, 0x001f,   0x1f, (a,v) => { this.tia.write(a,v); this.profiler && this.profiler.logWrite(a); }],
+        [0x0020, 0x003f,   0x1f, (a,v) => { this.maria.write(a,v); this.profiler && this.profiler.logWrite(a+0x20); }],
         [0x0040, 0x00ff,   0xff, (a,v) => { this.ram[a + 0x800] = v; }],
         [0x0140, 0x01ff,  0x1ff, (a,v) => { this.ram[a + 0x800] = v; }],
         [0x0280, 0x02ff,    0x3, (a,v) => { this.regs6532[a] = v; /*TODO*/ }],
         [0x1800, 0x27ff, 0xffff, (a,v) => { this.ram[a - 0x1800] = v; }],
         [0x2800, 0x3fff,  0x7ff, (a,v) => { this.bus.write(a | 0x2000, v); }],
-        [0x0000, 0xffff, 0xffff, (a,v) => { throw new EmuHalt("Write @ " + hex(a,4) + " " + hex(v,2)); }]
+        [0xbfff, 0xbfff, 0xffff, (a,v) => { }], // TODO: bank switching?
+        [0x0000, 0xffff, 0xffff, (a,v) => { throw new EmuHalt("Write @ " + hex(a,4) + " " + hex(v,2)); }],
       ]),
     };
     this.cpu.connectBus(this.bus);
@@ -344,33 +364,30 @@ class Atari7800Platform extends Base6502Platform implements Platform {
     var jacanvas = $("#emulator").find("canvas");
     jacanvas.mousedown(rasterPosBreakFn);
   }
-
+  
   advance(novideo : boolean) {
     var idata = this.video.getFrameData();
     var iofs = 0;
     var debugCond = this.getDebugCallback();
     var rgb;
-    var mariaClocks = 0;
+    var mariaClocks = colorClocksPreDMA; // 7 CPU cycles until DMA
     // visible lines
     for (var sl=0; sl<linesPerFrame; sl++) {
       this.scanline = sl;
-      this.maria.setVBLANK(sl >= numVisibleLines);
-      mariaClocks += 454;
-      // TODO: 7 cycles at start of line
-      if (this.maria.isDMAEnabled()) {
-        // do DMA for scanline
-        mariaClocks -= this.maria.doDMA(this.bus);
-        // copy line to frame buffer
-        for (var i=0; i<320; i++) {
-          idata[iofs++] = COLORS_RGBA[this.maria.pixels[i]];
-        }
-        // do interrupt?
-        if (this.maria.doInterrupt()) {
-          mariaClocks -= this.cpu.setNMIAndWait() * 4;
-        }
-      }
+      var visible = sl < numVisibleLines;
+      this.maria.setVBLANK(!visible);
       // iterate CPU with free clocks
       while (mariaClocks > 0) {
+        // wait for WSYNC? (end of line)
+        if (this.maria.WSYNC) {
+          if (mariaClocks >= colorClocksPreDMA) {
+            this.maria.WSYNC--;
+            mariaClocks = colorClocksPreDMA; // 7 CPU cycles until DMA
+          } else {
+            break;
+          }
+        }
+        // next CPU clock
         mariaClocks -= 4;
         if (debugCond && debugCond()) {
           debugCond = null;
@@ -378,6 +395,20 @@ class Atari7800Platform extends Base6502Platform implements Platform {
           break;
         }
         this.cpu.clockPulse();
+      }
+      mariaClocks += colorClocksPerLine;
+      // do DMA for scanline?
+      if (this.maria.isDMAEnabled() && visible) {
+        mariaClocks -= this.maria.doDMA(this);
+        // copy line to frame buffer
+        for (var i=0; i<320; i++) {
+          idata[iofs++] = COLORS_RGBA[this.maria.pixels[i]];
+        }
+        // do interrupt?
+        if (this.maria.doInterrupt()) {
+          this.profiler && this.profiler.logInterrupt(0);
+          mariaClocks -= this.cpu.setNMIAndWait() * 4;
+        }
       }
     }
     // update video frame
@@ -390,15 +421,16 @@ class Atari7800Platform extends Base6502Platform implements Platform {
   }
 
   loadROM(title, data) {
+    if (data.length == 0xc080) data = data.slice(0x80); // strip header
     this.rom = padBytes(data, romLength, true);
     this.reset();
   }
-
+/*
   loadBIOS(title, data) {
     this.bios = padBytes(data, 0x1000);
     this.reset();
   }
-
+*/
   isRunning() {
     return this.timer.isRunning();
   }
@@ -417,14 +449,10 @@ class Atari7800Platform extends Base6502Platform implements Platform {
     this.cpu.reset();
     this.tia.reset();
     this.maria.reset();
-    /*
-    // execute until out of BIOS
-    for (var i=0; i<20000; i++) {
-      this.cpu.clockPulse();
-      if (this.getCPUState().PC < 0xf000)
-        break;
-    }
-    */
+    this.inputs.fill(0x0);
+    this.inputs[SWCHA] = 0xff;
+    this.inputs[SWCHB] = 1+2+8;
+    this.cpu.clockPulse(); // TODO: needed for test to pass?
   }
 
   readAddress(addr : number) {

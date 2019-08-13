@@ -26,10 +26,10 @@ BACKGRND        equ     $20     ;Background Color
 P0C1            equ     $21     ;Palette 0 - Color 1
 P0C2            equ     $22     ;Palette 0 - Color 2
 P0C3            equ     $23     ;Palette 0 - Color 3
-WSYNC           equ     $20     ;Wait For Sync
-P1C1            equ     $21     ;Palette 1 - Color 1
-P1C2            equ     $22     ;Palette 1 - Color 2
-P1C3            equ     $23     ;Palette 1 - Color 3
+WSYNC           equ     $24     ;Wait For Sync
+P1C1            equ     $25     ;Palette 1 - Color 1
+P1C2            equ     $26     ;Palette 1 - Color 2
+P1C3            equ     $27     ;Palette 1 - Color 3
 MSTAT           equ     $28     ;Maria Status
 P2C1            equ     $29     ;Palette 2 - Color 1
 P2C2            equ     $2A     ;Palette 2 - Color 2
@@ -372,6 +372,19 @@ vbloop
 	lda	MSTAT		;Wait for VBLANK to end
 	and	#$80
 	bne 	vbloop
+; test WSYNC
+	ldx	#$04
+        sta	WSYNC
+        stx	BACKGRND
+        dex
+        sta	WSYNC
+        stx	BACKGRND
+        dex
+        sta	WSYNC
+        stx	BACKGRND
+        dex
+        sta	WSYNC
+        stx	BACKGRND
 	
 	jmp     mainloop	;Loop
 

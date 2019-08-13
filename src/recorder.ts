@@ -1,5 +1,5 @@
 
-import { Platform, EmuState, EmuControlsState, EmuRecorder } from "./baseplatform";
+import { Platform, BasePlatform, EmuState, EmuControlsState, EmuRecorder } from "./baseplatform";
 import { BaseDebugPlatform, EmuProfiler, ProfilerOutput } from "./baseplatform";
 import { getNoiseSeed, setNoiseSeed } from "./emu";
 
@@ -117,41 +117,63 @@ export class StateRecorderImpl implements EmuRecorder {
 
 // PROFILER
 
+const PROFOP_READ        = 0x100000;
+const PROFOP_WRITE       = 0x200000;
+const PROFOP_INTERRUPT   = 0x400000;
+
 export class EmuProfilerImpl implements EmuProfiler {
 
   platform : Platform;
+  frame = null;
+  output = {frame:null};
+  i = 0;
+  lastsl = 9999;
+  starti = 0;
   
   constructor(platform : Platform) {
     this.platform = platform;
   }
 
   start() : ProfilerOutput {
-    var frame = null;
-    var output = {frame:null};
-    var i = 0;
-    var lastsl = 9999;
-    var start = 0;
+    if (this.platform instanceof BasePlatform) this.platform.profiler = this;
     this.platform.setBreakpoint('profile', () => {
-      var sl = this.platform.getRasterScanline();
-      if (sl != lastsl) {
-        if (frame) {
-          frame.lines.push({start:start,end:i-1});
-        }
-        if (sl < lastsl) {
-          output.frame = frame;
-          frame = {iptab:new Uint32Array(0x8000), lines:[]}; // TODO: const
-          i = 0;
-        }
-        start = i;
-        lastsl = sl;
-      }
       var c = this.platform.getCPUState();
-      frame.iptab[i++] = c.EPC || c.PC;
+      this.log(c.EPC || c.PC);
       return false; // profile forever
     });
-    return output;
+    this.output = {frame:null};
+    return this.output;
   }
+  
+  log(op : number) {
+    var sl = this.platform.getRasterScanline();
+    if (sl != this.lastsl) {
+      if (this.frame) {
+        this.frame.lines.push({start:this.starti, end:this.i-1});
+      }
+      if (sl < this.lastsl) {
+        this.output.frame = this.frame;
+        this.frame = {iptab:new Uint32Array(0x8000), lines:[]}; // TODO: const
+        this.i = 0;
+      }
+      this.starti = this.i;
+      this.lastsl = sl;
+    }
+    this.frame.iptab[this.i++] = op;
+  }
+  
   stop() {
     this.platform.clearBreakpoint('profile');
+    if (this.platform instanceof BasePlatform) this.platform.profiler = null;
+  }
+  // TODO?
+  logRead(a : number) {
+    this.log(a | PROFOP_READ);
+  }
+  logWrite(a : number) {
+    this.log(a | PROFOP_WRITE);
+  }
+  logInterrupt(a : number) {
+    this.log(a | PROFOP_INTERRUPT);
   }
 }

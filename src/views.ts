@@ -866,6 +866,12 @@ export class ProfileView implements ProjectView {
     for (let i=l.start; i<=l.end; i++) {
       let pc = f.iptab[i];
       let sym = this.symcache[pc];
+      let op = pc >> 20;
+      switch (op) { // TODO: const
+        case 1: sym = "r$" + hex(pc & 0xffff); break;
+        case 2: sym = "W$" + hex(pc & 0xffff); break;
+        case 4: sym = "I$" + hex(pc & 0xffff); break;
+      }
       if (!sym) {
         sym = lookupSymbol(platform, pc, false);
         this.symcache[pc] = sym;

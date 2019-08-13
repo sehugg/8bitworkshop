@@ -48,7 +48,7 @@ export class DebugSymbols {
   constructor(symbolmap : SymbolMap) {
     this.symbolmap = symbolmap;
     this.addr2symbol = invertMap(symbolmap);
-    // TODO: shouldn't be necc.
+    //// TODO: shouldn't be necc.
     if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = '__START__'; // needed for ...
     this.addr2symbol[0x10000] = '__END__'; // ... dump memory to work
   }
@@ -101,8 +101,6 @@ export interface Platform {
   showHelp?(tool:string, ident?:string) : void;
   resize?() : void;
 
-  startProfiling?() : ProfilerOutput;
-  stopProfiling?() : void;
   getRasterScanline?() : number;
   setBreakpoint?(id : string, cond : DebugCondition);
   clearBreakpoint?(id : string);
@@ -166,12 +164,17 @@ export interface ProfilerOutput {
 export interface EmuProfiler {
   start() : ProfilerOutput;
   stop();
+  // TODO?
+  logRead(a : number);
+  logWrite(a : number);
+  logInterrupt(a : number);
 }
 
 /////
 
 export abstract class BasePlatform {
   recorder : EmuRecorder = null;
+  profiler : EmuProfiler = null;
   debugSymbols : DebugSymbols;
 
   abstract loadState(state : EmuState) : void;
