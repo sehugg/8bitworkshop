@@ -273,7 +273,8 @@ var PLATFORM_PARAMS = {
   'atari7800': {
     define: '__ATARI7800__',
     cfgfile: 'atari7800.cfg',
-    libargs: ['atari7800.lib'],
+    libargs: ['crt0.o', 'sim6502.lib'],
+    extra_link_files: ['crt0.o', 'atari7800.cfg'],
     extra_segments:[
       {name:'TIA',start:0x00,size:0x20,type:'io'},
       {name:'MARIA',start:0x20,size:0x20,type:'io'},
@@ -542,6 +543,7 @@ function loadNative(modulename:string) {
 function setupFS(FS, name:string) {
   var WORKERFS = FS.filesystems['WORKERFS'];
   if (name === '65-vector') name = '65-sim6502'; // TODO
+  if (name === '65-atari7800') name = '65-sim6502'; // TODO
   if (!fsMeta[name]) throw "No filesystem for '" + name + "'";
   FS.mkdir('/share');
   FS.mount(WORKERFS, {
@@ -2031,6 +2033,8 @@ var TOOL_PRELOADFS = {
   'ca65-atari8': '65-atari8',
   'cc65-vector': '65-sim6502',
   'ca65-vector': '65-sim6502',
+  'cc65-atari7800': '65-sim6502',
+  'ca65-atari7800': '65-sim6502',
   'sdasz80': 'sdcc',
   'sdcc': 'sdcc',
   'sccz80': 'sccz80',

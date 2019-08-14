@@ -109,40 +109,26 @@ crloop1
 	inx
 	bne     crloop1
 
-;************* Clear RAM **************************
-
         ldy     #$00            ;Clear Ram
-        lda     #$18            ;Start at $1800
-        sta     $81             
-        lda     #$00
-        sta     $80
-crloop3
-        lda     #$00
-        sta     ($80),y         ;Store data
-        iny                     ;Next byte
-        bne     crloop3         ;Branch if not done page
-        inc     $81             ;Next page
-        lda     $81
-        cmp     #$20            ;End at $1FFF
-        bne     crloop3         ;Branch if not
-
-        ldy     #$00            ;Clear Ram
-        lda     #$22            ;Start at $2200
-        sta     $81             
-        lda     #$00
-        sta     $80
-crloop4
-        lda     #$00
-        sta     ($80),y         ;Store data
-        iny                     ;Next byte
-        bne     crloop4         ;Branch if not done page
-        inc     $81             ;Next page
-        lda     $81
-        cmp     #$27            ;End at $27FF
-        bne     crloop4         ;Branch if not
+crloop2
+        sta	$1800,y
+        sta	$1900,y
+        sta	$1a00,y
+        sta	$1b00,y
+        sta	$1c00,y
+        sta	$1d00,y
+        sta	$1e00,y
+        sta	$1f00,y
+        sta	$2200,y
+        sta	$2300,y
+        sta	$2400,y
+        sta	$2500,y
+        sta	$2600,y
+        sta	$2700,y
+        iny
+        bne	crloop2
 
         ldx     #$00
-        lda     #$00
 crloop5                         ;Clear 2100-213F
         sta     $2100,x
         inx
