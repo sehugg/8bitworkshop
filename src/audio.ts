@@ -73,6 +73,22 @@ export function newPOKEYAudio(count:number) {
   return audio;
 }
 
+function combinePolys(a, b) {
+  var arr = new Uint8Array(a.length * b.length);
+  var n = 0;
+  for (var i=0; i<arr.length; i++) {
+    arr[i] = b[n % b.length];
+    if (a[i % a.length]) n++;
+  }
+  return arr;
+}
+
+function divideBy(n) {
+  var arr = new Uint8Array(n*2);
+  arr.fill(1, 0, n);
+  return arr;
+}
+
 export var POKEYDeviceChannel = function() {
 
   /* definitions for AUDCx (D201, D203, D205, D207) */
@@ -119,37 +135,38 @@ export var POKEYDeviceChannel = function() {
   var FREQ_17_APPROX    = 1787520.0  /* approximate 1.79 MHz clock freq */
 
   // LFSR sequences
-  var bit1 = new Uint8Array( [ 0,1 ] );
+  var bit1 = new Uint8Array( [ 1 ] );
+  var bit2 = new Uint8Array( [ 0,1 ] ); // TODO?
   var bit4 = new Uint8Array( [ 1,1,0,1,1,1,0,0,0,0,1,0,1,0,0 ] );
   var bit5 = new Uint8Array( [ 0,0,1,1,0,0,0,1,1,1,1,0,0,1,0,1,0,1,1,0,1,1,1,0,1,0,0,0,0,0,1 ] );
   var bit9 = new Uint8Array( [ 0,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,1,1,1,0,0,1,0,1,0,0,1,1,1,1,1,0,0,1,1,0,1,1,0,1,0,1,1,1,0,1,1,0,0,1,0,0,1,1,1,1,0,1,0,0,0,0,1,1,0,1,1,0,0,0,1,0,0,0,1,1,1,1,0,1,0,1,1,0,1,0,1,0,0,0,0,1,1,0,1,0,1,0,0,0,1,0,1,0,0,0,1,1,1,0,0,1,1,0,1,1,0,0,1,1,1,1,1,0,0,1,1,0,0,0,1,1,0,1,0,0,0,1,1,0,0,1,1,1,1,0,0,1,0,0,0,1,1,1,0,0,1,1,0,1,0,1,1,0,1,1,0,1,0,0,1,0,0,1,1,1,1,1,1,0,1,1,1,1,0,1,1,0,0,0,0,1,1,1,1,1,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,1,0,0,0,0,1,0,1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,0,1,1,1,0,1,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,1,1,0,0,1,0,0,1,0,1,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,1,1,1,1,0,0,0,1,1,1,0,0,0,1,0,0,1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,0,1,0,1,1,1,1,0,0,1,0,1,0,1,1,1,0,0,0,0,0,1,1,0,1,1,0,0,0,1,0,1,0,1,0,0,0,0,1,0,1,1,1,0,0,0,0,1,0,0,1,0,1,0,0,0,1,0,1,1,1,0,0,1,1,1,1,1,1,1,0,0,0,0,0,1,0,0,1,1,0,1,0,0,1,0,0,0,1,0,0,1,0,1,0,0,0,1,1,0,1,0,0,0,0,0,1,1,1,1,0,0,1,0,0,1,0,1,1,1,1,1,1,1,0,1,0,0,1,0,0,0,1,1,0,1,1,1,0,0,0,1,0,1,0,0,1,0,1,0,1,0,1,1,1,0,0,1,0,1,1,0,0,1,1,1,1,1,0,0,0,1,1,0 ] );
-  var div31 = new Uint8Array( [ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0 ] );
-  var bit17 = new Uint8Array(1<<17);
-  var bit17_5 = new Uint8Array(1<<17);
-  var bit5_4 = new Uint8Array(1<<9);
-  // TODO
-  var bit6 = bit9;
-  var bit15_4 = bit5_4;
-  var bit5_2 = bit5_4;
-  var bit5_6 = bit5_4;
-  var bit31 = bit9;
-  var bit93 = bit31;
+  var bit15 = new Uint8Array( [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0] );
+  var bit31 = new Uint8Array( [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0] );
+  var bit17 = new Uint8Array(1<<14);
   for (var i=0; i<bit17.length; i++) {
     bit17[i] = Math.random() > 0.5 ? 1 : 0;
-    bit17_5[i] = bit17[i] & bit5[i % bit5.length];
-    bit5_4[i] = bit5[i % bit5.length] & bit4[i % bit4.length];
   }
+  var bit17_5 = combinePolys(bit17, bit5);
+  var bit5_4 = combinePolys(bit5, bit4);
   var wavetones = [
     bit17_5, bit5, bit5_4, bit5,
-    bit17, bit1, bit4, bit1
+    bit17, bit2, bit4, bit2
   ];
+  // TIA
+  var div2 = divideBy(2);
+  var div6 = divideBy(6);
+  var div31 = divideBy(31);
+  var div93 = divideBy(93);
+  var bit15_4 = combinePolys(bit15, bit4);
+  var bit5_2 = combinePolys(bit5, div2);
+  var bit5_6 = combinePolys(bit5, div6);
   var tiawavetones = [
     bit1, bit4, bit15_4, bit5_4,
-    bit1, bit1, bit31, bit5_2,
-    bit9, bit5, bit31, bit1,
-    bit6, bit6, bit93, bit5_6
+    div2, div2, div31, bit5_2,
+    bit9, bit5, div31, bit1,
+    div6, div6, div93, bit5_6
   ];
-
+  
   // registers
   var regs = new Uint8Array(16);
   var counters = new Float32Array(4);
