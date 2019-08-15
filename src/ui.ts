@@ -1847,10 +1847,10 @@ export function startUI(loadplatform : boolean) {
     var repo = getRepos()[repo_id];
     if (repo) {
       qs['repo'] = repo_id;
+      if (repo.platform_id)
+        qs['platform'] = platform_id = repo.platform_id;
       if (!qs['file'])
         qs['file'] = repo.mainPath;
-      if (!qs['platform'])
-        qs['platform'] = platform_id = repo.platform_id;
     }
   } else {
     repo_id = '';

@@ -6,10 +6,8 @@ TODO:
 - confuse code/data in listing
 - show memory locations hovering over lines
 - don't check against ROM signatures
-- support 6502 test cases
 - DASM: macro forward refs
 - asm: support macro expansion
-- support narrow screens
 - multiple breakpoints, expression breakpoints
 - watchpoints
 - debug inspector for variables
@@ -24,8 +22,6 @@ TODO:
 - online help
 - show self-modifying code insns left of editor
 - update Javatari version? (and others?)
-- unify versioning
-- disassembler for uploaded ROMs
 - sound mute?
 - $error updates source editor
 - online tools for music etc
@@ -38,7 +34,7 @@ TODO:
 - spaces in filename don't parse code listing (DASM, maybe more)
 - 'undefined' for bitmap replacer
 - requestInterrupt needs to be disabled after breakpoint?
-- C/asm formatter
+- C/asm source formatter
 - fix WebAudio (https://news.ycombinator.com/item?id=18066474)
 - allow download of JSASM output
 - update bootstrap to 4.0
@@ -57,8 +53,8 @@ TODO:
   - figure out area names ordering
   - debug inline asm
 - live coding URL
-- resize memory browser when vertical div resize
-- preroll the emulator so optimizer does its thing before loading rom
+- resize memory browser, other windows when vertical div resize
+- preroll the Z80 emulator so optimizer does its thing before loading rom
 - wasm dynamic linking of emulators (https://github.com/WebAssembly/tool-conventions/blob/master/DynamicLinking.md)
 - https://github.com/jvilk/BrowserFS
 - markdown, verilog: can't share
@@ -71,9 +67,10 @@ TODO:
   - or have neslib.h in a subdirectory...
 - put globals into view/controller objects
 - upload binary files doesn't do what's expected, changing pulldown and whatnot
-- chrome autostart audio: https://github.com/processing/p5.js-sound/issues/249
-- firefox autostart audio: https://support.mozilla.org/en-US/kb/block-autoplay
-- show player controls for each platform, allow touch support
+- autostart audio
+  - chrome: https://github.com/processing/p5.js-sound/issues/249
+  - firefox: https://support.mozilla.org/en-US/kb/block-autoplay
+- touch support
 - better undo/diff for mistakes?
 - ide bug/feature visualizer for sponsors
 - global undo/redo at checkpoints (when rom changes)
@@ -137,12 +134,11 @@ TODO:
   - doesn't do clip right
   - doesn't do b/w tint
 - vcs
-  - need Chapter 8 example?
   - vcs sound continues when paused
   - vcs: INPTx needs to be added to control state
   - vcs: break on # of lines changed (maybe using getRasterPosition?)
   - chrome looks blurry on vcs
-  - VCS asm library
+  - VCS asm game library
   - VCS skips step on lsr/lsr after run to line
   - better VCS single stepping, maybe also listings
 - upload multiple files/zip file to subdirectory
@@ -176,7 +172,6 @@ TODO:
 - convert binary to hex stmts
 - "suggestions" (vblank overrun, variable # scanlines, etc)
 - spinner doesn't always spin on sms
-
 
 WEB WORKER FORMAT
 
