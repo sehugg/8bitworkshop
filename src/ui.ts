@@ -1556,8 +1556,14 @@ function showWelcomeMessage() {
     var is_vcs = platform_id.startsWith('vcs');
     var steps = [
         {
-          element: "#workspace",
+          element: "#platformsMenuButton",
+          placement: 'right',
           title: "Welcome to 8bitworkshop!",
+          content: "You are currently on the \"<b>" + platform_id + "</b>\" platform. You can choose a different one from the menu."
+        },
+        {
+          element: "#workspace",
+          title: "Code Editor",
           content: is_vcs ? "Type your 6502 assembly code into the editor, and it'll be assembled in real-time. All changes are saved to browser local storage."
                           : "Type your source code into the editor, and it'll be compiled in real-time. All changes are saved to browser local storage."
         },
@@ -1565,7 +1571,7 @@ function showWelcomeMessage() {
           element: "#emulator",
           placement: 'left',
           title: "Emulator",
-          content: "This is an emulator for the \"" + platform_id + "\" platform. We'll load your compiled code into the emulator whenever you make changes."
+          content: "We'll load your compiled code into the emulator whenever you make changes."
         },
         {
           element: "#preset_select",
@@ -1581,19 +1587,19 @@ function showWelcomeMessage() {
         {
           element: "#dropdownMenuButton",
           title: "Main Menu",
-          content: "Click the menu to download your code, switch between platforms, create new files, or share your work with others."
+          content: "Click the menu to create new files, download your code, or share your work with others."
         },
         {
           element: "#sidebar",
           title: "Sidebar",
-          content: "Switch between editor windows, assembly listings, and other tools like disassembler and memory dump."
+          content: "Pull right to expose the sidebar. It lets you switch between source files, view assembly listings, and use other tools like Disassembler, Memory Browser, and Asset Editor."
         }
       ];
     steps.push({
       element: "#booksMenuButton",
-      placement: 'left',
+      placement: 'right',
       title: "Bookstore",
-      content: "Get some books that explain how to program all of this stuff!"
+      content: "Get some books that explain how to program all of this stuff, and write some games!"
     });
     if (!isLandscape()) {
       steps.unshift({

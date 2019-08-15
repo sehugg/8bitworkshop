@@ -150,6 +150,7 @@ TODO:
   - squelch error msgs? 
   - test offline? (if window.firebase)
 - Github
+  - platform_id/repo.platform mismatch (can't leave repository)
   - gh-pages branch with embedded
   - handle overwrite logic
   - what to do about included files?
