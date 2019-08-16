@@ -1995,12 +1995,110 @@ function assembleXASM6809(step:BuildStep) {
   };
 }
 
+// http://www.nespowerpak.com/nesasm/
+function assembleNESASM(step:BuildStep) {
+  loadNative("nesasm");
+  var re_filename = /[#](\d+)\s+(\S+)/;
+  var re_insn     = /\s+(\d+)\s+([0-9A-F]+):([0-9A-F]+)/;
+  var re_error    = /\s+(.+)/;
+  var errors = [];
+  var state = 0;
+  var lineno = 0;
+  var filename;
+  function match_fn(s) {
+    var m;
+    switch (state) {
+      case 0:
+        m = re_filename.exec(s);
+        if (m) {
+          filename = m[2];
+        }
+        m = re_insn.exec(s);
+        if (m) {
+          lineno = parseInt(m[1]);
+          state = 1;
+        }
+        break;
+      case 1:
+        m = re_error.exec(s);
+        if (m) {
+          errors.push({line:lineno, msg:m[1]});
+          state = 0;
+        }
+        break;
+    }
+  }
+  var Module = emglobal.nesasm({
+    instantiateWasm: moduleInstFn('nesasm'),
+    noInitialRun:true,
+    print:match_fn
+  });
+  var FS = Module['FS'];
+  populateFiles(step, FS, {
+    mainFilePath:'main.a'
+  });
+  var binpath = step.prefix+'.nes';
+  var lstpath = step.prefix+'.lst';
+  var sympath = step.prefix+'.fns';
+  execMain(step, Module, [step.path, '-s', "-l", "2" ]);
+  // parse main listing, get errors and listings for each file
+  var listings = {};
+  try {
+    var alst = FS.readFile(lstpath, {'encoding':'utf8'});
+    //   16  00:C004  8E 17 40    STX $4017    ; disable APU frame IRQ
+    var asmlines = parseListing(alst, /^\s*(\d+)\s+([0-9A-F]+):([0-9A-F]+)\s+([0-9A-F ]+?)  (.*)/i, 1, 3, 4);
+    putWorkFile(lstpath, alst);
+    listings[lstpath] = {
+      lines:asmlines,
+      text:alst
+    };
+  } catch (e) {
+    //
+  }
+  if (errors.length) {
+    return {errors:errors};
+  }
+  // read binary rom output and symbols
+  var aout, asym;
+  aout = FS.readFile(binpath);
+  try {
+    asym = FS.readFile(sympath, {'encoding':'utf8'});
+  } catch (e) {
+    console.log(e);
+    errors.push({line:0,msg:"No symbol table generated, maybe segment overflow?"});
+    return {errors:errors}
+  }
+  putWorkFile(binpath, aout);
+  putWorkFile(sympath, asym);
+  if (alst) putWorkFile(lstpath, alst); // listing optional (use LIST)
+  // return unchanged if no files changed
+  if (!anyTargetChanged(step, [binpath, sympath]))
+    return;
+  // parse symbols
+  var symbolmap = {};
+  for (var s of asym.split("\n")) {
+    if (!s.startsWith(';')) {
+      var m = /(\w+)\s+=\s+[$]([0-9A-F]+)/.exec(s);
+      if (m) {
+        symbolmap[m[1]] = parseInt(m[2], 16);
+      }
+    }
+  }
+  var segments = step.params.extra_segments;
+  return {
+    output:aout,
+    listings:listings,
+    errors:errors,
+    symbolmap:symbolmap,
+    segments:segments
+  };
+}
+
 
 ////////////////////////////
 
 var TOOLS = {
   'dasm': assembleDASM,
-
   //'acme': assembleACME,
   //'plasm': compilePLASMA,
   'cc65': compileCC65,
@@ -2018,6 +2116,7 @@ var TOOLS = {
   //'caspr': compileCASPR,
   'jsasm': compileJSASMStep,
   'zmac': assembleZMAC,
+  'nesasm': assembleNESASM,
   'bataribasic': compileBatariBasic,
   'markdown': translateShowdown,
 }

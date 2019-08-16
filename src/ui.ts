@@ -64,6 +64,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'acme': '6502',
   'cc65': 'text/x-csrc',
   'ca65': '6502',
+  'nesasm': '6502',
   'z80asm': 'z80',
   'sdasz80': 'z80',
   'sdcc': 'text/x-csrc',

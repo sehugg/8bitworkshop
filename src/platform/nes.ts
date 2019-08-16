@@ -385,8 +385,8 @@ class JSNESPlatform extends Base6502Platform implements Platform {
   }
   getToolForFilename = (fn:string) : string => {
     //if (fn.endsWith(".asm")) return "ca65"; // .asm uses ca65
-    //else
-    return getToolForFilename_6502(fn);
+    if (fn.endsWith(".nesasm")) return "nesasm";
+    else return getToolForFilename_6502(fn);
   }
 }
 

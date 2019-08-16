@@ -5,3 +5,4 @@ local
 release
 gen
 test/output
+.DS_Store

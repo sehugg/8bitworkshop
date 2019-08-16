@@ -128,6 +128,7 @@ TODO:
   - show cur/tmp vram addresses
   - NES crt should mark raster pos when debugging
   - OAMDMA in profiler? (haltCycles)
+  - ca65 skeleton
 - JSNES
   - doesn't support hiding >8 sprites
   - doesn't do sprite zero test right
