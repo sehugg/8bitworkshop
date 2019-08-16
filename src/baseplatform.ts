@@ -797,7 +797,7 @@ export abstract class BaseMAMEPlatform {
   }
 
   bufferConsoleOutput(s) {
-    if (!s) return;
+    if (typeof s !== 'string') return;
     if (s.startsWith(">>>")) {
       this.console_varname = s.length > 3 ? s.slice(3) : null;
       if (this.console_varname) this.console_vars[this.console_varname] = [];

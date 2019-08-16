@@ -1644,12 +1644,13 @@ function installErrorHandler() {
         // emulation threw EmuHalt
         if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
           showErrorAlert([ {msg:msgstr, line:0} ]);
-          uiDebugCallback(platform.saveState());
+          uiDebugCallback(platform.saveState && platform.saveState());
           setDebugButtonState("pause", "stopped");
         } else {
           // send exception msg to GA
           var msg = msgstr;
           //if (typeof error == 'string') msg += ": " + error;
+          if (url) msg += " " + url;
           if (line) msg += " (" + line + ":" + col + ")";
           if (msg.length > 256) { msg = msg.substring(0, 256); }
           if (ga) ga('send', 'exception', {
