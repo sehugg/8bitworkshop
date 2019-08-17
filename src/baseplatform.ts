@@ -1086,7 +1086,7 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
   audio;
   psg;
   pixels : Uint32Array;
-  inputs = new Uint8Array(16);
+  inputs : Uint8Array = new Uint8Array(32);
   mainElement : HTMLElement;
   poller : ControllerPoller;
 

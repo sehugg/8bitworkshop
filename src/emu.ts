@@ -335,7 +335,8 @@ interface KeyMapEntry {
 
 type KeyCodeMap = Map<number,KeyMapEntry>;
 
-export const Keys : {[keycode:string]:KeyDef} = {
+export const Keys = {
+    ANYKEY:   {c: 0,   n: "?"},
     // gamepad and keyboard (player 0)
     UP:       {c: 38,  n: "Up",    plyr:0, yaxis:-1},
     DOWN:     {c: 40,  n: "Down",  plyr:0, yaxis:1},
@@ -471,7 +472,12 @@ type KeyMapFunction = (o:KeyMapEntry, key:number, code:number, flags:number) => 
 
 export function setKeyboardFromMap(video:RasterVideo, switches:number[]|Uint8Array, map:KeyCodeMap, func?:KeyMapFunction) {
   var handler = (key,code,flags) => {
+    if (!map) {
+      func(null, key, code, flags);
+      return;
+    }
     var o : KeyMapEntry = map[key];
+    if (!o) o = map[0];
     if (o && func) {
       func(o, key, code, flags);
     }

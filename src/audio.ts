@@ -39,6 +39,10 @@ export class AY38910_Audio {
   setData(val : number) {
     this.psg.writeRegisterAY(this.curreg, val & 0xff);
   }
+  readData() {
+    return this.psg.readRegister(this.curreg);
+  }
+  currentRegister() { return this.curreg; }
 }
 
 export class SN76489_Audio {

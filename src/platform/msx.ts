@@ -1,9 +1,9 @@
 "use strict";
 
 import { Platform, BasicZ80ScanlinePlatform } from "../baseplatform";
-import { PLATFORMS, newAddressDecoder, padBytes, noise, makeKeycodeMap, Keys } from "../emu";
+import { PLATFORMS, newAddressDecoder, padBytes, noise, makeKeycodeMap, KeyFlags, Keys, EmuHalt } from "../emu";
 import { hex, lzgmini, stringToByteArray } from "../util";
-import { MasterAudio, SN76489_Audio } from "../audio";
+import { MasterAudio, AY38910_Audio } from "../audio";
 import { TMS9918A } from "../video/tms9918a";
 
 // https://www.konamiman.com/msx/msx-e.html#msx2th
@@ -12,27 +12,47 @@ import { TMS9918A } from "../video/tms9918a";
 // https://openmsx.org/manual/setup.html
 // https://www.msx.org/wiki/Slots
 // https://www.msx.org/wiki/SDCC
-// http://cbios.sourceforge.net/
 
 var MSX_PRESETS = [
   {id:'helloworld.asm', name:'Hello World (ASM)'},
 ];
 
 var MSX_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.UP,    0, 0x1],
-  [Keys.DOWN,  0, 0x4],
-  [Keys.LEFT,  0, 0x8],
-  [Keys.RIGHT, 0, 0x2],
-  [Keys.A,     0, 0x40],
-  [Keys.B,     1, 0x40],
+  [Keys.UP,       0, 0x1],
+  [Keys.DOWN,     0, 0x2],
+  [Keys.LEFT,     0, 0x4],
+  [Keys.RIGHT,    0, 0x8],
+  [Keys.A,        0, 0x10],
+  [Keys.B,        0, 0x20],
 
-  [Keys.P2_UP,    2, 0x1],
-  [Keys.P2_DOWN,  2, 0x4],
-  [Keys.P2_LEFT,  2, 0x8],
-  [Keys.P2_RIGHT, 2, 0x2],
-  [Keys.P2_A,     2, 0x40],
-  [Keys.P2_B,     3, 0x40],
+  [Keys.P2_UP,    1, 0x1],
+  [Keys.P2_DOWN,  1, 0x2],
+  [Keys.P2_LEFT,  1, 0x4],
+  [Keys.P2_RIGHT, 1, 0x8],
+  [Keys.P2_A,     1, 0x10],
+  [Keys.P2_B,     1, 0x20],
+
+  [Keys.ANYKEY,   2, 0x0],
 ]);
+
+const JOY_INPUT_0 = 0;
+const JOY_INPUT_1 = 1;
+const KEYBOARD_ROW_0 = 16;
+
+const MSX_KEYMATRIX_INTL_NOSHIFT = [
+  Keys.VK_7, Keys.VK_6, Keys.VK_5, Keys.VK_4, Keys.VK_3, Keys.VK_2, Keys.VK_1, Keys.VK_0,
+  Keys.VK_SEMICOLON, Keys.VK_CLOSE_BRACKET, Keys.VK_OPEN_BRACKET, Keys.VK_BACK_SLASH, Keys.VK_EQUALS, Keys.VK_MINUS, Keys.VK_9, Keys.VK_8,
+  Keys.VK_B, Keys.VK_A, null/*DEAD*/, Keys.VK_SLASH, Keys.VK_PERIOD, Keys.VK_COMMA, Keys.VK_ACUTE, Keys.VK_QUOTE,
+  Keys.VK_J, Keys.VK_I, Keys.VK_H, Keys.VK_G, Keys.VK_F, Keys.VK_E, Keys.VK_D, Keys.VK_C,
+  Keys.VK_R, Keys.VK_Q, Keys.VK_P, Keys.VK_O, Keys.VK_N, Keys.VK_M, Keys.VK_L, Keys.VK_K,
+  Keys.VK_Z, Keys.VK_Y, Keys.VK_X, Keys.VK_W, Keys.VK_V, Keys.VK_U, Keys.VK_T, Keys.VK_S,
+  Keys.VK_F3, Keys.VK_F2, Keys.VK_F1, null, Keys.VK_CAPS_LOCK, null, Keys.VK_CONTROL, Keys.VK_SHIFT,
+  Keys.VK_ENTER, null, Keys.VK_BACK_SPACE, null, Keys.VK_TAB, Keys.VK_ESCAPE, Keys.VK_F5, Keys.VK_F4,
+  Keys.VK_RIGHT, Keys.VK_DOWN, Keys.VK_UP, Keys.VK_LEFT, Keys.VK_DELETE, Keys.VK_INSERT, Keys.VK_HOME, Keys.VK_SPACE,
+  null, null, null, null, null, null, null, null, 
+  null, null, null, null, null, null, null, null, 
+  // TODO: null keycodes
+];
 
 /// standard emulator
 
@@ -47,16 +67,38 @@ class MSXPlatform extends BasicZ80ScanlinePlatform implements Platform {
   canvasWidth = 304;
   numTotalScanlines = 262;
   numVisibleScanlines = 240;
-  defaultROMSize = 0x10000;
+  defaultROMSize = 0x8000;
 
   vdp : TMS9918A;
   bios : Uint8Array;
   slots : MSXSlot[];
   slotmask : number = 0;
+  ppi_c : number = 0;
   
   getPresets() { return MSX_PRESETS; }
 
   getKeyboardMap() { return MSX_KEYCODE_MAP; }
+
+  // http://map.grauw.nl/articles/keymatrix.php
+  getKeyboardFunction() {
+    return (o,key,code,flags) => {
+      //console.log(o,key,code,flags);
+      var keymap = MSX_KEYMATRIX_INTL_NOSHIFT;
+      for (var i=0; i<keymap.length; i++) {
+        if (keymap[i] && keymap[i].c == key) {
+          let row = i >> 3;
+          let bit = 7 - (i & 7);
+          //console.log(key, row, bit);
+          if (flags & KeyFlags.KeyDown) {
+            this.inputs[KEYBOARD_ROW_0+row] |= (1<<bit);
+          } else if (flags & KeyFlags.KeyUp) {
+            this.inputs[KEYBOARD_ROW_0+row] &= ~(1<<bit);
+          }
+          break;
+        }
+      }
+    };
+  }
   
   getVideoOptions() { return {overscan:true}; }
 
@@ -90,7 +132,13 @@ class MSXPlatform extends BasicZ80ScanlinePlatform implements Platform {
         switch (addr) {
           case 0x98: return this.vdp.readData();
           case 0x99: return this.vdp.readStatus();
+          case 0xa2:
+            if (this.psg.currentRegister() == 14) return ~this.inputs[JOY_INPUT_0]; // TODO: joy 1?
+            else return this.psg.readData();
           case 0xa8: return this.slotmask;
+          case 0xa9: return ~this.inputs[KEYBOARD_ROW_0 + (this.ppi_c & 15)];
+          case 0xaa: return this.ppi_c; // TODO?
+          //default: throw new EmuHalt("Read I/O " + hex(addr));
         }
         return 0;
       },
@@ -102,6 +150,19 @@ class MSXPlatform extends BasicZ80ScanlinePlatform implements Platform {
           case 0x98: this.vdp.writeData(val); break;
           case 0x99: this.vdp.writeAddress(val); break;
           case 0xa8: this.slotmask = val; break;
+          case 0xaa: this.ppi_c = val; break;
+          case 0xab: // command register, modifies PPI C
+            let ibit = (val >> 1) & 7;
+            this.ppi_c = (this.ppi_c & ~(1<<ibit)) | ((val&1)<<ibit);
+            break;
+          case 0xa0: this.psg.selectRegister(val); break;
+          case 0xa1: this.psg.setData(val); break; 
+          case 0xfc:
+          case 0xfd:
+          case 0xfe:
+          case 0xff:
+            break; // memory mapper (MSX2)
+          //default: throw new EmuHalt("Write I/O " + hex(addr));
         }
       }
     };
@@ -110,6 +171,11 @@ class MSXPlatform extends BasicZ80ScanlinePlatform implements Platform {
   start() {
     super.start();
     this.bios = new lzgmini().decode(stringToByteArray(atob(MSX1_BIOS_LZG)));
+    // skip splash screen
+    this.bios[0xdd5] = 0;
+    this.bios[0xdd6] = 0;
+    this.bios[0xdd7] = 0;
+    // slot definitions
     this.slots = [
        // slot 0 : BIOS
        {
@@ -118,11 +184,14 @@ class MSXPlatform extends BasicZ80ScanlinePlatform implements Platform {
        },
        // slot 1: cartridge
        {
-         read: (a) => { return this.rom[a] | 0; },
+         read: (a) => { return this.rom[a - 0x4000] | 0; },
          write: (a,v) => { }
        },
-       // slot 2 : empty
-       null,
+       // slot 2: cartridge
+       {
+         read: (a) => { return this.rom[a - 0x4000] | 0; },
+         write: (a,v) => { }
+       },
        // slot 3 : RAM
        {
          read: (a) => { return this.ram[a] | 0; },
@@ -130,11 +199,11 @@ class MSXPlatform extends BasicZ80ScanlinePlatform implements Platform {
        },
     ];
     this.audio = new MasterAudio();
-    this.psg = new SN76489_Audio(this.audio);
+    this.psg = new AY38910_Audio(this.audio);
     var cru = {
       setVDPInterrupt: (b) => {
         if (b) {
-          this.cpu.nonMaskableInterrupt();
+          this.cpu.requestInterrupt(0x38);
         } else {
           // TODO: reset interrupt?
         }
@@ -158,11 +227,15 @@ class MSXPlatform extends BasicZ80ScanlinePlatform implements Platform {
     super.loadState(state);
     this.vdp.restoreState(state['vdp']);
     this.slotmask = state['slotmask'];
+    this.ppi_c = state['ppi_c'];
+    this.psg.selectRegister(state['psgRegister']);
   }
   saveState() {
     var state = super.saveState();
     state['vdp'] = this.vdp.getState();
     state['slotmask'] = this.slotmask;
+    state['ppi_c'] = this.ppi_c;
+    state['psgRegister'] = this.psg.currentRegister();
     return state;
   }
   reset() {
@@ -170,6 +243,15 @@ class MSXPlatform extends BasicZ80ScanlinePlatform implements Platform {
     this.vdp.reset();
     this.psg.reset();
     this.slotmask = 0;
+    this.ppi_c = 0;
+  }
+  resume() {
+    super.resume();
+    this.resetInputs();
+  }
+  resetInputs() {
+    // clear keyboard matrix
+    this.inputs.fill(0);
   }
 
   getDebugCategories() {
@@ -192,9 +274,18 @@ class MSXPlatform extends BasicZ80ScanlinePlatform implements Platform {
 ///
 
 PLATFORMS['msx'] = MSXPlatform;
+PLATFORMS['msx-libcv'] = MSXPlatform;
 
 ///
 
+/*
+    C-BIOS is a BIOS compatible with the MSX BIOS
+    C-BIOS was written from scratch by BouKiCHi
+    C-BIOS is available for free, including its source code (2-clause BSD license)
+    C-BIOS can be shipped with MSX emulators so they are usable out-of-the-box without copyright issues
+
+    http://cbios.sourceforge.net/
+*/
 var MSX1_BIOS_LZG = `
 TFpHAADAAAAAI8Sp+W4NAVo7UZPzwxINvxuYmMPtEADDvyMAw/+T4QAkAMMbEQDDNJPhIZPhc5Ph
 JxEhAgAAAMM5EZOhk+HmGMNOEcNYEcMWAsMiAsMuAsNFAsNNAsNVAsNgAsNtAsOBAsOXAsOtAsPU
