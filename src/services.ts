@@ -29,7 +29,7 @@ export interface GHSession extends GHRepoMetadata {
   paths? : string[];
 }
 
-const README_md_template = "$NAME\n=====\n\n[Open this project in 8bitworkshop](http://8bitworkshop.com/redir.html?platform=$PLATFORM&importURL=$GITHUBURL&file=$MAINFILE).\n";
+const README_md_template = "$NAME\n=====\n\n[Open this project in 8bitworkshop](http://8bitworkshop.com/redir.html?platform=$PLATFORM&githubURL=$GITHUBURL&file=$MAINFILE).\n";
 
 export function getRepos() : {[key:string]:GHRepoMetadata} {
   var repos = {};
