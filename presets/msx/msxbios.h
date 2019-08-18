@@ -62,6 +62,21 @@ uint8_t __at(0xf3ea) BAKCLR;
 // F3EB: code for the standard border color (ini:7)
 uint8_t __at(0xf3eb) BDRCLR;
 
+//Pixel lcocation
+uint16_t __at(0xf92a) CLOC;
+//Pixel mask
+uint8_t __at(0xf92c) CMASK;
+//Attribute byte for SETC
+uint8_t __at(0xf3f2) ATRBYT;
+//Key scan timing
+uint8_t __at(0xf3f6) SCNCNT;
+//Key repeat timer
+uint8_t __at(0xf3f7) REPCNT;
+//Address in the keyboard buffer where a character will be written
+uint8_t* __at(0xf3f8) PUTPNT;
+//Address in the keyboard buffer where the next character is read
+uint8_t* __at(0xf3fa) GETPNT;
+
 /// FUNCTIONS
 
 // Reads the value of an address in another slot
@@ -75,7 +90,7 @@ void ENASCR() __z88dk_fastcall;
 // write data in the VDP-register
 void WRTVDP(uint16_t reg_data) __z88dk_fastcall;
 // Reads the content of VRAM
-void RDVRM(uint16_t addr) __z88dk_fastcall;
+uint8_t RDVRM(uint16_t addr) __z88dk_fastcall;
 // Writes data in VRAM
 void WRTVRM(uint16_t addr, uint8_t data);
 // Enable VDP to read
@@ -139,11 +154,25 @@ uint8_t GTPAD(uint8_t index) __z88dk_fastcall;
 // Returns currenct value of paddle
 uint8_t GTPDL(uint8_t index) __z88dk_fastcall;
 
+/*
 void RIGHTC() __z88dk_fastcall;
 void LEFTC() __z88dk_fastcall;
 void UPC() __z88dk_fastcall;
+uint8_t TUPC() __z88dk_fastcall;
 void DOWNC() __z88dk_fastcall;
-void RDVDP() __z88dk_fastcall;
+uint8_t TDOWNC() __z88dk_fastcall;
+void SCALXY() __z88dk_fastcall;
+*/
+void MAPXY() __z88dk_fastcall;
+uint16_t FETCHC_ADDR() __z88dk_fastcall;
+/*
+void STOREC(uint16_t addr, uint8_t mask);
+void SETATR(uint8_t attr) __z88dk_fastcall;
+uint8_t READC() __z88dk_fastcall;
+void SETC() __z88dk_fastcall;
+void NSETCX(uint16_t fillcount) __z88dk_fastcall;
+*/
+uint8_t RDVDP() __z88dk_fastcall;
 uint8_t SNSMAT(uint8_t row) __z88dk_fastcall;
 void KILBUF() __z88dk_fastcall;
 
@@ -169,7 +198,7 @@ enum MSX1_Color {
 };
 
 // joystick positions for GTSTCK
-enum GTSTCK_Direction {
+typedef enum GTSTCK_Direction {
   STCK_none = 0,
   STCK_N,
   STCK_NE,
@@ -182,19 +211,21 @@ enum GTSTCK_Direction {
 };
 
 // parameter for GTSTCK
-enum GTSTCK_Param {
+typedef enum GTSTCK_Param {
   STCK_Cursors,
   STCK_Joy1,
   STCK_Joy2
 };
 
 // parameter for GTTRIG
-enum GTTRIG_Param {
+typedef enum GTTRIG_Param {
   TRIG_Spacebar,
   TRIG_Joy1_A,
   TRIG_Joy2_A,
   TRIG_Joy1_B,
   TRIG_Joy2_B
 };
+
+#define VSYNC() __asm__("HALT");
 
 #endif

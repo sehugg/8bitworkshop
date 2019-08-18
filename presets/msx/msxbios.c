@@ -1,9 +1,24 @@
 
+/*
+http://map.grauw.nl/resources/msxbios.php
+http://map.grauw.nl/resources/msxsystemvars.php
+https://www.msx.org/wiki/System_variables_and_work_area
+*/
+
 #include "msxbios.h"
 
 #define MSXUSR_LOAD_A()		__asm__("ld a,l");
 #define MSXUSR_LOAD_E()		__asm__("ld e,h");
 #define MSXUSR_RTN_A()		__asm__("ld l,a");
+#define MSXUSR_RTN_Z()\
+  __asm__("ld l,#0");\
+  __asm__("ret nz");\
+  __asm__("inc l");
+#define MSXUSR_RTN_C()\
+  __asm__("ld l,#0");\
+  __asm__("ret nc");\
+  __asm__("inc l");
+
 
 union {
   struct {
@@ -29,14 +44,14 @@ void LOAD_REGS() {
 void RDSLT(uint8_t slot, uint16_t addr) {
   REGS.b.a = slot;
   REGS.w.hl = addr;
-  MSXUSR(0x000c);
+  MSXUSR_LOAD_REGS(0x000c);
 }
 
 void WRSLT(uint8_t slot, uint16_t addr, uint8_t value) {
   REGS.b.a = slot;
   REGS.w.hl = addr;
   REGS.b.e = value;
-  MSXUSR(0x0014);
+  MSXUSR_LOAD_REGS(0x0014);
 }
 
 void DISSCR() __z88dk_fastcall {
@@ -54,9 +69,9 @@ void WRTVDP(uint16_t reg_data) __z88dk_fastcall {
   MSXUSR(0x0047);
 }
 
-void RDVRM(uint16_t addr) __z88dk_fastcall {
+uint8_t RDVRM(uint16_t addr) __z88dk_fastcall {
   addr;
-  MSXUSR(0x0047);
+  MSXUSR(0x004a);
   MSXUSR_RTN_A();
 }
 
@@ -160,9 +175,7 @@ uint16_t WRTPSG(uint16_t reg_data) __z88dk_fastcall {
 
 uint8_t CHSNS() __z88dk_fastcall {
   MSXUSR(0x009c);
-  __asm__("ld hl,#0");
-  __asm__("ret z");
-  __asm__("inc hl");
+  MSXUSR_RTN_Z();
 }
 
 char CHGET() __z88dk_fastcall {
@@ -228,6 +241,7 @@ uint8_t GTPDL(uint8_t index) __z88dk_fastcall {
   MSXUSR_RTN_A();
 }
 
+/*
 void RIGHTC() __z88dk_fastcall {
   MSXUSR(0x00fc);
 }
@@ -240,11 +254,62 @@ void UPC() __z88dk_fastcall {
   MSXUSR(0x0102);
 }
 
+uint8_t TUPC() __z88dk_fastcall {
+  MSXUSR(0x0105);
+  MSXUSR_RTN_C();
+}
+
 void DOWNC() __z88dk_fastcall {
   MSXUSR(0x0108);
 }
 
-void RDVDP() __z88dk_fastcall {
+uint8_t TDOWNC() __z88dk_fastcall {
+  MSXUSR(0x010b);
+  MSXUSR_RTN_C();
+}
+
+void SCALXY() __z88dk_fastcall {
+  MSXUSR(0x010e);
+}
+*/
+
+void MAPXY() __z88dk_fastcall {
+  MSXUSR(0x0111);
+}
+
+uint16_t FETCHC_ADDR() __z88dk_fastcall {
+  MSXUSR(0x0114);
+}
+
+/*
+void STOREC(uint16_t addr, uint8_t mask) {
+  REGS.w.hl = addr;
+  REGS.b.a = mask;
+  MSXUSR_LOAD_REGS(0x0117);
+}
+
+void SETATR(uint8_t attr) __z88dk_fastcall {
+  attr;
+  MSXUSR_LOAD_A();
+  MSXUSR(0x011a);
+}
+
+uint8_t READC() __z88dk_fastcall {
+  MSXUSR(0x011d);
+  MSXUSR_RTN_A();
+}
+
+void SETC() __z88dk_fastcall {
+  MSXUSR(0x0120);
+}
+
+void NSETCX(uint16_t fillcount) __z88dk_fastcall {
+  fillcount;
+  MSXUSR(0x0123);
+}
+*/
+
+uint8_t RDVDP() __z88dk_fastcall {
   MSXUSR(0x013e);
   MSXUSR_RTN_A();
 }
@@ -263,5 +328,12 @@ void KILBUF() __z88dk_fastcall {
 // for stdio.h
 int putchar(int ch) {
   CHPUT(ch);
+  if (ch == '\n') CHPUT('\r'); // convert CR to CRLF
+  return ch;
+}
+char getchar() {
+  char ch = CHGET();
+  putchar(ch); // echo
+  if (ch == '\r') ch = '\n';
   return ch;
 }

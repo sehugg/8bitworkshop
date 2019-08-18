@@ -1,4 +1,4 @@
-﻿
+
 #include <stdlib.h>
 #include <string.h>
 #include <cv.h>
@@ -6,10 +6,7 @@
 
 #include "common.h"
 //#link "common.c"
-
-#ifdef CV_SMS
 //#link "fonts.s"
-#endif
 
 #define XOFS 12 // sprite horiz. offset
 
@@ -592,14 +589,18 @@ void play_scene() {
 }
 
 void setup_graphics() {
+#ifndef CV_MSX
   cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - '0'*8), 0x800);
+#endif
   cvu_memtovmemcpy(PATTERN+8*64, char_table, sizeof(char_table));
   cvu_memtovmemcpy(PATTERN+8*128, static_sprite_table, sizeof(static_sprite_table));
-  
+
+#ifndef CV_MSX
   cvu_vmemset(COLOR, 0x30|BGCOL, 8); // set color for chars 0-63
   cvu_vmemset(COLOR+8, 0x0|BGCOL, 32-8); // set chars 63-255
   cvu_vmemset(COLOR+16, 0xb0|BGCOL, 1); // set chars 128-128+8
-  
+#endif
+
   cvu_memtovmemcpy(SPRITE_PATTERNS, sprite_table, sizeof(sprite_table));
   flip_sprite_patterns(SPRITE_PATTERNS + 512, (const byte*)sprite_table, sizeof(sprite_table));
   flip_sprite_patterns(SPRITE_PATTERNS + 384, (const byte*)blimp_sprite_table, sizeof(blimp_sprite_table));

@@ -15,6 +15,9 @@ import { TMS9918A } from "../video/tms9918a";
 
 var MSX_PRESETS = [
   {id:'helloworld.asm', name:'Hello World (ASM)'},
+  {id:'redbook_kbd.asm', name:'Redbook Keyboard Scanner (ASM)'},
+  {id:'siegegame.c',    name:'Siege Game'},
+  {id:'eliza.c',        name:'Eliza'},
 ];
 
 var MSX_KEYCODE_MAP = makeKeycodeMap([

@@ -86,7 +86,8 @@ inline void cvu_set_sprite(const cv_vmemp base, uint_fast8_t number, const struc
 
 // Write sprite to display memory (in mode 4). Use the location of the sprite table as base. number should be in [0, 63].
 #ifdef CV_SMS
-inline void cvu_set_sprite4(const cv_vmemp base, uint_fast8_t number, const struct cvu_sprite4 *sprite)
+// TODO: sdcc doesn't like inline here
+void cvu_set_sprite4(const cv_vmemp base, uint_fast8_t number, const struct cvu_sprite4 *sprite)
 {
 	cvu_voutb(sprite->y, base + number);
 	cv_set_write_vram_address(base + 0x80 + number * 2);
