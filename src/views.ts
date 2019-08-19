@@ -550,7 +550,7 @@ export class MemoryView implements ProjectView {
       w: $(workspace).width(),
       h: $(workspace).height(),
       itemHeight: getVisibleEditorLineHeight(),
-      totalRows: 0x2000,
+      totalRows: 0x1400,
       generatorFn: (row : number) => {
         var s = this.getMemoryLineAt(row);
         var linediv = document.createElement("div");

@@ -271,11 +271,6 @@ var PLATFORM_PARAMS = {
     libargs: ['atari5200.lib',
       '-D', '__CARTFLAGS__=255'],
   },
-  'c64': {
-    define: '__C64__',
-    cfgfile: 'c64.cfg',
-    libargs: ['c64.lib'],
-  },
   'verilog': {
   },
   'astrocade': {
@@ -319,6 +314,24 @@ var PLATFORM_PARAMS = {
       {name:'PIA',start:0x280,size:0x18,type:'io'},
       {name:'RAM',start:0x1800,size:0x1000,type:'ram'}, // TODO: shadow ram
       {name:'Cartridge ROM',start:0x4000,size:0xc000,type:'rom'},
+    ],
+  },
+  'c64': {
+    define: '__C64__',
+    cfgfile: 'c64.cfg', // SYS 2058
+    libargs: ['c64.lib'],
+    //extra_link_files: ['c64-cart.cfg'],
+    extra_segments:[
+      {name:'6510 Registers',start:0x0,  size:0x2,type:'io'},
+      {name:'RAM',          start:0x2,   size:0x7ffe,type:'ram'},
+      {name:'Cartridge ROM',start:0x8000,size:0x2000,type:'rom'},
+      {name:'BASIC ROM',    start:0xa000,size:0x2000,type:'rom'},
+      {name:'RAM',          start:0xc000,size:0x1000,type:'ram'},
+      {name:'VIC-II I/O',   start:0xd000,size:0x0400,type:'io'},
+      {name:'Color RAM',    start:0xd800,size:0x0400,type:'io'},
+      {name:'CIA 1',        start:0xdc00,size:0x0100,type:'io'},
+      {name:'CIA 2',        start:0xdd00,size:0x0100,type:'io'},
+      {name:'KERNAL ROM',   start:0xe000,size:0x2000,type:'rom'},
     ],
   },
 };

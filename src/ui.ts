@@ -1659,7 +1659,7 @@ var qs = (function (a : string[]) {
 function installErrorHandler() {
     if (typeof window.onerror == "object") {
       window.onerror = function (msgevent, url, line, col, error) {
-        var msgstr = (msgevent instanceof PromiseRejectionEvent) ? (msgevent.reason+" (rejected)") : (msgevent+"");
+        var msgstr = msgevent['reason'] ? (msgevent['reason']+" (rejected)") : (msgevent+"");
         console.log(msgevent, url, line, col, error);
         // emulation threw EmuHalt
         if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
