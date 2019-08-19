@@ -291,6 +291,7 @@ export class GithubService {
   
   commit( ghurl:string, message:string, files:{path:string,data:FileData}[] ) : Promise<GHSession> {
     var sess : GHSession;
+    if (!message) { message = "updated from 8bitworkshop.com"; }
     return this.getGithubHEADTree(ghurl).then( (session) => {
       sess = session;
       if (sess.subtreepath) {

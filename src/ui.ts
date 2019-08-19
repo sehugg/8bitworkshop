@@ -80,7 +80,7 @@ function gaEvent(category:string, action:string, label?:string, value?:string) {
   if (ga) ga('send', 'event', category, action, label, value);
 }
 function alertError(s:string) {
-  gaEvent('error', 'error', s);
+  gaEvent('error', platform_id||'error', s);
   setWaitDialog(false);
   bootbox.alert(s);
 }
@@ -265,6 +265,7 @@ function loadProject(preset_id:string) {
   setLastPreset(preset_id);
   // load files from storage or web URLs
   current_project.loadFiles([preset_id]).then((result) => {
+    measureTimeLoad = new Date(); // for timing calc.
     if (result && result.length) {
       // file found; continue
       loadMainWindow(preset_id);
@@ -946,6 +947,17 @@ function showErrorAlert(errors : WorkerError[]) {
   $("#error_alert").show();
 }
 
+var measureTimeStart : Date = new Date();
+var measureTimeLoad : Date;
+function measureBuildTime() {
+  if (ga && measureTimeLoad) {
+    var measureTimeBuild = new Date();
+    ga('send', 'timing', 'ui', 'load', (measureTimeLoad.getDate() - measureTimeStart.getDate()));
+    ga('send', 'timing', 'worker', 'build', (measureTimeBuild.getDate() - measureTimeLoad.getDate()));
+    measureTimeLoad = null; // only measure once
+  }
+}
+
 function setCompileOutput(data: WorkerResult) {
   // errors? mark them in editor
   if (data.errors && data.errors.length > 0) {
@@ -965,6 +977,7 @@ function setCompileOutput(data: WorkerResult) {
         platform.loadROM(getCurrentPresetTitle(), rom);
         current_output = rom;
         if (!userPaused) _resume();
+        measureBuildTime();
         // TODO: reset profiler etc? (Tell views?)
       } catch (e) {
         console.log(e);
@@ -1646,7 +1659,7 @@ var qs = (function (a : string[]) {
 function installErrorHandler() {
     if (typeof window.onerror == "object") {
       window.onerror = function (msgevent, url, line, col, error) {
-        var msgstr = msgevent+"";
+        var msgstr = (msgevent instanceof PromiseRejectionEvent) ? (msgevent.reason+" (rejected)") : (msgevent+"");
         console.log(msgevent, url, line, col, error);
         // emulation threw EmuHalt
         if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
@@ -1809,7 +1822,7 @@ export function setupSplits() {
     onDragEnd: () => {
       if (hasLocalStorage)
         localStorage.setItem(splitName, JSON.stringify(split.getSizes()))
-      projectWindows.resize();
+      if (projectWindows) projectWindows.resize();
     },
   });
 }
