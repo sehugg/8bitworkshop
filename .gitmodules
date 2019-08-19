@@ -16,12 +16,6 @@
 [submodule "localForage"]
 	path = localForage
 	url = https://github.com/localForage/localForage
-[submodule "bitmap-fonts"]
-	path = bitmap-fonts
-	url = https://github.com/Tecate/bitmap-fonts
-[submodule "ibmfonts"]
-	path = ibmfonts
-	url = https://github.com/farsil/ibmfonts
 [submodule "jsnes"]
 	path = jsnes
 	url = https://github.com/sehugg/jsnes
