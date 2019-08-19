@@ -34,17 +34,17 @@ word getimageaddr(byte x, byte y) {
   return IMAGE + y*COLS + x;
 }
 
-byte getchar(byte x, byte y) {
+byte getcharxy(byte x, byte y) {
   return cvu_vinb(getimageaddr(x,y));
 }
 
-void putchar(byte x, byte y, byte attr) {
+void putcharxy(byte x, byte y, byte attr) {
   cvu_voutb(attr, getimageaddr(x,y));
 }
 
-void putstring(byte x, byte y, const char* string) {
+void putstringxy(byte x, byte y, const char* string) {
   while (*string) {
-    putchar(x++, y, CHAR(*string++));
+    putcharxy(x++, y, CHAR(*string++));
   }
 }
 
@@ -73,7 +73,7 @@ void draw_bcd_word(byte x, byte y, word bcd) {
   byte j;
   x += 3;
   for (j=0; j<4; j++) {
-    putchar(x, y, CHAR('0'+(bcd&0xf)));
+    putcharxy(x, y, CHAR('0'+(bcd&0xf)));
     x--;
     bcd >>= 4;
   }
@@ -122,4 +122,14 @@ void set_shifted_pattern(const byte* src, word dest, byte shift) {
     cvu_voutb(b<<(8-shift), dest+16);
     dest++;
   }
+}
+
+void copy_default_character_set() {
+#ifdef CV_MSX
+  static byte __at(0xf91f) CGPNT;
+  static byte* __at(0xf920) CGADDR;
+  cvu_memtovmemcpy(PATTERN, CGADDR, 256*8);
+#else
+  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - '0'*8), 256*8);
+#endif
 }

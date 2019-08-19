@@ -40,14 +40,15 @@ TODO:
 - update bootstrap to 4.0
 - batariBasic: proper line numbers, debugging
 - granular control over time scrubbing, show CPU state
-- compiler flags for final ROM build
-- workermain: split build functions, better msg types
 - builds:
+  - compiler flags for final ROM build
+  - workermain: split build functions, better msg types
   - what if >1 file with same name? (local/nonlocal/directory)
   - what if .c and .s names collide?
   - maybe put stuff in examples/ dir?
   - error msg when #link doesn't work
   - warning when ROM too big
+  - detect "libcv.h" and include library automagically?
 - sdcc:
   - can't link asm files before c files (e.g. acheader.s must be last)
   - figure out area names ordering

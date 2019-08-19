@@ -1,17 +1,12 @@
-﻿
+/*
+64x48 multicolor mode
+*/
+
 #include <stdlib.h>
 #include <cv.h>
 #include <cvu.h>
 
-#define PATTERN ((const cv_vmemp)0x0000)
-#define IMAGE ((const cv_vmemp)0x1800)
-
-#define COLS 64
-#define ROWS 48
-
-typedef unsigned char byte;
-typedef signed char sbyte;
-typedef unsigned short word;
+#include "common.h"
 
 void multicolor_fullscreen_image_table(word ofs) {
   byte x,y;

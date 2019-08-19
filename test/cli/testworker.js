@@ -78,7 +78,7 @@ function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
 
 describe('Worker', function() {
   it('should assemble DASM', function(done) {
-    compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo lda #0\n', 'vcs', done, 2, 1);
+    compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo lda #0\n', 'vcs.mame', done, 2, 1);
   });
   it('should NOT assemble DASM', function(done) {
     compile('dasm', '\tprocessor 6502\n\torg $f000 ; this is a comment\nfoo asl a\n', 'vcs', done, 0, 0, 1);
@@ -98,7 +98,7 @@ describe('Worker', function() {
   });
   */
   it('should compile CC65', function(done) {
-    compile('cc65', 'int main() {\nint x=1;\nreturn x+2;\n}', 'nes', done, 40976, 3);
+    compile('cc65', 'int main() {\nint x=1;\nreturn x+2;\n}', 'nes.mame', done, 40976, 3);
   });
   it('should NOT compile CC65 (compile error)', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes', done, 0, 0, 1);

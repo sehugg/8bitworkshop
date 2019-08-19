@@ -2,18 +2,15 @@
 #include <cv.h>
 #include <cvu.h>
 
-#define PATTERN 0x0000
-#define IMAGE   0x0800
-
-uintptr_t __at(0x6a) font_bitmap_a;
-uintptr_t __at(0x6c) font_bitmap_0;
+#include "common.h"
+//#link "common.c"
 
 void setup_text_mode() {
   cv_set_screen_mode(CV_SCREENMODE_TEXT);
   cv_set_image_table(IMAGE);
   cv_set_character_pattern_t(PATTERN);
   cvu_vmemset(0, 0, 0x4000);
-  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - '0'*8), 256*8);
+  copy_default_character_set();
 }
 
 void show_text() {

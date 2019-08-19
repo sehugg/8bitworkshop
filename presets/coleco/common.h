@@ -16,17 +16,24 @@
 #define SPRITE_PATTERNS ((const cv_vmemp)0x3800)
 #define SPRITES		((const cv_vmemp)0x3c00)
 
+#ifndef COLS
 #define COLS 32
+#endif
+
+#ifndef ROWS
 #define ROWS 24
+#endif
 
 typedef unsigned char byte;
 typedef signed char sbyte;
 typedef unsigned short word;
 
-#ifndef CV_SMS
+#ifdef CV_CV
 uintptr_t __at(0x6a) font_bitmap_a;
 uintptr_t __at(0x6c) font_bitmap_0;
-#else
+#endif
+
+#ifdef CV_SMS
 extern char font_bitmap_a[];
 extern char font_bitmap_0[];
 #endif
@@ -34,8 +41,9 @@ extern char font_bitmap_0[];
 #define COLOR_FGBG(fg,bg) (((fg)<<4)|(bg))
 #define COLOR_FG(fg) (((fg)<<4))
 
-#define LOCHAR 0x20
-#define HICHAR 0xff
+#ifndef LOCHAR
+#define LOCHAR 0x0
+#endif
 
 #define CHAR(ch) (ch-LOCHAR)
 
@@ -53,9 +61,9 @@ extern char cursor_y;
 extern void clrscr();
 
 extern word getimageaddr(byte x, byte y);
-extern byte getchar(byte x, byte y);
-extern void putchar(byte x, byte y, byte attr);
-extern void putstring(byte x, byte y, const char* string);
+extern byte getcharxy(byte x, byte y);
+extern void putcharxy(byte x, byte y, byte attr);
+extern void putstringxy(byte x, byte y, const char* string);
 extern void delay(byte i);
 extern byte rndint(byte a, byte b);
 
@@ -68,5 +76,7 @@ extern word bcd_add(word a, word b);
 
 extern void vdp_setup();
 extern void set_shifted_pattern(const byte* src, word dest, byte shift);
+
+extern void copy_default_character_set();
 
 #endif

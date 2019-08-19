@@ -323,7 +323,6 @@ var PLATFORM_PARAMS = {
   },
 };
 
-PLATFORM_PARAMS['coleco.mame'] = PLATFORM_PARAMS['coleco'];
 PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];
 
 var _t1;

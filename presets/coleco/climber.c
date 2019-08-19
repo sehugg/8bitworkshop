@@ -6,6 +6,8 @@
 
 #include "common.h"
 //#link "common.c"
+
+// for SMS
 //#link "fonts.s"
 
 #define XOFS 12 // sprite horiz. offset
