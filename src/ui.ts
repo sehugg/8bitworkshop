@@ -76,8 +76,11 @@ var TOOL_TO_SOURCE_STYLE = {
   'xasm6809': 'z80'
 }
 
+function gaEvent(category:string, action:string, label?:string, value?:string) {
+  if (ga) ga('send', 'event', category, action, label, value);
+}
 function alertError(s:string) {
-  if (ga) ga('send', 'event', 'error', 'error', s);
+  gaEvent('error', 'error', s);
   setWaitDialog(false);
   bootbox.alert(s);
 }
@@ -318,6 +321,7 @@ function _createNewFile(e) {
           filename += platform.getDefaultExtension();
         }
         var path = filename;
+        gaEvent('workspace', 'file', 'new');
         reloadProject(path);
       }
     }
@@ -342,6 +346,7 @@ function handleFileUpload(files: File[]) {
       } else {
         updateSelector();
         alertInfo("Files uploaded.");
+        gaEvent('workspace', 'file', 'upload');
       }
     } else {
       var path = f.name;
@@ -444,6 +449,7 @@ function importProjectFromGithub(githuburl:string, replaceURL:boolean) {
     // reload repo
     qs = {repo:sess.repopath}; // file:sess.mainPath, platform:sess.platform_id};
     setWaitDialog(false);
+    gaEvent('sync', 'import', githuburl);
     gotoNewLocation(replaceURL);
   }).catch( (e) => {
     setWaitDialog(false);
@@ -507,6 +513,7 @@ function _publishProjectToGithub(e) {
       return pushChangesToGithub('initial import from 8bitworkshop.com');
     }).then( () => {
       setWaitProgress(1.0);
+      gaEvent('sync', 'publish', priv?"":name);
       reloadProject(current_project.stripLocalPath(current_project.mainPath));
     }).catch( (e) => {
       setWaitDialog(false);
@@ -1725,7 +1732,7 @@ function installGAHooks() {
   if (ga) {
     $(".dropdown-item").click((e) => {
       if (e.target && e.target.id) {
-        ga('send', 'event', 'menu', 'click', e.target.id);
+        gaEvent('menu', e.target.id);
       }
     });
   }
@@ -1756,6 +1763,7 @@ function startPlatform() {
   // start platform and load file
   replaceURLState();
   platform.start();
+  if (ga) ga('send', 'pageview', location.pathname + '?platform=' + platform_id);
   // TODO: ordering of loads?
   loadBIOSFromProject();
   initProject();
