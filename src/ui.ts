@@ -45,7 +45,7 @@ var stateRecorder : StateRecorderImpl;
 var userPaused : boolean;		// did user explicitly pause?
 
 var current_output : WorkerOutput;  // current ROM
-var current_preset_entry : Preset;	// current preset object (if selected)
+var current_preset : Preset;	// current preset object (if selected)
 var store;			// persistent store
 
 export var compparams;			// received build params from worker
@@ -105,10 +105,10 @@ var hasLocalStorage : boolean = function() {
 }();
 
 function getCurrentPresetTitle() : string {
-  if (!current_preset_entry)
+  if (!current_preset)
     return current_project.mainPath || "ROM";
   else
-    return current_preset_entry.title || current_preset_entry.name || current_project.mainPath || "ROM";
+    return current_preset.title || current_preset.name || current_project.mainPath || "ROM";
 }
 
 function setLastPreset(id:string) {
@@ -864,7 +864,9 @@ function populateExamples(sel) {
   for (var i=0; i<PRESETS.length; i++) {
     var preset = PRESETS[i];
     var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
-    sel.append($("<option />").val(preset.id).text(name).attr('selected',(preset.id==current_project.mainPath)?'selected':null));
+    var isCurrentPreset = preset.id==current_project.mainPath;
+    sel.append($("<option />").val(preset.id).text(name).attr('selected',isCurrentPreset?'selected':null));
+    if (isCurrentPreset) current_preset = preset;
     files[preset.id] = name;
   }
   return files;
@@ -952,8 +954,8 @@ var measureTimeLoad : Date;
 function measureBuildTime() {
   if (ga && measureTimeLoad) {
     var measureTimeBuild = new Date();
-    ga('send', 'timing', 'ui', 'load', (measureTimeLoad.getDate() - measureTimeStart.getDate()));
-    ga('send', 'timing', 'worker', 'build', (measureTimeBuild.getDate() - measureTimeLoad.getDate()));
+    ga('send', 'timing', 'ui', 'load', (measureTimeLoad.getTime() - measureTimeStart.getTime()));
+    ga('send', 'timing', 'worker', 'build', (measureTimeBuild.getTime() - measureTimeLoad.getTime()));
     measureTimeLoad = null; // only measure once
   }
 }
@@ -1700,6 +1702,7 @@ function gotoNewLocation(replaceHistory? : boolean) {
 
 function replaceURLState() {
   if (platform_id) qs['platform'] = platform_id;
+  delete qs['']; // remove null parameter
   history.replaceState({}, "", "?" + $.param(qs));
 }
 
@@ -1748,6 +1751,7 @@ function installGAHooks() {
         gaEvent('menu', e.target.id);
       }
     });
+    ga('send', 'pageview', location.pathname + '?platform=' + platform_id + '&file=' + qs['file'] + (repo_id?('&repo='+repo_id):''));
   }
 }
 
@@ -1777,15 +1781,14 @@ function startPlatform() {
   // start platform and load file
   replaceURLState();
   platform.start();
-  if (ga) ga('send', 'pageview', location.pathname + '?platform=' + platform_id);
   // TODO: ordering of loads?
+  installGAHooks();
   loadBIOSFromProject();
   initProject();
   loadProject(qs['file']);
   setupDebugControls();
   updateSelector();
   addPageFocusHandlers();
-  installGAHooks();
   showInstructions();
   revealTopBar();
   return true;
