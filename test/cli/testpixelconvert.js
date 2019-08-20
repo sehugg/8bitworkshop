@@ -65,10 +65,17 @@ describe('Pixel editor', function() {
     var words2 = pixed.parseHexWords(datastr2);
     assert.deepEqual(words2, [0x03,0x11,0x30,0x27,0x00,0x1c,0x20,0x2c,0x00]);
 
+    // test verilog
     var datastr3 = "      7'o00: bits = 5'b11111; ";
     var words3 = pixed.parseHexWords(datastr3);
     assert.deepEqual(words3, [31]);
     assert.equal(datastr3, pixed.replaceHexWords(datastr3, pixed.parseHexWords(datastr3)));
     // TODO: test (nplanes > 0 && fmt.sl)
+
+    // test comments
+    var datastr4 = "        .byte #%01111110;$7E \n .byte #%01111111;$7F";
+    var words4 = pixed.parseHexWords(datastr4);
+    assert.deepEqual(words4, [0x7E,0x7F]);
+    assert.notEqual(datastr4, pixed.replaceHexWords(datastr4, pixed.parseHexWords(datastr4))); // removed comment
   });
 });
