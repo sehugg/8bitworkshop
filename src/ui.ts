@@ -1580,7 +1580,12 @@ function showWelcomeMessage() {
           element: "#platformsMenuButton",
           placement: 'right',
           title: "Welcome to 8bitworkshop!",
-          content: "You are currently on the \"<b>" + platform_id + "</b>\" platform. You can choose a different one from the menu."
+          content: "You're currently on the \"<b>" + platform_id + "</b>\" platform. You can choose a different one from the menu."
+        },
+        {
+          element: "#preset_select",
+          title: "Project Selector",
+          content: "You can choose different code examples, create your own files, or import projects from GitHub."
         },
         {
           element: "#workspace",
@@ -1593,11 +1598,6 @@ function showWelcomeMessage() {
           placement: 'left',
           title: "Emulator",
           content: "We'll load your compiled code into the emulator whenever you make changes."
-        },
-        {
-          element: "#preset_select",
-          title: "File Selector",
-          content: "Pick a code example from the book, or access your own files and files shared by others."
         },
         {
           element: "#debug_bar",
@@ -1754,6 +1754,7 @@ function installGAHooks() {
 function startPlatform() {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emuscreen")[0]);
+  setPlatformUI();
   stateRecorder = new StateRecorderImpl(platform);
   PRESETS = platform.getPresets();
   if (!qs['file']) {
@@ -1857,6 +1858,16 @@ function loadImportedURL(url : string) {
   }, 'text');
 }
 
+function setPlatformUI() {
+  var name = platform.getMetadata && platform.getMetadata().name;
+  var menuitem = $("#item_platform_"+platform_id);
+  if (menuitem.length) {
+    menuitem.addClass("dropdown-item-checked");
+    name = name || menuitem.text() || name;
+  }
+  $(".platform_name").text(name || platform_id);
+}
+
 // start
 export function startUI(loadplatform : boolean) {
   installErrorHandler();
@@ -1885,9 +1896,6 @@ export function startUI(loadplatform : boolean) {
     repo_id = '';
     delete qs['repo'];
   }
-  // update UI
-  $("#item_platform_"+platform_id).addClass("dropdown-item-checked");
-  $("#platform_name").text(platform_id);
   setupSplits();
   // create store
   store_id = repo_id || getBasePlatform(platform_id);

@@ -45,6 +45,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 
 <div id="controls_top" class="disable-select">
  <div id="controls_dynamic" style="visibility:hidden">
+  <!-- main menu -->
   <span class="dropdown">
     <a class="btn dropdown-toggle toolbarMenuButton" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Menu">
       <span class="glyphicon glyphicon-menu-hamburger" aria-hidden="true"></span>
@@ -136,26 +137,10 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
     </ul>
   </span>
 
-  <select id="preset_select" name="" title="Project Select" style="width:18em;visibility:hidden;height:2.3em">
-  </select>
-
-  <img id="compile_spinner" src="images/spinner.gif" style="visibility:hidden;margin-left:8px;margin-right:8px;height:2em">
-  <span id="toolbar" class="hidden-xs"></span>
-  <span class="btn_group view_group hidden-sm hidden-xs" id="speed_bar" style="display:none">
-    <button id="dbg_slowest" class="btn" title="Slowest"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
-    <button id="dbg_slower" class="btn" title="Slower"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
-    <span class="label"><span id="fps_label">60.00</span> fps</span>
-    <button id="dbg_faster" class="btn" title="Faster"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
-    <button id="dbg_fastest" class="btn" title="Faster"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
-  </span>
-  <span id="verilog_bar" style="display:none">
-    <span class="label"><span id="settle_label"></span> evals/clk</span>
-  </span>
-
+  <!-- PLATFORMS menu -->
   <span class="dropdown">
-    <!-- PLATFORMS menu -->
-    <a class="btn dropdown-toggle hidden-xs toolbarMenuButton" id="platformsMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-      <span>PLATFORMS</span> <span class="caret"></span>
+    <a class="btn dropdown-toggle hidden-xs toolbarMenuButton" id="platformsMenuButton" style="min-width:90px" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+      <span class="platform_name">PLATFORMS</span> <span class="caret"></span>
     </a>
     <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="platformsMenuButton">
           <li class="dropdown dropdown-submenu">
@@ -200,6 +185,24 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
           </li>
     </ul>
   </span>
+
+  <!-- project selector -->
+  <select id="preset_select" name="" title="Project Select" style="width:18em;visibility:hidden;height:2.3em">
+  </select>
+
+  <img id="compile_spinner" src="images/spinner.gif" style="visibility:hidden;margin-left:8px;margin-right:8px;height:2em">
+  <span id="toolbar" class="hidden-xs"></span>
+  <span class="btn_group view_group hidden-sm hidden-xs" id="speed_bar" style="display:none">
+    <button id="dbg_slowest" class="btn" title="Slowest"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
+    <button id="dbg_slower" class="btn" title="Slower"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
+    <span class="label"><span id="fps_label">60.00</span> fps</span>
+    <button id="dbg_faster" class="btn" title="Faster"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
+    <button id="dbg_fastest" class="btn" title="Faster"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
+  </span>
+  <span id="verilog_bar" style="display:none">
+    <span class="label"><span id="settle_label"></span> evals/clk</span>
+  </span>
+
   <!-- 8bitworkshop logo -->
   <span class="logo-gradient hidden-xs hidden-sm hidden-md pull-right" style="margin-left:auto" onclick="window.open('/','_8bitws');">8bitworkshop</span>
   <!-- BOOKS menu -->

@@ -54,6 +54,10 @@ export class DebugSymbols {
   }
 }
 
+export interface PlatformMetadata {
+  name : string; // TODO
+}
+
 export interface Platform {
   start() : void;
   reset() : void;
@@ -65,6 +69,7 @@ export interface Platform {
   resume() : void;
   loadROM(title:string, rom:any); // TODO: Uint8Array
   loadBIOS?(title:string, rom:Uint8Array);
+  getMetadata?() : PlatformMetadata;
 
   loadState?(state : EmuState) : void;
   saveState?() : EmuState;
