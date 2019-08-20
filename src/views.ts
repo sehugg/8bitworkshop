@@ -436,7 +436,7 @@ export class DisassemblerView implements ProjectView {
         while (bytes.length < 14)
           bytes += ' ';
         var dstr = disasm.line;
-        if (addr2symbol && disasm.isaddr) {
+        if (addr2symbol && disasm.isaddr) { // TODO: move out
           dstr = dstr.replace(/([^#])[$]([0-9A-F]+)/, (substr:string, ...args:any[]):string => {
             var addr = parseInt(args[1], 16);
             var sym = addr2symbol[addr];

@@ -9,6 +9,9 @@ declare var jt; // for 6502
 
 // https://www.c64-wiki.com/wiki/C64
 // http://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt
+// http://www.zimmers.net/cbmpics/cbm/c64/c64prg.txt
+// http://sta.c64.org/cbm64mem.html
+// http://hitmen.c02.at/temp/palstuff/
 
 var C64_PRESETS = [
   {id:'hello.dasm', name:'Hello World (ASM)'},
@@ -64,6 +67,7 @@ const C64_KEYMATRIX_NOSHIFT = [
 ];
 
 // CIA
+// TODO: https://www.c64-wiki.com/wiki/CIA
 
 class CIA {
   regs = new Uint8Array(0x10);
@@ -239,6 +243,9 @@ class C64Platform extends Base6502Platform implements Platform {
   getKeyboardMap() { return null; /* TODO: C64_KEYCODE_MAP;*/ }
 
   // http://map.grauw.nl/articles/keymatrix.php
+  // https://codebase64.org/doku.php?id=base:reading_the_keyboard
+  // http://www.c64os.com/post?p=45
+  // https://www.c64-wiki.com/wiki/Keyboard
   getKeyboardFunction() {
     return (o,key,code,flags) => {
       //console.log(o,key,code,flags);
@@ -260,6 +267,7 @@ class C64Platform extends Base6502Platform implements Platform {
     }
   }
   
+  // TODO: https://www.c64-wiki.com/wiki/Zeropage
   write6510(a:number, v:number) {
     this.ram[a] = v;
     switch (a) {
@@ -377,6 +385,7 @@ class C64Platform extends Base6502Platform implements Platform {
     for (var sl=0; sl<linesPerFrame; sl++) {
       this.vic.setScanline(sl);
       // interrupt?
+      // TODO: https://www.c64-wiki.com/wiki/Raster_interrupt
       if (this.vic.regs[0x19] & 0x1) {
         this.vic.regs[0x19] &= 0x7e;
         vicClocks -= this.cpu.setIRQAndWait();
@@ -417,7 +426,13 @@ class C64Platform extends Base6502Platform implements Platform {
   loadROM(title, data) {
     // BASIC stub?
     if (data[0] == 0x01 && data[1] == 0x08) {
-      this.ram.set(data, 0x801-2);
+      this.ram.set(data.slice(2), 0x801);
+      this.enableCART = false;
+      // hack BASIC interpreter loop (TODO?)
+      var prgstart = (this.debugSymbols && this.debugSymbols.symbolmap['__MAIN_START__']) || 0x80a;
+      this.bios[0x3f9b] = 0x4c;
+      this.bios[0x3f9c] = prgstart & 0xff;
+      this.bios[0x3f9d] = prgstart >> 8;
     } else {
       // assume cartridge ROM
       this.rom = padBytes(data, romLength);
@@ -537,6 +552,7 @@ for (var i=0; i<256; i++) {
 }
 
 // bank-switching table
+// TODO: https://www.c64-wiki.com/wiki/Bank_Switching
 
 enum BankSwitchFlags {
   LORAM=1, HIRAM=2, CHAREN=4, _GAME=8, _EXROM=16

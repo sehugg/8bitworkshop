@@ -1618,7 +1618,7 @@ function showWelcomeMessage() {
       ];
     steps.push({
       element: "#booksMenuButton",
-      placement: 'right',
+      placement: 'bottom',
       title: "Bookstore",
       content: "Get some books that explain how to program all of this stuff, and write some games!"
     });

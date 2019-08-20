@@ -1048,6 +1048,7 @@ export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], st
   return s+"\n";
 }
 
+// TODO: slow, funky, uses global
 export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
   var start = addr;
   var addr2symbol = platform.debugSymbols && platform.debugSymbols.addr2symbol;
@@ -1055,7 +1056,7 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
     var sym = addr2symbol[addr];
     if (sym) { // return first symbol we find
       var sym = addr2symbol[addr];
-      return extra ? (sym + " + " + (start-addr)) : sym;
+      return extra ? (sym + " + $" + hex(start-addr)) : sym;
     }
     addr--;
   }

@@ -314,10 +314,9 @@ Push
 Git metadata kept in local storage
 
 Converting from NESASM to DASM
-
+- asl a -> asl
 - subroutine keyword on labels
 - [zp],y to (zp),y
-- asl a -> asl
 - LOW(x) and HIGH(x) to <() and >()
 - .db to .byte, .dw to .word
 - use NES_HEADER macros
@@ -334,3 +333,22 @@ Cross platform NES/SMS/GG library
   - no nametable mirroring in SMS
   - 256x240 vs 256x192
 
+Emulator Lib
+- move getPresets() (into presets/ dir?)
+- CPU interface
+  - execCycle(), execInsn()
+  - fix/unfix PC
+  - interrupt
+- generic raster scanline platform
+- PlatformRunner
+  - handles rewind, intra-frame breakpoint, debugging
+  - profiling log, exec/read/write/intr (for each bus?)
+- expose video, audio, controller interfaces
+- new debugging info
+- memory map interface
+- "About" metadata
+- auto load/save state?
+- handle legacy
+  - VCS
+  - NES
+  - MAME
