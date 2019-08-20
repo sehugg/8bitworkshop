@@ -1860,7 +1860,7 @@ function loadImportedURL(url : string) {
 
 function setPlatformUI() {
   var name = platform.getMetadata && platform.getMetadata().name;
-  var menuitem = $("#item_platform_"+platform_id);
+  var menuitem = $('a[href="?platform='+platform_id+'"]');
   if (menuitem.length) {
     menuitem.addClass("dropdown-item-checked");
     name = name || menuitem.text() || name;

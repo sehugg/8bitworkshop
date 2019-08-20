@@ -130,6 +130,7 @@ TODO:
   - NES crt should mark raster pos when debugging
   - OAMDMA in profiler? (haltCycles)
   - ca65 skeleton
+  - nes.cfg nesbanked.cfg ZP segment is C64-ish
 - JSNES
   - doesn't support hiding >8 sprites
   - doesn't do sprite zero test right

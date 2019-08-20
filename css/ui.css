@@ -286,7 +286,6 @@ canvas.pixelated {
 .toolbarMenuButton {
   background-color:#666;
   border-style:solid;
-  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   position:relative;
   margin-left:0.5em;
   margin-right:0.5em;
