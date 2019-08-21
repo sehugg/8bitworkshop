@@ -13,7 +13,7 @@ global.window = dom.window;
 global.document = dom.window.document;
 dom.window.Audio = null;
 global.Image = function() { }
-global['$'] = require("jquery/jquery-2.2.3.min.js");
+global['$'] = require("jquery/jquery-3.4.1.min.js");
 includeInThisContext('src/cpu/z80.js');
 includeInThisContext('src/cpu/6809.js');
 global['buildZ80'] = global.window.buildZ80;

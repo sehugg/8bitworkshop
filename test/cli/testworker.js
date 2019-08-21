@@ -153,12 +153,12 @@ describe('Worker', function() {
     compile('sdcc', csource, 'sound_williams-z80', done, 16384, 6, 0);
   });
   it('should compile coleco skeleton', function(done) {
-    var csource = ab2str(fs.readFileSync('presets/coleco/text.c'));
-    compile('sdcc', csource, 'coleco', done, 32768, 15, 0);
+    var csource = ab2str(fs.readFileSync('presets/coleco/cursorsmooth.c'));
+    compile('sdcc', csource, 'coleco', done, 32768, 59, 0);
   });
   it('should compile sg1000 skeleton', function(done) {
-    var csource = ab2str(fs.readFileSync('presets/sms-sg1000-libcv/text.c'));
-    compile('sdcc', csource, 'sms-sg1000-libcv', done, 49152, 25, 0);
+    var csource = ab2str(fs.readFileSync('presets/sms-sg1000-libcv/cursorsmooth.c'));
+    compile('sdcc', csource, 'sms-sg1000-libcv', done, 49152, 81, 0);
   });
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));

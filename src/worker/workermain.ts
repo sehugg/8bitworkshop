@@ -228,14 +228,14 @@ var PLATFORM_PARAMS = {
   },
   'nes': { //TODO
     define: '__NES__',
-    cfgfile: 'neslib.cfg',
+    cfgfile: 'neslib2.cfg',
     libargs: ['crt0.o', 'nes.lib', 'neslib2.lib',
       '-D', 'NES_MAPPER=0', // NROM
       '-D', 'NES_PRG_BANKS=2', // 2 16K PRG banks
       '-D', 'NES_CHR_BANKS=1', // 1 CHR bank
       '-D', 'NES_MIRRORING=0', // horizontal mirroring
       ],
-    extra_link_files: ['crt0.o', 'neslib2.lib', 'nesbanked.cfg'],
+    extra_link_files: ['crt0.o', 'neslib2.lib', 'neslib2.cfg', 'nesbanked.cfg'],
     extra_segments:[
       //{name:'Work RAM',start:0x0,size:0x800,type:'ram'},
       {name:'OAM Buffer',start:0x200,size:0x100,type:'ram'},
