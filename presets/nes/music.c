@@ -1,4 +1,8 @@
 
+/*
+A simple music player.
+*/
+
 #include <string.h>
 #include <nes.h>
 

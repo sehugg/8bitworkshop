@@ -3,10 +3,11 @@
 import $ = require("jquery");
 //import CodeMirror = require("codemirror");
 import { SourceFile, WorkerError, Segment, FileData } from "./workertypes";
-import { Platform, EmuState, ProfilerOutput, lookupSymbol } from "./baseplatform";
+import { Platform, EmuState, ProfilerOutput, lookupSymbol, BaseDebugPlatform } from "./baseplatform";
 import { hex, lpad, rpad, safeident, rgb2bgr } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
+import { EmuProfilerImpl } from "./recorder";
 import * as pixed from "./pixed/pixeleditor";
 declare var Mousetrap;
 
@@ -243,8 +244,10 @@ export class SourceEditor implements ProjectView {
         this.setGutter("gutter-bytes", info.line-1, insnstr);
         if (info.iscode) {
           // TODO: labels trick this part?
-          var opcode = parseInt(info.insns.split(" ")[0], 16);
-          if (platform.getOpcodeMetadata) {
+          if (info.cycles) {
+            this.setGutter("gutter-clock", info.line-1, info.cycles+"");
+          } else if (platform.getOpcodeMetadata) {
+            var opcode = parseInt(info.insns.split(" ")[0], 16);
             var meta = platform.getOpcodeMetadata(opcode, info.offset);
             var clockstr = meta.minCycles+"";
             this.setGutter("gutter-clock", info.line-1, clockstr);
@@ -433,7 +436,7 @@ export class DisassemblerView implements ProjectView {
         while (bytes.length < 14)
           bytes += ' ';
         var dstr = disasm.line;
-        if (addr2symbol && disasm.isaddr) {
+        if (addr2symbol && disasm.isaddr) { // TODO: move out
           dstr = dstr.replace(/([^#])[$]([0-9A-F]+)/, (substr:string, ...args:any[]):string => {
             var addr = parseInt(args[1], 16);
             var sym = addr2symbol[addr];
@@ -492,10 +495,11 @@ export class ListingView extends DisassemblerView implements ProjectView {
   refreshListing() {
     // lookup corresponding assemblyfile for this file, using listing
     var lst = current_project.getListingForFile(this.path);
-    if (lst && lst.assemblyfile && lst.assemblyfile !== this.assemblyfile) {
+    // TODO?
+    if (lst && lst.assemblyfile) {
       this.assemblyfile = lst.assemblyfile;
     }
-    else if (lst && lst.sourcefile && lst.sourcefile !== this.assemblyfile) {
+    else if (lst && lst.sourcefile) {
       this.assemblyfile = lst.sourcefile;
     }
   }
@@ -546,7 +550,7 @@ export class MemoryView implements ProjectView {
       w: $(workspace).width(),
       h: $(workspace).height(),
       itemHeight: getVisibleEditorLineHeight(),
-      totalRows: 0x2000,
+      totalRows: 0x1400,
       generatorFn: (row : number) => {
         var s = this.getMemoryLineAt(row);
         var linediv = document.createElement("div");
@@ -608,7 +612,7 @@ export class MemoryView implements ProjectView {
     for (var i=n1; i<n2; i++) {
       var read = this.readAddress(offset+i);
       if (i==8) s += ' ';
-      s += ' ' + (read!==null?hex(read,2):'??');
+      s += ' ' + (typeof read == 'number' ? hex(read,2) : '??');
     }
     for (var i=n2; i<16; i++) s += '   ';
     if (sym) s += '  ' + sym;
@@ -637,6 +641,9 @@ export class MemoryView implements ProjectView {
         var nextofs = parseInt(_nextofs); // convert from string (stupid JS)
         var nextsym = addr2sym[nextofs];
         if (sym) {
+          // ignore certain symbols
+          if (sym.endsWith('_SIZE__') || sym.endsWith('_LAST__') || sym.endsWith('STACKSIZE__') || sym.endsWith('FILEOFFS__') || sym.startsWith('l__'))
+            sym = '';
           if (MemoryView.IGNORE_SYMS[sym]) {
             ofs = nextofs;
           } else {
@@ -815,10 +822,11 @@ export class MemoryMapView implements ProjectView {
 ///
 
 export class ProfileView implements ProjectView {
+  prof : EmuProfilerImpl;
   profilelist;
-  prof : ProfilerOutput;
+  out : ProfilerOutput;
   maindiv : HTMLElement;
-  symcache : {};
+  symcache : Map<number,symbol> = new Map();
   recreateOnResize = true;
 
   createDiv(parent : HTMLElement) {
@@ -842,14 +850,14 @@ export class ProfileView implements ProjectView {
       }
     });
     $(parent).append(this.profilelist.container);
-    this.symcache = {};
-    this.tick();
+    this.symcache = new Map();
+    this.refresh();
   }
 
   addProfileLine(div : HTMLElement, row : number) : void {
     div.appendChild(createTextSpan(lpad(row+':',4), "profiler-lineno"));
-    if (!this.prof) return;
-    var f = this.prof.frame;
+    if (!this.out) return;
+    var f = this.out.frame;
     if (!f) return;
     var l = f.lines[row];
     if (!l) return;
@@ -858,6 +866,12 @@ export class ProfileView implements ProjectView {
     for (let i=l.start; i<=l.end; i++) {
       let pc = f.iptab[i];
       let sym = this.symcache[pc];
+      let op = pc >> 20;
+      switch (op) { // TODO: const
+        case 1: sym = "r$" + hex(pc & 0xffff); break;
+        case 2: sym = "W$" + hex(pc & 0xffff); break;
+        case 4: sym = "I$" + hex(pc & 0xffff); break;
+      }
       if (!sym) {
         sym = lookupSymbol(platform, pc, false);
         this.symcache[pc] = sym;
@@ -881,6 +895,7 @@ export class ProfileView implements ProjectView {
 
   refresh() {
     this.tick();
+    this.symcache.clear();
   }
 
   tick() {
@@ -895,10 +910,13 @@ export class ProfileView implements ProjectView {
   }
 
   setVisible(showing : boolean) : void {
+    if (!this.prof) {
+      this.prof = new EmuProfilerImpl(platform);
+    }
     if (showing)
-      this.prof = platform.startProfiling();
+      this.out = this.prof.start();
     else
-      platform.stopProfiling();
+      this.prof.stop();
   }
 }
 
@@ -922,10 +940,13 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     this.deferrednodes = [];
   }
 
-  registerAsset(type:string, node:pixed.PixNode, deferred:boolean) {
+  registerAsset(type:string, node:pixed.PixNode, deferred:number) {
     this.rootnodes.push(node);
     if (deferred) {
-      this.deferrednodes.push(node);
+      if (deferred > 1)
+        this.deferrednodes.push(node);
+      else
+        this.deferrednodes.unshift(node);
     } else {
       node.refreshRight();
     }
@@ -949,6 +970,10 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
                 if (len == matchlen) {
                   var rgbs = palette.slice(start, start+len);
                   result.push({node:node, name:name, palette:rgbs});
+                } else if (-len == matchlen) { // reverse order
+                  var rgbs = palette.slice(start, start-len);
+                  rgbs.reverse();
+                  result.push({node:node, name:name, palette:rgbs});
                 } else if (len+1 == matchlen) {
                   var rgbs = new Uint32Array(matchlen);
                   rgbs[0] = palette[0];
@@ -971,8 +996,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     this.rootnodes.forEach((node) => {
       while (node != null) {
         if (node instanceof pixed.Palettizer) {
-          // TODO: move to node class?
-          var rgbimgs = node.rgbimgs; // TODO: why is null?
+          var rgbimgs = node.rgbimgs;
           if (rgbimgs && rgbimgs.length >= matchlen) {
             result.push({node:node, name:"Tilemap", images:node.images, rgbimgs:rgbimgs}); // TODO
           }
@@ -1102,8 +1126,10 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         var arow = $('<tr/>').appendTo(atable);
         $('<td/>').text(name).appendTo(arow);
         var inds = [];
-        for (var k=start; k<start+len; k++)
+        for (var k=start; k<start+Math.abs(len); k++)
           inds.push(k);
+        if (len < 0)
+          inds.reverse();
         inds.forEach( (i) => {
           var cell = $('<td/>').addClass('asset_cell asset_editable').appendTo(arow);
           updateCell(cell, i);
@@ -1176,14 +1202,14 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       let node = new pixed.FileDataNode(projectWindows, fileid);
       const neschrfmt = {w:8,h:8,bpp:1,count:(data.length>>4),brev:true,np:2,pofs:8,remap:[0,1,2,4,5,6,7,8,9,10,11,12]}; // TODO
       this.addPixelEditor(this.ensureFileDiv(fileid), node, neschrfmt);
-      this.registerAsset("charmap", node, true);
+      this.registerAsset("charmap", node, 1);
       nassets++;
     } else if (platform_id.startsWith('nes') && fileid.endsWith('.pal') && data instanceof Uint8Array) {
       // is this a NES PAL?
       let node = new pixed.FileDataNode(projectWindows, fileid);
       const nespalfmt = {pal:"nes",layout:"nes"};
       this.addPaletteEditor(this.ensureFileDiv(fileid), node, nespalfmt);
-      this.registerAsset("palette", node, false);
+      this.registerAsset("palette", node, 0);
       nassets++;
     } else if (typeof data === 'string') {
       let textfrags = this.scanFileTextForAssets(fileid, data);
@@ -1192,30 +1218,29 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           let label = fileid; // TODO: label
           let node : pixed.PixNode = new pixed.TextDataNode(projectWindows, fileid, label, frag.start, frag.end);
           let first = node;
-          // rle-compressed? TODO
+          // rle-compressed? TODO: how to edit?
           if (frag.fmt.comp == 'rletag') {
-            //node = node.addRight(new pixed.Compressor());
-            continue; // TODO
+            node = node.addRight(new pixed.Compressor());
           }
           // is this a nes nametable?
           if (frag.fmt.map == 'nesnt') {
-            node = node.addRight(new pixed.NESNametableConverter(this)); // TODO?
-            node = node.addRight(new pixed.Palettizer(this, {w:8,h:8,bpp:4})); // TODO?
-            const fmt = {w:8*32,h:8*30,count:1}; // TODO
-            node = node.addRight(new pixed.CharmapEditor(this, newDiv(this.ensureFileDiv(fileid)), fmt));
-            this.registerAsset("nametable", first, true);
+            node = node.addRight(new pixed.NESNametableConverter(this));
+            node = node.addRight(new pixed.Palettizer(this, {w:8,h:8,bpp:4}));
+            const fmt = {w:8*(frag.fmt.w||32),h:8*(frag.fmt.h||30),count:1}; // TODO: can't do custom sizes
+            node = node.addRight(new pixed.MapEditor(this, newDiv(this.ensureFileDiv(fileid)), fmt));
+            this.registerAsset("nametable", first, 2);
             nassets++;
           }
           // is this a bitmap?
           else if (frag.fmt.w > 0 && frag.fmt.h > 0) {
             this.addPixelEditor(this.ensureFileDiv(fileid), node, frag.fmt);
-            this.registerAsset("charmap", first, true);
+            this.registerAsset("charmap", first, 1);
             nassets++;
           }
           // is this a palette?
           else if (frag.fmt.pal) {
             this.addPaletteEditor(this.ensureFileDiv(fileid), node, frag.fmt);
-            this.registerAsset("palette", first, false);
+            this.registerAsset("palette", first, 0);
             nassets++;
           }
           else {
@@ -1247,7 +1272,14 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         }
       });
       console.log("Found " + this.rootnodes.length + " assets");
-      this.deferrednodes.forEach((node) => { node.refreshRight(); });
+      this.deferrednodes.forEach((node) => {
+        try {
+          node.refreshRight();
+        } catch (e) {
+          console.log(e);
+          alert(e+"");
+        }
+      });
       this.deferrednodes = [];
     } else {
       // only refresh nodes if not actively editing

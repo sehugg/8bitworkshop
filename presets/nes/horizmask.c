@@ -1,4 +1,15 @@
 
+/*
+We demonstrate horizontal scrolling of two nametables.
+Vertical mirroring is set, so nametables A and B are
+to the left and right of each other.
+
+New playfield data is randomly generated and updated
+offscreen using the vrambuf module.
+Every 32 pixels, we also update the attribute table.
+We also use the split() function to create a status bar.
+*/
+
 #include "neslib.h"
 #include <string.h>
 
@@ -29,11 +40,13 @@ byte bldg_attr;		// attribute table value
 
 #define PLAYROWS 24
 
+// convert from nametable address to attribute table address
 word nt2attraddr(word a) {
   return (a & 0x2c00) | 0x3c0 |
     ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
 }
 
+// generate new random building data
 void new_building() {
   bldg_height = (rand8() & 7) + 2;
   bldg_width = (rand8() & 3) * 4 + 4;
@@ -41,27 +54,29 @@ void new_building() {
   bldg_attr = rand8();
 }
 
+// update the nametable offscreen
+// called every 8 horizontal pixels
 void update_nametable() {
   register word addr;
   // a buffer drawn to the nametable vertically
-  char buf[32];
+  char buf[PLAYROWS];
   // divide x_scroll by 8
   // to get nametable X position
-  byte x = ((x_scroll >> 3)+32) & 63;
+  byte x = (x_scroll/8 + 32) & 63;
   if (x < 32)
     addr = NTADR_A(x, 4);
   else
     addr = NTADR_B(x&31, 4);
   // clear empty space
-  memset(buf, 0, PLAYROWS-bldg_height);
+  memset(buf, 0, sizeof(buf));
   // draw a random star
-  buf[rand8() & 31] = '.';
+  buf[rand8() & 15] = '.';
   // draw roof
   buf[PLAYROWS-bldg_height-1] = bldg_char & 3;
   // draw rest of building
   memset(buf+PLAYROWS-bldg_height, bldg_char, bldg_height);
   // draw vertical slice in name table
-  vrambuf_put(addr ^ 0xc000, buf, PLAYROWS);
+  vrambuf_put(addr | VRAMBUF_VERT, buf, PLAYROWS);
   // every 4 columns, update attribute table
   if ((x & 3) == 1) {
     // compute attribute table address
@@ -140,9 +155,6 @@ void main(void) {
   // set sprite 0
   oam_clear();
   oam_spr(1, 30, 0xa0, 0, 0);
-  
-  // clip left 8 pixels of screen
-  ppu_mask(MASK_SPR|MASK_BG);
   
   // clear vram buffer
   vrambuf_clear();

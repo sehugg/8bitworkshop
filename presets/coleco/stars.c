@@ -18,9 +18,11 @@ byte starfield_get_tile_xy(byte x, byte y) {
 }
 
 void starfield_setup() {
+  // clear star patterns
+  cvu_vmemset(PATTERN+starfield_base_char*8, 0, 16*8);
   for (byte x=0; x<32; x++) {
     for (byte y=0; y<28; y++) {
-      putchar(x, y, starfield_get_tile_xy(x, y));
+      putcharxy(x, y, starfield_get_tile_xy(x, y));
     }
     cvu_voutb(COLOR_FG(CV_COLOR_WHITE),
               COLOR+((starfield_base_char+x)>>3));

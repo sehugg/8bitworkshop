@@ -1,11 +1,11 @@
 
-import { RAM, RasterVideo, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes } from "./emu";
+import { RAM, RasterVideo, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes, ControllerPoller } from "./emu";
 import { hex, printFlags, invertMap } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { disassemble6502 } from "./cpu/disasm6502";
 import { disassembleZ80 } from "./cpu/disasmz80";
 
-declare var Z80_fast, jt, CPU6809;
+declare var buildZ80, jt, CPU6809;
 
 export interface OpcodeMetadata {
   minCycles: number;
@@ -48,10 +48,14 @@ export class DebugSymbols {
   constructor(symbolmap : SymbolMap) {
     this.symbolmap = symbolmap;
     this.addr2symbol = invertMap(symbolmap);
-    // TODO: shouldn't be necc.
+    //// TODO: shouldn't be necc.
     if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = '__START__'; // needed for ...
     this.addr2symbol[0x10000] = '__END__'; // ... dump memory to work
   }
+}
+
+export interface PlatformMetadata {
+  name : string; // TODO
 }
 
 export interface Platform {
@@ -65,6 +69,7 @@ export interface Platform {
   resume() : void;
   loadROM(title:string, rom:any); // TODO: Uint8Array
   loadBIOS?(title:string, rom:Uint8Array);
+  getMetadata?() : PlatformMetadata;
 
   loadState?(state : EmuState) : void;
   saveState?() : EmuState;
@@ -101,9 +106,10 @@ export interface Platform {
   showHelp?(tool:string, ident?:string) : void;
   resize?() : void;
 
-  startProfiling?() : ProfilerOutput;
-  stopProfiling?() : void;
   getRasterScanline?() : number;
+  setBreakpoint?(id : string, cond : DebugCondition);
+  clearBreakpoint?(id : string);
+  getCPUState?() : CpuState;
 
   debugSymbols? : DebugSymbols;
 }
@@ -118,6 +124,8 @@ export interface Preset {
 export interface MemoryBus {
   read : (address:number) => number;
   write : (address:number, value:number) => void;
+  contend?: (address:number, cycles:number) => number;
+  isContended?: (address:number) => boolean;
 }
 
 export type DebugCondition = () => boolean;
@@ -158,11 +166,20 @@ export interface ProfilerFrame {
 export interface ProfilerOutput {
   frame : ProfilerFrame;
 }
+export interface EmuProfiler {
+  start() : ProfilerOutput;
+  stop();
+  // TODO?
+  logRead(a : number);
+  logWrite(a : number);
+  logInterrupt(a : number);
+}
 
 /////
 
 export abstract class BasePlatform {
   recorder : EmuRecorder = null;
+  profiler : EmuProfiler = null;
   debugSymbols : DebugSymbols;
 
   abstract loadState(state : EmuState) : void;
@@ -205,35 +222,6 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   clearBreakpoint(id : string) {
     delete this.breakpoints.id2bp[id];
   }
-  startProfiling() : ProfilerOutput {
-    var frame = null;
-    var output = {frame:null};
-    var i = 0;
-    var lastsl = 9999;
-    var start = 0;
-    this.setBreakpoint('profile', () => {
-      var sl = (this as any).getRasterScanline();
-      if (sl != lastsl) {
-        if (frame) {
-          frame.lines.push({start:start,end:i-1});
-        }
-        if (sl < lastsl) {
-          output.frame = frame;
-          frame = {iptab:new Uint32Array(0x8000), lines:[]}; // TODO: const
-          i = 0;
-        }
-        start = i;
-        lastsl = sl;
-      }
-      var c = this.getCPUState();
-      frame.iptab[i++] = c.EPC || c.PC;
-      return false; // profile forever
-    });
-    return output;
-  }
-  stopProfiling() {
-    this.clearBreakpoint('profile');
-  }
   getDebugCallback() : DebugCondition {
     return this.breakpoints.getDebugCondition();
   }
@@ -263,11 +251,14 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.resume();
   }
   preFrame() {
-    this.updateRecorder();
   }
   postFrame() {
   }
+  pollControls() {
+  }
   nextFrame(novideo : boolean) {
+    this.pollControls();
+    this.updateRecorder();
     this.preFrame();
     this.advance(novideo);
     this.postFrame();
@@ -508,6 +499,12 @@ export function BusProbe(bus : MemoryBus) {
     }
     bus.write(a,v);
   }
+  this.contend = function(addr,cyc) {
+    return bus.contend(addr,cyc);
+  }
+  this.isContended = function(addr) {
+    return bus.isContended(addr);
+  }
 }
 
 export abstract class BaseZ80Platform extends BaseDebugPlatform {
@@ -515,9 +512,9 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   _cpu;
   probe;
 
-  newCPU(membus : MemoryBus, iobus : MemoryBus) {
+  newCPU(membus : MemoryBus, iobus : MemoryBus, z80opts? : {}) {
     this.probe = new BusProbe(membus);
-    this._cpu = Z80_fast({
+    this._cpu = buildZ80(z80opts || {})({
      display: {},
      memory: this.probe,
      ioBus: iobus
@@ -525,7 +522,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
    return this._cpu;
   }
 
-  getProbe() { return this.probe; }
+  getProbe() { return this.probe; } // TODO?
   getPC() { return this._cpu.getPC(); }
   getSP() { return this._cpu.getSP(); }
 
@@ -644,7 +641,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   }
   getToolForFilename = getToolForFilename_z80;
   getDefaultExtension() { return ".c"; };
-  // TODO
+  // TODO: Z80 opcode metadata
   //this.getOpcodeMetadata = function() { }
 
   getDebugCategories() {
@@ -701,6 +698,9 @@ export abstract class Base6809Platform extends BaseZ80Platform {
     cpu.init(membus.write, membus.read, 0);
     return cpu;
   }
+
+  getPC() { return this._cpu.PC; }
+  getSP() { return this._cpu.SP; }
 
   runUntilReturn() {
     var depth = 1;
@@ -802,7 +802,7 @@ export abstract class BaseMAMEPlatform {
   }
 
   bufferConsoleOutput(s) {
-    if (!s) return;
+    if (typeof s !== 'string') return;
     if (s.startsWith(">>>")) {
       this.console_varname = s.length > 3 ? s.slice(3) : null;
       if (this.console_varname) this.console_vars[this.console_varname] = [];
@@ -1053,6 +1053,7 @@ export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], st
   return s+"\n";
 }
 
+// TODO: slow, funky, uses global
 export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
   var start = addr;
   var addr2symbol = platform.debugSymbols && platform.debugSymbols.addr2symbol;
@@ -1060,7 +1061,7 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
     var sym = addr2symbol[addr];
     if (sym) { // return first symbol we find
       var sym = addr2symbol[addr];
-      return extra ? (sym + " + " + (start-addr)) : sym;
+      return extra ? (sym + " + $" + hex(start-addr)) : sym;
     }
     addr--;
   }
@@ -1090,17 +1091,20 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
   timer;
   audio;
   psg;
-  inputs = new Uint8Array(16);
+  pixels : Uint32Array;
+  inputs : Uint8Array = new Uint8Array(32);
   mainElement : HTMLElement;
+  poller : ControllerPoller;
 
   abstract newRAM() : Uint8Array;
   abstract newMembus() : MemoryBus;
   abstract newIOBus() : MemoryBus;
-  abstract getVideoOptions();
+  abstract getVideoOptions() : {};
   abstract getKeyboardMap();
-  abstract startScanline(sl : number);
-  abstract drawScanline(sl : number);
-  getRasterScanline() { return this.currentScanline; }
+  abstract startScanline(sl : number) : void;
+  abstract drawScanline(sl : number) : void;
+  getRasterScanline() : number { return this.currentScanline; }
+  getKeyboardFunction() { return null; }
 
   constructor(mainElement : HTMLElement) {
     super();
@@ -1115,13 +1119,16 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
     this.cpu = this.newCPU(this.membus, this.iobus);
     this.video = new RasterVideo(this.mainElement, this.canvasWidth, this.numVisibleScanlines, this.getVideoOptions());
     this.video.create();
-    setKeyboardFromMap(this.video, this.inputs, this.getKeyboardMap())
+    this.pixels = this.video.getFrameData();
+    this.poller = setKeyboardFromMap(this.video, this.inputs, this.getKeyboardMap(), this.getKeyboardFunction());
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
 
   readAddress(addr) {
     return this.membus.read(addr);
   }
+  
+  pollControls() { this.poller.poll(); }
 
   advance(novideo : boolean) {
     var extraCycles = 0;

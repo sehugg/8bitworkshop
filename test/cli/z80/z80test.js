@@ -1,17 +1,8 @@
 "use strict";
 
-if (true) {
-	global.window = global;
-	require('../../../src/cpu/z80.js');
-	var _global = window;
-	_global.buildZ80({
-		applyContention: true
-	});
-} else {
-	var wtu = require('../workertestutils.js');
-	global.includeInThisContext('src/cpu/z80fast.js');
-	var _global = {Z80:Z80_fast};
-}
+var wtu = require('../workertestutils.js');
+includeInThisContext('src/cpu/z80.js');
+if (!global.buildZ80) global.buildZ80 = global.window.buildZ80;
 
 var Memory = function(dump) {
 	var self = {};
@@ -99,7 +90,7 @@ function runTest(input, expected) {
 
 	var memory = Memory(dump);
 	var ioBus = IOBus();
-	var z80 = _global.Z80({
+	var z80 = global.Z80({
 		display: {},
 		memory: memory,
 		ioBus: ioBus
@@ -208,7 +199,7 @@ assert(testsIn.length == testsExpected.length);
 function benchmark(cycles) {
 	var memory = Memory(function() { });
 	var ioBus = IOBus();
-	var z80 = _global.Z80({
+	var z80 = global.Z80({
 		display: {},
 		memory: memory,
 		ioBus: ioBus
@@ -223,7 +214,11 @@ function benchmark(cycles) {
 
 if (global.describe) {
 	describe('Z80 CPU', function() {
-		it('should execute test cases', function() {
+		global.buildZ80({
+			applyContention: true
+		});
+		global.Z80 = global.window.Z80;
+		it('should execute Z80 test cases', function() {
 			for (var iter=0; iter<testsIn.length; iter++) {
 				var fn = function(index, input, expected) {
 					var output = runTest(input);
@@ -231,7 +226,7 @@ if (global.describe) {
 				}.call(this, iter, testsIn[iter], testsExpected[iter]);
 			}
 	  });
-		it('should run 1M cycles', function() {
+		it('should run Z80 1M cycles', function() {
 			benchmark(1164770);
 		});
 	});

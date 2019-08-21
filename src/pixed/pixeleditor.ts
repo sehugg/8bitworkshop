@@ -60,7 +60,8 @@ type PixelEditorMessage = {
 
 /////////////////
 
-var pixel_re = /([0#]?)([x$%]|\d'[bh])([0-9a-f]+)(?:;.*$)?/gim;
+// 0xabcd, #$abcd, 5'010101, 0b010101, etc
+var pixel_re = /([0#]?)([x$%]|\d'h)([0-9a-f]+)(?:[;].*)?|(\d'b|0b)([01]+)/gim;
 
 function convertToHexStatements(s:string) : string {
   // convert 'hex ....' asm format
@@ -78,7 +79,9 @@ export function parseHexWords(s:string) : number[] {
   var m;
   while (m = pixel_re.exec(s)) {
     var n;
-    if (m[2].startsWith('%') || m[2].endsWith("b"))
+    if (typeof m[4] !== 'undefined')
+      n = parseInt(m[5],2);
+    else if (m[2].startsWith('%') || m[2].endsWith("b"))
       n = parseInt(m[3],2);
     else if (m[2].startsWith('x') || m[2].startsWith('$') || m[2].endsWith('h'))
       n = parseInt(m[3],16);
@@ -97,7 +100,9 @@ export function replaceHexWords(s:string, words:UintArray) : string {
   while (m = pixel_re.exec(s)) {
     result += s.slice(li, pixel_re.lastIndex - m[0].length);
     li = pixel_re.lastIndex;
-    if (m[2].startsWith('%'))
+    if (typeof m[4] !== 'undefined')
+      result += m[4] + words[i++].toString(2);
+    else if (m[2].startsWith('%'))
       result += m[1] + "%" + words[i++].toString(2);
     else if (m[2].endsWith('b'))
       result += m[1] + m[2] + words[i++].toString(2); // TODO
@@ -187,7 +192,9 @@ function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) :
   var pofs = fmt.pofs || wordsperline*height*count;
   var skip = fmt.skip || 0;
   var words;
-  if (bitsperword <= 8)
+  if (nplanes > 0 && fmt.sl) // TODO?
+    words = new Uint8Array(wordsperline*height*count);
+  else if (bitsperword <= 8)
     words = new Uint8Array(wordsperline*height*count*nplanes);
   else
     words = new Uint32Array(wordsperline*height*count*nplanes);
@@ -299,7 +306,8 @@ var PREDEF_PALETTES = {
      0x003814,0x003814, 0x1c5c34,0x1c5c34, 0x387c50,0x387c50, 0x50986c,0x50986c, 0x68b484,0x68b484, 0x7ccc9c,0x7ccc9c, 0x90e4b4,0x90e4b4, 0xa4fcc8,0xa4fcc8,
      0x00302c,0x00302c, 0x1c504c,0x1c504c, 0x347068,0x347068, 0x4c8c84,0x4c8c84, 0x64a89c,0x64a89c, 0x78c0b4,0x78c0b4, 0x88d4cc,0x88d4cc, 0x9cece0,0x9cece0,
      0x002844,0x002844, 0x184864,0x184864, 0x306884,0x306884, 0x4484a0,0x4484a0, 0x589cb8,0x589cb8, 0x6cb4d0,0x6cb4d0, 0x7ccce8,0x7ccce8, 0x8ce0fc,0x8ce0fc
-   ]
+   ],
+   'astrocade':[0,2368548,4737096,7171437,9539985,11974326,14342874,16777215,12255269,14680137,16716142,16725394,16734903,16744155,16753663,16762879,11534409,13959277,16318866,16721334,16730842,16740095,16749311,16758783,10420330,12779662,15138995,16718039,16727291,16736767,16745983,16755199,8847495,11206827,13631696,15994612,16724735,16733951,16743423,16752639,6946975,9306307,11731175,14092287,16461055,16732415,16741631,16751103,4784304,7143637,9568505,11929087,14297599,16731647,16741119,16750335,2425019,4784352,7209215,9570047,12004095,14372863,16741375,16750847,191,2359523,4718847,7146495,9515263,11949311,14318079,16752127,187,224,2294015,4658431,7092735,9461247,11895551,14264063,176,213,249,2367999,4736511,7105279,9539327,11908095,159,195,3303,209151,2577919,4946431,7380735,9749247,135,171,7888,17140,681983,3050495,5484543,7853311,106,3470,12723,22231,31483,1548031,3916799,6285311,73,8557,17810,27318,36570,373759,2742271,5176575,4389,13641,23150,32402,41911,51163,2026495,4456447,9472,18724,27976,37485,46737,56246,1834970,4194303,14080,23296,32803,42055,51564,60816,2031541,4456409,18176,27648,36864,46116,55624,392556,2752401,5177269,21760,30976,40192,49667,58919,1572683,3932016,6291348,24320,33536,43008,52224,716810,3079982,5504851,7864183,25856,35328,44544,250368,2619136,4980503,7405371,9764703,26624,35840,45312,2413824,4782336,7143173,9568041,11927374,26112,35584,2338560,4707328,7141376,9502464,11927326,14286659,24832,2393344,4762112,7196160,9564928,11992832,14352155,16711487,2447360,4815872,7250176,9618688,12052992,14417664,16776990,16777027,4803328,7172096,9606144,11974912,14343424,16776965,16777001,16777038,6962176,9330688,11764992,14133504,16502272,16773655,16777019,16777055,8858112,11226880,13660928,16029440,16759818,16769070,16777043,16777079,10426112,12794624,15163392,16745475,16754727,16764235,16773488,16777108,11534848,13969152,16337664,16740388,16749640,16759148,16768401,16777141,12255232,14684928,16725795,16735047,16744556,16753808,16763317,16772569],
 };
 
 var PREDEF_LAYOUTS : {[id:string]:PixelEditorPaletteLayout} = {
@@ -313,6 +321,10 @@ var PREDEF_LAYOUTS : {[id:string]:PixelEditorPaletteLayout} = {
     ['Sprite 1',      0x15, 3],
     ['Sprite 2',      0x19, 3],
     ['Sprite 3',      0x1d, 3]
+  ],
+  'astrocade':[
+    ['Left',   0x00, -4],
+    ['Right',  0x04, -4]
   ],
 };
 
@@ -430,7 +442,7 @@ export class TextDataNode extends CodeProjectDataNode {
   }
   updateLeft() {
     if (this.right.words.length != this.words.length)
-      throw "Expected " + this.words.length + " bytes; image has " + this.right.words.length;
+      throw "Expected " + this.right.words.length + " bytes; image has " + this.words.length;
     this.words = this.right.words;
     // TODO: reload editors?
     var datastr = this.text.substring(this.start, this.end);
@@ -587,7 +599,6 @@ function dedupPalette(cols : UintArray) : Uint32Array {
 }
 export class PaletteFormatToRGB extends PixNode {
 
-
   words : UintArray;
   rgbimgs : Uint32Array[];
   palette : Uint32Array;
@@ -704,7 +715,9 @@ export class NESNametableConverter extends Compositor {
     for (var row=0; row<this.rows; row++) {
       for (var col=0; col<this.cols; col++) {
          var name = this.words[this.baseofs + a];
+         if (typeof name === 'undefined') throw "No name for address " + this.baseofs + " + " + a;
          var t = this.tilemap[name];
+         if (!t) throw "No tilemap found for tile index " + name;
          attraddr = (a & 0x2c00) | 0x3c0 | (a & 0x0C00) | ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
          var attr = this.words[attraddr];
          var tag = name ^ (attr<<9) ^ 0x80000000;
@@ -840,6 +853,40 @@ export class CharmapEditor extends PixNode {
   }
 }
 
+export class MapEditor extends PixNode {
+
+  context;
+  parentdiv;
+  fmt;
+
+  constructor(context:EditorContext, parentdiv:JQuery, fmt:PixelEditorImageFormat) {
+    super();
+    this.context = context;
+    this.parentdiv = parentdiv;
+    this.fmt = fmt;
+  }
+
+  updateLeft() {
+    return true;
+  }
+
+  updateRight() {
+    if (equalNestedArrays(this.rgbimgs, this.left.rgbimgs)) return false;
+    this.rgbimgs = this.left.rgbimgs;
+    var adual = newDiv(this.parentdiv.empty(), "asset_dual"); // contains grid and editor
+    var agrid = newDiv(adual);
+    var aeditor = newDiv(adual, "asset_editor").hide(); // contains editor, when selected
+    // add image chooser grid
+    var viewer = new Viewer();
+    viewer.width = this.fmt.w;
+    viewer.height = this.fmt.h;
+    viewer.recreate();
+    viewer.updateImage(this.rgbimgs[0]);
+    agrid.append(viewer.canvas);
+    return true;
+  }
+}
+
 export class Viewer {
 
   width : number;
@@ -927,11 +974,11 @@ class PixEditor extends Viewer {
       this.setPixel(pos.x, pos.y, this.currgba);
       dragging = true;
       $(document).mouseup( (e) => {
+        $(document).off('mouseup');
         var pos = this.getPositionFromEvent(e);
         this.setPixel(pos.x, pos.y, dragcol);
         dragging = false;
         this.commit();
-        $(document).off('mouseup');
       });
     })
     .mousemove( (e) => {

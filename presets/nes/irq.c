@@ -1,4 +1,12 @@
 
+/*
+Multiple screen splits with the MMC3 mapper using IRQs.
+The main loop updates the scroll counters continuously.
+When a IRQ fires, we change the X scroll register, setting
+it immediately via the PPU struct.
+The NMI and IRQ use the same callback function.
+*/
+
 // bank-switching configuration
 #define NES_MAPPER 4		// Mapper 4 (MMC3)
 #define NES_PRG_BANKS 4		// # of 16KB PRG banks

@@ -28,25 +28,29 @@ export var SG1000_PRESETS = [
   {id:'multicolor.c', name:'Multicolor Mode'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'shoot.c', name:'Solarian Game'},
-  {id:'climber.c', name:'Platform Game'},
+  {id:'climber.c', name:'Climber Game'},
 ];
 
+export var SMS_PRESETS = [
+  {id:'mode4test.c', name:'Mode 4 Test'},
+  {id:'climber.c', name:'Climber Game'},
+];
 
 var SG1000_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_UP,    0, 0x1],
-  [Keys.VK_DOWN,  0, 0x2],
-  [Keys.VK_LEFT,  0, 0x4],
-  [Keys.VK_RIGHT, 0, 0x8],
-  [Keys.VK_SPACE, 0, 0x10],
-  [Keys.VK_CONTROL, 0, 0x20],
+  [Keys.UP,    0, 0x1],
+  [Keys.DOWN,  0, 0x2],
+  [Keys.LEFT,  0, 0x4],
+  [Keys.RIGHT, 0, 0x8],
+  [Keys.A,     0, 0x10],
+  [Keys.B,     0, 0x20],
 
-  [Keys.VK_R, 0, 0x40],
-  [Keys.VK_F, 0, 0x80],
-  [Keys.VK_D, 1, 0x1],
-  [Keys.VK_G, 1, 0x2],
-  [Keys.VK_A, 1, 0x4],
-  [Keys.VK_S, 1, 0x8],
-  [Keys.VK_1, 1, 0x10],
+  [Keys.P2_UP,    0, 0x40],
+  [Keys.P2_DOWN,  0, 0x80],
+  [Keys.P2_LEFT,  1, 0x1],
+  [Keys.P2_RIGHT, 1, 0x2],
+  [Keys.P2_A,     1, 0x4],
+  [Keys.P2_B,     1, 0x8],
+  [Keys.VK_BACK_SLASH,    1, 0x10], // reset
 ]);
 
 class SG1000Platform extends BasicZ80ScanlinePlatform implements Platform {
@@ -78,7 +82,6 @@ class SG1000Platform extends BasicZ80ScanlinePlatform implements Platform {
        write: newAddressDecoder([
          [0xc000, 0xffff,  0x3ff, (a,v) => { this.ram[a] = v; }],
        ]),
-       isContended: () => { return false; },
     };
   }
   
@@ -172,6 +175,9 @@ class SG1000Platform extends BasicZ80ScanlinePlatform implements Platform {
   vdpStateToLongString(ppu) {
     return this.vdp.getRegsString();
   }
+  readVRAMAddress(a : number) : number {
+    return this.vdp.ram[a & 0x3fff];
+  }
 }
 
 ///
@@ -184,6 +190,8 @@ class SMSPlatform extends SG1000Platform {
   latchedHCounter = 0;
   ioControlFlags = 0;
   // TODO: hide bottom scanlines
+  
+  getPresets() { return SMS_PRESETS; }
   
   reset() {
     super.reset();

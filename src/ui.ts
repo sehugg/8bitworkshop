@@ -12,12 +12,13 @@ import { PLATFORMS, EmuHalt, Toolbar } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
-         byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform } from "./util";
+         byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex } from "./util";
 import { StateRecorderImpl } from "./recorder";
 import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
 
 // external libs (TODO)
 declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, firebase;
+declare var ga;
 // in index.html
 declare var exports;
 
@@ -44,7 +45,7 @@ var stateRecorder : StateRecorderImpl;
 var userPaused : boolean;		// did user explicitly pause?
 
 var current_output : WorkerOutput;  // current ROM
-var current_preset_entry : Preset;	// current preset object (if selected)
+var current_preset : Preset;	// current preset object (if selected)
 var store;			// persistent store
 
 export var compparams;			// received build params from worker
@@ -63,6 +64,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'acme': '6502',
   'cc65': 'text/x-csrc',
   'ca65': '6502',
+  'nesasm': '6502',
   'z80asm': 'z80',
   'sdasz80': 'z80',
   'sdcc': 'text/x-csrc',
@@ -72,6 +74,19 @@ var TOOL_TO_SOURCE_STYLE = {
   'bataribasic': 'bataribasic',
   'markdown': 'markdown',
   'xasm6809': 'z80'
+}
+
+function gaEvent(category:string, action:string, label?:string, value?:string) {
+  if (ga) ga('send', 'event', category, action, label, value);
+}
+function alertError(s:string) {
+  gaEvent('error', platform_id||'error', s);
+  setWaitDialog(false);
+  bootbox.alert(s);
+}
+function alertInfo(s:string) {
+  setWaitDialog(false);
+  bootbox.alert(s);
 }
 
 function newWorker() : Worker {
@@ -90,16 +105,20 @@ var hasLocalStorage : boolean = function() {
 }();
 
 function getCurrentPresetTitle() : string {
-  if (!current_preset_entry)
+  if (!current_preset)
     return current_project.mainPath || "ROM";
   else
-    return current_preset_entry.title || current_preset_entry.name || current_project.mainPath || "ROM";
+    return current_preset.title || current_preset.name || current_project.mainPath || "ROM";
 }
 
 function setLastPreset(id:string) {
   if (hasLocalStorage) {
+    if (repo_id && platform_id)
+      localStorage.setItem("__lastrepo_" + platform_id, repo_id);
+    else
+      localStorage.removeItem("__lastrepo_" + platform_id);
     localStorage.setItem("__lastplatform", platform_id);
-    localStorage.setItem("__lastid_"+store_id, id);
+    localStorage.setItem("__lastid_" + store_id, id);
   }
 }
 
@@ -220,7 +239,7 @@ function refreshWindowList() {
       return new Views.MemoryMapView();
     });
   }
-  if (platform.startProfiling && platform.runEval && platform.getRasterScanline) {
+  if (platform.getRasterScanline && platform.setBreakpoint && platform.getCPUState) { // TODO: use profiler class to determine compat
     addWindowItem("#profiler", "Profiler", () => {
       return new Views.ProfileView();
     });
@@ -230,29 +249,40 @@ function refreshWindowList() {
   });
 }
 
+function loadMainWindow(preset_id:string) {
+  // we need this to build create functions for the editor
+  refreshWindowList();
+  // show main file
+  projectWindows.createOrShow(preset_id);
+  // build project
+  current_project.setMainFile(preset_id);
+}
+
 function loadProject(preset_id:string) {
   // set current file ID
+  // TODO: this is done twice
   current_project.mainPath = preset_id;
   setLastPreset(preset_id);
   // load files from storage or web URLs
-  current_project.loadFiles([preset_id], function(err, result) {
-    if (err) {
-      alert(err);
-    } else if (result && result.length) {
-      // we need this to build create functions for the editor
-      refreshWindowList();
-      // show main file
-      projectWindows.createOrShow(preset_id);
-      // build project
-      current_project.setMainFile(preset_id);
+  current_project.loadFiles([preset_id]).then((result) => {
+    measureTimeLoad = new Date(); // for timing calc.
+    if (result && result.length) {
+      // file found; continue
+      loadMainWindow(preset_id);
+    } else {
+      // no file data, load skeleton file
+      getSkeletonFile(preset_id).then((skel) => {
+        current_project.filedata[preset_id] = skel || "\n";
+        loadMainWindow(preset_id);
+      });
     }
   });
 }
 
 function reloadProject(id:string) {
-  // leave repository == '..'
-  if (id == '..') {
-    qs = {};
+  // leave repository == '/'
+  if (id == '/') {
+    qs = {repo:'/'};
   } else if (id.indexOf('://') >= 0) {
     var urlparse = parseGithubURL(id);
     if (urlparse) {
@@ -265,21 +295,16 @@ function reloadProject(id:string) {
   gotoNewLocation();
 }
 
-function getSkeletonFile(fileid:string, callback) {
+function getSkeletonFile(fileid:string) : Promise<string> {
   var ext = platform.getToolForFilename(fileid);
-  // TODO: .mame
-  $.get( "presets/"+getBasePlatform(platform_id)+"/skeleton."+ext, function( text ) {
-    callback(null, text);
-  }, 'text')
-  .fail(() => {
-    alert("Could not load skeleton for " + platform_id + "/" + ext + "; using blank file");
-    callback(null, '\n');
+  return $.get( "presets/"+getBasePlatform(platform_id)+"/skeleton."+ext, 'text').catch((e) => {
+    alertError("Could not load skeleton for " + platform_id + "/" + ext + "; using blank file");
   });
 }
 
 function checkEnteredFilename(fn : string) : boolean {
   if (fn.indexOf(" ") >= 0) {
-    alert("No spaces in filenames, please.");
+    alertError("No spaces in filenames, please.");
     return false;
   }
   return true;
@@ -287,24 +312,21 @@ function checkEnteredFilename(fn : string) : boolean {
 
 function _createNewFile(e) {
   // TODO: support spaces
-  var filename = prompt("Create New File", "newfile" + platform.getDefaultExtension());
-  if (filename && filename.trim().length > 0) {
-    if (!checkEnteredFilename(filename)) return;
-    if (filename.indexOf(".") < 0) {
-      filename += platform.getDefaultExtension();
-    }
-    var path = "local/" + filename;
-    getSkeletonFile(path, function(err, result) {
-      if (result) {
-        store.setItem(path, result, function(err, result) {
-          if (err)
-            alert(err+"");
-          if (result != null)
-            reloadProject("local/" + filename);
-        });
+  bootbox.prompt({
+    title:"Enter the name of your new main source file.",
+    placeholder:"newfile" + platform.getDefaultExtension(),
+    callback:(filename) => {
+      if (filename && filename.trim().length > 0) {
+        if (!checkEnteredFilename(filename)) return;
+        if (filename.indexOf(".") < 0) {
+          filename += platform.getDefaultExtension();
+        }
+        var path = filename;
+        gaEvent('workspace', 'file', 'new');
+        reloadProject(path);
       }
-    });
-  }
+    }
+  } as any);
   return true;
 }
 
@@ -324,10 +346,11 @@ function handleFileUpload(files: File[]) {
         gotoNewLocation();
       } else {
         updateSelector();
-        alert("Files uploaded.");
+        alertInfo("Files uploaded.");
+        gaEvent('workspace', 'file', 'upload');
       }
     } else {
-      var path = "local/" + f.name;
+      var path = f.name;
       var reader = new FileReader();
       reader.onload = function(e) {
         var arrbuf = (<any>e.target).result as ArrayBuffer;
@@ -342,7 +365,7 @@ function handleFileUpload(files: File[]) {
         // TODO: use projectWindows uploadFile()
         store.setItem(path, data, function(err, result) {
           if (err)
-            alert("Error uploading " + path + ": " + err);
+            alertError("Error uploading " + path + ": " + err);
           else {
             console.log("Uploaded " + path + " " + data.length + " bytes");
             if (index == 1) {
@@ -370,7 +393,7 @@ function getCurrentEditorFilename() : string {
 
 var githubService : GithubService;
 
-function getCookie(name) {
+function getCookie(name) : string {
     var nameEQ = name + "=";
     var ca = document.cookie.split(';');
     for(var i=0;i < ca.length;i++) {
@@ -395,24 +418,22 @@ function getGithubService() {
 function getBoundGithubURL() : string {
   var toks = (repo_id||'').split('/');
   if (toks.length != 2) {
-    alert("You are not in a GitHub repository. Choose Import or Publish first.");
+    alertError("<p>You are not in a GitHub repository.</p><p>Choose one from the pulldown, or Import or Publish one.</p>");
     return null;
   }
   return 'https://github.com/' + toks[0] + '/' + toks[1];
 }
 
-function importProjectFromGithub(githuburl:string) {
+function importProjectFromGithub(githuburl:string, replaceURL:boolean) {
   var sess : GHSession;
   var urlparse = parseGithubURL(githuburl);
   if (!urlparse) {
-    alert('Could not parse Github URL.');
+    alertError('Could not parse Github URL.');
     return;
   }
   // redirect to repo if exists
   var existing = getRepos()[urlparse.repopath];
-  if (existing) {
-    qs = {repo:urlparse.repopath};
-    gotoNewLocation();
+  if (existing && !confirm("You've already imported " + urlparse.repopath + " -- do you want to replace all local files?")) {
     return;
   }
   // create new store for imported repository
@@ -429,11 +450,26 @@ function importProjectFromGithub(githuburl:string) {
     // reload repo
     qs = {repo:sess.repopath}; // file:sess.mainPath, platform:sess.platform_id};
     setWaitDialog(false);
-    gotoNewLocation();
+    gaEvent('sync', 'import', githuburl);
+    gotoNewLocation(replaceURL);
   }).catch( (e) => {
     setWaitDialog(false);
     console.log(e);
-    alert("Could not import " + githuburl + ": " + e);
+    alertError("<p>Could not import " + githuburl + ".</p>" + e);
+  });
+}
+
+function _loginToGithub(e) {
+  getGithubService().login().then(() => {
+    alertInfo("You are signed in to Github.");
+  }).catch( (e) => {
+    alertError("<p>Could not sign in.</p>" + e);
+  });
+}
+
+function _logoutOfGithub(e) {
+  getGithubService().logout().then(() => {
+    alertInfo("You are logged out of Github.");
   });
 }
 
@@ -444,17 +480,18 @@ function _importProjectFromGithub(e) {
   btn.off('click').on('click', () => {
     var githuburl = $("#importGithubURL").val()+"";
     modal.modal('hide');
-    importProjectFromGithub(githuburl);
+    importProjectFromGithub(githuburl, false);
   });
 }
 
 function _publishProjectToGithub(e) {
   if (repo_id) {
-    alert("This project (" + current_project.mainPath + ") is already bound to a Github repository. Choose 'Push Changes' to update.");
+    alertError("This project (" + current_project.mainPath + ") is already bound to a Github repository. Choose 'Push Changes' to update.");
     return;
   }
   var modal = $("#publishGithubModal");
   var btn = $("#publishGithubButton");
+  $("#githubRepoName").val(getFilenamePrefix(getFilenameForPath(current_project.mainPath)));
   modal.modal('show');
   btn.off('click').on('click', () => {
     var name = $("#githubRepoName").val()+"";
@@ -462,6 +499,10 @@ function _publishProjectToGithub(e) {
     var priv = $("#githubRepoPrivate").val() == 'private';
     var license = $("#githubRepoLicense").val()+"";
     var sess;
+    if (!name) {
+      alertError("You did not enter a project name.");
+      return;
+    }
     modal.modal('hide');
     setWaitDialog(true);
     getGithubService().login().then( () => {
@@ -473,11 +514,12 @@ function _publishProjectToGithub(e) {
       return pushChangesToGithub('initial import from 8bitworkshop.com');
     }).then( () => {
       setWaitProgress(1.0);
+      gaEvent('sync', 'publish', priv?"":name);
       reloadProject(current_project.stripLocalPath(current_project.mainPath));
     }).catch( (e) => {
       setWaitDialog(false);
       console.log(e);
-      alert("Could not publish GitHub repository: " + e);
+      alertError("Could not publish GitHub repository: " + e);
     });
   });
 }
@@ -498,9 +540,43 @@ function _pushProjectToGithub(e) {
 function _pullProjectFromGithub(e) {
   var ghurl = getBoundGithubURL();
   if (!ghurl) return;
-  setWaitDialog(true);
-  getGithubService().pull(ghurl).then( (sess:GHSession) => {
-    setWaitDialog(false);
+  bootbox.confirm("Pull from repository and replace all local files? Any changes you've made will be overwritten.", (ok) => {
+    if (ok) {
+      setWaitDialog(true);
+      getGithubService().pull(ghurl).then( (sess:GHSession) => {
+        setWaitDialog(false);
+        projectWindows.updateAllOpenWindows(store);
+      });
+    }
+  });
+}
+
+function confirmCommit(sess) : Promise<GHSession> {
+  return new Promise( (resolve, reject) => {
+    var files = sess.commit.files;
+    console.log(files);
+    // anything changed?
+    if (files.length == 0) {
+      setWaitDialog(false);
+      bootbox.alert("No files changed.");
+    }
+    // build commit confirm message
+    var msg = "";
+    for (var f of files) {
+      msg += f.filename + ": " + f.status;
+      if (f.additions || f.deletions || f.changes) {
+        msg += " (" + f.additions + " additions, " + f.deletions + " deletions, " + f.changes + " changes)";
+      };
+      msg += "<br/>";
+    }
+    // show dialog, continue when yes
+    bootbox.confirm(msg, (ok) => {
+      if (ok) {
+        resolve(sess);
+      } else {
+        setWaitDialog(false);
+      }
+    });
   });
 }
 
@@ -516,29 +592,71 @@ function pushChangesToGithub(message:string) {
       files.push({path:newpath, data:data});
     }
   }
+  // include built ROM file in bin/[mainfile].rom
+  if (current_output instanceof Uint8Array) {
+    let binpath = "bin/"+getCurrentMainFilename()+".rom";
+    files.push({path:binpath, data:current_output});
+  }
   // push files
   setWaitDialog(true);
   return getGithubService().login().then( () => {
     setWaitProgress(0.5);
-    return getGithubService().commitPush(ghurl, message, files);
+    return getGithubService().commit(ghurl, message, files);
+  }).then( (sess) => {
+    return confirmCommit(sess);
+  }).then( (sess) => {
+    return getGithubService().push(sess);
   }).then( (sess) => {
     setWaitDialog(false);
-    alert("Pushed files to " + ghurl);
+    alertInfo("Pushed files to " + ghurl);
     return sess;
   }).catch( (e) => {
     setWaitDialog(false);
     console.log(e);
-    alert("Could not push GitHub repository: " + e);
+    alertError("Could not push GitHub repository: " + e);
+  });
+}
+
+function _deleteRepository() {
+  var ghurl = getBoundGithubURL();
+  if (!ghurl) return;
+  bootbox.prompt("<p>Are you sure you want to delete this repository (" + ghurl + ") from browser storage?</p><p>All changes since last commit will be lost.</p><p>Type DELETE to proceed.<p>", (yes) => {
+    if (yes.trim().toUpperCase() == "DELETE") {
+      deleteRepository();
+    }
+  });
+}
+
+function deleteRepository() {
+  var ghurl = getBoundGithubURL();
+  var gh;
+  setWaitDialog(true);
+  // delete all keys in storage
+  store.keys().then((keys:string[]) => {
+    return Promise.all(keys.map((key) => {
+      return store.removeItem(key);
+    }));
+  }).then(() => {
+    gh = getGithubService();
+    return gh.getGithubSession(ghurl);
+  }).then((sess) => {
+    // un-bind repo from list
+    gh.bind(sess, false);
+  }).then(() => {
+    setWaitDialog(false);
+    // leave repository
+    qs = {repo:'/'};
+    gotoNewLocation();
   });
 }
 
 function _shareEmbedLink(e) {
   if (current_output == null) { // TODO
-    alert("Please fix errors before sharing.");
+    alertError("Please fix errors before sharing.");
     return true;
   }
   if (!(current_output instanceof Uint8Array)) {
-    alert("Can't share a Verilog executable yet. (It's not actually a ROM...)");
+    alertError("Can't share a Verilog executable yet. (It's not actually a ROM...)");
     return true;
   }
   loadClipboardLibrary();
@@ -583,13 +701,13 @@ function get8bitworkshopLink(linkqs : string, fn : string) {
 }
 
 function _downloadCassetteFile(e) {
-  if (current_output == null) { // TODO
-    alert("Please fix errors before exporting.");
+  if (current_output == null) {
+    alertError("Please fix errors before exporting.");
     return true;
   }
   var addr = compparams && compparams.code_start;
   if (addr === undefined) {
-    alert("Cassette export is not supported on this platform.");
+    alertError("Cassette export is not supported on this platform.");
     return true;
   }
   loadScript('lib/c2t.js', () => {
@@ -611,7 +729,7 @@ function _downloadCassetteFile(e) {
       var blob = new Blob([audout], {type: "audio/wav"});
       saveAs(blob, audpath);
       stdout += "Then connect your audio output to the cassette input, turn up the volume, and play the audio file.";
-      alert(stdout);
+      alertInfo(stdout);
     }
   });
 }
@@ -620,18 +738,18 @@ function _revertFile(e) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.setText) {
     var fn = projectWindows.getActiveID();
-    // TODO: .mame
-    $.get( "presets/"+getBasePlatform(platform_id)+"/"+fn, function(text) {
-      if (confirm("Reset '" + fn + "' to default?")) {
-        wnd.setText(text);
-      }
+    $.get( "presets/"+getBasePlatform(platform_id)+"/"+fn, (text) => {
+      bootbox.confirm("Reset '" + fn + "' to default?", (ok) => {
+        if (ok) {
+          wnd.setText(text);
+        }
+      });
     }, 'text')
     .fail(() => {
-      // TODO: delete file
-      alert("Can only revert built-in files.");
+      alertError("Can only revert built-in files.");
     });
   } else {
-    alert("Cannot revert the active window. Please choose a text file.");
+    alertError("Cannot revert the active window. Please choose a text file.");
   }
 }
 
@@ -639,24 +757,22 @@ function _deleteFile(e) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.getPath) {
     var fn = projectWindows.getActiveID();
-    if (fn.startsWith("local/") || fn.startsWith("shared/")) {
-      if (confirm("Delete '" + fn + "'?")) {
-        store.removeItem(fn, () => {
+    bootbox.confirm("Delete '" + fn + "'?", (ok) => {
+      if (ok) {
+        store.removeItem(fn).then( () => {
           // if we delete what is selected
           if (qs['file'] == fn) {
             unsetLastPreset();
             gotoNewLocation();
           } else {
             updateSelector();
-            alert("Deleted " + fn);
+            alertInfo("Deleted " + fn);
           }
         });
       }
-    } else {
-      alert("Can only delete local files.");
-    }
+    });
   } else {
-    alert("Cannot delete the active window.");
+    alertError("Cannot delete the active window.");
   }
 }
 
@@ -664,28 +780,33 @@ function _renameFile(e) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.getPath && current_project.getFile(wnd.getPath())) {
     var fn = projectWindows.getActiveID();
-    var newfn = prompt("Rename '" + fn + "' to?", fn);
-    var data = current_project.getFile(wnd.getPath());
-    if (newfn && data) {
-      if (!checkEnteredFilename(newfn)) return;
-      store.removeItem(fn, () => {
-        store.setItem(newfn, data, () => {
-          alert("Renamed " + fn + " to " + newfn);
-          updateSelector();
-          if (fn == current_project.mainPath) {
-            reloadProject(newfn);
-          }
-        });
-      });
-    }
+    bootbox.prompt({
+      title: "Rename '" + fn + "' to?", 
+      value: fn,
+      callback: (newfn) => {
+        var data = current_project.getFile(wnd.getPath());
+        if (newfn && newfn != fn && data) {
+          if (!checkEnteredFilename(newfn)) return;
+          store.removeItem(fn).then( () => {
+            return store.setItem(newfn, data);
+          }).then( () => {
+            updateSelector();
+            alert("Renamed " + fn + " to " + newfn); // need alert() so it pauses
+            if (fn == current_project.mainPath) {
+              reloadProject(newfn);
+            }
+          });
+        }
+      }
+    });
   } else {
-    alert("Cannot rename the active window.");
+    alertError("Cannot rename the active window.");
   }
 }
 
 function _downloadROMImage(e) {
   if (current_output == null) {
-    alert("Please finish compiling with no errors before downloading ROM.");
+    alertError("Please finish compiling with no errors before downloading ROM.");
     return true;
   }
   if (current_output instanceof Uint8Array) {
@@ -721,37 +842,34 @@ function _downloadProjectZipFile(e) {
 function _downloadAllFilesZipFile(e) {
   loadScript('lib/jszip.min.js', () => {
     var zip = new JSZip();
-    var count = 0;
     store.keys( (err, keys : string[]) => {
-      if (err) throw err;
-      keys.forEach((path) => {
-        // TODO: handle binary files
-        store.getItem(path, (err, text) => {
+      return Promise.all(keys.map( (path) => {
+        return store.getItem(path).then( (text) => {
           if (text) {
             zip.file(path, text);
           }
-          if (++count == keys.length) {
-            zip.generateAsync({type:"blob"}).then( (content) => {
-              saveAs(content, platform_id + "-all.zip");
-            });
-          }
         });
+      })).then(() => {
+        return zip.generateAsync({type:"blob"});
+      }).then( (content) => {
+        return saveAs(content, platform_id + "-all.zip");
       });
     });
   });
 }
 
 function populateExamples(sel) {
-  // make sure to use callback so it follows other sections
-  store.length(function(err, len) {
-    sel.append($("<option />").text("--------- Examples ---------").attr('disabled','true'));
-    for (var i=0; i<PRESETS.length; i++) {
-      var preset = PRESETS[i];
-      var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
-      sel.append($("<option />").val(preset.id).text(name).attr('selected',(preset.id==current_project.mainPath)?'selected':null));
-    }
-    // don't create new entry if example not found
-  });
+  var files = {};
+  sel.append($("<option />").text("--------- Examples ---------").attr('disabled','true'));
+  for (var i=0; i<PRESETS.length; i++) {
+    var preset = PRESETS[i];
+    var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
+    var isCurrentPreset = preset.id==current_project.mainPath;
+    sel.append($("<option />").val(preset.id).text(name).attr('selected',isCurrentPreset?'selected':null));
+    if (isCurrentPreset) current_preset = preset;
+    files[preset.id] = name;
+  }
+  return files;
 }
 
 function populateRepos(sel) {
@@ -761,7 +879,7 @@ function populateRepos(sel) {
     if (repos) {
       for (let repopath in repos) {
         var repo = repos[repopath];
-        if (getBasePlatform(repo.platform_id) == getBasePlatform(platform_id)) {
+        if (repo.platform_id && getBasePlatform(repo.platform_id) == getBasePlatform(platform_id)) {
           if (n++ == 0)
             sel.append($("<option />").text("------ Repositories ------").attr('disabled','true'));
           sel.append($("<option />").val(repo.url).text(repo.url.substring(repo.url.indexOf('/'))));
@@ -771,47 +889,46 @@ function populateRepos(sel) {
   }
 }
 
-function populateFiles(sel:JQuery, category:string, prefix:string, callback:() => void) {
-  store.keys(function(err, keys : string[]) {
-    var foundSelected = false;
+function populateFiles(sel:JQuery, category:string, prefix:string, foundFiles:{}, callback:() => void) {
+  store.keys().then( (keys:string[]) => {
     var numFound = 0;
     if (!keys) keys = [];
     for (var i = 0; i < keys.length; i++) {
       var key = keys[i];
-      if (key.startsWith(prefix)) {
+      if (key.startsWith(prefix) && !foundFiles[key]) {
         if (numFound++ == 0)
           sel.append($("<option />").text("------- " + category + " -------").attr('disabled','true'));
         var name = key.substring(prefix.length);
         sel.append($("<option />").val(key).text(name).attr('selected',(key==current_project.mainPath)?'selected':null));
-        if (key == current_project.mainPath) foundSelected = true;
       }
-    }
-    // create new entry if not found, but it matches our prefix
-    if (!foundSelected && current_project.mainPath && current_project.mainPath.startsWith(prefix)) {
-      var name = current_project.mainPath.substring(prefix.length);
-      var key = prefix + name;
-      sel.append($("<option />").val(key).text(name).attr('selected','true'));
     }
     if (callback) { callback(); }
   });
 }
 
+function finishSelector(sel) {
+  sel.css('visibility','visible');
+  // create option if not selected
+  var main = current_project.mainPath;
+  if (sel.val() != main) {
+    sel.append($("<option />").val(main).text(main).attr('selected','selected'));
+  }
+}
+
 function updateSelector() {
   var sel = $("#preset_select").empty();
   if (!repo_id) {
-    // normal: populate local and shared files
-    populateFiles(sel, "Local Files", "local/", () => {
-      populateFiles(sel, "Shared", "shared/", () => {
-        populateRepos(sel);
-        populateExamples(sel);
-        sel.css('visibility','visible');
-      });
+    // normal: populate repos, examples, and local files
+    populateRepos(sel);
+    var foundFiles = populateExamples(sel);
+    populateFiles(sel, "Local Files", "", foundFiles, () => {
+      finishSelector(sel);
     });
   } else {
-    sel.append($("<option />").val('..').text('Leave Repository'));
+    sel.append($("<option />").val('/').text('Leave Repository'));
     // repo: populate all files
-    populateFiles(sel, repo_id, "", () => {
-      sel.css('visibility','visible');
+    populateFiles(sel, repo_id, "", {}, () => {
+      finishSelector(sel);
     });
   }
   // set click handlers
@@ -830,6 +947,17 @@ function showErrorAlert(errors : WorkerError[]) {
     div.append($("<p>").text(s));
   }
   $("#error_alert").show();
+}
+
+var measureTimeStart : Date = new Date();
+var measureTimeLoad : Date;
+function measureBuildTime() {
+  if (ga && measureTimeLoad) {
+    var measureTimeBuild = new Date();
+    ga('send', 'timing', 'ui', 'load', (measureTimeLoad.getTime() - measureTimeStart.getTime()));
+    ga('send', 'timing', 'worker', 'build', (measureTimeBuild.getTime() - measureTimeLoad.getTime()));
+    measureTimeLoad = null; // only measure once
+  }
 }
 
 function setCompileOutput(data: WorkerResult) {
@@ -851,6 +979,7 @@ function setCompileOutput(data: WorkerResult) {
         platform.loadROM(getCurrentPresetTitle(), rom);
         current_output = rom;
         if (!userPaused) _resume();
+        measureBuildTime();
         // TODO: reset profiler etc? (Tell views?)
       } catch (e) {
         console.log(e);
@@ -867,10 +996,12 @@ function setCompileOutput(data: WorkerResult) {
 
 function loadBIOSFromProject() {
   if (platform.loadBIOS) {
-    var biospath = 'local/' + platform_id + '.rom';
+    var biospath = platform_id + '.rom';
     store.getItem(biospath).then( (biosdata) => {
-      console.log('loading BIOS')
-      platform.loadBIOS('BIOS', biosdata);
+      if (biosdata instanceof Uint8Array) {
+        console.log('loading BIOS')
+        platform.loadBIOS('BIOS', biosdata);
+      }
     });
   }
 }
@@ -916,7 +1047,7 @@ function setDebugButtonState(btnid:string, btnstate:string) {
 
 function checkRunReady() {
   if (current_output == null) {
-    alert("Can't resume emulation until ROM is successfully built.");
+    alertError("Can't do this until build successfully completes.");
     return false;
   } else
     return true;
@@ -983,11 +1114,13 @@ function togglePause() {
 }
 
 function singleStep() {
+  if (!checkRunReady()) return;
   setupBreakpoint("step");
   platform.step();
 }
 
 function singleFrameStep() {
+  if (!checkRunReady()) return;
   setupBreakpoint("tovsync");
   platform.runToVsync();
 }
@@ -1014,11 +1147,13 @@ function runToCursor() {
 }
 
 function runUntilReturn() {
+  if (!checkRunReady()) return;
   setupBreakpoint("stepout");
   platform.runUntilReturn();
 }
 
 function runStepBackwards() {
+  if (!checkRunReady()) return;
   setupBreakpoint("stepback");
   platform.stepBack();
 }
@@ -1031,6 +1166,7 @@ function clearBreakpoint() {
 }
 
 function resetAndDebug() {
+  if (!checkRunReady()) return;
   _disableRecording();
   if (platform.setupDebug && platform.readAddress) { // TODO??
     clearBreakpoint();
@@ -1047,14 +1183,37 @@ function resetAndDebug() {
 }
 
 function _breakExpression() {
-  console.log(platform.saveState());
-  var exprs = window.prompt("Enter break expression", lastBreakExpr);
-  if (exprs) {
-    var fn = new Function('c', 'return (' + exprs + ');').bind(platform);
-    setupBreakpoint();
-    platform.runEval(fn as DebugEvalCondition);
-    lastBreakExpr = exprs;
-  }
+  var modal = $("#debugExprModal");
+  var btn = $("#debugExprSubmit");
+  $("#debugExprInput").val(lastBreakExpr);
+  $("#debugExprExamples").text(getDebugExprExamples());
+  modal.modal('show');
+  btn.off('click').on('click', () => {
+    var exprs = $("#debugExprInput").val()+"";
+    modal.modal('hide');
+    breakExpression(exprs);
+  });
+}
+
+function getDebugExprExamples() : string {
+  var state = platform.saveState && platform.saveState();
+  var cpu = state.c;
+  console.log(cpu, state);
+  var s = '';
+  if (cpu.PC) s += "c.PC == 0x" + hex(cpu.PC) + "\n";
+  if (cpu.SP) s += "c.SP < 0x" + hex(cpu.SP) + "\n";
+  if (cpu['HL']) s += "c.HL == 0x4000\n";
+  if (platform.readAddress) s += "this.readAddress(0x1234) == 0x0\n";
+  if (platform.readVRAMAddress) s += "this.readVRAMAddress(0x1234) != 0x80\n";
+  if (platform['getRasterScanline']) s += "this.getRasterScanline() > 222\n";
+  return s;
+}
+
+function breakExpression(exprs : string) {
+  var fn = new Function('c', 'return (' + exprs + ');').bind(platform);
+  setupBreakpoint();
+  platform.runEval(fn as DebugEvalCondition);
+  lastBreakExpr = exprs;
 }
 
 function getSymbolAtAddress(a : number) {
@@ -1101,7 +1260,7 @@ function _recordVideo() {
  loadScript("gif.js/dist/gif.js", () => {
   var canvas = $("#emulator").find("canvas")[0] as HTMLElement;
   if (!canvas) {
-    alert("Could not find canvas element to record video!");
+    alertError("Could not find canvas element to record video!");
     return;
   }
   var rotate = 0;
@@ -1111,7 +1270,6 @@ function _recordVideo() {
     else if (canvas.style.transform.indexOf("rotate(90deg)") >= 0)
       rotate = 1;
   }
-  // TODO: recording indicator?
   var gif = new GIF({
     workerScript: 'gif.js/dist/gif.worker.js',
     workers: 4,
@@ -1149,7 +1307,6 @@ function _recordVideo() {
   };
   f();
  });
- //TODO? return true;
 }
 
 export function setFrameRateUI(fps:number) {
@@ -1232,23 +1389,28 @@ function _lookupHelp() {
 function addFileToProject(type, ext, linefn) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.insertText) {
-    var filename = prompt("Add "+type+" File to Project", "filename"+ext);
-    if (filename && filename.trim().length > 0) {
-      if (!checkEnteredFilename(filename)) return;
-      var path = "local/" + filename;
-      var newline = "\n" + linefn(filename) + "\n";
-      current_project.loadFiles([path], (err, result) => {
-        if (result && result.length) {
-          alert(filename + " already exists; including anyway");
-        } else {
-          current_project.updateFile(path, "\n");
+    bootbox.prompt({
+      title:"Add "+type+" File to Project",
+      value:"filename"+ext,
+      callback:(filename:string) => {
+        if (filename && filename.trim().length > 0) {
+          if (!checkEnteredFilename(filename)) return;
+          var path = filename;
+          var newline = "\n" + linefn(filename) + "\n";
+          current_project.loadFiles([path]).then((result) => {
+            if (result && result.length) {
+              alertError(filename + " already exists; including anyway");
+            } else {
+              current_project.updateFile(path, "\n");
+            }
+            wnd.insertText(newline);
+            refreshWindowList();
+          });
         }
-        wnd.insertText(newline);
-        refreshWindowList();
-      });
-    }
+      }
+    });
   } else {
-    alert("Can't insert text in this window -- switch back to main file");
+    alertError("Can't insert text in this window -- switch back to main file");
   }
 }
 
@@ -1264,30 +1426,32 @@ function _addIncludeFile() {
   else if (tool == 'verilator')
     addFileToProject("Verilog File", ".v", (s) => { return '`include "'+s+'"' });
   else
-    alert("Can't add include file to this project type (" + tool + ")");
+    alertError("Can't add include file to this project type (" + tool + ")");
 }
 
 function _addLinkFile() {
   var fn = getCurrentMainFilename();
   var tool = platform.getToolForFilename(fn);
   if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65')
-    addFileToProject("Linked C", ".c", (s) => { return '//#link "'+s+'"' });
+    addFileToProject("Linked C (or .s)", ".c", (s) => { return '//#link "'+s+'"' });
+  else if (fn.endsWith("asm") || fn.endsWith(".s") || tool == 'ca65')
+    addFileToProject("Linked ASM", ".inc", (s) => { return ';#link "'+s+'"' });
   else
-    alert("Can't add linked file to this project type (" + tool + ")");
+    alertError("Can't add linked file to this project type (" + tool + ")");
 }
 
 function setupDebugControls() {
   // create toolbar buttons
   uitoolbar = new Toolbar($("#toolbar")[0], null);
   uitoolbar.grp.prop('id','debug_bar');
-  uitoolbar.add('ctrl+alt+.', 'Reset', 'glyphicon-refresh', resetAndDebug).prop('id','dbg_reset');
-  uitoolbar.add('ctrl+alt+p', 'Pause', 'glyphicon-pause', pause).prop('id','dbg_pause');
-  uitoolbar.add('ctrl+alt+r', 'Resume', 'glyphicon-play', resume).prop('id','dbg_go');
+  uitoolbar.add('ctrl+alt+r', 'Reset', 'glyphicon-refresh', resetAndDebug).prop('id','dbg_reset');
+  uitoolbar.add('ctrl+alt+,', 'Pause', 'glyphicon-pause', pause).prop('id','dbg_pause');
+  uitoolbar.add('ctrl+alt+.', 'Resume', 'glyphicon-play', resume).prop('id','dbg_go');
   if (platform.step) {
     uitoolbar.add('ctrl+alt+s', 'Single Step', 'glyphicon-step-forward', singleStep).prop('id','dbg_step');
   }
   if (platform.runToVsync) {
-    uitoolbar.add('ctrl+alt+v', 'Next Frame', 'glyphicon-forward', singleFrameStep).prop('id','dbg_tovsync');
+    uitoolbar.add('ctrl+alt+n', 'Next Frame/Interrupt', 'glyphicon-forward', singleFrameStep).prop('id','dbg_tovsync');
   }
   if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog')) {
     uitoolbar.add('ctrl+alt+l', 'Run To Line', 'glyphicon-save', runToCursor).prop('id','dbg_toline');
@@ -1306,10 +1470,13 @@ function setupDebugControls() {
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);
+  $("#item_github_login").click(_loginToGithub);
+  $("#item_github_logout").click(_logoutOfGithub);
   $("#item_github_import").click(_importProjectFromGithub);
   $("#item_github_publish").click(_publishProjectToGithub);
   $("#item_github_push").click(_pushProjectToGithub);
   $("#item_github_pull").click(_pullProjectFromGithub);
+  $("#item_repo_delete").click(_deleteRepository);
   $("#item_share_file").click(_shareEmbedLink);
   $("#item_reset_file").click(_revertFile);
   $("#item_rename_file").click(_renameFile);
@@ -1357,6 +1524,7 @@ function setupReplaySlider() {
       var frame = (<any>e.target).value;
       if (stateRecorder.loadFrame(frame)) {
         updateFrameNo(frame);
+        projectWindows.tick();
       }
     };
     var setFrameTo = (frame:number) => {
@@ -1364,6 +1532,7 @@ function setupReplaySlider() {
       if (stateRecorder.loadFrame(frame)) {
         replayslider.val(frame);
         updateFrameNo(frame);
+        projectWindows.tick();
         console.log('seek to frame',frame);
       }
     };
@@ -1410,8 +1579,19 @@ function showWelcomeMessage() {
     var is_vcs = platform_id.startsWith('vcs');
     var steps = [
         {
-          element: "#workspace",
+          element: "#platformsMenuButton",
+          placement: 'right',
           title: "Welcome to 8bitworkshop!",
+          content: "You're currently on the \"<b>" + platform_id + "</b>\" platform. You can choose a different one from the menu."
+        },
+        {
+          element: "#preset_select",
+          title: "Project Selector",
+          content: "You can choose different code examples, create your own files, or import projects from GitHub."
+        },
+        {
+          element: "#workspace",
+          title: "Code Editor",
           content: is_vcs ? "Type your 6502 assembly code into the editor, and it'll be assembled in real-time. All changes are saved to browser local storage."
                           : "Type your source code into the editor, and it'll be compiled in real-time. All changes are saved to browser local storage."
         },
@@ -1419,12 +1599,7 @@ function showWelcomeMessage() {
           element: "#emulator",
           placement: 'left',
           title: "Emulator",
-          content: "This is an emulator for the \"" + platform_id + "\" platform. We'll load your compiled code into the emulator whenever you make changes."
-        },
-        {
-          element: "#preset_select",
-          title: "File Selector",
-          content: "Pick a code example from the book, or access your own files and files shared by others."
+          content: "We'll load your compiled code into the emulator whenever you make changes."
         },
         {
           element: "#debug_bar",
@@ -1435,19 +1610,19 @@ function showWelcomeMessage() {
         {
           element: "#dropdownMenuButton",
           title: "Main Menu",
-          content: "Click the menu to download your code, switch between platforms, create new files, or share your work with others."
+          content: "Click the menu to create new files, download your code, or share your work with others."
         },
         {
           element: "#sidebar",
           title: "Sidebar",
-          content: "Switch between editor windows, assembly listings, and other tools like disassembler and memory dump."
+          content: "Pull right to expose the sidebar. It lets you switch between source files, view assembly listings, and use other tools like Disassembler, Memory Browser, and Asset Editor."
         }
       ];
     steps.push({
       element: "#booksMenuButton",
-      placement: 'left',
+      placement: 'bottom',
       title: "Bookstore",
-      content: "Get some books that explain how to program all of this stuff!"
+      content: "Get some books that explain how to program all of this stuff, and write some games!"
     });
     if (!isLandscape()) {
       steps.unshift({
@@ -1484,35 +1659,50 @@ var qs = (function (a : string[]) {
 
 // catch errors
 function installErrorHandler() {
-  if (typeof window.onerror == "object") {
+    if (typeof window.onerror == "object") {
       window.onerror = function (msgevent, url, line, col, error) {
-        var msgstr = msgevent+"";
+        var msgstr = msgevent['reason'] ? (msgevent['reason']+" (rejected)") : (msgevent+"");
         console.log(msgevent, url, line, col, error);
+        // emulation threw EmuHalt
         if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
           showErrorAlert([ {msg:msgstr, line:0} ]);
-          uiDebugCallback(platform.saveState());
-          setDebugButtonState("pause", "stopped"); // TODO?
+          uiDebugCallback(platform.saveState && platform.saveState());
+          setDebugButtonState("pause", "stopped");
         } else {
-          var msg = msgevent + " " + url + " " + " " + line + ":" + col + ", " + error;
+          // send exception msg to GA
+          var msg = msgstr;
+          //if (typeof error == 'string') msg += ": " + error;
+          if (url) msg += " " + url;
+          if (line) msg += " (" + line + ":" + col + ")";
+          if (msg.length > 256) { msg = msg.substring(0, 256); }
+          if (ga) ga('send', 'exception', {
+            'exDescription': msg,
+            'exFatal': true
+          });
           $.get("/error?msg=" + encodeURIComponent(msg), "text");
-          alert(msgevent+"");
+          alertError(msg);
         }
         _pause();
       };
-  }
+      window.onunhandledrejection = window.onerror;
+    }
 }
 
 function uninstallErrorHandler() {
   window.onerror = null;
 }
 
-function gotoNewLocation() {
+function gotoNewLocation(replaceHistory? : boolean) {
   uninstallErrorHandler();
-  window.location.href = "?" + $.param(qs);
+  if (replaceHistory)
+    window.location.replace("?" + $.param(qs));
+  else
+    window.location.href = "?" + $.param(qs);
 }
 
 function replaceURLState() {
   if (platform_id) qs['platform'] = platform_id;
+  delete qs['']; // remove null parameter
   history.replaceState({}, "", "?" + $.param(qs));
 }
 
@@ -1541,9 +1731,34 @@ function addPageFocusHandlers() {
   });
 }
 
+function showInstructions() {
+  var div = $(document).find(".emucontrols-" + getRootBasePlatform(platform_id));
+  var vcanvas = $("#emulator").find("canvas");
+  if (vcanvas) {
+    vcanvas.on('focus', () => {
+      if (platform.isRunning()) div.fadeIn(200);
+    });
+    vcanvas.on('blur', () => {
+      div.fadeOut(200);
+    });
+  }
+}
+
+function installGAHooks() {
+  if (ga) {
+    $(".dropdown-item").click((e) => {
+      if (e.target && e.target.id) {
+        gaEvent('menu', e.target.id);
+      }
+    });
+    ga('send', 'pageview', location.pathname + '?platform=' + platform_id + '&file=' + qs['file'] + (repo_id?('&repo='+repo_id):''));
+  }
+}
+
 function startPlatform() {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
-  platform = new PLATFORMS[platform_id]($("#emulator")[0]);
+  platform = new PLATFORMS[platform_id]($("#emuscreen")[0]);
+  setPlatformUI();
   stateRecorder = new StateRecorderImpl(platform);
   PRESETS = platform.getPresets();
   if (!qs['file']) {
@@ -1552,7 +1767,12 @@ function startPlatform() {
     if (hasLocalStorage) {
       lastid = localStorage.getItem("__lastid_"+store_id);
     }
-    qs['file'] = lastid || PRESETS[0].id;
+    // load first preset file, unless we're in a repo
+    var defaultfile = lastid || (repo_id ? null : PRESETS[0].id);
+    qs['file'] = defaultfile || 'DEFAULT';
+    if (!defaultfile) {
+      alertError("There is no default main file for this project. Try selecting one from the pulldown.");
+    }
   }
   // legacy vcs stuff
   if (platform_id == 'vcs' && qs['file'].startsWith('examples/') && !qs['file'].endsWith('.a')) {
@@ -1561,13 +1781,21 @@ function startPlatform() {
   // start platform and load file
   replaceURLState();
   platform.start();
+  // TODO: ordering of loads?
+  installGAHooks();
   loadBIOSFromProject();
   initProject();
   loadProject(qs['file']);
   setupDebugControls();
   updateSelector();
   addPageFocusHandlers();
+  showInstructions();
+  revealTopBar();
   return true;
+}
+
+function revealTopBar() {
+  setTimeout(() => { $("#controls_dynamic").css('visibility','inherit'); }, 250);
 }
 
 export function loadScript(scriptfn, onload, onerror?) {
@@ -1598,7 +1826,7 @@ export function setupSplits() {
     onDragEnd: () => {
       if (hasLocalStorage)
         localStorage.setItem(splitName, JSON.stringify(split.getSizes()))
-      projectWindows.resize();
+      if (projectWindows) projectWindows.resize();
     },
   });
 }
@@ -1608,7 +1836,7 @@ function loadImportedURL(url : string) {
   setWaitDialog(true);
   getWithBinary(url, (data) => {
     if (data) {
-      var path = 'shared/' + getFilenameForPath(url);
+      var path = 'shared/' + getFilenameForPath(url); // TODO: shared prefix?
       // TODO: progress dialog
       console.log("Importing " + data.length + " bytes as " + path);
       store.getItem(path, (err, olddata) => {
@@ -1616,7 +1844,7 @@ function loadImportedURL(url : string) {
         if (!olddata || confirm("Replace existing file '" + path + "'?")) {
           store.setItem(path, data, (err, result) => {
             if (err)
-              alert(err+"");
+              alert(err+""); // need to wait
             if (result != null) {
               delete qs['importURL'];
               qs['file'] = path;
@@ -1627,10 +1855,20 @@ function loadImportedURL(url : string) {
         }
       });
     } else {
-      alert("Could not load source code from URL: " + url);
+      alertError("Could not load source code from URL: " + url);
       setWaitDialog(false);
     }
   }, 'text');
+}
+
+function setPlatformUI() {
+  var name = platform.getMetadata && platform.getMetadata().name;
+  var menuitem = $('a[href="?platform='+platform_id+'"]');
+  if (menuitem.length) {
+    menuitem.addClass("dropdown-item-checked");
+    name = name || menuitem.text() || name;
+  }
+  $(".platform_name").text(name || platform_id);
 }
 
 // start
@@ -1638,25 +1876,29 @@ export function startUI(loadplatform : boolean) {
   installErrorHandler();
   // import from github?
   if (qs['githubURL']) {
-    importProjectFromGithub(qs['githubURL']);
+    importProjectFromGithub(qs['githubURL'], true);
     return;
-  }
-  // lookup repository
-  repo_id = qs['repo'];
-  if (hasLocalStorage && repo_id) {
-    var repo = getRepos()[repo_id];
-    console.log(repo_id, repo);
-    if (repo && !qs['file'])
-      qs['file'] = repo.mainPath;
-    if (repo && !qs['platform'])
-      qs['platform'] = repo.platform_id;
   }
   // add default platform?
   platform_id = qs['platform'] || (hasLocalStorage && localStorage.getItem("__lastplatform"));
   if (!platform_id) {
     platform_id = qs['platform'] = "vcs";
   }
-  $("#item_platform_"+platform_id).addClass("dropdown-item-checked");
+  // lookup repository
+  repo_id = qs['repo'] || (hasLocalStorage && localStorage.getItem("__lastrepo_" + platform_id));
+  if (hasLocalStorage && repo_id && repo_id !== '/') {
+    var repo = getRepos()[repo_id];
+    if (repo) {
+      qs['repo'] = repo_id;
+      if (repo.platform_id)
+        qs['platform'] = platform_id = repo.platform_id;
+      if (!qs['file'])
+        qs['file'] = repo.mainPath;
+    }
+  } else {
+    repo_id = '';
+    delete qs['repo'];
+  }
   setupSplits();
   // create store
   store_id = repo_id || getBasePlatform(platform_id);
@@ -1673,6 +1915,7 @@ export function startUI(loadplatform : boolean) {
       loadAndStartPlatform();
     } else {
       startPlatform();
+      revealTopBar();
     }
   });
 }
@@ -1680,12 +1923,16 @@ export function startUI(loadplatform : boolean) {
 function loadAndStartPlatform() {
   var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
   loadScript(scriptfn, () => {
-    console.log("loaded platform", platform_id);
-    startPlatform();
-    showWelcomeMessage();
-    document.title = document.title + " [" + platform_id + "] - " + (repo_id?('['+repo_id+'] - '):'') + current_project.mainPath;
+    console.log("starting platform", platform_id);
+    try {
+      startPlatform();
+      showWelcomeMessage();
+      document.title = document.title + " [" + platform_id + "] - " + (repo_id?('['+repo_id+'] - '):'') + current_project.mainPath;
+    } finally {
+      revealTopBar();
+    }
   }, () => {
-    alert('Platform "' + platform_id + '" not supported.');
+    alertError('Platform "' + platform_id + '" not supported.');
   });
 }
 
@@ -1706,3 +1953,47 @@ function convertLegacyVCS(store) {
     })
   }
 }
+
+// HTTPS REDIRECT
+
+const useHTTPSCookieName = "__use_https";
+
+function setHTTPSCookie(val : number) {
+  document.cookie = useHTTPSCookieName + "=" + val + ";domain=8bitworkshop.com;path=/;max-age=315360000";
+}
+
+function shouldRedirectHTTPS() : boolean {
+  // cookie set? either true or false
+  var shouldRedir = getCookie(useHTTPSCookieName);
+  if (typeof shouldRedir === 'string') {
+    return !!shouldRedir; // convert to bool
+  }
+  // set a 10yr cookie, value depends on if it's our first time here
+  var val = hasLocalStorage && !localStorage.getItem("__lastplatform") ? 1 : 0;
+  setHTTPSCookie(val);
+  return !!val;
+}
+
+function _switchToHTTPS() {
+  bootbox.confirm('<p>Do you want to force the browser to use HTTPS from now on?</p>'+
+  '<p>WARNING: This will make all of your local files unavailable, so you should "Download All Changes" first for each platform where you have done work.</p>'+
+  '<p>You can go back to HTTP by setting the "'+useHTTPSCookieName+'" cookie to 0.</p>', (ok) => {
+    if (ok) {
+      setHTTPSCookie(1);
+      redirectToHTTPS();
+    }
+  });
+}
+
+function redirectToHTTPS() {
+  if (window.location.protocol == 'http:' && window.location.host == '8bitworkshop.com') {
+    if (shouldRedirectHTTPS()) {
+      window.location.replace(window.location.href.replace(/^http:/, 'https:'));
+    } else {
+      $("#item_switch_https").click(_switchToHTTPS).show();
+    }
+  }
+}
+
+// redirect to HTTPS after script loads?
+redirectToHTTPS();

@@ -113,4 +113,29 @@ WaitVsync:
    assert.equal(11, result.output[0]);
    assert.equal(128, result.output.length);
   });
+
+  it('Should fail', function() {
+    var source = `.arch femto8
+    zero C
+`;
+    var asm = new assembler.Assembler(EXAMPLE_SPEC);
+    var result = asm.assembleFile(source);
+    console.log(result);
+    assert.deepEqual(
+      [ { msg: "Can't use 'c' here, only one of: a, b, ip, none", line: 2 } ],
+      result.errors);
+  });
+/*
+  it('Should fail 2', function() {
+    var source = `.arch femto8
+    mov A, [b]
+`;
+    var asm = new assembler.Assembler(EXAMPLE_SPEC);
+    var result = asm.assembleFile(source);
+    console.log(result);
+    assert.deepEqual(
+      [ { msg: "Can't use 'c' here, only one of: a, b, ip, none", line: 2 } ],
+      result.errors);
+  });
+*/
 });

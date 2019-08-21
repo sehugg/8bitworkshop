@@ -6,18 +6,19 @@ var PNG = require('pngjs').PNG;
 
 const jsdom = require('jsdom');
 const { JSDOM } = jsdom;
-const { window } = new JSDOM();
+//const { window } = new JSDOM();
 
 const dom = new JSDOM(`<!DOCTYPE html><div id="emulator"><div id="javatari-screen"></div></div>`);
 global.window = dom.window;
 global.document = dom.window.document;
 dom.window.Audio = null;
 global.Image = function() { }
-global['$'] = require("jquery/jquery-2.2.3.min.js");
-global.includeInThisContext('src/cpu/z80fast.js');
+global['$'] = require("jquery/jquery-3.4.1.min.js");
+includeInThisContext('src/cpu/z80.js');
+includeInThisContext('src/cpu/6809.js');
+global['buildZ80'] = global.window.buildZ80;
 includeInThisContext("javatari.js/release/javatari/javatari.js");
 Javatari.AUTO_START = false;
-includeInThisContext('src/cpu/z80fast.js');
 includeInThisContext('tss/js/Log.js');
 //global.Log = require('tss/js/Log.js').Log;
 includeInThisContext('tss/js/tss/PsgDeviceChannel.js');
@@ -41,6 +42,7 @@ var _williams = require('gen/platform/williams.js');
 var _sound_williams = require('gen/platform/sound_williams.js');
 var _astrocade = require('gen/platform/astrocade.js');
 var _atari8 = require('gen/platform/atari8.js');
+var _atari7800 = require('gen/platform/atari7800.js');
 var _coleco = require('gen/platform/coleco.js');
 var _sms = require('gen/platform/sms.js');
 
@@ -77,6 +79,7 @@ emu.RasterVideo = function(mainElement, width, height, options) {
   this.getFrameData = function() { return datau32; }
   this.getImageData = function() { return {data:datau8, width:width, height:height}; }
   this.updateFrame = function() {}
+  this.clearRect = function() {}
   this.setupMouseEvents = function() { }
   this.canvas = this;
   this.getContext = function() { return this; }
@@ -99,6 +102,10 @@ emu.VectorVideo = function(mainElement, width, height, options) {
 global.Worker = function() {
   this.msgcount = 0;
   this.postMessage = function() { this.msgcount++; }
+}
+
+global.Mousetrap = function() {
+  this.bind = function() { }
 }
 
 //
@@ -227,7 +234,14 @@ describe('Platform Replay', () => {
     });
   });
 
-  it('Should run williams', () => {
+  it('Should run williams 6809', () => {
+    var platform = testPlatform('williams', 'vidfill.asm.rom', 72, (platform, frameno) => {
+      if (frameno == 62) {
+        keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
+      }
+    });
+  });
+  it('Should run williams-z80', () => {
     var platform = testPlatform('williams-z80', 'game1.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
@@ -265,13 +279,11 @@ describe('Platform Replay', () => {
       }
     });
   });
-/* TODO
-  it('Should run atari8-5200', () => {
-    var platform = testPlatform('atari8-5200', 'hello.a.rom', 92, (platform, frameno) => {
+  it('Should run atari7800', () => {
+    var platform = testPlatform('atari7800', 'sprites.dasm.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
-        keycallback(Keys.VK_SPACE.c, Keys.VK_SPACE.c, 1);
+        keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
       }
     });
   });
-*/
 });

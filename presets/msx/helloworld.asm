@@ -1,13 +1,10 @@
-﻿
+
 ; Hello World example
 
 ; ROM routine for character output
 CHPUT:  equ $00A2
 
-; waste space @ 0x0000 - 0x3fff
-	org 0x0000        
-        db 0
-        ds 0x3fff
+	org 0x4000
         
 ; MSX cartridge header @ 0x4000 - 0x400f
 	dw 0x4241

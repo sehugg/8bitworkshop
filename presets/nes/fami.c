@@ -1,8 +1,15 @@
 
+/*
+Demonstrates the Famitone2 library for sound and music.
+Press controller buttons to hear sound effects.
+*/
+
 #include "neslib.h"
 
 // link the pattern table into CHR ROM
 //#link "chr_generic.s"
+
+// setup Famitone library
 
 //#link "famitone2.s"
 void __fastcall__ famitone_update(void);
@@ -24,7 +31,7 @@ void main(void)
   //famitone_init(after_the_rain_music_data);
   famitone_init(danger_streets_music_data);
   sfx_init(demo_sounds);
-  // set music callback
+  // set music callback function for NMI
   nmi_set_callback(famitone_update);
   // play music
   music_play(0);

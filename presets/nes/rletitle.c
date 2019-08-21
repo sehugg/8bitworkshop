@@ -1,6 +1,8 @@
 
-// this example code unpacks a RLE'd nametable into the VRAM
-// you can create the source data using NES Screen Tool
+/*
+Unpacks a RLE-compressed nametable+attribute table into VRAM.
+Also uses the pal_bright() function to fade in the palette.
+*/
 
 #include "neslib.h"
 
@@ -16,7 +18,7 @@ extern const byte climbr_title_rle[];
 void fade_in() {
   byte vb;
   for (vb=0; vb<=4; vb++) {
-    // set virtual bright vaule
+    // set virtual bright value
     pal_bright(vb);
     // wait for 4/60 sec
     ppu_wait_frame();

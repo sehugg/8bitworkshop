@@ -5,18 +5,15 @@
 #include <cv.h>
 #include <cvu.h>
 
-#define IMAGE ((const cv_vmemp)0x1c00)
-
 #define COLS 40
-#define ROWS 24
 
-uintptr_t __at(0x6a) font_bitmap_a;
-uintptr_t __at(0x6c) font_bitmap_0;
+#include "common.h"
+//#link "common.c"
 
 void setup_40_column_font() {
   cv_set_image_table(IMAGE);
-  cvu_memtovmemcpy(0x1800, (void *)(font_bitmap_0 - 0x30*8), 2048);
-  cv_set_character_pattern_t(0x1800);
+  copy_default_character_set();
+  cv_set_character_pattern_t(PATTERN);
   cv_set_screen_mode(CV_SCREENMODE_TEXT);
 }
 

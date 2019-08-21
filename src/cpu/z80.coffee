@@ -2349,7 +2349,7 @@ window.buildZ80 = (opts) ->
 							l = READMEM(inttemp);
 							inttemp = (inttemp+1) & 0xffff;
 							h = READMEM(inttemp);
-							console.log(hex(interruptDataBus), hex(inttemp), hex(l), hex(h));
+							/*console.log(hex(interruptDataBus), hex(inttemp), hex(l), hex(h));*/
 							regPairs[#{rpPC}] = (h<<8) | l;
 							tstates += 7;
 							break;
@@ -2447,7 +2447,7 @@ window.buildZ80 = (opts) ->
 				regPairs[#{rpIR}] = snapRegs['IR'];
 				iff1 = snapRegs['iff1'] & 1;
 				iff2 = snapRegs['iff2'] & 1;
-				im = snapRegs['im'] & 1;
+				im = snapRegs['im'] & 3;
 				halted = !!snapRegs['halted'];
 				tstates = snapRegs['T'] * 1;
 				interruptPending = !!snapRegs['intp'];

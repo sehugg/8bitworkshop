@@ -1,65 +1,68 @@
 "use strict";
 
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString, ProfilerOutput } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags, EmuHalt } from "../emu";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags, EmuHalt, ControllerPoller } from "../emu";
 import { hex, lpad, lzgmini, byteArrayToString } from "../util";
 import { CodeAnalyzer_nes } from "../analysis";
 import { SampleAudio } from "../audio";
 
 declare var jsnes : any;
+declare var Mousetrap;
 
 const JSNES_PRESETS = [
   {id:'hello.c', name:'Hello World'},
+  {id:'attributes.c', name:'Attribute Table'},
   {id:'scroll.c', name:'Scrolling'},
-  {id:'vrambuffer.c', name:'VRAM Buffer'},
   {id:'sprites.c', name:'Sprites'},
   {id:'metasprites.c', name:'Metasprites'},
   {id:'flicker.c', name:'Flickering Sprites'},
   {id:'metacursor.c', name:'Controllers'},
+  {id:'vrambuffer.c', name:'VRAM Buffer'},
+  {id:'statusbar.c', name:'Split Status Bar'},
+  {id:'siegegame.c', name:'Siege Game'},
   {id:'tint.c', name:'Color Emphasis'},
   {id:'rletitle.c', name:'Title Screen RLE'},
-  {id:'statusbar.c', name:'Split Status Bar'},
-  {id:'horizmask.c', name:'Offscreen Scrolling'},
-  {id:'monobitmap.c', name:'Monochrome Bitmap'},
   {id:'aputest.c', name:'Sound Tester'},
   {id:'music.c', name:'Music Player'},
-  {id:'siegegame.c', name:'Siege Game'},
-  {id:'shoot2.c', name:'Solarian Game'},
-  {id:'climber.c', name:'Platform Game'},
+  {id:'horizscroll.c', name:'Offscreen Scrolling'},
+  {id:'monobitmap.c', name:'Monochrome Bitmap'},
   {id:'fami.c', name:'Famitone Demo'},
+  {id:'shoot2.c', name:'Solarian Game'},
+  {id:'climber.c', name:'Climber Game'},
   {id:'bankswitch.c', name:'Bank Switching'},
   {id:'irq.c', name:'IRQ Scanline Counter'},
-  {id:'ex0.asm', name:'Initialization (ASM)'},
-  {id:'ex1.asm', name:'Hello World (ASM)'},
-  {id:'ex2.asm', name:'Scrolling Demo (ASM)'},
-  {id:'ex3.asm', name:'Sprite Demo (ASM)'},
-  {id:'ex4.asm', name:'Controller Demo (ASM)'},
-  {id:'musicdemo.asm', name:'Famitone Demo (ASM)'},
-  {id:'xyscroll.asm', name:'XY Split Scrolling (ASM)'},
-  {id:'scrollrt.asm', name:'Line-by-line Scrolling (ASM)'},
-  {id:'road.asm', name:'3-D Road Demo (ASM)'},
+  {id:'ex0.dasm', name:'Initialization (ASM)'},
+  {id:'ex1.dasm', name:'Hello World (ASM)'},
+  {id:'ex2.dasm', name:'Scrolling Demo (ASM)'},
+  {id:'ex3.dasm', name:'Sprite Demo (ASM)'},
+  {id:'ex4.dasm', name:'Controller Demo (ASM)'},
+  {id:'musicdemo.dasm', name:'Famitone Demo (ASM)'},
+  {id:'xyscroll.dasm', name:'XY Split Scrolling (ASM)'},
+//  {id:'scrollrt.dasm', name:'Line-by-line Scrolling (ASM)'},
+  {id:'road.dasm', name:'3-D Road Demo (ASM)'},
   {id:'chase/game.c', name:'Shiru\'s Chase Game'},
 ];
 
 /// JSNES
 
 const JSNES_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_X,     0, 0],
-  [Keys.VK_Z,     0, 1],
-  [Keys.VK_SPACE, 0, 2],
-  [Keys.VK_ENTER, 0, 3],
-  [Keys.VK_UP,    0, 4],
-  [Keys.VK_DOWN,  0, 5],
-  [Keys.VK_LEFT,  0, 6],
-  [Keys.VK_RIGHT, 0, 7],
-  [Keys.VK_Q,     1, 0],
-  [Keys.VK_E,     1, 1],
-  [Keys.VK_4,     1, 2],
-  [Keys.VK_3,     1, 3],
-  [Keys.VK_W,     1, 4],
-  [Keys.VK_S,     1, 5],
-  [Keys.VK_A,     1, 6],
-  [Keys.VK_D,     1, 7],
+  [Keys.A,        0, 0],
+  [Keys.B,        0, 1],
+  [Keys.SELECT,   0, 2],
+  [Keys.START,    0, 3],
+  [Keys.UP,       0, 4],
+  [Keys.DOWN,     0, 5],
+  [Keys.LEFT,     0, 6],
+  [Keys.RIGHT,    0, 7],
+  
+  [Keys.P2_A,      1, 0],
+  [Keys.P2_B,      1, 1],
+  [Keys.P2_SELECT, 1, 2],
+  [Keys.P2_START,  1, 3],
+  [Keys.P2_UP,     1, 4],
+  [Keys.P2_DOWN,   1, 5],
+  [Keys.P2_LEFT,   1, 6],
+  [Keys.P2_RIGHT,  1, 7],
 ]);
 
 class JSNESPlatform extends Base6502Platform implements Platform {
@@ -69,6 +72,7 @@ class JSNESPlatform extends Base6502Platform implements Platform {
   video;
   audio;
   timer;
+  poller : ControllerPoller;
   audioFrequency = 44030; //44100
   frameindex = 0;
   ntvideo;
@@ -92,12 +96,15 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     this.ntvideo.create();
     $(this.ntvideo.canvas).hide();
     this.ntlastbuf = new Uint32Array(0x1000);
+    Mousetrap.bind('ctrl+shift+alt+n', () => {
+      $(this.video.canvas).toggle()
+      $(this.ntvideo.canvas).toggle()
+    });
     // toggle buttons (TODO)
     /*
     $('<button>').text("Video").appendTo(debugbar).click(() => { $(this.video.canvas).toggle() });
     $('<button>').text("Nametable").appendTo(debugbar).click(() => { $(this.ntvideo.canvas).toggle() });
     */
-
     var idata = this.video.getFrameData();
     this.nes = new jsnes.NES({
       onFrame: (frameBuffer : number[]) => {
@@ -111,7 +118,7 @@ class JSNESPlatform extends Base6502Platform implements Platform {
         if (this.frameindex < 10)
           this.audio.feedSample(0, 1); // avoid popping at powerup
         else
-          this.audio.feedSample(left+right, 1);
+          this.audio.feedSample((left+right)*0.5, 1);
       },
       onStatusUpdate: function(s) {
         console.log(s);
@@ -134,7 +141,7 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     }
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // set keyboard map
-    setKeyboardFromMap(this.video, [], JSNES_KEYCODE_MAP, (o,key,code,flags) => {
+    this.poller = setKeyboardFromMap(this.video, [], JSNES_KEYCODE_MAP, (o,key,code,flags) => {
       if (flags & KeyFlags.KeyDown)
         this.nes.buttonDown(o.index+1, o.mask); // controller, button
       else if (flags & KeyFlags.KeyUp)
@@ -142,6 +149,8 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     });
     //var s = ''; nes.ppu.palTable.curTable.forEach((rgb) => { s += "0x"+hex(rgb,6)+", "; }); console.log(s);
   }
+  
+  pollControls() { this.poller.poll(); }
 
   advance(novideo : boolean) {
     this.nes.frame();
@@ -334,10 +343,10 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     var scrollY = ppu.regFV + ppu.regVT*8;
     s += "ScrollX $" + hex(scrollX) + " (" + ppu.regHT + " * 8 + " + ppu.regFH + " = " + scrollX + ")\n";
     s += "ScrollY $" + hex(scrollY) + " (" + ppu.regVT + " * 8 + " + ppu.regFV + " = " + scrollY + ")\n";
-    s += " Vstart $" + hex(ppu.vramTmpAddress,4) + "\n";
     s += "\n";
     s += "   Scan Y: " + ppu.scanline + "  X: " + ppu.curX + "\n";
-    s += " VRAM " + (ppu.firstWrite?"@":"?") + " $" + hex(ppu.vramAddress,4) + "\n";
+    s += "VramCur" + (ppu.firstWrite?" ":"?") + "$" + hex(ppu.vramAddress,4) + "\n";
+    s += "VramTmp $" + hex(ppu.vramTmpAddress,4) + "\n";
     /*
     var PPUREGS = [
       'cntFV',
@@ -374,6 +383,11 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     s += "\n";
     return s;
   }
+  getToolForFilename = (fn:string) : string => {
+    //if (fn.endsWith(".asm")) return "ca65"; // .asm uses ca65
+    if (fn.endsWith(".nesasm")) return "nesasm";
+    else return getToolForFilename_6502(fn);
+  }
 }
 
 /// MAME support
@@ -407,13 +421,14 @@ class NESMAMEPlatform extends BaseMAMEPlatform implements Platform {
   }
 
   getPresets() { return JSNES_PRESETS; }
-  getOpcodeMetadata = getOpcodeMetadata_6502;
   getToolForFilename = getToolForFilename_6502;
+  getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtension() { return ".c"; };
 }
 
 ///
 
 PLATFORMS['nes'] = JSNESPlatform;
+PLATFORMS['nes-asm'] = JSNESPlatform;
 PLATFORMS['nes.mame'] = NESMAMEPlatform;
 

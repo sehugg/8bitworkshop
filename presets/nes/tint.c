@@ -1,4 +1,9 @@
 
+/*
+Demonstrates the PPU's tint and monochrome bits.
+Use the controller to see different combinations.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 

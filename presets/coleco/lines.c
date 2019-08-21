@@ -5,16 +5,7 @@
 #include <cv.h>
 #include <cvu.h>
 
-#define PATTERN ((const cv_vmemp)0x0)
-#define COLOR ((const cv_vmemp)0x2000)
-#define IMAGE ((const cv_vmemp)0x1800)
-
-#define COLS 32
-#define ROWS 24
-
-typedef unsigned char byte;
-typedef signed char sbyte;
-typedef unsigned short word;
+#include "common.h"
 
 void setup_mode2() {
   cvu_vmemset(0, 0, 0x4000);

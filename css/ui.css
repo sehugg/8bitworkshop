@@ -49,8 +49,8 @@
  background-color:#000066;
 }
 #controls_top {
-  position: absolute;
-  padding: 0.5em;
+  position:absolute;
+  padding:0.5em;
   height:3em;
   width:100%;
   background-color:#999;
@@ -111,7 +111,7 @@ div.mem_info a.selected {
  text-align:right;
 }
 .btn_group {
-  border-radius:6px;
+  border-radius:8px;
   padding:8px;
   margin-left:8px;
   background-color: #666;
@@ -223,6 +223,8 @@ a.dropdown-toggle {
 div.emulator {
   background-color: #666;
   margin-top: 20px auto 0;
+  display:flex;
+  flex-direction:column;
 }
 div.emuoverlay {
   display:flex;
@@ -248,6 +250,10 @@ div.emuspacer {
   margin-right:5%;
   width:90%;
   pointer-events:auto;
+}
+.emuvideo:focus {
+  outline:none;
+  border-color:#888;
 }
 canvas.pixelated {
   image-rendering: optimizeSpeed;             /* Older versions of FF          */
@@ -277,14 +283,15 @@ canvas.pixelated {
     font-family: TinyFont;
     src: url(04B_03__.TTF);
 }
-#booksMenuButton {
-  border-width:3px;
-  border-color:#99ff99;
-  background-color:#006600;
+.toolbarMenuButton {
+  background-color:#666;
   border-style:solid;
-  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   position:relative;
-  top:-0.25em;
+  margin-left:0.5em;
+  margin-right:0.5em;
+}
+a.toolbarMenuButton {
+  padding:0.3em;
 }
 a.dropdown-toggle {
 }
@@ -515,4 +522,24 @@ div.asset_editor {
 div.asset_toolbar {
   padding:8px;
   margin:8px;
+}
+.control-insns {
+  margin-top: auto;
+  margin-bottom: 2em;
+}
+.control-key {
+  border: 2px solid rgba(0,0,0,0.2);
+  border-radius: 0.6em;
+  padding: 0.2em;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  background-color: #eee;
+  margin-left: 1em;
+  color: #666;
+}
+.control-def {
+  color: #ccc;
+}
+.book-title {
+  font-size:12pt;
 }

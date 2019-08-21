@@ -6,14 +6,8 @@ TODO:
 - confuse code/data in listing
 - show memory locations hovering over lines
 - don't check against ROM signatures
-- support 6502 test cases
 - DASM: macro forward refs
 - asm: support macro expansion
-- support narrow screens
-- case sensisitvity looking for mismatch variables
-- remove pulldown when no preset?
-- can't step after reset (or when funky frame; TIA frame is out of sync)
-- break on BRK/illegal opcode?
 - multiple breakpoints, expression breakpoints
 - watchpoints
 - debug inspector for variables
@@ -21,95 +15,96 @@ TODO:
 - step over (line, instruction)
 - slowdown beam for all platforms?
 - PC x86 support
+  - https://bellard.org/tcc/
 - show errors in list (maybe window list?)
-- can't see 1st line in editor sometimes (when scrolling cursor past bottom of screen)
+  - click to go to error
+  - what if error in include file you can't edit b/c it never appears?
 - online help
 - show self-modifying code insns left of editor
-- facade/kbd shortcuts for emulators, focus
 - update Javatari version? (and others?)
-- unify versioning
-- disassembler for uploaded ROMs
-- compile stuck when errors unchanged
 - sound mute?
 - $error updates source editor
-- go to error in include files
 - online tools for music etc
 - text log debugging script
-- NES crt should mark raster pos when debugging
 - intro/help text for each platform
 - vscode/atom extension?
-- VCS asm library
-- better VCS single stepping, maybe also listings
-- VCS skips step on lsr/lsr after run to line
-- error msg when #link doesn't work
-- figure out folders for projects for real
 - click to break on raster position
 - restructure src/ folders
 - debug bankswitching for funky formats
 - spaces in filename don't parse code listing (DASM, maybe more)
 - 'undefined' for bitmap replacer
-- astrocade: run to cursor in hello world messes up emulation
 - requestInterrupt needs to be disabled after breakpoint?
-- C/asm formatter
+- C/asm source formatter
 - fix WebAudio (https://news.ycombinator.com/item?id=18066474)
 - allow download of JSASM output
 - update bootstrap to 4.0
 - batariBasic: proper line numbers, debugging
 - granular control over time scrubbing, show CPU state
-- error showing replay div before rom starts
-- compiler flags for final ROM build
-- workermain: split build functions, better msg types
-- vcs: INPTx needs to be added to control state
-- sdcc: can't link asm files before c files (e.g. acheader.s must be last)
-- what if >1 file with same name? (local/nonlocal/directory)
-- what if .c and .s names collide?
+- builds:
+  - compiler flags for final ROM build
+  - workermain: split build functions, better msg types
+  - what if >1 file with same name? (local/nonlocal/directory)
+  - what if .c and .s names collide?
+  - maybe put stuff in examples/ dir?
+  - error msg when #link doesn't work
+  - warning when ROM too big
+  - detect "libcv.h" and include library automagically?
+- sdcc:
+  - can't link asm files before c files (e.g. acheader.s must be last)
+  - figure out area names ordering
+  - debug inline asm
 - live coding URL
-- resize memory browser when vertical div resize
-- preroll the emulator so optimizer does its thing before loading rom
+- resize memory browser, other windows when vertical div resize
+- preroll the Z80 emulator so optimizer does its thing before loading rom
 - wasm dynamic linking of emulators (https://github.com/WebAssembly/tool-conventions/blob/master/DynamicLinking.md)
-- use alternate confirm/prompt dialogs
 - https://github.com/jvilk/BrowserFS
-- what if error in include file you can't edit b/c it never appears?
 - markdown, verilog: can't share
 - https://www.crowdsupply.com/tinyfpga/tinyfpga-bx
-- HTTPS warning
 - stego shareable images (http://pico-8.wikia.com/wiki/P8PNGFileFormat)
 - https://makecode.com/language?
 - open ROM from URL?
 - game starts even if switched away before first load
-- vcs: break on # of lines changed (maybe using getRasterPosition?)
-- profiler restarts when paused
 - it's pretty easy to add a new file named like a library file (bcd.c)
   - or have neslib.h in a subdirectory...
 - put globals into view/controller objects
 - upload binary files doesn't do what's expected, changing pulldown and whatnot
-- chrome autostart audio: https://github.com/processing/p5.js-sound/issues/249
-- firefox autostart audio: https://support.mozilla.org/en-US/kb/block-autoplay
-- show player controls for each platform, allow touch support, navigator.getGamepads
+- autostart audio
+  - chrome: https://github.com/processing/p5.js-sound/issues/249
+  - firefox: https://support.mozilla.org/en-US/kb/block-autoplay
+- touch support
 - better undo/diff for mistakes?
 - ide bug/feature visualizer for sponsors
-- optimization flags for sdcc (oldralloc)
 - global undo/redo at checkpoints (when rom changes)
-- pulldown shows wrong file if preset not present
 - landscape mode for arcade ports
+- symmetric load/save state types
 - pixel editor
   - persist palette/tilemap selections
   - more tools for editing
   - map editor
+  - arbitrary nametable editing
   - metasprites
   - throw errors when bad/no refs
   - per-View keyboard shortcuts
   - parse labels
   - parse .incbin directives?
   - can't replace in hex directives
+  - should maybe use same single-canvas editor for map + char editor
+  - undo doesn't refresh editor
+  - editing sometimes messes up cursor movement (CURBS)
 - crt0.s compiled each time?
 - debug highlight doesn't go away when debugging -> running
   - show breakpoint of PC or highest address on stack
   - can we highlight line instead of select?
-- replay doesn't work for nes (force background tile redraw)
-- running profiler while replaying? grand unified replay?
-- click on profiler to step to position
-  - breakpoints stop profiler from running
+- profiler
+  - profiler restarts emulator when paused
+  - running profiler while replaying? grand unified replay?
+  - click on profiler to step to position
+    - breakpoints stop profiler from running
+  - single-screen profiler
+  - hide labels that aren't available, like BIOS addrs
+  - show interrupts, other events
+  - sometimes interleaves two different PCs? like two profilers running simultaneously?
+    - ah, symbols persist across builds
 - https://remotestoragejs.readthedocs.io/en/latest/getting-started/how-to-add.html ?
 - Verilog
   - larger scope range, better scrolling
@@ -123,29 +118,66 @@ TODO:
   - toolbar overlaps scope
   - CPU debugging
   - use $readmem for inline asm programs?
+  - can't add control instructions b/c of split
 - single-stepping vector games makes screen fade
-- break on stack overflow, bad op, bad access, etc
-- PPU/TIA register write visualization
-- nes debug view toolbar
-- vcs sound continues when paused
+- break on stack overflow, illegal op, bad access, BRK, etc
+- nes
+  - replay doesn't work for nes (force background tile redraw)
+  - nes debug view toolbar
+  - support NES_HEADER_16K?
+  - PPU/TIA register write visualization
+  - show cur/tmp vram addresses
+  - NES crt should mark raster pos when debugging
+  - OAMDMA in profiler? (haltCycles)
+  - ca65 skeleton
+  - neslib.cfg nesbanked.cfg ZP segment is C64-ish, should use $00-$FF
+- JSNES
+  - doesn't support hiding >8 sprites
+  - doesn't do sprite zero test right
+  - doesn't do clip right
+  - doesn't do b/w tint
+- vcs
+  - vcs sound continues when paused
+  - vcs: INPTx needs to be added to control state
+  - vcs: break on # of lines changed (maybe using getRasterPosition?)
+  - chrome looks blurry on vcs
+  - VCS asm game library
+  - VCS skips step on lsr/lsr after run to line
+  - better VCS single stepping, maybe also listings
 - upload multiple files/zip file to subdirectory
   - allow "include graphics.asm" instead of "include project/graphics.asm"
-- chrome looks blurry on vcs
 - convert more stuff to Promises
+- target ES6
 - don't have to include bootstrap-tourist each time?
 - don't have to include firebase always?
+  - squelch error msgs? 
+  - test offline? (if window.firebase)
 - Github
+  - platform_id/repo.platform mismatch (can't leave repository)
   - gh-pages branch with embedded
   - handle overwrite logic
-  - test edge/failure cases
   - what to do about included files?
-  - what if files already open in editor
-  - un-bind from repo?
   - can published files retain path?
   - what if import interrupted and partial files?
   - CORS for some blobs?
-  - confusing when examples load if file not found
   - don't import useless files
+  - support projects with subdirectories, file list?
+  - emulator needs reset shortcut for nes
+  - switching platform of a repo?
+  - make sure to flatten subdirs
+- astrocade
+- keyboard shortcuts
+  - ctrl+alt+l on ubuntu locks screen
+  - alt-D doesn't work anymore
+  - facade/kbd shortcuts for emulators, focus
+- cookie
+  - list of stuff for policy
+  - popup
+- convert binary to hex stmts
+- "suggestions" (vblank overrun, variable # scanlines, etc)
+- SMS
+  - can't step back twice?
+  - compiler bug in chase
 
 
 WEB WORKER FORMAT
@@ -281,3 +313,43 @@ Pull
 Push
 
 Git metadata kept in local storage
+
+Converting from NESASM to DASM
+- asl a -> asl
+- subroutine keyword on labels
+- [zp],y to (zp),y
+- LOW(x) and HIGH(x) to <() and >()
+- .db to .byte, .dw to .word
+- use NES_HEADER macros
+- no .bank
+
+Cross platform NES/SMS/GG library
+- use CHR RAM
+  - create flipped tiles/sprites
+  - create alternate palette tiles
+- metatiles
+- cross platform music/sound
+- scrolling
+  - row/column mask
+  - no nametable mirroring in SMS
+  - 256x240 vs 256x192
+
+Emulator Lib
+- move getPresets() (into presets/ dir?)
+- CPU interface
+  - execCycle(), execInsn()
+  - fix/unfix PC
+  - interrupt
+- generic raster scanline platform
+- PlatformRunner
+  - handles rewind, intra-frame breakpoint, debugging
+  - profiling log, exec/read/write/intr (for each bus?)
+- expose video, audio, controller interfaces
+- new debugging info
+- memory map interface
+- "About" metadata
+- auto load/save state?
+- handle legacy
+  - VCS
+  - NES
+  - MAME

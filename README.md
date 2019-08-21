@@ -44,7 +44,7 @@ make tsweb
 ## Run tests
 
 ```sh
-make test
+npm test
 ```
 
 ## Author
@@ -65,6 +65,12 @@ Give a ⭐️ if this project helped you!
 
 Copyright © 2019 [Steven Hugg](https://github.com/sehugg).<br />
 This project is [GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE) licensed.
+
+Dependencies retain their original licenses.
+
+All included code samples (all files under the presets/ directory) are licensed under
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/)
+unless otherwise licensed.
 
 ***
 _This README was generated with ❤️ by [readme-md-generator](https://github.com/kefranabg/readme-md-generator)_

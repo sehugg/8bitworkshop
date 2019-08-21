@@ -7,9 +7,8 @@
 #include "common.h"
 //#link "common.c"
 
-#ifdef CV_SMS
+// for SMS
 //#link "fonts.s"
-#endif
 
 ////////// GAME DATA
 
@@ -41,26 +40,26 @@ const char BOX_CHARS[8] = {
 
 void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
   byte x1 = x;
-  putchar(x, y, chars[2]);
-  putchar(x2, y, chars[3]);
-  putchar(x, y2, chars[0]);
-  putchar(x2, y2, chars[1]);
+  putcharxy(x, y, chars[2]);
+  putcharxy(x2, y, chars[3]);
+  putcharxy(x, y2, chars[0]);
+  putcharxy(x2, y2, chars[1]);
   while (++x < x2) {
-    putchar(x, y, chars[5]);
-    putchar(x, y2, chars[4]);
+    putcharxy(x, y, chars[5]);
+    putcharxy(x, y2, chars[4]);
   }
   while (++y < y2) {
-    putchar(x1, y, chars[6]);
-    putchar(x2, y, chars[7]);
+    putcharxy(x1, y, chars[6]);
+    putcharxy(x2, y, chars[7]);
   }
 }
 
 void draw_playfield() {
   draw_box(0,1,COLS-1,ROWS-1,BOX_CHARS);
-  putstring(0,0,"Plyr1:");
-  putstring(20,0,"Plyr2:");
-  putchar(7,0,CHAR(players[0].score+'0'));
-  putchar(27,0,CHAR(players[1].score+'0'));
+  putstringxy(0,0,"Plyr1:");
+  putstringxy(20,0,"Plyr2:");
+  putcharxy(7,0,CHAR(players[0].score+'0'));
+  putcharxy(27,0,CHAR(players[1].score+'0'));
 }
 
 typedef enum { D_RIGHT, D_DOWN, D_LEFT, D_UP } dir_t;
@@ -86,14 +85,14 @@ void reset_players() {
 }
 
 void draw_player(Player* p) {
-  putchar(p->x, p->y, p->head_attr);
+  putcharxy(p->x, p->y, p->head_attr);
 }
 
 void move_player(Player* p) {
-  putchar(p->x, p->y, p->tail_attr);
+  putcharxy(p->x, p->y, p->tail_attr);
   p->x += DIR_X[p->dir];
   p->y += DIR_Y[p->dir];
-  if (getchar(p->x, p->y) != CHAR(' '))
+  if (getcharxy(p->x, p->y) != CHAR(' '))
     p->collided = 1;
   draw_player(p);
 }
@@ -118,7 +117,7 @@ byte ai_try_dir(Player* p, dir_t dir, byte shift) {
   dir &= 3;
   x = p->x + (DIR_X[dir] << shift);
   y = p->y + (DIR_Y[dir] << shift);
-  if (x < 29 && y < 27 && getchar(x, y) == CHAR(' ')) {
+  if (x < 29 && y < 27 && getcharxy(x, y) == CHAR(' ')) {
     p->dir = dir;
     return 1;
   } else {
@@ -179,9 +178,9 @@ void declare_winner(byte winner) {
     draw_box(i,i,COLS-1-i,ROWS-1-i,BOX_CHARS);
     delay(1);
   }
-  putstring(12,10,"WINNER:");
-  putstring(12,13,"PLAYER ");
-  putchar(12+7, 13, CHAR('1')+winner);
+  putstringxy(12,10,"WINNER:");
+  putstringxy(12,13,"PLAYER ");
+  putcharxy(12+7, 13, CHAR('1')+winner);
   delay(75);
   gameover = 1;
 }
@@ -219,8 +218,8 @@ void play_game() {
 }
 
 void setup_32_column_font() {
+  copy_default_character_set();
   cv_set_colors(0, CV_COLOR_BLUE);
-  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - 16*8), 96*8);
   cvu_vmemset(COLOR, COLOR_FG(CV_COLOR_YELLOW), 8); // set color for chars 0-63
   cvu_vmemset(COLOR+8, COLOR_FG(CV_COLOR_WHITE), 32-8); // set chars 63-255
 }

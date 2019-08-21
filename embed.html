@@ -13,8 +13,11 @@
   align-items: center;
   justify-content: center;
 }
+#emuscreen {
+  flex-grow: 1;
+}
 .emuvideo {
-  height:80%;
+  width:90%;
   border-radius:20px;
   border: 4px solid #222;
   outline-color: #666;
@@ -35,6 +38,9 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <body>
 
   <div id="emulator">
+    <!-- emulator video -->
+    <div id="emuscreen">
+    </div>
     <div id="javatari-div" style="margin:10px; display:none">
       <div id="javatari-screen" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
       <div id="javatari-console-panel" style="margin: 0 auto; box-shadow: 2px 2px 10px rgb(60, 60, 60);"></div>
@@ -44,7 +50,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <script src="jquery/jquery-3.4.1.min.js"></script>
 
 <script src="javatari.js/release/javatari/javatari.js"></script>
-<script src="src/cpu/z80fast.js"></script>
+<script src="src/cpu/z80.js"></script>
 <script src="jsnes/dist/jsnes.min.js"></script>
 <script src="src/cpu/6809.js"></script>
 <script src="FileSaver.js/FileSaver.min.js"></script>

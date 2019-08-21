@@ -45,8 +45,7 @@ describe('Store', function() {
       remote.push(path);
       success();
     };
-    project.loadFiles(['local/test','test'], function(err, result) {
-     assert.equal(null, err);
+    project.loadFiles(['local/test','test']).then((result) => {
      assert.deepEqual(["presets/_TEST/test"], remote);
      assert.deepEqual([ { path: 'local/test', filename: 'local/test', data: 'a', link:true } ], result);
      done();
@@ -81,13 +80,15 @@ describe('Store', function() {
     project.callbackBuildStatus = function(b) { msgs.push(b) };
     project.updateFile('test.a', ' lda #0');
     project.setMainFile('test.a');
-    project.updateFile('test.a', ' lda #1'); // don't send twice (yet)
-    assert.deepEqual(msgs, expectmsgs);
-    store.getItem('test.a', function(err, result) {
-     assert.equal(null, err);
-     assert.equal(' lda #1', result);
-     done();
-    });
+    setTimeout(() => {
+     project.updateFile('test.a', ' lda #1'); // don't send twice (yet)
+     assert.deepEqual(msgs, expectmsgs);
+     store.getItem('test.a', function(err, result) {
+      assert.equal(null, err);
+      assert.equal(' lda #1', result);
+      done();
+     });
+    }, 1);
    });
   });
 

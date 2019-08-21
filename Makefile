@@ -2,6 +2,7 @@
 TSC=./node_modules/typescript/bin/tsc
 
 all:
+	cp nanoasm/src/assembler.ts src/worker/
 	$(TSC)
 	cd jsnes && npm i
 
@@ -28,3 +29,6 @@ tsweb:
 	ifconfig | grep inet
 	$(TSC) -w &
 	python3 scripts/serveit.py 2>> http.out
+
+astrolibre.b64.txt: astrolibre.rom
+	lzg -9 $< | base64 -w 0 > $@

@@ -78,10 +78,10 @@ function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
 
 describe('Worker', function() {
   it('should assemble DASM', function(done) {
-    compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo lda #0\n', 'vcs', done, 2, 1);
+    compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo lda #0\n', 'vcs.mame', done, 2, 1);
   });
   it('should NOT assemble DASM', function(done) {
-    compile('dasm', '\tprocessor 6502\n\torg $f000\nfoo xxx #0\n', 'vcs', done, 0, 0, 1);
+    compile('dasm', '\tprocessor 6502\n\torg $f000 ; this is a comment\nfoo asl a\n', 'vcs', done, 0, 0, 1);
   });
   /*
   it('should assemble ACME', function(done) {
@@ -98,7 +98,7 @@ describe('Worker', function() {
   });
   */
   it('should compile CC65', function(done) {
-    compile('cc65', 'int main() {\nint x=1;\nreturn x+2;\n}', 'nes', done, 40976, 3);
+    compile('cc65', 'int main() {\nint x=1;\nreturn x+2;\n}', 'nes.mame', done, 40976, 3);
   });
   it('should NOT compile CC65 (compile error)', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes', done, 0, 0, 1);
@@ -108,9 +108,6 @@ describe('Worker', function() {
   });
   it('should NOT compile CC65 (preproc error)', function(done) {
     compile('cc65', '#include "NOSUCH.file"\n', 'nes', done, 0, 0, 1, {ignoreErrorPath:true});
-  });
-  it('should assemble CA65', function(done) {
-    compile('ca65', '\t.segment "HEADER"\n\t.segment "STARTUP"\n\t.segment "CHARS"\n\t.segment "VECTORS"\n\tlda #0\n\tsta $1\n', 'nes-conio', done, 40976, 2);
   });
   /*
   it('should assemble Z80ASM', function(done) {
@@ -156,12 +153,12 @@ describe('Worker', function() {
     compile('sdcc', csource, 'sound_williams-z80', done, 16384, 6, 0);
   });
   it('should compile coleco skeleton', function(done) {
-    var csource = ab2str(fs.readFileSync('presets/coleco/text.c'));
-    compile('sdcc', csource, 'coleco', done, 32768, 15, 0);
+    var csource = ab2str(fs.readFileSync('presets/coleco/cursorsmooth.c'));
+    compile('sdcc', csource, 'coleco', done, 32768, 59, 0);
   });
   it('should compile sg1000 skeleton', function(done) {
-    var csource = ab2str(fs.readFileSync('presets/sms-sg1000-libcv/text.c'));
-    compile('sdcc', csource, 'sms-sg1000-libcv', done, 49152, 15, 0);
+    var csource = ab2str(fs.readFileSync('presets/sms-sg1000-libcv/cursorsmooth.c'));
+    compile('sdcc', csource, 'sms-sg1000-libcv', done, 49152, 81, 0);
   });
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
@@ -220,11 +217,9 @@ describe('Worker', function() {
   it('should NOT preprocess SDCC', function(done) {
     compile('sdcc', 'int x=0\n#bah\n', 'mw8080bw', done, 0, 0, 1);
   });
-  /*
   it('should compile XASM6809', function(done) {
     compile('xasm6809', '\tasld\n\tasld\n', 'williams', done, 4, 2, 0);
   });
-  */
   it('should link two files with SDCC', function(done) {
     var msgs = [
     {
@@ -314,6 +309,9 @@ describe('Worker', function() {
   // TODO: params persist because of fixParamsWithDefines()
   it('should compile CC65 banked', function(done) {
     compile('cc65', '#define NES_MAPPER 4\nint main() {\nint x=1;\nreturn x+2;\n}', 'nes', done, 131088, 3);
+  });
+  it('should assemble CA65', function(done) {
+    compile('ca65', ';#define LIBARGS ,\n\t.segment "HEADER"\n\t.segment "STARTUP"\n\t.segment "CHARS"\n\t.segment "VECTORS"\n\t.segment "SAMPLES"\n\t.segment "CODE"\n\tlda #0\n\tsta $1\n', 'nes', done, 131088, 2);
   });
 
 });

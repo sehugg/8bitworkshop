@@ -10,7 +10,6 @@
 ; > Version 2.6 - March 2, 2004 - as seen on BallyAlley.com
 ; > Version 3.0 - 2009
 ; > Version 3.01 - Changed "FonT BASE character" comment
-; > (also patched for latest zmac with default args)
 ; >
 ; >   This file contains the equates and macros that Bally
 ; > programs require for assembly.  This file has been

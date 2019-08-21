@@ -42,22 +42,22 @@ var VERILOG_PRESETS = [
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_LEFT, 0, 0x1],
-  [Keys.VK_RIGHT, 0, 0x2],
-  [Keys.VK_UP, 0, 0x4],
-  [Keys.VK_DOWN, 0, 0x8],
-  [Keys.VK_SPACE, 0, 0x10],
-  [Keys.VK_SHIFT, 0, 0x20],
-  [Keys.VK_A, 1, 0x1],
-  [Keys.VK_D, 1, 0x2],
-  [Keys.VK_W, 1, 0x4],
-  [Keys.VK_S, 1, 0x8],
-  [Keys.VK_Z, 1, 0x10],
-  [Keys.VK_X, 1, 0x20],
-  [Keys.VK_1, 2, 0x1],
-  [Keys.VK_2, 2, 0x2],
-  [Keys.VK_5, 2, 0x4],
-  [Keys.VK_6, 2, 0x8],
+  [Keys.LEFT,  0, 0x1],
+  [Keys.RIGHT, 0, 0x2],
+  [Keys.UP,    0, 0x4],
+  [Keys.DOWN,  0, 0x8],
+  [Keys.A,     0, 0x10],
+  [Keys.B,     0, 0x20],
+  [Keys.P2_LEFT,  0, 0x1],
+  [Keys.P2_RIGHT, 0, 0x2],
+  [Keys.P2_UP,    0, 0x4],
+  [Keys.P2_DOWN,  0, 0x8],
+  [Keys.P2_A,     0, 0x10],
+  [Keys.P2_B,     0, 0x20],
+  [Keys.START,     2, 0x1],
+  [Keys.P2_START,  2, 0x2],
+  [Keys.SELECT,    2, 0x4],
+  [Keys.P2_SELECT, 2, 0x8],
   [Keys.VK_7, 2, 0x10],
 ]);
 
@@ -223,6 +223,7 @@ var VerilogPlatform = function(mainElement, options) {
   this.__proto__ = new (BasePlatform as any)();
   
   var video, audio;
+  var poller;
   var useAudio = false;
   var videoWidth  = 292;
   var videoHeight = 256;
@@ -327,7 +328,7 @@ var VerilogPlatform = function(mainElement, options) {
     ctx.font = "8px TinyFont";
     ctx.fillStyle = "white";
     ctx.textAlign = "left";
-    setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
+    poller = setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
     var vcanvas = $(video.canvas);
     idata = video.getFrameData();
     timerCallback = () => {
@@ -375,6 +376,8 @@ var VerilogPlatform = function(mainElement, options) {
       }
     });
   }
+  
+  // TODO: pollControls() { poller.poll(); }
   
   resize() {
     if (this.waveview) this.waveview.recreate();

@@ -1,12 +1,11 @@
 "use strict";
 
 import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult } from "./workertypes";
-import { getFilenamePrefix, getFolderForPath, isProbablyBinary } from "./util";
+import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform } from "./util";
 import { Platform } from "./baseplatform";
 
 type BuildResultCallback = (result:WorkerResult) => void;
 type BuildStatusCallback = (busy:boolean) => void;
-type LoadFilesCallback = (err:string, result?:Dependency[]) => void;
 type IterateFilesCallback = (path:string, data:FileData) => void;
 type GetRemoteCallback = (path:string, callback:(data:FileData) => void, datatype:'text'|'arraybuffer') => any;
 
@@ -65,7 +64,6 @@ export class CodeProject {
 
   pushAllFiles(files:string[], fn:string) {
     // look for local and preset files
-    files.push('local/'+fn);
     files.push(fn);
     // look for files in current (main file) folder
     var dir = getFolderForPath(this.mainpath);
@@ -99,8 +97,8 @@ export class CodeProject {
       while (m = re2.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
-      // for .c -- //#link "file" (or ;link or #link)
-      let re3 = /^\s*([;#]|[/][/][#])resource\s+"(.+?)"/gm;
+      // for .c -- //#resource "file" (or ;resource or #resource)
+      let re3 = /^\s*([;]|[/][/])#resource\s+"(.+?)"/gm;
       while (m = re3.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
@@ -115,26 +113,26 @@ export class CodeProject {
       //
     } else {
       // for .c -- //#link "file" (or ;link or #link)
-      let re = /^\s*([;#]|[/][/][#])link\s+"(.+?)"/gm;
+      let re = /^\s*([;]|[/][/])#link\s+"(.+?)"/gm;
       while (m = re.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
     }
     return files;
   }
-
-  loadFileDependencies(text:string, callback:LoadFilesCallback) {
+  
+  loadFileDependencies(text:string) : Promise<Dependency[]> {
     let includes = this.parseIncludeDependencies(text);
     let linkfiles = this.parseLinkDependencies(text);
     let allfiles = includes.concat(linkfiles);
-    this.loadFiles(allfiles, (err:string, result?:Dependency[]) => {
+    return this.loadFiles(allfiles).then((result) => {
       // set 'link' property on files that are link dependencies (must match filename)
       if (result) {
         for (let dep of result) {
           dep.link = linkfiles.indexOf(dep.path) >= 0;
         }
       }
-      callback(err, result);
+      return result;
     });
   }
 
@@ -176,7 +174,8 @@ export class CodeProject {
   }
 
   // TODO: get local file as well as presets?
-  loadFiles(paths:string[], callback:LoadFilesCallback) {
+  loadFiles(paths:string[]) : Promise<Dependency[]> {
+   return new Promise( (yes,no) => {
     var result : Dependency[] = [];
     var addResult = (path, data) => {
       result.push({
@@ -190,7 +189,7 @@ export class CodeProject {
       var path = paths.shift();
       if (!path) {
         // finished loading all files; return result
-        callback(null, result);
+        yes(result);
       } else {
         // look in cache
         if (path in this.filedata) { // found in cache?
@@ -202,16 +201,15 @@ export class CodeProject {
           // look in store
           this.store.getItem(path, (err, value) => {
             if (err) { // err fetching from store
-              callback(err, result);
+              no(err);
             } else if (value) { // found in store?
               this.filedata[path] = value; // do not update store, just cache
               addResult(path, value);
               loadNext();
-            } else if (!path.startsWith("local/")) {
-              // don't load local/
+            } else {
               // found on remote fetch?
               var preset_id = this.platform_id;
-              preset_id = preset_id.replace(/[.]\w+/,''); // remove .suffix from preset name
+              preset_id = getBasePlatform(preset_id); // remove .suffix from preset name
               var webpath = "presets/" + preset_id + "/" + path;
               // try to GET file, use file ext to determine text/binary
               this.callbackGetRemote( webpath, (data:FileData) => {
@@ -227,15 +225,13 @@ export class CodeProject {
                 }
                 loadNext();
               }, isProbablyBinary(path) ? 'arraybuffer' : 'text');
-            } else {
-              // not gonna find it, keep going
-              loadNext();
             }
           });
         }
       }
     }
     loadNext(); // load first file
+   });
   }
 
   getFile(path:string):FileData {
@@ -267,10 +263,7 @@ export class CodeProject {
     // otherwise, make it a string
     var text = typeof maindata === "string" ? maindata : '';
     // TODO: load dependencies of non-main files
-    this.loadFileDependencies(text, (err, depends) => {
-      if (err) {
-        console.log(err); // TODO?
-      }
+    return this.loadFileDependencies(text).then( (depends) => {
       if (!depends) depends = [];
       var workermsg = this.buildWorkerMessage(depends);
       this.worker.postMessage(workermsg);

@@ -11,7 +11,16 @@ const ASTROCADE_PRESETS = [
   {id:'01-helloworlds.asm', name:'Hello World'},
   {id:'02-telephone.asm', name:'Telephone'},
   {id:'03-horcbpal.asm', name:'Paddle Demo'},
+  {id:'hello.c', name:'Hello Graphics'},
+  {id:'lines.c', name:'Lines'},
+  {id:'sprites.c', name:'Sprites'},
+  {id:'vsync.c', name:'Sprites w/ VSYNC'},
+  {id:'fastsprites.c', name:'Fast Sprites'},
+  {id:'music.c', name:'Music'},
+  {id:'rotate.c', name:'Rotate Op'},
+  {id:'rainbow.c', name:'Rainbow'},
   {id:'cosmic.c', name:'Cosmic Impalas Game'},
+  {id:'racing.c', name:'Pseudo 3-D Racing Game'},
 ];
 
 const ASTROCADE_BIOS_PRESETS = [
@@ -23,11 +32,17 @@ const ASTROCADE_BIOS_PRESETS = [
 
 const ASTROCADE_KEYCODE_MAP = makeKeycodeMap([
   // player 1
-  [Keys.VK_UP,    0x10, 0x1],
-  [Keys.VK_DOWN,	0x10, 0x2],
-  [Keys.VK_LEFT,  0x10, 0x4],
-  [Keys.VK_RIGHT, 0x10, 0x8],
-  [Keys.VK_SPACE, 0x10, 0x10],
+  [Keys.UP,    0x10, 0x1],
+  [Keys.DOWN,  0x10, 0x2],
+  [Keys.LEFT,  0x10, 0x4],
+  [Keys.RIGHT, 0x10, 0x8],
+  [Keys.A,     0x10, 0x10],
+  // player 2
+  [Keys.P2_UP,    0x11, 0x1],
+  [Keys.P2_DOWN,  0x11, 0x2],
+  [Keys.P2_LEFT,  0x11, 0x4],
+  [Keys.P2_RIGHT, 0x11, 0x8],
+  [Keys.P2_A,     0x11, 0x10],
   // keypad $14
   [Keys.VK_P,     0x14, 0x1],
   [Keys.VK_SLASH,	0x14, 0x2],
@@ -36,26 +51,26 @@ const ASTROCADE_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_COMMA, 0x14, 0x10],
   [Keys.VK_EQUALS,0x14, 0x20],
   // keypad $15
-  [Keys.VK_Z,    	0x15, 0x1],
-  [Keys.VK_H,			0x15, 0x2],
+  [Keys.VK_O,    	0x15, 0x1],
+  [Keys.VK_L,			0x15, 0x2],
   [Keys.VK_9, 		0x15, 0x4],
   [Keys.VK_6,     0x15, 0x8],
   [Keys.VK_3,     0x15, 0x10],
   [Keys.VK_PERIOD,0x15, 0x20],
   // keypad $16
-  [Keys.VK_A, 	  0x16, 0x1],
-  [Keys.VK_S,			0x16, 0x2],
+  [Keys.VK_I, 	  0x16, 0x1],
+  [Keys.VK_K,			0x16, 0x2],
   [Keys.VK_8, 		0x16, 0x4],
   [Keys.VK_5,     0x16, 0x8],
   [Keys.VK_2,     0x16, 0x10],
   [Keys.VK_0,     0x16, 0x20],
   // keypad $17
-  [Keys.VK_C,			0x17, 0x1],
-  [Keys.VK_R,			0x17, 0x2],
+  [Keys.VK_U,			0x17, 0x1],
+  [Keys.VK_J,			0x17, 0x2],
   [Keys.VK_7, 		0x17, 0x4],
   [Keys.VK_4,     0x17, 0x8],
   [Keys.VK_1,     0x17, 0x10],
-  [Keys.VK_E,			0x17, 0x20],
+  [Keys.VK_BACK_SLASH,			0x17, 0x20],
 ]);
 
 const _BallyAstrocadePlatform = function(mainElement, arcade) {
@@ -68,7 +83,9 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   const sheight = arcade ? 204 : 102;
   const swbytes = Math.floor(swidth / 4);
   const cpuFrequency = 1789000;
-  const cpuCyclesPerLine = cpuFrequency/(60*sheight); // TODO: wait states?
+  const cpuCyclesPerLine = Math.floor(cpuFrequency/(60*262.5));
+  const cpuCyclesPerHBlank = Math.floor(cpuCyclesPerLine*0.33);
+  const cpuCyclesPerVisible = cpuCyclesPerLine - cpuCyclesPerHBlank;
   const INITIAL_WATCHDOG = 256;
   const PIXEL_ON = 0xffeeeeee;
   const PIXEL_OFF = 0xff000000;
@@ -85,15 +102,22 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   var infbk = 0;
   var verbl = sheight;
   var palette = new Uint32Array(8);
-  // default palette
-  for (var i=0; i<8; i++)
-    palette[i] = ASTROCADE_PALETTE[i];
-
+  var palinds = new Uint8Array(8);
   var refreshlines = 0;
-
+  var dirtylines = new Uint8Array(arcade ? 262 : 131);
+  var vidactive = false;
+  var rotdata = new Uint8Array(4);
+  var rotcount = 0;
+  var intst = 0;
+  
   function ramwrite(a:number, v:number) {
+    // set RAM
     ram.mem[a] = v;
-    ramupdate(a, v);
+    // mark scanline as dirty
+    dirtylines[Math.floor((a & 0xfff)/swbytes)] = 1;
+    // this was old behavior where we updated instantly
+    // but it had problems if we had mid-screen palette changes
+    //ramupdate(a, v);
   }
 
   function ramupdate(a:number, v:number) {
@@ -125,43 +149,58 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       v = v2;
       xplower = !xplower;
     }
-    // shift
-    var sh = (magicop & 3) << 1;
-    var v2 = (v >> sh) | shift2;
-    shift2 = (v << (8-sh)) & 0xff;
-    v = v2;
+    // rotate
+    if (magicop & 0x4) {
+      if (rotcount & 4) {
+        // drain buffer
+        var sh = 2 * (~rotcount & 3);
+        v = (((rotdata[3] >> sh) & 3) << 6) |
+            (((rotdata[2] >> sh) & 3) << 4) |
+            (((rotdata[1] >> sh) & 3) << 2) |
+            (((rotdata[0] >> sh) & 3) << 0);
+      } else {
+        // fill buffer
+        rotdata[rotcount & 3] = v;
+      }
+      rotcount++;
+    } else {
+      // shift
+      var sh = (magicop & 3) << 1;
+      var v2 = (v >> sh) | shift2;
+      shift2 = (v << (8-sh)) & 0xff;
+      v = v2;
+    }
     // flop
     if (magicop & 0x40) {
-      var v2 = 0;
-      for (var i=0; i<4; i++) {
-        v2 |= (v & 3) << (6-i*2);
-        v >>= 2;
-      }
-      v = v2;
+      v = 
+        ((v & 0x03) << 6) |
+        ((v & 0x0c) << 2) |
+        ((v & 0x30) >> 2) |
+        ((v & 0xc0) >> 6);
     }
     // or/xor
     if (magicop & 0x30) {
       var oldv = ram.mem[a];
+      // collision detect
+      var icpt = 0;
+      if ((oldv & 0xc0) && (v & 0xc0)) icpt |= 0x1;
+      if ((oldv & 0x30) && (v & 0x30)) icpt |= 0x2;
+      if ((oldv & 0x0c) && (v & 0x0c)) icpt |= 0x4;
+      if ((oldv & 0x03) && (v & 0x03)) icpt |= 0x8;
+      // apply op
       if (magicop & 0x10)
         v |= oldv;
       if (magicop & 0x20)
         v ^= oldv; // TODO: what if both?
-      // collision detect
-      var icpt = 0;
-      for (var i=0; i<8; i+=2) {
-        icpt <<= 1;
-        // pixel changed from off to on?
-        if ( !((oldv>>i)&3) && ((v>>i)&3) )
-          icpt |= 1;
-      }
       // upper 4 bits persist, lower are just since last write
-      inputs[8] = (inputs[8] & 0xf0) | icpt | (icpt<<4);
+      intst = (intst & 0xf0) | icpt | (icpt<<4);
     }
     // commit write to ram/screen
     ramwrite(a, v);
   }
 
   function setpalette(a:number, v:number) {
+    palinds[a&7] = v&0xff;
     palette[a&7] = ASTROCADE_PALETTE[v&0xff];
     refreshall();
   }
@@ -176,6 +215,9 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   }
 
  class BallyAstrocadePlatform extends BaseZ80Platform implements Platform {
+ 
+  scanline : number;
+  poller;
 
   getPresets() {
     return ASTROCADE_PRESETS;
@@ -183,7 +225,8 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
 
   start = function() {
     ram = new RAM(arcade ? 0x5000 : 0x1000);
-    bios = padBytes(ASTROCADE_MINIMAL_BIOS, 0x2000);
+    //bios = padBytes(ASTROCADE_MINIMAL_BIOS, 0x2000);
+    bios = padBytes(new lzgmini().decode(stringToByteArray(atob(ASTROLIBRE_BIOS_LZG))), 0x2000);
     if (!arcade) {
       // game console
       membus = {
@@ -194,9 +237,11 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
         ]),
         write: newAddressDecoder([
           [0x4000, 0x4fff,  0xfff, ramwrite],
-          [0x0000, 0x3fff, 0x3fff, magicwrite],
+          [0x0000, 0x3fff,  0xfff, magicwrite],
         ]),
-        isContended: function() { return false; },
+        // TODO: correct values?
+        isContended: () => { return true; },
+        contend: (addr:number) => { return vidactive && addr >= 0x4000 ? 1 : 0; },
       };
     } else {
       // arcade game
@@ -211,17 +256,31 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
           [0xd000, 0xdfff,  0xfff, function(a,v) { ramwrite(a+0x4000, v); } ], // static RAM
           [0x0000, 0x3fff, 0x3fff, magicwrite],
         ]),
-        isContended: function() { return false; },
+        isContended: () => { return true; },
+        contend: (addr:number) => { return vidactive ? 1 : 0; },
       };
     }
     iobus = {
+      isULAPort: function(addr) {
+        return false; // TODO?
+      },
+      contend: function(addr) {
+        return 0; // TODO?
+      },
       read: function(addr) {
     	  addr &= 0x1f;
-    	  var rtn = inputs[addr];
-    	  if (addr == 8)
-    	    inputs[addr] = 0;
-        // $10 = watchdog
-    	  return rtn;
+    	  var rtn;
+    	  switch (addr) {
+    	    case 8:
+      	    rtn = intst;
+      	    intst = 0;
+      	    break;
+          default:
+        	  rtn = inputs[addr];
+        	  break;
+          // $10 = watchdog
+        }
+     	  return rtn;
     	},
     	write: function(addr, val) {
     	  addr &= 0x1f;
@@ -252,6 +311,8 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
           case 0xc: // magic register
             magicop = val;
             shift2 = 0;
+            rotcount = 0;
+            xplower = false;
             break;
           case 0xd: // INFBK (interrupt feedback)
             infbk = val;
@@ -277,7 +338,6 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
             break;
           case 0x19: // XPAND
             xpand = val;
-            xplower = false;
             break;
           default:
             console.log('IO write', hex(addr,4), hex(val,2));
@@ -285,16 +345,21 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
         }
     	}
     };
-    cpu = this.newCPU(membus, iobus);
+    cpu = this.newCPU(membus, iobus, {applyContention:true});
     audio = new MasterAudio();
     psg = new AstrocadeAudio(audio);
     video = new RasterVideo(mainElement,swidth,sheight,{});
     video.create();
     video.setupMouseEvents();
     var idata = video.getFrameData();
-		setKeyboardFromMap(video, inputs, ASTROCADE_KEYCODE_MAP);
+    this.poller = setKeyboardFromMap(video, inputs, ASTROCADE_KEYCODE_MAP);
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
+    // default palette
+    for (var i=0; i<8; i++) {
+      palinds[i] = i;
+      palette[i] = ASTROCADE_PALETTE[i];
+    }
   }
 
   readAddress(addr) {
@@ -306,21 +371,41 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     inputs[0x1d] = video.paddle_y & 0xff;
   }
 
+  pollControls() { this.poller.poll(); }
+
   advance(novideo : boolean) {
-    this.loadControls();
-    for (var sl=0; sl<sheight; sl++) {
-      //console.log(sl, hex(cpu.getPC(),4), cpu.saveState());
-      this.runCPU(cpu, cpuCyclesPerLine);
-      if (sl == inlin && (inmod & 0x8)) {
-        this.requestInterrupt(cpu, infbk);
+    this.scanline = 0;
+    var extra = 0; // keep track of spare cycles
+    for (var sl=0; sl<131; sl++) {
+      // double scanlines in consumer mode
+      for (var i=0; i<2; i++) {
+        // simulate contention during visible part of scanline
+        vidactive = sl < verbl;
+        extra = this.runCPU(cpu, cpuCyclesPerVisible - extra);
+        vidactive = false;
+        extra = this.runCPU(cpu, cpuCyclesPerHBlank - extra);
+        this.scanline++;
       }
-      if (refreshlines>0) {
+      // interrupt
+      if (sl == inlin && (inmod & 0x8)) {
+        cpu.retryInterrupts = !(inmod & 0x4);
+        cpu.requestInterrupt(infbk);
+      }
+      // refresh this line in frame buffer?
+      if (sl < sheight && refreshlines>0) {
+        dirtylines[sl] = 0;
         refreshline(sl);
         refreshlines--;
+      }
+      else if (dirtylines[sl]) {
+        dirtylines[sl] = 0;
+        refreshline(sl);
       }
     }
     if (!novideo) {
       video.updateFrame(0, 0, 0, 0, swidth, verbl);
+      video.clearRect(0, verbl, swidth, sheight-verbl);
+      this.loadControls();
     }
     /*
     if (watchdog_counter-- <= 0) {
@@ -329,6 +414,8 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     }
     */
   }
+  
+  getRasterScanline() { return this.scanline; }
 
   loadROM(title, data) {
     rom = padBytes(data, arcade ? 0xb000 : 0x2000);
@@ -341,9 +428,10 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   }
 
   loadState(state) {
-    cpu.loadState(state.c); // TODO: this causes problems on reset+debug
+    cpu.loadState(state.c);
     ram.mem.set(state.b);
     palette.set(state.palette);
+    palinds.set(state.palinds);
     magicop = state.magicop;
     xpand = state.xpand;
     xplower = state.xplower;
@@ -353,6 +441,10 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
     inlin = state.inlin;
     infbk = state.infbk;
     verbl = state.verbl;
+    rotcount = state.rotcount;
+    rotdata.set(state.rotdata);
+    intst = state.intst;
+    this.scanline = state.sl;
     this.loadControlsState(state);
     refreshall();
   }
@@ -362,6 +454,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       b: ram.mem.slice(0),
       in: inputs.slice(0),
       palette: palette.slice(0),
+      palinds: palinds.slice(0),
       magicop: magicop,
       xpand: xpand,
       xplower: xplower,
@@ -371,6 +464,10 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       inlin: inlin,
       infbk: infbk,
       verbl: verbl,
+      rotcount: rotcount,
+      rotdata: rotdata.slice(0),
+      intst: intst,
+      sl: this.scanline,
     };
   }
   loadControlsState(state) {
@@ -399,19 +496,53 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   reset() {
     cpu.reset();
     cpu.setTstates(0);
+    psg.reset();
+    // TODO?
+    magicop = xpand = inmod = inlin = infbk = shift2 = horcb = 0;
+    verbl = sheight;
+    xplower = false;
     //watchdog_counter = INITIAL_WATCHDOG;
   }
+  getDebugCategories() {
+    return super.getDebugCategories().concat(['Astro']);
+  }
+  getDebugInfo(category, state) {
+    switch (category) {
+      case 'Astro': return this.toLongString(state);
+      default: return super.getDebugInfo(category, state);
+    }
+  }
+  toLongString(st) {
+    var s = "";
+    s +=   " Scan Y: " + st.sl;
+    s += "\n  INLIN: " + st.inlin;
+    s += "\n  VERBL: " + st.verbl;
+    s += "\nMAGICOP: $" + hex(st.magicop);
+    s += "\n  XPAND: $" + hex(st.xpand);
+    s += "\nXPLOWER: " + st.xplower;
+    s += "\n SHIFT2: $" + hex(st.shift2);
+    s += "\n  HORCB: $" + hex(st.horcb);
+    s += "\n  INMOD: $" + hex(st.inmod);
+    s += "\n  INFBK: $" + hex(st.infbk);
+    s += "\n  INTST: $" + hex(st.intst); // intercept status
+    s += "\nPalette: ";
+    for (var i=0; i<8; i++)
+      s += hex(palinds[i]);
+    s += "\n";
+    return s;
+  }
+
  }
   return new BallyAstrocadePlatform();
 }
 
 /////
 
+// TODO: https://github.com/mamedev/mame/blob/master/src/devices/sound/astrocde.cpp
 class AstrocadeAudio extends AY38910_Audio {
   setACRegister(addr : number, val : number) {
     addr &= 0x7;
     val &= 0xff;
-    //console.log(addr,val);
     switch (addr) {
       case 0:
         this.psg.setClock(1789000 * 16 / (val + 1));
@@ -476,7 +607,7 @@ for (var i=0; i<256; i++) {
 0004 7E            [ 7]  198 	LD	A,(HL) ; A <- mem[0x2000]
 0005 FE 55         [ 7]  199 	CP	#0x55 ; found sentinel byte? ($55)
 0007 CA 0D 00      [10]  200 	JP	Z,FoundSentinel ; yes, load program
-000A C3 AB 0E      [10]  201 	JP	_main ; jump to test program
+000A C3 00 20      [10]  201 	JP	_main ; jump to test program
 000D                     202 	FoundSentinel:
 000D 31 CE 4F      [10]  203 	LD	SP,#0x4fce ; position stack below BIOS vars
 0010 CD 84 02      [17]  204 	CALL	_bios_init ; misc. bios init routines
@@ -488,8 +619,11 @@ for (var i=0; i<256; i++) {
 001A E9            [ 4]  210 	JP	(HL) ; jump to cart start vector
 */
 var ASTROCADE_MINIMAL_BIOS = [
-  0xf3, 0x21, 0x00, 0x20, 0x7e, 0xfe, 0x55, 0xca, 0x0d, 0x00, 0xc3, 0xab, 0x0e,
-  0x31, 0xce, 0x4f, 0xcd, 0x84, 0x02, 0x21, 0x05, 0x20, 0x7e, 0x23, 0x66, 0x6f,
+  0xf3, 0x21, 0x00, 0x20, 0x7e, 0xfe, 0x55, 0xca, 0x0d, 0x00, 0xc3, 0x00, 0x20,
+  0x31, 0xce, 0x4f,
+  0x21, 0x05, 0x20, 0x7e, 0x23, 0x66, 0x6f,
   0xe9,
 ];
+
+var ASTROLIBRE_BIOS_LZG = `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`;
 

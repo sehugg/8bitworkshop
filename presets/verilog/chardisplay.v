@@ -72,7 +72,7 @@ module test_ram1_top(clk, reset, hsync, vsync, rgb);
         // increment RAM cell
         ram_write <= (ram_read + 1);
         // only enable write on last scanline of cell
-        ram_writeenable <= (vpos[2:0] == 7);
+        ram_writeenable <= display_on && rom_yofs == 7;
       end
       // on 8th pixel of cell
       7: begin

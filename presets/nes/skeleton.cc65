@@ -2,11 +2,25 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <stdlib.h>
+#include <string.h>
+
 // include NESLIB header
 #include "neslib.h"
 
+// include CC65 NES Header (PPU)
+#include <nes.h>
+
 // link the pattern table into CHR ROM
 //#link "chr_generic.s"
+
+// BCD arithmetic support
+#include "bcd.h"
+//#link "bcd.c"
+
+// VRAM update buffer
+#include "vrambuf.h"
+//#link "vrambuf.c"
 
 /*{pal:"nes",layout:"nes"}*/
 const char PALETTE[32] = { 

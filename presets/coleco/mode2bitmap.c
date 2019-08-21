@@ -1,14 +1,11 @@
-﻿
+
 
 #include <stdlib.h>
 
 #include <cv.h>
 #include <cvu.h>
 
-#define PATTERN	0x0000	// $0000 - $17ff
-#define IMAGE	0x1800	// $1800 - $1aff
-#define SPRITES	0x1b00	// not used
-#define COLOR	0x2000	// $2000 - $37ff
+#include "common.h"
 
 /* link in MODE 2 bitmap data */
 

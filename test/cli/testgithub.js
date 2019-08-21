@@ -15,7 +15,7 @@ var Octokat = require('octokat');
 var test_platform_id = "_TEST";
 
 function newGH(store, platform_id) {
-  localStorage.removeItem('__repos');
+  localStorage.clear();
   // pzpinfo user
   var project = new prj.CodeProject({}, platform_id||test_platform_id, null, store);
   project.mainPath = 'local/main.asm';
@@ -30,10 +30,15 @@ describe('Store', function() {
   it('Should import from Github (check README)', function(done) {
     var store = mstore.createNewPersistentStore('vcs', function(store) {
       var gh = newGH(store, 'vcs');
-      gh.importAndPull('https://github.com/pzpinfo/test123123').then( (sess) => {
+      gh.importAndPull('https://github.com/pzpinfo/test123123/').then( (sess) => {
         console.log(sess.paths);
         assert.equal(2, sess.paths.length);
-        assert.deepEqual(serv.getRepos(), {"pzpinfo/test123123":{url: 'https://github.com/pzpinfo/test123123', platform_id: 'vcs', mainPath:'helloworld.bas'}});
+        assert.deepEqual(serv.getRepos(), {"pzpinfo/test123123":{
+          url: 'https://github.com/pzpinfo/test123123/', 
+          platform_id: 'vcs', 
+          mainPath:'helloworld.bas', 
+          //sha:'e466d777810838065b7682587ca592c3eefc0b1c'
+          }});
         done();
       });
     });
@@ -60,6 +65,17 @@ describe('Store', function() {
       var gh = newGH(store, '_FOO');
       gh.importAndPull('https://github.com/pzpinfo/testrepo1557326056720').catch( (e) => {
         assert.ok(e.startsWith('Platform mismatch'));
+        done();
+      });
+    });
+  });
+
+  it('Should import from Github (subdirectory tree)', function(done) {
+    var store = mstore.createNewPersistentStore('nes', function(store) {
+      var gh = newGH(store, 'nes');
+      gh.importAndPull('https://github.com/brovador/NESnake/tree/master/src').then( (sess) => {
+        console.log(sess.paths);
+        assert.equal(14, sess.paths.length);
         done();
       });
     });
@@ -99,9 +115,31 @@ describe('Store', function() {
         {path:'text.txt', data:'hello world'},
         {path:'data.bin', data:binfile}
       ];
-      gh.commitPush('https://github.com/pzpinfo/testrepo3', 'test commit', files).then( (sess) => {
+      gh.commit('https://github.com/pzpinfo/testrepo3', 'test commit', files).then( (sess) => {
+        return gh.push(sess);
+      }).then( (sess) => {
+        console.log(sess.commit);
+        assert.equal(0, sess.commit.files.length);
         done();
       });
+    });
+  });
+
+  it('Should commit/push to Github (subdirectory tree)', function(done) {
+    var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
+      var gh = newGH(store);
+      var files = [
+        {path:'text.txt', data:'hello world'}
+      ];
+      gh.commit('https://github.com/brovador/NESnake/tree/master/src', 'test commit', files)
+      .catch( (e) => {
+        console.log(e);
+        assert.equal(e, 'Sorry, right now you can only commit files to the root directory of a repository.');
+        done();
+      });
+      /*.then( (sess) => {
+        done();
+      });*/
     });
   });
 
@@ -113,8 +151,8 @@ describe('Store', function() {
       assert.deepEqual(serv.getRepos(), {'foo/bar':{url:'_',platform_id:'vcs',mainPath:'test.c'}});
       gh.bind(sess, false);
       assert.deepEqual(serv.getRepos(), {});
-      gh.getGithubSession('https://github.com/foo/bar/baz').then((sess) => {
-        assert.equal(sess.url, 'https://github.com/foo/bar');
+      gh.getGithubSession('https://github.com/foo/bar/tree').then((sess) => {
+        assert.equal(sess.url, 'https://github.com/foo/bar/tree');
         assert.equal(sess.repopath, 'foo/bar');
         done();
       });

@@ -1,9 +1,16 @@
 {
   "name": "8bitworkshop",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "author": "Steven Hugg",
+  "description": "8bitworkshop.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sehugg/8bitworkshop.git"
+  },
+  "license": "GPL-3.0",
   "dependencies": {},
   "devDependencies": {
+    "@types/bootbox": "^4.4.36",
     "@types/bootstrap": "^3.3.42",
     "@types/jquery": "^3.3.29",
     "@types/w2ui": "^1.4.x",
@@ -16,10 +23,10 @@
     "mocha": "^5.2.x",
     "octokat": "^0.10.0",
     "pngjs": "^3.3.3",
-    "typescript": "^3.3.3",
+    "typescript": "^3.5.3",
+    "typescript-formatter": "^7.2.2",
     "wavedrom-cli": "^0.5.x"
   },
-  "description": "8bitworkshop.com",
   "main": "main.js",
   "directories": {
     "doc": "doc",
@@ -34,14 +41,9 @@
     "test-platforms": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli/testplatforms.js",
     "test-profile": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --prof test/cli"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/sehugg/8bitworkshop.git"
-  },
   "keywords": [
     "8bit"
   ],
-  "license": "GPL-3.0",
   "bugs": {
     "url": "https://github.com/sehugg/8bitworkshop/issues"
   },

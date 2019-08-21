@@ -1,4 +1,4 @@
-﻿
+
 #include <stdlib.h>
 #include <string.h>
 #include <cv.h>
@@ -10,9 +10,8 @@
 #include "stars.h"
 //#link "stars.c"
 
-#ifdef CV_SMS
+// for SMS
 //#link "fonts.s"
-#endif
 
 #define NSPRITES 16
 #define NMISSILES 8
@@ -178,8 +177,8 @@ void copy_sprites() {
 
 void add_score(word bcd) {
   player_score = bcd_add(player_score, bcd);
-  draw_bcd_word(0, 1, player_score);
-  putchar(4, 1, CHAR('0'));
+  draw_bcd_word(0, 0, player_score);
+  putcharxy(4, 0, CHAR('0'));
 }
 
 void clrobjs() {
@@ -593,7 +592,7 @@ void play_round() {
   byte end_timer = 255;
   player_score = 0;
   add_score(0);
-  putstring(0, 0, "PLAYER 1");
+  //putstringxy(0, 0, "PLAYER 1");
   setup_formation();
   clrobjs();
   formation_direction = 1;
@@ -640,7 +639,7 @@ PATTERN TABLE:
 
 void setup_graphics() {
   byte i;
-  cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - 16*8), 96*8);
+  copy_default_character_set();
   cvu_memtovmemcpy(SPRITE_PATTERNS, sprite_table, sizeof(sprite_table));
   cvu_vmemset(COLOR, COLOR_SCORE<<4, 8); // set color for chars 0-63
   cvu_vmemset(COLOR+8, COLOR_FORMATION<<4, 32-8); // set chars 63-255

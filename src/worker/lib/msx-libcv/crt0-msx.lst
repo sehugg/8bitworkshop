@@ -1,0 +1,91 @@
+                              1 ; crt0.s for Colecovision cart
+                              2 
+                              3 	.module crt0
+                              4 	.globl _main
+                              5 	.globl _cv_init
+                              6 	.globl _cv_spint_handler
+                              7 	.globl _cv_vint
+                              8 	.globl _cv_start
+                              9 	.globl ___sdcc_call_hl
+                             10 
+                             11 	; Ordering of segments for the linker - copied from sdcc crt0.s
+                             12 	.area	_CODE
+                             13 	.area	_INITIALIZER
+                             14 	.area	_HOME
+                             15 	.area	_GSINIT
+                             16 	.area	_GSFINAL
+                             17 	.area	_DATA
+                             18 	.area	_INITIALIZED
+                             19 	.area	_BSEG
+                             20 	.area	_BSS
+                             21 	.area	_HEAP
+                             22 
+                             23 	.area	_CODE
+                             24 ; MSX cartridge header @ 0x4000 - 0x400f
+   0000 41 42                25 	.dw 0x4241
+   0002r10r00                26         .dw _cv_start
+   0004r10r00                27         .dw _cv_start
+   0006 00 00                28         .dw 0
+   0008 00 00                29         .dw 0
+   000A 00 00                30         .dw 0
+   000C 00 00                31         .dw 0
+   000E 00 00                32         .dw 0
+                             33 
+   0010                      34 _cv_start:
+   0010 F3            [ 4]   35 	di
+   0011 31 00 E0      [10]   36 	ld sp, #0xe000			; Set stack pointer directly above top of memory.
+   0014 ED 56         [ 8]   37 	im	1
+                             38 
+   0016 CDr00r00      [17]   39 	call gsinit			; Initialize global and static variables.
+   0019 CDr00r00      [17]   40 	call vinthook
+   001C CDr00r00      [17]   41 	call _cv_init			; Initialize Colecovision specific stuff.
+   001F CDr00r00      [17]   42 	call _main
+   0022 C7            [11]   43 	rst 0x0				; Restart when main() returns.
+                             44 
+                             45 	.area   _GSINIT
+   0000                      46 gsinit::
+                             47 
+                             48 	; Implicitly zeroed global and static variables.
+   0000 01r00r00      [10]   49 	ld	bc, #l__DATA
+   0003 78            [ 4]   50 	ld	a, b
+   0004 B1            [ 4]   51 	or	a, c
+   0005 28 0F         [12]   52 	jr	Z, zeroed_data
+   0007 21r00r00      [10]   53 	ld	hl,	#s__DATA
+   000A 36 00         [10]   54 	ld	(hl), #0x00
+   000C 0B            [ 6]   55 	dec	bc
+   000D 78            [ 4]   56 	ld	a, b
+   000E B1            [ 4]   57 	or	a, c
+   000F 28 05         [12]   58 	jr	Z, zeroed_data
+   0011 5D            [ 4]   59 	ld	e, l
+   0012 54            [ 4]   60 	ld	d, h
+   0013 13            [ 6]   61 	inc	de
+   0014 ED B0         [21]   62 	ldir
+   0016                      63 zeroed_data:
+                             64 
+                             65 	; Explicitly initialized global variables.
+   0016 01r00r00      [10]   66 	ld	bc, #l__INITIALIZER
+   0019 78            [ 4]   67 	ld	a, b
+   001A B1            [ 4]   68 	or	a, c
+   001B 28 08         [12]   69 	jr	Z, gsinit_static
+   001D 11r00r00      [10]   70 	ld	de, #s__INITIALIZED
+   0020 21r00r00      [10]   71 	ld	hl, #s__INITIALIZER
+   0023 ED B0         [21]   72 	ldir
+                             73 
+   0025                      74 gsinit_static:
+                             75 	; Explicitly initialized static variables inserted by compiler here.
+                             76 
+                             77 	.area   _GSFINAL
+   0000 C9            [10]   78 	ret
+                             79 
+                             80 	.area _HOME
+                             81 
+                             82 ; set up timer hook
+                     FD9F    83 H_TIMI = 0xFD9F
+   0000                      84 vinthook:
+   0000 3E C3         [ 7]   85 	ld	a,#0xc3
+   0002 32 9F FD      [13]   86 	ld	(H_TIMI),a
+   0005 3Er00         [ 7]   87 	ld	a, #<(_cv_vint)
+   0007 32 A0 FD      [13]   88 	ld	(H_TIMI+1),a
+   000A 3Es00         [ 7]   89 	ld	a, #>(_cv_vint)
+   000C 32 A1 FD      [13]   90 	ld	(H_TIMI+2),a
+   000F C9            [10]   91 	ret

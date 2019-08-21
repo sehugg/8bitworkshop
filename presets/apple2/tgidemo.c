@@ -1,4 +1,8 @@
-
+/*
+NOTE: The alternate Apple ][ ROM used by 8bitworkshop
+      is not compatible with the hi-res TGI driver.
+      So we use the lo-res driver here.
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <cc65.h>

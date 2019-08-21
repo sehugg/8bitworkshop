@@ -10,6 +10,7 @@ declare var firebase;
 export interface GHRepoMetadata {
   url : string;		// github url
   platform_id : string; // e.g. "vcs"
+  sha? : string;	// head commit sha
   mainPath?: string;	// main file path
 }
 
@@ -18,23 +19,38 @@ export interface GHSession extends GHRepoMetadata {
   user : string;	// user name
   reponame : string;	// repo name
   repopath : string;	// "user/repo"
+  subtreepath : string;	// tree/master/[...]
   prefix : string;	// file prefix, "local/" or ""
+  branch : string;	// "master" is default
   repo : any;		// [repo object]
+  tree? : any;		// [tree object]
+  head? : any;		// [head ref]
+  commit?: any;		// after commit()
   paths? : string[];
 }
 
-const README_md_template = "$NAME\n=====\n\nCompatible with the [$PLATFORM](http://8bitworkshop.com/redir.html?platform=$PLATFORM&importURL=$GITHUBURL) platform in [8bitworkshop](http://8bitworkshop.com/). Main file is [$MAINFILE]($MAINFILE#mainfile).\n";
+const README_md_template = "$NAME\n=====\n\n[Open this project in 8bitworkshop](http://8bitworkshop.com/redir.html?platform=$PLATFORM&githubURL=$GITHUBURL&file=$MAINFILE).\n";
 
 export function getRepos() : {[key:string]:GHRepoMetadata} {
-  return JSON.parse(localStorage.getItem('__repos') || '{}');
+  var repos = {};
+  for (var i=0; i<localStorage.length; i++) {
+    var key = localStorage.key(i);
+    if (key.startsWith('__repo__')) {
+      var repodata : GHRepoMetadata = JSON.parse(localStorage.getItem(key));
+      var path = key.substring('__repo__'.length);
+      repos[path] = repodata;
+    }
+  }
+  return repos;
 }
   
 export function parseGithubURL(ghurl:string) {
-  var toks = ghurl.split('/');
+  var toks = ghurl.split('/', 8);
   if (toks.length < 5) return null;
   if (toks[0] != 'https:') return null;
   if (toks[2] != 'github.com') return null;
-  return {user:toks[3], repo:toks[4], repopath:toks[3]+'/'+toks[4]};
+  if (toks[5] && toks[5] != 'tree') return null;
+  return {user:toks[3], repo:toks[4], repopath:toks[3]+'/'+toks[4], branch:toks[6], subtreepath:toks[7]};
 }
   
 export class GithubService {
@@ -44,7 +60,6 @@ export class GithubService {
   github;
   store;
   project : CodeProject;
-  branch : string = "master";
 
   constructor(githubCons:() => any, githubToken:string, store, project : CodeProject) {
     this.githubCons = githubCons;
@@ -74,9 +89,21 @@ export class GithubService {
       this.recreateGithub();
       document.cookie = "__github_key=" + this.githubToken + ";path=/;max-age=31536000";
       console.log("Stored GitHub OAUTH key");
-    }).catch( (error) => {
-      console.log(error);
-      alert("Could not login to GitHub: " + error);
+    });
+  }
+  
+  logout() : Promise<void> {
+    // already logged out? return immediately
+    if (!(this.githubToken && this.githubToken.length)) {
+      return new Promise<void>( (yes,no) => {
+        yes();
+      });
+    }
+    // logout
+    return firebase.auth().signOut().then(() => {
+      document.cookie = "__github_key=;path=/;max-age=0";
+      this.githubToken = null;
+      this.recreateGithub();
     });
   }
   
@@ -95,10 +122,12 @@ export class GithubService {
         no("Please enter a valid GitHub URL.");
       }
       var sess = {
-        url: 'https://github.com/' + urlparse.repopath,
+        url: ghurl,
         user: urlparse.user,
         reponame: urlparse.repo,
         repopath: urlparse.repopath,
+        branch: urlparse.branch || "master",
+        subtreepath: urlparse.subtreepath,
         prefix: '', //this.getPrefix(urlparse.user, urlparse.repo),
         repo: this.github.repos(urlparse.user, urlparse.repo),
         platform_id: this.project ? this.project.platform_id : null
@@ -106,15 +135,43 @@ export class GithubService {
       yes(sess);
     });
   }
+
+  getGithubHEADTree(ghurl:string) : Promise<GHSession> {
+    var sess;
+    return this.getGithubSession(ghurl).then( (session) => {
+      sess = session;
+      return sess.repo.git.refs.heads(sess.branch).fetch();
+    })
+    .then( (head) => {
+      sess.head = head;
+      sess.sha = head.object.sha;
+      return sess.repo.git.trees(sess.sha).fetch();
+    })
+    .then( (tree) => {
+      if (sess.subtreepath) {
+        for (let subtree of tree.tree) {
+          if (subtree.type == 'tree' && subtree.path == sess.subtreepath && subtree.sha) {
+            return sess.repo.git.trees(subtree.sha).fetch();
+          }
+        }
+        throw "Cannot find subtree '" + sess.subtreepath + "' in tree " + tree.sha;
+      }
+      return tree;
+    })
+    .then( (tree) => {
+      sess.tree = tree;
+      return sess;
+    });
+  }
   
   bind(sess:GHSession, dobind:boolean) {
-    var repos = getRepos();
+    var key = '__repo__' + sess.repopath;
     if (dobind) {
-      repos[sess.repopath] = {url:sess.url, platform_id:sess.platform_id, mainPath:sess.mainPath};
+      var repodata : GHRepoMetadata = {url:sess.url, platform_id:sess.platform_id, mainPath:sess.mainPath, sha:sess.sha};
+      localStorage.setItem(key, JSON.stringify(repodata));
     } else {
-      delete repos[sess.repopath];
+      localStorage.removeItem(key);
     }
-    localStorage.setItem('__repos', JSON.stringify(repos));
   }
   
   import(ghurl:string) : Promise<GHSession> {
@@ -132,7 +189,7 @@ export class GithubService {
     .then( (readme) => {
       var m;
       // check README for main file
-      const re8main = /\(([^)]+)#mainfile\)/;
+      const re8main = /8bitworkshop.com[^)]+file=([^)&]+)/;
       m = re8main.exec(readme);
       if (m && m[1]) {
         console.log("main path: '" + m[1] + "'");
@@ -140,7 +197,7 @@ export class GithubService {
       }
       // check README for proper platform
       // unless we use githubURL=
-      const re8plat = /8bitworkshop.com[^)]+platform=(\w+)/;
+      const re8plat = /8bitworkshop.com[^)]+platform=([A-Za-z0-9._\-]+)/;
       m = re8plat.exec(readme);
       if (m) {
         console.log("platform id: '" + m[1] + "'");
@@ -149,6 +206,7 @@ export class GithubService {
         sess.platform_id = m[1];
       }
       // bind to repository
+      // TODO: don't bind until successful first import
       this.bind(sess, true);
       // get head commit
       return sess;
@@ -157,17 +215,11 @@ export class GithubService {
   
   pull(ghurl:string, deststore?) : Promise<GHSession> {
     var sess : GHSession;
-    return this.getGithubSession(ghurl).then( (session) => {
+    return this.getGithubHEADTree(ghurl).then( (session) => {
       sess = session;
-      return sess.repo.commits(this.branch).fetch();
-    })
-    .then( (sha) => {
-      return sess.repo.git.trees(sha.sha).fetch();
-    })
-    .then( (tree) => {
       let blobreads = [];
       sess.paths = [];
-      tree.tree.forEach( (item) => {
+      sess.tree.tree.forEach( (item) => {
         console.log(item.path, item.type, item.size);
         sess.paths.push(item.path);
         if (item.type == 'blob' && !this.isFileIgnored(item.path)) {
@@ -206,6 +258,8 @@ export class GithubService {
 
   publish(reponame:string, desc:string, license:string, isprivate:boolean) : Promise<GHSession> {
     var repo;
+    var platform_id = this.project.platform_id;
+    var mainPath = this.project.stripLocalPath(this.project.mainPath);
     return this.github.user.repos.create({
       name: reponame,
       description: desc,
@@ -218,9 +272,9 @@ export class GithubService {
       // create README.md
       var s = README_md_template;
       s = s.replace(/\$NAME/g, encodeURIComponent(reponame));
-      s = s.replace(/\$PLATFORM/g, encodeURIComponent(this.project.platform_id));
-      s = s.replace(/\$GITHUBURL/g, encodeURIComponent(repo.html_url));
-      s = s.replace(/\$MAINFILE/g, encodeURIComponent(this.project.stripLocalPath(this.project.mainPath)));
+      s = s.replace(/\$PLATFORM/g, encodeURIComponent(platform_id));
+      s = s.replace(/\$GITHUBURL/g, encodeURIComponent(repo.htmlUrl));
+      s = s.replace(/\$MAINFILE/g, encodeURIComponent(mainPath));
       var config = {
         message: '8bitworkshop: updated metadata in README.md',
         content: btoa(s)
@@ -236,35 +290,29 @@ export class GithubService {
     });
   }
   
-  commitPush( ghurl:string, message:string, files:{path:string,data:FileData}[] ) : Promise<GHSession> {
+  commit( ghurl:string, message:string, files:{path:string,data:FileData}[] ) : Promise<GHSession> {
     var sess : GHSession;
-    var repo;
-    var head;
-    var tree;
-    return this.getGithubSession(ghurl).then( (session) => {
+    if (!message) { message = "updated from 8bitworkshop.com"; }
+    return this.getGithubHEADTree(ghurl).then( (session) => {
       sess = session;
-      repo = sess.repo;
-      return repo.git.refs.heads(this.branch).fetch();
-    }).then( (_head) => {
-      head = _head;
-      return repo.git.trees(head.object.sha).fetch();
-    }).then( (_tree) => {
-      tree = _tree;
+      if (sess.subtreepath) {
+        throw "Sorry, right now you can only commit files to the root directory of a repository.";
+      }
       return Promise.all(files.map( (file) => {
         if (typeof file.data === 'string') {
-          return repo.git.blobs.create({
+          return sess.repo.git.blobs.create({
             content: file.data,
             encoding: 'utf-8'
           });
         } else {
-          return repo.git.blobs.create({
+          return sess.repo.git.blobs.create({
             content: btoa(byteArrayToString(file.data)),
             encoding: 'base64'
           });
         }
       }));
     }).then( (blobs) => {
-      return repo.git.trees.create({
+      return sess.repo.git.trees.create({
         tree: files.map( (file, index) => {
           return {
             path: file.path,
@@ -273,20 +321,27 @@ export class GithubService {
             sha: blobs[index]['sha']
           };
         }),
-        base_tree: tree.sha
+        base_tree: sess.tree.sha
       });
-    }).then( (tree) => {
-      return repo.git.commits.create({
+    }).then( (newtree) => {
+      return sess.repo.git.commits.create({
         message: message,
-        tree: tree.sha,
+        tree: newtree.sha,
         parents: [
-          head.object.sha
+          sess.head.object.sha
         ]
       });
+    }).then( (commit1) => {
+      return sess.repo.commits(commit1.sha).fetch();
     }).then( (commit) => {
-      return repo.git.refs.heads(this.branch).update({
-        sha: commit.sha
-      });
+      sess.commit = commit;
+      return sess;
+    });
+  }
+
+  push(sess:GHSession) : Promise<GHSession> {
+    return sess.head.update({
+      sha: sess.commit.sha
     }).then( (update) => {
       return sess;
     });

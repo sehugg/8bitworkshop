@@ -1,200 +1,153 @@
 "use strict";
 
-import { Platform, BaseZ80Platform  } from "../baseplatform";
+import { Platform, BasicZ80ScanlinePlatform, BaseZ80Platform } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
 import { hex } from "../util";
 
 // http://www.computerarcheology.com/Arcade/
 
 const MW8080BW_PRESETS = [
-  {id:'gfxtest.c', name:'Graphics Test'},
-  {id:'shifter.c', name:'Sprite w/ Bit Shifter'},
-  {id:'game2.c', name:'Cosmic Impalas'},
+  { id: 'gfxtest.c', name: 'Graphics Test' },
+  { id: 'shifter.c', name: 'Sprite w/ Bit Shifter' },
+  { id: 'game2.c', name: 'Cosmic Impalas' },
 ];
 
-const _Midway8080BWPlatform = function(mainElement) {
+const SPACEINV_KEYCODE_MAP = makeKeycodeMap([
+  [Keys.A,        1, 0x10], // P1
+  [Keys.LEFT,     1, 0x20],
+  [Keys.RIGHT,    1, 0x40],
+  [Keys.P2_A,     2, 0x10], // P2
+  [Keys.P2_LEFT,  2, 0x20],
+  [Keys.P2_RIGHT, 2, 0x40],
+  [Keys.SELECT,   1, 0x1],
+  [Keys.START,    1, 0x4],
+  [Keys.P2_START, 1, 0x2],
+]);
 
-  var cpu, ram, membus, iobus, rom;
-  var probe;
-  var video, timer, pixels, displayPCs;
-  var inputs = [0xe,0x8,0x0];
-  var bitshift_offset = 0;
-  var bitshift_register = 0;
-  var watchdog_counter;
-  const cpuFrequency = 1996800;
-  const cpuCyclesPerLine = cpuFrequency/(60*224); // TODO
-  const INITIAL_WATCHDOG = 256;
-  const PIXEL_ON = 0xffeeeeee;
-  const PIXEL_OFF = 0xff000000;
+const INITIAL_WATCHDOG = 256;
+const PIXEL_ON = 0xffeeeeee;
+const PIXEL_OFF = 0xff000000;
 
-	const SPACEINV_KEYCODE_MAP = makeKeycodeMap([
-		[Keys.VK_SPACE, 1, 0x10], // P1
-		[Keys.VK_LEFT, 1, 0x20],
-		[Keys.VK_RIGHT, 1, 0x40],
-		[Keys.VK_S, 2, 0x10], // P2
-		[Keys.VK_A, 2, 0x20],
-		[Keys.VK_D, 2, 0x40],
-		[Keys.VK_5, 1, 0x1],
-		[Keys.VK_1, 1, 0x4],
-		[Keys.VK_2, 1, 0x2],
-  ]);
-  
- class Midway8080BWPlatform extends BaseZ80Platform implements Platform {
 
-  getPresets() {
-    return MW8080BW_PRESETS;
+class Midway8080BWPlatform extends BasicZ80ScanlinePlatform implements Platform {
+  cpuFrequency = 1996800; // MHz
+  canvasWidth = 256;
+  numTotalScanlines = 262;
+  numVisibleScanlines = 224;
+  defaultROMSize = 0x2000;
+
+  bitshift_offset = 0;
+  bitshift_register = 0;
+  watchdog_counter;
+
+  getPresets() { return MW8080BW_PRESETS; }
+  getKeyboardMap() { return SPACEINV_KEYCODE_MAP; }
+  getVideoOptions() { return { rotate: -90 }; }
+  newRAM() { return new Uint8Array(0x2000); }
+
+  newMembus() {
+    return {
+      read: newAddressDecoder([
+        [0x0000, 0x1fff, 0x1fff, (a) => { return this.rom ? this.rom[a] : 0; }],
+        [0x2000, 0x3fff, 0x1fff, (a) => { return this.ram[a]; }],
+      ]),
+      write: newAddressDecoder([
+        [0x2000, 0x23ff, 0x3ff, (a, v) => { this.ram[a] = v; }],
+        [0x2400, 0x3fff, 0x1fff, (a, v) => {
+          this.ram[a] = v;
+          var ofs = (a - 0x400) << 3;
+          for (var i = 0; i < 8; i++) {
+            this.pixels[ofs + i] = (v & (1 << i)) ? PIXEL_ON : PIXEL_OFF;
+          }
+          //if (displayPCs) displayPCs[a] = cpu.getPC(); // save program counter
+        }],
+      ]),
+    };
   }
 
-  start = function() {
-    ram = new RAM(0x2000);
-    //displayPCs = new Uint16Array(new ArrayBuffer(0x2000*2));
-    membus = {
-      read: newAddressDecoder([
-				[0x0000, 0x1fff, 0x1fff, function(a) { return rom ? rom[a] : 0; }],
-				[0x2000, 0x3fff, 0x1fff, function(a) { return ram.mem[a]; }],
-			]),
-			write: newAddressDecoder([
-				[0x2000, 0x23ff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
-				[0x2400, 0x3fff, 0x1fff, function(a,v) {
-					ram.mem[a] = v;
-					var ofs = (a - 0x400)<<3;
-					for (var i=0; i<8; i++)
-						pixels[ofs+i] = (v & (1<<i)) ? PIXEL_ON : PIXEL_OFF;
-          if (displayPCs) displayPCs[a] = cpu.getPC(); // save program counter
-				}],
-			]),
-      isContended: function() { return false; },
-    };
-    iobus = {
-      read: function(addr) {
-				addr &= 0x3;
+  newIOBus() {
+    return {
+      read: (addr) => {
+        addr &= 0x3;
         //console.log('IO read', hex(addr,4));
         switch (addr) {
           case 0:
           case 1:
           case 2:
-            return inputs[addr];
+            return this.inputs[addr];
           case 3:
-            return (bitshift_register >> (8-bitshift_offset)) & 0xff;
+            return (this.bitshift_register >> (8 - this.bitshift_offset)) & 0xff;
         }
         return 0;
-    	},
-    	write: function(addr, val) {
-				addr &= 0x7;
-				val &= 0xff;
+      },
+      write: (addr, val) => {
+        addr &= 0x7;
+        val &= 0xff;
         //console.log('IO write', hex(addr,4), hex(val,2));
         switch (addr) {
           case 2:
-            bitshift_offset = val & 0x7;
+            this.bitshift_offset = val & 0x7;
             break;
           case 3:
           case 5:
             // TODO: sound
             break;
           case 4:
-            bitshift_register = (bitshift_register >> 8) | (val << 8);
+            this.bitshift_register = (this.bitshift_register >> 8) | (val << 8);
             break;
           case 6:
-            watchdog_counter = INITIAL_WATCHDOG;
+            this.watchdog_counter = INITIAL_WATCHDOG;
             break;
         }
-    	}
+      }
     };
-    cpu = this.newCPU(membus, iobus);
-    video = new RasterVideo(mainElement,256,224,{rotate:-90});
-    video.create();
+  }
+
+  startScanline(sl: number) {
+  }
+
+  drawScanline(sl: number) {
+    // at end of scanline
+    if (sl == 95)
+      this.cpu.requestInterrupt(0x8); // RST $8
+    else if (sl == 223)
+      this.cpu.requestInterrupt(0x10); // RST $10
+  }
+
+  advance(novideo: boolean) {
+    super.advance(novideo);
+    if (this.watchdog_counter-- <= 0) {
+      console.log("WATCHDOG FIRED"); // TODO: alert on video
+      this.reset();
+    }
+  }
+
+  loadState(state) {
+    super.loadState(state);
+    this.bitshift_register = state.bsr;
+    this.bitshift_offset = state.bso;
+    this.watchdog_counter = state.wdc;
+  }
+  saveState() {
+    var state: any = super.saveState();
+    state.bsr = this.bitshift_register;
+    state.bso = this.bitshift_offset;
+    state.wdc = this.watchdog_counter;
+    return state;
+  }
+  reset() {
+    super.reset();
+    this.watchdog_counter = INITIAL_WATCHDOG;
+  }
+}
+
+/*
 		$(video.canvas).click(function(e) {
 			var x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
 			var y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height());
 			var addr = (x>>3) + (y*32) + 0x400;
       if (displayPCs) console.log(x, y, hex(addr,4), "PC", hex(displayPCs[addr],4));
 		});
-    var idata = video.getFrameData();
-		setKeyboardFromMap(video, inputs, SPACEINV_KEYCODE_MAP);
-    pixels = video.getFrameData();
-    timer = new AnimationTimer(60, this.nextFrame.bind(this));
-  }
+  */
 
-  readAddress(addr) {
-    return membus.read(addr);
-  }
-  
-  advance(novideo : boolean) {
-    for (var sl=0; sl<224; sl++) {
-      this.runCPU(cpu, cpuCyclesPerLine);
-      if (sl == 95)
-        cpu.requestInterrupt(0x8); // RST $8
-      else if (sl == 223)
-        cpu.requestInterrupt(0x10); // RST $10
-    }
-    if (!novideo) {
-      video.updateFrame();
-    }
-    if (watchdog_counter-- <= 0) {
-      console.log("WATCHDOG FIRED"); // TODO: alert on video
-      this.reset();
-    }
-  }
-
-  loadROM(title, data) {
-    rom = padBytes(data, 0x2000);
-    this.reset();
-  }
-
-  loadState(state) {
-    cpu.loadState(state.c);
-    ram.mem.set(state.b);
-    bitshift_register = state.bsr;
-    bitshift_offset = state.bso;
-    watchdog_counter = state.wdc;
-    inputs[0] = state.in0;
-    inputs[1] = state.in1;
-    inputs[2] = state.in2;
-  }
-  saveState() {
-    return {
-      c:this.getCPUState(),
-      b:ram.mem.slice(0),
-      bsr:bitshift_register,
-      bso:bitshift_offset,
-      wdc:watchdog_counter,
-      in0:inputs[0],
-      in1:inputs[1],
-      in2:inputs[2],
-    };
-  }
-  loadControlsState(state) {
-    inputs[0] = state.in0;
-    inputs[1] = state.in1;
-    inputs[2] = state.in2;
-  }
-  saveControlsState() {
-    return {
-      in0:inputs[0],
-      in1:inputs[1],
-      in2:inputs[2],
-    };
-  }
-  getCPUState() {
-    return cpu.saveState();
-  }
-
-  isRunning() {
-    return timer && timer.isRunning();
-  }
-  pause() {
-    timer.stop();
-  }
-  resume() {
-    timer.start();
-  }
-  reset() {
-    cpu.reset();
-    cpu.setTstates(0);
-    watchdog_counter = INITIAL_WATCHDOG;
-  }
- }
-  return new Midway8080BWPlatform();
-}
-
-PLATFORMS['mw8080bw'] = _Midway8080BWPlatform;
+PLATFORMS['mw8080bw'] = Midway8080BWPlatform;

@@ -1,7 +1,7 @@
 "use strict";
 
-import { Platform, BaseMAMEPlatform, BaseZ80Platform, getToolForFilename_z80 } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
+import { Platform, BaseMAMEPlatform, BasicZ80ScanlinePlatform, getToolForFilename_z80 } from "../baseplatform";
+import { PLATFORMS, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
 import { hex, lzgmini, stringToByteArray } from "../util";
 import { MasterAudio, SN76489_Audio } from "../audio";
 import { TMS9918A } from "../video/tms9918a";
@@ -25,200 +25,171 @@ import { TMS9918A } from "../video/tms9918a";
 // http://www.harmlesslion.com/cgi-bin/showprog.cgi?ColecoVision
 
 export var ColecoVision_PRESETS = [
-  {id:'text.c', name:'Text Mode'},
-  {id:'hello.c', name:'Scrolling Text'},
-  {id:'text32.c', name:'32-Column Color Text'},
-  {id:'stars.c', name:'Scrolling Starfield'},
-  {id:'cursorsmooth.c', name:'Moving Cursor'},
-  {id:'simplemusic.c', name:'Simple Music'},
-  {id:'musicplayer.c', name:'Multivoice Music'},
-  {id:'mode2bitmap.c', name:'Mode 2 Bitmap'},
-  {id:'mode2compressed.c', name:'Mode 2 Bitmap (LZG)'},
-  {id:'lines.c', name:'Mode 2 Lines'},
-  {id:'multicolor.c', name:'Multicolor Mode'},
-  {id:'siegegame.c', name:'Siege Game'},
-  {id:'shoot.c', name:'Solarian Game'},
-  {id:'climber.c', name:'Platform Game'},
+  { id: 'text.c', name: 'Text Mode' },
+  { id: 'hello.c', name: 'Scrolling Text' },
+  { id: 'text32.c', name: '32-Column Color Text' },
+  { id: 'stars.c', name: 'Scrolling Starfield' },
+  { id: 'cursorsmooth.c', name: 'Moving Cursor' },
+  { id: 'simplemusic.c', name: 'Simple Music' },
+  { id: 'musicplayer.c', name: 'Multivoice Music' },
+  { id: 'mode2bitmap.c', name: 'Mode 2 Bitmap' },
+  { id: 'mode2compressed.c', name: 'Mode 2 Bitmap (LZG)' },
+  { id: 'lines.c', name: 'Mode 2 Lines' },
+  { id: 'multicolor.c', name: 'Multicolor Mode' },
+  { id: 'siegegame.c', name: 'Siege Game' },
+  { id: 'shoot.c', name: 'Solarian Game' },
+  { id: 'climber.c', name: 'Platform Game' },
 ];
 
 var COLECOVISION_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_UP,    0, 0x1],
-  [Keys.VK_DOWN,  0, 0x4],
-  [Keys.VK_LEFT,  0, 0x8],
-  [Keys.VK_RIGHT, 0, 0x2],
-  [Keys.VK_SPACE, 0, 0x40],
-  [Keys.VK_CONTROL, 1, 0x40],
+  [Keys.UP, 0, 0x1],
+  [Keys.DOWN, 0, 0x4],
+  [Keys.LEFT, 0, 0x8],
+  [Keys.RIGHT, 0, 0x2],
+  [Keys.A, 0, 0x40],
+  [Keys.B, 1, 0x40],
 
-  [Keys.VK_W, 2, 0x1],
-  [Keys.VK_S, 2, 0x4],
-  [Keys.VK_A, 2, 0x8],
-  [Keys.VK_D, 2, 0x2],
-  [Keys.VK_Z, 2, 0x40],
-  [Keys.VK_X, 3, 0x40],
+  [Keys.P2_UP, 2, 0x1],
+  [Keys.P2_DOWN, 2, 0x4],
+  [Keys.P2_LEFT, 2, 0x8],
+  [Keys.P2_RIGHT, 2, 0x2],
+  [Keys.P2_A, 2, 0x40],
+  [Keys.P2_B, 3, 0x40],
 ]);
 
-/// standard emulator
+class ColecoVisionPlatform extends BasicZ80ScanlinePlatform implements Platform {
 
-const _ColecoVisionPlatform = function(mainElement) {
+  cpuFrequency = 3579545; // MHz
+  canvasWidth = 304;
+  numTotalScanlines = 262;
+  numVisibleScanlines = 240;
+  defaultROMSize = 0x8000;
 
-  const cpuFrequency = 3579545; // MHz
-  const canvasWidth = 304;
-  const numTotalScanlines = 262;
-  const numVisibleScanlines = 240;
-  const cpuCyclesPerLine = Math.round(cpuFrequency / 60 / numTotalScanlines);
+  vdp: TMS9918A;
+  bios: Uint8Array;
+  keypadMode: boolean;
+  audio;
+  psg;
 
-  var cpu, ram, membus, iobus, rom, bios;
-  var video, vdp, timer;
-  var audio, psg;
-  var inputs = new Uint8Array(4);
-  var keypadMode = false;
+  getPresets() { return ColecoVision_PRESETS; }
 
-  class ColecoVisionPlatform extends BaseZ80Platform implements Platform {
+  getKeyboardMap() { return COLECOVISION_KEYCODE_MAP; }
 
-    getPresets() { return ColecoVision_PRESETS; }
+  getVideoOptions() { return { overscan: true }; }
 
-    start() {
-       ram = new RAM(1024);
-       bios = new lzgmini().decode(stringToByteArray(atob(COLECO_BIOS_LZG)));
-       membus = {
-         read: newAddressDecoder([
-           [0x0000, 0x1fff, 0x1fff, function(a) { return bios ? bios[a] : 0; }],
-           [0x6000, 0x7fff,  0x3ff, function(a) { return ram.mem[a]; }],
-           [0x8000, 0xffff, 0x7fff, function(a) { return rom ? rom[a] : 0; }],
-	       ]),
-         write: newAddressDecoder([
-           [0x6000, 0x7fff,  0x3ff, function(a,v) { ram.mem[a] = v; }],
-         ]),
-         isContended: function() { return false; },
-      };
-      iobus = {
-        read: function(addr) {
-  				addr &= 0xff;
-          //console.log('IO read', hex(addr,4));
-          switch (addr) {
-            case 0xfc: return inputs[keypadMode?1:0] ^ 0xff;
-            case 0xff: return inputs[keypadMode?3:2] ^ 0xff;
-          }
-          if (addr >= 0xa0 && addr <= 0xbf) {
-            if (addr & 1)
-              return vdp.readStatus();
-            else
-              return vdp.readData();
-          }
-          return 0;
-      	},
-      	write: function(addr, val) {
-  				addr &= 0xff;
-  				val &= 0xff;
-          //console.log('IO write', hex(addr,4), hex(val,2));
-          switch (addr >> 4) {
-            case 0x8: case 0x9: keypadMode = true; break;
-            case 0xc: case 0xd: keypadMode = false; break;
-            case 0xa: case 0xb:
-              if (addr & 1)
-                return vdp.writeAddress(val);
-              else
-                return vdp.writeData(val);
-            case 0xf: psg.setData(val); break;
-          }
-      	}
-      };
-      cpu = this.newCPU(membus, iobus);
-      video = new RasterVideo(mainElement,canvasWidth,numVisibleScanlines,{overscan:true});
-      video.create();
-      audio = new MasterAudio();
-      psg = new SN76489_Audio(audio);
-      var cru = {
-        setVDPInterrupt: (b) => {
-          if (b) {
-            cpu.nonMaskableInterrupt();
-          } else {
-            // TODO: reset interrupt?
-          }
+  newRAM() {
+    return new Uint8Array(0x400);
+  }
+
+  newMembus() {
+    return {
+      read: newAddressDecoder([
+        [0x0000, 0x1fff, 0x1fff, (a) => { return this.bios ? this.bios[a] : 0; }],
+        [0x6000, 0x7fff, 0x3ff, (a) => { return this.ram[a]; }],
+        [0x8000, 0xffff, 0x7fff, (a) => { return this.rom ? this.rom[a] : 0; }],
+      ]),
+      write: newAddressDecoder([
+        [0x6000, 0x7fff, 0x3ff, (a, v) => { this.ram[a] = v; }],
+      ]),
+    };
+  }
+
+  newIOBus() {
+    return {
+      read: (addr:number):number => {
+        addr &= 0xff;
+        //console.log('IO read', hex(addr,4));
+        switch (addr) {
+          case 0xfc: return this.inputs[this.keypadMode ? 1 : 0] ^ 0xff;
+          case 0xff: return this.inputs[this.keypadMode ? 3 : 2] ^ 0xff;
         }
-      };
-      vdp = new TMS9918A(video.getFrameData(), cru, true); // true = 4 sprites/line
-      setKeyboardFromMap(video, inputs, COLECOVISION_KEYCODE_MAP);
-      timer = new AnimationTimer(60, this.nextFrame.bind(this));
-    }
-
-    readAddress(addr) {
-      return membus.read(addr);
-    }
-
-    advance(novideo : boolean) {
-      for (var sl=0; sl<numTotalScanlines; sl++) {
-        this.runCPU(cpu, cpuCyclesPerLine);
-        vdp.drawScanline(sl);
+        if (addr >= 0xa0 && addr <= 0xbf) {
+          if (addr & 1)
+            return this.vdp.readStatus();
+          else
+            return this.vdp.readData();
+        }
+        return 0;
+      },
+      write: (addr:number, val:number) => {
+        addr &= 0xff;
+        val &= 0xff;
+        //console.log('IO write', hex(addr,4), hex(val,2));
+        switch (addr >> 4) {
+          case 0x8: case 0x9: this.keypadMode = true; break;
+          case 0xc: case 0xd: this.keypadMode = false; break;
+          case 0xa: case 0xb:
+            if (addr & 1)
+              return this.vdp.writeAddress(val);
+            else
+              return this.vdp.writeData(val);
+          case 0xf: this.psg.setData(val); break;
+        }
       }
-      video.updateFrame();
-    }
+    };
+  }
 
-    loadROM(title, data) {
-      rom = padBytes(data, 0x8000);
-      this.reset();
-    }
-
-    loadState(state) {
-      cpu.loadState(state.c);
-      ram.mem.set(state.b);
-      vdp.restoreState(state.vdp);
-      keypadMode = state.kpm;
-      inputs.set(state.in);
-    }
-    saveState() {
-      return {
-        c:this.getCPUState(),
-        b:ram.mem.slice(0),
-        vdp:vdp.getState(),
-        kpm:keypadMode,
-        in:inputs.slice(0),
-      };
-    }
-    loadControlsState(state) {
-      inputs.set(state.in);
-    }
-    saveControlsState() {
-      return {
-        in:inputs.slice(0)
-      };
-    }
-    getCPUState() {
-      return cpu.saveState();
-    }
-
-    isRunning() {
-      return timer && timer.isRunning();
-    }
-    pause() {
-      timer.stop();
-      audio.stop();
-    }
-    resume() {
-      timer.start();
-      audio.start();
-    }
-    reset() {
-      cpu.reset();
-      cpu.setTstates(0);
-      vdp.reset();
-      psg.reset();
-    }
-
-    getDebugCategories() {
-      return super.getDebugCategories().concat(['VDP']);
-    }
-    getDebugInfo(category, state) {
-      switch (category) {
-        case 'VDP': return this.vdpStateToLongString(state.vdp);
-        default: return super.getDebugInfo(category, state);
+  start() {
+    super.start();
+    this.bios = new lzgmini().decode(stringToByteArray(atob(COLECO_BIOS_LZG)));
+    this.audio = new MasterAudio();
+    this.psg = new SN76489_Audio(this.audio);
+    var cru = {
+      setVDPInterrupt: (b) => {
+        if (b) {
+          this.cpu.nonMaskableInterrupt();
+        } else {
+          // TODO: reset interrupt?
+        }
       }
-    }
-    vdpStateToLongString(ppu) {
-      return vdp.getRegsString();
+    };
+    this.vdp = this.newVDP(this.video.getFrameData(), cru, true); // true = 4 sprites/line
+  }
+
+  newVDP(frameData, cru, flicker) {
+    return new TMS9918A(frameData, cru, flicker);
+  }
+
+  startScanline(sl: number) {
+  }
+
+  drawScanline(sl: number) {
+    this.vdp.drawScanline(sl);
+  }
+
+  loadState(state) {
+    super.loadState(state);
+    this.vdp.restoreState(state['vdp']);
+    this.keypadMode = state['kpm'];
+  }
+  saveState() {
+    var state = super.saveState();
+    state['vdp'] = this.vdp.getState();
+    state['kpm'] = this.keypadMode;
+    return state;
+  }
+  reset() {
+    super.reset();
+    this.vdp.reset();
+    this.psg.reset();
+    this.keypadMode = false;
+  }
+
+  getDebugCategories() {
+    return super.getDebugCategories().concat(['VDP']);
+  }
+  getDebugInfo(category, state) {
+    switch (category) {
+      case 'VDP': return this.vdpStateToLongString(state.vdp);
+      default: return super.getDebugInfo(category, state);
     }
   }
-  return new ColecoVisionPlatform();
+  vdpStateToLongString(ppu) {
+    return this.vdp.getRegsString();
+  }
+  readVRAMAddress(a : number) : number {
+    return this.vdp.ram[a & 0x3fff];
+  }
 }
 
 var COLECO_BIOS_LZG = `
@@ -264,15 +235,15 @@ class ColecoVisionMAMEPlatform extends BaseMAMEPlatform implements Platform {
 
   start() {
     this.startModule(this.mainElement, {
-      jsfile:'mamecoleco.js',
-      cfgfile:'coleco.cfg',
-      biosfile:'coleco/313 10031-4005 73108a.u2',
-      driver:'coleco',
-      width:280*2,
-      height:216*2,
-      romfn:'/emulator/cart.rom',
-      romsize:0x8000,
-      preInit:function(_self) {
+      jsfile: 'mamecoleco.js',
+      cfgfile: 'coleco.cfg',
+      biosfile: 'coleco/313 10031-4005 73108a.u2',
+      driver: 'coleco',
+      width: 280 * 2,
+      height: 216 * 2,
+      romfn: '/emulator/cart.rom',
+      romsize: 0x8000,
+      preInit: function(_self) {
       },
     });
   }
@@ -292,4 +263,4 @@ class ColecoVisionMAMEPlatform extends BaseMAMEPlatform implements Platform {
 ///
 
 PLATFORMS['coleco.mame'] = ColecoVisionMAMEPlatform;
-PLATFORMS['coleco'] = _ColecoVisionPlatform;
+PLATFORMS['coleco'] = ColecoVisionPlatform;

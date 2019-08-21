@@ -1,9 +1,9 @@
 
-	include "nesdefs.asm"
+	include "nesdefs.dasm"
 
 ;;;;; VARIABLES
 
-	seg.u RAM
+	seg.u ZEROPAGE
 	org $0
 
 ;;;;; NES CARTRIDGE HEADER
@@ -33,7 +33,7 @@ Start:	subroutine
 
 ;;;;; COMMON SUBROUTINES
 
-	include "nesppu.asm"
+	include "nesppu.dasm"
 
 ;;;;; INTERRUPT HANDLERS
 

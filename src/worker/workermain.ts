@@ -1,6 +1,6 @@
 "use strict";
 
-import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency } from "../workertypes";
+import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine } from "../workertypes";
 
 const emglobal : any = this['window'] || this['global'] || this;
 declare var WebAssembly;
@@ -104,6 +104,17 @@ var PLATFORM_PARAMS = {
       {name:'I/O Registers',start:0x6000,size:0x2000,type:'io'},
     ],
   },
+  'williams': {
+    code_start: 0x0,
+    rom_size: 0xc000,
+    data_start: 0x9800,
+    data_size: 0x2800,
+    stack_end: 0xc000,
+    extra_segments:[
+      {name:'Video RAM',start:0x0000,size:0xc000,type:'ram'},
+      {name:'I/O Registers',start:0xc000,size:0x1000,type:'io'},
+    ],
+  },
   'williams-z80': {
     code_start: 0x0,
     rom_size: 0x9800,
@@ -160,11 +171,47 @@ var PLATFORM_PARAMS = {
     data_start: 0x7000,
     data_size: 0x400,
     stack_end: 0x8000,
-    extra_preproc_args: ['-I', '/share/include/coleco'],
+    extra_preproc_args: ['-I', '/share/include/coleco', '-D', 'CV_CV'],
     extra_link_args: ['-k', '/share/lib/coleco', '-l', 'libcv', '-l', 'libcvu', 'crt0.rel'],
     extra_segments:[
       {name:'BIOS',start:0x0,size:0x2000,type:'rom'},
       {name:'Cartridge Header',start:0x8000,size:0x100,type:'rom'},
+    ],
+  },
+  'msx': {
+    rom_start: 0x4000,
+    code_start: 0x4000,
+    rom_size: 0x8000,
+    data_start: 0xc000,
+    data_size: 0x3000,
+    stack_end: 0xffff,
+    extra_link_args: ['crt0-msx.rel'],
+    extra_link_files: ['crt0-msx.rel', 'crt0-msx.lst'],
+    extra_segments:[
+      {name:'BIOS',start:0x0,size:0x4000,type:'rom'},
+      //{name:'Cartridge',start:0x4000,size:0x4000,type:'rom'},
+      {name:'RAM',start:0xc000,size:0x3200,type:'ram'},
+      {name:'Stack',start:0xf000,size:0x300,type:'ram'},
+      {name:'BIOS Work RAM',start:0xf300,size:0xd00},
+    ],
+  },
+  'msx-libcv': {
+    rom_start: 0x4000,
+    code_start: 0x4000,
+    rom_size: 0x8000,
+    data_start: 0xc000,
+    data_size: 0x3000,
+    stack_end: 0xffff,
+    extra_preproc_args: ['-I', '.', '-D', 'CV_MSX'],
+    extra_link_args: ['-k', '.', '-l', 'libcv-msx', '-l', 'libcvu-msx', 'crt0-msx.rel'],
+    extra_link_files: ['libcv-msx.lib', 'libcvu-msx.lib', 'crt0-msx.rel', 'crt0-msx.lst'],
+    extra_compile_files: ['cv.h','cv_graphics.h','cv_input.h','cv_sound.h','cv_support.h','cvu.h','cvu_c.h','cvu_compression.h','cvu_f.h','cvu_graphics.h','cvu_input.h','cvu_sound.h'],
+    extra_segments:[
+      {name:'BIOS',start:0x0,size:0x4000,type:'rom'},
+      //{name:'Cartridge',start:0x4000,size:0x4000,type:'rom'},
+      {name:'RAM',start:0xc000,size:0x3200,type:'ram'},
+      {name:'Stack',start:0xf000,size:0x300,type:'ram'},
+      {name:'BIOS Work RAM',start:0xf300,size:0xd00},
     ],
   },
   'sms-sg1000-libcv': {
@@ -181,14 +228,14 @@ var PLATFORM_PARAMS = {
   },
   'nes': { //TODO
     define: '__NES__',
-    cfgfile: 'neslib.cfg',
-    libargs: ['crt0.o', 'nes.lib',
+    cfgfile: 'neslib2.cfg',
+    libargs: ['crt0.o', 'nes.lib', 'neslib2.lib',
       '-D', 'NES_MAPPER=0', // NROM
       '-D', 'NES_PRG_BANKS=2', // 2 16K PRG banks
       '-D', 'NES_CHR_BANKS=1', // 1 CHR bank
       '-D', 'NES_MIRRORING=0', // horizontal mirroring
       ],
-    extra_link_files: ['crt0.o', 'nesbanked.cfg'],
+    extra_link_files: ['crt0.o', 'neslib2.lib', 'neslib2.cfg', 'nesbanked.cfg'],
     extra_segments:[
       //{name:'Work RAM',start:0x0,size:0x800,type:'ram'},
       {name:'OAM Buffer',start:0x200,size:0x100,type:'ram'},
@@ -196,16 +243,6 @@ var PLATFORM_PARAMS = {
       {name:'APU Registers',start:0x4000,last:0x4020,size:0x2000,type:'io'},
       {name:'Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
     ],
-  },
-  'nes-conio': {
-    cfgfile: 'nes.cfg',
-    define: '__NES__',
-    libargs: ['nes.lib'],
-  },
-  'nes-lib': {
-    define: '__NES__',
-    cfgfile: 'neslib.cfg',
-    libargs: ['neslib.lib', 'nes.lib'],
   },
   'apple2': {
     define: '__APPLE2__',
@@ -234,11 +271,6 @@ var PLATFORM_PARAMS = {
     libargs: ['atari5200.lib',
       '-D', '__CARTFLAGS__=255'],
   },
-  'c64': {
-    define: '__C64__',
-    cfgfile: 'c64.cfg',
-    libargs: ['c64.lib'],
-  },
   'verilog': {
   },
   'astrocade': {
@@ -247,6 +279,13 @@ var PLATFORM_PARAMS = {
     data_start: 0x4e10,
      data_size: 0x1f0,
      stack_end: 0x5000,
+    extra_segments:[
+      {name:'BIOS',start:0x0,size:0x2000,type:'rom'},
+      //{name:'Cart ROM',start:0x2000,size:0x2000,type:'rom'},
+      //{name:'Magic RAM',start:0x0,size:0x4000,type:'ram'},
+      {name:'Screen RAM',start:0x4000,size:0x1000,type:'ram'},
+      {name:'BIOS Variables',start:0x4fce,size:0x5000-0x4fce,type:'ram'},
+    ],
   },
   'astrocade-arcade': {
     code_start: 0x0000,
@@ -262,9 +301,50 @@ var PLATFORM_PARAMS = {
      data_size: 50,
      stack_end: 0x4fce,
   },
+  'atari7800': {
+    define: '__ATARI7800__',
+    cfgfile: 'atari7800.cfg',
+    libargs: ['crt0.o', 'sim6502.lib'],
+    extra_link_files: ['crt0.o', 'atari7800.cfg'],
+    extra_segments:[
+      {name:'TIA',start:0x00,size:0x20,type:'io'},
+      {name:'MARIA',start:0x20,size:0x20,type:'io'},
+      {name:'RAM (6166 Block 0)',start:0x40,size:0xc0,type:'ram'},
+      {name:'RAM (6166 Block 1)',start:0x140,size:0xc0,type:'ram'},
+      {name:'PIA',start:0x280,size:0x18,type:'io'},
+      {name:'RAM',start:0x1800,size:0x1000,type:'ram'}, // TODO: shadow ram
+      {name:'Cartridge ROM',start:0x4000,size:0xc000,type:'rom'},
+    ],
+  },
+  'c64': {
+    define: '__C64__',
+    cfgfile: 'c64.cfg', // SYS 2058
+    libargs: ['c64.lib'],
+    //extra_link_files: ['c64-cart.cfg'],
+    extra_segments:[
+      {name:'6510 Registers',start:0x0,  size:0x2,type:'io'},
+      {name:'RAM',          start:0x2,   size:0x7ffe,type:'ram'},
+      {name:'Cartridge ROM',start:0x8000,size:0x2000,type:'rom'},
+      {name:'BASIC ROM',    start:0xa000,size:0x2000,type:'rom'},
+      {name:'RAM',          start:0xc000,size:0x1000,type:'ram'},
+      {name:'VIC-II I/O',   start:0xd000,size:0x0400,type:'io'},
+      {name:'Color RAM',    start:0xd800,size:0x0400,type:'io'},
+      {name:'CIA 1',        start:0xdc00,size:0x0100,type:'io'},
+      {name:'CIA 2',        start:0xdd00,size:0x0100,type:'io'},
+      {name:'KERNAL ROM',   start:0xe000,size:0x2000,type:'rom'},
+    ],
+  },
+  'kim1': {
+    extra_segments:[
+      {name:'RAM',          start:0x0000,size:0x1400,type:'ram'},
+      {name:'6530',         start:0x1700,size:0x0040,type:'io'},
+      {name:'6530',         start:0x1740,size:0x0040,type:'io'},
+      {name:'RAM',          start:0x1780,size:0x0080,type:'ram'},
+      {name:'BIOS',         start:0x1800,size:0x0800,type:'rom'},
+    ],
+  },
 };
 
-PLATFORM_PARAMS['coleco.mame'] = PLATFORM_PARAMS['coleco'];
 PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];
 
 var _t1;
@@ -296,7 +376,6 @@ interface BuildStep extends WorkerBuildStep {
   params?
   result?
   code?
-  generated?
   prefix?
   maxts?
 };
@@ -521,6 +600,7 @@ function loadNative(modulename:string) {
 function setupFS(FS, name:string) {
   var WORKERFS = FS.filesystems['WORKERFS'];
   if (name === '65-vector') name = '65-sim6502'; // TODO
+  if (name === '65-atari7800') name = '65-sim6502'; // TODO
   if (!fsMeta[name]) throw "No filesystem for '" + name + "'";
   FS.mkdir('/share');
   FS.mount(WORKERFS, {
@@ -528,6 +608,7 @@ function setupFS(FS, name:string) {
   }, '/share');
   // fix for slow Blob operations by caching typed arrays
   // https://github.com/kripken/emscripten/blob/incoming/src/library_workerfs.js
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=349304#c30
   var reader = WORKERFS.reader;
   var blobcache = {};
   WORKERFS.stream_ops.read = function (stream, buffer, offset, length, position) {
@@ -602,19 +683,23 @@ function extractErrors(regex, strings:string[], path:string, iline, imsg, ifilen
 
 var re_crlf = /\r?\n/;
 
-function parseListing(code:string, lineMatch, iline:number, ioffset:number, iinsns:number) {
-  var lines = [];
+function parseListing(code:string, lineMatch, iline:number, ioffset:number, iinsns:number, icycles?:number) : SourceLine[] {
+  var lines : SourceLine[] = [];
   for (var line of code.split(re_crlf)) {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
       var linenum = parseInt(linem[iline]);
       var offset = parseInt(linem[ioffset], 16);
       var insns = linem[iinsns];
+      var cycles : number = icycles ? parseInt(linem[icycles]) : null;
+      var iscode = cycles > 0;
       if (insns) {
         lines.push({
           line:linenum,
           offset:offset,
           insns:insns,
+          cycles:cycles,
+          iscode:iscode
         });
       }
     }
@@ -644,13 +729,12 @@ function parseSourceLines(code:string, lineMatch, offsetMatch) {
   return lines;
 }
 
-function parseDASMListing(code:string, unresolved:{}, mainFilename:string) {
+function parseDASMListing(code:string, listings:{}, errors:WorkerError[], unresolved:{}) {
+  // TODO: this gets very slow
   //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
   var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
   var equMatch = /\bequ\b/i;
   var macroMatch = /\bMAC\s+(.+)?/i;
-  var errors = [];
-  var lines = [];
   var macrolines = [];
   var lastline = 0;
   var macros = {};
@@ -663,8 +747,10 @@ function parseDASMListing(code:string, unresolved:{}, mainFilename:string) {
       var insns = linem[4];
       var restline = linem[5];
       if (insns && insns.startsWith('?')) insns = null;
-      // inside of main file?
-      if (filename == mainFilename) {
+      // inside of a file?
+      var lst = listings[filename];
+      if (lst) {
+        var lines = lst.lines;
         // look for MAC statement
         var macmatch = macroMatch.exec(restline);
         if (macmatch) {
@@ -702,13 +788,20 @@ function parseDASMListing(code:string, unresolved:{}, mainFilename:string) {
       // TODO: better symbol test (word boundaries)
       // TODO: ignore IFCONST and IFNCONST usage
       for (var key in unresolved) {
-        var pos = restline ? restline.indexOf(key) : line.indexOf(key);
+        var l = restline || line;
+        var pos = l.indexOf(key);
         if (pos >= 0) {
-          errors.push({
-            path:filename,
-            line:linenum,
-            msg:"Unresolved symbol '" + key + "'"
-          });
+          var cmt = l.indexOf(';');
+          if (cmt < 0 || cmt > pos) {
+            // make sure identifier is flanked by non-word chars
+            if (/\w+/.test(key) && new RegExp("\\b"+key+"\\b").test(key)) {
+              errors.push({
+                path:filename,
+                line:linenum,
+                msg:"Unresolved symbol '" + key + "'"
+              });
+            }
+          }
         }
       }
     }
@@ -722,8 +815,6 @@ function parseDASMListing(code:string, unresolved:{}, mainFilename:string) {
     }
   }
   // TODO: use macrolines
-  // TODO: return {text:code, asmlines:lines, macrolines:macrolines, errors:errors};
-  return {lines:lines, macrolines:macrolines, errors:errors};
 }
 
 function assembleDASM(step:BuildStep) {
@@ -763,22 +854,16 @@ function assembleDASM(step:BuildStep) {
     "-o"+binpath,
     "-s"+sympath ]);
   var alst = FS.readFile(lstpath, {'encoding':'utf8'});
-  // parse main listing, get errors
-  var listing = parseDASMListing(alst, unresolved, step.path);
-  errors = errors.concat(listing.errors);
+  // parse main listing, get errors and listings for each file
+  var listings = {};
+  for (let path of step.files) {
+    listings[path] = {lines:[]};
+  }
+  parseDASMListing(alst, listings, errors, unresolved);
   if (errors.length) {
     return {errors:errors};
   }
-  var listings = {};
-  listings[lstpath] = listing;
-  // parse include files
-  // TODO: kinda wasted effort
-  for (var fn of step.files) {
-    if (fn != step.path) {
-      var lst = parseDASMListing(alst, unresolved, fn);
-      listings[fn] = lst; // TODO: foo.asm.lst
-    }
-  }
+  // read binary rom output and symbols
   var aout, asym;
   aout = FS.readFile(binpath);
   try {
@@ -804,10 +889,12 @@ function assembleDASM(step:BuildStep) {
   }
   // for bataribasic (TODO)
   if (step['bblines']) {
-    let lst = listings[lstpath];
-    lst.asmlines = lst.lines;
-    lst.text = alst;
-    lst.lines = [];
+    let lst = listings[step.path];
+    if (lst) {
+      lst.asmlines = lst.lines;
+      lst.text = alst;
+      lst.lines = [];
+    }
   }
   var segments = step.params.extra_segments;
   return {
@@ -914,6 +1001,7 @@ function assembleCA65(step:BuildStep) {
     var FS = CA65['FS'];
     setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
+    fixParamsWithDefines(step.path, step.params);
     execMain(step, CA65, ['-v', '-g', '-I', '/share/asminc', '-o', objpath, '-l', lstpath, step.path]);
     if (errors.length)
       return {errors:errors};
@@ -947,6 +1035,10 @@ function linkLD65(step:BuildStep) {
     setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     populateExtraFiles(step, FS, params.extra_link_files);
+    // populate .cfg file, if it is a custom one
+    if (workfs[params.cfgfile]) {
+      populateEntry(FS, params.cfgfile, workfs[params.cfgfile], null);
+    }
     var libargs = params.libargs;
     var cfgfile = params.cfgfile;
     var args = ['--cfg-path', '/share/cfg',
@@ -1034,6 +1126,7 @@ function fixParamsWithDefines(path:string, params){
   if (path && libargs) {
     var code = getWorkFileAsString(path);
     if (code) {
+      var oldcfgfile = params.cfgfile;
       var ident2index = {};
       // find all lib args "IDENT=VALUE"
       for (var i=0; i<libargs.length; i++) {
@@ -1043,7 +1136,7 @@ function fixParamsWithDefines(path:string, params){
         }
       }
       // find #defines and replace them
-      var re = /^#define\s+(\w+)\s+(\S+)/gmi;
+      var re = /^[;]?#define\s+(\w+)\s+(\S+)/gmi; // TODO: empty string?
       var m;
       while (m = re.exec(code)) {
         var ident = m[1];
@@ -1055,8 +1148,13 @@ function fixParamsWithDefines(path:string, params){
           // TODO: MMC3 mapper switch
           if (ident == 'NES_MAPPER' && value == '4') {
             params.cfgfile = 'nesbanked.cfg';
-            console.log('Using config file', params.cfgfile);
+            console.log("using config file", params.cfgfile);
           }
+        } else if (ident == 'CFGFILE' && value) {
+          params.cfgfile = value;
+        } else if (ident == 'LIBARGS' && value) {
+          params.libargs = value.split(',').filter((s) => { return s!=''; });
+          console.log('Using libargs', params.libargs);
         }
       }
     }
@@ -1125,25 +1223,32 @@ function hexToArray(s, ofs) {
   return arr;
 }
 
-function parseIHX(ihx, rom_start, rom_size) {
+function parseIHX(ihx, rom_start, rom_size, errors) {
   var output = new Uint8Array(new ArrayBuffer(rom_size));
+  var high_size = 0;
   for (var s of ihx.split("\n")) {
     if (s[0] == ':') {
       var arr = hexToArray(s, 1);
       var count = arr[0];
       var address = (arr[1]<<8) + arr[2] - rom_start;
       var rectype = arr[3];
+      //console.log(rectype,address.toString(16),count,arr);
       if (rectype == 0) {
         for (var i=0; i<count; i++) {
           var b = arr[4+i];
           output[i+address] = b;
         }
+        if (i+address > high_size) high_size = i+address;
       } else if (rectype == 1) {
-        return output;
+        break;
       } else {
         console.log(s); // unknown record type
       }
     }
+  }
+  // TODO: return ROM anyway?
+  if (high_size > rom_size) {
+    //errors.push({line:0, msg:"ROM size too large: 0x" + high_size.toString(16) + " > 0x" + rom_size.toString(16)});
   }
   return output;
 }
@@ -1259,13 +1364,18 @@ function linkSDLDZ80(step:BuildStep)
     // return unchanged if no files changed
     if (!anyTargetChanged(step, ["main.ihx", "main.noi"]))
       return;
-
+    // parse binary file
+    var binout = parseIHX(hexout, params.rom_start!==undefined?params.rom_start:params.code_start, params.rom_size, errors);
+    if (errors.length) {
+      return {errors:errors};
+    }
+    // parse listings
     var listings = {};
     for (var fn of step.files) {
       if (fn.endsWith('.lst')) {
         var rstout = FS.readFile(fn.replace('.lst','.rst'), {encoding:'utf8'});
         //   0000 21 02 00      [10]   52 	ld	hl, #2
-        var asmlines = parseListing(rstout, /^\s*([0-9A-F]+)\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 4, 1, 2);
+        var asmlines = parseListing(rstout, /^\s*([0-9A-F]{4})\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]?\s+(\d+) (.*)/i, 4, 1, 2, 3);
         var srclines = parseSourceLines(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
         putWorkFile(fn, rstout);
         // TODO: you have to get rid of all source lines to get asm listing
@@ -1296,7 +1406,8 @@ function linkSDLDZ80(step:BuildStep)
         let segsize = symbolmap['l__'+seg]; // l__SEG
         if (segstart >= 0 && segsize > 0) {
           var type = null;
-          if (['CODE','INITIALIZER','GSINIT','GSFINAL'].includes(seg)) type = 'rom';
+          if (['INITIALIZER','GSINIT','GSFINAL'].includes(seg)) type = 'rom';
+          else if (seg.startsWith('CODE')) type = 'rom';
           else if (['DATA','INITIALIZED'].includes(seg)) type = 'ram';
           if (type == 'rom' || segstart > 0) // ignore HEADER0, CABS0, etc (TODO?)
             segments.push({name:seg, start:segstart, size:segsize, type:type});
@@ -1304,7 +1415,7 @@ function linkSDLDZ80(step:BuildStep)
       }
     }
     return {
-      output:parseIHX(hexout, params.rom_start!==undefined?params.rom_start:params.code_start, params.rom_size),
+      output:binout,
       listings:listings,
       errors:errors,
       symbolmap:symbolmap,
@@ -1351,7 +1462,6 @@ function compileSDCC(step:BuildStep) {
       '--less-pedantic',
       ///'--fomit-frame-pointer',
       //'--opt-code-speed',
-      '--oldralloc',
       //'--max-allocs-per-node', '1000',
       //'--cyclomatic',
       //'--nooverlay',
@@ -1361,9 +1471,15 @@ function compileSDCC(step:BuildStep) {
       //'--noinduction',
       //'--nojtbound',
       //'--noloopreverse',
-      '--no-peep',
-      '--nolospre',
       '-o', outpath];
+    // if "#pragma opt_code" found do not disable optimziations
+    if (!/^\s*#pragma\s+opt_code/m.exec(code)) {
+      args.push.apply(args, [
+        '--oldralloc',
+        '--no-peep',
+        '--nolospre'
+      ]);
+    }
     if (params.extra_compile_args) {
       args.push.apply(args, params.extra_compile_args);
     }
@@ -1873,10 +1989,9 @@ function translateShowdown(step:BuildStep) {
   };
 }
 
-// TODO
+// http://datapipe-blackbeltsystems.com/windows/flex/asm09.html
 function assembleXASM6809(step:BuildStep) {
   load("xasm6809");
-  var origin = 0; // TODO: configurable
   var alst = "";
   var lasterror = null;
   var errors = [];
@@ -1903,21 +2018,136 @@ function assembleXASM6809(step:BuildStep) {
   });
   var FS = Module['FS'];
   //setupFS(FS);
-  var code = getWorkFileAsString(step.path);
-  FS.writeFile("main.asm", code);
-  Module.callMain(["-c", "-l", "-s", "-y", "-o=main.bin", "main.asm"]);
+  populateFiles(step, FS, {
+    mainFilePath:'main.asm'
+  });
+  var binpath = step.prefix + '.bin';
+  var lstpath = step.prefix + '.lst'; // in stdout
+  Module.callMain(["-c", "-l", "-s", "-y", "-o="+binpath, step.path]);
   if (errors.length)
     return {errors:errors};
-  var aout = FS.readFile("main.bin", {encoding:'binary'});
-  putWorkFile('main.bin', aout);
-  // 00001    0000 [ 2] 1048                asld
-  var asmlines = parseListing(alst, /^\s*([0-9A-F]+)\s+([0-9A-F]+)\s+\[([0-9 ]+)\]\s+(\d+) (.*)/i, 1, 2, 4);
-  // TODO
+  var aout = FS.readFile(binpath, {encoding:'binary'});
+  if (aout.length == 0) {
+    console.log(alst);
+    errors.push({line:0, msg:"Empty output file"});
+    return {errors:errors};
+  }
+  putWorkFile(binpath, aout);
+  putWorkFile(lstpath, alst);
+  // TODO: symbol map
+  //mond09     0000     
+  var symbolmap = {};
+  //00005  W 0003 [ 8] A6890011            lda   >PALETTE,x
+  //00012    0011      0C0203              fcb   12,2,3
+  var asmlines = parseListing(alst, /^\s*([0-9]+) .+ ([0-9A-F]+)\s+\[([0-9 ]+)\]\s+([0-9A-F]+) (.*)/i, 1, 2, 4, 3);
+  var listings = {};
+  listings[step.prefix+'.lst'] = {lines:asmlines, text:alst};
+  var segments = step.params.extra_segments;
   return {
-      output:aout,
-      errors:errors,
+    output:aout,
+    listings:listings,
+    errors:errors,
+    symbolmap:symbolmap,
+    segments:segments
+  };
+}
+
+// http://www.nespowerpak.com/nesasm/
+function assembleNESASM(step:BuildStep) {
+  loadNative("nesasm");
+  var re_filename = /[#](\d+)\s+(\S+)/;
+  var re_insn     = /\s+(\d+)\s+([0-9A-F]+):([0-9A-F]+)/;
+  var re_error    = /\s+(.+)/;
+  var errors = [];
+  var state = 0;
+  var lineno = 0;
+  var filename;
+  function match_fn(s) {
+    var m;
+    switch (state) {
+      case 0:
+        m = re_filename.exec(s);
+        if (m) {
+          filename = m[2];
+        }
+        m = re_insn.exec(s);
+        if (m) {
+          lineno = parseInt(m[1]);
+          state = 1;
+        }
+        break;
+      case 1:
+        m = re_error.exec(s);
+        if (m) {
+          errors.push({line:lineno, msg:m[1]});
+          state = 0;
+        }
+        break;
+    }
+  }
+  var Module = emglobal.nesasm({
+    instantiateWasm: moduleInstFn('nesasm'),
+    noInitialRun:true,
+    print:match_fn
+  });
+  var FS = Module['FS'];
+  populateFiles(step, FS, {
+    mainFilePath:'main.a'
+  });
+  var binpath = step.prefix+'.nes';
+  var lstpath = step.prefix+'.lst';
+  var sympath = step.prefix+'.fns';
+  execMain(step, Module, [step.path, '-s', "-l", "2" ]);
+  // parse main listing, get errors and listings for each file
+  var listings = {};
+  try {
+    var alst = FS.readFile(lstpath, {'encoding':'utf8'});
+    //   16  00:C004  8E 17 40    STX $4017    ; disable APU frame IRQ
+    var asmlines = parseListing(alst, /^\s*(\d+)\s+([0-9A-F]+):([0-9A-F]+)\s+([0-9A-F ]+?)  (.*)/i, 1, 3, 4);
+    putWorkFile(lstpath, alst);
+    listings[lstpath] = {
       lines:asmlines,
-      intermediate:{listing:alst},
+      text:alst
+    };
+  } catch (e) {
+    //
+  }
+  if (errors.length) {
+    return {errors:errors};
+  }
+  // read binary rom output and symbols
+  var aout, asym;
+  aout = FS.readFile(binpath);
+  try {
+    asym = FS.readFile(sympath, {'encoding':'utf8'});
+  } catch (e) {
+    console.log(e);
+    errors.push({line:0,msg:"No symbol table generated, maybe segment overflow?"});
+    return {errors:errors}
+  }
+  putWorkFile(binpath, aout);
+  putWorkFile(sympath, asym);
+  if (alst) putWorkFile(lstpath, alst); // listing optional (use LIST)
+  // return unchanged if no files changed
+  if (!anyTargetChanged(step, [binpath, sympath]))
+    return;
+  // parse symbols
+  var symbolmap = {};
+  for (var s of asym.split("\n")) {
+    if (!s.startsWith(';')) {
+      var m = /(\w+)\s+=\s+[$]([0-9A-F]+)/.exec(s);
+      if (m) {
+        symbolmap[m[1]] = parseInt(m[2], 16);
+      }
+    }
+  }
+  var segments = step.params.extra_segments;
+  return {
+    output:aout,
+    listings:listings,
+    errors:errors,
+    symbolmap:symbolmap,
+    segments:segments
   };
 }
 
@@ -1926,7 +2156,6 @@ function assembleXASM6809(step:BuildStep) {
 
 var TOOLS = {
   'dasm': assembleDASM,
-
   //'acme': assembleACME,
   //'plasm': compilePLASMA,
   'cc65': compileCC65,
@@ -1944,6 +2173,7 @@ var TOOLS = {
   //'caspr': compileCASPR,
   'jsasm': compileJSASMStep,
   'zmac': assembleZMAC,
+  'nesasm': assembleNESASM,
   'bataribasic': compileBatariBasic,
   'markdown': translateShowdown,
 }
@@ -1959,6 +2189,8 @@ var TOOL_PRELOADFS = {
   'ca65-atari8': '65-atari8',
   'cc65-vector': '65-sim6502',
   'ca65-vector': '65-sim6502',
+  'cc65-atari7800': '65-sim6502',
+  'ca65-atari7800': '65-sim6502',
   'sdasz80': 'sdcc',
   'sdcc': 'sdcc',
   'sccz80': 'sccz80',
@@ -1975,6 +2207,7 @@ function applyDefaultErrorPath(errors:WorkerError[], path:string) {
 
 function executeBuildSteps() {
   buildstartseq = workerseq;
+  var linkstep : BuildStep = null;
   while (buildsteps.length) {
     var step = buildsteps.shift(); // get top of array
     var platform = step.platform;
@@ -2000,32 +2233,29 @@ function executeBuildSteps() {
       }
       // combine files with a link tool?
       if (step.result.linktool) {
-        var linkstep = {
-          tool:step.result.linktool,
-          platform:platform,
-          files:step.result.files,
-          args:step.result.args
-        };
-        step.generated = linkstep.files;
-        // find previous link step to combine
-        for (var i=0; i<buildsteps.length; i++) {
-          var ls = buildsteps[i];
-          if (ls.tool == linkstep.tool && ls.platform == linkstep.platform && ls.files && ls.args) {
-            ls.files = ls.files.concat(linkstep.files);
-            ls.args = ls.args.concat(linkstep.args);
-            linkstep = null;
-            break;
-          }
+        if (linkstep) {
+          linkstep.files = linkstep.files.concat(step.result.files);
+          linkstep.args = linkstep.args.concat(step.result.args);
+        } else {
+          linkstep = {
+            tool:step.result.linktool,
+            platform:platform,
+            files:step.result.files,
+            args:step.result.args
+          };
         }
-        if (linkstep) buildsteps.push(linkstep);
       }
       // process with another tool?
       if (step.result.nexttool) {
         var asmstep = step.result;
         asmstep.tool = step.result.nexttool;
         asmstep.platform = platform;
-        buildsteps.push(asmstep); // TODO: unshift changes order
-        step.generated = asmstep.files;
+        buildsteps.push(asmstep);
+      }
+      // process final step?
+      if (buildsteps.length == 0 && linkstep) {
+        buildsteps.push(linkstep);
+        linkstep = null;
       }
     }
   }

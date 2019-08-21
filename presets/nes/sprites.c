@@ -1,4 +1,9 @@
 
+/*
+Sprite demo.
+Animate all 64 hardware sprites.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -34,21 +39,21 @@ void setup_graphics() {
 }
 
 // number of actors
-#define NUM_ACTORS 64
+#define NUM_ACTORS 64		// 64 sprites (maximum)
 
 // actor x/y positions
-byte actor_x[NUM_ACTORS];
-byte actor_y[NUM_ACTORS];
+byte actor_x[NUM_ACTORS];	// horizontal coordinates
+byte actor_y[NUM_ACTORS];	// vertical coordinates
+
 // actor x/y deltas per frame (signed)
-sbyte actor_dx[NUM_ACTORS];
-sbyte actor_dy[NUM_ACTORS];
+sbyte actor_dx[NUM_ACTORS];	// horizontal velocity
+sbyte actor_dy[NUM_ACTORS];	// vertical velocity
 
 // main program
 void main() {
-  char i;
-  char oam_id;
+  char i;	// actor index
+  char oam_id;	// sprite ID
   
-  setup_graphics();
   // initialize actors with random values
   for (i=0; i<NUM_ACTORS; i++) {
     actor_x[i] = rand();
@@ -56,6 +61,8 @@ void main() {
     actor_dx[i] = (rand() & 7) - 3;
     actor_dy[i] = (rand() & 7) - 3;
   }
+  // initialize PPU
+  setup_graphics();
   // loop forever
   while (1) {
     // start with OAMid/sprite 0

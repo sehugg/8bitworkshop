@@ -1,4 +1,10 @@
 
+/*
+Metasprites combine several hardware sprites to make a larger
+sprite. Our demo uses 4 hardware sprites in a 2x2 pattern,
+forming 16x16 pixel sprites.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -61,9 +67,10 @@ sbyte actor_dy[NUM_ACTORS];
 
 // main program
 void main() {
-  char i;
-  char oam_id;
+  char i;	// actor index
+  char oam_id;	// sprite ID
   
+  // initialize PPU
   setup_graphics();
   // initialize actors with random values
   for (i=0; i<NUM_ACTORS; i++) {

@@ -23,6 +23,7 @@ var WilliamsPlatform = function(mainElement, proto) {
   var portsel = 0;
   var banksel = 0;
   var watchdog_counter;
+  var watchdog_enabled = false;
   var pia6821 = new RAM(8).mem;
   var blitregs = new RAM(8).mem;
 
@@ -42,37 +43,37 @@ var WilliamsPlatform = function(mainElement, proto) {
   var PIXEL_OFF = 0xff000000;
 
   var DEFENDER_KEYCODE_MAP = makeKeycodeMap([
-    [Keys.VK_SPACE, 4, 0x1],
-    [Keys.VK_RIGHT, 4, 0x2],
-    [Keys.VK_Z, 4, 0x4],
+    [Keys.A, 4, 0x1],
+    [Keys.RIGHT, 4, 0x2],
+    [Keys.B, 4, 0x4],
     [Keys.VK_X, 4, 0x8],
-    [Keys.VK_2, 4, 0x10],
-    [Keys.VK_1, 4, 0x20],
-    [Keys.VK_LEFT, 4, 0x40],
-    [Keys.VK_DOWN, 4, 0x80],
-    [Keys.VK_UP, 6, 0x1],
-    [Keys.VK_5, 0, 0x4],
+    [Keys.P2_START, 4, 0x10],
+    [Keys.START, 4, 0x20],
+    [Keys.LEFT, 4, 0x40],
+    [Keys.DOWN, 4, 0x80],
+    [Keys.UP, 6, 0x1],
+    [Keys.SELECT, 0, 0x4],
     [Keys.VK_7, 0, 0x1],
     [Keys.VK_8, 0, 0x2],
     [Keys.VK_9, 0, 0x8],
   ]);
 
   var ROBOTRON_KEYCODE_MAP = makeKeycodeMap([
-    [Keys.VK_W, 0, 0x1],
-    [Keys.VK_S, 0, 0x2],
-    [Keys.VK_A, 0, 0x4],
-    [Keys.VK_D, 0, 0x8],
-    [Keys.VK_1, 0, 0x10],
-    [Keys.VK_2, 0, 0x20],
-    [Keys.VK_UP,    0, 0x40],
-    [Keys.VK_DOWN,  0, 0x80],
-    [Keys.VK_LEFT,  2, 0x1],
-    [Keys.VK_RIGHT, 2, 0x2],
+    [Keys.P2_UP,    0, 0x1],
+    [Keys.P2_DOWN,  0, 0x2],
+    [Keys.P2_LEFT,  0, 0x4],
+    [Keys.P2_RIGHT, 0, 0x8],
+    [Keys.START,    0, 0x10],
+    [Keys.P2_START, 0, 0x20],
+    [Keys.UP,       0, 0x40],
+    [Keys.DOWN,     0, 0x80],
+    [Keys.LEFT,     2, 0x1],
+    [Keys.RIGHT,    2, 0x2],
     [Keys.VK_7, 4, 0x1],
     [Keys.VK_8, 4, 0x2],
     [Keys.VK_6, 4, 0x4],
     [Keys.VK_9, 4, 0x8],
-    [Keys.VK_5, 4, 0x10],
+    [Keys.SELECT,   4, 0x10],
   ]);
   // TODO: sound board handshake
 
@@ -308,6 +309,8 @@ var WilliamsPlatform = function(mainElement, proto) {
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
+  
+  this.getRasterScanline = function() { return video_counter; }
 
   this.advance = function(novideo:boolean) {
     var cpuCyclesPerSection = Math.round(cpuCyclesPerFrame / 65);
@@ -332,7 +335,7 @@ var WilliamsPlatform = function(mainElement, proto) {
         drawDisplayByte(i, ram.mem[i]);
       screenNeedsRefresh = false;
     }
-    if (watchdog_counter-- <= 0) {
+    if (watchdog_enabled && watchdog_counter-- <= 0) {
       console.log("WATCHDOG FIRED, PC =", cpu.getPC().toString(16)); // TODO: alert on video
       // TODO: this.breakpointHit(cpu.T());
       this.reset();

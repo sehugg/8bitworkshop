@@ -3,7 +3,7 @@
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, getMousePos } from "../emu";
 import { hex, lzgmini, stringToByteArray, lpad, rpad, rgb2bgr } from "../util";
-import { MasterAudio, POKEYDeviceChannel } from "../audio";
+import { MasterAudio, POKEYDeviceChannel, newPOKEYAudio } from "../audio";
 
 declare var jt; // for 6502
 
@@ -16,14 +16,6 @@ const ATARI8_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_SPACE, 0, 0],
   [Keys.VK_ENTER, 0, 0],
 ]);
-
-function newPOKEYAudio() {
-  var pokey1 = new POKEYDeviceChannel();
-  var audio = new MasterAudio();
-  audio['pokey1'] = pokey1; // TODO: cheezy
-  audio.master.addChannel(pokey1);
-  return audio;
-}
 
 // ANTIC
 
@@ -477,7 +469,7 @@ const _Atari8Platform = function(mainElement) {
     gtia = new GTIA(antic);
     // create video/audio
     video = new RasterVideo(mainElement, 352, 192);
-    audio = newPOKEYAudio();
+    audio = newPOKEYAudio(1);
     video.create();
     setKeyboardFromMap(video, inputs, ATARI8_KEYCODE_MAP, (o,key,code,flags) => {
       // TODO
