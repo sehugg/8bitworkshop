@@ -334,6 +334,15 @@ var PLATFORM_PARAMS = {
       {name:'KERNAL ROM',   start:0xe000,size:0x2000,type:'rom'},
     ],
   },
+  'kim1': {
+    extra_segments:[
+      {name:'RAM',          start:0x0000,size:0x1400,type:'ram'},
+      {name:'6530',         start:0x1700,size:0x0040,type:'io'},
+      {name:'6530',         start:0x1740,size:0x0040,type:'io'},
+      {name:'RAM',          start:0x1780,size:0x0080,type:'ram'},
+      {name:'BIOS',         start:0x1800,size:0x0800,type:'rom'},
+    ],
+  },
 };
 
 PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];

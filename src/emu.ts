@@ -50,7 +50,7 @@ export enum KeyFlags {
   KeyPress = 128,
 }
 
-function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
+export function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
   canvas.onkeydown = (e) => {
     callback(e.which, 0, KeyFlags.KeyDown|_metakeyflags(e));
   };
