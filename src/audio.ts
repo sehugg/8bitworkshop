@@ -5,13 +5,19 @@ declare var MasterChannel, AudioLooper, PsgDeviceChannel;
 
 export class MasterAudio {
   master = new MasterChannel();
-  looper = new AudioLooper(512);
+  looper;
   start() {
-    this.looper.setChannel(this.master);
-    this.looper.activate();
+    if (!this.looper) {
+      this.looper = new AudioLooper(512);
+      this.looper.setChannel(this.master);
+      this.looper.activate();
+    }
   }
   stop() {
-    this.looper.setChannel(null);
+    if (this.looper) {
+      this.looper.setChannel(null);
+      this.looper = null;
+    }
   }
 }
 

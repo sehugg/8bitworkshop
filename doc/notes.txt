@@ -137,6 +137,8 @@ TODO:
   - doesn't do clip right
   - doesn't do b/w tint
 - vcs
+  - sound doesn't start on Chrome (https://goo.gl/7K7WLu)
+    - make start after clicking in embed
   - vcs sound continues when paused
   - vcs: INPTx needs to be added to control state
   - vcs: break on # of lines changed (maybe using getRasterPosition?)
@@ -178,6 +180,8 @@ TODO:
 - SMS
   - can't step back twice?
   - compiler bug in chase
+- "shared" in URL doesn't work, leave in URL? (also importURL)
+- vicdual: delay is faster
 
 
 WEB WORKER FORMAT
