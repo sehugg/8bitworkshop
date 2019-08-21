@@ -49,5 +49,3 @@ All included code samples (all files under the presets/ directory) are licensed 
 [CC0](https://creativecommons.org/publicdomain/zero/1.0/)
 unless otherwise licensed.
 
-***
-_This README was generated with ❤️ by [readme-md-generator](https://github.com/kefranabg/readme-md-generator)_
