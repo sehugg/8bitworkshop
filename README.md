@@ -1,13 +1,13 @@
 <p>
   <img src="https://img.shields.io/badge/version-3.4.0-blue.svg?cacheSeconds=2592000" />
-  <a href="http://8bitworkshop.com/">
-    <img alt="Documentation" src="https://img.shields.io/badge/documentation-yes-brightgreen.svg" target="_blank" />
-  </a>
   <a href="https://github.com/sehugg/8bitworkshop/graphs/commit-activity">
     <img alt="Maintenance" src="https://img.shields.io/badge/Maintained%3F-yes-green.svg" target="_blank" />
   </a>
   <a href="https://github.com/sehugg/8bitworkshop/blob/master/LICENSE">
     <img alt="License: GPL-3.0" src="https://img.shields.io/badge/License-GPL-3.0-yellow.svg" target="_blank" />
+  </a>
+  <a href="https://travis-ci.org/sehugg/8bitworkshop">
+    <img alt="Travis CI" src="https://travis-ci.org/sehugg/8bitworkshop.svg?branch=master" target="_blank" />
   </a>
 </p>
 
