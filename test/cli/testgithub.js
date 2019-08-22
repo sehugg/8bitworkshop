@@ -70,6 +70,17 @@ describe('Store', function() {
     });
   });
 
+  it('Should import from Github (invalid URL)', function(done) {
+    var store = mstore.createNewPersistentStore('_FOO', function(store) {
+      var gh = newGH(store, '_FOO');
+      gh.importAndPull('https://github.com/pzpinfo/NOEXISTSREPO').catch( (e) => {
+        console.log(e);
+        assert.deepEqual(serv.getRepos(), {});
+        done();
+      });
+    });
+  });
+
   it('Should import from Github (subdirectory tree)', function(done) {
     var store = mstore.createNewPersistentStore('nes', function(store) {
       var gh = newGH(store, 'nes');

@@ -7,6 +7,8 @@ import { CodeProject } from "./project";
 declare var exports;
 declare var firebase;
 
+// https://github.com/philschatz/octokat.js/tree/master/examples
+
 export interface GHRepoMetadata {
   url : string;		// github url
   platform_id : string; // e.g. "vcs"
@@ -184,7 +186,10 @@ export class GithubService {
     .catch( (e) => {
       console.log(e);
       console.log('no README.md found')
-      return ''; // empty README
+      // make user repo exists
+      return sess.repo.fetch().then( (_repo) => {
+        return ''; // empty README
+      })
     })
     .then( (readme) => {
       var m;
