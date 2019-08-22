@@ -129,17 +129,13 @@ TODO:
   - show cur/tmp vram addresses
   - NES crt should mark raster pos when debugging
   - OAMDMA in profiler? (haltCycles)
-  - ca65 skeleton
-  - neslib.cfg nesbanked.cfg ZP segment is C64-ish, should use $00-$FF
 - JSNES
   - doesn't support hiding >8 sprites
   - doesn't do sprite zero test right
   - doesn't do clip right
   - doesn't do b/w tint
 - vcs
-  - sound doesn't start on Chrome (https://goo.gl/7K7WLu)
-    - make start after clicking in embed
-  - vcs sound continues when paused
+  - sometimes still plays when paused on FF
   - vcs: INPTx needs to be added to control state
   - vcs: break on # of lines changed (maybe using getRasterPosition?)
   - chrome looks blurry on vcs
@@ -156,7 +152,6 @@ TODO:
   - test offline? (if window.firebase)
 - Github
   - platform_id/repo.platform mismatch (can't leave repository)
-  - gh-pages branch with embedded
   - handle overwrite logic
   - what to do about included files?
   - can published files retain path?
@@ -164,7 +159,6 @@ TODO:
   - CORS for some blobs?
   - don't import useless files
   - support projects with subdirectories, file list?
-  - emulator needs reset shortcut for nes
   - switching platform of a repo?
   - make sure to flatten subdirs
 - astrocade
@@ -181,8 +175,7 @@ TODO:
   - can't step back twice?
   - compiler bug in chase
 - "shared" in URL doesn't work, leave in URL? (also importURL)
-- vicdual: delay is faster
-
+  - alert when skeleton file loaded or file not found
 
 WEB WORKER FORMAT
 

@@ -454,6 +454,7 @@ function importProjectFromGithub(githuburl:string, replaceURL:boolean) {
     gotoNewLocation(replaceURL);
   }).catch( (e) => {
     setWaitDialog(false);
+    if (sess) getGithubService().bind(sess, false);
     console.log(e);
     alertError("<p>Could not import " + githuburl + ".</p>" + e);
   });

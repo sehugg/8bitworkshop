@@ -206,7 +206,6 @@ export class GithubService {
         sess.platform_id = m[1];
       }
       // bind to repository
-      // TODO: don't bind until successful first import
       this.bind(sess, true);
       // get head commit
       return sess;
