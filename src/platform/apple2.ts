@@ -3,7 +3,7 @@
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, KeyFlags, makeKeycodeMap, dumpRAM } from "../emu";
 import { hex, lzgmini } from "../util";
-import { SampleAudio } from "../audio";
+import { SampleAudio, SampledAudio } from "../audio";
 
 declare var jt; // 6502
 
@@ -1068,7 +1068,7 @@ class Apple2MAMEPlatform extends BaseMAMEPlatform implements Platform {
 ///
 
 // TODO: move to own place, debugging
-import { CPU, Bus, ClockBased, SavesState, Interruptable } from "../nemu/nemu";
+import { CPU, Bus, ClockBased, SavesState, Interruptable, CPUClockHook } from "../nemu/nemu";
 import { MOS6502 } from "../nemu/cpu/MOS6502";
 import { AppleII } from "../nemu/machine/apple2";
 
@@ -1078,6 +1078,7 @@ class NewApple2Platform extends Base6502Platform implements Platform {
   machine : AppleII;
   timer : AnimationTimer;
   video : RasterVideo;
+  audio : SampledAudio;
 
   constructor(mainElement : HTMLElement) {
     super();
@@ -1097,9 +1098,13 @@ class NewApple2Platform extends Base6502Platform implements Platform {
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
     var vp = this.machine.getVideoParams();
     this.video = new RasterVideo(this.mainElement, vp.width, vp.height);
-    //this.audio = new SampleAudio(cpuFrequency);
     this.video.create();
+    this.video.setKeyboardEvents(this.machine.setInput.bind(this.machine));
     this.machine.connectVideo(this.video.getFrameData());
+    var ap = this.machine.getAudioParams();
+    this.audio = new SampledAudio(ap.sampleRate);
+    this.audio.start();
+    this.machine.connectAudio(this.audio);
   }
   reset() {
     this.machine.reset();
@@ -1109,7 +1114,7 @@ class NewApple2Platform extends Base6502Platform implements Platform {
     this.reset();
   }
   advance(novideo:boolean) {
-    this.machine.advanceFrame();
+    this.machine.advanceFrame(999999, this.getDebugCallback());
     if (!novideo) this.video.updateFrame();
   }
   isRunning() {
@@ -1117,9 +1122,24 @@ class NewApple2Platform extends Base6502Platform implements Platform {
   }
   resume() {
     this.timer.start();
+    this.audio.start();
   }
   pause() {
     this.timer.stop();
+    this.audio.stop();
+  }
+  // debugging
+  restartDebugging() {
+    super.restartDebugging();
+    // TODO
+    var clock = 0;
+    var cpuhook = new CPUClockHook(this.machine.cpu, {
+      logExecute: (a:number) => {
+        clock++;
+      },
+      logInterrupt: (a:number) => {
+      }
+    });
   }
 }
 

@@ -17,7 +17,7 @@ export interface OpcodeMetadata {
 export interface CpuState {
   PC:number;
   EPC?:number; // effective PC (for bankswitching)
-  T?:number;
+  T?:number; // TODO: remove in favor of 'stable'
   o?:number;/*opcode*/
   SP?:number
   /*

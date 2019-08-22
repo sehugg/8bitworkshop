@@ -472,3 +472,20 @@ export var SampleAudio = function(clockfreq) {
     }
   }
 }
+
+
+export class SampledAudio {
+  sa;
+  constructor(sampleRate : number) {
+    this.sa = new SampleAudio(sampleRate);
+  }
+  feedSample(value:number, count:number) {
+    this.sa.feedSample(value, count);
+  }
+  start() {
+    this.sa.start();
+  }
+  stop() {
+    this.sa.stop();
+  }
+}

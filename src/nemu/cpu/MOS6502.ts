@@ -61,7 +61,7 @@ var _MOS6502 = function() {
     // Internal decoding registers
     var T : number = -1;
     var opcode : number = -1;
-    var instruction;
+    var instruction : (() => void)[];
     var data : number = 0;
     var AD : number = 0;
     var BA : number = 0;
@@ -90,6 +90,7 @@ var _MOS6502 = function() {
     const bC = 0;
 
     // Auxiliary variables
+    // TODO
     //noinspection JSUnusedGlobalSymbols
     this.debug = false;
     //noinspection JSUnusedGlobalSymbols
@@ -1888,6 +1889,12 @@ var _MOS6502 = function() {
     this.getSP = function() { return SP; }
     this.getPC = function() { return PC; }
     this.getT = function() { return T; }
+    
+    this.isPCStable = function() {
+      // TODO: gotta fix base class first
+      //return T < 0 || T == instruction.length-1;
+      return T == 0;
+    }
 };
 
 export interface MOS6502State {
@@ -1909,7 +1916,7 @@ export class MOS6502 implements CPU, ClockBased, SavesState<MOS6502State>, Inter
     this.cpu.connectBus(bus);
   }
   advanceClock() {
-    if (this.interruptType && this.cpu.getT() == 0) {
+    if (this.interruptType && this.isStable()) {
       switch (this.interruptType) {
         case MOS6502Interrupts.NMI: this.cpu.setNMI(); break;
         case MOS6502Interrupts.IRQ: this.cpu.setIRQ(); break;
@@ -1920,7 +1927,7 @@ export class MOS6502 implements CPU, ClockBased, SavesState<MOS6502State>, Inter
   advanceInsn() {
     do {
       this.advanceClock();
-    } while (this.cpu.getT() != 0);
+    } while (!this.isStable());
   }
   reset() {
     this.cpu.reset();
@@ -1943,6 +1950,9 @@ export class MOS6502 implements CPU, ClockBased, SavesState<MOS6502State>, Inter
   loadState(s) {
     this.cpu.loadState(s);
     this.interruptType = s.it;
+  }
+  isStable() : boolean {
+    return this.cpu.isPCStable();
   }
   // TODO: metadata
   // TODO: disassembler

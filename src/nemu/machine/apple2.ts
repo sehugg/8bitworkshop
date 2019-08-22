@@ -1,7 +1,7 @@
 "use strict";
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { Bus, RasterFrameBased, SavesState, AcceptsROM, noise, Resettable } from "../nemu";
+import { Bus, RasterFrameBased, SavesState, AcceptsROM, noise, Resettable, SampledAudioSource, SampledAudioSink } from "../nemu";
 import { KeyFlags } from "../../emu"; // TODO
 import { lzgmini } from "../../util";
 
@@ -26,11 +26,13 @@ interface AppleIIState extends AppleIIStateBase {
   c : MOS6502State;
 }
 
-export class AppleII implements Bus, Resettable, RasterFrameBased, AcceptsROM, AppleIIStateBase, SavesState<AppleIIState> {
+export class AppleII implements Bus, Resettable, RasterFrameBased, SampledAudioSource, AcceptsROM,
+  AppleIIStateBase, SavesState<AppleIIState> {
 
   ram = new Uint8Array(0x13000); // 64K + 16K LC RAM - 4K hardware + 12K ROM
   rom : Uint8Array;
   cpu = new MOS6502();
+  audio : SampledAudioSink;
   pixels : Uint32Array;
   grdirty = new Array(0xc000 >> 7);
   grparams = {dirty:this.grdirty, grswitch:GR_TXMODE, mem:this.ram};
@@ -75,6 +77,7 @@ export class AppleII implements Bus, Resettable, RasterFrameBased, AcceptsROM, A
   loadState(s) {
     this.cpu.loadState(s.c);
     this.ram.set(s.ram);
+    // TODO
   }
   reset() {
     this.cpu.reset();
@@ -175,13 +178,22 @@ export class AppleII implements Bus, Resettable, RasterFrameBased, AcceptsROM, A
   getVideoParams() {
     return {width:280, height:192};
   }
+  getAudioParams() {
+    return {sampleRate:cpuFrequency, stereo:false};
+  }
   connectVideo(pixels:Uint32Array) {
     this.pixels = pixels;
     this.ap2disp = pixels && new Apple2Display(this.pixels, this.grparams);
   }
-  advanceFrame() : number {
-    for (var i=0; i<cpuCyclesPerFrame; i++) {
+  connectAudio(audio:SampledAudioSink) {
+    this.audio = audio;
+  }
+  advanceFrame(maxCycles, trap) : number {
+    maxCycles = Math.min(maxCycles, cpuCyclesPerFrame);
+    for (var i=0; i<maxCycles; i++) {
+      if (trap && this.cpu.isStable() && trap()) break;
       this.cpu.advanceClock();
+      this.audio.feedSample(this.soundstate, 1);
     }
     this.ap2disp && this.ap2disp.updateScreen();
     return i;
@@ -290,105 +302,6 @@ const GR_HIRES    = 8;
 type AppleGRParams = {dirty:boolean[], grswitch:number, mem:Uint8Array};
 
 /*
-const _Apple2Platform = function(mainElement) {
-  const cpuFrequency = 1023000;
-  const cpuCyclesPerLine = 65;
-
-  var cpu, ram, bus;
-  var video, ap2disp, audio, timer;
-  var grdirty = new Array(0xc000 >> 7);
-  var grswitch = GR_TXMODE;
-  var kbdlatch = 0;
-  var soundstate = 0;
-  var pgmbin;
-  // language card switches
-  var auxRAMselected = false;
-  var auxRAMbank = 1;
-  var writeinhibit = true;
-  // value to add when reading & writing each of these banks
-  // bank 1 is E000-FFFF, bank 2 is D000-DFFF
-  var bank2rdoffset=0, bank2wroffset=0;
-  var grparams : AppleGRParams;
-  var scanline : number;
-  
- class Apple2Platform extends Base6502Platform implements Platform {
-
-  getPresets() {
-    return APPLE2_PRESETS;
-  }
-  start() {
-      }
-    };
-    cpu.connectBus(bus);
-    // create video/audio
-    video = new RasterVideo(mainElement,280,192);
-    audio = new SampleAudio(cpuFrequency);
-    video.create();
-    video.setKeyboardEvents((key,code,flags) => {
-    });
-    var idata = video.getFrameData();
-    grparams = {dirty:grdirty, grswitch:grswitch, mem:ram.mem};
-    ap2disp = new Apple2Display(idata, grparams);
-    timer = new AnimationTimer(60, this.nextFrame.bind(this));
-  }
-  
-  advance(novideo : boolean) {
-    // 262.5 scanlines per frame
-    var clock = 0;
-    var debugCond = this.getDebugCallback();
-    for (var sl=0; sl<262; sl++) {
-      scanline = sl;
-      for (var i=0; i<cpuCyclesPerLine; i++) {
-        if (debugCond && debugCond()) {
-          debugCond = null;
-          sl = 999;
-          break;
-        }
-        clock++;
-        cpu.clockPulse();
-        audio.feedSample(soundstate, 1);
-      }
-    }
-    if (!novideo) {
-      grparams.dirty = grdirty;
-      grparams.grswitch = grswitch;
-      ap2disp.updateScreen();
-      video.updateFrame();
-    }
-  }
-  
-  getRasterScanline() : number {
-    return scanline;
-  }
-
-  loadROM(title, data) {
-    pgmbin = data;
-    this.reset();
-  }
-
-  isRunning() {
-    return timer.isRunning();
-  }
-  pause() {
-    timer.stop();
-    audio.stop();
-  }
-  resume() {
-    timer.start();
-    audio.start();
-  }
-  reset() {
-    cpu.reset();
-    // execute until $c600 boot
-    for (var i=0; i<2000000; i++) {
-      cpu.clockPulse();
-      if (this.getCPUState().PC == 0xc602) {
-        cpu.clockPulse();
-        cpu.clockPulse();
-        break;
-      }
-    }
-  }
   readAddress(addr : number) {
     return ((addr & 0xf000) != 0xc000) ? bus.read(addr) : null; // ignore I/O space
   }
@@ -426,10 +339,6 @@ const _Apple2Platform = function(mainElement) {
   getCPUState() {
     return this.fixPC(cpu.saveState());
   }
- }
-
-  return new Apple2Platform(); // return inner class from constructor
-};
 */
 
 var Apple2Display = function(pixels : Uint32Array, apple : AppleGRParams) {

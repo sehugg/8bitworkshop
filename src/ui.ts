@@ -958,6 +958,7 @@ function measureBuildTime() {
     ga('send', 'timing', 'worker', 'build', (measureTimeBuild.getTime() - measureTimeLoad.getTime()));
     measureTimeLoad = null; // only measure once
   }
+  gaEvent('build', platform_id);
 }
 
 function setCompileOutput(data: WorkerResult) {

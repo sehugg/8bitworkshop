@@ -18,16 +18,18 @@ export interface InstructionBased {
     advanceInsn() : number;
 }
 
+export type TrapCondition = () => boolean;
+
 export interface FrameBased {
-    advanceFrame() : number;
+    advanceFrame(maxClocks:number, trap:TrapCondition) : number;
 }
 
-export interface VideoFrameBased extends FrameBased {
+export interface VideoSource {
   getVideoParams() : VideoParams;
   connectVideo(pixels:Uint32Array) : void;
 }
 
-export interface RasterFrameBased extends VideoFrameBased {
+export interface RasterFrameBased extends FrameBased, VideoSource {
 }
 
 export interface VideoParams {
@@ -44,9 +46,14 @@ export interface SampledAudioParams {
     stereo : boolean;
 }
 
-export interface SampledAudio {
-    setAudioParams(params:SampledAudioParams) : void;
-    sendAudioFrame(samples:Uint16Array) : void;
+export interface SampledAudioSink {
+    feedSample(value:number, count:number) : void;
+    //sendAudioFrame(samples:Uint16Array) : void;
+}
+
+export interface SampledAudioSource {
+    getAudioParams() : SampledAudioParams;
+    connectAudio(audio : SampledAudioSink) : void;
 }
 
 export interface AcceptsROM {
@@ -94,7 +101,7 @@ export interface Hook<T> {
 
 export class BusHook implements Hook<Bus> {
   //target : Bus;
-  constructor(bus : Bus, profiler : ProfilerInterface) {
+  constructor(bus : Bus, profiler : LogBus) {
     //this.target = bus;
     var oldread = bus.read.bind(bus);
     var oldwrite = bus.write.bind(bus);
@@ -117,7 +124,7 @@ export class BusHook implements Hook<Bus> {
 
 export class CPUClockHook implements Hook<CPU&ClockBased> {
   //target : CPU&ClockBased;
-  constructor(cpu : CPU&ClockBased, profiler : ProfilerInterface) {
+  constructor(cpu : CPU&ClockBased, profiler : LogCPU) {
     //this.target = cpu;
     var oldclock = cpu.advanceClock.bind(cpu);
     cpu.advanceClock = () => {
@@ -133,7 +140,7 @@ export class CPUClockHook implements Hook<CPU&ClockBased> {
 
 export class CPUInsnHook implements Hook<CPU&InstructionBased> {
   //target : CPU&InstructionBased;
-  constructor(cpu : CPU&InstructionBased, profiler : ProfilerInterface) {
+  constructor(cpu : CPU&InstructionBased, profiler : LogCPU) {
     //this.target = cpu;
     var oldinsn = cpu.advanceInsn.bind(cpu);
     cpu.advanceInsn = () => {
@@ -149,13 +156,22 @@ export class CPUInsnHook implements Hook<CPU&InstructionBased> {
 
 /// PROFILER
 
-export interface ProfilerInterface {
+export interface LogCPU {
   logExecute(address:number);
+  logInterrupt(type:number);
+}
+
+export interface LogBus {
   logRead(address:number);
   logWrite(address:number);
+}
+
+export interface LogIO {
   logIORead(address:number);
   logIOWrite(address:number);
-  logInterrupt(type:number);
+}
+
+export interface LogAll extends LogCPU, LogBus, LogIO {
 }
 
 /// DEBUGGING
