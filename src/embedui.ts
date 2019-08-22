@@ -138,7 +138,9 @@ function startPlatform(qs) {
   // start recorder when click on canvas (TODO?)
   if (qs['rec']) {
     findPrimaryCanvas().on('focus', () => {
-      if (!stateRecorder) { enableRecording(); }
+      //if (!stateRecorder) { enableRecording(); }
+      // toggle sound for browser autoplay
+      platform.resume();
     });
   }
   var title = qs['n'] || 'Game';

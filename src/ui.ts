@@ -274,6 +274,7 @@ function loadProject(preset_id:string) {
       getSkeletonFile(preset_id).then((skel) => {
         current_project.filedata[preset_id] = skel || "\n";
         loadMainWindow(preset_id);
+        //alertInfo("No existing file found; loading default file");
       });
     }
   });
@@ -746,7 +747,8 @@ function _revertFile(e) {
       });
     }, 'text')
     .fail(() => {
-      alertError("Can only revert built-in files.");
+      if (repo_id) alertError("Can only revert built-in examples. If you want to revert all files, You can pull from the repository.");
+      else alertError("Can only revert built-in examples.");
     });
   } else {
     alertError("Cannot revert the active window. Please choose a text file.");
@@ -954,8 +956,8 @@ var measureTimeLoad : Date;
 function measureBuildTime() {
   if (ga && measureTimeLoad) {
     var measureTimeBuild = new Date();
-    ga('send', 'timing', 'ui', 'load', (measureTimeLoad.getTime() - measureTimeStart.getTime()));
-    ga('send', 'timing', 'worker', 'build', (measureTimeBuild.getTime() - measureTimeLoad.getTime()));
+    ga('send', 'timing', 'load', platform_id, (measureTimeLoad.getTime() - measureTimeStart.getTime()));
+    ga('send', 'timing', 'build', platform_id, (measureTimeBuild.getTime() - measureTimeLoad.getTime()));
     measureTimeLoad = null; // only measure once
   }
   gaEvent('build', platform_id);
@@ -1621,8 +1623,8 @@ function showWelcomeMessage() {
       ];
     steps.push({
       element: "#booksMenuButton",
-      placement: 'bottom',
-      title: "Bookstore",
+      placement: 'left',
+      title: "Books",
       content: "Get some books that explain how to program all of this stuff, and write some games!"
     });
     if (!isLandscape()) {
@@ -1662,7 +1664,7 @@ var qs = (function (a : string[]) {
 function installErrorHandler() {
     if (typeof window.onerror == "object") {
       window.onerror = function (msgevent, url, line, col, error) {
-        var msgstr = msgevent['reason'] ? (msgevent['reason']+" (rejected)") : (msgevent+"");
+        var msgstr = msgevent+"";
         console.log(msgevent, url, line, col, error);
         // emulation threw EmuHalt
         if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
@@ -1685,7 +1687,16 @@ function installErrorHandler() {
         }
         _pause();
       };
-      window.onunhandledrejection = window.onerror;
+    }
+    if (typeof window.onunhandledrejection == "object") {
+      window.onunhandledrejection = function(event) {
+        var msg = (event && event.reason) + "";
+        if (ga) ga('send', 'exception', {
+          'exDescription': msg,
+          'exFatal': true
+        });
+        alertError(msg);
+      }
     }
 }
 
@@ -1732,12 +1743,17 @@ function addPageFocusHandlers() {
   });
 }
 
+// TODO: merge w/ embed.html somehow?
 function showInstructions() {
   var div = $(document).find(".emucontrols-" + getRootBasePlatform(platform_id));
   var vcanvas = $("#emulator").find("canvas");
   if (vcanvas) {
     vcanvas.on('focus', () => {
-      if (platform.isRunning()) div.fadeIn(200);
+      if (platform.isRunning()) {
+        div.fadeIn(200);
+        // toggle sound for browser autoplay
+        platform.resume();
+      }
     });
     vcanvas.on('blur', () => {
       div.fadeOut(200);
@@ -1752,7 +1768,7 @@ function installGAHooks() {
         gaEvent('menu', e.target.id);
       }
     });
-    ga('send', 'pageview', location.pathname + '?platform=' + platform_id + '&file=' + qs['file'] + (repo_id?('&repo='+repo_id):''));
+    ga('send', 'pageview', location.pathname+'?platform='+platform_id+(repo_id?('&repo='+repo_id):('&file='+qs['file'])));
   }
 }
 
@@ -1885,7 +1901,7 @@ export function startUI(loadplatform : boolean) {
   if (!platform_id) {
     platform_id = qs['platform'] = "vcs";
   }
-  // lookup repository
+  // lookup repository for this platform
   repo_id = qs['repo'] || (hasLocalStorage && localStorage.getItem("__lastrepo_" + platform_id));
   if (hasLocalStorage && repo_id && repo_id !== '/') {
     var repo = getRepos()[repo_id];

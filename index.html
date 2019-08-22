@@ -111,7 +111,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
           <li><a class="dropdown-item" target="_8bws_tools" href="//8bitworkshop.com/bitmapfontgenerator/">Bitmap Font Generator</a></li>
           <li><a class="dropdown-item" target="_8bws_tools" href="http://tomeko.net/online_tools/file_to_hex.php?lang=en">Binary File to Hex Converter</a></li>
           <li class="dropdown dropdown-submenu">
-             <a tabindex="-1" href="#">Atari 2600/VCS</a>
+             <a tabindex="-1" href="#">Atari 2600</a>
              <ul class="dropdown-menu">
               <li><a class="dropdown-item" target="_8bws_tools" href="https://alienbill.com/2600/playerpalnext.html">playerpal 2600</a></li>
               <li><a class="dropdown-item" target="_8bws_tools" href="https://alienbill.com/2600/playfieldpal.html">playfieldpal 2600</a></li>
@@ -123,7 +123,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
       <li class="dropdown dropdown-submenu">
         <a tabindex="-1" href="#">About</a>
         <ul class="dropdown-menu">
-          <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/">8bitworkshop.com</a></li>
+          <!--<li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/">8bitworkshop.com</a></li>-->
           <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/blog">Latest News</a></li>
           <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/projects">Projects</a></li>
           <li><a class="dropdown-item" target="_8bws_about" href="https://twitter.com/8bitworkshop">Twitter</a></li>
@@ -146,7 +146,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
           <li class="dropdown dropdown-submenu">
              <a tabindex="-1" href="#">Game Consoles</a>
              <ul class="dropdown-menu">
-               <li><a class="dropdown-item" href="?platform=vcs">Atari 2600/VCS</a></li>
+               <li><a class="dropdown-item" href="?platform=vcs">Atari 2600</a></li>
                <li><a class="dropdown-item" href="?platform=nes">NES</a></li>
              </ul>
           </li>
@@ -177,7 +177,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
           <li class="dropdown dropdown-submenu">
              <a tabindex="-1" href="#">Other</a>
              <ul class="dropdown-menu">
-               <li><a class="dropdown-item" href="?platform=vcs.mame">Atari 2600/VCS (MAME)</a></li>
+               <li><a class="dropdown-item" href="?platform=vcs.mame">Atari 2600 (MAME)</a></li>
                <li><a class="dropdown-item" href="?platform=nes.mame">NES (MAME)</a></li>
                <li><a class="dropdown-item" href="?platform=vector-ataricolor">Atari Color Vector (6502)</a></li>
                <li><a class="dropdown-item" href="?platform=markdown">Markdown</a></li>
@@ -207,7 +207,7 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
   <span class="dropdown pull-right">
     <a class="btn dropdown-toggle hidden-xs toolbarMenuButton" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
       <span class="glyphicon glyphicon-book" aria-hidden="true"></span>
-      Books <span class="caret"></span>
+      Get Books <span class="caret"></span>
     </a>
     <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="booksMenuButton">
       <li>
@@ -501,9 +501,10 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <script src="src/cpu/6809.js"></script>
 <!--<script src="jsnes/lib/dynamicaudio-min.js" type="text/javascript" charset="utf-8"></script>-->
 <script src="FileSaver.js/FileSaver.min.js"></script>
-<script src="localForage/dist/localforage.nopromises.js"></script>
 <script src="lib/mousetrap.min.js"></script>
 <script src="lib/mousetrap-global-bind.min.js"></script>
+<!-- UI-only stuff -->
+<script src="localForage/dist/localforage.nopromises.js"></script>
 <script src="lib/split.min.js"></script>
 
 <script>

@@ -222,6 +222,6 @@ void main() {
   while (1) {
     if (!music_ptr) start_music(music1);
     play_music();
-    delay(8);
+    delay(15); // 30 msec delay
   }
 }

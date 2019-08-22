@@ -962,13 +962,6 @@ export abstract class BaseMAMEPlatform {
     return state;
   }
 
-/*
-  saveState() {
-    this.luareset();
-    this.luacall('mamedbg.printstate()');
-    return this.preserveState();
-  }
-*/
   initlua() {
     if (!this.initluavars) {
       this.luacall(this.luadebugscript);
@@ -977,14 +970,18 @@ export abstract class BaseMAMEPlatform {
     }
   }
 
+  // DEBUGGING SUPPORT
+/*
+  saveState() {
+    this.luareset();
+    this.luacall('mamedbg.printstate()');
+    return this.preserveState();
+  }
   readAddress(a) {
     this.initlua();
     this.luacall('print(">>>v"); print(mem:read_u8(' + a + '))');
     return parseInt(this.console_vars.v[0]);
   }
-
-  // DEBUGGING SUPPORT
-
   clearDebug() {
     this.onBreakpointHit = null;
   }
@@ -1021,6 +1018,7 @@ export abstract class BaseMAMEPlatform {
     else
       return null; // TODO
   }
+*/	
 }
 
 export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], start:number, end:number, sp:number, jsrop:number) : string {

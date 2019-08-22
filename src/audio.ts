@@ -391,7 +391,8 @@ export var SampleAudio = function(clockfreq) {
       console.log("no web audio context");
       return;
     }
-    self.context = new AudioContext();
+    var ctx = new AudioContext();
+    self.context = ctx;
     self.sr=self.context.sampleRate;
     self.bufferlen=2048;
 
@@ -420,7 +421,16 @@ export var SampleAudio = function(clockfreq) {
   }
 
   this.start = function() {
-    if (!this.context) createContext();
+    if (this.context) {
+      // Chrome autoplay (https://goo.gl/7K7WLu)
+      if (this.context.state == 'suspended') {
+        this.context.resume();
+        console.log('AudioContext should resume');
+      }
+      return;   // already created
+    }
+    createContext();		// create it
+    if (!this.context) return;  // not created?
     sinc = this.sr * 1.0 / clockfreq;
     sfrac = 0;
     accum = 0;
@@ -434,8 +444,12 @@ export var SampleAudio = function(clockfreq) {
     }
     buffer = bufferlist[0];
   }
-
+  
   this.stop = function() {
+    this.context && this.context.suspend();
+  }
+
+  this.close = function() {
     if (this.context) {
       this.context.close();
       this.context = null;

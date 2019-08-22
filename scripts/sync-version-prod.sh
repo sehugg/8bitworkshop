@@ -10,8 +10,9 @@ fi
 DESTPATH=$RSYNC_PATH/v$VERSION
 DEVPATH=/var/www/html/8bitworkshop.com/dev
 TMPDIR=./tmp/$VERSION
-grep "var VERSION" web/redir.html
-echo "Upload version $VERSION to production? (edited web/redir.html?)"
+grep -H "var VERSION" web/redir.html
+grep -H "var VERSION" web/projects/projects.js
+echo "Upload version $VERSION to production?"
 read
 echo "Listing submodules..."
 SUBMODS=`git submodule | cut -d ' ' -f 3`

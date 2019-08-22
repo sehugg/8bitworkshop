@@ -69,8 +69,6 @@ class VCSPlatform extends BasePlatform {
     var self = this;
     $("#javatari-div").show();
     Javatari.start();
-    // for Chrome autostart
-    Javatari.room.speaker.powerOff();
     // intercept clockPulse function
     Javatari.room.console.oldClockPulse = Javatari.room.console.clockPulse;
     Javatari.room.console.clockPulse = function() {
@@ -129,9 +127,12 @@ class VCSPlatform extends BasePlatform {
   }
   pause() {
     Javatari.room.console.pause();
+    Javatari.room.speaker.mute();
   }
   resume() {
     Javatari.room.console.go();
+    // for browser autostart
+    Javatari.room.speaker.powerOff();
     Javatari.room.speaker.powerOn();
   }
   advance() {
