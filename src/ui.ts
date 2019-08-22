@@ -1622,8 +1622,8 @@ function showWelcomeMessage() {
       ];
     steps.push({
       element: "#booksMenuButton",
-      placement: 'bottom',
-      title: "Bookstore",
+      placement: 'left',
+      title: "Books",
       content: "Get some books that explain how to program all of this stuff, and write some games!"
     });
     if (!isLandscape()) {
