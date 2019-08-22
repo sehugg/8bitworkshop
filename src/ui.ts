@@ -956,8 +956,8 @@ var measureTimeLoad : Date;
 function measureBuildTime() {
   if (ga && measureTimeLoad) {
     var measureTimeBuild = new Date();
-    ga('send', 'timing', 'ui', 'load', (measureTimeLoad.getTime() - measureTimeStart.getTime()));
-    ga('send', 'timing', 'worker', 'build', (measureTimeBuild.getTime() - measureTimeLoad.getTime()));
+    ga('send', 'timing', 'load', platform_id, (measureTimeLoad.getTime() - measureTimeStart.getTime()));
+    ga('send', 'timing', 'build', platform_id, (measureTimeBuild.getTime() - measureTimeLoad.getTime()));
     measureTimeLoad = null; // only measure once
   }
 }
