@@ -274,6 +274,7 @@ function loadProject(preset_id:string) {
       getSkeletonFile(preset_id).then((skel) => {
         current_project.filedata[preset_id] = skel || "\n";
         loadMainWindow(preset_id);
+        //alertInfo("No existing file found; loading default file");
       });
     }
   });
@@ -1662,7 +1663,7 @@ var qs = (function (a : string[]) {
 function installErrorHandler() {
     if (typeof window.onerror == "object") {
       window.onerror = function (msgevent, url, line, col, error) {
-        var msgstr = msgevent['reason'] ? (msgevent['reason']+" (rejected)") : (msgevent+"");
+        var msgstr = msgevent+"";
         console.log(msgevent, url, line, col, error);
         // emulation threw EmuHalt
         if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
@@ -1685,7 +1686,16 @@ function installErrorHandler() {
         }
         _pause();
       };
-      window.onunhandledrejection = window.onerror;
+    }
+    if (typeof window.onunhandledrejection == "object") {
+      window.onunhandledrejection = function(event) {
+        var msg = (event && event.reason) + "";
+        if (ga) ga('send', 'exception', {
+          'exDescription': msg,
+          'exFatal': true
+        });
+        alertError(msg);
+      }
     }
 }
 
