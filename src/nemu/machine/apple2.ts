@@ -1,42 +1,299 @@
 "use strict";
 
-import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, KeyFlags, makeKeycodeMap, dumpRAM } from "../emu";
-import { hex, lzgmini } from "../util";
-import { SampleAudio } from "../audio";
+import { MOS6502, MOS6502State } from "../cpu/MOS6502";
+import { Bus, RasterFrameBased, SavesState, AcceptsROM, noise, Resettable } from "../nemu";
+import { KeyFlags } from "../../emu"; // TODO
+import { lzgmini } from "../../util";
 
-declare var jt; // 6502
+const cpuFrequency = 1023000;
+const cpuCyclesPerLine = 65; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
+const cpuCyclesPerFrame = 65*262;
 
-const APPLE2_PRESETS = [
-  {id:'sieve.c', name:'Sieve'},
-  {id:'keyboardtest.c', name:'Keyboard Test'},
-  {id:'mandel.c', name:'Mandelbrot'},
-  {id:'tgidemo.c', name:'TGI Graphics Demo'},
-  {id:'Eliza.c', name:'Eliza'},
-  {id:'siegegame.c', name:'Siege Game'},
-  {id:'cosmic.c', name:'Cosmic Impalas'},
-  {id:'hgrtest.a', name:"HGR Test (ASM)"},
-  {id:'conway.a', name:"Conway's Game of Life (ASM)"},
-  {id:'lz4fh.a', name:"LZ4FH Graphics Compression (ASM)"},
-//  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
-];
+const VM_BASE = 0x803; // where to JMP after pr#6
+const LOAD_BASE = VM_BASE; //0x7c9; // where to load ROM
+const PGM_BASE = VM_BASE; //0x800; // where to load ROM
+const HDR_SIZE = PGM_BASE - LOAD_BASE;
+
+interface AppleIIStateBase {
+  ram : Uint8Array;
+  rnd,kbdlatch,soundstate : number;
+  auxRAMselected,writeinhibit : boolean;
+  auxRAMbank,bank2rdoffset,bank2wroffset : number;
+  grdirty : boolean[];
+}
+
+interface AppleIIState extends AppleIIStateBase {
+  c : MOS6502State;
+}
+
+export class AppleII implements Bus, Resettable, RasterFrameBased, AcceptsROM, AppleIIStateBase, SavesState<AppleIIState> {
+
+  ram = new Uint8Array(0x13000); // 64K + 16K LC RAM - 4K hardware + 12K ROM
+  rom : Uint8Array;
+  cpu = new MOS6502();
+  pixels : Uint32Array;
+  grdirty = new Array(0xc000 >> 7);
+  grparams = {dirty:this.grdirty, grswitch:GR_TXMODE, mem:this.ram};
+  ap2disp;
+  pgmbin : Uint8Array;
+  rnd = 1;
+  kbdlatch = 0;
+  soundstate = 0;
+  // language card switches
+  auxRAMselected = false;
+  auxRAMbank = 1;
+  writeinhibit = true;
+  // value to add when reading & writing each of these banks
+  // bank 1 is E000-FFFF, bank 2 is D000-DFFF
+  bank2rdoffset=0;
+  bank2wroffset=0;
+
+  constructor() {
+    // ROM
+    this.rom = new lzgmini().decode(APPLEIIGO_LZG);
+    this.ram.set(this.rom, 0xd000);
+    this.ram[0xbf00] = 0x4c; // fake DOS detect for C
+    this.ram[0xbf6f] = 0x01; // fake DOS detect for C
+    this.cpu.connectMemoryBus(this);
+  }
+  saveState() {
+    // TODO: automagic
+    return {
+      c: this.cpu.saveState(),
+      ram: this.ram.slice(),
+      rnd: this.rnd,
+      kbdlatch: this.kbdlatch,
+      soundstate: this.soundstate,
+      auxRAMselected: this.auxRAMselected,
+      writeinhibit: this.writeinhibit,
+      auxRAMbank: this.auxRAMbank,
+      bank2rdoffset: this.bank2rdoffset,
+      bank2wroffset: this.bank2wroffset,
+      grdirty: this.grdirty.slice(),
+    };
+  }
+  loadState(s) {
+    this.cpu.loadState(s.c);
+    this.ram.set(s.ram);
+  }
+  reset() {
+    this.cpu.reset();
+  }
+  noise() : number {
+    return (this.rnd = noise(this.rnd)) & 0xff;
+  }
+  read(address:number) : number {
+    address &= 0xffff;
+    if (address < 0xc000) {
+      return this.ram[address];
+    } else if (address >= 0xd000) {
+      if (!this.auxRAMselected)
+        return this.rom[address - 0xd000];
+      else if (address >= 0xe000)
+        return this.ram[address];
+      else
+        return this.ram[address + this.bank2rdoffset];
+    } else if (address < 0xc100) {
+      var slot = (address >> 4) & 0x0f;
+      switch (slot)
+      {
+         case 0:
+            return this.kbdlatch;
+         case 1:
+            this.kbdlatch &= 0x7f;
+            break;
+         case 3:
+            this.soundstate = this.soundstate ^ 1;
+            break;
+         case 5:
+            if ((address & 0x0f) < 8) {
+               // graphics
+               if ((address & 1) != 0)
+                  this.grparams.grswitch |= 1 << ((address >> 1) & 0x07);
+               else
+                  this.grparams.grswitch &= ~(1 << ((address >> 1) & 0x07));
+            }
+            break;
+         case 6:
+            // tapein, joystick, buttons
+            switch (address & 7) {
+               // buttons (off)
+               case 1:
+               case 2:
+               case 3:
+                  return this.noise() & 0x7f;
+                // joystick
+               case 4:
+               case 5:
+                  return this.noise() | 0x80;
+               default:
+                  return this.noise();
+            }
+         case 7:
+            // joy reset
+            if (address == 0xc070)
+               return this.noise() | 0x80;
+         case 8:
+            return this.doLanguageCardIO(address);
+         case 9: case 10: case 11: case 12: case 13: case 14: case 15:
+            return this.noise(); // return slots[slot-8].doIO(address, value);
+      }
+    } else {
+      switch (address) {
+        // JMP VM_BASE
+        case 0xc600: {
+          // load program into RAM
+          if (this.pgmbin)
+            this.ram.set(this.pgmbin.slice(HDR_SIZE), PGM_BASE);
+          return 0x4c;
+        }
+        case 0xc601: return VM_BASE&0xff;
+        case 0xc602: return (VM_BASE>>8)&0xff;
+        default: return this.noise();
+      }
+    }
+    return this.noise();
+  }
+  write(address:number, val:number) : void {
+    address &= 0xffff;
+    val &= 0xff;
+    if (address < 0xc000) {
+      this.ram[address] = val;
+      this.grdirty[address>>7] = 1;
+    } else if (address < 0xc100) {
+      this.read(address); // strobe address, discard result
+    } else if (address >= 0xd000 && !this.writeinhibit) {
+      if (address >= 0xe000)
+        this.ram[address] = val;
+      else
+        this.ram[address + this.bank2wroffset] = val;
+    }
+  }
+  loadROM(data:Uint8Array) {
+    this.pgmbin = data.slice();
+  }
+  getVideoParams() {
+    return {width:280, height:192};
+  }
+  connectVideo(pixels:Uint32Array) {
+    this.pixels = pixels;
+    this.ap2disp = pixels && new Apple2Display(this.pixels, this.grparams);
+  }
+  advanceFrame() : number {
+    for (var i=0; i<cpuCyclesPerFrame; i++) {
+      this.cpu.advanceClock();
+    }
+    this.ap2disp && this.ap2disp.updateScreen();
+    return i;
+  }
+  setInput(key:number, code:number, flags:number) : void {
+    if (flags & KeyFlags.KeyPress) {
+      // convert to uppercase for Apple ][
+      if (code >= 0x61 && code <= 0x7a)
+         code -= 32; 
+      if (code >= 32) {
+        if (code >= 65 && code < 65+26) {
+          if (flags & KeyFlags.Ctrl)
+            code -= 64; // ctrl
+        }
+        this.kbdlatch = (code | 0x80) & 0xff;
+      }
+    } else if (flags & KeyFlags.KeyDown) {
+      code = 0;
+      switch (key) {
+        case 13: code=13; break; // return
+        case 37: code=8; break; // left
+        case 39: code=21; break; // right
+        case 38: code=11; break; // up
+        case 40: code=10; break; // down
+      }
+      if (code)
+        this.kbdlatch = (code | 0x80) & 0xff;
+    }
+  }
+  
+  doLanguageCardIO(address:number) {
+     switch (address & 0x0f) {
+         // Select aux RAM bank 2, write protected.
+        case 0x0:
+        case 0x4:
+           this.auxRAMselected = true;
+           this.auxRAMbank = 2;
+           this.writeinhibit = true;
+           break;
+        // Select ROM, write enable aux RAM bank 2.
+        case 0x1:
+        case 0x5:
+           this.auxRAMselected = false;
+           this.auxRAMbank = 2;
+           this.writeinhibit = false;
+           break;
+        // Select ROM, write protect aux RAM (either bank).
+        case 0x2:
+        case 0x6:
+        case 0xA:
+        case 0xE:
+           this.auxRAMselected = false;
+           this.writeinhibit = true;
+           break;
+        // Select aux RAM bank 2, write enabled.
+        case 0x3:
+        case 0x7:
+           this.auxRAMselected = true;
+           this.auxRAMbank = 2;
+           this.writeinhibit = false;
+           break;
+        // Select aux RAM bank 1, write protected.
+        case 0x8:
+        case 0xC:
+           this.auxRAMselected = true;
+           this.auxRAMbank = 1;
+           this.writeinhibit = true;
+           break;
+        // Select ROM, write enable aux RAM bank 1.
+        case 0x9:
+        case 0xD:
+           this.auxRAMselected = false;
+           this.auxRAMbank = 1;
+           this.writeinhibit = false;
+           break;
+       // Select aux RAM bank 1, write enabled.
+        case 0xB:
+        case 0xF:
+           this.auxRAMselected = true;
+           this.auxRAMbank = 1;
+           this.writeinhibit = false;
+           break;
+     }
+     this.setupLanguageCardConstants();
+     return this.noise();
+  }
+
+  setupLanguageCardConstants() {
+    // reset language card constants
+     if (this.auxRAMbank == 2)
+        this.bank2rdoffset = -0x1000;   // map 0xd000-0xdfff -> 0xc000-0xcfff
+     else
+        this.bank2rdoffset = 0x3000; // map 0xd000-0xdfff -> 0x10000-0x10fff
+     if (this.auxRAMbank == 2)
+        this.bank2wroffset = -0x1000;   // map 0xd000-0xdfff -> 0xc000-0xcfff
+     else
+        this.bank2wroffset = 0x3000; // map 0xd000-0xdfff -> 0x10000-0x10fff
+  }
+}
 
 const GR_TXMODE   = 1;
 const GR_MIXMODE  = 2;
 const GR_PAGE1    = 4;
 const GR_HIRES    = 8;
 
-type AppleGRParams = {dirty:boolean[], grswitch:number, mem:number[]};
+type AppleGRParams = {dirty:boolean[], grswitch:number, mem:Uint8Array};
 
+/*
 const _Apple2Platform = function(mainElement) {
   const cpuFrequency = 1023000;
   const cpuCyclesPerLine = 65;
 
-  const VM_BASE = 0x803; // where to JMP after pr#6
-  const LOAD_BASE = VM_BASE; //0x7c9; // where to load ROM
-  const PGM_BASE = VM_BASE; //0x800; // where to load ROM
-  const HDR_SIZE = PGM_BASE - LOAD_BASE;
-  
   var cpu, ram, bus;
   var video, ap2disp, audio, timer;
   var grdirty = new Array(0xc000 >> 7);
@@ -60,103 +317,6 @@ const _Apple2Platform = function(mainElement) {
     return APPLE2_PRESETS;
   }
   start() {
-    cpu = new jt.M6502();
-    ram = new RAM(0x13000); // 64K + 16K LC RAM - 4K hardware
-    // ROM
-    var rom = new lzgmini().decode(APPLEIIGO_LZG);
-    ram.mem.set(rom, 0xd000);
-    ram.mem[0xbf00] = 0x4c; // fake DOS detect for C
-    ram.mem[0xbf6f] = 0x01; // fake DOS detect for C
-    // bus
-    bus = {
-      read: function(address) {
-        address &= 0xffff;
-        if (address < 0xc000) {
-          return ram.mem[address];
-        } else if (address >= 0xd000) {
-          //return rom[address - 0xd000] & 0xff;
-          //console.log(hex(address), rom[address-0xd000], ram.mem[address]);
-          if (!auxRAMselected)
-            return rom[address - 0xd000];
-          else if (address >= 0xe000)
-            return ram.mem[address];
-          else
-            return ram.mem[address + bank2rdoffset];
-        } else if (address < 0xc100) {
-          var slot = (address >> 4) & 0x0f;
-          switch (slot)
-          {
-             case 0:
-                return kbdlatch;
-             case 1:
-                kbdlatch &= 0x7f;
-                break;
-             case 3:
-                soundstate = soundstate ^ 1;
-                break;
-             case 5:
-                if ((address & 0x0f) < 8) {
-                   // graphics
-                   if ((address & 1) != 0)
-                      grswitch |= 1 << ((address >> 1) & 0x07);
-                   else
-                      grswitch &= ~(1 << ((address >> 1) & 0x07));
-                }
-                break;
-             case 6:
-                // tapein, joystick, buttons
-                switch (address & 7) {
-                   // buttons (off)
-                   case 1:
-                   case 2:
-                   case 3:
-                      return noise() & 0x7f;
-                    // joystick
-                   case 4:
-                   case 5:
-                      return noise() | 0x80;
-                   default:
-                      return noise();
-                }
-             case 7:
-                // joy reset
-                if (address == 0xc070)
-                   return noise() | 0x80;
-             case 8:
-                return doLanguageCardIO(address);
-             case 9: case 10: case 11: case 12: case 13: case 14: case 15:
-                return noise(); // return slots[slot-8].doIO(address, value);
-          }
-        } else {
-          switch (address) {
-            // JMP VM_BASE
-            case 0xc600: {
-              // load program into RAM
-              if (pgmbin)
-                ram.mem.set(pgmbin.slice(HDR_SIZE), PGM_BASE);
-              return 0x4c;
-            }
-            case 0xc601: return VM_BASE&0xff;
-            case 0xc602: return (VM_BASE>>8)&0xff;
-            default: return noise();
-          }
-        }
-        return noise();
-      },
-      write: function(address, val) {
-        address &= 0xffff;
-        val &= 0xff;
-        if (address < 0xc000) {
-          ram.mem[address] = val;
-          grdirty[address>>7] = 1;
-        } else if (address < 0xc100) {
-          this.read(address); // strobe address, discard result
-        } else if (address >= 0xd000 && !writeinhibit) {
-          if (address >= 0xe000)
-            ram.mem[address] = val;
-          else
-            ram.mem[address + bank2wroffset] = val;
-        }
       }
     };
     cpu.connectBus(bus);
@@ -165,29 +325,6 @@ const _Apple2Platform = function(mainElement) {
     audio = new SampleAudio(cpuFrequency);
     video.create();
     video.setKeyboardEvents((key,code,flags) => {
-      if (flags & KeyFlags.KeyPress) {
-        // convert to uppercase for Apple ][
-        if (code >= 0x61 && code <= 0x7a)
-           code -= 32; 
-        if (code >= 32) {
-          if (code >= 65 && code < 65+26) {
-            if (flags & KeyFlags.Ctrl)
-              code -= 64; // ctrl
-          }
-          kbdlatch = (code | 0x80) & 0xff;
-        }
-      } else if (flags & KeyFlags.KeyDown) {
-        code = 0;
-        switch (key) {
-          case 13: code=13; break; // return
-          case 37: code=8; break; // left
-          case 39: code=21; break; // right
-          case 38: code=11; break; // up
-          case 40: code=10; break; // down
-        }
-        if (code)
-          kbdlatch = (code | 0x80) & 0xff;
-      }
     });
     var idata = video.getFrameData();
     grparams = {dirty:grdirty, grswitch:grswitch, mem:ram.mem};
@@ -291,80 +428,11 @@ const _Apple2Platform = function(mainElement) {
   }
  }
 
-  function doLanguageCardIO(address:number)
-  {
-     switch (address & 0x0f) {
-         // Select aux RAM bank 2, write protected.
-        case 0x0:
-        case 0x4:
-           auxRAMselected = true;
-           auxRAMbank = 2;
-           writeinhibit = true;
-           break;
-        // Select ROM, write enable aux RAM bank 2.
-        case 0x1:
-        case 0x5:
-           auxRAMselected = false;
-           auxRAMbank = 2;
-           writeinhibit = false;
-           break;
-        // Select ROM, write protect aux RAM (either bank).
-        case 0x2:
-        case 0x6:
-        case 0xA:
-        case 0xE:
-           auxRAMselected = false;
-           writeinhibit = true;
-           break;
-        // Select aux RAM bank 2, write enabled.
-        case 0x3:
-        case 0x7:
-           auxRAMselected = true;
-           auxRAMbank = 2;
-           writeinhibit = false;
-           break;
-        // Select aux RAM bank 1, write protected.
-        case 0x8:
-        case 0xC:
-           auxRAMselected = true;
-           auxRAMbank = 1;
-           writeinhibit = true;
-           break;
-        // Select ROM, write enable aux RAM bank 1.
-        case 0x9:
-        case 0xD:
-           auxRAMselected = false;
-           auxRAMbank = 1;
-           writeinhibit = false;
-           break;
-       // Select aux RAM bank 1, write enabled.
-        case 0xB:
-        case 0xF:
-           auxRAMselected = true;
-           auxRAMbank = 1;
-           writeinhibit = false;
-           break;
-     }
-     setupLanguageCardConstants();
-     return noise();
-  }
-
-  function setupLanguageCardConstants() {
-    // reset language card constants
-     if (auxRAMbank == 2)
-        bank2rdoffset = -0x1000;   // map 0xd000-0xdfff -> 0xc000-0xcfff
-     else
-        bank2rdoffset = 0x3000; // map 0xd000-0xdfff -> 0x10000-0x10fff
-     if (auxRAMbank == 2)
-        bank2wroffset = -0x1000;   // map 0xd000-0xdfff -> 0xc000-0xcfff
-     else
-        bank2wroffset = 0x3000; // map 0xd000-0xdfff -> 0x10000-0x10fff
-  }
-
   return new Apple2Platform(); // return inner class from constructor
 };
+*/
 
-var Apple2Display = function(pixels : number[], apple : AppleGRParams) {
+var Apple2Display = function(pixels : Uint32Array, apple : AppleGRParams) {
   var XSIZE = 280;
   var YSIZE = 192;
   var PIXELON = 0xffffffff;
@@ -1033,96 +1101,3 @@ const APPLEIIGO_LZG = [
   76,237,253,165,72,72,165,69,166,70,164,71,52,110,22,52,62,27,59,30,59,14,245,3,251,3,98,250,98,250
 ];
 
-/// MAME support
-
-class Apple2MAMEPlatform extends BaseMAMEPlatform implements Platform {
-
-  start () {
-    this.startModule(this.mainElement, {
-      jsfile:'mameapple2e.js',
-      biosfile:['apple2e.zip'],
-      //cfgfile:'nes.cfg',
-      driver:'apple2e',
-      width:280*2,
-      height:192*2,
-      //romfn:'/emulator/cart.nes',
-      //romsize:romSize,
-      //romdata:new lzgmini().decode(lzgRom).slice(0, romSize),
-      preInit:function(_self) {
-      },
-    });
-  }
-
-  getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtension () { return ".c"; };
-  getToolForFilename = getToolForFilename_6502;
-
-  getPresets () { return APPLE2_PRESETS; }
-
-  loadROM (title, data) {
-    this.loadROMFile(data);
-    // TODO
-  }
-}
-
-///
-
-// TODO: move to own place, debugging
-import { CPU, Bus, ClockBased, SavesState, Interruptable } from "../nemu/nemu";
-import { MOS6502 } from "../nemu/cpu/MOS6502";
-import { AppleII } from "../nemu/machine/apple2";
-
-class NewApple2Platform extends Base6502Platform implements Platform {
-
-  mainElement : HTMLElement;
-  machine : AppleII;
-  timer : AnimationTimer;
-  video : RasterVideo;
-
-  constructor(mainElement : HTMLElement) {
-    super();
-    this.mainElement = mainElement;
-  }
-  getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtension () { return ".c"; };
-  getToolForFilename = getToolForFilename_6502;
-  getPresets () { return APPLE2_PRESETS; }
-  getCPUState() { return this.machine.cpu.saveState(); }
-  saveState() { return this.machine.saveState(); }
-  loadState(s) { this.machine.loadState(s); }
-  readAddress(a) { return this.machine.read(a); }
-
-  start() {
-    this.machine = new AppleII();
-    this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
-    var vp = this.machine.getVideoParams();
-    this.video = new RasterVideo(this.mainElement, vp.width, vp.height);
-    //this.audio = new SampleAudio(cpuFrequency);
-    this.video.create();
-    this.machine.connectVideo(this.video.getFrameData());
-  }
-  reset() {
-    this.machine.reset();
-  }
-  loadROM(title, data) {
-    this.machine.loadROM(data);
-    this.reset();
-  }
-  advance(novideo:boolean) {
-    this.machine.advanceFrame();
-    if (!novideo) this.video.updateFrame();
-  }
-  isRunning() {
-    return this.timer.isRunning();
-  }
-  resume() {
-    this.timer.start();
-  }
-  pause() {
-    this.timer.stop();
-  }
-}
-
-PLATFORMS['apple2'] = _Apple2Platform;
-PLATFORMS['apple2.mame'] = Apple2MAMEPlatform;
-PLATFORMS['apple2.new'] = NewApple2Platform;

@@ -125,7 +125,7 @@ export class RasterVideo {
 
   getContext() { return this.ctx; }
 
-  updateFrame(sx:number, sy:number, dx:number, dy:number, w?:number, h?:number) {
+  updateFrame(sx?:number, sy?:number, dx?:number, dy?:number, w?:number, h?:number) {
     if (w && h)
       this.ctx.putImageData(this.imageData, sx, sy, dx, dy, w, h);
     else
