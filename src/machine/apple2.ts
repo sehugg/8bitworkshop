@@ -1,9 +1,9 @@
 "use strict";
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { Bus, RasterFrameBased, SavesState, AcceptsROM, noise, Resettable, SampledAudioSource, SampledAudioSink } from "../nemu";
-import { KeyFlags } from "../../emu"; // TODO
-import { lzgmini } from "../../util";
+import { Bus, RasterFrameBased, SavesState, AcceptsROM, noise, Resettable, SampledAudioSource, SampledAudioSink } from "../devices";
+import { KeyFlags } from "../emu"; // TODO
+import { lzgmini } from "../util";
 
 const cpuFrequency = 1023000;
 const cpuCyclesPerLine = 65; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/

@@ -1,5 +1,5 @@
 
-import { CPU, Bus, ClockBased, SavesState, Interruptable } from "../nemu";
+import { CPU, Bus, ClockBased, SavesState, Interruptable } from "../devices";
 
 // Copyright 2015 by Paulo Augusto Peccin. See license.txt distributed with this file.
 

@@ -1068,9 +1068,9 @@ class Apple2MAMEPlatform extends BaseMAMEPlatform implements Platform {
 ///
 
 // TODO: move to own place, debugging
-import { CPU, Bus, ClockBased, SavesState, Interruptable, CPUClockHook } from "../nemu/nemu";
-import { MOS6502 } from "../nemu/cpu/MOS6502";
-import { AppleII } from "../nemu/machine/apple2";
+import { CPU, Bus, ClockBased, SavesState, Interruptable, CPUClockHook } from "../devices";
+import { MOS6502 } from "../cpu/MOS6502";
+import { AppleII } from "../machine/apple2";
 
 class NewApple2Platform extends Base6502Platform implements Platform {
 
