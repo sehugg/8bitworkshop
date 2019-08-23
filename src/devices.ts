@@ -7,7 +7,7 @@ export interface SavesState<S> {
 export interface Bus {
     read(a:number) : number;
     write(a:number, v:number) : void;
-    // TODO: readConst?(a:number) : number;
+    readConst?(a:number) : number;
 }
 
 export interface ClockBased {
@@ -89,7 +89,7 @@ export interface Interruptable<IT> {
 // TODO
 export interface AcceptsInput<CS> {
     setInput(key:number, code:number, flags:number) : void;
-    loadControlsState(cs:CS);
+    loadControlsState(cs:CS) : void;
     saveControlsState() : CS;
 }
 
