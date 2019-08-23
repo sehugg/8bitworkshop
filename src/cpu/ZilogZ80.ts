@@ -1742,6 +1742,7 @@ export class Z80 implements CPU, InstructionBased, IOBusConnected, SavesState<Z8
   loadState(s) {
     this.cpu.loadState(s);
   }
+  isStable() { return true; }
   // TODO: metadata
   // TODO: disassembler
 }

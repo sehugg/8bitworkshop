@@ -27,11 +27,14 @@ includeInThisContext('tss/js/tss/AudioLooper.js');
 //includeInThisContext("jsnes/dist/jsnes.min.js");
 global.jsnes = require("jsnes/dist/jsnes.min.js");
 
+//var devices = require('gen/devices.js');
 var emu = require('gen/emu.js');
 var Keys = emu.Keys;
 var audio = require('gen/audio.js');
 var recorder = require('gen/recorder.js');
+//var _6502 = require('gen/cpu/MOS6502.js');
 var _apple2 = require('gen/platform/apple2.js');
+//var m_apple2 = require('gen/machine/apple2.js');
 var _vcs = require('gen/platform/vcs.js');
 var _nes = require('gen/platform/nes.js');
 var _vicdual = require('gen/platform/vicdual.js');
@@ -171,7 +174,7 @@ describe('Platform Replay', () => {
         keycallback(32, 32, 128); // space bar
       }
     });
-    assert.equal(platform.saveState().kbd, 0x20); // strobe cleared
+    assert.equal(platform.saveState().kbdlatch, 0x20); // strobe cleared
   });
 
   it('Should run > 120 secs', () => {

@@ -1755,7 +1755,8 @@ var _MOS6502 = function() {
 
     this.saveState = function():MOS6502State {
         return {
-            PC: PC, A: A, X: X, Y: Y, SP: SP,
+            PC: (PC-1) & 0xffff,
+            A: A, X: X, Y: Y, SP: SP,
             N: N, V: V, D: D, I: I, Z: Z, C: C,
             T: T, o: opcode, R: RDY?1:0,
             d: data, AD: AD, BA: BA, BC: BALCrossed?1:0, IA: IA,
@@ -1764,7 +1765,8 @@ var _MOS6502 = function() {
     };
 
     this.loadState = function(state:MOS6502State) {
-        PC = state.PC; A = state.A; X = state.X; Y = state.Y; SP = state.SP;
+        PC = (state.PC+1) & 0xffff;
+        A = state.A; X = state.X; Y = state.Y; SP = state.SP;
         N = state.N; V = state.V; D = state.D; I = state.I; Z = state.Z; C = state.C;
         T = state.T; opcode = state.o; RDY = !!state.R;
         data = state.d; AD = state.AD; BA = state.BA; BALCrossed = !!state.BC; IA = state.IA;
@@ -1887,12 +1889,10 @@ var _MOS6502 = function() {
     }
 
     this.getSP = function() { return SP; }
-    this.getPC = function() { return PC; }
+    this.getPC = function() { return (PC-1) & 0xffff; }
     this.getT = function() { return T; }
     
     this.isPCStable = function() {
-      // TODO: gotta fix base class first
-      //return T < 0 || T == instruction.length-1;
       return T == 0;
     }
 };
@@ -1936,7 +1936,7 @@ export class MOS6502 implements CPU, ClockBased, SavesState<MOS6502State>, Inter
   interrupt(itype:number) {
     this.interruptType = itype;
   }
-  getSP() {
+    getSP() {
     return this.cpu.getSP();
   }
   getPC() {

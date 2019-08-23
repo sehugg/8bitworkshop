@@ -21,6 +21,7 @@ describe('MOS6502', function() {
     s0.PC = 0x400;
     cpu.loadState(s0);
     for (var i=0; i<100000000; i++) {
+      //console.log(cpu.isStable(), cpu.saveState().o);
       cpu.advanceClock();
       var pc = cpu.getPC();
       if (pc == 0x3469) break; // success!

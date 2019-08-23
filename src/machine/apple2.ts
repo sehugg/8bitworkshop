@@ -1,7 +1,7 @@
 "use strict";
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { Bus, RasterFrameBased, SavesState, AcceptsROM, noise, Resettable, SampledAudioSource, SampledAudioSink } from "../devices";
+import { Bus, RasterFrameBased, SavesState, AcceptsROM, AcceptsInput, noise, Resettable, SampledAudioSource, SampledAudioSink, HasCPU } from "../devices";
 import { KeyFlags } from "../emu"; // TODO
 import { lzgmini } from "../util";
 
@@ -16,18 +16,22 @@ const HDR_SIZE = PGM_BASE - LOAD_BASE;
 
 interface AppleIIStateBase {
   ram : Uint8Array;
-  rnd,kbdlatch,soundstate : number;
+  rnd,soundstate : number;
   auxRAMselected,writeinhibit : boolean;
-  auxRAMbank,bank2rdoffset,bank2wroffset : number;
-  grdirty : boolean[];
+  auxRAMbank : number;
 }
 
-interface AppleIIState extends AppleIIStateBase {
+interface AppleIIControlsState {
+  kbdlatch : number;
+}
+
+interface AppleIIState extends AppleIIStateBase, AppleIIControlsState {
   c : MOS6502State;
+  grswitch : number;
 }
 
-export class AppleII implements Bus, Resettable, RasterFrameBased, SampledAudioSource, AcceptsROM,
-  AppleIIStateBase, SavesState<AppleIIState> {
+export class AppleII implements HasCPU, Bus, Resettable, RasterFrameBased, SampledAudioSource, AcceptsROM,
+  AppleIIStateBase, SavesState<AppleIIState>, AcceptsInput<AppleIIControlsState> {
 
   ram = new Uint8Array(0x13000); // 64K + 16K LC RAM - 4K hardware + 12K ROM
   rom : Uint8Array;
@@ -58,7 +62,7 @@ export class AppleII implements Bus, Resettable, RasterFrameBased, SampledAudioS
     this.ram[0xbf6f] = 0x01; // fake DOS detect for C
     this.cpu.connectMemoryBus(this);
   }
-  saveState() {
+  saveState() : AppleIIState {
     // TODO: automagic
     return {
       c: this.cpu.saveState(),
@@ -66,27 +70,45 @@ export class AppleII implements Bus, Resettable, RasterFrameBased, SampledAudioS
       rnd: this.rnd,
       kbdlatch: this.kbdlatch,
       soundstate: this.soundstate,
+      grswitch: this.grparams.grswitch,
       auxRAMselected: this.auxRAMselected,
-      writeinhibit: this.writeinhibit,
       auxRAMbank: this.auxRAMbank,
-      bank2rdoffset: this.bank2rdoffset,
-      bank2wroffset: this.bank2wroffset,
-      grdirty: this.grdirty.slice(),
+      writeinhibit: this.writeinhibit,
     };
   }
-  loadState(s) {
+  loadState(s:AppleIIState) {
     this.cpu.loadState(s.c);
     this.ram.set(s.ram);
-    // TODO
+    this.rnd = s.rnd;
+    this.kbdlatch = s.kbdlatch;
+    this.soundstate = s.soundstate;
+    this.grparams.grswitch = s.grswitch;
+    this.auxRAMselected = s.auxRAMselected;
+    this.auxRAMbank = s.auxRAMbank;
+    this.writeinhibit = s.writeinhibit;
+    this.setupLanguageCardConstants();
+    this.ap2disp.invalidate(); // repaint entire screen
+  }
+  saveControlsState() : AppleIIControlsState {
+    return {kbdlatch:this.kbdlatch};
+  }
+  loadControlsState(s:AppleIIControlsState) {
+    this.kbdlatch = s.kbdlatch;
   }
   reset() {
     this.cpu.reset();
+    // execute until $c600 boot
+    for (var i=0; i<2000000; i++) {
+      this.cpu.advanceClock();
+      if (this.cpu.getPC() == 0xc602) {
+        break;
+      }
+    }
   }
   noise() : number {
     return (this.rnd = noise(this.rnd)) & 0xff;
   }
-  read(address:number) : number {
-    address &= 0xffff;
+  readConst(address:number) : number {
     if (address < 0xc000) {
       return this.ram[address];
     } else if (address >= 0xd000) {
@@ -96,6 +118,13 @@ export class AppleII implements Bus, Resettable, RasterFrameBased, SampledAudioS
         return this.ram[address];
       else
         return this.ram[address + this.bank2rdoffset];
+    } else
+      return 0;
+  }
+  read(address:number) : number {
+    address &= 0xffff;
+    if (address < 0xc000 || address >= 0xd000) {
+      return this.readConst(address);
     } else if (address < 0xc100) {
       var slot = (address >> 4) & 0x0f;
       switch (slot)
@@ -191,7 +220,7 @@ export class AppleII implements Bus, Resettable, RasterFrameBased, SampledAudioS
   advanceFrame(maxCycles, trap) : number {
     maxCycles = Math.min(maxCycles, cpuCyclesPerFrame);
     for (var i=0; i<maxCycles; i++) {
-      if (trap && this.cpu.isStable() && trap()) break;
+      if (trap && trap()) break;
       this.cpu.advanceClock();
       this.audio.feedSample(this.soundstate, 1);
     }
@@ -300,46 +329,6 @@ const GR_PAGE1    = 4;
 const GR_HIRES    = 8;
 
 type AppleGRParams = {dirty:boolean[], grswitch:number, mem:Uint8Array};
-
-/*
-  readAddress(addr : number) {
-    return ((addr & 0xf000) != 0xc000) ? bus.read(addr) : null; // ignore I/O space
-  }
-
-  loadState(state) {
-    this.unfixPC(state.c);
-    cpu.loadState(state.c);
-    this.fixPC(state.c);
-    ram.mem.set(state.b);
-    kbdlatch = state.kbd;
-    grswitch = state.gr;
-    auxRAMselected = state.lc.s;
-    auxRAMbank = state.lc.b;
-    writeinhibit = state.lc.w;
-    setupLanguageCardConstants();
-    ap2disp.invalidate(); // repaint entire screen
-  }
-  saveState() {
-    return {
-      c:this.getCPUState(),
-      b:ram.mem.slice(0),
-      kbd:kbdlatch,
-      gr:grswitch,
-      lc:{s:auxRAMselected,b:auxRAMbank,w:writeinhibit},
-    };
-  }
-  loadControlsState(state) {
-    kbdlatch = state.kbd;
-  }
-  saveControlsState() {
-    return {
-      kbd:kbdlatch
-    };
-  }
-  getCPUState() {
-    return this.fixPC(cpu.saveState());
-  }
-*/
 
 var Apple2Display = function(pixels : Uint32Array, apple : AppleGRParams) {
   var XSIZE = 280;

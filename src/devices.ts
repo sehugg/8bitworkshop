@@ -1,7 +1,7 @@
 
-export interface SavesState<T> {
-    saveState() : T;
-    loadState(state:T) : void;
+export interface SavesState<S> {
+    saveState() : S;
+    loadState(state:S) : void;
 }
 
 export interface Bus {
@@ -72,20 +72,25 @@ export interface IOBusConnected {
     connectIOBus(bus:Bus) : void;
 }
 
-export interface CPU extends MemoryBusConnected, Resettable {
+export interface CPU extends MemoryBusConnected, Resettable, SavesState<any> {
     getPC() : number;
     getSP() : number;
+    isStable() : boolean;
 }
 
-export interface Interruptable<T> {
-    interrupt(type:T) : void;
+export interface HasCPU {
+    cpu : CPU;
+}
+
+export interface Interruptable<IT> {
+    interrupt(type:IT) : void;
 }
 
 // TODO
-export interface AcceptsInput {
+export interface AcceptsInput<CS> {
     setInput(key:number, code:number, flags:number) : void;
-    //loadControlState();
-    //saveControlState();
+    loadControlsState(cs:CS);
+    saveControlsState() : CS;
 }
 
 // TODO?
