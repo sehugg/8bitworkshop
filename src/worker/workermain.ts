@@ -484,10 +484,15 @@ function populateFiles(step:BuildStep, fs, options?:BuildOptions) {
 }
 
 function populateExtraFiles(step:BuildStep, fs, extrafiles) {
-  // TODO: cache extra files
   if (extrafiles) {
     for (var i=0; i<extrafiles.length; i++) {
       var xfn = extrafiles[i];
+      // is this file cached?
+      if (workfs[xfn]) {
+        fs.writeFile(xfn, workfs[xfn].data, {encoding:'binary'});
+        continue;
+      }
+      // fetch from network
       var xpath = "lib/" + getBasePlatform(step.platform) + "/" + xfn;
       var xhr = new XMLHttpRequest();
       xhr.responseType = 'arraybuffer';
@@ -496,6 +501,7 @@ function populateExtraFiles(step:BuildStep, fs, extrafiles) {
       if (xhr.response && xhr.status == 200) {
         var data = new Uint8Array(xhr.response);
         fs.writeFile(xfn, data, {encoding:'binary'});
+        putWorkFile(xfn, data);
         console.log(":::",xfn,data.length);
       } else {
         throw Error("Could not load extra file " + xpath);
