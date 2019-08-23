@@ -78,7 +78,7 @@ export interface CPU extends MemoryBusConnected, Resettable, SavesState<any> {
     isStable() : boolean;
 }
 
-export interface HasCPU {
+export interface HasCPU extends Resettable {
     cpu : CPU;
 }
 

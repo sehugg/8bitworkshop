@@ -7,7 +7,7 @@ import * as bootstrap from "bootstrap";
 import { CodeProject } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "./workertypes";
 import { ProjectWindows } from "./windows";
-import { Platform, Preset, DebugSymbols, DebugEvalCondition } from "./baseplatform";
+import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable } from "./baseplatform";
 import { PLATFORMS, EmuHalt, Toolbar } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
@@ -87,6 +87,16 @@ function alertError(s:string) {
 function alertInfo(s:string) {
   setWaitDialog(false);
   bootbox.alert(s);
+}
+
+export function loadScript(scriptfn:string) : Promise<Event> {
+  return new Promise( (resolve, reject) => {
+    var script = document.createElement('script');
+    script.onload = resolve;
+    script.onerror = reject;
+    script.src = scriptfn;
+    document.getElementsByTagName('head')[0].appendChild(script);
+  });
 }
 
 function newWorker() : Worker {
@@ -661,7 +671,7 @@ function _shareEmbedLink(e) {
     return true;
   }
   loadClipboardLibrary();
-  loadScript('lib/liblzg.js', () => {
+  loadScript('lib/liblzg.js').then( () => {
     // TODO: Module is bad var name (conflicts with MAME)
     var lzgrom = compressLZG( window['Module'], Array.from(<Uint8Array>current_output) );
     window['Module'] = null; // so we load it again next time
@@ -686,7 +696,7 @@ function _shareEmbedLink(e) {
 }
 
 function loadClipboardLibrary() {
-  loadScript('lib/clipboard.min.js', () => {
+  loadScript('lib/clipboard.min.js').then( () => {
     var ClipboardJS = exports['ClipboardJS'];
     new ClipboardJS(".btn");
   });
@@ -711,7 +721,7 @@ function _downloadCassetteFile(e) {
     alertError("Cassette export is not supported on this platform.");
     return true;
   }
-  loadScript('lib/c2t.js', () => {
+  loadScript('lib/c2t.js').then( () => {
     var stdout = '';
     var print_fn = function(s) { stdout += s + "\n"; }
     var c2t = window['c2t']({
@@ -828,7 +838,7 @@ function _downloadSourceFile(e) {
 }
 
 function _downloadProjectZipFile(e) {
-  loadScript('lib/jszip.min.js', () => {
+  loadScript('lib/jszip.min.js').then( () => {
     var zip = new JSZip();
     current_project.iterateFiles( (id, data) => {
       if (data) {
@@ -842,7 +852,7 @@ function _downloadProjectZipFile(e) {
 }
 
 function _downloadAllFilesZipFile(e) {
-  loadScript('lib/jszip.min.js', () => {
+  loadScript('lib/jszip.min.js').then( () => {
     var zip = new JSZip();
     store.keys( (err, keys : string[]) => {
       return Promise.all(keys.map( (path) => {
@@ -1010,11 +1020,12 @@ function loadBIOSFromProject() {
 }
 
 function showDebugInfo(state?) {
+  if (!isDebuggable(platform)) return;
   var meminfo = $("#mem_info");
-  var allcats = platform.getDebugCategories && platform.getDebugCategories();
+  var allcats = platform.getDebugCategories();
   if (allcats && !debugCategory)
     debugCategory = allcats[0];
-  var s = state && platform.getDebugInfo && platform.getDebugInfo(debugCategory, state);
+  var s = state && platform.getDebugInfo(debugCategory, state);
   if (s) {
     var hs = lastDebugInfo ? highlightDifferences(lastDebugInfo, s) : s;
     meminfo.show().html(hs);
@@ -1260,7 +1271,7 @@ function setWaitProgress(prog : number) {
 var recordingVideo = false;
 function _recordVideo() {
   if (recordingVideo) return;
- loadScript("gif.js/dist/gif.js", () => {
+ loadScript("gif.js/dist/gif.js").then( () => {
   var canvas = $("#emulator").find("canvas")[0] as HTMLElement;
   if (!canvas) {
     alertError("Could not find canvas element to record video!");
@@ -1815,14 +1826,6 @@ function revealTopBar() {
   setTimeout(() => { $("#controls_dynamic").css('visibility','inherit'); }, 250);
 }
 
-export function loadScript(scriptfn, onload, onerror?) {
-  var script = document.createElement('script');
-  script.onload = onload;
-  script.onerror = onerror;
-  script.src = scriptfn;
-  document.getElementsByTagName('head')[0].appendChild(script);
-}
-
 export function setupSplits() {
   const splitName = 'workspace-split3-' + platform_id;
   var sizes = [0, 50, 50];
@@ -1938,9 +1941,12 @@ export function startUI(loadplatform : boolean) {
 }
 
 function loadAndStartPlatform() {
-  var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
-  loadScript(scriptfn, () => {
-    console.log("starting platform", platform_id);
+  var platformfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js'; // required file
+  var machinefn  = platformfn.replace('/platform/', '/machine/'); // optional file
+  loadScript(platformfn).then( () => {
+    return loadScript(machinefn).catch(() => { console.log('skipped',machinefn); }); // optional file skipped
+  }).then( () => {
+    console.log("starting platform", platform_id); // loaded required <platform_id>.js file
     try {
       startPlatform();
       showWelcomeMessage();
@@ -1948,7 +1954,7 @@ function loadAndStartPlatform() {
     } finally {
       revealTopBar();
     }
-  }, () => {
+  }).catch( () => {
     alertError('Platform "' + platform_id + '" not supported.');
   });
 }

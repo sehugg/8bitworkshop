@@ -1880,12 +1880,16 @@ var _MOS6502 = function() {
       };
     }
 
+    // only call when isPCStable() is true
     this.setNMI = function() {
       instruction = NMI();
+      T = 1;
+      PC = (PC-1) & 0xffff;
     }
-
     this.setIRQ = function() {
       instruction = IRQ();
+      T = 1;
+      PC = (PC-1) & 0xffff;
     }
 
     this.getSP = function() { return SP; }
@@ -1921,6 +1925,7 @@ export class MOS6502 implements CPU, ClockBased, SavesState<MOS6502State>, Inter
         case MOS6502Interrupts.NMI: this.cpu.setNMI(); break;
         case MOS6502Interrupts.IRQ: this.cpu.setIRQ(); break;
       }
+      this.interruptType = 0;
     }
     this.cpu.clockPulse();
   }
@@ -1936,7 +1941,13 @@ export class MOS6502 implements CPU, ClockBased, SavesState<MOS6502State>, Inter
   interrupt(itype:number) {
     this.interruptType = itype;
   }
-    getSP() {
+  NMI() {
+    this.interrupt(MOS6502Interrupts.NMI);
+  }
+  IRQ() {
+    this.interrupt(MOS6502Interrupts.IRQ);
+  }
+  getSP() {
     return this.cpu.getSP();
   }
   getPC() {

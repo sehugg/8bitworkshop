@@ -59,6 +59,15 @@ export interface PlatformMetadata {
   name : string; // TODO
 }
 
+export function isDebuggable(arg:any): arg is Debuggable {
+    return typeof arg.getDebugCategories === 'function';
+}
+
+export interface Debuggable {
+  getDebugCategories?() : string[];
+  getDebugInfo?(category:string, state:EmuState) : string;
+}
+
 export interface Platform {
   start() : void;
   reset() : void;
@@ -100,8 +109,6 @@ export interface Platform {
   getOriginPC?() : number;
   newCodeAnalyzer?() : CodeAnalyzer;
 
-  getDebugCategories?() : string[];
-  getDebugInfo?(category:string, state:EmuState) : string;
 
   setRecorder?(recorder : EmuRecorder) : void;
   advance?(novideo? : boolean) : void;
@@ -1347,13 +1354,17 @@ export abstract class Base6502MachinePlatform<T extends Machine> extends BaseMac
     return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
   }
   getDebugCategories() {
-    return ['CPU','ZPRAM','Stack'];
+    if (isDebuggable(this.machine))
+      return this.machine.getDebugCategories();
+    else
+      return ['CPU','ZPRAM','Stack'];
   }
   getDebugInfo(category:string, state:EmuState) : string {
     switch (category) {
       case 'CPU':   return cpuStateToLongString_6502(state.c);
       case 'ZPRAM': return dumpRAM(state.b||state.ram, 0x0, 0x100);
       case 'Stack': return dumpStackToString(<Platform><any>this, state.b||state.ram, 0x100, 0x1ff, 0x100+state.c.SP, 0x20);
+      default: return isDebuggable(this.machine) && this.machine.getDebugInfo(category, state);
     }
   }
 

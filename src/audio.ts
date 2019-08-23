@@ -465,7 +465,7 @@ export var SampleAudio = function(clockfreq) {
       var inext = (ifill + 1) % bufferlist.length;
       if (inext == idrain) {
         ifill = Math.floor(idrain + nbuffers/2) % bufferlist.length;
-        //console.log('audio skipped', idrain, ifill);
+        console.log('SampleAudio: skipped buffer', idrain, ifill); // TODO
       } else {
         ifill = inext;
       }

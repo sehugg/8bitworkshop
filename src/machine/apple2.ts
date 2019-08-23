@@ -30,7 +30,7 @@ interface AppleIIState extends AppleIIStateBase, AppleIIControlsState {
   grswitch : number;
 }
 
-export class AppleII implements HasCPU, Bus, Resettable, RasterFrameBased, SampledAudioSource, AcceptsROM,
+export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSource, AcceptsROM,
   AppleIIStateBase, SavesState<AppleIIState>, AcceptsInput<AppleIIControlsState> {
 
   ram = new Uint8Array(0x13000); // 64K + 16K LC RAM - 4K hardware + 12K ROM
@@ -55,7 +55,6 @@ export class AppleII implements HasCPU, Bus, Resettable, RasterFrameBased, Sampl
   bank2wroffset=0;
 
   constructor() {
-    // ROM
     this.rom = new lzgmini().decode(APPLEIIGO_LZG);
     this.ram.set(this.rom, 0xd000);
     this.ram[0xbf00] = 0x4c; // fake DOS detect for C

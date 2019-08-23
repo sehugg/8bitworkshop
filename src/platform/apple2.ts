@@ -5,8 +5,6 @@ import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap,
 import { hex, lzgmini } from "../util";
 import { SampleAudio, SampledAudio } from "../audio";
 
-declare var jt; // 6502
-
 const APPLE2_PRESETS = [
   {id:'sieve.c', name:'Sieve'},
   {id:'keyboardtest.c', name:'Keyboard Test'},

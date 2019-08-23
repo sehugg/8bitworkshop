@@ -121,6 +121,10 @@ function testPlatform(platid, romname, maxframes, callback) {
     var rom = fs.readFileSync('./test/roms/' + platid + '/' + romname);
     rom = new Uint8Array(rom);
     platform.loadROM("ROM", rom);
+    var state0a = platform.saveState();
+    platform.reset(); // reset again
+    var state0b = platform.saveState();
+    assert.deepEqual(state0a, state0b);
     platform.resume(); // so that recorder works
     platform.setRecorder(rec);
     for (var i=0; i<maxframes; i++) {
@@ -288,5 +292,7 @@ describe('Platform Replay', () => {
         keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
       }
     });
+    assert.equal(0x1800, platform.saveState().maria.dll);
+    assert.equal(39, platform.readAddress(0x81)); // player y pos
   });
 });
