@@ -30,7 +30,6 @@ interface Atari7800State extends Atari7800StateBase, Atari7800ControlsState {
     regs : Uint8Array,
     offset,dll,dlstart : number;
     dli,h16,h8 : boolean;
-    
   },
 }
 
@@ -67,6 +66,7 @@ const numVisibleLines = 258-16;
 const colorClocksPerLine = 454; // 456?
 const colorClocksPreDMA = 28;
 const romLength = 0xc000;
+const oversampling = 4;
 
 // TIA chip
 
@@ -352,7 +352,7 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
     this.cpu.connectMemoryBus(this);
     this.handler = newKeyboardHandler(this.inputs, Atari7800_KEYCODE_MAP);
     this.pokey1 = new POKEYDeviceChannel();
-    this.pokey1.setBufferLength(4);
+    this.pokey1.setBufferLength(oversampling*2);
     this.pokey1.setSampleRate(this.getAudioParams().sampleRate);
   }
   
@@ -371,7 +371,7 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
     return {width:320, height:numVisibleLines};
   }
   getAudioParams() {
-    return {sampleRate:linesPerFrame*60*2, stereo:false};
+    return {sampleRate:linesPerFrame*60*oversampling, stereo:false};
   }
   connectVideo(pixels:Uint32Array) {
     this.pixels = pixels;
@@ -439,10 +439,10 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
       }
       // audio
       if (this.audio) {
-        const audioGain = 1.0 / 16384;
-        this.pokey1.generate(4);
-        this.audio.feedSample(this.pokey1.getBuffer()[0] * audioGain, 1);
-        this.audio.feedSample(this.pokey1.getBuffer()[2] * audioGain, 1);
+        const audioGain = 1.0 / 8192;
+        this.pokey1.generate(oversampling*2);
+        for (let i=0; i<oversampling; i++)
+          this.audio.feedSample(this.pokey1.getBuffer()[i*2] * audioGain, 1);
       }
     }
     // update video frame

@@ -501,7 +501,7 @@ export function newKeyboardHandler(switches:number[]|Uint8Array, map:KeyCodeMap,
 export function setKeyboardFromMap(video:RasterVideo, switches:number[]|Uint8Array, map:KeyCodeMap, func?:KeyMapFunction) {
   var handler = newKeyboardHandler(switches, map, func);
   video.setKeyboardEvents(handler);
-  return new ControllerPoller(map, handler);
+  return new ControllerPoller(handler);
 }
 
 export function makeKeycodeMap(table : [KeyDef,number,number][]) : KeyCodeMap {
@@ -514,15 +514,18 @@ export function makeKeycodeMap(table : [KeyDef,number,number][]) : KeyCodeMap {
   return map;
 }
 
+const DEFAULT_CONTROLLER_KEYS : KeyDef[] = [
+  Keys.UP, Keys.DOWN, Keys.LEFT, Keys.RIGHT, Keys.A, Keys.B, Keys.SELECT, Keys.START,
+  Keys.P2_UP, Keys.P2_DOWN, Keys.P2_LEFT, Keys.P2_RIGHT, Keys.P2_A, Keys.P2_B, Keys.P2_SELECT, Keys.P2_START,
+];
+
 export class ControllerPoller {
   active = false;
-  map : KeyCodeMap;
   handler;
   state = new Int8Array(32);
   lastState = new Int8Array(32);
   AXIS0 = 24; // first joystick axis index
-  constructor(map:KeyCodeMap, handler:(key,code,flags) => void) {
-    this.map = map;
+  constructor(handler:(key,code,flags) => void) {
     this.handler = handler;
     window.addEventListener("gamepadconnected", (event) => {
       console.log("Gamepad connected:", event);
@@ -557,11 +560,11 @@ export class ControllerPoller {
   }
   handleStateChange(gpi:number, k:number) {
     var axis = k - this.AXIS0;
-    for (var code in this.map) {
-      var entry = this.map[code];
-      var def = entry.def;
+    // TODO: this is slow
+    for (var def of DEFAULT_CONTROLLER_KEYS) {
       // is this a gamepad entry? same player #?
       if (def && def.plyr == gpi) {
+        var code = def.c;
         var state = this.state[k];
         var lastState = this.lastState[k];
         // check for button/axis match

@@ -1219,6 +1219,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   timer : AnimationTimer;
   video : RasterVideo;
   audio : SampledAudio;
+  poller : ControllerPoller;
   
   abstract newMachine() : T;
   abstract getToolForFilename(s:string) : string;
@@ -1257,7 +1258,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     }
     if (hasInput(m)) {
       this.video.setKeyboardEvents(m.setInput.bind(m));
-      // TODO: ControllerPoller
+      this.poller = new ControllerPoller(m.setInput.bind(m));
     }
   }
   
@@ -1265,6 +1266,8 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     this.machine.loadROM(data);
     this.reset();
   }
+
+  pollControls() { this.poller.poll(); }
 
   advance(novideo:boolean) {
     this.machine.advanceFrame(999999, this.getDebugCallback());
