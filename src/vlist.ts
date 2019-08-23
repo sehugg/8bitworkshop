@@ -70,7 +70,7 @@ function VirtualList(config) {
   function onScroll(e) {
     var scrollTop = e.target.scrollTop; // Triggers reflow
     if (!lastRepaintY || Math.abs(scrollTop - lastRepaintY) > maxBuffer) {
-      var first = (scrollTop / itemHeight) - screenItemsLen;
+      var first = Math.floor(scrollTop / itemHeight) - screenItemsLen;
       self._renderChunk(self.container, first < 0 ? 0 : first);
       lastRepaintY = scrollTop;
     }

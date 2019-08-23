@@ -30,6 +30,8 @@ export interface VideoSource {
 }
 
 export interface RasterFrameBased extends FrameBased, VideoSource {
+  getRasterY() : number;
+  getRasterX() : number;
 }
 
 export interface VideoParams {
@@ -86,11 +88,14 @@ export interface Interruptable<IT> {
     interrupt(type:IT) : void;
 }
 
-// TODO
-export interface AcceptsInput<CS> {
-    setInput(key:number, code:number, flags:number) : void;
+export interface SavesInputState<CS> {
     loadControlsState(cs:CS) : void;
     saveControlsState() : CS;
+}
+
+// TODO
+export interface AcceptsKeyInput {
+    setKeyInput(key:number, code:number, flags:number) : void;
 }
 
 // TODO?

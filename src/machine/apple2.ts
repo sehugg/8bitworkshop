@@ -1,7 +1,6 @@
-"use strict";
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { Bus, RasterFrameBased, SavesState, AcceptsROM, AcceptsInput, noise, Resettable, SampledAudioSource, SampledAudioSink, HasCPU } from "../devices";
+import { Bus, RasterFrameBased, SavesState, SavesInputState, AcceptsROM, AcceptsKeyInput, noise, Resettable, SampledAudioSource, SampledAudioSink, HasCPU } from "../devices";
 import { KeyFlags } from "../emu"; // TODO
 import { lzgmini } from "../util";
 
@@ -30,8 +29,8 @@ interface AppleIIState extends AppleIIStateBase, AppleIIControlsState {
   grswitch : number;
 }
 
-export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSource, AcceptsROM,
-  AppleIIStateBase, SavesState<AppleIIState>, AcceptsInput<AppleIIControlsState> {
+export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSource, AcceptsROM, AcceptsKeyInput,
+  AppleIIStateBase, SavesState<AppleIIState>, SavesInputState<AppleIIControlsState> {
 
   ram = new Uint8Array(0x13000); // 64K + 16K LC RAM - 4K hardware + 12K ROM
   rom : Uint8Array;
@@ -53,6 +52,7 @@ export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSourc
   // bank 1 is E000-FFFF, bank 2 is D000-DFFF
   bank2rdoffset=0;
   bank2wroffset=0;
+  lastFrameCycles=0;
 
   constructor() {
     this.rom = new lzgmini().decode(APPLEIIGO_LZG);
@@ -219,14 +219,18 @@ export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSourc
   advanceFrame(maxCycles, trap) : number {
     maxCycles = Math.min(maxCycles, cpuCyclesPerFrame);
     for (var i=0; i<maxCycles; i++) {
-      if (trap && trap()) break;
+      if (trap && (this.lastFrameCycles=i)>=0 && trap()) break;
       this.cpu.advanceClock();
       this.audio.feedSample(this.soundstate, 1);
     }
     this.ap2disp && this.ap2disp.updateScreen();
-    return i;
+    return (this.lastFrameCycles = i);
   }
-  setInput(key:number, code:number, flags:number) : void {
+  
+  getRasterX() { return this.lastFrameCycles % cpuCyclesPerLine; }
+  getRasterY() { return Math.floor(this.lastFrameCycles / cpuCyclesPerLine); }
+  
+  setKeyInput(key:number, code:number, flags:number) : void {
     if (flags & KeyFlags.KeyPress) {
       // convert to uppercase for Apple ][
       if (code >= 0x61 && code <= 0x7a)

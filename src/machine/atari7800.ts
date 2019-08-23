@@ -1,7 +1,7 @@
 "use strict";
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { Bus, RasterFrameBased, SavesState, AcceptsROM, AcceptsInput, noise, Resettable, SampledAudioSource, SampledAudioSink, HasCPU } from "../devices";
+import { Bus, RasterFrameBased, SavesState, SavesInputState, AcceptsROM, AcceptsKeyInput, noise, Resettable, SampledAudioSource, SampledAudioSink, HasCPU } from "../devices";
 import { KeyFlags } from "../emu"; // TODO
 import { hex, lzgmini, stringToByteArray, lpad, rpad, rgb2bgr } from "../util";
 
@@ -300,8 +300,8 @@ class MARIA {
 
 // Atari 7800
 
-export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSource, AcceptsROM,
-  Atari7800StateBase, SavesState<Atari7800State>, AcceptsInput<Atari7800ControlsState> {
+export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSource, AcceptsROM, AcceptsKeyInput,
+  Atari7800StateBase, SavesState<Atari7800State>, SavesInputState<Atari7800ControlsState> {
 
   cpu : MOS6502;
   ram : Uint8Array = new Uint8Array(0x1000);
@@ -317,6 +317,7 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
   pixels : Uint32Array;
   audio : SampledAudioSink;
   handler; // TODO: type, or use ControllerPoller
+  lastFrameCycles : number = 0;
   
   read  : (a:number) => number;
   write : (a:number, v:number) => void;
@@ -368,7 +369,7 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
   }
 
   getVideoParams() {
-    return {width:320, height:numVisibleLines};
+    return {width:320, height:numVisibleLines, overscan:true};
   }
   getAudioParams() {
     return {sampleRate:linesPerFrame*60*oversampling, stereo:false};
@@ -383,11 +384,11 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
     //TODO this.bios = new Uint8Array(0x1000);
     // TODO: TIA access wastes a cycle
 
-  setInput(key:number, code:number, flags:number) : void {
+  setKeyInput(key:number, code:number, flags:number) : void {
     this.handler(key,code,flags);
   }
   
-  advanceFrame(maxClocks, debugCond) : number {
+  advanceFrame(maxClocks, trap) : number {
     var idata = this.pixels;
     var iofs = 0;
     var rgb;
@@ -406,24 +407,28 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
           if (mariaClocks >= colorClocksPreDMA) {
             this.maria.WSYNC--;
             mariaClocks = colorClocksPreDMA; // 7 CPU cycles until DMA
+            // TODO: frameClocks
           } else {
             break;
           }
         }
         // next CPU clock
-        mariaClocks -= 4;
-        if (debugCond && debugCond()) {
-          debugCond = null;
+        if (trap && (this.lastFrameCycles=frameClocks)>=0 && trap()) {
+          trap = null;
           sl = 999;
           break;
         }
+        mariaClocks -= 4;
+        frameClocks += 4;
         this.cpu.advanceClock();
       }
       mariaClocks += colorClocksPerLine;
       // is this scanline visible?
       if (visible) {
         // do DMA for scanline?
-        mariaClocks -= this.maria.doDMA(this);
+        let dmaClocks = this.maria.doDMA(this);
+        mariaClocks -= dmaClocks;
+        frameClocks += dmaClocks;
         // copy line to frame buffer
         if (idata) {
           for (var i=0; i<320; i++) {
@@ -453,8 +458,11 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
       // TODO $(this.video.canvas).css('background-color', COLORS_WEB[bkcol]);
     }
     */
-    return frameClocks;
+    return (this.lastFrameCycles = frameClocks);
   }
+
+  getRasterX() { return this.lastFrameCycles % colorClocksPerLine; }
+  getRasterY() { return Math.floor(this.lastFrameCycles / colorClocksPerLine); }  
 
   loadROM(data) {
     if (data.length == 0xc080) data = data.slice(0x80); // strip header
@@ -498,7 +506,7 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
       in:this.inputs.slice(0)
     };
   }
-  loadControlsState(state:Atari7800ControlsState) {
+  loadControlsState(state:Atari7800ControlsState) : void {
     this.inputs.set(state.in);
   }
   saveControlsState() : Atari7800ControlsState {

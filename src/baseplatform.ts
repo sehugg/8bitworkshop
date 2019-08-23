@@ -1197,10 +1197,11 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
 
 /// new style
 
-import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsInput, SavesState, HasCPU } from "./devices";
+import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU } from "./devices";
+import { CPUClockHook, LogCPU, RasterFrameBased } from "./devices";
 import { SampledAudio } from "./audio";
 
-interface Machine extends Bus, Resettable, FrameBased, AcceptsROM, HasCPU, SavesState<EmuState> {
+interface Machine extends Bus, Resettable, FrameBased, AcceptsROM, HasCPU, SavesState<EmuState>, SavesInputState<any> {
 }
 
 function hasVideo(arg:any): arg is VideoSource {
@@ -1209,8 +1210,11 @@ function hasVideo(arg:any): arg is VideoSource {
 function hasAudio(arg:any): arg is SampledAudioSource {
     return typeof arg.connectAudio === 'function';
 }
-function hasInput<CS>(arg:any): arg is AcceptsInput<CS> {
-    return typeof arg.setInput === 'function';
+function hasKeyInput(arg:any): arg is AcceptsKeyInput {
+    return typeof arg.setKeyInput === 'function';
+}
+function isRaster(arg:any): arg is RasterFrameBased {
+    return typeof arg.getRasterY === 'function';
 }
 
 export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPlatform implements Platform {
@@ -1238,15 +1242,15 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   getSP()        { return this.machine.cpu.getSP(); }
   getPC()        { return this.machine.cpu.getPC(); }
   getCPUState()  { return this.machine.cpu.saveState(); }
-  loadControlsState(s)   { if (hasInput(this.machine)) this.machine.loadControlsState(s); }
-  saveControlsState()    { return hasInput(this.machine) && this.machine.saveControlsState(); }
+  loadControlsState(s)   { this.machine.loadControlsState(s); }
+  saveControlsState()    { return this.machine.saveControlsState(); }
   
   start() {
     var m = this.machine;
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
     if (hasVideo(m)) {
       var vp = m.getVideoParams();
-      this.video = new RasterVideo(this.mainElement, vp.width, vp.height);
+      this.video = new RasterVideo(this.mainElement, vp.width, vp.height, {overscan:vp.overscan});
       this.video.create();
       m.connectVideo(this.video.getFrameData());
     }
@@ -1256,9 +1260,9 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
       this.audio.start();
       m.connectAudio(this.audio);
     }
-    if (hasInput(m)) {
-      this.video.setKeyboardEvents(m.setInput.bind(m));
-      this.poller = new ControllerPoller(m.setInput.bind(m));
+    if (hasKeyInput(m)) {
+      this.video.setKeyboardEvents(m.setKeyInput.bind(m));
+      this.poller = new ControllerPoller(m.setKeyInput.bind(m));
     }
   }
   
@@ -1346,7 +1350,23 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
       }
     });
   }
+  getRasterScanline() {
+    return isRaster(this.machine) && this.machine.getRasterY();
+  }
+  /* TODO
+  startProfilingCPU(log:LogCPU) {
+    new CPUClockHook(this.machine.cpu, log);
+  }
+  stopProfilingCPU() {
+  }
+  startProfilingMemory() {
+  }
+  stopProfilingMemory() {
+  }
+  */
 }
+
+// TODO: move debug info into CPU?
 
 export abstract class Base6502MachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
 
@@ -1369,6 +1389,33 @@ export abstract class Base6502MachinePlatform<T extends Machine> extends BaseMac
       case 'Stack': return dumpStackToString(<Platform><any>this, state.b||state.ram, 0x100, 0x1ff, 0x100+state.c.SP, 0x20);
       default: return isDebuggable(this.machine) && this.machine.getDebugInfo(category, state);
     }
+  }
+
+}
+
+export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
+
+  //getOpcodeMetadata     = getOpcodeMetadata_z80;
+  getToolForFilename    = getToolForFilename_z80;
+
+  getDebugCategories() {
+    return ['CPU','Stack'];
+  }
+  getDebugInfo(category:string, state:EmuState) : string {
+    switch (category) {
+      case 'CPU':   return cpuStateToLongString_Z80(state.c);
+      case 'Stack': {
+        var sp = (state.c.SP-1) & 0xffff;
+        var start = sp & 0xff00;
+        var end = start + 0xff;
+        if (sp == 0) sp = 0x10000;
+        console.log(sp,start,end);
+        return dumpStackToString(<Platform><any>this, [], start, end, sp, 0xcd);
+      }
+    }
+  }
+  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
+    return disassembleZ80(pc, read(pc), read(pc+1), read(pc+2), read(pc+3));
   }
 
 }
