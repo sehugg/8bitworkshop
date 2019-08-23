@@ -68,6 +68,10 @@ export interface MemoryBusConnected {
     connectMemoryBus(bus:Bus) : void;
 }
 
+export interface IOBusConnected {
+    connectIOBus(bus:Bus) : void;
+}
+
 export interface CPU extends MemoryBusConnected, Resettable {
     getPC() : number;
     getSP() : number;

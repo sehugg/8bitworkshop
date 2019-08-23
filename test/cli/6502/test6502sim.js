@@ -2,8 +2,8 @@
 var assert = require('assert');
 var fs = require('fs');
 
-var emu = require("gen/nemu/nemu.js");
-var MOS6502 = require("gen/nemu/cpu/MOS6502.js");
+var emu = require("gen/devices.js");
+var MOS6502 = require("gen/cpu/MOS6502.js");
 var testbin = fs.readFileSync('test/cli/6502/6502_functional_test.bin', null);
 
 describe('MOS6502', function() {
