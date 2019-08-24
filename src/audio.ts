@@ -395,10 +395,11 @@ export var SampleAudio = function(clockfreq) {
     self.sr=self.context.sampleRate;
     self.bufferlen=2048;
 
-    // Amiga 500 fixed filter at 6kHz. WebAudio lowpass is 12dB/oct, whereas
-    // older Amigas had a 6dB/oct filter at 4900Hz.
+    // remove DC bias
     self.filterNode=self.context.createBiquadFilter();
-    self.filterNode.frequency.value=6000;
+    self.filterNode.type='lowshelf';
+    self.filterNode.frequency.value=100;
+    self.filterNode.gain.value=-6;
 
     // mixer
     if ( typeof self.context.createScriptProcessor === 'function') {

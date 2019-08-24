@@ -27,7 +27,7 @@ const vsyncFrequency = hsyncFrequency / 0x148;
 const cpuCyclesPerLine = cpuFrequency / hsyncFrequency;
 const timerFrequency = 500; // input 2 bit 0x8
 const cyclesPerTimerTick = cpuFrequency / (2 * timerFrequency);
-const audioOversample = 4;
+const audioOversample = 2;
 const audioSampleRate = 60 * scanlinesPerFrame; // why not hsync?
 
 export class VicDual extends BasicScanlineMachine {
