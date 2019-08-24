@@ -53,7 +53,6 @@ class Apple2MAMEPlatform extends BaseMAMEPlatform implements Platform {
 
 ///
 
-import { MOS6502 } from "../cpu/MOS6502";
 import { AppleII } from "../machine/apple2";
 import { Base6502MachinePlatform } from "../baseplatform";
 

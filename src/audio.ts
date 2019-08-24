@@ -1,4 +1,3 @@
-"use strict";
 
 // from TSS
 declare var MasterChannel, AudioLooper, PsgDeviceChannel;
@@ -465,7 +464,7 @@ export var SampleAudio = function(clockfreq) {
       var inext = (ifill + 1) % bufferlist.length;
       if (inext == idrain) {
         ifill = Math.floor(idrain + nbuffers/2) % bufferlist.length;
-        console.log('SampleAudio: skipped buffer', idrain, ifill); // TODO
+        //console.log('SampleAudio: skipped buffer', idrain, ifill); // TODO
       } else {
         ifill = inext;
       }
@@ -485,6 +484,7 @@ export var SampleAudio = function(clockfreq) {
       }
     }
   }
+  
 }
 
 
@@ -503,3 +503,24 @@ export class SampledAudio {
     this.sa.stop();
   }
 }
+
+import { SampledAudioSink } from "./devices";
+
+export class TssChannelAdapter {
+  channel;
+  audioGain = 1.0 / 8192;
+  constructor(channel, oversample:number, sampleRate:number) {
+    this.channel = channel;
+    channel.setBufferLength(oversample*2);
+    channel.setSampleRate(sampleRate);
+  }
+  generate(sink:SampledAudioSink) {
+    var buf = this.channel.getBuffer();
+    var l = buf.length;
+    this.channel.generate(l);
+    for (let i=0; i<l; i+=2)
+      sink.feedSample(buf[i] * this.audioGain, 1);
+    //if (Math.random() < 0.001) console.log(sink);
+  }
+}
+

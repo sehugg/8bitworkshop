@@ -1198,7 +1198,7 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
 /// new style
 
 import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU } from "./devices";
-import { CPUClockHook, LogCPU, RasterFrameBased } from "./devices";
+import { CPUClockHook, RasterFrameBased } from "./devices";
 import { SampledAudio } from "./audio";
 
 interface Machine extends Bus, Resettable, FrameBased, AcceptsROM, HasCPU, SavesState<EmuState>, SavesInputState<any> {
@@ -1250,7 +1250,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
     if (hasVideo(m)) {
       var vp = m.getVideoParams();
-      this.video = new RasterVideo(this.mainElement, vp.width, vp.height, {overscan:vp.overscan});
+      this.video = new RasterVideo(this.mainElement, vp.width, vp.height, {overscan:!!vp.overscan,rotate:vp.rotate|0});
       this.video.create();
       m.connectVideo(this.video.getFrameData());
     }
@@ -1271,7 +1271,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     this.reset();
   }
 
-  pollControls() { this.poller.poll(); }
+  pollControls() { this.poller && this.poller.poll(); }
 
   advance(novideo:boolean) {
     this.machine.advanceFrame(999999, this.getDebugCallback());
@@ -1353,17 +1353,6 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   getRasterScanline() {
     return isRaster(this.machine) && this.machine.getRasterY();
   }
-  /* TODO
-  startProfilingCPU(log:LogCPU) {
-    new CPUClockHook(this.machine.cpu, log);
-  }
-  stopProfilingCPU() {
-  }
-  startProfilingMemory() {
-  }
-  stopProfilingMemory() {
-  }
-  */
 }
 
 // TODO: move debug info into CPU?

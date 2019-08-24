@@ -96,6 +96,7 @@ export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSourc
   }
   reset() {
     this.cpu.reset();
+    this.rnd = 1;
     // execute until $c600 boot
     for (var i=0; i<2000000; i++) {
       this.cpu.advanceClock();

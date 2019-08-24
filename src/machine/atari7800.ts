@@ -1,4 +1,3 @@
-"use strict";
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
 import { Bus, RasterFrameBased, SavesState, SavesInputState, AcceptsROM, AcceptsKeyInput, noise, Resettable, SampledAudioSource, SampledAudioSink, HasCPU } from "../devices";

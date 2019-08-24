@@ -98,6 +98,10 @@ export interface AcceptsKeyInput {
     setKeyInput(key:number, code:number, flags:number) : void;
 }
 
+export interface Probeable {
+    connectProbe(probe: ProbeAll) : void;
+}
+
 // TODO?
 export function noise(x : number) : number {
   x ^= x << 13;
@@ -115,7 +119,7 @@ export interface Hook<T> {
 
 export class BusHook implements Hook<Bus> {
   //target : Bus;
-  constructor(bus : Bus, profiler : LogBus) {
+  constructor(bus : Bus, profiler : ProbeBus) {
     //this.target = bus;
     var oldread = bus.read.bind(bus);
     var oldwrite = bus.write.bind(bus);
@@ -138,7 +142,7 @@ export class BusHook implements Hook<Bus> {
 
 export class CPUClockHook implements Hook<CPU&ClockBased> {
   //target : CPU&ClockBased;
-  constructor(cpu : CPU&ClockBased, profiler : LogCPU) {
+  constructor(cpu : CPU&ClockBased, profiler : ProbeCPU) {
     //this.target = cpu;
     var oldclock = cpu.advanceClock.bind(cpu);
     cpu.advanceClock = () => {
@@ -154,7 +158,7 @@ export class CPUClockHook implements Hook<CPU&ClockBased> {
 
 export class CPUInsnHook implements Hook<CPU&InstructionBased> {
   //target : CPU&InstructionBased;
-  constructor(cpu : CPU&InstructionBased, profiler : LogCPU) {
+  constructor(cpu : CPU&InstructionBased, profiler : ProbeCPU) {
     //this.target = cpu;
     var oldinsn = cpu.advanceInsn.bind(cpu);
     cpu.advanceInsn = () => {
@@ -170,26 +174,146 @@ export class CPUInsnHook implements Hook<CPU&InstructionBased> {
 
 /// PROFILER
 
-export interface LogCPU {
+export interface ProbeCPU {
   logExecute(address:number);
   logInterrupt(type:number);
 }
 
-export interface LogBus {
+export interface ProbeBus {
   logRead(address:number);
   logWrite(address:number);
 }
 
-export interface LogIO {
+export interface ProbeIO {
   logIORead(address:number);
   logIOWrite(address:number);
 }
 
-export interface LogAll extends LogCPU, LogBus, LogIO {
+export interface ProbeAll extends ProbeCPU, ProbeBus, ProbeIO {
 }
 
-/// DEBUGGING
-
-class EmuBreakpoint extends Error {
+export class NullProbe implements ProbeAll {
+  logExecute()		{}
+  logInterrupt()	{}
+  logRead()		{}
+  logWrite()		{}
+  logIORead()		{}
+  logIOWrite()		{}
 }
 
+/// CONVENIENCE
+
+export interface BasicMachineControlsState {
+  in: Uint8Array;
+}
+
+export interface BasicMachineState extends BasicMachineControlsState {
+  c: any; // TODO
+  b: Uint8Array;
+}
+
+export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, AcceptsROM,
+  SavesState<BasicMachineState>, SavesInputState<BasicMachineControlsState> {
+
+  abstract cpuFrequency : number;
+  abstract canvasWidth : number;
+  abstract numVisibleScanlines : number;
+  abstract defaultROMSize : number;
+  abstract sampleRate : number;
+  overscan : boolean = false;
+  rotate : number = 0;
+  
+  abstract cpu : CPU;
+  abstract ram : Uint8Array;
+  
+  rom : Uint8Array;
+  pixels : Uint32Array;
+  audio : SampledAudioSink;
+  inputs : Uint8Array = new Uint8Array(32);
+
+  scanline : number;
+  frameCycles : number;
+  
+  abstract read(a:number) : number;
+  abstract write(a:number, v:number) : void;
+  abstract startScanline() : void;
+  abstract drawScanline() : void;
+
+  getAudioParams() : SampledAudioParams {
+    return {sampleRate:this.sampleRate, stereo:false};
+  }
+  connectAudio(audio : SampledAudioSink) : void {
+    this.audio = audio;
+  }
+  getVideoParams() : VideoParams {
+    return {width:this.canvasWidth, height:this.numVisibleScanlines, overscan:this.overscan, rotate:this.rotate};
+  }
+  connectVideo(pixels:Uint32Array) : void {
+    this.pixels = pixels;
+  }
+  reset() {
+    this.cpu.reset();
+  }
+  loadROM(data:Uint8Array, title?:string) : void {
+    if (!this.rom) this.rom = new Uint8Array(this.defaultROMSize);
+    this.rom.set(data);
+  }
+  loadState(state) {
+    this.cpu.loadState(state.c);
+    this.ram.set(state.b);
+    this.inputs.set(state.in);
+  }
+  saveState() {
+    return {
+      c:this.cpu.saveState(),
+      b:this.ram.slice(0),
+      in:this.inputs.slice(0),
+    };
+  }
+  loadControlsState(state) {
+    this.inputs.set(state.in);
+  }
+  saveControlsState() {
+    return {
+      in:this.inputs.slice(0)
+    };
+  }
+  advance(cycles : number) : number {
+    for (var i=0; i<cycles; i+=this.advanceCPU())
+      ;
+    return i;
+  }
+  advanceCPU() {
+    var c = this.cpu as any;
+    if (c.advanceClock) return c.advanceClock();
+    else if (c.advanceInsn) return c.advanceInsn(1);
+  }
+}
+
+export abstract class BasicScanlineMachine extends BasicMachine implements RasterFrameBased {
+
+  abstract numTotalScanlines : number;
+  abstract cpuCyclesPerLine : number;
+
+  advanceFrame(maxClocks:number, trap) : number {
+    var clock = 0;
+    var endLineClock = 0;
+    for (var sl=0; sl<this.numTotalScanlines; sl++) {
+      endLineClock += this.cpuCyclesPerLine;
+      this.scanline = sl;
+      this.frameCycles = clock;
+      this.startScanline();
+      while (clock < endLineClock) {
+        if (trap && trap()) {
+          sl = 999;
+          break;
+        }
+        clock += this.advance(endLineClock - clock);
+      }
+      this.drawScanline();
+    }
+    return clock;
+  }
+  getRasterY() { return this.scanline; }
+  getRasterX() { return this.frameCycles % this.cpuCyclesPerLine; }
+}
