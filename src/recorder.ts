@@ -225,10 +225,28 @@ export class ProbeRecorder implements ProbeAll {
     if (this.idx >= this.buf.length) return;
     this.buf[this.idx++] = a;
   }
+  relog(a:number) {
+    this.buf[this.idx-1] = a;
+  }
+  lastOp() {
+    if (this.idx > 0)
+      return this.buf[this.idx-1] & 0xff000000;
+    else
+      return -1;
+  }
+  lastAddr() {
+    if (this.idx > 0)
+      return this.buf[this.idx-1] & 0xffffff;
+    else
+      return -1;
+  }
   logClocks(clocks:number) {
-    if (clocks) {
+    if (clocks > 0) {
       this.fclk += clocks;
-      this.log(clocks | ProbeFlags.CLOCKS);
+      if (this.lastOp() == ProbeFlags.CLOCKS)
+        this.relog((this.lastAddr() + clocks) | ProbeFlags.CLOCKS); // coalesce clocks
+      else
+        this.log(clocks | ProbeFlags.CLOCKS);
     }
   }
   logNewScanline() {

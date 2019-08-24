@@ -234,6 +234,7 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
   
   abstract cpu : CPU;
   abstract ram : Uint8Array;
+  // TODO? abstract handler; // keyboard handler
   
   rom : Uint8Array;
   pixels : Uint32Array;
