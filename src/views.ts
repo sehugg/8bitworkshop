@@ -7,7 +7,7 @@ import { Platform, EmuState, ProfilerOutput, lookupSymbol, BaseDebugPlatform } f
 import { hex, lpad, rpad, safeident, rgb2bgr } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
-import { EmuProfilerImpl } from "./recorder";
+import { EmuProfilerImpl, ProbeRecorder, ProbeFlags } from "./recorder";
 import * as pixed from "./pixed/pixeleditor";
 declare var Mousetrap;
 
@@ -917,6 +917,178 @@ export class ProfileView implements ProjectView {
       this.out = this.prof.start();
     else
       this.prof.stop();
+  }
+}
+
+///
+
+// TODO: clear buffer when scrubbing
+
+abstract class ProbeViewBase {
+  probe : ProbeRecorder;
+  maindiv : HTMLElement;
+  canvas : HTMLCanvasElement;
+  ctx : CanvasRenderingContext2D;
+  recreateOnResize = true;
+  
+  createCanvas(parent:HTMLElement, width:number, height:number) {
+    var div = document.createElement('div');
+    var canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    parent.appendChild(div);
+    div.appendChild(canvas);
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.initCanvas();
+    return this.maindiv = div;
+  }
+  initCanvas() {
+  }
+  
+  setVisible(showing : boolean) : void {
+    if (showing) {
+      this.probe = platform.startProbing();
+    } else {
+      platform.stopProbing();
+      this.probe = null;
+    }
+  }
+
+  clear() {
+    var ctx = this.ctx;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.globalAlpha = 1.0;
+    ctx.globalCompositeOperation = 'lighter';
+  }
+
+  tick() {
+    var p = this.probe;
+    if (!p || !p.idx) return; // if no probe, or if empty
+    var row=0;
+    var col=0;
+    var ctx = this.ctx;
+    this.clear();
+    for (var i=0; i<p.idx; i++) {
+      var word = p.buf[i];
+      var addr = word & 0xffffff;
+      var op = word & 0xff000000;
+      switch (op) {
+        case ProbeFlags.SCANLINE:	row++; col=0; break;
+        case ProbeFlags.FRAME:		row=0; col=0; break;
+        case ProbeFlags.CLOCKS:		col += addr; break;
+        default:
+          this.drawEvent(op, addr, col, row);
+          break;
+      }
+    }
+    p.reset();
+  }
+  
+  setContextForOp(op) {
+      var ctx = this.ctx;
+      switch (op) {
+        //case ProbeFlags.EXECUTE:	ctx.fillStyle = "green"; break;
+        case ProbeFlags.MEM_READ:	ctx.fillStyle = "white"; break;
+        case ProbeFlags.MEM_WRITE:	ctx.fillStyle = "red"; break;
+        case ProbeFlags.IO_READ:	ctx.fillStyle = "green"; break;
+        case ProbeFlags.IO_WRITE:	ctx.fillStyle = "magenta"; break;
+        case ProbeFlags.INTERRUPT:	ctx.fillStyle = "yellow"; break;
+        default:			ctx.fillStyle = "blue"; break;
+      }
+  }
+  
+  abstract drawEvent(op, addr, col, row);
+}
+
+abstract class ProbeBitmapViewBase extends ProbeViewBase {
+  imageData : ImageData;
+  datau32 : Uint32Array;
+  recreateOnResize = false;
+  
+  initCanvas() {
+    this.imageData = this.ctx.createImageData(this.canvas.width, this.canvas.height);
+    this.datau32 = new Uint32Array(this.imageData.data.buffer);
+  }
+  refresh() {
+    this.tick();
+    this.datau32.fill(0xff000000);
+  }
+  tick() {
+    super.tick();
+    this.ctx.putImageData(this.imageData, 0, 0);
+  }
+  clear() {
+    this.datau32.fill(0xff000000);
+  }
+}
+
+export class HeatMapView extends ProbeBitmapViewBase implements ProjectView {
+
+  createDiv(parent : HTMLElement) {
+    return this.createCanvas(parent, 256, 256);
+  }
+  
+  drawEvent(op, addr, col, row) {
+    var x = addr & 0xff;
+    var y = (addr >> 8) & 0xff;
+    var col;
+    switch (op) {
+      case ProbeFlags.EXECUTE:		col = 0x0f3f0f; break;
+      case ProbeFlags.MEM_READ:		col = 0x3f0101; break;
+      case ProbeFlags.MEM_WRITE:	col = 0x000f3f; break;
+      case ProbeFlags.IO_READ:		col = 0x001f01; break;
+      case ProbeFlags.IO_WRITE:		col = 0x003f3f; break;
+      case ProbeFlags.INTERRUPT:	col = 0x3f3f00; break;
+      default:				col = 0x1f1f1f; break;
+    }
+    var data = this.datau32[addr & 0xffff];
+    data = (data & 0x7f7f7f) << 1;
+    data = data | col | 0xff000000;
+    this.datau32[addr & 0xffff] = data;
+  }
+  
+}
+
+export class EventProbeView extends ProbeViewBase implements ProjectView {
+  symcache : Map<number,symbol> = new Map();
+
+  createDiv(parent : HTMLElement) {
+    return this.createCanvas( parent, $(parent).width(), $(parent).height() );
+  }
+  
+  drawEvent(op, addr, col, row) {
+    var ctx = this.ctx;
+    var xscale = this.canvas.width / 128; // TODO: pixels
+    var yscale = this.canvas.height / 262; // TODO: lines
+    var x = col * xscale;
+    var y = row * yscale;
+    var sym = this.getSymbol(addr);
+    if (!sym && op == ProbeFlags.IO_WRITE) sym = hex(addr,4);
+    //if (!sym && op == ProbeFlags.IO_READ)  sym = hex(addr,4);
+    if (sym) {
+      this.setContextForOp(op);
+      ctx.fillText(sym, x, y);
+    }
+  }
+  
+  getSymbol(addr:number) : string {
+    var sym = this.symcache[addr];
+    if (!sym) {
+      sym = lookupSymbol(platform, addr, false);
+      this.symcache[addr] = sym;
+    }
+    return sym;
+  }
+
+  refresh() {
+    this.tick();
+    this.symcache.clear();
   }
 }
 

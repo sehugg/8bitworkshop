@@ -1,6 +1,6 @@
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { Bus, RasterFrameBased, SavesState, SavesInputState, AcceptsROM, AcceptsKeyInput, noise, Resettable, SampledAudioSource, SampledAudioSink, HasCPU } from "../devices";
+import { BasicScanlineMachine, noise } from "../devices";
 import { KeyFlags } from "../emu"; // TODO
 import { lzgmini } from "../util";
 
@@ -21,6 +21,7 @@ interface AppleIIStateBase {
 }
 
 interface AppleIIControlsState {
+  inputs : Uint8Array; // unused?
   kbdlatch : number;
 }
 
@@ -29,18 +30,23 @@ interface AppleIIState extends AppleIIStateBase, AppleIIControlsState {
   grswitch : number;
 }
 
-export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSource, AcceptsROM, AcceptsKeyInput,
-  AppleIIStateBase, SavesState<AppleIIState>, SavesInputState<AppleIIControlsState> {
+export class AppleII extends BasicScanlineMachine {
+
+  cpuFrequency = 1023000;
+  sampleRate = this.cpuFrequency;
+  cpuCyclesPerLine = 65; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
+  cpuCyclesPerFrame = 65*262;
+  canvasWidth = 280;
+  numVisibleScanlines = 192;
+  numTotalScanlines = 262;
+  defaultROMSize = 0xbf00-0x803; // TODO
 
   ram = new Uint8Array(0x13000); // 64K + 16K LC RAM - 4K hardware + 12K ROM
-  rom : Uint8Array;
+  bios : Uint8Array;
   cpu = new MOS6502();
-  audio : SampledAudioSink;
-  pixels : Uint32Array;
   grdirty = new Array(0xc000 >> 7);
   grparams = {dirty:this.grdirty, grswitch:GR_TXMODE, mem:this.ram};
   ap2disp;
-  pgmbin : Uint8Array;
   rnd = 1;
   kbdlatch = 0;
   soundstate = 0;
@@ -52,14 +58,14 @@ export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSourc
   // bank 1 is E000-FFFF, bank 2 is D000-DFFF
   bank2rdoffset=0;
   bank2wroffset=0;
-  lastFrameCycles=0;
 
   constructor() {
-    this.rom = new lzgmini().decode(APPLEIIGO_LZG);
-    this.ram.set(this.rom, 0xd000);
+    super();
+    this.bios = new lzgmini().decode(APPLEIIGO_LZG);
+    this.ram.set(this.bios, 0xd000);
     this.ram[0xbf00] = 0x4c; // fake DOS detect for C
     this.ram[0xbf6f] = 0x01; // fake DOS detect for C
-    this.cpu.connectMemoryBus(this);
+    this.connectCPUMemoryBus(this);
   }
   saveState() : AppleIIState {
     // TODO: automagic
@@ -73,6 +79,7 @@ export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSourc
       auxRAMselected: this.auxRAMselected,
       auxRAMbank: this.auxRAMbank,
       writeinhibit: this.writeinhibit,
+      inputs: null
     };
   }
   loadState(s:AppleIIState) {
@@ -89,13 +96,13 @@ export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSourc
     this.ap2disp.invalidate(); // repaint entire screen
   }
   saveControlsState() : AppleIIControlsState {
-    return {kbdlatch:this.kbdlatch};
+    return {inputs:null,kbdlatch:this.kbdlatch};
   }
   loadControlsState(s:AppleIIControlsState) {
     this.kbdlatch = s.kbdlatch;
   }
   reset() {
-    this.cpu.reset();
+    super.reset();
     this.rnd = 1;
     // execute until $c600 boot
     for (var i=0; i<2000000; i++) {
@@ -113,7 +120,7 @@ export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSourc
       return this.ram[address];
     } else if (address >= 0xd000) {
       if (!this.auxRAMselected)
-        return this.rom[address - 0xd000];
+        return this.bios[address - 0xd000];
       else if (address >= 0xe000)
         return this.ram[address];
       else
@@ -175,8 +182,8 @@ export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSourc
         // JMP VM_BASE
         case 0xc600: {
           // load program into RAM
-          if (this.pgmbin)
-            this.ram.set(this.pgmbin.slice(HDR_SIZE), PGM_BASE);
+          if (this.rom)
+            this.ram.set(this.rom.slice(HDR_SIZE), PGM_BASE);
           return 0x4c;
         }
         case 0xc601: return VM_BASE&0xff;
@@ -201,36 +208,26 @@ export class AppleII implements HasCPU, Bus, RasterFrameBased, SampledAudioSourc
         this.ram[address + this.bank2wroffset] = val;
     }
   }
-  loadROM(data:Uint8Array) {
-    this.pgmbin = data.slice();
-  }
-  getVideoParams() {
-    return {width:280, height:192};
-  }
-  getAudioParams() {
-    return {sampleRate:cpuFrequency, stereo:false};
-  }
+
   connectVideo(pixels:Uint32Array) {
-    this.pixels = pixels;
-    this.ap2disp = pixels && new Apple2Display(this.pixels, this.grparams);
+    super.connectVideo(pixels);
+    this.ap2disp = this.pixels && new Apple2Display(this.pixels, this.grparams);
   }
-  connectAudio(audio:SampledAudioSink) {
-    this.audio = audio;
+  startScanline() {
   }
-  advanceFrame(maxCycles, trap) : number {
-    maxCycles = Math.min(maxCycles, cpuCyclesPerFrame);
-    for (var i=0; i<maxCycles; i++) {
-      if (trap && (this.lastFrameCycles=i)>=0 && trap()) break;
-      this.cpu.advanceClock();
-      this.audio.feedSample(this.soundstate, 1);
-    }
+  drawScanline() {
+    // TODO: draw scanline via ap2disp
+  }
+  advanceFrame(maxClocks:number, trap) : number {
+    var clocks = super.advanceFrame(maxClocks, trap);
     this.ap2disp && this.ap2disp.updateScreen();
-    return (this.lastFrameCycles = i);
+    return clocks;
   }
-  
-  getRasterX() { return this.lastFrameCycles % cpuCyclesPerLine; }
-  getRasterY() { return Math.floor(this.lastFrameCycles / cpuCyclesPerLine); }
-  
+  advance() {
+    this.audio.feedSample(this.soundstate, 1);
+    return super.advance();
+  }
+
   setKeyInput(key:number, code:number, flags:number) : void {
     if (flags & KeyFlags.KeyPress) {
       // convert to uppercase for Apple ][

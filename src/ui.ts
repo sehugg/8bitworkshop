@@ -254,6 +254,14 @@ function refreshWindowList() {
       return new Views.ProfileView();
     });
   }
+  if (platform.startProbing) {
+    addWindowItem("#eventprobe", "Event Probe", () => {
+      return new Views.EventProbeView();
+    });
+    addWindowItem("#heatmap", "Heat Map", () => {
+      return new Views.HeatMapView();
+    });
+  }
   addWindowItem('#asseteditor', 'Asset Editor', () => {
     return new Views.AssetEditorView();
   });
@@ -1251,7 +1259,7 @@ function updateDebugWindows() {
     projectWindows.tick();
     debugTickPaused = true;
   }
-  setTimeout(updateDebugWindows, 200);
+  setTimeout(updateDebugWindows, 100);
 }
 
 function setWaitDialog(b : boolean) {

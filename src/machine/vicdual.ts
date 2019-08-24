@@ -50,8 +50,8 @@ export class VicDual extends BasicScanlineMachine {
 
   constructor() {
     super();
-    this.cpu.connectMemoryBus(this);
-    this.cpu.connectIOBus(this.newIOBus());
+    this.connectCPUMemoryBus(this);
+    this.connectCPUIOBus(this.newIOBus());
     this.inputs.set([0xff, 0xff, 0xff, 0xff ^ 0x8]); // most things active low
     this.display = new VicDualDisplay();
     this.handler = newKeyboardHandler(this.inputs, CARNIVAL_KEYCODE_MAP, this.getKeyboardFunction());

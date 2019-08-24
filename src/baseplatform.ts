@@ -121,6 +121,9 @@ export interface Platform {
   getCPUState?() : CpuState;
 
   debugSymbols? : DebugSymbols;
+  
+  startProbing?() : ProbeRecorder;
+  stopProbing?() : void;
 }
 
 export interface Preset {
@@ -1070,6 +1073,7 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
       var sym = addr2symbol[addr];
       return extra ? (sym + " + $" + hex(start-addr)) : sym;
     }
+    if (!extra) break;
     addr--;
   }
   return "";
@@ -1198,8 +1202,9 @@ export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
 /// new style
 
 import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU } from "./devices";
-import { CPUClockHook, RasterFrameBased } from "./devices";
+import { Probeable, RasterFrameBased } from "./devices";
 import { SampledAudio } from "./audio";
+import { ProbeRecorder } from "./recorder";
 
 interface Machine extends Bus, Resettable, FrameBased, AcceptsROM, HasCPU, SavesState<EmuState>, SavesInputState<any> {
 }
@@ -1216,6 +1221,9 @@ function hasKeyInput(arg:any): arg is AcceptsKeyInput {
 function isRaster(arg:any): arg is RasterFrameBased {
     return typeof arg.getRasterY === 'function';
 }
+function hasProbe(arg:any): arg is Probeable {
+    return typeof arg.connectProbe == 'function';
+}
 
 export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPlatform implements Platform {
   machine : T;
@@ -1224,6 +1232,9 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   video : RasterVideo;
   audio : SampledAudio;
   poller : ControllerPoller;
+  probeRecorder : ProbeRecorder;
+  startProbing;
+  stopProbing;
   
   abstract newMachine() : T;
   abstract getToolForFilename(s:string) : string;
@@ -1246,7 +1257,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   saveControlsState()    { return this.machine.saveControlsState(); }
   
   start() {
-    var m = this.machine;
+    const m = this.machine;
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
     if (hasVideo(m)) {
       var vp = m.getVideoParams();
@@ -1263,6 +1274,16 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     if (hasKeyInput(m)) {
       this.video.setKeyboardEvents(m.setKeyInput.bind(m));
       this.poller = new ControllerPoller(m.setKeyInput.bind(m));
+    }
+    if (hasProbe(m)) {
+      this.probeRecorder = new ProbeRecorder(m);
+      this.startProbing = () => {
+        m.connectProbe(this.probeRecorder);
+        return this.probeRecorder;
+      };
+      this.stopProbing = () => {
+        m.connectProbe(null);
+      };
     }
   }
   

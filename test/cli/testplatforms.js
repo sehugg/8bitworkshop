@@ -125,6 +125,7 @@ function testPlatform(platid, romname, maxframes, callback) {
     platform.reset(); // reset again
     var state0b = platform.saveState();
     //TODO: vcs fails assert.deepEqual(state0a, state0b);
+    //if (platform.startProbing) platform.startProbing();
     platform.resume(); // so that recorder works
     platform.setRecorder(rec);
     for (var i=0; i<maxframes; i++) {

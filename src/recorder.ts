@@ -177,3 +177,86 @@ export class EmuProfilerImpl implements EmuProfiler {
     this.log(a | PROFOP_INTERRUPT);
   }
 }
+
+/////
+
+import { Probeable, ProbeAll } from "./devices";
+
+export enum ProbeFlags {
+  CLOCKS	= 0x00000000,
+  EXECUTE	= 0x01000000,
+  MEM_READ	= 0x02000000,
+  MEM_WRITE	= 0x04000000,
+  IO_READ	= 0x08000000,
+  IO_WRITE	= 0x10000000,
+  INTERRUPT	= 0x20000000,
+  SCANLINE	= 0x7e000000,
+  FRAME		= 0x7f000000,
+}
+
+class ProbeFrame {
+  data : Uint32Array;
+  len : number;
+}
+
+export class ProbeRecorder implements ProbeAll {
+
+  buf = new Uint32Array(0x100000);
+  idx = 0;
+  fclk = 0;
+  sl = 0;
+  m : Probeable;
+
+  constructor(m:Probeable) {
+    this.m = m;
+  }
+  start() {
+    this.m.connectProbe(this);
+    this.reset();
+  }
+  stop() {
+    this.m.connectProbe(null);
+  }
+  reset() {
+    this.idx = 0;
+  }
+  log(a:number) {
+    // TODO: coalesce READ and EXECUTE
+    if (this.idx >= this.buf.length) return;
+    this.buf[this.idx++] = a;
+  }
+  logClocks(clocks:number) {
+    if (clocks) {
+      this.fclk += clocks;
+      this.log(clocks | ProbeFlags.CLOCKS);
+    }
+  }
+  logNewScanline() {
+    this.log(ProbeFlags.SCANLINE);
+    this.sl++;
+  }
+  logNewFrame() {
+    this.log(ProbeFlags.FRAME);
+    this.sl = 0;
+  }
+  logExecute(address:number) {
+    this.log(address | ProbeFlags.EXECUTE);
+  }
+  logInterrupt(type:number) {
+    this.log(type | ProbeFlags.INTERRUPT);
+  }
+  logRead(address:number, value:number) {
+    this.log(address | ProbeFlags.MEM_READ);
+  }
+  logWrite(address:number, value:number) {
+    this.log(address | ProbeFlags.MEM_WRITE);
+  }
+  logIORead(address:number, value:number) {
+    this.log(address | ProbeFlags.IO_READ);
+  }
+  logIOWrite(address:number, value:number) {
+    this.log(address | ProbeFlags.IO_WRITE);
+  }
+
+}
+
