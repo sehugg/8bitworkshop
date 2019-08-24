@@ -258,8 +258,12 @@ function refreshWindowList() {
     addWindowItem("#eventprobe", "Event Probe", () => {
       return new Views.EventProbeView();
     });
-    addWindowItem("#heatmap", "Heat Map", () => {
-      return new Views.HeatMapView();
+    addWindowItem("#memheatmap", "Memory Heatmap", () => {
+      return new Views.AddressHeatMapView();
+    });
+    // TODO: only if raster
+    addWindowItem("#crtheatmap", "CRT Heatmap", () => {
+      return new Views.RasterHeatMapView();
     });
   }
   addWindowItem('#asseteditor', 'Asset Editor', () => {

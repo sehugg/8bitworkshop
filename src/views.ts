@@ -925,6 +925,7 @@ export class ProfileView implements ProjectView {
 // TODO: clear buffer when scrubbing
 
 abstract class ProbeViewBase {
+
   probe : ProbeRecorder;
   maindiv : HTMLElement;
   canvas : HTMLCanvasElement;
@@ -994,7 +995,7 @@ abstract class ProbeViewBase {
       var ctx = this.ctx;
       switch (op) {
         //case ProbeFlags.EXECUTE:	ctx.fillStyle = "green"; break;
-        case ProbeFlags.MEM_READ:	ctx.fillStyle = "white"; break;
+        //case ProbeFlags.MEM_READ:	ctx.fillStyle = "#7f7f7f"; break;
         case ProbeFlags.MEM_WRITE:	ctx.fillStyle = "red"; break;
         case ProbeFlags.IO_READ:	ctx.fillStyle = "green"; break;
         case ProbeFlags.IO_WRITE:	ctx.fillStyle = "magenta"; break;
@@ -1007,6 +1008,7 @@ abstract class ProbeViewBase {
 }
 
 abstract class ProbeBitmapViewBase extends ProbeViewBase {
+
   imageData : ImageData;
   datau32 : Uint32Array;
   recreateOnResize = false;
@@ -1026,37 +1028,62 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
   clear() {
     this.datau32.fill(0xff000000);
   }
+  getOpRGB(op:number) : number {
+    switch (op) {
+      case ProbeFlags.EXECUTE:		return 0x0f3f0f; 
+      case ProbeFlags.MEM_READ:		return 0x3f0101; 
+      case ProbeFlags.MEM_WRITE:	return 0x000f3f; 
+      case ProbeFlags.IO_READ:		return 0x001f01; 
+      case ProbeFlags.IO_WRITE:		return 0x003f3f; 
+      case ProbeFlags.INTERRUPT:	return 0x3f3f00; 
+      default:				return 0; 
+    }
+  }
 }
 
-export class HeatMapView extends ProbeBitmapViewBase implements ProjectView {
+export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectView {
 
   createDiv(parent : HTMLElement) {
     return this.createCanvas(parent, 256, 256);
   }
   
   drawEvent(op, addr, col, row) {
+    var rgb = this.getOpRGB(op);
+    if (!rgb) return;
     var x = addr & 0xff;
     var y = (addr >> 8) & 0xff;
-    var col;
-    switch (op) {
-      case ProbeFlags.EXECUTE:		col = 0x0f3f0f; break;
-      case ProbeFlags.MEM_READ:		col = 0x3f0101; break;
-      case ProbeFlags.MEM_WRITE:	col = 0x000f3f; break;
-      case ProbeFlags.IO_READ:		col = 0x001f01; break;
-      case ProbeFlags.IO_WRITE:		col = 0x003f3f; break;
-      case ProbeFlags.INTERRUPT:	col = 0x3f3f00; break;
-      default:				col = 0x1f1f1f; break;
-    }
     var data = this.datau32[addr & 0xffff];
     data = (data & 0x7f7f7f) << 1;
-    data = data | col | 0xff000000;
+    data = data | rgb | 0xff000000;
     this.datau32[addr & 0xffff] = data;
+  }
+  
+}
+
+export class RasterHeatMapView extends ProbeBitmapViewBase implements ProjectView {
+
+  createDiv(parent : HTMLElement) {
+    return this.createCanvas(parent, 160, 262); // TODO
+  }
+  
+  drawEvent(op, addr, col, row) {
+    if (op == ProbeFlags.EXECUTE || op == ProbeFlags.MEM_READ) return;
+    var rgb = this.getOpRGB(op);
+    if (!rgb) return;
+    var iofs = col + row * this.canvas.width;
+    var data = this.datau32[iofs];
+    data = (data & 0x7f7f7f) << 1;
+    data = data | rgb | 0xff000000;
+    this.datau32[iofs] = data;
   }
   
 }
 
 export class EventProbeView extends ProbeViewBase implements ProjectView {
   symcache : Map<number,symbol> = new Map();
+  xmax : number = 1;
+  ymax : number = 1;
+  lastsym : string;
 
   createDiv(parent : HTMLElement) {
     return this.createCanvas( parent, $(parent).width(), $(parent).height() );
@@ -1064,15 +1091,19 @@ export class EventProbeView extends ProbeViewBase implements ProjectView {
   
   drawEvent(op, addr, col, row) {
     var ctx = this.ctx;
-    var xscale = this.canvas.width / 128; // TODO: pixels
-    var yscale = this.canvas.height / 262; // TODO: lines
+    this.xmax = Math.max(this.xmax, col);
+    this.ymax = Math.max(this.ymax, row);
+    var xscale = this.canvas.width / this.xmax; // TODO: pixels
+    var yscale = this.canvas.height / this.ymax; // TODO: lines
     var x = col * xscale;
     var y = row * yscale;
     var sym = this.getSymbol(addr);
     if (!sym && op == ProbeFlags.IO_WRITE) sym = hex(addr,4);
-    //if (!sym && op == ProbeFlags.IO_READ)  sym = hex(addr,4);
+    //TODO if (!sym && op == ProbeFlags.IO_READ)  sym = hex(addr,4);
     if (sym) {
       this.setContextForOp(op);
+      ctx.textAlign = (col < this.xmax/2) ? 'left' : 'right';
+      ctx.textBaseline = (row < this.ymax/2) ? 'top' : 'bottom';
       ctx.fillText(sym, x, y);
     }
   }
