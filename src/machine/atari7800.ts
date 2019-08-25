@@ -1,11 +1,9 @@
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { Bus, RasterFrameBased, SavesState, SavesInputState, AcceptsROM, AcceptsKeyInput, Resettable, SampledAudioSource, SampledAudioSink, HasCPU } from "../devices";
-import { KeyFlags } from "../emu"; // TODO
-import { hex, lzgmini, stringToByteArray, lpad, rpad, rgb2bgr } from "../util";
-
-import { newAddressDecoder, padBytes, Keys, makeKeycodeMap, dumpRAM, EmuHalt, newKeyboardHandler } from "../emu";
-import { MasterAudio, POKEYDeviceChannel } from "../audio";
+import { BasicMachine, Bus } from "../devices";
+import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt, dumpRAM } from "../emu";
+import { TssChannelAdapter, MasterAudio, POKEYDeviceChannel } from "../audio";
+import { hex, rgb2bgr } from "../util";
 
 // https://atarihq.com/danb/a7800.shtml
 // https://atarihq.com/danb/files/maria_r1.txt
@@ -17,19 +15,19 @@ interface Atari7800StateBase {
 }
 
 interface Atari7800ControlsState {
-  in : Uint8Array;
+  inputs : Uint8Array;
 }
 
 interface Atari7800State extends Atari7800StateBase, Atari7800ControlsState {
   c : MOS6502State;
   tia : {
     regs : Uint8Array,
-  },
+  };
   maria : {
     regs : Uint8Array,
     offset,dll,dlstart : number;
     dli,h16,h8 : boolean;
-  },
+  };
 }
 
 const SWCHA = 0;
@@ -64,8 +62,8 @@ const linesPerFrame = 262;
 const numVisibleLines = 258-16;
 const colorClocksPerLine = 454; // 456?
 const colorClocksPreDMA = 28;
-const romLength = 0xc000;
-const oversampling = 4;
+const audioOversample = 4;
+const audioSampleRate = linesPerFrame*60*audioOversample;
 
 // TIA chip
 
@@ -299,29 +297,32 @@ class MARIA {
 
 // Atari 7800
 
-export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSource, AcceptsROM, AcceptsKeyInput,
-  Atari7800StateBase, SavesState<Atari7800State>, SavesInputState<Atari7800ControlsState> {
+export class Atari7800 extends BasicMachine {
+
+  cpuFrequency = 1789772;
+  canvasWidth = 320;
+  numTotalScanlines = 262;
+  numVisibleScanlines = 258-16;
+  defaultROMSize = 0xc000;
+  cpuCyclesPerLine = 113.5;
+  sampleRate = audioSampleRate;
 
   cpu : MOS6502;
   ram : Uint8Array = new Uint8Array(0x1000);
-  rom : Uint8Array;
-  bios : Uint8Array;
-  inputs = new Uint8Array(16);
   regs6532 = new Uint8Array(4);
-  scanline : number = 0;
   tia : TIA = new TIA();
   maria : MARIA = new MARIA();
   pokey1; //TODO: type
+  audioadapter;
   
-  pixels : Uint32Array;
-  audio : SampledAudioSink;
   handler; // TODO: type, or use ControllerPoller
-  lastFrameCycles : number = 0;
+  lastFrameCycles = 0;
   
   read  : (a:number) => number;
   write : (a:number, v:number) => void;
 
   constructor() {
+    super();
     this.cpu = new MOS6502();
     this.read = newAddressDecoder([
         [0x0008, 0x000d,   0x0f, (a) => { return this.readInput(a); }],
@@ -349,11 +350,10 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
         [0xbfff, 0xbfff, 0xffff, (a,v) => { }], // TODO: bank switching?
         [0x0000, 0xffff, 0xffff, (a,v) => { throw new EmuHalt("Write @ " + hex(a,4) + " " + hex(v,2)); }],
       ]);
-    this.cpu.connectMemoryBus(this);
+    this.connectCPUMemoryBus(this);
     this.handler = newKeyboardHandler(this.inputs, Atari7800_KEYCODE_MAP);
     this.pokey1 = new POKEYDeviceChannel();
-    this.pokey1.setBufferLength(oversampling*2);
-    this.pokey1.setSampleRate(this.getAudioParams().sampleRate);
+    this.audioadapter = new TssChannelAdapter(this.pokey1, audioOversample, audioSampleRate);
   }
   
   readConst(a) { return this.read(a); } //TODO?
@@ -367,19 +367,6 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
     }
   }
 
-  getVideoParams() {
-    return {width:320, height:numVisibleLines, overscan:true};
-  }
-  getAudioParams() {
-    return {sampleRate:linesPerFrame*60*oversampling, stereo:false};
-  }
-  connectVideo(pixels:Uint32Array) {
-    this.pixels = pixels;
-  }
-  connectAudio(audio:SampledAudioSink) {
-    this.audio = audio;
-  }
-
     //TODO this.bios = new Uint8Array(0x1000);
     // TODO: TIA access wastes a cycle
 
@@ -391,43 +378,32 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
     var idata = this.pixels;
     var iofs = 0;
     var rgb;
-    var mariaClocks = colorClocksPreDMA; // 7 CPU cycles until DMA
-    var frameClocks = 0;
+    var mc = 0;
+    var fc = 0;
+    this.probe.logNewFrame();
     //console.log(hex(this.cpu.getPC()), hex(this.maria.dll));
     // visible lines
     for (var sl=0; sl<linesPerFrame; sl++) {
       this.scanline = sl;
       var visible = sl < numVisibleLines;
       this.maria.setVBLANK(!visible);
-      // iterate CPU with free clocks
-      while (mariaClocks > 0) {
-        // wait for WSYNC? (end of line)
-        if (this.maria.WSYNC) {
-          if (mariaClocks >= colorClocksPreDMA) {
-            this.maria.WSYNC--;
-            mariaClocks = colorClocksPreDMA; // 7 CPU cycles until DMA
-            // TODO: frameClocks
-          } else {
-            break;
-          }
-        }
-        // next CPU clock
-        if (trap && (this.lastFrameCycles=frameClocks)>=0 && trap()) {
+      this.maria.WSYNC = 0;
+      // pre-DMA clocks
+      while (mc < colorClocksPreDMA) {
+        if (this.maria.WSYNC) break;
+        if (trap && trap()) {
           trap = null;
           sl = 999;
-          break;
+          break; // TODO?
         }
-        mariaClocks -= 4;
-        frameClocks += 4;
-        this.cpu.advanceClock();
+        mc += this.advanceCPU() << 2;
       }
-      mariaClocks += colorClocksPerLine;
       // is this scanline visible?
       if (visible) {
         // do DMA for scanline?
         let dmaClocks = this.maria.doDMA(this);
-        mariaClocks -= dmaClocks;
-        frameClocks += dmaClocks;
+        this.probe.logClocks(dmaClocks >> 2);
+        mc += dmaClocks;
         // copy line to frame buffer
         if (idata) {
           for (var i=0; i<320; i++) {
@@ -437,27 +413,36 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
       }
       // do interrupt? (if visible or before 1st scanline)
       if ((visible || sl == linesPerFrame-1) && this.maria.doInterrupt()) {
-        //this.profiler && this.profiler.logInterrupt(0);
+        this.probe.logInterrupt(1); // TODO?
         this.cpu.NMI();
-    //console.log("NMI", hex(this.cpu.getPC()), hex(this.maria.dll));
+        //console.log("NMI", hex(this.cpu.getPC()), hex(this.maria.dll));
+      }
+      // post-DMA clocks
+      while (mc < colorClocksPerLine) {
+        if (this.maria.WSYNC) {
+          this.probe.logClocks((colorClocksPerLine - mc) >> 2);
+          mc = colorClocksPerLine;
+          break;
+        }
+        if (trap && trap()) {
+          trap = null;
+          sl = 999;
+          break;
+        }
+        mc += this.advanceCPU() << 2;
       }
       // audio
-      if (this.audio) {
-        const audioGain = 1.0 / 8192;
-        this.pokey1.generate(oversampling*2);
-        for (let i=0; i<oversampling; i++)
-          this.audio.feedSample(this.pokey1.getBuffer()[i*2] * audioGain, 1);
-      }
+      this.audio && this.audioadapter.generate(this.audio);
+      this.probe.logNewScanline(); // TODO: doesn't go in right place
+      // update clocks
+      mc -= colorClocksPerLine;
+      fc += mc;
     }
-    // update video frame
     /*
-    if (!novideo) {
-      // set background/border color
       // TODO let bkcol = this.maria.regs[0x0];
       // TODO $(this.video.canvas).css('background-color', COLORS_WEB[bkcol]);
-    }
     */
-    return (this.lastFrameCycles = frameClocks);
+    return (this.lastFrameCycles = fc);
   }
 
   getRasterX() { return this.lastFrameCycles % colorClocksPerLine; }
@@ -465,7 +450,7 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
 
   loadROM(data) {
     if (data.length == 0xc080) data = data.slice(0x80); // strip header
-    this.rom = padBytes(data, romLength, true);
+    this.rom = padBytes(data, this.defaultROMSize, true);
   }
 /*
   loadBIOS(data) {
@@ -473,7 +458,7 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
   }
 */
   reset() {
-    this.cpu.reset();
+    super.reset();
     this.tia.reset();
     this.maria.reset();
     this.inputs.fill(0x0);
@@ -502,20 +487,16 @@ export class Atari7800 implements HasCPU, Bus, RasterFrameBased, SampledAudioSou
       tia:this.tia.saveState(),
       maria:this.maria.saveState(),
       regs6532:this.regs6532.slice(0),
-      in:this.inputs.slice(0)
+      inputs:this.inputs.slice(0)
     };
   }
   loadControlsState(state:Atari7800ControlsState) : void {
-    this.inputs.set(state.in);
+    this.inputs.set(state.inputs);
   }
   saveControlsState() : Atari7800ControlsState {
     return {
-      in:this.inputs.slice(0)
+      inputs:this.inputs.slice(0)
     };
-  }
-
-  getRasterScanline() {
-    return this.scanline;
   }
 
   getDebugCategories() {

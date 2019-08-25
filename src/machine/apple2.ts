@@ -223,9 +223,9 @@ export class AppleII extends BasicScanlineMachine {
     this.ap2disp && this.ap2disp.updateScreen();
     return clocks;
   }
-  advance() {
+  advanceCPU() {
     this.audio.feedSample(this.soundstate, 1);
-    return super.advance();
+    return super.advanceCPU();
   }
 
   setKeyInput(key:number, code:number, flags:number) : void {

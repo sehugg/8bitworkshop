@@ -248,8 +248,6 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
   
   abstract read(a:number) : number;
   abstract write(a:number, v:number) : void;
-  abstract startScanline() : void;
-  abstract drawScanline() : void;
 
   getAudioParams() : SampledAudioParams {
     return {sampleRate:this.sampleRate, stereo:false};
@@ -293,12 +291,12 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
       inputs:this.inputs.slice(0)
     };
   }
-  advanceMultiple(cycles : number) : number {
-    for (var i=0; i<cycles; i+=this.advance())
+  advanceCPUMultiple(cycles : number) : number {
+    for (var i=0; i<cycles; i+=this.advanceCPU())
       ;
     return i;
   }
-  advance() {
+  advanceCPU() {
     var c = this.cpu as any;
     var n = 1;
     this.probe.logExecute(this.cpu.getPC());
@@ -340,7 +338,11 @@ export abstract class BasicScanlineMachine extends BasicMachine implements Raste
   abstract numTotalScanlines : number;
   abstract cpuCyclesPerLine : number;
 
+  abstract startScanline() : void;
+  abstract drawScanline() : void;
+  
   advanceFrame(maxClocks:number, trap) : number {
+    this.preFrame();
     var clock = 0;
     var endLineClock = 0;
     this.probe.logNewFrame();
@@ -354,13 +356,16 @@ export abstract class BasicScanlineMachine extends BasicMachine implements Raste
           sl = 999;
           break;
         }
-        clock += this.advance();
+        clock += this.advanceCPU();
       }
       this.drawScanline();
       this.probe.logNewScanline();
     }
+    this.postFrame();
     return clock;
   }
+  preFrame() { }
+  postFrame() { }
   getRasterY() { return this.scanline; }
   getRasterX() { return this.frameCycles % this.cpuCyclesPerLine; }
 }
