@@ -145,42 +145,38 @@ export class SMS extends SG1000 {
     return this.rom[a + ((this.pagingRegisters[reg] & this.romPageMask) << 14)]; // * $4000
   }
 
-  newMembus() {
-    return {
-       read: newAddressDecoder([
-         [0xc000, 0xffff, 0x1fff, (a) => { return this.ram[a]; }],
-         [0x0000, 0x03ff,  0x3ff, (a) => { return this.rom[a]; }],
-         [0x0400, 0x3fff, 0x3fff, (a) => { return this.getPagedROM(a,1); }],
-         [0x4000, 0x7fff, 0x3fff, (a) => { return this.getPagedROM(a,2); }],
-         [0x8000, 0xbfff, 0x3fff, (a) => {
-           var reg0 = this.pagingRegisters[0]; // RAM select?
-           if (reg0 & 0x8) {
-             return this.cartram[(reg0 & 0x4) ? a+0x4000 : a];
-           } else {
-             return this.getPagedROM(a,3);
-           }
-         }],
-       ]),
-       write: newAddressDecoder([
-         [0xc000, 0xfffb, 0x1fff, (a,v) => {
-           this.ram[a] = v;
-         }],
-         [0xfffc, 0xffff,    0x3, (a,v) => {
-           this.pagingRegisters[a] = v;
-           this.ram[a+0x1ffc] = v;
-         }],
-         [0x8000, 0xbfff, 0x3fff, (a,v) => {
-           var reg0 = this.pagingRegisters[0]; // RAM select?
-           if (reg0 & 0x8) {
-             if (this.cartram.length == 0)
-               this.cartram = new Uint8Array(0x8000); // create cartridge RAM lazily
-             this.cartram[(reg0 & 0x4) ? a+0x4000 : a] = v;
-           }
-         }],
-       ]),
-       isContended: () => { return false; },
-    };
-  }
+ read = newAddressDecoder([
+   [0xc000, 0xffff, 0x1fff, (a) => { return this.ram[a]; }],
+   [0x0000, 0x03ff,  0x3ff, (a) => { return this.rom[a]; }],
+   [0x0400, 0x3fff, 0x3fff, (a) => { return this.getPagedROM(a,1); }],
+   [0x4000, 0x7fff, 0x3fff, (a) => { return this.getPagedROM(a,2); }],
+   [0x8000, 0xbfff, 0x3fff, (a) => {
+     var reg0 = this.pagingRegisters[0]; // RAM select?
+     if (reg0 & 0x8) {
+       return this.cartram[(reg0 & 0x4) ? a+0x4000 : a];
+     } else {
+       return this.getPagedROM(a,3);
+     }
+   }],
+ ]);
+ 
+ write = newAddressDecoder([
+   [0xc000, 0xfffb, 0x1fff, (a,v) => {
+     this.ram[a] = v;
+   }],
+   [0xfffc, 0xffff,    0x3, (a,v) => {
+     this.pagingRegisters[a] = v;
+     this.ram[a+0x1ffc] = v;
+   }],
+   [0x8000, 0xbfff, 0x3fff, (a,v) => {
+     var reg0 = this.pagingRegisters[0]; // RAM select?
+     if (reg0 & 0x8) {
+       if (this.cartram.length == 0)
+         this.cartram = new Uint8Array(0x8000); // create cartridge RAM lazily
+       this.cartram[(reg0 & 0x4) ? a+0x4000 : a] = v;
+     }
+   }],
+ ]);
 
   loadROM(data:Uint8Array) {
     if (data.length <= 0xc000) {
