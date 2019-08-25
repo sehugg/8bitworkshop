@@ -41,8 +41,6 @@ var COLECOVISION_KEYCODE_MAP = makeKeycodeMap([
   [Keys.P2_B, 3, 0x40],
 ]);
 
-const audioOversample = 2;
-
 export class ColecoVision extends BaseZ80VDPBasedMachine {
 
   defaultROMSize = 0x8000;
@@ -52,9 +50,13 @@ export class ColecoVision extends BaseZ80VDPBasedMachine {
 
   constructor() {
     super();
-    this.init(this, this.newIOBus(), COLECOVISION_KEYCODE_MAP, new SN76489_Audio(new MasterAudio()));
+    this.init(this, this.newIOBus(), new SN76489_Audio(new MasterAudio()));
     this.bios = new lzgmini().decode(stringToByteArray(atob(COLECO_BIOS_LZG)));
   }
+  
+  getKeyboardMap() { return COLECOVISION_KEYCODE_MAP; }
+  
+  vdpInterrupt() { this.cpu.NMI(); }
   
   read = newAddressDecoder([
     [0x0000, 0x1fff, 0x1fff, (a) => { return this.bios ? this.bios[a] : 0; }],

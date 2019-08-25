@@ -29,6 +29,7 @@ class ColecoVisionPlatform extends BaseZ80MachinePlatform<ColecoVision> implemen
   // TODO loadBios(bios)	{ this.machine.loadBIOS(a); }
 
 }
+
 /// MAME support
 
 class ColecoVisionMAMEPlatform extends BaseMAMEPlatform implements Platform {

@@ -23,10 +23,14 @@ export abstract class BaseZ80VDPBasedMachine extends BasicScanlineMachine {
   handler;
   audioadapter;
 
-  init(membus:Bus, iobus:Bus, keycodemap, psg) {
+  abstract vdpInterrupt();
+  abstract getKeyboardMap();
+  getKeyboardFunction() { return null; }
+  
+  init(membus:Bus, iobus:Bus, psg) {
     this.connectCPUMemoryBus(membus);
     this.connectCPUIOBus(iobus);
-    this.handler = newKeyboardHandler(this.inputs, keycodemap);
+    this.handler = newKeyboardHandler(this.inputs, this.getKeyboardMap(), this.getKeyboardFunction());
     this.psg = psg;
     this.audioadapter = psg && new TssChannelAdapter(psg.psg, audioOversample, this.sampleRate);
   }
@@ -44,7 +48,7 @@ export abstract class BaseZ80VDPBasedMachine extends BasicScanlineMachine {
     var cru = {
       setVDPInterrupt: (b) => {
         if (b) {
-          this.cpu.NMI();
+          this.vdpInterrupt();
         } else {
           // TODO: reset interrupt?
         }
@@ -52,7 +56,7 @@ export abstract class BaseZ80VDPBasedMachine extends BasicScanlineMachine {
     };
     return new TMS9918A(frameData, cru, true);
   }
-
+  
   startScanline() {
     this.audio && this.audioadapter && this.audioadapter.generate(this.audio);
   }
