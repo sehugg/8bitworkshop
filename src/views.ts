@@ -1041,12 +1041,12 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
   }
   getOpRGB(op:number) : number {
     switch (op) {
-      case ProbeFlags.EXECUTE:		return 0x0f3f0f; 
-      case ProbeFlags.MEM_READ:		return 0x3f0101; 
-      case ProbeFlags.MEM_WRITE:	return 0x000f3f; 
-      case ProbeFlags.IO_READ:		return 0x001f01; 
-      case ProbeFlags.IO_WRITE:		return 0x003f3f; 
-      case ProbeFlags.INTERRUPT:	return 0x3f3f00; 
+      case ProbeFlags.EXECUTE:		return 0x0f3f0f;
+      case ProbeFlags.MEM_READ:		return 0x3f0101;
+      case ProbeFlags.MEM_WRITE:	return 0x010f3f;
+      case ProbeFlags.IO_READ:		return 0x001f01;
+      case ProbeFlags.IO_WRITE:		return 0x017f7f;
+      case ProbeFlags.INTERRUPT:	return 0x3f3f00;
       default:				return 0; 
     }
   }
@@ -1091,8 +1091,12 @@ export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectV
   drawEvent(op, addr, col, row) {
 //    if (op != ProbeFlags.EXECUTE) return;
     var iofs = col + row * this.canvas.width;
-    var rgb = addr << 8;
-    this.datau32[iofs] = rgb | 0xff000000;
+    //var rgb = addr << 8;
+    var rgb = this.getOpRGB(op) << 1;
+    var data = this.datau32[iofs];
+    rgb |= addr & 0x3f3f;
+    data = data | rgb | 0xff000000;
+    this.datau32[iofs] = data;
   }
   
 }

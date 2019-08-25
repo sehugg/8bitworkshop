@@ -231,8 +231,8 @@ const _GalaxianPlatform = function(mainElement, options) {
           read: newAddressDecoder([
             [0x0000, 0x3fff, 0, function(a) { return rom ? rom[a] : null; }],
             [0x4000, 0x47ff, 0x7ff, function(a) { return ram.mem[a]; }],
-            //          [0x4800, 0x4fff, 0x3ff,  function(a) { return vram.mem[a]; }],
-            //  				[0x5000, 0x5fff, 0xff,   function(a) { return oram.mem[a]; }],
+            [0x4800, 0x4fff, 0x3ff,  function(a) { return vram.mem[a]; }],
+            [0x5000, 0x5fff, 0xff,   function(a) { return oram.mem[a]; }],
             [0x7000, 0x7000, 0, function(a) { watchdog_counter = INITIAL_WATCHDOG; }],
             [0x7800, 0x7800, 0, function(a) { watchdog_counter = INITIAL_WATCHDOG; }],
             //[0x8000, 0x820f, 0,      function(a) { return noise(); }], // TODO: remove

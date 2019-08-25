@@ -360,6 +360,7 @@ export abstract class BasicScanlineMachine extends BasicMachine implements Raste
       }
       this.drawScanline();
       this.probe.logNewScanline();
+      this.probe.logClocks(clock-endLineClock);
     }
     this.postFrame();
     return clock;
