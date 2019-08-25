@@ -41,10 +41,6 @@ export abstract class BaseZ80VDPBasedMachine extends BasicScanlineMachine {
   
   connectVideo(pixels) {
     super.connectVideo(pixels);
-    this.vdp = this.newVDP(this.pixels);
-  }
-
-  newVDP(frameData) {
     var cru = {
       setVDPInterrupt: (b) => {
         if (b) {
@@ -54,7 +50,11 @@ export abstract class BaseZ80VDPBasedMachine extends BasicScanlineMachine {
         }
       }
     };
-    return new TMS9918A(frameData, cru, true);
+    this.vdp = this.newVDP(this.pixels, cru, true);
+  }
+
+  newVDP(frameData, cru, flicker) {
+    return new TMS9918A(frameData, cru, flicker);
   }
   
   startScanline() {
@@ -81,7 +81,7 @@ export abstract class BaseZ80VDPBasedMachine extends BasicScanlineMachine {
   }
 
   getDebugCategories() {
-    return ['VDP'];
+    return ['CPU','Stack','VDP'];
   }
   getDebugInfo(category, state) {
     switch (category) {

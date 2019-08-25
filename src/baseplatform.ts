@@ -1079,127 +1079,7 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
   return "";
 }
 
-///// Basic Platforms
-
-export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
-
-  cpuFrequency : number;
-  canvasWidth : number;
-  numTotalScanlines : number;
-  numVisibleScanlines : number;
-  defaultROMSize : number;
-
-  cpuCyclesPerLine : number;
-  currentScanline : number;
-  startLineTstates : number;
-
-  cpu;
-  membus : MemoryBus;
-  iobus : MemoryBus;
-  ram = new Uint8Array(0);
-  rom = new Uint8Array(0);
-  video;
-  timer;
-  audio;
-  psg;
-  pixels : Uint32Array;
-  inputs : Uint8Array = new Uint8Array(32);
-  mainElement : HTMLElement;
-  poller : ControllerPoller;
-
-  abstract newRAM() : Uint8Array;
-  abstract newMembus() : MemoryBus;
-  abstract newIOBus() : MemoryBus;
-  abstract getVideoOptions() : {};
-  abstract getKeyboardMap();
-  abstract startScanline(sl : number) : void;
-  abstract drawScanline(sl : number) : void;
-  getRasterScanline() : number { return this.currentScanline; }
-  getKeyboardFunction() { return null; }
-
-  constructor(mainElement : HTMLElement) {
-    super();
-    this.mainElement = mainElement;
-  }
-
-  start() {
-    this.cpuCyclesPerLine = Math.round(this.cpuFrequency / 60 / this.numTotalScanlines);
-    this.ram = this.newRAM();
-    this.membus = this.newMembus();
-    this.iobus = this.newIOBus();
-    this.cpu = this.newCPU(this.membus, this.iobus);
-    this.video = new RasterVideo(this.mainElement, this.canvasWidth, this.numVisibleScanlines, this.getVideoOptions());
-    this.video.create();
-    this.pixels = this.video.getFrameData();
-    this.poller = setKeyboardFromMap(this.video, this.inputs, this.getKeyboardMap(), this.getKeyboardFunction());
-    this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
-  }
-
-  readAddress(addr) {
-    return this.membus.read(addr);
-  }
-  
-  pollControls() { this.poller.poll(); }
-
-  advance(novideo : boolean) {
-    var extraCycles = 0;
-    for (var sl=0; sl<this.numTotalScanlines; sl++) {
-      this.startLineTstates = this.cpu.getTstates();
-      this.currentScanline = sl;
-      this.startScanline(sl);
-      extraCycles = this.runCPU(this.cpu, this.cpuCyclesPerLine - extraCycles); // TODO: HALT opcode?
-      this.drawScanline(sl);
-    }
-    this.video.updateFrame();
-  }
-
-  loadROM(title, data) {
-    this.rom = padBytes(data, this.defaultROMSize);
-    this.reset();
-  }
-
-  loadState(state) {
-    this.cpu.loadState(state.c);
-    this.ram.set(state.b);
-    this.inputs.set(state.in);
-  }
-  saveState() {
-    return {
-      c:this.getCPUState(),
-      b:this.ram.slice(0),
-      in:this.inputs.slice(0),
-    };
-  }
-  loadControlsState(state) {
-    this.inputs.set(state.in);
-  }
-  saveControlsState() {
-    return {
-      in:this.inputs.slice(0)
-    };
-  }
-  getCPUState() {
-    return this.cpu.saveState();
-  }
-
-  isRunning() {
-    return this.timer && this.timer.isRunning();
-  }
-  pause() {
-    this.timer.stop();
-    if (this.audio) this.audio.stop();
-  }
-  resume() {
-    this.timer.start();
-    if (this.audio) this.audio.start();
-  }
-  reset() {
-    this.cpu.reset();
-    this.cpu.setTstates(0);
-  }
-}
-
-/// new style
+/// new Machine platform adapters
 
 import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU } from "./devices";
 import { Probeable, RasterFrameBased } from "./devices";
@@ -1409,7 +1289,10 @@ export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMach
   getToolForFilename    = getToolForFilename_z80;
 
   getDebugCategories() {
-    return ['CPU','Stack'];
+    if (isDebuggable(this.machine))
+      return this.machine.getDebugCategories();
+    else
+      return ['CPU','Stack'];
   }
   getDebugInfo(category:string, state:EmuState) : string {
     switch (category) {
