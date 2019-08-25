@@ -1,12 +1,12 @@
 "use strict";
 
-import { Platform, BaseZ80Platform  } from "../baseplatform";
+import { Platform, BaseZ80Platform } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
 import { hex } from "../util";
 import { SampleAudio } from "../audio";
 
 var WILLIAMS_SOUND_PRESETS = [
-  {id:'swave.c', name:'Wavetable Synth'},
+  { id: 'swave.c', name: 'Wavetable Synth' },
 ];
 
 /****************************************************************************
@@ -44,15 +44,16 @@ var WilliamsSoundPlatform = function(mainElement) {
   var dac = 0;
   var dac_float = 0.0
   var current_buffer;
-  var last_tstate;
+  var last_tstate = 0;
+  var tstates = 0;
   var pixels;
 
-  var cpuFrequency = 18432000/6; // 3.072 MHz
-  var cpuCyclesPerFrame = cpuFrequency/60;
+  var cpuFrequency = 18432000 / 6; // 3.072 MHz
+  var cpuCyclesPerFrame = cpuFrequency / 60;
   var cpuAudioFactor = 32;
 
   function fillBuffer() {
-    var t = cpu.getTstates() / cpuAudioFactor;
+    var t = tstates / cpuAudioFactor;
     while (last_tstate < t) {
       current_buffer[last_tstate++] = dac_float;
     }
@@ -66,44 +67,45 @@ var WilliamsSoundPlatform = function(mainElement) {
     ram = new RAM(0x400);
     membus = {
       read: newAddressDecoder([
-				[0x0000, 0x3fff, 0x3fff, function(a) { return rom ? rom[a] : null; }],
-				[0x4000, 0x7fff, 0x3ff,  function(a) { return ram.mem[a]; }]
-			]),
-			write: newAddressDecoder([
-				[0x4000, 0x7fff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
-			]),
+        [0x0000, 0x3fff, 0x3fff, function(a) { return rom ? rom[a] : null; }],
+        [0x4000, 0x7fff, 0x3ff, function(a) { return ram.mem[a]; }]
+      ]),
+      write: newAddressDecoder([
+        [0x4000, 0x7fff, 0x3ff, function(a, v) { ram.mem[a] = v; }],
+      ]),
     };
     iobus = {
       read: function(addr) {
         return command & 0xff;
-    	},
-    	write: function(addr, val) {
+      },
+      write: function(addr, val) {
         dac = val & 0xff;
-        dac_float = ((dac & 0x80) ? -256+dac : dac) / 128.0;
+        dac_float = ((dac & 0x80) ? -256 + dac : dac) / 128.0;
         fillBuffer();
-    	}
+      }
     };
     this.readAddress = membus.read;
     cpu = this.newCPU(membus, iobus);
     audio = new SampleAudio(cpuFrequency / cpuAudioFactor);
     audio.callback = function(lbuf) {
       if (self.isRunning()) {
-        cpu.setTstates(0);
         current_buffer = lbuf;
         last_tstate = 0;
-        self.runCPU(cpu, lbuf.length * cpuAudioFactor);
-        cpu.setTstates(lbuf.length * cpuAudioFactor); // TODO?
+        tstates = 0;
+        while (tstates < lbuf.length * cpuAudioFactor) {
+          tstates += self.runCPU(cpu, 1);
+        }
         fillBuffer();
-        for (var i=0; i<256; i++) {
+        for (var i = 0; i < 256; i++) {
           var y = Math.round((current_buffer[i] * 127) + 128);
-          pixels[i + y*256] = 0xff33ff33;
+          pixels[i + y * 256] = 0xff33ff33;
         }
       }
     };
-    video = new RasterVideo(mainElement,256,256);
+    video = new RasterVideo(mainElement, 256, 256);
     video.create();
-    video.setKeyboardEvents(function(key,code,flags) {
-      var intr = (key-49);
+    video.setKeyboardEvents(function(key, code, flags) {
+      var intr = (key - 49);
       if (intr >= 0 && (flags & 1)) {
         command = intr & 0xff;
         cpu.reset();
@@ -129,8 +131,8 @@ var WilliamsSoundPlatform = function(mainElement) {
   }
   this.saveState = function() {
     return {
-      c:self.getCPUState(),
-      b:ram.mem.slice(0),
+      c: self.getCPUState(),
+      b: ram.mem.slice(0),
     };
   }
   this.getCPUState = function() {
@@ -150,7 +152,6 @@ var WilliamsSoundPlatform = function(mainElement) {
   }
   this.reset = function() {
     cpu.reset();
-    if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
   }
 }
 

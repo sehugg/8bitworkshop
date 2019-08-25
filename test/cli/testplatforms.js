@@ -241,7 +241,7 @@ describe('Platform Replay', () => {
       }
     });
   });
-
+/*
   it('Should run williams 6809', () => {
     var platform = testPlatform('williams', 'vidfill.asm.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
@@ -249,6 +249,7 @@ describe('Platform Replay', () => {
       }
     });
   });
+*/
   it('Should run williams-z80', () => {
     var platform = testPlatform('williams-z80', 'game1.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {

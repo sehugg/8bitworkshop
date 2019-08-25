@@ -33,17 +33,14 @@ function require(modname) {
 }
 
 importScripts("../../gen/emu.js");
-importScripts("../cpu/z80.js");
-
-window.buildZ80({
-  applyContention: false
-});
+importScripts("../../gen/cpu/ZilogZ80.js");
 
 var cpu, ram, rom, membus, iobus;
 var audio;
 var command = 0;
 var dac = 0;
 var current_buffer;
+var tstates;
 var last_tstate;
 
 var timer;
@@ -62,7 +59,7 @@ rom = new RAM(0x4000).mem;
 rom.fill(0x76); // HALT opcodes
 
 function fillBuffer() {
-  var t = cpu.getTstates() / cpuAudioFactor;
+  var t = tstates / cpuAudioFactor;
   while (last_tstate < t) {
     current_buffer[last_tstate*2] = dac;
     current_buffer[last_tstate*2+1] = dac;
@@ -91,25 +88,24 @@ function start() {
       fillBuffer();
     }
   };
-  cpu = window.Z80({
-    display: {},
-    memory: membus,
-    ioBus: iobus
-  });
+  cpu = new exports.Z80();
+  cpu.connectMemoryBus(membus);
+  cpu.connectIOBus(iobus);
   current_buffer = new Int16Array(bufferLength);
   console.log('started audio');
 }
 
 function timerCallback() {
-  cpu.setTstates(0);
+  tstates = 0;
   last_tstate = 0;
   var numStates = Math.floor(bufferLength * cpuAudioFactor / numChannels);
-  cpu.runFrame(numStates);
-  //console.log(numStates, cpu.getTstates());
-  cpu.setTstates(numStates); // TODO?
+  while (tstates < numStates) {
+    tstates += cpu.advanceInsn();
+  }
+  tstates = 0;
   fillBuffer();
   postMessage({samples:current_buffer});
-  if (!cpu.getHalted()) {
+  if (!cpu.saveState().halted) {
     curTime += timerPeriod;
     var dt = curTime - new Date().getTime();
     if (dt < 0) dt = 0;

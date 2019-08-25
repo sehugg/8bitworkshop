@@ -306,7 +306,9 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
             refreshall();
             break;
           case 0xb: // OTIR (set palette)
-             setpalette(cpu.getBC()>>8, membus.read(cpu.getHL()));
+             var c = cpu.saveState();
+             //console.log(c.BC>>8, c.HL);
+             setpalette((c.BC>>8)-1, membus.read(c.HL));
              break;
           case 0xc: // magic register
             magicop = val;
@@ -334,7 +336,8 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
             psg.setACRegister(addr, val);
             break;
           case 0x18:
-            psg.setACRegister(cpu.getBC()>>8, membus.read(cpu.getHL()));
+            var c = cpu.saveState();
+            psg.setACRegister((c.BC>>8)-1, membus.read(c.HL));
             break;
           case 0x19: // XPAND
             xpand = val;
@@ -389,7 +392,7 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
       // interrupt
       if (sl == inlin && (inmod & 0x8)) {
         cpu.retryInterrupts = !(inmod & 0x4);
-        cpu.requestInterrupt(infbk);
+        cpu.interrupt(infbk);
       }
       // refresh this line in frame buffer?
       if (sl < sheight && refreshlines>0) {
@@ -495,7 +498,6 @@ const _BallyAstrocadePlatform = function(mainElement, arcade) {
   }
   reset() {
     cpu.reset();
-    cpu.setTstates(0);
     psg.reset();
     // TODO?
     magicop = xpand = inmod = inlin = infbk = shift2 = horcb = 0;

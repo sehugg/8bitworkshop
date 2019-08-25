@@ -336,7 +336,7 @@ const _GalaxianPlatform = function(mainElement, options) {
         this.reset();
       }
       // NMI interrupt @ 0x66
-      if (interruptEnabled) { cpu.nonMaskableInterrupt(); }
+      if (interruptEnabled) { cpu.NMI(); }
     }
 
     getRasterScanline() { return this.scanline; }
@@ -412,8 +412,6 @@ const _GalaxianPlatform = function(mainElement, options) {
     }
     reset() {
       cpu.reset();
-      //audio.reset();
-      if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
       watchdog_counter = INITIAL_WATCHDOG;
     }
   }

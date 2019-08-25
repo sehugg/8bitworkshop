@@ -389,7 +389,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
 
     };
     this.readAddress = bus.read;
-    cpu = this.newCPU(bus);
+    cpu = this.newCPU(bus, bus);
     // create video/audio
     video = new VectorVideo(mainElement,1024,1024);
     dvg = new DVGColorStateMachine(bus, video, 0xa000);
@@ -402,7 +402,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
   this.advance = (novideo) => {
       if (!novideo) video.clear();
       this.runCPU(cpu, cpuCyclesPerFrame);
-      cpu.requestInterrupt();
+      cpu.interrupt(0xff); // RST 0x38
       switches[0xf] = (switches[0xf] + 1) & 0x3;
       if (--switches[0xe] <= 0) {
         console.log("WATCHDOG FIRED"); // TODO: alert on video

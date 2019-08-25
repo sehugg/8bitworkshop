@@ -4,8 +4,9 @@ import { hex, printFlags, invertMap } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { disassemble6502 } from "./cpu/disasm6502";
 import { disassembleZ80 } from "./cpu/disasmz80";
+import { Z80 } from "./cpu/ZilogZ80";
 
-declare var buildZ80, jt, CPU6809;
+declare var jt, CPU6809;
 
 export interface OpcodeMetadata {
   minCycles: number;
@@ -488,85 +489,40 @@ export function cpuStateToLongString_Z80(c) {
        ;
 }
 
-export function BusProbe(bus : MemoryBus) {
-  var active = false;
-  var callback;
-  this.activate = function(_callback) {
-    active = true;
-    callback = _callback;
-  }
-  this.deactivate = function() {
-    active = false;
-    callback = null;
-  }
-  this.read = function(a) {
-    if (active) {
-      callback(a);
-    }
-    return bus.read(a);
-  }
-  this.write = function(a,v) {
-    if (active) {
-      callback(a,v);
-    }
-    bus.write(a,v);
-  }
-  this.contend = function(addr,cyc) {
-    return bus.contend(addr,cyc);
-  }
-  this.isContended = function(addr) {
-    return bus.isContended(addr);
-  }
-}
-
 export abstract class BaseZ80Platform extends BaseDebugPlatform {
 
   _cpu;
-  probe;
+  waitCycles : number = 0;
 
-  newCPU(membus : MemoryBus, iobus : MemoryBus, z80opts? : {}) {
-    this.probe = new BusProbe(membus);
-    this._cpu = buildZ80(z80opts || {})({
-     display: {},
-     memory: this.probe,
-     ioBus: iobus
-   });
-   return this._cpu;
+  newCPU(membus : MemoryBus, iobus : MemoryBus) {
+    this._cpu = new Z80();
+    this._cpu.connectMemoryBus(membus);
+    this._cpu.connectIOBus(iobus);
+    return this._cpu;
   }
 
-  getProbe() { return this.probe; } // TODO?
   getPC() { return this._cpu.getPC(); }
   getSP() { return this._cpu.getSP(); }
 
   // TODO: refactor other parts into here
   runCPU(cpu, cycles:number) {
     this._cpu = cpu; // TODO?
+    this.waitCycles = 0; // TODO: needs to spill over betwenn calls
     if (this.wasBreakpointHit())
       return 0;
     var debugCond = this.getDebugCallback();
-    var targetTstates = cpu.getTstates() + cycles;
-    try {
-      if (debugCond) { // || trace) {
-        while (cpu.getTstates() < targetTstates) {
-          if (debugCond && debugCond()) {
-            debugCond = null;
-            break;
-          }
-          cpu.runFrame(cpu.getTstates() + 1);
-        }
-      } else {
-        cpu.runFrame(targetTstates);
+    var n = 0;
+    this.waitCycles += cycles;
+    while (this.waitCycles > 0) {
+      if (debugCond && debugCond()) {
+        debugCond = null;
+        break;
       }
-    } catch (e) {
-      // TODO: show alert w/ error msg
-      console.log(e);
-      this.breakpointHit(cpu.getTstates());
+      var cyc = cpu.advanceInsn();
+      n += cyc;
+      this.waitCycles -= cyc;
     }
-    return cpu.getTstates() - targetTstates;
-  }
-  requestInterrupt(cpu, data) {
-    if (!this.wasBreakpointHit())
-      cpu.requestInterrupt(data);
+    return n;
   }
   postFrame() {
     if (this.debugCallback) {
