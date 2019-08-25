@@ -112,6 +112,7 @@ const _GalaxianPlatform = function(mainElement, options) {
           yy = 15-yy;
         code &= 0x3f;
         var color0 = (oram.mem[base+2] & 7) << 2;
+        var color0 = 0;
         var addr = gfxBase+(code<<5)+(yy<8?yy:yy+8);
         outi = pixofs + sx; //<< 1
         var data1 = rom[addr];

@@ -1,6 +1,6 @@
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { Bus, RasterFrameBased, SavesState, SavesInputState, AcceptsROM, AcceptsKeyInput, noise, Resettable, SampledAudioSource, SampledAudioSink, HasCPU } from "../devices";
+import { Bus, RasterFrameBased, SavesState, SavesInputState, AcceptsROM, AcceptsKeyInput, Resettable, SampledAudioSource, SampledAudioSink, HasCPU } from "../devices";
 import { KeyFlags } from "../emu"; // TODO
 import { hex, lzgmini, stringToByteArray, lpad, rpad, rgb2bgr } from "../util";
 

@@ -102,8 +102,7 @@ export interface Probeable {
     connectProbe(probe: ProbeAll) : void;
 }
 
-// TODO?
-export function noise(x : number) : number {
+export function xorshift32(x : number) : number {
   x ^= x << 13;
   x ^= x >> 17;
   x ^= x << 5;

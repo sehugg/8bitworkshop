@@ -1,6 +1,6 @@
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { BasicScanlineMachine, noise } from "../devices";
+import { BasicScanlineMachine, xorshift32 } from "../devices";
 import { KeyFlags } from "../emu"; // TODO
 import { lzgmini } from "../util";
 
@@ -113,7 +113,7 @@ export class AppleII extends BasicScanlineMachine {
     }
   }
   noise() : number {
-    return (this.rnd = noise(this.rnd)) & 0xff;
+    return (this.rnd = xorshift32(this.rnd)) & 0xff;
   }
   readConst(address:number) : number {
     if (address < 0xc000) {
