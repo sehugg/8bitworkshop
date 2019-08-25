@@ -937,8 +937,9 @@ abstract class ProbeViewBase {
     var canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
+    canvas.classList.add('pixelated');
     canvas.style.width = '100%';
-    canvas.style.height = '100%';
+    canvas.style.height = '100vh'; // i hate css
     parent.appendChild(div);
     div.appendChild(canvas);
     this.canvas = canvas;
@@ -1013,6 +1014,16 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
   datau32 : Uint32Array;
   recreateOnResize = false;
   
+  createDiv(parent : HTMLElement) {
+    var width = 160;
+    var height = 262;
+    try {
+      width = platform['machine']['cpuCyclesPerLine'] || 160; // TODO
+      height = platform['machine']['numTotalScanlines'] || 262; // TODO
+    } catch (e) {
+    }
+    return this.createCanvas(parent, width, height);
+  }
   initCanvas() {
     this.imageData = this.ctx.createImageData(this.canvas.width, this.canvas.height);
     this.datau32 = new Uint32Array(this.imageData.data.buffer);
@@ -1062,10 +1073,6 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
 
 export class RasterHeatMapView extends ProbeBitmapViewBase implements ProjectView {
 
-  createDiv(parent : HTMLElement) {
-    return this.createCanvas(parent, 160, 262); // TODO
-  }
-  
   drawEvent(op, addr, col, row) {
     if (op == ProbeFlags.EXECUTE || op == ProbeFlags.MEM_READ) return;
     var rgb = this.getOpRGB(op);
@@ -1075,6 +1082,17 @@ export class RasterHeatMapView extends ProbeBitmapViewBase implements ProjectVie
     data = (data & 0x7f7f7f) << 1;
     data = data | rgb | 0xff000000;
     this.datau32[iofs] = data;
+  }
+  
+}
+
+export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectView {
+
+  drawEvent(op, addr, col, row) {
+//    if (op != ProbeFlags.EXECUTE) return;
+    var iofs = col + row * this.canvas.width;
+    var rgb = addr << 8;
+    this.datau32[iofs] = rgb | 0xff000000;
   }
   
 }

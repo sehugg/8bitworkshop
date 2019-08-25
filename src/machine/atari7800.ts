@@ -1,6 +1,6 @@
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { BasicMachine, Bus } from "../devices";
+import { BasicMachine, Bus, ProbeAll } from "../devices";
 import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt, dumpRAM } from "../emu";
 import { TssChannelAdapter, MasterAudio, POKEYDeviceChannel } from "../audio";
 import { hex, rgb2bgr } from "../util";
@@ -57,7 +57,6 @@ const Atari7800_KEYCODE_MAP = makeKeycodeMap([
 // http://www.ataripreservation.org/websites/freddy.offenga/megazine/ISSUE5-PALNTSC.html
 // http://7800.8bitdev.org/index.php/7800_Software_Guide#APPENDIX_4:_FRAME_TIMING
 const CLK = 3579545;
-const cpuFrequency = 1789772;
 const linesPerFrame = 262;
 const numVisibleLines = 258-16;
 const colorClocksPerLine = 454; // 456?
@@ -99,6 +98,7 @@ class TIA {
 
 class MARIA {
   bus : Bus;
+  probe : ProbeAll;
   cycles : number = 0;
   regs = new Uint8Array(0x20);
   offset : number = -1;
@@ -163,8 +163,8 @@ class MARIA {
     }
   }
   readDLLEntry(bus) {
-    //this.profiler && this.profiler.logRead(this.dll);
     let x = bus.read(this.dll);
+    //this.probe.logRead(this.dll, x); // TODO: use bus
     this.offset = (x & 0xf);
     this.h16 = (x & 0x40) != 0;
     this.h8  = (x & 0x20) != 0;
@@ -185,13 +185,14 @@ class MARIA {
       return 0;
     else {
       this.cycles += 3;
-      //this.profiler && this.profiler.logRead(a);
-      return this.bus.read(a);
+      var val = this.bus.read(a);
+      //this.probe.logRead(a, val); // TODO: use Bus, clocks
+      return val;
     }
   }
   doDMA(platform : Atari7800) {
     let bus = this.bus = platform;
-    //let profiler = this.profiler = platform.profiler;
+    let probe = this.probe = platform.probe;
     this.cycles = 0;
     this.pixels.fill(this.regs[0x0]);
     if (this.isDMAEnabled()) {
@@ -301,8 +302,8 @@ export class Atari7800 extends BasicMachine {
 
   cpuFrequency = 1789772;
   canvasWidth = 320;
-  numTotalScanlines = 262;
-  numVisibleScanlines = 258-16;
+  numTotalScanlines = linesPerFrame;
+  numVisibleScanlines = numVisibleLines;
   defaultROMSize = 0xc000;
   cpuCyclesPerLine = 113.5;
   sampleRate = audioSampleRate;
@@ -402,7 +403,7 @@ export class Atari7800 extends BasicMachine {
       if (visible) {
         // do DMA for scanline?
         let dmaClocks = this.maria.doDMA(this);
-        this.probe.logClocks(dmaClocks >> 2);
+        this.probe.logClocks(dmaClocks >> 2); // TODO: logDMA
         mc += dmaClocks;
         // copy line to frame buffer
         if (idata) {
@@ -433,10 +434,10 @@ export class Atari7800 extends BasicMachine {
       }
       // audio
       this.audio && this.audioadapter.generate(this.audio);
-      this.probe.logNewScanline(); // TODO: doesn't go in right place
-      // update clocks
+      // update clocks, scanline
       mc -= colorClocksPerLine;
       fc += mc;
+      this.probe.logNewScanline();
     }
     /*
       // TODO let bkcol = this.maria.regs[0x0];

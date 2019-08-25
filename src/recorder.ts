@@ -206,6 +206,7 @@ export class ProbeRecorder implements ProbeAll {
   fclk = 0;
   sl = 0;
   m : Probeable;
+  singleFrame : boolean = true;
 
   constructor(m:Probeable) {
     this.m = m;
@@ -256,6 +257,7 @@ export class ProbeRecorder implements ProbeAll {
   logNewFrame() {
     this.log(ProbeFlags.FRAME);
     this.sl = 0;
+    if (this.singleFrame) this.reset();
   }
   logExecute(address:number) {
     this.log(address | ProbeFlags.EXECUTE);

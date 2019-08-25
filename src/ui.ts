@@ -262,8 +262,8 @@ function refreshWindowList() {
       return new Views.AddressHeatMapView();
     });
     // TODO: only if raster
-    addWindowItem("#crtheatmap", "CRT Heatmap", () => {
-      return new Views.RasterHeatMapView();
+    addWindowItem("#crtheatmap", "Screen Heatmap", () => {
+      return new Views.RasterPCHeatMapView();
     });
   }
   addWindowItem('#asseteditor', 'Asset Editor', () => {
