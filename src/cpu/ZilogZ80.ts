@@ -1730,6 +1730,9 @@ export class Z80 implements CPU, InstructionBased, IOBusConnected, SavesState<Z8
   interrupt(itype:number) {
     this.cpu.requestInterrupt(itype);
   }
+  NMI() {
+    this.cpu.nonMaskableInterrupt();
+  }
   getSP() {
     return this.cpu.getSP();
   }
