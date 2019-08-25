@@ -34,6 +34,7 @@ class SG1000Platform extends BaseZ80MachinePlatform<SG1000> implements Platform 
   getPresets()          { return SG1000_PRESETS; }
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.read(a); }
+  readVRAMAddress(a)    { return this.machine.readVRAMAddress(a); }
 }
 
 class SMSPlatform extends BaseZ80MachinePlatform<SMS> implements Platform {
@@ -42,6 +43,7 @@ class SMSPlatform extends BaseZ80MachinePlatform<SMS> implements Platform {
   getPresets()          { return SMS_PRESETS; }
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.read(a); }
+  readVRAMAddress(a)    { return this.machine.readVRAMAddress(a); }
 }
 
 ///

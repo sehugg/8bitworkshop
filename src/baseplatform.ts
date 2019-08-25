@@ -480,7 +480,7 @@ export function cpuStateToLongString_Z80(c) {
   function decodeFlags(flags) {
     return printFlags(flags, ["S","Z",,"H",,"V","N","C"], true);
   }
-  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.AF) + "\n"
+  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.AF) + " " + (c.iff1?"I":"-") + (c.iff2?"I":"-") + "\n"
        + "SP " + hex(c.SP,4) + "  IR " + hex(c.IR,4) + "\n"
        + "IX " + hex(c.IX,4) + "  IY " + hex(c.IY,4) + "\n"
        + "AF " + hex(c.AF,4) + "  BC " + hex(c.BC,4) + "\n"
@@ -1193,7 +1193,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     this.audio && this.audio.stop();
   }
 
-// TODO
+// TODO: reset target clock counter
   breakpointHit(targetClock : number) {
     console.log(this.debugTargetClock, targetClock, this.debugClock, this.machine.cpu.isStable());
     this.debugTargetClock = targetClock;
@@ -1305,6 +1305,7 @@ export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMach
         console.log(sp,start,end);
         return dumpStackToString(<Platform><any>this, [], start, end, sp, 0xcd);
       }
+      default: return isDebuggable(this.machine) && this.machine.getDebugInfo(category, state);
     }
   }
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {

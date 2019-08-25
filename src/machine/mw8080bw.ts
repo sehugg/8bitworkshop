@@ -118,9 +118,9 @@ export class Midway8080 extends BasicScanlineMachine {
   drawScanline() {
     // at end of scanline
     if (this.scanline == 95)
-      this.cpu.interrupt(0x8); // RST $8
+      this.cpu.interrupt(0xcf); // RST $8
     else if (this.scanline == 223)
-      this.cpu.interrupt(0x10); // RST $10
+      this.cpu.interrupt(0xd7); // RST $10
   }
 
   advanceFrame(maxCycles, trap) : number {

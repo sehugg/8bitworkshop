@@ -2,1697 +2,3359 @@
 
 import { CPU, Bus, InstructionBased, IOBusConnected, SavesState, Interruptable } from "../devices";
 
-/*
-Z80 core.
-To avoid mass repetition of code across the numerous instruction variants
-the code for this component is built up programmatically and evaluated in
-the global scope. CoffeeScript is used here for its support of multi-line
-strings, and expression interpolation in strings.
- */
+///////////////////////////////////////////////////////////////////////////////
+/// @file Z80.js
+///
+/// @brief Emulator for the Zilog Z80 microprocessor
+///
+/// @author Matthew Howell
+///
+/// @remarks
+///  This module is a simple, straightforward instruction interpreter.
+///   There is no fancy dynamic recompilation or cycle-accurate emulation.
+///   The author believes that this should be sufficient for any emulator that
+///   would be feasible to write in JavaScript anyway.
+///  The code and the comments in this file assume that the reader is familiar
+///   with the Z80 architecture. If you're not, here are some references I use:
+///  http://clrhome.org/table/ - Z80 instruction set tables
+///  http://www.zilog.com/docs/z80/um0080.pdf - The official manual
+///  http://www.myquest.nl/z80undocumented/z80-documented-v0.91.pdf
+///   - The Undocumented Z80, Documented
+///
+/// @copyright (c) 2013 Matthew Howell
+///  This code is released under the MIT license,
+///  a copy of which is available in the associated README.md file,
+///  or at http://opensource.org/licenses/MIT
+///////////////////////////////////////////////////////////////////////////////
 
+"use strict";
 
-/*
-Registers are stored in a typed array as a way of automatically casting
-calculations to 8/16 bit, and to allow accessing them interchangeably as
-register pairs or individual registers by having two arrays backed by the
-same buffer. For the latter to work, we need to find out the endianness
-of the host processor, as typed arrays are native-endian
-	(http://lists.w3.org/Archives/Public/public-script-coord/2010AprJun/0048.html,
-	http://cat-in-136.blogspot.com/2011/03/javascript-typed-array-use-native.html)
- */
-
-var buildZ80 = function(opts) {
-    var ADC_A, ADC_HL_RR, ADD_A, ADD_RR_RR, AND_A, BIT_N_R, BIT_N_iHLi, BIT_N_iRRpNNi, CALL_C_NN, CALL_NN, CCF, CPD, CPDR, CPI, CPIR, CPIR_CPDR, CPI_CPD, CPL, CP_A, DAA, DEC, DEC_RR, DI, DJNZ_N, EI, EXX, EX_RR_RR, EX_iSPi_RR, FLAG_3, FLAG_5, FLAG_C, FLAG_H, FLAG_N, FLAG_P, FLAG_S, FLAG_V, FLAG_Z, HALT, IM, INC, INC_RR, IND, INDR, INI, INIR, INIR_INDR, INI_IND, IN_A_N, IN_F_iCi, IN_R_iCi, JP_C_NN, JP_NN, JP_RR, JR_C_N, JR_N, LDBITOP, LDD, LDDR, LDI, LDIR, LDIR_LDDR, LDI_LDD, LDSHIFTOP, LD_A_iNNi, LD_RR_NN, LD_RR_RR, LD_RR_iNNi, LD_R_N, LD_R_R, LD_R_iRRi, LD_R_iRRpNNi, LD_iNNi_A, LD_iNNi_RR, LD_iRRi_N, LD_iRRi_R, LD_iRRpNNi_N, LD_iRRpNNi_R, NEG, NOP, OPCODE_RUN_STRINGS, OPCODE_RUN_STRINGS_CB, OPCODE_RUN_STRINGS_DD, OPCODE_RUN_STRINGS_DDCB, OPCODE_RUN_STRINGS_ED, OPCODE_RUN_STRINGS_FD, OPCODE_RUN_STRINGS_FDCB, OR_A, OTDR, OTIR, OTIR_OTDR, OUTD, OUTI, OUTI_OUTD, OUT_iCi_0, OUT_iCi_R, OUT_iNi_A, POP_RR, PUSH_RR, RES, RET, RETN, RET_C, RL, RLA, RLC, RLCA, RLD, RR, RRA, RRC, RRCA, RRD, RST, SBC_A, SBC_HL_RR, SCF, SET, SHIFT, SLA, SLL, SRA, SRL, SUB_A, XOR_A, defineZ80JS, endianTestBuffer, endianTestUint16, endianTestUint8, generateddfdOpcodeSet, generateddfdcbOpcodeSet, getParamBoilerplate, indirectEval, isBigEndian, opcodeSwitch, rA, rA_, rB, rB_, rC, rC_, rD, rD_, rE, rE_, rF, rF_, rH, rH_, rI, rIXH, rIXL, rIYH, rIYL, rL, rL_, rR, registerIndexes, registerPairIndexes, rpAF, rpAF_, rpBC, rpBC_, rpDE, rpDE_, rpHL, rpHL_, rpIR, rpIX, rpIY, rpPC, rpSP, setUpStateJS;
-    if (opts == null) {
-      opts = {};
-    }
-    endianTestBuffer = new ArrayBuffer(2);
-    endianTestUint16 = new Uint16Array(endianTestBuffer);
-    endianTestUint8 = new Uint8Array(endianTestBuffer);
-    endianTestUint16[0] = 0x0100;
-    isBigEndian = endianTestUint8[0] === 0x01;
-    rpAF = 0;
-    rpBC = 1;
-    rpDE = 2;
-    rpHL = 3;
-    rpAF_ = 4;
-    rpBC_ = 5;
-    rpDE_ = 6;
-    rpHL_ = 7;
-    rpIX = 8;
-    rpIY = 9;
-    rpIR = 10;
-    rpSP = 11;
-    rpPC = 12;
-    registerPairIndexes = {
-      'IX': 8,
-      'IY': 9
-    };
-    if (isBigEndian) {
-      rA = 0;
-      rF = 1;
-      rB = 2;
-      rC = 3;
-      rD = 4;
-      rE = 5;
-      rH = 6;
-      rL = 7;
-      rA_ = 8;
-      rF_ = 9;
-      rB_ = 10;
-      rC_ = 11;
-      rD_ = 12;
-      rE_ = 13;
-      rH_ = 14;
-      rL_ = 15;
-      rIXH = 16;
-      rIXL = 17;
-      rIYH = 18;
-      rIYL = 19;
-      rI = 20;
-      rR = 21;
-      registerIndexes = {
-        A: 0,
-        F: 1,
-        B: 2,
-        C: 3,
-        D: 4,
-        E: 5,
-        H: 6,
-        L: 7,
-        IXH: 16,
-        IXL: 17,
-        IYH: 18,
-        IYL: 19
-      };
-    } else {
-      rF = 0;
-      rA = 1;
-      rC = 2;
-      rB = 3;
-      rE = 4;
-      rD = 5;
-      rL = 6;
-      rH = 7;
-      rF_ = 8;
-      rA_ = 9;
-      rC_ = 10;
-      rB_ = 11;
-      rE_ = 12;
-      rD_ = 13;
-      rL_ = 14;
-      rH_ = 15;
-      rIXL = 16;
-      rIXH = 17;
-      rIYL = 18;
-      rIYH = 19;
-      rR = 20;
-      rI = 21;
-      registerIndexes = {
-        F: 0,
-        A: 1,
-        C: 2,
-        B: 3,
-        E: 4,
-        D: 5,
-        L: 6,
-        H: 7,
-        IXL: 16,
-        IXH: 17,
-        IYL: 18,
-        IYH: 19
-      };
-    }
-    FLAG_C = 0x01;
-    FLAG_N = 0x02;
-    FLAG_P = 0x04;
-    FLAG_V = 0x04;
-    FLAG_3 = 0x08;
-    FLAG_H = 0x10;
-    FLAG_5 = 0x20;
-    FLAG_Z = 0x40;
-    FLAG_S = 0x80;
-    setUpStateJS = "var memory = opts.memory;\nvar ioBus = opts.ioBus;\nvar display = opts.display;\n\nvar registerBuffer = new ArrayBuffer(26);\n/* Expose registerBuffer as both register pairs and individual registers */\nvar regPairs = new Uint16Array(registerBuffer);\nvar regs = new Uint8Array(registerBuffer);\n\nvar tstates = 0; /* number of tstates since start of this frame */\nvar iff1 = 0;\nvar iff2 = 0;\nvar im = 0;\nvar halted = false;\n\n/* tables for setting Z80 flags */\n\n/*\n	Whether a half carry occurred or not can be determined by looking at\n	the 3rd bit of the two arguments and the result; these are hashed\n	into this table in the form r12, where r is the 3rd bit of the\n	result, 1 is the 3rd bit of the 1st argument and 2 is the\n	third bit of the 2nd argument; the tables differ for add and subtract\n	operations\n*/\nvar halfcarryAddTable = new Uint8Array([0, " + FLAG_H + ", " + FLAG_H + ", " + FLAG_H + ", 0, 0, 0, " + FLAG_H + "]);\nvar halfcarrySubTable = new Uint8Array([0, 0, " + FLAG_H + ", 0, " + FLAG_H + ", 0, " + FLAG_H + ", " + FLAG_H + "]);\n\n/*\n	Similarly, overflow can be determined by looking at the 7th bits; again\n	the hash into this table is r12\n*/\nvar overflowAddTable = new Uint8Array([0, 0, 0, " + FLAG_V + ", " + FLAG_V + ", 0, 0, 0]);\nvar overflowSubTable = new Uint8Array([0, " + FLAG_V + ", 0, 0, 0, 0, " + FLAG_V + ", 0]);\n\nvar sz53Table = new Uint8Array(0x100); /* The S, Z, 5 and 3 bits of the index */\nvar parityTable = new Uint8Array(0x100); /* The parity of the lookup value */\nvar sz53pTable = new Uint8Array(0x100); /* OR the above two tables together */\n\nfor (var i = 0; i < 0x100; i++) {\n	sz53Table[i] = i & ( " + (FLAG_3 | FLAG_5 | FLAG_S) + " );\n	var j = i;\n	var parity = 0;\n	for (var k = 0; k < 8; k++) {\n		parity ^= j & 1;\n		j >>=1;\n	}\n\n	parityTable[i] = (parity ? 0 : " + FLAG_P + ");\n	sz53pTable[i] = sz53Table[i] | parityTable[i];\n\n	sz53Table[0] |= " + FLAG_Z + ";\n	sz53pTable[0] |= " + FLAG_Z + ";\n}\n\nvar interruptible = true;\nvar interruptPending = false;\nvar interruptDataBus = 0;\nvar opcodePrefix = '';";
-
-    /*
-    		Boilerplate generator: a helper to deal with classes of opcodes which perform
-    		the same task on different types of operands: e.g. XOR B, XOR (HL), XOR nn, XOR (IX+nn).
-    		This function accepts the parameter in question, and returns a set of canned strings
-    		for use in the opcode runner body:
-    		'getter': a block of code that performs any necessary memory access etc in order to
-    			make 'v' a valid expression;
-    		'v': an expression with no side effects, evaluating to the operand's value. (Must also be a valid lvalue for assignment)
-    		'trunc': an expression such as '& 0xff' to truncate v back to its proper range, if appropriate
-    		'setter': a block of code that writes an updated value back to its proper location, if any
-    
-    		Passing hasIXOffsetAlready = true indicates that we have already read the offset value of (IX+nn)/(IY+nn)
-    		into a variable 'offset' (necessary because DDCB/FFCB instructions put this before the final opcode byte).
-     */
-    getParamBoilerplate = function(param, hasIXOffsetAlready) {
-      var getter, match, regNum, rp;
-      if (hasIXOffsetAlready == null) {
-        hasIXOffsetAlready = false;
-      }
-      if (param.match(/^[AFBCDEHL]|I[XY][HL]$/)) {
-        regNum = registerIndexes[param];
-        return {
-          'getter': '',
-          'v': "regs[" + regNum + "]",
-          'trunc': '',
-          'setter': ''
-        };
-      } else if (param === '(HL)') {
-        return {
-          'getter': "var val = READMEM(regPairs[" + rpHL + "]);",
-          'v': 'val',
-          'trunc': '& 0xff',
-          'setter': "CONTEND_READ_NO_MREQ(regPairs[" + rpHL + "], 1);\nWRITEMEM(regPairs[" + rpHL + "], val);"
-        };
-      } else if (param === 'nn') {
-        return {
-          'getter': "var val = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;",
-          'v': 'val',
-          'trunc': '& 0xff',
-          'setter': ''
-        };
-      } else if ((match = param.match(/^\((I[XY])\+nn\)$/))) {
-        rp = registerPairIndexes[match[1]];
-        if (hasIXOffsetAlready) {
-          getter = '';
-        } else {
-          getter = "var offset = READMEM(regPairs[" + rpPC + "]);\nif (offset & 0x80) offset -= 0x100;\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nregPairs[" + rpPC + "]++;";
-        }
-        getter += "var addr = (regPairs[" + rp + "] + offset) & 0xffff;\nvar val = READMEM(addr);";
-        return {
-          'getter': getter,
-          'v': 'val',
-          'trunc': '& 0xff',
-          'setter': "CONTEND_READ_NO_MREQ(addr, 1);\nWRITEMEM(addr, val);"
-        };
-      } else if (param === 'add') {
-        return {
-          'getter': '',
-          'v': 'add',
-          'trunc': '',
-          'setter': ''
-        };
-      } else {
-        throw "Unknown param format: " + param;
-      }
-    };
-
-    /*
-    		Opcode generator functions: each returns a string of Javascript that performs the opcode
-    		when executed within this module's scope. Note that instructions with DDCBnn opcodes also
-    		require an 'offset' variable to be defined as nn (as a signed byte).
-     */
-    ADC_A = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param);
-      return operand.getter + "\n\nvar adctemp = regs[" + rA + "] + " + operand.v + " + (regs[" + rF + "] & " + FLAG_C + ");\nvar lookup = ( (regs[" + rA + "] & 0x88) >> 3 ) | ( (" + operand.v + " & 0x88) >> 2 ) | ( (adctemp & 0x88) >> 1 );\nregs[" + rA + "] = adctemp;\nregs[" + rF + "] = ( adctemp & 0x100 ? " + FLAG_C + " : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[" + rA + "]];";
-    };
-    ADC_HL_RR = function(rp2) {
-      return "var add16temp = regPairs[" + rpHL + "] + regPairs[" + rp2 + "] + (regs[" + rF + "] & " + FLAG_C + ");\nvar lookup = (\n	( (regPairs[" + rpHL + "] & 0x8800) >> 11 ) |\n	( (regPairs[" + rp2 + "] & 0x8800) >> 10 ) |\n	( (add16temp & 0x8800) >>  9 )\n);\nregPairs[" + rpHL + "] = add16temp;\nregs[" + rF + "] = (\n	(add16temp & 0x10000 ? " + FLAG_C + " : 0) |\n	overflowAddTable[lookup >> 4] |\n	(regs[" + rH + "] & " + (FLAG_3 | FLAG_5 | FLAG_S) + ") |\n	halfcarryAddTable[lookup & 0x07] |\n	(regPairs[" + rpHL + "] ? 0 : " + FLAG_Z + ")\n);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);";
-    };
-    ADD_A = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param);
-      return operand.getter + "\n\nvar addtemp = regs[" + rA + "] + " + operand.v + ";\nvar lookup = ( (regs[" + rA + "] & 0x88) >> 3 ) | ( (" + operand.v + " & 0x88) >> 2 ) | ( (addtemp & 0x88) >> 1 );\nregs[" + rA + "] = addtemp;\nregs[" + rF + "] = ( addtemp & 0x100 ? " + FLAG_C + " : 0 ) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[regs[" + rA + "]];";
-    };
-    ADD_RR_RR = function(rp1, rp2) {
-      return "var add16temp = regPairs[" + rp1 + "] + regPairs[" + rp2 + "];\nvar lookup = ( (regPairs[" + rp1 + "] & 0x0800) >> 11 ) | ( (regPairs[" + rp2 + "] & 0x0800) >> 10 ) | ( (add16temp & 0x0800) >>  9 );\nregPairs[" + rp1 + "] = add16temp;\nregs[" + rF + "] = ( regs[" + rF + "] & ( " + (FLAG_V | FLAG_Z | FLAG_S) + " ) ) | ( add16temp & 0x10000 ? " + FLAG_C + " : 0 ) | ( ( add16temp >> 8 ) & ( " + (FLAG_3 | FLAG_5) + " ) ) | halfcarryAddTable[lookup];\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);";
-    };
-    AND_A = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param);
-      return operand.getter + "\n\nregs[" + rA + "] &= " + operand.v + ";\nregs[" + rF + "] = " + FLAG_H + " | sz53pTable[regs[" + rA + "]];";
-    };
-    BIT_N_iRRpNNi = function(bit, rp) {
-      var updateSignFlag;
-      if (bit === 7) {
-        updateSignFlag = "if (value & 0x80) regs[" + rF + "] |= " + FLAG_S + ";";
-      } else {
-        updateSignFlag = "";
-      }
-      return "var addr = (regPairs[" + rp + "] + offset) & 0xffff;\nvar value = READMEM(addr);\nregs[" + rF + "] = ( regs[" + rF + "] & " + FLAG_C + " ) | " + FLAG_H + " | ( ( addr >> 8 ) & " + (FLAG_3 | FLAG_5) + " );\nif ( !(value & " + (0x01 << bit) + ") ) regs[" + rF + "] |= " + (FLAG_P | FLAG_Z) + ";\n" + updateSignFlag + "\nCONTEND_READ_NO_MREQ(addr, 1);";
-    };
-    BIT_N_iHLi = function(bit) {
-      var updateSignFlag;
-      if (bit === 7) {
-        updateSignFlag = "if (value & 0x80) regs[" + rF + "] |= " + FLAG_S + ";";
-      } else {
-        updateSignFlag = "";
-      }
-      return "var addr = regPairs[" + rpHL + "];\nvar value = READMEM(addr);\nCONTEND_READ_NO_MREQ(addr, 1);\nregs[" + rF + "] = ( regs[" + rF + "] & " + FLAG_C + " ) | " + FLAG_H + " | ( value & " + (FLAG_3 | FLAG_5) + " );\nif( !(value & " + (0x01 << bit) + ") ) regs[" + rF + "] |= " + (FLAG_P | FLAG_Z) + ";\n" + updateSignFlag;
-    };
-    BIT_N_R = function(bit, r) {
-      var updateSignFlag;
-      if (bit === 7) {
-        updateSignFlag = "if (regs[" + r + "] & 0x80) regs[" + rF + "] |= " + FLAG_S + ";";
-      } else {
-        updateSignFlag = "";
-      }
-      return "regs[" + rF + "] = ( regs[" + rF + "] & " + FLAG_C + " ) | " + FLAG_H + " | ( regs[" + r + "] & " + (FLAG_3 | FLAG_5) + " );\nif( !(regs[" + r + "] & " + (0x01 << bit) + ") ) regs[" + rF + "] |= " + (FLAG_P | FLAG_Z) + ";\n" + updateSignFlag;
-    };
-    CALL_C_NN = function(flag, sense) {
-      var condition;
-      condition = "regs[" + rF + "] & " + flag;
-      if (!sense) {
-        condition = "!(" + condition + ")";
-      }
-      return "if (" + condition + ") {\n	var l = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\n	var h = READMEM(regPairs[" + rpPC + "]);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n	regPairs[" + rpPC + "]++;\n	regPairs[" + rpSP + "]--; WRITEMEM(regPairs[" + rpSP + "], regPairs[" + rpPC + "] >> 8);\n	regPairs[" + rpSP + "]--; WRITEMEM(regPairs[" + rpSP + "], regPairs[" + rpPC + "] & 0xff);\n	regPairs[" + rpPC + "] = (h<<8) | l;\n} else {\n	CONTEND_READ(regPairs[" + rpPC + "], 3);\n	regPairs[" + rpPC + "]++;\n	CONTEND_READ(regPairs[" + rpPC + "], 3);\n	regPairs[" + rpPC + "]++;\n}";
-    };
-    CALL_NN = function() {
-      return "var l = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar h = READMEM(regPairs[" + rpPC + "]);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nregPairs[" + rpPC + "]++;\nregPairs[" + rpSP + "]--; WRITEMEM(regPairs[" + rpSP + "], regPairs[" + rpPC + "] >> 8);\nregPairs[" + rpSP + "]--; WRITEMEM(regPairs[" + rpSP + "], regPairs[" + rpPC + "] & 0xff);\nregPairs[" + rpPC + "] = (h<<8) | l;";
-    };
-    CCF = function() {
-      return "regs[" + rF + "] = ( regs[" + rF + "] & " + (FLAG_P | FLAG_Z | FLAG_S) + " ) | ( (regs[" + rF + "] & " + FLAG_C + ") ? " + FLAG_H + " : " + FLAG_C + " ) | ( regs[" + rA + "] & " + (FLAG_3 | FLAG_5) + " );";
-    };
-    CP_A = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param);
-      return operand.getter + "\n\nvar cptemp = regs[" + rA + "] - " + operand.v + ";\nvar lookup = ( (regs[" + rA + "] & 0x88) >> 3 ) | ( (" + operand.v + " & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );\nregs[" + rF + "] = ( cptemp & 0x100 ? " + FLAG_C + " : ( cptemp ? 0 : " + FLAG_Z + " ) ) | " + FLAG_N + " | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( " + operand.v + " & " + (FLAG_3 | FLAG_5) + " ) | ( cptemp & " + FLAG_S + " );";
-    };
-    CPI_CPD = function(modifier) {
-      return "var value = READMEM(regPairs[" + rpHL + "]);\nvar bytetemp = (regs[" + rA + "] - value) & 0xff;\nvar lookup = ((regs[" + rA + "] & 0x08) >> 3) | ((value & 0x08) >> 2) | ((bytetemp & 0x08) >> 1);\nvar originalHL = regPairs[" + rpHL + "];\nCONTEND_READ_NO_MREQ(originalHL, 1);\nCONTEND_READ_NO_MREQ(originalHL, 1);\nCONTEND_READ_NO_MREQ(originalHL, 1);\nCONTEND_READ_NO_MREQ(originalHL, 1);\nCONTEND_READ_NO_MREQ(originalHL, 1);\nregPairs[" + rpHL + "]" + modifier + "; regPairs[" + rpBC + "]--;\nregs[" + rF + "] = (regs[" + rF + "] & " + FLAG_C + ") | (regPairs[" + rpBC + "] ? " + (FLAG_V | FLAG_N) + " : " + FLAG_N + ") | halfcarrySubTable[lookup] | (bytetemp ? 0 : " + FLAG_Z + ") | (bytetemp & " + FLAG_S + ");\nif (regs[" + rF + "] & " + FLAG_H + ") bytetemp--;\nregs[" + rF + "] |= (bytetemp & " + FLAG_3 + ") | ( (bytetemp & 0x02) ? " + FLAG_5 + " : 0 );";
-    };
-    CPIR_CPDR = function(modifier) {
-      return (CPI_CPD(modifier)) + "\nif ((regs[" + rF + "] & " + (FLAG_V | FLAG_Z) + ") == " + FLAG_V + ") {\n	regPairs[" + rpPC + "] -= 2;\n	CONTEND_READ_NO_MREQ(originalHL, 1);\n	CONTEND_READ_NO_MREQ(originalHL, 1);\n	CONTEND_READ_NO_MREQ(originalHL, 1);\n	CONTEND_READ_NO_MREQ(originalHL, 1);\n	CONTEND_READ_NO_MREQ(originalHL, 1);\n}";
-    };
-    CPD = function() {
-      return CPI_CPD('--');
-    };
-    CPI = function() {
-      return CPI_CPD('++');
-    };
-    CPDR = function() {
-      return CPIR_CPDR('--');
-    };
-    CPIR = function() {
-      return CPIR_CPDR('++');
-    };
-    DAA = function() {
-      var addClause, subClause;
-      subClause = SUB_A('add');
-      addClause = ADD_A('add');
-      return "var add = 0;\nvar carry = regs[" + rF + "] & " + FLAG_C + ";\nif( ( regs[" + rF + "] & " + FLAG_H + " ) || ( ( regs[" + rA + "] & 0x0f ) > 9 ) ) add = 6;\nif( carry || ( regs[" + rA + "] > 0x99 ) ) add |= 0x60;\nif( regs[" + rA + "] > 0x99 ) carry = " + FLAG_C + ";\nif( regs[" + rF + "] & " + FLAG_N + " ) {\n	" + subClause + "\n} else {\n	" + addClause + "\n}\nregs[" + rF + "] = ( regs[" + rF + "] & " + (~(FLAG_C | FLAG_P)) + " ) | carry | parityTable[regs[" + rA + "]];";
-    };
-    CPL = function() {
-      return "regs[" + rA + "] ^= 0xff;\nregs[" + rF + "] = (regs[" + rF + "] & " + (FLAG_C | FLAG_P | FLAG_Z | FLAG_S) + ") | (regs[" + rA + "] & " + (FLAG_3 | FLAG_5) + ") | " + (FLAG_N | FLAG_H) + ";";
-    };
-    DEC = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param);
-      return operand.getter + "\n\nregs[" + rF + "] = (regs[" + rF + "] & " + FLAG_C + " ) | ( " + operand.v + " & 0x0f ? 0 : " + FLAG_H + " ) | " + FLAG_N + ";\n" + operand.v + " = (" + operand.v + " - 1) " + operand.trunc + ";\n\n" + operand.setter + "\nregs[" + rF + "] |= (" + operand.v + " == 0x7f ? " + FLAG_V + " : 0) | sz53Table[" + operand.v + "];";
-    };
-    DEC_RR = function(rp) {
-      return "regPairs[" + rp + "]--;\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);";
-    };
-    DI = function() {
-      return "iff1 = iff2 = 0;";
-    };
-    DJNZ_N = function() {
-      return "CONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nregs[" + rB + "]--;\nif (regs[" + rB + "]) {\n	/* take branch */\n	var offset = READMEM(regPairs[" + rpPC + "]);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n	regPairs[" + rpPC + "]++;\n	regPairs[" + rpPC + "] += (offset & 0x80 ? offset - 0x100 : offset);\n} else {\n	/* do not take branch */\n	CONTEND_READ(regPairs[" + rpPC + "], 3);\n	regPairs[" + rpPC + "]++;\n}";
-    };
-    EI = function() {
-      return "iff1 = iff2 = 1;\ninterruptible = false;";
-    };
-    EX_iSPi_RR = function(rp) {
-      return "var l = READMEM(regPairs[" + rpSP + "]);\nvar spPlus1 = (regPairs[" + rpSP + "] + 1) & 0xffff;\nvar h = READMEM(spPlus1);\nCONTEND_READ_NO_MREQ(spPlus1, 1);\nWRITEMEM(spPlus1, regPairs[" + rp + "] >> 8);\nWRITEMEM(regPairs[" + rpSP + "], regPairs[" + rp + "] & 0xff);\nregPairs[" + rp + "] = (h<<8) | l;\nCONTEND_WRITE_NO_MREQ(regPairs[" + rpSP + "], 1);\nCONTEND_WRITE_NO_MREQ(regPairs[" + rpSP + "], 1);";
-    };
-    EX_RR_RR = function(rp1, rp2) {
-      return "var temp = regPairs[" + rp1 + "];\nregPairs[" + rp1 + "] = regPairs[" + rp2 + "];\nregPairs[" + rp2 + "] = temp;";
-    };
-    EXX = function() {
-      return "var wordtemp;\nwordtemp = regPairs[" + rpBC + "]; regPairs[" + rpBC + "] = regPairs[" + rpBC_ + "]; regPairs[" + rpBC_ + "] = wordtemp;\nwordtemp = regPairs[" + rpDE + "]; regPairs[" + rpDE + "] = regPairs[" + rpDE_ + "]; regPairs[" + rpDE_ + "] = wordtemp;\nwordtemp = regPairs[" + rpHL + "]; regPairs[" + rpHL + "] = regPairs[" + rpHL_ + "]; regPairs[" + rpHL_ + "] = wordtemp;";
-    };
-    HALT = function() {
-      return "halted = true;\nregPairs[" + rpPC + "]--;";
-    };
-    IM = function(val) {
-      return "im = " + val + ";";
-    };
-    IN_A_N = function() {
-      return "var val = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar port = (regs[" + rA + "] << 8) | val;\nCONTEND_PORT_EARLY(port);\nregs[" + rA + "] = ioBus.read(port);\nCONTEND_PORT_LATE(port);";
-    };
-    IN_F_iCi = function() {
-      return "var port = regPairs[" + rpBC + "];\nCONTEND_PORT_EARLY(port);\nvar result = ioBus.read(port);\nCONTEND_PORT_LATE(port);\nregs[" + rF + "] = (regs[" + rF + "] & " + FLAG_C + ") | sz53pTable[result];";
-    };
-    IN_R_iCi = function(r) {
-      return "var port = regPairs[" + rpBC + "];\nCONTEND_PORT_EARLY(port);\nregs[" + r + "] = ioBus.read(port);\nCONTEND_PORT_LATE(port);\nregs[" + rF + "] = (regs[" + rF + "] & " + FLAG_C + ") | sz53pTable[regs[" + r + "]];";
-    };
-    INC = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param);
-      return operand.getter + "\n\nregs[" + rF + "] = (regs[" + rF + "] & " + FLAG_C + ") | (" + operand.v + " & 0x0f ? 0 : " + FLAG_H + ") | " + FLAG_N + ";\n" + operand.v + " = (" + operand.v + " + 1) " + operand.trunc + ";\n\n" + operand.setter + "\nregs[" + rF + "] = (regs[" + rF + "] & " + FLAG_C + ") | ( " + operand.v + " == 0x80 ? " + FLAG_V + " : 0 ) | ( " + operand.v + " & 0x0f ? 0 : " + FLAG_H + " ) | sz53Table[" + operand.v + "];";
-    };
-    INC_RR = function(rp) {
-      return "regPairs[" + rp + "]++;\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);";
-    };
-    INI_IND = function(modifier) {
-      return "CONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_PORT_EARLY(regPairs[" + rpBC + "]);\nvar initemp = ioBus.read(regPairs[" + rpBC + "]);\nCONTEND_PORT_LATE(regPairs[" + rpBC + "]);\nWRITEMEM(regPairs[" + rpHL + "], initemp);\nregs[" + rB + "]--;\nvar originalHL = regPairs[" + rpHL + "];\nregPairs[" + rpHL + "]" + modifier + modifier + ";\nvar initemp2 = (initemp + regs[" + rC + "] " + modifier + " 1) & 0xff;\n\nregs[" + rF + "] = (initemp & 0x80 ? " + FLAG_N + " : 0) | ((initemp2 < initemp) ? " + (FLAG_H | FLAG_C) + " : 0 ) | ( parityTable[ (initemp2 & 0x07) ^ regs[" + rB + "] ] ? " + FLAG_P + " : 0 ) | sz53Table[regs[" + rB + "]];";
-    };
-    INIR_INDR = function(modifier) {
-      return (INI_IND(modifier)) + "\nif (regs[" + rB + "]) {\n	CONTEND_WRITE_NO_MREQ(originalHL, 1);\n	CONTEND_WRITE_NO_MREQ(originalHL, 1);\n	CONTEND_WRITE_NO_MREQ(originalHL, 1);\n	CONTEND_WRITE_NO_MREQ(originalHL, 1);\n	CONTEND_WRITE_NO_MREQ(originalHL, 1);\n	regPairs[" + rpPC + "] -= 2;\n}";
-    };
-    INI = function() {
-      return INI_IND('+');
-    };
-    IND = function() {
-      return INI_IND('-');
-    };
-    INIR = function() {
-      return INIR_INDR('+');
-    };
-    INDR = function() {
-      return INIR_INDR('-');
-    };
-    JP_C_NN = function(flag, sense) {
-      var condition;
-      condition = "regs[" + rF + "] & " + flag;
-      if (!sense) {
-        condition = "!(" + condition + ")";
-      }
-      return "if (" + condition + ") {\n	var l = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\n	var h = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\n	regPairs[" + rpPC + "] = (h<<8) | l;\n} else {\n	CONTEND_READ(regPairs[" + rpPC + "], 3);\n	regPairs[" + rpPC + "]++;\n	CONTEND_READ(regPairs[" + rpPC + "], 3);\n	regPairs[" + rpPC + "]++;\n}";
-    };
-    JP_RR = function(rp) {
-      return "regPairs[" + rpPC + "] = regPairs[" + rp + "];";
-    };
-    JP_NN = function() {
-      return "var l = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar h = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nregPairs[" + rpPC + "] = (h<<8) | l;";
-    };
-    JR_C_N = function(flag, sense) {
-      var condition;
-      condition = "regs[" + rF + "] & " + flag;
-      if (!sense) {
-        condition = "!(" + condition + ")";
-      }
-      return "if (" + condition + ") {\n	var offset = READMEM(regPairs[" + rpPC + "]);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n	regPairs[" + rpPC + "]++;\n	regPairs[" + rpPC + "] += (offset & 0x80 ? offset - 0x100 : offset);\n} else {\n	CONTEND_READ(regPairs[" + rpPC + "], 3);\n	regPairs[" + rpPC + "]++; /* skip past offset byte */\n}";
-    };
-    JR_N = function() {
-      return "var offset = READMEM(regPairs[" + rpPC + "]);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nregPairs[" + rpPC + "]++;\nregPairs[" + rpPC + "] += (offset & 0x80 ? offset - 0x100 : offset);";
-    };
-    LD_A_iNNi = function() {
-      return "var l = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar h = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar addr = (h<<8) | l;\nregs[" + rA + "] = READMEM(addr);";
-    };
-    LD_iNNi_A = function() {
-      return "var l = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar h = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar addr = (h<<8) | l;\nWRITEMEM(addr, regs[" + rA + "]);";
-    };
-    LD_iNNi_RR = function(rp) {
-      return "var l = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar h = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar addr = (h<<8) | l;\nWRITEMEM(addr, regPairs[" + rp + "] & 0xff);\naddr = (addr + 1) & 0xffff;\nWRITEMEM(addr, regPairs[" + rp + "] >> 8);";
-    };
-    LD_iRRi_N = function(rp) {
-      return "var n = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nWRITEMEM(regPairs[" + rp + "], n);";
-    };
-    LD_iRRi_R = function(rp, r) {
-      return "WRITEMEM(regPairs[" + rp + "], regs[" + r + "]);";
-    };
-    LD_iRRpNNi_N = function(rp) {
-      return "var offset = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nif (offset & 0x80) offset -= 0x100;\nvar addr = (regPairs[" + rp + "] + offset) & 0xffff;\n\nvar val = READMEM(regPairs[" + rpPC + "]);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nregPairs[" + rpPC + "]++;\nWRITEMEM(addr, val);";
-    };
-    LD_iRRpNNi_R = function(rp, r) {
-      return "var offset = READMEM(regPairs[" + rpPC + "]);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nregPairs[" + rpPC + "]++;\nif (offset & 0x80) offset -= 0x100;\nvar addr = (regPairs[" + rp + "] + offset) & 0xffff;\n\nWRITEMEM(addr, regs[" + r + "]);";
-    };
-    LD_R_iRRi = function(r, rp) {
-      return "regs[" + r + "] = READMEM(regPairs[" + rp + "]);";
-    };
-    LD_R_iRRpNNi = function(r, rp) {
-      return "var offset = READMEM(regPairs[" + rpPC + "]);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\nregPairs[" + rpPC + "]++;\nif (offset & 0x80) offset -= 0x100;\nvar addr = (regPairs[" + rp + "] + offset) & 0xffff;\n\nregs[" + r + "] = READMEM(addr);";
-    };
-    LD_R_N = function(r) {
-      return "regs[" + r + "] = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;";
-    };
-    LD_R_R = function(r1, r2) {
-      var output;
-      if (r1 === rI || r2 === rI || r1 === rR || r2 === rR) {
-        output = "CONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nregs[" + r1 + "] = regs[" + r2 + "];";
-        if (r1 === rA) {
-          output += "regs[" + rF + "] = (regs[" + rF + "] & " + FLAG_C + ") | sz53Table[regs[" + rA + "]] | ( iff2 ? " + FLAG_V + " : 0 );";
-        }
-        return output;
-      } else {
-        return "regs[" + r1 + "] = regs[" + r2 + "];";
-      }
-    };
-    LD_RR_iNNi = function(rp, shifted) {
-      return "var l = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar h = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar addr = (h<<8) | l;\nl = READMEM(addr);\naddr = (addr + 1) & 0xffff;\nh = READMEM(addr);\nregPairs[" + rp + "] = (h<<8) | l;";
-    };
-    LD_RR_NN = function(rp) {
-      return "var l = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nvar h = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nregPairs[" + rp + "] = (h<<8) | l;";
-    };
-    LD_RR_RR = function(rp1, rp2) {
-      return "regPairs[" + rp1 + "] = regPairs[" + rp2 + "];\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);";
-    };
-    LDBITOP = function(regName, opcode, bit, rp) {
-      var regNum;
-      regNum = registerIndexes[regName];
-      return "var addr = (regPairs[" + rp + "] + offset) & 0xffff;\nregs[" + regNum + "] = READMEM(addr);\n" + (opcode(bit, regName)) + "\nCONTEND_READ_NO_MREQ(addr, 1);\nWRITEMEM(addr, regs[" + regNum + "]);";
-    };
-    LDI_LDD = function(modifier) {
-      return "var bytetemp = READMEM(regPairs[" + rpHL + "]);\nregPairs[" + rpBC + "]--;\nWRITEMEM(regPairs[" + rpDE + "],bytetemp);\nvar originalDE = regPairs[" + rpDE + "];\nregPairs[" + rpDE + "]" + modifier + "; regPairs[" + rpHL + "]" + modifier + ";\nbytetemp = (bytetemp + regs[" + rA + "]) & 0xff;\nregs[" + rF + "] = (regs[" + rF + "] & " + (FLAG_C | FLAG_Z | FLAG_S) + ") | (regPairs[" + rpBC + "] ? " + FLAG_V + " : 0) | (bytetemp & " + FLAG_3 + ") | ((bytetemp & 0x02) ? " + FLAG_5 + " : 0);\nCONTEND_READ_NO_MREQ(originalDE, 1);\nCONTEND_READ_NO_MREQ(originalDE, 1);";
-    };
-    LDIR_LDDR = function(modifier) {
-      return (LDI_LDD(modifier)) + "\nif (regPairs[" + rpBC + "]) {\n	regPairs[" + rpPC + "]-=2;\n	CONTEND_READ_NO_MREQ(originalDE, 1);\n	CONTEND_READ_NO_MREQ(originalDE, 1);\n	CONTEND_READ_NO_MREQ(originalDE, 1);\n	CONTEND_READ_NO_MREQ(originalDE, 1);\n	CONTEND_READ_NO_MREQ(originalDE, 1);\n}";
-    };
-    LDI = function() {
-      return LDI_LDD('++');
-    };
-    LDD = function() {
-      return LDI_LDD('--');
-    };
-    LDIR = function() {
-      return LDIR_LDDR('++');
-    };
-    LDDR = function() {
-      return LDIR_LDDR('--');
-    };
-    LDSHIFTOP = function(regName, opcode, rp) {
-      var regNum;
-      regNum = registerIndexes[regName];
-      return "var addr = (regPairs[" + rp + "] + offset) & 0xffff;\nregs[" + regNum + "] = READMEM(addr);\n" + (opcode(regName)) + "\nCONTEND_READ_NO_MREQ(addr, 1);\nWRITEMEM(addr, regs[" + regNum + "]);";
-    };
-    NEG = function() {
-      return "var val = regs[" + rA + "];\nvar subtemp = -val;\nvar lookup = ( (val & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );\nregs[" + rA + "] = subtemp;\nregs[" + rF + "] = ( subtemp & 0x100 ? " + FLAG_C + " : 0 ) | " + FLAG_N + " | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[" + rA + "]];";
-    };
-    NOP = function() {
-      return "		";
-    };
-    OR_A = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param);
-      return operand.getter + "\n\nregs[" + rA + "] |= " + operand.v + ";\nregs[" + rF + "] = sz53pTable[regs[" + rA + "]];";
-    };
-    OUT_iCi_0 = function(r) {
-      return "CONTEND_PORT_EARLY(regPairs[" + rpBC + "]);\nioBus.write(regPairs[" + rpBC + "], 0, tstates);\nCONTEND_PORT_LATE(regPairs[" + rpBC + "]);";
-    };
-    OUT_iCi_R = function(r) {
-      return "CONTEND_PORT_EARLY(regPairs[" + rpBC + "]);\nioBus.write(regPairs[" + rpBC + "], regs[" + r + "], tstates);\nCONTEND_PORT_LATE(regPairs[" + rpBC + "]);";
-    };
-    OUT_iNi_A = function() {
-      return "var port = (regs[" + rA + "] << 8) | READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\nCONTEND_PORT_EARLY(port);\nioBus.write(port, regs[" + rA + "], tstates);\nCONTEND_PORT_LATE(port);";
-    };
-    OUTI_OUTD = function(modifier) {
-      return "CONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nvar outitemp = READMEM(regPairs[" + rpHL + "]);\nregs[" + rB + "]--;	/* This does happen first, despite what the specs say */\nCONTEND_PORT_EARLY(regPairs[" + rpBC + "]);\nioBus.write(regPairs[" + rpBC + "], outitemp, tstates);\nCONTEND_PORT_LATE(regPairs[" + rpBC + "]);\n\nregPairs[" + rpHL + "]" + modifier + ";\noutitemp2 = (outitemp + regs[" + rL + "]) & 0xff;\nregs[" + rF + "] = (outitemp & 0x80 ? " + FLAG_N + " : 0) | ( (outitemp2 < outitemp) ? " + (FLAG_H | FLAG_C) + " : 0) | (parityTable[ (outitemp2 & 0x07) ^ regs[" + rB + "] ] ? " + FLAG_P + " : 0 ) | sz53Table[ regs[" + rB + "] ];";
-    };
-    OTIR_OTDR = function(modifier) {
-      return (OUTI_OUTD(modifier)) + "\nif (regs[" + rB + "]) {\n	regPairs[" + rpPC + "]-=2;\n	CONTEND_READ_NO_MREQ(regPairs[" + rpBC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpBC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpBC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpBC + "], 1);\n	CONTEND_READ_NO_MREQ(regPairs[" + rpBC + "], 1);\n}";
-    };
-    OUTD = function() {
-      return OUTI_OUTD('--');
-    };
-    OUTI = function() {
-      return OUTI_OUTD('++');
-    };
-    OTDR = function() {
-      return OTIR_OTDR('--');
-    };
-    OTIR = function() {
-      return OTIR_OTDR('++');
-    };
-    POP_RR = function(rp) {
-      return "var l = READMEM(regPairs[" + rpSP + "]); regPairs[" + rpSP + "]++;\nvar h = READMEM(regPairs[" + rpSP + "]); regPairs[" + rpSP + "]++;\nregPairs[" + rp + "] = (h<<8) | l;";
-    };
-    PUSH_RR = function(rp) {
-      return "CONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nregPairs[" + rpSP + "]--; WRITEMEM(regPairs[" + rpSP + "], regPairs[" + rp + "] >> 8);\nregPairs[" + rpSP + "]--; WRITEMEM(regPairs[" + rpSP + "], regPairs[" + rp + "] & 0xff);";
-    };
-    RES = function(bit, param) {
-      var hexMask, operand;
-      operand = getParamBoilerplate(param, true);
-      hexMask = 0xff ^ (1 << bit);
-      return operand.getter + "\n" + operand.v + " &= " + hexMask + ";\n" + operand.setter;
-    };
-    RET = function() {
-      return "var l = READMEM(regPairs[" + rpSP + "]); regPairs[" + rpSP + "]++;\nvar h = READMEM(regPairs[" + rpSP + "]); regPairs[" + rpSP + "]++;\nregPairs[" + rpPC + "] = (h<<8) | l;";
-    };
-    RET_C = function(flag, sense) {
-      var condition;
-      condition = "regs[" + rF + "] & " + flag;
-      if (!sense) {
-        condition = "!(" + condition + ")";
-      }
-      return "CONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nif (" + condition + ") {\n	var l = READMEM(regPairs[" + rpSP + "]); regPairs[" + rpSP + "]++;\n	var h = READMEM(regPairs[" + rpSP + "]); regPairs[" + rpSP + "]++;\n	regPairs[" + rpPC + "] = (h<<8) | l;\n}";
-    };
-    RETN = function() {
-      return "iff1 = iff2;\n" + (RET());
-    };
-    RL = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param, true);
-      return operand.getter + "\nvar rltemp = " + operand.v + ";\n" + operand.v + " = ( (" + operand.v + " << 1) | (regs[" + rF + "] & " + FLAG_C + ") ) " + operand.trunc + ";\nregs[" + rF + "] = ( rltemp >> 7 ) | sz53pTable[" + operand.v + "];\n" + operand.setter;
-    };
-    RLA = function() {
-      return "var bytetemp = regs[" + rA + "];\nregs[" + rA + "] = (regs[" + rA + "] << 1) | (regs[" + rF + "] & " + FLAG_C + ");\nregs[" + rF + "] = (regs[" + rF + "] & " + (FLAG_P | FLAG_Z | FLAG_S) + ") | (regs[" + rA + "] & " + (FLAG_3 | FLAG_5) + ") | (bytetemp >> 7);";
-    };
-    RLC = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param, true);
-      return operand.getter + "\n" + operand.v + " = ( (" + operand.v + " << 1) | (" + operand.v + " >> 7) ) " + operand.trunc + ";\nregs[" + rF + "] = (" + operand.v + " & " + FLAG_C + ") | sz53pTable[" + operand.v + "];\n" + operand.setter;
-    };
-    RLD = function() {
-      return "var bytetemp =  READMEM(regPairs[" + rpHL + "]);\nCONTEND_READ_NO_MREQ(regPairs[" + rpHL + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpHL + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpHL + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpHL + "], 1);\nvar val = (bytetemp << 4) | (regs[" + rA + "] & 0x0f);\nWRITEMEM(regPairs[" + rpHL + "], val);\nregs[" + rA + "] = (regs[" + rA + "] & 0xf0) | (bytetemp >> 4);\nregs[" + rF + "] = (regs[" + rF + "] & " + FLAG_C + ") | sz53pTable[regs[" + rA + "]];";
-    };
-    RLCA = function() {
-      return "regs[" + rA + "] = (regs[" + rA + "] << 1) | (regs[" + rA + "] >> 7);\nregs[" + rF + "] = (regs[" + rF + "] & " + (FLAG_P | FLAG_Z | FLAG_S) + ") | (regs[" + rA + "] & " + (FLAG_C | FLAG_3 | FLAG_5) + ");";
-    };
-    RR = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param, true);
-      return operand.getter + "\nvar rrtemp = " + operand.v + ";\n" + operand.v + " = ( (" + operand.v + " >> 1) | ( regs[" + rF + "] << 7 ) ) " + operand.trunc + ";\nregs[" + rF + "] = (rrtemp & " + FLAG_C + ") | sz53pTable[" + operand.v + "];\n" + operand.setter;
-    };
-    RRA = function() {
-      return "var bytetemp = regs[" + rA + "];\nregs[" + rA + "] = (bytetemp >> 1) | (regs[" + rF + "] << 7);\nregs[" + rF + "] = (regs[" + rF + "] & " + (FLAG_P | FLAG_Z | FLAG_S) + ") | (regs[" + rA + "] & " + (FLAG_3 | FLAG_5) + ") | (bytetemp & " + FLAG_C + ");";
-    };
-    RRC = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param, true);
-      return operand.getter + "\nregs[" + rF + "] = " + operand.v + " & " + FLAG_C + ";\n" + operand.v + " = ( (" + operand.v + " >> 1) | (" + operand.v + " << 7) ) " + operand.trunc + ";\nregs[" + rF + "] |= sz53pTable[" + operand.v + "];\n" + operand.setter;
-    };
-    RRCA = function() {
-      return "regs[" + rF + "] = (regs[" + rF + "] & " + (FLAG_P | FLAG_Z | FLAG_S) + ") | (regs[" + rA + "] & " + FLAG_C + ");\nregs[" + rA + "] = (regs[" + rA + "] >> 1) | (regs[" + rA + "] << 7);\nregs[" + rF + "] |= (regs[" + rA + "] & " + (FLAG_3 | FLAG_5) + ");";
-    };
-    RRD = function() {
-      return "var bytetemp = READMEM(regPairs[" + rpHL + "]);\nCONTEND_READ_NO_MREQ(regPairs[" + rpHL + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpHL + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpHL + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpHL + "], 1);\nvar val = (regs[" + rA + "] << 4) | (bytetemp >> 4);\nWRITEMEM(regPairs[" + rpHL + "], val);\nregs[" + rA + "] = (regs[" + rA + "] & 0xf0) | (bytetemp & 0x0f);\nregs[" + rF + "] = (regs[" + rF + "] & " + FLAG_C + ") | sz53pTable[regs[" + rA + "]];";
-    };
-    RST = function(addr) {
-      return "CONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nregPairs[" + rpSP + "]--; WRITEMEM(regPairs[" + rpSP + "], regPairs[" + rpPC + "] >> 8);\nregPairs[" + rpSP + "]--; WRITEMEM(regPairs[" + rpSP + "], regPairs[" + rpPC + "] & 0xff);\nregPairs[" + rpPC + "] = " + addr + ";";
-    };
-    SBC_A = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param);
-      return operand.getter + "\nvar sbctemp = regs[" + rA + "] - " + operand.v + " - (regs[" + rF + "] & " + FLAG_C + ");\nvar lookup = ( (regs[" + rA + "] & 0x88) >> 3 ) | ( (" + operand.v + " & 0x88) >> 2 ) | ( (sbctemp & 0x88) >> 1 );\nregs[" + rA + "] = sbctemp;\nregs[" + rF + "] = ( sbctemp & 0x100 ? " + FLAG_C + " : 0 ) | " + FLAG_N + " | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[" + rA + "]];";
-    };
-    SBC_HL_RR = function(rp) {
-      return "var sub16temp = regPairs[" + rpHL + "] - regPairs[" + rp + "] - (regs[" + rF + "] & " + FLAG_C + ");\nvar lookup = ( (regPairs[" + rpHL + "] & 0x8800) >> 11 ) | ( (regPairs[" + rp + "] & 0x8800) >> 10 ) | ( (sub16temp & 0x8800) >>  9 );\nregPairs[" + rpHL + "] = sub16temp;\nregs[" + rF + "] = ( sub16temp & 0x10000 ? " + FLAG_C + " : 0 ) | " + FLAG_N + " | overflowSubTable[lookup >> 4] | (regs[" + rH + "] & " + (FLAG_3 | FLAG_5 | FLAG_S) + ") | halfcarrySubTable[lookup&0x07] | (regPairs[" + rpHL + "] ? 0 : " + FLAG_Z + ");\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);\nCONTEND_READ_NO_MREQ(regPairs[" + rpIR + "], 1);";
-    };
-    SCF = function() {
-      return "regs[" + rF + "] = (regs[" + rF + "] & " + (FLAG_P | FLAG_Z | FLAG_S) + ") | (regs[" + rA + "] & " + (FLAG_3 | FLAG_5) + ") | " + FLAG_C + ";";
-    };
-    SET = function(bit, param) {
-      var hexMask, operand;
-      hexMask = 1 << bit;
-      operand = getParamBoilerplate(param, true);
-      return operand.getter + "\n" + operand.v + " |= " + hexMask + ";\n" + operand.setter;
-    };
-    SHIFT = function(prefix) {
-      return "opcodePrefix = '" + prefix + "';\ninterruptible = false;";
-    };
-    SLA = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param, true);
-      return operand.getter + "\nregs[" + rF + "] = " + operand.v + " >> 7;\n" + operand.v + " = (" + operand.v + " << 1) " + operand.trunc + ";\nregs[" + rF + "] |= sz53pTable[" + operand.v + "];\n" + operand.setter;
-    };
-    SLL = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param, true);
-      return operand.getter + "\nregs[" + rF + "] =  " + operand.v + " >> 7;\n" + operand.v + " = (((" + operand.v + ") << 1) " + operand.trunc + ") | 0x01;\nregs[" + rF + "] |= sz53pTable[" + operand.v + "];\n" + operand.setter;
-    };
-    SRA = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param, true);
-      return operand.getter + "\nregs[" + rF + "] = " + operand.v + " & " + FLAG_C + ";\n" + operand.v + " = ( (" + operand.v + " & 0x80) | (" + operand.v + " >> 1) ) " + operand.trunc + ";\nregs[" + rF + "] |= sz53pTable[" + operand.v + "];\n" + operand.setter;
-    };
-    SRL = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param, true);
-      return operand.getter + "\nregs[" + rF + "] =  " + operand.v + " & " + FLAG_C + ";\n" + operand.v + " >>= 1;\nregs[" + rF + "] |= sz53pTable[" + operand.v + "];\n" + operand.setter;
-    };
-    SUB_A = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param);
-      return operand.getter + "\nvar subtemp = regs[" + rA + "] - " + operand.v + ";\nvar lookup = ( (regs[" + rA + "] & 0x88) >> 3 ) | ( (" + operand.v + " & 0x88) >> 2 ) | ( (subtemp & 0x88) >> 1 );\nregs[" + rA + "] = subtemp;\nregs[" + rF + "] = ( subtemp & 0x100 ? " + FLAG_C + " : 0 ) | " + FLAG_N + " | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[regs[" + rA + "]];";
-    };
-    XOR_A = function(param) {
-      var operand;
-      operand = getParamBoilerplate(param);
-      return operand.getter + "\nregs[" + rA + "] ^= " + operand.v + ";\nregs[" + rF + "] = sz53pTable[regs[" + rA + "]];";
-    };
-
-    /*
-    	Given a table mapping opcodes to Javascript snippets (and optionally a fallback
-    	table for opcodes that aren't defined in the first one), build an enormous
-    	switch statement for them
-     */
-    opcodeSwitch = function(runStringTable, fallbackTable, traps) {
-      var action, address, clauses, i, j, opcode, relevantTraps, runString, trapCode;
-      if (fallbackTable == null) {
-        fallbackTable = {};
-      }
-      if (traps == null) {
-        traps = [];
-      }
-      clauses = [];
-      for (i = j = 0; j < 256; i = ++j) {
-        runString = runStringTable[i];
-        if (runString == null) {
-          runString = fallbackTable[i];
-        }
-        if (runString != null) {
-          relevantTraps = (function() {
-            var k, len, ref, results;
-            results = [];
-            for (k = 0, len = traps.length; k < len; k++) {
-              ref = traps[k], address = ref[0], opcode = ref[1], action = ref[2];
-              if (opcode === i) {
-                results.push([address, action]);
-              }
-            }
-            return results;
-          })();
-          trapCode = (function() {
-            var k, len, ref, results;
-            results = [];
-            for (k = 0, len = relevantTraps.length; k < len; k++) {
-              ref = relevantTraps[k], address = ref[0], action = ref[1];
-              results.push("if (regPairs[" + rpPC + "] == " + ((address + 1) & 0xffff) + " && !(" + action + ")) break;");
-            }
-            return results;
-          })();
-          clauses.push("case " + i + ": { var fn" + i + " = function() {\n	" + (trapCode.join("\n")) + "\n	" + runString + "\n}; fn" + i + "(); }\n	break;");
-        }
-      }
-      return "switch (opcode) {\n	" + (clauses.join('')) + "\n	default:\n		var addr = regPairs[" + rpPC + "] - 1;\n		throw(\"Unimplemented opcode \" + opcode + \" in page " + runStringTable[0x100] + " - PC = \" + addr);\n}";
-    };
-    OPCODE_RUN_STRINGS_CB = {
-      0x00: RLC("B"),
-      0x01: RLC("C"),
-      0x02: RLC("D"),
-      0x03: RLC("E"),
-      0x04: RLC("H"),
-      0x05: RLC("L"),
-      0x06: RLC("(HL)"),
-      0x07: RLC("A"),
-      0x08: RRC("B"),
-      0x09: RRC("C"),
-      0x0a: RRC("D"),
-      0x0b: RRC("E"),
-      0x0c: RRC("H"),
-      0x0d: RRC("L"),
-      0x0e: RRC("(HL)"),
-      0x0f: RRC("A"),
-      0x10: RL('B'),
-      0x11: RL('C'),
-      0x12: RL('D'),
-      0x13: RL('E'),
-      0x14: RL('H'),
-      0x15: RL('L'),
-      0x16: RL('(HL)'),
-      0x17: RL('A'),
-      0x18: RR('B'),
-      0x19: RR('C'),
-      0x1a: RR('D'),
-      0x1b: RR('E'),
-      0x1c: RR('H'),
-      0x1d: RR('L'),
-      0x1e: RR('(HL)'),
-      0x1f: RR('A'),
-      0x20: SLA('B'),
-      0x21: SLA('C'),
-      0x22: SLA('D'),
-      0x23: SLA('E'),
-      0x24: SLA('H'),
-      0x25: SLA('L'),
-      0x26: SLA('(HL)'),
-      0x27: SLA('A'),
-      0x28: SRA('B'),
-      0x29: SRA('C'),
-      0x2a: SRA('D'),
-      0x2b: SRA('E'),
-      0x2c: SRA('H'),
-      0x2d: SRA('L'),
-      0x2e: SRA('(HL)'),
-      0x2f: SRA('A'),
-      0x30: SLL('B'),
-      0x31: SLL('C'),
-      0x32: SLL('D'),
-      0x33: SLL('E'),
-      0x34: SLL('H'),
-      0x35: SLL('L'),
-      0x36: SLL('(HL)'),
-      0x37: SLL('A'),
-      0x38: SRL('B'),
-      0x39: SRL('C'),
-      0x3a: SRL('D'),
-      0x3b: SRL('E'),
-      0x3c: SRL('H'),
-      0x3d: SRL('L'),
-      0x3e: SRL('(HL)'),
-      0x3f: SRL('A'),
-      0x40: BIT_N_R(0, rB),
-      0x41: BIT_N_R(0, rC),
-      0x42: BIT_N_R(0, rD),
-      0x43: BIT_N_R(0, rE),
-      0x44: BIT_N_R(0, rH),
-      0x45: BIT_N_R(0, rL),
-      0x46: BIT_N_iHLi(0),
-      0x47: BIT_N_R(0, rA),
-      0x48: BIT_N_R(1, rB),
-      0x49: BIT_N_R(1, rC),
-      0x4A: BIT_N_R(1, rD),
-      0x4B: BIT_N_R(1, rE),
-      0x4C: BIT_N_R(1, rH),
-      0x4D: BIT_N_R(1, rL),
-      0x4E: BIT_N_iHLi(1),
-      0x4F: BIT_N_R(1, rA),
-      0x50: BIT_N_R(2, rB),
-      0x51: BIT_N_R(2, rC),
-      0x52: BIT_N_R(2, rD),
-      0x53: BIT_N_R(2, rE),
-      0x54: BIT_N_R(2, rH),
-      0x55: BIT_N_R(2, rL),
-      0x56: BIT_N_iHLi(2),
-      0x57: BIT_N_R(2, rA),
-      0x58: BIT_N_R(3, rB),
-      0x59: BIT_N_R(3, rC),
-      0x5A: BIT_N_R(3, rD),
-      0x5B: BIT_N_R(3, rE),
-      0x5C: BIT_N_R(3, rH),
-      0x5D: BIT_N_R(3, rL),
-      0x5E: BIT_N_iHLi(3),
-      0x5F: BIT_N_R(3, rA),
-      0x60: BIT_N_R(4, rB),
-      0x61: BIT_N_R(4, rC),
-      0x62: BIT_N_R(4, rD),
-      0x63: BIT_N_R(4, rE),
-      0x64: BIT_N_R(4, rH),
-      0x65: BIT_N_R(4, rL),
-      0x66: BIT_N_iHLi(4),
-      0x67: BIT_N_R(4, rA),
-      0x68: BIT_N_R(5, rB),
-      0x69: BIT_N_R(5, rC),
-      0x6A: BIT_N_R(5, rD),
-      0x6B: BIT_N_R(5, rE),
-      0x6C: BIT_N_R(5, rH),
-      0x6D: BIT_N_R(5, rL),
-      0x6E: BIT_N_iHLi(5),
-      0x6F: BIT_N_R(5, rA),
-      0x70: BIT_N_R(6, rB),
-      0x71: BIT_N_R(6, rC),
-      0x72: BIT_N_R(6, rD),
-      0x73: BIT_N_R(6, rE),
-      0x74: BIT_N_R(6, rH),
-      0x75: BIT_N_R(6, rL),
-      0x76: BIT_N_iHLi(6),
-      0x77: BIT_N_R(6, rA),
-      0x78: BIT_N_R(7, rB),
-      0x79: BIT_N_R(7, rC),
-      0x7A: BIT_N_R(7, rD),
-      0x7B: BIT_N_R(7, rE),
-      0x7C: BIT_N_R(7, rH),
-      0x7D: BIT_N_R(7, rL),
-      0x7E: BIT_N_iHLi(7),
-      0x7F: BIT_N_R(7, rA),
-      0x80: RES(0, 'B'),
-      0x81: RES(0, 'C'),
-      0x82: RES(0, 'D'),
-      0x83: RES(0, 'E'),
-      0x84: RES(0, 'H'),
-      0x85: RES(0, 'L'),
-      0x86: RES(0, '(HL)'),
-      0x87: RES(0, 'A'),
-      0x88: RES(1, 'B'),
-      0x89: RES(1, 'C'),
-      0x8A: RES(1, 'D'),
-      0x8B: RES(1, 'E'),
-      0x8C: RES(1, 'H'),
-      0x8D: RES(1, 'L'),
-      0x8E: RES(1, '(HL)'),
-      0x8F: RES(1, 'A'),
-      0x90: RES(2, 'B'),
-      0x91: RES(2, 'C'),
-      0x92: RES(2, 'D'),
-      0x93: RES(2, 'E'),
-      0x94: RES(2, 'H'),
-      0x95: RES(2, 'L'),
-      0x96: RES(2, '(HL)'),
-      0x97: RES(2, 'A'),
-      0x98: RES(3, 'B'),
-      0x99: RES(3, 'C'),
-      0x9A: RES(3, 'D'),
-      0x9B: RES(3, 'E'),
-      0x9C: RES(3, 'H'),
-      0x9D: RES(3, 'L'),
-      0x9E: RES(3, '(HL)'),
-      0x9F: RES(3, 'A'),
-      0xA0: RES(4, 'B'),
-      0xA1: RES(4, 'C'),
-      0xA2: RES(4, 'D'),
-      0xA3: RES(4, 'E'),
-      0xA4: RES(4, 'H'),
-      0xA5: RES(4, 'L'),
-      0xA6: RES(4, '(HL)'),
-      0xA7: RES(4, 'A'),
-      0xA8: RES(5, 'B'),
-      0xA9: RES(5, 'C'),
-      0xAA: RES(5, 'D'),
-      0xAB: RES(5, 'E'),
-      0xAC: RES(5, 'H'),
-      0xAD: RES(5, 'L'),
-      0xAE: RES(5, '(HL)'),
-      0xAF: RES(5, 'A'),
-      0xB0: RES(6, 'B'),
-      0xB1: RES(6, 'C'),
-      0xB2: RES(6, 'D'),
-      0xB3: RES(6, 'E'),
-      0xB4: RES(6, 'H'),
-      0xB5: RES(6, 'L'),
-      0xB6: RES(6, '(HL)'),
-      0xB7: RES(6, 'A'),
-      0xB8: RES(7, 'B'),
-      0xB9: RES(7, 'C'),
-      0xBA: RES(7, 'D'),
-      0xBB: RES(7, 'E'),
-      0xBC: RES(7, 'H'),
-      0xBD: RES(7, 'L'),
-      0xBE: RES(7, '(HL)'),
-      0xBF: RES(7, 'A'),
-      0xC0: SET(0, 'B'),
-      0xC1: SET(0, 'C'),
-      0xC2: SET(0, 'D'),
-      0xC3: SET(0, 'E'),
-      0xC4: SET(0, 'H'),
-      0xC5: SET(0, 'L'),
-      0xC6: SET(0, '(HL)'),
-      0xC7: SET(0, 'A'),
-      0xC8: SET(1, 'B'),
-      0xC9: SET(1, 'C'),
-      0xCA: SET(1, 'D'),
-      0xCB: SET(1, 'E'),
-      0xCC: SET(1, 'H'),
-      0xCD: SET(1, 'L'),
-      0xCE: SET(1, '(HL)'),
-      0xCF: SET(1, 'A'),
-      0xD0: SET(2, 'B'),
-      0xD1: SET(2, 'C'),
-      0xD2: SET(2, 'D'),
-      0xD3: SET(2, 'E'),
-      0xD4: SET(2, 'H'),
-      0xD5: SET(2, 'L'),
-      0xD6: SET(2, '(HL)'),
-      0xD7: SET(2, 'A'),
-      0xD8: SET(3, 'B'),
-      0xD9: SET(3, 'C'),
-      0xDA: SET(3, 'D'),
-      0xDB: SET(3, 'E'),
-      0xDC: SET(3, 'H'),
-      0xDD: SET(3, 'L'),
-      0xDE: SET(3, '(HL)'),
-      0xDF: SET(3, 'A'),
-      0xE0: SET(4, 'B'),
-      0xE1: SET(4, 'C'),
-      0xE2: SET(4, 'D'),
-      0xE3: SET(4, 'E'),
-      0xE4: SET(4, 'H'),
-      0xE5: SET(4, 'L'),
-      0xE6: SET(4, '(HL)'),
-      0xE7: SET(4, 'A'),
-      0xE8: SET(5, 'B'),
-      0xE9: SET(5, 'C'),
-      0xEA: SET(5, 'D'),
-      0xEB: SET(5, 'E'),
-      0xEC: SET(5, 'H'),
-      0xED: SET(5, 'L'),
-      0xEE: SET(5, '(HL)'),
-      0xEF: SET(5, 'A'),
-      0xF0: SET(6, 'B'),
-      0xF1: SET(6, 'C'),
-      0xF2: SET(6, 'D'),
-      0xF3: SET(6, 'E'),
-      0xF4: SET(6, 'H'),
-      0xF5: SET(6, 'L'),
-      0xF6: SET(6, '(HL)'),
-      0xF7: SET(6, 'A'),
-      0xF8: SET(7, 'B'),
-      0xF9: SET(7, 'C'),
-      0xFA: SET(7, 'D'),
-      0xFB: SET(7, 'E'),
-      0xFC: SET(7, 'H'),
-      0xFD: SET(7, 'L'),
-      0xFE: SET(7, '(HL)'),
-      0xFF: SET(7, 'A'),
-      0x100: 'cb'
-    };
-    generateddfdcbOpcodeSet = function(prefix) {
-      var rh, rhn, rl, rln, rp, rpn;
-      if (prefix === 'DDCB') {
-        rp = rpIX;
-        rh = rIXH;
-        rl = rIXL;
-        rpn = 'IX';
-        rhn = 'IXH';
-        rln = 'IXL';
-      } else {
-        rp = rpIY;
-        rh = rIYH;
-        rl = rIYL;
-        rpn = 'IY';
-        rhn = 'IYH';
-        rln = 'IYL';
-      }
+///////////////////////////////////////////////////////////////////////////////
+/// We'll begin with the object constructor and the public API functions.
+///////////////////////////////////////////////////////////////////////////////
+function FastZ80(coreParameter)
+{
+   // Obviously we'll be needing the core object's functions again.
+   const core = coreParameter;
+   
+   // The argument to this constructor should be an object containing 4 functions:
+   // mem_read(address) should return the byte at the given memory address,
+   // mem_write(address, value) should write the given value to the given memory address,
+   // io_read(port) should read a return a byte read from the given I/O port,
+   // io_write(port, value) should write the given byte to the given I/O port.
+   // If any of those functions is missing, this module cannot run.
+   if (!core || (typeof core.mem_read !== "function") || (typeof core.mem_write !== "function") ||
+                (typeof core.io_read !== "function")  || (typeof core.io_write !== "function"))
+      throw("Z80: Core object is missing required functions.");
+   
+   // All right, let's initialize the registers.
+   // First, the standard 8080 registers.
+   let a = 0x00;
+   let b = 0x00;
+   let c = 0x00;
+   let d = 0x00;
+   let e = 0x00;
+   let h = 0x00;
+   let l = 0x00;
+   // Now the special Z80 copies of the 8080 registers
+   //  (the ones used for the SWAP instruction and such).
+   let a_prime = 0x00;
+   let b_prime = 0x00;
+   let c_prime = 0x00;
+   let d_prime = 0x00;
+   let e_prime = 0x00;
+   let h_prime = 0x00;
+   let l_prime = 0x00;
+   // And now the Z80 index registers.
+   let ix = 0x0000;
+   let iy = 0x0000;
+   // Then the "utility" registers: the interrupt vector,
+   //  the memory refresh, the stack pointer, and the program counter.
+   let i = 0x00;
+   let r = 0x00;
+   let sp = 0xdff0;
+   let pc = 0x0000;
+   // We don't keep an F register for the flags,
+   //  because most of the time we're only accessing a single flag,
+   //  so we optimize for that case and use utility functions
+   //  for the rarer occasions when we need to access the whole register.
+   let flags = {S:0, Z:0, Y:0, H:0, X:0, P:0, N:0, C:0};
+   let flags_prime = {S:0, Z:0, Y:0, H:0, X:0, P:0, N:0, C:0};
+   // And finally we have the interrupt mode and flip-flop registers.
+   let imode = 0;
+   let iff1 = 0;
+   let iff2 = 0;
+   
+   // These are all specific to this implementation, not Z80 features.
+   // Keep track of whether we've had a HALT instruction called.
+   let halted = false;
+   // EI and DI wait one instruction before they take effect;
+   //  these flags tell us when we're in that wait state.
+   let do_delayed_di = false;
+   let do_delayed_ei = false;
+   // This tracks the number of cycles spent in a single instruction run,
+   //  including processing any prefixes and handling interrupts.
+   let cycle_counter = 0;
+   
+   function getState():Z80State {
       return {
-        0x00: LDSHIFTOP('B', RLC, rp),
-        0x01: LDSHIFTOP('C', RLC, rp),
-        0x02: LDSHIFTOP('D', RLC, rp),
-        0x03: LDSHIFTOP('E', RLC, rp),
-        0x04: LDSHIFTOP('H', RLC, rp),
-        0x05: LDSHIFTOP('L', RLC, rp),
-        0x06: RLC("(" + rpn + "+nn)"),
-        0x07: LDSHIFTOP('A', RLC, rp),
-        0x08: LDSHIFTOP('B', RRC, rp),
-        0x09: LDSHIFTOP('C', RRC, rp),
-        0x0A: LDSHIFTOP('D', RRC, rp),
-        0x0B: LDSHIFTOP('E', RRC, rp),
-        0x0C: LDSHIFTOP('H', RRC, rp),
-        0x0D: LDSHIFTOP('L', RRC, rp),
-        0x0E: RRC("(" + rpn + "+nn)"),
-        0x0F: LDSHIFTOP('A', RRC, rp),
-        0x10: LDSHIFTOP('B', RL, rp),
-        0x11: LDSHIFTOP('C', RL, rp),
-        0x12: LDSHIFTOP('D', RL, rp),
-        0x13: LDSHIFTOP('E', RL, rp),
-        0x14: LDSHIFTOP('H', RL, rp),
-        0x15: LDSHIFTOP('L', RL, rp),
-        0x16: RL("(" + rpn + "+nn)"),
-        0x17: LDSHIFTOP('A', RL, rp),
-        0x18: LDSHIFTOP('B', RR, rp),
-        0x19: LDSHIFTOP('C', RR, rp),
-        0x1A: LDSHIFTOP('D', RR, rp),
-        0x1B: LDSHIFTOP('E', RR, rp),
-        0x1C: LDSHIFTOP('H', RR, rp),
-        0x1D: LDSHIFTOP('L', RR, rp),
-        0x1E: RR("(" + rpn + "+nn)"),
-        0x1F: LDSHIFTOP('A', RR, rp),
-        0x20: LDSHIFTOP('B', SLA, rp),
-        0x21: LDSHIFTOP('C', SLA, rp),
-        0x22: LDSHIFTOP('D', SLA, rp),
-        0x23: LDSHIFTOP('E', SLA, rp),
-        0x24: LDSHIFTOP('H', SLA, rp),
-        0x25: LDSHIFTOP('L', SLA, rp),
-        0x26: SLA("(" + rpn + "+nn)"),
-        0x27: LDSHIFTOP('A', SLA, rp),
-        0x28: LDSHIFTOP('B', SRA, rp),
-        0x29: LDSHIFTOP('C', SRA, rp),
-        0x2A: LDSHIFTOP('D', SRA, rp),
-        0x2B: LDSHIFTOP('E', SRA, rp),
-        0x2C: LDSHIFTOP('H', SRA, rp),
-        0x2D: LDSHIFTOP('L', SRA, rp),
-        0x2E: SRA("(" + rpn + "+nn)"),
-        0x2F: LDSHIFTOP('A', SRA, rp),
-        0x30: LDSHIFTOP('B', SLL, rp),
-        0x31: LDSHIFTOP('C', SLL, rp),
-        0x32: LDSHIFTOP('D', SLL, rp),
-        0x33: LDSHIFTOP('E', SLL, rp),
-        0x34: LDSHIFTOP('H', SLL, rp),
-        0x35: LDSHIFTOP('L', SLL, rp),
-        0x36: SLL("(" + rpn + "+nn)"),
-        0x37: LDSHIFTOP('A', SLL, rp),
-        0x38: LDSHIFTOP('B', SRL, rp),
-        0x39: LDSHIFTOP('C', SRL, rp),
-        0x3A: LDSHIFTOP('D', SRL, rp),
-        0x3B: LDSHIFTOP('E', SRL, rp),
-        0x3C: LDSHIFTOP('H', SRL, rp),
-        0x3D: LDSHIFTOP('L', SRL, rp),
-        0x3E: SRL("(" + rpn + "+nn)"),
-        0x3F: LDSHIFTOP('A', SRL, rp),
-        0x40: BIT_N_iRRpNNi(0, rp),
-        0x41: BIT_N_iRRpNNi(0, rp),
-        0x42: BIT_N_iRRpNNi(0, rp),
-        0x43: BIT_N_iRRpNNi(0, rp),
-        0x44: BIT_N_iRRpNNi(0, rp),
-        0x45: BIT_N_iRRpNNi(0, rp),
-        0x46: BIT_N_iRRpNNi(0, rp),
-        0x47: BIT_N_iRRpNNi(0, rp),
-        0x48: BIT_N_iRRpNNi(1, rp),
-        0x49: BIT_N_iRRpNNi(1, rp),
-        0x4A: BIT_N_iRRpNNi(1, rp),
-        0x4B: BIT_N_iRRpNNi(1, rp),
-        0x4C: BIT_N_iRRpNNi(1, rp),
-        0x4D: BIT_N_iRRpNNi(1, rp),
-        0x4E: BIT_N_iRRpNNi(1, rp),
-        0x4F: BIT_N_iRRpNNi(1, rp),
-        0x50: BIT_N_iRRpNNi(2, rp),
-        0x51: BIT_N_iRRpNNi(2, rp),
-        0x52: BIT_N_iRRpNNi(2, rp),
-        0x53: BIT_N_iRRpNNi(2, rp),
-        0x54: BIT_N_iRRpNNi(2, rp),
-        0x55: BIT_N_iRRpNNi(2, rp),
-        0x56: BIT_N_iRRpNNi(2, rp),
-        0x57: BIT_N_iRRpNNi(2, rp),
-        0x58: BIT_N_iRRpNNi(3, rp),
-        0x59: BIT_N_iRRpNNi(3, rp),
-        0x5A: BIT_N_iRRpNNi(3, rp),
-        0x5B: BIT_N_iRRpNNi(3, rp),
-        0x5C: BIT_N_iRRpNNi(3, rp),
-        0x5D: BIT_N_iRRpNNi(3, rp),
-        0x5E: BIT_N_iRRpNNi(3, rp),
-        0x5F: BIT_N_iRRpNNi(3, rp),
-        0x60: BIT_N_iRRpNNi(4, rp),
-        0x61: BIT_N_iRRpNNi(4, rp),
-        0x62: BIT_N_iRRpNNi(4, rp),
-        0x63: BIT_N_iRRpNNi(4, rp),
-        0x64: BIT_N_iRRpNNi(4, rp),
-        0x65: BIT_N_iRRpNNi(4, rp),
-        0x66: BIT_N_iRRpNNi(4, rp),
-        0x67: BIT_N_iRRpNNi(4, rp),
-        0x68: BIT_N_iRRpNNi(5, rp),
-        0x69: BIT_N_iRRpNNi(5, rp),
-        0x6A: BIT_N_iRRpNNi(5, rp),
-        0x6B: BIT_N_iRRpNNi(5, rp),
-        0x6C: BIT_N_iRRpNNi(5, rp),
-        0x6D: BIT_N_iRRpNNi(5, rp),
-        0x6E: BIT_N_iRRpNNi(5, rp),
-        0x6F: BIT_N_iRRpNNi(5, rp),
-        0x70: BIT_N_iRRpNNi(6, rp),
-        0x71: BIT_N_iRRpNNi(6, rp),
-        0x72: BIT_N_iRRpNNi(6, rp),
-        0x73: BIT_N_iRRpNNi(6, rp),
-        0x74: BIT_N_iRRpNNi(6, rp),
-        0x75: BIT_N_iRRpNNi(6, rp),
-        0x76: BIT_N_iRRpNNi(6, rp),
-        0x77: BIT_N_iRRpNNi(6, rp),
-        0x78: BIT_N_iRRpNNi(7, rp),
-        0x79: BIT_N_iRRpNNi(7, rp),
-        0x7A: BIT_N_iRRpNNi(7, rp),
-        0x7B: BIT_N_iRRpNNi(7, rp),
-        0x7C: BIT_N_iRRpNNi(7, rp),
-        0x7D: BIT_N_iRRpNNi(7, rp),
-        0x7E: BIT_N_iRRpNNi(7, rp),
-        0x7F: BIT_N_iRRpNNi(7, rp),
-        0x80: LDBITOP('B', RES, 0, rp),
-        0x81: LDBITOP('C', RES, 0, rp),
-        0x82: LDBITOP('D', RES, 0, rp),
-        0x83: LDBITOP('E', RES, 0, rp),
-        0x84: LDBITOP('H', RES, 0, rp),
-        0x85: LDBITOP('L', RES, 0, rp),
-        0x86: RES(0, "(" + rpn + "+nn)"),
-        0x87: LDBITOP('A', RES, 0, rp),
-        0x88: LDBITOP('B', RES, 1, rp),
-        0x89: LDBITOP('C', RES, 1, rp),
-        0x8A: LDBITOP('D', RES, 1, rp),
-        0x8B: LDBITOP('E', RES, 1, rp),
-        0x8C: LDBITOP('H', RES, 1, rp),
-        0x8D: LDBITOP('L', RES, 1, rp),
-        0x8E: RES(1, "(" + rpn + "+nn)"),
-        0x8F: LDBITOP('A', RES, 1, rp),
-        0x90: LDBITOP('B', RES, 2, rp),
-        0x91: LDBITOP('C', RES, 2, rp),
-        0x92: LDBITOP('D', RES, 2, rp),
-        0x93: LDBITOP('E', RES, 2, rp),
-        0x94: LDBITOP('H', RES, 2, rp),
-        0x95: LDBITOP('L', RES, 2, rp),
-        0x96: RES(2, "(" + rpn + "+nn)"),
-        0x97: LDBITOP('A', RES, 2, rp),
-        0x98: LDBITOP('B', RES, 3, rp),
-        0x99: LDBITOP('C', RES, 3, rp),
-        0x9A: LDBITOP('D', RES, 3, rp),
-        0x9B: LDBITOP('E', RES, 3, rp),
-        0x9C: LDBITOP('H', RES, 3, rp),
-        0x9D: LDBITOP('L', RES, 3, rp),
-        0x9E: RES(3, "(" + rpn + "+nn)"),
-        0x9F: LDBITOP('A', RES, 3, rp),
-        0xA0: LDBITOP('B', RES, 4, rp),
-        0xA1: LDBITOP('C', RES, 4, rp),
-        0xA2: LDBITOP('D', RES, 4, rp),
-        0xA3: LDBITOP('E', RES, 4, rp),
-        0xA4: LDBITOP('H', RES, 4, rp),
-        0xA5: LDBITOP('L', RES, 4, rp),
-        0xA6: RES(4, "(" + rpn + "+nn)"),
-        0xA7: LDBITOP('A', RES, 4, rp),
-        0xA8: LDBITOP('B', RES, 5, rp),
-        0xA9: LDBITOP('C', RES, 5, rp),
-        0xAA: LDBITOP('D', RES, 5, rp),
-        0xAB: LDBITOP('E', RES, 5, rp),
-        0xAC: LDBITOP('H', RES, 5, rp),
-        0xAD: LDBITOP('L', RES, 5, rp),
-        0xAE: RES(5, "(" + rpn + "+nn)"),
-        0xAF: LDBITOP('A', RES, 5, rp),
-        0xB0: LDBITOP('B', RES, 6, rp),
-        0xB1: LDBITOP('C', RES, 6, rp),
-        0xB2: LDBITOP('D', RES, 6, rp),
-        0xB3: LDBITOP('E', RES, 6, rp),
-        0xB4: LDBITOP('H', RES, 6, rp),
-        0xB5: LDBITOP('L', RES, 6, rp),
-        0xB6: RES(6, "(" + rpn + "+nn)"),
-        0xB7: LDBITOP('A', RES, 6, rp),
-        0xB8: LDBITOP('B', RES, 7, rp),
-        0xB9: LDBITOP('C', RES, 7, rp),
-        0xBA: LDBITOP('D', RES, 7, rp),
-        0xBB: LDBITOP('E', RES, 7, rp),
-        0xBC: LDBITOP('H', RES, 7, rp),
-        0xBD: LDBITOP('L', RES, 7, rp),
-        0xBE: RES(7, "(" + rpn + "+nn)"),
-        0xBF: LDBITOP('A', RES, 7, rp),
-        0xC0: LDBITOP('B', SET, 0, rp),
-        0xC1: LDBITOP('C', SET, 0, rp),
-        0xC2: LDBITOP('D', SET, 0, rp),
-        0xC3: LDBITOP('E', SET, 0, rp),
-        0xC4: LDBITOP('H', SET, 0, rp),
-        0xC5: LDBITOP('L', SET, 0, rp),
-        0xC6: SET(0, "(" + rpn + "+nn)"),
-        0xC7: LDBITOP('A', SET, 0, rp),
-        0xC8: LDBITOP('B', SET, 1, rp),
-        0xC9: LDBITOP('C', SET, 1, rp),
-        0xCA: LDBITOP('D', SET, 1, rp),
-        0xCB: LDBITOP('E', SET, 1, rp),
-        0xCC: LDBITOP('H', SET, 1, rp),
-        0xCD: LDBITOP('L', SET, 1, rp),
-        0xCE: SET(1, "(" + rpn + "+nn)"),
-        0xCF: LDBITOP('A', SET, 1, rp),
-        0xD0: LDBITOP('B', SET, 2, rp),
-        0xD1: LDBITOP('C', SET, 2, rp),
-        0xD2: LDBITOP('D', SET, 2, rp),
-        0xD3: LDBITOP('E', SET, 2, rp),
-        0xD4: LDBITOP('H', SET, 2, rp),
-        0xD5: LDBITOP('L', SET, 2, rp),
-        0xD6: SET(2, "(" + rpn + "+nn)"),
-        0xD7: LDBITOP('A', SET, 2, rp),
-        0xD8: LDBITOP('B', SET, 3, rp),
-        0xD9: LDBITOP('C', SET, 3, rp),
-        0xDA: LDBITOP('D', SET, 3, rp),
-        0xDB: LDBITOP('E', SET, 3, rp),
-        0xDC: LDBITOP('H', SET, 3, rp),
-        0xDD: LDBITOP('L', SET, 3, rp),
-        0xDE: SET(3, "(" + rpn + "+nn)"),
-        0xDF: LDBITOP('A', SET, 3, rp),
-        0xE0: LDBITOP('B', SET, 4, rp),
-        0xE1: LDBITOP('C', SET, 4, rp),
-        0xE2: LDBITOP('D', SET, 4, rp),
-        0xE3: LDBITOP('E', SET, 4, rp),
-        0xE4: LDBITOP('H', SET, 4, rp),
-        0xE5: LDBITOP('L', SET, 4, rp),
-        0xE6: SET(4, "(" + rpn + "+nn)"),
-        0xE7: LDBITOP('A', SET, 4, rp),
-        0xE8: LDBITOP('B', SET, 5, rp),
-        0xE9: LDBITOP('C', SET, 5, rp),
-        0xEA: LDBITOP('D', SET, 5, rp),
-        0xEB: LDBITOP('E', SET, 5, rp),
-        0xEC: LDBITOP('H', SET, 5, rp),
-        0xED: LDBITOP('L', SET, 5, rp),
-        0xEE: SET(5, "(" + rpn + "+nn)"),
-        0xEF: LDBITOP('A', SET, 5, rp),
-        0xF0: LDBITOP('B', SET, 6, rp),
-        0xF1: LDBITOP('C', SET, 6, rp),
-        0xF2: LDBITOP('D', SET, 6, rp),
-        0xF3: LDBITOP('E', SET, 6, rp),
-        0xF4: LDBITOP('H', SET, 6, rp),
-        0xF5: LDBITOP('L', SET, 6, rp),
-        0xF6: SET(6, "(" + rpn + "+nn)"),
-        0xF7: LDBITOP('A', SET, 6, rp),
-        0xF8: LDBITOP('B', SET, 7, rp),
-        0xF9: LDBITOP('C', SET, 7, rp),
-        0xFA: LDBITOP('D', SET, 7, rp),
-        0xFB: LDBITOP('E', SET, 7, rp),
-        0xFC: LDBITOP('H', SET, 7, rp),
-        0xFD: LDBITOP('L', SET, 7, rp),
-        0xFE: SET(7, "(" + rpn + "+nn)"),
-        0xFF: LDBITOP('A', SET, 7, rp),
-        0x100: 'ddcb'
-      };
-    };
-    OPCODE_RUN_STRINGS_DDCB = generateddfdcbOpcodeSet('DDCB');
-    OPCODE_RUN_STRINGS_FDCB = generateddfdcbOpcodeSet('FDCB');
-    generateddfdOpcodeSet = function(prefix) {
-      var rh, rhn, rl, rln, rp, rpn;
-      if (prefix === 'DD') {
-        rp = rpIX;
-        rh = rIXH;
-        rl = rIXL;
-        rpn = 'IX';
-        rhn = 'IXH';
-        rln = 'IXL';
-      } else {
-        rp = rpIY;
-        rh = rIYH;
-        rl = rIYL;
-        rpn = 'IY';
-        rhn = 'IYH';
-        rln = 'IYL';
-      }
-      return {
-        0x09: ADD_RR_RR(rp, rpBC),
-        0x19: ADD_RR_RR(rp, rpDE),
-        0x21: LD_RR_NN(rp),
-        0x22: LD_iNNi_RR(rp),
-        0x23: INC_RR(rp),
-        0x24: INC(rhn),
-        0x25: DEC(rhn),
-        0x26: LD_R_N(rh),
-        0x29: ADD_RR_RR(rp, rp),
-        0x2A: LD_RR_iNNi(rp),
-        0x2B: DEC_RR(rp),
-        0x2C: INC(rln),
-        0x2D: DEC(rln),
-        0x2E: LD_R_N(rl),
-        0x34: INC("(" + rpn + "+nn)"),
-        0x35: DEC("(" + rpn + "+nn)"),
-        0x36: LD_iRRpNNi_N(rp),
-        0x39: ADD_RR_RR(rp, rpSP),
-        0x44: LD_R_R(rB, rh),
-        0x45: LD_R_R(rB, rl),
-        0x46: LD_R_iRRpNNi(rB, rp),
-        0x4C: LD_R_R(rC, rh),
-        0x4D: LD_R_R(rC, rl),
-        0x4E: LD_R_iRRpNNi(rC, rp),
-        0x54: LD_R_R(rD, rh),
-        0x55: LD_R_R(rD, rl),
-        0x56: LD_R_iRRpNNi(rD, rp),
-        0x5C: LD_R_R(rE, rh),
-        0x5D: LD_R_R(rE, rl),
-        0x5E: LD_R_iRRpNNi(rE, rp),
-        0x60: LD_R_R(rh, rB),
-        0x61: LD_R_R(rh, rC),
-        0x62: LD_R_R(rh, rD),
-        0x63: LD_R_R(rh, rE),
-        0x64: LD_R_R(rh, rh),
-        0x65: LD_R_R(rh, rl),
-        0x66: LD_R_iRRpNNi(rH, rp),
-        0x67: LD_R_R(rh, rA),
-        0x68: LD_R_R(rl, rB),
-        0x69: LD_R_R(rl, rC),
-        0x6A: LD_R_R(rl, rD),
-        0x6B: LD_R_R(rl, rE),
-        0x6C: LD_R_R(rl, rh),
-        0x6D: LD_R_R(rl, rl),
-        0x6E: LD_R_iRRpNNi(rL, rp),
-        0x6F: LD_R_R(rl, rA),
-        0x70: LD_iRRpNNi_R(rp, rB),
-        0x71: LD_iRRpNNi_R(rp, rC),
-        0x72: LD_iRRpNNi_R(rp, rD),
-        0x73: LD_iRRpNNi_R(rp, rE),
-        0x74: LD_iRRpNNi_R(rp, rH),
-        0x75: LD_iRRpNNi_R(rp, rL),
-        0x77: LD_iRRpNNi_R(rp, rA),
-        0x7C: LD_R_R(rA, rh),
-        0x7D: LD_R_R(rA, rl),
-        0x7E: LD_R_iRRpNNi(rA, rp),
-        0x84: ADD_A(rhn),
-        0x85: ADD_A(rln),
-        0x86: ADD_A("(" + rpn + "+nn)"),
-        0x8C: ADC_A(rhn),
-        0x8D: ADC_A(rln),
-        0x8E: ADC_A("(" + rpn + "+nn)"),
-        0x94: SUB_A(rhn),
-        0x95: SUB_A(rln),
-        0x96: SUB_A("(" + rpn + "+nn)"),
-        0x9C: SBC_A(rhn),
-        0x9D: SBC_A(rln),
-        0x9E: SBC_A("(" + rpn + "+nn)"),
-        0xA4: AND_A(rhn),
-        0xA5: AND_A(rln),
-        0xA6: AND_A("(" + rpn + "+nn)"),
-        0xAC: XOR_A(rhn),
-        0xAD: XOR_A(rln),
-        0xAE: XOR_A("(" + rpn + "+nn)"),
-        0xB4: OR_A(rhn),
-        0xB5: OR_A(rln),
-        0xB6: OR_A("(" + rpn + "+nn)"),
-        0xBC: CP_A(rhn),
-        0xBD: CP_A(rln),
-        0xBE: CP_A("(" + rpn + "+nn)"),
-        0xCB: SHIFT(prefix + 'CB'),
-        0xDD: SHIFT('DD'),
-        0xE1: POP_RR(rp),
-        0xE3: EX_iSPi_RR(rp),
-        0xE5: PUSH_RR(rp),
-        0xE9: JP_RR(rp),
-        0xF9: LD_RR_RR(rpSP, rp),
-        0xFD: SHIFT('FD'),
-        0x100: 'dd'
-      };
-    };
-    OPCODE_RUN_STRINGS_DD = generateddfdOpcodeSet('DD');
-    OPCODE_RUN_STRINGS_ED = {
-      0x40: IN_R_iCi(rB),
-      0x41: OUT_iCi_R(rB),
-      0x42: SBC_HL_RR(rpBC),
-      0x43: LD_iNNi_RR(rpBC),
-      0x44: NEG(),
-      0x45: RETN(),
-      0x46: IM(0),
-      0x47: LD_R_R(rI, rA),
-      0x48: IN_R_iCi(rC),
-      0x49: OUT_iCi_R(rC),
-      0x4A: ADC_HL_RR(rpBC),
-      0x4B: LD_RR_iNNi(rpBC),
-      0x4C: NEG(),
-      0x4D: RETN(),
-      0x4E: IM(0),
-      0x4F: LD_R_R(rR, rA),
-      0x50: IN_R_iCi(rD),
-      0x51: OUT_iCi_R(rD),
-      0x52: SBC_HL_RR(rpDE),
-      0x53: LD_iNNi_RR(rpDE),
-      0x54: NEG(),
-      0x55: RETN(),
-      0x56: IM(1),
-      0x57: LD_R_R(rA, rI),
-      0x58: IN_R_iCi(rE),
-      0x59: OUT_iCi_R(rE),
-      0x5A: ADC_HL_RR(rpDE),
-      0x5B: LD_RR_iNNi(rpDE),
-      0x5C: NEG(),
-      0x5D: RETN(),
-      0x5E: IM(2),
-      0x5F: LD_R_R(rA, rR),
-      0x60: IN_R_iCi(rH),
-      0x61: OUT_iCi_R(rH),
-      0x62: SBC_HL_RR(rpHL),
-      0x63: LD_iNNi_RR(rpHL),
-      0x64: NEG(),
-      0x65: RETN(),
-      0x66: IM(0),
-      0x67: RRD(),
-      0x68: IN_R_iCi(rL),
-      0x69: OUT_iCi_R(rL),
-      0x6A: ADC_HL_RR(rpHL),
-      0x6B: LD_RR_iNNi(rpHL, true),
-      0x6C: NEG(),
-      0x6D: RETN(),
-      0x6E: IM(0),
-      0x6F: RLD(),
-      0x70: IN_F_iCi(),
-      0x71: OUT_iCi_0(),
-      0x72: SBC_HL_RR(rpSP),
-      0x73: LD_iNNi_RR(rpSP),
-      0x74: NEG(),
-      0x75: RETN(),
-      0x76: IM(1),
-      0x78: IN_R_iCi(rA),
-      0x79: OUT_iCi_R(rA),
-      0x7A: ADC_HL_RR(rpSP),
-      0x7B: LD_RR_iNNi(rpSP),
-      0x7C: NEG(),
-      0x7D: RETN(),
-      0x7E: IM(2),
-      0xA0: LDI(),
-      0xA1: CPI(),
-      0xA2: INI(),
-      0xA3: OUTI(),
-      0xA8: LDD(),
-      0xA9: CPD(),
-      0xAA: IND(),
-      0xAB: OUTD(),
-      0xB0: LDIR(),
-      0xb1: CPIR(),
-      0xB2: INIR(),
-      0xB3: OTIR(),
-      0xB8: LDDR(),
-      0xb9: CPDR(),
-      0xBA: INDR(),
-      0xBB: OTDR(),
-      0x100: 'ed'
-    };
-    OPCODE_RUN_STRINGS_FD = generateddfdOpcodeSet('FD');
-    OPCODE_RUN_STRINGS = {
-      0x00: NOP(),
-      0x01: LD_RR_NN(rpBC),
-      0x02: LD_iRRi_R(rpBC, rA),
-      0x03: INC_RR(rpBC),
-      0x04: INC("B"),
-      0x05: DEC("B"),
-      0x06: LD_R_N(rB),
-      0x07: RLCA(),
-      0x08: EX_RR_RR(rpAF, rpAF_),
-      0x09: ADD_RR_RR(rpHL, rpBC),
-      0x0A: LD_R_iRRi(rA, rpBC),
-      0x0B: DEC_RR(rpBC),
-      0x0C: INC("C"),
-      0x0D: DEC("C"),
-      0x0E: LD_R_N(rC),
-      0x0F: RRCA(),
-      0x10: DJNZ_N(),
-      0x11: LD_RR_NN(rpDE),
-      0x12: LD_iRRi_R(rpDE, rA),
-      0x13: INC_RR(rpDE),
-      0x14: INC("D"),
-      0x15: DEC("D"),
-      0x16: LD_R_N(rD),
-      0x17: RLA(),
-      0x18: JR_N(),
-      0x19: ADD_RR_RR(rpHL, rpDE),
-      0x1A: LD_R_iRRi(rA, rpDE),
-      0x1B: DEC_RR(rpDE),
-      0x1C: INC("E"),
-      0x1D: DEC("E"),
-      0x1E: LD_R_N(rE),
-      0x1F: RRA(),
-      0x20: JR_C_N(FLAG_Z, false),
-      0x21: LD_RR_NN(rpHL),
-      0x22: LD_iNNi_RR(rpHL),
-      0x23: INC_RR(rpHL),
-      0x24: INC("H"),
-      0x25: DEC("H"),
-      0x26: LD_R_N(rH),
-      0x27: DAA(),
-      0x28: JR_C_N(FLAG_Z, true),
-      0x29: ADD_RR_RR(rpHL, rpHL),
-      0x2A: LD_RR_iNNi(rpHL),
-      0x2B: DEC_RR(rpHL),
-      0x2C: INC("L"),
-      0x2D: DEC("L"),
-      0x2E: LD_R_N(rL),
-      0x2F: CPL(),
-      0x30: JR_C_N(FLAG_C, false),
-      0x31: LD_RR_NN(rpSP),
-      0x32: LD_iNNi_A(),
-      0x33: INC_RR(rpSP),
-      0x34: INC("(HL)"),
-      0x35: DEC("(HL)"),
-      0x36: LD_iRRi_N(rpHL),
-      0x37: SCF(),
-      0x38: JR_C_N(FLAG_C, true),
-      0x39: ADD_RR_RR(rpHL, rpSP),
-      0x3A: LD_A_iNNi(),
-      0x3B: DEC_RR(rpSP),
-      0x3C: INC("A"),
-      0x3D: DEC("A"),
-      0x3E: LD_R_N(rA),
-      0x3F: CCF(),
-      0x40: LD_R_R(rB, rB),
-      0x41: LD_R_R(rB, rC),
-      0x42: LD_R_R(rB, rD),
-      0x43: LD_R_R(rB, rE),
-      0x44: LD_R_R(rB, rH),
-      0x45: LD_R_R(rB, rL),
-      0x46: LD_R_iRRi(rB, rpHL),
-      0x47: LD_R_R(rB, rA),
-      0x48: LD_R_R(rC, rB),
-      0x49: LD_R_R(rC, rC),
-      0x4a: LD_R_R(rC, rD),
-      0x4b: LD_R_R(rC, rE),
-      0x4c: LD_R_R(rC, rH),
-      0x4d: LD_R_R(rC, rL),
-      0x4e: LD_R_iRRi(rC, rpHL),
-      0x4f: LD_R_R(rC, rA),
-      0x50: LD_R_R(rD, rB),
-      0x51: LD_R_R(rD, rC),
-      0x52: LD_R_R(rD, rD),
-      0x53: LD_R_R(rD, rE),
-      0x54: LD_R_R(rD, rH),
-      0x55: LD_R_R(rD, rL),
-      0x56: LD_R_iRRi(rD, rpHL),
-      0x57: LD_R_R(rD, rA),
-      0x58: LD_R_R(rE, rB),
-      0x59: LD_R_R(rE, rC),
-      0x5a: LD_R_R(rE, rD),
-      0x5b: LD_R_R(rE, rE),
-      0x5c: LD_R_R(rE, rH),
-      0x5d: LD_R_R(rE, rL),
-      0x5e: LD_R_iRRi(rE, rpHL),
-      0x5f: LD_R_R(rE, rA),
-      0x60: LD_R_R(rH, rB),
-      0x61: LD_R_R(rH, rC),
-      0x62: LD_R_R(rH, rD),
-      0x63: LD_R_R(rH, rE),
-      0x64: LD_R_R(rH, rH),
-      0x65: LD_R_R(rH, rL),
-      0x66: LD_R_iRRi(rH, rpHL),
-      0x67: LD_R_R(rH, rA),
-      0x68: LD_R_R(rL, rB),
-      0x69: LD_R_R(rL, rC),
-      0x6a: LD_R_R(rL, rD),
-      0x6b: LD_R_R(rL, rE),
-      0x6c: LD_R_R(rL, rH),
-      0x6d: LD_R_R(rL, rL),
-      0x6e: LD_R_iRRi(rL, rpHL),
-      0x6f: LD_R_R(rL, rA),
-      0x70: LD_iRRi_R(rpHL, rB),
-      0x71: LD_iRRi_R(rpHL, rC),
-      0x72: LD_iRRi_R(rpHL, rD),
-      0x73: LD_iRRi_R(rpHL, rE),
-      0x74: LD_iRRi_R(rpHL, rH),
-      0x75: LD_iRRi_R(rpHL, rL),
-      0x76: HALT(),
-      0x77: LD_iRRi_R(rpHL, rA),
-      0x78: LD_R_R(rA, rB),
-      0x79: LD_R_R(rA, rC),
-      0x7a: LD_R_R(rA, rD),
-      0x7b: LD_R_R(rA, rE),
-      0x7c: LD_R_R(rA, rH),
-      0x7d: LD_R_R(rA, rL),
-      0x7e: LD_R_iRRi(rA, rpHL),
-      0x7f: LD_R_R(rA, rA),
-      0x80: ADD_A("B"),
-      0x81: ADD_A("C"),
-      0x82: ADD_A("D"),
-      0x83: ADD_A("E"),
-      0x84: ADD_A("H"),
-      0x85: ADD_A("L"),
-      0x86: ADD_A("(HL)"),
-      0x87: ADD_A("A"),
-      0x88: ADC_A("B"),
-      0x89: ADC_A("C"),
-      0x8a: ADC_A("D"),
-      0x8b: ADC_A("E"),
-      0x8c: ADC_A("H"),
-      0x8d: ADC_A("L"),
-      0x8e: ADC_A("(HL)"),
-      0x8f: ADC_A("A"),
-      0x90: SUB_A("B"),
-      0x91: SUB_A("C"),
-      0x92: SUB_A("D"),
-      0x93: SUB_A("E"),
-      0x94: SUB_A("H"),
-      0x95: SUB_A("L"),
-      0x96: SUB_A("(HL)"),
-      0x97: SUB_A("A"),
-      0x98: SBC_A("B"),
-      0x99: SBC_A("C"),
-      0x9a: SBC_A("D"),
-      0x9b: SBC_A("E"),
-      0x9c: SBC_A("H"),
-      0x9d: SBC_A("L"),
-      0x9e: SBC_A("(HL)"),
-      0x9f: SBC_A("A"),
-      0xa0: AND_A("B"),
-      0xa1: AND_A("C"),
-      0xa2: AND_A("D"),
-      0xa3: AND_A("E"),
-      0xa4: AND_A("H"),
-      0xa5: AND_A("L"),
-      0xa6: AND_A("(HL)"),
-      0xa7: AND_A("A"),
-      0xA8: XOR_A("B"),
-      0xA9: XOR_A("C"),
-      0xAA: XOR_A("D"),
-      0xAB: XOR_A("E"),
-      0xAC: XOR_A("H"),
-      0xAD: XOR_A("L"),
-      0xAE: XOR_A("(HL)"),
-      0xAF: XOR_A("A"),
-      0xb0: OR_A("B"),
-      0xb1: OR_A("C"),
-      0xb2: OR_A("D"),
-      0xb3: OR_A("E"),
-      0xb4: OR_A("H"),
-      0xb5: OR_A("L"),
-      0xb6: OR_A("(HL)"),
-      0xb7: OR_A("A"),
-      0xb8: CP_A("B"),
-      0xb9: CP_A("C"),
-      0xba: CP_A("D"),
-      0xbb: CP_A("E"),
-      0xbc: CP_A("H"),
-      0xbd: CP_A("L"),
-      0xbe: CP_A("(HL)"),
-      0xbf: CP_A("A"),
-      0xC0: RET_C(FLAG_Z, false),
-      0xC1: POP_RR(rpBC),
-      0xC2: JP_C_NN(FLAG_Z, false),
-      0xC3: JP_NN(),
-      0xC4: CALL_C_NN(FLAG_Z, false),
-      0xC5: PUSH_RR(rpBC),
-      0xC6: ADD_A("nn"),
-      0xC7: RST(0x0000),
-      0xC8: RET_C(FLAG_Z, true),
-      0xC9: RET(),
-      0xCA: JP_C_NN(FLAG_Z, true),
-      0xCB: SHIFT('CB'),
-      0xCC: CALL_C_NN(FLAG_Z, true),
-      0xCD: CALL_NN(),
-      0xCE: ADC_A("nn"),
-      0xCF: RST(0x0008),
-      0xD0: RET_C(FLAG_C, false),
-      0xD1: POP_RR(rpDE),
-      0xD2: JP_C_NN(FLAG_C, false),
-      0xD3: OUT_iNi_A(),
-      0xD4: CALL_C_NN(FLAG_C, false),
-      0xD5: PUSH_RR(rpDE),
-      0xD6: SUB_A("nn"),
-      0xD7: RST(0x0010),
-      0xD8: RET_C(FLAG_C, true),
-      0xD9: EXX(),
-      0xDA: JP_C_NN(FLAG_C, true),
-      0xDB: IN_A_N(),
-      0xDC: CALL_C_NN(FLAG_C, true),
-      0xDD: SHIFT('DD'),
-      0xDE: SBC_A("nn"),
-      0xDF: RST(0x0018),
-      0xE0: RET_C(FLAG_P, false),
-      0xE1: POP_RR(rpHL),
-      0xE2: JP_C_NN(FLAG_P, false),
-      0xE3: EX_iSPi_RR(rpHL),
-      0xE4: CALL_C_NN(FLAG_P, false),
-      0xE5: PUSH_RR(rpHL),
-      0xE6: AND_A("nn"),
-      0xE7: RST(0x0020),
-      0xE8: RET_C(FLAG_P, true),
-      0xE9: JP_RR(rpHL),
-      0xEA: JP_C_NN(FLAG_P, true),
-      0xEB: EX_RR_RR(rpDE, rpHL),
-      0xEC: CALL_C_NN(FLAG_P, true),
-      0xED: SHIFT('ED'),
-      0xEE: XOR_A("nn"),
-      0xEF: RST(0x0028),
-      0xF0: RET_C(FLAG_S, false),
-      0xF1: POP_RR(rpAF),
-      0xF2: JP_C_NN(FLAG_S, false),
-      0xF3: DI(),
-      0xF4: CALL_C_NN(FLAG_S, false),
-      0xF5: PUSH_RR(rpAF),
-      0xF6: OR_A("nn"),
-      0xF7: RST(0x0030),
-      0xF8: RET_C(FLAG_S, true),
-      0xF9: LD_RR_RR(rpSP, rpHL),
-      0xFA: JP_C_NN(FLAG_S, true),
-      0xFB: EI(),
-      0xFC: CALL_C_NN(FLAG_S, true),
-      0xFD: SHIFT('FD'),
-      0xFE: CP_A("nn"),
-      0xFF: RST(0x0038),
-      0x100: 0
-    };
+         PC:pc,
+         SP:sp,
+         IX:ix,
+         IY:iy,
+         AF:(a<<8)+get_flags_register(),
+         BC:(b<<8)+c,
+         DE:(d<<8)+e,
+         HL:(h<<8)+l,
+         AF_:(a_prime<<8)+get_flags_prime(),
+         BC_:(b_prime<<8)+c_prime,
+         DE_:(d_prime<<8)+e_prime,
+         HL_:(h_prime<<8)+l_prime,
+         IR:(i<<8)+r,
+         im            : imode,
+         iff1          : iff1,
+         iff2          : iff2,
+         halted        : halted,
+         do_delayed_di : do_delayed_di,
+         do_delayed_ei : do_delayed_ei,
+         cycle_counter : cycle_counter
+      };   
+   }
 
-    /*
-    	Assemble and evaluate the final JS code for the Z80 component.
-    	The indirection on 'eval' causes most browsers to evaluate it in the global
-    	scope, giving a significant speed boost
-     */
-    defineZ80JS = "this._Z80 = function(opts) {\n	var self = {};\n\n	" + setUpStateJS + "\n\n	self.requestInterrupt = function(dataBus) {\n		interruptPending = true;\n		interruptDataBus = dataBus & 0xffff;\n		/* TODO: use event scheduling to keep the interrupt line active for a fixed\n		~48T window, to support retriggered interrupts and interrupt blocking via\n		chains of EI or DD/FD prefixes */\n	}\n	self.nonMaskableInterrupt = function() {\n		iff1 = 1;\n		self.requestInterrupt(0x66);\n	}\n	var z80Interrupt = function() {\n		if (iff1) {\n			if (halted) {\n				/* move PC on from the HALT opcode */\n				regPairs[" + rpPC + "]++;\n				halted = false;\n			}\n\n			iff1 = iff2 = 0;\n\n			/* push current PC in readiness for call to interrupt handler */\n			regPairs[" + rpSP + "]--; WRITEMEM(regPairs[" + rpSP + "], regPairs[" + rpPC + "] >> 8);\n			regPairs[" + rpSP + "]--; WRITEMEM(regPairs[" + rpSP + "], regPairs[" + rpPC + "] & 0xff);\n\n			/* TODO: R register */\n\n			switch (im) {\n				case 0:\n					regPairs[" + rpPC + "] = interruptDataBus; // assume always RST\n					tstates += 6;\n					break;\n				case 1:\n					regPairs[" + rpPC + "] = 0x0038;\n					tstates += 7;\n					break;\n				case 2:\n					inttemp = (regs[" + rI + "] << 8) | (interruptDataBus & 0xff);\n					l = READMEM(inttemp);\n					inttemp = (inttemp+1) & 0xffff;\n					h = READMEM(inttemp);\n					/*console.log(hex(interruptDataBus), hex(inttemp), hex(l), hex(h));*/\n					regPairs[" + rpPC + "] = (h<<8) | l;\n					tstates += 7;\n					break;\n			}\n		}\n	};\n\n	self.runFrame = function(frameLength) {\n		var lastOpcodePrefix, offset, opcode;\n\n		while (tstates < frameLength || opcodePrefix) {\n			if (interruptible && interruptPending && (iff1 || !self.retryInterrupts)) {\n				z80Interrupt();\n				interruptPending = false;\n			}\n			interruptible = true; /* unless overridden by opcode */\n			lastOpcodePrefix = opcodePrefix;\n			opcodePrefix = '';\n			switch (lastOpcodePrefix) {\n				case '':\n					CONTEND_READ(regPairs[" + rpPC + "], 4);\n					opcode = memory.read(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\n					regs[" + rR + "] = ((regs[" + rR + "] + 1) & 0x7f) | (regs[" + rR + "] & 0x80);\n					" + (opcodeSwitch(OPCODE_RUN_STRINGS, null, opts.traps)) + "\n					break;\n				case 'CB':\n					CONTEND_READ(regPairs[" + rpPC + "], 4);\n					opcode = memory.read(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\n					regs[" + rR + "] = ((regs[" + rR + "] + 1) & 0x7f) | (regs[" + rR + "] & 0x80);\n					" + (opcodeSwitch(OPCODE_RUN_STRINGS_CB)) + "\n					break;\n				case 'DD':\n					CONTEND_READ(regPairs[" + rpPC + "], 4);\n					opcode = memory.read(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\n					regs[" + rR + "] = ((regs[" + rR + "] + 1) & 0x7f) | (regs[" + rR + "] & 0x80);\n					" + (opcodeSwitch(OPCODE_RUN_STRINGS_DD, OPCODE_RUN_STRINGS)) + "\n					break;\n				case 'DDCB':\n					offset = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\n					if (offset & 0x80) offset -= 0x100;\n					CONTEND_READ(regPairs[" + rpPC + "], 3);\n					opcode = memory.read(regPairs[" + rpPC + "]);\n					CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n					CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n					regPairs[" + rpPC + "]++;\n					" + (opcodeSwitch(OPCODE_RUN_STRINGS_DDCB)) + "\n					break;\n				case 'ED':\n					CONTEND_READ(regPairs[" + rpPC + "], 4);\n					opcode = memory.read(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\n					regs[" + rR + "] = ((regs[" + rR + "] + 1) & 0x7f) | (regs[" + rR + "] & 0x80);\n					" + (opcodeSwitch(OPCODE_RUN_STRINGS_ED)) + "\n					break;\n				case 'FD':\n					CONTEND_READ(regPairs[" + rpPC + "], 4);\n					opcode = memory.read(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\n					regs[" + rR + "] = ((regs[" + rR + "] + 1) & 0x7f) | (regs[" + rR + "] & 0x80);\n					" + (opcodeSwitch(OPCODE_RUN_STRINGS_FD, OPCODE_RUN_STRINGS)) + "\n					break;\n				case 'FDCB':\n					offset = READMEM(regPairs[" + rpPC + "]); regPairs[" + rpPC + "]++;\n					if (offset & 0x80) offset -= 0x100;\n					CONTEND_READ(regPairs[" + rpPC + "], 3);\n					opcode = memory.read(regPairs[" + rpPC + "]);\n					CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n					CONTEND_READ_NO_MREQ(regPairs[" + rpPC + "], 1);\n					regPairs[" + rpPC + "]++;\n					" + (opcodeSwitch(OPCODE_RUN_STRINGS_FDCB)) + "\n					break;\n				default:\n					throw(\"Unknown opcode prefix: \" + lastOpcodePrefix);\n			}\n		}\n		while (display.nextEventTime != null && display.nextEventTime <= tstates) display.doEvent();\n	};\n\n	self.reset = function() {\n		regPairs[" + rpPC + "] = regPairs[" + rpIR + "] = 0;\n		iff1 = 0; iff2 = 0; im = 0; halted = false;\n	};\n\n	self.loadState = function(snapRegs) {\n		regPairs[" + rpAF + "] = snapRegs['AF'];\n		regPairs[" + rpBC + "] = snapRegs['BC'];\n		regPairs[" + rpDE + "] = snapRegs['DE'];\n		regPairs[" + rpHL + "] = snapRegs['HL'];\n		regPairs[" + rpAF_ + "] = snapRegs['AF_'];\n		regPairs[" + rpBC_ + "] = snapRegs['BC_'];\n		regPairs[" + rpDE_ + "] = snapRegs['DE_'];\n		regPairs[" + rpHL_ + "] = snapRegs['HL_'];\n		regPairs[" + rpIX + "] = snapRegs['IX'];\n		regPairs[" + rpIY + "] = snapRegs['IY'];\n		regPairs[" + rpSP + "] = snapRegs['SP'];\n		regPairs[" + rpPC + "] = snapRegs['PC'];\n		regPairs[" + rpIR + "] = snapRegs['IR'];\n		iff1 = snapRegs['iff1'] & 1;\n		iff2 = snapRegs['iff2'] & 1;\n		im = snapRegs['im'] & 3;\n		halted = !!snapRegs['halted'];\n		tstates = snapRegs['T'] * 1;\n		interruptPending = !!snapRegs['intp'];\n		interruptDataBus = snapRegs['intd'] & 0xffff;\n	};\n\n	self.saveState = function() {\n		return {\n			AF: regPairs[" + rpAF + "],\n			BC: regPairs[" + rpBC + "],\n			DE: regPairs[" + rpDE + "],\n			HL: regPairs[" + rpHL + "],\n			AF_: regPairs[" + rpAF_ + "],\n			BC_: regPairs[" + rpBC_ + "],\n			DE_: regPairs[" + rpDE_ + "],\n			HL_: regPairs[" + rpHL_ + "],\n			IX: regPairs[" + rpIX + "],\n			IY: regPairs[" + rpIY + "],\n			SP: regPairs[" + rpSP + "],\n			PC: regPairs[" + rpPC + "],\n			IR: regPairs[" + rpIR + "],\n			iff1: iff1,\n			iff2: iff2,\n			im: im,\n			halted: halted,\n			T: tstates,\n			intp: interruptPending,\n			intd: interruptDataBus,\n		};\n	};\n\n	/* Register / flag accessors (used for tape trapping and test harness) */\n	self.getAF = function() {\n		return regPairs[" + rpAF + "];\n	}\n	self.getBC = function() {\n		return regPairs[" + rpBC + "];\n	}\n	self.getDE = function() {\n		return regPairs[" + rpDE + "];\n	}\n	self.getHL = function() {\n		return regPairs[" + rpHL + "];\n	}\n	self.getAF_ = function() {\n		return regPairs[" + rpAF_ + "];\n	}\n	self.getBC_ = function() {\n		return regPairs[" + rpBC_ + "];\n	}\n	self.getDE_ = function() {\n		return regPairs[" + rpDE_ + "];\n	}\n	self.getHL_ = function() {\n		return regPairs[" + rpHL_ + "];\n	}\n	self.getIX = function() {\n		return regPairs[" + rpIX + "];\n	}\n	self.getIY = function() {\n		return regPairs[" + rpIY + "];\n	}\n	self.getI = function() {\n		return regs[" + rI + "];\n	}\n	self.getR = function() {\n		return regs[" + rR + "];\n	}\n	self.getSP = function() {\n		return regPairs[" + rpSP + "];\n	}\n	self.getPC = function() {\n		return regPairs[" + rpPC + "];\n	}\n	self.getIFF1 = function() {\n		return iff1;\n	}\n	self.getIFF2 = function() {\n		return iff2;\n	}\n	self.getIM = function() {\n		return im;\n	}\n	self.getHalted = function() {\n		return halted;\n	}\n\n	self.setAF = function(val) {\n		regPairs[" + rpAF + "] = val;\n	}\n	self.setBC = function(val) {\n		regPairs[" + rpBC + "] = val;\n	}\n	self.setDE = function(val) {\n		regPairs[" + rpDE + "] = val;\n	}\n	self.setHL = function(val) {\n		regPairs[" + rpHL + "] = val;\n	}\n	self.setAF_ = function(val) {\n		regPairs[" + rpAF_ + "] = val;\n	}\n	self.setBC_ = function(val) {\n		regPairs[" + rpBC_ + "] = val;\n	}\n	self.setDE_ = function(val) {\n		regPairs[" + rpDE_ + "] = val;\n	}\n	self.setHL_ = function(val) {\n		regPairs[" + rpHL_ + "] = val;\n	}\n	self.setIX = function(val) {\n		regPairs[" + rpIX + "] = val;\n	}\n	self.setIY = function(val) {\n		regPairs[" + rpIY + "] = val;\n	}\n	self.setI = function(val) {\n		regs[" + rI + "] = val;\n	}\n	self.setR = function(val) {\n		regs[" + rR + "] = val;\n	}\n	self.setSP = function(val) {\n		regPairs[" + rpSP + "] = val;\n	}\n	self.setPC = function(val) {\n		regPairs[" + rpPC + "] = val;\n	}\n	self.setIFF1 = function(val) {\n		iff1 = val & 1;\n	}\n	self.setIFF2 = function(val) {\n		iff2 = val & 1;\n	}\n	self.setIM = function(val) {\n		im = val & 1;\n	}\n	self.setHalted = function(val) {\n		halted = !!val;\n	}\n\n	self.getTstates = function() {\n		return tstates;\n	}\n	self.setTstates = function(val) {\n		tstates = val * 1;\n	}\n\n	self.getCarry_ = function() {\n		return regs[" + rF_ + "] & " + FLAG_C + ";\n	};\n	self.setCarry = function(val) {\n		if (val) {\n			regs[" + rF + "] |= " + FLAG_C + ";\n		} else {\n			regs[" + rF + "] &= " + (~FLAG_C) + ";\n		}\n	};\n	self.getA_ = function() {\n		return regs[" + rA_ + "];\n	};\n	self.retryInterrupts = false;\n	return self;\n};";
-    defineZ80JS = defineZ80JS.replace(/READMEM\((.*?)\)/g, '(CONTEND_READ($1, 3), memory.read($1))');
-    defineZ80JS = defineZ80JS.replace(/WRITEMEM\((.*?),(.*?)\)/g, "CONTEND_WRITE($1, 3);\nwhile (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();\nmemory.write($1,$2);");
-    if (opts.applyContention) {
-      defineZ80JS = defineZ80JS.replace(/CONTEND_READ\((.*?),(.*?)\)/g, '(tstates += memory.contend($1, tstates) + ($2))');
-      defineZ80JS = defineZ80JS.replace(/CONTEND_WRITE\((.*?),(.*?)\)/g, '(tstates += memory.contend($1, tstates) + ($2))');
-      defineZ80JS = defineZ80JS.replace(/CONTEND_READ_NO_MREQ\((.*?),(.*?)\)/g, '(tstates += memory.contend($1, tstates) + ($2))');
-      defineZ80JS = defineZ80JS.replace(/CONTEND_WRITE_NO_MREQ\((.*?),(.*?)\)/g, '(tstates += memory.contend($1, tstates) + ($2))');
-      defineZ80JS = defineZ80JS.replace(/CONTEND_PORT_EARLY\((.*?)\)/g, "var isContendedMemory = memory.isContended($1);\nvar isULAPort = ioBus.isULAPort($1);\nif (isContendedMemory) tstates += ioBus.contend($1, tstates);\ntstates += 1;\nwhile (display.nextEventTime != null && display.nextEventTime < tstates) display.doEvent();");
-      defineZ80JS = defineZ80JS.replace(/CONTEND_PORT_LATE\((.*?)\)/g, "if (isContendedMemory || isULAPort) {\n	ioBus.contend($1);\n	tstates += 1;\n	if (!isULAPort) {\n		ioBus.contend($1); tstates += 1;\n		ioBus.contend($1); tstates += 1;\n	} else {\n		tstates += 2;\n	}\n} else {\n	tstates += 3;\n}");
-    } else {
-      defineZ80JS = defineZ80JS.replace(/CONTEND_READ\((.*?),(.*?)\)/g, 'tstates += ($2)');
-      defineZ80JS = defineZ80JS.replace(/CONTEND_WRITE\((.*?),(.*?)\)/g, 'tstates += ($2)');
-      defineZ80JS = defineZ80JS.replace(/CONTEND_READ_NO_MREQ\((.*?),(.*?)\)/g, 'tstates += ($2)');
-      defineZ80JS = defineZ80JS.replace(/CONTEND_WRITE_NO_MREQ\((.*?),(.*?)\)/g, 'tstates += ($2)');
-      defineZ80JS = defineZ80JS.replace(/CONTEND_PORT_EARLY\((.*?)\)/g, 'tstates += 1');
-      defineZ80JS = defineZ80JS.replace(/CONTEND_PORT_LATE\((.*?)\)/g, 'tstates += 3');
-    }
-    indirectEval = eval;
-    return indirectEval(defineZ80JS);
+   function setState(state:Z80State) {
+    pc = state.PC;
+    sp = state.SP;
+    ix = state.IX;
+    iy = state.IY;
+    a = (state.AF >> 8) & 0xff;
+    set_flags_register(state.AF);
+    b = (state.BC >> 8) & 0xff;
+    c = state.BC & 0xff;
+    d = (state.DE >> 8) & 0xff;
+    e = state.DE & 0xff;
+    h = (state.HL >> 8) & 0xff;
+    l = state.HL & 0xff;
+    a_prime = (state.AF_ >> 8) & 0xff;
+    set_flags_prime(state.AF_);
+    b_prime = (state.BC_ >> 8) & 0xff;
+    c_prime = state.BC_ & 0xff;
+    d_prime = (state.DE_ >> 8) & 0xff;
+    e_prime = state.DE_ & 0xff;
+    h_prime = (state.HL_ >> 8) & 0xff;
+    l_prime = state.HL_ & 0xff;
+    i = (state.IR >> 8) & 0xff;
+    r = state.IR & 0xff;
+    imode = state.im;
+    iff1 = state.iff1;
+    iff2 = state.iff2;
+    halted = state.halted;
+    do_delayed_di = state.do_delayed_di;
+    do_delayed_ei = state.do_delayed_ei;
+    cycle_counter = state.cycle_counter;
+   }
+
+///////////////////////////////////////////////////////////////////////////////
+/// @public reset
+///
+/// @brief Re-initialize the processor as if a reset or power on had occured
+///////////////////////////////////////////////////////////////////////////////
+let reset = function()
+{
+   // These registers are the ones that have predictable states
+   //  immediately following a power-on or a reset.
+   // The others are left alone, because their states are unpredictable.
+   sp = 0xdff0;
+   pc = 0x0000;
+   a = 0x00;
+   r = 0x00;
+   set_flags_register(0);
+   // Start up with interrupts disabled.
+   imode = 0;
+   iff1 = 0;
+   iff2 = 0;
+   // Don't start halted or in a delayed DI or EI.
+   halted = false;
+   do_delayed_di = false;
+   do_delayed_ei = false;
+   // Obviously we've not used any cycles yet.
+   cycle_counter = 0;
 };
+
+///////////////////////////////////////////////////////////////////////////////
+/// @public run_instruction
+///
+/// @brief Runs a single instruction
+///
+/// @return The number of T cycles the instruction took to run,
+///          plus any time that went into handling interrupts that fired
+///          while this instruction was executing
+///////////////////////////////////////////////////////////////////////////////
+let run_instruction = function()
+{
+   if (!halted)
+   {
+      // If the previous instruction was a DI or an EI,
+      //  we'll need to disable or enable interrupts
+      //  after whatever instruction we're about to run is finished.
+      var doing_delayed_di = false, doing_delayed_ei = false;
+      if (do_delayed_di)
+      {
+         do_delayed_di = false;
+         doing_delayed_di = true;
+      }
+      else if (do_delayed_ei)
+      {
+         do_delayed_ei = false;
+         doing_delayed_ei = true;
+      }
+
+      // R is incremented at the start of every instruction cycle,
+      //  before the instruction actually runs.
+      // The high bit of R is not affected by this increment,
+      //  it can only be changed using the LD R, A instruction.
+      r = (r & 0x80) | (((r & 0x7f) + 1) & 0x7f);
+      
+      // Read the byte at the PC and run the instruction it encodes.
+      var opcode = core.mem_read(pc);
+      decode_instruction(opcode);
+      pc = (pc + 1) & 0xffff;
+      
+      // Actually do the delayed interrupt disable/enable if we have one.
+      if (doing_delayed_di)
+      {
+         iff1 = 0;
+         iff2 = 0;
+         //console.log("DI",pc);
+      }
+      else if (doing_delayed_ei)
+      {
+         iff1 = 1;
+         iff2 = 1;
+         //console.log("EI",pc);
+      }
+      
+      // And finally clear out the cycle counter for the next instruction
+      //  before returning it to the emulator core.
+      var retval = cycle_counter;
+      cycle_counter = 0;
+      return retval;
+   }
+   else
+   {
+      // While we're halted, claim that we spent a cycle doing nothing,
+      //  so that the rest of the emulator can still proceed.
+      return 1;
+   }
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// @public interrupt
+///
+/// @brief Simulates pulsing the processor's INT (or NMI) pin
+///
+/// @param non_maskable - true if this is a non-maskable interrupt
+/// @param data - the value to be placed on the data bus, if needed
+///////////////////////////////////////////////////////////////////////////////
+let interrupt = function(non_maskable, data)
+{
+   //console.log(non_maskable, data, iff1, iff2, do_delayed_ei, do_delayed_di);
+   if (non_maskable)
+   {
+      // The high bit of R is not affected by this increment,
+      //  it can only be changed using the LD R, A instruction.
+      r = (r & 0x80) | (((r & 0x7f) + 1) & 0x7f);
+      // Non-maskable interrupts are always handled the same way;
+      //  clear IFF1 and then do a CALL 0x0066.
+      // Also, all interrupts reset the HALT state.
+      halted = false;
+      iff2 = iff1;
+      iff1 = 0;
+      push_word(pc);
+      pc = 0x66;
+      cycle_counter += 11;
+   }
+   else if (iff1)
+   {
+      // The high bit of R is not affected by this increment,
+      //  it can only be changed using the LD R, A instruction.
+      r = (r & 0x80) | (((r & 0x7f) + 1) & 0x7f);
+   
+      halted = false;
+      iff1 = 0;
+      iff2 = 0;
+   
+      if (imode === 0)
+      {
+         // In the 8080-compatible interrupt mode,
+         //  decode the content of the data bus as an instruction and run it.
+         pc = (pc - 1) & 0xffff; //SEH: so do_reset() pushes right value
+         decode_instruction(data);
+         pc = (pc + 1) & 0xffff; //SEH: so do_reset() pushes right value
+         cycle_counter += 2;
+      }
+      else if (imode === 1)
+      {
+         // Mode 1 is always just RST 0x38.
+         push_word(pc);
+         pc = 0x38;
+         cycle_counter += 13;
+      }
+      else if (imode === 2)
+      {
+         // Mode 2 uses the value on the data bus as in index
+         //  into the vector table pointer to by the I register.
+         push_word(pc);
+         // The Z80 manual says that this address must be 2-byte aligned,
+         //  but it doesn't appear that this is actually the case on the hardware,
+         //  so we don't attempt to enforce that here.
+         var vector_address = ((i << 8) | data);
+         pc = core.mem_read(vector_address) | 
+                   (core.mem_read((vector_address + 1) & 0xffff) << 8);
+         
+         cycle_counter += 19;
+      }
+      //console.log(imode,data,pc);
+   }
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// The public API functions end here.
+///
+/// What begins here are just general utility functions, used variously.
+///////////////////////////////////////////////////////////////////////////////
+let decode_instruction = function(opcode)
+{
+   // The register-to-register loads and ALU instructions
+   //  are all so uniform that we can decode them directly
+   //  instead of going into the instruction array for them.
+   // This function gets the operand for all of these instructions.
+   var get_operand = function(opcode)
+   {
+      return ((opcode & 0x07) === 0) ? b :
+             ((opcode & 0x07) === 1) ? c :
+             ((opcode & 0x07) === 2) ? d :
+             ((opcode & 0x07) === 3) ? e :
+             ((opcode & 0x07) === 4) ? h :
+             ((opcode & 0x07) === 5) ? l :
+             ((opcode & 0x07) === 6) ? core.mem_read(l | (h << 8)) : a;
+   };
+
+   // Handle HALT right up front, because it fouls up our LD decoding
+   //  by falling where LD (HL), (HL) ought to be.
+   if (opcode === 0x76)
+   {
+      halted = true;
+   }
+   else if ((opcode >= 0x40) && (opcode < 0x80))
+   {
+      // This entire range is all 8-bit register loads.
+      // Get the operand and assign it to the correct destination.
+      var operand = get_operand(opcode);
+         
+      if (((opcode & 0x38) >>> 3) === 0)
+         b = operand;
+      else if (((opcode & 0x38) >>> 3) === 1)
+         c = operand;
+      else if (((opcode & 0x38) >>> 3) === 2)
+         d = operand;
+      else if (((opcode & 0x38) >>> 3) === 3)
+         e = operand;
+      else if (((opcode & 0x38) >>> 3) === 4)
+         h = operand;
+      else if (((opcode & 0x38) >>> 3) === 5)
+         l = operand;
+      else if (((opcode & 0x38) >>> 3) === 6)
+         core.mem_write(l | (h << 8), operand);
+      else if (((opcode & 0x38) >>> 3) === 7)
+         a = operand;
+   }
+   else if ((opcode >= 0x80) && (opcode < 0xc0))
+   {
+      // These are the 8-bit register ALU instructions.
+      // We'll get the operand and then use this "jump table"
+      //  to call the correct utility function for the instruction.
+      var operand = get_operand(opcode),
+          op_array = [do_add, do_adc, do_sub, do_sbc,
+                      do_and, do_xor, do_or, do_cp];
+      
+      op_array[(opcode & 0x38) >>> 3]( operand);
+   }
+   else
+   {
+      // This is one of the less formulaic instructions;
+      //  we'll get the specific function for it from our array.
+      var func = instructions[opcode];
+      func();
+   }
+   
+   // Update the cycle counter with however many cycles
+   //  the base instruction took.
+   // If this was a prefixed instruction, then
+   //  the prefix handler has added its extra cycles already.
+   cycle_counter += cycle_counts[opcode];
+};
+
+let get_signed_offset_byte = function(value)
+{
+   // This function requires some explanation.
+   // We just use JavaScript Number variables for our registers,
+   //  not like a typed array or anything.
+   // That means that, when we have a byte value that's supposed
+   //  to represent a signed offset, the value we actually see
+   //  isn't signed at all, it's just a small integer.
+   // So, this function converts that byte into something JavaScript
+   //  will recognize as signed, so we can easily do arithmetic with it.
+   // First, we clamp the value to a single byte, just in case.
+   value &= 0xff;
+   // We don't have to do anything if the value is positive.
+   if (value & 0x80)
+   {
+      // But if the value is negative, we need to manually un-two's-compliment it.
+      // I'm going to assume you can figure out what I meant by that,
+      //  because I don't know how else to explain it.
+      // We could also just do value |= 0xffffff00, but I prefer
+      //  not caring how many bits are in the integer representation
+      //  of a JavaScript number in the currently running browser.
+      value = -((0xff & ~value) + 1);
+   }
+   return value;
+};
+
+let get_flags_register = function()
+{
+   // We need the whole F register for some reason.
+   //  probably a PUSH AF instruction,
+   //  so make the F register out of our separate flags.
+   return (flags.S << 7) |
+          (flags.Z << 6) |
+          (flags.Y << 5) |
+          (flags.H << 4) |
+          (flags.X << 3) |
+          (flags.P << 2) |
+          (flags.N << 1) |
+          (flags.C);
+};
+
+let get_flags_prime = function()
+{
+   // This is the same as the above for the F' register.
+   return (flags_prime.S << 7) |
+          (flags_prime.Z << 6) |
+          (flags_prime.Y << 5) |
+          (flags_prime.H << 4) |
+          (flags_prime.X << 3) |
+          (flags_prime.P << 2) |
+          (flags_prime.N << 1) |
+          (flags_prime.C);
+};
+
+let set_flags_register = function(operand)
+{
+   // We need to set the F register, probably for a POP AF,
+   //  so break out the given value into our separate flags.
+   flags.S = (operand & 0x80) >>> 7;
+   flags.Z = (operand & 0x40) >>> 6;
+   flags.Y = (operand & 0x20) >>> 5;
+   flags.H = (operand & 0x10) >>> 4;
+   flags.X = (operand & 0x08) >>> 3;
+   flags.P = (operand & 0x04) >>> 2;
+   flags.N = (operand & 0x02) >>> 1;
+   flags.C = (operand & 0x01);
+};
+
+let set_flags_prime = function(operand)
+{
+   // Again, this is the same as the above for F'.
+   flags_prime.S = (operand & 0x80) >>> 7;
+   flags_prime.Z = (operand & 0x40) >>> 6;
+   flags_prime.Y = (operand & 0x20) >>> 5;
+   flags_prime.H = (operand & 0x10) >>> 4;
+   flags_prime.X = (operand & 0x08) >>> 3;
+   flags_prime.P = (operand & 0x04) >>> 2;
+   flags_prime.N = (operand & 0x02) >>> 1;
+   flags_prime.C = (operand & 0x01);
+};
+
+let update_xy_flags = function(result)
+{
+   // Most of the time, the undocumented flags
+   //  (sometimes called X and Y, or 3 and 5),
+   //  take their values from the corresponding bits
+   //  of the result of the instruction,
+   //  or from some other related value.
+   // This is a utility function to set those flags based on those bits.
+   flags.Y = (result & 0x20) >>> 5;
+   flags.X = (result & 0x08) >>> 3;
+};
+
+let get_parity = function(value)
+{
+   // We could try to actually calculate the parity every time,
+   //  but why calculate what you can pre-calculate?
+   var parity_bits = [
+      1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+      0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 
+      0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 
+      1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 
+      0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 
+      1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 
+      1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 
+      0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 
+      0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 
+      1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 
+      1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 
+      0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 
+      1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 
+      0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 
+      0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 
+      1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
+   ];
+   return parity_bits[value];
+};
+
+let push_word = function(operand)
+{
+   // Pretty obvious what this function does; given a 16-bit value,
+   //  decrement the stack pointer, write the high byte to the new
+   //  stack pointer location, then repeat for the low byte.
+   sp = (sp - 1) & 0xffff;
+   core.mem_write(sp, (operand & 0xff00) >>> 8);
+   sp = (sp - 1) & 0xffff;
+   core.mem_write(sp, operand & 0x00ff);
+};
+
+let pop_word = function()
+{
+   // Again, not complicated; read a byte off the top of the stack,
+   //  increment the stack pointer, rinse and repeat.
+   var retval = core.mem_read(sp) & 0xff;
+   sp = (sp + 1) & 0xffff;
+   retval |= core.mem_read(sp) << 8;
+   sp = (sp + 1) & 0xffff;
+   return retval;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Now, the way most instructions work in this emulator is that they set up
+///  their operands according to their addressing mode, and then they call a
+///  utility function that handles all variations of that instruction.
+/// Those utility functions begin here.
+///////////////////////////////////////////////////////////////////////////////
+let do_conditional_absolute_jump = function(condition)
+{
+   // This function implements the JP [condition],nn instructions.
+   if (condition)
+   {
+      // We're taking this jump, so write the new PC,
+      //  and then decrement the thing we just wrote,
+      //  because the instruction decoder increments the PC
+      //  unconditionally at the end of every instruction
+      //  and we need to counteract that so we end up at the jump target.
+      pc =  core.mem_read((pc + 1) & 0xffff) |
+                (core.mem_read((pc + 2) & 0xffff) << 8);
+      pc = (pc - 1) & 0xffff;
+   }
+   else
+   {
+      // We're not taking this jump, just move the PC past the operand.
+      pc = (pc + 2) & 0xffff;
+   }
+};
+
+let do_conditional_relative_jump = function(condition)
+{
+   // This function implements the JR [condition],n instructions.
+   if (condition)
+   {
+      // We need a few more cycles to actually take the jump.
+      cycle_counter += 5;
+      // Calculate the offset specified by our operand.
+      var offset = get_signed_offset_byte(core.mem_read((pc + 1) & 0xffff));
+      // Add the offset to the PC, also skipping past this instruction.
+      pc = (pc + offset + 1) & 0xffff;
+   }
+   else
+   {
+      // No jump happening, just skip the operand.
+      pc = (pc + 1) & 0xffff;
+   }
+};
+
+let do_conditional_call = function(condition)
+{
+   // This function is the CALL [condition],nn instructions.
+   // If you've seen the previous functions, you know this drill.
+   if (condition)
+   {
+      cycle_counter += 7;
+      push_word((pc + 3) & 0xffff);
+      pc =  core.mem_read((pc + 1) & 0xffff) |
+                (core.mem_read((pc + 2) & 0xffff) << 8);
+      pc = (pc - 1) & 0xffff;
+   }
+   else
+   {
+      pc = (pc + 2) & 0xffff;
+   }
+};
+
+let do_conditional_return = function(condition)
+{
+   if (condition)
+   {
+      cycle_counter += 6;
+      pc = (pop_word() - 1) & 0xffff;
+   }
+};
+
+let do_reset = function(address)
+{
+   // The RST [address] instructions go through here.
+   push_word((pc + 1) & 0xffff);
+   pc = (address - 1) & 0xffff;
+};
+
+let do_add = function(operand)
+{
+   // This is the ADD A, [operand] instructions.
+   // We'll do the literal addition, which includes any overflow,
+   //  so that we can more easily figure out whether we had
+   //  an overflow or a carry and set the flags accordingly.
+   var result = a + operand;
+   
+   // The great majority of the work for the arithmetic instructions
+   //  turns out to be setting the flags rather than the actual operation.
+   flags.S = (result & 0x80) ? 1 : 0;
+   flags.Z = !(result & 0xff) ? 1 : 0;
+   flags.H = (((operand & 0x0f) + (a & 0x0f)) & 0x10) ? 1 : 0;
+   // An overflow has happened if the sign bits of the accumulator and the operand
+   //  don't match the sign bit of the result value.
+   flags.P = ((a & 0x80) === (operand & 0x80)) && ((a & 0x80) !== (result & 0x80)) ? 1 : 0;
+   flags.N = 0;
+   flags.C = (result & 0x100) ? 1 : 0;
+   
+   a = result & 0xff;
+   update_xy_flags(a);
+};
+
+let do_adc = function(operand)
+{
+   var result = a + operand + flags.C;
+   
+   flags.S = (result & 0x80) ? 1 : 0;
+   flags.Z = !(result & 0xff) ? 1 : 0;
+   flags.H = (((operand & 0x0f) + (a & 0x0f) + flags.C) & 0x10) ? 1 : 0;
+   flags.P = ((a & 0x80) === (operand & 0x80)) && ((a & 0x80) !== (result & 0x80)) ? 1 : 0;
+   flags.N = 0;
+   flags.C = (result & 0x100) ? 1 : 0;
+   
+   a = result & 0xff;
+   update_xy_flags(a);
+};
+
+let do_sub = function(operand)
+{
+   var result = a - operand;
+   
+   flags.S = (result & 0x80) ? 1 : 0;
+   flags.Z = !(result & 0xff) ? 1 : 0;
+   flags.H = (((a & 0x0f) - (operand & 0x0f)) & 0x10) ? 1 : 0;
+   flags.P = ((a & 0x80) !== (operand & 0x80)) && ((a & 0x80) !== (result & 0x80)) ? 1 : 0;
+   flags.N = 1;
+   flags.C = (result & 0x100) ? 1 : 0;
+   
+   a = result & 0xff;
+   update_xy_flags(a);
+};
+
+let do_sbc = function(operand)
+{
+   var result = a - operand - flags.C;
+   
+   flags.S = (result & 0x80) ? 1 : 0;
+   flags.Z = !(result & 0xff) ? 1 : 0;
+   flags.H = (((a & 0x0f) - (operand & 0x0f) - flags.C) & 0x10) ? 1 : 0;
+   flags.P = ((a & 0x80) !== (operand & 0x80)) && ((a & 0x80) !== (result & 0x80)) ? 1 : 0;
+   flags.N = 1;
+   flags.C = (result & 0x100) ? 1 : 0;
+   
+   a = result & 0xff;
+   update_xy_flags(a);
+};
+
+let do_cp = function(operand)
+{
+   // A compare instruction is just a subtraction that doesn't save the value,
+   //  so we implement it as... a subtraction that doesn't save the value.
+   var temp = a;
+   do_sub(operand);
+   a = temp;
+   // Since this instruction has no "result" value, the undocumented flags
+   //  are set based on the operand instead.
+   update_xy_flags(operand);
+};
+
+let do_and = function(operand)
+{
+   // The logic instructions are all pretty straightforward.
+   a &= operand & 0xff;
+   flags.S = (a & 0x80) ? 1 : 0;
+   flags.Z = !a ? 1 : 0;
+   flags.H = 1;
+   flags.P = get_parity(a);
+   flags.N = 0;
+   flags.C = 0;
+   update_xy_flags(a);
+};
+
+let do_or = function(operand)
+{
+   a = (operand | a) & 0xff;
+   flags.S = (a & 0x80) ? 1 : 0;
+   flags.Z = !a ? 1 : 0;
+   flags.H = 0;
+   flags.P = get_parity(a);
+   flags.N = 0;
+   flags.C = 0;
+   update_xy_flags(a);
+};
+
+let do_xor = function(operand)
+{
+   a = (operand ^ a) & 0xff;
+   flags.S = (a & 0x80) ? 1 : 0;
+   flags.Z = !a ? 1 : 0;
+   flags.H = 0;
+   flags.P = get_parity(a);
+   flags.N = 0;
+   flags.C = 0;
+   update_xy_flags(a);
+};
+
+let do_inc = function(operand)
+{
+   var result = operand + 1;
+   
+   flags.S = (result & 0x80) ? 1 : 0;
+   flags.Z = !(result & 0xff) ? 1 : 0;
+   flags.H = ((operand & 0x0f) === 0x0f) ? 1 : 0;
+   // It's a good deal easier to detect overflow for an increment/decrement.
+   flags.P = (operand === 0x7f) ? 1 : 0;
+   flags.N = 0;
+   
+   result &= 0xff;
+   update_xy_flags(result);
+   
+   return result;
+};
+
+let do_dec = function(operand)
+{
+   var result = operand - 1;
+   
+   flags.S = (result & 0x80) ? 1 : 0;
+   flags.Z = !(result & 0xff) ? 1 : 0;
+   flags.H = ((operand & 0x0f) === 0x00) ? 1 : 0;
+   flags.P = (operand === 0x80) ? 1 : 0;
+   flags.N = 1;
+   
+   result &= 0xff;
+   update_xy_flags(result);
+   
+   return result;
+};
+
+let do_hl_add = function(operand)
+{
+   // The HL arithmetic instructions are the same as the A ones,
+   //  just with twice as many bits happening.
+   var hl = l | (h << 8), result = hl + operand;
+   
+   flags.N = 0;
+   flags.C = (result & 0x10000) ? 1 : 0;
+   flags.H = (((hl & 0x0fff) + (operand & 0x0fff)) & 0x1000) ? 1 : 0;
+   
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+
+   update_xy_flags(h);
+};
+
+let do_hl_adc = function(operand)
+{
+   operand += flags.C;
+   var hl = l | (h << 8), result = hl + operand;
+   
+   flags.S = (result & 0x8000) ? 1 : 0;
+   flags.Z = !(result & 0xffff) ? 1 : 0;
+   flags.H = (((hl & 0x0fff) + (operand & 0x0fff)) & 0x1000) ? 1 : 0;
+   flags.P = ((hl & 0x8000) === (operand & 0x8000)) && ((result & 0x8000) !== (hl & 0x8000)) ? 1 : 0;
+   flags.N = 0;
+   flags.C = (result & 0x10000) ? 1 : 0;
+   
+   l = result & 0xff;
+   h = (result >>> 8) & 0xff;
+   
+   update_xy_flags(h);
+};
+
+let do_hl_sbc = function(operand)
+{
+   operand += flags.C;
+   var hl = l | (h << 8), result = hl - operand;
+   
+   flags.S = (result & 0x8000) ? 1 : 0;
+   flags.Z = !(result & 0xffff) ? 1 : 0;
+   flags.H = (((hl & 0x0fff) - (operand & 0x0fff)) & 0x1000) ? 1 : 0;
+   flags.P = ((hl & 0x8000) !== (operand & 0x8000)) && ((result & 0x8000) !== (hl & 0x8000)) ? 1 : 0;
+   flags.N = 1;
+   flags.C = (result & 0x10000) ? 1 : 0;
+   
+   l = result & 0xff;
+   h = (result >>> 8) & 0xff;
+   
+   update_xy_flags(h);
+};
+
+let do_in = function(port)
+{
+   var result = core.io_read(port);
+   
+   flags.S = (result & 0x80) ? 1 : 0;
+   flags.Z = result ? 0 : 1;
+   flags.H = 0;
+   flags.P = get_parity(result) ? 1 : 0;
+   flags.N = 0;
+   update_xy_flags(result);
+   
+   return result;
+};
+
+let do_neg = function()
+{
+   // This instruction is defined to not alter the register if it === 0x80.
+   if (a !== 0x80)
+   {
+      // This is a signed operation, so convert A to a signed value.
+      a = get_signed_offset_byte(a);
+      
+      a = (-a) & 0xff;
+   }
+   
+   flags.S = (a & 0x80) ? 1 : 0;
+   flags.Z = !a ? 1 : 0;
+   flags.H = (((-a) & 0x0f) > 0) ? 1 : 0;
+   flags.P = (a === 0x80) ? 1 : 0;
+   flags.N = 1;
+   flags.C = a ? 1 : 0;
+   update_xy_flags(a);
+};
+
+let do_ldi = function()
+{
+   // Copy the value that we're supposed to copy.
+   var read_value = core.mem_read(l | (h << 8));
+   core.mem_write(e | (d << 8), read_value);
+   
+   // Increment DE and HL, and decrement BC.
+   var result = (e | (d << 8)) + 1;
+   e = result & 0xff;
+   d = (result & 0xff00) >>> 8;
+   result = (l | (h << 8)) + 1;
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+   result = (c | (b << 8)) - 1;
+   c = result & 0xff;
+   b = (result & 0xff00) >>> 8;
+   
+   flags.H = 0;
+   flags.P = (c || b) ? 1 : 0;
+   flags.N = 0;
+   flags.Y = ((a + read_value) & 0x02) >>> 1;
+   flags.X = ((a + read_value) & 0x08) >>> 3;
+};
+
+let do_cpi = function()
+{
+   var temp_carry = flags.C;
+   var read_value = core.mem_read(l | (h << 8))
+   do_cp(read_value);
+   flags.C = temp_carry;
+   flags.Y = ((a - read_value - flags.H) & 0x02) >>> 1;
+   flags.X = ((a - read_value - flags.H) & 0x08) >>> 3;
+   
+   var result = (l | (h << 8)) + 1;
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+   result = (c | (b << 8)) - 1;
+   c = result & 0xff;
+   b = (result & 0xff00) >>> 8;
+   
+   flags.P = result ? 1 : 0;
+};
+
+let do_ini = function()
+{
+   b = do_dec(b);
+   
+   core.mem_write(l | (h << 8), core.io_read((b << 8) | c));
+   
+   var result = (l | (h << 8)) + 1;
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+
+   flags.N = 1;
+};
+
+let do_outi = function()
+{
+   core.io_write((b << 8) | c, core.mem_read(l | (h << 8)));
+   
+   var result = (l | (h << 8)) + 1;
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+   
+   b = do_dec(b);
+   flags.N = 1;
+};
+
+let do_ldd = function()
+{
+   flags.N = 0;
+   flags.H = 0;
+   
+   var read_value = core.mem_read(l | (h << 8));
+   core.mem_write(e | (d << 8), read_value);
+   
+   var result = (e | (d << 8)) - 1;
+   e = result & 0xff;
+   d = (result & 0xff00) >>> 8;
+   result = (l | (h << 8)) - 1;
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+   result = (c | (b << 8)) - 1;
+   c = result & 0xff;
+   b = (result & 0xff00) >>> 8;
+   
+   flags.P = (c || b) ? 1 : 0;
+   flags.Y = ((a + read_value) & 0x02) >>> 1;
+   flags.X = ((a + read_value) & 0x08) >>> 3;
+};
+
+let do_cpd = function()
+{
+   var temp_carry = flags.C
+   var read_value = core.mem_read(l | (h << 8))
+   do_cp(read_value);
+   flags.C = temp_carry;
+   flags.Y = ((a - read_value - flags.H) & 0x02) >>> 1;
+   flags.X = ((a - read_value - flags.H) & 0x08) >>> 3;
+   
+   var result = (l | (h << 8)) - 1;
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+   result = (c | (b << 8)) - 1;
+   c = result & 0xff;
+   b = (result & 0xff00) >>> 8;
+   
+   flags.P = result ? 1 : 0;
+};
+
+let do_ind = function()
+{
+   b = do_dec(b);
+   
+   core.mem_write(l | (h << 8), core.io_read((b << 8) | c));
+   
+   var result = (l | (h << 8)) - 1;
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+   
+   flags.N = 1;
+};
+
+let do_outd = function()
+{
+   core.io_write((b << 8) | c, core.mem_read(l | (h << 8)));
+   
+   var result = (l | (h << 8)) - 1;
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+   
+   b = do_dec(b);
+   flags.N = 1;
+};
+
+let do_rlc = function(operand)
+{
+   flags.N = 0;
+   flags.H = 0;
+   
+   flags.C = (operand & 0x80) >>> 7;
+   operand = ((operand << 1) | flags.C) & 0xff;
+   
+   flags.Z = !operand ? 1 : 0;
+   flags.P = get_parity(operand);
+   flags.S = (operand & 0x80) ? 1 : 0;
+   update_xy_flags(operand);
+   
+   return operand;
+};
+
+let do_rrc = function(operand)
+{
+   flags.N = 0;
+   flags.H = 0;
+   
+   flags.C = operand & 1;
+   operand = ((operand >>> 1) & 0x7f) | (flags.C << 7);
+   
+   flags.Z = !(operand & 0xff) ? 1 : 0;
+   flags.P = get_parity(operand);
+   flags.S = (operand & 0x80) ? 1 : 0;
+   update_xy_flags(operand);
+   
+   return operand & 0xff;
+};
+
+let do_rl = function(operand)
+{
+   flags.N = 0;
+   flags.H = 0;
+   
+   var temp = flags.C;
+   flags.C = (operand & 0x80) >>> 7;
+   operand = ((operand << 1) | temp) & 0xff;
+   
+   flags.Z = !operand ? 1 : 0;
+   flags.P = get_parity(operand);
+   flags.S = (operand & 0x80) ? 1 : 0;
+   update_xy_flags(operand);
+
+   return operand;
+};
+
+let do_rr = function(operand)
+{
+   flags.N = 0;
+   flags.H = 0;
+   
+   var temp = flags.C;
+   flags.C = operand & 1;
+   operand = ((operand >>> 1) & 0x7f) | (temp << 7);
+   
+   flags.Z = !operand ? 1 : 0;
+   flags.P = get_parity(operand);
+   flags.S = (operand & 0x80) ? 1 : 0;
+   update_xy_flags(operand);
+
+   return operand;
+};
+
+let do_sla = function(operand)
+{
+   flags.N = 0;
+   flags.H = 0;
+   
+   flags.C = (operand & 0x80) >>> 7;
+   operand = (operand << 1) & 0xff;
+   
+   flags.Z = !operand ? 1 : 0;
+   flags.P = get_parity(operand);
+   flags.S = (operand & 0x80) ? 1 : 0;
+   update_xy_flags(operand);
+   
+   return operand;
+};
+
+let do_sra = function(operand)
+{
+   flags.N = 0;
+   flags.H = 0;
+   
+   flags.C = operand & 1;
+   operand = ((operand >>> 1) & 0x7f) | (operand & 0x80);
+   
+   flags.Z = !operand ? 1 : 0;
+   flags.P = get_parity(operand);
+   flags.S = (operand & 0x80) ? 1 : 0;
+   update_xy_flags(operand);
+   
+   return operand;
+};
+
+let do_sll = function(operand)
+{
+   flags.N = 0;
+   flags.H = 0;
+   
+   flags.C = (operand & 0x80) >>> 7;
+   operand = ((operand << 1) & 0xff) | 1;
+   
+   flags.Z = !operand ? 1 : 0;
+   flags.P = get_parity(operand);
+   flags.S = (operand & 0x80) ? 1 : 0;
+   update_xy_flags(operand);
+   
+   return operand;
+};
+
+let do_srl = function(operand)
+{
+   flags.N = 0;
+   flags.H = 0;
+   
+   flags.C = operand & 1;
+   operand = (operand >>> 1) & 0x7f;
+   
+   flags.Z = !operand ? 1 : 0;
+   flags.P = get_parity(operand);
+   flags.S = 0;
+   update_xy_flags(operand);
+   
+   return operand;
+};
+
+let do_ix_add = function(operand)
+{
+   flags.N = 0;
+   
+   var result = ix + operand;
+   
+   flags.C = (result & 0x10000) ? 1 : 0;
+   flags.H = (((ix & 0xfff) + (operand & 0xfff)) & 0x1000) ? 1 : 0;
+   update_xy_flags((result & 0xff00) >>> 8);
+   
+   ix = result;
+};
+
+
+///////////////////////////////////////////////////////////////////////////////
+/// This table contains the implementations for the instructions that weren't
+///  implemented directly in the decoder function (everything but the 8-bit
+///  register loads and the accumulator ALU instructions, in other words).
+/// Similar tables for the ED and DD/FD prefixes follow this one.
+///////////////////////////////////////////////////////////////////////////////
+let instructions = [];
+
+// 0x00 : NOP
+instructions[0x00] = function() { };
+// 0x01 : LD BC, nn
+instructions[0x01] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   c = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   b = core.mem_read(pc);
+};
+// 0x02 : LD (BC), A
+instructions[0x02] = function()
+{
+   core.mem_write(c | (b << 8), a);
+};
+// 0x03 : INC BC
+instructions[0x03] = function()
+{
+   var result = (c | (b << 8));
+   result += 1;
+   c = result & 0xff;
+   b = (result & 0xff00) >>> 8;
+};
+// 0x04 : INC B
+instructions[0x04] = function()
+{
+   b = do_inc(b);
+};
+// 0x05 : DEC B
+instructions[0x05] = function()
+{
+   b = do_dec(b);
+};
+// 0x06 : LD B, n
+instructions[0x06] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   b = core.mem_read(pc);
+};
+// 0x07 : RLCA
+instructions[0x07] = function()
+{
+   // This instruction is implemented as a special case of the
+   //  more general Z80-specific RLC instruction.
+   // Specifially, RLCA is a version of RLC A that affects fewer flags.
+   // The same applies to RRCA, RLA, and RRA.
+   var temp_s = flags.S, temp_z = flags.Z, temp_p = flags.P;
+   a = do_rlc(a);
+   flags.S = temp_s;
+   flags.Z = temp_z;
+   flags.P = temp_p;
+};
+// 0x08 : EX AF, AF'
+instructions[0x08] = function()
+{
+   var temp = a;
+   a = a_prime;
+   a_prime = temp;
+   
+   temp = get_flags_register();
+   set_flags_register(get_flags_prime());
+   set_flags_prime(temp);
+};
+// 0x09 : ADD HL, BC
+instructions[0x09] = function()
+{
+   do_hl_add(c | (b << 8));
+};
+// 0x0a : LD A, (BC)
+instructions[0x0a] = function()
+{
+   a = core.mem_read(c | (b << 8));
+};
+// 0x0b : DEC BC
+instructions[0x0b] = function()
+{
+   var result = (c | (b << 8));
+   result -= 1;
+   c = result & 0xff;
+   b = (result & 0xff00) >>> 8;
+};
+// 0x0c : INC C
+instructions[0x0c] = function()
+{
+   c = do_inc(c);
+};
+// 0x0d : DEC C
+instructions[0x0d] = function()
+{
+   c = do_dec(c);
+};
+// 0x0e : LD C, n
+instructions[0x0e] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   c = core.mem_read(pc);
+};
+// 0x0f : RRCA
+instructions[0x0f] = function()
+{
+   var temp_s = flags.S, temp_z = flags.Z, temp_p = flags.P;
+   a = do_rrc(a);
+   flags.S = temp_s;
+   flags.Z = temp_z;
+   flags.P = temp_p;
+};
+// 0x10 : DJNZ nn
+instructions[0x10] = function()
+{
+   b = (b - 1) & 0xff;
+   do_conditional_relative_jump(b !== 0);
+};
+// 0x11 : LD DE, nn
+instructions[0x11] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   e = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   d = core.mem_read(pc);
+};
+// 0x12 : LD (DE), A
+instructions[0x12] = function()
+{
+   core.mem_write(e | (d << 8), a);
+};
+// 0x13 : INC DE
+instructions[0x13] = function()
+{
+   var result = (e | (d << 8));
+   result += 1;
+   e = result & 0xff;
+   d = (result & 0xff00) >>> 8;
+};
+// 0x14 : INC D
+instructions[0x14] = function()
+{
+   d = do_inc(d);
+};
+// 0x15 : DEC D
+instructions[0x15] = function()
+{
+   d = do_dec(d);
+};
+// 0x16 : LD D, n
+instructions[0x16] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   d = core.mem_read(pc);
+};
+// 0x17 : RLA
+instructions[0x17] = function()
+{
+   var temp_s = flags.S, temp_z = flags.Z, temp_p = flags.P;
+   a = do_rl(a);
+   flags.S = temp_s;
+   flags.Z = temp_z;
+   flags.P = temp_p;
+};
+// 0x18 : JR n
+instructions[0x18] = function()
+{
+   var offset = get_signed_offset_byte(core.mem_read((pc + 1) & 0xffff));
+   pc = (pc + offset + 1) & 0xffff;
+};
+// 0x19 : ADD HL, DE
+instructions[0x19] = function()
+{
+   do_hl_add(e | (d << 8));
+};
+// 0x1a : LD A, (DE)
+instructions[0x1a] = function()
+{
+   a = core.mem_read(e | (d << 8));
+};
+// 0x1b : DEC DE
+instructions[0x1b] = function()
+{
+   var result = (e | (d << 8));
+   result -= 1;
+   e = result & 0xff;
+   d = (result & 0xff00) >>> 8;
+};
+// 0x1c : INC E
+instructions[0x1c] = function()
+{
+   e = do_inc(e);
+};
+// 0x1d : DEC E
+instructions[0x1d] = function()
+{
+   e = do_dec(e);
+};
+// 0x1e : LD E, n
+instructions[0x1e] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   e = core.mem_read(pc);
+};
+// 0x1f : RRA
+instructions[0x1f] = function()
+{
+   var temp_s = flags.S, temp_z = flags.Z, temp_p = flags.P;
+   a = do_rr(a);
+   flags.S = temp_s;
+   flags.Z = temp_z;
+   flags.P = temp_p;
+};
+// 0x20 : JR NZ, n
+instructions[0x20] = function()
+{
+   do_conditional_relative_jump(!flags.Z);
+};
+// 0x21 : LD HL, nn
+instructions[0x21] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   l = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   h = core.mem_read(pc);
+};
+// 0x22 : LD (nn), HL
+instructions[0x22] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   core.mem_write(address, l);
+   core.mem_write((address + 1) & 0xffff, h);
+};
+// 0x23 : INC HL
+instructions[0x23] = function()
+{
+   var result = (l | (h << 8));
+   result += 1;
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+};
+// 0x24 : INC H
+instructions[0x24] = function()
+{
+   h = do_inc(h);
+};
+// 0x25 : DEC H
+instructions[0x25] = function()
+{
+   h = do_dec(h);
+};
+// 0x26 : LD H, n
+instructions[0x26] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   h = core.mem_read(pc);
+};
+// 0x27 : DAA
+instructions[0x27] = function()
+{
+   var temp = a;
+   if (!flags.N)
+   {
+      if (flags.H || ((a & 0x0f) > 9))
+         temp += 0x06;
+      if (flags.C || (a > 0x99))
+         temp += 0x60;
+   }
+   else
+   {
+      if (flags.H || ((a & 0x0f) > 9))
+         temp -= 0x06;
+      if (flags.C || (a > 0x99))
+         temp -= 0x60;
+   }
+   
+   flags.S = (temp & 0x80) ? 1 : 0;
+   flags.Z = !(temp & 0xff) ? 1 : 0;
+   flags.H = ((a & 0x10) ^ (temp & 0x10)) ? 1 : 0;
+   flags.P = get_parity(temp & 0xff);
+   // DAA never clears the carry flag if it was already set,
+   //  but it is able to set the carry flag if it was clear.
+   // Don't ask me, I don't know.
+   // Note also that we check for a BCD carry, instead of the usual.
+   flags.C = (flags.C || (a > 0x99)) ? 1 : 0;
+   
+   a = temp & 0xff;
+   
+   update_xy_flags(a);
+};
+// 0x28 : JR Z, n
+instructions[0x28] = function()
+{
+   do_conditional_relative_jump(!!flags.Z);
+};
+// 0x29 : ADD HL, HL
+instructions[0x29] = function()
+{
+   do_hl_add(l | (h << 8));
+};
+// 0x2a : LD HL, (nn)
+instructions[0x2a] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   l = core.mem_read(address);
+   h = core.mem_read((address + 1) & 0xffff);
+};
+// 0x2b : DEC HL
+instructions[0x2b] = function()
+{
+   var result = (l | (h << 8));
+   result -= 1;
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+};
+// 0x2c : INC L
+instructions[0x2c] = function()
+{
+   l = do_inc(l);
+};
+// 0x2d : DEC L
+instructions[0x2d] = function()
+{
+   l = do_dec(l);
+};
+// 0x2e : LD L, n
+instructions[0x2e] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   l = core.mem_read(pc);
+};
+// 0x2f : CPL
+instructions[0x2f] = function()
+{
+   a = (~a) & 0xff;
+   flags.N = 1;
+   flags.H = 1;
+   update_xy_flags(a);
+};
+// 0x30 : JR NC, n
+instructions[0x30] = function()
+{
+   do_conditional_relative_jump(!flags.C);
+};
+// 0x31 : LD SP, nn
+instructions[0x31] = function()
+{
+   sp =  core.mem_read((pc + 1) & 0xffff) | 
+            (core.mem_read((pc + 2) & 0xffff) << 8);
+   pc = (pc + 2) & 0xffff;
+};
+// 0x32 : LD (nn), A
+instructions[0x32] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   core.mem_write(address, a);
+};
+// 0x33 : INC SP
+instructions[0x33] = function()
+{
+   sp = (sp + 1) & 0xffff;
+};
+// 0x34 : INC (HL)
+instructions[0x34] = function()
+{
+   var address = l | (h << 8);
+   core.mem_write(address, do_inc(core.mem_read(address)));
+};
+// 0x35 : DEC (HL)
+instructions[0x35] = function()
+{
+   var address = l | (h << 8);
+   core.mem_write(address, do_dec(core.mem_read(address)));
+};
+// 0x36 : LD (HL), n
+instructions[0x36] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   core.mem_write(l | (h << 8), core.mem_read(pc));
+};
+// 0x37 : SCF
+instructions[0x37] = function()
+{
+   flags.N = 0;
+   flags.H = 0;
+   flags.C = 1;
+   update_xy_flags(a);
+};
+// 0x38 : JR C, n
+instructions[0x38] = function()
+{
+   do_conditional_relative_jump(!!flags.C);
+};
+// 0x39 : ADD HL, SP
+instructions[0x39] = function()
+{
+   do_hl_add(sp);
+};
+// 0x3a : LD A, (nn)
+instructions[0x3a] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   a = core.mem_read(address);
+};
+// 0x3b : DEC SP
+instructions[0x3b] = function()
+{
+   sp = (sp - 1) & 0xffff;
+};
+// 0x3c : INC A
+instructions[0x3c] = function()
+{
+   a = do_inc(a);
+};
+// 0x3d : DEC A
+instructions[0x3d] = function()
+{
+   a = do_dec(a);
+};
+// 0x3e : LD A, n
+instructions[0x3e] = function()
+{
+   a = core.mem_read((pc + 1) & 0xffff);
+   pc = (pc + 1) & 0xffff;
+};
+// 0x3f : CCF
+instructions[0x3f] = function()
+{
+   flags.N = 0;
+   flags.H = flags.C;
+   flags.C = flags.C ? 0 : 1;
+   update_xy_flags(a);
+};
+// 0xc0 : RET NZ
+instructions[0xc0] = function()
+{
+   do_conditional_return(!flags.Z);
+};
+// 0xc1 : POP BC
+instructions[0xc1] = function()
+{
+   var result = pop_word();
+   c = result & 0xff;
+   b = (result & 0xff00) >>> 8;
+};
+// 0xc2 : JP NZ, nn
+instructions[0xc2] = function()
+{
+   do_conditional_absolute_jump(!flags.Z);
+};
+// 0xc3 : JP nn
+instructions[0xc3] = function()
+{
+   pc =  core.mem_read((pc + 1) & 0xffff) |
+            (core.mem_read((pc + 2) & 0xffff) << 8);
+   pc = (pc - 1) & 0xffff;
+};
+// 0xc4 : CALL NZ, nn
+instructions[0xc4] = function()
+{
+   do_conditional_call(!flags.Z);
+};
+// 0xc5 : PUSH BC
+instructions[0xc5] = function()
+{
+   push_word(c | (b << 8));
+};
+// 0xc6 : ADD A, n
+instructions[0xc6] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   do_add(core.mem_read(pc));
+};
+// 0xc7 : RST 00h
+instructions[0xc7] = function()
+{
+   do_reset(0x00);
+};
+// 0xc8 : RET Z
+instructions[0xc8] = function()
+{
+   do_conditional_return(!!flags.Z);
+};
+// 0xc9 : RET
+instructions[0xc9] = function()
+{
+   pc = (pop_word() - 1) & 0xffff;
+};
+// 0xca : JP Z, nn
+instructions[0xca] = function()
+{
+   do_conditional_absolute_jump(!!flags.Z);
+};
+// 0xcb : CB Prefix
+instructions[0xcb] = function()
+{
+   // R is incremented at the start of the second instruction cycle,
+   //  before the instruction actually runs.
+   // The high bit of R is not affected by this increment,
+   //  it can only be changed using the LD R, A instruction.
+   r = (r & 0x80) | (((r & 0x7f) + 1) & 0x7f);
+
+   // We don't have a table for this prefix,
+   //  the instructions are all so uniform that we can directly decode them.
+   pc = (pc + 1) & 0xffff;
+   var opcode = core.mem_read(pc),
+       bit_number = (opcode & 0x38) >>> 3,
+       reg_code = opcode & 0x07;
+   
+   if (opcode < 0x40)
+   {
+      // Shift/rotate instructions
+      var op_array = [do_rlc, do_rrc, do_rl, do_rr,
+                      do_sla, do_sra, do_sll, do_srl];
+      
+      if (reg_code === 0)
+         b = op_array[bit_number]( b);
+      else if (reg_code === 1)
+         c = op_array[bit_number]( c);
+      else if (reg_code === 2)
+         d = op_array[bit_number]( d);
+      else if (reg_code === 3)
+         e = op_array[bit_number]( e);
+      else if (reg_code === 4)
+         h = op_array[bit_number]( h);
+      else if (reg_code === 5)
+         l = op_array[bit_number]( l);
+      else if (reg_code === 6)
+         core.mem_write(l | (h << 8),
+                            op_array[bit_number]( core.mem_read(l | (h << 8))));
+      else if (reg_code === 7)
+         a = op_array[bit_number]( a);
+   }
+   else if (opcode < 0x80)
+   {
+      // BIT instructions
+      if (reg_code === 0)
+         flags.Z = !(b & (1 << bit_number)) ? 1 : 0;
+      else if (reg_code === 1)
+         flags.Z = !(c & (1 << bit_number)) ? 1 : 0;
+      else if (reg_code === 2)
+         flags.Z = !(d & (1 << bit_number)) ? 1 : 0;
+      else if (reg_code === 3)
+         flags.Z = !(e & (1 << bit_number)) ? 1 : 0;
+      else if (reg_code === 4)
+         flags.Z = !(h & (1 << bit_number)) ? 1 : 0;
+      else if (reg_code === 5)
+         flags.Z = !(l & (1 << bit_number)) ? 1 : 0;
+      else if (reg_code === 6)
+         flags.Z = !((core.mem_read(l | (h << 8))) & (1 << bit_number)) ? 1 : 0;
+      else if (reg_code === 7)
+         flags.Z = !(a & (1 << bit_number)) ? 1 : 0;
+         
+      flags.N = 0;
+      flags.H = 1;
+      flags.P = flags.Z;
+      flags.S = ((bit_number === 7) && !flags.Z) ? 1 : 0;
+      // For the BIT n, (HL) instruction, the X and Y flags are obtained
+      //  from what is apparently an internal temporary register used for
+      //  some of the 16-bit arithmetic instructions.
+      // I haven't implemented that register here,
+      //  so for now we'll set X and Y the same way for every BIT opcode,
+      //  which means that they will usually be wrong for BIT n, (HL).
+      flags.Y = ((bit_number === 5) && !flags.Z) ? 1 : 0;
+      flags.X = ((bit_number === 3) && !flags.Z) ? 1 : 0;
+   }
+   else if (opcode < 0xc0)
+   {
+      // RES instructions
+      if (reg_code === 0)
+         b &= (0xff & ~(1 << bit_number));
+      else if (reg_code === 1)
+         c &= (0xff & ~(1 << bit_number));
+      else if (reg_code === 2)
+         d &= (0xff & ~(1 << bit_number));
+      else if (reg_code === 3)
+         e &= (0xff & ~(1 << bit_number));
+      else if (reg_code === 4)
+         h &= (0xff & ~(1 << bit_number));
+      else if (reg_code === 5)
+         l &= (0xff & ~(1 << bit_number));
+      else if (reg_code === 6)
+         core.mem_write(l | (h << 8),
+                            core.mem_read(l | (h << 8)) & ~(1 << bit_number));
+      else if (reg_code === 7)
+         a &= (0xff & ~(1 << bit_number));
+   }
+   else
+   {
+      // SET instructions
+      if (reg_code === 0)
+         b |= (1 << bit_number);
+      else if (reg_code === 1)
+         c |= (1 << bit_number);
+      else if (reg_code === 2)
+         d |= (1 << bit_number);
+      else if (reg_code === 3)
+         e |= (1 << bit_number);
+      else if (reg_code === 4)
+         h |= (1 << bit_number);
+      else if (reg_code === 5)
+         l |= (1 << bit_number);
+      else if (reg_code === 6)
+         core.mem_write(l | (h << 8),
+                            core.mem_read(l | (h << 8)) | (1 << bit_number));
+      else if (reg_code === 7)
+         a |= (1 << bit_number);
+   }
+   
+   cycle_counter += cycle_counts_cb[opcode];
+};
+// 0xcc : CALL Z, nn
+instructions[0xcc] = function()
+{
+   do_conditional_call(!!flags.Z);
+};
+// 0xcd : CALL nn
+instructions[0xcd] = function()
+{
+   push_word((pc + 3) & 0xffff);
+   pc =  core.mem_read((pc + 1) & 0xffff) |
+            (core.mem_read((pc + 2) & 0xffff) << 8);
+   pc = (pc - 1) & 0xffff;
+};
+// 0xce : ADC A, n
+instructions[0xce] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   do_adc(core.mem_read(pc));
+};
+// 0xcf : RST 08h
+instructions[0xcf] = function()
+{
+   do_reset(0x08);
+};
+// 0xd0 : RET NC
+instructions[0xd0] = function()
+{
+   do_conditional_return(!flags.C);
+};
+// 0xd1 : POP DE
+instructions[0xd1] = function()
+{
+   var result = pop_word();
+   e = result & 0xff;
+   d = (result & 0xff00) >>> 8;
+};
+// 0xd2 : JP NC, nn
+instructions[0xd2] = function()
+{
+   do_conditional_absolute_jump(!flags.C);
+};
+// 0xd3 : OUT (n), A
+instructions[0xd3] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   core.io_write((a << 8) | core.mem_read(pc), a);
+};
+// 0xd4 : CALL NC, nn
+instructions[0xd4] = function()
+{
+   do_conditional_call(!flags.C);
+};
+// 0xd5 : PUSH DE
+instructions[0xd5] = function()
+{
+   push_word(e | (d << 8));
+};
+// 0xd6 : SUB n
+instructions[0xd6] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   do_sub(core.mem_read(pc));
+};
+// 0xd7 : RST 10h
+instructions[0xd7] = function()
+{
+   do_reset(0x10);
+};
+// 0xd8 : RET C
+instructions[0xd8] = function()
+{
+   do_conditional_return(!!flags.C);
+};
+// 0xd9 : EXX
+instructions[0xd9] = function()
+{
+   var temp = b;
+   b = b_prime;
+   b_prime = temp;
+   temp = c;
+   c = c_prime;
+   c_prime = temp;
+   temp = d;
+   d = d_prime;
+   d_prime = temp;
+   temp = e;
+   e = e_prime;
+   e_prime = temp;
+   temp = h;
+   h = h_prime;
+   h_prime = temp;
+   temp = l;
+   l = l_prime;
+   l_prime = temp;
+};
+// 0xda : JP C, nn
+instructions[0xda] = function()
+{
+   do_conditional_absolute_jump(!!flags.C);
+};
+// 0xdb : IN A, (n)
+instructions[0xdb] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   a = core.io_read((a << 8) | core.mem_read(pc));
+};
+// 0xdc : CALL C, nn
+instructions[0xdc] = function()
+{
+   do_conditional_call(!!flags.C);
+};
+// 0xdd : DD Prefix (IX instructions)
+instructions[0xdd] = function()
+{
+   // R is incremented at the start of the second instruction cycle,
+   //  before the instruction actually runs.
+   // The high bit of R is not affected by this increment,
+   //  it can only be changed using the LD R, A instruction.
+   r = (r & 0x80) | (((r & 0x7f) + 1) & 0x7f);
+
+   pc = (pc + 1) & 0xffff;
+   var opcode = core.mem_read(pc),
+       func = dd_instructions[opcode];
+       
+   if (func)
+   {
+      //func = func.bind(this);
+      func();
+      cycle_counter += cycle_counts_dd[opcode];
+   }
+   else
+   {
+      // Apparently if a DD opcode doesn't exist,
+      //  it gets treated as an unprefixed opcode.
+      // What we'll do to handle that is just back up the 
+      //  program counter, so that this byte gets decoded
+      //  as a normal instruction.
+      pc = (pc - 1) & 0xffff;
+      // And we'll add in the cycle count for a NOP.
+      cycle_counter += cycle_counts[0];
+   }
+};
+// 0xde : SBC n
+instructions[0xde] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   do_sbc(core.mem_read(pc));
+};
+// 0xdf : RST 18h
+instructions[0xdf] = function()
+{
+   do_reset(0x18);
+};
+// 0xe0 : RET PO
+instructions[0xe0] = function()
+{
+   do_conditional_return(!flags.P);
+};
+// 0xe1 : POP HL
+instructions[0xe1] = function()
+{
+   var result = pop_word();
+   l = result & 0xff;
+   h = (result & 0xff00) >>> 8;
+};
+// 0xe2 : JP PO, (nn)
+instructions[0xe2] = function()
+{
+   do_conditional_absolute_jump(!flags.P);
+};
+// 0xe3 : EX (SP), HL
+instructions[0xe3] = function()
+{
+   var temp = core.mem_read(sp);
+   core.mem_write(sp, l);
+   l = temp;
+   temp = core.mem_read((sp + 1) & 0xffff);
+   core.mem_write((sp + 1) & 0xffff, h);
+   h = temp;
+};
+// 0xe4 : CALL PO, nn
+instructions[0xe4] = function()
+{
+   do_conditional_call(!flags.P);
+};
+// 0xe5 : PUSH HL
+instructions[0xe5] = function()
+{
+   push_word(l | (h << 8));
+};
+// 0xe6 : AND n
+instructions[0xe6] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   do_and(core.mem_read(pc));
+};
+// 0xe7 : RST 20h
+instructions[0xe7] = function()
+{
+   do_reset(0x20);
+};
+// 0xe8 : RET PE
+instructions[0xe8] = function()
+{
+   do_conditional_return(!!flags.P);
+};
+// 0xe9 : JP (HL)
+instructions[0xe9] = function()
+{
+   pc = l | (h << 8);
+   pc = (pc - 1) & 0xffff;
+};
+// 0xea : JP PE, nn
+instructions[0xea] = function()
+{
+   do_conditional_absolute_jump(!!flags.P);
+};
+// 0xeb : EX DE, HL
+instructions[0xeb] = function()
+{
+   var temp = d;
+   d = h;
+   h = temp;
+   temp = e;
+   e = l;
+   l = temp;
+};
+// 0xec : CALL PE, nn
+instructions[0xec] = function()
+{
+   do_conditional_call(!!flags.P);
+};
+// 0xed : ED Prefix
+instructions[0xed] = function()
+{
+   // R is incremented at the start of the second instruction cycle,
+   //  before the instruction actually runs.
+   // The high bit of R is not affected by this increment,
+   //  it can only be changed using the LD R, A instruction.
+   r = (r & 0x80) | (((r & 0x7f) + 1) & 0x7f);
+
+   pc = (pc + 1) & 0xffff;
+   var opcode = core.mem_read(pc),
+       func = ed_instructions[opcode];
+       
+   if (func)
+   {
+      //func = func.bind(this);
+      func();
+      cycle_counter += cycle_counts_ed[opcode];
+   }
+   else
+   {
+      // If the opcode didn't exist, the whole thing is a two-byte NOP.
+      cycle_counter += cycle_counts[0];
+   }
+};
+// 0xee : XOR n
+instructions[0xee] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   do_xor(core.mem_read(pc));
+};
+// 0xef : RST 28h
+instructions[0xef] = function()
+{
+   do_reset(0x28);
+};
+// 0xf0 : RET P
+instructions[0xf0] = function()
+{
+   do_conditional_return(!flags.S);
+};
+// 0xf1 : POP AF
+instructions[0xf1] = function()
+{
+   var result = pop_word();
+   set_flags_register(result & 0xff);
+   a = (result & 0xff00) >>> 8;
+};
+// 0xf2 : JP P, nn
+instructions[0xf2] = function()
+{
+   do_conditional_absolute_jump(!flags.S);
+};
+// 0xf3 : DI
+instructions[0xf3] = function()
+{
+   // DI doesn't actually take effect until after the next instruction.
+   do_delayed_di = true;
+};
+// 0xf4 : CALL P, nn
+instructions[0xf4] = function()
+{
+   do_conditional_call(!flags.S);
+};
+// 0xf5 : PUSH AF
+instructions[0xf5] = function()
+{
+   push_word(get_flags_register() | (a << 8));
+};
+// 0xf6 : OR n
+instructions[0xf6] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   do_or(core.mem_read(pc));
+};
+// 0xf7 : RST 30h
+instructions[0xf7] = function()
+{
+   do_reset(0x30);
+};
+// 0xf8 : RET M
+instructions[0xf8] = function()
+{
+   do_conditional_return(!!flags.S);
+};
+// 0xf9 : LD SP, HL
+instructions[0xf9] = function()
+{
+   sp = l | (h << 8);
+};
+// 0xfa : JP M, nn
+instructions[0xfa] = function()
+{
+   do_conditional_absolute_jump(!!flags.S);
+};
+// 0xfb : EI
+instructions[0xfb] = function()
+{
+   // EI doesn't actually take effect until after the next instruction.
+   do_delayed_ei = true;
+};
+// 0xfc : CALL M, nn
+instructions[0xfc] = function()
+{
+   do_conditional_call(!!flags.S);
+};
+// 0xfd : FD Prefix (IY instructions)
+instructions[0xfd] = function()
+{
+   // R is incremented at the start of the second instruction cycle,
+   //  before the instruction actually runs.
+   // The high bit of R is not affected by this increment,
+   //  it can only be changed using the LD R, A instruction.
+   r = (r & 0x80) | (((r & 0x7f) + 1) & 0x7f);
+   
+   pc = (pc + 1) & 0xffff;
+   var opcode = core.mem_read(pc),
+       func = dd_instructions[opcode];
+       
+   if (func)
+   {
+      // Rather than copy and paste all the IX instructions into IY instructions,
+      //  what we'll do is sneakily copy IY into IX, run the IX instruction,
+      //  and then copy the result into IY and restore the old IX.
+      var temp = ix;
+      ix = iy;
+      //func = func.bind(this);
+      func();
+      iy = ix;
+      ix = temp;
+      
+      cycle_counter += cycle_counts_dd[opcode];
+   }
+   else
+   {
+      // Apparently if an FD opcode doesn't exist,
+      //  it gets treated as an unprefixed opcode.
+      // What we'll do to handle that is just back up the 
+      //  program counter, so that this byte gets decoded
+      //  as a normal instruction.
+      pc = (pc - 1) & 0xffff;
+      // And we'll add in the cycle count for a NOP.
+      cycle_counter += cycle_counts[0];
+   }
+};
+// 0xfe : CP n
+instructions[0xfe] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   do_cp(core.mem_read(pc));
+};
+// 0xff : RST 38h
+instructions[0xff] = function()
+{
+   do_reset(0x38);
+};
+
+
+///////////////////////////////////////////////////////////////////////////////
+/// This table of ED opcodes is pretty sparse;
+///  there are not very many valid ED-prefixed opcodes in the Z80,
+///  and many of the ones that are valid are not documented.
+///////////////////////////////////////////////////////////////////////////////
+let ed_instructions = [];
+// 0x40 : IN B, (C)
+ed_instructions[0x40] = function()
+{
+   b = do_in((b << 8) | c);
+};
+// 0x41 : OUT (C), B
+ed_instructions[0x41] = function()
+{
+   core.io_write((b << 8) | c, b);
+};
+// 0x42 : SBC HL, BC
+ed_instructions[0x42] = function()
+{
+   do_hl_sbc(c | (b << 8));
+};
+// 0x43 : LD (nn), BC
+ed_instructions[0x43] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   core.mem_write(address, c);
+   core.mem_write((address + 1) & 0xffff, b);
+};
+// 0x44 : NEG
+ed_instructions[0x44] = function()
+{
+   do_neg();
+};
+// 0x45 : RETN
+ed_instructions[0x45] = function()
+{
+   pc = (pop_word() - 1) & 0xffff;
+   iff1 = iff2;
+};
+// 0x46 : IM 0
+ed_instructions[0x46] = function()
+{
+   imode = 0;
+};
+// 0x47 : LD I, A
+ed_instructions[0x47] = function()
+{
+   i = a
+};
+// 0x48 : IN C, (C)
+ed_instructions[0x48] = function()
+{
+   c = do_in((b << 8) | c);
+};
+// 0x49 : OUT (C), C
+ed_instructions[0x49] = function()
+{
+   core.io_write((b << 8) | c, c);
+};
+// 0x4a : ADC HL, BC
+ed_instructions[0x4a] = function()
+{
+   do_hl_adc(c | (b << 8));
+};
+// 0x4b : LD BC, (nn)
+ed_instructions[0x4b] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   c = core.mem_read(address);
+   b = core.mem_read((address + 1) & 0xffff);
+};
+// 0x4c : NEG (Undocumented)
+ed_instructions[0x4c] = function()
+{
+   do_neg();
+};
+// 0x4d : RETI
+ed_instructions[0x4d] = function()
+{
+   pc = (pop_word() - 1) & 0xffff;
+};
+// 0x4e : IM 0 (Undocumented)
+ed_instructions[0x4e] = function()
+{
+   imode = 0;
+};
+// 0x4f : LD R, A
+ed_instructions[0x4f] = function()
+{
+   r = a;
+};
+// 0x50 : IN D, (C)
+ed_instructions[0x50] = function()
+{
+   d = do_in((b << 8) | c);
+};
+// 0x51 : OUT (C), D
+ed_instructions[0x51] = function()
+{
+   core.io_write((b << 8) | c, d);
+};
+// 0x52 : SBC HL, DE
+ed_instructions[0x52] = function()
+{
+   do_hl_sbc(e | (d << 8));
+};
+// 0x53 : LD (nn), DE
+ed_instructions[0x53] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   core.mem_write(address, e);
+   core.mem_write((address + 1) & 0xffff, d);
+};
+// 0x54 : NEG (Undocumented)
+ed_instructions[0x54] = function()
+{
+   do_neg();
+};
+// 0x55 : RETN
+ed_instructions[0x55] = function()
+{
+   pc = (pop_word() - 1) & 0xffff;
+   iff1 = iff2;
+};
+// 0x56 : IM 1
+ed_instructions[0x56] = function()
+{
+   imode = 1;
+};
+// 0x57 : LD A, I
+ed_instructions[0x57] = function()
+{
+   a = i;
+   flags.S = a & 0x80 ? 1 : 0;
+   flags.Z = a ? 0 : 1;
+   flags.H = 0;
+   flags.P = iff2;
+   flags.N = 0;
+   update_xy_flags(a);
+};
+// 0x58 : IN E, (C)
+ed_instructions[0x58] = function()
+{
+   e = do_in((b << 8) | c);
+};
+// 0x59 : OUT (C), E
+ed_instructions[0x59] = function()
+{
+   core.io_write((b << 8) | c, e);
+};
+// 0x5a : ADC HL, DE
+ed_instructions[0x5a] = function()
+{
+   do_hl_adc(e | (d << 8));
+};
+// 0x5b : LD DE, (nn)
+ed_instructions[0x5b] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   e = core.mem_read(address);
+   d = core.mem_read((address + 1) & 0xffff);
+};
+// 0x5c : NEG (Undocumented)
+ed_instructions[0x5c] = function()
+{
+   do_neg();
+};
+// 0x5d : RETN
+ed_instructions[0x5d] = function()
+{
+   pc = (pop_word() - 1) & 0xffff;
+   iff1 = iff2;
+};
+// 0x5e : IM 2
+ed_instructions[0x5e] = function()
+{
+   imode = 2;
+};
+// 0x5f : LD A, R
+ed_instructions[0x5f] = function()
+{
+   a = r;
+   flags.S = a & 0x80 ? 1 : 0;
+   flags.Z = a ? 0 : 1;
+   flags.H = 0;
+   flags.P = iff2;
+   flags.N = 0;
+   update_xy_flags(a);
+};
+// 0x60 : IN H, (C)
+ed_instructions[0x60] = function()
+{
+   h = do_in((b << 8) | c);
+};
+// 0x61 : OUT (C), H
+ed_instructions[0x61] = function()
+{
+   core.io_write((b << 8) | c, h);
+};
+// 0x62 : SBC HL, HL
+ed_instructions[0x62] = function()
+{
+   do_hl_sbc(l | (h << 8));
+};
+// 0x63 : LD (nn), HL (Undocumented)
+ed_instructions[0x63] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   core.mem_write(address, l);
+   core.mem_write((address + 1) & 0xffff, h);
+};
+// 0x64 : NEG (Undocumented)
+ed_instructions[0x64] = function()
+{
+   do_neg();
+};
+// 0x65 : RETN
+ed_instructions[0x65] = function()
+{
+   pc = (pop_word() - 1) & 0xffff;
+   iff1 = iff2;
+};
+// 0x66 : IM 0
+ed_instructions[0x66] = function()
+{
+   imode = 0;
+};
+// 0x67 : RRD
+ed_instructions[0x67] = function()
+{
+   var hl_value = core.mem_read(l | (h << 8));
+   var temp1 = hl_value & 0x0f, temp2 = a & 0x0f;
+   hl_value = ((hl_value & 0xf0) >>> 4) | (temp2 << 4);
+   a = (a & 0xf0) | temp1;
+   core.mem_write(l | (h << 8), hl_value);
+   
+   flags.S = (a & 0x80) ? 1 : 0;
+   flags.Z = a ? 0 : 1;
+   flags.H = 0;
+   flags.P = get_parity(a) ? 1 : 0;
+   flags.N = 0;
+   update_xy_flags(a);
+};
+// 0x68 : IN L, (C)
+ed_instructions[0x68] = function()
+{
+   l = do_in((b << 8) | c);
+};
+// 0x69 : OUT (C), L
+ed_instructions[0x69] = function()
+{
+   core.io_write((b << 8) | c, l);
+};
+// 0x6a : ADC HL, HL
+ed_instructions[0x6a] = function()
+{
+   do_hl_adc(l | (h << 8));
+};
+// 0x6b : LD HL, (nn) (Undocumented)
+ed_instructions[0x6b] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   l = core.mem_read(address);
+   h = core.mem_read((address + 1) & 0xffff);
+};
+// 0x6c : NEG (Undocumented)
+ed_instructions[0x6c] = function()
+{
+   do_neg();
+};
+// 0x6d : RETN
+ed_instructions[0x6d] = function()
+{
+   pc = (pop_word() - 1) & 0xffff;
+   iff1 = iff2;
+};
+// 0x6e : IM 0 (Undocumented)
+ed_instructions[0x6e] = function()
+{
+   imode = 0;
+};
+// 0x6f : RLD
+ed_instructions[0x6f] = function()
+{
+   var hl_value = core.mem_read(l | (h << 8));
+   var temp1 = hl_value & 0xf0, temp2 = a & 0x0f;
+   hl_value = ((hl_value & 0x0f) << 4) | temp2;
+   a = (a & 0xf0) | (temp1 >>> 4);
+   core.mem_write(l | (h << 8), hl_value);
+   
+   flags.S = (a & 0x80) ? 1 : 0;
+   flags.Z = a ? 0 : 1;
+   flags.H = 0;
+   flags.P = get_parity(a) ? 1 : 0;
+   flags.N = 0;
+   update_xy_flags(a);
+};
+// 0x70 : IN (C) (Undocumented)
+ed_instructions[0x70] = function()
+{
+   do_in((b << 8) | c);
+};
+// 0x71 : OUT (C), 0 (Undocumented)
+ed_instructions[0x71] = function()
+{
+   core.io_write((b << 8) | c, 0);
+};
+// 0x72 : SBC HL, SP
+ed_instructions[0x72] = function()
+{
+   do_hl_sbc(sp);
+};
+// 0x73 : LD (nn), SP
+ed_instructions[0x73] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   core.mem_write(address, sp & 0xff);
+   core.mem_write((address + 1) & 0xffff, (sp >>> 8) & 0xff);
+};
+// 0x74 : NEG (Undocumented)
+ed_instructions[0x74] = function()
+{
+   do_neg();
+};
+// 0x75 : RETN
+ed_instructions[0x75] = function()
+{
+   pc = (pop_word() - 1) & 0xffff;
+   iff1 = iff2;
+};
+// 0x76 : IM 1
+ed_instructions[0x76] = function()
+{
+   imode = 1;
+};
+// 0x78 : IN A, (C)
+ed_instructions[0x78] = function()
+{
+   a = do_in((b << 8) | c);
+};
+// 0x79 : OUT (C), A
+ed_instructions[0x79] = function()
+{
+   core.io_write((b << 8) | c, a);
+};
+// 0x7a : ADC HL, SP
+ed_instructions[0x7a] = function()
+{
+   do_hl_adc(sp);
+};
+// 0x7b : LD SP, (nn)
+ed_instructions[0x7b] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= core.mem_read(pc) << 8;
+   
+   sp = core.mem_read(address);
+   sp |= core.mem_read((address + 1) & 0xffff) << 8;
+};
+// 0x7c : NEG (Undocumented)
+ed_instructions[0x7c] = function()
+{
+   do_neg();
+};
+// 0x7d : RETN
+ed_instructions[0x7d] = function()
+{
+   pc = (pop_word() - 1) & 0xffff;
+   iff1 = iff2;
+};
+// 0x7e : IM 2
+ed_instructions[0x7e] = function()
+{
+   imode = 2;
+};
+// 0xa0 : LDI
+ed_instructions[0xa0] = function()
+{
+   do_ldi();
+};
+// 0xa1 : CPI
+ed_instructions[0xa1] = function()
+{
+   do_cpi();
+};
+// 0xa2 : INI
+ed_instructions[0xa2] = function()
+{
+   do_ini();
+};
+// 0xa3 : OUTI
+ed_instructions[0xa3] = function()
+{
+   do_outi();
+};
+// 0xa8 : LDD
+ed_instructions[0xa8] = function()
+{
+   do_ldd();
+};
+// 0xa9 : CPD
+ed_instructions[0xa9] = function()
+{
+   do_cpd();
+};
+// 0xaa : IND
+ed_instructions[0xaa] = function()
+{
+   do_ind();
+};
+// 0xab : OUTD
+ed_instructions[0xab] = function()
+{
+   do_outd();
+};
+// 0xb0 : LDIR
+ed_instructions[0xb0] = function()
+{
+   do_ldi();
+   if (b || c)
+   {
+      cycle_counter += 5;
+      pc = (pc - 2) & 0xffff;
+   }
+};
+// 0xb1 : CPIR
+ed_instructions[0xb1] = function()
+{
+   do_cpi();
+   if (!flags.Z && (b || c))
+   {
+      cycle_counter += 5;
+      pc = (pc - 2) & 0xffff;
+   }
+};
+// 0xb2 : INIR
+ed_instructions[0xb2] = function()
+{
+   do_ini();
+   if (b)
+   {
+      cycle_counter += 5;
+      pc = (pc - 2) & 0xffff;
+   }
+};
+// 0xb3 : OTIR
+ed_instructions[0xb3] = function()
+{
+   do_outi();
+   if (b)
+   {
+      cycle_counter += 5;
+      pc = (pc - 2) & 0xffff;
+   }
+};
+// 0xb8 : LDDR
+ed_instructions[0xb8] = function()
+{
+   do_ldd();
+   if (b || c)
+   {
+      cycle_counter += 5;
+      pc = (pc - 2) & 0xffff;
+   }
+};
+// 0xb9 : CPDR
+ed_instructions[0xb9] = function()
+{
+   do_cpd();
+   if (!flags.Z && (b || c))
+   {
+      cycle_counter += 5;
+      pc = (pc - 2) & 0xffff;
+   }
+};
+// 0xba : INDR
+ed_instructions[0xba] = function()
+{
+   do_ind();
+   if (b)
+   {
+      cycle_counter += 5;
+      pc = (pc - 2) & 0xffff;
+   }
+};
+// 0xbb : OTDR
+ed_instructions[0xbb] = function()
+{
+   do_outd();
+   if (b)
+   {
+      cycle_counter += 5;
+      pc = (pc - 2) & 0xffff;
+   }
+};
+
+
+///////////////////////////////////////////////////////////////////////////////
+/// Like ED, this table is quite sparse,
+///  and many of the opcodes here are also undocumented.
+/// The undocumented instructions here are those that deal with only one byte
+///  of the two-byte IX register; the bytes are designed IXH and IXL here.
+///////////////////////////////////////////////////////////////////////////////
+let dd_instructions = [];
+// 0x09 : ADD IX, BC
+dd_instructions[0x09] = function()
+{
+   do_ix_add(c | (b << 8));
+};
+// 0x19 : ADD IX, DE
+dd_instructions[0x19] = function()
+{
+   do_ix_add(e | (d << 8));
+};
+// 0x21 : LD IX, nn
+dd_instructions[0x21] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   ix = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   ix |= (core.mem_read(pc) << 8);
+};
+// 0x22 : LD (nn), IX
+dd_instructions[0x22] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= (core.mem_read(pc) << 8);
+   
+   core.mem_write(address, ix & 0xff);
+   core.mem_write((address + 1) & 0xffff, (ix >>> 8) & 0xff);
+};
+// 0x23 : INC IX
+dd_instructions[0x23] = function()
+{
+   ix = (ix + 1) & 0xffff;
+};
+// 0x24 : INC IXH (Undocumented)
+dd_instructions[0x24] = function()
+{
+   ix = (do_inc(ix >>> 8) << 8) | (ix & 0xff);
+};
+// 0x25 : DEC IXH (Undocumented)
+dd_instructions[0x25] = function()
+{
+   ix = (do_dec(ix >>> 8) << 8) | (ix & 0xff);
+};
+// 0x26 : LD IXH, n (Undocumented)
+dd_instructions[0x26] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   ix = (core.mem_read(pc) << 8) | (ix & 0xff);
+};
+// 0x29 : ADD IX, IX
+dd_instructions[0x29] = function()
+{
+   do_ix_add(ix);
+};
+// 0x2a : LD IX, (nn)
+dd_instructions[0x2a] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var address = core.mem_read(pc);
+   pc = (pc + 1) & 0xffff;
+   address |= (core.mem_read(pc) << 8);
+   
+   ix = core.mem_read(address);
+   ix |= (core.mem_read((address + 1) & 0xffff) << 8);
+};
+// 0x2b : DEC IX
+dd_instructions[0x2b] = function()
+{
+   ix = (ix - 1) & 0xffff;
+};
+// 0x2c : INC IXL (Undocumented)
+dd_instructions[0x2c] = function()
+{
+   ix = do_inc(ix & 0xff) | (ix & 0xff00);
+};
+// 0x2d : DEC IXL (Undocumented)
+dd_instructions[0x2d] = function()
+{
+   ix = do_dec(ix & 0xff) | (ix & 0xff00);
+};
+// 0x2e : LD IXL, n (Undocumented)
+dd_instructions[0x2e] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   ix = (core.mem_read(pc) & 0xff) | (ix & 0xff00);
+};
+// 0x34 : INC (IX+n)
+dd_instructions[0x34] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc)),
+       value = core.mem_read((offset + ix) & 0xffff);
+   core.mem_write((offset + ix) & 0xffff, do_inc(value));
+};
+// 0x35 : DEC (IX+n)
+dd_instructions[0x35] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc)),
+       value = core.mem_read((offset + ix) & 0xffff);
+   core.mem_write((offset + ix) & 0xffff, do_dec(value));
+};
+// 0x36 : LD (IX+n), n
+dd_instructions[0x36] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   pc = (pc + 1) & 0xffff;
+   core.mem_write((ix + offset) & 0xffff, core.mem_read(pc));   
+};
+// 0x39 : ADD IX, SP
+dd_instructions[0x39] = function()
+{
+   do_ix_add(sp);
+};
+// 0x44 : LD B, IXH (Undocumented)
+dd_instructions[0x44] = function()
+{
+   b = (ix >>> 8) & 0xff;
+};
+// 0x45 : LD B, IXL (Undocumented)
+dd_instructions[0x45] = function()
+{
+   b = ix & 0xff;
+};
+// 0x46 : LD B, (IX+n)
+dd_instructions[0x46] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   b = core.mem_read((ix + offset) & 0xffff);
+};
+// 0x4c : LD C, IXH (Undocumented)
+dd_instructions[0x4c] = function()
+{
+   c = (ix >>> 8) & 0xff;
+};
+// 0x4d : LD C, IXL (Undocumented)
+dd_instructions[0x4d] = function()
+{
+   c = ix & 0xff;
+};
+// 0x4e : LD C, (IX+n)
+dd_instructions[0x4e] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   c = core.mem_read((ix + offset) & 0xffff);
+};
+// 0x54 : LD D, IXH (Undocumented)
+dd_instructions[0x54] = function()
+{
+   d = (ix >>> 8) & 0xff;
+};
+// 0x55 : LD D, IXL (Undocumented)
+dd_instructions[0x55] = function()
+{
+   d = ix & 0xff;
+};
+// 0x56 : LD D, (IX+n)
+dd_instructions[0x56] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   d = core.mem_read((ix + offset) & 0xffff);
+};
+// 0x5c : LD E, IXH (Undocumented)
+dd_instructions[0x5c] = function()
+{
+   e = (ix >>> 8) & 0xff;
+};
+// 0x5d : LD E, IXL (Undocumented)
+dd_instructions[0x5d] = function()
+{
+   e = ix & 0xff;
+};
+// 0x5e : LD E, (IX+n)
+dd_instructions[0x5e] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   e = core.mem_read((ix + offset) & 0xffff);
+};
+// 0x60 : LD IXH, B (Undocumented)
+dd_instructions[0x60] = function()
+{
+   ix = (ix & 0xff) | (b << 8);
+};
+// 0x61 : LD IXH, C (Undocumented)
+dd_instructions[0x61] = function()
+{
+   ix = (ix & 0xff) | (c << 8);
+};
+// 0x62 : LD IXH, D (Undocumented)
+dd_instructions[0x62] = function()
+{
+   ix = (ix & 0xff) | (d << 8);
+};
+// 0x63 : LD IXH, E (Undocumented)
+dd_instructions[0x63] = function()
+{
+   ix = (ix & 0xff) | (e << 8);
+};
+// 0x64 : LD IXH, IXH (Undocumented)
+dd_instructions[0x64] = function()
+{
+   // No-op.
+};
+// 0x65 : LD IXH, IXL (Undocumented)
+dd_instructions[0x65] = function()
+{
+   ix = (ix & 0xff) | ((ix & 0xff) << 8);
+};
+// 0x66 : LD H, (IX+n)
+dd_instructions[0x66] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   h = core.mem_read((ix + offset) & 0xffff);
+};
+// 0x67 : LD IXH, A (Undocumented)
+dd_instructions[0x67] = function()
+{
+   ix = (ix & 0xff) | (a << 8);
+};
+// 0x68 : LD IXL, B (Undocumented)
+dd_instructions[0x68] = function()
+{
+   ix = (ix & 0xff00) | b;
+};
+// 0x69 : LD IXL, C (Undocumented)
+dd_instructions[0x69] = function()
+{
+   ix = (ix & 0xff00) | c;
+};
+// 0x6a : LD IXL, D (Undocumented)
+dd_instructions[0x6a] = function()
+{
+   ix = (ix & 0xff00) | d;
+};
+// 0x6b : LD IXL, E (Undocumented)
+dd_instructions[0x6b] = function()
+{
+   ix = (ix & 0xff00) | e;
+};
+// 0x6c : LD IXL, IXH (Undocumented)
+dd_instructions[0x6c] = function()
+{
+   ix = (ix & 0xff00) | (ix >>> 8);
+};
+// 0x6d : LD IXL, IXL (Undocumented)
+dd_instructions[0x6d] = function()
+{
+   // No-op.
+};
+// 0x6e : LD L, (IX+n)
+dd_instructions[0x6e] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   l = core.mem_read((ix + offset) & 0xffff);
+};
+// 0x6f : LD IXL, A (Undocumented)
+dd_instructions[0x6f] = function()
+{
+   ix = (ix & 0xff00) | a;
+};
+// 0x70 : LD (IX+n), B
+dd_instructions[0x70] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   core.mem_write((ix + offset) & 0xffff, b);
+};
+// 0x71 : LD (IX+n), C
+dd_instructions[0x71] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   core.mem_write((ix + offset) & 0xffff, c);
+};
+// 0x72 : LD (IX+n), D
+dd_instructions[0x72] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   core.mem_write((ix + offset) & 0xffff, d);
+};
+// 0x73 : LD (IX+n), E
+dd_instructions[0x73] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   core.mem_write((ix + offset) & 0xffff, e);
+};
+// 0x74 : LD (IX+n), H
+dd_instructions[0x74] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   core.mem_write((ix + offset) & 0xffff, h);
+};
+// 0x75 : LD (IX+n), L
+dd_instructions[0x75] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   core.mem_write((ix + offset) & 0xffff, l);
+};
+// 0x77 : LD (IX+n), A
+dd_instructions[0x77] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   core.mem_write((ix + offset) & 0xffff, a);
+};
+// 0x7c : LD A, IXH (Undocumented)
+dd_instructions[0x7c] = function()
+{
+   a = (ix >>> 8) & 0xff;
+};
+// 0x7d : LD A, IXL (Undocumented)
+dd_instructions[0x7d] = function()
+{
+   a = ix & 0xff;
+};
+// 0x7e : LD A, (IX+n)
+dd_instructions[0x7e] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   a = core.mem_read((ix + offset) & 0xffff);
+};
+// 0x84 : ADD A, IXH (Undocumented)
+dd_instructions[0x84] = function()
+{
+   do_add((ix >>> 8) & 0xff);
+};
+// 0x85 : ADD A, IXL (Undocumented)
+dd_instructions[0x85] = function()
+{
+   do_add(ix & 0xff);
+};
+// 0x86 : ADD A, (IX+n)
+dd_instructions[0x86] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   do_add(core.mem_read((ix + offset) & 0xffff));
+};
+// 0x8c : ADC A, IXH (Undocumented)
+dd_instructions[0x8c] = function()
+{
+   do_adc((ix >>> 8) & 0xff);
+};
+// 0x8d : ADC A, IXL (Undocumented)
+dd_instructions[0x8d] = function()
+{
+   do_adc(ix & 0xff);
+};
+// 0x8e : ADC A, (IX+n)
+dd_instructions[0x8e] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   do_adc(core.mem_read((ix + offset) & 0xffff));
+};
+// 0x94 : SUB IXH (Undocumented)
+dd_instructions[0x94] = function()
+{
+   do_sub((ix >>> 8) & 0xff);
+};
+// 0x95 : SUB IXL (Undocumented)
+dd_instructions[0x95] = function()
+{
+   do_sub(ix & 0xff);
+};
+// 0x96 : SUB A, (IX+n)
+dd_instructions[0x96] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   do_sub(core.mem_read((ix + offset) & 0xffff));
+};
+// 0x9c : SBC IXH (Undocumented)
+dd_instructions[0x9c] = function()
+{
+   do_sbc((ix >>> 8) & 0xff);
+};
+// 0x9d : SBC IXL (Undocumented)
+dd_instructions[0x9d] = function()
+{
+   do_sbc(ix & 0xff);
+};
+// 0x9e : SBC A, (IX+n)
+dd_instructions[0x9e] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   do_sbc(core.mem_read((ix + offset) & 0xffff));
+};
+// 0xa4 : AND IXH (Undocumented)
+dd_instructions[0xa4] = function()
+{
+   do_and((ix >>> 8) & 0xff);
+};
+// 0xa5 : AND IXL (Undocumented)
+dd_instructions[0xa5] = function()
+{
+   do_and(ix & 0xff);
+};
+// 0xa6 : AND A, (IX+n)
+dd_instructions[0xa6] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   do_and(core.mem_read((ix + offset) & 0xffff));
+};
+// 0xac : XOR IXH (Undocumented)
+dd_instructions[0xac] = function()
+{
+   do_xor((ix >>> 8) & 0xff);
+};
+// 0xad : XOR IXL (Undocumented)
+dd_instructions[0xad] = function()
+{
+   do_xor(ix & 0xff);
+};
+// 0xae : XOR A, (IX+n)
+dd_instructions[0xae] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   do_xor(core.mem_read((ix + offset) & 0xffff));
+};
+// 0xb4 : OR IXH (Undocumented)
+dd_instructions[0xb4] = function()
+{
+   do_or((ix >>> 8) & 0xff);
+};
+// 0xb5 : OR IXL (Undocumented)
+dd_instructions[0xb5] = function()
+{
+   do_or(ix & 0xff);
+};
+// 0xb6 : OR A, (IX+n)
+dd_instructions[0xb6] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   do_or(core.mem_read((ix + offset) & 0xffff));
+};
+// 0xbc : CP IXH (Undocumented)
+dd_instructions[0xbc] = function()
+{
+   do_cp((ix >>> 8) & 0xff);
+};
+// 0xbd : CP IXL (Undocumented)
+dd_instructions[0xbd] = function()
+{
+   do_cp(ix & 0xff);
+};
+// 0xbe : CP A, (IX+n)
+dd_instructions[0xbe] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   do_cp(core.mem_read((ix + offset) & 0xffff));
+};
+// 0xcb : CB Prefix (IX bit instructions)
+dd_instructions[0xcb] = function()
+{
+   pc = (pc + 1) & 0xffff;
+   var offset = get_signed_offset_byte(core.mem_read(pc));
+   pc = (pc + 1) & 0xffff;
+   var opcode = core.mem_read(pc), value;
+   
+   // As with the "normal" CB prefix, we implement the DDCB prefix
+   //  by decoding the opcode directly, rather than using a table.
+   if (opcode < 0x40)
+   {
+      // Shift and rotate instructions.
+      var ddcb_functions = [do_rlc, do_rrc, do_rl, do_rr,
+                            do_sla, do_sra, do_sll, do_srl];
+      
+      // Most of the opcodes in this range are not valid,
+      //  so we map this opcode onto one of the ones that is.
+      var func = ddcb_functions[(opcode & 0x38) >>> 3],
+      value = func( core.mem_read((ix + offset) & 0xffff));
+      
+      core.mem_write((ix + offset) & 0xffff, value);
+   }
+   else
+   {
+      var bit_number = (opcode & 0x38) >>> 3;
+      
+      if (opcode < 0x80)
+      {
+         // BIT
+         flags.N = 0;
+         flags.H = 1;
+         flags.Z = !(core.mem_read((ix + offset) & 0xffff) & (1 << bit_number)) ? 1 : 0;
+         flags.P = flags.Z;
+         flags.S = ((bit_number === 7) && !flags.Z) ? 1 : 0;
+      }
+      else if (opcode < 0xc0)
+      {
+         // RES
+         value = core.mem_read((ix + offset) & 0xffff) & ~(1 << bit_number) & 0xff;
+         core.mem_write((ix + offset) & 0xffff, value);
+      }
+      else
+      {
+         // SET
+         value = core.mem_read((ix + offset) & 0xffff) | (1 << bit_number);
+         core.mem_write((ix + offset) & 0xffff, value);
+      }
+   }
+   
+   // This implements the undocumented shift, RES, and SET opcodes,
+   //  which write their result to memory and also to an 8080 register.
+   if (value !== undefined)
+   {
+      if ((opcode & 0x07) === 0)
+         b = value;
+      else if ((opcode & 0x07) === 1)
+         c = value;
+      else if ((opcode & 0x07) === 2)
+         d = value;
+      else if ((opcode & 0x07) === 3)
+         e = value;
+      else if ((opcode & 0x07) === 4)
+         h = value;
+      else if ((opcode & 0x07) === 5)
+         l = value;
+      // 6 is the documented opcode, which doesn't set a register.
+      else if ((opcode & 0x07) === 7)
+         a = value;
+   }
+   
+   cycle_counter += cycle_counts_cb[opcode] + 8;
+};
+// 0xe1 : POP IX
+dd_instructions[0xe1] = function()
+{
+   ix = pop_word();
+};
+// 0xe3 : EX (SP), IX
+dd_instructions[0xe3] = function()
+{
+   var temp = ix;
+   ix = core.mem_read(sp);
+   ix |= core.mem_read((sp + 1) & 0xffff) << 8;
+   core.mem_write(sp, temp & 0xff);
+   core.mem_write((sp + 1) & 0xffff, (temp >>> 8) & 0xff);
+};
+// 0xe5 : PUSH IX
+dd_instructions[0xe5] = function()
+{
+   push_word(ix);
+};
+// 0xe9 : JP (IX)
+dd_instructions[0xe9] = function()
+{
+   pc = (ix - 1) & 0xffff;
+};
+// 0xf9 : LD SP, IX
+dd_instructions[0xf9] = function()
+{
+   sp = ix;
+};
+
+
+///////////////////////////////////////////////////////////////////////////////
+/// These tables contain the number of T cycles used for each instruction.
+/// In a few special cases, such as conditional control flow instructions,
+///  additional cycles might be added to these values.
+/// The total number of cycles is the return value of run_instruction().
+///////////////////////////////////////////////////////////////////////////////
+let cycle_counts = [
+    4, 10,  7,  6,  4,  4,  7,  4,  4, 11,  7,  6,  4,  4,  7,  4,
+    8, 10,  7,  6,  4,  4,  7,  4, 12, 11,  7,  6,  4,  4,  7,  4,
+    7, 10, 16,  6,  4,  4,  7,  4,  7, 11, 16,  6,  4,  4,  7,  4,
+    7, 10, 13,  6, 11, 11, 10,  4,  7, 11, 13,  6,  4,  4,  7,  4,
+    4,  4,  4,  4,  4,  4,  7,  4,  4,  4,  4,  4,  4,  4,  7,  4,
+    4,  4,  4,  4,  4,  4,  7,  4,  4,  4,  4,  4,  4,  4,  7,  4,
+    4,  4,  4,  4,  4,  4,  7,  4,  4,  4,  4,  4,  4,  4,  7,  4,
+    7,  7,  7,  7,  7,  7,  4,  7,  4,  4,  4,  4,  4,  4,  7,  4,
+    4,  4,  4,  4,  4,  4,  7,  4,  4,  4,  4,  4,  4,  4,  7,  4,
+    4,  4,  4,  4,  4,  4,  7,  4,  4,  4,  4,  4,  4,  4,  7,  4,
+    4,  4,  4,  4,  4,  4,  7,  4,  4,  4,  4,  4,  4,  4,  7,  4,
+    4,  4,  4,  4,  4,  4,  7,  4,  4,  4,  4,  4,  4,  4,  7,  4,
+    5, 10, 10, 10, 10, 11,  7, 11,  5, 10, 10,  0, 10, 17,  7, 11,
+    5, 10, 10, 11, 10, 11,  7, 11,  5,  4, 10, 11, 10,  0,  7, 11,
+    5, 10, 10, 19, 10, 11,  7, 11,  5,  4, 10,  4, 10,  0,  7, 11,
+    5, 10, 10,  4, 10, 11,  7, 11,  5,  6, 10,  4, 10,  0,  7, 11
+];
+
+let cycle_counts_ed = [
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+   12, 12, 15, 20,  8, 14,  8,  9, 12, 12, 15, 20,  8, 14,  8,  9,
+   12, 12, 15, 20,  8, 14,  8,  9, 12, 12, 15, 20,  8, 14,  8,  9,
+   12, 12, 15, 20,  8, 14,  8, 18, 12, 12, 15, 20,  8, 14,  8, 18,
+   12, 12, 15, 20,  8, 14,  8,  0, 12, 12, 15, 20,  8, 14,  8,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+   16, 16, 16, 16,  0,  0,  0,  0, 16, 16, 16, 16,  0,  0,  0,  0,
+   16, 16, 16, 16,  0,  0,  0,  0, 16, 16, 16, 16,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
+];
+
+let cycle_counts_cb = [
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8,
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8,
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8,
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8,
+    8,  8,  8,  8,  8,  8, 12,  8,  8,  8,  8,  8,  8,  8, 12,  8,
+    8,  8,  8,  8,  8,  8, 12,  8,  8,  8,  8,  8,  8,  8, 12,  8,
+    8,  8,  8,  8,  8,  8, 12,  8,  8,  8,  8,  8,  8,  8, 12,  8,
+    8,  8,  8,  8,  8,  8, 12,  8,  8,  8,  8,  8,  8,  8, 12,  8,
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8,
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8,
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8,
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8,
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8,
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8,
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8,
+    8,  8,  8,  8,  8,  8, 15,  8,  8,  8,  8,  8,  8,  8, 15,  8
+];
+
+let cycle_counts_dd = [
+    0,  0,  0,  0,  0,  0,  0,  0,  0, 15,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0, 15,  0,  0,  0,  0,  0,  0,
+    0, 14, 20, 10,  8,  8, 11,  0,  0, 15, 20, 10,  8,  8, 11,  0,
+    0,  0,  0,  0, 23, 23, 19,  0,  0, 15,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  8,  8, 19,  0,  0,  0,  0,  0,  8,  8, 19,  0,
+    0,  0,  0,  0,  8,  8, 19,  0,  0,  0,  0,  0,  8,  8, 19,  0,
+    8,  8,  8,  8,  8,  8, 19,  8,  8,  8,  8,  8,  8,  8, 19,  8,
+   19, 19, 19, 19, 19, 19,  0, 19,  0,  0,  0,  0,  8,  8, 19,  0,
+    0,  0,  0,  0,  8,  8, 19,  0,  0,  0,  0,  0,  8,  8, 19,  0,
+    0,  0,  0,  0,  8,  8, 19,  0,  0,  0,  0,  0,  8,  8, 19,  0,
+    0,  0,  0,  0,  8,  8, 19,  0,  0,  0,  0,  0,  8,  8, 19,  0,
+    0,  0,  0,  0,  8,  8, 19,  0,  0,  0,  0,  0,  8,  8, 19,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0, 14,  0, 23,  0, 15,  0,  0,  0,  8,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0, 10,  0,  0,  0,  0,  0,  0
+];
+
+   // There's tons of stuff in this object,
+   //  but only these three functions are the public API.
+   this.saveState = getState;
+   this.loadState = setState;
+   this.reset = reset;
+   this.advanceInsn = run_instruction;
+   this.interrupt = interrupt;
+   this.getPC = ():number => { return pc; }
+   this.getSP = ():number => { return sp; }
+}
 
 export interface Z80State {
   AF,BC,DE,HL,AF_,BC_,DE_,HL_,IX,IY,SP,PC,IR : number;
-  iff1,iff2,im,halted : number;
-  T,intp,intd : number;
+  iff1,iff2,im : number;
+  halted : boolean;
+  do_delayed_di,do_delayed_ei : boolean;
+  cycle_counter : number;
 }
 
 export class Z80 implements CPU, InstructionBased, IOBusConnected, SavesState<Z80State>, Interruptable<number> {
@@ -1702,12 +3364,13 @@ export class Z80 implements CPU, InstructionBased, IOBusConnected, SavesState<Z8
   memBus : Bus;
   ioBus : Bus;
   
-  private buildCPU(z80opts?) {
+  private buildCPU() {
     if (this.memBus && this.ioBus) {
-      this.cpu = buildZ80(z80opts||{})({
-       display: {},
-       memory: this.memBus,
-       ioBus: this.ioBus,
+      this.cpu = new FastZ80({
+        mem_read: this.memBus.read.bind(this.memBus),
+        mem_write: this.memBus.write.bind(this.memBus),
+        io_read: this.ioBus.read.bind(this.ioBus),
+        io_write: this.ioBus.write.bind(this.ioBus),
       });
     }
   }
@@ -1720,18 +3383,16 @@ export class Z80 implements CPU, InstructionBased, IOBusConnected, SavesState<Z8
     this.buildCPU();
   }
   advanceInsn() {
-    let t0 = this.cpu.getTstates();
-    this.cpu.runFrame(t0+1); //TODO
-    return this.cpu.getTstates() - t0;
+    return this.cpu.advanceInsn();
   }
   reset() {
     this.cpu.reset();
   }
-  interrupt(itype:number) {
-    this.cpu.requestInterrupt(itype);
+  interrupt(data:number) {
+    this.cpu.interrupt(false, data);
   }
   NMI() {
-    this.cpu.nonMaskableInterrupt();
+    this.cpu.interrupt(true, 0);
   }
   getSP() {
     return this.cpu.getSP();

@@ -30,7 +30,7 @@ describe('ZilogZ80', function() {
     cpu.reset();
     let cycles = 0;
     let finish = false;
-    var maxcyc = runall ? 10000000000 : 1000000;
+    var maxcyc = runall ? 10000000000 : 10000000;
     for (var i=0; i<maxcyc; i++) {
       cycles += cpu.advanceInsn(1);
       var pc = cpu.getPC();

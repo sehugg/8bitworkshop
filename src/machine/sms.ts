@@ -43,7 +43,11 @@ export class SG1000 extends BaseZ80VDPBasedMachine {
   }
   
   getKeyboardMap() { return SG1000_KEYCODE_MAP; }
-  vdpInterrupt() { return this.cpu.NMI(); }
+
+  vdpInterrupt() {
+    return this.cpu.interrupt(0xff); // RST 0x38
+    //return this.cpu.NMI();
+  }
   
    read = newAddressDecoder([
      [0xc000, 0xffff,  0x3ff, (a) => { return this.ram[a]; }],
@@ -216,7 +220,7 @@ export class SMS extends SG1000 {
   }
   getDebugInfo(category, state) {
     switch (category) {
-      case 'CPU':
+      case 'SMS': // TODO
         return super.getDebugInfo(category, state) +
           "\nBank Regs: " + this.pagingRegisters + "\n";
       default: return super.getDebugInfo(category, state);

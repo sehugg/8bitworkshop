@@ -181,7 +181,7 @@ export class MSX1 extends BaseZ80VDPBasedMachine {
   }
 
   vdpInterrupt() {
-    this.cpu.interrupt(0x38);
+    this.cpu.interrupt(0xff); // RST 0x38
   }
 
   loadState(state) {
