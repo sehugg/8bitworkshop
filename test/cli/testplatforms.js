@@ -148,6 +148,11 @@ function testPlatform(platid, romname, maxframes, callback) {
     assert.equal(maxframes, rec.loadFrame(maxframes));
     var state2 = platform.saveState();
     assert.deepEqual(state1, state2);
+    // test memory reads not clearing stuff
+    for (var i=0; i<=0xffff; i++)
+      if (platform.readAddress) platform.readAddress(i);
+    var state3 = platform.saveState();
+    assert.deepEqual(state2, state3);
     // test debug info
     var debugs = platform.getDebugCategories();
     for (var dcat of debugs) {

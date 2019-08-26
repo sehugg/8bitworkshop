@@ -209,6 +209,8 @@ class VCSPlatform extends BasePlatform {
     // TODO: shouldn't have to do this when debugging
     if (this.lastBreakState && addr >= 0x80 && addr < 0x100)
       return this.getRAMForState(this.lastBreakState)[addr & 0x7f];
+    else if ((addr & 0x1280) === 0x280)
+      return 0; // don't read PIA
     else
       return Javatari.room.console.readAddress(addr);
   }
