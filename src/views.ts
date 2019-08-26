@@ -940,6 +940,7 @@ abstract class ProbeViewBase {
     canvas.classList.add('pixelated');
     canvas.style.width = '100%';
     canvas.style.height = '100vh'; // i hate css
+    canvas.style.backgroundColor = 'black';
     parent.appendChild(div);
     div.appendChild(canvas);
     this.canvas = canvas;
@@ -947,6 +948,7 @@ abstract class ProbeViewBase {
     this.initCanvas();
     return this.maindiv = div;
   }
+
   initCanvas() {
   }
   
@@ -961,10 +963,11 @@ abstract class ProbeViewBase {
 
   clear() {
     var ctx = this.ctx;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    //ctx.globalCompositeOperation = 'source-over';
+    //ctx.globalAlpha = 1.0;
+    //ctx.fillStyle = '#000000';
+    //ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.globalAlpha = 1.0;
     ctx.globalCompositeOperation = 'lighter';
   }
@@ -1041,12 +1044,12 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
   }
   getOpRGB(op:number) : number {
     switch (op) {
-      case ProbeFlags.EXECUTE:		return 0x0f3f0f;
-      case ProbeFlags.MEM_READ:		return 0x3f0101;
-      case ProbeFlags.MEM_WRITE:	return 0x010f3f;
-      case ProbeFlags.IO_READ:		return 0x001f01;
-      case ProbeFlags.IO_WRITE:		return 0x017f7f;
-      case ProbeFlags.INTERRUPT:	return 0x3f3f00;
+      case ProbeFlags.EXECUTE:		return 0x0f7f0f;
+      case ProbeFlags.MEM_READ:		return 0x7f0101;
+      case ProbeFlags.MEM_WRITE:	return 0x010f7f;
+      case ProbeFlags.IO_READ:		return 0x01ffff;
+      case ProbeFlags.IO_WRITE:		return 0xff01ff;
+      case ProbeFlags.INTERRUPT:	return 0xffff01;
       default:				return 0; 
     }
   }
@@ -1058,13 +1061,20 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
     return this.createCanvas(parent, 256, 256);
   }
   
+  clear() {
+    for (var i=0; i<=0xffff; i++) {
+      var v = platform.readAddress(i);
+      var rgb = (v >> 2) | (v & 0x1f);
+      rgb |= (rgb<<8) | (rgb<<16);
+      this.datau32[i] = rgb | 0xff000000;
+    }
+  }
   drawEvent(op, addr, col, row) {
     var rgb = this.getOpRGB(op);
     if (!rgb) return;
     var x = addr & 0xff;
     var y = (addr >> 8) & 0xff;
     var data = this.datau32[addr & 0xffff];
-    data = (data & 0x7f7f7f) << 1;
     data = data | rgb | 0xff000000;
     this.datau32[addr & 0xffff] = data;
   }
@@ -1106,30 +1116,41 @@ export class EventProbeView extends ProbeViewBase implements ProjectView {
   xmax : number = 1;
   ymax : number = 1;
   lastsym : string;
+  xx : number;
+  yy : number;
 
   createDiv(parent : HTMLElement) {
     return this.createCanvas( parent, $(parent).width(), $(parent).height() );
   }
-  
+
   drawEvent(op, addr, col, row) {
     var ctx = this.ctx;
     this.xmax = Math.max(this.xmax, col);
     this.ymax = Math.max(this.ymax, row);
     var xscale = this.canvas.width / this.xmax; // TODO: pixels
-    var yscale = this.canvas.height / this.ymax; // TODO: lines
+    var yscale = (this.canvas.height - 12) / this.ymax; // TODO: lines
     var x = col * xscale;
     var y = row * yscale;
+    x = this.xx;
+    y = this.yy = Math.max(this.yy, y);
     var sym = this.getSymbol(addr);
     if (!sym && op == ProbeFlags.IO_WRITE) sym = hex(addr,4);
     //TODO if (!sym && op == ProbeFlags.IO_READ)  sym = hex(addr,4);
     if (sym) {
       this.setContextForOp(op);
-      ctx.textAlign = (col < this.xmax/2) ? 'left' : 'right';
-      ctx.textBaseline = (row < this.ymax/2) ? 'top' : 'bottom';
+      ctx.textAlign = 'left'; //ctx.textAlign = (x < this.canvas.width/2) ? 'left' : 'right';
+      ctx.textBaseline = 'top'; //ctx.textBaseline = (y < this.canvas.height/2) ? 'top' : 'bottom';
+      var mt = ctx.measureText(sym);
+      if (x + mt.width > this.canvas.width) {
+        x = 0;
+        y += 12;
+      }
       ctx.fillText(sym, x, y);
+      this.xx = x + mt.width + 10;
+      this.yy = y;
     }
   }
-  
+
   getSymbol(addr:number) : string {
     var sym = this.symcache[addr];
     if (!sym) {
@@ -1137,6 +1158,11 @@ export class EventProbeView extends ProbeViewBase implements ProjectView {
       this.symcache[addr] = sym;
     }
     return sym;
+  }
+
+  tick() {
+    this.xx = this.yy = 0;
+    super.tick();
   }
 
   refresh() {
