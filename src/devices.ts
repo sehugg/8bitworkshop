@@ -312,8 +312,8 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
     this.probe.logClocks(n);
     return n;
   }
-  connectCPUMemoryBus(membus:Bus) : void {
-    this.cpu.connectMemoryBus({
+  probeMemoryBus(membus:Bus) : Bus {
+    return {
       read: (a) => {
         let val = membus.read(a);
         this.probe.logRead(a,val);
@@ -323,10 +323,13 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
         this.probe.logWrite(a,v);
         membus.write(a,v);
       }
-    });
+    };
   }
-  connectCPUIOBus(iobus:Bus) : void {
-    this.cpu['connectIOBus']({
+  connectCPUMemoryBus(membus:Bus) : void {
+    this.cpu.connectMemoryBus(this.probeMemoryBus(membus));
+  }
+  probeIOBus(iobus:Bus) : Bus {
+    return {
       read: (a) => {
         let val = iobus.read(a);
         this.probe.logIORead(a,val);
@@ -336,7 +339,10 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
         this.probe.logIOWrite(a,v);
         iobus.write(a,v);
       }
-    });
+    };
+  }
+  connectCPUIOBus(iobus:Bus) : void {
+    this.cpu['connectIOBus'](this.probeIOBus(iobus));
   }
 }
 

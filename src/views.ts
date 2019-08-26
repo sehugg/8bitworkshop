@@ -1044,12 +1044,12 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
   }
   getOpRGB(op:number) : number {
     switch (op) {
-      case ProbeFlags.EXECUTE:		return 0x0f7f0f;
-      case ProbeFlags.MEM_READ:		return 0x7f0101;
-      case ProbeFlags.MEM_WRITE:	return 0x010f7f;
-      case ProbeFlags.IO_READ:		return 0x01ffff;
-      case ProbeFlags.IO_WRITE:		return 0xff01ff;
-      case ProbeFlags.INTERRUPT:	return 0xffff01;
+      case ProbeFlags.EXECUTE:		return 0x018001;
+      case ProbeFlags.MEM_READ:		return 0x800101;
+      case ProbeFlags.MEM_WRITE:	return 0x010180;
+      case ProbeFlags.IO_READ:		return 0x018080;
+      case ProbeFlags.IO_WRITE:		return 0xc00180;
+      case ProbeFlags.INTERRUPT:	return 0xc0c001;
       default:				return 0; 
     }
   }

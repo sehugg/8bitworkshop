@@ -98,7 +98,6 @@ class TIA {
 
 class MARIA {
   bus : Bus;
-  probe : ProbeAll;
   cycles : number = 0;
   regs = new Uint8Array(0x20);
   offset : number = -1;
@@ -164,7 +163,6 @@ class MARIA {
   }
   readDLLEntry(bus) {
     let x = bus.read(this.dll);
-    //this.probe.logRead(this.dll, x); // TODO: use bus
     this.offset = (x & 0xf);
     this.h16 = (x & 0x40) != 0;
     this.h8  = (x & 0x20) != 0;
@@ -185,14 +183,11 @@ class MARIA {
       return 0;
     else {
       this.cycles += 3;
-      var val = this.bus.read(a);
-      //this.probe.logRead(a, val); // TODO: use Bus, clocks
-      return val;
+      return this.bus.read(a);
     }
   }
-  doDMA(platform : Atari7800) {
-    let bus = this.bus = platform;
-    let probe = this.probe = platform.probe;
+  doDMA(bus : Bus) {
+    this.bus = bus;
     this.cycles = 0;
     this.pixels.fill(this.regs[0x0]);
     if (this.isDMAEnabled()) {
@@ -320,6 +315,8 @@ export class Atari7800 extends BasicMachine {
   
   read  : (a:number) => number;
   write : (a:number, v:number) => void;
+  
+  probeDMABus : Bus; // to pass to MARIA
 
   constructor() {
     super();
@@ -351,6 +348,7 @@ export class Atari7800 extends BasicMachine {
         [0x0000, 0xffff, 0xffff, (a,v) => { throw new EmuHalt("Write @ " + hex(a,4) + " " + hex(v,2)); }],
       ]);
     this.connectCPUMemoryBus(this);
+    this.probeDMABus = this.probeIOBus(this);
     this.handler = newKeyboardHandler(this.inputs, Atari7800_KEYCODE_MAP);
     this.pokey1 = new POKEYDeviceChannel();
     this.audioadapter = new TssChannelAdapter(this.pokey1, audioOversample, audioSampleRate);
@@ -397,7 +395,7 @@ export class Atari7800 extends BasicMachine {
       // is this scanline visible?
       if (visible) {
         // do DMA for scanline?
-        let dmaClocks = this.maria.doDMA(this);
+        let dmaClocks = this.maria.doDMA(this.probeDMABus);
         this.probe.logClocks(dmaClocks >> 2); // TODO: logDMA
         mc += dmaClocks;
         // copy line to frame buffer
