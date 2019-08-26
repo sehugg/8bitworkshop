@@ -1,4 +1,3 @@
-"use strict";
 
 import { VicDual } from "../machine/vicdual";
 import { BaseZ80MachinePlatform } from "../baseplatform";

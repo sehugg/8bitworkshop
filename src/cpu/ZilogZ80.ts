@@ -253,7 +253,7 @@ let run_instruction = function()
 /// @param non_maskable - true if this is a non-maskable interrupt
 /// @param data - the value to be placed on the data bus, if needed
 ///////////////////////////////////////////////////////////////////////////////
-let interrupt = function(non_maskable, data)
+let interrupt = function(non_maskable:boolean, data:number) : boolean
 {
    //console.log(non_maskable, data, iff1, iff2, do_delayed_ei, do_delayed_di);
    if (non_maskable)
@@ -270,6 +270,7 @@ let interrupt = function(non_maskable, data)
       push_word(pc);
       pc = 0x66;
       cycle_counter += 11;
+      return true;
    }
    else if (iff1)
    {
@@ -312,6 +313,7 @@ let interrupt = function(non_maskable, data)
          cycle_counter += 19;
       }
       //console.log(imode,data,pc);
+      return true;
    }
 };
 
@@ -3345,6 +3347,7 @@ let cycle_counts_dd = [
    this.interrupt = interrupt;
    this.getPC = ():number => { return pc; }
    this.getSP = ():number => { return sp; }
+   this.getHalted = ():boolean => { return halted; }
 }
 
 export interface Z80State {
@@ -3361,6 +3364,8 @@ export class Z80 implements CPU, InstructionBased, IOBusConnected, SavesState<Z8
   interruptType;
   memBus : Bus;
   ioBus : Bus;
+  retryInterrupts : boolean = false;
+  retryData : number = -1;
   
   private buildCPU() {
     if (this.memBus && this.ioBus) {
@@ -3381,13 +3386,18 @@ export class Z80 implements CPU, InstructionBased, IOBusConnected, SavesState<Z8
     this.buildCPU();
   }
   advanceInsn() {
+    if (this.retryInterrupts && this.retryData >= 0 && this.cpu.interrupt(false, this.retryData)) {
+     this.retryData = -1;
+    }
     return this.cpu.advanceInsn();
   }
   reset() {
     this.cpu.reset();
   }
   interrupt(data:number) {
-    this.cpu.interrupt(false, data);
+    if (!this.cpu.interrupt(false, data) && this.retryInterrupts) {
+     this.retryData = data;
+    }
   }
   NMI() {
     this.cpu.interrupt(true, 0);

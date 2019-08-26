@@ -1038,7 +1038,7 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
 /// new Machine platform adapters
 
 import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU } from "./devices";
-import { Probeable, RasterFrameBased } from "./devices";
+import { Probeable, RasterFrameBased, AcceptsPaddleInput } from "./devices";
 import { SampledAudio } from "./audio";
 import { ProbeRecorder } from "./recorder";
 
@@ -1053,6 +1053,9 @@ function hasAudio(arg:any): arg is SampledAudioSource {
 }
 function hasKeyInput(arg:any): arg is AcceptsKeyInput {
     return typeof arg.setKeyInput === 'function';
+}
+function hasPaddleInput(arg:any): arg is AcceptsPaddleInput {
+    return typeof arg.setPaddleInput === 'function';
 }
 function isRaster(arg:any): arg is RasterFrameBased {
     return typeof arg.getRasterY === 'function';
@@ -1111,6 +1114,9 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
       this.video.setKeyboardEvents(m.setKeyInput.bind(m));
       this.poller = new ControllerPoller(m.setKeyInput.bind(m));
     }
+    if (hasPaddleInput(m)) {
+      this.video.setupMouseEvents();
+    }
     if (hasProbe(m)) {
       this.probeRecorder = new ProbeRecorder(m);
       this.startProbing = () => {
@@ -1128,7 +1134,13 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     this.reset();
   }
 
-  pollControls() { this.poller && this.poller.poll(); }
+  pollControls() {
+    this.poller && this.poller.poll();
+    if (hasPaddleInput(this.machine)) {
+      this.machine.setPaddleInput(0, this.video.paddle_x);
+      this.machine.setPaddleInput(1, this.video.paddle_y);
+    }
+  }
 
   advance(novideo:boolean) {
     this.machine.advanceFrame(999999, this.getDebugCallback());

@@ -93,9 +93,13 @@ export interface SavesInputState<CS> {
     saveControlsState() : CS;
 }
 
-// TODO
+// TODO: joystick
 export interface AcceptsKeyInput {
     setKeyInput(key:number, code:number, flags:number) : void;
+}
+
+export interface AcceptsPaddleInput {
+    setPaddleInput(controller:number, value:number) : void;
 }
 
 export interface Probeable {
