@@ -18,7 +18,6 @@ export interface OpcodeMetadata {
 export interface CpuState {
   PC:number;
   EPC?:number; // effective PC (for bankswitching)
-  T?:number; // TODO: remove in favor of 'stable'
   o?:number;/*opcode*/
   SP?:number
   /*
@@ -30,7 +29,6 @@ export interface EmuState {
   b?:Uint8Array|number[], 	// RAM (TODO: not for vcs, support Uint8Array)
   ram?:Uint8Array,
   o?:{},				// verilog
-  T?:number,		// verilog
 };
 export interface EmuControlsState {
 }
@@ -266,6 +264,17 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   preFrame() {
   }
   postFrame() {
+    if (this.debugCallback) {
+      if (this.debugBreakState) {
+        // reload debug state at end of frame after breakpoint
+        this.loadState(this.debugBreakState);
+      } else {
+        // save state every frame and rewind debug clocks
+        this.debugSavedState = this.saveState();
+        this.debugTargetClock -= this.debugClock;
+        this.debugClock = 0;
+      }
+    }
   }
   pollControls() {
   }
@@ -275,6 +284,76 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.preFrame();
     this.advance(novideo);
     this.postFrame();
+  }
+  // default debugging
+  abstract getSP() : number;
+  abstract getPC() : number;
+  abstract isStable() : boolean;
+
+  evalDebugCondition() {
+    if (this.debugCallback && !this.debugBreakState) {
+      this.debugCallback();
+    }
+  }
+  wasBreakpointHit() : boolean {
+    return this.debugBreakState != null;
+  }
+  breakpointHit(targetClock : number) {
+    console.log(this.debugTargetClock, targetClock, this.debugClock, this.isStable());
+    this.debugTargetClock = targetClock;
+    this.debugBreakState = this.saveState();
+    console.log("Breakpoint at clk", this.debugClock, "PC", this.debugBreakState.c.PC.toString(16));
+    this.pause();
+    if (this.onBreakpointHit) {
+      this.onBreakpointHit(this.debugBreakState);
+    }
+  }
+  runEval(evalfunc : DebugEvalCondition) {
+    this.setDebugCondition( () => {
+      if (++this.debugClock >= this.debugTargetClock && this.isStable()) {
+        var cpuState = this.getCPUState();
+        if (evalfunc(cpuState)) {
+          this.breakpointHit(this.debugClock);
+          return true;
+        } else {
+          return false;
+        }
+      }
+    });
+  }
+  runUntilReturn() {
+    var SP0 = this.getSP();
+    this.runEval( (c:CpuState) : boolean => {
+      return c.SP > SP0;
+    });
+  }
+  runToFrameClock(clock : number) : void {
+    this.restartDebugging();
+    this.debugTargetClock = clock;
+    this.runEval(() : boolean => { return true; });
+  }
+  step() {
+    this.runToFrameClock(this.debugClock+1);
+  }
+  stepBack() {
+    var prevState;
+    var prevClock;
+    var clock0 = this.debugTargetClock;
+    this.restartDebugging();
+    this.debugTargetClock = clock0 - 25; // TODO: depends on CPU
+    this.runEval( (c:CpuState) : boolean => {
+      if (this.debugClock < clock0) {
+        prevState = this.saveState();
+        prevClock = this.debugClock;
+        return false;
+      } else {
+        if (prevState) {
+          this.loadState(prevState);
+          this.debugClock = prevClock;
+        }
+        return true;
+      }
+    });
   }
 }
 
@@ -299,93 +378,9 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
   debugPCDelta = -1;
   fixPC(c)   { c.PC = (c.PC + this.debugPCDelta) & 0xffff; return c; }
   unfixPC(c) { c.PC = (c.PC - this.debugPCDelta) & 0xffff; return c;}
-
-  evalDebugCondition() {
-    if (this.debugCallback && !this.debugBreakState) {
-      this.debugCallback();
-    }
-  }
-  postFrame() {
-    if (this.debugCallback) {
-      if (this.debugBreakState) {
-        // reload debug state at end of frame after breakpoint
-        this.loadState(this.debugBreakState);
-      } else {
-        // save state every frame and rewind debug clocks
-        this.debugSavedState = this.saveState();
-        this.debugTargetClock -= this.debugClock;
-        this.debugClock = 0;
-      }
-    }
-  }
-  breakpointHit(targetClock : number) {
-    this.debugTargetClock = targetClock;
-    this.debugBreakState = this.saveState();
-    console.log("Breakpoint at clk", this.debugClock, "PC", this.debugBreakState.c.PC.toString(16));
-    this.pause();
-    if (this.onBreakpointHit) {
-      this.onBreakpointHit(this.debugBreakState);
-    }
-  }
-  runEval(evalfunc : DebugEvalCondition) {
-    this.setDebugCondition( () => {
-      if (this.debugClock++ > this.debugTargetClock) {
-        var cpuState = this.getCPUState();
-        if (evalfunc(cpuState)) {
-          this.breakpointHit(this.debugClock-1);
-          return true;
-        } else {
-          return false;
-        }
-      }
-    });
-  }
-  runToFrameClock?(clock : number) : void {
-    this.restartDebugging();
-    this.debugTargetClock = clock;
-    this.setDebugCondition( () => {
-      if (this.debugClock++ > this.debugTargetClock) {
-        this.breakpointHit(this.debugClock-1);
-        return true;
-      }
-    });
-  }
-  step() {
-    var previousPC = -1;
-    this.setDebugCondition( () => {
-      //console.log(this.debugClock, this.debugTargetClock, this.getCPUState().PC, this.getCPUState());
-      if (this.debugClock++ >= this.debugTargetClock) {
-        var thisState = this.getCPUState();
-        if (previousPC < 0) {
-          previousPC = thisState.PC;
-        } else {
-          // doesn't work w/ endless loops
-          if (thisState.PC != previousPC && thisState.T == 0) {
-            this.breakpointHit(this.debugClock-1);
-            return true;
-          }
-        }
-      }
-      return false;
-    });
-  }
-  stepBack() {
-    var prevState;
-    var prevClock;
-    this.setDebugCondition( () => {
-      if (this.debugClock++ >= this.debugTargetClock && prevState) {
-        this.loadState(prevState);
-        this.breakpointHit(prevClock-1);
-        return true;
-      } else if (this.debugClock > this.debugTargetClock-10 && this.debugClock <= this.debugTargetClock+this.debugPCDelta) { // TODO: why this works?
-        if (this.getCPUState().T == 0) {
-          prevState = this.saveState();
-          prevClock = this.debugClock;
-        }
-      }
-      return false;
-    });
-  }
+  getSP()    { return this.getCPUState().SP };
+  getPC()    { return this.getCPUState().PC };
+  isStable() { return !this.getCPUState()['T']; }
 
   newCPU(membus : MemoryBus) {
     var cpu = new jt.M6502();
@@ -399,19 +394,6 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
 
   getOriginPC() : number {
     return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
-  }
-
-  runUntilReturn() {
-    var depth = 1;
-    this.runEval( (c:CpuState) => {
-      if (depth <= 0 && c.T == 0)
-        return true;
-      if (c.o == 0x20)
-        depth++;
-      else if (c.o == 0x60 || c.o == 0x40)
-        --depth;
-      return false;
-    });
   }
 
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
@@ -503,6 +485,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
 
   getPC() { return this._cpu.getPC(); }
   getSP() { return this._cpu.getSP(); }
+  isStable() { return true; }
 
   // TODO: refactor other parts into here
   runCPU(cpu, cycles:number) {
@@ -524,89 +507,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
     }
     return n;
   }
-  postFrame() {
-    if (this.debugCallback) {
-      if (this.debugBreakState) {
-        // if breakpoint, reload debug state after frame
-        this.loadState(this.debugBreakState);
-      } else {
-        // reset debug target clocks
-        this.debugSavedState = this.saveState();
-        if (this.debugTargetClock > 0)
-          this.debugTargetClock -= this.debugSavedState.c.T;
-        this.debugSavedState.c.T = 0;
-        this.loadState(this.debugSavedState);
-      }
-    }
-  }
-  breakpointHit(targetClock : number) {
-    this.debugTargetClock = targetClock;
-    this.debugBreakState = this.saveState();
-    console.log("Breakpoint at clk", this.debugBreakState.c.T, "PC", this.debugBreakState.c.PC.toString(16));
-    this.pause();
-    if (this.onBreakpointHit) {
-      this.onBreakpointHit(this.debugBreakState);
-    }
-  }
-  wasBreakpointHit() : boolean {
-    return this.debugBreakState != null;
-  }
-  // TODO: lower bound of clock value
-  step() {
-    this.setDebugCondition( () => {
-      var cpuState = this.getCPUState();
-      if (cpuState.T > this.debugTargetClock) {
-        this.breakpointHit(cpuState.T);
-        return true;
-      }
-      return false;
-    });
-  }
-  stepBack() {
-    var prevState;
-    var prevClock;
-    this.setDebugCondition( () => {
-      var cpuState = this.getCPUState();
-      var debugClock = cpuState.T;
-      if (debugClock >= this.debugTargetClock && prevState) {
-        this.loadState(prevState);
-        this.breakpointHit(prevClock);
-        return true;
-      } else if (debugClock > this.debugTargetClock-20 && debugClock < this.debugTargetClock) {
-        prevState = this.saveState();
-        prevClock = debugClock;
-      }
-      return false;
-    });
-  }
-  runEval(evalfunc : DebugEvalCondition) {
-    this.setDebugCondition( () => {
-      var cpuState = this.getCPUState();
-      if (cpuState.T > this.debugTargetClock) {
-        if (evalfunc(cpuState)) {
-          this.breakpointHit(cpuState.T);
-          return true;
-        }
-      }
-      return false;
-    });
-  }
-  runUntilReturn() {
-    var depth = 1;
-    this.runEval( (c) => {
-      if (depth <= 0)
-        return true;
-      var op = this.readAddress(c.PC);
-      if (op == 0xcd) // CALL
-        depth++;
-      else if (op == 0xc0 || op == 0xc8 || op == 0xc9 || op == 0xd0) // RET (TODO?)
-        --depth;
-      return false;
-    });
-  }
-  runToVsync() {
-    this.runEval((c) => { return c['intp']; });
-  }
+
   getToolForFilename = getToolForFilename_z80;
   getDefaultExtension() { return ".c"; };
   // TODO: Z80 opcode metadata
@@ -669,21 +570,6 @@ export abstract class Base6809Platform extends BaseZ80Platform {
 
   getPC() { return this._cpu.PC; }
   getSP() { return this._cpu.SP; }
-
-  runUntilReturn() {
-    var depth = 1;
-    this.runEval((c:CpuState) => {
-      if (depth <= 0)
-        return true;
-      var op = this.readAddress(c.PC);
-      // TODO: 6809 opcodes
-      if (op == 0x9d || op == 0xad || op == 0xbd) // CALL
-        depth++;
-      else if (op == 0x3b || op == 0x39) // RET
-        --depth;
-      return false;
-    });
-  }
 
   cpuStateToLongString(c:CpuState) {
     return cpuStateToLongString_6809(c);
@@ -1091,6 +977,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   saveState()    { return this.machine.saveState(); }
   getSP()        { return this.machine.cpu.getSP(); }
   getPC()        { return this.machine.cpu.getPC(); }
+  isStable() 	 { return this.machine.cpu.isStable(); }
   getCPUState()  { return this.machine.cpu.saveState(); }
   loadControlsState(s)   { this.machine.loadControlsState(s); }
   saveControlsState()    { return this.machine.saveControlsState(); }
@@ -1162,63 +1049,6 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   }
 
 // TODO: reset target clock counter
-  breakpointHit(targetClock : number) {
-    console.log(this.debugTargetClock, targetClock, this.debugClock, this.machine.cpu.isStable());
-    this.debugTargetClock = targetClock;
-    this.debugBreakState = this.saveState();
-    console.log("Breakpoint at clk", this.debugClock, "PC", this.debugBreakState.c.PC.toString(16));
-    this.pause();
-    if (this.onBreakpointHit) {
-      this.onBreakpointHit(this.debugBreakState);
-    }
-  }
-  runEval(evalfunc : DebugEvalCondition) {
-    this.setDebugCondition( () => {
-      if (++this.debugClock >= this.debugTargetClock && this.machine.cpu.isStable()) {
-        var cpuState = this.getCPUState();
-        if (evalfunc(cpuState)) {
-          this.breakpointHit(this.debugClock);
-          return true;
-        } else {
-          return false;
-        }
-      }
-    });
-  }
-  runUntilReturn() {
-    var SP0 = this.machine.cpu.getSP();
-    this.runEval( (c:CpuState) : boolean => {
-      return c.SP > SP0;
-    });
-  }
-  runToFrameClock(clock : number) : void {
-    this.restartDebugging();
-    this.debugTargetClock = clock;
-    this.runEval(() : boolean => { return true; });
-  }
-  step() {
-    this.runToFrameClock(this.debugClock+1);
-  }
-  stepBack() {
-    var prevState;
-    var prevClock;
-    var clock0 = this.debugTargetClock;
-    this.restartDebugging();
-    this.debugTargetClock = clock0 - 25; // TODO: depends on CPU
-    this.runEval( (c:CpuState) : boolean => {
-      if (this.debugClock < clock0) {
-        prevState = this.saveState();
-        prevClock = this.debugClock;
-        return false;
-      } else {
-        if (prevState) {
-          this.loadState(prevState);
-          this.debugClock = prevClock;
-        }
-        return true;
-      }
-    });
-  }
   getRasterScanline() {
     return isRaster(this.machine) && this.machine.getRasterY();
   }

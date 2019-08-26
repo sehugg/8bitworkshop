@@ -55,7 +55,6 @@ interface MSXSlot {
 export class MSX1 extends BaseZ80VDPBasedMachine {
 
   numVisibleScanlines = 240;
-  overscan = true;
   defaultROMSize = 0x8000;
   ram = new Uint8Array(0x10000);
 

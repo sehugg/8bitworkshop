@@ -34,7 +34,6 @@ export class SG1000 extends BaseZ80VDPBasedMachine {
 
   numVisibleScanlines = 240;
   defaultROMSize = 0xc000;
-  overscan = true;
   ram = new Uint8Array(0x400);
   
   constructor() {
