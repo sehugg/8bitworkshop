@@ -2055,10 +2055,10 @@ function assembleXASM6809(step:BuildStep) {
 // http://www.nespowerpak.com/nesasm/
 function assembleNESASM(step:BuildStep) {
   loadNative("nesasm");
-  var re_filename = /[#](\d+)\s+(\S+)/;
+  var re_filename = /\#\[(\d+)\]\s+(\S+)/;
   var re_insn     = /\s+(\d+)\s+([0-9A-F]+):([0-9A-F]+)/;
   var re_error    = /\s+(.+)/;
-  var errors = [];
+  var errors : WorkerError[] = [];
   var state = 0;
   var lineno = 0;
   var filename;
@@ -2079,7 +2079,7 @@ function assembleNESASM(step:BuildStep) {
       case 1:
         m = re_error.exec(s);
         if (m) {
-          errors.push({line:lineno, msg:m[1]});
+          errors.push({path:filename, line:lineno, msg:m[1]});
           state = 0;
         }
         break;

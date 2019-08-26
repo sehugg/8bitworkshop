@@ -509,8 +509,8 @@ function _importProjectFromGithub(e) {
 
 function _publishProjectToGithub(e) {
   if (repo_id) {
-    alertError("This project (" + current_project.mainPath + ") is already bound to a Github repository. Choose 'Push Changes' to update.");
-    return;
+    if (!confirm("This project (" + current_project.mainPath + ") is already bound to a Github repository. Do you want to re-publish to a new repository? (You can instead choose 'Push Changes' to update files in the existing repository.)"))
+      return;
   }
   var modal = $("#publishGithubModal");
   var btn = $("#publishGithubButton");
