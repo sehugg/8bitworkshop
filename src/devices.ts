@@ -237,12 +237,12 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
   
   abstract cpu : CPU;
   abstract ram : Uint8Array;
-  // TODO? abstract handler; // keyboard handler
   
   rom : Uint8Array;
   pixels : Uint32Array;
   audio : SampledAudioSink;
   inputs : Uint8Array = new Uint8Array(32);
+  handler : (key,code,flags) => void; // keyboard handler
 
   scanline : number;
   frameCycles : number;
@@ -253,6 +253,9 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
   abstract read(a:number) : number;
   abstract write(a:number, v:number) : void;
 
+  setKeyInput(key:number, code:number, flags:number) : void {
+    this.handler && this.handler(key,code,flags);
+  }
   getAudioParams() : SampledAudioParams {
     return {sampleRate:this.sampleRate, stereo:false};
   }

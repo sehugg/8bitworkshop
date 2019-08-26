@@ -20,7 +20,6 @@ export abstract class BaseZ80VDPBasedMachine extends BasicScanlineMachine {
   cpu: Z80 = new Z80();
   vdp: TMS9918A;
   psg;
-  handler;
   audioadapter;
 
   abstract vdpInterrupt();
@@ -33,10 +32,6 @@ export abstract class BaseZ80VDPBasedMachine extends BasicScanlineMachine {
     this.handler = newKeyboardHandler(this.inputs, this.getKeyboardMap(), this.getKeyboardFunction());
     this.psg = psg;
     this.audioadapter = psg && new TssChannelAdapter(psg.psg, audioOversample, this.sampleRate);
-  }
-  
-  setKeyInput(key:number, code:number, flags:number) : void {
-    this.handler(key,code,flags);
   }
   
   connectVideo(pixels) {

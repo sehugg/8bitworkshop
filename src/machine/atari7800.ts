@@ -316,7 +316,6 @@ export class Atari7800 extends BasicMachine {
   pokey1; //TODO: type
   audioadapter;
   
-  handler; // TODO: type, or use ControllerPoller
   lastFrameCycles = 0;
   
   read  : (a:number) => number;
@@ -371,10 +370,6 @@ export class Atari7800 extends BasicMachine {
     //TODO this.bios = new Uint8Array(0x1000);
     // TODO: TIA access wastes a cycle
 
-  setKeyInput(key:number, code:number, flags:number) : void {
-    this.handler(key,code,flags);
-  }
-  
   advanceFrame(maxClocks, trap) : number {
     var idata = this.pixels;
     var iofs = 0;

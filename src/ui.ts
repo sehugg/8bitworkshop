@@ -239,19 +239,14 @@ function refreshWindowList() {
       return new Views.MemoryView();
     });
   }
-  if (platform.readVRAMAddress) {
-    addWindowItem("#memvram", "VRAM Browser", () => {
-      return new Views.VRAMMemoryView();
-    });
-  }
   if (current_project.segments) {
     addWindowItem("#memmap", "Memory Map", () => {
       return new Views.MemoryMapView();
     });
   }
-  if (platform.getRasterScanline && platform.setBreakpoint && platform.getCPUState) { // TODO: use profiler class to determine compat
-    addWindowItem("#profiler", "Profiler", () => {
-      return new Views.ProfileView();
+  if (platform.readVRAMAddress) {
+    addWindowItem("#memvram", "VRAM Browser", () => {
+      return new Views.VRAMMemoryView();
     });
   }
   if (platform.startProbing) {
@@ -264,6 +259,11 @@ function refreshWindowList() {
     // TODO: only if raster
     addWindowItem("#crtheatmap", "Screen Heatmap", () => {
       return new Views.RasterPCHeatMapView();
+    });
+  }
+  else if (platform.getRasterScanline && platform.setBreakpoint && platform.getCPUState) { // TODO: use profiler class to determine compat
+    addWindowItem("#profiler", "Profiler", () => {
+      return new Views.ProfileView();
     });
   }
   addWindowItem('#asseteditor', 'Asset Editor', () => {

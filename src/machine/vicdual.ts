@@ -45,7 +45,6 @@ export class VicDual extends BasicScanlineMachine {
   ram = new Uint8Array(0x1000);
   psg: AY38910_Audio;
   display: VicDualDisplay;
-  handler;
   audioadapter;
 
   constructor() {
@@ -59,10 +58,6 @@ export class VicDual extends BasicScanlineMachine {
     this.audioadapter = new TssChannelAdapter(this.psg.psg, audioOversample, this.sampleRate);
   }
 
-  setKeyInput(key:number, code:number, flags:number) : void {
-    this.handler(key,code,flags);
-  }
-  
   getKeyboardFunction() {
     return (o) => {
       // reset when coin inserted

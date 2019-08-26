@@ -443,7 +443,6 @@ export class BallyAstrocade extends BasicScanlineMachine implements AcceptsPaddl
   cpu : Z80;
   m; // _BallyAstrocade
 
-  handler;
   psg: AstrocadeAudio;
   audioadapter;
   backbuffer : Uint32Array;
@@ -466,10 +465,6 @@ export class BallyAstrocade extends BasicScanlineMachine implements AcceptsPaddl
     this.m.init(this, this.cpu, this.ram, this.inputs, this.psg);
   }
   
-  setKeyInput(key:number, code:number, flags:number) : void {
-    this.handler(key,code,flags);
-  }
-
   read(a:number) : number {
     return this.m.membus.read(a);
   }

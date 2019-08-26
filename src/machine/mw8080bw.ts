@@ -45,17 +45,12 @@ export class Midway8080 extends BasicScanlineMachine {
   
   cpu: Z80 = new Z80();
   ram = new Uint8Array(0x2000);
-  handler;
 
   constructor() {
     super();
     this.connectCPUMemoryBus(this);
     this.connectCPUIOBus(this.newIOBus());
     this.handler = newKeyboardHandler(this.inputs, SPACEINV_KEYCODE_MAP);
-  }
-
-  setKeyInput(key:number, code:number, flags:number) : void {
-    this.handler(key,code,flags);
   }
   
   read = newAddressDecoder([
