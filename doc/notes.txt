@@ -161,6 +161,8 @@ TODO:
   - support projects with subdirectories, file list?
   - switching platform of a repo?
   - make sure to flatten subdirs
+  - re-publish repo (bug: doesn't put all files in local repo after publishing)
+  - allow text/binary change
 - astrocade
 - keyboard shortcuts
   - ctrl+alt+l on ubuntu locks screen
