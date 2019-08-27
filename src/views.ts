@@ -1049,8 +1049,10 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
       case ProbeFlags.MEM_WRITE:	return 0x010180;
       case ProbeFlags.IO_READ:		return 0x018080;
       case ProbeFlags.IO_WRITE:		return 0xc00180;
+      case ProbeFlags.VRAM_READ:	return 0x018080;
+      case ProbeFlags.VRAM_WRITE:	return 0xc00180;
       case ProbeFlags.INTERRUPT:	return 0xc0c001;
-      default:				return 0; 
+      default:				return 0;
     }
   }
 }

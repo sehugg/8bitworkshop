@@ -145,15 +145,21 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
       this.probe.logClocks(cycles);
       return cycles;
     }
-    var old_endScanline = this.nes.ppu.endScanline.bind(this.nes.ppu);
-    var old_startFrame = this.nes.ppu.startFrame.bind(this.nes.ppu);
-    this.nes.ppu.endScanline = () => {
+    var ppu = this.nes.ppu;
+    var old_endScanline = ppu.endScanline.bind(ppu);
+    var old_startFrame = ppu.startFrame.bind(ppu);
+    var old_writeMem = ppu.writeMem.bind(ppu);
+    ppu.endScanline = () => {
       old_endScanline();
       this.probe.logNewScanline();
     }
-    this.nes.ppu.startFrame = () => {
+    ppu.startFrame = () => {
       old_startFrame();
       this.probe.logNewFrame();
+    }
+    ppu.writeMem = (a,v) => {
+      old_writeMem(a,v);
+      this.probe.logVRAMWrite(a,v);
     }
     
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));

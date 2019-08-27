@@ -198,7 +198,12 @@ export interface ProbeIO {
   logIOWrite(address:number, value:number);
 }
 
-export interface ProbeAll extends ProbeTime, ProbeCPU, ProbeBus, ProbeIO {
+export interface ProbeVRAM {
+  logVRAMRead(address:number, value:number);
+  logVRAMWrite(address:number, value:number);
+}
+
+export interface ProbeAll extends ProbeTime, ProbeCPU, ProbeBus, ProbeIO, ProbeVRAM {
 }
 
 export class NullProbe implements ProbeAll {
@@ -211,6 +216,8 @@ export class NullProbe implements ProbeAll {
   logWrite()		{}
   logIORead()		{}
   logIOWrite()		{}
+  logVRAMRead()		{}
+  logVRAMWrite()	{}
 }
 
 /// CONVENIENCE

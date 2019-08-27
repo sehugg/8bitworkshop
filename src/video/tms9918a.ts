@@ -1,4 +1,3 @@
-'use strict';
 /*
  * js99'er - TI-99/4A emulator written in JavaScript
  *
@@ -11,6 +10,7 @@
  */
 
 import { hex, lpad, RGBA } from "../util";
+import { ProbeVRAM, NullProbe } from "../devices";
 
 enum TMS9918A_Mode {
   GRAPHICS = 0,
@@ -31,6 +31,7 @@ export class TMS9918A {
 
   cru : { setVDPInterrupt: (b:boolean) => void };
   enableFlicker : boolean;
+  probe : ProbeVRAM = new NullProbe();
 
   ram = new Uint8Array(16384); // VDP RAM
   registers = new Uint8Array(8);
@@ -492,6 +493,7 @@ export class TMS9918A {
     }
 
     writeData(i:number) {
+        this.probe.logVRAMWrite(this.addressRegister, i);
         this.ram[this.addressRegister++] = i;
         this.prefetchByte = i;
         this.addressRegister &= this.ramMask;
@@ -512,6 +514,7 @@ export class TMS9918A {
     readData() : number {
         var i = this.prefetchByte;
         this.prefetchByte = this.ram[this.addressRegister++];
+        this.probe.logVRAMRead(this.addressRegister-1, this.prefetchByte);
         this.addressRegister &= this.ramMask;
         this.latch = false;
         return i;

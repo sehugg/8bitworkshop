@@ -1,6 +1,6 @@
 
 import { Z80, Z80State } from "../cpu/ZilogZ80";
-import { BasicScanlineMachine, Bus } from "../devices";
+import { BasicScanlineMachine, Bus, ProbeAll } from "../devices";
 import { newAddressDecoder, newKeyboardHandler } from "../emu";
 import { TssChannelAdapter } from "../audio";
 import { TMS9918A } from "../video/tms9918a";
@@ -46,6 +46,11 @@ export abstract class BaseZ80VDPBasedMachine extends BasicScanlineMachine {
       }
     };
     this.vdp = this.newVDP(this.pixels, cru, true);
+  }
+
+  connectProbe(probe: ProbeAll) : void {
+    super.connectProbe(probe);
+    this.vdp.probe = probe || this.nullProbe;
   }
 
   newVDP(frameData, cru, flicker) {

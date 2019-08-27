@@ -186,10 +186,12 @@ export enum ProbeFlags {
   CLOCKS	= 0x00000000,
   EXECUTE	= 0x01000000,
   MEM_READ	= 0x02000000,
-  MEM_WRITE	= 0x04000000,
-  IO_READ	= 0x08000000,
-  IO_WRITE	= 0x10000000,
-  INTERRUPT	= 0x20000000,
+  MEM_WRITE	= 0x03000000,
+  IO_READ	= 0x04000000,
+  IO_WRITE	= 0x05000000,
+  VRAM_READ	= 0x06000000,
+  VRAM_WRITE	= 0x07000000,
+  INTERRUPT	= 0x08000000,
   SCANLINE	= 0x7e000000,
   FRAME		= 0x7f000000,
 }
@@ -276,6 +278,12 @@ export class ProbeRecorder implements ProbeAll {
   }
   logIOWrite(address:number, value:number) {
     this.log(address | ProbeFlags.IO_WRITE);
+  }
+  logVRAMRead(address:number, value:number) {
+    this.log(address | ProbeFlags.VRAM_READ);
+  }
+  logVRAMWrite(address:number, value:number) {
+    this.log(address | ProbeFlags.VRAM_WRITE);
   }
 
 }
