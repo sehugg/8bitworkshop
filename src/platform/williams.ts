@@ -416,6 +416,10 @@ var WilliamsPlatform = function(mainElement, proto) {
     cpuFrequency *= scale;
     cpuCyclesPerFrame *= scale;
   }
+  this.getMemoryMap = function() { return { main:[
+      {name:'Video RAM',start:0x0000,size:0xc000,type:'ram'},
+      {name:'I/O Registers',start:0xc000,size:0x1000,type:'io'},
+  ] } };
 }
 
 var WilliamsZ80Platform = function(mainElement) {

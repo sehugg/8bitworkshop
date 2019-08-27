@@ -33,7 +33,13 @@ class BallyAstrocadePlatform extends BaseZ80MachinePlatform<BallyAstrocade> impl
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.read(a); }
   loadBios(title,bios)	{ this.machine.loadBIOS(bios); }
-
+  getMemoryMap = function() { return { main:[
+      {name:'BIOS',start:0x0,size:0x2000,type:'rom'},
+      //{name:'Cart ROM',start:0x2000,size:0x2000,type:'rom'},
+      //{name:'Magic RAM',start:0x0,size:0x4000,type:'ram'},
+      {name:'Screen RAM',start:0x4000,size:0x1000,type:'ram'},
+      {name:'BIOS Variables',start:0x4fce,size:0x5000-0x4fce,type:'ram'},
+  ] } };
 }
 
 class BallyAstrocadeBIOSPlatform extends BallyAstrocadePlatform implements Platform {
@@ -47,6 +53,10 @@ class BallyArcadePlatform extends BallyAstrocadePlatform implements Platform {
 
   newMachine()          { return new BallyAstrocade(true); }
 
+  getMemoryMap = function() { return { main:[
+      {name:'Magic RAM',start:0x0,size:0x4000,type:'ram'},
+      {name:'Screen RAM',start:0x4000,size:0x4000,type:'ram'},
+  ] } };
 }
 
 PLATFORMS['astrocade'] = BallyAstrocadePlatform;

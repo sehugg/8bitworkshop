@@ -414,6 +414,11 @@ const _GalaxianPlatform = function(mainElement, options) {
       cpu.reset();
       watchdog_counter = INITIAL_WATCHDOG;
     }
+    getMemoryMap = function() { return { main:[
+      {name:'Video RAM',start:0x5000,size:0x400,type:'ram'},
+      {name:'Sprite RAM',start:0x5800,size:0x100,type:'ram'},
+      {name:'I/O Registers',start:0x6000,size:0x2000,type:'io'},
+    ] } };
   }
 
   return new GalaxianPlatform();

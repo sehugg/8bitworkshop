@@ -239,7 +239,7 @@ function refreshWindowList() {
       return new Views.MemoryView();
     });
   }
-  if (current_project.segments) {
+  if (current_project.segments && current_project.segments.length) {
     addWindowItem("#memmap", "Memory Map", () => {
       return new Views.MemoryMapView();
     });
@@ -1894,7 +1894,7 @@ function loadImportedURL(url : string) {
 }
 
 function setPlatformUI() {
-  var name = platform.getMetadata && platform.getMetadata().name;
+  var name = platform.getPlatformName && platform.getPlatformName();
   var menuitem = $('a[href="?platform='+platform_id+'"]');
   if (menuitem.length) {
     menuitem.addClass("dropdown-item-checked");

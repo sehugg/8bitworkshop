@@ -521,6 +521,21 @@ class C64Platform extends Base6502Platform implements Platform {
       default: return super.getDebugInfo(category, state);
     }
   }
+
+  getMemoryMap() {
+    return { main: [
+      {name:'6510 Registers',start:0x0,  size:0x2,type:'io'},
+      {name:'RAM',          start:0x2,   size:0x7ffe,type:'ram'},
+      {name:'Cartridge ROM',start:0x8000,size:0x2000,type:'rom'},
+      {name:'BASIC ROM',    start:0xa000,size:0x2000,type:'rom'},
+      {name:'RAM',          start:0xc000,size:0x1000,type:'ram'},
+      {name:'VIC-II I/O',   start:0xd000,size:0x0400,type:'io'},
+      {name:'Color RAM',    start:0xd800,size:0x0400,type:'io'},
+      {name:'CIA 1',        start:0xdc00,size:0x0100,type:'io'},
+      {name:'CIA 2',        start:0xdd00,size:0x0100,type:'io'},
+      {name:'KERNAL ROM',   start:0xe000,size:0x2000,type:'rom'},
+    ]};
+  }
 }
 
 ///

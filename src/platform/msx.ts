@@ -44,7 +44,13 @@ class MSXPlatform extends BaseZ80MachinePlatform<MSX1> implements Platform {
   readAddress(a)        { return this.machine.read(a); }
   readVRAMAddress(a)    { return this.machine.readVRAMAddress(a); }
   // TODO loadBios(bios)	{ this.machine.loadBIOS(a); }
-
+  getMemoryMap = function() { return { main:[
+      {name:'BIOS',start:0x0,size:0x4000,type:'rom'},
+      //{name:'Cartridge',start:0x4000,size:0x4000,type:'rom'},
+      {name:'RAM',start:0xc000,size:0x3200,type:'ram'},
+      {name:'Stack',start:0xf000,size:0x300,type:'ram'},
+      {name:'BIOS Work RAM',start:0xf300,size:0xd00},
+  ] } };
 }
 
 class MSXLibCVPlatform extends MSXPlatform implements Platform {

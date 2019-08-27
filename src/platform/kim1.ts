@@ -1,4 +1,3 @@
-"use strict";
 
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, getMousePos, EmuHalt, KeyFlags, _setKeyboardEvents } from "../emu";
@@ -235,6 +234,13 @@ class KIM1Platform extends Base6502Platform implements Platform {
   getCPUState() {
     return this.fixPC(this.cpu.saveState());
   }
+  getMemoryMap = function() { return { main:[
+      {name:'RAM',          start:0x0000,size:0x1400,type:'ram'},
+      {name:'6530',         start:0x1700,size:0x0040,type:'io'},
+      {name:'6530',         start:0x1740,size:0x0040,type:'io'},
+      {name:'RAM',          start:0x1780,size:0x0080,type:'ram'},
+      {name:'BIOS',         start:0x1800,size:0x0800,type:'rom'},
+  ] } };
 }
 
 ///

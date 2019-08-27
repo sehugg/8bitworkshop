@@ -57,12 +57,6 @@ var PLATFORM_PARAMS = {
     code_size: 0xf000,
     data_start: 0x80,
     data_size: 0x80,
-    extra_segments:[
-      {name:'TIA Registers',start:0x00,size:0x80,type:'io'},
-      {name:'PIA RAM',start:0x80,size:0x80,type:'ram'},
-      {name:'PIA Ports and Timer',start:0x280,size:0x18,type:'io'},
-      {name:'Cartridge ROM',start:0xf000,size:0x1000,type:'rom'},
-    ],
   },
   'mw8080bw': {
     code_start: 0x0,
@@ -70,9 +64,6 @@ var PLATFORM_PARAMS = {
     data_start: 0x2000,
     data_size: 0x400,
     stack_end: 0x2400,
-    extra_segments:[
-      {name:'Frame Buffer',start:0x2400,size:7168,type:'ram'},
-    ],
   },
   'vicdual': {
     code_start: 0x0,
@@ -80,10 +71,6 @@ var PLATFORM_PARAMS = {
     data_start: 0xe400,
     data_size: 0x400,
     stack_end: 0xe800,
-    extra_segments:[
-      {name:'Cell RAM',start:0xe000,size:32*32,type:'ram'},
-      {name:'Tile RAM',start:0xe800,size:256*8,type:'ram'},
-    ],
   },
   'galaxian': {
     code_start: 0x0,
@@ -98,11 +85,6 @@ var PLATFORM_PARAMS = {
     data_start: 0x4000,
     data_size: 0x400,
     stack_end: 0x4800,
-    extra_segments:[
-      {name:'Video RAM',start:0x5000,size:0x400,type:'ram'},
-      {name:'Sprite RAM',start:0x5800,size:0x100,type:'ram'},
-      {name:'I/O Registers',start:0x6000,size:0x2000,type:'io'},
-    ],
   },
   'williams': {
     code_start: 0x0,
@@ -110,10 +92,6 @@ var PLATFORM_PARAMS = {
     data_start: 0x9800,
     data_size: 0x2800,
     stack_end: 0xc000,
-    extra_segments:[
-      {name:'Video RAM',start:0x0000,size:0xc000,type:'ram'},
-      {name:'I/O Registers',start:0xc000,size:0x1000,type:'io'},
-    ],
   },
   'williams-z80': {
     code_start: 0x0,
@@ -121,10 +99,6 @@ var PLATFORM_PARAMS = {
     data_start: 0x9800,
     data_size: 0x2800,
     stack_end: 0xc000,
-    extra_segments:[
-      {name:'Video RAM',start:0x0000,size:0xc000,type:'ram'},
-      {name:'I/O Registers',start:0xc000,size:0x1000,type:'io'},
-    ],
   },
   'vector-z80color': {
     code_start: 0x0,
@@ -132,23 +106,12 @@ var PLATFORM_PARAMS = {
     data_start: 0xe000,
     data_size: 0x2000,
     stack_end: 0x0,
-    extra_segments:[
-      {name:'Switches/POKEY I/O',start:0x8000,size:0x100,type:'io'},
-      {name:'Math Box I/O',start:0x8100,size:0x100,type:'io'},
-      {name:'DVG I/O',start:0x8800,size:0x100,type:'io'},
-      {name:'DVG RAM',start:0xa000,size:0x4000,type:'ram'},
-    ],
   },
   'vector-ataricolor': { //TODO
     define: '__VECTOR__',
     cfgfile: 'vector-color.cfg',
     libargs: ['crt0.o', 'sim6502.lib'],
     extra_link_files: ['crt0.o', 'vector-color.cfg'],
-    extra_segments:[
-      {name:'Switches/POKEY I/O',start:0x7800,size:0x1000,type:'io'},
-      {name:'DVG I/O',start:0x8800,size:0x100,type:'io'},
-      {name:'EAROM',start:0x8900,size:0x100,type:'ram'},
-    ],
   },
   'sound_williams-z80': {
     code_start: 0x0,
@@ -173,10 +136,6 @@ var PLATFORM_PARAMS = {
     stack_end: 0x8000,
     extra_preproc_args: ['-I', '/share/include/coleco', '-D', 'CV_CV'],
     extra_link_args: ['-k', '/share/lib/coleco', '-l', 'libcv', '-l', 'libcvu', 'crt0.rel'],
-    extra_segments:[
-      {name:'BIOS',start:0x0,size:0x2000,type:'rom'},
-      {name:'Cartridge Header',start:0x8000,size:0x100,type:'rom'},
-    ],
   },
   'msx': {
     rom_start: 0x4000,
@@ -187,13 +146,6 @@ var PLATFORM_PARAMS = {
     stack_end: 0xffff,
     extra_link_args: ['crt0-msx.rel'],
     extra_link_files: ['crt0-msx.rel', 'crt0-msx.lst'],
-    extra_segments:[
-      {name:'BIOS',start:0x0,size:0x4000,type:'rom'},
-      //{name:'Cartridge',start:0x4000,size:0x4000,type:'rom'},
-      {name:'RAM',start:0xc000,size:0x3200,type:'ram'},
-      {name:'Stack',start:0xf000,size:0x300,type:'ram'},
-      {name:'BIOS Work RAM',start:0xf300,size:0xd00},
-    ],
   },
   'msx-libcv': {
     rom_start: 0x4000,
@@ -206,13 +158,6 @@ var PLATFORM_PARAMS = {
     extra_link_args: ['-k', '.', '-l', 'libcv-msx', '-l', 'libcvu-msx', 'crt0-msx.rel'],
     extra_link_files: ['libcv-msx.lib', 'libcvu-msx.lib', 'crt0-msx.rel', 'crt0-msx.lst'],
     extra_compile_files: ['cv.h','cv_graphics.h','cv_input.h','cv_sound.h','cv_support.h','cvu.h','cvu_c.h','cvu_compression.h','cvu_f.h','cvu_graphics.h','cvu_input.h','cvu_sound.h'],
-    extra_segments:[
-      {name:'BIOS',start:0x0,size:0x4000,type:'rom'},
-      //{name:'Cartridge',start:0x4000,size:0x4000,type:'rom'},
-      {name:'RAM',start:0xc000,size:0x3200,type:'ram'},
-      {name:'Stack',start:0xf000,size:0x300,type:'ram'},
-      {name:'BIOS Work RAM',start:0xf300,size:0xd00},
-    ],
   },
   'sms-sg1000-libcv': {
     rom_start: 0x0000,
@@ -236,13 +181,6 @@ var PLATFORM_PARAMS = {
       '-D', 'NES_MIRRORING=0', // horizontal mirroring
       ],
     extra_link_files: ['crt0.o', 'neslib2.lib', 'neslib2.cfg', 'nesbanked.cfg'],
-    extra_segments:[
-      //{name:'Work RAM',start:0x0,size:0x800,type:'ram'},
-      {name:'OAM Buffer',start:0x200,size:0x100,type:'ram'},
-      {name:'PPU Registers',start:0x2000,last:0x2008,size:0x2000,type:'io'},
-      {name:'APU Registers',start:0x4000,last:0x4020,size:0x2000,type:'io'},
-      {name:'Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
-    ],
   },
   'apple2': {
     define: '__APPLE2__',
@@ -250,10 +188,6 @@ var PLATFORM_PARAMS = {
     libargs: ['apple2.lib'],
     __CODE_RUN__: 16384,
     code_start: 0x803,
-    extra_segments:[
-      {name:'I/O',start:0xc000,size:0x1000,type:'io'},
-      {name:'ROM',start:0xd000,size:0x3000-6,type:'rom'},
-    ],
   },
   'apple2-e': {
     define: '__APPLE2__',
@@ -279,13 +213,6 @@ var PLATFORM_PARAMS = {
     data_start: 0x4e10,
      data_size: 0x1f0,
      stack_end: 0x5000,
-    extra_segments:[
-      {name:'BIOS',start:0x0,size:0x2000,type:'rom'},
-      //{name:'Cart ROM',start:0x2000,size:0x2000,type:'rom'},
-      //{name:'Magic RAM',start:0x0,size:0x4000,type:'ram'},
-      {name:'Screen RAM',start:0x4000,size:0x1000,type:'ram'},
-      {name:'BIOS Variables',start:0x4fce,size:0x5000-0x4fce,type:'ram'},
-    ],
   },
   'astrocade-arcade': {
     code_start: 0x0000,
@@ -306,42 +233,14 @@ var PLATFORM_PARAMS = {
     cfgfile: 'atari7800.cfg',
     libargs: ['crt0.o', 'sim6502.lib'],
     extra_link_files: ['crt0.o', 'atari7800.cfg'],
-    extra_segments:[
-      {name:'TIA',start:0x00,size:0x20,type:'io'},
-      {name:'MARIA',start:0x20,size:0x20,type:'io'},
-      {name:'RAM (6166 Block 0)',start:0x40,size:0xc0,type:'ram'},
-      {name:'RAM (6166 Block 1)',start:0x140,size:0xc0,type:'ram'},
-      {name:'PIA',start:0x280,size:0x18,type:'io'},
-      {name:'RAM',start:0x1800,size:0x1000,type:'ram'}, // TODO: shadow ram
-      {name:'Cartridge ROM',start:0x4000,size:0xc000,type:'rom'},
-    ],
   },
   'c64': {
     define: '__C64__',
     cfgfile: 'c64.cfg', // SYS 2058
     libargs: ['c64.lib'],
     //extra_link_files: ['c64-cart.cfg'],
-    extra_segments:[
-      {name:'6510 Registers',start:0x0,  size:0x2,type:'io'},
-      {name:'RAM',          start:0x2,   size:0x7ffe,type:'ram'},
-      {name:'Cartridge ROM',start:0x8000,size:0x2000,type:'rom'},
-      {name:'BASIC ROM',    start:0xa000,size:0x2000,type:'rom'},
-      {name:'RAM',          start:0xc000,size:0x1000,type:'ram'},
-      {name:'VIC-II I/O',   start:0xd000,size:0x0400,type:'io'},
-      {name:'Color RAM',    start:0xd800,size:0x0400,type:'io'},
-      {name:'CIA 1',        start:0xdc00,size:0x0100,type:'io'},
-      {name:'CIA 2',        start:0xdd00,size:0x0100,type:'io'},
-      {name:'KERNAL ROM',   start:0xe000,size:0x2000,type:'rom'},
-    ],
   },
   'kim1': {
-    extra_segments:[
-      {name:'RAM',          start:0x0000,size:0x1400,type:'ram'},
-      {name:'6530',         start:0x1700,size:0x0040,type:'io'},
-      {name:'6530',         start:0x1740,size:0x0040,type:'io'},
-      {name:'RAM',          start:0x1780,size:0x0080,type:'ram'},
-      {name:'BIOS',         start:0x1800,size:0x0800,type:'rom'},
-    ],
   },
 };
 
@@ -896,13 +795,11 @@ function assembleDASM(step:BuildStep) {
       lst.lines = [];
     }
   }
-  var segments = step.params.extra_segments;
   return {
     output:aout,
     listings:listings,
     errors:errors,
     symbolmap:symbolmap,
-    segments:segments
   };
 }
 
@@ -1077,7 +974,7 @@ function linkLD65(step:BuildStep) {
     }
     // build segment map
     var seg_re = /^__(\w+)_SIZE__$/;
-    var segments = [].concat(params.extra_segments||[]);
+    var segments = [];
     segments.push({name:'CPU Stack',start:0x100,size:0x100,type:'ram'});
     segments.push({name:'CPU Vectors',start:0xfffa,size:0x6,type:'rom'});
     // TODO: CHR, banks, etc
@@ -1396,7 +1293,7 @@ function linkSDLDZ80(step:BuildStep)
     }
     // build segment map
     var seg_re = /^s__(\w+)$/;
-    var segments = [].concat(params.extra_segments||[]);
+    var segments = [];
     // TODO: use stack params for stack segment
     for (let ident in symbolmap) {
       let m = seg_re.exec(ident);
@@ -2042,13 +1939,11 @@ function assembleXASM6809(step:BuildStep) {
   var asmlines = parseListing(alst, /^\s*([0-9]+) .+ ([0-9A-F]+)\s+\[([0-9 ]+)\]\s+([0-9A-F]+) (.*)/i, 1, 2, 4, 3);
   var listings = {};
   listings[step.prefix+'.lst'] = {lines:asmlines, text:alst};
-  var segments = step.params.extra_segments;
   return {
     output:aout,
     listings:listings,
     errors:errors,
     symbolmap:symbolmap,
-    segments:segments
   };
 }
 
@@ -2141,13 +2036,11 @@ function assembleNESASM(step:BuildStep) {
       }
     }
   }
-  var segments = step.params.extra_segments;
   return {
     output:aout,
     listings:listings,
     errors:errors,
     symbolmap:symbolmap,
-    segments:segments
   };
 }
 

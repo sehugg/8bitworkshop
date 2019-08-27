@@ -306,6 +306,12 @@ class VCSPlatform extends BasePlatform {
       window.open("https://alienbill.com/2600/101/docs/stella.html", "_help"); // TODO
   }
 
+  getMemoryMap = function() { return {main:[
+      {name:'TIA Registers',start:0x00,size:0x80,type:'io'},
+      {name:'PIA RAM',start:0x80,size:0x80,type:'ram'},
+      {name:'PIA Ports and Timer',start:0x280,size:0x18,type:'io'},
+      {name:'Cartridge ROM',start:0xf000,size:0x1000,type:'rom'},
+  ]}};
 };
 
 // TODO: mixin for Base6502Platform?
@@ -346,6 +352,7 @@ class VCSMAMEPlatform extends BaseMAMEPlatform implements Platform {
   getOriginPC = function() {
     return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
   }
+  
 }
 
 ////////////////

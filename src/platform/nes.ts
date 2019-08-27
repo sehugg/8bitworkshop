@@ -1,4 +1,3 @@
-"use strict";
 
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString, ProfilerOutput } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags, EmuHalt, ControllerPoller } from "../emu";
@@ -454,6 +453,14 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   connectProbe(probe:ProbeAll) {
     this.probe = probe || this.nullProbe;
   }
+
+  getMemoryMap = function() { return { main:[
+      //{name:'Work RAM',start:0x0,size:0x800,type:'ram'},
+      {name:'OAM Buffer',start:0x200,size:0x100,type:'ram'},
+      {name:'PPU Registers',start:0x2000,last:0x2008,size:0x2000,type:'io'},
+      {name:'APU Registers',start:0x4000,last:0x4020,size:0x2000,type:'io'},
+      {name:'Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
+  ] } };
 }
 
 /// MAME support

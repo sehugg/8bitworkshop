@@ -2,6 +2,7 @@
 import { RAM, RasterVideo, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes, ControllerPoller } from "./emu";
 import { hex, printFlags, invertMap } from "./util";
 import { CodeAnalyzer } from "./analysis";
+import { Segment } from "./workertypes";
 import { disassemble6502 } from "./cpu/disasm6502";
 import { disassembleZ80 } from "./cpu/disasmz80";
 import { Z80 } from "./cpu/ZilogZ80";
@@ -54,9 +55,8 @@ export class DebugSymbols {
   }
 }
 
-export interface PlatformMetadata {
-  name : string; // TODO
-}
+type MemoryMapType = "main" | "vram";
+type MemoryMap = { [type:string] : Segment[] };
 
 export function isDebuggable(arg:any): arg is Debuggable {
     return typeof arg.getDebugCategories === 'function';
@@ -78,7 +78,6 @@ export interface Platform {
   resume() : void;
   loadROM(title:string, rom:any); // TODO: Uint8Array
   loadBIOS?(title:string, rom:Uint8Array);
-  getMetadata?() : PlatformMetadata;
 
   loadState?(state : EmuState) : void;
   saveState?() : EmuState;
@@ -108,6 +107,9 @@ export interface Platform {
   getPC?() : number;
   getOriginPC?() : number;
   newCodeAnalyzer?() : CodeAnalyzer;
+  
+  getPlatformName?() : string;
+  getMemoryMap?() : MemoryMap;
 
   setRecorder?(recorder : EmuRecorder) : void;
   advance?(novideo? : boolean) : void;

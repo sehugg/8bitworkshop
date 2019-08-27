@@ -1,4 +1,3 @@
-"use strict";
 
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, KeyFlags, makeKeycodeMap, dumpRAM } from "../emu";
@@ -63,6 +62,10 @@ class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Plat
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.readConst(a); }
   // TODO loadBios(bios)	{ this.machine.loadBIOS(a); }
+  getMemoryMap = function() { return { main:[
+      {name:'I/O',start:0xc000,size:0x1000,type:'io'},
+      {name:'ROM',start:0xd000,size:0x3000-6,type:'rom'},
+  ] } };
 
 }
 

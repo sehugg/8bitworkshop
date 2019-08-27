@@ -172,6 +172,11 @@ var AtariVectorPlatform = function(mainElement) {
   this.getCPUState = function() {
     return cpu.saveState();
   }
+  this.getMemoryMap = function() { return { main:[
+      {name:'Switches/POKEY I/O',start:0x7800,size:0x1000,type:'io'},
+      {name:'DVG I/O',start:0x8800,size:0x100,type:'io'},
+      {name:'EAROM',start:0x8900,size:0x100,type:'ram'},
+  ] } };
 }
 
 var AtariColorVectorPlatform = function(mainElement) {
@@ -458,6 +463,12 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
   this.getCPUState = function() {
     return cpu.saveState();
   }
+  this.getMemoryMap = function() { return { main:[
+      {name:'Switches/POKEY I/O',start:0x8000,size:0x100,type:'io'},
+      {name:'Math Box I/O',start:0x8100,size:0x100,type:'io'},
+      {name:'DVG I/O',start:0x8800,size:0x100,type:'io'},
+      {name:'DVG RAM',start:0xa000,size:0x4000,type:'ram'},
+  ] } };
 }
 
 // DIGITAL VIDEO GENERATOR
