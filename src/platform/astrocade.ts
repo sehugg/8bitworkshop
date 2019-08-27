@@ -32,14 +32,24 @@ class BallyAstrocadePlatform extends BaseZ80MachinePlatform<BallyAstrocade> impl
   getPresets()          { return ASTROCADE_PRESETS; }
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.read(a); }
-  // TODO loadBios(bios)	{ this.machine.loadBIOS(a); }
+  loadBios(title,bios)	{ this.machine.loadBIOS(bios); }
 
 }
 
+class BallyAstrocadeBIOSPlatform extends BallyAstrocadePlatform implements Platform {
 
-/////
+  getPresets()          { return ASTROCADE_BIOS_PRESETS; }
+  loadROM(title,rom)    { this.machine.loadBIOS(rom); }
+
+}
+
+class BallyArcadePlatform extends BallyAstrocadePlatform implements Platform {
+
+  newMachine()          { return new BallyAstrocade(true); }
+
+}
 
 PLATFORMS['astrocade'] = BallyAstrocadePlatform;
-//PLATFORMS['astrocade-bios'] = _BallyAstrocadeBIOSPlatform;
-//PLATFORMS['astrocade-arcade'] = _BallyArcadePlatform;
+PLATFORMS['astrocade-bios'] = BallyAstrocadeBIOSPlatform;
+PLATFORMS['astrocade-arcade'] = BallyArcadePlatform;
 
