@@ -1,4 +1,3 @@
-"use strict";
 
 import $ = require("jquery");
 //import CodeMirror = require("codemirror");
@@ -8,6 +7,7 @@ import { hex, lpad, rpad, safeident, rgb2bgr } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
 import { EmuProfilerImpl, ProbeRecorder, ProbeFlags } from "./recorder";
+import { getMousePos } from "./emu";
 import * as pixed from "./pixed/pixeleditor";
 declare var Mousetrap;
 
@@ -930,6 +930,7 @@ abstract class ProbeViewBase {
   maindiv : HTMLElement;
   canvas : HTMLCanvasElement;
   ctx : CanvasRenderingContext2D;
+  tooldiv : HTMLElement;
   recreateOnResize = true;
   
   createCanvas(parent:HTMLElement, width:number, height:number) {
@@ -941,6 +942,15 @@ abstract class ProbeViewBase {
     canvas.style.width = '100%';
     canvas.style.height = '100vh'; // i hate css
     canvas.style.backgroundColor = 'black';
+    canvas.style.cursor = 'crosshair';
+    canvas.onmousemove = (e) => {
+      var pos = getMousePos(canvas, e);
+      this.showTooltip(this.getTooltipText(pos.x, pos.y));
+      $(this.tooldiv).css('left',e.pageX+10).css('top',e.pageY-30);
+    }
+    canvas.onmouseout = (e) => {
+      $(this.tooldiv).hide();
+    }
     parent.appendChild(div);
     div.appendChild(canvas);
     this.canvas = canvas;
@@ -950,6 +960,23 @@ abstract class ProbeViewBase {
   }
 
   initCanvas() {
+  }
+  
+  showTooltip(s:string) {
+    if (s) {
+      if (!this.tooldiv) {
+        this.tooldiv = document.createElement("div");
+        this.tooldiv.setAttribute("class", "tooltiptrack");
+        document.body.appendChild(this.tooldiv);
+      }
+      $(this.tooldiv).text(s).show();
+    } else {
+      $(this.tooldiv).hide();
+    }
+  }
+
+  getTooltipText(x:number, y:number) : string {
+    return null;
   }
   
   setVisible(showing : boolean) : void {
@@ -992,7 +1019,7 @@ abstract class ProbeViewBase {
           break;
       }
     }
-    p.reset();
+    if (!p.singleFrame) p.reset();
   }
   
   setContextForOp(op) {
@@ -1071,6 +1098,7 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
       this.datau32[i] = rgb | 0xff000000;
     }
   }
+  
   drawEvent(op, addr, col, row) {
     var rgb = this.getOpRGB(op);
     if (!rgb) return;
@@ -1081,6 +1109,10 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
     this.datau32[addr & 0xffff] = data;
   }
   
+  getTooltipText(x:number, y:number) : string {
+    var addr = (x & 0xff) + (y << 8);
+    return '$'+hex(addr);
+  }  
 }
 
 export class RasterHeatMapView extends ProbeBitmapViewBase implements ProjectView {

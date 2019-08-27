@@ -18,7 +18,7 @@
     display: inline-block;
     border-bottom: 1px dotted black;
 }
-.tooltipbox .tooltiptext {
+.tooltiptext {
     visibility: hidden;
     width: 500px;
     background-color: #660000;
@@ -47,6 +47,19 @@
 .tooltipinfoline {
  color:#ccccff;
  background-color:#000066;
+}
+.tooltiptrack {
+    background-color: #666;
+    color: #fff;
+    text-align: center;
+    border: 2px solid #999;
+    border-radius: 8px;
+    padding: 5px;
+    position: absolute;
+    z-index: 10;
+    white-space: pre-wrap;       /* css-3 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    pointer-events: none;
 }
 #controls_top {
   position:absolute;
