@@ -288,3 +288,5 @@ export class ProbeRecorder implements ProbeAll {
 
 }
 
+// TODO: handle runToVsync() without erasing entire frame
+

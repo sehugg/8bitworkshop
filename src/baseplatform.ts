@@ -89,6 +89,7 @@ export interface Platform {
   disassemble?(addr:number, readfn:(addr:number)=>number) : DisasmLine;
   readAddress?(addr:number) : number;
   readVRAMAddress?(addr:number) : number;
+  
   setFrameRate?(fps:number) : void;
   getFrameRate?() : number;
 
@@ -107,7 +108,6 @@ export interface Platform {
   getPC?() : number;
   getOriginPC?() : number;
   newCodeAnalyzer?() : CodeAnalyzer;
-
 
   setRecorder?(recorder : EmuRecorder) : void;
   advance?(novideo? : boolean) : void;
@@ -218,6 +218,7 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   debugTargetClock : number = 0;
   debugClock : number = 0;
   breakpoints : BreakpointList = new BreakpointList();
+  frameCount : number = 0;
 
   abstract getCPUState() : CpuState;
   abstract readAddress(addr:number) : number;
@@ -246,6 +247,7 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.debugClock = 0;
     this.onBreakpointHit = null;
     this.clearBreakpoint('debug');
+    this.frameCount = 0;
   }
   setDebugCondition(debugCond : DebugCondition) {
     this.setBreakpoint('debug', debugCond);
@@ -275,6 +277,7 @@ export abstract class BaseDebugPlatform extends BasePlatform {
         this.debugClock = 0;
       }
     }
+    this.frameCount++;
   }
   pollControls() {
   }
@@ -353,6 +356,12 @@ export abstract class BaseDebugPlatform extends BasePlatform {
         }
         return true;
       }
+    });
+  }
+  runToVsync() {
+    var frame0 = this.frameCount;
+    this.runEval( () : boolean => {
+      return this.frameCount > frame0;
     });
   }
 }
