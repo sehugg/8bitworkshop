@@ -1,6 +1,6 @@
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { BasicMachine, Bus, ProbeAll } from "../devices";
+import { BasicMachine, RasterFrameBased, Bus, ProbeAll } from "../devices";
 import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt, dumpRAM } from "../emu";
 import { TssChannelAdapter, MasterAudio, POKEYDeviceChannel } from "../audio";
 import { hex, rgb2bgr } from "../util";
@@ -201,7 +201,6 @@ class MARIA {
       let dlofs = this.dlstart & 0xff;
       do {
         // read DL entry
-        //profiler && profiler.logRead(dlhi + ((dlofs+0) & 0x1ff));
         let b0 = bus.read(dlhi + ((dlofs+0) & 0x1ff));
         let b1 = bus.read(dlhi + ((dlofs+1) & 0x1ff));
         if (b1 == 0) break; // end of DL
@@ -293,7 +292,7 @@ class MARIA {
 
 // Atari 7800
 
-export class Atari7800 extends BasicMachine {
+export class Atari7800 extends BasicMachine implements RasterFrameBased {
 
   cpuFrequency = 1789772;
   canvasWidth = 320;
@@ -312,6 +311,7 @@ export class Atari7800 extends BasicMachine {
   audioadapter;
   
   lastFrameCycles = 0;
+  xtracyc = 0;
   
   read  : (a:number) => number;
   write : (a:number, v:number) => void;
@@ -322,26 +322,26 @@ export class Atari7800 extends BasicMachine {
     super();
     this.cpu = new MOS6502();
     this.read = newAddressDecoder([
-        [0x0008, 0x000d,   0x0f, (a) => { return this.readInput(a); }],
-        [0x0000, 0x001f,   0x1f, (a) => { return this.tia.read(a); }],
-        [0x0020, 0x003f,   0x1f, (a) => { return this.maria.read(a); /*this.profiler && this.profiler.logRead(a+0x20);*/  }],
+        [0x0008, 0x000d,   0x0f, (a) => { this.xtracyc++; return this.readInput(a); }],
+        [0x0000, 0x001f,   0x1f, (a) => { this.xtracyc++; return this.tia.read(a); }],
+        [0x0020, 0x003f,   0x1f, (a) => { return this.maria.read(a); }],
         [0x0040, 0x00ff,   0xff, (a) => { return this.ram[a + 0x800]; }],
         [0x0100, 0x013f,   0xff, (a) => { return this.read(a); }], // shadow
         [0x0140, 0x01ff,  0x1ff, (a) => { return this.ram[a + 0x800]; }],
-        [0x0280, 0x02ff,    0x3, (a) => { return this.inputs[a]; }],
+        [0x0280, 0x02ff,    0x3, (a) => { this.xtracyc++; return this.inputs[a]; }],
         [0x1800, 0x27ff, 0xffff, (a) => { return this.ram[a - 0x1800]; }],
         [0x2800, 0x3fff,  0x7ff, (a) => { return this.read(a | 0x2000); }], // shadow
         [0x4000, 0xffff, 0xffff, (a) => { return this.rom ? this.rom[a - 0x4000] : 0; }],
         [0x0000, 0xffff, 0xffff, (a) => { return 0; }], // TODO
       ]);
     this.write = newAddressDecoder([
-        [0x0015, 0x001A,   0x1f, (a,v) => { this.pokey1.setTIARegister(a, v); }],
-        [0x0000, 0x001f,   0x1f, (a,v) => { this.tia.write(a,v); /*this.profiler && this.profiler.logWrite(a);*/ }],
-        [0x0020, 0x003f,   0x1f, (a,v) => { this.maria.write(a,v); /*this.profiler && this.profiler.logWrite(a+0x20);*/ }],
+        [0x0015, 0x001A,   0x1f, (a,v) => { this.xtracyc++; this.pokey1.setTIARegister(a, v); }],
+        [0x0000, 0x001f,   0x1f, (a,v) => { this.xtracyc++; this.tia.write(a,v); }],
+        [0x0020, 0x003f,   0x1f, (a,v) => { this.maria.write(a,v); }],
         [0x0040, 0x00ff,   0xff, (a,v) => { this.ram[a + 0x800] = v; }],
         [0x0100, 0x013f,   0xff, (a,v) => { this.write(a,v); }], // shadow
         [0x0140, 0x01ff,  0x1ff, (a,v) => { this.ram[a + 0x800] = v; }],
-        [0x0280, 0x02ff,    0x3, (a,v) => { this.regs6532[a] = v; /*TODO*/ }],
+        [0x0280, 0x02ff,    0x3, (a,v) => { this.xtracyc++; this.regs6532[a] = v; /*TODO*/ }],
         [0x1800, 0x27ff, 0xffff, (a,v) => { this.ram[a - 0x1800] = v; }],
         [0x2800, 0x3fff,  0x7ff, (a,v) => { this.write(a | 0x2000, v); }], // shadow
         [0xbfff, 0xbfff, 0xffff, (a,v) => { }], // TODO: bank switching?
@@ -357,7 +357,6 @@ export class Atari7800 extends BasicMachine {
   readConst(a) { return this.read(a); } //TODO?
 
   readInput(a:number) : number {
-    //this.profiler && this.profiler.logRead(a+0x20);
     switch (a) {
       case 0xc: return ~this.inputs[0x8] & 0x80; //INPT4
       case 0xd: return ~this.inputs[0x9] & 0x80; //INPT5
@@ -365,8 +364,15 @@ export class Atari7800 extends BasicMachine {
     }
   }
 
-    //TODO this.bios = new Uint8Array(0x1000);
-    // TODO: TIA access wastes a cycle
+  advanceCPU() : number {
+    var clk = super.advanceCPU();
+    if (this.xtracyc) {
+      clk += this.xtracyc;
+      this.probe.logClocks(this.xtracyc);
+      this.xtracyc = 0;
+    }
+    return clk;
+  }
 
   advanceFrame(maxClocks, trap) : number {
     var idata = this.pixels;
@@ -446,11 +452,7 @@ export class Atari7800 extends BasicMachine {
     if (data.length == 0xc080) data = data.slice(0x80); // strip header
     this.rom = padBytes(data, this.defaultROMSize, true);
   }
-/*
-  loadBIOS(data) {
-    this.bios = padBytes(data, 0x1000);
-  }
-*/
+
   reset() {
     super.reset();
     this.tia.reset();
@@ -458,10 +460,9 @@ export class Atari7800 extends BasicMachine {
     this.inputs.fill(0x0);
     this.inputs[SWCHA] = 0xff;
     this.inputs[SWCHB] = 1+2+8;
-    //this.cpu.advanceClock(); // TODO: needed for test to pass?
+    //this.cpu.advanceClock(); // needed for test to pass?
   }
 
-  // TODO: don't log if profiler active
   readAddress(addr : number) {
     return this.read(addr) | 0;
   }

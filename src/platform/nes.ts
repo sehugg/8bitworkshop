@@ -222,7 +222,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     this.nes.loadROM(romstr);
     this.frameindex = 0;
     // intercept bus calls, unless we did it already
-    if (!this.nes.mmap.load) {
+    if (!this.nes.mmap.haveProxied) {
       var oldload = this.nes.mmap.load.bind(this.nes.mmap);
       var oldwrite = this.nes.mmap.write.bind(this.nes.mmap);
       //var oldregLoad = this.nes.mmap.regLoad.bind(this.nes.mmap);
@@ -247,6 +247,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
         oldregWrite(addr, val);
       }
       */
+      this.nes.mmap.haveProxied = true;
     }
   }
   newCodeAnalyzer() {
@@ -280,9 +281,6 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
 
   getRasterScanline() : number {
     return this.nes.ppu.scanline;
-  }
-  readVRAMAddress(addr : number) : number {
-    return this.nes.ppu.vramMem[addr & 0x7fff];
   }
 
   getCPUState() {
@@ -327,6 +325,9 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   }
   readAddress(addr) {
     return this.nes.cpu.mem[addr] & 0xff;
+  }
+  readVRAMAddress(addr : number) : number {
+    return this.nes.ppu.vramMem[addr & 0x7fff] & 0xff;
   }
   copy6502REGvars(c) {
     c.T = 0;

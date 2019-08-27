@@ -940,7 +940,7 @@ abstract class ProbeViewBase {
     canvas.height = height;
     canvas.classList.add('pixelated');
     canvas.style.width = '100%';
-    canvas.style.height = '100vh'; // i hate css
+    canvas.style.height = '90vh'; // i hate css
     canvas.style.backgroundColor = 'black';
     canvas.style.cursor = 'crosshair';
     canvas.onmousemove = (e) => {
@@ -998,14 +998,12 @@ abstract class ProbeViewBase {
     ctx.globalAlpha = 1.0;
     ctx.globalCompositeOperation = 'lighter';
   }
-
-  tick() {
+  
+  redraw( eventfn:(op,addr,col,row) => void ) {
     var p = this.probe;
     if (!p || !p.idx) return; // if no probe, or if empty
     var row=0;
     var col=0;
-    var ctx = this.ctx;
-    this.clear();
     for (var i=0; i<p.idx; i++) {
       var word = p.buf[i];
       var addr = word & 0xffffff;
@@ -1015,11 +1013,17 @@ abstract class ProbeViewBase {
         case ProbeFlags.FRAME:		row=0; col=0; break;
         case ProbeFlags.CLOCKS:		col += addr; break;
         default:
-          this.drawEvent(op, addr, col, row);
+          eventfn(op, addr, col, row);
           break;
       }
     }
-    if (!p.singleFrame) p.reset();
+  }
+
+  tick() {
+    var ctx = this.ctx;
+    this.clear();
+    this.redraw(this.drawEvent.bind(this));
+    if (this.probe && !this.probe.singleFrame) this.probe.reset();
   }
   
   setContextForOp(op) {
@@ -1048,8 +1052,8 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
     var width = 160;
     var height = 262;
     try {
-      width = platform['machine']['cpuCyclesPerLine'] || 160; // TODO
-      height = platform['machine']['numTotalScanlines'] || 262; // TODO
+      width = Math.ceil(platform['machine']['cpuCyclesPerLine']) || 256; // TODO
+      height = Math.ceil(platform['machine']['numTotalScanlines']) || 262; // TODO
     } catch (e) {
     }
     return this.createCanvas(parent, width, height);
@@ -1058,6 +1062,33 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
     this.imageData = this.ctx.createImageData(this.canvas.width, this.canvas.height);
     this.datau32 = new Uint32Array(this.imageData.data.buffer);
   }
+  getTooltipText(x:number, y:number) : string {
+    x = x|0;
+    y = y|0;
+    var s = "";
+    this.redraw( (op,addr,col,row) => {
+      if (col == x && row == y) {
+         s += "\n" + this.opToString(op, addr);
+      }
+    } );
+    return '(' + x + ',' + y + ')' + s;
+  }  
+  opToString(op:number, addr:number) {
+    var s = "";
+    switch (op) {
+      case ProbeFlags.EXECUTE:		s = "Exec"; break;
+      case ProbeFlags.MEM_READ:		s = "Read"; break;
+      case ProbeFlags.MEM_WRITE:	s = "Write"; break;
+      case ProbeFlags.IO_READ:		s = "IO Read"; break;
+      case ProbeFlags.IO_WRITE:		s = "IO Write"; break;
+      case ProbeFlags.VRAM_READ:	s = "VRAM Read"; break;
+      case ProbeFlags.VRAM_WRITE:	s = "VRAM Write"; break;
+      case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
+      default:				s = ""; break;
+    }
+    return s + " $" + hex(addr);
+  }
+
   refresh() {
     this.tick();
     this.datau32.fill(0xff000000);
@@ -1115,6 +1146,7 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
   }  
 }
 
+/*
 export class RasterHeatMapView extends ProbeBitmapViewBase implements ProjectView {
 
   drawEvent(op, addr, col, row) {
@@ -1123,22 +1155,20 @@ export class RasterHeatMapView extends ProbeBitmapViewBase implements ProjectVie
     if (!rgb) return;
     var iofs = col + row * this.canvas.width;
     var data = this.datau32[iofs];
-    data = (data & 0x7f7f7f) << 1;
     data = data | rgb | 0xff000000;
     this.datau32[iofs] = data;
   }
   
 }
+*/
 
 export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectView {
 
   drawEvent(op, addr, col, row) {
-//    if (op != ProbeFlags.EXECUTE) return;
     var iofs = col + row * this.canvas.width;
-    //var rgb = addr << 8;
-    var rgb = this.getOpRGB(op) << 1;
+    var rgb = this.getOpRGB(op);
+    if (!rgb) return;
     var data = this.datau32[iofs];
-    rgb |= addr & 0x3f3f;
     data = data | rgb | 0xff000000;
     this.datau32[iofs] = data;
   }
