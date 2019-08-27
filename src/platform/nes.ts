@@ -5,6 +5,8 @@ import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap,
 import { hex, lpad, lzgmini, byteArrayToString } from "../util";
 import { CodeAnalyzer_nes } from "../analysis";
 import { SampleAudio } from "../audio";
+import { ProbeRecorder } from "../recorder";
+import { NullProbe, Probeable, ProbeAll } from "../devices";
 
 declare var jsnes : any;
 declare var Mousetrap;
@@ -65,7 +67,7 @@ const JSNES_KEYCODE_MAP = makeKeycodeMap([
   [Keys.P2_RIGHT,  1, 7],
 ]);
 
-class JSNESPlatform extends Base6502Platform implements Platform {
+class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
 
   mainElement;
   nes;
@@ -77,6 +79,8 @@ class JSNESPlatform extends Base6502Platform implements Platform {
   frameindex = 0;
   ntvideo;
   ntlastbuf;
+  
+  machine = { cpuCyclesPerLine: 114 }; // TODO: hack for width of probe scope
   
   constructor(mainElement) {
     super();
@@ -135,10 +139,23 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     // insert debug hook
     this.nes.cpu._emulate = this.nes.cpu.emulate;
     this.nes.cpu.emulate = () => {
+      this.probe.logExecute(this.nes.cpu.REG_PC-1);
       var cycles = this.nes.cpu._emulate();
       this.evalDebugCondition();
+      this.probe.logClocks(cycles);
       return cycles;
     }
+    var old_endScanline = this.nes.ppu.endScanline.bind(this.nes.ppu);
+    var old_startFrame = this.nes.ppu.startFrame.bind(this.nes.ppu);
+    this.nes.ppu.endScanline = () => {
+      old_endScanline();
+      this.probe.logNewScanline();
+    }
+    this.nes.ppu.startFrame = () => {
+      old_startFrame();
+      this.probe.logNewFrame();
+    }
+    
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // set keyboard map
     this.poller = setKeyboardFromMap(this.video, [], JSNES_KEYCODE_MAP, (o,key,code,flags) => {
@@ -199,6 +216,33 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     var romstr = byteArrayToString(data);
     this.nes.loadROM(romstr);
     this.frameindex = 0;
+    // intercept bus calls, unless we did it already
+    if (!this.nes.mmap.load) {
+      var oldload = this.nes.mmap.load.bind(this.nes.mmap);
+      var oldwrite = this.nes.mmap.write.bind(this.nes.mmap);
+      //var oldregLoad = this.nes.mmap.regLoad.bind(this.nes.mmap);
+      //var oldregWrite = this.nes.mmap.regWrite.bind(this.nes.mmap);
+      this.nes.mmap.load = (addr) => {
+        var val = oldload(addr);
+        this.probe.logRead(addr, val);
+        return val;
+      }
+      this.nes.mmap.write = (addr, val) => {
+        this.probe.logWrite(addr, val);
+        oldwrite(addr, val);
+      }
+      /*
+      this.nes.mmap.regLoad = (addr) => {
+        var val = oldregLoad(addr);
+        this.probe.logIORead(addr, val);
+        return val;
+      }
+      this.nes.mmap.regWrite = (addr, val) => {
+        this.probe.logIOWrite(addr, val);
+        oldregWrite(addr, val);
+      }
+      */
+    }
   }
   newCodeAnalyzer() {
     return new CodeAnalyzer_nes(this);
@@ -387,6 +431,22 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     //if (fn.endsWith(".asm")) return "ca65"; // .asm uses ca65
     if (fn.endsWith(".nesasm")) return "nesasm";
     else return getToolForFilename_6502(fn);
+  }
+  
+  // probing
+  nullProbe = new NullProbe();
+  probe : ProbeAll = this.nullProbe;
+
+  startProbing?() : ProbeRecorder {
+    var rec = new ProbeRecorder(this);
+    this.connectProbe(rec);
+    return rec;
+  }
+  stopProbing?() : void {
+    this.connectProbe(null);
+  }
+  connectProbe(probe:ProbeAll) {
+    this.probe = probe || this.nullProbe;
   }
 }
 

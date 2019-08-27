@@ -1136,7 +1136,7 @@ export class EventProbeView extends ProbeViewBase implements ProjectView {
     var sym = this.getSymbol(addr);
     if (!sym && op == ProbeFlags.IO_WRITE) sym = hex(addr,4);
     //TODO if (!sym && op == ProbeFlags.IO_READ)  sym = hex(addr,4);
-    if (sym) {
+    if (sym && sym != this.lastsym) {
       this.setContextForOp(op);
       ctx.textAlign = 'left'; //ctx.textAlign = (x < this.canvas.width/2) ? 'left' : 'right';
       ctx.textBaseline = 'top'; //ctx.textBaseline = (y < this.canvas.height/2) ? 'top' : 'bottom';
@@ -1148,6 +1148,7 @@ export class EventProbeView extends ProbeViewBase implements ProjectView {
       ctx.fillText(sym, x, y);
       this.xx = x + mt.width + 10;
       this.yy = y;
+      this.lastsym = sym;
     }
   }
 
@@ -1162,6 +1163,7 @@ export class EventProbeView extends ProbeViewBase implements ProjectView {
 
   tick() {
     this.xx = this.yy = 0;
+    this.lastsym = '';
     super.tick();
   }
 
