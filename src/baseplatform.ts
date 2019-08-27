@@ -50,7 +50,7 @@ export class DebugSymbols {
     this.symbolmap = symbolmap;
     this.addr2symbol = invertMap(symbolmap);
     //// TODO: shouldn't be necc.
-    if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = '__START__'; // needed for ...
+    if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = ' '; // needed for ...
     this.addr2symbol[0x10000] = '__END__'; // ... dump memory to work
   }
 }
@@ -1089,7 +1089,6 @@ export abstract class Base6502MachinePlatform<T extends Machine> extends BaseMac
       default: return isDebuggable(this.machine) && this.machine.getDebugInfo(category, state);
     }
   }
-
 }
 
 export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {

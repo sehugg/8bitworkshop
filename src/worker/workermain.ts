@@ -974,6 +974,7 @@ function linkLD65(step:BuildStep) {
     }
     // build segment map
     var seg_re = /^__(\w+)_SIZE__$/;
+    // TODO: move to Platform class
     var segments = [];
     segments.push({name:'CPU Stack',start:0x100,size:0x100,type:'ram'});
     segments.push({name:'CPU Vectors',start:0xfffa,size:0x6,type:'rom'});

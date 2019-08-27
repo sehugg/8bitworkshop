@@ -1,5 +1,4 @@
 
-import $ = require("jquery");
 //import CodeMirror = require("codemirror");
 import { SourceFile, WorkerError, Segment, FileData } from "./workertypes";
 import { Platform, EmuState, ProfilerOutput, lookupSymbol, BaseDebugPlatform } from "./baseplatform";
@@ -536,6 +535,7 @@ export class MemoryView implements ProjectView {
   maindiv : HTMLElement;
   static IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
   recreateOnResize = true;
+  totalRows = 0x1400;
 
   createDiv(parent : HTMLElement) {
     var div = document.createElement('div');
@@ -550,7 +550,7 @@ export class MemoryView implements ProjectView {
       w: $(workspace).width(),
       h: $(workspace).height(),
       itemHeight: getVisibleEditorLineHeight(),
-      totalRows: 0x1400,
+      totalRows: this.totalRows,
       generatorFn: (row : number) => {
         var s = this.getMemoryLineAt(row);
         var linediv = document.createElement("div");
@@ -695,6 +695,7 @@ export class MemoryView implements ProjectView {
 }
 
 export class VRAMMemoryView extends MemoryView {
+  totalRows = 0x800;
   readAddress(n : number) {
     return platform.readVRAMAddress(n);
   }
@@ -959,6 +960,15 @@ abstract class ProbeViewBase {
     return this.maindiv = div;
   }
 
+  addr2str(addr : number) : string {
+    var _addr2sym = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
+    var sym = _addr2sym[addr];
+    if (typeof sym === 'string')
+      return '$' + hex(addr) + ' (' + sym + ')';
+    else
+      return '$' + hex(addr);
+  }
+
   initCanvas() {
   }
   
@@ -982,6 +992,7 @@ abstract class ProbeViewBase {
   setVisible(showing : boolean) : void {
     if (showing) {
       this.probe = platform.startProbing();
+      this.tick();
     } else {
       platform.stopProbing();
       this.probe = null;
@@ -989,14 +1000,6 @@ abstract class ProbeViewBase {
   }
 
   clear() {
-    var ctx = this.ctx;
-    //ctx.globalCompositeOperation = 'source-over';
-    //ctx.globalAlpha = 1.0;
-    //ctx.fillStyle = '#000000';
-    //ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    ctx.globalAlpha = 1.0;
-    ctx.globalCompositeOperation = 'lighter';
   }
   
   redraw( eventfn:(op,addr,col,row) => void ) {
@@ -1020,23 +1023,8 @@ abstract class ProbeViewBase {
   }
 
   tick() {
-    var ctx = this.ctx;
     this.clear();
     this.redraw(this.drawEvent.bind(this));
-    if (this.probe && !this.probe.singleFrame) this.probe.reset();
-  }
-  
-  setContextForOp(op) {
-      var ctx = this.ctx;
-      switch (op) {
-        //case ProbeFlags.EXECUTE:	ctx.fillStyle = "green"; break;
-        //case ProbeFlags.MEM_READ:	ctx.fillStyle = "#7f7f7f"; break;
-        case ProbeFlags.MEM_WRITE:	ctx.fillStyle = "red"; break;
-        case ProbeFlags.IO_READ:	ctx.fillStyle = "green"; break;
-        case ProbeFlags.IO_WRITE:	ctx.fillStyle = "magenta"; break;
-        case ProbeFlags.INTERRUPT:	ctx.fillStyle = "yellow"; break;
-        default:			ctx.fillStyle = "blue"; break;
-      }
   }
   
   abstract drawEvent(op, addr, col, row);
@@ -1067,13 +1055,13 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
     y = y|0;
     var s = "";
     this.redraw( (op,addr,col,row) => {
-      if (col == x && row == y) {
+      if (y == row && x == col) {
          s += "\n" + this.opToString(op, addr);
       }
     } );
-    return '(' + x + ',' + y + ')' + s;
-  }  
-  opToString(op:number, addr:number) {
+    return 'X: ' + x + '  Y: ' + y + ' ' + s;
+  }
+  opToString(op:number, addr?:number) {
     var s = "";
     switch (op) {
       case ProbeFlags.EXECUTE:		s = "Exec"; break;
@@ -1086,7 +1074,7 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
       case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
       default:				s = ""; break;
     }
-    return s + " $" + hex(addr);
+    return typeof addr == 'number' ? s + " " + this.addr2str(addr) : s;
   }
 
   refresh() {
@@ -1107,9 +1095,9 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
       case ProbeFlags.MEM_WRITE:	return 0x010180;
       case ProbeFlags.IO_READ:		return 0x018080;
       case ProbeFlags.IO_WRITE:		return 0xc00180;
-      case ProbeFlags.VRAM_READ:	return 0x018080;
-      case ProbeFlags.VRAM_WRITE:	return 0xc00180;
-      case ProbeFlags.INTERRUPT:	return 0xc0c001;
+      case ProbeFlags.VRAM_READ:	return 0x808001;
+      case ProbeFlags.VRAM_WRITE:	return 0x4080c0;
+      case ProbeFlags.INTERRUPT:	return 0xcfcfcf;
       default:				return 0;
     }
   }
@@ -1141,9 +1129,22 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
   }
   
   getTooltipText(x:number, y:number) : string {
-    var addr = (x & 0xff) + (y << 8);
-    return '$'+hex(addr);
-  }  
+    var a = (x & 0xff) + (y << 8);
+    var s = this.addr2str(a);
+    var pc = -1;
+    var already = {};
+    this.redraw( (op,addr,col,row) => {
+      if (op == ProbeFlags.EXECUTE) {
+        pc = addr;
+      }
+      var key = op|pc;
+      if (addr == a && !already[key]) {
+         s += "\nPC " + this.addr2str(pc) + " " + this.opToString(op);
+         already[key] = 1;
+      }
+    } );
+    return s;
+  }
 }
 
 /*
@@ -1173,68 +1174,6 @@ export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectV
     this.datau32[iofs] = data;
   }
   
-}
-
-export class EventProbeView extends ProbeViewBase implements ProjectView {
-  symcache : Map<number,symbol> = new Map();
-  xmax : number = 1;
-  ymax : number = 1;
-  lastsym : string;
-  xx : number;
-  yy : number;
-
-  createDiv(parent : HTMLElement) {
-    return this.createCanvas( parent, $(parent).width(), $(parent).height() );
-  }
-
-  drawEvent(op, addr, col, row) {
-    var ctx = this.ctx;
-    this.xmax = Math.max(this.xmax, col);
-    this.ymax = Math.max(this.ymax, row);
-    var xscale = this.canvas.width / this.xmax; // TODO: pixels
-    var yscale = (this.canvas.height - 12) / this.ymax; // TODO: lines
-    var x = col * xscale;
-    var y = row * yscale;
-    x = this.xx;
-    y = this.yy = Math.max(this.yy, y);
-    var sym = this.getSymbol(addr);
-    if (!sym && op == ProbeFlags.IO_WRITE) sym = hex(addr,4);
-    //TODO if (!sym && op == ProbeFlags.IO_READ)  sym = hex(addr,4);
-    if (sym && sym != this.lastsym) {
-      this.setContextForOp(op);
-      ctx.textAlign = 'left'; //ctx.textAlign = (x < this.canvas.width/2) ? 'left' : 'right';
-      ctx.textBaseline = 'top'; //ctx.textBaseline = (y < this.canvas.height/2) ? 'top' : 'bottom';
-      var mt = ctx.measureText(sym);
-      if (x + mt.width > this.canvas.width) {
-        x = 0;
-        y += 12;
-      }
-      ctx.fillText(sym, x, y);
-      this.xx = x + mt.width + 10;
-      this.yy = y;
-      this.lastsym = sym;
-    }
-  }
-
-  getSymbol(addr:number) : string {
-    var sym = this.symcache[addr];
-    if (!sym) {
-      sym = lookupSymbol(platform, addr, false);
-      this.symcache[addr] = sym;
-    }
-    return sym;
-  }
-
-  tick() {
-    this.xx = this.yy = 0;
-    this.lastsym = '';
-    super.tick();
-  }
-
-  refresh() {
-    this.tick();
-    this.symcache.clear();
-  }
 }
 
 ///

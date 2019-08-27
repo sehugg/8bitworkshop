@@ -215,7 +215,6 @@ export class ProbeRecorder implements ProbeAll {
   }
   start() {
     this.m.connectProbe(this);
-    this.reset();
   }
   stop() {
     this.m.connectProbe(null);

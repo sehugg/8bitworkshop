@@ -144,23 +144,6 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
       this.probe.logClocks(cycles);
       return cycles;
     }
-    var ppu = this.nes.ppu;
-    var old_endScanline = ppu.endScanline.bind(ppu);
-    var old_startFrame = ppu.startFrame.bind(ppu);
-    var old_writeMem = ppu.writeMem.bind(ppu);
-    ppu.endScanline = () => {
-      old_endScanline();
-      this.probe.logNewScanline();
-    }
-    ppu.startFrame = () => {
-      old_startFrame();
-      this.probe.logNewFrame();
-    }
-    ppu.writeMem = (a,v) => {
-      old_writeMem(a,v);
-      this.probe.logVRAMWrite(a,v);
-    }
-    
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // set keyboard map
     this.poller = setKeyboardFromMap(this.video, [], JSNES_KEYCODE_MAP, (o,key,code,flags) => {
@@ -221,33 +204,55 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     var romstr = byteArrayToString(data);
     this.nes.loadROM(romstr);
     this.frameindex = 0;
+    this.installIntercepts();
+  }
+  installIntercepts() {
     // intercept bus calls, unless we did it already
-    if (!this.nes.mmap.haveProxied) {
-      var oldload = this.nes.mmap.load.bind(this.nes.mmap);
-      var oldwrite = this.nes.mmap.write.bind(this.nes.mmap);
-      //var oldregLoad = this.nes.mmap.regLoad.bind(this.nes.mmap);
-      //var oldregWrite = this.nes.mmap.regWrite.bind(this.nes.mmap);
-      this.nes.mmap.load = (addr) => {
+    var mmap = this.nes.mmap;
+    if (!mmap.haveProxied) {
+      var oldload = mmap.load.bind(mmap);
+      var oldwrite = mmap.write.bind(mmap);
+      //var oldregLoad = mmap.regLoad.bind(mmap);
+      //var oldregWrite = mmap.regWrite.bind(mmap);
+      mmap.load = (addr) => {
         var val = oldload(addr);
         this.probe.logRead(addr, val);
         return val;
       }
-      this.nes.mmap.write = (addr, val) => {
+      mmap.write = (addr, val) => {
         this.probe.logWrite(addr, val);
         oldwrite(addr, val);
       }
       /*
-      this.nes.mmap.regLoad = (addr) => {
+      mmap.regLoad = (addr) => {
         var val = oldregLoad(addr);
         this.probe.logIORead(addr, val);
         return val;
       }
-      this.nes.mmap.regWrite = (addr, val) => {
+      mmap.regWrite = (addr, val) => {
         this.probe.logIOWrite(addr, val);
         oldregWrite(addr, val);
       }
       */
-      this.nes.mmap.haveProxied = true;
+      mmap.haveProxied = true;
+    }
+    var ppu = this.nes.ppu;
+    if (!ppu.haveProxied) {
+      var old_endScanline = ppu.endScanline.bind(ppu);
+      var old_startFrame = ppu.startFrame.bind(ppu);
+      var old_writeMem = ppu.writeMem.bind(ppu);
+      ppu.endScanline = () => {
+        old_endScanline();
+        this.probe.logNewScanline();
+      }
+      ppu.startFrame = () => {
+        old_startFrame();
+        this.probe.logNewFrame();
+      }
+      ppu.writeMem = (a,v) => {
+        old_writeMem(a,v);
+        this.probe.logVRAMWrite(a,v);
+      }
     }
   }
   newCodeAnalyzer() {
@@ -261,6 +266,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   reset() {
     //this.nes.cpu.reset(); // doesn't work right, crashes
     this.nes.cpu.requestIrq(this.nes.cpu.IRQ_RESET);
+    this.installIntercepts();
   }
   isRunning() {
     return this.timer.isRunning();
@@ -312,6 +318,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     this.nes.ppu.spriteMem = state.ppu.spriteMem.slice(0);
     this.loadControlsState(state.ctrl);
     //$.extend(this.nes, state);
+    this.installIntercepts();
   }
   saveControlsState() {
     return {
@@ -324,10 +331,10 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     this.nes.controllers[2].state = state.c2;
   }
   readAddress(addr) {
-    return this.nes.cpu.mem[addr] & 0xff;
+    return this.nes.cpu.mem[addr];
   }
   readVRAMAddress(addr : number) : number {
-    return this.nes.ppu.vramMem[addr & 0x7fff] & 0xff;
+    return this.nes.ppu.vramMem[addr];
   }
   copy6502REGvars(c) {
     c.T = 0;

@@ -250,14 +250,11 @@ function refreshWindowList() {
     });
   }
   if (platform.startProbing) {
-    addWindowItem("#eventprobe", "Event Probe", () => {
-      return new Views.EventProbeView();
-    });
-    addWindowItem("#memheatmap", "Memory Heatmap", () => {
+    addWindowItem("#memheatmap", "Memory Probe", () => {
       return new Views.AddressHeatMapView();
     });
     // TODO: only if raster
-    addWindowItem("#crtheatmap", "Screen Heatmap", () => {
+    addWindowItem("#crtheatmap", "CRT Probe", () => {
       return new Views.RasterPCHeatMapView();
     });
   }
