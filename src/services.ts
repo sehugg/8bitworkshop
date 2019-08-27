@@ -231,10 +231,10 @@ export class GithubService {
             var path = sess.prefix + item.path;
             var size = item.size;
             var encoding = blob.encoding;
-            var isBinary = isProbablyBinary(item.path, blob);
             var data = blob.content;
             if (blob.encoding == 'base64') {
               var bindata = stringToByteArray(atob(data));
+              var isBinary = isProbablyBinary(item.path, bindata);
               data = isBinary ? bindata : byteArrayToUTF8(bindata);
             }
             if (blob.size != data.length) {

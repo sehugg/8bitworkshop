@@ -1,4 +1,3 @@
-"use strict";
 
 import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult } from "./workertypes";
 import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform } from "./util";

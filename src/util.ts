@@ -1,4 +1,3 @@
-"use strict";
 
 export function lpad(s:string, n:number):string {
   s += ''; // convert to string
@@ -320,7 +319,7 @@ export function isProbablyBinary(path:string, data?:number[] | Uint8Array) : boo
   // check extensions
   if (path) {
     path = path.toUpperCase();
-    const BINEXTS = ['.CHR','.BIN','.DAT','.PAL','.NAM','.RLE','.LZ4'];
+    const BINEXTS = ['.CHR','.BIN','.DAT','.PAL','.NAM','.RLE','.LZ4','.NSF'];
     for (var ext of BINEXTS) {
       if (path.endsWith(ext)) score++;
     }
