@@ -163,6 +163,7 @@ TODO:
   - make sure to flatten subdirs
   - re-publish repo (bug: doesn't put all files in local repo after publishing)
   - allow text/binary change
+  - importing from subtree commits to root anyway
 - astrocade
 - keyboard shortcuts
   - ctrl+alt+l on ubuntu locks screen

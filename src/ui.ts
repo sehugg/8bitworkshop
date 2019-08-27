@@ -289,11 +289,15 @@ function loadProject(preset_id:string) {
       // file found; continue
       loadMainWindow(preset_id);
     } else {
-      // no file data, load skeleton file
       getSkeletonFile(preset_id).then((skel) => {
         current_project.filedata[preset_id] = skel || "\n";
         loadMainWindow(preset_id);
-        //alertInfo("No existing file found; loading default file");
+        // don't alert if we selected "new file"
+        if (!qs['newfile']) {
+          alertInfo("Could not find file \"" + preset_id + "\". Loading default file.");
+        }
+        delete qs['newfile'];
+        replaceURLState();
       });
     }
   });
@@ -343,6 +347,7 @@ function _createNewFile(e) {
         }
         var path = filename;
         gaEvent('workspace', 'file', 'new');
+        qs['newfile'] = '1';
         reloadProject(path);
       }
     }
