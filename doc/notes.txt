@@ -175,7 +175,6 @@ TODO:
   - can't step back twice?
   - compiler bug in chase
 - "shared" in URL doesn't work, leave in URL? (also importURL)
-  - alert when skeleton file loaded or file not found
 
 WEB WORKER FORMAT
 
