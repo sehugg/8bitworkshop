@@ -383,6 +383,12 @@ export var SampleAudio = function(clockfreq) {
       idrain = (idrain + 1) % bufferlist.length;
     }
   }
+  
+  function clearBuffers() {
+    if (bufferlist)
+      for (var buf of bufferlist)
+        buf.fill(0);
+  }
 
   function createContext() {
     var AudioContext = window['AudioContext'] || window['webkitAudioContext'] || window['mozAudioContext'];
@@ -425,7 +431,6 @@ export var SampleAudio = function(clockfreq) {
       // Chrome autoplay (https://goo.gl/7K7WLu)
       if (this.context.state == 'suspended') {
         this.context.resume();
-        console.log('AudioContext should resume');
       }
       return;   // already created
     }
@@ -447,6 +452,7 @@ export var SampleAudio = function(clockfreq) {
   
   this.stop = function() {
     this.context && this.context.suspend();
+    clearBuffers(); // just in case it doesn't stop immediately
   }
 
   this.close = function() {
