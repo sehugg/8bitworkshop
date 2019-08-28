@@ -253,6 +253,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
         old_writeMem(a,v);
         this.probe.logVRAMWrite(a,v);
       }
+      ppu.haveProxied = true;
     }
   }
   newCodeAnalyzer() {
