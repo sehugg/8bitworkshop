@@ -56,7 +56,10 @@ export class ColecoVision extends BaseZ80VDPBasedMachine {
   
   getKeyboardMap() { return COLECOVISION_KEYCODE_MAP; }
   
-  vdpInterrupt() { this.cpu.NMI(); }
+  vdpInterrupt() {
+    this.probe.logInterrupt(0);
+    this.cpu.NMI();
+  }
   
   read = newAddressDecoder([
     [0x0000, 0x1fff, 0x1fff, (a) => { return this.bios ? this.bios[a] : 0; }],

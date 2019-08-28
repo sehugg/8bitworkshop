@@ -200,6 +200,7 @@ const _BallyAstrocade = function(arcade:boolean) {
     // interrupt
     if (sl == inlin && (inmod & 0x8)) {
       cpu.retryInterrupts = !(inmod & 0x4);
+      this.probe.logInterrupt(infbk);
       cpu.interrupt(infbk);
     }
     // refresh this line in frame buffer?

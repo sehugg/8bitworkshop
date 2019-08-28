@@ -180,6 +180,7 @@ export class MSX1 extends BaseZ80VDPBasedMachine {
   }
 
   vdpInterrupt() {
+    this.probe.logInterrupt(0xff);
     this.cpu.interrupt(0xff); // RST 0x38
   }
 

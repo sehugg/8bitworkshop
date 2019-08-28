@@ -413,9 +413,8 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       }
       // do interrupt? (if visible or before 1st scanline)
       if ((visible || sl == linesPerFrame-1) && this.maria.doInterrupt()) {
-        this.probe.logInterrupt(1); // TODO?
+        this.probe.logInterrupt(0);
         this.cpu.NMI();
-        //console.log("NMI", hex(this.cpu.getPC()), hex(this.maria.dll));
       }
       // post-DMA clocks
       while (mc < colorClocksPerLine) {

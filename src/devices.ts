@@ -351,7 +351,6 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
   connectCPUIOBus(iobus:Bus) : void {
     this.cpu['connectIOBus'](this.probeIOBus(iobus));
   }
-  // TODO: probe interrupts
 }
 
 export abstract class BasicScanlineMachine extends BasicMachine implements RasterFrameBased {

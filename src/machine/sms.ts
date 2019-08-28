@@ -44,8 +44,8 @@ export class SG1000 extends BaseZ80VDPBasedMachine {
   getKeyboardMap() { return SG1000_KEYCODE_MAP; }
 
   vdpInterrupt() {
+    this.probe.logInterrupt(0xff);
     return this.cpu.interrupt(0xff); // RST 0x38
-    //return this.cpu.NMI();
   }
   
    read = newAddressDecoder([
