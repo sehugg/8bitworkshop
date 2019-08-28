@@ -212,28 +212,30 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     if (!mmap.haveProxied) {
       var oldload = mmap.load.bind(mmap);
       var oldwrite = mmap.write.bind(mmap);
-      //var oldregLoad = mmap.regLoad.bind(mmap);
-      //var oldregWrite = mmap.regWrite.bind(mmap);
+      var oldregLoad = mmap.regLoad.bind(mmap);
+      var oldregWrite = mmap.regWrite.bind(mmap);
+      var lastioaddr = -1;
       mmap.load = (addr) => {
         var val = oldload(addr);
-        this.probe.logRead(addr, val);
+        if (addr != lastioaddr) this.probe.logRead(addr, val);
         return val;
       }
       mmap.write = (addr, val) => {
-        this.probe.logWrite(addr, val);
+        if (addr != lastioaddr) this.probe.logWrite(addr, val);
         oldwrite(addr, val);
       }
-      /*
+      // try not to read/write then IOread/IOwrite at same time
       mmap.regLoad = (addr) => {
         var val = oldregLoad(addr);
         this.probe.logIORead(addr, val);
+        lastioaddr = addr;
         return val;
       }
       mmap.regWrite = (addr, val) => {
         this.probe.logIOWrite(addr, val);
+        lastioaddr = addr;
         oldregWrite(addr, val);
       }
-      */
       mmap.haveProxied = true;
     }
     var ppu = this.nes.ppu;
