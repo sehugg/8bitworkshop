@@ -284,13 +284,8 @@ export class GithubService {
         content: btoa(s)
       }
       return repo.contents('README.md').add(config);
-    })
-    .then( () => {
+    }).then( () => {
       return this.getGithubSession(repo.htmlUrl);
-    })
-    .then( (sess) => {
-      this.bind(sess, true);
-      return sess;
     });
   }
   
