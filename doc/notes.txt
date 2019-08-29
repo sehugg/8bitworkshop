@@ -167,7 +167,6 @@ TODO:
   - re-publish repo (bug: doesn't put all files in local repo after publishing)
   - allow text/binary change
   - importing from subtree commits to root anyway
-  - after publishing, only one file remaining
 - astrocade
 - keyboard shortcuts
   - ctrl+alt+l on ubuntu locks screen

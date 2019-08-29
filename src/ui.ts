@@ -509,14 +509,14 @@ function _publishProjectToGithub(e) {
     getGithubService().login().then( () => {
       setWaitProgress(0.25);
       return getGithubService().publish(name, desc, license, priv);
-    }).then( (sess) => {
+    }).then( (_sess) => {
+      sess = _sess;
       setWaitProgress(0.5);
       repo_id = qs['repo'] = sess.repopath;
       return pushChangesToGithub('initial import from 8bitworkshop.com');
     }).then( () => {
-      setWaitProgress(1.0);
       gaEvent('sync', 'publish', priv?"":name);
-      reloadProject(current_project.stripLocalPath(current_project.mainPath));
+      importProjectFromGithub(sess.url, false);
     }).catch( (e) => {
       setWaitDialog(false);
       console.log(e);
