@@ -1574,7 +1574,7 @@ function compileReadmemStmts(code, errors) {
       for (var i=0; i<lines.length; i++) {
         var line = lines[i].trim();
         if (line !== '') {
-          out += 'mem[' + i + ']=\'' + type + line + ';'
+          out += mem + '[' + i + ']=\'' + type + line + ';'
         }
       }
       return out;
@@ -1595,6 +1595,7 @@ function compileVerilator(step:BuildStep) {
   // compile verilog if files are stale
   var outjs = "main.js";
   if (staleFiles(step, [outjs])) {
+    // TODO: %Error: Specified --top-module 'ALU' isn't at the top level, it's under another cell 'cpu'
     var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
     var verilator_mod = emglobal.verilator_bin({
       instantiateWasm: moduleInstFn('verilator_bin'),
