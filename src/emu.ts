@@ -470,15 +470,15 @@ function _metakeyflags(e) {
 
 type KeyMapFunction = (o:KeyMapEntry, key:number, code:number, flags:number) => void;
 
-export function setKeyboardFromMap(video:RasterVideo, switches:number[]|Uint8Array, map:KeyCodeMap, func?:KeyMapFunction) {
-  var handler = (key,code,flags) => {
+export function newKeyboardHandler(switches:number[]|Uint8Array, map:KeyCodeMap, func?:KeyMapFunction, alwaysfunc?:boolean) {
+  return (key:number,code:number,flags:number) => {
     if (!map) {
       func(null, key, code, flags);
       return;
     }
     var o : KeyMapEntry = map[key];
     if (!o) o = map[0];
-    if (o && func) {
+    if (func && (o || alwaysfunc)) {
       func(o, key, code, flags);
     }
     if (o) {
@@ -496,6 +496,10 @@ export function setKeyboardFromMap(video:RasterVideo, switches:number[]|Uint8Arr
       }
     }
   };
+}
+
+export function setKeyboardFromMap(video:RasterVideo, switches:number[]|Uint8Array, map:KeyCodeMap, func?:KeyMapFunction, alwaysfunc?:boolean) {
+  var handler = newKeyboardHandler(switches, map, func, alwaysfunc);
   video.setKeyboardEvents(handler);
   return new ControllerPoller(map, handler);
 }

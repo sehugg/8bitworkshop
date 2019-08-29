@@ -121,7 +121,6 @@ TODO:
   - can't add control instructions b/c of split
   - bad error msg if >2 moduels and top module doesn't match filename
   - separate Scope View
-  - keyboard interface
 - single-stepping vector games makes screen fade
 - break on stack overflow, illegal op, bad access, BRK, etc
 - nes
