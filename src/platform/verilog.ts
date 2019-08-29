@@ -1,7 +1,7 @@
 "use strict";
 
 import { Platform, BasePlatform } from "../baseplatform";
-import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos } from "../emu";
+import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos, KeyFlags } from "../emu";
 import { SampleAudio } from "../audio";
 import { safe_extend, clamp } from "../util";
 import { WaveformView, WaveformProvider, WaveformMeta } from "../waveform";
@@ -235,6 +235,7 @@ var VerilogPlatform = function(mainElement, options) {
 
   // control inputs
   var switches = [0,0,0];
+  var keycode = 0;
 
   // inspect feature  
   var inspect_obj, inspect_sym;
@@ -280,6 +281,8 @@ var VerilogPlatform = function(mainElement, options) {
     gen.tick2();
     if (useAudio)
       audio.feedSample(gen.spkr*(1.0/255.0), 1);
+    if (keycode && keycode >= 128 && gen.keystrobe) // keystrobe = clear hi bit of key buffer
+      keycode = gen.keycode = keycode & 0x7f;
     if (debugCond && debugCond())
       debugCond = null;
   }
@@ -328,7 +331,11 @@ var VerilogPlatform = function(mainElement, options) {
     ctx.font = "8px TinyFont";
     ctx.fillStyle = "white";
     ctx.textAlign = "left";
-    poller = setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP);
+    poller = setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP, (o,key,code,flags) => {
+      if (flags & KeyFlags.KeyPress) {
+        keycode = code | 0x80;
+      }
+    }, true); // true = always send function
     var vcanvas = $(video.canvas);
     idata = video.getFrameData();
     timerCallback = () => {
@@ -389,6 +396,7 @@ var VerilogPlatform = function(mainElement, options) {
     gen.switches_p1 = switches[0];
     gen.switches_p2 = switches[1];
     gen.switches_gen = switches[2];
+    gen.keycode = keycode;
   }
   
   updateVideoFrame() {
@@ -768,6 +776,7 @@ var VerilogPlatform = function(mainElement, options) {
       sw0: switches[0],
       sw1: switches[1],
       sw2: switches[2],
+      keycode: keycode
     };
   }
   loadControlsState(state) {
@@ -776,6 +785,7 @@ var VerilogPlatform = function(mainElement, options) {
     switches[0] = state.sw0;
     switches[1] = state.sw1;
     switches[2] = state.sw2;
+    keycode = state.keycode;
   }
 
  } // end of inner class
