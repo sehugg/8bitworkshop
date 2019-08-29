@@ -119,6 +119,9 @@ TODO:
   - CPU debugging
   - use $readmem for inline asm programs?
   - can't add control instructions b/c of split
+  - bad error msg if >2 moduels and top module doesn't match filename
+  - separate Scope View
+  - keyboard interface
 - single-stepping vector games makes screen fade
 - break on stack overflow, illegal op, bad access, BRK, etc
 - nes
@@ -163,6 +166,8 @@ TODO:
   - make sure to flatten subdirs
   - re-publish repo (bug: doesn't put all files in local repo after publishing)
   - allow text/binary change
+  - importing from subtree commits to root anyway
+  - after publishing, only one file remaining
 - astrocade
 - keyboard shortcuts
   - ctrl+alt+l on ubuntu locks screen
