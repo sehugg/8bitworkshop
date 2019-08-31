@@ -128,6 +128,10 @@ function translateFunction(text : string) : string {
   text = text.replace(/^#/gm, '//#');
   text = text.replace(/VL_LIKELY/g, '!!');
   text = text.replace(/VL_UNLIKELY/g, '!!');
+  // for memread
+  text = text.replace(/VL_SIGW[(](\w+),(\d+),(\d+),(\d+)[)]/g, 'var $1 = new Uint32Array($4)');
+  // convert VL_ULL() 64-bits into an array of two 32-bits
+  text = text.replace(/VL_ULL[(]0x([0-9a-f]+?)([0-9a-f]{8})[)]/g, '[0x$2, 0x$1]');
   //[%0t] %Error: scoreboard.v:53: Assertion failed in %Nscoreboard_top.scoreboard_gen: reset 64 -935359306 Vscoreboard_top
   text = text.replace(/Verilated::(\w+)Error/g, 'console.log');
   text = text.replace(/vlSymsp.name[(][)]/g, '"'+moduleName+'"');
