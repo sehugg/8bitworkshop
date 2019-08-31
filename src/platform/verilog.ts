@@ -3,9 +3,9 @@
 import { Platform, BasePlatform } from "../baseplatform";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos, KeyFlags } from "../emu";
 import { SampleAudio } from "../audio";
-import { safe_extend, clamp } from "../util";
+import { safe_extend, clamp, byteArrayToString } from "../util";
 import { WaveformView, WaveformProvider, WaveformMeta } from "../waveform";
-import { setFrameRateUI } from "../ui";
+import { setFrameRateUI, current_project } from "../ui";
 
 declare var Split;
 
@@ -67,7 +67,7 @@ export var vl_finished = false;
 export var vl_stopped = false;
 
 export function VL_UL(x) { return x|0; }
-export function VL_ULL(x) { return x|0; }
+//export function VL_ULL(x) { return x|0; }
 export function VL_TIME_Q() { return (new Date().getTime())|0; }
 
   /// Return true if data[bit] set
@@ -121,9 +121,32 @@ export function VL_RAND_RESET_I(bits) { return 0 | Math.floor(Math.random() * (1
 
 export function VL_RANDOM_I(bits) { return 0 | Math.floor(Math.random() * (1<<bits)); }
 
-//export function VL_READMEM_Q(hex,width,depth,array_lsb,fnwords,filename,memp,start,end) {
-  //console.log(hex,width,depth,array_lsb,fnwords,filename,memp,start,end);
-//}
+export function VL_READMEM_Q(ishex,width,depth,array_lsb,fnwords,filename,memp,start,end) {
+  VL_READMEM_W(ishex,width,depth,array_lsb,fnwords,filename,memp,start,end);
+}
+export function VL_READMEM_W(ishex,width,depth,array_lsb,fnwords,filename,memp,start,end) {
+  // parse filename from 32-bit values into characters
+  var barr = [];
+  for (var i=0; i<filename.length; i++) {
+    barr.push((filename[i] >> 0)  & 0xff);
+    barr.push((filename[i] >> 8)  & 0xff);
+    barr.push((filename[i] >> 16) & 0xff);
+    barr.push((filename[i] >> 24) & 0xff);
+  }
+  barr = barr.filter(x => x != 0); // ignore zeros
+  barr.reverse(); // reverse it
+  var strfn = byteArrayToString(barr); // convert to string
+  // parse hex/binary file
+  var strdata = current_project.getFile(strfn) as string;
+  if (strdata == null) throw "Could not $readmem '" + strfn + "'";
+  var data = strdata.split('\n').filter(s => s !== '').map(s => parseInt(s, ishex ? 16 : 2));
+  console.log('$readmem', ishex, strfn, data.length);
+  // copy into destination array
+  if (memp === null) throw "No destination array to $readmem " + strfn;
+  if (memp.length < data.length) throw "Destination array too small to $readmem " + strfn;
+  for (i=0; i<data.length; i++)
+    memp[i] = data[i];
+}
 
 // SIMULATOR BASE
 
