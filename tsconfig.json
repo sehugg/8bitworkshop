@@ -17,6 +17,7 @@
     },
     "include": [
         "./src/**/*.ts",
+        "./test/**/*.ts",
         "./localForage/typings/*.ts"
     ]
 }

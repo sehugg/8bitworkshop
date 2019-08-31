@@ -173,6 +173,7 @@ function refreshWindowList() {
     var a = document.createElement("a");
     a.setAttribute("class", "dropdown-item");
     a.setAttribute("href", "#");
+    a.setAttribute("data-wndid", id);
     if (id == projectWindows.getActiveID())
       $(a).addClass("dropdown-item-checked");
     a.appendChild(document.createTextNode(name));

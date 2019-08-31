@@ -23,12 +23,12 @@ lint:
 
 web:
 	ifconfig | grep inet
-	python3 scripts/serveit.py 2>> http.out
+	python3 scripts/serveit.py 2>> /dev/null #http.out
 
 tsweb:
 	ifconfig | grep inet
 	$(TSC) -w &
-	python3 scripts/serveit.py 2>> http.out
+	python3 scripts/serveit.py 2>> /dev/null #http.out
 
 astrolibre.b64.txt: astrolibre.rom
 	lzg -9 $< | base64 -w 0 > $@
