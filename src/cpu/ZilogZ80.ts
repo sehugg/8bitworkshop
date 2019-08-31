@@ -3408,6 +3408,9 @@ export class Z80 implements CPU, InstructionBased, IOBusConnected, SavesState<Z8
   getPC() {
     return this.cpu.getPC();
   }
+  isHalted() {
+   return this.cpu.getHalted();
+  }
   saveState() {
     return this.cpu.saveState();
   }

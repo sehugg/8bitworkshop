@@ -305,11 +305,6 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
       inputs:this.inputs.slice(0)
     };
   }
-  advanceCPUMultiple(cycles : number) : number {
-    for (var i=0; i<cycles; i+=this.advanceCPU())
-      ;
-    return i;
-  }
   advanceCPU() {
     var c = this.cpu as any;
     var n = 1;

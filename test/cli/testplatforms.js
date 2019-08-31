@@ -262,7 +262,6 @@ describe('Platform Replay', () => {
       }
     });
   });
-/*
   it('Should run sound_williams', () => {
     var platform = testPlatform('sound_williams-z80', 'swave.c.rom', 72, (platform, frameno) => {
       if (frameno == 60) {
@@ -270,7 +269,6 @@ describe('Platform Replay', () => {
       }
     });
   });
-*/
 
   it('Should run astrocade', () => {
     var platform = testPlatform('astrocade', 'cosmic.c.rom', 92, (platform, frameno) => {
