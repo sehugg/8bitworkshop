@@ -266,20 +266,20 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.resume();
   }
   preFrame() {
-  }
-  postFrame() {
-    if (this.debugCallback) {
-      if (this.debugBreakState) {
-        // reload debug state at end of frame after breakpoint
-        this.loadState(this.debugBreakState);
-      } else {
-        // save state every frame and rewind debug clocks
-        this.debugSavedState = this.saveState();
-        this.debugTargetClock -= this.debugClock;
-        this.debugClock = 0;
-      }
+    // save state before frame, to record any inputs that happened pre-frame
+    if (this.debugCallback && !this.debugBreakState) {
+      // save state every frame and rewind debug clocks
+      this.debugSavedState = this.saveState();
+      this.debugTargetClock -= this.debugClock;
+      this.debugClock = 0;
     }
     this.frameCount++;
+  }
+  postFrame() {
+    // reload debug state at end of frame after breakpoint
+    if (this.debugCallback && this.debugBreakState) {
+      this.loadState(this.debugBreakState);
+    }
   }
   pollControls() {
   }

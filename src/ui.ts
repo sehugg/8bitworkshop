@@ -1693,7 +1693,7 @@ function installErrorHandler() {
         var msgstr = msgevent+"";
         console.log(msgevent, url, line, col, error);
         // emulation threw EmuHalt
-        if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
+        if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) { // TODO
           showErrorAlert([ {msg:msgstr, line:0} ]);
           uiDebugCallback(platform.saveState && platform.saveState());
           setDebugButtonState("pause", "stopped");

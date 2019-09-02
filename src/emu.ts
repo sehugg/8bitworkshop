@@ -248,7 +248,7 @@ export class AnimationTimer {
       } catch (e) {
         this.running = false;
         this.pulsing = false;
-        throw new EmuHalt(e);
+        throw e; // TODO: throw EmuHalt hides stack trace
       }
     }
     if (this.useReqAnimFrame)
