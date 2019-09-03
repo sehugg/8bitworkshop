@@ -569,7 +569,9 @@ export class MemoryView implements ProjectView {
   }
 
   scrollToAddress(addr : number) {
-    this.memorylist.scrollToItem(this.findMemoryWindowLine(addr));
+    if (this.dumplines) {
+      this.memorylist.scrollToItem(this.findMemoryWindowLine(addr));
+    }
   }
 
   refresh() {
