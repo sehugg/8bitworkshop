@@ -1,4 +1,3 @@
-"use strict";
 
 import { Platform, BasePlatform } from "../baseplatform";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos, KeyFlags } from "../emu";
@@ -392,7 +391,7 @@ var VerilogPlatform = function(mainElement, options) {
     video.vcanvas.click( (e) => {
       if (!gen) return; // must have created emulator
       if (!e.ctrlKey) {
-        setFrameRateUI(60);
+        //setFrameRateUI(60);
         return; // ctrl key must be down
       }
       setFrameRateUI(1.0/2048);

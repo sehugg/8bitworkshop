@@ -363,18 +363,13 @@ function _uploadNewFile(e) {
 function handleFileUpload(files: File[]) {
   console.log(files);
   var index = 0;
-  var gotoMainFile = (files.length == 1);
   function uploadNextFile() {
     var f = files[index++];
     if (!f) {
       console.log("Done uploading");
-      if (gotoMainFile) {
-        gotoNewLocation();
-      } else {
-        updateSelector();
-        alertInfo("Files uploaded.");
-        gaEvent('workspace', 'file', 'upload');
-      }
+      updateSelector();
+      alertInfo("Files uploaded. Use the Project Selector if you want to load an uploaded file as a project.");
+      gaEvent('workspace', 'file', 'upload');
     } else {
       var path = f.name;
       var reader = new FileReader();
@@ -383,23 +378,15 @@ function handleFileUpload(files: File[]) {
         var data : FileData = new Uint8Array(arrbuf);
         // convert to UTF8, unless it's a binary file
         if (isProbablyBinary(path, data)) {
-          gotoMainFile = false;
+          //gotoMainFile = false;
         } else {
           data = byteArrayToUTF8(data).replace('\r\n','\n'); // convert CRLF to LF
         }
         // store in local forage
         // TODO: use projectWindows uploadFile()
-        store.setItem(path, data, function(err, result) {
-          if (err)
-            alertError("Error uploading " + path + ": " + err);
-          else {
-            console.log("Uploaded " + path + " " + data.length + " bytes");
-            if (index == 1) {
-              qs['file'] = path; // TODO?
-            }
-            uploadNextFile();
-          }
-        });
+        projectWindows.updateFile(path, data);
+        console.log("Uploaded " + path + " " + data.length + " bytes");
+        uploadNextFile();
       }
       reader.readAsArrayBuffer(f); // read as binary
     }
