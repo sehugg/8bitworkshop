@@ -396,7 +396,7 @@ export var SampleAudio = function(clockfreq) {
       console.log("no web audio context");
       return;
     }
-    var ctx = new AudioContext();
+    var ctx : AudioContext = new AudioContext();
     self.context = ctx;
     self.sr=self.context.sampleRate;
     self.bufferlen=2048;
@@ -451,7 +451,7 @@ export var SampleAudio = function(clockfreq) {
   }
   
   this.stop = function() {
-    this.context && this.context.suspend();
+    this.context && this.context.suspend && this.context.suspend();
     clearBuffers(); // just in case it doesn't stop immediately
   }
 

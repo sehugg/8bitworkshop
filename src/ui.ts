@@ -1,4 +1,3 @@
-"use strict";
 
 // 8bitworkshop IDE user interface
 
@@ -113,6 +112,19 @@ var hasLocalStorage : boolean = function() {
     return false;
   }
 }();
+
+// https://developers.google.com/web/updates/2016/06/persistent-storage
+function requestPersistPermission() {
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().then(persistent=>{
+      if (persistent) {
+        alertInfo("We asked your browser to persist local data, and it said yes.");
+      } else {
+        alertInfo("This browser may not persist local data. Are you in a private window?");
+      }
+    });
+  }
+}
 
 function getCurrentPresetTitle() : string {
   if (!current_preset)
@@ -1518,6 +1530,7 @@ function setupDebugControls() {
   }
   $("#item_addfile_include").click(_addIncludeFile);
   $("#item_addfile_link").click(_addLinkFile);
+  $("#item_request_persist").click(requestPersistPermission);
   updateDebugWindows();
   // show help button?
   if (platform.showHelp) {
