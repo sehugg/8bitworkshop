@@ -83,7 +83,7 @@ testPlatform(this, 'vector-z80color', 'Atari Color Vector (Z80)', 3);
 testPlatform(this, 'williams-z80', 'Williams (Z80)', 3);
 // TODO testPlatform(this, 'sound_williams-z80', 'Williams Sound (Z80)', 1);
 testPlatform(this, 'coleco', 'ColecoVision', 12);
-testPlatform(this, 'sms-sg1000-libcv', 'Sega SG-1000', 3);
+//testPlatform(this, 'sms-sg1000-libcv', 'Sega SG-1000', 3);
 testPlatform(this, 'sms-sms-libcv', 'Sega Master System', 2);
 testPlatform(this, 'atari7800', 'Atari 7800', 1);
 testPlatform(this, 'astrocade', 'Bally Astrocade', 12);
