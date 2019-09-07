@@ -118,11 +118,13 @@ function requestPersistPermission() {
   if (navigator.storage && navigator.storage.persist) {
     navigator.storage.persist().then(persistent=>{
       if (persistent) {
-        alertInfo("We asked your browser to persist local data, and it said yes.");
+        alertInfo("Your browser says you have unlimited persistent storage quota for this site. If you got an error while storing something, please try again.");
       } else {
-        alertInfo("This browser may not persist local data. Are you in a private window?");
+        alertInfo("Your browser says your local files may not be persisted. Are you in a private window?");
       }
     });
+  } else {
+    alertInfo("Your browser doesn't support expanding the persistent storage quota.");
   }
 }
 
@@ -1709,7 +1711,12 @@ function installErrorHandler() {
             'exFatal': true
           });
           $.get("/error?msg=" + encodeURIComponent(msg), "text");
-          alertError(msg);
+          // storage quota full? (Chrome) try to expand it
+          if (msg.indexOf("QuotaExceededError") >= 0) {
+            requestPersistPermission();
+          } else {
+            alertError(msg);
+          }
         }
         _pause();
       };

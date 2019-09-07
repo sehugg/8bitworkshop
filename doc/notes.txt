@@ -148,7 +148,6 @@ TODO:
   - allow "include graphics.asm" instead of "include project/graphics.asm"
 - convert more stuff to Promises
 - target ES6
-- don't have to include bootstrap-tourist each time?
 - don't have to include firebase always?
   - squelch error msgs? 
   - test offline? (if window.firebase)
