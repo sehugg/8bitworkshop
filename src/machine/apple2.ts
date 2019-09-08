@@ -218,8 +218,8 @@ export class AppleII extends BasicScanlineMachine {
   drawScanline() {
     // TODO: draw scanline via ap2disp
   }
-  advanceFrame(maxClocks:number, trap) : number {
-    var clocks = super.advanceFrame(maxClocks, trap);
+  advanceFrame(trap) : number {
+    var clocks = super.advanceFrame(trap);
     this.ap2disp && this.ap2disp.updateScreen();
     return clocks;
   }

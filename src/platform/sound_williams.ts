@@ -77,9 +77,9 @@ class WilliamsSound extends BasicMachine {
     });
   }
   
-  advanceFrame(maxCycles, trap) : number {
+  advanceFrame(trap) : number {
     this.pixels && this.pixels.fill(0); // clear waveform
-    maxCycles = Math.min(this.cpuCyclesPerFrame, maxCycles);
+    let maxCycles = this.cpuCyclesPerFrame;
     var n = 0;
     while (n < maxCycles) {
       if (trap && trap()) {

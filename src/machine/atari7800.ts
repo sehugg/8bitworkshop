@@ -374,7 +374,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
     return clk;
   }
 
-  advanceFrame(maxClocks, trap) : number {
+  advanceFrame(trap) : number {
     var idata = this.pixels;
     var iofs = 0;
     var rgb;

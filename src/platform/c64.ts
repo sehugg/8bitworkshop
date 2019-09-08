@@ -14,7 +14,7 @@ class C64Platform extends Base6502MachinePlatform<C64> implements Platform {
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.readConst(a); }
   loadBios(bios)	{ this.machine.loadBIOS(bios); }
-  getMemoryMap = function() { return { main:[
+  getMemoryMap()        { return { main:[
       {name:'6510 Registers',start:0x0,  size:0x2,type:'io'},
       {name:'RAM',          start:0x2,   size:0x7ffe,type:'ram'},
       {name:'Cartridge ROM',start:0x8000,size:0x2000,type:'rom'},

@@ -123,12 +123,12 @@ export class Midway8080 extends BasicScanlineMachine {
     this.cpu.interrupt(data);
   }
 
-  advanceFrame(maxCycles, trap) : number {
+  advanceFrame(trap) : number {
     if (this.watchdog_counter-- <= 0) {
       console.log("WATCHDOG FIRED"); // TODO: alert on video
       this.reset();
     }
-    return super.advanceFrame(maxCycles, trap);
+    return super.advanceFrame(trap);
   }
 
   loadState(state) {

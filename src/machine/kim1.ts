@@ -133,9 +133,9 @@ export class KIM1 extends BasicHeadlessMachine {
     }
   }
   
-  advanceFrame(maxClocks:number, trap) : number {
+  advanceFrame(trap) : number {
     var clock = 0;
-    while (clock < maxClocks) {
+    while (clock < this.cpuFrequency/60) {
       if (trap && trap()) break;
       clock += this.advanceCPU();
     }

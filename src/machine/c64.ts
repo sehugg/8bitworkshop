@@ -349,7 +349,7 @@ export class C64 extends BasicMachine implements RasterFrameBased {
     else return this.ram[a];
   }
   
-  advanceFrame(maxClocks, trap) : number {
+  advanceFrame(trap) : number {
     var idata = this.pixels;
     var iofs = 0;
     var vicClocks = cpuClocksPreDMA;
@@ -362,7 +362,7 @@ export class C64 extends BasicMachine implements RasterFrameBased {
       // TODO: https://www.c64-wiki.com/wiki/Raster_interrupt
       if (this.vic.regs[0x19] & 0x1) {
         this.vic.regs[0x19] &= 0x7e;
-        this.cpu.IRQ();
+        //TODO: this.cpu.IRQ();
         //this.profiler && this.profiler.logInterrupt(0x1);
       }
       // is this scanline visible?
@@ -472,7 +472,7 @@ export class C64 extends BasicMachine implements RasterFrameBased {
   }
 
   getDebugCategories() {
-    return ['VIC-II'];
+    return ['CPU','Stack','VIC-II'];
   }
   getDebugInfo(category, state) {
     switch (category) {

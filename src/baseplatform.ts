@@ -1042,7 +1042,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   }
 
   advance(novideo:boolean) {
-    this.machine.advanceFrame(999999, this.getDebugCallback());
+    this.machine.advanceFrame(this.getDebugCallback());
     if (!novideo && this.video) this.video.updateFrame();
   }
 

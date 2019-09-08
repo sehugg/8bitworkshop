@@ -21,7 +21,7 @@ export interface InstructionBased {
 export type TrapCondition = () => boolean;
 
 export interface FrameBased {
-    advanceFrame(maxClocks:number, trap:TrapCondition) : number;
+    advanceFrame(trap:TrapCondition) : number;
 }
 
 export interface VideoSource {
@@ -363,7 +363,7 @@ export abstract class BasicScanlineMachine extends BasicMachine implements Raste
 
   frameCycles : number;
   
-  advanceFrame(maxClocks:number, trap) : number {
+  advanceFrame(trap: TrapCondition) : number {
     this.preFrame();
     var clock = 0;
     var endLineClock = 0;
