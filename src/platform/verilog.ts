@@ -94,6 +94,9 @@ export function VL_LTES_III(x,lbits,y,lhs,rhs) {
 export function VL_GTES_III(x,lbits,y,lhs,rhs) {
     return (VL_EXTENDS_II(x,lbits,lhs) >= VL_EXTENDS_II(x,lbits,rhs)) ? 1 : 0; }
 
+export function VL_DIV_III(lbits,lhs,rhs) {
+    return (((rhs)==0)?0:(lhs)/(rhs)); }
+
 export function VL_MODDIV_III(lbits,lhs,rhs) {
     return (((rhs)==0)?0:(lhs)%(rhs)); }
 
