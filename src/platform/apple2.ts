@@ -10,6 +10,8 @@ const APPLE2_PRESETS = [
   {id:'Eliza.c', name:'Eliza'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'cosmic.c', name:'Cosmic Impalas'},
+  {id:'farmhouse.c', name:"Farmhouse Adventure"},
+  {id:'yum.c', name:"Yum Dice Game"},
   {id:'hgrtest.a', name:"HGR Test (ASM)"},
   {id:'conway.a', name:"Conway's Game of Life (ASM)"},
   {id:'lz4fh.a', name:"LZ4FH Graphics Compression (ASM)"},
