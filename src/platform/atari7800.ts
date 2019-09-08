@@ -1,5 +1,4 @@
 
-import { MOS6502 } from "../cpu/MOS6502";
 import { Atari7800 } from "../machine/atari7800";
 import { Platform, Base6502MachinePlatform } from "../baseplatform";
 import { PLATFORMS } from "../emu";
