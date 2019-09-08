@@ -1001,16 +1001,17 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
       this.video = new RasterVideo(this.mainElement, vp.width, vp.height, {overscan:!!vp.overscan,rotate:vp.rotate|0});
       this.video.create();
       m.connectVideo(this.video.getFrameData());
+      // TODO: support keyboard w/o video?
+      if (hasKeyInput(m)) {
+        this.video.setKeyboardEvents(m.setKeyInput.bind(m));
+        this.poller = new ControllerPoller(m.setKeyInput.bind(m));
+      }
     }
     if (hasAudio(m)) {
       var ap = m.getAudioParams();
       this.audio = new SampledAudio(ap.sampleRate);
       this.audio.start();
       m.connectAudio(this.audio);
-    }
-    if (hasKeyInput(m)) {
-      this.video.setKeyboardEvents(m.setKeyInput.bind(m));
-      this.poller = new ControllerPoller(m.setKeyInput.bind(m));
     }
     if (hasPaddleInput(m)) {
       this.video.setupMouseEvents();
@@ -1042,7 +1043,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
 
   advance(novideo:boolean) {
     this.machine.advanceFrame(999999, this.getDebugCallback());
-    if (!novideo) this.video.updateFrame();
+    if (!novideo && this.video) this.video.updateFrame();
   }
 
   isRunning() {

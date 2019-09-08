@@ -1976,7 +1976,8 @@ function loadAndStartPlatform() {
     } finally {
       revealTopBar();
     }
-  }).catch( () => {
+  }).catch( (e) => {
+    console.log(e);
     alertError('Platform "' + platform_id + '" not supported.');
   });
 }

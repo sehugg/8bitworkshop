@@ -231,29 +231,19 @@ export interface BasicMachineState extends BasicMachineControlsState {
   ram: Uint8Array;
 }
 
-export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, AcceptsROM, Probeable,
+export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, Probeable,
   SavesState<BasicMachineState>, SavesInputState<BasicMachineControlsState> {
 
   abstract cpuFrequency : number;
-  abstract canvasWidth : number;
-  abstract numVisibleScanlines : number;
   abstract defaultROMSize : number;
-  abstract sampleRate : number;
-  overscan : boolean = false;
-  rotate : number = 0;
-  
+
   abstract cpu : CPU;
-  abstract ram : Uint8Array;
-  
+  abstract ram : Uint8Array;  
+
   rom : Uint8Array;
-  pixels : Uint32Array;
-  audio : SampledAudioSink;
   inputs : Uint8Array = new Uint8Array(32);
   handler : (key,code,flags) => void; // keyboard handler
 
-  scanline : number;
-  frameCycles : number;
-  
   nullProbe = new NullProbe();
   probe : ProbeAll = this.nullProbe;
   
@@ -262,18 +252,6 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
 
   setKeyInput(key:number, code:number, flags:number) : void {
     this.handler && this.handler(key,code,flags);
-  }
-  getAudioParams() : SampledAudioParams {
-    return {sampleRate:this.sampleRate, stereo:false};
-  }
-  connectAudio(audio : SampledAudioSink) : void {
-    this.audio = audio;
-  }
-  getVideoParams() : VideoParams {
-    return {width:this.canvasWidth, height:this.numVisibleScanlines, overscan:this.overscan, rotate:this.rotate};
-  }
-  connectVideo(pixels:Uint32Array) : void {
-    this.pixels = pixels;
   }
   connectProbe(probe: ProbeAll) : void {
     this.probe = probe || this.nullProbe;
@@ -348,6 +326,33 @@ export abstract class BasicMachine implements HasCPU, Bus, SampledAudioSource, A
   }
 }
 
+export abstract class BasicMachine extends BasicHeadlessMachine implements SampledAudioSource {
+
+  abstract canvasWidth : number;
+  abstract numVisibleScanlines : number;
+  abstract sampleRate : number;
+  overscan : boolean = false;
+  rotate : number = 0;
+  
+  pixels : Uint32Array;
+  audio : SampledAudioSink;
+
+  scanline : number;
+  
+  getAudioParams() : SampledAudioParams {
+    return {sampleRate:this.sampleRate, stereo:false};
+  }
+  connectAudio(audio : SampledAudioSink) : void {
+    this.audio = audio;
+  }
+  getVideoParams() : VideoParams {
+    return {width:this.canvasWidth, height:this.numVisibleScanlines, overscan:this.overscan, rotate:this.rotate};
+  }
+  connectVideo(pixels:Uint32Array) : void {
+    this.pixels = pixels;
+  }
+}
+
 export abstract class BasicScanlineMachine extends BasicMachine implements RasterFrameBased {
 
   abstract numTotalScanlines : number;
@@ -355,6 +360,8 @@ export abstract class BasicScanlineMachine extends BasicMachine implements Raste
 
   abstract startScanline() : void;
   abstract drawScanline() : void;
+
+  frameCycles : number;
   
   advanceFrame(maxClocks:number, trap) : number {
     this.preFrame();
