@@ -191,7 +191,7 @@ class MARIA {
     this.cycles = 0;
     this.pixels.fill(this.regs[0x0]);
     if (this.isDMAEnabled()) {
-      this.cycles += 16;
+      this.cycles += 16; // TODO: last line in zone gets additional 8 cycles
       // time for a new DLL entry?
       if (this.offset < 0) {
         this.readDLLEntry(bus);
@@ -237,7 +237,10 @@ class MARIA {
           let data = this.readDMA( dbl ? (gfxadr+(i>>1)) : (gfxadr+i) );
           if (indirect) {
             let indadr = ((this.regs[0x14] + this.offset) << 8) + data;
-            if (dbl && (i&1)) indadr++;
+            if (dbl && (i&1)) {
+              indadr++;
+              this.cycles -= 3; // indirect read has 6/9 cycles
+            }
             data = this.readDMA(indadr);
           }
           // TODO: more modes
