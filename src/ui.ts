@@ -355,9 +355,18 @@ function handleFileUpload(files: File[]) {
   function uploadNextFile() {
     var f = files[index++];
     if (!f) {
-      console.log("Done uploading");
-      updateSelector();
-      alertInfo("Files uploaded. Use the Project Selector if you want to load an uploaded file as a project.");
+      console.log("Done uploading", index);
+      if (index > 2) {
+        alertInfo("Files uploaded.");
+        setTimeout(updateSelector, 1000); // TODO: wait for files to upload
+      } else {
+        qs['file'] = files[0].name;
+        if (confirm("Open '" + qs['file'] + "' as project?")) {
+          gotoNewLocation();
+        } else {
+          updateSelector();
+        }
+      }
       gaEvent('workspace', 'file', 'upload');
     } else {
       var path = f.name;
