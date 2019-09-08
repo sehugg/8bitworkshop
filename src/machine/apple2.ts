@@ -243,7 +243,9 @@ export class AppleII extends BasicScanlineMachine {
     } else if (flags & KeyFlags.KeyDown) {
       code = 0;
       switch (key) {
+        case 8:  code=8; break; // left
         case 13: code=13; break; // return
+        case 27: code=27; break; // escape
         case 37: code=8; break; // left
         case 39: code=21; break; // right
         case 38: code=11; break; // up
