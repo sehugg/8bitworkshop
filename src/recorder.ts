@@ -192,6 +192,7 @@ export enum ProbeFlags {
   VRAM_READ	= 0x06000000,
   VRAM_WRITE	= 0x07000000,
   INTERRUPT	= 0x08000000,
+  ILLEGAL	= 0x09000000,
   SCANLINE	= 0x7e000000,
   FRAME		= 0x7f000000,
 }
@@ -283,6 +284,9 @@ export class ProbeRecorder implements ProbeAll {
   }
   logVRAMWrite(address:number, value:number) {
     this.log(address | ProbeFlags.VRAM_WRITE);
+  }
+  logIllegal(address:number) {
+    this.log(address | ProbeFlags.ILLEGAL);
   }
 
 }

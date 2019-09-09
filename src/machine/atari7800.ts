@@ -162,6 +162,8 @@ class MARIA {
     }
   }
   readDLLEntry(bus) {
+    // display lists must be in RAM (TODO: probe?)
+    if (this.dll >= 0x4000) { return; }
     let x = bus.read(this.dll);
     this.offset = (x & 0xf);
     this.h16 = (x & 0x40) != 0;
@@ -204,6 +206,8 @@ class MARIA {
         let b0 = bus.read(dlhi + ((dlofs+0) & 0x1ff));
         let b1 = bus.read(dlhi + ((dlofs+1) & 0x1ff));
         if (b1 == 0) break; // end of DL
+        // display lists must be in RAM (TODO: probe?)
+        if (dlhi >= 0x4000) { break; }
         let b2 = bus.read(dlhi + ((dlofs+2) & 0x1ff));
         let b3 = bus.read(dlhi + ((dlofs+3) & 0x1ff));
         let indirect = false;
@@ -335,7 +339,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
         [0x1800, 0x27ff, 0xffff, (a) => { return this.ram[a - 0x1800]; }],
         [0x2800, 0x3fff,  0x7ff, (a) => { return this.read(a | 0x2000); }], // shadow
         [0x4000, 0xffff, 0xffff, (a) => { return this.rom ? this.rom[a - 0x4000] : 0; }],
-        [0x0000, 0xffff, 0xffff, (a) => { return 0; }], // TODO
+        [0x0000, 0xffff, 0xffff, (a) => { return this.probe && this.probe.logIllegal(a); }],
       ]);
     this.write = newAddressDecoder([
         [0x0015, 0x001A,   0x1f, (a,v) => { this.xtracyc++; this.pokey1.setTIARegister(a, v); }],
@@ -348,7 +352,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
         [0x1800, 0x27ff, 0xffff, (a,v) => { this.ram[a - 0x1800] = v; }],
         [0x2800, 0x3fff,  0x7ff, (a,v) => { this.write(a | 0x2000, v); }], // shadow
         [0xbfff, 0xbfff, 0xffff, (a,v) => { }], // TODO: bank switching?
-        [0x0000, 0xffff, 0xffff, (a,v) => { throw new EmuHalt("Write @ " + hex(a,4) + " " + hex(v,2)); }],
+        [0x0000, 0xffff, 0xffff, (a,v) => { this.probe && this.probe.logIllegal(a); }],
       ]);
     this.connectCPUMemoryBus(this);
     this.probeDMABus = this.probeIOBus(this);
@@ -357,7 +361,14 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
     this.audioadapter = new TssChannelAdapter(this.pokey1, audioOversample, audioSampleRate);
   }
   
-  readConst(a) { return this.read(a); } //TODO?
+  readConst(a) {
+    // make sure we don't log during this
+    let oldprobe = this.probe;
+    this.probe = null;
+    let v = this.read(a);
+    this.probe = oldprobe;
+    return v;
+  }
 
   readInput(a:number) : number {
     switch (a) {

@@ -1074,6 +1074,7 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
       case ProbeFlags.VRAM_READ:	s = "VRAM Read"; break;
       case ProbeFlags.VRAM_WRITE:	s = "VRAM Write"; break;
       case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
+      case ProbeFlags.ILLEGAL:		s = "Error"; break;
       default:				s = ""; break;
     }
     return typeof addr == 'number' ? s + " " + this.addr2str(addr) : s;
@@ -1100,6 +1101,7 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
       case ProbeFlags.VRAM_READ:	return 0x808001;
       case ProbeFlags.VRAM_WRITE:	return 0x4080c0;
       case ProbeFlags.INTERRUPT:	return 0xcfcfcf;
+      case ProbeFlags.ILLEGAL:		return 0x3f3fff;
       default:				return 0;
     }
   }

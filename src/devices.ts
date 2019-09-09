@@ -186,6 +186,7 @@ export interface ProbeTime {
 export interface ProbeCPU {
   logExecute(address:number);
   logInterrupt(type:number);
+  logIllegal(address:number);
 }
 
 export interface ProbeBus {
@@ -218,6 +219,7 @@ export class NullProbe implements ProbeAll {
   logIOWrite()		{}
   logVRAMRead()		{}
   logVRAMWrite()	{}
+  logIllegal()		{}
 }
 
 /// CONVENIENCE
