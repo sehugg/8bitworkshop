@@ -273,13 +273,13 @@ export abstract class BaseDebugPlatform extends BasePlatform {
       this.debugTargetClock -= this.debugClock;
       this.debugClock = 0;
     }
-    this.frameCount++;
   }
   postFrame() {
     // reload debug state at end of frame after breakpoint
     if (this.debugCallback && this.debugBreakState) {
       this.loadState(this.debugBreakState);
     }
+    this.frameCount++;
   }
   pollControls() {
   }
@@ -361,6 +361,7 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     });
   }
   runToVsync() {
+    this.restartDebugging();
     var frame0 = this.frameCount;
     this.runEval( () : boolean => {
       return this.frameCount > frame0;
