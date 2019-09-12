@@ -6,7 +6,10 @@ TODO:
 - confuse code/data in listing
 - show memory locations hovering over lines
 - don't check against ROM signatures
-- DASM: macro forward refs
+- DASM
+  - macro forward refs
+  - labels start with . omit timing info (isCode)
+  - spaces in filename don't parse code listing (DASM, maybe more)
 - asm: support macro expansion
 - multiple breakpoints, expression breakpoints
 - watchpoints
@@ -31,7 +34,6 @@ TODO:
 - click to break on raster position
 - restructure src/ folders
 - debug bankswitching for funky formats
-- spaces in filename don't parse code listing (DASM, maybe more)
 - 'undefined' for bitmap replacer
 - requestInterrupt needs to be disabled after breakpoint?
 - C/asm source formatter
@@ -123,6 +125,7 @@ TODO:
   - separate Scope View
 - single-stepping vector games makes screen fade
 - break on stack overflow, illegal op, bad access, BRK, etc
+  - show in scope instead?
 - nes
   - replay doesn't work for nes (force background tile redraw)
   - nes debug view toolbar
@@ -179,6 +182,12 @@ TODO:
   - can't step back twice?
   - compiler bug in chase
 - "shared" in URL doesn't work, leave in URL? (also importURL)
+- segments disappear in memory map when binary unchanged
+
+- TypeError: null is not an object (evaluating 'n.destination')
+  https://8bitworkshop.com/v3.4.1/javatari.js/release/javatari/javatari.js
+  (32:443651)	Safari	12.1.2
+
 
 WEB WORKER FORMAT
 
@@ -303,6 +312,23 @@ Assets come from:
 - structured data (palette, sprites, metasprites, levels, etc)
 - think about new comment format, platform-specific types
 
+Programmatic Asset Language
+- load PNG, draw image, or generate bitmap font
+- split into images
+- paletteize
+- fit into tileset/spriteset
+  - NES: 8x8 or 8x16 tiles
+  - 7800: 256xN slice
+  - VCS: 24xN playfield, 8xN sprite, 32xN big sprite
+- generate data file (asm/c/bin)
+- generate char mapping
+- tile generator (makechr-like)
+- metasprites too
+- RLE compression
+- check constraints
+
+
+---
 
 Github Support
 

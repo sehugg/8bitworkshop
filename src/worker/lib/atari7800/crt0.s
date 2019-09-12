@@ -6,9 +6,11 @@
 	.export _HandyRTI
 	.export	NMI,IRQ,START
 	.import initlib,push0,popa,popax,_main,zerobss,copydata
+	.importzp sp
 
 	; Linker generated symbols
-	.import __RAM_START__   ,__RAM_SIZE__
+	.import __RAM0_START__  ,__RAM0_SIZE__
+	.import __RAM1_START__  ,__RAM1_SIZE__
 	.import __ROM0_START__  ,__ROM0_SIZE__
 	.import __STARTUP_LOAD__,__STARTUP_RUN__,__STARTUP_SIZE__
 	.import	__CODE_LOAD__   ,__CODE_RUN__   ,__CODE_SIZE__
@@ -82,6 +84,15 @@ _exit:
         cpx     #$40
         bne     @3
 
+; copy data segment
+	jsr	copydata
+; initialize cc65 stack
+	lda	#<(__RAM1_START__+__RAM1_SIZE__)
+	sta	sp
+	lda	#>(__RAM1_START__+__RAM1_SIZE__)
+	sta	sp+1
+; init CC65 library
+	jsr	initlib
 ; set interrupt vector in ZP
 	lda	#<_HandyRTI
 	sta	INTVEC

@@ -1,13 +1,12 @@
-"use strict";
 
-import $ = require("jquery");
 //import CodeMirror = require("codemirror");
 import { SourceFile, WorkerError, Segment, FileData } from "./workertypes";
 import { Platform, EmuState, ProfilerOutput, lookupSymbol, BaseDebugPlatform } from "./baseplatform";
 import { hex, lpad, rpad, safeident, rgb2bgr } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
-import { EmuProfilerImpl } from "./recorder";
+import { EmuProfilerImpl, ProbeRecorder, ProbeFlags } from "./recorder";
+import { getMousePos } from "./emu";
 import * as pixed from "./pixed/pixeleditor";
 declare var Mousetrap;
 
@@ -536,6 +535,7 @@ export class MemoryView implements ProjectView {
   maindiv : HTMLElement;
   static IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
   recreateOnResize = true;
+  totalRows = 0x1400;
 
   createDiv(parent : HTMLElement) {
     var div = document.createElement('div');
@@ -550,7 +550,7 @@ export class MemoryView implements ProjectView {
       w: $(workspace).width(),
       h: $(workspace).height(),
       itemHeight: getVisibleEditorLineHeight(),
-      totalRows: 0x1400,
+      totalRows: this.totalRows,
       generatorFn: (row : number) => {
         var s = this.getMemoryLineAt(row);
         var linediv = document.createElement("div");
@@ -697,6 +697,7 @@ export class MemoryView implements ProjectView {
 }
 
 export class VRAMMemoryView extends MemoryView {
+  totalRows = 0x800;
   readAddress(n : number) {
     return platform.readVRAMAddress(n);
   }
@@ -920,6 +921,263 @@ export class ProfileView implements ProjectView {
     else
       this.prof.stop();
   }
+}
+
+///
+
+// TODO: clear buffer when scrubbing
+
+abstract class ProbeViewBase {
+
+  probe : ProbeRecorder;
+  maindiv : HTMLElement;
+  canvas : HTMLCanvasElement;
+  ctx : CanvasRenderingContext2D;
+  tooldiv : HTMLElement;
+  recreateOnResize = true;
+  
+  createCanvas(parent:HTMLElement, width:number, height:number) {
+    var div = document.createElement('div');
+    var canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.classList.add('pixelated');
+    canvas.style.width = '100%';
+    canvas.style.height = '90vh'; // i hate css
+    canvas.style.backgroundColor = 'black';
+    canvas.style.cursor = 'crosshair';
+    canvas.onmousemove = (e) => {
+      var pos = getMousePos(canvas, e);
+      this.showTooltip(this.getTooltipText(pos.x, pos.y));
+      $(this.tooldiv).css('left',e.pageX+10).css('top',e.pageY-30);
+    }
+    canvas.onmouseout = (e) => {
+      $(this.tooldiv).hide();
+    }
+    parent.appendChild(div);
+    div.appendChild(canvas);
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.initCanvas();
+    return this.maindiv = div;
+  }
+
+  addr2str(addr : number) : string {
+    var _addr2sym = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
+    var sym = _addr2sym[addr];
+    if (typeof sym === 'string')
+      return '$' + hex(addr) + ' (' + sym + ')';
+    else
+      return '$' + hex(addr);
+  }
+
+  initCanvas() {
+  }
+  
+  showTooltip(s:string) {
+    if (s) {
+      if (!this.tooldiv) {
+        this.tooldiv = document.createElement("div");
+        this.tooldiv.setAttribute("class", "tooltiptrack");
+        document.body.appendChild(this.tooldiv);
+      }
+      $(this.tooldiv).text(s).show();
+    } else {
+      $(this.tooldiv).hide();
+    }
+  }
+
+  getTooltipText(x:number, y:number) : string {
+    return null;
+  }
+  
+  setVisible(showing : boolean) : void {
+    if (showing) {
+      this.probe = platform.startProbing();
+      this.tick();
+    } else {
+      platform.stopProbing();
+      this.probe = null;
+    }
+  }
+
+  clear() {
+  }
+  
+  redraw( eventfn:(op,addr,col,row) => void ) {
+    var p = this.probe;
+    if (!p || !p.idx) return; // if no probe, or if empty
+    var row=0;
+    var col=0;
+    for (var i=0; i<p.idx; i++) {
+      var word = p.buf[i];
+      var addr = word & 0xffffff;
+      var op = word & 0xff000000;
+      switch (op) {
+        case ProbeFlags.SCANLINE:	row++; col=0; break;
+        case ProbeFlags.FRAME:		row=0; col=0; break;
+        case ProbeFlags.CLOCKS:		col += addr; break;
+        default:
+          eventfn(op, addr, col, row);
+          break;
+      }
+    }
+  }
+
+  tick() {
+    this.clear();
+    this.redraw(this.drawEvent.bind(this));
+  }
+  
+  abstract drawEvent(op, addr, col, row);
+}
+
+abstract class ProbeBitmapViewBase extends ProbeViewBase {
+
+  imageData : ImageData;
+  datau32 : Uint32Array;
+  recreateOnResize = false;
+  
+  createDiv(parent : HTMLElement) {
+    var width = 160;
+    var height = 262;
+    try {
+      width = Math.ceil(platform['machine']['cpuCyclesPerLine']) || 256; // TODO
+      height = Math.ceil(platform['machine']['numTotalScanlines']) || 262; // TODO
+    } catch (e) {
+    }
+    return this.createCanvas(parent, width, height);
+  }
+  initCanvas() {
+    this.imageData = this.ctx.createImageData(this.canvas.width, this.canvas.height);
+    this.datau32 = new Uint32Array(this.imageData.data.buffer);
+  }
+  getTooltipText(x:number, y:number) : string {
+    x = x|0;
+    y = y|0;
+    var s = "";
+    this.redraw( (op,addr,col,row) => {
+      if (y == row && x == col) {
+         s += "\n" + this.opToString(op, addr);
+      }
+    } );
+    return 'X: ' + x + '  Y: ' + y + ' ' + s;
+  }
+  opToString(op:number, addr?:number) {
+    var s = "";
+    switch (op) {
+      case ProbeFlags.EXECUTE:		s = "Exec"; break;
+      case ProbeFlags.MEM_READ:		s = "Read"; break;
+      case ProbeFlags.MEM_WRITE:	s = "Write"; break;
+      case ProbeFlags.IO_READ:		s = "IO Read"; break;
+      case ProbeFlags.IO_WRITE:		s = "IO Write"; break;
+      case ProbeFlags.VRAM_READ:	s = "VRAM Read"; break;
+      case ProbeFlags.VRAM_WRITE:	s = "VRAM Write"; break;
+      case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
+      case ProbeFlags.ILLEGAL:		s = "Error"; break;
+      default:				s = ""; break;
+    }
+    return typeof addr == 'number' ? s + " " + this.addr2str(addr) : s;
+  }
+
+  refresh() {
+    this.tick();
+    this.datau32.fill(0xff000000);
+  }
+  tick() {
+    super.tick();
+    this.ctx.putImageData(this.imageData, 0, 0);
+  }
+  clear() {
+    this.datau32.fill(0xff000000);
+  }
+  getOpRGB(op:number) : number {
+    switch (op) {
+      case ProbeFlags.EXECUTE:		return 0x018001;
+      case ProbeFlags.MEM_READ:		return 0x800101;
+      case ProbeFlags.MEM_WRITE:	return 0x010180;
+      case ProbeFlags.IO_READ:		return 0x018080;
+      case ProbeFlags.IO_WRITE:		return 0xc00180;
+      case ProbeFlags.VRAM_READ:	return 0x808001;
+      case ProbeFlags.VRAM_WRITE:	return 0x4080c0;
+      case ProbeFlags.INTERRUPT:	return 0xcfcfcf;
+      case ProbeFlags.ILLEGAL:		return 0x3f3fff;
+      default:				return 0;
+    }
+  }
+}
+
+export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectView {
+
+  createDiv(parent : HTMLElement) {
+    return this.createCanvas(parent, 256, 256);
+  }
+  
+  clear() {
+    for (var i=0; i<=0xffff; i++) {
+      var v = platform.readAddress(i);
+      var rgb = (v >> 2) | (v & 0x1f);
+      rgb |= (rgb<<8) | (rgb<<16);
+      this.datau32[i] = rgb | 0xff000000;
+    }
+  }
+  
+  drawEvent(op, addr, col, row) {
+    var rgb = this.getOpRGB(op);
+    if (!rgb) return;
+    var x = addr & 0xff;
+    var y = (addr >> 8) & 0xff;
+    var data = this.datau32[addr & 0xffff];
+    data = data | rgb | 0xff000000;
+    this.datau32[addr & 0xffff] = data;
+  }
+  
+  getTooltipText(x:number, y:number) : string {
+    var a = (x & 0xff) + (y << 8);
+    var s = this.addr2str(a);
+    var pc = -1;
+    var already = {};
+    this.redraw( (op,addr,col,row) => {
+      if (op == ProbeFlags.EXECUTE) {
+        pc = addr;
+      }
+      var key = op|pc;
+      if (addr == a && !already[key]) {
+         s += "\nPC " + this.addr2str(pc) + " " + this.opToString(op);
+         already[key] = 1;
+      }
+    } );
+    return s;
+  }
+}
+
+/*
+export class RasterHeatMapView extends ProbeBitmapViewBase implements ProjectView {
+
+  drawEvent(op, addr, col, row) {
+    if (op == ProbeFlags.EXECUTE || op == ProbeFlags.MEM_READ) return;
+    var rgb = this.getOpRGB(op);
+    if (!rgb) return;
+    var iofs = col + row * this.canvas.width;
+    var data = this.datau32[iofs];
+    data = data | rgb | 0xff000000;
+    this.datau32[iofs] = data;
+  }
+  
+}
+*/
+
+export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectView {
+
+  drawEvent(op, addr, col, row) {
+    var iofs = col + row * this.canvas.width;
+    var rgb = this.getOpRGB(op);
+    if (!rgb) return;
+    var data = this.datau32[iofs];
+    data = data | rgb | 0xff000000;
+    this.datau32[iofs] = data;
+  }
+  
 }
 
 ///

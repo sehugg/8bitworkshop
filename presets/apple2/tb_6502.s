@@ -3,7 +3,10 @@
 
 	.segment "INIT"
 	.segment "ONCE"
+; don't use $800-$1fff :(
 	.segment "STARTUP"
+        jmp Start
+; use $4000- :)
 	.segment "CODE"
 
 .define EQU =
@@ -146,7 +149,7 @@ PERFECT_AIM     EQU $1
   ;==============================
   ; back up part of the zero page
   ;==============================
-  
+Start:
 	lda	#>zero_page_save
 	sta	BASH
 	lda	#<zero_page_save
@@ -3029,7 +3032,7 @@ check_paddles:
 	LDY  #0        ;INIT COUNTER
 	NOP            ;COMPENSATE FOR 1ST COUNT
 	NOP
-PREAD2:	LDA  PADDL0,X  ;COUNT EVERY 11 µSEC.
+PREAD2:	LDA  PADDL0,X  ;COUNT EVERY 11 uSEC.
 	BPL  RTS2D     ;BRANCH WHEN TIMED OUT
 	INY            ;INCREMENT COUNTER
 	BNE  PREAD2    ;CONTINUE COUNTING

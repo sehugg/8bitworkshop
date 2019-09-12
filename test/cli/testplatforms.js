@@ -27,11 +27,14 @@ includeInThisContext('tss/js/tss/AudioLooper.js');
 //includeInThisContext("jsnes/dist/jsnes.min.js");
 global.jsnes = require("jsnes/dist/jsnes.min.js");
 
+//var devices = require('gen/devices.js');
 var emu = require('gen/emu.js');
 var Keys = emu.Keys;
 var audio = require('gen/audio.js');
 var recorder = require('gen/recorder.js');
+//var _6502 = require('gen/cpu/MOS6502.js');
 var _apple2 = require('gen/platform/apple2.js');
+//var m_apple2 = require('gen/machine/apple2.js');
 var _vcs = require('gen/platform/vcs.js');
 var _nes = require('gen/platform/nes.js');
 var _vicdual = require('gen/platform/vicdual.js');
@@ -118,6 +121,11 @@ function testPlatform(platid, romname, maxframes, callback) {
     var rom = fs.readFileSync('./test/roms/' + platid + '/' + romname);
     rom = new Uint8Array(rom);
     platform.loadROM("ROM", rom);
+    var state0a = platform.saveState();
+    platform.reset(); // reset again
+    var state0b = platform.saveState();
+    //TODO: vcs fails assert.deepEqual(state0a, state0b);
+    //if (platform.startProbing) platform.startProbing();
     platform.resume(); // so that recorder works
     platform.setRecorder(rec);
     for (var i=0; i<maxframes; i++) {
@@ -140,6 +148,11 @@ function testPlatform(platid, romname, maxframes, callback) {
     assert.equal(maxframes, rec.loadFrame(maxframes));
     var state2 = platform.saveState();
     assert.deepEqual(state1, state2);
+    // test memory reads not clearing stuff
+    for (var i=0; i<=0xffff; i++)
+      if (platform.readAddress) platform.readAddress(i);
+    var state3 = platform.saveState();
+    assert.deepEqual(state2, state3);
     // test debug info
     var debugs = platform.getDebugCategories();
     for (var dcat of debugs) {
@@ -171,7 +184,7 @@ describe('Platform Replay', () => {
         keycallback(32, 32, 128); // space bar
       }
     });
-    assert.equal(platform.saveState().kbd, 0x20); // strobe cleared
+    assert.equal(platform.saveState().kbdlatch, 0x20); // strobe cleared
   });
 
   it('Should run > 120 secs', () => {
@@ -233,7 +246,7 @@ describe('Platform Replay', () => {
       }
     });
   });
-
+/*
   it('Should run williams 6809', () => {
     var platform = testPlatform('williams', 'vidfill.asm.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
@@ -241,6 +254,7 @@ describe('Platform Replay', () => {
       }
     });
   });
+*/
   it('Should run williams-z80', () => {
     var platform = testPlatform('williams-z80', 'game1.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
@@ -248,7 +262,6 @@ describe('Platform Replay', () => {
       }
     });
   });
-/*
   it('Should run sound_williams', () => {
     var platform = testPlatform('sound_williams-z80', 'swave.c.rom', 72, (platform, frameno) => {
       if (frameno == 60) {
@@ -256,7 +269,6 @@ describe('Platform Replay', () => {
       }
     });
   });
-*/
 
   it('Should run astrocade', () => {
     var platform = testPlatform('astrocade', 'cosmic.c.rom', 92, (platform, frameno) => {
@@ -285,5 +297,7 @@ describe('Platform Replay', () => {
         keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
       }
     });
+    assert.equal(0x1800, platform.saveState().maria.dll);
+    assert.equal(39, platform.readAddress(0x81)); // player y pos
   });
 });

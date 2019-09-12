@@ -70,7 +70,7 @@ function VirtualList(config) {
   function onScroll(e) {
     var scrollTop = e.target.scrollTop; // Triggers reflow
     if (!lastRepaintY || Math.abs(scrollTop - lastRepaintY) > maxBuffer) {
-      var first = parseInt(scrollTop / itemHeight) - screenItemsLen;
+      var first = Math.floor(scrollTop / itemHeight) - screenItemsLen;
       self._renderChunk(self.container, first < 0 ? 0 : first);
       lastRepaintY = scrollTop;
     }
@@ -141,17 +141,17 @@ VirtualList.createContainer = function(w, h) {
   c.style.height = h;
   c.style.overflow = 'auto';
   c.style.position = 'relative';
-  c.style.padding = 0;
+  c.style.padding = '0';
   c.style.border = '1px solid black';
   return c;
 };
 
 VirtualList.createScroller = function(h) {
   var scroller = document.createElement('div');
-  scroller.style.opacity = 0;
+  scroller.style.opacity = '0';
   scroller.style.position = 'absolute';
-  scroller.style.top = 0;
-  scroller.style.left = 0;
+  scroller.style.top = '0';
+  scroller.style.left = '0';
   scroller.style.width = '1px';
   scroller.style.height = h + 'px';
   return scroller;

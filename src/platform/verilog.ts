@@ -94,6 +94,9 @@ export function VL_LTES_III(x,lbits,y,lhs,rhs) {
 export function VL_GTES_III(x,lbits,y,lhs,rhs) {
     return (VL_EXTENDS_II(x,lbits,lhs) >= VL_EXTENDS_II(x,lbits,rhs)) ? 1 : 0; }
 
+export function VL_DIV_III(lbits,lhs,rhs) {
+    return (((rhs)==0)?0:(lhs)/(rhs)); }
+
 export function VL_MODDIV_III(lbits,lhs,rhs) {
     return (((rhs)==0)?0:(lhs)%(rhs)); }
 
@@ -349,10 +352,6 @@ var VerilogPlatform = function(mainElement, options) {
   start() {
     video = new RasterVideo(mainElement,videoWidth,videoHeight,{overscan:true});
     video.create();
-    var ctx = video.getContext();
-    ctx.font = "8px TinyFont";
-    ctx.fillStyle = "white";
-    ctx.textAlign = "left";
     poller = setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP, (o,key,code,flags) => {
       if (flags & KeyFlags.KeyPress) {
         keycode = code | 0x80;

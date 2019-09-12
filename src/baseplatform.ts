@@ -2,10 +2,12 @@
 import { RAM, RasterVideo, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes, ControllerPoller } from "./emu";
 import { hex, printFlags, invertMap } from "./util";
 import { CodeAnalyzer } from "./analysis";
+import { Segment } from "./workertypes";
 import { disassemble6502 } from "./cpu/disasm6502";
 import { disassembleZ80 } from "./cpu/disasmz80";
+import { Z80 } from "./cpu/ZilogZ80";
 
-declare var buildZ80, jt, CPU6809;
+declare var jt, CPU6809;
 
 export interface OpcodeMetadata {
   minCycles: number;
@@ -17,7 +19,6 @@ export interface OpcodeMetadata {
 export interface CpuState {
   PC:number;
   EPC?:number; // effective PC (for bankswitching)
-  T?:number;
   o?:number;/*opcode*/
   SP?:number
   /*
@@ -27,8 +28,8 @@ export interface CpuState {
 export interface EmuState {
   c?:CpuState,	// CPU state
   b?:Uint8Array|number[], 	// RAM (TODO: not for vcs, support Uint8Array)
+  ram?:Uint8Array,
   o?:{},				// verilog
-  T?:number,		// verilog
 };
 export interface EmuControlsState {
 }
@@ -49,13 +50,21 @@ export class DebugSymbols {
     this.symbolmap = symbolmap;
     this.addr2symbol = invertMap(symbolmap);
     //// TODO: shouldn't be necc.
-    if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = '__START__'; // needed for ...
+    if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = ' '; // needed for ...
     this.addr2symbol[0x10000] = '__END__'; // ... dump memory to work
   }
 }
 
-export interface PlatformMetadata {
-  name : string; // TODO
+type MemoryMapType = "main" | "vram";
+type MemoryMap = { [type:string] : Segment[] };
+
+export function isDebuggable(arg:any): arg is Debuggable {
+    return typeof arg.getDebugCategories === 'function';
+}
+
+export interface Debuggable {
+  getDebugCategories?() : string[];
+  getDebugInfo?(category:string, state:EmuState) : string;
 }
 
 export interface Platform {
@@ -69,7 +78,6 @@ export interface Platform {
   resume() : void;
   loadROM(title:string, rom:any); // TODO: Uint8Array
   loadBIOS?(title:string, rom:Uint8Array);
-  getMetadata?() : PlatformMetadata;
 
   loadState?(state : EmuState) : void;
   saveState?() : EmuState;
@@ -80,6 +88,7 @@ export interface Platform {
   disassemble?(addr:number, readfn:(addr:number)=>number) : DisasmLine;
   readAddress?(addr:number) : number;
   readVRAMAddress?(addr:number) : number;
+  
   setFrameRate?(fps:number) : void;
   getFrameRate?() : number;
 
@@ -95,11 +104,12 @@ export interface Platform {
 
   getOpcodeMetadata?(opcode:number, offset:number) : OpcodeMetadata; //TODO
   getSP?() : number;
+  getPC?() : number;
   getOriginPC?() : number;
   newCodeAnalyzer?() : CodeAnalyzer;
-
-  getDebugCategories?() : string[];
-  getDebugInfo?(category:string, state:EmuState) : string;
+  
+  getPlatformName?() : string;
+  getMemoryMap?() : MemoryMap;
 
   setRecorder?(recorder : EmuRecorder) : void;
   advance?(novideo? : boolean) : void;
@@ -112,6 +122,9 @@ export interface Platform {
   getCPUState?() : CpuState;
 
   debugSymbols? : DebugSymbols;
+  
+  startProbing?() : ProbeRecorder;
+  stopProbing?() : void;
 }
 
 export interface Preset {
@@ -207,6 +220,7 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   debugTargetClock : number = 0;
   debugClock : number = 0;
   breakpoints : BreakpointList = new BreakpointList();
+  frameCount : number = 0;
 
   abstract getCPUState() : CpuState;
   abstract readAddress(addr:number) : number;
@@ -235,6 +249,7 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.debugClock = 0;
     this.onBreakpointHit = null;
     this.clearBreakpoint('debug');
+    this.frameCount = 0;
   }
   setDebugCondition(debugCond : DebugCondition) {
     this.setBreakpoint('debug', debugCond);
@@ -251,8 +266,20 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.resume();
   }
   preFrame() {
+    // save state before frame, to record any inputs that happened pre-frame
+    if (this.debugCallback && !this.debugBreakState) {
+      // save state every frame and rewind debug clocks
+      this.debugSavedState = this.saveState();
+      this.debugTargetClock -= this.debugClock;
+      this.debugClock = 0;
+    }
+    this.frameCount++;
   }
   postFrame() {
+    // reload debug state at end of frame after breakpoint
+    if (this.debugCallback && this.debugBreakState) {
+      this.loadState(this.debugBreakState);
+    }
   }
   pollControls() {
   }
@@ -262,6 +289,82 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.preFrame();
     this.advance(novideo);
     this.postFrame();
+  }
+  // default debugging
+  abstract getSP() : number;
+  abstract getPC() : number;
+  abstract isStable() : boolean;
+
+  evalDebugCondition() {
+    if (this.debugCallback && !this.debugBreakState) {
+      this.debugCallback();
+    }
+  }
+  wasBreakpointHit() : boolean {
+    return this.debugBreakState != null;
+  }
+  breakpointHit(targetClock : number) {
+    console.log(this.debugTargetClock, targetClock, this.debugClock, this.isStable());
+    this.debugTargetClock = targetClock;
+    this.debugBreakState = this.saveState();
+    console.log("Breakpoint at clk", this.debugClock, "PC", this.debugBreakState.c.PC.toString(16));
+    this.pause();
+    if (this.onBreakpointHit) {
+      this.onBreakpointHit(this.debugBreakState);
+    }
+  }
+  runEval(evalfunc : DebugEvalCondition) {
+    this.setDebugCondition( () => {
+      if (++this.debugClock >= this.debugTargetClock && this.isStable()) {
+        var cpuState = this.getCPUState();
+        if (evalfunc(cpuState)) {
+          this.breakpointHit(this.debugClock);
+          return true;
+        } else {
+          return false;
+        }
+      }
+    });
+  }
+  runUntilReturn() {
+    var SP0 = this.getSP();
+    this.runEval( (c:CpuState) : boolean => {
+      return c.SP > SP0;
+    });
+  }
+  runToFrameClock(clock : number) : void {
+    this.restartDebugging();
+    this.debugTargetClock = clock;
+    this.runEval(() : boolean => { return true; });
+  }
+  step() {
+    this.runToFrameClock(this.debugClock+1);
+  }
+  stepBack() {
+    var prevState;
+    var prevClock;
+    var clock0 = this.debugTargetClock;
+    this.restartDebugging();
+    this.debugTargetClock = clock0 - 25; // TODO: depends on CPU
+    this.runEval( (c:CpuState) : boolean => {
+      if (this.debugClock < clock0) {
+        prevState = this.saveState();
+        prevClock = this.debugClock;
+        return false;
+      } else {
+        if (prevState) {
+          this.loadState(prevState);
+          this.debugClock = prevClock;
+        }
+        return true;
+      }
+    });
+  }
+  runToVsync() {
+    var frame0 = this.frameCount;
+    this.runEval( () : boolean => {
+      return this.frameCount > frame0;
+    });
   }
 }
 
@@ -286,93 +389,9 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
   debugPCDelta = -1;
   fixPC(c)   { c.PC = (c.PC + this.debugPCDelta) & 0xffff; return c; }
   unfixPC(c) { c.PC = (c.PC - this.debugPCDelta) & 0xffff; return c;}
-
-  evalDebugCondition() {
-    if (this.debugCallback && !this.debugBreakState) {
-      this.debugCallback();
-    }
-  }
-  postFrame() {
-    if (this.debugCallback) {
-      if (this.debugBreakState) {
-        // reload debug state at end of frame after breakpoint
-        this.loadState(this.debugBreakState);
-      } else {
-        // save state every frame and rewind debug clocks
-        this.debugSavedState = this.saveState();
-        this.debugTargetClock -= this.debugClock;
-        this.debugClock = 0;
-      }
-    }
-  }
-  breakpointHit(targetClock : number) {
-    this.debugTargetClock = targetClock;
-    this.debugBreakState = this.saveState();
-    console.log("Breakpoint at clk", this.debugClock, "PC", this.debugBreakState.c.PC.toString(16));
-    this.pause();
-    if (this.onBreakpointHit) {
-      this.onBreakpointHit(this.debugBreakState);
-    }
-  }
-  runEval(evalfunc : DebugEvalCondition) {
-    this.setDebugCondition( () => {
-      if (this.debugClock++ > this.debugTargetClock) {
-        var cpuState = this.getCPUState();
-        if (evalfunc(cpuState)) {
-          this.breakpointHit(this.debugClock-1);
-          return true;
-        } else {
-          return false;
-        }
-      }
-    });
-  }
-  runToFrameClock?(clock : number) : void {
-    this.restartDebugging();
-    this.debugTargetClock = clock;
-    this.setDebugCondition( () => {
-      if (this.debugClock++ > this.debugTargetClock) {
-        this.breakpointHit(this.debugClock-1);
-        return true;
-      }
-    });
-  }
-  step() {
-    var previousPC = -1;
-    this.setDebugCondition( () => {
-      //console.log(this.debugClock, this.debugTargetClock, this.getCPUState().PC, this.getCPUState());
-      if (this.debugClock++ >= this.debugTargetClock) {
-        var thisState = this.getCPUState();
-        if (previousPC < 0) {
-          previousPC = thisState.PC;
-        } else {
-          // doesn't work w/ endless loops
-          if (thisState.PC != previousPC && thisState.T == 0) {
-            this.breakpointHit(this.debugClock-1);
-            return true;
-          }
-        }
-      }
-      return false;
-    });
-  }
-  stepBack() {
-    var prevState;
-    var prevClock;
-    this.setDebugCondition( () => {
-      if (this.debugClock++ >= this.debugTargetClock && prevState) {
-        this.loadState(prevState);
-        this.breakpointHit(prevClock-1);
-        return true;
-      } else if (this.debugClock > this.debugTargetClock-10 && this.debugClock <= this.debugTargetClock+this.debugPCDelta) { // TODO: why this works?
-        if (this.getCPUState().T == 0) {
-          prevState = this.saveState();
-          prevClock = this.debugClock;
-        }
-      }
-      return false;
-    });
-  }
+  getSP()    { return this.getCPUState().SP };
+  getPC()    { return this.getCPUState().PC };
+  isStable() { return !this.getCPUState()['T']; }
 
   newCPU(membus : MemoryBus) {
     var cpu = new jt.M6502();
@@ -388,19 +407,6 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
     return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
   }
 
-  runUntilReturn() {
-    var depth = 1;
-    this.runEval( (c:CpuState) => {
-      if (depth <= 0 && c.T == 0)
-        return true;
-      if (c.o == 0x20)
-        depth++;
-      else if (c.o == 0x60 || c.o == 0x40)
-        --depth;
-      return false;
-    });
-  }
-
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
   }
@@ -413,8 +419,8 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
   getDebugInfo(category:string, state:EmuState) : string {
     switch (category) {
       case 'CPU':   return cpuStateToLongString_6502(state.c);
-      case 'ZPRAM': return dumpRAM(state.b, 0x0, 0x100);
-      case 'Stack': return dumpStackToString(<Platform><any>this, state.b, 0x100, 0x1ff, 0x100+state.c.SP, 0x20);
+      case 'ZPRAM': return dumpRAM(state.b||state.ram, 0x0, 0x100);
+      case 'Stack': return dumpStackToString(<Platform><any>this, state.b||state.ram, 0x100, 0x1ff, 0x100+state.c.SP, 0x20);
     }
   }
 }
@@ -468,7 +474,7 @@ export function cpuStateToLongString_Z80(c) {
   function decodeFlags(flags) {
     return printFlags(flags, ["S","Z",,"H",,"V","N","C"], true);
   }
-  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.AF) + "\n"
+  return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.AF) + " " + (c.iff1?"I":"-") + (c.iff2?"I":"-") + "\n"
        + "SP " + hex(c.SP,4) + "  IR " + hex(c.IR,4) + "\n"
        + "IX " + hex(c.IX,4) + "  IY " + hex(c.IY,4) + "\n"
        + "AF " + hex(c.AF,4) + "  BC " + hex(c.BC,4) + "\n"
@@ -476,169 +482,43 @@ export function cpuStateToLongString_Z80(c) {
        ;
 }
 
-export function BusProbe(bus : MemoryBus) {
-  var active = false;
-  var callback;
-  this.activate = function(_callback) {
-    active = true;
-    callback = _callback;
-  }
-  this.deactivate = function() {
-    active = false;
-    callback = null;
-  }
-  this.read = function(a) {
-    if (active) {
-      callback(a);
-    }
-    return bus.read(a);
-  }
-  this.write = function(a,v) {
-    if (active) {
-      callback(a,v);
-    }
-    bus.write(a,v);
-  }
-  this.contend = function(addr,cyc) {
-    return bus.contend(addr,cyc);
-  }
-  this.isContended = function(addr) {
-    return bus.isContended(addr);
-  }
-}
-
 export abstract class BaseZ80Platform extends BaseDebugPlatform {
 
   _cpu;
-  probe;
+  waitCycles : number = 0;
 
-  newCPU(membus : MemoryBus, iobus : MemoryBus, z80opts? : {}) {
-    this.probe = new BusProbe(membus);
-    this._cpu = buildZ80(z80opts || {})({
-     display: {},
-     memory: this.probe,
-     ioBus: iobus
-   });
-   return this._cpu;
+  newCPU(membus : MemoryBus, iobus : MemoryBus) {
+    this._cpu = new Z80();
+    this._cpu.connectMemoryBus(membus);
+    this._cpu.connectIOBus(iobus);
+    return this._cpu;
   }
 
-  getProbe() { return this.probe; } // TODO?
   getPC() { return this._cpu.getPC(); }
   getSP() { return this._cpu.getSP(); }
+  isStable() { return true; }
 
   // TODO: refactor other parts into here
   runCPU(cpu, cycles:number) {
     this._cpu = cpu; // TODO?
+    this.waitCycles = 0; // TODO: needs to spill over betwenn calls
     if (this.wasBreakpointHit())
       return 0;
     var debugCond = this.getDebugCallback();
-    var targetTstates = cpu.getTstates() + cycles;
-    try {
-      if (debugCond) { // || trace) {
-        while (cpu.getTstates() < targetTstates) {
-          if (debugCond && debugCond()) {
-            debugCond = null;
-            break;
-          }
-          cpu.runFrame(cpu.getTstates() + 1);
-        }
-      } else {
-        cpu.runFrame(targetTstates);
+    var n = 0;
+    this.waitCycles += cycles;
+    while (this.waitCycles > 0) {
+      if (debugCond && debugCond()) {
+        debugCond = null;
+        break;
       }
-    } catch (e) {
-      // TODO: show alert w/ error msg
-      console.log(e);
-      this.breakpointHit(cpu.getTstates());
+      var cyc = cpu.advanceInsn();
+      n += cyc;
+      this.waitCycles -= cyc;
     }
-    return cpu.getTstates() - targetTstates;
+    return n;
   }
-  requestInterrupt(cpu, data) {
-    if (!this.wasBreakpointHit())
-      cpu.requestInterrupt(data);
-  }
-  postFrame() {
-    if (this.debugCallback) {
-      if (this.debugBreakState) {
-        // if breakpoint, reload debug state after frame
-        this.loadState(this.debugBreakState);
-      } else {
-        // reset debug target clocks
-        this.debugSavedState = this.saveState();
-        if (this.debugTargetClock > 0)
-          this.debugTargetClock -= this.debugSavedState.c.T;
-        this.debugSavedState.c.T = 0;
-        this.loadState(this.debugSavedState);
-      }
-    }
-  }
-  breakpointHit(targetClock : number) {
-    this.debugTargetClock = targetClock;
-    this.debugBreakState = this.saveState();
-    console.log("Breakpoint at clk", this.debugBreakState.c.T, "PC", this.debugBreakState.c.PC.toString(16));
-    this.pause();
-    if (this.onBreakpointHit) {
-      this.onBreakpointHit(this.debugBreakState);
-    }
-  }
-  wasBreakpointHit() : boolean {
-    return this.debugBreakState != null;
-  }
-  // TODO: lower bound of clock value
-  step() {
-    this.setDebugCondition( () => {
-      var cpuState = this.getCPUState();
-      if (cpuState.T > this.debugTargetClock) {
-        this.breakpointHit(cpuState.T);
-        return true;
-      }
-      return false;
-    });
-  }
-  stepBack() {
-    var prevState;
-    var prevClock;
-    this.setDebugCondition( () => {
-      var cpuState = this.getCPUState();
-      var debugClock = cpuState.T;
-      if (debugClock >= this.debugTargetClock && prevState) {
-        this.loadState(prevState);
-        this.breakpointHit(prevClock);
-        return true;
-      } else if (debugClock > this.debugTargetClock-20 && debugClock < this.debugTargetClock) {
-        prevState = this.saveState();
-        prevClock = debugClock;
-      }
-      return false;
-    });
-  }
-  runEval(evalfunc : DebugEvalCondition) {
-    this.setDebugCondition( () => {
-      var cpuState = this.getCPUState();
-      if (cpuState.T > this.debugTargetClock) {
-        if (evalfunc(cpuState)) {
-          this.breakpointHit(cpuState.T);
-          return true;
-        }
-      }
-      return false;
-    });
-  }
-  runUntilReturn() {
-    var depth = 1;
-    this.runEval( (c) => {
-      if (depth <= 0)
-        return true;
-      var op = this.readAddress(c.PC);
-      if (op == 0xcd) // CALL
-        depth++;
-      else if (op == 0xc0 || op == 0xc8 || op == 0xc9 || op == 0xd0) // RET (TODO?)
-        --depth;
-      return false;
-    });
-  }
-  runToVsync() {
-    this.runEval((c) => { return c['intp']; });
-  }
+
   getToolForFilename = getToolForFilename_z80;
   getDefaultExtension() { return ".c"; };
   // TODO: Z80 opcode metadata
@@ -701,21 +581,6 @@ export abstract class Base6809Platform extends BaseZ80Platform {
 
   getPC() { return this._cpu.PC; }
   getSP() { return this._cpu.SP; }
-
-  runUntilReturn() {
-    var depth = 1;
-    this.runEval((c:CpuState) => {
-      if (depth <= 0)
-        return true;
-      var op = this.readAddress(c.PC);
-      // TODO: 6809 opcodes
-      if (op == 0x9d || op == 0xad || op == 0xbd) // CALL
-        depth++;
-      else if (op == 0x3b || op == 0x39) // RET
-        --depth;
-      return false;
-    });
-  }
 
   cpuStateToLongString(c:CpuState) {
     return cpuStateToLongString_6809(c);
@@ -1061,127 +926,199 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
       var sym = addr2symbol[addr];
       return extra ? (sym + " + $" + hex(start-addr)) : sym;
     }
+    if (!extra) break;
     addr--;
   }
   return "";
 }
 
-///// Basic Platforms
+/// new Machine platform adapters
 
-export abstract class BasicZ80ScanlinePlatform extends BaseZ80Platform {
+import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU } from "./devices";
+import { Probeable, RasterFrameBased, AcceptsPaddleInput } from "./devices";
+import { SampledAudio } from "./audio";
+import { ProbeRecorder } from "./recorder";
 
-  cpuFrequency : number;
-  canvasWidth : number;
-  numTotalScanlines : number;
-  numVisibleScanlines : number;
-  defaultROMSize : number;
+interface Machine extends Bus, Resettable, FrameBased, AcceptsROM, HasCPU, SavesState<EmuState>, SavesInputState<any> {
+}
 
-  cpuCyclesPerLine : number;
-  currentScanline : number;
-  startLineTstates : number;
+function hasVideo(arg:any): arg is VideoSource {
+    return typeof arg.connectVideo === 'function';
+}
+function hasAudio(arg:any): arg is SampledAudioSource {
+    return typeof arg.connectAudio === 'function';
+}
+function hasKeyInput(arg:any): arg is AcceptsKeyInput {
+    return typeof arg.setKeyInput === 'function';
+}
+function hasPaddleInput(arg:any): arg is AcceptsPaddleInput {
+    return typeof arg.setPaddleInput === 'function';
+}
+function isRaster(arg:any): arg is RasterFrameBased {
+    return typeof arg.getRasterY === 'function';
+}
+function hasProbe(arg:any): arg is Probeable {
+    return typeof arg.connectProbe == 'function';
+}
 
-  cpu;
-  membus : MemoryBus;
-  iobus : MemoryBus;
-  ram = new Uint8Array(0);
-  rom = new Uint8Array(0);
-  video;
-  timer;
-  audio;
-  psg;
-  pixels : Uint32Array;
-  inputs : Uint8Array = new Uint8Array(32);
+export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPlatform implements Platform {
+  machine : T;
   mainElement : HTMLElement;
+  timer : AnimationTimer;
+  video : RasterVideo;
+  audio : SampledAudio;
   poller : ControllerPoller;
-
-  abstract newRAM() : Uint8Array;
-  abstract newMembus() : MemoryBus;
-  abstract newIOBus() : MemoryBus;
-  abstract getVideoOptions() : {};
-  abstract getKeyboardMap();
-  abstract startScanline(sl : number) : void;
-  abstract drawScanline(sl : number) : void;
-  getRasterScanline() : number { return this.currentScanline; }
-  getKeyboardFunction() { return null; }
-
+  probeRecorder : ProbeRecorder;
+  startProbing;
+  stopProbing;
+  
+  abstract newMachine() : T;
+  abstract getToolForFilename(s:string) : string;
+  abstract getDefaultExtension() : string;
+  abstract getPresets() : Preset[];
+  
   constructor(mainElement : HTMLElement) {
     super();
     this.mainElement = mainElement;
+    this.machine = this.newMachine();
   }
 
+  reset()        { this.machine.reset(); }
+  loadState(s)   { this.machine.loadState(s); }
+  saveState()    { return this.machine.saveState(); }
+  getSP()        { return this.machine.cpu.getSP(); }
+  getPC()        { return this.machine.cpu.getPC(); }
+  isStable() 	 { return this.machine.cpu.isStable(); }
+  getCPUState()  { return this.machine.cpu.saveState(); }
+  loadControlsState(s)   { this.machine.loadControlsState(s); }
+  saveControlsState()    { return this.machine.saveControlsState(); }
+  
   start() {
-    this.cpuCyclesPerLine = Math.round(this.cpuFrequency / 60 / this.numTotalScanlines);
-    this.ram = this.newRAM();
-    this.membus = this.newMembus();
-    this.iobus = this.newIOBus();
-    this.cpu = this.newCPU(this.membus, this.iobus);
-    this.video = new RasterVideo(this.mainElement, this.canvasWidth, this.numVisibleScanlines, this.getVideoOptions());
-    this.video.create();
-    this.pixels = this.video.getFrameData();
-    this.poller = setKeyboardFromMap(this.video, this.inputs, this.getKeyboardMap(), this.getKeyboardFunction());
+    const m = this.machine;
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
-  }
-
-  readAddress(addr) {
-    return this.membus.read(addr);
+    if (hasVideo(m)) {
+      var vp = m.getVideoParams();
+      this.video = new RasterVideo(this.mainElement, vp.width, vp.height, {overscan:!!vp.overscan,rotate:vp.rotate|0});
+      this.video.create();
+      m.connectVideo(this.video.getFrameData());
+      // TODO: support keyboard w/o video?
+      if (hasKeyInput(m)) {
+        this.video.setKeyboardEvents(m.setKeyInput.bind(m));
+        this.poller = new ControllerPoller(m.setKeyInput.bind(m));
+      }
+    }
+    if (hasAudio(m)) {
+      var ap = m.getAudioParams();
+      this.audio = new SampledAudio(ap.sampleRate);
+      this.audio.start();
+      m.connectAudio(this.audio);
+    }
+    if (hasPaddleInput(m)) {
+      this.video.setupMouseEvents();
+    }
+    if (hasProbe(m)) {
+      this.probeRecorder = new ProbeRecorder(m);
+      this.startProbing = () => {
+        m.connectProbe(this.probeRecorder);
+        return this.probeRecorder;
+      };
+      this.stopProbing = () => {
+        m.connectProbe(null);
+      };
+    }
   }
   
-  pollControls() { this.poller.poll(); }
-
-  advance(novideo : boolean) {
-    var extraCycles = 0;
-    for (var sl=0; sl<this.numTotalScanlines; sl++) {
-      this.startLineTstates = this.cpu.getTstates();
-      this.currentScanline = sl;
-      this.startScanline(sl);
-      extraCycles = this.runCPU(this.cpu, this.cpuCyclesPerLine - extraCycles); // TODO: HALT opcode?
-      this.drawScanline(sl);
-    }
-    this.video.updateFrame();
-  }
-
   loadROM(title, data) {
-    this.rom = padBytes(data, this.defaultROMSize);
+    this.machine.loadROM(data);
     this.reset();
   }
 
-  loadState(state) {
-    this.cpu.loadState(state.c);
-    this.ram.set(state.b);
-    this.inputs.set(state.in);
+  pollControls() {
+    this.poller && this.poller.poll();
+    if (hasPaddleInput(this.machine)) {
+      this.machine.setPaddleInput(0, this.video.paddle_x);
+      this.machine.setPaddleInput(1, this.video.paddle_y);
+    }
   }
-  saveState() {
-    return {
-      c:this.getCPUState(),
-      b:this.ram.slice(0),
-      in:this.inputs.slice(0),
-    };
-  }
-  loadControlsState(state) {
-    this.inputs.set(state.in);
-  }
-  saveControlsState() {
-    return {
-      in:this.inputs.slice(0)
-    };
-  }
-  getCPUState() {
-    return this.cpu.saveState();
+
+  advance(novideo:boolean) {
+    this.machine.advanceFrame(this.getDebugCallback());
+    if (!novideo && this.video) this.video.updateFrame();
   }
 
   isRunning() {
-    return this.timer && this.timer.isRunning();
+    return this.timer.isRunning();
   }
-  pause() {
-    this.timer.stop();
-    if (this.audio) this.audio.stop();
-  }
+
   resume() {
     this.timer.start();
-    if (this.audio) this.audio.start();
+    this.audio && this.audio.start();
   }
-  reset() {
-    this.cpu.reset();
-    this.cpu.setTstates(0);
+
+  pause() {
+    this.timer.stop();
+    this.audio && this.audio.stop();
   }
+
+// TODO: reset target clock counter
+  getRasterScanline() {
+    return isRaster(this.machine) && this.machine.getRasterY();
+  }
+}
+
+// TODO: move debug info into CPU?
+
+export abstract class Base6502MachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
+
+  getOpcodeMetadata     = getOpcodeMetadata_6502;
+  getToolForFilename    = getToolForFilename_6502;
+
+  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
+    return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
+  }
+  getDebugCategories() {
+    if (isDebuggable(this.machine))
+      return this.machine.getDebugCategories();
+    else
+      return ['CPU','ZPRAM','Stack'];
+  }
+  getDebugInfo(category:string, state:EmuState) : string {
+    switch (category) {
+      case 'CPU':   return cpuStateToLongString_6502(state.c);
+      case 'ZPRAM': return dumpRAM(state.b||state.ram, 0x0, 0x100);
+      case 'Stack': return dumpStackToString(<Platform><any>this, state.b||state.ram, 0x100, 0x1ff, 0x100+state.c.SP, 0x20);
+      default: return isDebuggable(this.machine) && this.machine.getDebugInfo(category, state);
+    }
+  }
+}
+
+export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
+
+  //getOpcodeMetadata     = getOpcodeMetadata_z80;
+  getToolForFilename    = getToolForFilename_z80;
+
+  getDebugCategories() {
+    if (isDebuggable(this.machine))
+      return this.machine.getDebugCategories();
+    else
+      return ['CPU','Stack'];
+  }
+  getDebugInfo(category:string, state:EmuState) : string {
+    switch (category) {
+      case 'CPU':   return cpuStateToLongString_Z80(state.c);
+      case 'Stack': {
+        var sp = (state.c.SP-1) & 0xffff;
+        var start = sp & 0xff00;
+        var end = start + 0xff;
+        if (sp == 0) sp = 0x10000;
+        console.log(sp,start,end);
+        return dumpStackToString(<Platform><any>this, [], start, end, sp, 0xcd);
+      }
+      default: return isDebuggable(this.machine) && this.machine.getDebugInfo(category, state);
+    }
+  }
+  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
+    return disassembleZ80(pc, read(pc), read(pc+1), read(pc+2), read(pc+3));
+  }
+
 }

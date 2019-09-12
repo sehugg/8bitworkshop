@@ -1,4 +1,3 @@
-"use strict";
 
 // from TSS
 declare var MasterChannel, AudioLooper, PsgDeviceChannel;
@@ -402,10 +401,11 @@ export var SampleAudio = function(clockfreq) {
     self.sr=self.context.sampleRate;
     self.bufferlen=2048;
 
-    // Amiga 500 fixed filter at 6kHz. WebAudio lowpass is 12dB/oct, whereas
-    // older Amigas had a 6dB/oct filter at 4900Hz.
+    // remove DC bias
     self.filterNode=self.context.createBiquadFilter();
-    self.filterNode.frequency.value=6000;
+    self.filterNode.type='lowshelf';
+    self.filterNode.frequency.value=100;
+    self.filterNode.gain.value=-6;
 
     // mixer
     if ( typeof self.context.createScriptProcessor === 'function') {
@@ -471,7 +471,7 @@ export var SampleAudio = function(clockfreq) {
       var inext = (ifill + 1) % bufferlist.length;
       if (inext == idrain) {
         ifill = Math.floor(idrain + nbuffers/2) % bufferlist.length;
-        //console.log('audio skipped', idrain, ifill);
+        //console.log('SampleAudio: skipped buffer', idrain, ifill); // TODO
       } else {
         ifill = inext;
       }
@@ -480,15 +480,52 @@ export var SampleAudio = function(clockfreq) {
   }
 
   this.feedSample = function(value, count) {
-    while (count-- > 0) {
-      accum += value;
-      sfrac += sinc;
-      while (sfrac >= 1) {
-        sfrac -= 1;
-        value *= sfrac;
-        this.addSingleSample(accum - value);
-        accum = value;
-      }
+    accum += value * count;
+    sfrac += sinc * count;
+    while (sfrac >= 1) {
+      sfrac -= 1;
+      value *= sfrac;
+      this.addSingleSample(accum - value);
+      accum = value;
     }
   }
+  
 }
+
+
+export class SampledAudio {
+  sa;
+  constructor(sampleRate : number) {
+    this.sa = new SampleAudio(sampleRate);
+  }
+  feedSample(value:number, count:number) {
+    this.sa.feedSample(value, count);
+  }
+  start() {
+    this.sa.start();
+  }
+  stop() {
+    this.sa.stop();
+  }
+}
+
+import { SampledAudioSink } from "./devices";
+
+export class TssChannelAdapter {
+  channel;
+  audioGain = 1.0 / 8192;
+  constructor(channel, oversample:number, sampleRate:number) {
+    this.channel = channel;
+    channel.setBufferLength(oversample*2);
+    channel.setSampleRate(sampleRate);
+  }
+  generate(sink:SampledAudioSink) {
+    var buf = this.channel.getBuffer();
+    var l = buf.length;
+    this.channel.generate(l);
+    for (let i=0; i<l; i+=2)
+      sink.feedSample(buf[i] * this.audioGain, 1);
+    //if (Math.random() < 0.001) console.log(sink);
+  }
+}
+

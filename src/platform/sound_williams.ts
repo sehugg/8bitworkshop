@@ -1,12 +1,13 @@
 "use strict";
 
-import { Platform, BaseZ80Platform  } from "../baseplatform";
+import { Z80, Z80State } from "../cpu/ZilogZ80";
+import { BasicMachine, CPU, Bus } from "../devices";
+import { Platform, BaseZ80MachinePlatform } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
-import { hex } from "../util";
 import { SampleAudio } from "../audio";
 
 var WILLIAMS_SOUND_PRESETS = [
-  {id:'swave.c', name:'Wavetable Synth'},
+  { id: 'swave.c', name: 'Wavetable Synth' },
 ];
 
 /****************************************************************************
@@ -33,125 +34,89 @@ var WILLIAMS_SOUND_PRESETS = [
 
 ****************************************************************************/
 
-var WilliamsSoundPlatform = function(mainElement) {
-  var self = this;
-  this.__proto__ = new (BaseZ80Platform as any)();
+class WilliamsSound extends BasicMachine {
+  cpuFrequency = 18432000 / 6; // 3.072 MHz
+  cpuCyclesPerFrame = this.cpuFrequency / 60;
+  cpuAudioFactor = 32;
+  canvasWidth = 256;
+  numVisibleScanlines = 256;
+  defaultROMSize = 0x4000;
+  sampleRate = this.cpuFrequency;
+  overscan = true;
+  
+  cpu : Z80;
+  ram = new Uint8Array(0x400);
+  iobus : Bus;
+  
+  command : number = 0;
+  dac : number = 0;
+  dac_float : number = 0;
+  xpos : number = 0;
 
-  var cpu, ram, rom, membus, iobus;
-  var audio, master;
-  var video, timer;
-  var command = 0;
-  var dac = 0;
-  var dac_float = 0.0
-  var current_buffer;
-  var last_tstate;
-  var pixels;
+  read = newAddressDecoder([
+    [0x0000, 0x3fff, 0x3fff, (a) => { return this.rom && this.rom[a]; }],
+    [0x4000, 0x7fff, 0x3ff, (a) => { return this.ram[a]; }]
+  ]);
 
-  var cpuFrequency = 18432000/6; // 3.072 MHz
-  var cpuCyclesPerFrame = cpuFrequency/60;
-  var cpuAudioFactor = 32;
+  write = newAddressDecoder([
+    [0x4000, 0x7fff, 0x3ff, (a, v) => { this.ram[a] = v; }],
+  ]);
+  
+  constructor() {
+    super();
+    this.cpu = new Z80();
+    this.connectCPUMemoryBus(this);
+    this.connectCPUIOBus({
+      read: (addr) => {
+        return this.command & 0xff;
+      },
+      write: (addr, val) => {
+        let dac = this.dac = val & 0xff;
+        this.dac_float = ((dac & 0x80) ? -256 + dac : dac) / 128.0;
+      }
+    });
+  }
+  
+  advanceFrame(trap) : number {
+    this.pixels && this.pixels.fill(0); // clear waveform
+    let maxCycles = this.cpuCyclesPerFrame;
+    var n = 0;
+    while (n < maxCycles) {
+      if (trap && trap()) {
+        break;
+      }
+      n += this.advanceCPU();
+    }
+    return n;
+  }
+  
+  advanceCPU() {
+    var n = super.advanceCPU();
+    this.audio && this.audio.feedSample(this.dac_float, n);
+    // draw waveform on screen
+    if (this.pixels && !this.cpu.isHalted()) {
+      this.pixels[((this.xpos >> 8) & 0xff) + ((255-this.dac) << 8)] = 0xff33ff33;
+      this.xpos = (this.xpos + n) & 0xffffff;
+    }
+    return n;
+  }
 
-  function fillBuffer() {
-    var t = cpu.getTstates() / cpuAudioFactor;
-    while (last_tstate < t) {
-      current_buffer[last_tstate++] = dac_float;
+  setKeyInput(key:number, code:number, flags:number) : void {
+    var intr = (key - 49);
+    if (intr >= 0 && (flags & 1)) {
+      this.command = intr & 0xff;
+      this.cpu.reset();
     }
   }
+}
 
-  this.getPresets = function() {
-    return WILLIAMS_SOUND_PRESETS;
-  }
+export class WilliamsSoundPlatform extends BaseZ80MachinePlatform<WilliamsSound> {
 
-  this.start = function() {
-    ram = new RAM(0x400);
-    membus = {
-      read: newAddressDecoder([
-				[0x0000, 0x3fff, 0x3fff, function(a) { return rom ? rom[a] : null; }],
-				[0x4000, 0x7fff, 0x3ff,  function(a) { return ram.mem[a]; }]
-			]),
-			write: newAddressDecoder([
-				[0x4000, 0x7fff, 0x3ff,  function(a,v) { ram.mem[a] = v; }],
-			]),
-    };
-    iobus = {
-      read: function(addr) {
-        return command & 0xff;
-    	},
-    	write: function(addr, val) {
-        dac = val & 0xff;
-        dac_float = ((dac & 0x80) ? -256+dac : dac) / 128.0;
-        fillBuffer();
-    	}
-    };
-    this.readAddress = membus.read;
-    cpu = this.newCPU(membus, iobus);
-    audio = new SampleAudio(cpuFrequency / cpuAudioFactor);
-    audio.callback = function(lbuf) {
-      if (self.isRunning()) {
-        cpu.setTstates(0);
-        current_buffer = lbuf;
-        last_tstate = 0;
-        self.runCPU(cpu, lbuf.length * cpuAudioFactor);
-        cpu.setTstates(lbuf.length * cpuAudioFactor); // TODO?
-        fillBuffer();
-        for (var i=0; i<256; i++) {
-          var y = Math.round((current_buffer[i] * 127) + 128);
-          pixels[i + y*256] = 0xff33ff33;
-        }
-      }
-    };
-    video = new RasterVideo(mainElement,256,256);
-    video.create();
-    video.setKeyboardEvents(function(key,code,flags) {
-      var intr = (key-49);
-      if (intr >= 0 && (flags & 1)) {
-        command = intr & 0xff;
-        cpu.reset();
-      }
-    });
-    pixels = video.getFrameData();
-    timer = new AnimationTimer(30, function() {
-      if (self.isRunning()) {
-        video.updateFrame();
-        pixels.fill(0);
-      }
-    });
-  }
+  newMachine()          { return new WilliamsSound(); }
+  getPresets()          { return WILLIAMS_SOUND_PRESETS; }
+  getDefaultExtension() { return ".c"; };
+  readAddress(a)        { return this.machine.read(a); }
 
-  this.loadROM = function(title, data) {
-    rom = padBytes(data, 0x4000);
-    cpu.reset();
-  }
-
-  this.loadState = function(state) {
-    cpu.loadState(state.c);
-    ram.mem.set(state.b);
-  }
-  this.saveState = function() {
-    return {
-      c:self.getCPUState(),
-      b:ram.mem.slice(0),
-    };
-  }
-  this.getCPUState = function() {
-    return cpu.saveState();
-  }
-
-  this.isRunning = function() {
-    return timer && timer.isRunning();
-  }
-  this.pause = function() {
-    timer.stop();
-    audio.stop();
-  }
-  this.resume = function() {
-    timer.start();
-    audio.start();
-  }
-  this.reset = function() {
-    cpu.reset();
-    if (!this.getDebugCallback()) cpu.setTstates(0); // TODO?
-  }
 }
 
 PLATFORMS['sound_williams-z80'] = WilliamsSoundPlatform;

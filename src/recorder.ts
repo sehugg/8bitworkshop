@@ -177,3 +177,119 @@ export class EmuProfilerImpl implements EmuProfiler {
     this.log(a | PROFOP_INTERRUPT);
   }
 }
+
+/////
+
+import { Probeable, ProbeAll } from "./devices";
+
+export enum ProbeFlags {
+  CLOCKS	= 0x00000000,
+  EXECUTE	= 0x01000000,
+  MEM_READ	= 0x02000000,
+  MEM_WRITE	= 0x03000000,
+  IO_READ	= 0x04000000,
+  IO_WRITE	= 0x05000000,
+  VRAM_READ	= 0x06000000,
+  VRAM_WRITE	= 0x07000000,
+  INTERRUPT	= 0x08000000,
+  ILLEGAL	= 0x09000000,
+  SCANLINE	= 0x7e000000,
+  FRAME		= 0x7f000000,
+}
+
+class ProbeFrame {
+  data : Uint32Array;
+  len : number;
+}
+
+export class ProbeRecorder implements ProbeAll {
+
+  buf = new Uint32Array(0x100000);
+  idx = 0;
+  fclk = 0;
+  sl = 0;
+  m : Probeable;
+  singleFrame : boolean = true;
+
+  constructor(m:Probeable) {
+    this.m = m;
+  }
+  start() {
+    this.m.connectProbe(this);
+  }
+  stop() {
+    this.m.connectProbe(null);
+  }
+  reset() {
+    this.idx = 0;
+  }
+  log(a:number) {
+    // TODO: coalesce READ and EXECUTE
+    if (this.idx >= this.buf.length) return;
+    this.buf[this.idx++] = a;
+  }
+  relog(a:number) {
+    this.buf[this.idx-1] = a;
+  }
+  lastOp() {
+    if (this.idx > 0)
+      return this.buf[this.idx-1] & 0xff000000;
+    else
+      return -1;
+  }
+  lastAddr() {
+    if (this.idx > 0)
+      return this.buf[this.idx-1] & 0xffffff;
+    else
+      return -1;
+  }
+  logClocks(clocks:number) {
+    if (clocks > 0) {
+      this.fclk += clocks;
+      if (this.lastOp() == ProbeFlags.CLOCKS)
+        this.relog((this.lastAddr() + clocks) | ProbeFlags.CLOCKS); // coalesce clocks
+      else
+        this.log(clocks | ProbeFlags.CLOCKS);
+    }
+  }
+  logNewScanline() {
+    this.log(ProbeFlags.SCANLINE);
+    this.sl++;
+  }
+  logNewFrame() {
+    this.log(ProbeFlags.FRAME);
+    this.sl = 0;
+    if (this.singleFrame) this.reset();
+  }
+  logExecute(address:number) {
+    this.log(address | ProbeFlags.EXECUTE);
+  }
+  logInterrupt(type:number) {
+    this.log(type | ProbeFlags.INTERRUPT);
+  }
+  logRead(address:number, value:number) {
+    this.log(address | ProbeFlags.MEM_READ);
+  }
+  logWrite(address:number, value:number) {
+    this.log(address | ProbeFlags.MEM_WRITE);
+  }
+  logIORead(address:number, value:number) {
+    this.log(address | ProbeFlags.IO_READ);
+  }
+  logIOWrite(address:number, value:number) {
+    this.log(address | ProbeFlags.IO_WRITE);
+  }
+  logVRAMRead(address:number, value:number) {
+    this.log(address | ProbeFlags.VRAM_READ);
+  }
+  logVRAMWrite(address:number, value:number) {
+    this.log(address | ProbeFlags.VRAM_WRITE);
+  }
+  logIllegal(address:number) {
+    this.log(address | ProbeFlags.ILLEGAL);
+  }
+
+}
+
+// TODO: handle runToVsync() without erasing entire frame
+

@@ -6,7 +6,7 @@ import * as bootstrap from "bootstrap";
 import { CodeProject } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "./workertypes";
 import { ProjectWindows } from "./windows";
-import { Platform, Preset, DebugSymbols, DebugEvalCondition } from "./baseplatform";
+import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable } from "./baseplatform";
 import { PLATFORMS, EmuHalt, Toolbar } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
@@ -86,6 +86,16 @@ function alertError(s:string) {
 function alertInfo(s:string) {
   setWaitDialog(false);
   bootbox.alert(s);
+}
+
+export function loadScript(scriptfn:string) : Promise<Event> {
+  return new Promise( (resolve, reject) => {
+    var script = document.createElement('script');
+    script.onload = resolve;
+    script.onerror = reject;
+    script.src = scriptfn;
+    document.getElementsByTagName('head')[0].appendChild(script);
+  });
 }
 
 function newWorker() : Worker {
@@ -177,6 +187,7 @@ function refreshWindowList() {
     var a = document.createElement("a");
     a.setAttribute("class", "dropdown-item");
     a.setAttribute("href", "#");
+    a.setAttribute("data-wndid", id);
     if (id == projectWindows.getActiveID())
       $(a).addClass("dropdown-item-checked");
     a.appendChild(document.createTextNode(name));
@@ -243,17 +254,26 @@ function refreshWindowList() {
       return new Views.MemoryView();
     });
   }
+  if (current_project.segments && current_project.segments.length) {
+    addWindowItem("#memmap", "Memory Map", () => {
+      return new Views.MemoryMapView();
+    });
+  }
   if (platform.readVRAMAddress) {
     addWindowItem("#memvram", "VRAM Browser", () => {
       return new Views.VRAMMemoryView();
     });
   }
-  if (current_project.segments) {
-    addWindowItem("#memmap", "Memory Map", () => {
-      return new Views.MemoryMapView();
+  if (platform.startProbing) {
+    addWindowItem("#memheatmap", "Memory Probe", () => {
+      return new Views.AddressHeatMapView();
+    });
+    // TODO: only if raster
+    addWindowItem("#crtheatmap", "CRT Probe", () => {
+      return new Views.RasterPCHeatMapView();
     });
   }
-  if (platform.getRasterScanline && platform.setBreakpoint && platform.getCPUState) { // TODO: use profiler class to determine compat
+  else if (platform.getRasterScanline && platform.setBreakpoint && platform.getCPUState) { // TODO: use profiler class to determine compat
     addWindowItem("#profiler", "Profiler", () => {
       return new Views.ProfileView();
     });
@@ -284,11 +304,15 @@ function loadProject(preset_id:string) {
       // file found; continue
       loadMainWindow(preset_id);
     } else {
-      // no file data, load skeleton file
       getSkeletonFile(preset_id).then((skel) => {
         current_project.filedata[preset_id] = skel || "\n";
         loadMainWindow(preset_id);
-        //alertInfo("No existing file found; loading default file");
+        // don't alert if we selected "new file"
+        if (!qs['newfile']) {
+          alertInfo("Could not find file \"" + preset_id + "\". Loading default file.");
+        }
+        delete qs['newfile'];
+        replaceURLState();
       });
     }
   });
@@ -338,6 +362,7 @@ function _createNewFile(e) {
         }
         var path = filename;
         gaEvent('workspace', 'file', 'new');
+        qs['newfile'] = '1';
         reloadProject(path);
       }
     }
@@ -497,8 +522,8 @@ function _importProjectFromGithub(e) {
 
 function _publishProjectToGithub(e) {
   if (repo_id) {
-    alertError("This project (" + current_project.mainPath + ") is already bound to a Github repository. Choose 'Push Changes' to update.");
-    return;
+    if (!confirm("This project (" + current_project.mainPath + ") is already bound to a Github repository. Do you want to re-publish to a new repository? (You can instead choose 'Push Changes' to update files in the existing repository.)"))
+      return;
   }
   var modal = $("#publishGithubModal");
   var btn = $("#publishGithubButton");
@@ -671,7 +696,7 @@ function _shareEmbedLink(e) {
     return true;
   }
   loadClipboardLibrary();
-  loadScript('lib/liblzg.js', () => {
+  loadScript('lib/liblzg.js').then( () => {
     // TODO: Module is bad var name (conflicts with MAME)
     var lzgrom = compressLZG( window['Module'], Array.from(<Uint8Array>current_output) );
     window['Module'] = null; // so we load it again next time
@@ -696,7 +721,7 @@ function _shareEmbedLink(e) {
 }
 
 function loadClipboardLibrary() {
-  loadScript('lib/clipboard.min.js', () => {
+  loadScript('lib/clipboard.min.js').then( () => {
     var ClipboardJS = exports['ClipboardJS'];
     new ClipboardJS(".btn");
   });
@@ -721,7 +746,7 @@ function _downloadCassetteFile(e) {
     alertError("Cassette export is not supported on this platform.");
     return true;
   }
-  loadScript('lib/c2t.js', () => {
+  loadScript('lib/c2t.js').then( () => {
     var stdout = '';
     var print_fn = function(s) { stdout += s + "\n"; }
     var c2t = window['c2t']({
@@ -838,7 +863,7 @@ function _downloadSourceFile(e) {
 }
 
 function _downloadProjectZipFile(e) {
-  loadScript('lib/jszip.min.js', () => {
+  loadScript('lib/jszip.min.js').then( () => {
     var zip = new JSZip();
     current_project.iterateFiles( (id, data) => {
       if (data) {
@@ -852,7 +877,7 @@ function _downloadProjectZipFile(e) {
 }
 
 function _downloadAllFilesZipFile(e) {
-  loadScript('lib/jszip.min.js', () => {
+  loadScript('lib/jszip.min.js').then( () => {
     var zip = new JSZip();
     store.keys( (err, keys : string[]) => {
       return Promise.all(keys.map( (path) => {
@@ -1020,11 +1045,12 @@ function loadBIOSFromProject() {
 }
 
 function showDebugInfo(state?) {
+  if (!isDebuggable(platform)) return;
   var meminfo = $("#mem_info");
-  var allcats = platform.getDebugCategories && platform.getDebugCategories();
+  var allcats = platform.getDebugCategories();
   if (allcats && !debugCategory)
     debugCategory = allcats[0];
-  var s = state && platform.getDebugInfo && platform.getDebugInfo(debugCategory, state);
+  var s = state && platform.getDebugInfo(debugCategory, state);
   if (s) {
     var hs = lastDebugInfo ? highlightDifferences(lastDebugInfo, s) : s;
     meminfo.show().html(hs);
@@ -1250,7 +1276,7 @@ function updateDebugWindows() {
     projectWindows.tick();
     debugTickPaused = true;
   }
-  setTimeout(updateDebugWindows, 200);
+  setTimeout(updateDebugWindows, 100);
 }
 
 function setWaitDialog(b : boolean) {
@@ -1270,7 +1296,7 @@ function setWaitProgress(prog : number) {
 var recordingVideo = false;
 function _recordVideo() {
   if (recordingVideo) return;
- loadScript("gif.js/dist/gif.js", () => {
+ loadScript("gif.js/dist/gif.js").then( () => {
   var canvas = $("#emulator").find("canvas")[0] as HTMLElement;
   if (!canvas) {
     alertError("Could not find canvas element to record video!");
@@ -1678,7 +1704,7 @@ function installErrorHandler() {
         var msgstr = msgevent+"";
         console.log(msgevent, url, line, col, error);
         // emulation threw EmuHalt
-        if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) {
+        if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) { // TODO
           showErrorAlert([ {msg:msgstr, line:0} ]);
           uiDebugCallback(platform.saveState && platform.saveState());
           setDebugButtonState("pause", "stopped");
@@ -1831,14 +1857,6 @@ function revealTopBar() {
   setTimeout(() => { $("#controls_dynamic").css('visibility','inherit'); }, 250);
 }
 
-export function loadScript(scriptfn, onload, onerror?) {
-  var script = document.createElement('script');
-  script.onload = onload;
-  script.onerror = onerror;
-  script.src = scriptfn;
-  document.getElementsByTagName('head')[0].appendChild(script);
-}
-
 export function setupSplits() {
   const splitName = 'workspace-split3-' + platform_id;
   var sizes = [0, 50, 50];
@@ -1895,7 +1913,7 @@ function loadImportedURL(url : string) {
 }
 
 function setPlatformUI() {
-  var name = platform.getMetadata && platform.getMetadata().name;
+  var name = platform.getPlatformName && platform.getPlatformName();
   var menuitem = $('a[href="?platform='+platform_id+'"]');
   if (menuitem.length) {
     menuitem.addClass("dropdown-item-checked");
@@ -1954,9 +1972,12 @@ export function startUI(loadplatform : boolean) {
 }
 
 function loadAndStartPlatform() {
-  var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
-  loadScript(scriptfn, () => {
-    console.log("starting platform", platform_id);
+  var platformfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js'; // required file
+  var machinefn  = platformfn.replace('/platform/', '/machine/'); // optional file
+  loadScript(platformfn).then( () => {
+    return loadScript(machinefn).catch(() => { console.log('skipped',machinefn); }); // optional file skipped
+  }).then( () => {
+    console.log("starting platform", platform_id); // loaded required <platform_id>.js file
     try {
       startPlatform();
       showWelcomeMessage();
@@ -1964,7 +1985,8 @@ function loadAndStartPlatform() {
     } finally {
       revealTopBar();
     }
-  }, () => {
+  }).catch( (e) => {
+    console.log(e);
     alertError('Platform "' + platform_id + '" not supported.');
   });
 }

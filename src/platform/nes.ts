@@ -1,10 +1,11 @@
-"use strict";
 
 import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString, ProfilerOutput } from "../baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags, EmuHalt, ControllerPoller } from "../emu";
 import { hex, lpad, lzgmini, byteArrayToString } from "../util";
 import { CodeAnalyzer_nes } from "../analysis";
 import { SampleAudio } from "../audio";
+import { ProbeRecorder } from "../recorder";
+import { NullProbe, Probeable, ProbeAll } from "../devices";
 
 declare var jsnes : any;
 declare var Mousetrap;
@@ -65,7 +66,7 @@ const JSNES_KEYCODE_MAP = makeKeycodeMap([
   [Keys.P2_RIGHT,  1, 7],
 ]);
 
-class JSNESPlatform extends Base6502Platform implements Platform {
+class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
 
   mainElement;
   nes;
@@ -77,6 +78,8 @@ class JSNESPlatform extends Base6502Platform implements Platform {
   frameindex = 0;
   ntvideo;
   ntlastbuf;
+  
+  machine = { cpuCyclesPerLine: 114 }; // TODO: hack for width of probe scope
   
   constructor(mainElement) {
     super();
@@ -135,8 +138,10 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     // insert debug hook
     this.nes.cpu._emulate = this.nes.cpu.emulate;
     this.nes.cpu.emulate = () => {
+      this.probe.logExecute(this.nes.cpu.REG_PC-1);
       var cycles = this.nes.cpu._emulate();
       this.evalDebugCondition();
+      this.probe.logClocks(cycles);
       return cycles;
     }
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
@@ -199,6 +204,59 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     var romstr = byteArrayToString(data);
     this.nes.loadROM(romstr);
     this.frameindex = 0;
+    this.installIntercepts();
+  }
+  installIntercepts() {
+    // intercept bus calls, unless we did it already
+    var mmap = this.nes.mmap;
+    if (!mmap.haveProxied) {
+      var oldload = mmap.load.bind(mmap);
+      var oldwrite = mmap.write.bind(mmap);
+      var oldregLoad = mmap.regLoad.bind(mmap);
+      var oldregWrite = mmap.regWrite.bind(mmap);
+      var lastioaddr = -1;
+      mmap.load = (addr) => {
+        var val = oldload(addr);
+        if (addr != lastioaddr) this.probe.logRead(addr, val);
+        return val;
+      }
+      mmap.write = (addr, val) => {
+        if (addr != lastioaddr) this.probe.logWrite(addr, val);
+        oldwrite(addr, val);
+      }
+      // try not to read/write then IOread/IOwrite at same time
+      mmap.regLoad = (addr) => {
+        var val = oldregLoad(addr);
+        this.probe.logIORead(addr, val);
+        lastioaddr = addr;
+        return val;
+      }
+      mmap.regWrite = (addr, val) => {
+        this.probe.logIOWrite(addr, val);
+        lastioaddr = addr;
+        oldregWrite(addr, val);
+      }
+      mmap.haveProxied = true;
+    }
+    var ppu = this.nes.ppu;
+    if (!ppu.haveProxied) {
+      var old_endScanline = ppu.endScanline.bind(ppu);
+      var old_startFrame = ppu.startFrame.bind(ppu);
+      var old_writeMem = ppu.writeMem.bind(ppu);
+      ppu.endScanline = () => {
+        old_endScanline();
+        this.probe.logNewScanline();
+      }
+      ppu.startFrame = () => {
+        old_startFrame();
+        this.probe.logNewFrame();
+      }
+      ppu.writeMem = (a,v) => {
+        old_writeMem(a,v);
+        this.probe.logVRAMWrite(a,v);
+      }
+      ppu.haveProxied = true;
+    }
   }
   newCodeAnalyzer() {
     return new CodeAnalyzer_nes(this);
@@ -211,6 +269,7 @@ class JSNESPlatform extends Base6502Platform implements Platform {
   reset() {
     //this.nes.cpu.reset(); // doesn't work right, crashes
     this.nes.cpu.requestIrq(this.nes.cpu.IRQ_RESET);
+    this.installIntercepts();
   }
   isRunning() {
     return this.timer.isRunning();
@@ -231,9 +290,6 @@ class JSNESPlatform extends Base6502Platform implements Platform {
 
   getRasterScanline() : number {
     return this.nes.ppu.scanline;
-  }
-  readVRAMAddress(addr : number) : number {
-    return this.nes.ppu.vramMem[addr & 0x7fff];
   }
 
   getCPUState() {
@@ -265,6 +321,7 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     this.nes.ppu.spriteMem = state.ppu.spriteMem.slice(0);
     this.loadControlsState(state.ctrl);
     //$.extend(this.nes, state);
+    this.installIntercepts();
   }
   saveControlsState() {
     return {
@@ -277,7 +334,10 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     this.nes.controllers[2].state = state.c2;
   }
   readAddress(addr) {
-    return this.nes.cpu.mem[addr] & 0xff;
+    return this.nes.cpu.mem[addr];
+  }
+  readVRAMAddress(addr : number) : number {
+    return this.nes.ppu.vramMem[addr];
   }
   copy6502REGvars(c) {
     c.T = 0;
@@ -388,6 +448,30 @@ class JSNESPlatform extends Base6502Platform implements Platform {
     if (fn.endsWith(".nesasm")) return "nesasm";
     else return getToolForFilename_6502(fn);
   }
+  
+  // probing
+  nullProbe = new NullProbe();
+  probe : ProbeAll = this.nullProbe;
+
+  startProbing?() : ProbeRecorder {
+    var rec = new ProbeRecorder(this);
+    this.connectProbe(rec);
+    return rec;
+  }
+  stopProbing?() : void {
+    this.connectProbe(null);
+  }
+  connectProbe(probe:ProbeAll) {
+    this.probe = probe || this.nullProbe;
+  }
+
+  getMemoryMap = function() { return { main:[
+      //{name:'Work RAM',start:0x0,size:0x800,type:'ram'},
+      {name:'OAM Buffer',start:0x200,size:0x100,type:'ram'},
+      {name:'PPU Registers',start:0x2000,last:0x2008,size:0x2000,type:'io'},
+      {name:'APU Registers',start:0x4000,last:0x4020,size:0x2000,type:'io'},
+      {name:'Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
+  ] } };
 }
 
 /// MAME support

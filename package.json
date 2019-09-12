@@ -8,23 +8,27 @@
     "url": "git+https://github.com/sehugg/8bitworkshop.git"
   },
   "license": "GPL-3.0",
-  "dependencies": {},
+  "dependencies": {
+    "bootstrap-tourist": "^0.2.1",
+    "jquery": "^3.4.1"
+  },
   "devDependencies": {
     "@types/bootbox": "^4.4.36",
     "@types/bootstrap": "^3.3.42",
     "@types/jquery": "^3.3.29",
     "atob": "^2.1.x",
     "btoa": "^1.2.x",
+    "chromedriver": "^76.0.1",
     "clipboard": "^2.0.4",
-    "jquery": "^3.4.1",
     "jsdom": "^12.2.0",
     "lzg": "^1.0.x",
     "mocha": "^5.2.x",
+    "nightwatch": "^1.2.1",
     "octokat": "^0.10.0",
     "pngjs": "^3.3.3",
-    "typescript": "^3.5.3",
-    "typescript-formatter": "^7.2.2",
-    "wavedrom-cli": "^0.5.x"
+    "rgbquant": "^1.1.2",
+    "typescript": "^3.6.2",
+    "typescript-formatter": "^7.2.2"
   },
   "main": "main.js",
   "directories": {
@@ -36,6 +40,7 @@
     "test": "npm run test-node",
     "test-one": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000",
     "test-node": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli",
+    "test-web": "NODE_PATH=$(pwd) nightwatch test/web",
     "test-worker": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli/testworker.js",
     "test-platforms": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli/testplatforms.js",
     "test-profile": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --prof test/cli"

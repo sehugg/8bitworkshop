@@ -12,10 +12,12 @@
         "noImplicitThis": false,
         "noImplicitAny": false,
         "preserveConstEnums": true,
-        "alwaysStrict": true
+        "alwaysStrict": true,
+        "strictNullChecks": false
     },
     "include": [
         "./src/**/*.ts",
+        "./test/**/*.ts",
         "./localForage/typings/*.ts"
     ]
 }

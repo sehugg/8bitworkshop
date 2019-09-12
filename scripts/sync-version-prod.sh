@@ -1,8 +1,8 @@
 #!/bin/bash
 
-. ./scripts/env.sh
-VERSION=`git tag | tail -1`
-#VERSION=`git tag -l HEAD`
+#. ./scripts/env.sh
+#VERSION=`git tag | tail -1`
+VERSION=`git tag -l --points-at HEAD`
 if [ "$VERSION" == "" ]; then
   echo "No version at HEAD! Tag it first!"
   exit 1
