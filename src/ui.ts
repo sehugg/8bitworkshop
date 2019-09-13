@@ -406,7 +406,6 @@ function handleFileUpload(files: File[]) {
           data = byteArrayToUTF8(data).replace('\r\n','\n'); // convert CRLF to LF
         }
         // store in local forage
-        // TODO: use projectWindows uploadFile()
         projectWindows.updateFile(path, data);
         console.log("Uploaded " + path + " " + data.length + " bytes");
         uploadNextFile();

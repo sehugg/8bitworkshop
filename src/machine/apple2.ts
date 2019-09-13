@@ -1,8 +1,8 @@
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { BasicScanlineMachine, xorshift32 } from "../devices";
+import { Bus, BasicScanlineMachine, xorshift32 } from "../devices";
 import { KeyFlags } from "../emu"; // TODO
-import { lzgmini } from "../util";
+import { lzgmini, stringToByteArray, RGBA } from "../util";
 
 const cpuFrequency = 1023000;
 const cpuCyclesPerLine = 65; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
@@ -28,6 +28,10 @@ interface AppleIIControlsState {
 interface AppleIIState extends AppleIIStateBase, AppleIIControlsState {
   c : MOS6502State;
   grswitch : number;
+}
+
+interface SlotDevice extends Bus {
+   readROM(address: number) : number;
 }
 
 export class AppleII extends BasicScanlineMachine {
@@ -58,10 +62,32 @@ export class AppleII extends BasicScanlineMachine {
   // bank 1 is E000-FFFF, bank 2 is D000-DFFF
   bank2rdoffset=0;
   bank2wroffset=0;
+  // disk II
+  slots : SlotDevice[] = new Array(8);
+  // fake disk drive that loads program into RAM
+  fakeDrive : SlotDevice = {
+    readROM: (a) => {
+      switch (a) {
+        // JMP VM_BASE
+        case 0: {
+          // load program into RAM
+          if (this.rom)
+            this.ram.set(this.rom.slice(HDR_SIZE), PGM_BASE);
+          return 0x4c;
+        }
+        case 1: return VM_BASE&0xff;
+        case 2: return (VM_BASE>>8)&0xff;
+        default: return 0;
+      }
+    },
+    read: (a) => { return this.noise(); },
+    write: (a,v) => { }
+  };
 
   constructor() {
     super();
-    this.bios = new lzgmini().decode(APPLEIIGO_LZG);
+    this.bios = new lzgmini().decode(stringToByteArray(atob(APPLEIIGO_LZG)));
+    this.bios[0x39a] = 0x60; // $d39a = RTS
     this.ram.set(this.bios, 0xd000);
     this.ram[0xbf00] = 0x4c; // fake DOS detect for C
     this.ram[0xbf6f] = 0x01; // fake DOS detect for C
@@ -100,6 +126,15 @@ export class AppleII extends BasicScanlineMachine {
   }
   loadControlsState(s:AppleIIControlsState) {
     this.kbdlatch = s.kbdlatch;
+  }
+  loadROM(data) {
+    if (data.length == 35*16*256) { // is it a disk image?
+      var diskii = new DiskII(this, data);
+      this.slots[6] = diskii;
+    } else { // it's a binary, use a fake drive
+      super.loadROM(data);
+      this.slots[6] = this.fakeDrive;
+   }
   }
   reset() {
     super.reset();
@@ -175,21 +210,11 @@ export class AppleII extends BasicScanlineMachine {
          case 8:
             return this.doLanguageCardIO(address);
          case 9: case 10: case 11: case 12: case 13: case 14: case 15:
-            return this.noise(); // return slots[slot-8].doIO(address, value);
+            return (this.slots[slot-8] && this.slots[slot-8].read(address & 0xf)) | 0;
       }
-    } else {
-      switch (address) {
-        // JMP VM_BASE
-        case 0xc600: {
-          // load program into RAM
-          if (this.rom)
-            this.ram.set(this.rom.slice(HDR_SIZE), PGM_BASE);
-          return 0x4c;
-        }
-        case 0xc601: return VM_BASE&0xff;
-        case 0xc602: return (VM_BASE>>8)&0xff;
-        default: return this.noise();
-      }
+    } else if (address >= 0xc100 && address < 0xc800) {
+      var slot = (address >> 8) & 7;
+      return (this.slots[slot] && this.slots[slot].readROM(address & 0xff)) | 0;
     }
     return this.noise();
   }
@@ -199,8 +224,11 @@ export class AppleII extends BasicScanlineMachine {
     if (address < 0xc000) {
       this.ram[address] = val;
       this.grdirty[address>>7] = 1;
-    } else if (address < 0xc100) {
+    } else if (address < 0xc080) {
       this.read(address); // strobe address, discard result
+    } else if (address < 0xc100) {
+       var slot = (address >> 4) & 0x0f;
+       this.slots[slot-8] && this.slots[slot-8].write(address & 0xf, val);
     } else if (address >= 0xd000 && !this.writeinhibit) {
       if (address >= 0xe000)
         this.ram[address] = val;
@@ -345,10 +373,22 @@ var Apple2Display = function(pixels : Uint32Array, apple : AppleGRParams) {
   const flashInterval = 500;
 
   const loresColor = [
-     (0xff000000), (0xffff00ff), (0xff00007f), (0xff7f007f),
-     (0xff007f00), (0xff7f7f7f), (0xff0000bf), (0xff0000ff),
-     (0xffbf7f00), (0xffffbf00), (0xffbfbfbf), (0xffff7f7f),
-     (0xff00ff00), (0xffffff00), (0xff00bf7f), (0xffffffff),
+     RGBA(0, 0, 0),
+     RGBA(227, 30, 96),
+     RGBA(96, 78, 189),
+     RGBA(255, 68, 253),
+     RGBA(0, 163, 96),
+     RGBA(156, 156, 156),
+     RGBA(20, 207, 253),
+     RGBA(128, 128, 255),
+     RGBA(96, 114, 3),
+     RGBA(255, 106, 60),
+     RGBA(156, 156, 156),
+     RGBA(255, 160, 208),
+     RGBA(20, 245, 60),
+     RGBA(208, 221, 141),
+     RGBA(114, 255, 208),
+     RGBA(255, 255, 255)
   ];
 
   const text_lut = [
@@ -912,93 +952,353 @@ const apple2_charset = [
     0x80,0x9c,0xa2,0x84,0x88,0x88,0x80,0x88
 ];
 
-// public domain ROM
-const APPLEIIGO_LZG = [
-  76,90,71,0,0,48,0,0,0,10,174,5,108,198,141,1,25,52,55,59,65,80,80,76,69,73,73,71,79,32,82,79,
-  77,49,46,49,255,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,3,133,109,132,110,56,165,150,229,155,133,94,
-  168,165,151,229,156,170,232,152,240,35,165,150,56,229,94,133,150,176,3,198,151,56,165,148,55,3,148,176,8,198,149,144,
-  4,177,150,145,148,136,208,249,59,194,198,151,198,149,202,208,242,96,52,30,128,59,27,255,255,32,0,224,52,30,67,59,
-  30,59,28,52,31,174,59,31,59,30,59,28,59,4,52,63,105,59,31,59,30,59,28,59,2,52,63,103,59,15,52,31,
-  137,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,26,160,32,59,28,32,
-  32,160,0,59,5,52,6,40,1,16,16,12,5,19,15,6,20,32,14,15,20,32,1,22,1,9,12,1,2,12,5,52,
-  16,40,198,207,210,160,205,207,210,197,160,201,206,55,3,205,193,212,201,207,206,160,208,204,197,193,211,197,160,195,204,201,
-  195,203,160,55,8,160,52,8,40,212,200,197,160,193,208,55,25,201,201,199,207,160,204,207,59,129,194,197,204,207,215,55,
-  28,59,10,52,6,40,59,29,59,14,76,3,224,32,88,252,162,39,189,0,223,157,128,4,202,16,247,55,3,48,223,157,
-  0,5,55,195,55,78,52,5,3,96,55,3,6,55,195,144,55,25,7,55,3,76,64,224,59,65,0,32,190,224,76,74,
-  224,104,24,105,1,133,244,104,105,0,133,245,165,226,72,165,225,72,165,227,133,225,165,228,133,226,160,0,169,225,133,250,
-  76,243,0,104,133,230,104,133,231,160,2,177,230,133,245,136,59,129,244,136,52,12,33,52,28,31,55,159,226,133,250,120,
-  141,3,192,55,35,160,16,185,127,225,153,238,0,136,208,247,132,227,132,225,169,191,133,55,24,162,16,96,234,59,28,59,
-  4,115,228,128,226,145,226,182,226,90,227,100,227,118,227,127,227,74,227,138,227,153,227,169,227,185,227,201,227,235,227,162,
-  226,24,228,63,228,41,228,142,228,102,229,125,59,161,164,228,239,0,83,228,95,228,105,228,96,232,109,232,66,232,81,232,
-  151,231,173,231,211,231,243,231,195,231,227,231,23,232,3,232,30,232,122,232,139,232,235,232,60,233,110,233,133,233,240,0,
-  248,228,15,229,124,229,148,229,234,229,12,230,228,230,247,230,132,230,155,230,183,230,203,230,15,231,47,231,84,231,115,231,
-  232,200,240,8,185,255,255,133,249,108,0,225,230,245,208,244,52,28,171,59,30,59,3,52,28,248,52,9,248,193,52,28,
-  248,122,232,183,232,14,233,60,233,106,233,129,233,240,0,41,229,70,229,173,229,203,229,49,230,89,52,19,248,181,192,24,
-  117,193,149,193,181,208,117,209,149,209,232,76,240,0,181,193,56,245,192,55,9,209,245,208,52,5,9,192,10,54,208,52,
-  13,29,132,229,160,16,181,193,73,255,133,230,181,209,59,161,231,169,0,149,193,70,231,102,230,176,12,149,209,181,192,52,
-  6,36,22,192,54,208,136,208,231,55,43,164,229,55,45,169,0,52,2,82,192,169,0,245,208,149,208,96,55,59,17,169,
-  0,133,230,133,231,181,208,41,128,133,224,16,5,32,235,226,230,224,181,209,16,9,232,55,2,202,230,224,208,4,21,193,
-  240,37,22,193,54,209,136,144,249,38,230,38,231,165,230,213,192,165,231,245,208,144,9,133,55,4,245,192,133,230,56,54,
-  55,86,208,226,232,164,229,96,52,11,87,76,240,0,32,249,226,70,224,176,233,55,194,165,230,149,55,51,149,208,165,224,
-  48,215,55,10,246,192,208,2,246,55,93,181,55,1,214,208,214,192,55,3,169,255,85,55,119,255,85,55,247,181,193,53,
-  52,3,255,53,52,6,255,193,21,55,136,21,52,7,8,55,39,55,8,55,39,52,37,11,181,192,201,8,144,10,180,193,
-  148,209,160,0,148,193,233,8,168,240,7,52,3,181,208,249,52,4,248,52,5,26,16,180,209,148,193,192,128,160,0,144,
-  1,136,148,209,56,55,96,12,181,209,201,128,106,118,193,136,208,248,52,38,37,181,192,21,208,240,2,169,255,73,255,149,
-  192,52,5,136,21,209,55,33,52,5,15,149,193,52,38,149,21,208,21,55,82,6,52,8,12,202,181,193,149,192,181,209,
-  55,238,192,72,181,208,72,55,142,104,149,208,104,149,52,2,225,202,169,0,52,5,76,202,200,208,2,230,245,177,244,52,
-  34,46,52,13,9,52,6,1,52,8,14,152,24,101,244,133,55,163,168,101,245,133,245,149,208,177,244,168,52,13,21,52,
-  5,19,55,17,73,255,24,101,227,133,227,55,38,255,101,228,133,228,55,101,145,227,136,192,255,208,247,200,55,239,181,192,
-  133,230,181,208,133,231,132,229,160,0,177,230,149,192,148,208,52,5,239,52,12,15,200,59,129,52,14,18,141,2,192,52,
-  8,44,52,130,128,52,19,21,52,5,50,55,216,52,5,198,202,24,101,225,52,2,185,101,226,52,3,208,52,5,14,132,
-  229,168,202,177,55,144,52,5,99,52,13,16,200,59,129,52,15,17,141,2,192,52,6,44,141,3,192,52,21,22,55,178,
-  52,13,23,133,230,52,6,1,52,5,221,202,52,7,245,52,25,26,52,40,0,52,18,29,52,5,237,52,3,66,52,26,
-  103,52,8,32,52,3,72,52,6,35,181,193,52,98,192,133,231,181,192,52,2,104,145,230,232,52,69,123,52,5,15,55,
-  77,181,192,145,230,200,181,208,52,7,20,52,8,228,55,18,225,52,18,12,55,102,52,19,17,52,22,36,52,21,174,52,
-  7,141,52,57,27,52,8,150,52,27,29,145,230,52,28,60,55,220,181,192,213,193,208,28,181,208,213,209,208,22,169,255,
-  232,52,102,124,55,78,240,55,142,234,169,0,52,7,14,193,213,192,52,162,39,80,2,73,128,16,210,48,230,55,94,181,
-  208,245,209,55,72,48,194,16,214,52,10,8,16,178,48,198,52,10,40,48,162,16,182,232,181,207,21,191,208,20,52,3,
-  134,59,131,76,240,0,55,204,236,165,245,133,231,165,244,55,141,24,113,244,133,230,165,231,55,132,55,3,245,165,52,226,
-  145,136,55,163,191,213,192,208,193,181,207,213,208,240,207,208,185,55,199,198,55,135,172,208,190,55,135,181,207,245,208,48,
-  179,16,157,232,181,192,213,191,181,208,245,207,48,166,16,144,165,244,24,117,192,133,244,165,245,117,208,133,245,52,130,26,
-  52,48,16,165,245,72,165,244,72,152,72,32,57,233,104,168,104,133,244,104,133,245,25,3,0,28,52,26,36,141,2,192,
-  88,55,40,120,141,3,192,52,7,44,226,55,172,52,102,157,232,52,24,79,52,15,27,52,24,70,108,230,0,200,177,244,
-  72,73,255,56,52,130,97,133,225,52,132,97,133,226,55,13,10,168,240,13,181,208,136,145,225,181,192,232,59,161,208,243,
-  160,2,55,41,52,2,67,104,24,101,225,133,227,52,98,249,133,228,104,133,225,104,133,226,96,55,79,165,55,13,165,52,
-  8,11,25,30,1,212,59,31,59,31,59,31,59,30,0,201,206,176,238,201,201,144,234,201,204,240,230,208,232,25,12,1,
-  185,72,74,41,3,9,4,133,41,104,41,24,144,2,105,127,133,40,10,10,5,40,133,40,52,94,61,0,0,165,37,32,
-  193,251,101,32,52,29,75,59,21,165,34,72,32,36,252,165,40,133,42,165,41,133,43,164,33,136,104,105,1,197,35,176,
-  13,55,78,177,40,145,42,136,16,249,48,225,160,0,32,158,252,176,134,164,36,169,160,145,40,200,196,33,144,249,52,30,
-  199,59,27,164,36,177,40,72,41,63,9,64,145,40,104,108,56,52,19,27,32,12,253,32,165,251,59,161,201,155,240,243,
-  52,28,141,59,6,32,142,253,165,51,32,237,253,162,1,138,240,243,202,32,53,253,201,149,208,2,177,40,201,224,144,2,
-  41,223,157,0,2,201,141,208,178,32,156,252,169,141,208,91,164,61,166,60,55,39,32,64,249,160,0,169,173,76,237,253,
-  52,28,87,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,31,59,28,59,7,169,
-  0,133,28,165,230,133,27,160,0,132,26,165,28,145,26,32,126,244,200,208,246,230,27,165,27,41,31,208,238,96,133,226,
-  134,224,132,225,72,41,192,133,38,74,74,5,38,133,38,104,133,39,10,10,10,38,39,59,66,102,38,165,39,41,31,5,
-  230,133,39,138,192,0,240,5,160,35,105,4,200,233,7,176,251,132,229,170,189,185,244,133,48,152,74,165,228,133,28,176,
-  25,28,0,35,59,4,10,201,192,16,6,165,28,73,127,133,28,52,254,218,59,31,59,31,59,31,59,31,59,31,59,31,
-  59,28,59,10,74,8,32,71,248,40,169,15,144,2,105,224,133,46,177,38,69,48,37,46,81,38,145,38,96,32,0,248,
-  196,44,176,17,200,32,14,248,144,246,105,1,72,55,8,104,197,45,144,245,96,160,47,208,2,160,39,132,45,160,39,169,
-  0,133,48,32,40,248,136,16,246,96,25,5,4,126,39,25,6,4,126,38,10,10,52,130,52,96,165,48,24,105,3,41,
-  15,133,48,10,59,1,5,48,133,48,52,103,223,144,4,74,59,1,41,15,52,107,240,168,74,144,9,106,176,16,201,162,
-  240,12,41,135,74,170,189,98,249,32,121,248,208,4,160,128,169,0,170,189,166,249,133,46,41,3,133,47,152,41,143,170,
-  152,160,3,224,138,240,11,74,144,8,74,74,9,32,136,208,250,200,136,208,242,52,159,59,59,31,59,31,59,20,216,32,
-  132,254,32,47,251,32,147,254,32,137,254,173,88,192,173,90,192,173,93,192,173,95,192,173,255,207,44,16,192,216,32,58,
-  255,32,96,251,169,0,133,0,169,198,133,1,108,52,30,111,59,29,25,3,19,108,221,219,199,207,52,10,13,173,112,192,
-  160,0,234,234,189,100,192,16,4,200,208,248,136,96,169,0,133,72,173,86,192,173,84,192,173,81,192,169,0,240,11,173,
-  80,192,173,83,192,32,54,248,169,20,133,34,55,22,32,169,40,133,33,169,24,133,35,169,23,133,37,76,34,252,32,88,
-  252,160,9,185,8,251,153,14,4,136,208,247,96,173,243,3,73,165,141,244,3,96,201,141,208,24,172,0,192,16,19,192,
-  147,208,15,44,16,192,55,68,251,192,131,240,3,55,4,76,253,251,52,12,148,25,29,7,248,40,133,40,96,201,135,208,
-  18,169,64,32,168,252,160,192,169,12,59,193,173,48,192,136,208,245,96,164,36,145,40,230,36,165,36,197,33,176,102,96,
-  201,160,176,239,168,16,236,201,141,240,90,201,138,59,97,136,208,201,198,36,16,232,165,33,133,36,198,36,165,34,197,37,
-  176,11,198,37,25,28,7,248,0,72,32,36,252,32,158,252,160,0,104,105,0,197,35,144,240,176,202,165,34,133,37,160,
-  0,132,36,240,228,169,0,133,36,230,55,62,55,16,182,198,37,25,29,7,248,25,6,7,248,56,72,233,1,208,252,104,
-  59,129,246,96,230,66,208,2,230,67,165,60,197,62,165,61,229,63,230,60,55,6,61,52,125,244,59,18,25,13,7,248,
-  230,78,208,2,230,79,44,0,192,16,245,145,40,173,0,192,44,16,192,96,25,10,7,248,254,96,165,50,72,169,255,133,
-  50,189,0,2,32,237,253,104,55,129,201,136,240,29,201,152,240,10,224,248,144,3,32,58,255,232,208,19,169,220,55,21,
-  25,10,7,248,254,25,30,7,248,59,27,0,72,52,162,88,32,229,253,104,41,15,9,176,201,186,144,2,105,6,108,54,
-  0,201,160,144,2,37,50,132,53,72,32,120,251,104,164,53,52,49,47,64,52,10,5,52,11,24,177,60,145,66,32,180,
-  252,144,247,52,190,97,59,1,160,63,208,2,160,255,132,50,52,98,82,62,162,56,160,27,208,8,55,130,54,160,240,165,
-  62,41,15,240,6,9,192,160,0,240,2,169,253,148,0,149,1,96,234,234,76,0,224,52,30,115,59,29,59,13,169,135,
-  76,237,253,165,72,72,165,69,166,70,164,71,52,110,22,52,62,27,59,30,59,14,245,3,251,3,98,250,98,250
-];
+// public domain ROM (http://a2go.applearchives.com/roms/)
+const APPLEIIGO_LZG = `TFpHAAAwAAAABYxwdy2NARUZHjRBUFBMRUlJR08gUk9NMS4wADQfNB80HzQfNB80HzQfNB80HDQGIADgGR97GR+uNB80Hxk/azQfNB8ZP2UZH4s0HzQfNB80HzQfNB80HzQfNB80HzQfNB80HTQPoCA0HCAgoBkOKAEQEAwFEw8GFCAODxQgARYBCQwBAgwFGRAoxs/SoM3P0sWgyc4eA83B1MnPzqDQzMXB08Wgw8zJw8ugHgigGQgo1MjFoMHQHhnJycfPoMzPNIHCxczP1x4cNAoZHvhMA+AgWPyiJ70A352ABMoQ9x4DMN+dAAUewx5OGQUDYB4DBh7DkB4ZBx4DTEDgNEEZP7s0HzQfNB80HzQfNB80HzQfNB80HzQfNB80HzQfNB80HzQfNB80HzQfNB80HjQYyc6w7snJkOrJzPDm0OjqNAtISikDCQSFKWgpGJACaX+FKAoKBSiFKGAZHnQApSUgwftlIBkdSzQVpSJIICT8pSiFKqUphSukIYhoaQHFI7ANHk6xKJEqiBD5MOGgACCe/LCGpCSpoJEoyMQhkPkZHsc0G6QksShIKT8JQJEoaGw4GRMbIAz9IKX7NKHJm/DzGRyNNAYgjv2lMyDt/aIBivDzyiA1/cmV0AKxKMngkAIp350AAsmN0LIgnPypjdBbpD2mPB4nIED5oACprUzt/RlfdjQfNB80HzQfNB80HzQfNB80HzQfNB80HjQFqQCFHKXmhRugAIQapRyRGiB+9MjQ9uYbpRspH9DuYIXihuCE4UgpwIUmSkoFJoUmaIUnCgoKJic0QmYmpScpHwXmhSeKwADwBaAjaQTI6Qew+4Tlqr259IUwmEql5IUcsBUcACM0BArJwBAGpRxJf4UcGf7aNB80HzQfNB80HzQfNBw0CkoIIEf4KKkPkAJp4IUusSZFMCUuUSaRJmAgAPjELLARyCAO+JD2aQFIHghoxS2Q9WCgL9ACoCeELaAnqQCFMCAo+IgQ9mAVBQR+JxUGBH4mCgoZgjRgpTAYaQMpD4UwCjQBBTCFMBln35AESjQBKQ8Za/CoSpAJarAQyaLwDCmHSqq9YvkgefjQBKCAqQCqvab5hS4pA4UvmCmPqpigA+CK8AtKkAhKSgkgiND6yIjQ8hmfOzQfNB80FNgghP4gL/sgk/4gif6tWMCtWsCtXcCtX8Ct/88sEMDYIDr/IGD7qQCFAKnGhQFsGR5vNB0VAxNs3dvHzxkKDa1wwKAA6uq9ZMAQBMjQ+IhgqQCFSK1WwK1UwK1RwKkA8AutUMCtU8AgNvipFIUiHhYgqSiFIakYhSOpF4UlTCL8IFj8oAm5CPuZDgSI0PdgrfMDSaWN9ANgyY3QGKwAwBATwJPQDywQwB5E+8CD8AMeBEz9+xUdB/gVEAf4yYfQEqlAIKj8oMCpDDTBrTDAiND1YKQkkSjmJKUkxSGwZmDJoLDvqBDsyY3wWsmKNGGI0MnGJBDopSGFJMYkpSLFJbALxiUVHAf4AEggJPwgnvygAGhpAMUjkPCwyqUihSWgAIQk8OSpAIUk5h4+HhC2xiUVHQf4FQYH+DhI6QHQ/Gg0gfZg5kLQAuZDpTzFPqU95T/mPB4GPRl99BUcB/jmTtAC5k8sAMAQ9ZEorQDALBDAYBUKB/j+YKUySKn/hTK9AAIg7f1oHoHJiPAdyZjwCuD4kAMgOv/o0BOp3B4VFQoH+P4VHgf4NBsASBmiWCDl/WgpDwmwybqQAmkGbDYAyaCQAiUyhDVIIHj7aKQ1GTEvQBkKBRkLGLE8kUIgtPyQ9xm+YTQBoD/QAqD/hDIZYlI+ojigG9AIHoI2oPClPikP8AYJwKAA8AKp/ZQAlQFg6upMFR8eQzQHqYdM7f2lSEilRaZGpEcZbhYZ34Q0GzQB9QP7A2L6Yvo=`;
+
+///
+/// Disk II
+///
+
+   const NUM_DRIVES = 2;
+   const NUM_TRACKS = 35;
+   const TRACK_SIZE = 0x1a00;
+   const SECTOR_SIZE = 383;
+
+   const DISKII_PROM = [
+      0xA2,0x20,0xA0,0x00,0xA2,0x03,0x86,0x3C,0x8A,0x0A,0x24,0x3C,0xF0,0x10,0x05,0x3C
+      ,0x49,0xFF,0x29,0x7E,0xB0,0x08,0x4A,0xD0,0xFB,0x98,0x9D,0x56,0x03,0xC8,0xE8,0x10
+      ,0xE5,0x20,0x58,0xFF,0xBA,0xBD,0x00,0x01,0x0A,0x0A,0x0A,0x0A,0x85,0x2B,0xAA,0xBD
+      ,0x8E,0xC0,0xBD,0x8C,0xC0,0xBD,0x8A,0xC0,0xBD,0x89,0xC0,0xA0,0x50,0xBD,0x80,0xC0
+      ,0x98,0x29,0x03,0x0A,0x05,0x2B,0xAA,0xBD,0x81,0xC0,0xA9,0x56,
+      /*0x20,0xA8,0xFC,*/0xa9,0x00,0xea,0x88
+      ,0x10,0xEB,0x85,0x26,0x85,0x3D,0x85,0x41,0xA9,0x08,0x85,0x27,0x18,0x08,0xBD,0x8C
+      ,0xC0,0x10,0xFB,0x49,0xD5,0xD0,0xF7,0xBD,0x8C,0xC0,0x10,0xFB,0xC9,0xAA,0xD0,0xF3
+      ,0xEA,0xBD,0x8C,0xC0,0x10,0xFB,0xC9,0x96,0xF0,0x09,0x28,0x90,0xDF,0x49,0xAD,0xF0
+      ,0x25,0xD0,0xD9,0xA0,0x03,0x85,0x40,0xBD,0x8C,0xC0,0x10,0xFB,0x2A,0x85,0x3C,0xBD
+      ,0x8C,0xC0,0x10,0xFB,0x25,0x3C,0x88,0xD0,0xEC,0x28,0xC5,0x3D,0xD0,0xBE,0xA5,0x40
+      ,0xC5,0x41,0xD0,0xB8,0xB0,0xB7,0xA0,0x56,0x84,0x3C,0xBC,0x8C,0xC0,0x10,0xFB,0x59
+      ,0xD6,0x02,0xA4,0x3C,0x88,0x99,0x00,0x03,0xD0,0xEE,0x84,0x3C,0xBC,0x8C,0xC0,0x10
+      ,0xFB,0x59,0xD6,0x02,0xA4,0x3C,0x91,0x26,0xC8,0xD0,0xEF,0xBC,0x8C,0xC0,0x10,0xFB
+      ,0x59,0xD6,0x02,0xD0,0x87,0xA0,0x00,0xA2,0x56,0xCA,0x30,0xFB,0xB1,0x26,0x5E,0x00
+      ,0x03,0x2A,0x5E,0x00,0x03,0x2A,0x91,0x26,0xC8,0xD0,0xEE,0xE6,0x27,0xE6,0x3D,0xA5
+      ,0x3D,0xCD,0x00,0x08,0xA6,0x2B,0x90,0xDB,0x4C,0x01,0x08,0x00,0x00,0x00,0x00,0x00
+   ];
+
+class DiskII implements SlotDevice {
+
+    emu : AppleII;
+    data : Uint8Array[];
+    track_data : Uint8Array;
+    track : number = 0;
+    read_mode : boolean = true;
+    write_protect : boolean = false;
+    motor : boolean = false;
+    track_index : number = 0;
+    
+    // TODO: load, saveState
+
+    constructor(emu : AppleII, image : Uint8Array) {
+        this.emu = emu;
+        this.data = new Array(NUM_TRACKS);
+        for (var i=0; i<NUM_TRACKS; i++) {
+           var ofs = i*16*256;
+           this.data[i] = nibblizeTrack(254, i, image.slice(ofs, ofs+16*256));
+        }
+    }
+    
+   read_latch() : number {
+      this.track_index = (this.track_index + 1) % TRACK_SIZE;
+      if (this.track_data) {
+         return (this.track_data[this.track_index] & 0xff);
+      } else
+         return this.emu.noise() | 0x80;
+   }
+
+   write_latch(value: number) {
+      this.track_index = (this.track_index + 1) % TRACK_SIZE;
+      if (this.track_data != null)
+         this.track_data[this.track_index] = value;
+   }
+   
+   readROM(address)      { return DISKII_PROM[address]; }
+   read(address)         { return this.doIO(address, 0); }
+   write(address, value) { this.doIO(address, value); }
+
+   doIO(address, value) : number 
+   {
+      switch (address & 0x0f)
+      {
+         /*
+          * Turn motor phases 0 to 3 on.  Turning on the previous phase + 1
+          * increments the track position, turning on the previous phase - 1
+          * decrements the track position.  In this scheme phase 0 and 3 are
+          * considered to be adjacent.  The previous phase number can be
+          * computed as the track number % 4.
+          */
+         case 0x1:
+         case 0x3:
+         case 0x5:
+         case 0x7:
+            var phase, lastphase, new_track;
+            new_track = this.track;
+            phase = (address >> 1) & 3;
+
+            // if new phase is even and current phase is odd
+            if (phase == ((new_track - 1) & 3))
+            {
+               if (new_track > 0)
+                  new_track--;
+            } else
+               if (phase == ((new_track + 1) & 3))
+            {
+               if (new_track < NUM_TRACKS*2-1)
+                  new_track++;
+            }
+            if ((new_track & 1) == 0)
+            {
+               this.track_data = this.data[new_track>>1];
+               console.log('track', new_track/2);
+            } else
+               this.track_data = null;
+            this.track = new_track;
+            break;
+            /*
+             * Turn drive motor off.
+             */
+         case 0x8:
+            this.motor = false;
+            break;
+            /*
+             * Turn drive motor on.
+             */
+         case 0x9:
+            this.motor = true;
+            break;   
+            /*
+             * Select drive 1.
+             */
+         case 0xa:
+            //drive = 0;
+            break;
+            /*
+             * Select drive 2.
+             */
+         case 0xb:
+            //drive = 1;
+            break;
+            /*
+             * Select write mode.
+             */
+         case 0xf:
+            this.read_mode = false;
+            /*
+             * Read a disk byte if read mode is active.
+             */
+         case 0xC:
+            if (this.read_mode)
+               return this.read_latch();
+            break;
+            /*
+             * Select read mode and read the write protect status.
+             */
+         case 0xE:
+            this.read_mode = true;
+            /*
+             * Write a disk byte if write mode is active and the disk is not
+             * write protected.
+             */
+         case 0xD:
+            if (value >= 0 && !this.read_mode && !this.write_protect)
+               this.write_latch(value);
+            /*
+             * Read the write protect status only.
+             */
+            return this.write_protect ? 0x80 : 0x00;
+      }
+      return this.emu.noise();
+   }
+
+}
+
+/* --------------- TRACK CONVERSION ROUTINES ---------------------- */
+
+   /*
+    * Normal byte (lower six bits only) -> disk byte translation table.
+    */
+   const byte_translation = [
+      0x96, 0x97, 0x9a, 0x9b, 0x9d, 0x9e, 0x9f, 0xa6,
+      0xa7, 0xab, 0xac, 0xad, 0xae, 0xaf, 0xb2, 0xb3,
+      0xb4, 0xb5, 0xb6, 0xb7, 0xb9, 0xba, 0xbb, 0xbc,
+      0xbd, 0xbe, 0xbf, 0xcb, 0xcd, 0xce, 0xcf, 0xd3,
+      0xd6, 0xd7, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde,
+      0xdf, 0xe5, 0xe6, 0xe7, 0xe9, 0xea, 0xeb, 0xec,
+      0xed, 0xee, 0xef, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6,
+      0xf7, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
+   ];
+
+   /*
+    * Sector skewing table.
+    */
+
+   const skewing_table = [
+      0,7,14,6,13,5,12,4,11,3,10,2,9,1,8,15
+   ];
+
+/*
+ * Encode a 256-byte sector as SECTOR_SIZE disk bytes as follows:
+ *
+ *   14 sync bytes
+ *   3 address header bytes
+ *   8 address block bytes
+ *   3 address trailer bytes
+ *   6 sync bytes
+ *   3 data header bytes
+ * 343 data block bytes
+ *   3 data trailer bytes
+ */
+   function nibblizeSector(vol, trk, sector, inn, in_ofs, out, i)
+   {
+      var loop, checksum, prev_value, value;
+      var sector_buffer = new Uint8Array(258);
+      value = 0;
+
+      /*
+       * Step 1: write 6 sync bytes (0xff's).  Normally these would be
+       * written as 10-bit bytes with two extra zero bits, but for the
+       * purpose of emulation normal 8-bit bytes will do, since the
+       * emulated drive will always be in sync.
+       */
+      for (loop = 0; loop < 14; loop++)
+         out[i++] = 0xff;
+
+      /*
+       * Step 2: write the 3-byte address header (0xd5 0xaa 0x96).
+       */
+      out[i++] = 0xd5;
+      out[i++] = 0xaa;
+      out[i++] = 0x96;
+
+      /*
+       * Step 3: write the address block.  Use 4-and-4 encoding to convert
+       * the volume, track and sector and checksum into 2 disk bytes each.
+       * The checksum is a simple exclusive OR of the first three values.
+       */
+      out[i++] = ((vol >> 1) | 0xaa);
+      out[i++] = (vol | 0xaa);
+      checksum = vol;
+      out[i++] = ((trk >> 1) | 0xaa);
+      out[i++] = (trk | 0xaa);
+      checksum ^= trk;
+      out[i++] = ((sector >> 1) | 0xaa);
+      out[i++] = (sector | 0xaa);
+      checksum ^= sector;
+      out[i++] = ((checksum >> 1) | 0xaa);
+      out[i++] = (checksum | 0xaa);
+
+      /*
+       * Step 4: write the 3-byte address trailer (0xde 0xaa 0xeb).
+       */
+      out[i++] = (0xde);
+      out[i++] = (0xaa);
+      out[i++] = (0xeb);
+
+      /*
+       * Step 5: write another 6 sync bytes.
+       */
+      for (loop = 0; loop < 6; loop++)
+         out[i++] = (0xff);
+
+      /*
+       * Step 6: write the 3-byte data header.
+       */
+      out[i++] = (0xd5);
+      out[i++] = (0xaa);
+      out[i++] = (0xad);
+
+      /*
+       * Step 7: read the next 256-byte sector from the old disk image file,
+       * and add two zero bytes to bring the number of bytes up to a multiple
+       * of 3.
+       */
+      for (loop = 0; loop < 256; loop++)
+         sector_buffer[loop] = inn[loop + in_ofs] & 0xff;
+      sector_buffer[256] = 0;
+      sector_buffer[257] = 0; 
+
+      /*
+       * Step 8: write the first 86 disk bytes of the data block, which
+       * encodes the bottom two bits of each sector byte into six-bit
+       * values as follows:
+       *
+       * disk byte n, bit 0 = sector byte n,       bit 1
+       * disk byte n, bit 1 = sector byte n,       bit 0
+       * disk byte n, bit 2 = sector byte n +  86, bit 1
+       * disk byte n, bit 3 = sector byte n +  86, bit 0
+       * disk byte n, bit 4 = sector byte n + 172, bit 1
+       * disk byte n, bit 5 = sector byte n + 172, bit 0
+       *
+       * The scheme allows each pair of bits to be shifted to the right out
+       * of the disk byte, then shifted to the left into the sector byte.
+       *
+       * Before the 6-bit value is translated to a disk byte, it is exclusive
+       * ORed with the previous 6-bit value, hence the values written are
+       * really a running checksum.
+       */
+      prev_value = 0;
+      for (loop = 0; loop < 86; loop++)
+      {
+         value  = (sector_buffer[loop] & 0x01) << 1;
+         value |= (sector_buffer[loop] & 0x02) >> 1;
+         value |= (sector_buffer[loop + 86] & 0x01) << 3;
+         value |= (sector_buffer[loop + 86] & 0x02) << 1;
+         value |= (sector_buffer[loop + 172] & 0x01) << 5;
+         value |= (sector_buffer[loop + 172] & 0x02) << 3;
+         out[i++] = (byte_translation[value ^ prev_value]);
+         prev_value = value;
+      }  
+
+      /*
+       * Step 9: write the last 256 disk bytes of the data block, which
+       * encodes the top six bits of each sector byte.  Again, each value
+       * is exclusive ORed with the previous value to create a running
+       * checksum (the first value is exclusive ORed with the last value of
+       * the previous step).
+       */
+
+      for (loop = 0; loop < 256; loop++)
+      {
+         value = (sector_buffer[loop] >> 2);
+         out[i++] = (byte_translation[value ^ prev_value]);
+         prev_value = value;
+      }
+
+      /*
+       * Step 10: write the last value as the checksum.
+       */
+      out[i++] = (byte_translation[value]);
+
+      /*
+       * Step 11: write the 3-byte data trailer.
+       */
+      out[i++] = (0xde);
+      out[i++] = (0xaa);
+      out[i++] = (0xeb);
+
+   }
+
+   function nibblizeTrack(vol, trk, inn)
+   {
+      var out = new Uint8Array(TRACK_SIZE);
+      var out_pos = 0;
+      for (var sector = 0; sector < 16; sector++) {
+         nibblizeSector(vol, trk, sector,
+                        inn, skewing_table[sector] << 8,
+                        out, out_pos);
+         out_pos += SECTOR_SIZE;
+      }
+      while (out_pos < TRACK_SIZE)
+         out[out_pos++] = (0xff);
+      return out;
+   }  
+
 

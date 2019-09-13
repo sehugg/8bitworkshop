@@ -141,7 +141,7 @@ export class CodeProject {
 
   updateFileInStore(path:string, text:FileData) {
     // protect against accidential whole-file deletion
-    if ((<string>text).trim && (<string>text).trim().length) {
+    if (text instanceof Uint8Array || ((<string>text).trim && (<string>text).trim().length)) {
       this.store.setItem(path, text);
     }
   }
