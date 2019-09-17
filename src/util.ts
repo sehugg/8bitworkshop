@@ -401,9 +401,9 @@ export function printFlags(val:number, names:string[], r2l:boolean) {
   var s = '';
   for (var i=0; i<names.length; i++) {
     if (names[i]) {
-      var bit = 1 << (r2l ? names.length-1-i : i);
+      var bit = 1 << (r2l ? (names.length-1-i) : i);
       if (i > 0) s += " ";
-      s += (val & (1<<bit)) ? names[i] : "-";
+      s += (val & bit) ? names[i] : "-";
     }
   }
   return s;

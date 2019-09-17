@@ -1,8 +1,8 @@
 
 import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { Bus, BasicScanlineMachine, xorshift32 } from "../devices";
+import { Bus, BasicScanlineMachine, xorshift32, SavesState } from "../devices";
 import { KeyFlags } from "../emu"; // TODO
-import { lzgmini, stringToByteArray, RGBA } from "../util";
+import { lzgmini, stringToByteArray, RGBA, printFlags } from "../util";
 
 const cpuFrequency = 1023000;
 const cpuCyclesPerLine = 65; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
@@ -28,6 +28,7 @@ interface AppleIIControlsState {
 interface AppleIIState extends AppleIIStateBase, AppleIIControlsState {
   c : MOS6502State;
   grswitch : number;
+  slots: any[];
 }
 
 interface SlotDevice extends Bus {
@@ -105,6 +106,7 @@ export class AppleII extends BasicScanlineMachine {
       auxRAMselected: this.auxRAMselected,
       auxRAMbank: this.auxRAMbank,
       writeinhibit: this.writeinhibit,
+      slots: this.slots.map((slot) => { return slot && slot['saveState'] && slot['saveState']() }),
       inputs: null
     };
   }
@@ -119,6 +121,9 @@ export class AppleII extends BasicScanlineMachine {
     this.auxRAMbank = s.auxRAMbank;
     this.writeinhibit = s.writeinhibit;
     this.setupLanguageCardConstants();
+    for (var i=0; i<this.slots.length; i++)
+       if (this.slots[i] && this.slots[i]['loadState'])
+          this.slots[i]['loadState'](s.slots[i]);
     this.ap2disp.invalidate(); // repaint entire screen
   }
   saveControlsState() : AppleIIControlsState {
@@ -139,6 +144,9 @@ export class AppleII extends BasicScanlineMachine {
   reset() {
     super.reset();
     this.rnd = 1;
+    this.auxRAMselected = false;
+    this.auxRAMbank = 1;
+    this.writeinhibit = true;
     // execute until $c600 boot
     for (var i=0; i<2000000; i++) {
       this.cpu.advanceClock();
@@ -351,6 +359,20 @@ export class AppleII extends BasicScanlineMachine {
         this.bank2wroffset = -0x1000;   // map 0xd000-0xdfff -> 0xc000-0xcfff
      else
         this.bank2wroffset = 0x3000; // map 0xd000-0xdfff -> 0x10000-0x10fff
+  }
+
+  getDebugCategories() {
+    return ['CPU','Stack','I/O','Disk'];
+  }
+  getDebugInfo(category:string, state:AppleIIState) {
+    switch (category) {
+      case 'I/O':  return "AUX RAM Bank:   " + state.auxRAMbank + 
+         "\nAUX RAM Select: " + state.auxRAMselected +
+         "\nAUX RAM Write:  " + !state.writeinhibit +
+         "\n\nGR Switches: " + printFlags(state.grswitch, ["Graphics","Mixed","Page2","Hires"], false) +
+         "\n";
+      case 'Disk': return (this.slots[6] && this.slots[6]['toLongString'] && this.slots[6]['toLongString']()) || "\n";
+    }
   }
 }
 
@@ -984,26 +1006,63 @@ const APPLEIIGO_LZG = `TFpHAAAwAAAABYxwdy2NARUZHjRBUFBMRUlJR08gUk9NMS4wADQfNB80H
       ,0x3D,0xCD,0x00,0x08,0xA6,0x2B,0x90,0xDB,0x4C,0x01,0x08,0x00,0x00,0x00,0x00,0x00
    ];
 
-class DiskII implements SlotDevice {
-
-    emu : AppleII;
+class DiskIIState {
     data : Uint8Array[];
-    track_data : Uint8Array;
     track : number = 0;
     read_mode : boolean = true;
     write_protect : boolean = false;
     motor : boolean = false;
     track_index : number = 0;
-    
-    // TODO: load, saveState
+}
 
+class DiskII extends DiskIIState implements SlotDevice, SavesState<DiskIIState> {
+    emu : AppleII;
+    track_data : Uint8Array;
+    
     constructor(emu : AppleII, image : Uint8Array) {
+        super();
         this.emu = emu;
         this.data = new Array(NUM_TRACKS);
         for (var i=0; i<NUM_TRACKS; i++) {
            var ofs = i*16*256;
            this.data[i] = nibblizeTrack(254, i, image.slice(ofs, ofs+16*256));
         }
+    }
+    
+    saveState() : DiskIIState {
+       var s = {
+          data: new Array(NUM_TRACKS),
+          track: this.track,
+          read_mode: this.read_mode,
+          write_protect: this.write_protect,
+          motor: this.motor,
+          track_index: this.track_index
+       };
+       for (var i=0; i<NUM_TRACKS; i++)
+          s.data[i] = this.data[i].slice(0);
+       return s;
+    }
+    
+    loadState(s: DiskIIState) {
+       for (var i=0; i<NUM_TRACKS; i++)
+          this.data[i].set(s.data[i]);
+       this.track = s.track;
+       this.read_mode = s.read_mode;
+       this.write_protect = s.write_protect;
+       this.motor = s.motor;
+       this.track_index = s.track_index;
+       if ((this.track & 1) == 0)
+          this.track_data = this.data[this.track>>1];
+       else
+          this.track_data = null;
+    }
+    
+    toLongString() {
+       return "Track:  " + (this.track / 2) +
+         "\nOffset: " + (this.track_index) +
+         "\nMode:   " + (this.read_mode ? "READ" : "WRITE") +
+         "\nMotor:  " + this.motor +
+         "\n";
     }
     
    read_latch() : number {
@@ -1299,6 +1358,6 @@ class DiskII implements SlotDevice {
       while (out_pos < TRACK_SIZE)
          out[out_pos++] = (0xff);
       return out;
-   }  
+   }
 
 

@@ -66,7 +66,6 @@ class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Plat
       {name:'I/O',start:0xc000,size:0x1000,type:'io'},
       {name:'ROM',start:0xd000,size:0x3000-6,type:'rom'},
   ] } };
-
 }
 
 PLATFORMS['apple2.mame'] = Apple2MAMEPlatform;
