@@ -461,10 +461,10 @@ export class DisassemblerView implements ProjectView {
     }
     var text = disassemble(pc-disasmWindow, pc) + disassemble(pc, pc+disasmWindow);
     this.disasmview.setValue(text);
-    if (moveCursor) {
+    if (moveCursor) { 
       this.disasmview.setCursor(selline, 0);
-      jumpToLine(this.disasmview, selline);
     }
+    jumpToLine(this.disasmview, selline);
   }
 
   getCursorPC() : number {
@@ -511,14 +511,13 @@ export class ListingView extends DisassemblerView implements ProjectView {
     var asmtext = this.assemblyfile.text;
     var disasmview = this.getDisasmView();
     disasmview.setValue(asmtext);
-    var debugging = true; // TODO: platform.isDebugging && platform.isDebugging();
-    var findPC = debugging ? pc : -1;
-    if (findPC >= 0 && this.assemblyfile) {
-      var lineno = this.assemblyfile.findLineForOffset(findPC, 15);
-      if (lineno && moveCursor) {
+    if (pc >= 0 && this.assemblyfile) {
+      var lineno = this.assemblyfile.findLineForOffset(pc, 15);
+      if (lineno) {
         // set cursor while debugging
-        if (debugging)
+        if (moveCursor) {
           disasmview.setCursor(lineno-1, 0);
+        }
         jumpToLine(disasmview, lineno-1);
       }
     }

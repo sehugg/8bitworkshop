@@ -183,7 +183,8 @@ TODO:
   - compiler bug in chase
 - "shared" in URL doesn't work, leave in URL? (also importURL)
 - segments disappear in memory map when binary unchanged
-
+- 6502
+  - KIL stops debugger
 - TypeError: null is not an object (evaluating 'n.destination')
   https://8bitworkshop.com/v3.4.1/javatari.js/release/javatari/javatari.js
   (32:443651)	Safari	12.1.2
