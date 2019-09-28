@@ -50,7 +50,7 @@ export class DebugSymbols {
     this.symbolmap = symbolmap;
     this.addr2symbol = invertMap(symbolmap);
     //// TODO: shouldn't be necc.
-    if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = ' '; // needed for ...
+    if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = '$00'; // needed for ...
     this.addr2symbol[0x10000] = '__END__'; // ... dump memory to work
   }
 }

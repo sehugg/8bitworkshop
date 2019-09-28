@@ -3,6 +3,7 @@ TSC=./node_modules/typescript/bin/tsc
 
 all:
 	cp nanoasm/src/assembler.ts src/worker/
+	$(TSC) -v
 	$(TSC)
 	cd jsnes && npm i
 
