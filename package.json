@@ -15,7 +15,7 @@
   "devDependencies": {
     "@types/bootbox": "^4.4.36",
     "@types/bootstrap": "^3.3.42",
-    "@types/jquery": "^3.3.29",
+    "@types/jquery": "^3.3.31",
     "atob": "^2.1.x",
     "btoa": "^1.2.x",
     "chromedriver": "^76.0.1",
