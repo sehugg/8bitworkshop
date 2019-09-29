@@ -188,6 +188,8 @@ TODO:
 - TypeError: null is not an object (evaluating 'n.destination')
   https://8bitworkshop.com/v3.4.1/javatari.js/release/javatari/javatari.js
   (32:443651)	Safari	12.1.2
+- Safari: doesn't send good exception reasons ("undefined")
+
 
 
 WEB WORKER FORMAT

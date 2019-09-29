@@ -6,12 +6,14 @@ import { WorkerError, FileData } from "./workertypes";
 import { ProjectView } from "./views";
 
 type WindowCreateFunction = (id:string) => ProjectView;
+type WindowShowFunction = (id:string, view:ProjectView) => void;
 
 export class ProjectWindows {
   containerdiv : HTMLElement;
   project : CodeProject;
   id2window : {[id:string]:ProjectView} = {};
   id2createfn : {[id:string]:WindowCreateFunction} = {};
+  id2showfn : {[id:string]:WindowShowFunction} = {};
   id2div : {[id:string]:HTMLElement} = {};
   activeid : string;
   activewnd : ProjectView;
@@ -29,6 +31,10 @@ export class ProjectWindows {
   setCreateFunc(id:string, createfn:WindowCreateFunction) : void {
     this.id2createfn[id] = createfn;
   }
+  
+  setShowFunc(id:string, showfn:WindowShowFunction) : void {
+    this.id2showfn[id] = showfn;
+  }
 
   create(id:string) : ProjectView {
     var wnd = this.id2window[id];
@@ -45,21 +51,21 @@ export class ProjectWindows {
     return wnd;
   }
 
-  createOrShow(id:string) : ProjectView {
+  createOrShow(id: string, moveCursor?: boolean) : ProjectView {
     var wnd = this.create(id);
     var div = this.id2div[id];
     if (this.activewnd != wnd) {
-      if (this.activediv)
-        $(this.activediv).hide();
-      if (this.activewnd && this.activewnd.setVisible)
-        this.activewnd.setVisible(false);
+      this.activediv && $(this.activediv).hide();
+      this.activewnd && this.activewnd.setVisible && this.activewnd.setVisible(false);
       this.activediv = div;
       this.activewnd = wnd;
       $(div).show();
-      this.refresh(true);
+      this.refresh(moveCursor);
       this.refreshErrors();
-      if (wnd.setVisible)
-        wnd.setVisible(true);
+      wnd.setVisible && wnd.setVisible(true);
+      this.id2showfn[id] && this.id2showfn[id](id, wnd);
+    } else {
+      this.refresh(moveCursor);
     }
     this.activeid = id;
     return wnd;

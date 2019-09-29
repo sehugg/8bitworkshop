@@ -6,7 +6,7 @@ import * as bootstrap from "bootstrap";
 import { CodeProject } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "./workertypes";
 import { ProjectWindows } from "./windows";
-import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable } from "./baseplatform";
+import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState } from "./baseplatform";
 import { PLATFORMS, EmuHalt, Toolbar } from "./emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
@@ -48,7 +48,7 @@ var current_preset : Preset;	// current preset object (if selected)
 var store;			// persistent store
 
 export var compparams;			// received build params from worker
-export var lastDebugState;		// last debug state (object)
+export var lastDebugState : EmuState;	// last debug state (object)
 
 var lastDebugInfo;		// last debug info (CPU text)
 var debugCategory;		// current debug category
@@ -194,11 +194,14 @@ function refreshWindowList() {
     li.appendChild(a);
     ul.append(li);
     if (createfn) {
+      var onopen = (id, wnd) => {
+        ul.find('a').removeClass("dropdown-item-checked");
+        $(a).addClass("dropdown-item-checked");
+      };
       projectWindows.setCreateFunc(id, createfn);
+      projectWindows.setShowFunc(id, onopen);
       $(a).click( (e) => {
         projectWindows.createOrShow(id);
-        ul.find('a').removeClass("dropdown-item-checked");
-        ul.find(e.target).addClass("dropdown-item-checked");
       });
     }
   }
@@ -994,7 +997,7 @@ function measureBuildTime() {
     ga('send', 'timing', 'build', platform_id, (measureTimeBuild.getTime() - measureTimeLoad.getTime()));
     measureTimeLoad = null; // only measure once
   }
-  gaEvent('build', platform_id);
+  //gaEvent('build', platform_id);
 }
 
 function setCompileOutput(data: WorkerResult) {
@@ -1091,15 +1094,34 @@ function checkRunReady() {
     return true;
 }
 
-function uiDebugCallback(state) {
+function openRelevantListing(state: EmuState) {
+  var listings = current_project.getListings();
+  if (listings) {
+    var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
+    for (var lstfn in listings) {
+      var lst = listings[lstfn];
+      var file = lst.assemblyfile || lst.sourcefile;
+      var lineno = file && file.findLineForOffset(pc, 16); // TODO: const
+      console.log(pc,lstfn,lineno);
+      if (lineno !== null) {
+        projectWindows.createOrShow(lstfn, true);
+        return;
+      }
+    }
+  }
+  projectWindows.createOrShow("#disasm", true);
+}
+
+function uiDebugCallback(state: EmuState) {
   lastDebugState = state;
   showDebugInfo(state);
-  projectWindows.refresh(true);
+  //openRelevantListing(state);
+  projectWindows.refresh(true); // move cursor
   debugTickPaused = true;
 }
 
 function setupDebugCallback(btnid? : string) {
-  if (platform.setupDebug) platform.setupDebug((state) => {
+  if (platform.setupDebug) platform.setupDebug((state:EmuState) => {
     uiDebugCallback(state);
     setDebugButtonState(btnid||"pause", "stopped");
   });

@@ -495,12 +495,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
     // lookup corresponding assemblyfile for this file, using listing
     var lst = current_project.getListingForFile(this.path);
     // TODO?
-    if (lst && lst.assemblyfile) {
-      this.assemblyfile = lst.assemblyfile;
-    }
-    else if (lst && lst.sourcefile) {
-      this.assemblyfile = lst.sourcefile;
-    }
+    this.assemblyfile = lst && (lst.assemblyfile || lst.sourcefile);
   }
 
   refresh(moveCursor: boolean) {
@@ -800,7 +795,6 @@ export class MemoryMapView implements ProjectView {
     segdiv.click(() => {
       var memview = projectWindows.createOrShow('#memory') as MemoryView;
       memview.scrollToAddress(seg.start);
-      // TODO: this doesn't update nav bar
     });
   }
 
