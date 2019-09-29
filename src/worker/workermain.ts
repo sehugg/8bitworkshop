@@ -2,13 +2,16 @@
 
 import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine } from "../workertypes";
 
-const emglobal : any = this['window'] || this['global'] || this;
 declare var WebAssembly;
 declare function importScripts(path:string);
 declare function postMessage(msg);
 
-var ENVIRONMENT_IS_WEB = typeof window === 'object';
-var ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
+const emglobal : any = this['window'] || this['global'] || this;
+const ENVIRONMENT_IS_WEB = typeof window === 'object';
+const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
+
+//const self = emglobal.self;
+//const __WORKER__ = function() {
 
 // WebAssembly module cache
 // TODO: leaks memory even when disabled...
@@ -1328,7 +1331,6 @@ function linkSDLDZ80(step:BuildStep)
   }
 }
 
-var sdcc;
 function compileSDCC(step:BuildStep) {
 
   gatherFiles(step, {
@@ -1339,7 +1341,7 @@ function compileSDCC(step:BuildStep) {
     var errors = [];
     var params = step.params;
     loadNative('sdcc');
-    var SDCC = sdcc({
+    var SDCC = emglobal.sdcc({
       instantiateWasm: moduleInstFn('sdcc'),
       noInitialRun:true,
       noFSInit:true,
@@ -1871,6 +1873,19 @@ function translateShowdown(step:BuildStep) {
   };
 }
 
+function runJavascript(step:BuildStep) {
+  var code = getWorkFileAsString(step.path);
+  try {
+    //eval(code);
+    var fn = new Function("'use strict';\n" + code);
+    var obj = {};
+    var out = fn.call(obj);
+    return { output:out||obj };
+  } catch (e) {
+    return { errors:[{line:(e.lineNumber-2)|0, msg:e.message||"Error"}] };
+  }
+}
+
 // http://datapipe-blackbeltsystems.com/windows/flex/asm09.html
 function assembleXASM6809(step:BuildStep) {
   load("xasm6809");
@@ -2054,6 +2069,7 @@ var TOOLS = {
   'nesasm': assembleNESASM,
   'bataribasic': compileBatariBasic,
   'markdown': translateShowdown,
+  'js': runJavascript,
 }
 
 var TOOL_PRELOADFS = {
@@ -2188,3 +2204,5 @@ if (ENVIRONMENT_IS_WORKER) {
     }
   }
 }
+
+//}();

@@ -72,6 +72,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'zmac': 'z80',
   'bataribasic': 'bataribasic',
   'markdown': 'markdown',
+  'js': 'javascript',
   'xasm6809': 'z80'
 }
 

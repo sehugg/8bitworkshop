@@ -60,7 +60,7 @@ export class ProjectWindows {
       this.activediv = div;
       this.activewnd = wnd;
       $(div).show();
-      this.refresh(moveCursor);
+      this.refresh(true); // needed to tell asset editor 1st time running, but that's bad
       this.refreshErrors();
       wnd.setVisible && wnd.setVisible(true);
       this.id2showfn[id] && this.id2showfn[id](id, wnd);
