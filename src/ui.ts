@@ -248,7 +248,7 @@ function refreshWindowList() {
 
   // add other tools
   separate = true;
-  if (platform.disassemble) {
+  if (platform.disassemble && platform.saveState) {
     addWindowItem("#disasm", "Disassembly", () => {
       return new Views.DisassemblerView();
     });

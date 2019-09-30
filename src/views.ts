@@ -500,8 +500,8 @@ export class ListingView extends DisassemblerView implements ProjectView {
 
   refresh(moveCursor: boolean) {
     this.refreshListing();
-    if (!this.assemblyfile) return; // TODO?
-    var state = lastDebugState || platform.saveState(); // TODO?
+    if (!this.assemblyfile || !platform.saveState) return;
+    var state = lastDebugState || platform.saveState();
     var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
     var asmtext = this.assemblyfile.text;
     var disasmview = this.getDisasmView();
