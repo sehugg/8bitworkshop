@@ -277,11 +277,6 @@ function refreshWindowList() {
       return new Views.RasterPCHeatMapView();
     });
   }
-  else if (platform.getRasterScanline && platform.setBreakpoint && platform.getCPUState) { // TODO: use profiler class to determine compat
-    addWindowItem("#profiler", "Profiler", () => {
-      return new Views.ProfileView();
-    });
-  }
   addWindowItem('#asseteditor', 'Asset Editor', () => {
     return new Views.AssetEditorView();
   });

@@ -1,11 +1,11 @@
 
 //import CodeMirror = require("codemirror");
 import { SourceFile, WorkerError, Segment, FileData } from "./workertypes";
-import { Platform, EmuState, ProfilerOutput, lookupSymbol, BaseDebugPlatform } from "./baseplatform";
+import { Platform, EmuState, lookupSymbol, BaseDebugPlatform } from "./baseplatform";
 import { hex, lpad, rpad, safeident, rgb2bgr } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
-import { EmuProfilerImpl, ProbeRecorder, ProbeFlags } from "./recorder";
+import { ProbeRecorder, ProbeFlags } from "./recorder";
 import { getMousePos } from "./emu";
 import * as pixed from "./pixed/pixeleditor";
 declare var Mousetrap;
@@ -813,107 +813,6 @@ export class MemoryMapView implements ProjectView {
     }
   }
 
-}
-
-///
-
-export class ProfileView implements ProjectView {
-  prof : EmuProfilerImpl;
-  profilelist;
-  out : ProfilerOutput;
-  maindiv : HTMLElement;
-  symcache : Map<number,symbol> = new Map();
-  recreateOnResize = true;
-
-  createDiv(parent : HTMLElement) {
-    var div = document.createElement('div');
-    div.setAttribute("class", "profiler");
-    parent.appendChild(div);
-    this.showMemoryWindow(parent, div);
-    return this.maindiv = div;
-  }
-
-  showMemoryWindow(workspace:HTMLElement, parent:HTMLElement) {
-    this.profilelist = new VirtualList({
-      w: $(workspace).width(),
-      h: $(workspace).height(),
-      itemHeight: getVisibleEditorLineHeight(),
-      totalRows: 262,
-      generatorFn: (row : number) => {
-        var linediv = document.createElement("div");
-        this.addProfileLine(linediv, row);
-        return linediv;
-      }
-    });
-    $(parent).append(this.profilelist.container);
-    this.symcache = new Map();
-    this.refresh();
-  }
-
-  addProfileLine(div : HTMLElement, row : number) : void {
-    div.appendChild(createTextSpan(lpad(row+':',4), "profiler-lineno"));
-    if (!this.out) return;
-    var f = this.out.frame;
-    if (!f) return;
-    var l = f.lines[row];
-    if (!l) return;
-    var lastsym = '';
-    var canDebug = platform.runToFrameClock;
-    for (let i=l.start; i<=l.end; i++) {
-      let pc = f.iptab[i];
-      let sym = this.symcache[pc];
-      let op = pc >> 20;
-      switch (op) { // TODO: const
-        case 1: sym = "r$" + hex(pc & 0xffff); break;
-        case 2: sym = "W$" + hex(pc & 0xffff); break;
-        case 4: sym = "I$" + hex(pc & 0xffff); break;
-      }
-      if (!sym) {
-        sym = lookupSymbol(platform, pc, false);
-        this.symcache[pc] = sym;
-      }
-      if (sym != lastsym) {
-        var cls = "profiler";
-        if (sym.startsWith('_')) cls = "profiler-cident";
-        else if (sym.startsWith('@')) cls = "profiler-local";
-        else if (/^\d*[.]/.exec(sym)) cls = "profiler-local";
-        var span = createTextSpan(' '+sym, cls);
-        if (canDebug) {
-          $(span).click(() => {
-            platform.runToFrameClock(i);
-          });
-        }
-        div.appendChild(span);
-        lastsym = sym;
-      }
-    }
-  }
-
-  refresh() {
-    this.tick();
-    this.symcache.clear();
-  }
-
-  tick() {
-    if (this.profilelist) {
-      $(this.maindiv).find('[data-index]').each( (i,e) => {
-        var div = $(e);
-        var row = parseInt(div.attr('data-index'));
-        div.empty();
-        this.addProfileLine(div[0], row);
-      });
-    }
-  }
-
-  setVisible(showing : boolean) : void {
-    if (!this.prof) {
-      this.prof = new EmuProfilerImpl(platform);
-    }
-    if (showing)
-      this.out = this.prof.start();
-    else
-      this.prof.stop();
-  }
 }
 
 ///

@@ -169,30 +169,10 @@ export interface EmuRecorder {
   recordFrame(state : EmuState);
 }
 
-export interface ProfilerScanline {
-  start,end : number; // start/end frameindex
-}
-export interface ProfilerFrame {
-  iptab : Uint32Array; // array of IPs
-  lines : ProfilerScanline[];
-}
-export interface ProfilerOutput {
-  frame : ProfilerFrame;
-}
-export interface EmuProfiler {
-  start() : ProfilerOutput;
-  stop();
-  // TODO?
-  logRead(a : number);
-  logWrite(a : number);
-  logInterrupt(a : number);
-}
-
 /////
 
 export abstract class BasePlatform {
   recorder : EmuRecorder = null;
-  profiler : EmuProfiler = null;
   debugSymbols : DebugSymbols;
 
   abstract loadState(state : EmuState) : void;
