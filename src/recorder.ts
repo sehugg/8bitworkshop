@@ -130,6 +130,8 @@ export enum ProbeFlags {
   VRAM_WRITE	= 0x07000000,
   INTERRUPT	= 0x08000000,
   ILLEGAL	= 0x09000000,
+  SP_PUSH	= 0x0a000000,
+  SP_POP	= 0x0b000000,
   SCANLINE	= 0x7e000000,
   FRAME		= 0x7f000000,
 }
@@ -145,6 +147,7 @@ export class ProbeRecorder implements ProbeAll {
   idx = 0;
   fclk = 0;
   sl = 0;
+  cur_sp = -1;
   m : Probeable;
   singleFrame : boolean = true;
 
@@ -161,7 +164,7 @@ export class ProbeRecorder implements ProbeAll {
     this.idx = 0;
   }
   log(a:number) {
-    // TODO: coalesce READ and EXECUTE
+    // TODO: coalesce READ and EXECUTE and PUSH/POP
     if (this.idx >= this.buf.length) return;
     this.buf[this.idx++] = a;
   }
@@ -198,7 +201,16 @@ export class ProbeRecorder implements ProbeAll {
     this.sl = 0;
     if (this.singleFrame) this.reset();
   }
-  logExecute(address:number) {
+  logExecute(address:number, SP:number) {
+    if (this.cur_sp !== SP) {
+      if (SP < this.cur_sp) {
+        this.log(ProbeFlags.SP_PUSH | (this.cur_sp - SP));
+      }
+      if (SP > this.cur_sp) {
+        this.log(ProbeFlags.SP_POP | (SP - this.cur_sp));
+      }
+      this.cur_sp = SP;
+    }
     this.log(address | ProbeFlags.EXECUTE);
   }
   logInterrupt(type:number) {

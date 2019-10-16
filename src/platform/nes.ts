@@ -138,7 +138,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     // insert debug hook
     this.nes.cpu._emulate = this.nes.cpu.emulate;
     this.nes.cpu.emulate = () => {
-      this.probe.logExecute(this.nes.cpu.REG_PC-1);
+      this.probe.logExecute(this.nes.cpu.REG_PC-1, this.nes.cpu.REG_SP);
       var cycles = this.nes.cpu._emulate();
       this.evalDebugCondition();
       this.probe.logClocks(cycles);

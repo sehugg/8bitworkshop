@@ -1055,7 +1055,6 @@ export class RasterHeatMapView extends ProbeBitmapViewBase implements ProjectVie
     data = data | rgb | 0xff000000;
     this.datau32[iofs] = data;
   }
-  
 }
 */
 
@@ -1069,7 +1068,43 @@ export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectV
     data = data | rgb | 0xff000000;
     this.datau32[iofs] = data;
   }
-  
+}
+
+export class RasterStackMapView extends ProbeBitmapViewBase implements ProjectView {
+  pcstack = [];
+  pushed = false;
+  color = 0;
+  root = {};
+
+  drawEvent(op, addr, col, row) {
+    var iofs = col + row * this.canvas.width;
+    if (op == ProbeFlags.SP_PUSH) {
+      this.pcstack.push({});
+      this.pushed = true;
+    } else if (op == ProbeFlags.SP_POP) {
+      var entry = this.pcstack.pop();
+      if (entry && entry.addr !== undefined) {
+        var node = this.root;
+        for (var e of this.pcstack) {
+          if (node[e.addr]) {
+            node = node[e.addr];
+          } else {
+            node = node[e.addr] = {};
+          }
+        }
+      }
+      //if (this.pcstack.length == 1) console.log(this.root);
+      this.pushed = false;
+    } else if (op == ProbeFlags.EXECUTE) {
+      if (this.pushed) {
+        this.pcstack.pop();
+        this.pcstack.push({addr:addr, scol:col, srow:row});
+        this.pushed = false;
+      }
+    }
+    var data = 0xff224488 << this.pcstack.length;
+    this.datau32[iofs] = data;
+  }
 }
 
 ///

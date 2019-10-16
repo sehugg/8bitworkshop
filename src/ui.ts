@@ -276,6 +276,9 @@ function refreshWindowList() {
     addWindowItem("#crtheatmap", "CRT Probe", () => {
       return new Views.RasterPCHeatMapView();
     });
+    addWindowItem("#spheatmap", "Stack Probe", () => {
+      return new Views.RasterStackMapView();
+    });
   }
   addWindowItem('#asseteditor', 'Asset Editor', () => {
     return new Views.AssetEditorView();

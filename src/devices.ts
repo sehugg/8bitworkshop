@@ -113,68 +113,6 @@ export function xorshift32(x : number) : number {
   return x;
 }
 
-/// HOOKS
-
-export interface Hook<T> {
-  //target : T;
-  unhook();
-}
-
-export class BusHook implements Hook<Bus> {
-  //target : Bus;
-  constructor(bus : Bus, profiler : ProbeBus) {
-    //this.target = bus;
-    var oldread = bus.read.bind(bus);
-    var oldwrite = bus.write.bind(bus);
-    bus.read = (a:number):number => {
-      var val = oldread(a);
-      profiler.logRead(a,val);
-      return val;
-    }
-    bus.write = (a:number,v:number) => {
-      profiler.logWrite(a,v);
-      oldwrite(a,v);
-    }
-    this.unhook = () => {
-      bus.read = oldread;
-      bus.write = oldwrite;
-    }
-  }
-  unhook : () => void;
-}
-
-export class CPUClockHook implements Hook<CPU&ClockBased> {
-  //target : CPU&ClockBased;
-  constructor(cpu : CPU&ClockBased, profiler : ProbeCPU) {
-    //this.target = cpu;
-    var oldclock = cpu.advanceClock.bind(cpu);
-    cpu.advanceClock = () => {
-      profiler.logExecute(cpu.getPC());
-      return oldclock();
-    }
-    this.unhook = () => {
-      cpu.advanceClock = oldclock;
-    }
-  }
-  unhook : () => void;
-}
-
-export class CPUInsnHook implements Hook<CPU&InstructionBased> {
-  //target : CPU&InstructionBased;
-  constructor(cpu : CPU&InstructionBased, profiler : ProbeCPU) {
-    //this.target = cpu;
-    var oldinsn = cpu.advanceInsn.bind(cpu);
-    cpu.advanceInsn = () => {
-      profiler.logExecute(cpu.getPC());
-      return oldinsn();
-    }
-    this.unhook = () => {
-      cpu.advanceInsn = oldinsn;
-    }
-  }
-  unhook : () => void;
-}
-
 /// PROFILER
 
 export interface ProbeTime {
@@ -184,7 +122,7 @@ export interface ProbeTime {
 }
 
 export interface ProbeCPU {
-  logExecute(address:number);
+  logExecute(address:number, SP:number);
   logInterrupt(type:number);
   logIllegal(address:number);
 }
@@ -288,7 +226,7 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
   advanceCPU() {
     var c = this.cpu as any;
     var n = 1;
-    if (this.cpu.isStable()) { this.probe.logExecute(this.cpu.getPC()); }
+    if (this.cpu.isStable()) { this.probe.logExecute(this.cpu.getPC(), this.cpu.getSP()); }
     if (c.advanceClock) { c.advanceClock(); }
     else if (c.advanceInsn) { n = c.advanceInsn(1); }
     this.probe.logClocks(n);
