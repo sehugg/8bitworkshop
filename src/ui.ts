@@ -214,11 +214,13 @@ function refreshWindowList() {
   }
 
   function addEditorItem(id:string) {
-    var data = current_project.getFile(id);
-    if (typeof data === 'string')
-      addWindowItem(id, getFilenameForPath(id), loadEditor);
-    else if (data instanceof Uint8Array)
-      addWindowItem(id, getFilenameForPath(id), () => { return new Views.BinaryFileView(id, data as Uint8Array); });
+    addWindowItem(id, getFilenameForPath(id), () => {
+      var data = current_project.getFile(id);
+      if (typeof data === 'string')
+        return loadEditor(id);
+      else if (data instanceof Uint8Array)
+        return new Views.BinaryFileView(id, data as Uint8Array);
+    });
   }
 
   // add main file editor
@@ -231,7 +233,6 @@ function refreshWindowList() {
   });
 
   // add listings
-  // TODO: update listing when recompiling
   separate = true;
   var listings = current_project.getListings();
   if (listings) {
@@ -276,9 +277,11 @@ function refreshWindowList() {
     addWindowItem("#crtheatmap", "CRT Probe", () => {
       return new Views.RasterPCHeatMapView();
     });
+    /*
     addWindowItem("#spheatmap", "Stack Probe", () => {
       return new Views.RasterStackMapView();
     });
+    */
   }
   addWindowItem('#asseteditor', 'Asset Editor', () => {
     return new Views.AssetEditorView();
@@ -391,7 +394,7 @@ function handleFileUpload(files: File[]) {
         if (confirm("Open '" + qs['file'] + "' as project?")) {
           gotoNewLocation();
         } else {
-          updateSelector();
+          setTimeout(updateSelector, 1000); // TODO: wait for files to upload
         }
       }
       gaEvent('workspace', 'file', 'upload');
@@ -688,7 +691,7 @@ function deleteRepository() {
 }
 
 function _shareEmbedLink(e) {
-  if (current_output == null) { // TODO
+  if (current_output == null) {
     alertError("Please fix errors before sharing.");
     return true;
   }
@@ -1011,7 +1014,7 @@ function setCompileOutput(data: WorkerResult) {
     compparams = data.params;
     // load ROM
     var rom = data.output;
-    if (rom) { // TODO instanceof Uint8Array) {
+    if (rom) {
       try {
         clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
         _resetRecording();
@@ -1019,7 +1022,6 @@ function setCompileOutput(data: WorkerResult) {
         current_output = rom;
         if (!userPaused) _resume();
         measureBuildTime();
-        // TODO: reset profiler etc? (Tell views?)
       } catch (e) {
         console.log(e);
         toolbar.addClass("has-errors");
@@ -1860,7 +1862,6 @@ function startPlatform() {
   // start platform and load file
   replaceURLState();
   platform.start();
-  // TODO: ordering of loads?
   installGAHooks();
   loadBIOSFromProject();
   initProject();
@@ -1907,8 +1908,7 @@ function loadImportedURL(url : string) {
   setWaitDialog(true);
   getWithBinary(url, (data) => {
     if (data) {
-      var path = 'shared/' + getFilenameForPath(url); // TODO: shared prefix?
-      // TODO: progress dialog
+      var path = 'shared/' + getFilenameForPath(url);
       console.log("Importing " + data.length + " bytes as " + path);
       store.getItem(path, (err, olddata) => {
         setWaitDialog(false);

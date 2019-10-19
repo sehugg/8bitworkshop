@@ -45,25 +45,6 @@ describe('MOS6502', function() {
       logRead:    function(a) { pcs.push(a); },
       logWrite:   function(a) { pcs.push(a); },
     };
-    // test hooks
-    var chook = new emu.CPUClockHook(cpu, profiler);
-    for (var i=0; i<10000; i++) {
-      cpu.advanceClock();
-    }
-    chook.unhook();
-    for (var i=0; i<100000; i++) {
-      cpu.advanceClock();
-    }
-    console.log(pcs.slice(pcs.length-10));
-    assert.equal(10000, pcs.length);
-    // bus hook
-    var bhook = new emu.BusHook(bus, profiler);
-    for (var i=0; i<10000; i++) {
-      cpu.advanceClock();
-    }
-    bhook.unhook();
-    console.log(pcs.slice(pcs.length-10));
-    assert.equal(20000, pcs.length);
   });
 });
 

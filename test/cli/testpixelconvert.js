@@ -1,10 +1,13 @@
 
-var vm = require('vm');
-var fs = require('fs');
 var assert = require('assert');
-
-var util = require("gen/util.js");
 var pixed = require("gen/pixed/pixeleditor.js");
+
+function dumbEqual(a,b) {
+  if (a instanceof Uint32Array || a instanceof Uint8Array) {
+    a = Array.from(a);
+  }
+  return assert.deepEqual(a,b);
+}
 
 describe('Pixel editor', function() {
   it('Should decode', function() {
@@ -36,7 +39,7 @@ describe('Pixel editor', function() {
       0xff40e0e0,
       0xff40e0e1,
     ];
-    assert.deepEqual(node5.palette, expectedPalette);
+    dumbEqual(node5.palette, expectedPalette);
     
     var ctx = {
       getPalettes: function(ncolors) {
@@ -53,29 +56,29 @@ describe('Pixel editor', function() {
     var node3 = new pixed.Palettizer(ctx, fmt);
     node2.addRight(node3);
     node1.refreshRight();
-    assert.deepEqual(node3.palette, expectedPalette);
+    dumbEqual(node3.palette, expectedPalette);
 
-    assert.deepEqual(node2.images, [[0,0,0,0,14,15,14,15,14,0,0,0,0,0,0,0,14,14,14,14,15,14,14,14,14,0,0,0,0,14,14,13,14,15,14,15,14,13,14,14,0,0,0,14,14,14,13,13,13,13,13,14,14,14,0,0,0,14,14,14,14,13,13,14,14,14,14,14,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,0,0,14,13,13,13,14,0,0,0,0,13,13,13,13,13,14,14,14,14,14,13,13,13,13,0,0,13,14,14,14,14,14,14,14,14,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,13,13,13,13,13,0,13,14,0,0,0,13,0,0,14,14,0,14,14,0,0,13,0,0,0,0,0,0,14,13,0,14,14,0,0,0,0,0,0,0,0,13,13,13,0,13,13,13,0,0,1,8]]);
+    dumbEqual(node2.images[0], [0,0,0,0,14,15,14,15,14,0,0,0,0,0,0,0,14,14,14,14,15,14,14,14,14,0,0,0,0,14,14,13,14,15,14,15,14,13,14,14,0,0,0,14,14,14,13,13,13,13,13,14,14,14,0,0,0,14,14,14,14,13,13,14,14,14,14,14,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,0,0,14,13,13,13,14,0,0,0,0,13,13,13,13,13,14,14,14,14,14,13,13,13,13,0,0,13,14,14,14,14,14,14,14,14,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,13,13,13,13,13,0,13,14,0,0,0,13,0,0,14,14,0,14,14,0,0,13,0,0,0,0,0,0,14,13,0,14,14,0,0,0,0,0,0,0,0,13,13,13,0,13,13,13,0,0,1,8]);
     assert.equal(" 0x00, 0x03, 0x19, 0x50, 0x52, 0x07, 0x1F, 0x37, 0xE0, 0xA4, 0xFD, 0xFF, 0x38, 0x70, 0x7F, 0x7F, ",
       pixed.replaceHexWords(paldatastr, pixed.parseHexWords(paldatastr)));
     node3.refreshLeft();
-    assert.deepEqual(node2.images, [[0,0,0,0,14,15,14,15,14,0,0,0,0,0,0,0,14,14,14,14,15,14,14,14,14,0,0,0,0,14,14,13,14,15,14,15,14,13,14,14,0,0,0,14,14,14,13,13,13,13,13,14,14,14,0,0,0,14,14,14,14,13,13,14,14,14,14,14,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,0,0,14,13,13,13,14,0,0,0,0,13,13,13,13,13,14,14,14,14,14,13,13,13,13,0,0,13,14,14,14,14,14,14,14,14,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,13,13,13,13,13,0,13,14,0,0,0,13,0,0,14,14,0,14,14,0,0,13,0,0,0,0,0,0,14,13,0,14,14,0,0,0,0,0,0,0,0,13,13,13,0,13,13,13,0,0,1,8]]);
+    dumbEqual(node2.images[0], [0,0,0,0,14,15,14,15,14,0,0,0,0,0,0,0,14,14,14,14,15,14,14,14,14,0,0,0,0,14,14,13,14,15,14,15,14,13,14,14,0,0,0,14,14,14,13,13,13,13,13,14,14,14,0,0,0,14,14,14,14,13,13,14,14,14,14,14,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,0,0,14,13,13,13,14,0,0,0,0,13,13,13,13,13,14,14,14,14,14,13,13,13,13,0,0,13,14,14,14,14,14,14,14,14,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,13,13,13,13,13,0,13,14,0,0,0,13,0,0,14,14,0,14,14,0,0,13,0,0,0,0,0,0,14,13,0,14,14,0,0,0,0,0,0,0,0,13,13,13,0,13,13,13,0,0,1,8]);
     
     var datastr2 = "const char PALETTE[32] = { \n  0x03,			// screen color\n\n  0x11,0x30,0x27,0x0,	// background palette 0\n  0x1c,0x20,0x2c,0x0,	// background palette 1\n};";
     var words2 = pixed.parseHexWords(datastr2);
-    assert.deepEqual(words2, [0x03,0x11,0x30,0x27,0x00,0x1c,0x20,0x2c,0x00]);
+    dumbEqual(words2, [0x03,0x11,0x30,0x27,0x00,0x1c,0x20,0x2c,0x00]);
 
     // test verilog
     var datastr3 = "      7'o00: bits = 5'b11111; ";
     var words3 = pixed.parseHexWords(datastr3);
-    assert.deepEqual(words3, [31]);
+    dumbEqual(words3, [31]);
     assert.equal(datastr3, pixed.replaceHexWords(datastr3, pixed.parseHexWords(datastr3)));
     // TODO: test (nplanes > 0 && fmt.sl)
 
     // test comments
     var datastr4 = "        .byte #%01111110;$7E \n .byte #%01111111;$7F";
     var words4 = pixed.parseHexWords(datastr4);
-    assert.deepEqual(words4, [0x7E,0x7F]);
+    dumbEqual(words4, [0x7E,0x7F]);
     assert.notEqual(datastr4, pixed.replaceHexWords(datastr4, pixed.parseHexWords(datastr4))); // removed comment
   });
 });

@@ -44,8 +44,7 @@ export class ProjectWindows {
     }
     var div = this.id2div[id];
     if (!div) {
-      var data = this.project.getFile(id)+""; // TODO: binary files
-      div = this.id2div[id] = wnd.createDiv(this.containerdiv, data);
+      div = this.id2div[id] = wnd.createDiv(this.containerdiv);
       $(div).hide();
     }
     return wnd;

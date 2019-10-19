@@ -11,7 +11,7 @@ import * as pixed from "./pixed/pixeleditor";
 declare var Mousetrap;
 
 export interface ProjectView {
-  createDiv(parent:HTMLElement, text:string) : HTMLElement;
+  createDiv(parent:HTMLElement) : HTMLElement;
   setVisible?(showing : boolean) : void;
   refresh(moveCursor:boolean) : void;
   tick?() : void;
@@ -77,10 +77,11 @@ export class SourceEditor implements ProjectView {
   errorwidgets = [];
   inspectWidget;
 
-  createDiv(parent:HTMLElement, text:string) {
+  createDiv(parent:HTMLElement) {
     var div = document.createElement('div');
     div.setAttribute("class", "editor");
     parent.appendChild(div);
+    var text = current_project.getFile(this.path) as string;
     var asmOverride = text && this.mode=='verilog' && /__asm\b([\s\S]+?)\b__endasm\b/.test(text);
     this.newEditor(div, asmOverride);
     if (text) {
