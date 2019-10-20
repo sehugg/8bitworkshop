@@ -6,6 +6,7 @@ import { PLATFORMS } from "../emu";
 var Atari7800_PRESETS = [
   {id:'sprites.dasm', name:'Sprites (ASM)'},
   {id:'wsync.c', name:'WSYNC'},
+  {id:'scroll.c', name:'Scrolling'},
 ];
 
 class Atari7800Platform extends Base6502MachinePlatform<Atari7800> implements Platform {
