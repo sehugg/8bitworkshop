@@ -1,10 +1,10 @@
 "use strict";
 
-import { Z80, Z80State } from "../cpu/ZilogZ80";
-import { BasicMachine, CPU, Bus } from "../devices";
-import { Platform, BaseZ80MachinePlatform } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
-import { SampleAudio } from "../audio";
+import { Z80, Z80State } from "../common/cpu/ZilogZ80";
+import { BasicMachine, CPU, Bus } from "../common/devices";
+import { Platform, BaseZ80MachinePlatform } from "../common/baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../common/emu";
+import { SampleAudio } from "../common/audio";
 
 var WILLIAMS_SOUND_PRESETS = [
   { id: 'swave.c', name: 'Wavetable Synth' },

@@ -1,6 +1,6 @@
 
 var assert = require('assert');
-var pixed = require("gen/pixed/pixeleditor.js");
+var pixed = require("gen/ide/pixeleditor.js");
 
 function dumbEqual(a,b) {
   if (a instanceof Uint32Array || a instanceof Uint8Array) {

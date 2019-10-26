@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig-base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../gen/worker"
+  },
+  "references": [
+    { "path": "../common" }
+  ],
+  "include": [
+    "**/*.ts"
+  ]
+}

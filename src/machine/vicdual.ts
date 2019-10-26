@@ -1,8 +1,8 @@
 
-import { Z80, Z80State } from "../cpu/ZilogZ80";
-import { BasicScanlineMachine } from "../devices";
-import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler } from "../emu";
-import { TssChannelAdapter, MasterAudio, AY38910_Audio } from "../audio";
+import { Z80, Z80State } from "../common/cpu/ZilogZ80";
+import { BasicScanlineMachine } from "../common/devices";
+import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler } from "../common/emu";
+import { TssChannelAdapter, MasterAudio, AY38910_Audio } from "../common/audio";
 
 const CARNIVAL_KEYCODE_MAP = makeKeycodeMap([
   [Keys.A,        2, -0x20],

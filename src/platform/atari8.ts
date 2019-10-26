@@ -1,9 +1,9 @@
 "use strict";
 
-import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, getMousePos } from "../emu";
-import { hex, lzgmini, stringToByteArray, lpad, rpad, rgb2bgr } from "../util";
-import { MasterAudio, POKEYDeviceChannel, newPOKEYAudio } from "../audio";
+import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../common/baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, getMousePos } from "../common/emu";
+import { hex, lzgmini, stringToByteArray, lpad, rpad, rgb2bgr } from "../common/util";
+import { MasterAudio, POKEYDeviceChannel, newPOKEYAudio } from "../common/audio";
 
 declare var jt; // for 6502
 

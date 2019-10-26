@@ -1,7 +1,7 @@
 "use strict";
 
 var wtu = require('../workertestutils.js');
-includeInThisContext('src/cpu/z80.js');
+includeInThisContext('src/common/cpu/z80.js');
 if (!global.buildZ80) global.buildZ80 = global.window.buildZ80;
 
 var Memory = function(dump) {

@@ -1,6 +1,6 @@
 
-import { getFolderForPath, isProbablyBinary, stringToByteArray, byteArrayToString, byteArrayToUTF8 } from "./util";
-import { FileData } from "./workertypes";
+import { getFolderForPath, isProbablyBinary, stringToByteArray, byteArrayToString, byteArrayToUTF8 } from "../common/util";
+import { FileData } from "../common/workertypes";
 import { CodeProject } from "./project";
 
 // in index.html

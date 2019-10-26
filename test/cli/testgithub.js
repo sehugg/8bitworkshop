@@ -6,10 +6,10 @@ var assert = require('assert');
 
 var wtu = require('./workertestutils.js'); // loads localStorage
 global.localforage = require("localForage/dist/localforage.js");
-var util = require("gen/util.js");
-var mstore = require("gen/store.js");
-var prj = require("gen/project.js");
-var serv = require("gen/services.js");
+var util = require("gen/common/util.js");
+var mstore = require("gen/ide/store.js");
+var prj = require("gen/ide/project.js");
+var serv = require("gen/ide/services.js");
 var Octokat = require('octokat');
 
 var test_platform_id = "_TEST";

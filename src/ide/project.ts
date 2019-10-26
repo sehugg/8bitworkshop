@@ -1,7 +1,7 @@
 
-import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult } from "./workertypes";
-import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform } from "./util";
-import { Platform } from "./baseplatform";
+import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult } from "../common/workertypes";
+import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform } from "../common/util";
+import { Platform } from "../common/baseplatform";
 
 type BuildResultCallback = (result:WorkerResult) => void;
 type BuildStatusCallback = (busy:boolean) => void;

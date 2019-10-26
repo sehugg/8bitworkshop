@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@types/bootbox": "^4.4.36",
-    "@types/bootstrap": "^3.3.42",
+    "@types/bootstrap": "^3.4.0",
     "@types/jquery": "^3.3.31",
     "atob": "^2.1.x",
     "btoa": "^1.2.x",
@@ -23,9 +23,9 @@
     "jsdom": "^12.2.0",
     "lzg": "^1.0.x",
     "mocha": "^5.2.x",
-    "nightwatch": "^1.2.1",
+    "nightwatch": "^1.2.4",
     "octokat": "^0.10.0",
-    "pngjs": "^3.3.3",
+    "pngjs": "^3.4.0",
     "rgbquant": "^1.1.2",
     "typescript": "^3.6.3",
     "typescript-formatter": "^7.2.2"

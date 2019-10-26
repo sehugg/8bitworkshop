@@ -14,8 +14,8 @@ global.document = dom.window.document;
 dom.window.Audio = null;
 global.Image = function() { }
 global['$'] = require("jquery/jquery-3.4.1.min.js");
-includeInThisContext('src/cpu/z80.js');
-includeInThisContext('src/cpu/6809.js');
+includeInThisContext('src/common/cpu/z80.js');
+includeInThisContext('src/common/cpu/6809.js');
 global['buildZ80'] = global.window.buildZ80;
 includeInThisContext("javatari.js/release/javatari/javatari.js");
 Javatari.AUTO_START = false;
@@ -27,12 +27,12 @@ includeInThisContext('tss/js/tss/AudioLooper.js');
 //includeInThisContext("jsnes/dist/jsnes.min.js");
 global.jsnes = require("jsnes/dist/jsnes.min.js");
 
-//var devices = require('gen/devices.js');
-var emu = require('gen/emu.js');
+//var devices = require('gen/common/devices.js');
+var emu = require('gen/common/emu.js');
 var Keys = emu.Keys;
-var audio = require('gen/audio.js');
-var recorder = require('gen/recorder.js');
-//var _6502 = require('gen/cpu/MOS6502.js');
+var audio = require('gen/common/audio.js');
+var recorder = require('gen/common/recorder.js');
+//var _6502 = require('gen/common/cpu/MOS6502.js');
 var _apple2 = require('gen/platform/apple2.js');
 //var m_apple2 = require('gen/machine/apple2.js');
 var _vcs = require('gen/platform/vcs.js');

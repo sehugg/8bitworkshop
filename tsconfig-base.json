@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "composite": true,
+        "allowJs": false,
+        "checkJs": false,
+        "sourceMap": true,
+        "target": "es5",
+        "lib": [
+            "es2016",
+            "dom"
+        ],
+        "noImplicitThis": false,
+        "noImplicitAny": false,
+        "preserveConstEnums": true,
+        "alwaysStrict": true,
+        "strictNullChecks": false
+    }
+}

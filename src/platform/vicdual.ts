@@ -1,8 +1,8 @@
 
 import { VicDual } from "../machine/vicdual";
-import { BaseZ80MachinePlatform } from "../baseplatform";
-import { Platform } from "../baseplatform";
-import { PLATFORMS } from "../emu";
+import { BaseZ80MachinePlatform } from "../common/baseplatform";
+import { Platform } from "../common/baseplatform";
+import { PLATFORMS } from "../common/emu";
 
 const VICDUAL_PRESETS = [
   { id: 'minimal.c', name: 'Minimal Example' },

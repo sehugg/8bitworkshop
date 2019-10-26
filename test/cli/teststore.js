@@ -6,9 +6,9 @@ var assert = require('assert');
 
 var wtu = require('./workertestutils.js'); // loads localStorage
 global.localforage = require("localForage/dist/localforage.js");
-var util = require("gen/util.js");
-var mstore = require("gen/store.js");
-var prj = require("gen/project.js");
+var util = require("gen/common/util.js");
+var mstore = require("gen/ide/store.js");
+var prj = require("gen/ide/project.js");
 
 var test_platform_id = "_TEST";
 

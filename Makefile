@@ -1,5 +1,5 @@
 
-TSC=./node_modules/typescript/bin/tsc
+TSC=./node_modules/typescript/bin/tsc --build
 
 all:
 	cp nanoasm/src/assembler.ts src/worker/

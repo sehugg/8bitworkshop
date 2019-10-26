@@ -1,8 +1,8 @@
 
-import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../baseplatform";
-import { PLATFORMS } from "../emu";
+import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../common/baseplatform";
+import { PLATFORMS } from "../common/emu";
 import { KIM1 } from "../machine/kim1";
-import { Base6502MachinePlatform } from "../baseplatform";
+import { Base6502MachinePlatform } from "../common/baseplatform";
 
 var KIM1_PRESETS = [
   {id:'hello.dasm', name:'Hello World (ASM)'},

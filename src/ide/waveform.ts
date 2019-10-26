@@ -1,5 +1,5 @@
 
-import { Toolbar } from "./emu";
+import { Toolbar } from "../common/emu";
 
 declare var VirtualList;
 

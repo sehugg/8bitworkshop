@@ -1,8 +1,8 @@
 
-import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { BasicMachine, RasterFrameBased, Bus, ProbeAll } from "../devices";
-import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt, dumpRAM } from "../emu";
-import { lzgmini, stringToByteArray, hex, rgb2bgr } from "../util";
+import { MOS6502, MOS6502State } from "../common/cpu/MOS6502";
+import { BasicMachine, RasterFrameBased, Bus, ProbeAll } from "../common/devices";
+import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt, dumpRAM } from "../common/emu";
+import { lzgmini, stringToByteArray, hex, rgb2bgr } from "../common/util";
 
 // https://www.c64-wiki.com/wiki/C64
 // http://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt

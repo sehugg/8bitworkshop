@@ -1,7 +1,7 @@
 "use strict";
 
-import { hex, rgb2bgr, rle_unpack } from "../util";
-import { ProjectWindows } from "../windows";
+import { hex, rgb2bgr, rle_unpack } from "../common/util";
+import { ProjectWindows } from "./windows";
 declare var Mousetrap;
 
 export type UintArray = number[] | Uint8Array | Uint16Array | Uint32Array; //{[i:number]:number};

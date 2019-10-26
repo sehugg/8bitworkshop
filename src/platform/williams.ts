@@ -1,8 +1,8 @@
 
-import { Platform, BaseZ80Platform, Base6809Platform } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
-import { hex } from "../util";
-import { MasterAudio, WorkerSoundChannel } from "../audio";
+import { Platform, BaseZ80Platform, Base6809Platform } from "../common/baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../common/emu";
+import { hex } from "../common/util";
+import { MasterAudio, WorkerSoundChannel } from "../common/audio";
 
 var WILLIAMS_PRESETS = [
   { id: 'gfxtest.c', name: 'Graphics Test' },

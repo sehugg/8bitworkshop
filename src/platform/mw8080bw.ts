@@ -1,9 +1,9 @@
 "use strict";
 
 import { Midway8080 } from "../machine/mw8080bw";
-import { BaseZ80MachinePlatform } from "../baseplatform";
-import { Platform } from "../baseplatform";
-import { PLATFORMS } from "../emu";
+import { BaseZ80MachinePlatform } from "../common/baseplatform";
+import { Platform } from "../common/baseplatform";
+import { PLATFORMS } from "../common/emu";
 
 // http://www.computerarcheology.com/Arcade/
 

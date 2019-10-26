@@ -1,7 +1,7 @@
 
 import { MSX1 } from "../machine/msx";
-import { Platform, BaseZ80MachinePlatform } from "../baseplatform";
-import { PLATFORMS } from "../emu";
+import { Platform, BaseZ80MachinePlatform } from "../common/baseplatform";
+import { PLATFORMS } from "../common/emu";
 
 // https://www.konamiman.com/msx/msx-e.html#msx2th
 // https://www.msx.org/wiki/MSX_Cartridge_slot

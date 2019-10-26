@@ -1,6 +1,6 @@
 
-import { PLATFORMS } from "../emu";
-import { Platform } from "../baseplatform";
+import { PLATFORMS } from "../common/emu";
+import { Platform } from "../common/baseplatform";
 
 // TODO: scripts run in global context
 

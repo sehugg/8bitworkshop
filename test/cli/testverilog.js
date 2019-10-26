@@ -3,7 +3,7 @@ var assert = require('assert');
 var fs = require('fs');
 var wtu = require('./workertestutils.js');
 
-var emu = require('gen/emu.js');
+var emu = require('gen/common/emu.js');
 var verilog = require('gen/platform/verilog.js');
 var VerilogPlatform = emu.PLATFORMS['verilog'];
 

@@ -1,9 +1,9 @@
 
-import { Z80, Z80State } from "../cpu/ZilogZ80";
-import { BasicScanlineMachine, AcceptsPaddleInput, Bus } from "../devices";
-import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler } from "../emu";
-import { TssChannelAdapter, MasterAudio, AY38910_Audio } from "../audio";
-import { hex, rgb2bgr, lzgmini, stringToByteArray } from "../util";
+import { Z80, Z80State } from "../common/cpu/ZilogZ80";
+import { BasicScanlineMachine, AcceptsPaddleInput, Bus } from "../common/devices";
+import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler } from "../common/emu";
+import { TssChannelAdapter, MasterAudio, AY38910_Audio } from "../common/audio";
+import { hex, rgb2bgr, lzgmini, stringToByteArray } from "../common/util";
 
 // http://metopal.com/projects/ballybook/doku.php
 

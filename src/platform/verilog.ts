@@ -1,10 +1,10 @@
 
-import { Platform, BasePlatform } from "../baseplatform";
-import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos, KeyFlags } from "../emu";
-import { SampleAudio } from "../audio";
-import { safe_extend, clamp, byteArrayToString } from "../util";
-import { WaveformView, WaveformProvider, WaveformMeta } from "../waveform";
-import { setFrameRateUI, current_project } from "../ui";
+import { Platform, BasePlatform } from "../common/baseplatform";
+import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos, KeyFlags } from "../common/emu";
+import { SampleAudio } from "../common/audio";
+import { safe_extend, clamp, byteArrayToString } from "../common/util";
+import { WaveformView, WaveformProvider, WaveformMeta } from "../ide/waveform";
+import { setFrameRateUI, current_project } from "../ide/ui";
 
 declare var Split;
 

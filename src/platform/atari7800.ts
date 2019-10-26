@@ -1,7 +1,7 @@
 
 import { Atari7800 } from "../machine/atari7800";
-import { Platform, Base6502MachinePlatform } from "../baseplatform";
-import { PLATFORMS } from "../emu";
+import { Platform, Base6502MachinePlatform } from "../common/baseplatform";
+import { PLATFORMS } from "../common/emu";
 
 var Atari7800_PRESETS = [
   {id:'sprites.dasm', name:'Sprites (ASM)'},

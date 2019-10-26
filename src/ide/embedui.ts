@@ -1,10 +1,10 @@
 
 window['Javatari'].AUTO_START = false;
 
-import { PLATFORMS } from "./emu";
-import { Platform } from "./baseplatform";
-import { stringToByteArray, getWithBinary } from "./util";
-import { StateRecorderImpl } from "./recorder";
+import { PLATFORMS } from "../common/emu";
+import { Platform } from "../common/baseplatform";
+import { stringToByteArray, getWithBinary } from "../common/util";
+import { StateRecorderImpl } from "../common/recorder";
 
 export var platform_id : string;	// platform ID string
 export var platform : Platform;	// platform object

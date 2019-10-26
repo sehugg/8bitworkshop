@@ -1,11 +1,11 @@
 
-import { Z80, Z80State } from "../cpu/ZilogZ80";
-import { BasicScanlineMachine } from "../devices";
+import { Z80, Z80State } from "../common/cpu/ZilogZ80";
+import { BasicScanlineMachine } from "../common/devices";
 import { BaseZ80VDPBasedMachine } from "./vdp_z80";
-import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler } from "../emu";
-import { hex, lzgmini, stringToByteArray } from "../util";
-import { TssChannelAdapter, MasterAudio, AY38910_Audio } from "../audio";
-import { TMS9918A } from "../video/tms9918a";
+import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler } from "../common/emu";
+import { hex, lzgmini, stringToByteArray } from "../common/util";
+import { TssChannelAdapter, MasterAudio, AY38910_Audio } from "../common/audio";
+import { TMS9918A } from "../common/video/tms9918a";
 
 
 var MSX_KEYCODE_MAP = makeKeycodeMap([

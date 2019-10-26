@@ -2,7 +2,7 @@
 var assert = require('assert');
 var fs = require('fs');
 
-var disassembleZ80 = require("gen/cpu/disasmz80.js").disassembleZ80;
+var disassembleZ80 = require("gen/common/cpu/disasmz80.js").disassembleZ80;
 
 describe('Z80 disassembler', function() {
   it('Should work', function() {

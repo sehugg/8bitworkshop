@@ -1,8 +1,8 @@
 "use strict";
 
-import { Platform, BaseZ80Platform  } from "../baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../emu";
-import { hex } from "../util";
+import { Platform, BaseZ80Platform  } from "../common/baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../common/emu";
+import { hex } from "../common/util";
 
 // from TSS
 declare var MasterChannel, AudioLooper, PsgDeviceChannel;

@@ -1,7 +1,7 @@
 
 var vm = require('vm');
 var fs = require('fs');
-var emu = require('gen/emu.js');
+var emu = require('gen/common/emu.js');
 
 function assert(b, msg) {
   if (!b) { throw new Error(msg); }

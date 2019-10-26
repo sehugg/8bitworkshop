@@ -2,7 +2,7 @@
 
 import $ = require("jquery");
 import { CodeProject } from "./project";
-import { WorkerError, FileData } from "./workertypes";
+import { WorkerError, FileData } from "../common/workertypes";
 import { ProjectView } from "./views";
 
 type WindowCreateFunction = (id:string) => ProjectView;

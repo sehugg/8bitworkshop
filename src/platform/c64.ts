@@ -1,7 +1,7 @@
 
 import { C64 } from "../machine/c64";
-import { Platform, Base6502MachinePlatform } from "../baseplatform";
-import { PLATFORMS } from "../emu";
+import { Platform, Base6502MachinePlatform } from "../common/baseplatform";
+import { PLATFORMS } from "../common/emu";
 
 var C64_PRESETS = [
   {id:'hello.dasm', name:'Hello World (ASM)'},

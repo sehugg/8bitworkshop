@@ -2,7 +2,7 @@
 var assert = require('assert');
 var fs = require('fs');
 
-var disassemble6502 = require("gen/cpu/disasm6502.js").disassemble6502;
+var disassemble6502 = require("gen/common/cpu/disasm6502.js").disassemble6502;
 
 describe('6502 disassembler', function() {
   it('Should work', function() {

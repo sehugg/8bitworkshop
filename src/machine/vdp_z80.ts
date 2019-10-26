@@ -1,9 +1,9 @@
 
-import { Z80, Z80State } from "../cpu/ZilogZ80";
-import { BasicScanlineMachine, Bus, ProbeAll } from "../devices";
-import { newAddressDecoder, newKeyboardHandler } from "../emu";
-import { TssChannelAdapter } from "../audio";
-import { TMS9918A } from "../video/tms9918a";
+import { Z80, Z80State } from "../common/cpu/ZilogZ80";
+import { BasicScanlineMachine, Bus, ProbeAll } from "../common/devices";
+import { newAddressDecoder, newKeyboardHandler } from "../common/emu";
+import { TssChannelAdapter } from "../common/audio";
+import { TMS9918A } from "../common/video/tms9918a";
 
 const audioOversample = 2;
 

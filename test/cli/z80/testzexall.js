@@ -2,8 +2,8 @@
 var assert = require('assert');
 var fs = require('fs');
 
-var emu = require("gen/devices.js");
-var ZilogZ80 = require("gen/cpu/ZilogZ80.js");
+var emu = require("gen/common/devices.js");
+var ZilogZ80 = require("gen/common/cpu/ZilogZ80.js");
 var testbin = fs.readFileSync('test/cli/z80/zexall.bin', null);
 var runall = false;
 

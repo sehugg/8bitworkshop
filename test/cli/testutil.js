@@ -3,8 +3,8 @@ var vm = require('vm');
 var fs = require('fs');
 var assert = require('assert');
 
-var emu = require("gen/emu.js");
-var util = require("gen/util.js");
+var emu = require("gen/common/emu.js");
+var util = require("gen/common/util.js");
 var nes = require("gen/platform/nes.js");
 
 var NES_CONIO_ROM_LZG = [

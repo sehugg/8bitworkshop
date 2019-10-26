@@ -1,13 +1,13 @@
 
 //import CodeMirror = require("codemirror");
-import { SourceFile, WorkerError, Segment, FileData } from "./workertypes";
-import { Platform, EmuState, lookupSymbol, BaseDebugPlatform } from "./baseplatform";
-import { hex, lpad, rpad, safeident, rgb2bgr } from "./util";
-import { CodeAnalyzer } from "./analysis";
+import { SourceFile, WorkerError, Segment, FileData } from "../common/workertypes";
+import { Platform, EmuState, lookupSymbol, BaseDebugPlatform } from "../common/baseplatform";
+import { hex, lpad, rpad, safeident, rgb2bgr } from "../common/util";
+import { CodeAnalyzer } from "../common/analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
-import { ProbeRecorder, ProbeFlags } from "./recorder";
-import { getMousePos } from "./emu";
-import * as pixed from "./pixed/pixeleditor";
+import { ProbeRecorder, ProbeFlags } from "../common/recorder";
+import { getMousePos } from "../common/emu";
+import * as pixed from "./pixeleditor";
 declare var Mousetrap;
 
 export interface ProjectView {

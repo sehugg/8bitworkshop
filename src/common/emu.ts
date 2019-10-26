@@ -320,7 +320,7 @@ export function dumpRAM(ram:Uint8Array|number[], ramofs:number, ramlen:number) :
   return s;
 }
 
-interface KeyDef {
+export interface KeyDef {
   c:number,	// key code
   n:string,	// name
   // for gamepad
@@ -330,7 +330,7 @@ interface KeyDef {
   button?:number
   };
 
-interface KeyMapEntry {
+export interface KeyMapEntry {
   index:number;
   mask:number;
   def:KeyDef;

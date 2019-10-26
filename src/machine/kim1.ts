@@ -1,8 +1,8 @@
 
-import { MOS6502, MOS6502State } from "../cpu/MOS6502";
-import { BasicHeadlessMachine } from "../devices";
-import { padBytes, Keys, KeyFlags, newAddressDecoder } from "../emu"; // TODO
-import { hex, stringToByteArray, lzgmini } from "../util";
+import { MOS6502, MOS6502State } from "../common/cpu/MOS6502";
+import { BasicHeadlessMachine } from "../common/devices";
+import { padBytes, Keys, KeyFlags, newAddressDecoder } from "../common/emu"; // TODO
+import { hex, stringToByteArray, lzgmini } from "../common/util";
 
 const KIM1_KEYMATRIX_NOSHIFT = [
   Keys.VK_DELETE, Keys.VK_ENTER, Keys.VK_RIGHT, Keys.VK_F7,	Keys.VK_F1, Keys.VK_F3, Keys.VK_F5, Keys.VK_DOWN,

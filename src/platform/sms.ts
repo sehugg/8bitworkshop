@@ -1,7 +1,7 @@
 
 import { SG1000, SMS } from "../machine/sms";
-import { Platform, BaseZ80MachinePlatform, BaseMAMEPlatform, getToolForFilename_z80 } from "../baseplatform";
-import { PLATFORMS } from "../emu";
+import { Platform, BaseZ80MachinePlatform, BaseMAMEPlatform, getToolForFilename_z80 } from "../common/baseplatform";
+import { PLATFORMS } from "../common/emu";
 
 // TODO: merge w/ coleco
 export var SG1000_PRESETS = [

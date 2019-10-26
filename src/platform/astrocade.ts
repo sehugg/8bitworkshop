@@ -1,8 +1,8 @@
 
 import { BallyAstrocade } from "../machine/astrocade";
-import { BaseZ80MachinePlatform } from "../baseplatform";
-import { Platform } from "../baseplatform";
-import { PLATFORMS } from "../emu";
+import { BaseZ80MachinePlatform } from "../common/baseplatform";
+import { Platform } from "../common/baseplatform";
+import { PLATFORMS } from "../common/emu";
 
 // http://metopal.com/projects/ballybook/doku.php
 
