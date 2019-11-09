@@ -31,13 +31,22 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 }
 </script>
 <script async src='https://www.google-analytics.com/analytics.js'></script>
-</head>
 
 <!-- firebase libs -->
 <script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-app.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-auth.js"></script>
 <script defer src="config.js"></script>
 
+<!-- Sentry error reporting -->
+<script src="https://browser.sentry-cdn.com/5.7.1/bundle.min.js" integrity="sha384-KMv6bBTABABhv0NI+rVWly6PIRvdippFEgjpKyxUcpEmDWZTkDOiueL5xW+cztZZ" 
+crossorigin="anonymous"></script>
+<script>
+if (window.location.host.endsWith('8bitworkshop.com')) {
+  Sentry.init({ dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@sentry.io/1813925' });
+}
+</script>
+
+</head>
 <body>
 
 <!-- for file upload -->

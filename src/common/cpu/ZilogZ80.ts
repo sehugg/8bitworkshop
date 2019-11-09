@@ -3351,11 +3351,26 @@ let cycle_counts_dd = [
 }
 
 export interface Z80State {
-  AF,BC,DE,HL,AF_,BC_,DE_,HL_,IX,IY,SP,PC,IR : number;
-  iff1,iff2,im : number;
-  halted : boolean;
-  do_delayed_di,do_delayed_ei : boolean;
-  cycle_counter : number;
+AF : number;
+BC : number;
+DE : number;
+HL : number;
+AF_ : number;
+BC_ : number;
+DE_ : number;
+HL_ : number;
+IX : number;
+IY : number;
+SP : number;
+PC : number;
+IR : number;
+iff1 : number;
+iff2 : number;
+im : number;
+halted : boolean;
+do_delayed_di : boolean;
+do_delayed_ei : boolean;
+cycle_counter : number;
 }
 
 export class Z80 implements CPU, InstructionBased, IOBusConnected, SavesState<Z80State>, Interruptable<number> {

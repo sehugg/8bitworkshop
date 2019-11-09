@@ -1719,57 +1719,7 @@ var qs = (function (a : string[]) {
     return b;
 })(window.location.search.substr(1).split('&'));
 
-// catch errors
-function installErrorHandler() {
-    if (typeof window.onerror == "object") {
-      window.onerror = function (msgevent, url, line, col, error) {
-        var msgstr = msgevent+"";
-        console.log(msgevent, url, line, col, error);
-        // emulation threw EmuHalt
-        if (error instanceof EmuHalt || msgstr.indexOf("CPU STOP") >= 0) { // TODO
-          showErrorAlert([ {msg:msgstr, line:0} ]);
-          uiDebugCallback(platform.saveState && platform.saveState());
-          setDebugButtonState("pause", "stopped");
-        } else {
-          // send exception msg to GA
-          var msg = msgstr;
-          //if (typeof error == 'string') msg += ": " + error;
-          if (url) msg += " " + url;
-          if (line) msg += " (" + line + ":" + col + ")";
-          if (msg.length > 256) { msg = msg.substring(0, 256); }
-          if (ga) ga('send', 'exception', {
-            'exDescription': msg,
-            'exFatal': true
-          });
-          $.get("/error?msg=" + encodeURIComponent(msg), "text");
-          // storage quota full? (Chrome) try to expand it
-          if (msg.indexOf("QuotaExceededError") >= 0) {
-            requestPersistPermission();
-          } else {
-            alertError(msg);
-          }
-        }
-        _pause();
-      };
-    }
-    if (typeof window.onunhandledrejection == "object") {
-      window.onunhandledrejection = function(event) {
-        var msg = (event && event.reason) + "";
-        if (ga) ga('send', 'exception', {
-          'exDescription': msg,
-          'exFatal': true
-        });
-        alertError(msg);
-      }
-    }
-}
-
-function uninstallErrorHandler() {
-  window.onerror = null;
-}
-
 function gotoNewLocation(replaceHistory? : boolean) {
-  uninstallErrorHandler();
   if (replaceHistory)
     window.location.replace("?" + $.param(qs));
   else
@@ -1944,7 +1894,6 @@ function setPlatformUI() {
 
 // start
 export function startUI(loadplatform : boolean) {
-  installErrorHandler();
   // import from github?
   if (qs['githubURL']) {
     importProjectFromGithub(qs['githubURL'], true);

@@ -1,7 +1,7 @@
 
 import { hex } from "../util";
 
-var OPS_6502 = [
+export var OPS_6502 = [
   {mn:"BRK",am:"",nb:1,il:0,c1:7,c2:0}, // 00
   {mn:"ORA",am:"(aa,x)",nb:2,il:0,c1:6,c2:0}, // 01
   {mn:"KIL",am:"",nb:1,il:1,c1:0,c2:0}, // 02

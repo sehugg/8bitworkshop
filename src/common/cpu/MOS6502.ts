@@ -1870,7 +1870,7 @@ var _MOS6502 = function() {
 
     this.getOpcodeMetadata = function(opcode, address) {
       // TODO: more intelligent maximum cycles
-      var i = instructions[opcode];
+      //var i = instructions[opcode];
       return {
         opcode:opcode,
         mnenomic:opcodes[opcode],
@@ -1902,11 +1902,27 @@ var _MOS6502 = function() {
 };
 
 export interface MOS6502State {
-  PC,SP : number;
-  A,X,Y : number;
-  N,V,D,I,Z,C : number;
-  T,o,R : number;
-  d,AD,BA,BC,IA,bo,boa : number;
+PC : number;
+SP : number;
+A : number;
+X : number;
+Y : number;
+N : number;
+V : number;
+D : number;
+I : number;
+Z : number;
+C : number;
+T : number;
+o : number;
+R : number;
+d : number;
+AD : number;
+BA : number;
+BC : number;
+IA : number;
+bo : number;
+boa : number;
 }
 
 export enum MOS6502Interrupts { None=0, NMI=1, IRQ=2 };
