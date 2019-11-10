@@ -133,7 +133,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     this.nes.stop = () => {
       // TODO: trigger breakpoint
       console.log(this.nes.cpu.toJSON());
-      throw new EmuHalt("CPU STOPPED @ PC $" + hex(this.nes.cpu.REG_PC));
+      throw new EmuHalt("CPU STOPPED");
     };
     // insert debug hook
     this.nes.cpu._emulate = this.nes.cpu.emulate;

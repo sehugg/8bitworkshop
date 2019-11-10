@@ -23,8 +23,7 @@ CodeMirror.defineMode('6502', function(_config, parserConfig) {
     'align','subroutine','equ','eqm','set','mac','endm','mexit','ifconst',
     'ifnconst','if','else','endif','eif','repeat','repend'];
   var directives = {};
-  for (var s of directives_list)
-    directives[s] = 'keyword';
+  directives_list.forEach(function(s) { directives[s] = 'keyword'; });
 
   var opcodes = /^[a-z][a-z][a-z]\b/i;
   var numbers = /^([\da-f]+h|[0-7]+o|[01]+b|\d+d?)\b/i;

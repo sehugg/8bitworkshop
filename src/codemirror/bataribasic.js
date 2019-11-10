@@ -43,8 +43,7 @@ CodeMirror.defineMode('bataribasic', function(_config, parserConfig) {
     "cyclescore","cycles","legacy"
     ];
   var directives = {};
-  for (var s of directives_list)
-    directives[s] = 'keyword';
+  directives_list.forEach(function(s) { directives[s] = 'keyword'; });
 
   var numbers = /^([$][0-9a-f]+|[%][01]+|[0-9.]+)/i;
 
