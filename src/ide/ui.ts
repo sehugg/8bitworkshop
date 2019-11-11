@@ -107,8 +107,9 @@ var hasLocalStorage : boolean = function() {
   try {
     const key = "__some_random_key_you_are_not_going_to_use__";
     localStorage.setItem(key, key);
+    var has = localStorage.getItem(key) == key;
     localStorage.removeItem(key);
-    return true;
+    return has;
   } catch (e) {
     return false;
   }
@@ -1928,8 +1929,6 @@ export function startUI(loadplatform : boolean) {
       loadImportedURL(qs['importURL']);
       return;
     }
-    // is vcs? convert legacy stuff
-    convertLegacyVCS(store);
     // load and start platform object
     if (loadplatform) {
       loadAndStartPlatform();
@@ -1958,24 +1957,6 @@ function loadAndStartPlatform() {
     console.log(e);
     alertError('Platform "' + platform_id + '" not supported.');
   });
-}
-
-// TODO: remove eventually
-function convertLegacyVCS(store) {
-  if (platform_id == 'vcs' && hasLocalStorage && !localStorage.getItem("__migratevcs")) {
-    store.keys().then((keys:string[]) => {
-      keys.forEach((key) => {
-        if (key.startsWith('examples/') && !key.endsWith('.a')) {
-          store.getItem(key).then( (val) => {
-            if (val) {
-              return store.setItem(key+'.a', val);
-            }
-          });
-        }
-      });
-      localStorage.setItem("__migratevcs", "1");
-    })
-  }
 }
 
 // HTTPS REDIRECT
