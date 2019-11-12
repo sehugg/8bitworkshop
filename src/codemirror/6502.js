@@ -22,8 +22,8 @@ CodeMirror.defineMode('6502', function(_config, parserConfig) {
     'include','seg','dc','ds','dv','hex','err','org','rorg','echo','rend',
     'align','subroutine','equ','eqm','set','mac','endm','mexit','ifconst',
     'ifnconst','if','else','endif','eif','repeat','repend'];
-  var directives = {};
-  directives_list.forEach(function(s) { directives[s] = 'keyword'; });
+  var directives = new Map();
+  directives_list.forEach(function(s) { directives.set(s, 'keyword'); });
 
   var opcodes = /^[a-z][a-z][a-z]\b/i;
   var numbers = /^([\da-f]+h|[0-7]+o|[01]+b|\d+d?)\b/i;
@@ -47,7 +47,7 @@ CodeMirror.defineMode('6502', function(_config, parserConfig) {
       if (stream.eatWhile(/\w/)) {
         w = stream.current();
         var cur = w.toLowerCase();
-        var style = directives[cur];
+        var style = directives.get(cur);
         if (style)
           return style;
 
