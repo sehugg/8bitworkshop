@@ -120,7 +120,7 @@ function requestPersistPermission() {
   if (navigator.storage && navigator.storage.persist) {
     navigator.storage.persist().then(persistent=>{
       if (persistent) {
-        alertInfo("Your browser says you have unlimited persistent storage quota for this site. If you got an error while storing something, please try again.");
+        alertInfo("Your browser says you have unlimited persistent storage quota for this site. If you got an error while storing something, make sure you have enough storage space, and please try again.");
       } else {
         alertInfo("Your browser says your local files may not be persisted. Are you in a private window?");
       }

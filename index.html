@@ -38,11 +38,21 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <script defer src="config.js"></script>
 
 <!-- Sentry error reporting -->
-<script src="https://browser.sentry-cdn.com/5.7.1/bundle.min.js" integrity="sha384-KMv6bBTABABhv0NI+rVWly6PIRvdippFEgjpKyxUcpEmDWZTkDOiueL5xW+cztZZ" 
-crossorigin="anonymous"></script>
+<script
+  src="https://browser.sentry-cdn.com/5.8.0/bundle.min.js"
+  integrity="sha384-qlxNoEAgNliJy7zXiR+uKx/fFAimdeVfEOK0SA5/wrXLioMmASbjvfVAMaQFKVI6"
+  crossorigin="anonymous"></script>
 <script>
 if (window.location.host.endsWith('8bitworkshop.com')) {
-  Sentry.init({ dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@sentry.io/1813925' });
+  Sentry.init({
+    dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@sentry.io/1813925',
+    beforeBreadcrumb(breadcrumb, hint) {
+      if (breadcrumb.category === 'xhr' && typeof breadcrumb.data.url === 'string') {
+        if (breadcrumb.data.url.startsWith('http')) return null; // discard external scripts
+        return breadcrumb;
+      }
+    },
+  });
 }
 </script>
 
@@ -197,8 +207,9 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
              <a tabindex="-1" href="#">Other</a>
              <ul class="dropdown-menu">
                <li><a class="dropdown-item" href="?platform=vcs.mame">Atari 2600 (MAME)</a></li>
-               <li><a class="dropdown-item" href="?platform=vector-ataricolor">Atari Color Vector (6502)</a></li>
                <li><a class="dropdown-item" href="?platform=nes.mame">NES (MAME)</a></li>
+               <li><a class="dropdown-item" href="?platform=coleco.mame">ColecoVision (MAME)</a></li>
+               <li><a class="dropdown-item" href="?platform=vector-ataricolor">Atari Color Vector (6502)</a></li>
                <li><a class="dropdown-item" href="?platform=markdown">Markdown</a></li>
              </ul>
           </li>

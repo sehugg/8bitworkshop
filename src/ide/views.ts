@@ -273,6 +273,7 @@ export class SourceEditor implements ProjectView {
 
   setTimingResult(result:CodeAnalyzer) : void {
     this.editor.clearGutter("gutter-bytes");
+    if (this.sourcefile == null) return;
     // show the lines
     for (const line of Object.keys(this.sourcefile.line2offset)) {
       var pc = this.sourcefile.line2offset[line];
