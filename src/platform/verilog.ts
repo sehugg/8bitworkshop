@@ -140,12 +140,12 @@ export function VL_READMEM_W(ishex,width,depth,array_lsb,fnwords,filename,memp,s
   var strfn = byteArrayToString(barr); // convert to string
   // parse hex/binary file
   var strdata = current_project.getFile(strfn) as string;
-  if (strdata == null) throw "Could not $readmem '" + strfn + "'";
+  if (strdata == null) throw Error("Could not $readmem '" + strfn + "'");
   var data = strdata.split('\n').filter(s => s !== '').map(s => parseInt(s, ishex ? 16 : 2));
   console.log('$readmem', ishex, strfn, data.length);
   // copy into destination array
-  if (memp === null) throw "No destination array to $readmem " + strfn;
-  if (memp.length < data.length) throw "Destination array too small to $readmem " + strfn;
+  if (memp === null) throw Error("No destination array to $readmem " + strfn);
+  if (memp.length < data.length) throw Error("Destination array too small to $readmem " + strfn);
   for (i=0; i<data.length; i++)
     memp[i] = data[i];
 }

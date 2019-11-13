@@ -191,7 +191,7 @@ export class SMS extends SG1000 {
           this.romPageMask = (data.length >> 14) - 1; // div $4000
           break;
         default:
-          throw "Unknown rom size: $" + hex(data.length);
+          throw Error("Unknown rom size: $" + hex(data.length));
       }
     }
     //console.log("romPageMask: " + hex(this.romPageMask));

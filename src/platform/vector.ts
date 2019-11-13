@@ -122,7 +122,7 @@ var AtariVectorPlatform = function(mainElement) {
 
   this.loadROM = function(title, data) {
     if(data.length != 0x2000) {
-      throw "ROM length must be == 0x2000";
+      throw Error("ROM length must be == 0x2000");
     }
     rom = data.slice(0,0x1800);
     vecrom = data.slice(0x1800,0x2000);

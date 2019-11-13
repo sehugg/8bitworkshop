@@ -442,7 +442,7 @@ export class TextDataNode extends CodeProjectDataNode {
   }
   updateLeft() {
     if (this.right.words.length != this.words.length)
-      throw "Expected " + this.right.words.length + " bytes; image has " + this.words.length;
+      throw Error("Expected " + this.right.words.length + " bytes; image has " + this.words.length);
     this.words = this.right.words;
     // TODO: reload editors?
     var datastr = this.text.substring(this.start, this.end);
@@ -715,9 +715,9 @@ export class NESNametableConverter extends Compositor {
     for (var row=0; row<this.rows; row++) {
       for (var col=0; col<this.cols; col++) {
          var name = this.words[this.baseofs + a];
-         if (typeof name === 'undefined') throw "No name for address " + this.baseofs + " + " + a;
+         if (typeof name === 'undefined') throw Error("No name for address " + this.baseofs + " + " + a);
          var t = this.tilemap[name];
-         if (!t) throw "No tilemap found for tile index " + name;
+         if (!t) throw Error("No tilemap found for tile index " + name);
          attraddr = (a & 0x2c00) | 0x3c0 | (a & 0x0C00) | ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
          var attr = this.words[attraddr];
          var tag = name ^ (attr<<9) ^ 0x80000000;

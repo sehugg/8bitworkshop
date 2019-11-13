@@ -64,7 +64,7 @@ describe('Store', function() {
     var store = mstore.createNewPersistentStore('_FOO', function(store) {
       var gh = newGH(store, '_FOO');
       gh.importAndPull('https://github.com/pzpinfo/testrepo1557326056720').catch( (e) => {
-        assert.ok(e.startsWith('Platform mismatch'));
+        assert.ok(e.message.startsWith('Platform mismatch'));
         done();
       });
     });
@@ -145,7 +145,7 @@ describe('Store', function() {
       gh.commit('https://github.com/brovador/NESnake/tree/master/src', 'test commit', files)
       .catch( (e) => {
         console.log(e);
-        assert.equal(e, 'Sorry, right now you can only commit files to the root directory of a repository.');
+        assert.equal(e.message, 'Sorry, right now you can only commit files to the root directory of a repository.');
         done();
       });
       /*.then( (sess) => {

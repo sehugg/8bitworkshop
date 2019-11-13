@@ -245,7 +245,7 @@ export class CodeProject {
   }
 
   sendBuild() {
-    if (!this.mainpath) throw "need to call setMainFile first";
+    if (!this.mainpath) throw Error("need to call setMainFile first");
     var maindata = this.getFile(this.mainpath);
     // if binary blob, just return it as ROM
     if (maindata instanceof Uint8Array) {

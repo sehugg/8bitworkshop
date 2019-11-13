@@ -461,7 +461,7 @@ export function getWithBinary(url:string, success:(text:string|Uint8Array)=>void
     } else if (oReq.status == 404) {
       success(null);
     } else {
-      throw "Error " + oReq.status + " loading " + url;
+      throw Error("Error " + oReq.status + " loading " + url);
     }
   }
   oReq.send(null);

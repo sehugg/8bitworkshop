@@ -353,7 +353,7 @@ function gatherFiles(step:BuildStep, options?:BuildOptions) {
   }
   else if (step.code) {
     var path = step.path ? step.path : options.mainFilePath; // TODO: what if options null
-    if (!path) throw "need path or mainFilePath";
+    if (!path) throw Error("need path or mainFilePath");
     var code = step.code;
     var entry = putWorkFile(path, code);
     step.path = path;
@@ -378,7 +378,7 @@ function gatherFiles(step:BuildStep, options?:BuildOptions) {
 
 function populateFiles(step:BuildStep, fs, options?:BuildOptions) {
   gatherFiles(step, options);
-  if (!step.files) throw "call gatherFiles() first";
+  if (!step.files) throw Error("call gatherFiles() first");
   for (var i=0; i<step.files.length; i++) {
     var path = step.files[i];
     populateEntry(fs, path, workfs[path], options);
@@ -413,7 +413,7 @@ function populateExtraFiles(step:BuildStep, fs, extrafiles) {
 }
 
 function staleFiles(step:BuildStep, targets:string[]) {
-  if (!step.maxts) throw "call populateFiles() first";
+  if (!step.maxts) throw Error("call populateFiles() first");
   // see if any target files are more recent than inputs
   for (var i=0; i<targets.length; i++) {
     var entry = workfs[targets[i]];
@@ -425,7 +425,7 @@ function staleFiles(step:BuildStep, targets:string[]) {
 }
 
 function anyTargetChanged(step:BuildStep, targets:string[]) {
-  if (!step.maxts) throw "call populateFiles() first";
+  if (!step.maxts) throw Error("call populateFiles() first");
   // see if any target files are more recent than inputs
   for (var i=0; i<targets.length; i++) {
     var entry = workfs[targets[i]];
@@ -509,7 +509,7 @@ function setupFS(FS, name:string) {
   var WORKERFS = FS.filesystems['WORKERFS'];
   if (name === '65-vector') name = '65-sim6502'; // TODO
   if (name === '65-atari7800') name = '65-sim6502'; // TODO
-  if (!fsMeta[name]) throw "No filesystem for '" + name + "'";
+  if (!fsMeta[name]) throw Error("No filesystem for '" + name + "'");
   FS.mkdir('/share');
   FS.mount(WORKERFS, {
     packages: [{ metadata: fsMeta[name], blob: fsBlob[name] }]
@@ -1491,7 +1491,7 @@ function compileJSASM(asmcode:string, platform, options, is_inline) {
   var includes = [];
   asm.loadJSON = (filename:string) => {
     var jsontext = getWorkFileAsString(filename);
-    if (!jsontext) throw "could not load " + filename;
+    if (!jsontext) throw Error("could not load " + filename);
     return JSON.parse(jsontext);
   };
   asm.loadInclude = function(filename) {
@@ -2106,7 +2106,7 @@ function executeBuildSteps() {
     var step = buildsteps.shift(); // get top of array
     var platform = step.platform;
     var toolfn = TOOLS[step.tool];
-    if (!toolfn) throw "no tool named " + step.tool;
+    if (!toolfn) throw Error("no tool named " + step.tool);
     step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
     try {
       step.result = toolfn(step);

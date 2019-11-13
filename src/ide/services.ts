@@ -156,7 +156,7 @@ export class GithubService {
             return sess.repo.git.trees(subtree.sha).fetch();
           }
         }
-        throw "Cannot find subtree '" + sess.subtreepath + "' in tree " + tree.sha;
+        throw Error("Cannot find subtree '" + sess.subtreepath + "' in tree " + tree.sha);
       }
       return tree;
     })
@@ -207,7 +207,7 @@ export class GithubService {
       if (m) {
         console.log("platform id: '" + m[1] + "'");
         if (sess.platform_id && !sess.platform_id.startsWith(m[1]))
-          throw "Platform mismatch: Repository is " + m[1] + ", you have " + this.project.platform_id + " selected.";
+          throw Error("Platform mismatch: Repository is " + m[1] + ", you have " + this.project.platform_id + " selected.");
         sess.platform_id = m[1];
       }
       // bind to repository
@@ -295,7 +295,7 @@ export class GithubService {
     return this.getGithubHEADTree(ghurl).then( (session) => {
       sess = session;
       if (sess.subtreepath) {
-        throw "Sorry, right now you can only commit files to the root directory of a repository.";
+        throw Error("Sorry, right now you can only commit files to the root directory of a repository.");
       }
       return Promise.all(files.map( (file) => {
         if (typeof file.data === 'string') {
