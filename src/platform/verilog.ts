@@ -100,8 +100,17 @@ export function VL_DIV_III(lbits,lhs,rhs) {
 export function VL_MODDIV_III(lbits,lhs,rhs) {
     return (((rhs)==0)?0:(lhs)%(rhs)); }
 
+export function VL_DIVS_III(lbits,lhs,rhs) {
+  var lhs_signed = VL_EXTENDS_II(32, lbits, lhs);
+  var  rhs_signed = VL_EXTENDS_II(32, lbits, rhs);
+  return (((rhs_signed)==0)?0:(lhs_signed)/(rhs_signed));
+}
+
 export function VL_MODDIVS_III(lbits,lhs,rhs) {
-    return (((rhs)==0)?0:(lhs)%(rhs)); }
+  var lhs_signed = VL_EXTENDS_II(32, lbits, lhs);
+  var  rhs_signed = VL_EXTENDS_II(32, lbits, rhs);
+  return (((rhs_signed)==0)?0:(lhs_signed)%(rhs_signed));
+}
 
 export function VL_REDXOR_32(r) {
     r=(r^(r>>1)); r=(r^(r>>2)); r=(r^(r>>4)); r=(r^(r>>8)); r=(r^(r>>16));

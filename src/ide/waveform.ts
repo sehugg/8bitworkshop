@@ -69,7 +69,8 @@ export class WaveformView {
       itemHeight: rowHeight,
       totalRows: this.meta.length,
       generatorFn: (row : number) => {
-        var s = this.meta[row].label;
+        var metarow = this.meta[row]; // TODO: why null?
+        var s = metarow != null ? metarow.label : "";
         var linediv = document.createElement("div");
         var canvas = document.createElement("canvas");
         canvas.width = width - 12;
