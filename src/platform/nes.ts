@@ -131,8 +131,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     //this.nes.ppu.showSpr0Hit = true;
     //this.nes.ppu.clipToTvSize = false;
     this.nes.stop = () => {
-      // TODO: trigger breakpoint
-      console.log(this.nes.cpu.toJSON());
+      this.breakpointHit(this.debugClock);
       throw new EmuHalt("CPU STOPPED");
     };
     // insert debug hook
@@ -142,7 +141,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
       var cycles = this.nes.cpu._emulate();
       this.evalDebugCondition();
       this.probe.logClocks(cycles);
-      return cycles;
+      return cycles > 0 ? cycles : 1;
     }
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // set keyboard map
