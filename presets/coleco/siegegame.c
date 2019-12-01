@@ -92,7 +92,7 @@ void move_player(Player* p) {
   putcharxy(p->x, p->y, p->tail_attr);
   p->x += DIR_X[p->dir];
   p->y += DIR_Y[p->dir];
-  if (getcharxy(p->x, p->y) != CHAR(' '))
+  if (getcharxy(p->x, p->y) != 0)
     p->collided = 1;
   draw_player(p);
 }
@@ -117,7 +117,7 @@ byte ai_try_dir(Player* p, dir_t dir, byte shift) {
   dir &= 3;
   x = p->x + (DIR_X[dir] << shift);
   y = p->y + (DIR_Y[dir] << shift);
-  if (x < 29 && y < 27 && getcharxy(x, y) == CHAR(' ')) {
+  if (x < 29 && y < 27 && getcharxy(x, y) == 0) {
     p->dir = dir;
     return 1;
   } else {
