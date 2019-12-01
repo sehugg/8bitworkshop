@@ -131,7 +131,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     //this.nes.ppu.showSpr0Hit = true;
     //this.nes.ppu.clipToTvSize = false;
     this.nes.stop = () => {
-      this.breakpointHit(this.debugClock);
+      this.haltAndCatchFire("Illegal instruction");
       throw new EmuHalt("CPU STOPPED");
     };
     // insert debug hook

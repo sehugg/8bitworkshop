@@ -143,7 +143,7 @@ export interface MemoryBus {
 
 export type DebugCondition = () => boolean;
 export type DebugEvalCondition = (c:CpuState) => boolean;
-export type BreakpointCallback = (s:EmuState) => void;
+export type BreakpointCallback = (s:EmuState, msg?:string) => void;
 // for composite breakpoints w/ single debug function
 export class BreakpointList {
   id2bp : {[id:string] : Breakpoint} = {};
@@ -283,15 +283,18 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   wasBreakpointHit() : boolean {
     return this.debugBreakState != null;
   }
-  breakpointHit(targetClock : number) {
+  breakpointHit(targetClock : number, reason? : string) {
     console.log(this.debugTargetClock, targetClock, this.debugClock, this.isStable());
     this.debugTargetClock = targetClock;
     this.debugBreakState = this.saveState();
     console.log("Breakpoint at clk", this.debugClock, "PC", this.debugBreakState.c.PC.toString(16));
     this.pause();
     if (this.onBreakpointHit) {
-      this.onBreakpointHit(this.debugBreakState);
+      this.onBreakpointHit(this.debugBreakState, reason);
     }
+  }
+  haltAndCatchFire(reason : string) {
+    this.breakpointHit(this.debugClock, reason);
   }
   runEval(evalfunc : DebugEvalCondition) {
     this.setDebugCondition( () => {

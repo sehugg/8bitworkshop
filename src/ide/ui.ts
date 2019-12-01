@@ -1123,9 +1123,10 @@ function uiDebugCallback(state: EmuState) {
 }
 
 function setupDebugCallback(btnid? : string) {
-  if (platform.setupDebug) platform.setupDebug((state:EmuState) => {
+  if (platform.setupDebug) platform.setupDebug((state:EmuState, msg:string) => {
     uiDebugCallback(state);
     setDebugButtonState(btnid||"pause", "stopped");
+    msg && showErrorAlert([{msg:"STOPPED: " + msg, line:0}]);
   });
 }
 
