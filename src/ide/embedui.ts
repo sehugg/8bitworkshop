@@ -90,7 +90,7 @@ function findPrimaryCanvas() {
 }
 
 function recordVideo(intervalMsec, maxFrames, callback) {
- loadScript("gif.js/dist/gif.js", () => {
+ loadScript("gif.js/dist/gif.js").then( () => {
   var canvas = findPrimaryCanvas()[0] as HTMLCanvasElement;
   if (!canvas) {
     alert("Could not find canvas element to record video!");
@@ -168,18 +168,27 @@ function loadPlatform(qs) {
   if (qs.data) qs = qs.data;
   platform_id = qs['p'];
   if (!platform_id) throw('No platform variable!');
-  var scriptfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js';
-  loadScript(scriptfn, () => {
-    console.log("loaded platform", platform_id);
+  var platformfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js'; // required file
+  var machinefn  = platformfn.replace('/platform/', '/machine/'); // optional file
+  loadScript(platformfn).then( () => {
+    return loadScript(machinefn).catch(() => { console.log('skipped',machinefn); }); // optional file skipped
+  }).then( () => {
+    console.log("starting platform", platform_id); // loaded required <platform_id>.js file
     startPlatform(qs);
+  }).catch( (e) => {
+    console.log(e);
+    alert('Platform "' + platform_id + '" not supported.');
   });
 }
 
-function loadScript(scriptfn, onload) {
-  var script = document.createElement('script');
-  script.onload = onload;
-  script.src = scriptfn;
-  document.getElementsByTagName('head')[0].appendChild(script);
+export function loadScript(scriptfn:string) : Promise<Event> {
+  return new Promise( (resolve, reject) => {
+    var script = document.createElement('script');
+    script.onload = resolve;
+    script.onerror = reject;
+    script.src = scriptfn;
+    document.getElementsByTagName('head')[0].appendChild(script);
+  });
 }
 
 // start
