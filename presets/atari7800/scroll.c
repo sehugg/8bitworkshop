@@ -1,10 +1,21 @@
 
+/*
+This demo sets up two DLLs (Display List Lists) of
+16 slots each. By adjusting the address and fine offset
+of the first DL entry, the screen can scroll vertically
+across the two DLLs. It can only wrap from the first 16
+to the second 16 slots.
+
+Note that this scheme can be used also for double-buffering.
+By swapping between the two DLLs each frame, one DLL can
+be written while the other is displayed.
+*/
+
 #include "atari7800.h"
 
 #include <string.h>
 
 //#link "chr_font.s"
-
 //#link "generic8x16.s"
 
 #define DLL_FLAGS DLL_H16
@@ -67,6 +78,7 @@ void dll_swap() {
     dll_set_addr(DLL);
   }
 }
+#endif
 
 void dll_set_scroll(byte y) {
   static byte oldslot = 0;
@@ -77,7 +89,6 @@ void dll_set_scroll(byte y) {
   dll_set_addr(DLL + slot);
   oldslot = slot;
 }
-#endif
 
 void* dll_alloc(byte slot, byte len) {
   byte dlofs;
@@ -134,6 +145,8 @@ void dll_setup() {
 #endif
 }
 
+// __MAIN__
+
 char* hello = "\2\4\6\0\220\222\102";
 
 void main() {
@@ -175,3 +188,4 @@ void main() {
     y++;
   }
 }
+

@@ -1,4 +1,14 @@
 
+/*
+The Atari 7800 uses display lists and interrupts to
+partition the video frame, but the 6502 can also be
+synchronized with each scanline. When the CPU strobes
+the WSYNC register, the CPU is halted until the end
+of the current scanline. This is similar to the WSYNC
+register on the Atari 2600, except that VBLANK and
+VSYNC are automatically applied.
+*/
+
 #include "atari7800.h"
 
 void main() {

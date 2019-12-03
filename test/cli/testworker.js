@@ -158,7 +158,7 @@ describe('Worker', function() {
   });
   it('should compile sg1000 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/sms-sg1000-libcv/cursorsmooth.c'));
-    compile('sdcc', csource, 'sms-sg1000-libcv', done, 49152, 81, 0);
+    compile('sdcc', csource, 'sms-sg1000-libcv', done, 49152, 80, 0);
   });
   it('should compile verilog example', function(done) {
     var csource = ab2str(fs.readFileSync('presets/verilog/lfsr.v'));
