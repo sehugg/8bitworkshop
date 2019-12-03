@@ -9,6 +9,7 @@ import { hex, rgb2bgr, lzgmini, stringToByteArray } from "../common/util";
 
 // TODO: fix keys, more controllers, vibrato/noise, border color, debug info, rotate
 // http://atariage.com/forums/topic/251416-programming-the-bally-arcadeastrocade/
+// https://ballyalley.com/faqs/BPA%20Video%20Hardware%20FAQ/Bally_Professional_Arcade_Video_Hardware%20(2001)(Tony%20Miller).pdf
 
 const ASTROCADE_KEYCODE_MAP = makeKeycodeMap([
   // player 1
@@ -90,11 +91,13 @@ const _BallyAstrocade = function(arcade:boolean) {
   var rotdata = new Uint8Array(4);
   var rotcount = 0;
   var intst = 0;
+  var waitstates = 0;
 
 
   function ramwrite(a: number, v: number) {
     // set RAM
     ram[a] = v;
+    waitstates++;
     // mark scanline as dirty
     dirtylines[((a & 0xfff) / swbytes) | 0] = 1;
     // this was old behavior where we updated instantly
@@ -228,18 +231,15 @@ const _BallyAstrocade = function(arcade:boolean) {
         read: newAddressDecoder([
           [0x0000, 0x1fff, 0x1fff, function(a) { return bios[a]; }],
           [0x2000, 0x3fff, 0x1fff, function(a) { return rom ? rom[a] : 0; }],
-          [0x4000, 0x4fff, 0xfff, function(a) { return ram[a]; }],
+          [0x4000, 0x4fff, 0xfff, function(a) { waitstates++; return ram[a]; }],
         ]),
         write: newAddressDecoder([
           [0x4000, 0x4fff, 0xfff, ramwrite],
           [0x0000, 0x3fff, 0xfff, magicwrite],
         ]),
-        // TODO: correct values?
-        //isContended: () => { return true; },
-        //contend: (addr: number) => { return vidactive && addr >= 0x4000 ? 1 : 0; },
       }
     } else {
-      // arcade game
+      // arcade game (TODO: wait states 1/4 of the time)
       membus = {
         read: newAddressDecoder([
           [0x4000, 0x7fff, 0x3fff, function(a) { return ram[a]; }],	// screen RAM
@@ -251,8 +251,6 @@ const _BallyAstrocade = function(arcade:boolean) {
           [0xd000, 0xdfff, 0xfff, function(a, v) { ramwrite(a + 0x4000, v); }], // static RAM
           [0x0000, 0x3fff, 0x3fff, magicwrite],
         ]),
-        //isContended: () => { return true; },
-        //TODO: contend: (addr: number) => { return vidactive ? 1 : 0; },
       }
     }
     iobus = {
@@ -346,6 +344,12 @@ const _BallyAstrocade = function(arcade:boolean) {
       setpalette(i,i);
     }
   };
+
+  this.resetWaitStates = function(sl) {
+    var n = sl < verbl ? waitstates : 0; // only wait if video active
+    waitstates = 0;
+    return n;
+  }
 
   this.loadState = (state) => {
     cpu.loadState(state.c);
@@ -479,6 +483,9 @@ export class BallyAstrocade extends BasicScanlineMachine implements AcceptsPaddl
     this.backbuffer = new Uint32Array(pixels.length);
     this.m.connectVideo(this.backbuffer);
   }
+  preFrame() {
+    this.m.resetWaitStates(0);
+  }
   postFrame() {
     // copy back buffer to front buffer, omitting bottom non-visible pixels
     var nbytes = this.m.getVisiblePixelWords();
@@ -498,17 +505,6 @@ export class BallyAstrocade extends BasicScanlineMachine implements AcceptsPaddl
   
   drawScanline() {
     var sl = this.scanline;
-    // double scanlines in consumer mode
-    //for (var i = 0; i < 2; i++) {
-    /*
-      // TODO: simulate contention during visible part of scanline
-      vidactive = sl < verbl;
-      extra = this.advance(this.cpuCyclesPerVisible - extra);
-      vidactive = false;
-      extra = this.advance(this.cpuCyclesPerHBlank - extra);
-      this.scanline++;
-    }
-    */
     this.m.drawScanline(sl);
     /*
     if (watchdog_counter-- <= 0) {
@@ -517,7 +513,17 @@ export class BallyAstrocade extends BasicScanlineMachine implements AcceptsPaddl
     }
     */
   }
-  
+
+  advanceCPU() {
+    var clk = super.advanceCPU();
+    // TODO: disable 33% of the time (hblank)
+    var xtra = this.m.resetWaitStates(this.scanline);
+    if (xtra) {
+      clk += xtra;
+      this.probe.logClocks(xtra);
+    }
+    return clk;
+  }
 
   loadROM(data) {
     super.loadROM(data);
