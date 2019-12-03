@@ -1,4 +1,9 @@
 
+/*
+This demo uncompresses the Mode 2 bitmap from a
+compressed LZG stream in ROM. This takes several times
+longer than just copying it from ROM.
+*/
 
 #include <stdlib.h>
 

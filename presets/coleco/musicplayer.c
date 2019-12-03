@@ -1,4 +1,11 @@
 
+/*
+Demonstrates playing multi-voice music on the SN76489A PSG
+using the CVLib functions.
+
+Similar to the music example in "Making Arcade Games in C".
+*/
+
 #include <stdlib.h>
 #include <string.h>
 #include <cv.h>

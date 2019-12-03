@@ -1,4 +1,9 @@
 
+/*
+Demonstration game.
+For more information, see "Making Games for the NES".
+*/
+
 #include <stdlib.h>
 #include <string.h>
 #include <cv.h>

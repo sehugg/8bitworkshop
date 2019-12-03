@@ -1,5 +1,8 @@
 /*
-64x48 multicolor mode
+Demonstrates the 64x48 multicolor mode.
+This mode is a little tricky to implement,
+but each pixel can have its own color with no
+clashing effects.
 */
 
 #include <stdlib.h>
@@ -58,7 +61,9 @@ void draw_line(int x0, int y0, int x1, int y1, byte color) {
     if (e2 < dy) { err += dx; y0 += sy; }
   }
 }
- 
+
+#ifdef _MAIN_
+
 void main() {
   setup_multicolor();
   cv_set_screen_active(true);
@@ -67,3 +72,5 @@ void main() {
   }
   while (1);
 }
+
+#endif

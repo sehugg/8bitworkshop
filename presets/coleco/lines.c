@@ -1,4 +1,10 @@
 
+/*
+This demo draws pixels and lines in Mode 2.
+Note that when lines of two different colors overlap,
+they create "clashing" effects.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -54,6 +60,8 @@ void draw_line(int x0, int y0, int x1, int y1, byte color) {
   }
 }
 
+#ifdef _MAIN_
+
 void main() {
   setup_mode2();
   cv_set_screen_active(true);
@@ -61,3 +69,5 @@ void main() {
     draw_line(rand()&0xff, rand()&0xbf, rand()&0xff, rand()&0xbf, rand()&15);
   }
 }
+
+#endif

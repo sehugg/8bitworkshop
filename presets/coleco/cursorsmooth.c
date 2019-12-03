@@ -1,4 +1,9 @@
 
+/*
+This demo animates two 16 x 16 sprites.
+It also uses the collision detection bit.
+*/
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <cv.h>
@@ -47,6 +52,10 @@ void move_cursor(struct cvu_sprite *s, int controller) {
   if (cs.joystick & CV_LEFT) x--;
   if (cs.joystick & CV_DOWN) y++;
   if (cs.joystick & CV_UP) y--;
+
+  // M;
+
+  // M;
 
   // Make sure cursor doesn't leave the screen.
   if(x < 0) x = 0;
