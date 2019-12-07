@@ -2357,6 +2357,9 @@ return {
           step();
         }
     },
+    advanceInsn: function() {
+        return step();
+    },
     T:function(){return T;},
     getTstates:function(){return T;},
     setTstates:function(t){T=t;},
