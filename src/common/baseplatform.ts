@@ -555,6 +555,13 @@ export function cpuStateToLongString_6809(c) {
        ;
 }
 
+export function getToolForFilename_6809(fn:string) : string {
+  if (fn.endsWith(".c")) return "cmoc";
+  if (fn.endsWith(".h")) return "cmoc";
+  if (fn.endsWith(".xasm")) return "xasm6809";
+  return "lwasm";
+}
+
 export abstract class Base6809Platform extends BaseZ80Platform {
 
   newCPU(membus : MemoryBus) {
@@ -575,7 +582,7 @@ export abstract class Base6809Platform extends BaseZ80Platform {
   }
   getDefaultExtension() : string { return ".asm"; };
   //this.getOpcodeMetadata = function() { }
-  getToolForFilename = () => { return "xasm6809"; }
+  getToolForFilename = getToolForFilename_6809;
   getDebugCategories() {
     return ['CPU','Stack'];
   }

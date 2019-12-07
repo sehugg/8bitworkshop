@@ -95,6 +95,8 @@ var PLATFORM_PARAMS = {
     data_start: 0x9800,
     data_size: 0x2800,
     stack_end: 0xc000,
+    extra_link_files: ['williams.scr', 'libcmoc-crt-usim.a', 'libcmoc-std-usim.a'],
+    extra_link_args: ['-swilliams.scr', '-lcmoc-crt-usim', '-lcmoc-std-usim'],
   },
   'williams-z80': {
     code_start: 0x0,
@@ -438,7 +440,8 @@ function anyTargetChanged(step:BuildStep, targets:string[]) {
 
 function execMain(step:BuildStep, mod, args:string[]) {
   starttime();
-  mod.callMain(args);
+  var run = mod.callMain || mod.run;
+  run(args);
   endtime(step.tool);
 }
 
@@ -945,7 +948,7 @@ function linkLD65(step:BuildStep) {
     if (workfs[params.cfgfile]) {
       populateEntry(FS, params.cfgfile, workfs[params.cfgfile], null);
     }
-    var libargs = params.libargs;
+    var libargs = params.libargs || [];
     var cfgfile = params.cfgfile;
     var args = ['--cfg-path', '/share/cfg',
       '--lib-path', '/share/lib',
@@ -2044,6 +2047,163 @@ function assembleNESASM(step:BuildStep) {
   };
 }
 
+function compileCMOC(step:BuildStep) {
+  loadNative("cmoc");
+  var params = step.params;
+  // stderr
+  var re_err1 = /^:(\d+): error: (.+)$/;
+  var errors : WorkerError[] = [];
+  var errline = 0;
+  function match_fn(s) {
+    var matches = re_err1.exec(s);
+    if (matches) {
+      errors.push({
+        line:parseInt(matches[1]),
+        msg:matches[2],
+        path:step.path
+      });
+    } else {
+      console.log(s);
+    }
+  }
+  gatherFiles(step, {mainFilePath:"main.c"});
+  var destpath = step.prefix + '.s';
+  if (staleFiles(step, [destpath])) {
+    var args = ['-S', '-Werror', '-V',
+      '-I/share/include',
+      '-I.',
+      //'-D' + params.define,
+      step.path];
+    var CMOC = emglobal.cmoc({
+      instantiateWasm: moduleInstFn('cmoc'),
+      noInitialRun:true,
+      //logReadFiles:true,
+      print:match_fn,
+      printErr:match_fn,
+      //arguments:args,
+      /*
+      locateFile: (path,prefix) => {
+        return prefix + 'wasm/' + path;
+      }
+      */
+    });
+    var FS = CMOC['FS'];
+    //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
+    populateFiles(step, FS);
+    fixParamsWithDefines(step.path, params);
+    execMain(step, CMOC, args);
+    if (errors.length)
+      return {errors:errors};
+    var asmout = FS.readFile(destpath, {encoding:'utf8'});
+    putWorkFile(destpath, asmout);
+  }
+  return {
+    nexttool:"lwasm",
+    path:destpath,
+    args:[destpath],
+    files:[destpath],
+  };
+}
+
+function assembleLWASM(step:BuildStep) {
+  loadNative("lwasm");
+  var errors = [];
+  gatherFiles(step, {mainFilePath:"main.s"});
+  var objpath = step.prefix+".o";
+  var lstpath = step.prefix+".lst";
+  if (staleFiles(step, [objpath, lstpath])) {
+    var objout, lstout;
+    var args = ['-9', '--obj', '-I/share/asminc', '-o'+objpath, '-l'+lstpath, step.path];
+    var LWASM = emglobal.lwasm({
+      instantiateWasm: moduleInstFn('lwasm'),
+      noInitialRun:true,
+      //logReadFiles:true,
+      print:print_fn,
+      printErr:msvcErrorMatcher(errors),
+    });
+    var FS = LWASM['FS'];
+    //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
+    populateFiles(step, FS);
+    fixParamsWithDefines(step.path, step.params);
+    execMain(step, LWASM, args);
+    if (errors.length)
+      return {errors:errors};
+    objout = FS.readFile(objpath, {encoding:'binary'});
+    lstout = FS.readFile(lstpath, {encoding:'utf8'});
+    putWorkFile(objpath, objout);
+    putWorkFile(lstpath, lstout);
+  }
+  return {
+    linktool:"lwlink",
+    files:[objpath, lstpath],
+    args:[objpath]
+  };
+}
+
+function linkLWLINK(step:BuildStep) {
+  loadNative("lwlink");
+  var params = step.params;
+  gatherFiles(step);
+  var binpath = "main";
+  if (staleFiles(step, [binpath])) {
+    var errors = [];
+    var LWLINK = emglobal.lwlink({
+      instantiateWasm: moduleInstFn('lwlink'),
+      noInitialRun:true,
+      //logReadFiles:true,
+      print:print_fn,
+      printErr:function(s) { errors.push({msg:s,line:0}); }
+    });
+    var FS = LWLINK['FS'];
+    //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
+    populateFiles(step, FS);
+    populateExtraFiles(step, FS, params.extra_link_files);
+    var libargs = params.extra_link_args || [];
+    var args = [
+      '-fraw',
+      '-L.',
+      '-omain',
+      '-mmain.map'].concat(libargs, step.args);
+    console.log(args);
+    execMain(step, LWLINK, args);
+    if (errors.length)
+      return {errors:errors};
+    var aout = FS.readFile("main", {encoding:'binary'});
+    var mapout = FS.readFile("main.map", {encoding:'utf8'});
+    putWorkFile("main", aout);
+    putWorkFile("main.map", mapout);
+    // return unchanged if no files changed
+    if (!anyTargetChanged(step, ["main", "main.map"]))
+      return;
+    // parse symbol map (TODO: omit segments, constants)
+    var symbolmap = {};
+    // TODO: build segment map
+    var segments = {};
+    // build listings
+    var listings = {};
+    for (var fn of step.files) {
+      if (fn.endsWith('.lst')) {
+        // TODO
+        var lstout = FS.readFile(fn, {encoding:'utf8'});
+        var asmlines = parseCA65Listing(lstout, symbolmap, params, false);
+        var srclines = parseCA65Listing(lstout, symbolmap, params, true);
+        putWorkFile(fn, lstout);
+        listings[fn] = {
+          asmlines:srclines.length ? asmlines : null,
+          lines:srclines.length ? srclines : asmlines,
+          text:lstout
+        };
+      }
+    }
+    return {
+      output:aout, //.slice(0),
+      listings:listings,
+      errors:errors,
+      symbolmap:symbolmap,
+      segments:segments
+    };
+  }
+}
 
 ////////////////////////////
 
@@ -2060,6 +2220,9 @@ var TOOLS = {
   'sdldz80': linkSDLDZ80,
   'sdcc': compileSDCC,
   'xasm6809': assembleXASM6809,
+  'cmoc': compileCMOC,
+  'lwasm': assembleLWASM,
+  'lwlink': linkLWLINK,
   //'naken': assembleNAKEN,
   'verilator': compileVerilator,
   'yosys': compileYosys,
