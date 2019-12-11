@@ -73,7 +73,8 @@ var TOOL_TO_SOURCE_STYLE = {
   'bataribasic': 'bataribasic',
   'markdown': 'markdown',
   'js': 'javascript',
-  'xasm6809': 'z80'
+  'xasm6809': 'z80',
+  'cmoc': 'text/x-csrc',
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {

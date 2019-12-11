@@ -1356,7 +1356,7 @@ function compileSDCC(step:BuildStep) {
     populateFiles(step, FS);
     // load source file and preprocess
     var code = getWorkFileAsString(step.path);
-    var preproc = preprocessMCPP(step);
+    var preproc = preprocessMCPP(step, 'sdcc');
     if (preproc.errors) return preproc;
     else code = preproc.code;
     // pipe file to stdin
@@ -1414,7 +1414,7 @@ function makeCPPSafe(s:string) : string {
   return s.replace(/[^A-Za-z0-9_]/g,'_');
 }
 
-function preprocessMCPP(step:BuildStep) {
+function preprocessMCPP(step:BuildStep, filesys:string) {
   load("mcpp");
   var platform = step.platform;
   var params = PLATFORM_PARAMS[getBasePlatform(platform)];
@@ -1429,7 +1429,7 @@ function preprocessMCPP(step:BuildStep) {
     printErr:match_fn,
   });
   var FS = MCPP['FS'];
-  setupFS(FS, 'sdcc'); // TODO: toolname
+  if (filesys) setupFS(FS, filesys);
   populateFiles(step, FS);
   populateExtraFiles(step, FS, params.extra_compile_files);
   // TODO: make configurable by other compilers
@@ -2051,16 +2051,16 @@ function compileCMOC(step:BuildStep) {
   loadNative("cmoc");
   var params = step.params;
   // stderr
-  var re_err1 = /^:(\d+): error: (.+)$/;
+  var re_err1 = /^([^:]*):(\d+): (.+)$/;
   var errors : WorkerError[] = [];
   var errline = 0;
   function match_fn(s) {
     var matches = re_err1.exec(s);
     if (matches) {
       errors.push({
-        line:parseInt(matches[1]),
-        msg:matches[2],
-        path:step.path
+        line:parseInt(matches[2]),
+        msg:matches[3],
+        path:matches[1] || step.path
       });
     } else {
       console.log(s);
@@ -2087,9 +2087,16 @@ function compileCMOC(step:BuildStep) {
       }
       */
     });
+    // load source file and preprocess
+    var code = getWorkFileAsString(step.path);
+    var preproc = preprocessMCPP(step, null);
+    if (preproc.errors) return preproc;
+    else code = preproc.code;
+    // set up filesystem
     var FS = CMOC['FS'];
     //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
+    FS.writeFile(step.path, code);
     fixParamsWithDefines(step.path, params);
     execMain(step, CMOC, args);
     if (errors.length)
@@ -2152,7 +2159,12 @@ function linkLWLINK(step:BuildStep) {
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
-      printErr:function(s) { errors.push({msg:s,line:0}); }
+      printErr:function(s) {
+        if (s.startsWith("Warning:"))
+          console.log(s);
+        else
+          errors.push({msg:s,line:0});
+      }
     });
     var FS = LWLINK['FS'];
     //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
@@ -2160,10 +2172,11 @@ function linkLWLINK(step:BuildStep) {
     populateExtraFiles(step, FS, params.extra_link_files);
     var libargs = params.extra_link_args || [];
     var args = [
-      '-fraw',
       '-L.',
-      '-omain',
-      '-mmain.map'].concat(libargs, step.args);
+      '--entry=program_start',
+      '--format=raw',
+      '--output=main',
+      '--map=main.map'].concat(libargs, step.args);
     console.log(args);
     execMain(step, LWLINK, args);
     if (errors.length)
@@ -2185,8 +2198,8 @@ function linkLWLINK(step:BuildStep) {
       if (fn.endsWith('.lst')) {
         // TODO
         var lstout = FS.readFile(fn, {encoding:'utf8'});
-        var asmlines = parseCA65Listing(lstout, symbolmap, params, false);
-        var srclines = parseCA65Listing(lstout, symbolmap, params, true);
+        var asmlines = parseListing(lstout, /^([0-9A-F]+)\s+([0-9A-F]+)\s+[(]\s*(.+?)[)]:(\d+) (.*)/i, 4, 1, 2, 3);
+        var srclines = [];
         putWorkFile(fn, lstout);
         listings[fn] = {
           asmlines:srclines.length ? asmlines : null,

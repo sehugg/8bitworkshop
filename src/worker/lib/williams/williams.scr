@@ -1,0 +1,5 @@
+define basesympat s_%s
+define lensympat l_%s
+section code load 0x0
+section *,!bss
+section bss load 0x9000
