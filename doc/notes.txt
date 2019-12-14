@@ -190,6 +190,7 @@ TODO:
   https://8bitworkshop.com/v3.4.1/javatari.js/release/javatari/javatari.js
   (32:443651)	Safari	12.1.2
 - Safari: doesn't send good exception reasons ("undefined")
+  - probably XMLHttpRequest.timeout (https://github.com/getsentry/sentry-javascript/issues/2210)
 
 
 

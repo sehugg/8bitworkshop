@@ -1,10 +1,9 @@
 *~
 node_modules
 local
-release
-gen
-test/output
+./release
+./gen
+./test/output
 tests_output/
 .DS_Store
 tmp
-
