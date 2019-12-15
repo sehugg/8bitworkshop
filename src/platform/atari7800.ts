@@ -6,6 +6,7 @@ import { PLATFORMS } from "../common/emu";
 var Atari7800_PRESETS = [
   {id:'sprites.dasm', name:'Sprites (ASM)'},
   {id:'wsync.c', name:'WSYNC'},
+  {id:'sprites.c', name:'Double Buffering'},
   {id:'scroll.c', name:'Scrolling'},
 ];
 

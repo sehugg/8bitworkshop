@@ -1,3 +1,5 @@
+#ifndef _ATARI7800
+#define _ATARI7800
 
 // define basic types for convenience
 typedef unsigned char byte;	// 8-bit unsigned
@@ -140,3 +142,5 @@ typedef struct DL5Entry {
 
 #define STROBE(addr)	__asm__ ("sta %w", addr)
 #define WSYNC()		STROBE(0x24)
+
+#endif
