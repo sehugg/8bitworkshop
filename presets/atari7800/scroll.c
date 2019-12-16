@@ -22,6 +22,29 @@ be written while the other is displayed.
 
 char* hello = "\2\4\6\0\220\222\102";
 
+/*{pal:"vcs",n:16}*/
+const byte PALETTE[25] = { 
+  0x02,			// background color
+  0x8f, 0x4f, 0x1f,	// palette 0
+  0x34, 0x28, 0x1f,	// palette 1
+  0x7f, 0x5f, 0x1f,	// palette 2
+  0x44, 0x38, 0x1f,	// palette 3
+  0x6f, 0x6f, 0x1f,	// palette 4
+  0x54, 0x48, 0x1f,	// palette 5
+  0x0f, 0x7f, 0x1f,	// palette 6
+  0x14, 0x58, 0x1f,	// palette 7
+};
+
+// set entire palette including background color
+void set_palette(register const byte* pal) {
+  byte i;
+  register byte* reg = (byte*) 0x20;
+  for (i=0; i<32; i++) {
+    if (i==0 || (i&3)) *reg = *pal++;
+    reg++;
+  }
+}
+
 void main() {
   byte i;
   byte y = 0;
@@ -30,24 +53,18 @@ void main() {
   
   // activate DMA
   MARIA.CHARBASE = 0x80;
-  MARIA.P0C1 = 0x8f;
-  MARIA.P0C2 = 0x4f;
-  MARIA.P0C3 = 0x1f;
-  MARIA.P1C1 = 0x34;
-  MARIA.P1C2 = 0x28;
-  MARIA.P1C3 = 0x1f;
-  MARIA.BACKGRND = 0;
+  set_palette(PALETTE);
   MARIA.CTRL = CTRL_DMA_ON | CTRL_DBLBYTE | CTRL_160AB;
 
   dll_clear();
   dll_add_string(hello, y+32, 32, DL_WP(8,0));
   for (i=0; i<8; i++) {
     dll_page(0);
-    dll_add_sprite(0xa068, i*4, i*33, DL_WP(4,1));
-    dll_add_sprite(0xa06c, i*8, i*25, DL_WP(4,1));
+    dll_add_sprite(0xa068, i*4, i*33, DL_WP(4,i));
+    dll_add_sprite(0xa06c, i*8, i*25, DL_WP(4,i));
     dll_page(1);
-    dll_add_sprite(0xa068, i*4, i*32, DL_WP(4,1));
-    dll_add_sprite(0xa06c, 128-i*8, i*24, DL_WP(4,1));
+    dll_add_sprite(0xa068, i*4, i*32, DL_WP(4,i));
+    dll_add_sprite(0xa06c, 128-i*8, i*24, DL_WP(4,i));
   }
   dll_save();
 

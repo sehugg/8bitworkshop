@@ -114,7 +114,7 @@ void dll_add_sprite(word addr, byte x, byte y, byte wpal) {
 
 // add a string to currently selected page
 // strings are aligned to top of slot
-void dll_add_string(const char* str, byte x, byte y, byte wpal) {
+void dll_add_string(register const char* str, byte x, byte y, byte wpal) {
   byte slot = (y / SLOTHEIGHT) | slot0;
   register DL5Entry* dl = (DL5Entry*) dll_alloc(slot, 5);
   dl->data_lo = (byte)str;
