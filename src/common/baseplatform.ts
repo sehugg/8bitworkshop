@@ -1,6 +1,6 @@
 
-import { RAM, RasterVideo, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes, ControllerPoller } from "./emu";
-import { hex, printFlags, invertMap } from "./util";
+import { RAM, RasterVideo, KeyFlags, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes, ControllerPoller } from "./emu";
+import { hex, printFlags, invertMap, getBasePlatform } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { Segment } from "./workertypes";
 import { disassemble6502 } from "./cpu/disasm6502";
@@ -68,7 +68,7 @@ export interface Debuggable {
 }
 
 export interface Platform {
-  start() : void;
+  start() : void | Promise<void>;
   reset() : void;
   isRunning() : boolean;
   getToolForFilename(s:string) : string;
@@ -925,7 +925,7 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
 
 /// new Machine platform adapters
 
-import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU } from "./devices";
+import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition } from "./devices";
 import { Probeable, RasterFrameBased, AcceptsPaddleInput } from "./devices";
 import { SampledAudio } from "./audio";
 import { ProbeRecorder } from "./recorder";
@@ -1038,7 +1038,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   }
 
   isRunning() {
-    return this.timer.isRunning();
+    return this.timer && this.timer.isRunning();
   }
 
   resume() {
@@ -1112,4 +1112,125 @@ export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMach
     return disassembleZ80(pc, read(pc), read(pc+1), read(pc+2), read(pc+3));
   }
 
+}
+
+// WASM Support
+
+export class WASMMachine implements Machine {
+
+  prefix : string;
+  instance : WebAssembly.Instance;
+  exports : any;
+  sys : number;
+  pixel_dest : Uint32Array;
+  pixel_src : Uint32Array;
+  romptr : number;
+  romarr : Uint8Array;
+
+  // TODO
+  cpu = {
+    getPC() : number {
+      return 0;
+    },
+    getSP() : number {
+      return 0;
+    },
+    isStable() : boolean {
+      return false;
+    },
+    reset() {
+    },
+    connectMemoryBus() {
+    },
+    saveState() {
+    },
+    loadState() {
+    }
+  }
+
+  constructor(prefix: string) {
+    this.prefix = prefix;
+  }
+  async loadWASM() {
+    // fetch WASM
+    var wasmResponse = await fetch('wasm/'+this.prefix+'.wasm');
+    var wasmBinary = await wasmResponse.arrayBuffer();
+    var wasmCompiled = await WebAssembly.compile(wasmBinary);
+    var wasmResult = await WebAssembly.instantiate(wasmCompiled);
+    this.instance = wasmResult;
+    this.exports = wasmResult.exports;
+    this.exports.memory.grow(32);
+    // fetch BIOS
+    var biosResponse = await fetch('wasm/'+this.prefix+'.bios');
+    var biosBinary = await biosResponse.arrayBuffer();
+    const cBIOSPointer = this.exports.malloc(0x5000);
+    const srcArray = new Uint8Array(biosBinary);
+    const destArray = new Uint8Array(this.exports.memory.buffer, cBIOSPointer, 0x5000);
+    destArray.set(srcArray);
+    // init machine instance
+    this.sys = this.exports.machine_init(cBIOSPointer);
+    console.log('machine_init', this.sys);
+  }
+  reset() {
+    this.exports.machine_reset(this.sys);
+  }
+  loadROM(rom: Uint8Array) {
+    if (!this.romptr) {
+      this.romptr = this.exports.malloc(0x10000);
+      this.romarr = new Uint8Array(this.exports.memory.buffer, this.romptr, 0x10000);
+    }
+    this.reset();
+//    this.exports.c64_exec(this.sys, 1000000);
+    this.romarr.set(rom);
+    this.exports.machine_load_rom(this.sys, this.romptr, rom.length);
+  }
+  advanceFrame(trap: TrapCondition) : number {
+    if (trap) {
+      // TODO
+    } else {
+      this.exports.c64_exec(this.sys, 16421);
+    }
+    this.syncVideo();
+    return 0; // TODO
+  }
+  read(address: number) : number {
+    return this.exports.machine_mem_read(this.sys, address & 0xffff);
+  }
+  readConst(address: number) : number {
+    return this.exports.machine_mem_read(this.sys, address & 0xffff);
+  }
+  write(address: number, value: number) : void {
+    this.exports.machine_mem_write(this.sys, address & 0xffff, value & 0xff);
+  }
+  saveState() : EmuState {
+    return null;
+  }
+  loadState(state: EmuState) : void {
+  }
+  saveControlsState() : any {
+  }
+  loadControlsState(state) : void {
+  }
+  getVideoParams() {
+   return {width:392, height:272, overscan:true}; // TODO: const
+  }
+  connectVideo(pixels:Uint32Array) : void {
+    this.pixel_dest = pixels;
+    // save video pointer
+    var pixbuf = this.exports.machine_get_pixel_buffer(this.sys);
+    this.pixel_src = new Uint32Array(this.exports.memory.buffer, pixbuf, pixels.length);
+    console.log(pixbuf, pixels.length);
+  }
+  syncVideo() {
+    if (this.pixel_dest != null) {
+      this.pixel_dest.set(this.pixel_src);
+    }
+  }
+  setKeyInput(key: number, code: number, flags: number): void {
+    if (flags & KeyFlags.KeyDown) {
+      this.exports.machine_key_down(this.sys, key);
+    } else if (flags & KeyFlags.KeyUp) {
+      this.exports.machine_key_up(this.sys, key);
+    }
+  }
 }

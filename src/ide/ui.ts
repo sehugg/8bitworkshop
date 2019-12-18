@@ -1789,7 +1789,7 @@ function installGAHooks() {
   }
 }
 
-function startPlatform() {
+async function startPlatform() {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emuscreen")[0]);
   setPlatformUI();
@@ -1814,7 +1814,7 @@ function startPlatform() {
   }
   // start platform and load file
   replaceURLState();
-  platform.start();
+  await platform.start();
   installGAHooks();
   loadBIOSFromProject();
   initProject();
@@ -1824,7 +1824,6 @@ function startPlatform() {
   addPageFocusHandlers();
   showInstructions();
   revealTopBar();
-  return true;
 }
 
 function revealTopBar() {
@@ -1896,7 +1895,7 @@ function setPlatformUI() {
 }
 
 // start
-export function startUI(loadplatform : boolean) {
+export function startUI() {
   // import from github?
   if (qs['githubURL']) {
     importProjectFromGithub(qs['githubURL'], true);
@@ -1932,33 +1931,38 @@ export function startUI(loadplatform : boolean) {
       return;
     }
     // load and start platform object
-    if (loadplatform) {
-      loadAndStartPlatform();
-    } else {
-      startPlatform();
-      revealTopBar();
-    }
+    loadAndStartPlatform();
   });
 }
 
-function loadAndStartPlatform() {
+async function loadAndStartPlatform() {
   var platformfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js'; // required file
   var machinefn  = platformfn.replace('/platform/', '/machine/'); // optional file
-  loadScript(platformfn).then( () => {
-    return loadScript(machinefn).catch(() => { console.log('skipped',machinefn); }); // optional file skipped
-  }).then( () => {
+  try {
+    await loadScript(platformfn); // load platform file
+  } catch (e) {
+    console.log(e);
+    alertError('Platform "' + platform_id + '" not supported.');
+    return;
+  }
+  try {
+    await loadScript(machinefn); // load machine file
+  } catch (e) {
+    console.log('skipped',machinefn); // optional file skipped
+  }
+  try {
     console.log("starting platform", platform_id); // loaded required <platform_id>.js file
     try {
-      startPlatform();
+      await startPlatform();
       showWelcomeMessage();
       document.title = document.title + " [" + platform_id + "] - " + (repo_id?('['+repo_id+'] - '):'') + current_project.mainPath;
     } finally {
       revealTopBar();
     }
-  }).catch( (e) => {
+  } catch (e) {
     console.log(e);
-    alertError('Platform "' + platform_id + '" not supported.');
-  });
+    alertError('Platform "' + platform_id + '" failed to load.');
+  }
 }
 
 // HTTPS REDIRECT
