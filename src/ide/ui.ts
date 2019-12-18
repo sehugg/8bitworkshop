@@ -299,30 +299,28 @@ function loadMainWindow(preset_id:string) {
   current_project.setMainFile(preset_id);
 }
 
-function loadProject(preset_id:string) {
+async function loadProject(preset_id:string) {
   // set current file ID
   // TODO: this is done twice
   current_project.mainPath = preset_id;
   setLastPreset(preset_id);
   // load files from storage or web URLs
-  current_project.loadFiles([preset_id]).then((result) => {
-    measureTimeLoad = new Date(); // for timing calc.
-    if (result && result.length) {
-      // file found; continue
-      loadMainWindow(preset_id);
-    } else {
-      getSkeletonFile(preset_id).then((skel) => {
-        current_project.filedata[preset_id] = skel || "\n";
-        loadMainWindow(preset_id);
-        // don't alert if we selected "new file"
-        if (!qs['newfile']) {
-          alertInfo("Could not find file \"" + preset_id + "\". Loading default file.");
-        }
-        delete qs['newfile'];
-        replaceURLState();
-      });
+  var result = await current_project.loadFiles([preset_id]);
+  measureTimeLoad = new Date(); // for timing calc.
+  if (result && result.length) {
+    // file found; continue
+    loadMainWindow(preset_id);
+  } else {
+    var skel = await getSkeletonFile(preset_id);
+    current_project.filedata[preset_id] = skel || "\n";
+    loadMainWindow(preset_id);
+    // don't alert if we selected "new file"
+    if (!qs['newfile']) {
+      alertInfo("Could not find file \"" + preset_id + "\". Loading default file.");
     }
-  });
+    delete qs['newfile'];
+    replaceURLState();
+  }
 }
 
 function reloadProject(id:string) {
@@ -932,21 +930,19 @@ function populateRepos(sel) {
   }
 }
 
-function populateFiles(sel:JQuery, category:string, prefix:string, foundFiles:{}, callback:() => void) {
-  store.keys().then( (keys:string[]) => {
-    var numFound = 0;
-    if (!keys) keys = [];
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-      if (key.startsWith(prefix) && !foundFiles[key]) {
-        if (numFound++ == 0)
-          sel.append($("<option />").text("------- " + category + " -------").attr('disabled','true'));
-        var name = key.substring(prefix.length);
-        sel.append($("<option />").val(key).text(name).attr('selected',(key==current_project.mainPath)?'selected':null));
-      }
+async function populateFiles(sel:JQuery, category:string, prefix:string, foundFiles:{}) {
+  var keys = await store.keys();
+  var numFound = 0;
+  if (!keys) keys = [];
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    if (key.startsWith(prefix) && !foundFiles[key]) {
+      if (numFound++ == 0)
+        sel.append($("<option />").text("------- " + category + " -------").attr('disabled','true'));
+      var name = key.substring(prefix.length);
+      sel.append($("<option />").val(key).text(name).attr('selected',(key==current_project.mainPath)?'selected':null));
     }
-    if (callback) { callback(); }
-  });
+  }
 }
 
 function finishSelector(sel) {
@@ -958,21 +954,19 @@ function finishSelector(sel) {
   }
 }
 
-function updateSelector() {
+async function updateSelector() {
   var sel = $("#preset_select").empty();
   if (!repo_id) {
     // normal: populate repos, examples, and local files
     populateRepos(sel);
     var foundFiles = populateExamples(sel);
-    populateFiles(sel, "Local Files", "", foundFiles, () => {
-      finishSelector(sel);
-    });
+    await populateFiles(sel, "Local Files", "", foundFiles);
+    finishSelector(sel);
   } else {
     sel.append($("<option />").val('/').text('Leave Repository'));
     // repo: populate all files
-    populateFiles(sel, repo_id, "", {}, () => {
-      finishSelector(sel);
-    });
+    await populateFiles(sel, repo_id, "", {});
+    finishSelector(sel);
   }
   // set click handlers
   sel.off('change').change(function(e) {
@@ -1037,15 +1031,16 @@ function setCompileOutput(data: WorkerResult) {
   }
 }
 
-function loadBIOSFromProject() {
+async function loadBIOSFromProject() {
   if (platform.loadBIOS) {
     var biospath = platform_id + '.rom';
-    store.getItem(biospath).then( (biosdata) => {
-      if (biosdata instanceof Uint8Array) {
-        console.log('loading BIOS')
-        platform.loadBIOS('BIOS', biosdata);
-      }
-    });
+    var biosdata = await store.getItem(biospath);
+    if (biosdata instanceof Uint8Array) {
+      console.log('loading BIOS')
+      platform.loadBIOS('BIOS', biosdata);
+    } else {
+      console.log('BIOS file must be binary')
+    }
   }
 }
 
@@ -1815,14 +1810,14 @@ async function startPlatform() {
   // start platform and load file
   replaceURLState();
   await platform.start();
-  installGAHooks();
-  loadBIOSFromProject();
-  initProject();
-  loadProject(qs['file']);
+  await loadBIOSFromProject();
+  await initProject();
+  await loadProject(qs['file']);
   setupDebugControls();
   updateSelector();
   addPageFocusHandlers();
   showInstructions();
+  installGAHooks();
   revealTopBar();
 }
 

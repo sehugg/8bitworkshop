@@ -190,7 +190,7 @@ var PLATFORM_PARAMS = {
   'apple2': {
     define: '__APPLE2__',
     cfgfile: 'apple2-hgr.cfg',
-    libargs: ['apple2.lib'],
+    libargs: [ '--lib-path', '/share/target/apple2/drv', '-D', '__EXEHDR__=0', 'apple2.lib'],
     __CODE_RUN__: 16384,
     code_start: 0x803,
   },
@@ -241,7 +241,7 @@ var PLATFORM_PARAMS = {
   },
   'c64': {
     define: '__C64__',
-    cfgfile: 'c64.cfg', // SYS 2058
+    cfgfile: 'c64.cfg', // SYS 2061
     libargs: ['c64.lib'],
     //extra_link_files: ['c64-cart.cfg'],
   },
@@ -952,8 +952,6 @@ function linkLD65(step:BuildStep) {
     var cfgfile = params.cfgfile;
     var args = ['--cfg-path', '/share/cfg',
       '--lib-path', '/share/lib',
-      '--lib-path', '/share/target/apple2/drv', // TODO
-      '-D', '__EXEHDR__=0', // TODO
       '-C', cfgfile,
       '-Ln', 'main.vice',
       //'--dbgfile', 'main.dbg', // TODO: get proper line numbers

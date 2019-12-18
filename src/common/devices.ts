@@ -39,6 +39,7 @@ export interface VideoParams {
     height : number;
     overscan? : boolean;
     rotate? : number;
+    videoFrequency? : number; // default = 60
 }
 
 // TODO: frame buffer optimization (apple2, etc)

@@ -925,8 +925,8 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
 
 /// new Machine platform adapters
 
-import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition } from "./devices";
-import { Probeable, RasterFrameBased, AcceptsPaddleInput } from "./devices";
+import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition, CPU } from "./devices";
+import { Probeable, RasterFrameBased, AcceptsPaddleInput, SampledAudioSink } from "./devices";
 import { SampledAudio } from "./audio";
 import { ProbeRecorder } from "./recorder";
 
@@ -986,7 +986,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   
   start() {
     const m = this.machine;
-    this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
+    var videoFrequency;
     if (hasVideo(m)) {
       var vp = m.getVideoParams();
       this.video = new RasterVideo(this.mainElement, vp.width, vp.height, {overscan:!!vp.overscan,rotate:vp.rotate|0});
@@ -997,7 +997,9 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
         this.video.setKeyboardEvents(m.setKeyInput.bind(m));
         this.poller = new ControllerPoller(m.setKeyInput.bind(m));
       }
+      videoFrequency = vp.videoFrequency;
     }
+    this.timer = new AnimationTimer(videoFrequency || 60, this.nextFrame.bind(this));
     if (hasAudio(m)) {
       var ap = m.getAudioParams();
       this.audio = new SampledAudio(ap.sampleRate);
@@ -1125,31 +1127,36 @@ export class WASMMachine implements Machine {
   pixel_dest : Uint32Array;
   pixel_src : Uint32Array;
   romptr : number;
+  romlen : number;
   romarr : Uint8Array;
-
-  // TODO
-  cpu = {
-    getPC() : number {
-      return 0;
-    },
-    getSP() : number {
-      return 0;
-    },
-    isStable() : boolean {
-      return false;
-    },
-    reset() {
-    },
-    connectMemoryBus() {
-    },
-    saveState() {
-    },
-    loadState() {
-    }
-  }
+  stateptr : number;
+  statearr : Uint8Array;
+  cpu : CPU;
+  audio : SampledAudioSink;
+  audioarr : Float32Array;
+  prgstart : number;
+  initstring : string;
+  initindex : number;
 
   constructor(prefix: string) {
     this.prefix = prefix;
+    var self = this;
+    this.cpu = {
+      getPC: self.getPC.bind(self),
+      getSP: self.getSP.bind(self),
+      isStable: self.isStable.bind(self),
+      reset: self.reset.bind(self),
+      saveState: () => {
+        self.exports.machine_save_state(self.sys, self.stateptr);
+        return self.getCPUState();
+      },
+      loadState: () => {
+        console.log("loadState not implemented")
+      },
+      connectMemoryBus() {
+        console.log("connectMemoryBus not implemented")
+      },
+    }
   }
   async loadWASM() {
     // fetch WASM
@@ -1170,28 +1177,71 @@ export class WASMMachine implements Machine {
     // init machine instance
     this.sys = this.exports.machine_init(cBIOSPointer);
     console.log('machine_init', this.sys);
+    // create state buffer
+    var statesize = this.exports.machine_get_state_size();
+    this.stateptr = this.exports.malloc(statesize);
+    this.statearr = new Uint8Array(this.exports.memory.buffer, this.stateptr, statesize);
+    // create audio buffer
+    var sampbufsize = 4096*4;
+    this.audioarr = new Float32Array(this.exports.memory.buffer, this.exports.machine_get_sample_buffer(), sampbufsize);
   }
   reset() {
     this.exports.machine_reset(this.sys);
+    // load rom
+    if (this.romptr && this.romlen) {
+      this.exports.machine_load_rom(this.sys, this.romptr, this.romlen);
+      this.prgstart = this.romarr[0] + (this.romarr[1]<<8); // TODO: get starting address
+      if (this.prgstart == 0x801) this.prgstart = 0x80d;
+    }
+    // set init string
+    if (this.prgstart) {
+      this.initstring = "\r\r\r\r\r\r\rSYS " + this.prgstart + "\r";
+      this.initindex = 0;
+    }
+  }
+  getPC() : number {
+    return this.exports.machine_cpu_get_pc(this.sys);
+  }
+  getSP() : number {
+    return this.exports.machine_cpu_get_sp(this.sys);
+  }
+  isStable() : boolean {
+    return this.exports.machine_cpu_is_stable(this.sys);
   }
   loadROM(rom: Uint8Array) {
     if (!this.romptr) {
       this.romptr = this.exports.malloc(0x10000);
       this.romarr = new Uint8Array(this.exports.memory.buffer, this.romptr, 0x10000);
     }
-    this.reset();
-//    this.exports.c64_exec(this.sys, 1000000);
     this.romarr.set(rom);
-    this.exports.machine_load_rom(this.sys, this.romptr, rom.length);
+    this.romlen = rom.length;
+    this.reset();
   }
   advanceFrame(trap: TrapCondition) : number {
+    var i : number;
+    var cpf = 19656; // TODO: pal, const
     if (trap) {
-      // TODO
+      for (i=0; i<cpf; i++) {
+        if (trap && trap()) {
+          break;
+        }
+        this.exports.machine_tick(this.sys);
+      }
     } else {
-      this.exports.c64_exec(this.sys, 16421);
+      this.exports.machine_exec(this.sys, cpf);
+      i = cpf;
+      this.typeInitString(); // TODO: type init string into console (doesnt work on reset)
     }
     this.syncVideo();
-    return 0; // TODO
+    this.syncAudio();
+    return i;
+  }
+  typeInitString() {
+    if (this.initstring) {
+      var ch = this.initstring.charCodeAt(this.initindex >> 1);
+      this.setKeyInput(ch, 0, (this.initindex&1) ? KeyFlags.KeyUp : KeyFlags.KeyDown);
+      this.initindex++;
+    }
   }
   read(address: number) : number {
     return this.exports.machine_mem_read(this.sys, address & 0xffff);
@@ -1202,17 +1252,54 @@ export class WASMMachine implements Machine {
   write(address: number, value: number) : void {
     this.exports.machine_mem_write(this.sys, address & 0xffff, value & 0xff);
   }
-  saveState() : EmuState {
-    return null;
+  getCPUState() {
+    return {
+      PC:this.getPC(),
+      SP:this.getSP(),
+      A:this.statearr[14],
+      X:this.statearr[15],
+      Y:this.statearr[16],
+      S:this.statearr[17],
+      flags:this.statearr[18],
+      C:this.statearr[18] & 1,
+      Z:this.statearr[18] & 2,
+      I:this.statearr[18] & 4,
+      D:this.statearr[18] & 8,
+      V:this.statearr[18] & 64,
+      N:this.statearr[18] & 128,
+    }
   }
-  loadState(state: EmuState) : void {
+  /*
+  setPC(pc: number) {
+    this.exports.machine_save_state(this.sys, this.stateptr);
+    this.statearr[10] = pc & 0xff;
+    this.statearr[11] = pc >> 8;
+    this.exports.machine_load_state(this.sys, this.stateptr);
+  }
+  */
+  saveState() {
+    this.exports.machine_save_state(this.sys, this.stateptr);
+    // TODO: take out CPU state, memory
+    return {
+      c:this.getCPUState(),
+      state:this.statearr.slice(0)
+    };
+  }
+  loadState(state) : void {
+    this.statearr.set(state.state);
+    this.exports.machine_load_state(this.sys, this.stateptr);
   }
   saveControlsState() : any {
+    // TODO
   }
   loadControlsState(state) : void {
+    // TODO
   }
   getVideoParams() {
-   return {width:392, height:272, overscan:true}; // TODO: const
+   return {width:392, height:272, overscan:true, videoFrequency:50}; // TODO: const
+  }
+  getAudioParams() {
+    return {sampleRate:44100, stereo:false};
   }
   connectVideo(pixels:Uint32Array) : void {
     this.pixel_dest = pixels;
@@ -1227,10 +1314,25 @@ export class WASMMachine implements Machine {
     }
   }
   setKeyInput(key: number, code: number, flags: number): void {
+    // TODO: handle shifted keys
+    if (key == 16 || key == 17 || key == 18 || key == 224) return; // meta keys
+    //console.log(key, code, flags);
+    //if (flags & KeyFlags.Shift) { key += 64; }
     if (flags & KeyFlags.KeyDown) {
       this.exports.machine_key_down(this.sys, key);
     } else if (flags & KeyFlags.KeyUp) {
       this.exports.machine_key_up(this.sys, key);
+    }
+  }
+  connectAudio(audio : SampledAudioSink) : void {
+    this.audio = audio;
+  }
+  syncAudio() {
+    if (this.audio != null) {
+      var n = this.exports.machine_get_sample_count();
+      for (var i=0; i<n; i++) {
+        this.audio.feedSample(this.audioarr[i], 1);
+      }
     }
   }
 }
