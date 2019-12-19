@@ -1195,7 +1195,7 @@ export class WASMMachine implements Machine {
     }
     // set init string
     if (this.prgstart) {
-      this.initstring = "\r\r\r\r\r\r\rSYS " + this.prgstart + "\r";
+      this.initstring = "\r\r\r\r\r\r\r\r\r\r\rSYS " + this.prgstart + "\r";
       this.initindex = 0;
     }
   }
@@ -1240,7 +1240,7 @@ export class WASMMachine implements Machine {
     if (this.initstring) {
       var ch = this.initstring.charCodeAt(this.initindex >> 1);
       this.setKeyInput(ch, 0, (this.initindex&1) ? KeyFlags.KeyUp : KeyFlags.KeyDown);
-      this.initindex++;
+      if (++this.initindex >= this.initstring.length*2) this.initstring = null;
     }
   }
   read(address: number) : number {

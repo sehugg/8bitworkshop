@@ -113,7 +113,7 @@ var PLATFORM_PARAMS = {
     stack_end: 0x0,
   },
   'vector-ataricolor': { //TODO
-    define: '__VECTOR__',
+    define: ['__VECTOR__'],
     cfgfile: 'vector-color.cfg',
     libargs: ['crt0.o', 'sim6502.lib'],
     extra_link_files: ['crt0.o', 'vector-color.cfg'],
@@ -177,7 +177,7 @@ var PLATFORM_PARAMS = {
     extra_compile_files: ['cv.h','cv_graphics.h','cv_input.h','cv_sound.h','cv_support.h','cvu.h','cvu_c.h','cvu_compression.h','cvu_f.h','cvu_graphics.h','cvu_input.h','cvu_sound.h'],
   },
   'nes': { //TODO
-    define: '__NES__',
+    define: ['__NES__'],
     cfgfile: 'neslib2.cfg',
     libargs: ['crt0.o', 'nes.lib', 'neslib2.lib',
       '-D', 'NES_MAPPER=0', // NROM
@@ -188,24 +188,24 @@ var PLATFORM_PARAMS = {
     extra_link_files: ['crt0.o', 'neslib2.lib', 'neslib2.cfg', 'nesbanked.cfg'],
   },
   'apple2': {
-    define: '__APPLE2__',
+    define: ['__APPLE2__'],
     cfgfile: 'apple2-hgr.cfg',
     libargs: [ '--lib-path', '/share/target/apple2/drv', '-D', '__EXEHDR__=0', 'apple2.lib'],
     __CODE_RUN__: 16384,
     code_start: 0x803,
   },
   'apple2-e': {
-    define: '__APPLE2__',
+    define: ['__APPLE2__'],
     cfgfile: 'apple2.cfg',
     libargs: ['apple2.lib'],
   },
   'atari8-800': {
-    define: '__ATARI__',
+    define: ['__ATARI__'],
     cfgfile: 'atari-cart.cfg',
     libargs: ['atari.lib'],
   },
   'atari8-5200': {
-    define: '__ATARI5200__',
+    define: ['__ATARI5200__'],
     cfgfile: 'atari5200.cfg',
     libargs: ['atari5200.lib',
       '-D', '__CARTFLAGS__=255'],
@@ -234,13 +234,13 @@ var PLATFORM_PARAMS = {
      stack_end: 0x4fce,
   },
   'atari7800': {
-    define: '__ATARI7800__',
+    define: ['__ATARI7800__'],
     cfgfile: 'atari7800.cfg',
     libargs: ['crt0.o', 'sim6502.lib'],
     extra_link_files: ['crt0.o', 'atari7800.cfg'],
   },
   'c64': {
-    define: '__C64__',
+    define: ['__CBM__', '__C64__'],
     cfgfile: 'c64.cfg', // SYS 2061
     libargs: ['c64.lib'],
     //extra_link_files: ['c64-cart.cfg'],
@@ -1102,13 +1102,16 @@ function compileCC65(step:BuildStep) {
     setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     fixParamsWithDefines(step.path, params);
-    execMain(step, CC65, ['-T', '-g',
+    var args = ['-T', '-g',
       '-Oirs', // don't inline CodeSizeFactor 200? (no -Oi)
       '-Cl', // static locals
       '-I', '/share/include',
       '-I', '.',
-      '-D' + params.define,
-      step.path]);
+    ];
+    if (params.define) params.define.forEach((x) => args.push('-D'+x));
+    args.push(step.path);
+    console.log(args);
+    execMain(step, CC65, args);
     if (errors.length)
       return {errors:errors};
     var asmout = FS.readFile(destpath, {encoding:'utf8'});
@@ -2070,7 +2073,6 @@ function compileCMOC(step:BuildStep) {
     var args = ['-S', '-Werror', '-V',
       '-I/share/include',
       '-I.',
-      //'-D' + params.define,
       step.path];
     var CMOC = emglobal.cmoc({
       instantiateWasm: moduleInstFn('cmoc'),
