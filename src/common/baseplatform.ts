@@ -1117,6 +1117,7 @@ export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMach
 }
 
 // WASM Support
+// TODO: detangle from c64
 
 export class WASMMachine implements Machine {
 
@@ -1131,6 +1132,8 @@ export class WASMMachine implements Machine {
   romarr : Uint8Array;
   stateptr : number;
   statearr : Uint8Array;
+  cpustateptr : number;
+  cpustatearr : Uint8Array;
   cpu : CPU;
   audio : SampledAudioSink;
   audioarr : Float32Array;
@@ -1147,7 +1150,6 @@ export class WASMMachine implements Machine {
       isStable: self.isStable.bind(self),
       reset: self.reset.bind(self),
       saveState: () => {
-        self.exports.machine_save_state(self.sys, self.stateptr);
         return self.getCPUState();
       },
       loadState: () => {
@@ -1177,10 +1179,13 @@ export class WASMMachine implements Machine {
     // init machine instance
     this.sys = this.exports.machine_init(cBIOSPointer);
     console.log('machine_init', this.sys);
-    // create state buffer
+    // create state buffers
     var statesize = this.exports.machine_get_state_size();
     this.stateptr = this.exports.malloc(statesize);
     this.statearr = new Uint8Array(this.exports.memory.buffer, this.stateptr, statesize);
+    var cpustatesize = this.exports.machine_get_cpu_state_size();
+    this.cpustateptr = this.exports.malloc(cpustatesize);
+    this.cpustatearr = new Uint8Array(this.exports.memory.buffer, this.cpustateptr, cpustatesize);
     // create audio buffer
     var sampbufsize = 4096*4;
     this.audioarr = new Float32Array(this.exports.memory.buffer, this.exports.machine_get_sample_buffer(), sampbufsize);
@@ -1194,6 +1199,7 @@ export class WASMMachine implements Machine {
       if (this.prgstart == 0x801) this.prgstart = 0x80d;
     }
     // set init string
+    // TODO: sometimes gets hung up
     if (this.prgstart) {
       this.initstring = "\r\r\r\r\r\r\r\r\r\r\rSYS " + this.prgstart + "\r";
       this.initindex = 0;
@@ -1253,33 +1259,24 @@ export class WASMMachine implements Machine {
     this.exports.machine_mem_write(this.sys, address & 0xffff, value & 0xff);
   }
   getCPUState() {
+    this.exports.machine_save_cpu_state(this.sys, this.cpustateptr);
+    var s = this.cpustatearr;
     return {
-      PC:this.getPC(),
-      SP:this.getSP(),
-      A:this.statearr[14],
-      X:this.statearr[15],
-      Y:this.statearr[16],
-      S:this.statearr[17],
-      flags:this.statearr[18],
-      C:this.statearr[18] & 1,
-      Z:this.statearr[18] & 2,
-      I:this.statearr[18] & 4,
-      D:this.statearr[18] & 8,
-      V:this.statearr[18] & 64,
-      N:this.statearr[18] & 128,
+      PC:s[2] + (s[3]<<8),
+      SP:s[9],
+      A:s[6],
+      X:s[7],
+      Y:s[8],
+      C:s[10] & 1,
+      Z:s[10] & 2,
+      I:s[10] & 4,
+      D:s[10] & 8,
+      V:s[10] & 64,
+      N:s[10] & 128,
     }
   }
-  /*
-  setPC(pc: number) {
-    this.exports.machine_save_state(this.sys, this.stateptr);
-    this.statearr[10] = pc & 0xff;
-    this.statearr[11] = pc >> 8;
-    this.exports.machine_load_state(this.sys, this.stateptr);
-  }
-  */
   saveState() {
     this.exports.machine_save_state(this.sys, this.stateptr);
-    // TODO: take out CPU state, memory
     return {
       c:this.getCPUState(),
       state:this.statearr.slice(0)
@@ -1289,11 +1286,14 @@ export class WASMMachine implements Machine {
     this.statearr.set(state.state);
     this.exports.machine_load_state(this.sys, this.stateptr);
   }
+  // assume controls buffer is smaller than cpu buffer
   saveControlsState() : any {
-    // TODO
+    this.exports.machine_save_controls_state(this.sys, this.cpustateptr);
+    return { controls:this.cpustatearr.slice(0, this.exports.machine_get_controls_state_size()) }
   }
   loadControlsState(state) : void {
-    // TODO
+    this.cpustatearr.set(state.controls);
+    this.exports.machine_load_controls_state(this.sys, this.cpustateptr);
   }
   getVideoParams() {
    return {width:392, height:272, overscan:true, videoFrequency:50}; // TODO: const

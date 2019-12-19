@@ -1,0 +1,32 @@
+	processor 6502
+	org  $7ffe
+; 2-byte load address for ROM image
+        word $8000
+; http://swut.net/c64cart-howto.html
+; https://codebase64.org/doku.php?id=base:assembling_your_own_cart_rom_image
+	.word CartKReset	; cold start vector
+        .word CartWStart	; warm start vector
+        .byte $c3, $c2, $cd, $38, $30 ; "CBM80"
+CartKReset
+	STX $D016	; Turn on VIC for PAL / NTSC check
+	JSR $FDA3	; IOINIT - Init CIA chips
+	JSR $FD50	; RANTAM - Clear/test system RAM
+	JSR $FD15	; RESTOR - Init KERNAL RAM vectors
+	JSR $FF5B	; CINT   - Init VIC and screen editor
+	CLI		; Re-enable IRQ interrupts
+CartBReset
+; init BASIC?
+	IFCONST CART_INIT_BASIC
+	JSR $E453	; Init BASIC RAM vectors
+	JSR $E3BF	; Main BASIC RAM Init routine
+	JSR $E422	; Power-up message / NEW command
+	LDX #$FB
+	TXS		; Reduce stack pointer for BASIC
+; don't init BASIC, just NOP
+        ELSE
+        REPEAT 12
+        NOP
+        REPEND
+        ENDIF
+CartWStart
+; should be * = $x025

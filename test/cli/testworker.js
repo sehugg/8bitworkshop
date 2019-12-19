@@ -313,5 +313,11 @@ describe('Worker', function() {
   it('should assemble CA65', function(done) {
     compile('ca65', ';#define LIBARGS ,\n\t.segment "HEADER"\n\t.segment "STARTUP"\n\t.segment "CHARS"\n\t.segment "VECTORS"\n\t.segment "SAMPLES"\n\t.segment "CODE"\n\tlda #0\n\tsta $1\n', 'nes', done, 131088, 2);
   });
+  /* TODO
+  it('should compile C64 cc65 skeleton', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/c64/skeleton.cc65'));
+    compile('cc65', csource, 'c64.wasm', done, 49152, 80, 0);
+  });
+  */
 
 });

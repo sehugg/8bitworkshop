@@ -22,11 +22,9 @@ Module.expectedDataFileDownloads++;
     var REMOTE_PACKAGE_BASE = 'fs65-c64.data';
     if (typeof Module['locateFilePackage'] === 'function' && !Module['locateFile']) {
       Module['locateFile'] = Module['locateFilePackage'];
-      Module.printErr('warning: you defined Module.locateFilePackage, that has been renamed to Module.locateFile (using your locateFilePackage for now)');
+      err('warning: you defined Module.locateFilePackage, that has been renamed to Module.locateFile (using your locateFilePackage for now)');
     }
-    var REMOTE_PACKAGE_NAME = typeof Module['locateFile'] === 'function' ?
-                              Module['locateFile'](REMOTE_PACKAGE_BASE) :
-                              ((Module['filePackagePrefixURL'] || '') + REMOTE_PACKAGE_BASE);
+    var REMOTE_PACKAGE_NAME = Module['locateFile'] ? Module['locateFile'](REMOTE_PACKAGE_BASE, '') : REMOTE_PACKAGE_BASE;
   
     var REMOTE_PACKAGE_SIZE = metadata.remote_package_size;
     var PACKAGE_UUID = metadata.package_uuid;
@@ -102,27 +100,26 @@ Module.expectedDataFileDownloads++;
     }
 Module['FS_createPath']('/', 'include', true, true);
 Module['FS_createPath']('/include', 'em', true, true);
-Module['FS_createPath']('/include', 'mouse', true, true);
-Module['FS_createPath']('/include', 'tgi', true, true);
 Module['FS_createPath']('/include', 'geos', true, true);
-Module['FS_createPath']('/include', 'sys', true, true);
+Module['FS_createPath']('/include', 'tgi', true, true);
+Module['FS_createPath']('/include', 'mouse', true, true);
 Module['FS_createPath']('/include', 'joystick', true, true);
+Module['FS_createPath']('/include', 'sys', true, true);
 Module['FS_createPath']('/', 'asminc', true, true);
 Module['FS_createPath']('/', 'cfg', true, true);
 Module['FS_createPath']('/', 'lib', true, true);
 Module['FS_createPath']('/', 'target', true, true);
 Module['FS_createPath']('/target', 'c64', true, true);
 Module['FS_createPath']('/target/c64', 'drv', true, true);
-Module['FS_createPath']('/target/c64/drv', 'tgi', true, true);
-Module['FS_createPath']('/target/c64/drv', 'mou', true, true);
-Module['FS_createPath']('/target/c64/drv', 'emd', true, true);
-Module['FS_createPath']('/target/c64/drv', 'joy', true, true);
 Module['FS_createPath']('/target/c64/drv', 'ser', true, true);
+Module['FS_createPath']('/target/c64/drv', 'joy', true, true);
+Module['FS_createPath']('/target/c64/drv', 'tgi', true, true);
+Module['FS_createPath']('/target/c64/drv', 'emd', true, true);
+Module['FS_createPath']('/target/c64/drv', 'mou', true, true);
 
-    function DataRequest(start, end, crunched, audio) {
+    function DataRequest(start, end, audio) {
       this.start = start;
       this.end = end;
-      this.crunched = crunched;
       this.audio = audio;
     }
     DataRequest.prototype = {
@@ -135,9 +132,7 @@ Module['FS_createPath']('/target/c64/drv', 'ser', true, true);
       send: function() {},
       onload: function() {
         var byteArray = this.byteArray.subarray(this.start, this.end);
-
-          this.finish(byteArray);
-
+        this.finish(byteArray);
       },
       finish: function(byteArray) {
         var that = this;
@@ -151,7 +146,7 @@ Module['FS_createPath']('/target/c64/drv', 'ser', true, true);
 
         var files = metadata.files;
         for (var i = 0; i < files.length; ++i) {
-          new DataRequest(files[i].start, files[i].end, files[i].crunched, files[i].audio).open('GET', files[i].filename);
+          new DataRequest(files[i].start, files[i].end, files[i].audio).open('GET', files[i].filename);
         }
 
   
@@ -164,7 +159,6 @@ Module['FS_createPath']('/target/c64/drv', 'ser', true, true);
       
         // copy the entire loaded file into a spot in the heap. Files will refer to slices in that. They cannot be freed though
         // (we may be allocating before malloc is ready, during startup).
-        if (Module['SPLIT_MEMORY']) Module.printErr('warning: you should run the file packager with --no-heap-copy when SPLIT_MEMORY is used, otherwise copying into the heap may fail due to the splitting');
         var ptr = Module['getMemory'](byteArray.length);
         Module['HEAPU8'].set(byteArray, ptr);
         DataRequest.prototype.byteArray = Module['HEAPU8'].subarray(ptr, ptr+byteArray.length);
@@ -199,22 +193,25 @@ Module['FS_createPath']('/target/c64/drv', 'ser', true, true);
   Module['removeRunDependency']('fs65-c64.js.metadata');
  }
 
- var REMOTE_METADATA_NAME = typeof Module['locateFile'] === 'function' ?
-                            Module['locateFile']('fs65-c64.js.metadata') :
-                            ((Module['filePackagePrefixURL'] || '') + 'fs65-c64.js.metadata');
- var xhr = new XMLHttpRequest();
- xhr.onreadystatechange = function() {
-  if (xhr.readyState === 4 && xhr.status === 200) {
-    loadPackage(JSON.parse(xhr.responseText));
-  }
- }
- xhr.open('GET', REMOTE_METADATA_NAME, true);
- xhr.overrideMimeType('application/json');
- xhr.send(null);
-
- if (!Module['preRun']) Module['preRun'] = [];
- Module["preRun"].push(function() {
+ function runMetaWithFS() {
   Module['addRunDependency']('fs65-c64.js.metadata');
- });
+  var REMOTE_METADATA_NAME = Module['locateFile'] ? Module['locateFile']('fs65-c64.js.metadata', '') : 'fs65-c64.js.metadata';
+  var xhr = new XMLHttpRequest();
+  xhr.onreadystatechange = function() {
+   if (xhr.readyState === 4 && xhr.status === 200) {
+     loadPackage(JSON.parse(xhr.responseText));
+   }
+  }
+  xhr.open('GET', REMOTE_METADATA_NAME, true);
+  xhr.overrideMimeType('application/json');
+  xhr.send(null);
+ }
+
+ if (Module['calledRun']) {
+  runMetaWithFS();
+ } else {
+  if (!Module['preRun']) Module['preRun'] = [];
+  Module["preRun"].push(runMetaWithFS);
+ }
 
 })();

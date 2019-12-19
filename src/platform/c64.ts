@@ -5,6 +5,9 @@ import { PLATFORMS } from "../common/emu";
 
 const C64_PRESETS = [
   {id:'hello.dasm', name:'Hello World (ASM)'},
+  {id:'sidtune.dasm', name:'SID Tune (ASM)'},
+  {id:'eliza.c', name:'Eliza (C)'},
+  {id:'tgidemo.c', name:'TGI Graphics Demo (C)'},
 ];
 
 const C64_MEMORY_MAP = { main:[
