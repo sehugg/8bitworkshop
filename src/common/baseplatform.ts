@@ -1140,6 +1140,7 @@ export class WASMMachine implements Machine {
   prgstart : number;
   initstring : string;
   initindex : number;
+  joymask0 = 0;
 
   constructor(prefix: string) {
     this.prefix = prefix;
@@ -1189,6 +1190,8 @@ export class WASMMachine implements Machine {
     // create audio buffer
     var sampbufsize = 4096*4;
     this.audioarr = new Float32Array(this.exports.memory.buffer, this.exports.machine_get_sample_buffer(), sampbufsize);
+    // enable c64 joystick map to arrow keys (TODO)
+    //this.exports.c64_set_joystick_type(this.sys, 1);
   }
   reset() {
     this.exports.machine_reset(this.sys);
@@ -1318,11 +1321,20 @@ export class WASMMachine implements Machine {
     if (key == 16 || key == 17 || key == 18 || key == 224) return; // meta keys
     //console.log(key, code, flags);
     //if (flags & KeyFlags.Shift) { key += 64; }
+    // convert to c64
+    var mask = 0;
+    if (key == 37) { key = 0x8; mask = 0x4; } // LEFT
+    if (key == 38) { key = 0xb; mask = 0x1; } // UP
+    if (key == 39) { key = 0x9; mask = 0x8; } // RIGHT
+    if (key == 40) { key = 0xa; mask = 0x2; } // DOWN
     if (flags & KeyFlags.KeyDown) {
       this.exports.machine_key_down(this.sys, key);
+      this.joymask0 |= mask;
     } else if (flags & KeyFlags.KeyUp) {
       this.exports.machine_key_up(this.sys, key);
+      this.joymask0 &= ~mask;
     }
+    this.exports.c64_joystick(this.sys, this.joymask0, 0); // TODO: c64
   }
   connectAudio(audio : SampledAudioSink) : void {
     this.audio = audio;
