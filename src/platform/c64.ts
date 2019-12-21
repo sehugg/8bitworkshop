@@ -48,17 +48,6 @@ class C64WASMPlatform extends Base6502MachinePlatform<WASMMachine> implements Pl
   getMemoryMap()        { return C64_MEMORY_MAP; }
 }
 
-/*
-class C64WASMPlatform extends BaseWASMPlatform implements Platform {
-
-  prefix = 'c64';
-
-  getPresets() { return C64_PRESETS; }
-  getToolForFilename = getToolForFilename_6502;
-  getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtension() { return ".c"; };
-}
-*/
-
-PLATFORMS['c64'] = C64Platform;
+PLATFORMS['c64'] = C64WASMPlatform;
 PLATFORMS['c64.wasm'] = C64WASMPlatform;
+PLATFORMS['c64.js'] = C64Platform;

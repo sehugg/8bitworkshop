@@ -1717,7 +1717,27 @@ var qs = (function (a : string[]) {
     return b;
 })(window.location.search.substr(1).split('&'));
 
+function globalErrorHandler(msgevent) {
+  var msg = (msgevent.message || msgevent.error || msgevent)+"";
+  // storage quota full? (Chrome) try to expand it
+  if (msg.indexOf("QuotaExceededError") >= 0) {
+    requestPersistPermission();
+  } else {
+    showErrorAlert([{msg:msg,line:0}]);
+  }
+}
+
+// catch errors
+function installErrorHandler() {
+  window.addEventListener('error', globalErrorHandler);
+}
+  
+function uninstallErrorHandler() {
+  window.removeEventListener('error', globalErrorHandler);
+}
+
 function gotoNewLocation(replaceHistory? : boolean) {
+  uninstallErrorHandler();
   if (replaceHistory)
     window.location.replace("?" + $.param(qs));
   else
@@ -1809,6 +1829,8 @@ async function startPlatform() {
   }
   // start platform and load file
   replaceURLState();
+  installErrorHandler();
+  installGAHooks();
   await platform.start();
   await loadBIOSFromProject();
   await initProject();
@@ -1817,7 +1839,6 @@ async function startPlatform() {
   updateSelector();
   addPageFocusHandlers();
   showInstructions();
-  installGAHooks();
   revealTopBar();
 }
 
@@ -1994,6 +2015,7 @@ function _switchToHTTPS() {
 function redirectToHTTPS() {
   if (window.location.protocol == 'http:' && window.location.host == '8bitworkshop.com') {
     if (shouldRedirectHTTPS()) {
+      uninstallErrorHandler();
       window.location.replace(window.location.href.replace(/^http:/, 'https:'));
     } else {
       $("#item_switch_https").click(_switchToHTTPS).show();
