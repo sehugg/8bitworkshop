@@ -42,7 +42,7 @@ CodeMirror.defineMode('bataribasic', function(_config, parserConfig) {
     "kernel","multisprite","multisprite_no_include","debug",
     "cyclescore","cycles","legacy"
     ];
-  var directives = {};
+  var directives = new Map();
   directives_list.forEach(function(s) { directives.set(s, 'keyword'); });
 
   var numbers = /^([$][0-9a-f]+|[%][01]+|[0-9.]+)/i;

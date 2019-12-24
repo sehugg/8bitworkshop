@@ -464,6 +464,9 @@ export function getWithBinary(url:string, success:(text:string|Uint8Array)=>void
       throw Error("Error " + oReq.status + " loading " + url);
     }
   }
+  oReq.ontimeout = function (oEvent) {
+    throw Error("Timeout loading " + url);
+  }
   oReq.send(null);
 }
 

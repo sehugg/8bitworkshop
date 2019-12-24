@@ -1110,7 +1110,7 @@ function compileCC65(step:BuildStep) {
     ];
     if (params.define) params.define.forEach((x) => args.push('-D'+x));
     args.push(step.path);
-    console.log(args);
+    //console.log(args);
     execMain(step, CC65, args);
     if (errors.length)
       return {errors:errors};

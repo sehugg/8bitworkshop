@@ -32,8 +32,8 @@ function require(modname) {
   else { console.log("Unknown require()", modname); return exports; }
 }
 
-importScripts("../../gen/emu.js");
-importScripts("../../gen/cpu/ZilogZ80.js");
+importScripts("../../../gen/common/emu.js");
+importScripts("../../../gen/common/cpu/ZilogZ80.js");
 
 var cpu, ram, rom, membus, iobus;
 var audio;

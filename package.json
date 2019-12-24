@@ -1,6 +1,6 @@
 {
   "name": "8bitworkshop",
-  "version": "3.4.1",
+  "version": "3.5.0",
   "author": "Steven Hugg",
   "description": "8bitworkshop.com",
   "repository": {
@@ -18,7 +18,7 @@
     "@types/jquery": "^3.3.31",
     "atob": "^2.1.x",
     "btoa": "^1.2.x",
-    "chromedriver": "^76.0.1",
+    "chromedriver": "^79.0.0",
     "clipboard": "^2.0.4",
     "jsdom": "^12.2.0",
     "lzg": "^1.0.x",

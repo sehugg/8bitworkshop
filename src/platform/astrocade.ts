@@ -7,9 +7,9 @@ import { PLATFORMS } from "../common/emu";
 // http://metopal.com/projects/ballybook/doku.php
 
 const ASTROCADE_PRESETS = [
-  { id: '01-helloworlds.asm', name: 'Hello World' },
-  { id: '02-telephone.asm', name: 'Telephone' },
-  { id: '03-horcbpal.asm', name: 'Paddle Demo' },
+  { id: '01-helloworlds.asm', name: 'Hello World (ASM)' },
+  { id: '02-telephone.asm', name: 'Telephone (ASM)' },
+  { id: '03-horcbpal.asm', name: 'Paddle Demo (ASM)' },
   { id: 'hello.c', name: 'Hello Graphics' },
   { id: 'lines.c', name: 'Lines' },
   { id: 'sprites.c', name: 'Sprites' },

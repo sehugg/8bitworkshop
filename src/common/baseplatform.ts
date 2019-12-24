@@ -755,6 +755,9 @@ export abstract class BaseMAMEPlatform {
         console.log("loaded " + opts.biosfile); // + " (" + oEvent.total + " bytes)");
         fetch_bios.resolve();
       };
+      oReq1.ontimeout = function (oEvent) {
+        throw Error("Timeout loading " + opts.biosfile);
+      }
       oReq1.send();
     } else {
       fetch_bios.resolve();
@@ -774,6 +777,9 @@ export abstract class BaseMAMEPlatform {
         window['Module'].wasmBinary = new Uint8Array(oReq2.response);
         fetch_wasm.resolve();
       };
+      oReq2.ontimeout = function (oEvent) {
+        throw Error("Timeout loading " + opts.jsfile);
+      }
       oReq2.send();
     }
     // start loading script

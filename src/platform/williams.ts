@@ -276,6 +276,7 @@ var WilliamsPlatform = function(mainElement, proto) {
   this.start = function() {
     ram = new RAM(0xc000);
     nvram = new RAM(0x400);
+    rom = new Uint8Array(0xc000);
     // TODO: save in browser storage?
     //displayPCs = new Uint16Array(new ArrayBuffer(0x9800*2));
     //rom = padBytes(new lzgmini().decode(ROBOTRON_ROM).slice(0), 0xc001);
@@ -291,7 +292,7 @@ var WilliamsPlatform = function(mainElement, proto) {
     cpu = self.newCPU(membus, iobus);
 
     audio = new MasterAudio();
-    worker = new Worker("./src/audio/z80worker.js");
+    worker = new Worker("./src/common/audio/z80worker.js");
     workerchannel = new WorkerSoundChannel(worker);
     audio.master.addChannel(workerchannel);
 
