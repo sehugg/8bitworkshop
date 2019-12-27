@@ -504,6 +504,7 @@ export class BallyAstrocade extends BasicScanlineMachine implements AcceptsPaddl
   }
 
   startScanline() {
+    this.audio && this.audioadapter.generate(this.audio);
   }
   
   drawScanline() {
