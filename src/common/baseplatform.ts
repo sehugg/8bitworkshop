@@ -312,7 +312,7 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   runUntilReturn() {
     var SP0 = this.getSP();
     this.runEval( (c:CpuState) : boolean => {
-      return c.SP > SP0;
+      return c.SP > SP0; // TODO: check for RTS/RET opcode
     });
   }
   runToFrameClock(clock : number) : void {

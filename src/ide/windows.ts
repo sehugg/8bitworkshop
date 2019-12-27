@@ -4,6 +4,7 @@ import $ = require("jquery");
 import { CodeProject } from "./project";
 import { WorkerError, FileData } from "../common/workertypes";
 import { ProjectView } from "./views";
+import { getFilenamePrefix, getFilenameForPath } from "../common/util";
 
 type WindowCreateFunction = (id:string) => ProjectView;
 type WindowShowFunction = (id:string, view:ProjectView) => void;
@@ -27,6 +28,10 @@ export class ProjectWindows {
     this.undofiles = [];
   }
   // TODO: delete windows ever?
+
+  isWindow(id:string) : boolean {
+    return this.id2createfn[id] != null;
+  }
 
   setCreateFunc(id:string, createfn:WindowCreateFunction) : void {
     this.id2createfn[id] = createfn;
@@ -149,5 +154,14 @@ export class ProjectWindows {
         });
       }
     }
+  }
+
+  findWindowWithFilePrefix(filename : string) : string {
+    filename = getFilenameForPath(getFilenamePrefix(filename));
+    for (var fileid in this.id2createfn) {
+      console.log(filename, getFilenamePrefix(fileid));
+      if (getFilenameForPath(getFilenamePrefix(fileid)) == filename) return fileid;
+    }
+    return null;
   }
 };

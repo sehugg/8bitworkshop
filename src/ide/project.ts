@@ -12,7 +12,9 @@ export class CodeProject {
   filedata : {[path:string]:FileData} = {};
   listings : CodeListingMap;
   segments : Segment[];
+  // TODO: mainpath and mainPath !??!!?
   mainpath : string;
+  mainPath : string;
   pendingWorkerMessages = 0;
   tools_preloaded = {};
   callbackBuildResult : BuildResultCallback;
@@ -22,7 +24,6 @@ export class CodeProject {
   platform : Platform;
   store : any;
   callbackGetRemote : GetRemoteCallback;
-  mainPath : string;
   isCompiling : boolean = false;
 
   constructor(worker, platform_id:string, platform, store) {
@@ -328,5 +329,5 @@ export class CodeProject {
     }
     return path;
   }
-  
+
 }

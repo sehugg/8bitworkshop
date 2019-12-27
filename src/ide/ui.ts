@@ -230,8 +230,9 @@ function refreshWindowList() {
 
   // add other source files
   current_project.iterateFiles( (id, text) => {
-    if (text && id != current_project.mainPath)
+    if (text && id != current_project.mainPath) {
       addEditorItem(id);
+    }
   });
 
   // add listings
@@ -301,7 +302,7 @@ function loadMainWindow(preset_id:string) {
 
 async function loadProject(preset_id:string) {
   // set current file ID
-  // TODO: this is done twice
+  // TODO: this is done twice (mainPath and mainpath!)
   current_project.mainPath = preset_id;
   setLastPreset(preset_id);
   // load files from storage or web URLs
@@ -1095,27 +1096,35 @@ function checkRunReady() {
 }
 
 function openRelevantListing(state: EmuState) {
+  // if already on disassembly window, retain it
+  if (projectWindows.getActive() instanceof Views.DisassemblerView) return;
+  // search through listings
   var listings = current_project.getListings();
   if (listings) {
     var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
     for (var lstfn in listings) {
-      var lst = listings[lstfn];
-      var file = lst.assemblyfile || lst.sourcefile;
-      var lineno = file && file.findLineForOffset(pc, 16); // TODO: const
-      console.log(pc,lstfn,lineno);
-      if (lineno !== null) {
-        projectWindows.createOrShow(lstfn, true);
-        return;
+      var wndid = projectWindows.findWindowWithFilePrefix(lstfn);
+      console.log(lstfn,wndid);
+      if (projectWindows.isWindow(wndid)) {
+        var lst = listings[lstfn];
+        var file = lst.assemblyfile || lst.sourcefile;
+        var lineno = file && file.findLineForOffset(pc, 16); // TODO: const
+        console.log(hex(pc,4), wndid, lstfn, lineno);
+        if (lineno !== null) {
+          projectWindows.createOrShow(wndid, true);
+          return;
+        }
       }
     }
   }
+  // if no appropriate listing found, use disassembly view
   projectWindows.createOrShow("#disasm", true);
 }
 
 function uiDebugCallback(state: EmuState) {
   lastDebugState = state;
   showDebugInfo(state);
-  //openRelevantListing(state);
+  // TODO: openRelevantListing(state);
   projectWindows.refresh(true); // move cursor
   debugTickPaused = true;
 }
