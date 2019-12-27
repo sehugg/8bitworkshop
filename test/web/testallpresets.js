@@ -74,14 +74,12 @@ function testPlatform(exports, platform_id, platform_name, numPresets) {
 
 ///
 
-/*
 testPlatform(this, 'vcs', 'Atari 2600', 35);
 testPlatform(this, 'nes', 'NES', 30);
 testPlatform(this, 'vicdual', 'VIC Dual', 7);
 testPlatform(this, 'mw8080bw', 'Midway 8080', 3);
 testPlatform(this, 'galaxian-scramble', 'Galaxian/Scramble', 3);
 testPlatform(this, 'vector-z80color', 'Atari Color Vector (Z80)', 3);
-*/
 testPlatform(this, 'williams-z80', 'Williams (Z80)', 3);
 // TODO testPlatform(this, 'sound_williams-z80', 'Williams Sound (Z80)', 1);
 testPlatform(this, 'coleco', 'ColecoVision', 12);

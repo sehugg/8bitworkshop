@@ -339,11 +339,13 @@ function reloadProject(id:string) {
   gotoNewLocation();
 }
 
-function getSkeletonFile(fileid:string) : Promise<string> {
+async function getSkeletonFile(fileid:string) : Promise<string> {
   var ext = platform.getToolForFilename(fileid);
-  return $.get( "presets/"+getBasePlatform(platform_id)+"/skeleton."+ext, 'text').catch((e) => {
+  try {
+    return await $.get( "presets/"+getBasePlatform(platform_id)+"/skeleton."+ext, 'text');
+  } catch(e) {
     alertError("Could not load skeleton for " + platform_id + "/" + ext + "; using blank file");
-  });
+  }
 }
 
 function checkEnteredFilename(fn : string) : boolean {

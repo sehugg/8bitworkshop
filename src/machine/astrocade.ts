@@ -7,9 +7,12 @@ import { hex, rgb2bgr, lzgmini, stringToByteArray } from "../common/util";
 
 // http://metopal.com/projects/ballybook/doku.php
 
-// TODO: fix keys, more controllers, vibrato/noise, border color, debug info, rotate
+// TODO: fix keys, more controllers, vibrato/noise, border color
 // http://atariage.com/forums/topic/251416-programming-the-bally-arcadeastrocade/
 // https://ballyalley.com/faqs/BPA%20Video%20Hardware%20FAQ/Bally_Professional_Arcade_Video_Hardware%20(2001)(Tony%20Miller).pdf
+// https://atariage.com/forums/topic/290858-notes-from-a-2019-interview-with-jamie-fenton/ (http://www.fentonia.com/bio/)
+// https://thehistoryofhowweplay.wordpress.com/2018/04/03/interview-tom-mchugh/
+// https://ballyalley.com/faqs/Programmers%20of%20the%20Astrocade%20Built-In%20Programs.txt
 
 const ASTROCADE_KEYCODE_MAP = makeKeycodeMap([
   // player 1
