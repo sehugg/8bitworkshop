@@ -25,6 +25,7 @@ export class CodeProject {
   store : any;
   callbackGetRemote : GetRemoteCallback;
   isCompiling : boolean = false;
+  filename2path = {}; // map stripped paths to full paths
 
   constructor(worker, platform_id:string, platform, store) {
     this.worker = worker;
@@ -156,11 +157,13 @@ export class CodeProject {
     var maintext = this.getFile(this.mainpath);
     var depfiles = [];
     msg.updates.push({path:mainfilename, data:maintext});
+    this.filename2path[mainfilename] = this.mainpath;
     for (var dep of depends) {
       if (!dep.link) {
         msg.updates.push({path:dep.filename, data:dep.data});
         depfiles.push(dep.filename);
       }
+      this.filename2path[dep.filename] = dep.path;
     }
     msg.buildsteps.push({path:mainfilename, files:[mainfilename].concat(depfiles), platform:this.platform_id, tool:this.platform.getToolForFilename(this.mainpath), mainfile:true});
     for (var dep of depends) {
@@ -311,6 +314,9 @@ export class CodeProject {
 
   // returns first listing in format [prefix].lst (TODO: could be better)
   getListingForFile(path) : CodeListing {
+    // ignore include files (TODO)
+    if (path.toLowerCase().endsWith('.h') || path.toLowerCase().endsWith('.inc'))
+      return;
     var fnprefix = getFilenamePrefix(this.stripLocalPath(path));
     var listings = this.getListings();
     for (var lstfn in listings) {

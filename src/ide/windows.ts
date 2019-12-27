@@ -159,7 +159,9 @@ export class ProjectWindows {
   findWindowWithFilePrefix(filename : string) : string {
     filename = getFilenameForPath(getFilenamePrefix(filename));
     for (var fileid in this.id2createfn) {
-      console.log(filename, getFilenamePrefix(fileid));
+      // ignore include files (TODO)
+      if (fileid.toLowerCase().endsWith('.h') || fileid.toLowerCase().endsWith('.inc'))
+        continue;
       if (getFilenameForPath(getFilenamePrefix(fileid)) == filename) return fileid;
     }
     return null;

@@ -1,6 +1,6 @@
 "use strict";
 
-import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine } from "../common/workertypes";
+import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap } from "../common/workertypes";
 
 declare var WebAssembly;
 declare function importScripts(path:string);
@@ -640,7 +640,7 @@ function parseSourceLines(code:string, lineMatch, offsetMatch) {
   return lines;
 }
 
-function parseDASMListing(code:string, listings:{}, errors:WorkerError[], unresolved:{}) {
+function parseDASMListing(code:string, listings:CodeListingMap, errors:WorkerError[], unresolved:{}) {
   // TODO: this gets very slow
   //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
   var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
@@ -766,7 +766,7 @@ function assembleDASM(step:BuildStep) {
     "-s"+sympath ]);
   var alst = FS.readFile(lstpath, {'encoding':'utf8'});
   // parse main listing, get errors and listings for each file
-  var listings = {};
+  var listings : CodeListingMap = {};
   for (let path of step.files) {
     listings[path] = {lines:[]};
   }
@@ -1005,7 +1005,7 @@ function linkLD65(step:BuildStep) {
       }
     }
     // build listings
-    var listings = {};
+    var listings : CodeListingMap = {};
     for (var fn of step.files) {
       if (fn.endsWith('.lst')) {
         var lstout = FS.readFile(fn, {encoding:'utf8'});
@@ -1281,7 +1281,7 @@ function linkSDLDZ80(step:BuildStep)
       return {errors:errors};
     }
     // parse listings
-    var listings = {};
+    var listings : CodeListingMap = {};
     for (var fn of step.files) {
       if (fn.endsWith('.lst')) {
         var rstout = FS.readFile(fn.replace('.lst','.rst'), {encoding:'utf8'});
@@ -1635,7 +1635,7 @@ function compileVerilator(step:BuildStep) {
       return {errors:errors};
     }
     //rtn.intermediate = {listing:h_file + cpp_file}; // TODO
-    var listings = {};
+    var listings : CodeListingMap = {};
     // TODO: what if found in non-top-module?
     if (asmlines.length)
       listings[step.path] = {lines:asmlines};
@@ -1725,7 +1725,7 @@ error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
       return;
     //  230: 1739+7+x   017A  1600      L017A: LD      D,00h
     var lines = parseListing(lstout, /\s*(\d+):\s*([0-9a-f]+)\s+([0-9a-f]+)\s+(.+)/i, 1, 2, 3);
-    var listings = {};
+    var listings : CodeListingMap = {};
     listings[lstpath] = {lines:lines};
     // parse symbol table
     var symbolmap = {};
@@ -1941,7 +1941,7 @@ function assembleXASM6809(step:BuildStep) {
   //00005  W 0003 [ 8] A6890011            lda   >PALETTE,x
   //00012    0011      0C0203              fcb   12,2,3
   var asmlines = parseListing(alst, /^\s*([0-9]+) .+ ([0-9A-F]+)\s+\[([0-9 ]+)\]\s+([0-9A-F]+) (.*)/i, 1, 2, 4, 3);
-  var listings = {};
+  var listings : CodeListingMap = {};
   listings[step.prefix+'.lst'] = {lines:asmlines, text:alst};
   return {
     output:aout,
@@ -1998,7 +1998,7 @@ function assembleNESASM(step:BuildStep) {
   var sympath = step.prefix+'.fns';
   execMain(step, Module, [step.path, '-s', "-l", "2" ]);
   // parse main listing, get errors and listings for each file
-  var listings = {};
+  var listings : CodeListingMap = {};
   try {
     var alst = FS.readFile(lstpath, {'encoding':'utf8'});
     //   16  00:C004  8E 17 40    STX $4017    ; disable APU frame IRQ
@@ -2193,7 +2193,7 @@ function linkLWLINK(step:BuildStep) {
     // TODO: build segment map
     var segments = {};
     // build listings
-    var listings = {};
+    var listings : CodeListingMap = {};
     for (var fn of step.files) {
       if (fn.endsWith('.lst')) {
         // TODO
@@ -2317,7 +2317,7 @@ function executeBuildSteps() {
       }
       // process with another tool?
       if (step.result.nexttool) {
-        var asmstep = step.result;
+        var asmstep : BuildStep = step.result;
         asmstep.tool = step.result.nexttool;
         asmstep.platform = platform;
         buildsteps.push(asmstep);

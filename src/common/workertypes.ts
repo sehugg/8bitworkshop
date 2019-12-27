@@ -15,7 +15,7 @@ export class SourceFile {
   offset2line: Map<number,number>; //{[offset:number]:number};
   line2offset: Map<number,number>; //{[line:number]:number};
   
-  constructor(lines:SourceLine[], text?:string) {
+  constructor(lines:SourceLine[], text:string) {
     lines = lines || [];
     this.lines = lines;
     this.text = text;
@@ -79,10 +79,10 @@ export interface WorkerError {
 
 export interface CodeListing {
   lines:SourceLine[],
-  asmlines:SourceLine[],
-  text:string,
-  sourcefile?:SourceFile,
-  assemblyfile?:SourceFile
+  asmlines?:SourceLine[],
+  text?:string,
+  sourcefile?:SourceFile,   // not returned by worker
+  assemblyfile?:SourceFile  // not returned by worker
 }
 
 export type CodeListingMap = {[path:string]:CodeListing};

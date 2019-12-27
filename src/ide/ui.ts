@@ -1108,6 +1108,7 @@ function openRelevantListing(state: EmuState) {
       if (projectWindows.isWindow(wndid)) {
         var lst = listings[lstfn];
         var file = lst.assemblyfile || lst.sourcefile;
+        // TODO: look for closest match, not just first match
         var lineno = file && file.findLineForOffset(pc, 16); // TODO: const
         console.log(hex(pc,4), wndid, lstfn, lineno);
         if (lineno !== null) {
@@ -1124,7 +1125,7 @@ function openRelevantListing(state: EmuState) {
 function uiDebugCallback(state: EmuState) {
   lastDebugState = state;
   showDebugInfo(state);
-  // TODO: openRelevantListing(state);
+  //openRelevantListing(state);
   projectWindows.refresh(true); // move cursor
   debugTickPaused = true;
 }
