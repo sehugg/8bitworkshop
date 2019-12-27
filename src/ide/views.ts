@@ -322,8 +322,8 @@ export class SourceEditor implements ProjectView {
     var state = lastDebugState;
     if (state && state.c && this.sourcefile) {
       var EPC = state.c.EPC || state.c.PC;
-      var line = this.sourcefile.findLineForOffset(EPC, 15);
-      return line;
+      var res = this.sourcefile.findLineForOffset(EPC, 15);
+      return res && res.line;
     } else
       return -1;
   }
@@ -509,13 +509,13 @@ export class ListingView extends DisassemblerView implements ProjectView {
     var disasmview = this.getDisasmView();
     disasmview.setValue(asmtext);
     if (pc >= 0 && this.assemblyfile) {
-      var lineno = this.assemblyfile.findLineForOffset(pc, 15);
-      if (lineno) {
+      var res = this.assemblyfile.findLineForOffset(pc, 15);
+      if (res) {
         // set cursor while debugging
         if (moveCursor) {
-          disasmview.setCursor(lineno-1, 0);
+          disasmview.setCursor(res.line-1, 0);
         }
-        jumpToLine(disasmview, lineno-1);
+        jumpToLine(disasmview, res.line-1);
       }
     }
   }

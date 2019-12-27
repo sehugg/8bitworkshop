@@ -1270,8 +1270,9 @@ export class WASMMachine implements Machine {
   getCPUState() {
     this.exports.machine_save_cpu_state(this.sys, this.cpustateptr);
     var s = this.cpustatearr;
+    var pc = s[2] + (s[3]<<8);
     return {
-      PC:s[2] + (s[3]<<8),
+      PC:pc,
       SP:s[9],
       A:s[6],
       X:s[7],
@@ -1282,6 +1283,7 @@ export class WASMMachine implements Machine {
       D:s[10] & 8,
       V:s[10] & 64,
       N:s[10] & 128,
+      o:this.readConst(pc),
     }
   }
   saveState() {

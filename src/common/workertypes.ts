@@ -28,13 +28,13 @@ export class SourceFile {
       }
     }
   }
-  findLineForOffset(PC:number, lookbehind:number):number {
+  // TODO: smarter about looking for source lines between two addresses
+  findLineForOffset(PC:number, lookbehind:number) {
     if (this.offset2line) {
       for (var i=0; i<=lookbehind; i++) {
         var line = this.offset2line[PC];
         if (line >= 0) {
-          //console.log(this.lines.length, PC.toString(16), line);
-          return line;
+          return {line:line, offset:PC};
         }
         PC--;
       }

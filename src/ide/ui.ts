@@ -54,6 +54,7 @@ var lastDebugInfo;		// last debug info (CPU text)
 var debugCategory;		// current debug category
 var debugTickPaused = false;
 var recorderActive = false;
+var lastViewClicked = null;
 
 var lastBreakExpr = "c.PC == 0x6000";
 
@@ -205,6 +206,7 @@ function refreshWindowList() {
       projectWindows.setShowFunc(id, onopen);
       $(a).click( (e) => {
         projectWindows.createOrShow(id);
+        lastViewClicked = id;
       });
     }
   }
@@ -1096,36 +1098,38 @@ function checkRunReady() {
 }
 
 function openRelevantListing(state: EmuState) {
-  // if already on disassembly window, retain it
-  if (projectWindows.getActive() instanceof Views.DisassemblerView) return;
+  // if we clicked on disassembly window, retain it
+  if (lastViewClicked == '#disasm' && projectWindows.getActive() instanceof Views.DisassemblerView) return;
   // search through listings
   var listings = current_project.getListings();
+  var bestid = "#disasm";
+  var bestscore = 32;
   if (listings) {
     var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
     for (var lstfn in listings) {
+      //var wndid = current_project.filename2path[lstfn] || lstfn;
       var wndid = projectWindows.findWindowWithFilePrefix(lstfn);
-      console.log(lstfn,wndid);
+      //console.log(lstfn,wndid);
       if (projectWindows.isWindow(wndid)) {
         var lst = listings[lstfn];
-        var file = lst.assemblyfile || lst.sourcefile;
-        // TODO: look for closest match, not just first match
-        var lineno = file && file.findLineForOffset(pc, 16); // TODO: const
-        console.log(hex(pc,4), wndid, lstfn, lineno);
-        if (lineno !== null) {
-          projectWindows.createOrShow(wndid, true);
-          return;
+        var file = lst.sourcefile || lst.assemblyfile;
+        var res = file && file.findLineForOffset(pc, 32); // TODO: const
+        if (res && pc-res.offset < bestscore) {
+          bestid = wndid;
+          bestscore = pc-res.offset;
         }
+        console.log(hex(pc,4), wndid, lstfn, bestid, bestscore);
       }
     }
   }
   // if no appropriate listing found, use disassembly view
-  projectWindows.createOrShow("#disasm", true);
+  projectWindows.createOrShow(bestid, true);
 }
 
 function uiDebugCallback(state: EmuState) {
   lastDebugState = state;
   showDebugInfo(state);
-  //openRelevantListing(state);
+  openRelevantListing(state);
   projectWindows.refresh(true); // move cursor
   debugTickPaused = true;
 }
@@ -1175,6 +1179,7 @@ function resume() {
   }
   _resume();
   userPaused = false;
+  lastViewClicked = null;
 }
 
 function togglePause() {

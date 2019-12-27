@@ -160,7 +160,7 @@ export class ProjectWindows {
     filename = getFilenameForPath(getFilenamePrefix(filename));
     for (var fileid in this.id2createfn) {
       // ignore include files (TODO)
-      if (fileid.toLowerCase().endsWith('.h') || fileid.toLowerCase().endsWith('.inc'))
+      if (fileid.toLowerCase().endsWith('.h') || fileid.toLowerCase().endsWith('.inc')  || fileid.toLowerCase().endsWith('.bas'))
         continue;
       if (getFilenameForPath(getFilenamePrefix(fileid)) == filename) return fileid;
     }
