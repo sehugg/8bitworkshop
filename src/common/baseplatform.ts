@@ -1288,9 +1288,14 @@ export class WASMMachine implements Machine {
   }
   saveState() {
     this.exports.machine_save_state(this.sys, this.stateptr);
+    /*
+    for (var i=0; i<this.statearr.length; i++)
+      if (this.statearr[i] == 0xa0 && this.statearr[i+1] == 0x4d && this.statearr[i+2] == 0xe2) console.log(hex(i));
+    */
     return {
       c:this.getCPUState(),
-      state:this.statearr.slice(0)
+      state:this.statearr.slice(0),
+      ram:this.statearr.slice(18640, 18640+0x200), // ZP and stack
     };
   }
   loadState(state) : void {
