@@ -1107,12 +1107,13 @@ function openRelevantListing(state: EmuState) {
   if (listings) {
     var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
     for (var lstfn in listings) {
-      //var wndid = current_project.filename2path[lstfn] || lstfn;
-      var wndid = projectWindows.findWindowWithFilePrefix(lstfn);
-      //console.log(lstfn,wndid);
+      var lst = listings[lstfn];
+      var file = lst.assemblyfile || lst.sourcefile;
+      // pick either listing or source file
+      var wndid = current_project.filename2path[lstfn] || lstfn;
+      if (file == lst.sourcefile) wndid = projectWindows.findWindowWithFilePrefix(lstfn);
+      // does this window exist?
       if (projectWindows.isWindow(wndid)) {
-        var lst = listings[lstfn];
-        var file = lst.sourcefile || lst.assemblyfile;
         var res = file && file.findLineForOffset(pc, 32); // TODO: const
         if (res && pc-res.offset < bestscore) {
           bestid = wndid;

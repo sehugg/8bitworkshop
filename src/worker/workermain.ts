@@ -824,8 +824,10 @@ function setupStdin(fs, code:string) {
 
     /*
     000000r 1               .segment        "CODE"
+    000000r 1               .proc	_rasterWait: near
     000000r 1               ; int main() { return mul2(2); }
     000000r 1                       .dbg    line, "main.c", 3
+    000014r 1                      	.dbg	  func, "main", "00", extern, "_main"
     000000r 1  A2 00                ldx     #$00
     */
 function parseCA65Listing(code, symbols, params, dbg) {
@@ -835,31 +837,32 @@ function parseCA65Listing(code, symbols, params, dbg) {
   var funcLineMatch = /"(\w+)", (\w+), "(\w+)"/;
   var insnLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+([0-9A-Fr ]*)\s*(.*)/;
   var lines = [];
-  var linenum = 0;
+  var linenum = 4; // ca65 listing header, 5 lines
   // TODO: only does .c functions, not all .s files
   for (var line of code.split(re_crlf)) {
-    if (dbg) {
-      var dbgm = dbgLineMatch.exec(line);
-      if (dbgm && dbgm[1]) {
-        var dbgtype = dbgm[4];
-        offset = parseInt(dbgm[1], 16);
-        if (dbgtype == 'line') {
-          lines.push({
-            // TODO: sourcefile
-            line:parseInt(dbgm[6]),
-            offset:offset + segofs,
-            insns:null
-          });
-        }
-        else if (dbgtype == 'func') {
-          var funcm = funcLineMatch.exec(dbgm[6]);
-          if (funcm) {
-            var funcofs = symbols[funcm[3]];
-            if (typeof funcofs === 'number') {
-              segofs = funcofs - offset;
-            }
+    var dbgm = dbgLineMatch.exec(line);
+    if (dbgm && dbgm[1]) {
+      var dbgtype = dbgm[4];
+      offset = parseInt(dbgm[1], 16);
+      if (dbgtype == 'func') {
+        var funcm = funcLineMatch.exec(dbgm[6]);
+        if (funcm) {
+          var funcofs = symbols[funcm[3]];
+          if (typeof funcofs === 'number') {
+            segofs = funcofs - offset;
+            //console.log(funcm[3], funcofs, '-', offset);
           }
         }
+      }
+    }
+    if (dbg) {
+      if (dbgm && dbgtype == 'line') {
+        lines.push({
+          // TODO: sourcefile
+          line:parseInt(dbgm[6]),
+          offset:offset + segofs,
+          insns:null
+        });
       }
     } else {
       var linem = insnLineMatch.exec(line);
@@ -883,6 +886,7 @@ function parseCA65Listing(code, symbols, params, dbg) {
             if (typeof symofs === 'number') {
               offset = parseInt(linem[1], 16);
               segofs = symofs - offset;
+              //console.log(sym, symofs, '-', offset);
             }
           }
         }
@@ -1012,6 +1016,7 @@ function linkLD65(step:BuildStep) {
         var asmlines = parseCA65Listing(lstout, symbolmap, params, false);
         var srclines = parseCA65Listing(lstout, symbolmap, params, true);
         putWorkFile(fn, lstout);
+        // TODO: you have to get rid of all source lines to get asm listing
         listings[fn] = {
           asmlines:srclines.length ? asmlines : null,
           lines:srclines.length ? srclines : asmlines,
@@ -2201,6 +2206,7 @@ function linkLWLINK(step:BuildStep) {
         var asmlines = parseListing(lstout, /^([0-9A-F]+)\s+([0-9A-F]+)\s+[(]\s*(.+?)[)]:(\d+) (.*)/i, 4, 1, 2, 3);
         var srclines = [];
         putWorkFile(fn, lstout);
+        // TODO: you have to get rid of all source lines to get asm listing
         listings[fn] = {
           asmlines:srclines.length ? asmlines : null,
           lines:srclines.length ? srclines : asmlines,
