@@ -118,6 +118,7 @@ function testPlatform(platid, romname, maxframes, callback) {
     var platform = new emu.PLATFORMS[platid](emudiv);
     var rec = new recorder.StateRecorderImpl(platform);
     platform.start();
+    assert.ok(platform.saveState()); // can save before ROM load?
     var rom = fs.readFileSync('./test/roms/' + platid + '/' + romname);
     rom = new Uint8Array(rom);
     platform.loadROM("ROM", rom);

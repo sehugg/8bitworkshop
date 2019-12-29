@@ -299,7 +299,13 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   // TODO don't need to save ROM?
   saveState() {
     //var s = $.extend(true, {}, this.nes);
-    var s = this.nes.toJSON();
+    var s;
+    if (this.nes.mmap) {
+      s = this.nes.toJSON();
+    } else {
+      console.log("no nes.mmap!");
+      s = { cpu: this.nes.cpu.toJSON(), ppu: this.nes.ppu.toJSON() };
+    }
     s.c = s.cpu;
     this.copy6502REGvars(s.c);
     s.b = s.cpu.mem = s.cpu.mem.slice(0);

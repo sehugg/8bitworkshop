@@ -187,8 +187,8 @@ class VCSPlatform extends BasePlatform {
     return state;
   }
   fixState(state) {
-    var ofs = state.ca.bo || 0;
-    if (state.ca.fo && (state.c.PC & 0xfff) >= 2048)
+    var ofs = (state.ca && state.ca.bo) || 0;
+    if (state.ca && state.ca.fo && (state.c.PC & 0xfff) >= 2048)
       ofs = state.ca.fo; // 3E/3F fixed-slice formats
     // TODO: for batari BASIC
     state.c.EPC = state.c.PC + ofs; // EPC = effective PC for ROM
