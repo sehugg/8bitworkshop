@@ -604,6 +604,7 @@ function confirmCommit(sess) : Promise<GHSession> {
     if (files.length == 0) {
       setWaitDialog(false);
       bootbox.alert("No files changed.");
+      return;
     }
     // build commit confirm message
     var msg = "";
