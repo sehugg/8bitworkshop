@@ -1211,20 +1211,21 @@ function getEditorPC() : number {
   return wnd && wnd.getCursorPC && wnd.getCursorPC();
 }
 
-function runToCursor() {
-  if (!checkRunReady()) return;
+export function runToPC(pc: number) {
+  if (!checkRunReady() || !(pc >= 0)) return;
   setupBreakpoint("toline");
-  var pc = getEditorPC();
-  if (pc >= 0) {
-    console.log("Run to", pc.toString(16));
-    if (platform.runToPC) {
-      platform.runToPC(pc);
-    } else {
-      platform.runEval((c) => {
-        return c.PC == pc;
-      });
-    }
+  console.log("Run to", pc.toString(16));
+  if (platform.runToPC) {
+    platform.runToPC(pc);
+  } else {
+    platform.runEval((c) => {
+      return c.PC == pc;
+    });
   }
+}
+
+function runToCursor() {
+  runToPC(getEditorPC());
 }
 
 function runUntilReturn() {

@@ -1,10 +1,10 @@
 
 //import CodeMirror = require("codemirror");
 import { SourceFile, WorkerError, Segment, FileData } from "../common/workertypes";
-import { Platform, EmuState, lookupSymbol, BaseDebugPlatform, BaseZ80MachinePlatform, BaseZ80Platform } from "../common/baseplatform";
+import { Platform, EmuState, lookupSymbol, BaseDebugPlatform, BaseZ80MachinePlatform, BaseZ80Platform, CpuState } from "../common/baseplatform";
 import { hex, lpad, rpad, safeident, rgb2bgr } from "../common/util";
 import { CodeAnalyzer } from "../common/analysis";
-import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
+import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows, runToPC } from "./ui";
 import { ProbeRecorder, ProbeFlags } from "../common/recorder";
 import { getMousePos } from "../common/emu";
 import * as pixed from "./pixeleditor";
@@ -108,12 +108,14 @@ export class SourceEditor implements ProjectView {
 
   setupEditor() {
     var timer;
+    // update file in project (and recompile) when edits made
     this.editor.on('changes', (ed, changeobj) => {
       clearTimeout(timer);
       timer = setTimeout( () => {
         current_project.updateFile(this.path, this.editor.getValue());
       }, 300);
     });
+    // inspect symbol when it's highlighted (double-click)
     this.editor.on('cursorActivity', (ed) => {
       var start = this.editor.getCursor(true);
       var end = this.editor.getCursor(false);
@@ -124,9 +126,14 @@ export class SourceEditor implements ProjectView {
         this.inspect(null);
       }
     });
-    //scrollProfileView(editor);
+    // gutter clicked
+    this.editor.on("gutterClick", (cm, n) => {
+      this.toggleBreakpoint(n);
+    });
+    // set editor mode for highlighting, etc
     this.editor.setOption("mode", this.mode);
   }
+
 
   inspect(ident : string) : void {
     var result;
@@ -333,7 +340,6 @@ export class SourceEditor implements ProjectView {
     var line = this.getActiveLine();
     if (line >= 0) {
       this.setCurrentLine(line, moveCursor);
-      // TODO: switch to disasm?
     }
   }
 
@@ -352,6 +358,10 @@ export class SourceEditor implements ProjectView {
   refresh(moveCursor: boolean) {
     this.refreshListing();
     this.refreshDebugState(moveCursor);
+  }
+  
+  tick() {
+    this.refreshDebugState(false);
   }
 
   getLine(line : number) {
@@ -374,6 +384,13 @@ export class SourceEditor implements ProjectView {
 
   undoStep() {
     this.editor.execCommand('undo');
+  }
+
+  toggleBreakpoint(lineno: number) {    
+    if (this.sourcefile != null) {
+      var targetPC = this.sourcefile.line2offset[lineno+1];
+      runToPC(targetPC);
+    }
   }
 }
 
@@ -859,7 +876,7 @@ abstract class ProbeViewBaseBase {
 
   abstract tick() : void;
 
-  redraw( eventfn:(op,addr,col,row,clk) => void ) {
+  redraw( eventfn:(op,addr,col,row,clk,value) => void ) {
     var p = this.probe;
     if (!p || !p.idx) return; // if no probe, or if empty
     var row=0;
@@ -867,20 +884,21 @@ abstract class ProbeViewBaseBase {
     var clk=0;
     for (var i=0; i<p.idx; i++) {
       var word = p.buf[i];
-      var addr = word & 0xffffff;
+      var addr = word & 0xffff;
+      var value = (word >> 16) & 0xff;
       var op = word & 0xff000000;
       switch (op) {
         case ProbeFlags.SCANLINE:	row++; col=0; break;
         case ProbeFlags.FRAME:		row=0; col=0; break;
         case ProbeFlags.CLOCKS:		col += addr; clk += addr; break;
         default:
-          eventfn(op, addr, col, row, clk);
+          eventfn(op, addr, col, row, clk, value);
           break;
       }
     }
   }
 
-  opToString(op:number, addr?:number) {
+  opToString(op:number, addr?:number, value?:number) {
     var s = "";
     switch (op) {
       case ProbeFlags.EXECUTE:		s = "Exec"; break;
@@ -894,7 +912,9 @@ abstract class ProbeViewBaseBase {
       case ProbeFlags.ILLEGAL:		s = "Error"; break;
       default:				            return "";
     }
-    return typeof addr == 'number' ? s + " " + this.addr2str(addr) : s;
+    if (typeof addr == 'number') s += " " + this.addr2str(addr);
+    if (typeof value == 'number') s += " = $" + hex(value,2);
+    return s;
   }
   getOpRGB(op:number) : number {
     switch (op) {
@@ -987,9 +1007,9 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
     x = x|0;
     y = y|0;
     var s = "";
-    this.redraw( (op,addr,col,row) => {
+    this.redraw( (op,addr,col,row,clk,value) => {
       if (y == row && x == col) {
-         s += "\n" + this.opToString(op, addr);
+         s += "\n" + this.opToString(op, addr, value);
       }
     } );
     return 'X: ' + x + '  Y: ' + y + ' ' + s;
@@ -1038,13 +1058,13 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
     var s = this.addr2str(a);
     var pc = -1;
     var already = {};
-    this.redraw( (op,addr,col,row) => {
+    this.redraw( (op,addr,col,row,clk,value) => {
       if (op == ProbeFlags.EXECUTE) {
         pc = addr;
       }
       var key = op|pc;
       if (addr == a && !already[key]) {
-         s += "\nPC " + this.addr2str(pc) + " " + this.opToString(op);
+         s += "\nPC " + this.addr2str(pc) + " " + this.opToString(op, null, value);
          already[key] = 1;
       }
     } );
@@ -1134,7 +1154,7 @@ export class ProbeLogView extends ProbeViewBaseBase {
   getMemoryLineAt(row : number) : string {
     var line = this.dumplines && this.dumplines[row];
     if (line != null) {
-      var xtra = line.info.join(" ");
+      var xtra = line.info.join(", ");
       return "(" + lpad(line.row,3) + ", " + lpad(line.col,3) + ")  " + rpad(line.asm||"",20) + xtra;
     } else return "";
   }
@@ -1145,7 +1165,7 @@ export class ProbeLogView extends ProbeViewBaseBase {
     const isz80 = platform instanceof BaseZ80MachinePlatform || platform instanceof BaseZ80Platform; // TODO?
     // cache each line in frame
     this.dumplines = {};
-    this.redraw((op,addr,col,row,clk) => {
+    this.redraw((op,addr,col,row,clk,value) => {
       if (isz80) clk >>= 2;
       var line = this.dumplines[clk];
       if (line == null) {
@@ -1160,7 +1180,7 @@ export class ProbeLogView extends ProbeViewBaseBase {
           }
           break;
         default:
-          var xtra = this.opToString(op, addr);
+          var xtra = this.opToString(op, addr, value);
           if (xtra != "") line.info.push(xtra);
           break;
       }

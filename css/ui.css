@@ -4,6 +4,9 @@
 .gutter-offset {
   width: 3em;
 }
+.CodeMirror-gutter-elt:hover {
+  text-decoration: underline;
+}
 .gutter-bytes {
   width: 6em;
 }

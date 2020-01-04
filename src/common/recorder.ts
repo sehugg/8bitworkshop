@@ -120,20 +120,20 @@ export class StateRecorderImpl implements EmuRecorder {
 import { Probeable, ProbeAll } from "./devices";
 
 export enum ProbeFlags {
-  CLOCKS	= 0x00000000,
-  EXECUTE	= 0x01000000,
-  MEM_READ	= 0x02000000,
-  MEM_WRITE	= 0x03000000,
-  IO_READ	= 0x04000000,
-  IO_WRITE	= 0x05000000,
-  VRAM_READ	= 0x06000000,
-  VRAM_WRITE	= 0x07000000,
+  CLOCKS	  = 0x00000000,
+  EXECUTE	  = 0x01000000,
+  MEM_READ	= 0x12000000,
+  MEM_WRITE	= 0x13000000,
+  IO_READ	  = 0x14000000,
+  IO_WRITE	= 0x15000000,
+  VRAM_READ	= 0x16000000,
+  VRAM_WRITE= 0x17000000,
   INTERRUPT	= 0x08000000,
-  ILLEGAL	= 0x09000000,
-  SP_PUSH	= 0x0a000000,
-  SP_POP	= 0x0b000000,
+  ILLEGAL	  = 0x09000000,
+  SP_PUSH	  = 0x0a000000,
+  SP_POP	  = 0x0b000000,
   SCANLINE	= 0x7e000000,
-  FRAME		= 0x7f000000,
+  FRAME		  = 0x7f000000,
 }
 
 class ProbeFrame {
@@ -216,23 +216,26 @@ export class ProbeRecorder implements ProbeAll {
   logInterrupt(type:number) {
     this.log(type | ProbeFlags.INTERRUPT);
   }
+  logValue(address:number, value:number, op:number) {
+    this.log((address & 0xffff) | ((value & 0xff)<<16) | op);
+  }
   logRead(address:number, value:number) {
-    this.log(address | ProbeFlags.MEM_READ);
+    this.logValue(address, value, ProbeFlags.MEM_READ);
   }
   logWrite(address:number, value:number) {
-    this.log(address | ProbeFlags.MEM_WRITE);
+    this.logValue(address, value, ProbeFlags.MEM_WRITE);
   }
   logIORead(address:number, value:number) {
-    this.log(address | ProbeFlags.IO_READ);
+    this.logValue(address, value, ProbeFlags.IO_READ);
   }
   logIOWrite(address:number, value:number) {
-    this.log(address | ProbeFlags.IO_WRITE);
+    this.logValue(address, value, ProbeFlags.IO_WRITE);
   }
   logVRAMRead(address:number, value:number) {
-    this.log(address | ProbeFlags.VRAM_READ);
+    this.logValue(address, value, ProbeFlags.VRAM_READ);
   }
   logVRAMWrite(address:number, value:number) {
-    this.log(address | ProbeFlags.VRAM_WRITE);
+    this.logValue(address, value, ProbeFlags.VRAM_WRITE);
   }
   logIllegal(address:number) {
     this.log(address | ProbeFlags.ILLEGAL);
