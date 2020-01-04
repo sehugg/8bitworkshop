@@ -22,12 +22,12 @@ Steps to reproduce the behavior:
 3. Scroll down to '....'
 4. See error
 
-## Screenshots
-If applicable, add screenshots to help explain your problem.
-
 ## Other info
- - Browser [e.g. Chrome, Firefox, Safari]
- - Browser Version [e.g. 22]
+- Browser [e.g. Chrome, Firefox, Safari]
+- Browser Version [e.g. 22]
+
+## Screenshots
+ If applicable, add screenshots to help explain your problem.
 
 ## Additional context
 Add any other context about the problem here.
