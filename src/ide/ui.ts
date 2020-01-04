@@ -282,6 +282,9 @@ function refreshWindowList() {
     addWindowItem("#crtheatmap", "CRT Probe", () => {
       return new Views.RasterPCHeatMapView();
     });
+    addWindowItem("#probelog", "Probe Log", () => {
+      return new Views.ProbeLogView();
+    });
     /*
     addWindowItem("#spheatmap", "Stack Probe", () => {
       return new Views.RasterStackMapView();

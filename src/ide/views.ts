@@ -1,7 +1,7 @@
 
 //import CodeMirror = require("codemirror");
 import { SourceFile, WorkerError, Segment, FileData } from "../common/workertypes";
-import { Platform, EmuState, lookupSymbol, BaseDebugPlatform } from "../common/baseplatform";
+import { Platform, EmuState, lookupSymbol, BaseDebugPlatform, BaseZ80MachinePlatform, BaseZ80Platform } from "../common/baseplatform";
 import { hex, lpad, rpad, safeident, rgb2bgr } from "../common/util";
 import { CodeAnalyzer } from "../common/analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows } from "./ui";
@@ -821,13 +821,102 @@ export class MemoryMapView implements ProjectView {
 
 // TODO: clear buffer when scrubbing
 
-abstract class ProbeViewBase {
-
+abstract class ProbeViewBaseBase {
   probe : ProbeRecorder;
+  tooldiv : HTMLElement;
+
+  addr2str(addr : number) : string {
+    var _addr2sym = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
+    var sym = _addr2sym[addr];
+    if (typeof sym === 'string')
+      return '$' + hex(addr) + ' (' + sym + ')';
+    else
+      return '$' + hex(addr);
+  }
+
+  showTooltip(s:string) {
+    if (s) {
+      if (!this.tooldiv) {
+        this.tooldiv = document.createElement("div");
+        this.tooldiv.setAttribute("class", "tooltiptrack");
+        document.body.appendChild(this.tooldiv);
+      }
+      $(this.tooldiv).text(s).show();
+    } else {
+      $(this.tooldiv).hide();
+    }
+  }
+
+  setVisible(showing : boolean) : void {
+    if (showing) {
+      this.probe = platform.startProbing();
+      this.tick();
+    } else {
+      platform.stopProbing();
+      this.probe = null;
+    }
+  }
+
+  abstract tick() : void;
+
+  redraw( eventfn:(op,addr,col,row,clk) => void ) {
+    var p = this.probe;
+    if (!p || !p.idx) return; // if no probe, or if empty
+    var row=0;
+    var col=0;
+    var clk=0;
+    for (var i=0; i<p.idx; i++) {
+      var word = p.buf[i];
+      var addr = word & 0xffffff;
+      var op = word & 0xff000000;
+      switch (op) {
+        case ProbeFlags.SCANLINE:	row++; col=0; break;
+        case ProbeFlags.FRAME:		row=0; col=0; break;
+        case ProbeFlags.CLOCKS:		col += addr; clk += addr; break;
+        default:
+          eventfn(op, addr, col, row, clk);
+          break;
+      }
+    }
+  }
+
+  opToString(op:number, addr?:number) {
+    var s = "";
+    switch (op) {
+      case ProbeFlags.EXECUTE:		s = "Exec"; break;
+      case ProbeFlags.MEM_READ:		s = "Read"; break;
+      case ProbeFlags.MEM_WRITE:	s = "Write"; break;
+      case ProbeFlags.IO_READ:		s = "IO Read"; break;
+      case ProbeFlags.IO_WRITE:		s = "IO Write"; break;
+      case ProbeFlags.VRAM_READ:	s = "VRAM Read"; break;
+      case ProbeFlags.VRAM_WRITE:	s = "VRAM Write"; break;
+      case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
+      case ProbeFlags.ILLEGAL:		s = "Error"; break;
+      default:				            return "";
+    }
+    return typeof addr == 'number' ? s + " " + this.addr2str(addr) : s;
+  }
+  getOpRGB(op:number) : number {
+    switch (op) {
+      case ProbeFlags.EXECUTE:		return 0x018001;
+      case ProbeFlags.MEM_READ:		return 0x800101;
+      case ProbeFlags.MEM_WRITE:	return 0x010180;
+      case ProbeFlags.IO_READ:		return 0x018080;
+      case ProbeFlags.IO_WRITE:		return 0xc00180;
+      case ProbeFlags.VRAM_READ:	return 0x808001;
+      case ProbeFlags.VRAM_WRITE:	return 0x4080c0;
+      case ProbeFlags.INTERRUPT:	return 0xcfcfcf;
+      case ProbeFlags.ILLEGAL:		return 0x3f3fff;
+      default:				            return 0;
+    }
+  }
+}
+
+abstract class ProbeViewBase extends ProbeViewBaseBase {
+
   maindiv : HTMLElement;
   canvas : HTMLCanvasElement;
   ctx : CanvasRenderingContext2D;
-  tooldiv : HTMLElement;
   recreateOnResize = true;
   
   createCanvas(parent:HTMLElement, width:number, height:number) {
@@ -856,68 +945,16 @@ abstract class ProbeViewBase {
     return this.maindiv = div;
   }
 
-  addr2str(addr : number) : string {
-    var _addr2sym = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
-    var sym = _addr2sym[addr];
-    if (typeof sym === 'string')
-      return '$' + hex(addr) + ' (' + sym + ')';
-    else
-      return '$' + hex(addr);
-  }
-
   initCanvas() {
   }
   
-  showTooltip(s:string) {
-    if (s) {
-      if (!this.tooldiv) {
-        this.tooldiv = document.createElement("div");
-        this.tooldiv.setAttribute("class", "tooltiptrack");
-        document.body.appendChild(this.tooldiv);
-      }
-      $(this.tooldiv).text(s).show();
-    } else {
-      $(this.tooldiv).hide();
-    }
-  }
-
   getTooltipText(x:number, y:number) : string {
     return null;
   }
   
-  setVisible(showing : boolean) : void {
-    if (showing) {
-      this.probe = platform.startProbing();
-      this.tick();
-    } else {
-      platform.stopProbing();
-      this.probe = null;
-    }
-  }
-
   clear() {
   }
   
-  redraw( eventfn:(op,addr,col,row) => void ) {
-    var p = this.probe;
-    if (!p || !p.idx) return; // if no probe, or if empty
-    var row=0;
-    var col=0;
-    for (var i=0; i<p.idx; i++) {
-      var word = p.buf[i];
-      var addr = word & 0xffffff;
-      var op = word & 0xff000000;
-      switch (op) {
-        case ProbeFlags.SCANLINE:	row++; col=0; break;
-        case ProbeFlags.FRAME:		row=0; col=0; break;
-        case ProbeFlags.CLOCKS:		col += addr; break;
-        default:
-          eventfn(op, addr, col, row);
-          break;
-      }
-    }
-  }
-
   tick() {
     this.clear();
     this.redraw(this.drawEvent.bind(this));
@@ -957,22 +994,6 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
     } );
     return 'X: ' + x + '  Y: ' + y + ' ' + s;
   }
-  opToString(op:number, addr?:number) {
-    var s = "";
-    switch (op) {
-      case ProbeFlags.EXECUTE:		s = "Exec"; break;
-      case ProbeFlags.MEM_READ:		s = "Read"; break;
-      case ProbeFlags.MEM_WRITE:	s = "Write"; break;
-      case ProbeFlags.IO_READ:		s = "IO Read"; break;
-      case ProbeFlags.IO_WRITE:		s = "IO Write"; break;
-      case ProbeFlags.VRAM_READ:	s = "VRAM Read"; break;
-      case ProbeFlags.VRAM_WRITE:	s = "VRAM Write"; break;
-      case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
-      case ProbeFlags.ILLEGAL:		s = "Error"; break;
-      default:				s = ""; break;
-    }
-    return typeof addr == 'number' ? s + " " + this.addr2str(addr) : s;
-  }
 
   refresh() {
     this.tick();
@@ -984,20 +1005,6 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
   }
   clear() {
     this.datau32.fill(0xff000000);
-  }
-  getOpRGB(op:number) : number {
-    switch (op) {
-      case ProbeFlags.EXECUTE:		return 0x018001;
-      case ProbeFlags.MEM_READ:		return 0x800101;
-      case ProbeFlags.MEM_WRITE:	return 0x010180;
-      case ProbeFlags.IO_READ:		return 0x018080;
-      case ProbeFlags.IO_WRITE:		return 0xc00180;
-      case ProbeFlags.VRAM_READ:	return 0x808001;
-      case ProbeFlags.VRAM_WRITE:	return 0x4080c0;
-      case ProbeFlags.INTERRUPT:	return 0xcfcfcf;
-      case ProbeFlags.ILLEGAL:		return 0x3f3fff;
-      default:				return 0;
-    }
   }
 }
 
@@ -1045,21 +1052,6 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
   }
 }
 
-/*
-export class RasterHeatMapView extends ProbeBitmapViewBase implements ProjectView {
-
-  drawEvent(op, addr, col, row) {
-    if (op == ProbeFlags.EXECUTE || op == ProbeFlags.MEM_READ) return;
-    var rgb = this.getOpRGB(op);
-    if (!rgb) return;
-    var iofs = col + row * this.canvas.width;
-    var data = this.datau32[iofs];
-    data = data | rgb | 0xff000000;
-    this.datau32[iofs] = data;
-  }
-}
-*/
-
 export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectView {
 
   drawEvent(op, addr, col, row) {
@@ -1106,6 +1098,84 @@ export class RasterStackMapView extends ProbeBitmapViewBase implements ProjectVi
     }
     var data = 0xff224488 << this.pcstack.length;
     this.datau32[iofs] = data;
+  }
+}
+
+export class ProbeLogView extends ProbeViewBaseBase {
+  memorylist;
+  maindiv : HTMLElement;
+  recreateOnResize = true;
+  dumplines;
+
+  createDiv(parent : HTMLElement) {
+    var div = document.createElement('div');
+    div.setAttribute("class", "memdump");
+    parent.appendChild(div);
+    this.showMemoryWindow(parent, div);
+    return this.maindiv = div;
+  }
+
+  showMemoryWindow(workspace:HTMLElement, parent:HTMLElement) {
+    this.memorylist = new VirtualList({
+      w: $(workspace).width(),
+      h: $(workspace).height(),
+      itemHeight: getVisibleEditorLineHeight(),
+      totalRows: 160*262, // TODO?
+      generatorFn: (row : number) => {
+        var s = this.getMemoryLineAt(row);
+        var linediv = document.createElement("div");
+        linediv.appendChild(document.createTextNode(s));
+        return linediv;
+      }
+    });
+    $(parent).append(this.memorylist.container);
+  }
+
+  getMemoryLineAt(row : number) : string {
+    var line = this.dumplines && this.dumplines[row];
+    if (line != null) {
+      var xtra = line.info.join(" ");
+      return "(" + lpad(line.row,3) + ", " + lpad(line.col,3) + ")  " + rpad(line.asm||"",20) + xtra;
+    } else return "";
+  }
+  refresh() {
+    this.tick();
+  }
+  tick() {
+    const isz80 = platform instanceof BaseZ80MachinePlatform || platform instanceof BaseZ80Platform; // TODO?
+    // cache each line in frame
+    this.dumplines = {};
+    this.redraw((op,addr,col,row,clk) => {
+      if (isz80) clk >>= 2;
+      var line = this.dumplines[clk];
+      if (line == null) {
+        line = {op:op, addr:addr, row:row, col:col, asm:null, info:[]};
+        this.dumplines[clk] = line;
+      }
+      switch (op) {
+        case ProbeFlags.EXECUTE:
+          if (platform.disassemble) {
+            var disasm = platform.disassemble(addr, platform.readAddress.bind(platform));
+            line.asm = disasm && disasm.line;
+          }
+          break;
+        default:
+          var xtra = this.opToString(op, addr);
+          if (xtra != "") line.info.push(xtra);
+          break;
+      }
+    });
+    // TODO: refactor with elsewhere
+    if (this.memorylist) {
+      $(this.maindiv).find('[data-index]').each( (i,e) => {
+        var div = $(e);
+        var row = parseInt(div.attr('data-index'));
+        var oldtext = div.text();
+        var newtext = this.getMemoryLineAt(row);
+        if (oldtext != newtext)
+          div.text(newtext);
+      });
+    }
   }
 }
 
