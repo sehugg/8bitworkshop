@@ -1099,8 +1099,8 @@ function checkRunReady() {
 }
 
 function openRelevantListing(state: EmuState) {
-  // if we clicked on disassembly window, retain it
-  if (lastViewClicked == '#disasm' && projectWindows.getActive() instanceof Views.DisassemblerView) return;
+  // if we clicked on another window, retain it
+  if (lastViewClicked != null) return;
   // search through listings
   var listings = current_project.getListings();
   var bestid = "#disasm";

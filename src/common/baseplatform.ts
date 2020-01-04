@@ -1057,6 +1057,17 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   pause() {
     this.timer.stop();
     this.audio && this.audio.stop();
+    if (this.probeRecorder) {
+      this.probeRecorder.singleFrame = true;
+    }
+  }
+  // so probe views stick around
+  runToVsync() {
+    if (this.probeRecorder) {
+      this.probeRecorder.reset();
+      this.probeRecorder.singleFrame = false;
+    }
+    super.runToVsync();
   }
 
 // TODO: reset target clock counter
@@ -1237,7 +1248,7 @@ export class WASMMachine implements Machine {
     var cpf = 19656; // TODO: pal, const
     if (trap) {
       for (i=0; i<cpf; i++) {
-        if (trap && trap()) {
+        if (trap()) {
           break;
         }
         this.exports.machine_tick(this.sys);

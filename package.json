@@ -28,7 +28,8 @@
     "pngjs": "^3.4.0",
     "rgbquant": "^1.1.2",
     "typescript": "^3.7.4",
-    "typescript-formatter": "^7.2.2"
+    "typescript-formatter": "^7.2.2",
+    "vgm-parser": "^0.6.2"
   },
   "main": "main.js",
   "directories": {
