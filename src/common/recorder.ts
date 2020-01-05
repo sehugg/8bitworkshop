@@ -122,6 +122,7 @@ import { Probeable, ProbeAll } from "./devices";
 export enum ProbeFlags {
   CLOCKS	  = 0x00000000,
   EXECUTE	  = 0x01000000,
+  HAS_VALUE = 0x10000000,
   MEM_READ	= 0x12000000,
   MEM_WRITE	= 0x13000000,
   IO_READ	  = 0x14000000,

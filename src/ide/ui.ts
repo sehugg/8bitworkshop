@@ -1662,9 +1662,15 @@ function showWelcomeMessage() {
     var is_vcs = platform_id.startsWith('vcs');
     var steps = [
         {
+          element: "#dropdownMenuButton",
+          placement: 'right',
+          title: "Cookie Consent",
+          content: 'Before we start, we should tell you that this website stores cookies and other data in your browser. You can review our <a href="/privacy.html" target="_new">privacy policy</a>.'
+        },
+        {
           element: "#platformsMenuButton",
           placement: 'right',
-          title: "Welcome to 8bitworkshop!",
+          title: "Platform Selector",
           content: "You're currently on the \"<b>" + platform_id + "</b>\" platform. You can choose a different one from the menu."
         },
         {

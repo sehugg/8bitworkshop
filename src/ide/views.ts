@@ -913,7 +913,7 @@ abstract class ProbeViewBaseBase {
       default:				            return "";
     }
     if (typeof addr == 'number') s += " " + this.addr2str(addr);
-    if (typeof value == 'number') s += " = $" + hex(value,2);
+    if ((op & ProbeFlags.HAS_VALUE) && typeof value == 'number') s += " = $" + hex(value,2);
     return s;
   }
   getOpRGB(op:number) : number {
