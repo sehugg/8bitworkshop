@@ -350,6 +350,24 @@ export abstract class BaseDebugPlatform extends BasePlatform {
       return this.frameCount > frame0;
     });
   }
+
+  inspect(sym: string) : string {
+    if (!this.debugSymbols) return;
+    var symmap = this.debugSymbols.symbolmap;
+    var addr2sym = this.debugSymbols.addr2symbol;
+    if (!symmap || !this.readAddress) return null;
+    var addr = symmap["_"+sym] || symmap[sym]; // look for C or asm symbol
+    if (!(typeof addr == 'number')) return null;
+    var b = this.readAddress(addr);
+    // don't show 2 bytes if there's a symbol at the next address
+    if (addr2sym && addr2sym[addr+1] != null) {
+      return "$"+hex(addr,4) + " = "+hex(b,2);
+    } else {
+      var b2 = this.readAddress(addr+1);
+      var w = b | (b2<<8);
+      return "$"+hex(addr,4) + " = "+hex(b,2)+" "+hex(b2,2)+" ($"+hex(w,2)+")";
+    }
+  }
 }
 
 ////// 6502
