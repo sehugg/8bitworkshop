@@ -1,6 +1,6 @@
 
-import { C64 } from "../machine/c64";
-import { Platform, WASMMachine, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502 } from "../common/baseplatform";
+import { C64, C64_WASMMachine } from "../machine/c64";
+import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502 } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 
 const C64_PRESETS = [
@@ -35,9 +35,9 @@ class C64Platform extends Base6502MachinePlatform<C64> implements Platform {
   getMemoryMap()        { return C64_MEMORY_MAP; }
 }
 
-class C64WASMPlatform extends Base6502MachinePlatform<WASMMachine> implements Platform {
+class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implements Platform {
 
-  newMachine()          { return new WASMMachine('c64'); }
+  newMachine()          { return new C64_WASMMachine('c64'); }
 
   async start() {
     // TODO: start() needs to block

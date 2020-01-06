@@ -954,7 +954,7 @@ import { Probeable, RasterFrameBased, AcceptsPaddleInput, SampledAudioSink } fro
 import { SampledAudio } from "./audio";
 import { ProbeRecorder } from "./recorder";
 
-interface Machine extends Bus, Resettable, FrameBased, AcceptsROM, HasCPU, SavesState<EmuState>, SavesInputState<any> {
+export interface Machine extends Bus, Resettable, FrameBased, AcceptsROM, HasCPU, SavesState<EmuState>, SavesInputState<any> {
 }
 
 function hasVideo(arg:any): arg is VideoSource {
@@ -1154,28 +1154,25 @@ export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMach
 // WASM Support
 // TODO: detangle from c64
 
-export class WASMMachine implements Machine {
-
+export abstract class BaseWASMMachine {
   prefix : string;
   instance : WebAssembly.Instance;
   exports : any;
   sys : number;
   pixel_dest : Uint32Array;
   pixel_src : Uint32Array;
-  romptr : number;
-  romlen : number;
-  romarr : Uint8Array;
   stateptr : number;
   statearr : Uint8Array;
   cpustateptr : number;
   cpustatearr : Uint8Array;
   cpu : CPU;
+  romptr : number;
+  romlen : number;
+  romarr : Uint8Array;
   audio : SampledAudioSink;
   audioarr : Float32Array;
-  prgstart : number;
-  initstring : string;
-  initindex : number;
-  joymask0 = 0;
+
+  abstract getCPUState() : CpuState;
 
   constructor(prefix: string) {
     this.prefix = prefix;
@@ -1228,21 +1225,6 @@ export class WASMMachine implements Machine {
     // enable c64 joystick map to arrow keys (TODO)
     //this.exports.c64_set_joystick_type(this.sys, 1);
   }
-  reset() {
-    this.exports.machine_reset(this.sys);
-    // load rom
-    if (this.romptr && this.romlen) {
-      this.exports.machine_load_rom(this.sys, this.romptr, this.romlen);
-      this.prgstart = this.romarr[0] + (this.romarr[1]<<8); // TODO: get starting address
-      if (this.prgstart == 0x801) this.prgstart = 0x80d;
-    }
-    // set init string
-    // TODO: sometimes gets hung up
-    if (this.prgstart) {
-      this.initstring = "\r\r\r\r\r\r\r\r\r\r\rSYS " + this.prgstart + "\r";
-      this.initindex = 0;
-    }
-  }
   getPC() : number {
     return this.exports.machine_cpu_get_pc(this.sys);
   }
@@ -1261,31 +1243,8 @@ export class WASMMachine implements Machine {
     this.romlen = rom.length;
     this.reset();
   }
-  advanceFrame(trap: TrapCondition) : number {
-    var i : number;
-    var cpf = 19656; // TODO: pal, const
-    if (trap) {
-      for (i=0; i<cpf; i++) {
-        if (trap()) {
-          break;
-        }
-        this.exports.machine_tick(this.sys);
-      }
-    } else {
-      this.exports.machine_exec(this.sys, cpf);
-      i = cpf;
-      this.typeInitString(); // TODO: type init string into console (doesnt work on reset)
-    }
-    this.syncVideo();
-    this.syncAudio();
-    return i;
-  }
-  typeInitString() {
-    if (this.initstring) {
-      var ch = this.initstring.charCodeAt(this.initindex >> 1);
-      this.setKeyInput(ch, 0, (this.initindex&1) ? KeyFlags.KeyUp : KeyFlags.KeyDown);
-      if (++this.initindex >= this.initstring.length*2) this.initstring = null;
-    }
+  reset() {
+    this.exports.machine_reset(this.sys);
   }
   read(address: number) : number {
     return this.exports.machine_mem_read(this.sys, address & 0xffff);
@@ -1295,53 +1254,6 @@ export class WASMMachine implements Machine {
   }
   write(address: number, value: number) : void {
     this.exports.machine_mem_write(this.sys, address & 0xffff, value & 0xff);
-  }
-  getCPUState() {
-    this.exports.machine_save_cpu_state(this.sys, this.cpustateptr);
-    var s = this.cpustatearr;
-    var pc = s[2] + (s[3]<<8);
-    return {
-      PC:pc,
-      SP:s[9],
-      A:s[6],
-      X:s[7],
-      Y:s[8],
-      C:s[10] & 1,
-      Z:s[10] & 2,
-      I:s[10] & 4,
-      D:s[10] & 8,
-      V:s[10] & 64,
-      N:s[10] & 128,
-      o:this.readConst(pc),
-    }
-  }
-  saveState() {
-    this.exports.machine_save_state(this.sys, this.stateptr);
-    /*
-    for (var i=0; i<this.statearr.length; i++)
-      if (this.statearr[i] == 0xa0 && this.statearr[i+1] == 0x4d && this.statearr[i+2] == 0xe2) console.log(hex(i));
-    */
-    return {
-      c:this.getCPUState(),
-      state:this.statearr.slice(0),
-      ram:this.statearr.slice(18640, 18640+0x200), // ZP and stack
-    };
-  }
-  loadState(state) : void {
-    this.statearr.set(state.state);
-    this.exports.machine_load_state(this.sys, this.stateptr);
-  }
-  // assume controls buffer is smaller than cpu buffer
-  saveControlsState() : any {
-    this.exports.machine_save_controls_state(this.sys, this.cpustateptr);
-    return { controls:this.cpustatearr.slice(0, this.exports.machine_get_controls_state_size()) }
-  }
-  loadControlsState(state) : void {
-    this.cpustatearr.set(state.controls);
-    this.exports.machine_load_controls_state(this.sys, this.cpustateptr);
-  }
-  getVideoParams() {
-   return {width:392, height:272, overscan:true, videoFrequency:50}; // TODO: const
   }
   getAudioParams() {
     return {sampleRate:44100, stereo:false};
@@ -1358,25 +1270,14 @@ export class WASMMachine implements Machine {
       this.pixel_dest.set(this.pixel_src);
     }
   }
-  setKeyInput(key: number, code: number, flags: number): void {
-    // TODO: handle shifted keys
-    if (key == 16 || key == 17 || key == 18 || key == 224) return; // meta keys
-    //console.log(key, code, flags);
-    //if (flags & KeyFlags.Shift) { key += 64; }
-    // convert to c64
-    var mask = 0;
-    if (key == 37) { key = 0x8; mask = 0x4; } // LEFT
-    if (key == 38) { key = 0xb; mask = 0x1; } // UP
-    if (key == 39) { key = 0x9; mask = 0x8; } // RIGHT
-    if (key == 40) { key = 0xa; mask = 0x2; } // DOWN
-    if (flags & KeyFlags.KeyDown) {
-      this.exports.machine_key_down(this.sys, key);
-      this.joymask0 |= mask;
-    } else if (flags & KeyFlags.KeyUp) {
-      this.exports.machine_key_up(this.sys, key);
-      this.joymask0 &= ~mask;
-    }
-    this.exports.c64_joystick(this.sys, this.joymask0, 0); // TODO: c64
+  // assume controls buffer is smaller than cpu buffer
+  saveControlsState() : any {
+    this.exports.machine_save_controls_state(this.sys, this.cpustateptr);
+    return { controls:this.cpustatearr.slice(0, this.exports.machine_get_controls_state_size()) }
+  }
+  loadControlsState(state) : void {
+    this.cpustatearr.set(state.controls);
+    this.exports.machine_load_controls_state(this.sys, this.cpustateptr);
   }
   connectAudio(audio : SampledAudioSink) : void {
     this.audio = audio;
@@ -1389,4 +1290,22 @@ export class WASMMachine implements Machine {
       }
     }
   }
+  advanceFrameClock(trap, cpf:number) : number {
+    var i : number;
+    if (trap) {
+      for (i=0; i<cpf; i++) {
+        if (trap()) {
+          break;
+        }
+        this.exports.machine_tick(this.sys);
+      }
+    } else {
+      this.exports.machine_exec(this.sys, cpf);
+      i = cpf;
+    }
+    this.syncVideo();
+    this.syncAudio();
+    return i;
+  }
 }
+
