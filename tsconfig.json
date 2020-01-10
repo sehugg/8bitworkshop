@@ -15,6 +15,9 @@
     },
     {
       "path": "./src/worker"
+    },
+    {
+      "path": "./src/tools"
     }
   ]
 }
