@@ -61,7 +61,7 @@ class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Plat
   getPresets()          { return APPLE2_PRESETS; }
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.readConst(a); }
-  // TODO loadBios(bios)	{ this.machine.loadBIOS(a); }
+  // TODO loadBIOS(bios)	{ this.machine.loadBIOS(a); }
   getMemoryMap = function() { return { main:[
       {name:'I/O',start:0xc000,size:0x1000,type:'io'},
       {name:'ROM',start:0xd000,size:0x3000-6,type:'rom'},

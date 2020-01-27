@@ -31,7 +31,7 @@ class C64Platform extends Base6502MachinePlatform<C64> implements Platform {
   getPresets()          { return C64_PRESETS; }
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.readConst(a); }
-  loadBios(bios)	      { this.machine.loadBIOS(bios); }
+  loadBIOS(bios)	      { this.machine.loadBIOS(bios); }
   getMemoryMap()        { return C64_MEMORY_MAP; }
 }
 

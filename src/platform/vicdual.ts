@@ -20,7 +20,7 @@ class VicDualPlatform extends BaseZ80MachinePlatform<VicDual> implements Platfor
   getPresets()          { return VICDUAL_PRESETS; }
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.read(a); }
-  // TODO loadBios(bios)	{ this.machine.loadBIOS(a); }
+  // TODO loadBIOS(bios)	{ this.machine.loadBIOS(a); }
   getMemoryMap = function() { return { main:[
       {name:'Cell RAM',start:0xe000,size:32*32,type:'ram'},
       {name:'Tile RAM',start:0xe800,size:256*8,type:'ram'},

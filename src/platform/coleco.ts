@@ -27,7 +27,7 @@ class ColecoVisionPlatform extends BaseZ80MachinePlatform<ColecoVision> implemen
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.read(a); }
   readVRAMAddress(a)    { return this.machine.readVRAMAddress(a); }
-  // TODO loadBios(bios)	{ this.machine.loadBIOS(a); }
+  // TODO loadBIOS(bios)	{ this.machine.loadBIOS(a); }
   getMemoryMap = function() { return { main:[
       {name:'BIOS',start:0x0,size:0x2000,type:'rom'},
       {name:'Cartridge Header',start:0x8000,size:0x100,type:'rom'},

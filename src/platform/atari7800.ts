@@ -16,7 +16,7 @@ class Atari7800Platform extends Base6502MachinePlatform<Atari7800> implements Pl
   getPresets()          { return Atari7800_PRESETS; }
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.readConst(a); }
-  // TODO loadBios(bios)	{ this.machine.loadBIOS(a); }
+  // TODO loadBIOS(bios)	{ this.machine.loadBIOS(a); }
   getMemoryMap = function() { return { main:[
       {name:'TIA',start:0x00,size:0x20,type:'io'},
       {name:'MARIA',start:0x20,size:0x20,type:'io'},
