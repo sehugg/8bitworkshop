@@ -75,7 +75,7 @@ var AtariVectorPlatform = function(mainElement) {
         [0x2400, 0x2407, 0x7,    function(a) { return switches[a+8]; }],
         [0x4000, 0x4fff, 0xfff,  function(a) { return dvgram.mem[a]; }],
         [0x5000, 0x5fff, 0xfff,  function(a) { return vecrom[a]; }],
-        [0x6800, 0x7fff, 0,      function(a) { return rom[a - 0x6800]; }],
+        [0x6800, 0x7fff, 0,      function(a) { return rom ? rom[a - 0x6800] : 0; }],
       ], {gmask:0x7fff}),
 
       write: newAddressDecoder([
@@ -224,7 +224,7 @@ var AtariColorVectorPlatform = function(mainElement) {
         //[0x7000, 0x7000, 0,      function(a) { /* EAROM read */ return 0; }],
         //[0x8940, 0x897f, 0x3f,   function(a) { /* EAROM data */ return 0; }],
         [0x8900, 0x8900, 0,      function(a) { /* EAROM read */ return earom_data; }],
-        [0x9000, 0xffff, 0xffff, function(a) { return rom[a - 0x9000]; }],
+        [0x9000, 0xffff, 0xffff, function(a) { return rom ? rom[a - 0x9000] : 0; }],
       ]),
 
       write: newAddressDecoder([
@@ -373,7 +373,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
     bus = {
 
       read: newAddressDecoder([
-        [0x0,    0x7fff, 0,      function(a) { return rom[a]; }],
+        [0x0,    0x7fff, 0,      function(a) { return rom ? rom[a] : 0; }],
         [0x8000, 0x800f, 0xf,    function(a) { return switches[a]; }],
         [0x8100, 0x810f, 0xf,    function(a) { return mathram[a]; } ],
         [0xa000, 0xdfff, 0x3fff, function(a) { return dvgram.mem[a]; }],

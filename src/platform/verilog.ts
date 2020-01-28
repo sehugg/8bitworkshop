@@ -371,7 +371,7 @@ var VerilogPlatform = function(mainElement, options) {
     timerCallback = () => {
       if (!this.isRunning())
         return;
-      gen.switches = switches[0];
+      if (gen) gen.switches = switches[0];
       this.updateFrame();
     };
     this.setFrameRate(60);

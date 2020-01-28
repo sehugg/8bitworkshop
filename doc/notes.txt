@@ -384,3 +384,11 @@ Emulator Lib
   - VCS
   - NES
   - MAME
+
+Markdown (showdown) interface
+- add code patches to files
+- cursor shows current state/errors (must map markdown->src lines)
+- show preview emulator at each step (play button? run when viewed?)
+
+
+
