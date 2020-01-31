@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig-base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../gen/platform"
+  },
+  "references": [
+    { "path": "../common" },
+    { "path": "../machine" },
+    { "path": "../ide" },
+  ],
+  "include": [
+    "**/*.ts"
+  ]
+}
