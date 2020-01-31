@@ -587,6 +587,10 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine {
       this.initstring = "\r\r\r\r\r\r\r\r\r\r\rSYS " + this.prgstart + "\r";
       this.initindex = 0;
     }
+    // clear keyboard
+    for (var ch=0; ch<128; ch++) {
+      this.setKeyInput(ch, 0, KeyFlags.KeyUp);
+    }
   }
   advanceFrame(trap: TrapCondition) : number {
     this.typeInitString(); // type init string into console (TODO: doesnt work during debug)

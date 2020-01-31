@@ -41,6 +41,7 @@ export type PixelEditorImageFormat = {
   destfmt?:PixelEditorImageFormat
   xform?:string
   skip?:number
+  aspect?:number
 };
 
 export type PixelEditorPaletteFormat = {
@@ -818,8 +819,9 @@ export class CharmapEditor extends PixNode {
     chooser.width = this.fmt.w || 1;
     chooser.height = this.fmt.h || 1;
     chooser.recreate(agrid, (index, viewer) => {
-      var escale = Math.ceil(192 / this.fmt.w);
-      var editview = this.createEditor(aeditor, viewer, escale);
+      var yscale = Math.ceil(192 / this.fmt.w);
+      var xscale = yscale * (this.fmt.aspect || 1.0);
+      var editview = this.createEditor(aeditor, viewer, xscale, yscale);
       this.context.setCurrentEditor(aeditor, $(viewer.canvas), this);
       this.rgbimgs[index] = viewer.rgbdata;
     });
@@ -843,11 +845,12 @@ export class CharmapEditor extends PixNode {
     return true;
   }
 
-  createEditor(aeditor : JQuery, viewer : Viewer, escale : number) : PixEditor {
+  createEditor(aeditor: JQuery, viewer: Viewer, xscale: number, yscale: number) : PixEditor {
     var im = new PixEditor();
     im.createWith(viewer);
     im.updateImage();
-    im.canvas.style.width = (viewer.width*escale)+'px'; // TODO
+    im.canvas.style.width = (viewer.width*xscale)+'px'; // TODO
+    im.canvas.style.height = (viewer.height*yscale)+'px'; // TODO
     im.makeEditable(this, aeditor, this.left.palette);
     return im;
   }
