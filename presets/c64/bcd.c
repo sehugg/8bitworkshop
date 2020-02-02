@@ -1,5 +1,5 @@
 
-#include "neslib.h"
+#include "common.h"
 
 word bcd_add(word a, word b) {
   register word c, d;      // intermediate values

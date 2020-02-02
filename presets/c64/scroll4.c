@@ -23,11 +23,11 @@ void wait_vblank() {
   raster_wait(255); // TODO
 }
 
-sbyte scroll_fine_x = 0;
-sbyte scroll_fine_y = 0;
-byte origin_x = 0x80;
-byte origin_y = 0x80;
-byte curbuf = 0;
+sbyte scroll_fine_x;
+sbyte scroll_fine_y;
+byte origin_x;
+byte origin_y;
+byte curbuf;
 byte* scrnbuf[2];	// screen buffer(s)
 byte tempbuf[COLS*ROWS];
 
@@ -138,6 +138,11 @@ void scroll_vert(sbyte delta_y) {
 }
 
 void scroll_setup() {
+  scroll_fine_x = 0;
+  scroll_fine_y = 0;
+  origin_x = 0x80;
+  origin_y = 0x80;
+  curbuf = 0;
   // get screen buffer addresses
   scrnbuf[0] = (byte*) 0x8000;
   scrnbuf[1] = (byte*) 0x8400;
