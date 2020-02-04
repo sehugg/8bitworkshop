@@ -10,11 +10,17 @@ const C64_PRESETS = [
   {id:'tgidemo.c', name:'TGI Graphics Demo (C)'},
   {id:'upandaway.c', name:'Up, Up and Away (C)'},
   {id:'joymove.c', name:'Joystick Movement (C)'},
+  {id:'scroll1.c', name:'Scrolling 1 (C)'},
+  {id:'scroll2.c', name:'Scrolling 2 (C)'},
+  {id:'scroll3.c', name:'Scrolling 3 (C)'},
+  {id:'scroll4.c', name:'Scrolling 4 (C)'},
+  {id:'scroll5.c', name:'Scrolling 5 (C)'},
+  {id:'climber.c', name:'Climber Game (C)'},
 ];
 
 const C64_MEMORY_MAP = { main:[
   {name:'6510 Registers',start:0x0,  size:0x2,type:'io'},
-  {name:'RAM',          start:0x2,   size:0x7ffe,type:'ram'},
+  //{name:'RAM',          start:0x2,   size:0x7ffe,type:'ram'},
   {name:'Cartridge ROM',start:0x8000,size:0x2000,type:'rom'},
   {name:'BASIC ROM',    start:0xa000,size:0x2000,type:'rom'},
   {name:'RAM',          start:0xc000,size:0x1000,type:'ram'},

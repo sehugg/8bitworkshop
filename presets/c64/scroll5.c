@@ -23,7 +23,7 @@ static void draw_cell(byte x, byte y) {
   byte ch = xx ^ yy;
   word ofs = x+y*COLS;
   hidbuf[ofs] = ch; // character
-  tempbuf[ofs] = ch; // color
+  colorbuf[ofs] = ch; // color
 }
 
 void scroll_draw_column(byte col) {

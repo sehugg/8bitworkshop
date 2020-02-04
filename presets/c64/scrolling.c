@@ -9,7 +9,7 @@ byte origin_x;
 byte origin_y;
 byte* hidbuf;
 byte* visbuf;
-byte tempbuf[COLS*ROWS];
+byte colorbuf[COLS*ROWS];
 byte swap_needed;
 
 //
@@ -26,7 +26,7 @@ void scroll_swap(void) {
 
 void scroll_copy(void) {
   // copy temp buf to color ram
-  memcpy(COLOR_RAM, tempbuf, COLS*ROWS);
+  memcpy(COLOR_RAM, colorbuf, COLS*ROWS);
   // copy visible buffer to hidden buffer
   memcpy(hidbuf, visbuf, COLS*ROWS);
 }
@@ -41,36 +41,34 @@ void scroll_update(void) {
   }
 }
 
-// TODO: left and up can be faster, b/c we can copy color ram downward
-
 void scroll_left(void) {
-  memcpy(hidbuf, visbuf+1, COLS*ROWS-1);
+  memcpy(hidbuf, hidbuf+1, COLS*ROWS-1);
+  memcpy(colorbuf, colorbuf+1, COLS*ROWS-1);
   ++origin_x;
-  memcpy(tempbuf, COLOR_RAM+1, COLS*ROWS-1);
   scroll_draw_column(COLS-1);
   swap_needed = true;
 }
 
 void scroll_up(void) {
-  memcpy(hidbuf, visbuf+COLS, COLS*(ROWS-1));
+  memcpy(hidbuf, hidbuf+COLS, COLS*(ROWS-1));
+  memcpy(colorbuf, colorbuf+COLS, COLS*(ROWS-1));
   ++origin_y;
-  memcpy(tempbuf, COLOR_RAM+COLS, COLS*(ROWS-1));
   scroll_draw_row(ROWS-1);
   swap_needed = true;
 }
 
 void scroll_right(void) {
-  memcpy(hidbuf+1, visbuf, COLS*ROWS-1);
+  memmove(hidbuf+1, hidbuf, COLS*ROWS-1);
+  memmove(colorbuf+1, colorbuf, COLS*ROWS-1);
   --origin_x;
-  memcpy(tempbuf+1, COLOR_RAM, COLS*ROWS-1);
   scroll_draw_column(0);
   swap_needed = true;
 }
 
 void scroll_down(void) {
-  memcpy(hidbuf+COLS, visbuf, COLS*(ROWS-1));
+  memmove(hidbuf+COLS, hidbuf, COLS*(ROWS-1));
+  memmove(colorbuf+COLS, colorbuf, COLS*(ROWS-1));
   --origin_y;
-  memcpy(tempbuf+COLS, COLOR_RAM, COLS*(ROWS-1));
   scroll_draw_row(0);
   swap_needed = true;
 }

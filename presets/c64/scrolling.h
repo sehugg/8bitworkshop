@@ -13,7 +13,7 @@ extern byte origin_x;		// X scroll origin (columns)
 extern byte origin_y;		// Y scroll origin (rows)
 extern byte* hidbuf;		// hidden screen buffer(s)
 extern byte* visbuf;		// visible screen buffer(s)
-extern byte tempbuf[COLS*ROWS]; // temporary buffer
+extern byte colorbuf[COLS*ROWS]; // color RAM buffer
 extern byte swap_needed;	// TRUE if scroll_update() swaps
 
 // call this at start of program

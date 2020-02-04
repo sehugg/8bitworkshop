@@ -2,6 +2,7 @@
 
 import { hex, rgb2bgr, rle_unpack } from "../common/util";
 import { ProjectWindows } from "./windows";
+import { Toolbar } from "../common/emu";
 declare var Mousetrap;
 
 export type UintArray = number[] | Uint8Array | Uint16Array | Uint32Array; //{[i:number]:number};
@@ -991,18 +992,9 @@ class PixEditor extends Viewer {
         this.setPixel(pos.x, pos.y, dragcol);
       }
     });
-    /*    
-    Mousetrap.bind('ctrl+shift+h', this.flipX.bind(this));
-    Mousetrap.bind('ctrl+shift+v', this.flipY.bind(this));
-    Mousetrap.bind('ctrl+shift+9', this.rotate90.bind(this));
-    Mousetrap.bind('ctrl+shift+left', this.translate.bind(this, -1, 0));
-    Mousetrap.bind('ctrl+shift+right', this.translate.bind(this, 1, 0));
-    Mousetrap.bind('ctrl+shift+up', this.translate.bind(this, 0, -1));
-    Mousetrap.bind('ctrl+shift+down', this.translate.bind(this, 0, 1));
-    */
-    // TODO: remove when unbound
 
     aeditor.empty();
+    this.createToolbarButtons(aeditor[0]);
     aeditor.append(this.canvas);
     aeditor.append(this.createPaletteButtons());
     this.setPaletteColor(1);
@@ -1048,6 +1040,18 @@ class PixEditor extends Viewer {
       this.palbtns.push(btn);
     }
     return span;
+  }
+
+  createToolbarButtons(parent: HTMLElement) {
+    var toolbar = new Toolbar(parent, null);
+    toolbar.add('ctrl+shift+h', 'Flip X', 'glyphicon-resize-horizontal', this.flipX.bind(this));
+    toolbar.add('ctrl+shift+v', 'Flip Y', 'glyphicon-resize-vertical', this.flipY.bind(this));
+    toolbar.add('ctrl+shift+9', 'Rotate', 'glyphicon-repeat', this.rotate90.bind(this));
+    toolbar.add('ctrl+shift+left', 'Move Left', 'glyphicon-arrow-left', this.translate.bind(this, 1, 0));
+    toolbar.add('ctrl+shift+right', 'Move Right', 'glyphicon-arrow-right', this.translate.bind(this, -1, 0));
+    toolbar.add('ctrl+shift+up', 'Move Up', 'glyphicon-arrow-up', this.translate.bind(this, 0, 1));
+    toolbar.add('ctrl+shift+down', 'Move Down', 'glyphicon-arrow-down', this.translate.bind(this, 0, -1));
+    // TODO: destroy toolbar?
   }
 
   commit() {

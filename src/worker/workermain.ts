@@ -1113,7 +1113,12 @@ function compileCC65(step:BuildStep) {
       '-I', '/share/include',
       '-I', '.',
     ];
-    if (params.define) params.define.forEach((x) => args.push('-D'+x));
+    if (params.define) {
+      params.define.forEach((x) => args.push('-D'+x));
+    }
+    if (step.mainfile) {
+      args.unshift.apply(args, ["-D", "__MAIN__"]);
+    }
     args.push(step.path);
     //console.log(args);
     execMain(step, CC65, args);

@@ -4,8 +4,8 @@
 
 SpriteShadow sprshad;
 
-void sprite_update(char* screenram) {
-  memcpy(screenram + 0x3f8, sprshad.spr_shapes, 8);
+void sprite_update(char* vicbank) {
+  memcpy(vicbank + 0x3f8, sprshad.spr_shapes, 8);
   VIC.spr_ena = sprshad.spr_ena;
   VIC.spr_hi_x = sprshad.spr_hi_x;
   memcpy(VIC.spr_pos, sprshad.spr_pos, 16);
@@ -22,8 +22,12 @@ void sprite_shape(char* vicbank, byte index, const char* sprite_data) {
   memcpy(vicbank + index*64, sprite_data, 64);
 }
 
+const byte BITS[8] = {
+  0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
+};
+
 void sprite_draw(byte i, word x, byte y, byte shape) {
-  byte mask = 1 << i;
+  byte mask = BITS[i]; // 1 << i;
   sprshad.spr_ena |= mask;
   if (x >> 8)
     sprshad.spr_hi_x |= mask;
