@@ -5,7 +5,7 @@
 Switch test program.
 
 Player 1 Keys: arrow keys + space + shift
-Player 2 Keys: A/D/W/S + Z + X
+Player 2 Keys: A/D/W/S + T + R
 */
 module switches_top(clk, reset, hsync, vsync, 
                     switches_p1, switches_p2,
