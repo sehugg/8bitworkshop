@@ -1681,8 +1681,8 @@ function showWelcomeMessage() {
         {
           element: "#workspace",
           title: "Code Editor",
-          content: is_vcs ? "Type your 6502 assembly code into the editor, and it'll be assembled in real-time. All changes are saved to browser local storage."
-                          : "Type your source code into the editor, and it'll be compiled in real-time. All changes are saved to browser local storage."
+          content: is_vcs ? "Type your 6502 assembly code into the editor, and it'll be assembled in real-time. All changes are saved to browser local storage, except on Safari or iOS."
+                          : "Type your source code into the editor, and it'll be compiled in real-time. All changes are saved to browser local storage, except on Safari or iOS."
         },
         {
           element: "#emulator",
