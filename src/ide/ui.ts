@@ -20,6 +20,7 @@ declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, firebase;
 declare var ga;
 // in index.html
 declare var exports;
+declare var browserDetect;
 
 // make sure VCS doesn't start
 if (window['Javatari']) window['Javatari'].AUTO_START = false;
@@ -1945,6 +1946,14 @@ export function startUI() {
   if (qs['githubURL']) {
     importProjectFromGithub(qs['githubURL'], true);
     return;
+  }
+  // warning when using Safari/iOS
+  if (hasLocalStorage && !localStorage.getItem("__applealert")) {
+    localStorage.setItem("__applealert", "true");
+    var browserResult = browserDetect();
+    if (browserResult.name == 'safari' || browserResult.name == 'ios') {
+      alertError("WARNING: This browser may not persist changes to source code. Try a recent version of Firefox or Chrome.");
+    }
   }
   // add default platform?
   platform_id = qs['platform'] || (hasLocalStorage && localStorage.getItem("__lastplatform"));
