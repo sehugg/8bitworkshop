@@ -191,7 +191,8 @@ TODO:
   (32:443651)	Safari	12.1.2
 - Safari: doesn't send good exception reasons ("undefined")
   - probably XMLHttpRequest.timeout (https://github.com/getsentry/sentry-javascript/issues/2210)
-
+- C64
+  - debugging at reset
 
 
 WEB WORKER FORMAT
@@ -389,6 +390,4 @@ Markdown (showdown) interface
 - add code patches to files
 - cursor shows current state/errors (must map markdown->src lines)
 - show preview emulator at each step (play button? run when viewed?)
-
-
 
