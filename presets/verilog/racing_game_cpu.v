@@ -146,6 +146,7 @@ module racing_game_cpu_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
   wire r = display_on && (player_gfx || enemy_gfx || track_shoulder);
   wire g = display_on && (player_gfx || track_gfx);
   wire b = display_on && (enemy_gfx || track_shoulder);
+  // RGBI (in IBGR order, intensity is 4th bit)
   assign rgb = {1'b0,b,g,r};
   
   //////////// CPU program code
