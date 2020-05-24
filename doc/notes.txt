@@ -193,6 +193,10 @@ TODO:
   - probably XMLHttpRequest.timeout (https://github.com/getsentry/sentry-javascript/issues/2210)
 - C64
   - debugging at reset
+  - gotoxy goes to $EA24 (KIL) from PLOT (kplot.s) missing UPDCRAMPTR
+  - emu doesn't reset properly (after gotoxy() BIOS call)
+  - disk image support
+  - https://github.com/cc65/cc65/issues/946
 
 
 WEB WORKER FORMAT

@@ -10,6 +10,7 @@ const C64_PRESETS = [
   {id:'tgidemo.c', name:'TGI Graphics Demo (C)'},
   {id:'upandaway.c', name:'Up, Up and Away (C)'},
   {id:'joymove.c', name:'Joystick Movement (C)'},
+  {id:'siegegame.c', name:'Siege Game (C)'},
   {id:'scroll1.c', name:'Scrolling 1 (C)'},
   {id:'scroll2.c', name:'Scrolling 2 (C)'},
   {id:'scroll3.c', name:'Scrolling 3 (C)'},
