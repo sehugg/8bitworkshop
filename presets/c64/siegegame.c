@@ -18,8 +18,6 @@ typedef unsigned short word;
 static byte** BASL = (byte**) 0xD1;
 
 byte getchar(byte x, byte y) {
-  // JSR VTABZ
-  // LDA (BASL) ($28)
   gotoxy(x,y);		// set cursor position
   return (*BASL)[x];	// lookup value @ cursor address
 }
@@ -183,8 +181,11 @@ void make_move() {
   ai_control(&players[0]);
   ai_control(&players[1]);
   // if players collide, 2nd player gets the point
+  textcolor(COLOR_CYAN);
   move_player(&players[1]);
+  textcolor(COLOR_YELLOW);
   move_player(&players[0]);
+  textcolor(COLOR_WHITE);
 }
 
 void declare_winner(byte winner) {
@@ -204,6 +205,7 @@ void declare_winner(byte winner) {
 void play_round() {
   reset_players();
   clrscr();
+  textcolor(COLOR_WHITE);
   draw_playfield();
   while (1) {
     make_move();

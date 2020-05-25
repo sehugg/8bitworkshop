@@ -10,6 +10,8 @@ import { lzgmini, stringToByteArray, hex, rgb2bgr } from "../common/util";
 // http://sta.c64.org/cbm64mem.html
 // http://hitmen.c02.at/temp/palstuff/
 
+// native JS emulator (NOT USED)
+
 const KEYBOARD_ROW_0 = 0;
 const SWCHA = 8;
 const SWCHB = 9;
@@ -594,7 +596,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine {
   }
   advanceFrame(trap: TrapCondition) : number {
     this.typeInitString(); // type init string into console (TODO: doesnt work during debug)
-    return super.advanceFrameClock(trap, 19656); // TODO: NTSC?
+    return super.advanceFrameClock(trap, 19656); // TODO: 985248 / 50 = 19705? music skips
   }
   typeInitString() {
     if (this.initstring) {

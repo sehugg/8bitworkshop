@@ -197,6 +197,7 @@ TODO:
   - emu doesn't reset properly (after gotoxy() BIOS call)
   - disk image support
   - https://github.com/cc65/cc65/issues/946
+  - sample buffer skips
 
 
 WEB WORKER FORMAT
@@ -395,3 +396,13 @@ Markdown (showdown) interface
 - cursor shows current state/errors (must map markdown->src lines)
 - show preview emulator at each step (play button? run when viewed?)
 
+
+DOCUMENTATION
+
+memory map
+BIOS routines
+cc65 standard libs
+cc65 headers
+example headers (presets/*/*.h)
+libcv headers (src/worker/lib)
+ASM includes

@@ -17,6 +17,7 @@ const C64_PRESETS = [
   {id:'scroll4.c', name:'Scrolling 4 (C)'},
   {id:'scroll5.c', name:'Scrolling 5 (C)'},
   {id:'climber.c', name:'Climber Game (C)'},
+  {id:'musicplayer.c', name:'Music Player (C)'},
 ];
 
 const C64_MEMORY_MAP = { main:[
@@ -26,12 +27,16 @@ const C64_MEMORY_MAP = { main:[
   {name:'BASIC ROM',    start:0xa000,size:0x2000,type:'rom'},
   {name:'RAM',          start:0xc000,size:0x1000,type:'ram'},
   {name:'VIC-II I/O',   start:0xd000,size:0x0400,type:'io'},
+  {name:'SID',          start:0xd400,size:0x0400,type:'io'},
   {name:'Color RAM',    start:0xd800,size:0x0400,type:'io'},
   {name:'CIA 1',        start:0xdc00,size:0x0100,type:'io'},
   {name:'CIA 2',        start:0xdd00,size:0x0100,type:'io'},
+  {name:'I/O 1',        start:0xde00,size:0x0100,type:'io'},
+  {name:'I/O 2',        start:0xdf00,size:0x0100,type:'io'},
   {name:'KERNAL ROM',   start:0xe000,size:0x2000,type:'rom'},
 ] }
 
+// native C64 platform (NOT USED)
 class C64Platform extends Base6502MachinePlatform<C64> implements Platform {
 
   newMachine()          { return new C64(); }
@@ -42,6 +47,7 @@ class C64Platform extends Base6502MachinePlatform<C64> implements Platform {
   getMemoryMap()        { return C64_MEMORY_MAP; }
 }
 
+// WASM C64 platform
 class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implements Platform {
 
   newMachine()          { return new C64_WASMMachine('c64'); }
@@ -55,6 +61,9 @@ class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implement
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return C64_MEMORY_MAP; }
+  showHelp() {
+    window.open("https://sta.c64.org/cbm64mem.html", "_help");
+  }
 }
 
 PLATFORMS['c64'] = C64WASMPlatform;
