@@ -596,7 +596,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine {
   }
   advanceFrame(trap: TrapCondition) : number {
     this.typeInitString(); // type init string into console (TODO: doesnt work during debug)
-    return super.advanceFrameClock(trap, 19656); // TODO: 985248 / 50 = 19705? music skips
+    return super.advanceFrameClock(trap, 19656+295); // TODO: can we sync with VSYNC?
   }
   typeInitString() {
     if (this.initstring) {

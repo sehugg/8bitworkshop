@@ -394,6 +394,7 @@ var Apple2Display = function(pixels : Uint32Array, apple : AppleGRParams) {
 
   const flashInterval = 500;
 
+  // https://mrob.com/pub/xapple2/colors.html
   const loresColor = [
      RGBA(0, 0, 0),
      RGBA(227, 30, 96),

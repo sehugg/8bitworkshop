@@ -5,7 +5,6 @@ import { PLATFORMS } from "../common/emu";
 
 const C64_PRESETS = [
   {id:'hello.dasm', name:'Hello World (ASM)'},
-  {id:'sidtune.dasm', name:'SID Tune (ASM)'},
   {id:'eliza.c', name:'Eliza (C)'},
   {id:'tgidemo.c', name:'TGI Graphics Demo (C)'},
   {id:'upandaway.c', name:'Up, Up and Away (C)'},
@@ -17,6 +16,8 @@ const C64_PRESETS = [
   {id:'scroll4.c', name:'Scrolling 4 (C)'},
   {id:'scroll5.c', name:'Scrolling 5 (C)'},
   {id:'climber.c', name:'Climber Game (C)'},
+  {id:'multilines.c', name:'Multicolor Lines+Flood Fill (C)'},
+  {id:'sidtune.dasm', name:'SID Tune (ASM)'},
   {id:'musicplayer.c', name:'Music Player (C)'},
 ];
 
