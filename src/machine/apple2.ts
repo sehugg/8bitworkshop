@@ -402,7 +402,7 @@ var Apple2Display = function(pixels : Uint32Array, apple : AppleGRParams) {
      RGBA(0, 163, 96),
      RGBA(156, 156, 156),
      RGBA(20, 207, 253),
-     RGBA(128, 128, 255),
+     RGBA(208, 195, 255),
      RGBA(96, 114, 3),
      RGBA(255, 106, 60),
      RGBA(156, 156, 156),
@@ -470,10 +470,10 @@ var Apple2Display = function(pixels : Uint32Array, apple : AppleGRParams) {
            // see if the hi bit is set
            if ((b1 & 0x80) == 0)
            {
-              c1 = 1; c2 = 12;    // red & green
+              c1 = 3; c2 = 12;    // purple & green
            } else
            {
-              c1 = 7; c2 = 9;     // blue & orange
+              c1 = 6; c2 = 9;     // blue & orange
            }
            // make a value consisting of:
            // the 8th bit, then bits 0-7, then the 9th bit
