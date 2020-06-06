@@ -58,6 +58,7 @@ NextFrame
         sta HMP1
         sta WSYNC
         sta HMOVE
+        SLEEP 24	; wait 24 cycles between write to HMOVE and HMxxx
         sta HMCLR
         lda #1
         sta VDELP0

@@ -150,7 +150,6 @@ TODO:
 - upload multiple files/zip file to subdirectory
   - allow "include graphics.asm" instead of "include project/graphics.asm"
 - convert more stuff to Promises
-- target ES6
 - don't have to include firebase always?
   - squelch error msgs? 
   - test offline? (if window.firebase)
@@ -198,6 +197,12 @@ TODO:
   - disk image support
   - https://github.com/cc65/cc65/issues/946
   - sample buffer skips
+
+- upgrade to ES2020?
+  - https://github.com/microsoft/TypeScript/issues/16577
+  - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules
+  - need Edge 79+
+  - no import in workers
 
 
 WEB WORKER FORMAT

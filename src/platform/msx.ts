@@ -33,7 +33,7 @@ var LIBCV_PRESETS = [
   { id: 'multicolor.c', name: 'Multicolor Mode' },
   { id: 'siegegame.c', name: 'Siege Game' },
   { id: 'shoot.c', name: 'Solarian Game' },
-  { id: 'climber.c', name: 'Platform Game' },
+  { id: 'climber.c', name: 'Climber Game' },
 ];
 
 class MSXPlatform extends BaseZ80MachinePlatform<MSX1> implements Platform {

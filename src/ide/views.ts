@@ -389,6 +389,12 @@ export class SourceEditor implements ProjectView {
   toggleBreakpoint(lineno: number) {    
     if (this.sourcefile != null) {
       var targetPC = this.sourcefile.line2offset[lineno+1];
+      /* TODO: breakpoints
+      var bpid = "pc" + targetPC;
+      platform.setBreakpoint(bpid, () => {
+        return platform.getPC() == targetPC;
+      });
+      */
       runToPC(targetPC);
     }
   }

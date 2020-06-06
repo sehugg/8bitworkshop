@@ -388,12 +388,12 @@ typedef struct Actor {
   byte x;		// X position in pixels (8 bit)
   byte floor;		// floor index
   byte state;		// ActorState
+  sbyte yvel;		// Y velocity (when jumping)
+  sbyte xvel;		// X velocity (when jumping)
   int name:2;		// ActorType (2 bits)
   int pal:2;		// palette color (2 bits)
   int dir:1;		// direction (0=right, 1=left)
   int onscreen:1;	// is actor onscreen?
-  sbyte yvel;		// Y velocity (when jumping)
-  sbyte xvel;		// X velocity (when jumping)
 } Actor;
 
 Actor actors[MAX_ACTORS];	// all actors

@@ -410,15 +410,14 @@ typedef enum ActorState {
 typedef struct Actor {
   word yy;
   byte x;
-  byte name;
+  byte level;
+  sbyte yvel;
+  sbyte xvel;
   unsigned int color1:4;
   unsigned int color2:4;
-  byte level;
   unsigned int state:4;
   unsigned int dir:1;
   unsigned int onscreen:1;
-  sbyte yvel;
-  sbyte xvel;
 } Actor;
 
 Actor actors[MAX_ACTORS];
@@ -431,7 +430,6 @@ void create_actors_on_floor(byte level_index) {
     a->state = WALKING;
     a->color1 = level->ladder1 ^ level->ladder2;
     a->color2 = level->ladder2;
-    a->name = 0;
     a->x = level->ladder1 ^ (level->ladder2<<3) ^ (level->gap<<6);
     a->yy = get_floor_yy(level_index);
     a->level = level_index;
@@ -713,7 +711,6 @@ void play_scene() {
   actors[0].state = WALKING;
   actors[0].color1 = 0x1;
   actors[0].color2 = 0xb;
-  actors[0].name = 0;
   actors[0].x = 64;
   actors[0].yy = get_floor_yy(0);
   actors[0].level = 0;
