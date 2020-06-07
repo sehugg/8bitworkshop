@@ -586,9 +586,10 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine {
     for (var ch=0; ch<128; ch++) {
       this.setKeyInput(ch, 0, KeyFlags.KeyUp);
     }
-    if (this.prgstart) {
-      // advance BIOS
-      super.advanceFrameClock(null, 180000);
+    // is program loaded into RAM?
+    if (this.prgstart < 0x8000) {
+      // advance BIOS a few frames
+      this.exports.machine_exec(this.sys, 150000);
       // set IRQ routine @ 0x314
       var old0x314 = this.read(0x314) + this.read(0x315) * 256;
       this.write(0x314, 0x0d);
@@ -600,6 +601,15 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine {
       // reset 0x314 to old value
       this.write(0x314, old0x314 & 0xff);
       this.write(0x315, old0x314 >> 8);
+    } else {
+      // get out of reset
+      this.exports.machine_exec(this.sys, 100);
+      // wait until cartridge start
+      // TODO: detect ROM cartridge
+      var warmstart = this.romarr[0x4] + this.romarr[0x5]*256;
+      for (var i=0; i<150000 && this.getPC() != warmstart; i++) {
+        this.exports.machine_tick(this.sys);
+      }
     }
   }
   advanceFrame(trap: TrapCondition) : number {

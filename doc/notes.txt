@@ -196,13 +196,14 @@ TODO:
   - emu doesn't reset properly (after gotoxy() BIOS call)
   - disk image support
   - https://github.com/cc65/cc65/issues/946
-  - sample buffer skips
+  - sample buffer skips (need to sync w/ vsync)
 
 - upgrade to ES2020?
   - https://github.com/microsoft/TypeScript/issues/16577
   - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules
   - need Edge 79+
   - no import in workers
+  - copy to gen/ directory (allowJs is weird)
 
 
 WEB WORKER FORMAT
