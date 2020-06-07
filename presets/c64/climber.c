@@ -247,9 +247,9 @@ void make_floors() {
     } while (ladder_in_gap(lev->ladder1, lev->gap) || 
              ladder_in_gap(lev->ladder2, lev->gap));
     if (i > 0) {
-      lev->objtype = rndint(1,3);
+      lev->objtype = rndint(0,3);
       do {
-        lev->objpos = rndint(2,COLS-7);
+        lev->objpos = rndint(5,COLS-7);
       } while (ladder_in_gap(lev->objpos, lev->gap));
     }
     lev->ypos = y;

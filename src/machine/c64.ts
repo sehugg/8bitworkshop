@@ -572,8 +572,6 @@ import { TrapCondition } from "../common/devices";
 export class C64_WASMMachine extends BaseWASMMachine implements Machine {
 
   prgstart : number;
-  initstring : string;
-  initindex : number;
   joymask0 = 0;
 
   reset() {
@@ -584,26 +582,28 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine {
       this.prgstart = this.romarr[0] + (this.romarr[1]<<8); // TODO: get starting address
       if (this.prgstart == 0x801) this.prgstart = 0x80d;
     }
-    // set init string
-    if (this.prgstart) {
-      this.initstring = "\r\r\r\r\r\r\r\r\r\r\rSYS " + this.prgstart + "\r";
-      this.initindex = 0;
-    }
     // clear keyboard
     for (var ch=0; ch<128; ch++) {
       this.setKeyInput(ch, 0, KeyFlags.KeyUp);
     }
+    if (this.prgstart) {
+      // advance BIOS
+      super.advanceFrameClock(null, 180000);
+      // set IRQ routine @ 0x314
+      var old0x314 = this.read(0x314) + this.read(0x315) * 256;
+      this.write(0x314, 0x0d);
+      this.write(0x315, 0x08);
+      // wait until IRQ fires
+      for (var i=0; i<50000 && this.getPC() != this.prgstart; i++) {
+        this.exports.machine_tick(this.sys);
+      }
+      // reset 0x314 to old value
+      this.write(0x314, old0x314 & 0xff);
+      this.write(0x315, old0x314 >> 8);
+    }
   }
   advanceFrame(trap: TrapCondition) : number {
-    this.typeInitString(); // type init string into console (TODO: doesnt work during debug)
     return super.advanceFrameClock(trap, 19656+295); // TODO: can we sync with VSYNC?
-  }
-  typeInitString() {
-    if (this.initstring) {
-      var ch = this.initstring.charCodeAt(this.initindex >> 1);
-      this.setKeyInput(ch, 0, (this.initindex&1) ? KeyFlags.KeyUp : KeyFlags.KeyDown);
-      if (++this.initindex >= this.initstring.length*2) this.initstring = null;
-    }
   }
   getCPUState() {
     this.exports.machine_save_cpu_state(this.sys, this.cpustateptr);
