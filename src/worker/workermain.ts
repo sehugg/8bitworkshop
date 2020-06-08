@@ -95,8 +95,8 @@ var PLATFORM_PARAMS = {
     data_start: 0x9800,
     data_size: 0x2800,
     stack_end: 0xc000,
-    extra_link_files: ['williams.scr', 'libcmoc-crt-usim.a', 'libcmoc-std-usim.a'],
-    extra_link_args: ['-swilliams.scr', '-lcmoc-crt-usim', '-lcmoc-std-usim'],
+    extra_link_files: ['williams.scr', 'libcmoc-crt-vec.a', 'libcmoc-std-vec.a'],
+    extra_link_args: ['-swilliams.scr', '-lcmoc-crt-vec', '-lcmoc-std-vec'],
   },
   'williams-z80': {
     code_start: 0x0,
@@ -440,7 +440,7 @@ function anyTargetChanged(step:BuildStep, targets:string[]) {
 
 function execMain(step:BuildStep, mod, args:string[]) {
   starttime();
-  var run = mod.callMain || mod.run;
+  var run = mod.callMain || mod.run; // TODO: run?
   run(args);
   endtime(step.tool);
 }

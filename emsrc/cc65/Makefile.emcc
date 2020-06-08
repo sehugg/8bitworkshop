@@ -8,7 +8,7 @@ js/%.js: bin/%.bc
 		-s ASM_JS=1 \
 		-s MODULARIZE=1 \
 		-s EXPORT_NAME=\"'$*'\" \
-		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS","callMain"]' \
 		-s FORCE_FILESYSTEM=1 \
 		bin/$*.bc -o $@ $(ARGS_$*)
 

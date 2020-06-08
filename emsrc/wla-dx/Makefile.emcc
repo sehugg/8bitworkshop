@@ -40,7 +40,7 @@ js/%.js: bin/%.bc
 		-s WASM=0 \
 		-s MODULARIZE=1 \
 		-s EXPORT_NAME=\"'$(subst -,_,$*)'\" \
-		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS","callMain"]' \
 		-s FORCE_FILESYSTEM=1 \
 		$< -o $@ $(ARGS_$*)
 
@@ -49,7 +49,7 @@ wasm/%.js: bin/%.bc
 		-s WASM=1 \
 		-s MODULARIZE=1 \
 		-s EXPORT_NAME=\"'$(subst -,_,$*)'\" \
-		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS","callMain"]' \
 		-s FORCE_FILESYSTEM=1 \
 		$< -o $@ $(ARGS_$*)
 

@@ -15,7 +15,7 @@ js/%.js: %.bc
 		-s MODULARIZE=1 \
 		-s ALLOW_MEMORY_GROWTH=1 \
 		-s EXPORT_NAME=\"'$*'\" \
-		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS","callMain"]' \
 		-s FORCE_FILESYSTEM=1 \
 		$< -o $@ $(ARGS_$*) \
 
@@ -27,7 +27,7 @@ wasm/%.js: %.bc
 		-s NO_EXIT_RUNTIME=1 \
 		-s BINARYEN_ASYNC_COMPILATION=0 \
 		-s EXPORT_NAME=\"'$*'\" \
-		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+		-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS","callMain"]' \
 		-s FORCE_FILESYSTEM=1 \
 		$< -o $@ $(ARGS_$*) \
 
