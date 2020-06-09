@@ -3,6 +3,8 @@ import { Platform, BaseZ80Platform, Base6502Platform, Base6809Platform } from ".
 import { PLATFORMS, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, VectorVideo, Keys, makeKeycodeMap } from "../common/emu";
 import { hex, lzgmini, stringToByteArray, safe_extend } from "../common/util";
 import { MasterAudio, AY38910_Audio } from "../common/audio";
+import { ProbeRecorder } from "../common/recorder";
+import { NullProbe, Probeable, ProbeAll } from "../common/devices";
 
 // emulator from https://github.com/raz0red/jsvecx
 // https://roadsidethoughts.com/vectrex/vectrex-memory-map.htm
@@ -14,19 +16,19 @@ import { MasterAudio, AY38910_Audio } from "../common/audio";
 
 var VECTREX_PRESETS = [
   { id: 'hello.xasm', name: 'Hello World (ASM)' },
+  { id: 'hello.c', name: 'Hello World (CMOC)' },
 ]
 
+// TODO: player 2
 var VECTREX_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.B, 3, 0xff],
-  [Keys.A, 4, 0xff],
-  [Keys.SELECT, 8, 0xff],
-  [Keys.VK_6, 9, 0xff],
-  [Keys.VK_7, 10, 0xff],
-  [Keys.START, 11, 0xff],
-  [Keys.P2_START, 12, 0xff],
-  [Keys.UP, 13, 0xff],
-  [Keys.RIGHT, 14, 0xff],
-  [Keys.LEFT, 15, 0xff],
+  [Keys.LEFT,  0, 0x01],
+  [Keys.RIGHT, 0, 0x02],
+  [Keys.DOWN,  0, 0x04],
+  [Keys.UP,    0, 0x08],
+  [Keys.GP_A,  2, 0x01],
+  [Keys.GP_B,  2, 0x02],
+  [Keys.GP_C,  2, 0x04],
+  [Keys.GP_D,  2, 0x08],
 ]);
 
 //
@@ -137,7 +139,7 @@ class VIA6522 {
           /* continuous interrupt mode */
           this.ifr |= 0x40;
           this.int_update();
-          this.t1pb7 = 0x80 - this.t1pb7;
+          this.t1pb7 ^= 0x80;
           /* reload counter */
           this.t1c = (this.t1lh << 8) | this.t1ll;
         }
@@ -284,6 +286,7 @@ class VIA6522 {
         if ((this.orb & 0x18) == 0x08) {
           /* the snd chip is driving port a */
           data = this.vectrex.psg.readData();
+          //console.log(this.vectrex.psg.currentRegister(), data);
         }
         else {
           data = this.ora;
@@ -484,10 +487,14 @@ const Globals =
   VECTREX_COLORS: 128,     /* number of possible colors ... grayscale */
   ALG_MAX_X: 33000,
   ALG_MAX_Y: 41000,
-  VECTREX_PDECAY: 30, /* phosphor decay rate */
-  VECTOR_HASH: 65521,
-  SCREEN_X_DEFAULT: 330,
-  SCREEN_Y_DEFAULT: 410
+  //VECTREX_PDECAY: 30, /* phosphor decay rate */
+  //VECTOR_HASH: 65521,
+  SCREEN_X_DEFAULT: 900,
+  SCREEN_Y_DEFAULT: 1100,
+  BOUNDS_MIN_X: 0,
+  BOUNDS_MAX_X: 30000,
+  BOUNDS_MIN_Y: 41000,
+  BOUNDS_MAX_Y: 0,
 };
 
 class VectrexAnalog {
@@ -616,14 +623,14 @@ class VectrexAnalog {
     var sig_ramp = 0;
     var sig_blank = 0;
 
-    if ((via.acr & 0x10) == 0x10) {
+    if (via.acr & 0x10) {
       sig_blank = via.cb2s;
     }
     else {
       sig_blank = via.cb2h;
     }
 
-    if (via.ca2) // pulse mode
+    if (via.ca2 == 0)
     {
       /* need to force the current point to the 'orgin' so just
        * calculate distance to origin and use that as dx,dy.
@@ -648,6 +655,7 @@ class VectrexAnalog {
         sig_dy = 0;
       }
     }
+    //if (sig_dx || sig_dy) console.log(via.ca2, this.curr_x, this.curr_y, this.dx, this.dy, sig_dx, sig_dy, sig_ramp, sig_blank);
 
     if (!this.vectoring) {
       if (sig_blank == 1 &&
@@ -724,6 +732,11 @@ class VectrexAnalog {
   addline(x0, y0, x1, y1, color) {
     // TODO
     //console.log(x0, y0, x1, y1, color);
+    x0 = (x0 - Globals.BOUNDS_MIN_X) / (Globals.BOUNDS_MAX_X - Globals.BOUNDS_MIN_X) * Globals.SCREEN_X_DEFAULT;
+    x1 = (x1 - Globals.BOUNDS_MIN_X) / (Globals.BOUNDS_MAX_X - Globals.BOUNDS_MIN_X) * Globals.SCREEN_X_DEFAULT;
+    y0 = (y0 - Globals.BOUNDS_MIN_Y) / (Globals.BOUNDS_MAX_Y - Globals.BOUNDS_MIN_Y) * Globals.SCREEN_Y_DEFAULT;
+    y1 = (y1 - Globals.BOUNDS_MIN_Y) / (Globals.BOUNDS_MAX_Y - Globals.BOUNDS_MIN_Y) * Globals.SCREEN_Y_DEFAULT;
+    this.vectrex.video.drawLine(x0, y0, x1, y1, color, 7);
   }
 
   saveState() {
@@ -772,9 +785,8 @@ class VectrexPlatform extends Base6809Platform {
     this.alg = new VectrexAnalog(this);
     this.bios = padBytes(new lzgmini().decode(stringToByteArray(atob(VECTREX_FASTROM_LZG))), 0x2000);
     this.ram = new Uint8Array(0x400);
-    this.inputs = new Uint8Array(16);
-    this.bus = {
-
+    this.inputs = new Uint8Array(4);
+    var mbus = {
       read: newAddressDecoder([
         [0x0000, 0x7fff, 0, (a) => { return this.rom && this.rom[a]; }],
         [0xc800, 0xcfff, 0x3ff, (a) => { return this.ram[a]; }],
@@ -787,26 +799,43 @@ class VectrexPlatform extends Base6809Platform {
         [0xd000, 0xd7ff, 0x3ff, (a, v) => { this.via.write(a & 0xf, v); }],
         [0xd800, 0xdfff, 0x3ff, (a, v) => { this.ram[a] = v; this.via.write(a & 0xf, v); }],
       ])
-
+    };
+    this.bus = {
+      read: (a) => { var v = mbus.read(a); this.probe.logRead(a,v); return v; },
+      write: (a,v) => { this.probe.logWrite(a,v); mbus.write(a,v); }
     };
     this._cpu = this.newCPU(this.bus);
     // create video/audio
-    this.video = new VectorVideo(this.mainElement, 660, 820);
+    this.video = new VectorVideo(this.mainElement, Globals.SCREEN_X_DEFAULT, Globals.SCREEN_Y_DEFAULT);
+    this.video.persistenceAlpha = 0.2;
     this.audio = new MasterAudio();
     this.psg = new AY38910_Audio(this.audio);
     this.video.create();
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
-    setKeyboardFromMap(this.video, this.inputs, VECTREX_KEYCODE_MAP);
+    setKeyboardFromMap(this.video, this.inputs, VECTREX_KEYCODE_MAP); // true = always send function);
   }
 
-  advance() {
+  updateControls() {
+    // joystick (analog simulation)
+    this.alg.jch0 = (this.inputs[0] & 0x1) ? 0x00 : (this.inputs[0] & 0x2) ? 0xff : 0x80;
+    this.alg.jch1 = (this.inputs[0] & 0x4) ? 0x00 : (this.inputs[0] & 0x8) ? 0xff : 0x80;
+    // buttons (digital)
+    this.psg.psg.register[14] = ~this.inputs[2];
+  }
+
+  advance(novideo:boolean) {
+    if (!novideo) this.video.clear();
+    this.updateControls();
+    this.probe.logNewFrame();
     var cycles = 1500000 / 60;
     while (cycles > 0) {
+      this.probe.logExecute(this.getPC(), this.getSP());
       if (this.via.ifr & 0x80) {
         this._cpu.interrupt();
       }
       var n = this.runCPU(this._cpu, 1);
       if (n == 0) n = 1; // TODO?
+      this.probe.logClocks(n);
       cycles -= n;
       for (; n > 0; n--) {
         this.via.step0();
@@ -918,6 +947,22 @@ class VectrexPlatform extends Base6809Platform {
       case 'ANALOG': return this.alg.toLongString(state.alg);
       default: return super.getDebugInfo(category, state);
     }
+  }
+
+  // probing
+  nullProbe = new NullProbe();
+  probe : ProbeAll = this.nullProbe;
+
+  startProbing?() : ProbeRecorder {
+    var rec = new ProbeRecorder(this);
+    this.connectProbe(rec);
+    return rec;
+  }
+  stopProbing?() : void {
+    this.connectProbe(null);
+  }
+  connectProbe(probe:ProbeAll) {
+    this.probe = probe || this.nullProbe;
   }
 }
 

@@ -2371,6 +2371,7 @@ return {
         reset();
     },
     getPC: function() { return PC; },
+    getSP: function() { return rS; },
     saveState: function() {
         return {
             PC:PC,

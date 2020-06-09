@@ -589,9 +589,6 @@ export abstract class Base6809Platform extends BaseZ80Platform {
     return cpu;
   }
 
-  getPC() { return this._cpu.PC; }
-  getSP() { return this._cpu.SP; }
-
   cpuStateToLongString(c:CpuState) {
     return cpuStateToLongString_6809(c);
   }

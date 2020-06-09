@@ -253,7 +253,9 @@ var PLATFORM_PARAMS = {
     data_start: 0xc880,
     data_size: 0x380,
     stack_end: 0xcc00,
+    extra_compile_files: ['assert.h','cmoc.h','stdarg.h','vectrex.h','stdlib.h','bios.h'],
     extra_link_files: ['vectrex.scr', 'libcmoc-crt-vec.a', 'libcmoc-std-vec.a'],
+    extra_compile_args: ['--vectrex'],
     extra_link_args: ['-svectrex.scr', '-lcmoc-crt-vec', '-lcmoc-std-vec'],
   },
 };
@@ -2099,12 +2101,6 @@ function compileCMOC(step:BuildStep) {
       //logReadFiles:true,
       print:match_fn,
       printErr:match_fn,
-      //arguments:args,
-      /*
-      locateFile: (path,prefix) => {
-        return prefix + 'wasm/' + path;
-      }
-      */
     });
     // load source file and preprocess
     var code = getWorkFileAsString(step.path);
@@ -2117,6 +2113,9 @@ function compileCMOC(step:BuildStep) {
     populateFiles(step, FS);
     FS.writeFile(step.path, code);
     fixParamsWithDefines(step.path, params);
+    if (params.extra_compile_args) {
+      args.unshift.apply(args, params.extra_compile_args);
+    }
     execMain(step, CMOC, args);
     if (errors.length)
       return {errors:errors};

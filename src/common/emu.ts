@@ -349,6 +349,8 @@ export const Keys = {
     B:        {c: 16,  n: "Shift", plyr:0, button:1},
     GP_A:     {c: 88,  n: "X",     plyr:0, button:0},
     GP_B:     {c: 90,  n: "Z",     plyr:0, button:1},
+    GP_C:     {c: 83,  n: "S",     plyr:0, button:2},
+    GP_D:     {c: 65,  n: "A",     plyr:0, button:3},
     SELECT:   {c: 220, n: "\\",    plyr:0, button:8},
     START:    {c: 13,  n: "Enter", plyr:0, button:9},
     // gamepad and keyboard (player 1)
