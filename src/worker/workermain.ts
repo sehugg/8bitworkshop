@@ -247,6 +247,15 @@ var PLATFORM_PARAMS = {
   },
   'kim1': {
   },
+  'vectrex': {
+    code_start: 0x0,
+    rom_size: 0x8000,
+    data_start: 0xc880,
+    data_size: 0x380,
+    stack_end: 0xcc00,
+    extra_link_files: ['vectrex.scr', 'libcmoc-crt-vec.a', 'libcmoc-std-vec.a'],
+    extra_link_args: ['-svectrex.scr', '-lcmoc-crt-vec', '-lcmoc-std-vec'],
+  },
 };
 
 PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];

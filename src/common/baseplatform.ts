@@ -501,7 +501,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   isStable() { return true; }
 
   // TODO: refactor other parts into here
-  runCPU(cpu, cycles:number) {
+  runCPU(cpu, cycles:number) : number {
     this._cpu = cpu; // TODO?
     this.waitCycles = 0; // TODO: needs to spill over betwenn calls
     if (this.wasBreakpointHit())
@@ -565,6 +565,7 @@ export function cpuStateToLongString_6809(c) {
   }
   return "PC " + hex(c.PC,4) + "  " + decodeFlags(c.CC) + "\n"
        + "SP " + hex(c.SP,4) + "\n"
+       + "DP " + hex(c.DP,2) + "\n"
        + " A " + hex(c.A,2) + "\n"
        + " B " + hex(c.B,2) + "\n"
        + " X " + hex(c.X,4) + "\n"
