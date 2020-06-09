@@ -29,6 +29,15 @@ var VECTREX_KEYCODE_MAP = makeKeycodeMap([
   [Keys.GP_B,  2, 0x02],
   [Keys.GP_C,  2, 0x04],
   [Keys.GP_D,  2, 0x08],
+
+  [Keys.P2_LEFT,  1, 0x01],
+  [Keys.P2_RIGHT, 1, 0x02],
+  [Keys.P2_DOWN,  1, 0x04],
+  [Keys.P2_UP,    1, 0x08],
+  [Keys.P2_GP_A,  2, 0x10],
+  [Keys.P2_GP_B,  2, 0x20],
+  [Keys.P2_GP_C,  2, 0x40],
+  [Keys.P2_GP_D,  2, 0x80],
 ]);
 
 //
@@ -815,10 +824,13 @@ class VectrexPlatform extends Base6809Platform {
     setKeyboardFromMap(this.video, this.inputs, VECTREX_KEYCODE_MAP); // true = always send function);
   }
 
+  // TODO: loadControlsState
   updateControls() {
     // joystick (analog simulation)
     this.alg.jch0 = (this.inputs[0] & 0x1) ? 0x00 : (this.inputs[0] & 0x2) ? 0xff : 0x80;
     this.alg.jch1 = (this.inputs[0] & 0x4) ? 0x00 : (this.inputs[0] & 0x8) ? 0xff : 0x80;
+    this.alg.jch2 = (this.inputs[1] & 0x1) ? 0x00 : (this.inputs[1] & 0x2) ? 0xff : 0x80;
+    this.alg.jch3 = (this.inputs[1] & 0x4) ? 0x00 : (this.inputs[1] & 0x8) ? 0xff : 0x80;
     // buttons (digital)
     this.psg.psg.register[14] = ~this.inputs[2];
   }

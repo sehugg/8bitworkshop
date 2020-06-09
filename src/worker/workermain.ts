@@ -95,6 +95,7 @@ var PLATFORM_PARAMS = {
     data_start: 0x9800,
     data_size: 0x2800,
     stack_end: 0xc000,
+    //extra_compile_args: ['--vectrex'],
     extra_link_files: ['williams.scr', 'libcmoc-crt-vec.a', 'libcmoc-std-vec.a'],
     extra_link_args: ['-swilliams.scr', '-lcmoc-crt-vec', '-lcmoc-std-vec'],
   },
@@ -2192,7 +2193,7 @@ function linkLWLINK(step:BuildStep) {
     var args = [
       '-L.',
       '--entry=program_start',
-      '--format=raw',
+      '--raw',
       '--output=main',
       '--map=main.map'].concat(libargs, step.args);
     console.log(args);
@@ -2206,10 +2207,27 @@ function linkLWLINK(step:BuildStep) {
     // return unchanged if no files changed
     if (!anyTargetChanged(step, ["main", "main.map"]))
       return;
-    // parse symbol map (TODO: omit segments, constants)
+    // parse symbol map
+    //console.log(mapout);
     var symbolmap = {};
-    // TODO: build segment map
-    var segments = {};
+    var segments = [];
+    for (var s of mapout.split("\n")) {
+      var toks = s.split(" ");
+      // TODO: use regex
+      if (toks[0] == 'Symbol:') {
+        let ident = toks[1];
+        let ofs = parseInt(toks[4], 16);
+        if (ident && ofs >= 0 && !ident.startsWith("l_")) {
+          symbolmap[ident] = ofs;
+        }
+      }
+      else if (toks[0] == 'Section:') {
+        let seg = toks[1];
+        let segstart = parseInt(toks[5], 16);
+        let segsize = parseInt(toks[7], 16);
+        segments.push({name:seg, start:segstart, size:segsize});
+      }
+    }
     // build listings
     var listings : CodeListingMap = {};
     for (var fn of step.files) {

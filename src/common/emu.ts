@@ -197,6 +197,7 @@ export class VectorVideo extends RasterVideo {
       // TODO: landscape vs portrait
       var alpha = Math.pow(intensity / 255.0, this.gamma);
       ctx.globalAlpha = alpha;
+      ctx.lineWidth = 3;
       ctx.beginPath();
       // TODO: bright dots
       var jx = this.jitter * (Math.random() - 0.5);
@@ -349,8 +350,8 @@ export const Keys = {
     B:        {c: 16,  n: "Shift", plyr:0, button:1},
     GP_A:     {c: 88,  n: "X",     plyr:0, button:0},
     GP_B:     {c: 90,  n: "Z",     plyr:0, button:1},
-    GP_C:     {c: 83,  n: "S",     plyr:0, button:2},
-    GP_D:     {c: 65,  n: "A",     plyr:0, button:3},
+    GP_C:     {c: 86,  n: "V",     plyr:0, button:2},
+    GP_D:     {c: 67,  n: "C",     plyr:0, button:3},
     SELECT:   {c: 220, n: "\\",    plyr:0, button:8},
     START:    {c: 13,  n: "Enter", plyr:0, button:9},
     // gamepad and keyboard (player 1)
@@ -360,6 +361,10 @@ export const Keys = {
     P2_RIGHT:    {c: 68, n: "D",  plyr:1, xaxis:1},
     P2_A:        {c: 84, n: "T",  plyr:1, button:0},
     P2_B:        {c: 82, n: "R",  plyr:1, button:1},
+    P2_GP_A:     {c: 69, n: "E",  plyr:1, button:0},
+    P2_GP_B:     {c: 82, n: "R",  plyr:1, button:1},
+    P2_GP_C:     {c: 84, n: "T",  plyr:1, button:2},
+    P2_GP_D:     {c: 89, n: "Y",  plyr:1, button:3},
     P2_SELECT:   {c: 70, n: "F",  plyr:1, button:8},
     P2_START:    {c: 71, n: "G",  plyr:1, button:9},
     // keyboard only
