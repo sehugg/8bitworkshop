@@ -2074,7 +2074,7 @@ function compileCMOC(step:BuildStep) {
   loadNative("cmoc");
   var params = step.params;
   // stderr
-  var re_err1 = /^([^:]*):(\d+): (.+)$/;
+  var re_err1 = /^[/]*([^:]*):(\d+): (.+)$/;
   var errors : WorkerError[] = [];
   var errline = 0;
   function match_fn(s) {
@@ -2217,7 +2217,7 @@ function linkLWLINK(step:BuildStep) {
       if (toks[0] == 'Symbol:') {
         let ident = toks[1];
         let ofs = parseInt(toks[4], 16);
-        if (ident && ofs >= 0 && !ident.startsWith("l_")) {
+        if (ident && ofs >= 0 && !ident.startsWith("l_") && !/^L\d+$/.test(ident)) {
           symbolmap[ident] = ofs;
         }
       }
@@ -2235,7 +2235,8 @@ function linkLWLINK(step:BuildStep) {
         // TODO
         var lstout = FS.readFile(fn, {encoding:'utf8'});
         var asmlines = parseListing(lstout, /^([0-9A-F]+)\s+([0-9A-F]+)\s+[(]\s*(.+?)[)]:(\d+) (.*)/i, 4, 1, 2, 3);
-        var srclines = [];
+        // * Line //threed.c:117: init of variable e
+        var srclines = parseSourceLines(lstout, /Line .+?:(\d+)/i, /^([0-9A-F]{4})/i);
         putWorkFile(fn, lstout);
         // TODO: you have to get rid of all source lines to get asm listing
         listings[fn] = {

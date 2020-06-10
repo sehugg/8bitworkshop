@@ -477,6 +477,10 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
       {name:'APU Registers',start:0x4000,last:0x4020,size:0x2000,type:'io'},
       {name:'Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
   ] } };
+
+  showHelp(tool:string, ident:string) {
+    window.open("https://8bitworkshop.com/blog/platforms/nintendo-nes.md.html", "_help"); // TODO
+  }
 }
 
 /// MAME support

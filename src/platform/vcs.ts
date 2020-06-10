@@ -303,7 +303,7 @@ class VCSPlatform extends BasePlatform {
     if (tool == 'bataribasic')
       window.open("help/bataribasic/manual.html", "_help");
     else
-      window.open("https://alienbill.com/2600/101/docs/stella.html", "_help"); // TODO
+      window.open("https://8bitworkshop.com/blog/platforms/atari-2600-vcs.md.html", "_help"); // TODO
   }
 
   getMemoryMap = function() { return {main:[

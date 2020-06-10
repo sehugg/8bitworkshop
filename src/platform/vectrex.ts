@@ -17,6 +17,8 @@ import { NullProbe, Probeable, ProbeAll } from "../common/devices";
 var VECTREX_PRESETS = [
   { id: 'hello.xasm', name: 'Hello World (ASM)' },
   { id: 'hello.c', name: 'Hello World (CMOC)' },
+  { id: 'joystick.c', name: 'Joystick Test (CMOC)' },
+  { id: 'threed.c', name: '3D Transformations (CMOC)' },
 ]
 
 // TODO: player 2
