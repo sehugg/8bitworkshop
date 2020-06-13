@@ -38,7 +38,7 @@ const C64_KEYCODE_MAP = makeKeycodeMap([
 ]);
 
 const C64_KEYMATRIX_NOSHIFT = [
-  Keys.VK_DELETE, Keys.VK_ENTER, Keys.VK_RIGHT, Keys.VK_F7,	Keys.VK_F1, Keys.VK_F3, Keys.VK_F5, Keys.VK_DOWN,
+  Keys.VK_DELETE, Keys.VK_ENTER, Keys.VK_RIGHT, Keys.VK_F10,	Keys.VK_F2, Keys.VK_F4, Keys.VK_F8, Keys.VK_DOWN,
   Keys.VK_3, Keys.VK_W, Keys.VK_A, Keys.VK_4,			Keys.VK_Z, Keys.VK_S, Keys.VK_E, Keys.VK_SHIFT,
   Keys.VK_5, Keys.VK_R, Keys.VK_D, Keys.VK_6,			Keys.VK_C, Keys.VK_F, Keys.VK_T, Keys.VK_X,
   Keys.VK_7, Keys.VK_Y, Keys.VK_G, Keys.VK_8,			Keys.VK_B, Keys.VK_H, Keys.VK_U, Keys.VK_V,
@@ -573,6 +573,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine {
 
   prgstart : number;
   joymask0 = 0;
+  joymask1 = 0;
 
   reset() {
     super.reset();
@@ -660,17 +661,30 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine {
     //if (flags & KeyFlags.Shift) { key += 64; }
     // convert to c64
     var mask = 0;
+    var mask2 = 0;
     if (key == 37) { key = 0x8; mask = 0x4; } // LEFT
     if (key == 38) { key = 0xb; mask = 0x1; } // UP
     if (key == 39) { key = 0x9; mask = 0x8; } // RIGHT
     if (key == 40) { key = 0xa; mask = 0x2; } // DOWN
+    if (key == 32) { mask = 0x10; } // FIRE
+    if (key == 65) { key = 65; mask2 = 0x4; } // LEFT
+    if (key == 87) { key = 87; mask2 = 0x1; } // UP
+    if (key == 68) { key = 68; mask2 = 0x8; } // RIGHT
+    if (key == 83) { key = 83; mask2 = 0x2; } // DOWN
+    if (key == 69) { mask2 = 0x10; } // FIRE
+    if (key == 113) { key = 0xf1; } // F2
+    if (key == 115) { key = 0xf3; } // F4
+    if (key == 119) { key = 0xf5; } // F8
+    if (key == 121) { key = 0xf7; } // F10
     if (flags & KeyFlags.KeyDown) {
       this.exports.machine_key_down(this.sys, key);
       this.joymask0 |= mask;
+      this.joymask1 |= mask2;
     } else if (flags & KeyFlags.KeyUp) {
       this.exports.machine_key_up(this.sys, key);
       this.joymask0 &= ~mask;
+      this.joymask1 &= ~mask2;
     }
-    this.exports.c64_joystick(this.sys, this.joymask0, 0); // TODO: c64
+    this.exports.c64_joystick(this.sys, this.joymask0, this.joymask1);
   }
 }
