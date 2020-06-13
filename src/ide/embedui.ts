@@ -130,11 +130,10 @@ function recordVideo(intervalMsec, maxFrames, callback) {
  });
 }
 
-
-function startPlatform(qs) {
+async function startPlatform(qs) {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   platform = new PLATFORMS[platform_id]($("#emuscreen")[0]);
-  platform.start();
+  await platform.start();
   // start recorder when click on canvas (TODO?)
   if (qs['rec']) {
     findPrimaryCanvas().on('focus', () => {
@@ -164,21 +163,32 @@ function startPlatform(qs) {
   return true;
 }
 
-function loadPlatform(qs) {
+// TODO: merge with ui
+async function loadPlatform(qs) {
   if (qs.data) qs = qs.data;
   platform_id = qs['p'];
   if (!platform_id) throw('No platform variable!');
   var platformfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js'; // required file
   var machinefn  = platformfn.replace('/platform/', '/machine/'); // optional file
-  loadScript(platformfn).then( () => {
-    return loadScript(machinefn).catch(() => { console.log('skipped',machinefn); }); // optional file skipped
-  }).then( () => {
+  try {
+    await loadScript(platformfn); // load platform file
+  } catch (e) {
+    console.log(e);
+    throw('Platform "' + platform_id + '" not supported.');
+    return;
+  }
+  try {
+    await loadScript(machinefn); // load machine file
+  } catch (e) {
+    console.log('skipped',machinefn); // optional file skipped
+  }
+  try {
     console.log("starting platform", platform_id); // loaded required <platform_id>.js file
-    startPlatform(qs);
-  }).catch( (e) => {
+    await startPlatform(qs);
+  } catch (e) {
     console.log(e);
     alert('Platform "' + platform_id + '" not supported.');
-  });
+  }
 }
 
 export function loadScript(scriptfn:string) : Promise<Event> {

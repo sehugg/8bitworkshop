@@ -412,3 +412,27 @@ cc65 headers
 example headers (presets/*/*.h)
 libcv headers (src/worker/lib)
 ASM includes
+
+
+NETPLAY
+
+runs alongside of emulator, doesn't modify controls (just state)
+when controls change: player sends control inputs + frame#
+add latency so clients more often are in sync
+if miss latency window, client syncs state (moves forward a few frames?)
+state checksum?
+socket.io
+
+
+X86
+
+https://github.com/freebasic/fbc
+GW-BASIC
+http://www.grifo.com/SOFT/Pacific/uk_pacific.html
+http://www.cpm.z80.de/small_c.html
+https://github.com/open-watcom
+Free Pascal
+https://bellard.org/tcc/
+https://wiki.osdev.org/Smaller_C
+https://yasm.tortall.net/
+https://wiki.osdev.org/Tool_Comparison
