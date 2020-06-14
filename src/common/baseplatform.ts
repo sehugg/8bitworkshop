@@ -1193,7 +1193,7 @@ export abstract class BaseWASMMachine {
   }
   async loadWASM() {
     // fetch WASM
-    var wasmResponse = await fetch('wasm/'+this.prefix+'.wasm');
+    var wasmResponse = await fetch('res/'+this.prefix+'.wasm');
     var wasmBinary = await wasmResponse.arrayBuffer();
     var wasmCompiled = await WebAssembly.compile(wasmBinary);
     var wasmResult = await WebAssembly.instantiate(wasmCompiled);
@@ -1201,7 +1201,7 @@ export abstract class BaseWASMMachine {
     this.exports = wasmResult.exports;
     this.exports.memory.grow(32);
     // fetch BIOS
-    var biosResponse = await fetch('wasm/'+this.prefix+'.bios');
+    var biosResponse = await fetch('res/'+this.prefix+'.bios');
     var biosBinary = await biosResponse.arrayBuffer();
     const cBIOSPointer = this.exports.malloc(0x5000);
     const srcArray = new Uint8Array(biosBinary);

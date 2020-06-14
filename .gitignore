@@ -6,4 +6,5 @@ local
 ./test/output
 tests_output/
 .DS_Store
-tmp
+tmp/
+web/

@@ -77,6 +77,8 @@ var TOOL_TO_SOURCE_STYLE = {
   'js': 'javascript',
   'xasm6809': 'z80',
   'cmoc': 'text/x-csrc',
+  'yasm': 'gas',
+  'smlrc': 'text/x-csrc',
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {
@@ -1496,11 +1498,11 @@ function addFileToProject(type, ext, linefn) {
     alertError("Can't insert text in this window -- switch back to main file");
   }
 }
-
+// TODO: lwtools and smaller c
 function _addIncludeFile() {
   var fn = getCurrentMainFilename();
   var tool = platform.getToolForFilename(fn);
-  if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65')
+  if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65' || tool == 'cmoc' || tool == 'smlrc')
     addFileToProject("Header", ".h", (s) => { return '#include "'+s+'"' });
   else if (tool == 'dasm' || tool == 'zmac')
     addFileToProject("Include File", ".inc", (s) => { return '\tinclude "'+s+'"' });
@@ -1515,9 +1517,9 @@ function _addIncludeFile() {
 function _addLinkFile() {
   var fn = getCurrentMainFilename();
   var tool = platform.getToolForFilename(fn);
-  if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65')
+  if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65' || tool == 'cmoc' || tool == 'smlrc')
     addFileToProject("Linked C (or .s)", ".c", (s) => { return '//#link "'+s+'"' });
-  else if (fn.endsWith("asm") || fn.endsWith(".s") || tool == 'ca65')
+  else if (fn.endsWith("asm") || fn.endsWith(".s") || tool == 'ca65' || tool == 'lwasm')
     addFileToProject("Linked ASM", ".inc", (s) => { return ';#link "'+s+'"' });
   else
     alertError("Can't add linked file to this project type (" + tool + ")");

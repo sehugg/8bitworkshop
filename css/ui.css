@@ -558,3 +558,11 @@ div.asset_toolbar {
 .book-title {
   font-size:12pt;
 }
+.pc-console {
+  background-color: #000;
+  color: #7f7f7f;
+  white-space: pre;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+  font-size: 10pt;
+  line-height: 1.2;
+}
