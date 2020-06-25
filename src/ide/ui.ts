@@ -390,6 +390,7 @@ function _uploadNewFile(e) {
   $("#uploadFileElem").click();
 }
 
+// called from index.html
 function handleFileUpload(files: File[]) {
   console.log(files);
   var index = 0;
@@ -402,11 +403,19 @@ function handleFileUpload(files: File[]) {
         setTimeout(updateSelector, 1000); // TODO: wait for files to upload
       } else {
         qs['file'] = files[0].name;
-        if (confirm("Open '" + qs['file'] + "' as project?")) {
-          gotoNewLocation();
-        } else {
-          setTimeout(updateSelector, 1000); // TODO: wait for files to upload
-        }
+        bootbox.confirm({
+          message: "Open '" + qs['file'] + "' as main project file?",
+          buttons: {
+            confirm: { label: "Open As New Project" },
+            cancel: { label: "Include/Link With Project Later" },
+          },
+          callback: (result) => {
+            if (result)
+              gotoNewLocation();
+            else
+              setTimeout(updateSelector, 1000); // TODO: wait for files to upload
+          }
+        });
       }
       gaEvent('workspace', 'file', 'upload');
     } else {
