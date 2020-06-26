@@ -580,8 +580,12 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine {
     // load rom
     if (this.romptr && this.romlen) {
       this.exports.machine_load_rom(this.sys, this.romptr, this.romlen);
-      this.prgstart = this.romarr[0] + (this.romarr[1]<<8); // TODO: get starting address
-      if (this.prgstart == 0x801) this.prgstart = 0x80d;
+      this.prgstart = this.romarr[0] + (this.romarr[1]<<8); // get load address
+      // look for BASIC program start
+      if (this.prgstart == 0x801) {
+        this.prgstart = this.romarr[2] + (this.romarr[3]<<8) + 2; // point to after BASIC program
+        console.log("prgstart", hex(this.prgstart));
+      }
     }
     // clear keyboard
     for (var ch=0; ch<128; ch++) {
@@ -593,8 +597,8 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine {
       this.exports.machine_exec(this.sys, 150000);
       // set IRQ routine @ 0x314
       var old0x314 = this.read(0x314) + this.read(0x315) * 256;
-      this.write(0x314, 0x0d);
-      this.write(0x315, 0x08);
+      this.write(0x314, this.prgstart & 0xff);
+      this.write(0x315, (this.prgstart >> 8) & 0xff);
       // wait until IRQ fires
       for (var i=0; i<50000 && this.getPC() != this.prgstart; i++) {
         this.exports.machine_tick(this.sys);

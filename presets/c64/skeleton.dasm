@@ -1,0 +1,17 @@
+
+ include "cartheader.dasm"
+
+Start
+        ldy #0
+.Loop
+        lda Message,y
+        beq .LoopExit
+	jsr $FFD2	; CHROUT
+        iny
+        bne .Loop
+.LoopExit
+	jmp .		; infinite loop
+Message
+	; PETSCII - http://sta.c64.org/cbm64pet.html
+	byte "HELLO WORLD!"
+	byte 13,0
