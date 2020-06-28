@@ -10,7 +10,7 @@ import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuSt
 import { PLATFORMS, EmuHalt, Toolbar } from "../common/emu";
 import * as Views from "./views";
 import { createNewPersistentStore } from "./store";
-import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG,
+import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG, stringToByteArray,
          byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";
 import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
@@ -498,7 +498,7 @@ function importProjectFromGithub(githuburl:string, replaceURL:boolean) {
   }
   // create new store for imported repository
   setWaitDialog(true);
-  var newstore = createNewPersistentStore(urlparse.repopath, () => { });
+  var newstore = createNewPersistentStore(urlparse.repopath);
   // import into new store
   setWaitProgress(0.25);
   return getGithubService().import(githuburl).then( (sess1:GHSession) => {
@@ -1941,6 +1941,29 @@ function loadImportedURL(url : string) {
   }, 'text');
 }
 
+async function loadFormDataUpload() {
+  setWaitDialog(true);
+  for (var i=0; i<20; i++) {
+    let path = qs['file'+i+'_name'];
+    let dataenc = qs['file'+i+'_data'];
+    if (path == null || dataenc == null) break;
+    let value = dataenc;
+    if (qs['file'+i+'_type'] == 'binary') {
+      value = stringToByteArray(atob(value));
+    }
+    var olddata = await store.getItem(path);
+    if (!olddata || confirm("Replace existing file '" + path + "'?")) {
+      await store.setItem(path, value); // TODO: alert when replacing?
+      if (i == 0) { qs['file'] = path; } // set main filename
+    }
+    delete qs['file'+i+'_name'];
+    delete qs['file'+i+'_data'];
+    delete qs['file'+i+'_type'];
+  }
+  setWaitDialog(false);
+  replaceURLState();
+}
+
 function setPlatformUI() {
   var name = platform.getPlatformName && platform.getPlatformName();
   var menuitem = $('a[href="?platform='+platform_id+'"]');
@@ -1952,7 +1975,7 @@ function setPlatformUI() {
 }
 
 // start
-export function startUI() {
+export async function startUI() {
   // import from github?
   if (qs['githubURL']) {
     importProjectFromGithub(qs['githubURL'], true);
@@ -1989,15 +2012,18 @@ export function startUI() {
   setupSplits();
   // create store
   store_id = repo_id || getBasePlatform(platform_id);
-  store = createNewPersistentStore(store_id, (store) => {
-    // is this an importURL?
-    if (qs['importURL']) {
-      loadImportedURL(qs['importURL']);
-      return;
-    }
-    // load and start platform object
-    loadAndStartPlatform();
-  });
+  store = createNewPersistentStore(store_id);
+  // is this an importURL?
+  if (qs['importURL']) {
+    loadImportedURL(qs['importURL']);
+    return; // TODO: make async
+  }
+  // is this a file POST?
+  if (qs['file0_name']) {
+    await loadFormDataUpload();
+  }
+  // load and start platform object
+  loadAndStartPlatform();
 }
 
 async function loadAndStartPlatform() {
