@@ -1,11 +1,8 @@
 ;***************************************************************************
 ; DEFINE SECTION
 ;***************************************************************************
-Intensity_5F    EQU     $F2A5                   ; BIOS Intensity routine
-Print_Str_d     EQU     $F37A                   ; BIOS print routine
-Wait_Recal      EQU     $F192                   ; BIOS recalibration
-music1          EQU     $FF8F                   ; address of a (BIOS ROM)
-                                                ; music
+		USE	vectrex.inc		; include file
+
 ; start of vectrex memory with cartridge name...
                 ORG     0
 ;***************************************************************************

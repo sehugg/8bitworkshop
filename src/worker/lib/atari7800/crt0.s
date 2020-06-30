@@ -24,8 +24,40 @@ INTVEC:		.res 2
 
 .segment "HEADER"
 
-.byte $4e,$45,$53,$1a
-.res 8,0
+; A78 Header - http://7800.8bitdev.org/index.php/A78_Header_Specification
+        .byte    1  ; 0   Header version     - 1 byte
+        .byte    "ATARI7800"     ; 1..16  "ATARI7800   "  - 16 bytes
+        .res      7,32
+        .byte    "Your Name Here"; 17..48 Cart title      - 32 bytes
+	.res	 (32-.strlen("Your Name Here")),0
+        .byte    $00,$00,$c0,$00; 49..52 data length      - 4 bytes
+        .byte    $00,$00  ; 53..54 cart type      - 2 bytes
+    ;    bit 0 - pokey at $4000
+    ;    bit 1 - supergame bank switched
+    ;    bit 2 - supergame ram at $4000
+    ;    bit 3 - rom at $4000
+    ;    bit 4 - bank 6 at $4000
+    ;    bit 5 - supergame banked ram
+    ;    bit 6 - pokey at $450
+    ;    bit 7 - mirror ram at $4000
+    ;    bit 8-15 - Special
+    ;   0 = Normal cart
+        .byte    1  ; 55   controller 1 type  - 1 byte
+        .byte    1  ; 56   controller 2 type  - 1 byte
+    ;    0 = None
+    ;    1 = Joystick
+    ;    2 = Light Gun
+        .byte    0  ; 57 0 = NTSC 1 = PAL
+        .byte    0  ; 58   Save data peripheral - 1 byte (version 2)
+    ;    0 = None / unknown (default)
+    ;    1 = High Score Cart (HSC)
+    ;    2 = SaveKey
+        .byte    0,0,0,0
+        .byte    0  ; 63   Expansion module
+    ;    0 = No expansion module (default on all currently released games)
+    ;    1 = Expansion module required
+	.res	 36
+        .byte    "ACTUAL CART DATA STARTS HERE"
 
 
 .segment "STARTUP"

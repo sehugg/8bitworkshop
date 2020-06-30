@@ -103,6 +103,11 @@ export class CodeProject {
       while (m = re3.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
+      // for XASM only (USE include.ext)
+      let re4 = /^\s+(USE)\s+(\S+[.]\S+)/gm;
+      while (m = re4.exec(text)) {
+        this.pushAllFiles(files, m[2]);
+      }
     }
     return files;
   }

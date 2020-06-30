@@ -1924,7 +1924,7 @@ function assembleXASM6809(step:BuildStep) {
     alst += s;
     alst += "\n";
     if (lasterror) {
-      var line = parseInt(s.slice(0,5));
+      var line = parseInt(s.slice(0,5)) || 0;
       errors.push({
         line:line,
         msg:lasterror

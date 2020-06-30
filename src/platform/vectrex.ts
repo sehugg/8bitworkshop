@@ -28,19 +28,19 @@ var VECTREX_KEYCODE_MAP = makeKeycodeMap([
   [Keys.RIGHT, 0, 0x02],
   [Keys.DOWN,  0, 0x04],
   [Keys.UP,    0, 0x08],
-  [Keys.GP_A,  2, 0x01],
-  [Keys.GP_B,  2, 0x02],
-  [Keys.GP_C,  2, 0x04],
-  [Keys.GP_D,  2, 0x08],
+  [Keys.GP_B,  2, 0x01],
+  [Keys.GP_A,  2, 0x02],
+  [Keys.GP_D,  2, 0x04],
+  [Keys.GP_C,  2, 0x08],
 
   [Keys.P2_LEFT,  1, 0x01],
   [Keys.P2_RIGHT, 1, 0x02],
   [Keys.P2_DOWN,  1, 0x04],
   [Keys.P2_UP,    1, 0x08],
-  [Keys.P2_GP_A,  2, 0x10],
-  [Keys.P2_GP_B,  2, 0x20],
-  [Keys.P2_GP_C,  2, 0x40],
-  [Keys.P2_GP_D,  2, 0x80],
+  [Keys.P2_GP_B,  2, 0x10],
+  [Keys.P2_GP_A,  2, 0x20],
+  [Keys.P2_GP_D,  2, 0x40],
+  [Keys.P2_GP_C,  2, 0x80],
 ]);
 
 //
@@ -844,20 +844,24 @@ class VectrexPlatform extends Base6809Platform {
     this.probe.logNewFrame();
     var cycles = 1500000 / 60;
     while (cycles > 0) {
-      this.probe.logExecute(this.getPC(), this.getSP());
-      if (this.via.ifr & 0x80) {
-        this._cpu.interrupt();
-      }
-      var n = this.runCPU(this._cpu, 1);
-      if (n == 0) n = 1; // TODO?
-      this.probe.logClocks(n);
-      cycles -= n;
-      for (; n > 0; n--) {
-        this.via.step0();
-        this.alg.step();
-        this.via.step1();
-      }
+      cycles -= this.step();
     }
+  }
+
+  step() {
+    this.probe.logExecute(this.getPC(), this.getSP());
+    if (this.via.ifr & 0x80) {
+      this._cpu.interrupt();
+    }
+    var n = this.runCPU(this._cpu, 1);
+    if (n == 0) n = 1; // TODO?
+    this.probe.logClocks(n);
+    for (var i=0; i<n; i++) {
+      this.via.step0();
+      this.alg.step();
+      this.via.step1();
+    }
+    return n;
   }
 
   snd_update() {

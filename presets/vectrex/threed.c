@@ -8,16 +8,6 @@
 #include "stdlib.h"
 #include "bios.h"
 
-char rectangle[10] = {
-  // These are relative coordinates.
-  50, 0,
-  0, 50,
-  -50, 0,
-  0, -50,
-  // We also take the middle point of the rectangle which we move to before drawing.   
-  -25, -25
-};
-
 typedef struct {
   sbyte m[3][3];
 } Matrix;

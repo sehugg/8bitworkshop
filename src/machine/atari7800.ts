@@ -247,7 +247,7 @@ class MARIA {
             }
             data = this.readDMA(indadr);
           }
-          // TODO: more modes
+          // TODO: more modes (https://github.com/gstanton/ProSystem1_3/blob/master/Core/Maria.cpp)
           switch (readmode) {
             case 0:	// 160 A/B
               for (let j=0; j<4; j++) {
