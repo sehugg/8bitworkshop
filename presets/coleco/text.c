@@ -9,6 +9,7 @@ This is a demonstration of the TMS9928A's
 
 #include "common.h"
 //#link "common.c"
+//#link "fonts.s"
 
 void setup_text_mode() {
   // set screen mode to text

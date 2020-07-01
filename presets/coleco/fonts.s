@@ -4,6 +4,8 @@
 	.globl	_font_bitmap_0
 
 ;Character cell data for default font
+;(built into BIOS on ColecoVision)
+
 ;;{w:8,h:8,brev:1,count:224};;
 Font_Space:
 .DB 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 ;32

@@ -14,6 +14,7 @@ characters 0-7, the second byte for 8-15, etc.
 
 #include "common.h"
 //#link "common.c"
+//#link "fonts.s"
 
 void setup_32_column_font() {
   cv_set_screen_mode(CV_SCREENMODE_STANDARD);

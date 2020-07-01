@@ -16,6 +16,7 @@ so that standard functions like printf() can be used.
 
 #include "common.h"
 //#link "common.c"
+//#link "fonts.s"
 
 void setup_40_column_font() {
   cv_set_screen_mode(CV_SCREENMODE_TEXT);
