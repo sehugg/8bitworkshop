@@ -816,7 +816,7 @@ export abstract class BaseMAMEPlatform {
 
   loadRegion(region, data) {
     if (this.loaded && data.length > 0) {
-      //this.luacall('cart=manager:machine().images["cart"]\nprint(cart:filename())\ncart:load("' + romfn + '")\n');
+      //this.luacall('cart=manager:machine().images["cart"]\nprint(cart:filename())\ncart:load("' + region + '")\n');
       var s = 'rgn = manager:machine():memory().regions["' + region + '"]\n';
       //s += 'print(rgn.size)\n';
       for (var i=0; i<data.length; i+=4) {

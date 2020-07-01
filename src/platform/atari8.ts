@@ -446,15 +446,15 @@ const _Atari8Platform = function(mainElement) {
   start() {
     cpu = new jt.M6502();
     ram = new RAM(0x4000); // TODO
-    bios = new Uint8Array(0x800);
+    bios = new lzgmini().decode(stringToByteArray(atob(ALTIRRA_SUPERKERNEL_LZG)));
     bus = {
       // TODO: https://github.com/dmlloyd/atari800/blob/master/DOC/cart.txt
       // TODO: http://atariage.com/forums/topic/169971-5200-memory-map/
       read: newAddressDecoder([
         [0x0000, 0x3fff, 0x3fff, function(a) { return ram.mem[a]; }],
         [0x4000, 0xbfff, 0xffff, function(a) { return rom ? rom[a-0x4000] : 0; }],
-        [0xf000, 0xffff,  0x7ff, function(a) { return bios[a]; }],
         [0xd400, 0xd4ff,    0xf, function(a) { return antic.readReg(a); }],
+        [0xf800, 0xffff,  0x7ff, function(a) { return bios[a]; }],
       ]),
       write: newAddressDecoder([
         [0x0000, 0x3fff, 0xffff, function(a,v) { ram.mem[a] = v; }],
@@ -539,7 +539,6 @@ const _Atari8Platform = function(mainElement) {
 
   loadROM(title, data) {
     rom = padBytes(data, romLength);
-    rom[rom.length-3] = 0xff; // TODO
     this.reset();
   }
   
@@ -619,56 +618,14 @@ const _Atari8Platform = function(mainElement) {
   return new Atari8Platform(); // return inner class from constructor
 };
 
-// Atari 5200
-const _Atari5200Platform = function(mainElement) {
+// Atari 800
+const _Atari800Platform = function(mainElement) {
   this.__proto__ = new (_Atari8Platform as any)(mainElement);
 }
 
-
-/// MAME support
-
-abstract class Atari8MAMEPlatform extends BaseMAMEPlatform {
-  loadROM(title, data) {
-    this.loadROMFile(data);
-    this.loadRegion(":cartleft:cart:rom", data);
-  }
-  getPresets() { return Atari8_PRESETS; }
-  getToolForFilename = getToolForFilename_6502;
-  getDefaultExtension() { return ".c"; };
-}
-
-class Atari800MAMEPlatform extends Atari8MAMEPlatform implements Platform {
-  start() {
-    this.startModule(this.mainElement, {
-      jsfile:'mameatari400.js',
-      biosfile:'a400.zip', // TODO: load multiple files
-      //cfgfile:'atari5200.cfg',
-      driver:'a400',
-      width:336*2,
-      height:225*2,
-      romfn:'/emulator/cart.rom',
-      romsize:0x2000,
-      preInit:function(_self) {
-      },
-    });
-  }
-}
-
-class Atari5200MAMEPlatform extends Atari8MAMEPlatform implements Platform {
-  start() {
-    this.startModule(this.mainElement, {
-      jsfile:'mameatari400.js',
-      biosfile:'a5200/5200.rom',
-      //cfgfile:'atari5200.cfg',
-      driver:'a5200',
-      width:336*2,
-      height:225*2,
-      romfn:'/emulator/cart.rom',
-      romsize:0x2000,
-      preInit:function(_self) {
-      },
-    });
-  }
+// Atari 5200
+const _Atari5200Platform = function(mainElement) {
+  this.__proto__ = new (_Atari8Platform as any)(mainElement);
 }
 
 ///
@@ -813,6 +770,92 @@ for (var i=0; i<256; i++) {
 
 ///
 
+/// MAME support
+
+abstract class Atari8MAMEPlatform extends BaseMAMEPlatform {
+  loadROM(title, data) {
+    this.loadROMFile(data);
+    this.loadRegion(":cartleft:cart:rom", data);
+  }
+  getPresets() { return Atari8_PRESETS; }
+  getToolForFilename = getToolForFilename_6502;
+  getDefaultExtension() { return ".c"; };
+}
+
+class Atari800MAMEPlatform extends Atari8MAMEPlatform implements Platform {
+  start() {
+    this.startModule(this.mainElement, {
+      jsfile:'mameatari400.js',
+      biosfile:'a400.zip', // TODO: load multiple files
+      //cfgfile:'atari5200.cfg',
+      driver:'a400',
+      width:336*2,
+      height:225*2,
+      romfn:'/emulator/cart.rom',
+      romsize:0x2000,
+      preInit:function(_self) {
+      },
+    });
+  }
+}
+
+class Atari5200MAMEPlatform extends Atari8MAMEPlatform implements Platform {
+  loadROM(title, data) {
+    if (!this.started) {
+      this.startModule(this.mainElement, {
+        jsfile:'mameatari400.js',
+        biosfile:'a5200/5200.rom',
+        //cfgfile:'atari5200.cfg',
+        driver:'a5200',
+        width:336*2,
+        height:225*2,
+        romfn:'/emulator/cart.rom',
+        romdata:new Uint8Array(data),
+        romsize:0x8000,
+        preInit:function(_self) {
+        },
+      });
+    } else {
+      this.loadROMFile(data);
+      this.loadRegion(":cartleft:cart:rom", data);
+    }
+  }
+  start() {
+  }
+  getPresets() { return Atari8_PRESETS; }
+  getToolForFilename = getToolForFilename_6502;
+  getOpcodeMetadata = getOpcodeMetadata_6502;
+  getDefaultExtension() { return ".asm"; };
+}
+
+///
+
+// Altirra Superkernel ROM (http://www.virtualdub.org/altirra.html) compiled with MADS
+const ALTIRRA_SUPERKERNEL_LZG = `
+TFpHAAAIAAAABJGU01hQARcZHSUAACUFGCUBABgAAGZmZh2IZv9mJUEAGD5gPAZ8HVBsGDBmRgAcNhw4
+b2Y7HagdoA4cGBgcDgAAcDgYGDhwHSA8/zwdehgYfhkFGh1EMCWhfhkGYx0IAAAGDBgwYEAAADxmbnZm
+PB0MHTgYHRs8Zh0RJeF+DBgMHVAMHDxsfgwdCGB8Bh1IPGB8ZiXifh15MB1oPB2IPGY+Bgw4GQRVGQNx
+JeMwHV4YDAYZBHclQWAdBhgwYBkEYBkC6Dxmbm5gPh0nHT9+ZgAAfGZ8ZmZ8HVBgYBkCUHhsZmZseBkD
+eGBgHXwl4h04PmBgbmYdMB1uGSIrfhkiOR0YBiUBHXAdLR0zAAAdJR2wY3d/a2NjHRB2fn5uHRA8HS4d
+YBkCZhkCSB1IbDYdyB1wPGA8BgYdGBkDUBkkkGZmfiXkPB0IY2Nrf3cZAkhmPB0zJeMdoH4ZAtcdIB4d
+bx4AAEAZAuoGAAB4HUh4AAAIHDYdLiUF/wAANn9/PhwIGSLHHx8lgQMlBR0D+PgZRA/4+Bkk5CXjAwcO
+HDhw4MDA4HA4HA4HAwEDBw8fP3//HRgADyUBgMDg8Pj8/v8dRB1M8CUBJeL/HZolBh3GHZQcHHd3CBwd
+RxkDeBkGFR0D//8diDx+fn48GQUu///AJQUdhxkjEx0gGQVEJQIZA8AdCHhgeGB+GQL4GDwZIjoZA0l+
+GSIwGDB+MBlDFwx+DCXjPH4dkAA8Bj4ZIshgGUJYfB1IYGBgPBkiyD5mHVAAPGZ+HUgOGD4ZBJ8dTwZ8
+HehmAAAYADgYGB1oGSP6PB0QbBkj+B0OHZAAZn9/axkich1nHRAZI+kdUBkm+RkDSAYdSBlDWAAZY3EA
+ABliPxgOHXglARkCgBkl+ABja38+Nh1IPBgZY2kdVwwZQqEZZDgZAtAYPBljzyUCAH54fG5mBgAIGDh4
+OBgIABAYHB4cGBAAbAACSKkgLA7o0A1FAI0O6KUlgmwQAjAPqYAZCQkMAnAPqUAZCQkIAmodLfAZCi0S
+AmokAPASGQ5EFAKpARkODBYCKhkOCxgZEAsaAopIur0BASkQ0ANsDgJoqmhA////aKgdQUiKSJhI5gLQ
+COYBpQQwAuYEpQPQ5aUFjQLUpQaNA9SlB40A1KAAJAQQAqQBogiYVQidEsDKEPeiB70A6JURyhD4jQvo
+bAQC////GQJBrQnoSikPqr0T/WwKAv8LAAoOCQgHDQYFBAwDAgEsD9SND9QQA2wGAmwCAnjYov+arf2/
+yf/QA2z+v6IAqQCVAJ0AwJ0A1J0A6OjQ8qn4jQnUogu9lf6dAAIZAmtPvc39nQAQHUMTvei/nVAdQ6kQ
+hQypD4UNqQCFDiVhDyVhEKkEjRvAogq9wh0nIB1cIoUHqcCNDtQdFQWpIIUGqQKND+ipwIUZIhapeMUC
+0Pxs/r9wcHBCABCCB0HC/SFsdGlycmEAFRIQEAAyLy0AK2VybmVsGWpyJQMub3cAcGxheWluZxoZDxUZ
+a58lHiUcJQkD/Lj8svyh/gL9svxI5gzQBBkiJhkj9SUfJR8lHiUBI/0x/QD8`;
+
+///
+
+PLATFORMS['atari8-800'] = _Atari800Platform;
 PLATFORMS['atari8-5200'] = _Atari5200Platform;
 PLATFORMS['atari8-800.mame'] = Atari800MAMEPlatform;
 PLATFORMS['atari8-5200.mame'] = Atari5200MAMEPlatform;
