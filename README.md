@@ -38,3 +38,44 @@ Dependencies retain their original licenses.
 All included code samples (all files under the presets/ directory) are licensed under
 [CC0](https://creativecommons.org/publicdomain/zero/1.0/)
 unless otherwise licensed.
+
+## Dependencies
+
+Many of these use custom forks found at https://github.com/sehugg?tab=repositories
+
+### Emulators
+
+* https://javatari.org/
+* https://jsnes.org/
+* https://www.mamedev.org/
+* https://github.com/floooh/chips
+* https://github.com/DrGoldfire/Z80.js
+* http://www.twitchasylum.com/jsvecx/
+
+### Compilers
+
+* https://www.cc65.org/
+* http://sdcc.sourceforge.net/
+* http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html
+* https://github.com/batari-Basic/batari-Basic
+* https://www.veripool.org/wiki/verilator
+* http://mcpp.sourceforge.net/
+
+### Assemblers/Linkers
+
+* https://dasm-assembler.github.io/
+* http://atjs.mbnet.fi/mc6809/Assembler/xasm-990104.tar.gz
+* http://48k.ca/zmac.html
+
+### Dev Kits / Libraries
+
+* https://shiru.untergrund.net/code.shtml
+* http://www.colecovision.eu/ColecoVision/development/libcv.shtml
+* https://github.com/toyoshim/tss
+
+### Firmware
+
+* http://www.virtualdub.org/altirra.html
+* https://github.com/MEGA65/open-roms
+* https://sourceforge.net/projects/cbios/
+* https://www.pledgebank.com/opense

@@ -260,7 +260,14 @@ var PLATFORM_PARAMS = {
     extra_link_args: ['-svectrex.scr', '-lcmoc-crt-vec', '-lcmoc-std-vec'],
   },
   'x86': {    
-  }
+  },
+  'zx': {
+    code_start: 0x8000,
+      rom_size: 0xff58-0x8000,
+    data_start: 0x5d00,
+     data_size: 0x8000-0x5d00,
+     stack_end: 0x8000,
+  },
 };
 
 PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];
