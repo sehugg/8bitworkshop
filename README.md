@@ -41,7 +41,7 @@ unless otherwise licensed.
 
 ## Dependencies
 
-Many of these use custom forks found at https://github.com/sehugg?tab=repositories
+The IDE uses custom forks for many of these, found at https://github.com/sehugg?tab=repositories
 
 ### Emulators
 

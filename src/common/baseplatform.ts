@@ -899,6 +899,7 @@ export abstract class BaseMAMEPlatform {
 */	
 }
 
+//TODO: how to get stack_end?
 export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], start:number, end:number, sp:number, jsrop:number) : string {
   var s = "";
   var nraw = 0;
@@ -1288,6 +1289,7 @@ export abstract class BaseWASMMachine {
       }
     }
   }
+  // TODO: tick might advance 1 instruction
   advanceFrameClock(trap, cpf:number) : number {
     var i : number;
     if (trap) {

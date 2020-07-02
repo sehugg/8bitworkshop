@@ -1620,6 +1620,7 @@ function setupReplaySlider() {
       if (stateRecorder.loadFrame(frame)) {
         updateFrameNo(frame);
         projectWindows.tick();
+        showDebugInfo(platform.saveState());
       }
     };
     var setFrameTo = (frame:number) => {
@@ -1628,7 +1629,7 @@ function setupReplaySlider() {
         replayslider.val(frame);
         updateFrameNo(frame);
         projectWindows.tick();
-        console.log('seek to frame',frame);
+        showDebugInfo(platform.saveState());
       }
     };
     stateRecorder.callbackStateChanged = () => {
@@ -1636,6 +1637,7 @@ function setupReplaySlider() {
       replayslider.attr('max', stateRecorder.numFrames());
       replayslider.val(stateRecorder.currentFrame());
       updateFrameNo(stateRecorder.currentFrame());
+      showDebugInfo(platform.saveState());
     };
     replayslider.on('input', sliderChanged);
     replayslider.on('change', sliderChanged);
