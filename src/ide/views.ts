@@ -546,13 +546,78 @@ export class ListingView extends DisassemblerView implements ProjectView {
 
 ///
 
+interface VirtualTextLine {
+  text : string;
+  clas? : string;
+}
+
+class VirtualTextScroller {
+  memorylist;
+  maindiv : HTMLElement;
+  getLineAt : (row:number) => VirtualTextLine;
+
+  constructor(parent : HTMLElement) {
+    var div = document.createElement('div');
+    div.setAttribute("class", "memdump");
+    parent.appendChild(div);
+    this.maindiv = div;
+  }
+  
+  create(workspace : HTMLElement, maxRowCount : number, fn : (row:number) => VirtualTextLine) {
+    this.getLineAt = fn;
+    this.memorylist = new VirtualList({
+      w: $(workspace).width(),
+      h: $(workspace).height(),
+      itemHeight: getVisibleEditorLineHeight(),
+      totalRows: maxRowCount, // TODO?
+      generatorFn: (row : number) => {
+        var line = fn(row);
+        var linediv = document.createElement("div");
+        linediv.appendChild(document.createTextNode(line.text));
+        if (line.clas != null) linediv.className = line.clas;
+        return linediv;
+      }
+    });
+    $(this.maindiv).append(this.memorylist.container);
+  }
+
+  // TODO: refactor with elsewhere
+  refresh() {
+    if (this.memorylist) {
+      $(this.maindiv).find('[data-index]').each( (i,e) => {
+        var div = e;
+        var row = parseInt(div.getAttribute('data-index'));
+        var oldtext = div.innerText;
+        var line = this.getLineAt(row);
+        var newtext = line.text;
+        if (oldtext != newtext) {
+          div.innerText = newtext;
+          if (line.clas != null && !div.classList.contains(line.clas)) {
+            var oldclasses = Array.from(div.classList);
+            oldclasses.forEach((c) => div.classList.remove(c));
+            div.classList.add('vrow');
+            div.classList.add(line.clas);
+          }
+        }
+      });
+    }
+  }
+}
+
+///
+
+function ignoreSymbol(sym:string) {
+  return sym.endsWith('_SIZE__') || sym.endsWith('_LAST__') || sym.endsWith('STACKSIZE__') || sym.endsWith('FILEOFFS__') 
+  || sym.startsWith('l__') || sym.startsWith('s__') || sym.startsWith('.__.');
+}
+
 // TODO: make it use debug state
 // TODO: make it safe (load/restore state?)
+// TODO: refactor w/ VirtualTextLine
 export class MemoryView implements ProjectView {
   memorylist;
   dumplines;
   maindiv : HTMLElement;
-  static IGNORE_SYMS = {s__INITIALIZER:true, /* s__GSINIT:true, */ _color_prom:true};
   recreateOnResize = true;
   totalRows = 0x1400;
 
@@ -663,18 +728,15 @@ export class MemoryView implements ProjectView {
         var nextsym = addr2sym[nextofs];
         if (sym) {
           // ignore certain symbols
-          if (sym.endsWith('_SIZE__') || sym.endsWith('_LAST__') || sym.endsWith('STACKSIZE__') || sym.endsWith('FILEOFFS__') || sym.startsWith('l__'))
+          if (ignoreSymbol(sym)) {
             sym = '';
-          if (MemoryView.IGNORE_SYMS[sym]) {
-            ofs = nextofs;
-          } else {
-            while (ofs < nextofs) {
-              var ofs2 = (ofs + 16) & 0xffff0;
-              if (ofs2 > nextofs) ofs2 = nextofs;
-              //if (ofs < 1000) console.log(ofs, ofs2, nextofs, sym);
-              this.dumplines.push({a:ofs, l:ofs2-ofs, s:sym});
-              ofs = ofs2;
-            }
+          }
+          while (ofs < nextofs) {
+            var ofs2 = (ofs + 16) & 0xffff0;
+            if (ofs2 > nextofs) ofs2 = nextofs;
+            //if (ofs < 1000) console.log(ofs, ofs2, nextofs, sym);
+            this.dumplines.push({a:ofs, l:ofs2-ofs, s:sym});
+            ofs = ofs2;
           }
         }
         sym = nextsym;
@@ -1202,6 +1264,75 @@ export class ProbeLogView extends ProbeViewBaseBase {
           div.text(newtext);
       });
     }
+  }
+}
+
+///
+
+export class ProbeSymbolView extends ProbeViewBaseBase {
+  vlist : VirtualTextScroller;
+  keys : string[];
+  recreateOnResize = true;
+  dumplines;
+
+  // TODO: auto resize
+  createDiv(parent : HTMLElement) {
+    // TODO: what if symbol list changes?
+    if (platform.debugSymbols && platform.debugSymbols.symbolmap) {
+      this.keys = Array.from(Object.keys(platform.debugSymbols.symbolmap).filter(sym => !ignoreSymbol(sym)));
+    } else {
+      this.keys = ['no symbols defined'];
+    }
+    this.vlist = new VirtualTextScroller(parent);
+    this.vlist.create(parent, this.keys.length, this.getMemoryLineAt.bind(this));
+    return this.vlist.maindiv;
+  }
+
+  getMemoryLineAt(row : number) : VirtualTextLine {
+    var sym = this.keys[row];
+    var line = this.dumplines && this.dumplines[sym];
+    function getop(op) {
+      var n = line[op] | 0;
+      return lpad(n ? n.toString() : "", 8);
+    }
+    var s : string;
+    var c : string;
+    if (line != null) {
+      s = lpad(sym, 35) 
+        + getop(ProbeFlags.MEM_READ)
+        + getop(ProbeFlags.MEM_WRITE);
+      if (line[ProbeFlags.EXECUTE])
+        c = 'seg_code';
+      else if (line[ProbeFlags.IO_READ] || line[ProbeFlags.IO_WRITE])
+        c = 'seg_io';
+      else
+        c = 'seg_data';
+    } else {
+      s = lpad(sym, 35);
+      c = 'seg_unknown';
+    }
+    return {text:s, clas:c};
+  }
+
+  refresh() {
+    this.tick();
+  }
+
+  tick() {
+    // cache each line in frame
+    this.dumplines = {};
+    this.redraw((op,addr,col,row,clk,value) => {
+      var sym = platform.debugSymbols.addr2symbol[addr];
+      if (sym != null) {
+        var line = this.dumplines[sym];
+        if (line == null) {
+          line = {};
+          this.dumplines[sym] = line;
+        }
+        line[op] = (line[op] | 0) + 1;
+      }
+    });
+    this.vlist.refresh();
   }
 }
 

@@ -288,6 +288,9 @@ function refreshWindowList() {
     addWindowItem("#probelog", "Probe Log", () => {
       return new Views.ProbeLogView();
     });
+    addWindowItem("#symbolprobe", "Symbol Profiler", () => {
+      return new Views.ProbeSymbolView();
+    });
     /*
     addWindowItem("#spheatmap", "Stack Probe", () => {
       return new Views.RasterStackMapView();
