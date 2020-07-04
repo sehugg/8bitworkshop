@@ -288,14 +288,24 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
   </div>
   <div class="emulator disable-select" id="emulator">
     <!-- replay slider -->
-    <div id="replaydiv" class="replaydiv" style="display:none">
-     <div style="display:flex">
-      <button id="replay_min" class="btn" title="Start of replay"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
+    <div id="replaydiv" class="replaydiv" style="display:none;color:#ccc;text-align:left">
+     <div style="display:flex; grid-gap:1em">
       <button id="replay_back" class="btn" title="Back one frame"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
-      <span id="replay_frame" style="text-align:center;width:3em;margin-left:1em;color:#ccc">-</span>
+      <div>
+        Frame<br>
+        <span id="replay_frame" style="width:3em">-</span>
+      </div>
       <input type="range" min="0" max="0" value="0" class="slider" id="replayslider">
       <button id="replay_fwd" class="btn" title="Ahead one frame"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
-      <button id="replay_max" class="btn" title="End of replay"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
+     </div>
+     <div style="display:flex; grid-gap:1em" id="clockdiv">
+      <button id="clock_back" class="btn" title="Back one step"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
+      <div>
+        Step<br>
+        <span id="replay_clock" style="width:3em">-</span>
+      </div>
+      <input type="range" min="0" max="0" value="0" class="slider" id="clockslider">
+      <button id="clock_fwd" class="btn" title="Forward one step"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
      </div>
     </div>
     <!-- emulator video -->

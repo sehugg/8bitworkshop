@@ -460,13 +460,14 @@ var VerilogPlatform = function(mainElement, options) {
   }
 
   // TODO: merge with prev func  
-  advance(novideo : boolean) {
+  advance(novideo : boolean) : number {
     this.setGenInputs();
     this.updateVideoFrameCycles(cyclesPerFrame, true, false);
     gen.__unreset();
     if (!novideo) {
       this.refreshVideoFrame();
     }
+    return cyclesPerFrame; //TODO?
   }
   
   refreshVideoFrame() {

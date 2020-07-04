@@ -838,14 +838,16 @@ class VectrexPlatform extends Base6809Platform {
     this.psg.psg.register[14] = ~this.inputs[2];
   }
 
-  advance(novideo:boolean) {
+  advance(novideo:boolean) : number {
     if (!novideo) this.video.clear();
     this.updateControls();
     this.probe.logNewFrame();
-    var cycles = 1500000 / 60;
-    while (cycles > 0) {
-      cycles -= this.step();
+    var frameCycles = 1500000 / 60;
+    var cycles = 0;
+    while (cycles < frameCycles) {
+      cycles += this.step();
     }
+    return cycles;
   }
 
   step() {

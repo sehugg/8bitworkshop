@@ -394,6 +394,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
     var rgb;
     var mc = 0;
     var fc = 0;
+    var steps = 0;
     this.probe.logNewFrame();
     //console.log(hex(this.cpu.getPC()), hex(this.maria.dll));
     // visible lines
@@ -411,6 +412,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
           break; // TODO?
         }
         mc += this.advanceCPU() << 2;
+        steps++;
       }
       // is this scanline visible?
       if (visible) {
@@ -443,6 +445,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
           break;
         }
         mc += this.advanceCPU() << 2;
+        steps++;
       }
       // audio
       this.audio && this.audioadapter.generate(this.audio);
@@ -455,7 +458,8 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       // TODO let bkcol = this.maria.regs[0x0];
       // TODO $(this.video.canvas).css('background-color', COLORS_WEB[bkcol]);
     */
-    return (this.lastFrameCycles = fc);
+    this.lastFrameCycles = fc;
+    return steps;
   }
 
   getRasterX() { return this.lastFrameCycles % colorClocksPerLine; }

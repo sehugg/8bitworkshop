@@ -1,6 +1,5 @@
 
-import { Platform, BasePlatform, EmuState, EmuControlsState, EmuRecorder } from "./baseplatform";
-import { BaseDebugPlatform } from "./baseplatform";
+import { Platform, EmuState, EmuControlsState, EmuRecorder } from "./baseplatform";
 import { getNoiseSeed, setNoiseSeed } from "./emu";
 
 // RECORDER
@@ -8,16 +7,19 @@ import { getNoiseSeed, setNoiseSeed } from "./emu";
 type FrameRec = {controls:EmuControlsState, seed:number};
 
 export class StateRecorderImpl implements EmuRecorder {
-    checkpointInterval : number = 60;
+  
+    checkpointInterval : number = 10;
     callbackStateChanged : () => void;
     callbackNewCheckpoint : (state:EmuState) => void;
-    maxCheckpoints : number = 120;
+    maxCheckpoints : number = 300;
     
     platform : Platform;
     checkpoints : EmuState[];
     framerecs : FrameRec[];
     frameCount : number;
     lastSeekFrame : number;
+    lastSeekStep : number;
+    lastStepCount : number;
     
     constructor(platform : Platform) {
         this.reset();
@@ -29,6 +31,7 @@ export class StateRecorderImpl implements EmuRecorder {
         this.framerecs = [];
         this.frameCount = 0;
         this.lastSeekFrame = 0;
+        this.lastSeekStep = 0;
         if (this.callbackStateChanged) this.callbackStateChanged();
     }
 
@@ -50,6 +53,7 @@ export class StateRecorderImpl implements EmuRecorder {
             requested = (this.frameCount++ % this.checkpointInterval) == 0;
         }
         this.lastSeekFrame++;
+        this.lastSeekStep = 0;
         if (this.callbackStateChanged) this.callbackStateChanged();
         return requested;
     }
@@ -61,7 +65,11 @@ export class StateRecorderImpl implements EmuRecorder {
     currentFrame() : number {
         return this.lastSeekFrame;
     }
-    
+
+    currentStep() : number {
+      return this.lastSeekStep;
+  }
+
     recordFrame(state : EmuState) {
         this.checkpoints.push(state);
         if (this.callbackNewCheckpoint) this.callbackNewCheckpoint(state);
@@ -82,22 +90,35 @@ export class StateRecorderImpl implements EmuRecorder {
         return {frame:foundframe, state:this.checkpoints[foundidx]};
     }
 
-    loadFrame(seekframe : number) : number {
-        if (seekframe == this.lastSeekFrame)
+    loadFrame(seekframe : number, seekstep? : number) : number {
+        seekframe |= 0;
+        seekstep |= 0;
+        if (seekframe == this.lastSeekFrame && seekstep == this.lastSeekStep) {
             return seekframe; // already set to this frame
+        }
         // TODO: what if < 1?
         let {frame,state} = this.getStateAtOrBefore(seekframe-1);
         if (state) {
+            var numSteps = 0;
             this.platform.pause();
             this.platform.loadState(state);
+            // seek to frame index
             while (frame < seekframe) {
                 if (frame < this.framerecs.length) {
                     this.loadControls(frame);
                 }
                 frame++;
-                this.platform.advance(frame < seekframe); // TODO: infinite loop?
+                numSteps = this.platform.advance(frame < seekframe); // TODO: infinite loop?
             }
+            // seek to step index
+            // TODO: what if advance() returns clocks, but steps use insns?
+            if (seekstep > 0 && this.platform.advanceFrameClock) { 
+              seekstep = this.platform.advanceFrameClock(null, seekstep);
+            }
+            // record new values
             this.lastSeekFrame = seekframe;
+            this.lastSeekStep = seekstep;
+            this.lastStepCount = numSteps;
             return seekframe;
         } else {
             return 0;

@@ -156,8 +156,9 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   
   pollControls() { this.poller.poll(); }
 
-  advance(novideo : boolean) {
+  advance(novideo : boolean) : number {
     this.nes.frame();
+    return 29780; //TODO
   }
 
   updateDebugViews() {
@@ -479,7 +480,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   ] } };
 
   showHelp(tool:string, ident:string) {
-    window.open("https://8bitworkshop.com/blog/platforms/nintendo-nes.md.html", "_help"); // TODO
+    window.open("https://8bitworkshop.com/blog/platforms/nes/", "_help"); // TODO
   }
 }
 

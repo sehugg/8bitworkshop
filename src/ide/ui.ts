@@ -1261,6 +1261,7 @@ function clearBreakpoint() {
 
 function resetAndDebug() {
   if (!checkRunReady()) return;
+  var wasRecording = recorderActive;
   _disableRecording();
   if (platform.setupDebug && platform.readAddress) { // TODO??
     clearBreakpoint();
@@ -1274,6 +1275,7 @@ function resetAndDebug() {
   } else {
     platform.reset();
   }
+  if (wasRecording) _enableRecording();
 }
 
 function _breakExpression() {
@@ -1610,41 +1612,59 @@ function setupDebugControls() {
 
 function setupReplaySlider() {
     var replayslider = $("#replayslider");
+    var clockslider = $("#clockslider");
     var replayframeno = $("#replay_frame");
-    var updateFrameNo = (n) => {
-      replayframeno.text(n+"");
+    var clockno = $("#replay_clock");
+    if (!platform.advanceFrameClock) $("#clockdiv").hide(); // TODO: put this test in recorder?
+    var updateFrameNo = () => {
+      replayframeno.text(stateRecorder.lastSeekFrame+"");
+      clockno.text(stateRecorder.lastSeekStep+"");
     };
     var sliderChanged = (e) => {
       _pause();
-      var frame = (<any>e.target).value;
-      if (stateRecorder.loadFrame(frame)) {
-        updateFrameNo(frame);
-        projectWindows.tick();
-        showDebugInfo(platform.saveState());
+      var frame : number = parseInt(replayslider.val().toString());
+      var step : number = parseInt(clockslider.val().toString());
+      if (stateRecorder.loadFrame(frame, step)) {
+        clockslider.attr('min', 0);
+        clockslider.attr('max', stateRecorder.lastStepCount);
+        updateFrameNo();
+        uiDebugCallback(platform.saveState());
       }
     };
     var setFrameTo = (frame:number) => {
       _pause();
       if (stateRecorder.loadFrame(frame)) {
         replayslider.val(frame);
-        updateFrameNo(frame);
-        projectWindows.tick();
-        showDebugInfo(platform.saveState());
+        updateFrameNo();
+        uiDebugCallback(platform.saveState());
+      }
+    };
+    var setClockTo = (clock:number) => {
+      _pause();
+      var frame : number = parseInt(replayslider.val().toString());
+      if (stateRecorder.loadFrame(frame, clock)) {
+        clockslider.val(clock);
+        updateFrameNo();
+        uiDebugCallback(platform.saveState());
       }
     };
     stateRecorder.callbackStateChanged = () => {
       replayslider.attr('min', 1);
       replayslider.attr('max', stateRecorder.numFrames());
       replayslider.val(stateRecorder.currentFrame());
-      updateFrameNo(stateRecorder.currentFrame());
+      clockslider.val(stateRecorder.currentStep());
+      updateFrameNo();
       showDebugInfo(platform.saveState());
     };
     replayslider.on('input', sliderChanged);
-    replayslider.on('change', sliderChanged);
+    clockslider.on('input', sliderChanged);
+    //replayslider.on('change', sliderChanged);
     $("#replay_min").click(() => { setFrameTo(1) });
     $("#replay_max").click(() => { setFrameTo(stateRecorder.numFrames()); });
     $("#replay_back").click(() => { setFrameTo(parseInt(replayslider.val().toString()) - 1); });
     $("#replay_fwd").click(() => { setFrameTo(parseInt(replayslider.val().toString()) + 1); });
+    $("#clock_back").click(() => { setClockTo(parseInt(clockslider.val().toString()) - 1); });
+    $("#clock_fwd").click(() => { setClockTo(parseInt(clockslider.val().toString()) + 1); });
     $("#replay_bar").show();
     uitoolbar.add('ctrl+alt+0', 'Start/Stop Replay Recording', 'glyphicon-record', _toggleRecording).prop('id','dbg_record');
 }

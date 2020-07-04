@@ -318,13 +318,14 @@ const _GalaxianPlatform = function(mainElement, options) {
       return (a == 0x7000 || a == 0x7800) ? null : membus.read(a); // ignore watchdog
     }
 
-    advance(novideo: boolean) {
+    advance(novideo: boolean) : number {
+      var steps = 0;
       for (var sl = 0; sl < scanlinesPerFrame; sl++) {
         this.scanline = sl;
         if (!novideo) {
           gfx.drawScanline(pixels, sl);
         }
-        this.runCPU(cpu, cpuCyclesPerLine);
+        steps += this.runCPU(cpu, cpuCyclesPerLine);
       }
       // visible area is 256x224 (before rotation)
       if (!novideo) {
@@ -337,6 +338,7 @@ const _GalaxianPlatform = function(mainElement, options) {
       }
       // NMI interrupt @ 0x66
       if (interruptEnabled) { cpu.NMI(); }
+      return steps;
     }
 
     getRasterScanline() { return this.scanline; }

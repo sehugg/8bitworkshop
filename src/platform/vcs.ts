@@ -135,8 +135,9 @@ class VCSPlatform extends BasePlatform {
     Javatari.room.speaker.powerOff();
     Javatari.room.speaker.powerOn();
   }
-  advance() {
+  advance() : number {
     Javatari.room.console.clockPulse();
+    return 0; //TODO
   }
   // for unit test
   nextFrame() {
@@ -303,7 +304,7 @@ class VCSPlatform extends BasePlatform {
     if (tool == 'bataribasic')
       window.open("help/bataribasic/manual.html", "_help");
     else
-      window.open("https://8bitworkshop.com/blog/platforms/atari-2600-vcs.md.html", "_help"); // TODO
+      window.open("https://8bitworkshop.com/blog/platforms/vcs/", "_help"); // TODO
   }
 
   getMemoryMap = function() { return {main:[

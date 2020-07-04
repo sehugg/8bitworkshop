@@ -489,12 +489,13 @@ const _Atari8Platform = function(mainElement) {
     jacanvas.mousedown(rasterPosBreakFn);
   }
   
-  advance(novideo : boolean) {
+  advance(novideo : boolean) : number {
     var idata = video.getFrameData();
     var iofs = 0;
     var debugCond = this.getDebugCallback();
     var rgb;
     var freeClocks = 0;
+    var totalClocks = 0;
     // load controls
     // TODO
     gtia.regs[0x10] = inputs[0] ^ 1;
@@ -518,6 +519,7 @@ const _Atari8Platform = function(mainElement) {
             break;
           }
           cpu.clockPulse();
+          totalClocks++;
         }
         // 4 ANTIC pulses = 8 pixels
         if (antic.v >= 24 && antic.h >= 44 && antic.h < 44+176) { // TODO: const
@@ -535,6 +537,7 @@ const _Atari8Platform = function(mainElement) {
       let bkcol = gtia.regs[COLBK];
       $(video.canvas).css('background-color', COLORS_WEB[bkcol]);
     }
+    return totalClocks;
   }
 
   loadROM(title, data) {

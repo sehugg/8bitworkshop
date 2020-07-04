@@ -112,7 +112,8 @@ export interface Platform {
   getMemoryMap?() : MemoryMap;
 
   setRecorder?(recorder : EmuRecorder) : void;
-  advance?(novideo? : boolean) : void;
+  advance?(novideo? : boolean) : number;
+  advanceFrameClock?(trap:DebugCondition, step:number) : number;
   showHelp?(tool:string, ident?:string) : void;
   resize?() : void;
 
@@ -179,7 +180,7 @@ export abstract class BasePlatform {
   abstract saveState() : EmuState;
   abstract pause() : void;
   abstract resume() : void;
-  abstract advance(novideo? : boolean) : void;
+  abstract advance(novideo? : boolean) : number;
 
   setRecorder(recorder : EmuRecorder) : void {
     this.recorder = recorder;
@@ -267,8 +268,9 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.pollControls();
     this.updateRecorder();
     this.preFrame();
-    this.advance(novideo);
+    var steps = this.advance(novideo);
     this.postFrame();
+    return steps;
   }
   // default debugging
   abstract getSP() : number;
@@ -1058,8 +1060,20 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   }
 
   advance(novideo:boolean) {
-    this.machine.advanceFrame(this.getDebugCallback());
+    var steps = this.machine.advanceFrame(this.getDebugCallback());
     if (!novideo && this.video) this.video.updateFrame();
+    return steps;
+  }
+
+  advanceFrameClock(trap, step) {
+    if (!(step > 0)) return;
+    if (this.machine instanceof BaseWASMMachine) {
+      return this.machine.advanceFrameClock(trap, step);
+    } else {
+      return this.machine.advanceFrame(() => {
+        return --step <= 0;
+      });
+    }
   }
 
   isRunning() {
@@ -1164,6 +1178,8 @@ export abstract class BaseWASMMachine {
   statearr : Uint8Array;
   cpustateptr : number;
   cpustatearr : Uint8Array;
+  ctrlstateptr : number;
+  ctrlstatearr : Uint8Array;
   cpu : CPU;
   romptr : number;
   romlen : number;
@@ -1215,6 +1231,9 @@ export abstract class BaseWASMMachine {
     var statesize = this.exports.machine_get_state_size();
     this.stateptr = this.exports.malloc(statesize);
     this.statearr = new Uint8Array(this.exports.memory.buffer, this.stateptr, statesize);
+    var ctrlstatesize = this.exports.machine_get_controls_state_size();
+    this.ctrlstateptr = this.exports.malloc(ctrlstatesize);
+    this.ctrlstatearr = new Uint8Array(this.exports.memory.buffer, this.ctrlstateptr, ctrlstatesize);
     var cpustatesize = this.exports.machine_get_cpu_state_size();
     this.cpustateptr = this.exports.malloc(cpustatesize);
     this.cpustatearr = new Uint8Array(this.exports.memory.buffer, this.cpustateptr, cpustatesize);
@@ -1271,12 +1290,14 @@ export abstract class BaseWASMMachine {
   }
   // assume controls buffer is smaller than cpu buffer
   saveControlsState() : any {
-    this.exports.machine_save_controls_state(this.sys, this.cpustateptr);
-    return { controls:this.cpustatearr.slice(0, this.exports.machine_get_controls_state_size()) }
+    //console.log(1, this.romptr, this.romlen, this.ctrlstateptr, this.romarr.slice(0,4), this.ctrlstatearr.slice(0,4));
+    this.exports.machine_save_controls_state(this.sys, this.ctrlstateptr);
+    //console.log(2, this.romptr, this.romlen, this.ctrlstateptr, this.romarr.slice(0,4), this.ctrlstatearr.slice(0,4));
+    return { controls:this.ctrlstatearr.slice(0) }
   }
   loadControlsState(state) : void {
-    this.cpustatearr.set(state.controls);
-    this.exports.machine_load_controls_state(this.sys, this.cpustateptr);
+    this.ctrlstatearr.set(state.controls);
+    this.exports.machine_load_controls_state(this.sys, this.ctrlstateptr);
   }
   connectAudio(audio : SampledAudioSink) : void {
     this.audio = audio;
