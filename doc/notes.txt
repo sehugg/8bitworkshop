@@ -436,3 +436,51 @@ https://bellard.org/tcc/
 https://wiki.osdev.org/Smaller_C
 https://yasm.tortall.net/
 https://wiki.osdev.org/Tool_Comparison
+
+
+COMPONENT EMULATION
+
+Emulate discrete chips
+- verilog
+- js
+- wasm? (overhead?)
+Block diagram level
+Buses
+Insn/cycle timing
+Pos/neg clock edge
+Timers
+Polling vs. callbacks (https://github.com/floooh/chips)
+- callbacks might only affect devices internally, until next cycle
+CRT simulator
+Move leaf nodes to workers (sound chips)
+CPU opcode-step switch: https://floooh.github.io/2019/12/13/cycle-stepped-6502.html
+- macros are cool!
+Inspect bus edges and internal state
+
+type Bits<N> = number;
+interface Clocked { }
+interface BusListener<N> {
+    recv(value : Bits<N>) : void;
+}
+class Bus<N> {
+    listeners : BusListener<N>;
+    send(value : Bits<N>) : void {
+    }
+}
+function bus(bits : number) {
+    return function(
+      target: any,
+      propertyKey: string,
+      descriptor: PropertyDescriptor
+    ) {
+      //descriptor.configurable = value;
+    };
+}
+class M6502_T {
+    IR : Bits<16>;        /* internal instruction register */
+    addr : Bus<16>;
+    data : Bus<8>;
+
+    @bus(16) address : Bus<16>;
+}
+

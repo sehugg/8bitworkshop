@@ -28,7 +28,7 @@ interface AppleIIControlsState {
 interface AppleIIState extends AppleIIStateBase, AppleIIControlsState {
   c : MOS6502State;
   grswitch : number;
-  slots: any[];
+  slots: SlotDevice[];
 }
 
 interface SlotDevice extends Bus {
@@ -147,30 +147,40 @@ export class AppleII extends BasicScanlineMachine {
     this.auxRAMselected = false;
     this.auxRAMbank = 1;
     this.writeinhibit = true;
+    this.skipboot();
+  }
+  skipboot() {
     // execute until $c600 boot
     for (var i=0; i<2000000; i++) {
       this.cpu.advanceClock();
-      if (this.cpu.getPC() == 0xc602) {
-        break;
-      }
+      if ((this.cpu.getPC()>>8) == 0xc6) break;
+    }
+    // get out of $c600 boot
+    for (var i=0; i<2000000; i++) {
+      this.cpu.advanceClock();
+      if ((this.cpu.getPC()>>8) < 0xc6) break;
     }
   }
   noise() : number {
     return (this.rnd = xorshift32(this.rnd)) & 0xff;
   }
-  readConst(address:number) : number {
-    if (address < 0xc000) {
-      return this.ram[address];
-    } else if (address >= 0xd000) {
-      if (!this.auxRAMselected)
-        return this.bios[address - 0xd000];
-      else if (address >= 0xe000)
-        return this.ram[address];
-      else
-        return this.ram[address + this.bank2rdoffset];
-    } else
-      return 0;
-  }
+   readConst(address: number): number {
+      if (address < 0xc000) {
+         return this.ram[address];
+      } else if (address >= 0xd000) {
+         if (!this.auxRAMselected)
+            return this.bios[address - 0xd000];
+         else if (address >= 0xe000)
+            return this.ram[address];
+         else
+            return this.ram[address + this.bank2rdoffset];
+      } else if (address >= 0xc100 && address < 0xc800) {
+         var slot = (address >> 8) & 7;
+         return (this.slots[slot] && this.slots[slot].readROM(address & 0xff)) | 0;
+      } else {
+         return 0;
+      }
+   }
   read(address:number) : number {
     address &= 0xffff;
     if (address < 0xc000 || address >= 0xd000) {
@@ -221,8 +231,7 @@ export class AppleII extends BasicScanlineMachine {
             return (this.slots[slot-8] && this.slots[slot-8].read(address & 0xf)) | 0;
       }
     } else if (address >= 0xc100 && address < 0xc800) {
-      var slot = (address >> 8) & 7;
-      return (this.slots[slot] && this.slots[slot].readROM(address & 0xff)) | 0;
+       return this.readConst(address);
     }
     return this.noise();
   }
