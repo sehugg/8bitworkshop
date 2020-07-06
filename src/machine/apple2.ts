@@ -33,6 +33,7 @@ interface AppleIIState extends AppleIIStateBase, AppleIIControlsState {
 
 interface SlotDevice extends Bus {
    readROM(address: number) : number;
+   readConst(address: number) : number;
 }
 
 export class AppleII extends BasicScanlineMachine {
@@ -80,6 +81,9 @@ export class AppleII extends BasicScanlineMachine {
         case 2: return (VM_BASE>>8)&0xff;
         default: return 0;
       }
+    },
+    readConst: (a) => {
+       return 0;
     },
     read: (a) => { return this.noise(); },
     write: (a,v) => { }
@@ -176,7 +180,7 @@ export class AppleII extends BasicScanlineMachine {
             return this.ram[address + this.bank2rdoffset];
       } else if (address >= 0xc100 && address < 0xc800) {
          var slot = (address >> 8) & 7;
-         return (this.slots[slot] && this.slots[slot].readROM(address & 0xff)) | 0;
+         return (this.slots[slot] && this.slots[slot].readConst(address & 0xff)) | 0;
       } else {
          return 0;
       }
@@ -231,8 +235,9 @@ export class AppleII extends BasicScanlineMachine {
             return (this.slots[slot-8] && this.slots[slot-8].read(address & 0xf)) | 0;
       }
     } else if (address >= 0xc100 && address < 0xc800) {
-       return this.readConst(address);
-    }
+      var slot = (address >> 8) & 7;
+      return (this.slots[slot] && this.slots[slot].readROM(address & 0xff)) | 0;
+ }
     return this.noise();
   }
   write(address:number, val:number) : void {
@@ -1091,6 +1096,7 @@ class DiskII extends DiskIIState implements SlotDevice, SavesState<DiskIIState> 
    }
    
    readROM(address)      { return DISKII_PROM[address]; }
+   readConst(address)    { return DISKII_PROM[address]; }
    read(address)         { return this.doIO(address, 0); }
    write(address, value) { this.doIO(address, value); }
 

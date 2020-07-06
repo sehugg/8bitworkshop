@@ -48,6 +48,7 @@ var _atari8 = require('gen/platform/atari8.js');
 var _atari7800 = require('gen/platform/atari7800.js');
 var _coleco = require('gen/platform/coleco.js');
 var _sms = require('gen/platform/sms.js');
+var _c64 = require('gen/platform/c64.js');
 
 //
 
@@ -301,4 +302,14 @@ describe('Platform Replay', () => {
     assert.equal(0x1800, platform.saveState().maria.dll);
     assert.equal(39, platform.readAddress(0x81)); // player y pos
   });
+  /* TODO
+  it('Should run c64', () => {
+    var platform = testPlatform('c64', 'sprites.dasm.rom', 92, (platform, frameno) => {
+      if (frameno == 62) {
+        keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
+      }
+    });
+    assert.equal(39, platform.readAddress(0x81)); // player y pos
+  });
+  */
 });

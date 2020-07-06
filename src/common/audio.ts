@@ -511,21 +511,38 @@ export class SampledAudio {
 
 import { SampledAudioSink } from "./devices";
 
+interface TssChannel {
+  setBufferLength(len : number) : void;
+  setSampleRate(rate : number) : void;
+  getBuffer() : number[];
+  generate(numSamples : number) : void;
+}
+
 export class TssChannelAdapter {
-  channel;
+  channels : TssChannel[];
   audioGain = 1.0 / 8192;
-  constructor(channel, oversample:number, sampleRate:number) {
-    this.channel = channel;
-    channel.setBufferLength(oversample*2);
-    channel.setSampleRate(sampleRate);
+  bufferLength : number;
+
+  constructor(chans, oversample:number, sampleRate:number) {
+    this.bufferLength = oversample * 2;
+    this.channels = chans.generate ? [chans] : chans; // array or single channel
+    this.channels.forEach((c) => {
+      c.setBufferLength(this.bufferLength);
+      c.setSampleRate(sampleRate);
+    });
   }
+
   generate(sink:SampledAudioSink) {
-    var buf = this.channel.getBuffer();
-    var l = buf.length;
-    this.channel.generate(l);
-    for (let i=0; i<l; i+=2)
-      sink.feedSample(buf[i] * this.audioGain, 1);
-    //if (Math.random() < 0.001) console.log(sink);
+    var l = this.bufferLength;
+    var bufs = this.channels.map((ch) => ch.getBuffer());
+    this.channels.forEach((ch) => {
+      ch.generate(l);
+    });
+    for (let i=0; i<l; i+=2) {
+      var total = 0;
+      bufs.forEach((buf) => total += buf[i]);
+      sink.feedSample(total * this.audioGain, 1);
+    };
   }
 }
 
