@@ -486,3 +486,19 @@ class M6502_T {
     @bus(16) address : Bus<16>;
 }
 
+
+STATE REWIND
+
+in Platform:
+
+  advance?(novideo? : boolean) : number;
+  advanceFrameClock?(trap:DebugCondition, step:number) : number;
+
+in devices:
+
+    advanceFrame(trap:TrapCondition) : number;
+    advanceClock() : void;
+    advanceInsn() : number;
+
+Should call trap() every cycle or insn of frame, or exit when returns true?
+

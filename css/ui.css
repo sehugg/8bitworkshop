@@ -432,6 +432,9 @@ div.markdown th {
   border-radius:8px;
   color: #333;
   background-color:#999;
+  display:grid;
+  justify-content: center;
+  align-content: center;
 }
 .segment:hover {
   border-color: #ffffff;

@@ -64,6 +64,15 @@ class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Plat
   readAddress(a)        { return this.machine.readConst(a); }
   // TODO loadBIOS(bios)	{ this.machine.loadBIOS(a); }
   getMemoryMap = function() { return { main:[
+      {name:'Zero Page RAM',start:0x0,size:0x100,type:'ram'},
+      {name:'Line Input RAM',start:0x200,size:0x100,type:'ram'},
+      {name:'RAM',start:0x300,size:0xc0,type:'ram'},
+      {name:'DOS Vectors',start:0x3c0,size:0x40,type:'ram'},
+      {name:'Text/Lores Page 1',start:0x400,size:0x400,type:'ram'},
+      {name:'RAM',start:0x800,size:0x1800,type:'ram'},
+      {name:'Hires Page 1',start:0x2000,size:0x2000,type:'ram'},
+      {name:'Hires Page 2',start:0x4000,size:0x2000,type:'ram'},
+      {name:'RAM',start:0x6000,size:0x6000,type:'ram'},
       {name:'I/O',start:0xc000,size:0x1000,type:'io'},
       {name:'ROM',start:0xd000,size:0x3000-6,type:'rom'},
   ] } };
