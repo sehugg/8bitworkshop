@@ -1,0 +1,1932 @@
+! ----------------------------------------------------------------------------
+!   Balances 160701                 One of the standard Inform 6 example games
+!
+!                                                          created: 25.09.1994
+!                                                          updated: 06.10.1994
+!                                                       modernised: 11.12.1995
+!                                           translated to Inform 6: 08.05.1996
+!                                                 minor bugs fixed: 16.12.1996
+!                                modernised again by Vince Laviano: 01.07.2016
+!
+!   This short story was written to demonstrate large-scale programming of
+!   the parser, and features multiple objects, complicated plurals, variable
+!   verbs, objects named by the player and questions.  The spell-casting
+!   system is written in a "safe" way so that it could easily be transplanted.
+!
+!   Needs Inform 6, library 6/5 or later to compile.
+! ----------------------------------------------------------------------------
+
+Release 6;
+Serial "160701";
+Switches d;
+
+Constant Story "BALANCES";
+Constant Headline "^An Interactive Short Story
+                   ^Copyright (c) 1994, 1995, 1996, 2016 by Graham Nelson.^";
+
+Constant OBJECT_SCORE 5;
+Constant MAX_SCORE 51;
+
+Include "Parser";
+Include "VerbLib";
+
+! ----------------------------------------------------------------------------
+!   The white featureless cubes from "Spellbreaker", which can be identified
+!   by being written on with the magic burin, so that their names are given
+!   by the player in the course of play
+!
+!   A particularly witty thing to do is to give several of them the same name,
+!   or to frotz some of them to distinguish them from the others...
+!   And the game will have no problem with this.
+! ----------------------------------------------------------------------------
+
+Array cube_text_buffer -> 8;
+Global the_named_word = 0;
+Global from_char; Global to_char;
+
+Class  FeaturelessCube
+  with number 0 0 0 0,   ! There's room for 8 bytes of text in these 4 entries
+       description "A perfect white cube, four inches on a side.",
+       parse_name
+       [ i j flag;
+            if (parser_action==##TheSame)
+            {   for (i=0:i<8:i++)
+                    if ((parser_one.&number)->i
+                        ~= (parser_two.&number)->i) return -2;
+                return -1;
+            }
+            for (::i++)
+            {   j=NextWord(); flag=0;
+                if (j=='cube' or 'white' ||
+                    (j=='featureless' or 'blank' &&
+                           ((self.&number)->0) == 0)) flag=1;
+                if (j=='cubes')
+                {   flag=1; parser_action=##PluralFound; }
+                if (flag==0 && ((self.&number)->0) ~= 0)
+                {   wn--;
+                    if (TextReader(0)==0) return i;
+                    for (j=0: j<8: j++)
+                        if ((self.&number)->j ~= cube_text_buffer->j)
+                            return i;
+                    flag=1;
+                }
+                if (flag==0) return i;
+            }
+       ],
+       article "a",
+       short_name
+       [ i; if (((self.&number)->0) == 0) print "featureless white cube";
+            else
+            {   print "~";
+                while (((self.&number)->i) ~= 0)
+                    print (char) (self.&number)->i++;
+                print "~ cube";
+            }
+            rtrue;
+       ],
+       plural
+       [;   self.short_name(); print "s";
+       ],
+       baptise
+       [ i; wn = the_named_word;
+            if (TextReader(1)==0) return i;
+            for (i=0: i<8: i++)
+                (self.&number)->i = cube_text_buffer->i;
+            self.article="the";
+            print_ret "It is now called ", (the) self, ".";
+       ],
+  has  scored;
+
+!  Copies word "wn" from what the player most recently typed, putting it as
+!  plain text into cube_text_buffer, returning false if no such word is there
+
+[ TextReader flag point i j len;
+
+   if (flag==1 && from_char~=to_char)
+   {   for (i=from_char, j=0:i<=to_char && j<7:i++)
+       {   cube_text_buffer->j = buffer->i;
+           if (buffer->i ~= ' ' or ',' or '.') j++;
+       }
+       for (:j<8:j++) cube_text_buffer->j = 0;
+       from_char=0; to_char=0;
+       rtrue;
+   }
+
+   for (i=0:i<8:i++) cube_text_buffer->i = 0;
+   if (wn > parse->1) { wn++; rfalse; }
+   i=wn*4+1; j=parse->i; point=j+buffer; len=parse->(i-1);
+
+   for (i=0:i<len && i<7:i++) cube_text_buffer->i = point->i;
+
+   wn++; rtrue;
+];
+
+Object burin "magic burin"
+  with name "magic" "magical" "burin" "pen",
+       description
+          "This is a magical burin, used for inscribing objects with words
+           or runes of magical import. Such a burin also gives you the
+           ability to write spell scrolls.",
+       before
+       [; WriteOn:
+             if (second ofclass FeaturelessCube)
+             {   if (second notin player)
+                     "Writing on a cube is such a fiddly process that you
+                      need to be holding it in your hand first.";
+                 if (burin notin player)
+                     "You would need some powerful implement for that.";
+                 second.baptise();
+                 rtrue;
+             }
+             if (second ofclass SpellBook)
+                 "If a burin could write in a spell book, you wouldn't need
+                  the gnusto spell!";
+             if (second ofclass Scroll)
+                 "You cannot write just anything on the magic parchment of
+                  a scroll: you can only ~copy~ a spell to it.";
+       ];
+
+[ WriteOnSub; "Graffiti is banned."; ];
+
+[ CopyToSub;
+  if (burin notin player) "You need to be holding the burin to copy a spell.";
+  if (second ofclass SpellBook)
+      "If a burin could write in a spell book, you wouldn't need
+       the gnusto spell!";
+  if (~~(second ofclass Scroll)) "You can only copy spells to scrolls.";
+  if (child(second)~=0)
+      "The scroll is already full of incantation.";
+  "The scroll is not blank, only illegible.";
+];
+
+! ----------------------------------------------------------------------------
+!   Now the whole spell-casting system
+! ----------------------------------------------------------------------------
+
+Attribute known_about;                 ! Player has seen this spell somewhere
+Attribute reversed;                    ! Effect of this known spell reversed
+
+Attribute is_spell;
+Class  Spell
+  with name "spell" "spells", article "the",
+       number 0,
+       word_name
+       [;  print (address) (self.&name)-->0;
+       ],
+       short_name
+       [;  self.word_name(); print " spell"; give self known_about; rtrue;
+       ],
+       specification
+       [;  self.short_name();
+           print ": ", (string) self.purpose;
+       ],
+       before
+       [;  Examine: self.specification(); ".";
+       ],
+  has  is_spell;
+
+Object memory
+  with capacity 5,
+       number_known 1,
+       describe_contents
+       [ i j k;
+           objectloop (i in self) if (i.number==100) j++;
+           if (j>0)
+           {   print "The ";
+               objectloop (i in self)
+                   if (i.number==100)
+                   {   k++; i.word_name();
+                       if (k==j-1) print " and ";
+                       if (k<j-1) print ", ";
+                   }
+               if (j==1) print " spell is"; else print " spells are";
+               print " yours forever.  Other than that, y";
+           }
+           else print "Y";
+           print "ou have ";
+           j=0; k=0;
+           objectloop (i in self) if (i.number<100) j++;
+           if (j>0)
+           {   print "the ";
+               objectloop (i in self)
+                   if (i.number<100)
+                   {   k++;
+                       print (name) i;
+                       if (i.number==2) print " (twice)";
+                       if (i.number==3) print " (thrice)";
+                       if (i.number==4) print " (four times)";
+                       if (i.number>=5) print " (many times)";
+                       if (k==j-1) print " and ";
+                       if (k<j-1) print ", ";
+                   }
+           }
+           else print "no spells";
+           " memorised.";
+       ],
+       learn_spell
+       [ sp;
+           if (sp.number==100) "You always know that spell.";
+           print "Using your best study habits, you commit the ";
+           sp.word_name();
+           print " spell to memory";
+           if (sp notin self) sp.number=0;
+           move sp to self;
+           self.number_known++;
+           sp.number++;
+           if (sp.number==1) print ".";
+           if (sp.number==2) print " once again.";
+           if (sp.number==3) print " a third time.";
+           if (sp.number>3) print " yet another time.";
+           if (self.number_known <= self.capacity) { new_line; rtrue; }
+           self.forget_spell(sibling(child(self)));
+           "  You have so much buzzing around in your head, though,
+              that it's likely something may have been forgotten
+              in the shuffle.";
+       ],
+       forget_spell
+       [ sp;
+           if (sp notin self || sp.number==100) rtrue;
+           self.number_known--;
+           sp.number--;
+           if (sp.number==0) remove sp;
+           rtrue;
+       ];
+
+Spell -> gnusto_spell
+  with name "gnusto",
+       purpose "copy a scroll into your spell book",
+       number 100,
+       magic
+       [ i a_book;
+            if (second ofclass SpellBook)
+               "Unlike scrolls, spell books are magically guarded against
+                the 'theft' of their lore.";
+            if (second==0 || ~~(second ofclass Scroll))
+               "Your spell fizzles vaguely out.";
+            if (second notin player)
+                "A gnusto spell would require close scrutiny of the scroll
+                 it is to copy: which you do not seem to be holding.";
+            objectloop (i in player)
+                if (i ofclass SpellBook) a_book=i;
+            if (a_book==0)
+                "Your spell fails, as you have no spell book.";
+            i=child(second);
+            if (i==0 || ~~(i ofclass Spell))
+            {   print_ret "Your spell fails, as ", (the) second,
+                   " is illegible.";
+            }
+            a_book.learn_spell(i); remove second;
+            print_ret
+               "Your spell book begins to glow softly.  Slowly, ornately,
+                the words of ", (the) i, " are inscribed,
+                glowing even more brightly then the book itself.
+                The book's brightness fades, but the spell remains!
+                However, the scroll on which it was written vanishes as
+                the last word is copied.";
+       ];
+
+Class SpellBook
+  with array_of_spells 0 0 0 0  0 0 0 0  0 0 0 0  0 0 0 0,
+       capacity 16,
+       learn_spell
+       [ sp p i;
+              p = self.&array_of_spells;
+              for (i=0:i<self.capacity && (p-->i)~=0:i++) ;
+              if (i==self.capacity) rtrue;
+              p-->i = sp;
+       ],
+       before
+       [; Open, Close:
+              print_ret
+              (The) self, " is always open to the right place, but it
+              is also always closed. This eliminates tedious leafing and
+              hunting for spells.  Many lives have been saved by this
+              magical innovation.";
+          Attack:
+              print_ret "When you are done, ", (the) self, " remains unmarred.";
+       ],
+       after
+       [ p i j; Examine:
+              p = self.&array_of_spells;
+              for (i=0:i<self.capacity && (p-->i)~=0:i++)
+              {   j=p-->i; <Examine j>;
+              }
+              rtrue;
+       ];
+
+Class Scroll
+  with parse_name
+       [ i j k; j=-1;
+              if (self has general)
+              {   if (child(self)~=0 && child(self) ofclass Spell)
+                      j=(child(self).&name)-->0; else j='illegible';
+              }
+              for (::)
+              {   k=NextWord();
+                  if (k=='scrolls') parser_action=##PluralFound;
+                  if ((k=='scrolls' or 'scroll' or j) || k==(self.&name)-->0)
+                      i++;
+                  else return i;
+              }
+       ],
+       before
+       [ i; Examine:
+            i=child(self);
+            give self general;
+            if (i==0 || ~~(i ofclass Spell))
+                "The scroll has faded, and you cannot read it.";
+            print "The scroll reads ~"; i.specification(); "~.";
+       ],
+       invent
+       [;   if (inventory_stage==2 && self has general)
+            {   if (child(self)==0 || ~~(child(self) ofclass Spell))
+                    print " (which is illegible)";
+                else
+                {   print " (of ", (the) child(self), ")"; }
+            }
+       ];
+
+[ ReadableSpell i j k;
+  if (scope_stage==1)
+  {   if (action_to_be==##Examine) rfalse;
+      rtrue;
+  }
+  if (scope_stage==2)
+  {   objectloop (i in player)
+          if (i ofclass SpellBook)
+          {   for (k=0:k<i.capacity && (i.&array_of_spells)-->k~=0:k++)
+              {   j=(i.&array_of_spells)-->k; PlaceInScope(j);
+              }
+          }
+      rtrue;
+  }
+  ! No need for scope_stage 3 (the error stage), because our
+  ! ParserError routine handles that case instead
+];
+
+[ CopyableSpell i j k;
+  if (scope_stage==1) return 1;
+  if (scope_stage==2)
+  {   objectloop (i in player)
+          if (i ofclass SpellBook)
+          {   for (k=0:k<i.capacity && (i.&array_of_spells)-->k~=0:k++)
+              {   j=(i.&array_of_spells)-->k; PlaceInScope(j);
+              }
+          }
+      rfalse;
+  }
+  ! No need for scope_stage 3 (the error stage), because our
+  ! ParserError routine handles that case instead
+];
+
+[ LearnedSpell i;
+  if (scope_stage==1) rfalse;
+  if (scope_stage==2)
+  {   objectloop (i in memory)
+          if (i has is_spell) PlaceInScope(i);
+      rfalse;
+  }
+  ! No need for scope_stage 3 (the error stage), because our
+  ! ParserError routine handles that case instead
+];
+
+[ SpellsSub; memory.describe_contents(); ];
+
+[ LearnSub; if (location==thedark)
+                print "(The magic writing of the spells casts enough light
+                        that you can read them.)^";
+            memory.learn_spell(noun);
+];
+
+Global the_spell_was = gnusto_spell;
+
+[ CastOneSub; <Cast the_spell_was noun>; ];
+
+[ CastSub;
+  the_spell_was = noun; memory.forget_spell(noun);
+
+  if (noun has reversed)
+  {   give noun ~reversed;
+      if (noun.unmagic() ~= 0) return;
+      "Nothing happens.";
+  }
+
+  if (second ~= 0)
+  {   ResetVagueWords(second);                     ! Set "it", "him", "her"
+      if (second provides before
+          && second.before() ~= 0) return;         ! Run before routine(s)
+  }
+  if (noun.magic() ~= 0) return;
+  "Nothing happens.";
+];
+
+[ InScope i;
+  if (verb_word=='c,cast' or 'cast')
+      objectloop (i in memory) PlaceInScope(i);
+  rfalse;
+];
+
+[ ParserError i flag vb;
+  if (etype==VERB_PE or ASKSCOPE_PE)
+  {   if (etype==ASKSCOPE_PE)
+      {   if (verb_word=='cast') vb=1;
+          if (verb_word=='learn' or 'memorise' or 'memorize') vb=2;
+          if (verb_word=='copy') vb=3;
+          if (vb==0) { etype=CANTSEE_PE; rfalse; }
+      }
+      wn=verb_wordnum; if (vb~=0) wn++;
+      for (i=player+1:i<=top_object:i++)
+          if (i ofclass Spell && Refers(i,wn)==1
+              && i has known_about) flag=1;
+      if (flag==1)
+      {   if (vb==0 or 1)
+             "You haven't got that spell committed to memory.  [Type ~spells~
+              to see what you do remember.]";
+          if (vb==2)
+             "Your training is such that you can only memorise such a spell
+              with the aid of a spell book containing it.";
+          if (vb==3)
+             "You have no text of that spell to copy.";
+      }
+      if (vb==1)
+         "You haven't learned that spell, if indeed it is a spell.";
+      if (vb==2 or 3)
+         "You haven't access to that spell, if indeed it is a spell.";
+  }
+  rfalse;
+];
+
+[ ChooseObjects obj code;
+  if (code<2) rfalse;
+  if (action_to_be==##WriteOn && obj in player) return 9;
+  return 0;
+];
+
+[ UnknownVerb word i;
+  objectloop (i in memory)
+      if (word==(i.&name)-->0) { the_spell_was = i; return 'c,cast'; }
+  rfalse;
+];
+
+[ PrintVerb v;
+  if (v=='c,cast') { print "cast a spell at"; rtrue; }
+  rfalse;
+];
+
+! ----------------------------------------------------------------------------
+!   And now, on with the story.  First, some global variables:
+! ----------------------------------------------------------------------------
+
+Global prepared_flag = false;      !  Prepared for resurrection?
+Global hearing_good  = false;      !  Sharp hearing?
+Global number_filled = 0;          !  Sockets in the temple filled
+
+! ----------------------------------------------------------------------------
+!   A "questions" verb.  Thus,
+!      "who is my friend helistar"
+!      "what was the great change"
+!   and so on are recognised.
+! ----------------------------------------------------------------------------
+
+[ QuerySub;
+  noun.description();
+];
+[ Topic i;
+  if (scope_stage==1) return 0;
+  if (scope_stage==2)
+  {   objectloop (i ofclass Question) PlaceInScope(i);
+      rtrue;
+  }
+  "At the moment, even the simplest questions confuse you.";
+];
+
+Class Question;
+Question
+  with name "helistar" "my" "friend" "colleague",
+       description
+      "Helistar is your colleague, an Enchanter like you who has been much
+       on your mind lately.  She has been investigating some very dark
+       magic indeed, and seems not to be around any more.  You feel rather
+       vague about the details.";
+Question
+  with name "magical" "magic" "burin",
+       description "A burin is an engraving and writing tool.";
+Question
+  with name "change" "great",
+       description
+      "Something you had a lot to do with, but what exactly?  No, it's gone.";
+Question
+  with name "cyclops",
+       description
+      "A one-eyed giant, usually hostile.  (Don't they teach anything at
+       adventurer school these days?)";
+Question
+  with name "grue",
+       description
+      "The grue is a sinister, lurking presence in the dark places of the
+       earth. Its favorite diet is adventurers, but its insatiable appetite
+       is tempered by its fear of light. No grue has ever been seen by the
+       light of day, and few have survived its fearsome jaws to
+       tell the tale.";
+Question
+  with name "grimoire",
+       description
+      "According to Chambers English Dictionary, a grimoire is ~a magician's
+       book for calling up spirits~.";
+Question
+  with name "spells" "work",
+       description
+      "Your memory is still dream-hazed, but it's coming back. As a trained
+       Enchanter, you have the ability to cast spells like ~frotz~, provided
+       you have learned them in advance.  Some of these spells can be cast
+       at something; others can be cast alone.
+     ^^Spells are very complicated.  Each time you cast one, you forget it
+       (though you can get around this by learning it several times, so as
+       to have several uses up your sleeve).  The only way to hang on to
+       a spell is to have it written down, on a scroll or in a spell book.
+       Scrolls are not ideal for this, and you can only learn a spell from
+       your spell book.  (But you can add spells to your book.)
+     ^^[Type ~learn frotz~ and then ~frotz coin~ for an example.  You can
+       also type ~spells~ to see what you currently have memorised.]";
+
+! ----------------------------------------------------------------------------
+!   Some multiple objects, coins in fact, coded in deluxe fashion:
+! ----------------------------------------------------------------------------
+
+Attribute is_coin;
+Class Coin
+  with name "coin",
+       description "A round unstamped disc, presumably part of the local
+           currency.",
+       parse_name
+       [ i j w;
+         if (parser_action==##TheSame)
+         {   if ((parser_one.&name)-->0 == (parser_two.&name)-->0) return -1;
+             return -2;
+         }
+         w=(self.&name)-->0;
+         for (::i++)
+         {   j=NextWord();
+             if (j=='coins') parser_action=##PluralFound;
+             else if (j~='coin' or w) return i;
+         }
+       ],
+  has  is_coin;
+
+Class GoldCoin
+ class Coin,
+  with name "gold",
+       short_name "gold coin",
+       plural "gold coins";
+Class SilverCoin
+ class Coin,
+  with name "silver",
+       short_name "silver coin",
+       plural "silver coins";
+Class BronzeCoin
+ class Coin,
+  with name "bronze",
+       short_name "bronze coin",
+       plural "bronze coins";
+
+SilverCoin players_coin;
+
+[ TossCoinSub; if (noun notin player) "You need to be holding the coin first.";
+  move noun to parent(player);
+  if (location==thedark) "You throw it away into the darkness.";
+  if (random(20)==1)
+     "You toss the coin, and it lands... on its edge, amazingly.";
+  "You toss the coin, and it comes up... blank, since neither side is
+   marked.";
+];
+
+! ----------------------------------------------------------------------------
+!   The player's spell book, and three initial spells (to go with gnusto):
+! ----------------------------------------------------------------------------
+
+SpellBook players_book "spell book"
+  with name "spell" "book" "my" "spellbook",
+       description "My Spell Book^";
+
+Spell frotz_spell
+  with name "frotz",
+       purpose "cause an object to give off light",
+       magic
+       [;  if (second==0) "There is a brief, blinding flash of light.";
+           if (second has animate)
+               "The spell, not designed for living creatures, goes sour.";
+           if (second in compass)
+               "The spell dissipates vaguely.";
+           give second light;
+           print_ret
+            "There is an almost blinding flash of light as ", (the) second,
+            " begins to glow!  It slowly fades to a less painful level, but ",
+            (the) second, " is now quite usable as a light source.";
+       ],
+       unmagic
+       [;  if (second==0) "There is a brief moment of deep darkness.";
+           if (second has animate)
+               "The spell, not designed for living creatures, goes sour.";
+           if (second in compass)
+               "The spell dissipates vaguely.";
+           if (second hasnt light)
+               print_ret (The) second, " isn't producing light as it is.";
+           give second ~light;
+           print_ret "A pool of darkness coagulates around ", (the) second,
+                 " but slowly fades back to normality.  Still, ",
+                 (the) second, " is no longer any kind of light source.";
+       ];
+
+Spell rezrov_spell
+  with name "rezrov",
+       purpose "open even locked or enchanted objects",
+       magic
+       [;  if (second==0) "The world is open already.";
+           if (second has animate)
+               "It might be a boon to surgeons if it worked, but it doesn't.";
+           if (second has open || second hasnt openable)
+               "It doesn't need opening.";
+           if (second hasnt locked)
+           {   give second open;
+               print_ret (The) second, " opens obediently.
+               Like swatting a fly with a sledge hammer, if you ask me.";
+           }
+           give second open ~locked;
+           print "Silently, ", (the) second, " swings open. ";
+           if (second has container) <<Search second>>; new_line; rtrue;
+       ],
+       unmagic
+       [;  if (second==0) "The world is closed already.";
+           if (second has animate)
+               "Happily, that is unnecessary.";
+           if (second has locked || second hasnt lockable)
+               "It doesn't need locking.";
+           give second ~open locked;
+           "Silently, ", (the) second, " swings shut and locks.";
+       ];
+
+Spell yomin_spell
+  with name "yomin",
+       purpose "mind probe",
+       magic
+       [;  if (second==0 || second hasnt animate)
+               "That must be either vegetable or mineral.";
+           if (second==player) "You give yourself a mild headache.";
+           print_ret "You look into the rather ordinary thoughts of ",
+                     (the) second, ".";
+       ],
+       unmagic
+       [;  if (second==0 || second hasnt animate)
+               "That must be either vegetable or mineral.";
+           if (second==player) "You give yourself a mild headache.";
+           print_ret (The) second, " is rather shocked, for some reason.";
+       ];
+
+! ----------------------------------------------------------------------------
+!   The first scene: the Hut and its (rather easy) secret
+! ----------------------------------------------------------------------------
+
+Class Place
+  has  light;
+
+Place Hut "Ramshackle Hut"
+  with description
+          "Until quite recently, someone lived here, you feel sure.
+           Now the furniture is matchwood and
+           the windows are glassless.  Outside, it is a warm, sunny day,
+           and grasslands extend to the low hills on the horizon.",
+       out_to Grasslands, w_to Grasslands,
+       cant_go "There's only the one room: better go ~out~.",
+       name "windows" "grasslands" "grass" "hills";
+
+Object -> furniture "wooden furniture"
+  with name "furniture" "broken" "wood" "wooden",
+       before
+       [;  Examine, Search, LookUnder:
+               self.before=0; score=score+5;
+               move h_box to player;
+               "Searching through the furniture, which is good for nothing
+                but firewood now, you come across an old cedarwood box,
+                which you pick up for a closer look.";
+       ],
+  has  scenery;
+
+Object h_box "cedarwood box"
+  with name "cedar" "cedarwood" "wooden" "box",
+       description "The box bears the calligraphed initial H."
+  has  container openable lockable locked;
+
+SpellBook -> helistars_book "Helistar's grimoire"
+  with name "grimoire" "helistar" "helistars",
+       description "This must be the grimoire of dangerous spells kept by
+                    your irresponsible friend Helistar.  Many pages are
+                    missing, but a few spells remain:^",
+  has  proper;
+
+! ----------------------------------------------------------------------------
+!   Grasslands and the valley
+! ----------------------------------------------------------------------------
+
+Place Grasslands "Grasslands, near Hut"
+  with name "grasslands" "grass" "hut" "path",
+       description
+          "The grasslands sway over low hills in all directions: it is a
+           peaceful wilderness, broken only by this hut and a faint path
+           to the north.",
+       in_to Hut, e_to Hut,
+       n_to Valley,
+       cant_go "You wander around for a while but end up back at the hut.";
+
+Place Valley "Pocket Valley"
+  with name "valley" "trail",
+       description
+          "A pleasant pocket valley in the grassy hills, through which a
+           trail runs north-to-south.",
+       n_to "The trail runs out to nothing, and you retreat for fear of
+             getting so lost you couldn't find the hut again by nightfall.",
+       cant_go "You wander around the pleasant valley, but are afraid to
+                lose sight of the trail.",
+       s_to Grasslands;
+
+[ RideSub; print_ret "You can hardly ride ", (a) noun, "."; ];
+
+Object -> horse "horse"
+  with short_name
+       [; if (self has general) print "winged horse";
+          else print "chestnut horse";
+          rtrue;
+       ],
+       parse_name
+       [ i j; if (self has general) j='winged'; else j=-1;
+          while (NextWord()==j or 'horse' or 'chestnut') i++;
+          return i;
+       ],
+       describe
+       [;  print_ret
+              "There is ", (a) self, " here, munching on a pile of oats.";
+       ],
+       before
+       [;  Cast: if (the_spell_was == bozbar_spell)
+                 {   give self general;
+                    "A pair of handsome brown wings suddenly appears on
+                     the horse's powerful shoulders.  The horse turns in a
+                     complete circle, a look of puzzlement on his face.";
+                 }
+                 if (the_spell_was == yomin_spell)
+                    "He is mainly thinking about oats.  Partly who you are
+                     and what you're up to, but mainly oats.";
+           Enter: <<Ride self>>;
+           Ride: if (horse hasnt general)
+                    "You ride around for a while, exercising the horse, but
+                     soon enough he tires of this and pointedly brings you
+                     back to the oats.  Obligingly you dismount and he
+                     begins grazing again.";
+
+           print "You begin to ride north.  Then, slowly at first but with
+                  increasing sureness, the horse begins beating its powerful
+                  wings.  You rise majestically through the air, sailing
+                  gracefully across a chasm where the hills fall away.
+                  The horse lands gently on the far side and deposits you,
+                  taking to the skies again.^";
+           PlayerTo(Edge); rtrue;
+       ],
+  has  animate;
+
+Object -> oats "pile of oats"
+  with name "oats" "pile" "of",
+       before
+       [;  Examine, Search, LookUnder:
+               self.before=NULL;
+               move shiny_scroll to player; score=score+5;
+               itobj=shiny_scroll;
+               "Sifting through the oats, you find a shiny scroll!  Lucky
+                you got to it before the horse did.  As you turn it over
+                in your hands, it seems undamaged.";
+           Take:  "What would you want with all those oats?";
+       ],
+  has  scenery;
+
+Scroll shiny_scroll "shiny scroll"
+  with name "shiny";
+
+Spell -> bozbar_spell
+  with name "bozbar",
+       purpose "cause an animal to sprout wings",
+       magic
+       [;  if (second==0 || second hasnt animate)
+               "The spell dies away in vain.";
+           if (second==player)
+               "Your elbows twitch, but there is no other effect.";
+           print_ret "For a moment, ", (the) second,
+               " looks highly discomforted, but the moment passes.";
+       ],
+       unmagic
+       [;  if (second==0 || second hasnt animate)
+               "The spell dies away in vain.";
+           if (second==player) "What wings?";
+           if (second==horse && horse has general)
+           {   give horse ~general;
+               "The Enchanter giveth, and the Enchanter taketh away.
+                The horse looks disconsolate but returns to the oats.";
+           }
+           print_ret (The) second, " has no wings to lose.";
+       ];
+
+! ----------------------------------------------------------------------------
+!   The Chasm and the snake
+! ----------------------------------------------------------------------------
+
+Place Edge "Edge of Chasm"
+  with name "wide" "chasm" "road" "daffodils" "clump",
+       description
+          "The road ends suddenly at a wide chasm.  The road leads upward
+           to the north, and you can see it continuing on the southern side
+           of the chasm.",
+       u_to Up_Road, n_to Up_Road,
+       cant_go "The chasm is too perilous to approach.  The only safe way is
+               up and to the north.",
+       before
+       [;  Jump: deadflag = true;
+              "You jump bravely into the chasm, and plunge...
+               gracefully through the air.  (It gets a bit less noble and
+               airy after that.)";
+       ];
+
+Object -> snake "hissing snake"
+  with name "hissing" "snake",
+       initial
+         "Lying in a tight coil at the edge of the chasm is a hissing snake.",
+       description
+         "It has some V-markings, some scaly parts, colours from grey to
+          reddish-brown. Is that any help?",
+       life
+       [; "The snake hisses angrily!"; ],
+       before
+       [;  Cast:
+               switch(the_spell_was)
+               {   urbzig_spell:
+                       remove self;
+                       snakes_cube.initial =
+                    "Beside a clump of daffodils is a featureless white cube.";
+                       "The snake is replaced by a clump of daffodils.";
+                   bozbar_spell:
+                       deadflag = true; remove self;
+                       snakes_cube.initial =
+                      "A featureless cube rests where the snake took off from.";
+                      "The snake is transformed into a huge, winged serpent,
+                       a dragon which bellows and leaps out into the chasm,
+                       backwinging furiously... and knocking you over the
+                       edge quite by accident.";
+                   yomin_spell:
+                      "Horrid reptilian thoughts insinuate their way into you.";
+               }
+           Take, Remove:
+              "The slipperiness of its skin is only one of many reasons
+               why this is ill-advised.";
+       ],
+  has  animate;
+
+FeaturelessCube -> snakes_cube "cube"
+  with initial
+         "The snake appears to be curled around a featureless white cube.",
+       before
+       [; if (snake notin nothing) "The snake won't let you near that cube!";
+       ];
+
+! ----------------------------------------------------------------------------
+!   The crest of the hill; Icarus the tortoise; the chewed scroll
+! ----------------------------------------------------------------------------
+
+Place Up_Road "Crest of Hill"
+  with description
+          "The road crosses the top of a ridge here, sloping downwards to
+           the south and the northwest.  A track diverges to east.",
+       nw_to Cave_Mouth, s_to Edge, d_to Edge, e_to Track;
+
+Object -> tortoise "tortoise"
+  with name "tortoise" "turtle",
+       initial "A tortoise ambles along the road, extremely slowly.",
+       life
+       [; "The tortoise (slowly) turns its neck to look at you (stupidly).";
+       ],
+       before
+       [; Cast: switch(the_spell_was)
+                {   urbzig_spell:
+                       "Just how safe do you want your surroundings to be?";
+                    bozbar_spell:
+                        move chewed_scroll to parent(self); remove self;
+                        StartDaemon(self); score=score+5;
+                       "The tortoise seems to be incapable of expressing
+                        surprise, but is now soaring away high in the sky.
+                        Something rather grubby is left behind.";
+                    yomin_spell:
+                       "For a moment you think there is nothing there, as you
+                        chew absentmindedly on a leaf.  But somewhere inside
+                        the tortoise is a sense of wonder at the amazing blue
+                        canopy of the sky.";
+                }
+          Take, Remove:
+               "Your parents always warned you not to pick up casual
+                acquaintances met on the road.";
+       ],
+       daemon
+       [ i; if (location ~= Up_Road or Track || random(6)~=1) rfalse;
+          if (random(4)==1 && self hasnt general)
+          {   move feather to location; give self general;
+              "^A tortoise-feather flutters to the ground before you!";
+          }
+          i=random(3);
+          switch(i)
+          {   1: print "^High in the sky,";
+              2: print "^Far above you,";
+              3: print "^Tiny in the blue sky,";
+          }
+          " a tortoise flaps across the sun.";
+       ],
+  has  animate;
+
+Scroll torn_scroll "torn scroll"
+  with name "torn";
+
+Spell -> lobal_spell
+  with name "lobal",
+       purpose "sharpen hearing",
+       magic
+       [;  if (second==0 || second hasnt animate)
+               "There is a loud bang in your ear, but no other effect.";
+           if (second==player)
+           {   if (hearing_good) "There is no further effect.";
+               hearing_good=1; StartTimer(self, 5);
+               "Nothing happens, possibly because those butterflies on the
+                other side of the hill keep distracting you.";
+           }
+           print_ret (The) second,
+              " is no doubt grateful for the gift of sharper hearing.";
+       ],
+       unmagic
+       [;  if (second==0 || second hasnt animate)
+               "There is a brief silence, but no other effect.";
+           if (second==player) { StopTimer(self); hearing_good=0; "Pardon?"; }
+           print_ret (The) second,
+              " is no doubt grateful not to have to listen to you.";
+       ],
+       time_left 0,
+       time_out
+       [;  if (hearing_good)
+           {   hearing_good = false;
+               "^Those wretched butterflies finally shut up.";
+           }
+       ];
+
+Scroll chewed_scroll "chewed scroll"
+  with initial "It looks as if the tortoise was eating something - once
+                it might have been a scroll, but now it lies there,
+                chewed up like a lettuce leaf.",
+       before
+       [;  Cast: if (the_spell_was == caskly_spell)
+                 {   move torn_scroll to parent(self);
+                     remove self; score=score+5;
+                     "Before your eyes, the scroll begins to repair itself,
+                      failing only at the very last tear.  Not quite perfect
+                      perhaps, but certainly a readable, if torn scroll.";
+                 }
+           Eat:  "~Eating your words~ is notoriously dangerous for a wizard.
+                  Rearranged in the stomach, a spell might do anything!";
+       ],
+  with name "chewed";
+
+Object feather "tortoise feather"
+  with name "tortoise" "feather",
+       description
+          "Possibly your rarest, and also least valuable, possession.";
+
+! ----------------------------------------------------------------------------
+!   The cave mouth and the perfect sapphire
+! ----------------------------------------------------------------------------
+
+Place Cave_Mouth "Cave Mouth"
+  with name "gorse" "footpath" "cave" "mouth",
+       description
+          "This is a cave mouth, at one end of a road which winds southeast
+           over rising ground.  The entrance west to the caves is a dark
+           tunnel, and only a footpath runs further north, into gorse.",
+       u_to Up_Road, se_to Up_Road, in_to Iron_Door, w_to Iron_Door,
+       n_to Footpath;
+
+Object -> Iron_Door "iron door"
+  with name "iron" "door" "heavy",
+       description "It just looks like an ordinary heavy iron door.",
+       door_dir
+       [; if (location==Cave_Mouth) return w_to; return e_to;
+       ],
+       door_to
+       [; if (location==Cave_Mouth) return In_Cave;
+          return Cave_Mouth;
+       ],
+       describe
+       [; if (self has open) "^The iron door stands open.";
+          if (self hasnt locked) "^The iron door is unlocked but shut.";
+          "A heavy iron door bars the cave mouth.";
+       ],
+       found_in  In_Cave  Cave_Mouth
+  has  static door openable locked lockable;
+
+!  Cf. T. S. Eliot, "Burnt Norton" II:
+!  (but see also Mallarme's sonnet from which Eliot borrowed the image)
+
+Object -> sapphire "perfect sapphire"
+  with name "perfect" "sapphire" "gemstone" "gem",
+       initial "Clotted in the mud beside the door is a perfect sapphire.",
+       before
+       [;  Examine: remove self; move caskly_spell to memory;
+                    players_book.learn_spell(caskly_spell);
+                    caskly_spell.number=100;
+                    "As you gaze into the perfect blue of the sapphire,
+                     you feel your mind begin to reel.  Unable to bear
+                     the naked sight of perfection, you look away, ashamed.
+                     As you do so, the sapphire cracks and wastes away to
+                     thin hot dust.  But something remains, something in your
+                     mind...";
+       ];
+
+Spell caskly_spell
+  with name "caskly",
+       purpose "cause perfection",
+       magic
+       [;  if (second==0) "Trying to make everything perfect was a little
+                           too ambitious.";
+           if (second==player) "Oh, don't be too hard on yourself.";
+           if (second==helistars_book)
+               "Your spell is not powerful enough to restore the lost pages.";
+           print_ret (The) second, " looks pretty perfect as is.";
+       ];
+
+! ----------------------------------------------------------------------------
+!   Inside the Cave, the powerful urbzig spell and its consequences
+! ----------------------------------------------------------------------------
+
+Place In_Cave "Inside Cave"
+  with description
+          "A wide but shallow cave not far inside the hill.  There is no
+           obvious exit, except for the way you came in.",
+       out_to
+       [;  if (CoinsIn(left_pan)+CoinsIn(right_pan) < 6)
+               "Something bars your way, and you hear
+                the scales jangling militantly.  You were trying to
+                steal its coins!";
+           if (scales.number~=0) "Something bars your way, and you hear
+               the scales jangle slightly with energy.";
+           return Iron_Door;
+       ],
+       e_to
+       [;  return self.out_to();
+       ],
+       cant_go "The only way is back ~out~ through the iron door.",
+       after
+       [;  Take: if (parent(noun)==left_pan or right_pan)
+                     print_ret "Taken from ", (the) parent(noun), ".";
+       ],
+  has  ~light;
+
+FeaturelessCube -> cave_cube "cube"
+  with initial "Balanced on a rock formation is a featureless white cube.";
+
+Object -> scales "pair of scales"
+  with name "pair" "of" "scales" "pans", number 0,
+       describe
+       [;  print "^A fair-sized pair of scales hangs from a bracket in the
+                  cave wall.  ";
+           if (self.number==0)  "The scales are balanced.";
+           if (self.number==1)  "The left-hand side is higher.";
+           "The right-hand side is higher.";
+       ],
+       before
+       [;  "There are left and right hand pans, which you should refer to
+            individually.";
+       ],
+  has  static supporter;
+
+Class  ScalePan
+  with name "pan" "side" "tray",
+       before
+       [;  Receive:
+           if (noun ofclass Scroll or Coin) rfalse;
+           if (noun==feather) rfalse;
+           "The pans gleam with what almost seems greed, and somehow they
+            contrive to nudge your hand past them with your worthless and
+            boring item.";
+       ],
+       after
+       [ i j d w1 w2;  Receive, LetGo: i=scales.number;
+           objectloop (j in left_pan) w1=w1 + WeightOf(j);
+           objectloop (j in right_pan) w2=w2 + WeightOf(j);
+           if (w1==w2) scales.number=0;
+           if (w1 > w2) scales.number=-1;
+           if (w1 < w2) scales.number=1;
+           j=scales.number; d=(w2-w1)*(scales.number);
+           if (j==i) rfalse;
+           if (j==0) "The scales come into balance.";
+           if (j==1) print "The left pan "; else print "The right pan ";
+           if (d==1) "very slowly rises up.";
+           "rises up.";
+       ],
+  has  supporter scenery;
+
+[ WeightOf obj;
+  if (obj==bronze_coin) return 2;
+  if (obj ofclass Scroll || obj==feather) return 1;
+  return 3;
+];
+
+[ CoinsIn obj i c;
+  objectloop (i in obj) if (i ofclass Coin) c++;
+  return c;
+];
+
+ScalePan -> right_pan "right pan" with name "right";
+GoldCoin -> ->;
+GoldCoin -> ->;
+GoldCoin -> ->;
+
+ScalePan -> left_pan "left pan" with name "left";
+BronzeCoin -> -> bronze_coin;
+GoldCoin -> ->;
+GoldCoin -> ->;
+
+Scroll -> -> crumpled_scroll "crumpled scroll"
+  with name "crumpled";
+Spell  -> -> -> urbzig_spell
+  with name "urbzig",
+       purpose "turn a dangerous object into a harmless one",
+       magic
+       [;  if (second==0) "The spell fizzles away.";
+           if (second==player) "It's a matter of opinion, isn't it?";
+           if (second==helistars_book or mace || second ofclass FeaturelessCube)
+           {   CDefArt(second); remove second;
+               if (second==mace && cyclops in location)
+               {   remove cyclops; move eye_cube to location;
+                   " turns into a featureless white cube just as the cyclops
+                    was about to hit you with it.  Mightily embarrassed
+                    by this, he drops the cube and runs off!";
+               }
+               print " turns into a moth and flutters away.^";
+               rtrue;
+           }
+           print_ret "Nothing obvious happens.  Perhaps ", (the) second,
+                     " isn't so very dangerous after all.";
+       ],
+       unmagic
+       [;  if (second==0) "The spell fizzles away.";
+           if (second==player) "It's a matter of opinion, isn't it?";
+           if (second has static || second has scenery)
+           {   print_ret "Your spell is too weak for something quite as
+                          monumentally harmless as ", (the) second, ".";
+           }
+           if (second==helistars_book or snake or cyclops or mace
+               || second ofclass FeaturelessCube)
+               "Nothing obvious happens.";
+           if (second in player)
+           {   remove second; deadflag = true;
+               "Suddenly, a tarantula races up your arm to your throat!
+                Perhaps it was unwise to gizbru something you were
+                actually holding.";
+           }
+           if (cyclops has general)
+               "Nothing happens.  Perhaps that's just as well,
+                after the last time.";
+           move cyclops to location;
+           remove second; give cyclops general; StartTimer(cyclops, 5);
+           print_ret (The) second, " is replaced by a buck-toothed cyclops
+                wielding a mace!";
+       ];
+
+Object cyclops "buck-toothed cyclops"
+  with name "buck" "toothed" "buck-toothed" "cyclops",
+       initial "A huge buck-toothed cyclops menaces you, armed with a
+                heavy mace!",
+       before
+       [;  Cast: if (the_spell_was == bozbar_spell)
+                     "Does the term ~death wish~ mean anything to you?";
+                 if (the_spell_was == urbzig_spell)
+                     "The cyclops bellows with glee as your spell has
+                      no effect.  (After all, he wouldn't be ~dangerous~ if
+                      an urbzig spell worked on him, would he?)";
+       ],
+       life [; "He roars incoherently, swinging the mace!"; ],
+       time_left 0,
+       time_out
+       [;  if (self notin location)
+           {   remove self; rtrue;
+           }
+           deadflag = true; remove mace; remove cyclops;
+           "Feeling that he's given you quite long enough to explain why
+            you made such a mess of his life, he swings the great mace
+            maniacally down on you!";
+       ],
+       each_turn
+       [ i; i=random(4); if (i==1) "^The cyclops leaps and bellows!";
+            if (i==2)
+              "^Whirling the mace, the cyclops jabbers at you incoherently.";
+            if (i==3)
+              "^The cyclops is losing patience (the appropriate cyclops
+                word is untranslatable into English, but approximately means
+                ~forbearance in not smashing all nearby skulls~).";
+            "^The cyclops jabs you with the mace, almost breaking your rib.";
+       ],
+  has  animate transparent;
+
+Object -> mace "mace"
+  with name "heavy" "mace" "axe",
+       description "It looks much too heavy for you to even lift.";
+
+FeaturelessCube -> eye_cube "cube"
+  with initial
+         "A featureless white cube lies where the cyclops dropped it.";
+
+! ----------------------------------------------------------------------------
+!   The Footpath and the carpet
+! ----------------------------------------------------------------------------
+
+Place Footpath "Gorse Bushes"
+  with description
+           "The footpath from the cave mouth runs into dense, impenetrable
+            gorse bushes.  Perhaps it wasn't so much a footpath as a rill
+            in the earth where roots wouldn't take; anyway, there's no way
+            but back south.",
+       s_to Cave_Mouth;
+
+Object -> carpet "beautiful red carpet"
+  with name "beautiful" "magic" "red" "carpet",
+       initial
+          "Slung over one of the gorse bushes is a beautiful red carpet.",
+       description
+          "This is a carpet of unusual design. It is red, beautifully woven
+           and bears a pattern of cubes.",
+       before
+       [ i;  Receive:
+                 if (self notin location || self hasnt moved)
+                     "Not until the carpet's on the ground, you can't.";
+           Ride: <<Enter self>>;
+           Enter:
+                 if (self notin location || self hasnt moved)
+                     "Not until the carpet's on the ground, you can't.";
+                 if (location==Balance_Room)
+                     "Mysteriously, the carpet rucks and pulls until you're
+                      thrown off.  It settles back on the white floor with a
+                      contented sigh.";
+                 if (location==In_Cave)
+                     "The carpet rises suddenly, crashing into the roof of
+                      the cave and throwing you back off again.  Painfully.";
+                 if (location==Bazaar) i=Up_Road; else i=Bazaar;
+                 print "The carpet rises suddenly into the fluffy white
+                        clouds, and after a headlong journey deposits you...^";
+                 move self to i;
+                 PlayerTo(i,1); move player to self; <<Look>>;
+           Take: if (player in self) "Not while you're on it!";
+                 for (i=child(self):i~=0:i=child(self))
+                 {   move i to location;
+                     print "(Dislodging ", (the) i, ")^";
+                 }
+       ],
+  has  supporter enterable;
+
+! ----------------------------------------------------------------------------
+!   A Bazaar Lottery
+! ----------------------------------------------------------------------------
+
+Global last_called = 1;
+Global explicit_flag = 0;
+Global tickets_taken = 0;
+
+Class Ticket(6)
+  with number -1, name "ticket",
+       description
+       [;  if (self.number==2306) "It is labelled ~First Prize~!";
+           if (self.number==5802) "It is labelled ~Nineteenth Prize~.";
+           "~You lose,~ says the ticket, with a smily face.  ~Try again!~";
+       ],
+       short_name
+       [;  if (self.number==-1) rfalse;
+           print "lottery ticket ", self.number; rtrue;
+       ],
+       parse_name
+       [ i j w;
+           i=0;
+           if (NextWord()=='lottery') i++; else wn--;
+           if (NextWord()=='tickets')
+           {   parser_action=##PluralFound; return i+1; } else wn--;
+           if (NextWord()~='ticket') return 0;
+           i++;
+           w=TryNumber(wn);
+           if (w==-1000) { explicit_flag = false; return i; }
+           if (w==0) return 0;
+           if (self.number==-1)
+           {   objectloop(j ofclass Ticket)
+                   if (w == j.number) return 0;
+           }
+           else
+           {   if (self.number~=w) return 0;
+           }
+           i++; last_called = w; explicit_flag = true; return i;
+       ],
+       before
+       [;  Examine:
+               if (self in board)
+                  "It would be cheating to see what's written on the curled up
+                   tickets still in the board.";
+           Cast: "~Get outta here, bub!~, the barker says, disgusted.";
+       ];
+
+Place Bazaar "Crowded Bazaar"
+  with description
+           "This is a crowded, noisy bazaar.  Directly in front of you is
+            a lottery!  But the contemptuous-looking barker is doing a
+            very poor trade: hardly anyone wants his first prize, the
+            big cuddly toy elephant, or even his nineteenth prize, a
+            featureless white cube.",
+       each_turn
+       [;   switch(random(4))
+            {   1: "^~Roll up!  Roll up!  One silver piece for three goes!~";
+                2: "^~Come on, then!  Just a silver coin gets you three!~";
+                3: "^~Think what you could win, all for one silver coin!~";
+                4: "^~This could be your lucky day!~";
+            }
+       ],
+       before
+       [;   Learn:
+                "~None of that!~ snaps the barker angrily, putting you off
+                 your study habits.  He mutters about ~Enchanter cheats~,
+                 but under the circumstances you decide to let the insult
+                 pass.";
+       ],
+       cant_go "Everywhere, the crowds of jabbering natives block your way
+           to all the good stalls.  In fact, the only one you can get at is
+           this dismal lottery.";
+
+Object -> board "lottery board"
+  with credit 0,
+       name "board" "lottery" "holes",
+       description
+           "There are a hundred holes each way, making, um, let's see, yes,
+            ten thousand tickets in all. Still, there are nineteen prizes,
+            so your odds must be, oh, well, not too awful anyway.",
+       before
+       [ i; LetGo:
+                if (self.credit == 0)
+                   "The barker stabs you in the chest with
+                    his finger.  ~That's a silver coin to you, bub!~";
+
+                if (explicit_flag)
+                {   objectloop (i ofclass Ticket)
+                        if (last_called == i.number)
+                            "That ticket's already taken.";
+                }
+                else
+                {   .RandomChoice;
+                    last_called = random(10000);
+                    objectloop (i ofclass Ticket)
+                        if (last_called == i.number)
+                            jump RandomChoice;
+                }
+
+                tickets_taken++;
+                self.credit--;
+
+                i = Ticket.create();
+                if (i == 0)
+                   "The barker looks metaphysically embarrassed. ~Um,
+                    Inform's object creation system seems not to have worked.~";
+
+                i.number = last_called; itobj = i;
+
+                move i to player; give i moved proper;
+                if (explicit_flag==0)
+                    print "Randomly picking from the ", 10001-tickets_taken,
+                          " numbered holes with tickets in, you ";
+                    else print "You ";
+                print_ret "take ", (the) i, " out of the board.";
+
+            Examine: ;
+            Receive:
+                if (noun ofclass Ticket)
+                   "~No changes of mind, that's your ticket now!  Give it to
+                     me if you want to play it.~";
+                <<Push self>>;
+            default:
+                "The barker is burly, and won't let you
+                 tamper with the board.";
+       ],
+       initial
+           "Behind the barker is a huge drilled board, and inside each little
+            numbered hole is a rolled-up lottery ticket."
+  has  static container open;
+
+Ticket -> -> ticket_in_board "rolled-up ticket from the board"
+  with article "a";
+
+Object -> barker "barker"
+  with name "barker" "burly" "man",
+       number 0,
+       description
+           "A boxer gone to seed who failed as a magician all down the
+            coast, that'd be your guess.",
+       life
+       [;  Attack, Kiss: "No way.  He must weigh twice what you do.";
+           Ask:  switch(noun)
+                 {   'prize', 'prizes':
+                         "~Just one silver coin and a prize could be yours!~";
+                     'white', 'featureless', 'cube':
+                         "He blows the dust off it.  ~Genuine antique, that.~";
+                     'elephant', 'toy', 'cuddly':
+                         "~Good quality merchandise,~ he says, in a way that
+                          suggests he can only spell one of those three words.";
+                     'ticket', 'tickets', 'lottery':
+                         "~Three tickets for one silver coin!~";
+                     default: "~Just play the game, bub.~";
+                 }
+           Order, Answer: "The barker glowers at you.";
+           Give: if (noun ofclass Ticket)
+                 {   remove noun;
+                     if (noun.number==2306)
+                     {   move elephant to player; give elephant moved;
+                         remove pelephant;
+                         Bazaar.description =
+           "This is a crowded, noisy bazaar.  Directly in front of you is
+            the lottery!";
+                         "With very bad grace, the barker shoves the
+                          cuddly toy elephant into your arms.";
+                     }
+                     if (noun.number==5802)
+                     {   move barker_cube to player; give barker_cube moved;
+                         remove pcube;
+                         Bazaar.description =
+           "This is a crowded, noisy bazaar.  Directly in front of you is
+            the lottery!";
+                         score=score+5;
+                         "With concealed relief, the barker shoves the
+                          featureless white cube into your hands.";
+                     }
+                     "~Bad luck!  You lose!~";
+                 }
+                 if (self.number==2) "~You've had enough goes already!~ he
+                     growls.  No wonder trade is bad.";
+                 if (~~(noun ofclass Coin))
+                     "~What do you call that? One silver coin to play!~";
+                 if ((noun.&name)-->0 == 'bronze')
+                     "~Bronze!  Not a chance, sunshine.~";
+                 remove noun;
+                 board.credit = board.credit + 3;
+                 self.number++;
+                 if ((noun.&name)-->0 == 'gold')
+                     "Gleefully the barker snatches the gold coin. ~Sorry
+                      bub, no change. Business is slack today!~";
+                 "Grudgingly the barker takes the silver coin and stands
+                  back to let you at the board, arms folded.";
+       ],
+       before
+       [;  Cast: switch(the_spell_was)
+                 {   bozbar_spell:
+                        "He's not that much of an animal.";
+                     lobal_spell:
+                        "His problem is listening, not hearing.";
+                     caskly_spell:
+                        "For a moment his hair seems to comb itself.
+                         Irritated, he ruffles it again, and the spell dies
+                         an ignominious death.";
+                     yomin_spell:
+                         if (elephant has moved || barker_cube has moved)
+                         "The barker's mind is a heap of grumbles about lost
+                          prizes and scrawny Enchanters.";
+                         if (self hasnt general)
+                         {   give self general;
+                            "~Hope that scrawny Enchanter doesn't pick 2306!~
+                             thinks the barker (slowly).";
+                         }
+                         "~If that mark does win, hope it's only worthless
+                          old 5802,~ ponders the barker.";
+                 }
+       ],
+  has  animate scenery;
+
+Object -> prizes "prizes"
+  with name "prize" "prizes",
+       before [; "~Hands off those prizes!~"; ],
+  has  scenery;
+
+Object -> pelephant "prize elephant"
+  with name "prize" "elephant" "cuddly" "toy",
+       description "Pink, cuddly, toy, elephant.  Says it all, really.",
+       before [; Examine: ; default: "~Hands off those prizes!~"; ],
+  has  scenery;
+
+Object -> pcube "prize cube"
+  with name "prize" "featureless" "white" "cube",
+       description "Wouldn't you like to win it?",
+       before [; Examine: ; default: "~Hands off those prizes!~"; ],
+  has  scenery;
+
+Object elephant "cuddly toy elephant"
+  with name "cuddly" "toy" "elephant",
+       description "Pink, cuddly, toy, elephant.  Says it all, really.",
+       before
+       [;  Cast: if (the_spell_was == bozbar_spell)
+                     "Let me get this straight.  You, the enchanter who
+                      defeated Krill, the head of the Borphee Guild
+                      himself...  are attempting to grow wings on a pink
+                      cuddly elephant?";
+                 if (the_spell_was == yomin_spell) "Woolly.";
+       ];
+
+FeaturelessCube barker_cube "cube";
+
+! ----------------------------------------------------------------------------
+!   The spells in Helistar's grimoire
+! ----------------------------------------------------------------------------
+
+Spell lleps_spell
+  with name "lleps",
+       purpose "reverse effect of memorised spell",
+       magic
+       [;   if (second==0 || second notin memory)
+                "The spell backfires, painfully.";
+            if (second.number==100)
+                "You know that spell too well for your mind to be able
+                 to accept the change.";
+            if (second has reversed) give second ~reversed;
+            else give second reversed;
+            if (second==lleps_spell)
+            {    memory.forget_spell(second);
+                "Your mind wrenches as the two lleps spells
+                 cancel each other out, leaving only a sensation
+                 quite like a hangover.";
+            }
+            print_ret "Your mind wrenches as ", (the) second,
+                      " reverses itself.";
+       ],
+       unmagic
+       [;   return self.magic();         !  The reverse of "lleps" is "lleps"
+       ];
+
+Spell mortin_spell
+  with name "mortin",
+       purpose "cause immediate death of caster",
+       magic
+       [;   deadflag = true;
+            "You really can't fault Helistar on this one.  Death is
+             absolutely immediate, like a sudden blackout curtain...";
+       ],
+       unmagic
+       [;   prepared_flag = true;
+            "Nothing quite happens... and yet you feel enormously more
+             confident as you go about this dangerous world.";
+       ];
+
+! ----------------------------------------------------------------------------
+!   Death and the Boneyard
+! ----------------------------------------------------------------------------
+
+[ AfterLife;
+  if (~~prepared_flag) rfalse;
+
+  if (player in Balance_Room)
+      "^^Your foresight in preparing a resurrection was wasted.  The
+         tangled magic of the Balance Room coiled around your puny
+         enchantment like a constricting serpent.";
+
+  prepared_flag = false; deadflag = false; hearing_good = false;
+
+  if (memory.capacity >= 2) memory.capacity--;
+
+  while (child(player)~=0) move child(player) to parent(player);
+  move players_book to player;
+
+  print "^^With great foresight you prepared yourself for resurrection...
+           Your mind feels a little weaker, but at least you're alive.^";
+  PlayerTo(Boneyard);
+];
+
+Place Boneyard "Boneyard"
+  with name "bones" "blades" "shoulder" "skulls",
+       description
+          "This is a room of bones.  Shoulder blades make up the floor,
+           skulls the walls and leg-bones the door frames. The west exit
+           leads into darkness, but the doorway to the north opens onto a
+           seemingly normal scene.",
+       n_to
+       [;  if (scales.number ~= 0) return In_Cave;
+           return Grasslands;
+       ],
+       w_to "Some magical force blocks your way, as though that doorway
+             led into adventures from your past which you cannot rejoin now.",
+       before
+       [;  Examine, Search:
+               if (noun==w_obj) "You can make out nothing to the west.";
+       ];
+
+Scroll -> worthless_scroll "worthless scroll"
+  with initial "You are almost treading on a worthless scroll.",
+       name "worthless";
+
+Spell -> -> filfre_spell
+  with name "filfre",
+       purpose "produce gratuitous fireworks",
+       magic
+       [;    if (self hasnt scored) { score++; give self scored; }
+            "A brief shower of gratuitous fireworks spells out:
+           ^^The masterly Enchanter trilogy was written by Marc Blank,
+             Dave Lebling and Steve Meretzky.";
+       ],
+       unmagic
+       [;   "A lengthy shower of artistically justified fireworks spells out:
+           ^^The masterly Enchanter trilogy was written by Jane Austen,
+             Emily Bronte and Edgar Allen Poe.";
+       ];
+
+! ----------------------------------------------------------------------------
+!   The Cubical Temple
+! ----------------------------------------------------------------------------
+
+Place Track "Track, outside Temple"
+  with description
+          "This is the end of a long track winding through desolate hills,
+           which runs back west up to the ridge.",
+       before
+       [;   Listen:
+                if (~~hearing_good) "The chanting is too quiet to make out.";
+                "The endlessly repeating threnody of the monks tells of
+                 the legend of one who will some day enlighten their order,
+                 and so be taken up to a higher plane.  He (or she,
+                 presumably) is known as The Four-Cubed One.";
+       ],
+       w_to Up_Road, u_to Up_Road;
+
+Object -> Temple "cubical Temple"
+  with name "temple" "cubical" "cube" "enormous",
+       before
+       [ i j;
+         Enter: "The Temple is featureless and unbroken.  Perhaps the top
+                 is open, because the sound must come from somewhere...
+                 but you wouldn't bet on it.";
+         Cast:   switch(the_spell_was)
+                 {   rezrov_spell:
+                        "The huge temple remains impassive at your relatively
+                         puny enchantment.";
+                     frotz_spell:
+                         objectloop (i in player)
+                             if (i ofclass FeaturelessCube) j++;
+                         if (j==0)
+                             "The temple shakes, but then is still again.";
+                         if (j<4) "The temple shakes!  White light plays
+                             over your hands and possessions, but then all is
+                             still again.";
+                         print "The temple shakes and white light bathes you.
+                             Smoothly it unfolds itself in a four-dimensional
+                             way your senses can barely comprehend.  All you
+                             know is that when it is over,
+                             you find yourself in...^";
+                         hearing_good = false; score=score+5;
+                         PlayerTo(Balance_Room); rtrue;
+                 }
+       ],
+       describe
+       [;   print "^You stand outside an enormous temple in the shape of a
+                   perfect, featureless white cube, four hundred feet on a
+                   side.  From somewhere within you hear the ";
+            if (hearing_good) print "bellowing noise";
+            else print "tiny sound";
+            " of the monks chanting.";
+       ],
+       description
+           "It's much like every other gigantic temple in the shape of a
+            featureless white cube you've ever seen.  No obvious way in.",
+  has  static;
+
+! ----------------------------------------------------------------------------
+!   Inside the Temple
+! ----------------------------------------------------------------------------
+
+Place Balance_Room "Balance Room"
+  with description
+           "This seems to be the inside of a featureless white cube, forty
+            feet on a side.  The air is stale and there is no exit.";
+
+Object -> balance_meter "image of the scales"
+  with name "image" "scales" "of" "pair", article "the",
+       initial "The image of a pair of scales hangs high in the air.  One
+                pan is much lower than the other.",
+       before
+       [; "It's only an image.";
+       ],
+  has  static;
+
+Object -> dusty_podium "dusty podium"
+  with name "podium" "dusty" "cobwebs" "cobwebbed",
+       initial "Far below the scales, in the centre of the ~floor~, is a
+                predictably-shaped podium, but it is so dusty and
+                cobwebbed that you can't see what it once was.",
+       before
+       [;  Cast: if (the_spell_was == caskly_spell)
+                    "Nice try, but it is protected from enchantment.";
+                "However dusty it is, the podium is still protected from
+                 casual enchantment.";
+           Rub:  remove self; move balance_key to Balance_Room;
+                 itobj = balance_key;
+                "No substitute for old-fashioned hard work, sometimes,
+                 and after much patient (sneezy) scrubbing, the podium
+                 appears in its true white glory.  Set into it are four
+                 sockets, arranged in a two by two square.";
+       ],
+  has  static;
+
+Object balance_key "podium"
+  with name "podium" "pedestal" "platform" "cubical",
+       description "As predicted, it is cubical.",
+       initial "Far below the scales, in the centre of the ~floor~, is a
+                predictably-shaped podium.  Set into it are four sockets,
+                arranged in a two by two square.",
+  has  static supporter;
+
+Object -> sockets "two by two square"
+  with name "square" "two" "by" "two",
+       before
+       [ i;  if (action~=##Examine || number_filled==0)
+              "You'll have to say which socket you mean.
+               (Let's call them ~top left~, ~bottom right~ and so on.)";
+           objectloop (i in self)
+           {   print (The) i;
+               if (child(i)==0) print " is empty.^";
+               else { print " contains ", (a) child(i), ".^"; }
+           }
+           rtrue;
+       ],
+  has  static;
+
+Class Socket
+  with name "socket", article "the",
+       before
+       [;  Cast:  "The sockets are proof against magic.";
+           Examine: print (The) self, ", cubical and slightly more
+                    than four inches on a side, is decorated with ",
+                    (string) self.description;
+                    if (child(self) == nothing) ".";
+                    print_ret ", and contains ", (a) child(self), ".";
+           Receive: if (~~(noun ofclass FeaturelessCube))
+                       "The socket rejects that.";
+                    if (child(self) ~= nothing)
+                       "There is already a cube in that socket.";
+       ],
+       after
+       [;  LetGo:  number_filled--;
+                   "With much struggle, you manage to pull the cube away.";
+           Receive: number_filled++;
+           if (number_filled==4)
+           {   if (snakes_cube in bl_socket
+                   && barker_cube in ul_socket
+                   && cave_cube in br_socket
+                   && eye_cube in ur_socket)
+               {   deadflag=2; score=score+5;
+                  "As you place the final cube into the sockets, you feel
+                   imbued with celestial wisdom (more so than usually).
+                   You find yourself growing to the height of the cube, so
+                   that you pull the balances back level by hand, and then
+                   you grow still further, out of the temple until it is but
+                   a cube in your hand, and you are a giant towering over
+                   the land.
+                 ^^Then, of course, you wake up, glumly realising it's time
+                   to go to your job at the new Borphee Laboratories and
+                   all those Wheatstone bridge experiments.  But at least
+                   you can dream about the old days.";
+               }
+              "The sockets are all full now, but that doesn't mean
+               anything's happened.";
+           }
+          "The cube is a predictably perfect fit in the socket.";
+       ],
+  has  static container open;
+
+Socket -> bl_socket "bottom left socket"
+  with name "bottom" "left" "serpent",
+       description "a serpent";
+
+Socket -> ul_socket "top left socket"
+  with name "top" "left" "bazaar",
+       description "a scene in a bazaar";
+
+Socket -> br_socket "bottom right socket"
+  with name "bottom" "right" "cave",
+       description "an engraving of a rocky cave";
+
+Socket -> ur_socket "top right socket"
+  with name "top" "right" "eye",
+       description "an eye";
+
+! ----------------------------------------------------------------------------
+!   That's all of the object definitions: just a little code and grammar left
+! ----------------------------------------------------------------------------
+
+[ Initialise;
+
+  location = Hut;
+  move burin to player;
+  move players_coin to player;
+  move players_book to player;
+
+  thedark.description =
+      "It is pitch black.  You are likely to be eaten by a grue.";
+  ! (In fact you are stone-cold certain not to be, but never mind.)
+
+  players_book.learn_spell(gnusto_spell);
+  players_book.learn_spell(frotz_spell);
+  players_book.learn_spell(yomin_spell);
+  players_book.learn_spell(rezrov_spell);
+
+  helistars_book.learn_spell(frotz_spell);
+  helistars_book.learn_spell(lleps_spell);
+  helistars_book.learn_spell(mortin_spell);
+
+  give gnusto_spell known_about;
+
+ "^^^^^[Welcome to a short story called ~Balances~, one of the example
+       games for the Inform design system. Some people may recognise the
+       setting, but others might like to type ~how do spells work~ -
+       the game responds to a few such questions.]
+     ^^You feel a little confused as to how you got here.  Something
+       to do with Helistar!  That's right, and how the world is so far
+       off balance nowadays, after the Great Change.^^";
+];
+
+[ PrintRank;
+  print ", earning you the rank of ";
+  if (score >= 50)  "Scientist.";
+  if (score >= 40)  "Spellbreaker.";
+  if (score >= 30)  "Sorcerer.";
+  if (score >= 20)  "Enchanter.";
+  if (score >= 10)  "novice Enchanter.";
+  "lost dreamer.";
+];
+
+[ DiagnoseSub;
+  switch(memory.capacity)
+  {   5: "You feel fine, and your memory is unimpaired.";
+      4: "You feel shaky after your brush with death, but your mental
+          faculties seem sound.";
+      3: "For someone who has died twice, you're in reasonable shape.";
+  }
+  "How many times have you died now?  Your memory isn't what it was.";
+];
+
+! ----------------------------------------------------------------------------
+!   Grammar extensions needed by the spell-casting and cube-writing rules:
+! ----------------------------------------------------------------------------
+
+Include "Grammar";
+
+[ AnyWord; from_char=0; to_char=0; the_named_word=wn++; return burin; ];
+
+[ QuotedText i j f;
+   i = WordAddress(wn++); i=i-buffer;
+   if (buffer->i=='"')
+   {   for (j=i+1:j<=(buffer->1)+1:j++)
+           if (buffer->j=='"') f=j;
+       if (f==0) return -1;
+       from_char = i+1; to_char=f-1;
+       if (from_char>to_char) return -1;
+       while (buffer+f > WordAddress(wn)) wn++; wn++;
+       return burin;
+   }
+   return -1;
+];
+
+Verb "write" "scribe"
+                * AnyWord "on" held              -> WriteOn
+                * QuotedText "on" held           -> WriteOn;
+Verb "copy"     * scope=CopyableSpell "to" noun  -> CopyTo;
+Verb "who" "what" "how"
+                * "do"  scope=Topic              -> Query
+                * "is"  scope=Topic              -> Query
+                * "was" scope=Topic              -> Query;
+Verb "spells" "memory"
+                *                                -> Spells;
+Verb "learn" "memorise" "memorize"
+                * scope=ReadableSpell            -> Learn;
+Extend "examine" first
+                * scope=ReadableSpell            -> Examine;
+Verb "c,cast"
+                *                                -> CastOne
+                * noun                           -> CastOne;
+Verb "cast"
+                * scope=LearnedSpell             -> Cast
+                * scope=LearnedSpell "at" noun   -> Cast
+                * scope=LearnedSpell "on" noun   -> Cast;
+Verb "diagnose" "health"
+                *                                -> Diagnose;
+
+! ----------------------------------------------------------------------------
+!   And one for the game itself.
+! ----------------------------------------------------------------------------
+
+Verb "ride" "mount" "straddle"
+                * creature                       -> Ride
+                * noun                           -> Enter;
+Verb "flip" "toss" * is_coin                     -> TossCoin;
+! ----------------------------------------------------------------------------

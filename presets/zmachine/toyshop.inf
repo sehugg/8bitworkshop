@@ -1,0 +1,942 @@
+! ----------------------------------------------------------------------------
+!  Toyshop 961111                   One of the standard Inform 6 example games
+!
+!  This is not a real game.  The main example game for Inform is "Advent",
+!  a port of Colossal Cave.  Since that's something of an antique, and most
+!  of the objects in it are rather simple, this is a collection of more
+!  exotic features and peculiar objects.  Note that "Advent" has plenty of
+!  interesting doors, a good lantern and bottled oil and water, so those
+!  won't be part of the Toyshop.
+!
+!  Needs Inform 6 with library 6/1 or later to compile.
+!
+!  To win, simply find 6 interesting things to do and leave by the main exit!
+!
+!       Object            Is an example of...
+!
+!  >SA  satchel           Container into which the game silently puts things
+!  >HE  helium balloon    Something moving under the control of a daemon
+!  >CA  little red car    Vehicle, and pushable from place to place
+!  >PF  padded floor      Scenery present in several rooms at once
+!  >GR  hand grenade      Timed events: a grenade and its pin
+!  >MA  matchbook         Simple fire and matches; changing inventory styles
+!  >WC  white candles     A stock of objects identical to each other
+!  >GL  white gloves      Two independent objects which can behave as a pair
+!  >CO  green cone        Easy before and after rules
+!  >HW  high window       Starting and stopping daemons
+!  >BC  bolted cupboard   A typical locked container (with key)
+!  >GB  glass box         Container light can get through
+!  >SB  steel box         Container light can't get through
+!  >BL  building blocks   A complicated class definition; piles of objects
+!  >CH  Christopher       Someone you can talk to, and persuade to do things
+!  >OF  Office            Rules about moving in a particular direction
+!  >TB  toothed bag       A container with ideas about what it will allow
+!  >SL  spirit level      Something to put on top of things
+!  >BB  blackboard        A blackboard to write messages on
+!
+!  (The code is marked with >SA and so on for easy access with a text editor)
+! ----------------------------------------------------------------------------
+Constant DEBUG;
+Constant Story "TOYSHOP";
+Constant Headline "^An Interactive Demonstration^
+             Copyright (c) 1994 by Graham Nelson. All rights given away.^";
+Release 4;
+Serial "961111";   !   This sets the serial date to the date of this source
+                   !   file, not to the date of compilation.
+
+!   Now we serve notice to Inform that we do not wish to use the standard
+!   routine for the Burn action, and will instead be defining our own:
+
+Replace BurnSub;
+
+!   Next include the first of the three standard library files:
+
+Include "Parser";
+
+! ----------------------------------------------------------------------------
+! >SA  Ungenerously, the player can only carry at most 4 things, but there's
+!      a satchel to carry other things around in...
+! ----------------------------------------------------------------------------
+
+Constant MAX_CARRIED = 4;
+Constant SACK_OBJECT = satchel;
+
+Object satchel "satchel"
+  with description "Big and with a smile painted on it.",
+       name "satchel", article "your",
+       when_closed "Your satchel lies on the floor.",
+       when_open "Your satchel lies open on the floor.",
+  has  container open openable;
+
+!   We're going to use the most elaborate scoring system the
+!   library provides (even though we're going to make the six tasks all
+!   score only 1 point each), so we define all this...
+
+Constant TASKS_PROVIDED;
+Constant NUMBER_TASKS = 6;
+Array    task_scores  -> 1 1 1 1 1 1;
+Constant MAX_SCORE = 6;
+
+!   And include the library of standard verbs and actions.
+
+Include "VerbLib";
+
+! ----------------------------------------------------------------------------
+!   Off we go into the Toyshop...
+! ----------------------------------------------------------------------------
+
+Class Toyroom
+  has  light;
+
+Toyroom Toyshop "Toyshop"
+  with description
+          "The centre of a long east-west hall. Shelves are lined
+           with toys, painted clowns face you from the walls and
+           the floor is lightly padded with colourful mats. A doorway
+           leads north, with a red warning triangle above it.",
+       name "clowns" "painted" "shelves" "triangle",
+       e_to East_End, w_to West_End, n_to Danger_Zone;
+
+Object -> chair "high chair"
+  with name "chair" "high"
+  has  supporter enterable;
+
+! ----------------------------------------------------------------------------
+! >HE  The balloon is completely self-contained as a piece of code, except
+!      that it does not set itself going (though even this could have been
+!      arranged): it is set going in the Initialise() routine.
+!
+!   Notice that the "after" for Drop takes away the "moved" attribute.
+!   This is one way to ensure that the "initial" message will always be
+!   the one displayed.  (Alternatively, we could have given it a "describe"
+!   property.)
+! ----------------------------------------------------------------------------
+
+Object -> balloon "helium balloon"
+  with description "Blue, with a yellow smile.",
+       name "helium" "balloon" "blue" "string",
+       initial "A balloon nestles on the ceiling, its long string hanging.",
+       before
+       [; Attack: remove self; StopDaemon(self);
+                "Easily, you burst the balloon. Pop!^^
+                 Shame it was irreplaceable, really.";
+       ],
+       after
+       [; Take: "You take the balloon by its string. It's buoyant!";
+          Drop: give balloon ~moved;
+                "The balloon rises gracefully to the ceiling.";
+       ],
+       daemon
+       [ from_room to_room;
+          if (random(3)~=1) rfalse;
+          from_room=parent(self);
+          if (from_room==East_End or West_End) to_room=Toyshop;
+          if (from_room==Toyshop)
+          {   if (random(2)==1) to_room=East_End;
+              else to_room=West_End;
+          }
+          if (to_room==0) rfalse;
+          move self to to_room;
+          if (location==from_room)
+            "^A breeze blows the balloon away to the ", (name) to_room, ".";
+          if (location==to_room)
+            "^A breeze blows the balloon in from the ", (name) from_room, ".";
+       ];
+
+! ----------------------------------------------------------------------------
+! >CA  There are two exceptions to the ordinary before/after rules, for
+!      vehicles and things which can be pushed from place to place: this car
+!      demonstrates both at once.
+!
+!   The "before" for PushDir (push in a named direction) must call
+!   AllowPushDir and then return true to signify that the push is legal.
+!
+!   The "before" for Go must return true to signify that travelling in
+!   the object is legal.  (Note that it must also be enterable.)
+! ----------------------------------------------------------------------------
+
+Object -> car "little red car"
+  with name "little" "red" "car" "kar1",
+       description "Large enough to sit inside. Among the controls is a
+                 prominent on/off switch. The numberplate is KAR 1.",
+       when_on  "The red car sits here, its engine still running.",
+       when_off "A little red car is parked here.",
+       before
+       [; PushDir: AllowPushDir(); rtrue;
+          Go: if (car has on) { Achieved(1); "Brmm!  Brmm!"; }
+              print "(The ignition is off at the moment.)^";
+       ],
+       after
+       [; PushDir: "The car rolls very slowly as you push it.";
+       ],
+  has  switchable enterable static container open;
+
+Object -> -> "small note"
+  with name "small" "note",
+       description
+           "  !!!! FROBOZZ MAGIC CAR COMPANY !!!!^
+           ^Hello, Driver!^
+           ^Instructions for use:^
+           ^Switch on the ignition and off you go!^
+           ^Warranty:^
+           ^This car is guaranteed against all defects for a period of
+            76 milliseconds from date of purchase or until used,
+            whichever comes first.^
+           ^Good Luck!";
+
+! ----------------------------------------------------------------------------
+! >PF  An example of an object spread across several (three) rooms:
+! ----------------------------------------------------------------------------
+
+Object padded_floor "padded floor"
+  with name "padded" "floor" "mats" "padding",
+       description "To protect little children and adventurers.",
+       before
+       [; Take: "It is protected from little children and adventurers.";
+       ],
+       found_in East_End Toyshop West_End
+  has  scenery;
+
+! ----------------------------------------------------------------------------
+
+Toyroom Danger_Zone "Danger Zone"
+  with description
+          "This is the Danger Zone, which you should know better
+           than to go into. A single door leads back south.",
+       s_to Toyshop;
+
+! ----------------------------------------------------------------------------
+! >GR  A classic example of a timer (or, as some people call them and
+!      appropriately so in this case, a fuse).  To demonstrate stopping
+!      a timer before the alarm (and for fun), there is also a pin:
+! ----------------------------------------------------------------------------
+
+Object -> grenade "nasty-looking hand grenade"
+  with name "hand" "grenade" "nasty" "nasty-looking",
+       initial "A nasty-looking hand grenade (there is no other kind)
+                rolls about irresponsibly on the floor.",
+       description "Not recommended for children under 90.",
+       before
+       [; Pull: if (self has general) "Too late for that.";
+              StartTimer(self, 5); give self general;
+              move the_pin to player;
+              "You pull the pin out, an irrevocable act.";
+       ],
+       time_left 0,
+       time_out
+       [;  deadflag=1;
+           "^An immense explosion suddenly demolishes the toyshop!^^
+             Will you never learn?";
+       ],
+  has  transparent;
+
+Object -> -> the_pin "pin"
+  with name "pin",
+       description "The pin is designed to be easy to pull.",
+       before
+       [; Take, Pull: if (self in grenade) <<Pull grenade>>;
+          Insert:
+              if (self notin grenade && second==grenade)
+              {   StopTimer(grenade); move self to grenade;
+                  give grenade ~general;
+                  "Amazing!  You got the pin back into the grenade!";
+              }
+       ];
+
+! ----------------------------------------------------------------------------
+! >MA  This is a matchbook of five matches, which is quite simple in that you
+!      can only actually have one match at a time: otherwise, it's quite
+!      a full implementation.  Note that the inventory lines for the match
+!      and the matchbook are coded here.  Note also that the "match" object
+!      returns to the book even when the book is empty, so that the parser
+!      will still understand requests for matches - which the "before" rule,
+!      which automatically removes matches when needed, can then turn down.
+!
+!      The matchbook has a daemon whose job is to tidy up lost matches.  One
+!      might expect this rule to be coded with an "after" routine, to trap
+!      the player dropping matches.  But suppose there were a magpie in the
+!      game, and it flew down and stole the match but left the matchbook!
+!      As it happens there isn't, but this is better form.
+! ----------------------------------------------------------------------------
+
+Object -> matchbook "matchbook"
+  with name "matchbook" "book" "matches",
+       number 5,
+       before
+       [; Burn: if (match has light)
+                {   remove match; remove matchbook;
+                    "What a waste of matches!";
+                }
+       ],
+       invent
+       [;  if (inventory_stage==2)
+           {   switch(self.number)
+               {   0: print " (empty)";
+                   1: print " (1 match left)";
+                   default: print " (", self.number, " matches left)";
+               }
+           }
+       ],
+       description
+       [;  print "The cover advertisement reads
+                  ~Curses - Adventure of a Lunchtime~. The book ";
+           switch(self.number)
+           {   0: "is empty.";
+               1: "has a single match left.";
+               default:
+                   print_ret "contains ", self.number, " matches.";
+           }
+       ],
+       daemon
+       [;   if (match notin matchbook && match notin player)
+            {   move match to matchbook;
+                if (match has light)
+                {   give match ~light; StopTimer(match); }
+                StopDaemon(self);
+            }
+       ],
+  has  transparent;
+
+Object -> -> match "match"
+  with parse_name
+       [ i j;   if (self has light) j='burning'; else j='unlit';
+                while (NextWord()=='match' or j) i++;
+                return i;
+       ],
+       article "an",
+       before
+       [ i; if (self in matchbook)
+            {   i=matchbook.number;
+                if (i==0) "There are no matches left in the book.";
+                i--; matchbook.number=i;
+                move self to player; StartDaemon(matchbook);
+                print "(taking a match from the book, which ";
+                if (i==0) print "is now empty)^";
+                if (i==1) print "has one more left)^";
+                if (i>1)  print "has ", i, " left)^";
+                self.article = "an";
+            }
+            Take, Remove: if (self in player) "Done.";
+            Burn:
+                if (self has light) "The match is already alight.";
+                if (matchbook notin player)
+                   "You need the matchbook to strike the match.";
+                give self light; StartTimer(self, 2+random(3));
+                self.article = "a";
+                "You strike the match.";
+       ],
+       short_name
+       [;   if (self has light) print "burning match";
+                           else print "unlit match";
+            rtrue;
+       ],
+
+       time_left,
+       time_out
+       [;   move self to matchbook; give self ~light;
+            "^You drop the match as the flame reaches your finger.";
+       ];
+
+! ----------------------------------------------------------------------------
+! >WC  A box of eight candles.
+!
+!      This is a simple way to code up duplicate objects.  For one thing,
+!      > take candles
+!      does not quite behave as we would hope: it'll only pick up one candle
+!      (though "> take four candles" will work).  See the "Block" class
+!      below for a way to make good.
+!
+!      If we had needed a much greater number of candles, we could have used
+!      object creation and destruction during play.  See the "Ticket" class
+!      from the "Balances" example game.
+! ----------------------------------------------------------------------------
+
+Class  Candle
+  with name "wax" "candle" "candles",
+       short_name "wax candle", plural "wax candles",
+       description "It looks just like all the other candles.",
+       before
+       [; Burn: "Disappointingly, the wick refuses to burn."; ];
+
+Object -> "grey tin box"
+  with name "tin" "box" "grey",
+       description
+           "A grey tin box of ~Major's Candles~.",
+  has  container openable;
+
+Candle -> ->;
+Candle -> ->;
+Candle -> ->;
+Candle -> ->;
+Candle -> ->;
+Candle -> ->;
+Candle -> ->;
+Candle -> ->;
+
+Toyroom East_End "East End"
+  with name "dolls" "nurses",
+       description
+          "The eastern end of the toyshop is pink, and dolls and
+           nurses line the shelves right up to the high window.
+           A dark doorway leads to a northern side chamber.",
+       w_to Toyshop, n_to DarkRoom;
+
+! ----------------------------------------------------------------------------
+! >GL  The following example, suggested to the author by Richard Tucker,
+!      demonstrates an apparently tricky case of objects with associated
+!   sub-objects.  The pair of white gloves behaves just like any other item
+!   of clothing - but the player can also use the left and right gloves
+!   independently, can take away or wear only one and so on.  When they
+!   come back together (even in a cupboard, say, or on a mantelpiece)
+!   they are called a pair again.
+!
+!   We can do this with only three objects, one daemon and one rule.
+!
+!   When the gloves are together, and the player refers to an individual
+!   glove, the before rule splits up the pair and starts the daemon.
+!   Once active, the daemon tries every turn to re-join them into a pair.
+!   (If it succeeds, it turns itself off.)
+!
+!   Note that the "pair of gloves" object has the "general" attribute exactly
+!   when the gloves are apart.  Otherwise the pair-object contains both
+!   glove objects, and has "transparent" so that the parser knows the player
+!   can see and refer to them.
+! ----------------------------------------------------------------------------
+
+Object -> gloves "white gloves"
+  with article "a pair of",
+       name "white" "gloves" "pair" "of",
+       daemon
+       [;  if (parent(right_glove) ~= parent(left_glove)) return;
+           if ((left_glove has worn && right_glove hasnt worn)
+               || (left_glove hasnt worn && right_glove has worn)) return;
+           if (left_glove has worn) give gloves worn; else give gloves ~worn;
+           move gloves to parent(right_glove); give gloves ~general;
+
+           move right_glove to gloves; move left_glove to gloves;
+           give right_glove ~worn;     give left_glove ~worn;
+
+           StopDaemon(self);
+       ],
+  has  clothing transparent;
+
+Class  Glove
+  with article "the",
+       name "white" "glove",
+       before
+       [;  if (self notin gloves) rfalse;
+           move left_glove to parent(gloves); move right_glove to parent(gloves);
+           if (gloves has worn)
+           {   give left_glove worn; give right_glove worn;
+           }
+           give gloves general; remove gloves;
+           StartDaemon(gloves);
+       ],
+  has  clothing;
+
+Glove -> -> left_glove "left glove"
+  with description "White silk, monogrammed with a scarlet R.",
+       name "left";
+Glove -> -> right_glove "right glove"
+  with description "White silk, monogrammed with a scarlet T.",
+       name "right";
+
+! ----------------------------------------------------------------------------
+!   ...and that's all: the "gloves" code is self-contained.
+!
+!   Exercise for the reader: hide a (sharp) jewel inside the left glove.
+!     (Alter the glove class to make them containers open only when not worn.
+!      Add two "after" rules to warn the player if there's something sharp
+!      to the touch, one for putting on the pair of gloves, one for putting on
+!      an individual glove.)
+! ----------------------------------------------------------------------------
+
+
+! ----------------------------------------------------------------------------
+! >CO  A traditional Inform example object:
+! ----------------------------------------------------------------------------
+
+Object -> cone "green cone"
+  with name "green" "cone" "emerald" "marzipan",
+       describe
+       [; if (cone has moved)
+              "^A misshapen cone of green marzipan sits here.";
+          "^Nearby is an emerald green cone, one foot high.";
+       ],
+       description "The cone seems to be made of emerald-coloured
+                    marzipan.",
+       before
+       [; Eat: if (random(100) <= 30)
+               {   deadflag = 1;
+                   "Unfortunately, you seem to be allergic to almonds.";
+               }
+               "You nibble at a corner of the cone.";
+       ],
+       after
+       [; Take: "Taken. (Your hands are smeared with marzipan.)";
+          Drop: cone.description = "The cone is a vague green mess.";
+                "The cone drops to the floor and sags a little.";
+       ],
+  has  edible;
+
+! ----------------------------------------------------------------------------
+! >HW  It's the draught from this slightly-concealed window which propels the
+!      balloon:
+! ----------------------------------------------------------------------------
+
+Object -> "high window"
+  with name "high" "window",
+       description
+       [;  print "A narrow, high window ";
+           if (self has open) "through which a draught blows.";
+           "which is closed.";
+       ],
+       after
+       [; Open: StartDaemon(balloon);
+          Close: Achieved(2); StopDaemon(balloon);
+       ],
+  has  scenery openable open;
+
+! ----------------------------------------------------------------------------
+! >BC  A typical locked container, containing a rather pathetic prize...
+! ----------------------------------------------------------------------------
+
+Object -> "bolted cupboard"
+  with name "bolted" "cupboard",
+       describe
+       [; if (self hasnt open) "^A shut cupboard is bolted to one wall.";
+          "^Bolted up on one wall is an open cupboard.";
+       ],
+       with_key key
+  has  locked container openable lockable static;
+
+Object -> -> "boiled sweet"
+  with name "boiled" "sweet",
+       after
+       [; Eat: Achieved(0);
+               "It takes an irritatingly long time to eat.";
+       ],
+  has  edible;
+
+! ----------------------------------------------------------------------------
+! >GB  This is really to demonstrate "transparent".  Shutting up the glowing
+! >SB  ball in the glass box does not make the room go dark: shutting it up
+!      in the steel box does.  Also, you can examine things in the glass box
+!   even when the glass box is shut.
+!   (Note also that the Dark Room is explicitly told not to have "light",
+!   which it would otherwise inherit from the "Toyroom" class.)
+! ----------------------------------------------------------------------------
+
+Toyroom DarkRoom "Dark Room"
+  with description "A featureless storage room, hardly worth illumination.",
+       cant_go "The only exit is back south.",
+       s_to East_End
+  has  ~light;
+
+Object -> "glass box with a lid"
+  with name "glass" "box" "with" "lid"
+  has  container transparent openable open;
+
+Object -> "steel box with a lid"
+  with name "steel" "box" "with" "lid"
+  has  container openable open;
+
+
+Toyroom West_End "West End"
+  with name "soldiers" "model" "aircraft" "planes",
+       description
+          "The western end of the toyshop is blue, and soldiers and
+           model aircraft line the shelves. A small office lies to
+           the south.",
+       e_to Toyshop, s_to Office;
+
+! ----------------------------------------------------------------------------
+! >BL  The class Block provides for stackable building blocks.
+!
+!   Note that with the "describe" routine missing, the game would still
+!   correctly describe stacks of blocks: just a little less elegantly.
+! ----------------------------------------------------------------------------
+
+Class  Block
+  with description "Just a child's building block, four inches on a side.",
+
+       !   The parse_name routine below ensures that "take blocks"
+       !   works correctly:
+
+       parse_name
+       [ i j;
+         for (::)
+         {   j=NextWord();
+             if (j=='block' or 'cube' or 'building' or (self.name)) i++;
+             else
+             {   if (j=='blocks' or 'cubes')
+                 {   parser_action=##PluralFound; i++; }
+                 else return i;
+             }
+         }
+       ],
+
+       describe
+       [ c d e;
+           d = child(self);
+           while (d~=0 && d ofclass Block)
+           {   c++; e=d; d=child(d); }
+           if (c==0) rfalse;
+           print "^There is a pile of building blocks here, ";
+           while (c>=0)
+           {   print (address) e.name;  ! Sneaky: print the "name" out
+               if (c>0) print " on ";   ! using its dictionary address
+               c--; e=parent(e);
+           }
+           ".";
+       ],
+       before
+       [ c;
+         PutOn:
+           if (second ofclass Block)
+           {   if (child(second)~=0 && child(second) ofclass Block)
+                   "There's no room on the top of one cube for two more, side
+                    by side.";
+           }
+           else
+               print "(They're really intended
+                      to be piled on top of each other.)^";
+           c=second; while (c ofclass Block) c=parent(c);
+           if (c~=location or mantelpiece) "Too unsteady a base.";
+       ],
+       after
+       [ c stack;
+         PutOn:
+           stack=noun;
+           while (parent(stack) ofclass Block) { stack=parent(stack); c++; }
+           if (c<2)
+           {   if (Chris has general) rtrue;
+               rfalse;
+           }
+           if (c==2) "The pile of three cubes is unsteady, but viable.";
+           if (Chris has general)
+           {   Achieved(3);
+               "^Expertly he keeps the pile of four cubes stable.";
+           }
+           stack=noun;
+           while (parent(stack) ofclass Block)
+           {   c=stack; stack=parent(stack); move c to location; }
+           "The pile of four cubes wobbles, wobbles, steadies... and suddenly
+            collapses!";
+         Take:
+           stack=child(noun); if (stack==0) rfalse;
+           while (stack~=0)
+           { c=stack; stack=child(stack); move c to location; }
+           "Your pile of cubes is collapsed as a result.";
+       ],
+  has  supporter;
+
+Block -> "green cube"
+  with name "green";
+Block -> "red cube"
+  with name "red";
+Block -> "yellow cube"
+  with name "yellow";
+Block -> "blue cube"
+  with name "blue";
+
+! ----------------------------------------------------------------------------
+! >CH  A guest appearance by my cousin Christopher, aged six (*), who plays
+!      with one thing at a time (easily forgetting which). Being "transparent"
+!      (no reflection on him!) means the parser allows the player to examine
+!      whatever he's playing with... but not to take it from him.
+!      (* In 1993, when this game was first written.)
+! ----------------------------------------------------------------------------
+
+Object -> Chris "Christopher"
+  with name "child" "boy" "chris" "christopher",
+       describe
+       [;  print "^A boy called Christopher sits here";
+           if (child(Chris) ~= nothing)
+               print ", playing with ", (a) child(Chris);
+           ".";
+       ],
+       life
+       [ x;
+           Ask:
+              switch(second)
+              {   'juggling', 'fluorescent', 'ball': "~That's mine!~";
+                  'helium', 'balloon': "Christopher yawns.";
+                  'cube', 'cubes': "~Bet I can make a higher tower than you.~";
+                  'toys', 'toyshop': "~Isn't it fabulous here?~";
+                  default: "~Dunno.~";
+              }
+           Answer:
+              switch(noun)
+              {   'hello', 'hallo', 'hi':
+                       "~Hello,~ says Christopher cheerfully.";
+                  default: "Christopher seems preoccupied.";
+              }
+           Attack: remove self;
+             "Christopher makes a run for it, effortlessly slipping past you!";
+           Kiss: "~That's soppy, that is.~";
+           Give:
+             if (noun==balloon) "He's too bored by the balloon.";
+             x=child(Chris);
+             if (x~=0)
+             {   move x to location;
+                 print "He forgets about ", (the) x, " and ";
+             }
+             else print "He ";
+             print "eagerly grabs ", (the) noun; move noun to Chris; ".";
+       ],
+       orders
+       [;  Drop: if (noun in Chris) "~Won't!  It's mine!~";
+           Take: "Christopher can't be bothered.";
+           Give: if (second==player) "~Get your own!~";
+           Go: "~But I like it here!~";
+           PutOn: if (noun notin Chris) "He is mightily confused.";
+                 if (~~(noun ofclass Block && second ofclass Block))
+                     "He can't see the point of this.";
+                 print "Christopher leans over with great concentration
+                     and does so.^";
+                 move noun to player; give self general;
+                 <PutOn noun second>;
+                 give self ~general; rtrue;
+       ],
+       each_turn
+       [;  if (random(3)~=1) rtrue;
+           print "^Christopher ";
+           switch(random(4))
+           {  1: "yawns.";     2: "frowns.";
+              3: "stretches."; 4: "hums tonelessly.";
+           }
+       ],
+  has  animate proper transparent;
+
+Object "fluorescent juggling ball" Chris
+  with initial "On the floor is a fluorescent juggling ball!",
+       name "fluorescent" "juggling" "ball",
+       description "It glows with soft light."
+  has  light;
+
+! ----------------------------------------------------------------------------
+! >OF  A simple movement rule.
+! ----------------------------------------------------------------------------
+
+Toyroom Office "Office"
+  with description
+          "A small, grey office, with a broad stone mantelpiece.
+           In the east wall is a doorway marked ~Exit~, and the Toyshop,
+           of course, lies north.",
+       cant_go "The Toyshop floor lies north.",
+       n_to West_End,
+       e_to
+       [; if (score~=MAX_SCORE)
+              "A gong sounds. ~You cannot leave the Toyshop until
+               you have done six interesting things!~";
+          deadflag=2;
+          "A gong sounds. ~Congratulations!  You may now leave the Toyshop
+           and begin writing your own Inform game!~";
+       ];
+
+! ----------------------------------------------------------------------------
+! >TB  A somewhat acquisitive container... but it can be taught to behave.
+! ----------------------------------------------------------------------------
+
+Object -> "toothed bag"
+  with name "toothed" "bag",
+       initial "In one corner is a curious, toothed bag.",
+       description "A capacious bag with a toothed mouth.",
+       before
+       [; LetGo: "The bag defiantly bites itself
+                  shut on your hand until you desist.";
+       ],
+       after
+       [; Receive:
+              if (noun==cone)
+              {   self.before=0; self.after=0;
+                  "The bag wriggles interminably as it tries
+                   to eat the enormous mass of marzipan. That'll
+                   teach it.";
+              }
+              "The bag wriggles hideously as it swallows ", (the) noun, ".";
+       ],
+  has  container open;
+
+! ----------------------------------------------------------------------------
+! >SL  Which can be put on the mantelpiece: the first time this is done, the
+!      game randomly decides which end is higher, and sticks to this decision.
+! ----------------------------------------------------------------------------
+
+Object -> -> spirit_level "spirit level"
+  with name "spirit" "level" "wood" "flask",
+       number 0,
+       description "A length of wood containing a flask of viscous
+           green liquid, in which a bubble is trapped.",
+       before
+       [; Examine:
+          if (spirit_level in mantelpiece)
+          {   print "The bubble is at the ";
+              if (self.number==1) "northeast end.";
+              "southeast end.";
+          }
+       ],
+       after
+       [; PutOn: if (second~=mantelpiece) rfalse;
+           if (spirit_level hasnt general) self.number=random(2);
+           give spirit_level general; Achieved(4);
+           print "You put the spirit level on the mantelpiece,
+                  and the bubble slowly drifts towards the ";
+           if (self.number==1) "northeast.";
+           "southwest.";
+       ];
+
+Object -> mantelpiece "mantelpiece"
+  with name "mantel" "mantle" "piece" "mantelpiece"
+  has  scenery supporter;
+
+Object -> -> key "iron key"
+  with name "iron" "key", article "an";
+
+! ----------------------------------------------------------------------------
+! >BB  A blackboard which can be written on or wiped clear.
+! ----------------------------------------------------------------------------
+
+Object -> -> chalk "stick of chalk"
+  with name "stick" "of" "chalk";
+
+Array boardtext string 64;
+
+Object -> blackboard "blackboard"
+  with name "board" "blackboard" "black",
+       describe
+       [;  <<Examine self>>; ],
+       before
+       [ i f;
+           Examine:
+               for (i=1:i<=boardtext->0:i++)
+                   if (boardtext->i~=' ' or 0) f=1;
+               if (f==0)
+               {   print "^The office blackboard is wiped clean.^";
+                   if (self hasnt general)
+                   {   give self general;
+                       "^[To write on it, try   > write ~message...~]";
+                   }
+                   rtrue;
+               }
+               print "^The office blackboard bears the message:^    ";
+               for (i=1:i<=boardtext->0:i++)
+               {   f=boardtext->i;
+                   if (f~=0) print (char) f;
+               }
+               new_line; rtrue;
+           Rub: for (i=1:i<=boardtext->0:i++) boardtext->i = ' ';
+                  "You wipe the blackboard clean.";
+       ],
+  has  static;
+
+Global from_char; Global to_char;
+[ QuotedText i j f;
+   i = WordAddress(wn++); i=i-buffer;
+   if (buffer->i=='"')
+   {   for (j=i+1:j<=(buffer->1)+1:j++)
+           if (buffer->j=='"') f=j;
+       if (f==0) return -1;
+       from_char = i+1; to_char=f-1;
+       if (from_char>to_char) return -1;
+       while (buffer+f > WordAddress(wn)) wn++; wn++;
+       return 1;
+   }
+   return -1;
+];
+
+[ WriteSub i j;
+   if (chalk notin player) "You're holding nothing to write with.";
+   if (blackboard notin location) "The blackboard is elsewhere.";
+   for (i=from_char,j=1:i<=to_char && j<boardtext->0:i++,j++)
+       boardtext->j = buffer->i;
+   for (:j<boardtext->0:j++) boardtext->j=0;
+   Achieved(5);
+   <<Examine blackboard>>;
+];
+
+! ----------------------------------------------------------------------------
+!   End of object definitions.
+! ----------------------------------------------------------------------------
+!
+!   Routines and Entry Points
+!
+!   (Fuller examples of which can be found in the "Advent" example game.)
+!
+!   Initialise() just sets up the initial state of the game.
+!   We are required to set "location" to the start location of the
+!   player; the rest is optional.
+!
+!   StartDaemon(balloon)  starts the process which blows the balloon back
+!   and forth.
+! ----------------------------------------------------------------------------
+
+[ Initialise;
+  location=chair;  move satchel to player;
+
+  print "^^^^^~What's so special about Inform,~ is the last thing you
+         remember saying to the mad alchemist. Big mistake...^^";
+
+  StartDaemon(balloon);
+];
+
+! ----------------------------------------------------------------------------
+!   Print names of tasks out (when the library asks us to).  Note that they
+!   are numbered from 0 to NUMBER_TASKS-1.
+! ----------------------------------------------------------------------------
+
+[ PrintTaskName achievement;
+  switch(achievement)
+  {   0: "eating a sweet";
+      1: "driving the car";
+      2: "shutting out the draught";
+      3: "building a tower of four";
+      4: "seeing which way the mantelpiece leans";
+      5: "writing on the blackboard";
+  }
+];
+
+[ PrintRank;
+  print ", earning you the rank of ";
+  if (score >= 6)  "Toyshop manager.";
+  if (score >= 5)  "management trainee.";
+  if (score >= 4)  "undergraduate.";
+  if (score >= 3)  "schoolchild.";
+  if (score >= 2)  "nursery-school child.";
+  if (score >= 1)  "toddler.";
+  "newborn baby.";
+];
+
+! ----------------------------------------------------------------------------
+!   Now (as promised earlier) we provide the replacement for BurnSub,
+!   specially adapted to the rules of the Toyshop:
+! ----------------------------------------------------------------------------
+
+[ BurnSub;
+    if (match hasnt light) "You have no source of flame.";
+    if (noun has animate) <<Attack noun>>;
+    if (noun==padded_floor)
+    {   deadflag=1;
+        "A gong sounds, but before a sepulchral voice finishes clearing
+         its throat, the whole padded floor goes up in an inferno.";
+    }
+    "A gong sounds, and a sepulchral, rather disappointed voice says:
+     ~It is forbidden to play with fire in the Toyshop.~";
+];
+
+! ----------------------------------------------------------------------------
+!   And we provide one new action, "Burst", which in fact just passes over to
+!   "Attack", plus one for writing on the board:
+! ----------------------------------------------------------------------------
+
+[ BurstSub; <<Attack noun>>; ];
+
+Include "Grammar";
+
+Verb "burst" "pop" "prick" "stab" "pierce"
+                * noun                           -> Burst;
+
+Verb "write"    * QuotedText -> Write;
+
+! ----------------------------------------------------------------------------

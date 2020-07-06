@@ -51,6 +51,7 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * https://github.com/floooh/chips
 * https://github.com/DrGoldfire/Z80.js
 * http://www.twitchasylum.com/jsvecx/
+* https://github.com/curiousdannii/ifvms.js/
 
 ### Compilers
 
@@ -60,6 +61,7 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * https://github.com/batari-Basic/batari-Basic
 * https://www.veripool.org/wiki/verilator
 * http://mcpp.sourceforge.net/
+* http://www.ifarchive.org/indexes/if-archiveXinfocomXcompilersXinform6.html
 
 ### Assemblers/Linkers
 

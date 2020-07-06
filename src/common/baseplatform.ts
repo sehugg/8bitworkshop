@@ -191,6 +191,9 @@ export abstract class BasePlatform {
       this.recorder.recordFrame(this.saveState());
     }
   }
+  inspect(sym: string) : string {
+    return inspectSymbol((this as any) as Platform, sym);
+  }
 }
 
 export abstract class BaseDebugPlatform extends BasePlatform {
@@ -352,23 +355,23 @@ export abstract class BaseDebugPlatform extends BasePlatform {
       return this.frameCount > frame0;
     });
   }
+}
 
-  inspect(sym: string) : string {
-    if (!this.debugSymbols) return;
-    var symmap = this.debugSymbols.symbolmap;
-    var addr2sym = this.debugSymbols.addr2symbol;
-    if (!symmap || !this.readAddress) return null;
-    var addr = symmap["_"+sym] || symmap[sym]; // look for C or asm symbol
-    if (!(typeof addr == 'number')) return null;
-    var b = this.readAddress(addr);
-    // don't show 2 bytes if there's a symbol at the next address
-    if (addr2sym && addr2sym[addr+1] != null) {
-      return "$"+hex(addr,4) + " = "+hex(b,2);
-    } else {
-      var b2 = this.readAddress(addr+1);
-      var w = b | (b2<<8);
-      return "$"+hex(addr,4) + " = "+hex(b,2)+" "+hex(b2,2)+" ($"+hex(w,2)+")";
-    }
+export function inspectSymbol(platform : Platform, sym : string) : string {
+  if (!platform.debugSymbols) return;
+  var symmap = platform.debugSymbols.symbolmap;
+  var addr2sym = platform.debugSymbols.addr2symbol;
+  if (!symmap || !platform.readAddress) return null;
+  var addr = symmap["_"+sym] || symmap[sym]; // look for C or asm symbol
+  if (!(typeof addr == 'number')) return null;
+  var b = platform.readAddress(addr);
+  // don't show 2 bytes if there's a symbol at the next address
+  if (addr2sym && addr2sym[addr+1] != null) {
+    return "$"+hex(addr,4) + " = $"+hex(b,2)+" ("+b+" decimal)"; // unsigned
+  } else {
+    let b2 = platform.readAddress(addr+1);
+    let w = b | (b2<<8);
+    return "$"+hex(addr,4) + " = $"+hex(b,2)+" $"+hex(b2,2)+" ("+((w<<16)>>16)+" decimal)"; // signed
   }
 }
 

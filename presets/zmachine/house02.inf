@@ -1,0 +1,175 @@
+! ------------------------------------------------------------------------------
+! Inform for New Writers
+!
+! The House - Version 2
+!
+! Last Modified: David Cornelson - 04-Jan-1998
+!
+! This work is freely offered to the Public Domain. - DAC 12-12-2015
+! 
+! ------------------------------------------------------------------------------
+
+Constant Story "The House";
+
+Constant Headline
+           "^Inform for New Writers^
+             The House - Version 2^
+             By New Writer (1998) - Last Compiled: 04-Jan-1998^";
+
+Constant MAX_SCORE 100;
+Serial "980104";
+
+Release 1;
+
+Include "Parser";
+Include "VerbLib";
+
+!-------------------------------------------------------------------------------
+! Initialise
+!
+!-------------------------------------------------------------------------------
+
+[ Initialise;
+
+  location = Sidewalk;
+
+];
+
+[ PrintRank;
+  print ", earning you the rank of ";
+  if (score >= 100) "the greatest.";
+  if (score >= 80) "above average.";
+  if (score >= 60) "average.";
+  if (score >= 40) "below average.";
+  if (score >= 20) "the barely living.";
+  "the living dead.";
+];
+
+! ----------------------------------------------------------------------------
+! Locations
+!
+! In this section we will define our locations. These are "Objects" to Inform
+! and contain the following elements.
+!
+! - object name
+!   The object name represents the variable or handle of the object.
+! - short description
+!   The short description is the description printed in bold before the
+!   normal description.
+! - initial description
+!   The initial description is printed only once when the location is first
+!   entered by the player.
+! - normal description
+!   The normal description is printed everytime the player enters the location.
+! - directional properties (tells which direction player can move) (optional)
+!   These include n_to, ne_to, e_to, up_to, in_to, etc. and are followed by
+!   another location object name.
+! - properties
+!   Properties are functions that you can add to an object that help determine
+!   events and actions.
+! - attributes
+!   Attributes are True/False values that help you remember certain states of
+!   an object or event, such as whether the lights are on or not. The positive
+!   value is represented as "light" and the negative would be "~light". There
+!   are standard attributes used by Inform and you can add your own as well.
+!
+! Actually, there's more than this, but we'll add the complicated stuff later!
+!
+! ----------------------------------------------------------------------------
+
+Object Sidewalk "Sidewalk"
+    with  description
+          "You are standing on the sidewalk in front of a house to the west.",
+    w_to  Front_Porch,
+    has   light;
+
+!
+! VERSION 2 - Adding more locations to your Inform program
+!
+! We're going to take one small step in this version. Let's add a bunch of
+! locations so that the player can move around a little bit.
+!
+! Notice that in the Sidewalk Object definition we added a direction in the
+! description "to the west" and we added the directional property "w_to"
+! that leads to the "Front_Porch" location that we defined below.
+!
+! If you follow these examples you will see how locations are "connected"
+! or "mapped" together with the directional properties. Feel free to change
+! then around so that they connect in different ways.
+!
+! Q: In the "Front_Porch" definition, the description continues over two
+!    lines. Is this okay?
+!
+! A: Inform allows you to extend statements over multiple lines as you
+!    need. You may need to write code that extends over multiple lines
+!    but mostly it will be descriptions as in "Front_Porch". You don't
+!    need to add any extra characters to tell Inform that you've jumped
+!    to the next line either...Inform will figure that out when it compiles.
+!
+
+Object Front_Porch "Front Porch"
+    with  description
+          "This is the front porch of the house. There is an open door
+           leading inside to the west.",
+    e_to  Sidewalk,
+    w_to  Foyer,
+    in_to Foyer,
+    has   light;
+
+Object Foyer "Foyer"
+    with  description
+          "You are standing in the foyer of the house. It seems as though
+           you can go up a staircase, northwest, or back out the front
+           door to the east.",
+    out_to Front_Porch,
+    e_to   Front_Porch,
+    nw_to  Hallway,
+    u_to   Upper_Hallway,
+    has    light;
+
+Object Hallway "Hallway"
+    with   description
+           "You are in the hallway on the first floor of the house. The
+            foyer is southeast and the kitchen is west of here.",
+    se_to  Foyer,
+    w_to   Kitchen,
+    has    light;
+
+Object Kitchen "Kitchen"
+    with   description
+           "This is the kitchen of the house. A hallway can be seen to the
+            east.",
+    e_to   Hallway,
+    has    light;
+
+Object Upper_Hallway "Upper Hallway"
+    with   description
+           "This is the second floor hallway. Rooms can be seen north and
+            south and a staircase leads down.",
+    n_to   North_Bedroom,
+    s_to   South_Bedroom,
+    d_to   Foyer,
+    has    light;
+
+Object North_Bedroom "North Bedroom"
+    with   description
+           "This is a bedroom on the north side of the house.",
+    s_to   Upper_Hallway,
+    has    light;
+
+Object South_Bedroom "South Bedroom"
+    with   description
+           "This is a bedroom on the south side of the house.",
+    n_to   Upper_Hallway,
+    has    light;
+
+! ----------------------------------------------------------------------------
+! Grammar
+!
+! The grammar section includes the file "Grammar" and will later include
+! extensions to the standard grammar library.
+!
+! ----------------------------------------------------------------------------
+
+Include "Grammar";
+

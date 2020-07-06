@@ -62,6 +62,17 @@ function newDiv(parent?, cls? : string) {
 
 const MAX_ERRORS = 200;
 
+const MODEDEFS = {
+  default: { theme: 'mbo' }, // NOTE: Not merged w/ other modes
+  '6502': { isAsm: true },
+  z80: { isAsm: true },
+  jsasm: { isAsm: true },
+  gas: { isAsm: true },
+  inform6: { theme: 'cobalt' },
+  markdown: { lineWrap: true },
+}
+
+
 export class SourceEditor implements ProjectView {
   constructor(path:string, mode:string) {
     this.path = path;
@@ -92,10 +103,12 @@ export class SourceEditor implements ProjectView {
   }
 
   newEditor(parent:HTMLElement, isAsmOverride?:boolean) {
-    var isAsm = isAsmOverride || this.mode=='6502' || this.mode =='z80' || this.mode=='jsasm' || this.mode=='gas'; // TODO
-    var lineWrap = this.mode=='markdown';
+    var modedef = MODEDEFS[this.mode] || MODEDEFS.default;
+    var isAsm = isAsmOverride || modedef.isAsm;
+    var lineWrap = modedef.lineWrap;
+    var theme = modedef.theme || MODEDEFS.default.theme;
     this.editor = CodeMirror(parent, {
-      theme: 'mbo',
+      theme: theme,
       lineNumbers: true,
       matchBrackets: true,
       tabSize: 8,
@@ -525,12 +538,15 @@ export class ListingView extends DisassemblerView implements ProjectView {
 
   refresh(moveCursor: boolean) {
     this.refreshListing();
-    if (!this.assemblyfile || !platform.saveState) return;
-    var state = lastDebugState || platform.saveState();
-    var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
+    // load listing text into editor
+    if (!this.assemblyfile) return;
     var asmtext = this.assemblyfile.text;
     var disasmview = this.getDisasmView();
     disasmview.setValue(asmtext);
+    // go to PC
+    if (!platform.saveState) return;
+    var state = lastDebugState || platform.saveState();
+    var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
     if (pc >= 0 && this.assemblyfile) {
       var res = this.assemblyfile.findLineForOffset(pc, 15);
       if (res) {

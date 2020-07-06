@@ -1,0 +1,691 @@
+!==============================================================================!
+!   The Inform Designer's Manual (16May97) includes various references to a
+!   sample game called "Ruins", which unfortunately is not supplied with the
+!   compiler. This file attempts to knit together several of the fragments from
+!   the DM into a small but complete game, intended primarily as an example for
+!   novices of a typical way to use Inform features, and as a starting point
+!   for experimentation.
+!
+!   In order to keep the game manageably small, the following references from
+!   the DM have been omitted:
+!       parrot, low mist, chasm, pumice-stone ball, glyphs, dictionary,
+!       food rations, sodium lamp, cage.
+!   Other items have been changed as necessary for simplicity and consistency.
+!
+!   Object definitions explicitly state the name of their parent object (if
+!   appropriate), rather than using the "->" construct.
+!
+!   Once you've played the game and (hopefully) understood how it works, you
+!   are strongly encouraged to try modifying or extending it. For instance:
+!   - add the low mist in the Forest and Square_Chamber. In the DM it smells of
+!     broth, so perhaps you should provide a source for the smell (or just
+!     change the description)?
+!   - implement the parrot, perhaps having it fly into the Forest once the plane
+!     has departed?
+!   - extend the number of rooms. There's a suggestion that you could Down from
+!     the Shrine, or perhaps you could add a dark passage leading West from the
+!     Corridor?
+!   - if the passage is dark, perhaps a lamp would be useful?
+!   - if you've got a lamp, the maze in the Web becomes much less daunting
+!     (and the descriptions will need beefing up too). So perhaps it's the lamp
+!     rather than the bangle which you find on your exit from the darkened Web?
+!   - the DM is a bit unclear about the role(!) of the pumice-stone ball, but
+!     it seems to need pushing into the chasm. Maybe it blocks the gap and
+!     allows you to cross to the other side (in order to reach the bangle)?
+!   - there are a couple of daemons in the example, but no timer. How about
+!     extending the Honeycomb so that if dropped it prints a warning and starts
+!     a timer causing itself to melt unless picked up again within two turns?
+!
+!   Of course, it isn't worth spending too long on Ruins, since it's only a
+!   somewhat dull and well-visited example. As soon as you start to feel
+!   comfortable with the way that an Inform game is constructed...
+!
+!   ...have a go at writing one of your own. Good luck!
+
+!==============================================================================!
+!   Every game needs a Story and Headline, and must include Parser and VerbLib.
+!   As DM Åß7 except: Release, Serial and MAX_SCORE defined.
+!
+Constant Story "RUINS";
+Constant Headline
+        "^An Interactive Worked Example^
+         Copyright (c) 1995 by Graham Nelson.^
+         Revisited 1998 by Roger Firth.^";
+
+Release  2;
+Serial  "981117";
+Constant MAX_SCORE 100;
+
+Include "Parser";
+Include "VerbLib";
+
+!==============================================================================!
+!   Every game needs an Initialise routine, whose primary role is to set the
+!   player's location (i.e. you) at the start of the game.
+!   As DM Åß7 and 19 except: StartDaemon() call added, no TitlePage().
+!
+[ Initialise;
+    location = Forest;
+    thedark.description =
+        "The darkness of ages presses in on you, and you feel claustrophobic.";
+    StartDaemon(Packing_Case);
+    "^^^^^Days of searching, days of thirsty hacking through the briars of
+     the forest, but at last your patience was rewarded. A discovery!^";
+    ];
+
+!==============================================================================!
+!   As DM Åß20. PrintRank, if defined, is called when printing the score.
+!
+[ PrintRank;
+    print ", earning you the rank of ";
+    switch (score) {
+        0 to 9:     "humble rainforest Tourist.";
+        10 to 39:   "Investigator.";
+        40 to 69:   "Acquisitor.";
+        70 to 99:   "Archaeologist.";
+        100:        "Master Archaeologist.";
+        }
+    ];
+
+!==============================================================================!
+!   As DM Åß11 except: daemon added, to bring the immovable crate at the start,
+!   and take it (and you) away at the end.
+!
+Object  Packing_Case "packing case"
+  with  name 'packing' 'case' 'crate' 'box' 'strongbox',
+        initial
+            "Your packing case rests here, ready for you to hold any important
+             cultural finds you might make, for shipping back to civilisation.",
+        description
+            "A stout wooden crate, only slightly battered by its fall through
+             the branches.",
+        before [;
+            PushDir, Remove, Take:
+                "The case is too heavy to bother moving, as long as your
+                 expedition is still incomplete.
+                 It'll probably have to be taken out by helicopter.";
+            ],
+        number 0,   ! <-- used by the daemon
+        daemon [;
+            switch (++self.number) {
+                !-- Start of game
+                1:  "^You hear the distant drone of an aeroplane.";
+                2:  "^The plane is much louder, and seems to be flying very
+                     low. Terrified birds rise in screeching flocks.";
+                3:  move self to Forest;
+                    if (location == Forest)
+                        "^You involuntarily crouch as the plane flies directly
+                         overhead, seemingly only inches above the treetops.
+                         With a loud thump, something drops heavily to the
+                         ground.";
+                    "^Even underground, the engine roar is deafening.
+                     Then there's a dull thump overhead and a little dust
+                     falls from the ceiling.";
+                4:  StopDaemon(self);
+                    "^The roar dies away; calm returns to the forest.";
+                !-- End of game
+                5:  "^A deep throbbing noise can be heard.";
+                6:  "^A helicopter appears, hovering overhead.";
+                7:  StopDaemon(self);
+                    remove self;
+                    deadflag = 2;   ! <-- You win!
+                    "^The helicopter lowers a rope; you tie it around the
+                     packing case, which is hauled up into the air,
+                     then a rope ladder comes dangling down.
+                     With one last look around the clearing, you climb the
+                     ladder into the waiting craft.
+                     Back to civilisation, and a decent pint of Brakspear's!";
+                }
+            ],
+  has   container open openable static;
+
+!==============================================================================!
+!   As DM Åß8 except: started endgame processing when all treasure has been
+!   found. Added Bangle and Ruby treasures. "Undiscovered" is useful when
+!   ensuring that treasures can't be found twice.
+!
+Class   Treasure
+  with  cultural_value 10,
+        before [;
+            Remove, Take:
+                if (self in Packing_Case)
+                    "Unpacking such a priceless artifact had best wait
+                     until the Metropolitan Museum can do it.";
+            ],
+        after [;
+            Insert:
+                if (second == Packing_Case) {
+                    score = score + self.cultural_value;
+                    print "Safely packed away.^";
+                    }
+                if (score == MAX_SCORE) {
+                    StartDaemon(Packing_Case);
+                    "^The case is full, and you're feeling really homesick.
+                     Now, how to get out of here?";
+                    }
+                rtrue;  ! <-- print nothing further
+            ];
+
+Object  Undiscovered "hidden treasure room"
+  with  description "How the heck did you get here!?.";
+
+Treasure Statuette "pygmy statuette" Undiscovered
+  with  name 'pygmy' 'statuette' 'statue' 'mayan' 'snake' 'spirit',
+        description
+            "A menacing, almost cartoon-like statuette of a pygmy spirit
+             with an enormous snake around its neck.";
+
+Treasure Bangle "silver bangle" Undiscovered
+  with  name 'silver' 'bangle' 'bracelet' 'ring',
+        cultural_value 20,
+        description "An intricately chased piece of jewellery.";
+
+Treasure Ruby "blood-red ruby" Undiscovered
+  with  name 'blood' 'red' 'blood-red' 'ruby' 'stone' 'jewel',
+        cultural_value 30,
+        description "A vivid red jewel, as large as a hen's egg.";
+
+Treasure Honeycomb "lump of wax" Undiscovered
+  with  name 'ancient' 'honeycomb' 'old' 'honey' 'comb' 'wax' 'lump',
+        cultural_value 40,
+        description
+            "On closer examination, the lump appears to be an old honeycomb.",
+        after [;
+            Eat:
+                "Perhaps the most expensive meal of your life.
+                 The honey tastes odd, perhaps because it was used to store the
+                 entrails of the king buried here, but still like honey.";
+            ],
+  has   edible;
+
+!==============================================================================!
+!   Not in the DM as such, but useful (a) to distinguish room definitions from
+!   those of ordinary objects in the file, and (b) to provide light everywhere
+!   (unless overruled). See DM Åß3.8.
+!
+Class   Room
+  has   light;
+
+!==============================================================================!
+!   As DM Åß7 and 10.
+!
+Room    Forest "Dark Forest"
+  with  name 'forest' 'jungle' 'clearing' 'olive' 'tree' 'trees' 'midges',
+        description
+            "In this tiny clearing, the pine-needle carpet is broken by
+             stone-cut steps leading down into the darkness.
+             Dark olive trees crowd in on all sides, the air steams with
+             warm recent rain, midges hang in the air.",
+        d_to Stone_Steps,
+        u_to
+            "The trees are spiny and you'd cut your hands to ribbons
+             trying to climb them.",
+        cant_go
+            "The rainforest-jungle is dense, and you haven't hacked through it
+             for days to abandon your discovery now.
+             Really, you need a good few artifacts to take back to civilisation
+             before you can justify giving up the expedition.";
+
+!==============================================================================!
+!   As DM Åß7 and 8 except: added discovery of Statuette on picking the
+!   mushroom.
+!
+Object Mushroom "speckled mushroom" Forest
+  with  name 'speckled' 'mushroom' 'fungus' 'toadstool',
+        initial
+            "A speckled mushroom grows out of the sodden earth,
+             on a long stalk.",
+        description
+            "The mushroom is capped with blotches,
+             and you aren't at all sure it's not a toadstool.",
+        before [;
+            Eat:
+                if (random(100) > 30)
+                    "You nibble at one corner,
+                     but the curious taste repels you.";
+                deadflag = 1;   ! <-- You die!
+                "The tiniest nibble is enough.
+                 It was a toadstool, and a poisoned one at that!";
+            ],
+        after [;
+            Drop:
+                "The mushroom drops to the ground, battered slightly.";
+            Take:
+                if (self has general)
+                    "You pick up the slowly-disintegrating mushroom.";
+                give self general;
+                move Statuette to location;
+                "You stoop to pick the mushroom, neatly cleaving its thin stalk.
+                 As you straighten up, you notice what looks like a
+                 snake in the grass.";
+            ],
+  has   edible;
+
+!==============================================================================!
+!   As DM Åß7 and 8 except: replaced "first feet" by cobwebs.
+!
+Object  Stone_Steps "stone-cut steps" Forest
+  with  name 'stone' 'stone-cut' 'steps' 'stairs' 'cobwebs',
+        description [;
+            print "The cracked and worn steps descend into a dim chamber. ";
+            if (Square_Chamber has visited)
+                "The filmy cobwebs which once spanned the entrance
+                 now hang in tatters.";
+            else
+                "Cobwebs form a flimsy barrier,
+                 unlikely to impede your descent.";
+            ],
+        door_to Square_Chamber, door_dir d_to,
+  has   door open scenery;
+
+!==============================================================================!
+!   As DM Åß10 except: added examination of floor, word on east lintel,
+!   insect trails when mushroom bursts.
+!
+Room    Square_Chamber "Square Chamber"
+  with  name 'square' 'chamber' 'sand' 'dust' 'lintel' 'lintels' 'lintelled'
+            'east' 'south' 'doorways' 'doors' 'steps',
+        description
+            "A sunken, gloomy stone chamber, ten yards across,
+             whose floor is covered with fine sandy dust.
+             A shaft of sunlight cuts in from the steps above,
+             giving the chamber a diffuse light, but in the shadows low
+             lintelled doorways to east and south
+             lead into the deeper darkness of the Temple.",
+        before [;
+            Drop:
+                if (noun == mushroom)
+                    <<Insert Mushroom Sunlight>>;
+            Examine:
+                if (noun == d_obj) {
+                    if (Trails in location)
+                        <<Examine Trails>>;
+                    "Only your own footprints disturb the dust.";
+                    }
+            Go: if (noun == e_obj) {
+                    print "As you move into the eastern shadows, you seem to
+                        glimpse the word SENE scratched on the lintel,
+                        but before you can stop to inspect it more closely,
+                        you find yourself in...^";
+                    rfalse; ! <-- continue with the regular action
+                    }
+            Insert:
+                if ((noun == Mushroom) && (second == Sunlight)) {
+                    remove Mushroom;
+                    move Trails to location;
+                    "You drop the mushroom on the floor, in the glare of the
+                     shaft of sunlight.
+                     It bubbles obscenely, distends and then bursts into a
+                     hundred tiny insects which run for the darkness in every
+                     direction, leaving strange trails in the sandy floor.
+                     No trace of fungus remain.";
+                }
+            ],
+        u_to Forest,
+        e_to Inner_Web,
+        s_to Corridor;
+
+!==============================================================================!
+!   As DM Åß10.
+!
+Object  Sunlight "shaft of sunlight" Square_Chamber
+  with  name 'shaft' 'of' 'sunlight' 'sun' 'light' 'beam' 'sunbeam' 'ray'
+            'rays' 'sun^s',
+        description
+            "The shaft of sunlight glimmers motes of dust in the air,
+             making it seem almost solid.",
+        before [;
+            Examine, Search:
+                ;
+            default:
+                "It's only an insubstantial shaft of sunlight.";
+            ],
+  has   scenery;
+
+!==============================================================================!
+!   Not in the DM as such, but useful because employed twice. It seemed easier
+!   to have two sets of carvings rather just one plus a lot of if... tests.
+!   See DM Åß3.8.
+!
+Class   Carved
+  with  name 'carved' 'inscription' 'inscriptions' 'carving' 'carvings'
+            'group' 'of',
+        initial "Carved inscriptions crowd the walls and ceiling.",
+  has   container open pluralname static;
+
+!==============================================================================!
+!   As DM Åß10 except: changed to include insect trails suggesting a carving,
+!   and pressable carving which reveals cavity.
+!
+Carved  Carvings "carved inscriptions" Square_Chamber
+  with  description [;
+            print "The carvings cut deep into the rocks from which the
+                chamber is built, forming swirling sinuous patterns.";
+            if (cavity in self)
+                print " In the middle of one wall, a small cavity can be seen.";
+            new_line;
+            ],
+        before [;
+            Push:
+                "Pressing the carved rock walls at random is unlikely
+                 to be revealing.";
+            Touch:
+                "The carvings are warm and smooth to the touch.";
+            ];
+
+Carved  Other_Carvings "carved inscriptions"
+  with  description
+            "You stare at a group of carvings in the middle of one wall,
+             uncannily resembling the insects' trail left in the sand,
+             and feel your hand reaching out in that direction.",
+        before [;
+            Push:
+                remove Other_Carvings;
+                move Carvings to location;
+                move Cavity to Carvings;
+                "The carvings slide inwards, revealing a small cavity.";
+            Touch:
+                "The carvings seems to shift slightly under your hand.
+                 Perhaps with a little more pressure...?";
+            ];
+
+Object  Cavity "cavity among the carvings"
+  with  name 'cavity' 'hole' 'deep' 'gloomy',
+        description
+            "The cavity, a few inches across, is deep and gloomy.",
+  has   container open static;
+
+Object  Trails "trails in the sand"
+  with  name 'trail' 'trails' 'sand' 'sandy' 'pattern' 'insect' 'insects',
+        initial "Strange trails swirl on the sandy floor.",
+        description [;
+            if (self has general) {
+                remove Carvings;
+                move Other_Carvings to location;
+                give self ~general;
+                }
+            "The insect trails seem to resemble one particular group of
+             carvings on the wall.";
+            ],
+  has   general pluralname static;
+
+!==============================================================================!
+!   A Web room is implied at DM Åß10, but not defined.  Here, it's implemented
+!   as a simple dark maze of two rooms, once of which is home to the
+!   scuttling claws described in Example 37. The Bangle is here.
+!
+Class   Maze
+  class Room,
+  with  name 'dark' 'darkness' 'web',
+        description "Without a light, you'll never see anything here!",
+        cant_go
+            "Blundering around in the dark, it's impossible to tell
+             which direction is which.",
+  has   ~light;
+
+Maze    Inner_Web "Web of Darkness"
+  with  se_to Outer_Web,
+        ne_to Inner_Web,
+        n_to Inner_Web, s_to Inner_Web, e_to Inner_Web, w_to Inner_Web,
+        nw_to Inner_Web, sw_to Inner_Web,
+        u_to Inner_Web, d_to Inner_Web;
+
+Maze    Outer_Web "Web of Darkness"
+  with  se_to Outer_Web,
+        ne_to Square_Chamber,
+        n_to Inner_Web, s_to Inner_Web, e_to Inner_Web, w_to Inner_Web,
+        nw_to Inner_Web, sw_to Inner_Web,
+        u_to Inner_Web, d_to Inner_Web,
+        before [;
+            Go: if ((noun == ne_obj) && (Bangle in Undiscovered)) {
+                    move Bangle to player;
+                    print "Sensing a slight draught you move in that direction,
+                        stumbling over something lying on the ground in the dark.
+                        Almost inadvertently you grab it before gratefully
+                        emerging into the gloomy chamber.^";
+                    rfalse; ! <-- continue with the regular action
+                }
+            ];
+
+!==============================================================================!
+!   As DM Ex.37 except: daemon runs only in the Inner_Web room.
+!
+Object  Tiny_Claws "sound of tiny claws" thedark
+  with  name 'tiny' 'claws' 'sound' 'of' 'scuttling' 'scuttle' 'things'
+            'creatures' 'insects' 'monsters',
+        article "the",
+        initial "Somewhere, tiny claws are scuttling.",
+        description "Without a light, you'll never see anything here!",
+        before [;
+            Attack: "They easily avoid your flailing about in the dark.";
+            Listen: "How intelligent they sound, for mere insects.";
+            Smell:  "You can smell only your own fear.";
+            Taste, Touch:
+                "You wouldn't want to. Really.";
+            default:
+                "The creatures evade you, chittering.";
+            ],
+        number 0,   ! <-- used by the daemon
+        each_turn [; StartDaemon(self); ],
+        daemon [;
+            if (real_location ~= Inner_Web) {   ! location just has "thedark"
+                self.number = 0;
+                StopDaemon(self);
+                rtrue;  ! <-- ?
+                }
+            switch(++self.number) {
+                1:  "^The scuttling draws a little nearer,
+                     and your breathing grows load and hoarse.";
+                2:  "^The perspiration of terror runs off your brow.
+                     The creatures are almost here!";
+                3:  "^You feel a tickling at your extremities and kick outward,
+                     shaking something chitinous off.
+                     Their sound alone is a menacing rasp.";
+                4:  deadflag = 1;   ! <-- You die!
+                    "^Suddenly there is a tiny pain, of a hypodermic-sharp
+                     fang at your calf.
+                     Almost at once your limbs go into spasm, your shoulders
+                     and knee-joints lock, your tongue swells...";
+                }
+            ];
+
+!==============================================================================!
+!   As DM Åß12 except: added the moss concealing the Ruby.
+!
+Room    Corridor "Stooped Corridor"
+  with  name 'low' 'stooped' 'corridor',
+        description
+            "A low, square-cut corridor, running north to south,
+             stooping over you.
+             Patches of moss emit a faint green fluorescent glow,
+             just enough that you can see your surroundings.",
+        n_to Square_Chamber,
+        s_to Stone_Door,
+  has   ;
+
+Object  Moss "mossy patches" Corridor
+  with  name 'moss' 'mossy' 'patches' 'green' 'fluorescent' 'glow' 'clumps',
+        description [;
+            if (Ruby in Undiscovered)
+                "The moss grows in rough clumps, surprisingly thick in places.
+                 Is that a hint of red hidden among all the greenery?";
+            "The moss, now somewhat raggy, grows in rough clumps.";
+            ],
+        before [;
+            Search:
+            if (Ruby in Undiscovered) {
+                    move Ruby to location;
+                    "Something rolls from the moss onto the ground.";
+                }
+            ],
+  has   pluralname scenery;
+
+!==============================================================================!
+!   As DM Åß12. The key isn't actually defined in the DM.
+!
+Object  Stone_Door "stone door"
+  with  name 'stone' 'door' 'big' 'massive' 'yellow',
+        description "It's just a big stone door.",
+        when_closed "The passage is barred by a massive door of yellow stone.",
+        when_open "The massive yellow stone door is open.",
+        door_to
+            [; if (location == Corridor) return Shrine; return Corridor; ],
+        door_dir
+            [; if (location == Corridor) return s_to; return n_to; ],
+        with_key Stone_Key,
+        found_in Corridor Shrine,
+  has   door lockable locked openable static;
+
+Object  Stone_Key "huge iron key" Cavity
+  with  name 'huge' 'iron' 'key',
+        description "It must be a pretty big door to need a key like this.";
+
+!==============================================================================!
+!   A Shrine room is implied at DM Åß10, but not defined.
+!
+Room    Shrine "Lofty Shrine"
+  with  name 'lofty' 'shrine' 'haze' 'hazy' 'craggy' 'walls' 'quartz',
+        description
+            "For an underground chamber, the Shrine is remarkably high,
+             though its upper half is hazy and difficult to see clearly.
+             The craggy walls are polished natural rock, in which tiny
+             flecks of quartz catch the light of the flickering candle.",
+        n_to Stone_Door;
+
+!==============================================================================!
+!   As DM Åß14 except: added processing of objects placed on the altar.
+!
+Object  Stone_Table "slab altar" Shrine
+  with  name 'stone' 'table' 'slab' 'altar' 'great',
+        initial "A great stone slab of a table dominates the Shrine.",
+        description
+            "It's big enough to lie on, though in the circumstances
+             that might prove to be a A Really Bad Idea.",
+        after [;
+            Enter:
+                deadflag = 1;   ! <-- You die!
+                "With astonishing speed, the horror-struck priest plucks
+                 a bronze dagger from his tattered robe, and stabs you
+                 in your sacrilegious heart.";
+            Receive:
+                remove noun;
+                switch (noun) {
+                    Stone_Key:
+                        move Honeycomb to player;
+                        "His eyes dimly agleam with gratitude, the priest takes
+                         the key and conceals it among his rags.
+                         Then, lifting the candle, he carefully detaches a large
+                         lump of the mottled wax, and gives it to you.";
+                    Honeycomb:
+                        move Honeycomb to player;
+                        "~For returning the key, that is yours to keep.~";
+                    }
+                print "The priest takes ", (the) noun, " and conceals it
+                    among his rags.^";
+                rtrue;  ! <-- print nothing further
+            ],
+  has   enterable supporter static;
+
+!==============================================================================!
+!   Not in the DM as such, but added to provide light, and as a source for
+!   the Honeycomb.
+!
+Object  Candle "flickering candle" Stone_Table
+  with  name 'flickering' 'candle' 'flame',
+        initial
+            "A flickering candle at one end of the slab casts
+             grotesque shadows on the walls.",
+        description
+            "The candle is little more than a crudely moulded lump of wax.
+             Its texture is vaguely crystalline, with small fragments
+             embedded within.",
+  has   static;
+
+!==============================================================================!
+!   As DM Åß16 except: the priest deal in objects, not the dictionary.
+!
+Object  Priest "mummified priest" Shrine
+  with  name 'mummified' 'priest' 'old' 'ancient' 'dessicated',
+        initial
+            "Behind the slab, a mummified priest stands waiting,
+             barely alive at best, impossibly venerable.",
+        description
+            "He is dessicated and hangs together only by will-power.
+             Though his first language is presumably local Mayan, you have
+             the curious instinct that he will understand your speech.",
+        life [;
+            Answer:
+                switch (noun) {
+                    'hello', 'hi', 'bye', 'goodbye', 'good-bye', 'cheerio',
+                    'thanks', 'thank', 'thankyou', 'you', 'cheers', 'ta':
+                        "Silently, carefully, the priest nods his head.";
+                    }
+                "The priest coughs, and almost falls apart.";
+            Ask:
+                switch (second) {
+                    'king', 'tomb', 'shrine', 'temple', 'altar', 'slab':
+                        "~The King (life! propserity! happiness!) is buried
+                         deep under this Shrine, where you will never go.~";
+                    'silver', 'bangle', 'bracelet', 'ring',
+                    'blood', 'red', 'blood-red', 'ruby', 'stone', 'jewel',
+                    'pygmy', 'statuette', 'statue', 'mayan', 'snake', 'spirit':
+                        "~That is one of my people's sacred relics.~";
+                    'ancient', 'honeycomb', 'old', 'honey', 'comb', 'wax',
+                    'lump':
+                        "~That is the most sacred of all my people's relics.~";
+                    'huge', 'iron', 'key':
+                        if (parent(Stone_Key) == nothing)
+                            "~Now my people will be able to visit the Shrine.~";
+                        "~That has been lost for generations.
+                         My gratitude to anyone who returns it will be
+                         overwhelming.~";
+                    }
+                "~You must find your own answer.~";
+            Attack, Kiss:
+                remove self;
+                "The priest desiccates away into dust until nothing remains,
+                 not a breeze or a bone.";
+            Give, Show:
+                switch (noun) {
+                    Bangle, Ruby, Statuette:
+                        "~I would be grateful if you placed that before me.~";
+                    Honeycomb:
+                        "~For returning the key, that is yours to keep.~";
+                    Stone_Key:
+                        "~I would be profoundly grateful if you placed that
+                         before me.~";
+                    }
+                "The priest is indifferent to earthly things.";
+            Tell:
+                "The priest has no interest in your sordid life.";
+            ThrowAt:
+                move noun to location;
+                <<Attack self>>;
+            ],
+        orders [;
+            Go: "~I must not leave the Shrine.~";
+            NotUnderstood:
+                switch (noun) {
+                    'hello', 'hi', 'bye', 'goodbye', 'good-bye', 'cheerio',
+                    'thanks', 'thank', 'thankyou', 'you', 'cheers', 'ta':
+                        "Silently, carefully, the priest nods his head.";
+                    }
+                "~You speak in riddles~";
+            default:
+                "~It is not your orders that I serve.~";
+            ],
+  has   animate;
+
+!==============================================================================!
+!   Every game needs to include the Grammar.
+!
+Include "Grammar";
+
+!==============================================================================!
+!   Added to enable you to "pick" the mushroom (as well as the usual "take",
+!   "get", "pick up", etc). See DM Åß26.
+!
+Extend "pick" * edible -> Take;
+
+!==============================================================================!
+

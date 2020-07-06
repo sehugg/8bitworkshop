@@ -1,0 +1,2169 @@
+! ----------------------------------------------------------------------------
+!   Museum 961111                   One of the standard Inform 6 example games
+!
+!                                                            created: 20.12.95
+!                                             translated to Inform 6: 11.11.96
+!
+!   This "game" is a compendium of solved exercises from the Designer's
+!   Manual.  Room numbers are section numbers within the Third Edition.
+!   Many of these exercises are difficult, and so is some of the code below.
+! ----------------------------------------------------------------------------
+
+Constant Story "MUSEUM OF INFORM";
+Constant Headline
+    "^An Interactive Companion to the Designer's Manual (Third Edition)^";
+
+!   The game is meant to be experimented with, so we always define:
+Constant DEBUG;
+
+Release 2;
+Serial "961111";
+
+Replace DrawStatusLine;
+Include "Parser";
+
+! --------------------------------------------------------------------------
+
+Object samples_bag "samples bag"
+  with description "A capacious SACK_OBJECT (see section 20).",
+       name "samples" "bag", article "your",
+       when_closed "Your samples bag lies on the floor.",
+       when_open "Your samples bag lies open on the floor.",
+  has  container open openable;
+
+Constant SACK_OBJECT = samples_bag;
+
+Include "VerbLib";
+
+! --------------------------------------------------------------------------
+
+Attribute crewmember;
+
+Property weight 10;
+
+Class Key with name "key";
+
+! --------------------------------------------------------------------------
+
+Object  Foyer "Foyer"
+ has    light
+ with   description
+           "The foyer of the magnificent Museum of Inform. A flight of
+            stairs sweeps upward to Chapters V and VI, and corridors
+            fan out on this level into Chapter IV. These run:^
+            ^  north into Room 10 (the Halls of Sense and Direction),
+            ^  south along Corridor 12 (doors) to Room 13 (switches),
+            ^  @00 to Room 11 (the Wonderful World of Containers)
+            ^  and @01 to Room 14 (which houses larger exhibits).^^
+            (And a plain ladder descends into the basement; you can also
+             step out onto a balcony.)",
+        e_to Room11, u_to Second_Floor, n_to Room10,
+        s_to Corridor12, w_to Room14,
+        d_to basement, out_to balcony;
+
+Object -> "map"
+  with name "map" "ground" "floor",
+       initial "A map of the ground floor is embossed in one wall.",
+       description
+       [;  font off;
+           print
+          "^+------------------------------------------+
+           ^|                              (mirror)    |
+           ^|   Weights      Room 10  ---  Room 10a    |
+           ^|    Room         senses      directions   |
+           ^|      |            |                      |
+           ^|   Room 14 ---   Foyer   ---   Room 11    |
+           ^|  (changing  (you are here)   containers  |
+           ^|  character)       |                      |
+           ^|                   |                      |
+           ^|   Room 15 --- Corridor 12                |
+           ^|  (MS room)  (door, curator)              |
+           ^|   (Bible)         |                      |
+           ^|             Switches Hall 13             |
+           ^|                (chasm)                   |
+           ^|                   |                      |
+           ^|           Far Side of Room 13            |
+           ^+------------------------------------------+^";
+           font on;
+       ],
+  has  static;
+
+! --------------------------------------------------------------------------
+
+Object basement "Museum Basement"
+  with u_to Foyer,
+       description
+          "Once Room 17, this space has been abandoned by the curators,
+           who have simply sprayed its walls with moth-repellent and
+           abandoned it.",
+       before
+       [;  Smell: "Napthalene.";
+       ];
+
+! --------------------------------------------------------------------------
+
+Object Room10 "Hall of Senses"
+  with description
+          "This is Room 10, north of the foyer. If you try going further
+           north, a string will be printed instead. The exit to the @00
+           has a routine attached, and randomly leads either to the
+           Directions Room or back to the foyer.",
+       s_to Foyer,
+       n_to "This string is the ~n_to~ value for this room.",
+       e_to
+       [;  if (random(2)==1) return Foyer; return Room10a; ],
+  has  light;
+
+Object -> "TRAP lever"
+  with name "trap" "lever",
+       before
+       [;  Pull, Push:
+               if (self has on) <<SwitchOff self>>;
+               <<SwitchOn self>>;
+       ],
+       after
+       [;  SwitchOn: move orange_cloud to location;
+              "Clunk! An orange cloud suddenly descends upon you.";
+           SwitchOff: remove orange_cloud;
+              "Click! The orange cloud vanishes.";
+       ],
+  has  switchable static;
+
+Object -> "gold watch"
+  with name "gold" "watch",
+       description "The watch has no hands, oddly.",
+       react_before
+       [;  Listen: if (noun==0 or self) "The watch ticks loudly."; ];
+
+Object -> "sprig of lavender"
+  with name "sprig" "of" "lavender",
+       react_before
+       [;  Smell: if (noun==0 or self) "Lavender-perfume. Ahh!"; ];
+
+Object orange_cloud "orange cloud"
+  with name "orange" "cloud",
+       react_before
+       [;  Look: "You can't see for the orange cloud surrounding you.";
+           Go, Exit: "You wander round in circles, choking.";
+           Smell: if (noun==0 or self) "Cinnamon? No, nutmeg.";
+       ],
+  has  scenery;
+
+! --------------------------------------------------------------------------
+!   For east-west reflection
+! --------------------------------------------------------------------------
+
+Lowstring east_str "east"; Lowstring west_str "west";
+[ NormalWorld; string 0 east_str; string 1 west_str;
+  e_obj.door_dir = e_to; w_obj.door_dir = w_to;
+];
+[ ReversedWorld; string 0 west_str; string 1 east_str;
+  w_obj.door_dir = e_to; e_obj.door_dir = w_to;
+];
+
+Object Room10a "Hall of Directions"
+  with name "mirror",
+       description
+          "An annexe to Room 10: the main exit is back @01, and there's a
+           curiously misty mirror on the north wall. Also, there's an exit
+           in the fourth, ~hyper~ dimension (which is only visible in the
+           weird geometry of this room).",
+       initial
+       [;  move hyper to compass; StartDaemon(hyper);
+       ],
+       w_to Room10,
+       n_to
+       [;  print "Walking through the mirror is confusing...^";
+           if (self has general) NormalWorld(); else ReversedWorld();
+           if (self has general) give self ~general; else give self general;
+           <<Look>>;
+       ],
+       in_to [; print "Amazing! Your body corkscrews as you pass.^";
+                return Room11; ],
+  has  light;
+
+Object hyper "hyper-dimensional direction"
+  with name "hyper" "fourth" "dimension", article "the", door_dir in_to,
+       daemon
+       [;  if (location ~= Room10a) { remove self; StopDaemon(self); }
+       ],
+  has  scenery;
+
+! --------------------------------------------------------------------------
+
+Object Room11 "Wonderful World of Containers"
+  with description
+          "This is Room 11, @00 of the foyer. You notice a typical piece
+           of scenery which turns out to be a supporter: a mantelpiece.",
+       w_to Foyer,
+  has  light;
+
+Object -> "bearded psychiatrist"
+  with name "bearded" "doctor" "psychiatrist" "psychologist" "shrink",
+       initial "A bearded psychiatrist has you under observation.",
+       life
+       [;  "He is fascinated by your behaviour, but makes no attempt to
+            interfere with it.";
+       ],
+       react_after
+       [;  Insert: print "~Subject puts ", (a) noun, " in ", (the) second,
+                      ". Interesting.~^";
+           PutOn:  print "~Subject puts ", (a) noun, " in ", (the) second,
+                      ". Interesting.~^";
+       ],
+       react_before
+       [;  Take, Remove: print "~Subject feels lack of ", (the) noun,
+               ". Suppressed Oedipal complex? Mmm.~^";
+       ],
+  has  animate;
+
+Object -> "mantelpiece"
+  with name "mantel" "mantle" "piece" "mantelpiece"
+  has  scenery supporter;
+
+Object -> "green ball" with name "green" "ball";
+Object -> "red cone" with name "red" "cone";
+Object -> "blue pyramid" with name "blue" "pyramid";
+
+Object -> "plain shopping bag (which can only hold 2 things)"
+  with name "plain" "shopping" "bag", capacity 2,
+  has  container open;
+
+Object -> "glass box with a lid" with name "glass" "box" "with" "lid"
+  has  container transparent openable open;
+Object -> "steel box with a lid" with name "steel" "box" "with" "lid"
+  has  container openable open;
+
+Key -> bolted_key "bolted key" with name "bolted";
+
+Object -> "toothed bag"
+  with name "toothed" "bag",
+       description "A capacious bag with a toothed mouth.",
+       before
+       [; LetGo: "The bag defiantly bites itself
+                  shut on your hand until you desist.";
+          Close: "The bag resists all attempts to close it.";
+       ],
+       after
+       [; Receive:
+                 "The bag wriggles hideously as it swallows ",
+                 (the) noun, ".";
+       ],
+  has  container open;
+
+Object -> "bolted cupboard"
+  with name "bolted" "cupboard",
+       describe
+       [; if (self hasnt open)
+              "^A pretty typical shut cupboard is bolted to one wall.";
+          "^Bolted up on one wall is an open cupboard.";
+       ],
+       with_key bolted_key
+  has  locked container openable lockable static;
+
+Object -> "portable television set"
+  with name "tv" "television" "set" "portable",
+       initial "A portable television set has two sub-objects attached:
+                a power button and a screen.",
+       before
+       [;  SwitchOn: <<SwitchOn power_button>>;
+           SwitchOff: <<SwitchOff power_button>>;
+           Examine: <<Examine screen>>;
+       ],
+  has  transparent;
+Object -> -> power_button "power button"
+  with name "power" "button" "switch",
+       after
+       [;  SwitchOn, SwitchOff: <<Examine screen>>;
+       ],
+  has  switchable;
+Object -> -> screen "television screen"
+  with name "screen",
+       before
+       [;  Examine: if (power_button hasnt on) "The screen is black.";
+               "The screen writhes with a strange Japanese cartoon.";
+       ];
+
+Object -> "macrame bag"
+  with name "macrame" "bag" "string" "net" "sack",
+       react_before
+       [;  Examine, Search, Listen, Smell: ;
+           default:
+               if (inp1>1 && inp1 in self)
+                   print_ret (The) inp1, " is tucked away in the bag.";
+               if (inp2>1 && inp2 in self)
+                   print_ret (The) inp2, " is tucked away in the bag.";
+       ],
+       describe
+       [;  print "^A macrame bag hangs from the ceiling, shut tight";
+           if (child(self)==0) ".";
+           print ". Inside you can make out ";
+           WriteListFrom(child(self), ENGLISH_BIT); ".";
+       ],
+  has  container transparent static;
+Object -> -> "music box"
+  with name "music" "box" "musical",
+       description "Attractively lacquered.",
+       react_before
+       [;  Listen: if (noun==0 or self)
+              "The musical box chimes some Tchaikovsky."; ];
+
+! --------------------------------------------------------------------------
+
+Object Corridor12 "Corridor 12"
+  with description
+          "Runs south of the foyer. A side exit leads @01 to Room 15,
+           the manuscripts room.",
+       n_to Foyer, s_to Oak_Door, w_to Room15,
+  has  light;
+
+Object -> "sinister curator"
+  with name "sinister" "curator",
+       initial
+       [;  if (self hasnt general)
+              "A sinister curator leans against the wall, asleep.";
+          "The curator is here, casting menacing looks.";
+       ],
+       daemon
+       [ i p j n k;
+           if (random(3)~=1 || self hasnt general) rfalse;
+           p=parent(self);
+           objectloop (i in compass)
+           {   j=p.(i.door_dir);
+               if (ZRegion(j)==1 && j hasnt door) n++;
+           }
+           if (n==0) rfalse;
+           k=random(n); n=0;
+           objectloop (i in compass)
+           {   j=p.(i.door_dir);
+               if (ZRegion(j)==1 && j hasnt door) n++;
+               if (n==k)
+               {   move self to j;
+                   if (p==location) "^The curator stalks away.";
+                   if (j==location) "^The curator stalks in.";
+                   rfalse;
+               }
+           }
+       ],
+       orders
+       [;  if (self hasnt general) "The curator only snores.";
+          "He raises a skeletal finger to his lips. ~Shh!~";
+       ],
+       life
+       [;  WakeOther:
+               if (self hasnt general)
+               {   give self general; move self to Foyer;
+                  "He wakes and rouses to his feet, pushes past you
+                   and stalks away.";
+               }
+           default: "He rears back with disdain.";
+       ],
+  has  animate;
+
+Object Oak_Door "oaken door"
+  with name "oak" "door" "oaken",
+       description "Despite appearances, there is no key to this door.",
+       door_dir
+       [; if (location==Corridor12) return s_to; return n_to; ],
+       door_to
+       [; if (location==Corridor12) return Room13; return Corridor12; ],
+       describe
+       [; if (self has open) "^The oaken door stands open.";
+          if (self hasnt locked) "^The corridor ends in an oaken door.";
+       ],
+       found_in  Corridor12  Room13
+  has  static door openable lockable;
+
+! --------------------------------------------------------------------------
+
+Object Room15 "Manuscripts Room"
+  with description
+          "This is Room 15, adjoining a corridor to the @00.",
+       e_to Corridor12,
+  has  light;
+
+Object -> "black Tyndale Bible"
+  with name "bible" "black" "book",
+       initial "A black Bible rests on a spread-eagle lectern.",
+       description "A splendid foot-high Bible, which must have survived
+           the burnings of 1520.",
+       before
+       [ w x; Consult:
+               wn = consult_from; w = NextWord();
+               switch(w)
+               {   'matthew': x="Gospel of St Matthew";
+                   'mark': x="Gospel of St Mark";
+                   'luke': x="Gospel of St Luke";
+                   'john': x="Gospel of St John";
+                   default: "There are only the four Gospels.";
+               }
+               if (consult_words==1)
+                   "You read the ", (string) x, " right through.";
+               w = TryNumber(wn);
+               if (w==-1000)
+                   "I was expecting a chapter number in the ",
+                             (string) x, ".";
+               "Chapter ", (number) w, " of the ", (string) x,
+                     " is too sacred for you to understand now.";
+       ];
+
+! --------------------------------------------------------------------------
+
+Object Room13 "Switches Hall"
+  with description
+          "This is Room 13, at the south end of a long corridor leading
+           north. Progress further south is blocked by a chasm.",
+       n_to Oak_Door, s_to PlankBridge,
+  has  light;
+
+Object -> "Gotham City searchlight"
+  with name "gotham" "city" "search" "light" "template" "searchlight",
+       article "the",
+       description "It has some kind of template on it.",
+       when_on "The old city searchlight shines out a bat against
+                the alabaster ceiling of the Museum.",
+       when_off "The old Gotham city searchlight has been lovingly
+                restored and housed here."
+  has  switchable static;
+
+Object -> "basement light switch"
+  with name "basement" "light" "switch",
+       after
+       [;  SwitchOn: give basement light; "Click!";
+           SwitchOff: give basement ~light; "Click!";
+       ],
+  has  switchable static;
+
+Object -> PlankBridge "plank bridge"
+  with description "Extremely fragile and precarious.",
+       name "precarious" "fragile" "wooden" "plank" "bridge",
+       when_open
+           "A precarious plank bridge spans the chasm.",
+       door_to
+       [;  if (children(player)~=0)
+            {   deadflag=1;
+               "You step gingerly across the plank, which bows under
+                your weight. But your meagre possessions are the straw
+                which breaks the camel's back! There is a horrid crack...";
+            }
+            print "You step gingerly across the plank, grateful that
+                   you're not burdened.^";
+           if (location==Room13) return FarSide; return Room13;
+       ],
+       door_dir
+       [;  if (location==Room13) return s_to; return n_to;
+       ],
+       found_in Room13 FarSide,
+  has  static door open;
+
+Object FarSide "Far Side of Chasm in Room 13"
+  with description
+          "This side of the chasm is dull and dusty after all.",
+       n_to PlankBridge,
+  has  light;
+
+! --------------------------------------------------------------------------
+
+Object Room14 "Large Exhibits Room"
+  with description
+          "This is Room 14, @01 of the foyer, which gives onto the Weights
+           Room to the north.",
+       e_to Foyer, n_to Weights_Room,
+  has  light;
+
+Object -> "hypnotic portrait"
+  with name "hypnotic" "portrait" "warthog" "picture" "of" "hog",
+       initial "A somewhat hypnotic full-length portrait of a warthog hangs
+           on the wall.",
+       before
+       [;  Examine: <Examine hog>; print "^...and somehow, so do you...^";
+               ChangePlayer(hog); <<Look>>;
+       ],
+  has  static;
+
+Object -> "Louis XV chair"
+  with name "louis" "xv" "quinze" "chair",
+       initial "A valuable Louis XV chair takes pride of place.",
+  has  enterable supporter;
+
+Object -> car "little red car"
+  with name "little" "red" "car" "kar1",
+       description "Large enough to sit inside. Among the controls is a
+                 prominent on/off switch. The numberplate is KAR 1.",
+       when_on  "The red car sits here, its engine still running.",
+       when_off "A little red car is parked here.",
+       before
+       [; PushDir: AllowPushDir(); rtrue;
+          Go: if (car has on) { Achieved(1); "Brmm! Brmm!"; }
+              print "(The ignition is off at the moment.)^";
+       ],
+       after
+       [; PushDir: "The car rolls very slowly as you push it.";
+       ],
+  has  switchable enterable static container open;
+
+Object -> -> "small note"
+  with name "small" "note",
+       description
+           "  !!!! FROBOZZ MAGIC CAR COMPANY !!!!^
+           ^Hello, Driver!^
+           ^Instructions for use:^
+           ^Switch on the ignition and off you go!^
+           ^Warranty:^
+           ^This car is guaranteed against all defects for a period of
+            76 milliseconds from date of purchase or until used,
+            whichever comes first.^
+           ^Good Luck!";
+
+Object -> "Giant"
+  with name "giant",
+       initial "A Giant is here. (And you know the old legend... push a
+           Giant, become a Giant!)",
+       before
+       [;  Push: ChangePlayer(self); <<Look>>;
+           Take: rtrue;
+       ],
+       number 0,
+       orders
+       [;  if (player==self)
+           {   if (actor~=self)
+                  "You only become tongue-tied and gabble.";
+               if (action==##Push && noun==selfobj)
+               {   ChangePlayer(selfobj); <<Look>>; }
+               rfalse;
+           }
+           Attack: "The Giant looks at you with doleful eyes.
+                    ~Me not be so bad!~";
+           default: "The Giant is unable to comprehend your instructions.";
+       ],
+  has  animate;
+
+
+! --------------------------------------------------------------------------
+
+Object "Caldera"
+  with description
+          "An old volcanic crater of mud and ash, from which there is
+           nowhere to go.",
+  has  light;
+
+Object -> hog "Warthog"
+  with name "wart" "hog" "warthog",
+       description "Muddy, sniffing and grunting.",
+       number,
+       orders
+       [;  if (player~=self || actor~=self) rfalse;
+
+           ! So now we have just the case where the player
+           ! is currently the warthog, ordering himself about:
+
+           Go, Look, Examine, Eat, Smell, Taste, Touch: rfalse;
+           default: "Warthogs can't do anything as tricky as that!";
+       ],
+  has  animate proper;
+
+Object -> "red berry"
+  with name "red" "berry" "magic",
+       initial "A magic red berry is half-uncovered in the mud.",
+       before
+       [;  Smell, Taste, Touch:
+               print "The blood-smell of the berry brings you back,
+                    back...^";
+                ChangePlayer(selfobj); <<Look>>;
+       ];
+
+! --------------------------------------------------------------------------
+
+Constant CARRYING_STRENGTH = 500;
+Constant HEAVINESS_THRESHOLD = 100;
+
+Object Weights_Room "Weights Room"
+  with description
+          "This is an annexe, south of Room 14. In here (though nowhere
+           else) objects have given weights, and
+           you can carry only a limited total weight. (Items from elsewhere
+           in the museum all weigh 10 zobs, regardless of what they are.)
+           The longer you carry heavy objects, the more tired you become,
+           until you're forced to drop them; your strength recovers once
+           you're carrying only a light load.",
+       initial [; weight_monitor.activate(); ],
+       s_to Room14,
+  has  light;
+
+Object -> "feather" with name "feather", weight 1;
+Object -> "iron anvil" with name "iron" "anvil", article "an", weight 300;
+Object -> "five-zob weight" with name "five" "zob" "weight", weight 5;
+Object -> "ten-zob weight" with name "ten" "zob" "weight", weight 10;
+Object -> "twenty-zob weight" with name "twenty" "zob" "weight", weight 20;
+Object -> "fifty-zob weight" with name "fifty" "zob" "weight", weight 50;
+Object -> "hundred-zob weight" with name "hundred" "zob" "weight", weight 100;
+
+[ WeightOf obj t i;
+   t = obj.weight;
+   objectloop (i in obj) t = t + WeightOf(i);
+   return t;
+];
+
+Object weight_monitor
+  with
+       players_strength,
+       warning_level 5,
+
+       activate
+       [;  self.players_strength = CARRYING_STRENGTH; StartDaemon(self);
+       ],
+       daemon
+       [ w s b bw;
+            if (location ~= Weights_Room) { StopDaemon(self); return; }
+
+            s = self.players_strength
+                - WeightOf(player) + HEAVINESS_THRESHOLD;
+            if (s<0) s=0; if (s>CARRYING_STRENGTH) s=CARRYING_STRENGTH;
+            self.players_strength = s;
+
+            if (s==0)
+            {   bw=-1;
+                objectloop(b in player)
+                    if (WeightOf(b) > bw) { bw = WeightOf(b); w=b; }
+                self.players_strength = self.players_strength + bw;
+                print "^Exhausted with carrying so much, you decide
+                    to discard ", (the) w, ": "; <<Drop w>>;
+            }
+
+            w=s/100; if (w==self.warning_level) return;
+
+            self.warning_level = w;
+            switch(w)
+            {   3: "^You are feeling a little tired.";
+                2: "^You possessions are weighing you down.";
+                1: "^Carrying so much weight is wearing you out.";
+                0: "^You're nearly exhausted enough to drop everything
+                     at an inconvenient moment.";
+            }
+       ];
+
+! --------------------------------------------------------------------------
+
+Constant SUNRISE  360;  ! i.e., 6 am
+Constant SUNSET  1140;  ! i.e., 7 pm
+Global day_state = 2;
+
+Object balcony "Balcony"
+  with description
+       [;  print "An open-air balcony on the cliffside wall of the
+               cathedral-like Museum, hundreds of feet above ";
+           if (day_state==1) "sunlit plains of farms and settlements.";
+           "a darkling plain. Dim light from the walls above is
+            the only beacon in this vast night.";
+       ],
+       in_to Foyer,
+       cant_go "The only way is back inside.",
+       each_turn
+       [ f;
+           if (the_time >= SUNRISE && the_time < SUNSET) f=1;
+           if (day_state == f) return;
+           if (day_state==2) { day_state = f; return; }
+           day_state = f;
+           if (f==1) "^The sun rises, illuminating the landscape!";
+         "^As the sun sets, the landscape is plunged into darkness.";
+       ],
+  has  light;
+
+Object -> "giant clock"
+  with name "giant" "clock" "face" "clockface" "clock-face",
+       before
+       [;  Examine: "According to the giant clockface on the wall
+               above, it is now ", the_time/60, ":", (the_time%60)/10,
+               the_time%10, ".";
+           default: "The giant clock-face is too high above you.";
+       ],
+       react_after [; Look: new_line; <Examine self>; ],
+  has  static concealed;
+
+Object -> moth "moth"
+  with name "moth",
+       initial "A catchable moth flits about.";
+
+[ GoMothGo;
+   if (moth in player)
+   {   remove moth;
+      "As your eyes try to adjust, you feel a ticklish sensation
+       and hear a tiny fluttering sound.";
+   }
+];
+
+Object -> "Commander Data"
+  with name "data" "commander",
+       orders
+       [; "~I regret that I am only here to make an example work elsewhere.
+            Please proceed upstairs to 10 Forward to see.~";
+       ],
+  has  proper animate crewmember;
+
+! ==========================================================================
+
+Object Second_Floor "Mezzanine"
+  with description
+          "Halfway up the marble staircase of the building, a second floor
+           mezzanine which leads south into Grammar Hall (an extension
+           purpose-built for the Room 16 exhibition).",
+       d_to Foyer,
+       s_to Grammar_Hall,
+       u_to Third_Floor,
+  has  light;
+
+Object -> "map"
+  with name "map" "mezzanine" "level",
+       initial "A map of the mezzanine level is embossed in one wall.",
+       description
+       [;  font off;
+           print
+          "^+------------------------------------------+
+           ^|                                          |
+           ^|                                          |
+           ^|                                          |
+           ^|                                          |
+           ^|               Mezzanine                  |
+           ^|             (you are here)               |
+           ^|                   |                      |
+           ^|                   |                      |
+           ^|             Grammar Hall 16              |
+           ^|       (telepathy, clock)                 |
+           ^|       (Charlotte, Dan)   --- Ten Forward |
+           ^|                   |         (replicator) |
+           ^|               Liberator     (computer)   |
+           ^|                Bridge       (tricorder)  |
+           ^|                 (Zen)                    |
+           ^+------------------------------------------+^";
+           font on;
+       ],
+  has  static;
+
+Object -> "Room 16 exhibition leaflet"
+  with name "leaflet" "exhibition" "guide" "room" "sixteen",
+       initial "An exhibition leaflet has fallen to the floor.",
+       description
+          "Among the rare & fascinating exhibits in Room 16 are:...^^
+           Telekinetic (and telepathic) Martha. In the telepathy
+           booth, you can speak to her as though she were in Room 16
+           with you -- but she's not, she is far away. Tell her to
+           ~look~ to find out where, and you can also ask her to give
+           you things (by telekinesis).^^
+           Charlotte, who is playing Simon Says. She'll obey
+           instructions you give as long as you preface it with
+           ~simon says~. (Though she only knows how to wave, or how to
+           clap many times (just tell her a number).)^^
+           Dyslexic Dan knows how to take and drop things and how to
+           perform an inventory, but unfortunately confuses Take and
+           Drop orders.^^
+           The alarm clock can be told ~on~, ~off~ or a time of day
+           (to set its alarm to).";
+
+! --------------------------------------------------------------------------
+
+Object Grammar_Hall "Grammar Hall"
+  has  light,
+  with description
+          "The main exhibit on the second floor: Room 16, south of the
+           mezzanine. A Jeffreys Tube runs @00 into a Star Trek: The
+           Next Generation room, while a hexagonal corridor to the south
+           leads to the bridge of the spaceship ~Liberator~.",
+       n_to Second_Floor, e_to Star_Trek, s_to Blakes_Seven;
+
+Object -> booth "telepathy booth"
+  with name "booth" "telepathy",
+       initial
+          "A telepathy booth stands invitingly open:
+           ~Talk To Telekinetic Martha~.",
+  has  enterable static;
+
+Object -> "Charlotte"
+  with name "charlotte" "charlie" "chas",
+       number 0,
+       grammar
+       [;  give self ~general;
+           wn=verb_wordnum;
+           if (NextWord()=='simon' && NextWord()=='says')
+           {   give self general;
+               verb_wordnum=verb_wordnum+2;
+           }
+           self.number=TryNumber(verb_wordnum);
+           if (self.number~=-1000)
+           {    action=##Clap; noun=0; second=0; rtrue; }
+       ],
+       orders
+       [ i;  if (self hasnt general) "Charlotte sticks her tongue out.";
+           WaveHands: "Charlotte waves energetically.";
+           Clap: if (self.number==0) "Charlotte folds her arms.";
+                 for (i=0:i<self.number:i++)
+                 {   print "Clap! ";
+                     if (i==100)
+                         print "(You must be regretting this by now.) ";
+                     if (i==200)
+                         print "(What a determined girl she is.) ";
+                 }
+                 if (self.number>100)
+                     "^^Charlotte's a bit out of breath now.";
+                "^^~Easy!~ says Charlotte.";
+           default: "~Don't know how,~ says Charlotte.";
+       ],
+       initial "Charlotte wants to play Simon Says.",
+  has  animate female proper crewmember;
+
+Object -> "Dyslexic Dan"
+  with name "dan" "dyslexic",
+       grammar
+       [;  if (verb_word == 'take') { verb_wordnum++; return 'drop'; }
+           if (verb_word == 'drop') { verb_wordnum++; return 'take'; }
+       ],
+       orders
+       [;
+           Take: "~What,~ says Dan, ~ you want me to take ",
+                     (the) noun, "?~";
+           Drop: "~What,~ says Dan, ~ you want me to drop ",
+                     (the) noun, "?~";
+           Inv: "~That I can do,~ says Dan. ~I'm empty-handed.~";
+           default: "~Don't know how,~ says Dan.";
+       ],
+       initial "Dyslexic Dan is here.",
+  has  animate proper crewmember;
+
+[ PrintTime x;
+  print (x/60), ":", (x%60)/10, (x%60)%10;
+];
+
+Object -> "alarm clock"
+  with name "alarm" "clock", article "an",
+       number 480,
+       description
+       [;  print "The alarm is ";
+           if (self has general) print "on, "; else print "off, but ";
+           "the clock reads ", (PrintTime) the_time,
+           " and the alarm is set for ", (PrintTime) self.number, ".";
+       ],
+       react_after
+       [;  Inv:  if (self in player)   { new_line; <<Examine self>>; }
+           Look: if (self in location) { new_line; <<Examine self>>; }
+       ],
+       daemon
+       [;  if (the_time >= self.number && the_time <= self.number+3
+               && self has general) "^Beep! Beep! The alarm goes off.";
+       ],
+       grammar
+       [;  return 'alarm,';
+       ],
+       orders
+       [;  SwitchOn: give self general; StartDaemon(self); "~Alarm set.~";
+           SwitchOff: give self ~general; StopDaemon(self);
+               "~Alarm cancelled.~";
+           SetTo:   self.number=noun; <<Examine self>>;
+           default: "~Commands are on, off or a time of day only, pliz.~";
+       ],
+       life
+       [;  Ask, Answer, Tell:
+           "[Try ~clock, something~ to address the clock.]";
+       ],
+  has  talkable;
+
+! --------------------------------------------------------------------------
+
+Object Blakes_Seven "Spaceship Liberator: Bridge"
+  has  light,
+  with description
+          "The great serried bridge of the alien spaceship Liberator,
+           captured by Blake's group of revolutionary criminals on the
+           run from the oppressive Earth Federation.  (Don't worry --
+           it's just a convincing replica, and the museum still lies
+           back north.)",
+       n_to Grammar_Hall;
+
+Object -> "informative plaque"
+  with name "informative" "plaque",
+       article "an",
+       description
+          "[Among the commands which Zen was often given by the hard-pressed
+           Liberator crew were:^^
+           zen, scan 360 orbital^
+           zen, speed standard by six^
+           zen, clear the neutron blasters for firing^
+           zen, raise the force wall^
+           zen, set course for centauro]",
+  has  static;
+
+Object -> "Zen"
+  with name "zen" "flight" "computer",
+       initial
+          "Square lights flicker unpredictably across a hexagonal fascia
+           on one wall, indicating that the flight computer Zen is on-line.",
+       grammar
+       [;  return -'zen,';
+       ],
+       orders
+       [;  Show: "The main screen shows a starfield,
+                  turning through ", noun, " degrees.";
+           Go:  "~Confirmed.~  The ship turns to a new bearing.";
+           SetTo: if (noun==0) "~Confirmed.~  The ship comes to a stop.";
+               if (noun>12) "~Standard by ", (number) noun,
+                            " exceeds design tolerances.~";
+               "~Confirmed.~  The ship's engines step to
+                standard by ", (number) noun, ".";
+           Take: if (noun~=force_wall) "~Please clarify.~";
+                "~Force wall raised.~";
+           Drop: if (noun~=blasters)   "~Please clarify.~";
+              "~Battle-computers on line.
+                Neutron blasters cleared for firing.~";
+           NotUnderstood: "~Language banks unable to decode.~";
+           default: "~Information. That function is unavailable.~";
+       ],
+  has  talkable proper static;
+Object -> -> force_wall "force wall"     with name "force" "wall" "shields";
+Object -> -> blasters "neutron blasters" with name "neutron" "blasters";
+
+! --------------------------------------------------------------------------
+
+Object "Captain Picard"
+  with name "captain" "picard",
+  has  proper animate crewmember;
+
+Object Star_Trek "10 Forward"
+  has  light,
+  with description
+          "The starswept observation lounge forward of deck 10
+           of the Starship Enterprise, where many milkshakes have
+           been consumed in crisis situations. (It's only a replica,
+           of course, and the museum lies back @01.)",
+       w_to Grammar_Hall;
+
+Object -> "informative plaque"
+  with name "informative" "plaque",
+       article "an",
+       description
+          "[The computer, called just ~computer~, is useful for locating
+           crew-members: try ~computer, where is commander data~, or
+           ~...captain picard~, or any of the other people who can be
+           found in the Museum.^^
+           The tricorder will scan something if you tell it the name of
+           whom or what you wish to scan.^^
+           The replicator is a superior drinks machine: for instance,
+           Captain Picard is fond of saying ~replicator, tea earl grey~.
+           There's also brandy and distilled water.]",
+  has  static;
+
+Object -> "computer"
+  with name "computer",
+       initial "The computer, of course, always responds to your voice here.",
+       grammar
+       [;  return 'stc,';
+       ],
+       orders
+       [;  Examine:
+               if (parent(noun)==0)
+                   "~", (name) noun,
+                   " is no longer aboard this demonstration game.~";
+               "~", (name) noun, " is in ", (name) parent(noun), ".~";
+           default: "The computer's only really good for locating the crew.";
+       ],
+       life
+       [;  Ask, Answer, Tell: "The computer is too simple.";
+       ],
+  has  talkable static;
+
+Object -> "tricorder"
+  with name "tricorder",
+       grammar
+       [;  return 'tc,';
+       ],
+       orders
+       [;  Examine: if (noun==player) "~You radiate life signs.~";
+               print "~", (The) noun, " radiates ";
+               if (noun hasnt animate) print "no ";
+              "life signs.~";
+           default: "The tricorder bleeps. It can only accept commands
+               ~tricorder, <something>~.";
+       ],
+       life
+       [;  Ask, Answer, Tell: "The tricorder is too simple.";
+       ],
+  has  talkable;
+
+Object -> "replicator"
+  with name "replicator",
+       initial
+          "A replicator (i.e. Star Trek drinks machine) occupies a niche
+           in one wall.",
+       grammar
+       [;  return 'rc,';
+       ],
+       orders
+       [;  Give:
+               "The replicator serves up a cup of ",
+               (name) noun, " which you drink eagerly.";
+           default: "The replicator is unable to oblige. You must give
+               it the name of a drink it knows about.";
+       ],
+       life
+       [;  Ask, Answer, Tell: "The replicator has no conversation skill.";
+       ],
+  has  talkable static;
+Object -> -> "Earl Grey tea"    with name "earl" "grey" "tea";
+Object -> -> "Aldebaran brandy" with name "aldebaran" "brandy";
+Object -> -> "distilled water"  with name "distilled" "water";
+
+! --------------------------------------------------------------------------
+
+Object "Sealed Room"
+  with description
+          "I'm in a sealed room, like a squash court without a door,
+           maybe six or seven yards across",
+  has  light;
+Object -> "fish" with name "fish";
+Key -> "cadmium key"
+  with name "cadmium",
+       after
+       [;  Drop: remove self; "The key smashes into smithereens!";
+       ];
+
+Object -> martha "Martha"
+   has animate female concealed proper crewmember
+  with name "martha",
+       orders
+       [ r; r=parent(self);
+           Give:
+               if (noun notin r) "~That's beyond my telekinesis.~";
+               if (noun==self) "~Teleportation's too hard for me.~";
+               move noun to player;
+               "~Here goes...~ and Martha's telekinetic talents
+                magically bring ", (the) noun, " to your hands.";
+           Look:
+               print "~", (string) r.description;
+               if (children(r)==1) ". There's nothing here but me.~";
+               print ". I can see ";
+               WriteListFrom(child(r),CONCEAL_BIT+ENGLISH_BIT);
+              ".~";
+           default: "~Afraid I can't help you there.~";
+       ],
+       life
+       [;  Ask: "~You're on your own this time.~";
+           Tell: "Martha clucks sympathetically.";
+           Answer: "~I'll be darned,~ Martha replies.";
+       ];
+
+! ==========================================================================
+
+Object Third_Floor "Third Floor"
+  with name "trapdoor",
+       description
+          "Atop the marble staircase, this third floor
+           foyer fans out into Rooms from Chapter V. These run:^
+           ^  south to Corridor 22 (inventories)
+           and the List Property Office,
+           ^  @00 to Room 24 (Curious Names),
+           ^  @01 to Room 28, which is divided by a glass window.^
+           ^Only a very rickety
+           ladder goes further up, through an open trapdoor to the roof.",
+       d_to Second_Floor, u_to roof,
+       e_to Room24, w_to window_w, s_to Corridor22,
+  has  light;
+
+Object -> "map"
+  with name "map" "third" "floor",
+       initial "A map of the third floor is embossed in one wall.",
+       description
+       [;  font off;
+           print
+          "^+------------------------------------------+
+           ^|                                          |
+           ^|    (glass                                |
+           ^|     window)                              |
+           ^|      !                                   |
+           ^| Room ! 28  ---  Stairs  ---   Room 24    |
+           ^|      !       (you are here)     Names    |
+           ^|                   |              |       |
+           ^|                   |          Museum Cafe |
+           ^|               Corridor 22                |
+           ^|              (Inventories)               |
+           ^|            /      |        @@92             |
+           ^|           /       |         @@92            |
+           ^| Room 23 W ---   Room 23  --- Room 23 E   |
+           ^| (listing     List Property    (I Ching)  |
+           ^| machine)        Office                   |
+           ^+------------------------------------------+^";
+           font on;
+       ],
+  has  static;
+
+Object -> "Lexicon"
+  with name "lexicon",
+       initial
+          "On the top step is a discarded Lexicon of verbs.",
+       description
+          "(The lexicon has the number 27 written on the spine.)^^
+           Inside are many familiar verbs that you regularly use
+           when navigating through Inform games. There are also
+           some special ones, only available in the Museum...^^
+           ~megalook~ : like ~look~ but much fuller;^
+           ~threefold <noun> <noun> <noun>~ : this doesn't
+           actually do anything, but it shows how a verb can
+           be parsed which has three objects, not just 0 to 2
+           as usual;^
+           ~time <time of day>~ : sets the current time of day
+           (go out onto the Balcony to see sunrise at 6 AM);^
+           ~fp <floating-point number>~ : shows how floating-point
+           numbers can be parsed;^
+           ~dial <phone-style number>~ : likewise phone numbers.^^
+           Also, in the Museum, ~lock~ and ~unlock~ are cunningly
+           able to presume keys as their second objects.";
+
+! --------------------------------------------------------------------------
+
+Object Corridor22 "Corridor 22"
+  with description
+          "Runs south of the top floor foyer, and leads to Room 23,
+           such a long room that you can enter it to southwest, south
+           or southeast.^^
+           In the floor is a curious solid quartz window.",
+       n_to Third_Floor,
+       s_to Room23, se_to Room23b, sw_to Room23a,
+       d_to "Solid quartz.",
+  has  light;
+
+Object -> "quartz window"
+  with name "quartz" "window",
+       before
+       [;  Examine, Search, LookUnder:
+               print "Through the window you can hazily make out the contents
+                      of the Grammar Hall below...^";
+               if (Locale(Grammar_Hall, "You can see",
+                          "You can also see")~=0)
+                   " on the floor below.";
+               rtrue;
+       ],
+  has  scenery;
+
+Object -> "Geoffrey's book"
+  with name "book" "old" "harmless" "lethal" "of" "geoffrey^s",
+       invent "that harmless old book of Geoffrey's",
+       before
+       [;  Examine:
+               self.invent = "that lethal old book of Geoffrey's";
+              "The apparently harmless book turns fiery hot in your hands,
+               and your eyes are dragged toward the hideous sigils
+               inscribed within it... Just in time, you break the gorgon
+               gaze and look away.^^
+               [From this moment, its inventory entry changes.]";
+       ],
+  has  proper;
+
+Object -> "platinum pyramid"
+  with name "platinum" "pyramid",
+       description "No matter how many times you pick this up and put it
+           down again, it never becomes an ~ordinary~ object for room
+           description purposes -- it always has a line to itself.",
+       describe
+       [;  "^The platinum pyramid catches the light beautifully.";
+       ];
+
+Object -> "ornate box"
+  with name "decorated" "ornate" "box",
+       invent
+       [;  if (inventory_stage==1) give self general;
+           else give self ~general;
+       ],
+       short_name
+       [;  if (self has general) { print "box"; rtrue; } ],
+       article
+       [;  if (self has general)
+           {   print "that most remarkably decorated"; rtrue;
+           }
+           else print "an"; ],
+       description
+          "[What's interesting about the ornate box is that its
+            inventory listing overrides its short name entirely,
+            and yet its contents will still be inventoried.]",
+  has  open openable container;
+
+Object -> -> "pearl"
+  with name "pearl",
+       description "Don't look at me - I'm irrelevant.";
+
+! --------------------------------------------------------------------------
+
+Object Room23a "Room 23 @01: Inventory Annexe"
+  with description
+        "The @01ern end of Room 23 is a housing for the Listing Machine.",
+       e_to Room23, ne_to Corridor22,
+  has  light;
+
+Object -> list_machine "listing machine"
+  with name "listing" "list" "machine",
+       describe
+       [ i;  print "The listing machine has a go button and a number of
+                    switches, whose current settings are as follows:^";
+             objectloop (i in self)
+             {   if (i~=list_go)
+                 {   print (address) (i.&name)-->0, "  ";
+                     if (i has on) print "(on)^"; else print "(off)^";
+                 }
+             }
+             rtrue;
+       ],
+  has  transparent static;
+
+Object -> -> list_go "go button"
+  with name "go" "button" "control",
+       before
+       [ i j;  Push:
+            objectloop (i in list_machine)
+                if (i~=self && i has on) j=j+i.number;
+            print "~In this style, your inventory is listed as
+                follows...^";
+            WriteListFrom(child(player), j, 1);
+           "...~";
+       ],
+  has  static;
+
+Class  BitSwitch
+  with name "switch" "control",
+  has  switchable static;
+
+BitSwitch -> -> "newline switch"
+  with name "newline",  number NEWLINE_BIT;
+BitSwitch -> -> "indent switch"
+  with name "indent",   number INDENT_BIT;
+BitSwitch -> -> "fullinv switch"
+  with name "fullinv",  number FULLINV_BIT, has on;
+BitSwitch -> -> "english switch"
+  with name "english",  number ENGLISH_BIT, has on;
+BitSwitch -> -> "recurse switch"
+  with name "recurse",  number RECURSE_BIT, has on;
+BitSwitch -> -> "always switch"
+  with name "always",   number ALWAYS_BIT;
+BitSwitch -> -> "terse switch"
+  with name "terse",    number TERSE_BIT;
+BitSwitch -> -> "partinv switch"
+  with name "partinv",  number PARTINV_BIT;
+BitSwitch -> -> "defart switch"
+  with name "defart",   number DEFART_BIT;
+BitSwitch -> -> "workflag switch"
+  with name "workflag", number WORKFLAG_BIT;
+BitSwitch -> -> "isare switch"
+  with name "isare",    number ISARE_BIT;
+BitSwitch -> -> "conceal switch"
+  with name "conceal",  number CONCEAL_BIT;
+
+! --------------------------------------------------------------------------
+
+[ CoinsTogether cla i x y;
+  objectloop (i ofclass cla)
+  {   x=parent(i);
+      if (y==0) y=x; else { if (x~=y) return 0; }
+  }
+  return y;
+];
+
+[ Face x; if (x.number==1) print "Heads"; else print "Tails"; ];
+
+Array gold_trigrams -->   "fortune" "change" "river flowing" "chance"
+                          "immutability" "six stones in a circle"
+                          "grace" "divine assistance";
+Array silver_trigrams --> "happiness" "sadness" "ambition" "grief"
+                          "glory" "charm" "sweetness of nature"
+                          "the countenance of the Hooded Man";
+
+[ Trigram cla i k state;
+  objectloop (i ofclass cla)
+  {   print (Face) i; if (k++<2) print ","; print " ";
+      state=state*2 + (i.number-1);
+  }
+  if (cla == GoldCoin) i=gold_trigrams; else i=silver_trigrams;
+  print "(", (string) i-->state, ")";
+];
+
+[ CoinsLT cla k i c;
+  if (inventory_stage==1)
+  {   if (cla == GoldCoin) print "the gold"; else print "the silver";
+      print " coins ";
+      k=CoinsTogether(cla);
+      if (k==location || k has supporter)
+      {   objectloop (i ofclass cla)
+          {   print (name) i;
+              switch(++c)
+              {  1: print ", "; 2: print " and ";
+                 3: print " (showing the trigram ", (Trigram) cla, ")";
+              }
+          }
+          rtrue;
+      }
+      c_style = c_style | (ENGLISH_BIT+NOARTICLE_BIT);
+      if (c_style & NEWLINE_BIT ~= 0) c_style = c_style - NEWLINE_BIT;
+      if (c_style & INDENT_BIT ~= 0)  c_style = c_style - INDENT_BIT;
+  }
+  rfalse;
+];
+
+Class  Coin
+  with number 1, article "the",
+       parse_name
+       [ i j w;
+         if (parser_action==##TheSame) return -2;
+         w='gold'; if (self ofclass SilverCoin) w='silver';
+         for (::i++)
+         {   j=NextWord();
+             if (j=='coins') parser_action=##PluralFound;
+             else if (j~='coin' or w or self.name) return i;
+         }
+       ],
+       after
+       [ j;
+           Drop, PutOn:
+                 self.number=random(2); print (Face) self, ". ";
+                 if (self ofclass GoldCoin) j=GoldCoin; else j=SilverCoin;
+                 if (CoinsTogether(j)~=0)
+                 {   print "The ";
+                     if (j == GoldCoin) print "gold"; else print "silver";
+                     " trigram is now ", (Trigram) j, ".";
+                 }
+                 new_line; rtrue;
+       ];
+
+Class  GoldCoin class Coin
+  with list_together [; return CoinsLT(GoldCoin); ];
+Class  SilverCoin class Coin
+  with list_together [; return CoinsLT(SilverCoin); ];
+
+Object Room23b "Room 23 @00: Chinese Room"
+  with description "A small, well-composed Chinese room for meditation,
+           through which ~a wind can blow~. (But only if it blows from
+           @01 back to north@01, because they're the only exits.)
+           From each cornice of the ceiling, a cherub looks down.",
+       w_to Room23, nw_to Corridor22,
+  has  light;
+
+Object -> "Chinese scroll"
+  with name "chinese" "scroll" "instructions",
+       initial "A scroll hangs on one wall.",
+       description
+          "Instructing you in the arts of the I Ching, the scroll advises
+           you to throw the two trigrams of gold and silver coins, that
+           you may find wisdom in the result.";
+
+GoldCoin -> "goat" with name "goat";
+GoldCoin -> "deer" with name "deer";
+GoldCoin -> "chicken" with name "chicken";
+
+SilverCoin -> "robin" with name "robin";
+SilverCoin -> "snake" with name "snake";
+SilverCoin -> "bison" with name "bison";
+
+Global cherub_warning_given;
+Class  Cherub
+  with parse_name
+       [ i j flag;
+         for (flag=1:flag==1:)
+         {   flag=0;
+             j=NextWord();
+             if (j=='cherub' || j==self.name) flag=1;
+             if (j=='cherubs')
+             {   parser_action=##PluralFound; flag=1;
+                 if (cherub_warning_given==0)
+                     print "(I'll let this go,
+                         but the plural of ~cherub~ is ~cherubim~.)^";
+                 cherub_warning_given = true;
+             }
+             if (j=='cherubim')
+             {   parser_action=##PluralFound; flag=1; }
+             i++;
+         }
+         return i-1;
+       ],
+  has  scenery;
+
+Cherub -> "northeast cherub"  with name "northeast";
+Cherub -> "southeast cherub"  with name "southeast";
+Cherub -> "northwest cherub"  with name "northwest";
+Cherub -> "southwest cherub"  with name "southwest";
+
+! --------------------------------------------------------------------------
+
+Object Room23 "Room 23: List Property Office"
+  with description
+          "This the List Property Office (it seems that an ~O~
+           was lost some time ago), at the southern end of the top floor;
+           the management have kindly provided a green baize table, while
+           the rest is presumably the work of patrons.^^
+           Room 23 continues @00 to @01.",
+       n_to Corridor22,
+       e_to Room23b,
+       w_to Room23a
+  has  light;
+
+Object -> "green baize table"
+  with name "green" "baize" "table"
+  has  scenery supporter;
+
+Class  PlasticCutlery
+  with name "plastic" "cutlery", article "a plastic",
+       list_together
+       [;  if (inventory_stage==1)
+           { if (c_style & NOARTICLE_BIT == 0) c_style=c_style+NOARTICLE_BIT;
+             if (c_style & ENGLISH_BIT == 0)   c_style=c_style+ENGLISH_BIT;
+             if (c_style & NEWLINE_BIT ~= 0)   c_style=c_style-NEWLINE_BIT;
+             if (c_style & INDENT_BIT ~= 0)    c_style=c_style-INDENT_BIT;
+             print "a plastic ";
+           }
+       ];
+
+PlasticCutlery -> "fork"  with name "fork";
+PlasticCutlery -> "knife" with name "knife";
+PlasticCutlery -> "spoon" with name "spoon";
+
+Class Hat with list_together "hats", name "hat" "hats", has clothing;
+
+Hat -> "fez"      with name "fez";
+Hat -> "Panama"   with name "panama";
+Hat -> "sombrero" with name "sombrero";
+
+Class Letter
+  with list_together
+       [;  if (inventory_stage==1)
+           { print "the letters ";
+             c_style = c_style | (ENGLISH_BIT+NOARTICLE_BIT);
+             if (c_style & NEWLINE_BIT ~= 0) c_style = c_style - NEWLINE_BIT;
+             if (c_style & INDENT_BIT ~= 0)  c_style = c_style - INDENT_BIT;
+           }
+           else print " from a Scrabble set";
+       ],
+       short_name
+       [;  if (listing_together ofclass Letter) rfalse;
+           print "letter ", (object) self, " from a Scrabble set"; rtrue;
+       ],
+       article "the";
+
+Letter -> "X" with name "x";
+Letter -> "Y" with name "y";
+Letter -> "Z" with name "z";
+Letter -> "P" with name "p";
+Letter -> "Q" with name "q";
+Letter -> "R" with name "r";
+
+Object -> "defrosting Black Forest gateau"
+  with name "black" "forest" "gateau" "cake",
+  has  edible;
+
+Object -> "Punch magazine"
+  with name "punch" "magazine",
+       description
+          "Five years out of date by the cover, a hundred by the contents.",
+       list_together 1,
+  has  proper;
+Object -> "issue of the Spectator"
+  with name "spectator" "issue" "magazine", article "a recent",
+       description
+          "Up to date by the cover, a nightmare view of the future within.",
+       list_together 1;
+
+Object -> "die"
+  with name "die" "dice",
+       after [; Drop: print "It comes up ", random(6); "!"; ];
+
+
+Class  Star
+  with name "star",
+       description
+           "A little star of precious-metal, perhaps exotic currency.",
+       parse_name
+       [ i j w;
+         if (parser_action==##TheSame)
+         {   if ((parser_one.&name)-->0 == (parser_two.&name)-->0) return -1;
+             return -2;
+         }
+         w=(self.&name)-->0;
+         for (::i++)
+         {   j=NextWord();
+             if (j=='stars') parser_action=##PluralFound;
+             else if (j~='star' or w) return i;
+         }
+       ],
+       list_together "stars",
+       plural
+       [;  print (address) (self.&name)-->0;
+           if (~~(listing_together ofclass Star)) print " stars";
+       ],
+       short_name
+       [;  if (listing_together ofclass Star)
+           {   print (address) (self.&name)-->0; rtrue; }
+       ],
+       article
+       [;  if (listing_together ofclass Star) print "one"; else print "a";
+       ];
+
+Class  GoldStar   class Star with name "gold";
+Class  SilverStar class Star with name "silver";
+Class  BronzeStar class Star with name "bronze";
+
+SilverStar -> "silver star";
+SilverStar -> "silver star";
+SilverStar -> "silver star";
+SilverStar -> "silver star";
+BronzeStar -> "bronze star";
+GoldStar -> "gold star";
+GoldStar -> "gold star";
+GoldStar -> "gold star";
+
+! --------------------------------------------------------------------------
+
+Object Room24 "Curious Names"
+  with description
+          "This is Room 24, @00 of the mezzanine. The exhibits are
+           packed in here, but fortunately there's a plaque making
+           some sense of it all.",
+       w_to Third_Floor, s_to Museum_Cafe,
+  has  light;
+
+Object -> plaque "plaque"
+  with name "plaque",
+       description
+          "Room 24 Plaque^^
+           Princess is capable of a startling change of name when kissed.^^
+           The genie's lamp, when rubbed, may make alarming things
+           happen to your ability to refer to the colours ~black~ and
+           ~white~. The stones may help you to experiment with this.^^
+           Carrying the magnifying glass allows you to ~magnify~ things.^^
+           The game's parser has been specially programmed for the
+           fly in amber object, so that ~put the fly in amber in box~
+           will work correctly (and not be interpreted as ~put (the fly) in
+           (amber in box)~).",
+  has  scenery;
+
+Object -> genies_lamp "genie's lamp"
+  with name "lamp",
+       before
+       [;  Rub:
+               if (self hasnt general) give self general;
+               else give self ~general;
+               "A genie appears from the lamp, declaring:^^
+                  ~Mischief is my sole delight:^
+                   If white means black, black means white!~";
+       ];
+
+Object -> "white stone"   with name "white" "stone";
+Object -> "black stone"   with name "black" "stone";
+
+Object -> "fly in amber"  with name "fly" "amber";
+
+Object -> magnifier "magnifying glass"
+  with name "glass" "magnifying" "magnifier" "lense",
+       description "Using this, you can ~magnify~ things.";
+
+[ MagnifySub;
+   if (magnifier notin player)
+      "You're not holding a magnifying glass.";
+   if (noun==magnifier) "Light is not so flexible as that.";
+   print "You can just make out that ", (the) noun,
+      " is inscribed as being ~object ", noun, "~.^";
+   if (magnifier hasnt general)
+   {   give magnifier general;
+      "^(When you're carrying the magnifier, you can refer to
+        things by their numbers like this; and you can even use
+        # to mean ~any single object~ and * to mean ~all objects~.)";
+   }
+];
+
+[ ParseNoun obj;
+  if (magnifier notin player) return -1;
+  if (NextWord() == 'object' && TryNumber(wn) == obj) return 2;
+  wn--;
+  if (WordLength(wn)==1 && WordAddress(wn)->0 == '#') return 1;
+  if (WordLength(wn)==1 && WordAddress(wn)->0 == '*')
+  {   parser_action = ##PluralFound; return 1; }
+  return -1;
+];
+
+Object -> "/?%?/ (the artiste formally known as Princess)"
+  with name "princess" "artiste" "formally" "known" "as",
+       description "You somehow feel it would be appropriate
+                    to kiss Princess.",
+       short_name
+       [;   if (self hasnt general) { print "Princess"; rtrue; }
+       ],
+       react_before
+       [;  Listen: print_ret (name) self, " sings a soft siren song.";
+       ],
+       initial
+       [;  print_ret (name) self, " is singing softly.";
+       ],
+       parse_name
+       [ x n; if (self hasnt general)
+            {   if (NextWord()=='princess') return 1;
+                return 0;
+            }
+            x=WordAddress(wn);
+            if (   x->0 == '/' && x->1 == '?' && x->2 == '%'
+                && x->3 == '?' && x->4 == '/')
+            {   while (wn<=parse->1 && WordAddress(wn++)<x+5) n++;
+                return n;
+            }
+            return -1;
+       ],
+       life
+       [;   Kiss: give self general; self.life = NULL;
+                "In a fairy-tale transformation, the Princess
+                 steps back and astonishes the world by announcing
+                 that she will henceforth be known as ~/?%?/~.";
+       ],
+  has  animate proper female;
+
+! --------------------------------------------------------------------------
+
+Object Museum_Cafe "Room 24 Annexe: The Museum Cafe"
+  with description
+          "Very much a self-service refreshments area, which
+           somehow cunningly continues the exhibition from the north.",
+       n_to Room24,
+  has  light;
+
+Object -> "upright fridge"
+  with name "upright" "fridge",
+       initial "There is an upright fridge in one corner.",
+       after
+       [;  Open:
+               print
+              "On the inside of the door is a note to the effect
+               that the pepper is a standardly-named Inform object
+               and can be called ~green~, ~pepper~, ~green pepper~,
+               ~pepper green~, etc.;
+               whereas, in the case of the red tomato, ~red~ and
+               ~tomato fried red~, etc., will not be allowed.^^";
+               <<Search self>>;
+       ],
+  has  openable container static;
+
+Object -> -> "green pepper"
+  with name "green" "pepper",
+  has  edible;
+
+Object -> -> "red fried tomato"
+  with name "red" "pepper",
+       parse_name
+       [ i w; w=NextWord();
+              while (w=='red' or 'fried')
+              {   w=NextWord(); i++;
+              }
+              if (w=='tomato') return i+1;
+              return 0;
+       ],
+  has  edible;
+
+Object -> "drinks machine"
+  with name "drinks" "machine",
+       initial
+          "Next to the fridge is a drinks machine with buttons
+           for Cola, Coffee and Tea.",
+  has  static transparent;
+Object -> -> "drinks machine button"
+  has  scenery
+ with  parse_name
+       [ i flag type;
+            for (: flag == 0: i++)
+            {   flag = 1;
+                switch(NextWord())
+                {   'button', 'for': flag = 0;
+                    'coffee': if (type == 0) { flag = 0; type = 1; }
+                    'tea':    if (type == 0) { flag = 0; type = 2; }
+                    'cola':   if (type == 0) { flag = 0; type = 3; }
+                }
+            }
+            if (type==drink.number && i==2 && type~=0 && drink in player)
+                return 0;
+            self.number=type; return i-1;
+        ],
+        number 0,
+        before
+        [; Push, SwitchOn:
+             if (self.number == 0)
+                "You'll have to say which button to press.";
+             if (parent(drink) ~= 0) "The machine's broken down.";
+             drink.number = self.number; move drink to player; itobj = drink;
+             "Whirr! The machine puts ", (a) drink, " into your
+                 glad hands.";
+           Attack: "The machine shudders and squirts cola at you.";
+           Drink:  "You can't drink until you've worked the machine.";
+        ];
+Object  drink "drink"
+  with  parse_name
+        [ i flag type;
+            for (: flag == 0: i++)
+            {   flag = 1;
+                switch(NextWord())
+                {   'drink', 'cup', 'of': flag = 0;
+                    'coffee': if (type == 0) { flag = 0; type = 1; }
+                    'tea':    if (type == 0) { flag = 0; type = 2; }
+                    'cola':   if (type == 0) { flag = 0; type = 3; }
+                }
+            }
+            if (type ~= 0 && type ~= self.number) return 0;
+            return i-1;
+        ],
+        short_name
+        [;  print "cup of ";
+            switch (self.number)
+            { 1: print "coffee"; 2: print "tea"; 3: print "cola"; }
+            rtrue;
+        ],
+        number 0,
+        before
+        [; Drink: remove self;
+            "Ugh, that was awful. You crumple the cup and responsibly
+             dispose of it.";
+        ];
+
+! --------------------------------------------------------------------------
+
+Class  WindowRoom
+  with description
+       [;  print "This is one end of a long east/west room. ";
+           if (self==window_w) "An exit leads back @00.";
+          "There appears to be no way in or out at this end.";
+       ],
+       before
+       [;  Examine, Search: ;
+           default:
+             if (inp1~=1 && noun~=0 && noun in self.far_side)
+                 print_ret (The) noun, " is on the far side of
+                    the glass.";
+             if (inp2~=1 && second~=0 && second in self.far_side)
+                 print_ret (The) second, " is on the far side of
+                    the glass.";
+       ],
+       after
+       [;  Look:
+             if (ggw has general) rfalse;
+             print "^The room is divided by a great glass window";
+             if (location.far_side hasnt light) " onto darkness.";
+             print ", stretching from floor to ceiling.^";
+             if (Locale(location.far_side,
+                    "Beyond the glass you can see",
+                    "Beyond the glass you can also see")~=0) ".";
+       ],
+  has  light;
+
+WindowRoom window_w "Room 28: @01 of Window"
+  with e_to Third_Floor, w_to "The window is in your way.",
+       far_side window_e;
+
+Object -> "plastic cup"
+  with name "plastic" "cup";
+
+WindowRoom window_e "Room 28: @00 of Window"
+  with far_side window_w;
+
+Key -> "bronze key"
+  with name "bronze";
+
+Object -> "golden chalice"
+  with name "golden" "chalice" "cup" "grail" "holy";
+
+Object ggw "great glass window"
+  with name "great" "glass" "window",
+       before
+       [ place; Examine, Search: place=location;
+               if (place.far_side hasnt light)
+                   "The other side is dark.";
+               print "The view through the window:^";
+               give self general;
+               PlayerTo(place.far_side,1); <Look>; PlayerTo(place,1);
+               give self ~general;
+               give place.far_side ~visited; rtrue;
+       ],
+       found_in window_w window_e,
+  has  scenery;
+
+! ==========================================================================
+
+Object roof "Museum Roof: area 33"
+  with name "trapdoor",
+       description
+          "A small trapdoor leads down from this tiled roof into the
+           museum. The view is indescribable, which saves me some typing
+           and you some reading, right? Yes -- this is one of those
+           post-modern room descriptions, the kind that makes you aware
+           you're only playing a game.",
+       d_to Third_Floor,
+  has  light;
+
+Global status_style = 3;
+
+Object -> "dial"
+  with name "dial",
+       initial
+          "A dial here has four settings, which control the appearance
+           of the status line drawn by the computer to indicate the
+           state of play.  Settings are: 1 - invisible; 2 - centred
+           place name only; 3 - standard Score/Turns display;
+           4 - a compass rose of possible directions to go in.",
+       before
+       [;  SetTo:
+               if (second<1 || second>4) "There are only four settings.";
+               status_style = second; "Set.";
+       ],
+  has  static;
+
+! --------------------------------------------------------------------------
+
+[ Initialise;
+  location = Foyer; move samples_bag to player;
+  thedark.short_name = "An odd-smelling darkness";
+  thedark.initial = GoMothGo;
+  NormalWorld(); lookmode=2;
+  SetTime(SUNRISE-10,1);
+
+ "^^^^^Welcome indeed to the...^";
+];
+
+[ InScope actor;
+
+   if (actor==martha) PlaceInScope(player);
+   if (actor==player && scope_reason==TALKING_REASON && player in booth)
+       PlaceInScope(martha);
+
+   if (location==window_w && window_e has light)
+       ScopeWithin(window_e);
+   if (location==window_e && window_w has light)
+       ScopeWithin(window_w);
+   rfalse;
+];
+
+[ BeforeParsing i j;
+  for (i=parse->1,j=2:j<i:j++)
+  {   wn=j-1;
+      if (NextWord()=='fly' && NextWord()=='in' && NextWord()=='amber')
+          parse-->(j*2-1) = 'fly';
+  }
+   if (genies_lamp hasnt general) return;
+   for (wn=1::)
+   {   switch(NextWordStopped())
+       {   'white': parse-->(wn*2-3) = 'black';
+           'black': parse-->(wn*2-3) = 'white';
+           -1: return;
+       }
+   }
+];
+
+! --------------------------------------------------------------------------
+
+Constant U_POS 28; Constant W_POS 30; Constant C_POS 31;
+Constant E_POS 32; Constant IN_POS 34;
+
+Array printed_text table 64;
+
+[ DrawStatusLine j posa posb width;
+  if (location==0) rfalse;
+  width = 0->33; if (width==0) width=80;
+  switch(status_style)
+  {   1: @split_window 0;
+      2: font off;
+         @split_window 1; @buffer_mode 0; @set_window 1;
+         style reverse; @set_cursor 1 1; spaces width;
+         printed_text-->0 = 64;
+         @output_stream 3 printed_text;
+         print (name) location;
+         @output_stream -3;
+         j=(width-(printed_text-->0))/2;
+         @set_cursor 1 j; print (name) location; spaces(j-1);
+         style roman;
+         @buffer_mode 1; @set_window 0; font on;
+      3: @split_window 1; @set_window 1; @set_cursor 1 1; style reverse;
+         posa = width-26; posb = width-13;
+         spaces width;
+         @set_cursor 1 2; print (name) location;
+         if (width > 76)
+         {   @set_cursor 1 posa; print "Score: ", sline1;
+             @set_cursor 1 posb; print "Moves: ", sline2;
+         }
+         if (width > 63 && width <= 76)
+         {   @set_cursor 1 posb; print sline1, "/", sline2;
+         }
+         @set_cursor 1 1; style roman; @set_window 0;
+      4: if (e_obj.door_dir~=e_to)
+         {   @split_window 1; @set_window 1; style reverse; font off;
+             @set_cursor; spaces width;
+             print "You're very disoriented in this reflected world";
+             @set_cursor 1 1; style roman; @set_window 0; font on;
+             rfalse;
+         }
+         @split_window 3; @set_window 1; style reverse; font off;
+         @set_cursor 1 1; spaces width;
+         @set_cursor 2 1; spaces width;
+         @set_cursor 3 1; spaces width;
+         @set_cursor 1 2;  print (name) location;
+         @set_cursor 1 51; print "Score: ", sline1;
+         @set_cursor 1 64; print "Moves: ", sline2;
+         if (location ~= thedark)
+         {   ! First line
+             if (location.u_to ~= 0)  { @set_cursor 1 U_POS; print "U"; }
+             if (location.nw_to ~= 0) { @set_cursor 1 W_POS; print "@@92"; }
+             if (location.n_to ~= 0)  { @set_cursor 1 C_POS; print "@@124"; }
+             if (location.ne_to ~= 0) { @set_cursor 1 E_POS; print "/"; }
+             if (location.in_to ~= 0) { @set_cursor 1 IN_POS; print "I"; }
+             ! Second line
+             if (location.w_to ~= 0)  { @set_cursor 2 W_POS; print "-"; }
+                                        @set_cursor 2 C_POS; print "o";
+             if (location.e_to ~= 0)  { @set_cursor 2 E_POS; print "-"; }
+             ! Third line
+             if (location.d_to ~= 0)  { @set_cursor 3 U_POS; print "D"; }
+             if (location.sw_to ~= 0) { @set_cursor 3 W_POS; print "/"; }
+             if (location.s_to ~= 0)  { @set_cursor 3 C_POS; print "@@124"; }
+             if (location.se_to ~= 0) { @set_cursor 3 E_POS; print "@@92"; }
+             if (location.out_to ~= 0){ @set_cursor 3 IN_POS; print "O"; }
+         }
+         @set_cursor 1 1; style roman; @set_window 0; font on;
+  }
+];
+
+! --------------------------------------------------------------------------
+
+Include "Grammar";
+
+! --------------------------------------------------------------------------
+
+[ FPXSub;
+    "You typed the floating point number ", noun/100, ".",
+    (noun%100)/10, noun%10, " (rounded off to 2 decimal places.)";
+];
+
+[ DigitNumber n type x;
+  x = NextWordStopped(); if (x==-1) return -1; wn--;
+  if (type==0)
+  {   x = WordAddress(wn);
+      if (x->n>='0' && x->n<='9') return (x->n) - '0';
+      return -1;
+  }
+  if (x=='nought' or 'oh') { wn++; return 0; }
+  x = TryNumber(wn++); if (x==-1000 || x>=10) x=-1; return x;
+];
+[ FloatingPoint a x b w d1 d2 d3 type;
+  a = TryNumber(wn++);
+  if (a==-1000) return -1;
+  w = NextWordStopped(wn); if (w==-1) return a*100;
+  x = NextWordStopped(wn); if (x==-1) return -1; wn--;
+  if (w=='point') type=1;
+  else
+  {   if (WordAddress(wn-1)->0~='.' || WordLength(wn-1)~=1)
+          return -1;
+  }
+  d1 = DigitNumber(0,type);
+  if (d1==-1) return -1;
+  d2 = DigitNumber(1,type); d3 = DigitNumber(2,type);
+  b=d1*10; if (d2>=0) b=b+d2; else d3=0;
+  if (type==1)
+  {   x=1; while (DigitNumber(x,type)>=0) x++; wn--;
+  }
+  else wn++;
+  parsed_number = a*100 + b;
+  if (d3>=5) parsed_number++;
+  return 1;
+];
+
+Verb "fp" * FloatingPoint -> FPX;
+
+! --------------------------------------------------------------------------
+
+Constant MAX_PHONE_LENGTH 30;
+Array dialled_number string MAX_PHONE_LENGTH;
+[ PhoneNumber f a l ch pp i;
+  pp=1; if (NextWordStopped()==-1) return 0;
+  do
+  {   a=WordAddress(wn-1); l=WordLength(wn-1);
+      for (i=0:i<l:i++)
+      {   ch=a->i;
+          if (ch<'0' || ch>'9')
+          {   if (ch~='-') { f=1; if (i~=0) return -1; } }
+          else
+          {   if (pp<MAX_PHONE_LENGTH)
+                  dialled_number->(pp++)=ch-'0';
+          }
+      }
+  } until (f==1 || NextWordStopped()==-1);
+  if (pp==1) return -1;
+  dialled_number->0 = pp-1;
+  return 0;
+];
+
+[ DialPhoneSub i;
+  print "You dialled <";
+  for (i=1:i<=dialled_number->0:i++) print dialled_number->i;
+  ">";
+];
+Verb "dial"  * PhoneNumber -> DialPhone;
+
+! --------------------------------------------------------------------------
+
+Global assumed_key;
+[ DefaultLockSub;
+  print "(with ", (the) assumed_key, ")^"; <<Lock noun assumed_key>>;
+];
+[ DefaultUnlockSub;
+  print "(with ", (the) assumed_key, ")^"; <<Unlock noun assumed_key>>;
+];
+
+[ DefaultKeyTest i count;
+  if (noun hasnt lockable) rfalse;
+
+  objectloop (i in player && i ofclass Key)
+  {   count++; assumed_key = i; }
+
+  if (count==1) rtrue; rfalse;
+];
+
+Extend "lock" first * noun = DefaultKeyTest -> DefaultLock;
+Extend "unlock" first * noun = DefaultKeyTest -> DefaultUnlock;
+
+! --------------------------------------------------------------------------
+
+Constant TWELVE_HOURS 720;
+[ NumericTime hr mn word x;
+  if (hr>=24) return -1;
+  if (mn>=60) return -1;
+  x=hr*60+mn; if (hr>=13) return x;
+  x=x%TWELVE_HOURS; if (word=='pm') x=x+TWELVE_HOURS;
+  if (word~='am' or 'pm' && hr==12) x=x+TWELVE_HOURS;
+  return x;
+];
+[ MyTryNumber wordnum i j;
+  i=wn; wn=wordnum; j=NextWordStopped(); wn=i;
+  switch(j)
+  {   'twenty-five': return 25;
+      'thirty': return 30;
+      default: return TryNumber(wordnum);
+  }
+];
+[ TimeOfDay i j k x flag loop ch hr mn;
+  i=NextWord();
+  if (i=='midnight') { parsed_number=0; return 1; }
+  if (i=='midday' or 'noon') { parsed_number=TWELVE_HOURS; return 1; }
+  !   Next try the format 12:02
+  j=WordAddress(wn-1); k=WordLength(wn-1);
+  flag=0;
+  for (loop=0:loop<k:loop++)
+  {   ch=j->loop;
+      if (ch==':' && flag==0 && loop~=0 && loop~=k-1) flag=1;
+      else { if (ch<'0' || ch>'9') flag=-1; }
+  }
+  if (k<3 || k>5) flag=0;
+  if (flag==1)
+  {   for (loop=0:j->loop~=':':loop++, hr=hr*10)
+          hr=hr+j->loop-'0';
+      hr=hr/10;
+      for (loop++:loop<k:loop++, mn=mn*10)
+          mn=mn+j->loop-'0';
+      mn=mn/10;
+      j=NextWordStopped();
+      parsed_number=NumericTime(hr, mn, j);
+      if (parsed_number<0) return -1;
+      if (j~='pm' or 'am') wn--;
+      return 1;
+  }
+  !   Next the format "half past 12"
+  j=-1; if (i=='half') j=30; if (i=='quarter') j=15;
+  if (j<0) j=MyTryNumber(wn-1); if (j<0) return -1;
+  if (j>=60) return -1;
+  k=NextWordStopped();
+  if ((k=='o^clock' or 'am' or 'pm')||(k==-1))
+  {   hr=j; if (hr>12) return -1; jump TimeFound; }
+  if (k=='to' or 'past')
+  {   mn=j; hr=MyTryNumber(wn);
+      if (hr<=0)
+      {   x=NextWordStopped();
+          if (x=='noon' or 'midday') hr=12;
+          if (x=='midnight') hr=0;
+          if (hr<0) return -1;
+      }
+      if (hr>=13) return -1;
+      if (k=='to') { mn=60-mn; hr=hr-1; if (hr==-1) hr=23; }
+      wn++; k=NextWordStopped();
+      jump TimeFound;
+  }
+  hr=j; mn=MyTryNumber(--wn);
+  if (mn<0 || mn>=60) return -1;
+  wn++; k=NextWordStopped();
+ .TimeFound;
+  parsed_number = NumericTime(hr, mn, k);
+  if (parsed_number<0) return -1;
+  if (k~='pm' or 'am' or 'o^clock') wn--;
+  return 1;
+];
+
+[ SetTheTimeSub;
+  SetTime(noun,1);
+  "The time is set to ", (PrintTime) noun, ".";
+];
+Verb "time"  * TimeOfDay -> SetTheTime;
+
+! --------------------------------------------------------------------------
+
+Global third;
+[ ThreefoldSub; "You do something involving ", (the) noun, ", ",
+      (the) second, " and ", (the) third, ".";
+];
+[ GhostObject x;
+  x=NounDomain(player,location,0);
+  if (x==REPARSE_CODE) return x;
+  if (x==0 or 1) return -1;
+  third = x;
+  return 0;
+];
+Verb "threefold" * noun noun GhostObject -> Threefold;
+
+! --------------------------------------------------------------------------
+
+[ MegaExam obj; print (a) obj, ": "; <Examine obj>; ];
+[ MegaLookSub; <Look>; LoopOverScope(MegaExam); ];
+Verb meta "megalook" *                           -> MegaLook;
+
+! --------------------------------------------------------------------------
+
+[ ClapSub; "You clap."; ];
+Verb "clap"   * -> Clap;
+
+! --------------------------------------------------------------------------
+
+Verb "magnify" * noun                          -> Magnify;
+
+! --------------------------------------------------------------------------
+
+Verb "alarm," * "on"      -> SwitchOn
+              * "off"     -> SwitchOff
+              * TimeOfDay -> SetTo
+              * ConTopic  -> Inv;
+
+Verb "tc,"    * noun      -> Examine
+              * ConTopic  -> Inv;
+
+[ Crew i;
+  switch(scope_stage)
+  {  1: rfalse;
+     2: objectloop (i has crewmember) PlaceInScope(i); rtrue;
+  }
+];
+
+Verb "stc,"   * "where" "is" scope=Crew        -> Examine
+              * "locate" scope=Crew            -> Examine;
+
+Verb "rc,"    * held      -> Give
+              * ConTopic  -> Inv;
+
+[ Planet;
+  switch(NextWord())
+  {   'centauro', 'earth': return 1;
+      default: return -1;
+  }
+];
+
+Verb "zen,"   * "scan" number "orbital"        -> Show
+              * "set" "course" "for" Planet    -> Go
+              * "speed" "standard" "by" number -> SetTo
+              * "raise" held                   -> Take
+              * "clear" held "for" "firing"    -> Drop;
+
+! ----------------------------------------------------------------------------
+

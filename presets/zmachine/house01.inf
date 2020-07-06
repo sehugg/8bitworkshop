@@ -1,0 +1,213 @@
+! ------------------------------------------------------------------------------
+! Inform for New Writers
+!
+! The House - Version 1
+!
+! Last Modified: David Cornelson - 03-Jan-1998
+!
+! This work is freely offered to the Public Domain. - DAC 12-12-2015
+!
+! ------------------------------------------------------------------------------
+
+!
+! Q: What are these lines that begin with exclamation points?
+!
+! A: In an Inform program, you may want to place comments or notes before
+!    portions of code so that when you make changes, you will remember what
+!    you were thinking when you originally wrote the code. It's a great way
+!    to "document" your program so that others can understand it as well.
+!
+!    Any characters following an exclamation point is considered a comment.
+!    The comment ends when you move to a new line.
+!
+
+!
+! The constant "Story" contains the name of your story, in this case,
+! "The House". The word "Constant" is an Inform statement that signifies that
+! a token (variable) will have a single, unchangable value within the program.
+! "Story" is the token name and "The House" is the value. Anytime you reference
+! "Story" in your program, it will have the value "The House".
+!
+! The double-quote is used to represent a "string". A string is a type of data that
+! contains letters and words. (As opposed to numbers). A string must begin with
+! a double-quote and end with a double-quote.
+!
+! The semi-colon tells Inform that this statement is complete. You need a
+! semi-colon to end all Inform statements.
+!
+Constant Story "The House";
+
+!
+! The constant "Headline" contains the initial banner at the beginning of your
+! game. In this Headline, there are three separate lines.
+!
+! The first line is "Inform for New Writers"
+! The second line is "The House - Version 1"
+! The third line is "By New Writer (1998) - Last Compiled: 03-Jan-1998"
+!
+! The carat "^" character is used to tell Inform that you want to move to a new
+! line. This is called the newline character. Each time the newline character is
+! placed into a string, the game will move to a new line.
+!
+! Here is another example:
+!
+!      print "Once upon a time^there was a little bear^^that was all alone.^";
+!
+! This example will be printed on your screen as...
+!
+!      Once upon a time
+!      there was a little bear
+!
+!      that was all alone.
+!
+! Each newline character caused a break in the text and started at the beginning
+! of a new line.
+!
+Constant Headline
+           "^Inform for New Writers^
+             The House - Version 1^
+             By New Writer (1998) - Last Compiled: 03-Jan-1998^";
+
+!
+! This constant tells Inform what the maximum score of your game will be.
+! Currently, we have it set to 100.
+!
+Constant MAX_SCORE 100;
+
+!
+! This constant is the last compile date and can be set by the Inform compiler.
+!
+Serial "980103";
+
+!
+! This constant is set by you and tells which release of your game you are
+! working on. It's a good idea to make backups of your program on a regular
+! basis. When you have completed your game, start incrementing the Release value
+! every time you fix bugs or make changes so that players know which release
+! works and which one doesn't.
+!
+Release 1;
+
+!
+! The Include statement allows Inform to open other files that are important to
+! your program. The following files, "Parser" and "VerbLib" are the foundation
+! of the Inform parser. DON'T REMOVE THESE LINES!!!
+!
+Include "Parser";
+Include "VerbLib";
+
+!-------------------------------------------------------------------------------
+! Initialise
+!
+! The following "function" is the first portion of code executed by Inform when
+! your game is played. You want to place a statement in this function that will
+! set the first location of the player. We will add more to this section in later
+! versions of "The House".
+!-------------------------------------------------------------------------------
+
+! FUNCTIONS: Portions of your code will will be in what are called "functions".
+!            The syntax of a function is as follows:
+!
+!                        [ function_name argument argument;
+!                          ...your code...
+!                          ...your code...
+!                          ...your code...
+!                        ];
+!
+!            Arguments are values passed when calling the function. More
+!            information on functions is available in later versions of
+!            "The House".
+!
+
+[ Initialise;
+
+!
+! Our first location is the Sidewalk. Inform has a variable that we can set that
+! just happens to be named "location".
+!
+! Sidewalk is a location, but in Inform it is an "Object". When we define the
+! object Sidewalk it will have a unique value associated with it. So, when we
+! set location equal to Sidewalk, the location variable now contains the object
+! value of Sidewalk.
+!
+location = Sidewalk;
+
+];
+
+!
+! The following function is called by Inform when the player types SCORE or when
+! the player ends the game. As you can see, each range of points has a different
+! string printed. You can modify this function to suit your own story. Remember,
+! the constant MAX_SCORE contains the value that is used by Inform to represent
+! "You have scored <score> out of <MAX_SCORE>", so you want both the Constant
+! and this function to be synchronized.
+!
+[ PrintRank;
+  print ", earning you the rank of ";
+  if (score >= 100) "the greatest.";
+  if (score >= 80) "above average.";
+  if (score >= 60) "average.";
+  if (score >= 40) "below average.";
+  if (score >= 20) "the barely living.";
+  "the living dead.";
+];
+
+! ----------------------------------------------------------------------------
+! Locations
+!
+! In this section we will define our locations. These are "Objects" to Inform
+! and contain the following elements.
+!
+! - object name
+!   The object name represents the variable or handle of the object.
+! - short description
+!   The short description is the description printed in bold before the
+!   normal description.
+! - initial description
+!   The initial description is printed only once when the location is first
+!   entered by the player.
+! - normal description
+!   The normal description is printed everytime the player enters the location.
+! - directional properties (tells which direction player can move) (optional)
+!   These include n_to, ne_to, e_to, up_to, in_to, etc. and are followed by
+!   another location object name.
+! - properties
+!   Properties are functions that you can add to an object that help determine
+!   events and actions.
+! - attributes
+!   Attributes are True/False values that help you remember certain states of
+!   an object or event, such as whether the lights are on or not. The positive
+!   value is represented as "light" and the negative would be "~light". There
+!   are standard attributes used by Inform and you can add your own as well.
+!
+! Actually, there's more than this, but we'll add the complicated stuff later!
+!
+! ----------------------------------------------------------------------------
+
+!
+! Define the object "Sidewalk"
+!
+! Object Name: Sidewalk
+! Short Description: "Sidewalk"
+! Initial Description: none
+! Normal Description: "You are standing on the sidewalk in front of a house."
+! Attributes: light
+!
+! The Sidewalk is the first location of our game and includes a description
+! and when we enter it, it will have light.
+!
+Object Sidewalk "Sidewalk"
+    with  description
+          "You are standing on the sidewalk in front of a house.",
+    has   light;
+
+! ----------------------------------------------------------------------------
+! Grammar
+!
+! The grammar section includes the file "Grammar" and will later include
+! extensions to the standard grammar library.
+!
+! ----------------------------------------------------------------------------
+
+Include "Grammar";
+

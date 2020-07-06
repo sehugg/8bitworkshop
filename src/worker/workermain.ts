@@ -1,6 +1,6 @@
 "use strict";
 
-import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap } from "../common/workertypes";
+import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap, Segment } from "../common/workertypes";
 
 declare var WebAssembly;
 declare function importScripts(path:string);
@@ -617,10 +617,10 @@ var re_crlf = /\r?\n/;
 
 function parseListing(code:string, lineMatch, iline:number, ioffset:number, iinsns:number, icycles?:number) : SourceLine[] {
   var lines : SourceLine[] = [];
-  for (var line of code.split(re_crlf)) {
+  code.split(re_crlf).forEach((line, lineindex) => {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
-      var linenum = parseInt(linem[iline]);
+      var linenum = iline < 0 ? lineindex : parseInt(linem[iline]);
       var offset = parseInt(linem[ioffset], 16);
       var insns = linem[iinsns];
       var cycles : number = icycles ? parseInt(linem[icycles]) : null;
@@ -635,7 +635,7 @@ function parseListing(code:string, lineMatch, iline:number, ioffset:number, iins
         });
       }
     }
-  }
+  });
   return lines;
 }
 
@@ -2389,6 +2389,125 @@ function assembleYASM(step:BuildStep) {
   }
 }
 
+interface XMLNode {
+  type: string;
+  text: string | null;
+  children: XMLNode[];
+}
+
+function parseXMLPoorly(s: string) : XMLNode {
+  var re = /[<]([/]?)([?a-z_-]+)([^>]*)[>]+|(\s*[^<]+)/gi;
+  var m;
+  var i=0;
+  var stack = [];
+  while (m = re.exec(s)) {
+    var [_m0,close,ident,attrs,content] = m;
+    //if (i++<100) console.log(close,ident,attrs,content);
+    if (close) {
+      var top = stack.pop();
+      if (top.type != ident) throw "mismatch close tag: " + ident;
+      stack[stack.length-1].children.push(top);
+    } else if (ident) {
+      stack.push({type:ident, text:null, children:[]});
+    } else if (content != null) {
+      stack[stack.length-1].text = (content as string).trim();
+    }
+  }
+  return top;
+}
+
+function compileInform6(step:BuildStep) {
+  loadNative("inform");
+  var errors = [];
+  gatherFiles(step, {mainFilePath:"main.inf"});
+  var objpath = step.prefix+".z5";
+  if (staleFiles(step, [objpath])) {
+    var errorMatcher = msvcErrorMatcher(errors);
+    var lstout = "";
+    var match_fn = (s: string) => {
+      if (s.indexOf("Error:") >= 0) {
+        errorMatcher(s);
+      } else {
+        lstout += s;
+        lstout += "\n";
+      }
+    }
+    var args = [ '-afnops', '-v5', '-Cu', '-E1', '-k', '+/share/lib', step.path ];
+    var inform = emglobal.inform({
+      instantiateWasm: moduleInstFn('inform'),
+      noInitialRun:true,
+      //logReadFiles:true,
+      print:match_fn,
+      printErr:match_fn,
+    });
+    var FS = inform['FS'];
+    setupFS(FS, 'inform');
+    populateFiles(step, FS);
+    //fixParamsWithDefines(step.path, step.params);
+    execMain(step, inform, args);
+    if (errors.length)
+      return {errors:errors};
+    var objout = FS.readFile(objpath, {encoding:'binary'});
+    putWorkFile(objpath, objout);
+    if (!anyTargetChanged(step, [objpath]))
+      return;
+
+    // parse debug XML
+    var symbolmap = {};
+    var entitymap = {'object':{}, 'property':{}, 'constant':{}};
+    var dbgout = FS.readFile("gameinfo.dbg", {encoding:'utf8'});
+    var xmlroot = parseXMLPoorly(dbgout);
+    //console.log(xmlroot);
+    xmlroot.children.forEach((node) => {
+      switch (node.type) {
+        case 'global-variable':
+        case 'routine':
+          var ident = node.children.find((c,v) => c.type=='identifier').text;
+          var address = parseInt(node.children.find((c,v) => c.type=='address').text);
+          symbolmap[ident] = address;
+          break;
+        case 'object':
+        case 'property':
+          var ident = node.children.find((c,v) => c.type=='identifier').text;
+          var value = parseInt(node.children.find((c,v) => c.type=='value').text);
+          entitymap[node.type][ident] = value;
+          //symbolmap[ident] = address | 0x1000000;
+          break;
+      }
+    });
+    // parse segments
+    var segments : Segment[] = [];
+    var seglst = lstout.split("Offsets in story file:")[1];
+    if (seglst) {
+      let curseg : Segment = {name:'Header',start:0x0,size:0x42,type:'rom'};
+      segments.push(curseg);
+      let curtype = 'ram';
+      let re_seg = /([0-9a-f]{5}) (\w+)/g;
+      let m;
+      while (m = re_seg.exec(seglst)) {
+        var start = parseInt(m[1], 16);
+        var name = m[2];
+        if (name == 'Parse') curtype = 'rom';
+        curseg.size = start - curseg.start;
+        curseg = {name:name, start:start, size:0, type:curtype};
+        segments.push(curseg);
+      }
+    }
+    var listings : CodeListingMap = {};
+    //    35  +00015 <*> call_vs      long_19 location long_424 -> sp 
+    var lines = parseListing(lstout, /\s*(\d+)\s+[+]([0-9a-f]+)\s+([<*>]*)\s*(\w+)\s+(.+)/i, -1, 2, 4);
+    var lstpath = step.prefix + '.lst';
+    listings[lstpath] = {lines:[], asmlines:lines, text:lstout};
+    return {
+      output:objout, //.slice(0),
+      listings:listings,
+      errors:errors,
+      symbolmap:symbolmap,
+      segments:segments,
+      //debuginfo:entitymap,
+    };
+  }
+}
 ////////////////////////////
 
 var TOOLS = {
@@ -2419,6 +2538,7 @@ var TOOLS = {
   'bataribasic': compileBatariBasic,
   'markdown': translateShowdown,
   'js': runJavascript,
+  'inform6': compileInform6,
 }
 
 var TOOL_PRELOADFS = {
@@ -2438,6 +2558,7 @@ var TOOL_PRELOADFS = {
   'sdcc': 'sdcc',
   'sccz80': 'sccz80',
   'bataribasic': '2600basic',
+  'inform6': 'inform',
 }
 
 function applyDefaultErrorPath(errors:WorkerError[], path:string) {

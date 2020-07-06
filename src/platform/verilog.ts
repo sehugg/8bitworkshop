@@ -763,7 +763,7 @@ var VerilogPlatform = function(mainElement, options) {
   }
   getDefaultExtension() { return ".v"; };
 
-  inspect(name) {
+  inspect(name:string) : string {
     if (!gen) return;
     if (name && !name.match(/^\w+$/)) return;
     var val = gen[name];

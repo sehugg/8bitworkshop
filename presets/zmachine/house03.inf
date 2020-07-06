@@ -1,0 +1,284 @@
+! ------------------------------------------------------------------------------
+! Inform for New Writers
+!
+! The House - Version 3
+!
+! Last Modified: David Cornelson - 22-Jan-1998
+!
+! This work is freely offered to the Public Domain. - DAC 12-12-2015
+!
+! ------------------------------------------------------------------------------
+
+Constant DEBUG;
+
+Constant Story "The House";
+
+Constant Headline
+           "^Inform for New Writers^
+             The House - Version 3^
+             By New Writer (1998) - Last Compiled: 22-Jan-1998^";
+
+Constant MAX_SCORE 100;
+Serial "980122";
+
+Release 2;
+
+Include "Parser";
+Include "VerbLib";
+
+!-------------------------------------------------------------------------------
+! Initialise
+!
+!-------------------------------------------------------------------------------
+
+[ Initialise;
+
+  location = Sidewalk;
+
+];
+
+[ PrintRank;
+  print ", earning you the rank of ";
+  if (score >= 100) "the greatest.";
+  if (score >= 80) "above average.";
+  if (score >= 60) "average.";
+  if (score >= 40) "below average.";
+  if (score >= 20) "the barely living.";
+  "the living dead.";
+];
+
+! ----------------------------------------------------------------------------
+! Locations
+!
+! In this section we will define our locations. These are "Objects" to Inform.
+!
+! ----------------------------------------------------------------------------
+
+Object Sidewalk "Sidewalk"
+    with  description
+          "You are standing on the sidewalk in front of a house to the west.",
+    w_to  Front_Porch,
+    has   light;
+
+!
+! Notice we changed the w_to and in_to properties to reflect our new door.
+! We changed the description to reflect our new doors as well...
+!
+
+Object Front_Porch "Front Porch"
+    with  description
+          "This is the front porch of the house. There are two doors
+           leading inside. The door on the left leads west and the
+		   door on the right leads northwest.",
+    e_to  Sidewalk,
+    w_to  Left_Front_Door,
+    in_to Left_Front_Door,
+	nw_to Right_Front_Door,
+    has   light;
+
+!
+! VERSION 3 - Adding a door
+!
+! Inform allows you to create special objects that represent doors. Doors
+! are simply objects with special "properties" and "attributes".
+!
+! A "property" is a function that can be listed in the "Object" statement.
+! For instance, "e_to" and "w_to" are properties.
+!
+! Properties that are used for doors are:
+!
+!	- door_to		Tells Inform where the door leads if 'entered'.
+!
+!	- door_dir		Tells Inform which direction the door faces.
+!
+!	- when_open		The description of the door when open.
+!
+!	- when_closed	The description of the door when closed.
+!
+!	- found_in		A list of locations where the door resides.
+!
+!	- with_key		Specify which object is needed to lock and unlock door.
+!
+! Attributes that are used for doors:
+!
+!	- static OR		Tells Inform that the door cannot be carried.
+!	- scenery		Tells Inform that the door cannot be carried
+!					and also is not mentioned in normal location
+!					descriptions.
+!
+!	- door			Mandatory...tells Inform this object is a door.
+!
+!	- open			Current state of door. To make the door start
+!					'closed', then give the object the attribute
+!					~open.
+!
+!	- lockable		Can be locked.
+!
+!	- locked		Starts out locked. Give it ~locked to start
+!					it as unlocked.
+!
+! NOTE: A few of the properties and attributes above can be used with other
+!       objects. The only ones specific to a door object are the 'door_to'
+!       and 'door_dir' properties and the 'door' attribute.
+
+!
+! NOTE ABOUT THE TILDE CHARACTER:
+!		In evaluations of variables, the tilde character, ~, signifies
+!		'not' or 'false value of'.
+!		When you see ~=, this means "not equal to".
+!		When you see ~attribute, this means "the false value of attribute".
+!
+!		The tilde character, ~, has another use. Inside a string, if you
+!		want to print a double-quote, you would use the tilde. For example:
+!
+!		print "John said, ~Run spot run!~";
+!
+!		...would print...
+!
+!		John said, "Run spot run!"
+!
+
+!
+! We have two front doors built into our house, one leading to the
+! foyer, and the other leading to the den.
+!
+!	The left door is a one way door that has no lock. You can enter
+!	the door to the west.
+!
+!	The right door is a two-way door that is lockable. The key is
+!	located in the north bedroom. You enter the door to the northwest.
+!
+! Q: What is the '->' used for?
+!
+! A: This symbol tells Inform that this object is located 'within' the most recent
+!    location definition.
+!
+!    If two arrows are used, then the object is within the most recent -> object.
+!
+!    The 'Left_Front_Door' is a 'child' of the 'Front_Porch' and the
+!    'Front_Porch' is the 'parent' of 'Left_Front_Door'.
+
+Object -> Left_Front_Door "left front door"
+	with	name "left" "front" "door",
+			description
+			"The left front door is made of brass.",
+	when_open	"The left front door is open.",
+	when_closed	"The left front door is closed.",
+	door_to		Foyer,
+	door_dir	w_to,
+	has			static door openable;
+
+!
+! The two-way door has 'functions' for the door_to and door_dir properties
+! because you can start on the front porch or the den. The same is true for
+! the directions, you can either be going through the door northwest or
+! southeast.
+!
+! These are 'embedded functions'. They don't need a name or arguments so
+! you place a semi-colon immediately after the first bracket. The end of
+! the function is signified by the closing bracket. You separate embedded
+! functions the same way you separate other properties, with a comma.
+!
+! The 'if' statement within both of the embedded functions is used to
+! determine which location you are starting in for the two-way door.
+!
+! The determination is calculated by comparing the 'location' variable
+! (which Inform ALWAYS sets to the players current location) and the
+! Front_Porch. If this is true, the first statement (until the semi-colon)
+! is executed. If it's false (the player is NOT in the Front_Porch) then
+! the second statement is executed.
+!
+! Notice the 'found_in' property lists both the Front_Porch and Den. This
+! is so you can 'see' the doors in both of these locations.
+!
+
+Object Right_Front_Door "right front door"
+	with	name "right" "front" "door",
+			description
+			"The right front door is made of wood.",
+	when_open	"The right front door is open.",
+	when_closed	"The right front door is closed.",
+	door_to		[; if (location==Front_Porch) return Den; return Front_Porch; ],
+	door_dir	[; if (location==Front_Porch) return nw_to; return se_to; ],
+	found_in	Front_Porch Den,
+	with_key	right_key,
+	has			static door openable lockable locked;
+
+Object Den "Den"
+	with	description
+			"You are in the den of the house.",
+	se_to	Right_Front_Door,
+	out_to	Right_Front_Door,
+	has		light;
+
+Object Foyer "Foyer"
+    with  description
+          "You are standing in the foyer of the house. It seems as though
+           you can go up a staircase, northwest, or back out the front
+           door to the east.",
+    out_to Front_Porch,
+    e_to   Front_Porch,
+    nw_to  Hallway,
+    u_to   Upper_Hallway,
+    has    light;
+
+Object Hallway "Hallway"
+    with   description
+           "You are in the hallway on the first floor of the house. The
+            foyer is southeast and the kitchen is west of here.",
+    se_to  Foyer,
+    w_to   Kitchen,
+    has    light;
+
+Object Kitchen "Kitchen"
+    with   description
+           "This is the kitchen of the house. A hallway can be seen to the
+            east.",
+    e_to   Hallway,
+    has    light;
+
+Object Upper_Hallway "Upper Hallway"
+    with   description
+           "This is the second floor hallway. Rooms can be seen north and
+            south and a staircase leads down.",
+    n_to   North_Bedroom,
+    s_to   South_Bedroom,
+    d_to   Foyer,
+    has    light;
+
+Object North_Bedroom "North Bedroom"
+    with   description
+           "This is a bedroom on the north side of the house.",
+    s_to   Upper_Hallway,
+    has    light;
+
+!
+! This is the 'key' for the right front door. There are no directions
+! or attributes since it's a just a simple object.
+!
+! I placed the key here to keep these examples building a workable game.
+! You can move the key anywhere you like though by cutting this line and
+! pasting it 'below' any other location object.
+!
+! Remember, this is the object listed in 'with_key' in the right_door
+! object, so it's the only way to unlock that door.
+!
+
+Object -> right_key "right key" with name "right" "key";
+
+Object South_Bedroom "South Bedroom"
+    with   description
+           "This is a bedroom on the south side of the house.",
+    n_to   Upper_Hallway,
+    has    light;
+
+! ----------------------------------------------------------------------------
+! Grammar
+!
+! The grammar section includes the file "Grammar" and will later include
+! extensions to the standard grammar library.
+!
+! ----------------------------------------------------------------------------
+
+Include "Grammar";
+

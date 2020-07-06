@@ -569,3 +569,48 @@ div.asset_toolbar {
   font-size: 10pt;
   line-height: 1.2;
 }
+.transcript {  
+  background-color: #fff;
+  width: 100%;
+  padding: 1.25em;
+  user-select: text;
+  font-family: Verdana, Geneva, sans-serif;
+}
+.transcript-line {
+  line-height: 1.5;
+  min-height: 1em;
+  white-space: pre-wrap;
+}
+.transcript-style-1 {
+  font-style: italic;
+}
+.transcript-style-2 {
+  white-space: pre-wrap;       /* css-3 */
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+  line-height: 1;
+  min-height: 0;
+}
+.transcript-style-4 {
+  font-weight: bold;
+}
+.transcript-style-8 { /* input */
+  font-weight: bold;
+  font-variant: small-caps;
+  color: #6666ff;
+  background-color: #eeeeff;
+  padding: 0.25em;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+.transcript-reverse {
+  background-color: #666;
+  color: #ddd;
+}
+.transcript-input {
+  margin:1%;
+  font-weight: bold;
+  font-variant: small-caps;
+  color: #6666ff;
+  background-color: #eeeeff;
+}
+ 

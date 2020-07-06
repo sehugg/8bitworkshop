@@ -79,6 +79,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'cmoc': 'text/x-csrc',
   'yasm': 'gas',
   'smlrc': 'text/x-csrc',
+  'inform6': 'inform6',
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {
