@@ -843,22 +843,28 @@ function setupStdin(fs, code:string) {
   );
 }
 
+//TODO: this doesn't align very well
     /*
-    000000r 1               .segment        "CODE"
-    000000r 1               .proc	_rasterWait: near
-    000000r 1               ; int main() { return mul2(2); }
-    000000r 1                       .dbg    line, "main.c", 3
-    000014r 1                      	.dbg	  func, "main", "00", extern, "_main"
-    000000r 1  A2 00                ldx     #$00
+000000r 1               .segment        "CODE"
+000000r 1               .proc	_rasterWait: near
+000000r 1               ; int main() { return mul2(2); }
+000000r 1                       .dbg    line, "main.c", 3
+000014r 1                      	.dbg	  func, "main", "00", extern, "_main"
+000000r 1  A2 00                ldx     #$00
+00B700  1               BOOT2:
+00B700  1  A2 01         ldx #1 ;track
+00B725  1  00           IBLASTDRVN: .byte 0
+00B726  1  xx xx        IBSECSZ: .res 2
+00BA2F  1  2A 2B E8 2C   HEX "2A2BE82C2D2E2F303132F0F133343536"
     */
 function parseCA65Listing(code, symbols, params, dbg) {
   var segofs = 0;
   var offset = 0;
   var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+(\w+), "([^"]+)", (.+)/;
   var funcLineMatch = /"(\w+)", (\w+), "(\w+)"/;
-  var insnLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+([0-9A-Fr ]*)\s*(.*)/;
+  var insnLineMatch = /^([0-9A-F]+)([r]?)\s{1,2}(\d+)\s{1,2}([0-9A-Frx ]{11})\s+(.*)/;
   var lines = [];
-  var linenum = 4; // ca65 listing header, 5 lines
+  var linenum = 0;
   // TODO: only does .c functions, not all .s files
   for (var line of code.split(re_crlf)) {
     var dbgm = dbgLineMatch.exec(line);
@@ -1034,6 +1040,7 @@ function linkLD65(step:BuildStep) {
     for (var fn of step.files) {
       if (fn.endsWith('.lst')) {
         var lstout = FS.readFile(fn, {encoding:'utf8'});
+        lstout = lstout.split('\n\n')[1] || lstout; // remove header
         var asmlines = parseCA65Listing(lstout, symbolmap, params, false);
         var srclines = parseCA65Listing(lstout, symbolmap, params, true);
         putWorkFile(fn, lstout);

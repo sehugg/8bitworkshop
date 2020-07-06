@@ -14,6 +14,7 @@ import { NullProbe, Probeable, ProbeAll } from "../common/devices";
 // http://www.playvectrex.com/designit/chrissalo/bios.asm
 // https://www.6809.org.uk/asm6809/doc/asm6809.shtml
 // http://www.playvectrex.com/
+// http://vectrexmuseum.com/vectrexhistory.php
 
 var VECTREX_PRESETS = [
   { id: 'hello.xasm', name: 'Hello World (ASM)' },

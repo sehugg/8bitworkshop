@@ -204,6 +204,8 @@ TODO:
   - need Edge 79+
   - no import in workers
   - copy to gen/ directory (allowJs is weird)
+- can we debug first frame via replay?
+- ca65 line numbers are not aligned with source code
 
 
 WEB WORKER FORMAT

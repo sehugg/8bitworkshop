@@ -2,7 +2,7 @@
 import { MOS6502, MOS6502State } from "../common/cpu/MOS6502";
 import { Bus, BasicScanlineMachine, xorshift32, SavesState } from "../common/devices";
 import { KeyFlags } from "../common/emu"; // TODO
-import { lzgmini, stringToByteArray, RGBA, printFlags } from "../common/util";
+import { hex, lzgmini, stringToByteArray, RGBA, printFlags } from "../common/util";
 
 const cpuFrequency = 1023000;
 const cpuCyclesPerLine = 65; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
@@ -993,7 +993,7 @@ const APPLEIIGO_LZG = `TFpHAAAwAAAABYxwdy2NARUZHjRBUFBMRUlJR08gUk9NMS4wADQfNB80H
 
    const NUM_DRIVES = 2;
    const NUM_TRACKS = 35;
-   const TRACK_SIZE = 0x1a00;
+   const TRACK_SIZE = 0x1880;
    const SECTOR_SIZE = 383;
 
    const DISKII_PROM = [
@@ -1072,6 +1072,7 @@ class DiskII extends DiskIIState implements SlotDevice, SavesState<DiskIIState> 
          "\nOffset: " + (this.track_index) +
          "\nMode:   " + (this.read_mode ? "READ" : "WRITE") +
          "\nMotor:  " + this.motor +
+         "\nData:   " + (this.track_data ? hex(this.track_data[this.track_index]) : '-') +
          "\n";
     }
     
