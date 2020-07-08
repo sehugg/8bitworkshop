@@ -1114,6 +1114,10 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   getRasterScanline() {
     return isRaster(this.machine) && this.machine.getRasterY();
   }
+
+  readAddress(addr : number) : number {
+    return this.machine.read(addr);
+  }
 }
 
 // TODO: move debug info into CPU?

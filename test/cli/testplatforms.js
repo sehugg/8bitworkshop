@@ -49,6 +49,9 @@ var _atari7800 = require('gen/platform/atari7800.js');
 var _coleco = require('gen/platform/coleco.js');
 var _sms = require('gen/platform/sms.js');
 var _c64 = require('gen/platform/c64.js');
+var _vectrex = require('gen/platform/vectrex.js');
+var _zx = require('gen/platform/zx.js');
+
 
 //
 
@@ -114,11 +117,11 @@ global.Mousetrap = function() {
 
 //
 
-function testPlatform(platid, romname, maxframes, callback) {
-    var emudiv = document.getElementById('emulator');
+async function testPlatform(platid, romname, maxframes, callback) {
     var platform = new emu.PLATFORMS[platid](emudiv);
+    await platform.start();
+    var emudiv = document.getElementById('emulator');
     var rec = new recorder.StateRecorderImpl(platform);
-    platform.start();
     assert.ok(platform.saveState()); // can save before ROM load?
     var rom = fs.readFileSync('./test/roms/' + platid + '/' + romname);
     rom = new Uint8Array(rom);
@@ -140,8 +143,7 @@ function testPlatform(platid, romname, maxframes, callback) {
     }
     // test replay feature
     platform.pause();
-    if (maxframes > 120*60)
-      maxframes = 120*60;
+    maxframes = Math.min(maxframes, rec.maxCheckpoints * rec.checkpointInterval);
     assert.equal(maxframes, rec.numFrames());
     var state1 = platform.saveState();
     platform.loadState(state1);
@@ -180,8 +182,8 @@ function testPlatform(platid, romname, maxframes, callback) {
 
 describe('Platform Replay', () => {
 
-  it('Should run apple2', () => {
-    var platform = testPlatform('apple2', 'cosmic.c.rom', 72, (platform, frameno) => {
+  it('Should run apple2', async () => {
+    var platform = await testPlatform('apple2', 'cosmic.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(32, 32, 128); // space bar
       }
@@ -189,13 +191,13 @@ describe('Platform Replay', () => {
     assert.equal(platform.saveState().kbdlatch, 0x20); // strobe cleared
   });
 
-  it('Should run > 120 secs', () => {
-    var platform = testPlatform('apple2', 'mandel.c.rom', 122*60, (platform, frameno) => {
+  it('Should run > 120 secs', async () => {
+    var platform = await testPlatform('apple2', 'mandel.c.rom', 122*60, (platform, frameno) => {
     });
   });
 
-  it('Should run vcs', () => {
-    var platform = testPlatform('vcs', 'brickgame.rom', 72, (platform, frameno) => {
+  it('Should run vcs', async () => {
+    var platform = await testPlatform('vcs', 'brickgame.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         var cstate = platform.saveControlsState();
         cstate.SA = 0xff ^ 0x40; // stick left
@@ -206,8 +208,8 @@ describe('Platform Replay', () => {
     assert.equal(60, platform.readAddress(0x80)); // player x pos
   });
 
-  it('Should run nes', () => {
-    var platform = testPlatform('nes', 'shoot2.c.rom', 72, (platform, frameno) => {
+  it('Should run nes', async () => {
+    var platform = await testPlatform('nes', 'shoot2.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
       }
@@ -215,16 +217,16 @@ describe('Platform Replay', () => {
     assert.equal(120-10, platform.readAddress(0x41d)); // player x pos
   });
 
-  it('Should run vicdual', () => {
-    var platform = testPlatform('vicdual', 'snake1.c.rom', 72, (platform, frameno) => {
+  it('Should run vicdual', async () => {
+    var platform = await testPlatform('vicdual', 'snake1.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
       }
     });
   });
 
-  it('Should run mw8080bw', () => {
-    var platform = testPlatform('mw8080bw', 'game2.c.rom', 72, (platform, frameno) => {
+  it('Should run mw8080bw', async () => {
+    var platform = await testPlatform('mw8080bw', 'game2.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
       }
@@ -232,8 +234,8 @@ describe('Platform Replay', () => {
     assert.equal(96-9*2, platform.readAddress(0x2006)); // player x pos
   });
 
-  it('Should run galaxian', () => {
-    var platform = testPlatform('galaxian-scramble', 'shoot2.c.rom', 72, (platform, frameno) => {
+  it('Should run galaxian', async () => {
+    var platform = await testPlatform('galaxian-scramble', 'shoot2.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
       }
@@ -241,60 +243,60 @@ describe('Platform Replay', () => {
     assert.equal(112-10, platform.readAddress(0x4074)); // player x pos
   });
 
-  it('Should run vector', () => {
-    var platform = testPlatform('vector-z80color', 'game.c.rom', 72, (platform, frameno) => {
+  it('Should run vector', async () => {
+    var platform = await testPlatform('vector-z80color', 'game.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_UP.c, Keys.VK_UP.c, 1);
       }
     });
   });
 /*
-  it('Should run williams 6809', () => {
-    var platform = testPlatform('williams', 'vidfill.asm.rom', 72, (platform, frameno) => {
+  it('Should run williams 6809', async () => {
+    var platform = await testPlatform('williams', 'vidfill.asm.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
       }
     });
   });
 */
-  it('Should run williams-z80', () => {
-    var platform = testPlatform('williams-z80', 'game1.c.rom', 72, (platform, frameno) => {
+  it('Should run williams-z80', async () => {
+    var platform = await testPlatform('williams-z80', 'game1.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
       }
     });
   });
-  it('Should run sound_williams', () => {
-    var platform = testPlatform('sound_williams-z80', 'swave.c.rom', 72, (platform, frameno) => {
+  it('Should run sound_williams', async () => {
+    var platform = await testPlatform('sound_williams-z80', 'swave.c.rom', 72, (platform, frameno) => {
       if (frameno == 60) {
         keycallback(Keys.VK_2.c, Keys.VK_2.c, 1);
       }
     });
   });
 
-  it('Should run astrocade', () => {
-    var platform = testPlatform('astrocade', 'cosmic.c.rom', 92, (platform, frameno) => {
+  it('Should run astrocade', async () => {
+    var platform = await testPlatform('astrocade', 'cosmic.c.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_SPACE.c, Keys.VK_SPACE.c, 1);
       }
     });
   });
-  it('Should run coleco', () => {
-    var platform = testPlatform('coleco', 'shoot.c.rom', 92, (platform, frameno) => {
+  it('Should run coleco', async () => {
+    var platform = await testPlatform('coleco', 'shoot.c.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_SPACE.c, Keys.VK_SPACE.c, 1);
       }
     });
   });
-  it('Should run sms-sg1000-libcv', () => {
-    var platform = testPlatform('sms-sg1000-libcv', 'shoot.c.rom', 92, (platform, frameno) => {
+  it('Should run sms-sg1000-libcv', async () => {
+    var platform = await testPlatform('sms-sg1000-libcv', 'shoot.c.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_SPACE.c, Keys.VK_SPACE.c, 1);
       }
     });
   });
-  it('Should run atari7800', () => {
-    var platform = testPlatform('atari7800', 'sprites.dasm.rom', 92, (platform, frameno) => {
+  it('Should run atari7800', async () => {
+    var platform = await testPlatform('atari7800', 'sprites.dasm.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
       }
@@ -302,14 +304,25 @@ describe('Platform Replay', () => {
     assert.equal(0x1800, platform.saveState().maria.dll);
     assert.equal(39, platform.readAddress(0x81)); // player y pos
   });
-  /* TODO
-  it('Should run c64', () => {
-    var platform = testPlatform('c64', 'sprites.dasm.rom', 92, (platform, frameno) => {
+  it('Should run vectrex', async () => {
+    var platform = await testPlatform('vectrex', 'joystick.c.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
       }
     });
-    assert.equal(39, platform.readAddress(0x81)); // player y pos
   });
-  */
+  it('Should run c64', async () => {
+    await testPlatform('c64', 'climber.c.rom', 92, (platform, frameno) => {
+      if (frameno == 62) {
+        keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
+      }
+    });
+  });
+  it('Should run zx spectrum', async () => {
+    await testPlatform('zx', 'cosmic.c.rom', 92, (platform, frameno) => {
+      if (frameno == 62) {
+        keycallback(Keys.VK_LEFT.c, Keys.VK_LEFT.c, 1);
+      }
+    });
+  });
 });

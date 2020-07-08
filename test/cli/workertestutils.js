@@ -30,7 +30,7 @@ function Blob(blob) {
     //console.log(new Error().stack);
     return b;
   }
-  this.asArrayBuffer = function() {
+  this.arrayBuffer = this.asArrayBuffer = function() {
     var buf = new ArrayBuffer(blob.length);
     var arr = new Uint8Array(buf);
     for (var i=0; i<blob.length; i++)
@@ -109,3 +109,14 @@ global.localStorage = {
  }
 };
 
+global.fetch = function(path) {
+  return new Promise( (resolve, reject) => {
+    try {
+      var bin = fs.readFileSync(path, {encoding:'binary'});
+      var response = new Blob(bin);
+      resolve(response);
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
