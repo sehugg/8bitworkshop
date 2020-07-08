@@ -1322,9 +1322,8 @@ export class ProbeSymbolView extends ProbeViewBaseBase {
 
 ///
 
-const MAX_CHILDREN = 200;
+const MAX_CHILDREN = 256;
 const MAX_STRING_LEN = 100;
-const MAX_DUMP_BYTES = 256;
 
 class TreeNode {
   parent : TreeNode;
@@ -1403,13 +1402,26 @@ class TreeNode {
       else
         text = obj.substring(0, MAX_STRING_LEN) + "...";
     // byte array (TODO: other kinds)
-    } else if (obj instanceof Uint8Array && obj.length <= MAX_DUMP_BYTES) {
+    } else if (obj instanceof Uint8Array && obj.length <= MAX_CHILDREN) {
       text = dumpRAM(obj, 0, obj.length);
     // recurse into object? (or function)
     } else if (typeof obj == 'object' || typeof obj == 'function') {
+      // only if expanded
       if (this._content != null) {
-        let names = Object.getOwnPropertyNames(obj);
-        if (names.length < MAX_CHILDREN) { // max # of child objects
+        // split big arrays
+        if (obj.slice && obj.length > MAX_CHILDREN) {
+          let newobj = {};
+          let oldobj = obj;
+          var slicelen = MAX_CHILDREN;
+          while (obj.length / slicelen > MAX_CHILDREN) slicelen *= 2;
+          for (let ofs=0; ofs<oldobj.length; ofs+=slicelen) {
+            newobj["$"+hex(ofs)] = () => { return oldobj.slice(ofs, ofs+slicelen); }
+          }
+          obj = newobj;
+        }
+        // get object keys
+        let names = obj instanceof Array ? Array.from(obj.keys()) : Object.getOwnPropertyNames(obj);
+        if (names.length <= MAX_CHILDREN) { // max # of child objects
           let orphans = new Set(this.children.keys());
           // visit all children
           names.forEach((name) => {
