@@ -594,8 +594,8 @@ div.asset_toolbar {
   font-weight: bold;
 }
 .transcript-style-8 { /* input */
-  font-weight: bold;
-  font-variant: small-caps;
+  font-weight: 600;
+  text-transform: uppercase;
   color: #6666ff;
   background-color: #eeeeff;
   padding: 0.25em;
@@ -607,10 +607,54 @@ div.asset_toolbar {
   color: #ddd;
 }
 .transcript-input {
-  margin:1%;
-  font-weight: bold;
-  font-variant: small-caps;
+  font-weight: 600;
+  text-transform: uppercase;
   color: #6666ff;
   background-color: #eeeeff;
+  margin:1%;
 }
- 
+.tree-header {
+  border: 2px solid #555;
+  border-radius:8px;
+  color: #fff;
+  background-color:#666;
+  padding-left:1em;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+}
+.tree-content {
+  padding-left:0.75em;
+  padding-right:0.75em;
+  font-size: small;
+}
+.tree-value {
+  float:right;
+  font-weight:normal;
+  padding-right:1em;
+}
+.tree-expanded::after {
+  float: right;
+  margin-right: 1em;
+  content: '\25b2';
+}
+.tree-collapsed::after {
+  float: right;
+  margin-right: 1em;
+  content: '\25bc';
+}
+.tree-collapsed:hover, .tree-expanded:hover {
+  border-color: rgba(255,255,255,0.7);
+}
+.tree-header:hover {
+  background-color: rgba(255,255,255,0.3);
+}
+.tree-level-0 { display:none;}
+.tree-level-1 { background-color: #638283;}
+.tree-level-2 { background-color: #636e83;}
+.tree-level-3 { background-color: #636483;}
+.tree-level-4 { background-color: #756383;}
+.tree-level-5 { background-color: #83637e;}
+.tree-level-6 { background-color: #83636e;}
+.tree-level-7 { background-color: #836363;}
+.tree-level-8 { background-color: #837163;}
+.tree-level-9 { background-color: #7b8363;}
+.tree-level-10 { background-color: #738363;}

@@ -6,7 +6,7 @@ import { hex, lpad, rpad, safeident, rgb2bgr } from "../common/util";
 import { CodeAnalyzer } from "../common/analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows, runToPC } from "./ui";
 import { ProbeRecorder, ProbeFlags } from "../common/recorder";
-import { getMousePos } from "../common/emu";
+import { getMousePos, dumpRAM } from "../common/emu";
 import * as pixed from "./pixeleditor";
 declare var Mousetrap;
 
@@ -809,7 +809,7 @@ export class VRAMMemoryView extends MemoryView {
 ///
 
 export class BinaryFileView implements ProjectView {
-  memorylist;
+  vlist : VirtualTextScroller;
   maindiv : HTMLElement;
   path:string;
   data:Uint8Array;
@@ -821,30 +821,12 @@ export class BinaryFileView implements ProjectView {
   }
 
   createDiv(parent : HTMLElement) {
-    var div = document.createElement('div');
-    div.setAttribute("class", "memdump");
-    parent.appendChild(div);
-    this.showMemoryWindow(parent, div);
-    return this.maindiv = div;
+    this.vlist = new VirtualTextScroller(parent);
+    this.vlist.create(parent, ((this.data.length+15) >> 4), this.getMemoryLineAt.bind(this));
+    return this.vlist.maindiv;
   }
 
-  showMemoryWindow(workspace:HTMLElement, parent:HTMLElement) {
-    this.memorylist = new VirtualList({
-      w: $(workspace).width(),
-      h: $(workspace).height(),
-      itemHeight: getVisibleEditorLineHeight(),
-      totalRows: ((this.data.length+15) >> 4),
-      generatorFn: (row : number) => {
-        var s = this.getMemoryLineAt(row);
-        var linediv = document.createElement("div");
-        linediv.appendChild(document.createTextNode(s));
-        return linediv;
-      }
-    });
-    $(parent).append(this.memorylist.container);
-  }
-
-  getMemoryLineAt(row : number) : string {
+  getMemoryLineAt(row : number) : VirtualTextLine {
     var offset = row * 16;
     var n1 = 0;
     var n2 = 16;
@@ -856,12 +838,13 @@ export class BinaryFileView implements ProjectView {
       if (i==8) s += ' ';
       s += ' ' + (read>=0?hex(read,2):'  ');
     }
-    return s;
+    return {text:s};
   }
 
   refresh() {
+    this.vlist.refresh();
   }
-
+  
   getPath() { return this.path; }
 }
 
@@ -1216,41 +1199,26 @@ export class RasterStackMapView extends ProbeBitmapViewBase implements ProjectVi
 }
 
 export class ProbeLogView extends ProbeViewBaseBase {
-  memorylist;
+  vlist : VirtualTextScroller;
   maindiv : HTMLElement;
   recreateOnResize = true;
   dumplines;
 
   createDiv(parent : HTMLElement) {
-    var div = document.createElement('div');
-    div.setAttribute("class", "memdump");
-    parent.appendChild(div);
-    this.showMemoryWindow(parent, div);
-    return this.maindiv = div;
+    this.vlist = new VirtualTextScroller(parent);
+    this.vlist.create(parent, 160*262, this.getMemoryLineAt.bind(this));
+    return this.vlist.maindiv;
   }
-
-  showMemoryWindow(workspace:HTMLElement, parent:HTMLElement) {
-    this.memorylist = new VirtualList({
-      w: $(workspace).width(),
-      h: $(workspace).height(),
-      itemHeight: getVisibleEditorLineHeight(),
-      totalRows: 160*262, // TODO?
-      generatorFn: (row : number) => {
-        var s = this.getMemoryLineAt(row);
-        var linediv = document.createElement("div");
-        linediv.appendChild(document.createTextNode(s));
-        return linediv;
-      }
-    });
-    $(parent).append(this.memorylist.container);
-  }
-
-  getMemoryLineAt(row : number) : string {
+  getMemoryLineAt(row : number) : VirtualTextLine {
+    var s : string = "";
+    var c : string = "seg_data";
     var line = this.dumplines && this.dumplines[row];
     if (line != null) {
-      var xtra = line.info.join(", ");
-      return "(" + lpad(line.row,3) + ", " + lpad(line.col,3) + ")  " + rpad(line.asm||"",20) + xtra;
-    } else return "";
+      var xtra : string = line.info.join(", ");
+      s = "(" + lpad(line.row,3) + ", " + lpad(line.col,3) + ")  " + rpad(line.asm||"",20) + xtra;
+      if (xtra.indexOf("Write ") >= 0) c = "seg_io";
+    }
+    return {text:s, clas:c};
   }
   refresh() {
     this.tick();
@@ -1279,17 +1247,7 @@ export class ProbeLogView extends ProbeViewBaseBase {
           break;
       }
     });
-    // TODO: refactor with elsewhere
-    if (this.memorylist) {
-      $(this.maindiv).find('[data-index]').each( (i,e) => {
-        var div = $(e);
-        var row = parseInt(div.attr('data-index'));
-        var oldtext = div.text();
-        var newtext = this.getMemoryLineAt(row);
-        if (oldtext != newtext)
-          div.text(newtext);
-      });
-    }
+    this.vlist.refresh();
   }
 }
 
@@ -1361,6 +1319,166 @@ export class ProbeSymbolView extends ProbeViewBaseBase {
     this.vlist.refresh();
   }
 }
+
+///
+
+const MAX_CHILDREN = 200;
+const MAX_STRING_LEN = 100;
+const MAX_DUMP_BYTES = 256;
+
+class TreeNode {
+  parent : TreeNode;
+  name : string;
+  _div : HTMLElement;
+  _header : HTMLElement;
+  _inline : HTMLElement;
+  _content : HTMLElement;
+  children : Map<string,TreeNode>;
+  expanded = false;
+  level : number;
+  view : TreeViewBase;
+
+  constructor(parent : TreeNode, name : string) {
+    this.parent = parent;
+    this.name = name;
+    this.children = new Map();
+    this.level = parent ? (parent.level+1) : -1;
+    this.view = parent ? parent.view : null;
+  }
+  getDiv() {
+    if (this._div == null) {
+      this._div = document.createElement("div");
+      this._div.classList.add("vertical-scroll");
+      this._div.classList.add("tree-content");
+      this._header = document.createElement("div");
+      this._header.classList.add("tree-header");
+      this._header.classList.add("tree-level-" + this.level);
+      this._header.append(this.name);
+      this._inline = document.createElement("span");
+      this._inline.classList.add("tree-value");
+      this._header.append(this._inline);
+      this._div.append(this._header);
+      this.parent._content.append(this._div);
+      this._header.onclick = (e) => {
+        this.toggleExpanded();
+      };
+    }
+    if (this.expanded && this._content == null) {
+      this._content = document.createElement("div");
+      this._div.append(this._content);
+    }
+    else if (!this.expanded && this._content != null) {
+      this._content.remove();
+      this._content = null;
+      this.children.clear();
+    }
+    return this._div;
+  }
+  toggleExpanded() {
+    this.expanded = !this.expanded;
+    this.view.tick();
+  }
+  remove() {
+    this._div.remove();
+    this._div = null;
+  }
+  update(obj : any) {
+    this.getDiv();
+    var text = "";
+    // is it a function? call it first, if we are expanded
+    if (typeof obj == 'function' && this._content != null) {
+      obj = obj();
+    }
+    // check null first
+    if (obj == null) {
+      text = obj+"";
+    // primitive types
+    } else if (typeof obj == 'number') {
+      text = obj.toString();
+    } else if (typeof obj == 'boolean') {
+      text = obj.toString();
+    } else if (typeof obj == 'string') {
+      if (obj.length < MAX_STRING_LEN)
+        text = obj;
+      else
+        text = obj.substring(0, MAX_STRING_LEN) + "...";
+    // byte array (TODO: other kinds)
+    } else if (obj instanceof Uint8Array && obj.length <= MAX_DUMP_BYTES) {
+      text = dumpRAM(obj, 0, obj.length);
+    // recurse into object? (or function)
+    } else if (typeof obj == 'object' || typeof obj == 'function') {
+      if (this._content != null) {
+        let names = Object.getOwnPropertyNames(obj);
+        if (names.length < MAX_CHILDREN) { // max # of child objects
+          let orphans = new Set(this.children.keys());
+          // visit all children
+          names.forEach((name) => {
+            let childnode = this.children.get(name);
+            if (childnode == null) {
+              childnode = new TreeNode(this, name);
+              this.children.set(name, childnode);
+            }
+            childnode.update(obj[name]);
+            orphans.delete(name);
+          });
+          // remove orphans
+          orphans.forEach((delname) => {
+            let childnode = this.children.get(delname);
+            childnode.remove();
+            this.children.delete(delname);
+          });
+          this._header.classList.add("tree-expanded");
+          this._header.classList.remove("tree-collapsed");
+        } else {
+          text = names.length + " items"; // too many children
+        }
+      } else {
+        this._header.classList.add("tree-collapsed");
+        this._header.classList.remove("tree-expanded");
+      }
+    } else {
+      text = typeof obj; // fallthrough
+    }
+    // change DOM object if needed
+    if (this._inline.innerText != text) {
+      this._inline.innerText = text;
+    }
+  }
+}
+
+export abstract class TreeViewBase implements ProjectView {
+  root : TreeNode;
+
+  createDiv(parent : HTMLElement) : HTMLElement {
+    var mainnode = new TreeNode(null, null);
+    mainnode.view = this;
+    mainnode._content = parent;
+    this.root = new TreeNode(mainnode, "/");
+    this.root.expanded = true;
+    this.root.getDiv(); // create it
+    this.root._div.style.padding = '0px';
+    return this.root.getDiv(); // should be cached
+  }
+
+  refresh() {
+    this.tick();
+  }
+
+  tick() {
+    this.root.update(this.getRootObject());
+  }
+
+  abstract getRootObject() : Object;
+}
+
+export class StateBrowserView extends TreeViewBase implements ProjectView {
+  getRootObject() { return platform.saveState(); }
+}
+
+export class DebugBrowserView extends TreeViewBase implements ProjectView {
+  getRootObject() { return platform.getDebugTree(); }
+}
+
 
 ///
 

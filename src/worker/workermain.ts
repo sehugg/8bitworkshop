@@ -1,6 +1,6 @@
 "use strict";
 
-import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap, Segment } from "../common/workertypes";
+import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap, Segment, WorkerOutput } from "../common/workertypes";
 
 declare var WebAssembly;
 declare function importScripts(path:string);
@@ -2397,9 +2397,9 @@ interface XMLNode {
 
 function parseXMLPoorly(s: string) : XMLNode {
   var re = /[<]([/]?)([?a-z_-]+)([^>]*)[>]+|(\s*[^<]+)/gi;
-  var m;
-  var i=0;
-  var stack = [];
+  var m : RegExpMatchArray;
+  //var i=0;
+  var stack : XMLNode[] = [];
   while (m = re.exec(s)) {
     var [_m0,close,ident,attrs,content] = m;
     //if (i++<100) console.log(close,ident,attrs,content);
@@ -2432,7 +2432,7 @@ function compileInform6(step:BuildStep) {
         lstout += "\n";
       }
     }
-    var args = [ '-afnops', '-v5', '-Cu', '-E1', '-k', '+/share/lib', step.path ];
+    var args = [ '-afjnops', '-v5', '-Cu', '-E1', '-k', '+/share/lib', step.path ];
     var inform = emglobal.inform({
       instantiateWasm: moduleInstFn('inform'),
       noInitialRun:true,
@@ -2454,10 +2454,15 @@ function compileInform6(step:BuildStep) {
 
     // parse debug XML
     var symbolmap = {};
-    var entitymap = {'object':{}, 'property':{}, 'constant':{}};
+    var segments : Segment[] = [];
+    var entitymap = {
+      // number -> string
+      'object':{}, 'property':{}, 'attribute':{}, 'constant':{}, 'global-variable':{}, 'routine':{},
+    };
     var dbgout = FS.readFile("gameinfo.dbg", {encoding:'utf8'});
     var xmlroot = parseXMLPoorly(dbgout);
     //console.log(xmlroot);
+    var segtype = "ram";
     xmlroot.children.forEach((node) => {
       switch (node.type) {
         case 'global-variable':
@@ -2465,34 +2470,26 @@ function compileInform6(step:BuildStep) {
           var ident = node.children.find((c,v) => c.type=='identifier').text;
           var address = parseInt(node.children.find((c,v) => c.type=='address').text);
           symbolmap[ident] = address;
+          entitymap[node.type][address] = ident;
           break;
         case 'object':
         case 'property':
+        case 'attribute':
           var ident = node.children.find((c,v) => c.type=='identifier').text;
           var value = parseInt(node.children.find((c,v) => c.type=='value').text);
-          entitymap[node.type][ident] = value;
+          //entitymap[node.type][ident] = value;
+          entitymap[node.type][value] = ident;
           //symbolmap[ident] = address | 0x1000000;
           break;
+        case 'story-file-section':
+          var name = node.children.find((c,v) => c.type=='type').text;
+          var address = parseInt(node.children.find((c,v) => c.type=='address').text);
+          var endAddress = parseInt(node.children.find((c,v) => c.type=='end-address').text);
+          if (name == "grammar table") segtype = "rom";
+          segments.push({name:name, start:address, size:endAddress-address, type:segtype});
       }
     });
-    // parse segments
-    var segments : Segment[] = [];
-    var seglst = lstout.split("Offsets in story file:")[1];
-    if (seglst) {
-      let curseg : Segment = {name:'Header',start:0x0,size:0x42,type:'rom'};
-      segments.push(curseg);
-      let curtype = 'ram';
-      let re_seg = /([0-9a-f]{5}) (\w+)/g;
-      let m;
-      while (m = re_seg.exec(seglst)) {
-        var start = parseInt(m[1], 16);
-        var name = m[2];
-        if (name == 'Parse') curtype = 'rom';
-        curseg.size = start - curseg.start;
-        curseg = {name:name, start:start, size:0, type:curtype};
-        segments.push(curseg);
-      }
-    }
+    // parse listing
     var listings : CodeListingMap = {};
     //    35  +00015 <*> call_vs      long_19 location long_424 -> sp 
     var lines = parseListing(lstout, /\s*(\d+)\s+[+]([0-9a-f]+)\s+([<*>]*)\s*(\w+)\s+(.+)/i, -1, 2, 4);
@@ -2504,10 +2501,11 @@ function compileInform6(step:BuildStep) {
       errors:errors,
       symbolmap:symbolmap,
       segments:segments,
-      //debuginfo:entitymap,
+      debuginfo:entitymap,
     };
   }
 }
+
 ////////////////////////////
 
 var TOOLS = {

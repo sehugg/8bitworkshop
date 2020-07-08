@@ -278,6 +278,11 @@ function refreshWindowList() {
       return new Views.VRAMMemoryView();
     });
   }
+  if (platform.getDebugTree) {
+    addWindowItem("#debugview", "Debug Browser", () => {
+      return new Views.DebugBrowserView();
+    });
+  }
   if (platform.startProbing) {
     addWindowItem("#memheatmap", "Memory Probe", () => {
       return new Views.AddressHeatMapView();
@@ -1031,7 +1036,7 @@ function setCompileOutput(data: WorkerResult) {
     showErrorAlert(data.errors);
   } else {
     // process symbol map
-    platform.debugSymbols = new DebugSymbols(data.symbolmap);
+    platform.debugSymbols = new DebugSymbols(data.symbolmap, data.debuginfo);
     compparams = data.params;
     // load ROM
     var rom = data.output;

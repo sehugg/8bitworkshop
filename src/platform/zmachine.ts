@@ -55,10 +55,9 @@ class GlkImpl {
     curline: HTMLElement;
     curstyle: number;
     reverse: boolean;
-    windows: GlkWindow[];
-    wnd: GlkWindow;
     waitingfor: "line" | "char" | null;
     focused = false;
+    exited = false;
 
     constructor(page: HTMLElement, input: HTMLInputElement) {
         this.page = page;
@@ -66,8 +65,7 @@ class GlkImpl {
         this.reset();
     }
     reset() {
-        this.windows = [];
-        this.wnd = null;
+        this.exited = false;
         this.clear();
     }
     clear() {
@@ -89,6 +87,7 @@ class GlkImpl {
         // TODO
     }
     glk_exit() {
+        this.exited = true;
         this.flushline();
         this.addtext("** Game exited **", 1);
     }
@@ -681,10 +680,11 @@ class ZmachinePlatform implements Platform {
     */
    
     isRunning(): boolean {
-        return this.zvm != null;
+        return this.zvm != null && !this.glk.exited;
     }
+
     advance(novideo?: boolean): number {
-        // TODO?
+        // TODO? we should advance 1 step, whatever that is in ZVM
         return 0;
     }
 
@@ -696,17 +696,106 @@ class ZmachinePlatform implements Platform {
     }
     showHelp(tool:string, ident?:string) {
         switch (tool) {
-            case 'inform6': window.open("https://www.inform-fiction.org/manual/html/"); break;
+            case 'inform6': window.open("https://www.inform-fiction.org/manual/html/contents.html"); break;
         }
     }
     getPresets(): Preset[] {
         return ZMACHINE_PRESETS;
     }
 
+    // TODO: Z machine is big endian!!
     inspect(ident:string) {
         return inspectSymbol(this, ident);
     }
 
+    getDebugTree() {
+        var root = {};
+        //root['debuginfo'] = sym.debuginfo;
+        if (this.zvm != null) {
+            root['Objects'] = () => this.getRootObjects();
+            root['Globals'] = () => this.getGlobalVariables();
+        }
+        return root;
+    }
+    getObjectName(node) {
+        var objlookup = this.getDebugLookup('object');
+        var name = objlookup[node] || "";
+        name += " (#" + node + ")";
+        return name;
+    }
+    addObjectToTree(tree, child) {
+        let name = this.getObjectName(child);
+        tree[name] = this.getObjectTree(child);
+    }
+    getRootObjects() {
+        var tree = {};
+        // TODO: better way?
+        try {
+            for (let child=0; child<65536; child++) {
+                if (this.zvm.get_parent(child) == 0) {
+                    this.addObjectToTree(tree, child);
+                }
+            }
+        } catch (e) {
+            if (!(e instanceof RangeError)) throw e;
+        }
+        return tree;
+    }
+    getObjectTree(parentobj: number) {
+        var child = this.zvm.get_child(parentobj);
+        var tree = {};
+        while (child) {
+            this.addObjectToTree(tree, child);
+            child = this.zvm.get_sibling(child);
+        }
+        // add attributes
+        var flags = this.getFlagList(parentobj);
+        if (flags.length) {
+            tree["[attributes]"] = flags.join(' ');
+        }
+        /*
+        var props = this.getPropList(parentobj);
+        if (props.length) {
+            tree["[properties]"] = props.join(' ');
+        }
+        */
+        return tree;
+    }
+    getFlagList(obj:number) {
+        var attrlookup = this.getDebugLookup('attribute');
+        var set_attrs = [];
+        for (var i=0; i<32; i++) {
+            if (this.zvm.test_attr(obj, i)) {
+                set_attrs.push(attrlookup[i] || "#"+i);
+            }
+        }
+        return set_attrs;
+    }
+    getPropList(obj:number) {
+        var proplookup = this.getDebugLookup('property');
+        var set_props = [];
+        var addr = 0;
+        for (var i=0; i<50; i++) {
+            addr = this.zvm.find_prop(obj, 0, addr);
+            if (addr == 0) break;
+            set_props.push(proplookup[addr] || "%"+addr);
+        }
+        return set_props;
+    }
+    getDebugLookup(key : 'object'|'property'|'attribute'|'constant'|'global-variable') : {} {
+        var debugsym = (this as Platform).debugSymbols;
+        return (debugsym && debugsym.debuginfo && debugsym.debuginfo[key]) || {};
+    }
+    getGlobalVariables() {
+        var globals = this.getDebugLookup('global-variable');
+        var result = {};
+        Object.entries(globals).forEach((entry) => {
+            var addr = parseInt(entry[0]);
+            var name = entry[1] as string;
+            result[name] = this.zvm.m.getUint16(addr);
+        })
+        return result;
+    }
 }
 
 //

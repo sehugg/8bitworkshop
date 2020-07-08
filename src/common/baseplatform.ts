@@ -45,9 +45,11 @@ export type AddrSymbolMap = {[address:number]:string};
 export class DebugSymbols {
   symbolmap : SymbolMap;	// symbol -> address
   addr2symbol : AddrSymbolMap;	// address -> symbol
+  debuginfo : {}; // extra platform-specific debug info
 
-  constructor(symbolmap : SymbolMap) {
+  constructor(symbolmap : SymbolMap, debuginfo : {}) {
     this.symbolmap = symbolmap;
+    this.debuginfo = debuginfo;
     this.addr2symbol = invertMap(symbolmap);
     //// TODO: shouldn't be necc.
     if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = '$00'; // needed for ...
@@ -123,6 +125,7 @@ export interface Platform {
   getCPUState?() : CpuState;
 
   debugSymbols? : DebugSymbols;
+  getDebugTree?() : {};
   
   startProbing?() : ProbeRecorder;
   stopProbing?() : void;
@@ -193,6 +196,9 @@ export abstract class BasePlatform {
   }
   inspect(sym: string) : string {
     return inspectSymbol((this as any) as Platform, sym);
+  }
+  getDebugTree() {
+    return this.saveState();
   }
 }
 

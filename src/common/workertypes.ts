@@ -96,12 +96,13 @@ export type WorkerOutput = Uint8Array | VerilogOutput;
 export type Segment = {name:string, start:number, size:number, last?:number, type?:string};
 
 export interface WorkerResult {
-  output:WorkerOutput,
-  errors:WorkerError[],
-  listings:CodeListingMap,
-  symbolmap:{[sym:string]:number},
-  params:{},
-  segments?:Segment[],
-  unchanged?:boolean,
+  output:WorkerOutput
+  errors:WorkerError[]
+  listings:CodeListingMap
+  symbolmap:{[sym:string]:number}
+  params:{}
+  segments?:Segment[]
+  unchanged?:boolean
+  debuginfo?:{} // optional info
 }
 

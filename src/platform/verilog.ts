@@ -785,6 +785,10 @@ var VerilogPlatform = function(mainElement, options) {
 
   // DEBUGGING
 
+  getDebugTree() {
+    return this.saveState().o;
+  }
+
   // TODO: bind() a function to avoid depot?
   saveState() {
     var state = {
