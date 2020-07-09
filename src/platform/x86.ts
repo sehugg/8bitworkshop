@@ -70,7 +70,7 @@ class X86PCPlatform implements Platform {
         return "yasm";
     }
     getDefaultExtension(): string {
-        return "asm";
+        return ".asm";
     }
     getPresets() {
         return PC_PRESETS;
@@ -133,6 +133,9 @@ class X86PCPlatform implements Platform {
         });
     }
 
+    getDebugTree() {
+        return this.v86;
+    }
     readAddress(addr:number) {
         return this.v86.cpu.mem8[addr];
     }

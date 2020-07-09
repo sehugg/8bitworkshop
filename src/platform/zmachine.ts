@@ -110,6 +110,11 @@ class GlkImpl {
         if (this.focused) {
             $(this.input).focus();
         }
+        // change size
+        if (this.waitingfor == 'char')
+            $(this.input).addClass('transcript-input-char')
+        else
+            $(this.input).removeClass('transcript-input-char')
     }
     hideinput() {
         $(this.input).appendTo($(this.page).parent()).hide();

@@ -376,10 +376,9 @@ div.replaydiv {
 }
 div.markdown {
  background-color: #fff;
- width:94%;
- margin:3%;
- padding:1em;
- user-select: auto;
+ width:100%;
+ padding:2em;
+ user-select: text;
 }
 div.markdown table {
  margin:1em;
@@ -612,6 +611,11 @@ div.asset_toolbar {
   color: #6666ff;
   background-color: #eeeeff;
   margin:1%;
+  width:100%;
+  max-width:25em;
+}
+.transcript-input-char {
+  max-width:5em;
 }
 .tree-header {
   border: 2px solid #555;

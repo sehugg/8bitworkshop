@@ -177,12 +177,9 @@ TODO:
 - Safari: doesn't send good exception reasons ("undefined")
   - probably XMLHttpRequest.timeout (https://github.com/getsentry/sentry-javascript/issues/2210)
 - C64
-  - debugging at reset
-  - gotoxy goes to $EA24 (KIL) from PLOT (kplot.s) missing UPDCRAMPTR
-  - emu doesn't reset properly (after gotoxy() BIOS call)
   - disk image support
   - https://github.com/cc65/cc65/issues/946
-  - sample buffer skips (need to sync w/ vsync)
+  - need to sync advanceFrame() w/ vsync
 
 - upgrade to ES2020?
   - https://github.com/microsoft/TypeScript/issues/16577
@@ -194,8 +191,7 @@ TODO:
 - ca65 line numbers are not aligned with source code
   - segments not read properly
 - Debug Browser
-  - hex viewer
-  - show 16/32 typed arrays
+  - more stuff like 7800 display lists
 
 
 WEB WORKER FORMAT

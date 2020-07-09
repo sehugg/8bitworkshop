@@ -919,6 +919,8 @@ abstract class ProbeViewBaseBase {
   probe : ProbeRecorder;
   tooldiv : HTMLElement;
 
+  abstract tick() : void;
+
   addr2str(addr : number) : string {
     var _addr2sym = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
     var sym = _addr2sym[addr];
@@ -950,8 +952,6 @@ abstract class ProbeViewBaseBase {
       this.probe = null;
     }
   }
-
-  abstract tick() : void;
 
   redraw( eventfn:(op,addr,col,row,clk,value) => void ) {
     var p = this.probe;
@@ -987,12 +987,15 @@ abstract class ProbeViewBaseBase {
       case ProbeFlags.VRAM_WRITE:	s = "VRAM Write"; break;
       case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
       case ProbeFlags.ILLEGAL:		s = "Error"; break;
+      //case ProbeFlags.SP_PUSH:		s = "Stack Push"; break;
+      //case ProbeFlags.SP_POP:     s = "Stack Pop"; break;
       default:				            return "";
     }
     if (typeof addr == 'number') s += " " + this.addr2str(addr);
     if ((op & ProbeFlags.HAS_VALUE) && typeof value == 'number') s += " = $" + hex(value,2);
     return s;
   }
+  
   getOpRGB(op:number) : number {
     switch (op) {
       case ProbeFlags.EXECUTE:		return 0x018001;
@@ -1015,7 +1018,9 @@ abstract class ProbeViewBase extends ProbeViewBaseBase {
   canvas : HTMLCanvasElement;
   ctx : CanvasRenderingContext2D;
   recreateOnResize = true;
-  
+    
+  abstract drawEvent(op, addr, col, row);
+
   createCanvas(parent:HTMLElement, width:number, height:number) {
     var div = document.createElement('div');
     var canvas = document.createElement('canvas');
@@ -1056,8 +1061,6 @@ abstract class ProbeViewBase extends ProbeViewBaseBase {
     this.clear();
     this.redraw(this.drawEvent.bind(this));
   }
-  
-  abstract drawEvent(op, addr, col, row);
 }
 
 abstract class ProbeBitmapViewBase extends ProbeViewBase {
@@ -1161,44 +1164,6 @@ export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectV
   }
 }
 
-// TODO?
-export class RasterStackMapView extends ProbeBitmapViewBase implements ProjectView {
-  pcstack = [];
-  pushed = false;
-  color = 0;
-  root = {};
-
-  drawEvent(op, addr, col, row) {
-    var iofs = col + row * this.canvas.width;
-    if (op == ProbeFlags.SP_PUSH) {
-      this.pcstack.push({});
-      this.pushed = true;
-    } else if (op == ProbeFlags.SP_POP) {
-      var entry = this.pcstack.pop();
-      if (entry && entry.addr !== undefined) {
-        var node = this.root;
-        for (var e of this.pcstack) {
-          if (node[e.addr]) {
-            node = node[e.addr];
-          } else {
-            node = node[e.addr] = {};
-          }
-        }
-      }
-      //if (this.pcstack.length == 1) console.log(this.root);
-      this.pushed = false;
-    } else if (op == ProbeFlags.EXECUTE) {
-      if (this.pushed) {
-        this.pcstack.pop();
-        this.pcstack.push({addr:addr, scol:col, srow:row});
-        this.pushed = false;
-      }
-    }
-    var data = 0xff224488 << this.pcstack.length;
-    this.datau32[iofs] = data;
-  }
-}
-
 export class ProbeLogView extends ProbeViewBaseBase {
   vlist : VirtualTextScroller;
   maindiv : HTMLElement;
@@ -1218,6 +1183,7 @@ export class ProbeLogView extends ProbeViewBaseBase {
       var xtra : string = line.info.join(", ");
       s = "(" + lpad(line.row,3) + ", " + lpad(line.col,3) + ")  " + rpad(line.asm||"",20) + xtra;
       if (xtra.indexOf("Write ") >= 0) c = "seg_io";
+      // if (xtra.indexOf("Stack ") >= 0) c = "seg_code";
     }
     return {text:s, clas:c};
   }
@@ -1336,7 +1302,7 @@ class TreeNode {
   children : Map<string,TreeNode>;
   expanded = false;
   level : number;
-  view : TreeViewBase;
+  view : ProjectView;
 
   constructor(parent : TreeNode, name : string) {
     this.parent = parent;
@@ -1394,7 +1360,7 @@ class TreeNode {
       text = obj+"";
     // primitive types
     } else if (typeof obj == 'number') {
-      text = obj.toString();
+      text = obj + "\t($" + hex(obj) + ")";
     } else if (typeof obj == 'boolean') {
       text = obj.toString();
     } else if (typeof obj == 'string') {
@@ -1470,18 +1436,23 @@ class TreeNode {
   }
 }
 
+function createTreeRootNode(parent : HTMLElement, view : ProjectView) : TreeNode {
+  var mainnode = new TreeNode(null, null);
+  mainnode.view = view;
+  mainnode._content = parent;
+  var root = new TreeNode(mainnode, "/");
+  root.expanded = true;
+  root.getDiv(); // create it
+  root._div.style.padding = '0px';
+  return root; // should be cached
+}
+
 export abstract class TreeViewBase implements ProjectView {
   root : TreeNode;
 
   createDiv(parent : HTMLElement) : HTMLElement {
-    var mainnode = new TreeNode(null, null);
-    mainnode.view = this;
-    mainnode._content = parent;
-    this.root = new TreeNode(mainnode, "/");
-    this.root.expanded = true;
-    this.root.getDiv(); // create it
-    this.root._div.style.padding = '0px';
-    return this.root.getDiv(); // should be cached
+    this.root = createTreeRootNode(parent, this);
+    return this.root.getDiv();
   }
 
   refresh() {
@@ -1502,6 +1473,77 @@ export class StateBrowserView extends TreeViewBase implements ProjectView {
 export class DebugBrowserView extends TreeViewBase implements ProjectView {
   getRootObject() { return platform.getDebugTree(); }
 }
+
+// TODO?
+interface CallGraphNode {
+  count : number;
+  calls : {[id:string] : CallGraphNode};
+}
+
+export class CallStackView extends ProbeViewBaseBase implements ProjectView {
+  treeroot : TreeNode;
+  graph : CallGraphNode;
+  stack : CallGraphNode[];
+  lastsp : number;
+  jsr : boolean;
+
+  createDiv(parent : HTMLElement) : HTMLElement {
+    this.clear();
+    this.treeroot = createTreeRootNode(parent, this);
+    return this.treeroot.getDiv();
+  }
+
+  refresh() {
+    this.tick();
+  }
+
+  tick() {
+    this.treeroot.update(this.getRootObject());
+  }
+
+  clear() {
+    this.graph = {count:0, calls:{}};
+    this.reset();
+  }
+
+  reset() {
+    this.stack = [this.graph]; // TODO??? should continue across frames
+    this.lastsp = -1;
+    this.jsr = false;
+  }
+
+  getRootObject() : Object {
+    this.reset();
+    this.redraw((op,addr,col,row,clk,value) => {
+      switch (op) {
+        case ProbeFlags.SP_PUSH:
+        case ProbeFlags.SP_POP:
+          if ((this.lastsp - addr) == 2) {
+            this.jsr = true;
+          }
+          if ((this.lastsp - addr) == -2 && this.stack.length > 1) {
+            this.stack.pop();
+          }
+          this.lastsp = addr;
+          break;
+        case ProbeFlags.EXECUTE:
+          if (this.jsr) {
+            var top = this.stack[this.stack.length-1];
+            var sym = this.addr2str(addr);
+            var child = top.calls[sym];
+            if (child == null) { child = top.calls[sym] = {count:0, calls:{}}; }
+            //this.stack.forEach((node) => node.count++);
+            this.stack.push(child);
+            child.count++;
+            this.jsr = false;
+          }
+          break;
+      }
+    });
+    return this.graph;
+  }
+}
+
 
 
 ///

@@ -298,8 +298,8 @@ function refreshWindowList() {
       return new Views.ProbeSymbolView();
     });
     /*
-    addWindowItem("#spheatmap", "Stack Probe", () => {
-      return new Views.RasterStackMapView();
+    addWindowItem("#callstack", "Call Stack", () => {
+      return new Views.CallStackView();
     });
     */
   }
@@ -1125,6 +1125,8 @@ function checkRunReady() {
 function openRelevantListing(state: EmuState) {
   // if we clicked on another window, retain it
   if (lastViewClicked != null) return;
+  // has to support disassembly, at least
+  if (!platform.disassemble) return;
   // search through listings
   var listings = current_project.getListings();
   var bestid = "#disasm";
@@ -1144,7 +1146,7 @@ function openRelevantListing(state: EmuState) {
           bestid = wndid;
           bestscore = pc-res.offset;
         }
-        console.log(hex(pc,4), wndid, lstfn, bestid, bestscore);
+        //console.log(hex(pc,4), wndid, lstfn, bestid, bestscore);
       }
     }
   }
@@ -1568,9 +1570,6 @@ function setupDebugControls() {
     uitoolbar.add('ctrl+alt+b', 'Step Backwards', 'glyphicon-step-backward', runStepBackwards).prop('id','dbg_stepback');
   }
   uitoolbar.newGroup();
-  if (platform.newCodeAnalyzer) {
-    uitoolbar.add(null, 'Analyze CPU Timing', 'glyphicon-time', traceTiming);
-  }
   // add menu clicks
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
@@ -1612,6 +1611,9 @@ function setupDebugControls() {
   // show help button?
   if (platform.showHelp) {
     uitoolbar.add('ctrl+alt+?', 'Show Help', 'glyphicon-question-sign', _lookupHelp);
+  }
+  if (platform.newCodeAnalyzer) {
+    uitoolbar.add(null, 'Analyze CPU Timing', 'glyphicon-time', traceTiming);
   }
   // setup replay slider
   if (platform.setRecorder && platform.advance) {
