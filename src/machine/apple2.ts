@@ -8,9 +8,10 @@ const cpuFrequency = 1023000;
 const cpuCyclesPerLine = 65; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
 const cpuCyclesPerFrame = 65*262;
 
+// TODO: read prodos/ca65 header?
 const VM_BASE = 0x803; // where to JMP after pr#6
-const LOAD_BASE = VM_BASE; //0x7c9; // where to load ROM
-const PGM_BASE = VM_BASE; //0x800; // where to load ROM
+const LOAD_BASE = VM_BASE;
+const PGM_BASE = VM_BASE;
 const HDR_SIZE = PGM_BASE - LOAD_BASE;
 
 interface AppleIIStateBase {

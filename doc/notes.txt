@@ -192,6 +192,7 @@ TODO:
   - copy to gen/ directory (allowJs is weird)
 - can we debug first frame via replay?
 - ca65 line numbers are not aligned with source code
+  - segments not read properly
 - Debug Browser
   - hex viewer
   - show 16/32 typed arrays

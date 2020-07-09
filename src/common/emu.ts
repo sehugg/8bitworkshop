@@ -305,15 +305,17 @@ export class AnimationTimer {
 
 // TODO: move to util?
 
-export function dumpRAM(ram:Uint8Array|number[], ramofs:number, ramlen:number) : string {
+export function dumpRAM(ram:ArrayLike<number>, ramofs:number, ramlen:number) : string {
   var s = "";
+  var bpel = ram['BYTES_PER_ELEMENT'] || 1;
+  var perline = Math.ceil(16 / bpel);
   // TODO: show scrollable RAM for other platforms
-  for (var ofs=0; ofs<ramlen; ofs+=0x10) {
+  for (var ofs=0; ofs<ramlen; ofs+=perline) {
     s += '$' + hex(ofs+ramofs) + ':';
-    for (var i=0; i<0x10; i++) {
+    for (var i=0; i<perline; i++) {
       if (ofs+i < ram.length) {
-        if (i == 8) s += " ";
-        s += " " + hex(ram[ofs+i]);
+        if (i == perline/2) s += " ";
+        s += " " + hex(ram[ofs+i], bpel*2);
       }
     }
     s += "\n";

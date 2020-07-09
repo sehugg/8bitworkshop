@@ -224,6 +224,7 @@ export class ProbeRecorder implements ProbeAll {
     if (this.singleFrame) this.reset();
   }
   logExecute(address:number, SP:number) {
+    // TODO? record stack pushes (not all platforms use logExecute)
     if (this.cur_sp !== SP) {
       if (SP < this.cur_sp) {
         this.log(ProbeFlags.SP_PUSH | (this.cur_sp - SP));

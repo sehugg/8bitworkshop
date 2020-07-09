@@ -117,6 +117,17 @@ global.Mousetrap = function() {
 
 //
 
+function checkForBigNonTypedArrays(obj, path='') {
+  if (typeof obj != 'object' || obj == null) return;
+  Object.entries(obj).forEach((entry) => {
+    if (entry[1] instanceof Array && entry[1].length > 200) {
+      if (typeof entry[1][0] == 'number' && entry[1].buffer == null)
+        throw new Error("array in save state not typed: " + path + '/' + entry[0]);
+    }
+    checkForBigNonTypedArrays(entry[1], path + '/' + entry[0]);
+  });
+}
+
 async function testPlatform(platid, romname, maxframes, callback) {
     var platform = new emu.PLATFORMS[platid](emudiv);
     await platform.start();
@@ -127,6 +138,7 @@ async function testPlatform(platid, romname, maxframes, callback) {
     rom = new Uint8Array(rom);
     platform.loadROM("ROM", rom);
     var state0a = platform.saveState();
+    checkForBigNonTypedArrays(state0a);
     platform.reset(); // reset again
     var state0b = platform.saveState();
     //TODO: vcs fails assert.deepEqual(state0a, state0b);
@@ -152,6 +164,7 @@ async function testPlatform(platid, romname, maxframes, callback) {
     assert.equal(maxframes, rec.loadFrame(maxframes));
     var state2 = platform.saveState();
     assert.deepEqual(state1, state2);
+    checkForBigNonTypedArrays(state2);
     // test memory reads not clearing stuff
     for (var i=0; i<=0xffff; i++)
       if (platform.readAddress) platform.readAddress(i);

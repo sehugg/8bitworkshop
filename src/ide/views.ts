@@ -1161,6 +1161,7 @@ export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectV
   }
 }
 
+// TODO?
 export class RasterStackMapView extends ProbeBitmapViewBase implements ProjectView {
   pcstack = [];
   pushed = false;
@@ -1401,8 +1402,8 @@ class TreeNode {
         text = obj;
       else
         text = obj.substring(0, MAX_STRING_LEN) + "...";
-    // byte array (TODO: other kinds)
-    } else if (obj instanceof Uint8Array && obj.length <= MAX_CHILDREN) {
+    // typed byte array (TODO: other kinds)
+    } else if (obj.buffer && obj.length <= MAX_CHILDREN) {
       text = dumpRAM(obj, 0, obj.length);
     // recurse into object? (or function)
     } else if (typeof obj == 'object' || typeof obj == 'function') {
