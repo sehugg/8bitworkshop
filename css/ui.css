@@ -642,10 +642,10 @@ div.asset_toolbar {
   content: '\25bc';
 }
 .tree-collapsed:hover, .tree-expanded:hover {
-  border-color: rgba(255,255,255,0.7);
+  border-color:#ccc;
 }
 .tree-header:hover {
-  background-color: rgba(255,255,255,0.3);
+  background-color: #666;
 }
 .tree-level-0 { display:none;}
 .tree-level-1 { background-color: #638283;}

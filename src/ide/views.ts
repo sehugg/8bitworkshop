@@ -1421,29 +1421,40 @@ class TreeNode {
         }
         // get object keys
         let names = obj instanceof Array ? Array.from(obj.keys()) : Object.getOwnPropertyNames(obj);
-        if (names.length <= MAX_CHILDREN) { // max # of child objects
-          let orphans = new Set(this.children.keys());
-          // visit all children
-          names.forEach((name) => {
-            let childnode = this.children.get(name);
-            if (childnode == null) {
-              childnode = new TreeNode(this, name);
-              this.children.set(name, childnode);
-            }
-            childnode.update(obj[name]);
-            orphans.delete(name);
-          });
-          // remove orphans
-          orphans.forEach((delname) => {
-            let childnode = this.children.get(delname);
-            childnode.remove();
-            this.children.delete(delname);
-          });
-          this._header.classList.add("tree-expanded");
-          this._header.classList.remove("tree-collapsed");
-        } else {
-          text = names.length + " items"; // too many children
+        if (names.length > MAX_CHILDREN) { // max # of child objects
+          let newobj = {};
+          let oldobj = obj;
+          var slicelen = 100;
+          while (names.length / slicelen > 100) slicelen *= 2;
+          for (let ofs=0; ofs<names.length; ofs+=slicelen) {
+            var newdict = {};
+            for (var i=ofs; i<ofs+slicelen; i++)
+              newdict[names[i]] = oldobj[names[i]];
+            newobj["["+ofs+"...]"] = newdict;
+          }
+          obj = newobj;
+          names = Object.getOwnPropertyNames(obj);
         }
+        // track deletions
+        let orphans = new Set(this.children.keys());
+        // visit all children
+        names.forEach((name) => {
+          let childnode = this.children.get(name);
+          if (childnode == null) {
+            childnode = new TreeNode(this, name);
+            this.children.set(name, childnode);
+          }
+          childnode.update(obj[name]);
+          orphans.delete(name);
+        });
+        // remove orphans
+        orphans.forEach((delname) => {
+          let childnode = this.children.get(delname);
+          childnode.remove();
+          this.children.delete(delname);
+        });
+        this._header.classList.add("tree-expanded");
+        this._header.classList.remove("tree-collapsed");
       } else {
         this._header.classList.add("tree-collapsed");
         this._header.classList.remove("tree-expanded");

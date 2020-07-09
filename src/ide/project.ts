@@ -308,7 +308,7 @@ export class CodeProject {
     }
     // save and sort segment list
     var segs = (this.platform.getMemoryMap && this.platform.getMemoryMap()["main"]) || [];
-    segs = segs.concat(data.segments || []);
+    if (data.segments) { segs = segs.concat(data.segments || []); }
     segs.sort((a,b) => {return a.start-b.start});
     this.segments = segs;
   }

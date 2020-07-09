@@ -515,6 +515,7 @@ class VectrexAnalog {
   constructor(vectrex) {
     this.vectrex = vectrex;
   }
+  videoEnabled = true;
   //static unsigned rsh;  /* zero ref sample and hold */
   rsh = 0;
   //static unsigned xsh;  /* x sample and hold */
@@ -743,6 +744,7 @@ class VectrexAnalog {
   }
 
   addline(x0, y0, x1, y1, color) {
+    if (!this.videoEnabled) return;
     // TODO
     //console.log(x0, y0, x1, y1, color);
     x0 = (x0 - Globals.BOUNDS_MIN_X) / (Globals.BOUNDS_MAX_X - Globals.BOUNDS_MIN_X) * Globals.SCREEN_X_DEFAULT;
@@ -841,6 +843,7 @@ class VectrexPlatform extends Base6809Platform {
 
   advance(novideo:boolean) : number {
     if (!novideo) this.video.clear();
+    this.alg.videoEnabled = !novideo;
     this.updateControls();
     this.probe.logNewFrame();
     var frameCycles = 1500000 / 60;

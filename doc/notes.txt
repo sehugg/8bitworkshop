@@ -13,12 +13,9 @@ TODO:
 - asm: support macro expansion
 - multiple breakpoints, expression breakpoints
 - watchpoints
-- debug inspector for variables
 - MAME single step (?)
 - step over (line, instruction)
 - slowdown beam for all platforms?
-- PC x86 support
-  - https://bellard.org/tcc/
 - show errors in list (maybe window list?)
   - click to go to error
   - what if error in include file you can't edit b/c it never appears?
@@ -37,11 +34,9 @@ TODO:
 - 'undefined' for bitmap replacer
 - requestInterrupt needs to be disabled after breakpoint?
 - C/asm source formatter
-- fix WebAudio (https://news.ycombinator.com/item?id=18066474)
 - allow download of JSASM output
 - update bootstrap to 4.0
 - batariBasic: proper line numbers, debugging
-- granular control over time scrubbing, show CPU state
 - builds:
   - compiler flags for final ROM build
   - workermain: split build functions, better msg types
@@ -57,19 +52,13 @@ TODO:
   - debug inline asm
 - live coding URL
 - resize memory browser, other windows when vertical div resize
-- preroll the Z80 emulator so optimizer does its thing before loading rom
-- wasm dynamic linking of emulators (https://github.com/WebAssembly/tool-conventions/blob/master/DynamicLinking.md)
-- https://github.com/jvilk/BrowserFS
 - markdown, verilog: can't share
 - https://www.crowdsupply.com/tinyfpga/tinyfpga-bx
 - stego shareable images (http://pico-8.wikia.com/wiki/P8PNGFileFormat)
 - https://makecode.com/language?
 - open ROM from URL?
 - game starts even if switched away before first load
-- it's pretty easy to add a new file named like a library file (bcd.c)
-  - or have neslib.h in a subdirectory...
 - put globals into view/controller objects
-- upload binary files doesn't do what's expected, changing pulldown and whatnot
 - autostart audio
   - chrome: https://github.com/processing/p5.js-sound/issues/249
   - firefox: https://support.mozilla.org/en-US/kb/block-autoplay
@@ -78,7 +67,7 @@ TODO:
 - ide bug/feature visualizer for sponsors
 - global undo/redo at checkpoints (when rom changes)
 - landscape mode for arcade ports
-- symmetric load/save state types
+- symmetric load/save state types (like in Machine)
 - pixel editor
   - persist palette/tilemap selections
   - more tools for editing
@@ -107,7 +96,6 @@ TODO:
   - show interrupts, other events
   - sometimes interleaves two different PCs? like two profilers running simultaneously?
     - ah, symbols persist across builds
-- https://remotestoragejs.readthedocs.io/en/latest/getting-started/how-to-add.html ?
 - Verilog
   - larger scope range, better scrolling
   - make scope data wrap around range
@@ -127,13 +115,13 @@ TODO:
 - break on stack overflow, illegal op, bad access, BRK, etc
   - show in scope instead?
 - nes
-  - replay doesn't work for nes (force background tile redraw)
+  - replay doesn't work for nes (force background tile redraw, sprites
+    messed up)
   - nes debug view toolbar
   - support NES_HEADER_16K?
-  - PPU/TIA register write visualization
-  - show cur/tmp vram addresses
   - NES crt should mark raster pos when debugging
   - OAMDMA in profiler? (haltCycles)
+  - typed arrays don't serialize?
 - JSNES
   - doesn't support hiding >8 sprites
   - doesn't do sprite zero test right
@@ -168,7 +156,6 @@ TODO:
   - allow text/binary change
   - importing from subtree commits to root anyway
   - publishing Markdown file loads default file? 
-- astrocade
 - keyboard shortcuts
   - ctrl+alt+l on ubuntu locks screen
   - alt-D doesn't work anymore
@@ -182,7 +169,6 @@ TODO:
   - can't step back twice?
   - compiler bug in chase
 - "shared" in URL doesn't work, leave in URL? (also importURL)
-- segments disappear in memory map when binary unchanged
 - 6502
   - KIL stops debugger
 - TypeError: null is not an object (evaluating 'n.destination')
@@ -206,6 +192,9 @@ TODO:
   - copy to gen/ directory (allowJs is weird)
 - can we debug first frame via replay?
 - ca65 line numbers are not aligned with source code
+- Debug Browser
+  - hex viewer
+  - show 16/32 typed arrays
 
 
 WEB WORKER FORMAT
