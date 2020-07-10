@@ -46,7 +46,7 @@ interface IFZVM {
 class GlkWindow {
     page: HTMLElement;
     stream: number;
-    
+
     curline: HTMLElement;
     curstyle: number;
     reverse: boolean;
@@ -102,8 +102,8 @@ class GlkWindow {
     move_cursor(col, row) {
         // TODO
         if (row == this.row && col > this.col) {
-            for (var i=this.col; i<col; i++)
-              this.addtext(' ', this.curstyle);
+            for (var i = this.col; i < col; i++)
+                this.addtext(' ', this.curstyle);
         }
         this.col = col;
         this.row = row;
@@ -337,7 +337,7 @@ class GlkImpl {
     glk_window_get_size(win, widthref: RefBox, heightref: RefBox) {
         console.log('glk_window_get_size', arguments);
         // TODO: made up sizes, only status line supported
-        if (widthref) widthref.set_value(40);
+        if (widthref) widthref.set_value(STATUS_NUM_COLS);
         if (heightref) heightref.set_value(win == 1 ? 25 : 1);
     }
     garglk_set_reversevideo(val) {
@@ -681,6 +681,8 @@ const Const = {
 
 //
 
+const STATUS_NUM_COLS = 80;
+
 class ZmachinePlatform implements Platform {
     mainElement: HTMLElement;
     zfile: Uint8Array;
@@ -715,7 +717,15 @@ class ZmachinePlatform implements Platform {
         windowport.on('click', (e) => {
             inputline.focus();
         });
+        this.resize = () => {
+            // set font size proportional to window width
+            var charwidth = $(gameport).width() * 1.6 / STATUS_NUM_COLS;
+            $(upperwnd).css('font-size', charwidth + 'px');
+        }
+        this.resize();
     }
+
+    resize : () => void;
 
     loadROM(title, data) {
         this.zfile = data;

@@ -614,9 +614,12 @@ function extractErrors(regex, strings:string[], path:string, iline, imsg, ifilen
 // TODO: "of" doesn't work in MSIE
 
 var re_crlf = /\r?\n/;
+//    1   %line 16+1 hello.asm
+var re_lineoffset = /\s*(\d+)\s+[%]line\s+(\d+)\+(\d+)\s+(.+)/;
 
 function parseListing(code:string, lineMatch, iline:number, ioffset:number, iinsns:number, icycles?:number) : SourceLine[] {
   var lines : SourceLine[] = [];
+  var lineofs = 0;
   code.split(re_crlf).forEach((line, lineindex) => {
     var linem = lineMatch.exec(line);
     if (linem && linem[1]) {
@@ -627,12 +630,18 @@ function parseListing(code:string, lineMatch, iline:number, ioffset:number, iins
       var iscode = cycles > 0;
       if (insns) {
         lines.push({
-          line:linenum,
+          line:linenum + lineofs,
           offset:offset,
           insns:insns,
           cycles:cycles,
           iscode:iscode
         });
+      }
+    } else {
+      let m = re_lineoffset.exec(line);
+      // TODO: check filename too
+      if (m) {
+        lineofs = parseInt(m[2]) - parseInt(m[1]) - parseInt(m[3]);
       }
     }
   });

@@ -52,8 +52,9 @@ class FATFSArrayBufferDriver {
   
 class X86PCPlatform implements Platform {
 
-    mainElement;
-    video;    
+    mainElement : HTMLElement;
+    video : RasterVideo;
+    console_div : HTMLElement;
 
     emulator;
     v86;
@@ -99,10 +100,13 @@ class X86PCPlatform implements Platform {
 
         this.video = new RasterVideo(this.mainElement,640,480,{overscan:false});
         this.video.create();
+
         var div = document.createElement('div');
         div.classList.add('pc-console');
         div.classList.add('emuvideo');
         this.mainElement.appendChild(div);
+        this.console_div = div;
+        this.resize(); // set font size
 
         this.emulator = new V86Starter({
             memory_size: 2 * 1024 * 1024,
@@ -131,6 +135,12 @@ class X86PCPlatform implements Platform {
                 resolve();
             });
         });
+    }
+
+    resize() {
+        // set font size proportional to window width
+        var charwidth = $(this.console_div).width() * 1.7 / 80;
+        $(this.console_div).css('font-size', charwidth+'px');
     }
 
     getDebugTree() {
