@@ -987,8 +987,8 @@ abstract class ProbeViewBaseBase {
       case ProbeFlags.VRAM_WRITE:	s = "VRAM Write"; break;
       case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
       case ProbeFlags.ILLEGAL:		s = "Error"; break;
-      //case ProbeFlags.SP_PUSH:		s = "Stack Push"; break;
-      //case ProbeFlags.SP_POP:     s = "Stack Pop"; break;
+      case ProbeFlags.SP_PUSH:		s = "Stack Push"; break;
+      case ProbeFlags.SP_POP:     s = "Stack Pop"; break;
       default:				            return "";
     }
     if (typeof addr == 'number') s += " " + this.addr2str(addr);
@@ -1181,7 +1181,7 @@ export class ProbeLogView extends ProbeViewBaseBase {
     var line = this.dumplines && this.dumplines[row];
     if (line != null) {
       var xtra : string = line.info.join(", ");
-      s = "(" + lpad(line.row,3) + ", " + lpad(line.col,3) + ")  " + rpad(line.asm||"",20) + xtra;
+      s = "(" + lpad(line.row,4) + ", " + lpad(line.col,4) + ")  " + rpad(line.asm||"",20) + xtra;
       if (xtra.indexOf("Write ") >= 0) c = "seg_io";
       // if (xtra.indexOf("Stack ") >= 0) c = "seg_code";
     }
@@ -1477,6 +1477,7 @@ export class DebugBrowserView extends TreeViewBase implements ProjectView {
 // TODO?
 interface CallGraphNode {
   count : number;
+  SP : number;
   calls : {[id:string] : CallGraphNode};
 }
 
@@ -1502,36 +1503,43 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
   }
 
   clear() {
-    this.graph = {count:0, calls:{}};
+    this.graph = null;
     this.reset();
   }
 
   reset() {
-    this.stack = [this.graph]; // TODO??? should continue across frames
+    this.stack = []; // TODO??? should continue across frames
     this.lastsp = -1;
     this.jsr = false;
   }
 
   getRootObject() : Object {
-    this.reset();
     this.redraw((op,addr,col,row,clk,value) => {
       switch (op) {
         case ProbeFlags.SP_PUSH:
+          // need a new root?
+          if (this.stack.length == 0 || addr > this.stack[0].SP) {
+            this.graph = {count:0, SP:addr, calls:{}};
+            this.stack.unshift(this.graph);
+          }
         case ProbeFlags.SP_POP:
-          if ((this.lastsp - addr) == 2) {
-            this.jsr = true;
+          if (this.stack.length) {
+            var top = this.stack[this.stack.length-1];
+            if ((this.lastsp - addr) == 2 && addr < top.SP) { // TODO: look for opcode?
+              this.jsr = true;
+            }
+            if ((this.lastsp - addr) == -2 && this.stack.length > 1 && addr > top.SP) {
+              this.stack.pop();
+            }
+            this.lastsp = addr;
           }
-          if ((this.lastsp - addr) == -2 && this.stack.length > 1) {
-            this.stack.pop();
-          }
-          this.lastsp = addr;
           break;
         case ProbeFlags.EXECUTE:
-          if (this.jsr) {
+          if (this.jsr && this.stack.length) {
             var top = this.stack[this.stack.length-1];
             var sym = this.addr2str(addr);
             var child = top.calls[sym];
-            if (child == null) { child = top.calls[sym] = {count:0, calls:{}}; }
+            if (child == null) { child = top.calls[sym] = {count:0, SP:this.lastsp, calls:{}}; }
             //this.stack.forEach((node) => node.count++);
             this.stack.push(child);
             child.count++;

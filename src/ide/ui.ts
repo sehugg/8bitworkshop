@@ -279,7 +279,7 @@ function refreshWindowList() {
     });
   }
   if (platform.getDebugTree) {
-    addWindowItem("#debugview", "Debug Browser", () => {
+    addWindowItem("#debugview", "Debug Tree", () => {
       return new Views.DebugBrowserView();
     });
   }
