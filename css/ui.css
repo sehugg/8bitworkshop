@@ -575,6 +575,13 @@ div.asset_toolbar {
   user-select: text;
   font-family: Verdana, Geneva, sans-serif;
 }
+.transcript-split {  
+  padding: 0.5em;
+  background: #eee;
+  box-shadow: 0 8px 6px -6px RGBA(0,0,0,0.3);
+  z-index: 1;
+  flex-shrink: 0;
+}
 .transcript-line {
   line-height: 1.5;
   min-height: 1em;

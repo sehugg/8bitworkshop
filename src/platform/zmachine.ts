@@ -31,82 +31,129 @@ declare var ZVM;
 // https://inform-fiction.org/zmachine/standards/z1point0/sect15.html#read_char
 // https://manpages.debian.org/testing/inform6-compiler/inform6.1.en.html
 
-class GlkWindow {
-    //area: HTMLElement;
-    // TODO
-}
-
 interface IFZVM {
     start();
     run();
-    version : number;
-    pc : number;
-    ram : DataView;
-    stack : DataView;
-    read_data : {buffer?};
-    handle_line_input(len:number);
-    handle_char_input(charcode:number);
+    version: number;
+    pc: number;
+    ram: DataView;
+    stack: DataView;
+    read_data: { buffer?};
+    handle_line_input(len: number);
+    handle_char_input(charcode: number);
 }
 
-class GlkImpl {
-    vm : IFZVM;
+class GlkWindow {
     page: HTMLElement;
-    input: HTMLInputElement;
+    stream: number;
+    
     curline: HTMLElement;
     curstyle: number;
     reverse: boolean;
-    waitingfor: "line" | "char" | null;
-    focused = false;
-    exited = false;
+    col: number;
+    row: number;
 
-    constructor(page: HTMLElement, input: HTMLInputElement) {
+    constructor(page: HTMLElement, stream: number) {
         this.page = page;
-        this.input = input;
-        this.reset();
-    }
-    reset() {
-        this.exited = false;
+        this.stream = stream;
         this.clear();
     }
+
     clear() {
         this.curline = null;
         this.curstyle = 0;
         this.reverse = false;
-        // keep from losing input handlers
-        this.hideinput();
+        this.col = 0;
+        this.row = -1;
         $(this.page).empty();
+    }
+    ensureline() {
+        if (this.curline == null) {
+            this.curline = $('<div class="transcript-line"/>')[0];
+            this.page.appendChild(this.curline);
+            this.row++;
+            this.col = 0;
+        }
+    }
+    flushline() {
+        this.curline = null;
+    }
+    // TODO: support fixed-width window (use CSS grid?)
+    addtext(line: string, style: number) {
+        this.ensureline();
+        if (line.length) {
+            var span = $("<span/>").text(line).appendTo(this.curline);
+            for (var i = 0; i < 8; i++) {
+                if (style & (1 << i))
+                    span.addClass("transcript-style-" + (1 << i));
+            }
+            if (this.reverse) span.addClass("transcript-reverse");
+            //span.data('vmip', this.vm.pc);
+            this.col += line.length;
+        }
+    }
+    put_jstring(val: string) {
+        var lines = val.split("\n");
+        for (var i = 0; i < lines.length; i++) {
+            if (i > 0) this.flushline();
+            this.addtext(lines[i], this.curstyle);
+        }
+    }
+    move_cursor(col, row) {
+        // TODO
+        if (row == this.row && col > this.col) {
+            for (var i=this.col; i<col; i++)
+              this.addtext(' ', this.curstyle);
+        }
+        this.col = col;
+        this.row = row;
+        if (row == 0 && col == 0)
+            this.clear();
+    }
+}
+
+class GlkImpl {
+    vm: IFZVM;
+    input: HTMLInputElement;
+    curwnd: GlkWindow;
+    windows: { [win: number]: GlkWindow };
+    windowcount: number;
+    waitingfor: "line" | "char" | null;
+    focused = false;
+    exited = false;
+
+    constructor(page: HTMLElement, input: HTMLInputElement, upper: HTMLElement) {
+        this.windows = {
+            1: new GlkWindow(page, 1),
+            2: new GlkWindow(upper, 2),
+            3: new GlkWindow(null, 3), // fake window for resizing
+        };
+        this.input = input;
+        this.reset();
+    }
+    reset() {
+        this.windowcount = 0;
+        this.exited = false;
+        this.curwnd = this.windows[1];
+        this.clear();
+    }
+    clear() {
+        this.curwnd.clear();
     }
     init(options) {
         this.vm = options.vm;
         this.vm.start();
     }
-    fatal_error(s:string) {
+    fatal_error(s: string) {
         throw new EmuHalt(s);
     }
     update() {
         // TODO
     }
-    glk_exit() {
-        this.exited = true;
-        this.flushline();
-        this.addtext("** Game exited **", 1);
-    }
-    glk_window_clear(win) {
-        console.log('glk_window_clear', arguments);
-        this.clear();
-    }
-    glk_request_line_event_uni(win, buf, initlen) {
-        this.waitingfor = 'line';
-        this.focusinput();
-    }
-    glk_request_char_event_uni(win, buf, initlen) {
-        this.waitingfor = 'char';
-        this.focusinput();
-    }
     focusinput() {
         this.ensureline();
         // don't steal focus while editing
-        $(this.input).appendTo(this.curline).show()[0].scrollIntoView();
+        $(this.input).appendTo(this.curwnd.curline).show()[0].scrollIntoView();
         if (this.focused) {
             $(this.input).focus();
         }
@@ -117,7 +164,7 @@ class GlkImpl {
             $(this.input).removeClass('transcript-input-char')
     }
     hideinput() {
-        $(this.input).appendTo($(this.page).parent()).hide();
+        $(this.input).appendTo($(this.curwnd.page).parent()).hide();
     }
     clearinput() {
         this.input.value = '';
@@ -129,13 +176,12 @@ class GlkImpl {
                 this.sendinput(this.input.value.toString());
             }
         } else if (this.waitingfor == 'char') {
-            this.vm.handle_char_input(e.keyCode);
-            this.vm.run();
+            this.sendchar(e.keyCode);
             e.preventDefault();
         }
     }
     sendinput(s: string) {
-        this.addtext(s, Const.style_Input);
+        this.curwnd.addtext(s, Const.style_Input);
         this.flushline();
         if (this.vm.read_data.buffer) {
             for (var i = 0; i < s.length; i++) {
@@ -144,42 +190,58 @@ class GlkImpl {
             this.vm.handle_line_input(s.length);
         }
         this.clearinput();
+        this.hideinput(); // keep from losing input handlers
+        this.vm.run();
+    }
+    sendchar(code: number) {
+        this.vm.handle_char_input(code);
+        this.hideinput(); // keep from losing input handlers
         this.vm.run();
     }
     ensureline() {
         $(this.input).hide();
-        if (this.curline == null) {
-            this.curline = $('<div class="transcript-line"/>')[0];
-            this.page.appendChild(this.curline);
-        }
+        this.curwnd.ensureline();
     }
     flushline() {
-        this.curline = null;
+        this.curwnd.flushline();
     }
-    addtext(line: string, style: number) {
-        this.ensureline();
-        if (line.length) {
-            var span = $("<span/>").text(line).appendTo(this.curline);
-            for (var i=0; i<8; i++) {
-                if (style & (1<<i))
-                    span.addClass("transcript-style-" + (1<<i));
-            }
-            if (this.reverse) span.addClass("transcript-reverse");
-            span.data('vmip', this.vm.pc);
-        }
+
+    glk_exit() {
+        this.exited = true;
+        this.flushline();
+        this.windows[1].addtext("** Game exited **", 1);
     }
+    glk_window_clear(win) {
+        console.log('glk_window_clear', arguments);
+        this.windows[win].clear();
+    }
+    glk_request_line_event_uni(win, buf, initlen) {
+        this.waitingfor = 'line';
+        this.focusinput();
+    }
+    glk_request_char_event_uni(win, buf, initlen) {
+        this.waitingfor = 'char';
+        this.focusinput();
+    }
+
     glk_put_jstring(val: string, allbytes) {
-        var lines = val.split("\n");
-        for (var i = 0; i < lines.length; i++) {
-            if (i > 0) this.flushline();
-            this.addtext(lines[i], this.curstyle);
-        }
+        //console.log('glk_put_jstring', arguments);
+        this.curwnd.put_jstring(val);
     }
+    glk_put_jstring_stream(stream: number, val: string) {
+        //console.log('glk_put_jstring_stream', arguments);
+        this.windows[stream].put_jstring(val);
+    }
+    glk_put_char_stream_uni(stream: number, ch: number) {
+        //console.log('glk_put_char_stream_uni', arguments);
+        this.windows[stream].put_jstring(String.fromCharCode(ch));
+    }
+    glk_set_style(val) {
+        this.curwnd.curstyle = val;
+    }
+    /*
     glk_put_char(ch) {
         console.log('glk_put_char', arguments);
-    }
-    glk_put_char_stream(str, ch) {
-        console.log('glk_put_char_stream', arguments);
     }
     glk_put_string(val) {
         console.log('glk_put_string', arguments);
@@ -193,9 +255,6 @@ class GlkImpl {
     glk_put_buffer_stream(str, arr) {
         console.log('glk_put_buffer_stream', arguments);
     }
-    glk_set_style(val) {
-        this.curstyle = val;
-    }
     glk_set_style_stream(str, val) {
         console.log('glk_set_style_stream', arguments);
     }
@@ -208,6 +267,7 @@ class GlkImpl {
     glk_get_buffer_stream(str, buf) {
         console.log('glk_get_buffer_stream', arguments);
     }
+    */
     glk_char_to_lower(val) {
         if (val >= 0x41 && val <= 0x5A)
             return val + 0x20;
@@ -223,10 +283,10 @@ class GlkImpl {
         return val;
     }
     glk_stylehint_set(wintype, styl, hint, value) {
-        console.log('glk_stylehint_set', arguments);
+        //console.log('glk_stylehint_set', arguments);
     }
     glk_stylehint_clear(wintype, styl, hint) {
-        console.log('glk_stylehint_clear', arguments);
+        //console.log('glk_stylehint_clear', arguments);
     }
     glk_style_distinguish(win, styl1, styl2) {
         return 0;
@@ -241,40 +301,58 @@ class GlkImpl {
     }
     glk_window_open(splitwin, method, size, wintype, rock) {
         console.log('glk_window_open', arguments);
-        if (splitwin) console.log("split windows are not supported");
-        return splitwin ? 0 : 1; // 0 = no window, 1 = main window
+        if (splitwin) {
+            // only support status lines for now
+            if (method != 0x12 || wintype != 4 || size != 1) return 0;
+            $(this.windows[2].page).show();
+        }
+        return ++this.windowcount;
     }
-    /*
     glk_window_close(win) {
         console.log('glk_window_close', arguments);
-        this.windows.pop(); // TODO
+        if (win == 2) $(this.windows[win].page).hide();
     }
     glk_window_get_parent(win) {
         console.log('glk_window_get_parent', arguments);
+        if (win == 1) return 0;
+        else return 1;
     }
-    glk_window_set_arrangement(win) {
+    glk_window_move_cursor(win, col, row) {
+        console.log('glk_window_move_cursor', arguments);
+        this.windows[win].move_cursor(col, row);
+    }
+    glk_window_set_arrangement(win, method, size, unknown) {
         console.log('glk_window_set_arrangement', arguments);
+        // TODO?
     }
     glk_window_get_stream(win) {
         console.log('glk_window_get_stream', arguments);
+        return this.windows[win].stream;
     }
-    */
     glk_set_window(win) {
         console.log('glk_set_window', arguments);
-        //if (!win) gli_currentstr = null;
-        //else gli_currentstr = win.str;
+        this.curwnd = this.windows[win];
+        if (this.curwnd == null) this.fatal_error("no window " + win);
     }
-    glk_window_get_size(win, widthref, heightref) {
+    glk_window_get_size(win, widthref: RefBox, heightref: RefBox) {
         console.log('glk_window_get_size', arguments);
+        // TODO: made up sizes, only status line supported
+        if (widthref) widthref.set_value(40);
+        if (heightref) heightref.set_value(win == 1 ? 25 : 1);
     }
     garglk_set_reversevideo(val) {
-        this.reverse = !!val;
+        console.log('garglk_set_reversevideo', arguments);
+        this.curwnd.reverse = !!val;
+    }
+    garglk_set_reversevideo_stream(win, val) {
+        console.log('garglk_set_reversevideo_stream', arguments);
+        this.windows[win].reverse = !!val; // TODO: per window
     }
     glk_gestalt(sel, val) {
         return this.glk_gestalt_ext(sel, val, null);
     }
     glk_gestalt_ext(sel, val, arr) {
-        console.log('glk_gestalt_ext', arguments);
+        //console.log('glk_gestalt_ext', arguments);
         switch (sel) {
 
             case 0: // gestalt_Version
@@ -403,51 +481,56 @@ class GlkImpl {
         return 0;
     }
 
-    /* RefBox: Simple class used for "call-by-reference" Glk arguments. The object
-       is just a box containing a single value, which can be written and read.
-    */
-    RefBox = function () {
-        this.value = undefined;
-        this.set_value = function (val) {
-            this.value = val;
-        }
-        this.get_value = function () {
-            return this.value;
-        }
-    }
-
-    /* RefStruct: Used for struct-type Glk arguments. After creating the
-       object, you should call push_field() the appropriate number of times,
-       to set the initial field values. Then set_field() can be used to
-       change them, and get_fields() retrieves the list of all fields.
-    
-       (The usage here is loose, since Javascript is forgiving about arrays.
-       Really the caller could call set_field() instead of push_field() --
-       or skip that step entirely, as long as the Glk function later calls
-       set_field() for each field. Which it should.)
-    */
-    RefStruct = function (numels) {
-        this.fields = [];
-        this.push_field = function (val) {
-            this.fields.push(val);
-        }
-        this.set_field = function (pos, val) {
-            this.fields[pos] = val;
-        }
-        this.get_field = function (pos) {
-            return this.fields[pos];
-        }
-        this.get_fields = function () {
-            return this.fields;
-        }
-    }
-
     /* Dummy return value, which means that the Glk call is still in progress,
        or will never return at all. This is used by glk_exit(), glk_select(),
        and glk_fileref_create_by_prompt().
     */
     DidNotReturn = { dummy: 'Glk call has not yet returned' };
+    RefBox = RefBox;
+    RefStruct = RefStruct;
 }
+
+/* RefBox: Simple class used for "call-by-reference" Glk arguments. The object
+   is just a box containing a single value, which can be written and read.
+*/
+class RefBox {
+    value;
+    set_value(val) {
+        this.value = val;
+    }
+    get_value() {
+        return this.value;
+    }
+}
+
+/* RefStruct: Used for struct-type Glk arguments. After creating the
+   object, you should call push_field() the appropriate number of times,
+   to set the initial field values. Then set_field() can be used to
+   change them, and get_fields() retrieves the list of all fields.
+
+   (The usage here is loose, since Javascript is forgiving about arrays.
+   Really the caller could call set_field() instead of push_field() --
+   or skip that step entirely, as long as the Glk function later calls
+   set_field() for each field. Which it should.)
+*/
+class RefStruct {
+    constructor(numels) {
+    }
+    fields = [];
+    push_field(val) {
+        this.fields.push(val);
+    }
+    set_field(pos, val) {
+        this.fields[pos] = val;
+    }
+    get_field(pos) {
+        return this.fields[pos];
+    }
+    get_fields() {
+        return this.fields;
+    }
+}
+
 
 const has_canvas = typeof window === 'object';
 
@@ -600,7 +683,7 @@ const Const = {
 
 class ZmachinePlatform implements Platform {
     mainElement: HTMLElement;
-    zfile : Uint8Array;
+    zfile: Uint8Array;
     zvm;
     glk;
     focused = false;
@@ -612,16 +695,14 @@ class ZmachinePlatform implements Platform {
 
     async start() {
         await loadScript('./lib/zvm/ifvms.min.js');
-        //await loadScript('./lib/zvm/glkote.min.js');
-        //await loadScript('./lib/zvm/glkapi.js');
-        //await loadScript('./lib/zvm/parchment.debug.js');
 
         // create divs
         var parent = this.mainElement;
         var gameport = $('<div id="gameport"/>').appendTo(parent);
+        var upperwnd = $('<div id="upperport" class="transcript transcript-split transcript-style-2"/>').insertBefore(parent).hide();
         var windowport = $('<div id="windowport" class="transcript"/>').appendTo(gameport);
         var inputline = $('<input class="transcript-input" type="text"/>').appendTo(gameport).hide();
-        this.glk = new GlkImpl(windowport[0], inputline[0] as HTMLInputElement);
+        this.glk = new GlkImpl(windowport[0], inputline[0] as HTMLInputElement, upperwnd[0]);
         inputline.on('keypress', (e) => {
             this.glk.sendkey(e);
         });
@@ -643,9 +724,6 @@ class ZmachinePlatform implements Platform {
 
     reset(): void {
         if (this.zfile == null) return;
-        //this.glk = Glk;
-        //this.glk = new Object();
-        //Object.setPrototypeOf(this.glk, Glk);
         this.zvm = new ZVM();
         this.zvm.prepare(this.zfile.slice(0), {
             Glk: this.glk,
@@ -669,6 +747,7 @@ class ZmachinePlatform implements Platform {
     getPC() {
         return this.zvm.pc;
     }
+
     /*
     loadState(state): void {
         throw new Error("Method not implemented.");
@@ -683,7 +762,7 @@ class ZmachinePlatform implements Platform {
         }
     }
     */
-   
+
     isRunning(): boolean {
         return this.zvm != null && !this.glk.exited;
     }
@@ -699,7 +778,7 @@ class ZmachinePlatform implements Platform {
     getDefaultExtension(): string {
         return ".inf";
     }
-    showHelp(tool:string, ident?:string) {
+    showHelp(tool: string, ident?: string) {
         switch (tool) {
             case 'inform6': window.open("https://www.inform-fiction.org/manual/html/contents.html"); break;
         }
@@ -709,7 +788,7 @@ class ZmachinePlatform implements Platform {
     }
 
     // TODO: Z machine is big endian!!
-    inspect(ident:string) {
+    inspect(ident: string) {
         return inspectSymbol(this, ident);
     }
 
@@ -736,7 +815,7 @@ class ZmachinePlatform implements Platform {
         var tree = {};
         // TODO: better way?
         try {
-            for (let child=0; child<65536; child++) {
+            for (let child = 0; child < 65536; child++) {
                 if (this.zvm.get_parent(child) == 0) {
                     this.addObjectToTree(tree, child);
                 }
@@ -766,28 +845,28 @@ class ZmachinePlatform implements Platform {
         */
         return tree;
     }
-    getFlagList(obj:number) {
+    getFlagList(obj: number) {
         var attrlookup = this.getDebugLookup('attribute');
         var set_attrs = [];
-        for (var i=0; i<32; i++) {
+        for (var i = 0; i < 32; i++) {
             if (this.zvm.test_attr(obj, i)) {
-                set_attrs.push(attrlookup[i] || "#"+i);
+                set_attrs.push(attrlookup[i] || "#" + i);
             }
         }
         return set_attrs;
     }
-    getPropList(obj:number) {
+    getPropList(obj: number) {
         var proplookup = this.getDebugLookup('property');
         var set_props = [];
         var addr = 0;
-        for (var i=0; i<50; i++) {
+        for (var i = 0; i < 50; i++) {
             addr = this.zvm.find_prop(obj, 0, addr);
             if (addr == 0) break;
-            set_props.push(proplookup[addr] || "%"+addr);
+            set_props.push(proplookup[addr] || "%" + addr);
         }
         return set_props;
     }
-    getDebugLookup(key : 'object'|'property'|'attribute'|'constant'|'global-variable') : {} {
+    getDebugLookup(key: 'object' | 'property' | 'attribute' | 'constant' | 'global-variable'): {} {
         var debugsym = (this as Platform).debugSymbols;
         return (debugsym && debugsym.debuginfo && debugsym.debuginfo[key]) || {};
     }
