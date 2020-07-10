@@ -46,25 +46,28 @@ interface IFZVM {
 class GlkWindow {
     page: HTMLElement;
     stream: number;
+    fixed: boolean;
 
     curline: HTMLElement;
     curstyle: number;
     reverse: boolean;
     col: number;
     row: number;
+    lines: HTMLElement[];
 
     constructor(page: HTMLElement, stream: number) {
         this.page = page;
         this.stream = stream;
+        this.fixed = stream > 1;
         this.clear();
     }
-
     clear() {
         this.curline = null;
         this.curstyle = 0;
         this.reverse = false;
         this.col = 0;
         this.row = -1;
+        this.lines = [];
         $(this.page).empty();
     }
     ensureline() {
@@ -73,6 +76,7 @@ class GlkWindow {
             this.page.appendChild(this.curline);
             this.row++;
             this.col = 0;
+            this.lines[this.row] = this.curline;
         }
     }
     flushline() {
@@ -99,16 +103,37 @@ class GlkWindow {
             this.addtext(lines[i], this.curstyle);
         }
     }
-    move_cursor(col, row) {
-        // TODO
-        if (row == this.row && col > this.col) {
-            for (var i = this.col; i < col; i++)
+    move_cursor(col:number, row:number) {
+        if (!this.fixed) return; // fixed windows only
+        // ensure enough row elements
+        while (this.lines.length <= row) {
+            this.flushline();
+            this.ensureline();
+        }
+        // select row element
+        this.curline = this.lines[row];
+        this.row = row;
+        // get children in row (individual text cells)
+        var children = $(this.curline).children();
+        // truncate line, or add whitespace
+        if (children.length > col) {
+            children.slice(col).remove();
+            this.col = col;
+        } else {
+            while (this.col < col)
                 this.addtext(' ', this.curstyle);
         }
-        this.col = col;
-        this.row = row;
-        if (row == 0 && col == 0)
-            this.clear();
+    }
+    setrows(size:number) {
+        if (!this.fixed) return; // fixed windows only
+        this.flushline();
+        // truncate rows?
+        var allrows = $(this.page).children();
+        if (allrows.length > size) {
+            allrows.slice(size).remove();
+            this.lines = this.lines.slice(0, size);
+            this.move_cursor(0,0);
+        }
     }
 }
 
@@ -134,11 +159,11 @@ class GlkImpl {
     reset() {
         this.windowcount = 0;
         this.exited = false;
+        this.waitingfor = null;
+        this.hideinput();
+        this.windows[1].clear();
+        this.windows[2].clear();
         this.curwnd = this.windows[1];
-        this.clear();
-    }
-    clear() {
-        this.curwnd.clear();
     }
     init(options) {
         this.vm = options.vm;
@@ -164,7 +189,7 @@ class GlkImpl {
             $(this.input).removeClass('transcript-input-char')
     }
     hideinput() {
-        $(this.input).appendTo($(this.curwnd.page).parent()).hide();
+        $(this.input).appendTo($(this.windows[1].page).parent()).hide();
     }
     clearinput() {
         this.input.value = '';
@@ -323,7 +348,7 @@ class GlkImpl {
     }
     glk_window_set_arrangement(win, method, size, unknown) {
         console.log('glk_window_set_arrangement', arguments);
-        // TODO?
+        // TODO? this.windows[win].setrows(size);
     }
     glk_window_get_stream(win) {
         console.log('glk_window_get_stream', arguments);
