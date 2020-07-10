@@ -22,6 +22,7 @@ const ZMACHINE_PRESETS = [
     { id: 'balances.inf', name: 'Balances' },
     { id: 'museum.inf', name: 'Museum of Inform' },
     { id: 'advent.inf', name: 'Colossal Cave Adventure' },
+    { id: 'ztrek.inf', name: 'Super Z Trek' },
 ];
 
 declare var ZVM;
@@ -38,9 +39,14 @@ interface IFZVM {
     pc: number;
     ram: DataView;
     stack: DataView;
-    read_data: { buffer?};
+    read_data: { buffer?, routine?, time?};
     handle_line_input(len: number);
     handle_char_input(charcode: number);
+    handle_create_fileref(fref: number);
+}
+
+function debug(...args: any[]) {
+    //console.log(arguments);
 }
 
 class GlkWindow {
@@ -72,11 +78,12 @@ class GlkWindow {
     }
     ensureline() {
         if (this.curline == null) {
-            this.curline = $('<div class="transcript-line"/>')[0];
-            this.page.appendChild(this.curline);
-            this.row++;
-            this.col = 0;
-            this.lines[this.row] = this.curline;
+            this.curline = this.lines[++this.row];
+            if (this.curline == null) {
+                this.curline = $('<div class="transcript-line"/>')[0];
+                this.page.appendChild(this.curline);
+                this.lines[this.row] = this.curline;
+            }
         }
     }
     flushline() {
@@ -86,24 +93,42 @@ class GlkWindow {
     addtext(line: string, style: number) {
         this.ensureline();
         if (line.length) {
-            var span = $("<span/>").text(line).appendTo(this.curline);
+            // in fixed mode, only do characters
+            if (this.fixed && line.length > 1) {
+                for (var i = 0; i < line.length; i++)
+                    this.addtext(line[i], style);
+                return;
+            }
+            var span = $("<span/>").text(line);
             for (var i = 0; i < 8; i++) {
                 if (style & (1 << i))
                     span.addClass("transcript-style-" + (1 << i));
             }
             if (this.reverse) span.addClass("transcript-reverse");
             //span.data('vmip', this.vm.pc);
+            // in fixed mode, we can overwrite individual characters
+            if (this.fixed && line.length == 1 && this.col < this.curline.childNodes.length) {
+                this.curline.replaceChild(span[0], this.curline.childNodes[this.col]);
+            } else {
+                span.appendTo(this.curline);
+            }
             this.col += line.length;
         }
     }
+    newline() {
+        this.flushline();
+        this.col = 0;
+    }
+    // TODO: bug in interpreter where it tracks cursor position but maybe doesn't do newlines?
     put_jstring(val: string) {
+        // split by newlines
         var lines = val.split("\n");
         for (var i = 0; i < lines.length; i++) {
-            if (i > 0) this.flushline();
+            if (i > 0) this.newline();
             this.addtext(lines[i], this.curstyle);
         }
     }
-    move_cursor(col:number, row:number) {
+    move_cursor(col: number, row: number) {
         if (!this.fixed) return; // fixed windows only
         // ensure enough row elements
         while (this.lines.length <= row) {
@@ -115,24 +140,23 @@ class GlkWindow {
         this.row = row;
         // get children in row (individual text cells)
         var children = $(this.curline).children();
-        // truncate line, or add whitespace
+        // add whitespace to line?
         if (children.length > col) {
-            children.slice(col).remove();
             this.col = col;
         } else {
             while (this.col < col)
                 this.addtext(' ', this.curstyle);
         }
     }
-    setrows(size:number) {
+    setrows(size: number) {
         if (!this.fixed) return; // fixed windows only
-        this.flushline();
         // truncate rows?
         var allrows = $(this.page).children();
         if (allrows.length > size) {
+            this.flushline();
             allrows.slice(size).remove();
             this.lines = this.lines.slice(0, size);
-            this.move_cursor(0,0);
+            //this.move_cursor(0,0); 
         }
     }
 }
@@ -237,28 +261,40 @@ class GlkImpl {
         this.windows[1].addtext("** Game exited **", 1);
     }
     glk_window_clear(win) {
-        console.log('glk_window_clear', arguments);
+        debug('glk_window_clear', arguments);
         this.windows[win].clear();
     }
     glk_request_line_event_uni(win, buf, initlen) {
         this.waitingfor = 'line';
         this.focusinput();
+        this.startinputtimer();
     }
     glk_request_char_event_uni(win, buf, initlen) {
         this.waitingfor = 'char';
         this.focusinput();
+        this.startinputtimer();
+    }
+    startinputtimer() {
+        /* TODO?
+        var rd = this.vm.read_data;
+        if (rd.routine && rd.time) {
+            this.vm['call'](rd.routine);
+            //this.vm.run();
+            setTimeout(this.startinputtimer.bind(this), rd.time*10);
+        }
+        */
     }
 
     glk_put_jstring(val: string, allbytes) {
-        //console.log('glk_put_jstring', arguments);
+        //debug('glk_put_jstring', arguments);
         this.curwnd.put_jstring(val);
     }
     glk_put_jstring_stream(stream: number, val: string) {
-        //console.log('glk_put_jstring_stream', arguments);
+        //debug('glk_put_jstring_stream', arguments);
         this.windows[stream].put_jstring(val);
     }
     glk_put_char_stream_uni(stream: number, ch: number) {
-        //console.log('glk_put_char_stream_uni', arguments);
+        //debug('glk_put_char_stream_uni', arguments);
         this.windows[stream].put_jstring(String.fromCharCode(ch));
     }
     glk_set_style(val) {
@@ -266,31 +302,31 @@ class GlkImpl {
     }
     /*
     glk_put_char(ch) {
-        console.log('glk_put_char', arguments);
+        debug('glk_put_char', arguments);
     }
     glk_put_string(val) {
-        console.log('glk_put_string', arguments);
+        debug('glk_put_string', arguments);
     }
     glk_put_string_stream(str, val) {
-        console.log('glk_put_string_stream', arguments);
+        debug('glk_put_string_stream', arguments);
     }
     glk_put_buffer(arr) {
-        console.log('glk_put_buffer', arguments);
+        debug('glk_put_buffer', arguments);
     }
     glk_put_buffer_stream(str, arr) {
-        console.log('glk_put_buffer_stream', arguments);
+        debug('glk_put_buffer_stream', arguments);
     }
     glk_set_style_stream(str, val) {
-        console.log('glk_set_style_stream', arguments);
+        debug('glk_set_style_stream', arguments);
     }
     glk_get_char_stream(str) {
-        console.log('glk_get_char_stream', arguments);
+        debug('glk_get_char_stream', arguments);
     }
     glk_get_line_stream(str, buf) {
-        console.log('glk_get_line_stream', arguments);
+        debug('glk_get_line_stream', arguments);
     }
     glk_get_buffer_stream(str, buf) {
-        console.log('glk_get_buffer_stream', arguments);
+        debug('glk_get_buffer_stream', arguments);
     }
     */
     glk_char_to_lower(val) {
@@ -308,10 +344,10 @@ class GlkImpl {
         return val;
     }
     glk_stylehint_set(wintype, styl, hint, value) {
-        //console.log('glk_stylehint_set', arguments);
+        //debug('glk_stylehint_set', arguments);
     }
     glk_stylehint_clear(wintype, styl, hint) {
-        //console.log('glk_stylehint_clear', arguments);
+        //debug('glk_stylehint_clear', arguments);
     }
     glk_style_distinguish(win, styl1, styl2) {
         return 0;
@@ -322,62 +358,76 @@ class GlkImpl {
         return 0;
     }
     glk_select(eventref) {
-        console.log('glk_select', arguments);
+        debug('glk_select', arguments);
     }
     glk_window_open(splitwin, method, size, wintype, rock) {
-        console.log('glk_window_open', arguments);
+        debug('glk_window_open', arguments);
         if (splitwin) {
-            // only support status lines for now
-            if (method != 0x12 || wintype != 4 || size != 1) return 0;
-            $(this.windows[2].page).show();
+            if (method != 0x12 || wintype != 4) return 0;
+            if (size) {
+                $(this.windows[2].page).show();
+                return 2; // split window
+            } else {
+                return 3; // fake window
+            }
+        } else {
+            return 1; // main window
         }
-        return ++this.windowcount;
     }
     glk_window_close(win) {
-        console.log('glk_window_close', arguments);
-        if (win == 2) $(this.windows[win].page).hide();
+        debug('glk_window_close', arguments);
+        if (win == 2) {
+            this.windows[win].clear();
+            $(this.windows[win].page).hide();
+        }
     }
     glk_window_get_parent(win) {
-        console.log('glk_window_get_parent', arguments);
+        debug('glk_window_get_parent', arguments);
         if (win == 1) return 0;
         else return 1;
     }
     glk_window_move_cursor(win, col, row) {
-        console.log('glk_window_move_cursor', arguments);
+        debug('glk_window_move_cursor', arguments);
         this.windows[win].move_cursor(col, row);
     }
     glk_window_set_arrangement(win, method, size, unknown) {
-        console.log('glk_window_set_arrangement', arguments);
-        // TODO? this.windows[win].setrows(size);
+        debug('glk_window_set_arrangement', arguments);
+        if (win == 1) this.windows[2].setrows(size);
     }
     glk_window_get_stream(win) {
-        console.log('glk_window_get_stream', arguments);
+        debug('glk_window_get_stream', arguments);
         return this.windows[win].stream;
     }
     glk_set_window(win) {
-        console.log('glk_set_window', arguments);
+        debug('glk_set_window', arguments);
         this.curwnd = this.windows[win];
         if (this.curwnd == null) this.fatal_error("no window " + win);
     }
     glk_window_get_size(win, widthref: RefBox, heightref: RefBox) {
-        console.log('glk_window_get_size', arguments);
+        debug('glk_window_get_size', arguments);
         // TODO: made up sizes, only status line supported
         if (widthref) widthref.set_value(STATUS_NUM_COLS);
         if (heightref) heightref.set_value(win == 1 ? 25 : 1);
     }
     garglk_set_reversevideo(val) {
-        console.log('garglk_set_reversevideo', arguments);
+        debug('garglk_set_reversevideo', arguments);
         this.curwnd.reverse = !!val;
     }
     garglk_set_reversevideo_stream(win, val) {
-        console.log('garglk_set_reversevideo_stream', arguments);
-        this.windows[win].reverse = !!val; // TODO: per window
+        debug('garglk_set_reversevideo_stream', arguments);
+        this.windows[win].reverse = !!val;
+    }
+    glk_fileref_create_by_prompt(usage, mode, rock) {
+        debug('glk_fileref_create_by_prompt', arguments);
+        // TODO: support files?
+        this.vm.handle_create_fileref(0);
+        this.vm.run();
     }
     glk_gestalt(sel, val) {
         return this.glk_gestalt_ext(sel, val, null);
     }
     glk_gestalt_ext(sel, val, arr) {
-        //console.log('glk_gestalt_ext', arguments);
+        //debug('glk_gestalt_ext', arguments);
         switch (sel) {
 
             case 0: // gestalt_Version
@@ -750,7 +800,7 @@ class ZmachinePlatform implements Platform {
         this.resize();
     }
 
-    resize : () => void;
+    resize: () => void;
 
     loadROM(title, data) {
         this.zfile = data;
@@ -833,6 +883,7 @@ class ZmachinePlatform implements Platform {
         if (this.zvm != null) {
             root['Objects'] = () => this.getRootObjects();
             root['Globals'] = () => this.getGlobalVariables();
+            //root['VM'] = () => this.zvm;
         }
         return root;
     }

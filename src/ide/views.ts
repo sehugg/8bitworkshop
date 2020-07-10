@@ -399,14 +399,19 @@ export class SourceEditor implements ProjectView {
     this.editor.execCommand('undo');
   }
 
-  toggleBreakpoint(lineno: number) {    
+  toggleBreakpoint(lineno: number) {
+    // TODO: we have to always start at beginning of frame
     if (this.sourcefile != null) {
       var targetPC = this.sourcefile.line2offset[lineno+1];
-      /* TODO: breakpoints
+      /*
       var bpid = "pc" + targetPC;
-      platform.setBreakpoint(bpid, () => {
-        return platform.getPC() == targetPC;
-      });
+      if (platform.hasBreakpoint(bpid)) {
+        platform.clearBreakpoint(bpid);
+      } else {
+        platform.setBreakpoint(bpid, () => {
+          return platform.getPC() == targetPC;
+        });
+      }
       */
       runToPC(targetPC);
     }
@@ -1352,6 +1357,7 @@ class TreeNode {
     this.getDiv();
     var text = "";
     // is it a function? call it first, if we are expanded
+    // TODO: only call functions w/ signature
     if (typeof obj == 'function' && this._content != null) {
       obj = obj();
     }
@@ -1478,6 +1484,7 @@ export class DebugBrowserView extends TreeViewBase implements ProjectView {
 interface CallGraphNode {
   count : number;
   SP : number;
+  PC : number;
   calls : {[id:string] : CallGraphNode};
 }
 
@@ -1508,7 +1515,7 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
   }
 
   reset() {
-    this.stack = []; // TODO??? should continue across frames
+    this.stack = [];
     this.lastsp = -1;
     this.jsr = false;
   }
@@ -1518,28 +1525,34 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
       switch (op) {
         case ProbeFlags.SP_PUSH:
           // need a new root?
-          if (this.stack.length == 0 || addr > this.stack[0].SP) {
-            this.graph = {count:0, SP:addr, calls:{}};
+          if (this.stack.length == 0) {
+            this.graph = {count:0, PC:null, SP:addr, calls:{}};
+            this.stack.unshift(this.graph);
+          } else if (addr > this.stack[0].SP) {
+            let calls = {};
+            if (this.stack[0].PC !== null) calls[this.stack[0].PC] = this.stack[0];
+            this.graph = {count:0, PC:null, SP:addr, calls:calls};
             this.stack.unshift(this.graph);
           }
         case ProbeFlags.SP_POP:
           if (this.stack.length) {
-            var top = this.stack[this.stack.length-1];
+            let top = this.stack[this.stack.length-1];
             if ((this.lastsp - addr) == 2 && addr < top.SP) { // TODO: look for opcode?
               this.jsr = true;
             }
             if ((this.lastsp - addr) == -2 && this.stack.length > 1 && addr > top.SP) {
               this.stack.pop();
             }
-            this.lastsp = addr;
           }
+          this.lastsp = addr;
           break;
         case ProbeFlags.EXECUTE:
           if (this.jsr && this.stack.length) {
-            var top = this.stack[this.stack.length-1];
-            var sym = this.addr2str(addr);
-            var child = top.calls[sym];
-            if (child == null) { child = top.calls[sym] = {count:0, SP:this.lastsp, calls:{}}; }
+            let top = this.stack[this.stack.length-1];
+            let sym = this.addr2str(addr);
+            let child = top.calls[sym];
+            if (child == null) { child = top.calls[sym] = {count:0, PC:addr, SP:this.lastsp, calls:{}}; }
+            else if (child.PC === null) child.PC = addr;
             //this.stack.forEach((node) => node.count++);
             this.stack.push(child);
             child.count++;
@@ -1548,6 +1561,7 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
           break;
       }
     });
+    if (this.graph) this.graph['_stack'] = this.stack;
     return this.graph;
   }
 }

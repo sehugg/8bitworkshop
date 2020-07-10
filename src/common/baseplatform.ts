@@ -122,6 +122,7 @@ export interface Platform {
   getRasterScanline?() : number;
   setBreakpoint?(id : string, cond : DebugCondition);
   clearBreakpoint?(id : string);
+  hasBreakpoint?(id : string) : boolean;
   getCPUState?() : CpuState;
 
   debugSymbols? : DebugSymbols;
@@ -225,6 +226,9 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   }
   clearBreakpoint(id : string) {
     delete this.breakpoints.id2bp[id];
+  }
+  hasBreakpoint(id : string) {
+    return this.breakpoints.id2bp[id] != null;
   }
   getDebugCallback() : DebugCondition {
     return this.breakpoints.getDebugCondition();
