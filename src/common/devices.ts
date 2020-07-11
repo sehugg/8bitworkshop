@@ -311,7 +311,7 @@ export abstract class BasicScanlineMachine extends BasicMachine implements Raste
     var steps = 0;
     this.probe.logNewFrame();
     for (var sl=0; sl<this.numTotalScanlines; sl++) {
-      endLineClock += this.cpuCyclesPerLine;
+      endLineClock += this.cpuCyclesPerLine; // could be fractional
       this.scanline = sl;
       this.frameCycles = clock;
       this.startScanline();
@@ -325,7 +325,7 @@ export abstract class BasicScanlineMachine extends BasicMachine implements Raste
       }
       this.drawScanline();
       this.probe.logNewScanline();
-      this.probe.logClocks(clock-endLineClock);
+      this.probe.logClocks(Math.floor(clock-endLineClock)); //remainder
     }
     this.postFrame();
     return steps; // TODO: return steps, not clock? for recorder

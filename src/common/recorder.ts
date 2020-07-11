@@ -32,6 +32,7 @@ export class StateRecorderImpl implements EmuRecorder {
         this.frameCount = 0;
         this.lastSeekFrame = 0;
         this.lastSeekStep = 0;
+        this.lastStepCount = 0;
         if (this.callbackStateChanged) this.callbackStateChanged();
     }
 
@@ -165,16 +166,17 @@ class ProbeFrame {
 
 export class ProbeRecorder implements ProbeAll {
 
-  buf = new Uint32Array(0x100000);
-  idx = 0;
-  fclk = 0;
-  sl = 0;
-  cur_sp = -1;
-  m : Probeable;
-  singleFrame : boolean = true;
+  m : Probeable;      // machine to probe
+  buf : Uint32Array;  // buffer
+  idx : number = 0;   // index into buffer
+  fclk : number = 0;  // clock cycle
+  sl : number = 0;    // scanline
+  cur_sp = -1;        // last stack pointer
+  singleFrame : boolean = true; // clear between frames
 
-  constructor(m:Probeable) {
+  constructor(m:Probeable, buflen?:number) {
     this.m = m;
+    this.reset(buflen || 0x100000);
   }
   start() {
     this.m.connectProbe(this);
@@ -182,7 +184,14 @@ export class ProbeRecorder implements ProbeAll {
   stop() {
     this.m.connectProbe(null);
   }
-  reset() {
+  reset(newbuflen? : number) {
+    if (newbuflen) this.buf = new Uint32Array(newbuflen);
+    this.sl = 0;
+    this.fclk = 0;
+    this.cur_sp = -1;
+    this.clear();
+  }
+  clear() {
     this.idx = 0;
   }
   log(a:number) {
@@ -206,6 +215,7 @@ export class ProbeRecorder implements ProbeAll {
       return -1;
   }
   logClocks(clocks:number) {
+    clocks |= 0;
     if (clocks > 0) {
       this.fclk += clocks;
       if (this.lastOp() == ProbeFlags.CLOCKS)
@@ -221,7 +231,7 @@ export class ProbeRecorder implements ProbeAll {
   logNewFrame() {
     this.log(ProbeFlags.FRAME);
     this.sl = 0;
-    if (this.singleFrame) this.reset();
+    if (this.singleFrame) this.clear();
   }
   logExecute(address:number, SP:number) {
     // record stack pushes/pops (from last instruction)
@@ -263,8 +273,21 @@ export class ProbeRecorder implements ProbeAll {
   logIllegal(address:number) {
     this.log(address | ProbeFlags.ILLEGAL);
   }
+  countEvents(op : number) : number {
+    var count = 0;
+    for (var i=0; i<this.idx; i++) {
+      if ((this.buf[i] & 0xff000000) == op)
+        count++;
+    }
+    return count;
+  }
+  countClocks() : number {
+    var count = 0;
+    for (var i=0; i<this.idx; i++) {
+      if ((this.buf[i] & 0xff000000) == ProbeFlags.CLOCKS)
+        count += this.buf[i] & 0xffff;
+    }
+    return count;
+  }
 
 }
-
-// TODO: handle runToVsync() without erasing entire frame
-

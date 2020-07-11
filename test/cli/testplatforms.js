@@ -140,7 +140,6 @@ async function testPlatform(platid, romname, maxframes, callback) {
     platform.reset(); // reset again
     var state0b = platform.saveState();
     //TODO: vcs fails assert.deepEqual(state0a, state0b);
-    //if (platform.startProbing) platform.startProbing();
     platform.resume(); // so that recorder works
     platform.setRecorder(rec);
     for (var i=0; i<maxframes; i++) {
@@ -178,6 +177,7 @@ async function testPlatform(platid, romname, maxframes, callback) {
       assert.ok(dinfo.indexOf('undefined') < 0, dcat + " undefined");
       assert.ok(dinfo.indexOf('Display On:  false') < 0, dcat + " display off");
     }
+    // record video to file
     if (lastrastervideo) {
       var png = new PNG({width:lastrastervideo.width, height:lastrastervideo.height});
       png.data = lastrastervideo.getImageData().data;
@@ -189,9 +189,24 @@ async function testPlatform(platid, romname, maxframes, callback) {
         fs.writeFileSync("./test/output/"+platid+"-"+romname+".png", pngbuffer);
       } catch (e) { console.log(e) }
     }
+    // probe
+    var proberec = platform.startProbing && platform.startProbing();
+    if (proberec) {
+      proberec.reset(0x100000);
+      proberec.singleFrame = false;
+      var lastclk = 0;
+      for (var i=0; i<5; i++) {
+        platform.nextFrame(true);
+        console.log(proberec.idx, proberec.fclk - lastclk, proberec.sl);
+        lastclk = proberec.fclk;
+      }
+      assert.equal(proberec.fclk, proberec.countClocks());
+    }
     // misc
     assert.ok(platform.getDefaultExtension().startsWith('.'));
     if (platform.getROMExtension) assert.ok(platform.getROMExtension().startsWith("."));
+    // load state again
+    platform.loadState(state3);
     return platform;
 }
 

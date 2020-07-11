@@ -1109,7 +1109,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   // so probe views stick around
   runToVsync() {
     if (this.probeRecorder) {
-      this.probeRecorder.reset();
+      this.probeRecorder.clear();
       this.probeRecorder.singleFrame = false;
     }
     super.runToVsync();
