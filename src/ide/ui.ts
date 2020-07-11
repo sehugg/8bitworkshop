@@ -297,9 +297,12 @@ function refreshWindowList() {
     addWindowItem("#symbolprobe", "Symbol Profiler", () => {
       return new Views.ProbeSymbolView();
     });
-    /*
     addWindowItem("#callstack", "Call Stack", () => {
       return new Views.CallStackView();
+    });
+    /*
+    addWindowItem("#framecalls", "Frame Profiler", () => {
+      return new Views.FrameCallsView();
     });
     */
   }

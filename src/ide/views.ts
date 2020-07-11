@@ -926,9 +926,13 @@ abstract class ProbeViewBaseBase {
 
   abstract tick() : void;
 
-  addr2str(addr : number) : string {
+  addr2symbol(addr : number) : string {
     var _addr2sym = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
-    var sym = _addr2sym[addr];
+    return _addr2sym[addr];
+  }
+
+  addr2str(addr : number) : string {
+    var sym = this.addr2symbol(addr);
     if (typeof sym === 'string')
       return '$' + hex(addr) + ' (' + sym + ')';
     else
@@ -1297,6 +1301,8 @@ export class ProbeSymbolView extends ProbeViewBaseBase {
 const MAX_CHILDREN = 256;
 const MAX_STRING_LEN = 100;
 
+var TREE_SHOW_DOLLAR_IDENTS = false;
+
 class TreeNode {
   parent : TreeNode;
   name : string;
@@ -1412,12 +1418,16 @@ class TreeNode {
         let orphans = new Set(this.children.keys());
         // visit all children
         names.forEach((name) => {
-          let childnode = this.children.get(name);
-          if (childnode == null) {
-            childnode = new TreeNode(this, name);
-            this.children.set(name, childnode);
+          // hide $xxx idents?
+          var hidden = !TREE_SHOW_DOLLAR_IDENTS && typeof name === 'string' && name.startsWith("$$");
+          if (!hidden) {
+            let childnode = this.children.get(name);
+            if (childnode == null) {
+              childnode = new TreeNode(this, name);
+              this.children.set(name, childnode);
+            }
+            childnode.update(obj[name]);
           }
-          childnode.update(obj[name]);
           orphans.delete(name);
         });
         // remove orphans
@@ -1483,8 +1493,10 @@ export class DebugBrowserView extends TreeViewBase implements ProjectView {
 // TODO?
 interface CallGraphNode {
   count : number;
-  SP : number;
-  PC : number;
+  $$SP : number;
+  $$PC? : number;
+  startLine? : number;
+  endLine? : number;
   calls : {[id:string] : CallGraphNode};
 }
 
@@ -1526,22 +1538,22 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
         case ProbeFlags.SP_PUSH:
           // need a new root?
           if (this.stack.length == 0) {
-            this.graph = {count:0, PC:null, SP:addr, calls:{}};
+            this.graph = {count:0, $$SP:addr, calls:{}};
             this.stack.unshift(this.graph);
-          } else if (addr > this.stack[0].SP) {
+          } else if (addr > this.stack[0].$$SP) {
             let calls = {};
-            if (this.stack[0].PC !== null) calls[this.stack[0].PC] = this.stack[0];
-            this.graph = {count:0, PC:null, SP:addr, calls:calls};
+            if (this.stack[0].$$PC != null) calls[this.stack[0].$$PC] = this.stack[0];
+            this.graph = {count:0, $$SP:addr, calls:calls};
             this.stack.unshift(this.graph);
           }
         case ProbeFlags.SP_POP:
           if (this.stack.length) {
             let top = this.stack[this.stack.length-1];
-            if ((this.lastsp - addr) == 2 && addr < top.SP) { // TODO: look for opcode?
+            if ((this.lastsp - addr) == 2 && addr < top.$$SP) { // TODO: look for opcode?
               this.jsr = true;
             }
-            if ((this.lastsp - addr) == -2 && this.stack.length > 1 && addr > top.SP) {
-              this.stack.pop();
+            if ((this.lastsp - addr) == -2 && this.stack.length > 1 && addr > top.$$SP) {
+              this.stack.pop().endLine = row;
             }
           }
           this.lastsp = addr;
@@ -1551,21 +1563,55 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
             let top = this.stack[this.stack.length-1];
             let sym = this.addr2str(addr);
             let child = top.calls[sym];
-            if (child == null) { child = top.calls[sym] = {count:0, PC:addr, SP:this.lastsp, calls:{}}; }
-            else if (child.PC === null) child.PC = addr;
+            if (child == null) { child = top.calls[sym] = {count:0, $$PC:addr, $$SP:this.lastsp, calls:{}}; }
+            else if (child.$$PC == null) child.$$PC = addr;
             //this.stack.forEach((node) => node.count++);
             this.stack.push(child);
             child.count++;
+            child.startLine = row;
             this.jsr = false;
           }
           break;
       }
     });
-    if (this.graph) this.graph['_stack'] = this.stack;
+    //if (this.graph) this.graph['_stack'] = this.stack;
     return this.graph;
   }
 }
 
+export class FrameCallsView extends ProbeViewBaseBase implements ProjectView {
+  treeroot : TreeNode;
+
+  createDiv(parent : HTMLElement) : HTMLElement {
+    this.treeroot = createTreeRootNode(parent, this);
+    return this.treeroot.getDiv();
+  }
+
+  refresh() {
+    this.tick();
+  }
+
+  tick() {
+    this.treeroot.update(this.getRootObject());
+  }
+
+  getRootObject() : Object {
+    var frame = {};
+    this.redraw((op,addr,col,row,clk,value) => {
+      switch (op) {
+        case ProbeFlags.EXECUTE:
+          let sym = this.addr2symbol(addr);
+          if (sym) {
+            if (!frame[sym]) {
+              frame[sym] = row;
+            }
+          }
+          break;
+      }
+    });
+    return frame;
+  }
+}
 
 
 ///
