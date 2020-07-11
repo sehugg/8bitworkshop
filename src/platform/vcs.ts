@@ -1,10 +1,12 @@
 "use strict";
 
-import { Platform, BasePlatform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder, dumpStackToString, DisasmLine } from "../common/baseplatform";
+import { Platform, BasePlatform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder, dumpStackToString, DisasmLine, CpuState } from "../common/baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, dumpRAM } from "../common/emu";
 import { hex, lpad, tobin, byte2signed } from "../common/util";
 import { CodeAnalyzer_vcs } from "../common/analysis";
 import { disassemble6502 } from "../common/cpu/disasm6502";
+import { ProbeRecorder } from "../common/recorder";
+import { NullProbe, Probeable, ProbeAll } from "../common/devices";
 
 declare var Javatari : any;
 declare var jt : any; // 6502
@@ -63,22 +65,36 @@ class VCSPlatform extends BasePlatform {
 
   lastBreakState; // last breakpoint state
 
+  // TODO: super hack for ProbeBitmap view
+  machine = {
+    cpuCyclesPerLine: 76 // NTSC
+  };
+
   getPresets() { return VCS_PRESETS; }
 
   start() {
-    var self = this;
+    var self : VCSPlatform = this;
     $("#javatari-div").show();
     Javatari.start();
+    var console = Javatari.room.console;
     // intercept clockPulse function
-    Javatari.room.console.oldClockPulse = Javatari.room.console.clockPulse;
-    Javatari.room.console.clockPulse = function() {
+    console.oldClockPulse = console.clockPulse;
+    console.clockPulse = function() {
       self.updateRecorder();
+      self.probe.logNewFrame();
       this.oldClockPulse();
+    }
+    // intercept TIA end of line
+    var videoSignal = console.tia.getVideoOutput();
+    videoSignal.oldNextLine = videoSignal.nextLine;
+    videoSignal.nextLine = function(pixels, vsync) {
+      self.probe.logNewScanline();
+      return this.oldNextLine(pixels, vsync);
     }
     // setup mouse events
     var rasterPosBreakFn = (e) => {
       if (e.ctrlKey) {
-        Javatari.room.console.resetDebug();
+        console.resetDebug();
         var vcanvas = $(e.target);
         var x = e.pageX - vcanvas.offset().left;
         var y = e.pageY - vcanvas.offset().top;
@@ -197,7 +213,7 @@ class VCSPlatform extends BasePlatform {
   loadState(state) {
     return Javatari.room.console.loadState(state);
   }
-  getCPUState() {
+  getCPUState() : CpuState {
     return Javatari.room.console.saveState().c;
   }
   saveControlsState() {
@@ -315,6 +331,64 @@ class VCSPlatform extends BasePlatform {
       {name:'PIA Ports and Timer',start:0x280,size:0x18,type:'io'},
       {name:'Cartridge ROM',start:0xf000,size:0x1000,type:'rom'},
   ]}};
+
+  // probing
+  nullProbe = new NullProbe();
+  probe : ProbeAll = this.nullProbe;
+
+  startProbing?() : ProbeRecorder {
+    var self : VCSPlatform = this;
+    var rec = new ProbeRecorder(this);
+    this.connectProbe(rec);
+    var probe = this.probe;
+    // intercept CPU clock pulse
+    var cpu = Javatari.room.console.cpu;
+    if (cpu.oldCPUClockPulse == null) {
+      cpu.oldCPUClockPulse = cpu.clockPulse;
+      cpu.clockPulse = function() {
+        if (cpu.isPCStable())
+          probe.logExecute(cpu.getPC(), cpu.getSP());
+        this.oldCPUClockPulse();
+        probe.logClocks(1);
+      }
+    }
+    // intercept bus read/write
+    var bus = Javatari.room.console.bus;
+    if (bus.oldRead == null) {
+      bus.oldRead = bus.read;
+      bus.read = function(a) {
+        var v = this.oldRead(a);
+        probe.logRead(a,v);
+        return v;
+      }
+      bus.oldWrite = bus.write;
+      bus.write = function(a,v) {
+        this.oldWrite(a,v);
+        probe.logWrite(a,v);
+      }
+    }
+    return rec;
+  }
+  stopProbing?() : void {
+    this.connectProbe(null);
+    var cpu = Javatari.room.console.cpu;
+    if (cpu.oldCPUClockPulse != null) {
+      cpu.clockPulse = cpu.oldCPUClockPulse;
+      cpu.oldCPUClockPulse = null;
+    }
+    var bus = Javatari.room.console.bus;
+    if (bus.oldRead) {
+      bus.read = bus.oldRead;
+      bus.oldRead = null;
+    }
+    if (bus.oldWrite) {
+      bus.write = bus.oldWrite;
+      bus.oldWrite = null;
+    }
+  }
+  connectProbe(probe:ProbeAll) {
+    this.probe = probe || this.nullProbe;
+  }
 };
 
 // TODO: mixin for Base6502Platform?

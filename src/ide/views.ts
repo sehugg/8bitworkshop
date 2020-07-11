@@ -999,8 +999,8 @@ abstract class ProbeViewBaseBase {
       case ProbeFlags.VRAM_WRITE:	s = "VRAM Write"; break;
       case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
       case ProbeFlags.ILLEGAL:		s = "Error"; break;
-      case ProbeFlags.SP_PUSH:		s = "Stack Push"; break;
-      case ProbeFlags.SP_POP:     s = "Stack Pop"; break;
+      //case ProbeFlags.SP_PUSH:		s = "Stack Push"; break;
+      //case ProbeFlags.SP_POP:     s = "Stack Pop"; break;
       default:				            return "";
     }
     if (typeof addr == 'number') s += " " + this.addr2str(addr);
