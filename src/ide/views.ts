@@ -999,8 +999,8 @@ abstract class ProbeViewBaseBase {
       case ProbeFlags.VRAM_WRITE:	s = "VRAM Write"; break;
       case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
       case ProbeFlags.ILLEGAL:		s = "Error"; break;
-      //case ProbeFlags.SP_PUSH:		s = "Stack Push"; break;
-      //case ProbeFlags.SP_POP:     s = "Stack Pop"; break;
+      case ProbeFlags.SP_PUSH:		s = "Stack Dec"; break;
+      case ProbeFlags.SP_POP:     s = "Stack Inc"; break;
       default:				            return "";
     }
     if (typeof addr == 'number') s += " " + this.addr2str(addr);
@@ -1248,12 +1248,16 @@ export class ProbeSymbolView extends ProbeViewBaseBase {
       this.keys = ['no symbols defined'];
     }
     this.vlist = new VirtualTextScroller(parent);
-    this.vlist.create(parent, this.keys.length, this.getMemoryLineAt.bind(this));
+    this.vlist.create(parent, this.keys.length + 1, this.getMemoryLineAt.bind(this));
     return this.vlist.maindiv;
   }
 
   getMemoryLineAt(row : number) : VirtualTextLine {
-    var sym = this.keys[row];
+    // header line
+    if (row == 0) {
+      return {text: lpad("Symbol",35)+lpad("Reads",8)+lpad("Writes",8)};
+    }
+    var sym = this.keys[row-1];
     var line = this.dumplines && this.dumplines[sym];
     function getop(op) {
       var n = line[op] | 0;
@@ -1510,7 +1514,9 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
   graph : CallGraphNode;
   stack : CallGraphNode[];
   lastsp : number;
+  lastpc : number;
   jsr : boolean;
+  rts : boolean;
   cumulativeData = true;
 
   createDiv(parent : HTMLElement) : HTMLElement {
@@ -1536,54 +1542,68 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
   reset() {
     this.stack = [];
     this.lastsp = -1;
+    this.lastpc = 0;
     this.jsr = false;
+    this.rts = false;
+  }
+
+  newRoot(pc : number, sp : number) {
+    if (this.stack.length == 0) {
+      this.graph = {count:0, $$SP:sp, calls:{}};
+      this.stack.unshift(this.graph);
+    } else if (sp > this.stack[0].$$SP) {
+      let calls = {};
+      calls[this.addr2str(pc)] = this.stack[0];
+      this.graph = {count:0, $$SP:sp, calls:calls};
+      this.stack.unshift(this.graph);
+    }
   }
 
   getRootObject() : Object {
     // TODO: we don't capture every frame, so if we don't start @ the top frame we may have problems
     this.redraw((op,addr,col,row,clk,value) => {
       switch (op) {
-        case ProbeFlags.SP_PUSH:
-          // need a new root?
-          if (this.stack.length == 0) {
-            this.graph = {count:0, $$SP:addr, calls:{}};
-            this.stack.unshift(this.graph);
-          } else if (addr > this.stack[0].$$SP) {
-            let calls = {};
-            if (this.stack[0].$$PC != null) calls[this.stack[0].$$PC] = this.stack[0];
-            this.graph = {count:0, $$SP:addr, calls:calls};
-            this.stack.unshift(this.graph);
-          }
         case ProbeFlags.SP_POP:
+          this.newRoot(this.lastpc, this.lastsp);
+        case ProbeFlags.SP_PUSH:
           if (this.stack.length) {
             let top = this.stack[this.stack.length-1];
-            if ((this.lastsp - addr) == 2 && addr < top.$$SP) { // TODO: look for opcode?
+            var delta = this.lastsp - addr;
+            if ((delta == 2 || delta == 3) && addr < top.$$SP) { // TODO: look for opcode?
               this.jsr = true;
             }
-            if ((this.lastsp - addr) == -2 && this.stack.length > 1 && addr > top.$$SP) {
-              this.stack.pop().endLine = row;
+            if ((delta == -2 || delta == -3) && this.stack.length > 1 && addr > top.$$SP) {
+              this.rts = true;
             }
           }
           this.lastsp = addr;
           break;
         case ProbeFlags.EXECUTE:
-          if (this.jsr && this.stack.length) {
-            let top = this.stack[this.stack.length-1];
-            let sym = this.addr2str(addr);
-            let child = top.calls[sym];
-            if (child == null) { child = top.calls[sym] = {count:0, $$PC:addr, $$SP:this.lastsp, calls:{}}; }
-            else if (child.$$PC == null) child.$$PC = addr;
-            //this.stack.forEach((node) => node.count++);
-            this.stack.push(child);
-            child.count++;
-            child.startLine = row;
+          // TODO: better check for CALL/RET opcodes
+          if (Math.abs(addr - this.lastpc) >= 4) { // make sure we're jumping a distance (TODO)
+            if (this.jsr && this.stack.length) {
+              let top = this.stack[this.stack.length-1];
+              let sym = this.addr2str(addr);
+              let child = top.calls[sym];
+              if (child == null) { child = top.calls[sym] = {count:0, $$PC:addr, $$SP:this.lastsp, calls:{}}; }
+              else if (child.$$PC == null) child.$$PC = addr;
+              //this.stack.forEach((node) => node.count++);
+              this.stack.push(child);
+              child.count++;
+              child.startLine = row;
+            }
             this.jsr = false;
+            if (this.rts && this.stack.length) {
+              this.stack.pop().endLine = row;
+            }
+            this.rts = false;
           }
+          this.lastpc = addr;
           break;
       }
     });
     if (this.graph) this.graph['$$Stack'] = this.stack;
-    return this.graph;
+    return TREE_SHOW_DOLLAR_IDENTS ? this.graph : this.graph && this.graph.calls;
   }
 }
 

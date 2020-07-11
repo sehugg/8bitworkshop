@@ -203,6 +203,11 @@ async function testPlatform(platid, romname, maxframes, callback) {
       }
       assert.equal(proberec.fclk, proberec.countClocks());
     }
+    // debug tree
+    if (platform.getDebugTree) {
+      var dbgtree = platform.getDebugTree();
+      JSON.stringify(dbgtree);
+    }
     // misc
     assert.ok(platform.getDefaultExtension().startsWith('.'));
     if (platform.getROMExtension) assert.ok(platform.getROMExtension().startsWith("."));
