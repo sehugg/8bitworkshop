@@ -14,6 +14,7 @@ global.onmessage({data:{preload:'ca65', platform:'apple2'}});
 global.onmessage({data:{preload:'cc65', platform:'c64'}});
 global.onmessage({data:{preload:'ca65', platform:'c64'}});
 global.onmessage({data:{preload:'sdcc'}});
+global.onmessage({data:{preload:'inform6'}});
 
 // TODO: check msg against spec
 
@@ -319,6 +320,12 @@ describe('Worker', function() {
     var csource = ab2str(fs.readFileSync('presets/c64/skeleton.cc65'));
     compile('cc65', csource, 'c64.wasm', done, 2753, 2, 0);
   });
+  /*
+  it('should compile zmachine inform6 skeleton', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/zmachine/skeleton.inform6'));
+    compile('inform6', csource, 'hello.z5', done, 2753, 2, 0);
+  });
+  */
   // TODO: vectrex, x86
 
 });

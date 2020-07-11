@@ -14,9 +14,7 @@ global.document = dom.window.document;
 dom.window.Audio = null;
 global.Image = function() { }
 global['$'] = require("jquery/jquery-3.4.1.min.js");
-includeInThisContext('src/common/cpu/z80.js');
 includeInThisContext('src/common/cpu/6809.js');
-global['buildZ80'] = global.window.buildZ80;
 includeInThisContext("javatari.js/release/javatari/javatari.js");
 Javatari.AUTO_START = false;
 includeInThisContext('tss/js/Log.js');
