@@ -6,7 +6,7 @@
         "sourceMap": true,
         "target": "es5",
         "lib": [
-            "es2016",
+            "es2017",
             "dom"
         ],
         "noImplicitThis": false,

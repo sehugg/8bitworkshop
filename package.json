@@ -18,6 +18,7 @@
     "@types/bootbox": "^4.4.36",
     "@types/bootstrap": "^3.4.0",
     "@types/jquery": "^3.5.0",
+    "@types/node": "^14.0.22",
     "atob": "^2.1.x",
     "btoa": "^1.2.x",
     "clipboard": "^2.0.6",
