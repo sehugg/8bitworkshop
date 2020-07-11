@@ -785,9 +785,11 @@ class ZmachinePlatform implements Platform {
         });
         inputline.on('focus', (e) => {
             this.glk.focused = true;
+            console.log('inputline gained focus');
         });
-        inputline.on('blur', (e) => {
+        $("#workspace").on('click', (e) => {
             this.glk.focused = false;
+            console.log('inputline lost focus');
         });
         windowport.on('click', (e) => {
             inputline.focus();
