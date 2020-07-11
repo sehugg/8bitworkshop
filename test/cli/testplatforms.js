@@ -157,6 +157,7 @@ async function testPlatform(platid, romname, maxframes, callback) {
     var state1 = platform.saveState();
     platform.loadState(state1);
     assert.deepEqual(state1, platform.saveState());
+    assert.equal(0, rec.loadFrame(0));
     assert.equal(1, rec.loadFrame(1));
     assert.equal(maxframes, rec.loadFrame(maxframes));
     var state2 = platform.saveState();

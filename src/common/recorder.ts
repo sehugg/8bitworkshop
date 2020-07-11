@@ -85,6 +85,10 @@ export class StateRecorderImpl implements EmuRecorder {
     }
 
     getStateAtOrBefore(frame : number) : {frame : number, state : EmuState} {
+        // initial frame?
+        if (frame <= 0 && this.checkpoints.length > 0)
+          return {frame:0, state:this.checkpoints[0]};
+
         var bufidx = Math.floor(frame / this.checkpointInterval);
         var foundidx = bufidx < this.checkpoints.length ? bufidx : this.checkpoints.length-1;
         var foundframe = foundidx * this.checkpointInterval;
@@ -111,6 +115,11 @@ export class StateRecorderImpl implements EmuRecorder {
                 frame++;
                 numSteps = this.platform.advance(frame < seekframe); // TODO: infinite loop?
             }
+            // TODO: if first frame, we must figure out # of steps
+            if (frame == 0) {
+              numSteps = this.platform.advance(true);
+              this.platform.loadState(state);
+            }
             // seek to step index
             // TODO: what if advance() returns clocks, but steps use insns?
             if (seekstep > 0 && this.platform.advanceFrameClock) { 
@@ -122,7 +131,7 @@ export class StateRecorderImpl implements EmuRecorder {
             this.lastStepCount = numSteps;
             return seekframe;
         } else {
-            return 0;
+            return -1;
         }
     }
     

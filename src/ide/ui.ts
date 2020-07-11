@@ -1638,7 +1638,7 @@ function setupReplaySlider() {
       _pause();
       var frame : number = parseInt(replayslider.val().toString());
       var step : number = parseInt(clockslider.val().toString());
-      if (stateRecorder.loadFrame(frame, step)) {
+      if (stateRecorder.loadFrame(frame, step) >= 0) {
         clockslider.attr('min', 0);
         clockslider.attr('max', stateRecorder.lastStepCount);
         updateFrameNo();
@@ -1647,7 +1647,7 @@ function setupReplaySlider() {
     };
     var setFrameTo = (frame:number) => {
       _pause();
-      if (stateRecorder.loadFrame(frame)) {
+      if (stateRecorder.loadFrame(frame) >= 0) {
         replayslider.val(frame);
         updateFrameNo();
         uiDebugCallback(platform.saveState());
@@ -1656,14 +1656,14 @@ function setupReplaySlider() {
     var setClockTo = (clock:number) => {
       _pause();
       var frame : number = parseInt(replayslider.val().toString());
-      if (stateRecorder.loadFrame(frame, clock)) {
+      if (stateRecorder.loadFrame(frame, clock) >= 0) {
         clockslider.val(clock);
         updateFrameNo();
         uiDebugCallback(platform.saveState());
       }
     };
     stateRecorder.callbackStateChanged = () => {
-      replayslider.attr('min', 1);
+      replayslider.attr('min', 0);
       replayslider.attr('max', stateRecorder.numFrames());
       replayslider.val(stateRecorder.currentFrame());
       clockslider.val(stateRecorder.currentStep());
