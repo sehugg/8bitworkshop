@@ -880,12 +880,15 @@ function _downloadROMImage(e) {
     alertError("Please finish compiling with no errors before downloading ROM.");
     return true;
   }
+  var prefix = getFilenamePrefix(getCurrentMainFilename());
   if (current_output instanceof Uint8Array) {
     var blob = new Blob([current_output], {type: "application/octet-stream"});
-    saveAs(blob, getCurrentMainFilename()+".rom");
+    var suffix = (platform.getROMExtension && platform.getROMExtension(current_output)) 
+      || "-" + getBasePlatform(platform_id) + ".bin";
+    saveAs(blob, prefix + suffix);
   } else {
     var blob = new Blob([(<VerilogOutput>current_output).code], {type: "text/plain"});
-    saveAs(blob, getCurrentMainFilename()+".js");
+    saveAs(blob, prefix + ".js");
   }
 }
 
@@ -905,7 +908,7 @@ function _downloadProjectZipFile(e) {
       }
     });
     zip.generateAsync({type:"blob"}).then( (content) => {
-      saveAs(content, getCurrentMainFilename() + ".zip");
+      saveAs(content, getCurrentMainFilename() + "-" + getBasePlatform(platform_id) + ".zip");
     });
   });
 }
@@ -923,7 +926,7 @@ function _downloadAllFilesZipFile(e) {
       })).then(() => {
         return zip.generateAsync({type:"blob"});
       }).then( (content) => {
-        return saveAs(content, platform_id + "-all.zip");
+        return saveAs(content, getBasePlatform(platform_id) + "-all.zip");
       });
     });
   });

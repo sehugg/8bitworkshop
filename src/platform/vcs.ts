@@ -248,7 +248,9 @@ class VCSPlatform extends BasePlatform {
     if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
     return "dasm";
   }
-  getDefaultExtension() { return ".a"; };
+  getDefaultExtension() { return ".a"; }
+
+  getROMExtension() { return ".a26"; }
 
   getDebugCategories() {
     return ['CPU','Stack','PIA','TIA'];

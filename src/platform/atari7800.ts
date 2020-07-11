@@ -26,6 +26,7 @@ class Atari7800Platform extends Base6502MachinePlatform<Atari7800> implements Pl
       {name:'RAM',start:0x1800,size:0x1000,type:'ram'}, // TODO: shadow ram
       {name:'Cartridge ROM',start:0x4000,size:0xc000,type:'rom'},
   ] } };
+  getROMExtension() { return ".a78"; }
 }
 
 ///

@@ -178,6 +178,7 @@ async function testPlatform(platid, romname, maxframes, callback) {
       assert.ok(dinfo && dinfo.length > 0, dcat + " empty");
       assert.ok(dinfo.length < 80*24, dcat + " too long");
       assert.ok(dinfo.indexOf('undefined') < 0, dcat + " undefined");
+      assert.ok(dinfo.indexOf('Display On:  false') < 0, dcat + " display off");
     }
     if (lastrastervideo) {
       var png = new PNG({width:lastrastervideo.width, height:lastrastervideo.height});
@@ -190,6 +191,9 @@ async function testPlatform(platid, romname, maxframes, callback) {
         fs.writeFileSync("./test/output/"+platid+"-"+romname+".png", pngbuffer);
       } catch (e) { console.log(e) }
     }
+    // misc
+    assert.ok(platform.getDefaultExtension().startsWith('.'));
+    if (platform.getROMExtension) assert.ok(platform.getROMExtension().startsWith("."));
     return platform;
 }
 
@@ -305,6 +309,13 @@ describe('Platform Replay', () => {
     var platform = await testPlatform('sms-sg1000-libcv', 'shoot.c.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_SPACE.c, Keys.VK_SPACE.c, 1);
+      }
+    });
+  });
+  it('Should run sms-sms-libcv', async () => {
+    var platform = await testPlatform('sms-sms-libcv', 'climber.c-sms-sms-libcv.rom', 200, (platform, frameno) => {
+      if (frameno == 122) {
+        keycallback(Keys.RIGHT.c, Keys.VK_RIGHT.c, 1);
       }
     });
   });

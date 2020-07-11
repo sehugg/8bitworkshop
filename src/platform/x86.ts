@@ -159,6 +159,10 @@ class X86PCPlatform implements Platform {
         {name:'BIOS Expansions',start:0xc8000,size:0x28000,type:'rom'},
         {name:'PC BIOS',start:0xf0000,size:0x10000,type:'rom'},
     ] } };
-  }
+
+    getROMExtension(rom : Uint8Array) {
+        return ".exe";
+    }
+}
 
 PLATFORMS['x86'] = X86PCPlatform;

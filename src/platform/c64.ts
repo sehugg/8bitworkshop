@@ -65,6 +65,13 @@ class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implement
   showHelp() {
     window.open("https://sta.c64.org/cbm64mem.html", "_help");
   }
+  getROMExtension(rom:Uint8Array) { 
+    /*
+    if (rom && rom[0] == 0x00 && rom[1] == 0x80 && rom[2+4] == 0xc3 && rom[2+5] == 0xc2) return ".crt";
+    */
+    if (rom && rom[0] == 0x01 && rom[1] == 0x08) return ".prg";
+    else return ".bin";
+  }
 }
 
 PLATFORMS['c64'] = C64WASMPlatform;

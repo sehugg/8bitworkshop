@@ -264,7 +264,9 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   getOriginPC() {	// TODO: is actually NMI
     return (this.readAddress(0xfffa) | (this.readAddress(0xfffb) << 8)) & 0xffff;
   }
-  getDefaultExtension() { return ".c"; };
+  getDefaultExtension() { return ".c"; }
+
+  getROMExtension() { return ".nes"; }
 
   reset() {
     //this.nes.cpu.reset(); // doesn't work right, crashes

@@ -809,6 +809,10 @@ class ZmachinePlatform implements Platform {
         this.reset();
     }
 
+    getROMExtension() {
+        return ".z" + (this.zvm.version || 5);
+    }
+
     reset(): void {
         if (this.zfile == null) return;
         this.zvm = new ZVM();

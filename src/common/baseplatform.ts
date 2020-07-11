@@ -2,7 +2,7 @@
 import { RAM, RasterVideo, KeyFlags, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes, ControllerPoller } from "./emu";
 import { hex, printFlags, invertMap, getBasePlatform } from "./util";
 import { CodeAnalyzer } from "./analysis";
-import { Segment } from "./workertypes";
+import { Segment, FileData } from "./workertypes";
 import { disassemble6502 } from "./cpu/disasm6502";
 import { disassembleZ80 } from "./cpu/disasmz80";
 import { Z80 } from "./cpu/ZilogZ80";
@@ -80,6 +80,7 @@ export interface Platform {
   resume() : void;
   loadROM(title:string, rom:any); // TODO: Uint8Array
   loadBIOS?(title:string, rom:Uint8Array);
+  getROMExtension?(rom:FileData) : string;
 
   loadState?(state : EmuState) : void;
   saveState?() : EmuState;

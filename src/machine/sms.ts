@@ -50,7 +50,7 @@ export class SG1000 extends BaseZ80VDPBasedMachine {
   
    read = newAddressDecoder([
      [0xc000, 0xffff,  0x3ff, (a) => { return this.ram[a]; }],
-     [0x0000, 0xbfff, 0xffff, (a) => { return this.rom[a]; }],
+     [0x0000, 0xbfff, 0xffff, (a) => { return this.rom && this.rom[a]; }],
    ]);
    write = newAddressDecoder([
      [0xc000, 0xffff,  0x3ff, (a,v) => { this.ram[a] = v; }],
@@ -141,7 +141,7 @@ export class SMS extends SG1000 {
   
   getPagedROM(a:number, reg:number) {
     //if (!(a&0xff)) console.log(hex(a), reg, this.pagingRegisters[reg], this.romPageMask);
-    return this.rom[a + ((this.pagingRegisters[reg] & this.romPageMask) << 14)]; // * $4000
+    return this.rom && this.rom[a + ((this.pagingRegisters[reg] & this.romPageMask) << 14)]; // * $4000
   }
 
  read = newAddressDecoder([
