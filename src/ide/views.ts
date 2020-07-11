@@ -6,7 +6,7 @@ import { hex, lpad, rpad, safeident, rgb2bgr } from "../common/util";
 import { CodeAnalyzer } from "../common/analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows, runToPC } from "./ui";
 import { ProbeRecorder, ProbeFlags } from "../common/recorder";
-import { getMousePos, dumpRAM } from "../common/emu";
+import { getMousePos, dumpRAM, Toolbar } from "../common/emu";
 import * as pixed from "./pixeleditor";
 declare var Mousetrap;
 
@@ -923,6 +923,7 @@ export class MemoryMapView implements ProjectView {
 abstract class ProbeViewBaseBase {
   probe : ProbeRecorder;
   tooldiv : HTMLElement;
+  cumulativeData : boolean = false;
 
   abstract tick() : void;
 
@@ -955,8 +956,10 @@ abstract class ProbeViewBaseBase {
   setVisible(showing : boolean) : void {
     if (showing) {
       this.probe = platform.startProbing();
+      this.probe.singleFrame = !this.cumulativeData;
       this.tick();
     } else {
+      if (this.probe) this.probe.singleFrame = true;
       platform.stopProbing();
       this.probe = null;
     }
@@ -1234,6 +1237,7 @@ export class ProbeSymbolView extends ProbeViewBaseBase {
   keys : string[];
   recreateOnResize = true;
   dumplines;
+  cumulativeData = true;
 
   // TODO: auto resize
   createDiv(parent : HTMLElement) {
@@ -1293,6 +1297,7 @@ export class ProbeSymbolView extends ProbeViewBaseBase {
       }
     });
     this.vlist.refresh();
+    if (this.probe) this.probe.clear(); // clear cumulative data (TODO: doesnt work with seeking or debugging)
   }
 }
 
@@ -1490,7 +1495,6 @@ export class DebugBrowserView extends TreeViewBase implements ProjectView {
   getRootObject() { return platform.getDebugTree(); }
 }
 
-// TODO?
 interface CallGraphNode {
   count : number;
   $$SP : number;
@@ -1500,12 +1504,14 @@ interface CallGraphNode {
   calls : {[id:string] : CallGraphNode};
 }
 
+// TODO: clear stack data when reset?
 export class CallStackView extends ProbeViewBaseBase implements ProjectView {
   treeroot : TreeNode;
   graph : CallGraphNode;
   stack : CallGraphNode[];
   lastsp : number;
   jsr : boolean;
+  cumulativeData = true;
 
   createDiv(parent : HTMLElement) : HTMLElement {
     this.clear();
@@ -1519,6 +1525,7 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
 
   tick() {
     this.treeroot.update(this.getRootObject());
+    if (this.probe) this.probe.clear(); // clear cumulative data (TODO: doesnt work with seeking or debugging)
   }
 
   clear() {
@@ -1533,6 +1540,7 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
   }
 
   getRootObject() : Object {
+    // TODO: we don't capture every frame, so if we don't start @ the top frame we may have problems
     this.redraw((op,addr,col,row,clk,value) => {
       switch (op) {
         case ProbeFlags.SP_PUSH:
@@ -1574,7 +1582,7 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
           break;
       }
     });
-    //if (this.graph) this.graph['_stack'] = this.stack;
+    if (this.graph) this.graph['$$Stack'] = this.stack;
     return this.graph;
   }
 }

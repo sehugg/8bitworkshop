@@ -1102,11 +1102,12 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   pause() {
     this.timer.stop();
     this.audio && this.audio.stop();
+    // i guess for runToVsync()?
     if (this.probeRecorder) {
       this.probeRecorder.singleFrame = true;
     }
   }
-  // so probe views stick around
+  // so probe views stick around TODO: must be a better way?
   runToVsync() {
     if (this.probeRecorder) {
       this.probeRecorder.clear();
