@@ -1,1 +1,0 @@
-emmake make SUBTARGET=a800 SOURCES=src/mame/drivers/atari400.cpp NOWERROR=1 -j 4

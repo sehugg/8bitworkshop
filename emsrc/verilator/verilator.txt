@@ -1,8 +1,0 @@
-
-emconfigure ./configure --includedir=/Library/Developer/CommandLineTools/usr/include
-cd src
-emmake make ../verilator_bin
-cd ..
-mkdir -p js
-cp verilator_bin js/verilator_bin.bc
-make -f Makefile.local
