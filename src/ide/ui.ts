@@ -122,17 +122,18 @@ var hasLocalStorage : boolean = function() {
 }();
 
 // https://developers.google.com/web/updates/2016/06/persistent-storage
-function requestPersistPermission() {
+function requestPersistPermission(interactive: boolean) {
   if (navigator.storage && navigator.storage.persist) {
     navigator.storage.persist().then(persistent=>{
+      console.log("requestPersistPermission =", persistent);
       if (persistent) {
-        alertInfo("Your browser says you have unlimited persistent storage quota for this site. If you got an error while storing something, make sure you have enough storage space, and please try again.");
+        interactive && alertInfo("Your browser says it will persist your local file edits, but you may want to back up your work anyway.");
       } else {
-        alertInfo("Your browser says your local files may not be persisted. Are you in a private window?");
+        interactive && alertInfo("Your browser won't agree to persist your local file edits. Make sure to back up your work periodically.");
       }
     });
   } else {
-    alertInfo("Your browser doesn't support expanding the persistent storage quota.");
+    interactive && alertInfo("Your browser doesn't support expanding the persistent storage quota. Make sure to back up your work periodically.");
   }
 }
 
@@ -1612,7 +1613,7 @@ function setupDebugControls() {
   }
   $("#item_addfile_include").click(_addIncludeFile);
   $("#item_addfile_link").click(_addLinkFile);
-  $("#item_request_persist").click(requestPersistPermission);
+  $("#item_request_persist").click(() => requestPersistPermission(true));
   updateDebugWindows();
   // show help button?
   if (platform.showHelp) {
@@ -1775,7 +1776,10 @@ function showWelcomeMessage() {
     var tour = new Tour({
       autoscroll:false,
       //storage:false,
-      steps:steps
+      steps:steps,
+      onEnd: () => {
+        requestPersistPermission(false);
+      }
     });
     setTimeout(() => { tour.start(); }, 2000);
   }
@@ -1801,7 +1805,7 @@ function globalErrorHandler(msgevent) {
   var msg = (msgevent.message || msgevent.error || msgevent)+"";
   // storage quota full? (Chrome) try to expand it
   if (msg.indexOf("QuotaExceededError") >= 0) {
-    requestPersistPermission();
+    requestPersistPermission(false);
   } else {
     showErrorAlert([{msg:msg,line:0}]);
   }
