@@ -1500,11 +1500,11 @@ export class DebugBrowserView extends TreeViewBase implements ProjectView {
 }
 
 interface CallGraphNode {
-  count : number;
   $$SP : number;
-  $$PC? : number;
-  startLine? : number;
-  endLine? : number;
+  $$PC : number;
+  count : number;
+  startLine : number;
+  endLine : number;
   calls : {[id:string] : CallGraphNode};
 }
 
@@ -1547,14 +1547,17 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
     this.rts = false;
   }
 
+  newNode(pc : number, sp : number) {
+    return {$$SP:sp, $$PC:pc, count:0, startLine:null, endLine:null, calls:{}};
+  }
+
   newRoot(pc : number, sp : number) {
     if (this.stack.length == 0) {
-      this.graph = {count:0, $$SP:sp, calls:{}};
+      this.graph = this.newNode(null, sp);
       this.stack.unshift(this.graph);
     } else if (sp > this.stack[0].$$SP) {
-      let calls = {};
-      calls[this.addr2str(pc)] = this.stack[0];
-      this.graph = {count:0, $$SP:sp, calls:calls};
+      this.graph = this.newNode(null, sp);
+      this.graph.calls[this.addr2str(pc)] = this.stack[0];
       this.stack.unshift(this.graph);
     }
   }
@@ -1585,7 +1588,9 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
               let top = this.stack[this.stack.length-1];
               let sym = this.addr2str(addr);
               let child = top.calls[sym];
-              if (child == null) { child = top.calls[sym] = {count:0, $$PC:addr, $$SP:this.lastsp, calls:{}}; }
+              if (child == null) { 
+                child = top.calls[sym] = this.newNode(addr, this.lastsp);
+              }
               else if (child.$$PC == null) child.$$PC = addr;
               //this.stack.forEach((node) => node.count++);
               this.stack.push(child);
