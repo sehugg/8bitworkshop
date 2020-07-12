@@ -1,24 +1,3 @@
+These files have been moved to:
 
-This directory contains 8bitworkshop tools for bitmap and
-music conversion.
-
-Requires ImageMagick (convert) and Python 2.x.
-MIDI tools require Mido (pip install mido).
-
-On Ubuntu:
-
-$ sudo apt update
-$ sudo apt install python python-pip imagemagick curl
-$ sudo pip install mido
-
-To use the tools, go to the appropriate directory and
-look at the Makefile for each:
-
-vcs/		Atari 2600/VCS
-mw8080/		Midway 8080
-scramble/	Galaxian/Scramble
-vicdual/	VIC Dual
-williams/	Williams
-
-fonts/		Example fonts
-images/		Example images
+https://github.com/sehugg/8bit-tools

@@ -34,5 +34,3 @@ tsweb:
 astrolibre.b64.txt: astrolibre.rom
 	lzg -9 $< | base64 -w 0 > $@
 
-astdump:
-	clang -Xclang -ast-dump -fsyntax-only tools/galois.c
