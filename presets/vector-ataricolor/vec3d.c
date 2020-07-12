@@ -51,7 +51,7 @@ sbyte icos(byte x) {
 }
 
 void mat_rotate(Matrix* m, byte axis, byte angle) {
-  sbyte sin = isin(angle);
+  sbyte sin = -isin(angle);
   sbyte cos = icos(angle);
   mat_identity(m);
   switch (axis) {
