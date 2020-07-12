@@ -12,9 +12,10 @@ const APPLE2_PRESETS = [
   {id:'cosmic.c', name:'Cosmic Impalas'},
   {id:'farmhouse.c', name:"Farmhouse Adventure"},
   {id:'yum.c', name:"Yum Dice Game"},
+  {id:'lzgtest.c', name:"LZG Decompressor (C)"},
   {id:'hgrtest.a', name:"HGR Test (ASM)"},
   {id:'conway.a', name:"Conway's Game of Life (ASM)"},
-  {id:'lz4fh.a', name:"LZ4FH Graphics Compression (ASM)"},
+  {id:'lz4fh.a', name:"LZ4FH Decompressor (ASM)"},
 //  {id:'zap.dasm', name:"ZAP! (ASM)"},
 //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
 ];

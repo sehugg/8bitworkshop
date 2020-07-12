@@ -1001,6 +1001,7 @@ async function updateSelector() {
     finishSelector(sel);
   } else {
     sel.append($("<option />").val('/').text('Leave Repository'));
+    $("#repo_name").text(getFilenameForPath(repo_id)+'/').show();
     // repo: populate all files
     await populateFiles(sel, repo_id, "", {});
     finishSelector(sel);
