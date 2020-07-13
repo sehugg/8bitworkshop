@@ -4,9 +4,6 @@ var fs = require('fs');
 var wtu = require('./workertestutils.js');
 //var heapdump = require('heapdump');
 
-// TODO: why memory leak?
-CACHE_WASM_MODULES = false;
-
 global.onmessage({data:{preload:'cc65', platform:'nes'}});
 global.onmessage({data:{preload:'ca65', platform:'nes'}});
 global.onmessage({data:{preload:'cc65', platform:'apple2'}});

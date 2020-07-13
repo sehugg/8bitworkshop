@@ -10,13 +10,11 @@ const emglobal : any = this['window'] || this['global'] || this;
 const ENVIRONMENT_IS_WEB = typeof window === 'object';
 const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
 
-//const self = emglobal.self;
-//const __WORKER__ = function() {
-
 // WebAssembly module cache
 // TODO: leaks memory even when disabled...
 var _WASM_module_cache = {};
-var CACHE_WASM_MODULES = true;
+var CACHE_WASM_MODULES = true; // if false, use asm.js only
+
 function getWASMModule(module_id:string) {
   var module = _WASM_module_cache[module_id];
   if (!module) {

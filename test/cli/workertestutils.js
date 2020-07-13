@@ -7,6 +7,13 @@ var worker = {};
 
 global.window = global;
 global.exports = {};
+global.self = global;
+global.location = {href:'.'};
+global.require = (modname) => {
+  console.log("REQUIRE",modname);
+  if (modname == 'path')
+    return require(modname);
+};
 
 global.btoa = require('btoa');
 global.atob = require('atob');
