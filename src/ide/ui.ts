@@ -122,18 +122,18 @@ var hasLocalStorage : boolean = function() {
 }();
 
 // https://developers.google.com/web/updates/2016/06/persistent-storage
-function requestPersistPermission(interactive: boolean) {
+function requestPersistPermission(interactive: boolean, failureonly: boolean) {
   if (navigator.storage && navigator.storage.persist) {
     navigator.storage.persist().then(persistent=>{
       console.log("requestPersistPermission =", persistent);
       if (persistent) {
-        interactive && alertInfo("Your browser says it will persist your local file edits, but you may want to back up your work anyway.");
+        interactive && !failureonly && alertInfo("Your browser says it will persist your local file edits, but you may want to back up your work anyway.");
       } else {
-        interactive && alertInfo("Your browser won't agree to persist your local file edits. Make sure to back up your work periodically.");
+        interactive && alertInfo("Your browser refused to expand the peristent storage quota. Your edits may not be preserved after closing the page.");
       }
     });
   } else {
-    interactive && alertInfo("Your browser doesn't support expanding the persistent storage quota. Make sure to back up your work periodically.");
+    interactive && alertInfo("Your browser doesn't support expanding the persistent storage quota. Your edits may not be preserved after closing the page.");
   }
 }
 
@@ -339,6 +339,8 @@ async function loadProject(preset_id:string) {
     // don't alert if we selected "new file"
     if (!qs['newfile']) {
       alertInfo("Could not find file \"" + preset_id + "\". Loading default file.");
+    } else {
+      requestPersistPermission(true, true);
     }
     delete qs['newfile'];
     replaceURLState();
@@ -1614,7 +1616,7 @@ function setupDebugControls() {
   }
   $("#item_addfile_include").click(_addIncludeFile);
   $("#item_addfile_link").click(_addLinkFile);
-  $("#item_request_persist").click(() => requestPersistPermission(true));
+  $("#item_request_persist").click(() => requestPersistPermission(true, false));
   updateDebugWindows();
   // show help button?
   if (platform.showHelp) {
@@ -1734,8 +1736,8 @@ function showWelcomeMessage() {
         {
           element: "#workspace",
           title: "Code Editor",
-          content: is_vcs ? "Type your 6502 assembly code into the editor, and it'll be assembled in real-time. All changes are saved to browser local storage, except on Safari or iOS."
-                          : "Type your source code into the editor, and it'll be compiled in real-time. All changes are saved to browser local storage, except on Safari or iOS."
+          content: is_vcs ? "Type your 6502 assembly code into the editor, and it'll be assembled in real-time."
+                          : "Type your source code into the editor, and it'll be compiled in real-time."
         },
         {
           element: "#emulator",
@@ -1779,7 +1781,7 @@ function showWelcomeMessage() {
       //storage:false,
       steps:steps,
       onEnd: () => {
-        requestPersistPermission(false);
+        requestPersistPermission(false, true);
       }
     });
     setTimeout(() => { tour.start(); }, 2000);
@@ -1806,7 +1808,7 @@ function globalErrorHandler(msgevent) {
   var msg = (msgevent.message || msgevent.error || msgevent)+"";
   // storage quota full? (Chrome) try to expand it
   if (msg.indexOf("QuotaExceededError") >= 0) {
-    requestPersistPermission(false);
+    requestPersistPermission(false, false);
   } else {
     showErrorAlert([{msg:msg,line:0}]);
   }
@@ -2025,14 +2027,6 @@ export async function startUI() {
     importProjectFromGithub(qs['githubURL'], true);
     return;
   }
-  // warning when using Safari/iOS
-  if (hasLocalStorage && !localStorage.getItem("__applealert")) {
-    localStorage.setItem("__applealert", "true");
-    var browserResult = browserDetect();
-    if (browserResult.name == 'safari' || browserResult.name == 'ios') {
-      alertError("WARNING: This browser may not persist changes to source code. Try a recent version of Firefox or Chrome.");
-    }
-  }
   // add default platform?
   platform_id = qs['platform'] || (hasLocalStorage && localStorage.getItem("__lastplatform"));
   if (!platform_id) {
@@ -2048,6 +2042,7 @@ export async function startUI() {
         qs['platform'] = platform_id = repo.platform_id;
       if (!qs['file'])
         qs['file'] = repo.mainPath;
+      requestPersistPermission(true, true);
     }
   } else {
     repo_id = '';

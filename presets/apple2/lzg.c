@@ -6,29 +6,33 @@ const unsigned char LZG_LENGTH_DECODE_LUT[32] = {
   18,19,20,21,22,23,24,25,26,27,28,29,35,48,72,128
 };
 
-#pragma codesize (200)	// make code faster
+#pragma codesize (200)	// make code faster?
 
 unsigned char* lzg_decode_vram(const unsigned char* _src, 
                      unsigned char* _dest, 
                      unsigned char* _end) {
   // copy params to static locals
-  const unsigned char* src = _src;
-  unsigned char* dest = _dest;
+  register const unsigned char* src = _src;
+  register unsigned char* dest = _dest;
   unsigned char* end = _end;
-  
+  // more locals
   char marker[4];
   unsigned int length, offset;
   unsigned char sym, b, b2;
-  unsigned char* copysrc;
   
+  // copy 4 marker bytes to locals
   memcpy(marker, src, 4);
   src += 4;
+  // loop until we run out of buffer space
   while (dest < end) {
-    sym = *src++;
-    b = *src++;
+    sym = src[0];
+    b = src[1];
+    src += 2;
     // copy commands
     offset = 0;
-    length = LZG_LENGTH_DECODE_LUT[b & 0x1f];
+    b2 = b & 0x1f;
+    length = LZG_LENGTH_DECODE_LUT[b2]; // required for aaaa,y
+    // look for marker symbols
     if (sym == marker[0]) {
       if (b == 0) goto literal;
       b2 = *src++;
@@ -55,8 +59,7 @@ literal:
       length = end - dest;
     }
     // copy bytes
-    copysrc = dest - offset;
-    memcpy(dest, copysrc, length);
+    memcpy(dest, dest - offset, length);
     dest += length;
   }
   return dest;
