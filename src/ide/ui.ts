@@ -279,11 +279,6 @@ function refreshWindowList() {
       return new Views.VRAMMemoryView();
     });
   }
-  if (platform.getDebugTree) {
-    addWindowItem("#debugview", "Debug Tree", () => {
-      return new Views.DebugBrowserView();
-    });
-  }
   if (platform.startProbing) {
     addWindowItem("#memheatmap", "Memory Probe", () => {
       return new Views.AddressHeatMapView();
@@ -306,6 +301,11 @@ function refreshWindowList() {
       return new Views.FrameCallsView();
     });
     */
+  }
+  if (platform.getDebugTree) {
+    addWindowItem("#debugview", "Debug Tree", () => {
+      return new Views.DebugBrowserView();
+    });
   }
   addWindowItem('#asseteditor', 'Asset Editor', () => {
     return new Views.AssetEditorView();
