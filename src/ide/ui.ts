@@ -1781,7 +1781,7 @@ function showWelcomeMessage() {
       //storage:false,
       steps:steps,
       onEnd: () => {
-        requestPersistPermission(false, true);
+        //requestPersistPermission(false, true);
       }
     });
     setTimeout(() => { tour.start(); }, 2000);
