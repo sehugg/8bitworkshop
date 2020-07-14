@@ -965,7 +965,7 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
 /// new Machine platform adapters
 
 import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition, CPU } from "./devices";
-import { Probeable, RasterFrameBased, AcceptsPaddleInput, SampledAudioSink } from "./devices";
+import { Probeable, RasterFrameBased, AcceptsPaddleInput, SampledAudioSink, ProbeAll, NullProbe } from "./devices";
 import { SampledAudio } from "./audio";
 import { ProbeRecorder } from "./recorder";
 
@@ -1205,6 +1205,7 @@ export abstract class BaseWASMMachine {
   romarr : Uint8Array;
   audio : SampledAudioSink;
   audioarr : Float32Array;
+  probe : ProbeAll;
 
   abstract getCPUState() : CpuState;
 
@@ -1235,7 +1236,7 @@ export abstract class BaseWASMMachine {
     var wasmResult = await WebAssembly.instantiate(wasmCompiled);
     this.instance = wasmResult;
     this.exports = wasmResult.exports;
-    this.exports.memory.grow(32);
+    this.exports.memory.grow(64); // TODO: need more when probing?
     // fetch BIOS
     var biosResponse = await fetch('res/'+this.prefix+'.bios');
     var biosBinary = await biosResponse.arrayBuffer();
@@ -1346,6 +1347,20 @@ export abstract class BaseWASMMachine {
     this.syncVideo();
     this.syncAudio();
     return i;
+  }
+  copyProbeData() {
+    if (this.probe && !(this.probe instanceof NullProbe)) {
+      var datalen = this.exports.machine_get_probe_buffer_size();
+      var dataaddr = this.exports.machine_get_probe_buffer_address();
+      // TODO: more efficient way to put into probe
+      var databuf = new Uint32Array(this.exports.memory.buffer, dataaddr, datalen);
+      this.probe.logNewFrame(); // TODO: machine should do this
+      for (var i=0; i<datalen; i++)
+        this.probe.logData(databuf[i]);
+    }
+  }
+  connectProbe(probe: ProbeAll): void {
+    this.probe = probe;
   }
 }
 

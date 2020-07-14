@@ -203,6 +203,9 @@ export class ProbeRecorder implements ProbeAll {
   clear() {
     this.idx = 0;
   }
+  logData(a:number) {
+    this.log(a);
+  }
   log(a:number) {
     // TODO: coalesce READ and EXECUTE and PUSH/POP
     if (this.idx >= this.buf.length) return;

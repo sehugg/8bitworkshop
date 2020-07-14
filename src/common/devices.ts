@@ -144,6 +144,7 @@ export interface ProbeVRAM {
 }
 
 export interface ProbeAll extends ProbeTime, ProbeCPU, ProbeBus, ProbeIO, ProbeVRAM {
+  logData(data:number); // entire 32 bits
 }
 
 export class NullProbe implements ProbeAll {
@@ -159,6 +160,7 @@ export class NullProbe implements ProbeAll {
   logVRAMRead()		{}
   logVRAMWrite()	{}
   logIllegal()		{}
+  logData()       {}
 }
 
 /// CONVENIENCE

@@ -1,5 +1,5 @@
 
-import { C64, C64_WASMMachine } from "../machine/c64";
+import { C64_WASMMachine } from "../machine/c64";
 import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502 } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 
@@ -37,17 +37,6 @@ const C64_MEMORY_MAP = { main:[
   {name:'KERNAL ROM',   start:0xe000,size:0x2000,type:'rom'},
 ] }
 
-// native C64 platform (NOT USED)
-class C64Platform extends Base6502MachinePlatform<C64> implements Platform {
-
-  newMachine()          { return new C64(); }
-  getPresets()          { return C64_PRESETS; }
-  getDefaultExtension() { return ".c"; };
-  readAddress(a)        { return this.machine.readConst(a); }
-  loadBIOS(bios)	      { this.machine.loadBIOS(bios); }
-  getMemoryMap()        { return C64_MEMORY_MAP; }
-}
-
 // WASM C64 platform
 class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implements Platform {
 
@@ -76,4 +65,3 @@ class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implement
 
 PLATFORMS['c64'] = C64WASMPlatform;
 PLATFORMS['c64.wasm'] = C64WASMPlatform;
-PLATFORMS['c64.js'] = C64Platform;

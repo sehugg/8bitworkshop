@@ -11,6 +11,9 @@ import { TrapCondition } from "../common/devices";
 
 export class ZX_WASMMachine extends BaseWASMMachine implements Machine {
 
+  numTotalScanlines = 312;
+  cpuCyclesPerLine = 224;
+
   joymask0 = 0;
 
   reset() {
@@ -34,7 +37,12 @@ export class ZX_WASMMachine extends BaseWASMMachine implements Machine {
     }
   }
   advanceFrame(trap: TrapCondition) : number {
-    return super.advanceFrameClock(trap, Math.floor(1000000 / 50)); // TODO: use ticks, not msec
+    //var scanline = this.exports.machine_get_raster_line(this.sys);
+    var probing = this.probe != null;
+    if (probing) this.exports.machine_reset_probe_buffer();
+    var clocks = super.advanceFrameClock(trap, Math.floor(1000000 / 50)); // TODO: use ticks, not msec
+    if (probing) this.copyProbeData();
+    return clocks;
   }
   /*
     z80_tick_t tick_cb; // 0
