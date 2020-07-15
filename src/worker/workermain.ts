@@ -2066,7 +2066,7 @@ function assembleNESASM(step:BuildStep) {
     asym = FS.readFile(sympath, {'encoding':'utf8'});
   } catch (e) {
     console.log(e);
-    errors.push({line:0,msg:"No symbol table generated, maybe segment overflow?"});
+    errors.push({line:0,msg:"No symbol table generated, maybe missing ENDM or segment overflow?"});
     return {errors:errors}
   }
   putWorkFile(binpath, aout);

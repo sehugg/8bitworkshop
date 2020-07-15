@@ -4,7 +4,7 @@ import { Bus, BasicScanlineMachine, xorshift32, SavesState } from "../common/dev
 import { KeyFlags } from "../common/emu"; // TODO
 import { hex, lzgmini, stringToByteArray, RGBA, printFlags } from "../common/util";
 
-const cpuFrequency = 1023000;
+const cpuFrequency = 1022727;
 const cpuCyclesPerLine = 65; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
 const cpuCyclesPerFrame = 65*262;
 
