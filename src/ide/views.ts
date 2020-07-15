@@ -1099,9 +1099,19 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
     x = x|0;
     y = y|0;
     var s = "";
+    var lastroutine = null;
+    var lastcol = -1;
     this.redraw( (op,addr,col,row,clk,value) => {
-      if (y == row && x == col) {
-         s += "\n" + this.opToString(op, addr, value);
+      if (op == ProbeFlags.EXECUTE) {
+        lastroutine = this.addr2symbol(addr) || lastroutine;
+      }
+      if (row == y && col <= x) {
+        if (col != lastcol) {
+          s = "";
+          lastcol = col;
+        }
+        if (s == "" && lastroutine) { s += "\n" + lastroutine; }
+        s += "\n" + this.opToString(op, addr, value);
       }
     } );
     return 'X: ' + x + '  Y: ' + y + ' ' + s;
@@ -1147,20 +1157,23 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
   
   getTooltipText(x:number, y:number) : string {
     var a = (x & 0xff) + (y << 8);
-    var s = this.addr2str(a);
+    var s = "";
     var pc = -1;
     var already = {};
+    var lastroutine = null;
     this.redraw( (op,addr,col,row,clk,value) => {
       if (op == ProbeFlags.EXECUTE) {
         pc = addr;
+        lastroutine = this.addr2symbol(addr) || lastroutine;
       }
       var key = op|pc;
       if (addr == a && !already[key]) {
-         s += "\nPC " + this.addr2str(pc) + " " + this.opToString(op, null, value);
-         already[key] = 1;
+        if (s == "" && lastroutine) { s += "\n" + lastroutine; }
+        s += "\nPC " + this.addr2str(pc) + " " + this.opToString(op, null, value);
+        already[key] = 1;
       }
     } );
-    return s;
+    return this.addr2str(a) + s;
   }
 }
 
