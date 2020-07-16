@@ -4,10 +4,6 @@ import { Bus, BasicScanlineMachine, xorshift32, SavesState } from "../common/dev
 import { KeyFlags } from "../common/emu"; // TODO
 import { hex, lzgmini, stringToByteArray, RGBA, printFlags } from "../common/util";
 
-const cpuFrequency = 1022727;
-const cpuCyclesPerLine = 65; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
-const cpuCyclesPerFrame = 65*262;
-
 // TODO: read prodos/ca65 header?
 const VM_BASE = 0x803; // where to JMP after pr#6
 const LOAD_BASE = VM_BASE;
@@ -39,10 +35,11 @@ interface SlotDevice extends Bus {
 
 export class AppleII extends BasicScanlineMachine {
 
-  cpuFrequency = 1023000;
+   // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
+  cpuFrequency = 1022727;
   sampleRate = this.cpuFrequency;
-  cpuCyclesPerLine = 65; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
-  cpuCyclesPerFrame = 65*262;
+  cpuCyclesPerLine = 912/14; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
+  cpuCyclesPerFrame = this.cpuCyclesPerLine * 262;
   canvasWidth = 280;
   numVisibleScanlines = 192;
   numTotalScanlines = 262;

@@ -482,10 +482,12 @@ export var SampleAudio = function(clockfreq) {
   this.feedSample = function(value, count) {
     accum += value * count;
     sfrac += sinc * count;
-    if (sfrac > 1) {
+    if (sfrac >= 1) {
       accum /= sfrac;
-      this.addSingleSample(accum * sinc);
-      sfrac -= Math.floor(sfrac);
+      while (sfrac >= 1) {
+        this.addSingleSample(accum * sinc);
+        sfrac -= 1;
+      }
       accum *= sfrac;
     }
   }
