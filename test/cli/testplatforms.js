@@ -13,7 +13,7 @@ global.window = dom.window;
 global.document = dom.window.document;
 dom.window.Audio = null;
 global.Image = function() { }
-global['$'] = require("jquery/jquery-3.4.1.min.js");
+global['$'] = require("jquery/jquery.min.js");
 includeInThisContext('src/common/cpu/6809.js');
 includeInThisContext("javatari.js/release/javatari/javatari.js");
 Javatari.AUTO_START = false;
@@ -198,10 +198,11 @@ async function testPlatform(platid, romname, maxframes, callback) {
       var lastclk = 0;
       for (var i=0; i<5; i++) {
         platform.nextFrame(true);
-        console.log(proberec.idx, proberec.fclk - lastclk, proberec.sl);
-        lastclk = proberec.fclk;
+        var clks = proberec.countClocks();
+        console.log(proberec.idx, clks - lastclk, proberec.sl);
+        lastclk = clks;
       }
-      assert.equal(proberec.fclk, proberec.countClocks());
+      assert.equal(clks, proberec.countClocks());
     }
     // debug tree
     if (platform.getDebugTree) {

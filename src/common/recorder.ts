@@ -178,7 +178,6 @@ export class ProbeRecorder implements ProbeAll {
   m : Probeable;      // machine to probe
   buf : Uint32Array;  // buffer
   idx : number = 0;   // index into buffer
-  fclk : number = 0;  // clock cycle
   sl : number = 0;    // scanline
   cur_sp = -1;        // last stack pointer
   singleFrame : boolean = true; // clear between frames
@@ -196,7 +195,6 @@ export class ProbeRecorder implements ProbeAll {
   reset(newbuflen? : number) {
     if (newbuflen) this.buf = new Uint32Array(newbuflen);
     this.sl = 0;
-    this.fclk = 0;
     this.cur_sp = -1;
     this.clear();
   }
@@ -226,10 +224,16 @@ export class ProbeRecorder implements ProbeAll {
     else
       return -1;
   }
+  addLogBuffer(src: Uint32Array) {
+    if (this.idx + src.length > this.buf.length) {
+      src = src.slice(0, this.buf.length - this.idx);
+    }
+    this.buf.set(src, this.idx);
+    this.idx += src.length;
+}
   logClocks(clocks:number) {
     clocks |= 0;
     if (clocks > 0) {
-      this.fclk += clocks;
       if (this.lastOp() == ProbeFlags.CLOCKS)
         this.relog((this.lastAddr() + clocks) | ProbeFlags.CLOCKS); // coalesce clocks
       else

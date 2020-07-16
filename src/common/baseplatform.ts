@@ -1355,8 +1355,7 @@ export abstract class BaseWASMMachine {
       // TODO: more efficient way to put into probe
       var databuf = new Uint32Array(this.exports.memory.buffer, dataaddr, datalen);
       this.probe.logNewFrame(); // TODO: machine should do this
-      for (var i=0; i<datalen; i++)
-        this.probe.logData(databuf[i]);
+      this.probe.addLogBuffer(databuf);
     }
   }
   connectProbe(probe: ProbeAll): void {
