@@ -27,9 +27,11 @@ make tsweb
 npm test
 ```
 
+Note: Github tests may fail due to lack of permissions.
+
 ## License
 
-Copyright © 2019 [Steven Hugg](https://github.com/sehugg).
+Copyright © 2016-2020 [Steven Hugg](https://github.com/sehugg).
 
 This project is [GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE) licensed.
 

@@ -805,7 +805,7 @@ function _downloadCassetteFile(e) {
       var blob = new Blob([audout], {type: "audio/wav"});
       saveAs(blob, audpath);
       stdout += "Then connect your audio output to the cassette input, turn up the volume, and play the audio file.";
-      alertInfo(stdout);
+      alertInfo('<pre style="white-space: pre-wrap">'+stdout+'</pre>');
     }
   });
 }
@@ -1926,7 +1926,15 @@ async function startPlatform() {
   updateSelector();
   addPageFocusHandlers();
   showInstructions();
+  updateBooksMenu();
   revealTopBar();
+}
+
+function updateBooksMenu() {
+  if (getRootBasePlatform(platform_id) == 'nes') $(".book-nes").addClass("book-active");
+  else if (getRootBasePlatform(platform_id) == 'vcs') $(".book-vcs").addClass("book-active");
+  else if (getRootBasePlatform(platform_id) == 'verilog') $(".book-verilog").addClass("book-active");
+  else if (platform.getToolForFilename(getCurrentMainFilename()) == 'sdcc') $(".book-arcade").addClass("book-active");
 }
 
 function revealTopBar() {
