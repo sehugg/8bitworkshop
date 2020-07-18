@@ -262,7 +262,7 @@ void readline(char *instr) {
           printf("Exceeded Max Line Length\n");
         }
         c=getchar();
-    } 
+    }
     instr[slen]='\0';
 }
 
@@ -278,7 +278,7 @@ void main()
   char inputstr[MAXLINELEN];
   int x,s;
   char *location;
-
+  
   // use the first reply for each keyword match the first time you see that keyword
   for (x=0;x<NUMKEYWORDS; x++) {
     whichReply[x] = 0;

@@ -1076,8 +1076,8 @@ async function loadBIOSFromProject() {
     var biospath = platform_id + '.rom';
     var biosdata = await store.getItem(biospath);
     if (biosdata instanceof Uint8Array) {
-      console.log('loading BIOS')
-      platform.loadBIOS('BIOS', biosdata);
+      console.log('loading BIOS', biospath, biosdata.length + " bytes")
+      platform.loadBIOS(biospath, biosdata);
     } else {
       console.log('BIOS file must be binary')
     }

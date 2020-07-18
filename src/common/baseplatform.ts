@@ -970,7 +970,7 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
 
 /// new Machine platform adapters
 
-import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition, CPU } from "./devices";
+import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsBIOS, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition, CPU } from "./devices";
 import { Probeable, RasterFrameBased, AcceptsPaddleInput, SampledAudioSink, ProbeAll, NullProbe } from "./devices";
 import { SampledAudio } from "./audio";
 import { ProbeRecorder } from "./recorder";
@@ -995,6 +995,9 @@ function isRaster(arg:any): arg is RasterFrameBased {
 }
 function hasProbe(arg:any): arg is Probeable {
     return typeof arg.connectProbe == 'function';
+}
+function hasBIOS(arg:any): arg is AcceptsBIOS {
+  return typeof arg.loadBIOS == 'function';
 }
 
 export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPlatform implements Platform {
@@ -1064,6 +1067,11 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
         m.connectProbe(null);
       };
     }
+    if (hasBIOS(m)) {
+      this.loadBIOS = (title, data) => {
+        m.loadBIOS(data, title);
+      };
+    }
   }
   
   loadROM(title, data) {
@@ -1071,11 +1079,17 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     this.reset();
   }
 
+  loadBIOS; // only set if hasBIOS() is true
+
   pollControls() {
     this.poller && this.poller.poll();
     if (hasPaddleInput(this.machine)) {
       this.machine.setPaddleInput(0, this.video.paddle_x);
       this.machine.setPaddleInput(1, this.video.paddle_y);
+    }
+    // TODO: put into interface
+    if (this.machine['pollControls']) {
+      this.machine['pollControls']();
     }
   }
 
@@ -1209,6 +1223,8 @@ export abstract class BaseWASMMachine {
   romptr : number;
   romlen : number;
   romarr : Uint8Array;
+  biosptr : number;
+  biosarr : Uint8Array;
   audio : SampledAudioSink;
   audioarr : Float32Array;
   probe : ProbeAll;
@@ -1246,12 +1262,11 @@ export abstract class BaseWASMMachine {
     // fetch BIOS
     var biosResponse = await fetch('res/'+this.prefix+'.bios');
     var biosBinary = await biosResponse.arrayBuffer();
-    const cBIOSPointer = this.exports.malloc(0x5000);
-    const srcArray = new Uint8Array(biosBinary);
-    const destArray = new Uint8Array(this.exports.memory.buffer, cBIOSPointer, 0x5000);
-    destArray.set(srcArray);
+    this.biosptr = this.exports.malloc(biosBinary.byteLength);
+    this.biosarr = new Uint8Array(this.exports.memory.buffer, this.biosptr, biosBinary.byteLength);
+    this.loadBIOS(new Uint8Array(biosBinary));
     // init machine instance
-    this.sys = this.exports.machine_init(cBIOSPointer);
+    this.sys = this.exports.machine_init(this.biosptr);
     console.log('machine_init', this.sys);
     // create state buffers
     var statesize = this.exports.machine_get_state_size();
@@ -1287,9 +1302,18 @@ export abstract class BaseWASMMachine {
     this.romlen = rom.length;
     this.reset();
   }
+  // TODO: can't load after machine_init
+  loadBIOS(srcArray: Uint8Array) {
+    this.biosarr.set(srcArray);
+  }
   reset() {
     this.exports.machine_reset(this.sys);
   }
+  /* TODO: we don't need this because c64_exec does this?
+  pollControls() {
+    this.exports.machine_start_frame(this.sys);
+  }
+  */
   read(address: number) : number {
     return this.exports.machine_mem_read(this.sys, address & 0xffff);
   }

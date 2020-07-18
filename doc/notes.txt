@@ -178,7 +178,8 @@ TODO:
 - C64
   - disk image support
   - https://github.com/cc65/cc65/issues/946
-  - need to sync advanceFrame() w/ vsync
+  - player 2 joystick and keyboard conflict
+  - problems with cgetc()
 
 - upgrade to ES2020?
   - https://github.com/microsoft/TypeScript/issues/16577
@@ -386,6 +387,7 @@ Emulator Lib
 - MAME
   - debugging?
   - kbd instructions don't work
+  
 
 Markdown (showdown) interface
 - add code patches to files

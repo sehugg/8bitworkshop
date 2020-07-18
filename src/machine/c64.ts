@@ -24,8 +24,17 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
   joymask0 = 0;
   joymask1 = 0;
 
+  loadBIOS(srcArray: Uint8Array) {
+    var patch1ofs = 0xea24 - 0xe000 + 0x3000;
+    /*if (srcArray[patch1ofs] == 0x02)*/ srcArray[patch1ofs] = 0x60; // cursor move, KIL -> RTS
+    super.loadBIOS(srcArray);
+  }
   reset() {
     super.reset();
+    // clear keyboard
+    for (var ch=0; ch<128; ch++) {
+      this.setKeyInput(ch, 0, KeyFlags.KeyUp);
+    }
     // load rom
     if (this.romptr && this.romlen) {
       this.exports.machine_load_rom(this.sys, this.romptr, this.romlen);
@@ -35,38 +44,36 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
         this.prgstart = this.romarr[2] + (this.romarr[3]<<8) + 2; // point to after BASIC program
         console.log("prgstart", hex(this.prgstart));
       }
-    }
-    // clear keyboard
-    for (var ch=0; ch<128; ch++) {
-      this.setKeyInput(ch, 0, KeyFlags.KeyUp);
-    }
-    // is program loaded into RAM?
-    if (this.prgstart < 0x8000) {
-      // advance BIOS a few frames
-      this.exports.machine_exec(this.sys, 150000);
-      // set IRQ routine @ 0x314
-      var old0x314 = this.read(0x314) + this.read(0x315) * 256;
-      this.write(0x314, this.prgstart & 0xff);
-      this.write(0x315, (this.prgstart >> 8) & 0xff);
-      // wait until IRQ fires
-      for (var i=0; i<50000 && this.getPC() != this.prgstart; i++) {
-        this.exports.machine_tick(this.sys);
+      // is program loaded into RAM?
+      if (this.prgstart < 0x8000) {
+        // advance BIOS a few frames
+        this.exports.machine_exec(this.sys, 250000);
+        // type in command (SYS 2061)
+        var cmd = "SYS "+this.prgstart+"\r";
+        for (var i=0; i<cmd.length; i++) {
+          var key = cmd.charCodeAt(i);
+          this.exports.machine_exec(this.sys, 10000);
+          this.exports.machine_key_down(this.sys, key);
+          this.exports.machine_exec(this.sys, 10000);
+          this.exports.machine_key_up(this.sys, key);
+        }
+        // advance clock until program starts
+        for (var i=0; i<100000 && this.getPC() != this.prgstart; i++) {
+          this.exports.machine_tick(this.sys);
+        }
+      } else {
+        // get out of reset
+        this.exports.machine_exec(this.sys, 100);
+        // wait until cartridge start
+        // TODO: detect ROM cartridge
+        var warmstart = this.romarr[0x4] + this.romarr[0x5]*256;
+        for (var i=0; i<150000 && this.getPC() != warmstart; i++) {
+          this.exports.machine_tick(this.sys);
+        }
       }
-      // reset 0x314 to old value
-      this.write(0x314, old0x314 & 0xff);
-      this.write(0x315, old0x314 >> 8);
-    } else {
-      // get out of reset
-      this.exports.machine_exec(this.sys, 100);
-      // wait until cartridge start
-      // TODO: detect ROM cartridge
-      var warmstart = this.romarr[0x4] + this.romarr[0x5]*256;
-      for (var i=0; i<150000 && this.getPC() != warmstart; i++) {
-        this.exports.machine_tick(this.sys);
-      }
+      // TODO: shouldn't we return here @ start of frame?
+      // and stop probing
     }
-    // TODO: shouldn't we return here @ start of frame?
-    // and stop probing
   }
   advanceFrame(trap: TrapCondition) : number {
     // TODO: does this sync with VSYNC?
@@ -129,11 +136,13 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
     if (key == 39) { key = 0x9; mask = 0x8; } // RIGHT
     if (key == 40) { key = 0xa; mask = 0x2; } // DOWN
     if (key == 32) { mask = 0x10; } // FIRE
+    /* player 2 (TODO)
     if (key == 65) { key = 65; mask2 = 0x4; } // LEFT
     if (key == 87) { key = 87; mask2 = 0x1; } // UP
     if (key == 68) { key = 68; mask2 = 0x8; } // RIGHT
     if (key == 83) { key = 83; mask2 = 0x2; } // DOWN
     if (key == 69) { mask2 = 0x10; } // FIRE
+    */
     if (key == 113) { key = 0xf1; } // F2
     if (key == 115) { key = 0xf3; } // F4
     if (key == 119) { key = 0xf5; } // F8

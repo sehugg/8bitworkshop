@@ -63,6 +63,10 @@ export interface AcceptsROM {
     loadROM(data:Uint8Array, title?:string) : void;
 }
 
+export interface AcceptsBIOS {
+  loadBIOS(data:Uint8Array, title?:string) : void;
+}
+
 export interface Resettable {
     reset() : void;
 }
