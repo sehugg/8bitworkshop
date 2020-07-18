@@ -325,6 +325,12 @@ export abstract class BaseDebugPlatform extends BasePlatform {
       }
     });
   }
+  runToPC(pc: number) {
+    this.debugTargetClock++;
+    this.runEval((c) => {
+      return c.PC == pc;
+    });
+  }
   runUntilReturn() {
     var SP0 = this.getSP();
     this.runEval( (c:CpuState) : boolean => {

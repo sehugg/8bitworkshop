@@ -13,7 +13,6 @@ TODO:
 - asm: support macro expansion
 - multiple breakpoints, expression breakpoints
 - watchpoints
-- MAME single step (?)
 - step over (line, instruction)
 - slowdown beam for all platforms?
 - show errors in list (maybe window list?)
@@ -384,6 +383,9 @@ Emulator Lib
   - VCS
   - NES
   - MAME
+- MAME
+  - debugging?
+  - kbd instructions don't work
 
 Markdown (showdown) interface
 - add code patches to files
