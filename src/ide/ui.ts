@@ -88,7 +88,10 @@ function gaEvent(category:string, action:string, label?:string, value?:string) {
 function alertError(s:string) {
   gaEvent('error', platform_id||'error', s);
   setWaitDialog(false);
-  bootbox.alert(s);
+  bootbox.alert({
+    title: '<span class="glyphicon glyphicon-alert" aria-hidden="true"></span> Alert',
+    message: s
+  });
 }
 function alertInfo(s:string) {
   setWaitDialog(false);
@@ -129,11 +132,11 @@ function requestPersistPermission(interactive: boolean, failureonly: boolean) {
       if (persistent) {
         interactive && !failureonly && alertInfo("Your browser says it will persist your local file edits, but you may want to back up your work anyway.");
       } else {
-        interactive && alertInfo("Your browser refused to expand the peristent storage quota. Your edits may not be preserved after closing the page.");
+        interactive && alertError("Your browser refused to expand the peristent storage quota. Your edits may not be preserved after closing the page.");
       }
     });
   } else {
-    interactive && alertInfo("Your browser doesn't support expanding the persistent storage quota. Your edits may not be preserved after closing the page.");
+    interactive && alertError("Your browser doesn't support expanding the persistent storage quota. Your edits may not be preserved after closing the page.");
   }
 }
 

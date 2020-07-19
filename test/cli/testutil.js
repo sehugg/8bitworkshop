@@ -121,5 +121,10 @@ describe('string functions', function() {
     assert.ok(util.isProbablyBinary('test.chr'));
     assert.ok(!util.isProbablyBinary('test.txt'));
     assert.ok(util.isProbablyBinary('test.dat'));
+    assert.ok(!util.isProbablyBinary(null, [0x20,0xa9,0x20,0x31,0x39,0x38,0x32]));
+    assert.ok(util.isProbablyBinary(null, [0x00,0x00])); // 00 is binary
+    assert.ok(util.isProbablyBinary(null, [0x9f])); // 9f is binary
+    assert.ok(util.isProbablyBinary(null, [0xff])); // FF is binary
+    assert.ok(util.isProbablyBinary(null, [0xf0,0x12])); // ran out of data
   });
 });

@@ -339,12 +339,10 @@ export function isProbablyBinary(path:string, data?:number[] | Uint8Array) : boo
       if ((c & 0xe0) == 0xc0) nextra = 1;
       else if ((c & 0xf0) == 0xe0) nextra = 2;
       else if ((c & 0xf8) == 0xf0) nextra = 3;
-      else {
-        score++;
-        break;
-      }
+      else if (c < 0xa0) score++;
+      else if (c == 0xff) score++;
       while (nextra--) {
-        if ((data[i++] & 0xc0) != 0x80) {
+        if (i >= data.length || (data[i++] & 0xc0) != 0x80) {
           score++;
           break;
         }

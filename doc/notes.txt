@@ -155,6 +155,7 @@ TODO:
   - allow text/binary change
   - importing from subtree commits to root anyway
   - publishing Markdown file loads default file? 
+  - better text/binary detection (e.g. 0xa9 copyright)
 - keyboard shortcuts
   - ctrl+alt+l on ubuntu locks screen
   - alt-D doesn't work anymore
