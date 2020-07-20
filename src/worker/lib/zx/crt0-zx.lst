@@ -1,0 +1,75 @@
+ASxxxx Assembler V02.00 + NoICE + SDCC mods  (Zilog Z80 / Hitachi HD64180), page 1.
+Hexadecimal [16-Bits]
+
+
+
+                              1 ; crt0.s for ZX Spectrum
+                              2 
+                              3 	.module crt0
+                              4 	.globl _main
+                              5 	.globl ___sdcc_call_hl
+                              6 
+                              7 	; Ordering of segments for the linker - copied from sdcc crt0.s
+                              8 	.area	_CODE
+                              9 	.area	_INITIALIZER
+                             10 	.area	_HOME
+                             11 	.area	_GSINIT
+                             12 	.area	_GSFINAL
+                             13 	.area	_DATA
+                             14 	.area	_INITIALIZED
+                             15 	.area	_BSEG
+                             16 	.area	_BSS
+                             17 	.area	_HEAP
+                             18 
+                             19 	.area	_CODE
+                             20 
+   0000                      21 _Start:
+   0000 F3            [ 4]   22 	di
+   0001 ED 56         [ 8]   23 	im	1
+                             24 	; stack pointer already set by BIOS
+   0003 CD 00 00      [17]   25 	call gsinit			; Initialize global and static variables.
+   0006 CD 00 00      [17]   26 	call _main
+   0009 C7            [11]   27 	rst 0x0				; Restart when main() returns.
+                             28 
+                             29 	.area   _GSINIT
+   0000                      30 gsinit::
+                             31 
+                             32 	; Implicitly zeroed global and static variables.
+   0000 01 00 00      [10]   33 	ld	bc, #l__DATA
+   0003 78            [ 4]   34 	ld	a, b
+   0004 B1            [ 4]   35 	or	a, c
+   0005 28 0F         [12]   36 	jr	Z, zeroed_data
+   0007 21 00 00      [10]   37 	ld	hl,	#s__DATA
+   000A 36 00         [10]   38 	ld	(hl), #0x00
+   000C 0B            [ 6]   39 	dec	bc
+   000D 78            [ 4]   40 	ld	a, b
+   000E B1            [ 4]   41 	or	a, c
+   000F 28 05         [12]   42 	jr	Z, zeroed_data
+   0011 5D            [ 4]   43 	ld	e, l
+   0012 54            [ 4]   44 	ld	d, h
+   0013 13            [ 6]   45 	inc	de
+   0014 ED B0         [21]   46 	ldir
+   0016                      47 zeroed_data:
+                             48 
+                             49 	; Explicitly initialized global variables.
+   0016 01 00 00      [10]   50 	ld	bc, #l__INITIALIZER
+   0019 78            [ 4]   51 	ld	a, b
+   001A B1            [ 4]   52 	or	a, c
+   001B 28 08         [12]   53 	jr	Z, gsinit_static
+   001D 11 00 00      [10]   54 	ld	de, #s__INITIALIZED
+   0020 21 00 00      [10]   55 	ld	hl, #s__INITIALIZER
+ASxxxx Assembler V02.00 + NoICE + SDCC mods  (Zilog Z80 / Hitachi HD64180), page 2.
+Hexadecimal [16-Bits]
+
+
+
+   0023 ED B0         [21]   56 	ldir
+                             57 
+   0025                      58 gsinit_static:
+                             59 	; Explicitly initialized static variables inserted by compiler here.
+                             60 
+                             61 	.area   _GSFINAL
+   0000 C9            [10]   62 	ret
+                             63 
+                             64 	.area _HOME
+                             65 

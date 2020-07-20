@@ -9,23 +9,6 @@
 #include "bios.h"
 //#link "bios.c"
 
-void main(void);
-
-void startup(void) __naked {
-  __asm
-; copy initialized data
-    LD    BC, #l__INITIALIZER
-    LD    A, B
-    LD    DE, #s__INITIALIZED
-    LD    HL, #s__INITIALIZER
-    LDIR
-; disable interrupts
-    DI
-; start main routine
-    jp    _main
-  __endasm;
-}
-
 // type aliases for byte/signed byte/unsigned 16-bit
 typedef unsigned char byte;
 typedef signed char sbyte;

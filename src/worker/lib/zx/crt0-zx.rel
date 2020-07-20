@@ -1,0 +1,42 @@
+XL2
+H A areas 9 global symbols
+M crt0
+S l__DATA Ref0000
+S _main Ref0000
+S s__DATA Ref0000
+S .__.ABS. Def0000
+S s__INITIALIZED Ref0000
+S ___sdcc_call_hl Ref0000
+S l__INITIALIZER Ref0000
+S s__INITIALIZER Ref0000
+A _CODE size A flags 0 addr 0
+A _INITIALIZER size 0 flags 0 addr 0
+A _HOME size 0 flags 0 addr 0
+A _GSINIT size 25 flags 0 addr 0
+S gsinit Def0000
+A _GSFINAL size 1 flags 0 addr 0
+A _DATA size 0 flags 0 addr 0
+A _INITIALIZED size 0 flags 0 addr 0
+A _BSEG size 0 flags 0 addr 0
+A _BSS size 0 flags 0 addr 0
+A _HEAP size 0 flags 0 addr 0
+T 00 00
+R 00 00 00 00
+T 00 00 F3 ED 56 CD 00 00 CD 00 00 C7
+R 00 00 00 00 00 06 03 00 02 09 01 00
+T 00 00
+R 00 00 03 00
+T 00 00 01 00 00 78 B1 28 0F 21 00 00 36 00 0B 78
+R 00 00 03 00 02 03 00 00 02 0A 02 00
+T 0E 00 B1 28 05 5D 54 13 ED B0
+R 00 00 03 00
+T 16 00
+R 00 00 03 00
+T 16 00 01 00 00 78 B1 28 08 11 00 00 21 00 00 ED
+R 00 00 03 00 02 03 06 00 02 0A 04 00 02 0D 07 00
+T 24 00 B0
+R 00 00 03 00
+T 25 00
+R 00 00 03 00
+T 00 00 C9
+R 00 00 04 00

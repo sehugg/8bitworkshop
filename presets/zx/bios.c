@@ -2,18 +2,6 @@
 #include <stdio.h>
 #include "bios.h"
 
-#ifdef __MAIN__
-
-void main(void);
-
-void startup(void) __naked {
-  __asm
-    jp _main
-  __endasm;
-}
-
-#endif
-
 // http://www.users.globalnet.co.uk/~jg27paw4/pourri/rom-routines.txt
 
 void init_stdio(void) {
