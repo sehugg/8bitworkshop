@@ -10,6 +10,8 @@ declare var jt; // for 6502
 var Atari8_PRESETS = [
   {id:'hello.a', name:'Hello World (ASM)'},
   {id:'hellopm.a', name:'Hello Sprites (ASM)'},
+  {id:'helloconio.c', name:'Text Mode (C)'},
+  {id:'siegegame.c', name:'Siege Game (C)'},
 ];
 
 const ATARI8_KEYCODE_MAP = makeKeycodeMap([

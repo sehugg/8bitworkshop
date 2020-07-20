@@ -8,3 +8,6 @@ void init_stdio(void);
 int putchar(int ch);
 void beep(int divisor, int duration);
 int keyscan(void);
+void waitkey(int frames);
+void setpixel(unsigned char x, unsigned char y);
+

@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include "bios.h"
 
 #ifdef __MAIN__
 
@@ -50,11 +51,34 @@ int keyscan(void) {
   __endasm;
 }
 
+void waitkey(int frames) {
+  frames;
+  __asm
+    ld	c,4 (ix)
+    ld	b,5 (ix)
+    call 0x1f3d
+  __endasm;
+}
+
+void setpixel(unsigned char x, unsigned char y) {
+  x;
+  y;
+  __asm
+    ld	c,4 (ix)
+    ld	b,5 (ix)
+    call 0x22e5
+  __endasm;
+}
+
 #ifdef __MAIN__
 
 void main() {
   init_stdio();
   printf("HELLO WORLD!\r");
+  waitkey(50);
+  printf("Wait...\r");
+  waitkey(50);
+  printf("Done!\r");
   beep(1000,20);
   beep(750,20);
   beep(500,20);

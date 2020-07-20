@@ -22,5 +22,5 @@ mkdir -p $TMPDIR
 git archive $VERSION | tar x -C $TMPDIR
 echo "Copying to $DESTPATH..."
 rsync --stats --exclude '.*' --exclude 'scripts/*' --exclude=node_modules --copy-dest=$DEVPATH -rilz --chmod=a+rx -e "ssh" $TMPDIR/ $SUBMODS $DESTPATH
-rsync --stats -rpilvz --chmod=a+rx -e "ssh" --copy-dest=$DEVPATH ./gen config.js $DESTPATH/
+rsync --stats -rilvz --chmod=a+rx -e "ssh" --copy-dest=$DEVPATH ./gen config.js $DESTPATH/
 echo "Done."

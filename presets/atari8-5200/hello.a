@@ -122,7 +122,7 @@ dlist   .byte	$70,$70,$70
 
         ;Text data
          org    $b100
-text1   .byte   "Howdy Bagel! "
+text1   .byte   "Hello World! "
 	.byte	$a1,$a2,$a3
 	.byte	0
 
