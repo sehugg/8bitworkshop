@@ -36,7 +36,7 @@ const byte char_table[8][8] = {
 };
 
 const byte static_sprite_table[2][16*2] = {
-  /*{w:16,h:16,brev:1,remap:[4,0,1,2,3,5,6,7,8,9],count:4}*/ 
+  /*{w:16,h:16,brev:1,remap:[4,0,1,2,3,5,6,7,8,9],count:2}*/ 
   {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x02, 0x3F,
   0x35, 0x2A, 0x20, 0x20, 0x20, 0x20, 0x20, 0x3F,
