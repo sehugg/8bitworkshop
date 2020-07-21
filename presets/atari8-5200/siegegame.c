@@ -1,3 +1,7 @@
+/*
+Text-based version of a Blockade-style game.
+For more information, see "Making Arcade Games in C".
+*/
 
 #include <stdlib.h>
 #include <string.h>

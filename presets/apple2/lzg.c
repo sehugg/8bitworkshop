@@ -1,3 +1,7 @@
+/*
+LZG decompression library.
+See lzh.h and https://liblzg.bitsnbites.eu/
+*/
 
 #include <string.h>
 

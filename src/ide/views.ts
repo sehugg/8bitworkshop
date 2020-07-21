@@ -97,6 +97,7 @@ export class SourceEditor implements ProjectView {
     this.newEditor(div, asmOverride);
     if (text) {
       this.setText(text); // TODO: this calls setCode() and builds... it shouldn't
+      this.editor.setSelection({line:0,ch:0}, {line:0,ch:0}, {scroll:true});
     }
     this.setupEditor();
     return div;

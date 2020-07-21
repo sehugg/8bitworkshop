@@ -1,6 +1,5 @@
-
 /*
-Demonstration game.
+Text-based version of a Blockade-style game.
 For more information, see "Making Arcade Games in C".
 */
 

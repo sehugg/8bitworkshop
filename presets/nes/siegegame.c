@@ -2,7 +2,9 @@
 A character-based surround-the-opponent game.
 Reads from nametable RAM to determine collisions, and also
 to help the AI avoid walls.
+For more information, see "Making Arcade Games in C".
 */
+
 #include <stdlib.h>
 #include <string.h>
 #include <nes.h>

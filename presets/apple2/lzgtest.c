@@ -1,3 +1,7 @@
+/*
+Test of the LZG decompression library
+with a hires graphics image.
+*/
 
 #include <stdlib.h>
 #include <stdio.h>
