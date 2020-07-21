@@ -12,6 +12,7 @@ var Atari8_PRESETS = [
   {id:'hellopm.a', name:'Hello Sprites (ASM)'},
   {id:'helloconio.c', name:'Text Mode (C)'},
   {id:'siegegame.c', name:'Siege Game (C)'},
+  {id:'hellodlist.c', name:'Display List (C)'},
 ];
 
 const ATARI8_KEYCODE_MAP = makeKeycodeMap([

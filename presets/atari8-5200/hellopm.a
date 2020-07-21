@@ -7,35 +7,11 @@
 
         processor 6502
 
-; ************ Hardware Adresses ***************************
-
-DMACTL  equ     $D400           ;DMA Control
-sDMACTL equ     $07             ;DMA Control Shadow
-PMBASE  equ     $D407           ;PM base address
-CHBASE  equ     $D409           ;Character set base
-GRACTL  equ     $C01D           ;Graphics control
-PRIOR   equ     $C01B           ;PM priorities
-SIZEP0  equ     $C001           ;Size of player 0
-HPOSP0  equ     $C000           ;Horizontal position player 0
-COLPM0  equ     $C012           ;Player 0 color
-DLISTL  equ     $D402           ;Display list lo
-DLISTH  equ     $D403           ;Display list hi
-sDLISTL equ     $05             ;Display list lo shadow
-sDLISTH equ     $06             ;Display list hi shadow
-CHACTL  equ     $D401           ;Character control
-NMIEN   equ     $D40E           ;NMI Enable
-sCOLPM0 equ      $08            ;Player/missile 0 color shadow
-sCOLPM1 equ      $09            ;Player/missile 0 color shadow
-sCOLPM2 equ      $0A            ;Player/missile 0 color shadow
-sCOLPM3 equ      $0B            ;Player/missile 0 color shadow
-sCOLOR0  equ     $0C             ;Color 0 shadow
-sCOLOR1  equ     $0D             ;Color 1 shadow
-sCOLOR2  equ     $0E             ;Color 2 shadow
-sCOLOR3  equ     $0F             ;Color 3 shadow
+	include "atari5200.inc"
 
 ;*************** Variable ***********************
-line equ  $20                   ;Current DLI line
-pm0pos equ $21                  ;Current pos of P0
+line	equ 	$20                  ;Current DLI line
+pm0pos	equ	$21                  ;Current pos of P0
 
 ;*************** Start of Code *******************
 
@@ -107,21 +83,21 @@ dlloop                          ;Copy display list to RAM
 ;************* Setup hardware registers *************
 
         lda     #$22            ;Set color PF0
-        sta     sCOLOR0
+        sta     COLOR0
         lda     #$0F            ;Set color PF1
-        sta     sCOLOR1
+        sta     COLOR1
         lda     #$84            ;Set color PF2
-        sta     sCOLOR2             
+        sta     COLOR2             
         lda     #$00            ;Set Display list pointer
-        sta     sDLISTL
+        sta     SDLSTL
         sta     DLISTL
         lda     #$10
-        sta     sDLISTH
+        sta     SDLSTH
         sta     DLISTH
         lda     #$f8            ;Set Charcter Set Base
         sta     CHBASE
         lda     #$22            ;Enable DMA
-        sta     sDMACTL
+        sta     SDMCTL
         lda     #$C0            ;Enable NMI + DLI
         sta     NMIEN
 
@@ -154,15 +130,15 @@ crloop5
 ;************* Setup Player/Missile registers ***************
 
         lda     #$3A           ;Enable DMA (single line resolution/
-        sta     sDMACTL        ;normal background)
+        sta     SDMCTL         ;normal background)
         lda     #$20           ;Set PM base address ($200)
         sta     PMBASE
         lda     #$03           ;Enable players and missiles
         sta     GRACTL
         lda     #$16           ;Color of player 0
-        sta     sCOLPM0
+        sta     PCOLR0
         ldy     #$00
-        lda     #$03           ;Size of player 0
+        lda     #$02           ;Size of player 0
         sta     SIZEP0
         lda     #$01           ;Give players priority over playfield
         sta     PRIOR
@@ -188,7 +164,7 @@ mvloop1
         stx     HPOSP0          ;Set position of player
         stx     pm0pos          ;Save position for DLI
         inx
-        cpx     #$B0            ;Check for end of move
+        cpx     #$C0            ;Check for end of move
         bne     mvloop1         ;If not keep moving right
         lda     #$04            ;Give playfield priority player
         sta     PRIOR
@@ -200,7 +176,7 @@ mvloop2
         stx     HPOSP0          ;Set position of player
         stx     pm0pos          ;Save position for DLI
         dex
-        cpx     #$40            ;Check for end of move
+        cpx     #$30            ;Check for end of move
         bne     mvloop2         ;If not keep moving left
         lda     #$01            ;Give player priority over playfield
         sta     PRIOR
@@ -236,8 +212,8 @@ done
         rti             ;Done
 
 ;************* Display list data ****************************
+; starts at $1000
 
-        org     $b000
 dlist   .byte     $70,$70,$70      ;24 blank scanlines
         .byte     $48,$00,$18      ;Mode 8 and Load memory scan $1800
         .byte     $88,$88,$88,$88,$88,$88,$88   ;23 more line of mode 8

@@ -6,7 +6,7 @@ echo Creating $PREFIX
 ln -fs . $PREFIX
 git-archive-all --prefix $PREFIX release/$PREFIX.zip
 zip -9r release/$PREFIX.zip $PREFIX/gen
-git archive --prefix 8bitworkshop- -o release/8bitworkshop-tools.zip HEAD tools
+#git archive --prefix 8bitworkshop- -o release/8bitworkshop-tools.zip HEAD tools
 
 # copy to remote
 . ./scripts/env.sh
