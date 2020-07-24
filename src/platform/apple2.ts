@@ -57,6 +57,7 @@ class Apple2MAMEPlatform extends BaseMAMEPlatform implements Platform {
 
 import { AppleII } from "../machine/apple2";
 import { Base6502MachinePlatform } from "../common/baseplatform";
+import { CodeAnalyzer_apple2 } from "../common/analysis";
 
 class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Platform {
 
@@ -82,7 +83,15 @@ class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Plat
     if (rom && rom.length == 35*16*256) return ".dsk"; // DSK image
     return ".bin";
   };
+  /*
+  newCodeAnalyzer() {
+    return new CodeAnalyzer_apple2(this);
+  }
+  getOriginPC() {
+    return 0x803; // TODO?
+  }
+  */
 }
 
-PLATFORMS['apple2.mame'] = Apple2MAMEPlatform;
+//PLATFORMS['apple2.mame'] = Apple2MAMEPlatform;
 PLATFORMS['apple2'] = NewApple2Platform;

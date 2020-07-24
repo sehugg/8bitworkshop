@@ -12,7 +12,7 @@ const HDR_SIZE = PGM_BASE - LOAD_BASE;
 
 interface AppleIIStateBase {
   ram : Uint8Array;
-  rnd,soundstate : number;
+  soundstate : number;
   auxRAMselected,writeinhibit : boolean;
   auxRAMbank : number;
 }
@@ -38,7 +38,7 @@ export class AppleII extends BasicScanlineMachine {
    // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
   cpuFrequency = 1022727;
   sampleRate = this.cpuFrequency;
-  cpuCyclesPerLine = 912/14; // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
+  cpuCyclesPerLine = 65;
   cpuCyclesPerFrame = this.cpuCyclesPerLine * 262;
   canvasWidth = 280;
   numVisibleScanlines = 192;
@@ -51,7 +51,6 @@ export class AppleII extends BasicScanlineMachine {
   grdirty = new Array(0xc000 >> 7);
   grparams = {dirty:this.grdirty, grswitch:GR_TXMODE, mem:this.ram};
   ap2disp;
-  rnd = 1;
   kbdlatch = 0;
   soundstate = 0;
   // language card switches
@@ -83,7 +82,7 @@ export class AppleII extends BasicScanlineMachine {
     readConst: (a) => {
        return 0;
     },
-    read: (a) => { return this.noise(); },
+    read: (a) => { return this.floatbus(); },
     write: (a,v) => { }
   };
 
@@ -101,7 +100,6 @@ export class AppleII extends BasicScanlineMachine {
     return {
       c: this.cpu.saveState(),
       ram: this.ram.slice(),
-      rnd: this.rnd,
       kbdlatch: this.kbdlatch,
       soundstate: this.soundstate,
       grswitch: this.grparams.grswitch,
@@ -115,7 +113,6 @@ export class AppleII extends BasicScanlineMachine {
   loadState(s:AppleIIState) {
     this.cpu.loadState(s.c);
     this.ram.set(s.ram);
-    this.rnd = s.rnd;
     this.kbdlatch = s.kbdlatch;
     this.soundstate = s.soundstate;
     this.grparams.grswitch = s.grswitch;
@@ -145,7 +142,6 @@ export class AppleII extends BasicScanlineMachine {
   }
   reset() {
     super.reset();
-    this.rnd = 1;
     this.auxRAMselected = false;
     this.auxRAMbank = 1;
     this.writeinhibit = true;
@@ -162,9 +158,6 @@ export class AppleII extends BasicScanlineMachine {
       this.cpu.advanceClock();
       if ((this.cpu.getPC()>>8) < 0xc6) break;
     }
-  }
-  noise() : number {
-    return (this.rnd = xorshift32(this.rnd)) & 0xff;
   }
    readConst(address: number): number {
       if (address < 0xc000) {
@@ -215,18 +208,18 @@ export class AppleII extends BasicScanlineMachine {
                case 1:
                case 2:
                case 3:
-                  return this.noise() & 0x7f;
+                  return this.floatbus() & 0x7f;
                 // joystick
                case 4:
                case 5:
-                  return this.noise() | 0x80;
+                  return this.floatbus() | 0x80;
                default:
-                  return this.noise();
+                  return this.floatbus();
             }
          case 7:
             // joy reset
             if (address == 0xc070)
-               return this.noise() | 0x80;
+               return this.floatbus() | 0x80;
          case 8:
             return this.doLanguageCardIO(address);
          case 9: case 10: case 11: case 12: case 13: case 14: case 15:
@@ -235,8 +228,8 @@ export class AppleII extends BasicScanlineMachine {
     } else if (address >= 0xc100 && address < 0xc800) {
       var slot = (address >> 8) & 7;
       return (this.slots[slot] && this.slots[slot].readROM(address & 0xff)) | 0;
- }
-    return this.noise();
+    }
+    return this.floatbus();
   }
   write(address:number, val:number) : void {
     address &= 0xffff;
@@ -255,6 +248,18 @@ export class AppleII extends BasicScanlineMachine {
       else
         this.ram[address + this.bank2wroffset] = val;
     }
+  }
+  // http://www.deater.net/weave/vmwprod/megademo/vapor_lock.html
+  // https://retrocomputing.stackexchange.com/questions/14012/what-is-dram-refresh-and-why-is-the-weird-apple-ii-video-memory-layout-affected
+  // http://www.apple-iigs.info/doc/fichiers/TheappleIIcircuitdescription1.pdf
+  // http://rich12345.tripod.com/aiivideo/softalk.html
+  // https://github.com/MiSTer-devel/Apple-II_MiSTer/blob/master/rtl/timing_generator.vhd
+  floatbus() : number {
+     var fcyc = this.frameCycles;
+     var yline = Math.floor(fcyc / 65);
+     var xcyc = Math.floor(fcyc % 65);
+     var addr = this.ap2disp.getAddressForScanline(yline);
+     return this.readConst(addr + xcyc);
   }
 
   connectVideo(pixels:Uint32Array) {
@@ -358,7 +363,7 @@ export class AppleII extends BasicScanlineMachine {
            break;
      }
      this.setupLanguageCardConstants();
-     return this.noise();
+     return this.floatbus();
   }
 
   setupLanguageCardConstants() {
@@ -456,8 +461,18 @@ var Apple2Display = function(pixels : Uint32Array, apple : AppleGRParams) {
      0x0250, 0x0650, 0x0a50, 0x0e50, 0x1250, 0x1650, 0x1a50, 0x1e50,
      0x02d0, 0x06d0, 0x0ad0, 0x0ed0, 0x12d0, 0x16d0, 0x1ad0, 0x1ed0,
      0x0350, 0x0750, 0x0b50, 0x0f50, 0x1350, 0x1750, 0x1b50, 0x1f50,
-     0x03d0, 0x07d0, 0x0bd0, 0x0fd0, 0x13d0, 0x17d0, 0x1bd0, 0x1fd0
-  ];
+     0x03d0, 0x07d0, 0x0bd0, 0x0fd0, 0x13d0, 0x17d0, 0x1bd0, 0x1fd0,
+     // just for floating bus, y >= 192
+     0x0078, 0x0478, 0x0878, 0x0c78, 0x1078, 0x1478, 0x1878, 0x1c78,
+     0x00f8, 0x04f8, 0x08f8, 0x0cf8, 0x10f8, 0x14f8, 0x18f8, 0x1cf8,
+     0x0178, 0x0578, 0x0978, 0x0d78, 0x1178, 0x1578, 0x1978, 0x1d78, 
+     0x01f8, 0x05f8, 0x09f8, 0x0df8, 0x11f8, 0x15f8, 0x19f8, 0x1df8, 
+     0x0278, 0x0678, 0x0a78, 0x0e78, 0x1278, 0x1678, 0x1a78, 0x1e78, 
+     0x02f8, 0x06f8, 0x0af8, 0x0ef8, 0x12f8, 0x16f8, 0x1af8, 0x1ef8, 
+     0x0378, 0x0778, 0x0b78, 0x0f78, 0x1378, 0x1778, 0x1b78, 0x1f78, 
+     0x03f8, 0x07f8, 0x0bf8, 0x0ff8, 0x13f8, 0x17f8, 0x1bf8, 0x1ff8, 
+     0x0000, 0x0400, 0x0800, 0x0c00, 0x1000, 0x1400,
+   ];
 
   var colors_lut;
 
@@ -581,6 +596,15 @@ var Apple2Display = function(pixels : Uint32Array, apple : AppleGRParams) {
         base += XSIZE;
      }
   }
+
+   this.getAddressForScanline = function(y:number) : number {
+      var base = hires_lut[y];
+      if ((apple.grswitch & GR_HIRES) && (y < 160 || !(apple.grswitch & GR_MIXMODE)))
+         base = base | ((apple.grswitch & GR_PAGE1) ? 0x4000 : 0x2000);
+      else
+         base = (base & 0x3ff) | ((apple.grswitch & GR_PAGE1) ? 0x800 : 0x400);
+      return base;
+   }
 
   function drawHiresLines(y, maxy)
   {
@@ -1084,7 +1108,7 @@ class DiskII extends DiskIIState implements SlotDevice, SavesState<DiskIIState> 
       if (this.track_data) {
          return (this.track_data[this.track_index] & 0xff);
       } else
-         return this.emu.noise() | 0x80;
+         return this.emu.floatbus() | 0x80;
    }
 
    write_latch(value: number) {
@@ -1189,7 +1213,7 @@ class DiskII extends DiskIIState implements SlotDevice, SavesState<DiskIIState> 
              */
             return this.write_protect ? 0x80 : 0x00;
       }
-      return this.emu.noise();
+      return this.emu.floatbus();
    }
 
 }

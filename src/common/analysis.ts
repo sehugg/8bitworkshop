@@ -133,6 +133,14 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
             meta.minCycles = meta.maxCycles = 0;
           }
           break;
+        // TODO: only Apple2 (vapor lock)
+        case 0xad:
+          if (lob == 0x61 && hib == 0xc0) { // LDA $C061
+            minclocks = 0;
+            maxclocks = 4; // uncertainty?
+            meta.minCycles = meta.maxCycles = 0;
+          }
+          break;
         case 0x20: // JSR
           this.traceInstructions(addr, minclocks, maxclocks, addr, constraints);
           var result = this.jsrresult[addr];
@@ -223,6 +231,15 @@ export class CodeAnalyzer_nes extends CodeAnalyzer6502 {
   constructor(platform : Platform) {
     super(platform);
     this.MAX_CLOCKS = 114; // 341 clocks for 3 scanlines
+    this.START_CLOCKS = 0;
+    this.WRAP_CLOCKS = true;
+  }
+}
+
+export class CodeAnalyzer_apple2 extends CodeAnalyzer6502 {
+  constructor(platform : Platform) {
+    super(platform);
+    this.MAX_CLOCKS = 65;
     this.START_CLOCKS = 0;
     this.WRAP_CLOCKS = true;
   }

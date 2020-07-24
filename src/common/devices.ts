@@ -314,26 +314,25 @@ export abstract class BasicScanlineMachine extends BasicMachine implements Raste
   
   advanceFrame(trap: TrapCondition) : number {
     this.preFrame();
-    var clock = 0;
     var endLineClock = 0;
     var steps = 0;
     this.probe.logNewFrame();
+    this.frameCycles = 0;
     for (var sl=0; sl<this.numTotalScanlines; sl++) {
       endLineClock += this.cpuCyclesPerLine; // could be fractional
       this.scanline = sl;
-      this.frameCycles = clock;
       this.startScanline();
-      while (clock < endLineClock) {
+      while (this.frameCycles < endLineClock) {
         if (trap && trap()) {
           sl = 999;
           break;
         }
-        clock += this.advanceCPU();
+        this.frameCycles += this.advanceCPU();
         steps++;
       }
       this.drawScanline();
       this.probe.logNewScanline();
-      this.probe.logClocks(Math.floor(clock-endLineClock)); //remainder
+      this.probe.logClocks(Math.floor(this.frameCycles - endLineClock)); // remainder of prev. line
     }
     this.postFrame();
     return steps; // TODO: return steps, not clock? for recorder
