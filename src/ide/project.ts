@@ -104,7 +104,8 @@ export class CodeProject {
         this.pushAllFiles(files, m[2]);
       }
       // for XASM only (USE include.ext)
-      let re4 = /^\s+(USE)\s+(\S+[.]\S+)/gm;
+      // for merlin32 (ASM include.ext)
+      let re4 = /^\s+(USE|ASM)\s+(\S+[.]\S+)/gm;
       while (m = re4.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }

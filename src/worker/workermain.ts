@@ -2515,6 +2515,104 @@ function compileInform6(step:BuildStep) {
   }
 }
 
+/*
+------+-------------------+-------------+----+---------+------+-----------------------+-------------------------------------------------------------------
+ Line | # File       Line | Line Type   | MX |  Reloc  | Size | Address   Object Code |  Source Code                                                      
+------+-------------------+-------------+----+---------+------+-----------------------+-------------------------------------------------------------------
+    1 |  1 zap.asm      1 | Unknown     | ?? |         |   -1 | 00/FFFF               |             broak                       
+    2 |  1 zap.asm      2 | Comment     | ?? |         |   -1 | 00/FFFF               | * SPACEGAME
+    
+      => [Error] Impossible to decode address mode for instruction 'BNE  KABOOM!' (line 315, file 'zap.asm') : The number of element in 'KABOOM!' is even (should be value [operator value [operator value]...]).
+      => [Error] Unknown line 'foo' in source file 'zap.asm' (line 315)
+          => Creating Object file 'pcs.bin'
+          => Creating Output file 'pcs.bin_S01__Output.txt'
+
+*/
+function assembleMerlin32(step:BuildStep) {
+  loadNative("merlin32");
+  var errors = [];
+  var lstfiles = [];
+  gatherFiles(step, {mainFilePath:"main.lnk"});
+  var objpath = step.prefix+".bin";
+  if (staleFiles(step, [objpath])) {
+    var args = [ '-v', step.path ];
+    var merlin32 = emglobal.merlin32({
+      instantiateWasm: moduleInstFn('merlin32'),
+      noInitialRun:true,
+      print:(s:string) => {
+        var m = /\s*=>\s*Creating Output file '(.+?)'/.exec(s);
+        if (m) {
+          lstfiles.push(m[1]);
+        }
+        var errpos = s.indexOf('Error');
+        if (errpos >= 0) {
+          s = s.slice(errpos+6).trim();
+          var mline = /\bline (\d+)\b/.exec(s);
+          var mpath = /\bfile '(.+?)'/.exec(s);
+          errors.push({
+            line:parseInt(mline[1]) || 0,
+            msg:s,
+            path:mpath[1] || step.path,
+          });
+        }
+      },
+      printErr:print_fn,
+    });
+    var FS = merlin32['FS'];
+    populateFiles(step, FS);
+    execMain(step, merlin32, args);
+    if (errors.length)
+      return {errors:errors};
+
+    var errout = null;
+    try {
+      errout = FS.readFile("error_output.txt", {encoding:'utf8'});
+    } catch (e) {
+      //
+    }
+
+    var objout = FS.readFile(objpath, {encoding:'binary'});
+    putWorkFile(objpath, objout);
+    if (!anyTargetChanged(step, [objpath]))
+      return;
+
+    var symbolmap = {};
+    var segments = [];
+    var listings : CodeListingMap = {};
+    lstfiles.forEach((lstfn) => {
+      var lst = FS.readFile(lstfn, {encoding:'utf8'}) as string;
+      lst.split('\n').forEach((line) => {
+        var toks = line.split(/\s*\|\s*/);
+        if (toks && toks[6]) {
+          var toks2 = toks[1].split(/\s+/);
+          var toks3 = toks[6].split(/[:/]/, 4);
+          var path = toks2[1];
+          if (path && toks2[2] && toks3[1]) {
+            var lstline = {
+              line:parseInt(toks2[2]),
+              offset:parseInt(toks3[1].trim(),16),
+              insns:toks3[2],
+              cycles:null,
+              iscode:false // TODO
+            };
+            var lst = listings[path];
+            if (!lst) listings[path] = lst = {lines:[]};
+            lst.lines.push(lstline);
+            //console.log(path,toks2,toks3);
+          }
+        }
+      });
+    });
+    return {
+      output:objout, //.slice(0),
+      listings:listings,
+      errors:errors,
+      symbolmap:symbolmap,
+      segments:segments
+    };
+  }
+}
+
 ////////////////////////////
 
 var TOOLS = {
@@ -2546,6 +2644,7 @@ var TOOLS = {
   'markdown': translateShowdown,
   'js': runJavascript,
   'inform6': compileInform6,
+  'merlin32': assembleMerlin32,
 }
 
 var TOOL_PRELOADFS = {

@@ -83,6 +83,10 @@ class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Plat
     if (rom && rom.length == 35*16*256) return ".dsk"; // DSK image
     return ".bin";
   };
+  getToolForFilename = (fn:string) : string => {
+    if (fn.endsWith(".lnk")) return "merlin32";
+    else return getToolForFilename_6502(fn);
+  }
   /*
   newCodeAnalyzer() {
     return new CodeAnalyzer_apple2(this);

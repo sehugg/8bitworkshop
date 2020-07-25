@@ -779,16 +779,8 @@ function get8bitworkshopLink(linkqs : string, fn : string) {
   return fulllink;
 }
 
-function _downloadCassetteFile(e) {
-  if (current_output == null) {
-    alertError("Please fix errors before exporting.");
-    return true;
-  }
+function _downloadCassetteFile_apple2(e) {
   var addr = compparams && compparams.code_start;
-  if (addr === undefined) {
-    alertError("Cassette export is not supported on this platform.");
-    return true;
-  }
   loadScript('lib/c2t.js').then( () => {
     var stdout = '';
     var print_fn = function(s) { stdout += s + "\n"; }
@@ -812,6 +804,53 @@ function _downloadCassetteFile(e) {
     }
   });
 }
+
+function _downloadCassetteFile_vcs(e) {
+  loadScript('lib/makewav.js').then( () => {
+    let stdout = '';
+    let print_fn = function(s) { stdout += s + "\n"; }
+    var prefix = getFilenamePrefix(getCurrentMainFilename());
+    let rompath = prefix + ".bin";
+    let audpath = prefix + ".wav";
+    let _makewav = window['makewav']({
+      noInitialRun:false,
+      print:print_fn,
+      printErr:print_fn,
+      arguments:['-ts', '-f0', '-v10', rompath],
+      preRun: (mod) => {
+        let FS = mod['FS'];
+        FS.writeFile(rompath, current_output, {encoding:'binary'});
+      }
+    });
+    _makewav.ready.then((makewav) => {
+      let args = [rompath];
+      makewav.run(args);
+      console.log(stdout);
+      let FS = makewav['FS'];
+      let audout = FS.readFile(audpath, {'encoding':'binary'});
+      if (audout) {
+        let blob = new Blob([audout], {type: "audio/wav"});
+        saveAs(blob, audpath);
+        stdout += "\nConnect your audio output to the SuperCharger input, turn up the volume, and play the audio file.";
+        alertInfo('<pre style="white-space: pre-wrap">'+stdout+'</pre>');
+      }
+    });
+  });
+}
+
+function _downloadCassetteFile(e) {
+  if (current_output == null) {
+    alertError("Please fix errors before exporting.");
+    return true;
+  }
+  var fn = window['_downloadCassetteFile_' + getBasePlatform(platform_id)];
+  if (fn === undefined) {
+    alertError("Cassette export is not supported on this platform.");
+    return true;
+  }
+  fn(e);
+}
+
 
 function _revertFile(e) {
   var wnd = projectWindows.getActive();
@@ -1607,7 +1646,7 @@ function setupDebugControls() {
   $("#item_download_zip").click(_downloadProjectZipFile);
   $("#item_download_allzip").click(_downloadAllFilesZipFile);
   $("#item_record_video").click(_recordVideo);
-  if (platform_id.startsWith('apple2'))
+  if (platform_id.startsWith('apple2') || platform_id.startsWith('vcs')) // TODO: look for function
     $("#item_export_cassette").click(_downloadCassetteFile);
   else
     $("#item_export_cassette").hide();

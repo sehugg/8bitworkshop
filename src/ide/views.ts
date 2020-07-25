@@ -270,8 +270,10 @@ export class SourceEditor implements ProjectView {
           } else if (platform.getOpcodeMetadata) {
             var opcode = parseInt(info.insns.split(" ")[0], 16);
             var meta = platform.getOpcodeMetadata(opcode, info.offset);
-            var clockstr = meta.minCycles+"";
-            this.setGutter("gutter-clock", info.line-1, clockstr);
+            if (meta) {
+              var clockstr = meta.minCycles+"";
+              this.setGutter("gutter-clock", info.line-1, clockstr);
+            }
           }
         }
       }

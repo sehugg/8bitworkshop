@@ -134,6 +134,7 @@ TODO:
   - VCS asm game library
   - VCS skips step on lsr/lsr after run to line
   - better VCS single stepping, maybe also listings
+  - upgrade to 4.1 for Supercharger format
 - upload multiple files/zip file to subdirectory
   - allow "include graphics.asm" instead of "include project/graphics.asm"
 - convert more stuff to Promises
@@ -160,6 +161,7 @@ TODO:
   - ctrl+alt+l on ubuntu locks screen
   - alt-D doesn't work anymore
   - facade/kbd shortcuts for emulators, focus
+  - maybe eat key events? ("'" messes things up)
 - cookie
   - list of stuff for policy
   - popup
@@ -193,6 +195,7 @@ TODO:
 - Debug Browser
   - more stuff like 7800 display lists
   - don't include start/end line on platforms w/o raster timing
+- memory map shows subroutine symbol even after RTS
 
 
 WEB WORKER FORMAT
