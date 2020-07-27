@@ -127,3 +127,15 @@ global.fetch = function(path) {
     }
   });
 }
+
+global.createTestDOM = function() {
+  const jsdom = require('jsdom');
+  const { JSDOM } = jsdom;
+  const dom = new JSDOM(`<!DOCTYPE html><div id="emulator"><div id="javatari-screen"></div></div>`);
+  global.window = dom.window;
+  global.document = dom.window.document;
+  global['$'] = require("jquery/jquery.min.js");
+  dom.window.Audio = null;
+  global.Image = function() { }
+  return dom;
+}

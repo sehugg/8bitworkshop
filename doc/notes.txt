@@ -110,6 +110,7 @@ TODO:
   - can't add control instructions b/c of split
   - bad error msg if >2 moduels and top module doesn't match filename
   - separate Scope View
+  - Audio doesn't work if clock != default
 - single-stepping vector games makes screen fade
 - break on stack overflow, illegal op, bad access, BRK, etc
   - show in scope instead?
@@ -157,6 +158,7 @@ TODO:
   - importing from subtree commits to root anyway
   - publishing Markdown file loads default file? 
   - better text/binary detection (e.g. 0xa9 copyright)
+  - going into repo chooses wrong file if republished with different main
 - keyboard shortcuts
   - ctrl+alt+l on ubuntu locks screen
   - alt-D doesn't work anymore
@@ -196,6 +198,8 @@ TODO:
   - more stuff like 7800 display lists
   - don't include start/end line on platforms w/o raster timing
 - memory map shows subroutine symbol even after RTS
+- BIOS symbols
+
 
 
 WEB WORKER FORMAT

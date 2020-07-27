@@ -4,16 +4,7 @@ var fs = require('fs');
 var wtu = require('./workertestutils.js');
 var PNG = require('pngjs').PNG;
 
-const jsdom = require('jsdom');
-const { JSDOM } = jsdom;
-//const { window } = new JSDOM();
-
-const dom = new JSDOM(`<!DOCTYPE html><div id="emulator"><div id="javatari-screen"></div></div>`);
-global.window = dom.window;
-global.document = dom.window.document;
-dom.window.Audio = null;
-global.Image = function() { }
-global['$'] = require("jquery/jquery.min.js");
+const dom = createTestDOM();
 includeInThisContext('src/common/cpu/6809.js');
 includeInThisContext("javatari.js/release/javatari/javatari.js");
 Javatari.AUTO_START = false;

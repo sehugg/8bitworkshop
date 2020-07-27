@@ -1653,7 +1653,7 @@ function compileVerilator(step:BuildStep) {
     });
     starttime();
     try {
-      var args = ["--cc", "-O3", "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
+      var args = ["--cc", "-O3"/*abcdefstzsuka*/, "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
         "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
         "--x-assign", "fast", "--noassert", "--pins-bv", "33",
         "--top-module", topmod, step.path]
