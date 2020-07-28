@@ -645,7 +645,7 @@ export abstract class BaseMAMEPlatform {
   romdata : Uint8Array;
   video;
   running = false;
-  console_vars : {[varname:string]:string[]} = {};
+  console_vars : {[varname:string]:string} = {};
   console_varname : string;
   initluavars : boolean = false;
   luadebugscript : string;
@@ -698,17 +698,9 @@ export abstract class BaseMAMEPlatform {
   bufferConsoleOutput(s) {
     if (typeof s !== 'string') return;
     if (s.startsWith(">>>")) {
-      this.console_varname = s.length > 3 ? s.slice(3) : null;
-      if (this.console_varname) this.console_vars[this.console_varname] = [];
-    } else if (this.console_varname) {
-      this.console_vars[this.console_varname].push(s);
-      if (this.console_varname == 'debug_stopped') {
-        var debugSaveState = this.preserveState();
-        this.pause();
-        if (this.onBreakpointHit) {
-          this.onBreakpointHit(debugSaveState);
-        }
-      }
+      console.log(s);
+      var toks = s.split(' ', 3);
+      this.console_vars[toks[1]] = toks[2];
     } else {
       console.log(s);
     }
@@ -850,6 +842,22 @@ export abstract class BaseMAMEPlatform {
     }
   }
 
+  initlua() {
+    if (!this.initluavars) {
+      this.luacall(this.luadebugscript);
+      this.luacall('mamedbg.init()')
+      this.initluavars = true;
+    }
+  }
+
+  // DEBUGGING SUPPORT
+/*
+  readAddress(a) {
+    this.initlua();
+    this.luacall('print(">>> mem8 " .. mem:read_u8(' + a + '))');
+    return parseInt(this.console_vars.mem8);
+  }
+
   preserveState() {
     var state = {c:{}};
     for (var k in this.console_vars) {
@@ -862,25 +870,10 @@ export abstract class BaseMAMEPlatform {
     return state;
   }
 
-  initlua() {
-    if (!this.initluavars) {
-      this.luacall(this.luadebugscript);
-      this.luacall('mamedbg.init()')
-      this.initluavars = true;
-    }
-  }
-
-  // DEBUGGING SUPPORT
-/*
   saveState() {
     this.luareset();
     this.luacall('mamedbg.printstate()');
     return this.preserveState();
-  }
-  readAddress(a) {
-    this.initlua();
-    this.luacall('print(">>>v"); print(mem:read_u8(' + a + '))');
-    return parseInt(this.console_vars.v[0]);
   }
   clearDebug() {
     this.onBreakpointHit = null;

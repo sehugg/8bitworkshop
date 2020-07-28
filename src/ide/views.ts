@@ -895,6 +895,7 @@ export class MemoryMapView implements ProjectView {
     //var container = $('<div class="container"/>').append(row);
     //this.maindiv.append(container);
     segdiv.click(() => {
+      // TODO: what if memory browser does not exist?
       var memview = projectWindows.createOrShow('#memory') as MemoryView;
       memview.scrollToAddress(seg.start);
     });

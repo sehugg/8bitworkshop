@@ -198,16 +198,15 @@ var PLATFORM_PARAMS = {
     cfgfile: 'apple2.cfg',
     libargs: ['apple2.lib'],
   },
-  'atari8-800': {
+  'atari8-800xl': {
     define: ['__ATARI__'],
     cfgfile: 'atari-cart.cfg',
-    libargs: ['atari.lib'],
+    libargs: ['atari.lib', '-D', '__CARTFLAGS__=4'],
   },
   'atari8-5200': {
     define: ['__ATARI5200__'],
     cfgfile: 'atari5200.cfg',
-    libargs: ['atari5200.lib',
-      '-D', '__CARTFLAGS__=255'],
+    libargs: ['atari5200.lib', '-D', '__CARTFLAGS__=255'],
   },
   'verilog': {
   },
