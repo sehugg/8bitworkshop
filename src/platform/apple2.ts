@@ -27,7 +27,7 @@ class Apple2MAMEPlatform extends BaseMAMEPlatform implements Platform {
 
   start () {
     this.startModule(this.mainElement, {
-      jsfile:'mameapple2e.js',
+      jsfile:'mame8bitws.js',
       biosfile:['apple2e.zip'],
       //cfgfile:'nes.cfg',
       driver:'apple2e',

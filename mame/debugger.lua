@@ -8,29 +8,17 @@ local stopped = false
 function mamedbg.init()
   cpu = manager:machine().devices[":maincpu"]
   mem = cpu.spaces["program"]
-  debugger = manager:machine():debugger()
+  machine = manager:machine()
+  debugger = machine:debugger()
   mamedbg.reset()
   emu.register_periodic(function ()
-    if debugging then
-      if not stopped then
-        --debugger:command("symlist")
-        --log = debugger.consolelog
-        --for i=1,#log do print(log[i]) end
-        --print(string.format("%4x", cpu.state["PC"].value))
-        --manager:machine():save("state")
-        emu.pause()
-        stopped = true
-        -- callback to JS via console i/o
-        mamedbg.printstate()
-        print(">>>debug_stopped")
-        print("1")
-      end
+    if debugging and not stopped then
+      --print(debugger.execution_state)
+      lastBreakState = machine.buffer_save()
+      emu.pause()
+      stopped = true
     end
   end)
-end
-
-function mamedbg.printstate()
-  for k,v in pairs(cpu.state) do print(">>>cpu_"..k); print(v.value) end
 end
 
 function mamedbg.reset()
@@ -47,8 +35,12 @@ function mamedbg.is_stopped()
   return debugging and stopped
 end
 
+function mamedbg.continue()
+  debugger:command("g")
+end
+
 function mamedbg.runTo(addr)
-  debugger:command("g " .. string.format("%x", addr))
+  debugger:command(string.format("g %x", addr))
   mamedbg.start()
 end
 
@@ -65,6 +57,18 @@ end
 function mamedbg.step()
   debugger:command("step")
   mamedbg.start()
+end
+
+function string.fromhex(str)
+    return (str:gsub('..', function (cc)
+        return string.char(tonumber(cc, 16))
+    end))
+end
+
+function string.tohex(str)
+    return (str:gsub('.', function (c)
+        return string.format('%02X', string.byte(c))
+    end))
 end
 
 print("parsed Lua debugger script")

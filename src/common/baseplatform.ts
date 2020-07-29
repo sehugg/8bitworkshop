@@ -645,41 +645,43 @@ export abstract class BaseMAMEPlatform {
   romdata : Uint8Array;
   video;
   running = false;
-  console_vars : {[varname:string]:string} = {};
-  console_varname : string;
   initluavars : boolean = false;
   luadebugscript : string;
   js_lua_string;
   onBreakpointHit;
   mainElement : HTMLElement;
+  timer : AnimationTimer;
 
   constructor(mainElement) {
     this.mainElement = mainElement;
-  }
-
-  luareset() {
-    this.console_vars = {};
+    this.timer = new AnimationTimer(20, this.poll.bind(this));
   }
 
   // http://docs.mamedev.org/techspecs/luaengine.html
-  luacall(s) {
-    this.console_varname = null;
-    //Module.ccall('_Z13js_lua_stringPKc', 'void', ['string'], [s+""]);
-    if (!this.js_lua_string) this.js_lua_string = Module.cwrap('_Z13js_lua_stringPKc', 'void', ['string']);
-    this.js_lua_string(s || "");
+  luacall(s:string) : string {
+    if (!this.js_lua_string) this.js_lua_string = Module.cwrap('_Z13js_lua_stringPKc', 'string', ['string']);
+    return this.js_lua_string(s || "");
   }
 
+  _pause() {
+    this.running = false;
+    this.timer.stop();
+  }
   pause() {
     if (this.loaded && this.running) {
       this.luacall('emu.pause()');
-      this.running = false;
+      this._pause();
     }
   }
 
+  _resume() {
+    this.luacall('emu.unpause()');
+    this.running = true;
+    this.timer.start();
+  }
   resume() {
     if (this.loaded && !this.running) { // TODO
-      this.luacall('emu.unpause()');
-      this.running = true;
+      this._resume();
     }
   }
 
@@ -697,13 +699,7 @@ export abstract class BaseMAMEPlatform {
 
   bufferConsoleOutput(s) {
     if (typeof s !== 'string') return;
-    if (s.startsWith(">>>")) {
-      console.log(s);
-      var toks = s.split(' ', 3);
-      this.console_vars[toks[1]] = toks[2];
-    } else {
-      console.log(s);
-    }
+    console.log(s);
   }
 
   startModule(mainElement, opts) {
@@ -819,6 +815,11 @@ export abstract class BaseMAMEPlatform {
       document.getElementsByTagName('head')[0].appendChild(script);
       console.log("created script element");
     });
+    // for debugging via browser console
+    window['mamelua'] = (s:string) => {
+      this.initlua();
+      return this.luacall(s);
+    };
   }
 
   loadROMFile(data) {
@@ -842,6 +843,8 @@ export abstract class BaseMAMEPlatform {
     }
   }
 
+  // DEBUGGING SUPPORT
+  
   initlua() {
     if (!this.initluavars) {
       this.luacall(this.luadebugscript);
@@ -849,69 +852,117 @@ export abstract class BaseMAMEPlatform {
       this.initluavars = true;
     }
   }
-
-  // DEBUGGING SUPPORT
-/*
-  readAddress(a) {
+  
+  readAddress(a:number) : number {
     this.initlua();
-    this.luacall('print(">>> mem8 " .. mem:read_u8(' + a + '))');
-    return parseInt(this.console_vars.mem8);
+    return parseInt(this.luacall('return mem:read_u8(' + a + ')'));
+  }
+  
+  getCPUReg(reg:string) {
+    this.initlua();
+    return parseInt(this.luacall('return cpu.state.'+reg+'.value'));
+  }
+  
+  getPC() : number {
+    return this.getCPUReg('PC');
   }
 
-  preserveState() {
-    var state = {c:{}};
-    for (var k in this.console_vars) {
-      if (k.startsWith("cpu_")) {
-        var v = parseInt(this.console_vars[k][0]);
-        state.c[k.slice(4)] = v;
-      }
+  getSP() : number {
+    return this.getCPUReg('SP');
+  }
+
+  isStable() 	 { return true; }
+  
+  getCPUState()  {
+    return {
+      PC:this.getPC(),
+      SP:this.getSP(),
+      A:this.getCPUReg('A'),
+      X:this.getCPUReg('X'),
+      Y:this.getCPUReg('Y'),
+      //flags:this.getCPUReg('CURFLAGS'),
+    };
+  }
+  
+  grabState(expr:string) {
+    this.initlua();
+    return {
+      c:this.getCPUState(),
+      buf:this.luacall("return string.tohex(" + expr + ")")
     }
-    // TODO: memory?
-    return state;
+  }
+  
+  saveState() {
+    return this.grabState("manager:machine():buffer_save()");
   }
 
-  saveState() {
-    this.luareset();
-    this.luacall('mamedbg.printstate()');
-    return this.preserveState();
+  loadState(state) {
+    this.initlua();
+    return this.luacall("manager:machine():buffer_load(string.fromhex('" + state.buf + "'))");
+  }
+
+  poll() {
+    if (this.onBreakpointHit && this.luacall("return tostring(mamedbg.is_stopped())") == 'true') {
+      this._pause();
+      //this.luacall("manager:machine():buffer_load(lastBreakState)");
+      var state = this.grabState("lastBreakState");
+      this.onBreakpointHit(state);
+    }
   }
   clearDebug() {
     this.onBreakpointHit = null;
+    if (this.loaded) {
+      this.initlua();
+      this.luacall('mamedbg.reset()');
+    }
   }
   getDebugCallback() {
     return this.onBreakpointHit;// TODO?
   }
   setupDebug(callback) {
-    if (this.loaded) { // TODO?
-      this.initlua();
-      this.luareset();
-    }
     this.onBreakpointHit = callback;
   }
+  debugcmd(s) {
+    this.initlua()
+    this.luacall(s);
+    this._resume();
+  }
   runToPC(pc) {
-    this.luacall('mamedbg.runTo(' + pc + ')');
-    this.resume();
+    this.debugcmd('mamedbg.runTo(' + pc + ')');
   }
   runToVsync() {
-    this.luacall('mamedbg.runToVsync()');
-    this.resume();
+    this.debugcmd('mamedbg.runToVsync()');
   }
   runUntilReturn() {
-    this.luacall('mamedbg.runUntilReturn()');
-    this.resume();
+    this.debugcmd('mamedbg.runUntilReturn()');
+  }
+  // TODO
+  runEval() {
+    this.reset();
+    this.step();
   }
   step() {
-    this.luacall('mamedbg.step()');
-    this.resume();
+    this.debugcmd('mamedbg.step()');
+  }
+  getDebugCategories() {
+    return ['CPU'];
+  }
+  getDebugInfo(category:string, state:EmuState) : string {
+    switch (category) {
+      case 'CPU':   return this.cpuStateToLongString(state.c);
+    }
   }
   // TODO: other than z80
   cpuStateToLongString(c) {
     if (c.HL)
       return cpuStateToLongString_Z80(c);
     else
-      return null; // TODO
+      return cpuStateToLongString_6502(c); // TODO
   }
-*/	
+  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
+    // TODO: z80
+    return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
+  }
 }
 
 //TODO: how to get stack_end?

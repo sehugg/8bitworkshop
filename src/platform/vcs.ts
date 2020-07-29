@@ -405,7 +405,7 @@ class VCSMAMEPlatform extends BaseMAMEPlatform implements Platform {
 
   start = function() {
     this.startModule(this.mainElement, {
-      jsfile:'mamea2600.js',
+      jsfile:'mame8bitws.js',
       driver:'a2600',
       width:176*2,
       height:223,

@@ -496,7 +496,7 @@ class NESMAMEPlatform extends BaseMAMEPlatform implements Platform {
   loadROM(title, data) {
     if (!this.started) {
       this.startModule(this.mainElement, {
-        jsfile:'mamenes.js',
+        jsfile:'mame8bitws.js',
         //cfgfile:'nes.cfg',
         driver:'nes',
         width:256,

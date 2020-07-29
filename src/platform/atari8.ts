@@ -806,7 +806,7 @@ class Atari800MAMEPlatform extends Atari8MAMEPlatform implements Platform {
   loadROM(title, data) {
     if (!this.started) {
       this.startModule(this.mainElement, {
-        jsfile:'mameatari400.js',
+        jsfile:'mame8bitws.js',
         biosfile:'a800xl.zip',
         cfgfile:'a800xl.cfg',
         driver:'a800xl',
@@ -843,7 +843,7 @@ class Atari5200MAMEPlatform extends Atari8MAMEPlatform implements Platform {
   loadROM(title, data) {
     if (!this.started) {
       this.startModule(this.mainElement, {
-        jsfile:'mameatari400.js',
+        jsfile:'mame8bitws.js',
         biosfile:'a5200/5200.rom',
         cfgfile:'a5200.cfg',
         driver:'a5200',

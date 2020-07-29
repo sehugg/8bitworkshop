@@ -43,7 +43,7 @@ class ColecoVisionMAMEPlatform extends BaseMAMEPlatform implements Platform {
 
   start() {
     this.startModule(this.mainElement, {
-      jsfile: 'mamecoleco.js',
+      jsfile: 'mame8bitws.js',
       cfgfile: 'coleco.cfg',
       biosfile: 'coleco/313 10031-4005 73108a.u2',
       driver: 'coleco',
