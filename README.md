@@ -64,6 +64,8 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * https://www.veripool.org/wiki/verilator
 * http://mcpp.sourceforge.net/
 * http://www.ifarchive.org/indexes/if-archiveXinfocomXcompilersXinform6.html
+* https://github.com/dmsc/fastbasic
+* https://github.com/apple2accumulator/merlin32
 
 ### Assemblers/Linkers
 

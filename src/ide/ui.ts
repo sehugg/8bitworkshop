@@ -80,6 +80,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'yasm': 'gas',
   'smlrc': 'text/x-csrc',
   'inform6': 'inform6',
+  'fastbasic': 'fastbasic',
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {
@@ -1907,6 +1908,7 @@ function addPageFocusHandlers() {
 // TODO: merge w/ embed.html somehow?
 function showInstructions() {
   var div = $(document).find(".emucontrols-" + getRootBasePlatform(platform_id));
+  if (platform_id.endsWith(".mame")) div.show(); // TODO: MAME seems to eat the focus() event
   var vcanvas = $("#emulator").find("canvas");
   if (vcanvas) {
     vcanvas.on('focus', () => {

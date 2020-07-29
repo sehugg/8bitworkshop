@@ -2612,6 +2612,43 @@ function assembleMerlin32(step:BuildStep) {
   }
 }
 
+// README.md:2:5: parse error, expected: statement or variable assignment, integer variable, variable assignment
+function compileFastBasic(step:BuildStep) {
+  // TODO: fastbasic-fp?
+  loadNative("fastbasic-int");
+  var params = step.params;
+  gatherFiles(step, {mainFilePath:"main.fb"});
+  var destpath = step.prefix + '.s';
+  var errors = [];
+  if (staleFiles(step, [destpath])) {
+    var fastbasic = emglobal.fastbasic({
+      instantiateWasm: moduleInstFn('fastbasic-int'),
+      noInitialRun:true,
+      print:print_fn,
+      printErr:makeErrorMatcher(errors, /(.+?):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1),
+    });
+    var FS = fastbasic['FS'];
+    populateFiles(step, FS);
+    params.libargs = ['fastbasic-int.lib'];
+    params.cfgfile = 'fastbasic-cart.cfg';
+    //params.extra_compile_args = ["--asm-define", "NO_SMCODE"];
+    params.extra_link_files = ['fastbasic-int.lib', 'fastbasic-cart.cfg'];
+    //fixParamsWithDefines(step.path, params);
+    var args = [step.path, destpath];
+    execMain(step, fastbasic, args);
+    if (errors.length)
+      return {errors:errors};
+    var asmout = FS.readFile(destpath, {encoding:'utf8'});
+    putWorkFile(destpath, asmout);
+  }
+  return {
+    nexttool:"ca65",
+    path:destpath,
+    args:[destpath],
+    files:[destpath],
+  };
+}
+
 ////////////////////////////
 
 var TOOLS = {
@@ -2644,6 +2681,7 @@ var TOOLS = {
   'js': runJavascript,
   'inform6': compileInform6,
   'merlin32': assembleMerlin32,
+  'fastbasic': compileFastBasic,
 }
 
 var TOOL_PRELOADFS = {
@@ -2664,6 +2702,7 @@ var TOOL_PRELOADFS = {
   'sccz80': 'sccz80',
   'bataribasic': '2600basic',
   'inform6': 'inform',
+  'fastbasic': '65-atari8',
 }
 
 function applyDefaultErrorPath(errors:WorkerError[], path:string) {

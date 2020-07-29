@@ -15,6 +15,13 @@ var Atari8_PRESETS = [
   {id:'hellodlist.c', name:'Display List (C)'},
 ];
 
+var Atari800_PRESETS = Atari8_PRESETS.concat([
+  {id:'sieve.bas', name:'Benchmark (FastBasic)'},
+  {id:'pmtest.bas', name:'Sprites Test (FastBasic)'},
+  {id:'dli.bas', name:'DLI Test (FastBasic)'},
+  {id:'joyas.bas', name:'Match-3 Game (FastBasic)'},
+]);
+
 const ATARI8_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_SPACE, 0, 0],
   [Keys.VK_ENTER, 0, 0],
@@ -780,12 +787,22 @@ for (var i=0; i<256; i++) {
 
 abstract class Atari8MAMEPlatform extends BaseMAMEPlatform {
   getPresets() { return Atari8_PRESETS; }
-  getToolForFilename = getToolForFilename_6502;
+  getToolForFilename = function(fn:string) {
+    if (fn.endsWith(".bas") || fn.endsWith(".fb") || fn.endsWith(".fbi")) return "fastbasic";
+    else return getToolForFilename_6502(fn);
+  }
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtension() { return ".asm"; };
+  showHelp(tool:string, ident:string) {
+    if (tool == 'fastbasic')
+      window.open("https://github.com/dmsc/fastbasic/blob/master/manual.md", "_help");
+    else
+      window.open("https://atariwiki.org/wiki/Wiki.jsp?page=Assembler", "_help"); // TODO
+  }
 }
 
 class Atari800MAMEPlatform extends Atari8MAMEPlatform implements Platform {
+  getPresets() { return Atari800_PRESETS; }
   loadROM(title, data) {
     if (!this.started) {
       this.startModule(this.mainElement, {
