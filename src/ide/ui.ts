@@ -84,7 +84,7 @@ var TOOL_TO_SOURCE_STYLE = {
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {
-  if (ga) ga('send', 'event', category, action, label, value);
+  if (window['ga']) ga('send', 'event', category, action, label, value);
 }
 function alertError(s:string) {
   gaEvent('error', platform_id||'error', s);
@@ -1072,7 +1072,7 @@ function showErrorAlert(errors : WorkerError[]) {
 var measureTimeStart : Date = new Date();
 var measureTimeLoad : Date;
 function measureBuildTime() {
-  if (ga && measureTimeLoad) {
+  if (window['ga'] && measureTimeLoad) {
     var measureTimeBuild = new Date();
     ga('send', 'timing', 'load', platform_id, (measureTimeLoad.getTime() - measureTimeStart.getTime()));
     ga('send', 'timing', 'build', platform_id, (measureTimeBuild.getTime() - measureTimeLoad.getTime()));
@@ -1760,12 +1760,6 @@ function showWelcomeMessage() {
     var is_vcs = platform_id.startsWith('vcs');
     var steps = [
         {
-          element: "#dropdownMenuButton",
-          placement: 'right',
-          title: "Cookie Consent",
-          content: 'Before we start, we should tell you that this website stores cookies and other data in your browser. You can review our <a href="/privacy.html" target="_new">privacy policy</a>.'
-        },
-        {
           element: "#platformsMenuButton",
           placement: 'right',
           title: "Platform Selector",
@@ -1805,18 +1799,26 @@ function showWelcomeMessage() {
           content: "Pull right to expose the sidebar. It lets you switch between source files, view assembly listings, and use other tools like Disassembler, Memory Browser, and Asset Editor."
         }
       ];
-    steps.push({
-      element: "#booksMenuButton",
-      placement: 'left',
-      title: "Books",
-      content: "Get some books that explain how to program all of this stuff, and write some games!"
-    });
     if (!isLandscape()) {
       steps.unshift({
         element: "#controls_top",
         placement: 'bottom',
         title: "Portrait mode detected",
         content: "This site works best on desktop browsers. For best results, rotate your device to landscape orientation."
+      });
+    }
+    if (window.location.host.endsWith('8bitworkshop.com')) {
+      steps.unshift({
+        element: "#dropdownMenuButton",
+        placement: 'right',
+        title: "Cookie Consent",
+        content: 'Before we start, we should tell you that this website stores cookies and other data in your browser. You can review our <a href="/privacy.html" target="_new">privacy policy</a>.'
+      });
+      steps.push({
+        element: "#booksMenuButton",
+        placement: 'left',
+        title: "Books",
+        content: "Get some books that explain how to program all of this stuff, and write some games!"
       });
     }
     var tour = new Tour({
@@ -1925,7 +1927,7 @@ function showInstructions() {
 }
 
 function installGAHooks() {
-  if (ga) {
+  if (window['ga']) {
     $(".dropdown-item").click((e) => {
       if (e.target && e.target.id) {
         gaEvent('menu', e.target.id);
@@ -2191,3 +2193,8 @@ function redirectToHTTPS() {
 
 // redirect to HTTPS after script loads?
 redirectToHTTPS();
+
+// listen for messages
+window.onmessage = function(event) {
+  console.log("WINDOW", event);
+};

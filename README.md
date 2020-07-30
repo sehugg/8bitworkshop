@@ -65,13 +65,14 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * http://mcpp.sourceforge.net/
 * http://www.ifarchive.org/indexes/if-archiveXinfocomXcompilersXinform6.html
 * https://github.com/dmsc/fastbasic
-* https://github.com/apple2accumulator/merlin32
 
 ### Assemblers/Linkers
 
 * https://dasm-assembler.github.io/
 * http://atjs.mbnet.fi/mc6809/Assembler/xasm-990104.tar.gz
 * http://48k.ca/zmac.html
+* https://github.com/apple2accumulator/merlin32
+* https://github.com/camsaul/nesasm
 
 ### Dev Kits / Libraries
 

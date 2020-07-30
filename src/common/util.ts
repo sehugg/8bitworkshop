@@ -445,6 +445,7 @@ export function rle_unpack(src : Uint8Array) : Uint8Array {
 }
 
 // firefox doesn't do GET with binary files
+// TODO: replace with fetch()?
 export function getWithBinary(url:string, success:(text:string|Uint8Array)=>void, datatype:'text'|'arraybuffer') {
   var oReq = new XMLHttpRequest();
   oReq.open("GET", url, true);
@@ -461,6 +462,9 @@ export function getWithBinary(url:string, success:(text:string|Uint8Array)=>void
     } else {
       throw Error("Error " + oReq.status + " loading " + url);
     }
+  }
+  oReq.onerror = function (oEvent) {
+    success(null);
   }
   oReq.ontimeout = function (oEvent) {
     throw Error("Timeout loading " + url);
