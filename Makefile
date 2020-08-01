@@ -3,8 +3,10 @@ TSC=./node_modules/typescript/bin/tsc --build
 TMP=./tmp/dist
 
 all:
-	patch -i electron.diff -o electron.html
+	patch -i meta/electron.diff -o electron.html
 	cp nanoasm/src/assembler.ts src/worker/
+	cp node_modules/jquery/dist/jquery.min.js ./jquery/
+	cp -r node_modules/bootstrap/dist/* ./bootstrap/
 	cp node_modules/bootstrap-tourist/*.css node_modules/bootstrap-tourist/*.js ./lib/
 	cp node_modules/clipboard/dist/clipboard.min.js ./lib/
 	cp node_modules/mousetrap/mousetrap*.min.js ./lib/
@@ -21,28 +23,14 @@ dist:
 	rm -fr $(TMP) && mkdir -p $(TMP)
 	git archive HEAD | tar x -C $(TMP)
 	cp -rp gen $(TMP)
-	rm -r $(TMP)/doc $(TMP)/romsrc $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/electron.diff $(TMP)/.[a-z]* $(TMP)/ts*.json
+	rm -r $(TMP)/doc $(TMP)/meta $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/.[a-z]* $(TMP)/ts*.json
 	rm -f $(TMP)/javatari && mkdir -p $(TMP)/javatari && cp javatari.js/release/javatari/* $(TMP)/javatari/
 	tar cf - `cat electron.html | egrep "^<(script|link)" | egrep -o '"([^"]+).(js|css)"' | cut -d '"' -f2` | tar x -C $(TMP)
 
 %.dist:
-	./node_modules/.bin/electron-packager $(TMP) --icon images/8bitworkshop-icon-1024.icns --out ./release --overwrite --platform $*
+	./node_modules/.bin/electron-packager $(TMP) --icon meta/icons/8bitworkshop-icon-1024.icns --out ./release --overwrite --platform $*
 
 package: dist darwin.dist win32.dist linux.dist
-
-z80: src/cpu/z80fast.js
-
-src/cpu/z80.js: src/cpu/z80.coffee
-	coffee -c $<
-
-src/cpu/z80fast.js: src/cpu/buildz80.js src/cpu/z80.js 
-	node $< > $@
-
-check:
-	closure-compiler src/*.js src/cpu/*.js src/platform/*.js > /dev/null
-
-lint:
-	gjslint -r src
 
 web:
 	(ip addr || ifconfig) | grep inet
