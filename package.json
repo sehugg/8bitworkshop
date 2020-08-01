@@ -1,6 +1,6 @@
 {
   "name": "8bitworkshop",
-  "version": "3.5.3",
+  "version": "3.6.1",
   "author": "Steven Hugg",
   "description": "8bitworkshop.com",
   "repository": {
@@ -9,8 +9,6 @@
   },
   "license": "GPL-3.0",
   "dependencies": {
-    "bootstrap-tourist": "^0.2.1",
-    "browser-detect": "^0.2.28",
     "chokidar": "^3.4.1",
     "jquery": "^3.5.1",
     "reflect-metadata": "^0.1.13"
@@ -18,19 +16,26 @@
   "devDependencies": {
     "@types/bootbox": "^4.4.36",
     "@types/bootstrap": "^3.4.0",
-    "@types/jquery": "^3.5.0",
-    "@types/node": "^14.0.23",
+    "@types/file-saver": "^2.0.1",
+    "@types/jquery": "^3.5.1",
+    "@types/node": "^14.0.27",
     "atob": "^2.1.x",
+    "bootstrap-tourist": "^0.2.1",
     "btoa": "^1.2.x",
     "clipboard": "^2.0.6",
     "electron": "^9.1.2",
     "electron-packager": "^15.0.0",
+    "file-saver": "^2.0.2",
     "jsdom": "^12.2.0",
+    "jszip": "^3.5.0",
+    "localforage": "^1.9.0",
     "lzg": "^1.0.x",
     "mocha": "^7.2.0",
+    "mousetrap": "^1.6.5",
     "octokat": "^0.10.0",
     "pngjs": "^3.4.0",
     "rgbquant": "^1.1.2",
+    "split.js": "^1.6.2",
     "typescript": "^3.9.7",
     "typescript-formatter": "^7.2.2",
     "vgm-parser": "^0.6.3"

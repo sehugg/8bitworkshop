@@ -20,7 +20,6 @@ declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, firebase;
 declare var ga;
 // in index.html
 declare var exports;
-declare var browserDetect;
 
 // make sure VCS doesn't start
 if (window['Javatari']) window['Javatari'].AUTO_START = false;

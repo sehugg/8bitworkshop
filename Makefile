@@ -3,11 +3,19 @@ TSC=./node_modules/typescript/bin/tsc --build
 TMP=./tmp/dist
 
 all:
+	patch -i electron.diff -o electron.html
 	cp nanoasm/src/assembler.ts src/worker/
+	cp node_modules/bootstrap-tourist/*.css node_modules/bootstrap-tourist/*.js ./lib/
+	cp node_modules/clipboard/dist/clipboard.min.js ./lib/
+	cp node_modules/mousetrap/mousetrap*.min.js ./lib/
+	#cp node_modules/octokat/dist/octokat.js ./lib/
+	cp node_modules/split.js/dist/split.min.js ./lib/
+	cp node_modules/localforage/dist/localforage.min.js ./lib/
+	cp node_modules/jszip/dist/jszip.min.js ./lib/
+	cp node_modules/file-saver/dist/*.min.js ./lib/
+	cd jsnes && npm i
 	$(TSC) -v
 	$(TSC)
-	cd jsnes && npm i
-	patch -i electron.diff -o electron.html
 
 dist:
 	rm -fr $(TMP) && mkdir -p $(TMP)

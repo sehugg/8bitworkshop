@@ -7,15 +7,9 @@
 [submodule "tss"]
 	path = tss
 	url = https://github.com/sehugg/tss
-[submodule "FileSaver.js"]
-	path = FileSaver.js
-	url = https://github.com/eligrey/FileSaver.js
 [submodule "gif.js"]
 	path = gif.js
 	url = https://github.com/sehugg/gif.js
-[submodule "localForage"]
-	path = localForage
-	url = https://github.com/localForage/localForage
 [submodule "jsnes"]
 	path = jsnes
 	url = https://github.com/sehugg/jsnes
