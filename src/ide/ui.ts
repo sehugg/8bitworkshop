@@ -168,7 +168,13 @@ function unsetLastPreset() {
 function initProject() {
   current_project = new CodeProject(newWorker(), platform_id, platform, store);
   projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
-  current_project.callbackGetRemote = getWithBinary;
+  if (qs['electron_ws']) {
+    current_project.callbackGetRemote = getElectronFile;
+    current_project.persistent = false;
+    // TODO: save file when edited
+  } else {
+    current_project.callbackGetRemote = getWithBinary;
+  }
   current_project.callbackBuildResult = (result:WorkerResult) => {
     setCompileOutput(result);
     refreshWindowList();
@@ -1044,7 +1050,9 @@ async function updateSelector() {
     await populateFiles(sel, "Local Files", "", foundFiles);
     finishSelector(sel);
   } else {
-    sel.append($("<option />").val('/').text('Leave Repository'));
+    if (!qs['electron_ws']) {
+      sel.append($("<option />").val('/').text('Leave Repository'));
+    }
     $("#repo_name").text(getFilenameForPath(repo_id)+'/').show();
     // repo: populate all files
     await populateFiles(sel, repo_id, "", {});
@@ -2193,7 +2201,20 @@ function redirectToHTTPS() {
 // redirect to HTTPS after script loads?
 redirectToHTTPS();
 
-// listen for messages
-window.onmessage = function(event) {
-  console.log("WINDOW", event);
-};
+//// ELECTRON STUFF
+
+// get remote file from local fs
+declare var getWorkspaceFile;
+export function getElectronFile(url:string, success:(text:string|Uint8Array)=>void, datatype:'text'|'arraybuffer') {
+  // TODO: we have to split() to strip off presets/platform, yukky
+  var contents = getWorkspaceFile(url.split('/',3)[2], datatype);
+  if (contents != null) {
+    success(contents); // return result
+  } else {
+    getWithBinary(url, success, datatype); // try to load from presets/platform via GET
+  }
+}
+export function reloadWorkspaceFile(path: string) {
+  var datatype = typeof current_project.filedata[path] == 'string' ? 'text' : 'arraybuffer';
+  projectWindows.updateFile(path, getWorkspaceFile(path, datatype));
+}

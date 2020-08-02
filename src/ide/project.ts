@@ -8,6 +8,10 @@ type BuildStatusCallback = (busy:boolean) => void;
 type IterateFilesCallback = (path:string, data:FileData) => void;
 type GetRemoteCallback = (path:string, callback:(data:FileData) => void, datatype:'text'|'arraybuffer') => any;
 
+function isEmptyString(text : FileData) {
+  return typeof text == 'string' && text.trim && text.trim().length == 0;
+}
+
 export class CodeProject {
   filedata : {[path:string]:FileData} = {};
   listings : CodeListingMap;
@@ -26,6 +30,7 @@ export class CodeProject {
   callbackGetRemote : GetRemoteCallback;
   isCompiling : boolean = false;
   filename2path = {}; // map stripped paths to full paths
+  persistent : boolean = true; // set to true and won't modify store
 
   constructor(worker, platform_id:string, platform, store) {
     this.worker = worker;
@@ -149,7 +154,7 @@ export class CodeProject {
 
   updateFileInStore(path:string, text:FileData) {
     // protect against accidential whole-file deletion
-    if (text instanceof Uint8Array || ((<string>text).trim && (<string>text).trim().length)) {
+    if (this.persistent && !isEmptyString(text)) {
       this.store.setItem(path, text);
     }
   }
@@ -228,7 +233,7 @@ export class CodeProject {
                 } else {
                   if (data instanceof ArrayBuffer)
                     data = new Uint8Array(data); // convert to typed array
-                  console.log("GET",webpath,data.length,'bytes');
+                  console.log("read",webpath,data.length,'bytes');
                   this.filedata[path] = data; // do not update store, just cache
                   addResult(path, data);
                 }

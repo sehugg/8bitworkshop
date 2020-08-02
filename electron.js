@@ -1,50 +1,73 @@
-const { app, ipcMain, ipcRenderer, Menu, BrowserWindow } = require('electron')
+const { app, dialog, ipcMain, ipcRenderer, Menu, BrowserWindow } = require('electron')
 const modpath = require('path')
 const fs = require('fs')
 const {URLSearchParams} = require('url')
 const isMac = process.platform === 'darwin'
 const chokidar = require('chokidar')
+const Store = require('electron-store');
+const store = new Store();
+const KEY_lastWorkspaceFilePath = "lastWorkspaceFilePath";
 
 // file watcher
+// TODO: add workspace metadata for platform, ROM output, README, etc.
 class Workspace {
   constructor(directory, mainfile, wnd) {
     this.directory = directory;
     this.mainfile = mainfile;
+    wnd.webContents.send('setWorkspaceRoot', {root:this.directory});
     this.watcher = chokidar.watch(modpath.join(directory, mainfile));
     this.watcher.on('all', (event, path) => {
       console.log(event, path);
       switch (event) {
         case 'add':
-          /*
-          wnd.webContents.send('updateFile', {
-            main: modpath.relative(mainDirectoryPath, mainFilePath),
-            path: modpath.relative(mainDirectoryPath, path),
-            data: data,
+        case 'change':
+          wnd.webContents.send('fileChanged', {
+            path: modpath.relative(this.directory, path),
           });
-          */
           break;
       }
     });
+    console.log("workspace opened", this.directory, this.mainfile);
+  }
+  close() {
+    if (this.watcher) {
+      this.watcher.close();
+      this.watcher = null;
+      console.log("workspace closed", this.directory, this.mainfile);
+    }
   }
 }
 
 function openFile(path) {
-  var data = new Uint8Array(fs.readFileSync(path));
+  if (!fs.existsSync(path)) {
+    dialog.showMessageBox({
+      type: "error",
+      message: "File not found.",
+      detail: path
+    });
+    return;
+  }
   var dirname = modpath.dirname(path);
   var filename = modpath.basename(path);
-  //var platform_id = 'vcs'; // TODO: which platform?
-  //var wnd = createWindow({repo_id:dirname, file:filename, platform_id:platform_id});
   var wnd = BrowserWindow.getFocusedWindow();
+  if (wnd.workspace) { wnd.workspace.close(); }
   var ws = new Workspace(dirname, filename, wnd);
   wnd.workspace = ws;
+  wnd.on('closed', () => {
+    ws.close();
+  });
   var qs = new URLSearchParams();
-  qs.set('ws', dirname);
+  qs.set('electron_ws', 1);
+  qs.set('repo', dirname);
   qs.set('file', filename);
-  wnd.loadURL(`file://${__dirname}/electron.html?${qs}`);
+  wnd.loadURL(`file://${__dirname}/electron.html?${qs}`).then(() => {
+    wnd.webContents.send('setWorkspaceRoot', {root:dirname});
+    app.addRecentDocument(path);
+    store.set(KEY_lastWorkspaceFilePath, path);
+  });
 }
 
 function openFileDialog() {
-  const { dialog } = require('electron')
   dialog.showOpenDialog({
     title: "Open File",
     properties: ['openFile','promptToCreate'],
@@ -56,6 +79,17 @@ function openFileDialog() {
   });
 }
 
+function openDefaultFile() {
+  createWindow();
+  /*
+  var lastfile = store.get(KEY_lastWorkspaceFilePath);
+  if (lastfile != null) {
+    openFile(lastfile);
+  }
+  */
+}
+
+/*
 function openWorkspace() {
   const { dialog } = require('electron')
   console.log(dialog.showOpenDialog({
@@ -64,6 +98,7 @@ function openWorkspace() {
     message: "Choose a directory that holds your source files.",
   }))
 }
+*/
 
 function openURL(url) {
   return async () => {
@@ -94,13 +129,22 @@ function buildMenu() {
     {
       label: 'File',
       submenu: [
-        /*
         {
           label: 'Open File...',
           click: openFileDialog,
           accelerator: 'CmdOrCtrl+O',
         },
-        */
+        // When a file is requested from the recent documents menu, the open-file event of app module will be emitted for it.
+        {
+          "label":"Open Recent",
+          "role":"recentdocuments",
+          "submenu":[
+            {
+              "label":"Clear Recent",
+              "role":"clearrecentdocuments"
+            }
+          ]
+        },
         { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' }
       ]
@@ -202,13 +246,15 @@ function createWindow () {
       preload: modpath.join(__dirname, './electron-preload.js'),
       nodeIntegration: false,
       enableRemoteModule: false,
-      contextIsolation: true,
-      sandbox: true,
+      contextIsolation: false,
+      sandbox: false,
     }
   })
 
   // and load the index.html of the app.
-  win.loadFile('electron.html')
+  win.loadFile('electron.html', {
+    search: 'repo=/'
+  })
 
   // Open the DevTools.
   //win.webContents.openDevTools()
@@ -221,7 +267,7 @@ function createWindow () {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(buildMenu).then(createWindow)
+app.whenReady().then(buildMenu).then(openDefaultFile)
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -238,6 +284,10 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
   }
+})
+
+app.on('open-file', (event, path) => {
+  openFile(path);
 })
 
 // In this file you can include the rest of your app's specific main process

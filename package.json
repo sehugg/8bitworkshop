@@ -10,6 +10,7 @@
   "license": "GPL-3.0",
   "dependencies": {
     "chokidar": "^3.4.1",
+    "electron-store": "^6.0.0",
     "jquery": "^3.5.1",
     "reflect-metadata": "^0.1.13"
   },
