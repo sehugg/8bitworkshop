@@ -1003,8 +1003,8 @@ abstract class ProbeViewBaseBase {
       case ProbeFlags.VRAM_WRITE:	s = "VRAM Write"; break;
       case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
       case ProbeFlags.ILLEGAL:		s = "Error"; break;
-      case ProbeFlags.SP_PUSH:		s = "Stack Dec"; break;
-      case ProbeFlags.SP_POP:     s = "Stack Inc"; break;
+      case ProbeFlags.SP_PUSH:		s = "Stack Push"; break;
+      case ProbeFlags.SP_POP:     s = "Stack Pop"; break;
       default:				            return "";
     }
     if (typeof addr == 'number') s += " " + this.addr2str(addr);
@@ -1104,10 +1104,19 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
     y = y|0;
     var s = "";
     var lastroutine = null;
+    var symstack = [];
     var lastcol = -1;
     this.redraw( (op,addr,col,row,clk,value) => {
-      if (op == ProbeFlags.EXECUTE) {
-        lastroutine = this.addr2symbol(addr) || lastroutine;
+      switch (op) {
+        case ProbeFlags.EXECUTE:
+          lastroutine = this.addr2symbol(addr) || lastroutine;
+          break;
+        case ProbeFlags.SP_PUSH:
+          symstack.push(lastroutine);
+          break;
+        case ProbeFlags.SP_POP:
+          lastroutine = symstack.pop();
+          break;
       }
       if (row == y && col <= x) {
         if (col != lastcol) {
@@ -1165,10 +1174,19 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
     var pc = -1;
     var already = {};
     var lastroutine = null;
+    var symstack = [];
     this.redraw( (op,addr,col,row,clk,value) => {
-      if (op == ProbeFlags.EXECUTE) {
-        pc = addr;
-        lastroutine = this.addr2symbol(addr) || lastroutine;
+      switch (op) {
+        case ProbeFlags.EXECUTE:
+          pc = addr;
+          lastroutine = this.addr2symbol(addr) || lastroutine;
+          break;
+        case ProbeFlags.SP_PUSH:
+          symstack.push(lastroutine);
+          break;
+        case ProbeFlags.SP_POP:
+          lastroutine = symstack.pop();
+          break;
       }
       var key = op|pc;
       if (addr == a && !already[key]) {

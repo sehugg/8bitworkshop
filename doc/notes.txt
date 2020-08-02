@@ -197,7 +197,6 @@ TODO:
 - Debug Browser
   - more stuff like 7800 display lists
   - don't include start/end line on platforms w/o raster timing
-- memory map shows subroutine symbol even after RTS
 - BIOS symbols
 - show current tool for file
 
