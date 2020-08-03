@@ -1923,19 +1923,6 @@ function translateShowdown(step:BuildStep) {
   };
 }
 
-function runJavascript(step:BuildStep) {
-  var code = getWorkFileAsString(step.path);
-  try {
-    //eval(code);
-    var fn = new Function("'use strict';\n" + code);
-    var obj = {};
-    var out = fn.call(obj);
-    return { output:out||obj };
-  } catch (e) {
-    return { errors:[{line:(e.lineNumber-2)|0, msg:e.message||"Error"}] };
-  }
-}
-
 // http://datapipe-blackbeltsystems.com/windows/flex/asm09.html
 function assembleXASM6809(step:BuildStep) {
   load("xasm6809");
@@ -2678,7 +2665,6 @@ var TOOLS = {
   'yasm': assembleYASM,
   'bataribasic': compileBatariBasic,
   'markdown': translateShowdown,
-  'js': runJavascript,
   'inform6': compileInform6,
   'merlin32': assembleMerlin32,
   'fastbasic': compileFastBasic,
