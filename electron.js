@@ -38,7 +38,7 @@ class Workspace {
   }
 }
 
-function openFile(path) {
+function openFile(path, wnd) {
   if (!fs.existsSync(path)) {
     dialog.showMessageBox({
       type: "error",
@@ -49,22 +49,36 @@ function openFile(path) {
   }
   var dirname = modpath.dirname(path);
   var filename = modpath.basename(path);
-  var wnd = BrowserWindow.getFocusedWindow();
-  if (wnd.workspace) { wnd.workspace.close(); }
+  if (!wnd) wnd = BrowserWindow.getFocusedWindow();
   var ws = new Workspace(dirname, filename, wnd);
+  if (wnd.workspace) { wnd.workspace.close(); }
   wnd.workspace = ws;
   wnd.on('closed', () => {
     ws.close();
   });
+  openWorkspace(wnd, ws);
+  app.addRecentDocument(path);
+  store.set(KEY_lastWorkspaceFilePath, path);
+}
+
+function openWorkspace(wnd, ws) {
   var qs = new URLSearchParams();
   qs.set('electron_ws', 1);
-  qs.set('repo', dirname);
-  qs.set('file', filename);
+  qs.set('repo', ws.directory);
+  qs.set('file', ws.mainfile);
   wnd.loadURL(`file://${__dirname}/electron.html?${qs}`).then(() => {
-    wnd.webContents.send('setWorkspaceRoot', {root:dirname});
-    app.addRecentDocument(path);
-    store.set(KEY_lastWorkspaceFilePath, path);
+    wnd.webContents.send('setWorkspaceRoot', {root:ws.directory});
   });
+}
+
+// TODO: doesn't work if browser window reloads itself
+function reloadCurrentWindow() {
+  var wnd = BrowserWindow.getFocusedWindow();
+  if (wnd.workspace) {
+    openWorkspace(wnd, wnd.workspace);
+  } else {
+    wnd.reload();
+  }
 }
 
 function openFileDialog() {
@@ -80,8 +94,11 @@ function openFileDialog() {
 }
 
 function openDefaultFile() {
-  createWindow();
-  /*
+  var wnd = createWindow();
+  if (process.argv.length >= 3) {
+    openFile(process.argv[2], wnd);
+  }
+  /* TODO
   var lastfile = store.get(KEY_lastWorkspaceFilePath);
   if (lastfile != null) {
     openFile(lastfile);
@@ -182,8 +199,10 @@ function buildMenu() {
     {
       label: 'View',
       submenu: [
-        { role: 'reload' },
-        { role: 'forcereload' },
+        {
+          label: 'Reload Window',
+          click: reloadCurrentWindow
+        },
         { role: 'toggledevtools' },
         { type: 'separator' },
         { role: 'resetzoom' },
@@ -300,3 +319,4 @@ ipcMain.on('hello', (event, message) => {
   console.log(event);
 });
 */
+
