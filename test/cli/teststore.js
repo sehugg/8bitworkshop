@@ -5,7 +5,7 @@ var fs = require('fs');
 var assert = require('assert');
 
 var wtu = require('./workertestutils.js'); // loads localStorage
-global.localforage = require("localForage/dist/localforage.js");
+global.localforage = require("lib/localforage.min.js");
 var util = require("gen/common/util.js");
 var mstore = require("gen/ide/store.js");
 var prj = require("gen/ide/project.js");
