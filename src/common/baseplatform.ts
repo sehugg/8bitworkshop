@@ -215,7 +215,6 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   frameCount : number = 0;
 
   abstract getCPUState() : CpuState;
-  abstract readAddress(addr:number) : number;
 
   setBreakpoint(id : string, cond : DebugCondition) {
     if (cond) {
@@ -416,6 +415,7 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
   getSP()    { return this.getCPUState().SP };
   getPC()    { return this.getCPUState().PC };
   isStable() { return !this.getCPUState()['T']; }
+  abstract readAddress(addr:number) : number;
 
   newCPU(membus : MemoryBus) {
     var cpu = new jt.M6502();

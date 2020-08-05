@@ -371,7 +371,7 @@ span.CodeMirror-selectedtext { background: none; }
 
 .cm-s-mbo span.cm-property, .cm-s-mbo span.cm-attribute { color: #9ddfe9; }
 .cm-s-mbo span.cm-keyword { color: #ffb928; }
-.cm-s-mbo span.cm-string { color: #ffcf6c; }
+.cm-s-mbo span.cm-string { color: #b4fdb7; }
 .cm-s-mbo span.cm-string.cm-property { color: #ffffec; }
 
 .cm-s-mbo span.cm-variable { color: #ffffec; }

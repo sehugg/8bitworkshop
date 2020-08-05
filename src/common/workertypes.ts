@@ -1,6 +1,12 @@
 
 export type FileData = string | Uint8Array;
 
+export interface SourceLocation {
+  line: number;
+  start?: number;
+  end?: number;
+}
+
 export interface SourceLine {
   offset:number;
   line:number;

@@ -70,8 +70,9 @@ const MODEDEFS = {
   gas: { isAsm: true },
   inform6: { theme: 'cobalt' },
   markdown: { lineWrap: true },
+  fastbasic: { noGutters: true },
+  basic: { noLineNumbers: true, noGutters: true }, // TODO: not used?
 }
-
 
 export class SourceEditor implements ProjectView {
   constructor(path:string, mode:string) {
@@ -106,17 +107,20 @@ export class SourceEditor implements ProjectView {
   newEditor(parent:HTMLElement, isAsmOverride?:boolean) {
     var modedef = MODEDEFS[this.mode] || MODEDEFS.default;
     var isAsm = isAsmOverride || modedef.isAsm;
-    var lineWrap = modedef.lineWrap;
+    var lineWrap = !!modedef.lineWrap;
     var theme = modedef.theme || MODEDEFS.default.theme;
+    var lineNums = !modedef.noLineNumbers;
+    var gutters = ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"];
+    if (isAsm) gutters = ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"];
+    if (modedef.noGutters) gutters = ["gutter-info"];
     this.editor = CodeMirror(parent, {
       theme: theme,
-      lineNumbers: true,
+      lineNumbers: lineNums,
       matchBrackets: true,
       tabSize: 8,
       indentAuto: true,
       lineWrapping: lineWrap,
-      gutters: isAsm ? ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"]
-                     : ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"],
+      gutters: gutters
     });
   }
 
@@ -324,7 +328,7 @@ export class SourceEditor implements ProjectView {
       this.editor.setGutterMarker(line, "gutter-info", div);
     }
 
-    this.clearCurrentLine();
+    this.clearCurrentLine(moveCursor);
     if (line>0) {
       addCurrentMarker(line-1);
       if (moveCursor)
@@ -333,18 +337,18 @@ export class SourceEditor implements ProjectView {
     }
   }
 
-  clearCurrentLine() {
+  clearCurrentLine(moveCursor:boolean) {
     if (this.currentDebugLine) {
       this.editor.clearGutter("gutter-info");
-      this.editor.setSelection(this.editor.getCursor());
+      if (moveCursor) this.editor.setSelection(this.editor.getCursor());
       this.currentDebugLine = 0;
     }
   }
 
   getActiveLine() {
     var state = lastDebugState;
-    if (state && state.c && this.sourcefile) {
-      var EPC = state.c.EPC || state.c.PC;
+    if (this.sourcefile && state) {
+      var EPC = (state && state.c && (state.c.EPC || state.c.PC)); // || (platform.getPC && platform.getPC());
       var res = this.sourcefile.findLineForOffset(EPC, 15);
       return res && res.line;
     } else
@@ -352,7 +356,7 @@ export class SourceEditor implements ProjectView {
   }
 
   refreshDebugState(moveCursor:boolean) {
-    this.clearCurrentLine();
+    this.clearCurrentLine(moveCursor);
     var line = this.getActiveLine();
     if (line >= 0) {
       this.setCurrentLine(line, moveCursor);

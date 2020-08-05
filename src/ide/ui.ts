@@ -59,6 +59,7 @@ var lastViewClicked = null;
 var lastBreakExpr = "c.PC == 0x6000";
 
 // TODO: codemirror multiplex support?
+// TODO: move to views.ts?
 var TOOL_TO_SOURCE_STYLE = {
   'dasm': '6502',
   'acme': '6502',
@@ -80,6 +81,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'smlrc': 'text/x-csrc',
   'inform6': 'inform6',
   'fastbasic': 'fastbasic',
+  'basic': 'basic',
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {

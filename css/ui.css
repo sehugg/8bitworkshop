@@ -353,7 +353,7 @@ div.replaydiv {
   background-repeat: no-repeat;
   background-position: 50%;
   pointer-events:auto;
-  z-index:1;
+  z-index:2;
 }
 .gutter.gutter-horizontal {
   background-image: url('grips/vertical.png');
@@ -630,6 +630,15 @@ div.asset_toolbar {
 }
 .transcript-input-char {
   max-width:5em;
+}
+.transcript-print-head {
+  background: url('../images/print-head.png') no-repeat scroll 0 0 transparent;
+  position: absolute;
+  bottom: 0;
+  height: 3em;
+  width: 100%;
+  z-index: 1;
+  pointer-events: none;
 }
 .tree-header {
   border: 2px solid #555;

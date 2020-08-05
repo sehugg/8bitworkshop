@@ -311,9 +311,9 @@ var workerseq : number = 0;
 
 function compareData(a:FileData, b:FileData) : boolean {
   if (a.length != b.length) return false;
-  if (typeof a === 'string' && typeof b === 'string')
-    return a==b;
-  else {
+  if (typeof a === 'string' && typeof b === 'string') {
+    return a == b;
+  } else {
     for (var i=0; i<a.length; i++) {
       //if (a[i] != b[i]) console.log('differ at byte',i,a[i],b[i]);
       if (a[i] != b[i]) return false;
@@ -2636,6 +2636,34 @@ function compileFastBasic(step:BuildStep) {
   };
 }
 
+function compileBASIC(step:BuildStep) {
+  var jsonpath = step.path + ".json";
+  gatherFiles(step);
+  if (staleFiles(step, [jsonpath])) {
+    setupRequireFunction();
+    loadGen("common/basic/compiler");
+    var parser = new emglobal['BASICParser']();
+    delete emglobal['require'];
+    var code = getWorkFileAsString(step.path);
+    try {
+      var ast = parser.parseFile(code, step.path);
+    } catch (e) {
+      console.log(e);
+      if (parser.errors.length == 0) throw e;
+    }
+    if (parser.errors.length) {
+      return {errors: parser.errors};
+    }
+    // put AST into JSON (sans source locations) to see if it has changed
+    var json = JSON.stringify(ast, (key,value) => { return (key=='$loc'?undefined:value) });
+    putWorkFile(jsonpath, json);
+    if (anyTargetChanged(step, [jsonpath])) return {
+      output: ast,
+      listings: parser.getListings(),
+    };
+  }
+}
+
 ////////////////////////////
 
 var TOOLS = {
@@ -2668,6 +2696,7 @@ var TOOLS = {
   'inform6': compileInform6,
   'merlin32': assembleMerlin32,
   'fastbasic': compileFastBasic,
+  'basic': compileBASIC,
 }
 
 var TOOL_PRELOADFS = {
