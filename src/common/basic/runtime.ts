@@ -39,16 +39,17 @@ export class BASICRuntime {
     dataptr : number;
     vars : {};
     arrays : {};
-    forLoops : {};
+    defs : {};
+    forLoops : {next:(name:string) => void}[];
     returnStack : number[];
     column : number;
-    abase : number; // array base
 
     running : boolean = false;
-    exited : boolean = false;
+    exited : boolean = true;
     trace : boolean = false;
 
     load(program: basic.BASICProgram) {
+        let prevlabel = this.label2pc && this.getLabelForPC(this.curpc);
         this.program = program;
         this.label2lineidx = {};
         this.label2pc = {};
@@ -59,6 +60,7 @@ export class BASICRuntime {
         // TODO: lines start @ 1?
         program.lines.forEach((line, idx) => {
             // make lookup tables
+            this.curpc = this.allstmts.length + 1; // set for error reporting
             if (line.label != null) this.label2lineidx[line.label] = idx;
             if (line.label != null) this.label2pc[line.label] = this.allstmts.length;
             this.line2pc.push(this.allstmts.length);
@@ -69,8 +71,6 @@ export class BASICRuntime {
             line.stmts.filter((stmt) => stmt.command == 'DATA').forEach((datastmt) => {
                 (datastmt as basic.DATA_Statement).datums.forEach(d => {
                     var functext = this.expr2js(d, {check:true, isconst:true});
-                    // TODO: catch exceptions
-                    // TODO: any value doing this ahead of time?
                     var value = new Function(`return ${functext};`).bind(this)();
                     this.datums.push({value:value});
                 });
@@ -78,6 +78,9 @@ export class BASICRuntime {
             // TODO: compile statements?
             //line.stmts.forEach((stmt) => this.compileStatement(stmt));
         });
+        // try to resume where we left off after loading
+        this.curpc = this.label2pc[prevlabel] || 0;
+        this.dataptr = Math.min(this.dataptr, this.datums.length);
     }
 
     reset() {
@@ -85,12 +88,21 @@ export class BASICRuntime {
         this.dataptr = 0;
         this.vars = {};
         this.arrays = {};
-        this.forLoops = {};
+        this.defs = this.getBuiltinFunctions();
+        this.forLoops = [];
         this.returnStack = [];
         this.column = 0;
-        this.abase = 1;
         this.running = true;
         this.exited = false;
+    }
+
+    getBuiltinFunctions() {
+        var fnames = this.program && this.program.opts.validFunctions;
+        // if no valid function list, look for ABC...() functions in prototype
+        if (!fnames) fnames = Object.keys(BASICRuntime.prototype).filter((name) => /^[A-Z]{3,}[$]?$/.test(name));
+        var dict = {};
+        for (var fn of fnames) dict[fn] = this[fn].bind(this);
+        return dict;
     }
 
     runtimeError(msg : string) {
@@ -99,7 +111,6 @@ export class BASICRuntime {
         throw new EmuHalt(`${msg} (line ${this.getLabelForPC(this.curpc)})`);
     }
 
-    // TODO: sometimes on next line
     getLineForPC(pc:number) {
         var line;
         do {
@@ -131,7 +142,7 @@ export class BASICRuntime {
         if (this.trace) console.log(this.curpc, stmt, this.vars, Object.keys(this.arrays));
         // skip to next statment
         this.curpc++;
-        // compile statement to JS?
+        // compile (unless cached) and execute statement
         this.compileStatement(stmt);
         this.executeStatement(stmt);
         return this.running;
@@ -171,7 +182,7 @@ export class BASICRuntime {
     }
 
     gosubLabel(label) {
-        this.returnStack.push(this.curpc + 1);
+        this.returnStack.push(this.curpc);
         this.gotoLabel(label);
     }
 
@@ -240,9 +251,9 @@ export class BASICRuntime {
             } else {
                 if (opts.isconst) this.runtimeError(`I expected a constant value here`);
                 var s = '';
-                if (expr.args && this[expr.name]) { // is it a function?
-                    s += `this.${expr.name}(`;
-                    s += expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
+                if (this.defs[expr.name]) { // is it a function?
+                    s += `this.defs.${expr.name}(`;
+                    if (expr.args) s += expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
                     s += ')';
                 } else if (expr.args) { // is it a subscript?
                     s += `this.getArray(${JSON.stringify(expr.name)}, ${expr.args.length})`;
@@ -252,7 +263,7 @@ export class BASICRuntime {
                     s = `this.vars.${expr.name}`;
                 }
                 if (opts.check)
-                    return `this.checkValue(${s}, ${JSON.stringify(expr.name)})`; // TODO: better error
+                    return `this.checkValue(${s}, ${JSON.stringify(expr.name)})`;
                 else
                     return s;
             }
@@ -260,64 +271,85 @@ export class BASICRuntime {
             var left = this.expr2js(expr.left, opts);
             var right = this.expr2js(expr.right, opts);
             return `this.${expr.op}(${left}, ${right})`;
-        } else if (isUnOp(expr) && expr.op == 'neg') {
+        } else if (isUnOp(expr)) {
             var e = this.expr2js(expr.expr, opts);
-            return `-(${e})`; // TODO: other ops?
+            return `this.${expr.op}(${e})`;
         }
     }
 
-    startForLoop(name, init, targ, step) {
-        // TODO: check for loop params
+    startForLoop(forname, init, targ, step) {
+        // TODO: support 0-iteration loops
         var pc = this.curpc;
         if (!step) step = 1;
-        this.vars[name] = init;
-        if (this.trace) console.log(`FOR ${name} = ${this.vars[name]} TO ${targ} STEP ${step}`);
-        this.forLoops[name] = {
-            next: () => {
-                var done = step >= 0 ? this.vars[name] >= targ : this.vars[name] <= targ;
+        this.vars[forname] = init;
+        if (this.trace) console.log(`FOR ${forname} = ${init} TO ${targ} STEP ${step}`);
+        this.forLoops.unshift({
+            next: (nextname:string) => {
+                if (nextname && forname != nextname)
+                    this.runtimeError(`I executed NEXT "${nextname}", but the last FOR was for "${forname}".`)
+                this.vars[forname] += step;
+                var done = step >= 0 ? this.vars[forname] > targ : this.vars[forname] < targ;
                 if (done) {
-                    delete this.forLoops[name];
+                    this.forLoops.shift(); // pop FOR off the stack and continue
                 } else {
-                    this.vars[name] += step;
-                    this.curpc = pc;
+                    this.curpc = pc; // go back to FOR location
                 }
-                if (this.trace) console.log(`NEXT ${name}: ${this.vars[name]} TO ${targ} STEP ${step} DONE=${done}`);
+                if (this.trace) console.log(`NEXT ${forname}: ${this.vars[forname]} TO ${targ} STEP ${step} DONE=${done}`);
             }
-        };
+        });
     }
 
     nextForLoop(name) {
-        // TODO: check for for loop
-        var fl = this.forLoops[name];
-        if (!fl) this.runtimeError(`I couldn't find a matching FOR for this NEXT.`)
-        this.forLoops[name].next();
+        var fl = this.forLoops[0];
+        if (!fl) this.runtimeError(`I couldn't find a FOR for this NEXT.`)
+        else fl.next(name);
     }
 
     // converts a variable to string/number based on var name
+    assign(name: string, right: number|string) : number|string {
+        if (this.program.opts.typeConvert)
+            return this.convert(name, right);
+        // TODO: use options
+        if (name.endsWith("$")) {
+            return this.convertToString(right, name);
+        } else {
+            return this.convertToNumber(right, name);
+        }
+    }
+
     convert(name: string, right: number|string) : number|string {
-        // TODO: error check?
-        if (name.endsWith("$"))
+        if (name.endsWith("$")) {
             return right+"";
-        else if (typeof right === 'string')
-            return parseFloat(right);
-        else if (typeof right === 'number')
+        } else if (typeof right === 'number') {
             return right;
-        else
-            return this.checkValue(right, name);
+        } else {
+            return parseFloat(right+"");
+        }
+    }
+
+    convertToString(right: number|string, name?: string) {
+        if (typeof right !== 'string') this.runtimeError(`I can't convert ${right} to a string.`);
+        else return right;
+    }
+
+    convertToNumber(right: number|string, name?: string) {
+        if (typeof right !== 'number') this.runtimeError(`I can't convert ${right} to a number.`);
+        else return this.checkNum(right);
     }
 
     // dimension array
     dimArray(name: string, ...dims:number[]) {
+        if (this.arrays[name]) this.runtimeError(`I already dimensioned this array (${name}) earlier.`)
         var isstring = name.endsWith('$');
-        // TODO: option for undefined float array elements?
-        var arrcons = isstring ? Array : Float64Array;
-        var ab = this.abase;
+        // if defaultValues is true, we use Float64Array which inits to 0
+        var arrcons = isstring || !this.program.opts.defaultValues ? Array : Float64Array;
+        // TODO? var ab = this.program.opts.defaultArrayBase;
         if (dims.length == 1) {
-            this.arrays[name] = new arrcons(dims[0]+ab);
+            this.arrays[name] = new arrcons(dims[0]+1);
         } else if (dims.length == 2) {
-            this.arrays[name] = new Array(dims[0]+ab);
-            for (var i=ab; i<dims[0]+ab; i++)
-                this.arrays[name][i] = new arrcons(dims[1]+ab);
+            this.arrays[name] = new Array(dims[0]+1);
+            for (var i=0; i<dims[0]+1; i++)
+                this.arrays[name][i] = new arrcons(dims[1]+1);
         } else {
             this.runtimeError(`I only support arrays of one or two dimensions.`)
         }
@@ -364,15 +396,22 @@ export class BASICRuntime {
         var setvals = '';
         stmt.args.forEach((arg, index) => {
             var lexpr = this.expr2js(arg, {check:false});
-            setvals += `${lexpr} = this.convert(${JSON.stringify(arg.name)}, vals[${index}]);`
+            setvals += `valid &= this.isValid(${lexpr} = this.convert(${JSON.stringify(arg.name)}, vals[${index}]));`
         });
-        return `this.running=false; this.input(${prompt}, ${stmt.args.length}).then((vals) => {${setvals}; this.running=true; this.resume();})`;
+        return `this.running=false;
+                this.input(${prompt}, ${stmt.args.length}).then((vals) => {
+                    let valid = 1;
+                    ${setvals}
+                    if (!valid) this.curpc--;
+                    this.running=true;
+                    this.resume();
+                })`;
     }
 
     do__LET(stmt : basic.LET_Statement) {
         var lexpr = this.expr2js(stmt.lexpr, {check:false});
         var right = this.expr2js(stmt.right, {check:true});
-        return `${lexpr} = this.convert(${JSON.stringify(stmt.lexpr.name)}, ${right});`;
+        return `${lexpr} = this.assign(${JSON.stringify(stmt.lexpr.name)}, ${right});`;
     }
 
     do__FOR(stmt : basic.FOR_Statement) {
@@ -384,7 +423,7 @@ export class BASICRuntime {
     }
 
     do__NEXT(stmt : basic.NEXT_Statement) {
-        var name = JSON.stringify(stmt.lexpr.name); // TODO: args? lexpr == null?
+        var name = stmt.lexpr && JSON.stringify(stmt.lexpr.name); // TODO: args? lexpr == null?
         return `this.nextForLoop(${name})`;
     }
 
@@ -394,9 +433,9 @@ export class BASICRuntime {
     }
 
     do__DEF(stmt : basic.DEF_Statement) {
-        var lexpr = `this.${stmt.lexpr.name}`;
+        var lexpr = `this.defs.${stmt.lexpr.name}`;
         var args = [];
-        for (var arg of stmt.lexpr.args) {
+        for (var arg of stmt.lexpr.args || []) {
             if (isLookup(arg)) {
                 args.push(arg.name);
             } else {
@@ -404,14 +443,13 @@ export class BASICRuntime {
             }
         }
         var functext = this.expr2js(stmt.def, {check:true, locals:args});
-        // TODO: use stmt.args to add function params
-        return `${lexpr} = function(${args.join(',')}) { return ${functext}; }`;
+        return `${lexpr} = function(${args.join(',')}) { return ${functext}; }.bind(this)`;
     }
 
     _DIM(dim : basic.IndOp) {
         var argsstr = '';
         for (var arg of dim.args) {
-            // TODO: check for float
+            // TODO: check for float (or at compile time)
             argsstr += ', ' + this.expr2js(arg, {check:true});
         }
         return `this.dimArray(${JSON.stringify(dim.name)}${argsstr});`;
@@ -450,13 +488,13 @@ export class BASICRuntime {
     do__READ(stmt : basic.READ_Statement) {
         var s = '';
         stmt.args.forEach((arg) => {
-            s += `${this.expr2js(arg, {check:false})} = this.convert(${JSON.stringify(arg.name)}, this.nextDatum());`;
+            s += `${this.expr2js(arg, {check:false})} = this.assign(${JSON.stringify(arg.name)}, this.nextDatum());`;
         });
         return s;
     }
 
     do__RESTORE() {
-        this.dataptr = 0; // TODO: line number?
+        this.dataptr = 0;
     }
 
     do__END() {
@@ -468,26 +506,30 @@ export class BASICRuntime {
     }
 
     do__OPTION(stmt: basic.OPTION_Statement) {
-        switch (stmt.optname) {
-            case 'BASE': 
-                let base = parseInt(stmt.optargs[0]);
-                if (base == 0 || base == 1) this.abase = base;
-                else this.runtimeError("OPTION BASE can only be 0 or 1.");
-                break;
-            default:
-                this.runtimeError(`OPTION ${stmt.optname} is not supported by this compiler.`);
-                break;
-        }
+        // already parsed in compiler
     }
 
-    // TODO: "SUBSCRIPT ERROR"
+    // TODO: "SUBSCRIPT ERROR" (range check)
     // TODO: gosubs nested too deeply
     // TODO: memory quota
 
     // FUNCTIONS
 
-    checkValue(obj:number|string, exprname:string) {
+    isValid(obj:number|string) : boolean {
+        if (typeof obj === 'number' && !isNaN(obj))
+            return true;
+        else if (typeof obj === 'string')
+            return true;
+        else
+            return false;
+    }
+    checkValue(obj:number|string, exprname:string) : number|string {
+        // check for unreferenced value
         if (typeof obj !== 'number' && typeof obj !== 'string') {
+            // assign default value?
+            if (obj == null && this.program.opts.defaultValues) {
+                return exprname.endsWith("$") ? "" : 0;
+            }
             if (exprname != null && obj == null) {
                 this.runtimeError(`I didn't find a value for ${exprname}`);
             } else if (exprname != null) {
@@ -527,6 +569,12 @@ export class BASICRuntime {
         if (b == 0) this.runtimeError(`I can't divide by zero.`);
         return this.checkNum(a / b);
     }
+    idiv(a:number, b:number) : number {
+        return this.div(Math.floor(a), Math.floor(b));
+    }
+    mod(a:number, b:number) : number {
+        return this.checkNum(a % b);
+    }
     pow(a:number, b:number) : number {
         if (a == 0 && b < 0) this.runtimeError(`I can't raise zero to a negative power.`);
         return this.checkNum(Math.pow(a, b));
@@ -536,6 +584,18 @@ export class BASICRuntime {
     }
     lor(a:number, b:number) : number {
         return a || b;
+    }
+    lnot(a:number) : number {
+        return a ? 0 : 1;
+    }
+    neg(a:number) : number {
+        return -a;
+    }
+    band(a:number, b:number) : number {
+        return a & b;
+    }
+    bor(a:number, b:number) : number {
+        return a | b;
     }
     eq(a:number, b:number) : boolean {
         return a == b;
@@ -604,7 +664,7 @@ export class BASICRuntime {
         return this.checkNum(Math.log(arg));
     }
     MID$(arg : string, start : number, count : number) : string {
-        if (start < 1) this.runtimeError(`The second parameter to MID$ must be between 1 and the length of the string in the first parameter.`)
+        if (start < 1) this.runtimeError(`I tried to compute MID$ but the second parameter is less than zero (${start}).`)
         return arg.substr(start-1, count);
     }
     RIGHT$(arg : string, count : number) : string {
@@ -614,7 +674,7 @@ export class BASICRuntime {
         return Math.random(); // argument ignored
     }
     ROUND(arg : number) : number {
-        return this.checkNum(Math.round(arg)); // TODO?
+        return this.checkNum(Math.round(arg));
     }
     SGN(arg : number) : number {
         return (arg < 0) ? -1 : (arg > 0) ? 1 : 0;
@@ -623,24 +683,25 @@ export class BASICRuntime {
         return this.checkNum(Math.sin(arg));
     }
     SPACE$(arg : number) : string {
-        return ' '.repeat(this.checkNum(arg));
+        return (arg > 0) ? ' '.repeat(this.checkNum(arg)) : '';
     }
     SQR(arg : number) : number {
         if (arg < 0) this.runtimeError(`I can't take the square root of a negative number (${arg}).`)
         return this.checkNum(Math.sqrt(arg));
     }
-    STR$(arg) : string {
-        return this.valueToString(arg);
+    STR$(arg : number) : string {
+        return this.valueToString(this.checkNum(arg));
     }
     TAB(arg : number) : string {
-        if (arg < 0) this.runtimeError(`I got a negative value for the TAB() function.`);
-        var spaces = this.ROUND(arg) - this.column;
+        if (arg < 1) { arg = 1; } // TODO: SYSTEM MESSAGE IDENTIFYING THE EXCEPTION
+        var spaces = this.ROUND(arg) - 1 - this.column;
         return (spaces > 0) ? ' '.repeat(spaces) : '';
     }
     TAN(arg : number) : number {
         return this.checkNum(Math.tan(arg));
     }
-    VAL(arg) : number {
-        return parseFloat(arg+"");
+    VAL(arg : string) : number {
+        var n = parseFloat(this.checkString(arg));
+        return isNaN(n) ? 0 : n; // TODO? altair works this way
     }
 }

@@ -17,9 +17,13 @@ var data = fs.readFileSync(filename, 'utf-8');
 try {
     var pgm = parser.parseFile(data, filename);
 } catch (e) {
-    console.log("@@@ " + e.message);
-    throw e;
+    if (parser.errors.length == 0)
+        console.log("@@@ " + e.msg);
+    else
+        console.log(e);
 }
+parser.errors.forEach((err) => console.log("@@@ " + err.msg));
+if (parser.errors.length) process.exit(2);
 
 var runtime = new BASICRuntime();
 runtime.trace = process.argv[3] == '-v';
@@ -47,7 +51,7 @@ runtime.resume = function() {
             }
         } catch (e) {
             console.log("### " + e.message);
-            throw e;
+            process.exit(1);
         }
     });
 }

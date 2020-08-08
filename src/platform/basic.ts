@@ -1,6 +1,6 @@
 
 import { Platform, BreakpointCallback } from "../common/baseplatform";
-import { PLATFORMS, AnimationTimer } from "../common/emu";
+import { PLATFORMS, AnimationTimer, EmuHalt } from "../common/emu";
 import { loadScript } from "../ide/ui";
 import { BASICRuntime } from "../common/basic/runtime";
 import { BASICProgram } from "../common/basic/compiler";
@@ -278,7 +278,7 @@ class BASICPlatform implements Platform {
         //var printhead = $('<div id="printhead" class="transcript-print-head"/>').appendTo(parent);
         this.tty = new TeleTypeWithKeyboard(windowport[0], true, inputline[0] as HTMLInputElement, this);
         this.tty.scrolldiv = parent;
-        this.timer = new AnimationTimer(60, this.advance1_60.bind(this));
+        this.timer = new AnimationTimer(60, this.animate.bind(this));
         this.resize = () => {
             // set font size proportional to window width
             var charwidth = $(gameport).width() * 1.6 / 80;
@@ -286,11 +286,15 @@ class BASICPlatform implements Platform {
             this.tty.scrollToBottom();
         }
         this.resize();
-        this.runtime.print = this.tty.print.bind(this.tty);
+        this.runtime.print = (s:string) => {
+            // TODO: why null sometimes?
+            this.clock = 0; // exit advance loop when printing
+            this.tty.print(s);
+        }
         this.runtime.resume = this.resume.bind(this);
     }
 
-    advance1_60() {
+    animate() {
         if (this.tty.isBusy()) return;
         this.clock += this.ips/60;
         while (!this.runtime.exited && this.clock-- > 0) {
@@ -298,33 +302,36 @@ class BASICPlatform implements Platform {
         }
     }
 
+    // should not depend on tty state
     advance(novideo?: boolean) : number {
         if (this.runtime.running) {
-            try {
-                var more = this.runtime.step();
-                if (!more) {
-                    this.pause();
-                    if (this.runtime.exited) {
-                        this.tty.print("\n\n");
-                        this.tty.addtext("*** END OF PROGRAM ***", 1);
-                    }
+            var more = this.runtime.step();
+            if (!more) {
+                this.pause();
+                if (this.runtime.exited) {
+                    this.exitmsg();
                 }
-            } catch (e) {
-                this.break();
-                throw e;
             }
+            // TODO: break() when EmuHalt at location?
             return 1;
         } else {
             return 0;
         }
     }
+    
+    exitmsg() {
+        this.tty.print("\n\n");
+        this.tty.addtext("*** END OF PROGRAM ***", 1);
+    }
 
     resize: () => void;
 
     loadROM(title, data) {
-        this.reset();
+        var didExit = this.runtime.exited;
         this.program = data;
         this.runtime.load(data);
+        // only reset if we exited, otherwise we try to resume
+        if (didExit) this.reset();
     }
 
     getROMExtension() {
@@ -403,8 +410,9 @@ class BASICPlatform implements Platform {
         this.break();
     }
     break() {
+        // TODO: don't highlight text in editor
         if (this.onBreakpointHit) {
-            this.onBreakpointHit(this.saveState());
+            //TODO: this.onBreakpointHit(this.saveState());
         }
     }
 }

@@ -510,3 +510,19 @@ in devices:
 
 Should call trap() every cycle or insn of frame, or exit when returns true?
 
+
+BETTER DEBUGGING
+
+Need to mark start/end columns, not just line number
+Know if we are actively debugging or trap occurred
+isRunning() = stopped, running, waiting, debugging...
+Showing running PC may be distracting, maybe lines visited?
+Don't grab cursor focus when trap occurs (how do we know?)
+Use tick() and refresh(), not callbacks
+Show current datum when using READ
+Use https://codemirror.net/doc/manual.html#markText
+
+
+
+
+

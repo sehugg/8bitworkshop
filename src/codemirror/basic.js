@@ -26,14 +26,15 @@ CodeMirror.defineMode("basic", function(conf, parserConf) {
     var identifiers = new RegExp("^[_A-Za-z][_A-Za-z0-9]*");
 
     var openingKeywords = ['if','for'];
-    var middleKeywords = ['to'];
+    var middleKeywords = ['to','then'];
     var endKeywords = ['next','end'];
 
-    var operatorKeywords = ['and', 'or', 'not', 'xor', 'in'];
+    var operatorKeywords = ['and', 'or', 'not', 'xor', 'eqv', 'imp'];
     var wordOperators = wordRegexp(operatorKeywords);
     var commonKeywords = [
-        'let','print','go','goto','gosub','next','dim','input','data',
-        'read','restore','return','stop','on','def','option','then','step',
+        'BASE','DATA','DEF','DIM',
+        'GO','GOSUB','GOTO','INPUT','LET','ON','OPTION','PRINT',
+        'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB'
     ];
     var commontypes = ['xxxxbyte','xxxxword'];
 

@@ -225,6 +225,10 @@ export class RAM {
 }
 
 export class EmuHalt extends Error {
+  constructor(msg:string) {
+    super(msg);
+    Object.setPrototypeOf(this, EmuHalt.prototype);
+  }
 }
 
 export class AnimationTimer {

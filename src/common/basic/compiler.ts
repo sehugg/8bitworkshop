@@ -13,7 +13,7 @@ class CompileError extends Error {
 
 // Lexer regular expression -- each (capture group) handles a different token type
 
-const re_toks = /([0-9.]+[E][+-]?\d+)|(\d*[.]\d*[E0-9]*)|(\d+)|(['].*)|(\bAND\b)|(\bOR\b)|(\w+[$]?)|(".*?")|([<>]?[=<>])|([-+*/^,;:()])|(\S+)/gi;
+const re_toks = /([0-9.]+[E][+-]?\d+)|(\d*[.]\d*[E0-9]*)|(\d+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>])|([-+*/^,;:()])|(\S+)/gi;
 
 export enum TokenType {
     EOL = 0,
@@ -21,8 +21,6 @@ export enum TokenType {
     Float2,
     Int,
     Remark,
-    And,
-    Or,
     Ident,
     String,
     Relational,
@@ -35,7 +33,7 @@ export type ExprTypes = BinOp | UnOp | IndOp | Literal;
 
 export type Expr = ExprTypes & SourceLocated;
 
-export type Opcode = 'add' | 'sub' | 'mul' | 'div' | 'pow' | 'eq' | 'ne' | 'lt' | 'gt' | 'le' | 'ge' | 'land' | 'lor';
+export type Opcode = string;
 
 export type Value = string | number;
 
@@ -50,7 +48,7 @@ export interface BinOp {
 }
 
 export interface UnOp {
-    op: 'neg';
+    op: 'neg' | 'lnot';
     expr: Expr;
 }
 
@@ -152,6 +150,7 @@ export interface BASICLine {
 }
 
 export interface BASICProgram {
+    opts: BASICOptions;
     lines: BASICLine[];
 }
 
@@ -162,23 +161,25 @@ class Token {
 }
 
 const OPERATORS = {
-    'AND':  {f:'land',p:5},
-    'OR':   {f:'lor',p:5},
-    '=':    {f:'eq',p:10},
-    '<>':   {f:'ne',p:10},
-    '<':    {f:'lt',p:10},
-    '>':    {f:'gt',p:10},
-    '<=':   {f:'le',p:10},
-    '>=':   {f:'ge',p:10},
+    'OR':   {f:'bor',p:7},
+    'AND':  {f:'band',p:8},
+    '=':    {f:'eq',p:50},
+    '<>':   {f:'ne',p:50},
+    '<':    {f:'lt',p:50},
+    '>':    {f:'gt',p:50},
+    '<=':   {f:'le',p:50},
+    '>=':   {f:'ge',p:50},
     '+':    {f:'add',p:100},
     '-':    {f:'sub',p:100},
+    '%':    {f:'mod',p:140},
+    '\\':   {f:'idiv',p:150},
     '*':    {f:'mul',p:200},
     '/':    {f:'div',p:200},
     '^':    {f:'pow',p:300}
 };
 
-function getOpcodeForOperator(op: string): Opcode {
-    return OPERATORS[op].f as Opcode;
+function getOperator(op: string) {
+    return OPERATORS[op];
 }
 
 function getPrecedence(tok: Token): number {
@@ -186,7 +187,7 @@ function getPrecedence(tok: Token): number {
         case TokenType.Operator:
         case TokenType.Relational:
         case TokenType.Ident:
-            let op = OPERATORS[tok.str]
+            let op = getOperator(tok.str);
             if (op) return op.p;
     }
     return -1;
@@ -202,7 +203,7 @@ function stripQuotes(s: string) {
     return s.substr(1, s.length-2);
 }
 
-// TODO
+// TODO: implement these
 export interface BASICOptions {
     uppercaseOnly : boolean;            // convert everything to uppercase?
     strictVarNames : boolean;           // only allow A0-9 for numerics, single letter for arrays/strings
@@ -222,21 +223,25 @@ export interface BASICOptions {
     printPrecision : number;            // print precision # of digits
     checkOverflow : boolean;            // check for overflow of numerics?
     defaultValues : boolean;            // initialize unset variables to default value? (0 or "")
+    multipleNextVars : boolean;         // NEXT Y,X
 }
 
 ///// BASIC PARSER
 
 export class BASICParser {
-    tokens: Token[];
+    opts : BASICOptions = ALTAIR_BASIC40;
     errors: WorkerError[];
+    listings: CodeListingMap;
     labels: { [label: string]: BASICLine };
     targets: { [targetlabel: string]: SourceLocation };
-    eol: Token;
+    decls: { [name: string]: SourceLocation }; // declared/set vars
+    refs: { [name: string]: SourceLocation }; // references
+
     lineno : number;
+    tokens: Token[];
+    eol: Token;
     curlabel: string;
-    listings: CodeListingMap;
     lasttoken: Token;
-    opts : BASICOptions = ALTAIR_BASIC40;
 
     constructor() {
         this.labels = {};
@@ -245,6 +250,8 @@ export class BASICParser {
         this.lineno = 0;
         this.curlabel = null;
         this.listings = {};
+        this.decls = {};
+        this.refs = {};
     }
     compileError(msg: string, loc?: SourceLocation) {
         if (!loc) loc = this.peekToken().$loc;
@@ -253,7 +260,7 @@ export class BASICParser {
         throw new CompileError(`${msg} (line ${loc.line})`); // TODO: label too?
     }
     dialectError(what: string, loc?: SourceLocation) {
-        this.compileError(`The selected BASIC dialect doesn't support ${what}`, loc); // TODO
+        this.compileError(`The selected BASIC dialect doesn't support ${what}.`, loc); // TODO
     }
     consumeToken(): Token {
         var tok = this.lasttoken = (this.tokens.shift() || this.eol);
@@ -261,9 +268,9 @@ export class BASICParser {
     }
     expectToken(str: string) : Token {
         var tok = this.consumeToken();
-        var tokstr = tok.str.toUpperCase();
+        var tokstr = tok.str;
         if (str != tokstr) {
-            this.compileError(`I expected "${str}" here, but I saw "${tokstr}".`);
+            this.compileError(`There should be a "${str}" here.`);
         }
         return tok;
     }
@@ -278,7 +285,7 @@ export class BASICParser {
         let tok = this.consumeToken();
         switch (tok.type) {
             case TokenType.Int:
-                if (this.labels[tok.str] != null) this.compileError(`I saw a duplicated label "${tok.str}".`);
+                if (this.labels[tok.str] != null) this.compileError(`There's a duplicated label "${tok.str}".`);
                 this.labels[tok.str] = line;
                 line.label = tok.str;
                 this.curlabel = tok.str;
@@ -291,8 +298,8 @@ export class BASICParser {
     }
     parseFile(file: string, path: string) : BASICProgram {
         var pgmlines = file.split("\n").map((line) => this.parseLine(line));
-        this.checkLabels();
-        var program = { lines: pgmlines };
+        var program = { opts: this.opts, lines: pgmlines };
+        this.checkAll(program);
         this.listings[path] = this.generateListing(file, program);
         return program;
     }
@@ -308,11 +315,15 @@ export class BASICParser {
     tokenize(line: string) : void {
         this.lineno++;
         this.tokens = [];
-        var m;
+        var m : RegExpMatchArray;
         while (m = re_toks.exec(line)) {
             for (var i = 1; i < TokenType._LAST; i++) {
-                let s = m[i];
+                let s : string = m[i];
                 if (s != null) {
+                    // uppercase all identifiers, and maybe more
+                    if (i == TokenType.Ident || this.opts.uppercaseOnly)
+                        s = s.toUpperCase();
+                    // add token to list
                     this.tokens.push({
                         str: s,
                         type: i,
@@ -341,23 +352,27 @@ export class BASICParser {
     }
     parseStatement(): Statement | null {
         var cmdtok = this.consumeToken();
+        var cmd = cmdtok.str;
         var stmt;
         switch (cmdtok.type) {
             case TokenType.Remark:
                 if (!this.opts.tickComments) this.dialectError(`tick remarks`);
                 return null;
             case TokenType.Ident:
-                var cmd = cmdtok.str.toUpperCase();
-                // remark? ignore to eol
+                // remark? ignore all tokens to eol
                 if (cmd == 'REM') {
                     while (this.consumeToken().type != TokenType.EOL) { }
                     return null;
                 }
-                // look for "GO TO"
+                // look for "GO TO" and "GO SUB"
                 if (cmd == 'GO' && this.peekToken().str == 'TO') {
                     this.consumeToken();
                     cmd = 'GOTO';
+                } else if (cmd == 'GO' && this.peekToken().str == 'SUB') {
+                    this.consumeToken();
+                    cmd = 'GOSUB';
                 }
+                // lookup JS function for command
                 var fn = this['stmt__' + cmd];
                 if (fn) {
                     if (this.opts.validKeywords && this.opts.validKeywords.indexOf(cmd) < 0)
@@ -371,10 +386,8 @@ export class BASICParser {
                     break;
                 }
             case TokenType.EOL:
-                this.compileError(`I expected a command here`);
-                return null;
             default:
-                this.compileError(`Unknown command "${cmdtok.str}"`);
+                this.compileError(`There should be a command here.`);
                 return null;
         }
         if (stmt) stmt.$loc = { line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: this.peekToken().$loc.start };
@@ -387,6 +400,7 @@ export class BASICParser {
         var tok = this.consumeToken();
         switch (tok.type) {
             case TokenType.Ident:
+                this.refs[tok.str] = tok.$loc;
                 let args = null;
                 if (this.peekToken().str == '(') {
                     this.expectToken('(');
@@ -410,8 +424,10 @@ export class BASICParser {
         this.pushbackToken(sep);
         return list;
     }
-    parseVarOrIndexedList(): IndOp[] {
-        return this.parseList(this.parseVarOrIndexed, ',');
+    parseLexprList(): IndOp[] {
+        var list = this.parseList(this.parseVarOrIndexed, ',');
+        list.forEach((lexpr) => this.decls[lexpr.name] = this.lasttoken.$loc);
+        return list;
     }
     parseExprList(): Expr[] {
         return this.parseList(this.parseExpr, ',');
@@ -427,7 +443,7 @@ export class BASICParser {
                 this.targets[label] = tok.$loc;
                 return {value:label};
             default:
-                this.compileError(`I expected a line number here`);
+                this.compileError(`There should be a line number here.`);
                 return;
         }
     }
@@ -437,12 +453,17 @@ export class BASICParser {
             case TokenType.Int:
             case TokenType.Float1:
             case TokenType.Float2:
-                return { value: parseFloat(tok.str), $loc: tok.$loc };
+                return { value: this.parseNumber(tok.str), $loc: tok.$loc };
             case TokenType.String:
                 return { value: stripQuotes(tok.str), $loc: tok.$loc };
             case TokenType.Ident:
-                this.pushbackToken(tok);
-                return this.parseVarOrIndexedOrFunc();
+                if (tok.str == 'NOT') {
+                    let expr = this.parsePrimary();
+                    return { op: 'lnot', expr: expr };
+                } else {
+                    this.pushbackToken(tok);
+                    return this.parseVarOrIndexedOrFunc();
+                }
             case TokenType.Operator:
                 if (tok.str == '(') {
                     let expr = this.parseExpr();
@@ -454,21 +475,33 @@ export class BASICParser {
                 } else if (tok.str == '+') {
                     return this.parsePrimary(); // TODO?
                 }
-            default:
-                this.compileError(`Unexpected "${tok.str}"`);
+            case TokenType.EOL:
+                this.compileError(`The expression is incomplete.`);
+                return;
         }
+        this.compileError(`There was an unexpected "${tok.str}" in this expression.`);
+    }
+    parseNumber(str: string) : number {
+        var n = parseFloat(str);
+        if (isNaN(n))
+            this.compileError(`The number ${str} is not a valid floating-point number.`);
+        if (this.opts.checkOverflow && !isFinite(n))
+            this.compileError(`The number ${str} is too big to fit into a floating-point value.`);
+        return n;
     }
     parseExpr1(left: Expr, minPred: number): Expr {
         let look = this.peekToken();
         while (getPrecedence(look) >= minPred) {
             let op = this.consumeToken();
+            if (this.opts.validOperators && this.opts.validOperators.indexOf(op.str) < 0)
+                this.dialectError(`the "${op.str}" operator`);
             let right: Expr = this.parsePrimary();
             look = this.peekToken();
             while (getPrecedence(look) > getPrecedence(op)) {
                 right = this.parseExpr1(right, getPrecedence(look));
                 look = this.peekToken();
             }
-            left = { op: getOpcodeForOperator(op.str), left: left, right: right };
+            left = { op: getOperator(op.str).f, left: left, right: right };
         }
         return left;
     }
@@ -481,6 +514,7 @@ export class BASICParser {
     stmt__LET(): LET_Statement {
         var lexpr = this.parseVarOrIndexed();
         this.expectToken("=");
+        this.decls[lexpr.name] = this.lasttoken.$loc;
         var right = this.parseExpr();
         return { command: "LET", lexpr: lexpr, right: right };
     }
@@ -547,7 +581,7 @@ export class BASICParser {
         return { command:'NEXT', lexpr:lexpr };
     }
     stmt__DIM() : DIM_Statement {
-        return { command:'DIM', args:this.parseVarOrIndexedList() };
+        return { command:'DIM', args:this.parseLexprList() };
     }
     stmt__INPUT() : INPUT_Statement {
         var prompt = this.consumeToken();
@@ -559,13 +593,13 @@ export class BASICParser {
             this.pushbackToken(prompt);
             promptstr = "";
         }
-        return { command:'INPUT', prompt:{ value: promptstr, $loc: prompt.$loc }, args:this.parseVarOrIndexedList() };
+        return { command:'INPUT', prompt:{ value: promptstr, $loc: prompt.$loc }, args:this.parseLexprList() };
     }
     stmt__DATA() : DATA_Statement {
         return { command:'DATA', datums:this.parseExprList() };
     }
     stmt__READ() {
-        return { command:'READ', args:this.parseVarOrIndexedList() };
+        return { command:'READ', args:this.parseLexprList() };
     }
     stmt__RESTORE() {
         return { command:'RESTORE' };
@@ -587,22 +621,43 @@ export class BASICParser {
     }
     stmt__DEF() : DEF_Statement {
         var lexpr = this.parseVarOrIndexed();
-        if (!lexpr.name.toUpperCase().startsWith('FN')) this.compileError(`Functions defined with DEF must begin with the letters "FN".`)
+        if (!lexpr.name.startsWith('FN')) this.compileError(`Functions defined with DEF must begin with the letters "FN".`)
         this.expectToken("=");
+        this.decls[lexpr.name] = this.lasttoken.$loc;
         var func = this.parseExpr();
         return { command:'DEF', lexpr:lexpr, def:func };
     }
     stmt__OPTION() : OPTION_Statement {
         var tokname = this.consumeToken();
-        if (tokname.type != TokenType.Ident) this.compileError(`I expected a name after the OPTION statement.`)
+        if (tokname.type != TokenType.Ident) this.compileError(`There should be a name after the OPTION statement.`)
         var list : string[] = [];
         var tok;
         do {
             tok = this.consumeToken();
             if (isEOS(tok)) break;
-            list.push(tok.str.toUpperCase());
+            list.push(tok.str);
         } while (true);
-        return { command:'OPTION', optname:tokname.str.toUpperCase(), optargs:list };
+        var stmt : OPTION_Statement = { command:'OPTION', optname:tokname.str, optargs:list };
+        this.parseOptions(stmt);
+        return stmt;
+    }
+    parseOptions(stmt: OPTION_Statement) {
+        switch (stmt.optname) {
+            case 'BASE': 
+                let base = parseInt(stmt.optargs[0]);
+                if (base == 0 || base == 1) this.opts.defaultArrayBase = base;
+                else this.compileError("OPTION BASE can only be 0 or 1.");
+                break;
+            case 'DIALECT':
+                let dname = stmt.optargs[0] || "";
+                let dialect = DIALECTS[dname];
+                if (dialect) this.opts = dialect;
+                else this.compileError(`The dialect named "${dname}" is not supported by this compiler.`);
+                break;
+            default:
+                this.compileError(`OPTION ${stmt.optname} is not supported by this compiler.`);
+                break;
+        }
     }
     
     // for workermain
@@ -620,11 +675,21 @@ export class BASICParser {
     }
 
     // LINT STUFF
+    checkAll(program : BASICProgram) {
+        this.checkLabels();
+        //this.checkUnsetVars();
+    }
     checkLabels() {
         for (let targ in this.targets) {
             if (this.labels[targ] == null) {
-                this.compileError(`I couldn't find line number ${targ}`, this.targets[targ]);
+                this.compileError(`There isn't a line number ${targ}.`, this.targets[targ]);
             }
+        }
+    }
+    checkUnsetVars() {
+        for (var ref in this.refs) {
+            if (this.decls[ref] == null)
+                this.compileError(`The variable "${ref}" was used but not set with a LET, DIM, READ, or INPUT statement.`);
         }
     }
 }
@@ -643,18 +708,19 @@ export const ECMA55_MINIMAL : BASICOptions = {
     stringConcat : false,
     typeConvert : false,
     maxDimensions : 2,
-    maxArguments : Infinity,
+    maxArguments : 255,
     sparseArrays : false,
     tickComments : false,
     validKeywords : ['BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
         'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO'
     ],
-    validFunctions : ['ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAN'],
+    validFunctions : ['ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAB','TAN'],
     validOperators : ['=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^'],
     printZoneLength : 15,
     printPrecision : 6,
     checkOverflow : true,
+    multipleNextVars : false,
 }
 
 export const ALTAIR_BASIC40 : BASICOptions = {
@@ -667,7 +733,7 @@ export const ALTAIR_BASIC40 : BASICOptions = {
     stringConcat : false,
     typeConvert : false,
     maxDimensions : 2,
-    maxArguments : Infinity,
+    maxArguments : 255,
     sparseArrays : false,
     tickComments : false,
     validKeywords : null, // all
@@ -676,4 +742,13 @@ export const ALTAIR_BASIC40 : BASICOptions = {
     printZoneLength : 15,
     printPrecision : 6,
     checkOverflow : true,
+    multipleNextVars : true,
 }
+
+export const DIALECTS = {
+    "DEFAULT":      ALTAIR_BASIC40,
+    "ALTAIR":       ALTAIR_BASIC40,
+    "ALTAIR40":     ALTAIR_BASIC40,
+    "ECMA55":       ECMA55_MINIMAL,
+    "MINIMAL":      ECMA55_MINIMAL,
+};
