@@ -36,6 +36,7 @@ class TeleType {
         this.lines = [];
         this.ncharsout = 0;
         $(this.page).empty();
+        this.showPrintHead(true);
     }
     ensureline() {
         if (this.curline == null) {
@@ -75,13 +76,15 @@ class TeleType {
                 span.appendTo(this.curline);
             }
             this.col += line.length;
+            // TODO: wrap @ 80 columns
             this.ncharsout += line.length;
-            //this.movePrintHead();
+            this.movePrintHead(true);
         }
     }
     newline() {
         this.flushline();
         this.col = 0;
+        this.movePrintHead(false);
     }
     // TODO: bug in interpreter where it tracks cursor position but maybe doesn't do newlines?
     print(val: string) {
@@ -129,9 +132,21 @@ class TeleType {
     scrollToBottom() {
         this.curline.scrollIntoView();
     }
-    movePrintHead() {
-        var x = $(this.page).position().left + this.col * ($(this.page).width() / 80);
-        $("#printhead").offset({left: x});
+    movePrintHead(printing: boolean) {
+        /*
+        var ph = $("#printhead"); // TODO: speed?
+        var x = $(this.page).position().left + this.col * ($(this.page).width() / 80) - 200;
+        ph.stop().animate({left: x}, {duration:20});
+        //ph.offset({left: x});
+        if (printing) ph.addClass("printing");
+        else ph.removeClass("printing");
+        */
+    }
+    showPrintHead(show: boolean) {
+        /*
+        var ph = $("#printhead"); // TODO: speed?
+        if (show) ph.show(); else ph.hide();
+        */
     }
 }
 
@@ -151,11 +166,15 @@ class TeleTypeWithKeyboard extends TeleType {
         this.input = input;
         this.platform = platform;
         this.runtime = platform.runtime;
-        this.runtime.input = async (prompt:string) => {
+        this.runtime.input = async (prompt:string, nargs:number) => {
             return new Promise( (resolve, reject) => {
-                this.addtext(prompt, 0);
-                this.addtext('? ', 0);
-                this.waitingfor = 'line';
+                if (prompt != null) {
+                    this.addtext(prompt, 0);
+                    this.addtext('? ', 0);
+                    this.waitingfor = 'line';
+                } else {
+                    this.waitingfor = 'char';
+                }
                 this.focusinput();
                 this.resolveInput = resolve;
             });
@@ -176,8 +195,13 @@ class TeleTypeWithKeyboard extends TeleType {
         };
         this.hideinput();
     }
+    clear() {
+        super.clear();
+        this.hideinput();
+    }
     focusinput() {
         this.ensureline();
+        this.showPrintHead(false);
         // don't steal focus while editing
         if (this.keepinput)
             $(this.input).css('visibility', 'visible');
@@ -194,6 +218,7 @@ class TeleTypeWithKeyboard extends TeleType {
             $(this.input).removeClass('transcript-input-char')
     }
     hideinput() {
+        this.showPrintHead(true);
         if (this.keepinput)
             $(this.input).css('visibility','hidden');
         else
@@ -215,16 +240,18 @@ class TeleTypeWithKeyboard extends TeleType {
     }
     sendinput(s: string) {
         if (this.resolveInput) {
-            s = s.toUpperCase();
+            if (this.platform.program.opts.uppercaseOnly)
+                s = s.toUpperCase();
             this.addtext(s, 4);
             this.flushline();
-            this.resolveInput(s.split(','));
+            this.resolveInput(s.split(',')); // TODO: should parse quotes, etc
             this.resolveInput = null;
         }
         this.clearinput();
         this.hideinput(); // keep from losing input handlers
     }
     sendchar(code: number) {
+        this.sendinput(String.fromCharCode(code));
     }
     ensureline() {
         if (!this.keepinput) $(this.input).hide();
@@ -277,6 +304,7 @@ class BASICPlatform implements Platform {
         var windowport = $('<div id="windowport" class="transcript transcript-style-2"/>').appendTo(gameport);
         var inputline = $('<input class="transcript-input transcript-style-2" type="text" style="max-width:95%"/>').appendTo(parent);
         //var printhead = $('<div id="printhead" class="transcript-print-head"/>').appendTo(parent);
+        //var printshield = $('<div id="printhead" class="transcript-print-shield"/>').appendTo(parent);
         this.tty = new TeleTypeWithKeyboard(windowport[0], true, inputline[0] as HTMLInputElement, this);
         this.tty.scrolldiv = parent;
         this.timer = new AnimationTimer(60, this.animate.bind(this));
@@ -323,6 +351,7 @@ class BASICPlatform implements Platform {
     exitmsg() {
         this.tty.print("\n\n");
         this.tty.addtext("*** END OF PROGRAM ***", 1);
+        this.tty.showPrintHead(false);
     }
 
     resize: () => void;

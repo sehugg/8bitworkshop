@@ -34,6 +34,7 @@ export class BASICRuntime {
     label2lineidx : {[label : string] : number};
     label2pc : {[label : string] : number};
     datums : basic.Literal[];
+    builtins : {};
 
     curpc : number;
     dataptr : number;
@@ -57,6 +58,7 @@ export class BASICRuntime {
         this.line2pc = [];
         this.pc2line = new Map();
         this.datums = [];
+        this.builtins = this.getBuiltinFunctions();
         // TODO: lines start @ 1?
         program.lines.forEach((line, idx) => {
             // make lookup tables
@@ -76,7 +78,7 @@ export class BASICRuntime {
                 });
             });
             // TODO: compile statements?
-            //line.stmts.forEach((stmt) => this.compileStatement(stmt));
+            line.stmts.forEach((stmt) => this.compileStatement(stmt));
         });
         // try to resume where we left off after loading
         this.curpc = this.label2pc[prevlabel] || 0;
@@ -88,7 +90,7 @@ export class BASICRuntime {
         this.dataptr = 0;
         this.vars = {};
         this.arrays = {};
-        this.defs = this.getBuiltinFunctions();
+        this.defs = {};
         this.forLoops = [];
         this.returnStack = [];
         this.column = 0;
@@ -109,6 +111,9 @@ export class BASICRuntime {
         this.curpc--; // we did curpc++ before executing statement
         // TODO: pass source location to error
         throw new EmuHalt(`${msg} (line ${this.getLabelForPC(this.curpc)})`);
+    }
+    dialectError(what : string) {
+        this.runtimeError(`I can't ${what} in this dialect of BASIC.`);
     }
 
     getLineForPC(pc:number) {
@@ -150,11 +155,16 @@ export class BASICRuntime {
 
     compileStatement(stmt: basic.Statement & CompiledStatement) {
         if (stmt.$run == null) {
-            var stmtfn = this['do__' + stmt.command];
-            if (stmtfn == null) this.runtimeError(`I don't know how to "${stmt.command}".`);
-            var functext = stmtfn.bind(this)(stmt);
-            if (this.trace) console.log(functext);
-            stmt.$run = new Function(functext).bind(this);
+            try {
+                var stmtfn = this['do__' + stmt.command];
+                if (stmtfn == null) this.runtimeError(`I don't know how to "${stmt.command}".`);
+                var functext = stmtfn.bind(this)(stmt);
+                if (this.trace) console.log(functext);
+                stmt.$run = new Function(functext).bind(this);
+            } catch (e) {
+                console.log(functext);
+                throw e;
+            }
         }
     }
     executeStatement(stmt: basic.Statement & CompiledStatement) {
@@ -164,6 +174,19 @@ export class BASICRuntime {
 
     skipToEOL() {
         do {
+            this.curpc++;
+        } while (this.curpc < this.allstmts.length && !this.pc2line.get(this.curpc));
+    }
+
+    skipToElse() {
+        do {
+            // in Altair BASIC, ELSE is bound to the right-most IF
+            // TODO: this is complicated, we should just have nested expressions
+            if (this.program.opts.ifElse) {
+                var cmd = this.allstmts[this.curpc].command;
+                if (cmd == 'ELSE') { this.curpc++; break; }
+                else if (cmd == 'IF') return this.skipToEOL();
+            }
             this.curpc++;
         } while (this.curpc < this.allstmts.length && !this.pc2line.get(this.curpc));
     }
@@ -192,30 +215,38 @@ export class BASICRuntime {
         var pc = this.returnStack.pop();
         this.curpc = pc;
     }
+
+    popReturnStack() {
+        if (this.returnStack.length == 0)
+            this.runtimeError("I tried to POP, but there wasn't a corresponding GOSUB.");
+        this.returnStack.pop();
+    }
     
     valueToString(obj) : string {
         var str;
         if (typeof obj === 'number') {
             var numstr = obj.toString().toUpperCase();
-            var prec = 11;
-            while (numstr.length > 11) {
+            var numlen = this.program.opts.printZoneLength - 4;
+            var prec = numlen;
+            while (numstr.length > numlen) {
                 numstr = obj.toPrecision(prec--);
             }
             if (numstr.startsWith('0.'))
                 numstr = numstr.substr(1);
             else if (numstr.startsWith('-0.'))
                 numstr = '-'+numstr.substr(2);
-            if (numstr.startsWith('-')) {
+            if (!this.program.opts.numericPadding)
+                str = numstr;
+            else if (numstr.startsWith('-'))
                 str = `${numstr} `;
-            } else {
+            else
                 str = ` ${numstr} `;
-            }
         } else if (obj == '\n') {
             this.column = 0;
             str = obj;
         } else if (obj == '\t') {
-            var curgroup = Math.floor(this.column / 15);
-            var nextcol = (curgroup + 1) * 15;
+            var curgroup = Math.floor(this.column / this.program.opts.printZoneLength);
+            var nextcol = (curgroup + 1) * this.program.opts.printZoneLength;
             str = this.TAB(nextcol);
         } else {
             str = `${obj}`;
@@ -251,15 +282,16 @@ export class BASICRuntime {
             } else {
                 if (opts.isconst) this.runtimeError(`I expected a constant value here`);
                 var s = '';
-                if (this.defs[expr.name]) { // is it a function?
-                    s += `this.defs.${expr.name}(`;
-                    if (expr.args) s += expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
-                    s += ')';
+                if (expr.name.startsWith("FN")) { // is it a user-defined function?
+                    let jsargs = expr.args && expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
+                    s += `this.defs.${expr.name}(${jsargs})`; // TODO: what if no exist?
+                } else if (this.builtins[expr.name]) { // is it a built-in function?
+                    let jsargs = expr.args && expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
+                    s += `this.builtins.${expr.name}(${jsargs})`;
                 } else if (expr.args) { // is it a subscript?
                     s += `this.getArray(${JSON.stringify(expr.name)}, ${expr.args.length})`;
                     s += expr.args.map((arg) => '[this.ROUND('+this.expr2js(arg, opts)+')]').join('');
-                } else {
-                    // just a variable
+                } else { // just a variable
                     s = `this.vars.${expr.name}`;
                 }
                 if (opts.check)
@@ -409,6 +441,7 @@ export class BASICRuntime {
     }
 
     do__LET(stmt : basic.LET_Statement) {
+        // TODO: range-checking for subscripts (get and set)
         var lexpr = this.expr2js(stmt.lexpr, {check:false});
         var right = this.expr2js(stmt.right, {check:true});
         return `${lexpr} = this.assign(${JSON.stringify(stmt.lexpr.name)}, ${right});`;
@@ -429,11 +462,14 @@ export class BASICRuntime {
 
     do__IF(stmt : basic.IF_Statement) {
         var cond = this.expr2js(stmt.cond, {check:true});
-        return `if (!(${cond})) { this.skipToEOL(); }`
+        return `if (!(${cond})) { this.skipToElse(); }`
+    }
+
+    do__ELSE() {
+        return `this.skipToEOL()`
     }
 
     do__DEF(stmt : basic.DEF_Statement) {
-        var lexpr = `this.defs.${stmt.lexpr.name}`;
         var args = [];
         for (var arg of stmt.lexpr.args || []) {
             if (isLookup(arg)) {
@@ -443,6 +479,8 @@ export class BASICRuntime {
             }
         }
         var functext = this.expr2js(stmt.def, {check:true, locals:args});
+        //this.defs[stmt.lexpr.name] = new Function(args.join(','), functext).bind(this);
+        var lexpr = `this.defs.${stmt.lexpr.name}`;
         return `${lexpr} = function(${args.join(',')}) { return ${functext}; }.bind(this)`;
     }
 
@@ -509,9 +547,28 @@ export class BASICRuntime {
         // already parsed in compiler
     }
 
+    do__POP() {
+        return `this.popReturnStack()`;
+    }
+
+    do__GET(stmt : basic.GET_Statement) {
+        var lexpr = this.expr2js(stmt.lexpr, {check:false});
+        // TODO: single key input
+        return `this.running=false;
+                this.input().then((vals) => {
+                    ${lexpr} = this.convert(${JSON.stringify(stmt.lexpr.name)}, vals[0]);
+                    this.running=true;
+                    this.resume();
+                })`;
+    }
+
+    // TODO: ONERR, ON ERROR GOTO
     // TODO: "SUBSCRIPT ERROR" (range check)
     // TODO: gosubs nested too deeply
     // TODO: memory quota
+    // TODO: useless loop (! 4th edition)
+    // TODO: other 4th edition errors
+
 
     // FUNCTIONS
 
@@ -548,7 +605,10 @@ export class BASICRuntime {
     }
 
     checkString(s:string) : string {
-        if (typeof s !== 'string') this.runtimeError(`I expected a string here.`);
+        if (typeof s !== 'string')
+            this.runtimeError(`I expected a string here.`);
+        else if (s.length > this.program.opts.maxStringLength)
+            this.dialectError(`create strings longer than ${this.program.opts.maxStringLength} characters`);
         return s;
     }
     
@@ -556,8 +616,10 @@ export class BASICRuntime {
         // TODO: if string-concat
         if (typeof a === 'number' && typeof b === 'number')
             return this.checkNum(a + b);
+        else if (this.program.opts.stringConcat)
+            return this.checkString(a + b);
         else
-            return a + b;
+            this.dialectError(`use the "+" operator to concatenate strings`)
     }
     sub(a:number, b:number) : number {
         return this.checkNum(a - b);
@@ -597,23 +659,23 @@ export class BASICRuntime {
     bor(a:number, b:number) : number {
         return a | b;
     }
-    eq(a:number, b:number) : boolean {
-        return a == b;
+    eq(a:number, b:number) : number {
+        return a == b ? 1 : 0;
     }
-    ne(a:number, b:number) : boolean {
-        return a != b;
+    ne(a:number, b:number) : number {
+        return a != b ? 1 : 0;
     }
-    lt(a:number, b:number) : boolean {
-        return a < b;
+    lt(a:number, b:number) : number {
+        return a < b ? 1 : 0;
     }
-    gt(a:number, b:number) : boolean {
-        return a > b;
+    gt(a:number, b:number) : number {
+        return a > b ? 1 : 0;
     }
-    le(a:number, b:number) : boolean {
-        return a <= b;
+    le(a:number, b:number) : number {
+        return a <= b ? 1 : 0;
     }
-    ge(a:number, b:number) : boolean {
-        return a >= b;
+    ge(a:number, b:number) : number {
+        return a >= b ? 1 : 0;
     }
 
     // FUNCTIONS (uppercase)
@@ -632,6 +694,9 @@ export class BASICRuntime {
     }
     COS(arg : number) : number {
         return this.checkNum(Math.cos(arg));
+    }
+    COT(arg : number) : number {
+        return this.checkNum(1.0 / Math.tan(arg)); // 4th edition only
     }
     EXP(arg : number) : number {
         return this.checkNum(Math.exp(arg));

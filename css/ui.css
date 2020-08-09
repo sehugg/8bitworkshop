@@ -353,7 +353,7 @@ div.replaydiv {
   background-repeat: no-repeat;
   background-position: 50%;
   pointer-events:auto;
-  z-index:2;
+  z-index:4;
 }
 .gutter.gutter-horizontal {
   background-image: url('grips/vertical.png');
@@ -424,7 +424,7 @@ div.markdown th {
   user-select: auto;
 }
 .alert {
- z-index:2;
+ z-index:8;
 }
 .segment {
   border: 2px solid rgba(0,0,0,0.2);
@@ -637,7 +637,20 @@ div.asset_toolbar {
   bottom: 0;
   height: 3em;
   width: 100%;
-  z-index: 1;
+  z-index: 6;
+  pointer-events: none;
+}
+.transcript-print-head.printing {
+  height: 5em;
+}
+.transcript-print-shield {
+  background: '#ffffff';
+  background: linear-gradient(0deg, rgba(0,0,0,0.5) 0%, rgba(255,255,255,0) 56%, rgba(0,0,0,0) 100%);
+  position: absolute;
+  bottom: 0;
+  height: 3em;
+  width: 100%;
+  z-index: 5;
   pointer-events: none;
 }
 .tree-header {
