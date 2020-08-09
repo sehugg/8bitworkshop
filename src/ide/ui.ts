@@ -1066,14 +1066,34 @@ async function updateSelector() {
   });
 }
 
+function getErrorElement(err : WorkerError) {
+  var span = $('<p/>');
+  if (err.path != null) {
+    var s = err.line ? `(${err.path}:${err.line})` : `(${err.path})`
+    var link = $('<a/>').text(s);
+    var path = err.path;
+    // TODO: hack because examples/foo.a only gets listed as foo.a
+    if (path == getCurrentMainFilename()) path = current_project.mainPath;
+    // click link to open file, if it's available...
+    if (projectWindows.isWindow(path)) {
+      link.click((ev) => {
+        var wnd = projectWindows.createOrShow(path);
+        if (wnd instanceof Views.SourceEditor) {
+          wnd.setCurrentLine(err.line, true);
+        }
+      });
+    }
+    span.append(link);
+    span.append('&nbsp;');
+  }
+  span.append($('<span/>').text(err.msg));
+  return span;
+}
+
 function showErrorAlert(errors : WorkerError[]) {
   var div = $("#error_alert_msg").empty();
   for (var err of errors.slice(0,10)) {
-    var s = '';
-    if (err.path) s += err.path + ":";
-    if (err.line) s += err.line + ":";
-    s += err.msg;
-    div.append($("<p>").text(s));
+    div.append(getErrorElement(err));
   }
   $("#error_alert").show();
 }

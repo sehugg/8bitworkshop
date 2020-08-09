@@ -168,6 +168,9 @@ div.has-errors {
 div.is-busy-unused {
   background-color: #8888bb !important;
 }
+#error_alert_msg {
+  margin-right: 2em;
+}
 div.menu_div {
   position: absolute;
   width: 200px;

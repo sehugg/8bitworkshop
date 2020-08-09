@@ -16,8 +16,6 @@ export class CodeProject {
   filedata : {[path:string]:FileData} = {};
   listings : CodeListingMap;
   segments : Segment[];
-  // TODO: mainpath and mainPath !??!!?
-  mainpath : string;
   mainPath : string;
   pendingWorkerMessages = 0;
   tools_preloaded = {};
@@ -72,7 +70,7 @@ export class CodeProject {
     // look for local and preset files
     files.push(fn);
     // look for files in current (main file) folder
-    var dir = getFolderForPath(this.mainpath);
+    var dir = getFolderForPath(this.mainPath);
     if (dir.length > 0 && dir != 'local') // TODO
       files.push(dir + '/' + fn);
   }
@@ -161,14 +159,14 @@ export class CodeProject {
 
   // TODO: test duplicate files, local paths mixed with presets
   buildWorkerMessage(depends:Dependency[]) {
-    this.preloadWorker(this.mainpath);
+    this.preloadWorker(this.mainPath);
     var msg = {updates:[], buildsteps:[]};
     // TODO: add preproc directive for __MAINFILE__
-    var mainfilename = this.stripLocalPath(this.mainpath);
-    var maintext = this.getFile(this.mainpath);
+    var mainfilename = this.stripLocalPath(this.mainPath);
+    var maintext = this.getFile(this.mainPath);
     var depfiles = [];
     msg.updates.push({path:mainfilename, data:maintext});
-    this.filename2path[mainfilename] = this.mainpath;
+    this.filename2path[mainfilename] = this.mainPath;
     for (var dep of depends) {
       if (!dep.link) {
         msg.updates.push({path:dep.filename, data:dep.data});
@@ -176,12 +174,21 @@ export class CodeProject {
       }
       this.filename2path[dep.filename] = dep.path;
     }
-    msg.buildsteps.push({path:mainfilename, files:[mainfilename].concat(depfiles), platform:this.platform_id, tool:this.platform.getToolForFilename(this.mainpath), mainfile:true});
+    msg.buildsteps.push({
+      path:mainfilename,
+      files:[mainfilename].concat(depfiles),
+      platform:this.platform_id,
+      tool:this.platform.getToolForFilename(this.mainPath),
+      mainfile:true});
     for (var dep of depends) {
       if (dep.data && dep.link) {
         this.preloadWorker(dep.filename);
         msg.updates.push({path:dep.filename, data:dep.data});
-        msg.buildsteps.push({path:dep.filename, files:[dep.filename].concat(depfiles), platform:this.platform_id, tool:this.platform.getToolForFilename(dep.path)});
+        msg.buildsteps.push({
+          path:dep.filename,
+          files:[dep.filename].concat(depfiles),
+          platform:this.platform_id,
+          tool:this.platform.getToolForFilename(dep.path)});
       }
     }
     return msg;
@@ -260,8 +267,8 @@ export class CodeProject {
   }
 
   sendBuild() {
-    if (!this.mainpath) throw Error("need to call setMainFile first");
-    var maindata = this.getFile(this.mainpath);
+    if (!this.mainPath) throw Error("need to call setMainFile first");
+    var maindata = this.getFile(this.mainPath);
     // if binary blob, just return it as ROM
     if (maindata instanceof Uint8Array) {
       this.isCompiling = true;
@@ -288,14 +295,14 @@ export class CodeProject {
   updateFile(path:string, text:FileData) {
     this.updateFileInStore(path, text); // TODO: isBinary
     this.filedata[path] = text;
-    if (this.okToSend() && this.mainpath) {
+    if (this.okToSend() && this.mainPath) {
       if (this.callbackBuildStatus) this.callbackBuildStatus(true);
       this.sendBuild();
     }
   };
 
   setMainFile(path:string) {
-    this.mainpath = path;
+    this.mainPath = path;
     if (this.callbackBuildStatus) this.callbackBuildStatus(true);
     this.sendBuild();
   }
