@@ -521,8 +521,4 @@ Don't grab cursor focus when trap occurs (how do we know?)
 Use tick() and refresh(), not callbacks
 Show current datum when using READ
 Use https://codemirror.net/doc/manual.html#markText
-
-
-
-
-
+Reset doesn't break @ start unless debugging tools expanded

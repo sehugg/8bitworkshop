@@ -256,6 +256,7 @@ class BASICPlatform implements Platform {
     tty: TeleTypeWithKeyboard;
     ips: number = 500;
     clock: number = 0;
+    hotReload: boolean = false;
 
     constructor(mainElement: HTMLElement) {
         //super();
@@ -331,7 +332,7 @@ class BASICPlatform implements Platform {
         this.program = data;
         this.runtime.load(data);
         // only reset if we exited, otherwise we try to resume
-        if (didExit) this.reset();
+        if (!this.hotReload || didExit) this.reset();
     }
 
     getROMExtension() {

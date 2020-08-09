@@ -206,6 +206,7 @@ function stripQuotes(s: string) {
 // TODO: implement these
 export interface BASICOptions {
     uppercaseOnly : boolean;            // convert everything to uppercase?
+    optionalLabels : boolean;						// can omit line numbers and use labels?
     strictVarNames : boolean;           // only allow A0-9 for numerics, single letter for arrays/strings
     sharedArrayNamespace : boolean;     // arrays and variables have same namespace? (conflict)
     defaultArrayBase : number;          // arrays start at this number (0 or 1)
@@ -290,9 +291,13 @@ export class BASICParser {
                 line.label = tok.str;
                 this.curlabel = tok.str;
                 break;
+            case TokenType.Float1:
+            case TokenType.Float2:
+                this.compileError(`Line numbers must be positive integers.`);
+                break;
             default:
-                // TODO
-                this.pushbackToken(tok);
+                if (this.opts.optionalLabels) this.pushbackToken(tok);
+                else this.dialectError(`optional line numbers`);
                 break;
         }
     }
@@ -340,8 +345,10 @@ export class BASICParser {
         // not empty line?
         if (this.tokens.length) {
             this.parseOptLabel(line);
-            line.stmts = this.parseCompoundStatement();
-            this.curlabel = null;
+            if (this.tokens.length) {
+                line.stmts = this.parseCompoundStatement();
+                this.curlabel = null;
+            }
         }
         return line;
     }
@@ -637,6 +644,7 @@ export class BASICParser {
             if (isEOS(tok)) break;
             list.push(tok.str);
         } while (true);
+        this.pushbackToken(tok);
         var stmt : OPTION_Statement = { command:'OPTION', optname:tokname.str, optargs:list };
         this.parseOptions(stmt);
         return stmt;
@@ -700,6 +708,7 @@ export class BASICParser {
 
 export const ECMA55_MINIMAL : BASICOptions = {
     uppercaseOnly : true,
+    optionalLabels : false,
     strictVarNames : true,
     sharedArrayNamespace : true,
     defaultArrayBase : 0,
@@ -725,6 +734,7 @@ export const ECMA55_MINIMAL : BASICOptions = {
 
 export const ALTAIR_BASIC40 : BASICOptions = {
     uppercaseOnly : true,
+    optionalLabels : false,
     strictVarNames : true,
     sharedArrayNamespace : true,
     defaultArrayBase : 0,
