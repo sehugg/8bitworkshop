@@ -1,6 +1,7 @@
 "use strict";
 
 import { hex, clamp, lpad } from "./util";
+import { SourceLocation } from "./workertypes";
 
 // external modules
 declare var jt, Javatari;
@@ -225,8 +226,10 @@ export class RAM {
 }
 
 export class EmuHalt extends Error {
-  constructor(msg:string) {
+  $loc : SourceLocation;
+  constructor(msg: string, loc?: SourceLocation) {
     super(msg);
+    this.$loc = loc;
     Object.setPrototypeOf(this, EmuHalt.prototype);
   }
 }

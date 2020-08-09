@@ -1884,7 +1884,12 @@ function globalErrorHandler(msgevent) {
   if (msg.indexOf("QuotaExceededError") >= 0) {
     requestPersistPermission(false, false);
   } else {
-    showErrorAlert([{msg:msg,line:0}]);
+    var err = msgevent.error;
+    var werr : WorkerError = {msg:msg, line:0};
+    if (err instanceof EmuHalt && err.$loc) {
+      werr = {msg:msg, path:err.$loc.path, line:err.$loc.line}; // TODO: get start/end columns
+    }
+    showErrorAlert([werr]);
   }
 }
 

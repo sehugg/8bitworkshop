@@ -262,6 +262,7 @@ export class BASICParser {
     decls: { [name: string]: SourceLocation }; // declared/set vars
     refs: { [name: string]: SourceLocation }; // references
 
+    path : string;
     lineno : number;
     tokens: Token[];
     eol: Token;
@@ -281,7 +282,7 @@ export class BASICParser {
     compileError(msg: string, loc?: SourceLocation) {
         if (!loc) loc = this.peekToken().$loc;
         // TODO: pass SourceLocation to errors
-        this.errors.push({line:loc.line, msg:msg});
+        this.errors.push({path:loc.path, line:loc.line, msg:msg});
         throw new CompileError(`${msg} (line ${loc.line})`); // TODO: label too?
     }
     dialectError(what: string, loc?: SourceLocation) {
@@ -336,6 +337,7 @@ export class BASICParser {
         }
     }
     parseFile(file: string, path: string) : BASICProgram {
+        this.path = path;
         var pgmlines = file.split("\n").map((line) => this.parseLine(line));
         var program = { opts: this.opts, lines: pgmlines };
         this.checkAll(program);
@@ -369,13 +371,13 @@ export class BASICParser {
                     this.tokens.push({
                         str: s,
                         type: i,
-                        $loc: { line: this.lineno, start: m.index, end: m.index+s.length }
+                        $loc: { path: this.path, line: this.lineno, start: m.index, end: m.index+s.length }
                     });
                     break;
                 }
             }
         }
-        this.eol = { type: TokenType.EOL, str: "", $loc: { line: this.lineno, start: line.length } };
+        this.eol = { type: TokenType.EOL, str: "", $loc: { path: this.path, line: this.lineno, start: line.length } };
     }
     parse() : BASICLine {
         var line = {label: null, stmts: []};
@@ -444,7 +446,7 @@ export class BASICParser {
                 this.compileError(`There should be a command here.`);
                 return null;
         }
-        if (stmt) stmt.$loc = { line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: this.peekToken().$loc.start };
+        if (stmt) stmt.$loc = { path: cmdtok.$loc.path, line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: this.peekToken().$loc.start };
         return stmt;
     }
     parseVarSubscriptOrFunc(): IndOp {

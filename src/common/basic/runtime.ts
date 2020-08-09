@@ -1,6 +1,7 @@
 
 import * as basic from "./compiler";
 import { EmuHalt } from "../emu";
+import { SourceLocation } from "../workertypes";
 
 function isLiteral(arg: basic.Expr): arg is basic.Literal {
     return (arg as any).value != null;
@@ -110,9 +111,9 @@ export class BASICRuntime {
 
     runtimeError(msg : string) {
         this.curpc--; // we did curpc++ before executing statement
-        // TODO: pass source location to error
-        throw new EmuHalt(`${msg} (line ${this.getLabelForPC(this.curpc)})`);
+        throw new EmuHalt(msg, this.getCurrentSourceLocation());
     }
+    
     dialectError(what : string) {
         this.runtimeError(`I can't ${what} in this dialect of BASIC.`);
     }
@@ -130,6 +131,11 @@ export class BASICRuntime {
         var lineno = this.getLineForPC(pc);
         var pgmline = this.program.lines[lineno];
         return pgmline ? pgmline.label : '?';
+    }
+
+    getCurrentSourceLocation() : SourceLocation {
+        var stmt = this.getStatement();
+        return stmt && stmt.$loc;
     }
 
     getStatement() {

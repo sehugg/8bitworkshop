@@ -3,13 +3,14 @@ export type FileData = string | Uint8Array;
 
 export interface SourceLocation {
   line: number;
+  label?: string;
+  path?: string; // TODO: make mandatory?
   start?: number;
   end?: number;
 }
 
-export interface SourceLine {
+export interface SourceLine extends SourceLocation {
   offset:number;
-  line:number;
   insns?:string;
   iscode?:boolean;
   cycles?:number;
