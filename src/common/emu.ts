@@ -1,6 +1,6 @@
 "use strict";
 
-import { hex, clamp } from "./util";
+import { hex, clamp, lpad } from "./util";
 
 // external modules
 declare var jt, Javatari;
@@ -313,13 +313,15 @@ export function dumpRAM(ram:ArrayLike<number>, ramofs:number, ramlen:number) : s
   var s = "";
   var bpel = ram['BYTES_PER_ELEMENT'] || 1;
   var perline = Math.ceil(16 / bpel);
+  var isFloat = ram instanceof Float32Array || ram instanceof Float64Array;
   // TODO: show scrollable RAM for other platforms
   for (var ofs=0; ofs<ramlen; ofs+=perline) {
     s += '$' + hex(ofs+ramofs) + ':';
     for (var i=0; i<perline; i++) {
       if (ofs+i < ram.length) {
         if (i == perline/2) s += " ";
-        s += " " + hex(ram[ofs+i], bpel*2);
+        if (isFloat) s += " " + ram[ofs+i].toPrecision(bpel*2);
+        else s += " " + hex(ram[ofs+i], bpel*2);
       }
     }
     s += "\n";

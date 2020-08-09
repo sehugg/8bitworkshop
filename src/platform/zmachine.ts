@@ -887,9 +887,9 @@ class ZmachinePlatform implements Platform {
         var root = {};
         //root['debuginfo'] = sym.debuginfo;
         if (this.zvm != null) {
-            root['Objects'] = () => this.getRootObjects();
-            root['Globals'] = () => this.getGlobalVariables();
-            //root['VM'] = () => this.zvm;
+            root['Objects'] = {$$: () => this.getRootObjects()};
+            root['Globals'] = {$$: () => this.getGlobalVariables()};
+            //root['VM'] = {$$: () => this.zvm};
         }
         return root;
     }

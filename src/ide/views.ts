@@ -1412,15 +1412,16 @@ class TreeNode {
     var text = "";
     // is it a function? call it first, if we are expanded
     // TODO: only call functions w/ signature
-    if (typeof obj == 'function' && this._content != null) {
-      obj = obj();
+    if (obj && obj.$$ && typeof obj.$$ == 'function' && this._content != null) {
+      obj = obj.$$();
     }
     // check null first
     if (obj == null) {
       text = obj+"";
     // primitive types
     } else if (typeof obj == 'number') {
-      text = obj + "\t($" + hex(obj) + ")";
+      if (obj != (obj|0)) text = obj.toString(); // must be a float
+      else text = obj + "\t($" + hex(obj) + ")";
     } else if (typeof obj == 'boolean') {
       text = obj.toString();
     } else if (typeof obj == 'string') {
@@ -1442,7 +1443,7 @@ class TreeNode {
           var slicelen = MAX_CHILDREN;
           while (obj.length / slicelen > MAX_CHILDREN) slicelen *= 2;
           for (let ofs=0; ofs<oldobj.length; ofs+=slicelen) {
-            newobj["$"+hex(ofs)] = () => { return oldobj.slice(ofs, ofs+slicelen); }
+            newobj["$"+hex(ofs)] = {$$: () => { return oldobj.slice(ofs, ofs+slicelen); }}
           }
           obj = newobj;
         }

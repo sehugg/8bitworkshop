@@ -426,7 +426,7 @@ export class BASICRuntime {
         this.gotoLabel(labels[value-1]);
     }
 
-    nextDatum() : string|number {
+    nextDatum() : basic.Value {
         if (this.dataptr >= this.datums.length)
             this.runtimeError("I tried to READ, but ran out of data.");
         return this.datums[this.dataptr++].value;
