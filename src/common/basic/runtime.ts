@@ -16,7 +16,6 @@ function isUnOp(arg: basic.Expr): arg is basic.UnOp {
 }
 
 class ExprOptions {
-    check: boolean;
     isconst?: boolean;
     locals?: string[];
 }
@@ -35,6 +34,7 @@ export class BASICRuntime {
     label2pc : {[label : string] : number};
     datums : basic.Literal[];
     builtins : {};
+    opts : basic.BASICOptions;
 
     curpc : number;
     dataptr : number;
@@ -52,6 +52,7 @@ export class BASICRuntime {
     load(program: basic.BASICProgram) {
         let prevlabel = this.label2pc && this.getLabelForPC(this.curpc);
         this.program = program;
+        this.opts = program.opts;
         this.label2lineidx = {};
         this.label2pc = {};
         this.allstmts = [];
@@ -72,7 +73,7 @@ export class BASICRuntime {
             // parse DATA literals
             line.stmts.filter((stmt) => stmt.command == 'DATA').forEach((datastmt) => {
                 (datastmt as basic.DATA_Statement).datums.forEach(d => {
-                    var functext = this.expr2js(d, {check:true, isconst:true});
+                    var functext = this.expr2js(d, {isconst:true});
                     var value = new Function(`return ${functext};`).bind(this)();
                     this.datums.push({value:value});
                 });
@@ -99,7 +100,7 @@ export class BASICRuntime {
     }
 
     getBuiltinFunctions() {
-        var fnames = this.program && this.program.opts.validFunctions;
+        var fnames = this.program && this.opts.validFunctions;
         // if no valid function list, look for ABC...() functions in prototype
         if (!fnames) fnames = Object.keys(BASICRuntime.prototype).filter((name) => /^[A-Z]{3,}[$]?$/.test(name));
         var dict = {};
@@ -182,7 +183,7 @@ export class BASICRuntime {
         do {
             // in Altair BASIC, ELSE is bound to the right-most IF
             // TODO: this is complicated, we should just have nested expressions
-            if (this.program.opts.ifElse) {
+            if (this.opts.ifElse) {
                 var cmd = this.allstmts[this.curpc].command;
                 if (cmd == 'ELSE') { this.curpc++; break; }
                 else if (cmd == 'IF') return this.skipToEOL();
@@ -226,7 +227,7 @@ export class BASICRuntime {
         var str;
         if (typeof obj === 'number') {
             var numstr = obj.toString().toUpperCase();
-            var numlen = this.program.opts.printZoneLength - 4;
+            var numlen = this.opts.printZoneLength - 4;
             var prec = numlen;
             while (numstr.length > numlen) {
                 numstr = obj.toPrecision(prec--);
@@ -235,7 +236,7 @@ export class BASICRuntime {
                 numstr = numstr.substr(1);
             else if (numstr.startsWith('-0.'))
                 numstr = '-'+numstr.substr(2);
-            if (!this.program.opts.numericPadding)
+            if (!this.opts.numericPadding)
                 str = numstr;
             else if (numstr.startsWith('-'))
                 str = `${numstr} `;
@@ -245,8 +246,8 @@ export class BASICRuntime {
             this.column = 0;
             str = obj;
         } else if (obj == '\t') {
-            var curgroup = Math.floor(this.column / this.program.opts.printZoneLength);
-            var nextcol = (curgroup + 1) * this.program.opts.printZoneLength;
+            var curgroup = Math.floor(this.column / this.opts.printZoneLength);
+            var nextcol = (curgroup + 1) * this.opts.printZoneLength;
             str = this.TAB(nextcol);
         } else {
             str = `${obj}`;
@@ -273,31 +274,17 @@ export class BASICRuntime {
     // override this
     resume() { }
 
-    expr2js(expr: basic.Expr, opts: ExprOptions) : string {
+    expr2js(expr: basic.Expr, opts?: ExprOptions) : string {
+        if (!opts) opts = {};
         if (isLiteral(expr)) {
             return JSON.stringify(expr.value);
         } else if (isLookup(expr)) {
-            if (opts.locals && opts.locals.indexOf(expr.name) >= 0) {
+            if (!expr.args && opts.locals && opts.locals.indexOf(expr.name) >= 0) {
                 return expr.name; // local arg in DEF
             } else {
-                if (opts.isconst) this.runtimeError(`I expected a constant value here`);
-                var s = '';
-                if (expr.name.startsWith("FN")) { // is it a user-defined function?
-                    let jsargs = expr.args && expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
-                    s += `this.defs.${expr.name}(${jsargs})`; // TODO: what if no exist?
-                } else if (this.builtins[expr.name]) { // is it a built-in function?
-                    let jsargs = expr.args && expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
-                    s += `this.builtins.${expr.name}(${jsargs})`;
-                } else if (expr.args) { // is it a subscript?
-                    s += `this.getArray(${JSON.stringify(expr.name)}, ${expr.args.length})`;
-                    s += expr.args.map((arg) => '[this.ROUND('+this.expr2js(arg, opts)+')]').join('');
-                } else { // just a variable
-                    s = `this.vars.${expr.name}`;
-                }
-                if (opts.check)
-                    return `this.checkValue(${s}, ${JSON.stringify(expr.name)})`;
-                else
-                    return s;
+                if (opts.isconst) this.runtimeError(`I expected a constant value here.`);
+                var s = this.assign2js(expr, opts);
+                return `this.checkValue(${s}, ${JSON.stringify(expr.name)})`;
             }
         } else if (isBinOp(expr)) {
             var left = this.expr2js(expr.left, opts);
@@ -307,6 +294,38 @@ export class BASICRuntime {
             var e = this.expr2js(expr.expr, opts);
             return `this.${expr.op}(${e})`;
         }
+    }
+
+    assign2js(expr: basic.IndOp, opts?: ExprOptions) {
+        if (!opts) opts = {};
+        var s = '';
+        var qname = JSON.stringify(expr.name);
+        if (expr.name.startsWith("FN")) { // is it a user-defined function?
+            // TODO: check argument count?
+            let jsargs = expr.args && expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
+            s += `this.getDef(${qname})(${jsargs})`;
+            // TODO: detect recursion?
+        } else if (this.builtins[expr.name]) { // is it a built-in function?
+            this.checkFuncArgs(expr, this.builtins[expr.name]);
+            let jsargs = expr.args && expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
+            s += `this.builtins.${expr.name}(${jsargs})`;
+        } else if (expr.args) { // is it a subscript?
+            // TODO: check array bounds?
+            s += `this.getArray(${qname}, ${expr.args.length})`;
+            s += expr.args.map((arg) => '[this.ROUND('+this.expr2js(arg, opts)+')]').join('');
+        } else { // just a variable
+            s = `this.vars.${expr.name}`;
+        }
+        return s;
+    }
+
+    checkFuncArgs(expr: basic.IndOp, fn: Function) {
+        // TODO: check types?
+        var nargs = expr.args ? expr.args.length : 0;
+        if (expr.name == 'MID$' && nargs == 2) return;
+        if (expr.name == 'INSTR' && nargs == 2) return;
+        if (fn.length != nargs)
+            this.runtimeError(`I expected ${fn.length} arguments for the ${expr.name} function, but I got ${nargs}.`);
     }
 
     startForLoop(forname, init, targ, step) {
@@ -339,7 +358,7 @@ export class BASICRuntime {
 
     // converts a variable to string/number based on var name
     assign(name: string, right: number|string) : number|string {
-        if (this.program.opts.typeConvert)
+        if (this.opts.typeConvert)
             return this.convert(name, right);
         // TODO: use options
         if (name.endsWith("$")) {
@@ -371,11 +390,12 @@ export class BASICRuntime {
 
     // dimension array
     dimArray(name: string, ...dims:number[]) {
+        // TODO: maybe do this check at compile-time?
         if (this.arrays[name]) this.runtimeError(`I already dimensioned this array (${name}) earlier.`)
         var isstring = name.endsWith('$');
         // if defaultValues is true, we use Float64Array which inits to 0
-        var arrcons = isstring || !this.program.opts.defaultValues ? Array : Float64Array;
-        // TODO? var ab = this.program.opts.defaultArrayBase;
+        var arrcons = isstring || !this.opts.defaultValues ? Array : Float64Array;
+        // TODO? var ab = this.opts.defaultArrayBase;
         if (dims.length == 1) {
             this.arrays[name] = new arrcons(dims[0]+1);
         } else if (dims.length == 2) {
@@ -390,9 +410,9 @@ export class BASICRuntime {
     getArray(name: string, order: number) : [] {
         if (!this.arrays[name]) {
             if (order == 1)
-                this.dimArray(name, this.program.opts.defaultArraySize);
+                this.dimArray(name, this.opts.defaultArraySize);
             else if (order == 2)
-                this.dimArray(name, this.program.opts.defaultArraySize, this.program.opts.defaultArraySize);
+                this.dimArray(name, this.opts.defaultArraySize, this.opts.defaultArraySize);
             else
                 this.runtimeError(`I only support arrays of one or two dimensions.`); // TODO
         }
@@ -417,17 +437,17 @@ export class BASICRuntime {
     do__PRINT(stmt : basic.PRINT_Statement) {
         var s = '';
         for (var arg of stmt.args) {
-            var expr = this.expr2js(arg, {check:true});
+            var expr = this.expr2js(arg);
             s += `this.printExpr(${expr});`;
         }
         return s;
     }
 
     do__INPUT(stmt : basic.INPUT_Statement) {
-        var prompt = this.expr2js(stmt.prompt, {check:true});
+        var prompt = this.expr2js(stmt.prompt);
         var setvals = '';
         stmt.args.forEach((arg, index) => {
-            var lexpr = this.expr2js(arg, {check:false});
+            var lexpr = this.assign2js(arg);
             setvals += `valid &= this.isValid(${lexpr} = this.convert(${JSON.stringify(arg.name)}, vals[${index}]));`
         });
         return `this.running=false;
@@ -442,16 +462,16 @@ export class BASICRuntime {
 
     do__LET(stmt : basic.LET_Statement) {
         // TODO: range-checking for subscripts (get and set)
-        var lexpr = this.expr2js(stmt.lexpr, {check:false});
-        var right = this.expr2js(stmt.right, {check:true});
+        var lexpr = this.assign2js(stmt.lexpr);
+        var right = this.expr2js(stmt.right);
         return `${lexpr} = this.assign(${JSON.stringify(stmt.lexpr.name)}, ${right});`;
     }
 
     do__FOR(stmt : basic.FOR_Statement) {
         var name = JSON.stringify(stmt.lexpr.name); // TODO: args?
-        var init = this.expr2js(stmt.initial, {check:true});
-        var targ = this.expr2js(stmt.target, {check:true});
-        var step = stmt.step ? this.expr2js(stmt.step, {check:true}) : 'null';
+        var init = this.expr2js(stmt.initial);
+        var targ = this.expr2js(stmt.target);
+        var step = stmt.step ? this.expr2js(stmt.step) : 'null';
         return `this.startForLoop(${name}, ${init}, ${targ}, ${step})`;
     }
 
@@ -461,7 +481,7 @@ export class BASICRuntime {
     }
 
     do__IF(stmt : basic.IF_Statement) {
-        var cond = this.expr2js(stmt.cond, {check:true});
+        var cond = this.expr2js(stmt.cond);
         return `if (!(${cond})) { this.skipToElse(); }`
     }
 
@@ -478,17 +498,16 @@ export class BASICRuntime {
                 this.runtimeError("I found a DEF statement with arguments other than variable names.");
             }
         }
-        var functext = this.expr2js(stmt.def, {check:true, locals:args});
+        var functext = this.expr2js(stmt.def, {locals:args});
         //this.defs[stmt.lexpr.name] = new Function(args.join(','), functext).bind(this);
-        var lexpr = `this.defs.${stmt.lexpr.name}`;
-        return `${lexpr} = function(${args.join(',')}) { return ${functext}; }.bind(this)`;
+        return `this.defs.${stmt.lexpr.name} = function(${args.join(',')}) { return ${functext}; }.bind(this)`;
     }
 
     _DIM(dim : basic.IndOp) {
         var argsstr = '';
         for (var arg of dim.args) {
             // TODO: check for float (or at compile time)
-            argsstr += ', ' + this.expr2js(arg, {check:true});
+            argsstr += ', ' + this.expr2js(arg);
         }
         return `this.dimArray(${JSON.stringify(dim.name)}${argsstr});`;
     }
@@ -500,12 +519,12 @@ export class BASICRuntime {
     }
 
     do__GOTO(stmt : basic.GOTO_Statement) {
-        var label = this.expr2js(stmt.label, {check:true});
+        var label = this.expr2js(stmt.label, {isconst:true});
         return `this.gotoLabel(${label})`;
     }
 
     do__GOSUB(stmt : basic.GOSUB_Statement) {
-        var label = this.expr2js(stmt.label, {check:true});
+        var label = this.expr2js(stmt.label, {isconst:true});
         return `this.gosubLabel(${label})`;
     }
 
@@ -514,8 +533,8 @@ export class BASICRuntime {
     }
 
     do__ONGOTO(stmt : basic.ONGOTO_Statement) {
-        var expr = this.expr2js(stmt.expr, {check:true});
-        var labels = stmt.labels.map((arg) => this.expr2js(arg, {check:true})).join(', ');
+        var expr = this.expr2js(stmt.expr);
+        var labels = stmt.labels.map((arg) => this.expr2js(arg, {isconst:true})).join(', ');
         return `this.onGotoLabel(${expr}, ${labels})`;
     }
 
@@ -526,7 +545,7 @@ export class BASICRuntime {
     do__READ(stmt : basic.READ_Statement) {
         var s = '';
         stmt.args.forEach((arg) => {
-            s += `${this.expr2js(arg, {check:false})} = this.assign(${JSON.stringify(arg.name)}, this.nextDatum());`;
+            s += `${this.assign2js(arg)} = this.assign(${JSON.stringify(arg.name)}, this.nextDatum());`;
         });
         return s;
     }
@@ -552,7 +571,7 @@ export class BASICRuntime {
     }
 
     do__GET(stmt : basic.GET_Statement) {
-        var lexpr = this.expr2js(stmt.lexpr, {check:false});
+        var lexpr = this.assign2js(stmt.lexpr);
         // TODO: single key input
         return `this.running=false;
                 this.input().then((vals) => {
@@ -584,11 +603,11 @@ export class BASICRuntime {
         // check for unreferenced value
         if (typeof obj !== 'number' && typeof obj !== 'string') {
             // assign default value?
-            if (obj == null && this.program.opts.defaultValues) {
+            if (obj == null && this.opts.defaultValues) {
                 return exprname.endsWith("$") ? "" : 0;
             }
             if (exprname != null && obj == null) {
-                this.runtimeError(`I didn't find a value for ${exprname}`);
+                this.runtimeError(`I haven't set a value for ${exprname}.`);
             } else if (exprname != null) {
                 this.runtimeError(`I got an invalid value for ${exprname}: ${obj}`);
             } else {
@@ -597,18 +616,21 @@ export class BASICRuntime {
         }
         return obj;
     }
-
+    getDef(exprname: string) {
+        var fn = this.defs[exprname];
+        if (!fn) this.runtimeError(`I haven't run a DEF statement for ${exprname}.`);
+        return fn;
+    }
     checkNum(n:number) : number {
         if (n === Infinity) this.runtimeError(`I computed a number too big to store.`);
         if (isNaN(n)) this.runtimeError(`I computed an invalid number.`);
         return n;
     }
-
     checkString(s:string) : string {
         if (typeof s !== 'string')
             this.runtimeError(`I expected a string here.`);
-        else if (s.length > this.program.opts.maxStringLength)
-            this.dialectError(`create strings longer than ${this.program.opts.maxStringLength} characters`);
+        else if (s.length > this.opts.maxStringLength)
+            this.dialectError(`create strings longer than ${this.opts.maxStringLength} characters`);
         return s;
     }
     
@@ -616,7 +638,7 @@ export class BASICRuntime {
         // TODO: if string-concat
         if (typeof a === 'number' && typeof b === 'number')
             return this.checkNum(a + b);
-        else if (this.program.opts.stringConcat)
+        else if (this.opts.stringConcat)
             return this.checkString(a + b);
         else
             this.dialectError(`use the "+" operator to concatenate strings`)
@@ -632,7 +654,7 @@ export class BASICRuntime {
         return this.checkNum(a / b);
     }
     idiv(a:number, b:number) : number {
-        return this.div(Math.floor(a), Math.floor(b));
+        return this.FIX(this.INT(a) / this.INT(b));
     }
     mod(a:number, b:number) : number {
         return this.checkNum(a % b);
@@ -641,41 +663,53 @@ export class BASICRuntime {
         if (a == 0 && b < 0) this.runtimeError(`I can't raise zero to a negative power.`);
         return this.checkNum(Math.pow(a, b));
     }
-    land(a:number, b:number) : number {
-        return a && b;
-    }
-    lor(a:number, b:number) : number {
-        return a || b;
-    }
-    lnot(a:number) : number {
-        return a ? 0 : 1;
-    }
-    neg(a:number) : number {
-        return -a;
-    }
     band(a:number, b:number) : number {
         return a & b;
     }
     bor(a:number, b:number) : number {
         return a | b;
     }
+    bnot(a:number) : number {
+        return ~a;
+    }
+    bxor(a:number, b:number) : number {
+        return a ^ b;
+    }
+    bimp(a:number, b:number) : number {
+        return this.bor(this.bnot(a), b);
+    }
+    beqv(a:number, b:number) : number {
+        return this.bnot(this.bxor(a, b));
+    }
+    land(a:number, b:number) : number {
+        return a && b ? (this.opts.bitwiseLogic ? -1 : 1) : 0;
+    }
+    lor(a:number, b:number) : number {
+        return a || b ? (this.opts.bitwiseLogic ? -1 : 1) : 0;
+    }
+    lnot(a:number) : number {
+        return a ? 0 : (this.opts.bitwiseLogic ? -1 : 1);
+    }
+    neg(a:number) : number {
+        return -a;
+    }
     eq(a:number, b:number) : number {
-        return a == b ? 1 : 0;
+        return a == b ? (this.opts.bitwiseLogic ? -1 : 1) : 0;
     }
     ne(a:number, b:number) : number {
-        return a != b ? 1 : 0;
+        return a != b ? (this.opts.bitwiseLogic ? -1 : 1) : 0;
     }
     lt(a:number, b:number) : number {
-        return a < b ? 1 : 0;
+        return a < b ? (this.opts.bitwiseLogic ? -1 : 1) : 0;
     }
     gt(a:number, b:number) : number {
-        return a > b ? 1 : 0;
+        return a > b ? (this.opts.bitwiseLogic ? -1 : 1) : 0;
     }
     le(a:number, b:number) : number {
-        return a <= b ? 1 : 0;
+        return a <= b ? (this.opts.bitwiseLogic ? -1 : 1) : 0;
     }
     ge(a:number, b:number) : number {
-        return a >= b ? 1 : 0;
+        return a >= b ? (this.opts.bitwiseLogic ? -1 : 1) : 0;
     }
 
     // FUNCTIONS (uppercase)
@@ -702,7 +736,7 @@ export class BASICRuntime {
         return this.checkNum(Math.exp(arg));
     }
     FIX(arg : number) : number {
-        return this.checkNum(arg - Math.floor(arg));
+        return this.checkNum(arg < 0 ? Math.ceil(arg) : Math.floor(arg));
     }
     HEX$(arg : number) : string {
         return arg.toString(16);
@@ -729,7 +763,8 @@ export class BASICRuntime {
         return this.checkNum(Math.log(arg));
     }
     MID$(arg : string, start : number, count : number) : string {
-        if (start < 1) this.runtimeError(`I tried to compute MID$ but the second parameter is less than zero (${start}).`)
+        if (start < 1) this.runtimeError(`I can't compute MID$ if the starting index is less than 1.`)
+        if (count == 0) count = arg.length;
         return arg.substr(start-1, count);
     }
     RIGHT$(arg : string, count : number) : string {

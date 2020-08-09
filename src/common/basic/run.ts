@@ -1,5 +1,5 @@
 
-import { BASICParser, ECMA55_MINIMAL } from "./compiler";
+import { BASICParser, DIALECTS } from "./compiler";
 import { BASICRuntime } from "./runtime";
 
 var readline = require('readline');
@@ -8,11 +8,24 @@ var rl = readline.createInterface({
     output: process.stdout,
     //terminal: false
 });
+var fs = require('fs');
 
 var parser = new BASICParser();
-parser.opts = ECMA55_MINIMAL;
-var fs = require('fs');
-var filename = process.argv[2];
+var runtime = new BASICRuntime();
+
+// parse args
+var filename = '/dev/stdin';
+var args = process.argv.slice(2);
+for (var i=0; i<args.length; i++) {
+    if (args[i] == '-v')
+        runtime.trace = true;
+    else if (args[i] == '-d')
+        parser.opts = DIALECTS[args[++i]] || Error('no such dialect');
+    else
+        filename = args[i];
+}
+
+// parse file
 var data = fs.readFileSync(filename, 'utf-8');
 try {
     var pgm = parser.parseFile(data, filename);
@@ -25,8 +38,7 @@ try {
 parser.errors.forEach((err) => console.log("@@@ " + err.msg));
 if (parser.errors.length) process.exit(2);
 
-var runtime = new BASICRuntime();
-runtime.trace = process.argv[3] == '-v';
+// run program
 runtime.load(pgm);
 runtime.reset();
 runtime.print = (s:string) => {

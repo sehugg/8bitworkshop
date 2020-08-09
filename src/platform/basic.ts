@@ -357,6 +357,7 @@ class BASICPlatform implements Platform {
     resize: () => void;
 
     loadROM(title, data) {
+        // TODO: only hot reload when we hit a label?
         var didExit = this.runtime.exited;
         this.program = data;
         this.runtime.load(data);

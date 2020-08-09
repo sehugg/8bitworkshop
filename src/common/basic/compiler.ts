@@ -13,7 +13,7 @@ class CompileError extends Error {
 
 // Lexer regular expression -- each (capture group) handles a different token type
 
-const re_toks = /([0-9.]+[E][+-]?\d+)|(\d*[.]\d*[E0-9]*)|[0]*(\d+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>])|([-+*/^,;:()?])|(\S+)/gi;
+const re_toks = /([0-9.]+[E][+-]?\d+)|(\d*[.]\d*[E0-9]*)|[0]*(\d+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>])|([-+*/^,;:()?\\])|(\S+)/gi;
 
 export enum TokenType {
     EOL = 0,
@@ -48,7 +48,7 @@ export interface BinOp {
 }
 
 export interface UnOp {
-    op: 'neg' | 'lnot';
+    op: 'neg' | 'lnot' | 'bnot';
     expr: Expr;
 }
 
@@ -176,8 +176,11 @@ class Token {
 }
 
 const OPERATORS = {
-    'OR':   {f:'bor',p:7},
-    'AND':  {f:'band',p:8},
+    'IMP':  {f:'bimp',p:4},
+    'EQV':  {f:'beqv',p:5},
+    'XOR':  {f:'bxor',p:6},
+    'OR':   {f:'lor',p:7}, // or "bor"
+    'AND':  {f:'land',p:8}, // or "band"
     '=':    {f:'eq',p:50},
     '<>':   {f:'ne',p:50},
     '<':    {f:'lt',p:50},
@@ -226,31 +229,32 @@ export interface BASICOptions {
     uppercaseOnly : boolean;            // convert everything to uppercase?
     optionalLabels : boolean;			// can omit line numbers and use labels?
     strictVarNames : boolean;           // only allow A0-9 for numerics, single letter for arrays/strings
+    tickComments : boolean;             // support 'comments?
+    defaultValues : boolean;            // initialize unset variables to default value? (0 or "")
     sharedArrayNamespace : boolean;     // arrays and variables have same namespace? (conflict)
-    defaultArrayBase : number;          // arrays start at this number (0 or 1)
+    defaultArrayBase : number;          // arrays start at this number (0 or 1) (TODO: check)
     defaultArraySize : number;          // arrays are allocated w/ this size (starting @ 0)
-    maxDimensions : number;             // max number of dimensions for arrays
     stringConcat : boolean;             // can concat strings with "+" operator?
     typeConvert : boolean;              // type convert strings <-> numbers? (TODO)
+    checkOverflow : boolean;            // check for overflow of numerics?
+    sparseArrays : boolean;             // true == don't require DIM for arrays (TODO)
+    printZoneLength : number;           // print zone length
+    numericPadding : boolean;           // " " or "-" before and " " after numbers?
+    multipleNextVars : boolean;         // NEXT Y,X (TODO)
+    ifElse : boolean;                   // IF...ELSE construct
+    bitwiseLogic : boolean;             // -1 = TRUE, 0 = FALSE, AND/OR/NOT done with bitwise ops
+    maxDimensions : number;             // max number of dimensions for arrays
     maxDefArgs : number;                // maximum # of arguments for user-defined functions
     maxStringLength : number;           // maximum string length in chars
-    sparseArrays : boolean;             // true == don't require DIM for arrays (TODO)
-    tickComments : boolean;             // support 'comments?
     validKeywords : string[];           // valid keywords (or null for accept all)
     validFunctions : string[];          // valid functions (or null for accept all)
     validOperators : string[];          // valid operators (or null for accept all)
-    printZoneLength : number;           // print zone length
-    numericPadding : boolean;           // " " or "-" before and " " after numbers?
-    checkOverflow : boolean;            // check for overflow of numerics?
-    defaultValues : boolean;            // initialize unset variables to default value? (0 or "")
-    multipleNextVars : boolean;         // NEXT Y,X (TODO)
-    ifElse : boolean;                   // IF...ELSE construct
 }
 
 ///// BASIC PARSER
 
 export class BASICParser {
-    opts : BASICOptions = MAX8_BASIC;
+    opts : BASICOptions = ALTAIR_BASIC40;
     errors: WorkerError[];
     listings: CodeListingMap;
     labels: { [label: string]: BASICLine };
@@ -287,11 +291,11 @@ export class BASICParser {
         var tok = this.lasttoken = (this.tokens.shift() || this.eol);
         return tok;
     }
-    expectToken(str: string) : Token {
+    expectToken(str: string, msg?: string) : Token {
         var tok = this.consumeToken();
         var tokstr = tok.str;
         if (str != tokstr) {
-            this.compileError(`There should be a "${str}" here.`);
+            this.compileError(msg || `There should be a "${str}" here.`);
         }
         return tok;
     }
@@ -452,7 +456,7 @@ export class BASICParser {
                 if (this.peekToken().str == '(') {
                     this.expectToken('(');
                     args = this.parseExprList();
-                    this.expectToken(')');
+                    this.expectToken(')', `There should be another expression or a ")" here.`);
                 }
                 return { name: tok.str, args: args, $loc: tok.$loc };
             default:
@@ -513,7 +517,7 @@ export class BASICParser {
             case TokenType.Ident:
                 if (tok.str == 'NOT') {
                     let expr = this.parsePrimary();
-                    return { op: 'lnot', expr: expr };
+                    return { op: this.opts.bitwiseLogic ? 'bnot' : 'lnot', expr: expr };
                 } else {
                     this.pushbackToken(tok);
                     return this.parseVarSubscriptOrFunc();
@@ -521,13 +525,13 @@ export class BASICParser {
             case TokenType.Operator:
                 if (tok.str == '(') {
                     let expr = this.parseExpr();
-                    this.expectToken(')');
+                    this.expectToken(')', `There should be another expression or a ")" here.`);
                     return expr;
                 } else if (tok.str == '-') {
                     let expr = this.parsePrimary(); // TODO: -2^2=-4 and -2-2=-4
                     return { op: 'neg', expr: expr };
                 } else if (tok.str == '+') {
-                    return this.parsePrimary(); // TODO?
+                    return this.parsePrimary(); // ignore unary +
                 }
             case TokenType.EOL:
                 this.compileError(`The expression is incomplete.`);
@@ -555,7 +559,10 @@ export class BASICParser {
                 right = this.parseExpr1(right, getPrecedence(look));
                 look = this.peekToken();
             }
-            left = { op: getOperator(op.str).f, left: left, right: right };
+            var opfn = getOperator(op.str).f;
+            if (this.opts.bitwiseLogic && opfn == 'land') opfn = 'band';
+            if (this.opts.bitwiseLogic && opfn == 'lor') opfn = 'bor';
+            left = { op:opfn, left: left, right: right };
         }
         return left;
     }
@@ -818,6 +825,7 @@ export const ECMA55_MINIMAL : BASICOptions = {
     checkOverflow : true,
     multipleNextVars : false,
     ifElse : false,
+    bitwiseLogic : false,
 }
 
 export const ALTAIR_BASIC40 : BASICOptions = {
@@ -845,6 +853,7 @@ export const ALTAIR_BASIC40 : BASICOptions = {
     checkOverflow : true,
     multipleNextVars : true, // TODO: not supported
     ifElse : true,
+    bitwiseLogic : true,
 }
 
 export const APPLESOFT_BASIC : BASICOptions = {
@@ -874,6 +883,7 @@ export const APPLESOFT_BASIC : BASICOptions = {
     checkOverflow : true,
     multipleNextVars : false,
     ifElse : false,
+    bitwiseLogic : false,
 }
 
 export const MAX8_BASIC : BASICOptions = {
@@ -885,22 +895,23 @@ export const MAX8_BASIC : BASICOptions = {
     sharedArrayNamespace : false,
     defaultArrayBase : 0,
     defaultArraySize : 11,
-    defaultValues : true,
+    defaultValues : false,
     stringConcat : true,
     typeConvert : true,
     maxDimensions : 255,
     maxDefArgs : 255, // TODO: no string FNs
-    maxStringLength : 1024*1024,
+    maxStringLength : 1024, // TODO?
     sparseArrays : false,
     tickComments : true,
     validKeywords : null, // all
-    validFunctions : null,
-    validOperators : null,
+    validFunctions : null, // all
+    validOperators : null, // all
     printZoneLength : 15,
     numericPadding : false,
     checkOverflow : true,
     multipleNextVars : true,
     ifElse : true,
+    bitwiseLogic : true,
 }
 
 // TODO: integer vars
