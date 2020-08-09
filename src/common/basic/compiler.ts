@@ -400,10 +400,7 @@ export class BASICParser {
         if (stmt) stmt.$loc = { line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: this.peekToken().$loc.start };
         return stmt;
     }
-    parseVarOrIndexedOrFunc(): IndOp {
-        return this.parseVarOrIndexed();
-    }
-    parseVarOrIndexed(): IndOp {
+    parseVarSubscriptOrFunc(): IndOp {
         var tok = this.consumeToken();
         switch (tok.type) {
             case TokenType.Ident:
@@ -412,27 +409,34 @@ export class BASICParser {
                 if (this.peekToken().str == '(') {
                     this.expectToken('(');
                     args = this.parseExprList();
+                    if (args && args.length > this.opts.maxArguments)
+                        this.compileError(`There can be no more than ${this.opts.maxArguments} arguments to a function or subscript.`);
                     this.expectToken(')');
                 }
                 return { name: tok.str, args: args, $loc: tok.$loc };
             default:
-                this.compileError("Expected variable or array index");
+                this.compileError(`There should be a variable name here.`);
                 break;
         }
+    }
+    parseLexpr(): IndOp {
+        var lexpr = this.parseVarSubscriptOrFunc();
+        this.validateVarName(lexpr);
+        return lexpr;
     }
     parseList<T>(parseFunc:()=>T, delim:string): T[] {
         var sep;
         var list = [];
         do {
-            var el = parseFunc.bind(this)()
-            if (el != null) list.push(el);
-            sep = this.consumeToken();
+            var el = parseFunc.bind(this)(); // call parse function
+            if (el != null) list.push(el); // add parsed element to list
+            sep = this.consumeToken(); // consume seperator token
         } while (sep.str == delim);
         this.pushbackToken(sep);
         return list;
     }
     parseLexprList(): IndOp[] {
-        var list = this.parseList(this.parseVarOrIndexed, ',');
+        var list = this.parseList(this.parseLexpr, ',');
         list.forEach((lexpr) => this.decls[lexpr.name] = this.lasttoken.$loc);
         return list;
     }
@@ -469,7 +473,7 @@ export class BASICParser {
                     return { op: 'lnot', expr: expr };
                 } else {
                     this.pushbackToken(tok);
-                    return this.parseVarOrIndexedOrFunc();
+                    return this.parseVarSubscriptOrFunc();
                 }
             case TokenType.Operator:
                 if (tok.str == '(') {
@@ -515,11 +519,19 @@ export class BASICParser {
     parseExpr(): Expr {
         return this.parseExpr1(this.parsePrimary(), 0);
     }
+    validateVarName(lexpr: IndOp) {
+        if (this.opts.strictVarNames) {
+            if (lexpr.args == null && !/^[A-Z][0-9]?[$]?$/.test(lexpr.name))
+                this.dialectError(`variable names other than a letter followed by an optional digit`);
+            if (lexpr.args != null && !/^[A-Z]?[$]?$/.test(lexpr.name))
+                this.dialectError(`array names other than a single letter`);
+        }
+    }
 
     //// STATEMENTS
 
     stmt__LET(): LET_Statement {
-        var lexpr = this.parseVarOrIndexed();
+        var lexpr = this.parseLexpr();
         this.expectToken("=");
         this.decls[lexpr.name] = this.lasttoken.$loc;
         var right = this.parseExpr();
@@ -569,7 +581,7 @@ export class BASICParser {
         return { command: "IF", cond: cond };
     }
     stmt__FOR() : FOR_Statement {
-        var lexpr = this.parseVarOrIndexed(); // TODO: parseNumVar()
+        var lexpr = this.parseLexpr(); // TODO: parseNumVar()
         this.expectToken('=');
         var init = this.parseExpr();
         this.expectToken('TO');
@@ -588,7 +600,14 @@ export class BASICParser {
         return { command:'NEXT', lexpr:lexpr };
     }
     stmt__DIM() : DIM_Statement {
-        return { command:'DIM', args:this.parseLexprList() };
+        var lexprs = this.parseLexprList();
+        lexprs.forEach((arr) => {
+            if (arr.args == null || arr.args.length == 0) 
+                this.compileError(`An array defined by DIM must have at least one dimension.`)
+            else if (arr.args.length > this.opts.maxDimensions) 
+                this.dialectError(`more than ${this.opts.maxDimensions} dimensional arrays`);
+        });
+        return { command:'DIM', args:lexprs };
     }
     stmt__INPUT() : INPUT_Statement {
         var prompt = this.consumeToken();
@@ -627,7 +646,7 @@ export class BASICParser {
         return { command:'ONGOTO', expr:expr, labels:labels };
     }
     stmt__DEF() : DEF_Statement {
-        var lexpr = this.parseVarOrIndexed();
+        var lexpr = this.parseVarSubscriptOrFunc();
         if (!lexpr.name.startsWith('FN')) this.compileError(`Functions defined with DEF must begin with the letters "FN".`)
         this.expectToken("=");
         this.decls[lexpr.name] = this.lasttoken.$loc;

@@ -358,11 +358,11 @@ export class BASICRuntime {
     getArray(name: string, order: number) : [] {
         if (!this.arrays[name]) {
             if (order == 1)
-                this.dimArray(name, 11);
+                this.dimArray(name, this.program.opts.defaultArraySize);
             else if (order == 2)
-                this.dimArray(name, 11, 11);
+                this.dimArray(name, this.program.opts.defaultArraySize, this.program.opts.defaultArraySize);
             else
-                this.runtimeError(`I only support arrays of one or two dimensions.`)
+                this.runtimeError(`I only support arrays of one or two dimensions.`); // TODO
         }
         return this.arrays[name];
     }
