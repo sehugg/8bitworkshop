@@ -1069,7 +1069,7 @@ async function updateSelector() {
 function getErrorElement(err : WorkerError) {
   var span = $('<p/>');
   if (err.path != null) {
-    var s = err.line ? `(${err.path}:${err.line})` : `(${err.path})`
+    var s = err.line ? err.label ? `(${err.path} @ ${err.label})` : `(${err.path}:${err.line})` : `(${err.path})`
     var link = $('<a/>').text(s);
     var path = err.path;
     // TODO: hack because examples/foo.a only gets listed as foo.a
@@ -1887,7 +1887,9 @@ function globalErrorHandler(msgevent) {
     var err = msgevent.error;
     var werr : WorkerError = {msg:msg, line:0};
     if (err instanceof EmuHalt && err.$loc) {
-      werr = {msg:msg, path:err.$loc.path, line:err.$loc.line}; // TODO: get start/end columns
+      werr = Object.create(err.$loc);
+      werr.msg = msg;
+      console.log(werr);
     }
     showErrorAlert([werr]);
   }

@@ -168,6 +168,9 @@ div.has-errors {
 div.is-busy-unused {
   background-color: #8888bb !important;
 }
+#error_alert {
+  max-width: 45%;
+}
 #error_alert_msg {
   margin-right: 2em;
 }
@@ -584,6 +587,10 @@ div.asset_toolbar {
   padding: 1.25em;
   user-select: text;
   font-family: Verdana, Geneva, sans-serif;
+}
+.transcript-bottom {  
+  background-color: #fff;
+  width: 100%;
 }
 .transcript-split {  
   padding: 0.5em;

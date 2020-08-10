@@ -31,7 +31,7 @@ export enum TokenType {
 
 export type ExprTypes = BinOp | UnOp | IndOp | Literal;
 
-export type Expr = ExprTypes & SourceLocated;
+export type Expr = ExprTypes; // & SourceLocated;
 
 export type Opcode = string;
 
@@ -52,7 +52,7 @@ export interface UnOp {
     expr: Expr;
 }
 
-export interface IndOp extends SourceLocated {
+export interface IndOp {
     name: string;
     args: Expr[];
 }
@@ -282,7 +282,7 @@ export class BASICParser {
     compileError(msg: string, loc?: SourceLocation) {
         if (!loc) loc = this.peekToken().$loc;
         // TODO: pass SourceLocation to errors
-        this.errors.push({path:loc.path, line:loc.line, msg:msg});
+        this.errors.push({path:loc.path, line:loc.line, label:loc.label, msg:msg});
         throw new CompileError(`${msg} (line ${loc.line})`); // TODO: label too?
     }
     dialectError(what: string, loc?: SourceLocation) {
@@ -371,13 +371,13 @@ export class BASICParser {
                     this.tokens.push({
                         str: s,
                         type: i,
-                        $loc: { path: this.path, line: this.lineno, start: m.index, end: m.index+s.length }
+                        $loc: { path: this.path, line: this.lineno, start: m.index, end: m.index+s.length, label: this.curlabel }
                     });
                     break;
                 }
             }
         }
-        this.eol = { type: TokenType.EOL, str: "", $loc: { path: this.path, line: this.lineno, start: line.length } };
+        this.eol = { type: TokenType.EOL, str: "", $loc: { path: this.path, line: this.lineno, start: line.length, label: this.curlabel } };
     }
     parse() : BASICLine {
         var line = {label: null, stmts: []};
@@ -386,8 +386,8 @@ export class BASICParser {
             this.parseOptLabel(line);
             if (this.tokens.length) {
                 line.stmts = this.parseCompoundStatement();
-                this.curlabel = null;
             }
+            this.curlabel = null;
         }
         return line;
     }
@@ -446,7 +446,7 @@ export class BASICParser {
                 this.compileError(`There should be a command here.`);
                 return null;
         }
-        if (stmt) stmt.$loc = { path: cmdtok.$loc.path, line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: this.peekToken().$loc.start };
+        if (stmt) stmt.$loc = { path: cmdtok.$loc.path, line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: this.peekToken().$loc.start, label: this.curlabel };
         return stmt;
     }
     parseVarSubscriptOrFunc(): IndOp {
@@ -460,7 +460,7 @@ export class BASICParser {
                     args = this.parseExprList();
                     this.expectToken(')', `There should be another expression or a ")" here.`);
                 }
-                return { name: tok.str, args: args, $loc: tok.$loc };
+                return { name: tok.str, args: args };
             default:
                 this.compileError(`There should be a variable name here.`);
                 break;
@@ -513,9 +513,9 @@ export class BASICParser {
             case TokenType.Int:
             case TokenType.Float1:
             case TokenType.Float2:
-                return { value: this.parseNumber(tok.str), $loc: tok.$loc };
+                return { value: this.parseNumber(tok.str)/*, $loc: tok.$loc*/ };
             case TokenType.String:
-                return { value: stripQuotes(tok.str), $loc: tok.$loc };
+                return { value: stripQuotes(tok.str)/*, $loc: tok.$loc*/ };
             case TokenType.Ident:
                 if (tok.str == 'NOT') {
                     let expr = this.parsePrimary();
@@ -682,7 +682,7 @@ export class BASICParser {
             this.pushbackToken(prompt);
             promptstr = "";
         }
-        return { command:'INPUT', prompt:{ value: promptstr, $loc: prompt.$loc }, args:this.parseLexprList() };
+        return { command:'INPUT', prompt:{ value: promptstr }, args:this.parseLexprList() };
     }
     stmt__DATA() : DATA_Statement {
         return { command:'DATA', datums:this.parseExprList() };

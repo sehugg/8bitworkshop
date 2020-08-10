@@ -77,11 +77,8 @@ export interface WorkerMessage extends WorkerBuildStep {
   buildsteps:WorkerBuildStep[]
 }
 
-export interface WorkerError {
-  line:number,
+export interface WorkerError extends SourceLocation {
   msg:string,
-  path?:string
-  //TODO
 }
 
 export interface CodeListing {

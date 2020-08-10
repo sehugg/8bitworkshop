@@ -62,7 +62,7 @@ runtime.resume = function() {
                 rl.close();
             }
         } catch (e) {
-            console.log("### " + e.message);
+            console.log(`### ${e.message} (line ${runtime.getCurrentSourceLocation().label})`);
             process.exit(1);
         }
     });
