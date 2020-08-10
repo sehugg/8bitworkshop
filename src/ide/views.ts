@@ -74,6 +74,10 @@ const MODEDEFS = {
   basic: { noLineNumbers: true, noGutters: true }, // TODO: not used?
 }
 
+export var textMapFunctions = {
+  input: null
+};
+
 export class SourceEditor implements ProjectView {
   constructor(path:string, mode:string) {
     this.path = path;
@@ -150,6 +154,10 @@ export class SourceEditor implements ProjectView {
     });
     // set editor mode for highlighting, etc
     this.editor.setOption("mode", this.mode);
+    // change text?
+    this.editor.on('beforeChange', (cm, chgobj) => {
+      if (textMapFunctions.input && chgobj.text) chgobj.text = chgobj.text.map(textMapFunctions.input);
+    });
   }
 
 

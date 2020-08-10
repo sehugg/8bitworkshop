@@ -240,6 +240,7 @@ export interface BASICOptions {
     sparseArrays : boolean;             // true == don't require DIM for arrays (TODO)
     printZoneLength : number;           // print zone length
     numericPadding : boolean;           // " " or "-" before and " " after numbers?
+    outOfOrderNext : boolean;           // can we skip a NEXT statement? (can't interleave tho)
     multipleNextVars : boolean;         // NEXT Y,X (TODO)
     ifElse : boolean;                   // IF...ELSE construct
     bitwiseLogic : boolean;             // -1 = TRUE, 0 = FALSE, AND/OR/NOT done with bitwise ops
@@ -249,6 +250,7 @@ export interface BASICOptions {
     validKeywords : string[];           // valid keywords (or null for accept all)
     validFunctions : string[];          // valid functions (or null for accept all)
     validOperators : string[];          // valid operators (or null for accept all)
+    commandsPerSec? : number;           // how many commands per second?
 }
 
 ///// BASIC PARSER
@@ -743,17 +745,22 @@ export class BASICParser {
         return stmt;
     }
     parseOptions(stmt: OPTION_Statement) {
+        var arg = stmt.optargs[0];
         switch (stmt.optname) {
             case 'BASE': 
-                let base = parseInt(stmt.optargs[0]);
+                let base = parseInt(arg);
                 if (base == 0 || base == 1) this.opts.defaultArrayBase = base;
                 else this.compileError("OPTION BASE can only be 0 or 1.");
                 break;
             case 'DIALECT':
-                let dname = stmt.optargs[0] || "";
+                let dname = arg || "";
                 let dialect = DIALECTS[dname.toUpperCase()];
                 if (dialect) this.opts = dialect;
-                else this.compileError(`The dialect named "${dname}" is not supported by this compiler.`);
+                else this.compileError(`OPTION DIALECT ${dname} is not supported by this compiler.`);
+                break;
+            case 'CPUSPEED':
+                if (!(this.opts.commandsPerSec = Math.min(1e7, arg=='MAX' ? Infinity : parseFloat(arg))))
+                    this.compileError(`OPTION CPUSPEED takes a positive number or MAX.`);
                 break;
             default:
                 this.compileError(`OPTION ${stmt.optname} is not supported by this compiler.`);
@@ -825,6 +832,7 @@ export const ECMA55_MINIMAL : BASICOptions = {
     printZoneLength : 15,
     numericPadding : true,
     checkOverflow : true,
+    outOfOrderNext : false,
     multipleNextVars : false,
     ifElse : false,
     bitwiseLogic : false,
@@ -853,6 +861,7 @@ export const ALTAIR_BASIC40 : BASICOptions = {
     printZoneLength : 15,
     numericPadding : true,
     checkOverflow : true,
+    outOfOrderNext : true,
     multipleNextVars : true, // TODO: not supported
     ifElse : true,
     bitwiseLogic : true,
@@ -883,6 +892,7 @@ export const APPLESOFT_BASIC : BASICOptions = {
     printZoneLength : 16,
     numericPadding : false,
     checkOverflow : true,
+    outOfOrderNext : true,
     multipleNextVars : false,
     ifElse : false,
     bitwiseLogic : false,
@@ -911,6 +921,7 @@ export const MAX8_BASIC : BASICOptions = {
     printZoneLength : 15,
     numericPadding : false,
     checkOverflow : true,
+    outOfOrderNext : true,
     multipleNextVars : true,
     ifElse : true,
     bitwiseLogic : true,

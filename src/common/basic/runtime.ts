@@ -42,7 +42,7 @@ export class BASICRuntime {
     vars : {};
     arrays : {};
     defs : {};
-    forLoops : {next:(name:string) => void}[];
+    forLoops : {varname:string, next:(name:string) => void}[];
     returnStack : number[];
     column : number;
 
@@ -79,7 +79,7 @@ export class BASICRuntime {
                     this.datums.push({value:value});
                 });
             });
-            // TODO: compile statements?
+            // compile statements ahead of time
             line.stmts.forEach((stmt) => this.compileStatement(stmt));
         });
         // try to resume where we left off after loading
@@ -105,7 +105,7 @@ export class BASICRuntime {
         // if no valid function list, look for ABC...() functions in prototype
         if (!fnames) fnames = Object.keys(BASICRuntime.prototype).filter((name) => /^[A-Z]{3,}[$]?$/.test(name));
         var dict = {};
-        for (var fn of fnames) dict[fn] = this[fn].bind(this);
+        for (var fn of fnames) if (this[fn]) dict[fn] = this[fn].bind(this);
         return dict;
     }
 
@@ -341,6 +341,7 @@ export class BASICRuntime {
         this.vars[forname] = init;
         if (this.trace) console.log(`FOR ${forname} = ${init} TO ${targ} STEP ${step}`);
         this.forLoops.unshift({
+            varname: forname,
             next: (nextname:string) => {
                 if (nextname && forname != nextname)
                     this.runtimeError(`I executed NEXT "${nextname}", but the last FOR was for "${forname}".`)
@@ -358,8 +359,16 @@ export class BASICRuntime {
 
     nextForLoop(name) {
         var fl = this.forLoops[0];
+        if (fl != null && name != null && fl.varname != name) {
+            if (!this.opts.outOfOrderNext) this.dialectError(`execute out-of-order NEXT statements`);
+            while (fl) {
+                if (fl.varname == name) break;
+                this.forLoops.shift();
+                fl = this.forLoops[0];
+            }
+        }
         if (!fl) this.runtimeError(`I couldn't find a FOR for this NEXT.`)
-        else fl.next(name);
+        fl.next(name);
     }
 
     // converts a variable to string/number based on var name
@@ -557,7 +566,7 @@ export class BASICRuntime {
     }
 
     do__RESTORE() {
-        this.dataptr = 0;
+        return `this.dataptr = 0`;
     }
 
     do__END() {
@@ -805,6 +814,9 @@ export class BASICRuntime {
     }
     TAN(arg : number) : number {
         return this.checkNum(Math.tan(arg));
+    }
+    TIMER() : number {
+        return Date.now() / 1000;
     }
     VAL(arg : string) : number {
         var n = parseFloat(this.checkString(arg));

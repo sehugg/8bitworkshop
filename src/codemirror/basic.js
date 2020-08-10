@@ -95,7 +95,7 @@ CodeMirror.defineMode("basic", function(conf, parserConf) {
             // Octal
             else if (stream.match(/^&O[0-7]+/i)) { intLiteral = true; }
             // Decimal
-            else if (stream.match(/^[1-9]\d*F?/)) {
+            else if (stream.match(/^\d+F?/)) {
                 // Decimal literals may be "imaginary"
                 stream.eat(/J/i);
                 // TODO - Can you have imaginary longs?

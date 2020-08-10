@@ -2,12 +2,17 @@
 import { Platform, BreakpointCallback } from "../common/baseplatform";
 import { PLATFORMS, AnimationTimer, EmuHalt } from "../common/emu";
 import { loadScript } from "../ide/ui";
+import * as views from "../ide/views";
 import { BASICRuntime } from "../common/basic/runtime";
 import { BASICProgram } from "../common/basic/compiler";
 import { TeleTypeWithKeyboard } from "../common/teletype";
 
 const BASIC_PRESETS = [
-    { id: 'hello.bas', name: 'Hello World' }
+    { id: 'hello.bas', name: 'Hello World' },
+    { id: 'sieve.bas', name: 'Sieve Benchmark' },
+    { id: '23match.bas', name: '23 Matches' },
+    { id: 'wumpus.bas', name: 'Hunt The Wumpus' },
+    { id: 'hamurabi.bas', name: 'Hammurabi' },
 ];
 
 class BASICPlatform implements Platform {
@@ -16,7 +21,6 @@ class BASICPlatform implements Platform {
     runtime: BASICRuntime;
     timer: AnimationTimer;
     tty: TeleTypeWithKeyboard;
-    ips: number = 1000;
     clock: number = 0;
     hotReload: boolean = false;
     debugstop: boolean = false; // TODO: should be higher-level support
@@ -75,7 +79,8 @@ class BASICPlatform implements Platform {
 
     animate() {
         if (this.tty.isBusy()) return;
-        this.clock += this.ips/60;
+        var ips = this.program.opts.commandsPerSec || 1000;
+        this.clock += ips / 60;
         while (!this.runtime.exited && this.clock-- > 0) {
             this.advance();
         }
@@ -112,6 +117,7 @@ class BASICPlatform implements Platform {
         this.program = data;
         this.runtime.load(data);
         this.tty.uppercaseOnly = this.program.opts.uppercaseOnly;
+        views.textMapFunctions.input = this.program.opts.uppercaseOnly ? (s) => s.toUpperCase() : null;
         // only reset if we exited, otherwise we try to resume
         if (!this.hotReload || didExit) this.reset();
     }
