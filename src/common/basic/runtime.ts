@@ -16,13 +16,19 @@ function isUnOp(arg: basic.Expr): arg is basic.UnOp {
     return (arg as any).op != null && (arg as any).expr != null;
 }
 
+// expr2js() options
 class ExprOptions {
-    isconst?: boolean;
-    locals?: string[];
+    isconst?: boolean;      // only allow constant operations
+    novalid?: boolean;      // check for valid values when fetching
+    locals?: string[];      // pass local variable names when defining functions
 }
 
 interface CompiledStatement {
     $run?: () => void;
+}
+
+function isArray(obj) {
+    return obj != null && (Array.isArray(obj) || obj.BYTES_PER_ELEMENT);
 }
 
 export class BASICRuntime {
@@ -158,7 +164,6 @@ export class BASICRuntime {
         // skip to next statment
         this.curpc++;
         // compile (unless cached) and execute statement
-        this.compileStatement(stmt);
         this.executeStatement(stmt);
         return this.running;
     }
@@ -178,6 +183,8 @@ export class BASICRuntime {
         }
     }
     executeStatement(stmt: basic.Statement & CompiledStatement) {
+        // compile (unless cached)
+        this.compileStatement(stmt);
         // run compiled statement
         stmt.$run();
     }
@@ -215,6 +222,8 @@ export class BASICRuntime {
     }
 
     gosubLabel(label) {
+        if (this.returnStack.length > 65535)
+            this.runtimeError(`I did too many GOSUBs without a RETURN.`)
         this.returnStack.push(this.curpc);
         this.gotoLabel(label);
     }
@@ -291,9 +300,22 @@ export class BASICRuntime {
             if (!expr.args && opts.locals && opts.locals.indexOf(expr.name) >= 0) {
                 return expr.name; // local arg in DEF
             } else {
-                if (opts.isconst) this.runtimeError(`I expected a constant value here.`);
-                var s = this.assign2js(expr, opts);
-                return `this.checkValue(${s}, ${JSON.stringify(expr.name)})`;
+                var s = '';
+                var qname = JSON.stringify(expr.name);
+                let jsargs = expr.args && expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
+                if (expr.name.startsWith("FN")) { // is it a user-defined function?
+                    // TODO: check argument count?
+                    s += `this.getDef(${qname})(${jsargs})`;
+                    // TODO: detect recursion?
+                } else if (this.builtins[expr.name]) { // is it a built-in function?
+                    this.checkFuncArgs(expr, this.builtins[expr.name]);
+                    s += `this.builtins.${expr.name}(${jsargs})`;
+                } else if (expr.args) {
+                    s += `this.arrayGet(${qname}, ${jsargs})`;
+                } else { // just a variable
+                    s += `this.vars.${expr.name}`;
+                }
+                return opts.novalid ? s : `this.checkValue(${s}, ${qname})`;
             }
         } else if (isBinOp(expr)) {
             var left = this.expr2js(expr.left, opts);
@@ -309,18 +331,12 @@ export class BASICRuntime {
         if (!opts) opts = {};
         var s = '';
         var qname = JSON.stringify(expr.name);
-        if (expr.name.startsWith("FN")) { // is it a user-defined function?
-            // TODO: check argument count?
-            let jsargs = expr.args && expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
-            s += `this.getDef(${qname})(${jsargs})`;
-            // TODO: detect recursion?
-        } else if (this.builtins[expr.name]) { // is it a built-in function?
-            this.checkFuncArgs(expr, this.builtins[expr.name]);
-            let jsargs = expr.args && expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
-            s += `this.builtins.${expr.name}(${jsargs})`;
-        } else if (expr.args) { // is it a subscript?
-            // TODO: check array bounds?
-            s += `this.getArray(${qname}, ${expr.args.length})`;
+         // is it a function? not allowed
+        if (expr.name.startsWith("FN") || this.builtins[expr.name]) this.runtimeError(`I can't call a function here.`);
+        // is it a subscript?
+        if (expr.args) {
+            s += this.expr2js(expr, {novalid:true}); // check array bounds
+            s += `;this.getArray(${qname}, ${expr.args.length})`;
             s += expr.args.map((arg) => '[this.ROUND('+this.expr2js(arg, opts)+')]').join('');
         } else { // just a variable
             s = `this.vars.${expr.name}`;
@@ -388,7 +404,7 @@ export class BASICRuntime {
 
     convert(name: string, right: number|string) : number|string {
         if (name.endsWith("$")) {
-            return right+"";
+            return right == null ? "" : right.toString();
         } else if (typeof right === 'number') {
             return right;
         } else {
@@ -418,8 +434,9 @@ export class BASICRuntime {
             this.arrays[name] = new arrcons(dims[0]+1);
         } else if (dims.length == 2) {
             this.arrays[name] = new Array(dims[0]+1);
-            for (var i=0; i<dims[0]+1; i++)
+            for (var i=0; i<dims[0]+1; i++) {
                 this.arrays[name][i] = new arrcons(dims[1]+1);
+            }
         } else {
             this.runtimeError(`I only support arrays of one or two dimensions.`)
         }
@@ -435,6 +452,25 @@ export class BASICRuntime {
                 this.runtimeError(`I only support arrays of one or two dimensions.`); // TODO
         }
         return this.arrays[name];
+    }
+
+    arrayGet(name: string, ...indices: number[]) : basic.Value {
+        var arr = this.getArray(name, indices.length);
+        indices = indices.map(Math.round);
+        var v = arr;
+        for (var i=0; i<indices.length; i++) {
+            var idx = indices[i];
+            if (!isArray(v))
+                this.runtimeError(`I tried to lookup ${name}(${indices}) but used too many dimensions.`);
+            if (idx < this.opts.defaultArrayBase)
+                this.runtimeError(`I tried to lookup ${name}(${indices}) but an index was less than ${this.opts.defaultArrayBase}.`);
+            if (idx >= v.length)
+                this.runtimeError(`I tried to lookup ${name}(${indices}) but it exceeded the dimensions of the array.`);
+            v = v[indices[i]];
+        }
+        if (isArray(v)) // i.e. is an array?
+            this.runtimeError(`I tried to lookup ${name}(${indices}) but used too few dimensions.`);
+        return (v as any) as basic.Value;
     }
 
     onGotoLabel(value: number, ...labels: string[]) {
@@ -473,7 +509,11 @@ export class BASICRuntime {
         var setvals = '';
         stmt.args.forEach((arg, index) => {
             var lexpr = this.assign2js(arg);
-            setvals += `valid &= this.isValid(${lexpr} = this.convert(${JSON.stringify(arg.name)}, vals[${index}]));`
+            setvals += `
+            var value = this.convert(${JSON.stringify(arg.name)}, vals[${index}]);
+            valid &= this.isValid(value);
+            ${lexpr} = value;
+            `
         });
         return `this.running=false;
                 this.input(${prompt}, ${stmt.args.length}).then((vals) => {
@@ -619,12 +659,12 @@ export class BASICRuntime {
     // TODO: memory quota
     // TODO: useless loop (! 4th edition)
     // TODO: other 4th edition errors
-
+    // TODO: ecma55 all-or-none input checking?
 
     // FUNCTIONS
 
     isValid(obj:number|string) : boolean {
-        if (typeof obj === 'number' && !isNaN(obj))
+        if (typeof obj === 'number' && !isNaN(obj) && isFinite(obj))
             return true;
         else if (typeof obj === 'string')
             return true;

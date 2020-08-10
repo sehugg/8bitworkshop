@@ -138,11 +138,18 @@ export class TeleType {
         if (show) ph.show(); else ph.hide();
         */
     }
+    resize(columns: number) {
+        // set font size proportional to window width
+        var charwidth = $(this.page).width() * 1.6 / columns;
+        $(this.page).css('font-size', charwidth + 'px');
+        this.scrollToBottom();
+    }
 }
 
 export class TeleTypeWithKeyboard extends TeleType {
     input : HTMLInputElement;
     keepinput : boolean = true;
+    msecPerLine : number = 100; // IBM 1403
 
     focused : boolean = true;
     scrolling : number = 0;
@@ -236,7 +243,7 @@ export class TeleTypeWithKeyboard extends TeleType {
         if (this.scrolldiv) {
             this.scrolling++;
             var top = $(this.page).height() + $(this.input).height();
-            $(this.scrolldiv).stop().animate({scrollTop: top}, 200, 'swing', () => {
+            $(this.scrolldiv).stop().animate({scrollTop: top}, this.msecPerLine, 'swing', () => {
                 this.scrolling = 0;
                 this.ncharsout = 0;
             });

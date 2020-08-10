@@ -6,8 +6,15 @@ var readline = require('readline');
 var rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    //terminal: false
+    terminal: false,
+    crlfDelay: Infinity,
 });
+var inputlines = [];
+rl.on('line', (line) => {
+    //console.log(`Line from file: ${line}`);
+    inputlines.push(line);
+});
+
 var fs = require('fs');
 
 var parser = new BASICParser();
@@ -46,10 +53,16 @@ runtime.print = (s:string) => {
 }
 runtime.input = async (prompt:string) => {
     return new Promise( (resolve, reject) => {
-        fs.writeSync(1, "\n");
-        rl.question(prompt, (answer) => {
+        function answered(answer) {
             var vals = answer.toUpperCase().split(',');
+            console.log(">>>",vals);
             resolve(vals);
+        }
+        fs.writeSync(1, prompt+"?");
+        if (inputlines.length) {
+            answered(inputlines.shift());
+        } else rl.question(prompt, (answer) => {
+            answered(answer);
         });
     });
 }
@@ -59,7 +72,8 @@ runtime.resume = function() {
             if (runtime.step()) {
                 if (runtime.running) runtime.resume();
             } else if (runtime.exited) {
-                rl.close();
+                console.log("*** PROGRAM EXITED ***");
+                process.exit(0);
             }
         } catch (e) {
             console.log(`### ${e.message} (line ${runtime.getCurrentSourceLocation().label})`);

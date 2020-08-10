@@ -288,7 +288,7 @@ export class BASICParser {
         throw new CompileError(`${msg} (line ${loc.line})`); // TODO: label too?
     }
     dialectError(what: string, loc?: SourceLocation) {
-        this.compileError(`The selected BASIC dialect doesn't support ${what}.`, loc); // TODO
+        this.compileError(`The selected BASIC dialect (${this.opts.dialectName}) doesn't support ${what}.`, loc); // TODO
     }
     consumeToken(): Token {
         var tok = this.lasttoken = (this.tokens.shift() || this.eol);
@@ -624,7 +624,9 @@ export class BASICParser {
     stmt__IF(): IF_Statement {
         var cond = this.parseExpr();
         var iftrue: Statement[];
-        this.expectToken('THEN');
+        // we accept GOTO or THEN if line number provided
+        if (this.peekToken().str == 'GOTO') this.consumeToken();
+        else this.expectToken('THEN');
         var lineno = this.peekToken();
         // assume GOTO if number given after THEN
         if (lineno.type == TokenType.Int) {
@@ -890,6 +892,7 @@ export const APPLESOFT_BASIC : BASICOptions = {
     sparseArrays : false,
     tickComments : false,
     validKeywords : [
+        'OPTION',
         'CLEAR','LET','DIM','DEF','FN','GOTO','GOSUB','RETURN','ON','POP',
         'FOR','TO','NEXT','IF','THEN','END','STOP','ONERR','RESUME',
         'PRINT','INPUT','GET','HOME','HTAB','VTAB',
@@ -912,12 +915,12 @@ export const APPLESOFT_BASIC : BASICOptions = {
     bitwiseLogic : false,
 }
 
-export const MAX8_BASIC : BASICOptions = {
-    dialectName: "MAX8",
+export const MODERN_BASIC : BASICOptions = {
+    dialectName: "MODERN",
     asciiOnly : false,
     uppercaseOnly : false,
     optionalLabels : true,
-    strictVarNames : false, // TODO: first two alphanum chars
+    strictVarNames : false,
     sharedArrayNamespace : false,
     defaultArrayBase : 0,
     defaultArraySize : 11,
@@ -925,7 +928,7 @@ export const MAX8_BASIC : BASICOptions = {
     stringConcat : true,
     typeConvert : true,
     maxDimensions : 255,
-    maxDefArgs : 255, // TODO: no string FNs
+    maxDefArgs : 255,
     maxStringLength : 1024, // TODO?
     sparseArrays : false,
     tickComments : true,
@@ -942,6 +945,7 @@ export const MAX8_BASIC : BASICOptions = {
 }
 
 // TODO: integer vars
+// TODO: short-circuit FOR loop
 
 export const DIALECTS = {
     "DEFAULT":      ALTAIR_BASIC40,
@@ -950,4 +954,5 @@ export const DIALECTS = {
     "ECMA55":       ECMA55_MINIMAL,
     "MINIMAL":      ECMA55_MINIMAL,
     "APPLESOFT":    APPLESOFT_BASIC,
+    "MODERN":       MODERN_BASIC,
 };

@@ -63,10 +63,7 @@ class BASICPlatform implements Platform {
         }
         this.timer = new AnimationTimer(60, this.animate.bind(this));
         this.resize = () => {
-            // set font size proportional to window width
-            var charwidth = $(gameport).width() * 1.6 / 80;
-            $(windowport).css('font-size', charwidth + 'px');
-            this.tty.scrollToBottom();
+            this.tty.resize(80);
         }
         this.resize();
         this.runtime.print = (s:string) => {
@@ -174,12 +171,12 @@ class BASICPlatform implements Platform {
     }
     getDebugTree() {
         return {
+            CurrentLine: this.runtime.getCurrentLabel(),
             Variables: this.runtime.vars,
             Arrays: this.runtime.arrays,
             Functions: this.runtime.defs,
             ForLoops: this.runtime.forLoops,
             ReturnStack: this.runtime.returnStack,
-            CurrentLine: this.runtime.getCurrentLabel(),
             NextDatum: this.runtime.datums[this.runtime.dataptr],
             Dialect: this.runtime.opts,
             Internals: this.runtime,

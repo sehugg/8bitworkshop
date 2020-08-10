@@ -600,9 +600,15 @@ div.asset_toolbar {
   flex-shrink: 0;
 }
 .transcript-line {
-  line-height: 1.5;
+  line-height: 1.5em;
   min-height: 1em;
   white-space: pre-wrap;
+}
+.transcript-fanfold > .transcript-line {
+  min-height: 1.5em;
+}
+.transcript-fanfold > .transcript-line:nth-child(even) {
+  background: RGBA(225,245,225,1.0);
 }
 .transcript-style-1 {
   font-style: italic;
@@ -610,7 +616,7 @@ div.asset_toolbar {
 .transcript-style-2 {
   white-space: pre-wrap;       /* css-3 */
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
-  line-height: 1;
+  line-height: 1em;
   min-height: 0;
 }
 .transcript-style-4 {
