@@ -173,7 +173,17 @@ class BASICPlatform implements Platform {
         $.extend(true, this.runtime, state);
     }
     getDebugTree() {
-        return this.runtime;
+        return {
+            Variables: this.runtime.vars,
+            Arrays: this.runtime.arrays,
+            Functions: this.runtime.defs,
+            ForLoops: this.runtime.forLoops,
+            ReturnStack: this.runtime.returnStack,
+            CurrentLine: this.runtime.getCurrentLabel(),
+            NextDatum: this.runtime.datums[this.runtime.dataptr],
+            Dialect: this.runtime.opts,
+            Internals: this.runtime,
+        }
     }
     inspect(sym: string) {
         var o = this.runtime.vars[sym];

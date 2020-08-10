@@ -90,16 +90,19 @@ export class BASICRuntime {
     reset() {
         this.curpc = 0;
         this.dataptr = 0;
-        this.vars = {};
-        this.arrays = {};
-        this.defs = {};
+        this.clearVars();
         this.forLoops = [];
         this.returnStack = [];
         this.column = 0;
         this.running = true;
         this.exited = false;
     }
-
+    clearVars() {
+        this.vars = {};
+        this.arrays = {};
+        this.defs = {}; // TODO? only in interpreters
+    }
+    
     getBuiltinFunctions() {
         var fnames = this.program && this.opts.validFunctions;
         // if no valid function list, look for ABC...() functions in prototype
@@ -119,23 +122,23 @@ export class BASICRuntime {
     }
 
     getLineForPC(pc:number) {
-        var line;
-        do {
-            line = this.pc2line.get(pc);
-            if (line != null) break;
-        } while (--pc >= 0);
-        return line;
+        var stmt = this.allstmts[pc];
+        return stmt && stmt.$loc && stmt.$loc.line;
     }
 
     getLabelForPC(pc:number) {
-        var lineno = this.getLineForPC(pc);
-        var pgmline = this.program.lines[lineno];
-        return pgmline ? pgmline.label : '?';
+        var stmt = this.allstmts[pc];
+        return stmt && stmt.$loc && stmt.$loc.label;
     }
 
     getCurrentSourceLocation() : SourceLocation {
         var stmt = this.getStatement();
         return stmt && stmt.$loc;
+    }
+
+    getCurrentLabel() : string {
+        var loc = this.getCurrentSourceLocation();
+        return loc && loc.label;
     }
 
     getStatement() {
@@ -228,7 +231,7 @@ export class BASICRuntime {
             this.runtimeError("I tried to POP, but there wasn't a corresponding GOSUB.");
         this.returnStack.pop();
     }
-    
+
     valueToString(obj) : string {
         var str;
         if (typeof obj === 'number') {
@@ -439,6 +442,13 @@ export class BASICRuntime {
         if (value < 1 || value > labels.length)
             this.runtimeError(`I needed a number between 1 and ${labels.length}, but I got ${value}.`);
         this.gotoLabel(labels[value-1]);
+    
+    }
+    onGosubLabel(value: number, ...labels: string[]) {
+        value = this.ROUND(value);
+        if (value < 1 || value > labels.length)
+            this.runtimeError(`I needed a number between 1 and ${labels.length}, but I got ${value}.`);
+        this.gosubLabel(labels[value-1]);
     }
 
     nextDatum() : basic.Value {
@@ -550,7 +560,10 @@ export class BASICRuntime {
     do__ONGOTO(stmt : basic.ONGOTO_Statement) {
         var expr = this.expr2js(stmt.expr);
         var labels = stmt.labels.map((arg) => this.expr2js(arg, {isconst:true})).join(', ');
-        return `this.onGotoLabel(${expr}, ${labels})`;
+        if (stmt.command == 'ONGOTO')
+            return `this.onGotoLabel(${expr}, ${labels})`;
+        else
+            return `this.onGosubLabel(${expr}, ${labels})`;
     }
 
     do__DATA() {
@@ -594,6 +607,10 @@ export class BASICRuntime {
                     this.running=true;
                     this.resume();
                 })`;
+    }
+
+    do__CLEAR() {
+        return 'this.clearVars()';
     }
 
     // TODO: ONERR, ON ERROR GOTO

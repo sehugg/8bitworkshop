@@ -88,7 +88,7 @@ export interface RETURN_Statement {
 }
 
 export interface ONGOTO_Statement {
-    command: "ONGOTO";
+    command: "ONGOTO" | "ONGOSUB";
     expr: Expr;
     labels: Expr[];
 }
@@ -706,9 +706,11 @@ export class BASICParser {
     }
     stmt__ON() : ONGOTO_Statement {
         var expr = this.parseExpr();
-        this.expectToken('GOTO');
+        var gotok = this.consumeToken();
+        var cmd = {GOTO:'ONGOTO', GOSUB:'ONGOSUB'}[gotok.str];
+        if (!cmd) this.compileError(`There should be a GOTO or GOSUB here.`);
         var labels = this.parseLabelList();
-        return { command:'ONGOTO', expr:expr, labels:labels };
+        return { command:cmd, expr:expr, labels:labels };
     }
     stmt__DEF() : DEF_Statement {
         var lexpr = this.parseVarSubscriptOrFunc();
@@ -727,6 +729,9 @@ export class BASICParser {
         var lexpr = this.parseLexpr();
         this.decls[lexpr.name] = this.lasttoken.$loc;
         return { command:'GET', lexpr:lexpr };
+    }
+    stmt__CLEAR() : NoArgStatement {
+        return { command:'CLEAR' };
     }
     // TODO: CHANGE A TO A$ (4th edition, A(0) is len and A(1..) are chars)
     stmt__OPTION() : OPTION_Statement {
@@ -826,7 +831,7 @@ export const ECMA55_MINIMAL : BASICOptions = {
     validKeywords : ['BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
         'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO'
-    ],
+    ], // TODO: no ON...GOSUB
     validFunctions : ['ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAB','TAN'],
     validOperators : ['=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^'],
     printZoneLength : 15,
@@ -857,7 +862,7 @@ export const ALTAIR_BASIC40 : BASICOptions = {
     tickComments : false,
     validKeywords : null, // all
     validFunctions : null, // all
-    validOperators : null, // all ['\\','MOD','NOT','AND','OR','XOR','EQV','IMP'],
+    validOperators : null, // all
     printZoneLength : 15,
     numericPadding : true,
     checkOverflow : true,
@@ -884,10 +889,19 @@ export const APPLESOFT_BASIC : BASICOptions = {
     maxStringLength : 255,
     sparseArrays : false,
     tickComments : false,
-    validKeywords : null, // all
-    validFunctions : ['ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAN',
-                      'LEN','LEFT$','MID$','RIGHT$','STR$','VAL','CHR$','ASC',
-                      'FRE','SCRN','PDL','PEEK'], // TODO
+    validKeywords : [
+        'CLEAR','LET','DIM','DEF','FN','GOTO','GOSUB','RETURN','ON','POP',
+        'FOR','TO','NEXT','IF','THEN','END','STOP','ONERR','RESUME',
+        'PRINT','INPUT','GET','HOME','HTAB','VTAB',
+        'INVERSE','FLASH','NORMAL','TEXT',
+        'GR','COLOR','PLOT','HLIN','VLIN',
+        'HGR','HGR2','HPLOT','HCOLOR','AT',
+        'DATA','READ','RESTORE',
+        'REM','TRACE','NOTRACE'],
+    validFunctions : [
+        'ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAN',
+        'LEN','LEFT$','MID$','RIGHT$','STR$','VAL','CHR$','ASC',
+        'FRE','SCRN','PDL','PEEK','POS'],
     validOperators : ['=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^', 'AND', 'NOT', 'OR'],
     printZoneLength : 16,
     numericPadding : false,
