@@ -1,10 +1,46 @@
 import { WorkerError, CodeListingMap, SourceLocation, SourceLine } from "../workertypes";
 
+export interface BASICOptions {
+    dialectName : string;               // use this to select the dialect 
+    // SYNTAX AND PARSING
+    asciiOnly : boolean;                // reject non-ASCII chars?
+    uppercaseOnly : boolean;            // convert everything to uppercase?
+    optionalLabels : boolean;			// can omit line numbers and use labels?
+    optionalWhitespace : boolean;       // can "crunch" keywords?
+    varNaming : 'A1'|'AA'|'*';          // only allow A0-9 for numerics, single letter for arrays/strings
+    tickComments : boolean;             // support 'comments?
+    validKeywords : string[];           // valid keywords (or null for accept all)
+    validFunctions : string[];          // valid functions (or null for accept all)
+    validOperators : string[];          // valid operators (or null for accept all)
+    // VALUES AND OPERATORS
+    defaultValues : boolean;            // initialize unset variables to default value? (0 or "")
+    stringConcat : boolean;             // can concat strings with "+" operator?
+    typeConvert : boolean;              // type convert strings <-> numbers?
+    checkOverflow : boolean;            // check for overflow of numerics?
+    bitwiseLogic : boolean;             // -1 = TRUE, 0 = FALSE, AND/OR/NOT done with bitwise ops
+    maxStringLength : number;           // maximum string length in chars
+    maxDefArgs : number;                // maximum # of arguments for user-defined functions
+    // ARRAYS
+    staticArrays : boolean;             // can only DIM with constant value? (and never redim)
+    sharedArrayNamespace : boolean;     // arrays and variables have same namespace? (TODO)
+    defaultArrayBase : number;          // arrays start at this number (0 or 1)
+    defaultArraySize : number;          // arrays are allocated w/ this size (starting @ 0)
+    maxDimensions : number;             // max number of dimensions for arrays
+    // PRINTING
+    printZoneLength : number;           // print zone length
+    numericPadding : boolean;           // " " or "-" before and " " after numbers?
+    // CONTROL FLOW
+    testInitialFor : boolean;           // can we skip a NEXT statement? (can't interleave tho)
+    ifElse : boolean;                   // IF...ELSE construct
+    // MISC
+    commandsPerSec? : number;           // how many commands per second?
+}
+
 export interface SourceLocated {
     $loc?: SourceLine;
 }
 
-class CompileError extends Error {
+export class CompileError extends Error {
     constructor(msg: string) {
         super(msg);
         Object.setPrototypeOf(this, CompileError.prototype);
@@ -179,8 +215,10 @@ const OPERATORS = {
     'IMP':  {f:'bimp',p:4},
     'EQV':  {f:'beqv',p:5},
     'XOR':  {f:'bxor',p:6},
-    'OR':   {f:'lor',p:7}, // or "bor"
-    'AND':  {f:'land',p:8}, // or "band"
+    'OR':   {f:'bor',p:7}, // or "lor" for logical
+    'AND':  {f:'band',p:8}, // or "land" for logical
+    '||':   {f:'lor',p:17}, // not used
+    '&&':   {f:'land',p:18}, // not used
     '=':    {f:'eq',p:50},
     '<>':   {f:'ne',p:50},
     '<':    {f:'lt',p:50},
@@ -222,41 +260,10 @@ function stripQuotes(s: string) {
     return s.substr(1, s.length-2);
 }
 
-// TODO: implement these
-export interface BASICOptions {
-    dialectName : string;               // use this to select the dialect 
-    asciiOnly : boolean;                // reject non-ASCII chars?
-    uppercaseOnly : boolean;            // convert everything to uppercase?
-    optionalLabels : boolean;			// can omit line numbers and use labels?
-    strictVarNames : boolean;           // only allow A0-9 for numerics, single letter for arrays/strings
-    tickComments : boolean;             // support 'comments?
-    defaultValues : boolean;            // initialize unset variables to default value? (0 or "")
-    sharedArrayNamespace : boolean;     // arrays and variables have same namespace? (conflict)
-    defaultArrayBase : number;          // arrays start at this number (0 or 1) (TODO: check)
-    defaultArraySize : number;          // arrays are allocated w/ this size (starting @ 0)
-    stringConcat : boolean;             // can concat strings with "+" operator?
-    typeConvert : boolean;              // type convert strings <-> numbers? (TODO)
-    checkOverflow : boolean;            // check for overflow of numerics?
-    sparseArrays : boolean;             // true == don't require DIM for arrays (TODO)
-    printZoneLength : number;           // print zone length
-    numericPadding : boolean;           // " " or "-" before and " " after numbers?
-    outOfOrderNext : boolean;           // can we skip a NEXT statement? (can't interleave tho)
-    multipleNextVars : boolean;         // NEXT Y,X (TODO)
-    ifElse : boolean;                   // IF...ELSE construct
-    bitwiseLogic : boolean;             // -1 = TRUE, 0 = FALSE, AND/OR/NOT done with bitwise ops
-    maxDimensions : number;             // max number of dimensions for arrays
-    maxDefArgs : number;                // maximum # of arguments for user-defined functions
-    maxStringLength : number;           // maximum string length in chars
-    validKeywords : string[];           // valid keywords (or null for accept all)
-    validFunctions : string[];          // valid functions (or null for accept all)
-    validOperators : string[];          // valid operators (or null for accept all)
-    commandsPerSec? : number;           // how many commands per second?
-}
-
 ///// BASIC PARSER
 
 export class BASICParser {
-    opts : BASICOptions = ALTAIR_BASIC40;
+    opts : BASICOptions = ALTAIR_BASIC41;
     errors: WorkerError[];
     listings: CodeListingMap;
     labels: { [label: string]: BASICLine };
@@ -283,8 +290,7 @@ export class BASICParser {
     }
     compileError(msg: string, loc?: SourceLocation) {
         if (!loc) loc = this.peekToken().$loc;
-        // TODO: pass SourceLocation to errors
-        this.errors.push({path:loc.path, line:loc.line, label:loc.label, msg:msg});
+        this.errors.push({path:loc.path, line:loc.line, label:loc.label, start:loc.start, end:loc.end, msg:msg});
         throw new CompileError(`${msg} (line ${loc.line})`); // TODO: label too?
     }
     dialectError(what: string, loc?: SourceLocation) {
@@ -358,23 +364,33 @@ export class BASICParser {
     tokenize(line: string) : void {
         this.lineno++;
         this.tokens = [];
+        let splitre = this.opts.optionalWhitespace && new RegExp(this.opts.validKeywords.map(s => `^${s}`).join('|'));
         var m : RegExpMatchArray;
         while (m = re_toks.exec(line)) {
             for (var i = 1; i < TokenType._LAST; i++) {
                 let s : string = m[i];
                 if (s != null) {
+                    let loc = { path: this.path, line: this.lineno, start: m.index, end: m.index+s.length, label: this.curlabel };
                     // maybe we don't support unicode in 1975?
                     if (this.opts.asciiOnly && !/^[\x00-\x7F]*$/.test(s))
                         this.dialectError(`non-ASCII characters`);
                     // uppercase all identifiers, and maybe more
                     if (i == TokenType.Ident || this.opts.uppercaseOnly)
                         s = s.toUpperCase();
+                    // un-crunch tokens?
+                    if (splitre) {
+                        while (i == TokenType.Ident) {
+                            let m2 = splitre.exec(s);
+                            if (m2 && s.length > m2[0].length) {
+                                this.tokens.push({str:m2[0], type:TokenType.Ident, $loc:loc});
+                                s = s.substring(m2[0].length);
+                            } else
+                                break;
+                        }
+                        if (/^[0-9]+$/.test(s)) i = TokenType.Int;
+                    }
                     // add token to list
-                    this.tokens.push({
-                        str: s,
-                        type: i,
-                        $loc: { path: this.path, line: this.lineno, start: m.index, end: m.index+s.length, label: this.curlabel }
-                    });
+                    this.tokens.push({str: s, type: i, $loc:loc});
                     break;
                 }
             }
@@ -473,6 +489,12 @@ export class BASICParser {
         this.validateVarName(lexpr);
         return lexpr;
     }
+    parseForNextLexpr() : IndOp {
+        var lexpr = this.parseLexpr();
+        if (lexpr.args || lexpr.name.endsWith('$'))
+            this.compileError(`A FOR ... NEXT loop can only use numeric variables.`);
+        return lexpr;
+    }
     parseList<T>(parseFunc:()=>T, delim:string): T[] {
         var sep;
         var list = [];
@@ -564,8 +586,9 @@ export class BASICParser {
                 look = this.peekToken();
             }
             var opfn = getOperator(op.str).f;
-            if (this.opts.bitwiseLogic && opfn == 'land') opfn = 'band';
-            if (this.opts.bitwiseLogic && opfn == 'lor') opfn = 'bor';
+            // use logical operators instead of bitwise?
+            if (!this.opts.bitwiseLogic && op.str == 'AND') opfn = 'land';
+            if (!this.opts.bitwiseLogic && op.str == 'OR') opfn = 'lor';
             left = { op:opfn, left: left, right: right };
         }
         return left;
@@ -574,11 +597,17 @@ export class BASICParser {
         return this.parseExpr1(this.parsePrimary(), 0);
     }
     validateVarName(lexpr: IndOp) {
-        if (this.opts.strictVarNames) {
-            if (lexpr.args == null && !/^[A-Z][0-9]?[$]?$/.test(lexpr.name))
-                this.dialectError(`variable names other than a letter followed by an optional digit`);
-            if (lexpr.args != null && !/^[A-Z]?[$]?$/.test(lexpr.name))
-                this.dialectError(`array names other than a single letter`);
+        switch (this.opts.varNaming) {
+            case 'A1':
+                if (lexpr.args == null && !/^[A-Z][0-9]?[$]?$/i.test(lexpr.name))
+                    this.dialectError(`variable names other than a letter followed by an optional digit`);
+                if (lexpr.args != null && !/^[A-Z]?[$]?$/i.test(lexpr.name))
+                    this.dialectError(`array names other than a single letter`);
+                break;
+            case 'AA':
+                if (lexpr.args == null && !/^[A-Z][A-Z0-9]?[$]?$/i.test(lexpr.name))
+                    this.dialectError(`variable names other than a letter followed by an optional letter or digit`);
+                break;
         }
     }
 
@@ -648,7 +677,7 @@ export class BASICParser {
         return { command: "ELSE" };
     }
     stmt__FOR() : FOR_Statement {
-        var lexpr = this.parseLexpr(); // TODO: parseNumVar()
+        var lexpr = this.parseForNextLexpr();
         this.expectToken('=');
         var init = this.parseExpr();
         this.expectToken('TO');
@@ -662,7 +691,7 @@ export class BASICParser {
     stmt__NEXT() : NEXT_Statement {
         var lexpr = null;
         if (!isEOS(this.peekToken())) {
-            lexpr = this.parseExpr();
+            lexpr = this.parseForNextLexpr();
         }
         return { command:'NEXT', lexpr:lexpr };
     }
@@ -770,6 +799,18 @@ export class BASICParser {
                     this.compileError(`OPTION CPUSPEED takes a positive number or MAX.`);
                 break;
             default:
+                // maybe it's one of the options?
+                var name = Object.getOwnPropertyNames(this.opts).find((n) => n.toUpperCase() == stmt.optname);
+                if (name != null) switch (typeof this.opts[name]) {
+                    case 'boolean' : this.opts[name] = arg ? true : false; return;
+                    case 'number' : this.opts[name] = parseFloat(arg); return;
+                    case 'string' : this.opts[name] = arg; return;
+                    case 'object' :
+                        if (Array.isArray(this.opts[name]) && arg == 'ALL') {
+                            this.opts[name] = null;
+                            return;
+                        }
+                }
                 this.compileError(`OPTION ${stmt.optname} is not supported by this compiler.`);
                 break;
         }
@@ -814,13 +855,15 @@ export class BASICParser {
 
 ///// BASIC DIALECTS
 
-// TODO: require END statement, check FOR condition at start of loop
+// TODO: require END statement
 export const ECMA55_MINIMAL : BASICOptions = {
     dialectName: "ECMA55",
     asciiOnly : true,
     uppercaseOnly : true,
     optionalLabels : false,
-    strictVarNames : true,
+    optionalWhitespace : false,
+    varNaming : "A1",
+    staticArrays : true,
     sharedArrayNamespace : true,
     defaultArrayBase : 0,
     defaultArraySize : 11,
@@ -830,29 +873,62 @@ export const ECMA55_MINIMAL : BASICOptions = {
     maxDimensions : 2,
     maxDefArgs : 255,
     maxStringLength : 255,
-    sparseArrays : false,
     tickComments : false,
     validKeywords : ['BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
         'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO'
-    ], // TODO: no ON...GOSUB
+    ],
     validFunctions : ['ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAB','TAN'],
     validOperators : ['=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^'],
     printZoneLength : 15,
     numericPadding : true,
     checkOverflow : true,
-    outOfOrderNext : false,
-    multipleNextVars : false,
+    testInitialFor : true,
     ifElse : false,
     bitwiseLogic : false,
 }
 
-export const ALTAIR_BASIC40 : BASICOptions = {
-    dialectName: "ALTAIR40",
+export const BASICODE : BASICOptions = {
+    dialectName: "BASICODE",
     asciiOnly : true,
     uppercaseOnly : true,
     optionalLabels : false,
-    strictVarNames : false,
+    optionalWhitespace : true,
+    varNaming : "AA",
+    staticArrays : true,
+    sharedArrayNamespace : false,
+    defaultArrayBase : 0,
+    defaultArraySize : 11,
+    defaultValues : false,
+    stringConcat : true,
+    typeConvert : false,
+    maxDimensions : 2,
+    maxDefArgs : 255,
+    maxStringLength : 255,
+    tickComments : false,
+    validKeywords : ['BASE','DATA','DEF','DIM','END',
+        'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
+        'READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO'
+    ],
+    validFunctions : ['ABS','ASC','ATN','CHR$','COS','EXP','INT','LEFT$','LEN','LOG',
+                      'MID$','RIGHT$','SGN','SIN','SQR','TAB','TAN','VAL'],
+    validOperators : ['=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^', 'AND', 'NOT', 'OR'],
+    printZoneLength : 15,
+    numericPadding : true,
+    checkOverflow : true,
+    testInitialFor : true,
+    ifElse : false,
+    bitwiseLogic : false,
+}
+
+export const ALTAIR_BASIC41 : BASICOptions = {
+    dialectName: "ALTAIR41",
+    asciiOnly : true,
+    uppercaseOnly : true,
+    optionalLabels : false,
+    optionalWhitespace : true,
+    varNaming : "*", // or AA
+    staticArrays : false,
     sharedArrayNamespace : true,
     defaultArrayBase : 0,
     defaultArraySize : 11,
@@ -862,16 +938,21 @@ export const ALTAIR_BASIC40 : BASICOptions = {
     maxDimensions : 128, // "as many as will fit on a single line" ... ?
     maxDefArgs : 255,
     maxStringLength : 255,
-    sparseArrays : false,
     tickComments : false,
-    validKeywords : null, // all
+    validKeywords : [
+        'OPTION',
+        'CONSOLE','DATA','DEF','DEFUSR','DIM','END','ERASE','ERROR',
+        'FOR','GOTO','GOSUB','IF','THEN','ELSE','INPUT','LET','LINE',
+        'PRINT','LPRINT','USING','NEXT','ON','OUT','POKE',
+        'READ','REM','RESTORE','RESUME','RETURN','STOP','SWAP',
+        'TROFF','TRON','WAIT'],
     validFunctions : null, // all
     validOperators : null, // all
     printZoneLength : 15,
     numericPadding : true,
     checkOverflow : true,
-    outOfOrderNext : true,
-    multipleNextVars : true, // TODO: not supported
+    testInitialFor : false,
+    //multipleNextVars : true, // TODO: not supported
     ifElse : true,
     bitwiseLogic : true,
 }
@@ -881,21 +962,22 @@ export const APPLESOFT_BASIC : BASICOptions = {
     asciiOnly : true,
     uppercaseOnly : false,
     optionalLabels : false,
-    strictVarNames : false, // TODO: first two alphanum chars
+    optionalWhitespace : true,
+    varNaming : "*", // or AA
+    staticArrays : false,
     sharedArrayNamespace : false,
     defaultArrayBase : 0,
-    defaultArraySize : 9, // A(0) to A(8)
+    defaultArraySize : 11,
     defaultValues : true,
     stringConcat : true,
     typeConvert : false,
     maxDimensions : 88,
     maxDefArgs : 1, // TODO: no string FNs
     maxStringLength : 255,
-    sparseArrays : false,
     tickComments : false,
     validKeywords : [
         'OPTION',
-        'CLEAR','LET','DIM','DEF','FN','GOTO','GOSUB','RETURN','ON','POP',
+        'CLEAR','LET','DIM','DEF','GOTO','GOSUB','RETURN','ON','POP',
         'FOR','TO','NEXT','IF','THEN','END','STOP','ONERR','RESUME',
         'PRINT','INPUT','GET','HOME','HTAB','VTAB',
         'INVERSE','FLASH','NORMAL','TEXT',
@@ -911,8 +993,7 @@ export const APPLESOFT_BASIC : BASICOptions = {
     printZoneLength : 16,
     numericPadding : false,
     checkOverflow : true,
-    outOfOrderNext : true,
-    multipleNextVars : false,
+    testInitialFor : false,
     ifElse : false,
     bitwiseLogic : false,
 }
@@ -922,39 +1003,40 @@ export const MODERN_BASIC : BASICOptions = {
     asciiOnly : false,
     uppercaseOnly : false,
     optionalLabels : true,
-    strictVarNames : false,
+    optionalWhitespace : false,
+    varNaming : "*",
+    staticArrays : false,
     sharedArrayNamespace : false,
     defaultArrayBase : 0,
-    defaultArraySize : 11,
+    defaultArraySize : 0, // DIM required
     defaultValues : false,
     stringConcat : true,
     typeConvert : true,
     maxDimensions : 255,
     maxDefArgs : 255,
-    maxStringLength : 1024, // TODO?
-    sparseArrays : false,
+    maxStringLength : 2048, // TODO?
     tickComments : true,
     validKeywords : null, // all
     validFunctions : null, // all
     validOperators : null, // all
-    printZoneLength : 15,
+    printZoneLength : 16,
     numericPadding : false,
     checkOverflow : true,
-    outOfOrderNext : true,
-    multipleNextVars : true,
+    testInitialFor : true,
     ifElse : true,
     bitwiseLogic : true,
 }
 
 // TODO: integer vars
-// TODO: short-circuit FOR loop
+// TODO: DEFINT/DEFSTR
 
 export const DIALECTS = {
-    "DEFAULT":      ALTAIR_BASIC40,
-    "ALTAIR":       ALTAIR_BASIC40,
-    "ALTAIR40":     ALTAIR_BASIC40,
+    "DEFAULT":      ALTAIR_BASIC41,
+    "ALTAIR":       ALTAIR_BASIC41,
+    "ALTAIR41":     ALTAIR_BASIC41,
     "ECMA55":       ECMA55_MINIMAL,
     "MINIMAL":      ECMA55_MINIMAL,
+    "BASICODE":     BASICODE,
     "APPLESOFT":    APPLESOFT_BASIC,
     "MODERN":       MODERN_BASIC,
 };

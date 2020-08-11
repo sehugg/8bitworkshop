@@ -48,6 +48,7 @@ class BASICPlatform implements Platform {
         //var printshield = $('<div id="printhead" class="transcript-print-shield"/>').appendTo(parent);
         this.tty = new TeleTypeWithKeyboard(windowport[0], true, inputline[0] as HTMLInputElement);
         this.tty.scrolldiv = parent;
+        this.tty.bell = new Audio('res/ttybell.mp3');
         this.runtime.input = async (prompt:string, nargs:number) => {
             return new Promise( (resolve, reject) => {
                 if (prompt != null) {

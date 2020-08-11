@@ -1098,6 +1098,17 @@ function showErrorAlert(errors : WorkerError[]) {
   $("#error_alert").show();
 }
 
+function showExceptionAsError(err, msg:string) {
+  var werr : WorkerError = {msg:msg, line:0};
+  if (err instanceof EmuHalt && err.$loc) {
+    werr = Object.create(err.$loc);
+    werr.msg = msg;
+    console.log(werr);
+    projectWindows.refresh(false);
+  }
+  showErrorAlert([werr]);
+}
+
 var measureTimeStart : Date = new Date();
 var measureTimeLoad : Date;
 function measureBuildTime() {
@@ -1133,7 +1144,7 @@ function setCompileOutput(data: WorkerResult) {
       } catch (e) {
         console.log(e);
         toolbar.addClass("has-errors");
-        showErrorAlert([{msg:e+"",line:0}]);
+        showExceptionAsError(e, e+"");
         current_output = null;
         return;
       }
@@ -1885,14 +1896,7 @@ function globalErrorHandler(msgevent) {
     requestPersistPermission(false, false);
   } else {
     var err = msgevent.error;
-    var werr : WorkerError = {msg:msg, line:0};
-    if (err instanceof EmuHalt && err.$loc) {
-      werr = Object.create(err.$loc);
-      werr.msg = msg;
-      console.log(werr);
-      projectWindows.refresh(false);
-    }
-    showErrorAlert([werr]);
+    showExceptionAsError(err, msg);
   }
 }
 

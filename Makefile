@@ -32,6 +32,9 @@ dist:
 
 package: dist darwin.dist win32.dist linux.dist
 
+meta/electron.diff: index.html electron.html
+	-diff -u index.html electron.html > $@
+
 web:
 	(ip addr || ifconfig) | grep inet
 	python3 scripts/serveit.py 2>> /dev/null #http.out

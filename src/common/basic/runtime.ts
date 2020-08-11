@@ -48,7 +48,8 @@ export class BASICRuntime {
     vars : {};
     arrays : {};
     defs : {};
-    forLoops : {varname:string, next:(name:string) => void}[];
+    forLoops : { [varname:string] : { $next:(name:string) => void, inner:string } };
+    topForLoopName : string;
     returnStack : number[];
     column : number;
 
@@ -70,23 +71,26 @@ export class BASICRuntime {
         // TODO: lines start @ 1?
         program.lines.forEach((line, idx) => {
             // make lookup tables
-            this.curpc = this.allstmts.length + 1; // set for error reporting
             if (line.label != null) this.label2lineidx[line.label] = idx;
             if (line.label != null) this.label2pc[line.label] = this.allstmts.length;
             this.line2pc.push(this.allstmts.length);
             this.pc2line.set(this.allstmts.length, idx);
             // combine all statements into single list
             line.stmts.forEach((stmt) => this.allstmts.push(stmt));
-            // parse DATA literals
-            line.stmts.filter((stmt) => stmt.command == 'DATA').forEach((datastmt) => {
-                (datastmt as basic.DATA_Statement).datums.forEach(d => {
-                    var functext = this.expr2js(d, {isconst:true});
-                    var value = new Function(`return ${functext};`).bind(this)();
-                    this.datums.push({value:value});
-                });
+        });
+        // compile statements ahead of time
+        this.allstmts.forEach((stmt, pc) => {
+            this.curpc = pc + 1; // for error reporting
+            this.compileStatement(stmt);
+        });
+        // parse DATA literals
+        this.allstmts.filter((stmt) => stmt.command == 'DATA').forEach((datastmt) => {
+            (datastmt as basic.DATA_Statement).datums.forEach(d => {
+                //this.curpc = datastmt.$loc.offset; // for error reporting
+                var functext = this.expr2js(d, {isconst:true});
+                var value = new Function(`return ${functext};`).bind(this)();
+                this.datums.push({value:value});
             });
-            // compile statements ahead of time
-            line.stmts.forEach((stmt) => this.compileStatement(stmt));
         });
         // try to resume where we left off after loading
         this.curpc = this.label2pc[prevlabel] || 0;
@@ -97,7 +101,6 @@ export class BASICRuntime {
         this.curpc = 0;
         this.dataptr = 0;
         this.clearVars();
-        this.forLoops = [];
         this.returnStack = [];
         this.column = 0;
         this.running = true;
@@ -107,6 +110,14 @@ export class BASICRuntime {
         this.vars = {};
         this.arrays = {};
         this.defs = {}; // TODO? only in interpreters
+        this.forLoops = {};
+        this.topForLoopName = null;
+        // initialize arrays?
+        if (this.opts && this.opts.staticArrays) {
+            this.allstmts.filter((stmt) => stmt.command == 'DIM').forEach((dimstmt: basic.DIM_Statement) => {
+                dimstmt.args.forEach( (arg) => this.compileJS(this._DIM(arg))() );
+            });
+        }
     }
     
     getBuiltinFunctions() {
@@ -175,12 +186,15 @@ export class BASICRuntime {
                 if (stmtfn == null) this.runtimeError(`I don't know how to "${stmt.command}".`);
                 var functext = stmtfn.bind(this)(stmt);
                 if (this.trace) console.log(functext);
-                stmt.$run = new Function(functext).bind(this);
+                stmt.$run = this.compileJS(functext);
             } catch (e) {
                 console.log(functext);
                 throw e;
             }
         }
+    }
+    compileJS(functext: string) : () => void {
+        return new Function(functext).bind(this);
     }
     executeStatement(stmt: basic.Statement & CompiledStatement) {
         // compile (unless cached)
@@ -210,6 +224,22 @@ export class BASICRuntime {
 
     skipToEOF() {
         this.curpc = this.allstmts.length;
+    }
+
+    skipToAfterNext(forname: string) : void {
+        var pc = this.curpc;
+        while (pc < this.allstmts.length) {
+            var stmt = this.allstmts[pc];
+            if (stmt.command == 'NEXT') {
+                var nextlexpr = (stmt as basic.NEXT_Statement).lexpr;
+                if (nextlexpr && nextlexpr.name == forname) {
+                    this.curpc = pc + 1;
+                    return;
+                }
+            }
+            pc++;
+        }
+        this.runtimeError(`I couldn't find a matching NEXT ${forname} to skip this for loop.`);
     }
 
     gotoLabel(label) {
@@ -300,9 +330,11 @@ export class BASICRuntime {
             if (!expr.args && opts.locals && opts.locals.indexOf(expr.name) >= 0) {
                 return expr.name; // local arg in DEF
             } else {
+                if (opts.isconst)
+                    this.runtimeError(`I expected a constant value here.`); // TODO: check at compile-time?
                 var s = '';
                 var qname = JSON.stringify(expr.name);
-                let jsargs = expr.args && expr.args.map((arg) => this.expr2js(arg, opts)).join(', ');
+                let jsargs = expr.args ? expr.args.map((arg) => this.expr2js(arg, opts)).join(', ') : [];
                 if (expr.name.startsWith("FN")) { // is it a user-defined function?
                     // TODO: check argument count?
                     s += `this.getDef(${qname})(${jsargs})`;
@@ -347,6 +379,8 @@ export class BASICRuntime {
     checkFuncArgs(expr: basic.IndOp, fn: Function) {
         // TODO: check types?
         var nargs = expr.args ? expr.args.length : 0;
+        // exceptions
+        if (expr.name == 'RND' && nargs == 0) return;
         if (expr.name == 'MID$' && nargs == 2) return;
         if (expr.name == 'INSTR' && nargs == 2) return;
         if (fn.length != nargs)
@@ -354,40 +388,44 @@ export class BASICRuntime {
     }
 
     startForLoop(forname, init, targ, step) {
-        // TODO: support 0-iteration loops
         var pc = this.curpc;
         if (!step) step = 1;
         this.vars[forname] = init;
         if (this.trace) console.log(`FOR ${forname} = ${init} TO ${targ} STEP ${step}`);
-        this.forLoops.unshift({
-            varname: forname,
-            next: (nextname:string) => {
+        // create done function
+        var loopdone = () => {
+            return step >= 0 ? this.vars[forname] > targ : this.vars[forname] < targ;
+        }
+        // skip entire for loop before first iteration? (Minimal BASIC)
+        if (this.opts.testInitialFor && loopdone())
+            return this.skipToAfterNext(forname);
+        // save for var name on top of linked-list stack
+        var inner = this.topForLoopName;
+        this.topForLoopName = forname;
+        // create for loop record
+        this.forLoops[forname] = {
+            inner: inner,
+            $next: (nextname:string) => {
                 if (nextname && forname != nextname)
                     this.runtimeError(`I executed NEXT "${nextname}", but the last FOR was for "${forname}".`)
                 this.vars[forname] += step;
-                var done = step >= 0 ? this.vars[forname] > targ : this.vars[forname] < targ;
+                var done = loopdone();
                 if (done) {
-                    this.forLoops.shift(); // pop FOR off the stack and continue
+                    // pop FOR off the stack and continue
+                    this.topForLoopName = inner;
+                    delete this.forLoops[forname];
                 } else {
                     this.curpc = pc; // go back to FOR location
                 }
                 if (this.trace) console.log(`NEXT ${forname}: ${this.vars[forname]} TO ${targ} STEP ${step} DONE=${done}`);
             }
-        });
+        };
     }
 
     nextForLoop(name) {
-        var fl = this.forLoops[0];
-        if (fl != null && name != null && fl.varname != name) {
-            if (!this.opts.outOfOrderNext) this.dialectError(`execute out-of-order NEXT statements`);
-            while (fl) {
-                if (fl.varname == name) break;
-                this.forLoops.shift();
-                fl = this.forLoops[0];
-            }
-        }
+        var fl = this.forLoops[name];
         if (!fl) this.runtimeError(`I couldn't find a FOR for this NEXT.`)
-        fl.next(name);
+        fl.$next(name);
     }
 
     // converts a variable to string/number based on var name
@@ -425,11 +463,13 @@ export class BASICRuntime {
     // dimension array
     dimArray(name: string, ...dims:number[]) {
         // TODO: maybe do this check at compile-time?
-        if (this.arrays[name]) this.runtimeError(`I already dimensioned this array (${name}) earlier.`)
+        if (this.arrays[name] != null) {
+            if (this.opts.staticArrays) return;
+            else this.runtimeError(`I already dimensioned this array (${name}) earlier.`)
+        }
         var isstring = name.endsWith('$');
-        // if defaultValues is true, we use Float64Array which inits to 0
-        var arrcons = isstring || !this.opts.defaultValues ? Array : Float64Array;
-        // TODO? var ab = this.opts.defaultArrayBase;
+        // if numeric value, we use Float64Array which inits to 0
+        var arrcons = isstring ? Array : Float64Array;
         if (dims.length == 1) {
             this.arrays[name] = new arrcons(dims[0]+1);
         } else if (dims.length == 2) {
@@ -444,10 +484,12 @@ export class BASICRuntime {
 
     getArray(name: string, order: number) : [] {
         if (!this.arrays[name]) {
+            if (this.opts.defaultArraySize == 0)
+                this.dialectError(`automatically declare arrays without a DIM statement`);
             if (order == 1)
-                this.dimArray(name, this.opts.defaultArraySize);
+                this.dimArray(name, this.opts.defaultArraySize-1);
             else if (order == 2)
-                this.dimArray(name, this.opts.defaultArraySize, this.opts.defaultArraySize);
+                this.dimArray(name, this.opts.defaultArraySize-1, this.opts.defaultArraySize-1);
             else
                 this.runtimeError(`I only support arrays of one or two dimensions.`); // TODO
         }
@@ -464,7 +506,7 @@ export class BASICRuntime {
                 this.runtimeError(`I tried to lookup ${name}(${indices}) but used too many dimensions.`);
             if (idx < this.opts.defaultArrayBase)
                 this.runtimeError(`I tried to lookup ${name}(${indices}) but an index was less than ${this.opts.defaultArrayBase}.`);
-            if (idx >= v.length)
+            if (idx >= v.length) // TODO: also can happen when mispelling function name
                 this.runtimeError(`I tried to lookup ${name}(${indices}) but it exceeded the dimensions of the array.`);
             v = v[indices[i]];
         }
@@ -572,12 +614,13 @@ export class BASICRuntime {
         var argsstr = '';
         for (var arg of dim.args) {
             // TODO: check for float (or at compile time)
-            argsstr += ', ' + this.expr2js(arg);
+            argsstr += ', ' + this.expr2js(arg, {isconst: this.opts.staticArrays});
         }
         return `this.dimArray(${JSON.stringify(dim.name)}${argsstr});`;
     }
 
     do__DIM(stmt : basic.DIM_Statement) {
+        if (this.opts.staticArrays) return; // DIM at reset()
         var s = '';
         stmt.args.forEach((dim) => s += this._DIM(dim));
         return s;

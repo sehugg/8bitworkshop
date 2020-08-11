@@ -2,7 +2,9 @@
 export class TeleType {
     page: HTMLElement;
     fixed: boolean;
+    ncols: number = 80;
     scrolldiv: HTMLElement;
+    bell; // Audio
 
     curline: HTMLElement;
     curstyle: number;
@@ -52,6 +54,17 @@ export class TeleType {
                     this.addtext(line[i], style);
                 return;
             }
+            // process control codes
+            if (line.length == 1) {
+                var ch = line.charCodeAt(0);
+                switch (ch) {
+                    case 7: if (this.bell) this.bell.play(); break;
+                    case 8: if (this.col > 0) this.col--; break;
+                    case 12: this.formfeed(); break;
+                    case 13: this.col = 0; break;
+                }
+                if (ch < 32) return; // ignore non-printables
+            }
             var span = $("<span/>").text(line);
             for (var i = 0; i < 8; i++) {
                 if (style & (1 << i))
@@ -66,7 +79,8 @@ export class TeleType {
                 span.appendTo(this.curline);
             }
             this.col += line.length;
-            // TODO: wrap @ 80 columns
+            // wrap @ 80 columns (TODO: const)
+            if (this.fixed && this.col >= this.ncols) this.newline();
             this.ncharsout += line.length;
             this.movePrintHead(true);
         }
@@ -117,7 +131,7 @@ export class TeleType {
         }
     }
     formfeed() {
-        this.newline();
+        for (var i=0; i<60; i++) { this.newline(); this.ensureline(); }
     }
     scrollToBottom() {
         this.curline.scrollIntoView();

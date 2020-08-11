@@ -14,8 +14,9 @@
 CodeMirror.defineMode("basic", function(conf, parserConf) {
     var ERRORCLASS = 'error';
 
-    function wordRegexp(words) {
-        return new RegExp("^((" + words.join(")|(") + "))\\b", "i");
+    function wordRegexp(words, crunch) {
+        return new RegExp("^((" + words.join(")|(") + "))", "i");
+        //return new RegExp("^((" + words.join(")|(") + "))\\b", "i");
     }
 
     var singleOperators = new RegExp("^[\\+\\-\\*/%&\\\\|\\^~<>!]");
