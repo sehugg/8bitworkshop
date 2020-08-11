@@ -1079,7 +1079,7 @@ function getErrorElement(err : WorkerError) {
       link.click((ev) => {
         var wnd = projectWindows.createOrShow(path);
         if (wnd instanceof Views.SourceEditor) {
-          wnd.setCurrentLine(err.line, true);
+          wnd.setCurrentLine(err, true);
         }
       });
     }

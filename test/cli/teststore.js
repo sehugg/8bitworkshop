@@ -90,7 +90,8 @@ describe('Store', function () {
     assert.deepEqual([false], msgs);
     var lst = buildresult.listings.test;
     console.log(lst);
-    assert.deepEqual({ line: 3, offset: 61440 }, lst.sourcefile.findLineForOffset(61440 + 15, 15));
+    assert.deepEqual({ line: 3, offset: 61440, insns: 'a9 00', iscode: true },
+      lst.sourcefile.findLineForOffset(61440 + 15, 15));
     assert.equal(null, lst.sourcefile.findLineForOffset(61440 + 16, 15));
     assert.equal(null, lst.sourcefile.findLineForOffset(61440 + 1, 0));
     assert.equal(null, lst.sourcefile.findLineForOffset(61440 - 1, 16));

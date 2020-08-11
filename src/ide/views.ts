@@ -1,6 +1,6 @@
 
 //import CodeMirror = require("codemirror");
-import { SourceFile, WorkerError, Segment, FileData } from "../common/workertypes";
+import { SourceFile, WorkerError, Segment, FileData, SourceLocation, SourceLine } from "../common/workertypes";
 import { Platform, EmuState, lookupSymbol, BaseDebugPlatform, BaseZ80MachinePlatform, BaseZ80Platform, CpuState } from "../common/baseplatform";
 import { hex, lpad, rpad, safeident, rgb2bgr } from "../common/util";
 import { CodeAnalyzer } from "../common/analysis";
@@ -88,7 +88,7 @@ export class SourceEditor implements ProjectView {
   editor;
   dirtylisting = true;
   sourcefile : SourceFile;
-  currentDebugLine : number;
+  currentDebugLine : SourceLocation;
   errormsgs = [];
   errorwidgets = [];
   inspectWidget;
@@ -327,9 +327,9 @@ export class SourceEditor implements ProjectView {
     }
   }
 
-  setCurrentLine(line:number, moveCursor:boolean) {
+  setCurrentLine(line:SourceLocation, moveCursor:boolean) {
 
-    var addCurrentMarker = (line:number) => {
+    var addCurrentMarker = (line:SourceLocation) => {
       var div = document.createElement("div");
       div.style.color = '#66ffff';
       div.appendChild(document.createTextNode("\u25b6"));
@@ -337,10 +337,14 @@ export class SourceEditor implements ProjectView {
     }
 
     this.clearCurrentLine(moveCursor);
-    if (line>0) {
-      addCurrentMarker(line-1);
-      if (moveCursor)
-        this.editor.setSelection({line:line,ch:0}, {line:line-1,ch:0}, {scroll:true});
+    if (line) {
+      addCurrentMarker(line);
+      if (moveCursor) {
+        if (line.start || line.end)
+          this.editor.setSelection({line:line.line-1,ch:line.start}, {line:line.line-1,ch:line.end||line.start+1}, {scroll:true});
+        else
+          this.editor.setSelection({line:line.line-1,ch:0}, {line:line.line,ch:0}, {scroll:true});
+      }
       this.currentDebugLine = line;
     }
   }
@@ -349,24 +353,23 @@ export class SourceEditor implements ProjectView {
     if (this.currentDebugLine) {
       this.editor.clearGutter("gutter-info");
       if (moveCursor) this.editor.setSelection(this.editor.getCursor());
-      this.currentDebugLine = 0;
+      this.currentDebugLine = null;
     }
   }
 
-  getActiveLine() {
+  getActiveLine() : SourceLocation {
     var state = lastDebugState;
     if (this.sourcefile && state) {
       var EPC = (state && state.c && (state.c.EPC || state.c.PC)); // || (platform.getPC && platform.getPC());
       var res = this.sourcefile.findLineForOffset(EPC, 15);
-      return res && res.line;
-    } else
-      return -1;
+      return res;
+    }
   }
 
   refreshDebugState(moveCursor:boolean) {
     this.clearCurrentLine(moveCursor);
     var line = this.getActiveLine();
-    if (line >= 0) {
+    if (line) {
       this.setCurrentLine(line, moveCursor);
     }
   }

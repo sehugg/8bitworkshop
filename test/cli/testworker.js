@@ -48,8 +48,12 @@ function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
           assert.equal(nerrors, msg.errors.length, "errors");
         } else {
           assert.equal(nerrors||0, 0, "errors");
-          assert.equal(msg.output.code?msg.output.code.length:msg.output.length, outlen, "output binary");
-          assert.ok(msg.output.code || msg.output instanceof Uint8Array);
+          if (msg.output.lines) { // AST for BASIC
+            assert.equal(msg.output.lines.length, outlen, "output lines");
+          } else {
+            assert.equal(msg.output.code?msg.output.code.length:msg.output.length, outlen, "output binary");
+            assert.ok(msg.output.code || msg.output instanceof Uint8Array);
+          }
           if (nlines) {
             if (typeof nlines === 'number')
               nlines = [nlines];
@@ -324,5 +328,15 @@ describe('Worker', function() {
   });
   */
   // TODO: vectrex, x86
+  it('should compile basic example', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/basic/wumpus.bas'));
+    var msgs = [{code:csource, platform:"basic", tool:"basic", path:'wumpus.bas'}];
+    var done2 = function(err, msg) {
+      var ast = msg.output;
+      assert.ok(ast);
+      done(err, msg);
+    };
+    doBuild(msgs, done2, 222, 0, 0);
+  });
 
 });

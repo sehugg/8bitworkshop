@@ -1,7 +1,7 @@
-import { WorkerError, CodeListingMap, SourceLocation } from "../workertypes";
+import { WorkerError, CodeListingMap, SourceLocation, SourceLine } from "../workertypes";
 
 export interface SourceLocated {
-    $loc?: SourceLocation;
+    $loc?: SourceLine;
 }
 
 class CompileError extends Error {
@@ -780,8 +780,11 @@ export class BASICParser {
         var srclines = [];
         var pc = 0;
         program.lines.forEach((line, idx) => {
-            srclines.push({offset: pc, line: idx+1});
-            pc += line.stmts.length;
+            line.stmts.forEach((stmt) => {
+                var sl = stmt.$loc;
+                sl.offset = pc++; // TODO: could Statement have offset field?
+                srclines.push(sl);
+            });
         });
         return { lines: srclines };
     }

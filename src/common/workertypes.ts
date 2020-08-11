@@ -9,6 +9,7 @@ export interface SourceLocation {
   end?: number;
 }
 
+// actually it's a kind of SourceSnippet .. can have multiple per line
 export interface SourceLine extends SourceLocation {
   offset:number;
   insns?:string;
@@ -19,29 +20,29 @@ export interface SourceLine extends SourceLocation {
 export class SourceFile {
   lines: SourceLine[];
   text: string;
-  offset2line: Map<number,number>; //{[offset:number]:number};
+  offset2loc: Map<number,SourceLine>; //{[offset:number]:number};
   line2offset: Map<number,number>; //{[line:number]:number};
   
   constructor(lines:SourceLine[], text:string) {
     lines = lines || [];
     this.lines = lines;
     this.text = text;
-    this.offset2line = new Map();
+    this.offset2loc = new Map();
     this.line2offset = new Map();
     for (var info of lines) {
       if (info.offset >= 0) {
-        this.offset2line[info.offset] = info.line;
+        this.offset2loc[info.offset] = info;
         this.line2offset[info.line] = info.offset;
       }
     }
   }
   // TODO: smarter about looking for source lines between two addresses
   findLineForOffset(PC:number, lookbehind:number) {
-    if (this.offset2line) {
+    if (this.offset2loc) {
       for (var i=0; i<=lookbehind; i++) {
-        var line = this.offset2line[PC];
-        if (line >= 0) {
-          return {line:line, offset:PC};
+        var loc = this.offset2loc[PC];
+        if (loc) {
+          return loc;
         }
         PC--;
       }
