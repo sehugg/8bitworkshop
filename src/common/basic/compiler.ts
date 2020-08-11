@@ -814,8 +814,7 @@ export class BASICParser {
 
 ///// BASIC DIALECTS
 
-// TODO
-
+// TODO: require END statement, check FOR condition at start of loop
 export const ECMA55_MINIMAL : BASICOptions = {
     dialectName: "ECMA55",
     asciiOnly : true,

@@ -1890,6 +1890,7 @@ function globalErrorHandler(msgevent) {
       werr = Object.create(err.$loc);
       werr.msg = msg;
       console.log(werr);
+      projectWindows.refresh(false);
     }
     showErrorAlert([werr]);
   }

@@ -89,6 +89,7 @@ export class SourceEditor implements ProjectView {
   dirtylisting = true;
   sourcefile : SourceFile;
   currentDebugLine : SourceLocation;
+  markCurrentPC; // TextMarker
   errormsgs = [];
   errorwidgets = [];
   inspectWidget;
@@ -331,20 +332,22 @@ export class SourceEditor implements ProjectView {
 
     var addCurrentMarker = (line:SourceLocation) => {
       var div = document.createElement("div");
-      div.style.color = '#66ffff';
+      div.classList.add('currentpc-marker');
       div.appendChild(document.createTextNode("\u25b6"));
-      this.editor.setGutterMarker(line, "gutter-info", div);
+      this.editor.setGutterMarker(line.line-1, "gutter-info", div);
     }
 
     this.clearCurrentLine(moveCursor);
     if (line) {
       addCurrentMarker(line);
       if (moveCursor) {
-        if (line.start || line.end)
-          this.editor.setSelection({line:line.line-1,ch:line.start}, {line:line.line-1,ch:line.end||line.start+1}, {scroll:true});
-        else
-          this.editor.setSelection({line:line.line-1,ch:0}, {line:line.line,ch:0}, {scroll:true});
+        this.editor.setCursor({line:line.line-1,ch:line.start||0}, {scroll:true});
       }
+      var markOpts = {className:'currentpc-span', inclusiveLeft:true};
+      if (line.start || line.end)
+        this.markCurrentPC = this.editor.markText({line:line.line-1,ch:line.start}, {line:line.line-1,ch:line.end||line.start+1}, markOpts);
+      else
+        this.markCurrentPC = this.editor.markText({line:line.line-1,ch:0}, {line:line.line,ch:0}, markOpts);
       this.currentDebugLine = line;
     }
   }
@@ -355,18 +358,27 @@ export class SourceEditor implements ProjectView {
       if (moveCursor) this.editor.setSelection(this.editor.getCursor());
       this.currentDebugLine = null;
     }
+    if (this.markCurrentPC) {
+      this.markCurrentPC.clear();
+      this.markCurrentPC = null;
+    }
   }
 
   getActiveLine() : SourceLocation {
-    var state = lastDebugState;
-    if (this.sourcefile && state) {
-      var EPC = (state && state.c && (state.c.EPC || state.c.PC)); // || (platform.getPC && platform.getPC());
-      var res = this.sourcefile.findLineForOffset(EPC, 15);
-      return res;
+    if (this.sourcefile) {
+      var cpustate = lastDebugState && lastDebugState.c;
+      if (!cpustate && platform.getCPUState && !platform.isRunning())
+        cpustate = platform.getCPUState();
+      if (cpustate) {
+        var EPC = (cpustate && (cpustate.EPC || cpustate.PC));
+        var res = this.sourcefile.findLineForOffset(EPC, 15);
+        return res;
+      }
     }
   }
 
   refreshDebugState(moveCursor:boolean) {
+    // TODO: only if line changed
     this.clearCurrentLine(moveCursor);
     var line = this.getActiveLine();
     if (line) {

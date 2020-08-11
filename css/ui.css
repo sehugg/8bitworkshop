@@ -16,6 +16,12 @@
 .gutter-info {
   width: 1em;
 }
+.currentpc-span {
+  background-color: #7e2a70;
+}
+.currentpc-marker {
+  color: #ff66ee;
+}
 .tooltipbox {
     position: relative;
     display: inline-block;

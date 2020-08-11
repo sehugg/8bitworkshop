@@ -515,11 +515,11 @@ export class BASICRuntime {
             ${lexpr} = value;
             `
         });
-        return `this.running=false;
+        return `this.running=false; this.curpc--;
                 this.input(${prompt}, ${stmt.args.length}).then((vals) => {
                     let valid = 1;
                     ${setvals}
-                    if (!valid) this.curpc--;
+                    if (valid) this.curpc++;
                     this.running=true;
                     this.resume();
                 })`;
@@ -641,10 +641,10 @@ export class BASICRuntime {
     do__GET(stmt : basic.GET_Statement) {
         var lexpr = this.assign2js(stmt.lexpr);
         // TODO: single key input
-        return `this.running=false;
+        return `this.running=false; this.curpc--;
                 this.input().then((vals) => {
                     ${lexpr} = this.convert(${JSON.stringify(stmt.lexpr.name)}, vals[0]);
-                    this.running=true;
+                    this.running=true;  this.curpc++;
                     this.resume();
                 })`;
     }
