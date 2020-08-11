@@ -39,8 +39,8 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 
 <!-- Sentry error reporting -->
 <script
-  src="https://browser.sentry-cdn.com/5.10.2/bundle.min.js"
-  integrity="sha384-ssBfXiBvlVC7bdA/VX03S88B5MwXQWdnpJRbUYFPgswlOBwETwTp6F3SMUNpo9M9"
+  src="https://browser.sentry-cdn.com/5.20.1/bundle.min.js"
+  integrity="sha384-O8HdAJg1h8RARFowXd2J/r5fIWuinSBtjhwQoPesfVILeXzGpJxvyY/77OaPPXUo"
   crossorigin="anonymous"></script>
 <script>
 if (window.location.host.endsWith('8bitworkshop.com')) {
@@ -51,6 +51,11 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
         if (breadcrumb.data.url.startsWith('http')) return null; // discard external scripts
       }
       return breadcrumb;
+    },
+    beforeSend(event, hint) {
+      const error = hint.originalException;
+      if (error instanceof EmuHalt) return null; // ignore EmuHalt
+      return event;
     },
   });
 }
