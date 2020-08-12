@@ -423,7 +423,7 @@ export class BASICRuntime {
     }
 
     nextForLoop(name) {
-        var fl = this.forLoops[name];
+        var fl = this.forLoops[name || (this.opts.optionalNextVar && this.topForLoopName)];
         if (!fl) this.runtimeError(`I couldn't find a FOR for this NEXT.`)
         fl.$next(name);
     }

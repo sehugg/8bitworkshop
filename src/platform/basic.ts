@@ -179,7 +179,7 @@ class BASICPlatform implements Platform {
             ForLoops: this.runtime.forLoops,
             ReturnStack: this.runtime.returnStack,
             NextDatum: this.runtime.datums[this.runtime.dataptr],
-            Dialect: this.runtime.opts,
+            Options: this.runtime.opts,
             Internals: this.runtime,
         }
     }

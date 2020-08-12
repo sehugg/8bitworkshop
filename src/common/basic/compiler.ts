@@ -31,6 +31,7 @@ export interface BASICOptions {
     numericPadding : boolean;           // " " or "-" before and " " after numbers?
     // CONTROL FLOW
     testInitialFor : boolean;           // can we skip a NEXT statement? (can't interleave tho)
+    optionalNextVar : boolean;          // can do NEXT without variable
     ifElse : boolean;                   // IF...ELSE construct
     // MISC
     commandsPerSec? : number;           // how many commands per second?
@@ -290,7 +291,7 @@ export class BASICParser {
     }
     compileError(msg: string, loc?: SourceLocation) {
         if (!loc) loc = this.peekToken().$loc;
-        this.errors.push({path:loc.path, line:loc.line, label:loc.label, start:loc.start, end:loc.end, msg:msg});
+        this.errors.push({path:loc.path, line:loc.line, label:this.curlabel, start:loc.start, end:loc.end, msg:msg});
         throw new CompileError(`${msg} (line ${loc.line})`); // TODO: label too?
     }
     dialectError(what: string, loc?: SourceLocation) {
@@ -305,6 +306,14 @@ export class BASICParser {
         var tokstr = tok.str;
         if (str != tokstr) {
             this.compileError(msg || `There should be a "${str}" here.`);
+        }
+        return tok;
+    }
+    expectTokens(strlist: string[], msg?: string) : Token {
+        var tok = this.consumeToken();
+        var tokstr = tok.str;
+        if (strlist.indexOf(tokstr) < 0) {
+            this.compileError(msg || `There should be one of "${strlist}" here.`);
         }
         return tok;
     }
@@ -654,11 +663,10 @@ export class BASICParser {
         var cond = this.parseExpr();
         var iftrue: Statement[];
         // we accept GOTO or THEN if line number provided
-        if (this.peekToken().str == 'GOTO') this.consumeToken();
-        else this.expectToken('THEN');
+        var thengoto = this.expectTokens(['THEN','GOTO']);
         var lineno = this.peekToken();
         // assume GOTO if number given after THEN
-        if (lineno.type == TokenType.Int) {
+        if (lineno.type == TokenType.Int && thengoto.str == 'THEN') {
             this.pushbackToken({type:TokenType.Ident, str:'GOTO', $loc:lineno.$loc});
         }
         // add fake ":"
@@ -709,7 +717,7 @@ export class BASICParser {
         var prompt = this.consumeToken();
         var promptstr;
         if (prompt.type == TokenType.String) {
-            this.expectToken(';');
+            this.expectTokens([';', ',']);
             promptstr = stripQuotes(prompt.str);
         } else {
             this.pushbackToken(prompt);
@@ -884,6 +892,7 @@ export const ECMA55_MINIMAL : BASICOptions = {
     numericPadding : true,
     checkOverflow : true,
     testInitialFor : true,
+    optionalNextVar : false,
     ifElse : false,
     bitwiseLogic : false,
 }
@@ -917,6 +926,7 @@ export const BASICODE : BASICOptions = {
     numericPadding : true,
     checkOverflow : true,
     testInitialFor : true,
+    optionalNextVar : false,
     ifElse : false,
     bitwiseLogic : false,
 }
@@ -952,6 +962,7 @@ export const ALTAIR_BASIC41 : BASICOptions = {
     numericPadding : true,
     checkOverflow : true,
     testInitialFor : false,
+    optionalNextVar : true,
     //multipleNextVars : true, // TODO: not supported
     ifElse : true,
     bitwiseLogic : true,
@@ -994,6 +1005,7 @@ export const APPLESOFT_BASIC : BASICOptions = {
     numericPadding : false,
     checkOverflow : true,
     testInitialFor : false,
+    optionalNextVar : true,
     ifElse : false,
     bitwiseLogic : false,
 }
@@ -1023,6 +1035,7 @@ export const MODERN_BASIC : BASICOptions = {
     numericPadding : false,
     checkOverflow : true,
     testInitialFor : true,
+    optionalNextVar : true,
     ifElse : true,
     bitwiseLogic : true,
 }
