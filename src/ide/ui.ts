@@ -1203,7 +1203,7 @@ function showDebugInfo(state?) {
 }
 
 function setDebugButtonState(btnid:string, btnstate:string) {
-  $("#debug_bar").find("button").removeClass("btn_active").removeClass("btn_stopped");
+  $("#debug_bar, #run_bar").find("button").removeClass("btn_active").removeClass("btn_stopped");
   $("#dbg_"+btnid).addClass("btn_"+btnstate);
 }
 
@@ -1363,6 +1363,13 @@ function clearBreakpoint() {
   showDebugInfo();
 }
 
+function resetAndRun() {
+  if (!checkRunReady()) return;
+  clearBreakpoint();
+  platform.reset();
+  _resume();
+}
+
 function resetAndDebug() {
   if (!checkRunReady()) return;
   var wasRecording = recorderActive;
@@ -1371,7 +1378,7 @@ function resetAndDebug() {
     clearBreakpoint();
     _resume();
     platform.reset();
-    setupBreakpoint("reset");
+    setupBreakpoint("restart");
     if (platform.runEval)
       platform.runEval((c) => { return true; }); // break immediately
     else
@@ -1643,10 +1650,15 @@ function _addLinkFile() {
 function setupDebugControls() {
   // create toolbar buttons
   uitoolbar = new Toolbar($("#toolbar")[0], null);
-  uitoolbar.grp.prop('id','debug_bar');
-  uitoolbar.add('ctrl+alt+r', 'Reset', 'glyphicon-refresh', resetAndDebug).prop('id','dbg_reset');
+  uitoolbar.grp.prop('id','run_bar');
+  uitoolbar.add('ctrl+alt+r', 'Reset', 'glyphicon-refresh', resetAndRun).prop('id','dbg_reset');
   uitoolbar.add('ctrl+alt+,', 'Pause', 'glyphicon-pause', pause).prop('id','dbg_pause');
   uitoolbar.add('ctrl+alt+.', 'Resume', 'glyphicon-play', resume).prop('id','dbg_go');
+  uitoolbar.newGroup();
+  uitoolbar.grp.prop('id','debug_bar');
+  if (platform.runEval) {
+    uitoolbar.add('ctrl+alt+e', 'Restart Debugging', 'glyphicon-fast-backward', resetAndDebug).prop('id','dbg_restart');
+  }
   if (platform.step) {
     uitoolbar.add('ctrl+alt+s', 'Single Step', 'glyphicon-step-forward', singleStep).prop('id','dbg_step');
   }
