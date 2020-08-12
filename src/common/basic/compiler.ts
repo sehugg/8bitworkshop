@@ -9,6 +9,7 @@ export interface BASICOptions {
     optionalWhitespace : boolean;       // can "crunch" keywords?
     varNaming : 'A1'|'AA'|'*';          // only allow A0-9 for numerics, single letter for arrays/strings
     tickComments : boolean;             // support 'comments?
+    hexOctalConsts : boolean;           // support &H and &O integer constants?
     validKeywords : string[];           // valid keywords (or null for accept all)
     validFunctions : string[];          // valid functions (or null for accept all)
     validOperators : string[];          // valid operators (or null for accept all)
@@ -50,13 +51,14 @@ export class CompileError extends Error {
 
 // Lexer regular expression -- each (capture group) handles a different token type
 
-const re_toks = /([0-9.]+[E][+-]?\d+)|(\d*[.]\d*[E0-9]*)|[0]*(\d+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>])|([-+*/^,;:()?\\])|(\S+)/gi;
+const re_toks = /([0-9.]+[E][+-]?\d+)|(\d*[.]\d*[E0-9]*)|[0]*(\d+)|&([OH][0-9A-F]+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>])|([-+*/^,;:()?\\])|(\S+)/gi;
 
 export enum TokenType {
     EOL = 0,
     Float1,
     Float2,
     Int,
+    HexOctalInt,
     Remark,
     Ident,
     String,
@@ -313,7 +315,7 @@ export class BASICParser {
         var tok = this.consumeToken();
         var tokstr = tok.str;
         if (strlist.indexOf(tokstr) < 0) {
-            this.compileError(msg || `There should be one of "${strlist}" here.`);
+            this.compileError(msg || `There should be a ${strlist.map((s) => `"${s}"`).join(' or ')} here.`);
         }
         return tok;
     }
@@ -343,6 +345,7 @@ export class BASICParser {
                 line.label = tok.str;
                 this.curlabel = tok.str;
                 break;
+            case TokenType.HexOctalInt:
             case TokenType.Float1:
             case TokenType.Float2:
                 this.compileError(`Line numbers must be positive integers.`);
@@ -384,7 +387,7 @@ export class BASICParser {
                     if (this.opts.asciiOnly && !/^[\x00-\x7F]*$/.test(s))
                         this.dialectError(`non-ASCII characters`);
                     // uppercase all identifiers, and maybe more
-                    if (i == TokenType.Ident || this.opts.uppercaseOnly)
+                    if (i == TokenType.Ident || i == TokenType.HexOctalInt || this.opts.uppercaseOnly)
                         s = s.toUpperCase();
                     // un-crunch tokens?
                     if (splitre) {
@@ -396,7 +399,7 @@ export class BASICParser {
                             } else
                                 break;
                         }
-                        if (/^[0-9]+$/.test(s)) i = TokenType.Int;
+                        if (/^[0-9]+$/.test(s)) i = TokenType.Int; // leftover might be integer
                     }
                     // add token to list
                     this.tokens.push({str: s, type: i, $loc:loc});
@@ -543,12 +546,16 @@ export class BASICParser {
     parsePrimary(): Expr {
         let tok = this.consumeToken();
         switch (tok.type) {
+            case TokenType.HexOctalInt:
+                if (!this.opts.hexOctalConsts) this.dialectError(`hex/octal constants`);
+                let base = tok.str.startsWith('H') ? 16 : 8;
+                return { value: parseInt(tok.str.substr(1), base) };
             case TokenType.Int:
             case TokenType.Float1:
             case TokenType.Float2:
-                return { value: this.parseNumber(tok.str)/*, $loc: tok.$loc*/ };
+                return { value: this.parseNumber(tok.str) };
             case TokenType.String:
-                return { value: stripQuotes(tok.str)/*, $loc: tok.$loc*/ };
+                return { value: stripQuotes(tok.str) };
             case TokenType.Ident:
                 if (tok.str == 'NOT') {
                     let expr = this.parsePrimary();
@@ -882,6 +889,7 @@ export const ECMA55_MINIMAL : BASICOptions = {
     maxDefArgs : 255,
     maxStringLength : 255,
     tickComments : false,
+    hexOctalConsts : false,
     validKeywords : ['BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
         'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO'
@@ -915,6 +923,7 @@ export const BASICODE : BASICOptions = {
     maxDefArgs : 255,
     maxStringLength : 255,
     tickComments : false,
+    hexOctalConsts : false,
     validKeywords : ['BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
         'READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO'
@@ -949,6 +958,7 @@ export const ALTAIR_BASIC41 : BASICOptions = {
     maxDefArgs : 255,
     maxStringLength : 255,
     tickComments : false,
+    hexOctalConsts : false,
     validKeywords : [
         'OPTION',
         'CONSOLE','DATA','DEF','DEFUSR','DIM','END','ERASE','ERROR',
@@ -986,6 +996,7 @@ export const APPLESOFT_BASIC : BASICOptions = {
     maxDefArgs : 1, // TODO: no string FNs
     maxStringLength : 255,
     tickComments : false,
+    hexOctalConsts : false,
     validKeywords : [
         'OPTION',
         'CLEAR','LET','DIM','DEF','GOTO','GOSUB','RETURN','ON','POP',
@@ -1028,6 +1039,7 @@ export const MODERN_BASIC : BASICOptions = {
     maxDefArgs : 255,
     maxStringLength : 2048, // TODO?
     tickComments : true,
+    hexOctalConsts : true,
     validKeywords : null, // all
     validFunctions : null, // all
     validOperators : null, // all

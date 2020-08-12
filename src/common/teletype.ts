@@ -43,8 +43,9 @@ export class TeleType {
     }
     flushline() {
         this.curline = null;
+        this.col = 0;
+        this.movePrintHead(false);
     }
-    // TODO: support fixed-width window (use CSS grid?)
     addtext(line: string, style: number) {
         this.ensureline();
         if (line.length) {
@@ -80,17 +81,15 @@ export class TeleType {
             }
             this.col += line.length;
             // wrap @ 80 columns (TODO: const)
-            if (this.fixed && this.col >= this.ncols) this.newline();
+            if (this.fixed && this.col >= this.ncols) this.flushline();
             this.ncharsout += line.length;
             this.movePrintHead(true);
         }
     }
     newline() {
         this.flushline();
-        this.col = 0;
-        this.movePrintHead(false);
+        this.ensureline();
     }
-    // TODO: bug in interpreter where it tracks cursor position but maybe doesn't do newlines?
     print(val: string) {
         // split by newlines
         var lines = val.split("\n");
@@ -239,7 +238,7 @@ export class TeleTypeWithKeyboard extends TeleType {
                 s = s.toUpperCase();
             this.addtext(s, 4);
             this.flushline();
-            this.resolveInput(s.split(',')); // TODO: should parse quotes, etc
+            this.resolveInput(s.split(','));
             this.resolveInput = null;
         }
         this.clearinput();
@@ -253,7 +252,6 @@ export class TeleTypeWithKeyboard extends TeleType {
         super.ensureline();
     }
     scrollToBottom() {
-        // TODO: fails when lots of lines are scrolled
         if (this.scrolldiv) {
             this.scrolling++;
             var top = $(this.page).height() + $(this.input).height();
