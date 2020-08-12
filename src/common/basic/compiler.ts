@@ -33,7 +33,9 @@ export interface BASICOptions {
     // CONTROL FLOW
     testInitialFor : boolean;           // can we skip a NEXT statement? (can't interleave tho)
     optionalNextVar : boolean;          // can do NEXT without variable
-    ifElse : boolean;                   // IF...ELSE construct
+    multipleNextVars : boolean;         // NEXT J,I
+    checkOnGotoIndex : boolean;         // fatal error when ON..GOTO index out of bounds
+    restoreWithLabel : boolean;         // RESTORE <label>
     // MISC
     commandsPerSec? : number;           // how many commands per second?
 }
@@ -43,9 +45,11 @@ export interface SourceLocated {
 }
 
 export class CompileError extends Error {
-    constructor(msg: string) {
+    $loc : SourceLocation;
+    constructor(msg: string, loc: SourceLocation) {
         super(msg);
         Object.setPrototypeOf(this, CompileError.prototype);
+        this.$loc = loc;
     }
 }
 
@@ -154,6 +158,15 @@ export interface NEXT_Statement {
     lexpr?: IndOp;
 }
 
+export interface WHILE_Statement {
+    command: "WHILE";
+    cond: Expr;
+}
+
+export interface WEND_Statement {
+    command: "WEND";
+}
+
 export interface INPUT_Statement {
     command: "INPUT";
     prompt: Expr;
@@ -170,6 +183,11 @@ export interface READ_Statement {
     args: IndOp[];
 }
 
+export interface RESTORE_Statement {
+    command: "RESTORE";
+    label: Expr;
+}
+
 export interface DEF_Statement {
     command: "DEF";
     lexpr: IndOp;
@@ -182,7 +200,7 @@ export interface OPTION_Statement {
     optargs: string[];
 }
 
-export interface GET_Statement {
+export interface GET_Statement { // applesoft only?
     command: "GET";
     lexpr: IndOp;
 }
@@ -194,7 +212,8 @@ export interface NoArgStatement {
 export type StatementTypes = PRINT_Statement | LET_Statement | GOTO_Statement | GOSUB_Statement
     | IF_Statement | FOR_Statement | NEXT_Statement | DIM_Statement
     | INPUT_Statement | READ_Statement | DEF_Statement | ONGOTO_Statement
-    | DATA_Statement | OPTION_Statement | NoArgStatement;
+    | DATA_Statement | OPTION_Statement | GET_Statement | RESTORE_Statement
+    | NoArgStatement;
 
 export type Statement = StatementTypes & SourceLocated;
 
@@ -294,7 +313,7 @@ export class BASICParser {
     compileError(msg: string, loc?: SourceLocation) {
         if (!loc) loc = this.peekToken().$loc;
         this.errors.push({path:loc.path, line:loc.line, label:this.curlabel, start:loc.start, end:loc.end, msg:msg});
-        throw new CompileError(`${msg} (line ${loc.line})`); // TODO: label too?
+        throw new CompileError(msg, loc);
     }
     dialectError(what: string, loc?: SourceLocation) {
         this.compileError(`The selected BASIC dialect (${this.opts.dialectName}) doesn't support ${what}.`, loc); // TODO
@@ -376,7 +395,9 @@ export class BASICParser {
     tokenize(line: string) : void {
         this.lineno++;
         this.tokens = [];
+        // split identifier regex (if token-crunching enabled)
         let splitre = this.opts.optionalWhitespace && new RegExp(this.opts.validKeywords.map(s => `^${s}`).join('|'));
+        // iterate over each token via re_toks regex
         var m : RegExpMatchArray;
         while (m = re_toks.exec(line)) {
             for (var i = 1; i < TokenType._LAST; i++) {
@@ -389,7 +410,7 @@ export class BASICParser {
                     // uppercase all identifiers, and maybe more
                     if (i == TokenType.Ident || i == TokenType.HexOctalInt || this.opts.uppercaseOnly)
                         s = s.toUpperCase();
-                    // un-crunch tokens?
+                    // un-crunch tokens? (TODO: still doesn't handle reserved words inside of variables)
                     if (splitre) {
                         while (i == TokenType.Ident) {
                             let m2 = splitre.exec(s);
@@ -673,7 +694,7 @@ export class BASICParser {
         var thengoto = this.expectTokens(['THEN','GOTO']);
         var lineno = this.peekToken();
         // assume GOTO if number given after THEN
-        if (lineno.type == TokenType.Int && thengoto.str == 'THEN') {
+        if (lineno.type == TokenType.Int) {
             this.pushbackToken({type:TokenType.Ident, str:'GOTO', $loc:lineno.$loc});
         }
         // add fake ":"
@@ -681,7 +702,6 @@ export class BASICParser {
         return { command: "IF", cond: cond };
     }
     stmt__ELSE(): ELSE_Statement {
-        if (!this.opts.ifElse) this.dialectError(`IF...ELSE statements`);
         var lineno = this.peekToken();
         // assume GOTO if number given after ELSE
         if (lineno.type == TokenType.Int) {
@@ -705,10 +725,24 @@ export class BASICParser {
     }
     stmt__NEXT() : NEXT_Statement {
         var lexpr = null;
-        if (!isEOS(this.peekToken())) {
+        // NEXT var might be optional
+        if (!this.opts.optionalNextVar || !isEOS(this.peekToken())) {
             lexpr = this.parseForNextLexpr();
+            // convert ',' to ':' 'NEXT'
+            if (this.opts.multipleNextVars && this.peekToken().str == ',') {
+                this.consumeToken(); // consume ','
+                this.tokens.unshift({type:TokenType.Ident, str:'NEXT', $loc:this.peekToken().$loc});
+                this.tokens.unshift({type:TokenType.Operator, str:':', $loc:this.peekToken().$loc});
+            }
         }
         return { command:'NEXT', lexpr:lexpr };
+    }
+    stmt__WHILE(): WHILE_Statement {
+        var cond = this.parseExpr();
+        return { command:'WHILE', cond:cond };
+    }
+    stmt__WEND(): WEND_Statement {
+        return { command:'WEND' };
     }
     stmt__DIM() : DIM_Statement {
         var lexprs = this.parseLexprList();
@@ -738,8 +772,11 @@ export class BASICParser {
     stmt__READ() : READ_Statement {
         return { command:'READ', args:this.parseLexprList() };
     }
-    stmt__RESTORE() {
-        return { command:'RESTORE' };
+    stmt__RESTORE() : RESTORE_Statement {
+        var label = null;
+        if (this.opts.restoreWithLabel && !isEOS(this.peekToken()))
+            label = this.parseLabel();
+        return { command:'RESTORE', label:label };
     }
     stmt__RETURN() {
         return { command:'RETURN' };
@@ -778,6 +815,9 @@ export class BASICParser {
     }
     stmt__CLEAR() : NoArgStatement {
         return { command:'CLEAR' };
+    }
+    stmt__RANDOMIZE() : NoArgStatement {
+        return { command:'RANDOMIZE' };
     }
     // TODO: CHANGE A TO A$ (4th edition, A(0) is len and A(1..) are chars)
     stmt__OPTION() : OPTION_Statement {
@@ -890,19 +930,26 @@ export const ECMA55_MINIMAL : BASICOptions = {
     maxStringLength : 255,
     tickComments : false,
     hexOctalConsts : false,
-    validKeywords : ['BASE','DATA','DEF','DIM','END',
+    validKeywords : [
+        'BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
         'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO'
     ],
-    validFunctions : ['ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAB','TAN'],
-    validOperators : ['=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^'],
+    validFunctions : [
+        'ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAB','TAN'
+    ],
+    validOperators : [
+        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^'
+    ],
     printZoneLength : 15,
     numericPadding : true,
     checkOverflow : true,
     testInitialFor : true,
     optionalNextVar : false,
-    ifElse : false,
+    multipleNextVars : false,
     bitwiseLogic : false,
+    checkOnGotoIndex : true,
+    restoreWithLabel : false,
 }
 
 export const BASICODE : BASICOptions = {
@@ -924,20 +971,27 @@ export const BASICODE : BASICOptions = {
     maxStringLength : 255,
     tickComments : false,
     hexOctalConsts : false,
-    validKeywords : ['BASE','DATA','DEF','DIM','END',
+    validKeywords : [
+        'BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
         'READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO'
     ],
-    validFunctions : ['ABS','ASC','ATN','CHR$','COS','EXP','INT','LEFT$','LEN','LOG',
-                      'MID$','RIGHT$','SGN','SIN','SQR','TAB','TAN','VAL'],
-    validOperators : ['=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^', 'AND', 'NOT', 'OR'],
+    validFunctions : [
+        'ABS','ASC','ATN','CHR$','COS','EXP','INT','LEFT$','LEN','LOG',    
+        'MID$','RIGHT$','SGN','SIN','SQR','TAB','TAN','VAL'
+    ],
+    validOperators : [
+        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^', 'AND', 'NOT', 'OR'
+    ],
     printZoneLength : 15,
     numericPadding : true,
     checkOverflow : true,
     testInitialFor : true,
     optionalNextVar : false,
-    ifElse : false,
+    multipleNextVars : false,
     bitwiseLogic : false,
+    checkOnGotoIndex : true,
+    restoreWithLabel : false,
 }
 
 export const ALTAIR_BASIC41 : BASICOptions = {
@@ -965,7 +1019,9 @@ export const ALTAIR_BASIC41 : BASICOptions = {
         'FOR','GOTO','GOSUB','IF','THEN','ELSE','INPUT','LET','LINE',
         'PRINT','LPRINT','USING','NEXT','ON','OUT','POKE',
         'READ','REM','RESTORE','RESUME','RETURN','STOP','SWAP',
-        'TROFF','TRON','WAIT'],
+        'TROFF','TRON','WAIT',
+        'TO','STEP',
+    ],
     validFunctions : null, // all
     validOperators : null, // all
     printZoneLength : 15,
@@ -973,9 +1029,10 @@ export const ALTAIR_BASIC41 : BASICOptions = {
     checkOverflow : true,
     testInitialFor : false,
     optionalNextVar : true,
-    //multipleNextVars : true, // TODO: not supported
-    ifElse : true,
+    multipleNextVars : true,
     bitwiseLogic : true,
+    checkOnGotoIndex : false,
+    restoreWithLabel : false,
 }
 
 export const APPLESOFT_BASIC : BASICOptions = {
@@ -1000,25 +1057,81 @@ export const APPLESOFT_BASIC : BASICOptions = {
     validKeywords : [
         'OPTION',
         'CLEAR','LET','DIM','DEF','GOTO','GOSUB','RETURN','ON','POP',
-        'FOR','TO','NEXT','IF','THEN','END','STOP','ONERR','RESUME',
+        'FOR','NEXT','IF','THEN','END','STOP','ONERR','RESUME',
         'PRINT','INPUT','GET','HOME','HTAB','VTAB',
         'INVERSE','FLASH','NORMAL','TEXT',
         'GR','COLOR','PLOT','HLIN','VLIN',
         'HGR','HGR2','HPLOT','HCOLOR','AT',
         'DATA','READ','RESTORE',
-        'REM','TRACE','NOTRACE'],
+        'REM','TRACE','NOTRACE',
+        'TO','STEP',
+    ],
     validFunctions : [
         'ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAN',
         'LEN','LEFT$','MID$','RIGHT$','STR$','VAL','CHR$','ASC',
-        'FRE','SCRN','PDL','PEEK','POS'],
-    validOperators : ['=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^', 'AND', 'NOT', 'OR'],
+        'FRE','SCRN','PDL','PEEK','POS'
+    ],
+    validOperators : [
+        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^', 'AND', 'NOT', 'OR'
+    ],
     printZoneLength : 16,
     numericPadding : false,
     checkOverflow : true,
     testInitialFor : false,
     optionalNextVar : true,
-    ifElse : false,
+    multipleNextVars : true,
     bitwiseLogic : false,
+    checkOnGotoIndex : false,
+    restoreWithLabel : false,
+}
+
+export const BASIC80 : BASICOptions = {
+    dialectName: "BASIC80",
+    asciiOnly : true,
+    uppercaseOnly : false,
+    optionalLabels : false,
+    optionalWhitespace : true,
+    varNaming : "*",
+    staticArrays : false,
+    sharedArrayNamespace : true,
+    defaultArrayBase : 0,
+    defaultArraySize : 11,
+    defaultValues : true,
+    stringConcat : true,
+    typeConvert : false,
+    maxDimensions : 255,
+    maxDefArgs : 255,
+    maxStringLength : 255,
+    //maxElements : 32767, // TODO
+    tickComments : true,
+    hexOctalConsts : true,
+    validKeywords : [
+        'OPTION',
+        'CONSOLE','DATA','DEF','DEFUSR','DIM','END','ERASE','ERROR',
+        'FOR','GOTO','GOSUB','IF','THEN','ELSE','INPUT','LET','LINE',
+        'PRINT','LPRINT','USING','NEXT','ON','OUT','POKE',
+        'READ','REM','RESTORE','RESUME','RETURN','STOP','SWAP',
+        'TROFF','TRON','WAIT',
+        'CALL','CHAIN','COMMON','WHILE','WEND','WRITE','RANDOMIZE',
+        'TO','STEP',
+    ],
+    validFunctions : [
+        'ABS','ASC','ATN','CDBL','CHR$','CINT','COS','CSNG','CVI','CVS','CVD',
+        'EOF','EXP','FIX','FRE','HEX$','INP','INPUT$','INSTR','INT',
+        'LEFT$','LEN','LOC','LOG','LPOS','MID$','MKI$','MKS$','MKD$',
+        'OCT$','PEEK','POS','RIGHT$','RND','SGN','SIN','SPACE$','SPC',
+        'SQR','STR$','STRING$','TAB','TAN','USR','VAL','VARPTR'
+    ],
+    validOperators : null, // all
+    printZoneLength : 14,
+    numericPadding : true,
+    checkOverflow : false, // TODO: message displayed when overflow, division by zero = ok
+    testInitialFor : true,
+    optionalNextVar : true,
+    multipleNextVars : true,
+    bitwiseLogic : true,
+    checkOnGotoIndex : false,
+    restoreWithLabel : true,
 }
 
 export const MODERN_BASIC : BASICOptions = {
@@ -1048,8 +1161,10 @@ export const MODERN_BASIC : BASICOptions = {
     checkOverflow : true,
     testInitialFor : true,
     optionalNextVar : true,
-    ifElse : true,
+    multipleNextVars : true,
     bitwiseLogic : true,
+    checkOnGotoIndex : false,
+    restoreWithLabel : true,
 }
 
 // TODO: integer vars
@@ -1063,5 +1178,6 @@ export const DIALECTS = {
     "MINIMAL":      ECMA55_MINIMAL,
     "BASICODE":     BASICODE,
     "APPLESOFT":    APPLESOFT_BASIC,
+    "BASIC80":      BASIC80,
     "MODERN":       MODERN_BASIC,
 };

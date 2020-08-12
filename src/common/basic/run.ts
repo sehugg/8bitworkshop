@@ -38,11 +38,11 @@ try {
     var pgm = parser.parseFile(data, filename);
 } catch (e) {
     if (parser.errors.length == 0)
-        console.log("@@@ " + e.msg);
+        console.log(`@@@ ${e}`);
     else
         console.log(e);
 }
-parser.errors.forEach((err) => console.log("@@@ " + err.msg));
+parser.errors.forEach((err) => console.log(`@@@ ${err.msg} (line ${err.label})`));
 if (parser.errors.length) process.exit(2);
 
 // run program
@@ -55,13 +55,16 @@ runtime.input = async (prompt:string) => {
     return new Promise( (resolve, reject) => {
         function answered(answer) {
             var vals = answer.toUpperCase().split(',');
-            console.log(">>>",vals);
+            //console.log(">>>",vals);
             resolve(vals);
         }
-        fs.writeSync(1, prompt+"?");
+        prompt += ' ?';
         if (inputlines.length) {
+            fs.writeSync(1, prompt);
+            fs.writeSync(1, '\n');
             answered(inputlines.shift());
         } else rl.question(prompt, (answer) => {
+            fs.writeSync(1, '\n');
             answered(answer);
         });
     });
@@ -72,7 +75,7 @@ runtime.resume = function() {
             if (runtime.step()) {
                 if (runtime.running) runtime.resume();
             } else if (runtime.exited) {
-                console.log("*** PROGRAM EXITED ***");
+                //console.log("*** PROGRAM EXITED ***");
                 process.exit(0);
             }
         } catch (e) {

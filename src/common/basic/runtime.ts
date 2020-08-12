@@ -31,6 +31,38 @@ function isArray(obj) {
     return obj != null && (Array.isArray(obj) || obj.BYTES_PER_ELEMENT);
 }
 
+class RNG {
+    next : () => number;
+    seed : (aa,bb,cc,dd) => void;
+    randomize() {
+        this.seed(Math.random()*0x7fffffff, Math.random()*0x7fffffff, Math.random()*0x7fffffff, Math.random()*0x7fffffff);
+    }
+    constructor() {
+        let f = () => {
+            var a, b, c, d : number;
+            this.seed = function(aa,bb,cc,dd) {
+                a = aa; b = bb; c = cc; d = dd;
+            }
+            this.next = function() {
+                // sfc32
+                a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; 
+                var t = (a + b) | 0;
+                a = b ^ b >>> 9;
+                b = c + (c << 3) | 0;
+                c = (c << 21 | c >>> 11);
+                d = d + 1 | 0;
+                t = t + d | 0;
+                c = c + t | 0;
+                return (t >>> 0) / 4294967296;
+            }
+        };
+        f();
+        this.seed(0x12345678, 0xdeadbeef, 0xf0d3984e, 0xfeed3660); //default seed
+        this.next();
+        this.next();
+    }
+};
+
 export class BASICRuntime {
 
     program : basic.BASICProgram;
@@ -49,9 +81,11 @@ export class BASICRuntime {
     arrays : {};
     defs : {};
     forLoops : { [varname:string] : { $next:(name:string) => void, inner:string } };
+    whileLoops : number[];
     topForLoopName : string;
     returnStack : number[];
     column : number;
+    rng : RNG;
 
     running : boolean = false;
     exited : boolean = true;
@@ -112,6 +146,8 @@ export class BASICRuntime {
         this.defs = {}; // TODO? only in interpreters
         this.forLoops = {};
         this.topForLoopName = null;
+        this.whileLoops = [];
+        this.rng = new RNG();
         // initialize arrays?
         if (this.opts && this.opts.staticArrays) {
             this.allstmts.filter((stmt) => stmt.command == 'DIM').forEach((dimstmt: basic.DIM_Statement) => {
@@ -119,6 +155,8 @@ export class BASICRuntime {
             });
         }
     }
+    
+    // TODO: saveState(), loadState()
     
     getBuiltinFunctions() {
         var fnames = this.program && this.opts.validFunctions;
@@ -213,11 +251,9 @@ export class BASICRuntime {
         do {
             // in Altair BASIC, ELSE is bound to the right-most IF
             // TODO: this is complicated, we should just have nested expressions
-            if (this.opts.ifElse) {
-                var cmd = this.allstmts[this.curpc].command;
-                if (cmd == 'ELSE') { this.curpc++; break; }
-                else if (cmd == 'IF') return this.skipToEOL();
-            }
+            var cmd = this.allstmts[this.curpc].command;
+            if (cmd == 'ELSE') { this.curpc++; break; }
+            else if (cmd == 'IF') return this.skipToEOL();
             this.curpc++;
         } while (this.curpc < this.allstmts.length && !this.pc2line.get(this.curpc));
     }
@@ -242,6 +278,26 @@ export class BASICRuntime {
         this.runtimeError(`I couldn't find a matching NEXT ${forname} to skip this for loop.`);
     }
 
+    skipToAfterWend() {
+        var pc = this.curpc - 1;
+        var nesting = 0;
+        while (pc < this.allstmts.length) {
+            var stmt = this.allstmts[pc];
+            console.log(nesting, pc, stmt);
+            if (stmt.command == 'WHILE') {
+                nesting++;
+            } else if (stmt.command == 'WEND') {
+                nesting--;
+                if (nesting == 0) {
+                    this.curpc = pc + 1;
+                    return;
+                }
+            }
+            pc++;
+        }
+        this.runtimeError(`I couldn't find a matching WEND for this WHILE.`);
+    }
+
     gotoLabel(label) {
         var pc = this.label2pc[label];
         if (pc >= 0) {
@@ -252,7 +308,7 @@ export class BASICRuntime {
     }
 
     gosubLabel(label) {
-        if (this.returnStack.length > 65535)
+        if (this.returnStack.length > 32767) // TODO: const?
             this.runtimeError(`I did too many GOSUBs without a RETURN.`)
         this.returnStack.push(this.curpc);
         this.gotoLabel(label);
@@ -424,8 +480,22 @@ export class BASICRuntime {
 
     nextForLoop(name) {
         var fl = this.forLoops[name || (this.opts.optionalNextVar && this.topForLoopName)];
-        if (!fl) this.runtimeError(`I couldn't find a FOR for this NEXT.`)
+        if (!fl) this.runtimeError(`I couldn't find a matching FOR for this NEXT.`)
         fl.$next(name);
+    }
+
+    whileLoop(cond) {
+        if (cond) {
+            this.whileLoops.push(this.curpc-1);
+        } else {
+            this.skipToAfterWend();
+        }
+    }
+
+    nextWhileLoop() {
+        var pc = this.whileLoops.pop();
+        if (pc == null) this.runtimeError(`I couldn't find a matching WHILE for this WEND.`);
+        else this.curpc = pc;
     }
 
     // converts a variable to string/number based on var name
@@ -515,17 +585,24 @@ export class BASICRuntime {
         return (v as any) as basic.Value;
     }
 
-    onGotoLabel(value: number, ...labels: string[]) {
+    checkOnGoto(value: number, labels: string[]) {
         value = this.ROUND(value);
-        if (value < 1 || value > labels.length)
+        if (value < 0) // > 255 ?
             this.runtimeError(`I needed a number between 1 and ${labels.length}, but I got ${value}.`);
+        if (this.opts.checkOnGotoIndex && (value < 1 || value > labels.length))
+            this.runtimeError(`I needed a number between 1 and ${labels.length}, but I got ${value}.`);
+        else
+            value = Math.min(Math.max(1, value), labels.length);
+        return value;
+    }
+
+    onGotoLabel(value: number, ...labels: string[]) {
+        value = this.checkOnGoto(value, labels);
         this.gotoLabel(labels[value-1]);
     
     }
     onGosubLabel(value: number, ...labels: string[]) {
-        value = this.ROUND(value);
-        if (value < 1 || value > labels.length)
-            this.runtimeError(`I needed a number between 1 and ${labels.length}, but I got ${value}.`);
+        value = this.checkOnGoto(value, labels);
         this.gosubLabel(labels[value-1]);
     }
 
@@ -568,14 +645,13 @@ export class BASICRuntime {
     }
 
     do__LET(stmt : basic.LET_Statement) {
-        // TODO: range-checking for subscripts (get and set)
         var lexpr = this.assign2js(stmt.lexpr);
         var right = this.expr2js(stmt.right);
         return `${lexpr} = this.assign(${JSON.stringify(stmt.lexpr.name)}, ${right});`;
     }
 
     do__FOR(stmt : basic.FOR_Statement) {
-        var name = JSON.stringify(stmt.lexpr.name); // TODO: args?
+        var name = JSON.stringify(stmt.lexpr.name);
         var init = this.expr2js(stmt.initial);
         var targ = this.expr2js(stmt.target);
         var step = stmt.step ? this.expr2js(stmt.step) : 'null';
@@ -583,7 +659,7 @@ export class BASICRuntime {
     }
 
     do__NEXT(stmt : basic.NEXT_Statement) {
-        var name = stmt.lexpr && JSON.stringify(stmt.lexpr.name); // TODO: args? lexpr == null?
+        var name = stmt.lexpr && JSON.stringify(stmt.lexpr.name);
         return `this.nextForLoop(${name})`;
     }
 
@@ -594,6 +670,15 @@ export class BASICRuntime {
 
     do__ELSE() {
         return `this.skipToEOL()`
+    }
+
+    do__WHILE(stmt : basic.WHILE_Statement) {
+        var cond = this.expr2js(stmt.cond);
+        return `this.whileLoop(${cond})`;
+    }
+
+    do__WEND() {
+        return `this.nextWhileLoop()`
     }
 
     do__DEF(stmt : basic.DEF_Statement) {
@@ -661,8 +746,11 @@ export class BASICRuntime {
         return s;
     }
 
-    do__RESTORE() {
-        return `this.dataptr = 0`;
+    do__RESTORE(stmt : basic.RESTORE_Statement) {
+        if (stmt.label != null)
+            return `this.dataptr = this.label2pc[${this.expr2js(stmt.label, {isconst:true})}] || 0`;
+        else
+            return `this.dataptr = 0`;
     }
 
     do__END() {
@@ -696,8 +784,11 @@ export class BASICRuntime {
         return 'this.clearVars()';
     }
 
+    do__RANDOMIZE() {
+        return `this.rng.randomize()`;
+    }
+
     // TODO: ONERR, ON ERROR GOTO
-    // TODO: "SUBSCRIPT ERROR" (range check)
     // TODO: gosubs nested too deeply
     // TODO: memory quota
     // TODO: useless loop (! 4th edition)
@@ -707,7 +798,7 @@ export class BASICRuntime {
     // FUNCTIONS
 
     isValid(obj:number|string) : boolean {
-        if (typeof obj === 'number' && !isNaN(obj) && isFinite(obj))
+        if (typeof obj === 'number' && !isNaN(obj) && (!this.opts.checkOverflow || isFinite(obj)))
             return true;
         else if (typeof obj === 'string')
             return true;
@@ -841,6 +932,9 @@ export class BASICRuntime {
     CHR$(arg : number) : string {
         return String.fromCharCode(this.checkNum(arg));
     }
+    CINT(arg : number) : number {
+        return this.ROUND(arg);
+    }
     COS(arg : number) : number {
         return this.checkNum(Math.cos(arg));
     }
@@ -854,7 +948,7 @@ export class BASICRuntime {
         return this.checkNum(arg < 0 ? Math.ceil(arg) : Math.floor(arg));
     }
     HEX$(arg : number) : string {
-        return arg.toString(16);
+        return this.ROUND(arg).toString(16);
     }
     INSTR(a, b, c) : number {
         if (c != null) {
@@ -882,11 +976,18 @@ export class BASICRuntime {
         if (count == 0) count = arg.length;
         return arg.substr(start-1, count);
     }
+    OCT$(arg : number) : string {
+        return this.ROUND(arg).toString(8);
+    }
+    POS(arg : number) : number { // arg ignored
+        return this.column + 1;
+    }
     RIGHT$(arg : string, count : number) : string {
         return arg.substr(arg.length - count, count);
     }
     RND(arg : number) : number {
-        return Math.random(); // argument ignored
+        // TODO: X<0 restart w/ seed, X=0 repeats
+        return this.rng.next();
     }
     ROUND(arg : number) : number {
         return this.checkNum(Math.round(arg));
@@ -898,7 +999,11 @@ export class BASICRuntime {
         return this.checkNum(Math.sin(arg));
     }
     SPACE$(arg : number) : string {
-        return (arg > 0) ? ' '.repeat(this.checkNum(arg)) : '';
+        arg = this.ROUND(arg);
+        return (arg > 0) ? ' '.repeat(arg) : '';
+    }
+    SPC(arg : number) : string {
+        return this.SPACE$(arg);
     }
     SQR(arg : number) : number {
         if (arg < 0) this.runtimeError(`I can't take the square root of a negative number (${arg}).`)
@@ -906,6 +1011,12 @@ export class BASICRuntime {
     }
     STR$(arg : number) : string {
         return this.valueToString(this.checkNum(arg));
+    }
+    STRING$(len : number, chr : number|string) : string {
+        len = this.ROUND(len);
+        if (len <= 0) return '';
+        if (typeof chr === 'string') return chr.substr(0,1).repeat(len);
+        else return String.fromCharCode(chr).repeat(len);
     }
     TAB(arg : number) : string {
         if (arg < 1) { arg = 1; } // TODO: SYSTEM MESSAGE IDENTIFYING THE EXCEPTION

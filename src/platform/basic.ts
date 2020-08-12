@@ -177,6 +177,7 @@ class BASICPlatform implements Platform {
             Arrays: this.runtime.arrays,
             Functions: this.runtime.defs,
             ForLoops: this.runtime.forLoops,
+            WhileLoops: this.runtime.whileLoops,
             ReturnStack: this.runtime.returnStack,
             NextDatum: this.runtime.datums[this.runtime.dataptr],
             Options: this.runtime.opts,
