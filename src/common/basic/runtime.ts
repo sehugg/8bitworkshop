@@ -102,7 +102,7 @@ export class BASICRuntime {
         this.pc2line = new Map();
         this.datums = [];
         this.builtins = this.getBuiltinFunctions();
-        // TODO: lines start @ 1?
+        // TODO: detect undeclared vars
         program.lines.forEach((line, idx) => {
             // make lookup tables
             if (line.label != null) this.label2lineidx[line.label] = idx;
@@ -120,7 +120,7 @@ export class BASICRuntime {
         // parse DATA literals
         this.allstmts.filter((stmt) => stmt.command == 'DATA').forEach((datastmt) => {
             (datastmt as basic.DATA_Statement).datums.forEach(d => {
-                //this.curpc = datastmt.$loc.offset; // for error reporting
+                this.curpc = datastmt.$loc.offset; // for error reporting
                 var functext = this.expr2js(d, {isconst:true});
                 var value = new Function(`return ${functext};`).bind(this)();
                 this.datums.push({value:value});
@@ -338,15 +338,17 @@ export class BASICRuntime {
         var str;
         if (typeof obj === 'number') {
             var numstr = obj.toString().toUpperCase();
-            var numlen = this.opts.printZoneLength - 4;
-            var prec = numlen;
-            while (numstr.length > numlen) {
-                numstr = obj.toPrecision(prec--);
+            if (this.opts.printZoneLength > 4) {
+                var numlen = this.opts.printZoneLength - 4;
+                var prec = numlen;
+                while (numstr.length > numlen) {
+                    numstr = obj.toPrecision(prec--);
+                }
+                if (numstr.startsWith('0.'))
+                    numstr = numstr.substr(1);
+                else if (numstr.startsWith('-0.'))
+                    numstr = '-'+numstr.substr(2);
             }
-            if (numstr.startsWith('0.'))
-                numstr = numstr.substr(1);
-            else if (numstr.startsWith('-0.'))
-                numstr = '-'+numstr.substr(2);
             if (!this.opts.numericPadding)
                 str = numstr;
             else if (numstr.startsWith('-'))
@@ -406,7 +408,10 @@ export class BASICRuntime {
                     this.checkFuncArgs(expr, this.builtins[expr.name]);
                     s += `this.builtins.${expr.name}(${jsargs})`;
                 } else if (expr.args) {
-                    s += `this.arrayGet(${qname}, ${jsargs})`;
+                    if (this.opts.arraysContainChars && expr.name.endsWith('$'))
+                        s += `this.MID$(this.vars.${expr.name}, ${jsargs})`;
+                    else
+                        s += `this.arrayGet(${qname}, ${jsargs})`;
                 } else { // just a variable
                     s += `this.vars.${expr.name}`;
                 }
@@ -593,25 +598,29 @@ export class BASICRuntime {
         return (v as any) as basic.Value;
     }
 
+    // for HP BASIC string slicing
+    modifyStringSlice(orig: string, add: string, start: number, end: number) : string {
+        return orig.substr(0, start-1) + add + orig.substr(end);
+    }
+
     checkOnGoto(value: number, labels: string[]) {
         value = this.ROUND(value);
         if (value < 0) // > 255 ?
             this.runtimeError(`I needed a number between 1 and ${labels.length}, but I got ${value}.`);
         if (this.opts.checkOnGotoIndex && (value < 1 || value > labels.length))
             this.runtimeError(`I needed a number between 1 and ${labels.length}, but I got ${value}.`);
-        else
-            value = Math.min(Math.max(1, value), labels.length);
+        if (value < 1 || value > labels.length)
+            return 0;
         return value;
     }
-
+    
     onGotoLabel(value: number, ...labels: string[]) {
         value = this.checkOnGoto(value, labels);
-        this.gotoLabel(labels[value-1]);
-    
+        if (value) this.gotoLabel(labels[value-1]);
     }
     onGosubLabel(value: number, ...labels: string[]) {
         value = this.checkOnGoto(value, labels);
-        this.gosubLabel(labels[value-1]);
+        if (value) this.gosubLabel(labels[value-1]);
     }
 
     nextDatum() : basic.Value {
@@ -655,7 +664,16 @@ export class BASICRuntime {
     do__LET(stmt : basic.LET_Statement) {
         var lexpr = this.assign2js(stmt.lexpr);
         var right = this.expr2js(stmt.right);
-        return `${lexpr} = this.assign(${JSON.stringify(stmt.lexpr.name)}, ${right});`;
+        // HP BASIC string-slice syntax?
+        if (this.opts.arraysContainChars && stmt.lexpr.args && stmt.lexpr.name.endsWith('$')) {
+            var s = `this.vars.${stmt.lexpr.name} = this.modifyStringSlice(this.vars.${stmt.lexpr.name}, ${right}, `
+            s += stmt.lexpr.args.map((arg) => this.expr2js(arg)).join(', ');
+            s += ')';
+            console.log(s);
+            return s;
+        } else {
+            return `${lexpr} = this.assign(${JSON.stringify(stmt.lexpr.name)}, ${right});`;
+        }
     }
 
     do__FOR(stmt : basic.FOR_Statement) {
@@ -704,6 +722,9 @@ export class BASICRuntime {
     }
 
     _DIM(dim : basic.IndOp) {
+        // HP BASIC doesn't really have string arrays
+        if (this.opts.arraysContainChars && dim.name.endsWith('$'))
+            return;
         var argsstr = '';
         for (var arg of dim.args) {
             // TODO: check for float (or at compile time)
@@ -720,12 +741,12 @@ export class BASICRuntime {
     }
 
     do__GOTO(stmt : basic.GOTO_Statement) {
-        var label = this.expr2js(stmt.label, {isconst:true});
+        var label = this.expr2js(stmt.label);
         return `this.gotoLabel(${label})`;
     }
 
     do__GOSUB(stmt : basic.GOSUB_Statement) {
-        var label = this.expr2js(stmt.label, {isconst:true});
+        var label = this.expr2js(stmt.label);
         return `this.gosubLabel(${label})`;
     }
 
@@ -733,7 +754,7 @@ export class BASICRuntime {
         return `this.returnFromGosub()`;
     }
 
-    do__ONGOTO(stmt : basic.ONGOTO_Statement) {
+    do__ONGOTO(stmt : basic.ONGO_Statement) {
         var expr = this.expr2js(stmt.expr);
         var labels = stmt.labels.map((arg) => this.expr2js(arg, {isconst:true})).join(', ');
         if (stmt.command == 'ONGOTO')
@@ -925,6 +946,12 @@ export class BASICRuntime {
     ge(a:number, b:number) : number {
         return a >= b ? (this.opts.bitwiseLogic ? -1 : 1) : 0;
     }
+    min(a:number, b:number) : number {
+        return a < b ? a : b;
+    }
+    max(a:number, b:number) : number {
+        return a > b ? a : b;
+    }
 
     // FUNCTIONS (uppercase)
 
@@ -949,6 +976,9 @@ export class BASICRuntime {
     COT(arg : number) : number {
         return this.checkNum(1.0 / Math.tan(arg)); // 4th edition only
     }
+    CTL(arg : number) : string {
+        return this.CHR$(arg);
+    }
     EXP(arg : number) : number {
         return this.checkNum(Math.exp(arg));
     }
@@ -972,7 +1002,10 @@ export class BASICRuntime {
         return arg.substr(0, count);
     }
     LEN(arg : string) : number {
-        return arg.length;
+        return this.checkString(arg).length;
+    }
+    LIN(arg : number) : string {
+        return this.STRING$(arg, '\n');
     }
     LOG(arg : number) : number {
         if (arg == 0) this.runtimeError(`I can't take the logarithm of zero (${arg}).`)
@@ -1034,8 +1067,29 @@ export class BASICRuntime {
     TAN(arg : number) : number {
         return this.checkNum(Math.tan(arg));
     }
+    TIM(arg : number) { // only HP BASIC?
+        var d = new Date();
+        switch (this.ROUND(arg)) {
+            case 0: return d.getMinutes();
+            case 1: return d.getHours();
+            case 2:
+                var dayCount = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+                var mn = d.getMonth();
+                var dn = d.getDate();
+                var dayOfYear = dayCount[mn] + dn;
+                var isLeapYear = (d.getFullYear() & 3) == 0; // TODO: wrong
+                if(mn > 1 && isLeapYear) dayOfYear++;
+                return dayOfYear;
+            case 3: return d.getFullYear() % 100; // Y@K!
+            case 4: return d.getSeconds();
+            default: return 0;
+        }
+    }
     TIMER() : number {
         return Date.now() / 1000;
+    }
+    UPS$(arg : string) : string {
+        return this.checkString(arg).toUpperCase();
     }
     VAL(arg : string) : number {
         var n = parseFloat(this.checkString(arg));

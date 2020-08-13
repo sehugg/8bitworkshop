@@ -7,7 +7,8 @@ export interface BASICOptions {
     uppercaseOnly : boolean;            // convert everything to uppercase?
     optionalLabels : boolean;			// can omit line numbers and use labels?
     optionalWhitespace : boolean;       // can "crunch" keywords?
-    varNaming : 'A1'|'AA'|'*';          // only allow A0-9 for numerics, single letter for arrays/strings
+    varNaming : 'A'|'A1'|'AA'|'*';          // only allow A0-9 for numerics, single letter for arrays/strings
+    squareBrackets : boolean;           // "[" and "]" interchangable with "(" and ")"?
     tickComments : boolean;             // support 'comments?
     hexOctalConsts : boolean;           // support &H and &O integer constants?
     validKeywords : string[];           // valid keywords (or null for accept all)
@@ -27,6 +28,7 @@ export interface BASICOptions {
     defaultArrayBase : number;          // arrays start at this number (0 or 1)
     defaultArraySize : number;          // arrays are allocated w/ this size (starting @ 0)
     maxDimensions : number;             // max number of dimensions for arrays
+    arraysContainChars : boolean;       // HP BASIC array-slicing syntax
     // PRINTING
     printZoneLength : number;           // print zone length
     numericPadding : boolean;           // " " or "-" before and " " after numbers?
@@ -35,7 +37,9 @@ export interface BASICOptions {
     optionalNextVar : boolean;          // can do NEXT without variable
     multipleNextVars : boolean;         // NEXT J,I
     checkOnGotoIndex : boolean;         // fatal error when ON..GOTO index out of bounds
+    computedGoto : boolean;             // non-const expr GOTO label (and GOTO..OF expression)
     restoreWithLabel : boolean;         // RESTORE <label>
+    endStmtRequired : boolean;          // need END at end?
     // MISC
     commandsPerSec? : number;           // how many commands per second?
 }
@@ -55,7 +59,7 @@ export class CompileError extends Error {
 
 // Lexer regular expression -- each (capture group) handles a different token type
 
-const re_toks = /([0-9.]+[E][+-]?\d+)|(\d*[.]\d*[E0-9]*)|[0]*(\d+)|&([OH][0-9A-F]+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>])|([-+*/^,;:()?\\])|(\S+)/gi;
+const re_toks = /([0-9.]+[E][+-]?\d+)|(\d*[.]\d*[E0-9]*)|[0]*(\d+)|&([OH][0-9A-F]+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>#])|(\*\*)|([-+*/^,;:()\[\]?\\])|(\S+)/gi;
 
 export enum TokenType {
     EOL = 0,
@@ -67,6 +71,7 @@ export enum TokenType {
     Ident,
     String,
     Relational,
+    DoubleStar,
     Operator,
     CatchAll,
     _LAST,
@@ -130,7 +135,7 @@ export interface RETURN_Statement {
     command: "RETURN";
 }
 
-export interface ONGOTO_Statement {
+export interface ONGO_Statement {
     command: "ONGOTO" | "ONGOSUB";
     expr: Expr;
     labels: Expr[];
@@ -211,7 +216,7 @@ export interface NoArgStatement {
 
 export type StatementTypes = PRINT_Statement | LET_Statement | GOTO_Statement | GOSUB_Statement
     | IF_Statement | FOR_Statement | NEXT_Statement | DIM_Statement
-    | INPUT_Statement | READ_Statement | DEF_Statement | ONGOTO_Statement
+    | INPUT_Statement | READ_Statement | DEF_Statement | ONGO_Statement
     | DATA_Statement | OPTION_Statement | GET_Statement | RESTORE_Statement
     | NoArgStatement;
 
@@ -242,18 +247,25 @@ const OPERATORS = {
     '||':   {f:'lor',p:17}, // not used
     '&&':   {f:'land',p:18}, // not used
     '=':    {f:'eq',p:50},
+    //'==':   {f:'eq',p:50},
     '<>':   {f:'ne',p:50},
+    '><':   {f:'ne',p:50},
+    //'!=':   {f:'ne',p:50},
+    '#':    {f:'ne',p:50},
     '<':    {f:'lt',p:50},
     '>':    {f:'gt',p:50},
     '<=':   {f:'le',p:50},
     '>=':   {f:'ge',p:50},
+    'MIN':  {f:'min',p:75},
+    'MAX':  {f:'max',p:75},
     '+':    {f:'add',p:100},
     '-':    {f:'sub',p:100},
     '%':    {f:'mod',p:140},
     '\\':   {f:'idiv',p:150},
     '*':    {f:'mul',p:200},
     '/':    {f:'div',p:200},
-    '^':    {f:'pow',p:300}
+    '^':    {f:'pow',p:300},
+    '**':   {f:'pow',p:300},
 };
 
 function getOperator(op: string) {
@@ -263,6 +275,7 @@ function getOperator(op: string) {
 function getPrecedence(tok: Token): number {
     switch (tok.type) {
         case TokenType.Operator:
+        case TokenType.DoubleStar:
         case TokenType.Relational:
         case TokenType.Ident:
             let op = getOperator(tok.str);
@@ -285,12 +298,11 @@ function stripQuotes(s: string) {
 ///// BASIC PARSER
 
 export class BASICParser {
-    opts : BASICOptions = ALTAIR_BASIC41;
+    opts : BASICOptions = DIALECTS['DEFAULT'];
     errors: WorkerError[];
     listings: CodeListingMap;
     labels: { [label: string]: BASICLine };
     targets: { [targetlabel: string]: SourceLocation };
-    decls: { [name: string]: SourceLocation }; // declared/set vars
     refs: { [name: string]: SourceLocation }; // references
 
     path : string;
@@ -307,7 +319,6 @@ export class BASICParser {
         this.lineno = 0;
         this.curlabel = null;
         this.listings = {};
-        this.decls = {};
         this.refs = {};
     }
     compileError(msg: string, loc?: SourceLocation) {
@@ -377,7 +388,8 @@ export class BASICParser {
     }
     parseFile(file: string, path: string) : BASICProgram {
         this.path = path;
-        var pgmlines = file.split("\n").map((line) => this.parseLine(line));
+        var txtlines = file.split("\n");
+        var pgmlines = txtlines.map((line) => this.parseLine(line));
         var program = { opts: this.opts, lines: pgmlines };
         this.checkAll(program);
         this.listings[path] = this.generateListing(file, program);
@@ -410,6 +422,12 @@ export class BASICParser {
                     // uppercase all identifiers, and maybe more
                     if (i == TokenType.Ident || i == TokenType.HexOctalInt || this.opts.uppercaseOnly)
                         s = s.toUpperCase();
+                    // convert brackets
+                    if (s == '[' || s == ']') {
+                        if (!this.opts.squareBrackets) this.dialectError(`square brackets`);
+                        if (s == '[') s = '(';
+                        if (s == ']') s = ')';
+                    }
                     // un-crunch tokens? (TODO: still doesn't handle reserved words inside of variables)
                     if (splitre) {
                         while (i == TokenType.Ident) {
@@ -467,7 +485,7 @@ export class BASICParser {
                 if (cmd == this.validKeyword('?')) cmd = 'PRINT';
             case TokenType.Ident:
                 // remark? ignore all tokens to eol
-                if (cmd == 'REM') {
+                if (cmd.startsWith('REM')) {
                     while (this.consumeToken().type != TokenType.EOL) { }
                     return null;
                 }
@@ -540,9 +558,7 @@ export class BASICParser {
         return list;
     }
     parseLexprList(): IndOp[] {
-        var list = this.parseList(this.parseLexpr, ',');
-        list.forEach((lexpr) => this.decls[lexpr.name] = this.lasttoken.$loc);
-        return list;
+        return this.parseList(this.parseLexpr, ',');
     }
     parseExprList(): Expr[] {
         return this.parseList(this.parseExpr, ',');
@@ -551,6 +567,10 @@ export class BASICParser {
         return this.parseList(this.parseLabel, ',');
     }
     parseLabel() : Expr {
+        // parse full expr?
+        if (this.opts.computedGoto)
+            return this.parseExpr();
+        // parse a single number or ident label
         var tok = this.consumeToken();
         switch (tok.type) {
             case TokenType.Ident:
@@ -596,7 +616,7 @@ export class BASICParser {
                 } else if (tok.str == '+') {
                     return this.parsePrimary(); // ignore unary +
                 }
-            case TokenType.EOL:
+            default:
                 this.compileError(`The expression is incomplete.`);
                 return;
         }
@@ -635,6 +655,10 @@ export class BASICParser {
     }
     validateVarName(lexpr: IndOp) {
         switch (this.opts.varNaming) {
+            case 'A': // TINY BASIC, no strings
+                if (!/^[A-Z]$/i.test(lexpr.name))
+                    this.dialectError(`variable names other than a single letter`);
+                break;
             case 'A1':
                 if (lexpr.args == null && !/^[A-Z][0-9]?[$]?$/i.test(lexpr.name))
                     this.dialectError(`variable names other than a letter followed by an optional digit`);
@@ -645,6 +669,8 @@ export class BASICParser {
                 if (lexpr.args == null && !/^[A-Z][A-Z0-9]?[$]?$/i.test(lexpr.name))
                     this.dialectError(`variable names other than a letter followed by an optional letter or digit`);
                 break;
+            case '*':
+                break;
         }
     }
 
@@ -653,7 +679,6 @@ export class BASICParser {
     stmt__LET(): LET_Statement {
         var lexpr = this.parseLexpr();
         this.expectToken("=");
-        this.decls[lexpr.name] = this.lasttoken.$loc;
         var right = this.parseExpr();
         return { command: "LET", lexpr: lexpr, right: right };
     }
@@ -681,11 +706,22 @@ export class BASICParser {
         }
         return { command: "PRINT", args: list };
     }
-    stmt__GOTO(): GOTO_Statement {
-        return { command: "GOTO", label: this.parseLabel() };
+    stmt__GOTO(): GOTO_Statement | GOSUB_Statement | ONGO_Statement {
+        return this.__GO("GOTO");
     }
-    stmt__GOSUB(): GOSUB_Statement {
-        return { command: "GOSUB", label: this.parseLabel() };
+    stmt__GOSUB(): GOTO_Statement | GOSUB_Statement | ONGO_Statement {
+        return this.__GO("GOSUB");
+    }
+    __GO(cmd: "GOTO"|"GOSUB"): GOTO_Statement | GOSUB_Statement | ONGO_Statement {
+        var expr = this.parseLabel();
+        // GOTO (expr) OF (labels...)
+        if (this.opts.computedGoto && this.peekToken().str == 'OF') {
+            this.expectToken('OF');
+            let newcmd : 'ONGOTO'|'ONGOSUB' = (cmd == 'GOTO') ? 'ONGOTO' : 'ONGOSUB';
+            return { command:newcmd, expr:expr, labels:this.parseLabelList() };
+        }
+        // regular GOTO or GOSUB
+        return { command: cmd, label: expr };
     }
     stmt__IF(): IF_Statement {
         var cond = this.parseExpr();
@@ -766,6 +802,14 @@ export class BASICParser {
         }
         return { command:'INPUT', prompt:{ value: promptstr }, args:this.parseLexprList() };
     }
+    /* for HP BASIC only */
+    stmt__ENTER() : INPUT_Statement {
+        var secs = this.parseExpr();
+        this.expectToken(',');
+        var result = this.parseLexpr(); // TODO: this has to go somewheres
+        this.expectToken(',');
+        return this.stmt__INPUT();
+    }
     stmt__DATA() : DATA_Statement {
         return { command:'DATA', datums:this.parseExprList() };
     }
@@ -787,7 +831,7 @@ export class BASICParser {
     stmt__END() {
         return { command:'END' };
     }
-    stmt__ON() : ONGOTO_Statement {
+    stmt__ON() : ONGO_Statement {
         var expr = this.parseExpr();
         var gotok = this.consumeToken();
         var cmd = {GOTO:'ONGOTO', GOSUB:'ONGOSUB'}[gotok.str];
@@ -801,7 +845,6 @@ export class BASICParser {
             this.compileError(`There can be no more than ${this.opts.maxDefArgs} arguments to a function or subscript.`);
         if (!lexpr.name.startsWith('FN')) this.compileError(`Functions defined with DEF must begin with the letters "FN".`)
         this.expectToken("=");
-        this.decls[lexpr.name] = this.lasttoken.$loc;
         var func = this.parseExpr();
         return { command:'DEF', lexpr:lexpr, def:func };
     }
@@ -810,7 +853,6 @@ export class BASICParser {
     }
     stmt__GET() : GET_Statement {
         var lexpr = this.parseLexpr();
-        this.decls[lexpr.name] = this.lasttoken.$loc;
         return { command:'GET', lexpr:lexpr };
     }
     stmt__CLEAR() : NoArgStatement {
@@ -875,13 +917,17 @@ export class BASICParser {
     generateListing(file: string, program: BASICProgram) {
         var srclines = [];
         var pc = 0;
+        var laststmt : Statement;
         program.lines.forEach((line, idx) => {
             line.stmts.forEach((stmt) => {
+                laststmt = stmt;
                 var sl = stmt.$loc;
                 sl.offset = pc++; // TODO: could Statement have offset field?
                 srclines.push(sl);
             });
         });
+        if (this.opts.endStmtRequired && (laststmt == null || laststmt.command != 'END'))
+            this.dialectError(`programs without an final END statement`);
         return { lines: srclines };
     }
     getListings() : CodeListingMap {
@@ -891,7 +937,6 @@ export class BASICParser {
     // LINT STUFF
     checkAll(program : BASICProgram) {
         this.checkLabels();
-        //this.checkUnsetVars();
     }
     checkLabels() {
         for (let targ in this.targets) {
@@ -900,17 +945,10 @@ export class BASICParser {
             }
         }
     }
-    checkUnsetVars() {
-        for (var ref in this.refs) {
-            if (this.decls[ref] == null)
-                this.compileError(`The variable "${ref}" was used but not set with a LET, DIM, READ, or INPUT statement.`);
-        }
-    }
 }
 
 ///// BASIC DIALECTS
 
-// TODO: require END statement
 export const ECMA55_MINIMAL : BASICOptions = {
     dialectName: "ECMA55",
     asciiOnly : true,
@@ -949,7 +987,105 @@ export const ECMA55_MINIMAL : BASICOptions = {
     multipleNextVars : false,
     bitwiseLogic : false,
     checkOnGotoIndex : true,
+    computedGoto : false,
     restoreWithLabel : false,
+    squareBrackets : false,
+    arraysContainChars : false,
+    endStmtRequired : true,
+}
+
+// TODO: only integers supported
+export const TINY_BASIC : BASICOptions = {
+    dialectName: "TINY",
+    asciiOnly : true,
+    uppercaseOnly : true,
+    optionalLabels : false,
+    optionalWhitespace : false,
+    varNaming : "A",
+    staticArrays : false,
+    sharedArrayNamespace : true,
+    defaultArrayBase : 0,
+    defaultArraySize : 0,
+    defaultValues : true,
+    stringConcat : false,
+    typeConvert : false,
+    maxDimensions : 0,
+    maxDefArgs : 255,
+    maxStringLength : 255,
+    tickComments : false,
+    hexOctalConsts : false,
+    validKeywords : [
+        'OPTION',
+        'PRINT','IF','THEN','GOTO','INPUT','LET','GOSUB','RETURN','CLEAR','END'
+    ],
+    validFunctions : [
+    ],
+    validOperators : [
+        '=', '<>', '><', '<', '>', '<=', '>=', '+', '-', '*', '/',
+    ],
+    printZoneLength : 1,
+    numericPadding : false,
+    checkOverflow : false,
+    testInitialFor : false,
+    optionalNextVar : false,
+    multipleNextVars : false,
+    bitwiseLogic : false,
+    checkOnGotoIndex : false,
+    computedGoto : true,
+    restoreWithLabel : false,
+    squareBrackets : false,
+    arraysContainChars : false,
+    endStmtRequired : false,
+}
+
+
+export const HP_TIMESHARED_BASIC : BASICOptions = {
+    dialectName: "HPTSB",
+    asciiOnly : true,
+    uppercaseOnly : false,
+    optionalLabels : false,
+    optionalWhitespace : false,
+    varNaming : "A1",
+    staticArrays : true,
+    sharedArrayNamespace : false,
+    defaultArrayBase : 1,
+    defaultArraySize : 11,
+    defaultValues : false,
+    stringConcat : false,
+    typeConvert : false,
+    maxDimensions : 2,
+    maxDefArgs : 255,
+    maxStringLength : 255,
+    tickComments : false, // TODO: HP BASIC has 'hh char constants
+    hexOctalConsts : false,
+    validKeywords : [
+        'BASE','DATA','DEF','DIM','END',
+        'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','OPTION','PRINT',
+        'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO',
+        'ENTER','MAT','CONVERT','OF','IMAGE','USING'
+    ],
+    validFunctions : [
+        'ABS','ATN','BRK','COS','CTL','EXP','INT','LEN','LIN','LOG','NUM',
+        'POS','RND','SGN','SIN','SPA','SQR','TAB','TAN','TIM','TYP','UPS$' // TODO: POS,
+    ],
+    validOperators : [
+        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^',
+        '**', '#', 'NOT', 'AND', 'OR', 'MIN', 'MAX',
+    ],
+    printZoneLength : 15,
+    numericPadding : true,
+    checkOverflow : false,
+    testInitialFor : true,
+    optionalNextVar : false,
+    multipleNextVars : false,
+    bitwiseLogic : false,
+    checkOnGotoIndex : false,
+    computedGoto : true,
+    restoreWithLabel : true,
+    squareBrackets : true,
+    arraysContainChars : true,
+    endStmtRequired : true,
+    // TODO: max line number, array index 9999
 }
 
 export const BASICODE : BASICOptions = {
@@ -991,7 +1127,11 @@ export const BASICODE : BASICOptions = {
     multipleNextVars : false,
     bitwiseLogic : false,
     checkOnGotoIndex : true,
+    computedGoto : false,
     restoreWithLabel : false,
+    squareBrackets : false,
+    arraysContainChars : false,
+    endStmtRequired : false,
 }
 
 export const ALTAIR_BASIC41 : BASICOptions = {
@@ -1022,8 +1162,17 @@ export const ALTAIR_BASIC41 : BASICOptions = {
         'TROFF','TRON','WAIT',
         'TO','STEP',
     ],
-    validFunctions : null, // all
-    validOperators : null, // all
+    validFunctions : [
+        'ABS','ASC','ATN','CDBL','CHR$','CINT','COS','ERL','ERR',
+        'EXP','FIX','FRE','HEX$','INP','INSTR','INT',
+        'LEFT$','LEN','LOG','LPOS','MID$',
+        'OCT$','POS','RIGHT$','RND','SGN','SIN','SPACE$','SPC',
+        'SQR','STR$','STRING$','TAB','TAN','USR','VAL','VARPTR'
+    ],
+    validOperators : [
+        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^', 'AND', 'NOT', 'OR',
+        'XOR', 'IMP', 'EQV', '\\', 'MOD'
+    ],
     printZoneLength : 15,
     numericPadding : true,
     checkOverflow : true,
@@ -1032,7 +1181,11 @@ export const ALTAIR_BASIC41 : BASICOptions = {
     multipleNextVars : true,
     bitwiseLogic : true,
     checkOnGotoIndex : false,
+    computedGoto : false,
     restoreWithLabel : false,
+    squareBrackets : false,
+    arraysContainChars : false,
+    endStmtRequired : false,
 }
 
 export const APPLESOFT_BASIC : BASICOptions = {
@@ -1082,7 +1235,11 @@ export const APPLESOFT_BASIC : BASICOptions = {
     multipleNextVars : true,
     bitwiseLogic : false,
     checkOnGotoIndex : false,
+    computedGoto : false,
     restoreWithLabel : false,
+    squareBrackets : false,
+    arraysContainChars : false,
+    endStmtRequired : false,
 }
 
 export const BASIC80 : BASICOptions = {
@@ -1131,7 +1288,11 @@ export const BASIC80 : BASICOptions = {
     multipleNextVars : true,
     bitwiseLogic : true,
     checkOnGotoIndex : false,
+    computedGoto : false,
     restoreWithLabel : true,
+    squareBrackets : false,
+    arraysContainChars : false,
+    endStmtRequired : false,
 }
 
 export const MODERN_BASIC : BASICOptions = {
@@ -1164,7 +1325,11 @@ export const MODERN_BASIC : BASICOptions = {
     multipleNextVars : true,
     bitwiseLogic : true,
     checkOnGotoIndex : false,
+    computedGoto : false,
     restoreWithLabel : true,
+    squareBrackets : true,
+    arraysContainChars : false,
+    endStmtRequired : false,
 }
 
 // TODO: integer vars
@@ -1173,11 +1338,18 @@ export const MODERN_BASIC : BASICOptions = {
 export const DIALECTS = {
     "DEFAULT":      ALTAIR_BASIC41,
     "ALTAIR":       ALTAIR_BASIC41,
+    "ALTAIR4":      ALTAIR_BASIC41,
     "ALTAIR41":     ALTAIR_BASIC41,
     "ECMA55":       ECMA55_MINIMAL,
     "MINIMAL":      ECMA55_MINIMAL,
+    "HPTSB":        HP_TIMESHARED_BASIC,
+    "HPB":          HP_TIMESHARED_BASIC,
+    "HP2000":       HP_TIMESHARED_BASIC,
+    "HPBASIC":      HP_TIMESHARED_BASIC,
+    "HPACCESS":     HP_TIMESHARED_BASIC,
     "BASICODE":     BASICODE,
     "APPLESOFT":    APPLESOFT_BASIC,
     "BASIC80":      BASIC80,
     "MODERN":       MODERN_BASIC,
+    "TINY":         TINY_BASIC,
 };

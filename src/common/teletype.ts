@@ -192,6 +192,7 @@ export class TeleTypeWithKeyboard extends TeleType {
     clear() {
         super.clear();
         this.hideinput();
+        this.waitingfor = null;
     }
     focusinput() {
         this.ensureline();
@@ -234,7 +235,7 @@ export class TeleTypeWithKeyboard extends TeleType {
     }
     sendinput(s: string) {
         if (this.resolveInput) {
-            if (this.uppercaseOnly)
+            //if (this.uppercaseOnly) // TODO: always uppercase?
                 s = s.toUpperCase();
             this.addtext(s, 4);
             this.flushline();
