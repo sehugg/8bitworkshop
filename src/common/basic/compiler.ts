@@ -59,7 +59,7 @@ export class CompileError extends Error {
 
 // Lexer regular expression -- each (capture group) handles a different token type
 
-const re_toks = /([0-9.]+[E][+-]?\d+)|(\d*[.]\d*[E0-9]*)|[0]*(\d+)|&([OH][0-9A-F]+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>#])|(\*\*)|([-+*/^,;:()\[\]?\\])|(\S+)/gi;
+const re_toks = /([0-9.]+[E][+-]?\d+)|(\d*[.]\d*[E0-9]*)|[0]*(\d+)|&([OH][0-9A-F]+)|(['].*|REM.*)|(\w+[$]?)|(".*?")|([<>]?[=<>#])|(\*\*)|([-+*/^,;:()\[\]?\\])|(\S+)/gi;
 
 export enum TokenType {
     EOL = 0,
@@ -408,7 +408,7 @@ export class BASICParser {
         this.lineno++;
         this.tokens = [];
         // split identifier regex (if token-crunching enabled)
-        let splitre = this.opts.optionalWhitespace && new RegExp(this.opts.validKeywords.map(s => `^${s}`).join('|'));
+        let splitre = this.opts.optionalWhitespace && new RegExp('('+this.opts.validKeywords.map(s => `${s}`).join('|')+')');
         // iterate over each token via re_toks regex
         var m : RegExpMatchArray;
         while (m = re_toks.exec(line)) {
@@ -428,20 +428,23 @@ export class BASICParser {
                         if (s == '[') s = '(';
                         if (s == ']') s = ')';
                     }
-                    // un-crunch tokens? (TODO: still doesn't handle reserved words inside of variables)
-                    if (splitre) {
-                        while (i == TokenType.Ident) {
-                            let m2 = splitre.exec(s);
-                            if (m2 && s.length > m2[0].length) {
-                                this.tokens.push({str:m2[0], type:TokenType.Ident, $loc:loc});
-                                s = s.substring(m2[0].length);
-                            } else
-                                break;
-                        }
-                        if (/^[0-9]+$/.test(s)) i = TokenType.Int; // leftover might be integer
+                    // un-crunch tokens?
+                    if (splitre && i == TokenType.Ident) {
+                        var splittoks = s.split(splitre);
+                        splittoks.forEach((ss) => {
+                            if (ss != '') {
+                                // leftover might be integer
+                                i = /^[0-9]+$/.test(ss) ? TokenType.Int : TokenType.Ident;
+                                // disable crunching after this token?
+                                if (ss == 'DATA' || ss == 'OPTION')
+                                    splitre = null;
+                                this.tokens.push({str: ss, type: i, $loc:loc});
+                            }
+                        });
+                    } else {
+                        // add token to list
+                        this.tokens.push({str: s, type: i, $loc:loc});
                     }
-                    // add token to list
-                    this.tokens.push({str: s, type: i, $loc:loc});
                     break;
                 }
             }
@@ -479,16 +482,11 @@ export class BASICParser {
         var stmt;
         switch (cmdtok.type) {
             case TokenType.Remark:
-                if (!this.opts.tickComments) this.dialectError(`tick remarks`);
+                if (cmdtok.str.startsWith("'") && !this.opts.tickComments) this.dialectError(`tick remarks`);
                 return null;
             case TokenType.Operator:
                 if (cmd == this.validKeyword('?')) cmd = 'PRINT';
             case TokenType.Ident:
-                // remark? ignore all tokens to eol
-                if (cmd.startsWith('REM')) {
-                    while (this.consumeToken().type != TokenType.EOL) { }
-                    return null;
-                }
                 // look for "GO TO" and "GO SUB"
                 if (cmd == 'GO' && this.peekToken().str == 'TO') {
                     this.consumeToken();
@@ -1110,7 +1108,8 @@ export const BASICODE : BASICOptions = {
     validKeywords : [
         'BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
-        'READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO'
+        'READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO',
+        'AND', 'NOT', 'OR'
     ],
     validFunctions : [
         'ABS','ASC','ATN','CHR$','COS','EXP','INT','LEFT$','LEN','LOG',    
@@ -1161,6 +1160,7 @@ export const ALTAIR_BASIC41 : BASICOptions = {
         'READ','REM','RESTORE','RESUME','RETURN','STOP','SWAP',
         'TROFF','TRON','WAIT',
         'TO','STEP',
+        'AND', 'NOT', 'OR', 'XOR', 'IMP', 'EQV', 'MOD'
     ],
     validFunctions : [
         'ABS','ASC','ATN','CDBL','CHR$','CINT','COS','ERL','ERR',
@@ -1170,8 +1170,8 @@ export const ALTAIR_BASIC41 : BASICOptions = {
         'SQR','STR$','STRING$','TAB','TAN','USR','VAL','VARPTR'
     ],
     validOperators : [
-        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^', 'AND', 'NOT', 'OR',
-        'XOR', 'IMP', 'EQV', '\\', 'MOD'
+        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^', '\\',
+        'AND', 'NOT', 'OR', 'XOR', 'IMP', 'EQV', 'MOD'
     ],
     printZoneLength : 15,
     numericPadding : true,
@@ -1218,6 +1218,7 @@ export const APPLESOFT_BASIC : BASICOptions = {
         'DATA','READ','RESTORE',
         'REM','TRACE','NOTRACE',
         'TO','STEP',
+        'AND', 'NOT', 'OR'
     ],
     validFunctions : [
         'ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAN',
@@ -1225,7 +1226,8 @@ export const APPLESOFT_BASIC : BASICOptions = {
         'FRE','SCRN','PDL','PEEK','POS'
     ],
     validOperators : [
-        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^', 'AND', 'NOT', 'OR'
+        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^',
+        'AND', 'NOT', 'OR'
     ],
     printZoneLength : 16,
     numericPadding : false,
@@ -1271,6 +1273,7 @@ export const BASIC80 : BASICOptions = {
         'TROFF','TRON','WAIT',
         'CALL','CHAIN','COMMON','WHILE','WEND','WRITE','RANDOMIZE',
         'TO','STEP',
+        'AND', 'NOT', 'OR', 'XOR', 'IMP', 'EQV', 'MOD'
     ],
     validFunctions : [
         'ABS','ASC','ATN','CDBL','CHR$','CINT','COS','CSNG','CVI','CVS','CVD',
@@ -1279,7 +1282,10 @@ export const BASIC80 : BASICOptions = {
         'OCT$','PEEK','POS','RIGHT$','RND','SGN','SIN','SPACE$','SPC',
         'SQR','STR$','STRING$','TAB','TAN','USR','VAL','VARPTR'
     ],
-    validOperators : null, // all
+    validOperators : [
+        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^', '\\',
+        'AND', 'NOT', 'OR', 'XOR', 'IMP', 'EQV', 'MOD'
+    ],
     printZoneLength : 14,
     numericPadding : true,
     checkOverflow : false, // TODO: message displayed when overflow, division by zero = ok
@@ -1324,8 +1330,8 @@ export const MODERN_BASIC : BASICOptions = {
     optionalNextVar : true,
     multipleNextVars : true,
     bitwiseLogic : true,
-    checkOnGotoIndex : false,
-    computedGoto : false,
+    checkOnGotoIndex : true,
+    computedGoto : true,
     restoreWithLabel : true,
     squareBrackets : true,
     arraysContainChars : false,
