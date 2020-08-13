@@ -1316,6 +1316,12 @@ function singleStep() {
   platform.step();
 }
 
+function stepOver() {
+  if (!checkRunReady()) return;
+  setupBreakpoint("stepover");
+  platform.stepOver();
+}
+
 function singleFrameStep() {
   if (!checkRunReady()) return;
   setupBreakpoint("tovsync");
@@ -1374,17 +1380,15 @@ function resetAndDebug() {
   if (!checkRunReady()) return;
   var wasRecording = recorderActive;
   _disableRecording();
-  if (platform.setupDebug && platform.readAddress) { // TODO??
+  if (platform.setupDebug && platform.runEval) { // TODO??
     clearBreakpoint();
     _resume();
     platform.reset();
     setupBreakpoint("restart");
-    if (platform.runEval)
-      platform.runEval((c) => { return true; }); // break immediately
-    else
-      ; // TODO???
+    platform.runEval((c) => { return true; }); // break immediately
   } else {
     platform.reset();
+    _resume();
   }
   if (wasRecording) _enableRecording();
 }
@@ -1421,19 +1425,6 @@ function breakExpression(exprs : string) {
   setupBreakpoint();
   platform.runEval(fn as DebugEvalCondition);
   lastBreakExpr = exprs;
-}
-
-function getSymbolAtAddress(a : number) {
-  var addr2symbol = platform.debugSymbols && platform.debugSymbols.addr2symbol;
-  if (addr2symbol) {
-    if (addr2symbol[a]) return addr2symbol[a];
-    var i=0;
-    while (--a >= 0) {
-      i++;
-      if (addr2symbol[a]) return addr2symbol[a] + '+' + i;
-    }
-  }
-  return '';
 }
 
 function updateDebugWindows() {
@@ -1657,22 +1648,25 @@ function setupDebugControls() {
   uitoolbar.newGroup();
   uitoolbar.grp.prop('id','debug_bar');
   if (platform.runEval) {
-    uitoolbar.add('ctrl+alt+e', 'Restart Debugging', 'glyphicon-fast-backward', resetAndDebug).prop('id','dbg_restart');
+    uitoolbar.add('ctrl+alt+e', 'Restart Debugging', 'glyphicon-repeat', resetAndDebug).prop('id','dbg_restart');
+  }
+  if (platform.stepBack) {
+    uitoolbar.add('ctrl+alt+b', 'Step Backwards', 'glyphicon-step-backward', runStepBackwards).prop('id','dbg_stepback');
   }
   if (platform.step) {
     uitoolbar.add('ctrl+alt+s', 'Single Step', 'glyphicon-step-forward', singleStep).prop('id','dbg_step');
+  }
+  if (platform.stepOver) {
+    uitoolbar.add('ctrl+alt+t', 'Step Over', 'glyphicon-hand-right', stepOver).prop('id','dbg_stepover');
+  }
+  if (platform.runUntilReturn) {
+    uitoolbar.add('ctrl+alt+o', 'Step Out of Subroutine', 'glyphicon-hand-up', runUntilReturn).prop('id','dbg_stepout');
   }
   if (platform.runToVsync) {
     uitoolbar.add('ctrl+alt+n', 'Next Frame/Interrupt', 'glyphicon-forward', singleFrameStep).prop('id','dbg_tovsync');
   }
   if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog')) {
     uitoolbar.add('ctrl+alt+l', 'Run To Line', 'glyphicon-save', runToCursor).prop('id','dbg_toline');
-  }
-  if (platform.runUntilReturn) {
-    uitoolbar.add('ctrl+alt+o', 'Step Out of Subroutine', 'glyphicon-hand-up', runUntilReturn).prop('id','dbg_stepout');
-  }
-  if (platform.stepBack) {
-    uitoolbar.add('ctrl+alt+b', 'Step Backwards', 'glyphicon-step-backward', runStepBackwards).prop('id','dbg_stepback');
   }
   uitoolbar.newGroup();
   // add menu clicks

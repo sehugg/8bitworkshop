@@ -1,5 +1,5 @@
 
-import { Platform, BreakpointCallback } from "../common/baseplatform";
+import { Platform, BreakpointCallback, DebugCondition, DebugEvalCondition } from "../common/baseplatform";
 import { PLATFORMS, AnimationTimer, EmuHalt } from "../common/emu";
 import { loadScript } from "../ide/ui";
 import * as views from "../ide/views";
@@ -19,11 +19,11 @@ class BASICPlatform implements Platform {
     mainElement: HTMLElement;
     program: BASICProgram;
     runtime: BASICRuntime;
+    clock: number = 0;
     timer: AnimationTimer;
     tty: TeleTypeWithKeyboard;
-    clock: number = 0;
     hotReload: boolean = false;
-    debugstop: boolean = false; // TODO: should be higher-level support
+    animcount: number = 0;
 
     constructor(mainElement: HTMLElement) {
         //super();
@@ -69,7 +69,7 @@ class BASICPlatform implements Platform {
         this.resize();
         this.runtime.print = (s:string) => {
             // TODO: why null sometimes?
-            this.clock = 0; // exit advance loop when printing
+            this.animcount = 0; // exit advance loop when printing
             this.tty.print(s);
         }
         this.runtime.resume = this.resume.bind(this);
@@ -78,8 +78,8 @@ class BASICPlatform implements Platform {
     animate() {
         if (this.tty.isBusy()) return;
         var ips = this.program.opts.commandsPerSec || 1000;
-        this.clock += ips / 60;
-        while (!this.runtime.exited && this.clock-- > 0) {
+        this.animcount += ips / 60;
+        while (!this.runtime.exited && this.animcount-- > 0) {
             this.advance();
         }
     }
@@ -87,6 +87,8 @@ class BASICPlatform implements Platform {
     // should not depend on tty state
     advance(novideo?: boolean) : number {
         if (this.runtime.running) {
+            if (this.checkDebugTrap())
+                return 0;
             var more = this.runtime.step();
             if (!more) {
                 this.pause();
@@ -94,7 +96,7 @@ class BASICPlatform implements Platform {
                     this.exitmsg();
                 }
             }
-            // TODO: break() when EmuHalt at location?
+            this.clock++;
             return 1;
         } else {
             return 0;
@@ -127,10 +129,7 @@ class BASICPlatform implements Platform {
     reset(): void {
         this.tty.clear();
         this.runtime.reset();
-        if (this.debugstop)
-            this.break();
-        else
-            this.resume();
+        this.clock = 0;
     }
 
     pause(): void {
@@ -138,11 +137,12 @@ class BASICPlatform implements Platform {
     }
 
     resume(): void {
-        this.clock = 0;
-        this.debugstop = false;
+        if (this.isBlocked()) return;
+        this.animcount = 0;
         this.timer.start();
     }
 
+    isBlocked() { return this.tty.waitingfor != null; } // is blocked for input?
     isRunning() { return this.timer.isRunning(); }
     getDefaultExtension() { return ".bas"; }
     getToolForFilename() { return "basic"; }
@@ -156,19 +156,18 @@ class BASICPlatform implements Platform {
     }
     isStable() {
         return true;
-    }
-    
+    }    
     getCPUState() {
         return { PC: this.getPC(), SP: this.getSP() }
     }
     saveState() {
         return {
             c: this.getCPUState(),
-            rt: $.extend(true, {}, this.runtime) // TODO: don't take all
+            rt: this.runtime.saveState(),
         }
     }
     loadState(state) {
-        $.extend(true, this.runtime, state);
+        this.runtime.loadState(state);
     }
     getDebugTree() {
         return {
@@ -180,6 +179,7 @@ class BASICPlatform implements Platform {
             WhileLoops: this.runtime.whileLoops,
             ReturnStack: this.runtime.returnStack,
             NextDatum: this.runtime.datums[this.runtime.dataptr],
+            Clock: this.clock,
             Options: this.runtime.opts,
             Internals: this.runtime,
         }
@@ -194,26 +194,52 @@ class BASICPlatform implements Platform {
     // TODO: debugging (get running state, etc)
 
     onBreakpointHit : BreakpointCallback;
+    debugTrap : DebugCondition;
 
     setupDebug(callback : BreakpointCallback) : void {
         this.onBreakpointHit = callback;
     }
     clearDebug() {
         this.onBreakpointHit = null;
+        this.debugTrap = null;
     }
-    step() {
-        if (this.tty.waitingfor == null) {
+    checkDebugTrap() : boolean {
+        if (this.debugTrap && this.debugTrap()) {
             this.pause();
-            this.advance();
             this.break();
+            return true;
         }
+        return false;
     }
     break() {
         // TODO: why doesn't highlight go away on resume?
         if (this.onBreakpointHit) {
             this.onBreakpointHit(this.saveState());
-            this.debugstop = true;
         }
+    }
+    step() {
+        var prevClock = this.clock;
+        this.debugTrap = () => {
+            return this.clock > prevClock;
+        };
+        this.resume();
+    }
+    stepOver() {
+        var stmt = this.runtime.getStatement();
+        if (stmt && (stmt.command == 'GOSUB' || stmt.command == 'ONGOSUB')) {
+            var nextPC = this.getPC() + 1;
+            this.runEval(() => this.getPC() == nextPC);
+        } else {
+            this.step();
+        }
+    }
+    runUntilReturn() {
+        var prevSP = this.getSP();
+        this.runEval(() => this.getSP() > prevSP);
+    }
+    runEval(evalfunc : DebugEvalCondition) {
+        this.debugTrap = () => evalfunc(this.getCPUState());
+        this.resume();
     }
 }
 

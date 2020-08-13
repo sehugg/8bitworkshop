@@ -955,7 +955,7 @@ export const ECMA55_MINIMAL : BASICOptions = {
 export const BASICODE : BASICOptions = {
     dialectName: "BASICODE",
     asciiOnly : true,
-    uppercaseOnly : true,
+    uppercaseOnly : false,
     optionalLabels : false,
     optionalWhitespace : true,
     varNaming : "AA",

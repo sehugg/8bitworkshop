@@ -104,6 +104,7 @@ export interface Platform {
   stepBack?() : void;
   runEval?(evalfunc : DebugEvalCondition) : void;
   runToFrameClock?(clock : number) : void;
+  stepOver?() : void;
 
   getOpcodeMetadata?(opcode:number, offset:number) : OpcodeMetadata; //TODO
   getSP?() : number;
@@ -199,7 +200,7 @@ export abstract class BasePlatform {
   inspect(sym: string) : string {
     return inspectSymbol((this as any) as Platform, sym);
   }
-  getDebugTree() {
+  getDebugTree() : {} {
     return this.saveState();
   }
 }

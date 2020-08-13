@@ -80,9 +80,9 @@ export class BASICRuntime {
     vars : {};
     arrays : {};
     defs : {};
-    forLoops : { [varname:string] : { $next:(name:string) => void, inner:string } };
+    forLoops : { [varname:string] : { $next:(name:string) => void } };
+    forLoopStack: string[];
     whileLoops : number[];
-    topForLoopName : string;
     returnStack : number[];
     column : number;
     rng : RNG;
@@ -145,7 +145,7 @@ export class BASICRuntime {
         this.arrays = {};
         this.defs = {}; // TODO? only in interpreters
         this.forLoops = {};
-        this.topForLoopName = null;
+        this.forLoopStack = [];
         this.whileLoops = [];
         this.rng = new RNG();
         // initialize arrays?
@@ -157,6 +157,13 @@ export class BASICRuntime {
     }
     
     // TODO: saveState(), loadState()
+    saveState() {
+        // TODO: linked list loop?
+        return $.extend(true, {}, this);
+    }
+    loadState(state) {
+        $.extend(true, this, state);
+    }
     
     getBuiltinFunctions() {
         var fnames = this.program && this.opts.validFunctions;
@@ -455,20 +462,20 @@ export class BASICRuntime {
         // skip entire for loop before first iteration? (Minimal BASIC)
         if (this.opts.testInitialFor && loopdone())
             return this.skipToAfterNext(forname);
-        // save for var name on top of linked-list stack
-        var inner = this.topForLoopName;
-        this.topForLoopName = forname;
+        // save for var name on stack, remove existing entry
+        if (this.forLoopStack[forname] != null)
+            this.forLoopStack = this.forLoopStack.filter((n) => n == forname);
+        this.forLoopStack.push(forname);
         // create for loop record
         this.forLoops[forname] = {
-            inner: inner,
             $next: (nextname:string) => {
                 if (nextname && forname != nextname)
                     this.runtimeError(`I executed NEXT "${nextname}", but the last FOR was for "${forname}".`)
                 this.vars[forname] += step;
                 var done = loopdone();
                 if (done) {
-                    // pop FOR off the stack and continue
-                    this.topForLoopName = inner;
+                    // delete entry, pop FOR off the stack and continue
+                    this.forLoopStack.pop();
                     delete this.forLoops[forname];
                 } else {
                     this.curpc = pc; // go back to FOR location
@@ -479,7 +486,8 @@ export class BASICRuntime {
     }
 
     nextForLoop(name) {
-        var fl = this.forLoops[name || (this.opts.optionalNextVar && this.topForLoopName)];
+        // get FOR loop entry, or get top of stack if NEXT var is optional 
+        var fl = this.forLoops[name || (this.opts.optionalNextVar && this.forLoopStack[this.forLoopStack.length-1])];
         if (!fl) this.runtimeError(`I couldn't find a matching FOR for this NEXT.`)
         fl.$next(name);
     }
