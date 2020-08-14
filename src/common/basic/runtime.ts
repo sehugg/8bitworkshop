@@ -34,6 +34,7 @@ function isArray(obj) {
 class RNG {
     next : () => number;
     seed : (aa,bb,cc,dd) => void;
+    seedfloat : (n) => void;
     randomize() {
         this.seed(Math.random()*0x7fffffff, Math.random()*0x7fffffff, Math.random()*0x7fffffff, Math.random()*0x7fffffff);
     }
@@ -42,6 +43,10 @@ class RNG {
             var a, b, c, d : number;
             this.seed = function(aa,bb,cc,dd) {
                 a = aa; b = bb; c = cc; d = dd;
+            }
+            this.seedfloat = function(n) {
+                this.seed(n, n*4294, n*429496, n*4294967296);
+                this.next(); this.next(); this.next();
             }
             this.next = function() {
                 // sfc32
@@ -57,9 +62,7 @@ class RNG {
             }
         };
         f();
-        this.seed(0x12345678, 0xdeadbeef, 0xf0d3984e, 0xfeed3660); //default seed
-        this.next();
-        this.next();
+        this.seedfloat(-1);
     }
 };
 
@@ -75,6 +78,7 @@ export class BASICRuntime {
     datums : basic.Literal[];
     builtins : {};
     opts : basic.BASICOptions;
+    margin : number = 80; // number of columns
 
     curpc : number;
     dataptr : number;
@@ -128,8 +132,8 @@ export class BASICRuntime {
             });
         });
         // try to resume where we left off after loading
-        this.curpc = this.label2pc[prevlabel] || 0;
         this.dataptr = Math.min(this.dataptr, this.datums.length);
+        this.curpc = this.label2pc[prevlabel] || 0;
     }
 
     reset() {
@@ -338,35 +342,40 @@ export class BASICRuntime {
     valueToString(obj) : string {
         var str;
         if (typeof obj === 'number') {
-            var numstr = obj.toString().toUpperCase();
-            if (this.opts.printZoneLength > 4) {
-                var numlen = this.opts.printZoneLength - 4;
-                var prec = numlen;
-                while (numstr.length > numlen) {
-                    numstr = obj.toPrecision(prec--);
-                }
-                if (numstr.startsWith('0.'))
-                    numstr = numstr.substr(1);
-                else if (numstr.startsWith('-0.'))
-                    numstr = '-'+numstr.substr(2);
-            }
+            var numstr = this.float2str(obj, this.opts.printZoneLength - 4);
             if (!this.opts.numericPadding)
-                str = numstr;
+                return numstr;
             else if (numstr.startsWith('-'))
-                str = `${numstr} `;
+                return `${numstr} `;
             else
-                str = ` ${numstr} `;
+                return ` ${numstr} `;
         } else if (obj == '\n') {
             this.column = 0;
             str = obj;
         } else if (obj == '\t') {
             var curgroup = Math.floor(this.column / this.opts.printZoneLength);
             var nextcol = (curgroup + 1) * this.opts.printZoneLength;
-            str = this.TAB(nextcol);
+            if (nextcol >= this.margin) { this.column = 0; str = "\n"; } // return to left margin
+            else str = this.TAB(nextcol); // next column
         } else {
             str = `${obj}`;
         }
         return str;
+    }
+
+    float2str(arg: number, numlen: number) : string {
+        var numstr = arg.toString().toUpperCase();
+        if (numlen > 0) {
+            var prec = numlen;
+            while (numstr.length > numlen) {
+                numstr = arg.toPrecision(prec--);
+            }
+            if (numstr.startsWith('0.'))
+                numstr = numstr.substr(1);
+            else if (numstr.startsWith('-0.'))
+                numstr = '-'+numstr.substr(2);
+        }
+        return numstr;
     }
 
     printExpr(obj) {
@@ -411,7 +420,7 @@ export class BASICRuntime {
                 } else if (expr.args) {
                     // get array slice (HP BASIC)
                     if (this.opts.arraysContainChars && expr.name.endsWith('$'))
-                        s += `this.MID$(this.vars.${expr.name}, ${jsargs})`;
+                        s += `this.getStringSlice(this.vars.${expr.name}, ${jsargs})`;
                     else
                         s += `this.arrayGet(${qname}, ${jsargs})`;
                 } else { // just a variable
@@ -606,9 +615,13 @@ export class BASICRuntime {
         return (v as any) as basic.Value;
     }
 
-    // for HP BASIC string slicing
+    // for HP BASIC string slicing (TODO?)
     modifyStringSlice(orig: string, add: string, start: number, end: number) : string {
-        return orig.substr(0, start-1) + add + orig.substr(end);
+        orig = orig || "";
+        return (orig + ' '.repeat(start)).substr(0, start-1) + add + orig.substr(end);
+    }
+    getStringSlice(s: string, start: number, end: number) {
+        return s.substr(start-1, end+1-start);
     }
 
     checkOnGoto(value: number, labels: string[]) {
@@ -1040,6 +1053,7 @@ export class BASICRuntime {
     }
     RND(arg : number) : number {
         // TODO: X<0 restart w/ seed, X=0 repeats
+        if (arg < 0) this.rng.seedfloat(arg);
         return this.rng.next();
     }
     ROUND(arg : number) : number {
@@ -1106,5 +1120,16 @@ export class BASICRuntime {
     VAL(arg : string) : number {
         var n = parseFloat(this.checkString(arg));
         return isNaN(n) ? 0 : n; // TODO? altair works this way
+    }
+    LPAD$(arg : string, len : number) : string {
+        while (arg.length < len) arg = " " + arg;
+        return arg;
+    }
+    RPAD$(arg : string, len : number) : string {
+        while (arg.length < len) arg = arg + " ";
+        return arg;
+    }
+    NFORMAT$(arg : number, numlen : number) : string {
+        return this.LPAD$(this.float2str(arg, numlen), numlen);
     }
 }

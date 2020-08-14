@@ -13,6 +13,7 @@ const BASIC_PRESETS = [
     { id: '23match.bas', name: '23 Matches' },
     { id: 'wumpus.bas', name: 'Hunt The Wumpus' },
     { id: 'hamurabi.bas', name: 'Hammurabi' },
+    { id: 'startrader.bas', name: 'Star Trader' },
 ];
 
 class BASICPlatform implements Platform {
@@ -22,7 +23,7 @@ class BASICPlatform implements Platform {
     clock: number = 0;
     timer: AnimationTimer;
     tty: TeleTypeWithKeyboard;
-    hotReload: boolean = false;
+    hotReload: boolean = true;
     animcount: number = 0;
 
     constructor(mainElement: HTMLElement) {
@@ -123,8 +124,9 @@ class BASICPlatform implements Platform {
         this.runtime.load(data);
         this.tty.uppercaseOnly = true; // this.program.opts.uppercaseOnly; //TODO?
         views.textMapFunctions.input = this.program.opts.uppercaseOnly ? (s) => s.toUpperCase() : null;
-        // only reset if we exited, otherwise we try to resume
-        if (!this.hotReload || didExit) this.reset();
+        // only reset if we exited, or couldn't restart at label (PC reset to 0)
+        if (!this.hotReload || didExit || this.runtime.curpc == 0)
+            this.reset();
     }
 
     getROMExtension() {

@@ -1125,7 +1125,8 @@ export const HP_TIMESHARED_BASIC : BASICOptions = {
     ],
     validFunctions : [
         'ABS','ATN','BRK','COS','CTL','EXP','INT','LEN','LIN','LOG','NUM',
-        'POS','RND','SGN','SIN','SPA','SQR','TAB','TAN','TIM','TYP','UPS$' // TODO: POS,
+        'POS','RND','SGN','SIN','SPA','SQR','TAB','TAN','TIM','TYP','UPS$', // TODO: POS,
+        'NFORMAT$', // non-standard, substitute for PRINT USING
     ],
     validOperators : [
         '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^',
