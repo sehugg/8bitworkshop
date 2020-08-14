@@ -58,13 +58,12 @@ export class CompileError extends Error {
 }
 
 // Lexer regular expression -- each (capture group) handles a different token type
-
-const re_toks = /([0-9.]+[E][+-]?\d+)|(\d*[.]\d*[E0-9]*)|[0]*(\d+)|&([OH][0-9A-F]+)|(['].*|REM.*)|(\w+[$]?)|(".*?")|([<>]?[=<>#])|(\*\*)|([-+*/^,;:()\[\]?\\])|(\S+)/gi;
+//                FLOAT                             INT       HEXOCTAL         REMARK   IDENT      STRING  RELOP        EXP    OPERATORS             OTHER  WS
+const re_toks = /([0-9.]+[E][+-]?\d+|\d+[.][E0-9]*|[.][E0-9]+)|[0]*(\d+)|&([OH][0-9A-F]+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>#])|(\*\*)|([-+*/^,;:()\[\]?\\])|(\S+)|(\s+)/gi;
 
 export enum TokenType {
     EOL = 0,
-    Float1,
-    Float2,
+    Float,
     Int,
     HexOctalInt,
     Remark,
@@ -74,6 +73,7 @@ export enum TokenType {
     DoubleStar,
     Operator,
     CatchAll,
+    Whitespace,
     _LAST,
 }
 
@@ -180,7 +180,7 @@ export interface INPUT_Statement {
 
 export interface DATA_Statement {
     command: "DATA";
-    datums: Expr[];
+    datums: Literal[];
 }
 
 export interface READ_Statement {
@@ -376,8 +376,7 @@ export class BASICParser {
                 this.curlabel = tok.str;
                 break;
             case TokenType.HexOctalInt:
-            case TokenType.Float1:
-            case TokenType.Float2:
+            case TokenType.Float:
                 this.compileError(`Line numbers must be positive integers.`);
                 break;
             default:
@@ -388,7 +387,7 @@ export class BASICParser {
     }
     parseFile(file: string, path: string) : BASICProgram {
         this.path = path;
-        var txtlines = file.split("\n");
+        var txtlines = file.split(/\n|\r\n/);
         var pgmlines = txtlines.map((line) => this.parseLine(line));
         var program = { opts: this.opts, lines: pgmlines };
         this.checkAll(program);
@@ -410,9 +409,10 @@ export class BASICParser {
         // split identifier regex (if token-crunching enabled)
         let splitre = this.opts.optionalWhitespace && new RegExp('('+this.opts.validKeywords.map(s => `${s}`).join('|')+')');
         // iterate over each token via re_toks regex
+        var lastTokType = TokenType.CatchAll;
         var m : RegExpMatchArray;
         while (m = re_toks.exec(line)) {
-            for (var i = 1; i < TokenType._LAST; i++) {
+            for (var i = 1; i <= lastTokType; i++) {
                 let s : string = m[i];
                 if (s != null) {
                     let loc = { path: this.path, line: this.lineno, start: m.index, end: m.index+s.length, label: this.curlabel };
@@ -420,8 +420,16 @@ export class BASICParser {
                     if (this.opts.asciiOnly && !/^[\x00-\x7F]*$/.test(s))
                         this.dialectError(`non-ASCII characters`);
                     // uppercase all identifiers, and maybe more
-                    if (i == TokenType.Ident || i == TokenType.HexOctalInt || this.opts.uppercaseOnly)
+                    if (i == TokenType.Ident || i == TokenType.HexOctalInt || this.opts.uppercaseOnly) {
                         s = s.toUpperCase();
+                        // DATA statement captures whitespace too
+                        if (s == 'DATA') lastTokType = TokenType.Whitespace;
+                        // REM means ignore rest of statement
+                        if (lastTokType == TokenType.CatchAll && s.startsWith('REM')) {
+                            s = 'REM';
+                            lastTokType = TokenType.EOL;
+                        }
+                    }
                     // convert brackets
                     if (s == '[' || s == ']') {
                         if (!this.opts.squareBrackets) this.dialectError(`square brackets`);
@@ -487,6 +495,8 @@ export class BASICParser {
             case TokenType.Operator:
                 if (cmd == this.validKeyword('?')) cmd = 'PRINT';
             case TokenType.Ident:
+                // ignore remarks
+                if (cmd == 'REM') return null;
                 // look for "GO TO" and "GO SUB"
                 if (cmd == 'GO' && this.peekToken().str == 'TO') {
                     this.consumeToken();
@@ -582,19 +592,60 @@ export class BASICParser {
                 else this.compileError(`There should be a line number here.`);
         }
     }
-    parsePrimary(): Expr {
-        let tok = this.consumeToken();
+    parseDatumList(): Literal[] {
+        return this.parseList(this.parseDatum, ',');
+    }
+    parseDatum(): Literal {
+        var tok = this.consumeToken();
+        // get rid of leading whitespace
+        while (tok.type == TokenType.Whitespace)
+            tok = this.consumeToken();
+        if (isEOS(tok)) this.compileError(`There should be a datum here.`);
+        // parse constants
+        if (tok.type <= TokenType.HexOctalInt) {
+            return this.parseValue(tok);
+        }
+        if (tok.str == '-' && this.peekToken().type <= TokenType.HexOctalInt) {
+            tok = this.consumeToken();
+            return { value: -this.parseValue(tok).value };
+        }
+        if (tok.str == '+' && this.peekToken().type <= TokenType.HexOctalInt) {
+            tok = this.consumeToken();
+            return this.parseValue(tok);
+        }
+        // concat all stuff including whitespace
+        // TODO: should trim whitespace only if not quoted string
+        var s = '';
+        while (!isEOS(tok) && tok.str != ',') {
+            s += this.parseValue(tok).value;
+            tok = this.consumeToken();
+        }
+        this.pushbackToken(tok);
+        return { value: s }; // trim leading and trailing whitespace
+    }
+    parseValue(tok: Token): Literal {
         switch (tok.type) {
             case TokenType.HexOctalInt:
                 if (!this.opts.hexOctalConsts) this.dialectError(`hex/octal constants`);
                 let base = tok.str.startsWith('H') ? 16 : 8;
                 return { value: parseInt(tok.str.substr(1), base) };
             case TokenType.Int:
-            case TokenType.Float1:
-            case TokenType.Float2:
+            case TokenType.Float:
                 return { value: this.parseNumber(tok.str) };
             case TokenType.String:
                 return { value: stripQuotes(tok.str) };
+            default:
+                return { value: tok.str }; // only used in DATA statement
+        }
+    }
+    parsePrimary(): Expr {
+        let tok = this.consumeToken();
+        switch (tok.type) {
+            case TokenType.HexOctalInt:
+            case TokenType.Int:
+            case TokenType.Float:
+            case TokenType.String:
+                return this.parseValue(tok);
             case TokenType.Ident:
                 if (tok.str == 'NOT') {
                     let expr = this.parsePrimary();
@@ -810,7 +861,7 @@ export class BASICParser {
     }
     // TODO: DATA statement doesn't read unquoted strings
     stmt__DATA() : DATA_Statement {
-        return { command:'DATA', datums:this.parseExprList() };
+        return { command:'DATA', datums:this.parseDatumList() };
     }
     stmt__READ() : READ_Statement {
         return { command:'READ', args:this.parseLexprList() };

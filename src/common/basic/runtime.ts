@@ -71,6 +71,7 @@ export class BASICRuntime {
     pc2line : Map<number,number>;
     label2lineidx : {[label : string] : number};
     label2pc : {[label : string] : number};
+    label2dataptr : {[label : string] : number};
     datums : basic.Literal[];
     builtins : {};
     opts : basic.BASICOptions;
@@ -97,6 +98,7 @@ export class BASICRuntime {
         this.opts = program.opts;
         this.label2lineidx = {};
         this.label2pc = {};
+        this.label2dataptr = {};
         this.allstmts = [];
         this.line2pc = [];
         this.pc2line = new Map();
@@ -119,11 +121,10 @@ export class BASICRuntime {
         });
         // parse DATA literals
         this.allstmts.filter((stmt) => stmt.command == 'DATA').forEach((datastmt) => {
-            (datastmt as basic.DATA_Statement).datums.forEach(d => {
+            (datastmt as basic.DATA_Statement).datums.forEach(datum => {
                 this.curpc = datastmt.$loc.offset; // for error reporting
-                var functext = this.expr2js(d, {isconst:true});
-                var value = new Function(`return ${functext};`).bind(this)();
-                this.datums.push({value:value});
+                this.label2dataptr[datastmt.$loc.label] = this.datums.length;
+                this.datums.push(datum);
             });
         });
         // try to resume where we left off after loading
@@ -512,8 +513,9 @@ export class BASICRuntime {
     }
 
     // converts a variable to string/number based on var name
-    assign(name: string, right: number|string) : number|string {
-        if (this.opts.typeConvert)
+    assign(name: string, right: number|string, isRead?:boolean) : number|string {
+        // convert data? READ always converts if read into string
+        if (this.opts.typeConvert || (isRead && name.endsWith("$")))
             return this.convert(name, right);
         // TODO: use options
         if (name.endsWith("$")) {
@@ -763,6 +765,10 @@ export class BASICRuntime {
             return `this.onGosubLabel(${expr}, ${labels})`;
     }
 
+    do__ONGOSUB(stmt : basic.ONGO_Statement) {
+        return this.do__ONGOTO(stmt);
+    }
+
     do__DATA() {
         // data is preprocessed
     }
@@ -770,14 +776,14 @@ export class BASICRuntime {
     do__READ(stmt : basic.READ_Statement) {
         var s = '';
         stmt.args.forEach((arg) => {
-            s += `${this.assign2js(arg)} = this.assign(${JSON.stringify(arg.name)}, this.nextDatum());`;
+            s += `${this.assign2js(arg)} = this.assign(${JSON.stringify(arg.name)}, this.nextDatum(), true);`;
         });
         return s;
     }
 
     do__RESTORE(stmt : basic.RESTORE_Statement) {
         if (stmt.label != null)
-            return `this.dataptr = this.label2pc[${this.expr2js(stmt.label, {isconst:true})}] || 0`;
+            return `this.dataptr = this.label2dataptr[${this.expr2js(stmt.label, {isconst:true})}] || 0`;
         else
             return `this.dataptr = 0`;
     }
