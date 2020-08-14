@@ -3,7 +3,7 @@ import { MSX1 } from "../machine/msx";
 import { Platform, BaseZ80MachinePlatform } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 
-// https://www.konamiman.com/msx/msx-e.html#msx2th
+// https://github.com/Konamiman/MSX2-Technical-Handbook
 // https://www.msx.org/wiki/MSX_Cartridge_slot
 // http://map.grauw.nl/resources/msx_io_ports.php
 // https://openmsx.org/manual/setup.html
