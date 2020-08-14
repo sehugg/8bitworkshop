@@ -47,6 +47,10 @@ class BASICPlatform implements Platform {
         //var printhead = $('<div id="printhead" class="transcript-print-head"/>').appendTo(parent);
         //var printshield = $('<div id="printhead" class="transcript-print-shield"/>').appendTo(parent);
         this.tty = new TeleTypeWithKeyboard(windowport[0], true, inputline[0] as HTMLInputElement);
+        this.tty.keepinput = true; // input stays @ bottom
+        this.tty.splitInput = true; // split into arguments
+        this.tty.keephandler = false; // set handler each input
+        this.tty.hideinput();
         this.tty.scrolldiv = parent;
         this.tty.bell = new Audio('res/ttybell.mp3');
         this.runtime.input = async (prompt:string, nargs:number) => {
@@ -116,7 +120,7 @@ class BASICPlatform implements Platform {
         var didExit = this.runtime.exited;
         this.program = data;
         this.runtime.load(data);
-        this.tty.uppercaseOnly = this.program.opts.uppercaseOnly;
+        this.tty.uppercaseOnly = true; // this.program.opts.uppercaseOnly; //TODO?
         views.textMapFunctions.input = this.program.opts.uppercaseOnly ? (s) => s.toUpperCase() : null;
         // only reset if we exited, otherwise we try to resume
         if (!this.hotReload || didExit) this.reset();

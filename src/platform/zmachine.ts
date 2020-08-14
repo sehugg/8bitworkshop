@@ -2,6 +2,7 @@
 import { Platform, BasePlatform, BaseDebugPlatform, Preset, EmuState, inspectSymbol } from "../common/baseplatform";
 import { PLATFORMS, EmuHalt } from "../common/emu";
 import { loadScript } from "../ide/ui";
+import { TeleType, TeleTypeWithKeyboard } from "../common/teletype";
 
 const ZMACHINE_PRESETS = [
     { id: 'hello.inf', name: 'Hello World' },
@@ -49,142 +50,43 @@ function debug(...args: any[]) {
     //console.log(arguments);
 }
 
-class GlkWindow {
-    page: HTMLElement;
-    stream: number;
-    fixed: boolean;
-
-    curline: HTMLElement;
-    curstyle: number;
-    reverse: boolean;
-    col: number;
-    row: number;
-    lines: HTMLElement[];
-
-    constructor(page: HTMLElement, stream: number) {
-        this.page = page;
-        this.stream = stream;
-        this.fixed = stream > 1;
-        this.clear();
-    }
-    clear() {
-        this.curline = null;
-        this.curstyle = 0;
-        this.reverse = false;
-        this.col = 0;
-        this.row = -1;
-        this.lines = [];
-        $(this.page).empty();
-    }
-    ensureline() {
-        if (this.curline == null) {
-            this.curline = this.lines[++this.row];
-            if (this.curline == null) {
-                this.curline = $('<div class="transcript-line"/>')[0];
-                this.page.appendChild(this.curline);
-                this.lines[this.row] = this.curline;
-            }
-        }
-    }
-    flushline() {
-        this.curline = null;
-    }
-    // TODO: support fixed-width window (use CSS grid?)
-    addtext(line: string, style: number) {
-        this.ensureline();
-        if (line.length) {
-            // in fixed mode, only do characters
-            if (this.fixed && line.length > 1) {
-                for (var i = 0; i < line.length; i++)
-                    this.addtext(line[i], style);
-                return;
-            }
-            var span = $("<span/>").text(line);
-            for (var i = 0; i < 8; i++) {
-                if (style & (1 << i))
-                    span.addClass("transcript-style-" + (1 << i));
-            }
-            if (this.reverse) span.addClass("transcript-reverse");
-            //span.data('vmip', this.vm.pc);
-            // in fixed mode, we can overwrite individual characters
-            if (this.fixed && line.length == 1 && this.col < this.curline.childNodes.length) {
-                this.curline.replaceChild(span[0], this.curline.childNodes[this.col]);
-            } else {
-                span.appendTo(this.curline);
-            }
-            this.col += line.length;
-        }
-    }
-    newline() {
-        this.flushline();
-        this.col = 0;
-    }
-    // TODO: bug in interpreter where it tracks cursor position but maybe doesn't do newlines?
-    put_jstring(val: string) {
-        // split by newlines
-        var lines = val.split("\n");
-        for (var i = 0; i < lines.length; i++) {
-            if (i > 0) this.newline();
-            this.addtext(lines[i], this.curstyle);
-        }
-    }
-    move_cursor(col: number, row: number) {
-        if (!this.fixed) return; // fixed windows only
-        // ensure enough row elements
-        while (this.lines.length <= row) {
-            this.flushline();
-            this.ensureline();
-        }
-        // select row element
-        this.curline = this.lines[row];
-        this.row = row;
-        // get children in row (individual text cells)
-        var children = $(this.curline).children();
-        // add whitespace to line?
-        if (children.length > col) {
-            this.col = col;
-        } else {
-            while (this.col < col)
-                this.addtext(' ', this.curstyle);
-        }
-    }
-    setrows(size: number) {
-        if (!this.fixed) return; // fixed windows only
-        // truncate rows?
-        var allrows = $(this.page).children();
-        if (allrows.length > size) {
-            this.flushline();
-            allrows.slice(size).remove();
-            this.lines = this.lines.slice(0, size);
-            //this.move_cursor(0,0); 
-        }
-    }
-}
-
 class GlkImpl {
     vm: IFZVM;
     input: HTMLInputElement;
-    curwnd: GlkWindow;
-    windows: { [win: number]: GlkWindow };
+    mainwnd : TeleTypeWithKeyboard;
+    curwnd: TeleType;
+    windows: { [win: number]: TeleType };
     windowcount: number;
-    waitingfor: "line" | "char" | null;
-    focused = false;
     exited = false;
 
     constructor(page: HTMLElement, input: HTMLInputElement, upper: HTMLElement) {
+        this.mainwnd = new TeleTypeWithKeyboard(page, false, input);
+        this.mainwnd.keepinput = false; // input moves w/ cursor
+        this.mainwnd.splitInput = false;
+        this.mainwnd.uppercaseOnly = true;
+        this.mainwnd.hideinput();
         this.windows = {
-            1: new GlkWindow(page, 1),
-            2: new GlkWindow(upper, 2),
-            3: new GlkWindow(null, 3), // fake window for resizing
+            1: this.mainwnd,
+            2: new TeleType(upper, true),
+            3: new TeleType(null, true), // fake window for resizing
         };
         this.input = input;
+        this.mainwnd.resolveInput = (s:string) => {
+            if (this.vm.read_data.buffer) {
+                for (var i = 0; i < s.length; i++) {
+                    this.vm.read_data.buffer[i] = s.charCodeAt(i) & 0xff;
+                }
+                this.vm.handle_line_input(s.length);
+            } else {
+                this.vm.handle_char_input(s.charCodeAt(0));
+            }
+            this.vm.run();
+        }
         this.reset();
     }
     reset() {
         this.windowcount = 0;
         this.exited = false;
-        this.waitingfor = null;
-        this.hideinput();
         this.windows[1].clear();
         this.windows[2].clear();
         this.curwnd = this.windows[1];
@@ -200,56 +102,7 @@ class GlkImpl {
         // TODO
     }
     focusinput() {
-        this.ensureline();
-        // don't steal focus while editing
-        $(this.input).appendTo(this.curwnd.curline).show()[0].scrollIntoView();
-        if (this.focused) {
-            $(this.input).focus();
-        }
-        // change size
-        if (this.waitingfor == 'char')
-            $(this.input).addClass('transcript-input-char')
-        else
-            $(this.input).removeClass('transcript-input-char')
-    }
-    hideinput() {
-        $(this.input).appendTo($(this.windows[1].page).parent()).hide();
-    }
-    clearinput() {
-        this.input.value = '';
-        this.waitingfor = null;
-    }
-    sendkey(e: KeyboardEvent) {
-        if (this.waitingfor == 'line') {
-            if (e.key == "Enter") {
-                this.sendinput(this.input.value.toString());
-            }
-        } else if (this.waitingfor == 'char') {
-            this.sendchar(e.keyCode);
-            e.preventDefault();
-        }
-    }
-    sendinput(s: string) {
-        this.curwnd.addtext(s, Const.style_Input);
-        this.flushline();
-        if (this.vm.read_data.buffer) {
-            for (var i = 0; i < s.length; i++) {
-                this.vm.read_data.buffer[i] = s.charCodeAt(i) & 0xff;
-            }
-            this.vm.handle_line_input(s.length);
-        }
-        this.clearinput();
-        this.hideinput(); // keep from losing input handlers
-        this.vm.run();
-    }
-    sendchar(code: number) {
-        this.vm.handle_char_input(code);
-        this.hideinput(); // keep from losing input handlers
-        this.vm.run();
-    }
-    ensureline() {
-        $(this.input).hide();
-        this.curwnd.ensureline();
+        this.mainwnd.focusinput();
     }
     flushline() {
         this.curwnd.flushline();
@@ -265,12 +118,12 @@ class GlkImpl {
         this.windows[win].clear();
     }
     glk_request_line_event_uni(win, buf, initlen) {
-        this.waitingfor = 'line';
+        this.mainwnd.waitingfor = 'line';
         this.focusinput();
         this.startinputtimer();
     }
     glk_request_char_event_uni(win, buf, initlen) {
-        this.waitingfor = 'char';
+        this.mainwnd.waitingfor = 'char';
         this.focusinput();
         this.startinputtimer();
     }
@@ -287,15 +140,15 @@ class GlkImpl {
 
     glk_put_jstring(val: string, allbytes) {
         //debug('glk_put_jstring', arguments);
-        this.curwnd.put_jstring(val);
+        this.curwnd.print(val);
     }
     glk_put_jstring_stream(stream: number, val: string) {
         //debug('glk_put_jstring_stream', arguments);
-        this.windows[stream].put_jstring(val);
+        this.windows[stream].print(val);
     }
     glk_put_char_stream_uni(stream: number, ch: number) {
         //debug('glk_put_char_stream_uni', arguments);
-        this.windows[stream].put_jstring(String.fromCharCode(ch));
+        this.windows[stream].print(String.fromCharCode(ch));
     }
     glk_set_style(val) {
         this.curwnd.curstyle = val;
@@ -396,7 +249,7 @@ class GlkImpl {
     }
     glk_window_get_stream(win) {
         debug('glk_window_get_stream', arguments);
-        return this.windows[win].stream;
+        return win;
     }
     glk_set_window(win) {
         debug('glk_set_window', arguments);
@@ -772,6 +625,7 @@ class ZmachinePlatform implements Platform {
 
     async start() {
         await loadScript('./lib/zvm/ifvms.min.js');
+        await loadScript('./gen/common/teletype.js');
 
         // create divs
         var parent = this.mainElement;
@@ -780,20 +634,6 @@ class ZmachinePlatform implements Platform {
         var windowport = $('<div id="windowport" class="transcript"/>').appendTo(gameport);
         var inputline = $('<input class="transcript-input" type="text"/>').appendTo(gameport).hide();
         this.glk = new GlkImpl(windowport[0], inputline[0] as HTMLInputElement, upperwnd[0]);
-        inputline.on('keypress', (e) => {
-            this.glk.sendkey(e);
-        });
-        inputline.on('focus', (e) => {
-            this.glk.focused = true;
-            console.log('inputline gained focus');
-        });
-        $("#workspace").on('click', (e) => {
-            this.glk.focused = false;
-            console.log('inputline lost focus');
-        });
-        windowport.on('click', (e) => {
-            inputline.focus();
-        });
         this.resize = () => {
             // set font size proportional to window width
             var charwidth = $(gameport).width() * 1.6 / STATUS_NUM_COLS;

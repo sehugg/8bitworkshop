@@ -161,14 +161,16 @@ export class TeleType {
 
 export class TeleTypeWithKeyboard extends TeleType {
     input : HTMLInputElement;
-    keepinput : boolean = true;
     msecPerLine : number = 100; // IBM 1403
+    keepinput : boolean = true;
+    keephandler : boolean = true;
+    uppercaseOnly : boolean = false;
+    splitInput : boolean = false;
+    resolveInput : (inp) => void;
 
     focused : boolean = true;
     scrolling : number = 0;
     waitingfor : string;
-    resolveInput;
-    uppercaseOnly : boolean;
 
     constructor(page: HTMLElement, fixed: boolean, input: HTMLInputElement) {
         super(page, fixed);
@@ -187,7 +189,6 @@ export class TeleTypeWithKeyboard extends TeleType {
         this.page.onclick = (e) => {
             this.input.focus();
         };
-        this.hideinput();
     }
     clear() {
         super.clear();
@@ -202,7 +203,9 @@ export class TeleTypeWithKeyboard extends TeleType {
             $(this.input).css('visibility', 'visible');
         else
             $(this.input).appendTo(this.curline).show()[0];
+        // scroll to bottom
         this.scrollToBottom();
+        // refocus?
         if (this.focused) {
             $(this.input).focus();
         }
@@ -235,15 +238,14 @@ export class TeleTypeWithKeyboard extends TeleType {
     }
     sendinput(s: string) {
         if (this.resolveInput) {
-            //if (this.uppercaseOnly) // TODO: always uppercase?
-                s = s.toUpperCase();
+            if (this.uppercaseOnly) s = s.toUpperCase(); // TODO: always uppercase?
             this.addtext(s, 4);
             this.flushline();
-            this.resolveInput(s.split(','));
-            this.resolveInput = null;
+            this.clearinput();
+            this.hideinput(); // keep from losing input handlers
+            this.resolveInput(this.splitInput ? s.split(',') : s);
+            if (!this.keephandler) this.resolveInput = null;
         }
-        this.clearinput();
-        this.hideinput(); // keep from losing input handlers
     }
     sendchar(code: number) {
         this.sendinput(String.fromCharCode(code));

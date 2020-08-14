@@ -808,6 +808,7 @@ export class BASICParser {
         this.expectToken(',');
         return this.stmt__INPUT();
     }
+    // TODO: DATA statement doesn't read unquoted strings
     stmt__DATA() : DATA_Statement {
         return { command:'DATA', datums:this.parseExprList() };
     }
