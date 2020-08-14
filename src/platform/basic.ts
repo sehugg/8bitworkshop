@@ -83,8 +83,9 @@ class BASICPlatform implements Platform {
         if (this.tty.isBusy()) return;
         var ips = this.program.opts.commandsPerSec || 1000;
         this.animcount += ips / 60;
-        while (!this.runtime.exited && this.animcount-- > 0) {
-            this.advance();
+        while (this.runtime.running && this.animcount-- > 0) {
+            if (!this.advance())
+                break;
         }
     }
 
@@ -193,6 +194,9 @@ class BASICPlatform implements Platform {
         if (o != null) {
             return o.toString();
         }
+    }
+    showHelp(tool:string, ident:string) {
+        window.open("https://8bitworkshop.com/blog/platforms/basic/", "_help");
     }
 
     // TODO: debugging (get running state, etc)

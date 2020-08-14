@@ -121,9 +121,9 @@ export class BASICRuntime {
         });
         // parse DATA literals
         this.allstmts.filter((stmt) => stmt.command == 'DATA').forEach((datastmt) => {
+            this.label2dataptr[datastmt.$loc.label] = this.datums.length;
             (datastmt as basic.DATA_Statement).datums.forEach(datum => {
                 this.curpc = datastmt.$loc.offset; // for error reporting
-                this.label2dataptr[datastmt.$loc.label] = this.datums.length;
                 this.datums.push(datum);
             });
         });
@@ -409,6 +409,7 @@ export class BASICRuntime {
                     this.checkFuncArgs(expr, this.builtins[expr.name]);
                     s += `this.builtins.${expr.name}(${jsargs})`;
                 } else if (expr.args) {
+                    // get array slice (HP BASIC)
                     if (this.opts.arraysContainChars && expr.name.endsWith('$'))
                         s += `this.MID$(this.vars.${expr.name}, ${jsargs})`;
                     else
@@ -436,9 +437,14 @@ export class BASICRuntime {
         if (expr.name.startsWith("FN") || this.builtins[expr.name]) this.runtimeError(`I can't call a function here.`);
         // is it a subscript?
         if (expr.args) {
-            s += this.expr2js(expr, {novalid:true}); // check array bounds
-            s += `;this.getArray(${qname}, ${expr.args.length})`;
-            s += expr.args.map((arg) => '[this.ROUND('+this.expr2js(arg, opts)+')]').join('');
+            // set array slice (HP BASIC)
+            if (this.opts.arraysContainChars && expr.name.endsWith('$')) {
+                this.runtimeError(`I can't set array slices via this command yet.`);
+            } else {
+                s += this.expr2js(expr, {novalid:true}); // check array bounds
+                s += `;this.getArray(${qname}, ${expr.args.length})`;
+                s += expr.args.map((arg) => '[this.ROUND('+this.expr2js(arg, opts)+')]').join('');
+            }
         } else { // just a variable
             s = `this.vars.${expr.name}`;
         }
@@ -664,7 +670,6 @@ export class BASICRuntime {
     }
 
     do__LET(stmt : basic.LET_Statement) {
-        var lexpr = this.assign2js(stmt.lexpr);
         var right = this.expr2js(stmt.right);
         // HP BASIC string-slice syntax?
         if (this.opts.arraysContainChars && stmt.lexpr.args && stmt.lexpr.name.endsWith('$')) {
@@ -674,6 +679,7 @@ export class BASICRuntime {
             console.log(s);
             return s;
         } else {
+            var lexpr = this.assign2js(stmt.lexpr);
             return `${lexpr} = this.assign(${JSON.stringify(stmt.lexpr.name)}, ${right});`;
         }
     }

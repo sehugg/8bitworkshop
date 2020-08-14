@@ -321,9 +321,12 @@ export class BASICParser {
         this.listings = {};
         this.refs = {};
     }
-    compileError(msg: string, loc?: SourceLocation) {
+    addError(msg: string, loc?: SourceLocation) {
         if (!loc) loc = this.peekToken().$loc;
         this.errors.push({path:loc.path, line:loc.line, label:this.curlabel, start:loc.start, end:loc.end, msg:msg});
+    }
+    compileError(msg: string, loc?: SourceLocation) {
+        this.addError(msg, loc);
         throw new CompileError(msg, loc);
     }
     dialectError(what: string, loc?: SourceLocation) {
@@ -576,8 +579,14 @@ export class BASICParser {
     }
     parseLabel() : Expr {
         // parse full expr?
-        if (this.opts.computedGoto)
-            return this.parseExpr();
+        if (this.opts.computedGoto) {
+            // parse expression, but still add to list of label targets if constant
+            var expr = this.parseExpr();
+            if ((expr as Literal).value != null) {
+                this.targets[(expr as Literal).value] = this.lasttoken.$loc;
+            }
+            return expr;
+        }
         // parse a single number or ident label
         var tok = this.consumeToken();
         switch (tok.type) {
@@ -991,7 +1000,7 @@ export class BASICParser {
     checkLabels() {
         for (let targ in this.targets) {
             if (this.labels[targ] == null) {
-                this.compileError(`There isn't a line number ${targ}.`, this.targets[targ]);
+                this.addError(`There isn't a line number ${targ}.`, this.targets[targ]);
             }
         }
     }
@@ -1081,7 +1090,7 @@ export const TINY_BASIC : BASICOptions = {
     multipleNextVars : false,
     bitwiseLogic : false,
     checkOnGotoIndex : false,
-    computedGoto : true,
+    computedGoto : true, // TODO: is it really though?
     restoreWithLabel : false,
     squareBrackets : false,
     arraysContainChars : false,
@@ -1090,7 +1099,7 @@ export const TINY_BASIC : BASICOptions = {
 
 
 export const HP_TIMESHARED_BASIC : BASICOptions = {
-    dialectName: "HPTSB",
+    dialectName: "HP2000",
     asciiOnly : true,
     uppercaseOnly : false,
     optionalLabels : false,
@@ -1400,8 +1409,9 @@ export const DIALECTS = {
     "ALTAIR41":     ALTAIR_BASIC41,
     "ECMA55":       ECMA55_MINIMAL,
     "MINIMAL":      ECMA55_MINIMAL,
-    "HPTSB":        HP_TIMESHARED_BASIC,
+    "HP":           HP_TIMESHARED_BASIC,
     "HPB":          HP_TIMESHARED_BASIC,
+    "HPTSB":        HP_TIMESHARED_BASIC,
     "HP2000":       HP_TIMESHARED_BASIC,
     "HPBASIC":      HP_TIMESHARED_BASIC,
     "HPACCESS":     HP_TIMESHARED_BASIC,

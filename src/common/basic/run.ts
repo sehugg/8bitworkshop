@@ -1,6 +1,33 @@
 
-import { BASICParser, DIALECTS } from "./compiler";
+import { BASICParser, DIALECTS, BASICOptions } from "./compiler";
 import { BASICRuntime } from "./runtime";
+import { lpad, rpad } from "../util";
+
+function dumpDialectInfo() {
+    var dialects = new Set<BASICOptions>();
+    var array = {};
+    var SELECTED_DIALECTS = ['TINY','ECMA55','HP','ALTAIR41','BASIC80','MODERN'];
+    SELECTED_DIALECTS.forEach((dkey) => {
+        dialects.add(DIALECTS[dkey]);
+    });
+    dialects.forEach((dialect) => {
+        Object.entries(dialect).forEach(([key, value]) => {
+            if (value === null) value = "all";
+            else if (value === true) value = "Y";
+            else if (value === false) value = "-";
+            else if (Array.isArray(value))
+                value = value.length;
+            if (!array[key]) array[key] = [];
+            array[key].push(value);
+        });
+    });
+    Object.entries(array).forEach(([key, arr]) => {
+        var s = rpad(key, 30) + "|";
+        s += (arr as []).map((val) => rpad(val, 9)).join('|');
+        console.log(s);
+    });
+    process.exit(0);
+}
 
 var readline = require('readline');
 var rl = readline.createInterface({
@@ -28,6 +55,8 @@ for (var i=0; i<args.length; i++) {
         runtime.trace = true;
     else if (args[i] == '-d')
         parser.opts = DIALECTS[args[++i]] || Error('no such dialect');
+    else if (args[i] == '--dialects')
+        dumpDialectInfo();
     else
         filename = args[i];
 }
