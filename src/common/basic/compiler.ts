@@ -11,6 +11,7 @@ export interface BASICOptions {
     squareBrackets : boolean;           // "[" and "]" interchangable with "(" and ")"?
     tickComments : boolean;             // support 'comments?
     hexOctalConsts : boolean;           // support &H and &O integer constants?
+    chainAssignments : boolean;         // support A = B = value (HP2000)
     validKeywords : string[];           // valid keywords (or null for accept all)
     validFunctions : string[];          // valid functions (or null for accept all)
     validOperators : string[];          // valid operators (or null for accept all)
@@ -59,7 +60,7 @@ export class CompileError extends Error {
 
 // Lexer regular expression -- each (capture group) handles a different token type
 //                FLOAT                             INT       HEXOCTAL         REMARK   IDENT      STRING  RELOP        EXP    OPERATORS             OTHER  WS
-const re_toks = /([0-9.]+[E][+-]?\d+|\d+[.][E0-9]*|[.][E0-9]+)|[0]*(\d+)|&([OH][0-9A-F]+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>#])|(\*\*)|([-+*/^,;:()\[\]?\\])|(\S+)|(\s+)/gi;
+const re_toks = /([0-9.]+[E][+-]?\d+|\d+[.][E0-9]*|[.][E0-9]+)|[0]*(\d+)|&([OH][0-9A-F]+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>#])|(\*\*)|([-+*/^,;:()\[\]\?\\])|(\S+)|(\s+)/gi;
 
 export enum TokenType {
     EOL = 0,
@@ -112,7 +113,7 @@ export interface PRINT_Statement {
 
 export interface LET_Statement {
     command: "LET";
-    lexpr: IndOp;
+    lexprs: IndOp[];
     right: Expr;
 }
 
@@ -210,6 +211,12 @@ export interface GET_Statement { // applesoft only?
     lexpr: IndOp;
 }
 
+export interface CHANGE_Statement {
+    command: "CHANGE";
+    src: Expr;
+    dest: IndOp;
+}
+
 export interface NoArgStatement {
     command: string;
 }
@@ -247,10 +254,10 @@ const OPERATORS = {
     '||':   {f:'lor',p:17}, // not used
     '&&':   {f:'land',p:18}, // not used
     '=':    {f:'eq',p:50},
-    //'==':   {f:'eq',p:50},
+    '==':   {f:'eq',p:50},
     '<>':   {f:'ne',p:50},
     '><':   {f:'ne',p:50},
-    //'!=':   {f:'ne',p:50},
+    '!=':   {f:'ne',p:50},
     '#':    {f:'ne',p:50},
     '<':    {f:'lt',p:50},
     '>':    {f:'gt',p:50},
@@ -299,6 +306,7 @@ function stripQuotes(s: string) {
 
 export class BASICParser {
     opts : BASICOptions = DIALECTS['DEFAULT'];
+    optionCount : number;
     errors: WorkerError[];
     listings: CodeListingMap;
     labels: { [label: string]: BASICLine };
@@ -320,6 +328,7 @@ export class BASICParser {
         this.curlabel = null;
         this.listings = {};
         this.refs = {};
+        this.optionCount = 0;
     }
     addError(msg: string, loc?: SourceLocation) {
         if (!loc) loc = this.peekToken().$loc;
@@ -352,8 +361,8 @@ export class BASICParser {
         }
         return tok;
     }
-    peekToken(): Token {
-        var tok = this.tokens[0];
+    peekToken(lookahead?: number): Token {
+        var tok = this.tokens[lookahead || 0];
         return tok ? tok : this.eol;
     }
     pushbackToken(tok: Token) {
@@ -385,6 +394,7 @@ export class BASICParser {
             default:
                 if (this.opts.optionalLabels) this.compileError(`A line must start with a line number, command, or label.`);
                 else this.compileError(`A line must start with a line number.`);
+            case TokenType.Remark:
                 break;
         }
     }
@@ -486,6 +496,10 @@ export class BASICParser {
     }
     validKeyword(keyword: string) : string {
         return (this.opts.validKeywords && this.opts.validKeywords.indexOf(keyword) < 0) ? null : keyword;
+    }
+    supportsKeyword(keyword: string) {
+        if (this['stmt__' + keyword] != null) return true;
+        return false;
     }
     parseStatement(): Statement | null {
         var cmdtok = this.consumeToken();
@@ -735,10 +749,15 @@ export class BASICParser {
     //// STATEMENTS
 
     stmt__LET(): LET_Statement {
-        var lexpr = this.parseLexpr();
+        var lexprs = [ this.parseLexpr() ];
         this.expectToken("=");
+        // look for A=B=expr (TODO: doesn't work on arrays)
+        while (this.opts.chainAssignments && this.peekToken().type == TokenType.Ident && this.peekToken(1).str == '=') {
+            lexprs.push(this.parseLexpr());
+            this.expectToken("=");
+        }
         var right = this.parseExpr();
-        return { command: "LET", lexpr: lexpr, right: right };
+        return { command: "LET", lexprs: lexprs, right: right };
     }
     stmt__PRINT(): PRINT_Statement {
         var sep, lastsep;
@@ -784,8 +803,9 @@ export class BASICParser {
     stmt__IF(): IF_Statement {
         var cond = this.parseExpr();
         var iftrue: Statement[];
-        // we accept GOTO or THEN if line number provided
-        var thengoto = this.expectTokens(['THEN','GOTO']);
+        // we accept GOTO or THEN if line number provided (DEC accepts GO TO)
+        var thengoto = this.expectTokens(['THEN','GOTO','GO']);
+        if (thengoto.str == 'GO') this.expectToken('TO');
         var lineno = this.peekToken();
         // assume GOTO if number given after THEN
         if (lineno.type == TokenType.Int) {
@@ -893,7 +913,7 @@ export class BASICParser {
     stmt__ON() : ONGO_Statement {
         var expr = this.parseExpr();
         var gotok = this.consumeToken();
-        var cmd = {GOTO:'ONGOTO', GOSUB:'ONGOSUB'}[gotok.str];
+        var cmd = {GOTO:'ONGOTO', THEN:'ONGOTO', GOSUB:'ONGOSUB'}[gotok.str]; // THEN only for DEC basic?
         if (!cmd) this.compileError(`There should be a GOTO or GOSUB here.`);
         var labels = this.parseLabelList();
         return { command:cmd, expr:expr, labels:labels };
@@ -920,6 +940,12 @@ export class BASICParser {
     stmt__RANDOMIZE() : NoArgStatement {
         return { command:'RANDOMIZE' };
     }
+    stmt__CHANGE() : CHANGE_Statement {
+        var src = this.parseExpr();
+        this.expectToken('TO');
+        var dest = this.parseLexpr();
+        return { command:'CHANGE', src:src, dest:dest };
+    }
     // TODO: CHANGE A TO A$ (4th edition, A(0) is len and A(1..) are chars)
     stmt__OPTION() : OPTION_Statement {
         var tokname = this.consumeToken();
@@ -938,17 +964,20 @@ export class BASICParser {
     }
     parseOptions(stmt: OPTION_Statement) {
         var arg = stmt.optargs[0];
+        this.optionCount++;
         switch (stmt.optname) {
-            case 'BASE': 
-                let base = parseInt(arg);
-                if (base == 0 || base == 1) this.opts.defaultArrayBase = base;
-                else this.compileError("OPTION BASE can only be 0 or 1.");
-                break;
             case 'DIALECT':
+                if (this.optionCount > 1)
+                    this.compileError(`OPTION DIALECT must be the first OPTION statement in the file.`);
                 let dname = arg || "";
                 let dialect = DIALECTS[dname.toUpperCase()];
                 if (dialect) this.opts = dialect;
                 else this.compileError(`OPTION DIALECT ${dname} is not supported by this compiler.`);
+                break;
+            case 'BASE':
+                let base = parseInt(arg);
+                if (base == 0 || base == 1) this.opts.defaultArrayBase = base;
+                else this.compileError("OPTION BASE can only be 0 or 1.");
                 break;
             case 'CPUSPEED':
                 if (!(this.opts.commandsPerSec = Math.min(1e7, arg=='MAX' ? Infinity : parseFloat(arg))))
@@ -1051,6 +1080,7 @@ export const ECMA55_MINIMAL : BASICOptions = {
     squareBrackets : false,
     arraysContainChars : false,
     endStmtRequired : true,
+    chainAssignments : false,
 }
 
 // TODO: only integers supported
@@ -1095,13 +1125,14 @@ export const TINY_BASIC : BASICOptions = {
     squareBrackets : false,
     arraysContainChars : false,
     endStmtRequired : false,
+    chainAssignments : false,
 }
 
 
 export const HP_TIMESHARED_BASIC : BASICOptions = {
     dialectName: "HP2000",
     asciiOnly : true,
-    uppercaseOnly : false,
+    uppercaseOnly : false, // the terminal is usually uppercase
     optionalLabels : false,
     optionalWhitespace : false,
     varNaming : "A1",
@@ -1145,7 +1176,119 @@ export const HP_TIMESHARED_BASIC : BASICOptions = {
     squareBrackets : true,
     arraysContainChars : true,
     endStmtRequired : true,
+    chainAssignments : true,
     // TODO: max line number, array index 9999
+}
+
+export const DEC_BASIC_11 : BASICOptions = {
+    dialectName: "DEC11",
+    asciiOnly : true,
+    uppercaseOnly : true, // translates all lower to upper
+    optionalLabels : false,
+    optionalWhitespace : false,
+    varNaming : "A1",
+    staticArrays : true,
+    sharedArrayNamespace : false,
+    defaultArrayBase : 0,
+    defaultArraySize : 11,
+    defaultValues : true,
+    stringConcat : true, // can also use &
+    typeConvert : false,
+    maxDimensions : 2,
+    maxDefArgs : 255, // ?
+    maxStringLength : 255,
+    tickComments : false,
+    hexOctalConsts : false,
+    validKeywords : [
+        'OPTION',
+        'DATA','DEF','DIM','END','FOR','STEP','GOSUB','GOTO','GO','TO',
+        'IF','THEN','INPUT','LET','NEXT','ON','PRINT','RANDOMIZE',
+        'READ','REM','RESET','RESTORE','RETURN','STOP',
+    ],
+    validFunctions : [
+        'ABS','ATN','COS','EXP','INT','LOG','LOG10','PI','RND','SGN','SIN','SQR','TAB',
+        'ASC','BIN','CHR$','CLK$','DAT$','LEN','OCT','POS','SEG$','STR$','TRM$','VAL',
+        'NFORMAT$', // non-standard, substitute for PRINT USING
+    ],
+    validOperators : [
+        '=', '<>', '><', '<', '>', '<=', '>=', '+', '-', '*', '/', '^',
+    ],
+    printZoneLength : 14,
+    numericPadding : true,
+    checkOverflow : true, // non-fatal; subst 0 and continue
+    testInitialFor : true,
+    optionalNextVar : false,
+    multipleNextVars : false,
+    bitwiseLogic : false,
+    checkOnGotoIndex : true, // might continue
+    computedGoto : false,
+    restoreWithLabel : false,
+    squareBrackets : false,
+    arraysContainChars : false,
+    endStmtRequired : false,
+    chainAssignments : false,
+    // TODO: max line number 32767
+    // TODO: \ separator, % int vars and constants, 'single' quoted
+    // TODO: can't compare strings and numbers
+}
+
+export const DEC_BASIC_PLUS : BASICOptions = {
+    dialectName: "DECPLUS",
+    asciiOnly : true,
+    uppercaseOnly : false,
+    optionalLabels : false,
+    optionalWhitespace : false,
+    varNaming : "A1",
+    staticArrays : true,
+    sharedArrayNamespace : false,
+    defaultArrayBase : 0,
+    defaultArraySize : 11,
+    defaultValues : true,
+    stringConcat : true, // can also use "&"
+    typeConvert : false,
+    maxDimensions : 2,
+    maxDefArgs : 255, // ?
+    maxStringLength : 255,
+    tickComments : true, // actually use "!"
+    hexOctalConsts : false,
+    validKeywords : [
+        'OPTION',
+        'REM','LET','DIM','RANDOM','RANDOMIZE','IF','THEN','ELSE',
+        'FOR','TO','STEP','WHILE','UNTIL','NEXT','DEF','ON','GOTO','GOSUB',
+        'RETURN','CHANGE','READ','DATA','RESTORE','PRINT','USING',
+        'INPUT','LINE','NAME','AS','ERROR','RESUME','CHAIN','STOP','END',
+        'MAT','UNLESS','SLEEP','WAIT',
+    ],
+    validFunctions : [
+        'ABS','ATN','COS','EXP','INT','LOG','LOG10','PI','RND','SGN','SIN','SQR','TAB','TAN',
+        'POS','TAB','ASCII','CHR$','CVT%$','CVTF$','CVT$%','CVT$F',
+        'LEFT$','RIGHT$','MID$','LEN','INSTR','SPACE$','NUM$','VAL','XLATE',
+        'DATE$','TIME$','TIME','ERR','ERL','SWAP%','RAD$',
+        'NFORMAT$', // non-standard, substitute for PRINT USING
+    ],
+    validOperators : [
+        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^',
+        '**', '==',
+        'NOT', 'AND', 'OR', 'XOR', 'IMP', 'EQV',
+    ],
+    printZoneLength : 14,
+    numericPadding : true,
+    checkOverflow : true, // non-fatal; subst 0 and continue
+    testInitialFor : true,
+    optionalNextVar : false,
+    multipleNextVars : false,
+    bitwiseLogic : false,
+    checkOnGotoIndex : true, // might continue
+    computedGoto : false,
+    restoreWithLabel : false,
+    squareBrackets : false,
+    arraysContainChars : false,
+    endStmtRequired : false,
+    chainAssignments : false, // TODO: can chain with "," not "="
+    // TODO: max line number 32767
+    // TODO: \ separator, % int vars and constants, 'single' quoted
+    // TODO: can't compare strings and numbers
+    // TODO: WHILE/UNTIL/FOR extra statements, etc
 }
 
 export const BASICODE : BASICOptions = {
@@ -1193,6 +1336,7 @@ export const BASICODE : BASICOptions = {
     squareBrackets : false,
     arraysContainChars : false,
     endStmtRequired : false,
+    chainAssignments : false,
 }
 
 export const ALTAIR_BASIC41 : BASICOptions = {
@@ -1248,6 +1392,7 @@ export const ALTAIR_BASIC41 : BASICOptions = {
     squareBrackets : false,
     arraysContainChars : false,
     endStmtRequired : false,
+    chainAssignments : false,
 }
 
 export const APPLESOFT_BASIC : BASICOptions = {
@@ -1304,6 +1449,7 @@ export const APPLESOFT_BASIC : BASICOptions = {
     squareBrackets : false,
     arraysContainChars : false,
     endStmtRequired : false,
+    chainAssignments : false,
 }
 
 export const BASIC80 : BASICOptions = {
@@ -1361,6 +1507,7 @@ export const BASIC80 : BASICOptions = {
     squareBrackets : false,
     arraysContainChars : false,
     endStmtRequired : false,
+    chainAssignments : false,
 }
 
 export const MODERN_BASIC : BASICOptions = {
@@ -1398,16 +1545,21 @@ export const MODERN_BASIC : BASICOptions = {
     squareBrackets : true,
     arraysContainChars : false,
     endStmtRequired : false,
+    chainAssignments : false,
 }
 
 // TODO: integer vars
 // TODO: DEFINT/DEFSTR
+// TODO: superfluous ":" ignored on MS basics only?
+// TODO: excess INPUT ignored, error msg
+// TODO: max line len?
 
 export const DIALECTS = {
     "DEFAULT":      ALTAIR_BASIC41,
     "ALTAIR":       ALTAIR_BASIC41,
     "ALTAIR4":      ALTAIR_BASIC41,
     "ALTAIR41":     ALTAIR_BASIC41,
+    "TINY":         TINY_BASIC,
     "ECMA55":       ECMA55_MINIMAL,
     "MINIMAL":      ECMA55_MINIMAL,
     "HP":           HP_TIMESHARED_BASIC,
@@ -1416,9 +1568,12 @@ export const DIALECTS = {
     "HP2000":       HP_TIMESHARED_BASIC,
     "HPBASIC":      HP_TIMESHARED_BASIC,
     "HPACCESS":     HP_TIMESHARED_BASIC,
+    "DEC11":        DEC_BASIC_11,
+    "DEC":          DEC_BASIC_PLUS,
+    "DECPLUS":      DEC_BASIC_PLUS,
+    "BASICPLUS":    DEC_BASIC_PLUS,
     "BASICODE":     BASICODE,
     "APPLESOFT":    APPLESOFT_BASIC,
     "BASIC80":      BASIC80,
     "MODERN":       MODERN_BASIC,
-    "TINY":         TINY_BASIC,
 };

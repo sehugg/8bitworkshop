@@ -1,3 +1,6 @@
+1 REM***STAR TRADER FROM
+2 REM***http://www.dunnington.info/public/basicgames/
+3 REM***2 chain files merged and ported to 8bitworkshop
 5 OPTION DIALECT HP
 6 OPTION BASE 0:REM I GUESS HP HAS ZERO BASE???
 10010 DIM S[12,15],T[12,12],T$[72],B[3,12]

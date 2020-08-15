@@ -6,10 +6,11 @@ import { lpad, rpad } from "../util";
 function dumpDialectInfo() {
     var dialects = new Set<BASICOptions>();
     var array = {};
-    var SELECTED_DIALECTS = ['TINY','ECMA55','HP','ALTAIR41','BASIC80','MODERN'];
+    var SELECTED_DIALECTS = ['TINY','ECMA55','HP','DEC','ALTAIR','BASIC80','MODERN'];
     SELECTED_DIALECTS.forEach((dkey) => {
         dialects.add(DIALECTS[dkey]);
     });
+    var ALL_KEYWORDS = new Set<string>();
     dialects.forEach((dialect) => {
         Object.entries(dialect).forEach(([key, value]) => {
             if (value === null) value = "all";
@@ -19,6 +20,16 @@ function dumpDialectInfo() {
                 value = value.length;
             if (!array[key]) array[key] = [];
             array[key].push(value);
+            if (dialect.validKeywords) dialect.validKeywords.map(ALL_KEYWORDS.add.bind(ALL_KEYWORDS));
+        });
+    });
+    dialects.forEach((dialect) => {
+        ALL_KEYWORDS.forEach((keyword) => {
+            if (parser.supportsKeyword(keyword)) {
+                var has = dialect.validKeywords == null || dialect.validKeywords.indexOf(keyword) >= 0;
+                if (!array[keyword]) array[keyword] = [];
+                array[keyword].push(has ? "Y" : "-");
+            }
         });
     });
     Object.entries(array).forEach(([key, arr]) => {

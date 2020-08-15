@@ -136,19 +136,15 @@ CodeMirror.defineMode("basic", function(conf, parserConf) {
             return null;
         }
         if (stream.match(doOpening)) {
-            /*
             indent(stream,state);
             state.doInCurrentLine = true;
-            */
             return 'keyword';
         }
         if (stream.match(opening)) {
-            /*
             if (! state.doInCurrentLine)
               indent(stream,state);
             else
               state.doInCurrentLine = false;
-              */
             return 'keyword';
         }
         if (stream.match(middle)) {
@@ -222,7 +218,6 @@ CodeMirror.defineMode("basic", function(conf, parserConf) {
             }
         }
 
-
         var delimiter_index = '[({'.indexOf(current);
         if (delimiter_index !== -1) {
             indent(stream, state );
@@ -271,12 +266,15 @@ CodeMirror.defineMode("basic", function(conf, parserConf) {
             return style;
         },
 
+        /* TODO: indentation
+        
         indent: function(state, textAfter) {
             var trueText = textAfter.replace(/^\s+|\s+$/g, '') ;
             if (trueText.match(closing) || trueText.match(doubleClosing) || trueText.match(middle)) return conf.indentUnit*(state.currentIndent-1);
             if(state.currentIndent < 0) return 0;
             return state.currentIndent * conf.indentUnit;
         },
+        */
 
         lineComment: "'"
     };

@@ -10,10 +10,14 @@ import { TeleTypeWithKeyboard } from "../common/teletype";
 const BASIC_PRESETS = [
     { id: 'hello.bas', name: 'Hello World' },
     { id: 'sieve.bas', name: 'Sieve Benchmark' },
+    { id: 'mortgage.bas', name: 'Interest Calculator' },
     { id: '23match.bas', name: '23 Matches' },
-    { id: 'wumpus.bas', name: 'Hunt The Wumpus' },
+    { id: 'craps.bas', name: 'Craps' },
+    { id: 'lander.bas', name: 'Lander' },
     { id: 'hamurabi.bas', name: 'Hammurabi' },
+    { id: 'wumpus.bas', name: 'Hunt The Wumpus' },
     { id: 'startrader.bas', name: 'Star Trader' },
+    { id: 'haunted.bas', name: 'Haunted House' },
 ];
 
 class BASICPlatform implements Platform {
@@ -123,7 +127,10 @@ class BASICPlatform implements Platform {
         this.program = data;
         this.runtime.load(data);
         this.tty.uppercaseOnly = true; // this.program.opts.uppercaseOnly; //TODO?
+        // map editor to uppercase-only if need be
         views.textMapFunctions.input = this.program.opts.uppercaseOnly ? (s) => s.toUpperCase() : null;
+        // HP 2000 has cute lil small caps (TODO: messes up grid alignment tho)
+        //this.tty.page.style.fontVariant = (this.program.opts.dialectName == 'HP2000') ? 'small-caps' : 'normal';
         // only reset if we exited, or couldn't restart at label (PC reset to 0)
         if (!this.hotReload || didExit || this.runtime.curpc == 0)
             this.reset();

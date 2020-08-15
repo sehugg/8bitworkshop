@@ -72,7 +72,7 @@ export class BASICRuntime {
     allstmts : basic.Statement[];
     line2pc : number[];
     pc2line : Map<number,number>;
-    label2lineidx : {[label : string] : number};
+    pc2label : Map<number,string>;
     label2pc : {[label : string] : number};
     label2dataptr : {[label : string] : number};
     datums : basic.Literal[];
@@ -96,25 +96,39 @@ export class BASICRuntime {
     exited : boolean = true;
     trace : boolean = false;
 
-    load(program: basic.BASICProgram) {
-        let prevlabel = this.label2pc && this.getLabelForPC(this.curpc);
+    load(program: basic.BASICProgram) : boolean {
+        // get previous label and offset for hot reload
+        let prevlabel = null;
+        let prevpcofs = 0;
+        if (this.pc2label != null) {
+            var pc = this.curpc;
+            while (pc > 0 && (prevlabel = this.pc2label.get(pc)) == null) {
+                pc--;
+            }
+            prevpcofs = this.curpc - pc;
+            console.log('oldpc=', this.curpc, 'restart @ label', prevlabel, '+', prevpcofs);
+        }
+        // initialize program
         this.program = program;
         this.opts = program.opts;
-        this.label2lineidx = {};
         this.label2pc = {};
         this.label2dataptr = {};
         this.allstmts = [];
         this.line2pc = [];
         this.pc2line = new Map();
+        this.pc2label = new Map();
         this.datums = [];
         this.builtins = this.getBuiltinFunctions();
         // TODO: detect undeclared vars
         program.lines.forEach((line, idx) => {
             // make lookup tables
-            if (line.label != null) this.label2lineidx[line.label] = idx;
-            if (line.label != null) this.label2pc[line.label] = this.allstmts.length;
-            this.line2pc.push(this.allstmts.length);
-            this.pc2line.set(this.allstmts.length, idx);
+            var pc = this.allstmts.length;
+            if (line.label != null) {
+                this.label2pc[line.label] = pc;
+                this.pc2label.set(pc, line.label);
+            }
+            this.line2pc.push(pc);
+            this.pc2line.set(pc, idx);
             // combine all statements into single list
             line.stmts.forEach((stmt) => this.allstmts.push(stmt));
         });
@@ -132,8 +146,13 @@ export class BASICRuntime {
             });
         });
         // try to resume where we left off after loading
-        this.dataptr = Math.min(this.dataptr, this.datums.length);
-        this.curpc = this.label2pc[prevlabel] || 0;
+        if (this.label2pc[prevlabel] != null) {
+            this.curpc = this.label2pc[prevlabel] + prevpcofs;
+            return true;
+        } else {
+            this.curpc = 0;
+            return false;
+        }
     }
 
     reset() {
@@ -438,10 +457,9 @@ export class BASICRuntime {
         }
     }
 
-    assign2js(expr: basic.IndOp, opts?: ExprOptions) {
+    assign2js(expr: basic.IndOp, opts?: ExprOptions) : string {
         if (!opts) opts = {};
         var s = '';
-        var qname = JSON.stringify(expr.name);
          // is it a function? not allowed
         if (expr.name.startsWith("FN") || this.builtins[expr.name]) this.runtimeError(`I can't call a function here.`);
         // is it a subscript?
@@ -450,14 +468,20 @@ export class BASICRuntime {
             if (this.opts.arraysContainChars && expr.name.endsWith('$')) {
                 this.runtimeError(`I can't set array slices via this command yet.`);
             } else {
-                s += this.expr2js(expr, {novalid:true}); // check array bounds
-                s += `;this.getArray(${qname}, ${expr.args.length})`;
-                s += expr.args.map((arg) => '[this.ROUND('+this.expr2js(arg, opts)+')]').join('');
+                s += this.array2js(expr, opts);
             }
         } else { // just a variable
             s = `this.vars.${expr.name}`;
         }
         return s;
+    }
+
+    array2js(expr: basic.IndOp, opts?: ExprOptions) : string {
+        var qname = JSON.stringify(expr.name);
+        var args = expr.args || [];
+        return this.expr2js(expr, {novalid:true}) // check array bounds
+             + `;this.getArray(${qname}, ${args.length})`
+             + args.map((arg) => '[this.ROUND('+this.expr2js(arg, opts)+')]').join('');
     }
 
     checkFuncArgs(expr: basic.IndOp, fn: Function) {
@@ -472,7 +496,9 @@ export class BASICRuntime {
     }
 
     startForLoop(forname, init, targ, step) {
-        var pc = this.curpc;
+        // save start PC and label in case of hot reload (only works if FOR is first stmt in line)
+        var looppc = this.curpc - 1;
+        var looplabel = this.pc2label.get(looppc);
         if (!step) step = 1;
         this.vars[forname] = init;
         if (this.trace) console.log(`FOR ${forname} = ${init} TO ${targ} STEP ${step}`);
@@ -499,7 +525,8 @@ export class BASICRuntime {
                     this.forLoopStack.pop();
                     delete this.forLoops[forname];
                 } else {
-                    this.curpc = pc; // go back to FOR location
+                    // go back to FOR loop, adjusting for hot reload (fetch pc by label)
+                    this.curpc = ((looplabel != null && this.label2pc[looplabel]) || looppc) + 1;
                 }
                 if (this.trace) console.log(`NEXT ${forname}: ${this.vars[forname]} TO ${targ} STEP ${step} DONE=${done}`);
             }
@@ -661,6 +688,17 @@ export class BASICRuntime {
         return s;
     }
 
+    preInput() {
+        this.running=false;
+        this.curpc--;
+    }
+
+    postInput(valid : boolean) {
+        if (valid) this.curpc++;
+        this.running = true;
+        this.resume();
+    }
+
     do__INPUT(stmt : basic.INPUT_Statement) {
         var prompt = this.expr2js(stmt.prompt);
         var setvals = '';
@@ -672,29 +710,30 @@ export class BASICRuntime {
             ${lexpr} = value;
             `
         });
-        return `this.running=false; this.curpc--;
+        return `this.preInput();
                 this.input(${prompt}, ${stmt.args.length}).then((vals) => {
                     let valid = 1;
                     ${setvals}
-                    if (valid) this.curpc++;
-                    this.running=true;
-                    this.resume();
+                    this.postInput(valid);
+                    this.column = 0; // assume linefeed
                 })`;
     }
 
     do__LET(stmt : basic.LET_Statement) {
         var right = this.expr2js(stmt.right);
-        // HP BASIC string-slice syntax?
-        if (this.opts.arraysContainChars && stmt.lexpr.args && stmt.lexpr.name.endsWith('$')) {
-            var s = `this.vars.${stmt.lexpr.name} = this.modifyStringSlice(this.vars.${stmt.lexpr.name}, ${right}, `
-            s += stmt.lexpr.args.map((arg) => this.expr2js(arg)).join(', ');
-            s += ')';
-            console.log(s);
-            return s;
-        } else {
-            var lexpr = this.assign2js(stmt.lexpr);
-            return `${lexpr} = this.assign(${JSON.stringify(stmt.lexpr.name)}, ${right});`;
+        var s = `let _right = ${right};`;
+        for (var lexpr of stmt.lexprs) {
+            // HP BASIC string-slice syntax?
+            if (this.opts.arraysContainChars && lexpr.args && lexpr.name.endsWith('$')) {
+                s += `this.vars.${lexpr.name} = this.modifyStringSlice(this.vars.${lexpr.name}, _right, `
+                s += lexpr.args.map((arg) => this.expr2js(arg)).join(', ');
+                s += ')';
+            } else {
+                var ljs = this.assign2js(lexpr);
+                s += `${ljs} = this.assign(${JSON.stringify(lexpr.name)}, _right);`;
+            }
         }
+        return s;
     }
 
     do__FOR(stmt : basic.FOR_Statement) {
@@ -826,11 +865,10 @@ export class BASICRuntime {
     do__GET(stmt : basic.GET_Statement) {
         var lexpr = this.assign2js(stmt.lexpr);
         // TODO: single key input
-        return `this.running=false; this.curpc--;
+        return `this.preInput();
                 this.input().then((vals) => {
                     ${lexpr} = this.convert(${JSON.stringify(stmt.lexpr.name)}, vals[0]);
-                    this.running=true;  this.curpc++;
-                    this.resume();
+                    this.postInput(true);
                 })`;
     }
 
@@ -840,6 +878,33 @@ export class BASICRuntime {
 
     do__RANDOMIZE() {
         return `this.rng.randomize()`;
+    }
+
+    do__CHANGE(stmt : basic.CHANGE_Statement) {
+        var arr2str = stmt.dest.name.endsWith('$');
+        if (arr2str) { // array -> string
+            let arrname = (stmt.src as basic.IndOp).name || this.runtimeError("I can only change to a string from an array.");
+            let dest = this.assign2js(stmt.dest);
+            return `
+            let arrname = ${JSON.stringify(arrname)};
+            let len = this.arrayGet(arrname, 0);
+            let s = '';
+            for (let i=0; i<len; i++) {
+                s += String.fromCharCode(this.arrayGet(arrname, i+1));
+            }
+            ${dest} = s;
+            `;
+        } else { // string -> array
+            let src = this.expr2js(stmt.src);
+            let dest = this.array2js(stmt.dest);
+            return `
+            let src = ${src}+"";
+            ${dest}[0] = src.length;
+            for (let i=0; i<src.length; i++) {
+                ${dest}[i+1] = src.charCodeAt(i);
+            }
+            `;
+        }
     }
 
     // TODO: ONERR, ON ERROR GOTO
@@ -1015,9 +1080,9 @@ export class BASICRuntime {
     }
     INSTR(a, b, c) : number {
         if (c != null) {
-            return this.checkString(c).indexOf(this.checkString(b), a) + 1;
+            return this.checkString(b).indexOf(this.checkString(c), this.checkNum(a) - 1) + 1;
         } else {
-            return this.checkString(b).indexOf(this.checkString(a)) + 1;
+            return this.checkString(a).indexOf(this.checkString(b)) + 1;
         }
     }
     INT(arg : number) : number {
@@ -1037,6 +1102,11 @@ export class BASICRuntime {
         if (arg < 0) this.runtimeError(`I can't take the logarithm of a negative number (${arg}).`)
         return this.checkNum(Math.log(arg));
     }
+    LOG10(arg : number) : number {
+        if (arg == 0) this.runtimeError(`I can't take the logarithm of zero (${arg}).`)
+        if (arg < 0) this.runtimeError(`I can't take the logarithm of a negative number (${arg}).`)
+        return this.checkNum(Math.log10(arg));
+    }
     MID$(arg : string, start : number, count : number) : string {
         if (start < 1) this.runtimeError(`I can't compute MID$ if the starting index is less than 1.`)
         if (count == 0) count = arg.length;
@@ -1045,6 +1115,10 @@ export class BASICRuntime {
     OCT$(arg : number) : string {
         return this.ROUND(arg).toString(8);
     }
+    PI() : number {
+        return Math.PI;
+    }
+    // TODO: POS(haystack, needle, start)
     POS(arg : number) : number { // arg ignored
         return this.column + 1;
     }
@@ -1130,6 +1204,7 @@ export class BASICRuntime {
         return arg;
     }
     NFORMAT$(arg : number, numlen : number) : string {
-        return this.LPAD$(this.float2str(arg, numlen), numlen);
+        var s = this.float2str(arg, numlen);
+        return (numlen > 0) ? this.LPAD$(s, numlen) : this.RPAD$(s, -numlen);
     }
 }
