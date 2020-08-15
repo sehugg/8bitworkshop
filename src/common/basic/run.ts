@@ -3,43 +3,6 @@ import { BASICParser, DIALECTS, BASICOptions } from "./compiler";
 import { BASICRuntime } from "./runtime";
 import { lpad, rpad } from "../util";
 
-function dumpDialectInfo() {
-    var dialects = new Set<BASICOptions>();
-    var array = {};
-    var SELECTED_DIALECTS = ['TINY','ECMA55','HP','DEC','ALTAIR','BASIC80','MODERN'];
-    SELECTED_DIALECTS.forEach((dkey) => {
-        dialects.add(DIALECTS[dkey]);
-    });
-    var ALL_KEYWORDS = new Set<string>();
-    dialects.forEach((dialect) => {
-        Object.entries(dialect).forEach(([key, value]) => {
-            if (value === null) value = "all";
-            else if (value === true) value = "Y";
-            else if (value === false) value = "-";
-            else if (Array.isArray(value))
-                value = value.length;
-            if (!array[key]) array[key] = [];
-            array[key].push(value);
-            if (dialect.validKeywords) dialect.validKeywords.map(ALL_KEYWORDS.add.bind(ALL_KEYWORDS));
-        });
-    });
-    dialects.forEach((dialect) => {
-        ALL_KEYWORDS.forEach((keyword) => {
-            if (parser.supportsKeyword(keyword)) {
-                var has = dialect.validKeywords == null || dialect.validKeywords.indexOf(keyword) >= 0;
-                if (!array[keyword]) array[keyword] = [];
-                array[keyword].push(has ? "Y" : "-");
-            }
-        });
-    });
-    Object.entries(array).forEach(([key, arr]) => {
-        var s = rpad(key, 30) + "|";
-        s += (arr as []).map((val) => rpad(val, 9)).join('|');
-        console.log(s);
-    });
-    process.exit(0);
-}
-
 var readline = require('readline');
 var rl = readline.createInterface({
     input: process.stdin,
@@ -77,16 +40,20 @@ var data = fs.readFileSync(filename, 'utf-8');
 try {
     var pgm = parser.parseFile(data, filename);
 } catch (e) {
+    console.log(e);
     if (parser.errors.length == 0)
         console.log(`@@@ ${e}`);
-    else
-        console.log(e);
 }
 parser.errors.forEach((err) => console.log(`@@@ ${err.msg} (line ${err.label})`));
 if (parser.errors.length) process.exit(2);
 
 // run program
-runtime.load(pgm);
+try {
+    runtime.load(pgm);
+} catch (e) {
+    console.log(`### ${e.message} (line ${runtime.getCurrentSourceLocation().label})`);
+    process.exit(1);
+}
 runtime.reset();
 runtime.print = (s:string) => {
     fs.writeSync(1, s+"");
@@ -125,3 +92,63 @@ runtime.resume = function() {
     });
 }
 runtime.resume();
+
+/////
+
+function dumpDialectInfo() {
+    var dialects = new Set<BASICOptions>();
+    var array = {};
+    var SELECTED_DIALECTS = ['TINY','ECMA55','HP','DEC','ALTAIR','BASIC80','MODERN'];
+    SELECTED_DIALECTS.forEach((dkey) => {
+        dialects.add(DIALECTS[dkey]);
+    });
+    var ALL_KEYWORDS = new Set<string>();
+    var ALL_FUNCTIONS = new Set<string>();
+    var ALL_OPERATORS = new Set<string>();
+    dialects.forEach((dialect) => {
+        Object.entries(dialect).forEach(([key, value]) => {
+            if (value === null) value = "all";
+            else if (value === true) value = "Y";
+            else if (value === false) value = "-";
+            else if (Array.isArray(value))
+                value = value.length;
+            if (!array[key]) array[key] = [];
+            array[key].push(value);
+            if (dialect.validKeywords) dialect.validKeywords.map(ALL_KEYWORDS.add.bind(ALL_KEYWORDS));
+            if (dialect.validFunctions) dialect.validFunctions.map(ALL_FUNCTIONS.add.bind(ALL_FUNCTIONS));
+            if (dialect.validOperators) dialect.validOperators.map(ALL_OPERATORS.add.bind(ALL_OPERATORS));
+        });
+    });
+    dialects.forEach((dialect) => {
+        ALL_KEYWORDS.forEach((keyword) => {
+            if (parser.supportsKeyword(keyword)) {
+                var has = dialect.validKeywords == null || dialect.validKeywords.indexOf(keyword) >= 0;
+                keyword = '`'+keyword+'`'
+                if (!array[keyword]) array[keyword] = [];
+                array[keyword].push(has ? "Y" : "-");
+            }
+        });
+        ALL_OPERATORS.forEach((keyword) => {
+            var has = dialect.validOperators == null || dialect.validOperators.indexOf(keyword) >= 0;
+            if (keyword == '#') keyword = '*#*';
+            keyword = "*a* " + keyword + " *b*";
+            if (!array[keyword]) array[keyword] = [];
+            array[keyword].push(has ? "Y" : "-");
+        });
+        ALL_FUNCTIONS.forEach((keyword) => {
+            if (runtime.supportsFunction(keyword)) {
+                var has = dialect.validFunctions == null || dialect.validFunctions.indexOf(keyword) >= 0;
+                keyword = '`'+keyword+'()`'
+                if (!array[keyword]) array[keyword] = [];
+                array[keyword].push(has ? "Y" : "-");
+            }
+        });
+    });
+    Object.entries(array).forEach(([key, arr]) => {
+        var s = rpad(key, 30) + "|";
+        s += (arr as []).map((val) => rpad(val, 9)).join('|');
+        console.log(s);
+    });
+    process.exit(0);
+}
+

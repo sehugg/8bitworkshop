@@ -66,6 +66,8 @@ class RNG {
     }
 };
 
+const DEFAULT_MAX_ARRAY_ELEMENTS = 1024*1024;
+
 export class BASICRuntime {
 
     program : basic.BASICProgram;
@@ -111,6 +113,7 @@ export class BASICRuntime {
         // initialize program
         this.program = program;
         this.opts = program.opts;
+        if (!this.opts.maxArrayElements) this.opts.maxArrayElements = DEFAULT_MAX_ARRAY_ELEMENTS;
         this.label2pc = {};
         this.label2dataptr = {};
         this.allstmts = [];
@@ -194,8 +197,11 @@ export class BASICRuntime {
         // if no valid function list, look for ABC...() functions in prototype
         if (!fnames) fnames = Object.keys(BASICRuntime.prototype).filter((name) => /^[A-Z]{3,}[$]?$/.test(name));
         var dict = {};
-        for (var fn of fnames) if (this[fn]) dict[fn] = this[fn].bind(this);
+        for (var fn of fnames) if (this.supportsFunction(fn)) dict[fn] = this[fn].bind(this);
         return dict;
+    }
+    supportsFunction(fnname: string) {
+        return typeof this[fnname] === 'function';
     }
 
     runtimeError(msg : string) {
@@ -257,7 +263,7 @@ export class BASICRuntime {
                 if (this.trace) console.log(functext);
                 stmt.$run = this.compileJS(functext);
             } catch (e) {
-                console.log(functext);
+                if (functext) console.log(functext);
                 throw e;
             }
         }
@@ -279,14 +285,16 @@ export class BASICRuntime {
     }
 
     skipToElse() {
-        do {
+        while (this.curpc < this.allstmts.length) {
             // in Altair BASIC, ELSE is bound to the right-most IF
             // TODO: this is complicated, we should just have nested expressions
             var cmd = this.allstmts[this.curpc].command;
             if (cmd == 'ELSE') { this.curpc++; break; }
             else if (cmd == 'IF') return this.skipToEOL();
             this.curpc++;
-        } while (this.curpc < this.allstmts.length && !this.pc2line.get(this.curpc));
+            if (this.pc2line.get(this.curpc))
+                break;
+        }
     }
 
     skipToEOF() {
@@ -314,7 +322,7 @@ export class BASICRuntime {
         var nesting = 0;
         while (pc < this.allstmts.length) {
             var stmt = this.allstmts[pc];
-            console.log(nesting, pc, stmt);
+            //console.log(nesting, pc, stmt);
             if (stmt.command == 'WHILE') {
                 nesting++;
             } else if (stmt.command == 'WEND') {
@@ -461,7 +469,8 @@ export class BASICRuntime {
         if (!opts) opts = {};
         var s = '';
          // is it a function? not allowed
-        if (expr.name.startsWith("FN") || this.builtins[expr.name]) this.runtimeError(`I can't call a function here.`);
+        if (expr.name.startsWith("FN") || this.builtins[expr.name])
+            this.runtimeError(`I can't call a function here.`);
         // is it a subscript?
         if (expr.args) {
             // set array slice (HP BASIC)
@@ -590,9 +599,13 @@ export class BASICRuntime {
     // dimension array
     dimArray(name: string, ...dims:number[]) {
         // TODO: maybe do this check at compile-time?
+        dims = dims.map(Math.round);
         if (this.arrays[name] != null) {
             if (this.opts.staticArrays) return;
             else this.runtimeError(`I already dimensioned this array (${name}) earlier.`)
+        }
+        if (this.getTotalArrayLength(dims) > this.opts.maxArrayElements) {
+            this.runtimeError(`I can't create an array with this many elements.`);
         }
         var isstring = name.endsWith('$');
         // if numeric value, we use Float64Array which inits to 0
@@ -607,6 +620,16 @@ export class BASICRuntime {
         } else {
             this.runtimeError(`I only support arrays of one or two dimensions.`)
         }
+    }
+
+    getTotalArrayLength(dims:number[]) {
+        var n = 1;
+        for (var i=0; i<dims.length; i++) {
+            if (dims[i] < this.opts.defaultArrayBase)
+                this.runtimeError(`I can't create an array with a dimension less than ${this.opts.defaultArrayBase}.`);
+            n *= dims[i];
+        }
+        return n;
     }
 
     getArray(name: string, order: number) : [] {
@@ -648,6 +671,7 @@ export class BASICRuntime {
         return (orig + ' '.repeat(start)).substr(0, start-1) + add + orig.substr(end);
     }
     getStringSlice(s: string, start: number, end: number) {
+        s = this.checkString(s);
         return s.substr(start-1, end+1-start);
     }
 
@@ -947,11 +971,13 @@ export class BASICRuntime {
         return fn;
     }
     checkNum(n:number) : number {
+        this.checkValue(n, 'this');
         if (n === Infinity) this.runtimeError(`I computed a number too big to store.`);
         if (isNaN(n)) this.runtimeError(`I computed an invalid number.`);
         return n;
     }
     checkString(s:string) : string {
+        this.checkValue(s, 'this');
         if (typeof s !== 'string')
             this.runtimeError(`I expected a string here.`);
         else if (s.length > this.opts.maxStringLength)
@@ -1044,11 +1070,14 @@ export class BASICRuntime {
     }
 
     // FUNCTIONS (uppercase)
+    // TODO: swizzle names for type-checking
 
     ABS(arg : number) : number {
         return this.checkNum(Math.abs(arg));
     }
     ASC(arg : string) : number {
+        arg = this.checkString(arg);
+        if (arg == '') this.runtimeError(`I tried to call ASC() on an empty string.`);
         return arg.charCodeAt(0);
     }
     ATN(arg : number) : number {
@@ -1089,6 +1118,8 @@ export class BASICRuntime {
         return this.checkNum(Math.floor(arg));
     }
     LEFT$(arg : string, count : number) : string {
+        arg = this.checkString(arg);
+        count = this.ROUND(count);
         return arg.substr(0, count);
     }
     LEN(arg : string) : number {
@@ -1108,6 +1139,9 @@ export class BASICRuntime {
         return this.checkNum(Math.log10(arg));
     }
     MID$(arg : string, start : number, count : number) : string {
+        arg = this.checkString(arg);
+        start = this.ROUND(start);
+        count = this.ROUND(count);
         if (start < 1) this.runtimeError(`I can't compute MID$ if the starting index is less than 1.`)
         if (count == 0) count = arg.length;
         return arg.substr(start-1, count);
@@ -1123,6 +1157,8 @@ export class BASICRuntime {
         return this.column + 1;
     }
     RIGHT$(arg : string, count : number) : string {
+        arg = this.checkString(arg);
+        count = this.ROUND(count);
         return arg.substr(arg.length - count, count);
     }
     RND(arg : number) : number {
@@ -1134,14 +1170,14 @@ export class BASICRuntime {
         return this.checkNum(Math.round(arg));
     }
     SGN(arg : number) : number {
+        this.checkNum(arg);
         return (arg < 0) ? -1 : (arg > 0) ? 1 : 0;
     }
     SIN(arg : number) : number {
         return this.checkNum(Math.sin(arg));
     }
     SPACE$(arg : number) : string {
-        arg = this.ROUND(arg);
-        return (arg > 0) ? ' '.repeat(arg) : '';
+        return this.STRING$(arg, ' ');
     }
     SPC(arg : number) : string {
         return this.SPACE$(arg);
@@ -1156,13 +1192,17 @@ export class BASICRuntime {
     STRING$(len : number, chr : number|string) : string {
         len = this.ROUND(len);
         if (len <= 0) return '';
-        if (typeof chr === 'string') return chr.substr(0,1).repeat(len);
-        else return String.fromCharCode(chr).repeat(len);
+        if (len > this.opts.maxStringLength)
+            this.runtimeError(`I can't create a string longer than ${this.opts.maxStringLength} characters.`);
+        if (typeof chr === 'string')
+            return chr.substr(0,1).repeat(len);
+        else
+            return String.fromCharCode(chr).repeat(len);
     }
     TAB(arg : number) : string {
         if (arg < 1) { arg = 1; } // TODO: SYSTEM MESSAGE IDENTIFYING THE EXCEPTION
         var spaces = this.ROUND(arg) - 1 - this.column;
-        return (spaces > 0) ? ' '.repeat(spaces) : '';
+        return this.SPACE$(spaces);
     }
     TAN(arg : number) : number {
         return this.checkNum(Math.tan(arg));
@@ -1196,10 +1236,12 @@ export class BASICRuntime {
         return isNaN(n) ? 0 : n; // TODO? altair works this way
     }
     LPAD$(arg : string, len : number) : string {
+        arg = this.checkString(arg);
         while (arg.length < len) arg = " " + arg;
         return arg;
     }
     RPAD$(arg : string, len : number) : string {
+        arg = this.checkString(arg);
         while (arg.length < len) arg = arg + " ";
         return arg;
     }

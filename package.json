@@ -29,6 +29,7 @@
     "electron-packager": "^15.0.0",
     "file-saver": "^2.0.2",
     "jsdom": "^12.2.0",
+    "jsfuzz": "^1.0.14",
     "jszip": "^3.5.0",
     "localforage": "^1.9.0",
     "lzg": "^1.0.x",

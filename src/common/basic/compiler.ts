@@ -6,8 +6,8 @@ export interface BASICOptions {
     asciiOnly : boolean;                // reject non-ASCII chars?
     uppercaseOnly : boolean;            // convert everything to uppercase?
     optionalLabels : boolean;			// can omit line numbers and use labels?
-    optionalWhitespace : boolean;       // can "crunch" keywords?
-    varNaming : 'A'|'A1'|'AA'|'*';          // only allow A0-9 for numerics, single letter for arrays/strings
+    optionalWhitespace : boolean;       // can "crunch" keywords? also, eat extra ":" delims
+    varNaming : 'A'|'A1'|'AA'|'*';      // only allow A0-9 for numerics, single letter for arrays/strings
     squareBrackets : boolean;           // "[" and "]" interchangable with "(" and ")"?
     tickComments : boolean;             // support 'comments?
     hexOctalConsts : boolean;           // support &H and &O integer constants?
@@ -43,6 +43,8 @@ export interface BASICOptions {
     endStmtRequired : boolean;          // need END at end?
     // MISC
     commandsPerSec? : number;           // how many commands per second?
+    maxLinesPerFile? : number;          // limit on # of lines
+    maxArrayElements? : number;         // max array elements (all dimensions)
 }
 
 export interface SourceLocated {
@@ -59,8 +61,8 @@ export class CompileError extends Error {
 }
 
 // Lexer regular expression -- each (capture group) handles a different token type
-//                FLOAT                             INT       HEXOCTAL         REMARK   IDENT      STRING  RELOP        EXP    OPERATORS             OTHER  WS
-const re_toks = /([0-9.]+[E][+-]?\d+|\d+[.][E0-9]*|[.][E0-9]+)|[0]*(\d+)|&([OH][0-9A-F]+)|(['].*)|(\w+[$]?)|(".*?")|([<>]?[=<>#])|(\*\*)|([-+*/^,;:()\[\]\?\\])|(\S+)|(\s+)/gi;
+//                FLOAT                             INT       HEXOCTAL                    REMARK   IDENT           STRING   RELOP        EXP    OPERATORS             OTHER  WS
+const re_toks = /([0-9.]+[E][+-]?\d+|\d+[.][E0-9]*|[.][E0-9]+)|[0]*(\d+)|&([OH][0-9A-F]+)|(['].*)|([A-Z_]\w*[$]?)|(".*?")|([<>]?[=<>#])|(\*\*)|([-+*/^,;:()\[\]\?\\])|(\S+)|(\s+)/gi;
 
 export enum TokenType {
     EOL = 0,
@@ -302,6 +304,19 @@ function stripQuotes(s: string) {
     return s.substr(1, s.length-2);
 }
 
+function isLiteral(arg: Expr): arg is Literal {
+    return (arg as any).value != null;
+}
+function isLookup(arg: Expr): arg is IndOp {
+    return (arg as any).name != null;
+}
+function isBinOp(arg: Expr): arg is BinOp {
+    return (arg as any).op != null && (arg as any).left != null && (arg as any).right != null;
+}
+function isUnOp(arg: Expr): arg is UnOp {
+    return (arg as any).op != null && (arg as any).expr != null;
+}
+
 ///// BASIC PARSER
 
 export class BASICParser {
@@ -311,7 +326,9 @@ export class BASICParser {
     listings: CodeListingMap;
     labels: { [label: string]: BASICLine };
     targets: { [targetlabel: string]: SourceLocation };
-    refs: { [name: string]: SourceLocation }; // references
+    varrefs: { [name: string]: SourceLocation }; // references
+    fnrefs: { [name: string]: string[] }; // DEF FN call graph
+    maxlinelen : number = 255; // maximum line length
 
     path : string;
     lineno : number;
@@ -327,7 +344,8 @@ export class BASICParser {
         this.lineno = 0;
         this.curlabel = null;
         this.listings = {};
-        this.refs = {};
+        this.varrefs = {};
+        this.fnrefs = {};
         this.optionCount = 0;
     }
     addError(msg: string, loc?: SourceLocation) {
@@ -382,10 +400,7 @@ export class BASICParser {
                     }
                 } else this.dialectError(`optional line numbers`);
             case TokenType.Int:
-                if (this.labels[tok.str] != null) this.compileError(`There's a duplicated label "${tok.str}".`);
-                this.labels[tok.str] = line;
-                line.label = tok.str;
-                this.curlabel = tok.str;
+                this.setCurrentLabel(line, tok.str);
                 break;
             case TokenType.HexOctalInt:
             case TokenType.Float:
@@ -398,9 +413,16 @@ export class BASICParser {
                 break;
         }
     }
+    setCurrentLabel(line: BASICLine, str: string) {
+        if (this.labels[str] != null) this.compileError(`There's a duplicated label "${str}".`);
+        this.labels[str] = line;
+        line.label = str;
+        this.curlabel = str;
+        this.tokens.forEach((tok) => tok.$loc.label = str);
+    }
     parseFile(file: string, path: string) : BASICProgram {
         this.path = path;
-        var txtlines = file.split(/\n|\r\n/);
+        var txtlines = file.split(/\n|\r\n?/);
         var pgmlines = txtlines.map((line) => this.parseLine(line));
         var program = { opts: this.opts, lines: pgmlines };
         this.checkAll(program);
@@ -416,9 +438,7 @@ export class BASICParser {
             return {label:null, stmts:[]};
         }
     }
-    tokenize(line: string) : void {
-        this.lineno++;
-        this.tokens = [];
+    _tokenize(line: string) : void {
         // split identifier regex (if token-crunching enabled)
         let splitre = this.opts.optionalWhitespace && new RegExp('('+this.opts.validKeywords.map(s => `${s}`).join('|')+')');
         // iterate over each token via re_toks regex
@@ -428,7 +448,7 @@ export class BASICParser {
             for (var i = 1; i <= lastTokType; i++) {
                 let s : string = m[i];
                 if (s != null) {
-                    let loc = { path: this.path, line: this.lineno, start: m.index, end: m.index+s.length, label: this.curlabel };
+                    let loc = { path: this.path, line: this.lineno, start: m.index, end: m.index+s.length };
                     // maybe we don't support unicode in 1975?
                     if (this.opts.asciiOnly && !/^[\x00-\x7F]*$/.test(s))
                         this.dialectError(`non-ASCII characters`);
@@ -437,6 +457,9 @@ export class BASICParser {
                         s = s.toUpperCase();
                         // DATA statement captures whitespace too
                         if (s == 'DATA') lastTokType = TokenType.Whitespace;
+                        // certain keywords shouldn't split for rest of line
+                        if (s == 'DATA') splitre = null;
+                        if (s == 'OPTION') splitre = null;
                         // REM means ignore rest of statement
                         if (lastTokType == TokenType.CatchAll && s.startsWith('REM')) {
                             s = 'REM';
@@ -451,26 +474,31 @@ export class BASICParser {
                     }
                     // un-crunch tokens?
                     if (splitre && i == TokenType.Ident) {
-                        var splittoks = s.split(splitre);
-                        splittoks.forEach((ss) => {
-                            if (ss != '') {
-                                // leftover might be integer
-                                i = /^[0-9]+$/.test(ss) ? TokenType.Int : TokenType.Ident;
-                                // disable crunching after this token?
-                                if (ss == 'DATA' || ss == 'OPTION')
-                                    splitre = null;
+                        var splittoks = s.split(splitre).filter((s) => s != ''); // only non-empties
+                        if (splittoks.length > 1) {
+                            splittoks.forEach((ss) => {
+                                // check to see if leftover might be integer, or identifier
+                                if (/^[0-9]+$/.test(ss)) i = TokenType.Int;
+                                else if (/^[A-Z_]\w*[$]?$/.test(ss)) i = TokenType.Ident;
+                                else this.compileError(`Try adding whitespace before "${ss}".`);
                                 this.tokens.push({str: ss, type: i, $loc:loc});
-                            }
-                        });
-                    } else {
-                        // add token to list
-                        this.tokens.push({str: s, type: i, $loc:loc});
+                            });
+                            s = null;
+                        }
                     }
+                    // add token to list
+                    if (s) this.tokens.push({str: s, type: i, $loc:loc});
                     break;
                 }
             }
         }
-        this.eol = { type: TokenType.EOL, str: "", $loc: { path: this.path, line: this.lineno, start: line.length, label: this.curlabel } };
+    }
+    tokenize(line: string) : void {
+        this.lineno++;
+        this.tokens = []; // can't have errors until this is set
+        this.eol = { type: TokenType.EOL, str: "", $loc: { path: this.path, line: this.lineno, start: line.length } };
+        if (line.length > this.maxlinelen) this.compileError(`A line should be no more than ${this.maxlinelen} characters long.`);
+        this._tokenize(line);
     }
     parse() : BASICLine {
         var line = {label: null, stmts: []};
@@ -502,6 +530,9 @@ export class BASICParser {
         return false;
     }
     parseStatement(): Statement | null {
+        // eat extra ":" (should have separate property for this)
+        if (this.opts.optionalWhitespace && this.peekToken().str == ':') return null;
+        // get the command word
         var cmdtok = this.consumeToken();
         var cmd = cmdtok.str;
         var stmt;
@@ -510,6 +541,7 @@ export class BASICParser {
                 if (cmdtok.str.startsWith("'") && !this.opts.tickComments) this.dialectError(`tick remarks`);
                 return null;
             case TokenType.Operator:
+                // "?" is alias for "PRINT" on some platforms
                 if (cmd == this.validKeyword('?')) cmd = 'PRINT';
             case TokenType.Ident:
                 // ignore remarks
@@ -534,8 +566,11 @@ export class BASICParser {
                     this.pushbackToken(cmdtok);
                     stmt = this.stmt__LET();
                     break;
+                } else {
+                    this.compileError(`I don't understand the command "${cmd}".`);
                 }
             case TokenType.EOL:
+                if (this.opts.optionalWhitespace) return null;
             default:
                 this.compileError(`There should be a command here.`);
                 return null;
@@ -547,7 +582,7 @@ export class BASICParser {
         var tok = this.consumeToken();
         switch (tok.type) {
             case TokenType.Ident:
-                this.refs[tok.str] = tok.$loc;
+                this.varrefs[tok.str] = tok.$loc;
                 let args = null;
                 if (this.peekToken().str == '(') {
                     this.expectToken('(');
@@ -745,6 +780,20 @@ export class BASICParser {
                 break;
         }
     }
+    visitExpr(expr: Expr, callback: (expr:Expr) => void) {
+        if (isBinOp(expr)) {
+            this.visitExpr(expr.left, callback);
+            this.visitExpr(expr.right, callback);
+        }
+        if (isUnOp(expr)) {
+            this.visitExpr(expr.expr, callback);
+        }
+        if (isLookup(expr) && expr.args != null) {
+            for (var arg of expr.args)
+                this.visitExpr(arg, callback);
+        }
+        callback(expr);
+    }
 
     //// STATEMENTS
 
@@ -865,6 +914,10 @@ export class BASICParser {
                 this.compileError(`An array defined by DIM must have at least one dimension.`)
             else if (arr.args.length > this.opts.maxDimensions) 
                 this.dialectError(`more than ${this.opts.maxDimensions} dimensional arrays`);
+            for (var arrdim of arr.args) {
+                if (isLiteral(arrdim) && arrdim.value < this.opts.defaultArrayBase)
+                    this.compileError(`An array dimension cannot be less than ${this.opts.defaultArrayBase}.`);
+            }
         });
         return { command:'DIM', args:lexprs };
     }
@@ -925,7 +978,25 @@ export class BASICParser {
         if (!lexpr.name.startsWith('FN')) this.compileError(`Functions defined with DEF must begin with the letters "FN".`)
         this.expectToken("=");
         var func = this.parseExpr();
+        // build call graph to detect cycles
+        this.visitExpr(func, (expr:Expr) => {
+            if (isLookup(expr) && expr.name.startsWith('FN')) {
+                if (!this.fnrefs[lexpr.name])
+                    this.fnrefs[lexpr.name] = [];
+                this.fnrefs[lexpr.name].push(expr.name);
+            }
+        });
+        this.checkCallGraph(lexpr.name, new Set());
         return { command:'DEF', lexpr:lexpr, def:func };
+    }
+    // detect cycles in call graph starting at function 'name'
+    checkCallGraph(name: string, visited: Set<string>) {
+        if (visited.has(name)) this.compileError(`There was a cycle in the function definition graph for ${name}.`);
+        visited.add(name);
+        var refs = this.fnrefs[name] || [];
+        for (var ref of refs)
+            this.checkCallGraph(ref, visited); // recurse
+        visited.delete(name);
     }
     stmt__POP() : NoArgStatement {
         return { command:'POP' };
@@ -1550,9 +1621,7 @@ export const MODERN_BASIC : BASICOptions = {
 
 // TODO: integer vars
 // TODO: DEFINT/DEFSTR
-// TODO: superfluous ":" ignored on MS basics only?
 // TODO: excess INPUT ignored, error msg
-// TODO: max line len?
 
 export const DIALECTS = {
     "DEFAULT":      ALTAIR_BASIC41,

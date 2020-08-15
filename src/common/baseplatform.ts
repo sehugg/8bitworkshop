@@ -132,6 +132,8 @@ export interface Platform {
   
   startProbing?() : ProbeRecorder;
   stopProbing?() : void;
+
+  isBlocked?() : boolean; // is blocked, halted, or waiting for input?
 }
 
 export interface Preset {
