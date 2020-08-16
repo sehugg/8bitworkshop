@@ -1,4 +1,4 @@
-0 OPTION DIALECT DEC:REM http://www.bitsavers.org/bits/DEC/pdp10/games/
+OPTION DIALECT DEC:REM http://www.bitsavers.org/bits/DEC/pdp10/games/
 00001 PRINT "	This is the latest version as of 2-Jun-82."
 00005 DIM B$(30)
 00010 F=0

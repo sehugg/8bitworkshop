@@ -22,6 +22,12 @@
 .currentpc-marker {
   color: #ff66ee;
 }
+.currentpc-span-blocked {
+  background-color: #7e2a70;
+}
+.currentpc-marker-blocked {
+  color: #ffee33;
+}
 .tooltipbox {
     position: relative;
     display: inline-block;

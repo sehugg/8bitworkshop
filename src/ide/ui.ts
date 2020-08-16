@@ -1901,7 +1901,8 @@ function globalErrorHandler(msgevent) {
   if (msg.indexOf("QuotaExceededError") >= 0) {
     requestPersistPermission(false, false);
   } else {
-    var err = msgevent.error;
+    var err = msgevent.error || msgevent.reason;
+    msg = err.message || msg;
     showExceptionAsError(err, msg);
   }
 }
@@ -1909,10 +1910,12 @@ function globalErrorHandler(msgevent) {
 // catch errors
 function installErrorHandler() {
   window.addEventListener('error', globalErrorHandler);
+  window.addEventListener('unhandledrejection', globalErrorHandler);
 }
   
 function uninstallErrorHandler() {
   window.removeEventListener('error', globalErrorHandler);
+  window.removeEventListener('unhandledrejection', globalErrorHandler);
 }
 
 function gotoNewLocation(replaceHistory? : boolean) {

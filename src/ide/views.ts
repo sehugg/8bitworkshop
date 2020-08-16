@@ -329,10 +329,12 @@ export class SourceEditor implements ProjectView {
   }
 
   setCurrentLine(line:SourceLocation, moveCursor:boolean) {
+    var blocked = platform.isBlocked && platform.isBlocked();
 
     var addCurrentMarker = (line:SourceLocation) => {
       var div = document.createElement("div");
-      div.classList.add('currentpc-marker');
+      var cls = blocked ? 'currentpc-marker-blocked' : 'currentpc-marker';
+      div.classList.add(cls);
       div.appendChild(document.createTextNode("\u25b6"));
       this.editor.setGutterMarker(line.line-1, "gutter-info", div);
     }
@@ -343,7 +345,8 @@ export class SourceEditor implements ProjectView {
       if (moveCursor) {
         this.editor.setCursor({line:line.line-1,ch:line.start||0}, {scroll:true});
       }
-      var markOpts = {className:'currentpc-span', inclusiveLeft:true};
+      var cls = blocked ? 'currentpc-span-blocked' : 'currentpc-span';
+      var markOpts = {className:cls, inclusiveLeft:true};
       if (line.start || line.end)
         this.markCurrentPC = this.editor.markText({line:line.line-1,ch:line.start}, {line:line.line-1,ch:line.end||line.start+1}, markOpts);
       else
@@ -379,7 +382,7 @@ export class SourceEditor implements ProjectView {
 
   refreshDebugState(moveCursor:boolean) {
     // TODO: only if line changed
-    // TODO: remove after compilation restarts platform
+    // TODO: remove after compilation
     this.clearCurrentLine(moveCursor);
     var line = this.getActiveLine();
     if (line) {

@@ -55,7 +55,8 @@
     "test-worker": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli/testworker.js",
     "test-platforms": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli/testplatforms.js",
     "test-profile": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --prof test/cli",
-    "start": "electron ."
+    "start": "electron .",
+    "fuzzbasic": "jsfuzz gen/common/basic/fuzz.js ~/basic/corpus/ --versifier false"
   },
   "main": "electron.js",
   "keywords": [

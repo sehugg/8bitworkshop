@@ -238,7 +238,6 @@ CodeMirror.defineMode("basic", function(conf, parserConf) {
     }
 
     var external = {
-        electricChars:"dDpPtTfFeE ",
         startState: function() {
             return {
               tokenize: tokenBase,
@@ -246,8 +245,6 @@ CodeMirror.defineMode("basic", function(conf, parserConf) {
               currentIndent: 0,
               nextLineIndent: 0,
               doInCurrentLine: false
-
-
           };
         },
 

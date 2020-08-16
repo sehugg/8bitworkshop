@@ -1,6 +1,6 @@
+OPTION DIALECT HP
 1 REM from: http://www.dunnington.info/public/basicgames/WUMPUS.hp
 2 REM extracted from HP library tape
-5 OPTION DIALECT HP
 10 REM- HUNT THE WUMPUS
 20 PRINT "INSTRUCTIONS (Y-N)";
 30 INPUT I$

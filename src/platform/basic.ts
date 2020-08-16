@@ -125,14 +125,14 @@ class BASICPlatform implements Platform {
         // TODO: only hot reload when we hit a label?
         var didExit = this.runtime.exited;
         this.program = data;
-        this.runtime.load(data);
+        var resumePC = this.runtime.load(data);
         this.tty.uppercaseOnly = true; // this.program.opts.uppercaseOnly; //TODO?
         // map editor to uppercase-only if need be
         views.textMapFunctions.input = this.program.opts.uppercaseOnly ? (s) => s.toUpperCase() : null;
         // HP 2000 has cute lil small caps (TODO: messes up grid alignment tho)
         //this.tty.page.style.fontVariant = (this.program.opts.dialectName == 'HP2000') ? 'small-caps' : 'normal';
         // only reset if we exited, or couldn't restart at label (PC reset to 0)
-        if (!this.hotReload || didExit || this.runtime.curpc == 0)
+        if (!this.hotReload || didExit || !resumePC)
             this.reset();
     }
 
@@ -156,7 +156,7 @@ class BASICPlatform implements Platform {
         this.timer.start();
     }
 
-    isBlocked() { return this.tty.waitingfor != null; } // is blocked for input?
+    isBlocked() { return this.tty.waitingfor != null || this.runtime.exited; } // is blocked for input?
     isRunning() { return this.timer.isRunning(); }
     getDefaultExtension() { return ".bas"; }
     getToolForFilename() { return "basic"; }

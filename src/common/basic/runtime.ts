@@ -473,7 +473,7 @@ export class BASICRuntime {
             this.runtimeError(`I can't call a function here.`);
         // is it a subscript?
         if (expr.args) {
-            // set array slice (HP BASIC)
+            // TODO: set array slice (HP BASIC)
             if (this.opts.arraysContainChars && expr.name.endsWith('$')) {
                 this.runtimeError(`I can't set array slices via this command yet.`);
             } else {
@@ -566,8 +566,8 @@ export class BASICRuntime {
     // converts a variable to string/number based on var name
     assign(name: string, right: number|string, isRead?:boolean) : number|string {
         // convert data? READ always converts if read into string
-        if (this.opts.typeConvert || (isRead && name.endsWith("$")))
-            return this.convert(name, right);
+        if (isRead && name.endsWith("$"))
+            return this.checkValue(this.convert(name, right), name);
         // TODO: use options
         if (name.endsWith("$")) {
             return this.convertToString(right, name);
@@ -604,9 +604,9 @@ export class BASICRuntime {
             if (this.opts.staticArrays) return;
             else this.runtimeError(`I already dimensioned this array (${name}) earlier.`)
         }
-        if (this.getTotalArrayLength(dims) > this.opts.maxArrayElements) {
+        var total = this.getTotalArrayLength(dims);
+        if (total > this.opts.maxArrayElements)
             this.runtimeError(`I can't create an array with this many elements.`);
-        }
         var isstring = name.endsWith('$');
         // if numeric value, we use Float64Array which inits to 0
         var arrcons = isstring ? Array : Float64Array;
@@ -635,7 +635,7 @@ export class BASICRuntime {
     getArray(name: string, order: number) : [] {
         if (!this.arrays[name]) {
             if (this.opts.defaultArraySize == 0)
-                this.dialectError(`automatically declare arrays without a DIM statement`);
+                this.dialectError(`automatically declare arrays without a DIM statement (or did you mean to call a function?)`);
             if (order == 1)
                 this.dimArray(name, this.opts.defaultArraySize-1);
             else if (order == 2)
@@ -648,7 +648,7 @@ export class BASICRuntime {
 
     arrayGet(name: string, ...indices: number[]) : basic.Value {
         var arr = this.getArray(name, indices.length);
-        indices = indices.map(Math.round);
+        indices = indices.map(this.ROUND.bind(this));
         var v = arr;
         for (var i=0; i<indices.length; i++) {
             var idx = indices[i];
@@ -668,10 +668,20 @@ export class BASICRuntime {
     // for HP BASIC string slicing (TODO?)
     modifyStringSlice(orig: string, add: string, start: number, end: number) : string {
         orig = orig || "";
-        return (orig + ' '.repeat(start)).substr(0, start-1) + add + orig.substr(end);
+        this.checkString(orig);
+        this.checkString(add);
+        if (!end) end = start;
+        start = this.ROUND(start);
+        end = this.ROUND(end);
+        if (start < 1 || end < 1) this.dialectError(`accept a string slice index less than 1`);
+        return (orig + ' '.repeat(start)).substr(0, start-1) + add.substr(0, end+1-start) + orig.substr(end);
     }
+
     getStringSlice(s: string, start: number, end: number) {
         s = this.checkString(s);
+        start = this.ROUND(start);
+        end = this.ROUND(end);
+        if (start < 1 || end < 1) this.dialectError(`accept a string slice index less than 1`);
         return s.substr(start-1, end+1-start);
     }
 
@@ -707,7 +717,8 @@ export class BASICRuntime {
         var s = '';
         for (var arg of stmt.args) {
             var expr = this.expr2js(arg);
-            s += `this.printExpr(${expr});`;
+            var name = (expr as any).name;
+            s += `this.printExpr(this.checkValue(${expr}, ${JSON.stringify(name)}));`;
         }
         return s;
     }
@@ -751,7 +762,7 @@ export class BASICRuntime {
             if (this.opts.arraysContainChars && lexpr.args && lexpr.name.endsWith('$')) {
                 s += `this.vars.${lexpr.name} = this.modifyStringSlice(this.vars.${lexpr.name}, _right, `
                 s += lexpr.args.map((arg) => this.expr2js(arg)).join(', ');
-                s += ')';
+                s += ');';
             } else {
                 var ljs = this.assign2js(lexpr);
                 s += `${ljs} = this.assign(${JSON.stringify(lexpr.name)}, _right);`;
@@ -956,7 +967,7 @@ export class BASICRuntime {
                 return exprname.endsWith("$") ? "" : 0;
             }
             if (exprname != null && obj == null) {
-                this.runtimeError(`I haven't set a value for ${exprname}.`);
+                this.runtimeError(`I haven't assigned a value to ${exprname}.`);
             } else if (exprname != null) {
                 this.runtimeError(`I got an invalid value for ${exprname}: ${obj}`);
             } else {
@@ -1193,7 +1204,7 @@ export class BASICRuntime {
         len = this.ROUND(len);
         if (len <= 0) return '';
         if (len > this.opts.maxStringLength)
-            this.runtimeError(`I can't create a string longer than ${this.opts.maxStringLength} characters.`);
+            this.dialectError(`create a string longer than ${this.opts.maxStringLength} characters`);
         if (typeof chr === 'string')
             return chr.substr(0,1).repeat(len);
         else

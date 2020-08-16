@@ -11,6 +11,7 @@ export interface BASICOptions {
     squareBrackets : boolean;           // "[" and "]" interchangable with "(" and ")"?
     tickComments : boolean;             // support 'comments?
     hexOctalConsts : boolean;           // support &H and &O integer constants?
+    optionalLet : boolean;              // LET is optional
     chainAssignments : boolean;         // support A = B = value (HP2000)
     validKeywords : string[];           // valid keywords (or null for accept all)
     validFunctions : string[];          // valid functions (or null for accept all)
@@ -18,7 +19,7 @@ export interface BASICOptions {
     // VALUES AND OPERATORS
     defaultValues : boolean;            // initialize unset variables to default value? (0 or "")
     stringConcat : boolean;             // can concat strings with "+" operator?
-    typeConvert : boolean;              // type convert strings <-> numbers?
+    typeConvert : boolean;              // type convert strings <-> numbers? (NOT USED)
     checkOverflow : boolean;            // check for overflow of numerics?
     bitwiseLogic : boolean;             // -1 = TRUE, 0 = FALSE, AND/OR/NOT done with bitwise ops
     maxStringLength : number;           // maximum string length in chars
@@ -390,15 +391,17 @@ export class BASICParser {
         let tok = this.consumeToken();
         switch (tok.type) {
             case TokenType.Ident:
-                if (this.opts.optionalLabels) {
-                    if (this.peekToken().str == ':') { // is it a label:
+                if (this.opts.optionalLabels || tok.str == 'OPTION') {
+                    // is it a "label :" and not a keyword like "PRINT : "
+                    if (this.peekToken().str == ':' && !this.supportsCommand(tok.str)) { 
                         this.consumeToken(); // eat the ":"
                         // fall through to the next case
                     } else {
                         this.pushbackToken(tok); // nope
                         break;
                     }
-                } else this.dialectError(`optional line numbers`);
+                } else
+                    this.dialectError(`optional line numbers`);
             case TokenType.Int:
                 this.setCurrentLabel(line, tok.str);
                 break;
@@ -406,9 +409,16 @@ export class BASICParser {
             case TokenType.Float:
                 this.compileError(`Line numbers must be positive integers.`);
                 break;
+            case TokenType.Operator:
+                if (this.supportsCommand(tok.str) && this.validKeyword(tok.str)) {
+                    this.pushbackToken(tok);
+                    break; // "?" is allowed
+                }
             default:
-                if (this.opts.optionalLabels) this.compileError(`A line must start with a line number, command, or label.`);
-                else this.compileError(`A line must start with a line number.`);
+                if (this.opts.optionalLabels)
+                    this.compileError(`A line must start with a line number, command, or label.`);
+                else
+                    this.compileError(`A line must start with a line number.`);
             case TokenType.Remark:
                 break;
         }
@@ -525,9 +535,9 @@ export class BASICParser {
     validKeyword(keyword: string) : string {
         return (this.opts.validKeywords && this.opts.validKeywords.indexOf(keyword) < 0) ? null : keyword;
     }
-    supportsKeyword(keyword: string) {
-        if (this['stmt__' + keyword] != null) return true;
-        return false;
+    supportsCommand(cmd: string) : () => Statement {
+        if (cmd == '?') return this.stmt__PRINT;
+        else return this['stmt__' + cmd];
     }
     parseStatement(): Statement | null {
         // eat extra ":" (should have separate property for this)
@@ -555,13 +565,15 @@ export class BASICParser {
                     cmd = 'GOSUB';
                 }
                 // lookup JS function for command
-                var fn = this['stmt__' + cmd];
+                var fn = this.supportsCommand(cmd);
                 if (fn) {
                     if (this.validKeyword(cmd) == null)
-                        this.dialectError(`the ${cmd} keyword`);
-                    stmt = fn.bind(this)() as Statement;
+                        this.dialectError(`the ${cmd} statement`);
+                    stmt = fn.bind(this)();
                     break;
                 } else if (this.peekToken().str == '=' || this.peekToken().str == '(') {
+                    if (!this.opts.optionalLet)
+                        this.dialectError(`assignments without a preceding LET`);
                     // 'A = expr' or 'A(X) = expr'
                     this.pushbackToken(cmdtok);
                     stmt = this.stmt__LET();
@@ -631,23 +643,22 @@ export class BASICParser {
         if (this.opts.computedGoto) {
             // parse expression, but still add to list of label targets if constant
             var expr = this.parseExpr();
-            if ((expr as Literal).value != null) {
-                this.targets[(expr as Literal).value] = this.lasttoken.$loc;
-            }
+            if (isLiteral(expr)) this.targets[expr.value] = this.lasttoken.$loc;
             return expr;
-        }
-        // parse a single number or ident label
-        var tok = this.consumeToken();
-        switch (tok.type) {
-            case TokenType.Ident:
-                if (!this.opts.optionalLabels) this.dialectError(`labels other than line numbers`)
-            case TokenType.Int:
-                var label = tok.str;
-                this.targets[label] = tok.$loc;
-                return {value:label};
-            default:
-                if (this.opts.optionalLabels) this.compileError(`There should be a line number or label here.`);
-                else this.compileError(`There should be a line number here.`);
+        } else {
+            // parse a single number or ident label
+            var tok = this.consumeToken();
+            switch (tok.type) {
+                case TokenType.Ident:
+                    if (!this.opts.optionalLabels) this.dialectError(`labels other than line numbers`)
+                case TokenType.Int:
+                    var label = tok.str;
+                    this.targets[label] = tok.$loc;
+                    return {value:label};
+                default:
+                    var what = this.opts.optionalLabels ? "label or line number" : "line number";
+                    this.compileError(`There should be a ${what} here.`);
+            }
         }
     }
     parseDatumList(): Literal[] {
@@ -841,13 +852,14 @@ export class BASICParser {
     __GO(cmd: "GOTO"|"GOSUB"): GOTO_Statement | GOSUB_Statement | ONGO_Statement {
         var expr = this.parseLabel();
         // GOTO (expr) OF (labels...)
-        if (this.opts.computedGoto && this.peekToken().str == 'OF') {
+        if (this.peekToken().str == this.validKeyword('OF')) {
             this.expectToken('OF');
             let newcmd : 'ONGOTO'|'ONGOSUB' = (cmd == 'GOTO') ? 'ONGOTO' : 'ONGOSUB';
-            return { command:newcmd, expr:expr, labels:this.parseLabelList() };
+            return { command: newcmd, expr: expr, labels: this.parseLabelList() };
+        } else {
+            // regular GOTO or GOSUB
+            return { command: cmd, label: expr };
         }
-        // regular GOTO or GOSUB
-        return { command: cmd, label: expr };
     }
     stmt__IF(): IF_Statement {
         var cond = this.parseExpr();
@@ -1100,7 +1112,8 @@ export class BASICParser {
     checkLabels() {
         for (let targ in this.targets) {
             if (this.labels[targ] == null) {
-                this.addError(`There isn't a line number ${targ}.`, this.targets[targ]);
+                var what = this.opts.optionalLabels && isNaN(parseInt(targ)) ? "label named" : "line number";
+                this.addError(`There isn't a ${what} ${targ}.`, this.targets[targ]);
             }
         }
     }
@@ -1152,6 +1165,56 @@ export const ECMA55_MINIMAL : BASICOptions = {
     arraysContainChars : false,
     endStmtRequired : true,
     chainAssignments : false,
+    optionalLet : false,
+}
+
+export const DARTMOUTH_4TH_EDITION : BASICOptions = {
+    dialectName: "DARTMOUTH4",
+    asciiOnly : true,
+    uppercaseOnly : true,
+    optionalLabels : false,
+    optionalWhitespace : false,
+    varNaming : "A1",
+    staticArrays : true,
+    sharedArrayNamespace : false,
+    defaultArrayBase : 0,
+    defaultArraySize : 11,
+    defaultValues : false,
+    stringConcat : false,
+    typeConvert : false,
+    maxDimensions : 2,
+    maxDefArgs : 255,
+    maxStringLength : 255,
+    tickComments : true,
+    hexOctalConsts : false,
+    validKeywords : [
+        'BASE','DATA','DEF','DIM','END',
+        'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
+        'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO',
+        'CHANGE','MAT','RANDOM','RESTORE$','RESTORE*',
+    ],
+    validFunctions : [
+        'ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAB','TAN',
+        'TRN','INV','DET','NUM','ZER', // NUM = # of strings input for MAT INPUT
+    ],
+    validOperators : [
+        '=', '<>', '<', '>', '<=', '>=', '+', '-', '*', '/', '^'
+    ],
+    printZoneLength : 15,
+    numericPadding : true,
+    checkOverflow : true,
+    testInitialFor : true,
+    optionalNextVar : false,
+    multipleNextVars : false,
+    bitwiseLogic : false,
+    checkOnGotoIndex : true,
+    computedGoto : false,
+    restoreWithLabel : false,
+    squareBrackets : false,
+    arraysContainChars : false,
+    endStmtRequired : true,
+    chainAssignments : true,
+    optionalLet : false,
 }
 
 // TODO: only integers supported
@@ -1191,14 +1254,14 @@ export const TINY_BASIC : BASICOptions = {
     multipleNextVars : false,
     bitwiseLogic : false,
     checkOnGotoIndex : false,
-    computedGoto : true, // TODO: is it really though?
+    computedGoto : true,
     restoreWithLabel : false,
     squareBrackets : false,
     arraysContainChars : false,
     endStmtRequired : false,
     chainAssignments : false,
+    optionalLet : false,
 }
-
 
 export const HP_TIMESHARED_BASIC : BASICOptions = {
     dialectName: "HP2000",
@@ -1242,12 +1305,13 @@ export const HP_TIMESHARED_BASIC : BASICOptions = {
     multipleNextVars : false,
     bitwiseLogic : false,
     checkOnGotoIndex : false,
-    computedGoto : true,
+    computedGoto : true, // not really, but we do parse expressions for GOTO ... OF 
     restoreWithLabel : true,
     squareBrackets : true,
     arraysContainChars : true,
     endStmtRequired : true,
     chainAssignments : true,
+    optionalLet : true,
     // TODO: max line number, array index 9999
 }
 
@@ -1298,6 +1362,7 @@ export const DEC_BASIC_11 : BASICOptions = {
     arraysContainChars : false,
     endStmtRequired : false,
     chainAssignments : false,
+    optionalLet : true,
     // TODO: max line number 32767
     // TODO: \ separator, % int vars and constants, 'single' quoted
     // TODO: can't compare strings and numbers
@@ -1356,6 +1421,7 @@ export const DEC_BASIC_PLUS : BASICOptions = {
     arraysContainChars : false,
     endStmtRequired : false,
     chainAssignments : false, // TODO: can chain with "," not "="
+    optionalLet : true,
     // TODO: max line number 32767
     // TODO: \ separator, % int vars and constants, 'single' quoted
     // TODO: can't compare strings and numbers
@@ -1408,6 +1474,7 @@ export const BASICODE : BASICOptions = {
     arraysContainChars : false,
     endStmtRequired : false,
     chainAssignments : false,
+    optionalLet : true,
 }
 
 export const ALTAIR_BASIC41 : BASICOptions = {
@@ -1464,6 +1531,7 @@ export const ALTAIR_BASIC41 : BASICOptions = {
     arraysContainChars : false,
     endStmtRequired : false,
     chainAssignments : false,
+    optionalLet : true,
 }
 
 export const APPLESOFT_BASIC : BASICOptions = {
@@ -1521,6 +1589,7 @@ export const APPLESOFT_BASIC : BASICOptions = {
     arraysContainChars : false,
     endStmtRequired : false,
     chainAssignments : false,
+    optionalLet : true,
 }
 
 export const BASIC80 : BASICOptions = {
@@ -1579,6 +1648,7 @@ export const BASIC80 : BASICOptions = {
     arraysContainChars : false,
     endStmtRequired : false,
     chainAssignments : false,
+    optionalLet : true,
 }
 
 export const MODERN_BASIC : BASICOptions = {
@@ -1594,7 +1664,7 @@ export const MODERN_BASIC : BASICOptions = {
     defaultArraySize : 0, // DIM required
     defaultValues : false,
     stringConcat : true,
-    typeConvert : true,
+    typeConvert : false,
     maxDimensions : 255,
     maxDefArgs : 255,
     maxStringLength : 2048, // TODO?
@@ -1611,12 +1681,13 @@ export const MODERN_BASIC : BASICOptions = {
     multipleNextVars : true,
     bitwiseLogic : true,
     checkOnGotoIndex : true,
-    computedGoto : true,
+    computedGoto : false,
     restoreWithLabel : true,
     squareBrackets : true,
     arraysContainChars : false,
     endStmtRequired : false,
-    chainAssignments : false,
+    chainAssignments : true,
+    optionalLet : true,
 }
 
 // TODO: integer vars
@@ -1624,7 +1695,9 @@ export const MODERN_BASIC : BASICOptions = {
 // TODO: excess INPUT ignored, error msg
 
 export const DIALECTS = {
-    "DEFAULT":      ALTAIR_BASIC41,
+    "DEFAULT":      MODERN_BASIC,
+    "DARTMOUTH":    DARTMOUTH_4TH_EDITION,
+    "DARTMOUTH4":   DARTMOUTH_4TH_EDITION,
     "ALTAIR":       ALTAIR_BASIC41,
     "ALTAIR4":      ALTAIR_BASIC41,
     "ALTAIR41":     ALTAIR_BASIC41,

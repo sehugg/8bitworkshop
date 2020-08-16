@@ -21,14 +21,22 @@ var fs = require('fs');
 var parser = new BASICParser();
 var runtime = new BASICRuntime();
 
+function getCurrentLabel() {
+    var loc = runtime.getCurrentSourceLocation();
+    return loc ? loc.label : "?";
+}
+
 // parse args
 var filename = '/dev/stdin';
 var args = process.argv.slice(2);
+var force = false;
 for (var i=0; i<args.length; i++) {
     if (args[i] == '-v')
         runtime.trace = true;
     else if (args[i] == '-d')
         parser.opts = DIALECTS[args[++i]] || Error('no such dialect');
+    else if (args[i] == '-f')
+        force = true;
     else if (args[i] == '--dialects')
         dumpDialectInfo();
     else
@@ -45,13 +53,13 @@ try {
         console.log(`@@@ ${e}`);
 }
 parser.errors.forEach((err) => console.log(`@@@ ${err.msg} (line ${err.label})`));
-if (parser.errors.length) process.exit(2);
+if (parser.errors.length && !force) process.exit(2);
 
 // run program
 try {
     runtime.load(pgm);
 } catch (e) {
-    console.log(`### ${e.message} (line ${runtime.getCurrentSourceLocation().label})`);
+    console.log(`### ${e.message} (line ${getCurrentLabel()})`);
     process.exit(1);
 }
 runtime.reset();
@@ -86,7 +94,7 @@ runtime.resume = function() {
                 process.exit(0);
             }
         } catch (e) {
-            console.log(`### ${e.message} (line ${runtime.getCurrentSourceLocation().label})`);
+            console.log(`### ${e.message} (line ${getCurrentLabel()})`);
             process.exit(1);
         }
     });
@@ -98,7 +106,7 @@ runtime.resume();
 function dumpDialectInfo() {
     var dialects = new Set<BASICOptions>();
     var array = {};
-    var SELECTED_DIALECTS = ['TINY','ECMA55','HP','DEC','ALTAIR','BASIC80','MODERN'];
+    var SELECTED_DIALECTS = ['TINY','ECMA55','DARTMOUTH','HP','DEC','ALTAIR','BASIC80','MODERN'];
     SELECTED_DIALECTS.forEach((dkey) => {
         dialects.add(DIALECTS[dkey]);
     });
@@ -121,7 +129,7 @@ function dumpDialectInfo() {
     });
     dialects.forEach((dialect) => {
         ALL_KEYWORDS.forEach((keyword) => {
-            if (parser.supportsKeyword(keyword)) {
+            if (parser.supportsCommand(keyword)) {
                 var has = dialect.validKeywords == null || dialect.validKeywords.indexOf(keyword) >= 0;
                 keyword = '`'+keyword+'`'
                 if (!array[keyword]) array[keyword] = [];
