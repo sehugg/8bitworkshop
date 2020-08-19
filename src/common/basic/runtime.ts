@@ -72,8 +72,6 @@ export class BASICRuntime {
 
     program : basic.BASICProgram;
     allstmts : basic.Statement[];
-    line2pc : number[];
-    pc2line : Map<number,number>;
     pc2label : Map<number,string>;
     label2pc : {[label : string] : number};
     label2dataptr : {[label : string] : number};
@@ -103,7 +101,7 @@ export class BASICRuntime {
         let prevlabel = null;
         let prevpcofs = 0;
         if (this.pc2label != null) {
-            var pc = this.curpc;
+            let pc = this.curpc;
             while (pc > 0 && (prevlabel = this.pc2label.get(pc)) == null) {
                 pc--;
             }
@@ -114,27 +112,18 @@ export class BASICRuntime {
         this.program = program;
         this.opts = program.opts;
         if (!this.opts.maxArrayElements) this.opts.maxArrayElements = DEFAULT_MAX_ARRAY_ELEMENTS;
-        this.label2pc = {};
+        this.allstmts = program.stmts;
+        this.label2pc = program.labels;
         this.label2dataptr = {};
-        this.allstmts = [];
-        this.line2pc = [];
-        this.pc2line = new Map();
         this.pc2label = new Map();
         this.datums = [];
         this.builtins = this.getBuiltinFunctions();
         // TODO: detect undeclared vars
-        program.lines.forEach((line, idx) => {
-            // make lookup tables
-            var pc = this.allstmts.length;
-            if (line.label != null) {
-                this.label2pc[line.label] = pc;
-                this.pc2label.set(pc, line.label);
-            }
-            this.line2pc.push(pc);
-            this.pc2line.set(pc, idx);
-            // combine all statements into single list
-            line.stmts.forEach((stmt) => this.allstmts.push(stmt));
-        });
+        // build PC -> label lookup
+        for (var label in program.labels) {
+            var targetpc = program.labels[label];
+            this.pc2label.set(targetpc, label);
+        }
         // compile statements ahead of time
         this.allstmts.forEach((stmt, pc) => {
             this.curpc = pc + 1; // for error reporting
@@ -278,10 +267,11 @@ export class BASICRuntime {
         stmt.$run();
     }
 
+    // TODO: this only works because each line has a label
     skipToEOL() {
         do {
             this.curpc++;
-        } while (this.curpc < this.allstmts.length && !this.pc2line.get(this.curpc));
+        } while (this.curpc < this.allstmts.length && !this.pc2label.get(this.curpc));
     }
 
     skipToElse() {
@@ -292,7 +282,7 @@ export class BASICRuntime {
             if (cmd == 'ELSE') { this.curpc++; break; }
             else if (cmd == 'IF') return this.skipToEOL();
             this.curpc++;
-            if (this.pc2line.get(this.curpc))
+            if (this.pc2label.get(this.curpc))
                 break;
         }
     }
@@ -380,9 +370,10 @@ export class BASICRuntime {
             this.column = 0;
             str = obj;
         } else if (obj == '\t') {
-            var curgroup = Math.floor(this.column / this.opts.printZoneLength);
+            var l = this.opts.printZoneLength;
+            var curgroup = Math.floor(this.column / l);
             var nextcol = (curgroup + 1) * this.opts.printZoneLength;
-            if (nextcol >= this.margin) { this.column = 0; str = "\n"; } // return to left margin
+            if (nextcol+l > this.margin) { this.column = 0; str = "\n"; } // return to left margin
             else str = this.TAB(nextcol); // next column
         } else {
             str = `${obj}`;

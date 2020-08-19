@@ -8,7 +8,7 @@ import { BASICProgram } from "../common/basic/compiler";
 import { TeleTypeWithKeyboard } from "../common/teletype";
 
 const BASIC_PRESETS = [
-    { id: 'hello.bas', name: 'Hello World' },
+    { id: 'hello.bas', name: 'Tutorial' },
     { id: 'sieve.bas', name: 'Sieve Benchmark' },
     { id: 'mortgage.bas', name: 'Interest Calculator' },
     { id: '23match.bas', name: '23 Matches' },
@@ -27,7 +27,7 @@ class BASICPlatform implements Platform {
     clock: number = 0;
     timer: AnimationTimer;
     tty: TeleTypeWithKeyboard;
-    hotReload: boolean = true;
+    hotReload: boolean = false;
     animcount: number = 0;
 
     constructor(mainElement: HTMLElement) {

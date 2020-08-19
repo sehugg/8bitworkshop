@@ -8,6 +8,7 @@ export interface BASICOptions {
     uppercaseOnly : boolean;            // convert everything to uppercase?
     optionalLabels : boolean;			// can omit line numbers and use labels?
     optionalWhitespace : boolean;       // can "crunch" keywords? also, eat extra ":" delims
+    multipleStmtsPerLine : boolean;     // multiple statements separated by ":"
     varNaming : 'A'|'A1'|'AA'|'*';      // only allow A0-9 for numerics, single letter for arrays/strings
     squareBrackets : boolean;           // "[" and "]" interchangable with "(" and ")"?
     tickComments : boolean;             // support 'comments?
@@ -234,14 +235,10 @@ export type ScopeStartStatement = (IF_Statement | FOR_Statement | WHILE_Statemen
 
 export type ScopeEndStatement = NEXT_Statement | WEND_Statement;
 
-export interface BASICLine {
-    label: string;
-    stmts: Statement[];
-}
-
 export interface BASICProgram {
     opts: BASICOptions;
-    lines: BASICLine[];
+    stmts: Statement[];
+    labels: { [label: string]: number }; // label -> PC
 }
 
 class Token {
@@ -326,9 +323,10 @@ export class BASICParser {
     opts : BASICOptions = DIALECTS['DEFAULT'];
     optionCount : number; // how many OPTION stmts so far?
     maxlinelen : number = 255; // maximum line length
+    stmts : Statement[];
     errors: WorkerError[];
     listings: CodeListingMap;
-    labels: { [label: string]: BASICLine };
+    labels: { [label: string]: number }; // label -> PC
     targets: { [targetlabel: string]: SourceLocation };
     varrefs: { [name: string]: SourceLocation }; // references
     fnrefs: { [name: string]: string[] }; // DEF FN call graph
@@ -343,11 +341,12 @@ export class BASICParser {
 
     constructor() {
         this.optionCount = 0;
+        this.lineno = 0;
+        this.curlabel = null;
+        this.stmts = [];
         this.labels = {};
         this.targets = {};
         this.errors = [];
-        this.lineno = 0;
-        this.curlabel = null;
         this.listings = {};
         this.varrefs = {};
         this.fnrefs = {};
@@ -394,7 +393,8 @@ export class BASICParser {
     pushbackToken(tok: Token) {
         this.tokens.unshift(tok);
     }
-    parseOptLabel(line: BASICLine) {
+    // this parses either a line number or "label:" -- or adds a default label to a line
+    parseOptLabel() {
         let tok = this.consumeToken();
         switch (tok.type) {
             case TokenType.Ident:
@@ -410,8 +410,9 @@ export class BASICParser {
                 } else
                     this.dialectError(`Each line must begin with a line number`);
             case TokenType.Int:
-                this.setCurrentLabel(line, tok.str);
-                break;
+                this.addLabel(tok.str);
+                return;
+            // label added, return from function... other cases add default label
             case TokenType.HexOctalInt:
             case TokenType.Float:
                 this.compileError(`Line numbers must be positive integers.`);
@@ -429,30 +430,41 @@ export class BASICParser {
             case TokenType.Remark:
                 break;
         }
+        // add default label
+        this.addLabel('#'+this.lineno);
     }
-    setCurrentLabel(line: BASICLine, str: string) {
-        if (this.labels[str] != null) this.compileError(`There's a duplicated label "${str}".`);
-        this.labels[str] = line;
-        line.label = str;
+    getPC() : number {
+        return this.stmts.length;
+    }
+    addStatement(stmt: Statement, cmdtok: Token, endtok?: Token) {
+        // check IF/THEN WHILE/WEND FOR/NEXT etc
+        this.modifyScope(stmt);
+        // set location for statement
+        if (endtok == null) endtok = this.peekToken();
+        stmt.$loc = { path: cmdtok.$loc.path, line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: endtok.$loc.start, label: this.curlabel, offset: null };
+        this.stmts.push(stmt);
+    }
+    addLabel(str: string) {
+        if (this.labels[str] != null) this.compileError(`There's a duplicated label named "${str}".`);
+        this.labels[str] = this.getPC();
         this.curlabel = str;
         this.tokens.forEach((tok) => tok.$loc.label = str);
     }
     parseFile(file: string, path: string) : BASICProgram {
         this.path = path;
         var txtlines = file.split(/\n|\r\n?/);
-        var pgmlines = txtlines.map((line) => this.parseLine(line));
-        var program = { opts: this.opts, lines: pgmlines };
+        txtlines.forEach((line) => this.parseLine(line));
+        var program = { opts: this.opts, stmts: this.stmts, labels: this.labels };
         this.checkAll(program);
         this.listings[path] = this.generateListing(file, program);
         return program;
     }
-    parseLine(line: string) : BASICLine {
+    parseLine(line: string) : void {
         try {
             this.tokenize(line);
-            return this.parse();
+            this.parse();
         } catch (e) {
             if (!(e instanceof CompileError)) throw e; // ignore compile errors since errors[] list captures them
-            return {label:null, stmts:[]};
         }
     }
     _tokenize(line: string) : void {
@@ -517,27 +529,25 @@ export class BASICParser {
         if (line.length > this.maxlinelen) this.compileError(`A line should be no more than ${this.maxlinelen} characters long.`);
         this._tokenize(line);
     }
-    parse() : BASICLine {
-        var line = {label: null, stmts: []};
+    parse() : void {
         // not empty line?
         if (this.tokens.length) {
-            this.parseOptLabel(line);
+            this.parseOptLabel();
             if (this.tokens.length) {
-                line.stmts = this.parseCompoundStatement();
+                this.parseCompoundStatement();
             }
+            var next = this.peekToken();
+            if (!isEOS(next)) this.compileError(`Expected end of line or ':'`, next.$loc);
             this.curlabel = null;
         }
-        return line;
     }
-    parseCompoundStatement(): Statement[] {
-        var list = this.parseList(this.parseStatement, ':');
-        var next = this.peekToken();
-        if (!isEOS(next))
-            this.compileError(`Expected end of line or ':'`, next.$loc);
-        if (next.str == 'ELSE')
-            return list.concat(this.parseCompoundStatement());
-        else
-            return list;
+    parseCompoundStatement() : void {
+        if (this.opts.multipleStmtsPerLine) {
+            this.parseList(this.parseStatement, ':');
+        } else {
+            this.parseList(this.parseStatement, '\0');
+            if (this.peekToken().str == ':') this.dialectErrorNoSupport(`multiple statements on a line`);
+        }
     }
     validKeyword(keyword: string) : string {
         return (this.opts.validKeywords && this.opts.validKeywords.indexOf(keyword) < 0) ? null : keyword;
@@ -578,7 +588,6 @@ export class BASICParser {
                     if (this.validKeyword(cmd) == null)
                         this.dialectErrorNoSupport(`the ${cmd} statement`);
                     stmt = fn.bind(this)();
-                    this.modifyScope(stmt);
                     break;
                 } else if (this.peekToken().str == '=' || this.peekToken().str == '(') {
                     if (!this.opts.optionalLet)
@@ -596,7 +605,8 @@ export class BASICParser {
                 this.compileError(`There should be a command here.`);
                 return null;
         }
-        if (stmt) stmt.$loc = { path: cmdtok.$loc.path, line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: this.peekToken().$loc.start, label: this.curlabel, offset: null };
+        // add statement to list
+        if (stmt != null) this.addStatement(stmt, cmdtok);
         return stmt;
     }
     // check scope stuff (if compiledBlocks is true)
@@ -898,30 +908,39 @@ export class BASICParser {
             return { command: cmd, label: expr };
         }
     }
-    stmt__IF(): IF_Statement {
+    stmt__IF(): void {
+        var cmdtok = this.lasttoken;
         var cond = this.parseExpr();
-        var iftrue: Statement[];
+        var ifstmt = { command: "IF", cond: cond };
+        this.addStatement(ifstmt, cmdtok);
         // we accept GOTO or THEN if line number provided (DEC accepts GO TO)
         var thengoto = this.expectTokens(['THEN','GOTO','GO']);
         if (thengoto.str == 'GO') this.expectToken('TO');
+        // parse line number or statement clause
+        this.parseGotoOrStatements();
+        // is the next statement an ELSE?
+        // gotta parse it now because it's an end-of-statement token
+        if (this.peekToken().str == 'ELSE') {
+            this.expectToken('ELSE');
+            this.stmt__ELSE();
+        }
+    }
+    stmt__ELSE(): void {
+        this.addStatement({ command: "ELSE" }, this.lasttoken);
+        // parse line number or statement clause
+        this.parseGotoOrStatements();
+    }
+    parseGotoOrStatements() {
         var lineno = this.peekToken();
         // assume GOTO if number given after THEN
         if (lineno.type == TokenType.Int) {
-            this.pushbackToken({type:TokenType.Ident, str:'GOTO', $loc:lineno.$loc});
+            this.parseLabel();
+            var gotostmt : GOTO_Statement = { command:'GOTO', label: {value:lineno.str} }
+            this.addStatement(gotostmt, lineno);
+        } else {
+            // parse rest of IF clause
+            this.parseCompoundStatement();
         }
-        // add fake ":"
-        this.pushbackToken({type:TokenType.Operator, str:':', $loc:lineno.$loc});
-        return { command: "IF", cond: cond };
-    }
-    stmt__ELSE(): ELSE_Statement {
-        var lineno = this.peekToken();
-        // assume GOTO if number given after ELSE
-        if (lineno.type == TokenType.Int) {
-            this.pushbackToken({type:TokenType.Ident, str:'GOTO', $loc:lineno.$loc});
-        }
-        // add fake ":"
-        this.pushbackToken({type:TokenType.Operator, str:':', $loc:lineno.$loc});
-        return { command: "ELSE" };
     }
     stmt__FOR() : FOR_Statement {
         var lexpr = this.parseForNextLexpr();
@@ -1124,15 +1143,12 @@ export class BASICParser {
     // for workermain
     generateListing(file: string, program: BASICProgram) {
         var srclines = [];
-        var pc = 0;
         var laststmt : Statement;
-        program.lines.forEach((line, idx) => {
-            line.stmts.forEach((stmt) => {
-                laststmt = stmt;
-                var sl = stmt.$loc;
-                sl.offset = pc++; // TODO: could Statement have offset field?
-                srclines.push(sl);
-            });
+        program.stmts.forEach((stmt, idx) => {
+            laststmt = stmt;
+            var sl = stmt.$loc;
+            sl.offset = idx;
+            srclines.push(sl);
         });
         if (this.opts.endStmtRequired && (laststmt == null || laststmt.command != 'END'))
             this.dialectError(`All programs must have a final END statement`);
@@ -1172,6 +1188,7 @@ export const ECMA55_MINIMAL : BASICOptions = {
     uppercaseOnly : true,
     optionalLabels : false,
     optionalWhitespace : false,
+    multipleStmtsPerLine : false,
     varNaming : "A1",
     staticArrays : true,
     sharedArrayNamespace : true,
@@ -1220,6 +1237,7 @@ export const DARTMOUTH_4TH_EDITION : BASICOptions = {
     uppercaseOnly : true,
     optionalLabels : false,
     optionalWhitespace : false,
+    multipleStmtsPerLine : false,
     varNaming : "A1",
     staticArrays : true,
     sharedArrayNamespace : false,
@@ -1271,6 +1289,7 @@ export const TINY_BASIC : BASICOptions = {
     uppercaseOnly : true,
     optionalLabels : false,
     optionalWhitespace : false,
+    multipleStmtsPerLine : false,
     varNaming : "A",
     staticArrays : false,
     sharedArrayNamespace : true,
@@ -1317,6 +1336,7 @@ export const HP_TIMESHARED_BASIC : BASICOptions = {
     uppercaseOnly : false, // the terminal is usually uppercase
     optionalLabels : false,
     optionalWhitespace : false,
+    multipleStmtsPerLine : true,
     varNaming : "A1",
     staticArrays : true,
     sharedArrayNamespace : false,
@@ -1370,6 +1390,7 @@ export const DEC_BASIC_11 : BASICOptions = {
     uppercaseOnly : true, // translates all lower to upper
     optionalLabels : false,
     optionalWhitespace : false,
+    multipleStmtsPerLine : false, // actually "\"
     varNaming : "A1",
     staticArrays : true,
     sharedArrayNamespace : false,
@@ -1424,6 +1445,7 @@ export const DEC_BASIC_PLUS : BASICOptions = {
     uppercaseOnly : false,
     optionalLabels : false,
     optionalWhitespace : false,
+    multipleStmtsPerLine : true,
     varNaming : "A1",
     staticArrays : true,
     sharedArrayNamespace : false,
@@ -1485,6 +1507,7 @@ export const BASICODE : BASICOptions = {
     uppercaseOnly : false,
     optionalLabels : false,
     optionalWhitespace : true,
+    multipleStmtsPerLine : true,
     varNaming : "AA",
     staticArrays : true,
     sharedArrayNamespace : false,
@@ -1535,6 +1558,7 @@ export const ALTAIR_BASIC41 : BASICOptions = {
     uppercaseOnly : true,
     optionalLabels : false,
     optionalWhitespace : true,
+    multipleStmtsPerLine : true,
     varNaming : "*", // or AA
     staticArrays : false,
     sharedArrayNamespace : true,
@@ -1593,6 +1617,7 @@ export const APPLESOFT_BASIC : BASICOptions = {
     uppercaseOnly : false,
     optionalLabels : false,
     optionalWhitespace : true,
+    multipleStmtsPerLine : true,
     varNaming : "*", // or AA
     staticArrays : false,
     sharedArrayNamespace : false,
@@ -1652,6 +1677,7 @@ export const BASIC80 : BASICOptions = {
     uppercaseOnly : false,
     optionalLabels : false,
     optionalWhitespace : true,
+    multipleStmtsPerLine : true,
     varNaming : "*",
     staticArrays : false,
     sharedArrayNamespace : true,
@@ -1712,6 +1738,7 @@ export const MODERN_BASIC : BASICOptions = {
     uppercaseOnly : false,
     optionalLabels : true,
     optionalWhitespace : false,
+    multipleStmtsPerLine : true,
     varNaming : "*",
     staticArrays : false,
     sharedArrayNamespace : false,
@@ -1749,6 +1776,7 @@ export const MODERN_BASIC : BASICOptions = {
 // TODO: integer vars
 // TODO: DEFINT/DEFSTR
 // TODO: excess INPUT ignored, error msg
+// TODO: out of order line numbers
 
 export const DIALECTS = {
     "DEFAULT":      MODERN_BASIC,
