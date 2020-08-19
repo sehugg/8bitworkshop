@@ -1,4 +1,5 @@
 import { WorkerError, CodeListingMap, SourceLocation, SourceLine } from "../workertypes";
+import { BasicMachineState } from "../devices";
 
 export interface BASICOptions {
     dialectName : string;               // use this to select the dialect 
@@ -35,6 +36,7 @@ export interface BASICOptions {
     printZoneLength : number;           // print zone length
     numericPadding : boolean;           // " " or "-" before and " " after numbers?
     // CONTROL FLOW
+    compiledBlocks : boolean;           // assume blocks are statically compiled, not interpreted
     testInitialFor : boolean;           // can we skip a NEXT statement? (can't interleave tho)
     optionalNextVar : boolean;          // can do NEXT without variable
     multipleNextVars : boolean;         // NEXT J,I
@@ -109,52 +111,56 @@ export interface IndOp {
     args: Expr[];
 }
 
-export interface PRINT_Statement {
+export interface Statement extends SourceLocated {
+    command: string;
+}
+
+export interface PRINT_Statement extends Statement {
     command: "PRINT";
     args: Expr[];
 }
 
-export interface LET_Statement {
+export interface LET_Statement extends Statement {
     command: "LET";
     lexprs: IndOp[];
     right: Expr;
 }
 
-export interface DIM_Statement {
+export interface DIM_Statement extends Statement {
     command: "DIM";
     args: IndOp[];
 }
 
-export interface GOTO_Statement {
+export interface GOTO_Statement extends Statement {
     command: "GOTO";
     label: Expr;
 }
 
-export interface GOSUB_Statement {
+export interface GOSUB_Statement extends Statement {
     command: "GOSUB";
     label: Expr;
 }
 
-export interface RETURN_Statement {
+export interface RETURN_Statement extends Statement {
     command: "RETURN";
 }
 
-export interface ONGO_Statement {
+export interface ONGO_Statement extends Statement {
     command: "ONGOTO" | "ONGOSUB";
     expr: Expr;
     labels: Expr[];
 }
 
-export interface IF_Statement {
+export interface IF_Statement extends Statement {
     command: "IF";
     cond: Expr;
 }
 
-export interface ELSE_Statement {
+export interface ELSE_Statement extends Statement {
     command: "ELSE";
 }
 
-export interface FOR_Statement {
+export interface FOR_Statement extends Statement {
     command: "FOR";
     lexpr: IndOp;
     initial: Expr;
@@ -162,75 +168,71 @@ export interface FOR_Statement {
     step?: Expr;
 }
 
-export interface NEXT_Statement {
+export interface NEXT_Statement extends Statement {
     command: "NEXT";
     lexpr?: IndOp;
 }
 
-export interface WHILE_Statement {
+export interface WHILE_Statement extends Statement {
     command: "WHILE";
     cond: Expr;
 }
 
-export interface WEND_Statement {
+export interface WEND_Statement extends Statement {
     command: "WEND";
 }
 
-export interface INPUT_Statement {
+export interface INPUT_Statement extends Statement {
     command: "INPUT";
     prompt: Expr;
     args: IndOp[];
 }
 
-export interface DATA_Statement {
+export interface DATA_Statement extends Statement {
     command: "DATA";
     datums: Literal[];
 }
 
-export interface READ_Statement {
+export interface READ_Statement extends Statement {
     command: "READ";
     args: IndOp[];
 }
 
-export interface RESTORE_Statement {
+export interface RESTORE_Statement extends Statement {
     command: "RESTORE";
     label: Expr;
 }
 
-export interface DEF_Statement {
+export interface DEF_Statement extends Statement {
     command: "DEF";
     lexpr: IndOp;
     def: Expr;
 }
 
-export interface OPTION_Statement {
+export interface OPTION_Statement extends Statement {
     command: "OPTION";
     optname: string;
     optargs: string[];
 }
 
-export interface GET_Statement { // applesoft only?
+export interface GET_Statement extends Statement { // applesoft only?
     command: "GET";
     lexpr: IndOp;
 }
 
-export interface CHANGE_Statement {
+export interface CHANGE_Statement extends Statement {
     command: "CHANGE";
     src: Expr;
     dest: IndOp;
 }
 
-export interface NoArgStatement {
+export interface NoArgStatement extends Statement {
     command: string;
 }
 
-export type StatementTypes = PRINT_Statement | LET_Statement | GOTO_Statement | GOSUB_Statement
-    | IF_Statement | FOR_Statement | NEXT_Statement | DIM_Statement
-    | INPUT_Statement | READ_Statement | DEF_Statement | ONGO_Statement
-    | DATA_Statement | OPTION_Statement | GET_Statement | RESTORE_Statement
-    | NoArgStatement;
+export type ScopeStartStatement = (IF_Statement | FOR_Statement | WHILE_Statement) & SourceLocated;
 
-export type Statement = StatementTypes & SourceLocated;
+export type ScopeEndStatement = NEXT_Statement | WEND_Statement;
 
 export interface BASICLine {
     label: string;
@@ -322,14 +324,15 @@ function isUnOp(arg: Expr): arg is UnOp {
 
 export class BASICParser {
     opts : BASICOptions = DIALECTS['DEFAULT'];
-    optionCount : number;
+    optionCount : number; // how many OPTION stmts so far?
+    maxlinelen : number = 255; // maximum line length
     errors: WorkerError[];
     listings: CodeListingMap;
     labels: { [label: string]: BASICLine };
     targets: { [targetlabel: string]: SourceLocation };
     varrefs: { [name: string]: SourceLocation }; // references
     fnrefs: { [name: string]: string[] }; // DEF FN call graph
-    maxlinelen : number = 255; // maximum line length
+    scopestack: ScopeStartStatement[];
 
     path : string;
     lineno : number;
@@ -339,6 +342,7 @@ export class BASICParser {
     lasttoken: Token;
 
     constructor() {
+        this.optionCount = 0;
         this.labels = {};
         this.targets = {};
         this.errors = [];
@@ -347,7 +351,7 @@ export class BASICParser {
         this.listings = {};
         this.varrefs = {};
         this.fnrefs = {};
-        this.optionCount = 0;
+        this.scopestack = [];
     }
     addError(msg: string, loc?: SourceLocation) {
         if (!loc) loc = this.peekToken().$loc;
@@ -358,7 +362,10 @@ export class BASICParser {
         throw new CompileError(msg, loc);
     }
     dialectError(what: string, loc?: SourceLocation) {
-        this.compileError(`The selected BASIC dialect (${this.opts.dialectName}) doesn't support ${what}.`, loc); // TODO
+        this.compileError(`${what} in this dialect of BASIC (${this.opts.dialectName}).`, loc);
+    }
+    dialectErrorNoSupport(what: string, loc?: SourceLocation) {
+        this.compileError(`You can't use ${what} in this dialect of BASIC (${this.opts.dialectName}).`, loc); // TODO
     }
     consumeToken(): Token {
         var tok = this.lasttoken = (this.tokens.shift() || this.eol);
@@ -401,7 +408,7 @@ export class BASICParser {
                         break;
                     }
                 } else
-                    this.dialectError(`optional line numbers`);
+                    this.dialectError(`Each line must begin with a line number`);
             case TokenType.Int:
                 this.setCurrentLabel(line, tok.str);
                 break;
@@ -461,7 +468,7 @@ export class BASICParser {
                     let loc = { path: this.path, line: this.lineno, start: m.index, end: m.index+s.length };
                     // maybe we don't support unicode in 1975?
                     if (this.opts.asciiOnly && !/^[\x00-\x7F]*$/.test(s))
-                        this.dialectError(`non-ASCII characters`);
+                        this.dialectErrorNoSupport(`non-ASCII characters`);
                     // uppercase all identifiers, and maybe more
                     if (i == TokenType.Ident || i == TokenType.HexOctalInt || this.opts.uppercaseOnly) {
                         s = s.toUpperCase();
@@ -478,7 +485,7 @@ export class BASICParser {
                     }
                     // convert brackets
                     if (s == '[' || s == ']') {
-                        if (!this.opts.squareBrackets) this.dialectError(`square brackets`);
+                        if (!this.opts.squareBrackets) this.dialectErrorNoSupport(`square brackets`);
                         if (s == '[') s = '(';
                         if (s == ']') s = ')';
                     }
@@ -545,10 +552,11 @@ export class BASICParser {
         // get the command word
         var cmdtok = this.consumeToken();
         var cmd = cmdtok.str;
-        var stmt;
+        var stmt : Statement;
         switch (cmdtok.type) {
             case TokenType.Remark:
-                if (cmdtok.str.startsWith("'") && !this.opts.tickComments) this.dialectError(`tick remarks`);
+                if (cmdtok.str.startsWith("'") && !this.opts.tickComments)
+                    this.dialectErrorNoSupport(`tick comments`);
                 return null;
             case TokenType.Operator:
                 // "?" is alias for "PRINT" on some platforms
@@ -568,12 +576,13 @@ export class BASICParser {
                 var fn = this.supportsCommand(cmd);
                 if (fn) {
                     if (this.validKeyword(cmd) == null)
-                        this.dialectError(`the ${cmd} statement`);
+                        this.dialectErrorNoSupport(`the ${cmd} statement`);
                     stmt = fn.bind(this)();
+                    this.modifyScope(stmt);
                     break;
                 } else if (this.peekToken().str == '=' || this.peekToken().str == '(') {
                     if (!this.opts.optionalLet)
-                        this.dialectError(`assignments without a preceding LET`);
+                        this.dialectError(`Assignments must have a preceding LET`);
                     // 'A = expr' or 'A(X) = expr'
                     this.pushbackToken(cmdtok);
                     stmt = this.stmt__LET();
@@ -587,8 +596,34 @@ export class BASICParser {
                 this.compileError(`There should be a command here.`);
                 return null;
         }
-        if (stmt) stmt.$loc = { path: cmdtok.$loc.path, line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: this.peekToken().$loc.start, label: this.curlabel };
+        if (stmt) stmt.$loc = { path: cmdtok.$loc.path, line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: this.peekToken().$loc.start, label: this.curlabel, offset: null };
         return stmt;
+    }
+    // check scope stuff (if compiledBlocks is true)
+    modifyScope(stmt: Statement) {
+        if (this.opts.compiledBlocks) {
+            var cmd = stmt.command;
+            if (cmd == 'FOR' || cmd == 'WHILE') {
+                this.pushScope(stmt as ScopeStartStatement);
+            } else if (cmd == 'NEXT') {
+                this.popScope(stmt as NEXT_Statement, 'FOR');
+            } else if (cmd == 'WEND') {
+                this.popScope(stmt as WEND_Statement, 'WHILE');
+            }
+        }
+    }
+    pushScope(stmt: ScopeStartStatement) {
+        this.scopestack.push(stmt);
+    }
+    popScope(stmt: ScopeEndStatement, open: string) {
+        var popstmt = this.scopestack.pop();
+        if (popstmt == null)
+            this.compileError(`There's a ${stmt.command} without a matching ${open}.`);
+        else if (popstmt.command != open)
+            this.compileError(`There's a ${stmt.command} paired with ${popstmt.command}, but it should be paired with ${open}.`);
+        else if (stmt.command == 'NEXT' && !this.opts.optionalNextVar 
+            && stmt.lexpr.name != (popstmt as FOR_Statement).lexpr.name)
+            this.compileError(`This NEXT statement is matched with the wrong FOR variable (${stmt.lexpr.name}).`);
     }
     parseVarSubscriptOrFunc(): IndOp {
         var tok = this.consumeToken();
@@ -650,7 +685,8 @@ export class BASICParser {
             var tok = this.consumeToken();
             switch (tok.type) {
                 case TokenType.Ident:
-                    if (!this.opts.optionalLabels) this.dialectError(`labels other than line numbers`)
+                    if (!this.opts.optionalLabels)
+                        this.dialectError(`All labels must be line numbers`)
                 case TokenType.Int:
                     var label = tok.str;
                     this.targets[label] = tok.$loc;
@@ -695,7 +731,8 @@ export class BASICParser {
     parseValue(tok: Token): Literal {
         switch (tok.type) {
             case TokenType.HexOctalInt:
-                if (!this.opts.hexOctalConsts) this.dialectError(`hex/octal constants`);
+                if (!this.opts.hexOctalConsts)
+                    this.dialectErrorNoSupport(`hex/octal constants`);
                 let base = tok.str.startsWith('H') ? 16 : 8;
                 return { value: parseInt(tok.str.substr(1), base) };
             case TokenType.Int:
@@ -753,7 +790,7 @@ export class BASICParser {
         while (getPrecedence(look) >= minPred) {
             let op = this.consumeToken();
             if (this.opts.validOperators && this.opts.validOperators.indexOf(op.str) < 0)
-                this.dialectError(`the "${op.str}" operator`);
+                this.dialectErrorNoSupport(`the "${op.str}" operator`);
             let right: Expr = this.parsePrimary();
             look = this.peekToken();
             while (getPrecedence(look) > getPrecedence(op)) {
@@ -775,17 +812,17 @@ export class BASICParser {
         switch (this.opts.varNaming) {
             case 'A': // TINY BASIC, no strings
                 if (!/^[A-Z]$/i.test(lexpr.name))
-                    this.dialectError(`variable names other than a single letter`);
+                    this.dialectErrorNoSupport(`variable names other than a single letter`);
                 break;
             case 'A1':
                 if (lexpr.args == null && !/^[A-Z][0-9]?[$]?$/i.test(lexpr.name))
-                    this.dialectError(`variable names other than a letter followed by an optional digit`);
+                    this.dialectErrorNoSupport(`variable names other than a letter followed by an optional digit`);
                 if (lexpr.args != null && !/^[A-Z]?[$]?$/i.test(lexpr.name))
-                    this.dialectError(`array names other than a single letter`);
+                    this.dialectErrorNoSupport(`array names other than a single letter`);
                 break;
             case 'AA':
                 if (lexpr.args == null && !/^[A-Z][A-Z0-9]?[$]?$/i.test(lexpr.name))
-                    this.dialectError(`variable names other than a letter followed by an optional letter or digit`);
+                    this.dialectErrorNoSupport(`variable names other than a letter followed by an optional letter or digit`);
                 break;
             case '*':
                 break;
@@ -925,7 +962,7 @@ export class BASICParser {
             if (arr.args == null || arr.args.length == 0) 
                 this.compileError(`An array defined by DIM must have at least one dimension.`)
             else if (arr.args.length > this.opts.maxDimensions) 
-                this.dialectError(`more than ${this.opts.maxDimensions} dimensional arrays`);
+                this.dialectErrorNoSupport(`arrays with more than ${this.opts.maxDimensions} dimensionals`);
             for (var arrdim of arr.args) {
                 if (isLiteral(arrdim) && arrdim.value < this.opts.defaultArrayBase)
                     this.compileError(`An array dimension cannot be less than ${this.opts.defaultArrayBase}.`);
@@ -1098,7 +1135,7 @@ export class BASICParser {
             });
         });
         if (this.opts.endStmtRequired && (laststmt == null || laststmt.command != 'END'))
-            this.dialectError(`programs without an final END statement`);
+            this.dialectError(`All programs must have a final END statement`);
         return { lines: srclines };
     }
     getListings() : CodeListingMap {
@@ -1108,6 +1145,7 @@ export class BASICParser {
     // LINT STUFF
     checkAll(program : BASICProgram) {
         this.checkLabels();
+        this.checkScopes();
     }
     checkLabels() {
         for (let targ in this.targets) {
@@ -1115,6 +1153,13 @@ export class BASICParser {
                 var what = this.opts.optionalLabels && isNaN(parseInt(targ)) ? "label named" : "line number";
                 this.addError(`There isn't a ${what} ${targ}.`, this.targets[targ]);
             }
+        }
+    }
+    checkScopes() {
+        if (this.opts.compiledBlocks && this.scopestack.length) {
+            var open = this.scopestack.pop();
+            var close = {FOR:"NEXT", WHILE:"WEND", IF:"ENDIF"};
+            this.compileError(`Don't forget to add a matching ${close[open.command]} statement.`, open.$loc);
         }
     }
 }
@@ -1166,6 +1211,7 @@ export const ECMA55_MINIMAL : BASICOptions = {
     endStmtRequired : true,
     chainAssignments : false,
     optionalLet : false,
+    compiledBlocks : true,
 }
 
 export const DARTMOUTH_4TH_EDITION : BASICOptions = {
@@ -1215,6 +1261,7 @@ export const DARTMOUTH_4TH_EDITION : BASICOptions = {
     endStmtRequired : true,
     chainAssignments : true,
     optionalLet : false,
+    compiledBlocks : true,
 }
 
 // TODO: only integers supported
@@ -1261,6 +1308,7 @@ export const TINY_BASIC : BASICOptions = {
     endStmtRequired : false,
     chainAssignments : false,
     optionalLet : false,
+    compiledBlocks : false,
 }
 
 export const HP_TIMESHARED_BASIC : BASICOptions = {
@@ -1312,6 +1360,7 @@ export const HP_TIMESHARED_BASIC : BASICOptions = {
     endStmtRequired : true,
     chainAssignments : true,
     optionalLet : true,
+    compiledBlocks : true,
     // TODO: max line number, array index 9999
 }
 
@@ -1363,6 +1412,7 @@ export const DEC_BASIC_11 : BASICOptions = {
     endStmtRequired : false,
     chainAssignments : false,
     optionalLet : true,
+    compiledBlocks : true,
     // TODO: max line number 32767
     // TODO: \ separator, % int vars and constants, 'single' quoted
     // TODO: can't compare strings and numbers
@@ -1422,6 +1472,7 @@ export const DEC_BASIC_PLUS : BASICOptions = {
     endStmtRequired : false,
     chainAssignments : false, // TODO: can chain with "," not "="
     optionalLet : true,
+    compiledBlocks : true,
     // TODO: max line number 32767
     // TODO: \ separator, % int vars and constants, 'single' quoted
     // TODO: can't compare strings and numbers
@@ -1475,6 +1526,7 @@ export const BASICODE : BASICOptions = {
     endStmtRequired : false,
     chainAssignments : false,
     optionalLet : true,
+    compiledBlocks : false,
 }
 
 export const ALTAIR_BASIC41 : BASICOptions = {
@@ -1532,6 +1584,7 @@ export const ALTAIR_BASIC41 : BASICOptions = {
     endStmtRequired : false,
     chainAssignments : false,
     optionalLet : true,
+    compiledBlocks : false,
 }
 
 export const APPLESOFT_BASIC : BASICOptions = {
@@ -1590,6 +1643,7 @@ export const APPLESOFT_BASIC : BASICOptions = {
     endStmtRequired : false,
     chainAssignments : false,
     optionalLet : true,
+    compiledBlocks : false,
 }
 
 export const BASIC80 : BASICOptions = {
@@ -1649,6 +1703,7 @@ export const BASIC80 : BASICOptions = {
     endStmtRequired : false,
     chainAssignments : false,
     optionalLet : true,
+    compiledBlocks : false,
 }
 
 export const MODERN_BASIC : BASICOptions = {
@@ -1688,6 +1743,7 @@ export const MODERN_BASIC : BASICOptions = {
     endStmtRequired : false,
     chainAssignments : true,
     optionalLet : true,
+    compiledBlocks : true,
 }
 
 // TODO: integer vars
