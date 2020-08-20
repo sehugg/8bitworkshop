@@ -119,6 +119,14 @@ export interface Statement extends SourceLocated {
     command: string;
 }
 
+export interface ScopeStartStatement extends Statement {
+    endpc?: number;
+}
+
+export interface ScopeEndStatement extends Statement {
+    startpc?: number;
+}
+
 export interface PRINT_Statement extends Statement {
     command: "PRINT";
     args: Expr[];
@@ -155,16 +163,16 @@ export interface ONGO_Statement extends Statement {
     labels: Expr[];
 }
 
-export interface IF_Statement extends Statement {
+export interface IF_Statement extends ScopeStartStatement {
     command: "IF";
     cond: Expr;
 }
 
-export interface ELSE_Statement extends Statement {
+export interface ELSE_Statement extends ScopeStartStatement {
     command: "ELSE";
 }
 
-export interface FOR_Statement extends Statement {
+export interface FOR_Statement extends ScopeStartStatement {
     command: "FOR";
     lexpr: IndOp;
     initial: Expr;
@@ -172,17 +180,17 @@ export interface FOR_Statement extends Statement {
     step?: Expr;
 }
 
-export interface NEXT_Statement extends Statement {
+export interface NEXT_Statement extends ScopeEndStatement {
     command: "NEXT";
     lexpr?: IndOp;
 }
 
-export interface WHILE_Statement extends Statement {
+export interface WHILE_Statement extends ScopeStartStatement {
     command: "WHILE";
     cond: Expr;
 }
 
-export interface WEND_Statement extends Statement {
+export interface WEND_Statement extends ScopeEndStatement {
     command: "WEND";
 }
 
@@ -233,10 +241,6 @@ export interface CHANGE_Statement extends Statement {
 export interface NoArgStatement extends Statement {
     command: string;
 }
-
-export type ScopeStartStatement = (IF_Statement | FOR_Statement | WHILE_Statement) & SourceLocated;
-
-export type ScopeEndStatement = NEXT_Statement | WEND_Statement;
 
 export interface BASICProgram {
     opts: BASICOptions;
@@ -334,7 +338,7 @@ export class BASICParser {
     vardefs: { [name: string]: IndOp }; // LET or DIM
     varrefs: { [name: string]: SourceLocation }; // variable references
     fnrefs: { [name: string]: string[] }; // DEF FN call graph
-    scopestack: ScopeStartStatement[];
+    scopestack: number[];
 
     path : string;
     lineno : number;
@@ -443,11 +447,12 @@ export class BASICParser {
         return this.stmts.length;
     }
     addStatement(stmt: Statement, cmdtok: Token, endtok?: Token) {
-        // check IF/THEN WHILE/WEND FOR/NEXT etc
-        this.modifyScope(stmt);
         // set location for statement
         if (endtok == null) endtok = this.peekToken();
         stmt.$loc = { path: cmdtok.$loc.path, line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: endtok.$loc.start, label: this.curlabel, offset: null };
+        // check IF/THEN WHILE/WEND FOR/NEXT etc
+        this.modifyScope(stmt);
+        // add to list
         this.stmts.push(stmt);
     }
     addLabel(str: string) {
@@ -623,7 +628,7 @@ export class BASICParser {
         if (this.opts.compiledBlocks) {
             var cmd = stmt.command;
             if (cmd == 'FOR' || cmd == 'WHILE') {
-                this.pushScope(stmt as ScopeStartStatement);
+                this.scopestack.push(this.getPC()); // has to be before adding statment to list
             } else if (cmd == 'NEXT') {
                 this.popScope(stmt as NEXT_Statement, 'FOR');
             } else if (cmd == 'WEND') {
@@ -631,18 +636,19 @@ export class BASICParser {
             }
         }
     }
-    pushScope(stmt: ScopeStartStatement) {
-        this.scopestack.push(stmt);
-    }
-    popScope(stmt: ScopeEndStatement, open: string) {
-        var popstmt = this.scopestack.pop();
+    popScope(close: WEND_Statement|NEXT_Statement, open: string) {
+        var popidx = this.scopestack.pop();
+        var popstmt : ScopeStartStatement = popidx != null ? this.stmts[popidx] : null;
         if (popstmt == null)
-            this.compileError(`There's a ${stmt.command} without a matching ${open}.`);
+            this.compileError(`There's a ${close.command} without a matching ${open}.`);
         else if (popstmt.command != open)
-            this.compileError(`There's a ${stmt.command} paired with ${popstmt.command}, but it should be paired with ${open}.`);
-        else if (stmt.command == 'NEXT' && !this.opts.optionalNextVar 
-            && stmt.lexpr.name != (popstmt as FOR_Statement).lexpr.name)
-            this.compileError(`This NEXT statement is matched with the wrong FOR variable (${stmt.lexpr.name}).`);
+            this.compileError(`There's a ${close.command} paired with ${popstmt.command}, but it should be paired with ${open}.`);
+        else if (close.command == 'NEXT' && !this.opts.optionalNextVar 
+            && close.lexpr.name != (popstmt as FOR_Statement).lexpr.name)
+            this.compileError(`This NEXT statement is matched with the wrong FOR variable (${close.lexpr.name}).`);
+        // set start + end locations
+        close.startpc = popidx;
+        popstmt.endpc = this.getPC(); // has to be before adding statment to list
     }
     parseVarSubscriptOrFunc(): IndOp {
         var tok = this.consumeToken();
@@ -954,7 +960,7 @@ export class BASICParser {
     stmt__IF(): void {
         var cmdtok = this.lasttoken;
         var cond = this.parseExpr();
-        var ifstmt = { command: "IF", cond: cond };
+        var ifstmt : IF_Statement = { command: "IF", cond: cond };
         this.addStatement(ifstmt, cmdtok);
         // we accept GOTO or THEN if line number provided (DEC accepts GO TO)
         var thengoto = this.expectTokens(['THEN','GOTO','GO']);
@@ -965,13 +971,18 @@ export class BASICParser {
         // gotta parse it now because it's an end-of-statement token
         if (this.peekToken().str == 'ELSE') {
             this.expectToken('ELSE');
+            ifstmt.endpc = this.getPC() + 1;
             this.stmt__ELSE();
+        } else {
+            ifstmt.endpc = this.getPC();
         }
     }
     stmt__ELSE(): void {
-        this.addStatement({ command: "ELSE" }, this.lasttoken);
+        var elsestmt : ELSE_Statement = { command: "ELSE" };
+        this.addStatement(elsestmt, this.lasttoken);
         // parse line number or statement clause
         this.parseGotoOrStatements();
+        elsestmt.endpc = this.getPC();
     }
     parseGotoOrStatements() {
         var lineno = this.peekToken();
@@ -1223,7 +1234,7 @@ export class BASICParser {
     }
     checkScopes() {
         if (this.opts.compiledBlocks && this.scopestack.length) {
-            var open = this.scopestack.pop();
+            var open = this.stmts[this.scopestack.pop()];
             var close = {FOR:"NEXT", WHILE:"WEND", IF:"ENDIF"};
             this.compileError(`Don't forget to add a matching ${close[open.command]} statement.`, open.$loc);
         }

@@ -862,6 +862,7 @@ export abstract class BaseMAMEPlatform {
   }
   
   getCPUReg(reg:string) {
+    if (!this.loaded) return 0; // TODO
     this.initlua();
     return parseInt(this.luacall('return cpu.state.'+reg+'.value'));
   }

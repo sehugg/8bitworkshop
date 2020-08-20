@@ -495,7 +495,7 @@ export class BASICRuntime {
             this.runtimeError(`I expected ${fn.length} arguments for the ${expr.name} function, but I got ${nargs}.`);
     }
 
-    startForLoop(forname, init, targ, step) {
+    startForLoop(forname:string, init:number, targ:number, step?:number, endpc?:number) {
         // save start PC and label in case of hot reload (only works if FOR is first stmt in line)
         var looppc = this.curpc - 1;
         var looplabel = this.pc2label.get(looppc);
@@ -507,8 +507,12 @@ export class BASICRuntime {
             return step >= 0 ? this.vars[forname] > targ : this.vars[forname] < targ;
         }
         // skip entire for loop before first iteration? (Minimal BASIC)
-        if (this.opts.testInitialFor && loopdone())
-            return this.skipToAfterNext(forname);
+        if (this.opts.testInitialFor && loopdone()) {
+            if (endpc != null)
+                this.curpc = endpc+1;
+            else
+                this.skipToAfterNext(forname);
+        }
         // save for var name on stack, remove existing entry
         if (this.forLoopStack[forname] != null)
             this.forLoopStack = this.forLoopStack.filter((n) => n == forname);
@@ -767,7 +771,7 @@ export class BASICRuntime {
         var init = this.expr2js(stmt.initial);
         var targ = this.expr2js(stmt.target);
         var step = stmt.step ? this.expr2js(stmt.step) : 'null';
-        return `this.startForLoop(${name}, ${init}, ${targ}, ${step})`;
+        return `this.startForLoop(${name}, ${init}, ${targ}, ${step}, ${stmt.endpc})`;
     }
 
     do__NEXT(stmt : basic.NEXT_Statement) {
@@ -777,11 +781,17 @@ export class BASICRuntime {
 
     do__IF(stmt : basic.IF_Statement) {
         var cond = this.expr2js(stmt.cond);
-        return `if (!(${cond})) { this.skipToElse(); }`
+        if (stmt.endpc != null)
+            return `if (!(${cond})) { this.curpc = ${stmt.endpc}; }`
+        else
+            return `if (!(${cond})) { this.skipToElse(); }`
     }
 
-    do__ELSE() {
-        return `this.skipToEOL()`
+    do__ELSE(stmt : basic.ELSE_Statement) {
+        if (stmt.endpc != null)
+            return `this.curpc = ${stmt.endpc}`
+        else
+            return `this.skipToEOL()`
     }
 
     do__WHILE(stmt : basic.WHILE_Statement) {

@@ -1,1 +1,2 @@
-10 PRINT "EXAMPLE BASIC PROGRAM"
+OPTION DIALECT MODERN
+print "This is an example BASIC program"

@@ -262,10 +262,10 @@ export class SourceEditor implements ProjectView {
   }
 
   clearErrors() {
-    this.editor.clearGutter("gutter-info");
-    this.refreshDebugState(false);
+    this.refreshDebugState(false); // TODO: why?
     this.dirtylisting = true;
     // clear line widgets
+    this.editor.clearGutter("gutter-info");
     this.errormsgs = [];
     while (this.errorwidgets.length) this.errorwidgets.shift().clear();
     while (this.errormarks.length) this.errormarks.shift().clear();
@@ -276,7 +276,7 @@ export class SourceEditor implements ProjectView {
   updateListing() {
     // update editor annotations
     // TODO: recreate editor if gutter-bytes is used (verilog)
-    this.editor.clearGutter("gutter-info");
+    this.clearErrors();
     this.editor.clearGutter("gutter-bytes");
     this.editor.clearGutter("gutter-offset");
     this.editor.clearGutter("gutter-clock");
@@ -410,8 +410,8 @@ export class SourceEditor implements ProjectView {
       this.dirtylisting = true;
     }
     if (!this.sourcefile || !this.dirtylisting) return;
-    this.dirtylisting = false;
     this.updateListing();
+    this.dirtylisting = false;
   }
 
   refresh(moveCursor: boolean) {
