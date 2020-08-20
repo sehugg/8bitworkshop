@@ -1142,10 +1142,10 @@ export class BASICRuntime {
     }
     MID$(arg : string, start : number, count : number) : string {
         arg = this.checkString(arg);
+        if (!count) count = arg.length;
         start = this.ROUND(start);
         count = this.ROUND(count);
         if (start < 1) this.runtimeError(`I can't compute MID$ if the starting index is less than 1.`)
-        if (count == 0) count = arg.length;
         return arg.substr(start-1, count);
     }
     OCT$(arg : number) : string {
@@ -1209,7 +1209,7 @@ export class BASICRuntime {
     TAN(arg : number) : number {
         return this.checkNum(Math.tan(arg));
     }
-    TIM(arg : number) { // only HP BASIC?
+    TIM(arg : number) : number { // only HP BASIC?
         var d = new Date();
         switch (this.ROUND(arg)) {
             case 0: return d.getMinutes();

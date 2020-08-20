@@ -1,5 +1,6 @@
 import { WorkerError, CodeListingMap, SourceLocation, SourceLine } from "../workertypes";
 import { BasicMachineState } from "../devices";
+import { merge } from "jquery";
 
 export interface BASICOptions {
     dialectName : string;               // use this to select the dialect 
@@ -85,29 +86,31 @@ export enum TokenType {
 }
 
 export type ExprTypes = BinOp | UnOp | IndOp | Literal;
-
 export type Expr = ExprTypes; // & SourceLocated;
-
 export type Opcode = string;
+export type Value = number | string;
+export type ValueType = 'number' | 'string' | 'label';
 
-export type Value = string | number;
+export interface ExprBase extends SourceLocated {
+    valtype: ValueType;
+}
 
-export interface Literal {
+export interface Literal extends ExprBase {
     value: Value;
 }
 
-export interface BinOp {
+export interface BinOp extends ExprBase {
     op: Opcode;
     left: Expr;
     right: Expr;
 }
 
-export interface UnOp {
+export interface UnOp extends ExprBase {
     op: 'neg' | 'lnot' | 'bnot';
     expr: Expr;
 }
 
-export interface IndOp {
+export interface IndOp extends ExprBase {
     name: string;
     args: Expr[];
 }
@@ -327,8 +330,9 @@ export class BASICParser {
     errors: WorkerError[];
     listings: CodeListingMap;
     labels: { [label: string]: number }; // label -> PC
-    targets: { [targetlabel: string]: SourceLocation };
-    varrefs: { [name: string]: SourceLocation }; // references
+    targets: { [targetlabel: string]: SourceLocation }; // targets of GOTOs etc
+    vardefs: { [name: string]: IndOp }; // LET or DIM
+    varrefs: { [name: string]: SourceLocation }; // variable references
     fnrefs: { [name: string]: string[] }; // DEF FN call graph
     scopestack: ScopeStartStatement[];
 
@@ -348,6 +352,7 @@ export class BASICParser {
         this.targets = {};
         this.errors = [];
         this.listings = {};
+        this.vardefs = {};
         this.varrefs = {};
         this.fnrefs = {};
         this.scopestack = [];
@@ -553,6 +558,9 @@ export class BASICParser {
     validKeyword(keyword: string) : string {
         return (this.opts.validKeywords && this.opts.validKeywords.indexOf(keyword) < 0) ? null : keyword;
     }
+    validFunction(funcname: string) : string {
+        return (this.opts.validFunctions && this.opts.validFunctions.indexOf(funcname) < 0) ? null : funcname;
+    }
     supportsCommand(cmd: string) : () => Statement {
         if (cmd == '?') return this.stmt__PRINT;
         else return this['stmt__' + cmd];
@@ -640,14 +648,14 @@ export class BASICParser {
         var tok = this.consumeToken();
         switch (tok.type) {
             case TokenType.Ident:
-                this.varrefs[tok.str] = tok.$loc;
                 let args = null;
                 if (this.peekToken().str == '(') {
                     this.expectToken('(');
                     args = this.parseExprList();
                     this.expectToken(')', `There should be another expression or a ")" here.`);
                 }
-                return { name: tok.str, args: args };
+                var valtype = this.exprTypeForSubscript(tok.str, args);
+                return { valtype: valtype, name: tok.str, args: args };
             default:
                 this.compileError(`There should be a variable name here.`);
                 break;
@@ -655,6 +663,7 @@ export class BASICParser {
     }
     parseLexpr(): IndOp {
         var lexpr = this.parseVarSubscriptOrFunc();
+        this.vardefs[lexpr.name] = lexpr;
         this.validateVarName(lexpr);
         return lexpr;
     }
@@ -701,7 +710,7 @@ export class BASICParser {
                 case TokenType.Int:
                     var label = tok.str;
                     this.targets[label] = tok.$loc;
-                    return {value:label};
+                    return {valtype:'label', value:label};
                 default:
                     var what = this.opts.optionalLabels ? "label or line number" : "line number";
                     this.compileError(`There should be a ${what} here.`);
@@ -723,7 +732,7 @@ export class BASICParser {
         }
         if (tok.str == '-' && this.peekToken().type <= TokenType.HexOctalInt) {
             tok = this.consumeToken();
-            return { value: -this.parseValue(tok).value };
+            return { valtype:'number', value: -this.parseValue(tok).value };
         }
         if (tok.str == '+' && this.peekToken().type <= TokenType.HexOctalInt) {
             tok = this.consumeToken();
@@ -737,7 +746,7 @@ export class BASICParser {
             tok = this.consumeToken();
         }
         this.pushbackToken(tok);
-        return { value: s }; // trim leading and trailing whitespace
+        return { valtype:'string', value: s }; // trim leading and trailing whitespace
     }
     parseValue(tok: Token): Literal {
         switch (tok.type) {
@@ -745,14 +754,14 @@ export class BASICParser {
                 if (!this.opts.hexOctalConsts)
                     this.dialectErrorNoSupport(`hex/octal constants`);
                 let base = tok.str.startsWith('H') ? 16 : 8;
-                return { value: parseInt(tok.str.substr(1), base) };
+                return { valtype:'number', value: parseInt(tok.str.substr(1), base) };
             case TokenType.Int:
             case TokenType.Float:
-                return { value: this.parseNumber(tok.str) };
+                return { valtype:'number', value: this.parseNumber(tok.str) };
             case TokenType.String:
-                return { value: stripQuotes(tok.str) };
+                return { valtype:'string', value: stripQuotes(tok.str) };
             default:
-                return { value: tok.str }; // only used in DATA statement
+                return { valtype:'string', value: tok.str }; // only used in DATA statement
         }
     }
     parsePrimary(): Expr {
@@ -766,7 +775,7 @@ export class BASICParser {
             case TokenType.Ident:
                 if (tok.str == 'NOT') {
                     let expr = this.parsePrimary();
-                    return { op: this.opts.bitwiseLogic ? 'bnot' : 'lnot', expr: expr };
+                    return { valtype:'number', op: this.opts.bitwiseLogic ? 'bnot' : 'lnot', expr: expr };
                 } else {
                     this.pushbackToken(tok);
                     return this.parseVarSubscriptOrFunc();
@@ -778,7 +787,7 @@ export class BASICParser {
                     return expr;
                 } else if (tok.str == '-') {
                     let expr = this.parsePrimary(); // TODO: -2^2=-4 and -2-2=-4
-                    return { op: 'neg', expr: expr };
+                    return { valtype:'number', op: 'neg', expr: expr };
                 } else if (tok.str == '+') {
                     return this.parsePrimary(); // ignore unary +
                 }
@@ -786,7 +795,6 @@ export class BASICParser {
                 this.compileError(`The expression is incomplete.`);
                 return;
         }
-        this.compileError(`There was an unexpected "${tok.str}" in this expression.`);
     }
     parseNumber(str: string) : number {
         var n = parseFloat(str);
@@ -812,12 +820,19 @@ export class BASICParser {
             // use logical operators instead of bitwise?
             if (!this.opts.bitwiseLogic && op.str == 'AND') opfn = 'land';
             if (!this.opts.bitwiseLogic && op.str == 'OR') opfn = 'lor';
-            left = { op:opfn, left: left, right: right };
+            var valtype = this.exprTypeForOp(opfn, left, right);
+            left = { valtype:valtype, op:opfn, left: left, right: right };
         }
         return left;
     }
     parseExpr(): Expr {
         return this.parseExpr1(this.parsePrimary(), 0);
+    }
+    parseExprWithType(expecttype: ValueType): Expr {
+        var expr = this.parseExpr();
+        if (expr.valtype != expecttype)
+            this.compileError(`There should be a ${expecttype} here, but this expression evaluates to a ${expr.valtype}.`, expr.$loc);
+        return expr;
     }
     validateVarName(lexpr: IndOp) {
         switch (this.opts.varNaming) {
@@ -853,6 +868,33 @@ export class BASICParser {
         }
         callback(expr);
     }
+    // type-checking
+    exprTypeForOp(fnname: string, left: Expr, right: Expr) : ValueType {
+        if (fnname == 'add' && (left.valtype == 'string' || right.valtype == 'string')) {
+            if (!this.opts.stringConcat) this.dialectErrorNoSupport(`the "+" operator to concatenate strings`);
+            return 'string'; // string concatenation
+        } else {
+            return 'number';
+        }
+    }
+    exprTypeForSubscript(fnname: string, args: Expr[]) : ValueType {
+        args = args || [];
+        // first check the built-in functions
+        var defs = BUILTIN_MAP[fnname];
+        if (defs != null) {
+            if (!this.validFunction(fnname)) this.dialectErrorNoSupport(`the ${fnname} function`);
+            for (var def of defs) {
+                if (args.length == def.args.length)
+                    return def.result; // TODO: check arg types?
+            }
+            // TODO: check func arg types
+            this.compileError(`The ${fnname} function takes ${def.args.length} arguments, but ${args.length} are given.`);
+        }
+        // no function found, assume it's an array ref
+        // TODO: validateVarName() later?
+        this.varrefs[fnname] = this.lasttoken.$loc; // TODO?
+        return fnname.endsWith('$') ? 'string' : 'number';
+    }
 
     //// STATEMENTS
 
@@ -864,7 +906,7 @@ export class BASICParser {
             lexprs.push(this.parseLexpr());
             this.expectToken("=");
         }
-        var right = this.parseExpr();
+        var right = this.parseExprWithType(lexprs[0].valtype);
         return { command: "LET", lexprs: lexprs, right: right };
     }
     stmt__PRINT(): PRINT_Statement {
@@ -936,7 +978,7 @@ export class BASICParser {
         // assume GOTO if number given after THEN
         if (lineno.type == TokenType.Int) {
             this.parseLabel();
-            var gotostmt : GOTO_Statement = { command:'GOTO', label: {value:lineno.str} }
+            var gotostmt : GOTO_Statement = { command:'GOTO', label: {valtype:'label', value:lineno.str} }
             this.addStatement(gotostmt, lineno);
         } else {
             // parse rest of IF clause
@@ -1000,7 +1042,7 @@ export class BASICParser {
             this.pushbackToken(prompt);
             promptstr = "";
         }
-        return { command:'INPUT', prompt:{ value: promptstr }, args:this.parseLexprList() };
+        return { command:'INPUT', prompt:{ valtype:'string', value: promptstr }, args:this.parseLexprList() };
     }
     /* for HP BASIC only */
     stmt__ENTER() : INPUT_Statement {
@@ -1045,6 +1087,12 @@ export class BASICParser {
         if (lexpr.args && lexpr.args.length > this.opts.maxDefArgs)
             this.compileError(`There can be no more than ${this.opts.maxDefArgs} arguments to a function or subscript.`);
         if (!lexpr.name.startsWith('FN')) this.compileError(`Functions defined with DEF must begin with the letters "FN".`)
+        // local variables need to be marked as referenced (TODO: only for this scope)
+        this.vardefs[lexpr.name] = lexpr;
+        if (lexpr.args != null)
+            for (let arg of lexpr.args)
+                if (isLookup(arg))
+                    this.vardefs[arg.name] = arg;
         this.expectToken("=");
         var func = this.parseExpr();
         // build call graph to detect cycles
@@ -1163,6 +1211,7 @@ export class BASICParser {
     checkAll(program : BASICProgram) {
         this.checkLabels();
         this.checkScopes();
+        this.checkVarRefs();
     }
     checkLabels() {
         for (let targ in this.targets) {
@@ -1177,6 +1226,14 @@ export class BASICParser {
             var open = this.scopestack.pop();
             var close = {FOR:"NEXT", WHILE:"WEND", IF:"ENDIF"};
             this.compileError(`Don't forget to add a matching ${close[open.command]} statement.`, open.$loc);
+        }
+    }
+    checkVarRefs() {
+        if (!this.opts.defaultValues) {
+            for (var varname in this.varrefs) {
+                if (this.vardefs[varname] == null)
+                    this.compileError(`The variable ${varname} isn't defined anywhere in the program.`, this.varrefs[varname]);
+            }
         }
     }
 }
@@ -1778,6 +1835,63 @@ export const MODERN_BASIC : BASICOptions = {
 // TODO: DEFINT/DEFSTR
 // TODO: excess INPUT ignored, error msg
 // TODO: out of order line numbers
+
+type BuiltinFunctionDef = [string, ValueType[], ValueType];
+
+const BUILTIN_DEFS : BuiltinFunctionDef[] = [
+    ['ABS', ['number'], 'number' ],
+    ['ASC', ['string'], 'number' ],
+    ['ATN', ['number'], 'number' ],
+    ['CHR$', ['number'], 'string' ],
+    ['CINT', ['number'], 'number' ],
+    ['COS', ['number'], 'number' ],
+    ['COT', ['number'], 'number' ],
+    ['CTL', ['number'], 'string' ],
+    ['EXP', ['number'], 'number' ],
+    ['FIX', ['number'], 'number' ],
+    ['HEX$', ['number'], 'string' ],
+    ['INSTR', ['number', 'string', 'string'], 'number' ],
+    ['INSTR', ['string', 'string'], 'number' ],
+    ['INT', ['number'], 'number' ],
+    ['LEFT$', ['string', 'number'], 'string' ],
+    ['LEN', ['string'], 'number' ],
+    ['LIN', ['number'], 'string' ],
+    ['LOG', ['number'], 'number' ],
+    ['LOG10', ['number'], 'number' ],
+    ['MID$', ['string', 'number'], 'string'],
+    ['MID$', ['string', 'number', 'number'], 'string'],
+    ['OCT$', ['number'], 'string' ],
+    ['PI', [], 'number'],
+    ['POS', ['number'], 'number' ], // arg ignored
+    ['LEFT$', ['string', 'number'], 'string' ],
+    ['RND', [], 'number' ],
+    ['RND', ['number'], 'number' ],
+    ['ROUND', ['number'], 'number' ],
+    ['SGN', ['number'], 'number' ],
+    ['SIN', ['number'], 'number' ],
+    ['SPACE$', ['number'], 'string' ],
+    ['SPC', ['number'], 'string' ],
+    ['SQR', ['number'], 'number' ],
+    ['STR$', ['number'], 'string' ],
+    ['STRING$', ['number', 'number'], 'string'],
+    ['STRING$', ['number', 'string'], 'string'],
+    ['TAB', ['number'], 'string' ],
+    ['TAN', ['number'], 'number' ],
+    ['TIM', ['number'], 'number' ], // only HP BASIC?
+    ['TIMER', [], 'number' ],
+    ['UPS$', ['string'], 'string' ],
+    ['VAL', ['string'], 'number' ],
+    ['LPAD$', ['string', 'number'], 'string' ],
+    ['RPAD$', ['string', 'number'], 'string' ],
+    ['NFORMAT$', ['number', 'number'], 'string' ],
+];
+
+var BUILTIN_MAP : { [name:string] : {args:ValueType[], result:ValueType}[] } = {};
+BUILTIN_DEFS.forEach( (def, idx) => {
+    let [name, args, result] = def;
+    if (!BUILTIN_MAP[name]) BUILTIN_MAP[name] = [];
+    BUILTIN_MAP[name].push({args: args, result: result});
+});
 
 export const DIALECTS = {
     "DEFAULT":      MODERN_BASIC,
