@@ -353,7 +353,8 @@ export class BASICParser {
         this.scopestack = [];
     }
     addError(msg: string, loc?: SourceLocation) {
-        if (!loc) loc = this.peekToken().$loc;
+        var tok = this.lasttoken || this.peekToken();
+        if (!loc) loc = tok.$loc;
         this.errors.push({path:loc.path, line:loc.line, label:this.curlabel, start:loc.start, end:loc.end, msg:msg});
     }
     compileError(msg: string, loc?: SourceLocation) {

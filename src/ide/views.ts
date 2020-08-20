@@ -92,6 +92,7 @@ export class SourceEditor implements ProjectView {
   markCurrentPC; // TextMarker
   errormsgs = [];
   errorwidgets = [];
+  errormarks = [];
   inspectWidget;
 
   createDiv(parent:HTMLElement) {
@@ -210,6 +211,23 @@ export class SourceEditor implements ProjectView {
 
   getPath() : string { return this.path; }
 
+  addError(info: WorkerError) {
+    // only mark errors with this filename, or without any filename
+    if (!info.path || this.path.endsWith(info.path)) {
+      var numLines = this.editor.lineCount();
+      var line = info.line-1;
+      if (line < 0 || line >= numLines) line = 0;
+      this.addErrorMarker(line, info.msg);
+      if (info.start != null) {
+        var markOpts = {className:"mark-error", inclusiveLeft:true};
+        var start = {line:line, ch:info.end?info.start:info.start-1};
+        var end = {line:line, ch:info.end?info.end:info.start};
+        var mark = this.editor.markText(start, end, markOpts);
+        this.errormarks.push(mark);
+      }
+    }
+  }
+
   addErrorMarker(line:number, msg:string) {
     var div = document.createElement("div");
     div.setAttribute("class", "tooltipbox tooltiperror");
@@ -237,15 +255,9 @@ export class SourceEditor implements ProjectView {
   markErrors(errors:WorkerError[]) {
     // TODO: move cursor to error line if offscreen?
     this.clearErrors();
-    var numLines = this.editor.lineCount();
     errors = errors.slice(0, MAX_ERRORS);
     for (var info of errors) {
-      // only mark errors with this filename, or without any filename
-      if (!info.path || this.path.endsWith(info.path)) {
-        var line = info.line-1;
-        if (line < 0 || line >= numLines) line = 0;
-        this.addErrorMarker(line, info.msg);
-      }
+      this.addError(info);
     }
   }
 
@@ -255,8 +267,8 @@ export class SourceEditor implements ProjectView {
     this.dirtylisting = true;
     // clear line widgets
     this.errormsgs = [];
-    while (this.errorwidgets.length)
-      this.errorwidgets.shift().clear();
+    while (this.errorwidgets.length) this.errorwidgets.shift().clear();
+    while (this.errormarks.length) this.errormarks.shift().clear();
   }
 
   getSourceFile() : SourceFile { return this.sourcefile; }

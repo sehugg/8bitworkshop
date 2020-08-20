@@ -28,6 +28,9 @@
 .currentpc-marker-blocked {
   color: #ffee33;
 }
+.mark-error {
+  text-decoration: underline wavy 1px #ff6666;
+}
 .tooltipbox {
     position: relative;
     display: inline-block;
