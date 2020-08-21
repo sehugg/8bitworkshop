@@ -29,7 +29,10 @@
   color: #ffee33;
 }
 .mark-error {
-  text-decoration: underline wavy 1px #ff6666;
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #ff6666;
+  text-decoration-thickness: 1px;
 }
 .tooltipbox {
     position: relative;
