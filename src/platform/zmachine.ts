@@ -3,6 +3,7 @@ import { Platform, BasePlatform, BaseDebugPlatform, Preset, EmuState, inspectSym
 import { PLATFORMS, EmuHalt } from "../common/emu";
 import { loadScript } from "../ide/ui";
 import { TeleType, TeleTypeWithKeyboard } from "../common/teletype";
+import { InputResponse } from "../common/basic/runtime";
 
 const ZMACHINE_PRESETS = [
     { id: 'hello.inf', name: 'Hello World' },
@@ -71,7 +72,8 @@ class GlkImpl {
             3: new TeleType(null, true), // fake window for resizing
         };
         this.input = input;
-        this.mainwnd.resolveInput = (s:string) => {
+        this.mainwnd.resolveInput = (resp:InputResponse) => {
+            var s = resp.line;
             if (this.vm.read_data.buffer) {
                 for (var i = 0; i < s.length; i++) {
                     this.vm.read_data.buffer[i] = s.charCodeAt(i) & 0xff;

@@ -262,7 +262,6 @@ export class SourceEditor implements ProjectView {
   }
 
   clearErrors() {
-    this.refreshDebugState(false); // TODO: why?
     this.dirtylisting = true;
     // clear line widgets
     this.editor.clearGutter("gutter-info");

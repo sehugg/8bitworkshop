@@ -69,9 +69,10 @@ runtime.print = (s:string) => {
 runtime.input = async (prompt:string) => {
     return new Promise( (resolve, reject) => {
         function answered(answer) {
-            var vals = answer.toUpperCase().split(',');
+            var line = answer.toUpperCase();
+            var vals = line.split(',');
             //console.log(">>>",vals);
-            resolve(vals);
+            resolve({line:line, vals:vals});
         }
         prompt += ' ?';
         if (inputlines.length) {

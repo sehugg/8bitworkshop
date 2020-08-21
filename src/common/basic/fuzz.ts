@@ -1,6 +1,6 @@
 
 import { BASICParser, DIALECTS, BASICOptions, CompileError } from "./compiler";
-import { BASICRuntime } from "./runtime";
+import { BASICRuntime, InputResponse } from "./runtime";
 import { EmuHalt } from "../emu";
 
 process.on('unhandledRejection', (reason, promise) => {
@@ -20,12 +20,12 @@ export function fuzz(buf) {
         runtime.print = (s) => {
             if (s == null) throw new Error("PRINT null string");
         }
-        runtime.input = function(prompt: string, nargs: number) : Promise<string[]> {
-            var p = new Promise<string[]>( (resolve, reject) => {
+        runtime.input = function(prompt: string, nargs: number) : Promise<InputResponse> {
+            var p = new Promise<InputResponse>( (resolve, reject) => {
                 var arr = [];
                 for (var i=0; i<Math.random()*10; i++)
                     arr.push(i+"");
-                resolve(arr);
+                resolve({vals:arr, line:arr.join(' ')});
             });
             return p;
         }

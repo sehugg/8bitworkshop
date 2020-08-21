@@ -10,7 +10,7 @@ export interface BASICOptions {
     optionalLabels : boolean;			// can omit line numbers and use labels?
     optionalWhitespace : boolean;       // can "crunch" keywords? also, eat extra ":" delims
     multipleStmtsPerLine : boolean;     // multiple statements separated by ":"
-    varNaming : 'A'|'A1'|'AA'|'*';      // only allow A0-9 for numerics, single letter for arrays/strings
+    varNaming : 'A'|'A1'|'A1$'|'AA'|'*';      // only allow A0-9 for numerics, single letter for arrays/strings
     squareBrackets : boolean;           // "[" and "]" interchangable with "(" and ")"?
     tickComments : boolean;             // support 'comments?
     hexOctalConsts : boolean;           // support &H and &O integer constants?
@@ -198,6 +198,13 @@ export interface INPUT_Statement extends Statement {
     command: "INPUT";
     prompt: Expr;
     args: IndOp[];
+    timeout?: Expr;
+    elapsed?: IndOp;
+}
+
+export interface ENTER_Statement extends INPUT_Statement {
+    timeout: Expr;
+    elapsed: IndOp;
 }
 
 export interface DATA_Statement extends Statement {
@@ -852,6 +859,10 @@ export class BASICParser {
                 if (lexpr.args != null && !/^[A-Z]?[$]?$/i.test(lexpr.name))
                     this.dialectErrorNoSupport(`array names other than a single letter`);
                 break;
+            case 'A1$':
+                if (!/^[A-Z][0-9]?[$]?$/i.test(lexpr.name))
+                    this.dialectErrorNoSupport(`variable names other than a letter followed by an optional digit`);
+                break;
             case 'AA':
                 if (lexpr.args == null && !/^[A-Z][A-Z0-9]?[$]?$/i.test(lexpr.name))
                     this.dialectErrorNoSupport(`variable names other than a letter followed by an optional letter or digit`);
@@ -1057,11 +1068,11 @@ export class BASICParser {
     }
     /* for HP BASIC only */
     stmt__ENTER() : INPUT_Statement {
-        var secs = this.parseExpr();
+        var timeout = this.parseExpr();
         this.expectToken(',');
-        var result = this.parseLexpr(); // TODO: this has to go somewheres
+        var elapsed = this.parseLexpr(); // TODO: this has to go somewheres
         this.expectToken(',');
-        return this.stmt__INPUT();
+        return { command:'INPUT', prompt:null, args:this.parseLexprList(), timeout:timeout, elapsed:elapsed };
     }
     // TODO: DATA statement doesn't read unquoted strings
     stmt__DATA() : DATA_Statement {
@@ -1406,7 +1417,7 @@ export const HP_TIMESHARED_BASIC : BASICOptions = {
     optionalLabels : false,
     optionalWhitespace : false,
     multipleStmtsPerLine : true,
-    varNaming : "A1",
+    varNaming : "A1$",
     staticArrays : true,
     sharedArrayNamespace : false,
     defaultArrayBase : 1,
@@ -1874,6 +1885,7 @@ const BUILTIN_DEFS : BuiltinFunctionDef[] = [
     ['OCT$', ['number'], 'string' ],
     ['PI', [], 'number'],
     ['POS', ['number'], 'number' ], // arg ignored
+    ['POS', ['string','string'], 'number' ], // HP POS
     ['LEFT$', ['string', 'number'], 'string' ],
     ['RND', [], 'number' ],
     ['RND', ['number'], 'number' ],

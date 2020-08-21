@@ -16,6 +16,12 @@ function isUnOp(arg: basic.Expr): arg is basic.UnOp {
     return (arg as any).op != null && (arg as any).expr != null;
 }
 
+export interface InputResponse {
+    line: string;
+    vals: string[];
+    elapsed?: number;
+}
+
 // expr2js() options
 class ExprOptions {
     isconst?: boolean;      // only allow constant operations
@@ -408,8 +414,8 @@ export class BASICRuntime {
     }
 
     // override this
-    async input(prompt: string, nargs: number) : Promise<string[]> {
-        return [];
+    async input(prompt: string, nargs: number) : Promise<InputResponse> {
+        return {line:"", vals:[]};
     }
 
     // override this
@@ -730,22 +736,24 @@ export class BASICRuntime {
     }
 
     do__INPUT(stmt : basic.INPUT_Statement) {
-        var prompt = this.expr2js(stmt.prompt);
+        var prompt = stmt.prompt != null ? this.expr2js(stmt.prompt) : '""';
+        var elapsed = stmt.elapsed != null ? this.assign2js(stmt.elapsed) : "let ___";
         var setvals = '';
         stmt.args.forEach((arg, index) => {
             var lexpr = this.assign2js(arg);
             setvals += `
-            var value = this.convert(${JSON.stringify(arg.name)}, vals[${index}]);
+            var value = this.convert(${JSON.stringify(arg.name)}, response.vals[${index}]);
             valid &= this.isValid(value);
             ${lexpr} = value;
             `
         });
         return `this.preInput();
-                this.input(${prompt}, ${stmt.args.length}).then((vals) => {
+                this.input(${prompt}, ${stmt.args.length}).then((response) => {
                     let valid = 1;
                     ${setvals}
                     this.postInput(valid);
                     this.column = 0; // assume linefeed
+                    ${elapsed} = response.elapsed;
                 })`;
     }
 
@@ -1165,8 +1173,11 @@ export class BASICRuntime {
         return Math.PI;
     }
     // TODO: POS(haystack, needle, start)
-    POS(arg : number) : number { // arg ignored
-        return this.column + 1;
+    POS(arg1, arg2) { // arg ignored
+        if (typeof arg1 == 'string' && typeof arg2 == 'string')
+            return arg1.indexOf(arg2) >= 0 + 1;
+        else
+            return this.column + 1;
     }
     RIGHT$(arg : string, count : number) : string {
         arg = this.checkString(arg);

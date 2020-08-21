@@ -1,4 +1,6 @@
 
+import { InputResponse } from "./basic/runtime";
+
 export class TeleType {
     page: HTMLElement;
     fixed: boolean;
@@ -166,11 +168,12 @@ export class TeleTypeWithKeyboard extends TeleType {
     keephandler : boolean = true;
     uppercaseOnly : boolean = false;
     splitInput : boolean = false;
-    resolveInput : (inp) => void;
+    resolveInput : (InputResponse) => void;
 
     focused : boolean = true;
     scrolling : number = 0;
     waitingfor : string;
+    lastInputRequestTime : number;
 
     constructor(page: HTMLElement, fixed: boolean, input: HTMLInputElement) {
         super(page, fixed);
@@ -214,6 +217,7 @@ export class TeleTypeWithKeyboard extends TeleType {
             $(this.input).addClass('transcript-input-char')
         else
             $(this.input).removeClass('transcript-input-char')
+        this.lastInputRequestTime = Date.now();
     }
     hideinput() {
         this.showPrintHead(true);
@@ -238,12 +242,14 @@ export class TeleTypeWithKeyboard extends TeleType {
     }
     sendinput(s: string) {
         if (this.resolveInput) {
+            var elapsed = Date.now() - this.lastInputRequestTime;
             if (this.uppercaseOnly) s = s.toUpperCase(); // TODO: always uppercase?
             this.addtext(s, 4);
             this.flushline();
             this.clearinput();
             this.hideinput(); // keep from losing input handlers
-            this.resolveInput(this.splitInput ? s.split(',') : s);
+            var vals = this.splitInput ? s.split(',') : null;
+            this.resolveInput({line:s, vals:vals, elapsed:elapsed/1000});
             if (!this.keephandler) this.resolveInput = null;
         }
     }
