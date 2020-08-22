@@ -1648,7 +1648,7 @@ function setupDebugControls() {
   uitoolbar.newGroup();
   uitoolbar.grp.prop('id','debug_bar');
   if (platform.runEval) {
-    uitoolbar.add('ctrl+alt+e', 'Restart Debugging', 'glyphicon-repeat', resetAndDebug).prop('id','dbg_restart');
+    uitoolbar.add('ctrl+alt+e', 'Reset and Debug', 'glyphicon-fast-backward', resetAndDebug).prop('id','dbg_restart');
   }
   if (platform.stepBack) {
     uitoolbar.add('ctrl+alt+b', 'Step Backwards', 'glyphicon-step-backward', runStepBackwards).prop('id','dbg_stepback');

@@ -22,7 +22,6 @@ export interface BASICOptions {
     // VALUES AND OPERATORS
     defaultValues : boolean;            // initialize unset variables to default value? (0 or "")
     stringConcat : boolean;             // can concat strings with "+" operator?
-    typeConvert : boolean;              // type convert strings <-> numbers? (NOT USED)
     checkOverflow : boolean;            // check for overflow of numerics?
     bitwiseLogic : boolean;             // -1 = TRUE, 0 = FALSE, AND/OR/NOT done with bitwise ops
     maxStringLength : number;           // maximum string length in chars
@@ -52,7 +51,12 @@ export interface BASICOptions {
     maxArrayElements? : number;         // max array elements (all dimensions)
 }
 
+// objects that have source code position info
 export interface SourceLocated {
+    $loc?: SourceLocation;
+}
+// statements also have the 'offset' (pc) field from SourceLine
+export interface SourceLineLocated {
     $loc?: SourceLine;
 }
 
@@ -115,7 +119,7 @@ export interface IndOp extends ExprBase {
     args: Expr[];
 }
 
-export interface Statement extends SourceLocated {
+export interface Statement extends SourceLineLocated {
     command: string;
 }
 
@@ -245,6 +249,12 @@ export interface CHANGE_Statement extends Statement {
     dest: IndOp;
 }
 
+export interface CONVERT_Statement extends Statement {
+    command: "CONVERT";
+    src: Expr;
+    dest: IndOp;
+}
+
 export interface NoArgStatement extends Statement {
     command: string;
 }
@@ -331,12 +341,22 @@ function isUnOp(arg: Expr): arg is UnOp {
     return (arg as any).op != null && (arg as any).expr != null;
 }
 
+function mergeLocs(a: SourceLocation, b: SourceLocation) : SourceLocation {
+    return {
+        line:Math.min(a.line, b.line),
+        start:Math.min(a.start, b.start),
+        end:Math.max(a.end, b.end),
+        label:a.label || b.label,
+        path:a.path || b.path,
+    }
+}
+
 ///// BASIC PARSER
 
 export class BASICParser {
     opts : BASICOptions = DIALECTS['DEFAULT'];
     optionCount : number; // how many OPTION stmts so far?
-    maxlinelen : number = 255; // maximum line length
+    maxlinelen : number = 255; // maximum line length (some like HP use 72 chars)
     stmts : Statement[];
     errors: WorkerError[];
     listings: CodeListingMap;
@@ -454,9 +474,11 @@ export class BASICParser {
         return this.stmts.length;
     }
     addStatement(stmt: Statement, cmdtok: Token, endtok?: Token) {
-        // set location for statement
+        // set location for statement, adding offset (PC) field
         if (endtok == null) endtok = this.peekToken();
-        stmt.$loc = { path: cmdtok.$loc.path, line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: endtok.$loc.start, label: this.curlabel, offset: null };
+        stmt.$loc = { path: cmdtok.$loc.path, line: cmdtok.$loc.line, start: cmdtok.$loc.start, end: endtok.$loc.start,
+            label: this.curlabel,
+            offset: this.stmts.length };
         // check IF/THEN WHILE/WEND FOR/NEXT etc
         this.modifyScope(stmt);
         // add to list
@@ -647,12 +669,12 @@ export class BASICParser {
         var popidx = this.scopestack.pop();
         var popstmt : ScopeStartStatement = popidx != null ? this.stmts[popidx] : null;
         if (popstmt == null)
-            this.compileError(`There's a ${close.command} without a matching ${open}.`);
+            this.compileError(`There's a ${close.command} without a matching ${open}.`, close.$loc);
         else if (popstmt.command != open)
-            this.compileError(`There's a ${close.command} paired with ${popstmt.command}, but it should be paired with ${open}.`);
+            this.compileError(`There's a ${close.command} paired with ${popstmt.command}, but it should be paired with ${open}.`, close.$loc);
         else if (close.command == 'NEXT' && !this.opts.optionalNextVar 
             && close.lexpr.name != (popstmt as FOR_Statement).lexpr.name)
-            this.compileError(`This NEXT statement is matched with the wrong FOR variable (${close.lexpr.name}).`);
+            this.compileError(`This NEXT statement is matched with the wrong FOR variable (${close.lexpr.name}).`, close.$loc);
         // set start + end locations
         close.startpc = popidx;
         popstmt.endpc = this.getPC(); // has to be before adding statment to list
@@ -667,8 +689,9 @@ export class BASICParser {
                     args = this.parseExprList();
                     this.expectToken(')', `There should be another expression or a ")" here.`);
                 }
-                var valtype = this.exprTypeForSubscript(tok.str, args);
-                return { valtype: valtype, name: tok.str, args: args };
+                var loc = mergeLocs(tok.$loc, this.lasttoken.$loc);
+                var valtype = this.exprTypeForSubscript(tok.str, args, loc);
+                return { valtype: valtype, name: tok.str, args: args, $loc:loc };
             default:
                 this.compileError(`There should be a variable name here.`);
                 break;
@@ -683,7 +706,7 @@ export class BASICParser {
     parseForNextLexpr() : IndOp {
         var lexpr = this.parseLexpr();
         if (lexpr.args || lexpr.name.endsWith('$'))
-            this.compileError(`A FOR ... NEXT loop can only use numeric variables.`);
+            this.compileError(`A FOR ... NEXT loop can only use numeric variables.`, lexpr.$loc);
         return lexpr;
     }
     parseList<T>(parseFunc:()=>T, delim:string): T[] {
@@ -833,13 +856,17 @@ export class BASICParser {
             // use logical operators instead of bitwise?
             if (!this.opts.bitwiseLogic && op.str == 'AND') opfn = 'land';
             if (!this.opts.bitwiseLogic && op.str == 'OR') opfn = 'lor';
-            var valtype = this.exprTypeForOp(opfn, left, right);
+            var valtype = this.exprTypeForOp(opfn, left, right, op);
             left = { valtype:valtype, op:opfn, left: left, right: right };
         }
         return left;
     }
     parseExpr(): Expr {
-        return this.parseExpr1(this.parsePrimary(), 0);
+        var startloc = this.peekToken().$loc;
+        var expr = this.parseExpr1(this.parsePrimary(), 0);
+        var endloc = this.lasttoken.$loc;
+        expr.$loc = mergeLocs(startloc, endloc);
+        return expr;
     }
     parseExprWithType(expecttype: ValueType): Expr {
         var expr = this.parseExpr();
@@ -886,30 +913,32 @@ export class BASICParser {
         callback(expr);
     }
     // type-checking
-    exprTypeForOp(fnname: string, left: Expr, right: Expr) : ValueType {
-        if (fnname == 'add' && (left.valtype == 'string' || right.valtype == 'string')) {
-            if (!this.opts.stringConcat) this.dialectErrorNoSupport(`the "+" operator to concatenate strings`);
-            return 'string'; // string concatenation
-        } else {
-            return 'number';
+    exprTypeForOp(fnname: string, left: Expr, right: Expr, optok: Token) : ValueType {
+        if (left.valtype == 'string' || right.valtype == 'string') {
+            if (fnname == 'add') {
+                if (this.opts.stringConcat) return 'string' // concat strings
+                else this.dialectErrorNoSupport(`the "+" operator to concatenate strings`, optok.$loc);
+            } else if (fnname.length != 2) // only relops are 2 chars long!
+                this.compileError(`You can't do math on strings until they're converted to numbers.`, optok.$loc);
         }
+        return 'number';
     }
-    exprTypeForSubscript(fnname: string, args: Expr[]) : ValueType {
+    exprTypeForSubscript(fnname: string, args: Expr[], loc: SourceLocation) : ValueType {
         args = args || [];
         // first check the built-in functions
         var defs = BUILTIN_MAP[fnname];
         if (defs != null) {
-            if (!this.validFunction(fnname)) this.dialectErrorNoSupport(`the ${fnname} function`);
+            if (!this.validFunction(fnname)) this.dialectErrorNoSupport(`the ${fnname} function`, loc);
             for (var def of defs) {
                 if (args.length == def.args.length)
-                    return def.result; // TODO: check arg types?
+                    return def.result; // TODO: check arg types
             }
             // TODO: check func arg types
-            this.compileError(`The ${fnname} function takes ${def.args.length} arguments, but ${args.length} are given.`);
+            this.compileError(`The ${fnname} function takes ${def.args.length} arguments, but ${args.length} are given.`, loc);
         }
         // no function found, assume it's an array ref
         // TODO: validateVarName() later?
-        this.varrefs[fnname] = this.lasttoken.$loc; // TODO?
+        this.varrefs[fnname] = loc;
         return fnname.endsWith('$') ? 'string' : 'number';
     }
 
@@ -970,7 +999,7 @@ export class BASICParser {
     }
     stmt__IF(): void {
         var cmdtok = this.lasttoken;
-        var cond = this.parseExpr();
+        var cond = this.parseExprWithType("number");
         var ifstmt : IF_Statement = { command: "IF", cond: cond };
         this.addStatement(ifstmt, cmdtok);
         // we accept GOTO or THEN if line number provided (DEC accepts GO TO)
@@ -1010,12 +1039,12 @@ export class BASICParser {
     stmt__FOR() : FOR_Statement {
         var lexpr = this.parseForNextLexpr();
         this.expectToken('=');
-        var init = this.parseExpr();
+        var init = this.parseExprWithType("number");
         this.expectToken('TO');
-        var targ = this.parseExpr();
+        var targ = this.parseExprWithType("number");
         if (this.peekToken().str == 'STEP') {
             this.consumeToken();
-            var step = this.parseExpr();
+            var step = this.parseExprWithType("number");
         }
         return { command:'FOR', lexpr:lexpr, initial:init, target:targ, step:step };
     }
@@ -1034,7 +1063,7 @@ export class BASICParser {
         return { command:'NEXT', lexpr:lexpr };
     }
     stmt__WHILE(): WHILE_Statement {
-        var cond = this.parseExpr();
+        var cond = this.parseExprWithType("number");
         return { command:'WHILE', cond:cond };
     }
     stmt__WEND(): WEND_Statement {
@@ -1048,8 +1077,10 @@ export class BASICParser {
             else if (arr.args.length > this.opts.maxDimensions) 
                 this.dialectErrorNoSupport(`arrays with more than ${this.opts.maxDimensions} dimensionals`);
             for (var arrdim of arr.args) {
+                if (arrdim.valtype != 'number')
+                    this.compileError(`Array dimensions must be numeric.`, arrdim.$loc);
                 if (isLiteral(arrdim) && arrdim.value < this.opts.defaultArrayBase)
-                    this.compileError(`An array dimension cannot be less than ${this.opts.defaultArrayBase}.`);
+                    this.compileError(`An array dimension cannot be less than ${this.opts.defaultArrayBase}.`, arrdim.$loc);
             }
         });
         return { command:'DIM', args:lexprs };
@@ -1097,7 +1128,7 @@ export class BASICParser {
         return { command:'END' };
     }
     stmt__ON() : ONGO_Statement {
-        var expr = this.parseExpr();
+        var expr = this.parseExprWithType("number");
         var gotok = this.consumeToken();
         var cmd = {GOTO:'ONGOTO', THEN:'ONGOTO', GOSUB:'ONGOSUB'}[gotok.str]; // THEN only for DEC basic?
         if (!cmd) this.compileError(`There should be a GOTO or GOSUB here.`);
@@ -1107,8 +1138,8 @@ export class BASICParser {
     stmt__DEF() : DEF_Statement {
         var lexpr = this.parseVarSubscriptOrFunc();
         if (lexpr.args && lexpr.args.length > this.opts.maxDefArgs)
-            this.compileError(`There can be no more than ${this.opts.maxDefArgs} arguments to a function or subscript.`);
-        if (!lexpr.name.startsWith('FN')) this.compileError(`Functions defined with DEF must begin with the letters "FN".`)
+            this.compileError(`There can be no more than ${this.opts.maxDefArgs} arguments to a function or subscript.`, lexpr.$loc);
+        if (!lexpr.name.startsWith('FN')) this.compileError(`Functions defined with DEF must begin with the letters "FN".`, lexpr.$loc)
         // local variables need to be marked as referenced (TODO: only for this scope)
         this.vardefs[lexpr.name] = lexpr;
         if (lexpr.args != null)
@@ -1154,35 +1185,34 @@ export class BASICParser {
         var src = this.parseExpr();
         this.expectToken('TO');
         var dest = this.parseLexpr();
+        if (dest.valtype == src.valtype)
+            this.compileError(`CHANGE can only convert strings to numeric arrays, or vice-versa.`, mergeLocs(src.$loc, dest.$loc));
         return { command:'CHANGE', src:src, dest:dest };
+    }
+    stmt__CONVERT() : CONVERT_Statement {
+        var src = this.parseExpr();
+        this.expectToken('TO');
+        var dest = this.parseLexpr();
+        if (dest.valtype == src.valtype)
+            this.compileError(`CONVERT can only convert strings to numbers, or vice-versa.`, mergeLocs(src.$loc, dest.$loc));
+        return { command:'CONVERT', src:src, dest:dest };
     }
     // TODO: CHANGE A TO A$ (4th edition, A(0) is len and A(1..) are chars)
     stmt__OPTION() : OPTION_Statement {
-        var tokname = this.consumeToken();
-        if (tokname.type != TokenType.Ident) this.compileError(`There must be a name after the OPTION statement.`)
-        var list : string[] = [];
-        var tok;
-        do {
-            tok = this.consumeToken();
-            if (isEOS(tok)) break;
-            list.push(tok.str);
-        } while (true);
-        this.pushbackToken(tok);
-        var stmt : OPTION_Statement = { command:'OPTION', optname:tokname.str, optargs:list };
-        this.parseOptions(stmt);
-        return stmt;
-    }
-    parseOptions(stmt: OPTION_Statement) {
-        var arg = stmt.optargs[0];
         this.optionCount++;
-        switch (stmt.optname) {
+        var tokname = this.consumeToken();
+        var optname = tokname.str.toUpperCase();
+        if (tokname.type != TokenType.Ident) this.compileError(`There must be a name after the OPTION statement.`)
+        var tokarg = this.consumeToken();
+        var arg = tokarg.str.toUpperCase();
+        switch (optname) {
             case 'DIALECT':
-                if (this.optionCount > 1)
-                    this.compileError(`OPTION DIALECT must be the first OPTION statement in the file.`);
+                if (this.optionCount > 1) this.compileError(`OPTION DIALECT must be the first OPTION statement in the file.`, tokname.$loc);
                 let dname = arg || "";
+                if (dname == "") this.compileError(`OPTION DIALECT requires a dialect name.`, tokname.$loc);
                 let dialect = DIALECTS[dname.toUpperCase()];
                 if (dialect) this.opts = dialect;
-                else this.compileError(`OPTION DIALECT ${dname} is not supported by this compiler.`);
+                else this.compileError(`${dname} is not a valid dialect.`);
                 break;
             case 'BASE':
                 let base = parseInt(arg);
@@ -1195,20 +1225,23 @@ export class BASICParser {
                 break;
             default:
                 // maybe it's one of the options?
-                var name = Object.getOwnPropertyNames(this.opts).find((n) => n.toUpperCase() == stmt.optname);
-                if (name != null) switch (typeof this.opts[name]) {
-                    case 'boolean' : this.opts[name] = arg ? true : false; return;
-                    case 'number' : this.opts[name] = parseFloat(arg); return;
-                    case 'string' : this.opts[name] = arg; return;
+                let propname = Object.getOwnPropertyNames(this.opts).find((n) => n.toUpperCase() == optname);
+                if (propname == null) this.compileError(`${optname} is not a valid option.`, tokname.$loc);
+                if (arg == null) this.compileError(`OPTION ${optname} requires a parameter.`);
+                switch (typeof this.opts[propname]) {
+                    case 'boolean' : this.opts[propname] = arg.toUpperCase().startsWith("T") || (arg as any)>0; return;
+                    case 'number' : this.opts[propname] = parseFloat(arg); return;
+                    case 'string' : this.opts[propname] = arg; return;
                     case 'object' :
-                        if (Array.isArray(this.opts[name]) && arg == 'ALL') {
-                            this.opts[name] = null;
+                        if (Array.isArray(this.opts[propname]) && arg == 'ALL') {
+                            this.opts[propname] = null;
                             return;
                         }
+                        this.compileError(`OPTION ${optname} ALL is the only option supported.`);
                 }
-                this.compileError(`OPTION ${stmt.optname} is not supported by this compiler.`);
                 break;
         }
+        return { command:'OPTION', optname:optname, optargs:[arg]}
     }
     
     // for workermain
@@ -1217,9 +1250,7 @@ export class BASICParser {
         var laststmt : Statement;
         program.stmts.forEach((stmt, idx) => {
             laststmt = stmt;
-            var sl = stmt.$loc;
-            sl.offset = idx;
-            srclines.push(sl);
+            srclines.push(stmt.$loc);
         });
         if (this.opts.endStmtRequired && (laststmt == null || laststmt.command != 'END'))
             this.dialectError(`All programs must have a final END statement`);
@@ -1276,7 +1307,6 @@ export const ECMA55_MINIMAL : BASICOptions = {
     defaultArraySize : 11,
     defaultValues : false,
     stringConcat : false,
-    typeConvert : false,
     maxDimensions : 2,
     maxDefArgs : 255,
     maxStringLength : 255,
@@ -1325,7 +1355,6 @@ export const DARTMOUTH_4TH_EDITION : BASICOptions = {
     defaultArraySize : 11,
     defaultValues : false,
     stringConcat : false,
-    typeConvert : false,
     maxDimensions : 2,
     maxDefArgs : 255,
     maxStringLength : 255,
@@ -1377,7 +1406,6 @@ export const TINY_BASIC : BASICOptions = {
     defaultArraySize : 0,
     defaultValues : true,
     stringConcat : false,
-    typeConvert : false,
     maxDimensions : 0,
     maxDefArgs : 255,
     maxStringLength : 255,
@@ -1413,7 +1441,7 @@ export const TINY_BASIC : BASICOptions = {
 export const HP_TIMESHARED_BASIC : BASICOptions = {
     dialectName: "HP2000",
     asciiOnly : true,
-    uppercaseOnly : false, // the terminal is usually uppercase
+    uppercaseOnly : true, // the terminal is usually uppercase
     optionalLabels : false,
     optionalWhitespace : false,
     multipleStmtsPerLine : true,
@@ -1424,10 +1452,9 @@ export const HP_TIMESHARED_BASIC : BASICOptions = {
     defaultArraySize : 11,
     defaultValues : false,
     stringConcat : false,
-    typeConvert : false,
     maxDimensions : 2,
     maxDefArgs : 255,
-    maxStringLength : 255,
+    maxStringLength : 255, // 72 for literals
     tickComments : false, // TODO: HP BASIC has 'hh char constants
     hexOctalConsts : false,
     validKeywords : [
@@ -1461,7 +1488,8 @@ export const HP_TIMESHARED_BASIC : BASICOptions = {
     chainAssignments : true,
     optionalLet : true,
     compiledBlocks : true,
-    // TODO: max line number, array index 9999
+    maxArrayElements : 5000,
+    // TODO: max line number
 }
 
 export const DEC_BASIC_11 : BASICOptions = {
@@ -1478,7 +1506,6 @@ export const DEC_BASIC_11 : BASICOptions = {
     defaultArraySize : 11,
     defaultValues : true,
     stringConcat : true, // can also use &
-    typeConvert : false,
     maxDimensions : 2,
     maxDefArgs : 255, // ?
     maxStringLength : 255,
@@ -1533,7 +1560,6 @@ export const DEC_BASIC_PLUS : BASICOptions = {
     defaultArraySize : 11,
     defaultValues : true,
     stringConcat : true, // can also use "&"
-    typeConvert : false,
     maxDimensions : 2,
     maxDefArgs : 255, // ?
     maxStringLength : 255,
@@ -1595,7 +1621,6 @@ export const BASICODE : BASICOptions = {
     defaultArraySize : 11,
     defaultValues : false,
     stringConcat : true,
-    typeConvert : false,
     maxDimensions : 2,
     maxDefArgs : 255,
     maxStringLength : 255,
@@ -1646,7 +1671,6 @@ export const ALTAIR_BASIC41 : BASICOptions = {
     defaultArraySize : 11,
     defaultValues : true,
     stringConcat : true,
-    typeConvert : false,
     maxDimensions : 128, // "as many as will fit on a single line" ... ?
     maxDefArgs : 255,
     maxStringLength : 255,
@@ -1705,7 +1729,6 @@ export const APPLESOFT_BASIC : BASICOptions = {
     defaultArraySize : 11,
     defaultValues : true,
     stringConcat : true,
-    typeConvert : false,
     maxDimensions : 88,
     maxDefArgs : 1, // TODO: no string FNs
     maxStringLength : 255,
@@ -1765,7 +1788,6 @@ export const BASIC80 : BASICOptions = {
     defaultArraySize : 11,
     defaultValues : true,
     stringConcat : true,
-    typeConvert : false,
     maxDimensions : 255,
     maxDefArgs : 255,
     maxStringLength : 255,
@@ -1826,7 +1848,6 @@ export const MODERN_BASIC : BASICOptions = {
     defaultArraySize : 0, // DIM required
     defaultValues : false,
     stringConcat : true,
-    typeConvert : false,
     maxDimensions : 255,
     maxDefArgs : 255,
     maxStringLength : 2048, // TODO?

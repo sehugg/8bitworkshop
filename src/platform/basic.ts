@@ -6,6 +6,7 @@ import * as views from "../ide/views";
 import { BASICRuntime } from "../common/basic/runtime";
 import { BASICProgram } from "../common/basic/compiler";
 import { TeleTypeWithKeyboard } from "../common/teletype";
+import { lpad } from "../common/util";
 
 const BASIC_PRESETS = [
     { id: 'hello.bas', name: 'Tutorial' },
@@ -27,7 +28,7 @@ class BASICPlatform implements Platform {
     clock: number = 0;
     timer: AnimationTimer;
     tty: TeleTypeWithKeyboard;
-    hotReload: boolean = false;
+    hotReload: boolean = true;
     animcount: number = 0;
 
     constructor(mainElement: HTMLElement) {
@@ -199,15 +200,35 @@ class BASICPlatform implements Platform {
         }
     }
     inspect(sym: string) {
-        var o = this.runtime.vars[sym];
-        if (o != null) {
-            return o.toString();
-        }
+        let o = this.runtime.vars[sym];
+        if (o != null) return `${sym} = ${o}`;
     }
     showHelp(tool:string, ident:string) {
         window.open("https://8bitworkshop.com/blog/platforms/basic/", "_help");
     }
-
+    /*
+    getDebugCategories() {
+        return ['Variables'];
+    }
+    getDebugInfo(category:string, state) : string {
+        switch (category) {
+            case 'Variables': return this.varsToLongString();
+        }
+    }
+    varsToLongString() : string {
+        var s = '';
+        var vars = Object.keys(this.runtime.vars);
+        vars.sort();
+        for (var name of vars) {
+            var value = this.runtime.vars[name];
+            var valstr = value.toString();
+            if (valstr.length > 24) valstr = `${valstr.substr(0,24)}...(${valstr.length})`;
+            s += lpad(name,3) + " = " + valstr + "\n";
+        }
+        return s;
+    }
+    */
+    
     // TODO: debugging (get running state, etc)
 
     onBreakpointHit : BreakpointCallback;

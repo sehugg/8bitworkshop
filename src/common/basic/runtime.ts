@@ -362,11 +362,11 @@ export class BASICRuntime {
         this.returnStack.pop();
     }
 
-    valueToString(obj) : string {
+    valueToString(obj:basic.Value, padding:boolean) : string {
         var str;
         if (typeof obj === 'number') {
             var numstr = this.float2str(obj, this.opts.printZoneLength - 4);
-            if (!this.opts.numericPadding)
+            if (!padding)
                 return numstr;
             else if (numstr.startsWith('-'))
                 return `${numstr} `;
@@ -403,7 +403,7 @@ export class BASICRuntime {
     }
 
     printExpr(obj) {
-        var str = this.valueToString(obj);
+        var str = this.valueToString(obj, this.opts.numericPadding);
         this.column += str.length;
         this.print(str);
     }
@@ -674,16 +674,22 @@ export class BASICRuntime {
         if (!end) end = start;
         start = this.ROUND(start);
         end = this.ROUND(end);
-        if (start < 1 || end < 1) this.dialectError(`accept a string slice index less than 1`);
+        if (start < 1) this.dialectError(`accept a string slice index less than 1`);
+        if (end < start) this.dialectError(`accept a string slice index less than the starting index`);
         return (orig + ' '.repeat(start)).substr(0, start-1) + add.substr(0, end+1-start) + orig.substr(end);
     }
 
     getStringSlice(s: string, start: number, end: number) {
         s = this.checkString(s);
         start = this.ROUND(start);
-        end = this.ROUND(end);
-        if (start < 1 || end < 1) this.dialectError(`accept a string slice index less than 1`);
-        return s.substr(start-1, end+1-start);
+        if (start < 1) this.dialectError(`accept a string slice index less than 1`);
+        if (end != null) {
+            end = this.ROUND(end);
+            if (end < start) this.dialectError(`accept a string slice index less than the starting index`);
+            return s.substr(start-1, end+1-start);
+        } else {
+            return s.substr(start-1);
+        }
     }
 
     checkOnGoto(value: number, labels: string[]) {
@@ -804,11 +810,17 @@ export class BASICRuntime {
 
     do__WHILE(stmt : basic.WHILE_Statement) {
         var cond = this.expr2js(stmt.cond);
-        return `this.whileLoop(${cond})`;
+        if (stmt.endpc != null)
+            return `if (!(${cond})) { this.curpc = ${stmt.endpc+1}; }`;
+        else
+            return `this.whileLoop(${cond})`;
     }
 
-    do__WEND() {
-        return `this.nextWhileLoop()`
+    do__WEND(stmt : basic.WEND_Statement) {
+        if (stmt.startpc != null)
+            return `this.curpc = ${stmt.startpc}`;
+        else
+            return `this.nextWhileLoop()`
     }
 
     do__DEF(stmt : basic.DEF_Statement) {
@@ -826,12 +838,12 @@ export class BASICRuntime {
     }
 
     _DIM(dim : basic.IndOp) {
-        // HP BASIC doesn't really have string arrays
+        // HP BASIC doesn't really have string arrays, just strings
         if (this.opts.arraysContainChars && dim.name.endsWith('$'))
-            return;
+            return '';
+        // dimension an array
         var argsstr = '';
         for (var arg of dim.args) {
-            // TODO: check for float (or at compile time)
             argsstr += ', ' + this.expr2js(arg, {isconst: this.opts.staticArrays});
         }
         return `this.dimArray(${JSON.stringify(dim.name)}${argsstr});`;
@@ -951,8 +963,18 @@ export class BASICRuntime {
         }
     }
 
+    do__CONVERT(stmt : basic.CONVERT_Statement) {
+        var num2str = stmt.dest.name.endsWith('$');
+        let src = this.expr2js(stmt.src);
+        let dest = this.assign2js(stmt.dest);
+        if (num2str) {
+            return `${dest} = this.valueToString(${src}, false)`;
+        } else {
+            return `${dest} = this.VAL(${src})`;
+        }
+    }
+
     // TODO: ONERR, ON ERROR GOTO
-    // TODO: gosubs nested too deeply
     // TODO: memory quota
     // TODO: useless loop (! 4th edition)
     // TODO: other 4th edition errors
@@ -1210,7 +1232,7 @@ export class BASICRuntime {
         return this.checkNum(Math.sqrt(arg));
     }
     STR$(arg : number) : string {
-        return this.valueToString(this.checkNum(arg));
+        return this.valueToString(this.checkNum(arg), false);
     }
     STRING$(len : number, chr : number|string) : string {
         len = this.ROUND(len);

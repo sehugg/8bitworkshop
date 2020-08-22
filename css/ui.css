@@ -15,6 +15,7 @@
 }
 .gutter-info {
   width: 1em;
+  cursor: cell;
 }
 .currentpc-span {
   background-color: #7e2a70;

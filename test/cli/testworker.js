@@ -45,13 +45,13 @@ function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
             }
             assert.ok(err.msg);
           }
-          assert.equal(nerrors, msg.errors.length, "errors");
+          assert.equal(nerrors, msg.errors.length);
         } else {
-          assert.equal(nerrors||0, 0, "errors");
-          if (msg.output.lines) { // AST for BASIC
-            assert.equal(msg.output.lines.length, outlen, "output lines");
+          assert.equal(nerrors||0, 0);
+          if (msg.output.stmts) { // AST for BASIC
+            assert.equal(msg.output.stmts.length, outlen);
           } else {
-            assert.equal(msg.output.code?msg.output.code.length:msg.output.length, outlen, "output binary");
+            assert.equal(msg.output.code?msg.output.code.length:msg.output.length, outlen);
             assert.ok(msg.output.code || msg.output instanceof Uint8Array);
           }
           if (nlines) {
@@ -63,7 +63,7 @@ function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
             lstkeys.sort();
             for (var key of lstkeys) {
               var listing = msg.listings[key];
-              assert.equal(listing.lines.length, nlines[i++], "listing lines");
+              assert.equal(listing.lines.length, nlines[i++]);
             }
           }
         }
@@ -336,7 +336,7 @@ describe('Worker', function() {
       assert.ok(ast);
       done(err, msg);
     };
-    doBuild(msgs, done2, 222, 0, 0);
+    doBuild(msgs, done2, 205, 0, 0);
   });
 
 });
