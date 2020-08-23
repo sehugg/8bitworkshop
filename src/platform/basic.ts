@@ -9,7 +9,8 @@ import { TeleTypeWithKeyboard } from "../common/teletype";
 import { lpad } from "../common/util";
 
 const BASIC_PRESETS = [
-    { id: 'hello.bas', name: 'Tutorial' },
+    { id: 'hello.bas', name: 'Hello' },
+    { id: 'tutorial.bas', name: 'Tutorial' },
     { id: 'sieve.bas', name: 'Sieve Benchmark' },
     { id: 'mortgage.bas', name: 'Interest Calculator' },
     { id: '23match.bas', name: '23 Matches' },
@@ -204,9 +205,9 @@ class BASICPlatform implements Platform {
         if (o != null) return `${sym} = ${o}`;
     }
     showHelp(tool:string, ident:string) {
-        window.open("https://8bitworkshop.com/blog/platforms/basic/", "_help");
+        window.open("https://8bitworkshop.com/blog/platforms/basic/#basicreference", "_help");
     }
-    /*
+
     getDebugCategories() {
         return ['Variables'];
     }
@@ -221,13 +222,12 @@ class BASICPlatform implements Platform {
         vars.sort();
         for (var name of vars) {
             var value = this.runtime.vars[name];
-            var valstr = value.toString();
+            var valstr = JSON.stringify(value);
             if (valstr.length > 24) valstr = `${valstr.substr(0,24)}...(${valstr.length})`;
             s += lpad(name,3) + " = " + valstr + "\n";
         }
         return s;
     }
-    */
     
     // TODO: debugging (get running state, etc)
 
@@ -278,6 +278,17 @@ class BASICPlatform implements Platform {
     runEval(evalfunc : DebugEvalCondition) {
         this.debugTrap = () => evalfunc(this.getCPUState());
         this.resume();
+    }
+    restartAtPC?(pc:number) : boolean {
+        pc = Math.round(pc);
+        if (pc >= 0 && pc < this.runtime.allstmts.length) {
+            this.runtime.curpc = pc;
+            this.tty.cancelinput();
+            this.clock = 0;
+            return true;
+        } else {
+            return false;
+        }
     }
 }
 

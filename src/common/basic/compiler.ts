@@ -1,6 +1,4 @@
 import { WorkerError, CodeListingMap, SourceLocation, SourceLine } from "../workertypes";
-import { BasicMachineState } from "../devices";
-import { merge } from "jquery";
 
 export interface BASICOptions {
     dialectName : string;               // use this to select the dialect 
@@ -1907,7 +1905,7 @@ const BUILTIN_DEFS : BuiltinFunctionDef[] = [
     ['PI', [], 'number'],
     ['POS', ['number'], 'number' ], // arg ignored
     ['POS', ['string','string'], 'number' ], // HP POS
-    ['LEFT$', ['string', 'number'], 'string' ],
+    ['RIGHT$', ['string', 'number'], 'string' ],
     ['RND', [], 'number' ],
     ['RND', ['number'], 'number' ],
     ['ROUND', ['number'], 'number' ],

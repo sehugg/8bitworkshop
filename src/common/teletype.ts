@@ -230,6 +230,9 @@ export class TeleTypeWithKeyboard extends TeleType {
         this.input.value = '';
         this.waitingfor = null;
     }
+    cancelinput() {
+        this.sendinput('');
+    }
     sendkey(e: KeyboardEvent) {
         if (this.waitingfor == 'line') {
             if (e.key == "Enter") {

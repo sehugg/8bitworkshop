@@ -188,7 +188,7 @@ function initProject() {
       toolbar.removeClass("is-busy");
       toolbar.removeClass("has-errors"); // may be added in next callback
       projectWindows.setErrors(null);
-      $("#error_alert").hide();
+      hideErrorAlerts();
     }
     $('#compile_spinner').css('visibility', busy ? 'visible' : 'hidden');
   };
@@ -1090,6 +1090,10 @@ function getErrorElement(err : WorkerError) {
   return span;
 }
 
+function hideErrorAlerts() {
+  $("#error_alert").hide();
+}
+
 function showErrorAlert(errors : WorkerError[]) {
   var div = $("#error_alert_msg").empty();
   for (var err of errors.slice(0,10)) {
@@ -1291,6 +1295,7 @@ function _resume() {
     console.log("Resumed");
   }
   setDebugButtonState("go", "active");
+  // TODO: hide alerts, but only if exception generated them
 }
 
 function resume() {
@@ -1344,6 +1349,12 @@ export function runToPC(pc: number) {
       return c.PC == pc;
     });
   }
+}
+
+function restartAtCursor() {
+  if (platform.restartAtPC(getEditorPC())) {
+    resume();
+  } else alertError(`Could not restart program at selected line.`);
 }
 
 function runToCursor() {
@@ -1645,6 +1656,9 @@ function setupDebugControls() {
   uitoolbar.add('ctrl+alt+r', 'Reset', 'glyphicon-refresh', resetAndRun).prop('id','dbg_reset');
   uitoolbar.add('ctrl+alt+,', 'Pause', 'glyphicon-pause', pause).prop('id','dbg_pause');
   uitoolbar.add('ctrl+alt+.', 'Resume', 'glyphicon-play', resume).prop('id','dbg_go');
+  if (platform.restartAtPC) {
+    uitoolbar.add('ctrl+alt+/', 'Restart at Cursor', 'glyphicon-play-circle', restartAtCursor).prop('id','dbg_restartatline');
+  }
   uitoolbar.newGroup();
   uitoolbar.grp.prop('id','debug_bar');
   if (platform.runEval) {

@@ -129,6 +129,8 @@ div.mem_info {
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   font-size: 12pt;
   box-shadow: 0px 0px 8px rgba(0,0,0,.5);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 div.mem_info a {
   color: #99ff99;

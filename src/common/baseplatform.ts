@@ -105,6 +105,7 @@ export interface Platform {
   runEval?(evalfunc : DebugEvalCondition) : void;
   runToFrameClock?(clock : number) : void;
   stepOver?() : void;
+  restartAtPC?(pc:number) : boolean;
 
   getOpcodeMetadata?(opcode:number, offset:number) : OpcodeMetadata; //TODO
   getSP?() : number;
