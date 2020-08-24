@@ -172,7 +172,9 @@ export class BreakpointList {
     }
   }
 }
-export type Breakpoint = {cond:DebugCondition};
+export interface Breakpoint {
+  cond: DebugCondition;
+};
 
 export interface EmuRecorder {
   frameRequested() : boolean;

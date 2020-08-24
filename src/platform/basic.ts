@@ -124,6 +124,7 @@ class BASICPlatform implements Platform {
     resize: () => void;
 
     loadROM(title, data) {
+        // TODO: disable hot reload if error
         // TODO: only hot reload when we hit a label?
         var didExit = this.runtime.exited;
         this.program = data;
@@ -131,8 +132,6 @@ class BASICPlatform implements Platform {
         this.tty.uppercaseOnly = true; // this.program.opts.uppercaseOnly; //TODO?
         // map editor to uppercase-only if need be
         views.textMapFunctions.input = this.program.opts.uppercaseOnly ? (s) => s.toUpperCase() : null;
-        // HP 2000 has cute lil small caps (TODO: messes up grid alignment tho)
-        //this.tty.page.style.fontVariant = (this.program.opts.dialectName == 'HP2000') ? 'small-caps' : 'normal';
         // only reset if we exited, or couldn't restart at label (PC reset to 0)
         if (!this.hotReload || didExit || !resumePC)
             this.reset();

@@ -88,9 +88,11 @@ export class BASICRuntime {
 
     curpc : number;
     dataptr : number;
-    vars : {};
+    vars : {[name:string] : any}; // actually Value, but += doesn't work
+    globals : {[name:string] : any};
     arrays : {};
     defs : {};
+    subroutines : {};
     forLoops : { [varname:string] : { $next:(name:string) => void } };
     forLoopStack: string[];
     whileLoops : number[];
@@ -123,6 +125,7 @@ export class BASICRuntime {
         this.label2dataptr = {};
         this.pc2label = new Map();
         this.datums = [];
+        this.subroutines = {};
         this.builtins = this.getBuiltinFunctions();
         // TODO: detect undeclared vars
         // build PC -> label lookup
@@ -130,18 +133,19 @@ export class BASICRuntime {
             var targetpc = program.labels[label];
             this.pc2label.set(targetpc, label);
         }
-        // compile statements ahead of time
+        // iterate through all the statements
         this.allstmts.forEach((stmt, pc) => {
+            // compile statements ahead of time
             this.curpc = pc + 1; // for error reporting
             this.compileStatement(stmt);
-        });
-        // parse DATA literals
-        this.allstmts.filter((stmt) => stmt.command == 'DATA').forEach((datastmt) => {
-            this.label2dataptr[datastmt.$loc.label] = this.datums.length;
-            (datastmt as basic.DATA_Statement).datums.forEach(datum => {
-                this.curpc = datastmt.$loc.offset; // for error reporting
-                this.datums.push(datum);
-            });
+            // parse DATA literals
+            if (stmt.command == 'DATA') {
+                this.label2dataptr[stmt.$loc.label] = this.datums.length;
+                (stmt as basic.DATA_Statement).datums.forEach(datum => {
+                    this.curpc = stmt.$loc.offset; // for error reporting
+                    this.datums.push(datum);
+                });
+            }
         });
         // try to resume where we left off after loading
         if (this.label2pc[prevlabel] != null) {
@@ -163,7 +167,7 @@ export class BASICRuntime {
         this.exited = false;
     }
     clearVars() {
-        this.vars = {};
+        this.globals = this.vars = {};
         this.arrays = {};
         this.defs = {}; // TODO? only in interpreters
         this.forLoops = {};
@@ -342,6 +346,15 @@ export class BASICRuntime {
         }
     }
 
+    newLocalScope() {
+        this.vars = Object.create(this.vars);
+    }
+    
+    popLocalScope() {
+        if (this.vars !== this.globals)
+            this.vars = Object.getPrototypeOf(this.vars);
+    }
+
     gosubLabel(label) {
         if (this.returnStack.length > 32767) // TODO: const?
             this.runtimeError(`I did too many GOSUBs without a RETURN.`)
@@ -354,6 +367,7 @@ export class BASICRuntime {
             this.runtimeError("I tried to RETURN, but there wasn't a corresponding GOSUB."); // RETURN BEFORE GOSUB
         var pc = this.returnStack.pop();
         this.curpc = pc;
+        this.popLocalScope();
     }
 
     popReturnStack() {
@@ -477,7 +491,7 @@ export class BASICRuntime {
                 s += this.array2js(expr, opts);
             }
         } else { // just a variable
-            s = `this.vars.${expr.name}`;
+            s = `this.globals.${expr.name}`;
         }
         return s;
     }
@@ -769,7 +783,7 @@ export class BASICRuntime {
         for (var lexpr of stmt.lexprs) {
             // HP BASIC string-slice syntax?
             if (this.opts.arraysContainChars && lexpr.args && lexpr.name.endsWith('$')) {
-                s += `this.vars.${lexpr.name} = this.modifyStringSlice(this.vars.${lexpr.name}, _right, `
+                s += `this.globals.${lexpr.name} = this.modifyStringSlice(this.vars.${lexpr.name}, _right, `
                 s += lexpr.args.map((arg) => this.expr2js(arg)).join(', ');
                 s += ');';
             } else {
@@ -972,6 +986,30 @@ export class BASICRuntime {
         } else {
             return `${dest} = this.VAL(${src})`;
         }
+    }
+
+    do__SUB(stmt: basic.SUB_Statement) {
+        this.subroutines[stmt.lexpr.name] = stmt;
+        // skip the SUB definition
+        return `this.curpc = ${stmt.endpc}`
+    }
+
+    do__CALL(stmt: basic.CALL_Statement) {
+        var substmt : basic.SUB_Statement = this.subroutines[stmt.call.name];
+        if (substmt == null)
+            this.runtimeError(`I can't find a subroutine named "${stmt.call.name}".`);
+        var subargs = substmt.lexpr.args || [];
+        var callargs = stmt.call.args || [];
+        if (subargs.length != callargs.length)
+            this.runtimeError(`I tried to call ${stmt.call.name} with the wrong number of parameters.`);
+        var s = '';
+        s += `this.gosubLabel(${JSON.stringify(stmt.call.name)});`
+        s += `this.newLocalScope();`
+        for (var i=0; i<subargs.length; i++) {
+            var arg = subargs[i] as basic.IndOp;
+            s += `this.vars.${arg.name} = ${this.expr2js(callargs[i])};`
+        }
+        return s;
     }
 
     // TODO: ONERR, ON ERROR GOTO

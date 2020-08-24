@@ -15,8 +15,9 @@ CodeMirror.defineMode("basic", function(conf, parserConf) {
     var ERRORCLASS = 'error';
 
     function wordRegexp(words, crunch) {
-        return new RegExp("^((" + words.join(")|(") + "))", "i");
-        //return new RegExp("^((" + words.join(")|(") + "))\\b", "i");
+        // for token crunching
+        //return new RegExp("^((" + words.join(")|(") + "))", "i");
+        return new RegExp("^((" + words.join(")|(") + "))\\b", "i");
     }
 
     var singleOperators = new RegExp("^[\\+\\-\\*/%&\\\\|\\^~<>!]");
@@ -26,16 +27,17 @@ CodeMirror.defineMode("basic", function(conf, parserConf) {
     var tripleDelimiters = new RegExp("^((//=)|(>>=)|(<<=)|(\\*\\*=))");
     var identifiers = new RegExp("^[_A-Za-z][_A-Za-z0-9]*");
 
-    var openingKeywords = ['if','for'];
-    var middleKeywords = ['to','then'];
-    var endKeywords = ['next','end'];
+    var openingKeywords = ['if','for','while'];
+    var middleKeywords = ['to','then','else'];
+    var endKeywords = ['next','end','wend'];
 
-    var operatorKeywords = ['and', 'or', 'not', 'xor', 'eqv', 'imp'];
+    var operatorKeywords = ['and', 'or', 'not', 'xor', 'eqv', 'imp', 'mod'];
     var wordOperators = wordRegexp(operatorKeywords);
     var commonKeywords = [
         'BASE','DATA','DEF','DIM',
         'GO','GOSUB','GOTO','INPUT','LET','ON','OPTION','PRINT',
-        'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB'
+        'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB',
+        'CALL','CHANGE','CONVERT','CLEAR','DIALECT','SELECT','CASE'
     ];
     var commontypes = ['xxxxbyte','xxxxword'];
 
@@ -278,6 +280,6 @@ CodeMirror.defineMode("basic", function(conf, parserConf) {
     return external;
 });
 
-CodeMirror.defineMIME("text/x-vb", "vb");
+CodeMirror.defineMIME("text/x-basic", "basic");
 
 });

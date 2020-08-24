@@ -1916,8 +1916,10 @@ function globalErrorHandler(msgevent) {
     requestPersistPermission(false, false);
   } else {
     var err = msgevent.error || msgevent.reason;
-    msg = err.message || msg;
-    showExceptionAsError(err, msg);
+    if (err != null && err instanceof EmuHalt) {
+      msg = (err && err.message) || msg;
+      showExceptionAsError(err, msg);
+    }
   }
 }
 

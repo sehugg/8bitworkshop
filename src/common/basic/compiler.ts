@@ -44,6 +44,7 @@ export interface BASICOptions {
     restoreWithLabel : boolean;         // RESTORE <label>
     endStmtRequired : boolean;          // need END at end?
     // MISC
+    multilineIfThen? : boolean;         // multi-line IF .. ELSE .. END IF?
     commandsPerSec? : number;           // how many commands per second?
     maxLinesPerFile? : number;          // limit on # of lines
     maxArrayElements? : number;         // max array elements (all dimensions)
@@ -196,6 +197,10 @@ export interface WEND_Statement extends ScopeEndStatement {
     command: "WEND";
 }
 
+export interface END_Statement extends ScopeEndStatement {
+    command: "END";
+}
+
 export interface INPUT_Statement extends Statement {
     command: "INPUT";
     prompt: Expr;
@@ -228,6 +233,16 @@ export interface DEF_Statement extends Statement {
     command: "DEF";
     lexpr: IndOp;
     def: Expr;
+}
+
+export interface SUB_Statement extends ScopeStartStatement {
+    command: "SUB";
+    lexpr: IndOp;
+}
+
+export interface CALL_Statement {
+    command: "CALL";
+    call: IndOp;
 }
 
 export interface OPTION_Statement extends Statement {
@@ -263,7 +278,7 @@ export interface BASICProgram {
     labels: { [label: string]: number }; // label -> PC
 }
 
-class Token {
+class Token implements SourceLocated {
     str: string;
     type: TokenType;
     $loc: SourceLocation;
@@ -292,6 +307,7 @@ const OPERATORS = {
     '+':    {f:'add',p:100},
     '-':    {f:'sub',p:100},
     '%':    {f:'mod',p:140},
+    'MOD':  {f:'mod',p:140},
     '\\':   {f:'idiv',p:150},
     '*':    {f:'mul',p:200},
     '/':    {f:'div',p:200},
@@ -364,6 +380,7 @@ export class BASICParser {
     varrefs: { [name: string]: SourceLocation }; // variable references
     fnrefs: { [name: string]: string[] }; // DEF FN call graph
     scopestack: number[];
+    elseifcount: number;
 
     path : string;
     lineno : number;
@@ -385,14 +402,16 @@ export class BASICParser {
         this.varrefs = {};
         this.fnrefs = {};
         this.scopestack = [];
+        this.elseifcount = 0;
     }
     addError(msg: string, loc?: SourceLocation) {
         var tok = this.lasttoken || this.peekToken();
         if (!loc) loc = tok.$loc;
         this.errors.push({path:loc.path, line:loc.line, label:this.curlabel, start:loc.start, end:loc.end, msg:msg});
     }
-    compileError(msg: string, loc?: SourceLocation) {
+    compileError(msg: string, loc?: SourceLocation, loc2?: SourceLocation) {
         this.addError(msg, loc);
+        //if (loc2 != null) this.addError(`...`, loc2);
         throw new CompileError(msg, loc);
     }
     dialectError(what: string, loc?: SourceLocation) {
@@ -482,9 +501,9 @@ export class BASICParser {
         // add to list
         this.stmts.push(stmt);
     }
-    addLabel(str: string) {
+    addLabel(str: string, offset?: number) {
         if (this.labels[str] != null) this.compileError(`There's a duplicated label named "${str}".`);
-        this.labels[str] = this.getPC();
+        this.labels[str] = this.getPC() + (offset || 0);
         this.curlabel = str;
         this.tokens.forEach((tok) => tok.$loc.label = str);
     }
@@ -654,7 +673,7 @@ export class BASICParser {
     modifyScope(stmt: Statement) {
         if (this.opts.compiledBlocks) {
             var cmd = stmt.command;
-            if (cmd == 'FOR' || cmd == 'WHILE') {
+            if (cmd == 'FOR' || cmd == 'WHILE' || cmd == 'SUB') {
                 this.scopestack.push(this.getPC()); // has to be before adding statment to list
             } else if (cmd == 'NEXT') {
                 this.popScope(stmt as NEXT_Statement, 'FOR');
@@ -663,19 +682,33 @@ export class BASICParser {
             }
         }
     }
-    popScope(close: WEND_Statement|NEXT_Statement, open: string) {
+    popScope(close: WEND_Statement|NEXT_Statement|END_Statement, open: string) {
         var popidx = this.scopestack.pop();
         var popstmt : ScopeStartStatement = popidx != null ? this.stmts[popidx] : null;
         if (popstmt == null)
             this.compileError(`There's a ${close.command} without a matching ${open}.`, close.$loc);
         else if (popstmt.command != open)
-            this.compileError(`There's a ${close.command} paired with ${popstmt.command}, but it should be paired with ${open}.`, close.$loc);
+            this.compileError(`There's a ${close.command} paired with ${popstmt.command}, but it should be paired with ${open}.`, close.$loc, popstmt.$loc);
         else if (close.command == 'NEXT' && !this.opts.optionalNextVar 
             && close.lexpr.name != (popstmt as FOR_Statement).lexpr.name)
-            this.compileError(`This NEXT statement is matched with the wrong FOR variable (${close.lexpr.name}).`, close.$loc);
+            this.compileError(`This NEXT statement is matched with the wrong FOR variable (${close.lexpr.name}).`, close.$loc, popstmt.$loc);
         // set start + end locations
         close.startpc = popidx;
         popstmt.endpc = this.getPC(); // has to be before adding statment to list
+    }
+    popIfThenScope(nextpc?: number) {
+        var popidx = this.scopestack.pop();
+        var popstmt : ScopeStartStatement = popidx != null ? this.stmts[popidx] : null;
+        if (popstmt == null)
+            this.compileError(`There's an END IF without a matching IF or ELSE.`);
+        if (popstmt.command == 'ELSE') {
+            popstmt.endpc = this.getPC();
+            this.popIfThenScope(popidx + 1); // IF goes to ELSE+1
+        } else if (popstmt.command == 'IF') {
+            popstmt.endpc = nextpc != null ? nextpc : this.getPC();
+        } else {
+            this.compileError(`There's an END IF paired with a ${popstmt.command}, not IF or ELSE.`, this.lasttoken.$loc, popstmt.$loc);
+        }
     }
     parseVarSubscriptOrFunc(): IndOp {
         var tok = this.consumeToken();
@@ -1003,24 +1036,39 @@ export class BASICParser {
         // we accept GOTO or THEN if line number provided (DEC accepts GO TO)
         var thengoto = this.expectTokens(['THEN','GOTO','GO']);
         if (thengoto.str == 'GO') this.expectToken('TO');
-        // parse line number or statement clause
-        this.parseGotoOrStatements();
-        // is the next statement an ELSE?
-        // gotta parse it now because it's an end-of-statement token
-        if (this.peekToken().str == 'ELSE') {
-            this.expectToken('ELSE');
-            ifstmt.endpc = this.getPC() + 1;
-            this.stmt__ELSE();
+        // multiline IF .. THEN? push it to scope stack
+        if (this.opts.multilineIfThen && isEOS(this.peekToken())) {
+            this.scopestack.push(this.getPC() - 1); // we already added stmt to list, so - 1
         } else {
-            ifstmt.endpc = this.getPC();
+            // parse line number or statement clause
+            this.parseGotoOrStatements();
+            // is the next statement an ELSE?
+            // gotta parse it now because it's an end-of-statement token
+            if (this.peekToken().str == 'ELSE') {
+                this.expectToken('ELSE');
+                ifstmt.endpc = this.getPC() + 1;
+                this.stmt__ELSE();
+            } else {
+                ifstmt.endpc = this.getPC();
+            }
         }
     }
     stmt__ELSE(): void {
         var elsestmt : ELSE_Statement = { command: "ELSE" };
         this.addStatement(elsestmt, this.lasttoken);
-        // parse line number or statement clause
-        this.parseGotoOrStatements();
-        elsestmt.endpc = this.getPC();
+        // multiline ELSE? or ELSE IF?
+        var nexttok = this.peekToken();
+        if (this.opts.multilineIfThen && isEOS(nexttok)) {
+            this.scopestack.push(this.getPC() - 1); // we already added stmt to list, so - 1
+        } else if (this.opts.multilineIfThen && nexttok.str == 'IF') {
+            this.scopestack.push(this.getPC() - 1); // we already added stmt to list, so - 1
+            this.parseGotoOrStatements();
+            this.elseifcount++;
+        } else {
+            // parse line number or statement clause
+            this.parseGotoOrStatements();
+            elsestmt.endpc = this.getPC();
+        }
     }
     parseGotoOrStatements() {
         var lineno = this.peekToken();
@@ -1123,7 +1171,19 @@ export class BASICParser {
         return { command:'STOP' };
     }
     stmt__END() {
-        return { command:'END' };
+        if (this.opts.multilineIfThen && this.scopestack.length) {
+            let endtok = this.expectTokens(['IF','SUB']);
+            if (endtok.str == 'IF') {
+                this.popIfThenScope();
+                while (this.elseifcount--) this.popIfThenScope(); // pop additional ELSE IF blocks?
+                this.elseifcount = 0;
+            } else if (endtok.str == 'SUB') {
+                this.addStatement( { command: 'RETURN' }, endtok );
+                this.popScope( { command: 'END' }, 'SUB'); // fake command to avoid null
+            }
+        } else {
+            return { command:'END' };
+        }
     }
     stmt__ON() : ONGO_Statement {
         var expr = this.parseExprWithType("number");
@@ -1134,16 +1194,11 @@ export class BASICParser {
         return { command:cmd, expr:expr, labels:labels };
     }
     stmt__DEF() : DEF_Statement {
-        var lexpr = this.parseVarSubscriptOrFunc();
+        var lexpr = this.parseVarSubscriptOrFunc(); // TODO: only allow parameter names, not exprs
         if (lexpr.args && lexpr.args.length > this.opts.maxDefArgs)
             this.compileError(`There can be no more than ${this.opts.maxDefArgs} arguments to a function or subscript.`, lexpr.$loc);
         if (!lexpr.name.startsWith('FN')) this.compileError(`Functions defined with DEF must begin with the letters "FN".`, lexpr.$loc)
-        // local variables need to be marked as referenced (TODO: only for this scope)
-        this.vardefs[lexpr.name] = lexpr;
-        if (lexpr.args != null)
-            for (let arg of lexpr.args)
-                if (isLookup(arg))
-                    this.vardefs[arg.name] = arg;
+        this.markVarDefs(lexpr); // local variables need to be marked as referenced (TODO: only for this scope)
         this.expectToken("=");
         var func = this.parseExpr();
         // build call graph to detect cycles
@@ -1156,6 +1211,25 @@ export class BASICParser {
         });
         this.checkCallGraph(lexpr.name, new Set());
         return { command:'DEF', lexpr:lexpr, def:func };
+    }
+    stmt__SUB() : SUB_Statement {
+        var lexpr = this.parseVarSubscriptOrFunc(); // TODO: only allow parameter names, not exprs
+        this.markVarDefs(lexpr); // local variables need to be marked as referenced (TODO: only for this scope)
+        this.addLabel(lexpr.name, 1); // offset +1 to skip SUB command
+        return { command:'SUB', lexpr:lexpr };
+    }
+    stmt__CALL() : CALL_Statement {
+        return { command:'CALL', call:this.parseVarSubscriptOrFunc() };
+    }
+    markVarDefs(lexpr: IndOp) {
+        this.vardefs[lexpr.name] = lexpr;
+        if (lexpr.args != null)
+            for (let arg of lexpr.args) {
+                if (isLookup(arg) && arg.args == null)
+                    this.vardefs[arg.name] = arg;
+                else
+                    this.compileError(`A definition can only define symbols, not expressions.`);
+            }
     }
     // detect cycles in call graph starting at function 'name'
     checkCallGraph(name: string, visited: Set<string>) {
@@ -1275,7 +1349,7 @@ export class BASICParser {
     checkScopes() {
         if (this.opts.compiledBlocks && this.scopestack.length) {
             var open = this.stmts[this.scopestack.pop()];
-            var close = {FOR:"NEXT", WHILE:"WEND", IF:"ENDIF"};
+            var close = {FOR:"NEXT", WHILE:"WEND", IF:"END IF", SUB:"END SUB"};
             this.compileError(`Don't forget to add a matching ${close[open.command]} statement.`, open.$loc);
         }
     }
@@ -1313,7 +1387,7 @@ export const ECMA55_MINIMAL : BASICOptions = {
     validKeywords : [
         'BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
-        'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO'
+        'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','THEN','TO' // 'SUB'
     ],
     validFunctions : [
         'ABS','ATN','COS','EXP','INT','LOG','RND','SGN','SIN','SQR','TAB','TAN'
@@ -1361,7 +1435,7 @@ export const DARTMOUTH_4TH_EDITION : BASICOptions = {
     validKeywords : [
         'BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
-        'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO',
+        'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','THEN','TO', //'SUB',
         'CHANGE','MAT','RANDOM','RESTORE$','RESTORE*',
     ],
     validFunctions : [
@@ -1458,7 +1532,7 @@ export const HP_TIMESHARED_BASIC : BASICOptions = {
     validKeywords : [
         'BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','OPTION','PRINT',
-        'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO',
+        'RANDOMIZE','READ','REM','RESTORE','RETURN','STEP','STOP','THEN','TO', //'SUB',
         'ENTER','MAT','CONVERT','OF','IMAGE','USING'
     ],
     validFunctions : [
@@ -1627,7 +1701,7 @@ export const BASICODE : BASICOptions = {
     validKeywords : [
         'BASE','DATA','DEF','DIM','END',
         'FOR','GO','GOSUB','GOTO','IF','INPUT','LET','NEXT','ON','OPTION','PRINT',
-        'READ','REM','RESTORE','RETURN','STEP','STOP','SUB','THEN','TO',
+        'READ','REM','RESTORE','RETURN','STEP','STOP','THEN','TO', // 'SUB',
         'AND', 'NOT', 'OR'
     ],
     validFunctions : [
@@ -1682,7 +1756,8 @@ export const ALTAIR_BASIC41 : BASICOptions = {
         'READ','REM','RESTORE','RESUME','RETURN','STOP','SWAP',
         'TROFF','TRON','WAIT',
         'TO','STEP',
-        'AND', 'NOT', 'OR', 'XOR', 'IMP', 'EQV', 'MOD'
+        'AND', 'NOT', 'OR', 'XOR', 'IMP', 'EQV', 'MOD',
+        'RANDOMIZE' // not in Altair BASIC, but we add it anyway
     ],
     validFunctions : [
         'ABS','ASC','ATN','CDBL','CHR$','CINT','COS','ERL','ERR',
@@ -1870,6 +1945,7 @@ export const MODERN_BASIC : BASICOptions = {
     chainAssignments : true,
     optionalLet : true,
     compiledBlocks : true,
+    multilineIfThen : true,
 }
 
 // TODO: integer vars

@@ -444,6 +444,12 @@ div.markdown th {
   -webkit-background-clip: text;
   color:rgba(0,0,0,0);
 }
+.logo-gradient:hover {
+  text-shadow: 0px 0px 0.5em rgba(255,255,255,1);
+  text-decoration: underline;
+  text-decoration-color: #ddd;
+  text-decoration-thickness: 1px;
+}
 .disable-select {
   user-select: none;
 }
