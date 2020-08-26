@@ -57,7 +57,7 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 
 ### Compilers
 
-* https://www.cc65.org/
+* https://cc65.github.io/
 * http://sdcc.sourceforge.net/
 * http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html
 * https://github.com/batari-Basic/batari-Basic
