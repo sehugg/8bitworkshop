@@ -14,6 +14,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="msapplication-starturl" content="/redir.html">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
+<link rel="apple-touch-icon" href="/images/icon.png">
 <style type="text/css" media="screen">
 body {
   overflow: hidden;
@@ -38,14 +39,15 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <script defer src="config.js"></script>
 
 <!-- Sentry error reporting -->
-<script
-  src="https://browser.sentry-cdn.com/5.20.1/bundle.min.js"
-  integrity="sha384-O8HdAJg1h8RARFowXd2J/r5fIWuinSBtjhwQoPesfVILeXzGpJxvyY/77OaPPXUo"
-  crossorigin="anonymous"></script>
-<script>
+<script defer
+  src="https://browser.sentry-cdn.com/5.22.3/bundle.tracing.min.js"
+  integrity="sha384-HfEJlGrJtFM0B01Wt4sGzTbxWqLMcMeGAXCbyQyB+iK9BhnDmNAtIGovhekIQOa2"
+  crossorigin="anonymous"
+></script>
+<script defer>
 if (window.location.host.endsWith('8bitworkshop.com')) {
   Sentry.init({
-    dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@sentry.io/1813925',
+    dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@o320878.ingest.sentry.io/1813925',
     beforeBreadcrumb(breadcrumb, hint) {
       if (breadcrumb.category === 'xhr' && typeof breadcrumb.data.url === 'string') {
         if (breadcrumb.data.url.startsWith('http')) return null; // discard external scripts

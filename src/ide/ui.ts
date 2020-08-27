@@ -114,7 +114,7 @@ function newWorker() : Worker {
   return new Worker("./src/worker/loader.js");
 }
 
-var hasLocalStorage : boolean = function() {
+const hasLocalStorage : boolean = function() {
   try {
     const key = "__some_random_key_you_are_not_going_to_use__";
     localStorage.setItem(key, key);
@@ -151,7 +151,7 @@ function getCurrentPresetTitle() : string {
 
 function setLastPreset(id:string) {
   if (hasLocalStorage) {
-    if (repo_id && platform_id)
+    if (repo_id && platform_id && !isElectron)
       localStorage.setItem("__lastrepo_" + platform_id, repo_id);
     else
       localStorage.removeItem("__lastrepo_" + platform_id);
@@ -170,10 +170,10 @@ function unsetLastPreset() {
 function initProject() {
   current_project = new CodeProject(newWorker(), platform_id, platform, store);
   projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
-  if (qs['electron_ws']) {
-    current_project.callbackGetRemote = getElectronFile;
+  if (isElectronWorkspace) {
     current_project.persistent = false;
-    // TODO: save file when edited
+    current_project.callbackGetRemote = getElectronFile;
+    current_project.callbackStoreFile = putWorkspaceFile;
   } else {
     current_project.callbackGetRemote = getWithBinary;
   }
@@ -942,9 +942,11 @@ function _downloadROMImage(e) {
     var suffix = (platform.getROMExtension && platform.getROMExtension(current_output)) 
       || "-" + getBasePlatform(platform_id) + ".bin";
     saveAs(blob, prefix + suffix);
-  } else {
+  } else if (current_output.code != null) {
     var blob = new Blob([(<VerilogOutput>current_output).code], {type: "text/plain"});
     saveAs(blob, prefix + ".js");
+  } else {
+    alertError(`The "${platform_id}" platform doesn't have downloadable ROMs.`);
   }
 }
 
@@ -1003,7 +1005,7 @@ function populateExamples(sel) {
 }
 
 function populateRepos(sel) {
-  if (hasLocalStorage) {
+  if (hasLocalStorage && !isElectron) {
     var n = 0;
     var repos = getRepos();
     if (repos) {
@@ -1052,7 +1054,7 @@ async function updateSelector() {
     await populateFiles(sel, "Local Files", "", foundFiles);
     finishSelector(sel);
   } else {
-    if (!qs['electron_ws']) {
+    if (!isElectronWorkspace) {
       sel.append($("<option />").val('/').text('Leave Repository'));
     }
     $("#repo_name").text(getFilenameForPath(repo_id)+'/').show();
@@ -1145,6 +1147,7 @@ function setCompileOutput(data: WorkerResult) {
         current_output = rom;
         if (!userPaused) _resume();
         measureBuildTime();
+        writeOutputROMFile();
       } catch (e) {
         console.log(e);
         toolbar.addClass("has-errors");
@@ -1909,6 +1912,9 @@ var qs = (function (a : string[]) {
     return b;
 })(window.location.search.substr(1).split('&'));
 
+const isElectronWorkspace = qs['electron_ws'];
+const isElectron = qs['electron'] || isElectronWorkspace;
+
 function globalErrorHandler(msgevent) {
   var msg = (msgevent.message || msgevent.error || msgevent)+"";
   // storage quota full? (Chrome) try to expand it
@@ -2263,7 +2269,7 @@ redirectToHTTPS();
 //// ELECTRON STUFF
 
 // get remote file from local fs
-declare var getWorkspaceFile;
+declare var getWorkspaceFile, putWorkspaceFile;
 export function getElectronFile(url:string, success:(text:string|Uint8Array)=>void, datatype:'text'|'arraybuffer') {
   // TODO: we have to split() to strip off presets/platform, yukky
   var contents = getWorkspaceFile(url.split('/',3)[2], datatype);
@@ -2276,4 +2282,12 @@ export function getElectronFile(url:string, success:(text:string|Uint8Array)=>vo
 export function reloadWorkspaceFile(path: string) {
   var datatype = typeof current_project.filedata[path] == 'string' ? 'text' : 'arraybuffer';
   projectWindows.updateFile(path, getWorkspaceFile(path, datatype));
+}
+function writeOutputROMFile() {
+  if (isElectronWorkspace && current_output instanceof Uint8Array) {
+    var prefix = getFilenamePrefix(getCurrentMainFilename());
+    var suffix = (platform.getROMExtension && platform.getROMExtension(current_output)) 
+      || "-" + getBasePlatform(platform_id) + ".bin";
+    putWorkspaceFile(`bin/${prefix}${suffix}`, current_output);
+  }
 }

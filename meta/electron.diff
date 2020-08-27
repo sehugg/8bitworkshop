@@ -1,6 +1,6 @@
---- index.html	2020-08-11 11:10:30.000000000 -0500
-+++ electron.html	2020-08-11 14:47:38.000000000 -0500
-@@ -3,16 +3,6 @@
+--- index.html	2020-08-29 13:22:47.000000000 -0500
++++ electron.html	2020-08-29 13:22:40.000000000 -0500
+@@ -3,18 +3,7 @@
  
  <head>
  <title>8bitworkshop IDE</title>
@@ -15,9 +15,11 @@
 -<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 -<meta name="msapplication-starturl" content="/redir.html">
  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
+-<link rel="apple-touch-icon" href="/images/icon.png">
  <style type="text/css" media="screen">
  body {
-@@ -21,46 +11,6 @@
+   overflow: hidden;
+@@ -22,50 +11,32 @@
  }
  </style>
  <link rel="stylesheet" href="css/ui.css">
@@ -36,16 +38,22 @@
 -<script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-app.js"></script>
 -<script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-auth.js"></script>
 -<script defer src="config.js"></script>
--
--<!-- Sentry error reporting -->
--<script
--  src="https://browser.sentry-cdn.com/5.20.1/bundle.min.js"
--  integrity="sha384-O8HdAJg1h8RARFowXd2J/r5fIWuinSBtjhwQoPesfVILeXzGpJxvyY/77OaPPXUo"
--  crossorigin="anonymous"></script>
--<script>
++</head>
++<body>
+ 
+ <!-- Sentry error reporting -->
+ <script defer
+-  src="https://browser.sentry-cdn.com/5.22.3/bundle.tracing.min.js"
+-  integrity="sha384-HfEJlGrJtFM0B01Wt4sGzTbxWqLMcMeGAXCbyQyB+iK9BhnDmNAtIGovhekIQOa2"
+-  crossorigin="anonymous"
++src="https://browser.sentry-cdn.com/5.22.3/bundle.tracing.min.js"
++integrity="sha384-HfEJlGrJtFM0B01Wt4sGzTbxWqLMcMeGAXCbyQyB+iK9BhnDmNAtIGovhekIQOa2"
++crossorigin="anonymous"
+ ></script>
+ <script defer>
 -if (window.location.host.endsWith('8bitworkshop.com')) {
 -  Sentry.init({
--    dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@sentry.io/1813925',
+-    dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@o320878.ingest.sentry.io/1813925',
 -    beforeBreadcrumb(breadcrumb, hint) {
 -      if (breadcrumb.category === 'xhr' && typeof breadcrumb.data.url === 'string') {
 -        if (breadcrumb.data.url.startsWith('http')) return null; // discard external scripts
@@ -59,12 +67,29 @@
 -    },
 -  });
 -}
--</script>
--
- </head>
- <body>
++Sentry.init({
++  dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@o320878.ingest.sentry.io/1813925',
++  beforeBreadcrumb(breadcrumb, hint) {
++    if (breadcrumb.category === 'xhr' && typeof breadcrumb.data.url === 'string') {
++      if (breadcrumb.data.url.startsWith('http')) return null; // discard external scripts
++    }
++    return breadcrumb;
++  },
++  beforeSend(event, hint) {
++    const error = hint.originalException;
++    if (error instanceof EmuHalt) return null; // ignore EmuHalt
++    return event;
++  },
++});
+ </script>
  
-@@ -88,26 +38,6 @@
+-</head>
+-<body>
+-
+ <!-- for file upload -->
+ <input type="file" id="uploadFileElem" multiple accept="*" style="display:none" onchange="handleFileUpload(this.files)">
+ 
+@@ -90,26 +61,6 @@
            <hr>
            <li><a class="dropdown-item" href="#" id="item_addfile_include">Add Include File...</a></li>
            <li><a class="dropdown-item" href="#" id="item_addfile_link">Add Linked File...</a></li>
@@ -91,7 +116,7 @@
          </ul>
        </li>
        <li class="dropdown dropdown-submenu">
-@@ -133,36 +63,6 @@
+@@ -135,36 +86,6 @@
            <li><a class="dropdown-item" href="#" id="item_debug_expr">Break Expression...</a></li>
          </ul>
        </li>
@@ -128,7 +153,7 @@
      </ul>
    </span>
  
-@@ -258,39 +158,6 @@
+@@ -260,39 +181,6 @@
      <span class="label"><span id="settle_label"></span> evals/clk</span>
    </span>
  
@@ -168,7 +193,7 @@
    <!-- 8bitworkshop logo -->
    <span class="logo-gradient hidden-xs hidden-sm hidden-md pull-right" style="margin-left:auto" onclick="window.open('/','_8bitws');">8bitworkshop</span>
  
-@@ -477,73 +344,6 @@
+@@ -479,73 +367,6 @@
      </div>
    </div>
  </div>
@@ -242,16 +267,3 @@
  
  <script src="jquery/jquery.min.js"></script>
  
-@@ -635,12 +435,5 @@
-   startUI();
- </script>
- 
--<script>
--/*
--  var isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
--  if (!isFirefox && platform_id != 'vcs') { $("#best_in_firefox").show(); }
--*/
--</script>
--
- </body>
- </html>

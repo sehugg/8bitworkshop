@@ -19,16 +19,18 @@ export class CodeProject {
   mainPath : string;
   pendingWorkerMessages = 0;
   tools_preloaded = {};
-  callbackBuildResult : BuildResultCallback;
-  callbackBuildStatus : BuildStatusCallback;
   worker : Worker;
   platform_id : string;
   platform : Platform;
   store : any;
-  callbackGetRemote : GetRemoteCallback;
   isCompiling : boolean = false;
   filename2path = {}; // map stripped paths to full paths
   persistent : boolean = true; // set to true and won't modify store
+
+  callbackBuildResult : BuildResultCallback;
+  callbackBuildStatus : BuildStatusCallback;
+  callbackGetRemote : GetRemoteCallback;
+  callbackStoreFile : IterateFilesCallback;
 
   constructor(worker, platform_id:string, platform, store) {
     this.worker = worker;
@@ -154,6 +156,9 @@ export class CodeProject {
     // protect against accidential whole-file deletion
     if (this.persistent && !isEmptyString(text)) {
       this.store.setItem(path, text);
+    }
+    if (this.callbackStoreFile != null) {
+      this.callbackStoreFile(path, text);
     }
   }
 

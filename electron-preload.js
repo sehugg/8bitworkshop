@@ -24,9 +24,18 @@ process.once('loaded', () => {
       return null;
     }
   }
+  // from browser: put workspace file
+  window.putWorkspaceFile = function(path, data) {
+    if (wsroot == null) throw Error("no workspace root set");
+    var fullpath = modpath.join(wsroot, modpath.normalize(path));
+    var encoding = typeof data === 'string' ? 'utf8' : null;
+    fs.writeFileSync(fullpath, data, {encoding:encoding});
+  }
   // from electron.js: set workspace root directory
   ipcRenderer.on('setWorkspaceRoot', (event, data) => {
     wsroot = data.root;
+    var binpath = modpath.join(wsroot, 'bin');
+    if (!fs.existsSync(binpath)) fs.mkdirSync(binpath, {});
     console.log('setWorkspaceRoot', wsroot);
   });
   // from electron.js: file changed

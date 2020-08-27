@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/sehugg/8bitworkshop.svg?branch=master)](https://travis-ci.org/sehugg/8bitworkshop)
 
-The latest release is online at http://8bitworkshop.com/
+The latest release is online at https://8bitworkshop.com/
 
 ## Install
 
