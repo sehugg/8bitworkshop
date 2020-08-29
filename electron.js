@@ -24,33 +24,44 @@ function showError(msg, detail) {
 
 // file watcher
 class Workspace {
-  constructor(directory, meta, wnd) {
+  constructor(directory, meta) {
     this.directory = directory;
     this.mainfile = meta.mainfile;
     this.platform = meta.platform;
     if (!this.mainfile) throw new Error(`The "mainfile" key is missing in ${WSMETA_FILENAME}.`)
     if (!this.platform) throw new Error(`The "platform" key is missing in ${WSMETA_FILENAME}.`)
-    var mainfilepath = modpath.join(directory, this.mainfile);
+    var mainfilepath = this.getMainFilePath();
     if (!fs.existsSync(mainfilepath)) throw new Error(`The file "${mainfilepath}" is missing.`);
-    this.watcher = chokidar.watch(mainfilepath);
+    console.log("workspace opened", this.directory, this.mainfile);
+  }
+  getMainFilePath() {
+    return modpath.join(this.directory, this.mainfile);
+  }
+  close() {
+    this.unwatch();
+    console.log("workspace closed", this.directory, this.mainfile);
+  }
+  watch(wnd) {
+    this.watcher = chokidar.watch(this.directory, {
+      awaitWriteFinish: false
+    });
     this.watcher.on('all', (event, path) => {
-      console.log(event, path);
       switch (event) {
-        case 'add':
         case 'change':
+          console.log(event, path);
           wnd.webContents.send('fileChanged', {
             path: modpath.relative(this.directory, path),
           });
           break;
       }
     });
-    console.log("workspace opened", this.directory, this.mainfile);
+    console.log("watching workspace");
   }
-  close() {
+  unwatch() {
     if (this.watcher) {
       this.watcher.close();
       this.watcher = null;
-      console.log("workspace closed", this.directory, this.mainfile);
+      console.log("un-watching workspace");
     }
   }
 }
@@ -103,6 +114,11 @@ function openWorkspace(wnd, ws) {
   wnd.loadURL(`file://${__dirname}/electron.html?${qs}`).then(() => {
     wnd.webContents.send('setWorkspaceRoot', {root:ws.directory});
   });
+}
+
+function getActiveWorkspace() {
+  var wnd = BrowserWindow.getFocusedWindow();
+  return wnd && wnd.workspace;
 }
 
 // TODO: doesn't work if browser window reloads itself
@@ -167,7 +183,7 @@ function openWorkspaceWindow(wspath) {
       }
     } else {
       console.log(meta);
-      var ws = new Workspace(wspath, meta, wnd);
+      var ws = new Workspace(wspath, meta);
       openWorkspace(wnd, ws);
       app.addRecentDocument(wspath);
     }
@@ -228,7 +244,7 @@ function buildMenu() {
       submenu: [
         {
           label: 'New Playground',
-          click: openDefaultWorkspace,
+          click: createWindow,
           accelerator: 'CmdOrCtrl+N',
         },
         {
@@ -393,6 +409,16 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     openDefaultWorkspace()
   }
+})
+
+app.on('browser-window-focus', (e) => {
+  var ws = e.sender.workspace;
+  if (ws) ws.unwatch();
+})
+
+app.on('browser-window-blur', (e) => {
+  var ws = e.sender.workspace;
+  if (ws) ws.watch(e.sender);
 })
 
 app.on('open-file', (event, path) => {

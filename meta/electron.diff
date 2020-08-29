@@ -1,5 +1,5 @@
---- index.html	2020-08-29 13:22:47.000000000 -0500
-+++ electron.html	2020-08-29 13:22:40.000000000 -0500
+--- index.html	2020-08-29 17:52:46.000000000 -0500
++++ electron.html	2020-08-29 17:54:08.000000000 -0500
 @@ -3,18 +3,7 @@
  
  <head>
@@ -193,7 +193,7 @@
    <!-- 8bitworkshop logo -->
    <span class="logo-gradient hidden-xs hidden-sm hidden-md pull-right" style="margin-left:auto" onclick="window.open('/','_8bitws');">8bitworkshop</span>
  
-@@ -479,73 +367,6 @@
+@@ -478,73 +366,6 @@
      </div>
    </div>
  </div>

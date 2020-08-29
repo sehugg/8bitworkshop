@@ -298,6 +298,7 @@ export class CodeProject {
   }
 
   updateFile(path:string, text:FileData) {
+    if (this.filedata[path] == text) return; // unchanged, don't update
     this.updateFileInStore(path, text); // TODO: isBinary
     this.filedata[path] = text;
     if (this.okToSend() && this.mainPath) {

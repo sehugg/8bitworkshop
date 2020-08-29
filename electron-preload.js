@@ -41,7 +41,6 @@ process.once('loaded', () => {
   // from electron.js: file changed
   ipcRenderer.on('fileChanged', (event, data) => {
     var path = data.path;
-    console.log('fileChanged', path);
     window.reloadWorkspaceFile(path);
   });
 });

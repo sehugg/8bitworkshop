@@ -183,11 +183,14 @@ export class SourceEditor implements ProjectView {
     var i,j;
     var oldtext = this.editor.getValue();
     if (oldtext != text) {
+      this.editor.setValue(text);
+      /*
       // find minimum range to undo
       for (i=0; i<oldtext.length && i<text.length && text[i] == oldtext[i]; i++) { }
       for (j=0; j<oldtext.length && j<text.length && text[text.length-1-j] == oldtext[oldtext.length-1-j]; j++) { }
       //console.log(i,j,oldtext.substring(i,oldtext.length-j));
       this.replaceSelection(i, oldtext.length-j, text.substring(i, text.length-j)); // calls setCode()
+      */
       // clear history if setting empty editor
       if (oldtext == '') {
         this.editor.clearHistory();

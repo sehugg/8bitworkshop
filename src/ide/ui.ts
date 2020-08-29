@@ -2280,8 +2280,11 @@ export function getElectronFile(url:string, success:(text:string|Uint8Array)=>vo
   }
 }
 export function reloadWorkspaceFile(path: string) {
-  var datatype = typeof current_project.filedata[path] == 'string' ? 'text' : 'arraybuffer';
-  projectWindows.updateFile(path, getWorkspaceFile(path, datatype));
+  var oldval = current_project.filedata[path];
+  if (oldval != null) {
+    var datatype = typeof oldval == 'string' ? 'text' : 'arraybuffer';
+    projectWindows.updateFile(path, getWorkspaceFile(path, datatype));
+  }
 }
 function writeOutputROMFile() {
   if (isElectronWorkspace && current_output instanceof Uint8Array) {

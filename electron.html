@@ -197,7 +197,7 @@ Sentry.init({
   <div class="emulator disable-select" id="emulator">
     <!-- replay slider -->
     <div id="replaydiv" class="replaydiv" style="display:none;color:#ccc;text-align:left">
-     <div style="display:flex; grid-gap:1em">
+     <div style="display:grid; grid-template-columns: 3em 3em auto 3em; grid-gap: 1em">
       <button id="replay_back" class="btn" title="Back one frame"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
       <div>
         Frame<br>
@@ -205,8 +205,7 @@ Sentry.init({
       </div>
       <input type="range" min="0" max="0" value="0" class="slider" id="replayslider">
       <button id="replay_fwd" class="btn" title="Ahead one frame"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
-     </div>
-     <div style="display:flex; grid-gap:1em" id="clockdiv">
+
       <button id="clock_back" class="btn" title="Back one step"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
       <div>
         Step<br>
