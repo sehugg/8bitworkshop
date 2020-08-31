@@ -350,6 +350,10 @@ function buildMenu() {
           click: openURL('https://twitter.com/8bitworkshop')
         },
         {
+          label: 'Browse Books on Amazon',
+          click: openURL('https://www.amazon.com/s?k=8bitworkshop&i=stripbooks&dc&qid=1598884483&tag=pzp-20')
+        },
+        {
           label: 'Become a Patreon',
           click: openURL('https://www.patreon.com/8bitworkshop')
         },

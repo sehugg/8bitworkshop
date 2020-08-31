@@ -681,7 +681,7 @@ export class Toolbar {
     }
   }
   newGroup() {
-    return this.grp = $(document.createElement("span")).addClass("btn_group").appendTo(this.span);
+    return this.grp = $(document.createElement("span")).addClass("btn_group").appendTo(this.span).hide();
   }
   add(key:string, alttext:string, icon:string, fn:(e,combo) => void) {
     var btn = null;
@@ -693,7 +693,7 @@ export class Toolbar {
       btn.html(icon);
       btn.prop("title", key ? (alttext+" ("+key+")") : alttext);
       btn.click(fn);
-      this.grp.append(btn);
+      this.grp.append(btn).show();
     }
     if (key) {
       this.mousetrap.bind(key, fn);
