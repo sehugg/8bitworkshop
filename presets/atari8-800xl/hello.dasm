@@ -1,5 +1,6 @@
-; Atari "Hello World" sample code
-; Written by Daniel Boris (dboris@comcast.net)
+
+; Atari 8-bit "Hello World" sample code
+; Written by Daniel Boris (danlb_2000@yahoo.com)
 ; Modified by Steven Hugg @8bitworkshop
 ; Assemble with DASM
 ;
