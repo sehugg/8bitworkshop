@@ -138,7 +138,7 @@ function requestPersistPermission(interactive: boolean, failureonly: boolean) {
       }
     });
   } else {
-    interactive && alertError("Your browser doesn't support expanding the persistent storage quota. Your edits may not be preserved after closing the page.");
+    interactive && alertError("Your browser may not persist edits after closing the page. Try a different browser.");
   }
 }
 
