@@ -2041,11 +2041,22 @@ async function startPlatform() {
   await initProject();
   await loadProject(qs['file']);
   setupDebugControls();
-  updateSelector();
   addPageFocusHandlers();
   showInstructions();
-  updateBooksMenu();
+  if (qs['embed']) {
+    hideControlsForEmbed();
+  } else {
+    updateSelector();
+    updateBooksMenu();
+    showWelcomeMessage();
+  }
   revealTopBar();
+}
+
+function hideControlsForEmbed() {
+  $('#dropdownMenuButton').hide();
+  $('#platformsMenuButton').hide();
+  $('#booksMenuButton').hide();
 }
 
 function updateBooksMenu() {
@@ -2062,7 +2073,7 @@ function revealTopBar() {
 export function setupSplits() {
   const splitName = 'workspace-split3-' + platform_id;
   var sizes = [0, 50, 50];
-  if (!platform_id.startsWith('vcs'))
+  if (!platform_id.startsWith('vcs') && !qs['embed'])
     sizes = [12, 44, 44];
   var sizesStr = hasLocalStorage && localStorage.getItem(splitName);
   if (sizesStr) {
@@ -2210,7 +2221,6 @@ async function loadAndStartPlatform() {
     console.log("starting platform", platform_id); // loaded required <platform_id>.js file
     try {
       await startPlatform();
-      showWelcomeMessage();
       document.title = document.title + " [" + platform_id + "] - " + (repo_id?('['+repo_id+'] - '):'') + current_project.mainPath;
     } finally {
       revealTopBar();

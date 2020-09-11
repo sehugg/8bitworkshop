@@ -86,6 +86,7 @@ export class WaveformView {
     wlc.tabIndex = -1; // make it focusable
     //wlc.style = "overflow-x: hidden"; // TODO?
     this.toolbar = new Toolbar(this.parent, this.parent);
+    this.toolbar.span.css('display','inline-block');
     $(this.parent).append(wlc);
     var down = false;
     var selfn = (e) => {

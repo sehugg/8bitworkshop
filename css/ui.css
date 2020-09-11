@@ -438,7 +438,8 @@ div.markdown th {
   background-color:#333;
 }
 .logo-gradient {
-  font-size: 1.5em;
+  font-size: 1.25em;
+  margin-top: 0.15em;
   background: linear-gradient(to right, #ff9999, #ffff99, #99ff99, #99ffff);
   background-clip: text;
   -webkit-background-clip: text;
