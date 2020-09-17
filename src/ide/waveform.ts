@@ -165,7 +165,7 @@ export class WaveformView {
   }
   
   setZoom(zoom : number) {
-    this.zoom = Math.max(1, Math.min(64, zoom));
+    this.zoom = Math.max(1/16, Math.min(64, zoom));
     this.clocksPerPage = Math.ceil(this.pageWidth/this.zoom); // TODO: refactor into other one
     this.refresh();
   }
@@ -241,7 +241,12 @@ export class WaveformView {
       ctx.textAlign = 'right';
       if (val !== undefined) {
         var s = val.toString(radix);
-        ctx.fillText(s, w-fh, ycen);
+        var x = w-fh;
+        var dims = ctx.measureText(s);
+        ctx.fillStyle = 'black';
+        ctx.fillRect(x-dims.width-2, ycen-13, dims.width+4, 17);
+        ctx.fillStyle = "#ff66ff";
+        ctx.fillText(s, x, ycen);
       }
     }
     // draw labels

@@ -323,24 +323,6 @@ var VerilogPlatform = function(mainElement, options) {
       debugCond = null;
   }
 
-  function shadowText(ctx, txt, x, y) {
-    ctx.shadowColor = "black";
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = -1;
-    ctx.shadowOffsetX = 0;
-    ctx.fillText(txt, x, y);
-    ctx.shadowOffsetY = 1;
-    ctx.shadowOffsetX = 0;
-    ctx.fillText(txt, x, y);
-    ctx.shadowOffsetY = 0;
-    ctx.shadowOffsetX = -1;
-    ctx.fillText(txt, x, y);
-    ctx.shadowOffsetY = 0;
-    ctx.shadowOffsetX = 1;
-    ctx.fillText(txt, x, y);
-    ctx.shadowOffsetX = 0;
-  }
-  
   // inner Platform class
     
  class _VerilogPlatform extends BasePlatform implements WaveformProvider {
