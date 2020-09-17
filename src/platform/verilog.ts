@@ -159,6 +159,8 @@ export function VL_READMEM_W(ishex,width,depth,array_lsb,fnwords,filename,memp,s
     memp[i] = data[i];
 }
 
+const CYCLES_PER_FILL = 20;
+
 // SIMULATOR BASE
 
 abstract class VerilatorBase {
@@ -483,7 +485,7 @@ var VerilogPlatform = function(mainElement, options) {
   updateScopeFrame() {
     this.split.setSizes([0,100]); // ensure scope visible
     //this.topdiv.hide();// hide crt
-    var done = this.fillTraceBuffer(32 * trace_signals.length); // TODO: const
+    var done = this.fillTraceBuffer(CYCLES_PER_FILL * trace_signals.length);
     if (done)
       this.pause(); // TODO?
     // TODO
