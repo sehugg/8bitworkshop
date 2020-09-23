@@ -4,7 +4,7 @@ import { SourceFile, WorkerError, Segment, FileData, SourceLocation, SourceLine 
 import { BaseZ80MachinePlatform, BaseZ80Platform } from "../common/baseplatform";
 import { hex, lpad, rpad, safeident, rgb2bgr } from "../common/util";
 import { CodeAnalyzer } from "../common/analysis";
-import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows, runToPC } from "./ui";
+import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows, runToPC, qs } from "./ui";
 import { ProbeRecorder, ProbeFlags } from "../common/recorder";
 import { getMousePos, dumpRAM } from "../common/emu";
 import * as pixed from "./pixeleditor";
@@ -119,6 +119,7 @@ export class SourceEditor implements ProjectView {
     var lineWrap = !!modedef.lineWrap;
     var theme = modedef.theme || MODEDEFS.default.theme;
     var lineNums = !modedef.noLineNumbers && !isMobileDevice;
+    if (qs['embed']) lineNums = false; // no line numbers while embedded
     var gutters = ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"];
     if (isAsm) gutters = ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"];
     if (modedef.noGutters || isMobileDevice) gutters = ["gutter-info"];
