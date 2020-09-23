@@ -657,8 +657,12 @@ var VerilogPlatform = function(mainElement, options) {
           const IGNORE_SIGNALS = ['clk','reset'];
           trace_signals = trace_signals.filter((v) => { return IGNORE_SIGNALS.indexOf(v.name)<0; }); // remove clk, reset
           $("#speed_bar").show();
+          $("#run_bar").show();
+          $("#xtra_bar").show();
         } else {
           $("#speed_bar").hide();
+          $("#run_bar").hide();
+          $("#xtra_bar").hide();
         }
       }
     }
@@ -834,3 +838,4 @@ var VerilogVGAPlatform = function(mainElement, options) {
 
 PLATFORMS['verilog'] = VerilogPlatform;
 PLATFORMS['verilog-vga'] = VerilogVGAPlatform;
+PLATFORMS['verilog-test'] = VerilogPlatform;

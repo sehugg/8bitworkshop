@@ -1686,6 +1686,7 @@ function setupDebugControls() {
     uitoolbar.add('ctrl+alt+l', 'Run To Line', 'glyphicon-save', runToCursor).prop('id','dbg_toline');
   }
   uitoolbar.newGroup();
+  uitoolbar.grp.prop('id','xtra_bar');
   // add menu clicks
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
@@ -1898,7 +1899,7 @@ function showWelcomeMessage() {
 
 ///////////////////////////////////////////////////
 
-var qs = (function (a : string[]) {
+export var qs = (function (a : string[]) {
     if (!a || a.length == 0)
         return {};
     var b = {};
