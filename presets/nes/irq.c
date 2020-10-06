@@ -59,6 +59,16 @@ void __fastcall__ irq_nmi_callback(void) {
 
 void main(void)
 {
+  // More accurate NES emulators simulate the mapper's
+  // monitoring of the A12 line, so the background and
+  // sprite pattern tables must be different.
+  // https://forums.nesdev.com/viewtopic.php?f=2&t=19686#p257380
+  set_ppu_ctrl_var(get_ppu_ctrl_var() | 0x08);
+  // Enable Work RAM
+  POKE(0xA001, 0x80);
+  // Mirroring - horizontal
+  POKE(0xA000, 0x01);
+  
   // set up MMC3 IRQs every 8 scanlines
   MMC3_IRQ_SET_VALUE(7);
   MMC3_IRQ_RELOAD();
