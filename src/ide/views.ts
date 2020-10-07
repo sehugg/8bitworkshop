@@ -1,12 +1,12 @@
 
 //import CodeMirror = require("codemirror");
 import { SourceFile, WorkerError, Segment, FileData, SourceLocation, SourceLine } from "../common/workertypes";
-import { Platform, EmuState, lookupSymbol, BaseDebugPlatform, BaseZ80MachinePlatform, BaseZ80Platform, CpuState } from "../common/baseplatform";
+import { BaseZ80MachinePlatform, BaseZ80Platform } from "../common/baseplatform";
 import { hex, lpad, rpad, safeident, rgb2bgr } from "../common/util";
 import { CodeAnalyzer } from "../common/analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows, runToPC } from "./ui";
 import { ProbeRecorder, ProbeFlags } from "../common/recorder";
-import { getMousePos, dumpRAM, Toolbar } from "../common/emu";
+import { getMousePos, dumpRAM } from "../common/emu";
 import * as pixed from "./pixeleditor";
 declare var Mousetrap;
 
@@ -28,6 +28,9 @@ export interface ProjectView {
   recreateOnResize? : boolean;
   undoStep?() : void;
 };
+
+// detect mobile (https://stackoverflow.com/questions/3514784/what-is-the-best-way-to-detect-a-mobile-device)
+export var isMobileDevice = window.matchMedia("only screen and (max-width: 760px)").matches;
 
 declare var CodeMirror;
 declare var VirtualList;
@@ -115,10 +118,10 @@ export class SourceEditor implements ProjectView {
     var isAsm = isAsmOverride || modedef.isAsm;
     var lineWrap = !!modedef.lineWrap;
     var theme = modedef.theme || MODEDEFS.default.theme;
-    var lineNums = !modedef.noLineNumbers;
+    var lineNums = !modedef.noLineNumbers && !isMobileDevice;
     var gutters = ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"];
     if (isAsm) gutters = ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"];
-    if (modedef.noGutters) gutters = ["gutter-info"];
+    if (modedef.noGutters || isMobileDevice) gutters = ["gutter-info"];
     this.editor = CodeMirror(parent, {
       theme: theme,
       lineNumbers: lineNums,

@@ -2074,7 +2074,7 @@ function revealTopBar() {
 export function setupSplits() {
   const splitName = 'workspace-split3-' + platform_id;
   var sizes = [0, 50, 50];
-  if (!platform_id.startsWith('vcs') && !qs['embed'])
+  if (!(platform_id.startsWith('vcs') || qs['embed'] || Views.isMobileDevice))
     sizes = [12, 44, 44];
   var sizesStr = hasLocalStorage && localStorage.getItem(splitName);
   if (sizesStr) {
