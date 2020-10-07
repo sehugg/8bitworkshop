@@ -108,6 +108,7 @@ class VCSPlatform extends BasePlatform {
     };
     var jacanvas = $("#javatari-screen").find("canvas");
     jacanvas.mousedown(rasterPosBreakFn);
+    this.resize();
   }
 
   loadROM(title, data) {
@@ -388,6 +389,13 @@ class VCSPlatform extends BasePlatform {
   }
   connectProbe(probe:ProbeAll) {
     this.probe = probe || this.nullProbe;
+  }
+
+  // resizing
+  resize() {
+    var scale = Math.min(1, ($('#emulator').width() - 24) / 640);
+    var xt = (1 - scale) * 50;
+    $('#javatari-div').css('transform', `translateX(-${xt}%) translateY(-${xt}%) scale(${scale})`);
   }
 };
 

@@ -1958,7 +1958,7 @@ function replaceURLState() {
 function addPageFocusHandlers() {
   var hidden = false;
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState == 'hidden' && platform.isRunning()) {
+    if (document.visibilityState == 'hidden' && platform && platform.isRunning()) {
       _pause();
       hidden = true;
     } else if (document.visibilityState == 'visible' && hidden) {
@@ -1973,10 +1973,13 @@ function addPageFocusHandlers() {
     }
   });
   $(window).on("blur", () => {
-    if (platform.isRunning()) {
+    if (platform && platform.isRunning()) {
       _pause();
       hidden = true;
     }
+  });
+  $(window).on("orientationchange", () => {
+    if (platform) setTimeout(platform.resize.bind(platform), 200);
   });
 }
 
