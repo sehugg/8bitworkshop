@@ -2129,24 +2129,30 @@ function loadImportedURL(url : string) {
 }
 
 async function loadFormDataUpload() {
+  var ignore = !!qs['ignore'];
+  var force = !!qs['force'];
   setWaitDialog(true);
   for (var i=0; i<20; i++) {
     let path = qs['file'+i+'_name'];
     let dataenc = qs['file'+i+'_data'];
     if (path == null || dataenc == null) break;
-    let value = dataenc;
-    if (qs['file'+i+'_type'] == 'binary') {
-      value = stringToByteArray(atob(value));
-    }
     var olddata = await store.getItem(path);
-    if (!olddata || confirm("Replace existing file '" + path + "'?")) {
-      await store.setItem(path, value); // TODO: alert when replacing?
-      if (i == 0) { qs['file'] = path; } // set main filename
+    if (!(ignore && olddata)) {
+      let value = dataenc;
+      if (qs['file'+i+'_type'] == 'binary') {
+        value = stringToByteArray(atob(value));
+      }
+      if (!olddata || force || confirm("Replace existing file '" + path + "'?")) {
+        await store.setItem(path, value);
+      }
     }
+    if (i == 0) { qs['file'] = path; } // set main filename
     delete qs['file'+i+'_name'];
     delete qs['file'+i+'_data'];
     delete qs['file'+i+'_type'];
   }
+  delete qs['ignore'];
+  delete qs['force'];
   setWaitDialog(false);
   replaceURLState();
 }

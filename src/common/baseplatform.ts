@@ -1029,25 +1029,25 @@ import { ProbeRecorder } from "./recorder";
 export interface Machine extends Bus, Resettable, FrameBased, AcceptsROM, HasCPU, SavesState<EmuState>, SavesInputState<any> {
 }
 
-function hasVideo(arg:any): arg is VideoSource {
+export function hasVideo(arg:any): arg is VideoSource {
     return typeof arg.connectVideo === 'function';
 }
-function hasAudio(arg:any): arg is SampledAudioSource {
+export function hasAudio(arg:any): arg is SampledAudioSource {
     return typeof arg.connectAudio === 'function';
 }
-function hasKeyInput(arg:any): arg is AcceptsKeyInput {
+export function hasKeyInput(arg:any): arg is AcceptsKeyInput {
     return typeof arg.setKeyInput === 'function';
 }
-function hasPaddleInput(arg:any): arg is AcceptsPaddleInput {
+export function hasPaddleInput(arg:any): arg is AcceptsPaddleInput {
     return typeof arg.setPaddleInput === 'function';
 }
-function isRaster(arg:any): arg is RasterFrameBased {
+export function isRaster(arg:any): arg is RasterFrameBased {
     return typeof arg.getRasterY === 'function';
 }
-function hasProbe(arg:any): arg is Probeable {
+export function hasProbe(arg:any): arg is Probeable {
     return typeof arg.connectProbe == 'function';
 }
-function hasBIOS(arg:any): arg is AcceptsBIOS {
+export function hasBIOS(arg:any): arg is AcceptsBIOS {
   return typeof arg.loadBIOS == 'function';
 }
 

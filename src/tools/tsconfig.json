@@ -5,7 +5,8 @@
     "outDir": "../../gen/tools"
   },
   "references": [
-    { "path": "../common" }
+    { "path": "../common" },
+    { "path": "../machine" }
   ],
   "include": [
     "**/*.ts"
