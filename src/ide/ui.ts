@@ -179,19 +179,19 @@ function initProject() {
   }
   current_project.callbackBuildResult = (result:WorkerResult) => {
     setCompileOutput(result);
-    refreshWindowList();
   };
   current_project.callbackBuildStatus = (busy:boolean) => {
-    if (busy) {
-      toolbar.addClass("is-busy");
-    } else {
-      toolbar.removeClass("is-busy");
-      toolbar.removeClass("has-errors"); // may be added in next callback
-      projectWindows.setErrors(null);
-      hideErrorAlerts();
-    }
-    $('#compile_spinner').css('visibility', busy ? 'visible' : 'hidden');
+    setBusyStatus(busy);
   };
+}
+
+function setBusyStatus(busy: boolean) {
+  if (busy) {
+    toolbar.addClass("is-busy");
+  } else {
+    toolbar.removeClass("is-busy");
+  }
+  $('#compile_spinner').css('visibility', busy ? 'visible' : 'hidden');
 }
 
 function refreshWindowList() {
@@ -1129,11 +1129,16 @@ function measureBuildTime() {
 
 function setCompileOutput(data: WorkerResult) {
   // errors? mark them in editor
-  if (data.errors && data.errors.length > 0) {
+  if (data && data.errors && data.errors.length > 0) {
     toolbar.addClass("has-errors");
     projectWindows.setErrors(data.errors);
     showErrorAlert(data.errors);
   } else {
+    toolbar.removeClass("has-errors"); // may be added in next callback
+    projectWindows.setErrors(null);
+    hideErrorAlerts();
+    // exit if compile output unchanged
+    if (data == null || data.unchanged) return;
     // process symbol map
     platform.debugSymbols = new DebugSymbols(data.symbolmap, data.debuginfo);
     compparams = data.params;
@@ -1157,6 +1162,7 @@ function setCompileOutput(data: WorkerResult) {
       }
     }
     // update all windows (listings)
+    refreshWindowList();
     projectWindows.refresh(false);
   }
 }

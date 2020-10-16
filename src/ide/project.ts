@@ -56,8 +56,8 @@ export class CodeProject {
     }
     if (data && !data.unchanged) {
       this.processBuildResult(data);
-      if (this.callbackBuildResult) this.callbackBuildResult(data); // call with data when changed
     }
+    this.callbackBuildResult(data);
   }
 
   preloadWorker(path:string) {

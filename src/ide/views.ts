@@ -30,7 +30,7 @@ export interface ProjectView {
 };
 
 // detect mobile (https://stackoverflow.com/questions/3514784/what-is-the-best-way-to-detect-a-mobile-device)
-export var isMobileDevice = window.matchMedia("only screen and (max-width: 760px)").matches;
+export var isMobileDevice = window.matchMedia && window.matchMedia("only screen and (max-width: 760px)").matches;
 
 declare var CodeMirror;
 declare var VirtualList;

@@ -55,6 +55,7 @@ describe('Store', function () {
     };
     var project = new prj.CodeProject(worker, test_platform_id, platform, store);
     project.callbackBuildStatus = function (b) { msgs.push(b) };
+    project.callbackBuildResult = function (b) { msgs.push(1) };
     project.updateFile('test.a', ' lda #0');
     project.setMainFile('test.a');
     setTimeout(() => {
@@ -79,6 +80,7 @@ describe('Store', function () {
     };
     var project = new prj.CodeProject(worker, test_platform_id, platform, store);
     project.callbackBuildStatus = function (b) { msgs.push(b) };
+    project.callbackBuildResult = function (b) { msgs.push(1) };
     var buildresult = {
       listings: {
         test: {
@@ -87,7 +89,7 @@ describe('Store', function () {
       }
     };
     worker.onmessage({ data: buildresult });
-    assert.deepEqual([false], msgs);
+    assert.deepEqual([false, 1], msgs);
     var lst = buildresult.listings.test;
     console.log(lst);
     assert.deepEqual({ line: 3, offset: 61440, insns: 'a9 00', iscode: true },
