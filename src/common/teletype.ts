@@ -159,6 +159,30 @@ export class TeleType {
         $(this.page).css('font-size', charwidth + 'px');
         this.scrollToBottom();
     }
+    saveState() {
+        return {
+            curstyle: this.curstyle,
+            reverse: this.reverse,
+            col: this.col,
+            row: this.row,
+            ncharsout : this.ncharsout,
+            lines: this.lines.map((line) => line.cloneNode(true)),
+        }
+    }
+    loadState(state) {
+        console.log(state);
+        this.curstyle = state.curstyle;
+        this.reverse = state.reverse;
+        this.col = state.col;
+        this.row = state.row;
+        this.ncharsout = state.ncharsout;
+        $(this.page).empty();
+        for (var i=0; i<state.lines.length; i++) {
+            this.page.appendChild(state.lines[i]);
+        }
+        this.lines = state.lines;
+        this.curline = state.lines[this.row];
+    }
 }
 
 export class TeleTypeWithKeyboard extends TeleType {

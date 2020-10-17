@@ -4,9 +4,6 @@
 .gutter-offset {
   width: 3em;
 }
-.CodeMirror-gutter-elt:hover {
-  text-decoration: underline;
-}
 .gutter-bytes {
   width: 6em;
 }
@@ -15,6 +12,10 @@
 }
 .gutter-info {
   width: 1em;
+  cursor: cell;
+}
+.CodeMirror-gutter-elt:hover {
+  text-decoration: underline;
   cursor: cell;
 }
 .currentpc-span {
@@ -658,6 +659,13 @@ div.asset_toolbar {
   padding: 0.25em;
   padding-left: 0.5em;
   padding-right: 0.5em;
+}
+.transcript-style-16 { /* alternate */
+  color: #6666ff;
+  background-color: #eeeeff;
+}
+.transcript-style-32 { /* alternate 2 */
+  background-color: #eee;
 }
 .transcript-reverse {
   background-color: #666;

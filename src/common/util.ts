@@ -487,3 +487,10 @@ export function getRootBasePlatform(platform : string) : string {
   return getRootPlatform(getBasePlatform(platform));
 }
 
+export function convertDataToUint8Array(data: string|Uint8Array) : Uint8Array {
+  return (typeof data === 'string') ? stringToByteArray(data) : data;
+}
+
+export function convertDataToString(data: string|Uint8Array) : string {
+  return (data instanceof Uint8Array) ? byteArrayToUTF8(data) : data;
+}

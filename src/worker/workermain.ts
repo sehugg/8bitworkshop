@@ -267,6 +267,11 @@ var PLATFORM_PARAMS = {
      extra_link_args: ['crt0-zx.rel'],
      extra_link_files: ['crt0-zx.rel', 'crt0-zx.lst'],
    },
+   'devel-6502': {
+    cfgfile: 'devel-6502.cfg',
+    libargs: ['crt0.o', 'sim6502.lib'],
+    extra_link_files: ['crt0.o', 'devel-6502.cfg'],
+  },
 };
 
 PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];
@@ -532,6 +537,7 @@ function setupFS(FS, name:string) {
   var WORKERFS = FS.filesystems['WORKERFS'];
   if (name === '65-vector') name = '65-sim6502'; // TODO
   if (name === '65-atari7800') name = '65-sim6502'; // TODO
+  if (name === '65-devel') name = '65-sim6502'; // TODO
   if (!fsMeta[name]) throw Error("No filesystem for '" + name + "'");
   FS.mkdir('/share');
   FS.mount(WORKERFS, {
@@ -2712,6 +2718,8 @@ var TOOL_PRELOADFS = {
   'ca65-vector': '65-sim6502',
   'cc65-atari7800': '65-sim6502',
   'ca65-atari7800': '65-sim6502',
+  'cc65-devel': '65-sim6502',
+  'ca65-devel': '65-sim6502',
   'sdasz80': 'sdcc',
   'sdcc': 'sdcc',
   'sccz80': 'sccz80',
@@ -2788,6 +2796,8 @@ function handleMessage(data : WorkerMessage) : WorkerResult {
   // preload file system
   if (data.preload) {
     var fs = TOOL_PRELOADFS[data.preload];
+    if (!fs && data.platform)
+      fs = TOOL_PRELOADFS[data.preload+'-'+getBasePlatform(data.platform)];
     if (!fs && data.platform)
       fs = TOOL_PRELOADFS[data.preload+'-'+getRootBasePlatform(data.platform)];
     if (fs && !fsMeta[fs])

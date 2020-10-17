@@ -135,6 +135,9 @@ export interface Platform {
   stopProbing?() : void;
 
   isBlocked?() : boolean; // is blocked, halted, or waiting for input?
+
+  readFile?(path: string) : FileData;
+  writeFile?(path: string, data: FileData) : boolean;
 }
 
 export interface Preset {
@@ -186,6 +189,7 @@ export interface EmuRecorder {
 export abstract class BasePlatform {
   recorder : EmuRecorder = null;
   debugSymbols : DebugSymbols;
+  internalFiles : {[path:string] : FileData} = {};
 
   abstract loadState(state : EmuState) : void;
   abstract saveState() : EmuState;
@@ -207,6 +211,13 @@ export abstract class BasePlatform {
   }
   getDebugTree() : {} {
     return this.saveState();
+  }
+  readFile(path: string) : FileData {
+    return this.internalFiles[path];
+  }
+  writeFile(path: string, data: FileData) : boolean {
+    this.internalFiles[path] = data;
+    return true;
   }
 }
 
@@ -283,7 +294,7 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   }
   pollControls() {
   }
-  nextFrame(novideo : boolean) {
+  nextFrame(novideo : boolean) : number {
     this.pollControls();
     this.updateRecorder();
     this.preFrame();
@@ -1021,7 +1032,7 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
 
 /// new Machine platform adapters
 
-import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsBIOS, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition, CPU } from "./devices";
+import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsBIOS, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition, CPU, HasSerialIO, SerialIOInterface } from "./devices";
 import { Probeable, RasterFrameBased, AcceptsPaddleInput, SampledAudioSink, ProbeAll, NullProbe } from "./devices";
 import { SampledAudio } from "./audio";
 import { ProbeRecorder } from "./recorder";
@@ -1049,6 +1060,9 @@ export function hasProbe(arg:any): arg is Probeable {
 }
 export function hasBIOS(arg:any): arg is AcceptsBIOS {
   return typeof arg.loadBIOS == 'function';
+}
+export function hasSerialIO(arg:any): arg is HasSerialIO {
+  return typeof arg.connectSerialIO === 'function';
 }
 
 export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPlatform implements Platform {
@@ -1123,6 +1137,9 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
         m.loadBIOS(data, title);
       };
     }
+    if (hasSerialIO(m) && this.serialIOInterface) {
+      m.connectSerialIO(this.serialIOInterface);
+    }
   }
   
   loadROM(title, data) {
@@ -1130,7 +1147,9 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     this.reset();
   }
 
-  loadBIOS; // only set if hasBIOS() is true
+  loadBIOS : (title, data) => void; // only set if hasBIOS() is true
+
+  serialIOInterface : SerialIOInterface; // set if hasSerialIO() is true
 
   pollControls() {
     this.poller && this.poller.poll();

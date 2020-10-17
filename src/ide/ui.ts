@@ -1389,10 +1389,14 @@ function clearBreakpoint() {
   showDebugInfo();
 }
 
+function resetPlatform() {
+  platform.reset();
+}
+
 function resetAndRun() {
   if (!checkRunReady()) return;
   clearBreakpoint();
-  platform.reset();
+  resetPlatform();
   _resume();
 }
 
@@ -1403,11 +1407,11 @@ function resetAndDebug() {
   if (platform.setupDebug && platform.runEval) { // TODO??
     clearBreakpoint();
     _resume();
-    platform.reset();
+    resetPlatform();
     setupBreakpoint("restart");
     platform.runEval((c) => { return true; }); // break immediately
   } else {
-    platform.reset();
+    resetPlatform();
     _resume();
   }
   if (wasRecording) _enableRecording();
@@ -1930,8 +1934,9 @@ function globalErrorHandler(msgevent) {
   } else {
     var err = msgevent.error || msgevent.reason;
     if (err != null && err instanceof EmuHalt) {
-      msg = (err && err.message) || msg;
-      showExceptionAsError(err, msg);
+      setDebugButtonState("pause", "stopped");
+      emulationHalted(err);
+      // TODO: reset platform?
     }
   }
 }
@@ -2293,6 +2298,23 @@ function redirectToHTTPS() {
 redirectToHTTPS();
 
 //// ELECTRON STUFF
+
+export function setTestInput(path: string, data: FileData) {
+  platform.writeFile(path, data);
+}
+
+export function getTestOutput(path: string) : FileData {
+  return platform.readFile(path);
+}
+
+export function getSaveState() {
+  return platform.saveState();
+}
+
+export function emulationHalted(err: EmuHalt) {
+  var msg = (err && err.message) || msg;
+  showExceptionAsError(err, msg);
+}
 
 // get remote file from local fs
 declare var getWorkspaceFile, putWorkspaceFile;

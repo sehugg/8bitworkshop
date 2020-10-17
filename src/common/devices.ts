@@ -107,6 +107,26 @@ export interface AcceptsPaddleInput {
     setPaddleInput(controller:number, value:number) : void;
 }
 
+// SERIAL I/O
+
+export interface SerialIOInterface {
+  // from machine to platform
+  clearToSend() : boolean;
+  sendByte(b : number);
+  // from platform to machine
+  byteAvailable() : boolean;
+  recvByte() : number;
+  // implement these too
+  reset() : void;
+  advance(clocks: number) : void;
+}
+
+export interface HasSerialIO {
+  connectSerialIO(serial: SerialIOInterface);
+}
+
+/// PROFILER
+
 export interface Probeable {
     connectProbe(probe: ProbeAll) : void;
 }
@@ -117,8 +137,6 @@ export function xorshift32(x : number) : number {
   x ^= x << 5;
   return x;
 }
-
-/// PROFILER
 
 export interface ProbeTime {
   logClocks(clocks:number);
