@@ -4,9 +4,9 @@ import { EmuHalt, PLATFORMS } from "../common/emu";
 import { Devel6502 } from "../machine/devel";
 import { Base6502MachinePlatform } from "../common/baseplatform";
 import { SerialIOInterface } from "../common/devices";
-import { convertDataToUint8Array, hex } from "../common/util";
+import { byteArrayToString, convertDataToUint8Array, hex } from "../common/util";
 import { TeleType } from "../common/teletype";
-import { emulationHalted, loadScript } from "../ide/ui";
+import { haltEmulation, loadScript } from "../ide/ui";
 
 var DEVEL_6502_PRESETS = [
   {id:'hello.dasm', name:'Hello World (ASM)'},
@@ -144,8 +144,9 @@ class Devel6502Platform extends Base6502MachinePlatform<Devel6502> implements Pl
 
   advance(novideo: boolean) {
     if (this.isBlocked()) {
-      this.internalFiles['serialout.dat'] = new Uint8Array(this.serial.outputBytes);
-      throw new EmuHalt(null); // TODO: throws nasty exception
+      this.internalFiles['serialout.dat'] = byteArrayToString(this.serial.outputBytes);
+      haltEmulation();
+      return 0;
     }
     return super.advance(novideo);
   }

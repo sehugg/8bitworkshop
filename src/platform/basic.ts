@@ -7,6 +7,8 @@ import { BASICRuntime } from "../common/basic/runtime";
 import { BASICProgram } from "../common/basic/compiler";
 import { TeleTypeWithKeyboard } from "../common/teletype";
 import { lpad } from "../common/util";
+import { FileData } from "../common/workertypes";
+import { haltEmulation } from "../ide/ui"; // TODO: make this a callback
 
 const BASIC_PRESETS = [
     { id: 'hello.bas', name: 'Hello' },
@@ -31,6 +33,8 @@ class BASICPlatform implements Platform {
     tty: TeleTypeWithKeyboard;
     hotReload: boolean = true;
     animcount: number = 0;
+    internalFiles : {[path:string] : FileData} = {};
+    transcript: string[];
 
     constructor(mainElement: HTMLElement) {
         //super();
@@ -82,6 +86,7 @@ class BASICPlatform implements Platform {
             // TODO: why null sometimes?
             this.animcount = 0; // exit advance loop when printing
             this.tty.print(s);
+            this.transcript.push(s);
         }
         this.runtime.resume = this.resume.bind(this);
     }
@@ -106,6 +111,7 @@ class BASICPlatform implements Platform {
                 this.pause();
                 if (this.runtime.exited) {
                     this.exitmsg();
+                    this.didExit();
                 }
             }
             this.clock++;
@@ -145,6 +151,7 @@ class BASICPlatform implements Platform {
         this.tty.clear();
         this.runtime.reset();
         this.clock = 0;
+        this.transcript = [];
     }
 
     pause(): void {
@@ -288,6 +295,17 @@ class BASICPlatform implements Platform {
         } else {
             return false;
         }
+    }
+    readFile(path: string) : FileData {
+        return this.internalFiles[path];
+    }
+    writeFile(path: string, data: FileData) : boolean {
+        this.internalFiles[path] = data;
+        return true;
+    }
+    didExit() {
+        this.internalFiles['stdout.txt'] = this.transcript.join("");
+        haltEmulation();
     }
 }
 

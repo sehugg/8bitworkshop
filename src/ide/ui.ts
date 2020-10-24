@@ -1934,11 +1934,16 @@ function globalErrorHandler(msgevent) {
   } else {
     var err = msgevent.error || msgevent.reason;
     if (err != null && err instanceof EmuHalt) {
-      setDebugButtonState("pause", "stopped");
-      emulationHalted(err);
-      // TODO: reset platform?
+      haltEmulation(err);
     }
   }
+}
+
+export function haltEmulation(err?: EmuHalt) {
+  console.log("haltEmulation");
+  _pause();
+  emulationHalted(err);
+  // TODO: reset platform?
 }
 
 // catch errors
