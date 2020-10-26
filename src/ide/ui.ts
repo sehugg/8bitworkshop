@@ -2092,8 +2092,12 @@ function revealTopBar() {
 
 export function setupSplits() {
   const splitName = 'workspace-split3-' + platform_id;
-  var sizes = [0, 50, 50];
-  if (!(platform_id.startsWith('vcs') || qs['embed'] || Views.isMobileDevice))
+  var sizes;
+  if (platform_id.startsWith('vcs'))
+    sizes = [0, 50, 50];
+  else if (qs['embed'] || Views.isMobileDevice)
+    sizes = [0, 60, 40];
+  else
     sizes = [12, 44, 44];
   var sizesStr = hasLocalStorage && localStorage.getItem(splitName);
   if (sizesStr) {
@@ -2147,7 +2151,6 @@ function loadImportedURL(url : string) {
 async function loadFormDataUpload() {
   var ignore = !!qs['ignore'];
   var force = !!qs['force'];
-  setWaitDialog(true);
   for (var i=0; i<20; i++) {
     let path = qs['file'+i+'_name'];
     let dataenc = qs['file'+i+'_data'];
@@ -2169,7 +2172,6 @@ async function loadFormDataUpload() {
   }
   delete qs['ignore'];
   delete qs['force'];
-  setWaitDialog(false);
   replaceURLState();
 }
 
@@ -2345,5 +2347,14 @@ function writeOutputROMFile() {
     var suffix = (platform.getROMExtension && platform.getROMExtension(current_output)) 
       || "-" + getBasePlatform(platform_id) + ".bin";
     putWorkspaceFile(`bin/${prefix}${suffix}`, current_output);
+  }
+}
+export function highlightSearch(query: string) { // TODO: filename?
+  var wnd = projectWindows.getActive();
+  if (wnd instanceof Views.SourceEditor) {
+    var sc = wnd.editor.getSearchCursor(query);
+    if (sc.findNext()) {
+      wnd.editor.setSelection(sc.pos.to, sc.pos.from);
+    }
   }
 }

@@ -170,7 +170,6 @@ export class TeleType {
         }
     }
     loadState(state) {
-        console.log(state);
         this.curstyle = state.curstyle;
         this.reverse = state.reverse;
         this.col = state.col;

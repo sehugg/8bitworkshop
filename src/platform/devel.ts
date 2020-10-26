@@ -19,6 +19,7 @@ class SerialInOutViewer {
   constructor(div: HTMLElement) {
     div.style.overflowY = 'auto';
     var gameport = $('<div id="gameport"/>').appendTo(div);
+    $('<p class="transcript-header">Serial Output</p>').appendTo(gameport);
     var windowport = $('<div id="windowport" class="transcript"/>').appendTo(gameport);
     this.div = windowport[0];
   }
@@ -78,7 +79,7 @@ export class SerialTestHarness implements SerialIOInterface {
   recvByte(): number {
     var index = this.readIndex();
     this.inputIndex = index;
-    var b = this.inputBytes[index] | 0;
+    var b = (this.inputBytes && this.inputBytes[index]) | 0;
     //this.bufin += byteToASCII(b);
     this.viewer.tty.addtext(byteToASCII(b), 2|16);
     if (b == 10) this.viewer.tty.newline();

@@ -705,6 +705,12 @@ div.asset_toolbar {
   z-index: 5;
   pointer-events: none;
 }
+.transcript-header {
+  color: #ccc;
+  text-align: right;
+  padding-right: 0.5em;
+  padding-top: 0.5em;
+}
 .tree-header {
   border: 2px solid #555;
   border-radius:8px;
