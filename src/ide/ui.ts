@@ -1995,7 +1995,7 @@ function addPageFocusHandlers() {
     }
   });
   $(window).on("orientationchange", () => {
-    if (platform) setTimeout(platform.resize.bind(platform), 200);
+    if (platform && platform.resize) setTimeout(platform.resize.bind(platform), 200);
   });
 }
 
