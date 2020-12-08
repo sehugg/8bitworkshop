@@ -1,11 +1,11 @@
---- index.html	2020-08-29 17:52:46.000000000 -0500
-+++ electron.html	2020-08-29 17:54:08.000000000 -0500
+--- index.html	2020-12-08 10:30:08.000000000 -0600
++++ electron.html	2020-12-08 11:57:52.000000000 -0600
 @@ -3,18 +3,7 @@
  
  <head>
  <title>8bitworkshop IDE</title>
 -<link rel="manifest" href="manifest.json">
--<meta name="googlebot" content="nosnippet" />
+-<meta name="googlebot" content="noindex" />
 -<meta name="mobile-web-app-capable" content="yes">
 -<meta name="apple-mobile-web-app-capable" content="yes">
 -<meta name="application-name" content="8bitworkshop">
@@ -19,7 +19,7 @@
  <style type="text/css" media="screen">
  body {
    overflow: hidden;
-@@ -22,50 +11,32 @@
+@@ -22,22 +11,6 @@
  }
  </style>
  <link rel="stylesheet" href="css/ui.css">
@@ -38,58 +38,11 @@
 -<script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-app.js"></script>
 -<script defer src="https://www.gstatic.com/firebasejs/5.11.1/firebase-auth.js"></script>
 -<script defer src="config.js"></script>
-+</head>
-+<body>
- 
- <!-- Sentry error reporting -->
- <script defer
--  src="https://browser.sentry-cdn.com/5.22.3/bundle.tracing.min.js"
--  integrity="sha384-HfEJlGrJtFM0B01Wt4sGzTbxWqLMcMeGAXCbyQyB+iK9BhnDmNAtIGovhekIQOa2"
--  crossorigin="anonymous"
-+src="https://browser.sentry-cdn.com/5.22.3/bundle.tracing.min.js"
-+integrity="sha384-HfEJlGrJtFM0B01Wt4sGzTbxWqLMcMeGAXCbyQyB+iK9BhnDmNAtIGovhekIQOa2"
-+crossorigin="anonymous"
- ></script>
- <script defer>
--if (window.location.host.endsWith('8bitworkshop.com')) {
--  Sentry.init({
--    dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@o320878.ingest.sentry.io/1813925',
--    beforeBreadcrumb(breadcrumb, hint) {
--      if (breadcrumb.category === 'xhr' && typeof breadcrumb.data.url === 'string') {
--        if (breadcrumb.data.url.startsWith('http')) return null; // discard external scripts
--      }
--      return breadcrumb;
--    },
--    beforeSend(event, hint) {
--      const error = hint.originalException;
--      if (error instanceof EmuHalt) return null; // ignore EmuHalt
--      return event;
--    },
--  });
--}
-+Sentry.init({
-+  dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@o320878.ingest.sentry.io/1813925',
-+  beforeBreadcrumb(breadcrumb, hint) {
-+    if (breadcrumb.category === 'xhr' && typeof breadcrumb.data.url === 'string') {
-+      if (breadcrumb.data.url.startsWith('http')) return null; // discard external scripts
-+    }
-+    return breadcrumb;
-+  },
-+  beforeSend(event, hint) {
-+    const error = hint.originalException;
-+    if (error instanceof EmuHalt) return null; // ignore EmuHalt
-+    return event;
-+  },
-+});
- </script>
- 
--</head>
--<body>
 -
- <!-- for file upload -->
- <input type="file" id="uploadFileElem" multiple accept="*" style="display:none" onchange="handleFileUpload(this.files)">
+ </head>
+ <body>
  
-@@ -90,26 +61,6 @@
+@@ -65,26 +38,6 @@
            <hr>
            <li><a class="dropdown-item" href="#" id="item_addfile_include">Add Include File...</a></li>
            <li><a class="dropdown-item" href="#" id="item_addfile_link">Add Linked File...</a></li>
@@ -116,7 +69,7 @@
          </ul>
        </li>
        <li class="dropdown dropdown-submenu">
-@@ -135,36 +86,6 @@
+@@ -110,36 +63,6 @@
            <li><a class="dropdown-item" href="#" id="item_debug_expr">Break Expression...</a></li>
          </ul>
        </li>
@@ -153,15 +106,15 @@
      </ul>
    </span>
  
-@@ -260,39 +181,6 @@
+@@ -235,41 +158,8 @@
      <span class="label"><span id="settle_label"></span> evals/clk</span>
    </span>
  
 -  <!-- BOOKS menu -->
 -  <span class="dropdown pull-right">
--    <a class="btn dropdown-toggle hidden-xs toolbarMenuButton" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+-    <a class="btn dropdown-toggle hidden-xs hiddem-sm toolbarMenuButton" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 -      <span class="glyphicon glyphicon-book" aria-hidden="true"></span>
--      Get Books <span class="caret"></span>
+-      Books <span class="caret"></span>
 -    </a>
 -    <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="booksMenuButton">
 -      <li>
@@ -191,9 +144,12 @@
 -    </ul>
 -  </span>
    <!-- 8bitworkshop logo -->
-   <span class="logo-gradient hidden-xs hidden-sm hidden-md pull-right" style="margin-left:auto" onclick="window.open('/','_8bitws');">8bitworkshop</span>
+-  <span class="logo-gradient hidden-xs hidden-sm pull-right" style="margin-left:auto" onclick="window.open('/','_8bitws');">8bitworkshop</span>
++  <span class="logo-gradient hidden-xs hidden-sm hidden-md pull-right" style="margin-left:auto" onclick="window.open('/','_8bitws');">8bitworkshop</span>
  
-@@ -478,73 +366,6 @@
+  </div><!-- controls_dynamic -->
+ </div><!-- controls_top -->
+@@ -453,73 +343,6 @@
      </div>
    </div>
  </div>

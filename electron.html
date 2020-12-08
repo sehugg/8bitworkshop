@@ -14,29 +14,6 @@ body {
 </head>
 <body>
 
-<!-- Sentry error reporting -->
-<script defer
-src="https://browser.sentry-cdn.com/5.22.3/bundle.tracing.min.js"
-integrity="sha384-HfEJlGrJtFM0B01Wt4sGzTbxWqLMcMeGAXCbyQyB+iK9BhnDmNAtIGovhekIQOa2"
-crossorigin="anonymous"
-></script>
-<script defer>
-Sentry.init({
-  dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@o320878.ingest.sentry.io/1813925',
-  beforeBreadcrumb(breadcrumb, hint) {
-    if (breadcrumb.category === 'xhr' && typeof breadcrumb.data.url === 'string') {
-      if (breadcrumb.data.url.startsWith('http')) return null; // discard external scripts
-    }
-    return breadcrumb;
-  },
-  beforeSend(event, hint) {
-    const error = hint.originalException;
-    if (error instanceof EmuHalt) return null; // ignore EmuHalt
-    return event;
-  },
-});
-</script>
-
 <!-- for file upload -->
 <input type="file" id="uploadFileElem" multiple accept="*" style="display:none" onchange="handleFileUpload(this.files)">
 
@@ -455,6 +432,29 @@ $( ".dropdown-submenu" ).click(function(event) {
 
 <script>
   startUI();
+</script>
+
+<!-- Sentry error reporting -->
+<script
+  src="https://browser.sentry-cdn.com/5.29.0/bundle.min.js"
+  integrity="sha384-/dYT/04VSU9ItKRPTkWeVZ0kqRsVh/T/5rNCjzBwpx7sYeeueKgJzGMNXSal3xoo"
+  crossorigin="anonymous"
+></script>
+<script>
+Sentry.init({
+    dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@o320878.ingest.sentry.io/1813925',
+    beforeBreadcrumb(breadcrumb, hint) {
+      if (breadcrumb.category === 'xhr' && typeof breadcrumb.data.url === 'string') {
+        if (breadcrumb.data.url.startsWith('http')) return null; // discard external scripts
+      }
+      return breadcrumb;
+    },
+    beforeSend(event, hint) {
+      const error = hint.originalException;
+      if (error instanceof EmuHalt) return null; // ignore EmuHalt
+      return event;
+    },
+});
 </script>
 
 </body>
