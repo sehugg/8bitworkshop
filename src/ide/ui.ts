@@ -1479,7 +1479,7 @@ function setWaitProgress(prog : number) {
 var recordingVideo = false;
 function _recordVideo() {
   if (recordingVideo) return;
- loadScript("gif.js/dist/gif.js").then( () => {
+ loadScript("lib/gif.js").then( () => {
   var canvas = $("#emulator").find("canvas")[0] as HTMLElement;
   if (!canvas) {
     alertError("Could not find canvas element to record video!");
@@ -1493,7 +1493,7 @@ function _recordVideo() {
       rotate = 1;
   }
   var gif = new GIF({
-    workerScript: 'gif.js/dist/gif.worker.js',
+    workerScript: 'lib/gif.worker.js',
     workers: 4,
     quality: 10,
     rotate: rotate

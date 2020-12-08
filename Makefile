@@ -15,6 +15,7 @@ all:
 	cp node_modules/localforage/dist/localforage.min.js ./lib/
 	cp node_modules/jszip/dist/jszip.min.js ./lib/
 	cp node_modules/file-saver/dist/*.min.js ./lib/
+	cp gif.js/dist/* ./lib/
 	cd jsnes && npm i
 	$(TSC) -v
 	$(TSC)
