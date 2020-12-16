@@ -82,6 +82,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'inform6': 'inform6',
   'fastbasic': 'fastbasic',
   'basic': 'basic',
+  'silice': 'verilog',
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {

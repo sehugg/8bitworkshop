@@ -67,7 +67,7 @@ export class WaveformView {
       w: width,
       h: $(this.parent).height(),
       itemHeight: rowHeight,
-      totalRows: this.meta.length,
+      totalRows: this.meta.length+1,
       generatorFn: (row : number) => {
         var metarow = this.meta[row]; // TODO: why null?
         var s = metarow != null ? metarow.label : "";

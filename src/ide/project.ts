@@ -86,6 +86,11 @@ export class CodeProject {
       while (m = re1.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
+      // for Silice
+      let re1a = /^\s*\$(include|\$dofile|\$write_image_in_table)\('(.+?)'/gmi;
+      while (m = re1a.exec(text)) {
+        this.pushAllFiles(files, m[2]);
+      }
       // include .arch (json) statements
       let re2 = /^\s*([.]arch)\s+(\w+)/gmi;
       while (m = re2.exec(text)) {
@@ -104,7 +109,7 @@ export class CodeProject {
         this.pushAllFiles(files, m[2]);
       }
       // for .c -- //#resource "file" (or ;resource or #resource)
-      let re3 = /^\s*([;]|[/][/])#resource\s+"(.+?)"/gm;
+      let re3 = /^\s*([;']|[/][/])#resource\s+"(.+?)"/gm;
       while (m = re3.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }

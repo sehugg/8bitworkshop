@@ -97,6 +97,9 @@ export function VL_GTES_III(x,lbits,y,lhs,rhs) {
 export function VL_DIV_III(lbits,lhs,rhs) {
     return (((rhs)==0)?0:(lhs)/(rhs)); }
 
+export function VL_MULS_III(lbits,lhs,rhs) {
+    return (((rhs)==0)?0:(lhs)*(rhs)); }
+  
 export function VL_MODDIV_III(lbits,lhs,rhs) {
     return (((rhs)==0)?0:(lhs)%(rhs)); }
 
@@ -120,11 +123,11 @@ export function VL_REDXOR_32(r) {
 export var VL_WRITEF = console.log; // TODO: $write
 
 export function vl_finish(filename,lineno,hier) {
-    console.log("Finished at " + filename + ":" + lineno, hier);
+    if (!vl_finished) console.log("Finished at " + filename + ":" + lineno, hier);
     vl_finished = true;
   }
 export function vl_stop(filename,lineno,hier) {
-    console.log("Stopped at " + filename + ":" + lineno, hier);
+    if (!vl_stopped) console.log("Stopped at " + filename + ":" + lineno, hier);
     vl_stopped = true;
   }
 
@@ -534,7 +537,8 @@ var VerilogPlatform = function(mainElement, options) {
           if (inspect) {
             inspect_data[frameidx] = inspect_obj[inspect_sym];
           }
-          idata[frameidx] = RGBLOOKUP[gen.rgb & 15];
+          let rgb = gen.rgb;
+          idata[frameidx] = rgb & 0x80000000 ? rgb : RGBLOOKUP[rgb & 15];
           frameidx++;
         }
       } else if (!framehsync && gen.hsync) {
@@ -744,19 +748,22 @@ var VerilogPlatform = function(mainElement, options) {
     gen.tick2();
   }
   getToolForFilename(fn) {
-    if (fn.endsWith("asm"))
-      return "jsasm";
-    else
-      return "verilator";
+    if (fn.endsWith(".asm")) return "jsasm";
+    else if (fn.endsWith(".ice")) return "silice";
+    else return "verilator";
   }
   getDefaultExtension() { return ".v"; };
 
   inspect(name:string) : string {
     if (!gen) return;
-    if (name && !name.match(/^\w+$/)) return;
+    if (name) name = name.replace('.','_');
+    if (!name || !name.match(/^\w+$/)) {
+      inspect_obj = inspect_sym = null;
+      return;
+    }
     var val = gen[name];
     if (val === undefined && current_output.code) {
-      var re = new RegExp("(\\w+__DOT__" + name + ")\\b", "gm");
+      var re = new RegExp("(\\w+__DOT__(?:_[dcw]_)" + name + ")\\b", "gm");
       var m = re.exec(current_output.code);
       if (m) {
         name = m[1];

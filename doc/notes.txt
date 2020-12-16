@@ -195,6 +195,7 @@ TODO:
   - don't include start/end line on platforms w/o raster timing
 - BIOS symbols
 - show current tool for file
+- download non-text incbin source file
 
 Probing
 - probe log doesn't start @ reset

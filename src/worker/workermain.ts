@@ -209,6 +209,7 @@ var PLATFORM_PARAMS = {
     libargs: ['atari5200.lib', '-D', '__CARTFLAGS__=255'],
   },
   'verilog': {
+    extra_compile_files: ['8bitworkshop.v'],
   },
   'astrocade': {
     code_start: 0x2000,
@@ -271,7 +272,7 @@ var PLATFORM_PARAMS = {
     cfgfile: 'devel-6502.cfg',
     libargs: ['crt0.o', 'sim6502.lib'],
     extra_link_files: ['crt0.o', 'devel-6502.cfg'],
-  },
+   },
 };
 
 PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];
@@ -770,6 +771,7 @@ function assembleDASM(step:BuildStep) {
   var errors = [];
   var errorMatcher = msvcErrorMatcher(errors);
   function match_fn(s) {
+    // TODO: what if s is not string? (startsWith is not a function)
     var matches = re_usl.exec(s);
     if (matches) {
       var key = matches[1];
@@ -2670,6 +2672,62 @@ function compileBASIC(step:BuildStep) {
   }
 }
 
+function compileSilice(step:BuildStep) {
+  // TODO: fastbasic-fp?
+  loadNative("silice");
+  var params = step.params;
+  gatherFiles(step, {mainFilePath:"main.ice"});
+  var destpath = step.prefix + '.v';
+  var errors : WorkerError[] = [];
+  var errfile : string;
+  var errline : number;
+  if (staleFiles(step, [destpath])) {
+    var match_fn = (s: string) => {
+      s = (s as any).replaceAll(/\033\[\d+\w/g, '');
+      var mf = /file:\s*(\w+)/.exec(s);
+      var ml = /line:\s+(\d+)/.exec(s);
+      if (mf) errfile = mf[1];
+      else if (ml) errline = parseInt(ml[1]);
+      else if (errfile && errline && s.length > 1) {
+        if (s.length > 2) {
+          errors.push({path:errfile+".ice", line:errline, msg:s});
+        } else {
+          errfile = null;
+          errline = null;
+        }
+      }
+    }
+    var silice = emglobal.silice({
+      instantiateWasm: moduleInstFn('silice'),
+      noInitialRun:true,
+      print:match_fn,
+      printErr:match_fn,
+    });
+    var FS = silice['FS'];
+    setupFS(FS, 'Silice');
+    populateFiles(step, FS);
+    populateExtraFiles(step, FS, params.extra_compile_files);
+    const FWDIR = '/share/frameworks';
+    var args = [
+      '-D', 'NTSC=1',
+      '--frameworks_dir', FWDIR,
+      '-f', `/8bitworkshop.v`,
+      '-o', destpath,
+      step.path];
+    execMain(step, silice, args);
+    if (errors.length)
+      return {errors:errors};
+    var vout = FS.readFile(destpath, {encoding:'utf8'});
+    putWorkFile(destpath, vout);
+  }
+  return {
+    nexttool:"verilator",
+    path:destpath,
+    args:[destpath],
+    files:[destpath],
+  };
+}
+
 ////////////////////////////
 
 var TOOLS = {
@@ -2703,6 +2761,7 @@ var TOOLS = {
   'merlin32': assembleMerlin32,
   'fastbasic': compileFastBasic,
   'basic': compileBASIC,
+  'silice': compileSilice,
 }
 
 var TOOL_PRELOADFS = {
@@ -2726,6 +2785,7 @@ var TOOL_PRELOADFS = {
   'bataribasic': '2600basic',
   'inform6': 'inform',
   'fastbasic': '65-atari8',
+  'silice': 'Silice',
 }
 
 function applyDefaultErrorPath(errors:WorkerError[], path:string) {
