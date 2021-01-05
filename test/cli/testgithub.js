@@ -37,6 +37,7 @@ describe('Store', function() {
           url: 'https://github.com/pzpinfo/test123123/', 
           platform_id: 'vcs', 
           mainPath:'helloworld.bas', 
+          branch:'master'
           //sha:'e466d777810838065b7682587ca592c3eefc0b1c'
           }});
         done();

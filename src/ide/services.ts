@@ -14,16 +14,15 @@ export interface GHRepoMetadata {
   platform_id : string; // e.g. "vcs"
   sha? : string;	// head commit sha
   mainPath?: string;	// main file path
+  branch? : string;	// "master" was default, now fetched from GH
 }
 
 export interface GHSession extends GHRepoMetadata {
-  url : string;		// github url
   user : string;	// user name
   reponame : string;	// repo name
   repopath : string;	// "user/repo"
-  subtreepath : string;	// tree/master/[...]
+  subtreepath : string;	// tree/[branch]/[...]
   prefix : string;	// file prefix, "local/" or ""
-  branch : string;	// "master" is default
   repo : any;		// [repo object]
   tree? : any;		// [tree object]
   head? : any;		// [head ref]
@@ -45,7 +44,7 @@ export function getRepos() : {[key:string]:GHRepoMetadata} {
   }
   return repos;
 }
-  
+
 export function parseGithubURL(ghurl:string) {
   var toks = ghurl.split('/', 8);
   if (toks.length < 5) return null;
@@ -117,25 +116,37 @@ export class GithubService {
     return false;
   }
 
-  getGithubSession(ghurl:string) : Promise<GHSession> {
-    return new Promise( (yes,no) => {
-      var urlparse = parseGithubURL(ghurl);
-      if (!urlparse) {
-        no("Please enter a valid GitHub URL.");
+  async getGithubSession(ghurl:string) : Promise<GHSession> {
+    var urlparse = parseGithubURL(ghurl);
+    if (!urlparse) {
+      throw new Error("Please enter a valid GitHub URL.");
+    }
+    // use saved branch, or load default from rpo
+    var saved = getRepos()[urlparse.repopath];
+    var branch = urlparse.branch || (saved && saved.branch);
+    var repo = this.github.repos(urlparse.user, urlparse.repo);
+    if (1 || branch == null) {
+      try {
+        branch = (await repo.fetch()).defaultBranch || "master";
+      } catch (e) {
+        console.log("could not fetch default branch: " + e);
+        branch = "main";
       }
-      var sess = {
-        url: ghurl,
-        user: urlparse.user,
-        reponame: urlparse.repo,
-        repopath: urlparse.repopath,
-        branch: urlparse.branch || "master",
-        subtreepath: urlparse.subtreepath,
-        prefix: '', //this.getPrefix(urlparse.user, urlparse.repo),
-        repo: this.github.repos(urlparse.user, urlparse.repo),
-        platform_id: this.project ? this.project.platform_id : null
-      };
-      yes(sess);
-    });
+      console.log("branch =", branch);
+    }
+    var sess = {
+      url: ghurl,
+      user: urlparse.user,
+      reponame: urlparse.repo,
+      repopath: urlparse.repopath,
+      branch: branch,
+      subtreepath: urlparse.subtreepath,
+      prefix: '', //this.getPrefix(urlparse.user, urlparse.repo),
+      repo: repo,
+      platform_id: this.project ? this.project.platform_id : saved.platform_id
+    };
+    //console.log(sess);
+    return sess;
   }
 
   getGithubHEADTree(ghurl:string) : Promise<GHSession> {
@@ -169,7 +180,13 @@ export class GithubService {
   bind(sess:GHSession, dobind:boolean) {
     var key = '__repo__' + sess.repopath;
     if (dobind) {
-      var repodata : GHRepoMetadata = {url:sess.url, platform_id:sess.platform_id, mainPath:sess.mainPath, sha:sess.sha};
+      var repodata : GHRepoMetadata = {
+        url:sess.url,
+        branch:sess.branch,
+        platform_id:sess.platform_id,
+        mainPath:sess.mainPath,
+        sha:sess.sha};
+      console.log('storing', repodata);
       localStorage.setItem(key, JSON.stringify(repodata));
     } else {
       localStorage.removeItem(key);
