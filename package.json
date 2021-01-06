@@ -1,6 +1,6 @@
 {
   "name": "8bitworkshop",
-  "version": "3.7.0",
+  "version": "3.7.1",
   "author": "Steven Hugg",
   "description": "8bitworkshop.com",
   "repository": {
@@ -9,7 +9,7 @@
   },
   "license": "GPL-3.0",
   "dependencies": {
-    "chokidar": "^3.4.3",
+    "chokidar": "^3.5.0",
     "electron-store": "^6.0.1",
     "jquery": "^3.5.1",
     "reflect-metadata": "^0.1.13",
@@ -20,13 +20,13 @@
     "@types/bootstrap": "^3.4.0",
     "@types/file-saver": "^2.0.1",
     "@types/jquery": "^3.5.5",
-    "@types/node": "^14.14.10",
+    "@types/node": "^14.14.20",
     "atob": "^2.1.x",
     "bootstrap": "^3.4.1",
     "bootstrap-tourist": "^0.2.1",
     "btoa": "^1.2.x",
     "clipboard": "^2.0.6",
-    "electron": "^9.3.5",
+    "electron": "^9.4.0",
     "electron-packager": "^15.2.0",
     "file-saver": "^2.0.5",
     "jsdom": "^12.2.0",

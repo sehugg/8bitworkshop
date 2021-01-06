@@ -45,6 +45,26 @@ describe('Store', function() {
     });
   });
 
+  it('Should import from Github (default branch)', function(done) {
+    var store = mstore.createNewPersistentStore('nes', function(store) {
+      var gh = newGH(store, 'nes');
+      gh.importAndPull('https://github.com/sehugg/mdf2020-nes').then( (sess) => {
+        console.log(sess.paths);
+        done();
+      });
+    });
+  });
+
+  it('Should import from Github (explicit branch)', function(done) {
+    var store = mstore.createNewPersistentStore('nes', function(store) {
+      var gh = newGH(store, 'nes');
+      gh.importAndPull('https://github.com/sehugg/mdf2020-nes/tree/main').then( (sess) => {
+        console.log(sess.paths);
+        done();
+      });
+    });
+  });
+
   it('Should import from Github (binary files)', function(done) {
     var store = mstore.createNewPersistentStore('vcs', function(store) {
       var gh = newGH(store, 'vcs');
