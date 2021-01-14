@@ -143,7 +143,7 @@ export class GithubService {
       subtreepath: urlparse.subtreepath,
       prefix: '', //this.getPrefix(urlparse.user, urlparse.repo),
       repo: repo,
-      platform_id: this.project ? this.project.platform_id : saved.platform_id
+      platform_id: this.project ? this.project.platform_id : (saved ? saved.platform_id : null)
     };
     //console.log(sess);
     return sess;
