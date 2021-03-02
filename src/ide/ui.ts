@@ -1106,14 +1106,16 @@ function showErrorAlert(errors : WorkerError[]) {
 }
 
 function showExceptionAsError(err, msg:string) {
-  var werr : WorkerError = {msg:msg, line:0};
-  if (err instanceof EmuHalt && err.$loc) {
-    werr = Object.create(err.$loc);
-    werr.msg = msg;
-    console.log(werr);
-    projectWindows.refresh(false);
+  if (msg != null) {
+    var werr : WorkerError = {msg:msg, line:0};
+    if (err instanceof EmuHalt && err.$loc) {
+      werr = Object.create(err.$loc);
+      werr.msg = msg;
+      console.log(werr);
+      projectWindows.refresh(false);
+    }
+    showErrorAlert([werr]);
   }
-  showErrorAlert([werr]);
 }
 
 var measureTimeStart : Date = new Date();
