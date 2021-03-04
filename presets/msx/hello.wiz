@@ -1,0 +1,144 @@
+import "msx";
+
+bank rom1 @ 0x4000 : [constdata; 0x4000];
+bank rom2 @ 0x8000 : [constdata; 0x4000];
+bank ram @ 0xE000 : [vardata; 0x2000];
+
+in ram {
+    struct Word {
+        low : u8,
+        high : u8,
+    }
+
+    struct Enemy {
+        hp : Word
+    }
+
+    var enemy_data : [Enemy; 32];
+}
+
+in rom1 {
+    namespace header {
+        const id = "AB";
+        const init_handler = main;
+        const statement_handler = 0u16;
+        const expansion_handler = 0u16;
+        const basic_start = 0u16;
+        const padding = [0u8; 6];
+    }
+
+    #[fallthrough] func main() {
+        interrupt = false;
+
+        io_write(msx.io.ppi.primary_slot, a = 0b11_01_01_00);
+        msx.ppi.secondary_slot = a = 0b11_11_11_11;
+
+        // Init VDP.
+        c = msx.io.vdp.control;
+        hl = &vdp_init_data as u16;
+        b = vdp_init_data.len;
+        do { io_write_inc_repeat(c, hl, b); } while !zero;
+
+        {
+            var enemy_ptr : *Enemy in ix;
+            enemy_ptr.hp.low = 1;
+            enemy_ptr.hp.high = 1;
+
+            bc = sizeof(Enemy);
+            <>:enemy_ptr += bc;
+        }
+
+        // Clear VRAM.
+        io_write(msx.io.vdp.control, a = <:0x0000);
+        io_write(msx.io.vdp.control, a = >:0x0000 | msx.io.vdp.CONTROL_ACCESS_VRAM_WRITE);
+        bc = 0x4000;
+        do {
+            io_write(msx.io.vdp.data, a = 0);
+            bc--;
+            a = b | c;
+        } while !zero;
+
+        // Load background colormap.
+        io_write(msx.io.vdp.control, a = <:0x2000);
+        io_write(msx.io.vdp.control, a = >:0x2000 | msx.io.vdp.CONTROL_ACCESS_VRAM_WRITE);
+        bc = 0x1800;
+        do {
+            io_write(msx.io.vdp.data, a = (msx.vdp.color.WHITE << 4) | msx.vdp.color.LIGHT_BLUE);
+            bc--;
+            a = b | c;
+        } while !zero;
+
+        // Load background tileset.
+        io_write(msx.io.vdp.control, a = <:0x0000);
+        io_write(msx.io.vdp.control, a = >:0x0000 | msx.io.vdp.CONTROL_ACCESS_VRAM_WRITE);
+        hl = &bkg_tileset as u16;
+        bc = sizeof(typeof(bkg_tileset));
+        do {
+            io_write(msx.io.vdp.data, a = *(hl as *u8));
+            hl++;
+            bc--;
+            a = b | c;
+        } while !zero;
+
+        io_write(msx.io.vdp.control, a = <:0x0800);
+        io_write(msx.io.vdp.control, a = >:0x0800 | msx.io.vdp.CONTROL_ACCESS_VRAM_WRITE);
+        hl = &bkg_tileset as u16;
+        bc = sizeof(typeof(bkg_tileset));
+        do {
+            io_write(msx.io.vdp.data, a = *(hl as *u8));
+            hl++;
+            bc--;
+            a = b | c;
+        } while !zero;
+
+        io_write(msx.io.vdp.control, a = <:0x1000);
+        io_write(msx.io.vdp.control, a = >:0x1000 | msx.io.vdp.CONTROL_ACCESS_VRAM_WRITE);
+        hl = &bkg_tileset as u16;
+        bc = sizeof(typeof(bkg_tileset));
+        do {
+            io_write(msx.io.vdp.data, a = *(hl as *u8));
+            hl++;
+            bc--;
+            a = b | c;
+        } while !zero;
+
+        // Write text to nametable.
+        io_write(msx.io.vdp.control, a = <:0x190A);
+        io_write(msx.io.vdp.control, a = >:0x190A | msx.io.vdp.CONTROL_ACCESS_VRAM_WRITE);
+        hl = &message as u16;
+        bc = message.len;
+        do {
+            io_write(msx.io.vdp.data, a = *(hl as *u8));
+            hl++;
+            bc--;
+            a = b | c;
+        } while !zero;
+
+        // Turn screen on
+        io_write(msx.io.vdp.control, a = msx.vdp.MODE_CONTROL_1_ENABLE);
+        io_write(msx.io.vdp.control, a = msx.vdp.mode_control_1 | msx.io.vdp.CONTROL_ACCESS_REGISTER);
+
+        interrupt = true;
+
+        while true {
+            halt();
+        }
+    }
+
+    const vdp_init_data : [u8] = [
+        msx.vdp.MODE_CONTROL_0_M4, msx.vdp.mode_control_0 | msx.io.vdp.CONTROL_ACCESS_REGISTER,
+        0, msx.vdp.mode_control_1 | msx.io.vdp.CONTROL_ACCESS_REGISTER,
+        0x1800 >> msx.vdp.NAMETABLE_ADDRESS_SHIFT, msx.vdp.nametable_address | msx.io.vdp.CONTROL_ACCESS_REGISTER,
+        0x2000 >> msx.vdp.COLORTABLE_ADDRESS_SHIFT, msx.vdp.colortable_address | msx.io.vdp.CONTROL_ACCESS_REGISTER,
+        0x0000 >> msx.vdp.TILE_PATTERN_ADDRESS_SHIFT, msx.vdp.tile_pattern_address | msx.io.vdp.CONTROL_ACCESS_REGISTER,
+        0x1B00 >> msx.vdp.SPRITE_ATTRIBUTE_ADDRESS_SHIFT, msx.vdp.sprite_attribute_address | msx.io.vdp.CONTROL_ACCESS_REGISTER,
+        0x3800 >> msx.vdp.SPRITE_PATTERN_ADDRESS_SHIFT, msx.vdp.sprite_pattern_address | msx.io.vdp.CONTROL_ACCESS_REGISTER,
+        msx.vdp.color.BLACK, msx.vdp.overscan_color | msx.io.vdp.CONTROL_ACCESS_REGISTER,
+    ];
+
+    const message = "HELLO  WORLD";
+}
+
+in rom2 {
+    const bkg_tileset = embed "hello_tiles.chr";
+}

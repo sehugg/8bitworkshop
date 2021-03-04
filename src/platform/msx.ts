@@ -16,6 +16,7 @@ var MSX_BIOS_PRESETS = [
   {id:'redbook_kbd.asm', name:'Redbook Keyboard Scanner (ASM)'},
   {id:'siegegame.c',    name:'Siege Game'},
   {id:'eliza.c',        name:'Eliza'},
+  {id:'hello.wiz',      name:'Hello (Wiz)'},
 ];
 
 // TODO: share with coleco, sms

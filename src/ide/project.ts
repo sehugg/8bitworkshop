@@ -120,9 +120,9 @@ export class CodeProject {
         this.pushAllFiles(files, m[2]);
       }
       // for wiz
-      let re5 = /^\s*import\s+"(.+?)";/gmi;
+      let re5 = /^\s*(import|embed)\s+"(.+?)";/gmi;
       while (m = re5.exec(text)) {
-        this.pushAllFiles(files, m[1] + ".wiz");
+        this.pushAllFiles(files, m[2] + ".wiz");
       }
     }
     return files;

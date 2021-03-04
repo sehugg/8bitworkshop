@@ -324,6 +324,8 @@ class VCSPlatform extends BasePlatform {
   showHelp(tool:string, ident:string) {
     if (tool == 'bataribasic')
       window.open("help/bataribasic/manual.html", "_help");
+    else if (tool == 'wiz')
+      window.open("https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz", "_help");
     else
       window.open("https://8bitworkshop.com/blog/platforms/vcs/", "_help"); // TODO
   }

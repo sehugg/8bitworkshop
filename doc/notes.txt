@@ -196,6 +196,7 @@ TODO:
 - BIOS symbols
 - show current tool for file
 - download non-text incbin source file
+- show hidden header files that only exist in Emscripten FS
 
 Probing
 - probe log doesn't start @ reset

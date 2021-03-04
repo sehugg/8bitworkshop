@@ -587,7 +587,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   }
 }
 
-export function getToolForFilename_z80(fn) : string {
+export function getToolForFilename_z80(fn:string) : string {
   if (fn.endsWith(".c")) return "sdcc";
   if (fn.endsWith(".h")) return "sdcc";
   if (fn.endsWith(".s")) return "sdasz80";

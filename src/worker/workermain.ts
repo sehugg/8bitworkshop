@@ -54,6 +54,7 @@ function getRootBasePlatform(platform : string) : string {
 
 var PLATFORM_PARAMS = {
   'vcs': {
+    arch: '6502',
     code_start: 0x1000,
     code_size: 0xf000,
     data_start: 0x80,
@@ -62,6 +63,7 @@ var PLATFORM_PARAMS = {
     wiz_inc_dir: '2600'
   },
   'mw8080bw': {
+    arch: 'z80',
     code_start: 0x0,
     rom_size: 0x2000,
     data_start: 0x2000,
@@ -69,6 +71,7 @@ var PLATFORM_PARAMS = {
     stack_end: 0x2400,
   },
   'vicdual': {
+    arch: 'z80',
     code_start: 0x0,
     rom_size: 0x4020,
     data_start: 0xe400,
@@ -76,6 +79,7 @@ var PLATFORM_PARAMS = {
     stack_end: 0xe800,
   },
   'galaxian': {
+    arch: 'z80',
     code_start: 0x0,
     rom_size: 0x4000,
     data_start: 0x4000,
@@ -83,6 +87,7 @@ var PLATFORM_PARAMS = {
     stack_end: 0x4800,
   },
   'galaxian-scramble': {
+    arch: 'z80',
     code_start: 0x0,
     rom_size: 0x5020,
     data_start: 0x4000,
@@ -90,6 +95,7 @@ var PLATFORM_PARAMS = {
     stack_end: 0x4800,
   },
   'williams': {
+    arch: '6809',
     code_start: 0x0,
     rom_size: 0xc000,
     data_start: 0x9800,
@@ -100,6 +106,7 @@ var PLATFORM_PARAMS = {
     extra_link_args: ['-swilliams.scr', '-lcmoc-crt-vec', '-lcmoc-std-vec'],
   },
   'williams-z80': {
+    arch: 'z80',
     code_start: 0x0,
     rom_size: 0x9800,
     data_start: 0x9800,
@@ -107,6 +114,7 @@ var PLATFORM_PARAMS = {
     stack_end: 0xc000,
   },
   'vector-z80color': {
+    arch: 'z80',
     code_start: 0x0,
     rom_size: 0x8000,
     data_start: 0xe000,
@@ -114,12 +122,14 @@ var PLATFORM_PARAMS = {
     stack_end: 0x0,
   },
   'vector-ataricolor': { //TODO
+    arch: '6502',
     define: ['__VECTOR__'],
     cfgfile: 'vector-color.cfg',
     libargs: ['crt0.o', 'sim6502.lib'],
     extra_link_files: ['crt0.o', 'vector-color.cfg'],
   },
   'sound_williams-z80': {
+    arch: 'z80',
     code_start: 0x0,
     rom_size: 0x4000,
     data_start: 0x4000,
@@ -127,6 +137,7 @@ var PLATFORM_PARAMS = {
     stack_end: 0x8000,
   },
   'base_z80': {
+    arch: 'z80',
     code_start: 0x0,
     rom_size: 0x8000,
     data_start: 0x8000,
@@ -134,6 +145,7 @@ var PLATFORM_PARAMS = {
     stack_end: 0x0,
   },
   'coleco': {
+    arch: 'z80',
     rom_start: 0x8000,
     code_start: 0x8100,
     rom_size: 0x8000,
@@ -144,6 +156,7 @@ var PLATFORM_PARAMS = {
     extra_link_args: ['-k', '/share/lib/coleco', '-l', 'libcv', '-l', 'libcvu', 'crt0.rel'],
   },
   'msx': {
+    arch: 'z80',
     rom_start: 0x4000,
     code_start: 0x4000,
     rom_size: 0x8000,
@@ -152,8 +165,11 @@ var PLATFORM_PARAMS = {
     stack_end: 0xffff,
     extra_link_args: ['crt0-msx.rel'],
     extra_link_files: ['crt0-msx.rel', 'crt0-msx.lst'],
+    wiz_sys_type: 'z80',
+    wiz_inc_dir: 'msx',
   },
   'msx-libcv': {
+    arch: 'z80',
     rom_start: 0x4000,
     code_start: 0x4000,
     rom_size: 0x8000,
@@ -166,6 +182,7 @@ var PLATFORM_PARAMS = {
     extra_compile_files: ['cv.h','cv_graphics.h','cv_input.h','cv_sound.h','cv_support.h','cvu.h','cvu_c.h','cvu_compression.h','cvu_f.h','cvu_graphics.h','cvu_input.h','cvu_sound.h'],
   },
   'sms-sg1000-libcv': {
+    arch: 'z80',
     rom_start: 0x0000,
     code_start: 0x0100,
     rom_size: 0xc000,
@@ -178,6 +195,7 @@ var PLATFORM_PARAMS = {
     extra_compile_files: ['cv.h','cv_graphics.h','cv_input.h','cv_sound.h','cv_support.h','cvu.h','cvu_c.h','cvu_compression.h','cvu_f.h','cvu_graphics.h','cvu_input.h','cvu_sound.h'],
   },
   'nes': { //TODO
+    arch: '6502',
     define: ['__NES__'],
     cfgfile: 'neslib2.cfg',
     libargs: ['crt0.o', 'nes.lib', 'neslib2.lib',
@@ -190,6 +208,7 @@ var PLATFORM_PARAMS = {
     wiz_rom_ext: '.nes',
   },
   'apple2': {
+    arch: '6502',
     define: ['__APPLE2__'],
     cfgfile: 'apple2-hgr.cfg',
     libargs: [ '--lib-path', '/share/target/apple2/drv', '-D', '__EXEHDR__=0', 'apple2.lib'],
@@ -197,24 +216,29 @@ var PLATFORM_PARAMS = {
     code_start: 0x803,
   },
   'apple2-e': {
+    arch: '6502',
     define: ['__APPLE2__'],
     cfgfile: 'apple2.cfg',
     libargs: ['apple2.lib'],
   },
   'atari8-800xl': {
+    arch: '6502',
     define: ['__ATARI__'],
     cfgfile: 'atari-cart.cfg',
     libargs: ['atari.lib', '-D', '__CARTFLAGS__=4'],
   },
   'atari8-5200': {
+    arch: '6502',
     define: ['__ATARI5200__'],
     cfgfile: 'atari5200.cfg',
     libargs: ['atari5200.lib', '-D', '__CARTFLAGS__=255'],
   },
   'verilog': {
+    arch: 'verilog',
     extra_compile_files: ['8bitworkshop.v'],
   },
   'astrocade': {
+    arch: 'z80',
     code_start: 0x2000,
       rom_size: 0x2000,
     data_start: 0x4e10,
@@ -222,6 +246,7 @@ var PLATFORM_PARAMS = {
      stack_end: 0x5000,
   },
   'astrocade-arcade': {
+    arch: 'z80',
     code_start: 0x0000,
       rom_size: 0x4000,
     data_start: 0x7de0,
@@ -229,6 +254,7 @@ var PLATFORM_PARAMS = {
      stack_end: 0x8000,
   },
   'astrocade-bios': {
+    arch: 'z80',
     code_start: 0x0000,
       rom_size: 0x2000,
     data_start: 0x4fce,
@@ -236,20 +262,24 @@ var PLATFORM_PARAMS = {
      stack_end: 0x4fce,
   },
   'atari7800': {
+    arch: '6502',
     define: ['__ATARI7800__'],
     cfgfile: 'atari7800.cfg',
     libargs: ['crt0.o', 'sim6502.lib'],
     extra_link_files: ['crt0.o', 'atari7800.cfg'],
   },
   'c64': {
+    arch: '6502',
     define: ['__CBM__', '__C64__'],
     cfgfile: 'c64.cfg', // SYS 2061
     libargs: ['c64.lib'],
     //extra_link_files: ['c64-cart.cfg'],
   },
   'kim1': {
+    arch: '6502',
   },
   'vectrex': {
+    arch: '6809',
     code_start: 0x0,
     rom_size: 0x8000,
     data_start: 0xc880,
@@ -261,8 +291,10 @@ var PLATFORM_PARAMS = {
     extra_link_args: ['-svectrex.scr', '-lcmoc-crt-vec', '-lcmoc-std-vec'],
   },
   'x86': {    
+    arch: 'x86',
   },
   'zx': {
+    arch: 'z80',
     code_start: 0x5ccb,
       rom_size: 0xff58-0x5ccb,
     data_start: 0xf000,
@@ -270,12 +302,13 @@ var PLATFORM_PARAMS = {
      stack_end: 0xff58,
      extra_link_args: ['crt0-zx.rel'],
      extra_link_files: ['crt0-zx.rel', 'crt0-zx.lst'],
-   },
-   'devel-6502': {
+  },
+  'devel-6502': {
+    arch: '6502',
     cfgfile: 'devel-6502.cfg',
     libargs: ['crt0.o', 'sim6502.lib'],
     extra_link_files: ['crt0.o', 'devel-6502.cfg'],
-   },
+  },
 };
 
 PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];
@@ -2734,7 +2767,7 @@ function compileWiz(step:BuildStep) {
   loadNative("wiz");
   var params = step.params;
   gatherFiles(step, {mainFilePath:"main.wiz"});
-  var destpath = step.prefix + params.wiz_rom_ext;
+  var destpath = step.prefix + (params.wiz_rom_ext || ".bin");
   var errors : WorkerError[] = [];
   if (staleFiles(step, [destpath])) {
     var wiz = emglobal.wiz({
@@ -2751,23 +2784,25 @@ function compileWiz(step:BuildStep) {
     const FWDIR = '/share/common';
     var args = [
       '-o', destpath,
-      '-I' + FWDIR + '/' + (params.wiz_inc_dir || step.platform),
-      '-s', 'mlb',
+      '-I', FWDIR + '/' + (params.wiz_inc_dir || step.platform),
+      '-s', 'wla',
+      '--color=none',
       step.path];
+    args.push('--system', params.wiz_sys_type || params.arch);
     execMain(step, wiz, args);
     if (errors.length)
       return {errors:errors};
     var binout = FS.readFile(destpath, {encoding:'binary'});
     putWorkFile(destpath, binout);
-    var dbgout = FS.readFile(step.prefix + '.mlb', {encoding:'utf8'});
+    var dbgout = FS.readFile(step.prefix + '.sym', {encoding:'utf8'});
     var symbolmap = {};
     for (var s of dbgout.split("\n")) {
-      var toks = s.split(/:/);
-      // P:A00-A4F:graphic_digits
-      if (toks && toks.length >= 3) {
-        var tokrange = toks[1].split('-');
-        var start = parseInt(tokrange[0], 16);
-        var sym = toks[2];
+      var toks = s.split(/ /);
+      // 00:4008 header.basic_start
+      if (toks && toks.length >= 2) {
+        var tokrange = toks[0].split(':');
+        var start = parseInt(tokrange[1], 16);
+        var sym = toks[1];
         symbolmap[sym] = start;
       }
     }
