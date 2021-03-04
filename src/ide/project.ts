@@ -119,6 +119,11 @@ export class CodeProject {
       while (m = re4.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
+      // for wiz
+      let re5 = /^\s*import\s+"(.+?)";/gmi;
+      while (m = re5.exec(text)) {
+        this.pushAllFiles(files, m[1] + ".wiz");
+      }
     }
     return files;
   }

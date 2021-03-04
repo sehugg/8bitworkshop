@@ -42,6 +42,7 @@ const JSNES_PRESETS = [
 //  {id:'scrollrt.dasm', name:'Line-by-line Scrolling (ASM)'},
   {id:'road.dasm', name:'3-D Road Demo (ASM)'},
   {id:'chase/game.c', name:'Shiru\'s Chase Game'},
+  {id:'hello.wiz', name:'Hello (Wiz)'},
 ];
 
 /// JSNES

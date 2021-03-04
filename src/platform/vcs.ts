@@ -52,6 +52,7 @@ const VCS_PRESETS = [
   {id:'bb/sample.bas', name:'Sprite Test (batariBASIC)'},
   {id:'bb/FIFA1977.bas', name:'2P Soccer Game (batariBASIC)'},
   {id:'bb/duck_chase.bas', name:'Duck Chase (batariBASIC)'},
+  {id:'wiz/finalduck.wiz', name:'Final Duck (Wiz)'},
 //  {id:'bb/rblast106.bas', name:'Road Blasters (batariBASIC)'},
 ];
 
@@ -262,6 +263,7 @@ class VCSPlatform extends BasePlatform {
     return "\n" + dumpRAM(ram, 0x80, 0x80);
   }
   getToolForFilename(fn) {
+    if (fn.endsWith(".wiz")) return "wiz";
     if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
     return "dasm";
   }

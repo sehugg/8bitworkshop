@@ -1,0 +1,33 @@
+import "banks";
+
+// Random Number Library
+// 
+// Uses a Galois Linear Feedback Shift Register to generate random numbers.
+// http://en.wikipedia.org/wiki/Linear_feedback_shift_register#Galois_LFSRs
+//
+// [random.lo] and [random.hi] must be defined in RAM somewhere.
+namespace random {
+    in ram {
+        var lo : u8;
+        var hi : u8;
+    }
+
+    // The polynomial value is taken from here:
+    //   http://users.ece.cmu.edu/~koopman/lfsr/16.txt
+    let LSFR_POLYNOMIAL = 0x845F;
+
+    // Get a pseudorandom 16-bit number.
+    // Precondition:
+    //   random.lo, random.hi are currently seeded to some non-zero value.
+    // Return:
+    //   random.lo, random.hi = result
+    func next() {
+        random.hi = random.hi >>> 1;
+        random.lo = random.lo >>>># 1;
+
+        if carry {
+            random.lo = a = random.lo ^ LSFR_POLYNOMIAL as u8;
+            random.hi = a = random.hi ^ (LSFR_POLYNOMIAL >> 8) as u8;
+        }
+    }
+}

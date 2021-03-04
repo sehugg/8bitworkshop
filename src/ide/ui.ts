@@ -83,6 +83,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'fastbasic': 'fastbasic',
   'basic': 'basic',
   'silice': 'verilog',
+  'wiz': 'text/x-csrc',
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {

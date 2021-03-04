@@ -418,6 +418,7 @@ export function getToolForFilename_6502(fn:string) : string {
   if (fn.endsWith(".ca65")) return "ca65";
   if (fn.endsWith(".dasm")) return "dasm";
   if (fn.endsWith(".acme")) return "acme";
+  if (fn.endsWith(".wiz")) return "wiz";
   return "dasm"; // .a
 }
 
@@ -593,6 +594,7 @@ export function getToolForFilename_z80(fn) : string {
   if (fn.endsWith(".ns")) return "naken";
   if (fn.endsWith(".scc")) return "sccz80";
   if (fn.endsWith(".z")) return "zmac";
+  if (fn.endsWith(".wiz")) return "wiz";
   return "zmac";
 }
 

@@ -58,6 +58,8 @@ var PLATFORM_PARAMS = {
     code_size: 0xf000,
     data_start: 0x80,
     data_size: 0x80,
+    wiz_rom_ext: '.a26',
+    wiz_inc_dir: '2600'
   },
   'mw8080bw': {
     code_start: 0x0,
@@ -185,6 +187,7 @@ var PLATFORM_PARAMS = {
       '-D', 'NES_MIRRORING=0', // horizontal mirroring
       ],
     extra_link_files: ['crt0.o', 'neslib2.lib', 'neslib2.cfg', 'nesbanked.cfg'],
+    wiz_rom_ext: '.nes',
   },
   'apple2': {
     define: ['__APPLE2__'],
@@ -2673,7 +2676,6 @@ function compileBASIC(step:BuildStep) {
 }
 
 function compileSilice(step:BuildStep) {
-  // TODO: fastbasic-fp?
   loadNative("silice");
   var params = step.params;
   gatherFiles(step, {mainFilePath:"main.ice"});
@@ -2728,6 +2730,55 @@ function compileSilice(step:BuildStep) {
   };
 }
 
+function compileWiz(step:BuildStep) {
+  loadNative("wiz");
+  var params = step.params;
+  gatherFiles(step, {mainFilePath:"main.wiz"});
+  var destpath = step.prefix + params.wiz_rom_ext;
+  var errors : WorkerError[] = [];
+  if (staleFiles(step, [destpath])) {
+    var wiz = emglobal.wiz({
+      instantiateWasm: moduleInstFn('wiz'),
+      noInitialRun:true,
+      print:print_fn,
+      //test.wiz:2: error: expected statement, but got identifier `test`
+      printErr:makeErrorMatcher(errors, /(.+?):(\d+):\s*(.+)/, 2, 3, step.path, 1),
+    });
+    var FS = wiz['FS'];
+    setupFS(FS, 'wiz');
+    populateFiles(step, FS);
+    populateExtraFiles(step, FS, params.extra_compile_files);
+    const FWDIR = '/share/common';
+    var args = [
+      '-o', destpath,
+      '-I' + FWDIR + '/' + (params.wiz_inc_dir || step.platform),
+      '-s', 'mlb',
+      step.path];
+    execMain(step, wiz, args);
+    if (errors.length)
+      return {errors:errors};
+    var binout = FS.readFile(destpath, {encoding:'binary'});
+    putWorkFile(destpath, binout);
+    var dbgout = FS.readFile(step.prefix + '.mlb', {encoding:'utf8'});
+    var symbolmap = {};
+    for (var s of dbgout.split("\n")) {
+      var toks = s.split(/:/);
+      // P:A00-A4F:graphic_digits
+      if (toks && toks.length >= 3) {
+        var tokrange = toks[1].split('-');
+        var start = parseInt(tokrange[0], 16);
+        var sym = toks[2];
+        symbolmap[sym] = start;
+      }
+    }
+    return {
+      output:binout, //.slice(0),
+      errors:errors,
+      symbolmap:symbolmap,
+    };
+  }
+}
+
 ////////////////////////////
 
 var TOOLS = {
@@ -2762,6 +2813,7 @@ var TOOLS = {
   'fastbasic': compileFastBasic,
   'basic': compileBASIC,
   'silice': compileSilice,
+  'wiz': compileWiz,
 }
 
 var TOOL_PRELOADFS = {
@@ -2786,6 +2838,7 @@ var TOOL_PRELOADFS = {
   'inform6': 'inform',
   'fastbasic': '65-atari8',
   'silice': 'Silice',
+  'wiz': 'wiz',
 }
 
 function applyDefaultErrorPath(errors:WorkerError[], path:string) {

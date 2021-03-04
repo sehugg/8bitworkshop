@@ -1,0 +1,139 @@
+
+bank zeropage @ 0x00 : [vardata; 256];
+bank stack @ 0x100 : [vardata; 256];
+bank ram @ 0x200 : [vardata; 1536];
+bank prg @ 0x8000 : [constdata; 32768];
+bank chr : [chrdata; 8192];
+
+import "nes";
+
+in zeropage {
+    var b0, b1, b2, b3, b4, b5, b6, b7 : u8;
+    var ptr0 @ &b0, ptr2 @ &b2 : *u8;
+}
+
+in prg {
+    func main() {
+        // Disable decimal arithmetic (though not actually supported on 2A03 anyway)
+        decimal = false;
+        // Disable interrupts.
+        nointerrupt = true;
+        // Prepare stack.
+        s = x = 0xFF;
+
+        // Turn off rendering.
+        nes.ppu.control = x = 0;
+        nes.ppu.mask = x;
+        // Disable DMC interrupts.
+        nes.apu.frame_counter = a = nes.apu.FRAME_COUNTER_IRQ_DISABLE;
+
+        // Wait for the PPU to be ready to use, which takes 2 vertical blanks.
+        do {
+            do {} while !nes.ppu.status$7;
+            x++;
+        } while x != 2;
+
+        // Read PPU status to reset the PPU high/low latch.
+        a = nes.ppu.status;
+        // Now setup the PPU for copying to the nametable.
+        nes.ppu.address = a = >:nes.ppu.ADDRESS_NAMETABLE_DATA;
+        nes.ppu.address = a = <:nes.ppu.ADDRESS_NAMETABLE_DATA;
+        // Clear the nametable.
+        x = >:nes.ppu.NAMETABLE_SIZE * 2;
+        do {
+            y = 0;
+            do {
+                nes.ppu.data = a;
+                y++;
+            } while !zero;
+
+            x--;
+        } while !zero;
+
+        // Read PPU status to reset the PPU high/low latch.
+        a = nes.ppu.status;
+        // Now setup the PPU for copying to the palette.
+        nes.ppu.address = a = >:nes.ppu.ADDRESS_PALETTE_DATA;
+        nes.ppu.address = a = <:nes.ppu.ADDRESS_PALETTE_DATA;
+        // Clear the palette.
+        x = 0;            
+        do {
+            nes.ppu.data = a = palette[x++];
+        } while x != palette.len;
+
+        {
+            let START_X = 10;
+            let START_Y = 13;
+            let TILE_ADDRESS = nes.ppu.ADDRESS_NAMETABLE_DATA + START_Y * 32 + START_X;
+
+            // Read PPU status to reset the PPU high/low latch.
+            a = nes.ppu.status;
+            // Now setup the PPU for copying to the nametable.
+            nes.ppu.address = a = >:TILE_ADDRESS;
+            nes.ppu.address = a = <:TILE_ADDRESS;            
+            // Copy the message.
+            x = 0;
+            while {
+                a = message[y];
+            } && !zero {
+                y++;
+                nes.ppu.data = a;
+            }
+        }
+
+        a = nes.ppu.status; 
+        nes.ppu.scroll = a = 0;
+        nes.ppu.scroll = a;        
+        
+        // We're finally ready to show the screen!
+        nes.ppu.control = a = nes.ppu.CONTROL_NMI;
+        nes.ppu.mask = a = nes.ppu.MASK_LEFTMOST_BG | nes.ppu.MASK_RENDER_BG;
+
+        // Enable interrupts.
+        nointerrupt = false;
+
+        while true {}
+    }
+
+    #[nmi] func draw() {
+        push(a);
+        a = x; push(a);
+        a = y; push(a);
+        a = nes.ppu.status; 
+        nes.ppu.scroll = a = 0;
+        nes.ppu.scroll = a;
+        y = a = pop();
+        x = a = pop();
+        a = pop();
+    }
+
+    #[irq] func scanline() {
+        push(a);
+        a = x; push(a);
+        a = y; push(a);
+        y = a = pop();
+        x = a = pop();
+        a = pop();
+    }
+
+    const message = "HELLO  WORLD\0";
+
+    const palette : [u8] = [
+        // Tiles
+        0x0F, 0x00, 0x10, 0x30,
+        0x0F, 0x00, 0x10, 0x30,
+        0x0F, 0x00, 0x10, 0x30,
+        0x0F, 0x00, 0x10, 0x30,
+        // Sprites
+        0x0F, 0x00, 0x10, 0x30,
+        0x0F, 0x00, 0x10, 0x30,
+        0x0F, 0x00, 0x10, 0x30,
+        0x0F, 0x00, 0x10, 0x30
+    ];
+
+    const @ 0xFFFA = [draw, main, scanline];
+}
+
+in chr {
+    const = embed "hello_tiles.chr";
+}
