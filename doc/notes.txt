@@ -154,6 +154,7 @@ TODO:
   - publishing Markdown file loads default file? 
   - better text/binary detection (e.g. 0xa9 copyright)
   - going into repo chooses wrong file if republished with different main
+  - renaming main file doesn't change repo def.
 - keyboard shortcuts
   - ctrl+alt+l on ubuntu locks screen
   - alt-D doesn't work anymore

@@ -265,6 +265,7 @@ class VCSPlatform extends BasePlatform {
   getToolForFilename(fn) {
     if (fn.endsWith(".wiz")) return "wiz";
     if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
+    if (fn.endsWith(".ca65")) return "ca65";
     return "dasm";
   }
   getDefaultExtension() { return ".a"; }
@@ -434,6 +435,9 @@ class VCSMAMEPlatform extends BaseMAMEPlatform implements Platform {
   getPresets = function() { return VCS_PRESETS; }
 
   getToolForFilename = function(fn) {
+    if (fn.endsWith(".wiz")) return "wiz";
+    if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
+    if (fn.endsWith(".ca65")) return "ca65";
     return "dasm";
   }
   getDefaultExtension = function() { return ".a"; };

@@ -60,7 +60,9 @@ var PLATFORM_PARAMS = {
     data_start: 0x80,
     data_size: 0x80,
     wiz_rom_ext: '.a26',
-    wiz_inc_dir: '2600'
+    wiz_inc_dir: '2600',
+    extra_link_files: ['atari2600.cfg'],
+    cfgfile: 'atari2600.cfg',
   },
   'mw8080bw': {
     arch: 'z80',
@@ -575,6 +577,7 @@ function setupFS(FS, name:string) {
   if (name === '65-vector') name = '65-sim6502'; // TODO
   if (name === '65-atari7800') name = '65-sim6502'; // TODO
   if (name === '65-devel') name = '65-sim6502'; // TODO
+  if (name === '65-vcs') name = '65-sim6502'; // TODO
   if (!fsMeta[name]) throw Error("No filesystem for '" + name + "'");
   FS.mkdir('/share');
   FS.mount(WORKERFS, {
@@ -915,6 +918,7 @@ function parseCA65Listing(code, symbols, params, dbg) {
   var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+(\w+), "([^"]+)", (.+)/;
   var funcLineMatch = /"(\w+)", (\w+), "(\w+)"/;
   var insnLineMatch = /^([0-9A-F]+)([r]?)\s{1,2}(\d+)\s{1,2}([0-9A-Frx ]{11})\s+(.*)/;
+  var segMatch = /[.]segment\s+"(\w+)"/i;
   var lines = [];
   var linenum = 0;
   // TODO: only does .c functions, not all .s files
@@ -945,27 +949,36 @@ function parseCA65Listing(code, symbols, params, dbg) {
       }
     } else {
       var linem = insnLineMatch.exec(line);
-      if (linem) linenum++;
-      if (linem && linem[1]) {
+      var topfile = linem && linem[3] == '1';
+      if (topfile) linenum++;
+      if (topfile && linem[1]) {
         var offset = parseInt(linem[1], 16);
         var insns = linem[4].trim();
         if (insns.length) {
-          lines.push({
-            line:linenum,
-            offset:offset + segofs,
-            insns:insns
-          });
           // take back one to honor the long .byte line
-          if (linem[5].length == 0) linenum--;
+          if (linem[5].length == 0) {
+            linenum--;
+          } else {
+            lines.push({
+              line:linenum,
+              offset:offset + segofs,
+              insns:insns
+            });
+          }
         } else {
           var sym = linem[5];
-          if (sym && sym.endsWith(':')) {
-            sym = sym.substring(0, sym.length-1);
-            var symofs = symbols[sym];
+          var segm = sym && segMatch.exec(sym);
+          if (segm && segm[1]) {
+            var symofs = symbols['__' + segm[1] + '_RUN__'];
             if (typeof symofs === 'number') {
-              offset = parseInt(linem[1], 16);
-              segofs = symofs - offset;
+              segofs = symofs;
               //console.log(sym, symofs, '-', offset);
+            }
+          } else if (sym.endsWith(':') && !sym.startsWith('@')) {
+            var symofs = symbols[sym.substring(0,sym.length-1)];
+            if (typeof symofs === 'number') {
+              segofs = symofs - offset;
+              //console.log(sym, segofs, symofs, offset);
             }
           }
         }
@@ -2866,6 +2879,7 @@ var TOOL_PRELOADFS = {
   'ca65-atari7800': '65-sim6502',
   'cc65-devel': '65-sim6502',
   'ca65-devel': '65-sim6502',
+  'ca65-vcs': '65-sim6502',
   'sdasz80': 'sdcc',
   'sdcc': 'sdcc',
   'sccz80': 'sccz80',
