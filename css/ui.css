@@ -161,6 +161,7 @@ div.mem_info a.selected {
   padding-bottom:2px;
   margin:1px;
   vertical-align:baseline;
+  color: #333;
 }
 .btn_label {
   color: #ccc;

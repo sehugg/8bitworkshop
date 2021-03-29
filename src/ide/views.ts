@@ -301,7 +301,7 @@ export class SourceEditor implements ProjectView {
           } else if (platform.getOpcodeMetadata) {
             var opcode = parseInt(info.insns.split(" ")[0], 16);
             var meta = platform.getOpcodeMetadata(opcode, info.offset);
-            if (meta) {
+            if (meta && meta.minCycles) {
               var clockstr = meta.minCycles+"";
               this.setGutter("gutter-clock", info.line-1, clockstr);
             }

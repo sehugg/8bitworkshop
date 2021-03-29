@@ -962,7 +962,8 @@ function parseCA65Listing(code, symbols, params, dbg) {
             lines.push({
               line:linenum,
               offset:offset + segofs,
-              insns:insns
+              insns:insns,
+              iscode:true // TODO: can't really tell unless we parse it
             });
           }
         } else {

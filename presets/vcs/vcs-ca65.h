@@ -89,8 +89,8 @@ TIM1024T := $0297
 ; Uses illegal opcode (DASM 2.20.01 onwards).
 
 .macro SLEEP cycles
-.if cycles < 2
-.error "MACRO ERROR: 'SLEEP': Duration must be > 1"
+.if cycles < 0 || cycles = 1
+.error "MACRO ERROR: 'SLEEP': Duration must be >= 2"
 .endif
 .if cycles & 1
 .ifndef NO_ILLEGAL_OPCODES
@@ -180,6 +180,26 @@ CLEAR_STACK:    dex
                 bne CLEAR_STACK     ; SP=$FF, X = A = Y = 0
 .endmacro
 
+;-------------------------------------------------------
+; SET_POINTER
+; Original author: Manuel Rotschkar
+;
+; Sets a 2 byte RAM pointer to an absolute address.
+;
+; Usage: SET_POINTER pointer, address
+; Example: SET_POINTER SpritePTR, SpriteData
+;
+; Note: Alters the accumulator, NZ flags
+; IN 1: 2 byte RAM location reserved for pointer
+; IN 2: absolute address
+.macro SET_POINTER ptr, addr
+	lda #<addr
+        sta ptr
+        lda #>addr
+        sta ptr+1
+.endmacro
+
+
 ; assume NTSC unless PAL defined
 .ifndef PAL
 PAL = 0
@@ -188,8 +208,10 @@ PAL = 0
 ; 192 visible scanlines for NTSC, 228 for PAL
 .if PAL
 SCANLINES = 228
+LINESD12 = 19
 .else
 SCANLINES = 192
+LINESD12 = 16
 .endif
 
 ; start of frame -- vsync and set back porch timer
@@ -229,4 +251,18 @@ SCANLINES = 192
 ; end of frame -- jump to frame start
 .macro FRAME_END
         TIMER_WAIT
+.endmacro
+
+;-----------------------------------------------------------
+; SLEEPR - sleep macro that uses JSR/RTS for 12 cycle delays
+; Requires a lone RTS instruction with the label "Return"
+; (note: may fool 8bitworkshop's Anaylze CPU Timing feature)
+
+.macro SLEEPR cycles
+.if cycles >= 14 || cycles = 12
+	jsr Return
+        SLEEPR (cycles-12)
+.else
+	SLEEP cycles
+.endif
 .endmacro

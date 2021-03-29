@@ -4,7 +4,6 @@
 .zeropage
 Temp:		.byte 0
 
-
 .segment "CODE"
 
 Reset:
@@ -26,7 +25,6 @@ NextFrame:
 
 
 .segment "VECTORS"
-.word Reset
-.word Reset
-.word Reset
-
+VecNMI:    .word Reset
+VecReset:  .word Reset
+VecBRK:    .word Reset

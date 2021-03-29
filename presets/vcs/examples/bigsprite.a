@@ -94,6 +94,7 @@ BigLoop
 ; Bitmap data, six columns
 
 	align $100	; ensure we start on a page boundary
+;;{w:8,h:65,count:6,brev:1,flip:1};;
 Bitmap0
 	hex 00
 	hex 00000000000000000000000000000000
@@ -130,6 +131,7 @@ Bitmap5
 	hex f800e01804040402020101010111e192
 	hex dc700000000000000000000080808000
 	hex 00000000000000000000000000000000
+;;
 
 ; Epilogue
 	org $fffc

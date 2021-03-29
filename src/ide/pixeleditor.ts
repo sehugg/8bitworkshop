@@ -37,6 +37,7 @@ export type PixelEditorImageFormat = {
   sl?:number
   pofs?:number
   remap?:number[]
+  reindex?:number[]
   brev?:boolean
   flip?:boolean
   destfmt?:PixelEditorImageFormat
@@ -61,6 +62,7 @@ type PixelEditorMessage = {
 };
 
 /////////////////
+
 
 // 0xabcd, #$abcd, 5'010101, 0b010101, etc
 var pixel_re = /([0#]?)([x$%]|\d'h)([0-9a-f]+)(?:[;].*)?|(\d'b|0b)([01]+)/gim;
@@ -143,6 +145,13 @@ function remapBits(x:number, arr:number[]) : number {
   return y;
 }
 
+// for VCS playfields
+// ;;{w:20,h:10,flip:1,reindex:[4,5,6,7,15,14,13,12,11,10,9,8,16,17,18,19]};;
+function reindexMask(x:number, inds:number[]) : [number, number] {
+  var i = inds[x % inds.length];
+  return [i >> 3, i & 7];
+}
+
 function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat) : Uint8Array[] {
   var width = fmt.w;
   var height = fmt.h;
@@ -164,13 +173,14 @@ function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat) : Uin
       for (var x=0; x<width; x++) {
         var color = 0;
         var ofs = remapBits(ofs0, fmt.remap);
+        if (fmt.reindex) { [ofs, shift] = reindexMask(x, fmt.reindex); ofs += ofs0; }
         for (var p=0; p<nplanes; p++) {
           var byte = words[ofs + p*pofs + skip];
           color |= ((fmt.brev ? byte>>(bitsperword-shift-bpp) : byte>>shift) & mask) << (p*bpp);
         }
         imgdata.push(color);
         shift += bpp;
-        if (shift >= bitsperword) {
+        if (shift >= bitsperword && !fmt.reindex) {
           ofs0 += 1;
           shift = 0;
         }
@@ -210,12 +220,13 @@ function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) :
       for (var x=0; x<width; x++) {
         var color = imgdata[i++];
         var ofs = remapBits(ofs0, fmt.remap);
+        if (fmt.reindex) { [ofs, shift] = reindexMask(x, fmt.reindex); ofs += ofs0; }
         for (var p=0; p<nplanes; p++) {
           var c = (color >> (p*bpp)) & mask;
           words[ofs + p*pofs + skip] |= (fmt.brev ? (c << (bitsperword-shift-bpp)) : (c << shift));
         }
         shift += bpp;
-        if (shift >= bitsperword) {
+        if (shift >= bitsperword && !fmt.reindex) {
           ofs0 += 1;
           shift = 0;
         }
@@ -600,6 +611,7 @@ function dedupPalette(cols : UintArray) : Uint32Array {
   }
   return res;
 }
+
 export class PaletteFormatToRGB extends PixNode {
 
   words : UintArray;
@@ -851,8 +863,13 @@ export class CharmapEditor extends PixNode {
     var im = new PixEditor();
     im.createWith(viewer);
     im.updateImage();
-    im.canvas.style.width = (viewer.width*xscale)+'px'; // TODO
-    im.canvas.style.height = (viewer.height*yscale)+'px'; // TODO
+    var w = viewer.width * xscale;
+    var h = viewer.height * yscale;
+    while (w > 500 || h > 500) {
+      w /= 2; h /= 2;
+    }
+    im.canvas.style.width = w+'px'; // TODO
+    im.canvas.style.height = h+'px'; // TODO
     im.makeEditable(this, aeditor, this.left.palette);
     return im;
   }
@@ -1103,3 +1120,57 @@ class PixEditor extends Viewer {
   }
 
 }
+
+// TODO: not yet used
+
+abstract class TwoWayPixelConverter {
+
+  w : number;
+  h : number;
+  words : Uint8Array;
+  bitoffsets : Uint32Array;
+  coloffsets : Uint32Array;
+
+  constructor(width: number, height: number, bpp: number, colpp: number) {
+    this.w = width;
+    this.h = height;
+    this.words = new Uint8Array(width * height);
+    this.bitoffsets = new Uint32Array(width * height);
+    this.coloffsets = new Uint32Array(width * height);
+  }
+
+  setPixel(x:number, y:number, col:number, bitofs:number, colofs:number) {
+    var ofs = x + y * this.w;
+    this.words[ofs] = col;
+    this.bitoffsets[ofs] = bitofs;
+    this.coloffsets[ofs] = colofs;
+  }
+
+  abstract wordsToImage(words: UintArray) : Uint8Array[];
+
+  abstract imageToWords(image: Uint8Array) : UintArray;
+}
+
+export class TwoWayMapper extends PixNode {
+
+  pc: TwoWayPixelConverter;
+
+  constructor(pc: TwoWayPixelConverter) {
+    super();
+    this.pc = pc;
+  }
+  updateLeft() {
+    //if (equalNestedArrays(this.images, this.right.images)) return false;
+    this.images = this.right.images;
+    this.words = this.pc.imageToWords(this.images[0]);
+    return true;
+  }
+  updateRight() {
+    if (equalArrays(this.words, this.left.words)) return false;
+    // convert each word array to images
+    this.words = this.left.words;
+    this.images = this.pc.wordsToImage(this.words);
+    return true;
+  }
+}
+

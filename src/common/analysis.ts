@@ -142,6 +142,7 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
           }
           break;
         case 0x20: // JSR
+          // TODO: handle bare RTS case
           this.traceInstructions(addr, minclocks, maxclocks, addr, constraints);
           var result = this.jsrresult[addr];
           if (result) {
