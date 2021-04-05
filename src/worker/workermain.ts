@@ -721,7 +721,6 @@ function parseDASMListing(code:string, listings:CodeListingMap, errors:WorkerErr
   var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
   var equMatch = /\bequ\b/i;
   var macroMatch = /\bMAC\s+(.+)?/i;
-  var macrolines = [];
   var lastline = 0;
   var macros = {};
   for (var line of code.split(re_crlf)) {
@@ -752,23 +751,28 @@ function parseDASMListing(code:string, listings:CodeListingMap, errors:WorkerErr
         }
         lastline = linenum;
       } else {
-        // inside of macro or include file
-        if (insns && linem[3] && lastline>0) {
-          lines.push({
-            line:lastline+1,
-            offset:offset,
-            insns:null
-          });
-        }
         // inside of macro?
         var mac = macros[filename.toLowerCase()];
         if (insns && mac) {
-          macrolines.push({
-            filename:mac.file,
+          /*
+          lines.push({
+            path:mac.file,
             line:mac.line+linenum,
             offset:offset,
-            insns:insns
+            insns:insns,
+            iscode:true
           });
+          */
+          // TODO: a listing file can't include other files
+        } else {
+          // inside of macro or include file
+          if (insns && linem[3] && lastline>0) {
+            lines.push({
+              line:lastline+1,
+              offset:offset,
+              insns:null
+            });
+          }
         }
       }
       // TODO: better symbol test (word boundaries)
@@ -800,7 +804,6 @@ function parseDASMListing(code:string, listings:CodeListingMap, errors:WorkerErr
       })
     }
   }
-  // TODO: use macrolines
 }
 
 function assembleDASM(step:BuildStep) {

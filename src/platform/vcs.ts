@@ -126,13 +126,13 @@ class VCSPlatform extends BasePlatform {
     return Javatari.getOpcodeMetadata(opcode, offset);
   }
 
-  getRasterPosition() : {x:number,y:number} {
+  getRasterPosition() : {x:number,y:number,clk:number} {
     var clkfs = Javatari.room.console.getClocksFromFrameStart() - 1;
     var row = Math.floor(clkfs/76);
     var col = clkfs - row*76;
     var xpos = col*3-68;
     var ypos = row-39;
-    return {x:xpos, y:ypos};
+    return {x:xpos, y:ypos, clk:clkfs%76};
   }
   getRasterScanline() : number {
     return this.getRasterPosition().y;
@@ -292,7 +292,7 @@ class VCSPlatform extends BasePlatform {
   tiaStateToLongString(t) {
     var pos = this.getRasterPosition();
     var s = '';
-    s += "H" + lpad(pos.x.toString(),5) + "  V" + lpad(pos.y.toString(),5) + "   ";
+    s += "H" + lpad(pos.x.toString(),5) + " (clk " + lpad(pos.clk.toString(),3) + ") V" + lpad(pos.y.toString(),5) + "   ";
     s += (t.vs?"VSYNC ":"- ") + (t.vb?"VBLANK ":"- ") + "\n";
     s += "\n";
     s += "Playfield " + t.f + "\n";

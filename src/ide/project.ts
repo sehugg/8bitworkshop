@@ -347,13 +347,15 @@ export class CodeProject {
   }
 
   // returns first listing in format [prefix].lst (TODO: could be better)
-  getListingForFile(path) : CodeListing {
+  getListingForFile(path: string) : CodeListing {
     // ignore include files (TODO)
     if (path.toLowerCase().endsWith('.h') || path.toLowerCase().endsWith('.inc'))
       return;
     var fnprefix = getFilenamePrefix(this.stripLocalPath(path));
     var listings = this.getListings();
+    var onlyfile = null;
     for (var lstfn in listings) {
+      onlyfile = lstfn;
       if (getFilenamePrefix(lstfn) == fnprefix) {
         return listings[lstfn];
       }

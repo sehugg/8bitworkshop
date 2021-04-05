@@ -303,6 +303,9 @@ function refreshWindowList() {
     addWindowItem("#probelog", "Probe Log", () => {
       return new Views.ProbeLogView();
     });
+    addWindowItem("#scanlineio", "Scanline I/O", () => {
+      return new Views.ScanlineIOView();
+    });
     addWindowItem("#symbolprobe", "Symbol Profiler", () => {
       return new Views.ProbeSymbolView();
     });

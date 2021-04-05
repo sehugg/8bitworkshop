@@ -198,6 +198,7 @@ TODO:
 - show current tool for file
 - download non-text incbin source file
 - show hidden header files that only exist in Emscripten FS
+can't modify/delete an include file if project doesn't compile
 
 Probing
 - probe log doesn't start @ reset

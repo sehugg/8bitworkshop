@@ -143,6 +143,8 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
           break;
         case 0x20: // JSR
           // TODO: handle bare RTS case
+          minclocks += meta.minCycles;
+          maxclocks += meta.maxCycles;
           this.traceInstructions(addr, minclocks, maxclocks, addr, constraints);
           var result = this.jsrresult[addr];
           if (result) {
@@ -150,7 +152,8 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
             maxclocks = result.maxclocks;
           } else {
             console.log("No JSR result!", hex(pc), hex(addr));
-            return;
+            minclocks = maxclocks;
+            //return;
           }
           break;
         case 0x4c: // JMP
@@ -160,7 +163,7 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
           abort = true;
           break;
         case 0x60: // RTS
-          if (subaddr) { // TODO: 0 doesn't work
+        if (subaddr) { // TODO: 0 doesn't work
             // TODO: combine with previous result
             var result = this.jsrresult[subaddr];
             if (!result) {
