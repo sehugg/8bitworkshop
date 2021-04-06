@@ -12,6 +12,10 @@ var prj = require("gen/ide/project.js");
 
 var test_platform_id = "_TEST";
 
+function newFilesystem(store, platform_id) {
+  return new prj.LocalForageFilesystem(store, new prj.NullFilesystem());
+}
+
 describe('Store', function () {
 
   it('Should load local project', function (done) {
@@ -19,14 +23,9 @@ describe('Store', function () {
     store.setItem('local/test', 'a');
     var worker = {};
     var platform = {};
-    var project = new prj.CodeProject(worker, test_platform_id, platform, store);
-    var remote = [];
-    project.callbackGetRemote = function (path, success, datatype) {
-      remote.push(path);
-      success();
-    };
+    var project = new prj.CodeProject(worker, test_platform_id, platform, newFilesystem(store, test_platform_id));
     project.loadFiles(['local/test', 'test']).then((result) => {
-      assert.deepEqual(["presets/_TEST/test"], remote);
+      assert.deepEqual(["test"], project.filesystem.basefs.gets);
       assert.deepEqual([{ path: 'local/test', filename: 'local/test', data: 'a', link: true }], result);
       done();
     });
@@ -53,7 +52,7 @@ describe('Store', function () {
     var platform = {
       getToolForFilename: function (fn) { return 'dasm'; },
     };
-    var project = new prj.CodeProject(worker, test_platform_id, platform, store);
+    var project = new prj.CodeProject(worker, test_platform_id, platform, newFilesystem(store, test_platform_id));
     project.callbackBuildStatus = function (b) { msgs.push(b) };
     project.callbackBuildResult = function (b) { msgs.push(1) };
     project.updateFile('test.a', ' lda #0');
@@ -78,7 +77,7 @@ describe('Store', function () {
     };
     var platform = {
     };
-    var project = new prj.CodeProject(worker, test_platform_id, platform, store);
+    var project = new prj.CodeProject(worker, test_platform_id, platform, newFilesystem(store, test_platform_id));
     project.callbackBuildStatus = function (b) { msgs.push(b) };
     project.callbackBuildResult = function (b) { msgs.push(1) };
     var buildresult = {

@@ -17,7 +17,9 @@ var test_platform_id = "_TEST";
 function newGH(store, platform_id) {
   localStorage.clear();
   // pzpinfo user
-  var project = new prj.CodeProject({}, platform_id||test_platform_id, null, store);
+  var pid = platform_id||test_platform_id;
+  var fs = new prj.LocalForageFilesystem(store, new prj.NullFilesystem());
+  var project = new prj.CodeProject({}, pid, null, fs);
   project.mainPath = 'local/main.asm';
   project.updateFileInStore(project.mainPath, '\torg $0 ; test\n');
   return new serv.GithubService(Octokat, process.env.TEST8BIT_GITHUB_TOKEN, store, project);
@@ -25,7 +27,7 @@ function newGH(store, platform_id) {
 
 const t0 = new Date().getTime();
 
-describe('Store', function() {
+describe('Github', function() {
 
   it('Should import from Github (check README)', function(done) {
     var store = mstore.createNewPersistentStore('vcs', function(store) {

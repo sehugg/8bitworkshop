@@ -3,7 +3,7 @@
 
 import $ = require("jquery");
 import * as bootstrap from "bootstrap";
-import { CodeProject } from "./project";
+import { CodeProject, LocalForageFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "../common/workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState } from "../common/baseplatform";
@@ -170,14 +170,16 @@ function unsetLastPreset() {
 }
 
 function initProject() {
-  current_project = new CodeProject(newWorker(), platform_id, platform, store);
+  var filesystem = new LocalForageFilesystem(store, new WebPresetsFileSystem(platform_id));
+  current_project = new CodeProject(newWorker(), platform_id, platform, filesystem);
   projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
   if (isElectronWorkspace) {
+    // TODO
+    /*
     current_project.persistent = false;
     current_project.callbackGetRemote = getElectronFile;
     current_project.callbackStoreFile = putWorkspaceFile;
-  } else {
-    current_project.callbackGetRemote = getWithBinary;
+    */
   }
   current_project.callbackBuildResult = (result:WorkerResult) => {
     setCompileOutput(result);

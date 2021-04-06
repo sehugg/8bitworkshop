@@ -1,12 +1,72 @@
 
 import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult } from "../common/workertypes";
-import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform } from "../common/util";
+import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform, getWithBinary } from "../common/util";
 import { Platform } from "../common/baseplatform";
+
+export interface ProjectFilesystem {
+  getFileData(path: string) : Promise<FileData>;
+  setFileData(path: string, data: FileData) : Promise<void>;
+}
+
+export class WebPresetsFileSystem implements ProjectFilesystem {
+  preset_id : string;
+  constructor(platform_id: string) {
+    // found on remote fetch?
+    this.preset_id = getBasePlatform(platform_id); // remove .suffix from preset name
+  }
+  async getRemoteFile(path: string): Promise<FileData> {
+    return new Promise( (yes,no)=> {
+      return getWithBinary(path, yes, isProbablyBinary(path) ? 'arraybuffer' : 'text');
+    });
+  }
+  async getFileData(path: string) : Promise<FileData> {
+    var webpath = "presets/" + this.preset_id + "/" + path;
+    var data = await this.getRemoteFile(webpath);
+    if (data) console.log("read",webpath,data.length,'bytes');
+    return data;
+  }
+  async setFileData(path: string, data: FileData) : Promise<void> {
+    // not implemented
+  }
+}
+
+export class NullFilesystem implements ProjectFilesystem {
+  gets = [];
+  sets = [];
+  getFileData(path: string): Promise<FileData> {
+    this.gets.push(path);
+    return null;
+  }
+  setFileData(path: string, data: FileData): Promise<void> {
+    this.sets.push(path);
+    return;
+  }
+  
+}
+
+export class LocalForageFilesystem implements ProjectFilesystem {
+  basefs: ProjectFilesystem;
+  store: any;
+  constructor(store: any, basefs: ProjectFilesystem) {
+    this.store = store;
+    this.basefs = basefs;
+  }
+  async getFileData(path: string): Promise<FileData> {
+    var data = await this.store.getItem(path);
+    if (data == null) {
+      data = await this.basefs.getFileData(path);
+    }
+    return data;
+  }
+  async setFileData(path: string, data: FileData): Promise<void> {
+    await this.store.setItem(path, data);
+    await this.basefs.setFileData(path, data);
+  }
+}
 
 type BuildResultCallback = (result:WorkerResult) => void;
 type BuildStatusCallback = (busy:boolean) => void;
 type IterateFilesCallback = (path:string, data:FileData) => void;
-type GetRemoteCallback = (path:string, callback:(data:FileData) => void, datatype:'text'|'arraybuffer') => any;
 
 function isEmptyString(text : FileData) {
   return typeof text == 'string' && text.trim && text.trim().length == 0;
@@ -22,21 +82,18 @@ export class CodeProject {
   worker : Worker;
   platform_id : string;
   platform : Platform;
-  store : any;
   isCompiling : boolean = false;
   filename2path = {}; // map stripped paths to full paths
-  persistent : boolean = true; // set to true and won't modify store
+  filesystem : ProjectFilesystem;
 
   callbackBuildResult : BuildResultCallback;
   callbackBuildStatus : BuildStatusCallback;
-  callbackGetRemote : GetRemoteCallback;
-  callbackStoreFile : IterateFilesCallback;
 
-  constructor(worker, platform_id:string, platform, store) {
+  constructor(worker, platform_id:string, platform, filesystem: ProjectFilesystem) {
     this.worker = worker;
     this.platform_id = platform_id;
     this.platform = platform;
-    this.store = store;
+    this.filesystem = filesystem;
 
     worker.onmessage = (e) => {
       this.receiveWorkerMessage(e.data);
@@ -163,13 +220,7 @@ export class CodeProject {
   }
 
   updateFileInStore(path:string, text:FileData) {
-    // protect against accidential whole-file deletion
-    if (this.persistent && !isEmptyString(text)) {
-      this.store.setItem(path, text);
-    }
-    if (this.callbackStoreFile != null) {
-      this.callbackStoreFile(path, text);
-    }
+    this.filesystem.setFileData(path, text);
   }
 
   // TODO: test duplicate files, local paths mixed with presets
@@ -210,10 +261,9 @@ export class CodeProject {
   }
 
   // TODO: get local file as well as presets?
-  loadFiles(paths:string[]) : Promise<Dependency[]> {
-   return new Promise( (yes,no) => {
+  async loadFiles(paths:string[]) : Promise<Dependency[]> {
     var result : Dependency[] = [];
-    var addResult = (path, data) => {
+    var addResult = (path:string, data:FileData) => {
       result.push({
         path:path,
         filename:this.stripLocalPath(path),
@@ -221,53 +271,24 @@ export class CodeProject {
         data:data
       });
     }
-    var loadNext = () => {
-      var path = paths.shift();
-      if (!path) {
-        // finished loading all files; return result
-        yes(result);
+    for (var path of paths) {
+      // look in cache
+      if (path in this.filedata) { // found in cache?
+        var data = this.filedata[path];
+        if (data) {
+          addResult(path, data);
+        }
       } else {
-        // look in cache
-        if (path in this.filedata) { // found in cache?
-          var data = this.filedata[path];
-          if (data)
-            addResult(path, data);
-          loadNext();
+        var data = await this.filesystem.getFileData(path);
+        if (data) {
+          this.filedata[path] = data; // do not update store, just cache
+          addResult(path, data);
         } else {
-          // look in store
-          this.store.getItem(path, (err, value) => {
-            if (err) { // err fetching from store
-              no(err);
-            } else if (value) { // found in store?
-              this.filedata[path] = value; // do not update store, just cache
-              addResult(path, value);
-              loadNext();
-            } else {
-              // found on remote fetch?
-              var preset_id = this.platform_id;
-              preset_id = getBasePlatform(preset_id); // remove .suffix from preset name
-              var webpath = "presets/" + preset_id + "/" + path;
-              // try to GET file, use file ext to determine text/binary
-              this.callbackGetRemote( webpath, (data:FileData) => {
-                if (data == null) {
-                  console.log("Could not load preset file", path);
-                  this.filedata[path] = null; // mark cache entry as invalid
-                } else {
-                  if (data instanceof ArrayBuffer)
-                    data = new Uint8Array(data); // convert to typed array
-                  console.log("read",webpath,data.length,'bytes');
-                  this.filedata[path] = data; // do not update store, just cache
-                  addResult(path, data);
-                }
-                loadNext();
-              }, isProbablyBinary(path) ? 'arraybuffer' : 'text');
-            }
-          });
+          this.filedata[path] = null; // mark entry as invalid
         }
       }
     }
-    loadNext(); // load first file
-   });
+    return result;
   }
 
   getFile(path:string):FileData {
