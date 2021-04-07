@@ -11,7 +11,6 @@ export interface ProjectFilesystem {
 export class WebPresetsFileSystem implements ProjectFilesystem {
   preset_id : string;
   constructor(platform_id: string) {
-    // found on remote fetch?
     this.preset_id = getBasePlatform(platform_id); // remove .suffix from preset name
   }
   async getRemoteFile(path: string): Promise<FileData> {
@@ -20,6 +19,7 @@ export class WebPresetsFileSystem implements ProjectFilesystem {
     });
   }
   async getFileData(path: string) : Promise<FileData> {
+    // found on remote fetch?
     var webpath = "presets/" + this.preset_id + "/" + path;
     var data = await this.getRemoteFile(webpath);
     if (data) console.log("read",webpath,data.length,'bytes');
@@ -44,23 +44,37 @@ export class NullFilesystem implements ProjectFilesystem {
   
 }
 
-export class LocalForageFilesystem implements ProjectFilesystem {
+export class OverlayFilesystem implements ProjectFilesystem {
   basefs: ProjectFilesystem;
-  store: any;
-  constructor(store: any, basefs: ProjectFilesystem) {
-    this.store = store;
+  overlayfs: ProjectFilesystem;
+  constructor(basefs: ProjectFilesystem, overlayfs: ProjectFilesystem) {
     this.basefs = basefs;
+    this.overlayfs = overlayfs;
   }
   async getFileData(path: string): Promise<FileData> {
-    var data = await this.store.getItem(path);
+    var data = await this.overlayfs.getFileData(path);
     if (data == null) {
-      data = await this.basefs.getFileData(path);
+      return this.basefs.getFileData(path);
+    } else {
+      return data;
     }
-    return data;
   }
   async setFileData(path: string, data: FileData): Promise<void> {
-    await this.store.setItem(path, data);
-    await this.basefs.setFileData(path, data);
+    await this.overlayfs.setFileData(path, data);
+    return this.basefs.setFileData(path, data);
+  }
+}
+
+export class LocalForageFilesystem {
+  store: any;
+  constructor(store: any) {
+    this.store = store;
+  }
+  async getFileData(path: string): Promise<FileData> {
+    return this.store.getItem(path);
+  }
+  async setFileData(path: string, data: FileData): Promise<void> {
+    return this.store.setItem(path, data);
   }
 }
 

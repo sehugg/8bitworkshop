@@ -18,7 +18,7 @@ function newGH(store, platform_id) {
   localStorage.clear();
   // pzpinfo user
   var pid = platform_id||test_platform_id;
-  var fs = new prj.LocalForageFilesystem(store, new prj.NullFilesystem());
+  var fs = new prj.LocalForageFilesystem(store);
   var project = new prj.CodeProject({}, pid, null, fs);
   project.mainPath = 'local/main.asm';
   project.updateFileInStore(project.mainPath, '\torg $0 ; test\n');

@@ -3,7 +3,7 @@
 
 import $ = require("jquery");
 import * as bootstrap from "bootstrap";
-import { CodeProject, LocalForageFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
+import { CodeProject, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "../common/workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState } from "../common/baseplatform";
@@ -13,7 +13,7 @@ import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG, stringToByteArray,
          byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";
-import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
+import { GHSession, GithubService, getRepos, parseGithubURL, FirebaseProjectFilesystem } from "./services";
 
 // external libs (TODO)
 declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, firebase;
@@ -170,7 +170,11 @@ function unsetLastPreset() {
 }
 
 function initProject() {
-  var filesystem = new LocalForageFilesystem(store, new WebPresetsFileSystem(platform_id));
+  var basefs : ProjectFilesystem = new WebPresetsFileSystem(platform_id);
+  //basefs = new FirebaseProjectFilesystem("TEST", "TEST");
+  var filesystem = new OverlayFilesystem(
+    basefs,
+    new LocalForageFilesystem(store));
   current_project = new CodeProject(newWorker(), platform_id, platform, filesystem);
   projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
   if (isElectronWorkspace) {

@@ -13,7 +13,9 @@ var prj = require("gen/ide/project.js");
 var test_platform_id = "_TEST";
 
 function newFilesystem(store, platform_id) {
-  return new prj.LocalForageFilesystem(store, new prj.NullFilesystem());
+  return new prj.OverlayFilesystem(
+    new prj.NullFilesystem(),
+    new prj.LocalForageFilesystem(store));
 }
 
 describe('Store', function () {

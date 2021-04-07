@@ -1,7 +1,7 @@
 
 import { getFolderForPath, isProbablyBinary, stringToByteArray, byteArrayToString, byteArrayToUTF8 } from "../common/util";
 import { FileData } from "../common/workertypes";
-import { CodeProject } from "./project";
+import { CodeProject, ProjectFilesystem } from "./project";
 
 // in index.html
 declare var exports;
@@ -369,4 +369,28 @@ export class GithubService {
     });
   }
 
+}
+
+//
+
+export class FirebaseProjectFilesystem implements ProjectFilesystem {
+  ref;
+  constructor(user_id: string, store_id: string) {
+    var database = firebase.database();
+    this.ref = database.ref('users/' + user_id + "/" + store_id);
+  }
+  getChildForPath(path:string) {
+    var encodedPath = encodeURIComponent(path).replace('-','%2D').replace('.','%2E');
+    return this.ref.child(encodedPath);
+  }
+  async getFileData(path: string): Promise<FileData> {
+    console.log(this.getChildForPath("test"));
+    var snapshot = await this.getChildForPath(path).get();
+    return snapshot.exists() ? snapshot.val().filedata : null;
+  }
+  async setFileData(path: string, data: FileData): Promise<void> {
+    return this.getChildForPath(path).set({
+      filedata: data
+    });
+  }
 }
