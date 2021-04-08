@@ -31,8 +31,12 @@ export class SourceFile {
     this.line2offset = new Map();
     for (var info of lines) {
       if (info.offset >= 0) {
-        this.offset2loc[info.offset] = info;
-        this.line2offset[info.line] = info.offset;
+        // first line wins (is assigned to offset)
+        // TODO: handle macros/includes w/ multiple offsets per line
+        if (!this.offset2loc[info.offset])
+          this.offset2loc[info.offset] = info;
+        if (!this.line2offset[info.line])
+          this.line2offset[info.line] = info.offset;
       }
     }
   }

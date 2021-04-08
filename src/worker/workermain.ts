@@ -715,23 +715,35 @@ function parseSourceLines(code:string, lineMatch, offsetMatch) {
   return lines;
 }
 
-function parseDASMListing(code:string, listings:CodeListingMap, errors:WorkerError[], unresolved:{}) {
+function parseDASMListing(lstpath:string, lsttext:string, listings:CodeListingMap, errors:WorkerError[], unresolved:{}) {
   // TODO: this gets very slow
   //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
   var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
   var equMatch = /\bequ\b/i;
-  var macroMatch = /\bMAC\s+(.+)?/i;
+  var macroMatch = /\bMAC\s+(\S+)?/i;
   var lastline = 0;
   var macros = {};
-  for (var line of code.split(re_crlf)) {
-    var linem = lineMatch.exec(line);
-    if (linem && linem[1]) {
+  var lstline = 0;
+  var lstlist = listings[lstpath];
+  for (var line of lsttext.split(re_crlf)) {
+    lstline++;
+    var linem = lineMatch.exec(line + "    ");
+    if (linem && linem[1] != null) {
       var linenum = parseInt(linem[1]);
       var filename = linem[2];
       var offset = parseInt(linem[3], 16);
       var insns = linem[4];
       var restline = linem[5];
       if (insns && insns.startsWith('?')) insns = null;
+      // don't use listing yet
+      if (lstlist && lstlist.lines) {
+        lstlist.lines.push({
+          line:lstline,
+          offset:offset,
+          insns:insns,
+          iscode:true,
+        });
+      }
       // inside of a file?
       var lst = listings[filename];
       if (lst) {
@@ -753,16 +765,26 @@ function parseDASMListing(code:string, listings:CodeListingMap, errors:WorkerErr
       } else {
         // inside of macro?
         var mac = macros[filename.toLowerCase()];
-        if (insns && mac) {
-          /*
+        // macro invocation in main file
+        if (mac && linenum == 0) {
           lines.push({
-            path:mac.file,
-            line:mac.line+linenum,
+            line:lastline+1,
             offset:offset,
             insns:insns,
             iscode:true
           });
-          */
+        }
+        if (insns && mac) {
+          var maclst = listings[mac.file];
+          if (maclst && maclst.lines) {
+            maclst.lines.push({
+              path:mac.file,
+              line:mac.line+linenum,
+              offset:offset,
+              insns:insns,
+              iscode:true
+            });
+          }
           // TODO: a listing file can't include other files
         } else {
           // inside of macro or include file
@@ -846,10 +868,11 @@ function assembleDASM(step:BuildStep) {
   var alst = FS.readFile(lstpath, {'encoding':'utf8'});
   // parse main listing, get errors and listings for each file
   var listings : CodeListingMap = {};
+  //listings[lstpath] = {lines:[], text:alst};
   for (let path of step.files) {
     listings[path] = {lines:[]};
   }
-  parseDASMListing(alst, listings, errors, unresolved);
+  parseDASMListing(lstpath, alst, listings, errors, unresolved);
   if (errors.length) {
     return {errors:errors};
   }

@@ -384,8 +384,8 @@ export class CodeProject {
   // returns first listing in format [prefix].lst (TODO: could be better)
   getListingForFile(path: string) : CodeListing {
     // ignore include files (TODO)
-    if (path.toLowerCase().endsWith('.h') || path.toLowerCase().endsWith('.inc'))
-      return;
+    //if (path.toLowerCase().endsWith('.h') || path.toLowerCase().endsWith('.inc'))
+      //return;
     var fnprefix = getFilenamePrefix(this.stripLocalPath(path));
     var listings = this.getListings();
     var onlyfile = null;
