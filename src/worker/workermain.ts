@@ -717,23 +717,24 @@ function parseSourceLines(code:string, lineMatch, offsetMatch) {
 
 function parseDASMListing(lstpath:string, lsttext:string, listings:CodeListingMap, errors:WorkerError[], unresolved:{}) {
   // TODO: this gets very slow
+  // TODO: macros that are on adjacent lines don't get offset addresses
   //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
-  var lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
-  var equMatch = /\bequ\b/i;
-  var macroMatch = /\bMAC\s+(\S+)?/i;
-  var lastline = 0;
-  var macros = {};
-  var lstline = 0;
-  var lstlist = listings[lstpath];
-  for (var line of lsttext.split(re_crlf)) {
+  let lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
+  let equMatch = /\bequ\b/i;
+  let macroMatch = /\bMAC\s+(\S+)?/i;
+  let lastline = 0;
+  let macros = {};
+  let lstline = 0;
+  let lstlist = listings[lstpath];
+  for (let line of lsttext.split(re_crlf)) {
     lstline++;
-    var linem = lineMatch.exec(line + "    ");
+    let linem = lineMatch.exec(line + "    ");
     if (linem && linem[1] != null) {
-      var linenum = parseInt(linem[1]);
-      var filename = linem[2];
-      var offset = parseInt(linem[3], 16);
-      var insns = linem[4];
-      var restline = linem[5];
+      let linenum = parseInt(linem[1]);
+      let filename = linem[2];
+      let offset = parseInt(linem[3], 16);
+      let insns = linem[4];
+      let restline = linem[5];
       if (insns && insns.startsWith('?')) insns = null;
       // don't use listing yet
       if (lstlist && lstlist.lines) {
@@ -745,11 +746,11 @@ function parseDASMListing(lstpath:string, lsttext:string, listings:CodeListingMa
         });
       }
       // inside of a file?
-      var lst = listings[filename];
+      let lst = listings[filename];
       if (lst) {
         var lines = lst.lines;
         // look for MAC statement
-        var macmatch = macroMatch.exec(restline);
+        let macmatch = macroMatch.exec(restline);
         if (macmatch) {
           macros[macmatch[1]] = {line:parseInt(linem[1]), file:linem[2].toLowerCase()};
         }
@@ -764,7 +765,7 @@ function parseDASMListing(lstpath:string, lsttext:string, listings:CodeListingMa
         lastline = linenum;
       } else {
         // inside of macro?
-        var mac = macros[filename.toLowerCase()];
+        let mac = macros[filename.toLowerCase()];
         // macro invocation in main file
         if (mac && linenum == 0) {
           lines.push({
@@ -775,7 +776,7 @@ function parseDASMListing(lstpath:string, lsttext:string, listings:CodeListingMa
           });
         }
         if (insns && mac) {
-          var maclst = listings[mac.file];
+          let maclst = listings[mac.file];
           if (maclst && maclst.lines) {
             maclst.lines.push({
               path:mac.file,
@@ -799,11 +800,11 @@ function parseDASMListing(lstpath:string, lsttext:string, listings:CodeListingMa
       }
       // TODO: better symbol test (word boundaries)
       // TODO: ignore IFCONST and IFNCONST usage
-      for (var key in unresolved) {
-        var l = restline || line;
-        var pos = l.indexOf(key);
+      for (let key in unresolved) {
+        let l = restline || line;
+        let pos = l.indexOf(key);
         if (pos >= 0) {
-          var cmt = l.indexOf(';');
+          let cmt = l.indexOf(';');
           if (cmt < 0 || cmt > pos) {
             // make sure identifier is flanked by non-word chars
             if (/\w+/.test(key) && new RegExp("\\b"+key+"\\b").test(key)) {
@@ -817,7 +818,7 @@ function parseDASMListing(lstpath:string, lsttext:string, listings:CodeListingMa
         }
       }
     }
-    var errm = re_msvc.exec(line);
+    let errm = re_msvc.exec(line);
     if (errm) {
       errors.push({
         path:errm[1],
@@ -834,7 +835,7 @@ function assembleDASM(step:BuildStep) {
   var unresolved = {};
   var errors = [];
   var errorMatcher = msvcErrorMatcher(errors);
-  function match_fn(s) {
+  function match_fn(s:string) {
     // TODO: what if s is not string? (startsWith is not a function)
     var matches = re_usl.exec(s);
     if (matches) {
@@ -846,6 +847,10 @@ function assembleDASM(step:BuildStep) {
       errors.push({line:0, msg:s.substr(9)});
     } else if (s.startsWith("unable ")) {
       errors.push({line:0, msg:s});
+    } else if (s.startsWith("segment: ")) {
+      errors.push({line:0, msg:"Segment overflow: "+s.substring(9)});
+    } else if (s.toLowerCase().indexOf('error:') >= 0) {
+      errors.push({line:0, msg:s.trim()});
     } else {
       errorMatcher(s);
     }

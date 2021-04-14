@@ -977,8 +977,22 @@ abstract class ProbeViewBaseBase {
   probe : ProbeRecorder;
   tooldiv : HTMLElement;
   cumulativeData : boolean = false;
+  cyclesPerLine : number;
+  totalScanlines : number;
 
   abstract tick() : void;
+
+  constructor() {
+    var width = 160;
+    var height = 262; // TODO: PAL?
+    try {
+      width = Math.ceil(platform['machine']['cpuCyclesPerLine']) || width; // TODO
+      height = Math.ceil(platform['machine']['numTotalScanlines']) || height; // TODO
+    } catch (e) {
+    }
+    this.cyclesPerLine = width;
+    this.totalScanlines = height;
+  }
 
   addr2symbol(addr : number) : string {
     var _addr2sym = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
@@ -1128,8 +1142,6 @@ abstract class ProbeViewBase extends ProbeViewBaseBase {
   }
 }
 
-// TODO: remove all 160/262 constants (in case of PAL)
-
 abstract class ProbeBitmapViewBase extends ProbeViewBase {
 
   imageData : ImageData;
@@ -1137,14 +1149,7 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
   recreateOnResize = false;
   
   createDiv(parent : HTMLElement) {
-    var width = 160;
-    var height = 262;
-    try {
-      width = Math.ceil(platform['machine']['cpuCyclesPerLine']) || 256; // TODO
-      height = Math.ceil(platform['machine']['numTotalScanlines']) || 262; // TODO
-    } catch (e) {
-    }
-    return this.createCanvas(parent, width, height);
+    return this.createCanvas(parent, this.cyclesPerLine, this.totalScanlines);
   }
   initCanvas() {
     this.imageData = this.ctx.createImageData(this.canvas.width, this.canvas.height);
@@ -1270,7 +1275,7 @@ export class ProbeLogView extends ProbeViewBaseBase {
 
   createDiv(parent : HTMLElement) {
     this.vlist = new VirtualTextScroller(parent);
-    this.vlist.create(parent, 160*262, this.getMemoryLineAt.bind(this));
+    this.vlist.create(parent, this.cyclesPerLine*this.totalScanlines, this.getMemoryLineAt.bind(this));
     return this.vlist.maindiv;
   }
   getMemoryLineAt(row : number) : VirtualTextLine {
@@ -1324,14 +1329,15 @@ export class ScanlineIOView extends ProbeViewBaseBase {
 
   createDiv(parent : HTMLElement) {
     this.vlist = new VirtualTextScroller(parent);
-    this.vlist.create(parent, 262, this.getMemoryLineAt.bind(this));
+    this.vlist.create(parent, this.totalScanlines, this.getMemoryLineAt.bind(this));
     return this.vlist.maindiv;
   }
   getMemoryLineAt(row : number) : VirtualTextLine {
     var s = lpad(row+"",3) + ' ';
     var c = 'seg_code';
     var line = (this.dumplines && this.dumplines[row]) || [];
-    for (var i=0; i<76; i++) {
+    var hblankCycle = Math.round(this.cyclesPerLine/3.3);
+    for (var i=0; i<this.cyclesPerLine; i++) {
       var opaddr = line[i];
       if (opaddr !== undefined) {
         var addr = opaddr & 0xffff;
@@ -1344,7 +1350,7 @@ export class ScanlineIOView extends ProbeViewBaseBase {
           i += v.length - 1;
         }
       } else {
-        s += (i==23) ? '|' : '.';
+        s += (i==hblankCycle) ? '|' : '.';
       }
     }
     if (line[-1]) s += ' ' + line[-1]; // executing symbol

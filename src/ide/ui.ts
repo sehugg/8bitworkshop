@@ -1521,8 +1521,8 @@ function _recordVideo() {
     _resume();
     $("#videoPreviewModal").modal('show');
   });
-  var intervalMsec = 33;
-  var maxFrames = 200;
+  var intervalMsec = 20;
+  var maxFrames = 300;
   var nframes = 0;
   console.log("Recording video", canvas);
   $("#emulator").css('backgroundColor', '#cc3333');
