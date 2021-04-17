@@ -1,7 +1,7 @@
 "use strict";
 
-import { Platform, BasePlatform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder, dumpStackToString, DisasmLine, CpuState } from "../common/baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, dumpRAM } from "../common/emu";
+import { Platform, BasePlatform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder, dumpStackToString, DisasmLine, CpuState, DebugCondition } from "../common/baseplatform";
+import { PLATFORMS, RAM, newAddressDecoder, dumpRAM, EmuHalt } from "../common/emu";
 import { hex, lpad, tobin, byte2signed } from "../common/util";
 import { CodeAnalyzer_vcs } from "../common/analysis";
 import { disassemble6502 } from "../common/cpu/disasm6502";
@@ -84,6 +84,11 @@ class VCSPlatform extends BasePlatform {
       self.updateRecorder();
       self.probe.logNewFrame();
       this.oldClockPulse();
+      // look for KIL instruction
+      if (Javatari.room.console.getCPUState().o == 0x02) {
+        Javatari.room.console.onBreakpointHit(Javatari.room.console.saveState());
+        throw new EmuHalt("CPU STOPPED");
+      }
     }
     // intercept TIA end of line
     var videoSignal = console.tia.getVideoOutput();
@@ -100,7 +105,7 @@ class VCSPlatform extends BasePlatform {
         var x = e.pageX - vcanvas.offset().left;
         var y = e.pageY - vcanvas.offset().top;
         var new_x = Math.floor(x * 152 / vcanvas.width());
-        var new_y = Math.floor((y-37) * (210+37) / vcanvas.height());
+        var new_y = Math.floor((y-10) * (192+37+30) / vcanvas.height());
         this.runEval( (c) => {
           var pos = this.getRasterPosition();
           return (pos.x >= new_x) && (pos.y >= new_y);
@@ -155,8 +160,17 @@ class VCSPlatform extends BasePlatform {
   }
   advance() : number {
     Javatari.room.console.clockPulse();
-    return 0; //TODO
+    return 0; // TODO: advanceFrameClock() and return 76*262 (or PAL)
   }
+  /*
+  advanceFrameClock?(trap: DebugCondition, step: number) : number {
+    this.runEval( (c) => {
+      var clkfs = Javatari.room.console.getClocksFromFrameStart() - 1;
+      return clkfs >= step;
+    });
+    return step;
+  }
+  */
   // for unit test
   nextFrame() {
     Javatari.room.console.clockPulse();
@@ -216,7 +230,7 @@ class VCSPlatform extends BasePlatform {
     return Javatari.room.console.loadState(state);
   }
   getCPUState() : CpuState {
-    return Javatari.room.console.saveState().c;
+    return Javatari.room.console.getCPUState();
   }
   saveControlsState() {
     return Javatari.room.console.saveControlsState();

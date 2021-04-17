@@ -203,6 +203,7 @@ can't modify/delete an include file if project doesn't compile
 Probing
 - probe log doesn't start @ reset
 Debug, play then halt cpu doesn't highlight final line
+vcs: input not preserved when replaying frames?
 
 
 WEB WORKER FORMAT
