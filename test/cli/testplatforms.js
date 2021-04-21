@@ -228,7 +228,7 @@ describe('Platform Replay', () => {
     var platform = await testPlatform('vcs', 'brickgame.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
         var cstate = platform.saveControlsState();
-        cstate.SA = 0xff ^ 0x40; // stick left
+        cstate.pia.SA = 0xff ^ 0x40; // stick left
         platform.loadControlsState(cstate);
       }
     });
