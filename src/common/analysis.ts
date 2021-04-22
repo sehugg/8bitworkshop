@@ -224,7 +224,7 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
 export class CodeAnalyzer_vcs extends CodeAnalyzer6502 {
   constructor(platform : Platform) {
     super(platform);
-    this.MAX_CLOCKS = this.START_CLOCKS = 76*2; // 2 scanlines
+    this.MAX_CLOCKS = this.START_CLOCKS = 76*4; // 4 scanlines
     this.WRAP_CLOCKS = false;
   }
 }
