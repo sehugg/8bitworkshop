@@ -278,7 +278,9 @@ div.emuoverlay {
 }
 div.emuscope {
   background-color:#333;
+  color:#ccc;
   z-index:1;
+  font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
 }
 div.emuspacer {
   width:100%;
@@ -757,3 +759,9 @@ div.asset_toolbar {
 .tree-level-8 { background-color: #837163;}
 .tree-level-9 { background-color: #7b8363;}
 .tree-level-10 { background-color: #738363;}
+
+.waverow {
+}
+.waverow.editable:hover {
+  background-color: #336633;
+}

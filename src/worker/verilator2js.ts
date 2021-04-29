@@ -4,7 +4,9 @@ type V2JS_Var = {
   name:string,
   len:number,
   ofs:number,
-  arrdim?:number[]
+  arrdim?:number[],
+  input:boolean,
+  output:boolean,
 }
 
 type V2JS_Code = {
@@ -37,6 +39,8 @@ function parseDecls(text:string, arr:V2JS_Var[], name:string, bin?:boolean, bout
       name:m[2],
       len:parseInt(m[3])+1,
       ofs:parseInt(m[4]),
+      input:bin,
+      output:bout,
     });
   }
   re = new RegExp(name + "(\\d*)[(](\\w+)\\[(\\d+)\\],(\\d+),(\\d+)[)]", 'gm');
@@ -48,6 +52,8 @@ function parseDecls(text:string, arr:V2JS_Var[], name:string, bin?:boolean, bout
       arrdim:[parseInt(m[3])],
       len:parseInt(m[4])+1,
       ofs:parseInt(m[5]),
+      input:bin,
+      output:bout,
     });
   }
   re = new RegExp(name + "(\\d*)[(](\\w+)\\[(\\d+)\\]\\[(\\d+)\\],(\\d+),(\\d+)[)]", 'gm');
@@ -59,6 +65,8 @@ function parseDecls(text:string, arr:V2JS_Var[], name:string, bin?:boolean, bout
       arrdim:[parseInt(m[3]), parseInt(m[4])],
       len:parseInt(m[5])+1,
       ofs:parseInt(m[6]),
+      input:bin,
+      output:bout,
     });
   }
 }

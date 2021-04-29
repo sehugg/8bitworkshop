@@ -106,6 +106,7 @@ TODO:
   - bad error msg if >2 moduels and top module doesn't match filename
   - separate Scope View
   - Audio doesn't work if clock != default
+  - change the input values for a module?
 - single-stepping vector games makes screen fade
 - break on stack overflow, illegal op, bad access, BRK, etc
   - show in scope instead?

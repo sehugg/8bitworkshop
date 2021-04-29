@@ -3,14 +3,24 @@ import { Toolbar } from "../common/emu";
 
 declare var VirtualList;
 
+const BUILTIN_INPUT_PORTS = [
+  'clk', 'reset',
+];
+
 export interface WaveformMeta {
   label : string;
   len : number;
+  //name : string;
+  //ofs : number;
+  //wordlen : number;
+  input : boolean;
+  output : boolean;
 }
 
 export interface WaveformProvider {
   getSignalMetadata() : WaveformMeta[];
   getSignalData(index:number, start:number, len:number) : number[];
+  setSignalValue(index:number, value:number);
 }
 
 export class WaveformView {
@@ -70,15 +80,25 @@ export class WaveformView {
       totalRows: this.meta.length+1,
       generatorFn: (row : number) => {
         var metarow = this.meta[row]; // TODO: why null?
-        var s = metarow != null ? metarow.label : "";
-        var linediv = document.createElement("div");
-        var canvas = document.createElement("canvas");
+        //var s = metarow != null ? metarow.label : "";
+        let linediv = document.createElement("div");
+        let canvas = document.createElement("canvas");
         canvas.width = width - 12;
         canvas.height = rowHeight;
         linediv.appendChild(canvas); //document.createTextNode(s));
         linediv.classList.add('waverow');
         this.lines[row] = canvas;
         this.refreshRow(row);
+        // click to change input
+        if (metarow && metarow.input && BUILTIN_INPUT_PORTS.indexOf(metarow.label) < 0) {
+          linediv.onmousedown = (e) => {
+            var meta = this.meta[row];
+            if (meta && meta.input) {
+              this.changeInputValue(row);
+            }
+          };
+          linediv.classList.add('editable');
+        }
         return linediv;
       }
     });
@@ -87,7 +107,12 @@ export class WaveformView {
     //wlc.style = "overflow-x: hidden"; // TODO?
     this.toolbar = new Toolbar(this.parent, this.parent);
     this.toolbar.span.css('display','inline-block');
+    //var clklabel = document.createElement('span');
+    //clklabel.style.display = 'inline-block';
+    //clklabel.innerHTML = "TEST";
+    //$(this.parent).append(clklabel);
     $(this.parent).append(wlc);
+    
     var down = false;
     var selfn = (e) => {
       this.setSelTime(e.offsetX / this.zoom + this.t0 - 0.5);
@@ -189,6 +214,10 @@ export class WaveformView {
     ctx.font = "14px Andale Mono, Lucida Console, monospace";
     // clear to black
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // highlighted?
+    var tags = [];
+    if (meta.input && BUILTIN_INPUT_PORTS.indexOf(meta.label) < 0) tags.push('input');
+    //if (meta.output) tags.push('output');
     // draw waveform
     var fh = 12;
     var b1 = fh+4;
@@ -252,7 +281,39 @@ export class WaveformView {
     // draw labels
     ctx.fillStyle = "white";
     ctx.textAlign = "left";
-    ctx.fillText(meta.label, 5, fh);
+    var lbl = meta.label;
+    if (tags.length > 0) { lbl += " (" + tags.join(', ') + ")"; }
+    ctx.fillText(lbl, 5, fh);
+  }
+
+  changeInputValue(row : number) {    
+    var meta = this.meta[row];
+    if (!meta) return;
+    var data = this.wfp.getSignalData(row, this.t0, 1);
+    var oldValue = data[0] || 0;
+    var min = 0;
+    var max = (1 << meta.len) - 1;
+    if (max == 1) {
+      this.wfp.setSignalValue(row, oldValue > 0 ? 0 : 1);
+    } else {
+      var rangestr = `${min} to ${max}`;
+      bootbox.prompt({ 
+        value: oldValue+"",
+        inputType: "number",
+        //min: 0,
+        //max: meta.len-1,
+        //placeholder: rangestr,
+        title: `Enter new value for "${meta.label}" (${rangestr}):`,
+        callback: (result) => { 
+          if (result != null) {
+            var value = parseInt(result);
+            if (value >= min && value <= max) {
+              this.wfp.setSignalValue(row, parseInt(result));
+            }
+          }
+        }
+      });
+    }
   }
 }
 

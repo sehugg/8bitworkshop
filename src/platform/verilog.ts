@@ -614,6 +614,12 @@ var VerilogPlatform = function(mainElement, options) {
     return a;
   }
 
+  setSignalValue(index:number, value:number) {
+    var meta = this.getSignalMetadata()[index];
+    gen[meta.label] = value;
+    this.reset();
+  }
+
   printErrorCodeContext(e, code) {
     if (e.lineNumber && e.message) {
       var lines = code.split('\n');
