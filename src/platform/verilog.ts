@@ -30,6 +30,7 @@ var VERILOG_PRESETS = [
   {id:'sound_generator.v', name:'Sound Generator'},
   {id:'lfsr.v', name:'Linear Feedback Shift Register'},
   {id:'starfield.v', name:'Scrolling Starfield'},
+  {id:'alu.v', name:'ALU'},
   {id:'cpu8.v', name:'Simple 8-Bit CPU'},
   {id:'racing_game_cpu.v', name:'Racing Game with CPU'},
   {id:'framebuffer.v', name:'Frame Buffer'},
