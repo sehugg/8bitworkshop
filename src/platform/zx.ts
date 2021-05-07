@@ -12,13 +12,13 @@ const ZX_PRESETS = [
 const ZX_MEMORY_MAP = { main:[
   {name:'BIOS', start:0x0000, size:0x4000, type:'rom'},
   {name:'Screen RAM', start:0x4000, size:0x1800, type:'ram'},
-  {name:'Color RAM', start:0x5800, size:0x200, type:'ram'},
+  {name:'Color RAM', start:0x5800, size:0x300, type:'ram'},
   //{name:'Printer Buffer', start:0x5b00, size:0x100, type:'ram'},
   {name:'System RAM', start:0x5c00, size:0xc0, type:'ram'},
   {name:'User RAM', start:0x5ccb, size:0xff58-0x5ccb, type:'ram'},
 ] }
 
-// WASM C64 platform
+// WASM ZX Spectrum platform
 class ZXWASMPlatform extends BaseZ80MachinePlatform<ZX_WASMMachine> implements Platform {
 
   newMachine()          { return new ZX_WASMMachine('zx'); }
