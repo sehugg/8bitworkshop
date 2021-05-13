@@ -173,7 +173,6 @@ abstract class VerilatorBase {
   maxVclockLoop = 0;
   clk = 0;
   reset = 0;
-  enable?;
 
   vl_fatal(msg:string) {
     console.log(msg);
@@ -183,9 +182,6 @@ abstract class VerilatorBase {
   setTicks(T:number) { this.totalTicks = T|0; }
 
   __reset() {
-    if (this.enable !== undefined) {
-      this.enable = 1; // enable enable if defined
-    }
     if (this.reset !== undefined) {
       this.totalTicks = 0;
       this.reset = 0;

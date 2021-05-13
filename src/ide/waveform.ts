@@ -293,6 +293,7 @@ export class WaveformView {
     var oldValue = data[0] || 0;
     var min = 0;
     var max = (1 << meta.len) - 1;
+    //console.log(meta, oldValue, min, max);
     if (max == 1) {
       this.wfp.setSignalValue(row, oldValue > 0 ? 0 : 1);
     } else {
