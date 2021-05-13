@@ -85,7 +85,7 @@ class VCSPlatform extends BasePlatform {
       self.probe.logNewFrame();
       this.oldClockPulse();
       // look for KIL instruction
-      if (Javatari.room.console.getCPUState().o == 0x02) {
+      if (Javatari.room.console.getCPUState().o == 0x02 && Javatari.room.console.onBreakpointHit != null) {
         Javatari.room.console.onBreakpointHit(Javatari.room.console.saveState());
         //throw new EmuHalt("CPU STOPPED"); // TODO: requires browser reload
       }
