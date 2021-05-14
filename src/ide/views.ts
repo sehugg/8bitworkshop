@@ -792,7 +792,7 @@ export class MemoryView implements ProjectView {
   // TODO: addr2symbol for ca65; and make it work without symbols
   getDumpLines() {
     var addr2sym = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
-    if (!this.dumplines) {
+    if (this.dumplines == null) {
       this.dumplines = [];
       var ofs = 0;
       var sym;
@@ -804,7 +804,7 @@ export class MemoryView implements ProjectView {
           if (ignoreSymbol(sym)) {
             sym = '';
           }
-          while (ofs < nextofs) {
+          while (ofs < nextofs && this.dumplines.length < 0x10000) {
             var ofs2 = (ofs + 16) & 0xffff0;
             if (ofs2 > nextofs) ofs2 = nextofs;
             //if (ofs < 1000) console.log(ofs, ofs2, nextofs, sym);
