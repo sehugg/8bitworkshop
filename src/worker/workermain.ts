@@ -754,7 +754,7 @@ function parseDASMListing(lstpath:string, lsttext:string, listings:CodeListingMa
         if (macmatch) {
           macros[macmatch[1]] = {line:parseInt(linem[1]), file:linem[2].toLowerCase()};
         }
-        else if (insns && !restline.match(equMatch)) {
+        else if (insns && restline && !restline.match(equMatch)) {
           lines.push({
             line:linenum,
             offset:offset,
