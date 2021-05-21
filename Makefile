@@ -48,3 +48,10 @@ tsweb:
 astrolibre.b64.txt: astrolibre.rom
 	lzg -9 $< | base64 -w 0 > $@
 
+VERSION := $(shell git tag -l --points-at HEAD)
+
+sync: dist
+	@[ "${VERSION}" ] || ( echo ">> No version set at HEAD, tag it first"; exit 1 )
+	echo Version: $(VERSION)
+	cp config.js $(TMP)
+	aws --profile pzp s3 sync $(TMP)/ s3://8bitworkshop/dev

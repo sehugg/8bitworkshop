@@ -119,7 +119,7 @@ class VCSPlatform extends BasePlatform {
 
   loadROM(title, data) {
     if (data.length == 0 || ((data.length & 0x3ff) != 0))
-      throw Error("Invalid ROM length: " + data.length);
+      throw new EmuHalt("Invalid ROM length: " + data.length);
     // TODO: parse Log messages from Javatari?
     var wasrunning = this.isRunning();
     Javatari.loadROM(title, data);
@@ -298,7 +298,7 @@ class VCSPlatform extends BasePlatform {
     }
   }
   bankSwitchStateToString(state) {
-    return (state.ca.bo !== undefined ? ("BankOffset "+hex(state.ca.bo,4)+"\n"):"");
+    return (state.ca && state.ca.bo !== undefined) ? "BankOffset "+hex(state.ca.bo,4)+"\n" : "";
   }
   piaStateToLongString(p) {
     return "Timer  " + p.t + "/" + p.c + "\nINTIM  $" + hex(p.IT,2) + " (" + p.IT + ")\nINSTAT $" + hex(p.IS,2) + "\n";
