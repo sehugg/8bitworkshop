@@ -25,6 +25,7 @@
     "bootstrap": "^3.4.1",
     "bootstrap-tourist": "^0.2.1",
     "btoa": "^1.2.x",
+    "chromedriver": "^90.0.1",
     "clipboard": "^2.0.6",
     "electron": "^9.4.0",
     "electron-packager": "^15.2.0",
@@ -36,6 +37,7 @@
     "lzg": "^1.0.x",
     "mocha": "^7.2.0",
     "mousetrap": "^1.6.5",
+    "nightwatch": "^1.6.4",
     "octokat": "^0.10.0",
     "pngjs": "^3.4.0",
     "rgbquant": "^1.1.2",
@@ -56,6 +58,7 @@
     "test-worker": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli/testworker.js",
     "test-platforms": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli/testplatforms.js",
     "test-profile": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --prof test/cli",
+    "test-web": "nightwatch -e chrome test/web",
     "start": "electron .",
     "fuzzbasic": "jsfuzz gen/common/basic/fuzz.js ~/basic/corpus/ --versifier false",
     "machine": "node gen/tools/runmachine.js"

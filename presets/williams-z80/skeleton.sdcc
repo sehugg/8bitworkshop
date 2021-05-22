@@ -153,8 +153,9 @@ void draw_box(word x1, byte y1, word x2, byte y2, byte color) {
 static byte frame = 0;
 
 void main() {
-  palette[0] = 0x11;
-  palette[1] = 0xff+frame++;
-  blit_solid(0,0,25,25,0x11);
-  main();
+  palette[0] = 0x88;
+  memset(vidmem, 0, sizeof(vidmem));
+  while (1) {
+    blit_solid(0,0,25,25,frame++);
+  }
 }

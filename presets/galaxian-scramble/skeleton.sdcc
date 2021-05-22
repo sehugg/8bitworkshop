@@ -84,7 +84,7 @@ __asm
 	LD      SP,#0x4800
         EI
 ; copy initialized data to RAM
-        LD    BC, #l__INITIALIZER
+        LD    BC, #l__INITIALIZER+1
         LD    A, B
         LD    DE, #s__INITIALIZED
         LD    HL, #s__INITIALIZER
@@ -136,10 +136,6 @@ byte getchar(byte x, byte y) {
 
 volatile byte video_framecount; // actual framecount
 
-void reset_video_framecount() __critical {
-  video_framecount = 0;
-}
-
 void _buffer() {
 __asm
 ; padding to get to offset 0x66
@@ -149,12 +145,18 @@ __asm
   nop
   nop
   nop
+  nop
 __endasm;
 }
 
 void rst_66() __interrupt {
   video_framecount++;
 }
+
+void reset_video_framecount() __critical {
+  video_framecount = 0;
+}
+
 
 void putchar(byte x, byte y, byte ch) {
   vram[29-x][y] = ch;
@@ -173,6 +175,12 @@ void putstring(byte x, byte y, const char* string) {
   }
 }
 
+void wait_for_frame() {
+  byte initial_framecount = video_framecount;
+  watchdog++;
+  while (video_framecount == initial_framecount);
+}
+
 ///
 
 void main() {
@@ -180,5 +188,7 @@ void main() {
   clrobjs();
   enable_stars = 0xff;
   enable_irq = 1;
-  main();
+  while (1) {
+    wait_for_frame();
+  }
 }

@@ -32,7 +32,6 @@ void start() {
 __asm
 	LD      SP,#0x2400
         EI
-        NOP
 __endasm;
 	main();
 }
@@ -43,7 +42,6 @@ __endasm;
 void _RST_8()  {
 __asm
 	NOP
-        NOP
         NOP
         NOP
         NOP
