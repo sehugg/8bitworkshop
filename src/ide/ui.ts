@@ -1404,6 +1404,7 @@ function clearBreakpoint() {
 
 function resetPlatform() {
   platform.reset();
+  _resetRecording();
 }
 
 function resetAndRun() {
