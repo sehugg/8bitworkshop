@@ -802,12 +802,14 @@ function parseDASMListing(lstpath:string, lsttext:string, listings:CodeListingMa
       // TODO: ignore IFCONST and IFNCONST usage
       for (let key in unresolved) {
         let l = restline || line;
+        // find the identifier substring
         let pos = l.indexOf(key);
         if (pos >= 0) {
+          // strip the comment, if any
           let cmt = l.indexOf(';');
           if (cmt < 0 || cmt > pos) {
             // make sure identifier is flanked by non-word chars
-            if (/\w+/.test(key) && new RegExp("\\b"+key+"\\b").test(key)) {
+            if (new RegExp("\\b"+key+"\\b").exec(l)) {
               errors.push({
                 path:filename,
                 line:linenum,

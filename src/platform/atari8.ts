@@ -900,7 +900,7 @@ a58lHiUcJQkD/Lj8svyh/gL9svxI5gzQBBkiJhkj9SUfJR8lHiUBI/0x/QD8`;
 
 ///
 
-PLATFORMS['atari8-800'] = _Atari800Platform;
+PLATFORMS['atari8-800xl'] = _Atari800Platform;
 PLATFORMS['atari8-5200'] = _Atari5200Platform;
 PLATFORMS['atari8-800xl.mame'] = Atari800MAMEPlatform;
 PLATFORMS['atari8-5200.mame'] = Atari5200MAMEPlatform;
