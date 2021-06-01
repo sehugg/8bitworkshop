@@ -50,8 +50,13 @@ astrolibre.b64.txt: astrolibre.rom
 
 VERSION := $(shell git tag -l --points-at HEAD)
 
-sync: dist
+syncdev: dist
+	cp config.js $(TMP)
+	aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/dev
+
+syncprod: dist
 	@[ "${VERSION}" ] || ( echo ">> No version set at HEAD, tag it first"; exit 1 )
 	echo Version: $(VERSION)
 	cp config.js $(TMP)
-	aws --profile pzp s3 sync $(TMP)/ s3://8bitworkshop/dev
+	aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/v$(VERSION)
+

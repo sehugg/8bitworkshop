@@ -65,6 +65,8 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * http://mcpp.sourceforge.net/
 * http://www.ifarchive.org/indexes/if-archiveXinfocomXcompilersXinform6.html
 * https://github.com/dmsc/fastbasic
+* https://github.com/wiz-lang/wiz
+* https://github.com/sylefeb/Silice
 
 ### Assemblers/Linkers
 
@@ -86,3 +88,9 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * https://github.com/MEGA65/open-roms
 * https://sourceforge.net/projects/cbios/
 * https://www.pledgebank.com/opense
+
+### Related Projects
+
+* https://github.com/sehugg/8bitworkshop-compilers
+* https://github.com/sehugg/8bit-tools
+* https://github.com/sehugg/awesome-8bitgamedev

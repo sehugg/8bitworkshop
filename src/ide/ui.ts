@@ -2207,6 +2207,7 @@ export async function startUI() {
     return;
   }
   // add default platform?
+  // TODO: do this after repo_id
   platform_id = qs['platform'] || (hasLocalStorage && localStorage.getItem("__lastplatform"));
   if (!platform_id) {
     platform_id = qs['platform'] = "vcs";
@@ -2217,7 +2218,7 @@ export async function startUI() {
     var repo = getRepos()[repo_id];
     if (repo) {
       qs['repo'] = repo_id;
-      if (repo.platform_id)
+      if (repo.platform_id && !qs['platform'])
         qs['platform'] = platform_id = repo.platform_id;
       if (!qs['file'])
         qs['file'] = repo.mainPath;

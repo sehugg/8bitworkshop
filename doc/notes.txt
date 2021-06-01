@@ -156,6 +156,8 @@ TODO:
   - better text/binary detection (e.g. 0xa9 copyright)
   - going into repo chooses wrong file if republished with different main
   - renaming main file doesn't change repo def.
+  - can't edit or push files until successful compile
+  - changing platform of repo makes one platform redirect to another platform
 - keyboard shortcuts
   - ctrl+alt+l on ubuntu locks screen
   - alt-D doesn't work anymore
@@ -527,3 +529,15 @@ Use tick() and refresh(), not callbacks
 Show current datum when using READ
 Use https://codemirror.net/doc/manual.html#markText
 Reset doesn't break @ start unless debugging tools expanded
+
+
+PORTING CC65 TO IDE
+
+flat directory for .c files
+#include "file.h" vs <file.h>
+//#link "foo.c" for each C file
+preprocessor differences (#define FOO 1 so #if works)
+extern void do_func(void)
+#pragma warnings
+CFG files
+
