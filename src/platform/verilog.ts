@@ -39,6 +39,7 @@ var VERILOG_PRESETS = [
   {id:'cpu16.v', name:'16-Bit CPU'},
   {id:'cpu_platform.v', name:'CPU Platform'},
   {id:'test2.asm', name:'16-bit ASM Game'},
+  {id:'cpu6502.v', name:'6502 CPU'},
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([

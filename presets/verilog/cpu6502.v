@@ -21,6 +21,8 @@
  *
  * The data bus is implemented as separate read/write buses. Combine them
  * on the output pads if external memory is required.
+ *
+ * Also see: https://github.com/sehugg/mango_one
  */
 
 module cpu6502( clk, reset, AB, DI, DO, WE, IRQ, NMI, RDY );
@@ -1352,6 +1354,10 @@ wire RDY=1;              // Ready signal. Pauses CPU when RDY=0
     end
   
   reg [7:0] rom[0:15];
+  //        LDY #$13
+  // .loop: DEY
+  //        BNE .loop
+  //        BRK
   initial begin
     rom = '{
       8'ha0,8'h13,

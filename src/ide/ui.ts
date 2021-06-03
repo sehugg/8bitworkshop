@@ -84,6 +84,7 @@ var TOOL_TO_SOURCE_STYLE = {
   'basic': 'basic',
   'silice': 'verilog',
   'wiz': 'text/x-wiz',
+  'vasmarm': '6502'
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {
@@ -2048,7 +2049,7 @@ async function startPlatform() {
   platform = new PLATFORMS[platform_id]($("#emuscreen")[0]);
   setPlatformUI();
   stateRecorder = new StateRecorderImpl(platform);
-  PRESETS = platform.getPresets();
+  PRESETS = platform.getPresets ? platform.getPresets() : [];
   if (!qs['file']) {
     // try to load last file (redirect)
     var lastid;

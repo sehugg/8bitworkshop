@@ -85,7 +85,7 @@ describe('Worker', function() {
     compile('dasm', '\tprocessor 6502\n\torg $f000\n MAC mack\n lda #0\n ENDM\nfoo: mack\n mack\n', 'vcs.mame', done, 4, 4);
   });
   it('should NOT assemble DASM', function(done) {
-    compile('dasm', '\tprocessor 6502\n\torg $f000 ; this is a comment\nfoo asl a\n', 'vcs', done, 0, 0, 3);
+    compile('dasm', '\tprocessor 6502\n\torg $f000 ; this is a comment\nfoo asl a\n', 'vcs', done, 0, 0, 2);
   });
   /*
   it('should assemble ACME', function(done) {
@@ -142,7 +142,7 @@ describe('Worker', function() {
   });
   it('should compile galaxian skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/galaxian-scramble/skeleton.sdcc'));
-    compile('sdcc', csource, 'galaxian-scramble', done, 20512, 29, 0);
+    compile('sdcc', csource, 'galaxian-scramble', done, 20512, 34, 0);
   });
   it('should compile vector skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/vector-z80color/skeleton.sdcc'));
@@ -150,7 +150,7 @@ describe('Worker', function() {
   });
   it('should compile williams skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/williams-z80/skeleton.sdcc'));
-    compile('sdcc', csource, 'williams-z80', done, 38912, 38, 0);
+    compile('sdcc', csource, 'williams-z80', done, 38912, 40, 0);
   });
   it('should compile williams_sound skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/sound_williams-z80/skeleton.sdcc'));

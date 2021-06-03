@@ -83,11 +83,9 @@ export class RasterVideo {
   }
   
   canvas : HTMLCanvasElement;
-  ctx;
-  imageData;
-  arraybuf;
-  buf8;
-  datau32;
+  ctx : CanvasRenderingContext2D;
+  imageData : ImageData;
+  datau32 : Uint32Array;
   vcanvas : JQuery;
   
   paddle_x = 255;

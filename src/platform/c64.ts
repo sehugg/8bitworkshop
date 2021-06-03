@@ -42,11 +42,6 @@ class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implement
 
   newMachine()          { return new C64_WASMMachine('c64'); }
 
-  async start() {
-    // TODO: start() needs to block
-    await this.machine.loadWASM();
-    super.start();
-  }
   getPresets()          { return C64_PRESETS; }
   getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.readConst(a); }

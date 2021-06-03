@@ -6,7 +6,7 @@ declare var WebAssembly;
 declare function importScripts(path:string);
 declare function postMessage(msg);
 
-const emglobal : any = this['window'] || this['global'] || this;
+const emglobal : any = (this as any)['window'] || (this as any)['global'] || this;
 const ENVIRONMENT_IS_WEB = typeof window === 'object';
 const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
 
@@ -2861,6 +2861,159 @@ function compileWiz(step:BuildStep) {
   }
 }
 
+function assembleARMIPS(step:BuildStep) {
+  loadNative("armips");
+  var errors = [];
+  gatherFiles(step, {mainFilePath:"main.asm"});
+  var objpath = step.prefix+".bin";
+
+  if (staleFiles(step, [objpath])) {
+    var args = [ step.path ];
+    var armips = emglobal.armips({
+      instantiateWasm: moduleInstFn('armips'),
+      noInitialRun:true,
+      print:(s:string) => {
+        console.log(s);
+      },
+      printErr:print_fn,
+    });
+    var FS = armips['FS'];
+    console.log("init FS", FS);
+    
+    populateFiles(step, FS);
+    execMain(step, armips, args);
+    if (errors.length)
+      return {errors:errors};
+
+    var objout = FS.readFile(objpath, {encoding:'binary'});
+    putWorkFile(objpath, objout);
+    if (!anyTargetChanged(step, [objpath]))
+      return;
+
+    var symbolmap = {};
+    var segments = [];
+    var listings : CodeListingMap = {};
+    return {
+      output:objout, //.slice(0),
+      listings:listings,
+      errors:errors,
+      symbolmap:symbolmap,
+      segments:segments
+    };
+  }
+}
+
+function assembleVASMARM(step:BuildStep) {
+  loadNative("vasmarm_std");
+  /// error 2 in line 8 of "gfxtest.c": unknown mnemonic <ew>
+  /// error 3007: undefined symbol <XXLOOP>
+  /// TODO: match undefined symbols
+  var re_err1 = /^(fatal error|error|warning)? (\d+) in line (\d+) of "(.+)": (.+)/;
+  var re_err2 = /^(fatal error|error|warning)? (\d+): (.+)/;
+  var errors : WorkerError[] = [];
+  function match_fn(s) {
+    var matches = re_err1.exec(s);
+    if (matches) {
+      errors.push({
+        line:parseInt(matches[3]),
+        path:matches[2],
+        msg:matches[5],
+      });
+    } else {
+      matches = re_err2.exec(s);
+      if (matches) {
+        errors.push({
+          line:0,
+          msg:s,
+        });
+      } else {
+        console.log(s);
+      }
+    }
+  }
+
+  gatherFiles(step, {mainFilePath:"main.asm"});
+  var objpath = step.prefix+".bin";
+  var lstpath = step.prefix+".lst";
+
+  if (staleFiles(step, [objpath])) {
+    var args = [ '-Fbin', '-x', '-wfail', step.path, '-o', objpath, '-L', lstpath ];
+    var vasm = emglobal.vasm({
+      instantiateWasm: moduleInstFn('vasmarm_std'),
+      noInitialRun:true,
+      print:match_fn,
+      printErr:match_fn,
+    });
+
+    var FS = vasm['FS'];
+    populateFiles(step, FS);
+    execMain(step, vasm, args);
+    if (errors.length) {
+      return {errors:errors};
+    }
+
+    var objout = FS.readFile(objpath, {encoding:'binary'});
+    putWorkFile(objpath, objout);
+    if (!anyTargetChanged(step, [objpath]))
+      return;
+
+    var lstout = FS.readFile(lstpath, {encoding:'utf8'});
+    //console.log(lstout);
+    // F00:0001        mov r0, #0x884400	; RGB value
+    //                S01:00000000:  11 0B A0 E3 22 07 80 E3
+    // S01  .text
+    // F00  vidfill.vasm
+    // LOOP LAB (0x10) sec=.text 
+    var symbolmap = {};
+    var segments = [];
+    var listings : CodeListingMap = {};
+    // TODO: parse listings
+    var re_lstline = /^F(\d+):(\d+)\s+(.+)/;
+    var re_secline = /^\s+S(\d+):([0-9A-F]+):\s*([0-9A-F ]+)/;
+    var re_nameline = /^([SF])(\d+)\s+(.+)/;
+    var files = {};
+    var sections = {};
+    // map file and section indices -> names
+    var lines = lstout.split(re_crlf);
+    for (var line of lines) {
+      var m;
+      if (m = re_nameline.exec(line)) {
+        if (m[1] == 'F') {
+          files[m[2]] = m[3];
+        } else {
+          sections[m[2]] = m[3];
+        }
+      }
+    }
+    //console.log(files, sections);
+    // parse lines
+    var lstlines : SourceLine[] = [];
+    var linenum = 0;
+    for (var line of lines) {
+      var m;
+      if (m = re_lstline.exec(line)) {
+        linenum = parseInt(m[2]);
+      } else if (m = re_secline.exec(line)) {
+        lstlines.push({
+          line: linenum,
+          offset: parseInt(m[2], 16),
+          path: step.path,
+          insns: m[3].replaceAll(' ','')
+        });
+      }
+    }
+    listings[lstpath] = {lines:lstlines};
+
+    return {
+      output:objout, //.slice(0),
+      listings:listings,
+      errors:errors,
+      symbolmap:symbolmap,
+      segments:segments
+    };
+  }
+}
+
 ////////////////////////////
 
 var TOOLS = {
@@ -2896,6 +3049,8 @@ var TOOLS = {
   'basic': compileBASIC,
   'silice': compileSilice,
   'wiz': compileWiz,
+  'armips': assembleARMIPS,
+  'vasmarm': assembleVASMARM,
 }
 
 var TOOL_PRELOADFS = {

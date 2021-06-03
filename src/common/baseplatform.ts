@@ -75,7 +75,7 @@ export interface Platform {
   isRunning() : boolean;
   getToolForFilename(s:string) : string;
   getDefaultExtension() : string;
-  getPresets() : Preset[];
+  getPresets?() : Preset[];
   pause() : void;
   resume() : void;
   loadROM(title:string, rom:any); // TODO: Uint8Array
@@ -1086,7 +1086,6 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   constructor(mainElement : HTMLElement) {
     super();
     this.mainElement = mainElement;
-    this.machine = this.newMachine();
   }
 
   reset()        { this.machine.reset(); }
@@ -1099,8 +1098,13 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   loadControlsState(s)   { this.machine.loadControlsState(s); }
   saveControlsState()    { return this.machine.saveControlsState(); }
   
-  start() {
+  async start() {
+    this.machine = this.newMachine();
     const m = this.machine;
+    // block on WASM loading
+    if (m instanceof BaseWASMMachine) {
+      await m.loadWASM();
+    }
     var videoFrequency;
     if (hasVideo(m)) {
       var vp = m.getVideoParams();

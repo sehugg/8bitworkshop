@@ -16,3 +16,6 @@
 [submodule "nanoasm"]
 	path = nanoasm
 	url = https://github.com/sehugg/nanoasm
+[submodule "unicorn.js"]
+	path = unicorn.js
+	url = https://github.com/AlexAltea/unicorn.js

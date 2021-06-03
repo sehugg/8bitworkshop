@@ -499,41 +499,40 @@ export class DisassemblerView implements ProjectView {
 
   // TODO: too many globals
   refresh(moveCursor: boolean) {
-    var state = lastDebugState || platform.saveState(); // TODO?
-    var pc = state.c ? state.c.PC : 0;
-    var curline = 0;
-    var selline = 0;
-    var addr2symbol = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
+    let state = lastDebugState || platform.saveState(); // TODO?
+    let pc = state.c ? state.c.PC : 0;
+    let curline = 0;
+    let selline = 0;
+    let addr2symbol = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
     // TODO: not perfect disassembler
-    var disassemble = (start, end) => {
-      if (start < 0) start = 0;
-      if (end > 0xffff) end = 0xffff;
+    let disassemble = (start, len) => {
       // TODO: use pc2visits
-      var a = start;
-      var s = "";
-      while (a < end) {
-        var disasm = platform.disassemble(a, platform.readAddress.bind(platform));
+      let s = "";
+      let ofs = 0;
+      while (ofs < len) {
+        let a = (start + ofs) | 0;
+        let disasm = platform.disassemble(a, platform.readAddress.bind(platform));
         /* TODO: look thru all source files
-        var srclinenum = sourcefile && this.sourcefile.offset2line[a];
+        let srclinenum = sourcefile && this.sourcefile.offset2line[a];
         if (srclinenum) {
-          var srcline = getActiveEditor().getLine(srclinenum);
+          let srcline = getActiveEditor().getLine(srclinenum);
           if (srcline && srcline.trim().length) {
             s += "; " + srclinenum + ":\t" + srcline + "\n";
             curline++;
           }
         }
         */
-        var bytes = "";
-        var comment = "";
-        for (var i=0; i<disasm.nbytes; i++)
+        let bytes = "";
+        let comment = "";
+        for (let i=0; i<disasm.nbytes; i++)
           bytes += hex(platform.readAddress(a+i));
         while (bytes.length < 14)
           bytes += ' ';
-        var dstr = disasm.line;
+        let dstr = disasm.line;
         if (addr2symbol && disasm.isaddr) { // TODO: move out
           dstr = dstr.replace(/([^#])[$]([0-9A-F]+)/, (substr:string, ...args:any[]):string => {
-            var addr = parseInt(args[1], 16);
-            var sym = addr2symbol[addr];
+            let addr = parseInt(args[1], 16);
+            let sym = addr2symbol[addr];
             if (sym) return (args[0] + sym);
             sym = addr2symbol[addr-1];
             if (sym) return (args[0] + sym + "+1");
@@ -541,20 +540,20 @@ export class DisassemblerView implements ProjectView {
           });
         }
         if (addr2symbol) {
-          var sym = addr2symbol[a];
+          let sym = addr2symbol[a];
           if (sym) {
             comment = "; " + sym;
           }
         }
-        var dline = hex(parseInt(a), 4) + "\t" + rpad(bytes,14) + "\t" + rpad(dstr,30) + comment + "\n";
+        let dline = hex(a, 4) + "\t" + rpad(bytes,14) + "\t" + rpad(dstr,30) + comment + "\n";
         s += dline;
         if (a == pc) selline = curline;
         curline++;
-        a += disasm.nbytes || 1;
+        ofs += disasm.nbytes || 1;
       }
       return s;
     }
-    var text = disassemble(pc-disasmWindow, pc) + disassemble(pc, pc+disasmWindow);
+    let text = disassemble(pc-disasmWindow, disasmWindow) + disassemble(pc, disasmWindow);
     this.disasmview.setValue(text);
     if (moveCursor) { 
       this.disasmview.setCursor(selline, 0);

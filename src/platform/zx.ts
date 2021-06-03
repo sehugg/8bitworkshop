@@ -23,11 +23,6 @@ class ZXWASMPlatform extends BaseZ80MachinePlatform<ZX_WASMMachine> implements P
 
   newMachine()          { return new ZX_WASMMachine('zx'); }
 
-  async start() {
-    // TODO: start() needs to block
-    await this.machine.loadWASM();
-    super.start();
-  }
   getPresets()          { return ZX_PRESETS; }
   getDefaultExtension() { return ".asm"; };
   readAddress(a)        { return this.machine.readConst(a); }
