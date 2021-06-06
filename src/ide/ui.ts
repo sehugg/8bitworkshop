@@ -55,7 +55,7 @@ var debugCategory;		// current debug category
 var debugTickPaused = false;
 var recorderActive = false;
 var lastViewClicked = null;
-
+var errorWasRuntime = false;
 var lastBreakExpr = "c.PC == 0x6000";
 
 // TODO: codemirror multiplex support?
@@ -1106,14 +1106,16 @@ function getErrorElement(err : WorkerError) {
 
 function hideErrorAlerts() {
   $("#error_alert").hide();
+  errorWasRuntime = false;
 }
 
-function showErrorAlert(errors : WorkerError[]) {
+function showErrorAlert(errors : WorkerError[], runtime : boolean) {
   var div = $("#error_alert_msg").empty();
   for (var err of errors.slice(0,10)) {
     div.append(getErrorElement(err));
   }
   $("#error_alert").show();
+  errorWasRuntime = runtime;
 }
 
 function showExceptionAsError(err, msg:string) {
@@ -1125,7 +1127,7 @@ function showExceptionAsError(err, msg:string) {
       console.log(werr);
       projectWindows.refresh(false);
     }
-    showErrorAlert([werr]);
+    showErrorAlert([werr], true);
   }
 }
 
@@ -1146,7 +1148,7 @@ function setCompileOutput(data: WorkerResult) {
   if (data && data.errors && data.errors.length > 0) {
     toolbar.addClass("has-errors");
     projectWindows.setErrors(data.errors);
-    showErrorAlert(data.errors);
+    showErrorAlert(data.errors, false);
   } else {
     toolbar.removeClass("has-errors"); // may be added in next callback
     projectWindows.setErrors(null);
@@ -1286,7 +1288,7 @@ function setupDebugCallback(btnid? : string) {
   if (platform.setupDebug) platform.setupDebug((state:EmuState, msg:string) => {
     uiDebugCallback(state);
     setDebugButtonState(btnid||"pause", "stopped");
-    msg && showErrorAlert([{msg:"STOPPED: " + msg, line:0}]);
+    msg && showErrorAlert([{msg:"STOPPED: " + msg, line:0}], true);
   });
 }
 
@@ -1318,7 +1320,7 @@ function _resume() {
     console.log("Resumed");
   }
   setDebugButtonState("go", "active");
-  // TODO: hide alerts, but only if exception generated them
+  if (errorWasRuntime) { hideErrorAlerts(); }
 }
 
 function resume() {

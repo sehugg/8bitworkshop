@@ -6,12 +6,6 @@ import { TssChannelAdapter, MasterAudio, AY38910_Audio } from "../common/audio";
 
 // http://www.computerarcheology.com/Arcade/
 
-const MW8080BW_PRESETS = [
-  { id: 'gfxtest.c', name: 'Graphics Test' },
-  { id: 'shifter.c', name: 'Sprite w/ Bit Shifter' },
-  { id: 'game2.c', name: 'Cosmic Impalas' },
-];
-
 const SPACEINV_KEYCODE_MAP = makeKeycodeMap([
   [Keys.A,        1, 0x10], // P1
   [Keys.LEFT,     1, 0x20],

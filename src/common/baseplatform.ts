@@ -1220,6 +1220,14 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   readAddress(addr : number) : number {
     return this.machine.read(addr);
   }
+
+  getDebugCategories() {
+    if (isDebuggable(this.machine))
+      return this.machine.getDebugCategories();
+  }
+  getDebugInfo(category:string, state:EmuState) : string {
+    return isDebuggable(this.machine) && this.machine.getDebugInfo(category, state);
+  }
 }
 
 // TODO: move debug info into CPU?

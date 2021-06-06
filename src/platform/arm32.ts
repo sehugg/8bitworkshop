@@ -1,10 +1,10 @@
-"use strict";
 
-import { BaseDebugPlatform, CpuState, EmuState, Platform, DisasmLine, Debuggable } from "../common/baseplatform";
+import { BaseDebugPlatform, CpuState, EmuState, Platform, DisasmLine, Debuggable, Machine, BaseMachinePlatform } from "../common/baseplatform";
 import { AnimationTimer, EmuHalt, padBytes, PLATFORMS, RasterVideo } from "../common/emu";
 import { loadScript } from "../ide/ui";
 import { hex, lpad } from "../common/util";
 import { ARM32CPU } from "../common/cpu/ARM";
+import { ARM32Machine } from "../machine/arm32";
 
 declare var uc, cs : any; // Unicorn module
 
@@ -25,7 +25,7 @@ interface ARM32State extends EmuState {
   r: Uint32Array; // registers
 }
 
-class ARM32Platform extends BaseDebugPlatform implements Platform, Debuggable {
+class ARM32UnicornPlatform extends BaseDebugPlatform implements Platform, Debuggable {
 
   u : any; // Unicorn
   d : any; // Capstone
@@ -48,7 +48,7 @@ class ARM32Platform extends BaseDebugPlatform implements Platform, Debuggable {
     await loadScript('./lib/unicorn-arm.min.js');
     await loadScript('./lib/capstone-arm.min.js');
 
-    //this.cpu = new ARM32CPU();
+    this.cpu = new ARM32CPU();
 
     this.u = new uc.Unicorn(uc.ARCH_ARM, uc.MODE_ARM);
     this.u.mem_map(ROM_START_ADDR, ROM_SIZE, uc.PROT_READ | uc.PROT_EXEC);
@@ -63,7 +63,7 @@ class ARM32Platform extends BaseDebugPlatform implements Platform, Debuggable {
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
   reset() {
-    //this.cpu.reset();
+    this.cpu.reset();
     this.u.reg_write_i32(uc.ARM_REG_PC, 0);
     var cpsr = this.u.reg_read_i32(uc.ARM_REG_CPSR);
     this.u.reg_write_i32(uc.ARM_REG_CPSR, (cpsr & 0xffffff00) | 0b11010011);
@@ -89,8 +89,8 @@ class ARM32Platform extends BaseDebugPlatform implements Platform, Debuggable {
   }
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     try {
-      var b = this.u.mem_read(pc, 8);
-      var insns = this.d.disasm(b, pc, 8);
+      var b = this.u.mem_read(pc, 4);
+      var insns = this.d.disasm(b, pc, 4);
       var i0 = insns[0];
       return {
         nbytes: i0.size,
@@ -220,29 +220,59 @@ class ARM32Platform extends BaseDebugPlatform implements Platform, Debuggable {
   }
 }
 
-/*
+////
+
 export abstract class BaseARMMachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
 
     //getOpcodeMetadata     = getOpcodeMetadata_z80;
-    getToolForFilename() { return "armips"; }
+    getToolForFilename() { return "vasmarm"; }
   
   }
   
-class ARM32Platform extends BaseARMMachinePlatform<ARM32Console> implements Platform {
+class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Platform {
+
+  capstone : any;
 
   async start() {
-    console.log("Loading Unicorn");
-    await loadScript('./unicorn.js/dist/unicorn-arm.min.js');
-    return super.start();
+    super.start();
+    console.log("Loading Capstone");
+    await loadScript('./lib/capstone-arm.min.js');
+    this.capstone = new cs.Capstone(cs.ARCH_ARM, cs.MODE_ARM);
   }
-  newMachine()          { return new ARM32Console(); }
+
+  newMachine()          { return new ARM32Machine(); }
   getPresets()          { return ARM32_PRESETS; }
   getDefaultExtension() { return ".asm"; };
   readAddress(a)        { return this.machine.read(a); }
   getMemoryMap = function() { return { main:[
-      {name:'Frame Buffer',start:0x2400,size:7168,type:'ram'},
+    {name:'ROM',start:0x00000000,size:0x80000,type:'rom'},
+    {name:'RAM',start:0x20000000,size:0x80000,type:'ram'},
+    {name:'Video RAM',start:0x40000000,size:0x20000,type:'ram'},
   ] } };
+  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
+    var buf = [];
+    for (var i=0; i<4; i++) {
+      buf[i] = read(pc+i);
+    }
+    var insns = this.capstone.disasm(buf, pc, 4);
+    var i0 = insns && insns[0];
+    if (i0) {
+      return {
+        nbytes: i0.size,
+        line: i0.mnemonic + " " + i0.op_str,
+        isaddr: i0.address > 0
+      };
+    } else {
+      return {
+        nbytes: 4,
+        line: "???",
+        isaddr: false
+      };
+    }
+  }
 }
-*/
 
+////
+
+PLATFORMS['arm32.u'] = ARM32UnicornPlatform;
 PLATFORMS['arm32'] = ARM32Platform;

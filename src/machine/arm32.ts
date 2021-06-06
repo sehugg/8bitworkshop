@@ -1,0 +1,121 @@
+
+import { ARM32CPU, ARMCoreState } from "../common/cpu/ARM";
+import { BasicScanlineMachine } from "../common/devices";
+import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler } from "../common/emu";
+import { TssChannelAdapter, MasterAudio, AY38910_Audio } from "../common/audio";
+import { Debuggable, EmuState } from "../common/baseplatform";
+import { hex, lpad, printFlags } from "../common/util";
+
+const SPACEINV_KEYCODE_MAP = makeKeycodeMap([
+  [Keys.A,        1, 0x10], // P1
+  [Keys.LEFT,     1, 0x20],
+  [Keys.RIGHT,    1, 0x40],
+  [Keys.P2_A,     2, 0x10], // P2
+  [Keys.P2_LEFT,  2, 0x20],
+  [Keys.P2_RIGHT, 2, 0x40],
+  [Keys.SELECT,   1, 0x1],
+  [Keys.START,    1, 0x4],
+  [Keys.P2_START, 1, 0x2],
+]);
+
+const ROM_START =        0x0;
+const ROM2_START= 0xff800000;
+const ROM_SIZE  =    0x80000;
+const RAM_START = 0x20000000;
+const RAM_SIZE  =    0x80000;
+const VID_START = 0x40000000;
+const VID_SIZE  =    0x20000;
+
+const CPU_FREQ = 4000000;
+
+export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
+
+  cpuFrequency = CPU_FREQ; // MHz
+  canvasWidth = 160;
+  numTotalScanlines = 256;
+  numVisibleScanlines = 128;
+  cpuCyclesPerLine = Math.floor(CPU_FREQ / (256*60));
+  defaultROMSize = 512*1024;
+  sampleRate = 1;
+  
+  cpu: ARM32CPU = new ARM32CPU();
+  ram = new Uint8Array(512*1024);
+  pixels8 : Uint8Array;
+
+  constructor() {
+    super();
+    this.connectCPUMemoryBus(this);
+    this.handler = newKeyboardHandler(this.inputs, SPACEINV_KEYCODE_MAP);
+  }
+
+  connectVideo(pixels:Uint32Array) : void {
+    super.connectVideo(pixels);
+    this.pixels8 = new Uint8Array(pixels.buffer);
+    //this.pixels.fill(0xff000000);
+  }
+
+  read = newAddressDecoder([
+    [ROM_START, ROM_START+ROM_SIZE-1, ROM_SIZE-1, (a) => {
+      return this.rom ? this.rom[a] : 0;
+    }],
+    [RAM_START, RAM_START+RAM_SIZE-1, RAM_SIZE-1, (a) => {
+      return this.ram[a];
+    }],
+    [ROM2_START, ROM2_START+ROM_SIZE-1, ROM_SIZE-1, (a) => {
+      return this.rom ? this.rom[a] : 0;
+    }],
+  ]);
+
+  write = newAddressDecoder([
+    [RAM_START, RAM_START+RAM_SIZE-1, RAM_SIZE-1, (a, v) => {
+      this.ram[a] = v;
+    }],
+    [VID_START, VID_START+VID_SIZE-1, VID_SIZE-1, (a, v) => {
+      this.pixels8[a] = v;
+    }],
+  ]);
+
+  startScanline() {
+  }
+
+  drawScanline() {
+    // at end of scanline
+  }
+  
+  getDebugCategories() {
+    return ['CPU'];
+  }
+
+  getDebugInfo?(category: string, state: EmuState) : string {
+    var s = '';
+    var c = state.c as ARMCoreState;
+    for (var i=0; i<13; i++) {
+      s += lpad('r'+i, 3) + '  ' + hex(c.gprs[i],8) + '\n';
+    }
+    s += ' SP  ' + hex(c.SP,8) + '\n';
+    s += ' LR  ' + hex(c.gprs[14],8) + '\n';
+    s += ' PC  ' + hex(c.PC,8) + '\n';
+    s += c.cpsrN ? " N" : " -";
+    s += c.cpsrV ? " V" : " -";
+    s += c.cpsrF ? " F" : " -";
+    s += c.cpsrZ ? " Z" : " -";
+    s += c.cpsrC ? " C" : " -";
+    s += c.cpsrI ? " I" : " -";
+    s += '\n';
+    s += 'MODE ' + MODE_NAMES[c.mode];
+    s += '\n';
+    s += 'cycl ' + c.cycles;
+    s += '\n';
+    return s;
+  }
+}
+
+const MODE_NAMES = {
+	0x10: "USER",
+  0x11: "FIQ",
+  0x12: "IRQ",
+  0x13: "SUPERVISOR",
+  0x17: "ABORT",
+  0x1b: "UNDEFINED",
+  0x1f: "SYSTEM",
+};

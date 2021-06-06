@@ -32,7 +32,11 @@ export function getFilenamePrefix(s:string):string {
 
 export function hex(v:number, nd?:number) {
   if (!nd) nd = 2;
-  return toradix(v,nd,16);
+  if (nd == 8) {
+    return hex((v>>16)&0xffff,4) + hex(v&0xffff,4);
+  } else {
+    return toradix(v,nd,16);
+  }
 }
 
 export function tobin(v:number, nd?:number) {

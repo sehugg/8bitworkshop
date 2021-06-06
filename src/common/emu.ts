@@ -626,16 +626,16 @@ type AddressDecoderOptions = {gmask?:number};
 // TODO: better performance, check values
 export function AddressDecoder(table : AddressDecoderEntry[], options?:AddressDecoderOptions) {
   var self = this;
-  function makeFunction(lo, hi) {
+  function makeFunction() {
     var s = "";
     if (options && options.gmask) {
       s += "a&=" + options.gmask + ";";
     }
     for (var i=0; i<table.length; i++) {
       var entry = table[i];
-      var start = entry[0];
-      var end = entry[1];
-      var mask = entry[2];
+      var start = entry[0]|0;
+      var end = entry[1]|0;
+      var mask = entry[2]|0;
       var func = entry[3];
       self['__fn'+i] = func;
       s += "if (a>=" + start + " && a<="+end + "){";
@@ -645,7 +645,7 @@ export function AddressDecoder(table : AddressDecoderEntry[], options?:AddressDe
     s += "return 0;"; // TODO: noise()?
     return new Function('a', 'v', s);
   }
-  return makeFunction(0x0, 0xffff).bind(self);
+  return makeFunction().bind(self);
 }
 
 export function newAddressDecoder(table : AddressDecoderEntry[], options?:AddressDecoderOptions) : (a:number,v?:number) => number {
