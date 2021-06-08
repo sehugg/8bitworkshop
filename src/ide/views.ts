@@ -71,6 +71,7 @@ const MODEDEFS = {
   z80: { isAsm: true },
   jsasm: { isAsm: true },
   gas: { isAsm: true },
+  vasm: { isAsm: true },
   inform6: { theme: 'cobalt' },
   markdown: { lineWrap: true },
   fastbasic: { noGutters: true },

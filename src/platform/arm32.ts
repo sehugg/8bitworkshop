@@ -231,13 +231,15 @@ export abstract class BaseARMMachinePlatform<T extends Machine> extends BaseMach
   
 class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Platform {
 
-  capstone : any;
+  capstone_arm : any;
+  capstone_thumb : any;
 
   async start() {
     super.start();
     console.log("Loading Capstone");
     await loadScript('./lib/capstone-arm.min.js');
-    this.capstone = new cs.Capstone(cs.ARCH_ARM, cs.MODE_ARM);
+    this.capstone_arm = new cs.Capstone(cs.ARCH_ARM, cs.MODE_ARM);
+    this.capstone_thumb = new cs.Capstone(cs.ARCH_ARM, cs.MODE_THUMB);
   }
 
   newMachine()          { return new ARM32Machine(); }
@@ -250,11 +252,13 @@ class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Plat
     {name:'Video RAM',start:0x40000000,size:0x20000,type:'ram'},
   ] } };
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
+    var is_thumb = this.machine.cpu.isThumb();
+    var capstone = is_thumb ? this.capstone_thumb : this.capstone_arm;
     var buf = [];
     for (var i=0; i<4; i++) {
       buf[i] = read(pc+i);
     }
-    var insns = this.capstone.disasm(buf, pc, 4);
+    var insns = capstone.disasm(buf, pc, 4);
     var i0 = insns && insns[0];
     if (i0) {
       return {

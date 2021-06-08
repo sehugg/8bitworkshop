@@ -89,12 +89,12 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
   getDebugInfo?(category: string, state: EmuState) : string {
     var s = '';
     var c = state.c as ARMCoreState;
-    for (var i=0; i<13; i++) {
-      s += lpad('r'+i, 3) + '  ' + hex(c.gprs[i],8) + '\n';
+    const EXEC_MODE = {2:'Thumb',4:'ARM'};
+    const REGNAMES = {15:'PC',14:'LR',13:'SP',12:'IP',11:'FP',9:'SB'};
+    for (var i=0; i<16; i++) {
+      s += lpad(REGNAMES[i]||'',3) + lpad('r'+i, 5) + '  ' + hex(c.gprs[i],8) + '\n';
     }
-    s += ' SP  ' + hex(c.SP,8) + '\n';
-    s += ' LR  ' + hex(c.gprs[14],8) + '\n';
-    s += ' PC  ' + hex(c.PC,8) + '\n';
+    s += 'Flags ';
     s += c.cpsrN ? " N" : " -";
     s += c.cpsrV ? " V" : " -";
     s += c.cpsrF ? " F" : " -";
@@ -102,10 +102,9 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
     s += c.cpsrC ? " C" : " -";
     s += c.cpsrI ? " I" : " -";
     s += '\n';
-    s += 'MODE ' + MODE_NAMES[c.mode];
-    s += '\n';
-    s += 'cycl ' + c.cycles;
-    s += '\n';
+    s += 'MODE ' + EXEC_MODE[c.instructionWidth] + ' ' + MODE_NAMES[c.mode] + '\n';
+    s += 'SPSR ' + hex(c.spsr,8) + '\n';
+    s += 'cycl ' + c.cycles + '\n';
     return s;
   }
 }

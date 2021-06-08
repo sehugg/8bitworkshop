@@ -750,8 +750,8 @@ var wasmMemory;
 // so this creates a (non-native-wasm) table for us.
 
 var wasmTable = new WebAssembly.Table({
-  'initial': 109,
-  'maximum': 109,
+  'initial': 111,
+  'maximum': 111,
   'element': 'anyfunc'
 });
 
@@ -1372,11 +1372,11 @@ function updateGlobalBufferAndViews(buf) {
 }
 
 var STATIC_BASE = 1024,
-    STACK_BASE = 5270320,
+    STACK_BASE = 5270912,
     STACKTOP = STACK_BASE,
-    STACK_MAX = 27440,
-    DYNAMIC_BASE = 5270320,
-    DYNAMICTOP_PTR = 27280;
+    STACK_MAX = 28032,
+    DYNAMIC_BASE = 5270912,
+    DYNAMICTOP_PTR = 27872;
 
 assert(STACK_BASE % 16 === 0, 'stack must start aligned');
 assert(DYNAMIC_BASE % 16 === 0, 'heap must start aligned');
@@ -1940,7 +1940,7 @@ var ASM_CONSTS = {
 
 
 
-// STATICTOP = STATIC_BASE + 26416;
+// STATICTOP = STATIC_BASE + 27008;
 /* global initializers */  __ATINIT__.push({ func: function() { ___wasm_call_ctors() } });
 
 
@@ -4678,7 +4678,7 @@ var ASM_CONSTS = {
   }
 
   function _emscripten_get_sbrk_ptr() {
-      return 27280;
+      return 27872;
     }
 
   function _emscripten_memcpy_big(dest, src, num) {
@@ -4872,6 +4872,12 @@ var stackRestore = Module["stackRestore"] = createExportWrapper("stackRestore");
 var stackAlloc = Module["stackAlloc"] = createExportWrapper("stackAlloc");
 
 /** @type {function(...*):?} */
+var dynCall_iii = Module["dynCall_iii"] = createExportWrapper("dynCall_iii");
+
+/** @type {function(...*):?} */
+var dynCall_vii = Module["dynCall_vii"] = createExportWrapper("dynCall_vii");
+
+/** @type {function(...*):?} */
 var dynCall_vi = Module["dynCall_vi"] = createExportWrapper("dynCall_vi");
 
 /** @type {function(...*):?} */
@@ -4890,16 +4896,10 @@ var dynCall_vijjiii = Module["dynCall_vijjiii"] = createExportWrapper("dynCall_v
 var dynCall_vjjjj = Module["dynCall_vjjjj"] = createExportWrapper("dynCall_vjjjj");
 
 /** @type {function(...*):?} */
-var dynCall_iii = Module["dynCall_iii"] = createExportWrapper("dynCall_iii");
-
-/** @type {function(...*):?} */
 var dynCall_iiii = Module["dynCall_iiii"] = createExportWrapper("dynCall_iiii");
 
 /** @type {function(...*):?} */
 var dynCall_iidiiii = Module["dynCall_iidiiii"] = createExportWrapper("dynCall_iidiiii");
-
-/** @type {function(...*):?} */
-var dynCall_vii = Module["dynCall_vii"] = createExportWrapper("dynCall_vii");
 
 /** @type {function(...*):?} */
 var dynCall_jiji = Module["dynCall_jiji"] = createExportWrapper("dynCall_jiji");

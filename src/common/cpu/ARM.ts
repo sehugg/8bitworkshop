@@ -101,7 +101,8 @@ export interface ARMCoreState {
 	bankedRegisters: number[][],
 	spsr: number,
 	bankedSPSRs: number[],
-	cycles: number
+	cycles: number,
+	instructionWidth: 2 | 4
 }
 
 interface ARMCoreType {
@@ -122,6 +123,7 @@ interface ARMCoreType {
 	spsr: number;
 	mmu: ARMMMUInterface;
 	irq : ARMIRQInterface;
+	instructionWidth: 2 | 4;
 
 	hasSPSR() : boolean;
 	unpackCPSR(v : number) : void;
@@ -146,6 +148,33 @@ export enum ARMMode {
 	MODE_ABORT = 0x17,
 	MODE_UNDEFINED = 0x1B,
 	MODE_SYSTEM = 0x1F
+}
+
+export enum ARMRegs {
+	SP = 13,
+	LR = 14,
+	PC = 15,
+}
+
+export enum ARMConstants {
+
+	BANK_NONE = 0,
+	BANK_FIQ = 1,
+	BANK_IRQ = 2,
+	BANK_SUPERVISOR = 3,
+	BANK_ABORT = 4,
+	BANK_UNDEFINED = 5,
+
+	WORD_SIZE_ARM = 4,
+	WORD_SIZE_THUMB = 2,
+
+	BASE_RESET = 0x00000000,
+	BASE_UNDEF = 0x00000004,
+	BASE_SWI = 0x00000008,
+	BASE_PABT = 0x0000000C,
+	BASE_DABT = 0x00000010,
+	BASE_IRQ = 0x00000018,
+	BASE_FIQ = 0x0000001C,
 }
 
 const UNALLOC_MASK = 0x0FFFFF00;
@@ -2627,14 +2656,14 @@ function ARMCore() {
 };
 
 ARMCore.prototype.resetCPU = function(startOffset) {
-	for (var i = 0; i < this.PC; ++i) {
+	for (var i = 0; i < ARMRegs.PC; ++i) {
 		this.gprs[i] = 0;
 	}
-	this.gprs[this.PC] = startOffset + this.WORD_SIZE_ARM;
+	this.gprs[ARMRegs.PC] = startOffset + ARMConstants.WORD_SIZE_ARM;
 
 	this.loadInstruction = this.loadInstructionArm;
 	this.execMode = ARMMode.MODE_ARM;
-	this.instructionWidth = this.WORD_SIZE_ARM;
+	this.instructionWidth = ARMConstants.WORD_SIZE_ARM;
 
 	this.mode = ARMMode.MODE_SYSTEM;
 
@@ -2674,21 +2703,21 @@ ARMCore.prototype.resetCPU = function(startOffset) {
 	var mmu = this.mmu as ARMMMUInterface;
 
 	this.step = function() {
-		var instruction = this.instruction || (this.instruction = this.loadInstruction(gprs[this.PC] - this.instructionWidth));
-		gprs[this.PC] += this.instructionWidth;
+		var instruction = this.instruction || (this.instruction = this.loadInstruction(gprs[ARMRegs.PC] - this.instructionWidth));
+		gprs[ARMRegs.PC] += this.instructionWidth;
 		this.conditionPassed = true;
 		instruction();
 
 		if (!instruction.writesPC) {
 			if (this.instruction != null) { // We might have gotten an interrupt from the instruction
 				if (instruction.next == null || instruction.next.page.invalid) {
-					instruction.next = this.loadInstruction(gprs[this.PC] - this.instructionWidth);
+					instruction.next = this.loadInstruction(gprs[ARMRegs.PC] - this.instructionWidth);
 				}
 				this.instruction = instruction.next;
 			}
 		} else {
 			if (this.conditionPassed) {
-				var pc = gprs[this.PC] &= 0xFFFFFFFE;
+				var pc = gprs[ARMRegs.PC] &= 0xFFFFFFFE;
 				if (this.execMode == ARMMode.MODE_ARM) {
 					mmu.wait32(pc);
 					mmu.waitPrefetch32(pc);
@@ -2696,12 +2725,12 @@ ARMCore.prototype.resetCPU = function(startOffset) {
 					mmu.wait(pc);
 					mmu.waitPrefetch(pc);
 				}
-				gprs[this.PC] += this.instructionWidth;
+				gprs[ARMRegs.PC] += this.instructionWidth;
 				if (!instruction.fixedJump) {
 					this.instruction = null;
 				} else if  (this.instruction != null) {
 					if (instruction.next == null || instruction.next.page.invalid) {
-						instruction.next = this.loadInstruction(gprs[this.PC] - this.instructionWidth);
+						instruction.next = this.loadInstruction(gprs[ARMRegs.PC] - this.instructionWidth);
 					}
 					this.instruction = instruction.next;
 				}
@@ -2787,7 +2816,8 @@ ARMCore.prototype.freeze = function() : ARMCoreState {
 			this.bankedSPSRs[4],
 			this.bankedSPSRs[5]
 		],
-		'cycles': this.cycles
+		'cycles': this.cycles,
+		'instructionWidth': this.instructionWidth,
 	};
 };
 
@@ -2860,6 +2890,10 @@ ARMCore.prototype.defrost = function(frost: ARMCoreState) {
 	this.bankedSPSRs[5] = frost.bankedSPSRs[5];
 
 	this.cycles = frost.cycles;
+
+	this.instructionWidth = frost.instructionWidth;
+	this.loadInstruction = frost.instructionWidth == 2 ? this.loadInstructionThumb : this.loadInstructionArm;
+	this.execMode = frost.instructionWidth == 2 ? ARMMode.MODE_THUMB : ARMMode.MODE_ARM;
 };
 
 ARMCore.prototype.fetchPage = function(address : number) {
@@ -2921,17 +2955,17 @@ ARMCore.prototype.selectBank = function(mode : ARMMode) {
 	case ARMMode.MODE_USER:
 	case ARMMode.MODE_SYSTEM:
 		// No banked registers
-		return this.BANK_NONE;
+		return ARMConstants.BANK_NONE;
 	case ARMMode.MODE_FIQ:
-		return this.BANK_FIQ;
+		return ARMConstants.BANK_FIQ;
 	case ARMMode.MODE_IRQ:
-		return this.BANK_IRQ;
+		return ARMConstants.BANK_IRQ;
 	case ARMMode.MODE_SUPERVISOR:
-		return this.BANK_SUPERVISOR;
+		return ARMConstants.BANK_SUPERVISOR;
 	case ARMMode.MODE_ABORT:
-		return this.BANK_ABORT;
+		return ARMConstants.BANK_ABORT;
 	case ARMMode.MODE_UNDEFINED:
-		return this.BANK_UNDEFINED;
+		return ARMConstants.BANK_UNDEFINED;
 	default:
 		throw new EmuHalt("Invalid user mode passed to selectBank");
 	}
@@ -2941,10 +2975,10 @@ ARMCore.prototype.switchExecMode = function(newMode) {
 	if (this.execMode != newMode) {
 		this.execMode = newMode;
 		if (newMode == ARMMode.MODE_ARM) {
-			this.instructionWidth = this.WORD_SIZE_ARM;
+			this.instructionWidth = ARMConstants.WORD_SIZE_ARM;
 			this.loadInstruction = this.loadInstructionArm;
 		} else {
-			this.instructionWidth = this.WORD_SIZE_THUMB;
+			this.instructionWidth = ARMConstants.WORD_SIZE_THUMB;
 			this.loadInstruction = this.loadInstructionThumb;
 		}
 	}
@@ -2963,8 +2997,8 @@ ARMCore.prototype.switchMode = function(newMode) {
 		if (newBank != oldBank) {
 			// TODO: support FIQ
 			if (newMode == ARMMode.MODE_FIQ || this.mode == ARMMode.MODE_FIQ) {
-				var oldFiqBank = (oldBank == this.BANK_FIQ) ? 1 : 0;
-				var newFiqBank = (newBank == this.BANK_FIQ) ? 1 : 0;
+				var oldFiqBank = (oldBank == ARMConstants.BANK_FIQ) ? 1 : 0;
+				var newFiqBank = (newBank == ARMConstants.BANK_FIQ) ? 1 : 0;
 				this.bankedRegisters[oldFiqBank][2] = this.gprs[8];
 				this.bankedRegisters[oldFiqBank][3] = this.gprs[9];
 				this.bankedRegisters[oldFiqBank][4] = this.gprs[10];
@@ -2976,10 +3010,10 @@ ARMCore.prototype.switchMode = function(newMode) {
 				this.gprs[11] = this.bankedRegisters[newFiqBank][5];
 				this.gprs[12] = this.bankedRegisters[newFiqBank][6];
 			}
-			this.bankedRegisters[oldBank][0] = this.gprs[this.SP];
-			this.bankedRegisters[oldBank][1] = this.gprs[this.LR];
-			this.gprs[this.SP] = this.bankedRegisters[newBank][0];
-			this.gprs[this.LR] = this.bankedRegisters[newBank][1];
+			this.bankedRegisters[oldBank][0] = this.gprs[ARMRegs.SP];
+			this.bankedRegisters[oldBank][1] = this.gprs[ARMRegs.LR];
+			this.gprs[ARMRegs.SP] = this.bankedRegisters[newBank][0];
+			this.gprs[ARMRegs.LR] = this.bankedRegisters[newBank][1];
 
 			this.bankedSPSRs[oldBank] = this.spsr;
 			this.spsr = this.bankedSPSRs[newBank];
@@ -3018,8 +3052,8 @@ ARMCore.prototype.raiseIRQ = function() {
 	var instructionWidth = this.instructionWidth;
 	this.switchMode(ARMMode.MODE_IRQ);
 	this.spsr = cpsr;
-	this.gprs[this.LR] = this.gprs[this.PC] - instructionWidth + 4;
-	this.gprs[this.PC] = this.BASE_IRQ + this.WORD_SIZE_ARM;
+	this.gprs[ARMRegs.LR] = this.gprs[ARMRegs.PC] - instructionWidth + 4;
+	this.gprs[ARMRegs.PC] = this.BASE_IRQ + ARMConstants.WORD_SIZE_ARM;
 	this.instruction = null;
 	this.switchExecMode(ARMMode.MODE_ARM);
 	this.cpsrI = true;
@@ -3030,8 +3064,8 @@ ARMCore.prototype.raiseTrap = function() {
 	var instructionWidth = this.instructionWidth;
 	this.switchMode(ARMMode.MODE_SUPERVISOR);
 	this.spsr = cpsr;
-	this.gprs[this.LR] = this.gprs[this.PC] - instructionWidth;
-	this.gprs[this.PC] = this.BASE_SWI + this.WORD_SIZE_ARM;
+	this.gprs[ARMRegs.LR] = this.gprs[ARMRegs.PC] - instructionWidth;
+	this.gprs[ARMRegs.PC] = this.BASE_SWI + ARMConstants.WORD_SIZE_ARM;
 	this.instruction = null;
 	this.switchExecMode(ARMMode.MODE_ARM);
 	this.cpsrI = true;
@@ -3213,7 +3247,7 @@ ARMCore.prototype.compileArm = function(instruction) {
 				// MRS
 				var rd = (instruction & 0x0000F000) >> 12;
 				op = this.armCompiler.constructMRS(rd, r, condOp);
-				op.writesPC = rd == this.PC;
+				op.writesPC = rd == ARMRegs.PC;
 			}
 		} else {
 			// Data processing/FSR transfer
@@ -3374,7 +3408,7 @@ ARMCore.prototype.compileArm = function(instruction) {
 				}
 				break;
 			}
-			op.writesPC = rd == this.PC;
+			op.writesPC = rd == ARMRegs.PC;
 		}
 	} else if ((instruction & 0x0FB00FF0) == 0x01000090) {
 		// Single data swap
@@ -3386,7 +3420,7 @@ ARMCore.prototype.compileArm = function(instruction) {
 		} else {
 			op = this.armCompiler.constructSWP(rd, rn, rm, condOp);
 		}
-		op.writesPC = rd == this.PC;
+		op.writesPC = rd == ARMRegs.PC;
 	} else {
 		switch (i) {
 		case 0x00000000:
@@ -3446,7 +3480,7 @@ ARMCore.prototype.compileArm = function(instruction) {
 					op = this.armCompiler.constructSMLALS(rd, rn, rs, rm, condOp);
 					break;
 				}
-				op.writesPC = rd == this.PC;
+				op.writesPC = rd == ARMRegs.PC;
 			} else {
 				// Halfword and signed byte data transfer
 				var load = instruction & 0x00100000;
@@ -3465,7 +3499,7 @@ ARMCore.prototype.compileArm = function(instruction) {
 				} else {
 					address = this.armCompiler.constructAddressingMode23Register(instruction, rm, condOp);
 				}
-				address.writesPC = !!w && rn == this.PC;
+				address.writesPC = !!w && rn == ARMRegs.PC;
 
 				if ((instruction & 0x00000090) == 0x00000090) {
 					if (load) {
@@ -3489,7 +3523,7 @@ ARMCore.prototype.compileArm = function(instruction) {
 						op = this.armCompiler.constructSTRH(rd, address, condOp);
 					}
 				}
-				op.writesPC = rd == this.PC || address.writesPC;
+				op.writesPC = rd == ARMRegs.PC || address.writesPC;
 			}
 			break;
 		case 0x04000000:
@@ -3541,7 +3575,7 @@ ARMCore.prototype.compileArm = function(instruction) {
 					op = this.armCompiler.constructSTR(rd, address, condOp);
 				}
 			}
-			op.writesPC = rd == this.PC || address.writesPC;
+			op.writesPC = rd == ARMRegs.PC || address.writesPC;
 			break;
 		case 0x08000000:
 			// Block data transfer
@@ -3733,7 +3767,7 @@ ARMCore.prototype.compileThumb = function(instruction) {
 		case 0x0000:
 			// ADD(4)
 			op = this.thumbCompiler.constructADD4(rd, rm)
-			op.writesPC = rd == this.PC;
+			op.writesPC = rd == ARMRegs.PC;
 			break;
 		case 0x0100:
 			// CMP(3)
@@ -3743,7 +3777,7 @@ ARMCore.prototype.compileThumb = function(instruction) {
 		case 0x0200:
 			// MOV(3)
 			op = this.thumbCompiler.constructMOV3(rd, rm);
-			op.writesPC = rd == this.PC;
+			op.writesPC = rd == ARMRegs.PC;
 			break;
 		case 0x0300:
 			// BX
@@ -4197,5 +4231,8 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 	clear() : void {
 	}
 	updateTimers() : void {
+	}
+	isThumb() : boolean {
+		return this.core.instructionWidth == 2;
 	}
 }

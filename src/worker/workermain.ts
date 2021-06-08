@@ -2910,22 +2910,43 @@ function assembleVASMARM(step:BuildStep) {
   /// TODO: match undefined symbols
   var re_err1 = /^(fatal error|error|warning)? (\d+) in line (\d+) of "(.+)": (.+)/;
   var re_err2 = /^(fatal error|error|warning)? (\d+): (.+)/;
+  var re_undefsym = /symbol <(.+?)>/;
   var errors : WorkerError[] = [];
+  var undefsyms = [];
+  function findUndefinedSymbols(line:string) {
+    // find undefined symbols in line
+    undefsyms.forEach((sym) => {
+      if (line.indexOf(sym) >= 0) {
+        console.log(sym,line);
+        errors.push({
+          path:curpath,
+          line:curline,
+          msg:"Undefined symbol: " + sym,
+        })
+      }
+    });
+  }
   function match_fn(s) {
-    var matches = re_err1.exec(s);
+    let matches = re_err1.exec(s);
     if (matches) {
       errors.push({
         line:parseInt(matches[3]),
-        path:matches[2],
+        path:matches[4],
         msg:matches[5],
       });
+      console.log(matches);
     } else {
       matches = re_err2.exec(s);
       if (matches) {
-        errors.push({
-          line:0,
-          msg:s,
-        });
+        let m = re_undefsym.exec(matches[3]);
+        if (m) {
+          undefsyms.push(m[1]);
+        } else {
+          errors.push({
+            line:0,
+            msg:s,
+          });
+        }
       } else {
         console.log(s);
       }
@@ -2937,7 +2958,7 @@ function assembleVASMARM(step:BuildStep) {
   var lstpath = step.prefix+".lst";
 
   if (staleFiles(step, [objpath])) {
-    var args = [ '-Fbin', '-x', '-wfail', step.path, '-o', objpath, '-L', lstpath ];
+    var args = [ '-Fbin', '-m7tdmi', '-x', '-wfail', step.path, '-o', objpath, '-L', lstpath ];
     var vasm = emglobal.vasm({
       instantiateWasm: moduleInstFn('vasmarm_std'),
       noInitialRun:true,
@@ -2952,60 +2973,74 @@ function assembleVASMARM(step:BuildStep) {
       return {errors:errors};
     }
 
-    var objout = FS.readFile(objpath, {encoding:'binary'});
-    putWorkFile(objpath, objout);
-    if (!anyTargetChanged(step, [objpath]))
-      return;
+    if (undefsyms.length == 0) {
+      var objout = FS.readFile(objpath, {encoding:'binary'});
+      putWorkFile(objpath, objout);
+      if (!anyTargetChanged(step, [objpath]))
+        return;
+    }
 
     var lstout = FS.readFile(lstpath, {encoding:'utf8'});
-    //console.log(lstout);
-    // F00:0001        mov r0, #0x884400	; RGB value
-    //                S01:00000000:  11 0B A0 E3 22 07 80 E3
-    // S01  .text
-    // F00  vidfill.vasm
-    // LOOP LAB (0x10) sec=.text 
+    // 00:00000018 023020E0        	    14:  eor r3, r0, r2
+    // Source: "vidfill.vasm"
+    // 00: ".text" (0-40)
+    // LOOP                            00:00000018
+    // STACK                            S:20010000
     var symbolmap = {};
-    var segments = [];
+    var segments = []; // TODO
     var listings : CodeListingMap = {};
     // TODO: parse listings
-    var re_lstline = /^F(\d+):(\d+)\s+(.+)/;
-    var re_secline = /^\s+S(\d+):([0-9A-F]+):\s*([0-9A-F ]+)/;
-    var re_nameline = /^([SF])(\d+)\s+(.+)/;
-    var files = {};
+    var re_asmline = /^(\d+):([0-9A-F]+)\s+([0-9A-F ]+)\s+(\d+)([:M])/;
+    var re_secline = /^(\d+):\s+"(.+)"/;
+    var re_nameline = /^Source:\s+"(.+)"/;
+    var re_symline = /^(\w+)\s+(\d+):([0-9A-F]+)/;
+    var re_emptyline = /^\s+(\d+)([:M])/;
+    var curpath = step.path;
+    var curline = 0;
     var sections = {};
     // map file and section indices -> names
-    var lines = lstout.split(re_crlf);
-    for (var line of lines) {
-      var m;
-      if (m = re_nameline.exec(line)) {
-        if (m[1] == 'F') {
-          files[m[2]] = m[3];
-        } else {
-          sections[m[2]] = m[3];
-        }
-      }
-    }
-    //console.log(files, sections);
+    var lines : string[] = lstout.split(re_crlf);
     // parse lines
     var lstlines : SourceLine[] = [];
-    var linenum = 0;
     for (var line of lines) {
       var m;
-      if (m = re_lstline.exec(line)) {
-        linenum = parseInt(m[2]);
-      } else if (m = re_secline.exec(line)) {
+      if (m = re_secline.exec(line)) {
+        sections[m[1]] = m[2];
+      } else if (m = re_nameline.exec(line)) {
+        curpath = m[1];
+      } else if (m = re_symline.exec(line)) {
+        symbolmap[m[1]] = parseInt(m[3], 16);
+      } else if (m = re_asmline.exec(line)) {
+        if (m[5] == ':') {
+          curline = parseInt(m[4]);
+        } else {
+          // TODO: macro line
+        }
         lstlines.push({
-          line: linenum,
+          path: curpath,
+          line: curline,
           offset: parseInt(m[2], 16),
-          path: step.path,
           insns: m[3].replaceAll(' ','')
         });
+        findUndefinedSymbols(line);
+      } else if (m = re_emptyline.exec(line)) {
+        curline = parseInt(m[1]);
+        findUndefinedSymbols(line);
+      } else {
+        //console.log(line);
       }
     }
-    listings[lstpath] = {lines:lstlines};
+    listings[lstpath] = {lines:lstlines, text:lstout};
+    // catch-all if no error generated
+    if (undefsyms.length && errors.length == 0) {
+      errors.push({
+        line: 0,
+        msg: 'Undefined symbols: ' + undefsyms.join(', ')
+      })
+    }
 
     return {
-      output:objout, //.slice(0),
+      output:objout, //.slice(0x34),
       listings:listings,
       errors:errors,
       symbolmap:symbolmap,
