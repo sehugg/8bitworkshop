@@ -23,10 +23,8 @@ const ROM2_START= 0xff800000;
 const ROM_SIZE  =    0x80000;
 const RAM_START = 0x20000000;
 const RAM_SIZE  =    0x80000;
-const VID_START = 0x40000000;
-const VID_SIZE  =    0x20000;
 
-const CPU_FREQ = 4000000;
+const CPU_FREQ = 4000000; // 4 MHz
 
 export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
 
@@ -39,8 +37,12 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
   sampleRate = 1;
   
   cpu: ARM32CPU = new ARM32CPU();
-  ram = new Uint8Array(512*1024);
+  ram = new Uint8Array(96*1024);
+  ram16 = new Uint16Array(this.ram.buffer);
+  pixels32 : Uint32Array;
   pixels8 : Uint8Array;
+  vidbase : number = 0;
+  brightness : number = 255;
 
   constructor() {
     super();
@@ -50,9 +52,12 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
 
   connectVideo(pixels:Uint32Array) : void {
     super.connectVideo(pixels);
+    this.pixels32 = pixels;
     this.pixels8 = new Uint8Array(pixels.buffer);
     //this.pixels.fill(0xff000000);
   }
+
+  // TODO: 32-bit bus?
 
   read = newAddressDecoder([
     [ROM_START, ROM_START+ROM_SIZE-1, ROM_SIZE-1, (a) => {
@@ -70,18 +75,26 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
     [RAM_START, RAM_START+RAM_SIZE-1, RAM_SIZE-1, (a, v) => {
       this.ram[a] = v;
     }],
-    [VID_START, VID_START+VID_SIZE-1, VID_SIZE-1, (a, v) => {
-      this.pixels8[a] = v;
-    }],
   ]);
 
   startScanline() {
   }
 
   drawScanline() {
-    // at end of scanline
   }
   
+  postFrame() {
+    var p32 = this.pixels32;
+    var vbase = (this.vidbase >> 1) & 0xfffff;
+    var mask = this.brightness << 24;
+    for (var i=0; i<p32.length; i++) {
+      var col = this.ram16[i + vbase];
+      // rrrrrgggggbbbbb0 ->
+      // 000rrrrr000ggggg000bbbbb00011111111
+      p32[i] = mask | ((col&31)<<3) | (((col>>5)&31)<<11) | (((col>>10)&31)<<19);
+    }
+  }
+
   getDebugCategories() {
     return ['CPU'];
   }

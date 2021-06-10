@@ -37,9 +37,10 @@ interface AddressFunction extends Function {
 
 interface ARMIRQInterface {
 	clear() : void;
-	swi(v: number) : void;
-	swi32(v: number) : void;
+	swi(opcode : number) : void;
+	swi32(opcode : number) : void;
 	updateTimers() : void;
+	testIRQ() : void;
 }
 
 interface ARMMemoryRegion {
@@ -135,6 +136,9 @@ interface ARMCoreType {
 	resetCPU(startOffset : number) : void;
 	freeze() : ARMCoreState;
 	defrost(state: ARMCoreState) : void;
+
+	raiseIRQ() : void;
+	raiseTrap(irqType? : number) : void;
 }
 
 export enum ARMMode {
@@ -4164,7 +4168,7 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 		return this.bus.read(a) | (this.bus.read(a+1) << 8);
 	}
 	load32(a: number): number {
-		return this.loadU16(a) | (this.loadU16(a+2) << 16);
+		return this.bus.read(a) | (this.bus.read(a+1) << 8) | (this.bus.read(a+2) << 16) | (this.bus.read(a+3) << 24);
 	}
 	store8(a: number, v: number): void {
 		this.bus.write(a, v & 0xff);
@@ -4174,8 +4178,10 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 		this.bus.write(a+1, (v >> 8) & 0xff);
 	}
 	store32(a: number, v: number): void {
-		this.store16(a, v);
-		this.store16(a+2, v >> 16);
+		this.bus.write(a, v & 0xff);
+		this.bus.write(a+1, (v >> 8) & 0xff);
+		this.bus.write(a+2, (v >> 16) & 0xff);
+		this.bus.write(a+3, (v >> 24) & 0xff);
 	}
 	// TODO
 	wait(a: number): void {
@@ -4224,14 +4230,19 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 		return page;
 	}
 
-	swi(v: number): void {
+	swi(opcode: number): void {
+		this.core.raiseTrap();
 	}
-	swi32(v: number): void {
+	swi32(opcode: number): void {
+        this.swi(opcode >> 16);
 	}
 	clear() : void {
 	}
 	updateTimers() : void {
 	}
+	testIRQ() : void {
+	}
+
 	isThumb() : boolean {
 		return this.core.instructionWidth == 2;
 	}
