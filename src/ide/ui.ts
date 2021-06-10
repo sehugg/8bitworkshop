@@ -84,7 +84,8 @@ var TOOL_TO_SOURCE_STYLE = {
   'basic': 'basic',
   'silice': 'verilog',
   'wiz': 'text/x-wiz',
-  'vasmarm': 'vasm'
+  'vasmarm': 'vasm',
+  'armips': 'vasm'
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {

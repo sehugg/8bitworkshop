@@ -225,8 +225,14 @@ class ARM32UnicornPlatform extends BaseDebugPlatform implements Platform, Debugg
 export abstract class BaseARMMachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
 
     //getOpcodeMetadata     = getOpcodeMetadata_z80;
-    getToolForFilename() { return "vasmarm"; }
-  
+    getToolForFilename(fn: string)  {
+      if (fn.endsWith('.vasm')) return "vasmarm";
+      else if (fn.endsWith('.armips')) return "armips";
+      else return "vasmarm";
+    }
+    getPresets()          { return ARM32_PRESETS; }
+    getDefaultExtension() { return ".vasm"; };
+    
   }
   
 class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Platform {
@@ -243,8 +249,6 @@ class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Plat
   }
 
   newMachine()          { return new ARM32Machine(); }
-  getPresets()          { return ARM32_PRESETS; }
-  getDefaultExtension() { return ".asm"; };
   readAddress(a)        { return this.machine.read(a); }
   getMemoryMap = function() { return { main:[
     {name:'ROM',start:0x00000000,size:0x80000,type:'rom'},

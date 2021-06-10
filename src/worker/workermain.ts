@@ -52,6 +52,28 @@ function getRootBasePlatform(platform : string) : string {
   return getRootPlatform(getBasePlatform(platform));
 }
 
+// from util.ts
+function toradix(v:number, nd:number, radix:number) {
+  try {
+    var s = v.toString(radix).toUpperCase();
+    while (s.length < nd)
+      s = "0" + s;
+    return s;
+  } catch (e) {
+    return v+"";
+  }
+}
+function hex(v:number, nd?:number) {
+  if (!nd) nd = 2;
+  if (nd == 8) {
+    return hex((v>>16)&0xffff,4) + hex(v&0xffff,4);
+  } else {
+    return toradix(v,nd,16);
+  }
+}
+
+//
+
 var PLATFORM_PARAMS = {
   'vcs': {
     arch: '6502',
@@ -2865,27 +2887,28 @@ function assembleARMIPS(step:BuildStep) {
   loadNative("armips");
   var errors = [];
   gatherFiles(step, {mainFilePath:"main.asm"});
-  var objpath = step.prefix+".bin";
+  var objpath = "main.bin";
+  var lstpath = step.prefix + ".lst";
+  var sympath = step.prefix + ".sym";
+  //test.armips(3) error: Parse error '.arm'
+  var error_fn = makeErrorMatcher(errors, /^(.+?)\((\d+)\)\s+(fatal error|error|warning):\s+(.+)/, 2, 4, step.path, 1);
 
   if (staleFiles(step, [objpath])) {
-    var args = [ step.path ];
+    var args = [ step.path, '-temp', lstpath, '-sym', sympath, '-erroronwarning' ];
     var armips = emglobal.armips({
       instantiateWasm: moduleInstFn('armips'),
       noInitialRun:true,
-      print:(s:string) => {
-        console.log(s);
-      },
-      printErr:print_fn,
+      print:error_fn,
+      printErr:error_fn,
     });
-    var FS = armips['FS'];
-    console.log("init FS", FS);
     
+    var FS = armips['FS'];
     populateFiles(step, FS);
     execMain(step, armips, args);
     if (errors.length)
       return {errors:errors};
 
-    var objout = FS.readFile(objpath, {encoding:'binary'});
+    var objout = FS.readFile(objpath, {encoding:'binary'}) as Uint8Array;
     putWorkFile(objpath, objout);
     if (!anyTargetChanged(step, [objpath]))
       return;
@@ -2893,6 +2916,38 @@ function assembleARMIPS(step:BuildStep) {
     var symbolmap = {};
     var segments = [];
     var listings : CodeListingMap = {};
+  
+    var lstout = FS.readFile(lstpath, {encoding:'utf8'}) as string;
+    var lines = lstout.split(re_crlf);
+    var lstlines : SourceLine[] = [];
+    //00000034 .word 0x11223344                                             ; /vidfill.armips line 25
+    var re_asmline = /^([0-9A-F]+) (.+?); [/](.+?) line (\d+)/;
+    for (var line of lines) {
+      var m;
+      if (m = re_asmline.exec(line)) {
+        var ofs = parseInt(m[1], 16);
+        var insn = objout.slice(ofs, ofs+4); // TODO: doesn't do thumb or !=4 bytes
+        lstlines.push({
+          path: m[3],
+          line: parseInt(m[4]),
+          offset: ofs,
+          insns: hex(insn[0]) + hex(insn[1]) + hex(insn[2]) + hex(insn[3])
+        });
+      }
+    }
+    listings[lstpath] = {lines:lstlines, text:lstout};
+
+    var symout = FS.readFile(sympath, {encoding:'utf8'}) as string;
+    //0000000C loop2
+    //00000034 .dbl:0004
+    var re_symline = /^([0-9A-F]+)\s+(.+)/;
+    for (var line of symout.split(re_crlf)) {
+      var m;
+      if (m = re_symline.exec(line)) {
+        symbolmap[m[2]] = parseInt(m[1], 16);
+      }
+    }
+
     return {
       output:objout, //.slice(0),
       listings:listings,
@@ -2917,7 +2972,6 @@ function assembleVASMARM(step:BuildStep) {
     // find undefined symbols in line
     undefsyms.forEach((sym) => {
       if (line.indexOf(sym) >= 0) {
-        console.log(sym,line);
         errors.push({
           path:curpath,
           line:curline,
@@ -3134,7 +3188,7 @@ function executeBuildSteps() {
     try {
       step.result = toolfn(step);
     } catch (e) {
-      console.log("EXCEPTION", e.stack);
+      console.log("EXCEPTION", e, e.stack);
       return {errors:[{line:0, msg:e+""}]}; // TODO: catch errors already generated?
     }
     if (step.result) {
