@@ -201,11 +201,13 @@ TODO:
 - show current tool for file
 - download non-text incbin source file
 - show hidden header files that only exist in Emscripten FS
-can't modify/delete an include file if project doesn't compile
 
 Probing
 - probe log doesn't start @ reset
+- scroll to current probe log location
 Debug, play then halt cpu doesn't highlight final line
+- illegal instruction should show debug info + jump to line
+- halt cpu should show video too
 vcs: input not preserved when replaying frames?
 
 

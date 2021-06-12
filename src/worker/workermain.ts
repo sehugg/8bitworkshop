@@ -455,13 +455,15 @@ function gatherFiles(step:BuildStep, options?:BuildOptions) {
     step.files = [path];
   }
   if (step.path && !step.prefix) {
-    step.prefix = step.path;
-    var pos = step.prefix.lastIndexOf('.');
-    if (pos > 0)
-      step.prefix = step.prefix.substring(0, pos);
+    step.prefix = getPrefix(step.path);
   }
   step.maxts = maxts;
   return maxts;
+}
+
+function getPrefix(s : string) : string {
+  var pos = s.lastIndexOf('.');
+  return (pos > 0) ? s.substring(0, pos) : s;
 }
 
 function populateFiles(step:BuildStep, fs, options?:BuildOptions) {
@@ -2903,6 +2905,10 @@ function assembleARMIPS(step:BuildStep) {
     });
     
     var FS = armips['FS'];
+    var code = getWorkFileAsString(step.path);
+    code = `.arm.little :: .create "${objpath}",0 :: ${code}
+.close`;
+    putWorkFile(step.path, code);
     populateFiles(step, FS);
     execMain(step, armips, args);
     if (errors.length)
@@ -2916,26 +2922,30 @@ function assembleARMIPS(step:BuildStep) {
     var symbolmap = {};
     var segments = [];
     var listings : CodeListingMap = {};
-  
     var lstout = FS.readFile(lstpath, {encoding:'utf8'}) as string;
     var lines = lstout.split(re_crlf);
-    var lstlines : SourceLine[] = [];
     //00000034 .word 0x11223344                                             ; /vidfill.armips line 25
     var re_asmline = /^([0-9A-F]+) (.+?); [/](.+?) line (\d+)/;
+    var lastofs = -1;
     for (var line of lines) {
       var m;
       if (m = re_asmline.exec(line)) {
+        var path = m[3];
+        var path2 = getPrefix(path) + '.lst'; // TODO: don't rename listing
+        var lst = listings[path2];
+        if (lst == null) { lst = listings[path2] = {lines:[]}; }
         var ofs = parseInt(m[1], 16);
         var insn = objout.slice(ofs, ofs+4); // TODO: doesn't do thumb or !=4 bytes
-        lstlines.push({
-          path: m[3],
+        if (lastofs == ofs) lst.lines.pop(); else lastofs = ofs;
+        lst.lines.push({
+          path: path,
           line: parseInt(m[4]),
           offset: ofs,
-          insns: hex(insn[0]) + hex(insn[1]) + hex(insn[2]) + hex(insn[3])
+          insns: hex(insn[3]) + hex(insn[2]) + hex(insn[1]) + hex(insn[0])
         });
       }
     }
-    listings[lstpath] = {lines:lstlines, text:lstout};
+    //listings[lstpath] = {lines:lstlines, text:lstout};
 
     var symout = FS.readFile(sympath, {encoding:'utf8'}) as string;
     //0000000C loop2
@@ -2988,7 +2998,6 @@ function assembleVASMARM(step:BuildStep) {
         path:matches[4],
         msg:matches[5],
       });
-      console.log(matches);
     } else {
       matches = re_err2.exec(s);
       if (matches) {

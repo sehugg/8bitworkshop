@@ -6,23 +6,23 @@ import { TssChannelAdapter, MasterAudio, AY38910_Audio } from "../common/audio";
 import { Debuggable, EmuState } from "../common/baseplatform";
 import { hex, lpad, printFlags } from "../common/util";
 
-const SPACEINV_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.A,        1, 0x10], // P1
-  [Keys.LEFT,     1, 0x20],
-  [Keys.RIGHT,    1, 0x40],
-  [Keys.P2_A,     2, 0x10], // P2
-  [Keys.P2_LEFT,  2, 0x20],
-  [Keys.P2_RIGHT, 2, 0x40],
-  [Keys.SELECT,   1, 0x1],
-  [Keys.START,    1, 0x4],
-  [Keys.P2_START, 1, 0x2],
+var GBA_KEYCODE_MAP = makeKeycodeMap([
+  [Keys.A,     0, 0x1],
+  [Keys.B,     0, 0x2],
+  [Keys.SELECT,0, 0x4],
+  [Keys.START ,0, 0x8],
+  [Keys.RIGHT, 0, 0x10],
+  [Keys.LEFT,  0, 0x20],
+  [Keys.UP,    0, 0x40],
+  [Keys.DOWN,  0, 0x80],
 ]);
 
 const ROM_START =        0x0;
-const ROM2_START= 0xff800000;
 const ROM_SIZE  =    0x80000;
-const RAM_START = 0x20000000;
+const RAM_START =  0x2000000;
 const RAM_SIZE  =    0x80000;
+const IO_START =   0x4000000;
+const IO_SIZE  =       0x100;
 
 const CPU_FREQ = 4000000; // 4 MHz
 
@@ -47,14 +47,13 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
   constructor() {
     super();
     this.connectCPUMemoryBus(this);
-    this.handler = newKeyboardHandler(this.inputs, SPACEINV_KEYCODE_MAP);
+    this.handler = newKeyboardHandler(this.inputs, GBA_KEYCODE_MAP);
   }
 
   connectVideo(pixels:Uint32Array) : void {
     super.connectVideo(pixels);
     this.pixels32 = pixels;
     this.pixels8 = new Uint8Array(pixels.buffer);
-    //this.pixels.fill(0xff000000);
   }
 
   // TODO: 32-bit bus?
@@ -66,8 +65,8 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
     [RAM_START, RAM_START+RAM_SIZE-1, RAM_SIZE-1, (a) => {
       return this.ram[a];
     }],
-    [ROM2_START, ROM2_START+ROM_SIZE-1, ROM_SIZE-1, (a) => {
-      return this.rom ? this.rom[a] : 0;
+    [IO_START, IO_START+IO_SIZE-1, IO_SIZE-1, (a, v) => {
+      return this.readIO(a);
     }],
   ]);
 
@@ -75,7 +74,27 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
     [RAM_START, RAM_START+RAM_SIZE-1, RAM_SIZE-1, (a, v) => {
       this.ram[a] = v;
     }],
+    [IO_START, IO_START+IO_SIZE-1, IO_SIZE-1, (a, v) => {
+      this.writeIO(a, v);
+    }],
   ]);
+
+  readIO(a : number) : number {
+    switch (a) {
+      case 0x0:
+        return this.inputs[0];
+      default:
+        return 0;
+    }
+  }
+
+  writeIO(a : number, v : number) : void {
+    switch (a) {
+      case 0x0:
+        //this.brightness = v & 0xff;
+        break;
+    }
+  }
 
   startScanline() {
   }
@@ -96,29 +115,32 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
   }
 
   getDebugCategories() {
-    return ['CPU'];
+    return ['CPU', 'Stack'];
   }
 
   getDebugInfo?(category: string, state: EmuState) : string {
-    var s = '';
-    var c = state.c as ARMCoreState;
-    const EXEC_MODE = {2:'Thumb',4:'ARM'};
-    const REGNAMES = {15:'PC',14:'LR',13:'SP',12:'IP',11:'FP',9:'SB'};
-    for (var i=0; i<16; i++) {
-      s += lpad(REGNAMES[i]||'',3) + lpad('r'+i, 5) + '  ' + hex(c.gprs[i],8) + '\n';
+    switch (category) {
+      case 'CPU':
+        var s = '';
+        var c = state.c as ARMCoreState;
+        const EXEC_MODE = {2:'Thumb',4:'ARM'};
+        const REGNAMES = {15:'PC',14:'LR',13:'SP',12:'IP',11:'FP',9:'SB'};
+        for (var i=0; i<16; i++) {
+          s += lpad(REGNAMES[i]||'',3) + lpad('r'+i, 5) + '  ' + hex(c.gprs[i],8) + '\n';
+        }
+        s += 'Flags ';
+        s += c.cpsrN ? " N" : " -";
+        s += c.cpsrV ? " V" : " -";
+        s += c.cpsrF ? " F" : " -";
+        s += c.cpsrZ ? " Z" : " -";
+        s += c.cpsrC ? " C" : " -";
+        s += c.cpsrI ? " I" : " -";
+        s += '\n';
+        s += 'MODE ' + EXEC_MODE[c.instructionWidth] + ' ' + MODE_NAMES[c.mode] + '\n';
+        s += 'SPSR ' + hex(c.spsr,8) + '\n';
+        s += 'cycl ' + c.cycles + '\n';
+        return s;
     }
-    s += 'Flags ';
-    s += c.cpsrN ? " N" : " -";
-    s += c.cpsrV ? " V" : " -";
-    s += c.cpsrF ? " F" : " -";
-    s += c.cpsrZ ? " Z" : " -";
-    s += c.cpsrC ? " C" : " -";
-    s += c.cpsrI ? " I" : " -";
-    s += '\n';
-    s += 'MODE ' + EXEC_MODE[c.instructionWidth] + ' ' + MODE_NAMES[c.mode] + '\n';
-    s += 'SPSR ' + hex(c.spsr,8) + '\n';
-    s += 'cycl ' + c.cycles + '\n';
-    return s;
   }
 }
 

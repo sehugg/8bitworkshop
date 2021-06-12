@@ -251,9 +251,8 @@ class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Plat
   newMachine()          { return new ARM32Machine(); }
   readAddress(a)        { return this.machine.read(a); }
   getMemoryMap = function() { return { main:[
-    {name:'ROM',start:0x00000000,size:0x80000,type:'rom'},
-    {name:'RAM',start:0x20000000,size:0x80000,type:'ram'},
-    {name:'Video RAM',start:0x40000000,size:0x20000,type:'ram'},
+    {name:'ROM',start:0x0000000,size:0x80000,type:'rom'},
+    {name:'RAM',start:0x2000000,size:0x80000,type:'ram'},
   ] } };
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     var is_thumb = this.machine.cpu.isThumb();

@@ -1126,7 +1126,6 @@ function showExceptionAsError(err, msg:string) {
       werr = Object.create(err.$loc);
       werr.msg = msg;
       console.log(werr);
-      projectWindows.refresh(false);
     }
     showErrorAlert([werr], true);
   }
@@ -1149,6 +1148,7 @@ function setCompileOutput(data: WorkerResult) {
   if (data && data.errors && data.errors.length > 0) {
     toolbar.addClass("has-errors");
     projectWindows.setErrors(data.errors);
+    refreshWindowList(); // to make sure windows are created for showErrorAlert()
     showErrorAlert(data.errors, false);
   } else {
     toolbar.removeClass("has-errors"); // may be added in next callback
@@ -1657,14 +1657,15 @@ function addFileToProject(type, ext, linefn) {
 function _addIncludeFile() {
   var fn = getCurrentMainFilename();
   var tool = platform.getToolForFilename(fn);
+  // TODO: more tools?
   if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65' || tool == 'cmoc' || tool == 'smlrc')
     addFileToProject("Header", ".h", (s) => { return '#include "'+s+'"' });
   else if (tool == 'dasm' || tool == 'zmac')
-    addFileToProject("Include File", ".inc", (s) => { return '\tinclude "'+s+'"' });
-  else if (tool == 'ca65' || tool == 'sdasz80')
-    addFileToProject("Include File", ".inc", (s) => { return '\t.include "'+s+'"' });
+    addFileToProject("Include", ".inc", (s) => { return '\tinclude "'+s+'"' });
+  else if (tool == 'ca65' || tool == 'sdasz80' || tool == 'vasm' || tool == 'armips')
+    addFileToProject("Include", ".inc", (s) => { return '\t.include "'+s+'"' });
   else if (tool == 'verilator')
-    addFileToProject("Verilog File", ".v", (s) => { return '`include "'+s+'"' });
+    addFileToProject("Verilog", ".v", (s) => { return '`include "'+s+'"' });
   else
     alertError("Can't add include file to this project type (" + tool + ")");
 }
@@ -2340,6 +2341,8 @@ export function getSaveState() {
 export function emulationHalted(err: EmuHalt) {
   var msg = (err && err.message) || msg;
   showExceptionAsError(err, msg);
+  projectWindows.refresh(true);
+  if (platform.saveState) showDebugInfo(platform.saveState());
 }
 
 // get remote file from local fs
