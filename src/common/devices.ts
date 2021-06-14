@@ -109,6 +109,13 @@ export interface AcceptsPaddleInput {
 
 // SERIAL I/O
 
+export interface SerialEvent {
+  op: 'read' | 'write';
+  value: number;
+  nbits: number;
+}
+
+// TODO: all these needed?
 export interface SerialIOInterface {
   // from machine to platform
   clearToSend() : boolean;
@@ -119,23 +126,19 @@ export interface SerialIOInterface {
   // implement these too
   reset() : void;
   advance(clocks: number) : void;
+//  refresh() : void;
 }
 
 export interface HasSerialIO {
   connectSerialIO(serial: SerialIOInterface);
+  serialOut?: SerialEvent[];    // outgoing event log
+  serialIn?: SerialEvent[];     // incoming queue
 }
 
 /// PROFILER
 
 export interface Probeable {
     connectProbe(probe: ProbeAll) : void;
-}
-
-export function xorshift32(x : number) : number {
-  x ^= x << 13;
-  x ^= x >> 17;
-  x ^= x << 5;
-  return x;
 }
 
 export interface ProbeTime {

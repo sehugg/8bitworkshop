@@ -1,6 +1,6 @@
 
 import { RAM, RasterVideo, KeyFlags, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes, ControllerPoller } from "./emu";
-import { hex, printFlags, invertMap, getBasePlatform } from "./util";
+import { hex, printFlags, invertMap, getBasePlatform, byteToASCII } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { Segment, FileData } from "./workertypes";
 import { disassemble6502 } from "./cpu/disasm6502";
@@ -1034,7 +1034,7 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
 
 /// new Machine platform adapters
 
-import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsBIOS, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition, CPU, HasSerialIO, SerialIOInterface } from "./devices";
+import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsBIOS, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition, CPU, HasSerialIO, SerialIOInterface, SerialEvent } from "./devices";
 import { Probeable, RasterFrameBased, AcceptsPaddleInput, SampledAudioSink, ProbeAll, NullProbe } from "./devices";
 import { SampledAudio } from "./audio";
 import { ProbeRecorder } from "./recorder";
@@ -1074,10 +1074,13 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   video : RasterVideo;
   audio : SampledAudio;
   poller : ControllerPoller;
+  serialIOInterface : SerialIOInterface;
+  serialVisualizer : SerialIOVisualizer;
+
   probeRecorder : ProbeRecorder;
   startProbing;
   stopProbing;
-  
+
   abstract newMachine() : T;
   abstract getToolForFilename(s:string) : string;
   abstract getDefaultExtension() : string;
@@ -1088,7 +1091,10 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     this.mainElement = mainElement;
   }
 
-  reset()        { this.machine.reset(); }
+  reset() {
+    this.machine.reset();
+    if (this.serialVisualizer != null) this.serialVisualizer.reset();
+  }
   loadState(s)   { this.machine.loadState(s); }
   saveState()    { return this.machine.saveState(); }
   getSP()        { return this.machine.cpu.getSP(); }
@@ -1143,8 +1149,12 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
         m.loadBIOS(data, title);
       };
     }
-    if (hasSerialIO(m) && this.serialIOInterface) {
-      m.connectSerialIO(this.serialIOInterface);
+    if (hasSerialIO(m)) {
+      if (this.serialIOInterface == null) {
+        this.serialVisualizer = new SerialIOVisualizer(this.mainElement, m);
+      } else {
+        m.connectSerialIO(this.serialIOInterface);
+      }
     }
   }
   
@@ -1154,8 +1164,6 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   }
 
   loadBIOS : (title, data) => void; // only set if hasBIOS() is true
-
-  serialIOInterface : SerialIOInterface; // set if hasSerialIO() is true
 
   pollControls() {
     this.poller && this.poller.poll();
@@ -1172,6 +1180,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   advance(novideo:boolean) {
     var steps = this.machine.advanceFrame(this.getDebugCallback());
     if (!novideo && this.video) this.video.updateFrame();
+    if (!novideo && this.serialVisualizer) this.serialVisualizer.refresh();
     return steps;
   }
 
@@ -1477,3 +1486,50 @@ export abstract class BaseWASMMachine {
   }
 }
 
+class SerialIOVisualizer {
+
+  textarea : HTMLTextAreaElement;
+  //vlist: VirtualTextScroller;
+  device: HasSerialIO;
+  lastOutCount = -1;
+  lastInCount = -1;
+
+  constructor(parentElement: HTMLElement, device: HasSerialIO) {
+    this.device = device;
+    this.textarea = document.createElement("textarea");
+    this.textarea.classList.add('transcript');
+    this.textarea.classList.add('transcript-style-2');
+    this.textarea.style.display = 'none';
+    parentElement.appendChild(this.textarea);
+    /*
+    this.vlist = new VirtualTextScroller(parentElement);
+    this.vlist.create(parentElement, 1024, this.getMemoryLineAt.bind(this));
+    this.vlist.maindiv.style.height = '8em';
+    this.vlist.maindiv.style.overflow = 'clip';
+    */
+  }
+  reset() {
+    this.lastOutCount = 0;
+    this.lastInCount = 0;
+    this.textarea.style.display = 'none';
+  }
+  refresh() {
+    var lastop = '';
+    if (this.device.serialOut.length != this.lastOutCount) {
+      var s = '';
+      for (var ev of this.device.serialOut) {
+        if (lastop != ev.op) {
+          if (s != '') s += '\n';
+          if (ev.op === 'read') s += '<< ';
+          else if (ev.op === 'write') s += '>> ';
+          lastop = ev.op;
+        }
+        if (ev.value == 10) { s += '\u21b5'; lastop = ''; }
+        else { s += byteToASCII(ev.value); }
+      }
+      this.textarea.value = s;
+      this.lastOutCount = this.device.serialOut.length;
+      this.textarea.style.display = 'block';
+    }
+  }
+}

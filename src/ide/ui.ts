@@ -2341,7 +2341,7 @@ export function getSaveState() {
 export function emulationHalted(err: EmuHalt) {
   var msg = (err && err.message) || msg;
   showExceptionAsError(err, msg);
-  projectWindows.refresh(true);
+  projectWindows.refresh(false); // don't mess with cursor
   if (platform.saveState) showDebugInfo(platform.saveState());
 }
 

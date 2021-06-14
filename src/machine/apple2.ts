@@ -1,6 +1,6 @@
 
 import { MOS6502, MOS6502State } from "../common/cpu/MOS6502";
-import { Bus, BasicScanlineMachine, xorshift32, SavesState } from "../common/devices";
+import { Bus, BasicScanlineMachine, SavesState } from "../common/devices";
 import { KeyFlags } from "../common/emu"; // TODO
 import { hex, lzgmini, stringToByteArray, RGBA, printFlags } from "../common/util";
 

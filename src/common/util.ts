@@ -498,3 +498,11 @@ export function convertDataToUint8Array(data: string|Uint8Array) : Uint8Array {
 export function convertDataToString(data: string|Uint8Array) : string {
   return (data instanceof Uint8Array) ? byteArrayToUTF8(data) : data;
 }
+
+export function byteToASCII(b: number) : string {
+  if (b < 32)
+    return String.fromCharCode(b + 0x2400);
+  else
+    return String.fromCharCode(b);
+}
+

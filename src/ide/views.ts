@@ -6,8 +6,9 @@ import { hex, lpad, rpad, safeident, rgb2bgr } from "../common/util";
 import { CodeAnalyzer } from "../common/analysis";
 import { platform, platform_id, compparams, current_project, lastDebugState, projectWindows, runToPC, qs } from "./ui";
 import { ProbeRecorder, ProbeFlags } from "../common/recorder";
-import { getMousePos, dumpRAM } from "../common/emu";
+import { getMousePos, dumpRAM, getVisibleEditorLineHeight, VirtualTextScroller, VirtualTextLine } from "../common/emu";
 import * as pixed from "./pixeleditor";
+
 declare var Mousetrap;
 
 export interface ProjectView {
@@ -47,11 +48,6 @@ function createTextSpan(text:string, className:string) : HTMLElement {
   span.setAttribute("class", className);
   span.appendChild(document.createTextNode(text));
   return span;
-}
-
-// TODO: https://stackoverflow.com/questions/10463518/converting-em-to-px-in-javascript-and-getting-default-font-size
-function getVisibleEditorLineHeight() : number{
-  return $("#booksMenuButton").first().height();
 }
 
 function newDiv(parent?, cls? : string) {
@@ -614,66 +610,6 @@ export class ListingView extends DisassemblerView implements ProjectView {
         }
         jumpToLine(disasmview, res.line-1);
       }
-    }
-  }
-}
-
-///
-
-interface VirtualTextLine {
-  text : string;
-  clas? : string;
-}
-
-class VirtualTextScroller {
-  memorylist;
-  maindiv : HTMLElement;
-  getLineAt : (row:number) => VirtualTextLine;
-
-  constructor(parent : HTMLElement) {
-    var div = document.createElement('div');
-    div.setAttribute("class", "memdump");
-    parent.appendChild(div);
-    this.maindiv = div;
-  }
-  
-  create(workspace : HTMLElement, maxRowCount : number, fn : (row:number) => VirtualTextLine) {
-    this.getLineAt = fn;
-    this.memorylist = new VirtualList({
-      w: $(workspace).width(),
-      h: $(workspace).height(),
-      itemHeight: getVisibleEditorLineHeight(),
-      totalRows: maxRowCount, // TODO?
-      generatorFn: (row : number) => {
-        var line = fn(row);
-        var linediv = document.createElement("div");
-        linediv.appendChild(document.createTextNode(line.text));
-        if (line.clas != null) linediv.className = line.clas;
-        return linediv;
-      }
-    });
-    $(this.maindiv).append(this.memorylist.container);
-  }
-
-  // TODO: refactor with elsewhere
-  refresh() {
-    if (this.memorylist) {
-      $(this.maindiv).find('[data-index]').each( (i,e) => {
-        var div = e;
-        var row = parseInt(div.getAttribute('data-index'));
-        var oldtext = div.innerText;
-        var line = this.getLineAt(row);
-        var newtext = line.text;
-        if (oldtext != newtext) {
-          div.innerText = newtext;
-          if (line.clas != null && !div.classList.contains(line.clas)) {
-            var oldclasses = Array.from(div.classList);
-            oldclasses.forEach((c) => div.classList.remove(c));
-            div.classList.add('vrow');
-            div.classList.add(line.clas);
-          }
-        }
-      });
     }
   }
 }

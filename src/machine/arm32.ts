@@ -1,10 +1,9 @@
 
 import { ARM32CPU, ARMCoreState } from "../common/cpu/ARM";
-import { BasicScanlineMachine } from "../common/devices";
-import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler } from "../common/emu";
-import { TssChannelAdapter, MasterAudio, AY38910_Audio } from "../common/audio";
+import { BasicScanlineMachine, HasSerialIO, SerialEvent, SerialIOInterface } from "../common/devices";
+import { newAddressDecoder, Keys, makeKeycodeMap, newKeyboardHandler } from "../common/emu";
 import { Debuggable, EmuState } from "../common/baseplatform";
-import { hex, lpad, printFlags } from "../common/util";
+import { hex, lpad } from "../common/util";
 
 var GBA_KEYCODE_MAP = makeKeycodeMap([
   [Keys.A,     0, 0x1],
@@ -23,10 +22,11 @@ const RAM_START =  0x2000000;
 const RAM_SIZE  =    0x80000;
 const IO_START =   0x4000000;
 const IO_SIZE  =       0x100;
+const MAX_SERIAL_CHARS = 1000000;
 
 const CPU_FREQ = 4000000; // 4 MHz
 
-export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
+export class ARM32Machine extends BasicScanlineMachine implements Debuggable, HasSerialIO {
 
   cpuFrequency = CPU_FREQ; // MHz
   canvasWidth = 160;
@@ -43,6 +43,9 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
   pixels8 : Uint8Array;
   vidbase : number = 0;
   brightness : number = 255;
+  serial : SerialIOInterface;
+  serialOut : SerialEvent[];
+  serialIn : SerialEvent[];
 
   constructor() {
     super();
@@ -54,6 +57,16 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
     super.connectVideo(pixels);
     this.pixels32 = pixels;
     this.pixels8 = new Uint8Array(pixels.buffer);
+  }
+
+  connectSerialIO(serial: SerialIOInterface) {
+    this.serial = serial;
+  }
+
+  reset() {
+    super.reset();
+    this.serialOut = [];
+    this.serialIn = [];
   }
 
   // TODO: 32-bit bus?
@@ -83,6 +96,15 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
     switch (a) {
       case 0x0:
         return this.inputs[0];
+      case 0x40:
+        return (this.serial.byteAvailable() ? 0x80 : 0) | (this.serial.clearToSend() ? 0x40 : 0);
+      case 0x44:
+        let evin = this.serialIn.shift();
+        if (evin != null) {
+          this.serialOut.push(evin);
+          return evin.value;
+        } else
+          return 0;
       default:
         return 0;
     }
@@ -92,6 +114,11 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
     switch (a) {
       case 0x0:
         //this.brightness = v & 0xff;
+        break;
+      case 0x48:
+        if (this.serialOut.length < MAX_SERIAL_CHARS) {
+          this.serialOut.push({op:'write', value:v, nbits:8});
+        }
         break;
     }
   }
@@ -115,7 +142,7 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
   }
 
   getDebugCategories() {
-    return ['CPU', 'Stack'];
+    return ['CPU'];
   }
 
   getDebugInfo?(category: string, state: EmuState) : string {
@@ -141,6 +168,20 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable {
         s += 'cycl ' + c.cycles + '\n';
         return s;
     }
+  }
+
+  saveState() {
+    var state = super.saveState() as any;
+    state.serial = {
+      sin: this.serialIn.slice(0),
+      sout : this.serialOut.slice(0)
+    }
+    return state;
+  }
+  loadState(state) {
+    super.loadState(state);
+    this.serialIn = state.serial.sin;
+    this.serialOut = state.serial.sout;
   }
 }
 
