@@ -2935,8 +2935,14 @@ function assembleARMIPS(step:BuildStep) {
         var lst = listings[path2];
         if (lst == null) { lst = listings[path2] = {lines:[]}; }
         var ofs = parseInt(m[1], 16);
-        var insn = objout.slice(ofs, ofs+4); // TODO: doesn't do thumb or !=4 bytes
-        if (lastofs == ofs) lst.lines.pop(); else lastofs = ofs;
+        var insn = objout.slice(ofs, ofs+4);
+        if (lastofs == ofs) {
+            lst.lines.pop(); // get rid of duplicate offset
+        } else if (lastofs+2 == ofs) {
+          var lastline = lst.lines[lst.lines.length-1]; // convert 4-byte to 2-byte insn
+          if (lastline && lastline.insns) lastline.insns = lastline.insns.substring(4,8);
+        }
+        lastofs = ofs;
         lst.lines.push({
           path: path,
           line: parseInt(m[4]),

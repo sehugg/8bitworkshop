@@ -2749,7 +2749,7 @@ ARMCore.prototype.resetCPU = function(startOffset) {
 
 ARMCore.prototype.freeze = function() : ARMCoreState {
 	return {
-		PC: this.gprs[15] - 4,
+		PC: this.gprs[15] - this.instructionWidth,
 		SP: this.gprs[13],
 		'gprs': [
 			this.gprs[0],
@@ -4097,6 +4097,7 @@ ARMCore.prototype.compileThumb = function(instruction) {
 
 	op.execMode = ARMMode.MODE_THUMB;
 	op.fixedJump = op.fixedJump || false;
+	//console.log(hex(instruction), op);
 	return op;
 };
 
@@ -4137,7 +4138,7 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 		return n > 0 ? n : 1;
 	}
 	getPC(): number {
-		return this.core.gprs[15] - 4;
+		return this.core.gprs[15] - this.core.instructionWidth;
 	}
 	getSP(): number {
 		return this.core.gprs[13];
