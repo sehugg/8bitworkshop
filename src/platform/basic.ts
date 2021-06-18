@@ -211,7 +211,7 @@ class BASICPlatform implements Platform {
         if (o != null) return `${sym} = ${o}`;
     }
     showHelp(tool:string, ident:string) {
-        window.open("https://8bitworkshop.com/blog/platforms/basic/#basicreference", "_help");
+        window.open("https://8bitworkshop.com/docs/platforms/basic/#basicreference", "_help");
     }
 
     getDebugCategories() {

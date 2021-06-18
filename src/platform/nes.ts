@@ -483,7 +483,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   ] } };
 
   showHelp(tool:string, ident:string) {
-    window.open("https://8bitworkshop.com/blog/platforms/nes/", "_help"); // TODO
+    window.open("https://8bitworkshop.com/docs/platforms/nes/", "_help"); // TODO
   }
 }
 

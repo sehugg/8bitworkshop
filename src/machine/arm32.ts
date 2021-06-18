@@ -1,7 +1,7 @@
 
 import { ARM32CPU, ARMCoreState } from "../common/cpu/ARM";
 import { BasicScanlineMachine, HasSerialIO, SerialEvent, SerialIOInterface } from "../common/devices";
-import { newAddressDecoder, Keys, makeKeycodeMap, newKeyboardHandler } from "../common/emu";
+import { newAddressDecoder, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt } from "../common/emu";
 import { Debuggable, EmuState } from "../common/baseplatform";
 import { hex, lpad } from "../common/util";
 
@@ -81,6 +81,9 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable, Ha
     [IO_START, IO_START+IO_SIZE-1, IO_SIZE-1, (a, v) => {
       return this.readIO(a);
     }],
+    [0, (1<<31)-1, 0, (a, v) => {
+      throw new EmuHalt(`Address read out of bounds: 0x${hex(a)}`);
+    }]
   ]);
 
   write = newAddressDecoder([
@@ -142,7 +145,7 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable, Ha
   }
 
   getDebugCategories() {
-    return ['CPU'];
+    return ['CPU', 'Stack'];
   }
 
   getDebugInfo?(category: string, state: EmuState) : string {

@@ -40,7 +40,7 @@ class BallyAstrocadePlatform extends BaseZ80MachinePlatform<BallyAstrocade> impl
       {name:'BIOS Variables',start:0x4fce,size:0x5000-0x4fce,type:'ram'},
   ] } };
   showHelp(tool:string, ident:string) {
-    window.open("https://8bitworkshop.com/blog/platforms/astrocade/", "_help"); // TODO
+    window.open("https://8bitworkshop.com/docs/platforms/astrocade/", "_help"); // TODO
   }
 }
 

@@ -60,7 +60,7 @@ var lastBreakExpr = "c.PC == 0x6000";
 
 // TODO: codemirror multiplex support?
 // TODO: move to views.ts?
-var TOOL_TO_SOURCE_STYLE = {
+const TOOL_TO_SOURCE_STYLE = {
   'dasm': '6502',
   'acme': '6502',
   'cc65': 'text/x-csrc',
@@ -86,6 +86,15 @@ var TOOL_TO_SOURCE_STYLE = {
   'wiz': 'text/x-wiz',
   'vasmarm': 'vasm',
   'armips': 'vasm'
+}
+
+const TOOL_TO_HELPURL = {
+  'dasm': 'https://github.com/dasm-assembler/dasm/blob/master/docs/dasm.pdf',
+  'cc65': 'https://cc65.github.io/doc/cc65.html',
+  'ca65': 'https://cc65.github.io/doc/ca65.html',
+  'sdcc': 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
+  'verilator': 'https://www.veripool.org/ftp/verilator_doc.pdf',
+  'fastbasic': 'https://github.com/dmsc/fastbasic/blob/master/manual.md'  
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {

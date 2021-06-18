@@ -2935,20 +2935,21 @@ function assembleARMIPS(step:BuildStep) {
         var lst = listings[path2];
         if (lst == null) { lst = listings[path2] = {lines:[]}; }
         var ofs = parseInt(m[1], 16);
-        var insn = objout.slice(ofs, ofs+4);
         if (lastofs == ofs) {
             lst.lines.pop(); // get rid of duplicate offset
-        } else if (lastofs+2 == ofs) {
-          var lastline = lst.lines[lst.lines.length-1]; // convert 4-byte to 2-byte insn
-          if (lastline && lastline.insns) lastline.insns = lastline.insns.substring(4,8);
+        } else if (ofs > lastofs) {
+          var lastline = lst.lines[lst.lines.length-1];
+          if (lastline && !lastline.insns) {
+            var insns = objout.slice(lastofs, ofs).reverse();
+            lastline.insns = Array.from(insns).map((b) => hex(b,2)).join('');
+          }
         }
-        lastofs = ofs;
         lst.lines.push({
           path: path,
           line: parseInt(m[4]),
-          offset: ofs,
-          insns: hex(insn[3]) + hex(insn[2]) + hex(insn[1]) + hex(insn[0])
+          offset: ofs
         });
+        lastofs = ofs;
       }
     }
     //listings[lstpath] = {lines:lstlines, text:lstout};

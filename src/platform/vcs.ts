@@ -342,7 +342,7 @@ class VCSPlatform extends BasePlatform {
     else if (tool == 'wiz')
       window.open("https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz", "_help");
     else
-      window.open("https://8bitworkshop.com/blog/platforms/vcs/", "_help"); // TODO
+      window.open("https://8bitworkshop.com/docs/platforms/vcs/", "_help"); // TODO
   }
 
   getMemoryMap = function() { return {main:[
