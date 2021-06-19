@@ -210,6 +210,8 @@ Debug, play then halt cpu doesn't highlight final line
 - halt cpu should show video too
 vcs: input not preserved when replaying frames?
 
+compile errors disappear when focus returns
+
 
 WEB WORKER FORMAT
 
