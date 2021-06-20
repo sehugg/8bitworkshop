@@ -1666,7 +1666,7 @@ function addFileToProject(type, ext, linefn) {
 function _addIncludeFile() {
   var fn = getCurrentMainFilename();
   var tool = platform.getToolForFilename(fn);
-  // TODO: more tools?
+  // TODO: more tools? make this a function of the platform / tool provider
   if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65' || tool == 'cmoc' || tool == 'smlrc')
     addFileToProject("Header", ".h", (s) => { return '#include "'+s+'"' });
   else if (tool == 'dasm' || tool == 'zmac')
@@ -1675,6 +1675,8 @@ function _addIncludeFile() {
     addFileToProject("Include", ".inc", (s) => { return '\t.include "'+s+'"' });
   else if (tool == 'verilator')
     addFileToProject("Verilog", ".v", (s) => { return '`include "'+s+'"' });
+    else if (tool == 'wiz')
+    addFileToProject("Include", ".wiz", (s) => { return 'import "'+s+'";' });
   else
     alertError("Can't add include file to this project type (" + tool + ")");
 }

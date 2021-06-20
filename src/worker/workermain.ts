@@ -2788,12 +2788,17 @@ function compileSilice(step:BuildStep) {
   var errfile : string;
   var errline : number;
   if (staleFiles(step, [destpath])) {
+    //[preprocessor] 97]  attempt to concatenate a nil value (global 'addrW')
     var match_fn = (s: string) => {
       s = (s as any).replaceAll(/\033\[\d+\w/g, '');
       var mf = /file:\s*(\w+)/.exec(s);
       var ml = /line:\s+(\d+)/.exec(s);
+      var preproc = /\[preprocessor\] (\d+)\] (.+)/.exec(s);
       if (mf) errfile = mf[1];
       else if (ml) errline = parseInt(ml[1]);
+      else if (preproc) {
+        errors.push({path:step.path, line:parseInt(preproc[1]), msg:preproc[2]});
+      }
       else if (errfile && errline && s.length > 1) {
         if (s.length > 2) {
           errors.push({path:errfile+".ice", line:errline, msg:s});
@@ -2802,6 +2807,7 @@ function compileSilice(step:BuildStep) {
           errline = null;
         }
       }
+      else console.log(s);
     }
     var silice = emglobal.silice({
       instantiateWasm: moduleInstFn('silice'),
