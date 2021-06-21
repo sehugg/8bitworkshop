@@ -1191,7 +1191,7 @@ export class BASICParser {
         var cmd = {GOTO:'ONGOTO', THEN:'ONGOTO', GOSUB:'ONGOSUB'}[gotok.str]; // THEN only for DEC basic?
         if (!cmd) this.compileError(`There should be a GOTO or GOSUB here.`);
         var labels = this.parseLabelList();
-        return { command:cmd, expr:expr, labels:labels };
+        return { command:cmd as any, expr:expr, labels:labels };
     }
     stmt__DEF() : DEF_Statement {
         var lexpr = this.parseVarSubscriptOrFunc(); // TODO: only allow parameter names, not exprs

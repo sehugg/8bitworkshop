@@ -42,7 +42,8 @@
     "pngjs": "^3.4.0",
     "rgbquant": "^1.1.2",
     "split.js": "^1.6.2",
-    "typescript": "^3.9.7",
+    "typedoc": "^0.21.0",
+    "typescript": "^4.3.4",
     "typescript-formatter": "^7.2.2",
     "vgm-parser": "^0.6.3"
   },
@@ -61,7 +62,8 @@
     "test-web": "nightwatch -e chrome test/web",
     "start": "electron .",
     "fuzzbasic": "jsfuzz gen/common/basic/fuzz.js ~/basic/corpus/ --versifier false",
-    "machine": "node gen/tools/runmachine.js"
+    "machine": "node gen/tools/runmachine.js",
+    "mkdoc": "typedoc --out web/jsdoc src/common/"
   },
   "main": "electron.js",
   "keywords": [

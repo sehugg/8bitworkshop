@@ -20,6 +20,7 @@ all:
 	cd jsnes && npm i
 	$(TSC) -v
 	$(TSC)
+	npm run mkdoc
 
 dist:
 	rm -fr $(TMP) && mkdir -p $(TMP)
