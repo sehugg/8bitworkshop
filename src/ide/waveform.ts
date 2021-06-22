@@ -223,7 +223,7 @@ export class WaveformView {
     var b1 = fh+4;
     var b2 = 4;
     var h2 = h-b1-b2;
-    var yrange = ((1<<meta.len)-1) || 0;
+    var yrange = meta.len == 32 ? 4294967296.0 : ((1<<meta.len)-1) || 0;
     var data = this.wfp.getSignalData(row, this.t0, Math.ceil(w/this.zoom));
     this.clockMax = Math.max(this.clockMax, this.t0 + data.length);
     var printvals = meta.len > 1 && this.zoom >= 32;

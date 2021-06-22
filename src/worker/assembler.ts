@@ -3,12 +3,19 @@ type AssemblerVar = {
   bits : number,
   toks : string[],
   iprel? : boolean,
-  ipofs? : number
+  ipofs? : number,
+  ipmul? : number,
+}
+
+type AssemblerRuleSlice = {
+  a : number; // argument index
+  b : number; // bit index
+  n : number; // # of bits
 }
 
 type AssemblerRule = {
   fmt : string,
-  bits : (string | number)[],
+  bits : (string | number | AssemblerRuleSlice)[],
   // added at runtime
   re? : RegExp,
   prefix? : string,
@@ -22,11 +29,14 @@ type AssemblerLine = {line:number, offset:number, nbits:number, insns?:string};
 type AssemblerFixup = {
   sym:string,
   ofs:number,
-  bitlen:number,
-  bitofs:number,
+  size:number;
+  srcofs:number,
+  dstofs:number,
+  dstlen:number,
   line:number,
   iprel:boolean,
-  ipofs:number
+  ipofs:number,
+  ipmul:number,
 };
 
 type AssemblerSpec = {
@@ -59,6 +69,9 @@ const isError = (o: AssemblerLineResult): o is AssemblerErrorResult => (<Assembl
 function hex(v:number, nd:number) {
   try {
     if (!nd) nd = 2;
+    if (nd == 8) {
+      return hex((v>>16)&0xffff,4) + hex(v&0xffff,4);
+    }
     var s = v.toString(16).toUpperCase();
     while (s.length < nd)
       s = "0" + s;
@@ -161,7 +174,10 @@ export class Assembler {
     var op = result.opcode;
     var nb = result.nbits/this.width;
     for (var i=0; i<nb; i++) {
-      this.outwords[this.ip++ - this.origin] = (op >> (nb-1-i)*this.width) & ((1<<this.width)-1);
+      if (this.width < 32)
+        this.outwords[this.ip++ - this.origin] = (op >> (nb-1-i)*this.width) & ((1<<this.width)-1);
+      else
+        this.outwords[this.ip++ - this.origin] = op;
     }
   }
   addWords(data:number[]) {
@@ -171,7 +187,10 @@ export class Assembler {
       nbits:this.width*data.length
     });
     for (var i=0; i<data.length; i++) {
-      this.outwords[this.ip++ - this.origin] = data[i] & ((1<<this.width)-1);
+      if (this.width < 32)
+        this.outwords[this.ip++ - this.origin] = data[i] & ((1<<this.width)-1);
+      else
+        this.outwords[this.ip++ - this.origin] = data[i];
     }
   }
 
@@ -206,17 +225,24 @@ export class Assembler {
       var n,x;
       // is a string? then it's a bit constant
       // TODO
-      if (typeof b == "string") {
+      if (typeof b === "string") {
         n = b.length;
         x = parseInt(b,2);
       } else {
+        // is it a slice {a,b,n} or just a number?
+        var index = typeof b === "number" ? b : b.a;
         // it's an indexed variable, look up its variable
-        var id = m[b+1];
-        var v = this.spec.vars[rule.varlist[b]];
+        var id = m[index+1];
+        var v = this.spec.vars[rule.varlist[index]];
         if (!v) {
-          return {error:"Could not find matching identifier for '" + m[0] + "'"};
+          return {error:`Could not find matching identifier for '${m[0]}' index ${index}`};
         }
         n = v.bits;
+        var shift = 0;
+        if (typeof b !== "number") {
+          n = b.n;
+          shift = b.b;
+        }
         // is it an enumerated type? look up the index of its keyword
         if (v.toks) {
           x = v.toks.indexOf(id);
@@ -227,14 +253,22 @@ export class Assembler {
           x = this.parseConst(id, n);
           // is it a label? add fixup
           if (isNaN(x)) {
-            this.fixups.push({sym:id, ofs:this.ip, bitlen:n, bitofs:oplen, line:this.linenum, iprel:!!v.iprel, ipofs:(v.ipofs+0)});
+            this.fixups.push({
+              sym:id, ofs:this.ip, size:v.bits, line:this.linenum,
+              dstlen:n, dstofs:oplen, srcofs:shift,
+              iprel:!!v.iprel, ipofs:(v.ipofs+0), ipmul:v.ipmul||1
+            });
             x = 0;
+          } else {
+            var mask = (1<<v.bits)-1;
+            if ((x&mask) != x)
+              return {error:"Value " + x + " does not fit in " + v.bits + " bits"};
           }
         }
+        if (typeof b !== "number") {
+          x = (x >>> shift) & ((1 << b.n)-1);
+        }
       }
-      var mask = (1<<n)-1;
-      if ((x&mask) != x)
-        return {error:"Value " + x + " does not fit in " + n + " bits"};
       opcode = (opcode << n) | x;
       oplen += n;
     }
@@ -329,17 +363,28 @@ export class Assembler {
       var fix = this.fixups[i];
       var sym = this.symbols[fix.sym];
       if (sym) {
-        var ofs = fix.ofs + Math.floor(fix.bitofs/this.width);
-        var shift = fix.bitofs & (this.width-1);
-        var mask = ((1<<fix.bitlen)-1);
-        var value = this.parseConst(sym.value+"", fix.bitlen);
+        var ofs = fix.ofs + Math.floor(fix.dstofs/this.width);
+        var mask = ((1<<fix.size)-1);
+        var value = this.parseConst(sym.value+"", fix.dstlen);
         if (fix.iprel)
-          value -= fix.ofs + fix.ipofs;
-        if (value > mask || value < -mask)
-          this.warning("Symbol " + fix.sym + " (" + value + ") does not fit in " + fix.bitlen + " bits", fix.line);
-        value &= mask;
+          value = (value - fix.ofs) * fix.ipmul - fix.ipofs;
+        if (fix.srcofs == 0 && (value > mask || value < -mask))
+          this.warning("Symbol " + fix.sym + " (" + value + ") does not fit in " + fix.dstlen + " bits", fix.line);
+        //console.log(hex(value,8), fix.srcofs, fix.dstofs, fix.dstlen);
+        if (fix.srcofs > 0)
+          value >>>= fix.srcofs;
+        value &= (1 << fix.dstlen) - 1;
+        // TODO: make it work for all widths
+        if (this.width == 32) {
+          var shift = 32 - fix.dstofs - fix.dstlen;
+          value <<= shift;
+          //console.log(fix, shift, fix.dstlen, hex(value,8));
+        }
         // TODO: check range
         // TODO: span multiple words?
+        if (value & this.outwords[ofs - this.origin]) {
+          //this.warning("Instruction bits overlapped: " + hex(this.outwords[ofs - this.origin],8), hex(value,8));
+        }
         this.outwords[ofs - this.origin] ^= value; // TODO: << shift?
       } else {
         this.warning("Symbol '" + fix.sym + "' not found");

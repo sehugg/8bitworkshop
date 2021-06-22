@@ -107,6 +107,8 @@ TODO:
   - separate Scope View
   - Audio doesn't work if clock != default
   - change the input values for a module?
+  - Silice rototexture.ice example bitmap corrupted?
+  - scope: zoom in on cursor
 - single-stepping vector games makes screen fade
 - break on stack overflow, illegal op, bad access, BRK, etc
   - show in scope instead?
