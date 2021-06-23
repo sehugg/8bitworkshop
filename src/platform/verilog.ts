@@ -62,6 +62,8 @@ var VERILOG_KEYCODE_MAP = makeKeycodeMap([
   [Keys.VK_7, 2, 0x10],
 ]);
 
+const TRACE_BUFFER_DWORDS = 0x40000;
+
 // SIMULATOR STUFF (should be global)
 
 export var vl_finished = false;
@@ -361,7 +363,7 @@ var VerilogPlatform = function(mainElement, options) {
     };
     this.setFrameRate(60);
     // setup scope
-    trace_buffer = new Uint32Array(0x20000);
+    trace_buffer = new Uint32Array(TRACE_BUFFER_DWORDS);
     var overlay = $("#emuoverlay").show();
     this.topdiv = $('<div class="emuspacer">').appendTo(overlay);
     vcanvas.appendTo(this.topdiv);

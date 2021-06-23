@@ -27,6 +27,7 @@ export class WaveformView {
   parent : HTMLElement;
   wfp : WaveformProvider;
   toolbar : Toolbar;
+  clklabel : HTMLElement;
   wavelist;
   meta : WaveformMeta[];
   lines : HTMLCanvasElement[] = [];
@@ -37,6 +38,7 @@ export class WaveformView {
   clocksPerPage : number;
   clockMax : number;
   hexformat : boolean = false;
+  scrollbarWidth = 12;
 
   constructor(parent:HTMLElement, wfp:WaveformProvider) {
     this.parent = parent;
@@ -64,14 +66,19 @@ export class WaveformView {
       this.toolbar.destroy();
       this.toolbar = null;
     }
+    if (this.clklabel) {
+      this.clklabel.remove();
+      this.clklabel = null;
+    }
   }
   
   _recreate() {
     this.meta = this.wfp.getSignalMetadata();
     if (!this.meta) return;
-    var width = this.pageWidth = $(this.parent).width();
+    var width = $(this.parent).width();
+    this.pageWidth = width - this.scrollbarWidth;
     var rowHeight = 40; // TODO
-    this.clocksPerPage = Math.floor(this.pageWidth/this.zoom) - 1;
+    this.setClocksPerPage();
     this.clockMax = 0;
     this.wavelist = new VirtualList({
       w: width,
@@ -83,7 +90,7 @@ export class WaveformView {
         //var s = metarow != null ? metarow.label : "";
         let linediv = document.createElement("div");
         let canvas = document.createElement("canvas");
-        canvas.width = width - 12;
+        canvas.width = width - 12; // room for scrollbar
         canvas.height = rowHeight;
         linediv.appendChild(canvas); //document.createTextNode(s));
         linediv.classList.add('waverow');
@@ -98,6 +105,7 @@ export class WaveformView {
             }
           };
           linediv.classList.add('editable');
+          linediv.style.cursor = 'grab';
         }
         return linediv;
       }
@@ -107,10 +115,9 @@ export class WaveformView {
     //wlc.style = "overflow-x: hidden"; // TODO?
     this.toolbar = new Toolbar(this.parent, this.parent);
     this.toolbar.span.css('display','inline-block');
-    //var clklabel = document.createElement('span');
-    //clklabel.style.display = 'inline-block';
-    //clklabel.innerHTML = "TEST";
-    //$(this.parent).append(clklabel);
+    this.clklabel = document.createElement('span');
+    this.clklabel.innerText = "-";
+    $(this.parent).append(this.clklabel);
     $(this.parent).append(wlc);
     
     var down = false;
@@ -142,7 +149,7 @@ export class WaveformView {
       this.setSelTime(0);
       this.setOrgTime(0);
     });
-    this.toolbar.add('ctrl+left', 'Move left 1/4 page', 'glyphicon-fast-backward', (e,combo) => {
+    this.toolbar.add('shift+left', 'Move left 1/4 page', 'glyphicon-fast-backward', (e,combo) => {
       this.setSelTime(this.tsel - this.clocksPerPage/4);
     });
     this.toolbar.add('left', 'Move left 1 clock', 'glyphicon-step-backward', (e,combo) => {
@@ -151,7 +158,7 @@ export class WaveformView {
     this.toolbar.add('right', 'Move right 1 clock', 'glyphicon-step-forward', (e,combo) => {
       this.setSelTime(this.tsel + 1);
     });
-    this.toolbar.add('ctrl+right', 'Move right 1/4 page', 'glyphicon-fast-forward', (e,combo) => {
+    this.toolbar.add('shift+right', 'Move right 1/4 page', 'glyphicon-fast-forward', (e,combo) => {
       this.setSelTime(this.tsel + this.clocksPerPage/4);
     });
     this.toolbar.add('h', 'Switch between hex/decimal format', 'glyphicon-barcode', (e,combo) => {
@@ -187,11 +194,17 @@ export class WaveformView {
       this.t0 -= this.clocksPerPage / 4;
     this.tsel = t;
     this.setOrgTime(this.t0);
+    this.clklabel.innerText = " clk " + this.tsel;
+  }
+ 
+  setClocksPerPage() {
+    this.clocksPerPage = Math.floor(this.pageWidth/this.zoom) - 1;
   }
   
   setZoom(zoom : number) {
     this.zoom = Math.max(1/16, Math.min(64, zoom));
-    this.clocksPerPage = Math.ceil(this.pageWidth/this.zoom); // TODO: refactor into other one
+    this.setClocksPerPage();
+    this.t0 = Math.max(0, Math.round(this.tsel - this.clocksPerPage / 2));
     this.refresh();
   }
   
@@ -211,7 +224,9 @@ export class WaveformView {
     var w = canvas.width;
     var h = canvas.height;
     var ctx = canvas.getContext("2d");
-    ctx.font = "14px Andale Mono, Lucida Console, monospace";
+    var fontbig = "14px Andale Mono, Lucida Console, monospace";
+    var fontsml = "10px Andale Mono, Lucida Console, monospace";
+    ctx.font = fontbig;
     // clear to black
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     // highlighted?
@@ -227,10 +242,11 @@ export class WaveformView {
     var data = this.wfp.getSignalData(row, this.t0, Math.ceil(w/this.zoom));
     this.clockMax = Math.max(this.clockMax, this.t0 + data.length);
     var printvals = meta.len > 1 && this.zoom >= 32;
-    var ycen = b1+h2-1;
+    var ycen = b1+h2-4;
     ctx.fillStyle = "#336633";
     ctx.fillRect(0, fh/2, 3, b1+h2-fh/2); // draw left tag
-    ctx.strokeStyle = ctx.fillStyle = "#66ff66";
+    ctx.strokeStyle = "#33ee33";
+    ctx.fillStyle = "#99ff99";
     // draw waveform
     ctx.beginPath();
     var x = 0;
@@ -240,24 +256,32 @@ export class WaveformView {
     for (var i=0; i<data.length; i++) {
       var val = data[i];
       if (printvals && val != lastval && x < w-100) { // close to right edge? omit
-        ctx.fillText(val.toString(radix), x+this.zoom/4, ycen);
+        var ytext = ycen;
+        var txt = val.toString(radix);
+        if (txt.length > 4) 
+          ctx.font = fontsml;
+        ctx.fillText(txt, x+this.zoom/4, ytext);
       }
-      lastval = val;
       if (i>0)
         ctx.lineTo(x,y);
       y = b1 + (1.0 - val/yrange) * h2;
-      if (!isclk) x += this.zoom*(1/8);
+      if (!isclk)
+        x += this.zoom*(1/8);
       if (i==0)
         ctx.moveTo(x,y);
       else
         ctx.lineTo(x,y);
+      if (this.zoom > 0.75 && lastval != val)
+        ctx.fillRect(x,y,1+this.zoom/4,1);
       if (isclk)
         x += this.zoom;
       else
         x += this.zoom*(7/8);
+      lastval = val;
     }
     ctx.stroke();
     // draw selection thingie
+    ctx.font = fontbig;
     if (this.tsel >= this.t0) {
       ctx.strokeStyle = ctx.fillStyle = "#ff66ff";
       ctx.beginPath();
