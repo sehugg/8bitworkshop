@@ -438,7 +438,7 @@ var VerilogPlatform = function(mainElement, options) {
     this.refreshVideoFrame();
     // set scope offset
     if (trace && this.waveview) {
-      this.waveview.setEndTime(Math.floor(trace_index/trace_signals.length));
+      this.waveview.setCurrentTime(Math.floor(trace_index/trace_signals.length));
     }
   }
   

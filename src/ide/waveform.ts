@@ -34,6 +34,7 @@ export class WaveformView {
   zoom : number = 8;
   t0 : number = 0;
   tsel : number = -1;
+  tnow : number = -1;
   pageWidth : number;
   clocksPerPage : number;
   clockMax : number;
@@ -161,6 +162,10 @@ export class WaveformView {
     this.toolbar.add('shift+right', 'Move right 1/4 page', 'glyphicon-fast-forward', (e,combo) => {
       this.setSelTime(this.tsel + this.clocksPerPage/4);
     });
+    this.toolbar.add('space', 'Go to current time', 'glyphicon-flash', (e,combo) => {
+      this.setOrgTime(this.tnow);
+      this.setSelTime(this.tnow);
+    });
     this.toolbar.add('h', 'Switch between hex/decimal format', 'glyphicon-barcode', (e,combo) => {
       this.hexformat = !this.hexformat;
       this.refresh();
@@ -181,11 +186,12 @@ export class WaveformView {
     this.t0 = this.roundT(t);
     this.refresh();
   }
-  
-  setEndTime(t : number) {
-    this.setOrgTime(t - this.clocksPerPage);
+
+  setCurrentTime(t : number) {
+    this.tnow = this.roundT(t);
+    this.refresh();
   }
-  
+
   setSelTime(t : number) {
     t = this.roundT(t);
     if (t >= this.t0 + this.clocksPerPage - 1)
@@ -301,6 +307,15 @@ export class WaveformView {
         ctx.fillStyle = "#ff66ff";
         ctx.fillText(s, x, ycen);
       }
+    }
+    // draw current line
+    if (this.tnow >= this.t0) {
+      ctx.strokeStyle = ctx.fillStyle = "#6666cc";
+      ctx.beginPath();
+      x = (this.tnow - this.t0)*this.zoom + this.zoom/2;
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
     }
     // draw labels
     ctx.fillStyle = "white";
