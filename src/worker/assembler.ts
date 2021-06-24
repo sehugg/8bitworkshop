@@ -124,6 +124,8 @@ export class Assembler {
     s = s.replace(/\s+/g, '\\s+');
     s = s.replace(/\[/g, '\\[');
     s = s.replace(/\]/g, '\\]');
+    s = s.replace(/\(/g, '\\(');
+    s = s.replace(/\)/g, '\\)');
     s = s.replace(/\./g, '\\.');
     // TODO: more escapes?
     s = s.replace(/~\w+/g, (varname:string) => {

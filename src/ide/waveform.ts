@@ -38,7 +38,7 @@ export class WaveformView {
   pageWidth : number;
   clocksPerPage : number;
   clockMax : number;
-  hexformat : boolean = false;
+  hexformat : boolean = true;
   scrollbarWidth = 12;
 
   constructor(parent:HTMLElement, wfp:WaveformProvider) {
@@ -251,8 +251,9 @@ export class WaveformView {
     var ycen = b1+h2-4;
     ctx.fillStyle = "#336633";
     ctx.fillRect(0, fh/2, 3, b1+h2-fh/2); // draw left tag
-    ctx.strokeStyle = "#33ee33";
-    ctx.fillStyle = "#99ff99";
+    const COLOR_LINE = ctx.strokeStyle = "#33dd33";
+    const COLOR_HILITE = ctx.fillStyle = "#66ffff";
+    const COLOR_NAME = "#dddddd";
     // draw waveform
     ctx.beginPath();
     var x = 0;
@@ -277,7 +278,7 @@ export class WaveformView {
         ctx.moveTo(x,y);
       else
         ctx.lineTo(x,y);
-      if (this.zoom > 0.75 && lastval != val)
+      if (this.zoom > 0.75 && lastval != val && Math.abs(lastval - val) < yrange*0.1)
         ctx.fillRect(x,y,1+this.zoom/4,1);
       if (isclk)
         x += this.zoom;
@@ -318,7 +319,7 @@ export class WaveformView {
       ctx.stroke();
     }
     // draw labels
-    ctx.fillStyle = "white";
+    ctx.fillStyle = COLOR_NAME;
     ctx.textAlign = "left";
     var lbl = meta.label;
     if (tags.length > 0) { lbl += " (" + tags.join(', ') + ")"; }
