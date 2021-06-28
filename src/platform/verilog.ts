@@ -2,11 +2,17 @@
 import { Platform, BasePlatform } from "../common/baseplatform";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos, KeyFlags } from "../common/emu";
 import { SampleAudio } from "../common/audio";
-import { safe_extend, clamp, byteArrayToString } from "../common/util";
+import { safe_extend } from "../common/util";
 import { WaveformView, WaveformProvider, WaveformMeta } from "../ide/waveform";
-import { setFrameRateUI, current_project } from "../ide/ui";
+import { setFrameRateUI, loadScript } from "../ide/ui";
+import { HDLUnit, isLogicType } from "../common/hdl/hdltypes";
+import { HDLModuleJS } from "../common/hdl/hdlruntime";
 
 declare var Split;
+
+interface WaveformSignal extends WaveformMeta {
+  name: string;
+}
 
 var VERILOG_PRESETS = [
   {id:'clock_divider.v', name:'Clock Divider'},
@@ -64,197 +70,7 @@ var VERILOG_KEYCODE_MAP = makeKeycodeMap([
 
 const TRACE_BUFFER_DWORDS = 0x40000;
 
-// SIMULATOR STUFF (should be global)
-
-export var vl_finished = false;
-export var vl_stopped = false;
-
-export function VL_UL(x) { return x|0; }
-//export function VL_ULL(x) { return x|0; }
-export function VL_TIME_Q() { return (new Date().getTime())|0; }
-
-  /// Return true if data[bit] set
-export function VL_BITISSET_I(data,bit) { return (data & (VL_UL(1)<<VL_UL(bit))); }
-
-export function VL_EXTENDSIGN_I(lbits, lhs) { return (-((lhs)&(VL_UL(1)<<(lbits-1)))); }
-
-export function VL_EXTEND_II(obits,lbits,lhs) { return lhs; }
-
-export function VL_EXTENDS_II(x,lbits,lhs) {
-    return VL_EXTENDSIGN_I(lbits,lhs) | lhs;
-  }
-
-export function VL_NEGATE_I(x) { return -x; }
-
-export function VL_LTS_III(x,lbits,y,lhs,rhs) {
-    return (VL_EXTENDS_II(x,lbits,lhs) < VL_EXTENDS_II(x,lbits,rhs)) ? 1 : 0; }
-
-export function VL_GTS_III(x,lbits,y,lhs,rhs) {
-    return (VL_EXTENDS_II(x,lbits,lhs) > VL_EXTENDS_II(x,lbits,rhs)) ? 1 : 0; }
-
-export function VL_LTES_III(x,lbits,y,lhs,rhs) {
-    return (VL_EXTENDS_II(x,lbits,lhs) <= VL_EXTENDS_II(x,lbits,rhs)) ? 1 : 0; }
-
-export function VL_GTES_III(x,lbits,y,lhs,rhs) {
-    return (VL_EXTENDS_II(x,lbits,lhs) >= VL_EXTENDS_II(x,lbits,rhs)) ? 1 : 0; }
-
-export function VL_DIV_III(lbits,lhs,rhs) {
-    return (((rhs)==0)?0:(lhs)/(rhs)); }
-
-export function VL_MULS_III(lbits,lhs,rhs) {
-    return (((rhs)==0)?0:(lhs)*(rhs)); }
-  
-export function VL_MODDIV_III(lbits,lhs,rhs) {
-    return (((rhs)==0)?0:(lhs)%(rhs)); }
-
-export function VL_DIVS_III(lbits,lhs,rhs) {
-  var lhs_signed = VL_EXTENDS_II(32, lbits, lhs);
-  var  rhs_signed = VL_EXTENDS_II(32, lbits, rhs);
-  return (((rhs_signed)==0)?0:(lhs_signed)/(rhs_signed));
-}
-
-export function VL_MODDIVS_III(lbits,lhs,rhs) {
-  var lhs_signed = VL_EXTENDS_II(32, lbits, lhs);
-  var  rhs_signed = VL_EXTENDS_II(32, lbits, rhs);
-  return (((rhs_signed)==0)?0:(lhs_signed)%(rhs_signed));
-}
-
-export function VL_REDXOR_32(r) {
-    r=(r^(r>>1)); r=(r^(r>>2)); r=(r^(r>>4)); r=(r^(r>>8)); r=(r^(r>>16));
-    return r;
-  }
-
-export var VL_WRITEF = console.log; // TODO: $write
-
-export function vl_finish(filename,lineno,hier) {
-    if (!vl_finished) console.log("Finished at " + filename + ":" + lineno, hier);
-    vl_finished = true;
-  }
-export function vl_stop(filename,lineno,hier) {
-    if (!vl_stopped) console.log("Stopped at " + filename + ":" + lineno, hier);
-    vl_stopped = true;
-  }
-
-export function VL_RAND_RESET_I(bits) { return 0 | Math.floor(Math.random() * (1<<bits)); }
-
-export function VL_RANDOM_I(bits) { return 0 | Math.floor(Math.random() * (1<<bits)); }
-
-export function VL_READMEM_Q(ishex,width,depth,array_lsb,fnwords,filename,memp,start,end) {
-  VL_READMEM_W(ishex,width,depth,array_lsb,fnwords,filename,memp,start,end);
-}
-export function VL_READMEM_W(ishex,width,depth,array_lsb,fnwords,filename,memp,start,end) {
-  // parse filename from 32-bit values into characters
-  var barr = [];
-  for (var i=0; i<filename.length; i++) {
-    barr.push((filename[i] >> 0)  & 0xff);
-    barr.push((filename[i] >> 8)  & 0xff);
-    barr.push((filename[i] >> 16) & 0xff);
-    barr.push((filename[i] >> 24) & 0xff);
-  }
-  barr = barr.filter(x => x != 0); // ignore zeros
-  barr.reverse(); // reverse it
-  var strfn = byteArrayToString(barr); // convert to string
-  // parse hex/binary file
-  var strdata = current_project.getFile(strfn) as string;
-  if (strdata == null) throw Error("Could not $readmem '" + strfn + "'");
-  var data = strdata.split('\n').filter(s => s !== '').map(s => parseInt(s, ishex ? 16 : 2));
-  console.log('$readmem', ishex, strfn, data.length);
-  // copy into destination array
-  if (memp === null) throw Error("No destination array to $readmem " + strfn);
-  if (memp.length < data.length) throw Error("Destination array too small to $readmem " + strfn);
-  for (i=0; i<data.length; i++)
-    memp[i] = data[i];
-}
-
 const CYCLES_PER_FILL = 20;
-
-// SIMULATOR BASE
-
-abstract class VerilatorBase {
-
-  totalTicks = 0;
-  maxVclockLoop = 0;
-  clk = 0;
-  reset = 0;
-
-  vl_fatal(msg:string) {
-    console.log(msg);
-  }
-
-  ticks() : number { return this.totalTicks; }
-  setTicks(T:number) { this.totalTicks = T|0; }
-
-  __reset() {
-    if (this.reset !== undefined) {
-      this.totalTicks = 0;
-      this.reset = 0;
-      this.tick2();
-      this.reset = 1;
-    }
-  }
-
-  __unreset() {
-    if (this.reset !== undefined) {
-      this.reset = 0;
-    }
-  }
-
-  tick2() {
-    this.clk = 0;
-    this.eval();
-    this.clk = 1;
-    this.eval();
-  }
-  
-  abstract _eval(vlSymsp);
-  abstract __Vm_didInit : boolean;
-  abstract __Vm_activity : boolean;
-  abstract _change_request(vlSymsp);
-  abstract _eval_initial(vlSymsp);
-  abstract _eval_settle(vlSymsp);
-
-  eval() {
-    let vlSymsp = this; //{TOPp:this};
-    // Initialize
-    if (!vlSymsp.__Vm_didInit)
-      this._eval_initial_loop(vlSymsp);
-    // Evaluate till stable
-    //VL_DEBUG_IF(VL_PRINTF("\n----TOP Evaluate Vmain::eval\n"); );
-    var __VclockLoop = 0;
-    var __Vchange=1;
-    while (__Vchange) {
-        //VL_DEBUG_IF(VL_PRINTF(" Clock loop\n"););
-        vlSymsp.__Vm_activity = true;
-        this._eval(vlSymsp);
-        __Vchange = this._change_request(vlSymsp);
-        if (++__VclockLoop > 100) { this.vl_fatal("Verilated model didn't converge"); }
-    }
-    if (__VclockLoop > this.maxVclockLoop) {
-      this.maxVclockLoop = __VclockLoop;
-      if (this.maxVclockLoop > 1) {
-        console.log("Graph took " + this.maxVclockLoop + " iterations to stabilize");
-        $("#verilog_bar").show();
-        $("#settle_label").text(this.maxVclockLoop+"");
-      }
-    }
-    this.totalTicks++;
-  }
-
-  _eval_initial_loop(vlSymsp) {
-    vlSymsp.TOPp = this;
-    vlSymsp.__Vm_didInit = true;
-    this._eval_initial(vlSymsp);
-    vlSymsp.__Vm_activity = true;
-    var __VclockLoop = 0;
-    var __Vchange=1;
-    while (__Vchange) {
-        this._eval_settle(vlSymsp);
-        this._eval(vlSymsp);
-        __Vchange = this._change_request(vlSymsp);
-        if (++__VclockLoop > 100) { this.vl_fatal("Verilated model didn't DC converge"); }
-    }
-  }
-}
 
 // PLATFORM
 
@@ -268,9 +84,9 @@ var VerilogPlatform = function(mainElement, options) {
   var videoHeight = 256;
   var maxVideoLines = 262+40; // vertical hold
   var idata, timer, timerCallback;
+  var top : HDLModuleJS;
   var gen;
   var cyclesPerFrame = (256+23+7+23)*262; // 4857480/60 Hz
-  var current_output;
 
   // control inputs
   var switches = [0,0,0];
@@ -317,13 +133,23 @@ var VerilogPlatform = function(mainElement, options) {
   var frameRate = 0;
 
   function vidtick() {
-    gen.tick2();
+    top.tick2();
     if (useAudio)
       audio.feedSample(gen.spkr*(1.0/255.0), 1);
     if (keycode && keycode >= 128 && gen.keystrobe) // keystrobe = clear hi bit of key buffer
       keycode = gen.keycode = keycode & 0x7f;
     if (debugCond && debugCond())
       debugCond = null;
+  }
+
+  function doreset() {
+    gen.reset = 1;
+  }
+
+  function unreset() {
+    if (gen.reset !== undefined) {
+      gen.reset = 0;
+    }
   }
 
   // inner Platform class
@@ -345,7 +171,9 @@ var VerilogPlatform = function(mainElement, options) {
     maxVideoLines = height+40;
   }
 
-  start() {
+  async start() {
+    await loadScript('./gen/common/hdl/hdltypes.js');
+    await loadScript('./gen/common/hdl/hdlruntime.js');
     video = new RasterVideo(mainElement,videoWidth,videoHeight,{overscan:true});
     video.create();
     poller = setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP, (o,key,code,flags) => {
@@ -358,7 +186,7 @@ var VerilogPlatform = function(mainElement, options) {
     timerCallback = () => {
       if (!this.isRunning())
         return;
-      if (gen) gen.switches = switches[0];
+      if (gen && gen.switches != null) gen.switches = switches[0];
       this.updateFrame();
     };
     this.setFrameRate(60);
@@ -396,7 +224,7 @@ var VerilogPlatform = function(mainElement, options) {
       while (framey != new_y || clock++ > 200000) {
         this.setGenInputs();
         this.updateVideoFrameCycles(1, true, false);
-        gen.__unreset();
+        unreset();
       }
     });
   }
@@ -410,10 +238,10 @@ var VerilogPlatform = function(mainElement, options) {
   setGenInputs() {
     useAudio = (audio != null);
     //TODO debugCond = this.getDebugCallback();
-    gen.switches_p1 = switches[0];
-    gen.switches_p2 = switches[1];
-    gen.switches_gen = switches[2];
-    gen.keycode = keycode;
+    if (gen.switches_p1 != null) gen.switches_p1 = switches[0];
+    if (gen.switches_p2 != null) gen.switches_p2 = switches[1];
+    if (gen.switches_gen != null) gen.switches_gen = switches[2];
+    if (gen.keycode != null) gen.keycode = keycode;
   }
   
   updateVideoFrame() {
@@ -434,7 +262,7 @@ var VerilogPlatform = function(mainElement, options) {
       idata[frameidx] = -1;
     }
     //this.restartDebugState();
-    gen.__unreset();
+    unreset();
     this.refreshVideoFrame();
     // set scope offset
     if (trace && this.waveview) {
@@ -450,7 +278,7 @@ var VerilogPlatform = function(mainElement, options) {
   advance(novideo : boolean) : number {
     this.setGenInputs();
     this.updateVideoFrameCycles(cyclesPerFrame, true, false);
-    gen.__unreset();
+    unreset();
     if (!novideo) {
       this.refreshVideoFrame();
     }
@@ -547,16 +375,16 @@ var VerilogPlatform = function(mainElement, options) {
         framehsync = false;
         framex = 0;
         framey++;
-        gen.hpaddle = framey > video.paddle_x ? 1 : 0;
-        gen.vpaddle = framey > video.paddle_y ? 1 : 0;
+        if (gen.hpaddle != null) gen.hpaddle = framey > video.paddle_x ? 1 : 0;
+        if (gen.vpaddle != null) gen.vpaddle = framey > video.paddle_y ? 1 : 0;
       }
       if (framey > maxVideoLines || gen.vsync) {
         framevsync = true;
         framey = 0;
         framex = 0;
         frameidx = 0;
-        gen.hpaddle = 0;
-        gen.vpaddle = 0;
+        if (gen.hpaddle != null) gen.hpaddle = 0;
+        if (gen.vpaddle != null) gen.vpaddle = 0;
       } else {
         var wasvsync = framevsync;
         framevsync = false;
@@ -573,8 +401,7 @@ var VerilogPlatform = function(mainElement, options) {
     for (var i=0; i<arr.length; i++) {
       var v = arr[i];
       var z = gen[v.name];
-      if (typeof(z) === 'number')
-        trace_buffer[trace_index] = z;
+      trace_buffer[trace_index] = z+0;
       trace_index++;
     }
     if (trace_index >= trace_buffer.length - arr.length)
@@ -585,12 +412,12 @@ var VerilogPlatform = function(mainElement, options) {
     var max_index = Math.min(trace_buffer.length - trace_signals.length, trace_index + count);
     while (trace_index < max_index) {
       gen.clk ^= 1;
-      gen.eval();
+      top.eval();
       this.snapshotTrace();
       if (trace_index == 0)
         break;
     }
-    gen.__unreset();
+    unreset();
     return (trace_index == 0);
   }
   
@@ -633,35 +460,36 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
-  loadROM(title, output) {
-    var mod;
-    if (output.code) {
-      // is code identical?
-      if (current_output && current_output.code == output.code) {
-      } else {
-        try {
-          mod = new Function('base', output.code);
-        } catch (e) {
-          this.printErrorCodeContext(e, output.code);
-          throw e;
+  loadROM(title:string, output:any) {
+    var unit = output as HDLUnit;
+    var topmod = unit.modules['TOP'];
+    if (unit.modules && topmod) {
+      {
+        // initialize top module and constant pool
+        top = new HDLModuleJS(topmod, unit.modules['@CONST-POOL@']);
+        top.init();
+        top.reset();
+        gen = top.state;
+        // create signal array
+        var signals : WaveformSignal[] = [];
+        for (var key in topmod.vardefs) {
+          var vardef = topmod.vardefs[key];
+          if (isLogicType(vardef.dtype)) {
+            signals.push({
+              name: key,
+              label: vardef.origName,
+              input: vardef.isInput,
+              output: vardef.isOutput,
+              len: vardef.dtype.left+1
+            });
+          }
         }
-        // compile Verilog code
-        var base = new (VerilatorBase as any)();
-        gen = new mod();
-        //$.extend(gen, base);
-        gen.__proto__ = base;
-        current_output = output;
-        module_name = output.name ? output.name.substr(1) : "top";
-        //trace_ports = current_output.ports;
-        trace_signals = current_output.ports.concat(current_output.signals);	// combine ports + signals
-        trace_signals = trace_signals.filter((v) => { return !v.name.startsWith("__V"); }); // remove __Vclklast etc
-        for (var v of trace_signals) {
-          v.label = v.name.replace(/__DOT__/g, ".");	// make nicer name
-        }
+        trace_signals = signals;
+        trace_signals = trace_signals.filter((v) => { return !v.label.startsWith("__V"); }); // remove __Vclklast etc
         trace_index = 0;
-        // power on module
+        // reset
         this.poweron();
-        // query output
+        // query output signals -- video or not?
         this.hasvideo = gen.vsync !== undefined && gen.hsync !== undefined && gen.rgb !== undefined;
         if (this.hasvideo) {
           const IGNORE_SIGNALS = ['clk','reset'];
@@ -677,16 +505,16 @@ var VerilogPlatform = function(mainElement, options) {
       }
     }
     // replace program ROM, if using the assembler
+    this.reset();
     if (output.program_rom && output.program_rom_variable) {
       if (gen[output.program_rom_variable]) {
         if (gen[output.program_rom_variable].length != output.program_rom.length)
           alert("ROM size mismatch -- expected " + gen[output.program_rom_variable].length + " got " + output.program_rom.length);
         else
-          gen[output.program_rom_variable] = output.program_rom;
+          gen[output.program_rom_variable].set(output.program_rom);
       } else {
         alert("No program_rom variable found (" + output.program_rom_variable + ")");
       }
-      this.reset();
     }
     // restart audio
     this.restartAudio();
@@ -720,6 +548,13 @@ var VerilogPlatform = function(mainElement, options) {
     if (audio) audio.start();
   }
 
+  isBlocked() {
+    return top && top.finished;
+  }
+  isStopped() {
+    return top && top.stopped;
+  }
+
   setFrameRate(rateHz) {
     frameRate = rateHz;
     var fps = Math.min(60, rateHz*cyclesPerFrame);
@@ -738,12 +573,13 @@ var VerilogPlatform = function(mainElement, options) {
   getFrameRate() { return frameRate; }
 
   poweron() {
-    gen._ctor_var_reset();
+    top.reset();
     this.reset();
   }
   reset() {
     if (!gen) return;
-    gen.__reset();
+    //top.reset(); // to avoid clobbering user inputs
+    doreset();
     trace_index = 0;
     if (trace_buffer) trace_buffer.fill(0);
     if (video) video.setRotate(gen.rotate ? -90 : 0);
@@ -751,7 +587,7 @@ var VerilogPlatform = function(mainElement, options) {
     if (!this.hasvideo) this.resume(); // TODO?
   }
   tick() {
-    gen.tick2();
+    top.tick2();
   }
   getToolForFilename(fn) {
     if (fn.endsWith(".asm")) return "jsasm";
@@ -768,6 +604,7 @@ var VerilogPlatform = function(mainElement, options) {
       return;
     }
     var val = gen[name];
+    /* TODO
     if (val === undefined && current_output.code) {
       var re = new RegExp("(\\w+__DOT__(?:_[dcw]_)" + name + ")\\b", "gm");
       var m = re.exec(current_output.code);
@@ -776,6 +613,7 @@ var VerilogPlatform = function(mainElement, options) {
         val = gen[name];
       }
     }
+    */
     if (typeof(val) === 'number') {
       inspect_obj = gen;
       inspect_sym = name;
@@ -787,22 +625,24 @@ var VerilogPlatform = function(mainElement, options) {
   // DEBUGGING
 
   getDebugTree() {
-    return this.saveState().o;
+    return {
+      //ast: current_output,
+      runtime: top,
+      state: this.saveState().o
+    }
   }
 
   // TODO: bind() a function to avoid depot?
   saveState() {
     var state = {
-      T:gen.ticks(),
+      // TODO: T:gen.ticks(),
       o:safe_extend(true, {}, gen)
     };
-    state.o.TOPp = null;
     return state;
   }
   loadState(state) {
     gen = safe_extend(true, gen, state.o);
-    gen.setTicks(state.T);
-    gen.TOPp = gen;
+    // TODO: gen.setTicks(state.T);
     //console.log(gen, state.o);
   }
   saveControlsState() {
@@ -822,6 +662,12 @@ var VerilogPlatform = function(mainElement, options) {
     switches[1] = state.sw1;
     switches[2] = state.sw2;
     keycode = state.keycode;
+  }
+  getDownloadFile() {
+    return {
+      extension:".js", 
+      blob: new Blob([top.getJSCode()], {type:"text/plain"})
+    };
   }
 
  } // end of inner class

@@ -1339,7 +1339,7 @@ endmodule
 module cpu6502_test_top(clk, reset, AB, DI, DO, WE);
 input clk,reset;
 output reg [15:0] AB;   // address bus
-output wire [7:0] DI;         // data in, read bus
+output var [7:0] DI;         // data in, read bus
 output wire [7:0] DO;        // data out, write bus
 output wire WE;              // write enable
 wire IRQ=0;              // interrupt request

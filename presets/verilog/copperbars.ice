@@ -56,11 +56,14 @@ $$end
 // -------------------------
 
 algorithm main(
+$$if NTSC then  
+  // NTSC
   output! uint$color_depth$ video_r,
   output! uint$color_depth$ video_g,
   output! uint$color_depth$ video_b,
   output! uint1 video_hs,
   output! uint1 video_vs
+$$end
 ) 
 <@clock,!reset> 
 {

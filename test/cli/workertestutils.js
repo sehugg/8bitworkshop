@@ -1,18 +1,21 @@
 
+var _require = require;
 var assert = require('assert');
 var fs = require('fs');
 var vm = require('vm');
 
 var worker = {};
 
+process.exit = function() { console.log("arggh you can't exit when i pass noExitRuntime! lol process.exit() go brrr") }
+
 global.window = global;
 global.exports = {};
 global.self = global;
 global.location = {href:'.'};
 global.require = (modname) => {
-  console.log("REQUIRE",modname);
+  //console.log("REQUIRE",modname);
   if (modname == 'path')
-    return require(modname);
+    return _require(modname);
 };
 
 global.btoa = require('btoa');

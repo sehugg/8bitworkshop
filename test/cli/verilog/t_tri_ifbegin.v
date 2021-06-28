@@ -1,13 +1,16 @@
 // DESCRIPTION: Verilator: Verilog Test module
+// This file ONLY is placed under the Creative Commons Public Domain, for
+// any use, without warranty, 2020 by Wilson Snyder.
+// SPDX-License-Identifier: CC0-1.0
 
-module top (/*AUTOARG*/
+module t (/*AUTOARG*/
    // Inputs
    clk
    );
    input clk;
 
-   tri 	 pad_io_h;
-   tri 	 pad_io_l;
+   tri   pad_io_h;
+   tri   pad_io_l;
 
    sub sub (.*);
 
@@ -45,8 +48,7 @@ module sub (/*AUTOARG*/
             if (DIFFERENTIAL)
               assign pad_io_l = sig_l_r;
          end
-      end 
+      end
    endgenerate
 
 endmodule
-

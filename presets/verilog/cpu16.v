@@ -28,7 +28,7 @@ module ALU(A, B, carry, aluop, Y);
   input  [N-1:0] B;	// B input
   input  carry;		// carry input
   input  [3:0] aluop;	// alu operation
-  output [N:0] Y;	// Y output + carry
+  output reg [N:0] Y;	// Y output + carry
   
   always @(*)
     case (aluop)
@@ -72,14 +72,14 @@ endmodule
 module CPU16(clk, reset, hold, busy,
              address, data_in, data_out, write);
 
-  input         clk;
-  input         reset;
-  input		hold;
-  output	busy;
-  output [15:0] address;
-  input  [15:0] data_in;
-  output [15:0] data_out;
-  output        write;
+  input             clk;
+  input             reset;
+  input	            hold;
+  output reg        busy;
+  output reg [15:0] address;
+  input      [15:0] data_in;
+  output reg [15:0] data_out;
+  output reg        write;
   
   // wait state for RAM?
   parameter RAM_WAIT = 1;

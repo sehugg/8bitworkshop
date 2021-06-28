@@ -52,13 +52,13 @@ module sprite_scanline_renderer(clk, reset, hpos, vpos, rgb,
   input clk, reset;	// clock and reset inputs
   input [8:0] hpos;	// horiz. sync pos
   input [8:0] vpos;	// vert. sync pos
-  output [3:0] rgb;	// rgb output
+  output reg [3:0] rgb;	// rgb output
 
-  output [NB:0] ram_addr; // RAM for sprite data
+  output reg [NB:0] ram_addr; // RAM for sprite data
   input [15:0] ram_data;  // (2 words per sprite)
-  output ram_busy;	  // set when accessing RAM
+  output reg ram_busy;	  // set when accessing RAM
   
-  output [15:0] rom_addr; // sprite ROM address
+  output reg [15:0] rom_addr; // sprite ROM address
   input [15:0] rom_data;  // sprite ROM data
   
   // copy of sprite data from RAM (N entries)
@@ -208,11 +208,11 @@ module test_scanline_render_top(clk, reset, hsync, vsync, rgb);
     .data(rom_data)
   );
   
-  wire [5:0] ram_addr;
+  reg [5:0] ram_addr;
   wire [15:0] ram_read;
   reg [15:0] ram_write;
   reg ram_we;
-  wire ram_busy;
+  reg ram_busy;
   
   // 64-word RAM
   RAM_sync #(6,16) ram(

@@ -1,7 +1,8 @@
 // DESCRIPTION: Verilator: Verilog Test module
 //
-// This file ONLY is placed into the Public Domain, for any use,
-// without warranty, 2003 by Wilson Snyder.
+// This file ONLY is placed under the Creative Commons Public Domain, for
+// any use, without warranty, 2003 by Wilson Snyder.
+// SPDX-License-Identifier: CC0-1.0
 
 module t (/*AUTOARG*/
    // Inputs
@@ -10,14 +11,16 @@ module t (/*AUTOARG*/
    input clk;
 
    // verilator lint_off COMBDLY
+   // verilator lint_off LATCH
    // verilator lint_off UNOPT
    // verilator lint_off UNOPTFLAT
+   // verilator lint_off BLKANDNBLK
 
-   reg 	       c1_start; initial c1_start = 0;
+   reg         c1_start; initial c1_start = 0;
    wire [31:0] c1_count;
    comb_loop c1 (.count(c1_count), .start(c1_start));
 
-   wire        s2_start = (c1_count==0 && c1_start);
+   wire        s2_start = c1_start;
    wire [31:0] s2_count;
    seq_loop  s2 (.count(s2_count), .start(s2_start));
 
@@ -30,25 +33,29 @@ module t (/*AUTOARG*/
       //$write("[%0t] %x  counts %x %x %x\n",$time,cyc,c1_count,s2_count,c3_count);
       cyc <= cyc + 8'd1;
       case (cyc)
-	8'd00: begin
-	   c1_start <= 1'b0;
-	end
-	8'd01: begin
-	   c1_start <= 1'b1;
-	end
-	default: ;
+        8'd00: begin
+           c1_start <= 1'b0;
+        end
+        8'd01: begin
+           c1_start <= 1'b1;
+        end
+        default: ;
       endcase
       case (cyc)
-	8'd02: begin
-	   if (c1_count!=32'h3) $stop;
-	   if (s2_count!=32'h3) $stop;
-	   if (c3_count!=32'h6) $stop;
-	end
-	8'd03: begin
-	   $write("*-* All Finished *-*\n");
-	   $finish;
-	end
-	default: ;
+        8'd02: begin
+           // On Verilator, we expect these comparisons to match exactly,
+           // confirming that our settle loop repeated the exact number of
+           // iterations we expect. No '$stop' should be called here, and we
+           // should reach the normal '$finish' below on the next cycle.
+           if (c1_count!=32'h3) $stop;
+           if (s2_count!=32'h3) $stop;
+           if (c3_count!=32'h5) $stop;
+        end
+        8'd03: begin
+           $write("*-* All Finished *-*\n");
+           $finish;
+        end
+        default: ;
       endcase
    end
 endmodule
@@ -62,12 +69,10 @@ module comb_loop (/*AUTOARG*/
    input start;
    output reg [31:0] count; initial count = 0;
 
-   reg [31:0] 	 runnerm1, runner; initial runner = 0;
+   reg [31:0]    runnerm1, runner; initial runner = 0;
 
-   always @ (start) begin
-      if (start) begin
-	 runner = 3;
-      end
+   always @ (posedge start) begin
+      runner = 3;
    end
 
    always @ (/*AS*/runner) begin
@@ -76,9 +81,9 @@ module comb_loop (/*AUTOARG*/
 
    always @ (/*AS*/runnerm1) begin
       if (runner > 0) begin
-	 count = count + 1;
-	 runner = runnerm1;
-	 $write ("%m count=%d  runner =%x\n",count, runnerm1);
+         count = count + 1;
+         runner = runnerm1;
+         $write ("%m count=%d  runner =%x\n",count, runnerm1);
       end
    end
 
@@ -93,12 +98,10 @@ module seq_loop (/*AUTOARG*/
    input start;
    output reg [31:0] count; initial count = 0;
 
-   reg [31:0] 	 runnerm1, runner; initial runner = 0;
+   reg [31:0]    runnerm1, runner; initial runner = 0;
 
-   always @ (start) begin
-      if (start) begin
-	 runner <= 3;
-      end
+   always @ (posedge start) begin
+      runner <= 3;
    end
 
    always @ (/*AS*/runner) begin
@@ -107,9 +110,9 @@ module seq_loop (/*AUTOARG*/
 
    always @ (/*AS*/runnerm1) begin
       if (runner > 0) begin
-	 count = count + 1;
-	 runner <= runnerm1;
-	 $write ("%m count=%d  runner<=%x\n",count, runnerm1);
+         count = count + 1;
+         runner <= runnerm1;
+         $write ("%m count=%d  runner<=%x\n",count, runnerm1);
       end
    end
 

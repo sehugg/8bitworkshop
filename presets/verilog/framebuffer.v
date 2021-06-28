@@ -13,7 +13,7 @@ module frame_buffer_top(clk, reset, hsync, vsync, hpaddle, vpaddle,
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
-  output [3:0] rgb;
+  output reg [3:0] rgb;
   
   reg [15:0] ram[0:32767];	// RAM (32768 x 16 bits)
   reg [15:0] rom[0:1023];	// ROM (1024 x 16 bits)

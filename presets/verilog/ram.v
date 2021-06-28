@@ -21,8 +21,9 @@ module RAM_sync(clk, addr, din, dout, we);
   input  clk;		// clock
   input  [A-1:0] addr;	// address
   input  [D-1:0] din;	// data input
-  output [D-1:0] dout;	// data output
   input  we;		// write enable
+  
+  output reg [D-1:0] dout;	// data output
   
   reg [D-1:0] mem [0:(1<<A)-1]; // (1<<A)xD bit memory
   

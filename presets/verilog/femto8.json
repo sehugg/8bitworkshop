@@ -1,6 +1,7 @@
 
 {
   "name":"femto8",
+  "width":8,
   "vars":{
     "reg":{"bits":2, "toks":["a", "b", "ip", "none"]},
     "unop":{"bits":3, "toks":["zero","loada","inc","dec","asl","lsr","rol","ror"]},

@@ -46,7 +46,7 @@ module cpu_platform(clk, reset, hsync, vsync,
   reg [5:0] sprite_ram_addr;
   wire tile_reading;
   wire sprite_reading;
-  wire [14:0] mux_ram_addr; // 15-bit RAM access
+  var [14:0] mux_ram_addr; // 15-bit RAM access
   
   // multiplexor for sprite/tile/CPU RAM
   always @(*)
@@ -138,11 +138,12 @@ module cpu_platform(clk, reset, hsync, vsync,
   wire cpu_busy;
   wire [15:0] cpu_ram_addr;
   wire busy;
-  wire [15:0] cpu_bus;
+  var [15:0] cpu_bus;
   wire [15:0] flags = {11'b0, vsync, hsync, vpaddle, hpaddle, display_on};
   wire [15:0] switches = {switches_p2, switches_p1};
   
   // select ROM, RAM, switches ($FFFE) or flags ($FFFF)
+  /* verilator lint_off CASEOVERLAP */
   always @(*)
     casez (cpu_ram_addr)
       16'hfffe: cpu_bus = switches;

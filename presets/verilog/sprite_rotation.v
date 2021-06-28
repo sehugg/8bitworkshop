@@ -114,9 +114,9 @@ module sprite_renderer2(clk, vstart, load, hstart, rom_addr, rom_bits,
   
   input clk, vstart, load, hstart;
   input hmirror, vmirror;
-  output [4:0] rom_addr;
+  output reg [4:0] rom_addr;
   input [7:0] rom_bits;
-  output gfx;
+  output reg gfx;
   output busy;
   
   assign busy = state != WAIT_FOR_VSTART;
@@ -191,8 +191,8 @@ endmodule
 module rotation_selector(rotation, bitmap_num, hmirror, vmirror);
   
   input [3:0] rotation;	   // angle (0..15)
-  output [2:0] bitmap_num; // bitmap index (0..4)
-  output hmirror, vmirror; // horiz & vert mirror bits
+  output reg [2:0] bitmap_num; // bitmap index (0..4)
+  output reg hmirror, vmirror; // horiz & vert mirror bits
   
   always @(*)
     case (rotation[3:2])	// 4 quadrants

@@ -1,7 +1,8 @@
 // DESCRIPTION: Verilator: Verilog Test module
 //
-// This file ONLY is placed into the Public Domain, for any use,
-// without warranty, 2003 by Wilson Snyder.
+// This file ONLY is placed under the Creative Commons Public Domain, for
+// any use, without warranty, 2003 by Wilson Snyder.
+// SPDX-License-Identifier: CC0-1.0
 
 module t (/*AUTOARG*/
    // Inputs
@@ -10,6 +11,7 @@ module t (/*AUTOARG*/
    input clk;
    integer cyc; initial cyc=1;
 
+   // verilator lint_off LATCH
    // verilator lint_off UNOPT
    // verilator lint_off UNOPTFLAT
    reg [31:0] runner;  initial runner = 5;
@@ -38,7 +40,7 @@ module t (/*AUTOARG*/
    end
 
    // This forms a "loop" where we keep going through the always till runner=0
-   // This isn't "regular" beh code, but insures our change detection is working properly
+   // This isn't "regular" beh code, but ensures our change detection is working properly
    always @ (/*AS*/runner) begin
       runnerm1 = runner - 32'd1;
    end

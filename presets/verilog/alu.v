@@ -25,7 +25,7 @@ module ALU(A, B, carry, aluop, Y);
   input  [N-1:0] B;	// B input
   input  carry;		// carry input
   input  [3:0] aluop;	// alu operation
-  output [N:0] Y;	// Y output + carry
+  output reg [N:0] Y;	// Y output + carry
   
   always @(*)
     case (aluop)

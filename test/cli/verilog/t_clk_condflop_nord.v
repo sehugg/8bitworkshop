@@ -1,7 +1,8 @@
 // DESCRIPTION: Verilator: Verilog Test module
 //
-// This file ONLY is placed into the Public Domain, for any use,
-// without warranty, 2005 by Wilson Snyder.
+// This file ONLY is placed under the Creative Commons Public Domain, for
+// any use, without warranty, 2005 by Wilson Snyder.
+// SPDX-License-Identifier: CC0-1.0
 
 module t (clk);
    input clk;
@@ -111,6 +112,7 @@ module clockgate (clk, sen, ena, gatedclk);
    wire gatedclk = clk & ena_b;
 
    // verilator lint_off COMBDLY
+   // verilator lint_off LATCH
    always @(clk or ena or sen) begin
       if (~clk) begin
         ena_b <= ena | sen;
@@ -119,6 +121,7 @@ module clockgate (clk, sen, ena, gatedclk);
 	 if ((clk^sen)===1'bX) ena_b <= 1'bX;
       end
    end
+   // verilator lint_on LATCH
    // verilator lint_on COMBDLY
 
 endmodule

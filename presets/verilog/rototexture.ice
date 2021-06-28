@@ -32,6 +32,7 @@ algorithm frame_display(
   int20  deltau_y = 0;
   int20  deltav_x = 0;
   int20  deltav_y = 0;
+  int8   scale    = 128;
   
   brom uint18 tbl[$32*32$] = {
 $$write_image_in_table('tile.tga',6)
@@ -84,8 +85,6 @@ $$end
     // prepare scanline with mapping
     corneru  = - ((cornerx * cos) - (cornery * sin));
     cornerv  = - ((cornerx * sin) + (cornery * cos));
-    //corneru  =  ((cornerx * cos) - (cornery * sin));
-    //cornerv  =  ((cornerx * sin) + (cornery * cos));
     deltau_x =   cos;
     deltau_y = - sin;
     deltav_x = sin;

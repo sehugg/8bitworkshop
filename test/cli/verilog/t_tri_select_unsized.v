@@ -4,6 +4,7 @@
 //
 // This file ONLY is placed into the Public Domain, for any use,
 // without warranty, 2012 by Jeremy Bennett.
+// SPDX-License-Identifier: CC0-1.0
 
 module t (/*AUTOARG*/
    // Inputs
@@ -13,7 +14,7 @@ module t (/*AUTOARG*/
 
    wire [1:0]  b;
    wire [1:0]  c;
-   wire [0:0]  d;		// Explicit width due to issue 508
+   wire [0:0]  d;  // Explicit width due to issue 508
    wire [0:0]  e;
 
    // This works if we use 1'bz, or 1'bx, but not with just 'bz or 'bx. It

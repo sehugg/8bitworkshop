@@ -138,6 +138,8 @@ export interface Platform {
 
   readFile?(path: string) : FileData;
   writeFile?(path: string, data: FileData) : boolean;
+
+  getDownloadFile?() : {extension:string, blob:Blob};
 }
 
 export interface Preset {

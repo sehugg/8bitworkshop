@@ -28,7 +28,7 @@ module ALU(A, B, carry, aluop, Y);
   input  [N-1:0] B;	// B input
   input  carry;		// carry input
   input  [3:0] aluop;	// alu operation
-  output [N:0] Y;	// Y output + carry
+  output reg [N:0] Y;	// Y output + carry
   
   always @(*)
     case (aluop)
@@ -99,12 +99,12 @@ tttt = flags test for conditional branch
 
 module CPU(clk, reset, address, data_in, data_out, write);
 
-  input        clk;
-  input        reset;
-  output [7:0] address;
-  input  [7:0] data_in;
-  output [7:0] data_out;
-  output       write;
+  input            clk;
+  input            reset;
+  output reg [7:0] address;
+  input      [7:0] data_in;
+  output reg [7:0] data_out;
+  output reg       write;
   
   reg [7:0] IP;
   reg [7:0] A, B;

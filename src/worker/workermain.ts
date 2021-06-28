@@ -566,8 +566,24 @@ function load(modulename:string, debug?:boolean) {
 }
 function loadGen(modulename:string) {
   if (!loaded[modulename]) {
+    console.log('loading', modulename);
     importScripts('../../gen/'+modulename+".js");
     loaded[modulename] = 1;
+  }
+}
+function loadRequire(modulename:string, path:string) {
+  if (!loaded[path]) {
+    var thisModulesExports = {};
+    var oldRequire = emglobal['require'];
+    emglobal['require'] = (modname:string) => {
+      if (modname.startsWith('./')) modname = modname.substring(2);
+      console.log('require',modname,emglobal[modname]!=null);
+      return emglobal[modname];
+    }
+    emglobal['exports'] = thisModulesExports;
+    loadGen(path);
+    emglobal[modulename] = thisModulesExports;
+    emglobal['require'] = oldRequire;
   }
 }
 function loadWASM(modulename:string, debug?:boolean) {
@@ -1651,8 +1667,8 @@ var jsasm_module_output;
 var jsasm_module_key;
 
 function compileJSASM(asmcode:string, platform, options, is_inline) {
-  loadGen("worker/assembler");
-  var asm = new emglobal.exports.Assembler();
+  loadRequire("assembler", "worker/assembler");
+  var asm = new emglobal['Assembler']();
   var includes = [];
   asm.loadJSON = (filename:string) => {
     var jsontext = getWorkFileAsString(filename);
@@ -1691,8 +1707,8 @@ function compileJSASM(asmcode:string, platform, options, is_inline) {
     // TODO: unify
     result.output = jsasm_module_output.output;
     result.output.program_rom = asmout;
-    // cpu_platform__DOT__program_rom
-    result.output.program_rom_variable = jsasm_module_top + "__DOT__program_rom";
+    // TODO: not cpu_platform__DOT__program_rom anymore, make const
+    result.output.program_rom_variable = jsasm_module_top + "$program_rom";
     result.listings = {};
     result.listings[options.path] = {lines:result.lines};
   }
@@ -1720,7 +1736,10 @@ function compileInlineASM(code:string, platform, options, errors, asmlines) {
       let s = "";
       var out = asmout.output;
       for (var i=0; i<out.length; i++) {
-        if (i>0) s += ",";
+        if (i>0) {
+          s += ",";
+          if ((i & 0xff) == 0) s += "\n";
+        }
         s += 0|out[i];
       }
       if (asmlines) {
@@ -1738,22 +1757,24 @@ function compileInlineASM(code:string, platform, options, errors, asmlines) {
 
 function compileVerilator(step:BuildStep) {
   loadNative("verilator_bin");
-  loadGen("worker/verilator2js");
+  loadRequire("hdltypes", "common/hdl/hdltypes");
+  loadRequire("vxmlparser", "common/hdl/vxmlparser");
   var platform = step.platform || 'verilog';
   var errors = [];
   var asmlines = [];
   gatherFiles(step);
   // compile verilog if files are stale
-  var outjs = "main.js";
-  if (staleFiles(step, [outjs])) {
+  var xmlPath = "main.xml";
+  if (staleFiles(step, [xmlPath])) {
     // TODO: %Error: Specified --top-module 'ALU' isn't at the top level, it's under another cell 'cpu'
     var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
     var verilator_mod = emglobal.verilator_bin({
       instantiateWasm: moduleInstFn('verilator_bin'),
       noInitialRun:true,
+      noExitRuntime:true,
       print:print_fn,
       printErr:match_fn,
-      TOTAL_MEMORY:256*1024*1024,
+      //INITIAL_MEMORY:256*1024*1024,
     });
     var code = getWorkFileAsString(step.path);
     var topmod = detectTopModuleName(code);
@@ -1770,6 +1791,7 @@ function compileVerilator(step:BuildStep) {
       var args = ["--cc", "-O3"/*abcdefstzsuka*/, "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
         "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
         "--x-assign", "fast", "--noassert", "--pins-bv", "33",
+        "--xml-output", xmlPath,
         "--top-module", topmod, step.path]
       verilator_mod.callMain(args);
     } catch (e) {
@@ -1783,13 +1805,13 @@ function compileVerilator(step:BuildStep) {
     if (errors.length) {
       return {errors:errors};
     }
+    var xmlParser = new emglobal['VerilogXMLParser']();
     try {
-      var h_file = FS.readFile("obj_dir/V"+topmod+".h", {encoding:'utf8'});
-      var cpp_file = FS.readFile("obj_dir/V"+topmod+".cpp", {encoding:'utf8'});
-      var rtn = translateVerilatorOutputToJS(h_file, cpp_file);
-      putWorkFile(outjs, rtn.output.code);
-      if (!anyTargetChanged(step, [outjs]))
+      var xmlContent = FS.readFile(xmlPath, {encoding:'utf8'});
+      putWorkFile(xmlPath, xmlContent);
+      if (!anyTargetChanged(step, [xmlPath]))
         return;
+      xmlParser.parse(xmlContent);
     } catch(e) {
       console.log(e);
       errors.push({line:0,msg:""+e});
@@ -1797,11 +1819,12 @@ function compileVerilator(step:BuildStep) {
     }
     //rtn.intermediate = {listing:h_file + cpp_file}; // TODO
     var listings : CodeListingMap = {};
+    listings[step.prefix + '.lst'] = {lines:[],text:xmlContent};
     // TODO: what if found in non-top-module?
     if (asmlines.length)
       listings[step.path] = {lines:asmlines};
     return {
-      output: rtn.output,
+      output: xmlParser,
       errors: errors,
       listings: listings,
     };
@@ -2015,7 +2038,7 @@ function setupRequireFunction() {
     }
   };
   emglobal['require'] = (modname:string) => {
-    console.log('require',modname);
+    console.log('require',modname,exports[modname]!=null);
     return exports[modname];
   }
 }
@@ -2755,10 +2778,8 @@ function compileBASIC(step:BuildStep) {
   var jsonpath = step.path + ".json";
   gatherFiles(step);
   if (staleFiles(step, [jsonpath])) {
-    setupRequireFunction();
-    loadGen("common/basic/compiler");
+    loadRequire("compiler", "common/basic/compiler");
     var parser = new emglobal['BASICParser']();
-    delete emglobal['require'];
     var code = getWorkFileAsString(step.path);
     try {
       var ast = parser.parseFile(code, step.path);

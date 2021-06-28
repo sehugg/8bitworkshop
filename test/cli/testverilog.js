@@ -21,11 +21,12 @@ function loadPlatform(msg) {
     platform.loadROM("ROM", msg.output);
     platform.loadROM("ROM", msg.output);
     platform.loadROM("ROM", msg.output);
-    verilog.vl_finished = verilog.vl_stopped = false;
-    for (var i=0; i<100000 && !(verilog.vl_finished||verilog.vl_stopped); i++) {
+    for (var i=0; i<100000 && !platform.isBlocked(); i++) {
       platform.tick();
     }
-    assert.ok(!verilog.vl_stopped);
+    console.log(i, platform.isBlocked(), platform.isStopped());
+    //assert.ok(platform.isBlocked());
+    assert.ok(!platform.isStopped());
     var state = platform.saveState();
     platform.reset();
     platform.loadState(state);
@@ -33,7 +34,7 @@ function loadPlatform(msg) {
   } catch (e) {
     //platform.printErrorCodeContext(e, msg.output.code);
     //console.log(msg.intermediate.listing);
-    console.log(msg.output.code);
+    //console.log(msg.output.code);
     console.log(e);
     throw e;
   }
@@ -83,6 +84,7 @@ function compileVerilator(filename, code, callback, nerrors) {
 
 function testVerilator(filename, disables, nerrors) {
   it('should translate '+filename, function(done) {
+    console.log(filename);
     var csource = ab2str(fs.readFileSync(filename));
     for (var i=0; i<(disables||[]).length; i++)
       csource = "/* verilator lint_off " + disables[i] + " */\n" + csource;

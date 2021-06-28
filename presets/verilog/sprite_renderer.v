@@ -16,9 +16,9 @@ module sprite_renderer(clk, vstart, load, hstart, rom_addr, rom_bits,
   input vstart;		// start drawing (top border)
   input load;		// ok to load sprite data?
   input hstart;		// start drawing scanline (left border)
-  output [3:0] rom_addr;	// select ROM address
+  output reg [3:0] rom_addr;	// select ROM address
   input [7:0] rom_bits;		// input bits from ROM
-  output gfx;		// output pixel
+  output reg gfx;		// output pixel
   output in_progress;	// 0 if waiting for vstart
   
   reg [2:0] state;	// current state #

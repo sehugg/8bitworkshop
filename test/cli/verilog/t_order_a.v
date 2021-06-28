@@ -1,11 +1,13 @@
 // DESCRIPTION: Verilator: Verilog Test module
 //
-// This file ONLY is placed into the Public Domain, for any use,
-// without warranty, 2003 by Wilson Snyder.
+// This file ONLY is placed under the Creative Commons Public Domain, for
+// any use, without warranty, 2003 by Wilson Snyder.
+// SPDX-License-Identifier: CC0-1.0
 
 module t_order_a (/*AUTOARG*/
    // Outputs
-   m_from_clk_lev1_r, n_from_clk_lev2, o_from_com_levs11, o_from_comandclk_levs12,
+   m_from_clk_lev1_r, n_from_clk_lev2, o_from_com_levs11,
+   o_from_comandclk_levs12,
    // Inputs
    clk, a_to_clk_levm3, b_to_clk_levm1, c_com_levs10, d_to_clk_levm2, one
    );
@@ -23,7 +25,7 @@ module t_order_a (/*AUTOARG*/
 
    /*AUTOREG*/
    // Beginning of automatic regs (for this module's undeclared outputs)
-   reg [7:0]		m_from_clk_lev1_r;
+   reg [7:0]            m_from_clk_lev1_r;
    // End of automatics
 
    // surefire lint_off ASWEBB

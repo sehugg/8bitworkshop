@@ -1,7 +1,8 @@
 // DESCRIPTION: Verilator: Verilog Test module
 //
-// This file ONLY is placed into the Public Domain, for any use,
-// without warranty, 2012 by Wilson Snyder.
+// This file ONLY is placed under the Creative Commons Public Domain, for
+// any use, without warranty, 2012 by Wilson Snyder.
+// SPDX-License-Identifier: CC0-1.0
 
 module t (/*AUTOARG*/
    // Inputs
@@ -36,8 +37,8 @@ module updown #(parameter UP=0)
    endgenerate
 endmodule
 
-module t_up (inout tri1 z); 
+module t_up (inout tri1 z);
 endmodule
 
-module t_down (inout tri0 z); 
+module t_down (inout tri0 z);
 endmodule

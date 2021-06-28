@@ -27,9 +27,9 @@ module test_hvsync_top(clk, reset, hsync, vsync, rgb);
   );
 
   // Assign each color bit to individual wires.
-  wire r = display_on && (((hpos&7)==0) || ((vpos&7)==0));
-  wire g = display_on && vpos[4];
-  wire b = display_on && hpos[4];
+  wire r = display_on & (((hpos&7)==0) | ((vpos&7)==0));
+  wire g = display_on & vpos[4];
+  wire b = display_on & hpos[4];
   
   // Concatenation operator merges the red, green, and blue signals
   // into a single 3-bit vector, which is assigned to the 'rgb'

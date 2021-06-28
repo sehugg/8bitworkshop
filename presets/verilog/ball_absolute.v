@@ -42,8 +42,8 @@ module ball_absolute_top(clk, reset, hsync, vsync, rgb);
   begin
     if (reset) begin
       // reset ball position to center
-      ball_hpos <= ball_horiz_initial;
       ball_vpos <= ball_vert_initial;
+      ball_hpos <= ball_horiz_initial;
     end else begin
       // add velocity vector to ball position
       ball_hpos <= ball_hpos + ball_horiz_move;

@@ -1,7 +1,8 @@
 // DESCRIPTION: Verilator: Verilog Test module
 //
-// This file ONLY is placed into the Public Domain, for any use,
-// without warranty, 2010 by Wilson Snyder.
+// This file ONLY is placed under the Creative Commons Public Domain, for
+// any use, without warranty, 2010 by Wilson Snyder.
+// SPDX-License-Identifier: CC0-1.0
 //
 //    --------------------------------------------------------
 //    Bug Description:
@@ -110,11 +111,13 @@ module llq (clk, d, q);
    reg [WIDTH-1:0]    qr;
 
    /* verilator lint_off COMBDLY */
+   /* verilator lint_off LATCH */
 
    always @(clk or d)
      if (clk == 1'b0)
        qr <= d;
 
+   /* verilator lint_on LATCH */
    /* verilator lint_on COMBDLY */
 
    assign q = qr;

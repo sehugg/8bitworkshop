@@ -8,6 +8,7 @@
 //
 // This file ONLY is placed into the Public Domain, for any use,
 // without warranty, 2012 by Jeremy Bennett.
+// SPDX-License-Identifier: CC0-1.0
 
 module t (/*AUTOARG*/
    // Inputs
@@ -15,7 +16,7 @@ module t (/*AUTOARG*/
    );
    input clk;
 
-   reg 	 ready;
+   reg   ready;
 
    initial begin
       ready = 1'b0;
@@ -23,8 +24,8 @@ module t (/*AUTOARG*/
 
    always @(posedge ready) begin
       if ((ready === 1'b1)) begin
-	 $write("*-* All Finished *-*\n");
-	 $finish;
+         $write("*-* All Finished *-*\n");
+         $finish;
       end
    end
 

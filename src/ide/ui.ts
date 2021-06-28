@@ -959,14 +959,15 @@ function _downloadROMImage(e) {
     return true;
   }
   var prefix = getFilenamePrefix(getCurrentMainFilename());
-  if (current_output instanceof Uint8Array) {
+  if (platform.getDownloadFile) {
+    var dl = platform.getDownloadFile();
+    var prefix = getFilenamePrefix(getCurrentMainFilename());
+    saveAs(dl.blob, prefix + dl.extension);
+  } else if (current_output instanceof Uint8Array) {
     var blob = new Blob([current_output], {type: "application/octet-stream"});
     var suffix = (platform.getROMExtension && platform.getROMExtension(current_output)) 
       || "-" + getBasePlatform(platform_id) + ".bin";
     saveAs(blob, prefix + suffix);
-  } else if (current_output.code != null) {
-    var blob = new Blob([(<VerilogOutput>current_output).code], {type: "text/plain"});
-    saveAs(blob, prefix + ".js");
   } else {
     alertError(`The "${platform_id}" platform doesn't have downloadable ROMs.`);
   }
@@ -997,8 +998,11 @@ function _downloadAllFilesZipFile(e) {
   loadScript('lib/jszip.min.js').then( () => {
     var zip = new JSZip();
     store.keys( (err, keys : string[]) => {
+      setWaitDialog(true);
+      var i = 0;
       return Promise.all(keys.map( (path) => {
         return store.getItem(path).then( (text) => {
+          setWaitProgress(i++/(keys.length+1));
           if (text) {
             zip.file(path, text);
           }
@@ -1007,9 +1011,9 @@ function _downloadAllFilesZipFile(e) {
         return zip.generateAsync({type:"blob"});
       }).then( (content) => {
         return saveAs(content, getBasePlatform(platform_id) + "-all.zip");
-      });
+      }).finally(() => setWaitDialog(false));
     });
-  });
+  })
 }
 
 function populateExamples(sel) {
@@ -1184,6 +1188,7 @@ function setCompileOutput(data: WorkerResult) {
         toolbar.addClass("has-errors");
         showExceptionAsError(e, e+"");
         current_output = null;
+        refreshWindowList();
         return;
       }
     }
