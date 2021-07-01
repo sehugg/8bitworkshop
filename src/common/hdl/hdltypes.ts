@@ -1,4 +1,18 @@
 
+export interface HDLModuleRunner {
+    state: any; // live state or proxy object
+    eval() : void;
+    tick() : void;
+    tick2(iters: number) : void;
+    powercycle() : void;
+    isFinished() : boolean;
+    isStopped() : boolean;
+    saveState() : {};
+    loadState(state: {}) : void;
+}
+
+///
+
 export interface HDLLogicType extends HDLSourceObject {
     left: number;
     right: number;

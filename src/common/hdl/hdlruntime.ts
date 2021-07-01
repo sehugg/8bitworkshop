@@ -1,6 +1,6 @@
 
-import { byteArrayToString } from "../util";
-import { HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, isArrayItem, isArrayType, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
+import { byteArrayToString, safe_extend } from "../util";
+import { HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, isArrayItem, isArrayType, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
 
 interface VerilatorUnit {
     _ctor_var_reset(state) : void;
@@ -10,7 +10,7 @@ interface VerilatorUnit {
     _change_request(state) : boolean;
 }
 
-export class HDLModuleJS {
+export class HDLModuleJS implements HDLModuleRunner {
 
     mod: HDLModuleDef;
     constpool: HDLModuleDef;
@@ -22,14 +22,12 @@ export class HDLModuleJS {
     stopped: boolean = false;
     settleTime: number = 0;
     curconsts: {};
+    constused: number;
     specfuncs: VerilatorUnit[] = [];
     
     constructor(mod: HDLModuleDef, constpool: HDLModuleDef) {
         this.mod = mod;
         this.constpool = constpool;
-    }
-
-    init() {
         this.basefuncs = {} as any;
         this.state = {}; //new Object(this.funcs) as any;
         // set built-in functions
@@ -39,10 +37,12 @@ export class HDLModuleJS {
         // generate functions
         this.basefuncs = this.genFuncs({});
         this.curfuncs = this.basefuncs;
-        for (var i=0; i<2; i++) {
+        for (var i=0; i<16; i++) {
             this.specfuncs[i] = this.genFuncs({
-                reset:(i&1),
+                //reset:(i&1),
                 //clk:(i&2),
+                //CPU16$state:i
+                test_CPU16_top$cpu$state:i
             });
         }
         // set initial state
@@ -57,22 +57,30 @@ export class HDLModuleJS {
         }
     }
 
+    init() {
+    }
+
     genFuncs(constants: {}) : VerilatorUnit {
         var funcs = Object.create(this.basefuncs);
         this.curconsts = constants;
         for (var block of this.mod.blocks) {
             this.locals = {};
+            // if we have at least 1 constant value, check for it (set counter to zero)
+            this.constused = (Object.keys(this.curconsts).length == 0) ? 99999 : 0;
             var s = this.block2js(block);
-            try {
-                var funcname = block.name||'__anon';
-                var funcbody = `'use strict'; function ${funcname}(o) { ${s} }; return ${funcname};`;
-                var func = new Function('', funcbody)();
-                funcs[block.name] = func;
-                //console.log(funcbody);
-            } catch (e) {
-                console.log(funcbody);
-                throw e;
+            if (this.constused) {
+                try {
+                    var funcname = block.name||'__anon';
+                    var funcbody = `'use strict'; function ${funcname}(o) { ${s} }; return ${funcname};`;
+                    var func = new Function('', funcbody)();
+                    funcs[block.name] = func;
+                    //console.log(funcbody);
+                } catch (e) {
+                    console.log(funcbody);
+                    throw e;
+                }
             }
+            //if (this.constused) console.log('FUNC',constants,funcname,this.constused);
         }
         return funcs;
     }
@@ -88,14 +96,14 @@ export class HDLModuleJS {
         return s;
     }
 
-    reset() {
+    powercycle() {
         this.finished = false;
         this.stopped = false;
         this.basefuncs._ctor_var_reset(this.state);
         this.basefuncs._eval_initial(this.state);
         for (var i=0; i<100; i++) {
             this.basefuncs._eval_settle(this.state);
-            this.eval();
+            this.basefuncs._eval(this.state);
             var Vchange = this.basefuncs._change_request(this.state);
             if (!Vchange) {
                 this.settleTime = i;
@@ -106,9 +114,14 @@ export class HDLModuleJS {
     }
 
     eval() {
-        //var clk = this.state.clk as number;
+        var clk = this.state.clk as number;
         var reset = this.state.reset as number;
-        this.curfuncs = this.specfuncs[reset];
+        var state = this.state.test_CPU16_top$cpu$state as number;
+        var opcode = this.state.CPU$opcode as number;
+        var aluop = this.state.CPU$aluop as number;
+        var fi = state;
+        //this.curfuncs = this.specfuncs[fi & 0xff];
+        this.curfuncs = this.basefuncs;
         for (var i=0; i<100; i++) {
             this.curfuncs._eval(this.state);
             var Vchange = this.curfuncs._change_request(this.state);
@@ -125,15 +138,13 @@ export class HDLModuleJS {
         throw new Error(`model did not converge on eval()`)
     }
 
-    tick2() {
-        //var k1 = Object.keys(this.state).length;
-        // TODO
-        this.state.clk = 0;
-        this.eval();
-        this.state.clk = 1;
-        this.eval();
-        //var k2 = Object.keys(this.state).length;
-        //if (k2 != k1) console.log(k1, k2);
+    tick2(iters: number) {
+        while (iters-- > 0) {
+            this.state.clk = 0;
+            this.eval();
+            this.state.clk = 1;
+            this.eval();
+        }
     }
 
     defaultValue(dt: HDLDataType, vardef?: HDLVariableDef) : HDLValue {
@@ -186,14 +197,15 @@ export class HDLModuleJS {
         return this.expr2js(block);
     }
 
-    expr2js(e: HDLExpr, options?:{cond?:boolean}) : string {
+    expr2js(e: HDLExpr, options?:{store?:boolean,cond?:boolean}) : string {
         if (e == null) {
             return "/*null*/"; // TODO
         }
         if (isVarRef(e)) {
-            if (this.curconsts[e.refname] != null)
+            if (this.curconsts[e.refname] != null && !(options||{}).store) {
+                this.constused++;
                 return `${this.curconsts[e.refname]}`;
-            else if (this.locals[e.refname])
+            } else if (this.locals[e.refname])
                 return `${e.refname}`;
             else
                 return `o.${e.refname}`;
@@ -233,7 +245,7 @@ export class HDLModuleJS {
                 case 'assignpre':
                 case 'assigndly':
                 case 'assignpost':
-                    return `${this.expr2js(e.right)} = ${this.expr2js(e.left)}`;
+                    return `${this.expr2js(e.right, {store:true})} = ${this.expr2js(e.left)}`;
                 case 'arraysel':
                 case 'wordsel':
                     return `${this.expr2js(e.left)}[${this.expr2js(e.right)}]`;
@@ -303,11 +315,9 @@ export class HDLModuleJS {
 
     expr2reset(e: HDLExpr) {
         if (isVarRef(e)) {
-            // don't reset constant values
-            if (this.curconsts[e.refname] != null)
-                return `/* ${e.refname} */`;
-            // TODO: random values?
-            if (isLogicType(e.dtype)) {
+            if (this.curconsts[e.refname] != null) {
+                return `${e.refname}`;
+            } else if (isLogicType(e.dtype)) {
                 return `${this.expr2js(e)} = 0`;
             } else if (isArrayType(e.dtype)) {
                 if (isLogicType(e.dtype.subtype)) {
@@ -378,6 +388,32 @@ export class HDLModuleJS {
     getFile(path: string) : string {
         // TODO: override
         return null;
+    }
+
+    isStopped() { return this.stopped; }
+    isFinished() { return this.finished; }
+    
+    tick() {
+        (this.state as any).clk ^= 1;
+        this.eval();
+    }
+
+    get(varname: string) {
+        return this.state[varname];
+    }
+
+    set(varname: string, value) {
+        if (varname in this.state) {
+            this.state[varname] = value;
+        }
+    }
+
+    saveState() {
+        return safe_extend(true, {}, this.state);
+    }
+
+    loadState(state) {
+        safe_extend(true, this.state, state);
     }
 
 }
