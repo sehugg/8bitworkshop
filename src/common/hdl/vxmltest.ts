@@ -20,7 +20,23 @@ async function testWASM() {
     var bmod = new HDLModuleWASM(parser.modules[modname], parser.modules['@CONST-POOL@']);
     await bmod.init();
     bmod.powercycle();
-    bmod.test();
+    //console.log(this.globals);
+    bmod.state.reset = 1;
+    for (var i=0; i<10; i++) {
+        bmod.tick2(1);
+        if (i==5) bmod.state.reset = 0;
+        bmod.nextTrace();
+    }
+    console.log(bmod.databuf);
+    var t1 = new Date().getTime();
+    var tickiters = 10000;
+    var looplen = Math.round(100000000/tickiters);
+    for (var i=0; i<looplen; i++) {
+        bmod.tick2(tickiters);
+    }
+    var t2 = new Date().getTime();
+    console.log('wasm:',t2-t1,'msec',i*tickiters,'iterations');
+    console.log(bmod.databuf);
 }
 
 async function testJS() {

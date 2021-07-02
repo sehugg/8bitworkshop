@@ -9,6 +9,13 @@ export interface HDLModuleRunner {
     isStopped() : boolean;
     saveState() : {};
     loadState(state: {}) : void;
+    dispose() : void;
+}
+
+export interface HDLModuleTrace {
+    trace: any;
+    resetTrace() : void;
+    nextTrace() : void;
 }
 
 ///

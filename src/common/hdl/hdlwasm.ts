@@ -2,14 +2,6 @@
 import { HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLSourceLocation, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, HDLWhileOp, isArrayItem, isArrayType, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
 import binaryen = require('binaryen');
 
-interface VerilatorUnit {
-    _ctor_var_reset(state) : void;
-    _eval_initial(state) : void;
-    _eval_settle(state) : void;
-    _eval(state) : void;
-    _change_request(state) : boolean;
-}
-
 const VERILATOR_UNIT_FUNCTIONS = [
     "_ctor_var_reset",
     "_eval_initial",
@@ -24,9 +16,14 @@ interface Options {
     resulttype?: number;
 }
 
+const GLOBALOFS = 0;
+const MEMORY = "0";
 const GLOBAL = "$$GLOBAL";
 const CHANGEDET = "$$CHANGE";
-const MEMORY = "0";
+const TRACERECLEN = "$$treclen";
+const TRACEOFS = "$$tofs";
+const TRACEEND = "$$tend";
+const TRACEBUF = "$$tbuf";
 
 ///
 
@@ -60,7 +57,15 @@ function getDataTypeSize(dt: HDLDataType) : number {
     }
 }
 
-function getArrayElementSize(e: HDLExpr) : number {
+function getArrayElementSizeFromType(dtype: HDLDataType) : number {
+    if (isArrayType(dtype)) {
+        return getArrayElementSizeFromType(dtype.subtype);
+    } else {
+        return getDataTypeSize(dtype);
+    }
+}
+
+function getArrayElementSizeFromExpr(e: HDLExpr) : number {
     if (isVarRef(e) && isArrayType(e.dtype)) {
         return getDataTypeSize(e.dtype.subtype);
     } else if (isBinop(e) && isArrayType(e.dtype)) {
@@ -111,15 +116,18 @@ class Struct {
     
     addVar(vardef: HDLVariableDef) {
         var size = getDataTypeSize(vardef.dtype);
-        var rec = this.addEntry(vardef.name, getBinaryenType(size), size, vardef.dtype, false);
+        var rec = this.addEntry(vardef.name, size, getBinaryenType(size), vardef.dtype, false);
         rec.init = vardef.initValue;
         if (vardef.constValue) throw new HDLError(vardef, `can't handle constants`);
         return rec;
     }
 
-    addEntry(name: string, itype: number, size: number, hdltype: HDLDataType, isParam: boolean) : StructRec {
-        var align = getAlignmentForSize(size);
+    alignTo(align: number) : void {
         while (this.len % align) this.len++;
+    }
+
+    addEntry(name: string, size: number, itype?: number, hdltype?: HDLDataType, isParam?: boolean) : StructRec {
+        this.alignTo(getAlignmentForSize(size));
         // pointers are 32 bits, so if size > 8 it's a pointer
         var rec : StructRec = {
             name: name,
@@ -165,46 +173,142 @@ export class HDLModuleWASM implements HDLModuleRunner {
     stopped: boolean;
     databuf: Buffer;
     data8: Uint8Array;
+    data16: Uint16Array;
+    data32: Uint32Array;
     state: any;
     statebytes: number;
     outputbytes: number;
+    traceBufferSize: number = 0xff000;
+    traceRecordSize: number;
+    traceReadOffset: number;
+    traceStartOffset: number;
+    traceEndOffset: number;
+    trace: any;
 
     constructor(moddef: HDLModuleDef, constpool: HDLModuleDef) {
         this.hdlmod = moddef;
         this.constpool = constpool;
         this.bmod = new binaryen.Module();
         this.genTypes();
-        var memsize = Math.ceil(this.globals.len / 65536) + 1;
-        this.bmod.setMemory(memsize, memsize, MEMORY); // memory is in 64k chunks
+        var membytes = this.globals.len;
+        var memblks = Math.ceil(membytes / 65536) + 1;
+        this.bmod.setMemory(memblks, memblks, MEMORY); // memory is in 64k chunks
         this.genFuncs();
     }
 
     async init() {
         await this.genModule();
         this.genInitData();
+        this.enableTracing();
     }
 
-    genTypes() {
+    powercycle() {
+        this.finished = false;
+        this.stopped = false;
+        (this.instance.exports as any)._ctor_var_reset(GLOBALOFS);
+        (this.instance.exports as any)._eval_initial(GLOBALOFS);
+        for (var i=0; i<100; i++) {
+            (this.instance.exports as any)._eval_settle(GLOBALOFS);
+            (this.instance.exports as any)._eval(GLOBALOFS);
+            var Vchange = (this.instance.exports as any)._change_request(GLOBALOFS);
+            if (!Vchange) {
+                return;
+            }
+        }
+        throw new HDLError(null, `model did not converge on reset()`)
+    }
+
+    eval() {
+        (this.instance.exports as any).eval(GLOBALOFS);
+    }
+
+    tick() {
+        // TODO: faster, save state
+        this.state.clk ^= 1;
+        (this.instance.exports as any).eval(GLOBALOFS);
+    }
+
+    tick2(iters: number) {
+        (this.instance.exports as any).tick2(GLOBALOFS, iters);
+    }
+
+    isFinished() { return this.finished; }
+
+    isStopped() { return this.stopped; }
+
+    saveState() {
+        return { o: this.data8.slice(0, this.statebytes) };
+    }
+
+    loadState(state) {
+        this.data8.set(state.o as Uint8Array);
+    }
+
+    enableTracing() {
+        this.traceStartOffset = this.globals.lookup(TRACEBUF).offset;
+        this.traceEndOffset = this.traceStartOffset + this.traceBufferSize - this.outputbytes;
+        this.state[TRACEEND] = this.traceEndOffset;
+        this.state[TRACERECLEN] = this.outputbytes;
+        this.resetTrace();
+        //console.log(this.state[TRACEOFS], this.state[TRACERECLEN], this.state[TRACEEND]);
+        this.trace = new Proxy({}, this.makeScopeProxy(() => { return this.traceReadOffset }));
+    }
+
+    resetTrace() {
+        this.traceReadOffset = this.traceStartOffset;
+        this.state[TRACEOFS] = this.traceStartOffset;
+    }
+
+    nextTrace() {
+        this.traceReadOffset += this.outputbytes;
+        if (this.traceReadOffset >= this.traceEndOffset)
+            this.traceReadOffset = this.traceStartOffset;
+    }
+
+    getTraceRecordSize() {
+        return this.traceRecordSize;
+    }
+
+    dispose() {
+        if (this.bmod) {
+            this.bmod.dispose();
+            this.bmod = null;
+        }
+    }
+
+    //
+
+    private genTypes() {
         // generate global variables
         var state = new Struct();
+        this.globals = state;
+        // TODO: sort globals by size
         // outputs are first
         for (const [varname, vardef] of Object.entries(this.hdlmod.vardefs)) {
             if (vardef.isOutput) state.addVar(vardef);
         }
+        state.alignTo(8);
         this.outputbytes = state.len;
         // followed by inputs and internal vars
         for (const [varname, vardef] of Object.entries(this.hdlmod.vardefs)) {
             if (!vardef.isOutput) state.addVar(vardef);
         }
+        state.alignTo(8);
         this.statebytes = state.len;
         // followed by constant pool
         for (const [varname, vardef] of Object.entries(this.constpool.vardefs)) {
             state.addVar(vardef);
         }
-        this.globals = state;
+        state.alignTo(8);
+        // and now the trace buffer
+        state.addEntry(TRACERECLEN, 4, binaryen.i32);
+        state.addEntry(TRACEOFS, 4, binaryen.i32);
+        state.addEntry(TRACEEND, 4, binaryen.i32);
+        state.addEntry(TRACEBUF, this.traceBufferSize);
+        this.traceRecordSize = this.outputbytes;
     }
 
-    genFuncs() {
+    private genFuncs() {
          // function type (dsegptr)
          var fsig = binaryen.createType([binaryen.i32])
          for (var block of this.hdlmod.blocks) {
@@ -212,10 +316,10 @@ export class HDLModuleWASM implements HDLModuleRunner {
              var fnname = block.name;
              // find locals of function
              var fscope = new Struct();
-             fscope.addEntry(GLOBAL, binaryen.i32, 4, null, true); // 1st param to function
+             fscope.addEntry(GLOBAL, 4, binaryen.i32, null, true); // 1st param to function
              // add __req local if change_request function
              if (this.funcResult(block) == binaryen.i32) {
-                 fscope.addEntry(CHANGEDET, binaryen.i32, 1, null, false);
+                 fscope.addEntry(CHANGEDET, 1, binaryen.i32, null, false);
              }
              this.pushScope(fscope);
              block.exprs.forEach((e) => {
@@ -243,46 +347,71 @@ export class HDLModuleWASM implements HDLModuleRunner {
              throw new HDLError(this.bmod.emitText(), `could not validate wasm module`);
     }
 
-    async genModule() {
+    private async genModule() {
         //console.log(this.bmod.emitText());
         var wasmData = this.bmod.emitBinary();
         var compiled = await WebAssembly.compile(wasmData);
         this.instance = await WebAssembly.instantiate(compiled, {});
         this.databuf = (this.instance.exports[MEMORY] as any).buffer;
         this.data8 = new Uint8Array(this.databuf);
-        this.state = new Proxy({}, {
-            // TODO
+        this.data16 = new Uint16Array(this.databuf);
+        this.data32 = new Uint32Array(this.databuf);
+        // proxy object to access globals (starting from 0)
+        this.state = new Proxy({}, this.makeScopeProxy(() => 0));
+    }
+
+    private makeScopeProxy(basefn: () => number) {
+        return {
+            // TODO: more types, signed/unsigned
             get: (target, prop, receiver) => {
                 var vref = this.globals.lookup(prop.toString());
+                var base = basefn();
                 if (vref !== undefined) {
-                    if (isLogicType(vref.type)) {
-                        return this.data8[vref.offset]; // TODO: other types
-                    } else if (isArrayType(vref.type)) {
-                        return new Uint8Array(this.databuf, vref.offset, vref.size); // TODO: other types
-                    } else
-                        throw new HDLError(vref, `can't get property ${prop.toString()}`);
+                    if (vref.type && isArrayType(vref.type)) {
+                        var elsize = getArrayElementSizeFromType(vref.type);
+                        if (elsize == 1) {
+                            return new Uint8Array(this.databuf, base + vref.offset, vref.size);
+                        } else if (elsize == 2) {
+                            return new Uint16Array(this.databuf, (base + vref.offset) >> 1, vref.size >> 1);
+                        } else if (elsize == 4) {
+                            return new Uint32Array(this.databuf, (base + vref.offset) >> 2, vref.size >> 2);
+                        }
+                    } else {
+                        if (vref.size == 1) {
+                            return this.data8[base + vref.offset];
+                        } else if (vref.size == 2) {
+                            return this.data16[(base + vref.offset) >> 1];
+                        } else if (vref.size == 4) {
+                            return this.data32[(base + vref.offset) >> 2];
+                        }
+                    }
                 }
                 return undefined;
             },
             set: (obj, prop, value) => {
                 var vref = this.globals.lookup(prop.toString());
+                var base = basefn();
                 if (vref !== undefined) {
-                    if (isLogicType(vref.type)) {
-                        this.data8[vref.offset] = value; // TODO: other types
+                    if (vref.size == 1) {
+                        this.data8[(base + vref.offset)] = value;
                         return true;
-                    } else if (isArrayType(vref.type)) {
-                        throw new HDLError(vref, `can't set property ${prop.toString()}`);
+                    } else if (vref.size == 2) {
+                        this.data16[(base + vref.offset) >> 1] = value;
+                        return true;
+                    } else if (vref.size == 4) {
+                        this.data32[(base + vref.offset) >> 2] = value;
+                        return true;
                     } else {
-                        return true;
+                        throw new HDLError(vref, `can't set property ${prop.toString()}`);
                     }
                 } else {
                     return true; // silently fail
                 }
             }
-        });
+        }        
     }
 
-    genInitData() {
+    private genInitData() {
         for (var rec of this.globals.locals) {
             if (rec.init) {
                 var arr = this.state[rec.name];
@@ -300,112 +429,111 @@ export class HDLModuleWASM implements HDLModuleRunner {
         }
     }
 
-    powercycle() {
-        this.finished = false;
-        this.stopped = false;
-        (this.instance.exports as any)._ctor_var_reset(0);
-        (this.instance.exports as any)._eval_initial(0);
-        for (var i=0; i<100; i++) {
-            (this.instance.exports as any)._eval_settle(0);
-            (this.instance.exports as any)._eval(0);
-            var Vchange = (this.instance.exports as any)._change_request(0);
-            if (!Vchange) {
-                return;
-            }
+    private addHelperFunctions() {
+        this.addCopyTraceRecFunction();
+        this.addEvalFunction();
+        this.addTick2Function();
+        // TODO: this.bmod.addFunctionImport("$$rand", "builtins", "$$rand", binaryen.createType([]), binaryen.i64);
+    }
+
+    private addCopyTraceRecFunction() {
+        const m = this.bmod;
+        const o_TRACERECLEN = this.globals.lookup(TRACERECLEN).offset;
+        const o_TRACEOFS = this.globals.lookup(TRACEOFS).offset;
+        const o_TRACEEND = this.globals.lookup(TRACEEND).offset;
+        const o_TRACEBUF = this.globals.lookup(TRACEBUF).offset;
+        var i32 = binaryen.i32;
+        var none = binaryen.none;
+        m.addFunction("copyTraceRec",
+            binaryen.createType([]),
+            none,
+            [i32, i32, i32], // src, len, dest
+            m.block("@block", [
+                // $0 = 0 (start of globals)
+                m.local.set(0, m.i32.const(GLOBALOFS)),
+                // don't use $0 as data seg offset, assume trace buffer offsets start @ 0
+                // $1 = TRACERECLEN
+                m.local.set(1, m.i32.load(0, 4, m.i32.const(o_TRACERECLEN))),
+                // $2 = TRACEOFS
+                m.local.set(2, m.i32.load(0, 4, m.i32.const(o_TRACEOFS))),
+                // while ($1--) [$0]++ = [$2]++
+                m.loop("@loop", m.block(null, [
+                    m.i64.store(0, 8, m.local.get(2, i32), m.i64.load(0, 8, m.local.get(0, i32))),
+                    m.local.set(0, m.i32.add(m.local.get(0, i32), m.i32.const(8))),
+                    m.local.set(2, m.i32.add(m.local.get(2, i32), m.i32.const(8))),
+                    m.local.set(1, m.i32.sub(m.local.get(1, i32), m.i32.const(8))),
+                    this.bmod.br_if("@loop", m.local.get(1, i32))
+                ])),
+                // TRACEOFS += TRACERECLEN
+                m.i32.store(0, 4, m.i32.const(o_TRACEOFS),
+                    m.i32.add(
+                        m.i32.load(0, 4, m.i32.const(o_TRACEOFS)),
+                        m.i32.load(0, 4, m.i32.const(o_TRACERECLEN))
+                    )
+                ),
+                // break if TRACEOFS < TRACEEND
+                m.br_if("@block", m.i32.lt_u(
+                    m.i32.load(0, 4, m.i32.const(o_TRACEOFS)),
+                    m.i32.load(0, 4, m.i32.const(o_TRACEEND))
+                )),
+                // TRACEOFS = @TRACEBUF
+                m.i32.store(0, 4, m.i32.const(o_TRACEOFS), m.i32.const(o_TRACEBUF))
+            ])
+        );
+    }
+
+    private addTick2Function() {
+        const m = this.bmod;
+        if (this.globals.lookup('clk')) {
+            var l_dseg = m.local.get(0, binaryen.i32);
+            var l_count = m.local.get(1, binaryen.i32);
+            m.addFunction("tick2",
+                binaryen.createType([binaryen.i32, binaryen.i32]),
+                binaryen.none,
+                [],
+                m.loop("@loop", m.block(null, [
+                    this.makeSetVariableFunction("clk", 0),
+                    m.drop(m.call("eval", [l_dseg], binaryen.i32)),
+                    this.makeSetVariableFunction("clk", 1),
+                    m.drop(m.call("eval", [l_dseg], binaryen.i32)),
+                    // call copyTraceRec
+                    m.call("copyTraceRec", [], binaryen.none),
+                    // dec $1
+                    m.local.set(1, m.i32.sub(l_count, m.i32.const(1))),
+                    // goto @loop if $1
+                    m.br_if("@loop", l_count)
+                ]))
+            );
+            m.addFunctionExport("tick2", "tick2");
+        } else {
+            m.addFunctionExport("eval", "tick2");
         }
-        throw new HDLError(null, `model did not converge on reset()`)
     }
 
-    eval() {
-        (this.instance.exports as any).eval(0);
-    }
-
-    tick() {
-        // TODO: faster
-        this.state.clk ^= 1;
-        (this.instance.exports as any).eval(0);
-    }
-
-    tick2(iters: number) {
-        (this.instance.exports as any).tick2(0, iters);
-    }
-
-    isFinished() { return this.finished; }
-
-    isStopped() { return this.stopped; }
-
-    saveState() {
-        return { o: this.data8.slice(0, this.statebytes) };
-    }
-
-    loadState(state) {
-        this.data8.set(state.o as Uint8Array);
-    }
-
-    test() {
-        //console.log(this.globals);
-        this.state.reset = 1;
-        for (var i=0; i<50; i++) {
-            this.tick();
-            this.tick();
-            if (i==5) this.state.reset = 0;
-        }
-        console.log(this.databuf);
-        var t1 = new Date().getTime();
-        var tickiters = 10000;
-        var looplen = Math.round(100000000/tickiters);
-        for (var i=0; i<looplen; i++) {
-            this.tick2(tickiters);
-        }
-        var t2 = new Date().getTime();
-        console.log('wasm:',t2-t1,'msec',i*tickiters,'iterations');
-        console.log(this.databuf);
-    }
-
-    addHelperFunctions() {
+    private addEvalFunction() {
         this.bmod.addFunction("eval",
-            binaryen.createType([binaryen.i32]),    // (dataptr)
-            binaryen.i32,                           // return # of iterations
-            [],                                     // no locals
-            this.makeTickFunction(0)
+            binaryen.createType([binaryen.i32]),
+            binaryen.i32,
+            [],
+            this.makeTickFuncBody(0)
         );
         this.bmod.addFunctionExport("eval", "eval");
-
-        // TODO: what if there is no clk? (e.g. ALU)
-        var l_dseg = this.bmod.local.get(0, binaryen.i32);
-        var l_count = this.bmod.local.get(1, binaryen.i32);
-        this.bmod.addFunction("tick2",
-            binaryen.createType([binaryen.i32, binaryen.i32]),    // (dataptr, iters)
-            binaryen.none,                                        // return nothing
-            [],                                                   // no locals
-            this.bmod.loop("@loop", this.bmod.block(null, [
-                this.makeSetVariableFunction("clk", 0),
-                this.bmod.drop(this.bmod.call("eval", [l_dseg], binaryen.i32)),
-                this.makeSetVariableFunction("clk", 1),
-                this.bmod.drop(this.bmod.call("eval", [l_dseg], binaryen.i32)),
-                // dec $1
-                this.bmod.local.set(1, this.bmod.i32.sub(l_count, this.bmod.i32.const(1))),
-                // goto @loop if $1
-                this.bmod.br_if("@loop", l_count)
-            ]))
-        );
-        this.bmod.addFunctionExport("tick2", "tick2");
     }
 
-    makeGetVariableFunction(name: string, value: number) {
+    private makeGetVariableFunction(name: string, value: number) {
         var dtype = this.globals.lookup(name).type;
         var src : HDLVarRef = {refname:name, dtype:dtype};
         return this.e2w(src);
     }
 
-    makeSetVariableFunction(name: string, value: number) {
+    private makeSetVariableFunction(name: string, value: number) {
         var dtype = this.globals.lookup(name).type;
         var dest : HDLVarRef = {refname:name, dtype:dtype};
         var src : HDLConstant = {cvalue:value, dtype:dtype};
         return this.assign2wasm(dest, src);
     }
 
-    makeTickFunction(count: number) {
+    private makeTickFuncBody(count: number) {
         var dseg = this.bmod.local.get(0, binaryen.i32);
         if (count > 4)
             return this.bmod.i32.const(count);
@@ -413,27 +541,27 @@ export class HDLModuleWASM implements HDLModuleRunner {
             this.bmod.call("_eval", [dseg], binaryen.none),
             this.bmod.if(
                 this.bmod.call("_change_request", [dseg], binaryen.i32),
-                this.makeTickFunction(count+1),
+                this.makeTickFuncBody(count+1),
                 this.bmod.return(this.bmod.local.get(0, binaryen.i32))
             )
         ], binaryen.i32)
     }
 
-    funcResult(func: HDLBlock) {
+    private funcResult(func: HDLBlock) {
         // only _change functions return a result
         return func.name.startsWith("_change_request") ? binaryen.i32 : binaryen.none;
     }
 
-    pushScope(scope: Struct) {
+    private pushScope(scope: Struct) {
         scope.parent = this.locals;
         this.locals = scope;
     }
 
-    popScope() {
+    private popScope() {
         this.locals = this.locals.parent;
     }
 
-    i3264(dt: HDLDataType) {
+    private i3264(dt: HDLDataType) {
         var size = getDataTypeSize(dt);
         var type = getBinaryenType(size);
         if (type == binaryen.i32) return this.bmod.i32;
@@ -441,11 +569,11 @@ export class HDLModuleWASM implements HDLModuleRunner {
         else throw new HDLError(null, `unknown type for i3264 ${type}`);
     }
 
-    dataptr() : number {
+    private dataptr() : number {
         return this.bmod.local.get(0, binaryen.i32); // 1st param of function == data ptr 
     }
 
-    e2w(e: HDLExpr, opts?:Options) : number {
+    private e2w(e: HDLExpr, opts?:Options) : number {
         if (e == null) {
             return this.bmod.nop();
         } else if (isBlock(e)) {
@@ -531,7 +659,8 @@ export class HDLModuleWASM implements HDLModuleRunner {
         } else if (isBinop(dest)) {
             // TODO: array bounds
             var addr = this.address2wasm(dest);
-            return this.storemem(addr, 0, getDataTypeSize(dest.dtype), value);
+            var elsize = getArrayElementSizeFromExpr(dest.left);
+            return this.storemem(addr, 0, elsize, value);
         }
         throw new HDLError([dest, src], `cannot complete assignment`);
     }
@@ -567,7 +696,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
     address2wasm(e: HDLExpr) : number {
         if (isBinop(e) && e.op == 'arraysel') {
             var array = this.address2wasm(e.left);
-            var elsize = getArrayElementSize(e.left);
+            var elsize = getArrayElementSizeFromExpr(e.left);
             var index = this.e2w(e.right);
             return this.bmod.i32.add(
                 array,

@@ -60,6 +60,9 @@ export class HDLModuleJS implements HDLModuleRunner {
     init() {
     }
 
+    dispose() {
+    }
+
     genFuncs(constants: {}) : VerilatorUnit {
         var funcs = Object.create(this.basefuncs);
         this.curconsts = constants;

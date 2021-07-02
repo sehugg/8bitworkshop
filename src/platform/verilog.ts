@@ -5,7 +5,7 @@ import { SampleAudio } from "../common/audio";
 import { safe_extend } from "../common/util";
 import { WaveformView, WaveformProvider, WaveformMeta } from "../ide/waveform";
 import { setFrameRateUI, loadScript } from "../ide/ui";
-import { HDLModuleRunner, HDLUnit, isLogicType } from "../common/hdl/hdltypes";
+import { HDLModuleRunner, HDLModuleTrace, HDLUnit, isLogicType } from "../common/hdl/hdltypes";
 import { HDLModuleJS } from "../common/hdl/hdlruntime";
 import { HDLModuleWASM } from "../common/hdl/hdlwasm";
 
@@ -78,13 +78,17 @@ const CYCLES_PER_FILL = 20;
 var VerilogPlatform = function(mainElement, options) {
   this.__proto__ = new (BasePlatform as any)();
   
-  var video, audio;
+  var video : RasterVideo;
+  var audio;
   var poller;
   var useAudio = false;
+  var usePaddles = false;
   var videoWidth  = 292;
   var videoHeight = 256;
   var maxVideoLines = 262+40; // vertical hold
-  var idata, timer, timerCallback;
+  var idata : Uint32Array;
+  var timer : AnimationTimer;
+  var timerCallback;
   var top : HDLModuleRunner;
   var cyclesPerFrame = (256+23+7+23)*262; // 4857480/60 Hz
 
@@ -109,6 +113,7 @@ var VerilogPlatform = function(mainElement, options) {
   var frameidx=0;
   var framehsync=false;
   var framevsync=false;
+  var scanlineCycles = 0;
 
   var RGBLOOKUP = [
     0xff222222,
@@ -240,7 +245,8 @@ var VerilogPlatform = function(mainElement, options) {
   }
   
   setGenInputs() {
-    useAudio = (audio != null);
+    useAudio = audio != null && top.state.spkr != null;
+    usePaddles = top.state.hpaddle != null || top.state.vpaddle != null;
     //TODO debugCond = this.getDebugCallback();
     top.state.switches_p1 = switches[0];
     top.state.switches_p2 = switches[1];
@@ -354,9 +360,16 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
-  updateVideoFrameCycles(ncycles:number, sync:boolean, trace:boolean) {
+  updateVideoFrameCycles(ncycles:number, sync:boolean, trace:boolean) : void {
     ncycles |= 0;
     var inspect = inspect_obj && inspect_sym;
+    // use fast trace buffer-based update?
+    if (sync && !trace && top['trace'] != null) {
+      this.updateVideoFrameFast((top as any) as HDLModuleTrace);
+      this.updateRecorder();
+      return;
+    }
+    // use slow update method
     var trace0 = trace_index;
     while (ncycles--) {
       if (trace) {
@@ -396,6 +409,59 @@ var VerilogPlatform = function(mainElement, options) {
           this.updateRecorder();
           return; // exit when vsync ends
         }
+      }
+    }
+  }
+
+  // use trace buffer to update video
+  updateVideoFrameFast(tmod: HDLModuleTrace) {
+    var maxLineCycles = videoWidth < 300 ? 521 : 1009; // prime number so we eventually sync up
+    if (!scanlineCycles) scanlineCycles = maxLineCycles;
+    var nextlineCycles = scanlineCycles;
+    // TODO: we can go faster if no paddle/sound
+    frameidx = 0;
+    var wasvsync = false;
+    // iterate through a frame of scanlines + room for vsync
+    for (framey=0; framey<videoHeight*2; framey++) {
+      if (usePaddles) {
+        top.state.hpaddle = framey > video.paddle_x ? 1 : 0;
+        top.state.vpaddle = framey > video.paddle_y ? 1 : 0;
+      }
+      // generate frames in trace buffer
+      top.tick2(nextlineCycles);
+      // convert trace buffer to video/audio
+      var n = 0;
+      if (framey < videoHeight) {
+        for (framex=0; framex<videoWidth; framex++) {
+          var rgb = tmod.trace.rgb;
+          idata[frameidx++] = rgb & 0x80000000 ? rgb : RGBLOOKUP[rgb & 15];
+          if (useAudio) {
+            audio.feedSample(tmod.trace.spkr * (1.0/255.0), 1);
+          }
+          tmod.nextTrace();
+        }
+        n += videoWidth;
+      }
+      // find hsync
+      while (n < maxLineCycles && !tmod.trace.hsync) { tmod.nextTrace(); n++; }
+      while (n < maxLineCycles && tmod.trace.hsync) { tmod.nextTrace(); n++; }
+      // see if our scanline cycle count is stable
+      if (n == scanlineCycles) {
+        // scanline cycle count licked in, reset buffer to improve cache locality
+        nextlineCycles = n;
+        tmod.resetTrace(); 
+      } else {
+        // not in sync, set to prime # and we'll eventually sync
+        nextlineCycles = maxLineCycles;
+        scanlineCycles = n;
+      }
+      // exit when vsync starts and then stops
+      if (tmod.trace.vsync) {
+        wasvsync = true;
+      } else if (wasvsync) {
+        top.state.hpaddle = 0;
+        top.state.vpaddle = 0;
+        break;
       }
     }
   }
@@ -473,6 +539,7 @@ var VerilogPlatform = function(mainElement, options) {
         var _top = new (useWASM ? HDLModuleWASM : HDLModuleJS)(topmod, unit.modules['@CONST-POOL@']);
         await _top.init();
         _top.powercycle();
+        if (top) top.dispose();
         top = _top;
         // create signal array
         var signals : WaveformSignal[] = [];
@@ -510,10 +577,11 @@ var VerilogPlatform = function(mainElement, options) {
     }
     // replace program ROM, if using the assembler
     this.reset();
+    // TODO: fix this, it ain't good
     if (output.program_rom && output.program_rom_variable) {
       if (top.state[output.program_rom_variable]) {
         if (top.state[output.program_rom_variable].length != output.program_rom.length)
-          alert("ROM size mismatch -- expected " + top.state.program_rom_variable.length + " got " + output.program_rom.length);
+          alert("ROM size mismatch -- expected " + top.state[output.program_rom_variable].length + " got " + output.program_rom.length);
         else
           top.state[output.program_rom_variable].set(output.program_rom);
       } else {
