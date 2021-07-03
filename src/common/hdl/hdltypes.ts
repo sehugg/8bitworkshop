@@ -90,7 +90,7 @@ export function isVarDecl(arg:any): arg is HDLVariableDef {
 }
 
 export interface HDLConstant extends HDLDataTypeObject {
-    cvalue: number;
+    cvalue: number; //TODO: BigInt?
 }
 
 export function isConstExpr(arg:any): arg is HDLConstant {

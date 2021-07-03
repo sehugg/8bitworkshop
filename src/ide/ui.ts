@@ -1178,7 +1178,7 @@ function setCompileOutput(data: WorkerResult) {
       try {
         clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
         _resetRecording();
-        platform.loadROM(getCurrentPresetTitle(), rom);
+        platform.loadROM(getCurrentPresetTitle(), rom); // TODO: should be async?
         current_output = rom;
         if (!userPaused) _resume();
         measureBuildTime();

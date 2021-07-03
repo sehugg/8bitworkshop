@@ -12,15 +12,14 @@ Object.assign(global, verilog); // copy global VL_* properties
 
 // TODO: must define $
 
-function loadPlatform(msg) {
+async function loadPlatform(msg) {
   var platform = new VerilogPlatform();
   platform.resume = function() { }; // prevent resume after reset
   try {
     //console.log(msg.output.ports);
     //console.log(msg.output.signals);
-    platform.loadROM("ROM", msg.output);
-    platform.loadROM("ROM", msg.output);
-    platform.loadROM("ROM", msg.output);
+    await platform.loadROM("ROM", msg.output);
+    await platform.loadROM("ROM", msg.output);
     for (var i=0; i<100000 && !platform.isBlocked(); i++) {
       platform.tick();
     }
@@ -47,7 +46,7 @@ function testPerf(msg) {
   var niters = 5000000;
 
   console.time("before");
-  for (var i=0; i<niters; i++)
+  for (var i=0; i<niters && !platform.isBlocked(); i++)
     platform.tick();
   console.timeEnd("before");
 
@@ -55,7 +54,7 @@ function testPerf(msg) {
   platform.reset();
   platform.loadState(state);
   console.time("after");
-  for (var i=0; i<niters; i++)
+  for (var i=0; i<niters && !platform.isBlocked(); i++)
     platform.tick();
   console.timeEnd("after");
 
@@ -63,13 +62,13 @@ function testPerf(msg) {
 }
 
 function compileVerilator(filename, code, callback, nerrors) {
-    global.postMessage = function(msg) {
+    global.postMessage = async function(msg) {
         if (msg.errors && msg.errors.length) {
           console.log(msg.errors);
           assert.equal(nerrors||0, msg.errors.length, "errors");
         } else {
           assert.equal(nerrors||0, 0, "errors");
-          loadPlatform(msg);
+          await loadPlatform(msg);
           //testPerf(msg);
           if (filename.indexOf('t_') >= 0) {
             //assert.ok(verilog.vl_finished);

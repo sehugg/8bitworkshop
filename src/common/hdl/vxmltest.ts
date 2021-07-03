@@ -1,4 +1,5 @@
 
+import { arrayCompare } from "../util";
 import { HDLModuleJS } from "./hdlruntime";
 import { HDLModuleWASM } from "./hdlwasm";
 import { VerilogXMLParser } from "./vxmlparser";
@@ -13,7 +14,7 @@ try {
     console.log(parser.cur_node);
     throw e;
 }
-console.log(parser);
+//console.log(parser);
 var modname = 'TOP'; //process.argv[3];
 
 async function testWASM() {
@@ -58,5 +59,54 @@ async function testJS() {
     //console.log(emitter);
 }
 
-testWASM().then(testJS);
+async function testJSvsWASM() {
+    const top = parser.modules[modname];
+    const constpool = parser.modules['@CONST-POOL@'];
+    var jmod = new HDLModuleJS(top, constpool);
+    jmod.init();
+    jmod.powercycle();
+    var bmod = new HDLModuleWASM(top, constpool);
+    await bmod.init();
+    bmod.powercycle();
+    var varnames = Object.keys(top.vardefs);
+    var exit = false;
+    for (var i=0; i<100000000; i++) {
+        for (var vname of varnames) {
+            var jvalue = jmod.state[vname];
+            var bvalue = bmod.state[vname];
+            if (typeof jvalue === 'number') {
+                if (jvalue != bvalue) {
+                    console.log('*** Value for', vname, 'differs', jvalue, bvalue);
+                    exit = true;
+                }
+            } else if ((jvalue as any).buffer != null) {
+                if (!arrayCompare(jvalue as any, bvalue as any)) {
+                    console.log('*** Value for', vname, 'differs', jvalue, bvalue);
+                    exit = true;
+                }
+            }
+        }
+        if (jmod.isFinished() || bmod.isFinished()) {
+            if (jmod.isFinished() != bmod.isFinished()) {
+                console.log('*** Abnormal finish', jmod.isFinished(), bmod.isFinished());
+            }
+            exit = true;
+        }
+        if (jmod.isStopped() || bmod.isStopped()) {
+            if (jmod.isStopped() != bmod.isStopped()) {
+                console.log('*** Abnormal stop', jmod.isStopped(), bmod.isStopped());
+            }
+            exit = true;
+        }
+        if (exit) {
+            console.log('exit iteration', i);
+            break;
+        }
+        jmod.tick2(1);
+        bmod.tick2(1);
+    }
+}
+
+testJSvsWASM();
+//testWASM().then(testJS);
 

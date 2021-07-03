@@ -17,7 +17,7 @@ interface Options {
 }
 
 const GLOBALOFS = 0;
-const MEMORY = "0";
+const MEMORY = "$$MEM";
 const GLOBAL = "$$GLOBAL";
 const CHANGEDET = "$$CHANGE";
 const TRACERECLEN = "$$treclen";
@@ -191,7 +191,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
         this.bmod = new binaryen.Module();
         this.genTypes();
         var membytes = this.globals.len;
-        var memblks = Math.ceil(membytes / 65536) + 1;
+        var memblks = Math.ceil(membytes / 65536);
         this.bmod.setMemory(memblks, memblks, MEMORY); // memory is in 64k chunks
         this.genFuncs();
     }
@@ -223,9 +223,8 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
 
     tick() {
-        // TODO: faster, save state
         this.state.clk ^= 1;
-        (this.instance.exports as any).eval(GLOBALOFS);
+        this.eval();
     }
 
     tick2(iters: number) {
@@ -245,6 +244,9 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
 
     enableTracing() {
+        if (this.outputbytes == 0) throw new Error(`outputbytes == 0`);
+        if (this.outputbytes % 8) throw new Error(`outputbytes must be 8-byte aligned`);
+        if (this.traceBufferSize % 8) throw new Error(`trace buffer size must be 8-byte aligned`);
         this.traceStartOffset = this.globals.lookup(TRACEBUF).offset;
         this.traceEndOffset = this.traceStartOffset + this.traceBufferSize - this.outputbytes;
         this.state[TRACEEND] = this.traceEndOffset;
@@ -287,6 +289,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
         for (const [varname, vardef] of Object.entries(this.hdlmod.vardefs)) {
             if (vardef.isOutput) state.addVar(vardef);
         }
+        if (state.len == 0) state.addEntry("___", 1); // ensure as least 8 output bytes for trace buffer
         state.alignTo(8);
         this.outputbytes = state.len;
         // followed by inputs and internal vars
@@ -340,7 +343,9 @@ export class HDLModuleWASM implements HDLModuleRunner {
          }
          // create helper functions
          this.addHelperFunctions();
-         // create wasm module
+         // link imported functions
+         this.addImportedFunctions();
+         // validate wasm module
          //console.log(this.bmod.emitText());
          //this.bmod.optimize();
          if (!this.bmod.validate())
@@ -351,7 +356,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
         //console.log(this.bmod.emitText());
         var wasmData = this.bmod.emitBinary();
         var compiled = await WebAssembly.compile(wasmData);
-        this.instance = await WebAssembly.instantiate(compiled, {});
+        this.instance = await WebAssembly.instantiate(compiled, this.getImportObject());
         this.databuf = (this.instance.exports[MEMORY] as any).buffer;
         this.data8 = new Uint8Array(this.databuf);
         this.data16 = new Uint16Array(this.databuf);
@@ -372,9 +377,9 @@ export class HDLModuleWASM implements HDLModuleRunner {
                         if (elsize == 1) {
                             return new Uint8Array(this.databuf, base + vref.offset, vref.size);
                         } else if (elsize == 2) {
-                            return new Uint16Array(this.databuf, (base + vref.offset) >> 1, vref.size >> 1);
+                            return new Uint16Array(this.databuf, (base>>1) + vref.offset, vref.size >> 1);
                         } else if (elsize == 4) {
-                            return new Uint32Array(this.databuf, (base + vref.offset) >> 2, vref.size >> 2);
+                            return new Uint32Array(this.databuf, (base>>2) + vref.offset, vref.size >> 2);
                         }
                     } else {
                         if (vref.size == 1) {
@@ -433,7 +438,24 @@ export class HDLModuleWASM implements HDLModuleRunner {
         this.addCopyTraceRecFunction();
         this.addEvalFunction();
         this.addTick2Function();
+    }
+
+    private addImportedFunctions() {
         // TODO: this.bmod.addFunctionImport("$$rand", "builtins", "$$rand", binaryen.createType([]), binaryen.i64);
+        this.bmod.addFunctionImport("$display", "builtins", "$display", binaryen.createType([binaryen.i32]), binaryen.none);
+        this.bmod.addFunctionImport("$finish", "builtins", "$finish", binaryen.createType([binaryen.i32]), binaryen.none);
+        this.bmod.addFunctionImport("$stop", "builtins", "$stop", binaryen.createType([binaryen.i32]), binaryen.none);
+    }
+
+    private getImportObject() : {} {
+        var n = 0;
+        return {
+            builtins: {
+                $display: (o) => { if (++n < 100) console.log('...',o); }, // TODO
+                $finish: (o) => { this.finished = true; },
+                $stop: (o) => { this.stopped = true; },
+            }
+        }
     }
 
     private addCopyTraceRecFunction() {
@@ -621,8 +643,10 @@ export class HDLModuleWASM implements HDLModuleRunner {
         if (isLogicType(e.dtype)) {
             if (size <= 4)
                 return this.bmod.i32.const(e.cvalue);
+            else if (size <= 8)
+                return this.bmod.i64.const(e.cvalue, e.cvalue >> 32); // TODO: bigint?
             else
-                throw new HDLError(e, `constants > 32 bits not supported`)
+                throw new HDLError(e, `constants > 64 bits not supported`)
         } else {
             throw new HDLError(e, `non-logic constants not supported`)
         }
@@ -817,6 +841,12 @@ export class HDLModuleWASM implements HDLModuleRunner {
         }
     }
 
+    /*
+    _redxor2wasm(e: HDLUnop, opts:Options) {
+        //TODO
+    }
+    */
+
     _or2wasm(e: HDLBinop, opts:Options) {
         return this.i3264(e.dtype).or(this.e2w(e.left), this.e2w(e.right));
     }
@@ -864,5 +894,6 @@ export class HDLModuleWASM implements HDLModuleRunner {
     _lts2wasm(e: HDLBinop, opts:Options) {
         return this.i3264(e.dtype).lt_s(this.e2w(e.left), this.e2w(e.right));
     }
+
 }
 

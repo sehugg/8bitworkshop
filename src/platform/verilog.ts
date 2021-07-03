@@ -292,6 +292,9 @@ var VerilogPlatform = function(mainElement, options) {
     if (!novideo) {
       this.refreshVideoFrame();
     }
+    if (this.isBlocked()) {
+      this.pause();
+    }
     return cyclesPerFrame; //TODO?
   }
   
@@ -529,6 +532,7 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
+  // TODO: can this be async?
   async loadROM(title:string, output:any) {
     var unit = output as HDLUnit;
     var topmod = unit.modules['TOP'];

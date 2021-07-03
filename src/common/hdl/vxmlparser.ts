@@ -110,6 +110,7 @@ export class VerilogXMLParser implements HDLUnit {
 
     constructor() {
         // TODO: other types
+        this.dtypes['QData'] = {left:63, right:0};
         this.dtypes['IData'] = {left:31, right:0};
     }
 
@@ -602,6 +603,7 @@ export class VerilogXMLParser implements HDLUnit {
     visit_concat(node: XMLNode) { return this.__visit_binop(node); } // TODO?
     visit_shiftl(node: XMLNode) { return this.__visit_binop(node); }
     visit_shiftr(node: XMLNode) { return this.__visit_binop(node); }
+    visit_shiftrs(node: XMLNode) { return this.__visit_binop(node); }
 
     visit_mul(node: XMLNode) { return this.__visit_binop(node); }
     visit_div(node: XMLNode) { return this.__visit_binop(node); }
