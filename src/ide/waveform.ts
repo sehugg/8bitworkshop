@@ -137,6 +137,13 @@ export class WaveformView {
       down = false;
       //if (e['pointerId']) e.target.releasePointerCapture(e['pointerId']);
     });
+    // scroll left/right
+    $(wlc).on('wheel', (event:any) => {
+      if (Math.abs(event.originalEvent.deltaX) > Math.abs(event.originalEvent.deltaY)) {
+        var xdelta = Math.max(-1000, Math.min(1000, event.originalEvent.deltaX));
+        if (xdelta) this.setOrgTime(this.t0 + xdelta);
+      }
+    });
     this.toolbar.add('=', 'Zoom In', 'glyphicon-zoom-in', (e,combo) => {
       this.setZoom(this.zoom * 2);
     });
