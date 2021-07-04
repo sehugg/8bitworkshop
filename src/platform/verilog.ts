@@ -140,7 +140,7 @@ var VerilogPlatform = function(mainElement, options) {
   function vidtick() {
     top.tick2(1);
     if (useAudio) {
-      audio.feedSample(top.state.spkr * (1.0/255.0), 1);
+      audio.feedSample(top.state.spkr, 1);
     }
     if (keycode && keycode >= 128 && top.state.keystrobe) { // keystrobe = clear hi bit of key buffer
       keycode = keycode & 0x7f;
@@ -424,6 +424,8 @@ var VerilogPlatform = function(mainElement, options) {
     // TODO: we can go faster if no paddle/sound
     frameidx = 0;
     var wasvsync = false;
+    // audio feed
+    function spkr() { if (useAudio) audio.feedSample(tmod.trace.spkr, 1); }
     // iterate through a frame of scanlines + room for vsync
     for (framey=0; framey<videoHeight*2; framey++) {
       if (usePaddles) {
@@ -438,16 +440,14 @@ var VerilogPlatform = function(mainElement, options) {
         for (framex=0; framex<videoWidth; framex++) {
           var rgb = tmod.trace.rgb;
           idata[frameidx++] = rgb & 0x80000000 ? rgb : RGBLOOKUP[rgb & 15];
-          if (useAudio) {
-            audio.feedSample(tmod.trace.spkr * (1.0/255.0), 1);
-          }
+          spkr();
           tmod.nextTrace();
         }
         n += videoWidth;
       }
       // find hsync
-      while (n < maxLineCycles && !tmod.trace.hsync) { tmod.nextTrace(); n++; }
-      while (n < maxLineCycles && tmod.trace.hsync) { tmod.nextTrace(); n++; }
+      while (n < maxLineCycles && !tmod.trace.hsync) { spkr(); tmod.nextTrace(); n++; }
+      while (n < maxLineCycles && tmod.trace.hsync) { spkr(); tmod.nextTrace(); n++; }
       // see if our scanline cycle count is stable
       if (n == scanlineCycles) {
         // scanline cycle count licked in, reset buffer to improve cache locality
@@ -702,9 +702,8 @@ var VerilogPlatform = function(mainElement, options) {
 
   getDebugTree() {
     return {
-      //ast: current_output,
       runtime: top,
-      state: this.saveState().o
+      state: top.getGlobals()
     }
   }
 

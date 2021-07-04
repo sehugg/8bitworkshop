@@ -153,7 +153,7 @@ export class HDLModuleJS implements HDLModuleRunner {
     defaultValue(dt: HDLDataType, vardef?: HDLVariableDef) : HDLValue {
         if (isLogicType(dt)) {
             return 0;
-        } else if (isArrayType(dt)) {
+        } else if (isArrayType(dt) && typeof dt.high.cvalue === 'number' && typeof dt.low.cvalue === 'number') {
             let arr;
             let arrlen = dt.high.cvalue - dt.low.cvalue + 1;
             if (arrlen < 0) arrlen = -arrlen; // TODO?
@@ -413,6 +413,10 @@ export class HDLModuleJS implements HDLModuleRunner {
 
     saveState() {
         return safe_extend(true, {}, this.state);
+    }
+
+    getGlobals() {
+        return this.saveState();
     }
 
     loadState(state) {

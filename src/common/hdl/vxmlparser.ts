@@ -109,9 +109,12 @@ export class VerilogXMLParser implements HDLUnit {
     cur_deferred = [];
 
     constructor() {
-        // TODO: other types
+        // TODO: other types?
         this.dtypes['QData'] = {left:63, right:0};
         this.dtypes['IData'] = {left:31, right:0};
+        this.dtypes['SData'] = {left:15, right:0};
+        this.dtypes['CData'] = {left:7, right:0};
+        this.dtypes['int'] = {left:31, right:0};
     }
 
     defer(fn: () => void) {
@@ -179,11 +182,15 @@ export class VerilogXMLParser implements HDLUnit {
         }
     }
 
-    parseConstValue(s: string) : number {
+    parseConstValue(s: string) : number | bigint {
         const re_const = /(\d+)'([s]?)h([0-9a-f]+)/i;
         var m = re_const.exec(s);
         if (m) {
-            return parseInt(m[3], 16);
+            var numstr = m[3];
+            if (numstr.length < 8)
+                return parseInt(numstr, 16);
+            else
+                return BigInt('0x' + numstr);
         } else {
             throw Error(`could not parse constant "${s}"`);
         }
@@ -242,10 +249,12 @@ export class VerilogXMLParser implements HDLUnit {
 
     visit_const(node: XMLNode) : HDLConstant {
         var name = node.attrs['name'];
+        var cvalue = this.parseConstValue(name); 
         var constdef: HDLConstant = {
             $loc: this.parseSourceLocation(node),
             dtype: null,
-            cvalue: this.parseConstValue(name)
+            cvalue: typeof cvalue === 'number' ? cvalue : null,
+            bigvalue: typeof cvalue === 'bigint' ? cvalue : null,
         }
         this.deferDataType(node, constdef);
         return constdef;
@@ -564,11 +573,14 @@ export class VerilogXMLParser implements HDLUnit {
     }
 
     __visit_func(node: XMLNode) : HDLFuncCall {
-        return {
+        var expr = {
             $loc: this.parseSourceLocation(node),
+            dtype: null,
             funcname: node.attrs['func'] || ('$' + node.type),
             args: node.children.map(n => n.obj as HDLExpr)
         }
+        this.deferDataType(node, expr);
+        return expr;
     }
 
     visit_not(node: XMLNode) { return this.__visit_unop(node); }

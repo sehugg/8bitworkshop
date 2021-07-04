@@ -7,6 +7,7 @@ export interface HDLModuleRunner {
     powercycle() : void;
     isFinished() : boolean;
     isStopped() : boolean;
+    getGlobals() : {};
     saveState() : {};
     loadState(state: {}) : void;
     dispose() : void;
@@ -42,7 +43,8 @@ export function isLogicType(arg:any): arg is HDLLogicType {
 }
 
 export function isArrayType(arg:any): arg is HDLUnpackArray {
-    return arg.subtype != null && arg.low != null && arg.high != null;
+    return arg.subtype != null && arg.low != null && arg.high != null
+      && typeof arg.low.cvalue === 'number' && typeof arg.high.cvalue === 'number';
 }
 
 export class HDLFile {
@@ -65,6 +67,10 @@ export interface HDLSourceObject {
 
 export interface HDLDataTypeObject extends HDLSourceObject {
     dtype: HDLDataType;
+}
+
+export function hasDataType(arg: any) : arg is HDLDataTypeObject {
+    return typeof arg.dtype === 'object';
 }
 
 export interface HDLModuleDef extends HDLSourceObject {
@@ -90,11 +96,16 @@ export function isVarDecl(arg:any): arg is HDLVariableDef {
 }
 
 export interface HDLConstant extends HDLDataTypeObject {
-    cvalue: number; //TODO: BigInt?
+    cvalue: number;
+    bigvalue: bigint;
 }
 
 export function isConstExpr(arg:any): arg is HDLConstant {
     return typeof arg.cvalue === 'number';
+}
+
+export function isBigConstExpr(arg:any): arg is HDLConstant {
+    return typeof arg.bigvalue === 'bigint';
 }
 
 export interface HDLHierarchyDef extends HDLSourceObject {
@@ -186,7 +197,7 @@ export interface HDLPort extends HDLSourceObject {
     expr: HDLExpr;
 }
 
-export interface HDLFuncCall extends HDLSourceObject {
+export interface HDLFuncCall extends HDLDataTypeObject {
     funcname: string;
     args: HDLExpr[];
 }
