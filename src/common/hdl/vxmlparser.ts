@@ -165,6 +165,7 @@ export class VerilogXMLParser implements HDLUnit {
             instances: [],
             vardefs: {},
         }
+        if (this.cur_module) throw new Error(`nested modules not supported`);
         this.cur_module = module;
         return module;
     }
@@ -187,7 +188,7 @@ export class VerilogXMLParser implements HDLUnit {
         var m = re_const.exec(s);
         if (m) {
             var numstr = m[3];
-            if (numstr.length < 8)
+            if (numstr.length <= 8)
                 return parseInt(numstr, 16);
             else
                 return BigInt('0x' + numstr);
@@ -211,6 +212,9 @@ export class VerilogXMLParser implements HDLUnit {
     //
 
     visit_verilator_xml(node: XMLNode) {
+    }
+
+    visit_package(node: XMLNode) { // TODO?
     }
 
     visit_module(node: XMLNode) {
@@ -329,6 +333,10 @@ export class VerilogXMLParser implements HDLUnit {
     }
 
     visit_cfunc(node: XMLNode) : HDLBlock {
+        if (this.cur_module == null) { // TODO?
+            console.log('no module open, skipping', node);
+            return;
+        }
         var block = this.visit_begin(node);
         block.exprs = [];
         node.children.forEach((n) => block.exprs.push(n.obj));
@@ -648,8 +656,8 @@ export class VerilogXMLParser implements HDLUnit {
     visit_rand(node: XMLNode) { return this.__visit_func(node); }
     visit_time(node: XMLNode) { return this.__visit_func(node); }
 
-    visit_display(node: XMLNode) { return this.__visit_func(node); }
-    visit_sformatf(node: XMLNode) { return this.visit_begin(node); }
+    visit_display(node: XMLNode) { return null; }
+    visit_sformatf(node: XMLNode) { return null; }
 
     visit_readmem(node: XMLNode) { return this.__visit_func(node); }
 

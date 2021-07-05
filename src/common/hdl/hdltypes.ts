@@ -11,6 +11,7 @@ export interface HDLModuleRunner {
     saveState() : {};
     loadState(state: {}) : void;
     dispose() : void;
+    getFileData : (filename : string) => string|Uint8Array;
 }
 
 export interface HDLModuleTrace {

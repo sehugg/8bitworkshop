@@ -29,10 +29,12 @@ const TRACEBUF = "$$tbuf";
 
 export class HDLError extends Error {
     obj: any;
+    $loc: HDLSourceLocation;
     constructor(obj: any, msg: string) {
         super(msg);
         Object.setPrototypeOf(this, HDLError.prototype);
         this.obj = obj;
+        if (obj && obj.$loc) this.$loc = obj.$loc;
         if (obj) console.log(obj);
     }
 }
@@ -55,6 +57,10 @@ function getDataTypeSize(dt: HDLDataType) : number {
     } else {
         throw new HDLError(dt, `don't know data type`);
     }
+}
+
+function isReferenceType(dt: HDLDataType) : boolean {
+    return getDataTypeSize(dt) > 8;
 }
 
 function getArrayElementSizeFromType(dtype: HDLDataType) : number {
@@ -188,6 +194,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
     traceStartOffset: number;
     traceEndOffset: number;
     trace: any;
+    getFileData = null;
 
     constructor(moddef: HDLModuleDef, constpool: HDLModuleDef) {
         this.hdlmod = moddef;
@@ -345,7 +352,12 @@ export class HDLModuleWASM implements HDLModuleRunner {
              this.pushScope(fscope);
              block.exprs.forEach((e) => {
                  if (e && isVarDecl(e)) {
-                     fscope.addVar(e);
+                     // TODO: make local reference types, instead of promoting local arrays to global
+                     if (isReferenceType(e.dtype)) {
+                         this.globals.addVar(e);
+                     } else {
+                         fscope.addVar(e);
+                     }
                  }
              })
              // create function body
@@ -464,24 +476,42 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
 
     private addImportedFunctions() {
-        this.bmod.addFunctionImport("$display", "builtins", "$display", binaryen.createType([binaryen.i32]), binaryen.none);
-        this.bmod.addFunctionImport("$finish", "builtins", "$finish", binaryen.createType([binaryen.i32]), binaryen.none);
-        this.bmod.addFunctionImport("$stop", "builtins", "$stop", binaryen.createType([binaryen.i32]), binaryen.none);
-        this.bmod.addFunctionImport("$time", "builtins", "$time", binaryen.createType([binaryen.i32]), binaryen.i64);
-        this.bmod.addFunctionImport("$rand", "builtins", "$rand", binaryen.createType([binaryen.i32]), binaryen.i32);
+        this.bmod.addFunctionImport("$finish_0", "builtins", "$finish", binaryen.createType([binaryen.i32]), binaryen.none);
+        this.bmod.addFunctionImport("$stop_0", "builtins", "$stop", binaryen.createType([binaryen.i32]), binaryen.none);
+        this.bmod.addFunctionImport("$time_0", "builtins", "$time", binaryen.createType([binaryen.i32]), binaryen.i64);
+        this.bmod.addFunctionImport("$rand_0", "builtins", "$rand", binaryen.createType([binaryen.i32]), binaryen.i32);
+        this.bmod.addFunctionImport("$readmem_2", "builtins", "$readmem", binaryen.createType([binaryen.i32, binaryen.i32, binaryen.i32]), binaryen.none);
     }
 
     private getImportObject() : {} {
         var n = 0;
         return {
             builtins: {
-                $display: (o) => { if (++n < 100) console.log('...',o); }, // TODO
                 $finish: (o) => { console.log('... Finished @', o); this.finished = true; },
                 $stop: (o) => { console.log('... Stopped @', o); this.stopped = true; },
                 $time: (o) => BigInt(new Date().getTime()), // TODO: timescale
                 $rand: (o) => (Math.random() * (65536 * 65536)) | 0,
+                $readmem: (o,a,b) => this.$readmem(a, b)
             }
         }
+    }
+
+    private $readmem(p_filename, p_rom) {
+        var fn = '';
+        for (var i=0; i<255; i++) {
+            var charCode = this.data8[p_filename + i];
+            if (charCode == 0) break;
+            fn = String.fromCharCode(charCode) + fn;
+        }
+        var filedata = this.getFileData && this.getFileData(fn);
+        if (filedata == null) throw new HDLError(fn, `no file "${fn}" for $readmem`);
+        if (typeof filedata !== 'string') throw new HDLError(fn, `file "${fn}" must be lines of hex or binary values`);
+        var ishex = !fn.endsWith('.binary'); // TODO: hex should be attribute in xml
+        var data = filedata.split('\n').filter(s => s !== '').map(s => parseInt(s, ishex ? 16 : 2));
+        for (var i=0; i<data.length; i++) {
+            this.data8[p_rom + i] = data[i];
+        }
+        return 0;
     }
 
     private addCopyTraceRecFunction() {
@@ -673,13 +703,18 @@ export class HDLModuleWASM implements HDLModuleRunner {
 
     funccall2wasm(e: HDLFuncCall, opts?:Options) : number {
         var args = [this.dataptr()];
+        for (var arg of e.args) {
+            args.push(this.e2w(arg));
+        }
+        var internal = e.funcname;
         if (e.funcname.startsWith('$')) {
             if ((e.funcname == '$stop' || e.funcname == '$finish') && e.$loc) {
                 args = [this.bmod.i32.const(e.$loc.line)]; // line # of source code
             }
+            internal += '_' + (args.length - 1);
         }
         var ret = this.funcResult(e.funcname);
-        return this.bmod.call(e.funcname, args, ret);
+        return this.bmod.call(internal, args, ret);
     }
 
     const2wasm(e: HDLConstant, opts: Options) : number {
@@ -707,14 +742,17 @@ export class HDLModuleWASM implements HDLModuleRunner {
         if (local != null) {
             return this.bmod.local.get(local.index, local.itype);
         } else if (global != null) {
-            return this.loadmem(this.dataptr(), global.offset, global.size);
+            if (global.size <= 8)
+                return this.loadmem(this.dataptr(), global.offset, global.size);
+            else
+                return this.address2wasm(e);
         }
         throw new HDLError(e, `cannot lookup variable ${e.refname}`)
     }
 
     local2wasm(e: HDLVariableDef, opts:Options) : number {
         var local = this.locals.lookup(e.name);
-        if (local == null) throw Error(`no local for ${e.name}`)
+        //if (local == null) throw Error(`no local for ${e.name}`)
         return this.bmod.nop(); // TODO
     }
 
@@ -829,7 +867,11 @@ export class HDLModuleWASM implements HDLModuleRunner {
             block.push(this.e2w(e.precond));
         }
         if (e.loopcond) {
-            block.push(this.bmod.br_if("@block", this.e2w(e.loopcond, {resulttype:binaryen.i32})));
+            block.push(this.bmod.if(
+                    this.e2w(e.loopcond, {resulttype:binaryen.i32}),
+                    this.bmod.nop(),
+                    this.bmod.br("@block")  // exit loop
+            ));
         }
         if (e.body) {
             block.push(this.e2w(e.body));
@@ -971,6 +1013,15 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
     _sub2wasm(e: HDLBinop) {
         return this.binop(e, this.i3264(e.dtype).sub);
+    }
+    _mul2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264(e.dtype).mul);
+    }
+    _moddiv2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264(e.dtype).rem_u);
+    }
+    _div2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264(e.dtype).div_u);
     }
     _moddivs2wasm(e: HDLBinop) {
         return this.binop(e, this.i3264(e.dtype).rem_s);

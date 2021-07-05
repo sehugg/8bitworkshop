@@ -4,7 +4,7 @@ import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeK
 import { SampleAudio } from "../common/audio";
 import { safe_extend } from "../common/util";
 import { WaveformView, WaveformProvider, WaveformMeta } from "../ide/waveform";
-import { setFrameRateUI, loadScript } from "../ide/ui";
+import { setFrameRateUI, loadScript, current_project } from "../ide/ui";
 import { HDLModuleRunner, HDLModuleTrace, HDLUnit, isLogicType } from "../common/hdl/hdltypes";
 import { HDLModuleJS } from "../common/hdl/hdlruntime";
 import { HDLModuleWASM } from "../common/hdl/hdlwasm";
@@ -142,12 +142,16 @@ var VerilogPlatform = function(mainElement, options) {
     if (useAudio) {
       audio.feedSample(top.state.spkr, 1);
     }
+    resetKbdStrobe();
+    if (debugCond && debugCond()) {
+      debugCond = null;
+    }
+  }
+
+  function resetKbdStrobe() {
     if (keycode && keycode >= 128 && top.state.keystrobe) { // keystrobe = clear hi bit of key buffer
       keycode = keycode & 0x7f;
       top.state.keycode = keycode;
-    }
-    if (debugCond && debugCond()) {
-      debugCond = null;
     }
   }
 
@@ -367,7 +371,7 @@ var VerilogPlatform = function(mainElement, options) {
     ncycles |= 0;
     var inspect = inspect_obj && inspect_sym;
     // use fast trace buffer-based update?
-    if (sync && !trace && top['trace'] != null) {
+    if (sync && !trace && top['trace'] != null && scanlineCycles > 0) {
       this.updateVideoFrameFast((top as any) as HDLModuleTrace);
       this.updateRecorder();
       return;
@@ -389,14 +393,17 @@ var VerilogPlatform = function(mainElement, options) {
           idata[frameidx] = rgb & 0x80000000 ? rgb : RGBLOOKUP[rgb & 15];
           frameidx++;
         }
+        scanlineCycles++;
       } else if (!framehsync && top.state.hsync) {
         framehsync = true;
+        scanlineCycles++;
       } else if ((framehsync && !top.state.hsync) || framex > videoWidth*2) {
         framehsync = false;
         framex = 0;
         framey++;
         top.state.hpaddle = framey > video.paddle_x ? 1 : 0;
         top.state.vpaddle = framey > video.paddle_y ? 1 : 0;
+        scanlineCycles = 0;
       }
       if (framey > maxVideoLines || top.state.vsync) {
         framevsync = true;
@@ -418,9 +425,9 @@ var VerilogPlatform = function(mainElement, options) {
 
   // use trace buffer to update video
   updateVideoFrameFast(tmod: HDLModuleTrace) {
-    var maxLineCycles = videoWidth < 300 ? 521 : 1009; // prime number so we eventually sync up
+    var maxLineCycles = 1009; // prime number so we eventually sync up
     if (!scanlineCycles) scanlineCycles = maxLineCycles;
-    var nextlineCycles = scanlineCycles;
+    var nextlineCycles = scanlineCycles + 1;
     // TODO: we can go faster if no paddle/sound
     frameidx = 0;
     var wasvsync = false;
@@ -434,6 +441,8 @@ var VerilogPlatform = function(mainElement, options) {
       }
       // generate frames in trace buffer
       top.tick2(nextlineCycles);
+      // TODO: this has to be done more quickly
+      resetKbdStrobe();
       // convert trace buffer to video/audio
       var n = 0;
       if (framey < videoHeight) {
@@ -446,24 +455,25 @@ var VerilogPlatform = function(mainElement, options) {
         n += videoWidth;
       }
       // find hsync
-      while (n < maxLineCycles && !tmod.trace.hsync) { spkr(); tmod.nextTrace(); n++; }
-      while (n < maxLineCycles && tmod.trace.hsync) { spkr(); tmod.nextTrace(); n++; }
+      while (n < nextlineCycles && !tmod.trace.hsync) { spkr(); tmod.nextTrace(); n++; }
+      while (n < nextlineCycles && tmod.trace.hsync) { spkr(); tmod.nextTrace(); n++; }
       // see if our scanline cycle count is stable
-      if (n == scanlineCycles) {
+      if (n == scanlineCycles + 1) {
         // scanline cycle count licked in, reset buffer to improve cache locality
         nextlineCycles = n;
-        tmod.resetTrace(); 
+        tmod.resetTrace();
       } else {
-        // not in sync, set to prime # and we'll eventually sync
-        nextlineCycles = maxLineCycles;
+        // not in sync, don't reset buffer (TODO: take some of the cycles back)
+        //console.log('scanline', scanlineCycles, nextlineCycles, n);
         scanlineCycles = n;
+        nextlineCycles = n;
       }
       // exit when vsync starts and then stops
       if (tmod.trace.vsync) {
         wasvsync = true;
-      } else if (wasvsync) {
         top.state.hpaddle = 0;
         top.state.vpaddle = 0;
+      } else if (wasvsync) {
         break;
       }
     }
@@ -541,6 +551,7 @@ var VerilogPlatform = function(mainElement, options) {
         // initialize top module and constant pool
         var useWASM = true;
         var _top = new (useWASM ? HDLModuleWASM : HDLModuleJS)(topmod, unit.modules['@CONST-POOL@']);
+        _top.getFileData = (path) => current_project.filedata[path]; // external file provider
         await _top.init();
         _top.powercycle();
         if (top) top.dispose();

@@ -24,6 +24,7 @@ export class HDLModuleJS implements HDLModuleRunner {
     curconsts: {};
     constused: number;
     specfuncs: VerilatorUnit[] = [];
+    getFileData = null;
     
     constructor(mod: HDLModuleDef, constpool: HDLModuleDef) {
         this.mod = mod;
@@ -377,7 +378,7 @@ export class HDLModuleJS implements HDLModuleRunner {
         barr.reverse(); // reverse it
         var strfn = byteArrayToString(barr); // convert to string
         // parse hex/binary file
-        var strdata = this.getFile(strfn) as string;
+        var strdata = this.getFileData(strfn) as string;
         if (strdata == null) throw Error("Could not $readmem '" + strfn + "'");
         var data = strdata.split('\n').filter(s => s !== '').map(s => parseInt(s, ishex ? 16 : 2));
         console.log('$readmem', ishex, strfn, data.length);
@@ -386,11 +387,6 @@ export class HDLModuleJS implements HDLModuleRunner {
         if (memp.length < data.length) throw Error("Destination array too small to $readmem " + strfn);
         for (i=0; i<data.length; i++)
             memp[i] = data[i];
-    }
-
-    getFile(path: string) : string {
-        // TODO: override
-        return null;
     }
 
     isStopped() { return this.stopped; }

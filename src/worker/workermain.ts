@@ -1806,20 +1806,20 @@ function compileVerilator(step:BuildStep) {
       return {errors:errors};
     }
     var xmlParser = new emglobal['VerilogXMLParser']();
+    var listings : CodeListingMap = {};
     try {
       var xmlContent = FS.readFile(xmlPath, {encoding:'utf8'});
+      listings[step.prefix + '.lst'] = {lines:[],text:xmlContent};
       putWorkFile(xmlPath, xmlContent);
       if (!anyTargetChanged(step, [xmlPath]))
         return;
       xmlParser.parse(xmlContent);
     } catch(e) {
-      console.log(e);
+      console.log(e, e.stack);
       errors.push({line:0,msg:""+e});
-      return {errors:errors};
+      return {errors:errors, listings:listings};
     }
     //rtn.intermediate = {listing:h_file + cpp_file}; // TODO
-    var listings : CodeListingMap = {};
-    listings[step.prefix + '.lst'] = {lines:[],text:xmlContent};
     // TODO: what if found in non-top-module?
     if (asmlines.length)
       listings[step.path] = {lines:asmlines};
