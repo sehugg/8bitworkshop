@@ -376,6 +376,7 @@ var VerilogPlatform = function(mainElement, options) {
       this.updateRecorder();
       return;
     }
+    if (!sync) scanlineCycles = 0;
     // use slow update method
     var trace0 = trace_index;
     while (ncycles--) {
@@ -393,17 +394,15 @@ var VerilogPlatform = function(mainElement, options) {
           idata[frameidx] = rgb & 0x80000000 ? rgb : RGBLOOKUP[rgb & 15];
           frameidx++;
         }
-        scanlineCycles++;
       } else if (!framehsync && top.state.hsync) {
         framehsync = true;
-        scanlineCycles++;
       } else if ((framehsync && !top.state.hsync) || framex > videoWidth*2) {
         framehsync = false;
+        if (sync) scanlineCycles = framex;
         framex = 0;
         framey++;
         top.state.hpaddle = framey > video.paddle_x ? 1 : 0;
         top.state.vpaddle = framey > video.paddle_y ? 1 : 0;
-        scanlineCycles = 0;
       }
       if (framey > maxVideoLines || top.state.vsync) {
         framevsync = true;
@@ -426,8 +425,7 @@ var VerilogPlatform = function(mainElement, options) {
   // use trace buffer to update video
   updateVideoFrameFast(tmod: HDLModuleTrace) {
     var maxLineCycles = 1009; // prime number so we eventually sync up
-    if (!scanlineCycles) scanlineCycles = maxLineCycles;
-    var nextlineCycles = scanlineCycles + 1;
+    var nextlineCycles = scanlineCycles;
     // TODO: we can go faster if no paddle/sound
     frameidx = 0;
     var wasvsync = false;
@@ -435,7 +433,7 @@ var VerilogPlatform = function(mainElement, options) {
     function spkr() { if (useAudio) audio.feedSample(tmod.trace.spkr, 1); }
     // iterate through a frame of scanlines + room for vsync
     for (framey=0; framey<videoHeight*2; framey++) {
-      if (usePaddles) {
+      if (usePaddles && framey < videoHeight) {
         top.state.hpaddle = framey > video.paddle_x ? 1 : 0;
         top.state.vpaddle = framey > video.paddle_y ? 1 : 0;
       }
@@ -445,9 +443,11 @@ var VerilogPlatform = function(mainElement, options) {
       resetKbdStrobe();
       // convert trace buffer to video/audio
       var n = 0;
+      // draw scanline visible pixels
       if (framey < videoHeight) {
         for (framex=0; framex<videoWidth; framex++) {
           var rgb = tmod.trace.rgb;
+          //if (tmod.trace.hsync) rgb ^= Math.random() * 15;
           idata[frameidx++] = rgb & 0x80000000 ? rgb : RGBLOOKUP[rgb & 15];
           spkr();
           tmod.nextTrace();
@@ -455,18 +455,26 @@ var VerilogPlatform = function(mainElement, options) {
         n += videoWidth;
       }
       // find hsync
-      while (n < nextlineCycles && !tmod.trace.hsync) { spkr(); tmod.nextTrace(); n++; }
-      while (n < nextlineCycles && tmod.trace.hsync) { spkr(); tmod.nextTrace(); n++; }
-      // see if our scanline cycle count is stable
-      if (n == scanlineCycles + 1) {
-        // scanline cycle count licked in, reset buffer to improve cache locality
-        nextlineCycles = n;
+      var hsyncStart=0, hsyncEnd=0;
+      while (n < nextlineCycles) {
+        if (tmod.trace.hsync) {
+          if (!hsyncStart) hsyncStart = n;
+          hsyncEnd = n;
+        } else if (hsyncEnd)
+          break;
+        spkr();
+        tmod.nextTrace();
+        n++;
+      }
+      // see if our scanline cycle count is stable (can't read tmod.trace after end of line)
+      if (hsyncStart < hsyncEnd && hsyncEnd == scanlineCycles-1) {
+        // scanline cycle count locked in, reset buffer to improve cache locality
+        nextlineCycles = scanlineCycles;
         tmod.resetTrace();
       } else {
         // not in sync, don't reset buffer (TODO: take some of the cycles back)
-        //console.log('scanline', scanlineCycles, nextlineCycles, n);
-        scanlineCycles = n;
-        nextlineCycles = n;
+        //console.log('scanline', framey, scanlineCycles, nextlineCycles, n, hsyncStart, hsyncEnd);
+        nextlineCycles = maxLineCycles;
       }
       // exit when vsync starts and then stops
       if (tmod.trace.vsync) {
