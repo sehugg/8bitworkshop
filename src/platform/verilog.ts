@@ -474,7 +474,7 @@ var VerilogPlatform = function(mainElement, options) {
       } else {
         // not in sync, don't reset buffer (TODO: take some of the cycles back)
         //console.log('scanline', framey, scanlineCycles, nextlineCycles, n, hsyncStart, hsyncEnd);
-        nextlineCycles = maxLineCycles;
+        nextlineCycles = Math.min(maxLineCycles, n + scanlineCycles);
       }
       // exit when vsync starts and then stops
       if (tmod.trace.vsync) {
@@ -550,6 +550,13 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
+  dispose() {
+    if (top) {
+        top.dispose();
+        top = null;
+    }
+  }
+
   // TODO: can this be async?
   async loadROM(title:string, output:any) {
     var unit = output as HDLUnit;
@@ -558,11 +565,12 @@ var VerilogPlatform = function(mainElement, options) {
       {
         // initialize top module and constant pool
         var useWASM = true;
-        var _top = new (useWASM ? HDLModuleWASM : HDLModuleJS)(topmod, unit.modules['@CONST-POOL@']);
+        var topcons = useWASM ? HDLModuleWASM : HDLModuleJS;
+        var _top = new topcons(topmod, unit.modules['@CONST-POOL@']);
         _top.getFileData = (path) => current_project.filedata[path]; // external file provider
         await _top.init();
         _top.powercycle();
-        if (top) top.dispose();
+        this.dispose();
         top = _top;
         // create signal array
         var signals : WaveformSignal[] = [];

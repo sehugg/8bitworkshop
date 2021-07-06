@@ -1,5 +1,6 @@
 
 var assert = require('assert');
+var _fs = require('fs');
 var _path = require('path')
 var _cproc = require('child_process');
 var fs = require('fs');
@@ -66,25 +67,44 @@ function testPerf(msg) {
 
 function compileVerilator(filename, code, callback, nerrors, depends) {
     global.postMessage = async function(msg) {
+      try {
         if (msg.errors && msg.errors.length) {
           console.log(msg.errors);
           assert.equal(nerrors||0, msg.errors.length, "errors");
         } else {
           assert.equal(nerrors||0, 0, "errors");
-          await loadPlatform(msg);
+          var platform = await loadPlatform(msg);
           //testPerf(msg);
           if (filename.indexOf('t_') >= 0) {
-            //assert.ok(verilog.vl_finished);
+            //assert.ok(platform.isBlocked() && !platform.isStopped());
           }
+          platform.dispose();
         }
         callback(null, msg);
-    };
-    global.onmessage({
-        data:{
-          updates:[{path:_path.basename(filename), data:code}],
-          buildsteps:[{path:_path.basename(filename), platform:'verilog', tool:'verilator', files:depends}]
+      } catch (e) {
+        if (e.msg && e.msg.indexOf('WebAssembly.Memory()') >= 0) {
+          process.exit(1);
+        } else {
+          //fs.unlinkSync(filename);
+          callback(e, null);
         }
-    });
+      }
+    };
+    try {
+      global.onmessage({
+          data:{
+            updates:[{path:_path.basename(filename), data:code}],
+            buildsteps:[{path:_path.basename(filename), platform:'verilog', tool:'verilator', files:depends}]
+          }
+      });
+    } catch (e) {
+      if (e.msg && e.msg.indexOf('WebAssembly.Memory()') >= 0) {
+        process.exit(1);
+      } else {
+        //fs.unlinkSync(filename);
+        callback(e, null);
+      }
+    }
 }
 
 function testIcarus(filename) {
@@ -97,13 +117,22 @@ function testVerilator(filename, disables, nerrors, depends) {
     //if (depends) testIcarus(filename);
     var csource = ab2str(fs.readFileSync(filename));
     for (var i=0; i<(disables||[]).length; i++)
-      csource = "/* verilator lint_off " + disables[i] + " */ " + csource;
+      csource = "/* verilator lint_off " + disables[i] + " */\n" + csource;
     compileVerilator(filename, csource, done, nerrors||0, depends);
   });
 }
 
 describe('Verilog Worker', function() {
-
+  
+  var files = _fs.readdirSync('test/cli/verilog').filter(fn => fn.endsWith('.v'));
+  files = files.slice(0,80);
+  for (var fn of files) {
+    testVerilator('test/cli/verilog/' + fn, 
+      ['UNDRIVEN','BLKSEQ','WIDTH','PINCONNECTEMPTY','SYNCASYNCNET','UNOPT','UNOPTFLAT','VARHIDDEN','EOFNEWLINE']
+    );
+    global.onmessage({data:{reset:true}});
+  }
+  
   testVerilator('presets/verilog/hvsync_generator.v');
   testVerilator('presets/verilog/digits10.v', null, null, ['digits10.v', 'hvsync_generator.v']);
   testVerilator('presets/verilog/scoreboard.v', null, null, ['scoreboard.v', 'digits10.v', 'hvsync_generator.v']);
@@ -116,69 +145,5 @@ describe('Verilog Worker', function() {
   testVerilator('presets/verilog/sprite_scanline_renderer.v', null, null, ['sprite_scanline_renderer.v', 'ram.v', 'hvsync_generator.v']);
   testVerilator('presets/verilog/tile_renderer.v', null, null, ['tile_renderer.v', 'font_cp437_8x8.v', 'ram.v', 'hvsync_generator.v']);
   testVerilator('presets/verilog/cpu6502.v');
-  // TODO: how to include files? have to pass buildsteps + files
 
-  //testVerilator('test/cli/verilog/t_tri_gate.v');
-  testVerilator('test/cli/verilog/t_tri_gen.v', ['UNDRIVEN']);
-  testVerilator('test/cli/verilog/t_tri_graph.v', ['UNDRIVEN']);
-  testVerilator('test/cli/verilog/t_tri_ifbegin.v', ['UNDRIVEN']);
-  testVerilator('test/cli/verilog/t_tri_inout.v');
-  testVerilator('test/cli/verilog/t_tri_inout2.v');
-  testVerilator('test/cli/verilog/t_tri_pullup.v', ['UNDRIVEN']);
-  testVerilator('test/cli/verilog/t_tri_select_unsized.v', ['WIDTH']);
-  testVerilator('test/cli/verilog/t_tri_unconn.v', ['PINCONNECTEMPTY']);
-  testVerilator('test/cli/verilog/t_tri_various.v', ['UNDRIVEN']);
-
-  testVerilator('test/cli/verilog/t_math_const.v', ['BLKSEQ']);
-  testVerilator('test/cli/verilog/t_alw_combdly.v');
-  testVerilator('test/cli/verilog/t_clk_first.v', ['UNDRIVEN','SYNCASYNCNET']);
-/* TODO: fix tests
-  testVerilator('test/cli/verilog/t_clk_gen.v', ['BLKSEQ']);
-  testVerilator('test/cli/verilog/t_clk_2in.v', ['BLKSEQ']);
-  testVerilator('test/cli/verilog/t_order_doubleloop.v', ['BLKSEQ']);
-  testVerilator('test/cli/verilog/t_order_comboclkloop.v');
-*/
-  testVerilator('test/cli/verilog/t_gen_alw.v');
-  testVerilator('test/cli/verilog/t_case_huge_sub3.v');
-
-  //testVerilator('test/cli/verilog/t_order.v');
-  //testVerilator('test/cli/verilog/t_order_2d.v');
-  //testVerilator('test/cli/verilog/t_order_a.v');
-  //testVerilator('test/cli/verilog/t_order_b.v');
-  //testVerilator('test/cli/verilog/t_order_clkinst.v');
-  //testVerilator('test/cli/verilog/t_order_comboloop.v', ['BLKSEQ']);
-  testVerilator('test/cli/verilog/t_order_first.v');
-  //testVerilator('test/cli/verilog/t_order_loop_bad.v', ['BLKSEQ'], 10);
-  testVerilator('test/cli/verilog/t_order_multialways.v');
-  testVerilator('test/cli/verilog/t_order_multidriven.v', ['UNDRIVEN']);
-  //testVerilator('test/cli/verilog/t_order_quad.v');
-  testVerilator('test/cli/verilog/t_order_wireloop.v', ['UNOPT']);
-
-  testVerilator('test/cli/verilog/t_mem.v');
-
-  testVerilator('test/cli/verilog/t_alw_dly.v', ['BLKSEQ']);
-  testVerilator('test/cli/verilog/t_alw_split.v', ['BLKSEQ']);
-  testVerilator('test/cli/verilog/t_alw_splitord.v', ['BLKSEQ']);
-
-  testVerilator('test/cli/verilog/t_array_compare.v');
-
-  testVerilator('test/cli/verilog/t_math_arith.v', ['BLKSEQ']);
-  //testVerilator('test/cli/verilog/t_math_div.v');
-  //testVerilator('test/cli/verilog/t_math_div0.v');
-
-  testVerilator('test/cli/verilog/t_clk_powerdn.v', ['BLKSEQ','SYNCASYNCNET']);
-  //testVerilator('test/cli/verilog/t_clk_latchgate.v', ['BLKSEQ']);
-  //testVerilator('test/cli/verilog/t_clk_latch.v');
-  //testVerilator('test/cli/verilog/t_clk_gater.v', ['BLKSEQ']);
-  testVerilator('test/cli/verilog/t_clk_dsp.v');
-  testVerilator('test/cli/verilog/t_clk_dpulse.v');
-  testVerilator('test/cli/verilog/t_clk_condflop_nord.v');
-  testVerilator('test/cli/verilog/t_clk_condflop.v', ['BLKSEQ']);
-
-  /*
-  it('should compile verilog example', function(done) {
-    var csource = ab2str(fs.readFileSync('presets/verilog/hvsync_generator.v'));
-    compileVerilator(csource, done);
-  });
-  */
 });

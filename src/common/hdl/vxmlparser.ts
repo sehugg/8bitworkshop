@@ -20,6 +20,7 @@ import { HDLAlwaysBlock, HDLArrayItem, HDLBinop, HDLBlock, HDLConstant, HDLDataT
  export class CompileError extends Error {
     constructor(obj: HDLSourceLocation|XMLNode, msg: string) {
         super(msg);
+        console.log(obj);
         Object.setPrototypeOf(this, CompileError.prototype);
     }
 }
@@ -345,6 +346,9 @@ export class VerilogXMLParser implements HDLUnit {
         return block;
     }
 
+    visit_cuse(node: XMLNode) { // TODO?
+    }
+
     visit_instance(node: XMLNode) : HDLInstanceDef {
         var instance : HDLInstanceDef = {
             $loc: this.parseSourceLocation(node),
@@ -465,6 +469,11 @@ export class VerilogXMLParser implements HDLUnit {
         return dtype;
     }
 
+    visit_packarraydtype(node: XMLNode): HDLDataType {
+        // TODO: packed?
+        return this.visit_unpackarraydtype(node);
+    }
+
     visit_unpackarraydtype(node: XMLNode): HDLDataType {
         let id = node.attrs['id'];
         let sub_dtype_id = node.attrs['sub_dtype_id'];
@@ -530,12 +539,16 @@ export class VerilogXMLParser implements HDLUnit {
         return expr;
     }
 
-    visit_extends(node: XMLNode) : HDLUnop {
+    visit_extend(node: XMLNode) : HDLUnop {
         var unop = this.__visit_unop(node) as HDLExtendop;
         unop.width = parseInt(node.attrs['width']);
         unop.widthminv = parseInt(node.attrs['widthminv']);
         if (unop.width != 32) throw new CompileError(node, `extends width ${unop.width} != 32`)
         return unop;
+    }
+
+    visit_extends(node: XMLNode) : HDLUnop {
+        return this.visit_extend(node);
     }
 
     __visit_binop(node: XMLNode) : HDLBinop {

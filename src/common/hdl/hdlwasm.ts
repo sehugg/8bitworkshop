@@ -192,6 +192,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
         this.maxMemoryMB = maxMemoryMB || 16;
         this.genMemory();
         this.genFuncs();
+        this.validate();
     }
 
     async init() {
@@ -311,23 +312,35 @@ export class HDLModuleWASM implements HDLModuleRunner {
         // generate global variables
         var state = new Struct();
         this.globals = state;
-        // TODO: sort globals by size
-        // outputs are first
-        for (const [varname, vardef] of Object.entries(this.hdlmod.vardefs)) {
+        // sort globals by output flag and size
+        var vardefs = Object.values(this.hdlmod.vardefs);
+        function getVarDefSortKey(vdef: HDLVariableDef) {
+            var val = getDataTypeSize(vdef.dtype); // sort by size
+            if (!vdef.isOutput) val += 1000000; // outputs are first in list
+            return val;
+        }
+        vardefs.sort((a,b) => {
+            return getVarDefSortKey(a) - getVarDefSortKey(b);
+        });
+        // outputs are contiguous so we can copy them to the trace buffer
+        // so we put them all first in the struct order
+        for (var vardef of vardefs) {
             if (vardef.isOutput) state.addVar(vardef);
         }
         if (state.len == 0) state.addEntry("___", 1); // ensure as least 8 output bytes for trace buffer
         state.alignTo(8);
         this.outputbytes = state.len;
-        // followed by inputs and internal vars
-        for (const [varname, vardef] of Object.entries(this.hdlmod.vardefs)) {
+        // followed by inputs and internal vars (arrays after logical types)
+        for (var vardef of vardefs) {
             if (!vardef.isOutput) state.addVar(vardef);
         }
         state.alignTo(8);
         this.statebytes = state.len;
         // followed by constant pool
-        for (const [varname, vardef] of Object.entries(this.constpool.vardefs)) {
-            state.addVar(vardef);
+        if (this.constpool) {
+            for (const vardef of Object.values(this.constpool.vardefs)) {
+                state.addVar(vardef);
+            }
         }
         state.alignTo(8);
         // and now the trace buffer
@@ -339,51 +352,58 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
 
     private genFuncs() {
-         // function type (dsegptr)
-         var fsig = binaryen.createType([binaryen.i32])
-         for (var block of this.hdlmod.blocks) {
-             // TODO: cfuncs only
-             var fnname = block.name;
-             // find locals of function
-             var fscope = new Struct();
-             fscope.addEntry(GLOBAL, 4, binaryen.i32, null, true); // 1st param to function
-             // add __req local if change_request function
-             if (this.funcResult(block.name) == binaryen.i32) {
-                 fscope.addEntry(CHANGEDET, 1, binaryen.i32, null, false);
-             }
-             this.pushScope(fscope);
-             block.exprs.forEach((e) => {
-                 if (e && isVarDecl(e)) {
-                     // TODO: make local reference types, instead of promoting local arrays to global
-                     if (isReferenceType(e.dtype)) {
-                         this.globals.addVar(e);
-                     } else {
-                         fscope.addVar(e);
-                     }
-                 }
-             })
-             // create function body
-             var fbody = this.block2wasm(block, {funcblock:block});
-             //var fbody = this.bmod.return(this.bmod.i32.const(0));
-             var fret = this.funcResult(block.name);
-             var fref = this.bmod.addFunction(fnname, fsig, fret, fscope.getLocals(), fbody);
-             this.popScope();
-         }
-         // export functions
-         for (var fname of VERILATOR_UNIT_FUNCTIONS) {
-             this.bmod.addFunctionExport(fname, fname);
-         }
-         // create helper functions
-         this.addHelperFunctions();
-         // link imported functions
-         this.addImportedFunctions();
+        // function type (dsegptr)
+        for (var block of this.hdlmod.blocks) {
+            this.genFunction(block);
+        }
+        // export functions
+        for (var fname of VERILATOR_UNIT_FUNCTIONS) {
+            this.bmod.addFunctionExport(fname, fname);
+        }
+        // create helper functions
+        this.addHelperFunctions();
+        // link imported functions
+        this.addImportedFunctions();
+    }
+
+    private validate() {
          // validate wasm module
          //console.log(this.bmod.emitText());
          //this.bmod.optimize();
          if (!this.bmod.validate()) {
             console.log(this.bmod.emitText());
-             throw new HDLError(null, `could not validate wasm module`);
+            throw new HDLError(null, `could not validate wasm module`);
          }
+    }
+
+    private genFunction(block) {
+        // TODO: cfuncs only
+        var fnname = block.name;
+        // find locals of function
+        var fscope = new Struct();
+        fscope.addEntry(GLOBAL, 4, binaryen.i32, null, true); // 1st param to function
+        // add __req local if change_request function
+        if (this.funcResult(block.name) == binaryen.i32) {
+            fscope.addEntry(CHANGEDET, 1, binaryen.i32, null, false);
+        }
+        this.pushScope(fscope);
+        block.exprs.forEach((e) => {
+            if (e && isVarDecl(e)) {
+                // TODO: make local reference types, instead of promoting local arrays to global
+                if (isReferenceType(e.dtype)) {
+                    this.globals.addVar(e);
+                } else {
+                    fscope.addVar(e);
+                }
+            }
+        })
+        // create function body
+        var fbody = this.block2wasm(block, {funcblock:block});
+        //var fbody = this.bmod.return(this.bmod.i32.const(0));
+        var fret = this.funcResult(block.name);
+        var fsig = binaryen.createType([binaryen.i32]); // pass dataptr()
+        var fref = this.bmod.addFunction(fnname, fsig, fret, fscope.getLocals(), fbody);
+        this.popScope();
     }
 
     private async genModule() {
@@ -944,6 +964,17 @@ export class HDLModuleWASM implements HDLModuleRunner {
             // ${this.expr2js(e.right)} = ${this.expr2js(e.left)}`
             this.assign2wasm(e.right, e.left)
         ]);
+    }
+
+    _extend2wasm(e: HDLExtendop, opts:Options) {
+        var value = this.e2w(e.left);
+        var inst = this.i3264(e.dtype);
+        if (this.bmod.getFeatures() & binaryen.Features.SignExt) {
+            if (e.widthminv == 32 && e.width == 64) {
+                return this.bmod.i64.extend_u(value);
+            }
+        }
+        throw new HDLError(e, `cannot extend`);
     }
 
     _extends2wasm(e: HDLExtendop, opts:Options) {

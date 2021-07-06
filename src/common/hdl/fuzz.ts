@@ -1,6 +1,7 @@
 
 //import binaryen = require('binaryen');
-import { HDLModuleJS } from "./hdlruntime";
+import { fn } from "jquery";
+import { HDLError, HDLModuleJS } from "./hdlruntime";
 import { HDLModuleWASM } from "./hdlwasm";
 import { CompileError, VerilogXMLParser } from "./vxmlparser";
 
@@ -28,8 +29,16 @@ export function fuzz(buf) {
     if (1) {
         var jmod = new HDLModuleJS(parser.modules['TOP'], parser.modules['@CONST-POOL@']);
         jmod.init();
-        jmod.powercycle();
-        jmod.tick2(10000);
-        jmod.dispose();
+        try {
+            jmod.powercycle();
+            jmod.tick2(10000);
+        } catch (e) {
+            if (e instanceof HDLError) return;
+            const fs = require('fs');
+            fs.writeFileSync('hdlfuzz-output.js', jmod.getJSCode());
+            throw e;
+        } finally {
+            jmod.dispose();
+        }
     }
 }

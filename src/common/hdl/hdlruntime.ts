@@ -26,6 +26,7 @@ export class HDLModuleJS implements HDLModuleRunner {
 
     mod: HDLModuleDef;
     constpool: HDLModuleDef;
+    globals: {[name: string] : HDLVariableDef};
     locals: {[name: string] : HDLVariableDef};
     state: {[name: string] : HDLValue};
     basefuncs: VerilatorUnit;
@@ -43,13 +44,27 @@ export class HDLModuleJS implements HDLModuleRunner {
         this.constpool = constpool;
         this.basefuncs = {} as any;
         this.state = {}; //new Object(this.funcs) as any;
+        this.globals = {};
         // set built-in functions
         Object.getOwnPropertyNames(Object.getPrototypeOf(this)).filter((f) => f.startsWith('$')).forEach((f) => {
             this.basefuncs[f] = this[f].bind(this);
         })
+        // set initial state
+        if (this.constpool) {
+            var cp = new HDLModuleJS(this.constpool, null);
+            cp.init();
+            Object.assign(this.state, cp.state);
+            Object.assign(this.globals, cp.globals);
+        }
+        for (var varname in this.mod.vardefs) {
+            var vardef = this.mod.vardefs[varname];
+            this.globals[varname] = vardef;
+            this.state[varname] = this.defaultValue(vardef.dtype, vardef);
+        }
         // generate functions
         this.basefuncs = this.genFuncs({});
         this.curfuncs = this.basefuncs;
+        /*
         for (var i=0; i<16; i++) {
             this.specfuncs[i] = this.genFuncs({
                 //reset:(i&1),
@@ -58,16 +73,7 @@ export class HDLModuleJS implements HDLModuleRunner {
                 test_CPU16_top$cpu$state:i
             });
         }
-        // set initial state
-        if (this.constpool) {
-            var cp = new HDLModuleJS(this.constpool, null);
-            cp.init();
-            Object.assign(this.state, cp.state);
-        }
-        for (var varname in this.mod.vardefs) {
-            var vardef = this.mod.vardefs[varname];
-            this.state[varname] = this.defaultValue(vardef.dtype, vardef);
-        }
+        */
     }
 
     init() {
@@ -221,10 +227,12 @@ export class HDLModuleJS implements HDLModuleRunner {
             if (this.curconsts[e.refname] != null && !(options||{}).store) {
                 this.constused++;
                 return `${this.curconsts[e.refname]}`;
-            } else if (this.locals[e.refname])
+            } else if (this.locals[e.refname]) {
                 return `${e.refname}`;
-            else
+            } else if (this.globals[e.refname]) {
                 return `o.${e.refname}`;
+            } else
+                throw new HDLError(e, `cannot find variable '${e.refname}'`)
         } else if (isVarDecl(e)) {
             this.locals[e.name] = e;
             let s = `var ${e.name}`;

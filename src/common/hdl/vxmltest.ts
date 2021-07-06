@@ -107,6 +107,8 @@ async function testJSvsWASM() {
     }
 }
 
+//testJS();
+testWASM();
 //testJSvsWASM();
-testWASM().then(testJS).then(testJSvsWASM);
+//testWASM().then(testJS).then(testJSvsWASM);
 
