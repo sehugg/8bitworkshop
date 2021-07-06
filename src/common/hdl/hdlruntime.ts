@@ -1,6 +1,6 @@
 
 import { byteArrayToString, safe_extend } from "../util";
-import { HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, isArrayItem, isArrayType, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
+import { HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLSourceLocation, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, isArrayItem, isArrayType, isBigConstExpr, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
 
 interface VerilatorUnit {
     _ctor_var_reset(state) : void;
@@ -8,6 +8,18 @@ interface VerilatorUnit {
     _eval_settle(state) : void;
     _eval(state) : void;
     _change_request(state) : boolean;
+}
+
+export class HDLError extends Error {
+    obj: any;
+    $loc: HDLSourceLocation;
+    constructor(obj: any, msg: string) {
+        super(msg);
+        Object.setPrototypeOf(this, HDLError.prototype);
+        this.obj = obj;
+        if (obj && obj.$loc) this.$loc = obj.$loc;
+        if (obj) console.log(obj);
+    }
 }
 
 export class HDLModuleJS implements HDLModuleRunner {
@@ -114,7 +126,7 @@ export class HDLModuleJS implements HDLModuleRunner {
                 return;
             }
         }
-        throw new Error(`model did not converge on reset()`)
+        throw new HDLError(null, `model did not converge on reset()`)
     }
 
     eval() {
@@ -139,7 +151,7 @@ export class HDLModuleJS implements HDLModuleRunner {
                 return;
             }
         }
-        throw new Error(`model did not converge on eval()`)
+        throw new HDLError(null, `model did not converge on eval()`)
     }
 
     tick2(iters: number) {
@@ -180,20 +192,20 @@ export class HDLModuleJS implements HDLModuleRunner {
                     if (isArrayItem(e) && isConstExpr(e.expr)) {
                         arr[e.index] = e.expr.cvalue;
                     } else {
-                        throw new Error(`non-const expr in initarray`);
+                        throw new HDLError(dt, `non-const expr in initarray`);
                     }
                 }
             }
             return arr;
         }
-        throw new Error(`no default value for var type: ${vardef.name}`);
+        throw new HDLError(dt, `no default value for var type: ${vardef.name}`);
     }
 
     constValue(expr: HDLExpr) : number {
         if (isConstExpr(expr)) {
             return expr.cvalue;
         } else {
-            throw new Error(`no const value for expr`);
+            throw new HDLError(expr, `no const value for expr`);
         }
     }
 
@@ -220,7 +232,7 @@ export class HDLModuleJS implements HDLModuleRunner {
                 s += ` = ${this.constValue(e)}`; // TODO?
             } else if (e.initValue != null) {
                 // TODO?
-                throw new Error(`can't init array here`);
+                throw new HDLError(e, `can't init array here`);
             } else if (isLogicType(e.dtype) && e.dtype.left > 31) {
                 // TODO: hack for big ints ($readmem)
                 s += ` = []`;
@@ -228,6 +240,8 @@ export class HDLModuleJS implements HDLModuleRunner {
             return s;
         } else if (isConstExpr(e)) {
             return `0x${e.cvalue.toString(16)}`;
+        } else if (isBigConstExpr(e)) {
+            return e.bigvalue.toString(); // TODO?
         } else if (isTriop(e)) {
             switch (e.op) {
                 case 'if':
@@ -239,8 +253,7 @@ export class HDLModuleJS implements HDLModuleRunner {
                 case 'condbound':
                     return `(${this.expr2js(e.cond, {cond:true})} ? ${this.expr2js(e.left)} : ${this.expr2js(e.right)})`;
                 default:
-                    console.log(e);
-                    throw Error(`unknown triop ${e.op}`);
+                    throw new HDLError(e, `unknown triop ${e.op}`);
             }
         } else if (isBinop(e)) {
             switch (e.op) {
@@ -260,8 +273,7 @@ export class HDLModuleJS implements HDLModuleRunner {
                 default:
                     var jsop = OP2JS[e.op];
                     if (!jsop) {
-                        console.log(e);
-                        throw Error(`unknown binop ${e.op}`)
+                        throw new HDLError(e, `unknown binop ${e.op}`)
                     }
                     if (jsop.startsWith('?')) {
                         jsop = jsop.substr(1);
@@ -287,9 +299,10 @@ export class HDLModuleJS implements HDLModuleRunner {
                 case 'extends':
                     let shift = 32 - (e as HDLExtendop).widthminv;
                     return `((${this.expr2js(e.left)} << ${shift}) >> ${shift})`;
+                case 'redxor':
+                    return `this.$$${e.op}(${this.expr2js(e.left)})`;
                 default:
-                    console.log(e);
-                    throw Error(`unknown unop ${e.op}`);
+                    throw new HDLError(e, `unknown unop ${e.op}`);
             }
         } else if (isBlock(e)) {
             // TODO: { e } ?
@@ -330,11 +343,11 @@ export class HDLModuleJS implements HDLModuleRunner {
                     return `${this.expr2js(e)}.forEach((a) => a.fill(0))`
                 } else {
                     // TODO: 3d arrays?
-                    throw Error(`unsupported data type for reset: ${JSON.stringify(e.dtype)}`);
+                    throw new HDLError(e, `unsupported data type for reset: ${JSON.stringify(e.dtype)}`);
                 }
             }
         } else {
-            throw Error(`can only reset var refs`);
+            throw new HDLError(e, `can only reset var refs`);
         }
     }
 
@@ -379,15 +392,26 @@ export class HDLModuleJS implements HDLModuleRunner {
         var strfn = byteArrayToString(barr); // convert to string
         // parse hex/binary file
         var strdata = this.getFileData(strfn) as string;
-        if (strdata == null) throw Error("Could not $readmem '" + strfn + "'");
+        if (strdata == null) throw new HDLError(null, "Could not $readmem '" + strfn + "'");
         var data = strdata.split('\n').filter(s => s !== '').map(s => parseInt(s, ishex ? 16 : 2));
         console.log('$readmem', ishex, strfn, data.length);
         // copy into destination array
-        if (memp === null) throw Error("No destination array to $readmem " + strfn);
-        if (memp.length < data.length) throw Error("Destination array too small to $readmem " + strfn);
+        if (memp === null) throw new HDLError(null, "No destination array to $readmem " + strfn);
+        if (memp.length < data.length) throw new HDLError(null, "Destination array too small to $readmem " + strfn);
         for (i=0; i<data.length; i++)
             memp[i] = data[i];
     }
+
+    $time(o) {
+        return new Date().getTime();
+    }
+
+    $$redxor(r: number) : number {
+        r=(r^(r>>1)); r=(r^(r>>2)); r=(r^(r>>4)); r=(r^(r>>8)); r=(r^(r>>16));
+        return r;
+    }
+
+    //
 
     isStopped() { return this.stopped; }
     isFinished() { return this.finished; }

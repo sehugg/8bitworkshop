@@ -63,6 +63,7 @@
     "test-web": "nightwatch -e chrome test/web",
     "start": "electron .",
     "fuzzbasic": "jsfuzz gen/common/basic/fuzz.js ~/basic/corpus/ --versifier false",
+    "fuzzhdl": "jsfuzz -r binaryen gen/common/hdl/fuzz.js ~/verilator/corpus/ --versifier false",
     "machine": "node gen/tools/runmachine.js",
     "mkdoc": "typedoc --out web/jsdoc src/common/"
   },

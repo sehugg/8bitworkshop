@@ -1,4 +1,5 @@
 
+import { HDLError } from "./hdlruntime";
 import { HDLAlwaysBlock, HDLArrayItem, HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLDataTypeObject, HDLExpr, HDLExtendop, HDLFile, HDLFuncCall, HDLHierarchyDef, HDLInstanceDef, HDLLogicType, HDLModuleDef, HDLNativeType, HDLPort, HDLSensItem, HDLSourceLocation, HDLTriop, HDLUnit, HDLUnop, HDLUnpackArray, HDLValue, HDLVariableDef, HDLVarRef, HDLWhileOp, isArrayType, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef } from "./hdltypes";
 
 /**
@@ -15,6 +16,13 @@ import { HDLAlwaysBlock, HDLArrayItem, HDLBinop, HDLBlock, HDLConstant, HDLDataT
  * Dependency cycles
  * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
  */
+
+ export class CompileError extends Error {
+    constructor(obj: HDLSourceLocation|XMLNode, msg: string) {
+        super(msg);
+        Object.setPrototypeOf(this, CompileError.prototype);
+    }
+}
 
 interface XMLNode {
     type: string;
@@ -47,10 +55,11 @@ function parseXMLPoorly(s: string, openfn?: XMLVisitFunction, closefn?: XMLVisit
 
     function closetop() {
         top = stack.pop();
-        if (top.type != ident) throw Error("mismatch close tag: " + ident);
+        if (top == null || top.type != ident) throw new CompileError(node, "mismatch close tag: " + ident);
         if (closefn) {
             top.obj = closefn(top);
         }
+        if (stack.length == 0) throw new CompileError(null, "close tag without open: " + ident);
         stack[stack.length - 1].children.push(top);
     }
     function parseattrs(as: string): { [id: string]: string } {
@@ -79,22 +88,14 @@ function parseXMLPoorly(s: string, openfn?: XMLVisitFunction, closefn?: XMLVisit
             }
             if (attrs && attrs.endsWith('/')) closetop();
         } else if (content != null) {
+            if (stack.length == 0) throw new CompileError(null, "content without element");
             var txt = escapeXML(content as string).trim();
             if (txt.length) stack[stack.length - 1].text = txt;
         }
     }
-    if (stack.length != 1) throw Error("tag not closed");
-    if (stack[0].type != '?xml') throw Error("?xml needs to be first element");
+    if (stack.length != 1) throw new CompileError(null, "tag not closed");
+    if (stack[0].type != '?xml') throw new CompileError(null, "?xml needs to be first element");
     return top;
-}
-
-export class CompileError extends Error {
-    $loc : HDLSourceLocation;
-    constructor(msg: string, loc: HDLSourceLocation) {
-        super(msg);
-        Object.setPrototypeOf(this, CompileError.prototype);
-        this.$loc = loc;
-    }
 }
 
 export class VerilogXMLParser implements HDLUnit {
@@ -131,12 +132,13 @@ export class VerilogXMLParser implements HDLUnit {
     }
 
     name2js(s: string) {
+        if (s == null) throw new CompileError(null, `no name`);
         return s.replace(/[^a-z0-9_]/gi, '$');
     }
 
     findChildren(node: XMLNode, type: string, required: boolean) : XMLNode[] {
         var arr = node.children.filter((n) => n.type == type);
-        if (arr.length == 0 && required) throw Error(`no child of type ${type}`);
+        if (arr.length == 0 && required) throw new CompileError(node, `no child of type ${type}`);
         return arr;
     }
 
@@ -165,7 +167,7 @@ export class VerilogXMLParser implements HDLUnit {
             instances: [],
             vardefs: {},
         }
-        if (this.cur_module) throw new Error(`nested modules not supported`);
+        if (this.cur_module) throw new CompileError(node, `nested modules not supported`);
         this.cur_module = module;
         return module;
     }
@@ -176,8 +178,7 @@ export class VerilogXMLParser implements HDLUnit {
             this.defer(() => {
                 def.dtype = this.dtypes[dtype_id];
                 if (!def.dtype) {
-                    console.log(node);
-                    throw Error(`Unknown data type ${dtype_id} for ${node.type}`);
+                    throw new CompileError(node, `Unknown data type ${dtype_id} for ${node.type}`);
                 }
             })
         }
@@ -193,19 +194,19 @@ export class VerilogXMLParser implements HDLUnit {
             else
                 return BigInt('0x' + numstr);
         } else {
-            throw Error(`could not parse constant "${s}"`);
+            throw new CompileError(null, `could not parse constant "${s}"`);
         }
     }
     
     resolveVar(s: string, mod: HDLModuleDef) : HDLVariableDef {
         var def = mod.vardefs[s];
-        if (def == null) throw Error(`could not resolve variable "${s}"`);
+        if (def == null) throw new CompileError(null, `could not resolve variable "${s}"`);
         return def;
     }
 
     resolveModule(s: string) : HDLModuleDef {
         var mod = this.modules[s];
-        if (mod == null) throw Error(`could not resolve module "${s}"`);
+        if (mod == null) throw new CompileError(null, `could not resolve module "${s}"`);
         return mod;
     }
 
@@ -325,7 +326,7 @@ export class VerilogXMLParser implements HDLUnit {
     }
 
     visit_inititem(node: XMLNode) : HDLArrayItem {
-        if (node.children.length != 1) throw Error('expected 1 children');
+        this.expectChildren(node, 1, 1);
         return {
             index: parseInt(node.attrs['index']),
             expr: node.children[0].obj
@@ -334,7 +335,7 @@ export class VerilogXMLParser implements HDLUnit {
 
     visit_cfunc(node: XMLNode) : HDLBlock {
         if (this.cur_module == null) { // TODO?
-            console.log('no module open, skipping', node);
+            //console.log('no module open, skipping', node);
             return;
         }
         var block = this.visit_begin(node);
@@ -363,7 +364,7 @@ export class VerilogXMLParser implements HDLUnit {
     }
 
     visit_port(node: XMLNode) : HDLPort {
-        if (node.children.length != 1) throw Error('expected 1 children');
+        this.expectChildren(node, 1, 1);
         var varref: HDLPort = {
             $loc: this.parseSourceLocation(node),
             name: node.attrs['name'],
@@ -379,7 +380,12 @@ export class VerilogXMLParser implements HDLUnit {
     }
 
     visit_module_files(node: XMLNode) {
-        node.children.forEach((n) => this.files[(n.obj as HDLFile).id].isModule = true);
+        node.children.forEach((n) => {
+            if (n.obj) {
+                var file = this.files[(n.obj as HDLFile).id];
+                if (file) file.isModule = true;
+            }
+        });
     }
 
     visit_file(node: XMLNode) {
@@ -404,9 +410,12 @@ export class VerilogXMLParser implements HDLUnit {
     }
 
     visit_cells(node: XMLNode) {
+        this.expectChildren(node, 1, 9999);
         var hier = node.children[0].obj as HDLHierarchyDef;
-        var hiername = hier.name;
-        this.hierarchies[hiername] = hier;
+        if (hier != null) {
+            var hiername = hier.name;
+            this.hierarchies[hiername] = hier;
+        }
     }
 
     visit_cell(node: XMLNode) : HDLHierarchyDef {
@@ -449,8 +458,7 @@ export class VerilogXMLParser implements HDLUnit {
             default:
                 dtype = this.dtypes[dtypename];
                 if (dtype == null) {
-                    console.log(node);
-                    throw Error(`unknown data type ${dtypename}`);
+                    throw new CompileError(node, `unknown data type ${dtypename}`);
                 }
         }
         this.dtypes[id] = dtype;
@@ -471,18 +479,18 @@ export class VerilogXMLParser implements HDLUnit {
             this.dtypes[id] = dtype;
             this.defer(() => {
                 dtype.subtype = this.dtypes[sub_dtype_id];
-                if (!dtype.subtype) throw Error(`Unknown data type ${sub_dtype_id} for array`);
+                if (!dtype.subtype) throw new CompileError(node, `Unknown data type ${sub_dtype_id} for array`);
             })
             return dtype;
         } else {
-            throw Error(`could not parse constant exprs in array`)
+            throw new CompileError(node, `could not parse constant exprs in array`)
         }
     }
 
     visit_senitem(node: XMLNode) : HDLSensItem {
         var edgeType = node.attrs['edgeType'];
         if (edgeType != "POS" && edgeType != "NEG")
-            throw Error("POS/NEG required")
+            throw new CompileError(node, "POS/NEG required")
         return {
             $loc: this.parseSourceLocation(node),
             edgeType: edgeType,
@@ -505,8 +513,13 @@ export class VerilogXMLParser implements HDLUnit {
     visit_constpool(node: XMLNode) {
     }
 
+    expectChildren(node: XMLNode, low: number, high: number) {
+        if (node.children.length < low || node.children.length > high)
+            throw new CompileError(node, `expected between ${low} and ${high} children`);
+    }
+
     __visit_unop(node: XMLNode) : HDLUnop {
-        if (node.children.length != 1) throw Error('expected 1 children');
+        this.expectChildren(node, 1, 1);
         var expr: HDLUnop = {
             $loc: this.parseSourceLocation(node),
             op: node.type,
@@ -521,12 +534,12 @@ export class VerilogXMLParser implements HDLUnit {
         var unop = this.__visit_unop(node) as HDLExtendop;
         unop.width = parseInt(node.attrs['width']);
         unop.widthminv = parseInt(node.attrs['widthminv']);
-        if (unop.width != 32) throw Error(`extends width ${unop.width} != 32`)
+        if (unop.width != 32) throw new CompileError(node, `extends width ${unop.width} != 32`)
         return unop;
     }
 
     __visit_binop(node: XMLNode) : HDLBinop {
-        if (node.children.length != 2) throw Error('expected 2 children');
+        this.expectChildren(node, 2, 2);
         var expr: HDLBinop = {
             $loc: this.parseSourceLocation(node),
             op: node.type,
@@ -539,7 +552,7 @@ export class VerilogXMLParser implements HDLUnit {
     }
 
     visit_if(node: XMLNode) : HDLTriop {
-        if (node.children.length < 2 || node.children.length > 3) throw Error('expected 2 or 3 children');
+        this.expectChildren(node, 2, 3);
         var expr: HDLTriop = {
             $loc: this.parseSourceLocation(node),
             op: 'if',
@@ -553,7 +566,7 @@ export class VerilogXMLParser implements HDLUnit {
 
     // while and for loops
     visit_while(node: XMLNode) : HDLWhileOp {
-        if (node.children.length < 2 || node.children.length > 4) throw Error('expected 2-4 children');
+        this.expectChildren(node, 2, 4);
         var expr: HDLWhileOp = {
             $loc: this.parseSourceLocation(node),
             op: 'while',
@@ -567,7 +580,7 @@ export class VerilogXMLParser implements HDLUnit {
     }
 
     __visit_triop(node: XMLNode) : HDLBinop {
-        if (node.children.length != 3) throw Error('expected 2 children');
+        this.expectChildren(node, 3, 3);
         var expr: HDLTriop = {
             $loc: this.parseSourceLocation(node),
             op: node.type,
@@ -677,8 +690,7 @@ export class VerilogXMLParser implements HDLUnit {
         if (method) {
             return method.bind(this)(node);
         } else {
-            console.log(node);
-            throw Error(`no visitor for ${node.type}`)
+            throw new CompileError(node, `no visitor for ${node.type}`)
         }
     }
 

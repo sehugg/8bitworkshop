@@ -1,6 +1,7 @@
 
-import { hasDataType, HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLDataTypeObject, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLSourceLocation, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, HDLWhileOp, isArrayItem, isArrayType, isBigConstExpr, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
 import binaryen = require('binaryen');
+import { hasDataType, HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLDataTypeObject, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLSourceLocation, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, HDLWhileOp, isArrayItem, isArrayType, isBigConstExpr, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
+import { HDLError } from "./hdlruntime";
 
 const VERILATOR_UNIT_FUNCTIONS = [
     "_ctor_var_reset",
@@ -26,18 +27,6 @@ const TRACEEND = "$$tend";
 const TRACEBUF = "$$tbuf";
 
 ///
-
-export class HDLError extends Error {
-    obj: any;
-    $loc: HDLSourceLocation;
-    constructor(obj: any, msg: string) {
-        super(msg);
-        Object.setPrototypeOf(this, HDLError.prototype);
-        this.obj = obj;
-        if (obj && obj.$loc) this.$loc = obj.$loc;
-        if (obj) console.log(obj);
-    }
-}
 
 function getDataTypeSize(dt: HDLDataType) : number {
     if (isLogicType(dt)) {
@@ -195,15 +184,13 @@ export class HDLModuleWASM implements HDLModuleRunner {
     traceEndOffset: number;
     trace: any;
     getFileData = null;
+    maxMemoryMB : number;
 
-    constructor(moddef: HDLModuleDef, constpool: HDLModuleDef) {
+    constructor(moddef: HDLModuleDef, constpool: HDLModuleDef, maxMemoryMB?: number) {
         this.hdlmod = moddef;
         this.constpool = constpool;
-        this.bmod = new binaryen.Module();
-        this.genTypes();
-        var membytes = this.globals.len;
-        var memblks = Math.ceil(membytes / 65536);
-        this.bmod.setMemory(memblks, memblks, MEMORY); // memory is in 64k chunks
+        this.maxMemoryMB = maxMemoryMB || 16;
+        this.genMemory();
         this.genFuncs();
     }
 
@@ -300,10 +287,25 @@ export class HDLModuleWASM implements HDLModuleRunner {
         if (this.bmod) {
             this.bmod.dispose();
             this.bmod = null;
+            this.instance = null;
+            this.databuf = null;
+            this.data8 = null;
+            this.data16 = null;
+            this.data32 = null;
         }
     }
 
     //
+
+    private genMemory() {
+        this.bmod = new binaryen.Module();
+        this.genTypes();
+        var membytes = this.globals.len;
+        if (membytes > this.maxMemoryMB*1024*1024)
+            throw new HDLError(null, `cannot allocate ${membytes} bytes, limit is ${this.maxMemoryMB} MB`);
+        var memblks = Math.ceil(membytes / 65536);
+        this.bmod.setMemory(memblks, memblks, MEMORY); // memory is in 64k chunks
+    }
 
     private genTypes() {
         // generate global variables
