@@ -1026,10 +1026,18 @@ export class HDLModuleWASM implements HDLModuleRunner {
         if (hasDataType(e.left) && hasDataType(e.right)) {
             var lsize = getDataTypeSize(e.left.dtype);
             var rsize = getDataTypeSize(e.right.dtype);
-            if (lsize < rsize && upcastLeft)
+            var ltype = getBinaryenType(lsize);
+            var rtype = getBinaryenType(rsize);
+            if (ltype != rtype && rsize > lsize && upcastLeft) {
+                //console.log(e, lsize, rsize);
                 left = this.castexpr(left, e.left.dtype, e.right.dtype);
-            else if (rsize < lsize && upcastRight)
+                e.left.dtype = e.right.dtype;
+            } else if (ltype != rtype && lsize > rsize && upcastRight) {
+                //console.log(e, lsize, rsize);
                 right = this.castexpr(right, e.right.dtype, e.left.dtype);
+                e.right.dtype = e.left.dtype;
+            } else if (ltype != rtype)
+                {} // TODO: throw new HDLError(e, `wrong argument sizes`);
         }
         var rtn = f_op(left, right);
         return rtn;

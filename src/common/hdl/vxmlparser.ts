@@ -507,6 +507,14 @@ export class VerilogXMLParser implements HDLUnit {
         throw new CompileError(null, `structs not supported`);
     }
 
+    visit_constdtype(node: XMLNode) {
+        // TODO? throw new CompileError(null, `constant data types not supported`);
+    }
+
+    visit_paramtypedtype(node: XMLNode) {
+        // TODO? throw new CompileError(null, `constant data types not supported`);
+    }
+
     visit_unpackarraydtype(node: XMLNode): HDLDataType {
         let id = node.attrs['id'];
         let sub_dtype_id = node.attrs['sub_dtype_id'];

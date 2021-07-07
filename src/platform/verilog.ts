@@ -190,7 +190,7 @@ var VerilogPlatform = function(mainElement, options) {
     await loadScript('./gen/common/hdl/hdltypes.js');
     await loadScript('./gen/common/hdl/hdlruntime.js');
     await loadScript('./gen/common/hdl/hdlwasm.js');
-    await loadScript('./node_modules/binaryen/index.js'); // TODO: path?
+    await loadScript('./lib/binaryen.js'); // TODO: path?
     video = new RasterVideo(mainElement,videoWidth,videoHeight,{overscan:true});
     video.create();
     poller = setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP, (o,key,code,flags) => {
