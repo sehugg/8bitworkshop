@@ -15,6 +15,18 @@ const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
 var _WASM_module_cache = {};
 var CACHE_WASM_MODULES = true; // if false, use asm.js only
 
+// TODO: which modules need this?
+var wasmMemory;
+function getWASMMemory() {
+    if (wasmMemory == null) {
+      wasmMemory = new WebAssembly.Memory({
+        'initial': 32768,
+        'maximum': 32768,
+      });
+    }
+    return wasmMemory;
+}
+
 function getWASMModule(module_id:string) {
   var module = _WASM_module_cache[module_id];
   if (!module) {
@@ -1770,10 +1782,11 @@ function compileVerilator(step:BuildStep) {
     var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
     var verilator_mod = emglobal.verilator_bin({
       instantiateWasm: moduleInstFn('verilator_bin'),
-      noInitialRun:true,
-      noExitRuntime:true,
-      print:print_fn,
-      printErr:match_fn,
+      noInitialRun: true,
+      noExitRuntime: true,
+      print: print_fn,
+      printErr: match_fn,
+      wasmMemory: getWASMMemory(), // reuse memory
       //INITIAL_MEMORY:256*1024*1024,
     });
     var code = getWorkFileAsString(step.path);

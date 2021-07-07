@@ -5,6 +5,7 @@ var _path = require('path')
 var _cproc = require('child_process');
 var fs = require('fs');
 var wtu = require('./workertestutils.js');
+var heapdump = require("heapdump");
 
 createTestDOM();
 
@@ -66,6 +67,7 @@ function testPerf(msg) {
 }
 
 function compileVerilator(filename, code, callback, nerrors, depends) {
+    // files come back from worker
     global.postMessage = async function(msg) {
       try {
         if (msg.errors && msg.errors.length) {
@@ -90,6 +92,7 @@ function compileVerilator(filename, code, callback, nerrors, depends) {
         }
       }
     };
+    // send files to worker for build
     try {
       global.onmessage({
           data:{
@@ -116,19 +119,20 @@ function testVerilator(filename, disables, nerrors, depends) {
     console.log(filename);
     //if (depends) testIcarus(filename);
     var csource = ab2str(fs.readFileSync(filename));
+    var header = '';
     for (var i=0; i<(disables||[]).length; i++)
-      csource = "/* verilator lint_off " + disables[i] + " */\n" + csource;
-    compileVerilator(filename, csource, done, nerrors||0, depends);
+      header += "/* verilator lint_off " + disables[i] + " */ ";
+    compileVerilator(filename, header + "\n" + csource, done, nerrors||0, depends);
   });
 }
 
 describe('Verilog Worker', function() {
   
   var files = _fs.readdirSync('test/cli/verilog').filter(fn => fn.endsWith('.v'));
-  files = files.slice(0,80);
+  //files = files.slice(0,75);
   for (var fn of files) {
     testVerilator('test/cli/verilog/' + fn, 
-      ['UNDRIVEN','BLKSEQ','WIDTH','PINCONNECTEMPTY','SYNCASYNCNET','UNOPT','UNOPTFLAT','VARHIDDEN','EOFNEWLINE']
+      ['UNDRIVEN','BLKSEQ','WIDTH','PINCONNECTEMPTY','SYNCASYNCNET','UNOPT','UNOPTFLAT','VARHIDDEN','EOFNEWLINE','ASSIGNDLY','CASEX','SYMRSVDWORD','STMTDLY','PROCASSWIRE']
     );
     global.onmessage({data:{reset:true}});
   }
@@ -146,4 +150,10 @@ describe('Verilog Worker', function() {
   testVerilator('presets/verilog/tile_renderer.v', null, null, ['tile_renderer.v', 'font_cp437_8x8.v', 'ram.v', 'hvsync_generator.v']);
   testVerilator('presets/verilog/cpu6502.v');
 
+}).afterAll(() => {
+/*
+  heapdump.writeSnapshot((err, filename) => {
+    console.log("Heap dump written to", filename);
+  });
+*/
 });

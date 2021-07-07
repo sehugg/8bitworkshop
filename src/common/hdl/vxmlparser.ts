@@ -116,7 +116,12 @@ export class VerilogXMLParser implements HDLUnit {
         this.dtypes['IData'] = {left:31, right:0};
         this.dtypes['SData'] = {left:15, right:0};
         this.dtypes['CData'] = {left:7, right:0};
+        this.dtypes['byte'] = {left:7, right:0};
+        this.dtypes['shortint'] = {left:15, right:0};
         this.dtypes['int'] = {left:31, right:0};
+        this.dtypes['integer'] = {left:31, right:0};
+        this.dtypes['longint'] = {left:63, right:0};
+        this.dtypes['time'] = {left:63, right:0};
     }
 
     defer(fn: () => void) {
@@ -520,6 +525,9 @@ export class VerilogXMLParser implements HDLUnit {
     }
 
     visit_constpool(node: XMLNode) {
+    }
+
+    visit_comment(node: XMLNode) {
     }
 
     expectChildren(node: XMLNode, low: number, high: number) {

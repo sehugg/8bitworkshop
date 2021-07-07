@@ -371,7 +371,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
          //console.log(this.bmod.emitText());
          //this.bmod.optimize();
          if (!this.bmod.validate()) {
-            console.log(this.bmod.emitText());
+            //console.log(this.bmod.emitText());
             throw new HDLError(null, `could not validate wasm module`);
          }
     }
@@ -1038,8 +1038,10 @@ export class HDLModuleWASM implements HDLModuleRunner {
         return this.binop(e, this.i3264(e.dtype).shl, false, true);
     }
     _shiftr2wasm(e: HDLBinop) {
-        // TODO: signed?
         return this.binop(e, this.i3264(e.dtype).shr_u, false, true);
+    }
+    _shiftrs2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264(e.dtype).shr_s, false, true);
     }
     _add2wasm(e: HDLBinop) {
         return this.binop(e, this.i3264(e.dtype).add);
@@ -1049,6 +1051,9 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
     _mul2wasm(e: HDLBinop) {
         return this.binop(e, this.i3264(e.dtype).mul);
+    }
+    _muls2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264(e.dtype).mul); // TODO: signed?
     }
     _moddiv2wasm(e: HDLBinop) {
         return this.binop(e, this.i3264(e.dtype).rem_u);

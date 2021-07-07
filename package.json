@@ -31,6 +31,7 @@
     "electron": "^9.4.0",
     "electron-packager": "^15.2.0",
     "file-saver": "^2.0.5",
+    "heapdump": "^0.3.15",
     "jsdom": "^12.2.0",
     "jsfuzz": "^1.0.14",
     "jszip": "^3.5.0",
