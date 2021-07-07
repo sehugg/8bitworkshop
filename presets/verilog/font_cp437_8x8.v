@@ -9,12 +9,9 @@ module font_cp437_8x8(addr, data);
   input [10:0] addr;
   output [7:0] data;
 
-  reg [7:0] bitarray[0:2047];
-
   assign data = bitarray[addr];
 
-  initial begin/*{w:8,h:8,bpp:1,count:256}*/
-    bitarray = '{
+  localparam [7:0] bitarray[0:2047] = '{
 8'h00,8'h00,8'h00,8'h00,8'h00,8'h00,8'h00,8'h00, //0
 8'h7e,8'h81,8'ha5,8'h81,8'hbd,8'h99,8'h81,8'h7e, //1
 8'h7e,8'hff,8'hdb,8'hff,8'hc3,8'he7,8'hff,8'h7e, //2
@@ -272,7 +269,7 @@ module font_cp437_8x8(addr, data);
 8'h00,8'h00,8'h3c,8'h3c,8'h3c,8'h3c,8'h00,8'h00, //254
 8'h00,8'h00,8'h00,8'h00,8'h00,8'h00,8'h00,8'h00  //255
     };
-  end
+
 endmodule
 
 `endif

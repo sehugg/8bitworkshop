@@ -1,6 +1,6 @@
 
 import { HDLError } from "./hdlruntime";
-import { HDLAlwaysBlock, HDLArrayItem, HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLDataTypeObject, HDLExpr, HDLExtendop, HDLFile, HDLFuncCall, HDLHierarchyDef, HDLInstanceDef, HDLLogicType, HDLModuleDef, HDLNativeType, HDLPort, HDLSensItem, HDLSourceLocation, HDLTriop, HDLUnit, HDLUnop, HDLUnpackArray, HDLValue, HDLVariableDef, HDLVarRef, HDLWhileOp, isArrayType, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef } from "./hdltypes";
+import { HDLAlwaysBlock, HDLArrayItem, HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLDataTypeObject, HDLExpr, HDLExtendop, HDLFile, HDLFuncCall, HDLHierarchyDef, HDLInstanceDef, HDLLogicType, HDLModuleDef, HDLNativeType, HDLPort, HDLSensItem, HDLSourceLocation, HDLSourceObject, HDLTriop, HDLUnit, HDLUnop, HDLUnpackArray, HDLValue, HDLVariableDef, HDLVarRef, HDLWhileOp, isArrayType, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef } from "./hdltypes";
 
 /**
  * Whaa?
@@ -17,10 +17,11 @@ import { HDLAlwaysBlock, HDLArrayItem, HDLBinop, HDLBlock, HDLConstant, HDLDataT
  * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
  */
 
- export class CompileError extends Error {
-    constructor(obj: HDLSourceLocation|XMLNode, msg: string) {
+ export class CompileError extends Error implements HDLSourceObject {
+    $loc: HDLSourceLocation;
+    constructor($loc: HDLSourceLocation, msg: string) {
         super(msg);
-        console.log(obj);
+        this.$loc = $loc;
         Object.setPrototypeOf(this, CompileError.prototype);
     }
 }
@@ -56,7 +57,7 @@ function parseXMLPoorly(s: string, openfn?: XMLVisitFunction, closefn?: XMLVisit
 
     function closetop() {
         top = stack.pop();
-        if (top == null || top.type != ident) throw new CompileError(node, "mismatch close tag: " + ident);
+        if (top == null || top.type != ident) throw new CompileError(null, "mismatch close tag: " + ident);
         if (closefn) {
             top.obj = closefn(top);
         }
@@ -108,6 +109,7 @@ export class VerilogXMLParser implements HDLUnit {
 
     cur_node : XMLNode;
     cur_module : HDLModuleDef;
+    cur_loc : HDLSourceLocation;
     cur_deferred = [];
 
     constructor() {
@@ -138,13 +140,13 @@ export class VerilogXMLParser implements HDLUnit {
     }
 
     name2js(s: string) {
-        if (s == null) throw new CompileError(null, `no name`);
+        if (s == null) throw new CompileError(this.cur_loc, `no name`);
         return s.replace(/[^a-z0-9_]/gi, '$');
     }
 
     findChildren(node: XMLNode, type: string, required: boolean) : XMLNode[] {
         var arr = node.children.filter((n) => n.type == type);
-        if (arr.length == 0 && required) throw new CompileError(node, `no child of type ${type}`);
+        if (arr.length == 0 && required) throw new CompileError(this.cur_loc, `no child of type ${type}`);
         return arr;
     }
 
@@ -152,13 +154,16 @@ export class VerilogXMLParser implements HDLUnit {
         var loc = node.attrs['loc'];
         if (loc) {
             var [fileid, line, col, end_line, end_col] = loc.split(',');
-            return {
-                file: this.files[fileid],
+            var $loc = {
+                hdlfile: this.files[fileid],
+                path: this.files[fileid].filename,
                 line: parseInt(line),
-                col: parseInt(col),
-                end_line: parseInt(line),
-                end_col: parseInt(col),
+                start: parseInt(col)-1,
+                end_line: parseInt(end_line),
+                end: parseInt(end_col)-1,
             }
+            this.cur_loc = $loc;
+            return $loc;
         } else {
             return null;
         }
@@ -173,7 +178,7 @@ export class VerilogXMLParser implements HDLUnit {
             instances: [],
             vardefs: {},
         }
-        if (this.cur_module) throw new CompileError(node, `nested modules not supported`);
+        if (this.cur_module) throw new CompileError(this.cur_loc, `nested modules not supported`);
         this.cur_module = module;
         return module;
     }
@@ -184,7 +189,7 @@ export class VerilogXMLParser implements HDLUnit {
             this.defer(() => {
                 def.dtype = this.dtypes[dtype_id];
                 if (!def.dtype) {
-                    throw new CompileError(node, `Unknown data type ${dtype_id} for ${node.type}`);
+                    throw new CompileError(this.cur_loc, `Unknown data type ${dtype_id} for ${node.type}`);
                 }
             })
         }
@@ -200,19 +205,19 @@ export class VerilogXMLParser implements HDLUnit {
             else
                 return BigInt('0x' + numstr);
         } else {
-            throw new CompileError(null, `could not parse constant "${s}"`);
+            throw new CompileError(this.cur_loc, `could not parse constant "${s}"`);
         }
     }
     
     resolveVar(s: string, mod: HDLModuleDef) : HDLVariableDef {
         var def = mod.vardefs[s];
-        if (def == null) throw new CompileError(null, `could not resolve variable "${s}"`);
+        if (def == null) throw new CompileError(this.cur_loc, `could not resolve variable "${s}"`);
         return def;
     }
 
     resolveModule(s: string) : HDLModuleDef {
         var mod = this.modules[s];
-        if (mod == null) throw new CompileError(null, `could not resolve module "${s}"`);
+        if (mod == null) throw new CompileError(this.cur_loc, `could not resolve module "${s}"`);
         return mod;
     }
 
@@ -372,6 +377,14 @@ export class VerilogXMLParser implements HDLUnit {
         return instance;
     }
 
+    visit_iface(node: XMLNode) {
+        throw new CompileError(this.cur_loc, `interfaces not supported`);
+    }
+
+    visit_intfref(node: XMLNode) {
+        throw new CompileError(this.cur_loc, `interfaces not supported`);
+    }
+
     visit_port(node: XMLNode) : HDLPort {
         this.expectChildren(node, 1, 1);
         var varref: HDLPort = {
@@ -435,6 +448,8 @@ export class VerilogXMLParser implements HDLUnit {
             parent: null,
             children: node.children.map((n) => n.obj),
         }
+        if (node.children.length > 0)
+            throw new CompileError(this.cur_loc, `multiple non-flattened modules not yet supported`);
         node.children.forEach((n) => (n.obj as HDLHierarchyDef).parent = hier);
         this.defer(() => {
             hier.module = this.resolveModule(node.attrs['submodname']);
@@ -467,16 +482,29 @@ export class VerilogXMLParser implements HDLUnit {
             default:
                 dtype = this.dtypes[dtypename];
                 if (dtype == null) {
-                    throw new CompileError(node, `unknown data type ${dtypename}`);
+                    throw new CompileError(this.cur_loc, `unknown data type ${dtypename}`);
                 }
         }
         this.dtypes[id] = dtype;
         return dtype;
     }
 
+    visit_refdtype(node: XMLNode) {
+    }
+
+    visit_enumdtype(node: XMLNode) {
+    }
+
+    visit_enumitem(node: XMLNode) {
+    }
+
     visit_packarraydtype(node: XMLNode): HDLDataType {
         // TODO: packed?
         return this.visit_unpackarraydtype(node);
+    }
+
+    visit_memberdtype(node: XMLNode) {
+        throw new CompileError(null, `structs not supported`);
     }
 
     visit_unpackarraydtype(node: XMLNode): HDLDataType {
@@ -493,18 +521,18 @@ export class VerilogXMLParser implements HDLUnit {
             this.dtypes[id] = dtype;
             this.defer(() => {
                 dtype.subtype = this.dtypes[sub_dtype_id];
-                if (!dtype.subtype) throw new CompileError(node, `Unknown data type ${sub_dtype_id} for array`);
+                if (!dtype.subtype) throw new CompileError(this.cur_loc, `Unknown data type ${sub_dtype_id} for array`);
             })
             return dtype;
         } else {
-            throw new CompileError(node, `could not parse constant exprs in array`)
+            throw new CompileError(this.cur_loc, `could not parse constant exprs in array`)
         }
     }
 
     visit_senitem(node: XMLNode) : HDLSensItem {
         var edgeType = node.attrs['edgeType'];
         if (edgeType != "POS" && edgeType != "NEG")
-            throw new CompileError(node, "POS/NEG required")
+            throw new CompileError(this.cur_loc, "POS/NEG required")
         return {
             $loc: this.parseSourceLocation(node),
             edgeType: edgeType,
@@ -532,7 +560,7 @@ export class VerilogXMLParser implements HDLUnit {
 
     expectChildren(node: XMLNode, low: number, high: number) {
         if (node.children.length < low || node.children.length > high)
-            throw new CompileError(node, `expected between ${low} and ${high} children`);
+            throw new CompileError(this.cur_loc, `expected between ${low} and ${high} children`);
     }
 
     __visit_unop(node: XMLNode) : HDLUnop {
@@ -551,7 +579,7 @@ export class VerilogXMLParser implements HDLUnit {
         var unop = this.__visit_unop(node) as HDLExtendop;
         unop.width = parseInt(node.attrs['width']);
         unop.widthminv = parseInt(node.attrs['widthminv']);
-        if (unop.width != 32) throw new CompileError(node, `extends width ${unop.width} != 32`)
+        if (unop.width != 32) throw new CompileError(this.cur_loc, `extends width ${unop.width} != 32`)
         return unop;
     }
 
@@ -692,6 +720,7 @@ export class VerilogXMLParser implements HDLUnit {
 
     visit_display(node: XMLNode) { return null; }
     visit_sformatf(node: XMLNode) { return null; }
+    visit_scopename(node: XMLNode) { return null; }
 
     visit_readmem(node: XMLNode) { return this.__visit_func(node); }
 
@@ -711,7 +740,7 @@ export class VerilogXMLParser implements HDLUnit {
         if (method) {
             return method.bind(this)(node);
         } else {
-            throw new CompileError(node, `no visitor for ${node.type}`)
+            throw new CompileError(this.cur_loc, `no visitor for ${node.type}`)
         }
     }
 

@@ -1,6 +1,6 @@
 "use strict";
 
-import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap, Segment, WorkerOutput } from "../common/workertypes";
+import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap, Segment, WorkerOutput, SourceLocation } from "../common/workertypes";
 
 declare var WebAssembly;
 declare function importScripts(path:string);
@@ -20,8 +20,8 @@ var wasmMemory;
 function getWASMMemory() {
     if (wasmMemory == null) {
       wasmMemory = new WebAssembly.Memory({
-        'initial': 32768,
-        'maximum': 32768,
+        'initial': 1024,  // 64MB
+        'maximum': 16384, // 1024MB
       });
     }
     return wasmMemory;
@@ -1661,7 +1661,7 @@ function preprocessMCPP(step:BuildStep, filesys:string) {
 
 function detectModuleName(code:string) {
   var m = /^\s*module\s+(\w+_top)\b/m.exec(code)
-       || /^\s*module\s+(top)\b/m.exec(code)
+       || /^\s*module\s+(top|t)\b/m.exec(code)
        || /^\s*module\s+(\w+)\b/m.exec(code);
   return m ? m[1] : null;
 }
@@ -1772,8 +1772,8 @@ function compileVerilator(step:BuildStep) {
   loadRequire("hdltypes", "common/hdl/hdltypes");
   loadRequire("vxmlparser", "common/hdl/vxmlparser");
   var platform = step.platform || 'verilog';
-  var errors = [];
-  var asmlines = [];
+  var errors : WorkerError[] = [];
+  var asmlines : SourceLine[] = [];
   gatherFiles(step);
   // compile verilog if files are stale
   var xmlPath = "main.xml";
@@ -1803,7 +1803,7 @@ function compileVerilator(step:BuildStep) {
     try {
       var args = ["--cc", "-O3"/*abcdefstzsuka*/, "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
         "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
-        "--x-assign", "fast", "--noassert", "--pins-bv", "33",
+        "--x-assign", "fast", "--noassert", "--pins-sc-biguint",
         "--xml-output", xmlPath,
         "--top-module", topmod, step.path]
       verilator_mod.callMain(args);
@@ -1829,7 +1829,12 @@ function compileVerilator(step:BuildStep) {
       xmlParser.parse(xmlContent);
     } catch(e) {
       console.log(e, e.stack);
-      errors.push({line:0,msg:""+e});
+      if (e.$loc != null) {
+        let $loc = e.$loc as SourceLocation;
+        errors.push({msg:""+e, path:$loc.path, line:$loc.line});
+      } else {
+        errors.push({line:0,msg:""+e});
+      }
       return {errors:errors, listings:listings};
     }
     //rtn.intermediate = {listing:h_file + cpp_file}; // TODO

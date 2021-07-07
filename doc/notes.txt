@@ -99,16 +99,21 @@ TODO:
   - verilog debugging/reloading makes it slow
   - why loadState() on verilog kill perf?
   - quantify verilog "graph iterations"
-  - toolbar overlaps scope
   - CPU debugging
   - use $readmem for inline asm programs?
   - can't add control instructions b/c of split
   - bad error msg if >2 moduels and top module doesn't match filename
   - separate Scope View
   - Audio doesn't work if clock != default
-  - change the input values for a module?
-  - Silice rototexture.ice example bitmap corrupted?
-  - scope: zoom in on cursor
+- Verilog WASM not yet supported:
+  - wide numbers > 64 bits (and in scope view)
+  - multiple modules instances 
+  - structs
+  - other $funcs
+  - multidim arrays
+  - optimize trace log w/ wasm buffer
+  - yosys compatibility 
+
 - single-stepping vector games makes screen fade
 - break on stack overflow, illegal op, bad access, BRK, etc
   - show in scope instead?

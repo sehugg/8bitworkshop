@@ -1,6 +1,6 @@
 
 import binaryen = require('binaryen');
-import { hasDataType, HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLDataTypeObject, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLSourceLocation, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, HDLWhileOp, isArrayItem, isArrayType, isBigConstExpr, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
+import { hasDataType, HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLDataTypeObject, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLSourceLocation, HDLSourceObject, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, HDLWhileOp, isArrayItem, isArrayType, isBigConstExpr, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
 import { HDLError } from "./hdlruntime";
 
 const VERILATOR_UNIT_FUNCTIONS = [
@@ -14,6 +14,7 @@ const VERILATOR_UNIT_FUNCTIONS = [
 interface Options {
     store?: boolean;
     funcblock?: HDLBlock;
+    funcarg?: boolean;
     resulttype?: number;
 }
 
@@ -64,7 +65,7 @@ function getArrayElementSizeFromExpr(e: HDLExpr) : number {
     if (hasDataType(e) && isArrayType(e.dtype)) {
         return getDataTypeSize(e.dtype.subtype);
     } else if (hasDataType(e) && isLogicType(e.dtype) && e.dtype.left > 63) {
-        return 4; // TODO? for wordsel
+        throw new HDLError(e, `elements > 64 bits not supported`);
     }
     throw new HDLError(e, `cannot figure out array element size`);
 }
@@ -78,7 +79,7 @@ function getArrayValueSize(e: HDLExpr) : number {
     } else if (isBinop(e) && e.op == 'arraysel') {
         return getArrayValueSize(e.left);
     } else if (isBinop(e) && e.op == 'wordsel') {
-        return 4; // TODO? for wordsel
+        return getArrayValueSize(e.left);
     }
     throw new HDLError(e, `cannot figure out array value size`);
 }
@@ -91,7 +92,9 @@ function getAlignmentForSize(size) {
 }
 
 function getBinaryenType(size: number) {
-    return size <= 4 || size > 8 ? binaryen.i32 : binaryen.i64
+    if (size <= 4) return binaryen.i32;
+    else if (size <= 8) return binaryen.i64;
+    else return binaryen.none;
 }
 
 interface StructRec {
@@ -480,7 +483,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
                     if (isArrayItem(e) && isConstExpr(e.expr)) {
                         arr[e.index] = e.expr.cvalue;
                     } else {
-                        throw new HDLError(e, `non-const expr in initarray`);
+                        throw new HDLError(e, `non-const expr in initarray (multidimensional arrays not supported)`);
                     }
                 }
                 //console.log(rec.name, rec.type, arr);
@@ -509,8 +512,8 @@ export class HDLModuleWASM implements HDLModuleRunner {
         var n = 0;
         return {
             builtins: {
-                $finish: (o) => { console.log('... Finished @', o); this.finished = true; },
-                $stop: (o) => { console.log('... Stopped @', o); this.stopped = true; },
+                $finish: (o) => { if (!this.finished) console.log('... Finished @', o); this.finished = true; },
+                $stop: (o) => { if (!this.stopped) console.log('... Stopped @', o); this.stopped = true; },
                 $time: (o) => BigInt(new Date().getTime()), // TODO: timescale
                 $rand: (o) => (Math.random() * (65536 * 65536)) | 0,
                 $readmem: (o,a,b) => this.$readmem(a, b)
@@ -536,6 +539,12 @@ export class HDLModuleWASM implements HDLModuleRunner {
         return 0;
     }
 
+    // create a new unique label
+    labelseq = 0;
+    private label(s?: string) : string {
+        return `@${s||"label"}_${++this.labelseq}`;
+    }
+
     private addCopyTraceRecFunction() {
         const m = this.bmod;
         const o_TRACERECLEN = this.globals.lookup(TRACERECLEN).offset;
@@ -544,11 +553,13 @@ export class HDLModuleWASM implements HDLModuleRunner {
         const o_TRACEBUF = this.globals.lookup(TRACEBUF).offset;
         var i32 = binaryen.i32;
         var none = binaryen.none;
+        var l_block = this.label("@block");
+        var l_loop = this.label("@loop");
         m.addFunction("copyTraceRec",
             binaryen.createType([]),
             none,
             [i32, i32, i32], // src, len, dest
-            m.block("@block", [
+            m.block(l_block, [
                 // $0 = 0 (start of globals)
                 m.local.set(0, m.i32.const(GLOBALOFS)),
                 // don't use $0 as data seg offset, assume trace buffer offsets start @ 0
@@ -557,12 +568,12 @@ export class HDLModuleWASM implements HDLModuleRunner {
                 // $2 = TRACEOFS
                 m.local.set(2, m.i32.load(0, 4, m.i32.const(o_TRACEOFS))),
                 // while ($1--) [$0]++ = [$2]++
-                m.loop("@loop", m.block(null, [
+                m.loop(l_loop, m.block(null, [
                     m.i64.store(0, 8, m.local.get(2, i32), m.i64.load(0, 8, m.local.get(0, i32))),
                     m.local.set(0, m.i32.add(m.local.get(0, i32), m.i32.const(8))),
                     m.local.set(2, m.i32.add(m.local.get(2, i32), m.i32.const(8))),
                     m.local.set(1, m.i32.sub(m.local.get(1, i32), m.i32.const(8))),
-                    this.bmod.br_if("@loop", m.local.get(1, i32))
+                    this.bmod.br_if(l_loop, m.local.get(1, i32))
                 ])),
                 // TRACEOFS += TRACERECLEN
                 m.i32.store(0, 4, m.i32.const(o_TRACEOFS),
@@ -572,7 +583,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
                     )
                 ),
                 // break if TRACEOFS < TRACEEND
-                m.br_if("@block", m.i32.lt_u(
+                m.br_if(l_block, m.i32.lt_u(
                     m.i32.load(0, 4, m.i32.const(o_TRACEOFS)),
                     m.i32.load(0, 4, m.i32.const(o_TRACEEND))
                 )),
@@ -584,6 +595,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
 
     private addTick2Function() {
         const m = this.bmod;
+        var l_loop = this.label("@loop");
         if (this.globals.lookup('clk')) {
             var l_dseg = m.local.get(0, binaryen.i32);
             var l_count = m.local.get(1, binaryen.i32);
@@ -591,7 +603,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
                 binaryen.createType([binaryen.i32, binaryen.i32]),
                 binaryen.none,
                 [],
-                m.loop("@loop", m.block(null, [
+                m.loop(l_loop, m.block(null, [
                     this.makeSetVariableFunction("clk", 0),
                     m.drop(m.call("eval", [l_dseg], binaryen.i32)),
                     this.makeSetVariableFunction("clk", 1),
@@ -601,7 +613,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
                     // dec $1
                     m.local.set(1, m.i32.sub(l_count, m.i32.const(1))),
                     // goto @loop if $1
-                    m.br_if("@loop", l_count)
+                    m.br_if(l_loop, l_count)
                 ]))
             );
             m.addFunctionExport("tick2", "tick2");
@@ -669,7 +681,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
         var type = getBinaryenType(size);
         if (type == binaryen.i32) return this.bmod.i32;
         else if (type == binaryen.i64) return this.bmod.i64;
-        else throw new HDLError(null, `unknown type for i3264 ${type}`);
+        else throw new HDLError(dt, `data types > 64 bits not supported`);
     }
 
     private i3264rel(e: HDLBinop) {
@@ -726,7 +738,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
     funccall2wasm(e: HDLFuncCall, opts?:Options) : number {
         var args = [this.dataptr()];
         for (var arg of e.args) {
-            args.push(this.e2w(arg));
+            args.push(this.e2w(arg, {funcarg:true}));
         }
         var internal = e.funcname;
         if (e.funcname.startsWith('$')) {
@@ -764,10 +776,10 @@ export class HDLModuleWASM implements HDLModuleRunner {
         if (local != null) {
             return this.bmod.local.get(local.index, local.itype);
         } else if (global != null) {
-            if (global.size <= 8)
-                return this.loadmem(this.dataptr(), global.offset, global.size);
+            if (global.size > 8 && opts && opts.funcarg)
+                return this.address2wasm(e); // TODO: only applies to wordsel
             else
-                return this.address2wasm(e);
+                return this.loadmem(e, this.dataptr(), global.offset, global.size);
         }
         throw new HDLError(e, `cannot lookup variable ${e.refname}`)
     }
@@ -786,18 +798,17 @@ export class HDLModuleWASM implements HDLModuleRunner {
             if (local != null) {
                 return this.bmod.local.set(local.index, value);
             } else if (global != null) {
-                return this.storemem(this.dataptr(), global.offset, global.size, value);
+                return this.storemem(dest, this.dataptr(), global.offset, global.size, value);
             }
         } else if (isBinop(dest)) {
-            // TODO: array bounds
             var addr = this.address2wasm(dest);
-            var elsize = getArrayElementSizeFromExpr(dest.left);
-            return this.storemem(addr, 0, elsize, value);
+            var elsize = dest.op == 'wordsel' ? getDataTypeSize(dest.dtype) : getArrayElementSizeFromExpr(dest.left);
+            return this.storemem(dest, addr, 0, elsize, value);
         }
-        throw new HDLError([dest, src], `cannot complete assignment`);
+        throw new HDLError(dest, `cannot complete assignment`);
     }
 
-    loadmem(ptr, offset:number, size:number) : number {
+    loadmem(e: HDLSourceObject, ptr, offset:number, size:number) : number {
         if (size == 1) {
             return this.bmod.i32.load8_u(offset, 1, ptr);
         } else if (size == 2) {
@@ -807,11 +818,11 @@ export class HDLModuleWASM implements HDLModuleRunner {
         } else if (size == 8) {
             return this.bmod.i64.load(offset, 8, ptr);
         } else {
-            throw new HDLError(null, `bad size ${size}`)
+            throw new HDLError(e, `cannot load ${size} bytes (> 64 bits not supported)`)
         }
     }
     
-    storemem(ptr, offset:number, size:number, value) : number {
+    storemem(e: HDLSourceObject, ptr, offset:number, size:number, value) : number {
         if (size == 1) {
             return this.bmod.i32.store8(offset, 1, ptr, value);
         } else if (size == 2) {
@@ -821,14 +832,14 @@ export class HDLModuleWASM implements HDLModuleRunner {
         } else if (size == 8) {
             return this.bmod.i64.store(offset, 8, ptr, value);
         } else {
-            throw new HDLError(null, `bad size ${size}`)
+            throw new HDLError(e, `cannot store ${size} bytes (> 64 bits not supported)`)
         }
     }
 
     address2wasm(e: HDLExpr) : number {
         if (isBinop(e) && (e.op == 'arraysel' || e.op == 'wordsel')) {
+            var elsize = e.op == 'wordsel' ? getDataTypeSize(e.dtype) : getArrayElementSizeFromExpr(e.left);
             var array = this.address2wasm(e.left);
-            var elsize = getArrayElementSizeFromExpr(e.left);
             var index = this.e2w(e.right);
             return this.bmod.i32.add(
                 array,
@@ -850,7 +861,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
     _arraysel2wasm(e: HDLBinop, opts:Options) : number {
         var addr = this.address2wasm(e);
         var elsize = getArrayValueSize(e);
-        return this.loadmem(addr, 0, elsize);
+        return this.loadmem(e, addr, 0, elsize);
     }
 
     _wordsel2wasm(e: HDLBinop, opts:Options) : number {
@@ -884,15 +895,18 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
 
     _while2wasm(e: HDLWhileOp, opts:Options) {
+        var l_block = this.label("@block");
+        var l_loop = this.label("@loop");
         var block = [];
         if (e.precond) {
             block.push(this.e2w(e.precond));
         }
         if (e.loopcond) {
+            // TODO: detect constant while loop condition
             block.push(this.bmod.if(
                     this.e2w(e.loopcond, {resulttype:binaryen.i32}),
                     this.bmod.nop(),
-                    this.bmod.br("@block")  // exit loop
+                    this.bmod.br(l_block)  // exit loop
             ));
         }
         if (e.body) {
@@ -901,8 +915,8 @@ export class HDLModuleWASM implements HDLModuleRunner {
         if (e.inc) {
             block.push(this.e2w(e.inc));
         }
-        block.push(this.bmod.br("@loop"));
-        return this.bmod.loop("@loop", this.bmod.block("@block", block, binaryen.none));
+        block.push(this.bmod.br(l_loop));
+        return this.bmod.loop(l_loop, this.bmod.block(l_block, block, binaryen.none));
     }
 
     _ccast2wasm(e: HDLUnop, opts:Options) {
@@ -953,13 +967,13 @@ export class HDLModuleWASM implements HDLModuleRunner {
         if (!req) throw new HDLError(e, `no changedet local`);
         var left = this.e2w(e.left);
         var right = this.e2w(e.right);
+        let datainst = this.i3264(hasDataType(e.left) && e.left.dtype);
         return this.bmod.block(null, [
-            // $$req |= (${this.expr2js(e.left)} ^ ${this.expr2js(e.right)})
-            this.bmod.local.set(req.index,
-                this.bmod.i32.or(
-                    this.bmod.local.get(req.index, req.itype),
-                    this.bmod.i32.xor(left, right) // TODO: i64?
-                )
+            // if (left != right) req = 1;
+            this.bmod.if(
+                datainst.ne(left, right),
+                this.bmod.local.set(req.index, this.bmod.i32.const(1)),
+                this.bmod.nop(),
             ),
             // ${this.expr2js(e.right)} = ${this.expr2js(e.left)}`
             this.assign2wasm(e.right, e.left)

@@ -1,3 +1,4 @@
+import { SourceLocation } from "../workertypes";
 
 export interface HDLModuleRunner {
     state: any; // live state or proxy object
@@ -54,12 +55,9 @@ export class HDLFile {
     isModule: boolean;
 }
 
-export interface HDLSourceLocation {
-    file: HDLFile;
-    line: number;
-    col?: number;
+export interface HDLSourceLocation extends SourceLocation {
+    hdlfile: HDLFile;
     end_line?: number;
-    end_col?: number;
 }
 
 export interface HDLSourceObject {

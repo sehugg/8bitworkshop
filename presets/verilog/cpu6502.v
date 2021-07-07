@@ -355,7 +355,7 @@ always @*
  */
 always @(posedge clk) 
     if( RDY )
-      PC <= PC_temp + 16'(PC_inc);
+      PC <= PC_temp + {15'b0, PC_inc};
 
 /*
  * Address Generator 
@@ -1315,8 +1315,8 @@ wire temp_HC = temp_l[4] | HC9;
 // perform the addition as 2 separate nibble, so we get
 // access to the half carry flag
 always @* begin
-  temp_l = temp_logic[3:0] + temp_BI[3:0] + 5'(adder_CI);
-  temp_h = temp_logic[8:4] + temp_BI[7:4] + 5'(temp_HC);
+  temp_l = temp_logic[3:0] + temp_BI[3:0] + {4'b0,adder_CI};
+  temp_h = temp_logic[8:4] + temp_BI[7:4] + {4'b0,temp_HC};
 end
 
 // calculate the flags 
@@ -1339,7 +1339,7 @@ endmodule
 module cpu6502_test_top(clk, reset, AB, DI, DO, WE);
 input clk,reset;
 output reg [15:0] AB;   // address bus
-output var [7:0] DI;         // data in, read bus
+output reg [7:0] DI;         // data in, read bus
 output wire [7:0] DO;        // data out, write bus
 output wire WE;              // write enable
 wire IRQ=0;              // interrupt request
@@ -1359,13 +1359,12 @@ wire RDY=1;              // Ready signal. Pauses CPU when RDY=0
   //        BNE .loop
   //        BRK
   initial begin
-    rom = '{
-      8'ha0,8'h13,
-      8'h88,
-      8'hd0,8'hfd,
-      0,0,0, 0,0,
-      0,0, 0,0, 0,0
-    };
+    rom[0] = 8'ha0;
+    rom[1] = 8'h13;
+    rom[2] = 8'h88;
+    rom[3] = 8'hd0;
+    rom[4] = 8'hfd;
+    rom[5] = 8'h00;
   end
   
 endmodule

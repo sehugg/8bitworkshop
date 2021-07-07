@@ -47,6 +47,10 @@ var VERILOG_PRESETS = [
   {id:'cpu_platform.v', name:'CPU Platform'},
   {id:'test2.asm', name:'16-bit ASM Game'},
   {id:'cpu6502.v', name:'6502 CPU'},
+  {id:'test_pattern.ice', name:'Test Pattern (Silice)'},
+  {id:'copperbars.ice', name:'Animated Bars (Silice)'},
+  {id:'rototexture.ice', name:'Rotating Texture (Silice)'},
+  //{id:'life.ice', name:'Conway\'s Life (Silice)'},
 ];
 
 var VERILOG_KEYCODE_MAP = makeKeycodeMap([
@@ -397,8 +401,8 @@ var VerilogPlatform = function(mainElement, options) {
       } else if (!framehsync && top.state.hsync) {
         framehsync = true;
       } else if ((framehsync && !top.state.hsync) || framex > videoWidth*2) {
+        if (sync && framehsync) scanlineCycles = framex; // set cycles/scanline for fast update function
         framehsync = false;
-        if (sync) scanlineCycles = framex;
         framex = 0;
         framey++;
         top.state.hpaddle = framey > video.paddle_x ? 1 : 0;
@@ -425,7 +429,7 @@ var VerilogPlatform = function(mainElement, options) {
   // use trace buffer to update video
   updateVideoFrameFast(tmod: HDLModuleTrace) {
     var maxLineCycles = 1009; // prime number so we eventually sync up
-    var nextlineCycles = scanlineCycles;
+    var nextlineCycles = scanlineCycles || maxLineCycles;
     // TODO: we can go faster if no paddle/sound
     frameidx = 0;
     var wasvsync = false;
@@ -460,19 +464,21 @@ var VerilogPlatform = function(mainElement, options) {
         if (tmod.trace.hsync) {
           if (!hsyncStart) hsyncStart = n;
           hsyncEnd = n;
-        } else if (hsyncEnd)
+        } else if (hsyncEnd) {
           break;
+        }
         spkr();
         tmod.nextTrace();
         n++;
       }
       // see if our scanline cycle count is stable (can't read tmod.trace after end of line)
-      if (hsyncStart < hsyncEnd && hsyncEnd == scanlineCycles-1) {
+      if (hsyncStart < hsyncEnd && hsyncEnd == nextlineCycles-1) {
         // scanline cycle count locked in, reset buffer to improve cache locality
-        nextlineCycles = scanlineCycles;
         tmod.resetTrace();
+        nextlineCycles = scanlineCycles;
       } else {
-        // not in sync, don't reset buffer (TODO: take some of the cycles back)
+        // not in sync, don't reset buffer
+        // TODO: determine scanlineCycles here instead of letting slow loop do it
         //console.log('scanline', framey, scanlineCycles, nextlineCycles, n, hsyncStart, hsyncEnd);
         nextlineCycles = Math.min(maxLineCycles, n + scanlineCycles);
       }
@@ -676,6 +682,7 @@ var VerilogPlatform = function(mainElement, options) {
   getFrameRate() { return frameRate; }
 
   poweron() {
+    if (!top) return;
     top.powercycle();
     this.reset();
   }
@@ -690,6 +697,7 @@ var VerilogPlatform = function(mainElement, options) {
     if (!this.hasvideo) this.resume(); // TODO?
   }
   tick() {
+    if (!top) return;
     top.tick2(1);
   }
   getToolForFilename(fn) {
@@ -706,7 +714,7 @@ var VerilogPlatform = function(mainElement, options) {
       inspect_obj = inspect_sym = null;
       return;
     }
-    var val = top.state[name];
+    var val = top && top.state[name];
     /* TODO
     if (val === undefined && current_output.code) {
       var re = new RegExp("(\\w+__DOT__(?:_[dcw]_)" + name + ")\\b", "gm");
@@ -730,17 +738,17 @@ var VerilogPlatform = function(mainElement, options) {
   getDebugTree() {
     return {
       runtime: top,
-      state: top.getGlobals()
+      state: top && top.getGlobals()
     }
   }
 
   // TODO: bind() a function to avoid depot?
   saveState() {
-    return {o: top.saveState()};
+    return {o: top && top.saveState()};
   }
 
   loadState(state) {
-    top.loadState(state.o);
+    if (state.o) top.loadState(state.o);
   }
 
   saveControlsState() {

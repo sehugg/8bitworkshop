@@ -1,4 +1,5 @@
 
+import { EmuHalt } from "../emu";
 import { byteArrayToString, safe_extend } from "../util";
 import { HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLSourceLocation, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, isArrayItem, isArrayType, isBigConstExpr, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
 
@@ -10,14 +11,12 @@ interface VerilatorUnit {
     _change_request(state) : boolean;
 }
 
-export class HDLError extends Error {
+export class HDLError extends EmuHalt {
     obj: any;
-    $loc: HDLSourceLocation;
     constructor(obj: any, msg: string) {
-        super(msg);
+        super(msg, obj ? obj.$loc : null);
         Object.setPrototypeOf(this, HDLError.prototype);
         this.obj = obj;
-        if (obj && obj.$loc) this.$loc = obj.$loc;
         if (obj) console.log(obj);
     }
 }
