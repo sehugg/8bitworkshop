@@ -508,7 +508,9 @@ var VerilogPlatform = function(mainElement, options) {
   fillTraceBuffer(count:number) : boolean {
     var max_index = Math.min(trace_buffer.length - trace_signals.length, trace_index + count);
     while (trace_index < max_index) {
-      top.tick();
+      if (!top.isStopped() && !top.isFinished()) {
+        top.tick();
+      }
       this.snapshotTrace();
       if (trace_index == 0)
         break;
@@ -778,7 +780,7 @@ var VerilogPlatform = function(mainElement, options) {
       };
     } else if (top instanceof HDLModuleWASM) {
       return {
-        extension:".wasm", 
+        extension:".wat",
         blob: new Blob([top.bmod.emitText()], {type:"text/plain"})
       };
     }

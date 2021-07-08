@@ -192,7 +192,8 @@ export class HDLModuleWASM implements HDLModuleRunner {
     traceEndOffset: number;
     trace: any;
     getFileData = null;
-    maxMemoryMB : number;
+    maxMemoryMB: number;
+    optimize: boolean = false;
 
     constructor(moddef: HDLModuleDef, constpool: HDLModuleDef, maxMemoryMB?: number) {
         this.hdlmod = moddef;
@@ -308,6 +309,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
 
     private genMemory() {
         this.bmod = new binaryen.Module();
+        this.bmod.setFeatures(binaryen.Features.SignExt);
         this.genTypes();
         var membytes = this.globals.len;
         if (membytes > this.maxMemoryMB*1024*1024)
@@ -375,13 +377,20 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
 
     private validate() {
-         // validate wasm module
-         //console.log(this.bmod.emitText());
-         //this.bmod.optimize();
-         if (!this.bmod.validate()) {
+        // optimize wasm module (default passes crash binaryen.js)
+        if (this.optimize) {
+            var size = this.bmod.emitBinary().length;
+            // TODO: more passes?
+            // https://github.com/WebAssembly/binaryen/blob/369b8bdd3d9d49e4d9e0edf62e14881c14d9e352/src/passes/pass.cpp#L396
+            this.bmod.runPasses(['dce','optimize-instructions','precompute','simplify-locals','simplify-globals','rse','vacuum'/*,'dae-optimizing','inlining-optimizing'*/])
+            var optsize = this.bmod.emitBinary().length;
+            console.log('optimize', size, '->', optsize)
+        }
+        // validate wasm module
+        if (!this.bmod.validate()) {
             //console.log(this.bmod.emitText());
             throw new HDLError(null, `could not validate wasm module`);
-         }
+        }
     }
 
     private genFunction(block) {
@@ -602,23 +611,26 @@ export class HDLModuleWASM implements HDLModuleRunner {
         const m = this.bmod;
         var l_loop = this.label("@loop");
         if (this.globals.lookup('clk')) {
-            var l_dseg = m.local.get(0, binaryen.i32);
-            var l_count = m.local.get(1, binaryen.i32);
+            var v_dseg = m.local.get(0, binaryen.i32);
+            //var v_count = m.local.get(1, binaryen.i32);
             m.addFunction("tick2",
                 binaryen.createType([binaryen.i32, binaryen.i32]),
                 binaryen.none,
                 [],
                 m.loop(l_loop, m.block(null, [
                     this.makeSetVariableFunction("clk", 0),
-                    m.drop(m.call("eval", [l_dseg], binaryen.i32)),
+                    m.drop(m.call("eval", [v_dseg], binaryen.i32)),
                     this.makeSetVariableFunction("clk", 1),
-                    m.drop(m.call("eval", [l_dseg], binaryen.i32)),
+                    m.drop(m.call("eval", [v_dseg], binaryen.i32)),
                     // call copyTraceRec
                     m.call("copyTraceRec", [], binaryen.none),
-                    // dec $1
-                    m.local.set(1, m.i32.sub(l_count, m.i32.const(1))),
-                    // goto @loop if $1
-                    m.br_if(l_loop, l_count)
+                    // goto @loop if ($1 = $1 - 1)
+                    m.br_if(l_loop, 
+                        m.local.tee(1, 
+                            m.i32.sub(
+                                m.local.get(1, binaryen.i32),
+                                m.i32.const(1)
+                            ), binaryen.i32))
                 ]))
             );
             m.addFunctionExport("tick2", "tick2");
@@ -1014,6 +1026,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
                 return this.bmod.i64.extend32_s(value);
             }
         }
+        // TODO: this might not work? (t_math_signed2.v)
         var shift = inst.const(e.width - e.widthminv, 0);
         return inst.shr_s(inst.shl(value, shift), shift);
     }
