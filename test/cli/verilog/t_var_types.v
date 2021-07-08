@@ -4,6 +4,9 @@
 // any use, without warranty, 2009 by Wilson Snyder.
 // SPDX-License-Identifier: CC0-1.0
 
+
+/* verilator lint_off UNDRIVEN */
+
 module t (/*AUTOARG*/);
 
    // IEEE: integer_atom_type
@@ -90,14 +93,8 @@ module t (/*AUTOARG*/);
    function chandle 	f_chandle;	chandle		lv_chandle;	f_chandle	= lv_chandle;	endfunction
    // verilator lint_on WIDTH
 
-`ifdef verilator
-   // For verilator zeroinit detection to work properly, we need to x-rand-reset to all 1s.  This is the default!
- `define XINIT 1'b1
+ `define XINIT 1'b0
  `define ALL_TWOSTATE 1'b1
-`else
- `define XINIT 1'bx
- `define ALL_TWOSTATE 1'b0
-`endif
 
 `define CHECK_ALL(name,nbits,issigned,twostate,zeroinit) \
    if (zeroinit ? ((name & 1'b1)!==1'b0) : ((name & 1'b1)!==`XINIT)) \

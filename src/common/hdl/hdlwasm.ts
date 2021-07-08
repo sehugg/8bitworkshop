@@ -2,6 +2,7 @@
 import binaryen = require('binaryen');
 import { hasDataType, HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLDataTypeObject, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLSourceLocation, HDLSourceObject, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, HDLWhileOp, isArrayItem, isArrayType, isBigConstExpr, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
 import { HDLError } from "./hdlruntime";
+import { EmuHalt } from '../emu';
 
 const VERILATOR_UNIT_FUNCTIONS = [
     "_ctor_var_reset",
@@ -71,17 +72,21 @@ function getArrayElementSizeFromExpr(e: HDLExpr) : number {
 }
 
 function getArrayValueSize(e: HDLExpr) : number {
+    return getDataTypeSize(getArrayValueType(e));
+}
+
+function getArrayValueType(e: HDLExpr) : HDLDataType {
     if (isVarRef(e)) {
         var dt = e.dtype;
         while (isArrayType(dt))
             dt = dt.subtype;
-        return getDataTypeSize(dt);
+        return dt;
     } else if (isBinop(e) && e.op == 'arraysel') {
-        return getArrayValueSize(e.left);
+        return getArrayValueType(e.left);
     } else if (isBinop(e) && e.op == 'wordsel') {
-        return getArrayValueSize(e.left);
+        return getArrayValueType(e.left);
     }
-    throw new HDLError(e, `cannot figure out array value size`);
+    throw new HDLError(e, `cannot figure out array value type`);
 }
 
 function getAlignmentForSize(size) {
@@ -410,7 +415,6 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
 
     private async genModule() {
-        //console.log(this.bmod.emitText());
         var wasmData = this.bmod.emitBinary();
         var compiled = await WebAssembly.compile(wasmData);
         this.instance = await WebAssembly.instantiate(compiled, this.getImportObject());
@@ -447,6 +451,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
                             return this.data32[(base + vref.offset) >> 2];
                         }
                     }
+                    return new Uint32Array(this.databuf, (base>>2) + vref.offset, vref.size >> 2);
                 }
                 return undefined;
             },
@@ -686,12 +691,12 @@ export class HDLModuleWASM implements HDLModuleRunner {
 
     private i3264rel(e: HDLBinop) {
         if (hasDataType(e.left) && hasDataType(e.right)) {
-            var leftsize = getDataTypeSize(e.left.dtype);
-            var rightsize = getDataTypeSize(e.right.dtype);
-            // TODO: left size should equal right size, both can be > i32 though
-            return leftsize > rightsize ? this.i3264(e.left.dtype) : this.i3264(e.right.dtype);
+            var lsize = getDataTypeSize(e.left.dtype);
+            var rsize = getDataTypeSize(e.right.dtype);
+            if (lsize > rsize) return this.i3264(e.left.dtype);
+            else return this.i3264(e.right.dtype);
         }
-        return this.i3264(e.dtype);
+        throw new HDLError(e, `can't ${e.op} arguments`);
     }
 
     private dataptr() : number {
@@ -754,14 +759,14 @@ export class HDLModuleWASM implements HDLModuleRunner {
     const2wasm(e: HDLConstant, opts: Options) : number {
         var size = getDataTypeSize(e.dtype);
         if (isLogicType(e.dtype)) {
-            if (e.bigvalue != null)
-                return this.i3264(e.dtype).const(
-                    Number(e.bigvalue & BigInt(0xffffffff)),
-                    Number(e.bigvalue >> BigInt(32)));
-            else if (size <= 4)
-                return this.bmod.i32.const(e.cvalue);
+            if (e.bigvalue != null) {
+                let low = e.bigvalue & BigInt(0xffffffff);
+                let high = (e.bigvalue >> BigInt(32)) & BigInt(0xffffffff);
+                return this.i3264(e.dtype).const(Number(low), Number(high));
+            } else if (size <= 4)
+                return this.bmod.i32.const(e.cvalue|0);
             else if (size <= 8)
-                return this.bmod.i64.const(e.cvalue, e.cvalue >> 32); // TODO: bigint?
+                return this.bmod.i64.const(e.cvalue|0, 0);
             else
                 throw new HDLError(e, `constants > 64 bits not supported`)
         } else {
@@ -861,7 +866,12 @@ export class HDLModuleWASM implements HDLModuleRunner {
     _arraysel2wasm(e: HDLBinop, opts:Options) : number {
         var addr = this.address2wasm(e);
         var elsize = getArrayValueSize(e);
-        return this.loadmem(e, addr, 0, elsize);
+        var ret = this.loadmem(e, addr, 0, elsize);
+        // cast to destination type, if it differs than fetch type
+        if (elsize != getDataTypeSize(e.dtype)) {
+            ret = this.castexpr(ret, getArrayValueType(e), e.dtype);
+        }
+        return ret;
     }
 
     _wordsel2wasm(e: HDLBinop, opts:Options) : number {
@@ -932,11 +942,15 @@ export class HDLModuleWASM implements HDLModuleRunner {
                 return val;
             } else if (tsrc.left <= 31 && tdst.left <= 31) {
                 return val;
+            } else if (tsrc.left > 31 && tdst.left > 31) {
+                return val;
+            } else if (tsrc.left > 63 || tdst.left > 63) {
+                throw new HDLError(tdst, `values > 64 bits not supported`);
             }
             // TODO: signed?
-            else if (tsrc.left <= 31 && tdst.left == 63) { // 32 -> 64
+            else if (tsrc.left <= 31 && tdst.left > 31) { // 32 -> 64
                 return this.bmod.i64.extend_u(val);
-            } else if (tsrc.left == 63 && tdst.left <= 31) { // 64 -> 32
+            } else if (tsrc.left > 31 && tdst.left <= 31) { // 64 -> 32
                 return this.bmod.i32.wrap(val);
             }
         }
@@ -982,11 +996,8 @@ export class HDLModuleWASM implements HDLModuleRunner {
 
     _extend2wasm(e: HDLExtendop, opts:Options) {
         var value = this.e2w(e.left);
-        var inst = this.i3264(e.dtype);
-        if (this.bmod.getFeatures() & binaryen.Features.SignExt) {
-            if (e.widthminv == 32 && e.width == 64) {
-                return this.bmod.i64.extend_u(value);
-            }
+        if (e.widthminv == 32 && e.width == 64) {
+            return this.bmod.i64.extend_u(value);
         }
         throw new HDLError(e, `cannot extend`);
     }
@@ -1015,82 +1026,84 @@ export class HDLModuleWASM implements HDLModuleRunner {
             var rtn = inst.and(
                 inst.const(1, 0),
                 inst.popcnt(left)); // (num_set_bits & 1)
-            return rtn; //this.castexpr(rtn, e.dtype, e.left.dtype);
+            return this.castexpr(rtn, e.left.dtype, e.dtype);
         } else
             throw new HDLError(e, '');
     }
 
-    binop(e: HDLBinop, f_op: (a:number, b:number) => number, upcastLeft?: boolean, upcastRight?: boolean) {
+    binop(e: HDLBinop, f_op: (a:number, b:number) => number) {
         var left = this.e2w(e.left);
         var right = this.e2w(e.right);
+        var upcast = null;
+        // if one argument is 64 bit and one is 32 bit, upcast the latter to 64 bits
         if (hasDataType(e.left) && hasDataType(e.right)) {
             var lsize = getDataTypeSize(e.left.dtype);
             var rsize = getDataTypeSize(e.right.dtype);
             var ltype = getBinaryenType(lsize);
             var rtype = getBinaryenType(rsize);
-            if (ltype != rtype && rsize > lsize && upcastLeft) {
-                //console.log(e, lsize, rsize);
+            if (ltype != rtype && rsize > lsize) {
                 left = this.castexpr(left, e.left.dtype, e.right.dtype);
-                e.left.dtype = e.right.dtype;
-            } else if (ltype != rtype && lsize > rsize && upcastRight) {
-                //console.log(e, lsize, rsize);
+                upcast = e.right.dtype;
+            } else if (ltype != rtype && lsize > rsize) {
                 right = this.castexpr(right, e.right.dtype, e.left.dtype);
-                e.right.dtype = e.left.dtype;
+                upcast = e.left.dtype;
             } else if (ltype != rtype)
-                {} // TODO: throw new HDLError(e, `wrong argument sizes`);
+                throw new HDLError(e, `wrong argument sizes ${lsize} and ${rsize}`);
         }
         var rtn = f_op(left, right);
+        // if we upcasted, and result is 32 bit, downcast to 32 bits
+        if (upcast) {
+            rtn = this.castexpr(rtn, upcast, e.dtype);
+        }
         return rtn;
+    }
+
+    _or2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).or);
+    }
+    _and2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).and);
+    }
+    _xor2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).xor);
+    }
+    _shiftl2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).shl);
+    }
+    _shiftr2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).shr_u);
+    }
+    _shiftrs2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).shr_s);
+    }
+    _add2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).add);
+    }
+    _sub2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).sub);
+    }
+    _mul2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).mul);
+    }
+    _muls2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).mul); // TODO: signed?
+    }
+    _moddiv2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).rem_u);
+    }
+    _div2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).div_u);
+    }
+    _moddivs2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).rem_s);
+    }
+    _divs2wasm(e: HDLBinop) {
+        return this.binop(e, this.i3264rel(e).div_s);
     }
 
     relop(e: HDLBinop, f_op : (a:number,b:number)=>number) {
         return f_op(this.e2w(e.left), this.e2w(e.right));
     }
-
-    _or2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).or);
-    }
-    _and2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).and);
-    }
-    _xor2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).xor);
-    }
-    _shiftl2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).shl, false, true);
-    }
-    _shiftr2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).shr_u, false, true);
-    }
-    _shiftrs2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).shr_s, false, true);
-    }
-    _add2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).add);
-    }
-    _sub2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).sub);
-    }
-    _mul2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).mul);
-    }
-    _muls2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).mul); // TODO: signed?
-    }
-    _moddiv2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).rem_u);
-    }
-    _div2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).div_u);
-    }
-    _moddivs2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).rem_s);
-    }
-    _divs2wasm(e: HDLBinop) {
-        return this.binop(e, this.i3264(e.dtype).div_s);
-    }
-
-    // TODO: i32/i64
     _eq2wasm(e: HDLBinop) {
         return this.relop(e, this.i3264rel(e).eq);
     }

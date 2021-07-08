@@ -776,6 +776,11 @@ var VerilogPlatform = function(mainElement, options) {
         extension:".js", 
         blob: new Blob([top.getJSCode()], {type:"text/plain"})
       };
+    } else if (top instanceof HDLModuleWASM) {
+      return {
+        extension:".wasm", 
+        blob: new Blob([top.bmod.emitText()], {type:"text/plain"})
+      };
     }
   }
 
