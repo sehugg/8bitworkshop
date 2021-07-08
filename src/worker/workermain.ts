@@ -1779,6 +1779,7 @@ function compileVerilator(step:BuildStep) {
   var xmlPath = "main.xml";
   if (staleFiles(step, [xmlPath])) {
     // TODO: %Error: Specified --top-module 'ALU' isn't at the top level, it's under another cell 'cpu'
+    // TODO: ... Use "/* verilator lint_off BLKSEQ */" and lint_on around source to disable this message.
     var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
     var verilator_mod = emglobal.verilator_bin({
       instantiateWasm: moduleInstFn('verilator_bin'),

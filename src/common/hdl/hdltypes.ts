@@ -223,5 +223,5 @@ export interface HDLUnit {
     hierarchies: { [id: string]: HDLHierarchyDef };
 }
 
-export type HDLValue = number | Uint8Array | Uint16Array | Uint32Array | HDLValue[];
+export type HDLValue = number | bigint | Uint8Array | Uint16Array | Uint32Array | HDLValue[];
 

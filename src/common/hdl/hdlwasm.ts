@@ -176,24 +176,29 @@ export class HDLModuleWASM implements HDLModuleRunner {
     constpool: HDLModuleDef;
     globals: Struct;
     locals: Struct;
-    finished: boolean;
-    stopped: boolean;
     databuf: Buffer;
     data8: Uint8Array;
     data16: Uint16Array;
     data32: Uint32Array;
+    getFileData = null;
+    maxMemoryMB: number;
+    optimize: boolean = false;
+    maxEvalIterations: number = 8;
+
     state: any;
     statebytes: number;
     outputbytes: number;
+
     traceBufferSize: number = 0xff000;
     traceRecordSize: number;
     traceReadOffset: number;
     traceStartOffset: number;
     traceEndOffset: number;
     trace: any;
-    getFileData = null;
-    maxMemoryMB: number;
-    optimize: boolean = false;
+
+    finished: boolean;
+    stopped: boolean;
+    resetStartTimeMsec : number;
 
     constructor(moddef: HDLModuleDef, constpool: HDLModuleDef, maxMemoryMB?: number) {
         this.hdlmod = moddef;
@@ -211,6 +216,8 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
 
     powercycle() {
+        // TODO: merge w/ JS runtime
+        this.resetStartTimeMsec = new Date().getTime() - 1;
         this.finished = false;
         this.stopped = false;
         (this.instance.exports as any)._ctor_var_reset(GLOBALOFS);
@@ -525,10 +532,11 @@ export class HDLModuleWASM implements HDLModuleRunner {
     private getImportObject() : {} {
         var n = 0;
         return {
+            // TODO: merge w/ JS runtime
             builtins: {
                 $finish: (o) => { if (!this.finished) console.log('... Finished @', o); this.finished = true; },
                 $stop: (o) => { if (!this.stopped) console.log('... Stopped @', o); this.stopped = true; },
-                $time: (o) => BigInt(new Date().getTime()), // TODO: timescale
+                $time: (o) => BigInt(new Date().getTime() - this.resetStartTimeMsec), // TODO: timescale
                 $rand: (o) => (Math.random() * (65536 * 65536)) | 0,
                 $readmem: (o,a,b) => this.$readmem(a, b)
             }
@@ -664,7 +672,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
 
     private makeTickFuncBody(count: number) {
         var dseg = this.bmod.local.get(0, binaryen.i32);
-        if (count > 4)
+        if (count > this.maxEvalIterations)
             return this.bmod.i32.const(count);
         return this.bmod.block(null, [
             this.bmod.call("_eval", [dseg], binaryen.none),

@@ -50,6 +50,8 @@ async function loadPlatform(msg) {
 }
 
 function compileVerilator(filename, code, callback, nerrors, depends) {
+    var loadfail = false;
+    if (filename.indexOf('t_unopt_converge') >= 0) loadfail = true;
     // files come back from worker
     global.postMessage = async function(msg) {
       try {
@@ -65,9 +67,10 @@ function compileVerilator(filename, code, callback, nerrors, depends) {
           }
           platform.dispose();
         }
+        if (loadfail) e = new Error('should have failed');
         callback(null, msg);
       } catch (e) {
-        if (filename == 'test/cli/verilog/t_unopt_converge_initial.v') e = null;
+        if (loadfail) e = null;
         //console.log('rm', filename);
         callback(e, null);
       }

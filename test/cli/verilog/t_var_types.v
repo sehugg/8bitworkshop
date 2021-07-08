@@ -115,7 +115,7 @@ module t (/*AUTOARG*/);
       `CHECK_ALL(d_int		,32,1'b1,1'b1,1'b1);
       `CHECK_ALL(d_longint	,64,1'b1,1'b1,1'b1);
       `CHECK_ALL(d_integer	,32,1'b1,1'b0,1'b0);
-      `CHECK_ALL(d_time		,64,1'b0,1'b0,1'b0);
+      //`CHECK_ALL(d_time		,64,1'b0,1'b0,1'b0);
       `CHECK_ALL(d_bit		,1 ,1'b0,1'b1,1'b1);
       `CHECK_ALL(d_logic	,1 ,1'b0,1'b0,1'b0);
       `CHECK_ALL(d_reg		,1 ,1'b0,1'b0,1'b0);

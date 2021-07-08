@@ -37,6 +37,7 @@ export class HDLModuleJS implements HDLModuleRunner {
     constused: number;
     specfuncs: VerilatorUnit[] = [];
     getFileData = null;
+    resetStartTimeMsec : number;
     
     constructor(mod: HDLModuleDef, constpool: HDLModuleDef) {
         this.mod = mod;
@@ -118,6 +119,7 @@ export class HDLModuleJS implements HDLModuleRunner {
     }
 
     powercycle() {
+        this.resetStartTimeMsec = new Date().getTime() - 1;
         this.finished = false;
         this.stopped = false;
         this.basefuncs._ctor_var_reset(this.state);
@@ -170,7 +172,10 @@ export class HDLModuleJS implements HDLModuleRunner {
 
     defaultValue(dt: HDLDataType, vardef?: HDLVariableDef) : HDLValue {
         if (isLogicType(dt)) {
-            return 0;
+            if (dt.left <= 31)
+                return 0;
+            else
+                return BigInt(0);
         } else if (isArrayType(dt) && typeof dt.high.cvalue === 'number' && typeof dt.low.cvalue === 'number') {
             let arr;
             let arrlen = dt.high.cvalue - dt.low.cvalue + 1;
@@ -327,7 +332,9 @@ export class HDLModuleJS implements HDLModuleRunner {
         } else if (isWhileop(e)) {
             return `for (${this.expr2js(e.precond)}; ${this.expr2js(e.loopcond)}; ${this.expr2js(e.inc)}) { ${this.expr2js(e.body)} }`
         } else if (isFuncCall(e)) {
-            if (e.args == null || e.args.length == 0) {
+            if ((e.funcname == '$stop' || e.funcname == '$finish') && e.$loc) {
+                return `this.${e.funcname}(o, ${JSON.stringify(e.$loc)})`;
+            } else if (e.args == null || e.args.length == 0) {
                 return `this.${e.funcname}(o)`;
             } else {
                 return `this.${e.funcname}(o, ${ e.args.map(arg => this.expr2js(arg)).join(', ') })`;
@@ -342,7 +349,10 @@ export class HDLModuleJS implements HDLModuleRunner {
             if (this.curconsts[e.refname] != null) {
                 return `${e.refname}`;
             } else if (isLogicType(e.dtype)) {
-                return `${this.expr2js(e)} = 0`;
+                if (e.dtype.left <= 31)
+                    return `${this.expr2js(e)} = 0`;
+                else
+                    return `${this.expr2js(e)} = BigInt(0)`;
             } else if (isArrayType(e.dtype)) {
                 if (isLogicType(e.dtype.subtype)) {
                     return `${this.expr2js(e)}.fill(0)`;
@@ -361,16 +371,16 @@ export class HDLModuleJS implements HDLModuleRunner {
     // runtime methods
     // TODO: $time, $display, etc
 
-    $finish(o) {
+    $finish(o, loc) {
         if (!this.finished) {
-            console.log("Simulation finished");
+            console.log("Simulation $finish", loc);
             this.finished = true;
         }
     }
 
-    $stop(o) {
+    $stop(o, loc) {
         if (!this.stopped) {
-            console.log("Simulation stopped");
+            console.log("Simulation $stop", loc);
             this.stopped = true;
         }
     }
@@ -410,7 +420,7 @@ export class HDLModuleJS implements HDLModuleRunner {
     }
 
     $time(o) {
-        return new Date().getTime();
+        return (new Date().getTime() - this.resetStartTimeMsec); // TODO: timescale
     }
 
     $$redxor(r: number) : number {
