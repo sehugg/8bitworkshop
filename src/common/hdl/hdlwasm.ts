@@ -282,7 +282,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
         this.state[TRACERECLEN] = this.outputbytes;
         this.resetTrace();
         //console.log(this.state[TRACEOFS], this.state[TRACERECLEN], this.state[TRACEEND]);
-        this.trace = new Proxy({}, this.makeScopeProxy(() => { return this.traceReadOffset }));
+        this.trace = this.makeScopeProxy(() => { return this.traceReadOffset });
     }
 
     resetTrace() {
@@ -439,59 +439,60 @@ export class HDLModuleWASM implements HDLModuleRunner {
         this.data16 = new Uint16Array(this.databuf);
         this.data32 = new Uint32Array(this.databuf);
         // proxy object to access globals (starting from 0)
-        this.state = new Proxy({}, this.makeScopeProxy(() => 0));
+        this.state = this.makeScopeProxy(() => { return 0 });
     }
 
-    private makeScopeProxy(basefn: () => number) {
-        return {
-            // TODO: more types, signed/unsigned
-            get: (target, prop, receiver) => {
-                var vref = this.globals.lookup(prop.toString());
-                var base = basefn();
-                if (vref !== undefined) {
-                    if (vref.type && isArrayType(vref.type)) {
-                        var elsize = getArrayElementSizeFromType(vref.type);
-                        if (elsize == 1) {
-                            return new Uint8Array(this.databuf, base + vref.offset, vref.size);
-                        } else if (elsize == 2) {
-                            return new Uint16Array(this.databuf, (base>>1) + vref.offset, vref.size >> 1);
-                        } else if (elsize == 4) {
-                            return new Uint32Array(this.databuf, (base>>2) + vref.offset, vref.size >> 2);
-                        }
-                    } else {
-                        if (vref.size == 1) {
-                            return this.data8[base + vref.offset];
-                        } else if (vref.size == 2) {
-                            return this.data16[(base + vref.offset) >> 1];
-                        } else if (vref.size == 4) {
-                            return this.data32[(base + vref.offset) >> 2];
-                        }
-                    }
-                    return new Uint32Array(this.databuf, (base>>2) + vref.offset, vref.size >> 2);
-                }
-                return undefined;
-            },
-            set: (obj, prop, value) => {
-                var vref = this.globals.lookup(prop.toString());
-                var base = basefn();
-                if (vref !== undefined) {
-                    if (vref.size == 1) {
-                        this.data8[(base + vref.offset)] = value;
-                        return true;
-                    } else if (vref.size == 2) {
-                        this.data16[(base + vref.offset) >> 1] = value;
-                        return true;
-                    } else if (vref.size == 4) {
-                        this.data32[(base + vref.offset) >> 2] = value;
-                        return true;
-                    } else {
-                        throw new HDLError(vref, `can't set property ${prop.toString()}`);
+    private defineProperty(proxy, basefn: () => number, vref: StructRec) {
+        var _this = this;
+        Object.defineProperty(proxy, vref.name, {
+            get() {
+                let base = basefn();
+                if (vref.type && isArrayType(vref.type)) {
+                    var elsize = getArrayElementSizeFromType(vref.type);
+                    if (elsize == 1) {
+                        return new Uint8Array(_this.databuf, base + vref.offset, vref.size);
+                    } else if (elsize == 2) {
+                        return new Uint16Array(_this.databuf, (base>>1) + vref.offset, vref.size >> 1);
+                    } else if (elsize == 4) {
+                        return new Uint32Array(_this.databuf, (base>>2) + vref.offset, vref.size >> 2);
                     }
                 } else {
-                    return true; // silently fail
+                    if (vref.size == 1) {
+                        return _this.data8[base + vref.offset];
+                    } else if (vref.size == 2) {
+                        return _this.data16[(base + vref.offset) >> 1];
+                    } else if (vref.size == 4) {
+                        return _this.data32[(base + vref.offset) >> 2];
+                    }
                 }
-            }
-        }        
+                return new Uint32Array(_this.databuf, (base>>2) + vref.offset, vref.size >> 2);
+            },
+            set(value) {
+                var base = basefn();
+                if (vref.size == 1) {
+                    _this.data8[(base + vref.offset)] = value;
+                    return true;
+                } else if (vref.size == 2) {
+                    _this.data16[(base + vref.offset) >> 1] = value;
+                    return true;
+                } else if (vref.size == 4) {
+                    _this.data32[(base + vref.offset) >> 2] = value;
+                    return true;
+                } else {
+                    throw new HDLError(vref, `can't set property ${vref.name}`);
+                }
+            },
+            enumerable: true,
+            configurable: false
+        });
+    }
+
+    private makeScopeProxy(basefn: () => number) : {} {
+        var proxy = Object.create(null); // no inherited properties
+        for (var vref of Object.values(this.globals.vars)) {
+            if (vref != null) this.defineProperty(proxy, basefn, vref);
+        }
+        return proxy;
     }
 
     private genInitData() {
