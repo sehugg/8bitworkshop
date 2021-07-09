@@ -1819,12 +1819,14 @@ function compileVerilator(step:BuildStep) {
     if (errors.length) {
       return {errors:errors};
     }
+    starttime();
     var xmlParser = new emglobal['VerilogXMLParser']();
     var listings : CodeListingMap = {};
     try {
       var xmlContent = FS.readFile(xmlPath, {encoding:'utf8'});
+      var xmlScrubbed = xmlContent.replace(/ fl=".+?" loc=".+?"/g, '');
       listings[step.prefix + '.lst'] = {lines:[],text:xmlContent};
-      putWorkFile(xmlPath, xmlContent);
+      putWorkFile(xmlPath, xmlScrubbed); // don't detect changes in source position
       if (!anyTargetChanged(step, [xmlPath]))
         return;
       xmlParser.parse(xmlContent);
@@ -1837,6 +1839,8 @@ function compileVerilator(step:BuildStep) {
         errors.push({line:0,msg:""+e});
       }
       return {errors:errors, listings:listings};
+    } finally {
+      endtime("parse");
     }
     //rtn.intermediate = {listing:h_file + cpp_file}; // TODO
     // TODO: what if found in non-top-module?

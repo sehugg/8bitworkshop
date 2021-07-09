@@ -15,7 +15,7 @@ export interface HDLModuleRunner {
     getFileData : (filename : string) => string|Uint8Array;
 }
 
-export interface HDLModuleTrace {
+export interface HDLModuleTrace extends HDLModuleRunner {
     trace: any;
     resetTrace() : void;
     nextTrace() : void;

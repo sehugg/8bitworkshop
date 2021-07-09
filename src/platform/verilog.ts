@@ -365,23 +365,23 @@ var VerilogPlatform = function(mainElement, options) {
       var ctx = video.getContext();
       var val = inspect_data[inspect_data.length-1];
       ctx.fillStyle = "black";
-      ctx.fillRect(18, videoHeight-8, 30, 8);
+      ctx.fillRect(18, videoHeight-8, 100, 8);
       ctx.fillStyle = "white";
-      ctx.fillText(val.toString(10), 20, videoHeight-1);
+      ctx.fillText(val.toString(10) + " $" + val.toString(16), 20, videoHeight-1);
     }
   }
 
   updateVideoFrameCycles(ncycles:number, sync:boolean, trace:boolean) : void {
     ncycles |= 0;
-    var inspect = inspect_obj && inspect_sym;
+    var inspect = inspect_obj != null && inspect_sym != null;
     // use fast trace buffer-based update?
-    if (sync && !trace && top['trace'] != null && scanlineCycles > 0) {
+    if (sync && !trace && !inspect && (top as HDLModuleTrace).trace != null && scanlineCycles > 0) {
       this.updateVideoFrameFast((top as any) as HDLModuleTrace);
       this.updateRecorder();
       return;
     }
+    // use slow cycle-by-cycle version (needed on 1st frame to set scanlineCycles anyway)
     if (!sync) scanlineCycles = 0;
-    // use slow update method
     var trace0 = trace_index;
     while (ncycles--) {
       if (trace) {
@@ -428,6 +428,7 @@ var VerilogPlatform = function(mainElement, options) {
 
   // use trace buffer to update video
   updateVideoFrameFast(tmod: HDLModuleTrace) {
+    if (scanlineCycles <= 0) throw new Error(`scanlineCycles must be > 0`);
     var maxLineCycles = 1009; // prime number so we eventually sync up
     var nextlineCycles = scanlineCycles || maxLineCycles;
     // TODO: we can go faster if no paddle/sound
@@ -442,7 +443,9 @@ var VerilogPlatform = function(mainElement, options) {
         top.state.vpaddle = framey > video.paddle_y ? 1 : 0;
       }
       // generate frames in trace buffer
-      top.tick2(nextlineCycles);
+      if (nextlineCycles > 0) {
+        top.tick2(nextlineCycles);
+      }
       // TODO: this has to be done more quickly
       resetKbdStrobe();
       // convert trace buffer to video/audio
@@ -474,14 +477,23 @@ var VerilogPlatform = function(mainElement, options) {
       // see if our scanline cycle count is stable (can't read tmod.trace after end of line)
       if (hsyncStart < hsyncEnd && hsyncEnd == nextlineCycles-1) {
         // scanline cycle count locked in, reset buffer to improve cache locality
-        tmod.resetTrace();
         nextlineCycles = scanlineCycles;
-      } else {
-        // not in sync, don't reset buffer
+      } else if (hsyncEnd > 0) {
+        // our cycle count is not in sync with scanline
+        // say our scanline lasts 100 cycles
+        // we just read 300 cycles, and hsync ended at 80
+        // we'll toss the extra cycles in the buffer
+        // next scanline should end @ (80 + 100*N) cycles
+        // could be 180, 280, 380 ...
+        // so we should read 100*N - 300 cycles where N > 2
         // TODO: determine scanlineCycles here instead of letting slow loop do it
-        //console.log('scanline', framey, scanlineCycles, nextlineCycles, n, hsyncStart, hsyncEnd);
-        nextlineCycles = Math.min(maxLineCycles, n + scanlineCycles);
+        let newCycles = scanlineCycles * 2 - ((nextlineCycles - n) % scanlineCycles);
+        //console.log('scanline', framey, scanlineCycles, nextlineCycles, n, hsyncStart, hsyncEnd, newCycles);
+        nextlineCycles = newCycles;
+      } else {
+        nextlineCycles = maxLineCycles;
       }
+      tmod.resetTrace();
       // exit when vsync starts and then stops
       if (tmod.trace.vsync) {
         wasvsync = true;
@@ -711,22 +723,20 @@ var VerilogPlatform = function(mainElement, options) {
 
   inspect(name:string) : string {
     if (!top) return;
-    if (name) name = name.replace('.','_');
-    if (!name || !name.match(/^\w+$/)) {
+    // check for valid identifier
+    if (!name || !name.match(/^\w+$/)) { 
       inspect_obj = inspect_sym = null;
       return;
     }
-    var val = top && top.state[name];
-    /* TODO
-    if (val === undefined && current_output.code) {
-      var re = new RegExp("(\\w+__DOT__(?:_[dcw]_)" + name + ")\\b", "gm");
-      var m = re.exec(current_output.code);
-      if (m) {
-        name = m[1];
-        val = gen[name];
+    // search for partial name
+    var val;
+    for (let key in top.state) {
+      if (key == name || key.endsWith("$"+name)) {
+        name = key;
+        val = top.state[name];
       }
     }
-    */
+    // did we find a number?
     if (typeof(val) === 'number') {
       inspect_obj = top.state;
       inspect_sym = name;
