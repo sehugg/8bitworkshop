@@ -190,7 +190,7 @@ var VerilogPlatform = function(mainElement, options) {
     await loadScript('./gen/common/hdl/hdltypes.js');
     await loadScript('./gen/common/hdl/hdlruntime.js');
     await loadScript('./gen/common/hdl/hdlwasm.js');
-    await loadScript('./lib/binaryen.js'); // TODO: path?
+    await loadScript('./lib/binaryen.js');
     video = new RasterVideo(mainElement,videoWidth,videoHeight,{overscan:true});
     video.create();
     poller = setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP, (o,key,code,flags) => {
@@ -275,7 +275,7 @@ var VerilogPlatform = function(mainElement, options) {
     }
     // paint into frame, synched with vsync if full speed
     var trace = this.isScopeVisible();
-    this.updateVideoFrameCycles(cyclesPerFrame * fps/60 + 1, sync, trace);
+    this.updateVideoFrameCycles(Math.ceil(cyclesPerFrame * fps/60), sync, trace);
     if (fps < 0.25) {
       idata[frameidx] = -1;
     }
@@ -431,9 +431,7 @@ var VerilogPlatform = function(mainElement, options) {
     if (scanlineCycles <= 0) throw new Error(`scanlineCycles must be > 0`);
     var maxLineCycles = 1009; // prime number so we eventually sync up
     var nextlineCycles = scanlineCycles || maxLineCycles;
-    // TODO: we can go faster if no paddle/sound
     frameidx = 0;
-    var wasvsync = false;
     // audio feed
     function spkr() { if (useAudio) audio.feedSample(tmod.trace.spkr, 1); }
     // iterate through a frame of scanlines + room for vsync
@@ -446,7 +444,6 @@ var VerilogPlatform = function(mainElement, options) {
       if (nextlineCycles > 0) {
         top.tick2(nextlineCycles);
       }
-      // TODO: this has to be done more quickly
       resetKbdStrobe();
       // convert trace buffer to video/audio
       var n = 0;
@@ -496,10 +493,12 @@ var VerilogPlatform = function(mainElement, options) {
       tmod.resetTrace();
       // exit when vsync starts and then stops
       if (tmod.trace.vsync) {
-        wasvsync = true;
+        framevsync = true;
         top.state.hpaddle = 0;
         top.state.vpaddle = 0;
-      } else if (wasvsync) {
+        framex = framey = frameidx = 0;
+      } else if (framevsync) {
+        framevsync = false;
         break;
       }
     }
@@ -577,7 +576,6 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
-  // TODO: can this be async?
   async loadROM(title:string, output:any) {
     var unit = output as HDLUnit;
     var topmod = unit.modules['TOP'];
@@ -589,7 +587,6 @@ var VerilogPlatform = function(mainElement, options) {
         var _top = new topcons(topmod, unit.modules['@CONST-POOL@']);
         _top.getFileData = (path) => current_project.filedata[path]; // external file provider
         await _top.init();
-        _top.powercycle();
         this.dispose();
         top = _top;
         // create signal array
@@ -610,6 +607,9 @@ var VerilogPlatform = function(mainElement, options) {
         trace_signals = trace_signals.filter((v) => { return !v.label.startsWith("__V"); }); // remove __Vclklast etc
         trace_index = 0;
         // reset
+        if (top instanceof HDLModuleWASM) {
+          top.randomizeOnReset = true;
+        }
         this.poweron();
         // query output signals -- video or not?
         this.hasvideo = top.state.vsync != null && top.state.hsync != null && top.state.rgb != null;
@@ -702,7 +702,7 @@ var VerilogPlatform = function(mainElement, options) {
   }
   reset() {
     if (!top) return;
-    //top.reset(); // to avoid clobbering user inputs
+    // TODO: how do we avoid clobbering user-modified signals?
     doreset();
     trace_index = 0;
     if (trace_buffer) trace_buffer.fill(0);
@@ -754,7 +754,6 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
-  // TODO: bind() a function to avoid depot?
   saveState() {
     return {o: top && top.saveState()};
   }
@@ -782,7 +781,6 @@ var VerilogPlatform = function(mainElement, options) {
     keycode = state.keycode;
   }
   getDownloadFile() {
-    // TODO: WASM code too?
     if (top instanceof HDLModuleJS) {
       return {
         extension:".js", 
@@ -794,6 +792,9 @@ var VerilogPlatform = function(mainElement, options) {
         blob: new Blob([top.bmod.emitText()], {type:"text/plain"})
       };
     }
+  }
+  getHDLModuleRunner() {
+    return top;
   }
 
  } // end of inner class

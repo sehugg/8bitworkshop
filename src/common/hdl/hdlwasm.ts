@@ -111,6 +111,7 @@ interface StructRec {
     index: number;
     init: HDLBlock;
     constval: HDLConstant;
+    reset: boolean;
 }
 
 class Struct {
@@ -144,6 +145,7 @@ class Struct {
             offset: this.len,
             init: null,
             constval: null,
+            reset: false,
         }
         this.len += size;
         if (rec.name != null) this.vars[rec.name] = rec;
@@ -196,6 +198,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
     traceEndOffset: number;
     trace: any;
 
+    randomizeOnReset: boolean = false;
     finished: boolean;
     stopped: boolean;
     resetStartTimeMsec : number;
@@ -211,7 +214,6 @@ export class HDLModuleWASM implements HDLModuleRunner {
 
     async init() {
         await this.genModule();
-        this.genInitData();
         this.enableTracing();
     }
 
@@ -220,6 +222,8 @@ export class HDLModuleWASM implements HDLModuleRunner {
         this.resetStartTimeMsec = new Date().getTime() - 1;
         this.finished = false;
         this.stopped = false;
+        this.clearMutableState();
+        this.setInitialValues();
         (this.instance.exports as any)._ctor_var_reset(GLOBALOFS);
         (this.instance.exports as any)._eval_initial(GLOBALOFS);
         for (var i=0; i<100; i++) {
@@ -258,6 +262,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
         this.data8.set(state.o as Uint8Array);
     }
 
+    // get tree of global variables for debugging
     getGlobals() {
         var g = {};
         for (const [varname, vardef] of Object.entries(this.hdlmod.vardefs)) {
@@ -329,8 +334,10 @@ export class HDLModuleWASM implements HDLModuleRunner {
         // generate global variables
         var state = new Struct();
         this.globals = state;
+        // separate vars and constants
+        var vardefs = Object.values(this.hdlmod.vardefs).filter(vd => vd.constValue == null);
+        var constdefs = Object.values(this.hdlmod.vardefs).filter(vd => vd.constValue != null);
         // sort globals by output flag and size
-        var vardefs = Object.values(this.hdlmod.vardefs);
         function getVarDefSortKey(vdef: HDLVariableDef) {
             var val = getDataTypeSize(vdef.dtype); // sort by size
             if (!vdef.isOutput) val += 1000000; // outputs are first in list
@@ -353,8 +360,11 @@ export class HDLModuleWASM implements HDLModuleRunner {
         }
         state.alignTo(8);
         this.statebytes = state.len;
-        // followed by constant pool
+        // followed by constants and constant pool
         if (this.constpool) {
+            for (const vardef of Object.values(constdefs)) {
+                state.addVar(vardef);
+            }
             for (const vardef of Object.values(this.constpool.vardefs)) {
                 state.addVar(vardef);
             }
@@ -444,11 +454,22 @@ export class HDLModuleWASM implements HDLModuleRunner {
 
     private defineProperty(proxy, basefn: () => number, vref: StructRec) {
         var _this = this;
+        // precompute some things
+        var elsize = vref.type && getArrayElementSizeFromType(vref.type);
+        var eltype = vref.type;
+        while (eltype && isArrayType(eltype)) {
+            eltype = eltype.subtype;
+        }
+        var mask = -1; // set all bits
+        if (eltype && isLogicType(eltype) && eltype.left < 31) {
+            mask = (1 << (eltype.left+1)) - 1; // set partial bits
+        }
+        // define get/set on proxy object
         Object.defineProperty(proxy, vref.name, {
             get() {
                 let base = basefn();
                 if (vref.type && isArrayType(vref.type)) {
-                    var elsize = getArrayElementSizeFromType(vref.type);
+                    // TODO: can't mask unused bits in array
                     if (elsize == 1) {
                         return new Uint8Array(_this.databuf, base + vref.offset, vref.size);
                     } else if (elsize == 2) {
@@ -470,13 +491,13 @@ export class HDLModuleWASM implements HDLModuleRunner {
             set(value) {
                 var base = basefn();
                 if (vref.size == 1) {
-                    _this.data8[(base + vref.offset)] = value;
+                    _this.data8[(base + vref.offset)] = value & mask;
                     return true;
                 } else if (vref.size == 2) {
-                    _this.data16[(base + vref.offset) >> 1] = value;
+                    _this.data16[(base + vref.offset) >> 1] = value & mask;
                     return true;
                 } else if (vref.size == 4) {
-                    _this.data32[(base + vref.offset) >> 2] = value;
+                    _this.data32[(base + vref.offset) >> 2] = value & mask;
                     return true;
                 } else {
                     throw new HDLError(vref, `can't set property ${vref.name}`);
@@ -495,26 +516,45 @@ export class HDLModuleWASM implements HDLModuleRunner {
         return proxy;
     }
 
-    private genInitData() {
+    setInitialValues() {
         for (var rec of this.globals.locals) {
-            if (rec.init) {
-                var arr = this.state[rec.name];
-                if (!arr) throw new HDLError(rec, `no array to init`);
-                for (let i=0; i<rec.init.exprs.length; i++) {
-                    let e = rec.init.exprs[i];
-                    if (isArrayItem(e) && isConstExpr(e.expr)) {
-                        arr[e.index] = e.expr.cvalue;
-                    } else {
-                        throw new HDLError(e, `non-const expr in initarray (multidimensional arrays not supported)`);
-                    }
+            this.setInitialValue(rec);
+        }
+    }
+
+    private setInitialValue(rec: StructRec) {
+        var arr = this.state[rec.name];
+        if (rec.init) {
+            if (!arr) throw new HDLError(rec, `no array to init`);
+            for (let i=0; i<rec.init.exprs.length; i++) {
+                let e = rec.init.exprs[i];
+                if (isArrayItem(e) && isConstExpr(e.expr)) {
+                    arr[e.index] = e.expr.cvalue;
+                } else {
+                    throw new HDLError(e, `non-const expr in initarray (multidimensional arrays not supported)`);
                 }
-                //console.log(rec.name, rec.type, arr);
             }
-            if (rec.constval) {
-                this.state[rec.name] = rec.constval.cvalue || rec.constval.bigvalue;
+            //console.log(rec.name, rec.type, arr);
+        } else if (rec.constval) {
+            this.state[rec.name] = rec.constval.cvalue || rec.constval.bigvalue;
+        } else if (rec.type && rec.reset && this.randomizeOnReset) {
+            if (isLogicType(rec.type) && typeof arr === 'number') {
+                this.state[rec.name] = Math.random() * 4294967296; // don't need to mask
+            } else if (isArrayType(rec.type) && isLogicType(rec.type.subtype)) {
+                // array types are't mask-protected yet
+                var mask = (1 << (rec.type.subtype.left + 1)) - 1;
+                for (var i=0; i<arr.length; i++) {
+                    arr[i] = (Math.random() * 4294967296) & mask;
+                }
+            } else {
+                console.log(`could not reset ${rec.name}`)
             }
         }
     }
+
+    clearMutableState() {
+        this.data32.fill(0, 0, this.statebytes >> 2);
+    }   
 
     private addHelperFunctions() {
         this.addCopyTraceRecFunction();
@@ -979,6 +1019,11 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
 
     _creset2wasm(e: HDLUnop, opts:Options) {
+        if (isVarRef(e.left)) {
+            var glob = this.globals.lookup(e.left.refname);
+            // TOOD: must be better way to tell non-randomize values
+            if (glob && !glob.name.startsWith("__")) glob.reset = true;
+        }
         // TODO return this.e2w(e.left, opts);
         return this.bmod.nop();
     }

@@ -113,7 +113,7 @@ TODO:
   - multidim arrays
   - optimize trace log w/ wasm buffer
   - yosys compatibility 
-
+  - randomize on reset? (https://www.xilinx.com/support/documentation/white_papers/wp272.pdf)
 - single-stepping vector games makes screen fade
 - break on stack overflow, illegal op, bad access, BRK, etc
   - show in scope instead?

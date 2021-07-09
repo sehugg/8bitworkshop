@@ -1156,7 +1156,7 @@ function measureBuildTime() {
   //gaEvent('build', platform_id);
 }
 
-function setCompileOutput(data: WorkerResult) {
+async function setCompileOutput(data: WorkerResult) {
   // errors? mark them in editor
   if (data && data.errors && data.errors.length > 0) {
     toolbar.addClass("has-errors");
@@ -1178,7 +1178,7 @@ function setCompileOutput(data: WorkerResult) {
       try {
         clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
         _resetRecording();
-        platform.loadROM(getCurrentPresetTitle(), rom); // TODO: should be async?
+        await platform.loadROM(getCurrentPresetTitle(), rom);
         current_output = rom;
         if (!userPaused) _resume();
         measureBuildTime();

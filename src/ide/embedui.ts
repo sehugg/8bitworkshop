@@ -66,13 +66,13 @@ function addPageFocusHandlers() {
   });
 }
 
-function startROM(title, rom) {
+async function startROM(title, rom) {
   if (!rom ) {
     alert("No ROM found.");
     return;
   }
   console.log(rom.length + ' bytes');
-  platform.loadROM(title, rom);
+  await platform.loadROM(title, rom);
   platform.resume();
 }
 

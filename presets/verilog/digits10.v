@@ -163,11 +163,9 @@ module digits10_array(digit, yofs, bits);
     bitarray[9][4] = 5'b11111;
 
     // clear unused array entries
-    /* TODO
     for (i = 10; i <= 15; i++)
       for (j = 0; j <= 4; j++) 
         bitarray[i][j] = 0; 
-        */
   end
 endmodule
 

@@ -28,6 +28,8 @@ async function loadPlatform(msg) {
     //console.log(msg.output.ports);
     //console.log(msg.output.signals);
     await platform.loadROM("ROM", msg.output);
+    platform.getHDLModuleRunner().randomizeOnReset = false;
+    platform.getHDLModuleRunner().powercycle();
     //await platform.loadROM("ROM", msg.output);
     for (var i=0; i<100000 && !platform.isBlocked(); i++) {
       platform.tick();

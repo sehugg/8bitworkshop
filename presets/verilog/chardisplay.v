@@ -80,5 +80,5 @@ module test_ram1_top(clk, reset, hsync, vsync, rgb);
         ram_writeenable <= 0;
       end
     endcase
-      
+
 endmodule
