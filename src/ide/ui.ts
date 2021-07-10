@@ -1923,6 +1923,14 @@ function showWelcomeMessage() {
         content: "Get some books that explain how to program all of this stuff, and write some games!"
       });
     }
+    if (isElectron) {
+      steps.unshift({
+        element: "#dropdownMenuButton",
+        placement: 'right',
+        title: "Welcome to 8bitworkshop",
+        content: 'The directory $(HOMEDIR)/8bitworkshop contains all of your file edits and built ROM images.'
+      });
+    }
     var tour = new Tour({
       autoscroll:false,
       //storage:false,
