@@ -23,18 +23,19 @@ all:
 	$(TSC)
 	npm run mkdoc
 
-dist:
+distro:
 	rm -fr $(TMP) && mkdir -p $(TMP)
 	git archive HEAD | tar x -C $(TMP)
 	cp -rp gen $(TMP)
-	rm -r $(TMP)/doc $(TMP)/meta $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/.[a-z]* $(TMP)/ts*.json
+	rm -r $(TMP)/doc $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/.[a-z]* $(TMP)/ts*.json # $(TMP)/meta
 	rm -f $(TMP)/javatari && mkdir -p $(TMP)/javatari && cp javatari.js/release/javatari/* $(TMP)/javatari/
 	tar cf - `cat electron.html | egrep "^<(script|link)" | egrep -o '"([^"]+).(js|css)"' | cut -d '"' -f2` | tar x -C $(TMP)
 
-%.dist:
-	./node_modules/.bin/electron-packager $(TMP) --icon meta/icons/8bitworkshop-icon-1024.icns --out ./release --overwrite --platform $*
-
-package: dist darwin.dist win32.dist linux.dist
+desktop: distro
+	pushd $(TMP) && npm i && popd $(TMP)
+	mkdir -p $(TMP)/resources
+	./node_modules/.bin/electron-builder -mlw --project $(TMP) # --prepackaged $(TMP)
+	mv $(TMP)/dist/*.* ./release/
 
 meta/electron.diff: index.html electron.html
 	-diff -u index.html electron.html > $@
@@ -53,11 +54,11 @@ astrolibre.b64.txt: astrolibre.rom
 
 VERSION := $(shell git tag -l --points-at HEAD)
 
-syncdev: dist
+syncdev: distro
 	cp config.js $(TMP)
 	aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/dev
 
-syncprod: dist
+syncprod: distro
 	@[ "${VERSION}" ] || ( echo ">> No version set at HEAD, tag it first"; exit 1 )
 	echo Version: $(VERSION)
 	cp config.js $(TMP)

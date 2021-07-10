@@ -1,20 +1,20 @@
 {
   "name": "8bitworkshop",
-  "version": "3.7.2",
+  "version": "3.8.0b1",
   "author": "Steven Hugg",
-  "description": "8bitworkshop.com",
+  "category": "Development",
+  "description": "Desktop version of 8bitworkshop.com retro programming IDE",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sehugg/8bitworkshop.git"
   },
   "license": "GPL-3.0",
   "dependencies": {
+    "@sentry/electron": "^2.5.1",
     "binaryen": "^101.0.0",
     "chokidar": "^3.5.0",
-    "electron-store": "^6.0.1",
     "jquery": "^3.5.1",
-    "reflect-metadata": "^0.1.13",
-    "update-electron-app": "^1.5.0"
+    "reflect-metadata": "^0.1.13"
   },
   "devDependencies": {
     "@types/bootbox": "^5.1.3",
@@ -30,6 +30,7 @@
     "clipboard": "^2.0.6",
     "command-exists": "^1.2.9",
     "electron": "^9.4.0",
+    "electron-builder": "^22.11.7",
     "electron-packager": "^15.2.0",
     "file-saver": "^2.0.5",
     "heapdump": "^0.3.15",
@@ -50,10 +51,6 @@
     "typescript": "^4.3.4",
     "typescript-formatter": "^7.2.2",
     "vgm-parser": "^0.6.3"
-  },
-  "directories": {
-    "doc": "doc",
-    "test": "tests"
   },
   "scripts": {
     "build": "make",
@@ -82,5 +79,13 @@
   "bugs": {
     "url": "https://github.com/sehugg/8bitworkshop/issues"
   },
-  "homepage": "https://github.com/sehugg/8bitworkshop#readme"
+  "homepage": "https://github.com/sehugg/8bitworkshop#readme",
+  "build": {
+    "appId": "com.8bitworkshop.ide",
+    "icon": "meta/icons/8bitworkshop-icon-1024.png",
+    "copyright": "Copyright (c) 2021 Puzzling Plans LLC",
+    "linux": {
+      "category": "Development"
+    }
+  }
 }

@@ -183,19 +183,14 @@ function unsetLastPreset() {
 function initProject() {
   var basefs : ProjectFilesystem = new WebPresetsFileSystem(platform_id);
   //basefs = new FirebaseProjectFilesystem("TEST", "TEST");
-  var filesystem = new OverlayFilesystem(
-    basefs,
-    new LocalForageFilesystem(store));
+  if (isElectron) {
+    console.log('using electron with local filesystem', alternateLocalFilesystem);
+    var filesystem = new OverlayFilesystem(basefs, alternateLocalFilesystem)
+  } else {
+    var filesystem = new OverlayFilesystem(basefs, new LocalForageFilesystem(store));
+  }
   current_project = new CodeProject(newWorker(), platform_id, platform, filesystem);
   projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
-  if (isElectronWorkspace) {
-    // TODO
-    /*
-    current_project.persistent = false;
-    current_project.callbackGetRemote = getElectronFile;
-    current_project.callbackStoreFile = putWorkspaceFile;
-    */
-  }
   current_project.callbackBuildResult = (result:WorkerResult) => {
     setCompileOutput(result);
   };
@@ -1080,9 +1075,7 @@ async function updateSelector() {
     await populateFiles(sel, "Local Files", "", foundFiles);
     finishSelector(sel);
   } else {
-    if (!isElectronWorkspace) {
-      sel.append($("<option />").val('/').text('Leave Repository'));
-    }
+    sel.append($("<option />").val('/').text('Leave Repository'));
     $("#repo_name").text(getFilenameForPath(repo_id)+'/').show();
     // repo: populate all files
     await populateFiles(sel, repo_id, "", {});
@@ -1958,8 +1951,7 @@ export var qs = (function (a : string[]) {
     return b;
 })(window.location.search.substr(1).split('&'));
 
-const isElectronWorkspace = qs['electron_ws'];
-const isElectron = qs['electron'] || isElectronWorkspace;
+const isElectron = !!qs['electron'];
 
 function globalErrorHandler(msgevent) {
   var msg = (msgevent.message || msgevent.error || msgevent)+"";
@@ -2220,13 +2212,7 @@ function setPlatformUI() {
   $(".platform_name").text(name || platform_id);
 }
 
-// start
-export async function startUI() {
-  // import from github?
-  if (qs['githubURL']) {
-    importProjectFromGithub(qs['githubURL'], true);
-    return;
-  }
+export function getPlatformAndRepo() {
   // add default platform?
   // TODO: do this after repo_id
   platform_id = qs['platform'] || (hasLocalStorage && localStorage.getItem("__lastplatform"));
@@ -2249,6 +2235,16 @@ export async function startUI() {
     repo_id = '';
     delete qs['repo'];
   }
+}
+
+// start
+export async function startUI() {
+  // import from github?
+  if (qs['githubURL']) {
+    importProjectFromGithub(qs['githubURL'], true);
+    return;
+  }
+  getPlatformAndRepo();
   setupSplits();
   // create store
   store_id = repo_id || getBasePlatform(platform_id);
@@ -2340,7 +2336,7 @@ function redirectToHTTPS() {
 // redirect to HTTPS after script loads?
 redirectToHTTPS();
 
-//// ELECTRON STUFF
+//// ELECTRON (and other external) STUFF
 
 export function setTestInput(path: string, data: FileData) {
   platform.writeFile(path, data);
@@ -2362,29 +2358,21 @@ export function emulationHalted(err: EmuHalt) {
 }
 
 // get remote file from local fs
-declare var getWorkspaceFile, putWorkspaceFile;
-export function getElectronFile(url:string, success:(text:string|Uint8Array)=>void, datatype:'text'|'arraybuffer') {
-  // TODO: we have to split() to strip off presets/platform, yukky
-  var contents = getWorkspaceFile(url.split('/',3)[2], datatype);
-  if (contents != null) {
-    success(contents); // return result
-  } else {
-    getWithBinary(url, success, datatype); // try to load from presets/platform via GET
-  }
-}
-export function reloadWorkspaceFile(path: string) {
+declare var alternateLocalFilesystem : ProjectFilesystem;
+
+export async function reloadWorkspaceFile(path: string) {
   var oldval = current_project.filedata[path];
   if (oldval != null) {
-    var datatype = typeof oldval == 'string' ? 'text' : 'arraybuffer';
-    projectWindows.updateFile(path, getWorkspaceFile(path, datatype));
+    projectWindows.updateFile(path, await alternateLocalFilesystem.getFileData(path));
+    console.log('updating file', path);
   }
 }
 function writeOutputROMFile() {
-  if (isElectronWorkspace && current_output instanceof Uint8Array) {
+  if (isElectron && current_output instanceof Uint8Array) {
     var prefix = getFilenamePrefix(getCurrentMainFilename());
     var suffix = (platform.getROMExtension && platform.getROMExtension(current_output)) 
       || "-" + getBasePlatform(platform_id) + ".bin";
-    putWorkspaceFile(`bin/${prefix}${suffix}`, current_output);
+    alternateLocalFilesystem.setFileData(`bin/${prefix}${suffix}`, current_output);
   }
 }
 export function highlightSearch(query: string) { // TODO: filename?
