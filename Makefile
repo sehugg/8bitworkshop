@@ -57,10 +57,14 @@ VERSION := $(shell git tag -l --points-at HEAD)
 syncdev: distro
 	cp config.js $(TMP)
 	aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/dev
+	rsync --stats -riltz --chmod=a+rx -e "ssh" $(TMP)/ config.js $RSYNC_PATH/dev/
 
 syncprod: distro
 	@[ "${VERSION}" ] || ( echo ">> No version set at HEAD, tag it first"; exit 1 )
 	echo Version: $(VERSION)
+	grep -H "var VERSION" web/redir.html
+	grep -H "var VERSION" web/projects/projects.js
+	read
 	cp config.js $(TMP)
 	aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/v$(VERSION)
-
+	rsync --stats -riltz --chmod=a+rx -e "ssh" $(TMP)/ config.js $RSYNC_PATH/v$VERSION/
