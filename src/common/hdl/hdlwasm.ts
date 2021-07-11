@@ -1021,10 +1021,11 @@ export class HDLModuleWASM implements HDLModuleRunner {
     _creset2wasm(e: HDLUnop, opts:Options) {
         if (isVarRef(e.left)) {
             var glob = this.globals.lookup(e.left.refname);
-            // TOOD: must be better way to tell non-randomize values
-            if (glob && !glob.name.startsWith("__")) glob.reset = true;
+            // TODO: must be better way to tell non-randomize values
+            // set clk and reset to known values so values are reset properly
+            glob.reset = glob.name != 'clk' && glob.name != 'reset' && !glob.name.startsWith("__V");
         }
-        // TODO return this.e2w(e.left, opts);
+        // we reset values in powercycle()
         return this.bmod.nop();
     }
 

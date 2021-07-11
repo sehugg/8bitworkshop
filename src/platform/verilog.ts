@@ -74,8 +74,8 @@ var VERILOG_KEYCODE_MAP = makeKeycodeMap([
 ]);
 
 const TRACE_BUFFER_DWORDS = 0x40000;
-
 const CYCLES_PER_FILL = 20;
+const SHOW_INTERNAL_SIGNALS = false; // TODO: make this a config value
 
 // PLATFORM
 
@@ -159,14 +159,6 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
-  function doreset() {
-    top.state.reset = 1;
-  }
-
-  function unreset() {
-    top.state.reset = 0;
-  }
-
   // inner Platform class
     
  class _VerilogPlatform extends BasePlatform implements WaveformProvider {
@@ -241,7 +233,6 @@ var VerilogPlatform = function(mainElement, options) {
       while (framey != new_y || clock++ > 200000) {
         this.setGenInputs();
         this.updateVideoFrameCycles(1, true, false);
-        unreset();
       }
     });
   }
@@ -280,7 +271,6 @@ var VerilogPlatform = function(mainElement, options) {
       idata[frameidx] = -1;
     }
     //this.restartDebugState();
-    unreset();
     this.refreshVideoFrame();
     // set scope offset
     if (trace && this.waveview) {
@@ -296,7 +286,6 @@ var VerilogPlatform = function(mainElement, options) {
   advance(novideo : boolean) : number {
     this.setGenInputs();
     this.updateVideoFrameCycles(cyclesPerFrame, true, false);
-    unreset();
     if (!novideo) {
       this.refreshVideoFrame();
     }
@@ -519,14 +508,14 @@ var VerilogPlatform = function(mainElement, options) {
   fillTraceBuffer(count:number) : boolean {
     var max_index = Math.min(trace_buffer.length - trace_signals.length, trace_index + count);
     while (trace_index < max_index) {
+      this.snapshotTrace();
       if (!top.isStopped() && !top.isFinished()) {
         top.tick();
       }
-      this.snapshotTrace();
       if (trace_index == 0)
         break;
     }
-    unreset();
+    top.state.reset = 0; // need to de-assert reset when using no-video mode
     return (trace_index == 0);
   }
   
@@ -604,13 +593,14 @@ var VerilogPlatform = function(mainElement, options) {
           }
         }
         trace_signals = signals;
-        trace_signals = trace_signals.filter((v) => { return !v.label.startsWith("__V"); }); // remove __Vclklast etc
+        if (!SHOW_INTERNAL_SIGNALS) {
+          trace_signals = trace_signals.filter((v) => { return !v.label.startsWith("__V"); }); // remove __Vclklast etc
+        }
         trace_index = 0;
         // reset
         if (top instanceof HDLModuleWASM) {
           top.randomizeOnReset = true;
         }
-        this.poweron();
         // query output signals -- video or not?
         this.hasvideo = top.state.vsync != null && top.state.hsync != null && top.state.rgb != null;
         if (this.hasvideo) {
@@ -626,8 +616,9 @@ var VerilogPlatform = function(mainElement, options) {
         }
       }
     }
+    // randomize values
+    top.powercycle();
     // replace program ROM, if using the assembler
-    this.reset();
     // TODO: fix this, it ain't good
     if (output.program_rom && output.program_rom_variable) {
       if (top.state[output.program_rom_variable]) {
@@ -644,6 +635,8 @@ var VerilogPlatform = function(mainElement, options) {
     if (this.waveview) {
       this.waveview.recreate();
     }
+    // assert reset pin, wait 100 cycles if using video
+    this.reset();
   }
   
   restartAudio() {
@@ -695,20 +688,21 @@ var VerilogPlatform = function(mainElement, options) {
   }  
   getFrameRate() { return frameRate; }
 
-  poweron() {
-    if (!top) return;
-    top.powercycle();
-    this.reset();
-  }
   reset() {
     if (!top) return;
     // TODO: how do we avoid clobbering user-modified signals?
-    doreset();
     trace_index = 0;
     if (trace_buffer) trace_buffer.fill(0);
     if (video) video.setRotate(top.state.rotate ? -90 : 0);
     $("#verilog_bar").hide();
-    if (!this.hasvideo) this.resume(); // TODO?
+    if (this.hasvideo) {
+      top.state.reset = 1;
+      top.tick2(100);
+      top.state.reset = 0;
+    } else {
+      top.state.reset = 1; // reset will be de-asserted later
+      this.resume(); // TODO?
+    }
   }
   tick() {
     if (!top) return;
