@@ -14,7 +14,8 @@
     "binaryen": "^101.0.0",
     "chokidar": "^3.5.0",
     "jquery": "^3.5.1",
-    "reflect-metadata": "^0.1.13"
+    "reflect-metadata": "^0.1.13",
+    "update-electron-app": "^2.0.1"
   },
   "devDependencies": {
     "@types/bootbox": "^5.1.3",

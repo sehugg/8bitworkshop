@@ -5,7 +5,7 @@ const modpath = require('path')
 const isMac = process.platform === 'darwin'
 
 // call updater
-///require('update-electron-app')()
+require('update-electron-app')()
 
 // init sentry
 require('@sentry/electron').init({ dsn: "https://bf329df3d1b34afa9f5b5e8ecd80ad11@o320878.ingest.sentry.io/1813925" });
