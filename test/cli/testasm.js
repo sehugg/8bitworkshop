@@ -1,4 +1,5 @@
 
+// not really femto8
 var EXAMPLE_SPEC = {
   name:'femto8',
   vars:{
@@ -30,6 +31,95 @@ var EXAMPLE_SPEC = {
   ]
 }
 
+var BEAKER8_SPEC = {
+  "name": "Beaker8",
+  "width": 8,
+  "vars": {
+    "cb": { "bits": 3, "toks": ["0", "1", "2", "4", "8", "10", "♦", "255"]},
+    "cv": { "bits": 3, "toks": ["0", "1", "2", "3", "4", "5", "6", "♦"]},
+    "cond": { "bits": 3, "toks": ["♦", "♦", ".z", ".nz", ".c", ".nc", ".s", ".ns"] },
+    "ic": { "bits": 3 },
+    "abs8": { "bits": 8 },
+    "abs16": { "bits": 16 },
+    "rel8": { "bits": 8, "iprel": true, "ipofs": 2 }
+  },
+  "rules": [
+    { "fmt": "const.~cb",              "bits": ["00000", 0] },
+    { "fmt": "const.b.~cb",            "bits": ["00000", 0] },
+    { "fmt": "const ~abs8",            "bits": ["00000110", 0] },
+    { "fmt": "const.b ~abs8",          "bits": ["00000110", 0] },
+    { "fmt": "const.b ~abs8",          "bits": ["00000110", 0] },
+    { "fmt": "const.w.~cb",            "bits": ["00001", 0] },
+    { "fmt": "const.w ~abs16",	       "bits": ["00001110", 0] },
+    { "fmt": "peek.~cv",	       "bits": ["00010", 0] },
+    { "fmt": "peek.b.~cv",	       "bits": ["00010", 0] },
+    { "fmt": "peek ~abs8",	       "bits": ["00010111", 0] },
+    { "fmt": "peek.b ~abs8",	       "bits": ["00010111", 0] },
+    { "fmt": "peek.w.~cv",	       "bits": ["00011", 0] },
+    { "fmt": "peek.w ~abs8",	       "bits": ["00011111", 0] },
+    { "fmt": "drop.~cv",	       "bits": ["00101", 0] },
+    { "fmt": "drop ~abs8",	       "bits": ["00101111", 0] },
+    { "fmt": "send",     	       "bits": ["00101000"] },
+    { "fmt": "send.b",     	       "bits": ["00101000"] },
+    { "fmt": "send ~abs8",  	       "bits": ["00101001", 0] },
+    { "fmt": "send.b ~abs8",  	       "bits": ["00101001", 0] },
+    { "fmt": "send.~cb ~abs8",         "bits": ["00000", 0, "00101001", 0] },
+    { "fmt": "send.b.~cb ~abs8",       "bits": ["00000", 0, "00101001", 0] },
+    { "fmt": "send ~abs8, ~abs8",      "bits": ["00000110", 0, "00101001", 0] },
+    { "fmt": "send.b ~abs8, ~abs8",    "bits": ["00000110", 0, "00101001", 0] },
+    { "fmt": "receive",     	       "bits": ["00101010"] },
+    { "fmt": "receive.b",     	       "bits": ["00101010"] },
+    { "fmt": "receive.b ~abs8",        "bits": ["00101011", 0] },
+    { "fmt": "copy",                   "bits": ["00101100"] },
+    { "fmt": "copy.b",                 "bits": ["00101100"] },
+    { "fmt": "copy.inc",               "bits": ["00101110"] },
+    { "fmt": "copy.b.inc",             "bits": ["00101110"] },
+    { "fmt": "copy.dec",               "bits": ["00101111"] },
+    { "fmt": "copy.b.dec",             "bits": ["00101111"] },
+    { "fmt": "read",                   "bits": ["00110000"] },
+    { "fmt": "read.b",                 "bits": ["00110000"] },
+    { "fmt": "read ~abs16",            "bits": ["00110001", 0] },
+    { "fmt": "read.b ~abs16",          "bits": ["00110001", 0] },
+    { "fmt": "read.inc",               "bits": ["00110010"] },
+    { "fmt": "read.b.inc",             "bits": ["00110010"] },
+    { "fmt": "read.dec",               "bits": ["00110011"] },
+    { "fmt": "read.b.dec",             "bits": ["00110011"] },
+    { "fmt": "write",                  "bits": ["00110100"] },
+    { "fmt": "write.b",                "bits": ["00110100"] },
+    { "fmt": "write ~abs16",           "bits": ["00110101", 0] },
+    { "fmt": "write.b ~abs16",         "bits": ["00110101", 0] },
+    { "fmt": "write.inc",              "bits": ["00110110"] },
+    { "fmt": "write.b.inc",            "bits": ["00110110"] },
+    { "fmt": "write.dec",              "bits": ["00110111"] },
+    { "fmt": "write.b.dec",            "bits": ["00110111"] },
+    { "fmt": "read.w",                 "bits": ["00111000"] },
+    { "fmt": "read.w ~abs16",          "bits": ["00111001", 0] },
+    { "fmt": "read.w.inc",             "bits": ["00111010"] },
+    { "fmt": "read.w.dec",             "bits": ["00111011"] },
+    { "fmt": "write.w",                "bits": ["00111100"] },
+    { "fmt": "write.w ~abs16",         "bits": ["00111101", 0] },
+    { "fmt": "write.w.inc",            "bits": ["00111110"] },
+    { "fmt": "write.w.dec",            "bits": ["00111111"] },
+    { "fmt": "nop",                    "bits": ["11100000"] },
+    { "fmt": "halt",                   "bits": ["11100001"] },
+    { "fmt": "break",                  "bits": ["11100010"] },
+    { "fmt": "di",                     "bits": ["11100100"] },
+    { "fmt": "ei",                     "bits": ["11100101"] },
+    { "fmt": "jump",                   "bits": ["11101000"] },
+    { "fmt": "jump ~abs16",            "bits": ["11101001", 0] },
+    { "fmt": "call",                   "bits": ["11101010"] },
+    { "fmt": "call ~abs16",            "bits": ["11101011", 0] },
+    { "fmt": "read.pc",		       "bits": ["11101100"] },
+    { "fmt": "djr.nz ~abs8",	       "bits": ["11101110"] },
+    { "fmt": "djr.b.nz ~abs8",	       "bits": ["11101110"] },
+    { "fmt": "djr.w.nz ~abs8",	       "bits": ["11101111"] },
+    { "fmt": "jr", 	               "bits": ["11110000"] },
+    { "fmt": "jr~cond", 	       "bits": ["11110", 0] },
+    { "fmt": "ret", 	               "bits": ["11111000"] },
+    { "fmt": "ret~cond", 	       "bits": ["11111", 0] }
+  ]
+};
+
 var vm = require('vm');
 var fs = require('fs');
 var assert = require('assert');
@@ -38,11 +128,16 @@ var includeInThisContext = function(path) {
     vm.runInThisContext(code, path);
 };
 
+var femto8_spec = JSON.parse(fs.readFileSync('presets/verilog/femto8.json'));
+var femto16_spec = JSON.parse(fs.readFileSync('presets/verilog/femto16.json'));
+var riscv_spec = JSON.parse(fs.readFileSync('presets/verilog/riscv.json'));
+
+
 var assembler = require("gen/worker/assembler.js");
 
 describe('Assemble', function() {
-  it('Should assemble', function() {
-      var source = `.arch femto8
+  it('Should assemble femto8', function() {
+      let source = `.arch femto8
 .org 128
 .len 128
 
@@ -76,8 +171,8 @@ WaitVsync:
         sta	0
 	      jmp	DisplayLoop
 `;
-    var asm = new assembler.Assembler(EXAMPLE_SPEC);
-    var result = asm.assembleFile(source);
+    let asm = new assembler.Assembler(EXAMPLE_SPEC);
+    let result = asm.assembleFile(source);
     //console.log(result);
     //assert.equal(result, {});
     assert.equal(128, result.origin);
@@ -115,27 +210,146 @@ WaitVsync:
   });
 
   it('Should fail', function() {
-    var source = `.arch femto8
+    let source = `.arch femto8
     zero C
 `;
-    var asm = new assembler.Assembler(EXAMPLE_SPEC);
-    var result = asm.assembleFile(source);
+    let asm = new assembler.Assembler(EXAMPLE_SPEC);
+    let result = asm.assembleFile(source);
     console.log(result);
     assert.deepEqual(
       [ { msg: "Can't use 'c' here, only one of: a, b, ip, none", line: 2 } ],
       result.errors);
   });
-/*
-  it('Should fail 2', function() {
-    var source = `.arch femto8
-    mov A, [b]
+
+  it('Should assemble femto16', function() {
+    let source = `
+    .arch femto16
+    .org 0x8000
+    .len 256
+          mov	sp,@$6fff
+          mov	dx,@Fib
+          jsr	dx
+          reset
+    Fib:
+          mov	ax,#1
+          mov	bx,#0
+    Loop:
+          mov	cx,ax
+          add	ax,bx
+          mov	bx,cx
+          push	ax
+          pop	ax
+          mov	[42],ax
+          mov	ax,[42]
+          bcc	Loop
+          rts    
 `;
-    var asm = new assembler.Assembler(EXAMPLE_SPEC);
-    var result = asm.assembleFile(source);
-    console.log(result);
-    assert.deepEqual(
-      [ { msg: "Can't use 'c' here, only one of: a, b, ip, none", line: 2 } ],
-      result.errors);
+    let asm = new assembler.Assembler(femto16_spec);
+    let result = asm.assembleFile(source);
+    assert.deepEqual(result.lines, [
+      { line: 5, offset: 32768, nbits: 32, insns: '1E58 6FFF' },
+      { line: 6, offset: 32770, nbits: 32, insns: '1B58 8006' },
+      { line: 7, offset: 32772, nbits: 16, insns: '771E' },
+      { line: 8, offset: 32773, nbits: 16, insns: 'B8FF' },
+      { line: 10, offset: 32774, nbits: 16, insns: 'D801' },
+      { line: 11, offset: 32775, nbits: 16, insns: 'D900' },
+      { line: 13, offset: 32776, nbits: 16, insns: '0258' },
+      { line: 14, offset: 32777, nbits: 16, insns: '0061' },
+      { line: 15, offset: 32778, nbits: 16, insns: '015A' },
+      { line: 16, offset: 32779, nbits: 16, insns: '5006' },
+      { line: 17, offset: 32780, nbits: 16, insns: '480E' },
+      { line: 18, offset: 32781, nbits: 16, insns: '302A' },
+      { line: 19, offset: 32782, nbits: 16, insns: '282A' },
+      { line: 20, offset: 32783, nbits: 16, insns: '81F8' },
+      { line: 21, offset: 32784, nbits: 16, insns: '4F0E' }
+    ]);
   });
-*/
+
+  it('Should assemble riscv', function() {
+    let source = `
+    .arch riscv
+    .org 0
+    .len 2048
+    .width 32
+    FOO:
+          add x1,x2,x2
+          sub x3,zero,x2
+          xor x4,x3,x2
+          addi x5,x4,1234
+          beq x10,x11,FOO3
+    ;     .data 0x7cb504e3
+    FOO3:
+          beq x10,x11,FOO   ;7CB504E3
+    FOO2:
+          lw x6,12(x6)
+          sb x7,64(x6)
+          sh x7,68(x7)
+          sw x7,72(x7)
+          lui x12,12    
+`;
+    let asm = new assembler.Assembler(riscv_spec);
+    let result = asm.assembleFile(source);
+    assert.deepEqual(result.lines, [
+        { line: 7, offset: 0, nbits: 32, insns: '002100B3' },
+        { line: 8, offset: 1, nbits: 32, insns: '402001B3' },
+        { line: 9, offset: 2, nbits: 32, insns: '0021C233' },
+        { line: 10, offset: 3, nbits: 32, insns: '4D220293' },
+        { line: 11, offset: 4, nbits: 32, insns: '00B50263' },
+        { line: 14, offset: 5, nbits: 32, insns: 'FEB506E3' },
+        { line: 16, offset: 6, nbits: 32, insns: '00C32303' },
+        { line: 17, offset: 7, nbits: 32, insns: '04638023' },
+        { line: 18, offset: 8, nbits: 32, insns: '04739223' },
+        { line: 19, offset: 9, nbits: 32, insns: '0473A423' },
+        { line: 20, offset: 10, nbits: 32, insns: '0000C637' }
+    ]);
+  });
+
+  it('Should assemble 16-bit constants', function() {
+    let source = `
+.arch   Beaker8
+.org    0
+.len    0x4000
+
+.define vramWrite $00
+.define vramRead $01
+
+.define	vdpReg0 $40
+.define vdpReg1 $41
+.define vdpReg2 $42
+      
+
+boot:   di
+        jump Init
+
+init:   call setTextMode
+        halt
+        
+setTextMode:
+;       // set vdp0  border 1, mode 4 (Text)      
+        send vdpReg0, $14
+        const.w $2000         ;// length
+  const.w.0             ;// address
+        call clrVram
+        ret
+      
+;       // w  length
+;       // w  address
+clrVram:       
+;       // send address to vdp
+        send vdpReg1
+        send vdpReg2
+
+;       // send 0 to vram
+_loop:
+        const.0
+        send vramWrite
+        djr.w.nz _loop
+        ret 
+`;
+    let asm = new assembler.Assembler(BEAKER8_SPEC);
+    let result = asm.assembleFile(source);
+    assert.deepEqual(result.lines, [
+    ]);
+  })
+
 });

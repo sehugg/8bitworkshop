@@ -54,7 +54,7 @@
     "vgm-parser": "^0.6.3"
   },
   "scripts": {
-    "build": "make",
+    "build": "tsc --build tsconfig.json",
     "test": "npm run test-node",
     "test-one": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000",
     "test-node": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --reporter mocha-simple-html-reporter --reporter-options output=test/output/cli.html test/cli",

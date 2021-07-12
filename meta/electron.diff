@@ -1,4 +1,4 @@
---- index.html	2021-07-09 15:15:12.000000000 -0500
+--- index.html	2021-07-11 18:38:37.000000000 -0500
 +++ electron.html	2021-07-10 13:34:48.000000000 -0500
 @@ -3,18 +3,7 @@
  
@@ -69,7 +69,7 @@
          </ul>
        </li>
        <li class="dropdown dropdown-submenu">
-@@ -110,36 +63,6 @@
+@@ -110,35 +63,6 @@
            <li><a class="dropdown-item" href="#" id="item_debug_expr">Break Expression...</a></li>
          </ul>
        </li>
@@ -92,12 +92,11 @@
 -      <li class="dropdown dropdown-submenu">
 -        <a tabindex="-1" href="#">About</a>
 -        <ul class="dropdown-menu">
--          <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/blog">Latest News</a></li>
--          <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/projects">Projects</a></li>
+-          <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/">Website</a></li>
 -          <li><a class="dropdown-item" target="_8bws_about" href="https://twitter.com/8bitworkshop">Twitter</a></li>
--          <li><a class="dropdown-item" target="_8bws_about" href="https://github.com/sehugg/8bitworkshop">GitHub</a></li>
+-          <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/docs/blog.html">Latest News</a></li>
 -          <li><a class="dropdown-item" target="_8bws_about" href="https://github.com/sehugg/8bitworkshop/issues/new">Report an Issue</a></li>
--          <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/blog/docs/ide.md.html">IDE Help</a></li>
+-          <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/docs/docs/ide.html">User Manual</a></li>
 -        </ul>
 -      </li>
 -      <!--
@@ -106,7 +105,7 @@
      </ul>
    </span>
  
-@@ -235,41 +158,8 @@
+@@ -234,41 +158,8 @@
      <span class="label"><span id="settle_label"></span> evals/clk</span>
    </span>
  
@@ -149,7 +148,7 @@
  
   </div><!-- controls_dynamic -->
  </div><!-- controls_top -->
-@@ -453,73 +343,6 @@
+@@ -452,73 +343,6 @@
      </div>
    </div>
  </div>
@@ -223,7 +222,7 @@
  
  <script src="jquery/jquery.min.js"></script>
  
-@@ -614,28 +437,5 @@
+@@ -613,28 +437,5 @@
    startUI();
  </script>
  

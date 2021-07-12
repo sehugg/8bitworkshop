@@ -366,7 +366,7 @@ type FileEntry = {
 
 type BuildOptions = {
   mainFilePath : string,
-  processFn?: (FileData) => FileData
+  processFn?: (s:string, d:FileData) => FileData
 };
 
 // TODO
@@ -421,8 +421,9 @@ function getWorkFileAsString(path:string) : string {
 
 function populateEntry(fs, path:string, entry:FileEntry, options:BuildOptions) {
   var data = entry.data;
-  if (options && options.processFn)
-    data = options.processFn(data);
+  if (options && options.processFn) {
+    data = options.processFn(path, data);
+  }
   // create subfolders
   var toks = path.split('/');
   if (toks.length > 1) {
@@ -1773,7 +1774,6 @@ function compileVerilator(step:BuildStep) {
   loadRequire("vxmlparser", "common/hdl/vxmlparser");
   var platform = step.platform || 'verilog';
   var errors : WorkerError[] = [];
-  var asmlines : SourceLine[] = [];
   gatherFiles(step);
   // compile verilog if files are stale
   var xmlPath = "main.xml";
@@ -1793,17 +1793,26 @@ function compileVerilator(step:BuildStep) {
     var code = getWorkFileAsString(step.path);
     var topmod = detectTopModuleName(code);
     var FS = verilator_mod['FS'];
+    var listings : CodeListingMap = {};
+    // process inline assembly, add listings where found
     populateFiles(step, FS, {
       mainFilePath:step.path,
-      processFn:(code) => {
-        code = compileInlineASM(code, platform, step, errors, asmlines);
+      processFn:(path,code) => {
+        if (typeof code === 'string') {
+          let asmlines = [];
+          code = compileInlineASM(code, platform, step, errors, asmlines);
+          if (asmlines.length) {
+            listings[path] = {lines:asmlines};
+          }
+        }
         return code;
       }
     });
     starttime();
     try {
       var args = ["--cc", "-O3"/*abcdefstzsuka*/, "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
-        "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED", '--report-unoptflat',
+        "-Wall",
+        "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-EOFNEWLINE", "-Wno-PROCASSWIRE",
         "--x-assign", "fast", "--noassert", "--pins-sc-biguint",
         "--xml-output", xmlPath,
         "--top-module", topmod, step.path]
@@ -1821,11 +1830,11 @@ function compileVerilator(step:BuildStep) {
     }
     starttime();
     var xmlParser = new emglobal['VerilogXMLParser']();
-    var listings : CodeListingMap = {};
     try {
       var xmlContent = FS.readFile(xmlPath, {encoding:'utf8'});
       var xmlScrubbed = xmlContent.replace(/ fl=".+?" loc=".+?"/g, '');
-      listings[step.prefix + '.lst'] = {lines:[],text:xmlContent};
+      // TODO: this squelches the .asm listing
+      //listings[step.prefix + '.xml'] = {lines:[],text:xmlContent};
       putWorkFile(xmlPath, xmlScrubbed); // don't detect changes in source position
       if (!anyTargetChanged(step, [xmlPath]))
         return;
@@ -1842,10 +1851,6 @@ function compileVerilator(step:BuildStep) {
     } finally {
       endtime("parse");
     }
-    //rtn.intermediate = {listing:h_file + cpp_file}; // TODO
-    // TODO: what if found in non-top-module?
-    if (asmlines.length)
-      listings[step.path] = {lines:asmlines};
     return {
       output: xmlParser,
       errors: errors,
