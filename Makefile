@@ -29,7 +29,7 @@ distro:
 	git archive HEAD | tar x -C $(TMP)
 	cp -rp gen $(TMP)
 	rm -r $(TMP)/doc $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/.[a-z]* $(TMP)/ts*.json # $(TMP)/meta
-	rm -f $(TMP)/javatari && mkdir -p $(TMP)/javatari && cp javatari.js/release/javatari/* $(TMP)/javatari/
+	rm -f $(TMP)/javatari && mkdir -p $(TMP)/javatari && cp -p javatari.js/release/javatari/* $(TMP)/javatari/
 	tar cf - `cat electron.html | egrep "^<(script|link)" | egrep -o '"([^"]+).(js|css)"' | cut -d '"' -f2` | tar x -C $(TMP)
 
 desktop: distro
@@ -57,8 +57,8 @@ VERSION := $(shell git tag -l --points-at HEAD)
 
 syncdev: distro
 	cp config.js $(TMP)
-	aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/dev
-	rsync --stats -riltz --chmod=a+rx -e "ssh" $(TMP)/ config.js $RSYNC_PATH/dev/
+	aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/dev/
+	rsync --stats -riltz --chmod=a+rx -e "ssh" $(TMP)/ config.js $(RSYNC_PATH)/dev/
 
 syncprod: distro
 	@[ "${VERSION}" ] || ( echo ">> No version set at HEAD, tag it first"; exit 1 )
@@ -67,5 +67,5 @@ syncprod: distro
 	grep -H "var VERSION" web/projects/projects.js
 	read
 	cp config.js $(TMP)
-	aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/v$(VERSION)
-	rsync --stats -riltz --chmod=a+rx -e "ssh" $(TMP)/ config.js $RSYNC_PATH/v$VERSION/
+	aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/v$(VERSION)/
+	rsync --stats -riltz --chmod=a+rx -e "ssh" $(TMP)/ config.js $(RSYNC_PATH)/v$(VERSION)/
