@@ -40,7 +40,7 @@ var BEAKER8_SPEC = {
     "cond": { "bits": 3, "toks": ["♦", "♦", ".z", ".nz", ".c", ".nc", ".s", ".ns"] },
     "ic": { "bits": 3 },
     "abs8": { "bits": 8 },
-    "abs16": { "bits": 16 },
+    "abs16": { "bits": 16, "endian": "little" },
     "rel8": { "bits": 8, "iprel": true, "ipofs": 2 }
   },
   "rules": [
@@ -317,7 +317,6 @@ WaitVsync:
 .define vdpReg1 $41
 .define vdpReg2 $42
       
-
 boot:   di
         jump Init
 
@@ -325,21 +324,16 @@ init:   call setTextMode
         halt
         
 setTextMode:
-;       // set vdp0  border 1, mode 4 (Text)      
         send vdpReg0, $14
         const.w $2000         ;// length
   const.w.0             ;// address
         call clrVram
         ret
       
-;       // w  length
-;       // w  address
 clrVram:       
-;       // send address to vdp
         send vdpReg1
         send vdpReg2
 
-;       // send 0 to vram
 _loop:
         const.0
         send vramWrite
@@ -348,7 +342,23 @@ _loop:
 `;
     let asm = new assembler.Assembler(BEAKER8_SPEC);
     let result = asm.assembleFile(source);
+    console.log(result.lines);
     assert.deepEqual(result.lines, [
+      { line: 13, offset: 0, nbits: 8, insns: 'E4' },
+      { line: 14, offset: 1, nbits: 24, insns: 'E9 00 00' },
+      { line: 16, offset: 4, nbits: 24, insns: 'EB 00 00' },
+      { line: 17, offset: 7, nbits: 8, insns: 'E1' },
+      { line: 20, offset: 8, nbits: 32, insns: '06 40 29 40' },
+      { line: 21, offset: 12, nbits: 24, insns: '0E 00 20' },
+      { line: 22, offset: 15, nbits: 8, insns: '08' },
+      { line: 23, offset: 16, nbits: 24, insns: 'EB 00 00' },
+      { line: 24, offset: 19, nbits: 8, insns: 'F8' },
+      { line: 27, offset: 20, nbits: 16, insns: '29 41' },
+      { line: 28, offset: 22, nbits: 16, insns: '29 42' },
+      { line: 31, offset: 24, nbits: 8, insns: '00' },
+      { line: 32, offset: 25, nbits: 16, insns: '29 00' },
+      { line: 33, offset: 27, nbits: 8, insns: 'EF' },
+      { line: 34, offset: 28, nbits: 8, insns: 'F8' }
     ]);
   })
 

@@ -44,7 +44,7 @@
     "mocha-simple-html-reporter": "^2.0.0",
     "mousetrap": "^1.6.5",
     "nightwatch": "^1.6.4",
-    "octokat": "^0.8.0",
+    "octokat": "^0.10.0",
     "pngjs": "^3.4.0",
     "rgbquant": "^1.1.2",
     "split.js": "^1.6.2",

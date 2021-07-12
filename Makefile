@@ -2,9 +2,12 @@
 TSC=./node_modules/typescript/bin/tsc --build
 TMP=./tmp/dist
 
-all:
+buildtsc:
+	$(TSC) tsconfig.json
+
+prepare: buildtsc
 	patch -i meta/electron.diff -o electron.html
-	cp nanoasm/src/assembler.ts src/worker/
+	#cp nanoasm/src/assembler.ts src/worker/
 	cp node_modules/jquery/dist/jquery.min.js ./jquery/
 	cp -r node_modules/bootstrap/dist/* ./bootstrap/
 	cp node_modules/bootstrap-tourist/*.css node_modules/bootstrap-tourist/*.js ./lib/
@@ -19,8 +22,6 @@ all:
 	cp unicorn.js/dist/unicorn-arm.min.js ./unicorn.js/demos/externals/capstone-arm.min.js ./lib/
 	cp gif.js/dist/* ./lib/
 	cd jsnes && npm i
-	$(TSC) -v
-	$(TSC)
 	npm run mkdoc
 
 distro:

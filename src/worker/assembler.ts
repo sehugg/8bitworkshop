@@ -2,6 +2,7 @@
 type AssemblerVar = {
   bits : number,
   toks : string[],
+  endian? : 'big' | 'little',
   iprel? : boolean,
   ipofs? : number,
   ipmul? : number,
@@ -219,12 +220,31 @@ export class Assembler {
       return parseInt(s);
   }
 
+  changeEndian(endian: 'big'|'little', x: number, nbits: number) {
+    if (endian == null || endian == 'big') {
+      return x;
+    } else if (endian == 'little') {
+      var y = 0;
+      while (nbits > 0) {
+        var n = Math.min(nbits, this.width);
+        var mask = (1 << n) - 1;
+        y <<= n;
+        y |= (x & mask);
+        x >>>= n;
+        nbits -= n;
+      }
+      return y;
+    } else {
+      this.fatal('Endian must be "big" or "little"');
+    }
+  }
+
   buildInstruction(rule:AssemblerRule, m:string[]) : AssemblerLineResult {
     var opcode = 0;
     var oplen = 0;
     // iterate over each component of the rule output ("bits")
-    for (var b of rule.bits) {
-      var n,x;
+    for (let b of rule.bits) {
+      let n,x;
       // is a string? then it's a bit constant
       // TODO
       if (typeof b === "string") {
@@ -253,6 +273,7 @@ export class Assembler {
         } else {
           // otherwise, parse it as a constant
           x = this.parseConst(id, n);
+          x = this.changeEndian(v.endian, x, v.bits);
           // is it a label? add fixup
           if (isNaN(x)) {
             this.fixups.push({
@@ -267,6 +288,7 @@ export class Assembler {
               return {error:"Value " + x + " does not fit in " + v.bits + " bits"};
           }
         }
+        // is it an array slice? slice the bits
         if (typeof b !== "number") {
           x = (x >>> shift) & ((1 << b.n)-1);
         }
