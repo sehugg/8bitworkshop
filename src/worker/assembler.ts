@@ -1,8 +1,14 @@
 
+type Endian = 'big' | 'little';
+
+type Symbol = {
+  value: number
+}
+
 type AssemblerVar = {
   bits : number,
   toks : string[],
-  endian? : 'big' | 'little',
+  endian? : Endian,
   iprel? : boolean,
   ipofs? : number,
   ipmul? : number,
@@ -38,6 +44,7 @@ type AssemblerFixup = {
   iprel:boolean,
   ipofs:number,
   ipmul:number,
+  endian:Endian
 };
 
 type AssemblerSpec = {
@@ -96,7 +103,7 @@ export class Assembler {
   ip = 0;
   origin = 0;
   linenum = 0;
-  symbols : {[name:string] : {value:number}} = {};
+  symbols : {[name:string] : Symbol} = {};
   errors : AssemblerError[] = [];
   outwords : number[] = [];
   asmlines : AssemblerLine[] = [];
@@ -152,7 +159,7 @@ export class Assembler {
 
   preprocessRules() {
     if (this.spec.width) {
-      this.width = this.spec.width|0;
+      this.width = this.spec.width || 8;
     }
     for (var rule of this.spec.rules) {
       this.rule2regex(rule, this.spec.vars);
@@ -220,23 +227,17 @@ export class Assembler {
       return parseInt(s);
   }
 
-  changeEndian(endian: 'big'|'little', x: number, nbits: number) {
-    if (endian == null || endian == 'big') {
-      return x;
-    } else if (endian == 'little') {
-      var y = 0;
-      while (nbits > 0) {
-        var n = Math.min(nbits, this.width);
-        var mask = (1 << n) - 1;
-        y <<= n;
-        y |= (x & mask);
-        x >>>= n;
-        nbits -= n;
-      }
-      return y;
-    } else {
-      this.fatal('Endian must be "big" or "little"');
+  swapEndian(x: number, nbits: number) {
+    var y = 0;
+    while (nbits > 0) {
+      var n = Math.min(nbits, this.width);
+      var mask = (1 << n) - 1;
+      y <<= n;
+      y |= (x & mask);
+      x >>>= n;
+      nbits -= n;
     }
+    return y;
   }
 
   buildInstruction(rule:AssemblerRule, m:string[]) : AssemblerLineResult {
@@ -273,12 +274,12 @@ export class Assembler {
         } else {
           // otherwise, parse it as a constant
           x = this.parseConst(id, n);
-          x = this.changeEndian(v.endian, x, v.bits);
           // is it a label? add fixup
           if (isNaN(x)) {
             this.fixups.push({
               sym:id, ofs:this.ip, size:v.bits, line:this.linenum,
               dstlen:n, dstofs:oplen, srcofs:shift,
+              endian:v.endian,
               iprel:!!v.iprel, ipofs:(v.ipofs+0), ipmul:v.ipmul||1
             });
             x = 0;
@@ -288,6 +289,8 @@ export class Assembler {
               return {error:"Value " + x + " does not fit in " + v.bits + " bits"};
           }
         }
+        // if little endian, we need to swap ordering
+        if (v.endian == 'little') x = this.swapEndian(x, v.bits);
         // is it an array slice? slice the bits
         if (typeof b !== "number") {
           x = (x >>> shift) & ((1 << b.n)-1);
@@ -381,35 +384,49 @@ export class Assembler {
     this.warning(lastError ? lastError : ("Could not decode instruction: " + line));
   }
 
+  applyFixup(fix: AssemblerFixup, sym: Symbol) {
+    var ofs = fix.ofs + Math.floor(fix.dstofs/this.width);
+    var mask = ((1<<fix.size)-1);
+    var value = this.parseConst(sym.value+"", fix.dstlen);
+    if (fix.iprel)
+      value = (value - fix.ofs) * fix.ipmul - fix.ipofs;
+    if (fix.srcofs == 0 && (value > mask || value < -mask))
+      this.warning("Symbol " + fix.sym + " (" + value + ") does not fit in " + fix.dstlen + " bits", fix.line);
+    //console.log(hex(value,8), fix.srcofs, fix.dstofs, fix.dstlen);
+    if (fix.srcofs > 0)
+      value >>>= fix.srcofs;
+    value &= (1 << fix.dstlen) - 1;
+    // TODO: make it work for all widths
+    if (this.width == 32) {
+      var shift = 32 - fix.dstofs - fix.dstlen;
+      value <<= shift;
+    }
+    // TODO: check range
+    if (fix.size <= this.width) {
+      this.outwords[ofs - this.origin] ^= value;
+    } else {
+      // swap if we want big endian (we'll apply in LSB first order)
+      if (fix.endian == 'big') value = this.swapEndian(value, fix.size);
+      // apply multi-byte fixup
+      while (value) {
+        if (value & this.outwords[ofs - this.origin]) {
+          this.warning("Instruction bits overlapped: " + hex(this.outwords[ofs - this.origin],8), hex(value,8));
+        } else {
+          this.outwords[ofs - this.origin] ^= value & ((1<<this.width)-1);
+        }
+        value >>>= this.width;
+        ofs++;
+      }
+    }
+  }
+
   finish() : AssemblerState {
     // apply fixups
     for (var i=0; i<this.fixups.length; i++) {
       var fix = this.fixups[i];
       var sym = this.symbols[fix.sym];
       if (sym) {
-        var ofs = fix.ofs + Math.floor(fix.dstofs/this.width);
-        var mask = ((1<<fix.size)-1);
-        var value = this.parseConst(sym.value+"", fix.dstlen);
-        if (fix.iprel)
-          value = (value - fix.ofs) * fix.ipmul - fix.ipofs;
-        if (fix.srcofs == 0 && (value > mask || value < -mask))
-          this.warning("Symbol " + fix.sym + " (" + value + ") does not fit in " + fix.dstlen + " bits", fix.line);
-        //console.log(hex(value,8), fix.srcofs, fix.dstofs, fix.dstlen);
-        if (fix.srcofs > 0)
-          value >>>= fix.srcofs;
-        value &= (1 << fix.dstlen) - 1;
-        // TODO: make it work for all widths
-        if (this.width == 32) {
-          var shift = 32 - fix.dstofs - fix.dstlen;
-          value <<= shift;
-          //console.log(fix, shift, fix.dstlen, hex(value,8));
-        }
-        // TODO: check range
-        // TODO: span multiple words?
-        if (value & this.outwords[ofs - this.origin]) {
-          //this.warning("Instruction bits overlapped: " + hex(this.outwords[ofs - this.origin],8), hex(value,8));
-        }
-        this.outwords[ofs - this.origin] ^= value; // TODO: << shift?
+        this.applyFixup(fix, sym);
       } else {
         this.warning("Symbol '" + fix.sym + "' not found");
       }

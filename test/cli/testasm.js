@@ -177,7 +177,7 @@ WaitVsync:
     //assert.equal(result, {});
     assert.equal(128, result.origin);
     assert.equal(152, result.ip);
-    console.log(result);
+    assert.deepEqual([], result.errors);
     assert.deepEqual({
             insns: "0B",
             line: 13,
@@ -215,7 +215,6 @@ WaitVsync:
 `;
     let asm = new assembler.Assembler(EXAMPLE_SPEC);
     let result = asm.assembleFile(source);
-    console.log(result);
     assert.deepEqual(
       [ { msg: "Can't use 'c' here, only one of: a, b, ip, none", line: 2 } ],
       result.errors);
@@ -246,6 +245,7 @@ WaitVsync:
 `;
     let asm = new assembler.Assembler(femto16_spec);
     let result = asm.assembleFile(source);
+    assert.deepEqual([], result.errors);
     assert.deepEqual(result.lines, [
       { line: 5, offset: 32768, nbits: 32, insns: '1E58 6FFF' },
       { line: 6, offset: 32770, nbits: 32, insns: '1B58 8006' },
@@ -289,6 +289,7 @@ WaitVsync:
 `;
     let asm = new assembler.Assembler(riscv_spec);
     let result = asm.assembleFile(source);
+    assert.deepEqual([], result.errors);
     assert.deepEqual(result.lines, [
         { line: 7, offset: 0, nbits: 32, insns: '002100B3' },
         { line: 8, offset: 1, nbits: 32, insns: '402001B3' },
@@ -304,7 +305,7 @@ WaitVsync:
     ]);
   });
 
-  it('Should assemble 16-bit constants', function() {
+  it('Should assemble multiword little endian constants', function() {
     let source = `
 .arch   Beaker8
 .org    0
@@ -326,10 +327,10 @@ init:   call setTextMode
 setTextMode:
         send vdpReg0, $14
         const.w $2000         ;// length
-  const.w.0             ;// address
+        const.w.0             ;// address
+        const.w init          ;// symbol
         call clrVram
         ret
-      
 clrVram:       
         send vdpReg1
         send vdpReg2
@@ -342,23 +343,24 @@ _loop:
 `;
     let asm = new assembler.Assembler(BEAKER8_SPEC);
     let result = asm.assembleFile(source);
-    console.log(result.lines);
+    assert.deepEqual([], result.errors);
     assert.deepEqual(result.lines, [
       { line: 13, offset: 0, nbits: 8, insns: 'E4' },
-      { line: 14, offset: 1, nbits: 24, insns: 'E9 00 00' },
-      { line: 16, offset: 4, nbits: 24, insns: 'EB 00 00' },
+      { line: 14, offset: 1, nbits: 24, insns: 'E9 04 00' },
+      { line: 16, offset: 4, nbits: 24, insns: 'EB 08 00' },
       { line: 17, offset: 7, nbits: 8, insns: 'E1' },
       { line: 20, offset: 8, nbits: 32, insns: '06 40 29 40' },
       { line: 21, offset: 12, nbits: 24, insns: '0E 00 20' },
       { line: 22, offset: 15, nbits: 8, insns: '08' },
-      { line: 23, offset: 16, nbits: 24, insns: 'EB 00 00' },
-      { line: 24, offset: 19, nbits: 8, insns: 'F8' },
-      { line: 27, offset: 20, nbits: 16, insns: '29 41' },
-      { line: 28, offset: 22, nbits: 16, insns: '29 42' },
-      { line: 31, offset: 24, nbits: 8, insns: '00' },
-      { line: 32, offset: 25, nbits: 16, insns: '29 00' },
-      { line: 33, offset: 27, nbits: 8, insns: 'EF' },
-      { line: 34, offset: 28, nbits: 8, insns: 'F8' }
+      { line: 23, offset: 16, nbits: 24, insns: '0E 04 00' },
+      { line: 24, offset: 19, nbits: 24, insns: 'EB 17 00' },
+      { line: 25, offset: 22, nbits: 8, insns: 'F8' },
+      { line: 27, offset: 23, nbits: 16, insns: '29 41' },
+      { line: 28, offset: 25, nbits: 16, insns: '29 42' },
+      { line: 31, offset: 27, nbits: 8, insns: '00' },
+      { line: 32, offset: 28, nbits: 16, insns: '29 00' },
+      { line: 33, offset: 30, nbits: 8, insns: 'EF' },
+      { line: 34, offset: 31, nbits: 8, insns: 'F8' }
     ]);
   })
 
