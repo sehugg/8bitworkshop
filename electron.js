@@ -1,8 +1,11 @@
 "use strict";
 
-const { app, Menu, BrowserWindow } = require('electron')
-const modpath = require('path')
+const { app, dialog, Menu, BrowserWindow } = require('electron')
+const _path = require('path')
 const isMac = process.platform === 'darwin'
+
+const homeDirectory = require('os').homedir();
+const wsroot = process.env.HOME_8BITWORKSHOP || _path.join(homeDirectory, '8bitworkshop');
 
 // call updater
 require('update-electron-app')()
@@ -17,14 +20,14 @@ function openURL(url) {
   }
 }
 
-function createWindow () {
+function createWindow (platform, repo, mainfile) {
   // Create the browser window.
   const win = new BrowserWindow({
     width: 1024,
     height: 768,
     backgroundColor: '#fff',
     webPreferences: {
-      preload: modpath.join(__dirname, './electron-preload.js'),
+      preload: _path.join(__dirname, './electron-preload.js'),
       nodeIntegration: false,
       enableRemoteModule: false,
       contextIsolation: false,
@@ -33,8 +36,16 @@ function createWindow () {
   })
 
   // and load the index.html of the app.
+  var qs = 'electron=1&';
+  if (platform != null) {
+    qs += 'platform=' + platform + '&';
+  }
+  if (mainfile != null) {
+    qs += 'file=' + mainfile + '&'
+  }
+  qs += 'repo=' + (repo || '/');
   win.loadFile('electron.html', {
-    search: 'electron=1&repo=/'
+    search: qs
   });
 
   // Maximize
@@ -47,6 +58,44 @@ function reloadCurrentWindow() {
   var wnd = BrowserWindow.getFocusedWindow();
   wnd.reload();
 }
+
+function openWorkspaceWindow(mainfilepath) {
+  var relpath = _path.relative(wsroot, mainfilepath);
+  if (relpath.startsWith('.')) {
+    dialog.showErrorBox('Error', `Your workspace directory must be directly under "${wsroot}/<platform>/"`);
+    return;
+  }
+  var toks = relpath.split(_path.sep);
+  if (toks.length < 3) {
+    dialog.showErrorBox('Error', `You must create a directory for your project, e.g. "${toks[0]||'<platform>'}/myproject/"`);
+    return;
+  }
+  if (toks.length > 3) {
+    dialog.showErrorBox('Error', `Your main file must be directly under "${wsroot}/<platform>/<project>/"`);
+    return;
+  }
+  var wnd = BrowserWindow.getFocusedWindow();
+  if (wnd) wnd.close();
+  createWindow(toks[0], toks[0] + '/' + toks[1], toks[2]);
+}
+
+function openWorkspaceDialog() {
+  dialog.showOpenDialog({
+    title: "Open Project",
+    defaultPath: wsroot,
+    properties: ['openFile', 'promptToCreate'],
+    message: "Choose the main source file in your project directory (i.e. ~/8bitworkshop/c64/myproject/main.c)",
+  }).then((rtn) => {
+    if (!rtn.canceled && rtn.filePaths && rtn.filePaths.length > 0) {
+      var path = rtn.filePaths[0];
+      if (path) {
+        openWorkspaceWindow(path);
+      }
+    }
+  });
+}
+
+///
 
 function buildMenu() {
 
@@ -70,6 +119,23 @@ function buildMenu() {
     {
       label: 'File',
       submenu: [
+        {
+          label: 'Open Workspace...',
+          click: openWorkspaceDialog,
+          accelerator: 'CmdOrCtrl+O',
+        },
+        // When a file is requested from the recent documents menu, the open-file event of app module will be emitted for it.
+        {
+          "label":"Open Recent",
+          "role":"recentdocuments",
+          "submenu":[
+            {
+              "label":"Clear Recent",
+              "role":"clearrecentdocuments"
+            }
+          ]
+        },
+        { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' }
       ]
     },
@@ -171,36 +237,19 @@ function buildMenu() {
   Menu.setApplicationMenu(menu)
 }
 
+// Quit when all windows are closed, except on macOS. There, it's common
+// for applications and their menu bar to stay active until the user quits
+// explicitly with Cmd + Q.
+app.on('window-all-closed', () => {
+  app.quit()
+})
+
+app.on('open-file', (event, path) => {
+  openWorkspaceWindow(path);
+})
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(buildMenu).then(createWindow)
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
-
-app.on('activate', () => {
-  // On macOS it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
-    openDefaultWorkspace()
-  }
-})
-
-/* TODO
-app.on('browser-window-focus', (e) => {
-  var ws = e.sender.workspace;
-  if (ws) ws.unwatch();
-})
-
-app.on('browser-window-blur', (e) => {
-  var ws = e.sender.workspace;
-  if (ws) ws.watch(e.sender);
-})
-*/

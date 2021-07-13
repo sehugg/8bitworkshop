@@ -1927,8 +1927,14 @@ function showWelcomeMessage() {
       steps.unshift({
         element: "#dropdownMenuButton",
         placement: 'right',
-        title: "Welcome to 8bitworkshop",
-        content: 'The directory $(HOMEDIR)/8bitworkshop contains all of your file edits and built ROM images.'
+        title: "Developer Analytics",
+        content: 'BTW, we send stack traces to sentry.io when exceptions are thrown. Hope that\'s ok.'
+      });
+      steps.unshift({
+        element: "#dropdownMenuButton",
+        placement: 'right',
+        title: "Welcome to 8bitworkshop Desktop!",
+        content: 'The directory "~/8bitworkshop" contains all of your file edits and built ROM images. You can create new projects under the platform directories (e.g. "c64/myproject")'
       });
     }
     var tour = new Tour({

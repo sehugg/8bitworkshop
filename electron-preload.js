@@ -7,7 +7,7 @@ const _path = require('path');
 const chokidar = require('chokidar');
 
 const homeDirectory = require('os').homedir();
-const wsroot = _path.join(homeDirectory, '8bitworkshop');
+const wsroot = process.env.HOME_8BITWORKSHOP || _path.join(homeDirectory, '8bitworkshop');
 
 function getLocalDir() {
   const _ui = window.ui_1 || window.ui || window; // TODO: module naming
