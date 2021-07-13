@@ -11,7 +11,7 @@ var WILLIAMS_PRESETS = [
   { id: 'bitmap_rle.c', name: 'RLE Bitmap' },
 ];
 
-var WilliamsPlatform = function(mainElement, proto) {
+var WilliamsPlatform = function(mainElement, proto, isDefender) {
   var self = this;
   this.__proto__ = new (proto ? proto : Base6809Platform)();
 
@@ -74,6 +74,9 @@ var WilliamsPlatform = function(mainElement, proto) {
     [Keys.VK_9, 4, 0x8],
     [Keys.SELECT, 4, 0x10],
   ]);
+
+  var KEYCODE_MAP = isDefender ? DEFENDER_KEYCODE_MAP : ROBOTRON_KEYCODE_MAP;
+
   // TODO: sound board handshake
 
   var palette = [];
@@ -97,6 +100,7 @@ var WilliamsPlatform = function(mainElement, proto) {
     [0x0, 0xf, 0xf, setPalette],
     [0x3fc, 0x3ff, 0, function(a, v) { if (v == 0x38) watchdog_counter = INITIAL_WATCHDOG; }],
     [0x400, 0x5ff, 0x1ff, function(a, v) { nvram.mem[a] = v; }],
+    [0xc02, 0xc02, 0x1, function(a, v) { if (worker) worker.postMessage({ command: v & 0x3f }); }],
     [0xc00, 0xc07, 0x7, function(a, v) { pia6821[a] = v; }],
     [0x0, 0xfff, 0, function(a, v) { console.log('iowrite', hex(a), hex(v)); }],
   ]);
@@ -126,7 +130,7 @@ var WilliamsPlatform = function(mainElement, proto) {
 
   // Robotron, Joust, Bubbles, Stargate
 
-  var ioread_williams = newAddressDecoder([
+  var ioread_robotron = newAddressDecoder([
     [0x804, 0x807, 0x3, function(a) { return pia6821[a]; }],
     [0x80c, 0x80f, 0x3, function(a) { return pia6821[a + 4]; }],
     [0xb00, 0xbff, 0, function(a) { return video_counter; }],
@@ -134,7 +138,7 @@ var WilliamsPlatform = function(mainElement, proto) {
     [0x0, 0xfff, 0, function(a) { /* console.log('ioread',hex(a)); */ }],
   ]);
 
-  var iowrite_williams = newAddressDecoder([
+  var iowrite_robotron = newAddressDecoder([
     [0x0, 0xf, 0xf, setPalette],
     [0x80c, 0x80c, 0xf, function(a, v) { if (worker) worker.postMessage({ command: v }); }],
     //[0x804, 0x807, 0x3,   function(a,v) { console.log('iowrite',a); }], // TODO: sound
@@ -146,19 +150,24 @@ var WilliamsPlatform = function(mainElement, proto) {
     //[0x0,   0xfff, 0,     function(a,v) { console.log('iowrite',hex(a),hex(v)); }],
   ]);
 
-  var memread_williams = newAddressDecoder([
+  var memread_robotron = newAddressDecoder([
     [0x0000, 0x8fff, 0xffff, function(a) { return banksel ? rom[a] : ram.mem[a]; }],
     [0x9000, 0xbfff, 0xffff, function(a) { return ram.mem[a]; }],
     [0xc000, 0xcfff, 0x0fff, ioread_williams],
     [0xd000, 0xffff, 0xffff, function(a) { return rom ? rom[a - 0x4000] : 0; }],
   ]);
 
-  var memwrite_williams = newAddressDecoder([
+  var memwrite_robotron = newAddressDecoder([
     [0x0000, 0x97ff, 0, write_display_byte],
     [0x9800, 0xbfff, 0, function(a, v) { ram.mem[a] = v; }],
     [0xc000, 0xcfff, 0x0fff, iowrite_williams],
     //[0x0000, 0xffff, 0,      function(a,v) { console.log(hex(a), hex(v)); }],
   ]);
+
+  var memread_williams = isDefender ? memread_defender : memread_robotron;
+  var memwrite_williams = isDefender ? memwrite_defender : memwrite_robotron;
+  var ioread_williams = isDefender ? ioread_defender : ioread_robotron;
+  var iowrite_williams = isDefender ? iowrite_defender : iowrite_robotron;
 
   // d1d6 ldu $11 / beq $d1ed
 
@@ -279,7 +288,6 @@ var WilliamsPlatform = function(mainElement, proto) {
     rom = new Uint8Array(0xc000);
     // TODO: save in browser storage?
     //displayPCs = new Uint16Array(new ArrayBuffer(0x9800*2));
-    //rom = padBytes(new lzgmini().decode(ROBOTRON_ROM).slice(0), 0xc001);
     membus = {
       read: memread_williams,
       write: memwrite_williams,
@@ -305,7 +313,7 @@ var WilliamsPlatform = function(mainElement, proto) {
       if (displayPCs) console.log(x, y, hex(addr, 4), "PC", hex(displayPCs[addr], 4));
     });
     var idata = video.getFrameData();
-    setKeyboardFromMap(video, pia6821, ROBOTRON_KEYCODE_MAP);
+    setKeyboardFromMap(video, pia6821, KEYCODE_MAP);
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
@@ -350,11 +358,13 @@ var WilliamsPlatform = function(mainElement, proto) {
 
   this.loadROM = function(title, data) {
     if (data.length > 2) {
-      if (data.length > 0xc000) {
+      if (isDefender) {
+        self.loadSoundROM(data.slice(0x6800));
+        rom = rom.slice(0, 0x6800);
+      } else if (data.length > 0xc000) {
         self.loadSoundROM(data.slice(0xc000));
         rom = rom.slice(0, 0xc000);
-      }
-      else if (data.length > 0x9000 && data[0x9000]) {
+      } else if (data.length > 0x9000 && data[0x9000]) {
         self.loadSoundROM(data.slice(0x9000));
       }
       rom = padBytes(data, 0xc000);
@@ -424,7 +434,7 @@ var WilliamsPlatform = function(mainElement, proto) {
 }
 
 var WilliamsZ80Platform = function(mainElement) {
-  this.__proto__ = new WilliamsPlatform(mainElement, BaseZ80Platform);
+  this.__proto__ = new WilliamsPlatform(mainElement, BaseZ80Platform, false);
 
   // Z80 @ 4 MHz
   // also scale bitblt clocks
@@ -443,7 +453,18 @@ var WilliamsZ80Platform = function(mainElement) {
   }
 }
 
+var WilliamsDefenderPlatform = function(mainElement) {
+  this.__proto__ = new WilliamsPlatform(mainElement, null, true);
+  this.getMemoryMap = function() { return { main:[
+    {name:'NVRAM',start:0x400,size:0x200,type:'ram'},
+    {name:'Video RAM',start:0x0000,size:0xc000,type:'ram'},
+    {name:'I/O Registers',start:0xc000,size:0x1000,type:'io'},
+    {name:'ROM',start:0xd000,size:0x3000,type:'rom'},
+] } };
+}
+
 PLATFORMS['williams'] = WilliamsPlatform;
+PLATFORMS['williams-defender'] = WilliamsDefenderPlatform;
 PLATFORMS['williams-z80'] = WilliamsZ80Platform;
 
 // http://seanriddle.com/willhard.html

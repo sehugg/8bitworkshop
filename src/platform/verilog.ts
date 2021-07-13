@@ -790,6 +790,12 @@ var VerilogPlatform = function(mainElement, options) {
   getHDLModuleRunner() {
     return top;
   }
+  showHelp?(tool:string, ident?:string) : void {
+    if (tool == 'silice')
+      window.open("'https://github.com/sylefeb/Silice'", "_help");
+    else
+      window.open("https://8bitworkshop.com/docs/platforms/verilog/");
+  }
 
  } // end of inner class
  return new _VerilogPlatform();  
