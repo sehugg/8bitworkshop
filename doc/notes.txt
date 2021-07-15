@@ -209,6 +209,7 @@ TODO:
 - show current tool for file
 - download non-text incbin source file
 - show hidden header files that only exist in Emscripten FS
+- WASI modules: https://docs.wasmer.io/integrations/js/wasi/browser
 
 Probing
 - probe log doesn't start @ reset
@@ -414,7 +415,7 @@ Emulator Lib
 - MAME
   - debugging?
   - kbd instructions don't work
-  
+  - https://emscripten.org/docs/porting/asyncify.html
 
 Markdown (showdown) interface
 - add code patches to files
@@ -552,4 +553,5 @@ preprocessor differences (#define FOO 1 so #if works)
 extern void do_func(void)
 #pragma warnings
 CFG files
+
 

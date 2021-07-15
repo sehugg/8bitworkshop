@@ -1776,7 +1776,6 @@ function compileVerilator(step:BuildStep) {
   var errors : WorkerError[] = [];
   gatherFiles(step);
   // compile verilog if files are stale
-  var xmlPath = "main.xml";
   if (staleFiles(step, [xmlPath])) {
     // TODO: %Error: Specified --top-module 'ALU' isn't at the top level, it's under another cell 'cpu'
     // TODO: ... Use "/* verilator lint_off BLKSEQ */" and lint_on around source to disable this message.
@@ -1809,12 +1808,13 @@ function compileVerilator(step:BuildStep) {
       }
     });
     starttime();
+    var xmlPath = `obj_dir/V${topmod}.xml`;
     try {
       var args = ["--cc", "-O3"/*abcdefstzsuka*/, "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
         "-Wall",
         "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-EOFNEWLINE", "-Wno-PROCASSWIRE",
         "--x-assign", "fast", "--noassert", "--pins-sc-biguint",
-        "--xml-output", xmlPath,
+        "--debug-check", // for XML output
         "--top-module", topmod, step.path]
       verilator_mod.callMain(args);
     } catch (e) {

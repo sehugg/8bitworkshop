@@ -1,6 +1,6 @@
 
 import { C64_WASMMachine } from "../machine/c64";
-import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502 } from "../common/baseplatform";
+import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502, BaseMAMEPlatform } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 
 const C64_PRESETS = [
@@ -58,5 +58,38 @@ class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implement
   }
 }
 
+// C64 MAME platform
+abstract class C64MAMEPlatform extends BaseMAMEPlatform {
+  getPresets() { return C64_PRESETS; }
+  getToolForFilename = getToolForFilename_6502;
+  getOpcodeMetadata = getOpcodeMetadata_6502;
+  getDefaultExtension() { return ".c"; }
+  loadROM(title, data) {
+    if (!this.started) {
+      this.startModule(this.mainElement, {
+        jsfile:'mame8bitws.js',
+        biosfile:'c64.zip',
+        cfgfile:'c64.cfg',
+        driver:'c64',
+        width:336*2,
+        height:225*2,
+        romfn:'/emulator/disk.d64',
+        romdata:new Uint8Array(data),
+        romsize:0x2000,
+        preInit:function(_self) {
+        },
+      });
+    } else {
+      this.loadROMFile(data);
+      this.loadRegion(":cartleft:cart:rom", data);
+    }
+  }
+  start() {
+  }
+  getMemoryMap() { return C64_MEMORY_MAP; }
+}
+
+
 PLATFORMS['c64'] = C64WASMPlatform;
 PLATFORMS['c64.wasm'] = C64WASMPlatform;
+PLATFORMS['c64.mame'] = C64MAMEPlatform;

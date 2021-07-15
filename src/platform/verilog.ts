@@ -608,11 +608,11 @@ var VerilogPlatform = function(mainElement, options) {
           trace_signals = trace_signals.filter((v) => { return IGNORE_SIGNALS.indexOf(v.name)<0; }); // remove clk, reset
           $("#speed_bar").show();
           $("#run_bar").show();
-          $("#xtra_bar").show();
+          $("#dbg_record").show();
         } else {
           $("#speed_bar").hide();
           $("#run_bar").hide();
-          $("#xtra_bar").hide();
+          $("#dbg_record").hide();
         }
       }
     }
