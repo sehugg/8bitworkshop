@@ -1253,6 +1253,9 @@ function fixParamsWithDefines(path:string, params){
         } else if (ident == 'LIBARGS' && value) {
           params.libargs = value.split(',').filter((s) => { return s!=''; });
           console.log('Using libargs', params.libargs);
+        } else if (ident == 'CC65_FLAGS' && value) {
+          params.extra_compiler_args = value.split(',').filter((s) => { return s!=''; });
+          console.log('Using compiler flags', params.extra_compiler_args);
         }
       }
     }
@@ -1292,9 +1295,7 @@ function compileCC65(step:BuildStep) {
     setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     fixParamsWithDefines(step.path, params);
-    var args = ['-T', '-g',
-      '-Oirs', // don't inline CodeSizeFactor 200? (no -Oi)
-      '-Cl', // static locals
+    var args = [
       '-I', '/share/include',
       '-I', '.',
       "-D", "__8BITWORKSHOP__",
@@ -1305,6 +1306,8 @@ function compileCC65(step:BuildStep) {
     if (step.mainfile) {
       args.unshift.apply(args, ["-D", "__MAIN__"]);
     }
+    var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl'];
+    args = args.concat(customArgs, args);
     args.push(step.path);
     //console.log(args);
     execMain(step, CC65, args);

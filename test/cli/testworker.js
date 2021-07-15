@@ -260,5 +260,8 @@ describe('Worker', function() {
     };
     doBuild(msgs, done2, 205, 0, 0);
   });
+  it('should compile CC65 flags', function(done) {
+    compile('cc65', '#define CC65_FLAGS -O1,-j\nint main() {\nint x=1;\nreturn x+2;\n}', 'apple2', done, 14697, 5);
+  });
 
 });
