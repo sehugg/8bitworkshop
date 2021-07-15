@@ -1,8 +1,13 @@
-[![Build Status](https://travis-ci.org/sehugg/8bitworkshop.svg?branch=master)](https://travis-ci.org/sehugg/8bitworkshop)
+# 8bitworkshop
 
-The latest release is online at https://8bitworkshop.com/
+[![Build Status](https://travis-ci.com/sehugg/8bitworkshop.svg?branch=master)](https://travis-ci.com/sehugg/8bitworkshop)
 
-## Install
+## Use Online
+
+* Latest release: https://8bitworkshop.com/
+* Dev build: https://8bitworkshop.com/dev/
+
+## Install Locally
 
 To build the 8bitworkshop IDE:
 
@@ -13,7 +18,7 @@ npm i
 npm run build
 ```
 
-## Usage
+### Start Server
 
 Start a web server on http://localhost:8000/ while TypeScript compiles in the background:
 
@@ -21,7 +26,7 @@ Start a web server on http://localhost:8000/ while TypeScript compiles in the ba
 make tsweb
 ```
 
-## Run Tests
+### Run Tests
 
 ```sh
 npm test
@@ -31,7 +36,7 @@ Note: Github tests may fail due to lack of permissions.
 
 ## License
 
-Copyright © 2016-2020 [Steven Hugg](https://github.com/sehugg).
+Copyright © 2016-2021 [Steven Hugg](https://github.com/sehugg).
 
 This project is [GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE) licensed.
 

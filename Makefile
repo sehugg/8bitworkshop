@@ -57,7 +57,7 @@ VERSION := $(shell git tag -l --points-at HEAD)
 
 syncdev: distro
 	cp config.js $(TMP)
-	aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/dev/
+	#aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/dev/
 	rsync --stats -riltz --chmod=a+rx -e "ssh" $(TMP)/ config.js $(RSYNC_PATH)/dev/
 
 syncprod: distro

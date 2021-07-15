@@ -1204,6 +1204,12 @@ async function loadBIOSFromProject() {
   }
 }
 
+function hideDebugInfo() {
+  var meminfo = $("#mem_info");
+  meminfo.hide();
+  lastDebugInfo = null;
+}
+
 function showDebugInfo(state?) {
   if (!isDebuggable(platform)) return;
   var meminfo = $("#mem_info");
@@ -1234,8 +1240,7 @@ function showDebugInfo(state?) {
     meminfo.append(catspan);
     lastDebugInfo = s;
   } else {
-    meminfo.hide();
-    lastDebugInfo = null;
+    hideDebugInfo();
   }
 }
 
@@ -1600,6 +1605,7 @@ function _disableRecording() {
     platform.setRecorder(null);
     $("#dbg_record").removeClass("btn_recording");
     $("#replaydiv").hide();
+    hideDebugInfo();
     recorderActive = false;
   }
 }
