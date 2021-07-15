@@ -1094,7 +1094,12 @@ function assembleCA65(step:BuildStep) {
     setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     fixParamsWithDefines(step.path, step.params);
-    execMain(step, CA65, ['-v', '-g', '-I', '/share/asminc', '-o', objpath, '-l', lstpath, step.path]);
+    var args = ['-v', '-g', '-I', '/share/asminc', '-o', objpath, '-l', lstpath, step.path];
+    args.unshift.apply(args, ["-D", "__8BITWORKSHOP__=1"]);
+    if (step.mainfile) {
+      args.unshift.apply(args, ["-D", "__MAIN__=1"]);
+    }
+    execMain(step, CA65, args);
     if (errors.length)
       return {errors:errors};
     objout = FS.readFile(objpath, {encoding:'binary'});
@@ -1292,6 +1297,7 @@ function compileCC65(step:BuildStep) {
       '-Cl', // static locals
       '-I', '/share/include',
       '-I', '.',
+      "-D", "__8BITWORKSHOP__",
     ];
     if (params.define) {
       params.define.forEach((x) => args.push('-D'+x));
@@ -1810,7 +1816,8 @@ function compileVerilator(step:BuildStep) {
     starttime();
     var xmlPath = `obj_dir/V${topmod}.xml`;
     try {
-      var args = ["--cc", "-O3"/*abcdefstzsuka*/, "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod,
+      var args = ["--cc", "-O3"/*abcdefstzsuka*/,
+        "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod, "-D__8BITWORKSHOP__",
         "-Wall",
         "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-EOFNEWLINE", "-Wno-PROCASSWIRE",
         "--x-assign", "fast", "--noassert", "--pins-sc-biguint",

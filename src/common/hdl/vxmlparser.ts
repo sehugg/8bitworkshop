@@ -110,6 +110,7 @@ export class VerilogXMLParser implements HDLUnit {
     cur_node : XMLNode;
     cur_module : HDLModuleDef;
     cur_loc : HDLSourceLocation;
+    cur_loc_str : string;
     cur_deferred = [];
 
     constructor() {
@@ -153,17 +154,22 @@ export class VerilogXMLParser implements HDLUnit {
     parseSourceLocation(node: XMLNode): HDLSourceLocation {
         var loc = node.attrs['loc'];
         if (loc) {
-            var [fileid, line, col, end_line, end_col] = loc.split(',');
-            var $loc = {
-                hdlfile: this.files[fileid],
-                path: this.files[fileid].filename,
-                line: parseInt(line),
-                start: parseInt(col)-1,
-                end_line: parseInt(end_line),
-                end: parseInt(end_col)-1,
+            if (loc == this.cur_loc_str) {
+                return this.cur_loc; // cache last parsed $loc object
+            } else {
+                var [fileid, line, col, end_line, end_col] = loc.split(',');
+                var $loc = {
+                    hdlfile: this.files[fileid],
+                    path: this.files[fileid].filename,
+                    line: parseInt(line),
+                    start: parseInt(col)-1,
+                    end_line: parseInt(end_line),
+                    end: parseInt(end_col)-1,
+                }
+                this.cur_loc = $loc;
+                this.cur_loc_str = loc;
+                return $loc;
             }
-            this.cur_loc = $loc;
-            return $loc;
         } else {
             return null;
         }

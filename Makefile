@@ -36,7 +36,7 @@ desktop: distro
 	pushd $(TMP) && npm i && popd $(TMP)
 	mkdir -p $(TMP)/resources
 	./node_modules/.bin/electron-builder -mlw --project $(TMP) # --prepackaged $(TMP)
-	mv $(TMP)/dist/*.* ./release/
+	mv $(TMP)/dist/*.* ./release/desktop/
 
 meta/electron.diff: index.html electron.html
 	-diff -u index.html electron.html > $@
