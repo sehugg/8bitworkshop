@@ -153,21 +153,19 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
   var memread_robotron = newAddressDecoder([
     [0x0000, 0x8fff, 0xffff, function(a) { return banksel ? rom[a] : ram.mem[a]; }],
     [0x9000, 0xbfff, 0xffff, function(a) { return ram.mem[a]; }],
-    [0xc000, 0xcfff, 0x0fff, ioread_williams],
+    [0xc000, 0xcfff, 0x0fff, ioread_robotron],
     [0xd000, 0xffff, 0xffff, function(a) { return rom ? rom[a - 0x4000] : 0; }],
   ]);
 
   var memwrite_robotron = newAddressDecoder([
     [0x0000, 0x97ff, 0, write_display_byte],
     [0x9800, 0xbfff, 0, function(a, v) { ram.mem[a] = v; }],
-    [0xc000, 0xcfff, 0x0fff, iowrite_williams],
+    [0xc000, 0xcfff, 0x0fff, iowrite_robotron],
     //[0x0000, 0xffff, 0,      function(a,v) { console.log(hex(a), hex(v)); }],
   ]);
 
   var memread_williams = isDefender ? memread_defender : memread_robotron;
   var memwrite_williams = isDefender ? memwrite_defender : memwrite_robotron;
-  var ioread_williams = isDefender ? ioread_defender : ioread_robotron;
-  var iowrite_williams = isDefender ? iowrite_defender : iowrite_robotron;
 
   // d1d6 ldu $11 / beq $d1ed
 
