@@ -1001,19 +1001,25 @@ export class HDLModuleWASM implements HDLModuleRunner {
         if (isLogicType(tsrc) && isLogicType(tdst) && tsrc.right == 0 && tdst.right == 0) {
             if (tsrc.left == tdst.left) {
                 return val;
-            } else if (tsrc.left <= 31 && tdst.left <= 31) {
-                return val;
-            } else if (tsrc.left > 31 && tdst.left > 31) {
-                return val;
             } else if (tsrc.left > 63 || tdst.left > 63) {
                 throw new HDLError(tdst, `values > 64 bits not supported`);
-            }
-            // TODO: signed?
-            else if (tsrc.left <= 31 && tdst.left > 31) { // 32 -> 64
-                return this.bmod.i64.extend_u(val);
+            } else if (tsrc.left <= 31 && tdst.left <= 31 && !tsrc.signed && !tdst.signed) {
+                return val;
+            } else if (tsrc.left > 31 && tdst.left > 31 && !tsrc.signed && !tdst.signed) {
+                return val;
+            } else if (tsrc.left == 7 && tdst.left == 31 && tsrc.signed && tdst.signed) {
+                return this.bmod.i32.extend8_s(val);
+            } else if (tsrc.left == 15 && tdst.left == 31 && tsrc.signed && tdst.signed) {
+                return this.bmod.i32.extend16_s(val);
+            } else if (tsrc.left <= 31 && tdst.left > 31) { // 32 -> 64
+                if (tsrc.signed)
+                    return this.bmod.i64.extend_s(val);
+                else
+                    return this.bmod.i64.extend_u(val);
             } else if (tsrc.left > 31 && tdst.left <= 31) { // 64 -> 32
                 return this.bmod.i32.wrap(val);
             }
+            throw new HDLError([tsrc, tdst], `cannot cast ${tsrc.left}/${tsrc.signed} to ${tdst.left}/${tdst.signed}`);
         }
         throw new HDLError([tsrc, tdst], `cannot cast`);
     }

@@ -26,6 +26,7 @@ export interface HDLModuleTrace extends HDLModuleRunner {
 export interface HDLLogicType extends HDLSourceObject {
     left: number;
     right: number;
+    signed: boolean;
 }
 
 export interface HDLUnpackArray extends HDLSourceObject {

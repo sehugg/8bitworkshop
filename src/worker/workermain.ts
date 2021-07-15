@@ -1816,7 +1816,7 @@ function compileVerilator(step:BuildStep) {
     starttime();
     var xmlPath = `obj_dir/V${topmod}.xml`;
     try {
-      var args = ["--cc", "-O3"/*abcdefstzsuka*/,
+      var args = ["--cc", "-O3",
         "-DEXT_INLINE_ASM", "-DTOPMOD__"+topmod, "-D__8BITWORKSHOP__",
         "-Wall",
         "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-EOFNEWLINE", "-Wno-PROCASSWIRE",

@@ -115,16 +115,16 @@ export class VerilogXMLParser implements HDLUnit {
 
     constructor() {
         // TODO: other types?
-        this.dtypes['QData'] = {left:63, right:0};
-        this.dtypes['IData'] = {left:31, right:0};
-        this.dtypes['SData'] = {left:15, right:0};
-        this.dtypes['CData'] = {left:7, right:0};
-        this.dtypes['byte'] = {left:7, right:0};
-        this.dtypes['shortint'] = {left:15, right:0};
-        this.dtypes['int'] = {left:31, right:0};
-        this.dtypes['integer'] = {left:31, right:0};
-        this.dtypes['longint'] = {left:63, right:0};
-        this.dtypes['time'] = {left:63, right:0};
+        this.dtypes['QData'] = {left:63, right:0, signed:false};
+        this.dtypes['IData'] = {left:31, right:0, signed:false};
+        this.dtypes['SData'] = {left:15, right:0, signed:false};
+        this.dtypes['CData'] = {left:7, right:0, signed:false};
+        this.dtypes['byte'] = {left:7, right:0, signed:true};
+        this.dtypes['shortint'] = {left:15, right:0, signed:true};
+        this.dtypes['int'] = {left:31, right:0, signed:true};
+        this.dtypes['integer'] = {left:31, right:0, signed:true};
+        this.dtypes['longint'] = {left:63, right:0, signed:true};
+        this.dtypes['time'] = {left:63, right:0, signed:false};
     }
 
     defer(fn: () => void) {
@@ -475,6 +475,7 @@ export class VerilogXMLParser implements HDLUnit {
                     $loc: this.parseSourceLocation(node),
                     left: parseInt(node.attrs['left'] || "0"),
                     right: parseInt(node.attrs['right'] || "0"),
+                    signed: node.attrs['signed'] == 'true'
                 }
                 dtype = dlogic;
                 break;
