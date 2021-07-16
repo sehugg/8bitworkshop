@@ -415,6 +415,18 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
+  tick2(cycles: number) {
+    // if a key is pressed, check for strobe after every cycle
+    if (keycode >= 128) {
+      while (cycles-- > 0) {
+        top.tick2(1);
+        resetKbdStrobe();
+      } 
+    } else {
+      top.tick2(cycles);
+    }
+  }
+
   // use trace buffer to update video
   updateVideoFrameFast(tmod: HDLModuleTrace) {
     if (scanlineCycles <= 0) throw new Error(`scanlineCycles must be > 0`);
@@ -431,9 +443,8 @@ var VerilogPlatform = function(mainElement, options) {
       }
       // generate frames in trace buffer
       if (nextlineCycles > 0) {
-        top.tick2(nextlineCycles);
+        this.tick2(nextlineCycles);
       }
-      resetKbdStrobe();
       // convert trace buffer to video/audio
       var n = 0;
       // draw scanline visible pixels
