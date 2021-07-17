@@ -124,7 +124,7 @@ export function loadScript(scriptfn:string) : Promise<Event> {
 }
 
 function newWorker() : Worker {
-  return new Worker("./src/worker/loader.js");
+  return new Worker("./gen/worker/loader.js");
 }
 
 const hasLocalStorage : boolean = function() {

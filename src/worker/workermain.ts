@@ -2,13 +2,33 @@
 
 import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap, Segment, WorkerOutput, SourceLocation } from "../common/workertypes";
 
-declare var WebAssembly;
 declare function importScripts(path:string);
 declare function postMessage(msg);
 
 const emglobal : any = (this as any)['window'] || (this as any)['global'] || this;
 const ENVIRONMENT_IS_WEB = typeof window === 'object';
 const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
+
+// simple CommonJS module loader
+// TODO: relative paths for dependencies
+if (!emglobal['require']) {
+  emglobal['require'] = (modpath: string) => {
+    if (modpath.endsWith('.js')) modpath = modpath.slice(-3);
+    var modname = modpath.split('/').slice(-1)[0];
+    var hasNamespace = emglobal[modname] != null;
+    console.log('@@@ require', modname, modpath, hasNamespace);
+    if (!hasNamespace) {
+      exports = {};
+      importScripts(`${modpath}.js`);
+    }
+    if (emglobal[modname] == null) {
+      emglobal[modname] = exports; // TODO: always put in global scope?
+    }
+    return emglobal[modname]; // TODO
+  }
+}
+
+import { hex } from "../common/util";
 
 // WebAssembly module cache
 // TODO: leaks memory even when disabled...
@@ -62,26 +82,6 @@ function getRootPlatform(platform : string) : string {
 
 function getRootBasePlatform(platform : string) : string {
   return getRootPlatform(getBasePlatform(platform));
-}
-
-// from util.ts
-function toradix(v:number, nd:number, radix:number) {
-  try {
-    var s = v.toString(radix).toUpperCase();
-    while (s.length < nd)
-      s = "0" + s;
-    return s;
-  } catch (e) {
-    return v+"";
-  }
-}
-function hex(v:number, nd?:number) {
-  if (!nd) nd = 2;
-  if (nd == 8) {
-    return hex((v>>16)&0xffff,4) + hex(v&0xffff,4);
-  } else {
-    return toradix(v,nd,16);
-  }
 }
 
 //
@@ -376,7 +376,7 @@ interface BuildStep extends WorkerBuildStep {
   nextstep? : BuildStep
   linkstep? : BuildStep
   params?
-  result?
+  result? // : WorkerResult | BuildStep ?
   code?
   prefix?
   maxts?
@@ -501,7 +501,7 @@ function populateExtraFiles(step:BuildStep, fs, extrafiles) {
       var xpath = "lib/" + getBasePlatform(step.platform) + "/" + xfn;
       var xhr = new XMLHttpRequest();
       xhr.responseType = 'arraybuffer';
-      xhr.open("GET", xpath, false);  // synchronous request
+      xhr.open("GET", PWORKER+xpath, false);  // synchronous request
       xhr.send(null);
       if (xhr.response && xhr.status == 200) {
         var data = new Uint8Array(xhr.response);
@@ -570,33 +570,11 @@ function loadFilesystem(name:string) {
   console.log("Loaded "+name+" filesystem", fsMeta[name].files.length, 'files', fsBlob[name].size, 'bytes');
 }
 
-var loaded = {}
+var loaded = {};
 function load(modulename:string, debug?:boolean) {
   if (!loaded[modulename]) {
     importScripts(PWORKER+'asmjs/'+modulename+(debug?"."+debug+".js":".js"));
     loaded[modulename] = 1;
-  }
-}
-function loadGen(modulename:string) {
-  if (!loaded[modulename]) {
-    console.log('loading', modulename);
-    importScripts('../../gen/'+modulename+".js");
-    loaded[modulename] = 1;
-  }
-}
-function loadRequire(modulename:string, path:string) {
-  if (!loaded[path]) {
-    var thisModulesExports = {};
-    var oldRequire = emglobal['require'];
-    emglobal['require'] = (modname:string) => {
-      if (modname.startsWith('./')) modname = modname.substring(2);
-      console.log('require',modname,emglobal[modname]!=null);
-      return emglobal[modname];
-    }
-    emglobal['exports'] = thisModulesExports;
-    loadGen(path);
-    emglobal[modulename] = thisModulesExports;
-    emglobal['require'] = oldRequire;
   }
 }
 function loadWASM(modulename:string, debug?:boolean) {
@@ -1689,8 +1667,8 @@ var jsasm_module_output;
 var jsasm_module_key;
 
 function compileJSASM(asmcode:string, platform, options, is_inline) {
-  loadRequire("assembler", "worker/assembler");
-  var asm = new emglobal['Assembler']();
+  var _assembler = require('./assembler');
+  var asm = new _assembler.Assembler();
   var includes = [];
   asm.loadJSON = (filename:string) => {
     var jsontext = getWorkFileAsString(filename);
@@ -1779,8 +1757,8 @@ function compileInlineASM(code:string, platform, options, errors, asmlines) {
 
 function compileVerilator(step:BuildStep) {
   loadNative("verilator_bin");
-  loadRequire("hdltypes", "common/hdl/hdltypes");
-  loadRequire("vxmlparser", "common/hdl/vxmlparser");
+  const hdltypes = require('../common/hdl/hdltypes');
+  const vxmlparser = require('../common/hdl/vxmlparser');
   var platform = step.platform || 'verilog';
   var errors : WorkerError[] = [];
   gatherFiles(step);
@@ -1839,7 +1817,7 @@ function compileVerilator(step:BuildStep) {
       return {errors:errors};
     }
     starttime();
-    var xmlParser = new emglobal['VerilogXMLParser']();
+    var xmlParser = new vxmlparser.VerilogXMLParser();
     try {
       var xmlContent = FS.readFile(xmlPath, {encoding:'utf8'});
       var xmlScrubbed = xmlContent.replace(/ fl=".+?" loc=".+?"/g, '');
@@ -2816,8 +2794,8 @@ function compileBASIC(step:BuildStep) {
   var jsonpath = step.path + ".json";
   gatherFiles(step);
   if (staleFiles(step, [jsonpath])) {
-    loadRequire("compiler", "common/basic/compiler");
-    var parser = new emglobal['BASICParser']();
+    const compiler = require('../common/basic/compiler');
+    var parser = new compiler.BASICParser();
     var code = getWorkFileAsString(step.path);
     try {
       var ast = parser.parseFile(code, step.path);
@@ -3313,7 +3291,7 @@ function executeBuildSteps() {
   }
 }
 
-function handleMessage(data : WorkerMessage) : WorkerResult {
+function handleMessage(data : WorkerMessage) : WorkerResult | {unchanged:true} {
   // preload file system
   if (data.preload) {
     var fs = TOOL_PRELOADFS[data.preload];

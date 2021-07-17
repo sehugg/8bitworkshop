@@ -12,12 +12,7 @@ global.window = global;
 global.exports = {};
 global.self = global;
 global.location = {href:'.'};
-global.require = (modname) => {
-  //console.log("REQUIRE",modname);
-  if (modname == 'path')
-    return _require(modname);
-};
-
+global.path = require('path');
 global.btoa = require('btoa');
 global.atob = require('atob');
 
