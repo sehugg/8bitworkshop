@@ -229,6 +229,16 @@ export class WaveformView {
     }
   }
 
+  value2str(val: number, meta: WaveformMeta) {
+    var radix = this.hexformat ? 16 : 10;
+    var txt = val.toString(radix);
+    if (radix == 16 && meta && meta.len > 3)
+      txt = `${meta.len}'h${txt}`;
+    //else if (radix == 10 && meta.len > 3)
+      //txt = `${meta.len}'d${txt}`;
+    return txt;
+}
+
   refreshRow(row : number) {
     var canvas = this.lines[row];
     var meta = this.meta[row];
@@ -266,12 +276,11 @@ export class WaveformView {
     var x = 0;
     var y = 0;
     var lastval = -1;
-    var radix = this.hexformat ? 16 : 10;
     for (var i=0; i<data.length; i++) {
       var val = data[i];
       if (printvals && val != lastval && x < w-100) { // close to right edge? omit
         var ytext = ycen;
-        var txt = val.toString(radix);
+        var txt = this.value2str(val, null);
         if (txt.length > 4) 
           ctx.font = fontsml;
         ctx.fillText(txt, x+this.zoom/4, ytext);
@@ -307,7 +316,7 @@ export class WaveformView {
       var val = data[this.tsel - this.t0];
       ctx.textAlign = 'right';
       if (val !== undefined) {
-        var s = val.toString(radix);
+        var s = this.value2str(val, meta);
         var x = w-fh;
         var dims = ctx.measureText(s);
         ctx.fillStyle = 'black';

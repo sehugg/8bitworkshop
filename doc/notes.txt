@@ -210,6 +210,8 @@ TODO:
 - download non-text incbin source file
 - show hidden header files that only exist in Emscripten FS
 - WASI modules: https://docs.wasmer.io/integrations/js/wasi/browser
+- FS Access: https://web.dev/file-system-access/
+  - https://wicg.github.io/file-system-access/#api-showdirectorypicker
 
 Probing
 - probe log doesn't start @ reset
