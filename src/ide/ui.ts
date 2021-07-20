@@ -3,13 +3,13 @@
 
 import $ = require("jquery");
 import * as bootstrap from "bootstrap";
+import * as localforage from "localforage";
 import { CodeProject, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "../common/workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState } from "../common/baseplatform";
 import { PLATFORMS, EmuHalt, Toolbar } from "../common/emu";
 import * as Views from "./views";
-import { createNewPersistentStore } from "./store";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG, stringToByteArray,
          byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";
@@ -45,7 +45,7 @@ var userPaused : boolean;		// did user explicitly pause?
 
 var current_output : WorkerOutput;  // current ROM
 var current_preset : Preset;	// current preset object (if selected)
-var store;			// persistent store
+var store : LocalForage;			// persistent store
 
 export var compparams;			// received build params from worker
 export var lastDebugState : EmuState;	// last debug state (object)
@@ -95,6 +95,14 @@ const TOOL_TO_HELPURL = {
   'sdcc': 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
   'verilator': 'https://www.veripool.org/ftp/verilator_doc.pdf',
   'fastbasic': 'https://github.com/dmsc/fastbasic/blob/master/manual.md'  
+}
+
+function createNewPersistentStore(storeid:string) {
+  var store = localforage.createInstance({
+    name: "__" + storeid,
+    version: 2.0
+  });
+  return store;
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {
@@ -180,12 +188,14 @@ function unsetLastPreset() {
   }
 }
 
-function initProject() {
+async function initProject() {
   var basefs : ProjectFilesystem = new WebPresetsFileSystem(platform_id);
   //basefs = new FirebaseProjectFilesystem("TEST", "TEST");
   if (isElectron) {
     console.log('using electron with local filesystem', alternateLocalFilesystem);
-    var filesystem = new OverlayFilesystem(basefs, alternateLocalFilesystem)
+    var filesystem = new OverlayFilesystem(basefs, alternateLocalFilesystem);
+  } else if (qs['localfs'] != null) {
+    var filesystem = new OverlayFilesystem(basefs, await getLocalFilesystem(qs['localfs']));
   } else {
     var filesystem = new OverlayFilesystem(basefs, new LocalForageFilesystem(store));
   }
@@ -482,6 +492,74 @@ function handleFileUpload(files: File[]) {
     }
   }
   if (files) uploadNextFile();
+}
+
+async function _openLocalDirectory(e) {
+  var pickerfn = window['showDirectoryPicker'];
+  if (!pickerfn) {
+    bootbox.alert(`This browser can't open local files on your computer, yet. Try Chrome.`);
+  }
+  var dirHandle = await pickerfn();
+  var repoid = dirHandle.name;
+  var storekey = '__localfs__' + repoid;
+  var fsdata = {
+    handle: dirHandle,
+  }
+  var lstore = localforage.createInstance({
+    name: storekey,
+    version: 2.0
+  });
+  await lstore.setItem(storekey, fsdata);
+  qs = {localfs: repoid};
+  gotoNewLocation(true);
+}
+
+async function promptUser(message: string) : Promise<string> {
+  return new Promise( (resolve, reject) => {
+    bootbox.prompt(message, (result) => {
+      resolve(result);
+    });
+  });
+}
+
+async function getLocalFilesystem(repoid: string) : Promise<ProjectFilesystem> { 
+  const options = {mode:'readwrite'};
+  var storekey = '__localfs__' + repoid;
+  var lstore = localforage.createInstance({
+    name: storekey,
+    version: 2.0
+  });
+  var fsdata : any = await lstore.getItem(storekey);
+  var dirHandle = fsdata.handle as any;
+  console.log(fsdata, dirHandle);
+  var granted = await dirHandle.queryPermission(options);
+  console.log(granted);
+  if (granted !== 'granted') {
+    await promptUser(`Request permissions to access filesystem?`);
+    granted = await dirHandle.requestPermission(options);
+  }
+  if (granted !== 'granted') {
+      bootbox.alert(`Could not get permission to access filesystem.`);
+      return;
+  }
+  for await (const entry of dirHandle.values()) {
+    console.log(entry.kind, entry.name);
+  }
+  return {
+    getFileData: async (path) => {
+      console.log('getFileData', path);
+      let fileHandle = await dirHandle.getFileHandle(path, { create: false });
+      console.log('getFileData', fileHandle);
+      let file = await fileHandle.getFile();
+      console.log('getFileData', file);
+      let contents = await (isProbablyBinary(path) ? file.binary() : file.text());
+      console.log(fileHandle, file, contents);
+      return contents;
+    },
+    setFileData: async (path, data) => {
+      //let vh = await dirHandle.getFileHandle(path, { create: true });
+    }
+  }
 }
 
 function getCurrentMainFilename() : string {
@@ -1735,6 +1813,7 @@ function setupDebugControls() {
   $(".dropdown-menu").collapse({toggle: false});
   $("#item_new_file").click(_createNewFile);
   $("#item_upload_file").click(_uploadNewFile);
+  $("#item_open_directory").click(_openLocalDirectory);
   $("#item_github_login").click(_loginToGithub);
   $("#item_github_logout").click(_logoutOfGithub);
   $("#item_github_import").click(_importProjectFromGithub);
