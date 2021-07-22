@@ -1018,6 +1018,10 @@ export class HDLModuleWASM implements HDLModuleRunner {
                     return this.bmod.i64.extend_u(val);
             } else if (tsrc.left > 31 && tdst.left <= 31) { // 64 -> 32
                 return this.bmod.i32.wrap(val);
+            } else if (tsrc.left < 31 && tdst.left == 31 && tsrc.signed) { // sign extend via shift (silice case)
+                let inst = this.i3264(tdst);
+                var shift = inst.const(31 - tsrc.left, 0);
+                return inst.shr_s(inst.shl(val, shift), shift);
             }
             throw new HDLError([tsrc, tdst], `cannot cast ${tsrc.left}/${tsrc.signed} to ${tdst.left}/${tdst.signed}`);
         }
