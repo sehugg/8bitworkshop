@@ -57,7 +57,7 @@
     "build": "tsc --build tsconfig.json",
     "test": "npm run test-node",
     "test-one": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000",
-    "test-node": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --reporter mocha-simple-html-reporter --reporter-options output=test/output/cli.html test/cli",
+    "test-node": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli",
     "test-profile": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --prof test/cli",
     "test-worker": "NODE_PATH=$(pwd) mocha --timeout 60000 test/cli/testworker.js",
     "test-platforms": "NODE_PATH=$(pwd) mocha --timeout 60000 test/cli/testplatforms.js",
