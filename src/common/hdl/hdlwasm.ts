@@ -2,7 +2,6 @@
 import binaryen = require('binaryen');
 import { hasDataType, HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLDataTypeObject, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLSourceLocation, HDLSourceObject, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, HDLWhileOp, isArrayItem, isArrayType, isBigConstExpr, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
 import { HDLError } from "./hdlruntime";
-import { EmuHalt } from '../emu';
 
 const VERILATOR_UNIT_FUNCTIONS = [
     "_ctor_var_reset",
@@ -214,6 +213,13 @@ export class HDLModuleWASM implements HDLModuleRunner {
 
     async init() {
         await this.genModule();
+        this.genStateInterface();
+        this.enableTracing();
+    }
+
+    initSync() {
+        this.genModuleSync();
+        this.genStateInterface();
         this.enableTracing();
     }
 
@@ -444,6 +450,15 @@ export class HDLModuleWASM implements HDLModuleRunner {
         var wasmData = this.bmod.emitBinary();
         var compiled = await WebAssembly.compile(wasmData);
         this.instance = await WebAssembly.instantiate(compiled, this.getImportObject());
+    }
+
+    private genModuleSync() {
+        var wasmData = this.bmod.emitBinary();
+        var compiled = new WebAssembly.Module(wasmData);
+        this.instance = new WebAssembly.Instance(compiled, this.getImportObject());
+    }
+
+    private genStateInterface() {
         this.databuf = (this.instance.exports[MEMORY] as any).buffer;
         this.data8 = new Uint8Array(this.databuf);
         this.data16 = new Uint16Array(this.databuf);

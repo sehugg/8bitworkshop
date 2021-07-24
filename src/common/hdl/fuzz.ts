@@ -1,6 +1,6 @@
 
 //import binaryen = require('binaryen');
-import { fn } from "jquery";
+//import { fn } from "jquery";
 import { HDLError, HDLModuleJS } from "./hdlruntime";
 import { HDLModuleWASM } from "./hdlwasm";
 import { CompileError, VerilogXMLParser } from "./vxmlparser";
@@ -14,19 +14,15 @@ export function fuzz(buf) {
         if (e instanceof CompileError) return;
         throw e;
     }
-    /*
-    if (0) {
+    if (1) {
         var wmod = new HDLModuleWASM(parser.modules['TOP'], parser.modules['@CONST-POOL@']);
         wmod.traceBufferSize = 0x8000;
         wmod.maxMemoryMB = 0.25;
-        wmod.init().then(() => {
-            wmod.powercycle();
-            wmod.tick2(10000);
-            wmod.dispose();
-        })
+        wmod.initSync();
+        wmod.powercycle();
+        wmod.tick2(10000);
     }
-    */
-    if (1) {
+    if (0) {
         var jmod = new HDLModuleJS(parser.modules['TOP'], parser.modules['@CONST-POOL@']);
         jmod.init();
         try {
