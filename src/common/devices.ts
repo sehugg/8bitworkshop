@@ -98,13 +98,17 @@ export interface SavesInputState<CS> {
     saveControlsState() : CS;
 }
 
-// TODO: joystick
 export interface AcceptsKeyInput {
     setKeyInput(key:number, code:number, flags:number) : void;
 }
 
 export interface AcceptsPaddleInput {
     setPaddleInput(controller:number, value:number) : void;
+}
+
+// TODO: interface not yet used (setKeyInput() handles joystick)
+export interface AcceptsJoyInput {
+  setJoyInput(joy:number, bitmask:number) : void;
 }
 
 // SERIAL I/O

@@ -47,7 +47,7 @@ class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implement
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return C64_MEMORY_MAP; }
   showHelp() {
-    window.open("https://sta.c64.org/cbm64mem.html", "_help");
+    window.open("https://8bitworkshop.com/docs/platforms/c64/", "_help");
   }
   getROMExtension(rom:Uint8Array) { 
     /*

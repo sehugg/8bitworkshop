@@ -1,5 +1,5 @@
 
-import { RAM, RasterVideo, KeyFlags, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes, ControllerPoller } from "./emu";
+import { RAM, RasterVideo, KeyFlags, dumpRAM, AnimationTimer, setKeyboardFromMap, padBytes, ControllerPoller, EmuHalt } from "./emu";
 import { hex, printFlags, invertMap, getBasePlatform, byteToASCII } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { Segment, FileData } from "./workertypes";
@@ -1036,7 +1036,7 @@ export function lookupSymbol(platform:Platform, addr:number, extra:boolean) {
 
 /// new Machine platform adapters
 
-import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsBIOS, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition, CPU, HasSerialIO, SerialIOInterface, SerialEvent } from "./devices";
+import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsBIOS, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, TrapCondition, CPU, HasSerialIO, SerialIOInterface, SerialEvent, AcceptsJoyInput } from "./devices";
 import { Probeable, RasterFrameBased, AcceptsPaddleInput, SampledAudioSink, ProbeAll, NullProbe } from "./devices";
 import { SampledAudio } from "./audio";
 import { ProbeRecorder } from "./recorder";
@@ -1052,6 +1052,9 @@ export function hasAudio(arg:any): arg is SampledAudioSource {
 }
 export function hasKeyInput(arg:any): arg is AcceptsKeyInput {
     return typeof arg.setKeyInput === 'function';
+}
+export function hasJoyInput(arg:any): arg is AcceptsJoyInput {
+  return typeof arg.setJoyInput === 'function';
 }
 export function hasPaddleInput(arg:any): arg is AcceptsPaddleInput {
     return typeof arg.setPaddleInput === 'function';
@@ -1323,8 +1326,11 @@ export abstract class BaseWASMMachine {
   audio : SampledAudioSink;
   audioarr : Float32Array;
   probe : ProbeAll;
+  maxROMSize : number = 0x40000;
 
   abstract getCPUState() : CpuState;
+  abstract saveState() : EmuState;
+  abstract loadState(state: EmuState);
 
   constructor(prefix: string) {
     this.prefix = prefix;
@@ -1345,39 +1351,53 @@ export abstract class BaseWASMMachine {
       },
     }
   }
-  async loadWASM() {
-    // fetch WASM
+  getImports(wmod: WebAssembly.Module) {
+    return {};
+  }
+  async fetchWASM() {
     var wasmResponse = await fetch('res/'+this.prefix+'.wasm');
     var wasmBinary = await wasmResponse.arrayBuffer();
     var wasmCompiled = await WebAssembly.compile(wasmBinary);
-    var wasmResult = await WebAssembly.instantiate(wasmCompiled);
+    var wasmResult = await WebAssembly.instantiate(wasmCompiled, this.getImports(wasmCompiled));
     this.instance = wasmResult;
     this.exports = wasmResult.exports;
-    this.exports.memory.grow(64); // TODO: need more when probing?
-    // fetch BIOS
+  }
+  async fetchBIOS() {
     var biosResponse = await fetch('res/'+this.prefix+'.bios');
     var biosBinary = await biosResponse.arrayBuffer();
     this.biosptr = this.exports.malloc(biosBinary.byteLength);
     this.biosarr = new Uint8Array(this.exports.memory.buffer, this.biosptr, biosBinary.byteLength);
     this.loadBIOS(new Uint8Array(biosBinary));
+  }
+  async initWASM() {
     // init machine instance
     this.sys = this.exports.machine_init(this.biosptr);
-    console.log('machine_init', this.sys);
-    // create state buffers
-    var statesize = this.exports.machine_get_state_size();
+    let statesize = this.exports.machine_get_state_size();
     this.stateptr = this.exports.malloc(statesize);
-    this.statearr = new Uint8Array(this.exports.memory.buffer, this.stateptr, statesize);
-    var ctrlstatesize = this.exports.machine_get_controls_state_size();
+    let ctrlstatesize = this.exports.machine_get_controls_state_size();
     this.ctrlstateptr = this.exports.malloc(ctrlstatesize);
-    this.ctrlstatearr = new Uint8Array(this.exports.memory.buffer, this.ctrlstateptr, ctrlstatesize);
-    var cpustatesize = this.exports.machine_get_cpu_state_size();
+    let cpustatesize = this.exports.machine_get_cpu_state_size();
     this.cpustateptr = this.exports.malloc(cpustatesize);
+    this.romptr = this.exports.malloc(this.maxROMSize);
+    // create state buffers
+    // must do this after allocating memory (and everytime we grow memory?)
+    this.statearr = new Uint8Array(this.exports.memory.buffer, this.stateptr, statesize);
+    this.ctrlstatearr = new Uint8Array(this.exports.memory.buffer, this.ctrlstateptr, ctrlstatesize);
     this.cpustatearr = new Uint8Array(this.exports.memory.buffer, this.cpustateptr, cpustatesize);
     // create audio buffer
-    var sampbufsize = 4096*4;
+    let sampbufsize = 4096*4;
     this.audioarr = new Float32Array(this.exports.memory.buffer, this.exports.machine_get_sample_buffer(), sampbufsize);
+    // create ROM buffer
+    this.romarr = new Uint8Array(this.exports.memory.buffer, this.romptr, this.maxROMSize);
     // enable c64 joystick map to arrow keys (TODO)
     //this.exports.c64_set_joystick_type(this.sys, 1);
+    console.log('machine_init', this.sys, statesize, ctrlstatesize, cpustatesize, sampbufsize);
+  }
+  async loadWASM() {
+    await this.fetchWASM();
+    this.exports.memory.grow(64); // TODO: need more when probing?
+    await this.fetchBIOS();
+    await this.initWASM();
   }
   getPC() : number {
     return this.exports.machine_cpu_get_pc(this.sys);
@@ -1389,13 +1409,11 @@ export abstract class BaseWASMMachine {
     return this.exports.machine_cpu_is_stable(this.sys);
   }
   loadROM(rom: Uint8Array) {
-    if (!this.romptr) {
-      this.romptr = this.exports.malloc(0x10000);
-      this.romarr = new Uint8Array(this.exports.memory.buffer, this.romptr, 0x10000);
-    }
+    if (rom.length > this.maxROMSize) throw new EmuHalt(`Rom size too big: ${rom.length} bytes`);
     this.romarr.set(rom);
     this.romlen = rom.length;
-    this.reset();
+    console.log('load rom', rom.length, 'bytes');
+    this.reset(); // TODO?
   }
   // TODO: can't load after machine_init
   loadBIOS(srcArray: Uint8Array) {
@@ -1423,12 +1441,14 @@ export abstract class BaseWASMMachine {
   }
   connectVideo(pixels:Uint32Array) : void {
     this.pixel_dest = pixels;
-    // save video pointer
-    var pixbuf = this.exports.machine_get_pixel_buffer(this.sys);
+    var pixbuf = this.exports.machine_get_pixel_buffer(this.sys); // save video pointer
     this.pixel_src = new Uint32Array(this.exports.memory.buffer, pixbuf, pixels.length);
-    console.log(pixbuf, pixels.length);
+    console.log('connectVideo', pixbuf, pixels.length);
   }
   syncVideo() {
+    if (this.exports.machine_update_video) {
+      this.exports.machine_update_video(this.sys);
+    }
     if (this.pixel_dest != null) {
       this.pixel_dest.set(this.pixel_src);
     }
@@ -1486,7 +1506,70 @@ export abstract class BaseWASMMachine {
   connectProbe(probe: ProbeAll): void {
     this.probe = probe;
   }
+  getDebugTree() {
+    return this.saveState();
+  }
 }
+
+import { loadScript } from "../ide/ui";
+import { WasmFs } from "@wasmer/wasmfs";
+
+let stub = function() { console.log(arguments); return 0 }
+
+export abstract class BaseWASIMachine extends BaseWASMMachine {
+  m_wasi;
+  wasiInstance;
+  wasmFs : WasmFs;
+  
+  constructor(prefix: string) {
+    super(prefix);
+  }
+  getImports(wmod: WebAssembly.Module) {
+    var imports = this.wasiInstance.getImports(wmod);
+    // TODO: eliminate these imports
+    imports.env = {
+      system: stub,
+      __sys_mkdir: stub,
+      __sys_chmod: stub,
+      __sys_stat64: stub,
+      __sys_unlink: stub,
+      __sys_rename: stub,
+      __sys_getdents64: stub,
+      __sys_getcwd: stub,
+      __sys_rmdir: stub,
+      emscripten_thread_sleep: stub,
+    }
+    return imports;
+  }
+  stdoutWrite(buffer) {
+    console.log('>>>', buffer.toString());
+    return buffer.length;
+  }
+  async loadWASM() {
+    await loadScript('node_modules/@wasmer/wasi/lib/index.iife.js'); //TODO: require('@wasmer/wasi');
+    await loadScript('node_modules/@wasmer/wasmfs/lib/index.iife.js'); //TODO: require('@wasmer/wasi');
+    let WASI = window['WASI'];
+    let WasmFs = window['WasmFs'];
+    this.wasmFs = new WasmFs.WasmFs();
+    let bindings = WASI.WASI.defaultBindings;
+    bindings.fs = this.wasmFs.fs;
+    bindings.fs.mkdirSync('/tmp');
+    bindings.path = bindings.path.default;
+    this.wasiInstance = new WASI.WASI({
+      preopenDirectories: {'/tmp':'/tmp'},
+      env: {},
+      args: [],
+      bindings: bindings
+    });
+    this.wasmFs.volume.fds[1].write = this.stdoutWrite.bind(this);
+    this.wasmFs.volume.fds[2].write = this.stdoutWrite.bind(this);
+    await this.fetchWASM();
+    this.wasiInstance.start(this.instance);
+    await this.initWASM();
+  }
+}
+
+/////
 
 class SerialIOVisualizer {
 

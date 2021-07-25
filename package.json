@@ -11,6 +11,8 @@
   "license": "GPL-3.0",
   "dependencies": {
     "@sentry/electron": "^2.5.1",
+    "@wasmer/wasi": "^0.12.0",
+    "@wasmer/wasmfs": "^0.12.0",
     "binaryen": "^101.0.0",
     "chokidar": "^3.5.0",
     "jquery": "^3.5.1",

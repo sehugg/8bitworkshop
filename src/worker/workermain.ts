@@ -260,14 +260,23 @@ var PLATFORM_PARAMS = {
   'atari8-800xl': {
     arch: '6502',
     define: ['__ATARI__'],
+    cfgfile: 'atari.cfg',
+    libargs: ['atari.lib'],
+    fastbasic_cfgfile: 'fastbasic-cart.cfg',
+  },
+  'atari8-800xl.cart': {
+    arch: '6502',
+    define: ['__ATARI__'],
     cfgfile: 'atari-cart.cfg',
     libargs: ['atari.lib', '-D', '__CARTFLAGS__=4'],
+    fastbasic_cfgfile: 'fastbasic-cart.cfg',
   },
   'atari8-5200': {
     arch: '6502',
     define: ['__ATARI5200__'],
     cfgfile: 'atari5200.cfg',
     libargs: ['atari5200.lib', '-D', '__CARTFLAGS__=255'],
+    fastbasic_cfgfile: 'fastbasic-cart.cfg',
   },
   'verilog': {
     arch: 'verilog',
@@ -2770,10 +2779,11 @@ function compileFastBasic(step:BuildStep) {
     });
     var FS = fastbasic['FS'];
     populateFiles(step, FS);
-    params.libargs = ['fastbasic-int.lib'];
-    params.cfgfile = 'fastbasic-cart.cfg';
+    var libfile = 'fastbasic-int.lib'
+    params.libargs = [libfile];
+    params.cfgfile = params.fastbasic_cfgfile;
     //params.extra_compile_args = ["--asm-define", "NO_SMCODE"];
-    params.extra_link_files = ['fastbasic-int.lib', 'fastbasic-cart.cfg'];
+    params.extra_link_files = [libfile, params.cfgfile];
     //fixParamsWithDefines(step.path, params);
     var args = [step.path, destpath];
     execMain(step, fastbasic, args);
