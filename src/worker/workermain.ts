@@ -1,13 +1,15 @@
 "use strict";
 
-import { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap, Segment, WorkerOutput, SourceLocation } from "../common/workertypes";
+import type { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap, Segment, WorkerOutput, SourceLocation } from "../common/workertypes";
+import { getBasePlatform, getRootBasePlatform, hex } from "../common/util";
+import { Assembler } from "./assembler";
 
 declare function importScripts(path:string);
 declare function postMessage(msg);
 
-const emglobal : any = (this as any)['window'] || (this as any)['global'] || this;
 const ENVIRONMENT_IS_WEB = typeof window === 'object';
 const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
+const emglobal : any = ENVIRONMENT_IS_WORKER ? self : ENVIRONMENT_IS_WEB ? window : global;
 
 // simple CommonJS module loader
 // TODO: relative paths for dependencies
@@ -27,8 +29,6 @@ if (!emglobal['require']) {
     return emglobal[modname]; // TODO
   }
 }
-
-import { hex } from "../common/util";
 
 // WebAssembly module cache
 // TODO: leaks memory even when disabled...
@@ -68,20 +68,6 @@ function moduleInstFn(module_id:string) {
     ri(inst);
     return inst.exports;
   }
-}
-
-// get platform ID without . emulator
-function getBasePlatform(platform : string) : string {
-  return platform.split('.')[0];
-}
-
-// get platform ID without - specialization
-function getRootPlatform(platform : string) : string {
-  return platform.split('-')[0];
-}
-
-function getRootBasePlatform(platform : string) : string {
-  return getRootPlatform(getBasePlatform(platform));
 }
 
 //
@@ -1676,22 +1662,21 @@ var jsasm_module_output;
 var jsasm_module_key;
 
 function compileJSASM(asmcode:string, platform, options, is_inline) {
-  var _assembler = require('./assembler');
-  var asm = new _assembler.Assembler();
+  var asm = new Assembler(null);
   var includes = [];
   asm.loadJSON = (filename:string) => {
     var jsontext = getWorkFileAsString(filename);
     if (!jsontext) throw Error("could not load " + filename);
     return JSON.parse(jsontext);
   };
-  asm.loadInclude = function(filename) {
+  asm.loadInclude = (filename) => {
     if (!filename.startsWith('"') || !filename.endsWith('"'))
       return 'Expected filename in "double quotes"';
     filename = filename.substr(1, filename.length-2);
     includes.push(filename);
   };
   var loaded_module = false;
-  asm.loadModule = function(top_module) {
+  asm.loadModule = (top_module : string) => {
     // compile last file in list
     loaded_module = true;
     var key = top_module + '/' + includes;
@@ -1705,6 +1690,7 @@ function compileJSASM(asmcode:string, platform, options, is_inline) {
     var voutput = compileVerilator({platform:platform, files:includes, path:main_filename, tool:'verilator'});
     if (voutput)
       jsasm_module_output = voutput;
+    return null; // no error
   }
   var result = asm.assembleFile(asmcode);
   if (loaded_module && jsasm_module_output) {
@@ -1715,13 +1701,16 @@ function compileJSASM(asmcode:string, platform, options, is_inline) {
     var asmout = result.output;
     // TODO: unify
     result.output = jsasm_module_output.output;
-    result.output.program_rom = asmout;
+    // TODO: typecheck this garbage
+    (result as any).output.program_rom = asmout;
     // TODO: not cpu_platform__DOT__program_rom anymore, make const
-    result.output.program_rom_variable = jsasm_module_top + "$program_rom";
-    result.listings = {};
-    result.listings[options.path] = {lines:result.lines};
+    (result as any).output.program_rom_variable = jsasm_module_top + "$program_rom";
+    (result as any).listings = {};
+    (result as any).listings[options.path] = {lines:result.lines};
+    return result;
+  } else {
+    return result;
   }
-  return result;
 }
 
 function compileJSASMStep(step:BuildStep) {

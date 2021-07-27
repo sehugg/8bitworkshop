@@ -112,7 +112,7 @@ export class Assembler {
   codelen = 0;
   aborted = false;
   
-  constructor(spec : AssemblerSpec) {
+  constructor(spec? : AssemblerSpec) {
     this.spec = spec;
     if (spec) {
       this.preprocessRules();

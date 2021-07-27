@@ -7,7 +7,7 @@ import * as localforage from "localforage";
 import { CodeProject, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "../common/workertypes";
 import { ProjectWindows } from "./windows";
-import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState } from "../common/baseplatform";
+import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState, BasePlatform } from "../common/baseplatform";
 import { PLATFORMS, EmuHalt, Toolbar } from "../common/emu";
 import * as Views from "./views";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG, stringToByteArray,
@@ -132,7 +132,7 @@ export function loadScript(scriptfn:string) : Promise<Event> {
 }
 
 function newWorker() : Worker {
-  return new Worker("./gen/worker/loader.js");
+  return new Worker("./gen/worker/bundle.js");
 }
 
 const hasLocalStorage : boolean = function() {
@@ -946,7 +946,11 @@ function _downloadCassetteFile(e) {
     alertError("Please fix errors before exporting.");
     return true;
   }
-  var fn = window['_downloadCassetteFile_' + getBasePlatform(platform_id)];
+  var fn;
+  switch (getBasePlatform(platform_id)) {
+    case 'vcs': fn = _downloadCassetteFile_vcs; break;
+    case 'apple2': fn = _downloadCassetteFile_apple2; break;
+  }
   if (fn === undefined) {
     alertError("Cassette export is not supported on this platform.");
     return true;

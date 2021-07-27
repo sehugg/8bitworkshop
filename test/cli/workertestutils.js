@@ -72,7 +72,8 @@ global.FileReaderSync = function() {
 global.onmessage = null;
 global.postMessage = null;
 
-includeInThisContext("gen/worker/workermain.js");
+//includeInThisContext("gen/worker/workermain.js");
+require('gen/worker/bundle.js')
 
 global.ab2str = function(buf) {
   return String.fromCharCode.apply(null, new Uint16Array(buf));

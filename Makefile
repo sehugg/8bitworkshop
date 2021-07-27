@@ -4,6 +4,7 @@ TMP=./tmp/dist
 
 buildtsc:
 	$(TSC) tsconfig.json
+	npm run esbuild
 
 prepare: buildtsc
 	patch -i meta/electron.diff -o electron.html
@@ -41,13 +42,10 @@ desktop: distro
 meta/electron.diff: index.html electron.html
 	-diff -u index.html electron.html > $@
 
-web:
-	(ip addr || ifconfig) | grep inet
-	python3 scripts/serveit.py 2>> /dev/null #http.out
-
 tsweb:
 	(ip addr || ifconfig) | grep inet
 	$(TSC) -w &
+	npm run eswatch &
 	python3 scripts/serveit.py 2>> /dev/null #http.out
 
 astrolibre.b64.txt: astrolibre.rom
