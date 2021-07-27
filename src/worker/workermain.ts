@@ -243,14 +243,14 @@ var PLATFORM_PARAMS = {
     cfgfile: 'apple2.cfg',
     libargs: ['apple2.lib'],
   },
-  'atari8-800xl': {
+  'atari8-800xl.disk': {
     arch: '6502',
     define: ['__ATARI__'],
     cfgfile: 'atari.cfg',
     libargs: ['atari.lib'],
     fastbasic_cfgfile: 'fastbasic-cart.cfg',
   },
-  'atari8-800xl.cart': {
+  'atari8-800xl': {
     arch: '6502',
     define: ['__ATARI__'],
     cfgfile: 'atari-cart.cfg',
@@ -1753,10 +1753,11 @@ function compileInlineASM(code:string, platform, options, errors, asmlines) {
   return code;
 }
 
+import * as hdltypes from '../common/hdl/hdltypes';
+import * as vxmlparser from '../common/hdl/vxmlparser';
+
 function compileVerilator(step:BuildStep) {
   loadNative("verilator_bin");
-  const hdltypes = require('../common/hdl/hdltypes');
-  const vxmlparser = require('../common/hdl/vxmlparser');
   var platform = step.platform || 'verilog';
   var errors : WorkerError[] = [];
   gatherFiles(step);
@@ -2789,12 +2790,13 @@ function compileFastBasic(step:BuildStep) {
   };
 }
 
+import * as basic_compiler from '../common/basic/compiler';
+
 function compileBASIC(step:BuildStep) {
   var jsonpath = step.path + ".json";
   gatherFiles(step);
   if (staleFiles(step, [jsonpath])) {
-    const compiler = require('../common/basic/compiler');
-    var parser = new compiler.BASICParser();
+    var parser = new basic_compiler.BASICParser();
     var code = getWorkFileAsString(step.path);
     try {
       var ast = parser.parseFile(code, step.path);

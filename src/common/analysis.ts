@@ -134,6 +134,7 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
           }
           break;
         // TODO: only Apple2 (vapor lock)
+        /*
         case 0xad:
           if (lob == 0x61 && hib == 0xc0) { // LDA $C061
             minclocks = 0;
@@ -141,6 +142,7 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
             meta.minCycles = meta.maxCycles = 0;
           }
           break;
+        */
         case 0x20: // JSR
           // TODO: handle bare RTS case
           minclocks += meta.minCycles;
