@@ -1,8 +1,13 @@
-"use strict";
 
+/// <reference types="emscripten" />
 import type { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap, Segment, WorkerOutput, SourceLocation } from "../common/workertypes";
 import { getBasePlatform, getRootBasePlatform, hex } from "../common/util";
 import { Assembler } from "./assembler";
+
+interface EmscriptenModule {
+  callMain: (args: string[]) => void;
+  FS : any; // TODO
+}
 
 declare function importScripts(path:string);
 declare function postMessage(msg);
@@ -377,10 +382,160 @@ interface BuildStep extends WorkerBuildStep {
   maxts?
 };
 
-var buildsteps : BuildStep[] = [];
-var buildstartseq : number = 0;
-var workfs : {[path:string]:FileEntry} = {};
-var workerseq : number = 0;
+///
+
+class FileWorkingStore {
+  workfs : {[path:string]:FileEntry} = {};
+  workerseq : number = 0;
+
+  constructor() {
+    this.reset();
+  }
+  reset() {
+    this.workfs = {};
+    this.newVersion();
+  }
+  currentVersion() {
+    return this.workerseq;
+  }
+  newVersion() {
+    let ts = new Date().getTime();
+    if (ts <= this.workerseq)
+      ts = ++this.workerseq;
+    return ts;
+  }
+  putFile(path:string, data:FileData) : FileEntry {
+    var encoding = (typeof data === 'string') ? 'utf8' : 'binary';
+    var entry = this.workfs[path];
+    if (!entry || !compareData(entry.data, data) || entry.encoding != encoding) {
+      this.workfs[path] = entry = {path:path, data:data, encoding:encoding, ts:this.newVersion()};
+      console.log('+++', entry.path, entry.encoding, entry.data.length, entry.ts);
+    }
+    return entry;
+  }
+  hasFile(path: string) {
+    return this.workfs[path] != null;
+  }
+  getFileData(path:string) : FileData {
+    return this.workfs[path] && this.workfs[path].data;
+  }  
+  getFileAsString(path:string) : string {
+    let data = this.getFileData(path);
+    if (data != null && typeof data !== 'string')
+      throw new Error(`${path}: expected string`)
+    return data as string; // TODO
+  }
+  getFileEntry(path:string) : FileEntry {
+    return this.workfs[path];
+  }
+}
+
+var store = new FileWorkingStore();
+
+///
+
+class Builder {
+  steps : BuildStep[] = [];
+  startseq : number = 0;
+
+  // returns true if file changed during this build step
+  wasChanged(entry:FileEntry) : boolean {
+    return entry.ts > this.startseq;
+  }
+  executeBuildSteps() {
+    this.startseq = store.currentVersion();
+    var linkstep : BuildStep = null;
+    while (this.steps.length) {
+      var step = this.steps.shift(); // get top of array
+      var platform = step.platform;
+      var toolfn = TOOLS[step.tool];
+      if (!toolfn) throw Error("no tool named " + step.tool);
+      step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
+      try {
+        step.result = toolfn(step);
+      } catch (e) {
+        console.log("EXCEPTION", e, e.stack);
+        return {errors:[{line:0, msg:e+""}]}; // TODO: catch errors already generated?
+      }
+      if (step.result) {
+        step.result.params = step.params;
+        // errors? return them
+        if (step.result.errors && step.result.errors.length) {
+          applyDefaultErrorPath(step.result.errors, step.path);
+          return step.result;
+        }
+        // if we got some output, return it immediately
+        if (step.result.output) {
+          return step.result;
+        }
+        // combine files with a link tool?
+        if (step.result.linktool) {
+          if (linkstep) {
+            linkstep.files = linkstep.files.concat(step.result.files);
+            linkstep.args = linkstep.args.concat(step.result.args);
+          } else {
+            linkstep = {
+              tool:step.result.linktool,
+              platform:platform,
+              files:step.result.files,
+              args:step.result.args
+            };
+          }
+        }
+        // process with another tool?
+        if (step.result.nexttool) {
+          var asmstep : BuildStep = step.result;
+          asmstep.tool = step.result.nexttool;
+          asmstep.platform = platform;
+          this.steps.push(asmstep);
+        }
+        // process final step?
+        if (this.steps.length == 0 && linkstep) {
+          this.steps.push(linkstep);
+          linkstep = null;
+        }
+      }
+    }
+  }
+  handleMessage(data: WorkerMessage) : WorkerResult {
+    this.steps = [];
+    // file updates
+    if (data.updates) {
+      for (var i=0; i<data.updates.length; i++) {
+        var u = data.updates[i];
+        store.putFile(u.path, u.data);
+      }
+    }
+    // build steps
+    if (data.buildsteps) {
+      this.steps.push.apply(this.steps, data.buildsteps);
+    }
+    // single-file
+    if (data.code) {
+      this.steps.push(data);
+    }
+    // execute build steps
+    if (this.steps.length) {
+      var result = this.executeBuildSteps();
+      return result ? result : {unchanged:true};
+    }
+    // TODO: cache results
+    // message not recognized
+    console.log("Unknown message",data);
+  }
+}
+
+var builder = new Builder();
+
+///
+
+function applyDefaultErrorPath(errors:WorkerError[], path:string) {
+  if (!path) return;
+  for (var i=0; i<errors.length; i++) {
+    var err = errors[i];
+    if (!err.path && err.line) err.path = path;
+  }
+}
 
 function compareData(a:FileData, b:FileData) : boolean {
   if (a.length != b.length) return false;
@@ -396,22 +551,11 @@ function compareData(a:FileData, b:FileData) : boolean {
 }
 
 function putWorkFile(path:string, data:FileData) {
-  var encoding = (typeof data === 'string') ? 'utf8' : 'binary';
-  var entry = workfs[path];
-  if (!entry || !compareData(entry.data, data) || entry.encoding != encoding) {
-    workfs[path] = entry = {path:path, data:data, encoding:encoding, ts:++workerseq};
-    console.log('+++', entry.path, entry.encoding, entry.data.length, entry.ts);
-  }
-  return entry;
-}
-
-// returns true if file changed during this build step
-function wasChanged(entry:FileEntry) : boolean {
-  return entry.ts > buildstartseq;
+  return store.putFile(path, data);
 }
 
 function getWorkFileAsString(path:string) : string {
-  return workfs[path] && workfs[path].data as string; // TODO
+  return store.getFileAsString(path);
 }
 
 function populateEntry(fs, path:string, entry:FileEntry, options:BuildOptions) {
@@ -429,17 +573,18 @@ function populateEntry(fs, path:string, entry:FileEntry, options:BuildOptions) {
   }
   // write file
   fs.writeFile(path, data, {encoding:entry.encoding});
-  fs.utime(path, entry.ts, entry.ts);
+  var time = new Date(entry.ts);
+  fs.utime(path, time, time);
   console.log("<<<", path, entry.data.length);
 }
 
 // can call multiple times (from populateFiles)
-function gatherFiles(step:BuildStep, options?:BuildOptions) {
+function gatherFiles(step:BuildStep, options?:BuildOptions) : number {
   var maxts = 0;
   if (step.files) {
     for (var i=0; i<step.files.length; i++) {
       var path = step.files[i];
-      var entry = workfs[path];
+      var entry = store.workfs[path];
       if (!entry) {
         throw new Error("No entry for path '" + path + "'");
       } else {
@@ -458,7 +603,7 @@ function gatherFiles(step:BuildStep, options?:BuildOptions) {
   }
   else if (step.path) {
     var path = step.path;
-    var entry = workfs[path];
+    var entry = store.workfs[path];
     maxts = entry.ts;
     step.files = [path];
   }
@@ -479,7 +624,7 @@ function populateFiles(step:BuildStep, fs, options?:BuildOptions) {
   if (!step.files) throw Error("call gatherFiles() first");
   for (var i=0; i<step.files.length; i++) {
     var path = step.files[i];
-    populateEntry(fs, path, workfs[path], options);
+    populateEntry(fs, path, store.workfs[path], options);
   }
 }
 
@@ -488,8 +633,8 @@ function populateExtraFiles(step:BuildStep, fs, extrafiles) {
     for (var i=0; i<extrafiles.length; i++) {
       var xfn = extrafiles[i];
       // is this file cached?
-      if (workfs[xfn]) {
-        fs.writeFile(xfn, workfs[xfn].data, {encoding:'binary'});
+      if (store.workfs[xfn]) {
+        fs.writeFile(xfn, store.workfs[xfn].data, {encoding:'binary'});
         continue;
       }
       // fetch from network
@@ -514,7 +659,7 @@ function staleFiles(step:BuildStep, targets:string[]) {
   if (!step.maxts) throw Error("call populateFiles() first");
   // see if any target files are more recent than inputs
   for (var i=0; i<targets.length; i++) {
-    var entry = workfs[targets[i]];
+    var entry = store.workfs[targets[i]];
     if (!entry || step.maxts > entry.ts)
       return true;
   }
@@ -526,7 +671,7 @@ function anyTargetChanged(step:BuildStep, targets:string[]) {
   if (!step.maxts) throw Error("call populateFiles() first");
   // see if any target files are more recent than inputs
   for (var i=0; i<targets.length; i++) {
-    var entry = workfs[targets[i]];
+    var entry = store.workfs[targets[i]];
     if (!entry || entry.ts > step.maxts)
       return true;
   }
@@ -883,11 +1028,11 @@ function assembleDASM(step:BuildStep) {
       errorMatcher(s);
     }
   }
-  var Module = emglobal.DASM({
+  var Module : EmscriptenModule = emglobal.DASM({
     noInitialRun:true,
     print:match_fn
   });
-  var FS = Module['FS'];
+  var FS = Module.FS;
   populateFiles(step, FS, {
     mainFilePath:'main.a'
   });
@@ -1056,14 +1201,14 @@ function assembleCA65(step:BuildStep) {
   var lstpath = step.prefix+".lst";
   if (staleFiles(step, [objpath, lstpath])) {
     var objout, lstout;
-    var CA65 = emglobal.ca65({
+    var CA65 : EmscriptenModule = emglobal.ca65({
       instantiateWasm: moduleInstFn('ca65'),
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
       printErr:msvcErrorMatcher(errors),
     });
-    var FS = CA65['FS'];
+    var FS = CA65.FS;
     setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     fixParamsWithDefines(step.path, step.params);
@@ -1094,20 +1239,20 @@ function linkLD65(step:BuildStep) {
   var binpath = "main";
   if (staleFiles(step, [binpath])) {
     var errors = [];
-    var LD65 = emglobal.ld65({
+    var LD65 : EmscriptenModule = emglobal.ld65({
       instantiateWasm: moduleInstFn('ld65'),
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
       printErr:function(s) { errors.push({msg:s,line:0}); }
     });
-    var FS = LD65['FS'];
+    var FS = LD65.FS;
     setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     populateExtraFiles(step, FS, params.extra_link_files);
     // populate .cfg file, if it is a custom one
-    if (workfs[params.cfgfile]) {
-      populateEntry(FS, params.cfgfile, workfs[params.cfgfile], null);
+    if (store.hasFile(params.cfgfile)) {
+      populateEntry(FS, params.cfgfile, store.getFileEntry(params.cfgfile), null);
     }
     var libargs = params.libargs || [];
     var cfgfile = params.cfgfile;
@@ -1257,14 +1402,14 @@ function compileCC65(step:BuildStep) {
   gatherFiles(step, {mainFilePath:"main.c"});
   var destpath = step.prefix + '.s';
   if (staleFiles(step, [destpath])) {
-    var CC65 = emglobal.cc65({
+    var CC65 : EmscriptenModule = emglobal.cc65({
       instantiateWasm: moduleInstFn('cc65'),
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
       printErr:match_fn,
     });
-    var FS = CC65['FS'];
+    var FS = CC65.FS;
     setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     fixParamsWithDefines(step.path, params);
@@ -1368,14 +1513,14 @@ function assembleSDASZ80(step:BuildStep) {
         }
       }
     }
-    var ASZ80 = emglobal.sdasz80({
+    var ASZ80 : EmscriptenModule = emglobal.sdasz80({
       instantiateWasm: moduleInstFn('sdasz80'),
       noInitialRun:true,
       //logReadFiles:true,
       print:match_asm_fn,
       printErr:match_asm_fn,
     });
-    var FS = ASZ80['FS'];
+    var FS = ASZ80.FS;
     populateFiles(step, FS);
     execMain(step, ASZ80, ['-plosgffwy', step.path]);
     if (errors.length) {
@@ -1413,14 +1558,14 @@ function linkSDLDZ80(step:BuildStep)
       }
     }
     var params = step.params;
-    var LDZ80 = emglobal.sdldz80({
+    var LDZ80 : EmscriptenModule = emglobal.sdldz80({
       instantiateWasm: moduleInstFn('sdldz80'),
       noInitialRun:true,
       //logReadFiles:true,
       print:match_aslink_fn,
       printErr:match_aslink_fn,
     });
-    var FS = LDZ80['FS'];
+    var FS = LDZ80.FS;
     setupFS(FS, 'sdcc');
     populateFiles(step, FS);
     populateExtraFiles(step, FS, params.extra_link_files);
@@ -1517,7 +1662,7 @@ function compileSDCC(step:BuildStep) {
     var errors = [];
     var params = step.params;
     loadNative('sdcc');
-    var SDCC = emglobal.sdcc({
+    var SDCC : EmscriptenModule = emglobal.sdcc({
       instantiateWasm: moduleInstFn('sdcc'),
       noInitialRun:true,
       noFSInit:true,
@@ -1525,7 +1670,7 @@ function compileSDCC(step:BuildStep) {
       printErr:msvcErrorMatcher(errors),
       //TOTAL_MEMORY:256*1024*1024,
     });
-    var FS = SDCC['FS'];
+    var FS = SDCC.FS;
     populateFiles(step, FS);
     // load source file and preprocess
     var code = getWorkFileAsString(step.path);
@@ -1595,13 +1740,13 @@ function preprocessMCPP(step:BuildStep, filesys:string) {
   // <stdin>:2: error: Can't open include file "foo.h"
   var errors = [];
   var match_fn = makeErrorMatcher(errors, /<stdin>:(\d+): (.+)/, 1, 2, step.path);
-  var MCPP = emglobal.mcpp({
+  var MCPP : EmscriptenModule = emglobal.mcpp({
     noInitialRun:true,
     noFSInit:true,
     print:print_fn,
     printErr:match_fn,
   });
-  var FS = MCPP['FS'];
+  var FS = MCPP.FS;
   if (filesys) setupFS(FS, filesys);
   populateFiles(step, FS);
   populateExtraFiles(step, FS, params.extra_compile_files);
@@ -1619,7 +1764,7 @@ function preprocessMCPP(step:BuildStep, filesys:string) {
   if (params.extra_preproc_args) {
     args.push.apply(args, params.extra_preproc_args);
   }
-  MCPP.callMain(args);
+  execMain(step, MCPP, args);
   if (errors.length)
     return {errors:errors};
   var iout = FS.readFile("main.i", {encoding:'utf8'});
@@ -1766,7 +1911,7 @@ function compileVerilator(step:BuildStep) {
     // TODO: %Error: Specified --top-module 'ALU' isn't at the top level, it's under another cell 'cpu'
     // TODO: ... Use "/* verilator lint_off BLKSEQ */" and lint_on around source to disable this message.
     var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
-    var verilator_mod = emglobal.verilator_bin({
+    var verilator_mod : EmscriptenModule = emglobal.verilator_bin({
       instantiateWasm: moduleInstFn('verilator_bin'),
       noInitialRun: true,
       noExitRuntime: true,
@@ -1777,7 +1922,7 @@ function compileVerilator(step:BuildStep) {
     });
     var code = getWorkFileAsString(step.path);
     var topmod = detectTopModuleName(code);
-    var FS = verilator_mod['FS'];
+    var FS = verilator_mod.FS;
     var listings : CodeListingMap = {};
     // process inline assembly, add listings where found
     populateFiles(step, FS, {
@@ -1803,7 +1948,7 @@ function compileVerilator(step:BuildStep) {
         "--x-assign", "fast", "--noassert", "--pins-sc-biguint",
         "--debug-check", // for XML output
         "--top-module", topmod, step.path]
-      verilator_mod.callMain(args);
+      execMain(step, verilator_mod, args);
     } catch (e) {
       console.log(e);
       errors.push({line:0,msg:"Compiler internal error: " + e});
@@ -1853,7 +1998,7 @@ function compileYosys(step:BuildStep) {
   var errors = [];
   var match_fn = makeErrorMatcher(errors, /ERROR: (.+?) in line (.+?[.]v):(\d+)[: ]+(.+)/i, 3, 4, step.path);
   starttime();
-  var yosys_mod = emglobal.yosys({
+  var yosys_mod : EmscriptenModule = emglobal.yosys({
     instantiateWasm: moduleInstFn('yosys'),
     noInitialRun:true,
     print:print_fn,
@@ -1861,11 +2006,11 @@ function compileYosys(step:BuildStep) {
   });
   endtime("create module");
   var topmod = detectTopModuleName(code);
-  var FS = yosys_mod['FS'];
+  var FS = yosys_mod.FS;
   FS.writeFile(topmod+".v", code);
   starttime();
   try {
-    yosys_mod.callMain(["-q", "-o", topmod+".json", "-S", topmod+".v"]);
+    execMain(step, yosys_mod, ["-q", "-o", topmod+".json", "-S", topmod+".v"]);
   } catch (e) {
     console.log(e);
     endtime("compile");
@@ -1902,14 +2047,14 @@ error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
 	Add a colon or move to first column to stop this warning.
 1 errors (see listing if no diagnostics appeared here)
   */
-    var ZMAC = emglobal.zmac({
+    var ZMAC : EmscriptenModule  = emglobal.zmac({
       instantiateWasm: moduleInstFn('zmac'),
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
       printErr:makeErrorMatcher(errors, /([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+)/, 2, 3, step.path),
     });
-    var FS = ZMAC['FS'];
+    var FS = ZMAC.FS;
     populateFiles(step, FS);
     // TODO: don't know why CIM (hexary) doesn't work
     execMain(step, ZMAC, ['-z', '-c', '--oo', 'lst,cim', step.path]);
@@ -1954,14 +2099,14 @@ function preprocessBatariBasic(code:string) : string {
     bbout += s;
     bbout += "\n";
   }
-  var BBPRE = emglobal.preprocess({
+  var BBPRE : EmscriptenModule = emglobal.preprocess({
     noInitialRun:true,
     //logReadFiles:true,
     print:addbbout_fn,
     printErr:print_fn,
     noFSInit:true,
   });
-  var FS = BBPRE['FS'];
+  var FS = BBPRE.FS;
   setupStdin(FS, code);
   BBPRE.callMain([]);
   console.log("preprocess " + code.length + " -> " + bbout.length + " bytes");
@@ -1995,7 +2140,7 @@ function compileBatariBasic(step:BuildStep) {
   gatherFiles(step, {mainFilePath:"main.bas"});
   var destpath = step.prefix + '.asm';
   if (staleFiles(step, [destpath])) {
-    var BB = emglobal.bb2600basic({
+    var BB : EmscriptenModule = emglobal.bb2600basic({
       noInitialRun:true,
       //logReadFiles:true,
       print:addasmout_fn,
@@ -2003,7 +2148,7 @@ function compileBatariBasic(step:BuildStep) {
       noFSInit:true,
       TOTAL_MEMORY:64*1024*1024,
     });
-    var FS = BB['FS'];
+    var FS = BB.FS;
     populateFiles(step, FS);
     // preprocess, pipe file to stdin
     var code = getWorkFileAsString(step.path);
@@ -2097,20 +2242,20 @@ function assembleXASM6809(step:BuildStep) {
       lasterror = s.slice(6);
     }
   }
-  var Module = emglobal.xasm6809({
+  var Module : EmscriptenModule = emglobal.xasm6809({
     noInitialRun:true,
     //logReadFiles:true,
     print:match_fn,
     printErr:print_fn
   });
-  var FS = Module['FS'];
+  var FS = Module.FS;
   //setupFS(FS);
   populateFiles(step, FS, {
     mainFilePath:'main.asm'
   });
   var binpath = step.prefix + '.bin';
   var lstpath = step.prefix + '.lst'; // in stdout
-  Module.callMain(["-c", "-l", "-s", "-y", "-o="+binpath, step.path]);
+  execMain(step, Module, ["-c", "-l", "-s", "-y", "-o="+binpath, step.path]);
   if (errors.length)
     return {errors:errors};
   var aout = FS.readFile(binpath, {encoding:'binary'});
@@ -2170,12 +2315,12 @@ function assembleNESASM(step:BuildStep) {
         break;
     }
   }
-  var Module = emglobal.nesasm({
+  var Module : EmscriptenModule = emglobal.nesasm({
     instantiateWasm: moduleInstFn('nesasm'),
     noInitialRun:true,
     print:match_fn
   });
-  var FS = Module['FS'];
+  var FS = Module.FS;
   populateFiles(step, FS, {
     mainFilePath:'main.a'
   });
@@ -2260,7 +2405,7 @@ function compileCMOC(step:BuildStep) {
       '-I/share/include',
       '-I.',
       step.path];
-    var CMOC = emglobal.cmoc({
+    var CMOC : EmscriptenModule = emglobal.cmoc({
       instantiateWasm: moduleInstFn('cmoc'),
       noInitialRun:true,
       //logReadFiles:true,
@@ -2273,7 +2418,7 @@ function compileCMOC(step:BuildStep) {
     if (preproc.errors) return preproc;
     else code = preproc.code;
     // set up filesystem
-    var FS = CMOC['FS'];
+    var FS = CMOC.FS;
     //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     FS.writeFile(step.path, code);
@@ -2304,14 +2449,14 @@ function assembleLWASM(step:BuildStep) {
   if (staleFiles(step, [objpath, lstpath])) {
     var objout, lstout;
     var args = ['-9', '--obj', '-I/share/asminc', '-o'+objpath, '-l'+lstpath, step.path];
-    var LWASM = emglobal.lwasm({
+    var LWASM : EmscriptenModule = emglobal.lwasm({
       instantiateWasm: moduleInstFn('lwasm'),
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
       printErr:msvcErrorMatcher(errors),
     });
-    var FS = LWASM['FS'];
+    var FS = LWASM.FS;
     //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     fixParamsWithDefines(step.path, step.params);
@@ -2337,7 +2482,7 @@ function linkLWLINK(step:BuildStep) {
   var binpath = "main";
   if (staleFiles(step, [binpath])) {
     var errors = [];
-    var LWLINK = emglobal.lwlink({
+    var LWLINK : EmscriptenModule = emglobal.lwlink({
       instantiateWasm: moduleInstFn('lwlink'),
       noInitialRun:true,
       //logReadFiles:true,
@@ -2349,7 +2494,7 @@ function linkLWLINK(step:BuildStep) {
           errors.push({msg:s,line:0});
       }
     });
-    var FS = LWLINK['FS'];
+    var FS = LWLINK.FS;
     //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     populateExtraFiles(step, FS, params.extra_link_files);
@@ -2449,7 +2594,7 @@ function compileSmallerC(step:BuildStep) {
       //'-nobss',
       '-no-externs',
       step.path, destpath];
-    var smlrc = emglobal.smlrc({
+    var smlrc : EmscriptenModule = emglobal.smlrc({
       instantiateWasm: moduleInstFn('smlrc'),
       noInitialRun:true,
       //logReadFiles:true,
@@ -2462,7 +2607,7 @@ function compileSmallerC(step:BuildStep) {
     if (preproc.errors) return preproc;
     else code = preproc.code;
     // set up filesystem
-    var FS = smlrc['FS'];
+    var FS = smlrc.FS;
     //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     FS.writeFile(step.path, code);
@@ -2499,14 +2644,14 @@ function assembleYASM(step:BuildStep) {
       '-o', objpath, '-l', lstpath, '--mapfile='+mappath,
       step.path];
     // return yasm/*.ready*/
-    var YASM = emglobal.yasm({
+    var YASM : EmscriptenModule = emglobal.yasm({
       instantiateWasm: moduleInstFn('yasm'),
       noInitialRun:true,
       //logReadFiles:true,
       print:print_fn,
       printErr:msvcErrorMatcher(errors),
     });
-    var FS = YASM['FS'];
+    var FS = YASM.FS;
     //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
     //fixParamsWithDefines(step.path, step.params);
@@ -2581,14 +2726,14 @@ function compileInform6(step:BuildStep) {
       }
     }
     var args = [ '-afjnops', '-v5', '-Cu', '-E1', '-k', '+/share/lib', step.path ];
-    var inform = emglobal.inform({
+    var inform : EmscriptenModule = emglobal.inform({
       instantiateWasm: moduleInstFn('inform'),
       noInitialRun:true,
       //logReadFiles:true,
       print:match_fn,
       printErr:match_fn,
     });
-    var FS = inform['FS'];
+    var FS = inform.FS;
     setupFS(FS, 'inform');
     populateFiles(step, FS);
     //fixParamsWithDefines(step.path, step.params);
@@ -2675,7 +2820,7 @@ function assembleMerlin32(step:BuildStep) {
   var objpath = step.prefix+".bin";
   if (staleFiles(step, [objpath])) {
     var args = [ '-v', step.path ];
-    var merlin32 = emglobal.merlin32({
+    var merlin32 : EmscriptenModule = emglobal.merlin32({
       instantiateWasm: moduleInstFn('merlin32'),
       noInitialRun:true,
       print:(s:string) => {
@@ -2697,7 +2842,7 @@ function assembleMerlin32(step:BuildStep) {
       },
       printErr:print_fn,
     });
-    var FS = merlin32['FS'];
+    var FS = merlin32.FS;
     populateFiles(step, FS);
     execMain(step, merlin32, args);
     if (errors.length)
@@ -2761,13 +2906,13 @@ function compileFastBasic(step:BuildStep) {
   var destpath = step.prefix + '.s';
   var errors = [];
   if (staleFiles(step, [destpath])) {
-    var fastbasic = emglobal.fastbasic({
+    var fastbasic : EmscriptenModule = emglobal.fastbasic({
       instantiateWasm: moduleInstFn('fastbasic-int'),
       noInitialRun:true,
       print:print_fn,
       printErr:makeErrorMatcher(errors, /(.+?):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1),
     });
-    var FS = fastbasic['FS'];
+    var FS = fastbasic.FS;
     populateFiles(step, FS);
     var libfile = 'fastbasic-int.lib'
     params.libargs = [libfile];
@@ -2847,13 +2992,13 @@ function compileSilice(step:BuildStep) {
       }
       else console.log(s);
     }
-    var silice = emglobal.silice({
+    var silice : EmscriptenModule = emglobal.silice({
       instantiateWasm: moduleInstFn('silice'),
       noInitialRun:true,
       print:match_fn,
       printErr:match_fn,
     });
-    var FS = silice['FS'];
+    var FS = silice.FS;
     setupFS(FS, 'Silice');
     populateFiles(step, FS);
     populateExtraFiles(step, FS, params.extra_compile_files);
@@ -2885,14 +3030,14 @@ function compileWiz(step:BuildStep) {
   var destpath = step.prefix + (params.wiz_rom_ext || ".bin");
   var errors : WorkerError[] = [];
   if (staleFiles(step, [destpath])) {
-    var wiz = emglobal.wiz({
+    var wiz : EmscriptenModule = emglobal.wiz({
       instantiateWasm: moduleInstFn('wiz'),
       noInitialRun:true,
       print:print_fn,
       //test.wiz:2: error: expected statement, but got identifier `test`
       printErr:makeErrorMatcher(errors, /(.+?):(\d+):\s*(.+)/, 2, 3, step.path, 1),
     });
-    var FS = wiz['FS'];
+    var FS = wiz.FS;
     setupFS(FS, 'wiz');
     populateFiles(step, FS);
     populateExtraFiles(step, FS, params.extra_compile_files);
@@ -2941,14 +3086,14 @@ function assembleARMIPS(step:BuildStep) {
 
   if (staleFiles(step, [objpath])) {
     var args = [ step.path, '-temp', lstpath, '-sym', sympath, '-erroronwarning' ];
-    var armips = emglobal.armips({
+    var armips : EmscriptenModule = emglobal.armips({
       instantiateWasm: moduleInstFn('armips'),
       noInitialRun:true,
       print:error_fn,
       printErr:error_fn,
     });
     
-    var FS = armips['FS'];
+    var FS = armips.FS;
     var code = getWorkFileAsString(step.path);
     code = `.arm.little :: .create "${objpath}",0 :: ${code}
 .close`;
@@ -3073,14 +3218,14 @@ function assembleVASMARM(step:BuildStep) {
 
   if (staleFiles(step, [objpath])) {
     var args = [ '-Fbin', '-m7tdmi', '-x', '-wfail', step.path, '-o', objpath, '-L', lstpath ];
-    var vasm = emglobal.vasm({
+    var vasm : EmscriptenModule = emglobal.vasm({
       instantiateWasm: moduleInstFn('vasmarm_std'),
       noInitialRun:true,
       print:match_fn,
       printErr:match_fn,
     });
 
-    var FS = vasm['FS'];
+    var FS = vasm.FS;
     populateFiles(step, FS);
     execMain(step, vasm, args);
     if (errors.length) {
@@ -3228,70 +3373,6 @@ var TOOL_PRELOADFS = {
   'wiz': 'wiz',
 }
 
-function applyDefaultErrorPath(errors:WorkerError[], path:string) {
-  if (!path) return;
-  for (var i=0; i<errors.length; i++) {
-    var err = errors[i];
-    if (!err.path && err.line) err.path = path;
-  }
-}
-
-function executeBuildSteps() {
-  buildstartseq = workerseq;
-  var linkstep : BuildStep = null;
-  while (buildsteps.length) {
-    var step = buildsteps.shift(); // get top of array
-    var platform = step.platform;
-    var toolfn = TOOLS[step.tool];
-    if (!toolfn) throw Error("no tool named " + step.tool);
-    step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
-    try {
-      step.result = toolfn(step);
-    } catch (e) {
-      console.log("EXCEPTION", e, e.stack);
-      return {errors:[{line:0, msg:e+""}]}; // TODO: catch errors already generated?
-    }
-    if (step.result) {
-      step.result.params = step.params;
-      // errors? return them
-      if (step.result.errors && step.result.errors.length) {
-        applyDefaultErrorPath(step.result.errors, step.path);
-        return step.result;
-      }
-      // if we got some output, return it immediately
-      if (step.result.output) {
-        return step.result;
-      }
-      // combine files with a link tool?
-      if (step.result.linktool) {
-        if (linkstep) {
-          linkstep.files = linkstep.files.concat(step.result.files);
-          linkstep.args = linkstep.args.concat(step.result.args);
-        } else {
-          linkstep = {
-            tool:step.result.linktool,
-            platform:platform,
-            files:step.result.files,
-            args:step.result.args
-          };
-        }
-      }
-      // process with another tool?
-      if (step.result.nexttool) {
-        var asmstep : BuildStep = step.result;
-        asmstep.tool = step.result.nexttool;
-        asmstep.platform = platform;
-        buildsteps.push(asmstep);
-      }
-      // process final step?
-      if (buildsteps.length == 0 && linkstep) {
-        buildsteps.push(linkstep);
-        linkstep = null;
-      }
-    }
-  }
-}
-
 function handleMessage(data : WorkerMessage) : WorkerResult | {unchanged:true} {
   // preload file system
   if (data.preload) {
@@ -3306,33 +3387,10 @@ function handleMessage(data : WorkerMessage) : WorkerResult | {unchanged:true} {
   }
   // clear filesystem? (TODO: buildkey)
   if (data.reset) {
-    workfs = {};
+    store.reset();
     return;
   }
-  buildsteps = [];
-  // file updates
-  if (data.updates) {
-    for (var i=0; i<data.updates.length; i++) {
-      var u = data.updates[i];
-      putWorkFile(u.path, u.data);
-    }
-  }
-  // build steps
-  if (data.buildsteps) {
-    buildsteps.push.apply(buildsteps, data.buildsteps);
-  }
-  // single-file
-  if (data.code) {
-    buildsteps.push(data);
-  }
-  // execute build steps
-  if (buildsteps.length) {
-    var result = executeBuildSteps();
-    return result ? result : {unchanged:true};
-  }
-  // TODO: cache results
-  // message not recognized
-  console.log("Unknown message",data);
+  return builder.handleMessage(data);
 }
 
 if (ENVIRONMENT_IS_WORKER) {
