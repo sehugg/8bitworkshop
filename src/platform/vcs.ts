@@ -1,6 +1,6 @@
 "use strict";
 
-import { Platform, BasePlatform, cpuStateToLongString_6502, BaseMAMEPlatform, EmuRecorder, dumpStackToString, DisasmLine, CpuState, DebugCondition } from "../common/baseplatform";
+import { Platform, BasePlatform, cpuStateToLongString_6502, EmuRecorder, dumpStackToString, DisasmLine, CpuState, DebugCondition, BaseMAME6502Platform } from "../common/baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, dumpRAM, EmuHalt } from "../common/emu";
 import { hex, lpad, tobin, byte2signed } from "../common/util";
 import { CodeAnalyzer_vcs } from "../common/analysis";
@@ -426,7 +426,7 @@ function nonegstr(n) {
 
 ///////////////
 
-class VCSMAMEPlatform extends BaseMAMEPlatform implements Platform {
+class VCSMAMEPlatform extends BaseMAME6502Platform implements Platform {
 
 //  MCFG_SCREEN_RAW_PARAMS( MASTER_CLOCK_NTSC, 228, 26, 26 + 160 + 16, 262, 24 , 24 + 192 + 31 )
 

@@ -1,6 +1,6 @@
 
 import { ColecoVision } from "../machine/coleco";
-import { Platform, BaseZ80MachinePlatform, BaseMAMEPlatform, getToolForFilename_z80 } from "../common/baseplatform";
+import { Platform, BaseZ80MachinePlatform, getToolForFilename_z80, BaseMAMEZ80Platform } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 
 export var ColecoVision_PRESETS = [
@@ -39,7 +39,7 @@ class ColecoVisionPlatform extends BaseZ80MachinePlatform<ColecoVision> implemen
 
 /// MAME support
 
-class ColecoVisionMAMEPlatform extends BaseMAMEPlatform implements Platform {
+class ColecoVisionMAMEPlatform extends BaseMAMEZ80Platform implements Platform {
 
   start() {
     this.startModule(this.mainElement, {

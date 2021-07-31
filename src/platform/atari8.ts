@@ -1,6 +1,6 @@
 "use strict";
 
-import { Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502, Base6502MachinePlatform } from "../common/baseplatform";
+import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502, Base6502MachinePlatform, BaseMAME6502Platform } from "../common/baseplatform";
 import { PLATFORMS, Keys, makeKeycodeMap } from "../common/emu";
 import { Atari8_WASMMachine } from "../machine/atari8";
 
@@ -46,7 +46,7 @@ function getToolForFilename_Atari8(fn:string) {
 
 /// MAME support
 
-abstract class Atari8MAMEPlatform extends BaseMAMEPlatform {
+abstract class Atari8MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return Atari8_PRESETS; }
   getToolForFilename = getToolForFilename_Atari8;
   getOpcodeMetadata = getOpcodeMetadata_6502;
@@ -59,7 +59,7 @@ abstract class Atari8MAMEPlatform extends BaseMAMEPlatform {
   }
 }
 
-abstract class Atari8WASIMAMEPlatform extends BaseMAMEPlatform {
+abstract class Atari8WASIMAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return Atari8_PRESETS; }
   getToolForFilename = getToolForFilename_Atari8;
   getOpcodeMetadata = getOpcodeMetadata_6502;

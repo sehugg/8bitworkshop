@@ -664,6 +664,7 @@ export abstract class BaseMAMEPlatform {
   started : boolean = false;
   romfn : string;
   romdata : Uint8Array;
+  romtype : string = 'cart';
   video;
   running = false;
   initluavars : boolean = false;
@@ -727,6 +728,7 @@ export abstract class BaseMAMEPlatform {
     this.started = true;
     var romfn = this.romfn = this.romfn || opts.romfn;
     var romdata = this.romdata = this.romdata || opts.romdata || new RAM(opts.romsize).mem;
+    var romtype = this.romtype = this.romtype || opts.romtype;
     // create canvas
     var video = this.video = new RasterVideo(this.mainElement, opts.width, opts.height);
     video.create();
@@ -739,7 +741,13 @@ export abstract class BaseMAMEPlatform {
       '-verbose', '-window', '-nokeepaspect',
       '-resolution', video.canvas.width+'x'+video.canvas.height
     ];
-    if (romfn) modargs.push('-cart', romfn);
+    if (romfn) {
+      modargs.push('-'+romtype, romfn);
+    }
+    if (opts.extraargs) {
+      modargs = modargs.concat(opts.extraargs);
+    }
+    console.log(modargs);
     window['JSMESS'] = {};
     window['Module'] = {
       arguments: modargs,
@@ -839,7 +847,7 @@ export abstract class BaseMAMEPlatform {
     // for debugging via browser console
     window['mamelua'] = (s:string) => {
       this.initlua();
-      return this.luacall(s);
+      return [s, this.luacall(s)];
     };
   }
 
@@ -883,27 +891,6 @@ export abstract class BaseMAMEPlatform {
     if (!this.loaded) return 0; // TODO
     this.initlua();
     return parseInt(this.luacall('return cpu.state.'+reg+'.value'));
-  }
-  
-  getPC() : number {
-    return this.getCPUReg('PC');
-  }
-
-  getSP() : number {
-    return this.getCPUReg('SP');
-  }
-
-  isStable() 	 { return true; }
-  
-  getCPUState()  {
-    return {
-      PC:this.getPC(),
-      SP:this.getSP(),
-      A:this.getCPUReg('A'),
-      X:this.getCPUReg('X'),
-      Y:this.getCPUReg('Y'),
-      //flags:this.getCPUReg('CURFLAGS'),
-    };
   }
   
   grabState(expr:string) {
@@ -974,16 +961,74 @@ export abstract class BaseMAMEPlatform {
       case 'CPU':   return this.cpuStateToLongString(state.c);
     }
   }
-  // TODO: other than z80
-  cpuStateToLongString(c) {
-    if (c.HL)
-      return cpuStateToLongString_Z80(c);
-    else
-      return cpuStateToLongString_6502(c); // TODO
+  getDebugTree() {
+    this.initlua();
+    var devices = JSON.parse(this.luacall(`return table.tojson(manager:machine().devices)`));
+    var images = JSON.parse(this.luacall(`return table.tojson(manager:machine().images)`));
+    var regions = JSON.parse(this.luacall(`return table.tojson(manager:machine():memory().regions)`));
+    return {
+      devices: devices,
+      images: images,
+      regions: regions,
+    }
+  }
+
+  abstract cpuStateToLongString(c) : string;
+  abstract getCPUState() : any;
+}
+
+export abstract class BaseMAME6502Platform extends BaseMAMEPlatform {
+  getPC() : number {
+    return this.getCPUReg('PC');
+  }
+  getSP() : number {
+    return this.getCPUReg('SP');
+  }
+  isStable() 	 { return true; }
+  getCPUState()  {
+    return {
+      PC:this.getPC(),
+      SP:this.getSP(),
+      A:this.getCPUReg('A'),
+      X:this.getCPUReg('X'),
+      Y:this.getCPUReg('Y'),
+      flags:this.getCPUReg('P'),
+    };
   }
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
-    // TODO: z80
     return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
+  }
+  cpuStateToLongString(c) {
+    return cpuStateToLongString_6502(c);
+  }
+}
+
+export abstract class BaseMAMEZ80Platform extends BaseMAMEPlatform {
+  getPC() : number {
+    return this.getCPUReg('PC');
+  }
+  getSP() : number {
+    return this.getCPUReg('SP');
+  }
+  isStable() 	 { return true; }
+  getCPUState()  {
+    return {
+      PC:this.getPC(),
+      SP:this.getSP(),
+      AF:this.getCPUReg('AF'),
+      BC:this.getCPUReg('BC'),
+      DE:this.getCPUReg('DE'),
+      HL:this.getCPUReg('HL'),
+      IX:this.getCPUReg('IX'),
+      IY:this.getCPUReg('IY'),
+      IR:this.getCPUReg('R') + (this.getCPUReg('I') << 8),
+    };
+  }
+  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
+    return disassembleZ80(pc, read(pc), read(pc+1), read(pc+2), read(pc+3));
+  }
+  cpuStateToLongString(c) {
+    return cpuStateToLongString_Z80(c);
   }
 }
 

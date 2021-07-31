@@ -1,5 +1,5 @@
 
-import { Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../common/baseplatform";
+import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502, BaseMAME6502Platform } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 
 const APPLE2_PRESETS = [
@@ -23,11 +23,11 @@ const APPLE2_PRESETS = [
 
 /// MAME support
 
-class Apple2MAMEPlatform extends BaseMAMEPlatform implements Platform {
+class Apple2MAMEPlatform extends BaseMAME6502Platform implements Platform {
 
   start () {
     this.startModule(this.mainElement, {
-      jsfile:'mame8bitws.js',
+      jsfile:'mame8bitpc.js',
       biosfile:['apple2e.zip'],
       //cfgfile:'nes.cfg',
       driver:'apple2e',
@@ -97,5 +97,5 @@ class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Plat
   */
 }
 
-//PLATFORMS['apple2.mame'] = Apple2MAMEPlatform;
+PLATFORMS['apple2.mame'] = Apple2MAMEPlatform;
 PLATFORMS['apple2'] = NewApple2Platform;

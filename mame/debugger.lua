@@ -71,4 +71,14 @@ function string.tohex(str)
     end))
 end
 
+function table.tojson(t)
+  local result = {}
+  for key, value in pairs(t) do
+    -- prepare json key-value pairs and save them in separate table
+    table.insert(result, string.format("\"%s\":\"%s\"", key, value))
+  end
+  -- get simple json string
+  return "{" .. table.concat(result, ",") .. "}"
+end
+
 print("parsed Lua debugger script")

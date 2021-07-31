@@ -1,6 +1,6 @@
 
 import { C64_WASMMachine } from "../machine/c64";
-import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502, BaseMAMEPlatform } from "../common/baseplatform";
+import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502, BaseMAME6502Platform } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 
 const C64_PRESETS = [
@@ -59,7 +59,7 @@ class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implement
 }
 
 // C64 MAME platform
-abstract class C64MAMEPlatform extends BaseMAMEPlatform {
+abstract class C64MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return C64_PRESETS; }
   getToolForFilename = getToolForFilename_6502;
   getOpcodeMetadata = getOpcodeMetadata_6502;
@@ -67,21 +67,25 @@ abstract class C64MAMEPlatform extends BaseMAMEPlatform {
   loadROM(title, data) {
     if (!this.started) {
       this.startModule(this.mainElement, {
-        jsfile:'mame8bitws.js',
+        jsfile:'mame8bitpc.js',
         biosfile:'c64.zip',
         cfgfile:'c64.cfg',
         driver:'c64',
-        width:336*2,
-        height:225*2,
-        romfn:'/emulator/disk.d64',
+        width:418,
+        height:235,
+        romfn:'/emulator/image.crt',
         romdata:new Uint8Array(data),
-        romsize:0x2000,
+        romsize:0x10000,
+        extraargs: ['-autoboot_delay','5','-autoboot_command','load "$",8,1\n'],
         preInit:function(_self) {
         },
       });
     } else {
       this.loadROMFile(data);
-      this.loadRegion(":cartleft:cart:rom", data);
+      this.loadRegion(":quickload", data);
+      var result = this.luacall(`image:load("/emulator/image.prg")`)
+      console.log('load rom', result);
+      //this.loadRegion(":exp:standard", data);
     }
   }
   start() {

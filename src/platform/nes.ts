@@ -1,5 +1,5 @@
 
-import { Platform, Base6502Platform, BaseMAMEPlatform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString } from "../common/baseplatform";
+import { Platform, Base6502Platform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString, BaseMAME6502Platform } from "../common/baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags, EmuHalt, ControllerPoller } from "../common/emu";
 import { hex, lpad, lzgmini, byteArrayToString } from "../common/util";
 import { CodeAnalyzer_nes } from "../common/analysis";
@@ -489,7 +489,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
 
 /// MAME support
 
-class NESMAMEPlatform extends BaseMAMEPlatform implements Platform {
+class NESMAMEPlatform extends BaseMAME6502Platform implements Platform {
 
   start() {
   }
