@@ -506,3 +506,13 @@ export function byteToASCII(b: number) : string {
     return String.fromCharCode(b);
 }
 
+export function loadScript(scriptfn:string) : Promise<Event> {
+  return new Promise( (resolve, reject) => {
+    var script = document.createElement('script');
+    script.onload = resolve;
+    script.onerror = reject;
+    script.src = scriptfn;
+    document.getElementsByTagName('head')[0].appendChild(script);
+  });
+}
+

@@ -1,9 +1,9 @@
 
 import { Platform, BasePlatform, BaseDebugPlatform, Preset, EmuState, inspectSymbol } from "../common/baseplatform";
-import { PLATFORMS, EmuHalt } from "../common/emu";
-import { loadScript } from "../ide/ui";
+import { EmuHalt, PLATFORMS } from "../common/emu";
 import { TeleType, TeleTypeWithKeyboard } from "../common/teletype";
 import { InputResponse } from "../common/basic/runtime";
+import { loadScript } from "../common/util";
 
 const ZMACHINE_PRESETS = [
     { id: 'hello.inf', name: 'Hello World' },
@@ -627,8 +627,6 @@ class ZmachinePlatform implements Platform {
 
     async start() {
         await loadScript('./lib/zvm/ifvms.min.js');
-        await loadScript('./gen/common/teletype.js');
-
         // create divs
         var parent = this.mainElement;
         var gameport = $('<div id="gameport"/>').appendTo(parent);

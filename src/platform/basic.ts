@@ -1,7 +1,6 @@
 
 import { Platform, BreakpointCallback, DebugCondition, DebugEvalCondition } from "../common/baseplatform";
 import { PLATFORMS, AnimationTimer, EmuHalt } from "../common/emu";
-import { loadScript } from "../ide/ui";
 import * as views from "../ide/views";
 import { BASICRuntime } from "../common/basic/runtime";
 import { BASICProgram } from "../common/basic/compiler";
@@ -43,8 +42,6 @@ class BASICPlatform implements Platform {
     }
 
     async start() {
-        await loadScript('./gen/common/basic/runtime.js');
-        await loadScript('./gen/common/teletype.js');
         // create runtime
         this.runtime = new BASICRuntime();
         this.runtime.reset();

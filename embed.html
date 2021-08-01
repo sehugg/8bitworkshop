@@ -56,47 +56,16 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <script src="jquery/jquery.min.js"></script>
 
 <script src="javatari.js/release/javatari/javatari.js"></script>
-<script src="jsnes/dist/jsnes.min.js"></script>
 <script src="src/common/cpu/6809.js"></script>
 <script src="lib/FileSaver.min.js"></script>
-<script src="lib/mousetrap.min.js"></script>
-<script src="lib/mousetrap-global-bind.min.js"></script>
-
-<script>
-var exports = {};
-function require(modname) {
-  if (modname == 'jquery') return $;
-  else if (modname.startsWith('.')) return exports;
-  else { console.log("Unknown require()", modname); return exports; }
-}
-</script>
 
 <script src="tss/js/tss/PsgDeviceChannel.js"></script>
 <script src="tss/js/tss/MasterChannel.js"></script>
 <script src="tss/js/tss/AudioLooper.js"></script>
 <script src="tss/js/Log.js"></script>
-
-<script src="gen/common/video/tms9918a.js"></script>
-<script src="gen/common/util.js"></script>
-<script src="gen/common/emu.js"></script>
-<script src="gen/common/baseplatform.js"></script>
-<script src="gen/common/audio.js"></script>
-<script src="gen/common/recorder.js"></script>
-<script src="gen/common/devices.js"></script>
-<script src="gen/common/cpu/MOS6502.js"></script>
-<script src="gen/common/cpu/ZilogZ80.js"></script>
-<script src="gen/machine/vdp_z80.js"></script>
-<script src="gen/ide/embedui.js"></script>
-
 <script src="lib/liblzg.js"></script>
 
-<script>
-// are we not in an iframe?
-if(self === top) {
-  document.body.style.backgroundColor = '#555';
-}
-startEmbed();
-</script>
+<script src="gen/embedui.js" type="module"></script>
 
 </body>
 </html>

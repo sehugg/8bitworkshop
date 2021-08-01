@@ -6,9 +6,8 @@ import { CodeAnalyzer_nes } from "../common/analysis";
 import { SampleAudio } from "../common/audio";
 import { ProbeRecorder } from "../common/recorder";
 import { NullProbe, Probeable, ProbeAll } from "../common/devices";
-
-declare var jsnes : any;
-declare var Mousetrap;
+import Mousetrap = require('mousetrap');
+import jsnes = require('../../jsnes');
 
 const JSNES_PRESETS = [
   {id:'hello.c', name:'Hello World'},
@@ -100,7 +99,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     this.ntvideo.create();
     $(this.ntvideo.canvas).hide();
     this.ntlastbuf = new Uint32Array(0x1000);
-    Mousetrap.bind('ctrl+shift+alt+n', () => {
+    if (Mousetrap.bind) Mousetrap.bind('ctrl+shift+alt+n', () => {
       $(this.video.canvas).toggle()
       $(this.ntvideo.canvas).toggle()
     });

@@ -1,7 +1,7 @@
 
 import { Platform  } from "../common/baseplatform";
 import { PLATFORMS, RasterVideo } from "../common/emu";
-import { loadScript } from "../ide/ui";
+import { loadScript } from "../common/util";
 
 // PC emulator: https://github.com/copy/v86
 

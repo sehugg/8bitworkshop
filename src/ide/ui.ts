@@ -1,8 +1,6 @@
 
 // 8bitworkshop IDE user interface
 
-import $ = require("jquery");
-import * as bootstrap from "bootstrap";
 import * as localforage from "localforage";
 import { CodeProject, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "../common/workertypes";
@@ -11,15 +9,18 @@ import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuSt
 import { PLATFORMS, EmuHalt, Toolbar } from "../common/emu";
 import * as Views from "./views";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG, stringToByteArray,
-         byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex } from "../common/util";
+         byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex, loadScript } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";
 import { GHSession, GithubService, getRepos, parseGithubURL, FirebaseProjectFilesystem } from "./services";
+import Split = require('split.js');
+import { importPlatform } from "../platform/_index";
 
 // external libs (TODO)
-declare var Tour, GIF, saveAs, JSZip, Mousetrap, Split, firebase;
+declare var Tour, GIF, saveAs, JSZip, firebase;
 declare var ga;
 // in index.html
 declare var exports;
+declare var $ : JQueryStatic; // use browser jquery
 
 // make sure VCS doesn't start
 if (window['Javatari']) window['Javatari'].AUTO_START = false;
@@ -119,16 +120,6 @@ function alertError(s:string) {
 function alertInfo(s:string) {
   setWaitDialog(false);
   bootbox.alert(s);
-}
-
-export function loadScript(scriptfn:string) : Promise<Event> {
-  return new Promise( (resolve, reject) => {
-    var script = document.createElement('script');
-    script.onload = resolve;
-    script.onerror = reject;
-    script.src = scriptfn;
-    document.getElementsByTagName('head')[0].appendChild(script);
-  });
 }
 
 function newWorker() : Worker {
@@ -541,9 +532,6 @@ async function getLocalFilesystem(repoid: string) : Promise<ProjectFilesystem> {
   if (granted !== 'granted') {
       bootbox.alert(`Could not get permission to access filesystem.`);
       return;
-  }
-  for await (const entry of dirHandle.values()) {
-    console.log(entry.kind, entry.name);
   }
   return {
     getFileData: async (path) => {
@@ -2190,6 +2178,7 @@ async function startPlatform() {
   await loadBIOSFromProject();
   await initProject();
   await loadProject(qs['file']);
+  platform.sourceFileFetch = (path) => current_project.filedata[path];
   setupDebugControls();
   addPageFocusHandlers();
   showInstructions();
@@ -2366,20 +2355,7 @@ export async function startUI() {
 }
 
 async function loadAndStartPlatform() {
-  var platformfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js'; // required file
-  var machinefn  = platformfn.replace('/platform/', '/machine/'); // optional file
-  try {
-    await loadScript(platformfn); // load platform file
-  } catch (e) {
-    console.log(e);
-    alertError('Platform "' + platform_id + '" not supported.');
-    return;
-  }
-  try {
-    await loadScript(machinefn); // load machine file
-  } catch (e) {
-    console.log('skipped',machinefn); // optional file skipped
-  }
+  var module = await importPlatform(getRootBasePlatform(platform_id));
   try {
     console.log("starting platform", platform_id); // loaded required <platform_id>.js file
     try {
@@ -2486,4 +2462,9 @@ export function highlightSearch(query: string) { // TODO: filename?
       wnd.editor.setSelection(sc.pos.to, sc.pos.from);
     }
   }
+}
+
+/// start UI if in browser (not node)
+if (typeof process === 'undefined') {
+  startUI();
 }

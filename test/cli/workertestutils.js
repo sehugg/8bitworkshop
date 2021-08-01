@@ -15,6 +15,7 @@ global.location = {href:'.'};
 global.path = require('path');
 global.btoa = require('btoa');
 global.atob = require('atob');
+global.navigator = global; // for mousetrap :P 
 
 global.includeInThisContext = function(path) {
   var code = fs.readFileSync(path);

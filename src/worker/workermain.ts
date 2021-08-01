@@ -2725,6 +2725,7 @@ function compileInform6(step:BuildStep) {
         lstout += "\n";
       }
     }
+    // TODO: step.path must end in '.inf' or error
     var args = [ '-afjnops', '-v5', '-Cu', '-E1', '-k', '+/share/lib', step.path ];
     var inform : EmscriptenModule = emglobal.inform({
       instantiateWasm: moduleInstFn('inform'),

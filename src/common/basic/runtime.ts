@@ -194,7 +194,7 @@ export class BASICRuntime {
     getBuiltinFunctions() {
         var fnames = this.program && this.opts.validFunctions;
         // if no valid function list, look for ABC...() functions in prototype
-        if (!fnames) fnames = Object.keys(BASICRuntime.prototype).filter((name) => /^[A-Z]{3,}[$]?$/.test(name));
+        if (!fnames) fnames = Object.getOwnPropertyNames(BASICRuntime.prototype).filter((name) => /^[A-Z]{3,}[$]?$/.test(name));
         var dict = {};
         for (var fn of fnames) if (this.supportsFunction(fn)) dict[fn] = this[fn].bind(this);
         return dict;

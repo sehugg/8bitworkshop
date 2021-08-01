@@ -138,6 +138,7 @@ export interface Platform {
 
   readFile?(path: string) : FileData;
   writeFile?(path: string, data: FileData) : boolean;
+  sourceFileFetch?: (path:string) => FileData;
 
   getDownloadFile?() : {extension:string, blob:Blob};
 }
@@ -1556,7 +1557,7 @@ export abstract class BaseWASMMachine {
   }
 }
 
-import { loadScript } from "../ide/ui";
+import { loadScript } from "../common/util";
 import { WasmFs } from "@wasmer/wasmfs";
 
 let stub = function() { console.log(arguments); return 0 }

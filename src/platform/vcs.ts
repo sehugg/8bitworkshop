@@ -464,5 +464,10 @@ class VCSMAMEPlatform extends BaseMAME6502Platform implements Platform {
 
 ////////////////
 
+export const Platforms = {
+  'vcs': VCSPlatform,
+  'vcs.mame': VCSMAMEPlatform,
+}
+
 PLATFORMS['vcs'] = VCSPlatform;
 PLATFORMS['vcs.mame'] = VCSMAMEPlatform;

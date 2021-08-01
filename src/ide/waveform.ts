@@ -1,7 +1,6 @@
 
 import { Toolbar } from "../common/emu";
-
-declare var VirtualList;
+import { VirtualList } from "../common/vlist";
 
 const BUILTIN_INPUT_PORTS = [
   'clk', 'reset',

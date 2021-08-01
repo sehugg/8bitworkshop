@@ -12,6 +12,7 @@
             "es2017",
             "dom"
         ],
+        "esModuleInterop": true,
         "noImplicitThis": false,
         "noImplicitAny": false,
         "preserveConstEnums": true,

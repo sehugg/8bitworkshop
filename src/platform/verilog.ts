@@ -2,14 +2,12 @@
 import { Platform, BasePlatform } from "../common/baseplatform";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos, KeyFlags } from "../common/emu";
 import { SampleAudio } from "../common/audio";
-import { safe_extend } from "../common/util";
 import { WaveformView, WaveformProvider, WaveformMeta } from "../ide/waveform";
-import { setFrameRateUI, loadScript, current_project } from "../ide/ui";
 import { HDLModuleRunner, HDLModuleTrace, HDLUnit, isLogicType } from "../common/hdl/hdltypes";
 import { HDLModuleJS } from "../common/hdl/hdlruntime";
 import { HDLModuleWASM } from "../common/hdl/hdlwasm";
-
-declare var Split;
+import Split = require("split.js");
+import { FileData } from "../common/workertypes";
 
 interface WaveformSignal extends WaveformMeta {
   name: string;
@@ -169,6 +167,8 @@ var VerilogPlatform = function(mainElement, options) {
   split;
   hasvideo : boolean;
 
+  sourceFileFetch : (path:string) => FileData;
+
   getPresets() { return VERILOG_PRESETS; }
 
   setVideoParams(width:number, height:number, clock:number) {
@@ -179,10 +179,7 @@ var VerilogPlatform = function(mainElement, options) {
   }
 
   async start() {
-    await loadScript('./gen/common/hdl/hdltypes.js');
-    await loadScript('./gen/common/hdl/hdlruntime.js');
-    await loadScript('./gen/common/hdl/hdlwasm.js');
-    await loadScript('./lib/binaryen.js');
+    //await loadScript('./lib/binaryen.js'); // TODO: remove
     video = new RasterVideo(mainElement,videoWidth,videoHeight,{overscan:true});
     video.create();
     poller = setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP, (o,key,code,flags) => {
@@ -219,22 +216,6 @@ var VerilogPlatform = function(mainElement, options) {
     });
     // setup mouse events
     video.setupMouseEvents();
-    // setup mouse click
-    video.vcanvas.click( (e) => {
-      if (!top) return; // must have created emulator
-      if (!e.ctrlKey) {
-        //setFrameRateUI(60);
-        return; // ctrl key must be down
-      }
-      setFrameRateUI(1.0/2048);
-      var pos = getMousePos(video.canvas, e);
-      var new_y = Math.floor(pos.y);
-      var clock = 0;
-      while (framey != new_y || clock++ > 200000) {
-        this.setGenInputs();
-        this.updateVideoFrameCycles(1, true, false);
-      }
-    });
   }
   
   // TODO: pollControls() { poller.poll(); }
@@ -585,7 +566,7 @@ var VerilogPlatform = function(mainElement, options) {
         var useWASM = true;
         var topcons = useWASM ? HDLModuleWASM : HDLModuleJS;
         var _top = new topcons(topmod, unit.modules['@CONST-POOL@']);
-        _top.getFileData = (path) => current_project.filedata[path]; // external file provider
+        _top.getFileData = this.sourceFileFetch;
         await _top.init();
         this.dispose();
         top = _top;
@@ -617,13 +598,9 @@ var VerilogPlatform = function(mainElement, options) {
         if (this.hasvideo) {
           const IGNORE_SIGNALS = ['clk','reset'];
           trace_signals = trace_signals.filter((v) => { return IGNORE_SIGNALS.indexOf(v.name)<0; }); // remove clk, reset
-          $("#speed_bar").show();
-          $("#run_bar").show();
-          $("#dbg_record").show();
+          this.showVideoControls();
         } else {
-          $("#speed_bar").hide();
-          $("#run_bar").hide();
-          $("#dbg_record").hide();
+          this.hideVideoControls();
         }
       }
     }
@@ -648,6 +625,18 @@ var VerilogPlatform = function(mainElement, options) {
     }
     // assert reset pin, wait 100 cycles if using video
     this.reset();
+  }
+ 
+  showVideoControls() {
+    $("#speed_bar").show();
+    $("#run_bar").show();
+    $("#dbg_record").show();
+  }
+
+  hideVideoControls() {
+    $("#speed_bar").hide();
+    $("#run_bar").hide();
+    $("#dbg_record").hide();
   }
   
   restartAudio() {

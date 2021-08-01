@@ -3,8 +3,9 @@ window['Javatari'].AUTO_START = false;
 
 import { PLATFORMS } from "../common/emu";
 import { Platform } from "../common/baseplatform";
-import { stringToByteArray, getWithBinary } from "../common/util";
+import { stringToByteArray, getWithBinary, loadScript, getRootBasePlatform } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";
+import { importPlatform } from "../platform/_index";
 
 export var platform_id : string;	// platform ID string
 export var platform : Platform;	// platform object
@@ -168,20 +169,7 @@ async function loadPlatform(qs) {
   if (qs.data) qs = qs.data;
   platform_id = qs['p'];
   if (!platform_id) throw('No platform variable!');
-  var platformfn = 'gen/platform/' + platform_id.split(/[.-]/)[0] + '.js'; // required file
-  var machinefn  = platformfn.replace('/platform/', '/machine/'); // optional file
-  try {
-    await loadScript(platformfn); // load platform file
-  } catch (e) {
-    console.log(e);
-    throw('Platform "' + platform_id + '" not supported.');
-    return;
-  }
-  try {
-    await loadScript(machinefn); // load machine file
-  } catch (e) {
-    console.log('skipped',machinefn); // optional file skipped
-  }
+  var module = await importPlatform(getRootBasePlatform(platform_id));
   try {
     console.log("starting platform", platform_id); // loaded required <platform_id>.js file
     await startPlatform(qs);
@@ -189,16 +177,6 @@ async function loadPlatform(qs) {
     console.log(e);
     alert('Platform "' + platform_id + '" not supported.');
   }
-}
-
-export function loadScript(scriptfn:string) : Promise<Event> {
-  return new Promise( (resolve, reject) => {
-    var script = document.createElement('script');
-    script.onload = resolve;
-    script.onerror = reject;
-    script.src = scriptfn;
-    document.getElementsByTagName('head')[0].appendChild(script);
-  });
 }
 
 // start
@@ -252,3 +230,11 @@ function receiveMessage(event) {
     }
   }
 }
+
+/////
+
+// are we not in an iframe?
+if(self === top) {
+  document.body.style.backgroundColor = '#555';
+}
+startEmbed();

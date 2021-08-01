@@ -4,9 +4,9 @@ import { EmuHalt, PLATFORMS } from "../common/emu";
 import { Devel6502 } from "../machine/devel";
 import { Base6502MachinePlatform } from "../common/baseplatform";
 import { SerialIOInterface } from "../common/devices";
-import { byteArrayToString, convertDataToUint8Array, hex } from "../common/util";
+import { byteArrayToString, convertDataToUint8Array } from "../common/util";
 import { TeleType } from "../common/teletype";
-import { haltEmulation, loadScript } from "../ide/ui";
+import { haltEmulation } from "../ide/ui";
 
 var DEVEL_6502_PRESETS = [
   {id:'hello.dasm', name:'Hello World (ASM)'},
@@ -126,7 +126,6 @@ class Devel6502Platform extends Base6502MachinePlatform<Devel6502> implements Pl
 
   async start() {
     super.start();
-    await loadScript('./gen/common/teletype.js');
     this.serial = new SerialTestHarness();
     this.serial.viewer = this.serview;
     this.serview.start();

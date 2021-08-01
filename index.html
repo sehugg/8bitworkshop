@@ -555,7 +555,6 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <script src="codemirror/addon/selection/active-line.js"></script>
 <link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
 <script src="javatari.js/release/javatari/javatari.js"></script>
-<script src="jsnes/dist/jsnes.min.js"></script>
 <script src="src/common/cpu/6809.js"></script>
 <script src="lib/mousetrap.min.js"></script>
 <script src="lib/mousetrap-global-bind.min.js"></script>
@@ -563,18 +562,6 @@ if (window.location.host.endsWith('8bitworkshop.com')) {
 <link rel="stylesheet" href="lib/bootstrap-tourist.css">
 <script src="lib/bootstrap-tourist.js"></script>
 <script src="lib/FileSaver.min.js"></script>
-<script src="lib/localforage.min.js"></script>
-<script src="lib/split.min.js"></script>
-
-<script>
-var exports = {};
-function require(modname) {
-  if (modname == 'jquery') return $;
-  else if (modname == 'localforage') return localforage;
-  else if (modname.startsWith('.')) return exports;
-  else { console.log("Unknown require()", modname); return exports; }
-}
-</script>
 
 <script src="lib/octokat.js"></script>
 <script src="tss/js/tss/PsgDeviceChannel.js"></script>
@@ -582,29 +569,7 @@ function require(modname) {
 <script src="tss/js/tss/AudioLooper.js"></script>
 <script src="tss/js/Log.js"></script>
 
-<script src="gen/ide/vlist.js"></script>
-<script src="gen/common/video/tms9918a.js"></script>
-<script src="gen/common/util.js"></script>
-<script src="gen/common/emu.js"></script>
-<script src="gen/common/baseplatform.js"></script>
-<script src="gen/common/analysis.js"></script>
-<script src="gen/common/audio.js"></script>
-<script src="gen/common/cpu/disasm6502.js"></script>
-<script src="gen/common/cpu/disasmz80.js"></script>
-<script src="gen/common/workertypes.js"></script>
-<script src="gen/ide/project.js"></script>
-<script src="gen/ide/windows.js"></script>
-<script src="gen/ide/views.js"></script>
-<script src="gen/common/recorder.js"></script>
-<script src="gen/ide/waveform.js"></script>
-<script src="gen/ide/pixeleditor.js"></script>
-<script src="gen/ide/services.js"></script>
-<script src="gen/ide/ui.js"></script>
-<script src="gen/common/devices.js"></script>
-<script src="gen/common/cpu/MOS6502.js"></script>
-<script src="gen/common/cpu/ZilogZ80.js"></script>
-<script src="gen/common/cpu/ARM.js"></script>
-<script src="gen/machine/vdp_z80.js"></script>
+<script src="gen/ui.js" type="module"></script>
 
 <script>
 // submenus open on click + hover
@@ -613,10 +578,6 @@ $( ".dropdown-submenu" ).click(function(event) {
     $(this).parent().siblings().removeClass('open');
     $(this).parent().toggleClass('open');
 });
-</script>
-
-<script>
-  startUI();
 </script>
 
 <!-- Sentry error reporting -->

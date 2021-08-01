@@ -8,8 +8,8 @@ import { platform, platform_id, compparams, current_project, lastDebugState, pro
 import { ProbeRecorder, ProbeFlags } from "../common/recorder";
 import { getMousePos, dumpRAM, getVisibleEditorLineHeight, VirtualTextScroller, VirtualTextLine } from "../common/emu";
 import * as pixed from "./pixeleditor";
-
-declare var Mousetrap;
+import Mousetrap = require('mousetrap');
+import { VirtualList } from "../common/vlist";
 
 export interface ProjectView {
   createDiv(parent:HTMLElement) : HTMLElement;
@@ -34,7 +34,6 @@ export interface ProjectView {
 export var isMobileDevice = window.matchMedia && window.matchMedia("only screen and (max-width: 760px)").matches;
 
 declare var CodeMirror;
-declare var VirtualList;
 
 // helper function for editor
 function jumpToLine(ed, i:number) {
@@ -2116,9 +2115,9 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   setVisible?(showing : boolean) : void {
     // TODO: make into toolbar?
     if (showing) {
-      Mousetrap.bind('ctrl+z', projectWindows.undoStep.bind(projectWindows));
+      if (Mousetrap.bind) Mousetrap.bind('ctrl+z', projectWindows.undoStep.bind(projectWindows));
     } else {
-      Mousetrap.unbind('ctrl+z');
+      if (Mousetrap.unbind) Mousetrap.unbind('ctrl+z');
     }
   }
 

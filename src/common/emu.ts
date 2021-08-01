@@ -2,10 +2,11 @@
 
 import { hex, clamp, lpad } from "./util";
 import { SourceLocation } from "./workertypes";
+import Mousetrap = require('mousetrap');
+import { VirtualList } from "./vlist"
 
 // external modules
 declare var jt, Javatari;
-declare var Mousetrap;
 
 // Emulator classes
 
@@ -721,8 +722,6 @@ export function getVisibleEditorLineHeight() : number{
   return $("#booksMenuButton").first().height();
 }
 
-declare var VirtualList;
-
 export interface VirtualTextLine {
   text : string;
   clas? : string;
@@ -780,3 +779,4 @@ export class VirtualTextScroller {
     }
   }
 }
+

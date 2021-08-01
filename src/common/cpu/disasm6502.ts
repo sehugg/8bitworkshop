@@ -263,6 +263,7 @@ export var OPS_6502 = [
 export function disassemble6502(pc:number, b0:number, b1:number, b2:number) : {line:string, nbytes:number, isaddr:boolean} {
 
   var op = OPS_6502[b0];
+  if (op == null) return {line:"???", nbytes:1, isaddr:false};
   var s = op.mn;
   var am = op.am;
   var isaddr = false;

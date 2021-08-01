@@ -43,9 +43,11 @@ meta/electron.diff: index.html electron.html
 	-diff -u index.html electron.html > $@
 
 tsweb:
+	npm run esbuild-clean
 	(ip addr || ifconfig) | grep inet
-	$(TSC) -w &
-	npm run eswatch &
+	$(TSC) -w --preserveWatchOutput &
+	npm run esbuild-worker -- --watch &
+	npm run esbuild-ui -- --watch &
 	python3 scripts/serveit.py 2>> /dev/null #http.out
 
 astrolibre.b64.txt: astrolibre.rom
