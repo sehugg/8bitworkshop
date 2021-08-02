@@ -3,6 +3,7 @@ TSC=./node_modules/typescript/bin/tsc --build
 TMP=./tmp/dist
 
 buildtsc:
+	npm run esbuild-clean
 	$(TSC) tsconfig.json
 	npm run esbuild
 
@@ -25,7 +26,7 @@ prepare: buildtsc
 	cd jsnes && npm i
 	npm run mkdoc
 
-distro:
+distro: buildtsc
 	rm -fr $(TMP) && mkdir -p $(TMP)
 	git archive HEAD | tar x -C $(TMP)
 	cp -rp gen $(TMP)

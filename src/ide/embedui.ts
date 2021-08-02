@@ -168,9 +168,9 @@ async function startPlatform(qs) {
 async function loadPlatform(qs) {
   if (qs.data) qs = qs.data;
   platform_id = qs['p'];
-  if (!platform_id) throw('No platform variable!');
-  var module = await importPlatform(getRootBasePlatform(platform_id));
+  if (!platform_id) throw new Error('No platform variable!');
   try {
+    var module = await importPlatform(getRootBasePlatform(platform_id));
     console.log("starting platform", platform_id); // loaded required <platform_id>.js file
     await startPlatform(qs);
   } catch (e) {

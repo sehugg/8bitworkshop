@@ -2355,18 +2355,16 @@ export async function startUI() {
 }
 
 async function loadAndStartPlatform() {
-  var module = await importPlatform(getRootBasePlatform(platform_id));
   try {
+    var module = await importPlatform(getRootBasePlatform(platform_id));
     console.log("starting platform", platform_id); // loaded required <platform_id>.js file
-    try {
-      await startPlatform();
-      document.title = document.title + " [" + platform_id + "] - " + (repo_id?('['+repo_id+'] - '):'') + current_project.mainPath;
-    } finally {
-      revealTopBar();
-    }
+    await startPlatform();
+    document.title = document.title + " [" + platform_id + "] - " + (repo_id?('['+repo_id+'] - '):'') + current_project.mainPath;
   } catch (e) {
     console.log(e);
     alertError('Platform "' + platform_id + '" failed to load.');
+  } finally {
+    revealTopBar();
   }
 }
 
