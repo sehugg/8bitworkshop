@@ -1,5 +1,5 @@
---- index.html	2021-07-11 18:38:37.000000000 -0500
-+++ electron.html	2021-07-10 13:34:48.000000000 -0500
+--- index.html	2021-08-01 21:41:37.000000000 -0500
++++ electron.html	2021-08-02 09:36:47.000000000 -0500
 @@ -3,18 +3,7 @@
  
  <head>
@@ -42,7 +42,17 @@
  </head>
  <body>
  
-@@ -65,26 +38,6 @@
+@@ -55,9 +28,6 @@
+     <ul class="dropdown-menu dropdown-menu-left" aria-labelledby="dropdownMenuButton" style="left:auto">
+       <li><a class="dropdown-item" href="#" id="item_new_file">New Project...</a></li>
+       <li><a class="dropdown-item" href="#" id="item_upload_file">Upload...</a></li>
+-      <!--
+-        <li><a class="dropdown-item" href="#" id="item_open_directory">Open Local Directory...</a></li>
+-      -->
+       <hr>
+       <li class="dropdown dropdown-submenu">
+         <a tabindex="-1" href="#">File</a>
+@@ -68,26 +38,6 @@
            <hr>
            <li><a class="dropdown-item" href="#" id="item_addfile_include">Add Include File...</a></li>
            <li><a class="dropdown-item" href="#" id="item_addfile_link">Add Linked File...</a></li>
@@ -69,7 +79,7 @@
          </ul>
        </li>
        <li class="dropdown dropdown-submenu">
-@@ -110,35 +63,6 @@
+@@ -113,35 +63,6 @@
            <li><a class="dropdown-item" href="#" id="item_debug_expr">Break Expression...</a></li>
          </ul>
        </li>
@@ -105,7 +115,7 @@
      </ul>
    </span>
  
-@@ -234,41 +158,8 @@
+@@ -237,41 +158,8 @@
      <span class="label"><span id="settle_label"></span> evals/clk</span>
    </span>
  
@@ -148,7 +158,34 @@
  
   </div><!-- controls_dynamic -->
  </div><!-- controls_top -->
-@@ -452,73 +343,6 @@
+@@ -286,24 +174,21 @@
+   <div class="emulator disable-select" id="emulator">
+     <!-- replay slider -->
+     <div id="replaydiv" class="replaydiv" style="display:none;color:#ccc;text-align:left">
+-     <div style="display:grid; grid-template-columns: 3em 3em auto 1em 3em; grid-gap: 1em">
+-      <!-- first row -->
++     <div style="display:grid; grid-template-columns: 3em 3em auto 3em; grid-gap: 1em">
+       <button id="replay_back" class="btn" title="Back one frame"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
+       <div>
+         Frame<br>
+         <span id="replay_frame" style="width:3em">-</span>
+       </div>
+       <input type="range" min="0" max="0" value="0" class="slider" id="replayslider">
+-      <div>&nbsp;</div>
+       <button id="replay_fwd" class="btn" title="Ahead one frame"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
+-      <!-- second row -->
++
+       <button id="clock_back" class="btn" title="Back one step"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
+       <div>
+         Step<br>
+         <span id="replay_clock" style="width:3em">-</span>
+       </div>
+       <input type="range" min="0" max="0" value="0" class="slider" id="clockslider">
+-      <div>&nbsp;</div>
+       <button id="clock_fwd" class="btn" title="Forward one step"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
+      </div>
+     </div>
+@@ -458,73 +343,6 @@
      </div>
    </div>
  </div>
@@ -222,8 +259,17 @@
  
  <script src="jquery/jquery.min.js"></script>
  
-@@ -613,28 +437,5 @@
-   startUI();
+@@ -556,8 +374,6 @@
+ <link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
+ <script src="javatari.js/release/javatari/javatari.js"></script>
+ <script src="src/common/cpu/6809.js"></script>
+-<script src="lib/mousetrap.min.js"></script>
+-<script src="lib/mousetrap-global-bind.min.js"></script>
+ <!-- UI-only stuff -->
+ <link rel="stylesheet" href="lib/bootstrap-tourist.css">
+ <script src="lib/bootstrap-tourist.js"></script>
+@@ -580,28 +396,5 @@
+ });
  </script>
  
 -<!-- Sentry error reporting -->

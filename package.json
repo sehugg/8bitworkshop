@@ -58,12 +58,13 @@
     "vgm-parser": "^0.6.3"
   },
   "scripts": {
-    "build": "tsc --build tsconfig.json",
+    "build": "npm run tsbuild && npm run esbuild-clean && npm run esbuild",
     "test": "npm run test-node",
+    "tsbuild": "tsc --build tsconfig.json",
     "esbuild": "npm run esbuild-worker && npm run esbuild-ui",
     "esbuild-clean": "rm -f ./gen/*.*",
-    "esbuild-worker": "esbuild src/worker/workermain.ts --bundle --minify --sourcemap --target=es2020,chrome58,firefox57,safari11 --outfile=./gen/worker/bundle.js",
-    "esbuild-ui": "esbuild src/ide/ui.ts src/ide/embedui.ts --splitting --format=esm --bundle --minify --sourcemap --target=es2020 --outdir=./gen/ --external:path --external:fs",
+    "esbuild-worker": "esbuild src/worker/workermain.ts --bundle --minify --sourcemap --target=es2017 --outfile=./gen/worker/bundle.js",
+    "esbuild-ui": "esbuild src/ide/ui.ts src/ide/embedui.ts --splitting --format=esm --bundle --minify --sourcemap --target=es2017 --outdir=./gen/ --external:path --external:fs",
     "test-one": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000",
     "test-node": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli",
     "test-profile": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --prof test/cli",

@@ -59,7 +59,7 @@ syncdev: distro
 	cp config.js $(TMP)
 	#aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/dev/
 	s3cmd -c ~/.s3pzp sync -MFP $(TMP)/ s3://8bitworkshop.com/dev/
-	rsync --stats -riltz --chmod=a+rx -e "ssh" $(TMP)/ config.js $(RSYNC_PATH)/dev/
+	rsync --stats -riltz --delete --chmod=a+rx -e "ssh" $(TMP)/ config.js $(RSYNC_PATH)/dev/
 
 syncprod: distro
 	@[ "${VERSION}" ] || ( echo ">> No version set at HEAD, tag it first"; exit 1 )

@@ -13,6 +13,7 @@
             "dom"
         ],
         "esModuleInterop": true,
+        "isolatedModules": true,
         "noImplicitThis": false,
         "noImplicitAny": false,
         "preserveConstEnums": true,
