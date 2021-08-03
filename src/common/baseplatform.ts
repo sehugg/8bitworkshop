@@ -61,7 +61,7 @@ type MemoryMapType = "main" | "vram";
 type MemoryMap = { [type:string] : Segment[] };
 
 export function isDebuggable(arg:any): arg is Debuggable {
-    return typeof arg.getDebugCategories === 'function';
+    return arg && typeof arg.getDebugCategories === 'function';
 }
 
 export interface Debuggable {

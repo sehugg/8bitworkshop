@@ -1419,13 +1419,6 @@ function resume() {
   lastViewClicked = null;
 }
 
-function togglePause() {
-  if (platform.isRunning())
-    pause();
-  else
-    resume();
-}
-
 function singleStep() {
   if (!checkRunReady()) return;
   setupBreakpoint("step");
@@ -2341,8 +2334,11 @@ export async function startUI() {
   }
   getPlatformAndRepo();
   setupSplits();
-  // create store
+  // get store ID, repo id or platform id
   store_id = repo_id || getBasePlatform(platform_id);
+  // are we embedded?
+  if (qs['embed']) store_id = (document.referrer || document.location.href) + store_id;
+  // create store
   store = createNewPersistentStore(store_id);
   // is this an importURL?
   if (qs['importURL']) {

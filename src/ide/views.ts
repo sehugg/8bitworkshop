@@ -115,7 +115,10 @@ export class SourceEditor implements ProjectView {
     var lineWrap = !!modedef.lineWrap;
     var theme = modedef.theme || MODEDEFS.default.theme;
     var lineNums = !modedef.noLineNumbers && !isMobileDevice;
-    if (qs['embed']) lineNums = false; // no line numbers while embedded
+    if (qs['embed']) {
+      lineNums = false; // no line numbers while embedded
+      isAsm = false; // no opcode bytes either
+    }
     var gutters = ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"];
     if (isAsm) gutters = ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"];
     if (modedef.noGutters || isMobileDevice) gutters = ["gutter-info"];
