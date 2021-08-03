@@ -16,7 +16,7 @@ import Split = require('split.js');
 import { importPlatform } from "../platform/_index";
 
 // external libs (TODO)
-declare var Tour, GIF, saveAs, JSZip, firebase;
+declare var Tour, GIF, firebase;
 declare var ga;
 // in index.html
 declare var exports;
@@ -855,8 +855,10 @@ function _shareEmbedLink(e) {
 }
 
 function loadClipboardLibrary() {
-  loadScript('lib/clipboard.min.js').then( () => {
-    var ClipboardJS = exports['ClipboardJS'];
+  // can happen in background because it won't be used until user clicks
+  console.log('clipboard');
+  import('clipboard').then( (clipmod) => {
+    let ClipboardJS = clipmod.default;
     new ClipboardJS(".btn");
   });
 }
@@ -1045,40 +1047,41 @@ function _downloadSourceFile(e) {
   saveAs(blob, getCurrentEditorFilename(), {autoBom:false});
 }
 
-function _downloadProjectZipFile(e) {
-  loadScript('lib/jszip.min.js').then( () => {
-    var zip = new JSZip();
-    current_project.iterateFiles( (id, data) => {
-      if (data) {
-        zip.file(getFilenameForPath(id), data);
-      }
-    });
-    zip.generateAsync({type:"blob"}).then( (content) => {
-      saveAs(content, getCurrentMainFilename() + "-" + getBasePlatform(platform_id) + ".zip");
-    });
+async function newJSZip() {
+  let JSZip = (await import('jszip')).default;
+  return new JSZip();
+}
+
+async function _downloadProjectZipFile(e) {
+  var zip = await newJSZip();
+  current_project.iterateFiles( (id, data) => {
+    if (data) {
+      zip.file(getFilenameForPath(id), data);
+    }
+  });
+  zip.generateAsync({type:"blob"}).then( (content) => {
+    saveAs(content, getCurrentMainFilename() + "-" + getBasePlatform(platform_id) + ".zip");
   });
 }
 
-function _downloadAllFilesZipFile(e) {
-  loadScript('lib/jszip.min.js').then( () => {
-    var zip = new JSZip();
-    store.keys( (err, keys : string[]) => {
-      setWaitDialog(true);
-      var i = 0;
-      return Promise.all(keys.map( (path) => {
-        return store.getItem(path).then( (text) => {
-          setWaitProgress(i++/(keys.length+1));
-          if (text) {
-            zip.file(path, text);
-          }
-        });
-      })).then(() => {
-        return zip.generateAsync({type:"blob"});
-      }).then( (content) => {
-        return saveAs(content, getBasePlatform(platform_id) + "-all.zip");
-      }).finally(() => setWaitDialog(false));
-    });
-  })
+async function _downloadAllFilesZipFile(e) {
+  var zip = await newJSZip();
+  store.keys( (err, keys : string[]) => {
+    setWaitDialog(true);
+    var i = 0;
+    return Promise.all(keys.map( (path) => {
+      return store.getItem(path).then( (text) => {
+        setWaitProgress(i++/(keys.length+1));
+        if (text) {
+          zip.file(path, text as any);
+        }
+      });
+    })).then(() => {
+      return zip.generateAsync({type:"blob"});
+    }).then( (content) => {
+      return saveAs(content, getBasePlatform(platform_id) + "-all.zip");
+    }).finally(() => setWaitDialog(false));
+  });
 }
 
 function populateExamples(sel) {

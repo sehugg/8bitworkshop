@@ -1,6 +1,7 @@
 
 window['Javatari'].AUTO_START = false;
 
+import { lzgmini } from "../common/util";
 import { PLATFORMS } from "../common/emu";
 import { Platform } from "../common/baseplatform";
 import { stringToByteArray, getWithBinary, loadScript, getRootBasePlatform } from "../common/util";
@@ -12,7 +13,7 @@ export var platform : Platform;	// platform object
 export var stateRecorder : StateRecorderImpl;
 
 // external libs (TODO)
-declare var ga, lzgmini, GIF, saveAs;
+declare var ga, GIF;
 
 var _qs = (function (a) {
     if (!a || a.length == 0)
