@@ -2,6 +2,7 @@
 import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult } from "../common/workertypes";
 import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform, getWithBinary } from "../common/util";
 import { Platform } from "../common/baseplatform";
+import localforage from "localforage";
 
 export interface ProjectFilesystem {
   getFileData(path: string) : Promise<FileData>;
@@ -411,3 +412,12 @@ export class CodeProject {
   }
 
 }
+
+export function createNewPersistentStore(storeid:string) : LocalForage {
+  var store = localforage.createInstance({
+    name: "__" + storeid,
+    version: 2.0
+  });
+  return store;
+}
+

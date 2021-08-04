@@ -2,14 +2,14 @@
 // 8bitworkshop IDE user interface
 
 import * as localforage from "localforage";
-import { CodeProject, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
+import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "../common/workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState, BasePlatform } from "../common/baseplatform";
 import { PLATFORMS, EmuHalt, Toolbar } from "../common/emu";
 import * as Views from "./views";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG, stringToByteArray,
-         byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex, loadScript } from "../common/util";
+         byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex, loadScript, decodeQueryString, parseBool } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";
 import { GHSession, GithubService, getRepos, parseGithubURL, FirebaseProjectFilesystem } from "./services";
 import Split = require('split.js');
@@ -24,6 +24,32 @@ declare var $ : JQueryStatic; // use browser jquery
 
 // make sure VCS doesn't start
 if (window['Javatari']) window['Javatari'].AUTO_START = false;
+
+// query string 
+
+interface UIQueryString {
+  platform? : string;
+  repo? : string;
+  file? : string;
+  electron? : string;
+  importURL? : string;
+  githubURL? : string;
+  localfs? : string;
+  newfile? : string;
+  embed? : string;
+  ignore? : string;
+  force? : string;
+  file0_name? : string;
+  file0_data? : string;
+  file0_type? : string;
+}
+
+export var qs : UIQueryString = decodeQueryString(window.location.search||'?') as UIQueryString;
+
+const isElectron = parseBool(qs.electron);
+const isEmbed = parseBool(qs.embed);
+
+/// GLOBALS (TODO: remove)
 
 var PRESETS : Preset[];			// presets array
 
@@ -98,19 +124,11 @@ const TOOL_TO_HELPURL = {
   'fastbasic': 'https://github.com/dmsc/fastbasic/blob/master/manual.md'  
 }
 
-function createNewPersistentStore(storeid:string) {
-  var store = localforage.createInstance({
-    name: "__" + storeid,
-    version: 2.0
-  });
-  return store;
-}
-
 function gaEvent(category:string, action:string, label?:string, value?:string) {
   if (window['ga']) ga('send', 'event', category, action, label, value);
 }
+
 function alertError(s:string) {
-  gaEvent('error', platform_id||'error', s);
   setWaitDialog(false);
   bootbox.alert({
     title: '<span class="glyphicon glyphicon-alert" aria-hidden="true"></span> Alert',
@@ -120,6 +138,10 @@ function alertError(s:string) {
 function alertInfo(s:string) {
   setWaitDialog(false);
   bootbox.alert(s);
+}
+function fatalError(s:string) {
+  alertError(s);
+  throw new Error(s);
 }
 
 function newWorker() : Worker {
@@ -137,6 +159,43 @@ const hasLocalStorage : boolean = function() {
     return false;
   }
 }();
+
+// wrapper for localstorage
+class UserPrefs {
+  setLastPreset(id:string) {
+    if (hasLocalStorage && !isEmbed) {
+      if (repo_id && platform_id && !isElectron)
+        localStorage.setItem("__lastrepo_" + platform_id, repo_id);
+      else
+        localStorage.removeItem("__lastrepo_" + platform_id);
+      localStorage.setItem("__lastplatform", platform_id);
+      localStorage.setItem("__lastid_" + store_id, id);
+    }
+  }
+  unsetLastPreset() {
+    if (hasLocalStorage && !isEmbed) {
+      delete qs.file;
+      localStorage.removeItem("__lastid_"+store_id);
+    }
+  }
+  getLastPreset() {
+    return hasLocalStorage && !isEmbed && localStorage.getItem("__lastid_"+store_id);
+  }
+  getLastPlatformID() {
+    return hasLocalStorage && !isEmbed && localStorage.getItem("__lastplatform");
+  }
+  getLastRepoID() {
+    return hasLocalStorage && !isEmbed && localStorage.getItem("__lastrepo_" + platform_id);
+  }
+  shouldCompleteTour() {
+    return hasLocalStorage && !isEmbed && !localStorage.getItem("8bitworkshop.hello");
+  }
+  completedTour() {
+    if (hasLocalStorage && !isEmbed) localStorage.setItem("8bitworkshop.hello", "true");
+  }
+}
+
+var userPrefs = new UserPrefs();
 
 // https://developers.google.com/web/updates/2016/06/persistent-storage
 function requestPersistPermission(interactive: boolean, failureonly: boolean) {
@@ -161,32 +220,14 @@ function getCurrentPresetTitle() : string {
     return current_preset.title || current_preset.name || current_project.mainPath || "ROM";
 }
 
-function setLastPreset(id:string) {
-  if (hasLocalStorage) {
-    if (repo_id && platform_id && !isElectron)
-      localStorage.setItem("__lastrepo_" + platform_id, repo_id);
-    else
-      localStorage.removeItem("__lastrepo_" + platform_id);
-    localStorage.setItem("__lastplatform", platform_id);
-    localStorage.setItem("__lastid_" + store_id, id);
-  }
-}
-
-function unsetLastPreset() {
-  if (hasLocalStorage) {
-    delete qs['file'];
-    localStorage.removeItem("__lastid_"+store_id);
-  }
-}
-
 async function initProject() {
   var basefs : ProjectFilesystem = new WebPresetsFileSystem(platform_id);
   //basefs = new FirebaseProjectFilesystem("TEST", "TEST");
   if (isElectron) {
     console.log('using electron with local filesystem', alternateLocalFilesystem);
     var filesystem = new OverlayFilesystem(basefs, alternateLocalFilesystem);
-  } else if (qs['localfs'] != null) {
-    var filesystem = new OverlayFilesystem(basefs, await getLocalFilesystem(qs['localfs']));
+  } else if (qs.localfs != null) {
+    var filesystem = new OverlayFilesystem(basefs, await getLocalFilesystem(qs.localfs));
   } else {
     var filesystem = new OverlayFilesystem(basefs, new LocalForageFilesystem(store));
   }
@@ -354,7 +395,7 @@ async function loadProject(preset_id:string) {
   // set current file ID
   // TODO: this is done twice (mainPath and mainpath!)
   current_project.mainPath = preset_id;
-  setLastPreset(preset_id);
+  userPrefs.setLastPreset(preset_id);
   // load files from storage or web URLs
   var result = await current_project.loadFiles([preset_id]);
   measureTimeLoad = new Date(); // for timing calc.
@@ -366,12 +407,12 @@ async function loadProject(preset_id:string) {
     current_project.filedata[preset_id] = skel || "\n";
     loadMainWindow(preset_id);
     // don't alert if we selected "new file"
-    if (!qs['newfile']) {
+    if (!qs.newfile) {
       alertInfo("Could not find file \"" + preset_id + "\". Loading default file.");
     } else {
       requestPersistPermission(true, true);
     }
-    delete qs['newfile'];
+    delete qs.newfile;
     replaceURLState();
   }
 }
@@ -386,8 +427,8 @@ function reloadProject(id:string) {
       qs = {repo:urlparse.repopath};
     }
   } else {
-    qs['platform'] = platform_id;
-    qs['file'] = id;
+    qs.platform = platform_id;
+    qs.file = id;
   }
   gotoNewLocation();
 }
@@ -422,7 +463,7 @@ function _createNewFile(e) {
         }
         var path = filename;
         gaEvent('workspace', 'file', 'new');
-        qs['newfile'] = '1';
+        qs.newfile = '1';
         reloadProject(path);
       }
     }
@@ -446,9 +487,9 @@ function handleFileUpload(files: File[]) {
         alertInfo("Files uploaded.");
         setTimeout(updateSelector, 1000); // TODO: wait for files to upload
       } else {
-        qs['file'] = files[0].name;
+        qs.file = files[0].name;
         bootbox.confirm({
-          message: "Open '" + qs['file'] + "' as main project file?",
+          message: "Open '" + qs.file + "' as main project file?",
           buttons: {
             confirm: { label: "Open As New Project" },
             cancel: { label: "Include/Link With Project Later" },
@@ -680,7 +721,7 @@ function _publishProjectToGithub(e) {
     }).then( (_sess) => {
       sess = _sess;
       setWaitProgress(0.5);
-      repo_id = qs['repo'] = sess.repopath;
+      repo_id = qs.repo = sess.repopath;
       return pushChangesToGithub('initial import from 8bitworkshop.com');
     }).then( () => {
       gaEvent('sync', 'publish', priv?"":name);
@@ -977,8 +1018,8 @@ function _deleteFile(e) {
       if (ok) {
         store.removeItem(fn).then( () => {
           // if we delete what is selected
-          if (qs['file'] == fn) {
-            unsetLastPreset();
+          if (qs.file == fn) {
+            userPrefs.unsetLastPreset();
             gotoNewLocation();
           } else {
             updateSelector();
@@ -1929,9 +1970,8 @@ function isLandscape() {
   return window.innerWidth > window.innerHeight;
 }
 
-function showWelcomeMessage() {
-  if (hasLocalStorage && !localStorage.getItem("8bitworkshop.hello")) {
-    // Instance the tour
+async function showWelcomeMessage() {
+  if (userPrefs.shouldCompleteTour()) {
     var is_vcs = platform_id.startsWith('vcs');
     var steps = [
         {
@@ -2015,30 +2055,15 @@ function showWelcomeMessage() {
       //storage:false,
       steps:steps,
       onEnd: () => {
+        userPrefs.completedTour();
         //requestPersistPermission(false, true);
       }
     });
-    setTimeout(() => { tour.start(); }, 2000);
+    setTimeout(() => { tour.start(); }, 2500);
   }
 }
 
 ///////////////////////////////////////////////////
-
-export var qs = (function (a : string[]) {
-    if (!a || a.length == 0)
-        return {};
-    var b = {};
-    for (var i = 0; i < a.length; ++i) {
-        var p = a[i].split('=', 2);
-        if (p.length == 1)
-            b[p[0]] = "";
-        else
-            b[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
-    }
-    return b;
-})(window.location.search.substr(1).split('&'));
-
-const isElectron = !!qs['electron'];
 
 function globalErrorHandler(msgevent) {
   var msg = (msgevent.message || msgevent.error || msgevent)+"";
@@ -2080,7 +2105,7 @@ function gotoNewLocation(replaceHistory? : boolean) {
 }
 
 function replaceURLState() {
-  if (platform_id) qs['platform'] = platform_id;
+  if (platform_id) qs.platform = platform_id;
   delete qs['']; // remove null parameter
   history.replaceState({}, "", "?" + $.param(qs));
 }
@@ -2139,7 +2164,7 @@ function installGAHooks() {
         gaEvent('menu', e.target.id);
       }
     });
-    ga('send', 'pageview', location.pathname+'?platform='+platform_id+(repo_id?('&repo='+repo_id):('&file='+qs['file'])));
+    ga('send', 'pageview', location.pathname+'?platform='+platform_id+(repo_id?('&repo='+repo_id):('&file='+qs.file)));
   }
 }
 
@@ -2149,22 +2174,19 @@ async function startPlatform() {
   setPlatformUI();
   stateRecorder = new StateRecorderImpl(platform);
   PRESETS = platform.getPresets ? platform.getPresets() : [];
-  if (!qs['file']) {
+  if (!qs.file) {
     // try to load last file (redirect)
-    var lastid;
-    if (hasLocalStorage) {
-      lastid = localStorage.getItem("__lastid_"+store_id);
-    }
+    var lastid = userPrefs.getLastPreset();
     // load first preset file, unless we're in a repo
     var defaultfile = lastid || (repo_id ? null : PRESETS[0].id);
-    qs['file'] = defaultfile || 'DEFAULT';
+    qs.file = defaultfile || 'DEFAULT';
     if (!defaultfile) {
       alertError("There is no default main file for this project. Try selecting one from the pulldown.");
     }
   }
   // legacy vcs stuff
-  if (platform_id == 'vcs' && qs['file'].startsWith('examples/') && !qs['file'].endsWith('.a')) {
-    qs['file'] += '.a';
+  if (platform_id == 'vcs' && qs.file.startsWith('examples/') && !qs.file.endsWith('.a')) {
+    qs.file += '.a';
   }
   // start platform and load file
   replaceURLState();
@@ -2173,12 +2195,12 @@ async function startPlatform() {
   await platform.start();
   await loadBIOSFromProject();
   await initProject();
-  await loadProject(qs['file']);
+  await loadProject(qs.file);
   platform.sourceFileFetch = (path) => current_project.filedata[path];
   setupDebugControls();
   addPageFocusHandlers();
   showInstructions();
-  if (qs['embed']) {
+  if (isEmbed) {
     hideControlsForEmbed();
   } else {
     updateSelector();
@@ -2206,11 +2228,12 @@ function revealTopBar() {
 }
 
 export function setupSplits() {
-  const splitName = 'workspace-split3-' + platform_id;
+  var splitName = 'workspace-split3-' + platform_id;
+  if (isEmbed) splitName = 'embed-' + splitName;
   var sizes;
   if (platform_id.startsWith('vcs'))
     sizes = [0, 50, 50];
-  else if (qs['embed'] || Views.isMobileDevice)
+  else if (isEmbed || Views.isMobileDevice)
     sizes = [0, 60, 40];
   else
     sizes = [12, 44, 44];
@@ -2227,8 +2250,7 @@ export function setupSplits() {
       if (platform && platform.resize) platform.resize();
     },
     onDragEnd: () => {
-      if (hasLocalStorage)
-        localStorage.setItem(splitName, JSON.stringify(split.getSizes()))
+      if (hasLocalStorage) localStorage.setItem(splitName, JSON.stringify(split.getSizes()))
       if (projectWindows) projectWindows.resize();
     },
   });
@@ -2248,8 +2270,8 @@ function loadImportedURL(url : string) {
             if (err)
               alert(err+""); // need to wait
             if (result != null) {
-              delete qs['importURL'];
-              qs['file'] = path;
+              delete qs.importURL;
+              qs.file = path;
               replaceURLState();
               loadAndStartPlatform();
             }
@@ -2264,8 +2286,13 @@ function loadImportedURL(url : string) {
 }
 
 async function loadFormDataUpload() {
-  var ignore = !!qs['ignore'];
-  var force = !!qs['force'];
+  var ignore = parseBool(qs.ignore);
+  var force = parseBool(qs.force);
+  if (isEmbed) {
+    ignore = !force; // ignore is default when embed=1 unless force=1
+  } else {
+    force = false; // can't use force w/o embed=1
+  }
   for (var i=0; i<20; i++) {
     let path = qs['file'+i+'_name'];
     let dataenc = qs['file'+i+'_data'];
@@ -2280,13 +2307,13 @@ async function loadFormDataUpload() {
         await store.setItem(path, value);
       }
     }
-    if (i == 0) { qs['file'] = path; } // set main filename
+    if (i == 0) { qs.file = path; } // set main filename
     delete qs['file'+i+'_name'];
     delete qs['file'+i+'_data'];
     delete qs['file'+i+'_type'];
   }
-  delete qs['ignore'];
-  delete qs['force'];
+  delete qs.ignore;
+  delete qs.force;
   replaceURLState();
 }
 
@@ -2303,33 +2330,34 @@ function setPlatformUI() {
 export function getPlatformAndRepo() {
   // add default platform?
   // TODO: do this after repo_id
-  platform_id = qs['platform'] || (hasLocalStorage && localStorage.getItem("__lastplatform"));
+  platform_id = qs.platform || userPrefs.getLastPlatformID();
   if (!platform_id) {
-    platform_id = qs['platform'] = "vcs";
+    if (isEmbed) fatalError(`The 'platform' must be specified when embed=1`);
+    platform_id = qs.platform = "vcs";
   }
   // lookup repository for this platform
-  repo_id = qs['repo'] || (hasLocalStorage && localStorage.getItem("__lastrepo_" + platform_id));
+  repo_id = qs.repo || userPrefs.getLastRepoID();
   if (hasLocalStorage && repo_id && repo_id !== '/') {
     var repo = getRepos()[repo_id];
     if (repo) {
-      qs['repo'] = repo_id;
-      if (repo.platform_id && !qs['platform'])
-        qs['platform'] = platform_id = repo.platform_id;
-      if (!qs['file'])
-        qs['file'] = repo.mainPath;
+      qs.repo = repo_id;
+      if (repo.platform_id && !qs.platform)
+        qs.platform = platform_id = repo.platform_id;
+      if (!qs.file)
+        qs.file = repo.mainPath;
       requestPersistPermission(true, true);
     }
   } else {
     repo_id = '';
-    delete qs['repo'];
+    delete qs.repo;
   }
 }
 
 // start
 export async function startUI() {
   // import from github?
-  if (qs['githubURL']) {
-    importProjectFromGithub(qs['githubURL'], true);
+  if (qs.githubURL) {
+    importProjectFromGithub(qs.githubURL, true);
     return;
   }
   getPlatformAndRepo();
@@ -2337,16 +2365,18 @@ export async function startUI() {
   // get store ID, repo id or platform id
   store_id = repo_id || getBasePlatform(platform_id);
   // are we embedded?
-  if (qs['embed']) store_id = (document.referrer || document.location.href) + store_id;
+  if (isEmbed) {
+    store_id = (document.referrer || document.location.href) + store_id;
+  }
   // create store
   store = createNewPersistentStore(store_id);
   // is this an importURL?
-  if (qs['importURL']) {
-    loadImportedURL(qs['importURL']);
+  if (qs.importURL) {
+    loadImportedURL(qs.importURL);
     return; // TODO: make async
   }
   // is this a file POST?
-  if (qs['file0_name']) {
+  if (qs.file0_name) {
     await loadFormDataUpload();
   }
   // load and start platform object

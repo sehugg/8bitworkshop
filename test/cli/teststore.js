@@ -7,7 +7,6 @@ var assert = require('assert');
 var wtu = require('./workertestutils.js'); // loads localStorage
 global.localforage = require("lib/localforage.min.js");
 var util = require("gen/common/util.js");
-var mstore = require("gen/ide/store.js");
 var prj = require("gen/ide/project.js");
 
 var test_platform_id = "_TEST";
@@ -21,7 +20,7 @@ function newFilesystem(store, platform_id) {
 describe('Store', function () {
 
   it('Should load local project', function (done) {
-    var store = mstore.createNewPersistentStore(test_platform_id);
+    var store = prj.createNewPersistentStore(test_platform_id);
     store.setItem('local/test', 'a');
     var worker = {};
     var platform = {};
@@ -47,7 +46,7 @@ describe('Store', function () {
         ]
       }
     ];
-    var store = mstore.createNewPersistentStore(test_platform_id);
+    var store = prj.createNewPersistentStore(test_platform_id);
     var worker = {
       postMessage: function (m) { msgs.push(m); },
     };
@@ -74,7 +73,7 @@ describe('Store', function () {
 
   it('Should build asm project', function (done) {
     var msgs = [];
-    var store = mstore.createNewPersistentStore(test_platform_id);
+    var store = prj.createNewPersistentStore(test_platform_id);
     var worker = {
     };
     var platform = {

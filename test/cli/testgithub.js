@@ -7,7 +7,6 @@ var assert = require('assert');
 var wtu = require('./workertestutils.js'); // loads localStorage
 global.localforage = require("lib/localforage.min.js");
 var util = require("gen/common/util.js");
-var mstore = require("gen/ide/store.js");
 var prj = require("gen/ide/project.js");
 var serv = require("gen/ide/services.js");
 var Octokat = require('octokat');
@@ -25,12 +24,18 @@ function newGH(store, platform_id) {
   return new serv.GithubService(Octokat, process.env.TEST8BIT_GITHUB_TOKEN, store, project);
 }
 
+function createNewPersistentStore(platform_id, callback) {
+  var store = prj.createNewPersistentStore(platform_id);
+  callback(store);
+  return store;
+}
+
 const t0 = new Date().getTime();
 
 describe('Github', function() {
 
   it('Should import from Github (check README)', function(done) {
-    var store = mstore.createNewPersistentStore('vcs', function(store) {
+    var store = createNewPersistentStore('vcs', function(store) {
       var gh = newGH(store, 'vcs');
       gh.importAndPull('https://github.com/pzpinfo/test123123/').then( (sess) => {
         console.log(sess.paths);
@@ -48,7 +53,7 @@ describe('Github', function() {
   });
 
   it('Should import from Github (default branch)', function(done) {
-    var store = mstore.createNewPersistentStore('nes', function(store) {
+    var store = createNewPersistentStore('nes', function(store) {
       var gh = newGH(store, 'nes');
       gh.importAndPull('https://github.com/sehugg/mdf2020-nes').then( (sess) => {
         console.log(sess.paths);
@@ -58,7 +63,7 @@ describe('Github', function() {
   });
 
   it('Should import from Github (explicit branch)', function(done) {
-    var store = mstore.createNewPersistentStore('nes', function(store) {
+    var store = createNewPersistentStore('nes', function(store) {
       var gh = newGH(store, 'nes');
       gh.importAndPull('https://github.com/sehugg/mdf2020-nes/tree/main').then( (sess) => {
         console.log(sess.paths);
@@ -68,7 +73,7 @@ describe('Github', function() {
   });
 
   it('Should import from Github (binary files)', function(done) {
-    var store = mstore.createNewPersistentStore('vcs', function(store) {
+    var store = createNewPersistentStore('vcs', function(store) {
       var gh = newGH(store, 'vcs');
       gh.importAndPull('https://github.com/pzpinfo/testrepo3').then( (sess) => {
         console.log(sess.paths);
@@ -84,7 +89,7 @@ describe('Github', function() {
   });
 
   it('Should import from Github (wrong platform)', function(done) {
-    var store = mstore.createNewPersistentStore('_FOO', function(store) {
+    var store = createNewPersistentStore('_FOO', function(store) {
       var gh = newGH(store, '_FOO');
       gh.importAndPull('https://github.com/pzpinfo/testrepo1557326056720').catch( (e) => {
         assert.ok(e.message.startsWith('Platform mismatch'));
@@ -94,7 +99,7 @@ describe('Github', function() {
   });
 
   it('Should import from Github (invalid URL)', function(done) {
-    var store = mstore.createNewPersistentStore('_FOO', function(store) {
+    var store = createNewPersistentStore('_FOO', function(store) {
       var gh = newGH(store, '_FOO');
       gh.importAndPull('https://github.com/pzpinfo/NOEXISTSREPO').catch( (e) => {
         console.log(e);
@@ -105,7 +110,7 @@ describe('Github', function() {
   });
 
   it('Should import from Github (subdirectory tree)', function(done) {
-    var store = mstore.createNewPersistentStore('nes', function(store) {
+    var store = createNewPersistentStore('nes', function(store) {
       var gh = newGH(store, 'nes');
       gh.importAndPull('https://github.com/brovador/NESnake/tree/master/src').then( (sess) => {
         console.log(sess.paths);
@@ -116,7 +121,7 @@ describe('Github', function() {
   });
 
   it('Should publish (fail) on Github', function(done) {
-    var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
+    var store = createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
       // should fail
       gh.publish('testrepo1').catch( (e) => {
@@ -126,7 +131,7 @@ describe('Github', function() {
   });
 
   it('Should publish new repository on Github', function(done) {
-    var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
+    var store = createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
       var reponame = 'testrepo'+t0;
       // should fail
@@ -140,7 +145,7 @@ describe('Github', function() {
   });
 
   it('Should commit/push to Github', function(done) {
-    var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
+    var store = createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
       var binfile = new Uint8Array(256);
       for (var i=0; i<256; i++)
@@ -160,7 +165,7 @@ describe('Github', function() {
   });
 
   it('Should commit/push to Github (subdirectory tree)', function(done) {
-    var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
+    var store = createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
       var files = [
         {path:'text.txt', data:'hello world'}
@@ -178,7 +183,7 @@ describe('Github', function() {
   });
 
   it('Should bind paths to Github', function(done) {
-    var store = mstore.createNewPersistentStore(test_platform_id, function(store) {
+    var store = createNewPersistentStore(test_platform_id, function(store) {
       var gh = newGH(store);
       var sess = {repopath:'foo/bar', url:'_', platform_id:'vcs',mainPath:'test.c'};
       gh.bind(sess, true);

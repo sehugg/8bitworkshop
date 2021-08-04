@@ -6,7 +6,7 @@ var vm = require('vm');
 
 var worker = {};
 
-process.exit = function() { console.log("arggh you can't exit when i pass noExitRuntime! lol process.exit() go brrr") }
+//process.exit = function() { console.log("arggh you can't exit when i pass noExitRuntime! lol process.exit() go brrr") }
 
 global.window = global;
 global.exports = {};

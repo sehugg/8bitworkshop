@@ -239,7 +239,7 @@ export class AnimationTimer {
   running : boolean = false;
   pulsing : boolean = false;
   lastts = 0;
-  useReqAnimFrame = true; // may be deactivated in browers?
+  useReqAnimFrame = typeof window.requestAnimationFrame === 'function'; // need for unit test
   nframes;
   startts; // for FPS calc
   frameRate;

@@ -7,11 +7,12 @@
         "allowJs": false,
         "checkJs": false,
         "sourceMap": true,
-        "target": "es5",
+        "target": "es2017",
         "lib": [
             "es2017",
             "dom"
         ],
+        "module": "CommonJS",
         "esModuleInterop": true,
         "isolatedModules": true,
         "noImplicitThis": false,
