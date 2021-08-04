@@ -7,13 +7,17 @@ import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, Fil
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState, BasePlatform } from "../common/baseplatform";
 import { PLATFORMS, EmuHalt, Toolbar } from "../common/emu";
-import * as Views from "./views";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG, stringToByteArray,
          byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex, loadScript, decodeQueryString, parseBool } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";
 import { GHSession, GithubService, getRepos, parseGithubURL, FirebaseProjectFilesystem } from "./services";
 import Split = require('split.js');
 import { importPlatform } from "../platform/_index";
+import { DisassemblerView, ListingView, SourceEditor } from "./views/editors";
+import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterPCHeatMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
+import { AssetEditorView } from "./views/asseteditor";
+import { isMobileDevice } from "./views/baseviews";
+import { CallStackView, DebugBrowserView } from "./views/treeviews";
 
 // external libs (TODO)
 declare var Tour, GIF, firebase;
@@ -286,7 +290,7 @@ function refreshWindowList() {
   function loadEditor(path:string) {
     var tool = platform.getToolForFilename(path);
     var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
-    return new Views.SourceEditor(path, mode);
+    return new SourceEditor(path, mode);
   }
 
   function addEditorItem(id:string) {
@@ -295,7 +299,7 @@ function refreshWindowList() {
       if (typeof data === 'string')
         return loadEditor(id);
       else if (data instanceof Uint8Array)
-        return new Views.BinaryFileView(id, data as Uint8Array);
+        return new BinaryFileView(id, data as Uint8Array);
     });
   }
 
@@ -318,7 +322,7 @@ function refreshWindowList() {
       // add listing if source/assembly file exists and has text
       if ((lst.assemblyfile && lst.assemblyfile.text) || (lst.sourcefile && lst.sourcefile.text)) {
         addWindowItem(lstfn, getFilenameForPath(lstfn), (path) => {
-          return new Views.ListingView(path);
+          return new ListingView(path);
         });
       }
     }
@@ -328,57 +332,57 @@ function refreshWindowList() {
   separate = true;
   if (platform.disassemble && platform.saveState) {
     addWindowItem("#disasm", "Disassembly", () => {
-      return new Views.DisassemblerView();
+      return new DisassemblerView();
     });
   }
   if (platform.readAddress) {
     addWindowItem("#memory", "Memory Browser", () => {
-      return new Views.MemoryView();
+      return new MemoryView();
     });
   }
   if (current_project.segments && current_project.segments.length) {
     addWindowItem("#memmap", "Memory Map", () => {
-      return new Views.MemoryMapView();
+      return new MemoryMapView();
     });
   }
   if (platform.readVRAMAddress) {
     addWindowItem("#memvram", "VRAM Browser", () => {
-      return new Views.VRAMMemoryView();
+      return new VRAMMemoryView();
     });
   }
   if (platform.startProbing) {
     addWindowItem("#memheatmap", "Memory Probe", () => {
-      return new Views.AddressHeatMapView();
+      return new AddressHeatMapView();
     });
     // TODO: only if raster
     addWindowItem("#crtheatmap", "CRT Probe", () => {
-      return new Views.RasterPCHeatMapView();
+      return new RasterPCHeatMapView();
     });
     addWindowItem("#probelog", "Probe Log", () => {
-      return new Views.ProbeLogView();
+      return new ProbeLogView();
     });
     addWindowItem("#scanlineio", "Scanline I/O", () => {
-      return new Views.ScanlineIOView();
+      return new ScanlineIOView();
     });
     addWindowItem("#symbolprobe", "Symbol Profiler", () => {
-      return new Views.ProbeSymbolView();
+      return new ProbeSymbolView();
     });
     addWindowItem("#callstack", "Call Stack", () => {
-      return new Views.CallStackView();
+      return new CallStackView();
     });
     /*
     addWindowItem("#framecalls", "Frame Profiler", () => {
-      return new Views.FrameCallsView();
+      return new FrameCallsView();
     });
     */
   }
   if (platform.getDebugTree) {
     addWindowItem("#debugview", "Debug Tree", () => {
-      return new Views.DebugBrowserView();
+      return new DebugBrowserView();
     });
   }
   addWindowItem('#asseteditor', 'Asset Editor', () => {
-    return new Views.AssetEditorView();
+    return new AssetEditorView();
   });
 }
 
@@ -1213,7 +1217,7 @@ function getErrorElement(err : WorkerError) {
     if (projectWindows.isWindow(path)) {
       link.click((ev) => {
         var wnd = projectWindows.createOrShow(path);
-        if (wnd instanceof Views.SourceEditor) {
+        if (wnd instanceof SourceEditor) {
           wnd.setCurrentLine(err, true);
         }
       });
@@ -2233,7 +2237,7 @@ export function setupSplits() {
   var sizes;
   if (platform_id.startsWith('vcs'))
     sizes = [0, 50, 50];
-  else if (isEmbed || Views.isMobileDevice)
+  else if (isEmbed || isMobileDevice)
     sizes = [0, 60, 40];
   else
     sizes = [12, 44, 44];
@@ -2483,7 +2487,7 @@ function writeOutputROMFile() {
 }
 export function highlightSearch(query: string) { // TODO: filename?
   var wnd = projectWindows.getActive();
-  if (wnd instanceof Views.SourceEditor) {
+  if (wnd instanceof SourceEditor) {
     var sc = wnd.editor.getSearchCursor(query);
     if (sc.findNext()) {
       wnd.editor.setSelection(sc.pos.to, sc.pos.from);
