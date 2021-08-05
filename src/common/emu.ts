@@ -233,7 +233,7 @@ export class EmuHalt extends Error {
   }
 }
 
-export var useRequestAnimationFrame : boolean = typeof window.requestAnimationFrame === 'function'; // need for unit test
+export var useRequestAnimationFrame : boolean = true;
 
 export class AnimationTimer {
 
@@ -245,7 +245,7 @@ export class AnimationTimer {
   startts; // for FPS calc
   frameRate;
   intervalMsec;
-  useReqAnimFrame = useRequestAnimationFrame;
+  useReqAnimFrame = useRequestAnimationFrame && typeof window.requestAnimationFrame === 'function'; // need for unit test
   
   constructor(frequencyHz:number, callback:() => void) {
     this.frameRate = frequencyHz;

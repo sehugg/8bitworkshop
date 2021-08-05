@@ -2246,7 +2246,7 @@ export function setupSplits() {
   if (platform_id.startsWith('vcs'))
     sizes = [0, 50, 50];
   else if (isEmbed || isMobileDevice)
-    sizes = [0, 60, 40];
+    sizes = [0, 55, 45];
   else
     sizes = [12, 44, 44];
   var sizesStr = hasLocalStorage && localStorage.getItem(splitName);
