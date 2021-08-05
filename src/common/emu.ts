@@ -233,17 +233,19 @@ export class EmuHalt extends Error {
   }
 }
 
+export var useRequestAnimationFrame : boolean = typeof window.requestAnimationFrame === 'function'; // need for unit test
+
 export class AnimationTimer {
 
   callback;  
   running : boolean = false;
   pulsing : boolean = false;
   lastts = 0;
-  useReqAnimFrame = typeof window.requestAnimationFrame === 'function'; // need for unit test
   nframes;
   startts; // for FPS calc
   frameRate;
   intervalMsec;
+  useReqAnimFrame = useRequestAnimationFrame;
   
   constructor(frequencyHz:number, callback:() => void) {
     this.frameRate = frequencyHz;
@@ -252,9 +254,9 @@ export class AnimationTimer {
   }
 
   scheduleFrame(msec:number) {
-    var fn = () => {
+    var fn = (timestamp) => {
       try {
-        this.nextFrame();
+        this.nextFrame(timestamp*1000);
       } catch (e) {
         this.running = false;
         this.pulsing = false;
@@ -269,12 +271,12 @@ export class AnimationTimer {
   
   nextFrame(ts?:number) {
     if (!ts) ts = Date.now();
-    if (ts - this.lastts < this.intervalMsec*10) {
+    if (ts - this.lastts < this.intervalMsec*5) {
       this.lastts += this.intervalMsec;
     } else {
       this.lastts = ts + this.intervalMsec; // frames skipped, catch up
     }
-    if (!this.useReqAnimFrame || this.lastts - ts > this.intervalMsec/2) {
+    if (!this.useReqAnimFrame || (this.lastts - ts) > this.intervalMsec/2) {
       if (this.running) {
         this.callback();
       }
