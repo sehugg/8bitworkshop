@@ -24,6 +24,12 @@ exports['test embed iframe'] = function(browser) {
   browser.url(IDEURL + "?embed=1")
     .waitForElementVisible('.bootbox-alert')
 
+  browser.url(IDEURL + "?embed=1&platform=nes&githubURL=https://github.com/sehugg/NES-ca65-example")
+    .waitForElementNotVisible('#compile_spinner', time=10000)
+    .waitForElementNotVisible('#error_alert')
+    .waitForElementVisible('#emuscreen')
+    .waitForElementVisible('.emuvideo')
+
 }
 
 exports['test embed.html'] = function(browser) {

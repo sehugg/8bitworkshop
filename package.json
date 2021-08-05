@@ -21,6 +21,7 @@
     "jszip": "^3.7.0",
     "localforage": "^1.9.0",
     "mousetrap": "^1.6.5",
+    "octokat": "^0.10.0",
     "reflect-metadata": "^0.1.13",
     "split.js": "^1.6.2",
     "update-electron-app": "^2.0.1"
@@ -49,7 +50,6 @@
     "mocha": "^7.2.0",
     "mocha-simple-html-reporter": "^2.0.0",
     "nightwatch": "^1.6.4",
-    "octokat": "^0.10.0",
     "pngjs": "^3.4.0",
     "rgbquant": "^1.1.2",
     "typedoc": "^0.21.0",

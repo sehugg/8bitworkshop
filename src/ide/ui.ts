@@ -618,12 +618,13 @@ function getCookie(name) : string {
     return null;
 }
 
-function getGithubService() {
+async function getGithubService() {
   if (!githubService) {
+    var Octokat = (await import('octokat')).default;
     // get github API key from cookie
     // TODO: move to service?
     var ghkey = getCookie('__github_key');
-    githubService = new GithubService(exports['Octokat'], ghkey, store, current_project);
+    githubService = new GithubService(Octokat, ghkey, store, current_project);
     console.log("loaded github service");
   }
   return githubService;
@@ -638,7 +639,7 @@ function getBoundGithubURL() : string {
   return 'https://github.com/' + toks[0] + '/' + toks[1];
 }
 
-function importProjectFromGithub(githuburl:string, replaceURL:boolean) {
+async function importProjectFromGithub(githuburl:string, replaceURL:boolean) {
   var sess : GHSession;
   var urlparse = parseGithubURL(githuburl);
   if (!urlparse) {
@@ -655,10 +656,11 @@ function importProjectFromGithub(githuburl:string, replaceURL:boolean) {
   var newstore = createNewPersistentStore(urlparse.repopath);
   // import into new store
   setWaitProgress(0.25);
-  return getGithubService().import(githuburl).then( (sess1:GHSession) => {
+  var gh = await getGithubService();
+  return gh.import(githuburl).then( (sess1:GHSession) => {
     sess = sess1;
     setWaitProgress(0.75);
-    return getGithubService().pull(githuburl, newstore);
+    return gh.pull(githuburl, newstore);
   }).then( (sess2:GHSession) => {
     // TODO: only first session has mainPath?
     // reload repo
@@ -673,16 +675,18 @@ function importProjectFromGithub(githuburl:string, replaceURL:boolean) {
   });
 }
 
-function _loginToGithub(e) {
-  getGithubService().login().then(() => {
+async function _loginToGithub(e) {
+  var gh = await getGithubService();
+  gh.login().then(() => {
     alertInfo("You are signed in to Github.");
   }).catch( (e) => {
     alertError("<p>Could not sign in.</p>" + e);
   });
 }
 
-function _logoutOfGithub(e) {
-  getGithubService().logout().then(() => {
+async function _logoutOfGithub(e) {
+  var gh = await getGithubService();
+  gh.logout().then(() => {
     alertInfo("You are logged out of Github.");
   });
 }
@@ -707,7 +711,7 @@ function _publishProjectToGithub(e) {
   var btn = $("#publishGithubButton");
   $("#githubRepoName").val(getFilenamePrefix(getFilenameForPath(current_project.mainPath)));
   modal.modal('show');
-  btn.off('click').on('click', () => {
+  btn.off('click').on('click', async () => {
     var name = $("#githubRepoName").val()+"";
     var desc = $("#githubRepoDesc").val()+"";
     var priv = $("#githubRepoPrivate").val() == 'private';
@@ -719,9 +723,10 @@ function _publishProjectToGithub(e) {
     }
     modal.modal('hide');
     setWaitDialog(true);
-    getGithubService().login().then( () => {
+    var gh = await getGithubService();
+    gh.login().then( () => {
       setWaitProgress(0.25);
-      return getGithubService().publish(name, desc, license, priv);
+      return gh.publish(name, desc, license, priv);
     }).then( (_sess) => {
       sess = _sess;
       setWaitProgress(0.5);
@@ -754,10 +759,12 @@ function _pushProjectToGithub(e) {
 function _pullProjectFromGithub(e) {
   var ghurl = getBoundGithubURL();
   if (!ghurl) return;
-  bootbox.confirm("Pull from repository and replace all local files? Any changes you've made will be overwritten.", (ok) => {
+  bootbox.confirm("Pull from repository and replace all local files? Any changes you've made will be overwritten.",
+    async (ok) => {
     if (ok) {
       setWaitDialog(true);
-      getGithubService().pull(ghurl).then( (sess:GHSession) => {
+      var gh = await getGithubService();
+      gh.pull(ghurl).then( (sess:GHSession) => {
         setWaitDialog(false);
         projectWindows.updateAllOpenWindows(store);
       });
@@ -795,7 +802,7 @@ function confirmCommit(sess) : Promise<GHSession> {
   });
 }
 
-function pushChangesToGithub(message:string) {
+async function pushChangesToGithub(message:string) {
   var ghurl = getBoundGithubURL();
   if (!ghurl) return;
   // build file list for push
@@ -814,13 +821,14 @@ function pushChangesToGithub(message:string) {
   }
   // push files
   setWaitDialog(true);
-  return getGithubService().login().then( () => {
+  var gh = await getGithubService();
+  return gh.login().then( () => {
     setWaitProgress(0.5);
-    return getGithubService().commit(ghurl, message, files);
+    return gh.commit(ghurl, message, files);
   }).then( (sess) => {
     return confirmCommit(sess);
   }).then( (sess) => {
-    return getGithubService().push(sess);
+    return gh.push(sess);
   }).then( (sess) => {
     setWaitDialog(false);
     alertInfo("Pushed files to " + ghurl);
