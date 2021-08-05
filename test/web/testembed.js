@@ -21,15 +21,23 @@ exports['test embed iframe'] = function(browser) {
     .waitForElementVisible('#emuscreen')
     .waitForElementVisible('.emuvideo')
 
+  browser.url(IDEURL + QS + "&highlight=2,4")
+    .waitForElementNotVisible('#compile_spinner', time=10000)
+    .waitForElementNotVisible('#error_alert')
+    .waitForElementVisible('#emuscreen')
+    .waitForElementVisible('.emuvideo')
+    .waitForElementVisible('.hilite-span')
+
   browser.url(IDEURL + "?embed=1")
     .waitForElementVisible('.bootbox-alert')
 
+  /* TODO
   browser.url(IDEURL + "?embed=1&platform=nes&githubURL=https://github.com/sehugg/NES-ca65-example")
     .waitForElementNotVisible('#compile_spinner', time=10000)
     .waitForElementNotVisible('#error_alert')
     .waitForElementVisible('#emuscreen')
     .waitForElementVisible('.emuvideo')
-
+  */
 }
 
 exports['test embed.html'] = function(browser) {

@@ -50,10 +50,12 @@ export class SourceEditor implements ProjectView {
   path : string;
   mode : string;
   editor;
+  updateTimer = null;
   dirtylisting = true;
   sourcefile : SourceFile;
   currentDebugLine : SourceLocation;
   markCurrentPC; // TextMarker
+  markHighlight; // TextMarker
   errormsgs = [];
   errorwidgets = [];
   errormarks = [];
@@ -98,25 +100,25 @@ export class SourceEditor implements ProjectView {
     });
   }
 
+  editorChanged() {
+    clearTimeout(this.updateTimer);
+    this.updateTimer = setTimeout( () => {
+      current_project.updateFile(this.path, this.editor.getValue());
+    }, 300);
+    if (this.markHighlight) {
+      this.markHighlight.clear();
+      this.markHighlight = null;
+    }
+  }
+
   setupEditor() {
-    var timer;
     // update file in project (and recompile) when edits made
     this.editor.on('changes', (ed, changeobj) => {
-      clearTimeout(timer);
-      timer = setTimeout( () => {
-        current_project.updateFile(this.path, this.editor.getValue());
-      }, 300);
+      this.editorChanged();
     });
     // inspect symbol when it's highlighted (double-click)
     this.editor.on('cursorActivity', (ed) => {
-      var start = this.editor.getCursor(true);
-      var end = this.editor.getCursor(false);
-      if (start.line == end.line && start.ch < end.ch && end.ch-start.ch < 80) {
-        var name = this.editor.getSelection();
-        this.inspect(name);
-      } else {
-        this.inspect(null);
-      }
+      this.inspectUnderCursor();
     });
     // gutter clicked
     this.editor.on("gutterClick", (cm, n) => {
@@ -130,6 +132,16 @@ export class SourceEditor implements ProjectView {
     });
   }
 
+  inspectUnderCursor() {
+    var start = this.editor.getCursor(true);
+    var end = this.editor.getCursor(false);
+    if (start.line == end.line && start.ch < end.ch && end.ch-start.ch < 80) {
+      var name = this.editor.getSelection();
+      this.inspect(name);
+    } else {
+      this.inspect(null);
+    }
+  }
 
   inspect(ident : string) : void {
     var result;
@@ -169,6 +181,14 @@ export class SourceEditor implements ProjectView {
   insertText(text:string) {
     var cur = this.editor.getCursor();
     this.editor.replaceRange(text, cur, cur);
+  }
+
+  highlightLines(start:number, end:number) {
+    //this.editor.setSelection({line:start, ch:0}, {line:end, ch:0});
+    var cls = 'hilite-span'
+    var markOpts = {className:cls, inclusiveLeft:true};
+    this.markHighlight = this.editor.markText({line:start,ch:0}, {line:end,ch:0}, markOpts);
+    this.editor.scrollIntoView({from:{line:start,ch:0}, to:{line:end,ch:0}});
   }
 
   replaceSelection(start:number, end:number, text:string) {
