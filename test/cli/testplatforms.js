@@ -41,7 +41,8 @@ var _c64 = require('gen/platform/c64.js');
 var _vectrex = require('gen/platform/vectrex.js');
 var _zx = require('gen/platform/zx.js');
 var _atari8 = require('gen/platform/atari8.js');
-
+var util = require('gen/common/util.js');
+util.loadScript = function(s) { console.log('tried to load',s); } // for vcs
 
 //
 

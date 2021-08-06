@@ -247,10 +247,8 @@ export abstract class BaseWASIMachine extends BaseWASMMachine {
     return buffer.length;
   }
   async loadWASM() {
-    await loadScript('node_modules/@wasmer/wasi/lib/index.iife.js'); //TODO: require('@wasmer/wasi');
-    await loadScript('node_modules/@wasmer/wasmfs/lib/index.iife.js'); //TODO: require('@wasmer/wasi');
-    let WASI = window['WASI'];
-    let WasmFs = window['WasmFs'];
+    let WASI = await import('@wasmer/wasi');
+    let WasmFs = await import('@wasmer/wasmfs');
     this.wasmFs = new WasmFs.WasmFs();
     let bindings = WASI.WASI.defaultBindings;
     bindings.fs = this.wasmFs.fs;

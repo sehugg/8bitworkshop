@@ -256,7 +256,7 @@ export class AnimationTimer {
   scheduleFrame(msec:number) {
     var fn = (timestamp) => {
       try {
-        this.nextFrame(timestamp*1000);
+        this.nextFrame(timestamp);
       } catch (e) {
         this.running = false;
         this.pulsing = false;

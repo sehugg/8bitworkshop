@@ -484,11 +484,14 @@ function _createNewFile(e) {
 }
 
 function _uploadNewFile(e) {
-  $("#uploadFileElem").click();
+  const uploadFileElem = $(`<input type="file" multiple accept="*" style="display:none">`);
+  const file = uploadFileElem[0] as HTMLInputElement;
+  uploadFileElem.change((e) => { handleFileUpload(file.files) });
+  uploadFileElem.click();
 }
 
 // called from index.html
-function handleFileUpload(files: File[]) {
+function handleFileUpload(files: FileList) {
   console.log(files);
   var index = 0;
   function uploadNextFile() {
