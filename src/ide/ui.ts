@@ -3,14 +3,14 @@
 
 import * as localforage from "localforage";
 import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
-import { WorkerResult, WorkerOutput, VerilogOutput, SourceFile, WorkerError, FileData } from "../common/workertypes";
+import { WorkerResult, WorkerOutput, WorkerError, FileData } from "../common/workertypes";
 import { ProjectWindows } from "./windows";
-import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState, BasePlatform } from "../common/baseplatform";
+import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState } from "../common/baseplatform";
 import { PLATFORMS, EmuHalt, Toolbar } from "../common/emu";
-import { getFilenameForPath, getFilenamePrefix, highlightDifferences, invertMap, byteArrayToString, compressLZG, stringToByteArray,
+import { getFilenameForPath, getFilenamePrefix, highlightDifferences, byteArrayToString, compressLZG, stringToByteArray,
          byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex, loadScript, decodeQueryString, parseBool } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";
-import { GHSession, GithubService, getRepos, parseGithubURL, FirebaseProjectFilesystem } from "./services";
+import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
 import Split = require('split.js');
 import { importPlatform } from "../platform/_index";
 import { DisassemblerView, ListingView, SourceEditor } from "./views/editors";
@@ -20,10 +20,8 @@ import { isMobileDevice } from "./views/baseviews";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
 
 // external libs (TODO)
-declare var Tour, GIF, firebase;
+declare var Tour, GIF;
 declare var ga;
-// in index.html
-declare var exports;
 declare var $ : JQueryStatic; // use browser jquery
 
 // make sure VCS doesn't start
@@ -227,7 +225,6 @@ function getCurrentPresetTitle() : string {
 
 async function initProject() {
   var basefs : ProjectFilesystem = new WebPresetsFileSystem(platform_id);
-  //basefs = new FirebaseProjectFilesystem("TEST", "TEST");
   if (isElectron) {
     console.log('using electron with local filesystem', alternateLocalFilesystem);
     var filesystem = new OverlayFilesystem(basefs, alternateLocalFilesystem);
@@ -633,7 +630,12 @@ function getCookie(name) : string {
 
 async function getGithubService() {
   if (!githubService) {
+    // load github API client
     var Octokat = (await import('octokat')).default;
+    // load firebase
+    await loadScript('https://www.gstatic.com/firebasejs/8.8.1/firebase-app.js');
+    await loadScript('https://www.gstatic.com/firebasejs/8.8.1/firebase-auth.js');
+    await loadScript('./config.js');
     // get github API key from cookie
     // TODO: move to service?
     var ghkey = getCookie('__github_key');
