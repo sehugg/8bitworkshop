@@ -1388,8 +1388,12 @@ function setDebugButtonState(btnid:string, btnstate:string) {
   $("#dbg_"+btnid).addClass("btn_"+btnstate);
 }
 
+function isPlatformReady() {
+  return platform && current_output != null;
+}
+
 function checkRunReady() {
-  if (current_output == null) {
+  if (!isPlatformReady()) {
     alertError("Can't do this until build successfully completes.");
     return false;
   } else
@@ -2516,7 +2520,31 @@ export function highlightSearch(query: string) { // TODO: filename?
   }
 }
 
+function startUIWhenVisible() {
+  let started = false;
+  let observer = new IntersectionObserver((entries, observer) => {
+    for (var entry of entries) {
+      if (entry.isIntersecting && !started) {
+        startUI();
+        started = true;
+      }
+      if (entry.intersectionRatio == 0 && isPlatformReady() && platform.isRunning()) {
+        _pause();
+      }
+      if (entry.intersectionRatio > 0 && isPlatformReady() && !platform.isRunning()) {
+        _resume();
+      }
+    }
+  }, { });
+  observer.observe($("#emulator")[0]); //window.document.body);
+}
+
 /// start UI if in browser (not node)
 if (typeof process === 'undefined') {
-  startUI();
+  // if embedded, do not start UI until we scroll past it
+  if (isEmbed && typeof IntersectionObserver === 'function') {
+    startUIWhenVisible();
+  } else {
+    startUI();
+  }
 }
