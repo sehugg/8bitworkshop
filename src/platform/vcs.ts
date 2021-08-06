@@ -2,7 +2,7 @@
 
 import { Platform, BasePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState } from "../common/baseplatform";
 import { PLATFORMS, dumpRAM, EmuHalt } from "../common/emu";
-import { hex, lpad, tobin } from "../common/util";
+import { hex, loadScript, lpad, tobin } from "../common/util";
 import { CodeAnalyzer_vcs } from "../common/analysis";
 import { disassemble6502 } from "../common/cpu/disasm6502";
 import { ProbeRecorder } from "../common/recorder";
@@ -57,12 +57,6 @@ const VCS_PRESETS = [
 //  {id:'bb/rblast106.bas', name:'Road Blasters (batariBASIC)'},
 ];
 
-Javatari.AUTO_START = false;
-Javatari.SHOW_ERRORS = false;
-Javatari.CARTRIDGE_CHANGE_DISABLED = true;
-Javatari.DEBUG_SCANLINE_OVERFLOW = false; // TODO: make a switch
-Javatari.AUDIO_BUFFER_SIZE = 256;
-
 class VCSPlatform extends BasePlatform {
 
   lastBreakState; // last breakpoint state
@@ -74,8 +68,16 @@ class VCSPlatform extends BasePlatform {
 
   getPresets() { return VCS_PRESETS; }
 
-  start() {
+  async start() {
     var self : VCSPlatform = this;
+    // load Javatari and configure settings
+    await loadScript("javatari.js/release/javatari/javatari.js");
+    Javatari.AUTO_START = false;
+    Javatari.SHOW_ERRORS = false;
+    Javatari.CARTRIDGE_CHANGE_DISABLED = true;
+    Javatari.DEBUG_SCANLINE_OVERFLOW = false; // TODO: integrate into probe API
+    Javatari.AUDIO_BUFFER_SIZE = 256;
+    // show console div and start
     $("#javatari-div").show();
     Javatari.start();
     var console = Javatari.room.console;

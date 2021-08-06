@@ -24,9 +24,6 @@ declare var Tour, GIF;
 declare var ga;
 declare var $ : JQueryStatic; // use browser jquery
 
-// make sure VCS doesn't start
-if (window['Javatari']) window['Javatari'].AUTO_START = false;
-
 // query string 
 
 interface UIQueryString {

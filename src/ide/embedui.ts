@@ -1,6 +1,4 @@
 
-window['Javatari'].AUTO_START = false;
-
 import { lzgmini } from "../common/util";
 import { PLATFORMS } from "../common/emu";
 import { Platform } from "../common/baseplatform";
