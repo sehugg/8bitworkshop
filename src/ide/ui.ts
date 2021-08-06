@@ -18,6 +18,7 @@ import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLog
 import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
+import { saveAs } from "file-saver";
 
 // external libs (TODO)
 declare var Tour, GIF;
@@ -1131,22 +1132,23 @@ async function _downloadProjectZipFile(e) {
 
 async function _downloadAllFilesZipFile(e) {
   var zip = await newJSZip();
-  store.keys( (err, keys : string[]) => {
-    setWaitDialog(true);
+  var keys = await store.keys();
+  setWaitDialog(true);
+  try {
     var i = 0;
-    return Promise.all(keys.map( (path) => {
+    await Promise.all(keys.map( (path) => {
       return store.getItem(path).then( (text) => {
         setWaitProgress(i++/(keys.length+1));
         if (text) {
           zip.file(path, text as any);
         }
       });
-    })).then(() => {
-      return zip.generateAsync({type:"blob"});
-    }).then( (content) => {
-      return saveAs(content, getBasePlatform(platform_id) + "-all.zip");
-    }).finally(() => setWaitDialog(false));
-  });
+    }));
+    var content = await zip.generateAsync({type:"blob"});
+    saveAs(content, getBasePlatform(platform_id) + "-all.zip");
+  } finally {
+    setWaitDialog(false);
+  }
 }
 
 function populateExamples(sel) {
@@ -2287,26 +2289,27 @@ export function setupSplits() {
 
 function loadImportedURL(url : string) {
   // TODO: zip file?
+  const ignore = parseBool(qs.ignore) || isEmbed;
   setWaitDialog(true);
-  getWithBinary(url, (data) => {
+  getWithBinary(url, async (data) => {
     if (data) {
-      var path = 'shared/' + getFilenameForPath(url);
+      var path = getFilenameForPath(url);
       console.log("Importing " + data.length + " bytes as " + path);
-      store.getItem(path, (err, olddata) => {
+      try {
+        var olddata = await store.getItem(path);
         setWaitDialog(false);
-        if (!olddata || confirm("Replace existing file '" + path + "'?")) {
-          store.setItem(path, data, (err, result) => {
-            if (err)
-              alert(err+""); // need to wait
-            if (result != null) {
-              delete qs.importURL;
-              qs.file = path;
-              replaceURLState();
-              loadAndStartPlatform();
-            }
-          });
+        if (olddata != null && ignore) {
+          // ignore=1, do nothing
+        } else if (olddata == null || confirm("Replace existing file '" + path + "'?")) {
+          await store.setItem(path, data);
         }
-      });
+        delete qs.importURL;
+        qs.file = path;
+        replaceURLState();
+        loadAndStartPlatform();
+      } finally {
+        setWaitDialog(false);
+      }
     } else {
       alertError("Could not load source code from URL: " + url);
       setWaitDialog(false);
