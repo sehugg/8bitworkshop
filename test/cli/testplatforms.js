@@ -5,7 +5,7 @@ var wtu = require('./workertestutils.js');
 var PNG = require('pngjs').PNG;
 
 const dom = createTestDOM();
-includeInThisContext('src/common/cpu/6809.js');
+includeInThisContext('gen/common/cpu/6809.js');
 includeInThisContext("javatari.js/release/javatari/javatari.js");
 Javatari.AUTO_START = false;
 includeInThisContext('tss/js/Log.js');

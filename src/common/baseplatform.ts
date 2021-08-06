@@ -12,10 +12,11 @@ import { Probeable, RasterFrameBased, AcceptsPaddleInput } from "./devices";
 import { SampledAudio } from "./audio";
 import { ProbeRecorder } from "./recorder";
 import { BaseWASMMachine } from "./wasmplatform";
+import { CPU6809 } from "./cpu/6809";
 
 ///
 
-declare var jt, CPU6809;
+declare var jt;
 
 export interface OpcodeMetadata {
   minCycles: number;
@@ -636,7 +637,7 @@ export function getToolForFilename_6809(fn:string) : string {
 export abstract class Base6809Platform extends BaseZ80Platform {
 
   newCPU(membus : MemoryBus) {
-    var cpu = new CPU6809();
+    var cpu = Object.create(CPU6809());
     cpu.init(membus.write, membus.read, 0);
     return cpu;
   }
@@ -646,7 +647,7 @@ export abstract class Base6809Platform extends BaseZ80Platform {
   }
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     // TODO: don't create new CPU
-    return new CPU6809().disasm(read(pc), read(pc+1), read(pc+2), read(pc+3), read(pc+4), pc);
+    return Object.create(CPU6809()).disasm(read(pc), read(pc+1), read(pc+2), read(pc+3), read(pc+4), pc);
   }
   getDefaultExtension() : string { return ".asm"; };
   //this.getOpcodeMetadata = function() { }

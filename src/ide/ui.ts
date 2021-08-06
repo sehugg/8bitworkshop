@@ -2001,6 +2001,7 @@ function isLandscape() {
 
 async function showWelcomeMessage() {
   if (userPrefs.shouldCompleteTour()) {
+    await loadScript('lib/bootstrap-tourist.js');
     var is_vcs = platform_id.startsWith('vcs');
     var steps = [
         {

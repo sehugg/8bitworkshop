@@ -22,7 +22,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-var CPU6809 = function() {
+export function CPU6809() {
 
 var ticks;
 var rA,rB,rX,rY,rU,rS,PC,CC,DP,
@@ -124,17 +124,17 @@ var PUSHWU = function(b) {
     byteTo(--rU, b & 0xff);
     byteTo(--rU, (b>>8) & 0xff);
 };
-var PULLB = function(b) {
+var PULLB = function() {
     return byteAt(rS++);
 };
-var PULLW = function(b) {
+var PULLW = function() {
     return byteAt(rS++) * 256 + byteAt(rS++);
 };
 
-var PULLBU = function(b) {
+var PULLBU = function() {
     return byteAt(rU++);
 };
-var PULLWU = function(b) {
+var PULLWU = function() {
     return byteAt(rU++) * 256 + byteAt(rU++);
 };
 
@@ -2237,8 +2237,8 @@ var disasm = function(i,a,b,c,d,pc) {
         }
         i=a;a=b;b=c;c=d;
       }
-      var bytes = sx[0];
-      var mode = sx[1];
+      var bytes = sx[0] as number;
+      var mode = sx[1] as number;
       var mnemo = sx[2];
 
       switch (mode) {
