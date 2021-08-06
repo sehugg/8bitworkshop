@@ -1,4 +1,6 @@
 
+import { SampledAudioSink } from "./devices";
+
 // from TSS
 declare var MasterChannel, AudioLooper, PsgDeviceChannel;
 
@@ -510,8 +512,6 @@ export class SampledAudio {
     this.sa.stop();
   }
 }
-
-import { SampledAudioSink } from "./devices";
 
 interface TssChannel {
   setBufferLength(len : number) : void;

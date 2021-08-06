@@ -1,13 +1,14 @@
 
-import { Platform, Base6502Platform, getOpcodeMetadata_6502, cpuStateToLongString_6502, getToolForFilename_6502, dumpStackToString, BaseMAME6502Platform } from "../common/baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, dumpRAM, KeyFlags, EmuHalt, ControllerPoller } from "../common/emu";
-import { hex, lpad, lzgmini, byteArrayToString } from "../common/util";
+import { Platform, Base6502Platform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../common/baseplatform";
+import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, KeyFlags, EmuHalt, ControllerPoller } from "../common/emu";
+import { hex, byteArrayToString } from "../common/util";
 import { CodeAnalyzer_nes } from "../common/analysis";
 import { SampleAudio } from "../common/audio";
 import { ProbeRecorder } from "../common/recorder";
 import { NullProbe, Probeable, ProbeAll } from "../common/devices";
 import Mousetrap = require('mousetrap');
 import jsnes = require('../../jsnes');
+import { BaseMAME6502Platform } from "../common/mameplatform";
 
 const JSNES_PRESETS = [
   {id:'hello.c', name:'Hello World'},

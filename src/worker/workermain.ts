@@ -3,6 +3,8 @@
 import type { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap, Segment, WorkerOutput, SourceLocation } from "../common/workertypes";
 import { getBasePlatform, getRootBasePlatform, hex } from "../common/util";
 import { Assembler } from "./assembler";
+import * as vxmlparser from '../common/hdl/vxmlparser';
+import * as basic_compiler from '../common/basic/compiler';
 
 interface EmscriptenModule {
   callMain: (args: string[]) => void;
@@ -1898,9 +1900,6 @@ function compileInlineASM(code:string, platform, options, errors, asmlines) {
   return code;
 }
 
-import * as hdltypes from '../common/hdl/hdltypes';
-import * as vxmlparser from '../common/hdl/vxmlparser';
-
 function compileVerilator(step:BuildStep) {
   loadNative("verilator_bin");
   var platform = step.platform || 'verilog';
@@ -2935,8 +2934,6 @@ function compileFastBasic(step:BuildStep) {
     files:[destpath],
   };
 }
-
-import * as basic_compiler from '../common/basic/compiler';
 
 function compileBASIC(step:BuildStep) {
   var jsonpath = step.path + ".json";

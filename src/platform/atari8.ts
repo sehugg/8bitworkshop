@@ -1,7 +1,8 @@
 "use strict";
 
-import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502, Base6502MachinePlatform, BaseMAME6502Platform } from "../common/baseplatform";
+import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502, Base6502MachinePlatform } from "../common/baseplatform";
 import { PLATFORMS, Keys, makeKeycodeMap } from "../common/emu";
+import { BaseMAME6502Platform } from "../common/mameplatform";
 import { Atari8_WASMMachine } from "../machine/atari8";
 
 declare var jt; // for 6502

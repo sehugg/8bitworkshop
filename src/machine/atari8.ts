@@ -1,7 +1,8 @@
-import { BaseWASIMachine, Machine } from "../common/baseplatform";
+import { Machine } from "../common/baseplatform";
 import { AcceptsKeyInput, AcceptsPaddleInput, AcceptsROM, FrameBased, Probeable, RasterFrameBased, TrapCondition, VideoSource } from "../common/devices";
 import { KeyFlags } from "../common/emu";
 import { hex } from "../common/util";
+import { BaseWASIMachine } from "../common/wasmplatform";
 
 export class Atari8_WASMMachine extends BaseWASIMachine
   implements Machine, Probeable, VideoSource, AcceptsROM, FrameBased, AcceptsKeyInput, AcceptsPaddleInput {

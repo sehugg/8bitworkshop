@@ -1,12 +1,13 @@
 "use strict";
 
-import { Platform, BasePlatform, cpuStateToLongString_6502, EmuRecorder, dumpStackToString, DisasmLine, CpuState, DebugCondition, BaseMAME6502Platform } from "../common/baseplatform";
-import { PLATFORMS, RAM, newAddressDecoder, dumpRAM, EmuHalt } from "../common/emu";
-import { hex, lpad, tobin, byte2signed } from "../common/util";
+import { Platform, BasePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState } from "../common/baseplatform";
+import { PLATFORMS, dumpRAM, EmuHalt } from "../common/emu";
+import { hex, lpad, tobin } from "../common/util";
 import { CodeAnalyzer_vcs } from "../common/analysis";
 import { disassemble6502 } from "../common/cpu/disasm6502";
 import { ProbeRecorder } from "../common/recorder";
-import { NullProbe, Probeable, ProbeAll } from "../common/devices";
+import { NullProbe, ProbeAll } from "../common/devices";
+import { BaseMAME6502Platform } from "../common/mameplatform";
 
 declare var Javatari : any;
 declare var jt : any; // 6502

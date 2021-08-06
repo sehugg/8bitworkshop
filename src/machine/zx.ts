@@ -6,8 +6,9 @@ import { lzgmini, stringToByteArray, hex, rgb2bgr } from "../common/util";
 
 //// WASM Machine
 
-import { Machine, BaseWASMMachine } from "../common/baseplatform";
+import { Machine } from "../common/baseplatform";
 import { TrapCondition } from "../common/devices";
+import { BaseWASMMachine } from "../common/wasmplatform";
 
 export class ZX_WASMMachine extends BaseWASMMachine implements Machine {
 

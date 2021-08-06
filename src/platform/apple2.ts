@@ -1,6 +1,10 @@
 
-import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502, BaseMAME6502Platform } from "../common/baseplatform";
+import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
+import { AppleII } from "../machine/apple2";
+import { Base6502MachinePlatform } from "../common/baseplatform";
+import { CodeAnalyzer_apple2 } from "../common/analysis";
+import { BaseMAME6502Platform } from "../common/mameplatform";
 
 const APPLE2_PRESETS = [
   {id:'sieve.c', name:'Sieve'},
@@ -54,10 +58,6 @@ class Apple2MAMEPlatform extends BaseMAME6502Platform implements Platform {
 }
 
 ///
-
-import { AppleII } from "../machine/apple2";
-import { Base6502MachinePlatform } from "../common/baseplatform";
-import { CodeAnalyzer_apple2 } from "../common/analysis";
 
 class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Platform {
 

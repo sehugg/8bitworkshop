@@ -1,7 +1,8 @@
 
 import { C64_WASMMachine } from "../machine/c64";
-import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502, BaseMAME6502Platform } from "../common/baseplatform";
+import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502 } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
+import { BaseMAME6502Platform } from "../common/mameplatform";
 
 const C64_PRESETS = [
   {id:'hello.dasm', name:'Hello World (ASM)'},

@@ -1,7 +1,8 @@
 
 import { ColecoVision } from "../machine/coleco";
-import { Platform, BaseZ80MachinePlatform, getToolForFilename_z80, BaseMAMEZ80Platform } from "../common/baseplatform";
+import { Platform, BaseZ80MachinePlatform, getToolForFilename_z80 } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
+import { BaseMAMEZ80Platform } from "../common/mameplatform";
 
 export var ColecoVision_PRESETS = [
   { id: 'text.c', name: 'Text Mode' },
