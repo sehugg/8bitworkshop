@@ -233,14 +233,14 @@ export class EmuHalt extends Error {
   }
 }
 
-export var useRequestAnimationFrame : boolean = true;
+export var useRequestAnimationFrame : boolean = false;
 
 export class AnimationTimer {
 
   callback;  
   running : boolean = false;
   pulsing : boolean = false;
-  lastts = 0;
+  nextts = 0;
   nframes;
   startts; // for FPS calc
   frameRate;
@@ -256,7 +256,7 @@ export class AnimationTimer {
   scheduleFrame(msec:number) {
     var fn = (timestamp) => {
       try {
-        this.nextFrame(timestamp);
+        this.nextFrame(this.useReqAnimFrame ? timestamp : Date.now());
       } catch (e) {
         this.running = false;
         this.pulsing = false;
@@ -269,14 +269,8 @@ export class AnimationTimer {
       setTimeout(fn, msec);
   }
   
-  nextFrame(ts?:number) {
-    if (!ts) ts = Date.now();
-    if (ts - this.lastts < this.intervalMsec*5) {
-      this.lastts += this.intervalMsec;
-    } else {
-      this.lastts = ts + this.intervalMsec; // frames skipped, catch up
-    }
-    if (!this.useReqAnimFrame || (this.lastts - ts) > this.intervalMsec/2) {
+  nextFrame(ts:number) {
+    if (ts > this.nextts) {
       if (this.running) {
         this.callback();
       }
@@ -286,8 +280,14 @@ export class AnimationTimer {
         console.log("Avg framerate: " + this.nframes*1000/(ts-this.startts) + " fps");
       }
     }
+    this.nextts += this.intervalMsec;
+    // frames skipped? catch up
+    if ((ts - this.nextts) > 1000) {
+      //console.log(ts - this.nextts, 'msec skipped');
+      this.nextts = ts;
+    }
     if (this.running) {
-      this.scheduleFrame(this.lastts - ts);
+      this.scheduleFrame(this.nextts - ts);
     } else {
       this.pulsing = false;
     }
@@ -298,7 +298,7 @@ export class AnimationTimer {
   start() {
     if (!this.running) {
       this.running = true;
-      this.lastts = 0;
+      this.nextts = 0;
       this.nframes = 0;
       if (!this.pulsing) {
         this.scheduleFrame(0);
