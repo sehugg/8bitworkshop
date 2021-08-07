@@ -910,7 +910,7 @@ function _shareEmbedLink(e) {
       r: lzgb64
     };
     var linkqs = $.param(embed);
-    var fulllink = get8bitworkshopLink(linkqs, 'embed.html');
+    var fulllink = get8bitworkshopLink(linkqs, 'player.html');
     var iframelink = '<iframe width=640 height=600 src="' + fulllink + '">';
     $("#embedLinkTextarea").text(fulllink);
     $("#embedIframeTextarea").text(iframelink);
@@ -937,7 +937,7 @@ function get8bitworkshopLink(linkqs : string, fn : string) {
   var loc = window.location;
   var prefix = loc.pathname.replace('index.html','');
   var protocol = (loc.host == '8bitworkshop.com') ? 'https:' : loc.protocol;
-  var fulllink = protocol+'//'+loc.host+prefix+fn+'?' + linkqs;
+  var fulllink = protocol + '//' + loc.host + prefix + fn + '?' + linkqs;
   return fulllink;
 }
 
@@ -2172,7 +2172,7 @@ function addPageFocusHandlers() {
   });
 }
 
-// TODO: merge w/ embed.html somehow?
+// TODO: merge w/ player.html somehow?
 function showInstructions() {
   var div = $(document).find(".emucontrols-" + getRootBasePlatform(platform_id));
   if (platform_id.endsWith(".mame")) div.show(); // TODO: MAME seems to eat the focus() event
