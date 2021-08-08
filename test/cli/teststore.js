@@ -82,6 +82,7 @@ describe('Store', function () {
     project.callbackBuildStatus = function (b) { msgs.push(b) };
     project.callbackBuildResult = function (b) { msgs.push(1) };
     var buildresult = {
+      output: [0],
       listings: {
         test: {
           lines: [{ line: 3, offset: 61440, insns: 'a9 00', iscode: true }]

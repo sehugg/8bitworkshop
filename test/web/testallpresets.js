@@ -94,7 +94,7 @@ testPlatform(ex, 'vcs', 'Atari 2600', 35);
 testPlatform(ex, 'nes', 'NES', 30);
 testPlatform(ex, 'vicdual', 'VIC Dual', 7);
 testPlatform(ex, 'mw8080bw', 'Midway 8080', 3);
-testPlatform(ex, 'galaxian-scramble', 'Galaxian/Scramble', 3);
+testPlatform(ex, 'galaxian-scramble', 'Galaxian/Scramble', 2);
 testPlatform(ex, 'vector-z80color', 'Atari Color Vector (Z80)', 3);
 testPlatform(ex, 'williams-z80', 'Williams (Z80)', 3);
 // TODO testPlatform(ex, 'sound_williams-z80', 'Williams Sound (Z80)', 1);

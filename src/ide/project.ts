@@ -1,5 +1,5 @@
 
-import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult } from "../common/workertypes";
+import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult, WorkerOutputResult, isUnchanged, isOutputResult } from "../common/workertypes";
 import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform, getWithBinary } from "../common/util";
 import { Platform } from "../common/baseplatform";
 import localforage from "localforage";
@@ -126,7 +126,7 @@ export class CodeProject {
       this.isCompiling = false;
       this.pendingWorkerMessages = 0;
     }
-    if (data && !data.unchanged) {
+    if (data && isOutputResult(data)) {
       this.processBuildResult(data);
     }
     this.callbackBuildResult(data);
@@ -362,7 +362,7 @@ export class CodeProject {
     this.sendBuild();
   }
 
-  processBuildResult(data:WorkerResult) {
+  processBuildResult(data: WorkerOutputResult<any>) {
     // TODO: link listings with source files
     if (data.listings) {
       this.listings = data.listings;

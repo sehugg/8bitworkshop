@@ -1,6 +1,6 @@
 
 /// <reference types="emscripten" />
-import type { WorkerResult, WorkerFileUpdate, WorkerBuildStep, WorkerMessage, WorkerError, Dependency, SourceLine, CodeListing, CodeListingMap, Segment, WorkerOutput, SourceLocation } from "../common/workertypes";
+import type { WorkerResult, WorkerBuildStep, WorkerMessage, WorkerError, SourceLine, CodeListingMap, Segment, SourceLocation } from "../common/workertypes";
 import { getBasePlatform, getRootBasePlatform, hex } from "../common/util";
 import { Assembler } from "./assembler";
 import * as vxmlparser from '../common/hdl/vxmlparser';
@@ -372,13 +372,24 @@ type BuildOptions = {
 };
 
 // TODO
+export type BuildStepResult = WorkerResult | WorkerNextToolResult;
+
+export interface WorkerNextToolResult {
+  nexttool?: string
+  linktool?: string
+  path?: string
+  args: string[]
+  files: string[]
+  bblines?: boolean
+}
+
 interface BuildStep extends WorkerBuildStep {
   files? : string[]
   args? : string[]
   nextstep? : BuildStep
   linkstep? : BuildStep
   params?
-  result? // : WorkerResult | BuildStep ?
+  result? : BuildStepResult
   code?
   prefix?
   maxts?
@@ -460,18 +471,18 @@ class Builder {
         return {errors:[{line:0, msg:e+""}]}; // TODO: catch errors already generated?
       }
       if (step.result) {
-        step.result.params = step.params;
+        (step.result as any).params = step.params; // TODO: type check
         // errors? return them
-        if (step.result.errors && step.result.errors.length) {
+        if ('errors' in step.result && step.result.errors.length) {
           applyDefaultErrorPath(step.result.errors, step.path);
           return step.result;
         }
         // if we got some output, return it immediately
-        if (step.result.output) {
+        if ('output' in step.result && step.result.output) {
           return step.result;
         }
         // combine files with a link tool?
-        if (step.result.linktool) {
+        if ('linktool' in step.result) {
           if (linkstep) {
             linkstep.files = linkstep.files.concat(step.result.files);
             linkstep.args = linkstep.args.concat(step.result.args);
@@ -485,10 +496,12 @@ class Builder {
           }
         }
         // process with another tool?
-        if (step.result.nexttool) {
-          var asmstep : BuildStep = step.result;
-          asmstep.tool = step.result.nexttool;
-          asmstep.platform = platform;
+        if ('nexttool' in step.result) {
+          var asmstep : BuildStep = {
+            tool: step.result.nexttool,
+            platform: platform,
+            ...step.result
+          }
           this.steps.push(asmstep);
         }
         // process final step?
@@ -1004,7 +1017,7 @@ function parseDASMListing(lstpath:string, lsttext:string, listings:CodeListingMa
   }
 }
 
-function assembleDASM(step:BuildStep) {
+function assembleDASM(step:BuildStep) : BuildStepResult {
   load("dasm");
   var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
   var unresolved = {};
@@ -1195,7 +1208,7 @@ function parseCA65Listing(code, symbols, params, dbg) {
   return lines;
 }
 
-function assembleCA65(step:BuildStep) {
+function assembleCA65(step:BuildStep) : BuildStepResult {
   loadNative("ca65");
   var errors = [];
   gatherFiles(step, {mainFilePath:"main.s"});
@@ -1234,7 +1247,7 @@ function assembleCA65(step:BuildStep) {
   };
 }
 
-function linkLD65(step:BuildStep) {
+function linkLD65(step:BuildStep) : BuildStepResult {
   loadNative("ld65");
   var params = step.params;
   gatherFiles(step);
@@ -1382,7 +1395,7 @@ function fixParamsWithDefines(path:string, params){
   }
 }
 
-function compileCC65(step:BuildStep) {
+function compileCC65(step:BuildStep) : BuildStepResult {
   loadNative("cc65");
   var params = step.params;
   // stderr
@@ -1483,7 +1496,7 @@ function parseIHX(ihx, rom_start, rom_size, errors) {
   return output;
 }
 
-function assembleSDASZ80(step:BuildStep) {
+function assembleSDASZ80(step:BuildStep) : BuildStepResult {
   loadNative("sdasz80");
   var objout, lstout, symout;
   var errors = [];
@@ -1654,7 +1667,7 @@ function linkSDLDZ80(step:BuildStep)
   }
 }
 
-function compileSDCC(step:BuildStep) {
+function compileSDCC(step:BuildStep) : BuildStepResult {
 
   gatherFiles(step, {
     mainFilePath:"main.c" // not used
@@ -1677,7 +1690,9 @@ function compileSDCC(step:BuildStep) {
     // load source file and preprocess
     var code = getWorkFileAsString(step.path);
     var preproc = preprocessMCPP(step, 'sdcc');
-    if (preproc.errors) return preproc;
+    if (preproc.errors) {
+      return { errors: preproc.errors };
+    }
     else code = preproc.code;
     // pipe file to stdin
     setupStdin(FS, code);
@@ -1860,7 +1875,7 @@ function compileJSASM(asmcode:string, platform, options, is_inline) {
   }
 }
 
-function compileJSASMStep(step:BuildStep) {
+function compileJSASMStep(step:BuildStep) : BuildStepResult {
   gatherFiles(step);
   var code = getWorkFileAsString(step.path);
   var platform = step.platform || 'verilog';
@@ -1900,7 +1915,7 @@ function compileInlineASM(code:string, platform, options, errors, asmlines) {
   return code;
 }
 
-function compileVerilator(step:BuildStep) {
+function compileVerilator(step:BuildStep) : BuildStepResult {
   loadNative("verilator_bin");
   var platform = step.platform || 'verilog';
   var errors : WorkerError[] = [];
@@ -1991,7 +2006,7 @@ function compileVerilator(step:BuildStep) {
 }
 
 // TODO: test
-function compileYosys(step:BuildStep) {
+function compileYosys(step:BuildStep) : BuildStepResult {
   loadNative("yosys");
   var code = step.code;
   var errors = [];
@@ -2022,14 +2037,14 @@ function compileYosys(step:BuildStep) {
     var json_file = FS.readFile(topmod+".json", {encoding:'utf8'});
     var json = JSON.parse(json_file);
     console.log(json);
-    return {yosys_json:json, errors:errors}; // TODO
+    return {output:json, errors:errors}; // TODO
   } catch(e) {
     console.log(e);
     return {errors:errors};
   }
 }
 
-function assembleZMAC(step:BuildStep) {
+function assembleZMAC(step:BuildStep) : BuildStepResult {
   loadNative("zmac");
   var hexout, lstout, binout;
   var errors = [];
@@ -2112,7 +2127,7 @@ function preprocessBatariBasic(code:string) : string {
   return bbout;
 }
 
-function compileBatariBasic(step:BuildStep) {
+function compileBatariBasic(step:BuildStep) : BuildStepResult {
   load("bb2600basic");
   var params = step.params;
   // stdout
@@ -2202,7 +2217,7 @@ function setupRequireFunction() {
   }
 }
 
-function translateShowdown(step:BuildStep) {
+function translateShowdown(step:BuildStep) : BuildStepResult {
   setupRequireFunction();
   load("showdown.min");
   var showdown = emglobal['showdown'];
@@ -2221,7 +2236,7 @@ function translateShowdown(step:BuildStep) {
 }
 
 // http://datapipe-blackbeltsystems.com/windows/flex/asm09.html
-function assembleXASM6809(step:BuildStep) {
+function assembleXASM6809(step:BuildStep) : BuildStepResult {
   load("xasm6809");
   var alst = "";
   var lasterror = null;
@@ -2282,7 +2297,7 @@ function assembleXASM6809(step:BuildStep) {
 }
 
 // http://www.nespowerpak.com/nesasm/
-function assembleNESASM(step:BuildStep) {
+function assembleNESASM(step:BuildStep) : BuildStepResult {
   loadNative("nesasm");
   var re_filename = /\#\[(\d+)\]\s+(\S+)/;
   var re_insn     = /\s+(\d+)\s+([0-9A-F]+):([0-9A-F]+)/;
@@ -2378,7 +2393,7 @@ function assembleNESASM(step:BuildStep) {
   };
 }
 
-function compileCMOC(step:BuildStep) {
+function compileCMOC(step:BuildStep) : BuildStepResult {
   loadNative("cmoc");
   var params = step.params;
   // stderr
@@ -2414,7 +2429,9 @@ function compileCMOC(step:BuildStep) {
     // load source file and preprocess
     var code = getWorkFileAsString(step.path);
     var preproc = preprocessMCPP(step, null);
-    if (preproc.errors) return preproc;
+    if (preproc.errors) {
+      return {errors: preproc.errors}
+    }
     else code = preproc.code;
     // set up filesystem
     var FS = CMOC.FS;
@@ -2439,7 +2456,7 @@ function compileCMOC(step:BuildStep) {
   };
 }
 
-function assembleLWASM(step:BuildStep) {
+function assembleLWASM(step:BuildStep) : BuildStepResult {
   loadNative("lwasm");
   var errors = [];
   gatherFiles(step, {mainFilePath:"main.s"});
@@ -2474,7 +2491,7 @@ function assembleLWASM(step:BuildStep) {
   };
 }
 
-function linkLWLINK(step:BuildStep) {
+function linkLWLINK(step:BuildStep) : BuildStepResult {
   loadNative("lwlink");
   var params = step.params;
   gatherFiles(step);
@@ -2565,7 +2582,7 @@ function linkLWLINK(step:BuildStep) {
 }
 
 // http://www.techhelpmanual.com/829-program_startup___exit.html
-function compileSmallerC(step:BuildStep) {
+function compileSmallerC(step:BuildStep) : BuildStepResult {
   loadNative("smlrc");
   var params = step.params;
   // stderr
@@ -2603,7 +2620,9 @@ function compileSmallerC(step:BuildStep) {
     // load source file and preprocess
     var code = getWorkFileAsString(step.path);
     var preproc = preprocessMCPP(step, null);
-    if (preproc.errors) return preproc;
+    if (preproc.errors) {
+      return {errors: preproc.errors};
+    }
     else code = preproc.code;
     // set up filesystem
     var FS = smlrc.FS;
@@ -2627,7 +2646,8 @@ function compileSmallerC(step:BuildStep) {
     files:[destpath],
   };
 }
-function assembleYASM(step:BuildStep) {
+
+function assembleYASM(step:BuildStep) : BuildStepResult {
   loadNative("yasm");
   var errors = [];
   gatherFiles(step, {mainFilePath:"main.asm"});
@@ -2708,7 +2728,7 @@ function parseXMLPoorly(s: string) : XMLNode {
   return top;
 }
 
-function compileInform6(step:BuildStep) {
+function compileInform6(step:BuildStep) : BuildStepResult {
   loadNative("inform");
   var errors = [];
   gatherFiles(step, {mainFilePath:"main.inf"});
@@ -2812,7 +2832,7 @@ function compileInform6(step:BuildStep) {
           => Creating Output file 'pcs.bin_S01__Output.txt'
 
 */
-function assembleMerlin32(step:BuildStep) {
+function assembleMerlin32(step:BuildStep) : BuildStepResult {
   loadNative("merlin32");
   var errors = [];
   var lstfiles = [];
@@ -2898,7 +2918,7 @@ function assembleMerlin32(step:BuildStep) {
 }
 
 // README.md:2:5: parse error, expected: statement or variable assignment, integer variable, variable assignment
-function compileFastBasic(step:BuildStep) {
+function compileFastBasic(step:BuildStep) : BuildStepResult {
   // TODO: fastbasic-fp?
   loadNative("fastbasic-int");
   var params = step.params;
@@ -2935,7 +2955,7 @@ function compileFastBasic(step:BuildStep) {
   };
 }
 
-function compileBASIC(step:BuildStep) {
+function compileBASIC(step:BuildStep) : WorkerResult {
   var jsonpath = step.path + ".json";
   gatherFiles(step);
   if (staleFiles(step, [jsonpath])) {
@@ -2960,7 +2980,7 @@ function compileBASIC(step:BuildStep) {
   }
 }
 
-function compileSilice(step:BuildStep) {
+function compileSilice(step:BuildStep) : BuildStepResult {
   loadNative("silice");
   var params = step.params;
   gatherFiles(step, {mainFilePath:"main.ice"});
@@ -3021,7 +3041,7 @@ function compileSilice(step:BuildStep) {
   };
 }
 
-function compileWiz(step:BuildStep) {
+function compileWiz(step:BuildStep) : WorkerResult {
   loadNative("wiz");
   var params = step.params;
   gatherFiles(step, {mainFilePath:"main.wiz"});
@@ -3072,7 +3092,7 @@ function compileWiz(step:BuildStep) {
   }
 }
 
-function assembleARMIPS(step:BuildStep) {
+function assembleARMIPS(step:BuildStep) : WorkerResult {
   loadNative("armips");
   var errors = [];
   gatherFiles(step, {mainFilePath:"main.asm"});
@@ -3162,7 +3182,7 @@ function assembleARMIPS(step:BuildStep) {
   }
 }
 
-function assembleVASMARM(step:BuildStep) {
+function assembleVASMARM(step:BuildStep) : BuildStepResult {
   loadNative("vasmarm_std");
   /// error 2 in line 8 of "gfxtest.c": unknown mnemonic <ew>
   /// error 3007: undefined symbol <XXLOOP>
@@ -3371,7 +3391,7 @@ var TOOL_PRELOADFS = {
   'wiz': 'wiz',
 }
 
-function handleMessage(data : WorkerMessage) : WorkerResult | {unchanged:true} {
+function handleMessage(data : WorkerMessage) : WorkerResult {
   // preload file system
   if (data.preload) {
     var fs = TOOL_PRELOADFS[data.preload];

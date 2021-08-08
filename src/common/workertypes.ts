@@ -100,18 +100,36 @@ export type CodeListingMap = {[path:string]:CodeListing};
 export type VerilogOutput =
   {program_rom_variable:string, program_rom:Uint8Array, code:string, name:string, ports:any[], signals:any[]};
 
-export type WorkerOutput = Uint8Array | VerilogOutput;
-
 export type Segment = {name:string, start:number, size:number, last?:number, type?:string};
 
-export interface WorkerResult {
-  errors:WorkerError[]
-  output?:WorkerOutput
-  listings?:CodeListingMap
-  symbolmap?:{[sym:string]:number}
-  params?:{}
-  segments?:Segment[]
-  unchanged?:boolean
-  debuginfo?:{} // optional info
+export type WorkerResult = WorkerErrorResult | WorkerOutputResult<any> | WorkerUnchangedResult;
+
+export interface WorkerUnchangedResult {
+  unchanged: true;
 }
 
+export interface WorkerErrorResult {
+  errors: WorkerError[]
+  listings?: CodeListingMap
+}
+
+export interface WorkerOutputResult<T> {
+  output: T
+  listings?: CodeListingMap
+  symbolmap?: {[sym:string]:number}
+  params?: {}
+  segments?: Segment[]
+  debuginfo?: {} // optional info
+}
+
+export function isUnchanged(result: WorkerResult) : result is WorkerUnchangedResult {
+  return ('unchanged' in result);
+}
+
+export function isErrorResult(result: WorkerResult) : result is WorkerErrorResult {
+  return ('errors' in result);
+}
+
+export function isOutputResult(result: WorkerResult) : result is WorkerOutputResult<any> {
+  return ('output' in result);
+}

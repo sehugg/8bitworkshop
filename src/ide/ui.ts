@@ -3,7 +3,7 @@
 
 import * as localforage from "localforage";
 import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
-import { WorkerResult, WorkerOutput, WorkerError, FileData } from "../common/workertypes";
+import { WorkerResult, WorkerOutputResult, WorkerError, FileData, WorkerErrorResult } from "../common/workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState } from "../common/baseplatform";
 import { PLATFORMS, EmuHalt, Toolbar } from "../common/emu";
@@ -71,7 +71,7 @@ var stateRecorder : StateRecorderImpl;
 
 var userPaused : boolean;		// did user explicitly pause?
 
-var current_output : WorkerOutput;  // current ROM
+var current_output : any;     // current ROM (or other object)
 var current_preset : Preset;	// current preset object (if selected)
 var store : LocalForage;			// persistent store
 
@@ -1294,7 +1294,7 @@ function measureBuildTime() {
 
 async function setCompileOutput(data: WorkerResult) {
   // errors? mark them in editor
-  if (data && data.errors && data.errors.length > 0) {
+  if ('errors' in data && data.errors.length > 0) {
     toolbar.addClass("has-errors");
     projectWindows.setErrors(data.errors);
     refreshWindowList(); // to make sure windows are created for showErrorAlert()
@@ -1304,13 +1304,15 @@ async function setCompileOutput(data: WorkerResult) {
     projectWindows.setErrors(null);
     hideErrorAlerts();
     // exit if compile output unchanged
-    if (data == null || data.unchanged) return;
+    if (data == null || ('unchanged' in data && data.unchanged)) return;
+    // make sure it's a WorkerOutputResult
+    if (!('output' in data)) return;
     // process symbol map
     platform.debugSymbols = new DebugSymbols(data.symbolmap, data.debuginfo);
     compparams = data.params;
     // load ROM
     var rom = data.output;
-    if (rom) {
+    if (rom != null) {
       try {
         clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
         _resetRecording();
