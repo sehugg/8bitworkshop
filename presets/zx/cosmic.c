@@ -142,7 +142,7 @@ byte render_sprite(const byte* src, byte x, byte y, byte op) {
         case OP_XOR:   result |= (*dest++ ^= next); break;
         case OP_ERASE: *dest++ &= ~next; break;
       }
-      rest = data << (7-xs);	// save leftover bits
+      rest = data << (8-xs);	// save leftover bits
     }
     // compute final byte operation
     switch (op) {
