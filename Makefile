@@ -12,7 +12,7 @@ prepare: buildtsc
 	cp node_modules/jquery/dist/jquery.min.js ./jquery/
 	cp -r node_modules/bootstrap/dist/* ./bootstrap/
 	cp node_modules/bootstrap-tourist/*.css node_modules/bootstrap-tourist/*.js ./lib/
-	cp ./unicorn.js/demos/externals/capstone-arm.min.js ./lib/
+	#cp ./unicorn.js/demos/externals/capstone-arm.min.js ./lib/
 	cp gif.js/dist/* ./lib/
 	cd jsnes && npm i
 
