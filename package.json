@@ -10,12 +10,10 @@
   },
   "license": "GPL-3.0",
   "dependencies": {
-    "@sentry/electron": "^2.5.1",
     "@types/emscripten": "^1.39.5",
     "@wasmer/wasi": "^0.12.0",
     "@wasmer/wasmfs": "^0.12.0",
     "binaryen": "^101.0.0",
-    "chokidar": "^3.5.0",
     "clipboard": "^2.0.6",
     "file-saver": "^2.0.5",
     "jquery": "^3.6.0",
@@ -23,9 +21,7 @@
     "localforage": "^1.9.0",
     "mousetrap": "^1.6.5",
     "octokat": "^0.10.0",
-    "reflect-metadata": "^0.1.13",
-    "split.js": "^1.6.2",
-    "update-electron-app": "^2.0.1"
+    "split.js": "^1.6.2"
   },
   "devDependencies": {
     "@types/bootbox": "^5.1.3",
@@ -37,25 +33,30 @@
     "bootstrap": "^3.4.1",
     "bootstrap-tourist": "^0.2.1",
     "btoa": "^1.2.x",
-    "chromedriver": "^92.0.0",
     "command-exists": "^1.2.9",
     "electron": "^9.4.0",
     "electron-builder": "^22.11.7",
     "electron-packager": "^15.2.0",
     "esbuild": "^0.12.16",
-    "heapdump": "^0.3.15",
     "jsdom": "^12.2.0",
-    "jsfuzz": "^1.0.14",
     "lzg": "^1.0.x",
     "mocha": "^7.2.0",
     "mocha-simple-html-reporter": "^2.0.0",
-    "nightwatch": "^1.6.4",
     "pngjs": "^3.4.0",
-    "rgbquant": "^1.1.2",
     "typedoc": "^0.21.0",
     "typescript": "^4.3.4",
-    "typescript-formatter": "^7.2.2",
-    "vgm-parser": "^0.6.3"
+    "typescript-formatter": "^7.2.2"
+  },
+  "optionalDependencies": {
+    "@sentry/electron": "^2.5.1",
+    "chokidar": "^3.5.0",
+    "chromedriver": "^92.0.0",
+    "heapdump": "^0.3.15",
+    "jsfuzz": "^1.0.14",
+    "nightwatch": "^1.6.4",
+    "reflect-metadata": "^0.1.13",
+    "rgbquant": "^1.1.2",
+    "update-electron-app": "^2.0.1"
   },
   "scripts": {
     "build": "make prepare",
