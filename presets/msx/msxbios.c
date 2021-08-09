@@ -9,6 +9,7 @@ https://www.msx.org/wiki/System_variables_and_work_area
 
 #define MSXUSR_LOAD_A()		__asm__("ld a,l");
 #define MSXUSR_LOAD_E()		__asm__("ld e,h");
+#define MSXUSR_RTN_HL()
 #define MSXUSR_RTN_A()		__asm__("ld l,a");
 #define MSXUSR_RTN_Z()\
   __asm__("ld l,#0");\
@@ -143,34 +144,34 @@ void INIMLT() __z88dk_fastcall {
 
 uint16_t CALPAT() __z88dk_fastcall {
   MSXUSR(0x0084);
-  MSXUSR_RTN_A();
+  MSXUSR_RTN_HL();
 }
 
 uint16_t CALATR() __z88dk_fastcall {
   MSXUSR(0x0087);
-  MSXUSR_RTN_A();
+  MSXUSR_RTN_HL();
 }
 
-uint16_t GSPSIZ() __z88dk_fastcall {
+uint8_t GSPSIZ() __z88dk_fastcall {
   MSXUSR(0x008a);
   MSXUSR_RTN_A();
 }
 
-uint16_t GRPPRT(char ch) __z88dk_fastcall {
+void GRPPRT(char ch) __z88dk_fastcall {
   ch;
   MSXUSR_LOAD_A();
   MSXUSR(0x008d);
 }
 
-uint16_t GICINI() __z88dk_fastcall {
+void GICINI() __z88dk_fastcall {
   MSXUSR(0x0090);
 }
 
-uint16_t WRTPSG(uint16_t reg_data) __z88dk_fastcall {
+void WRTPSG(uint16_t reg_data) __z88dk_fastcall {
   reg_data;
   MSXUSR_LOAD_A();
   MSXUSR_LOAD_E();
-  MSXUSR(0x0096);
+  MSXUSR(0x0093);
 }
 
 uint8_t CHSNS() __z88dk_fastcall {

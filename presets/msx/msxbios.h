@@ -122,13 +122,13 @@ uint16_t CALPAT() __z88dk_fastcall;
 // Returns the address of the sprite attribute table
 uint16_t CALATR() __z88dk_fastcall;
 // Returns current sprite size
-uint16_t GSPSIZ() __z88dk_fastcall;
+uint8_t GSPSIZ() __z88dk_fastcall;
 // Displays a character on the graphic screen
-uint16_t GRPPRT(char ch) __z88dk_fastcall;
+void GRPPRT(char ch) __z88dk_fastcall;
 // Initialises PSG and sets initial value for the PLAY statement
-uint16_t GICINI() __z88dk_fastcall;
+void GICINI() __z88dk_fastcall;
 // Writes data to PSG-register
-uint16_t WRTPSG(uint16_t reg_data) __z88dk_fastcall;
+void WRTPSG(uint16_t reg_data) __z88dk_fastcall;
 // Tests the status of the keyboard buffer
 uint8_t CHSNS() __z88dk_fastcall;
 // One character input (waiting)
