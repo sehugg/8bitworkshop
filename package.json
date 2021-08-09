@@ -58,7 +58,7 @@
     "vgm-parser": "^0.6.3"
   },
   "scripts": {
-    "build": "npm run tsbuild && npm run esbuild-clean && npm run esbuild",
+    "build": "make prepare",
     "test": "npm run test-node",
     "tsbuild": "tsc --build tsconfig.json",
     "esbuild": "npm run esbuild-worker && npm run esbuild-ui",

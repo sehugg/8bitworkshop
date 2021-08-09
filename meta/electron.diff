@@ -1,5 +1,5 @@
---- index.html	2021-08-01 21:41:37.000000000 -0500
-+++ electron.html	2021-08-02 09:36:47.000000000 -0500
+--- index.html	2021-08-06 18:05:46.000000000 -0500
++++ electron.html	2021-08-09 12:01:41.000000000 -0500
 @@ -3,18 +3,7 @@
  
  <head>
@@ -19,30 +19,7 @@
  <style type="text/css" media="screen">
  body {
    overflow: hidden;
-@@ -22,22 +11,6 @@
- }
- </style>
- <link rel="stylesheet" href="css/ui.css">
--
--<!-- google analytics -->
--<script>
--window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
--if (window.location.host.endsWith('8bitworkshop.com')) {
--  ga('create', 'UA-54497476-9', 'auto');
--  ga('set', 'anonymizeIp', true);
--}
--</script>
--<script async src='https://www.google-analytics.com/analytics.js'></script>
--
--<!-- firebase libs -->
--<script defer src="https://www.gstatic.com/firebasejs/8.3.2/firebase-app.js"></script>
--<script defer src="https://www.gstatic.com/firebasejs/8.3.2/firebase-auth.js"></script>
--<script defer src="config.js"></script>
--
- </head>
- <body>
- 
-@@ -55,9 +28,6 @@
+@@ -47,9 +36,6 @@
      <ul class="dropdown-menu dropdown-menu-left" aria-labelledby="dropdownMenuButton" style="left:auto">
        <li><a class="dropdown-item" href="#" id="item_new_file">New Project...</a></li>
        <li><a class="dropdown-item" href="#" id="item_upload_file">Upload...</a></li>
@@ -52,7 +29,7 @@
        <hr>
        <li class="dropdown dropdown-submenu">
          <a tabindex="-1" href="#">File</a>
-@@ -68,26 +38,6 @@
+@@ -60,26 +46,6 @@
            <hr>
            <li><a class="dropdown-item" href="#" id="item_addfile_include">Add Include File...</a></li>
            <li><a class="dropdown-item" href="#" id="item_addfile_link">Add Linked File...</a></li>
@@ -79,7 +56,7 @@
          </ul>
        </li>
        <li class="dropdown dropdown-submenu">
-@@ -113,35 +63,6 @@
+@@ -105,35 +71,6 @@
            <li><a class="dropdown-item" href="#" id="item_debug_expr">Break Expression...</a></li>
          </ul>
        </li>
@@ -115,50 +92,7 @@
      </ul>
    </span>
  
-@@ -237,41 +158,8 @@
-     <span class="label"><span id="settle_label"></span> evals/clk</span>
-   </span>
- 
--  <!-- BOOKS menu -->
--  <span class="dropdown pull-right">
--    <a class="btn dropdown-toggle hidden-xs hiddem-sm toolbarMenuButton" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
--      <span class="glyphicon glyphicon-book" aria-hidden="true"></span>
--      Books <span class="caret"></span>
--    </a>
--    <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="booksMenuButton">
--      <li>
--        <a class="dropdown-item dropdown-link book-vcs" target="_book_a2600" href="https://www.amazon.com/gp/product/1541021304/ref=as_li_qf_sp_asin_il_tl?ie=UTF8&tag=pzp-20&camp=1789&creative=9325&linkCode=as2&creativeASIN=B01N4DSRIZ&linkId=04d39e274c06e6c93b93d20a9a977111">
--          <img src="images/book_a2600.png"/>
--          &nbsp;&nbsp;<span class="book-title">Making Games For The Atari 2600</span>
--        </a>
--      </li>
--      <li>
--        <a class="dropdown-item dropdown-link book-arcade" target="_book_arcade" href="https://www.amazon.com/gp/product/1545484759/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1545484759&linkCode=as2&tag=pzp-20&linkId=b27709c022d2ebe639e90316d9f4fd5b">
--          <img src="images/book_arcade.png"/>
--          &nbsp;&nbsp;<span class="book-title">Making 8-bit Arcade Games in C</span>
--        </a>
--      </li>
--      <li>
--        <a class="dropdown-item dropdown-link book-verilog" target="_book_verilog" href="https://www.amazon.com/gp/product/1728619440/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1728619440&linkCode=as2&tag=pzp-20&linkId=7237a25861cb6b49a4128ba53d84c3e2">
--          <img src="images/book_verilog.png"/>
--          &nbsp;&nbsp;<span class="book-title">Designing Video Game Hardware in Verilog</span>
--        </a>
--      </li>
--      <li>
--        <a class="dropdown-item dropdown-link book-nes" target="_book_nes" href="https://www.amazon.com/gp/product/1075952727/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1075952727&linkCode=as2&tag=pzp-20&linkId=633176e8b36fea7f927020e2c322d80a">
--          <img src="images/book_nes.png"/>
--          &nbsp;&nbsp;<span class="book-title">Making Games For The NES</span>
--        </a>
--      </li>
--    </ul>
--  </span>
-   <!-- 8bitworkshop logo -->
--  <span class="logo-gradient hidden-xs hidden-sm pull-right" style="margin-left:auto" onclick="window.open('/','_8bitws');">8bitworkshop</span>
-+  <span class="logo-gradient hidden-xs hidden-sm hidden-md pull-right" style="margin-left:auto" onclick="window.open('/','_8bitws');">8bitworkshop</span>
- 
-  </div><!-- controls_dynamic -->
- </div><!-- controls_top -->
-@@ -286,24 +174,21 @@
+@@ -277,24 +214,21 @@
    <div class="emulator disable-select" id="emulator">
      <!-- replay slider -->
      <div id="replaydiv" class="replaydiv" style="display:none;color:#ccc;text-align:left">
@@ -185,7 +119,7 @@
        <button id="clock_fwd" class="btn" title="Forward one step"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
       </div>
      </div>
-@@ -458,73 +343,6 @@
+@@ -449,73 +383,6 @@
      </div>
    </div>
  </div>
@@ -259,16 +193,7 @@
  
  <script src="jquery/jquery.min.js"></script>
  
-@@ -556,8 +374,6 @@
- <link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
- <script src="javatari.js/release/javatari/javatari.js"></script>
- <script src="src/common/cpu/6809.js"></script>
--<script src="lib/mousetrap.min.js"></script>
--<script src="lib/mousetrap-global-bind.min.js"></script>
- <!-- UI-only stuff -->
- <link rel="stylesheet" href="lib/bootstrap-tourist.css">
- <script src="lib/bootstrap-tourist.js"></script>
-@@ -580,28 +396,5 @@
+@@ -564,28 +431,5 @@
  });
  </script>
  

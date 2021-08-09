@@ -9,21 +9,14 @@ buildtsc:
 
 prepare: buildtsc
 	patch -i meta/electron.diff -o electron.html
-	#cp nanoasm/src/assembler.ts src/worker/
 	cp node_modules/jquery/dist/jquery.min.js ./jquery/
 	cp -r node_modules/bootstrap/dist/* ./bootstrap/
 	cp node_modules/bootstrap-tourist/*.css node_modules/bootstrap-tourist/*.js ./lib/
-	cp node_modules/clipboard/dist/clipboard.min.js ./lib/
-	cp node_modules/mousetrap/mousetrap*.min.js ./lib/
-	#cp node_modules/octokat/dist/octokat.js ./lib/
-	cp node_modules/split.js/dist/split.min.js ./lib/
-	cp node_modules/localforage/dist/localforage.min.js ./lib/
-	cp node_modules/jszip/dist/jszip.min.js ./lib/
-	cp node_modules/file-saver/dist/*.min.js ./lib/
-	cp node_modules/binaryen/index.js ./lib/binaryen.js
-	cp unicorn.js/dist/unicorn-arm.min.js ./unicorn.js/demos/externals/capstone-arm.min.js ./lib/
+	cp ./unicorn.js/demos/externals/capstone-arm.min.js ./lib/
 	cp gif.js/dist/* ./lib/
 	cd jsnes && npm i
+
+mkdoc:
 	npm run mkdoc
 
 distro: buildtsc
