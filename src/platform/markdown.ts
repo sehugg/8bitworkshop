@@ -1,4 +1,3 @@
-"use strict";
 
 import { PLATFORMS } from "../common/emu";
 import { Platform } from "../common/baseplatform";

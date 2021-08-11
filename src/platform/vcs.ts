@@ -1,4 +1,3 @@
-"use strict";
 
 import { Platform, BasePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState } from "../common/baseplatform";
 import { PLATFORMS, dumpRAM, EmuHalt } from "../common/emu";

@@ -22,8 +22,6 @@
  * SOFTWARE.
  */
 
-'use strict';
-
 /**
  * Creates a virtually-rendered scrollable list.
  * @param {object} config

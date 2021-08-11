@@ -1,4 +1,3 @@
-"use strict";
 
 import { hex, clamp, lpad } from "./util";
 import { SourceLocation } from "./workertypes";

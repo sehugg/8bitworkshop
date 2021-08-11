@@ -1,4 +1,3 @@
-"use strict";
 
 import { hex, rgb2bgr, rle_unpack } from "../common/util";
 import { ProjectWindows } from "./windows";

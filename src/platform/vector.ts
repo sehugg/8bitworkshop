@@ -1,4 +1,3 @@
-"use strict";
 
 import { Platform, BaseZ80Platform, Base6502Platform  } from "../common/baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, VectorVideo, Keys, makeKeycodeMap } from "../common/emu";

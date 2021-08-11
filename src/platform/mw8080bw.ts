@@ -1,4 +1,3 @@
-"use strict";
 
 import { Midway8080 } from "../machine/mw8080bw";
 import { BaseZ80MachinePlatform } from "../common/baseplatform";

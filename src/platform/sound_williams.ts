@@ -1,4 +1,3 @@
-"use strict";
 
 import { Z80, Z80State } from "../common/cpu/ZilogZ80";
 import { BasicMachine, CPU, Bus } from "../common/devices";

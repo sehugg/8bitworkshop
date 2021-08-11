@@ -1,4 +1,3 @@
-"use strict";
 
 import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502, Base6502MachinePlatform } from "../common/baseplatform";
 import { PLATFORMS, Keys, makeKeycodeMap } from "../common/emu";

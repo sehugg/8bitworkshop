@@ -1,4 +1,3 @@
-"use strict";
 
 import $ = require("jquery");
 import { CodeProject } from "./project";
