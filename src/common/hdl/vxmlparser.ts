@@ -1,5 +1,5 @@
 
-import { HDLError } from "./hdlruntime";
+import { parseXMLPoorly, XMLNode } from "../util";
 import { HDLAlwaysBlock, HDLArrayItem, HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLDataTypeObject, HDLExpr, HDLExtendop, HDLFile, HDLFuncCall, HDLHierarchyDef, HDLInstanceDef, HDLLogicType, HDLModuleDef, HDLNativeType, HDLPort, HDLSensItem, HDLSourceLocation, HDLSourceObject, HDLTriop, HDLUnit, HDLUnop, HDLUnpackArray, HDLValue, HDLVariableDef, HDLVarRef, HDLWhileOp, isArrayType, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef } from "./hdltypes";
 
 /**
@@ -24,80 +24,6 @@ import { HDLAlwaysBlock, HDLArrayItem, HDLBinop, HDLBlock, HDLConstant, HDLDataT
         this.$loc = $loc;
         Object.setPrototypeOf(this, CompileError.prototype);
     }
-}
-
-interface XMLNode {
-    type: string;
-    text: string | null;
-    children: XMLNode[];
-    attrs: { [id: string]: string };
-    obj: any;
-}
-
-type XMLVisitFunction = (node: XMLNode) => any;
-
-function escapeXML(s: string): string {
-    if (s.indexOf('&') >= 0) {
-        return s.replace(/&apos;/g, "'")
-            .replace(/&quot;/g, '"')
-            .replace(/&gt;/g, '>')
-            .replace(/&lt;/g, '<')
-            .replace(/&amp;/g, '&');
-    } else {
-        return s;
-    }
-}
-
-function parseXMLPoorly(s: string, openfn?: XMLVisitFunction, closefn?: XMLVisitFunction): XMLNode {
-    const tag_re = /[<]([/]?)([?a-z_-]+)([^>]*)[>]+|(\s*[^<]+)/gi;
-    const attr_re = /\s*(\w+)="(.*?)"\s*/gi;
-    var fm: RegExpMatchArray;
-    var stack: XMLNode[] = [];
-    var top: XMLNode;
-
-    function closetop() {
-        top = stack.pop();
-        if (top == null || top.type != ident) throw new CompileError(null, "mismatch close tag: " + ident);
-        if (closefn) {
-            top.obj = closefn(top);
-        }
-        if (stack.length == 0) throw new CompileError(null, "close tag without open: " + ident);
-        stack[stack.length - 1].children.push(top);
-    }
-    function parseattrs(as: string): { [id: string]: string } {
-        var am;
-        var attrs = {};
-        if (as != null) {
-            while (am = attr_re.exec(as)) {
-                attrs[am[1]] = escapeXML(am[2]);
-            }
-        }
-        return attrs;
-    }
-    while (fm = tag_re.exec(s)) {
-        var [_m0, close, ident, attrs, content] = fm;
-        //console.log(stack.length, close, ident, attrs, content);
-        if (close) {
-            closetop();
-        } else if (ident) {
-            var node = { type: ident, text: null, children: [], attrs: parseattrs(attrs), obj: null };
-            stack.push(node);
-            if (attrs) {
-                parseattrs(attrs);
-            }
-            if (openfn) {
-                node.obj = openfn(node);
-            }
-            if (attrs && attrs.endsWith('/')) closetop();
-        } else if (content != null) {
-            if (stack.length == 0) throw new CompileError(null, "content without element");
-            var txt = escapeXML(content as string).trim();
-            if (txt.length) stack[stack.length - 1].text = txt;
-        }
-    }
-    if (stack.length != 1) throw new CompileError(null, "tag not closed");
-    if (stack[0].type != '?xml') throw new CompileError(null, "?xml needs to be first element");
-    return top;
 }
 
 export class VerilogXMLParser implements HDLUnit {
