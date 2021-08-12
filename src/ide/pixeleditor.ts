@@ -151,7 +151,7 @@ function reindexMask(x:number, inds:number[]) : [number, number] {
   return [i >> 3, i & 7];
 }
 
-function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat) : Uint8Array[] {
+export function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat) : Uint8Array[] {
   var width = fmt.w;
   var height = fmt.h;
   var count = fmt.count || 1;
@@ -190,7 +190,7 @@ function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat) : Uin
   return images;
 }
 
-function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) : number[] {
+export function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) : number[] {
   if (fmt.destfmt) fmt = fmt.destfmt;
   var width = fmt.w;
   var height = fmt.h;
@@ -236,7 +236,7 @@ function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) :
 }
 
 // TODO
-function convertPaletteBytes(arr:UintArray,r0,r1,g0,g1,b0,b1) : number[] {
+export function convertPaletteBytes(arr:UintArray,r0,r1,g0,g1,b0,b1) : number[] {
   var result = [];
   for (var i=0; i<arr.length; i++) {
     var d = arr[i];
@@ -266,7 +266,7 @@ export function getPaletteLength(palfmt: PixelEditorPaletteFormat) : number {
   }
 }
 
-function convertPaletteFormat(palbytes:UintArray, palfmt: PixelEditorPaletteFormat) : number[] {
+export function convertPaletteFormat(palbytes:UintArray, palfmt: PixelEditorPaletteFormat) : number[] {
   var pal = palfmt.pal;
   var newpalette;
   if (typeof pal === 'number') {
@@ -290,7 +290,7 @@ function convertPaletteFormat(palbytes:UintArray, palfmt: PixelEditorPaletteForm
 }
 
 // TODO: illegal colors?
-var PREDEF_PALETTES = {
+const PREDEF_PALETTES = {
   'nes':[
      0x525252, 0xB40000, 0xA00000, 0xB1003D, 0x740069, 0x00005B, 0x00005F, 0x001840, 0x002F10, 0x084A08, 0x006700, 0x124200, 0x6D2800, 0x000000, 0x000000, 0x000000,
      0xC4D5E7, 0xFF4000, 0xDC0E22, 0xFF476B, 0xD7009F, 0x680AD7, 0x0019BC, 0x0054B1, 0x006A5B, 0x008C03, 0x00AB00, 0x2C8800, 0xA47200, 0x000000, 0x000000, 0x000000,

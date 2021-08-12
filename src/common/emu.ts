@@ -31,8 +31,8 @@ export function setNoiseSeed(x : number) {
 
 type KeyboardCallback = (which:number, charCode:number, flags:KeyFlags) => void;
 
-function __createCanvas(mainElement:HTMLElement, width:number, height:number) : HTMLCanvasElement {
-  var canvas = document.createElement('canvas');
+function __createCanvas(doc:HTMLDocument, mainElement:HTMLElement, width:number, height:number) : HTMLCanvasElement {
+  var canvas = doc.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   canvas.classList.add("emuvideo");
@@ -104,9 +104,9 @@ export class RasterVideo {
     }
   }
 
-  create() {
+  create(doc?: HTMLDocument) {
     var canvas;
-    this.canvas = canvas = __createCanvas(this.mainElement, this.width, this.height);
+    this.canvas = canvas = __createCanvas(doc || document, this.mainElement, this.width, this.height);
     this.vcanvas = $(canvas);
     if (this.options && this.options.rotate) {
       this.setRotate(this.options.rotate);

@@ -1,3 +1,4 @@
+import { UintArray } from "../ide/pixeleditor";
 
 export function lpad(s:string, n:number):string {
   s += ''; // convert to string
@@ -55,7 +56,7 @@ export function toradix(v:number, nd:number, radix:number) {
   }
 }
 
-export function arrayCompare(a:any[], b:any[]):boolean {
+export function arrayCompare(a:any[]|UintArray, b:any[]|UintArray):boolean {
   if (a == null && b == null) return true;
   if (a == null) return false;
   if (b == null) return false;
@@ -616,5 +617,9 @@ export function parseXMLPoorly(s: string, openfn?: XMLVisitFunction, closefn?: X
   if (stack.length != 1) throw new XMLParseError("tag not closed");
   if (stack[0].type != '?xml') throw new XMLParseError("?xml needs to be first element");
   return top;
+}
+
+export function escapeHTML(s: string): string {
+  return s.replace(/[&]/g, '&amp;').replace(/[<]/g, '&lt;').replace(/[>]/g, '&gt;');
 }
 

@@ -768,3 +768,28 @@ div.asset_toolbar {
 .waverow.editable:hover {
   background-color: #336633;
 }
+
+.scripting-cell {
+  background: #444;
+  color: #99cc99;
+  padding: 0.5em;
+  margin: 0.5em;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+  word-wrap: break-word;
+}
+.scripting-cell canvas {
+  height: 15vw;
+  border: 2px solid #222;
+  outline-color: #ccc;
+  background: #000;
+  padding: 6px;
+  margin: 6px;
+  pointer-events:auto;
+}
+.scripting-cell canvas:focus {
+  outline:none;
+  border-color:#888;
+}
+.scripting-cell div {
+  display: inline;
+}

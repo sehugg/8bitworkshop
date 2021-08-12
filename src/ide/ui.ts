@@ -221,16 +221,20 @@ function getCurrentPresetTitle() : string {
     return current_preset.title || current_preset.name || current_project.mainPath || "ROM";
 }
 
-async function initProject() {
+async function newFilesystem() {
   var basefs : ProjectFilesystem = new WebPresetsFileSystem(platform_id);
   if (isElectron) {
     console.log('using electron with local filesystem', alternateLocalFilesystem);
-    var filesystem = new OverlayFilesystem(basefs, alternateLocalFilesystem);
+    return new OverlayFilesystem(basefs, alternateLocalFilesystem);
   } else if (qs.localfs != null) {
-    var filesystem = new OverlayFilesystem(basefs, await getLocalFilesystem(qs.localfs));
+    return new OverlayFilesystem(basefs, await getLocalFilesystem(qs.localfs));
   } else {
-    var filesystem = new OverlayFilesystem(basefs, new LocalForageFilesystem(store));
+    return new OverlayFilesystem(basefs, new LocalForageFilesystem(store));
   }
+}
+
+async function initProject() {
+  var filesystem = await newFilesystem();
   current_project = new CodeProject(newWorker(), platform_id, platform, filesystem);
   projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
   current_project.callbackBuildResult = (result:WorkerResult) => {

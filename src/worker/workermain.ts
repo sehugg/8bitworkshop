@@ -394,7 +394,7 @@ export interface BuildStep extends WorkerBuildStep {
 
 ///
 
-class FileWorkingStore {
+export class FileWorkingStore {
   workfs : {[path:string]:FileEntry} = {};
   workerseq : number = 0;
 
@@ -452,7 +452,7 @@ class Builder {
   wasChanged(entry:FileEntry) : boolean {
     return entry.ts > this.startseq;
   }
-  executeBuildSteps() {
+  async executeBuildSteps() : Promise<WorkerResult> {
     this.startseq = store.currentVersion();
     var linkstep : BuildStep = null;
     while (this.steps.length) {
@@ -462,7 +462,7 @@ class Builder {
       if (!toolfn) throw Error("no tool named " + step.tool);
       step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
       try {
-        step.result = toolfn(step);
+        step.result = await toolfn(step);
       } catch (e) {
         console.log("EXCEPTION", e, e.stack);
         return {errors:[{line:0, msg:e+""}]}; // TODO: catch errors already generated?
@@ -509,7 +509,7 @@ class Builder {
       }
     }
   }
-  handleMessage(data: WorkerMessage) : WorkerResult {
+  async handleMessage(data: WorkerMessage) : Promise<WorkerResult> {
     this.steps = [];
     // file updates
     if (data.updates) {
@@ -528,7 +528,7 @@ class Builder {
     }
     // execute build steps
     if (this.steps.length) {
-      var result = this.executeBuildSteps();
+      var result = await this.executeBuildSteps();
       return result ? result : {unchanged:true};
     }
     // TODO: cache results
@@ -1029,6 +1029,7 @@ import * as m6502 from './tools/m6502'
 import * as z80 from './tools/z80'
 import * as x86 from './tools/x86'
 import * as arm from './tools/arm'
+import * as script from './tools/script'
 
 var TOOLS = {
   'dasm': dasm.assembleDASM,
@@ -1064,6 +1065,7 @@ var TOOLS = {
   'wiz': misc.compileWiz,
   'armips': arm.assembleARMIPS,
   'vasmarm': arm.assembleVASMARM,
+  'js': script.runJavascript,
 }
 
 var TOOL_PRELOADFS = {
@@ -1092,7 +1094,9 @@ var TOOL_PRELOADFS = {
   'wiz': 'wiz',
 }
 
-function handleMessage(data : WorkerMessage) : WorkerResult {
+const waitFor = delay => new Promise(resolve => setTimeout(resolve, delay));
+
+async function handleMessage(data : WorkerMessage) : Promise<WorkerResult> {
   // preload file system
   if (data.preload) {
     var fs = TOOL_PRELOADFS[data.preload];
@@ -1113,12 +1117,15 @@ function handleMessage(data : WorkerMessage) : WorkerResult {
 }
 
 if (ENVIRONMENT_IS_WORKER) {
-  onmessage = function(e) {
-    var result = handleMessage(e.data);
+  var lastpromise = null;
+  onmessage = async function(e) {
+    await lastpromise; // wait for previous message to complete
+    lastpromise = handleMessage(e.data);
+    var result = await lastpromise;
+    lastpromise = null;
     if (result) {
       postMessage(result);
     }
   }
 }
 
-//}();
