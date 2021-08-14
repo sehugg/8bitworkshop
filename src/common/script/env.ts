@@ -1,9 +1,9 @@
 import { WorkerError } from "../workertypes";
 import ErrorStackParser = require("error-stack-parser");
 import yufka from 'yufka';
-import * as bitmap from "./bitmap";
-import * as io from "./io";
-import * as output from "./output";
+import * as bitmap from "./lib/bitmap";
+import * as io from "./lib/io";
+import * as output from "./lib/output";
 import { escapeHTML } from "../util";
 
 export interface Cell {
@@ -54,6 +54,7 @@ export class Environment {
     preprocess(code: string): string {
         var declvars = {};
         const result = yufka(code, (node, { update, source, parent }) => {
+            let left = node['left'];
             switch (node.type) {
                 case 'Identifier':
                     if (GLOBAL_BADLIST.indexOf(source()) >= 0) {
@@ -61,16 +62,17 @@ export class Environment {
                     }
                     break;
                 case 'AssignmentExpression':
-                    /*
-                    // x = expr --> var x = expr
+                    // x = expr --> var x = expr (first use)
                     if (parent().type === 'ExpressionStatement' && parent(2) && parent(2).type === 'Program') { // TODO
-                        let left = node['left'];
-                        if (left && left.type === 'Identifier' && declvars[left.name] == null) {
-                            update(`var ${source()}`)
-                            declvars[left.name] = true;
+                        if (left && left.type === 'Identifier') {
+                            if (!declvars[left.name]) {
+                                update(`var ${left.name}=this.${source()}`)
+                                declvars[left.name] = true;
+                            } else {
+                                update(`${left.name}=this.${source()}`)
+                            }
                         }
                     }
-                    */
                     break;
             }
         })

@@ -793,3 +793,11 @@ div.asset_toolbar {
 .scripting-cell div {
   display: inline;
 }
+div.scripting-color {
+  padding:0.1em;
+  margin:0.1em;
+}
+div.scripting-grid {
+  display: grid;
+  grid-template-columns: repeat( auto-fit, minmax(2em, 1fr) );
+}

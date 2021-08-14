@@ -8,3 +8,6 @@ tmp/
 web/
 release/
 gen/
+config.js
+chromedriver.log
+nightwatch.conf.js

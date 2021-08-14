@@ -1,7 +1,7 @@
 
 import * as fastpng from 'fast-png';
-import { convertWordsToImages, PixelEditorImageFormat } from '../../ide/pixeleditor';
-import { arrayCompare } from '../util';
+import { convertWordsToImages, PixelEditorImageFormat } from '../../../ide/pixeleditor';
+import { arrayCompare } from '../../util';
 import * as io from './io'
 
 export abstract class AbstractBitmap {
@@ -107,8 +107,8 @@ export function indexed(width: number, height: number, bpp: number) {
 export type BitmapType = RGBABitmap | IndexedBitmap;
 
 export namespace png {
-    export function load(url: string): BitmapType {
-        return decode(io.loadbin(url));
+    export function read(url: string): BitmapType {
+        return decode(io.readbin(url));
     }
     export function decode(data: Uint8Array): BitmapType {
         let png = fastpng.decode(data);
@@ -147,13 +147,11 @@ export namespace png {
     }
 }
 
-export namespace from {
-    // TODO: check arguments
-    export function bytes(arr: Uint8Array, fmt: PixelEditorImageFormat) {
-        var pixels = convertWordsToImages(arr, fmt);
-        // TODO: guess if missing w/h/count?
-        // TODO: reverse mapping
-        // TODO: maybe better composable functions
-        return pixels.map(data => new IndexedBitmap(fmt.w, fmt.h, fmt.bpp|1, data));
-    }
+// TODO: check arguments
+export function decode(arr: Uint8Array, fmt: PixelEditorImageFormat) {
+    var pixels = convertWordsToImages(arr, fmt);
+    // TODO: guess if missing w/h/count?
+    // TODO: reverse mapping
+    // TODO: maybe better composable functions
+    return pixels.map(data => new IndexedBitmap(fmt.w, fmt.h, fmt.bpp|1, data));
 }

@@ -1094,7 +1094,7 @@ var TOOL_PRELOADFS = {
   'wiz': 'wiz',
 }
 
-const waitFor = delay => new Promise(resolve => setTimeout(resolve, delay));
+//const waitFor = delay => new Promise(resolve => setTimeout(resolve, delay)); // for testing
 
 async function handleMessage(data : WorkerMessage) : Promise<WorkerResult> {
   // preload file system
@@ -1128,4 +1128,3 @@ if (ENVIRONMENT_IS_WORKER) {
     }
   }
 }
-
