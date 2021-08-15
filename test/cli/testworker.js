@@ -4,6 +4,7 @@ var fs = require('fs');
 var wtu = require('./workertestutils.js');
 //var heapdump = require('heapdump');
 
+// TODO: await might be needed later
 global.onmessage({data:{preload:'cc65', platform:'nes'}});
 global.onmessage({data:{preload:'ca65', platform:'nes'}});
 global.onmessage({data:{preload:'cc65', platform:'apple2'}});
@@ -30,9 +31,7 @@ function compileFiles(tool, files, platform, callback, outlen, nlines, nerrors, 
   doBuild([msg], callback, outlen, nlines, nerrors, options);
 }
 
-
-
-function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
+async function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
     var msgcount = msgs.length;
     global.postMessage = function(msg) {
       if (!msg.unchanged) {
@@ -74,9 +73,9 @@ function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
       } else
         console.log(msgcount + ' msgs left');
     };
-    global.onmessage({data:{reset:true}});
+    await global.onmessage({data:{reset:true}});
     for (var i=0; i<msgs.length; i++) {
-      global.onmessage({data:msgs[i]});
+      await global.onmessage({data:msgs[i]});
     } 
 }
 

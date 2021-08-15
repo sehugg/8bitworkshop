@@ -67,7 +67,7 @@
     "tsbuild": "tsc --build tsconfig.json",
     "esbuild": "npm run esbuild-worker && npm run esbuild-ui",
     "esbuild-clean": "rm -f ./gen/*.*",
-    "esbuild-worker": "esbuild src/worker/workermain.ts --bundle --minify --sourcemap --target=es2017 --outfile=./gen/worker/bundle.js",
+    "esbuild-worker": "esbuild src/worker/workermain.ts --bundle --sourcemap --target=es2017 --outfile=./gen/worker/bundle.js",
     "esbuild-ui": "esbuild src/ide/ui.ts src/ide/embedui.ts --splitting --format=esm --bundle --minify --sourcemap --target=es2017 --outdir=./gen/ --external:path --external:fs",
     "test-one": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000",
     "test-node": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli",

@@ -2,7 +2,7 @@
 var assert = require('assert');
 var fs = require('fs');
 var wtu = require('./workertestutils.js');
-var PNG = require('pngjs').PNG;
+var fastpng = require('fast-png');
 
 const dom = createTestDOM();
 includeInThisContext('gen/common/cpu/6809.js');
@@ -173,9 +173,7 @@ async function testPlatform(platid, romname, maxframes, callback) {
     }
     // record video to file
     if (lastrastervideo) {
-      var png = new PNG({width:lastrastervideo.width, height:lastrastervideo.height});
-      png.data = lastrastervideo.getImageData().data;
-      var pngbuffer = PNG.sync.write(png);
+      var pngbuffer = fastpng.encode(lastrastervideo.getImageData())
       assert(pngbuffer.length > 500); // make sure PNG is big enough
       try { fs.mkdirSync("./test"); } catch(e) { }
       try { fs.mkdirSync("./test/output"); } catch(e) { }

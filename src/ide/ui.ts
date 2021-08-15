@@ -6,7 +6,8 @@ import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFi
 import { WorkerResult, WorkerOutputResult, WorkerError, FileData, WorkerErrorResult } from "../common/workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState } from "../common/baseplatform";
-import { PLATFORMS, EmuHalt, Toolbar } from "../common/emu";
+import { PLATFORMS, EmuHalt } from "../common/emu";
+import { Toolbar } from "../common/toolbar";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, byteArrayToString, compressLZG, stringToByteArray,
          byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex, loadScript, decodeQueryString, parseBool } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";

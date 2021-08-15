@@ -773,25 +773,23 @@ div.asset_toolbar {
   background: #444;
   color: #99cc99;
   padding: 0.5em;
-  margin: 0.5em;
+  margin-right: 0.5em;
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   word-wrap: break-word;
+  pointer-events: auto;
 }
 .scripting-cell canvas {
-  height: 15vw;
+  height: 20vw;
+  max-width: 95%;
   border: 2px solid #222;
   outline-color: #ccc;
   background: #000;
   padding: 6px;
   margin: 6px;
-  pointer-events:auto;
 }
-.scripting-cell canvas:focus {
+.scripting-cell canvas:hover {
   outline:none;
-  border-color:#888;
-}
-.scripting-cell div {
-  display: inline;
+  border-color:#ccc;
 }
 div.scripting-color {
   padding:0.1em;
@@ -800,4 +798,5 @@ div.scripting-color {
 div.scripting-grid {
   display: grid;
   grid-template-columns: repeat( auto-fit, minmax(2em, 1fr) );
+  justify-items: center;
 }

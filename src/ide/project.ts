@@ -1,5 +1,5 @@
 
-import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult, WorkerOutputResult, isUnchanged, isOutputResult } from "../common/workertypes";
+import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult, WorkerOutputResult, isUnchanged, isOutputResult, WorkerMessage, WorkerItemUpdate } from "../common/workertypes";
 import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform, getWithBinary } from "../common/util";
 import { Platform } from "../common/baseplatform";
 import localforage from "localforage";
@@ -100,6 +100,7 @@ export class CodeProject {
   isCompiling : boolean = false;
   filename2path = {}; // map stripped paths to full paths
   filesystem : ProjectFilesystem;
+  dataItems : WorkerItemUpdate[];
 
   callbackBuildResult : BuildResultCallback;
   callbackBuildStatus : BuildStatusCallback;
@@ -152,7 +153,13 @@ export class CodeProject {
   parseIncludeDependencies(text:string):string[] {
     let files = [];
     let m;
-    if (this.platform_id.startsWith('verilog')) {
+    if (this.platform_id.startsWith('script')) { // TODO
+      let re1 = /\b\w+[.]read\(["'](.+?)["']/gmi;
+      while (m = re1.exec(text)) {
+        if (m[1] && m[1].indexOf(':/') < 0) // TODO: ignore URLs
+          this.pushAllFiles(files, m[1]);
+      }
+    } else if (this.platform_id.startsWith('verilog')) {
       // include verilog includes
       let re1 = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
       while (m = re1.exec(text)) {
@@ -234,7 +241,7 @@ export class CodeProject {
   }
 
   okToSend():boolean {
-    return this.pendingWorkerMessages++ == 0;
+    return this.pendingWorkerMessages++ == 0 && this.mainPath != null;
   }
 
   updateFileInStore(path:string, text:FileData) {
@@ -242,9 +249,9 @@ export class CodeProject {
   }
 
   // TODO: test duplicate files, local paths mixed with presets
-  buildWorkerMessage(depends:Dependency[]) {
+  buildWorkerMessage(depends:Dependency[]) : WorkerMessage {
     this.preloadWorker(this.mainPath);
-    var msg = {updates:[], buildsteps:[]};
+    var msg : WorkerMessage = {updates:[], buildsteps:[]};
     // TODO: add preproc directive for __MAINFILE__
     var mainfilename = this.stripLocalPath(this.mainPath);
     var maintext = this.getFile(this.mainPath);
@@ -275,6 +282,7 @@ export class CodeProject {
           tool:this.platform.getToolForFilename(dep.path)});
       }
     }
+    if (this.dataItems) msg.setitems = this.dataItems;
     return msg;
   }
 
@@ -350,7 +358,7 @@ export class CodeProject {
     if (this.filedata[path] == text) return; // unchanged, don't update
     this.updateFileInStore(path, text); // TODO: isBinary
     this.filedata[path] = text;
-    if (this.okToSend() && this.mainPath) {
+    if (this.okToSend()) {
       if (this.callbackBuildStatus) this.callbackBuildStatus(true);
       this.sendBuild();
     }
@@ -409,6 +417,13 @@ export class CodeProject {
       }
     }
     return path;
+  }
+
+  updateDataItems(items: WorkerItemUpdate[]) {
+    this.dataItems = items;
+    if (this.okToSend()) { // TODO? mainpath == null?
+      this.sendBuild(); // TODO: don't need entire build?
+    }
   }
 
 }

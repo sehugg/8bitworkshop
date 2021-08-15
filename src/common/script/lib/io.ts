@@ -1,35 +1,46 @@
-import { ProjectFilesystem } from "../../../ide/project";
-import { FileData } from "../../workertypes";
-import * as output from "./output";
 
-// TODO
-var $$fs: ProjectFilesystem;
-var $$cache: { [path: string]: FileData } = {};
+import { FileData, WorkingStore } from "../../workertypes";
 
-export class IOWaitError extends Error {
+// remote resource cache
+var $$cache: WeakMap<object,FileData> = new WeakMap();
+// file read/write interface
+var $$store: WorkingStore;
+// backing store for data
+var $$data: {} = {};
+
+export function $$setupFS(store: WorkingStore) {
+    $$store = store;
+}
+export function $$getData() {
+    return $$data;
+}
+export function $$loadData(data: {}) {
+    Object.assign($$data, data);
 }
 
-export function $$setupFS(fs: ProjectFilesystem) {
-    $$fs = fs;
+// object that can load state from backing store
+export interface Loadable {
+    reset() : void;
+    $$getstate() : {};
 }
 
-function getFS(): ProjectFilesystem {
-    if ($$fs == null) throw new Error(`Internal Error: The 'io' module has not been set up properly.`)
-    return $$fs;
-}
-
-export function ___load(path: string): FileData {
-    var data = $$cache[path];
-    if (data == null) {
-        getFS().getFileData(path).then((value) => {
-            $$cache[path] = value;
-        })
-        throw new IOWaitError(path);
-    } else {
-        return data;
+export namespace data {
+    export function get(object: Loadable, key: string): Loadable {
+        let override = $$data && $$data[key];
+        if (override) Object.assign(object, override);
+        else if (object.reset) object.reset();
+        return object;
+    }
+    export function set(object: Loadable, key: string): Loadable {
+        if ($$data && object.$$getstate) {
+            $$data[key] = object.$$getstate();
+        }
+        return object;
     }
 }
 
+export class IOWaitError extends Error {
+}
 
 export function canonicalurl(url: string) : string {
     // get raw resource URL for github
@@ -42,22 +53,48 @@ export function canonicalurl(url: string) : string {
     return url;
 }
 
-export function read(url: string, type?: 'binary' | 'text'): FileData {
-    url = canonicalurl(url);
+export function clearcache() {
+    $$cache = new WeakMap();
+}
+
+export function fetchurl(url: string, type?: 'binary' | 'text'): FileData {
     // TODO: only works in web worker
     var xhr = new XMLHttpRequest();
     xhr.responseType = type === 'text' ? 'text' : 'arraybuffer';
     xhr.open("GET", url, false);  // synchronous request
     xhr.send(null);
     if (xhr.response != null && xhr.status == 200) {
-        if (type !== 'text') {
-            return new Uint8Array(xhr.response);
+        if (type === 'text') {
+            return xhr.response as string;
         } else {
-            return xhr.response;
+            return new Uint8Array(xhr.response);
         }
     } else {
         throw new Error(`The resource at "${url}" responded with status code of ${xhr.status}.`)
     }
+}
+
+export function readnocache(url: string, type?: 'binary' | 'text'): FileData {
+    if (url.startsWith('http:') || url.startsWith('https:')) {
+        return fetchurl(url);
+    }
+    if ($$store) {
+        return $$store.getFileData(url);
+    }
+}
+
+// TODO: read files too
+export function read(url: string, type?: 'binary' | 'text'): FileData {
+    url = canonicalurl(url);
+    // check cache
+    let cachekey = {url: url};
+    if ($$cache.has(cachekey)) {
+        return $$cache.get(cachekey);
+    }
+    let data = readnocache(url, type);
+    if (data == null) throw new Error(`Cannot find resource "${url}"`);
+    $$cache.set(cachekey, data);
+    return data;
 }
 
 export function readbin(url: string): Uint8Array {
@@ -66,4 +103,12 @@ export function readbin(url: string): Uint8Array {
         return data;
     else
         throw new Error(`The resource at "${url}" is not a binary file.`);
+}
+
+export function readlines(url: string) : string[] {
+    return (read(url, 'text') as string).split('\n');
+}
+
+export function splitlines(text: string) : string[] {
+    return text.split(/\n|\r\n/g);
 }

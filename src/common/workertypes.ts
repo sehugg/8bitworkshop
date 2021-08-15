@@ -57,29 +57,38 @@ export class SourceFile {
 }
 
 export interface Dependency {
-  path:string,
-  filename:string,
-  link:boolean,
+  path:string
+  filename:string
+  link:boolean
   data:FileData // TODO: or binary?
 }
 
 export interface WorkerFileUpdate {
-  path:string,
+  path:string
   data:FileData
 };
 export interface WorkerBuildStep {
   path?:string
+  files?:string[]
   platform:string
   tool:string
   mainfile?:boolean
 };
+export interface WorkerItemUpdate {
+  key:string
+  value:object
+};
 
-export interface WorkerMessage extends WorkerBuildStep {
-  preload:string,
-  reset:boolean,
-  code:string,
-  updates:WorkerFileUpdate[],
+// TODO: split into different msg types
+export interface WorkerMessage {
+  preload?:string
+  platform?:string
+  tool?:string
+  updates:WorkerFileUpdate[]
   buildsteps:WorkerBuildStep[]
+  reset?:boolean
+  code?:string
+  setitems?:WorkerItemUpdate[]
 }
 
 export interface WorkerError extends SourceLocation {
@@ -87,10 +96,10 @@ export interface WorkerError extends SourceLocation {
 }
 
 export interface CodeListing {
-  lines:SourceLine[],
-  asmlines?:SourceLine[],
-  text?:string,
-  sourcefile?:SourceFile,   // not returned by worker
+  lines:SourceLine[]
+  asmlines?:SourceLine[]
+  text?:string
+  sourcefile?:SourceFile   // not returned by worker
   assemblyfile?:SourceFile  // not returned by worker
 }
 
@@ -132,4 +141,8 @@ export function isErrorResult(result: WorkerResult) : result is WorkerErrorResul
 
 export function isOutputResult(result: WorkerResult) : result is WorkerOutputResult<any> {
   return ('output' in result);
+}
+
+export interface WorkingStore {
+  getFileData(path:string) : FileData;
 }

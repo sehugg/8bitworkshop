@@ -1,6 +1,6 @@
 
-import type { WorkerResult, WorkerBuildStep, WorkerMessage, WorkerError, SourceLine, CodeListingMap, Segment, SourceLocation } from "../common/workertypes";
-import { getBasePlatform, getRootBasePlatform, hex } from "../common/util";
+import type { WorkerResult, WorkerBuildStep, WorkerMessage, WorkerError, SourceLine, WorkerErrorResult, WorkingStore } from "../common/workertypes";
+import { getBasePlatform, getRootBasePlatform } from "../common/util";
 
 /// <reference types="emscripten" />
 export interface EmscriptenModule {
@@ -394,9 +394,10 @@ export interface BuildStep extends WorkerBuildStep {
 
 ///
 
-export class FileWorkingStore {
+export class FileWorkingStore implements WorkingStore {
   workfs : {[path:string]:FileEntry} = {};
   workerseq : number = 0;
+  items : {} = {};
 
   constructor() {
     this.reset();
@@ -438,11 +439,18 @@ export class FileWorkingStore {
   getFileEntry(path:string) : FileEntry {
     return this.workfs[path];
   }
+  setItem(key: string, value: object) {
+    this.items[key] = value;
+  }
 }
 
 export var store = new FileWorkingStore();
 
 ///
+
+function errorResult(msg: string) : WorkerErrorResult {
+  return { errors:[{ line:0, msg:msg }]};
+}
 
 class Builder {
   steps : BuildStep[] = [];
@@ -465,7 +473,7 @@ class Builder {
         step.result = await toolfn(step);
       } catch (e) {
         console.log("EXCEPTION", e, e.stack);
-        return {errors:[{line:0, msg:e+""}]}; // TODO: catch errors already generated?
+        return errorResult(e+""); // TODO: catch errors already generated?
       }
       if (step.result) {
         (step.result as any).params = step.params; // TODO: type check
@@ -513,10 +521,11 @@ class Builder {
     this.steps = [];
     // file updates
     if (data.updates) {
-      for (var i=0; i<data.updates.length; i++) {
-        var u = data.updates[i];
-        store.putFile(u.path, u.data);
-      }
+      data.updates.forEach((u) => store.putFile(u.path, u.data));
+    }
+    // object update
+    if (data.setitems) {
+      data.setitems.forEach((i) => store.setItem(i.key, i.value));
     }
     // build steps
     if (data.buildsteps) {
@@ -524,7 +533,7 @@ class Builder {
     }
     // single-file
     if (data.code) {
-      this.steps.push(data);
+      this.steps.push(data as BuildStep); // TODO: remove cast
     }
     // execute build steps
     if (this.steps.length) {
@@ -994,7 +1003,7 @@ export function preprocessMCPP(step:BuildStep, filesys:string) {
       // //main.c:2: error: Can't open include file "stdiosd.h"
       var errors = extractErrors(/([^:]+):(\d+): (.+)/, errout.split("\n"), step.path, 2, 3, 1);
       if (errors.length == 0) {
-        errors = [{line:0, msg:errout}];
+        errors = errorResult(errout).errors;
       }
       return {errors: errors};
     }
@@ -1124,7 +1133,12 @@ if (ENVIRONMENT_IS_WORKER) {
     var result = await lastpromise;
     lastpromise = null;
     if (result) {
-      postMessage(result);
+      try {
+        postMessage(result);
+      } catch (e) {
+        console.log(e);
+        postMessage(errorResult(`${e}`));
+      }
     }
   }
 }

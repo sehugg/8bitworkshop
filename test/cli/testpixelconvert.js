@@ -1,5 +1,7 @@
 
 var assert = require('assert');
+var wtu = require('./workertestutils.js');
+const dom = createTestDOM();
 var pixed = require("gen/ide/pixeleditor.js");
 
 function dumbEqual(a,b) {

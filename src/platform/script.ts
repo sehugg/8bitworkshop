@@ -1,7 +1,7 @@
 
 import { PLATFORMS, RasterVideo } from "../common/emu";
 import { Platform } from "../common/baseplatform";
-import { Cell } from "../common/script/env";
+import { RunResult } from "../common/script/env";
 import { Notebook } from "../common/script/ui/notebook";
 
 class ScriptingPlatform implements Platform {
@@ -31,11 +31,12 @@ class ScriptingPlatform implements Platform {
     }
     resume() {
     }
-    loadROM(title, cells: Cell[]) {
-        this.notebook.updateCells(cells);
+    loadROM(title, run: RunResult) {
+        this.notebook.updateCells(run.cells);
+        // TODO: save state file
     }
     isRunning() {
-        return false;
+        return true;
     }
     isDebugging(): boolean {
         return false;

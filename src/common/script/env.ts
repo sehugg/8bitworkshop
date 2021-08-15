@@ -1,23 +1,32 @@
+
 import { WorkerError } from "../workertypes";
 import ErrorStackParser = require("error-stack-parser");
 import yufka from 'yufka';
 import * as bitmap from "./lib/bitmap";
 import * as io from "./lib/io";
 import * as output from "./lib/output";
-import { escapeHTML } from "../util";
+import * as color from "./lib/color";
+import * as scriptui from "./lib/scriptui";
 
 export interface Cell {
     id: string;
     object?: any;
 }
 
+export interface RunResult {
+    cells: Cell[];
+    state: {};
+}
+
 const IMPORTS = {
     'bitmap': bitmap,
     'io': io,
-    'output': output
+    'output': output,
+    'color': color,
+    'ui': scriptui,
 }
 
-const LINE_NUMBER_OFFSET = 3;
+const LINE_NUMBER_OFFSET = 3; // TODO: shouldnt need?
 
 const GLOBAL_BADLIST = [
     'eval'
@@ -34,10 +43,18 @@ const GLOBAL_GOODLIST = [
     'Uint8Array', 'Uint16Array', 'Uint32Array', 'Uint8ClampedArray',
 ]
 
+class RuntimeError extends Error {
+    constructor(public loc: acorn.SourceLocation, msg: string) {
+        super(msg);
+    }
+}
+
 export class Environment {
     preamble: string;
     postamble: string;
     obj: {};
+    seq: number;
+    declvars : {[name : string] : acorn.Node};
 
     constructor(
         public readonly globalenv: any,
@@ -51,45 +68,100 @@ export class Environment {
         this.preamble += '{\n';
         this.postamble = '\n}';
     }
+    error(varname: string, msg: string) {
+        console.log(varname, this.declvars[varname]);
+        throw new RuntimeError(this.declvars && this.declvars[varname].loc, msg);
+    }
     preprocess(code: string): string {
-        var declvars = {};
-        const result = yufka(code, (node, { update, source, parent }) => {
+        this.declvars = {};
+        this.seq = 0;
+        let options = {
+            // https://www.npmjs.com/package/magic-string#sgeneratemap-options-
+            sourceMap: {
+                file: this.path,
+                source: this.path,
+                hires: false,
+                includeContent: false
+            },
+            // https://github.com/acornjs/acorn/blob/master/acorn/README.md
+            acorn: {
+                ecmaVersion: 6 as any,
+                locations: true,
+                allowAwaitOutsideFunction: true,
+                allowReturnOutsideFunction: true,
+                allowReserved: true,
+            }
+        };
+        const result = yufka(code, options, (node, { update, source, parent }) => {
+            function isTopLevel() {
+                return parent().type === 'ExpressionStatement' && parent(2) && parent(2).type === 'Program';
+            }
             let left = node['left'];
             switch (node.type) {
+                // error on forbidden keywords
                 case 'Identifier':
                     if (GLOBAL_BADLIST.indexOf(source()) >= 0) {
                         update(`__FORBIDDEN__KEYWORD__${source()}__`) // TODO? how to preserve line number?
                     }
                     break;
+                // x = expr --> var x = expr (first use)
                 case 'AssignmentExpression':
-                    // x = expr --> var x = expr (first use)
-                    if (parent().type === 'ExpressionStatement' && parent(2) && parent(2).type === 'Program') { // TODO
+                    if (isTopLevel()) {
                         if (left && left.type === 'Identifier') {
-                            if (!declvars[left.name]) {
-                                update(`var ${left.name}=this.${source()}`)
-                                declvars[left.name] = true;
+                            if (!this.declvars[left.name]) {
+                                update(`var ${left.name}=io.data.get(this.${source()}, ${JSON.stringify(left.name)})`)
+                                this.declvars[left.name] = left;
                             } else {
                                 update(`${left.name}=this.${source()}`)
                             }
                         }
                     }
                     break;
+                // literal comments
+                case 'Literal':
+                    if (isTopLevel() && typeof node['value'] === 'string') {
+                        update(`this.$$doc__${this.seq++} = { literaltext: ${source()} };`);
+                    }
+                    break;
             }
-        })
+        });
         return result.toString();
     }
     async run(code: string): Promise<void> {
+        // TODO: split into cells based on "--" linebreaks?
         code = this.preprocess(code);
         this.obj = {};
         const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
         const fn = new AsyncFunction('$$', this.preamble + code + this.postamble).bind(this.obj, IMPORTS);
         await fn.call(this);
-        this.checkResult();
+        this.checkResult(this.obj, new Set(), []);
     }
-    checkResult() {
-        for (var [key, value] of Object.entries(this.obj)) {
-            if (value instanceof Promise) {
-                throw new Error(`'${key}' is unresolved. Use 'await' before expression.`) // TODO?
+    // https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
+    // TODO: return initial location of thingie
+    checkResult(o, checked: Set<object>, fullkey: string[]) {
+        if (o == null) return;
+        if (checked.has(o)) return;
+        if (typeof o === 'object') {
+            if (o.length > 100) return; // big array, don't bother
+            if (o.BYTES_PER_ELEMENT > 0) return; // typed array, don't bother
+            checked.add(o); // so we don't recurse if cycle
+            function prkey() { return fullkey.join('.') }
+            for (var [key, value] of Object.entries(o)) {
+                if (value == null && fullkey.length == 0) {
+                    this.error(key, `"${key}" has no value.`)
+                }
+                fullkey.push(key);
+                if (typeof value === 'function') {
+                    this.error(fullkey[0], `"${prkey()}" is a function. Did you forget to pass parameters?`); // TODO? did you mean (needs to see entire expr)
+                }
+                if (typeof value === 'symbol') {
+                    this.error(fullkey[0], `"${prkey()}" is a Symbol, and can't be used.`) // TODO?
+                }
+                if (value instanceof Promise) {
+                    this.error(fullkey[0], `"${prkey()}" is unresolved. Use "await" before expression.`) // TODO?
+                }
+                this.checkResult(value, checked, fullkey);
+                fullkey.pop();
             }
         }
     }
@@ -106,22 +178,58 @@ export class Environment {
         return cells;
     }
     extractErrors(e: Error): WorkerError[] {
-        if (e['loc'] != null) {
+        let loc = e['loc'];
+        if (loc && loc.start && loc.end) {
             return [{
                 path: this.path,
                 msg: e.message,
-                line: e['loc'].line,
-                start: e['loc'].column,
+                line: loc.start.line,
+                start: loc.start.column,
+                end: loc.end.line,
+            }]
+        }
+        if (loc && loc.line != null) {
+            return [{
+                path: this.path,
+                msg: e.message,
+                line: loc.line,
+                start: loc.column,
             }]
         }
         // TODO: Cannot parse given Error object
-        var frames = ErrorStackParser.parse(e);
-        var frame = frames.find(f => f.functionName === 'anonymous');
-        return [{
-            path: this.path,
-            msg: e.message,
-            line: frame ? frame.lineNumber - LINE_NUMBER_OFFSET : 0,
-            start: frame ? frame.columnNumber : 0,
-        }];
+        let frames = ErrorStackParser.parse(e);
+        let frame = frames.findIndex(f => f.functionName === 'anonymous');
+        let errors = [];
+        while (frame >= 0) {
+            console.log(frames[frame]);
+            if (frames[frame].fileName.endsWith('Function')) {
+                errors.push( {
+                    path: this.path,
+                    msg: e.message,
+                    line: frames[frame].lineNumber - LINE_NUMBER_OFFSET,
+                    start: frames[frame].columnNumber,
+                } );
+            }
+            --frame;
+        }
+        if (errors.length == 0) {
+            errors.push( {
+                path: this.path,
+                msg: e.message,
+                line: 0
+            } );
+        }
+        return errors;
+    }
+    getLoadableState() {
+        let updated = null;
+        for (let [key, value] of Object.entries(this.declvars)) {
+            if (typeof value['$$getstate'] === 'function') {
+                let loadable = <any>value as io.Loadable;
+                if (updated == null) updated = {};
+                updated[key] = loadable.$$getstate();
+            }
+        }
+        return updated;
     }
 }
