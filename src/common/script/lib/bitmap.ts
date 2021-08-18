@@ -1,4 +1,5 @@
 
+// TODO: dynamic import
 import * as fastpng from 'fast-png';
 import { Palette } from './color';
 import * as io from './io'
@@ -118,7 +119,7 @@ export class IndexedBitmap extends MappedBitmap {
         initial?: Uint8Array | PixelMapFunction
     ) {
         super(width, height, bitsPerPixel || 8, initial);
-        this.palette = color.palette.colors(this.bitsPerPixel);
+        this.palette = color.palette.colors(1 << this.bitsPerPixel);
     }
 
     getRGBAForIndex(index: number): number {
@@ -172,11 +173,7 @@ export namespace png {
     }
     function convertIndexedToBitmap(png: fastpng.IDecodedPNG): IndexedBitmap {
         var palarr = <any>png.palette as [number, number, number, number][];
-        var palette = new Palette(palarr.length);
-        for (let i = 0; i < palarr.length; i++) {
-            // TODO: alpha?
-            palette.colors[i] = color.arr2rgba(palarr[i]) | 0xff000000;
-        }
+        var palette = new Palette(palarr);
         let bitmap = new IndexedBitmap(png.width, png.height, png.depth);
         if (png.depth == 8) {
             bitmap.pixels.set(png.data);
@@ -194,12 +191,12 @@ export namespace png {
         return bitmap;
     }
     function convertRGBAToBitmap(png: fastpng.IDecodedPNG): RGBABitmap {
-        let bitmap = new RGBABitmap(png.width, png.height);
-        let rgba = [0, 0, 0, 0];
+        const bitmap = new RGBABitmap(png.width, png.height);
+        const rgba : [number,number,number,number] = [0, 0, 0, 0];
         for (let i = 0; i < bitmap.rgba.length; i++) {
             for (let j = 0; j < 4; j++)
                 rgba[j] = png.data[i * 4 + j];
-            bitmap.rgba[i] = color.arr2rgba(rgba);
+            bitmap.rgba[i] = color.rgba(rgba);
         }
         // TODO: aspect etc
         return bitmap;

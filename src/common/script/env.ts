@@ -69,8 +69,9 @@ export class Environment {
         this.postamble = '\n}';
     }
     error(varname: string, msg: string) {
-        console.log(varname, this.declvars[varname]);
-        throw new RuntimeError(this.declvars && this.declvars[varname].loc, msg);
+        let obj = this.declvars && this.declvars[varname];
+        console.log(varname, obj);
+        throw new RuntimeError(obj && obj.loc, msg);
     }
     preprocess(code: string): string {
         this.declvars = {};
@@ -94,7 +95,7 @@ export class Environment {
         };
         const result = yufka(code, options, (node, { update, source, parent }) => {
             function isTopLevel() {
-                return parent().type === 'ExpressionStatement' && parent(2) && parent(2).type === 'Program';
+                return parent() && parent().type === 'ExpressionStatement' && parent(2) && parent(2).type === 'Program';
             }
             let left = node['left'];
             switch (node.type) {
@@ -152,7 +153,10 @@ export class Environment {
                 }
                 fullkey.push(key);
                 if (typeof value === 'function') {
-                    this.error(fullkey[0], `"${prkey()}" is a function. Did you forget to pass parameters?`); // TODO? did you mean (needs to see entire expr)
+                    if (fullkey.length == 1)
+                        this.error(fullkey[0], `"${prkey()}" is a function. Did you forget to pass parameters?`); // TODO? did you mean (needs to see entire expr)
+                    else
+                        this.error(fullkey[0], `This expression may be incomplete.`); // TODO? did you mean (needs to see entire expr)
                 }
                 if (typeof value === 'symbol') {
                     this.error(fullkey[0], `"${prkey()}" is a Symbol, and can't be used.`) // TODO?

@@ -492,6 +492,14 @@ export function getRootBasePlatform(platform : string) : string {
   return getRootPlatform(getBasePlatform(platform));
 }
 
+export function isArray(obj: any) : obj is ArrayLike<any> {
+  return obj != null && (Array.isArray(obj) || isTypedArray(obj));
+}
+
+export function isTypedArray(obj: any) : obj is ArrayLike<number> {
+  return obj != null && obj['BYTES_PER_ELEMENT'];
+}
+
 export function convertDataToUint8Array(data: string|Uint8Array) : Uint8Array {
   return (typeof data === 'string') ? stringToByteArray(data) : data;
 }

@@ -1,28 +1,61 @@
 
-export class Palette {
-    colors: Uint32Array;
+import _chroma from 'chroma-js'
+import { isArray } from '../../util';
 
-    constructor(arg: number | number[] | Uint32Array) {
+export type ColorSource = number | [number,number,number] | [number,number,number,number] | string;
+
+export class Palette {
+    readonly colors: Uint32Array;
+
+    constructor(arg: number | any[] | Uint32Array) {
+        // TODO: more array types
         if (typeof arg === 'number') {
-            if (!(arg >= 1 && arg <= 65536)) throw new Error('Invalid palette size ' + arg);
             this.colors = new Uint32Array(arg);
-        } else {
+        } else if (arg instanceof Uint32Array) {
             this.colors = new Uint32Array(arg);
-        }
+        } else if (isArray(arg)) {
+            this.colors = new Uint32Array(arg.map(rgb));
+        } else
+            throw new Error(`Invalid Palette constructor`)
+    }
+    get(index: number) {
+        return this.colors[index];
     }
 }
 
-export function rgb(r: number, g: number, b: number): number {
-    return ((r & 0xff) << 0) | ((g & 0xff) << 8) | ((b & 0xff) << 16) | 0xff000000;
+export const chroma = _chroma;
+
+export function from(obj: ColorSource) {
+    return _chroma(obj as any);
 }
 
-export function arr2rgba(arr: number[] | Uint8Array): number {
-    let v = 0;
-    v |= (arr[0] & 0xff) << 0;
-    v |= (arr[1] & 0xff) << 8;
-    v |= (arr[2] & 0xff) << 16;
-    v |= (arr[3] & 0xff) << 24;
-    return v;
+export function rgb(obj: ColorSource) : number;
+export function rgb(r: number, g: number, b: number) : number;
+
+export function rgb(obj: any, g?: number, b?: number) : number {
+    return rgba(obj, g, b, 0xff) | 0xff000000;
+}
+
+export function rgba(obj: ColorSource) : number;
+export function rgba(r: number, g: number, b: number, a: number) : number;
+
+export function rgba(obj: ColorSource, g?: number, b?: number, a?: number) : number {
+    if (typeof obj === 'number') {
+        let r = obj;
+        if (g != null && b != null)
+            return ((r & 0xff) << 0) | ((g & 0xff) << 8) | ((b & 0xff) << 16) | ((a & 0xff) << 24);
+        return obj;
+    }
+    if (typeof obj !== 'string' && isArray(obj) && typeof obj[0] === 'number') {
+        let arr = obj;
+        let v = 0;
+        v |= (arr[0] & 0xff) << 0;
+        v |= (arr[1] & 0xff) << 8;
+        v |= (arr[2] & 0xff) << 16;
+        v |= (arr[3] & 0xff) << 24;
+        return v;
+    }
+    return rgba(from(obj).rgb());
 }
 
 export function rgba2arr(v: number): number[] {
@@ -34,18 +67,29 @@ export function rgba2arr(v: number): number[] {
     ]
 }
 
+export function rgb2arr(v: number): number[] {
+    return rgba2arr(v).slice(0,3);
+}
+
+type ColorGenFunc = (index: number) => number;
+
 export namespace palette {
-    export function generate(bpp: number, func: (index: number) => number) {
-        var pal = new Palette(1 << bpp);
-        for (var i = 0; i < pal.colors.length; i++) {
-            pal.colors[i] = 0xff000000 | func(i);
+    export function from(obj: number | any[] | Uint32Array | ColorGenFunc, count?: number) {
+        if (typeof obj === 'function') {
+            if (!count) throw new Error(`You must also pass the number of colors to generate.`)
+            var pal = new Palette(count);
+            for (var i = 0; i < pal.colors.length; i++) {
+                pal.colors[i] = rgba(obj(i));
+            }
+            return pal;
+        } else {
+            return new Palette(obj);
         }
-        return pal;
     }
     export function mono() {
         return greys(1);
     }
-    export function rgb2() {
+    function rgb2() {
         return new Palette([
             rgb(0, 0, 0),
             rgb(0, 0, 255),
@@ -53,7 +97,7 @@ export namespace palette {
             rgb(0, 255, 0),
         ]);
     }
-    export function rgb3() {
+    function rgb3() {
         return new Palette([
             rgb(0, 0, 0),
             rgb(0, 0, 255),
@@ -65,23 +109,26 @@ export namespace palette {
             rgb(255, 255, 255),
         ]);
     }
-    export function greys(bpp: number) {
-        return generate(bpp, (i) => {
-            let v = 255 * i / ((1 << bpp) - 1);
+    export function greys(count: number) {
+        return from((i) => {
+            let v = 255 * i / (count - 1);
             return rgb(v,v,v);
-        });
+        }, count);
     }
-    export function colors(bpp: number) {
-        switch (bpp) {
-            case 1: return mono();
-            case 2: return rgb2();
-            case 3: return rgb3();
-            default: return factors(bpp); // TODO
+    export function colors(count: number) {
+        switch (count) {
+            case 2: return mono();
+            case 4: return rgb2();
+            case 8: return rgb3();
+            default: return factors(count); // TODO
         }
     }
-    export function factors(bpp: number, mult?: number) {
+    export function helix(count: number) {
+        return new Palette(chroma.cubehelix().scale().colors(count));
+    }
+    export function factors(count: number, mult?: number) {
         mult = mult || 0x031f0f;
-        return generate(bpp, (i) => i * mult);
+        return from((i) => rgb(i * mult), count);
     }
     // TODO: https://www.iquilezles.org/www/articles/palettes/palettes.htm
 }

@@ -2,6 +2,7 @@
 import * as basic from "./compiler";
 import { EmuHalt } from "../emu";
 import { SourceLocation } from "../workertypes";
+import { isArray } from "../util";
 
 function isLiteral(arg: basic.Expr): arg is basic.Literal {
     return (arg as any).value != null;
@@ -31,10 +32,6 @@ class ExprOptions {
 
 interface CompiledStatement {
     $run?: () => void;
-}
-
-function isArray(obj) {
-    return obj != null && (Array.isArray(obj) || obj.BYTES_PER_ELEMENT);
 }
 
 class RNG {
