@@ -4,12 +4,19 @@ import { isArray } from '../../util';
 
 export type ColorSource = number | [number,number,number] | [number,number,number,number] | string;
 
+function checkCount(count) {
+    if (count < 0 || count > 65536) {
+        throw new Error("Palettes cannot have more than 2^16 (65536) colors.");
+    }
+}
+
 export class Palette {
     readonly colors: Uint32Array;
 
     constructor(arg: number | any[] | Uint32Array) {
         // TODO: more array types
         if (typeof arg === 'number') {
+            checkCount(arg);
             this.colors = new Uint32Array(arg);
         } else if (arg instanceof Uint32Array) {
             this.colors = new Uint32Array(arg);
@@ -42,9 +49,10 @@ export function rgba(r: number, g: number, b: number, a: number) : number;
 export function rgba(obj: ColorSource, g?: number, b?: number, a?: number) : number {
     if (typeof obj === 'number') {
         let r = obj;
-        if (g != null && b != null)
+        if (typeof g === 'number' && typeof b === 'number')
             return ((r & 0xff) << 0) | ((g & 0xff) << 8) | ((b & 0xff) << 16) | ((a & 0xff) << 24);
-        return obj;
+        else
+            return obj;
     }
     if (typeof obj !== 'string' && isArray(obj) && typeof obj[0] === 'number') {
         let arr = obj;
@@ -75,6 +83,7 @@ type ColorGenFunc = (index: number) => number;
 
 export namespace palette {
     export function from(obj: number | any[] | Uint32Array | ColorGenFunc, count?: number) {
+        checkCount(count);
         if (typeof obj === 'function') {
             if (!count) throw new Error(`You must also pass the number of colors to generate.`)
             var pal = new Palette(count);
@@ -87,7 +96,7 @@ export namespace palette {
         }
     }
     export function mono() {
-        return greys(1);
+        return greys(2);
     }
     function rgb2() {
         return new Palette([
@@ -124,6 +133,7 @@ export namespace palette {
         }
     }
     export function helix(count: number) {
+        checkCount(count);
         return new Palette(chroma.cubehelix().scale().colors(count));
     }
     export function factors(count: number, mult?: number) {

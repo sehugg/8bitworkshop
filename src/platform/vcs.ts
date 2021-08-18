@@ -70,7 +70,7 @@ class VCSPlatform extends BasePlatform {
   async start() {
     var self : VCSPlatform = this;
     // load Javatari and configure settings
-    await loadScript("javatari.js/release/javatari/javatari.js");
+    await loadScript("javatari/javatari.js");
     Javatari.AUTO_START = false;
     Javatari.SHOW_ERRORS = false;
     Javatari.CARTRIDGE_CHANGE_DISABLED = true;

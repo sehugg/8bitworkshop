@@ -631,3 +631,34 @@ export function escapeHTML(s: string): string {
   return s.replace(/[&]/g, '&amp;').replace(/[<]/g, '&lt;').replace(/[>]/g, '&gt;');
 }
 
+// lame factorization for displaying bitmaps
+// returns a > b such that a * b == x (or higher), a >= mina, b >= minb
+export function findIntegerFactors(x: number, mina: number, minb: number, aspect: number) : {a: number, b: number} {
+  let a = x;
+  let b = 1;
+  if (minb > 1 && minb < a) {
+    a = Math.ceil(x / minb);
+    b = minb;
+  }
+  while (a > b) {
+    let a2 = a;
+    let b2 = b;
+    if ((a & 1) == 0) {
+      b2 = b * 2;
+      a2 = a / 2;
+    }
+    if ((a % 3) == 0) {
+      b2 = b * 3;
+      a2 = a / 3;
+    }
+    if ((a % 5) == 0) {
+      b2 = b * 5;
+      a2 = a / 5;
+    }
+    if (a2 < mina) break;
+    if (a2 < b2 * aspect) break;
+    a = a2;
+    b = b2;
+  }
+  return {a, b};
+}

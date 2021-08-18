@@ -6,7 +6,8 @@ export class ScriptUISliderType {
     value: number;
     constructor(
         readonly min: number,
-        readonly max: number
+        readonly max: number,
+        readonly step: number
     ) {
     }
 }
@@ -25,6 +26,6 @@ export class ScriptUISlider extends ScriptUISliderType implements io.Loadable {
     }
 }
 
-export function slider(min: number, max: number) {
-    return new ScriptUISlider(min, max);
+export function slider(min: number, max: number, step?: number) {
+    return new ScriptUISlider(min, max, step || 1);
 }

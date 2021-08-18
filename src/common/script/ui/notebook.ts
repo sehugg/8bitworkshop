@@ -2,7 +2,7 @@
 import { BitmapType, IndexedBitmap, RGBABitmap } from "../lib/bitmap";
 import { Component, render, h, ComponentType } from 'preact';
 import { Cell } from "../env";
-import { hex, rgb2bgr, RGBA } from "../../util";
+import { findIntegerFactors, hex, rgb2bgr, RGBA } from "../../util";
 import { dumpRAM } from "../../emu";
 // TODO: can't call methods from this end
 import { Palette } from "../lib/color";
@@ -10,6 +10,30 @@ import { ScriptUISlider, ScriptUISliderType } from "../lib/scriptui";
 import { current_project } from "../../../ide/ui";
 
 const MAX_STRING_LEN = 100;
+const DEFAULT_ASPECT = 1;
+
+interface ObjectStats {
+    type: 'prim' | 'complex' | 'bitmap'
+    width: number
+    height: number
+    units: 'em' | 'px'
+}
+
+// TODO
+class ObjectAnalyzer {
+    recurse(obj: any) : ObjectStats {
+        if (typeof obj === 'string') {
+            return { type: 'prim', width: obj.length, height: 1, units: 'em' }
+        } else if (obj instanceof Uint8Array) {
+            return { type: 'complex', width: 60, height: Math.ceil(obj.length / 16), units: 'em' }
+        } else if (typeof obj === 'object') {
+            let stats : ObjectStats = { type: 'complex', width: 0, height: 0, units: 'em'};
+            return stats; // TODO
+        } else {
+            return { type: 'prim', width: 12, height: 1, units: 'em' }
+        }
+    }
+}
 
 interface ColorComponentProps {
     rgbavalue: number;
@@ -18,13 +42,17 @@ interface ColorComponentProps {
 class ColorComponent extends Component<ColorComponentProps> {
     render(virtualDom, containerNode, replaceNode) {
         let rgb = this.props.rgbavalue & 0xffffff;
-        var htmlcolor = `#${hex(rgb2bgr(rgb),6)}`;
-        var textcol = (rgb & 0x008000) ? 'black' : 'white';
+        let bgr = rgb2bgr(rgb);
+        var htmlcolor = `#${hex(bgr,6)}`;
+        var textcolor =  (rgb & 0x008000) ? 'black' : 'white';
+        var printcolor = hex(rgb & 0xffffff, 6); // TODO: show index instead?
         return h('div', {
             class: 'scripting-color',
-            style: `background-color: ${htmlcolor}; color: ${textcol}`,
+            style: `background-color: ${htmlcolor}; color: ${textcolor}`,
             alt: htmlcolor, // TODO
-        }, '\u00a0');
+        }, [
+            h('span', { }, printcolor )
+        ]);
     }
 }
 
@@ -45,7 +73,6 @@ class BitmapComponent extends Component<BitmapComponentProps> {
     }
     render(virtualDom, containerNode, replaceNode) {
         return h('canvas', {
-            class: 'pixelated',
             width: this.props.width,
             height: this.props.height,
             ...this.props
@@ -124,7 +151,7 @@ class BitmapEditor extends Component<BitmapComponentProps, BitmapEditorState> {
         }
         return h('div', {
             tabIndex: 0,
-            class: this.state.isEditing ? 'scripting-cell' : '' // TODO
+            class: this.state.isEditing ? 'scripting-editor' : '' // TODO
         }, [
             bitmapRender,
             okCancel,
@@ -163,6 +190,8 @@ class ObjectKeyValueComponent extends Component<ObjectTreeComponentProps, Object
         let hdrclass = '';
         if (expandable)
             hdrclass = this.state.expanded ? 'tree-expanded' : 'tree-collapsed'
+        let propName = this.props.name || null;
+        if (propName.startsWith("$$")) propName = null;
         return h('div', {
             class: 'tree-content',
             key: `${this.props.objpath}__tree`
@@ -171,10 +200,8 @@ class ObjectKeyValueComponent extends Component<ObjectTreeComponentProps, Object
                 class: 'tree-header ' + hdrclass,
                 onClick: expandable ? () => this.toggleExpand() : null
             }, [
-                this.props.name + "",
-                h('span', { class: 'tree-value' }, [
-                    getShortName(this.props.object)
-                ])
+                h('span', { class: 'tree-key' }, [ propName, expandable ]),
+                h('span', { class: 'tree-value' }, [ getShortName(this.props.object) ])
             ]),
             this.state.expanded ? objectToContentsDiv(this.props.object, this.props.objpath) : null
         ]);
@@ -243,26 +270,25 @@ function objectToDiv(object: any, name: string, objpath: string) {
     if (object == null) {
         return object + "";
     } else if (object['uitype']) {
-        children.push(h(UISliderComponent, { iokey: objpath, uiobject: object }));
+        return h(UISliderComponent, { iokey: objpath, uiobject: object });
     } else if (object['literaltext']) {
-        children.push(h("pre", { }, [ object['literaltext'] ])); // TODO
-    } else if (isIndexedBitmap(object)) {
-        //Object.setPrototypeOf(object, IndexedBitmap.prototype); // TODO: use Object.create()?
-        addBitmapComponent(children, object);
-    } else if (isRGBABitmap(object)) {
-        //Object.setPrototypeOf(object, RGBABitmap.prototype); // TODO: use Object.create()?
-        addBitmapComponent(children, object);
+        return h("pre", { }, [ object['literaltext'] ]);
+    } else if (isIndexedBitmap(object) || isRGBABitmap(object)) {
+        return h(BitmapEditor, { bitmap: object, width: object.width, height: object.height });
     } else if (isPalette(object)) {
-        // TODO: make sets of 2/4/8/16/etc
-        props.class += ' scripting-grid ';
-        object.colors.forEach((val) => {
-            children.push(h(ColorComponent, { rgbavalue: val }));
-        })
+        if (object.colors.length <= 64) {
+            props.class += ' scripting-flex ';
+            object.colors.forEach((val) => {
+                children.push(h(ColorComponent, { rgbavalue: val }));
+            })
+            return h('div', props, children);
+        } else {
+            let {a,b} = findIntegerFactors(object.colors.length, 1, 1, DEFAULT_ASPECT);
+            return objectToDiv({ rgba: object.colors, width: a, height: b }, name, objpath);
+        }
     } else {
         return h(ObjectKeyValueComponent, { name, object, objpath }, []);
     }
-    let div = h('div', props, children);
-    return div;
 }
 
 function fixedArrayToDiv(tyarr: Array<number>, bpel: number, objpath: string) {
@@ -288,11 +314,7 @@ function objectToContentsDiv(object: {} | [], objpath: string) {
     }
     let objectEntries = Object.entries(object);
     let objectDivs = objectEntries.map(entry => objectToDiv(entry[1], entry[0], `${objpath}.${entry[1]}`));
-    return h('div', {}, objectDivs);
-}
-
-function addBitmapComponent(children, bitmap: BitmapType) {
-    children.push(h(BitmapEditor, { bitmap: bitmap, width: bitmap.width, height: bitmap.height }));
+    return h('div', { class: 'scripting-flex' }, objectDivs);
 }
 
 interface UISliderComponentProps {
@@ -307,17 +329,16 @@ class UISliderComponent extends Component<UISliderComponentProps> {
             this.props.iokey,
             h('input', {
                 type: 'range',
-                min: slider.min,
-                max: slider.max,
-                value: this.props.uiobject.value,
+                min: slider.min / slider.step,
+                max: slider.max / slider.step,
+                value: this.props.uiobject.value / slider.step,
                 onInput: (ev) => {
-                    let newValue = { value: ev.target.value };
-                    slider.value = parseFloat(ev.target.value);
+                    let newValue = { value: parseFloat(ev.target.value) * slider.step };
                     this.setState(this.state);
                     current_project.updateDataItems([{key: this.props.iokey, value: newValue}]);
                 }
             }, []),
-            slider.value
+            getShortName(slider.value)
         ]);
     }
 }
@@ -328,22 +349,15 @@ export class Notebook {
         public readonly maindiv: HTMLElement
     ) {
         maindiv.classList.add('vertical-scroll');
-        //maindiv.classList.add('container')
     }
     updateCells(cells: Cell[]) {
         let hTree = cells.map(cell => {
-            //return objectToDiv(cell.object, cell.id)
             return h('div', {
                 class: 'scripting-cell',
                 key: `${cell.id}__cell`
             }, [
                 objectToDiv(cell.object, cell.id, cell.id)
             ])
-            /*
-            let cellDiv = objectToDiv(cell.object, cell.id);
-            cellDiv.props['class'] += ' scripting-cell ';
-            return cellDiv;
-            */
         });
         render(hTree, this.maindiv);
     }

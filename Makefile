@@ -52,7 +52,7 @@ VERSION := $(shell git tag -l --points-at HEAD)
 syncdev: distro
 	cp config.js $(TMP)
 	#aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/dev/
-	s3cmd -c ~/.s3pzp sync -MFP $(TMP)/ s3://8bitworkshop.com/dev/
+	s3cmd -c ~/.s3pzp sync -MFP --no-mime-magic $(TMP)/ s3://8bitworkshop.com/dev/
 	rsync --stats -riltz --delete --chmod=a+rx -e "ssh" $(TMP)/ config.js $(RSYNC_PATH)/dev/
 
 syncprod: distro
@@ -63,5 +63,5 @@ syncprod: distro
 	read
 	cp config.js $(TMP)
 	#aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/v$(VERSION)/
-	s3cmd -c ~/.s3pzp sync -MFP $(TMP)/ config.js s3://8bitworkshop.com/v$(VERSION)/
+	s3cmd -c ~/.s3pzp sync -MFP --no-mime-magic $(TMP)/ config.js s3://8bitworkshop.com/v$(VERSION)/
 	rsync --stats -riltz --chmod=a+rx -e "ssh" $(TMP)/ config.js $(RSYNC_PATH)/v$(VERSION)/

@@ -55,14 +55,19 @@ export class Environment {
     obj: {};
     seq: number;
     declvars : {[name : string] : acorn.Node};
+    builtins : {}
 
     constructor(
         public readonly globalenv: any,
         public readonly path: string
     ) {
         var badlst = Object.getOwnPropertyNames(this.globalenv).filter(name => GLOBAL_GOODLIST.indexOf(name) < 0);
+        this.builtins = {
+            print: (...args) => this.print(args),
+            ...IMPORTS
+        }
         this.preamble = `'use strict';var ${badlst.join(',')};`;
-        for (var impname in IMPORTS) {
+        for (var impname in this.builtins) {
             this.preamble += `var ${impname}=$$.${impname};`
         }
         this.preamble += '{\n';
@@ -72,6 +77,11 @@ export class Environment {
         let obj = this.declvars && this.declvars[varname];
         console.log(varname, obj);
         throw new RuntimeError(obj && obj.loc, msg);
+    }
+    print(args: any[]) {
+        if (args && args.length > 0 && args[0] != null) {
+            this.obj[`$$print__${this.seq++}`] = args.length == 1 ? args[0] : args;
+        }
     }
     preprocess(code: string): string {
         this.declvars = {};
@@ -94,15 +104,20 @@ export class Environment {
             }
         };
         const result = yufka(code, options, (node, { update, source, parent }) => {
-            function isTopLevel() {
+            const isTopLevel = () => {
                 return parent() && parent().type === 'ExpressionStatement' && parent(2) && parent(2).type === 'Program';
             }
-            let left = node['left'];
+            const convertTopToPrint = () => {
+                if (isTopLevel()) update(`print(${source()});`)
+            }
+            const left = node['left'];
             switch (node.type) {
                 // error on forbidden keywords
                 case 'Identifier':
                     if (GLOBAL_BADLIST.indexOf(source()) >= 0) {
                         update(`__FORBIDDEN__KEYWORD__${source()}__`) // TODO? how to preserve line number?
+                    } else {
+                        convertTopToPrint();
                     }
                     break;
                 // x = expr --> var x = expr (first use)
@@ -118,10 +133,19 @@ export class Environment {
                         }
                     }
                     break;
+                // convert lone expressions to print()
+                case 'UnaryExpression':
+                case 'BinaryExpression':
+                case 'CallExpression':
+                case 'MemberExpression':
+                    convertTopToPrint();
+                    break;
                 // literal comments
                 case 'Literal':
-                    if (isTopLevel() && typeof node['value'] === 'string') {
+                    if (typeof node['value'] === 'string' && isTopLevel()) {
                         update(`this.$$doc__${this.seq++} = { literaltext: ${source()} };`);
+                    } else {
+                        convertTopToPrint();
                     }
                     break;
             }
@@ -133,7 +157,7 @@ export class Environment {
         code = this.preprocess(code);
         this.obj = {};
         const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
-        const fn = new AsyncFunction('$$', this.preamble + code + this.postamble).bind(this.obj, IMPORTS);
+        const fn = new AsyncFunction('$$', this.preamble + code + this.postamble).bind(this.obj, this.builtins);
         await fn.call(this);
         this.checkResult(this.obj, new Set(), []);
     }

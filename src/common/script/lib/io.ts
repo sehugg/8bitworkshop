@@ -76,7 +76,7 @@ export function fetchurl(url: string, type?: 'binary' | 'text'): FileData {
 
 export function readnocache(url: string, type?: 'binary' | 'text'): FileData {
     if (url.startsWith('http:') || url.startsWith('https:')) {
-        return fetchurl(url);
+        return fetchurl(url, type);
     }
     if ($$store) {
         return $$store.getFileData(url);
@@ -93,6 +93,8 @@ export function read(url: string, type?: 'binary' | 'text'): FileData {
     }
     let data = readnocache(url, type);
     if (data == null) throw new Error(`Cannot find resource "${url}"`);
+    if (type === 'text' && typeof data !== 'string') throw new Error(`Resource "${url}" is not a string`);
+    if (type === 'binary' && !(data instanceof Uint8Array)) throw new Error(`Resource "${url}" is not a binary file`);
     $$cache.set(cachekey, data);
     return data;
 }

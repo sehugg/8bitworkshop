@@ -4,6 +4,7 @@ import * as fastpng from 'fast-png';
 import { Palette } from './color';
 import * as io from './io'
 import * as color from './color'
+import { findIntegerFactors, RGBA } from '../../util';
 
 export type PixelMapFunction = (x: number, y: number) => number;
 
@@ -19,6 +20,7 @@ export abstract class AbstractBitmap<T> {
     abstract setarray(arr: ArrayLike<number>) : AbstractBitmap<T>;
     abstract set(x: number, y: number, val: number) : AbstractBitmap<T>;
     abstract get(x: number, y: number): number;
+    abstract getrgba(x: number, y: number): number;
 
     inbounds(x: number, y: number): boolean {
         return (x >= 0 && x < this.width && y >= 0 && y < this.height);
@@ -45,6 +47,17 @@ export abstract class AbstractBitmap<T> {
         dest.assign((x, y) => this.get(x + srcx, y + srcy));
         return dest;
     }
+    blit(src: BitmapType, dest: BitmapType,
+        destx: number, desty: number,
+        srcx: number, srcy: number)
+    {
+        for (var y=0; y<src.height; y++) {
+            for (var x=0; x<src.width; x++) {
+                let rgba = src.getrgba(x+srcx, y+srcy);
+                dest.set(x+destx, y+desty, rgba);
+            }
+        }
+    }
 }
 
 export class RGBABitmap extends AbstractBitmap<RGBABitmap> {
@@ -69,6 +82,9 @@ export class RGBABitmap extends AbstractBitmap<RGBABitmap> {
     }
     get(x: number, y: number): number {
         return this.inbounds(x,y) ? this.rgba[y * this.width + x] : 0;
+    }
+    getrgba(x: number, y: number): number {
+        return this.get(x, y);
     }
     blank(width: number, height: number) : RGBABitmap {
         return new RGBABitmap(width, height);
@@ -106,7 +122,6 @@ export abstract class MappedBitmap extends AbstractBitmap<MappedBitmap> {
     get(x: number, y: number): number {
         return this.inbounds(x,y) ? this.pixels[y * this.width + x] : 0;
     }
-    abstract getRGBAForIndex(index: number): number;
 }
 
 export class IndexedBitmap extends MappedBitmap {
@@ -122,8 +137,8 @@ export class IndexedBitmap extends MappedBitmap {
         this.palette = color.palette.colors(1 << this.bitsPerPixel);
     }
 
-    getRGBAForIndex(index: number): number {
-        return this.palette.colors[index];
+    getrgba(x: number, y: number): number {
+        return this.palette && this.palette.colors[this.get(x, y)];
     }
     blank(width: number, height: number) : IndexedBitmap {
         let bitmap = new IndexedBitmap(width, height, this.bitsPerPixel);
@@ -153,8 +168,63 @@ export function decode(arr: Uint8Array, fmt: PixelEditorImageFormat) {
     // TODO: guess if missing w/h/count?
     // TODO: reverse mapping
     // TODO: maybe better composable functions
-    return pixels.map(data => new IndexedBitmap(fmt.w, fmt.h, fmt.bpp | 1, data));
+    let bpp = (fmt.bpp||1) * (fmt.np||1);
+    return pixels.map(data => new IndexedBitmap(fmt.w, fmt.h, bpp, data));
 }
+
+export interface BitmapAnalysis {
+    min: {w: number, h: number};
+    max: {w: number, h: number};
+}
+
+export function analyze(bitmaps: BitmapType[]) {
+    let r = {min:{w:0,h:0}, max:{w:0,h:0}};
+    for (let bmp of bitmaps) {
+        if (!(bmp instanceof AbstractBitmap)) return null;
+        r.min.w = Math.min(bmp.width);
+        r.max.w = Math.max(bmp.width);
+        r.min.h = Math.min(bmp.height);
+        r.max.h = Math.max(bmp.height);
+    }
+    return r;
+}
+
+export interface MontageOptions {
+    analysis?: BitmapAnalysis;
+    gap?: number;
+    aspect?: number;
+}
+
+export function montage(bitmaps: BitmapType[], options?: MontageOptions) {
+    let minmax = (options && options.analysis) || analyze(bitmaps);
+    if (minmax == null) throw new Error(`Expected an array of bitmaps`);
+    let hitrects = [];
+    let aspect = (options && options.aspect) || 1;
+    let gap = (options && options.gap) || 0;
+    if (minmax.min.w == minmax.max.w && minmax.min.h == minmax.max.h) {
+        let totalPixels = minmax.min.w * minmax.min.h * bitmaps.length;
+        let factors = findIntegerFactors(totalPixels, minmax.max.w, minmax.max.h, aspect);
+        let columns = Math.ceil(factors.a / minmax.min.w); // TODO: rounding?
+        let rows = Math.ceil(factors.b / minmax.min.h);
+        let result = new RGBABitmap(factors.a + gap * (columns-1), factors.b + gap * (rows-1));
+        let x = 0;
+        let y = 0;
+        bitmaps.forEach((bmp) => {
+            result.blit(bmp, result, x, y, 0, 0);
+            hitrects.push({x, y, w: bmp.width, h: bmp.height })
+            x += bmp.width + gap;
+            if (x >= result.width) {
+                x = 0;
+                y += bmp.height + gap;
+            }
+        })
+        return result;
+    } else {
+        throw new Error(`combine() only supports uniformly-sized images right now`); // TODO
+    }
+}
+
+/////
 
 export namespace png {
     export function read(url: string): BitmapType {
@@ -325,6 +395,22 @@ export type PixelEditorImageFormat = {
     skip?:number
     aspect?:number
   };
+
+  function remapBits(x:number, arr:number[]) : number {
+    if (!arr) return x;
+    var y = 0;
+    for (var i=0; i<arr.length; i++) {
+      var s = arr[i];
+      if (s < 0) {
+        s = -s-1;
+        y ^= 1 << s;
+      }
+      if (x & (1 << i)) {
+        y ^= 1 << s;
+      }
+    }
+    return y;
+  }
   
   export function convertWordsToImages(words:ArrayLike<number>, fmt:PixelEditorImageFormat) : Uint8Array[] {
     var width = fmt.w;
@@ -346,7 +432,7 @@ export type PixelEditorImageFormat = {
         var shift = 0;
         for (var x=0; x<width; x++) {
           var color = 0;
-          var ofs = ofs0; // TODO: remapBits(ofs0, fmt.remap);
+          var ofs = remapBits(ofs0, fmt.remap);
           // TODO: if (fmt.reindex) { [ofs, shift] = reindexMask(x, fmt.reindex); ofs += ofs0; }
           for (var p=0; p<nplanes; p++) {
             var byte = words[ofs + p*pofs + skip];

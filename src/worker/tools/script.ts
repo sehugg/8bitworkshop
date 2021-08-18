@@ -27,6 +27,7 @@ export async function runJavascript(step: BuildStep): Promise<BuildStepResult> {
         let output : RunResult = { cells, state };
         return { output: output };
     } catch (e) {
+        console.log(e);
         return { errors: env.extractErrors(e) };
     } finally {
         io.$$setupFS(null);
