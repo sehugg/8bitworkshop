@@ -1475,13 +1475,13 @@ function _pause() {
 }
 
 function pause() {
+  if (!checkRunReady()) return;
   clearBreakpoint();
   _pause();
   userPaused = true;
 }
 
 function _resume() {
-  if (!checkRunReady()) return;
   if (!platform.isRunning()) {
     platform.resume();
     console.log("Resumed");
@@ -1491,6 +1491,7 @@ function _resume() {
 }
 
 function resume() {
+  if (!checkRunReady()) return;
   clearBreakpoint();
   if (! platform.isRunning() ) {
     projectWindows.refresh(false);
