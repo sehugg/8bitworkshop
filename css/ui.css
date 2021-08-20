@@ -169,10 +169,6 @@ div.mem_info a.selected {
 .btn_label {
   color: #ccc;
 }
-.btn_group.debug_group {
-}
-.btn_group.view_group {
-}
 .btn_active {
   color: #33cc33 !important;
 }
@@ -342,8 +338,6 @@ canvas.pixelated {
 }
 a.toolbarMenuButton {
   padding:0.3em;
-}
-a.dropdown-toggle {
 }
 a.dropdown-toggle:hover {
  color:#ffffff;
@@ -767,8 +761,6 @@ div.asset_toolbar {
 .tree-level-9 { background-color: #7b8363;}
 .tree-level-10 { background-color: #738363;}
 
-.waverow {
-}
 .waverow.editable:hover {
   background-color: #336633;
 }
@@ -794,7 +786,7 @@ div.asset_toolbar {
   image-rendering: crisp-edges;
 }
 .scripting-cell canvas:hover {
-  border-color:#ccc;
+  border-color:#aaa;
 }
 .scripting-flex canvas {
   min-height: 2vw;
@@ -809,6 +801,8 @@ div.scripting-editor {
 }
 div.scripting-color {
   padding: 0.5em;
+  min-width: 3em;
+  min-height: 3em;
 }
 div.scripting-color span {
   visibility: hidden;
@@ -824,4 +818,17 @@ div.scripting-grid {
 div.scripting-flex {
   display: flex;
   flex-wrap: wrap;
+}
+div.scripting-select > div {
+  border-radius: 2px;
+  border-style: dotted;
+  border-color: transparent;
+
+}
+div.scripting-select > div:hover {
+  border-color: #eee;
+}
+div.scripting-select > .scripting-selected {
+  border-style: solid;
+  border-color: #eee;
 }

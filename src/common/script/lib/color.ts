@@ -1,13 +1,23 @@
 
 import _chroma from 'chroma-js'
-import { isArray } from '../../util';
+import { isArray, rgb2bgr } from '../../util';
 
-export type ColorSource = number | [number,number,number] | [number,number,number,number] | string;
+export type Chroma = { _rgb: [number,number,number,number] };
+
+export type ColorSource = number | [number,number,number] | [number,number,number,number] | string | Chroma;
 
 function checkCount(count) {
     if (count < 0 || count > 65536) {
         throw new Error("Palettes cannot have more than 2^16 (65536) colors.");
     }
+}
+
+export function isPalette(object): object is Palette {
+    return object['colors'] instanceof Uint32Array;
+}
+
+export function isChroma(object): object is Chroma {
+    return object['_rgb'] instanceof Array;
 }
 
 export class Palette {
@@ -28,12 +38,18 @@ export class Palette {
     get(index: number) {
         return this.colors[index];
     }
+    chromas() {
+        return Array.from(this.colors).map((rgba) => from(rgba & 0xffffff));
+    }
 }
 
 export const chroma = _chroma;
 
 export function from(obj: ColorSource) {
-    return _chroma(obj as any);
+    if (typeof obj === 'number')
+        return _chroma(rgb2bgr(obj & 0xffffff));
+    else
+        return _chroma(obj as any);
 }
 
 export function rgb(obj: ColorSource) : number;
@@ -47,6 +63,9 @@ export function rgba(obj: ColorSource) : number;
 export function rgba(r: number, g: number, b: number, a: number) : number;
 
 export function rgba(obj: ColorSource, g?: number, b?: number, a?: number) : number {
+    if (isChroma(obj)) {
+        return rgba(obj._rgb[0], obj._rgb[1], obj._rgb[2], obj._rgb[3]);
+    }
     if (typeof obj === 'number') {
         let r = obj;
         if (typeof g === 'number' && typeof b === 'number')

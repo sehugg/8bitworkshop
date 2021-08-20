@@ -1,13 +1,14 @@
 
 import { BitmapType, IndexedBitmap, RGBABitmap } from "../lib/bitmap";
-import { Component, render, h, ComponentType } from 'preact';
+import { Component, render, h, createRef, VNode } from 'preact';
 import { Cell } from "../env";
-import { findIntegerFactors, hex, rgb2bgr, RGBA } from "../../util";
+import { findIntegerFactors, hex, isArray, rgb2bgr } from "../../util";
 import { dumpRAM } from "../../emu";
 // TODO: can't call methods from this end
-import { Palette } from "../lib/color";
-import { ScriptUISlider, ScriptUISliderType } from "../lib/scriptui";
+import * as color from "../lib/color";
+import { ScriptUISelectType, ScriptUISliderType, ScriptUIType } from "../lib/scriptui";
 import { current_project } from "../../../ide/ui";
+import { EVENT_KEY, InteractEvent, Interactive, isInteractive } from "../lib/io";
 
 const MAX_STRING_LEN = 100;
 const DEFAULT_ASPECT = 1;
@@ -44,16 +45,37 @@ class ColorComponent extends Component<ColorComponentProps> {
         let rgb = this.props.rgbavalue & 0xffffff;
         let bgr = rgb2bgr(rgb);
         var htmlcolor = `#${hex(bgr,6)}`;
-        var textcolor =  (rgb & 0x008000) ? 'black' : 'white';
+        var textcolor = (rgb & 0x008000) ? '#222' : '#ddd';
         var printcolor = hex(rgb & 0xffffff, 6); // TODO: show index instead?
         return h('div', {
-            class: 'scripting-color',
+            class: 'scripting-item scripting-color',
             style: `background-color: ${htmlcolor}; color: ${textcolor}`,
             alt: htmlcolor, // TODO
         }, [
-            h('span', { }, printcolor )
+            //h('span', { }, printcolor )
         ]);
     }
+}
+
+function sendInteraction(iobj: Interactive, type: string, event: Event, xtraprops: {}) {
+    let irec = iobj.$$interact;
+    let ievent : InteractEvent = {interactid: irec.interactid, type, ...xtraprops};
+    if (event instanceof PointerEvent) {
+        const canvas = event.target as HTMLCanvasElement;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (event.clientX - rect.left) * scaleX;
+        const y = (event.clientY - rect.top) * scaleY;
+        ievent.x = Math.round(x);
+        ievent.y = Math.round(y);
+        // TODO: pressure, etc.
+    }
+    // TODO: add events to queue?
+    current_project.updateDataItems([{
+        key: EVENT_KEY,
+        value: ievent
+    }]);
 }
 
 interface BitmapComponentProps {
@@ -63,20 +85,47 @@ interface BitmapComponentProps {
 }
 
 class BitmapComponent extends Component<BitmapComponentProps> {
+    ref = createRef(); // TODO: can we use the ref?
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
     imageData: ImageData;
     datau32: Uint32Array;
+    pressed = false;
 
     constructor(props: BitmapComponentProps) {
         super(props);
     }
     render(virtualDom, containerNode, replaceNode) {
-        return h('canvas', {
+        let props = {
+            class: 'scripting-item',
+            ref: this.ref,
             width: this.props.width,
             height: this.props.height,
-            ...this.props
-        });
+        }
+        let obj : any = this.props.bitmap;
+        if (isInteractive(obj)) {
+            return h('canvas', {
+                onPointerMove: (e: PointerEvent) => {
+                    sendInteraction(obj, 'move', e, { pressed: this.pressed });
+                },
+                onPointerDown: (e: PointerEvent) => {
+                    this.pressed = true;
+                    this.canvas.setPointerCapture(e.pointerId);
+                    sendInteraction(obj, 'down', e, { });
+                },
+                onPointerUp: (e: PointerEvent) => {
+                    this.pressed = false;
+                    sendInteraction(obj, 'up', e, { });
+                },
+                onPointerOut: (e: PointerEvent) => {
+                    this.pressed = false;
+                    sendInteraction(obj, 'out', e, { });
+                },
+                ...props
+            });
+        } else {
+            return h('canvas', props);
+        }
     }
     componentDidMount() {
         this.refresh();
@@ -124,56 +173,6 @@ class BitmapComponent extends Component<BitmapComponentProps> {
     }
 }
 
-interface BitmapEditorState {
-    isEditing: boolean;
-}
-
-class BitmapEditor extends Component<BitmapComponentProps, BitmapEditorState> {
-    render(virtualDom, containerNode, replaceNode) {
-        // TODO: focusable?
-        let bitmapProps = {
-            onClick: (event) => {
-                if (!this.state.isEditing) {
-                    this.setState({ isEditing: true });
-                } else {
-                    // TODO: process click
-                }
-            },
-            ...this.props
-        }
-        let bitmapRender = h(BitmapComponent, bitmapProps, []);
-        let okCancel = null;
-        if (this.state.isEditing) {
-            okCancel = h('div', {}, [
-                button('Ok', () => this.commitChanges()),
-                button('Cancel', () => this.abandonChanges()),
-            ]);
-        }
-        return h('div', {
-            tabIndex: 0,
-            class: this.state.isEditing ? 'scripting-editor' : '' // TODO
-        }, [
-            bitmapRender,
-            okCancel,
-        ])
-    }
-    commitChanges() {
-        this.cancelEditing();
-    }
-    abandonChanges() {
-        this.cancelEditing();
-    }
-    cancelEditing() {
-        this.setState({ isEditing: false });
-    }
-}
-
-function button(label: string, action: () => void) {
-    return h('button', {
-        onClick: action
-    }, [label]);
-}
-
 interface ObjectTreeComponentProps {
     name?: string;
     object: {} | [];
@@ -191,7 +190,7 @@ class ObjectKeyValueComponent extends Component<ObjectTreeComponentProps, Object
         if (expandable)
             hdrclass = this.state.expanded ? 'tree-expanded' : 'tree-collapsed'
         let propName = this.props.name || null;
-        if (propName.startsWith("$$")) propName = null;
+        if (propName && propName.startsWith("$$")) propName = null;
         return h('div', {
             class: 'tree-content',
             key: `${this.props.objpath}__tree`
@@ -201,7 +200,7 @@ class ObjectKeyValueComponent extends Component<ObjectTreeComponentProps, Object
                 onClick: expandable ? () => this.toggleExpand() : null
             }, [
                 h('span', { class: 'tree-key' }, [ propName, expandable ]),
-                h('span', { class: 'tree-value' }, [ getShortName(this.props.object) ])
+                h('span', { class: 'tree-value scripting-item' }, [ getShortName(this.props.object) ])
             ]),
             this.state.expanded ? objectToContentsDiv(this.props.object, this.props.objpath) : null
         ]);
@@ -256,27 +255,39 @@ function isIndexedBitmap(object): object is IndexedBitmap {
 function isRGBABitmap(object): object is RGBABitmap {
     return object['rgba'] instanceof Uint32Array;
 }
-function isPalette(object): object is Palette {
-    return object['colors'] instanceof Uint32Array;
+
+function objectToChildren(object: any) : any[] {
+    if (color.isPalette(object)) {
+        return new color.Palette(object.colors).chromas();
+    } else if (isArray(object)) {
+        return Array.from(object);
+    } else if (object != null) {
+        return [ object ]
+    } else {
+        return [ ]
+    }
 }
 
-function objectToDiv(object: any, name: string, objpath: string) {
-    var props = { class: '', key: `${objpath}__obj` };
-    var children = [];
-    // TODO: tile editor
+function objectToDiv(object: any, name: string, objpath: string): VNode<any> {
     // TODO: limit # of items
     // TODO: detect table
-    //return objectToContentsDiv(object);
     if (object == null) {
-        return object + "";
+        return h('span', { }, object + "");
     } else if (object['uitype']) {
-        return h(UISliderComponent, { iokey: objpath, uiobject: object });
+        let cons = UI_COMPONENTS[object['uitype']];
+        if (!cons) throw new Error(`Unknown UI component type: ${object['uitype']}`);
+        return h(cons, { iokey: objpath, uiobject: object });
     } else if (object['literaltext']) {
         return h("pre", { }, [ object['literaltext'] ]);
     } else if (isIndexedBitmap(object) || isRGBABitmap(object)) {
-        return h(BitmapEditor, { bitmap: object, width: object.width, height: object.height });
-    } else if (isPalette(object)) {
-        if (object.colors.length <= 64) {
+        return h(BitmapComponent, { bitmap: object, width: object.width, height: object.height });
+    } else if (color.isChroma(object)) {
+        return h(ColorComponent, { rgbavalue: color.rgb(object) });
+    } else if (color.isPalette(object)) {
+        // TODO?
+        if (object.colors.length <= 256) {
+            let children = [];
+            let props = { class: '', key: `${objpath}__obj` };
             props.class += ' scripting-flex ';
             object.colors.forEach((val) => {
                 children.push(h(ColorComponent, { rgbavalue: val }));
@@ -317,31 +328,73 @@ function objectToContentsDiv(object: {} | [], objpath: string) {
     return h('div', { class: 'scripting-flex' }, objectDivs);
 }
 
-interface UISliderComponentProps {
+///
+
+interface UIComponentProps {
     iokey: string;
-    uiobject: ScriptUISliderType;
+    uiobject: ScriptUIType;
 }
 
-class UISliderComponent extends Component<UISliderComponentProps> {
+class UISliderComponent extends Component<UIComponentProps> {
     render(virtualDom, containerNode, replaceNode) {
-        let slider = this.props.uiobject;
+        let slider = this.props.uiobject as ScriptUISliderType;
         return h('div', {}, [
             this.props.iokey,
             h('input', {
                 type: 'range',
                 min: slider.min / slider.step,
                 max: slider.max / slider.step,
-                value: this.props.uiobject.value / slider.step,
+                value: slider.value / slider.step,
                 onInput: (ev) => {
-                    let newValue = { value: parseFloat(ev.target.value) * slider.step };
+                    let newUIValue = { value: parseFloat(ev.target.value) * slider.step };
                     this.setState(this.state);
-                    current_project.updateDataItems([{key: this.props.iokey, value: newValue}]);
+                    current_project.updateDataItems([{key: this.props.iokey, value: newUIValue}]);
                 }
             }, []),
             getShortName(slider.value)
         ]);
     }
 }
+
+class UISelectComponent extends Component<UIComponentProps> {
+    ref = createRef();
+    render(virtualDom, containerNode, replaceNode) {
+        let select = this.props.uiobject as ScriptUISelectType<any>;
+        let children = objectToChildren(select.options);
+        return h('div', {
+            class: 'scripting-select scripting-flex',
+            ref: this.ref,
+            onClick: (e) => {
+                // iterate parents until we find select div, then find index of child
+                let target = e.target as HTMLElement;
+                while (target.parentElement && target.parentElement != this.ref.current) {
+                    target = target.parentElement;
+                }
+                const selindex = Array.from(target.parentElement.children).indexOf(target);
+                if (selindex >= 0 && selindex < children.length) {
+                    let newUIValue = { value: children[selindex], index: selindex };
+                    this.setState(this.state);
+                    current_project.updateDataItems([{key: this.props.iokey, value: newUIValue}]);
+                } else {
+                    throw new Error(`Could not find click target of ${this.props.iokey}`);
+                }
+            }
+        },
+        children.map((child, index) => {
+            let div = objectToDiv(child, null, `${this.props.iokey}__select_${index}`);
+            let selected = (index == select.index);
+            return h('div', { class: selected ? 'scripting-selected' : '' }, [ div ]);
+        }))
+        // TODO: show current selection
+    }
+}
+
+const UI_COMPONENTS = {
+    'slider': UISliderComponent,
+    'select': UISelectComponent,
+}
+
+///
 
 export class Notebook {
     constructor(

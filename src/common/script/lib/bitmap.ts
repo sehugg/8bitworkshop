@@ -47,14 +47,18 @@ export abstract class AbstractBitmap<T> {
         dest.assign((x, y) => this.get(x + srcx, y + srcy));
         return dest;
     }
-    blit(src: BitmapType, dest: BitmapType,
+    blit(src: BitmapType, 
         destx: number, desty: number,
         srcx: number, srcy: number)
     {
+        destx |= 0;
+        desty |= 0;
+        srcx |= 0;
+        srcy |= 0;
         for (var y=0; y<src.height; y++) {
             for (var x=0; x<src.width; x++) {
                 let rgba = src.getrgba(x+srcx, y+srcy);
-                dest.set(x+destx, y+desty, rgba);
+                this.set(x+destx, y+desty, rgba);
             }
         }
     }
@@ -210,7 +214,7 @@ export function montage(bitmaps: BitmapType[], options?: MontageOptions) {
         let x = 0;
         let y = 0;
         bitmaps.forEach((bmp) => {
-            result.blit(bmp, result, x, y, 0, 0);
+            result.blit(bmp, x, y, 0, 0);
             hitrects.push({x, y, w: bmp.width, h: bmp.height })
             x += bmp.width + gap;
             if (x >= result.width) {

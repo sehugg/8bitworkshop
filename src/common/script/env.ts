@@ -75,7 +75,7 @@ export class Environment {
     }
     error(varname: string, msg: string) {
         let obj = this.declvars && this.declvars[varname];
-        console.log(varname, obj);
+        console.log('ERROR', varname, obj, this);
         throw new RuntimeError(obj && obj.loc, msg);
     }
     print(args: any[]) {
@@ -108,10 +108,18 @@ export class Environment {
                 return parent() && parent().type === 'ExpressionStatement' && parent(2) && parent(2).type === 'Program';
             }
             const convertTopToPrint = () => {
-                if (isTopLevel()) update(`print(${source()});`)
+                if (isTopLevel()) {
+                    let printkey = `$$print__${this.seq++}`;
+                    update(`this.${printkey} = io.data.load(${source()}, ${JSON.stringify(printkey)})`);
+                    //update(`print(${source()});`)
+                }
             }
             const left = node['left'];
             switch (node.type) {
+                // add preamble, postamble
+                case 'Program':
+                    update(`${this.preamble}${source()}${this.postamble}`)
+                    break;
                 // error on forbidden keywords
                 case 'Identifier':
                     if (GLOBAL_BADLIST.indexOf(source()) >= 0) {
@@ -125,7 +133,7 @@ export class Environment {
                     if (isTopLevel()) {
                         if (left && left.type === 'Identifier') {
                             if (!this.declvars[left.name]) {
-                                update(`var ${left.name}=io.data.get(this.${source()}, ${JSON.stringify(left.name)})`)
+                                update(`var ${left.name}=io.data.load(this.${source()}, ${JSON.stringify(left.name)})`)
                                 this.declvars[left.name] = left;
                             } else {
                                 update(`${left.name}=this.${source()}`)
@@ -157,7 +165,7 @@ export class Environment {
         code = this.preprocess(code);
         this.obj = {};
         const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
-        const fn = new AsyncFunction('$$', this.preamble + code + this.postamble).bind(this.obj, this.builtins);
+        const fn = new AsyncFunction('$$', code).bind(this.obj, this.builtins);
         await fn.call(this);
         this.checkResult(this.obj, new Set(), []);
     }
@@ -171,8 +179,9 @@ export class Environment {
             if (o.BYTES_PER_ELEMENT > 0) return; // typed array, don't bother
             checked.add(o); // so we don't recurse if cycle
             function prkey() { return fullkey.join('.') }
+            // go through all object properties recursively
             for (var [key, value] of Object.entries(o)) {
-                if (value == null && fullkey.length == 0) {
+                if (value == null && fullkey.length == 0 && !key.startsWith("$$")) {
                     this.error(key, `"${key}" has no value.`)
                 }
                 fullkey.push(key);
@@ -180,7 +189,7 @@ export class Environment {
                     if (fullkey.length == 1)
                         this.error(fullkey[0], `"${prkey()}" is a function. Did you forget to pass parameters?`); // TODO? did you mean (needs to see entire expr)
                     else
-                        this.error(fullkey[0], `This expression may be incomplete.`); // TODO? did you mean (needs to see entire expr)
+                        this.error(fullkey[0], `This expression may be incomplete, or it contains a function object: ${prkey()}`); // TODO? did you mean (needs to see entire expr)
                 }
                 if (typeof value === 'symbol') {
                     this.error(fullkey[0], `"${prkey()}" is a Symbol, and can't be used.`) // TODO?
@@ -231,11 +240,12 @@ export class Environment {
         while (frame >= 0) {
             console.log(frames[frame]);
             if (frames[frame].fileName.endsWith('Function')) {
+                // TODO: use source map
                 errors.push( {
                     path: this.path,
                     msg: e.message,
                     line: frames[frame].lineNumber - LINE_NUMBER_OFFSET,
-                    start: frames[frame].columnNumber,
+                    //start: frames[frame].columnNumber,
                 } );
             }
             --frame;
@@ -252,6 +262,7 @@ export class Environment {
     getLoadableState() {
         let updated = null;
         for (let [key, value] of Object.entries(this.declvars)) {
+            // TODO: use Loadable
             if (typeof value['$$getstate'] === 'function') {
                 let loadable = <any>value as io.Loadable;
                 if (updated == null) updated = {};

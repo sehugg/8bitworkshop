@@ -7,6 +7,10 @@ var $$cache: WeakMap<object,FileData> = new WeakMap();
 var $$store: WorkingStore;
 // backing store for data
 var $$data: {} = {};
+// events
+var $$seq = 0;
+// if an event is specified, it goes here
+export const EVENT_KEY = "$$event";
 
 export function $$setupFS(store: WorkingStore) {
     $$store = store;
@@ -20,18 +24,28 @@ export function $$loadData(data: {}) {
 
 // object that can load state from backing store
 export interface Loadable {
-    reset() : void;
+    // called during script, from io.data.load()
+    $$reset() : void;
+    $$setstate?(newstate: {}) : void;
+    // called after script, from io.data.save()
     $$getstate() : {};
 }
 
 export namespace data {
-    export function get(object: Loadable, key: string): Loadable {
+    export function load(object: Loadable, key: string): Loadable {
+        if (object == null) return object;
         let override = $$data && $$data[key];
-        if (override) Object.assign(object, override);
-        else if (object.reset) object.reset();
+        if (override && object.$$setstate) {
+            object.$$setstate(override);
+        } else if (override) {
+            Object.assign(object, override);
+        } else if (object.$$reset) {
+            object.$$reset();
+            data.save(object, key);
+        }
         return object;
     }
-    export function set(object: Loadable, key: string): Loadable {
+    export function save(object: Loadable, key: string): Loadable {
         if ($$data && object.$$getstate) {
             $$data[key] = object.$$getstate();
         }
@@ -114,3 +128,80 @@ export function readlines(url: string) : string[] {
 export function splitlines(text: string) : string[] {
     return text.split(/\n|\r\n/g);
 }
+
+
+// an object that can become interactive, identified by ID
+export interface Interactive {
+    $$interact: InteractionRecord;
+}
+
+export interface InteractEvent {
+    interactid : number;
+    type: string;
+    x?: number;
+    y?: number;
+    button?: boolean;
+}
+
+// InteractionRecord maps a target object to an interaction ID
+// the $$callback is used once per script eval, then gets nulled
+// whether or not it's invoked
+// event comes from $$data.$$event
+export class InteractionRecord implements Loadable {
+    interactid : number;
+    lastevent : {} = null;
+    constructor(
+        public readonly interacttarget: Interactive,
+        private $$callback
+    ) {
+    }
+    $$reset() {
+        this.$$setstate({interactid: ++$$seq})
+    }
+    $$setstate(newstate: {interactid: number}) {
+        this.interactid = newstate.interactid;
+        this.interacttarget.$$interact = this;
+        let event : InteractEvent = $$data[EVENT_KEY];
+        if (event && event.interactid == this.interactid) {
+            if (this.$$callback) {
+                this.$$callback(event);
+            }
+            this.lastevent = event;
+            $$data[EVENT_KEY] = null;
+        }
+        this.$$callback = null;
+    }
+    $$getstate() {
+        //TODO: this isn't always cleared before we serialize (e.g. if exception or move element)
+        this.$$callback = null;
+        return this;
+    }
+}
+
+export function isInteractive(obj: object): obj is Interactive {
+    return !!((obj as Interactive).$$interact);
+}
+
+export function interact(object: any, callback) : InteractionRecord {
+    // TODO: limit to Bitmap, etc
+    if (typeof object === 'object') {
+        return new InteractionRecord(object, callback);
+    }
+    throw new Error(`This object is not capable of interaction.`);
+}
+
+// TODO: what if this isn't top level?
+export class Mutable<T> implements Loadable {
+    value : T;
+    constructor(public readonly initial : T) { }
+    $$reset() {
+        this.value = this.initial;
+    }
+    $$setstate(newstate) {
+        this.value = newstate.value;
+    }
+    $$getstate() {
+        return { value: this.value };
+    }
+}
+
