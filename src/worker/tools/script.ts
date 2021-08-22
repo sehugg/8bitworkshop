@@ -23,7 +23,7 @@ export async function runJavascript(step: BuildStep): Promise<BuildStepResult> {
         io.$$loadData(store.items); // TODO: load from file
         await env.run(code);
         let cells = env.render();
-        let state = env.getLoadableState();
+        let state = env.getLoadableState(); // TODO: doesn't work
         let output : RunResult = { cells, state };
         return { output: output };
     } catch (e) {

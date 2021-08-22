@@ -9,8 +9,6 @@ var $$store: WorkingStore;
 var $$data: {} = {};
 // events
 var $$seq = 0;
-// if an event is specified, it goes here
-export const EVENT_KEY = "$$event";
 
 export function $$setupFS(store: WorkingStore) {
     $$store = store;
@@ -48,6 +46,14 @@ export namespace data {
             $$data[key] = object.$$getstate();
         }
         return object;
+    }
+    export function get(key: string) {
+        return $$data && $$data[key];
+    }
+    export function set(key: string, value: object) {
+        if ($$data) {
+            $$data[key] = value;
+        }
     }
 }
 
@@ -128,67 +134,10 @@ export function splitlines(text: string) : string[] {
 }
 
 
-// an object that can become interactive, identified by ID
-export interface Interactive {
-    $$interact: InteractionRecord;
-}
-
-export interface InteractEvent {
-    interactid : number;
-    type: string;
-    x?: number;
-    y?: number;
-    button?: boolean;
-}
-
-// InteractionRecord maps a target object to an interaction ID
-// the $$callback is used once per script eval, then gets nulled
-// whether or not it's invoked
-// event comes from $$data.$$event
-export class InteractionRecord implements Loadable {
-    interactid : number;
-    lastevent : {} = null;
-    constructor(
-        public readonly interacttarget: Interactive,
-        private $$callback
-    ) {
-    }
-    $$setstate(newstate: {interactid: number}) {
-        this.interactid = newstate.interactid;
-        this.interacttarget.$$interact = this;
-        let event : InteractEvent = $$data[EVENT_KEY];
-        if (event && event.interactid == this.interactid) {
-            if (this.$$callback) {
-                this.$$callback(event);
-            }
-            this.lastevent = event;
-            $$data[EVENT_KEY] = null;
-        }
-        this.$$callback = null;
-    }
-    $$getstate() {
-        //TODO: this isn't always cleared before we serialize (e.g. if exception or move element)
-        this.$$callback = null;
-        return this;
-    }
-}
-
-export function isInteractive(obj: object): obj is Interactive {
-    return !!((obj as Interactive).$$interact);
-}
-
-export function interact(object: any, callback) : InteractionRecord {
-    // TODO: limit to Bitmap, etc
-    if (typeof object === 'object') {
-        return new InteractionRecord(object, callback);
-    }
-    throw new Error(`This object is not capable of interaction.`);
-}
-
 // TODO: what if this isn't top level?
 export class Mutable<T> implements Loadable {
     value : T;
-    constructor(public readonly initial : T) {
+    constructor(initial : T) {
         this.value = initial;
     }
     $$setstate(newstate) {
@@ -199,3 +148,6 @@ export class Mutable<T> implements Loadable {
     }
 }
 
+export function mutable<T>(obj: object) : object {
+    return new Mutable(obj);
+}

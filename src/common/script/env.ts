@@ -8,6 +8,8 @@ import * as output from "./lib/output";
 import * as color from "./lib/color";
 import * as scriptui from "./lib/scriptui";
 
+export const PROP_CONSTRUCTOR_NAME = "$$consname";
+
 export interface Cell {
     id: string;
     object?: any;
@@ -175,6 +177,7 @@ export class Environment {
         if (o == null) return;
         if (checked.has(o)) return;
         if (typeof o === 'object') {
+            o[PROP_CONSTRUCTOR_NAME] = Object.getPrototypeOf(o).constructor.name;
             if (o.length > 100) return; // big array, don't bother
             if (o.BYTES_PER_ELEMENT > 0) return; // typed array, don't bother
             checked.add(o); // so we don't recurse if cycle
@@ -261,8 +264,10 @@ export class Environment {
     }
     getLoadableState() {
         let updated = null;
-        for (let [key, value] of Object.entries(this.declvars)) {
-            // TODO: use Loadable
+        // TODO: use Loadable
+        // TODO: visit children?
+        // TODO: doesn't work
+        for (let [key, value] of Object.entries(this.obj)) {
             if (typeof value['$$getstate'] === 'function') {
                 let loadable = <any>value as io.Loadable;
                 if (updated == null) updated = {};

@@ -10,6 +10,8 @@ export type PixelMapFunction = (x: number, y: number) => number;
 
 export abstract class AbstractBitmap<T> {
     aspect? : number;   // aspect ratio, null == default == 1:1
+    style? : {} = {};   // CSS styles (TODO: other elements?)
+
     constructor(
         public readonly width: number,
         public readonly height: number,

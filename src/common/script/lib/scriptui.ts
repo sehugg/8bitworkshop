@@ -1,6 +1,68 @@
 
 import * as io from "./io";
 
+// if an event is specified, it goes here
+export const EVENT_KEY = "$$event";
+
+// an object that can become interactive, identified by ID
+export interface Interactive {
+    $$interact: InteractionRecord;
+}
+
+export interface InteractEvent {
+    interactid : number;
+    type: string;
+    x?: number;
+    y?: number;
+    button?: boolean;
+}
+
+// InteractionRecord maps a target object to an interaction ID
+// the $$callback is used once per script eval, then gets nulled
+// whether or not it's invoked
+// event comes from $$data.$$event
+export class InteractionRecord implements io.Loadable {
+    interactid : number;
+    lastevent : {} = null;
+    constructor(
+        public readonly interacttarget: Interactive,
+        private $$callback
+    ) {
+    }
+    $$setstate(newstate: {interactid: number}) {
+        this.interactid = newstate.interactid;
+        this.interacttarget.$$interact = this;
+        let event : InteractEvent = io.data.get(EVENT_KEY);
+        if (event && event.interactid == this.interactid) {
+            if (this.$$callback) {
+                this.$$callback(event);
+            }
+            this.lastevent = event;
+            io.data.set(EVENT_KEY, null);
+        }
+        this.$$callback = null;
+    }
+    $$getstate() {
+        //TODO: this isn't always cleared before we serialize (e.g. if exception or move element)
+        this.$$callback = null;
+        return this;
+    }
+}
+
+export function isInteractive(obj: object): obj is Interactive {
+    return !!((obj as Interactive).$$interact);
+}
+
+export function interact(object: any, callback) : InteractionRecord {
+    // TODO: limit to Bitmap, etc
+    if (typeof object === 'object') {
+        return new InteractionRecord(object, callback);
+    }
+    throw new Error(`This object is not capable of interaction.`);
+}
+
+///
+
 export interface ScriptUIType {
     uitype : string;
 }
@@ -18,7 +80,6 @@ export class ScriptUISliderType implements ScriptUIType {
 }
 
 export class ScriptUISlider extends ScriptUISliderType implements io.Loadable {
-    initvalue: number;
     initial(value: number) {
         this.value = value;
         return this;
@@ -41,8 +102,8 @@ export class ScriptUISelectType<T> implements ScriptUIType {
     constructor(
         readonly options: T[]
     ) {
-        this.value = null;
-        this.index = -1;
+        this.index = 0;
+        this.value = this.options[this.index];
     }
 }
 
@@ -59,4 +120,21 @@ export class ScriptUISelect<T> extends ScriptUISelectType<T> implements io.Loada
 
 export function select(options: any[]) {
     return new ScriptUISelect(options);
+}
+
+///
+
+export class ScriptUIButtonType implements ScriptUIType {
+    readonly uitype = 'button';
+    constructor(
+        readonly name: string
+    ) {
+    }
+}
+
+export class ScriptUIButton extends ScriptUIButtonType {
+}
+
+export function button(name: string) {
+    return new ScriptUIButton(name);
 }

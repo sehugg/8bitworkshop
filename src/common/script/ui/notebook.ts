@@ -1,14 +1,13 @@
 
-import { BitmapType, IndexedBitmap, RGBABitmap } from "../lib/bitmap";
 import { Component, render, h, createRef, VNode } from 'preact';
-import { Cell } from "../env";
+import { Cell, PROP_CONSTRUCTOR_NAME } from "../env";
 import { findIntegerFactors, hex, isArray, rgb2bgr } from "../../util";
 import { dumpRAM } from "../../emu";
-// TODO: can't call methods from this end
-import * as color from "../lib/color";
-import { ScriptUISelectType, ScriptUISliderType, ScriptUIType } from "../lib/scriptui";
 import { current_project } from "../../../ide/ui";
-import { EVENT_KEY, InteractEvent, Interactive, isInteractive } from "../lib/io";
+// TODO: can't call methods from this end (e.g. Palette, Bitmap)
+import * as bitmap from "../lib/bitmap";
+import * as color from "../lib/color";
+import * as scriptui from "../lib/scriptui";
 
 const MAX_STRING_LEN = 100;
 const DEFAULT_ASPECT = 1;
@@ -57,9 +56,9 @@ class ColorComponent extends Component<ColorComponentProps> {
     }
 }
 
-function sendInteraction(iobj: Interactive, type: string, event: Event, xtraprops: {}) {
+function sendInteraction(iobj: scriptui.Interactive, type: string, event: Event, xtraprops: {}) {
     let irec = iobj.$$interact;
-    let ievent : InteractEvent = {interactid: irec.interactid, type, ...xtraprops};
+    let ievent : scriptui.InteractEvent = {interactid: irec.interactid, type, ...xtraprops};
     if (event instanceof PointerEvent) {
         const canvas = event.target as HTMLCanvasElement;
         const rect = canvas.getBoundingClientRect();
@@ -73,13 +72,13 @@ function sendInteraction(iobj: Interactive, type: string, event: Event, xtraprop
     }
     // TODO: add events to queue?
     current_project.updateDataItems([{
-        key: EVENT_KEY,
+        key: scriptui.EVENT_KEY,
         value: ievent
     }]);
 }
 
 interface BitmapComponentProps {
-    bitmap: BitmapType;
+    bitmap: bitmap.BitmapType;
     width: number;
     height: number;
 }
@@ -101,9 +100,10 @@ class BitmapComponent extends Component<BitmapComponentProps> {
             ref: this.ref,
             width: this.props.width,
             height: this.props.height,
+            style: this.props.bitmap.style
         }
         let obj : any = this.props.bitmap;
-        if (isInteractive(obj)) {
+        if (scriptui.isInteractive(obj)) {
             return h('canvas', {
                 onPointerMove: (e: PointerEvent) => {
                     sendInteraction(obj, 'move', e, { pressed: this.pressed });
@@ -111,15 +111,15 @@ class BitmapComponent extends Component<BitmapComponentProps> {
                 onPointerDown: (e: PointerEvent) => {
                     this.pressed = true;
                     this.canvas.setPointerCapture(e.pointerId);
-                    sendInteraction(obj, 'down', e, { });
+                    sendInteraction(obj, 'down', e, { pressed: true });
                 },
                 onPointerUp: (e: PointerEvent) => {
                     this.pressed = false;
-                    sendInteraction(obj, 'up', e, { });
+                    sendInteraction(obj, 'up', e, { pressed: false });
                 },
                 onPointerOut: (e: PointerEvent) => {
                     this.pressed = false;
-                    sendInteraction(obj, 'out', e, { });
+                    sendInteraction(obj, 'out', e, { pressed: false });
                 },
                 ...props
             });
@@ -154,18 +154,18 @@ class BitmapComponent extends Component<BitmapComponentProps> {
         this.updateCanvas(this.datau32, this.props.bitmap);
         this.ctx.putImageData(this.imageData, 0, 0);
     }
-    updateCanvas(vdata: Uint32Array, bmp: BitmapType) {
+    updateCanvas(vdata: Uint32Array, bmp: bitmap.BitmapType) {
         if (bmp['palette']) {
-            this.updateCanvasIndexed(vdata, bmp as IndexedBitmap);
+            this.updateCanvasIndexed(vdata, bmp as bitmap.IndexedBitmap);
         }
         if (bmp['rgba']) {
-            this.updateCanvasRGBA(vdata, bmp as RGBABitmap);
+            this.updateCanvasRGBA(vdata, bmp as bitmap.RGBABitmap);
         }
     }
-    updateCanvasRGBA(vdata: Uint32Array, bmp: RGBABitmap) {
+    updateCanvasRGBA(vdata: Uint32Array, bmp: bitmap.RGBABitmap) {
         vdata.set(bmp.rgba);
     }
-    updateCanvasIndexed(vdata: Uint32Array, bmp: IndexedBitmap) {
+    updateCanvasIndexed(vdata: Uint32Array, bmp: bitmap.IndexedBitmap) {
         let pal = bmp.palette.colors;
         for (var i = 0; i < bmp.pixels.length; i++) {
             vdata[i] = pal[bmp.pixels[i]];
@@ -190,7 +190,6 @@ class ObjectKeyValueComponent extends Component<ObjectTreeComponentProps, Object
         if (expandable)
             hdrclass = this.state.expanded ? 'tree-expanded' : 'tree-collapsed'
         let propName = this.props.name || null;
-        if (propName && propName.startsWith("$$")) propName = null;
         return h('div', {
             class: 'tree-content',
             key: `${this.props.objpath}__tree`
@@ -199,8 +198,10 @@ class ObjectKeyValueComponent extends Component<ObjectTreeComponentProps, Object
                 class: 'tree-header ' + hdrclass,
                 onClick: expandable ? () => this.toggleExpand() : null
             }, [
-                h('span', { class: 'tree-key' }, [ propName, expandable ]),
-                h('span', { class: 'tree-value scripting-item' }, [ getShortName(this.props.object) ])
+                propName != null ? h('span', { class: 'tree-key' }, [ propName, expandable ]) : null,
+                h('span', { class: 'tree-value scripting-item' }, [
+                    getShortName(this.props.object)
+                ])
             ]),
             this.state.expanded ? objectToContentsDiv(this.props.object, this.props.objpath) : null
         ]);
@@ -213,7 +214,7 @@ class ObjectKeyValueComponent extends Component<ObjectTreeComponentProps, Object
 function getShortName(object: any) {
     if (typeof object === 'object') {
         try {
-            var s = Object.getPrototypeOf(object).constructor.name;
+            var s = object[PROP_CONSTRUCTOR_NAME] || Object.getPrototypeOf(object).constructor.name;
             if (object.length > 0) {
                 s += `[${object.length}]`
             }
@@ -241,18 +242,20 @@ function primitiveToString(obj) {
     } else if (typeof obj == 'number') {
         if (obj != (obj | 0)) text = obj.toString(); // must be a float
         else text = obj + "\t($" + hex(obj) + ")";
+    } else if (typeof obj == 'string') {
+        text = obj;
     } else {
         text = JSON.stringify(obj);
-        if (text.length > MAX_STRING_LEN)
-            text = text.substring(0, MAX_STRING_LEN) + "...";
     }
+    if (text.length > MAX_STRING_LEN)
+        text = text.substring(0, MAX_STRING_LEN) + "...";
     return text;
 }
 
-function isIndexedBitmap(object): object is IndexedBitmap {
+function isIndexedBitmap(object): object is bitmap.IndexedBitmap {
     return object['bitsPerPixel'] && object['pixels'] && object['palette'];
 }
-function isRGBABitmap(object): object is RGBABitmap {
+function isRGBABitmap(object): object is bitmap.RGBABitmap {
     return object['rgba'] instanceof Uint32Array;
 }
 
@@ -269,6 +272,12 @@ function objectToChildren(object: any) : any[] {
 }
 
 function objectToDiv(object: any, name: string, objpath: string): VNode<any> {
+    // don't view any keys that start with "$"
+    if (name && name.startsWith("$")) {
+        // don't view any values that start with "$$"
+        if (name.startsWith("$$")) { return; }
+        name = null;
+    }
     // TODO: limit # of items
     // TODO: detect table
     if (object == null) {
@@ -332,12 +341,12 @@ function objectToContentsDiv(object: {} | [], objpath: string) {
 
 interface UIComponentProps {
     iokey: string;
-    uiobject: ScriptUIType;
+    uiobject: scriptui.ScriptUIType;
 }
 
 class UISliderComponent extends Component<UIComponentProps> {
     render(virtualDom, containerNode, replaceNode) {
-        let slider = this.props.uiobject as ScriptUISliderType;
+        let slider = this.props.uiobject as scriptui.ScriptUISliderType;
         return h('div', {}, [
             this.props.iokey,
             h('input', {
@@ -350,8 +359,8 @@ class UISliderComponent extends Component<UIComponentProps> {
                     this.setState(this.state);
                     current_project.updateDataItems([{key: this.props.iokey, value: newUIValue}]);
                 }
-            }, []),
-            getShortName(slider.value)
+            }),
+            h('span', { }, getShortName(slider.value)),
         ]);
     }
 }
@@ -359,24 +368,26 @@ class UISliderComponent extends Component<UIComponentProps> {
 class UISelectComponent extends Component<UIComponentProps> {
     ref = createRef();
     render(virtualDom, containerNode, replaceNode) {
-        let select = this.props.uiobject as ScriptUISelectType<any>;
+        let select = this.props.uiobject as scriptui.ScriptUISelectType<any>;
         let children = objectToChildren(select.options);
         return h('div', {
             class: 'scripting-select scripting-flex',
             ref: this.ref,
             onClick: (e) => {
-                // iterate parents until we find select div, then find index of child
+                // select object -- iterate parents until we find select div, then find index of child
                 let target = e.target as HTMLElement;
                 while (target.parentElement && target.parentElement != this.ref.current) {
                     target = target.parentElement;
                 }
-                const selindex = Array.from(target.parentElement.children).indexOf(target);
-                if (selindex >= 0 && selindex < children.length) {
-                    let newUIValue = { value: children[selindex], index: selindex };
-                    this.setState(this.state);
-                    current_project.updateDataItems([{key: this.props.iokey, value: newUIValue}]);
-                } else {
-                    throw new Error(`Could not find click target of ${this.props.iokey}`);
+                if (target.parentElement) {
+                    const selindex = Array.from(target.parentElement.children).indexOf(target);
+                    if (selindex >= 0 && selindex < children.length) {
+                        let newUIValue = { value: children[selindex], index: selindex };
+                        this.setState(this.state);
+                        current_project.updateDataItems([{key: this.props.iokey, value: newUIValue}]);
+                    } else {
+                        throw new Error(`Could not find click target of ${this.props.iokey}`);
+                    }
                 }
             }
         },
