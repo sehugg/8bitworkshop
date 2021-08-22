@@ -25,7 +25,6 @@ export function $$loadData(data: {}) {
 // object that can load state from backing store
 export interface Loadable {
     // called during script, from io.data.load()
-    $$reset() : void;
     $$setstate?(newstate: {}) : void;
     // called after script, from io.data.save()
     $$getstate() : {};
@@ -39,9 +38,8 @@ export namespace data {
             object.$$setstate(override);
         } else if (override) {
             Object.assign(object, override);
-        } else if (object.$$reset) {
-            object.$$reset();
-            data.save(object, key);
+        } else if (object.$$getstate) {
+            save(object, key); // $$reset not needed
         }
         return object;
     }
@@ -155,9 +153,6 @@ export class InteractionRecord implements Loadable {
         private $$callback
     ) {
     }
-    $$reset() {
-        this.$$setstate({interactid: ++$$seq})
-    }
     $$setstate(newstate: {interactid: number}) {
         this.interactid = newstate.interactid;
         this.interacttarget.$$interact = this;
@@ -193,9 +188,8 @@ export function interact(object: any, callback) : InteractionRecord {
 // TODO: what if this isn't top level?
 export class Mutable<T> implements Loadable {
     value : T;
-    constructor(public readonly initial : T) { }
-    $$reset() {
-        this.value = this.initial;
+    constructor(public readonly initial : T) {
+        this.value = initial;
     }
     $$setstate(newstate) {
         this.value = newstate.value;

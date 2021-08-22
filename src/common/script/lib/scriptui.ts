@@ -13,17 +13,15 @@ export class ScriptUISliderType implements ScriptUIType {
         readonly max: number,
         readonly step: number
     ) {
+        this.value = min;
     }
 }
 
 export class ScriptUISlider extends ScriptUISliderType implements io.Loadable {
     initvalue: number;
     initial(value: number) {
-        this.initvalue = value;
+        this.value = value;
         return this;
-    }
-    $$reset() {
-        this.value = this.initvalue != null ? this.initvalue : this.min;
     }
     $$getstate() {
         return { value: this.value };
@@ -39,22 +37,20 @@ export function slider(min: number, max: number, step?: number) {
 export class ScriptUISelectType<T> implements ScriptUIType {
     readonly uitype = 'select';
     value: T;
-    index: number = -1;
+    index: number;
     constructor(
         readonly options: T[]
     ) {
+        this.value = null;
+        this.index = -1;
     }
 }
 
 export class ScriptUISelect<T> extends ScriptUISelectType<T> implements io.Loadable {
-    initindex : number;
     initial(index: number) {
-        this.initindex = index;
+        this.index = index;
+        this.value = this.options[index];
         return this;
-    }
-    $$reset() {
-        this.index = this.initindex >= 0 ? this.initindex : -1;
-        this.value = null;
     }
     $$getstate() {
         return { value: this.value, index: this.index };
