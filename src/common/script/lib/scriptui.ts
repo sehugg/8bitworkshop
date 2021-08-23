@@ -44,6 +44,7 @@ export class InteractionRecord implements io.Loadable {
     }
     $$getstate() {
         //TODO: this isn't always cleared before we serialize (e.g. if exception or move element)
+        //and we do it in checkResult() too
         this.$$callback = null;
         return this;
     }

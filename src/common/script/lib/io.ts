@@ -7,8 +7,6 @@ var $$cache: WeakMap<object,FileData> = new WeakMap();
 var $$store: WorkingStore;
 // backing store for data
 var $$data: {} = {};
-// events
-var $$seq = 0;
 
 export function $$setupFS(store: WorkingStore) {
     $$store = store;
@@ -36,8 +34,6 @@ export namespace data {
             object.$$setstate(override);
         } else if (override) {
             Object.assign(object, override);
-        } else if (object.$$getstate) {
-            save(object, key); // $$reset not needed
         }
         return object;
     }
@@ -149,5 +145,17 @@ export class Mutable<T> implements Loadable {
 }
 
 export function mutable<T>(obj: object) : object {
-    return new Mutable(obj);
+    Object.defineProperty(obj, '$$setstate', {
+        value: function(newstate) {
+            Object.assign(this, newstate);
+        },
+        enumerable: false
+    });
+    Object.defineProperty(obj, '$$getstate', {
+        value: function() {
+            return this;
+        },
+        enumerable: false
+    });
+    return obj;
 }

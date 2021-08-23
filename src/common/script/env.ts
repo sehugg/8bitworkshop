@@ -51,6 +51,13 @@ class RuntimeError extends Error {
     }
 }
 
+function setConstructorName(o: object) : void {
+    let name = Object.getPrototypeOf(o)?.constructor?.name;
+    if (name != null && name != 'Object') {
+        o[PROP_CONSTRUCTOR_NAME] = name;
+    }
+}
+
 export class Environment {
     preamble: string;
     postamble: string;
@@ -82,7 +89,7 @@ export class Environment {
     }
     print(args: any[]) {
         if (args && args.length > 0 && args[0] != null) {
-            this.obj[`$$print__${this.seq++}`] = args.length == 1 ? args[0] : args;
+            this.obj[`$print__${this.seq++}`] = args.length == 1 ? args[0] : args;
         }
     }
     preprocess(code: string): string {
@@ -111,7 +118,7 @@ export class Environment {
             }
             const convertTopToPrint = () => {
                 if (isTopLevel()) {
-                    let printkey = `$$print__${this.seq++}`;
+                    let printkey = `$print__${this.seq++}`;
                     update(`this.${printkey} = io.data.load(${source()}, ${JSON.stringify(printkey)})`);
                     //update(`print(${source()});`)
                 }
@@ -153,7 +160,7 @@ export class Environment {
                 // literal comments
                 case 'Literal':
                     if (typeof node['value'] === 'string' && isTopLevel()) {
-                        update(`this.$$doc__${this.seq++} = { literaltext: ${source()} };`);
+                        update(`this.$doc__${this.seq++} = { literaltext: ${source()} };`);
                     } else {
                         convertTopToPrint();
                     }
@@ -177,7 +184,8 @@ export class Environment {
         if (o == null) return;
         if (checked.has(o)) return;
         if (typeof o === 'object') {
-            o[PROP_CONSTRUCTOR_NAME] = Object.getPrototypeOf(o).constructor.name;
+            setConstructorName(o);
+            delete o.$$callback; // clear callbacks (TODO? put somewhere else?)
             if (o.length > 100) return; // big array, don't bother
             if (o.BYTES_PER_ELEMENT > 0) return; // typed array, don't bother
             checked.add(o); // so we don't recurse if cycle
@@ -263,17 +271,11 @@ export class Environment {
         return errors;
     }
     getLoadableState() {
-        let updated = null;
-        // TODO: use Loadable
         // TODO: visit children?
-        // TODO: doesn't work
         for (let [key, value] of Object.entries(this.obj)) {
-            if (typeof value['$$getstate'] === 'function') {
-                let loadable = <any>value as io.Loadable;
-                if (updated == null) updated = {};
-                updated[key] = loadable.$$getstate();
-            }
+            let loadable = <any>value as io.Loadable;
+            io.data.save(loadable, key);
         }
-        return updated;
+        return io.$$getData();
     }
 }
