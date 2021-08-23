@@ -1,4 +1,3 @@
-import { UintArray } from "../ide/pixeleditor";
 
 export function lpad(s:string, n:number):string {
   s += ''; // convert to string
@@ -56,7 +55,7 @@ export function toradix(v:number, nd:number, radix:number) {
   }
 }
 
-export function arrayCompare(a:any[]|UintArray, b:any[]|UintArray):boolean {
+export function arrayCompare(a:ArrayLike<any>, b:ArrayLike<any>):boolean {
   if (a == null && b == null) return true;
   if (a == null) return false;
   if (b == null) return false;
@@ -661,4 +660,35 @@ export function findIntegerFactors(x: number, mina: number, minb: number, aspect
     b = b2;
   }
   return {a, b};
+}
+
+export class FileDataCache {
+  maxSize : number = 8000000;
+  size : number;
+  cache : Map<string, string|Uint8Array>;
+  constructor() {
+    this.reset();
+  }
+  get(key : string) : string|Uint8Array {
+    return this.cache.get(key);
+  }
+  put(key : string, value : string|Uint8Array) {
+    this.cache.set(key, value);
+    this.size += value.length;
+    if (this.size > this.maxSize) {
+      console.log('cache reset', this);
+      this.reset();
+    }
+  }
+  reset() {
+    this.cache = new Map();
+    this.size = 0;
+  }
+}
+
+export function coerceToArray<T>(arrobj: any) : T[] {
+    if (Array.isArray(arrobj)) return arrobj;
+    else if (arrobj != null && typeof arrobj[Symbol.iterator] === 'function') return Array.from(arrobj);
+    else if (typeof arrobj === 'object') return Array.from(Object.values(arrobj))
+    else throw new Error(`Expected array or object, got "${arrobj}"`);
 }

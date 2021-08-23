@@ -1,5 +1,9 @@
 
+import { coerceToArray } from "../../util";
 import * as io from "./io";
+
+// sequence counter
+var $$seq : number = 0;
 
 // if an event is specified, it goes here
 export const EVENT_KEY = "$$event";
@@ -17,17 +21,22 @@ export interface InteractEvent {
     button?: boolean;
 }
 
+export type InteractCallback = (event: InteractEvent) => void;
+
 // InteractionRecord maps a target object to an interaction ID
 // the $$callback is used once per script eval, then gets nulled
 // whether or not it's invoked
 // event comes from $$data.$$event
 export class InteractionRecord implements io.Loadable {
+    readonly interacttarget: Interactive;
     interactid : number;
     lastevent : {} = null;
     constructor(
-        public readonly interacttarget: Interactive,
-        private $$callback
+        interacttarget: Interactive,
+        private $$callback: InteractCallback
     ) {
+        this.interacttarget = interacttarget || (<any>this as Interactive);
+        this.interactid = ++$$seq;
     }
     $$setstate(newstate: {interactid: number}) {
         this.interactid = newstate.interactid;
@@ -46,7 +55,7 @@ export class InteractionRecord implements io.Loadable {
         //TODO: this isn't always cleared before we serialize (e.g. if exception or move element)
         //and we do it in checkResult() too
         this.$$callback = null;
-        return this;
+        return {interactid: this.interactid};
     }
 }
 
@@ -125,17 +134,42 @@ export function select(options: any[]) {
 
 ///
 
-export class ScriptUIButtonType implements ScriptUIType {
+export class ScriptUIButtonType extends InteractionRecord implements ScriptUIType, Interactive {
     readonly uitype = 'button';
+    $$interact: InteractionRecord;
+    enabled?: boolean;
+
     constructor(
-        readonly name: string
+        readonly label: string,
+        callback: InteractCallback
     ) {
+        super(null, callback);
+        this.$$interact = this;
     }
 }
 
 export class ScriptUIButton extends ScriptUIButtonType {
 }
 
-export function button(name: string) {
-    return new ScriptUIButton(name);
+export function button(name: string, callback: InteractCallback) {
+    return new ScriptUIButton(name, callback);
+}
+
+export class ScriptUIToggle extends ScriptUIButton implements io.Loadable {
+    // share with InteractionRecord
+    $$getstate() {
+        let state = super.$$getstate() as any;
+        state.enabled = this.enabled;
+        return state;
+    }
+    $$setstate(newstate: any) {
+        this.enabled = newstate.enabled;
+        super.$$setstate(newstate);
+    }
+}
+
+export function toggle(name: string) {
+    return new ScriptUIToggle(name, function(e) {
+        this.enabled = !this.enabled;
+    });
 }

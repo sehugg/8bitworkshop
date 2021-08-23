@@ -192,7 +192,7 @@ export class Environment {
             function prkey() { return fullkey.join('.') }
             // go through all object properties recursively
             for (var [key, value] of Object.entries(o)) {
-                if (value == null && fullkey.length == 0 && !key.startsWith("$$")) {
+                if (value == null && fullkey.length == 0 && !key.startsWith("$")) {
                     this.error(key, `"${key}" has no value.`)
                 }
                 fullkey.push(key);
@@ -244,10 +244,22 @@ export class Environment {
                 start: loc.column,
             }]
         }
-        // TODO: Cannot parse given Error object
+        // TODO: Cannot parse given Error object?
         let frames = ErrorStackParser.parse(e);
         let frame = frames.findIndex(f => f.functionName === 'anonymous');
         let errors = [];
+        // if ErrorStackParser fails, resort to regex
+        if (frame < 0 && e.stack != null) {
+            let m = /.anonymous.:(\d+):(\d+)/g.exec(e.stack);
+            if (m != null) {
+                errors.push( {
+                    path: this.path,
+                    msg: e.message,
+                    line: parseInt(m[1]) - LINE_NUMBER_OFFSET,
+                });
+            }
+        }
+        // otherwise iterate thru all the frames
         while (frame >= 0) {
             console.log(frames[frame]);
             if (frames[frame].fileName.endsWith('Function')) {
@@ -261,6 +273,7 @@ export class Environment {
             }
             --frame;
         }
+        // if no stack frames parsed, last resort error msg
         if (errors.length == 0) {
             errors.push( {
                 path: this.path,

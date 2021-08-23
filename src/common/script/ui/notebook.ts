@@ -12,27 +12,27 @@ import * as scriptui from "../lib/scriptui";
 const MAX_STRING_LEN = 100;
 const DEFAULT_ASPECT = 1;
 
-interface ObjectStats {
-    type: 'prim' | 'complex' | 'bitmap'
-    width: number
-    height: number
-    units: 'em' | 'px'
-}
-
-// TODO
-class ObjectAnalyzer {
-    recurse(obj: any) : ObjectStats {
-        if (typeof obj === 'string') {
-            return { type: 'prim', width: obj.length, height: 1, units: 'em' }
-        } else if (obj instanceof Uint8Array) {
-            return { type: 'complex', width: 60, height: Math.ceil(obj.length / 16), units: 'em' }
-        } else if (typeof obj === 'object') {
-            let stats : ObjectStats = { type: 'complex', width: 0, height: 0, units: 'em'};
-            return stats; // TODO
-        } else {
-            return { type: 'prim', width: 12, height: 1, units: 'em' }
-        }
+function sendInteraction(iobj: scriptui.Interactive, type: string, event: Event, xtraprops: {}) {
+    let irec = iobj.$$interact;
+    let ievent : scriptui.InteractEvent = {interactid: irec.interactid, type, ...xtraprops};
+    if (event instanceof PointerEvent) {
+        const canvas = event.target as HTMLCanvasElement;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (event.clientX - rect.left) * scaleX;
+        const y = (event.clientY - rect.top) * scaleY;
+        ievent.x = Math.floor(x);
+        ievent.y = Math.floor(y);
+        // TODO: pressure, etc.
+    } else {
+        console.log("Unknown event type", event);
     }
+    // TODO: add events to queue?
+    current_project.updateDataItems([{
+        key: scriptui.EVENT_KEY,
+        value: ievent
+    }]);
 }
 
 interface ColorComponentProps {
@@ -54,27 +54,6 @@ class ColorComponent extends Component<ColorComponentProps> {
             //h('span', { }, printcolor )
         ]);
     }
-}
-
-function sendInteraction(iobj: scriptui.Interactive, type: string, event: Event, xtraprops: {}) {
-    let irec = iobj.$$interact;
-    let ievent : scriptui.InteractEvent = {interactid: irec.interactid, type, ...xtraprops};
-    if (event instanceof PointerEvent) {
-        const canvas = event.target as HTMLCanvasElement;
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const x = (event.clientX - rect.left) * scaleX;
-        const y = (event.clientY - rect.top) * scaleY;
-        ievent.x = Math.round(x);
-        ievent.y = Math.round(y);
-        // TODO: pressure, etc.
-    }
-    // TODO: add events to queue?
-    current_project.updateDataItems([{
-        key: scriptui.EVENT_KEY,
-        value: ievent
-    }]);
 }
 
 interface BitmapComponentProps {
@@ -253,7 +232,7 @@ function primitiveToString(obj) {
 }
 
 function isIndexedBitmap(object): object is bitmap.IndexedBitmap {
-    return object['bitsPerPixel'] && object['pixels'] && object['palette'];
+    return object['bpp'] && object['pixels'] && object['palette'];
 }
 function isRGBABitmap(object): object is bitmap.RGBABitmap {
     return object['rgba'] instanceof Uint32Array;
@@ -275,7 +254,10 @@ function objectToDiv(object: any, name: string, objpath: string): VNode<any> {
     // don't view any keys that start with "$"
     if (name && name.startsWith("$")) {
         // don't view any values that start with "$$"
-        if (name.startsWith("$$")) { return; }
+        if (name.startsWith("$$")) return;
+        // don't print if null or undefined
+        if (object == null) return;
+        // don't print key in any case
         name = null;
     }
     // TODO: limit # of items
@@ -400,9 +382,24 @@ class UISelectComponent extends Component<UIComponentProps> {
     }
 }
 
+class UIButtonComponent extends Component<UIComponentProps> {
+    render(virtualDom, containerNode, replaceNode) {
+        let button = this.props.uiobject as scriptui.ScriptUIButtonType;
+        return h('button', {
+            class: button.enabled ? 'scripting-button scripting-enabled' : 'scripting-button',
+            onClick: (e: MouseEvent) => {
+                sendInteraction(button, 'click', e, { });
+            },
+        }, [ 
+            button.label 
+        ])
+    }
+}
+
 const UI_COMPONENTS = {
     'slider': UISliderComponent,
     'select': UISelectComponent,
+    'button': UIButtonComponent,
 }
 
 ///

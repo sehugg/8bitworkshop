@@ -147,6 +147,7 @@ function fatalError(s:string) {
 }
 
 function newWorker() : Worker {
+  // TODO: return new Worker("https://8bitworkshop.com.s3-website-us-east-1.amazonaws.com/dev/gen/worker/bundle.js");
   return new Worker("./gen/worker/bundle.js");
 }
 

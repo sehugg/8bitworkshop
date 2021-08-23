@@ -802,9 +802,8 @@ div.scripting-editor {
   max-height: 50vw;
 }
 div.scripting-color {
-  padding: 0.5em;
-  min-width: 3em;
-  min-height: 3em;
+  min-width: 2em;
+  min-height: 2em;
   border: 3px solid black;
 }
 div.scripting-color span {
@@ -835,4 +834,15 @@ div.scripting-select > div:hover {
 div.scripting-select > .scripting-selected {
   border-style: solid;
   border-color: #eee;
+}
+div.scripting-cell button {
+  background-color: #333;
+  color: #fff;
+  padding: 0.5em;
+}
+div.scripting-cell button:hover {
+  border-color: #fff;
+}
+div.scripting-cell button.scripting-enabled {
+  background-color: #339999;
 }

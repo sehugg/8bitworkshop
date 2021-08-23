@@ -4,7 +4,7 @@ import * as fastpng from 'fast-png';
 import { Palette } from './color';
 import * as io from './io'
 import * as color from './color'
-import { findIntegerFactors, RGBA } from '../../util';
+import { coerceToArray, findIntegerFactors, RGBA } from '../../util';
 
 export type PixelMapFunction = (x: number, y: number) => number;
 
@@ -17,17 +17,16 @@ export abstract class AbstractBitmap<T> {
         public readonly height: number,
     ) {
     }
-
     abstract blank(width: number, height: number) : AbstractBitmap<T>;
-    abstract setarray(arr: ArrayLike<number>) : AbstractBitmap<T>;
-    abstract set(x: number, y: number, val: number) : AbstractBitmap<T>;
+    abstract setarray(arr: ArrayLike<number>) : void;
+    abstract set(x: number, y: number, val: number) : void;
     abstract get(x: number, y: number): number;
     abstract getrgba(x: number, y: number): number;
 
     inbounds(x: number, y: number): boolean {
         return (x >= 0 && x < this.width && y >= 0 && y < this.height);
     }
-    assign(fn: ArrayLike<number> | PixelMapFunction) {
+    assign(fn: ArrayLike<number> | PixelMapFunction) : void {
         if (typeof fn === 'function') {
             for (let y=0; y<this.height; y++) {
                 for (let x=0; x<this.width; x++) {
@@ -39,10 +38,11 @@ export abstract class AbstractBitmap<T> {
         } else {
             throw new Error(`Illegal argument to assign(): ${fn}`)
         }
-        return this;
     }
     clone() : AbstractBitmap<T> {
-        return this.blank(this.width, this.height).assign((x,y) => this.get(x,y));
+        let bmp = this.blank(this.width, this.height);
+        bmp.assign((x,y) => this.get(x,y));
+        return bmp;
     }
     crop(srcx: number, srcy: number, width: number, height: number) {
         let dest = this.blank(width, height);
@@ -64,6 +64,13 @@ export abstract class AbstractBitmap<T> {
             }
         }
     }
+    fill(destx: number, desty: number, width:number, height:number, value:number) {
+        for (var y=0; y<height; y++) {
+            for (var x=0; x<width; x++) {
+                this.set(x+destx, y+desty, value);
+            }
+        }
+    }
 }
 
 export class RGBABitmap extends AbstractBitmap<RGBABitmap> {
@@ -80,11 +87,9 @@ export class RGBABitmap extends AbstractBitmap<RGBABitmap> {
     }
     setarray(arr: ArrayLike<number>) {
         this.rgba.set(arr);
-        return this;
     }
     set(x: number, y: number, rgba: number) {
         if (this.inbounds(x,y)) this.rgba[y * this.width + x] = rgba;
-        return this;
     }
     get(x: number, y: number): number {
         return this.inbounds(x,y) ? this.rgba[y * this.width + x] : 0;
@@ -92,8 +97,8 @@ export class RGBABitmap extends AbstractBitmap<RGBABitmap> {
     getrgba(x: number, y: number): number {
         return this.get(x, y);
     }
-    blank(width: number, height: number) : RGBABitmap {
-        return new RGBABitmap(width, height);
+    blank(width?: number, height?: number) : RGBABitmap {
+        return new RGBABitmap(width || this.width, height || this.height);
     }
     clone() : RGBABitmap {
         let bitmap = this.blank(this.width, this.height);
@@ -108,26 +113,34 @@ export abstract class MappedBitmap extends AbstractBitmap<MappedBitmap> {
     constructor(
         width: number,
         height: number,
-        public readonly bitsPerPixel: number,
+        public readonly bpp: number,
         initial?: Uint8Array | PixelMapFunction
     ) {
         super(width, height);
-        if (bitsPerPixel != 1 && bitsPerPixel != 2 && bitsPerPixel != 4 && bitsPerPixel != 8)
-            throw new Error(`Invalid bits per pixel: ${bitsPerPixel}`);
+        if (bpp != 1 && bpp != 2 && bpp != 4 && bpp != 8)
+            throw new Error(`Invalid bits per pixel: ${bpp}`);
         this.pixels = new Uint8Array(this.width * this.height);
         if (initial) this.assign(initial);
     }
     setarray(arr: ArrayLike<number>) {
         this.pixels.set(arr);
-        return this;
     }
     set(x: number, y: number, index: number) {
         if (this.inbounds(x,y)) this.pixels[y * this.width + x] = index;
-        return this;
     }
     get(x: number, y: number): number {
         return this.inbounds(x,y) ? this.pixels[y * this.width + x] : 0;
     }
+}
+
+function getbpp(x : number | Palette) : number {
+    if (typeof x === 'number') return x;
+    if (x instanceof Palette) {
+        if (x.colors.length <= 2) return 1;
+        else if (x.colors.length <= 4) return 2;
+        else if (x.colors.length <= 16) return 4;
+    }
+    return 8;
 }
 
 export class IndexedBitmap extends MappedBitmap {
@@ -136,19 +149,19 @@ export class IndexedBitmap extends MappedBitmap {
     constructor(
         width: number,
         height: number,
-        bitsPerPixel: number,
+        bppOrPalette: number | Palette,
         initial?: Uint8Array | PixelMapFunction
     ) {
-        super(width, height, bitsPerPixel || 8, initial);
-        this.palette = color.palette.colors(1 << this.bitsPerPixel);
+        super(width, height, getbpp(bppOrPalette), initial);
+        this.palette = bppOrPalette instanceof Palette
+            ? bppOrPalette 
+            : color.palette.colors(1 << this.bpp);
     }
-
     getrgba(x: number, y: number): number {
         return this.palette && this.palette.colors[this.get(x, y)];
     }
-    blank(width: number, height: number) : IndexedBitmap {
-        let bitmap = new IndexedBitmap(width, height, this.bitsPerPixel);
-        bitmap.palette = this.palette;
+    blank(width?: number, height?: number, newPalette?: Palette) : IndexedBitmap {
+        let bitmap = new IndexedBitmap(width || this.width, height || this.height, newPalette || this.palette);
         return bitmap;
     }
     clone() : IndexedBitmap {
@@ -184,6 +197,7 @@ export interface BitmapAnalysis {
 }
 
 export function analyze(bitmaps: BitmapType[]) {
+    bitmaps = coerceToArray(bitmaps);
     let r = {min:{w:0,h:0}, max:{w:0,h:0}};
     for (let bmp of bitmaps) {
         if (!(bmp instanceof AbstractBitmap)) return null;
@@ -202,6 +216,7 @@ export interface MontageOptions {
 }
 
 export function montage(bitmaps: BitmapType[], options?: MontageOptions) {
+    bitmaps = coerceToArray(bitmaps);
     let minmax = (options && options.analysis) || analyze(bitmaps);
     if (minmax == null) throw new Error(`Expected an array of bitmaps`);
     let hitrects = [];

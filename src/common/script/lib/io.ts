@@ -1,12 +1,15 @@
 
+import { FileDataCache } from "../../util";
 import { FileData, WorkingStore } from "../../workertypes";
 
 // remote resource cache
-var $$cache: WeakMap<object,FileData> = new WeakMap();
+var $$cache = new FileDataCache(); // TODO: better cache?
 // file read/write interface
 var $$store: WorkingStore;
 // backing store for data
 var $$data: {} = {};
+// module cache
+var $$modules: Map<string,{}> = new Map();
 
 export function $$setupFS(store: WorkingStore) {
     $$store = store;
@@ -38,7 +41,7 @@ export namespace data {
         return object;
     }
     export function save(object: Loadable, key: string): Loadable {
-        if ($$data && object.$$getstate) {
+        if ($$data && object && object.$$getstate) {
             $$data[key] = object.$$getstate();
         }
         return object;
@@ -65,10 +68,6 @@ export function canonicalurl(url: string) : string {
         }
     }
     return url;
-}
-
-export function clearcache() {
-    $$cache = new WeakMap();
 }
 
 export function fetchurl(url: string, type?: 'binary' | 'text'): FileData {
@@ -99,17 +98,19 @@ export function readnocache(url: string, type?: 'binary' | 'text'): FileData {
 
 // TODO: read files too
 export function read(url: string, type?: 'binary' | 'text'): FileData {
+    // canonical-ize url
     url = canonicalurl(url);
-    // check cache
-    let cachekey = {url: url};
-    if ($$cache.has(cachekey)) {
-        return $$cache.get(cachekey);
-    }
-    let data = readnocache(url, type);
+    // check cache first
+    let cachekey = url;
+    let data = $$cache.get(cachekey);
+    if (data != null) return data;
+    // not in cache, read it
+    data = readnocache(url, type);
     if (data == null) throw new Error(`Cannot find resource "${url}"`);
     if (type === 'text' && typeof data !== 'string') throw new Error(`Resource "${url}" is not a string`);
     if (type === 'binary' && !(data instanceof Uint8Array)) throw new Error(`Resource "${url}" is not a binary file`);
-    $$cache.set(cachekey, data);
+    // store in cache
+    $$cache.put(cachekey, data);
     return data;
 }
 
@@ -129,6 +130,22 @@ export function splitlines(text: string) : string[] {
     return text.split(/\n|\r\n/g);
 }
 
+export function module(url: string) {
+    // find module in cache?
+    let key = `${url}::${url.length}`;
+    let exports = $$modules.get(key);
+    if (exports == null) {
+        let code = readnocache(url, 'text') as string;
+        let func = new Function('exports', 'module', code);
+        let module = {}; // TODO?
+        exports = {};
+        func(exports, module);
+        $$modules.set(key, exports);
+    }
+    return exports;
+}
+
+///
 
 // TODO: what if this isn't top level?
 export class Mutable<T> implements Loadable {

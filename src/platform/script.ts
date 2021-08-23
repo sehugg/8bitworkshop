@@ -1,5 +1,5 @@
 
-import { PLATFORMS, RasterVideo } from "../common/emu";
+import { PLATFORMS } from "../common/emu";
 import { Platform } from "../common/baseplatform";
 import { RunResult } from "../common/script/env";
 import { Notebook } from "../common/script/ui/notebook";
