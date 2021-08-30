@@ -166,8 +166,7 @@ class ObjectKeyValueComponent extends Component<ObjectTreeComponentProps, Object
     render(virtualDom, containerNode, replaceNode) {
         let expandable = typeof this.props.object === 'object';
         let hdrclass = '';
-        if (expandable)
-            hdrclass = this.state.expanded ? 'tree-expanded' : 'tree-collapsed'
+        if (expandable) hdrclass = this.state.expanded ? 'tree-expanded' : 'tree-collapsed'
         let propName = this.props.name || null;
         return h('div', {
             class: 'tree-content',
@@ -250,6 +249,18 @@ function objectToChildren(object: any) : any[] {
     }
 }
 
+function objectToChild(object: any, index: number) : any {
+    if (color.isPalette(object)) {
+        return color.from(object.colors[index]);
+    } else if (isArray(object)) {
+        return object[index];
+    } else if (object != null) {
+        return object
+    } else {
+        return null
+    }
+}
+
 function objectToDiv(object: any, name: string, objpath: string): VNode<any> {
     // don't view any keys that start with "$"
     if (name && name.startsWith("$")) {
@@ -324,6 +335,7 @@ function objectToContentsDiv(object: {} | [], objpath: string) {
 interface UIComponentProps {
     iokey: string;
     uiobject: scriptui.ScriptUIType;
+    dropdown?: boolean;
 }
 
 class UISliderComponent extends Component<UIComponentProps> {
@@ -347,38 +359,66 @@ class UISliderComponent extends Component<UIComponentProps> {
     }
 }
 
-class UISelectComponent extends Component<UIComponentProps> {
+class UISelectComponent extends Component<UIComponentProps, ObjectTreeComponentState> {
     ref = createRef();
     render(virtualDom, containerNode, replaceNode) {
         let select = this.props.uiobject as scriptui.ScriptUISelectType<any>;
         let children = objectToChildren(select.options);
-        return h('div', {
-            class: 'scripting-select scripting-flex',
-            ref: this.ref,
-            onClick: (e) => {
-                // select object -- iterate parents until we find select div, then find index of child
-                let target = e.target as HTMLElement;
-                while (target.parentElement && target.parentElement != this.ref.current) {
-                    target = target.parentElement;
-                }
-                if (target.parentElement) {
-                    const selindex = Array.from(target.parentElement.children).indexOf(target);
-                    if (selindex >= 0 && selindex < children.length) {
-                        let newUIValue = { value: children[selindex], index: selindex };
-                        this.setState(this.state);
-                        current_project.updateDataItems([{key: this.props.iokey, value: newUIValue}]);
-                    } else {
-                        throw new Error(`Could not find click target of ${this.props.iokey}`);
+        this.props.dropdown = children.length > 16;
+        let showselections = !this.props.dropdown || this.state.expanded;
+        let seldiv = null;
+        if (showselections) {
+            seldiv = h('div', {
+                class: 'scripting-select scripting-flex',
+                ref: this.ref,
+                onClick: (e) => {
+                    // select object -- iterate parents until we find select div, then find index of child
+                    let target = e.target as HTMLElement;
+                    while (target.parentElement && target.parentElement != this.ref.current) {
+                        target = target.parentElement;
+                    }
+                    if (target.parentElement) {
+                        const selindex = Array.from(target.parentElement.children).indexOf(target);
+                        if (selindex >= 0 && selindex < children.length) {
+                            let newUIValue = { value: children[selindex], index: selindex };
+                            this.setState({ expanded: false });
+                            current_project.updateDataItems([{key: this.props.iokey, value: newUIValue}]);
+                        } else {
+                            throw new Error(`Could not find click target of ${this.props.iokey}`);
+                        }
                     }
                 }
-            }
-        },
-        children.map((child, index) => {
-            let div = objectToDiv(child, null, `${this.props.iokey}__select_${index}`);
-            let selected = (index == select.index);
-            return h('div', { class: selected ? 'scripting-selected' : '' }, [ div ]);
-        }))
-        // TODO: show current selection
+            },
+            children.map((child, index) => {
+                let div = objectToDiv(child, null, `${this.props.iokey}__select_${index}`);
+                let selected = (index == select.index);
+                return h('div', { class: selected ? 'scripting-selected' : '' }, [ div ]);
+            }));
+        }
+        if (this.props.dropdown) {
+            let selectedDiv = objectToDiv(objectToChild(select.options, select.index), null, `${this.props.iokey}__selected`);
+            return h('div', {
+                class: 'tree-content',
+                key: `${this.props.iokey}__tree`
+            }, [
+                h('div', {
+                    class: 'tree-header ' + (this.state.expanded ? 'tree-expanded' : 'tree-collapsed'),
+                    onClick: () => this.toggleExpand()
+                }, [
+                    this.props.iokey,
+                    h('span', { class: 'tree-value scripting-item' }, [
+                        selectedDiv,
+                        //getShortName(select.options)
+                    ])
+                ]),
+                seldiv
+            ]);
+        } else {
+            return seldiv;
+        }
+    }
+    toggleExpand() {
+        this.setState({ expanded: !this.state.expanded });
     }
 }
 
