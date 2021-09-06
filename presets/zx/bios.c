@@ -17,6 +17,7 @@ int putchar(int ch) {
     ld	a,4 (ix)
     rst 0x10
   __endasm;
+  return ch;
 }
 
 void beep(int divisor, int duration) {
