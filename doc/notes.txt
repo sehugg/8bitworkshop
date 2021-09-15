@@ -223,6 +223,10 @@ vcs: input not preserved when replaying frames?
 
 compile errors disappear when focus returns
 
+Stellerator
+- window eats keystrokes (e.g. "i")
+- more features, debugging
+
 
 WEB WORKER FORMAT
 

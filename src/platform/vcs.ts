@@ -1,6 +1,6 @@
 
-import { Platform, BasePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState } from "../common/baseplatform";
-import { PLATFORMS, dumpRAM, EmuHalt } from "../common/emu";
+import { Platform, BasePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState, getToolForFilename_6502 } from "../common/baseplatform";
+import { PLATFORMS, dumpRAM, EmuHalt, RasterVideo, __createCanvas } from "../common/emu";
 import { hex, loadScript, lpad, tobin } from "../common/util";
 import { CodeAnalyzer_vcs } from "../common/analysis";
 import { disassemble6502 } from "../common/cpu/disasm6502";
@@ -55,6 +55,13 @@ const VCS_PRESETS = [
   {id:'wiz/finalduck.wiz', name:'Final Duck (Wiz)'},
 //  {id:'bb/rblast106.bas', name:'Road Blasters (batariBASIC)'},
 ];
+
+function getToolForFilename_vcs(fn: string) {
+  if (fn.endsWith(".wiz")) return "wiz";
+  if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
+  if (fn.endsWith(".ca65")) return "ca65";
+  return "dasm";
+}
 
 class VCSPlatform extends BasePlatform {
 
@@ -278,14 +285,8 @@ class VCSPlatform extends BasePlatform {
     var ram = this.getRAMForState(state);
     return "\n" + dumpRAM(ram, 0x80, 0x80);
   }
-  getToolForFilename(fn) {
-    if (fn.endsWith(".wiz")) return "wiz";
-    if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
-    if (fn.endsWith(".ca65")) return "ca65";
-    return "dasm";
-  }
+  getToolForFilename = getToolForFilename_vcs;
   getDefaultExtension() { return ".a"; }
-
   getROMExtension() { return ".a26"; }
 
   getDebugCategories() {
@@ -450,13 +451,9 @@ class VCSMAMEPlatform extends BaseMAME6502Platform implements Platform {
 
   getPresets = function() { return VCS_PRESETS; }
 
-  getToolForFilename = function(fn) {
-    if (fn.endsWith(".wiz")) return "wiz";
-    if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
-    if (fn.endsWith(".ca65")) return "ca65";
-    return "dasm";
-  }
-  getDefaultExtension = function() { return ".a"; };
+  getToolForFilename = getToolForFilename_vcs;
+  getDefaultExtension() { return ".a"; }
+  getROMExtension() { return ".a26"; }
 
   getOriginPC = function() {
     return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
@@ -466,10 +463,59 @@ class VCSMAMEPlatform extends BaseMAME6502Platform implements Platform {
 
 ////////////////
 
-export const Platforms = {
-  'vcs': VCSPlatform,
-  'vcs.mame': VCSMAMEPlatform,
+class VCSStellaPlatform implements Platform {
+
+  mainElement: HTMLElement;
+  Stellerator;
+  stellerator;
+  running: boolean = false;
+
+  constructor(mainElement: HTMLElement) {
+    this.mainElement = mainElement;
+  }
+  async start() {
+    await loadScript('lib/stellerator/stellerator-embedded.min.js');
+    const $6502 : any = window['$6502'];
+    this.Stellerator = $6502.Stellerator;
+    // create a canvas, stellerator will override width/height but we need CSS aspect ratio
+    const canvas = __createCanvas(window.document, this.mainElement, 28, 20);
+    // stellerator adds overscan, we don't need as much
+    canvas.style.padding = '10px';
+    this.stellerator = new this.Stellerator(canvas, 'lib/stellerator/stellerator.min.js',
+      {
+          gamma: 0.8,
+          scalingMode: this.Stellerator.ScalingMode.qis,
+          tvEmulation: this.Stellerator.TvEmulation.composite,
+          phosphorLevel: 0.5,
+          scanlineLevel: 0.2
+      }
+    );
+  }
+  loadROM(title, data) {
+    this.stellerator.run(data, this.Stellerator.TvMode.ntsc);
+  }
+  reset() {
+    this.stellerator.reset();
+  }
+  pause() {
+    this.running = false;
+    this.stellerator.pause();
+  }
+  resume() {
+    this.running = true;
+    this.stellerator.resume();
+  }
+  isRunning() {
+    return this.running;
+  }
+  getToolForFilename = getToolForFilename_vcs;
+  getDefaultExtension() { return ".a"; }
+  getROMExtension() { return ".a26"; }  
+  getPresets() { return VCS_PRESETS }
 }
+
+////////////////
 
 PLATFORMS['vcs'] = VCSPlatform;
 PLATFORMS['vcs.mame'] = VCSMAMEPlatform;
+PLATFORMS['vcs.stellerator'] = VCSStellaPlatform;

@@ -30,7 +30,7 @@ export function setNoiseSeed(x : number) {
 
 type KeyboardCallback = (which:number, charCode:number, flags:KeyFlags) => void;
 
-function __createCanvas(doc:HTMLDocument, mainElement:HTMLElement, width:number, height:number) : HTMLCanvasElement {
+export function __createCanvas(doc:HTMLDocument, mainElement:HTMLElement, width:number, height:number) : HTMLCanvasElement {
   var canvas = doc.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
