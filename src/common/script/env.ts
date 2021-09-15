@@ -283,7 +283,7 @@ export class Environment {
         }
         return errors;
     }
-    getLoadableState() {
+    commitLoadableState() {
         // TODO: visit children?
         for (let [key, value] of Object.entries(this.obj)) {
             let loadable = <any>value as io.Loadable;

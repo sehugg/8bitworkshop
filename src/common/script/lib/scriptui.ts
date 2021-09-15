@@ -1,5 +1,4 @@
 
-import { coerceToArray } from "../../util";
 import * as io from "./io";
 
 // sequence counter
@@ -172,4 +171,23 @@ export function toggle(name: string) {
     return new ScriptUIToggle(name, function(e) {
         this.enabled = !this.enabled;
     });
+}
+
+///
+
+export class ScriptUIShortcut extends InteractionRecord implements ScriptUIType, Interactive {
+    readonly uitype = 'shortcut';
+    $$interact: InteractionRecord;
+
+    constructor(
+        readonly key: string,
+        callback: InteractCallback
+    ) {
+        super(null, callback);
+        this.$$interact = this;
+    }
+}
+
+export function key(key: string, callback: InteractCallback) {
+    return new ScriptUIShortcut(key, callback);
 }

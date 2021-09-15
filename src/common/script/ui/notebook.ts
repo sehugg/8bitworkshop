@@ -436,10 +436,23 @@ class UIButtonComponent extends Component<UIComponentProps> {
     }
 }
 
+class UIShortcutComponent extends Component<UIComponentProps> {
+    render(virtualDom, containerNode, replaceNode) {
+        let shortcut = this.props.uiobject as scriptui.ScriptUIShortcut;
+        // TODO: needs to fire on container node
+        return h('div', {
+            onKeyDown: (e: KeyboardEvent) => {
+                sendInteraction(shortcut, 'key', e, { });
+            },
+        }, [ ])
+    }
+}
+
 const UI_COMPONENTS = {
     'slider': UISliderComponent,
     'select': UISelectComponent,
     'button': UIButtonComponent,
+    'shortcut': UIShortcutComponent,
 }
 
 ///

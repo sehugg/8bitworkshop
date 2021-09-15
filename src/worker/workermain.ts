@@ -397,7 +397,7 @@ export interface BuildStep extends WorkerBuildStep {
 export class FileWorkingStore implements WorkingStore {
   workfs : {[path:string]:FileEntry} = {};
   workerseq : number = 0;
-  items : {} = {};
+  items : {};
 
   constructor() {
     this.reset();
