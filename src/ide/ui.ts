@@ -22,7 +22,7 @@ import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { saveAs } from "file-saver";
 
 // external libs (TODO)
-declare var Tour, GIF;
+declare var Tour, GIF, Octokat;
 declare var ga;
 declare var $ : JQueryStatic; // use browser jquery
 
@@ -638,7 +638,7 @@ function getCookie(name) : string {
 async function getGithubService() {
   if (!githubService) {
     // load github API client
-    var Octokat = (await import('octokat')).default;
+    await loadScript('lib/octokat.js');
     // load firebase
     await loadScript('https://www.gstatic.com/firebasejs/8.8.1/firebase-app.js');
     await loadScript('https://www.gstatic.com/firebasejs/8.8.1/firebase-auth.js');

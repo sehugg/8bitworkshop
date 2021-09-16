@@ -286,7 +286,7 @@ class VCSPlatform extends BasePlatform {
     return "\n" + dumpRAM(ram, 0x80, 0x80);
   }
   getToolForFilename = getToolForFilename_vcs;
-  getDefaultExtension() { return ".a"; }
+  getDefaultExtension() { return ".dasm"; }
   getROMExtension() { return ".a26"; }
 
   getDebugCategories() {
@@ -452,7 +452,7 @@ class VCSMAMEPlatform extends BaseMAME6502Platform implements Platform {
   getPresets = function() { return VCS_PRESETS; }
 
   getToolForFilename = getToolForFilename_vcs;
-  getDefaultExtension() { return ".a"; }
+  getDefaultExtension() { return ".dasm"; }
   getROMExtension() { return ".a26"; }
 
   getOriginPC = function() {
@@ -509,7 +509,7 @@ class VCSStellaPlatform implements Platform {
     return this.running;
   }
   getToolForFilename = getToolForFilename_vcs;
-  getDefaultExtension() { return ".a"; }
+  getDefaultExtension() { return ".dasm"; }
   getROMExtension() { return ".a26"; }  
   getPresets() { return VCS_PRESETS }
 }
