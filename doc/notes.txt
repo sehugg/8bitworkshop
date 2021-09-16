@@ -166,6 +166,7 @@ TODO:
   - renaming main file doesn't change repo def.
   - can't edit or push files until successful compile
   - changing platform of repo makes one platform redirect to another platform
+    - should be able to change vcs -> vcs.mame for exmaple
 - keyboard shortcuts
   - ctrl+alt+l on ubuntu locks screen
   - alt-D doesn't work anymore
