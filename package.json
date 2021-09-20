@@ -76,7 +76,7 @@
     "test-profile": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --prof test/cli",
     "test-worker": "NODE_PATH=$(pwd) mocha --timeout 60000 test/cli/testworker.js",
     "test-platforms": "NODE_PATH=$(pwd) mocha --timeout 60000 test/cli/testplatforms.js",
-    "test-verilog": "NODE_PATH=$(pwd) mocha --timeout 60000 --reporter mocha-simple-html-reporter --reporter-options output=test/output/verilog.html test/cli/testverilog.js",
+    "test-verilog": "NODE_PATH=$(pwd) mocha --timeout 60000 --reporter mocha-simple-html-reporter --reporter-options output=test/output/verilog.html test/verilog/testverilog.js",
     "test-web-quick": "nightwatch -e chrome test/web/testembed.js",
     "test-web-all": "nightwatch -e chrome test/web",
     "start": "electron .",

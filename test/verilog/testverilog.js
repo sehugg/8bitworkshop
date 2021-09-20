@@ -5,7 +5,7 @@ var _path = require('path')
 var _cproc = require('child_process');
 var fs = require('fs');
 var wtu = require('./workertestutils.js');
-var heapdump = require("heapdump");
+//var heapdump = require("heapdump");
 var commandExists = require('command-exists');
 
 var has_yosys = commandExists('yosys');
