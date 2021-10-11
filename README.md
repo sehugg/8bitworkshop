@@ -1,6 +1,7 @@
 # 8bitworkshop
 
-[![Build Status](https://travis-ci.com/sehugg/8bitworkshop.svg?branch=master)](https://travis-ci.com/sehugg/8bitworkshop)
+![example workflow](https://github.com/sehugg/8bitworkshop/actions/workflows/node.js.yml/badge.svg)
+
 
 ## Use Online
 
