@@ -52,7 +52,7 @@
     "@sentry/electron": "^2.5.1",
     "chokidar": "^3.5.0",
     "chromedriver": "^92.0.0",
-    "electron": "^9.4.0",
+    "electron": "^11.5.0",
     "electron-builder": "^22.11.7",
     "electron-packager": "^15.2.0",
     "heapdump": "^0.3.15",
