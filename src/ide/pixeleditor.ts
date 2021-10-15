@@ -1096,7 +1096,7 @@ class PixEditor extends Viewer {
       var yy = y + 0.5 - this.height/2.0;
       var xx2 = xx*c1 - yy*s1 + this.width/2.0 - 0.5;
       var yy2 = yy*c1 + xx*s1 + this.height/2.0 - 0.5;
-      return this.getPixel(xx, yy);
+      return this.getPixel(xx2, yy2);
     });
   }
   rotate90() {
