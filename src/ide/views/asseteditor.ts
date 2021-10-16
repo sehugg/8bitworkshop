@@ -138,7 +138,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         var start = m.index + m[0].length;
         var end;
         // TODO: verilog end
-        if (platform_id == 'verilog') {
+        if (platform_id.includes('verilog')) {
           end = data.indexOf("end", start); // asm
         } else if (m[0].startsWith(';;')) {
           end = data.indexOf(';;', start); // asm
