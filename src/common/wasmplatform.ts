@@ -99,7 +99,7 @@ export abstract class BaseWASMMachine {
   }
   async loadWASM() {
     await this.fetchWASM();
-    this.exports.memory.grow(64); // TODO: need more when probing?
+    this.exports.memory.grow(96); // TODO: need more when probing?
     await this.fetchBIOS();
     await this.initWASM();
   }

@@ -65,7 +65,7 @@ export function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback
   };
 };
 
-type VideoCanvasOptions = {rotate?:number, overscan?:boolean};
+type VideoCanvasOptions = {rotate?:number, overscan?:boolean, aspect?:number};
 
 export class RasterVideo {
 
@@ -112,6 +112,10 @@ export class RasterVideo {
     }
     if (this.options && this.options.overscan) {
       this.vcanvas.css('padding','0px');
+    }
+    if (this.options && this.options.aspect) {
+      console.log(this.options);
+      this.vcanvas.css('aspect-ratio', this.options.aspect+"");
     }
     this.ctx = canvas.getContext('2d');
     this.imageData = this.ctx.createImageData(this.width, this.height);

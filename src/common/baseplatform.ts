@@ -791,7 +791,10 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     var videoFrequency;
     if (hasVideo(m)) {
       var vp = m.getVideoParams();
-      this.video = new RasterVideo(this.mainElement, vp.width, vp.height, {overscan:!!vp.overscan,rotate:vp.rotate|0});
+      this.video = new RasterVideo(this.mainElement, vp.width, vp.height, 
+        {overscan: !!vp.overscan,
+           rotate: vp.rotate|0,
+           aspect: vp.aspect});
       this.video.create();
       m.connectVideo(this.video.getFrameData());
       // TODO: support keyboard w/o video?

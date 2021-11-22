@@ -10,6 +10,7 @@ export function importPlatform(name: string) : Promise<any> {
       case "basic": return import("../platform/basic");
       case "c64": return import("../platform/c64");
       case "coleco": return import("../platform/coleco");
+      case "cpc": return import("../platform/cpc");
       case "devel": return import("../platform/devel");
       case "galaxian": return import("../platform/galaxian");
       case "kim1": return import("../platform/kim1");

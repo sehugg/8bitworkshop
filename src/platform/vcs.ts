@@ -486,7 +486,7 @@ class VCSStellaPlatform implements Platform {
           gamma: 0.8,
           scalingMode: this.Stellerator.ScalingMode.qis,
           tvEmulation: this.Stellerator.TvEmulation.composite,
-          phosphorLevel: 0.5,
+          phosphorLevel: 0.25,
           scanlineLevel: 0.2,
           keyboardTarget: this.mainElement
       }

@@ -40,6 +40,7 @@ export interface VideoParams {
     overscan? : boolean;
     rotate? : number;
     videoFrequency? : number; // default = 60
+    aspect? : number;
 }
 
 // TODO: frame buffer optimization (apple2, etc)
