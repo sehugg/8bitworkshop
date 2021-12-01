@@ -1,0 +1,23 @@
+
+#include "cpctelera.h"
+#include <stdio.h>
+#include <string.h>
+
+void main(void) {
+  
+   // Needed for screen clear to work
+   cpct_disableFirmware ();
+   cpct_disableUpperROM ();
+  
+   // Clear Screen filling it up with 0's
+   cpct_clearScreen(0);
+
+   // Print out some messages using printf 
+   printf("\017\003Hello \017\002World!\n\r");
+
+   // printf() may have enabled upper ROM, disable
+   cpct_disableUpperROM ();
+  
+   // Loop forever
+   while (1);
+}

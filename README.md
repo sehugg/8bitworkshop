@@ -60,6 +60,7 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * https://github.com/DrGoldfire/Z80.js
 * http://www.twitchasylum.com/jsvecx/
 * https://github.com/curiousdannii/ifvms.js/
+* https://6502ts.github.io/typedoc/stellerator-embedded/
 
 ### Compilers
 
@@ -87,6 +88,7 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * https://shiru.untergrund.net/code.shtml
 * http://www.colecovision.eu/ColecoVision/development/libcv.shtml
 * https://github.com/toyoshim/tss
+* https://github.com/lronaldo/cpctelera
 
 ### Firmware
 

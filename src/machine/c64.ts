@@ -82,7 +82,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
     var clocks = Math.floor((this.numTotalScanlines - scanline) * (19656+295) / this.numTotalScanlines);
     var probing = this.probe != null;
     if (probing) this.exports.machine_reset_probe_buffer();
-    var clocks = super.advanceFrameClock(trap, clocks);
+    clocks = super.advanceFrameClock(trap, clocks);
     if (probing) this.copyProbeData();
     return clocks;
   }

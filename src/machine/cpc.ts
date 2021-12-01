@@ -32,15 +32,15 @@ export class CPC_WASMMachine extends BaseWASMMachine implements Machine {
   cpuCyclesPerLine = 224;
 
   joymask0 = 0;
+  runaddr = 0x4000;
 
   loadROM(rom: Uint8Array) {
-    let runaddr = 0x4000; //0x5de9;
     let combined = new Uint8Array(rom.length + BIN_HEADER.length);
     combined.set(BIN_HEADER, 0);
     combined[24] = rom.length & 0xff;
     combined[25] = rom.length >> 8;
-    combined[26] = runaddr & 0xff;
-    combined[27] = runaddr >> 8;
+    combined[26] = this.runaddr & 0xff;
+    combined[27] = this.runaddr >> 8;
     combined.set(rom, BIN_HEADER.length);
     super.loadROM(combined);
   }
@@ -51,13 +51,18 @@ export class CPC_WASMMachine extends BaseWASMMachine implements Machine {
     // load rom (SNA or BIN)
     if (this.romptr && this.romlen) {
       this.exports.machine_load_rom(this.sys, this.romptr, this.romlen);
+        // advance clock until program starts
+        for (var i=0; i<100000 && this.getPC() != this.runaddr; i++) {
+          this.exports.machine_tick(this.sys);
+        }
     }
   }
   advanceFrame(trap: TrapCondition) : number {
-    //var scanline = this.exports.machine_get_raster_line(this.sys);
+    var scanline = this.exports.machine_get_raster_line(this.sys);
+    var clocks = Math.floor((this.numTotalScanlines - scanline) * 19965 / this.numTotalScanlines);
     var probing = this.probe != null;
     if (probing) this.exports.machine_reset_probe_buffer();
-    var clocks = super.advanceFrameClock(trap, Math.floor(1000000 / 50)); // TODO: use ticks, not msec
+    clocks = super.advanceFrameClock(trap, clocks);
     if (probing) this.copyProbeData();
     return clocks;
   }
@@ -117,7 +122,6 @@ export class CPC_WASMMachine extends BaseWASMMachine implements Machine {
     if (key == 16 || key == 17 || key == 18 || key == 224) return; // meta keys
     //console.log(key, code, flags);
     //if (flags & KeyFlags.Shift) { key += 64; }
-    // convert to c64 (TODO: zx)
     var mask = 0;
     var mask2 = 0;
     if (key == 37) { key = 0x8; mask = 0x4; } // LEFT
@@ -141,6 +145,6 @@ export class CPC_WASMMachine extends BaseWASMMachine implements Machine {
       this.exports.machine_key_up(this.sys, key);
       this.joymask0 &= ~mask;
     }
-    this.exports.cpc_joystick(this.sys, this.joymask0, 0);
+    // TODO: this.exports.cpc_joystick(this.sys, this.joymask0, 0);
   }
 }

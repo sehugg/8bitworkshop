@@ -345,7 +345,7 @@ var PLATFORM_PARAMS = {
     extra_link_files: ['crt0.o', 'devel-6502.cfg'],
   },
   // https://github.com/cpcitor/cpc-dev-tool-chain
-  'cpc': {
+  'cpc.rslib': {
     arch: 'z80',
     code_start: 0x4000,
     rom_size: 0xb100-0x4000,
@@ -355,6 +355,18 @@ var PLATFORM_PARAMS = {
     extra_compile_files: ['cpcrslib.h'],
     extra_link_args: ['crt0-cpc.rel', 'cpcrslib.lib'],
     extra_link_files: ['crt0-cpc.rel', 'crt0-cpc.lst', 'cpcrslib.lib', 'cpcrslib.lst'],
+  },
+  // https://lronaldo.github.io/cpctelera/ (TODO)
+  'cpc': {
+    arch: 'z80',
+    code_start: 0x4000,
+    rom_size: 0xb100-0x4000,
+    data_start: 0xb100,
+    data_size: 0xb100-0xc000,
+    stack_end: 0xc000,
+    extra_compile_files: ['cpctelera.h'],
+    extra_link_args: ['crt0-cpc.rel', 'cpctelera.lib'],
+    extra_link_files: ['crt0-cpc.rel', 'crt0-cpc.lst', 'cpctelera.lib', 'cpctelera.lst'],
   },
 };
 

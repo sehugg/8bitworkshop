@@ -3,6 +3,11 @@
 	.module crt0
 	.globl _main
 	.globl ___sdcc_call_hl
+	.globl l__DATA
+	.globl s__DATA
+	.globl s__INITIALIZED
+	.globl s__INITIALIZER
+	.globl l__INITIALIZER
 
 	; Ordering of segments for the linker - copied from sdcc crt0.s
 	.area	_CODE
@@ -19,8 +24,8 @@
 	.area	_CODE
 
 _Start:
-	di
-	im	1
+	;di
+	;im	1
 	; stack pointer already set by BIOS
 	call gsinit			; Initialize global and static variables.
 	call _main
@@ -34,7 +39,7 @@ gsinit::
 	ld	a, b
 	or	a, c
 	jr	Z, zeroed_data
-	ld	hl,	#s__DATA
+	ld	hl, #s__DATA
 	ld	(hl), #0x00
 	dec	bc
 	ld	a, b
