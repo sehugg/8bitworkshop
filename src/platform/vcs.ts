@@ -123,7 +123,11 @@ class VCSPlatform extends BasePlatform {
     };
     var jacanvas = $("#javatari-screen").find("canvas");
     jacanvas.mousedown(rasterPosBreakFn);
-    this.resize();
+    // resize after added to dom tree
+    const resizeObserver = new ResizeObserver(entries => {
+      this.resize();
+    });
+    resizeObserver.observe(jacanvas[0]);
   }
 
   loadROM(title, data) {
