@@ -11,6 +11,7 @@ const CPC_PRESETS = [
   {id:'easy_sprites.c', name:'Keyboard + Sprites (C)'},
   {id:'medium_scrolling.c', name:'Scrolling Text (C)'},
   {id:'siegegame.c', name:'Siege Game (C)'},
+  {id:'music.c', name:'Music Player (C)'},
   //{id:'sprite_demo.c', name:'Sprite Demo (C)'},
   //{id:'keyboard_redefine.c', name:'Keyboard Redefine (C)'},
 ];
