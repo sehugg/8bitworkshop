@@ -583,7 +583,7 @@ Sentry.init({
     },
     beforeSend(event, hint) {
       const error = hint.originalException;
-      if (error instanceof EmuHalt) return null; // ignore EmuHalt
+      if (error && error.hasOwnProperty('$loc')) return null; // ignore EmuHalt
       return event;
     },
 });

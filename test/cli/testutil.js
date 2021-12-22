@@ -128,3 +128,11 @@ describe('string functions', function() {
     assert.ok(util.isProbablyBinary(null, [0xf0,0x12])); // ran out of data
   });
 });
+
+describe('EmuHalt', function() {
+  it('Should detect emuhalt', function() {
+    var e = new emu.EmuHalt();
+    assert.ok(e instanceof emu.EmuHalt);
+    assert.ok(e.hasOwnProperty('$loc'));
+  });
+});
