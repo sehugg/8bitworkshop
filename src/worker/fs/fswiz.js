@@ -6,16 +6,17 @@
   }
   Module.expectedDataFileDownloads++;
   (function() {
-   var loadPackage = function(metadata) {
+    // When running as a pthread, FS operations are proxied to the main thread, so we don't need to
+    // fetch the .data bundle on the worker
+    if (Module['ENVIRONMENT_IS_PTHREAD']) return;
+    var loadPackage = function(metadata) {
   
-      var PACKAGE_PATH;
+      var PACKAGE_PATH = '';
       if (typeof window === 'object') {
         PACKAGE_PATH = window['encodeURIComponent'](window.location.pathname.toString().substring(0, window.location.pathname.toString().lastIndexOf('/')) + '/');
-      } else if (typeof location !== 'undefined') {
-        // worker
+      } else if (typeof process === 'undefined' && typeof location !== 'undefined') {
+        // web worker
         PACKAGE_PATH = encodeURIComponent(location.pathname.toString().substring(0, location.pathname.toString().lastIndexOf('/')) + '/');
-      } else {
-        throw 'using preloaded data can only be done on a web page or in a web worker';
       }
       var PACKAGE_NAME = '/home/pzp/8bitworkshop-compilers/output/fs/fswiz.data';
       var REMOTE_PACKAGE_BASE = 'fswiz.data';
@@ -29,6 +30,18 @@
       var PACKAGE_UUID = metadata['package_uuid'];
     
       function fetchRemotePackage(packageName, packageSize, callback, errback) {
+        
+        if (typeof process === 'object' && typeof process.versions === 'object' && typeof process.versions.node === 'string') {
+          require('fs').readFile(packageName, function(err, contents) {
+            if (err) {
+              errback(err);
+            } else {
+              callback(contents.buffer);
+            }
+          });
+          return;
+        }
+      
         var xhr = new XMLHttpRequest();
         xhr.open('GET', packageName, true);
         xhr.responseType = 'arraybuffer';
@@ -97,61 +110,58 @@
       function assert(check, msg) {
         if (!check) throw msg + new Error().stack;
       }
-  Module['FS_createPath']('/', 'common', true, true);
-Module['FS_createPath']('/common', 'snes', true, true);
-Module['FS_createPath']('/common', 'gg', true, true);
-Module['FS_createPath']('/common', 'nes', true, true);
-Module['FS_createPath']('/common', 'msx', true, true);
-Module['FS_createPath']('/common', 'pce', true, true);
-Module['FS_createPath']('/common', 'gb', true, true);
-Module['FS_createPath']('/common', '2600', true, true);
-Module['FS_createPath']('/common', 'spc', true, true);
+  Module['FS_createPath']("/", "common", true, true);
+Module['FS_createPath']("/common", "snes", true, true);
+Module['FS_createPath']("/common", "gg", true, true);
+Module['FS_createPath']("/common", "nes", true, true);
+Module['FS_createPath']("/common", "msx", true, true);
+Module['FS_createPath']("/common", "pce", true, true);
+Module['FS_createPath']("/common", "gb", true, true);
+Module['FS_createPath']("/common", "2600", true, true);
+Module['FS_createPath']("/common", "spc", true, true);
 
-      /** @constructor */
-      function DataRequest(start, end, audio) {
-        this.start = start;
-        this.end = end;
-        this.audio = audio;
-      }
-      DataRequest.prototype = {
-        requests: {},
-        open: function(mode, name) {
-          this.name = name;
-          this.requests[name] = this;
-          Module['addRunDependency']('fp ' + this.name);
-        },
-        send: function() {},
-        onload: function() {
-          var byteArray = this.byteArray.subarray(this.start, this.end);
-          this.finish(byteArray);
-        },
-        finish: function(byteArray) {
-          var that = this;
-  
+          /** @constructor */
+          function DataRequest(start, end, audio) {
+            this.start = start;
+            this.end = end;
+            this.audio = audio;
+          }
+          DataRequest.prototype = {
+            requests: {},
+            open: function(mode, name) {
+              this.name = name;
+              this.requests[name] = this;
+              Module['addRunDependency']('fp ' + this.name);
+            },
+            send: function() {},
+            onload: function() {
+              var byteArray = this.byteArray.subarray(this.start, this.end);
+              this.finish(byteArray);
+            },
+            finish: function(byteArray) {
+              var that = this;
+      
           Module['FS_createDataFile'](this.name, null, byteArray, true, true, true); // canOwn this data in the filesystem, it is a slide into the heap that will never change
           Module['removeRunDependency']('fp ' + that.name);
   
-          this.requests[this.name] = null;
-        }
-      };
-  
-          var files = metadata['files'];
-          for (var i = 0; i < files.length; ++i) {
-            new DataRequest(files[i]['start'], files[i]['end'], files[i]['audio']).open('GET', files[i]['filename']);
-          }
-  
-    
+              this.requests[this.name] = null;
+            }
+          };
+      
+              var files = metadata['files'];
+              for (var i = 0; i < files.length; ++i) {
+                new DataRequest(files[i]['start'], files[i]['end'], files[i]['audio'] || 0).open('GET', files[i]['filename']);
+              }
+      
+        
       function processPackageData(arrayBuffer) {
         assert(arrayBuffer, 'Loading data file failed.');
         assert(arrayBuffer instanceof ArrayBuffer, 'bad input to processPackageData');
         var byteArray = new Uint8Array(arrayBuffer);
         var curr;
         
-          // copy the entire loaded file into a spot in the heap. Files will refer to slices in that. They cannot be freed though
-          // (we may be allocating before malloc is ready, during startup).
-          var ptr = Module['getMemory'](byteArray.length);
-          Module['HEAPU8'].set(byteArray, ptr);
-          DataRequest.prototype.byteArray = Module['HEAPU8'].subarray(ptr, ptr+byteArray.length);
+          // Reuse the bytearray from the XHR as the source for file reads.
+          DataRequest.prototype.byteArray = byteArray;
     
             var files = metadata['files'];
             for (var i = 0; i < files.length; ++i) {
