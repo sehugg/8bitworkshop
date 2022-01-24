@@ -16,6 +16,7 @@ global.path = require('path');
 global.btoa = require('btoa');
 global.atob = require('atob');
 global.navigator = global; // for mousetrap :P 
+global.ResizeObserver = class { observe() { } }
 
 global.includeInThisContext = function(path) {
   var code = fs.readFileSync(path);

@@ -1,5 +1,5 @@
---- index.html	2021-08-06 18:05:46.000000000 -0500
-+++ electron.html	2021-08-09 12:01:41.000000000 -0500
+--- index.html	2022-01-22 20:17:39.000000000 -0600
++++ electron.html	2022-01-24 15:54:13.000000000 -0600
 @@ -3,18 +3,7 @@
  
  <head>
@@ -92,7 +92,7 @@
      </ul>
    </span>
  
-@@ -277,24 +214,21 @@
+@@ -279,24 +216,21 @@
    <div class="emulator disable-select" id="emulator">
      <!-- replay slider -->
      <div id="replaydiv" class="replaydiv" style="display:none;color:#ccc;text-align:left">
@@ -119,7 +119,7 @@
        <button id="clock_fwd" class="btn" title="Forward one step"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
       </div>
      </div>
-@@ -449,73 +383,6 @@
+@@ -451,73 +385,6 @@
      </div>
    </div>
  </div>
@@ -193,32 +193,3 @@
  
  <script src="jquery/jquery.min.js"></script>
  
-@@ -564,28 +431,5 @@
- });
- </script>
- 
--<!-- Sentry error reporting -->
--<script
--  src="https://browser.sentry-cdn.com/6.4.1/bundle.min.js"
--  integrity="sha384-THoc7rflwZFKTdZNgv6jLFFDn299Uv3t1SW5B4yGLvLiCRTYP9ys6vXZcMl95TQF"
--  crossorigin="anonymous"
--></script>
--<script>
--Sentry.init({
--    dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@o320878.ingest.sentry.io/1813925',
--    beforeBreadcrumb(breadcrumb, hint) {
--      if (breadcrumb.category === 'xhr' && typeof breadcrumb.data.url === 'string') {
--        if (breadcrumb.data.url.startsWith('http')) return null; // discard external scripts
--      }
--      return breadcrumb;
--    },
--    beforeSend(event, hint) {
--      const error = hint.originalException;
--      if (error instanceof EmuHalt) return null; // ignore EmuHalt
--      return event;
--    },
--});
--</script>
--
- </body>
- </html>
