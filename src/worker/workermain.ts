@@ -236,7 +236,7 @@ var PLATFORM_PARAMS = {
   'apple2': {
     arch: '6502',
     define: ['__APPLE2__'],
-    cfgfile: 'apple2-hgr.cfg',
+    cfgfile: 'apple2.cfg',
     libargs: [ '--lib-path', '/share/target/apple2/drv', '-D', '__EXEHDR__=0', 'apple2.lib'],
     __CODE_RUN__: 16384,
     code_start: 0x803,

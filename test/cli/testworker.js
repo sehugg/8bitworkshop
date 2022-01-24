@@ -93,7 +93,7 @@ describe('Worker', function() {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes', done, 0, 0, 1);
   });
   it('should NOT compile CC65 (link error)', function(done) {
-    compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes', done, 0, 0, 3, {ignoreErrorPath:true});
+    compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes', done, 0, 0, 1, {ignoreErrorPath:true});
   });
   it('should NOT compile CC65 (preproc error)', function(done) {
     compile('cc65', '#include "NOSUCH.file"\n', 'nes', done, 0, 0, 1, {ignoreErrorPath:true});
@@ -230,7 +230,7 @@ describe('Worker', function() {
   });
   it('should compile apple2 skeleton with CC65', function(done) {
     var csource = ab2str(fs.readFileSync('presets/apple2/skeleton.cc65'));
-    compile('cc65', csource, 'apple2', done, 17349, 4, 0);
+    compile('cc65', csource, 'apple2', done, 3023, 4, 0);
   });
   // TODO: test if compile, errors, then compile same file
   // TODO: params persist because of fixParamsWithDefines()
@@ -242,7 +242,7 @@ describe('Worker', function() {
   });
   it('should compile C64 cc65 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/c64/skeleton.cc65'));
-    compile('cc65', csource, 'c64.wasm', done, 2753, 2, 0);
+    compile('cc65', csource, 'c64.wasm', done, 2663, 2, 0);
   });
   it('should compile zmachine inform6 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/zmachine/skeleton.inform6'));
@@ -260,7 +260,7 @@ describe('Worker', function() {
     doBuild(msgs, done2, 205, 0, 0);
   });
   it('should compile CC65 flags', function(done) {
-    compile('cc65', '#define CC65_FLAGS -O1,-j\nint main() {\nint x=1;\nreturn x+2;\n}', 'apple2', done, 14697, 5);
+    compile('cc65', '#define CC65_FLAGS -Or,-g,-j\nint main() {\nint x=1;\nreturn x+2;\n}', 'apple2', done, 416, 3);
   });
 
 });
