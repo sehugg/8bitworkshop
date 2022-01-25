@@ -8,7 +8,6 @@ buildtsc:
 	npm run esbuild
 
 prepare: buildtsc
-	patch -i meta/electron.diff -o electron.html
 	cp node_modules/jquery/dist/jquery.min.js ./jquery/
 	cp -r node_modules/bootstrap/dist/* ./bootstrap/
 	cp node_modules/bootstrap-tourist/*.css node_modules/bootstrap-tourist/*.js ./lib/
@@ -25,16 +24,6 @@ distro: buildtsc
 	cp -rp gen $(TMP)
 	rm -r $(TMP)/doc $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/.[a-z]* $(TMP)/ts*.json # $(TMP)/meta
 	rm -f $(TMP)/javatari && mkdir -p $(TMP)/javatari && cp -p javatari.js/release/javatari/* $(TMP)/javatari/
-	tar cf - `cat electron.html | egrep "^<(script|link)" | egrep -o '"([^"]+).(js|css)"' | cut -d '"' -f2` | tar x -C $(TMP)
-
-desktop: distro
-	pushd $(TMP) && npm i && popd $(TMP)
-	mkdir -p $(TMP)/resources
-	./node_modules/.bin/electron-builder -mlw --project $(TMP) # --prepackaged $(TMP)
-	mv $(TMP)/dist/*.* ./release/desktop/
-
-meta/electron.diff: index.html electron.html
-	-diff -u index.html electron.html > $@
 
 tsweb:
 	npm run esbuild-clean
