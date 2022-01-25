@@ -664,7 +664,7 @@ bool check_collision(Actor* a) {
 
 ///
 
-void draw_blimp(struct cvu_sprite* sprite) {
+void draw_blimp() {
   /*
   sprite->name = 48;
   wait_vblank();
@@ -680,7 +680,6 @@ void draw_blimp(struct cvu_sprite* sprite) {
   cvu_set_sprite(SPRITES, 31, sprite);
   refresh_actors();
   */
-  sprite=sprite;
 }
 
 void blimp_pickup_scene() {

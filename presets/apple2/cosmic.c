@@ -1,4 +1,9 @@
 
+// reserve space for the HGR1 screen buffer
+#define CFGFILE apple2-hgr.cfg
+#pragma data-name(push,"HGR")
+#pragma data-name(pop)
+
 /*
  * An Apple ][ port of the Cosmic Impalas game 
  * described in the book

@@ -243,7 +243,7 @@ export function compileCC65(step: BuildStep): BuildStepResult {
     loadNative("cc65");
     var params = step.params;
     // stderr
-    var re_err1 = /(.*?)[(](\d+)[)].*?: (.+)/;
+    var re_err1 = /(.*?):(\d+): (.+)/;
     var errors: WorkerError[] = [];
     var errline = 0;
     function match_fn(s) {
@@ -283,7 +283,7 @@ export function compileCC65(step: BuildStep): BuildStepResult {
         if (step.mainfile) {
             args.unshift.apply(args, ["-D", "__MAIN__"]);
         }
-        var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl'];
+        var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign'];
         args = args.concat(customArgs, args);
         args.push(step.path);
         //console.log(args);

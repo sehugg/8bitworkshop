@@ -32,6 +32,7 @@
 /* Workaround missing clock stuff */
 #ifdef __APPLE2__
 #  define clock()       0
+#  undef CLK_TCK
 #  define CLK_TCK       1
 #endif
 

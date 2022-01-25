@@ -1,3 +1,9 @@
+
+// reserve space for the HGR1 screen buffer
+#define CFGFILE apple2-hgr.cfg
+#pragma data-name(push,"HGR")
+#pragma data-name(pop)
+
 /*
 Test of the LZG decompression library
 with a hires graphics image.
@@ -38,7 +44,7 @@ void clrscr() {
 int main (void)
 {
   clrscr();
-  lzg_decode_vram(BITMAP_DATA_LZG, (char*)0x2000, (char*)0x4000);
+  lzg_decode_vram(BITMAP_DATA_LZG, (unsigned char*)0x2000, (unsigned char*)0x4000);
   printf("\nHello! Press a key to reboot...\n");
   cgetc();
   return EXIT_SUCCESS;

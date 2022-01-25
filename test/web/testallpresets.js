@@ -110,3 +110,4 @@ testPlatform(ex, 'zmachine', 'Z-Machine', 19);
 //testPlatform(ex, 'atari8-800xl.mame', 'Atari 800XL', 9);
 testPlatform(ex, 'msx', 'MSX', 5);
 testPlatform(ex, 'zx', 'ZX', 3);
+testPlatform(ex, 'c64', 'Commodore 64', 15);
