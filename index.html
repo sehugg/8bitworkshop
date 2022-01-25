@@ -573,7 +573,7 @@ $( ".dropdown-submenu" ).click(function(event) {
   crossorigin="anonymous"
 ></script>
 <script>
-Sentry.init({
+if (window.Sentry) Sentry.init({
     dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@o320878.ingest.sentry.io/1813925',
     beforeBreadcrumb(breadcrumb, hint) {
       if (breadcrumb.category === 'xhr' && typeof breadcrumb.data.url === 'string') {
