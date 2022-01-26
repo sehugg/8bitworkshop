@@ -283,7 +283,7 @@ export function compileCC65(step: BuildStep): BuildStepResult {
         if (step.mainfile) {
             args.unshift.apply(args, ["-D", "__MAIN__"]);
         }
-        var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign'];
+        var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign,-no-effect'];
         args = args.concat(customArgs, args);
         args.push(step.path);
         //console.log(args);
