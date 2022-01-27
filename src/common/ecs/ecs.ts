@@ -14,6 +14,18 @@
 // when entering scope, entities are initialized (zero or init w/ data)
 // to change scope, fire event w/ scope name
 // - how to handle bank-switching?
+//
+// helps with:
+// - rapid prototyping w/ reasonable defaults
+// - deconstructing objects into arrays
+// - packing/unpacking bitfields
+// - initializing objects
+// - building lookup tables
+// - selecting and iterating objects
+// - managing events
+// - managing memory and scope
+// - converting assets to native formats?
+// - removing unused data
 
 function mksymbol(c: ComponentType, fieldName: string) {
     return c.name + '_' + fieldName;
@@ -66,7 +78,7 @@ export interface Action {
     select: 'once' | 'each' | 'source'
 }
 
-export type DataValue = number | boolean | Uint8Array;
+export type DataValue = number | boolean | Uint8Array | Uint16Array;
 
 export type DataField = { name: string } & DataType;
 
@@ -121,7 +133,7 @@ class SourceFileExport {
     }
     segment(seg: string, segtype: 'rodata' | 'bss') {
         if (segtype == 'bss') {
-            this.lines.push(`.zeropage`); // TODO
+            this.lines.push(`.segment "ZEROPAGE"`); // TODO
         } else {
             this.lines.push(`.segment "CODE"`); // TODO
         }
@@ -229,13 +241,14 @@ function getPackedFieldSize(f: DataType, constValue?: DataValue): number {
     return 0;
 }
 
+// TODO: language dialects?
 const ASM_ITERATE_EACH = `
     ldx #0
-%{@loop}:
+%{@__each}:
     %{code}
     inx
     cpx #%{ecount}
-    bne %{@loop}
+    bne %{@__each}
 `;
 
 export class EntityScope {
@@ -323,23 +336,30 @@ export class EntityScope {
             let cfname = mksymbol(c, f.name);
             let fieldrange = segment.fieldranges[cfname];
             if (v !== undefined) {
+                let entcount = fieldrange.ehi - fieldrange.elo + 1;
                 // is it a byte array?
                 if (v instanceof Uint8Array) {
                     let datasym = `${c.name}_${f.name}_e${e.id}`;
                     let ptrlosym = `${c.name}_${f.name}_b0`;
                     let ptrhisym = `${c.name}_${f.name}_b8`;
-                    let entcount = fieldrange.ehi - fieldrange.elo + 1;
                     segment.allocateInitData(datasym, v);
                     let loofs = segment.allocateBytes(ptrlosym, entcount);
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
                     segment.initdata[loofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 0 };
                     segment.initdata[hiofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 8 };
-                } else if (fieldrange.ehi > fieldrange.elo) {
-                    // more than one element, add an array
-                    // TODO
+                // TODO: } else if (v instanceof Uint16Array) {
+                } else if (typeof v === 'number') {
+                    // more than 1 entity, add an array
+                    // TODO: what if > 8 bits?
+                    // TODO: what if mix of var, const, and init values?
+                    if (fieldrange.ehi > fieldrange.elo) {
+                        let datasym = `${c.name}_${f.name}_b0`;
+                        let base = segment.allocateBytes(datasym, entcount);
+                        segment.initdata[base + e.id - fieldrange.elo] = v;
+                    }
+                } else {
+                    throw new Error(`unhandled constant ${e.id}:${cfname}`);
                 }
-                //console.log(cfname, i, v, fieldrange);
-                //segment.allocateInitData(cfname, );
             }
         }
         //console.log(segment.initdata)
@@ -497,7 +517,13 @@ export class EntityScope {
         }
         // TODO: offset > 0?
         //let range = this.bss.getFieldRange(component, fieldName);
-        return `${component.name}_${fieldName}_b${bitofs},x` // TODO? ,x?
+        if (action.select == 'once') {
+            if (entities.length != 1)
+                throw new Error(`can't choose multiple entities for ${fieldName} with select=once`);
+            return `${component.name}_${fieldName}_b${bitofs}` // TODO? check there's only 1 entity?
+        } else {
+            return `${component.name}_${fieldName}_b${bitofs},x` // TODO? ,x?
+        }
     }
     entitiesMatching(atypes: ArchetypeMatch[]) {
         let result = [];
@@ -721,9 +747,9 @@ const TEMPLATE3_D = `
 %{@nomove}:
 `;
 
-const TEMPLATE4_S = `
+const TEMPLATE4_S1 = `
 .macro %{@KernelSetup} ent,ofs
-    lda #192 ; TODO: numlinesgit
+    lda #192 ; TODO: numlines
     sec
     sbc ypos_ypos_b0+ent
     sta %{$5}+ofs
@@ -751,7 +777,8 @@ const TEMPLATE4_S = `
     lda ypos_ypos_b0+ent
     sta %{$5}+ofs
 .endmacro
-
+`
+const TEMPLATE4_S2 = `
     %{@KernelSetup} 0,0
     %{@KernelSetup} 1,6
 `
@@ -867,7 +894,7 @@ function test() {
         name: 'sprite', fields: [
             { name: 'height', dtype: 'int', lo: 0, hi: 255 },
             { name: 'plyrindex', dtype: 'int', lo: 0, hi: 1 },
-            { name: 'flags', dtype: 'int', lo: 0, hi: 255 },
+            { name: 'nusiz', dtype: 'int', lo: 0, hi: 15 },
         ]
     })
     let c_player = em.defineComponent({
@@ -915,7 +942,6 @@ function test() {
     // init -> [start] -> frameloop
     // frameloop -> [preframe] [kernel] [postframe]
 
-    // TODO: where is kernel numlines?
     // temp between preframe + frame?
     // TODO: check names for identifierness
     em.defineSystem({
@@ -923,7 +949,13 @@ function test() {
         tempbytes: 8,
         actions: [
             {
-                text: TEMPLATE4_S, event: 'preframe', select: 'once', query: {
+                text: TEMPLATE4_S1, event: 'preframe', select: 'once', query: {
+                    include: ['kernel']
+                }
+            },
+            {
+                // TODO: should include kernel for numlines
+                text: TEMPLATE4_S2, event: 'preframe', select: 'once', query: {
                     include: ['sprite', 'hasbitmap', 'hascolormap', 'ypos'],
                 },
             },
@@ -945,17 +977,12 @@ function test() {
             //{ text:SETHORIZPOS },
         ]
     })
-    // TODO: how to have subsystems? maybe need Scopes
-    // TODO: easy stagger of system update?
-    // TODO: easy lookup tables
-    // TODO: how to init?
-
     // https://docs.unity3d.com/Packages/com.unity.entities@0.17/manual/ecs_systems.html
     em.defineSystem({
         name: 'frameloop',
         emits: ['preframe', 'kernel', 'postframe'],
         actions: [
-            { text: TEMPLATE1, event: 'start', select: 'once', query: { include: ['kernel'] } } // TODO: []?
+            { text: TEMPLATE1, event: 'start', select: 'once', query: { include: ['kernel'] } }
         ]
     })
     em.defineSystem({
@@ -984,7 +1011,7 @@ function test() {
     em.defineSystem({
         name: 'SetHorizPos',
         actions: [
-            { text: SETHORIZPOS, event: 'SetHorizPos', select: 'once', query: { include: ['xpos'] } }, // TODO: []?
+            { text: SETHORIZPOS, event: 'SetHorizPos', select: 'once', query: { include: ['xpos'] } },
         ]
     });
 
@@ -992,23 +1019,24 @@ function test() {
     let scene = em.newScope("Scene", root);
     let e_ekernel = root.newEntity({ components: [c_kernel] });
     root.setConstValue(e_ekernel, c_kernel, 'lines', 192);
-    root.setConstValue(e_ekernel, c_kernel, 'bgcolor', 0x92);
+    //root.setConstValue(e_ekernel, c_kernel, 'bgcolor', 0x92);
+    root.setInitValue(e_ekernel, c_kernel, 'bgcolor', 0x92);
 
     let e_bitmap0 = root.newEntity({ components: [c_bitmap] });
     // TODO: store array sizes?
-    root.setConstValue(e_bitmap0, c_bitmap, 'bitmapdata', new Uint8Array([0, 1, 3, 7, 15, 31, 0]));
+    root.setConstValue(e_bitmap0, c_bitmap, 'bitmapdata', new Uint8Array([1, 1, 3, 7, 15, 31, 63, 127]));
 
     let e_colormap0 = root.newEntity({ components: [c_colormap] });
-    root.setConstValue(e_colormap0, c_colormap, 'colormapdata', new Uint8Array([0, 3, 6, 9, 12, 14, 0]));
+    root.setConstValue(e_colormap0, c_colormap, 'colormapdata', new Uint8Array([6, 3, 6, 9, 12, 14, 31, 63]));
 
     let ea_playerSprite = { components: [c_sprite, c_hasbitmap, c_hascolormap, c_xpos, c_ypos, c_player] };
     let e_player0 = root.newEntity(ea_playerSprite);
-    root.setInitValue(e_player0, c_sprite, 'plyrindex', 0);
+    root.setConstValue(e_player0, c_sprite, 'plyrindex', 0);
     root.setInitValue(e_player0, c_sprite, 'height', 8);
     root.setInitValue(e_player0, c_xpos, 'xpos', 50);
     root.setInitValue(e_player0, c_ypos, 'ypos', 50);
     let e_player1 = root.newEntity(ea_playerSprite);
-    root.setInitValue(e_player1, c_sprite, 'plyrindex', 1);
+    root.setConstValue(e_player1, c_sprite, 'plyrindex', 1);
     root.setInitValue(e_player1, c_sprite, 'height', 8);
     root.setInitValue(e_player1, c_xpos, 'xpos', 100);
     root.setInitValue(e_player1, c_ypos, 'ypos', 60);
