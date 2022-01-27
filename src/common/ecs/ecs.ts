@@ -122,11 +122,9 @@ class SourceFileExport {
     }
     segment(seg: string, segtype: 'rodata' | 'bss') {
         if (segtype == 'bss') {
-            this.lines.push(` seg.u ${seg}`);
-            this.lines.push(` org $80`); // TODO
+            this.lines.push(`.zeropage`); // TODO
         } else {
-            this.lines.push(` seg ${seg}`);
-            this.lines.push(` org $f000`); // TODO
+            this.lines.push(`.segment "CODE"`); // TODO
         }
     }
     label(sym: string) {
@@ -134,12 +132,14 @@ class SourceFileExport {
     }
     byte(b: number | ConstByte | undefined) {
         if (b === undefined) {
-            this.lines.push(` .ds 1`);
+            this.lines.push(` .res 1`);
         } else if (typeof b === 'number') {
             if (b < 0 || b > 255) throw new Error(`out of range byte ${b}`);
             this.lines.push(` .byte ${b}`)
         } else {
-            this.lines.push(` .byte (${b.symbol} >> ${b.bitofs})`)
+            if (b.bitofs == 0) this.lines.push(` .byte <${b.symbol}`)
+            else if (b.bitofs == 8) this.lines.push(` .byte >${b.symbol}`)
+            else this.lines.push(` .byte (${b.symbol} >> ${b.bitofs})`) // TODO?
         }
     }
     text(s: string) {
@@ -232,11 +232,11 @@ function getPackedFieldSize(f: DataType, constValue?: DataValue): number {
 
 const ASM_ITERATE_EACH = `
     ldx #0
-%{.loop}:
+%{@loop}:
     %{code}
     inx
     cpx #%{ecount}
-    bne %{.loop}
+    bne %{@loop}
 `;
 
 export class EntityScope {
@@ -439,7 +439,8 @@ export class EntityScope {
                 case '!': // emit event
                     return this.generateCodeForEvent(rest);
                 case '.': // auto label
-                    return `.${label}_${rest}`;
+                case '@': // auto label
+                    return `${label}_${rest}`;
                 case '$': // temp byte
                     return `TEMP+${this.tempOffset}+${rest}`;
                 case '<': // low byte
@@ -615,16 +616,14 @@ export class EntityManager {
 ///
 
 const HEADER = `
-    processor 6502
-    include "vcs.h"
-    include "macro.h"
-    include "xmacro.h"
+.include "vcs-ca65.h"
 `
 
 const FOOTER = `
-    org $fffc
-    .word Start	; reset vector
-    .word Start	; BRK vector
+.segment "VECTORS"
+VecNMI:    .word Start
+VecReset:  .word Start
+VecBRK:    .word Start
 `
 
 const TEMPLATE_INIT = `
@@ -633,45 +632,19 @@ Start:
 `
 
 const TEMPLATE1 = `
-.NextFrame:
-	VERTICAL_SYNC
-    sta CXCLR	; clear collision register
-    IFCONST PAL
-        TIMER_SETUP 44
-    ELSE
-        TIMER_SETUP 36
-    ENDIF
-
+%{@NextFrame}:
+    FRAME_START
     %{!preframe}
-
-    TIMER_WAIT
-	lda #0
-    sta VBLANK
-    IFNCONST PAL
-        TIMER_SETUP 194
-    ENDIF
-
+    KERNEL_START
     %{!kernel}
-
-    IFNCONST PAL
-        TIMER_WAIT
-    ENDIF
-    lda #2
-    sta VBLANK
-    IFCONST PAL
-        TIMER_SETUP 36
-    ELSE
-        TIMER_SETUP 28
-    ENDIF
-
+    KERNEL_END
     %{!postframe}
-
-    TIMER_WAIT
+    FRAME_END
     lsr SWCHB	    ; test Game Reset switch
-    bcs .NoStart	; reset?
+    bcs @NoStart
     jmp Start
-.NoStart:
-    jmp .NextFrame
+@NoStart:
+    jmp %{@NextFrame}
 `;
 
 // TODO: two sticks?
@@ -681,100 +654,133 @@ const TEMPLATE2_a = `
 `
 const TEMPLATE2_b = `
     asl %{$0}
-    bcs %{.SkipMoveRight}
+    bcs %{@SkipMoveRight}
     %{!joyright}
-%{.SkipMoveRight}
+%{@SkipMoveRight}:
     asl %{$0}
-    bcs %{.SkipMoveLeft}
+    bcs %{@SkipMoveLeft}
     %{!joyleft}
-%{.SkipMoveLeft}
+%{@SkipMoveLeft}:
     asl %{$0}
-    bcs %{.SkipMoveDown}
+    bcs %{@SkipMoveDown}
     %{!joydown}
-%{.SkipMoveDown}
+%{@SkipMoveDown}:
     asl %{$0}
-    bcs %{.SkipMoveUp}
+    bcs %{@SkipMoveUp}
     %{!joyup}
-%{.SkipMoveUp}
+%{@SkipMoveUp}:
 `;
 
 const TEMPLATE3_L = `
     lda %{<xpos}
     sec
     sbc #1
-    bcc %{.nomove}
+    bcc %{@nomove}
     sta %{<xpos}
-%{.nomove}
+%{@nomove}:
 `;
 
 const TEMPLATE3_R = `
     lda %{<xpos}
     clc
     adc #1
-    cmp #160
-    bcs %{.nomove}
+    cmp #150
+    bcs %{@nomove}
     sta %{<xpos}
-%{.nomove}
+%{@nomove}:
+`;
+
+const TEMPLATE3_U = `
+    lda %{<ypos}
+    sec
+    sbc #1
+    bcc %{@nomove}
+    sta %{<ypos}
+%{@nomove}:
+`;
+
+const TEMPLATE3_D = `
+    lda %{<ypos}
+    clc
+    adc #1
+    cmp #150
+    bcs %{@nomove}
+    sta %{<ypos}
+%{@nomove}:
 `;
 
 const TEMPLATE4_S = `
-    ldy hasbitmap_bitmap_b0+0
-    lda bitmap_bitmapdata_b0,y
-    sta %{$0}
-    lda bitmap_bitmapdata_b8,y
-    sta %{$1}
-    ldy hascolormap_colormap_b0+0
-    lda colormap_colormapdata_b0,y
-    sta %{$2}
-    lda colormap_colormapdata_b8,y
-    sta %{$3}
-    lda sprite_height_b0+0
-    sta %{$4}
-    lda ypos_ypos_b0+0
-    sta %{$5}
+.macro %{@KernelSetup} ent,ofs
+    lda #192
+    sec
+    sbc ypos_ypos_b0+ent
+    sta %{$5}+ofs
 
-    ldy hasbitmap_bitmap_b0+1
+    ldy hasbitmap_bitmap_b0+ent
     lda bitmap_bitmapdata_b0,y
-    sta %{$6}
+    sec
+    sbc %{$5}+ofs
+    sta %{$0}+ofs
     lda bitmap_bitmapdata_b8,y
-    sta %{$7}
-    ldy hascolormap_colormap_b0+1
+    sbc #0
+    sta %{$1}+ofs
+
+    ldy hascolormap_colormap_b0+ent
     lda colormap_colormapdata_b0,y
-    sta %{$8}
+    sec
+    sbc %{$5}+ofs
+    sta %{$2}+ofs
     lda colormap_colormapdata_b8,y
-    sta %{$9}
-    lda sprite_height_b0+1
-    sta %{$10}
-    lda ypos_ypos_b0+1
-    sta %{$11}
+    sbc #0
+    sta %{$3}+ofs
+
+    lda sprite_height_b0+ent
+    sta %{$4}+ofs
+    lda ypos_ypos_b0+ent
+    sta %{$5}+ofs
+.endmacro
+
+    %{@KernelSetup} 0,0
+    %{@KernelSetup} 1,6
 `
 
 // https://atariage.com/forums/topic/75982-skipdraw-and-graphics/?tab=comments#comment-928232
 // https://atariage.com/forums/topic/129683-advice-on-a-masking-kernel/
 // https://atariage.com/forums/topic/128147-having-trouble-with-2-free-floating-player-graphics/?tab=comments#comment-1547059
 const TEMPLATE4_K = `
-    ldx #192    ; lines in kernel
-LVScan
-    txa		; X -> A
-    sec		; set carry for subtract
-    sbc %{$5}	; local coordinate
-    cmp %{$4}   ; in sprite? (height)
-    bcc InSprite	; yes, skip over next
-    lda #0		; not in sprite, load 0
-InSprite
-    tay		; local coord -> Y
-    lda (%{$0}),y	; lookup color
-    sta WSYNC	; sync w/ scanline
-    sta GRP0	; store bitmap
-    lda (%{$2}),y ; lookup color
-    sta COLUP0	; store color
-    dex		; decrement X
-    bne LVScan	; repeat until 192 lines
+    ldy #192    ; lines in kernel
+@LVScan:
+    lda %{$4} ; height
+    dcp %{$5}
+    bcs @DoDraw1
+    lda #0
+    .byte $2C
+@DoDraw1:
+    lda (%{$0}),y
+    sta WSYNC
+    sta GRP0
+    lda (%{$2}),y
+    sta COLUP0
+
+    lda %{$10} ; height
+    dcp %{$11}
+    bcs @DoDraw2
+    lda #0
+    .byte $2C
+@DoDraw2:
+    lda (%{$6}),y
+    sta GRP1
+    lda (%{$8}),y
+    sta COLUP1
+
+    dey		; decrement
+    bne @LVScan	; repeat until 192 lines
 `;
 
 const SET_XPOS = `
     lda %{<xpos}
     ldy %{<plyrindex}
+    sta HMCLR
     jsr %{^SetHorizPos}
 `
 
@@ -782,12 +788,13 @@ const SETHORIZPOS = `
 ; SetHorizPos routine
 ; A = X coordinate
 ; Y = player number (0 or 1)
-SetHorizPos
+SetHorizPos:
 	sta WSYNC	; start a new line
-	sec		; set carry flag
-DivideLoop
+	sec		    ; set carry flag
+    nop
+@DivideLoop:
 	sbc #15		; subtract 15
-	bcs DivideLoop	; branch until negative
+	bcs @DivideLoop	; branch until negative
 	eor #7		; calculate fine offset
 	asl
 	asl
@@ -803,7 +810,7 @@ DivideLoop
 const INITFROMSPARSE = `
 MemSrc equ $80
 MemDest equ $82
-InitMemory
+InitMemory:
 	ldy #0
 	lda (MemSrc),y
         beq .done
@@ -823,13 +830,14 @@ InitMemory
 .done	rts
 `
 
+// TODO: @loop
 const INITFROMARRAY = `
     ldy #%{nbytes}
-.loop
+@loop:
     lda %{src}-1,y
     sta %{dest}-1,y
     dey
-    bne .loop
+    bne @loop
 `
 
 function test() {
@@ -925,13 +933,23 @@ function test() {
         ]
     });
     em.defineSystem({
-        name:'simple_move',
+        name:'move_x',
         query:{
             include:['player','xpos']
         },
         actions:[
             { text:TEMPLATE3_L, event:'joyleft', iterate:'once' }, // TODO: event source?
             { text:TEMPLATE3_R, event:'joyright', iterate:'once' }, // TODO: event source?
+        ]
+    });
+    em.defineSystem({
+        name:'move_y',
+        query:{
+            include:['player','ypos']
+        },
+        actions:[
+            { text:TEMPLATE3_U, event:'joyup', iterate:'once' }, // TODO: event source?
+            { text:TEMPLATE3_D, event:'joydown', iterate:'once' }, // TODO: event source?
         ]
     });
     em.defineSystem({
@@ -949,7 +967,7 @@ function test() {
 
     let e_bitmap0 = root.newEntity({components:[c_bitmap]});
     // TODO: store array sizes?
-    root.setConstValue(e_bitmap0, c_bitmap, 'bitmapdata', new Uint8Array([0,2,4,6,8,15,0]));
+    root.setConstValue(e_bitmap0, c_bitmap, 'bitmapdata', new Uint8Array([0,1,3,7,15,31,0]));
 
     let e_colormap0 = root.newEntity({components:[c_colormap]});
     root.setConstValue(e_colormap0, c_colormap, 'colormapdata', new Uint8Array([0,3,6,9,12,14,0]));
