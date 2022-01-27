@@ -25,8 +25,8 @@ function mkscopesymbol(s: EntityScope, c: ComponentType, fieldName: string) {
 export interface Entity {
     id: number;
     etype: EntityArchetype;
-    consts: {[component_field: string]: DataValue};
-    inits: {[scope_component_field: string]: DataValue};
+    consts: { [component_field: string]: DataValue };
+    inits: { [scope_component_field: string]: DataValue };
 }
 
 export interface EntityConst {
@@ -54,17 +54,16 @@ export interface Query {
 
 export interface System {
     name: string;
-    actions: CodeFragment[];
-    query: Query;
+    actions: Action[];
     tempbytes?: number;
     emits?: string[];
-    live?: EntityArchetype[] | null;
 }
 
-export interface CodeFragment {
+export interface Action {
     text: string;
     event: string;
-    iterate: 'once' | 'each'
+    query: Query;
+    select: 'once' | 'each' | 'source'
 }
 
 export type DataValue = number | boolean | Uint8Array;
@@ -115,7 +114,7 @@ interface ArchetypeMatch {
 }
 
 class SourceFileExport {
-    lines : string[] = [];
+    lines: string[] = [];
 
     comment(text: string) {
         this.lines.push(';' + text);
@@ -152,12 +151,12 @@ class SourceFileExport {
 }
 
 class Segment {
-    symbols: {[sym: string]: number} = {};
-    ofs2sym = new Map<number,string[]>();
-    fieldranges: {[cfname: string]: FieldArray} = {};
+    symbols: { [sym: string]: number } = {};
+    ofs2sym = new Map<number, string[]>();
+    fieldranges: { [cfname: string]: FieldArray } = {};
     size: number = 0;
     initdata: (number | ConstByte | undefined)[] = [];
-    codefrags : string[] = [];
+    codefrags: string[] = [];
 
     addCodeFragment(code: string) {
         this.codefrags.push(code);
@@ -175,7 +174,7 @@ class Segment {
     // TODO: optimize shared data
     allocateInitData(name: string, bytes: Uint8Array) {
         let ofs = this.allocateBytes(name, bytes.length);
-        for (let i=0; i<bytes.length; i++) {
+        for (let i = 0; i < bytes.length; i++) {
             this.initdata[ofs + i] = bytes[i];
         }
     }
@@ -183,7 +182,7 @@ class Segment {
         for (let code of this.codefrags) {
             file.text(code);
         }
-        for (let i=0; i<this.size; i++) {
+        for (let i = 0; i < this.size; i++) {
             let syms = this.ofs2sym.get(i);
             if (syms) {
                 for (let sym of syms) file.label(sym);
@@ -240,8 +239,8 @@ const ASM_ITERATE_EACH = `
 `;
 
 export class EntityScope {
-    childScopes : EntityScope[] = [];
-    entities : Entity[] = [];
+    childScopes: EntityScope[] = [];
+    entities: Entity[] = [];
     bss = new Segment();
     rodata = new Segment();
     code = new Segment();
@@ -257,10 +256,10 @@ export class EntityScope {
     ) {
         parent?.childScopes.push(this);
     }
-    newEntity(etype: EntityArchetype) : Entity {
+    newEntity(etype: EntityArchetype): Entity {
         // TODO: add parent ID? lock parent scope?
         let id = this.entities.length;
-        let entity : Entity = {id, etype, consts:{}, inits:{}};
+        let entity: Entity = { id, etype, consts: {}, inits: {} };
         this.em.archtypes.add(etype);
         for (let c of etype.components) {
             this.componentsInScope.add(c.name);
@@ -269,24 +268,24 @@ export class EntityScope {
         return entity;
     }
     *iterateFields() {
-        for (let i=0; i<this.entities.length; i++) {
+        for (let i = 0; i < this.entities.length; i++) {
             let e = this.entities[i];
             for (let c of e.etype.components) {
                 for (let f of c.fields) {
-                    yield {i, e, c, f, v:e.consts[mksymbol(c, f.name)]};
+                    yield { i, e, c, f, v: e.consts[mksymbol(c, f.name)] };
                 }
             }
         }
     }
     buildSegments() {
         let iter = this.iterateFields();
-        for (var o=iter.next(); o.value; o=iter.next()) {
-            let {i,e,c,f,v} = o.value;
+        for (var o = iter.next(); o.value; o = iter.next()) {
+            let { i, e, c, f, v } = o.value;
             let segment = v === undefined ? this.bss : this.rodata;
             let cfname = mksymbol(c, f.name);
             let array = segment.fieldranges[cfname];
             if (!array) {
-                array = segment.fieldranges[cfname] = {component:c, field:f, elo:i, ehi:i};
+                array = segment.fieldranges[cfname] = { component: c, field: f, elo: i, ehi: i };
             } else {
                 array.ehi = i;
             }
@@ -295,7 +294,7 @@ export class EntityScope {
     }
     allocateSegment(segment: Segment, readonly: boolean) {
         let fields = Object.values(segment.fieldranges);
-        fields.sort((a,b) => (a.ehi - a.elo + 1) * getPackedFieldSize(a.field));
+        fields.sort((a, b) => (a.ehi - a.elo + 1) * getPackedFieldSize(a.field));
         let f;
         while (f = fields.pop()) {
             let name = mksymbol(f.component, f.field.name);
@@ -304,13 +303,13 @@ export class EntityScope {
             // variable size? make it a pointer
             if (bits == 0) bits = 16; // TODO?
             let rangelen = (f.ehi - f.elo + 1);
-            let bytesperelem = Math.ceil(bits/8) * rangelen;
+            let bytesperelem = Math.ceil(bits / 8) * rangelen;
             // TODO: packing bits
             // TODO: split arrays
             f.access = [];
-            for (let i=0; i<bits; i+=8) {
+            for (let i = 0; i < bits; i += 8) {
                 let symbol = name + '_b' + i;
-                f.access.push({symbol, bit:0, width:8}); // TODO
+                f.access.push({ symbol, bit: 0, width: 8 }); // TODO
                 if (!readonly) {
                     segment.allocateBytes(symbol, rangelen * bytesperelem); // TODO
                 }
@@ -319,8 +318,8 @@ export class EntityScope {
     }
     allocateROData(segment: Segment) {
         let iter = this.iterateFields();
-        for (var o=iter.next(); o.value; o=iter.next()) {
-            let {i,e,c,f,v} = o.value;
+        for (var o = iter.next(); o.value; o = iter.next()) {
+            let { i, e, c, f, v } = o.value;
             let cfname = mksymbol(c, f.name);
             let fieldrange = segment.fieldranges[cfname];
             if (v !== undefined) {
@@ -333,8 +332,8 @@ export class EntityScope {
                     segment.allocateInitData(datasym, v);
                     let loofs = segment.allocateBytes(ptrlosym, entcount);
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
-                    segment.initdata[loofs + e.id - fieldrange.elo] = {symbol:datasym, bitofs:0};
-                    segment.initdata[hiofs + e.id - fieldrange.elo] = {symbol:datasym, bitofs:8};
+                    segment.initdata[loofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 0 };
+                    segment.initdata[hiofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 8 };
                 } else if (fieldrange.ehi > fieldrange.elo) {
                     // more than one element, add an array
                     // TODO
@@ -348,8 +347,8 @@ export class EntityScope {
     allocateInitData(segment: Segment) {
         let initbytes = new Uint8Array(segment.size);
         let iter = this.iterateFields();
-        for (var o=iter.next(); o.value; o=iter.next()) {
-            let {i,e,c,f,v} = o.value;
+        for (var o = iter.next(); o.value; o = iter.next()) {
+            let { i, e, c, f, v } = o.value;
             let scfname = mkscopesymbol(this, c, f.name);
             let initvalue = e.inits[scfname];
             if (initvalue !== undefined) {
@@ -389,7 +388,7 @@ export class EntityScope {
         }
         let s = '';
         //s += `\n; event ${event}\n`;
-        let emitcode : {[event: string] : string} = {};
+        let emitcode: { [event: string]: string } = {};
         for (let sys of systems) {
             // TODO: does this work if multiple actions?
             if (sys.tempbytes) this.allocateTempBytes(sys.tempbytes);
@@ -421,13 +420,14 @@ export class EntityScope {
         this.tempOffset += n;
         this.maxTempBytes = Math.max(this.tempOffset, this.maxTempBytes);
     }
-    replaceCode(code: string, sys: System, action: CodeFragment): string {
+    replaceCode(code: string, sys: System, action: Action): string {
         const re = /\%\{(.+?)\}/g;
         let label = sys.name + '_' + action.event;
-        let atypes = this.em.archetypesMatching(sys.query);
+        let atypes = this.em.archetypesMatching(action.query);
         let entities = this.entitiesMatching(atypes);
-        // TODO: find loops
-        if (action.iterate == 'each') {
+        // TODO: detect cycles
+        // TODO: "source"?
+        if (action.select == 'each') {
             code = this.wrapCodeInLoop(code, sys, action, entities);
             //console.log(sys.name, action.event, ents);
             //frag = this.iterateCode(frag);
@@ -460,17 +460,17 @@ export class EntityScope {
         this.subroutines.add(symbol);
         return symbol;
     }
-    wrapCodeInLoop(code: string, sys: System, action: CodeFragment, ents: Entity[]): string {
+    wrapCodeInLoop(code: string, sys: System, action: Action, ents: Entity[]): string {
         // TODO: check ents
         // TODO: check segment bounds
         let s = ASM_ITERATE_EACH;
         s = s.replace('%{elo}', ents[0].id.toString());
-        s = s.replace('%{ehi}', ents[ents.length-1].id.toString());
+        s = s.replace('%{ehi}', ents[ents.length - 1].id.toString());
         s = s.replace('%{ecount}', ents.length.toString());
         s = s.replace('%{code}', code);
         return s;
     }
-    generateCodeForField(sys: System, action: CodeFragment, 
+    generateCodeForField(sys: System, action: Action,
         atypes: ArchetypeMatch[], entities: Entity[],
         fieldName: string, bitofs: number): string {
         // find archetypes
@@ -513,7 +513,7 @@ export class EntityScope {
     systemListensTo(sys: System, events: string[]) {
         for (let action of sys.actions) {
             if (action.event != null && events.includes(action.event)) {
-                let archs = this.em.archetypesMatching(sys.query);
+                let archs = this.em.archetypesMatching(action.query);
                 for (let arch of archs) {
                     for (let ctype of arch.cmatch) {
                         if (this.hasComponent(ctype)) {
@@ -559,9 +559,9 @@ export class EntityScope {
 
 export class EntityManager {
     archtypes = new Set<EntityArchetype>();
-    components : {[name: string]: ComponentType} = {};
-    systems : {[name: string]: System} = {};
-    scopes : {[name: string]: EntityScope} = {};
+    components: { [name: string]: ComponentType } = {};
+    systems: { [name: string]: System } = {};
+    scopes: { [name: string]: EntityScope } = {};
 
     newScope(name: string, parent?: EntityScope) {
         let scope = new EntityScope(this, name, parent);
@@ -591,11 +591,11 @@ export class EntityManager {
         return list;
     }
     archetypesMatching(q: Query) {
-        let result : ArchetypeMatch[] = [];
+        let result: ArchetypeMatch[] = [];
         this.archtypes.forEach(etype => {
             let cmatch = this.componentsMatching(q, etype);
             if (cmatch.length > 0) {
-                result.push({etype, cmatch});
+                result.push({ etype, cmatch });
             }
         });
         return result;
@@ -843,39 +843,60 @@ const INITFROMARRAY = `
 function test() {
     let em = new EntityManager();
 
-    let c_kernel = em.defineComponent({name:'kernel', fields:[
-        {name:'lines', dtype:'int', lo:0, hi:255}
-    ]})
-    let c_sprite = em.defineComponent({name:'sprite', fields:[
-        {name:'height', dtype:'int', lo:0, hi:255},
-        {name:'plyrindex', dtype:'int', lo:0, hi:1},
-        {name:'flags', dtype:'int', lo:0, hi:255},
-    ]})
-    let c_player = em.defineComponent({name:'player', fields:[
-        //TODO: optional?
-    ]})
-    let c_hasbitmap = em.defineComponent({name:'hasbitmap', fields:[
-        {name:'bitmap', dtype:'ref', query:{include:['bitmap']}},
-    ]})
-    let c_hascolormap = em.defineComponent({name:'hascolormap', fields:[
-        {name:'colormap', dtype:'ref', query:{include:['colormap']}},
-    ]})
-    let c_bitmap = em.defineComponent({name:'bitmap', fields:[
-        {name:'bitmapdata', dtype:'array', elem:{ dtype:'int', lo:0, hi:255 }}
-    ]})
-    let c_colormap = em.defineComponent({name:'colormap', fields:[
-        {name:'colormapdata', dtype:'array', elem:{ dtype:'int', lo:0, hi:255 }}
-    ]})
-    let c_xpos = em.defineComponent({name:'xpos', fields:[
-        {name:'xpos', dtype:'int', lo:0, hi:255}
-    ]})
-    let c_ypos = em.defineComponent({name:'ypos', fields:[
-        {name:'ypos', dtype:'int', lo:0, hi:255}
-    ]})
-    let c_xyvel = em.defineComponent({name:'xyvel', fields:[
-        {name:'xvel', dtype:'int', lo:-8, hi:7},
-        {name:'yvel', dtype:'int', lo:-8, hi:7}
-    ]})
+    let c_kernel = em.defineComponent({
+        name: 'kernel', fields: [
+            { name: 'lines', dtype: 'int', lo: 0, hi: 255 },
+            { name: 'bgcolor', dtype: 'int', lo: 0, hi: 255 },
+        ]
+    })
+    let c_sprite = em.defineComponent({
+        name: 'sprite', fields: [
+            { name: 'height', dtype: 'int', lo: 0, hi: 255 },
+            { name: 'plyrindex', dtype: 'int', lo: 0, hi: 1 },
+            { name: 'flags', dtype: 'int', lo: 0, hi: 255 },
+        ]
+    })
+    let c_player = em.defineComponent({
+        name: 'player', fields: [
+            //TODO: optional?
+        ]
+    })
+    let c_hasbitmap = em.defineComponent({
+        name: 'hasbitmap', fields: [
+            { name: 'bitmap', dtype: 'ref', query: { include: ['bitmap'] } },
+        ]
+    })
+    let c_hascolormap = em.defineComponent({
+        name: 'hascolormap', fields: [
+            { name: 'colormap', dtype: 'ref', query: { include: ['colormap'] } },
+        ]
+    })
+    let c_bitmap = em.defineComponent({
+        name: 'bitmap', fields: [
+            { name: 'bitmapdata', dtype: 'array', elem: { dtype: 'int', lo: 0, hi: 255 } }
+        ]
+    })
+    let c_colormap = em.defineComponent({
+        name: 'colormap', fields: [
+            { name: 'colormapdata', dtype: 'array', elem: { dtype: 'int', lo: 0, hi: 255 } }
+        ]
+    })
+    let c_xpos = em.defineComponent({
+        name: 'xpos', fields: [
+            { name: 'xpos', dtype: 'int', lo: 0, hi: 255 }
+        ]
+    })
+    let c_ypos = em.defineComponent({
+        name: 'ypos', fields: [
+            { name: 'ypos', dtype: 'int', lo: 0, hi: 255 }
+        ]
+    })
+    let c_xyvel = em.defineComponent({
+        name: 'xyvel', fields: [
+            { name: 'xvel', dtype: 'int', lo: -8, hi: 7 },
+            { name: 'yvel', dtype: 'int', lo: -8, hi: 7 }
+        ]
+    })
 
     // init -> [start] -> frameloop
     // frameloop -> [preframe] [kernel] [postframe]
@@ -884,23 +905,29 @@ function test() {
     // temp between preframe + frame?
     // TODO: check names for identifierness
     em.defineSystem({
-        name:'kernel_simple',
-        tempbytes:8,
-        query:{
-            include:['sprite','hasbitmap','hascolormap','ypos'],
-        },
-        actions:[
-            { text:TEMPLATE4_S, event:'preframe', iterate:'once' },
-            { text:TEMPLATE4_K, event:'kernel', iterate:'once' },
+        name: 'kernel_simple',
+        tempbytes: 8,
+        actions: [
+            {
+                text: TEMPLATE4_S, event: 'preframe', select: 'once', query: {
+                    include: ['sprite', 'hasbitmap', 'hascolormap', 'ypos'],
+                },
+            },
+            {
+                text: TEMPLATE4_K, event: 'kernel', select: 'once', query: {
+                    include: ['kernel']
+                }
+            },
         ]
     })
     em.defineSystem({
-        name:'set_xpos',
-        query:{
-            include:['sprite','xpos']
-        },
-        actions:[
-            { text:SET_XPOS, event:'preframe', iterate:'each' },
+        name: 'set_xpos',
+        actions: [
+            {
+                text: SET_XPOS, event: 'preframe', select: 'each', query: {
+                    include: ['sprite', 'xpos']
+                },
+            },
             //{ text:SETHORIZPOS },
         ]
     })
@@ -911,68 +938,55 @@ function test() {
 
     // https://docs.unity3d.com/Packages/com.unity.entities@0.17/manual/ecs_systems.html
     em.defineSystem({
-        name:'frameloop',
-        emits:['preframe','kernel','postframe'],
-        query:{
-            include:['kernel'], // ???
-        },
-        actions:[
-            { text:TEMPLATE1, event:'start', iterate:'once' }
+        name: 'frameloop',
+        emits: ['preframe', 'kernel', 'postframe'],
+        actions: [
+            { text: TEMPLATE1, event: 'start', select: 'once', query: { include: [] } } // TODO: []?
         ]
     })
     em.defineSystem({
-        name:'joyread',
-        query:{
-            include:['player']
-        },
-        tempbytes:1,
-        emits:['joyup','joydown','joyleft','joyright','joybutton'],
-        actions:[
-            { text:TEMPLATE2_a, event:'postframe', iterate:'once' },
-            { text:TEMPLATE2_b, event:'postframe', iterate:'each' }
+        name: 'joyread',
+        tempbytes: 1,
+        emits: ['joyup', 'joydown', 'joyleft', 'joyright', 'joybutton'],
+        actions: [
+            { text: TEMPLATE2_a, event: 'postframe', select: 'once', query: { include: ['player'] } },
+            { text: TEMPLATE2_b, event: 'postframe', select: 'each', query: { include: ['player'] } }
         ]
     });
     em.defineSystem({
-        name:'move_x',
-        query:{
-            include:['player','xpos']
-        },
-        actions:[
-            { text:TEMPLATE3_L, event:'joyleft', iterate:'once' }, // TODO: event source?
-            { text:TEMPLATE3_R, event:'joyright', iterate:'once' }, // TODO: event source?
+        name: 'move_x',
+        actions: [
+            { text: TEMPLATE3_L, event: 'joyleft', select: 'source', query: { include: ['player', 'xpos'] }, },
+            { text: TEMPLATE3_R, event: 'joyright', select: 'source', query: { include: ['player', 'xpos'] }, },
         ]
     });
     em.defineSystem({
-        name:'move_y',
-        query:{
-            include:['player','ypos']
-        },
-        actions:[
-            { text:TEMPLATE3_U, event:'joyup', iterate:'once' }, // TODO: event source?
-            { text:TEMPLATE3_D, event:'joydown', iterate:'once' }, // TODO: event source?
+        name: 'move_y',
+        actions: [
+            { text: TEMPLATE3_U, event: 'joyup', select: 'source', query: { include: ['player', 'ypos'] } },
+            { text: TEMPLATE3_D, event: 'joydown', select: 'source', query: { include: ['player', 'ypos'] } },
         ]
     });
     em.defineSystem({
-        name:'SetHorizPos',
-        query:{ include:[] }, // TODO?
-        actions:[
-            { text:SETHORIZPOS, event:'SetHorizPos', iterate:'once' }, // TODO: event source?
+        name: 'SetHorizPos',
+        actions: [
+            { text: SETHORIZPOS, event: 'SetHorizPos', select: 'once', query: { include: [] } }, // TODO: []?
         ]
     });
 
     let root = em.newScope("Root");
     let scene = em.newScope("Scene", root);
-    let e_ekernel = root.newEntity({components:[c_kernel]});
+    let e_ekernel = root.newEntity({ components: [c_kernel] });
     root.setConstValue(e_ekernel, c_kernel, 'lines', 192);
 
-    let e_bitmap0 = root.newEntity({components:[c_bitmap]});
+    let e_bitmap0 = root.newEntity({ components: [c_bitmap] });
     // TODO: store array sizes?
-    root.setConstValue(e_bitmap0, c_bitmap, 'bitmapdata', new Uint8Array([0,1,3,7,15,31,0]));
+    root.setConstValue(e_bitmap0, c_bitmap, 'bitmapdata', new Uint8Array([0, 1, 3, 7, 15, 31, 0]));
 
-    let e_colormap0 = root.newEntity({components:[c_colormap]});
-    root.setConstValue(e_colormap0, c_colormap, 'colormapdata', new Uint8Array([0,3,6,9,12,14,0]));
+    let e_colormap0 = root.newEntity({ components: [c_colormap] });
+    root.setConstValue(e_colormap0, c_colormap, 'colormapdata', new Uint8Array([0, 3, 6, 9, 12, 14, 0]));
 
-    let ea_playerSprite = {components:[c_sprite,c_hasbitmap,c_hascolormap,c_xpos,c_ypos,c_player]};
+    let ea_playerSprite = { components: [c_sprite, c_hasbitmap, c_hascolormap, c_xpos, c_ypos, c_player] };
     let e_player0 = root.newEntity(ea_playerSprite);
     root.setInitValue(e_player0, c_sprite, 'plyrindex', 0);
     root.setInitValue(e_player0, c_sprite, 'height', 8);
