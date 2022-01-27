@@ -1,6 +1,6 @@
 
 import { MOS6502, MOS6502State } from "../common/cpu/MOS6502";
-import { Bus, BasicScanlineMachine, SavesState } from "../common/devices";
+import { Bus, BasicScanlineMachine, SavesState, AcceptsBIOS } from "../common/devices";
 import { KeyFlags } from "../common/emu"; // TODO
 import { hex, lzgmini, stringToByteArray, RGBA, printFlags } from "../common/util";
 
@@ -33,7 +33,7 @@ interface SlotDevice extends Bus {
    readConst(address: number) : number;
 }
 
-export class AppleII extends BasicScanlineMachine {
+export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
 
    // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
   cpuFrequency = 1022727;
@@ -88,9 +88,7 @@ export class AppleII extends BasicScanlineMachine {
 
   constructor() {
     super();
-    this.bios = new lzgmini().decode(stringToByteArray(atob(APPLEIIGO_LZG)));
-    this.bios[0x39a] = 0x60; // $d39a = RTS
-    this.ram.set(this.bios, 0xd000);
+    this.loadBIOS(new lzgmini().decode(stringToByteArray(atob(APPLEIIGO_LZG))));
     this.ram[0xbf00] = 0x4c; // fake DOS detect for C
     this.ram[0xbf6f] = 0x01; // fake DOS detect for C
     this.connectCPUMemoryBus(this);
@@ -130,6 +128,11 @@ export class AppleII extends BasicScanlineMachine {
   }
   loadControlsState(s:AppleIIControlsState) {
     this.kbdlatch = s.kbdlatch;
+  }
+  loadBIOS(data, title?) {
+      this.bios = Uint8Array.from(data);
+      this.bios[0x39a] = 0x60; // $d39a = RTS
+      this.ram.set(this.bios, 0xd000);
   }
   loadROM(data) {
     if (data.length == 35*16*256) { // is it a disk image?
