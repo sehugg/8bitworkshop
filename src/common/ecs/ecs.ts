@@ -481,8 +481,17 @@ export class EntityScope {
         // see if all entities have the same constant value
         let constValues = new Set();
         for (let e of entities) {
-            let constVal = e.consts[fieldName];
-            if (constVal) constValues.add(constVal);
+            let constVal = e.consts[mksymbol(component, fieldName)];
+            constValues.add(constVal); // constVal === undefined is allowed
+        }
+        // is it a constant?
+        if (constValues.size == 1) {
+            let value = constValues.values().next().value;
+            if (value !== undefined) {
+                if (bitofs == 0) return `#<${value}`;
+                if (bitofs == 8) return `#>${value}`;
+                // TODO: bitofs?
+            }
         }
         // TODO: offset > 0?
         //let range = this.bss.getFieldRange(component, fieldName);
@@ -711,7 +720,7 @@ const TEMPLATE3_D = `
 
 const TEMPLATE4_S = `
 .macro %{@KernelSetup} ent,ofs
-    lda #192
+    lda #192 ; TODO: numlines
     sec
     sbc ypos_ypos_b0+ent
     sta %{$5}+ofs
@@ -748,7 +757,8 @@ const TEMPLATE4_S = `
 // https://atariage.com/forums/topic/129683-advice-on-a-masking-kernel/
 // https://atariage.com/forums/topic/128147-having-trouble-with-2-free-floating-player-graphics/?tab=comments#comment-1547059
 const TEMPLATE4_K = `
-    ldy #192    ; lines in kernel
+    lda %{<bgcolor}
+    ldy %{<lines}
 @LVScan:
     lda %{$4} ; height
     dcp %{$5}
@@ -978,6 +988,7 @@ function test() {
     let scene = em.newScope("Scene", root);
     let e_ekernel = root.newEntity({ components: [c_kernel] });
     root.setConstValue(e_ekernel, c_kernel, 'lines', 192);
+    root.setConstValue(e_ekernel, c_kernel, 'bgcolor', 0x92);
 
     let e_bitmap0 = root.newEntity({ components: [c_bitmap] });
     // TODO: store array sizes?
