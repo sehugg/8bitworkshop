@@ -130,9 +130,13 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
     this.kbdlatch = s.kbdlatch;
   }
   loadBIOS(data, title?) {
+      if (data.length != 0x3000) {
+          console.log(`apple2 loadBIOS !!!WARNING!!!: BIOS wants length 0x3000, but BIOS '${title}' has length 0x${data.length.toString(16)}`);
+          console.log("will load BIOS to end of memory anyway...");
+      }
       this.bios = Uint8Array.from(data);
-      this.bios[0x39a] = 0x60; // $d39a = RTS
-      this.ram.set(this.bios, 0xd000);
+      this.bios[0xD39A - (0x10000 - this.bios.length)] = 0x60;  // $d39a = RTS
+      this.ram.set(this.bios, 0x10000 - this.bios.length);
   }
   loadROM(data) {
     if (data.length == 35*16*256) { // is it a disk image?
@@ -167,7 +171,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
          return this.ram[address];
       } else if (address >= 0xd000) {
          if (!this.auxRAMselected)
-            return this.bios[address - 0xd000];
+            return this.bios[address - (0x10000 - this.bios.length)];
          else if (address >= 0xe000)
             return this.ram[address];
          else
