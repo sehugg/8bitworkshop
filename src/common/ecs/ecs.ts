@@ -443,6 +443,8 @@ export class EntityScope {
                     return `${label}_${rest}`;
                 case '$': // temp byte
                     return `TEMP+${this.tempOffset}+${rest}`;
+                case '=':
+                    // TODO?
                 case '<': // low byte
                     return this.generateCodeForField(sys, action, atypes, entities, rest, 0);
                 case '>': // high byte
@@ -579,25 +581,26 @@ export class EntityManager {
         return scope;
     }
     defineComponent(ctype: ComponentType) {
-        if (this.components[ctype.name]) throw new Error(`component ${name} already defined`);
+        if (this.components[ctype.name]) throw new Error(`component ${ctype.name} already defined`);
         return this.components[ctype.name] = ctype;
     }
     defineSystem(system: System) {
-        if (this.systems[system.name]) throw new Error(`system ${name} already defined`);
+        if (this.systems[system.name]) throw new Error(`system ${system.name} already defined`);
         this.systems[system.name] = system;
     }
     componentsMatching(q: Query, etype: EntityArchetype) {
         let list = [];
         for (let c of etype.components) {
             let cname = c.name;
+            if (q.exclude?.includes(cname)) {
+                return [];
+            }
             // TODO: 0 includes == all entities?
             if (q.include.length == 0 || q.include.includes(cname)) {
-                if (!q.exclude?.includes(cname)) {
-                    list.push(c);
-                }
+                list.push(c);
             }
         }
-        return list;
+        return list.length == q.include.length ? list : [];
     }
     archetypesMatching(q: Query) {
         let result: ArchetypeMatch[] = [];
@@ -720,7 +723,7 @@ const TEMPLATE3_D = `
 
 const TEMPLATE4_S = `
 .macro %{@KernelSetup} ent,ofs
-    lda #192 ; TODO: numlines
+    lda #192 ; TODO: numlinesgit
     sec
     sbc ypos_ypos_b0+ent
     sta %{$5}+ofs
@@ -758,6 +761,7 @@ const TEMPLATE4_S = `
 // https://atariage.com/forums/topic/128147-having-trouble-with-2-free-floating-player-graphics/?tab=comments#comment-1547059
 const TEMPLATE4_K = `
     lda %{<bgcolor}
+    sta COLUBK
     ldy %{<lines}
 @LVScan:
     lda %{$4} ; height
@@ -951,7 +955,7 @@ function test() {
         name: 'frameloop',
         emits: ['preframe', 'kernel', 'postframe'],
         actions: [
-            { text: TEMPLATE1, event: 'start', select: 'once', query: { include: [] } } // TODO: []?
+            { text: TEMPLATE1, event: 'start', select: 'once', query: { include: ['kernel'] } } // TODO: []?
         ]
     })
     em.defineSystem({
@@ -980,7 +984,7 @@ function test() {
     em.defineSystem({
         name: 'SetHorizPos',
         actions: [
-            { text: SETHORIZPOS, event: 'SetHorizPos', select: 'once', query: { include: [] } }, // TODO: []?
+            { text: SETHORIZPOS, event: 'SetHorizPos', select: 'once', query: { include: ['xpos'] } }, // TODO: []?
         ]
     });
 
@@ -1008,6 +1012,8 @@ function test() {
     root.setInitValue(e_player1, c_sprite, 'height', 8);
     root.setInitValue(e_player1, c_xpos, 'xpos', 100);
     root.setInitValue(e_player1, c_ypos, 'ypos', 60);
+
+    //console.log(em.archetypesMatching({ include:['xpos','ypos']})[0])
 
     let src = new SourceFileExport();
     root.analyzeEntities();
