@@ -18,11 +18,15 @@
 function mksymbol(c: ComponentType, fieldName: string) {
     return c.name + '_' + fieldName;
 }
+function mkscopesymbol(s: EntityScope, c: ComponentType, fieldName: string) {
+    return s.name + '_' + c.name + '_' + fieldName;
+}
 
 export interface Entity {
     id: number;
     etype: EntityArchetype;
-    consts: {[name: string]: DataValue};
+    consts: {[component_field: string]: DataValue};
+    inits: {[scope_component_field: string]: DataValue};
 }
 
 export interface EntityConst {
@@ -191,6 +195,21 @@ class Segment {
     getFieldRange(component: ComponentType, fieldName: string) {
         return this.fieldranges[mksymbol(component, fieldName)];
     }
+    getSegmentByteOffset(component: ComponentType, fieldName: string, bitofs: number, entityID: number) {
+        let range = this.getFieldRange(component, fieldName);
+        if (range && range.access) {
+            let a = range.access[0]; // TODO: bitofs
+            let ofs = this.symbols[a.symbol];
+            if (ofs !== undefined) {
+                return ofs + entityID - range.elo;
+            }
+        }
+    }
+    getOriginSymbol() {
+        let a = this.ofs2sym.get(0);
+        if (!a) throw new Error('getOriginSymbol');
+        return a[0];
+    }
 }
 
 function getFieldBits(f: IntType) {
@@ -241,7 +260,7 @@ export class EntityScope {
     newEntity(etype: EntityArchetype) : Entity {
         // TODO: add parent ID? lock parent scope?
         let id = this.entities.length;
-        let entity : Entity = {id, etype, consts:{}};
+        let entity : Entity = {id, etype, consts:{}, inits:{}};
         this.em.archtypes.add(etype);
         for (let c of etype.components) {
             this.componentsInScope.add(c.name);
@@ -326,9 +345,40 @@ export class EntityScope {
         }
         //console.log(segment.initdata)
     }
+    allocateInitData(segment: Segment) {
+        let initbytes = new Uint8Array(segment.size);
+        let iter = this.iterateFields();
+        for (var o=iter.next(); o.value; o=iter.next()) {
+            let {i,e,c,f,v} = o.value;
+            let scfname = mkscopesymbol(this, c, f.name);
+            let initvalue = e.inits[scfname];
+            if (initvalue !== undefined) {
+                let offset = segment.getSegmentByteOffset(c, f.name, 0, e.id);
+                if (offset !== undefined && typeof initvalue === 'number') {
+                    initbytes[offset] = initvalue; // TODO: > 8 bits?
+                } else {
+                    throw new Error(`cannot access ${scfname}`);
+                }
+            }
+        }
+        // build the final init buffer
+        // TODO: compress 0s?
+        let bufsym = this.name + '__INITDATA';
+        let bufofs = this.rodata.allocateInitData(bufsym, initbytes);
+        let code = INITFROMARRAY;
+        //TODO: function to repalce from dict?
+        code = code.replace('%{nbytes}', initbytes.length.toString())
+        code = code.replace('%{src}', bufsym);
+        code = code.replace('%{dest}', segment.getOriginSymbol());
+        return code;
+    }
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
         // TODO: check to make sure component exists
         e.consts[mksymbol(component, fieldName)] = value;
+    }
+    setInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
+        // TODO: check to make sure component exists
+        e.inits[mkscopesymbol(this, component, fieldName)] = value;
     }
     generateCodeForEvent(event: string): string {
         // find systems that respond to event
@@ -341,6 +391,7 @@ export class EntityScope {
         //s += `\n; event ${event}\n`;
         let emitcode : {[event: string] : string} = {};
         for (let sys of systems) {
+            // TODO: does this work if multiple actions?
             if (sys.tempbytes) this.allocateTempBytes(sys.tempbytes);
             if (sys.emits) {
                 for (let emit of sys.emits) {
@@ -434,7 +485,7 @@ export class EntityScope {
         }
         // TODO: offset > 0?
         //let range = this.bss.getFieldRange(component, fieldName);
-        return `${component.name}_${fieldName}_b${bitofs},x`
+        return `${component.name}_${fieldName}_b${bitofs},x` // TODO? ,x?
     }
     entitiesMatching(atypes: ArchetypeMatch[]) {
         let result = [];
@@ -483,8 +534,11 @@ export class EntityScope {
     }
     generateCode() {
         this.tempOffset = this.maxTempBytes = 0;
-        let init = this.generateCodeForEvent('init');
-        this.code.addCodeFragment(init);
+        this.code.addCodeFragment(TEMPLATE_INIT);
+        let initcode = this.allocateInitData(this.bss);
+        this.code.addCodeFragment(initcode);
+        let start = this.generateCodeForEvent('start');
+        this.code.addCodeFragment(start);
         for (let sub of Array.from(this.subroutines.values())) {
             let code = this.generateCodeForEvent(sub);
             this.code.addCodeFragment(code);
@@ -576,7 +630,6 @@ const FOOTER = `
 const TEMPLATE_INIT = `
 Start:
     CLEAN_START
-    %{!start}
 `
 
 const TEMPLATE1 = `
@@ -622,23 +675,36 @@ const TEMPLATE1 = `
 `;
 
 // TODO: two sticks?
-const TEMPLATE2 = `
-;#ifdef EVENT_joyleft
-    lda #%01000000	;Left?
-    bit SWCHA
-	bne %{.SkipMoveLeft}
+const TEMPLATE2_a = `
+    lda SWCHA
+    sta %{$0}
+`
+const TEMPLATE2_b = `
+    asl %{$0}
+    bcs %{.SkipMoveRight}
+    %{!joyright}
+%{.SkipMoveRight}
+    asl %{$0}
+    bcs %{.SkipMoveLeft}
     %{!joyleft}
 %{.SkipMoveLeft}
-;#endif
+    asl %{$0}
+    bcs %{.SkipMoveDown}
+    %{!joydown}
+%{.SkipMoveDown}
+    asl %{$0}
+    bcs %{.SkipMoveUp}
+    %{!joyup}
+%{.SkipMoveUp}
 `;
 
 const TEMPLATE3_L = `
     lda %{<xpos}
     sec
     sbc #1
-    bcc %{.noclip}
+    bcc %{.nomove}
     sta %{<xpos}
-%{.noclip}
+%{.nomove}
 `;
 
 const TEMPLATE3_R = `
@@ -646,49 +712,64 @@ const TEMPLATE3_R = `
     clc
     adc #1
     cmp #160
-    bcc %{.noclip}
+    bcs %{.nomove}
     sta %{<xpos}
-%{.noclip}
+%{.nomove}
 `;
 
 const TEMPLATE4_S = `
-    txa ; TODO
-    asl
-    tya
-    lda %{<bitmap}   ; bitmap address
-    tay
+    ldy hasbitmap_bitmap_b0+0
     lda bitmap_bitmapdata_b0,y
-    sta %{$0},y
+    sta %{$0}
     lda bitmap_bitmapdata_b8,y
-    sta %{$1},y
+    sta %{$1}
+    ldy hascolormap_colormap_b0+0
     lda colormap_colormapdata_b0,y
-    sta %{$2},y
+    sta %{$2}
+    lda colormap_colormapdata_b8,y
+    sta %{$3}
+    lda sprite_height_b0+0
+    sta %{$4}
+    lda ypos_ypos_b0+0
+    sta %{$5}
+
+    ldy hasbitmap_bitmap_b0+1
+    lda bitmap_bitmapdata_b0,y
+    sta %{$6}
+    lda bitmap_bitmapdata_b8,y
+    sta %{$7}
+    ldy hascolormap_colormap_b0+1
     lda colormap_colormapdata_b0,y
-    sta %{$3},y
-    lda sprite_height_b0,y
-    sta %{$4},y
-    lda ypos_ypos_b0,y
-    sta %{$5},y
+    sta %{$8}
+    lda colormap_colormapdata_b8,y
+    sta %{$9}
+    lda sprite_height_b0+1
+    sta %{$10}
+    lda ypos_ypos_b0+1
+    sta %{$11}
 `
 
+// https://atariage.com/forums/topic/75982-skipdraw-and-graphics/?tab=comments#comment-928232
+// https://atariage.com/forums/topic/129683-advice-on-a-masking-kernel/
+// https://atariage.com/forums/topic/128147-having-trouble-with-2-free-floating-player-graphics/?tab=comments#comment-1547059
 const TEMPLATE4_K = `
     ldx #192    ; lines in kernel
 LVScan
-    	txa		; X -> A
-        sec		; set carry for subtract
-        sbc %{$5}	; local coordinate
-        cmp %{$4}   ; in sprite? (height)
-        bcc InSprite	; yes, skip over next
-        lda #0		; not in sprite, load 0
+    txa		; X -> A
+    sec		; set carry for subtract
+    sbc %{$5}	; local coordinate
+    cmp %{$4}   ; in sprite? (height)
+    bcc InSprite	; yes, skip over next
+    lda #0		; not in sprite, load 0
 InSprite
-	    tay		; local coord -> Y
-        lda (%{$0}),y	; lookup color
-        sta WSYNC	; sync w/ scanline
-        sta GRP0	; store bitmap
-        lda (%{$2}),y ; lookup color
-        sta COLUP0	; store color
-        dex		; decrement X
-        bne LVScan	; repeat until 192 lines
+    tay		; local coord -> Y
+    lda (%{$0}),y	; lookup color
+    sta WSYNC	; sync w/ scanline
+    sta GRP0	; store bitmap
+    lda (%{$2}),y ; lookup color
+    sta COLUP0	; store color
+    dex		; decrement X
+    bne LVScan	; repeat until 192 lines
 `;
 
 const SET_XPOS = `
@@ -714,7 +795,41 @@ DivideLoop
 	asl
 	sta RESP0,y	; fix coarse position
 	sta HMP0,y	; set fine offset
+    sta WSYNC
+    sta HMOVE
 	rts		; return to caller
+`
+
+const INITFROMSPARSE = `
+MemSrc equ $80
+MemDest equ $82
+InitMemory
+	ldy #0
+	lda (MemSrc),y
+        beq .done
+        tax
+        iny
+	lda (MemSrc),y
+        sta MemDest
+        iny
+	lda (MemSrc),y
+        sta MemDest+1
+.loop
+        iny
+        lda (MemSrc),y
+        sta (MemDest),y
+        dex
+        bne .loop
+.done	rts
+`
+
+const INITFROMARRAY = `
+    ldy #%{nbytes}
+.loop
+    lda %{src}-1,y
+    sta %{dest}-1,y
+    dey
+    bne .loop
 `
 
 function test() {
@@ -767,7 +882,7 @@ function test() {
             include:['sprite','hasbitmap','hascolormap','ypos'],
         },
         actions:[
-            { text:TEMPLATE4_S, event:'preframe', iterate:'each' },
+            { text:TEMPLATE4_S, event:'preframe', iterate:'once' },
             { text:TEMPLATE4_K, event:'kernel', iterate:'once' },
         ]
     })
@@ -785,17 +900,8 @@ function test() {
     // TODO: easy stagger of system update?
     // TODO: easy lookup tables
     // TODO: how to init?
+
     // https://docs.unity3d.com/Packages/com.unity.entities@0.17/manual/ecs_systems.html
-    em.defineSystem({
-        name:'init',
-        emits:['start'],
-        query:{
-            include:[], // ???
-        },
-        actions:[
-            { text:TEMPLATE_INIT, event:'init', iterate:'once' }
-        ]
-    })
     em.defineSystem({
         name:'frameloop',
         emits:['preframe','kernel','postframe'],
@@ -811,9 +917,11 @@ function test() {
         query:{
             include:['player']
         },
+        tempbytes:1,
         emits:['joyup','joydown','joyleft','joyright','joybutton'],
         actions:[
-            { text:TEMPLATE2, event:'postframe', iterate:'each' }
+            { text:TEMPLATE2_a, event:'postframe', iterate:'once' },
+            { text:TEMPLATE2_b, event:'postframe', iterate:'each' }
         ]
     });
     em.defineSystem({
@@ -828,7 +936,7 @@ function test() {
     });
     em.defineSystem({
         name:'SetHorizPos',
-        query:{ include:[] },
+        query:{ include:[] }, // TODO?
         actions:[
             { text:SETHORIZPOS, event:'SetHorizPos', iterate:'once' }, // TODO: event source?
         ]
@@ -848,7 +956,15 @@ function test() {
 
     let ea_playerSprite = {components:[c_sprite,c_hasbitmap,c_hascolormap,c_xpos,c_ypos,c_player]};
     let e_player0 = root.newEntity(ea_playerSprite);
+    root.setInitValue(e_player0, c_sprite, 'plyrindex', 0);
+    root.setInitValue(e_player0, c_sprite, 'height', 8);
+    root.setInitValue(e_player0, c_xpos, 'xpos', 50);
+    root.setInitValue(e_player0, c_ypos, 'ypos', 50);
     let e_player1 = root.newEntity(ea_playerSprite);
+    root.setInitValue(e_player1, c_sprite, 'plyrindex', 1);
+    root.setInitValue(e_player1, c_sprite, 'height', 8);
+    root.setInitValue(e_player1, c_xpos, 'xpos', 100);
+    root.setInitValue(e_player1, c_ypos, 'ypos', 60);
 
     let src = new SourceFileExport();
     root.analyzeEntities();
@@ -856,5 +972,7 @@ function test() {
     root.dump(src);
     console.log(src.toString());
 }
+
+// TODO: files in markdown?
 
 test();
