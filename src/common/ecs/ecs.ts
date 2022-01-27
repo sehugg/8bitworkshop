@@ -15,6 +15,10 @@
 // to change scope, fire event w/ scope name
 // - how to handle bank-switching?
 
+function mksymbol(c: ComponentType, fieldName: string) {
+    return c.name + '_' + fieldName;
+}
+
 export interface Entity {
     id: number;
     etype: EntityArchetype;
@@ -46,9 +50,9 @@ export interface Query {
 
 export interface System {
     name: string;
+    actions: CodeFragment[];
     query: Query;
     tempbytes?: number;
-    actions: CodeFragment[];
     emits?: string[];
     live?: EntityArchetype[] | null;
 }
@@ -101,6 +105,11 @@ interface ConstByte {
     bitofs: number;
 }
 
+interface ArchetypeMatch {
+    etype: EntityArchetype;
+    cmatch: ComponentType[];
+}
+
 class SourceFileExport {
     lines : string[] = [];
 
@@ -108,10 +117,13 @@ class SourceFileExport {
         this.lines.push(';' + text);
     }
     segment(seg: string, segtype: 'rodata' | 'bss') {
-        if (segtype == 'bss')
+        if (segtype == 'bss') {
             this.lines.push(` seg.u ${seg}`);
-        else
+            this.lines.push(` org $80`); // TODO
+        } else {
             this.lines.push(` seg ${seg}`);
+            this.lines.push(` org $f000`); // TODO
+        }
     }
     label(sym: string) {
         this.lines.push(`${sym}:`);
@@ -123,8 +135,12 @@ class SourceFileExport {
             if (b < 0 || b > 255) throw new Error(`out of range byte ${b}`);
             this.lines.push(` .byte ${b}`)
         } else {
-            this.lines.push(` .byte (${b.symbol} >> ${b.bitofs}) & 0xff`)
+            this.lines.push(` .byte (${b.symbol} >> ${b.bitofs})`)
         }
+    }
+    text(s: string) {
+        for (let l of s.split('\n'))
+            this.lines.push(l);
     }
     toString() {
         return this.lines.join('\n');
@@ -137,8 +153,13 @@ class Segment {
     fieldranges: {[cfname: string]: FieldArray} = {};
     size: number = 0;
     initdata: (number | ConstByte | undefined)[] = [];
+    codefrags : string[] = [];
 
+    addCodeFragment(code: string) {
+        this.codefrags.push(code);
+    }
     allocateBytes(name: string, bytes: number) {
+        if (this.symbols[name]) return this.symbols[name]; // TODO: check size
         let ofs = this.size;
         this.symbols[name] = ofs;
         if (!this.ofs2sym.has(ofs))
@@ -155,6 +176,9 @@ class Segment {
         }
     }
     dump(file: SourceFileExport) {
+        for (let code of this.codefrags) {
+            file.text(code);
+        }
         for (let i=0; i<this.size; i++) {
             let syms = this.ofs2sym.get(i);
             if (syms) {
@@ -162,6 +186,10 @@ class Segment {
             }
             file.byte(this.initdata[i]);
         }
+    }
+    // TODO: move cfname functions in here too
+    getFieldRange(component: ComponentType, fieldName: string) {
+        return this.fieldranges[mksymbol(component, fieldName)];
     }
 }
 
@@ -184,12 +212,12 @@ function getPackedFieldSize(f: DataType, constValue?: DataValue): number {
 }
 
 const ASM_ITERATE_EACH = `
-    ldx #%{elo}
-.loop:
-    %{action}
+    ldx #0
+%{.loop}:
+    %{code}
     inx
-    cpx #%{ehi}+1
-    bne .loop
+    cpx #%{ecount}
+    bne %{.loop}
 `;
 
 export class EntityScope {
@@ -199,6 +227,9 @@ export class EntityScope {
     rodata = new Segment();
     code = new Segment();
     componentsInScope = new Set();
+    tempOffset = 0;
+    maxTempBytes = 0;
+    subroutines = new Set<string>();
 
     constructor(
         public readonly em: EntityManager,
@@ -223,23 +254,17 @@ export class EntityScope {
             let e = this.entities[i];
             for (let c of e.etype.components) {
                 for (let f of c.fields) {
-                    yield {i, e, c, f, v:e.consts[c.name + '.' + f.name]};
+                    yield {i, e, c, f, v:e.consts[mksymbol(c, f.name)]};
                 }
             }
         }
-    }
-    analyzeEntities() {
-        this.buildSegments();
-        this.allocateSegment(this.bss, false);
-        this.allocateSegment(this.rodata, true);
-        this.allocateROData(this.rodata);
     }
     buildSegments() {
         let iter = this.iterateFields();
         for (var o=iter.next(); o.value; o=iter.next()) {
             let {i,e,c,f,v} = o.value;
             let segment = v === undefined ? this.bss : this.rodata;
-            let cfname = c.name + '.' + f.name;
+            let cfname = mksymbol(c, f.name);
             let array = segment.fieldranges[cfname];
             if (!array) {
                 array = segment.fieldranges[cfname] = {component:c, field:f, elo:i, ehi:i};
@@ -254,11 +279,11 @@ export class EntityScope {
         fields.sort((a,b) => (a.ehi - a.elo + 1) * getPackedFieldSize(a.field));
         let f;
         while (f = fields.pop()) {
-            let name = f.component.name + "_" + f.field.name;
+            let name = mksymbol(f.component, f.field.name);
             // TODO: doesn't work for packed arrays too well
             let bits = getPackedFieldSize(f.field);
             // variable size? make it a pointer
-            if (bits == 0) bits = 16;
+            if (bits == 0) bits = 16; // TODO?
             let rangelen = (f.ehi - f.elo + 1);
             let bytesperelem = Math.ceil(bits/8) * rangelen;
             // TODO: packing bits
@@ -277,13 +302,20 @@ export class EntityScope {
         let iter = this.iterateFields();
         for (var o=iter.next(); o.value; o=iter.next()) {
             let {i,e,c,f,v} = o.value;
-            let cfname = c.name + '.' + f.name;
+            let cfname = mksymbol(c, f.name);
             let fieldrange = segment.fieldranges[cfname];
             if (v !== undefined) {
                 // is it a byte array?
                 if (v instanceof Uint8Array) {
-                    let sym = c.name + '_' + f.name;
-                    segment.allocateInitData(sym, v);
+                    let datasym = `${c.name}_${f.name}_e${e.id}`;
+                    let ptrlosym = `${c.name}_${f.name}_b0`;
+                    let ptrhisym = `${c.name}_${f.name}_b8`;
+                    let entcount = fieldrange.ehi - fieldrange.elo + 1;
+                    segment.allocateInitData(datasym, v);
+                    let loofs = segment.allocateBytes(ptrlosym, entcount);
+                    let hiofs = segment.allocateBytes(ptrhisym, entcount);
+                    segment.initdata[loofs + e.id - fieldrange.elo] = {symbol:datasym, bitofs:0};
+                    segment.initdata[hiofs + e.id - fieldrange.elo] = {symbol:datasym, bitofs:8};
                 } else if (fieldrange.ehi > fieldrange.elo) {
                     // more than one element, add an array
                     // TODO
@@ -295,71 +327,124 @@ export class EntityScope {
         //console.log(segment.initdata)
     }
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        e.consts[component.name + '.' + fieldName] = value;
-    }
-    dump(file: SourceFileExport) {
-        file.segment(`${this.name}_CODE`, 'rodata');
-        this.rodata.dump(file);
-        file.segment(`${this.name}_DATA`, 'bss');
-        this.bss.dump(file);
-    }
-    generateCode() {
-        let code = this.generateCodeForEvent('init');
-        console.log(code);
+        // TODO: check to make sure component exists
+        e.consts[mksymbol(component, fieldName)] = value;
     }
     generateCodeForEvent(event: string): string {
         // find systems that respond to event
         // and have entities in this scope
         let systems = this.getSystems([event]);
         if (systems.length == 0) {
-            console.log(`no system responds to ${event}`); // TODO: warning
+            console.log(`; warning: no system responds to ${event}`); // TODO: warning
         }
         let s = '';
         //s += `\n; event ${event}\n`;
         let emitcode : {[event: string] : string} = {};
         for (let sys of systems) {
+            if (sys.tempbytes) this.allocateTempBytes(sys.tempbytes);
             if (sys.emits) {
                 for (let emit of sys.emits) {
+                    if (emitcode[emit]) {
+                        console.log(`already emitted for ${sys.name}:${event}`);
+                    }
                     //console.log('>', emit);
                     // TODO: cycles
                     emitcode[emit] = this.generateCodeForEvent(emit);
                     //console.log('<', emit, emitcode[emit].length);
                 }
             }
+            if (sys.tempbytes) this.allocateTempBytes(-sys.tempbytes);
             for (let action of sys.actions) {
-                let code = action.text;
                 if (action.event == event) {
-                    // TODO: find loops
-                    if (action.iterate == 'each') {
-                        let ents = this.entitiesMatching(sys.query);
-                        console.log(sys.name, action.event, ents);
-                        //frag = this.iterateCode(frag);
-                    }
-                    // TODO: better parser of ${}
-                    for (let [k,v] of Object.entries(emitcode)) {
-                        let frag = v;
-                        code = code.replace(`%{${k}}`, frag);
-                    }
-                    // anything not replaced?
-                    let unused = /\%\{.+?\}/.exec(code);
-                    if (unused) {
-                        //throw new Error(`${sys.name}:${action.event} did not replace ${unused[0]}`);
-                    }
-                    // TODO: check that this happens once?
-                    s += `\n; action ${sys.name}:${action.event}\n`;
+                    let code = this.replaceCode(action.text, sys, action);
+                    s += `\n; <action ${sys.name}:${event}>\n`;
                     s += code;
+                    s += `\n; </action ${sys.name}:${event}>\n`;
+                    // TODO: check that this happens once?
                 }
-            }                
+            }
         }
         return s;
     }
-    entitiesMatching(q: Query) {
+    allocateTempBytes(n: number) {
+        this.tempOffset += n;
+        this.maxTempBytes = Math.max(this.tempOffset, this.maxTempBytes);
+    }
+    replaceCode(code: string, sys: System, action: CodeFragment): string {
+        const re = /\%\{(.+?)\}/g;
+        let label = sys.name + '_' + action.event;
+        let atypes = this.em.archetypesMatching(sys.query);
+        let entities = this.entitiesMatching(atypes);
+        // TODO: find loops
+        if (action.iterate == 'each') {
+            code = this.wrapCodeInLoop(code, sys, action, entities);
+            //console.log(sys.name, action.event, ents);
+            //frag = this.iterateCode(frag);
+        }
+        return code.replace(re, (entire, group: string) => {
+            let cmd = group.charAt(0);
+            let rest = group.substring(1);
+            switch (cmd) {
+                case '!': // emit event
+                    return this.generateCodeForEvent(rest);
+                case '.': // auto label
+                    return `.${label}_${rest}`;
+                case '$': // temp byte
+                    return `TEMP+${this.tempOffset}+${rest}`;
+                case '<': // low byte
+                    return this.generateCodeForField(sys, action, atypes, entities, rest, 0);
+                case '>': // high byte
+                    return this.generateCodeForField(sys, action, atypes, entities, rest, 8);
+                case '^': // reference
+                    return this.includeSubroutine(rest);
+                default:
+                    //throw new Error(`unrecognized command ${cmd} in ${entire}`);
+                    console.log(`unrecognized command ${cmd} in ${entire}`);
+                    return entire;
+            }
+        });
+    }
+    includeSubroutine(symbol: string): string {
+        this.subroutines.add(symbol);
+        return symbol;
+    }
+    wrapCodeInLoop(code: string, sys: System, action: CodeFragment, ents: Entity[]): string {
+        // TODO: check ents
+        // TODO: check segment bounds
+        let s = ASM_ITERATE_EACH;
+        s = s.replace('%{elo}', ents[0].id.toString());
+        s = s.replace('%{ehi}', ents[ents.length-1].id.toString());
+        s = s.replace('%{ecount}', ents.length.toString());
+        s = s.replace('%{code}', code);
+        return s;
+    }
+    generateCodeForField(sys: System, action: CodeFragment, 
+        atypes: ArchetypeMatch[], entities: Entity[],
+        fieldName: string, bitofs: number): string {
+        // find archetypes
+        let component = this.em.componentWithFieldName(atypes, fieldName);
+        if (!component) {
+            throw new Error(`cannot find component with field "${fieldName}" in ${sys.name}:${action.event}`);
+        }
+        // see if all entities have the same constant value
+        let constValues = new Set();
+        for (let e of entities) {
+            let constVal = e.consts[fieldName];
+            if (constVal) constValues.add(constVal);
+        }
+        // TODO: offset > 0?
+        //let range = this.bss.getFieldRange(component, fieldName);
+        return `${component.name}_${fieldName}_b${bitofs},x`
+    }
+    entitiesMatching(atypes: ArchetypeMatch[]) {
         let result = [];
-        let atypes = this.em.archetypesMatching(q);
         for (let e of this.entities) {
             for (let a of atypes) {
-                if (e.etype == a.etype)
+                // TODO: what about subclasses?
+                if (e.etype == a.etype) {
                     result.push(e);
+                    break;
+                }
             }
         }
         return result;
@@ -389,6 +474,31 @@ export class EntityScope {
     }
     hasComponent(ctype: ComponentType) {
         return this.componentsInScope.has(ctype.name);
+    }
+    analyzeEntities() {
+        this.buildSegments();
+        this.allocateSegment(this.bss, false);
+        this.allocateSegment(this.rodata, true);
+        this.allocateROData(this.rodata);
+    }
+    generateCode() {
+        this.tempOffset = this.maxTempBytes = 0;
+        let init = this.generateCodeForEvent('init');
+        this.code.addCodeFragment(init);
+        for (let sub of Array.from(this.subroutines.values())) {
+            let code = this.generateCodeForEvent(sub);
+            this.code.addCodeFragment(code);
+        }
+    }
+    dump(file: SourceFileExport) {
+        file.text(HEADER); // TODO
+        file.segment(`${this.name}_DATA`, 'bss');
+        if (this.maxTempBytes) this.bss.allocateBytes('TEMP', this.maxTempBytes);
+        this.bss.dump(file);
+        file.segment(`${this.name}_CODE`, 'rodata');
+        this.rodata.dump(file);
+        this.code.dump(file);
+        file.text(FOOTER); // TODO
     }
 }
 
@@ -426,7 +536,7 @@ export class EntityManager {
         return list;
     }
     archetypesMatching(q: Query) {
-        let result : {etype: EntityArchetype, cmatch: ComponentType[]}[] = [];
+        let result : ArchetypeMatch[] = [];
         this.archtypes.forEach(etype => {
             let cmatch = this.componentsMatching(q, etype);
             if (cmatch.length > 0) {
@@ -435,107 +545,176 @@ export class EntityManager {
         });
         return result;
     }
-    emitCode(root: System) {
+    componentWithFieldName(atypes: ArchetypeMatch[], fieldName: string) {
+        // TODO???
+        for (let at of atypes) {
+            for (let c of at.cmatch) {
+                for (let f of c.fields) {
+                    if (f.name == fieldName)
+                        return c;
+                }
+            }
+        }
     }
 }
 
 ///
 
+const HEADER = `
+    processor 6502
+    include "vcs.h"
+    include "macro.h"
+    include "xmacro.h"
+`
+
+const FOOTER = `
+    org $fffc
+    .word Start	; reset vector
+    .word Start	; BRK vector
+`
+
 const TEMPLATE_INIT = `
 Start:
     CLEAN_START
-    %{start}
+    %{!start}
 `
 
 const TEMPLATE1 = `
 .NextFrame:
-    lsr SWCHB	; test Game Reset switch
-    bcc Start	; reset?
-    VERTICAL_SYNC
-    TIMER_SETUP 37
-    %{preframe}
+	VERTICAL_SYNC
+    sta CXCLR	; clear collision register
+    IFCONST PAL
+        TIMER_SETUP 44
+    ELSE
+        TIMER_SETUP 36
+    ENDIF
+
+    %{!preframe}
+
     TIMER_WAIT
-    TIMER_SETUP 192
-    %{kernel}
+	lda #0
+    sta VBLANK
+    IFNCONST PAL
+        TIMER_SETUP 194
+    ENDIF
+
+    %{!kernel}
+
+    IFNCONST PAL
+        TIMER_WAIT
+    ENDIF
+    lda #2
+    sta VBLANK
+    IFCONST PAL
+        TIMER_SETUP 36
+    ELSE
+        TIMER_SETUP 28
+    ENDIF
+
+    %{!postframe}
+
     TIMER_WAIT
-    TIMER_SETUP 29
-    %{postframe}
-    TIMER_WAIT
+    lsr SWCHB	    ; test Game Reset switch
+    bcs .NoStart	; reset?
+    jmp Start
+.NoStart:
     jmp .NextFrame
 `;
 
+// TODO: two sticks?
 const TEMPLATE2 = `
-#ifdef EVENT_joyup
-    lda #%00100000	;Up?
+;#ifdef EVENT_joyleft
+    lda #%01000000	;Left?
     bit SWCHA
-	bne SkipMoveUp
-    %{joyup}
-.SkipMoveUp
-#endif
+	bne %{.SkipMoveLeft}
+    %{!joyleft}
+%{.SkipMoveLeft}
+;#endif
 `;
 
-const TEMPLATE3 = `
-    lda %{ypos},x
+const TEMPLATE3_L = `
+    lda %{<xpos}
     sec
     sbc #1
-    bcc .noclip
-    sta %{ypos},x
-.noclip
+    bcc %{.noclip}
+    sta %{<xpos}
+%{.noclip}
+`;
+
+const TEMPLATE3_R = `
+    lda %{<xpos}
+    clc
+    adc #1
+    cmp #160
+    bcc %{.noclip}
+    sta %{<xpos}
+%{.noclip}
 `;
 
 const TEMPLATE4_S = `
-    lda %{@sprite.bitmap+0}   ; bitmap address
-    sta temp+0       ; temp space
-    lda %{@sprite.bitmap+1}   ; bitmap address
-    sta temp+1       ; temp space
+    txa ; TODO
+    asl
+    tya
+    lda %{<bitmap}   ; bitmap address
+    tay
+    lda bitmap_bitmapdata_b0,y
+    sta %{$0},y
+    lda bitmap_bitmapdata_b8,y
+    sta %{$1},y
+    lda colormap_colormapdata_b0,y
+    sta %{$2},y
+    lda colormap_colormapdata_b0,y
+    sta %{$3},y
+    lda sprite_height_b0,y
+    sta %{$4},y
+    lda ypos_ypos_b0,y
+    sta %{$5},y
 `
 
 const TEMPLATE4_K = `
-    ldx %{kernel.numlines}    ; lines in kernel
+    ldx #192    ; lines in kernel
 LVScan
     	txa		; X -> A
         sec		; set carry for subtract
-        sbc YPos	; local coordinate
-        cmp %{sprite.height}   ; in sprite?
+        sbc %{$5}	; local coordinate
+        cmp %{$4}   ; in sprite? (height)
         bcc InSprite	; yes, skip over next
         lda #0		; not in sprite, load 0
 InSprite
 	    tay		; local coord -> Y
-        lda (temp+0),y	; lookup color
+        lda (%{$0}),y	; lookup color
         sta WSYNC	; sync w/ scanline
         sta GRP0	; store bitmap
-        lda (temp+2),y ; lookup color
+        lda (%{$2}),y ; lookup color
         sta COLUP0	; store color
         dex		; decrement X
         bne LVScan	; repeat until 192 lines
 `;
 
 const SET_XPOS = `
-    lda %{sprite.xpos}
-    ldx %(sprite.plyrindex}
-    jsr SetHorizPos
+    lda %{<xpos}
+    ldy %{<plyrindex}
+    jsr %{^SetHorizPos}
 `
 
 const SETHORIZPOS = `
-SetHorizPos: subroutine
-        sta WSYNC       ; start a new line
-        SLEEP 3
-        sec             ; set carry flag
-SetHorizPosLoop:
-        sbc #15         ; subtract 15
-        bcs SetHorizPosLoop  ; branch until negative
-SetHorizPosAfter:
-	ASSERT_SAME_PAGE SetHorizPosLoop, SetHorizPosAfter
-        eor #7          ; calculate fine offset
-        asl
-        asl
-        asl
-        asl
-        sta RESP0,x     ; fix coarse position
-        sta HMP0,x      ; set fine offset
-        sta WSYNC
-Return:			; for SLEEP macro, etc.
-	rts             ; return to caller
+; SetHorizPos routine
+; A = X coordinate
+; Y = player number (0 or 1)
+SetHorizPos
+	sta WSYNC	; start a new line
+	sec		; set carry flag
+DivideLoop
+	sbc #15		; subtract 15
+	bcs DivideLoop	; branch until negative
+	eor #7		; calculate fine offset
+	asl
+	asl
+	asl
+	asl
+	sta RESP0,y	; fix coarse position
+	sta HMP0,y	; set fine offset
+	rts		; return to caller
 `
 
 function test() {
@@ -559,10 +738,10 @@ function test() {
         {name:'colormap', dtype:'ref', query:{include:['colormap']}},
     ]})
     let c_bitmap = em.defineComponent({name:'bitmap', fields:[
-        {name:'data', dtype:'array', elem:{ dtype:'int', lo:0, hi:255 }}
+        {name:'bitmapdata', dtype:'array', elem:{ dtype:'int', lo:0, hi:255 }}
     ]})
     let c_colormap = em.defineComponent({name:'colormap', fields:[
-        {name:'data', dtype:'array', elem:{ dtype:'int', lo:0, hi:255 }}
+        {name:'colormapdata', dtype:'array', elem:{ dtype:'int', lo:0, hi:255 }}
     ]})
     let c_xpos = em.defineComponent({name:'xpos', fields:[
         {name:'xpos', dtype:'int', lo:0, hi:255}
@@ -580,19 +759,20 @@ function test() {
 
     // TODO: where is kernel numlines?
     // temp between preframe + frame?
+    // TODO: check names for identifierness
     em.defineSystem({
-        name:'kernel-simple',
-        tempbytes:4,
+        name:'kernel_simple',
+        tempbytes:8,
         query:{
-            include:['sprite','bitmap','colormap','ypos'],
+            include:['sprite','hasbitmap','hascolormap','ypos'],
         },
         actions:[
-            { text:TEMPLATE4_S, event:'preframe', iterate:'once' },
+            { text:TEMPLATE4_S, event:'preframe', iterate:'each' },
             { text:TEMPLATE4_K, event:'kernel', iterate:'once' },
         ]
     })
     em.defineSystem({
-        name:'set-xpos',
+        name:'set_xpos',
         query:{
             include:['sprite','xpos']
         },
@@ -637,12 +817,20 @@ function test() {
         ]
     });
     em.defineSystem({
-        name:'simple-move',
+        name:'simple_move',
         query:{
-            include:['player','xpos','ypos']
+            include:['player','xpos']
         },
         actions:[
-            { text:TEMPLATE3, event:'joyup', iterate:'each' }
+            { text:TEMPLATE3_L, event:'joyleft', iterate:'once' }, // TODO: event source?
+            { text:TEMPLATE3_R, event:'joyright', iterate:'once' }, // TODO: event source?
+        ]
+    });
+    em.defineSystem({
+        name:'SetHorizPos',
+        query:{ include:[] },
+        actions:[
+            { text:SETHORIZPOS, event:'SetHorizPos', iterate:'once' }, // TODO: event source?
         ]
     });
 
@@ -653,10 +841,10 @@ function test() {
 
     let e_bitmap0 = root.newEntity({components:[c_bitmap]});
     // TODO: store array sizes?
-    root.setConstValue(e_bitmap0, c_bitmap, 'data', new Uint8Array([1,2,3,4,5]));
+    root.setConstValue(e_bitmap0, c_bitmap, 'bitmapdata', new Uint8Array([0,2,4,6,8,15,0]));
 
     let e_colormap0 = root.newEntity({components:[c_colormap]});
-    root.setConstValue(e_colormap0, c_colormap, 'data', new Uint8Array([1,2,3,4,5]));
+    root.setConstValue(e_colormap0, c_colormap, 'colormapdata', new Uint8Array([0,3,6,9,12,14,0]));
 
     let ea_playerSprite = {components:[c_sprite,c_hasbitmap,c_hascolormap,c_xpos,c_ypos,c_player]};
     let e_player0 = root.newEntity(ea_playerSprite);
