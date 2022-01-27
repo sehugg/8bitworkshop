@@ -1,7 +1,7 @@
 
 import { getRootBasePlatform } from "../../common/util";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { re_crlf, BuildStepResult, anyTargetChanged, execMain, gatherFiles, msvcErrorMatcher, populateEntry, populateExtraFiles, populateFiles, print_fn, putWorkFile, setupFS, staleFiles, BuildStep, emglobal, loadNative, moduleInstFn, fixParamsWithDefines, store } from "../workermain";
+import { re_crlf, BuildStepResult, anyTargetChanged, execMain, gatherFiles, msvcErrorMatcher, populateEntry, populateExtraFiles, populateFiles, print_fn, putWorkFile, setupFS, staleFiles, BuildStep, emglobal, loadNative, moduleInstFn, fixParamsWithDefines, store, makeErrorMatcher } from "../workermain";
 import { EmscriptenModule } from "../workermain"
 
 
@@ -108,7 +108,7 @@ export function assembleCA65(step: BuildStep): BuildStepResult {
             noInitialRun: true,
             //logReadFiles:true,
             print: print_fn,
-            printErr: msvcErrorMatcher(errors),
+            printErr: makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1),
         });
         var FS = CA65.FS;
         setupFS(FS, '65-' + getRootBasePlatform(step.platform));
