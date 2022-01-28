@@ -296,7 +296,14 @@ export class AppleII extends BasicScanlineMachine {
     } else if (flags & KeyFlags.KeyDown) {
       code = 0;
       switch (key) {
-        case 8:  code=8; break; // left
+        case 8:
+          code=8; // left
+          if (flags & KeyFlags.Ctrl) {
+            // (possibly) soft reset
+            this.cpu.reset();
+            return;
+          }
+          break;
         case 13: code=13; break; // return
         case 27: code=27; break; // escape
         case 37: code=8; break; // left
