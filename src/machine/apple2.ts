@@ -182,6 +182,8 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
     this.auxRAMselected = false;
     this.auxRAMbank = 1;
     this.writeinhibit = true;
+    this.ram.fill(0, 0x300, 0x400); // Clear soft-reset vector
+                                    // (force hard reset)
     this.skipboot();
   }
   skipboot() {
