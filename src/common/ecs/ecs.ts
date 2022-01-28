@@ -1,9 +1,13 @@
 
+import * as YAML from "js-yaml";
+
 // entity scopes contain entities, and are nested
 // also contain segments (code, bss, rodata)
 // components and systems are global
 // component fields are stored in arrays, range of entities, can be bit-packed
 // some values can be constant, are stored in rodata (or loaded immediate)
+// optional components? on or off
+// union components? either X or Y or Z...
 //
 // systems receive and send events, execute code on entities
 // systems are generated on a per-scope basis
@@ -649,6 +653,12 @@ export class EntityManager {
             }
         }
     }
+    toYAML() {
+        return YAML.dump({
+            components: this.components,
+            systems: this.systems,
+        })
+    }
 }
 
 ///
@@ -894,7 +904,11 @@ function test() {
         name: 'sprite', fields: [
             { name: 'height', dtype: 'int', lo: 0, hi: 255 },
             { name: 'plyrindex', dtype: 'int', lo: 0, hi: 1 },
-            { name: 'nusiz', dtype: 'int', lo: 0, hi: 15 },
+        ]
+    })
+    let c_plyrflags = em.defineComponent({
+        name: 'nusizable', fields: [
+            { name: 'plyrflags', dtype: 'int', lo: 0, hi: 63 },
         ]
     })
     let c_player = em.defineComponent({
@@ -1048,8 +1062,10 @@ function test() {
     root.generateCode();
     root.dump(src);
     console.log(src.toString());
+    //console.log(em.toYAML());
 }
 
 // TODO: files in markdown?
 
 test();
+
