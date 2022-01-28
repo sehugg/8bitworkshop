@@ -129,6 +129,38 @@ interface ArchetypeMatch {
     cmatch: ComponentType[];
 }
 
+class Dialect_CA65 {
+    readonly ASM_ITERATE_EACH = `
+    ldx #0
+%{@__each}:
+    %{code}
+    inx
+    cpx #%{ecount}
+    bne %{@__each}
+`;
+    readonly INIT_FROM_ARRAY = `
+    ldy #%{nbytes}
+:
+    lda %{src}-1,y
+    sta %{dest}-1,y
+    dey
+    bne -
+`
+    readonly HEADER = `
+.include "vcs-ca65.h"
+`
+    readonly FOOTER = `
+.segment "VECTORS"
+VecNMI:    .word Start
+VecReset:  .word Start
+VecBRK:    .word Start
+`
+    readonly TEMPLATE_INIT = `
+Start:
+    CLEAN_START
+`
+}
+
 class SourceFileExport {
     lines: string[] = [];
 
@@ -245,16 +277,6 @@ function getPackedFieldSize(f: DataType, constValue?: DataValue): number {
     return 0;
 }
 
-// TODO: language dialects?
-const ASM_ITERATE_EACH = `
-    ldx #0
-%{@__each}:
-    %{code}
-    inx
-    cpx #%{ecount}
-    bne %{@__each}
-`;
-
 export class EntityScope {
     childScopes: EntityScope[] = [];
     entities: Entity[] = [];
@@ -268,6 +290,7 @@ export class EntityScope {
 
     constructor(
         public readonly em: EntityManager,
+        public readonly dialect: Dialect_CA65,
         public readonly name: string,
         public readonly parent: EntityScope | undefined
     ) {
@@ -388,7 +411,7 @@ export class EntityScope {
         // TODO: compress 0s?
         let bufsym = this.name + '__INITDATA';
         let bufofs = this.rodata.allocateInitData(bufsym, initbytes);
-        let code = INITFROMARRAY;
+        let code = this.dialect.INIT_FROM_ARRAY;
         //TODO: function to repalce from dict?
         code = code.replace('%{nbytes}', initbytes.length.toString())
         code = code.replace('%{src}', bufsym);
@@ -489,7 +512,7 @@ export class EntityScope {
     wrapCodeInLoop(code: string, sys: System, action: Action, ents: Entity[]): string {
         // TODO: check ents
         // TODO: check segment bounds
-        let s = ASM_ITERATE_EACH;
+        let s = this.dialect.ASM_ITERATE_EACH;
         s = s.replace('%{elo}', ents[0].id.toString());
         s = s.replace('%{ehi}', ents[ents.length - 1].id.toString());
         s = s.replace('%{ecount}', ents.length.toString());
@@ -505,15 +528,17 @@ export class EntityScope {
             throw new Error(`cannot find component with field "${fieldName}" in ${sys.name}:${action.event}`);
         }
         // see if all entities have the same constant value
-        let constValues = new Set();
+        let constValues = new Set<DataValue>();
         for (let e of entities) {
             let constVal = e.consts[mksymbol(component, fieldName)];
             constValues.add(constVal); // constVal === undefined is allowed
         }
         // is it a constant?
         if (constValues.size == 1) {
-            let value = constValues.values().next().value;
-            if (value !== undefined) {
+            let value = constValues.values().next().value as DataValue;
+            // TODO: what about symbols?
+            // TODO: use dialect
+            if (typeof value === 'number') {
                 if (bitofs == 0) return `#<${value}`;
                 if (bitofs == 8) return `#>${value}`;
                 // TODO: bitofs?
@@ -521,6 +546,7 @@ export class EntityScope {
         }
         // TODO: offset > 0?
         //let range = this.bss.getFieldRange(component, fieldName);
+        // TODO: dialect
         if (action.select == 'once') {
             if (entities.length != 1)
                 throw new Error(`can't choose multiple entities for ${fieldName} with select=once`);
@@ -576,7 +602,7 @@ export class EntityScope {
     }
     generateCode() {
         this.tempOffset = this.maxTempBytes = 0;
-        this.code.addCodeFragment(TEMPLATE_INIT);
+        this.code.addCodeFragment(this.dialect.TEMPLATE_INIT);
         let initcode = this.allocateInitData(this.bss);
         this.code.addCodeFragment(initcode);
         let start = this.generateCodeForEvent('start');
@@ -587,25 +613,26 @@ export class EntityScope {
         }
     }
     dump(file: SourceFileExport) {
-        file.text(HEADER); // TODO
+        file.text(this.dialect.HEADER); // TODO
         file.segment(`${this.name}_DATA`, 'bss');
         if (this.maxTempBytes) this.bss.allocateBytes('TEMP', this.maxTempBytes);
         this.bss.dump(file);
         file.segment(`${this.name}_CODE`, 'rodata');
         this.rodata.dump(file);
         this.code.dump(file);
-        file.text(FOOTER); // TODO
+        file.text(this.dialect.FOOTER); // TODO
     }
 }
 
 export class EntityManager {
+    dialect = new Dialect_CA65();
     archtypes = new Set<EntityArchetype>();
     components: { [name: string]: ComponentType } = {};
     systems: { [name: string]: System } = {};
     scopes: { [name: string]: EntityScope } = {};
 
     newScope(name: string, parent?: EntityScope) {
-        let scope = new EntityScope(this, name, parent);
+        let scope = new EntityScope(this, this.dialect, name, parent);
         if (this.scopes[name]) throw new Error(`scope ${name} already defined`);
         this.scopes[name] = scope;
         return scope;
@@ -662,22 +689,6 @@ export class EntityManager {
 }
 
 ///
-
-const HEADER = `
-.include "vcs-ca65.h"
-`
-
-const FOOTER = `
-.segment "VECTORS"
-VecNMI:    .word Start
-VecReset:  .word Start
-VecBRK:    .word Start
-`
-
-const TEMPLATE_INIT = `
-Start:
-    CLEAN_START
-`
 
 const TEMPLATE1 = `
 %{@NextFrame}:
@@ -881,15 +892,6 @@ InitMemory:
 .done	rts
 `
 
-// TODO: @loop
-const INITFROMARRAY = `
-    ldy #%{nbytes}
-@loop:
-    lda %{src}-1,y
-    sta %{dest}-1,y
-    dey
-    bne @loop
-`
 
 function test() {
     let em = new EntityManager();
@@ -1066,6 +1068,7 @@ function test() {
 }
 
 // TODO: files in markdown?
+// TODO: jsr OperModeExecutionTree?
 
 test();
 
