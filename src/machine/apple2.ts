@@ -119,8 +119,6 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
   constructor() {
     super();
     this.loadBIOS(new lzgmini().decode(stringToByteArray(atob(APPLEIIGO_LZG))));
-    this.ram[0xbf00] = 0x4c; // fake DOS detect for C
-    this.ram[0xbf6f] = 0x01; // fake DOS detect for C
     this.connectCPUMemoryBus(this);
   }
   saveState() : AppleIIState {
@@ -167,6 +165,8 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
       this.bios = Uint8Array.from(data);
       this.bios[0xD39A - (0x10000 - this.bios.length)] = 0x60;  // $d39a = RTS
       this.ram.set(this.bios, 0x10000 - this.bios.length);
+      this.ram[0xbf00] = 0x4c; // fake DOS detect for C
+      this.ram[0xbf6f] = 0x01; // fake DOS detect for C
   }
   loadROM(data) {
     if (data.length == 35*16*256) { // is it a disk image?
