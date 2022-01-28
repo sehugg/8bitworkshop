@@ -1,6 +1,4 @@
 
-import * as YAML from "js-yaml";
-
 // entity scopes contain entities, and are nested
 // also contain segments (code, bss, rodata)
 // components and systems are global
@@ -31,6 +29,8 @@ import * as YAML from "js-yaml";
 // - converting assets to native formats?
 // - removing unused data
 
+import { Token } from "../tokenizer";
+
 function mksymbol(c: ComponentType, fieldName: string) {
     return c.name + '_' + fieldName;
 }
@@ -40,6 +40,7 @@ function mkscopesymbol(s: EntityScope, c: ComponentType, fieldName: string) {
 
 export interface Entity {
     id: number;
+    name?: string;
     etype: EntityArchetype;
     consts: { [component_field: string]: DataValue };
     inits: { [scope_component_field: string]: DataValue };
@@ -62,7 +63,7 @@ export interface ComponentType {
 }
 
 export interface Query {
-    include: string[];
+    include: string[]; // TODO: make ComponentType
     listen?: string[];
     exclude?: string[];
     updates?: string[];
@@ -79,8 +80,10 @@ export interface Action {
     text: string;
     event: string;
     query: Query;
-    select: 'once' | 'each' | 'source'
+    select: SelectType
 }
+
+export type SelectType = 'once' | 'each' | 'source';
 
 export type DataValue = number | boolean | Uint8Array | Uint16Array;
 
@@ -129,22 +132,21 @@ interface ArchetypeMatch {
     cmatch: ComponentType[];
 }
 
-class Dialect_CA65 {
+export class Dialect_CA65 {
     readonly ASM_ITERATE_EACH = `
     ldx #0
-%{@__each}:
-    %{code}
+{{@__each}}:
+    {{code}}
     inx
-    cpx #%{ecount}
-    bne %{@__each}
+    cpx #{{ecount}}
+    bne {{@__each}}
 `;
     readonly INIT_FROM_ARRAY = `
-    ldy #%{nbytes}
-:
-    lda %{src}-1,y
-    sta %{dest}-1,y
+    ldy #{{nbytes}}
+:   lda {{src}}-1,y
+    sta {{dest}}-1,y
     dey
-    bne -
+    bne :-
 `
     readonly HEADER = `
 .include "vcs-ca65.h"
@@ -159,9 +161,19 @@ VecBRK:    .word Start
 Start:
     CLEAN_START
 `
+
+    comment(s: string) {
+        return `\n;;; ${s}\n`;
+    }
+    absolute(ident: string) {
+        return ident;
+    }
+    indexed_x(ident: string) {
+        return ident + ',x';
+    }
 }
 
-class SourceFileExport {
+export class SourceFileExport {
     lines: string[] = [];
 
     comment(text: string) {
@@ -254,7 +266,7 @@ class Segment {
     }
     getOriginSymbol() {
         let a = this.ofs2sym.get(0);
-        if (!a) throw new Error('getOriginSymbol');
+        if (!a) throw new Error('getOriginSymbol(): no symbol at offset 0'); // TODO
         return a[0];
     }
 }
@@ -334,7 +346,7 @@ export class EntityScope {
     }
     allocateSegment(segment: Segment, readonly: boolean) {
         let fields = Object.values(segment.fieldranges);
-        fields.sort((a, b) => (a.ehi - a.elo + 1) * getPackedFieldSize(a.field));
+        // TODO: fields.sort((a, b) => (a.ehi - a.elo + 1) * getPackedFieldSize(a.field));
         let f;
         while (f = fields.pop()) {
             let name = mksymbol(f.component, f.field.name);
@@ -413,9 +425,9 @@ export class EntityScope {
         let bufofs = this.rodata.allocateInitData(bufsym, initbytes);
         let code = this.dialect.INIT_FROM_ARRAY;
         //TODO: function to repalce from dict?
-        code = code.replace('%{nbytes}', initbytes.length.toString())
-        code = code.replace('%{src}', bufsym);
-        code = code.replace('%{dest}', segment.getOriginSymbol());
+        code = code.replace('{{nbytes}}', initbytes.length.toString())
+        code = code.replace('{{src}}', bufsym);
+        code = code.replace('{{dest}}', segment.getOriginSymbol());
         return code;
     }
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
@@ -454,9 +466,9 @@ export class EntityScope {
             for (let action of sys.actions) {
                 if (action.event == event) {
                     let code = this.replaceCode(action.text, sys, action);
-                    s += `\n; <action ${sys.name}:${event}>\n`;
+                    s += this.dialect.comment(`<action ${sys.name}:${event}>`);
                     s += code;
-                    s += `\n; </action ${sys.name}:${event}>\n`;
+                    s += this.dialect.comment(`</action ${sys.name}:${event}>`);
                     // TODO: check that this happens once?
                 }
             }
@@ -468,12 +480,13 @@ export class EntityScope {
         this.maxTempBytes = Math.max(this.tempOffset, this.maxTempBytes);
     }
     replaceCode(code: string, sys: System, action: Action): string {
-        const re = /\%\{(.+?)\}/g;
+        const re = /\{\{(.+?)\}\}/g;
         let label = sys.name + '_' + action.event;
         let atypes = this.em.archetypesMatching(action.query);
         let entities = this.entitiesMatching(atypes);
         // TODO: detect cycles
         // TODO: "source"?
+        // TODO: what if only 1 item?
         if (action.select == 'each') {
             code = this.wrapCodeInLoop(code, sys, action, entities);
             //console.log(sys.name, action.event, ents);
@@ -513,10 +526,10 @@ export class EntityScope {
         // TODO: check ents
         // TODO: check segment bounds
         let s = this.dialect.ASM_ITERATE_EACH;
-        s = s.replace('%{elo}', ents[0].id.toString());
-        s = s.replace('%{ehi}', ents[ents.length - 1].id.toString());
-        s = s.replace('%{ecount}', ents.length.toString());
-        s = s.replace('%{code}', code);
+        s = s.replace('{{elo}}', ents[0].id.toString());
+        s = s.replace('{{ehi}}', ents[ents.length - 1].id.toString());
+        s = s.replace('{{ecount}}', ents.length.toString());
+        s = s.replace('{{code}}', code);
         return s;
     }
     generateCodeForField(sys: System, action: Action,
@@ -547,12 +560,13 @@ export class EntityScope {
         // TODO: offset > 0?
         //let range = this.bss.getFieldRange(component, fieldName);
         // TODO: dialect
+        let ident = `${component.name}_${fieldName}_b${bitofs}`;
         if (action.select == 'once') {
             if (entities.length != 1)
                 throw new Error(`can't choose multiple entities for ${fieldName} with select=once`);
-            return `${component.name}_${fieldName}_b${bitofs}` // TODO? check there's only 1 entity?
+            return this.dialect.absolute(ident) // TODO? check there's only 1 entity?
         } else {
-            return `${component.name}_${fieldName}_b${bitofs},x` // TODO? ,x?
+            return this.dialect.indexed_x(ident)
         }
     }
     entitiesMatching(atypes: ArchetypeMatch[]) {
@@ -625,12 +639,13 @@ export class EntityScope {
 }
 
 export class EntityManager {
-    dialect = new Dialect_CA65();
     archtypes = new Set<EntityArchetype>();
     components: { [name: string]: ComponentType } = {};
     systems: { [name: string]: System } = {};
     scopes: { [name: string]: EntityScope } = {};
 
+    constructor(public readonly dialect: Dialect_CA65) {
+    }
     newScope(name: string, parent?: EntityScope) {
         let scope = new EntityScope(this, this.dialect, name, parent);
         if (this.scopes[name]) throw new Error(`scope ${name} already defined`);
@@ -643,7 +658,7 @@ export class EntityManager {
     }
     defineSystem(system: System) {
         if (this.systems[system.name]) throw new Error(`system ${system.name} already defined`);
-        this.systems[system.name] = system;
+        return this.systems[system.name] = system;
     }
     componentsMatching(q: Query, etype: EntityArchetype) {
         let list = [];
@@ -680,395 +695,13 @@ export class EntityManager {
             }
         }
     }
-    toYAML() {
-        return YAML.dump({
+    getComponentByName(name: string): ComponentType {
+        return this.components[name];
+    }
+    toJSON() {
+        return JSON.stringify({
             components: this.components,
-            systems: this.systems,
+            systems: this.systems
         })
     }
 }
-
-///
-
-const TEMPLATE1 = `
-%{@NextFrame}:
-    FRAME_START
-    %{!preframe}
-    KERNEL_START
-    %{!kernel}
-    KERNEL_END
-    %{!postframe}
-    FRAME_END
-    lsr SWCHB	    ; test Game Reset switch
-    bcs @NoStart
-    jmp Start
-@NoStart:
-    jmp %{@NextFrame}
-`;
-
-// TODO: two sticks?
-const TEMPLATE2_a = `
-    lda SWCHA
-    sta %{$0}
-`
-const TEMPLATE2_b = `
-    asl %{$0}
-    bcs %{@SkipMoveRight}
-    %{!joyright}
-%{@SkipMoveRight}:
-    asl %{$0}
-    bcs %{@SkipMoveLeft}
-    %{!joyleft}
-%{@SkipMoveLeft}:
-    asl %{$0}
-    bcs %{@SkipMoveDown}
-    %{!joydown}
-%{@SkipMoveDown}:
-    asl %{$0}
-    bcs %{@SkipMoveUp}
-    %{!joyup}
-%{@SkipMoveUp}:
-`;
-
-const TEMPLATE3_L = `
-    lda %{<xpos}
-    sec
-    sbc #1
-    bcc %{@nomove}
-    sta %{<xpos}
-%{@nomove}:
-`;
-
-const TEMPLATE3_R = `
-    lda %{<xpos}
-    clc
-    adc #1
-    cmp #150
-    bcs %{@nomove}
-    sta %{<xpos}
-%{@nomove}:
-`;
-
-const TEMPLATE3_U = `
-    lda %{<ypos}
-    sec
-    sbc #1
-    bcc %{@nomove}
-    sta %{<ypos}
-%{@nomove}:
-`;
-
-const TEMPLATE3_D = `
-    lda %{<ypos}
-    clc
-    adc #1
-    cmp #150
-    bcs %{@nomove}
-    sta %{<ypos}
-%{@nomove}:
-`;
-
-const TEMPLATE4_S1 = `
-.macro %{@KernelSetup} ent,ofs
-    lda #192 ; TODO: numlines
-    sec
-    sbc ypos_ypos_b0+ent
-    sta %{$5}+ofs
-
-    ldy hasbitmap_bitmap_b0+ent
-    lda bitmap_bitmapdata_b0,y
-    sec
-    sbc %{$5}+ofs
-    sta %{$0}+ofs
-    lda bitmap_bitmapdata_b8,y
-    sbc #0
-    sta %{$1}+ofs
-
-    ldy hascolormap_colormap_b0+ent
-    lda colormap_colormapdata_b0,y
-    sec
-    sbc %{$5}+ofs
-    sta %{$2}+ofs
-    lda colormap_colormapdata_b8,y
-    sbc #0
-    sta %{$3}+ofs
-
-    lda sprite_height_b0+ent
-    sta %{$4}+ofs
-    lda ypos_ypos_b0+ent
-    sta %{$5}+ofs
-.endmacro
-`
-const TEMPLATE4_S2 = `
-    %{@KernelSetup} 0,0
-    %{@KernelSetup} 1,6
-`
-
-// https://atariage.com/forums/topic/75982-skipdraw-and-graphics/?tab=comments#comment-928232
-// https://atariage.com/forums/topic/129683-advice-on-a-masking-kernel/
-// https://atariage.com/forums/topic/128147-having-trouble-with-2-free-floating-player-graphics/?tab=comments#comment-1547059
-const TEMPLATE4_K = `
-    lda %{<bgcolor}
-    sta COLUBK
-    ldy %{<lines}
-@LVScan:
-    lda %{$4} ; height
-    dcp %{$5}
-    bcs @DoDraw1
-    lda #0
-    .byte $2C
-@DoDraw1:
-    lda (%{$0}),y
-    sta WSYNC
-    sta GRP0
-    lda (%{$2}),y
-    sta COLUP0
-
-    lda %{$10} ; height
-    dcp %{$11}
-    bcs @DoDraw2
-    lda #0
-    .byte $2C
-@DoDraw2:
-    lda (%{$6}),y
-    sta GRP1
-    lda (%{$8}),y
-    sta COLUP1
-
-    dey		; decrement
-    bne @LVScan	; repeat until 192 lines
-`;
-
-const SET_XPOS = `
-    lda %{<xpos}
-    ldy %{<plyrindex}
-    sta HMCLR
-    jsr %{^SetHorizPos}
-`
-
-const SETHORIZPOS = `
-; SetHorizPos routine
-; A = X coordinate
-; Y = player number (0 or 1)
-SetHorizPos:
-	sta WSYNC	; start a new line
-	sec		    ; set carry flag
-    nop
-@DivideLoop:
-	sbc #15		; subtract 15
-	bcs @DivideLoop	; branch until negative
-	eor #7		; calculate fine offset
-	asl
-	asl
-	asl
-	asl
-	sta RESP0,y	; fix coarse position
-	sta HMP0,y	; set fine offset
-    sta WSYNC
-    sta HMOVE
-	rts		; return to caller
-`
-
-const INITFROMSPARSE = `
-MemSrc equ $80
-MemDest equ $82
-InitMemory:
-	ldy #0
-	lda (MemSrc),y
-        beq .done
-        tax
-        iny
-	lda (MemSrc),y
-        sta MemDest
-        iny
-	lda (MemSrc),y
-        sta MemDest+1
-.loop
-        iny
-        lda (MemSrc),y
-        sta (MemDest),y
-        dex
-        bne .loop
-.done	rts
-`
-
-
-function test() {
-    let em = new EntityManager();
-
-    let c_kernel = em.defineComponent({
-        name: 'kernel', fields: [
-            { name: 'lines', dtype: 'int', lo: 0, hi: 255 },
-            { name: 'bgcolor', dtype: 'int', lo: 0, hi: 255 },
-        ]
-    })
-    let c_sprite = em.defineComponent({
-        name: 'sprite', fields: [
-            { name: 'height', dtype: 'int', lo: 0, hi: 255 },
-            { name: 'plyrindex', dtype: 'int', lo: 0, hi: 1 },
-        ]
-    })
-    let c_plyrflags = em.defineComponent({
-        name: 'nusizable', fields: [
-            { name: 'plyrflags', dtype: 'int', lo: 0, hi: 63 },
-        ]
-    })
-    let c_player = em.defineComponent({
-        name: 'player', fields: [
-            //TODO: optional?
-        ]
-    })
-    let c_hasbitmap = em.defineComponent({
-        name: 'hasbitmap', fields: [
-            { name: 'bitmap', dtype: 'ref', query: { include: ['bitmap'] } },
-        ]
-    })
-    let c_hascolormap = em.defineComponent({
-        name: 'hascolormap', fields: [
-            { name: 'colormap', dtype: 'ref', query: { include: ['colormap'] } },
-        ]
-    })
-    let c_bitmap = em.defineComponent({
-        name: 'bitmap', fields: [
-            { name: 'bitmapdata', dtype: 'array', elem: { dtype: 'int', lo: 0, hi: 255 } }
-        ]
-    })
-    let c_colormap = em.defineComponent({
-        name: 'colormap', fields: [
-            { name: 'colormapdata', dtype: 'array', elem: { dtype: 'int', lo: 0, hi: 255 } }
-        ]
-    })
-    let c_xpos = em.defineComponent({
-        name: 'xpos', fields: [
-            { name: 'xpos', dtype: 'int', lo: 0, hi: 255 }
-        ]
-    })
-    let c_ypos = em.defineComponent({
-        name: 'ypos', fields: [
-            { name: 'ypos', dtype: 'int', lo: 0, hi: 255 }
-        ]
-    })
-    let c_xyvel = em.defineComponent({
-        name: 'xyvel', fields: [
-            { name: 'xvel', dtype: 'int', lo: -8, hi: 7 },
-            { name: 'yvel', dtype: 'int', lo: -8, hi: 7 }
-        ]
-    })
-
-    // init -> [start] -> frameloop
-    // frameloop -> [preframe] [kernel] [postframe]
-
-    // temp between preframe + frame?
-    // TODO: check names for identifierness
-    em.defineSystem({
-        name: 'kernel_simple',
-        tempbytes: 8,
-        actions: [
-            {
-                text: TEMPLATE4_S1, event: 'preframe', select: 'once', query: {
-                    include: ['kernel']
-                }
-            },
-            {
-                // TODO: should include kernel for numlines
-                text: TEMPLATE4_S2, event: 'preframe', select: 'once', query: {
-                    include: ['sprite', 'hasbitmap', 'hascolormap', 'ypos'],
-                },
-            },
-            {
-                text: TEMPLATE4_K, event: 'kernel', select: 'once', query: {
-                    include: ['kernel']
-                }
-            },
-        ]
-    })
-    em.defineSystem({
-        name: 'set_xpos',
-        actions: [
-            {
-                text: SET_XPOS, event: 'preframe', select: 'each', query: {
-                    include: ['sprite', 'xpos']
-                },
-            },
-            //{ text:SETHORIZPOS },
-        ]
-    })
-    // https://docs.unity3d.com/Packages/com.unity.entities@0.17/manual/ecs_systems.html
-    em.defineSystem({
-        name: 'frameloop',
-        emits: ['preframe', 'kernel', 'postframe'],
-        actions: [
-            { text: TEMPLATE1, event: 'start', select: 'once', query: { include: ['kernel'] } }
-        ]
-    })
-    em.defineSystem({
-        name: 'joyread',
-        tempbytes: 1,
-        emits: ['joyup', 'joydown', 'joyleft', 'joyright', 'joybutton'],
-        actions: [
-            { text: TEMPLATE2_a, event: 'postframe', select: 'once', query: { include: ['player'] } },
-            { text: TEMPLATE2_b, event: 'postframe', select: 'each', query: { include: ['player'] } }
-        ]
-    });
-    em.defineSystem({
-        name: 'move_x',
-        actions: [
-            { text: TEMPLATE3_L, event: 'joyleft', select: 'source', query: { include: ['player', 'xpos'] }, },
-            { text: TEMPLATE3_R, event: 'joyright', select: 'source', query: { include: ['player', 'xpos'] }, },
-        ]
-    });
-    em.defineSystem({
-        name: 'move_y',
-        actions: [
-            { text: TEMPLATE3_U, event: 'joyup', select: 'source', query: { include: ['player', 'ypos'] } },
-            { text: TEMPLATE3_D, event: 'joydown', select: 'source', query: { include: ['player', 'ypos'] } },
-        ]
-    });
-    em.defineSystem({
-        name: 'SetHorizPos',
-        actions: [
-            { text: SETHORIZPOS, event: 'SetHorizPos', select: 'once', query: { include: ['xpos'] } },
-        ]
-    });
-
-    let root = em.newScope("Root");
-    let scene = em.newScope("Scene", root);
-    let e_ekernel = root.newEntity({ components: [c_kernel] });
-    root.setConstValue(e_ekernel, c_kernel, 'lines', 192);
-    //root.setConstValue(e_ekernel, c_kernel, 'bgcolor', 0x92);
-    root.setInitValue(e_ekernel, c_kernel, 'bgcolor', 0x92);
-
-    let e_bitmap0 = root.newEntity({ components: [c_bitmap] });
-    // TODO: store array sizes?
-    root.setConstValue(e_bitmap0, c_bitmap, 'bitmapdata', new Uint8Array([1, 1, 3, 7, 15, 31, 63, 127]));
-
-    let e_colormap0 = root.newEntity({ components: [c_colormap] });
-    root.setConstValue(e_colormap0, c_colormap, 'colormapdata', new Uint8Array([6, 3, 6, 9, 12, 14, 31, 63]));
-
-    let ea_playerSprite = { components: [c_sprite, c_hasbitmap, c_hascolormap, c_xpos, c_ypos, c_player] };
-    let e_player0 = root.newEntity(ea_playerSprite);
-    root.setConstValue(e_player0, c_sprite, 'plyrindex', 0);
-    root.setInitValue(e_player0, c_sprite, 'height', 8);
-    root.setInitValue(e_player0, c_xpos, 'xpos', 50);
-    root.setInitValue(e_player0, c_ypos, 'ypos', 50);
-    let e_player1 = root.newEntity(ea_playerSprite);
-    root.setConstValue(e_player1, c_sprite, 'plyrindex', 1);
-    root.setInitValue(e_player1, c_sprite, 'height', 8);
-    root.setInitValue(e_player1, c_xpos, 'xpos', 100);
-    root.setInitValue(e_player1, c_ypos, 'ypos', 60);
-
-    //console.log(em.archetypesMatching({ include:['xpos','ypos']})[0])
-
-    let src = new SourceFileExport();
-    root.analyzeEntities();
-    root.generateCode();
-    root.dump(src);
-    console.log(src.toString());
-    //console.log(em.toYAML());
-}
-
-// TODO: files in markdown?
-// TODO: jsr OperModeExecutionTree?
-
-test();
-

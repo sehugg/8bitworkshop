@@ -22,7 +22,6 @@
     "fast-png": "^5.0.4",
     "file-saver": "^2.0.5",
     "jquery": "^3.6.0",
-    "js-yaml": "^4.1.0",
     "jszip": "^3.7.0",
     "localforage": "^1.9.0",
     "mousetrap": "^1.6.5",

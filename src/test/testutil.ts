@@ -1,8 +1,9 @@
 
 import assert from "assert";
 import { describe } from "mocha";
-import { EmuHalt } from "../../src/common/emu"
-import { lzgmini, isProbablyBinary } from "../../src/common/util";
+import { EmuHalt } from "../common/emu"
+import { lzgmini, isProbablyBinary } from "../common/util";
+import { Tokenizer, TokenType } from "../common/tokenizer";
 
 var NES_CONIO_ROM_LZG = [
     76,90,71,0,0,160,16,0,0,11,158,107,131,223,83,1,9,17,21,22,78,69,83,26,2,1,3,0,22,6,120,216,
@@ -134,3 +135,37 @@ var NES_CONIO_ROM_LZG = [
     });
   });
   
+describe('Tokenizer', function() {
+    it('Should tokenize', function() {
+        var t = new Tokenizer();
+        t.setTokenRules([
+            { type: 'ident', regex: /[$A-Za-z_][A-Za-z0-9_-]*/ },
+            { type: 'delim', regex: /[\(\)\{\}\[\]]/ },
+            { type: 'qstring', regex: /".*?"/ },
+            { type: 'integer', regex: /[-]?\d+/ },
+            { type: 'ignore', regex: /\s+/ },
+            { type: TokenType.CodeFragment, regex: /---/ },
+        ]);
+        t.tokenizeFile("\n{\"key\" value\n \"number\" 531\n \"f\" (fn [x] (+ x 2))}\n", "test.file");
+        assert.strictEqual(t.tokens.map(t => t.type).join(' '),
+            'delim qstring ident qstring integer qstring delim ident delim ident delim delim catch-all ident integer delim delim delim eof');
+        assert.strictEqual(t.tokens.map(t => t.str).join(' '),
+            '{ "key" value "number" 531 "f" ( fn [ x ] ( + x 2 ) ) } ');
+        assert.strictEqual(19, t.tokens.length);
+        assert.strictEqual('{', t.peekToken().str);
+        assert.strictEqual('{', t.expectToken('{').str);
+        t.pushbackToken(t.consumeToken());
+        assert.strictEqual('"key"', t.consumeToken().str);
+        assert.deepStrictEqual({'value':true}, t.parseModifiers(['foo','value','bar']));
+        assert.deepStrictEqual([], t.errors);
+        t.includeEOL = true;
+        t.tokenizeFile("\n{\"key\" value\n \"number\" 531\n \"f\" (fn [x] (+ x 2))}\n", "test.file");
+        assert.strictEqual(24, t.tokens.length);
+        assert.strictEqual(t.tokens.map(t => t.type).join(' '),
+            'eol delim qstring ident eol qstring integer eol qstring delim ident delim ident delim delim catch-all ident integer delim delim delim eol eol eof');
+        t.includeEOL = false;
+        t.tokenizeFile("key value ---\nthis is\na fragment\n--- foo", "test.file");
+        assert.strictEqual(t.tokens.map(t => t.type).join(' '),
+          'ident ident code-fragment ident eof');
+    });
+});
