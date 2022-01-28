@@ -66,17 +66,47 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
   // fake disk drive that loads program into RAM
   fakeDrive : SlotDevice = {
     readROM: (a) => {
-      switch (a) {
-        // JMP VM_BASE
-        case 0: {
-          // load program into RAM
-          if (this.rom)
-            this.ram.set(this.rom.slice(HDR_SIZE), PGM_BASE);
-          return 0x4c;
-        }
-        case 1: return VM_BASE&0xff;
-        case 2: return (VM_BASE>>8)&0xff;
-        default: return 0;
+      var pc = this.cpu.getPC();
+      if (pc >= 0xC600 && pc < 0xC700) {
+          // We're reading code to EXECUTE.
+          // Load the built program directly into memory, and "read"
+          // a JMP directly to it.
+          //console.log(`fakeDrive (EXEC): ${a.toString(16)}`);
+          switch (a) {
+            // JMP VM_BASE
+            case 0:
+              // SHOULD load program into RAM here, but have to do it
+              // below instead.
+              return 0;
+            case 1: return VM_BASE&0xff;
+            case 2: return (VM_BASE>>8)&0xff;
+            default: return 0;
+          }
+      }
+      else {
+          // We're reading code, but not executing it.
+          // This is probably the Monitor routine to identify whether
+          // this slot is a Disk ][ drive, so... give it what it wants.
+          //console.log(`fakeDrive (NOEX): ${a.toString(16)}`);
+          switch (a) {
+            case 0:
+              // Actually, if we get here, we probably ARE being
+              // executed. For some reason, the instruction at $C600
+              // gets read for execution, BEFORE the PC gets set to
+              // the correct location. So we handle loading the program
+              // into RAM and returning the JMP here, instead of above
+              // where it would otherwise belong.
+              if (this.rom) {
+                  console.log(`Loading program into Apple ][ RAM at \$${PGM_BASE.toString(16)}`);
+                  this.ram.set(this.rom.slice(HDR_SIZE), PGM_BASE);
+              }
+              return 0x4c; // JMP
+            case 1: return 0x20;
+            case 3: return 0x00;
+            case 5: return 0x03;
+            case 7: return 0x3c;
+            default: return 0;
+          }
       }
     },
     readConst: (a) => {
