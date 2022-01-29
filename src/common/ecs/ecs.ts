@@ -34,6 +34,17 @@
 // should references be zero-indexed to a field, or global?
 // should we limit # of entities passed to systems? min-max
 
+import { SourceLocated, SourceLocation } from "../workertypes";
+
+export class ECSError extends Error {
+    $loc: SourceLocation;
+    constructor(msg: string, obj?: SourceLocation | SourceLocated) {
+        super(msg);
+        Object.setPrototypeOf(this, ECSError.prototype);
+        if (obj) this.$loc = (obj as SourceLocated).$loc || (obj as SourceLocation);
+    }
+}
+
 function mksymbol(c: ComponentType, fieldName: string) {
     return c.name + '_' + fieldName;
 }
@@ -208,7 +219,7 @@ export class SourceFileExport {
         if (b === undefined) {
             this.lines.push(` .res 1`);
         } else if (typeof b === 'number') {
-            if (b < 0 || b > 255) throw new Error(`out of range byte ${b}`);
+            if (b < 0 || b > 255) throw new ECSError(`out of range byte ${b}`);
             this.lines.push(` .byte ${b}`)
         } else {
             if (b.bitofs == 0) this.lines.push(` .byte <${b.symbol}`)
@@ -287,7 +298,7 @@ class Segment {
     }
     getOriginSymbol() {
         let a = this.ofs2sym.get(0);
-        if (!a) throw new Error('getOriginSymbol(): no symbol at offset 0'); // TODO
+        if (!a) throw new ECSError('getOriginSymbol(): no symbol at offset 0'); // TODO
         return a[0];
     }
 }
@@ -419,7 +430,7 @@ export class EntityScope {
                         segment.initdata[base + e.id - fieldrange.elo] = v;
                     }
                 } else {
-                    throw new Error(`unhandled constant ${e.id}:${cfname}`);
+                    throw new ECSError(`unhandled constant ${e.id}:${cfname}`);
                 }
             }
         }
@@ -438,7 +449,7 @@ export class EntityScope {
                     initbytes[offset] = initvalue; // TODO: > 8 bits?
                 } else {
                     // TODO: init arrays?
-                    throw new Error(`cannot initialize ${scfname}: ${offset} ${initvalue}`); // TODO??
+                    throw new ECSError(`cannot initialize ${scfname}: ${offset} ${initvalue}`); // TODO??
                 }
             }
         }
@@ -457,14 +468,14 @@ export class EntityScope {
         let c = this.em.singleComponentWithFieldName([{etype: e.etype, cmatch:[component]}], fieldName, "setConstValue");
         e.consts[mksymbol(component, fieldName)] = value;
         if (this.em.symbols[mksymbol(component, fieldName)] == 'init')
-            throw new Error(`Can't mix const and init values for a component field`);
+            throw new ECSError(`Can't mix const and init values for a component field`);
         this.em.symbols[mksymbol(component, fieldName)] = 'const';
     }
     setInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
         let c = this.em.singleComponentWithFieldName([{etype: e.etype, cmatch:[component]}], fieldName, "setInitValue");
         e.inits[mkscopesymbol(this, component, fieldName)] = value;
         if (this.em.symbols[mksymbol(component, fieldName)] == 'const')
-            throw new Error(`Can't mix const and init values for a component field`);
+            throw new ECSError(`Can't mix const and init values for a component field`);
         this.em.symbols[mksymbol(component, fieldName)] = 'init';
     }
     generateCodeForEvent(event: string): string {
@@ -544,7 +555,7 @@ export class EntityScope {
                 case '^': // subroutine reference
                     return this.includeSubroutine(rest);
                 default:
-                    throw new Error(`unrecognized command ${cmd} in ${entire}`);
+                    throw new ECSError(`unrecognized command ${cmd} in ${entire}`);
             }
         });
     }
@@ -574,13 +585,13 @@ export class EntityScope {
             component = this.em.getComponentByName(cname);
             fieldName = fname;
             qualified = true;
-            if (component == null) throw new Error(`no component named "${cname}"`)
+            if (component == null) throw new ECSError(`no component named "${cname}"`)
         } else {
             component = this.em.singleComponentWithFieldName(atypes, fieldName, `${sys.name}:${action.event}`);
         }
         // find archetypes
         let field = component.fields.find(f => f.name == fieldName);
-        if (field == null) throw new Error(`no field named "${fieldName}" in component`)
+        if (field == null) throw new ECSError(`no field named "${fieldName}" in component`)
         // see if all entities have the same constant value
         let constValues = new Set<DataValue>();
         for (let e of entities) {
@@ -601,6 +612,7 @@ export class EntityScope {
         // TODO: offset > 0?
         // TODO: don't mix const and init data
         let range = this.bss.getFieldRange(component, fieldName) || this.rodata.getFieldRange(component, fieldName);
+        if (!range) throw new ECSError(`couldn't find field for ${component.name}:${fieldName}, maybe no entities?`); // TODO
         let eidofs = range.elo - entities[0].id;
         // TODO: dialect
         let ident = this.dialect.fieldsymbol(component, field, bitofs);
@@ -608,7 +620,7 @@ export class EntityScope {
             return this.dialect.absolute(ident);
         } else if (action.select == 'once') {
             if (entities.length != 1)
-                throw new Error(`can't choose multiple entities for ${fieldName} with select=once`);
+                throw new ECSError(`can't choose multiple entities for ${fieldName} with select=once`);
             return this.dialect.absolute(ident);
         } else {
             // TODO: right direction?
@@ -700,16 +712,16 @@ export class EntityManager {
     }
     newScope(name: string, parent?: EntityScope) {
         let scope = new EntityScope(this, this.dialect, name, parent);
-        if (this.scopes[name]) throw new Error(`scope ${name} already defined`);
+        if (this.scopes[name]) throw new ECSError(`scope ${name} already defined`);
         this.scopes[name] = scope;
         return scope;
     }
     defineComponent(ctype: ComponentType) {
-        if (this.components[ctype.name]) throw new Error(`component ${ctype.name} already defined`);
+        if (this.components[ctype.name]) throw new ECSError(`component ${ctype.name} already defined`);
         return this.components[ctype.name] = ctype;
     }
     defineSystem(system: System) {
-        if (this.systems[system.name]) throw new Error(`system ${system.name} already defined`);
+        if (this.systems[system.name]) throw new ECSError(`system ${system.name} already defined`);
         return this.systems[system.name] = system;
     }
     componentsMatching(q: Query, etype: EntityArchetype) {
@@ -755,10 +767,10 @@ export class EntityManager {
     singleComponentWithFieldName(atypes: ArchetypeMatch[], fieldName: string, where: string) {
         let components = this.componentsWithFieldName(atypes, fieldName);
         if (components.length == 0) {
-            throw new Error(`cannot find component with field "${fieldName}" in ${where}`);
+            throw new ECSError(`cannot find component with field "${fieldName}" in ${where}`);
         }
         if (components.length > 1) {
-            throw new Error(`ambiguous field name "${fieldName}" in ${where}`);
+            throw new ECSError(`ambiguous field name "${fieldName}" in ${where}`);
         }
         return components[0];
     }

@@ -1,14 +1,5 @@
 
-import type { SourceLocation, SourceLine, WorkerError } from "./workertypes";
-
-// objects that have source code position info
-export interface SourceLocated {
-    $loc?: SourceLocation;
-}
-// statements also have the 'offset' (pc) field from SourceLine
-export interface SourceLineLocated {
-    $loc?: SourceLine;
-}
+import type { SourceLocation, SourceLine, WorkerError, SourceLocated } from "./workertypes";
 
 export class CompileError extends Error {
     $loc: SourceLocation;

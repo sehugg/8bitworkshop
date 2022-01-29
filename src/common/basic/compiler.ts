@@ -1,4 +1,4 @@
-import { WorkerError, CodeListingMap, SourceLocation, SourceLine } from "../workertypes";
+import { WorkerError, CodeListingMap, SourceLocation, SourceLine, SourceLocated, SourceLineLocated } from "../workertypes";
 
 export interface BASICOptions {
     dialectName : string;               // use this to select the dialect 
@@ -48,15 +48,6 @@ export interface BASICOptions {
     commandsPerSec? : number;           // how many commands per second?
     maxLinesPerFile? : number;          // limit on # of lines
     maxArrayElements? : number;         // max array elements (all dimensions)
-}
-
-// objects that have source code position info
-export interface SourceLocated {
-    $loc?: SourceLocation;
-}
-// statements also have the 'offset' (pc) field from SourceLine
-export interface SourceLineLocated {
-    $loc?: SourceLine;
 }
 
 export class CompileError extends Error {
