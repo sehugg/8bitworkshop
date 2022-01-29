@@ -69,7 +69,7 @@ export class ECSCompiler extends Tokenizer {
 
     parseComponentField(): DataField {
         let name = this.expectIdent();
-        this.expectToken(':');
+        this.expectToken(':', 'I expected either a ":" or "end" here.'); // TODO
         let type = this.parseDataType();
         return { name: name.str, ...type };
     }
@@ -259,5 +259,11 @@ export class ECSCompiler extends Tokenizer {
             scope.generateCode();
             scope.dump(src);
         }
+    }
+
+    export() {
+        let src = new SourceFileExport();
+        this.exportToFile(src);
+        return src.toString();
     }
 }

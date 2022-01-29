@@ -431,6 +431,7 @@ export function getToolForFilename_6502(fn:string) : string {
   if (fn.endsWith(".dasm")) return "dasm";
   if (fn.endsWith(".acme")) return "acme";
   if (fn.endsWith(".wiz")) return "wiz";
+  if (fn.endsWith(".ecs")) return "ecs";
   return "dasm"; // .a
 }
 

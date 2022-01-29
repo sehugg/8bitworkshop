@@ -1063,6 +1063,7 @@ import * as z80 from './tools/z80'
 import * as x86 from './tools/x86'
 import * as arm from './tools/arm'
 import * as script from './tools/script'
+import * as ecs from './tools/ecs'
 
 var TOOLS = {
   'dasm': dasm.assembleDASM,
@@ -1098,7 +1099,8 @@ var TOOLS = {
   'wiz': misc.compileWiz,
   'armips': arm.assembleARMIPS,
   'vasmarm': arm.assembleVASMARM,
-  'js': script.runJavascript,
+  //'js': script.runJavascript,
+  'ecs': ecs.assembleECS,
 }
 
 var TOOL_PRELOADFS = {
@@ -1125,6 +1127,7 @@ var TOOL_PRELOADFS = {
   'fastbasic': '65-atari8',
   'silice': 'Silice',
   'wiz': 'wiz',
+  'ecs': '65-none', // TODO: support multiple platforms
 }
 
 //const waitFor = delay => new Promise(resolve => setTimeout(resolve, delay)); // for testing
