@@ -18,7 +18,7 @@ import { EmscriptenModule } from "../workermain"
 00B726  1  xx xx        IBSECSZ: .res 2
 00BA2F  1  2A 2B E8 2C   HEX "2A2BE82C2D2E2F303132F0F133343536"
 */
-function parseCA65Listing(code, symbols, params, dbg) {
+function parseCA65Listing(code: string, symbols, params, dbg: boolean) {
     var segofs = 0;
     var offset = 0;
     var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+(\w+), "([^"]+)", (.+)/;
@@ -44,49 +44,47 @@ function parseCA65Listing(code, symbols, params, dbg) {
                 }
             }
         }
-        if (dbg) {
-            if (dbgm && dbgtype == 'line') {
-                lines.push({
-                    // TODO: sourcefile
-                    line: parseInt(dbgm[6]),
-                    offset: offset + segofs,
-                    insns: null
-                });
-            }
-        } else {
-            var linem = insnLineMatch.exec(line);
-            var topfile = linem && linem[3] == '1';
-            if (topfile) linenum++;
-            if (topfile && linem[1]) {
-                var offset = parseInt(linem[1], 16);
-                var insns = linem[4].trim();
-                if (insns.length) {
-                    // take back one to honor the long .byte line
-                    if (linem[5].length == 0) {
-                        linenum--;
-                    } else {
-                        lines.push({
-                            line: linenum,
-                            offset: offset + segofs,
-                            insns: insns,
-                            iscode: true // TODO: can't really tell unless we parse it
-                        });
+        if (dbg && dbgm && dbgtype == 'line') {
+            //console.log(dbgm[6], offset, segofs);
+            lines.push({
+                // TODO: sourcefile
+                line: parseInt(dbgm[6]),
+                offset: offset + segofs,
+                insns: null
+            });
+        }
+        var linem = insnLineMatch.exec(line);
+        var topfile = linem && linem[3] == '1';
+        if (topfile) linenum++;
+        if (topfile && linem[1]) {
+            var offset = parseInt(linem[1], 16);
+            var insns = linem[4].trim();
+            if (insns.length) {
+                // take back one to honor the long .byte line
+                if (linem[5].length == 0) {
+                    linenum--;
+                } else if (!dbg) {
+                    lines.push({
+                        line: linenum,
+                        offset: offset + segofs,
+                        insns: insns,
+                        iscode: true // TODO: can't really tell unless we parse it
+                    });
+                }
+            } else {
+                var sym = linem[5];
+                var segm = sym && segMatch.exec(sym);
+                if (segm && segm[1]) {
+                    var symofs = symbols['__' + segm[1] + '_RUN__'];
+                    if (typeof symofs === 'number') {
+                        segofs = symofs;
+                        //console.log(sym, segofs, symofs, '-', offset);
                     }
-                } else {
-                    var sym = linem[5];
-                    var segm = sym && segMatch.exec(sym);
-                    if (segm && segm[1]) {
-                        var symofs = symbols['__' + segm[1] + '_RUN__'];
-                        if (typeof symofs === 'number') {
-                            segofs = symofs;
-                            //console.log(sym, symofs, '-', offset);
-                        }
-                    } else if (sym.endsWith(':') && !sym.startsWith('@')) {
-                        var symofs = symbols[sym.substring(0, sym.length - 1)];
-                        if (typeof symofs === 'number') {
-                            segofs = symofs - offset;
-                            //console.log(sym, segofs, symofs, offset);
-                        }
+                } else if (sym.endsWith(':') && !sym.startsWith('@')) {
+                    var symofs = symbols[sym.substring(0, sym.length - 1)];
+                    if (typeof symofs === 'number') {
+                        segofs = symofs - offset;
+                        //console.log(sym, segofs, symofs, '-', offset);
                     }
                 }
             }
