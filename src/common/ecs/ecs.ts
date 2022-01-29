@@ -28,6 +28,11 @@
 // - managing memory and scope
 // - converting assets to native formats?
 // - removing unused data
+//
+// it's more convenient to have loops be zero-indexed
+// for page cross, temp storage, etc
+// should references be zero-indexed to a field, or global?
+// should we limit # of entities passed to systems? min-max
 
 function mksymbol(c: ComponentType, fieldName: string) {
     return c.name + '_' + fieldName;
@@ -174,8 +179,15 @@ Start:
     indexed_x(ident: string) {
         return ident + ',x';
     }
+    fieldsymbol(component: ComponentType, field: DataField, bitofs: number) {
+        return `${component.name}_${field.name}_b${bitofs}`;
+    }
+    datasymbol(component: ComponentType, field: DataField, eid: number) {
+        return `${component.name}_${field.name}_e${eid}`;
+    }
 }
 
+// TODO: merge with Dialect?
 export class SourceFileExport {
     lines: string[] = [];
 
@@ -364,7 +376,7 @@ export class EntityScope {
             // TODO: split arrays
             f.access = [];
             for (let i = 0; i < bits; i += 8) {
-                let symbol = name + '_b' + i;
+                let symbol = this.dialect.fieldsymbol(f.component, f.field, i);
                 f.access.push({ symbol, bit: 0, width: 8 }); // TODO
                 if (!readonly) {
                     segment.allocateBytes(symbol, rangelen * bytesperelem); // TODO
@@ -382,9 +394,9 @@ export class EntityScope {
                 let entcount = fieldrange.ehi - fieldrange.elo + 1;
                 // is it a byte array?
                 if (v instanceof Uint8Array) {
-                    let datasym = `${c.name}_${f.name}_e${e.id}`;
-                    let ptrlosym = `${c.name}_${f.name}_b0`;
-                    let ptrhisym = `${c.name}_${f.name}_b8`;
+                    let datasym = this.dialect.datasymbol(c, f, e.id);
+                    let ptrlosym = this.dialect.fieldsymbol(c, f, 0);
+                    let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
                     segment.allocateInitData(datasym, v);
                     let loofs = segment.allocateBytes(ptrlosym, entcount);
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
@@ -396,7 +408,7 @@ export class EntityScope {
                     // TODO: what if > 8 bits?
                     // TODO: what if mix of var, const, and init values?
                     if (fieldrange.ehi > fieldrange.elo) {
-                        let datasym = `${c.name}_${f.name}_b0`;
+                        let datasym = this.dialect.fieldsymbol(c, f, 0);
                         let base = segment.allocateBytes(datasym, entcount);
                         segment.initdata[base + e.id - fieldrange.elo] = v;
                     }
@@ -438,10 +450,16 @@ export class EntityScope {
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
         let c = this.em.singleComponentWithFieldName([{etype: e.etype, cmatch:[component]}], fieldName, "setConstValue");
         e.consts[mksymbol(component, fieldName)] = value;
+        if (this.em.symbols[mksymbol(component, fieldName)] == 'init')
+            throw new Error(`Can't mix const and init values for a component field`);
+        this.em.symbols[mksymbol(component, fieldName)] = 'const';
     }
     setInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        let c = this.em.singleComponentWithFieldName([{etype: e.etype, cmatch:[component]}], fieldName, "setConstValue");
+        let c = this.em.singleComponentWithFieldName([{etype: e.etype, cmatch:[component]}], fieldName, "setInitValue");
         e.inits[mkscopesymbol(this, component, fieldName)] = value;
+        if (this.em.symbols[mksymbol(component, fieldName)] == 'const')
+            throw new Error(`Can't mix const and init values for a component field`);
+        this.em.symbols[mksymbol(component, fieldName)] = 'init';
     }
     generateCodeForEvent(event: string): string {
         // find systems that respond to event
@@ -517,7 +535,7 @@ export class EntityScope {
                     return this.generateCodeForField(sys, action, atypes, entities, rest, 0);
                 case '>': // high byte
                     return this.generateCodeForField(sys, action, atypes, entities, rest, 8);
-                case '^': // reference
+                case '^': // subroutine reference
                     return this.includeSubroutine(rest);
                 default:
                     throw new Error(`unrecognized command ${cmd} in ${entire}`);
@@ -541,8 +559,22 @@ export class EntityScope {
     generateCodeForField(sys: System, action: Action,
         atypes: ArchetypeMatch[], entities: Entity[],
         fieldName: string, bitofs: number): string {
+        
+        var component : ComponentType;
+        var qualified = false;
+        // is qualified field?
+        if (fieldName.indexOf('.') > 0) {
+            let [cname,fname] = fieldName.split('.');
+            component = this.em.getComponentByName(cname);
+            fieldName = fname;
+            qualified = true;
+            if (component == null) throw new Error(`no component named "${cname}"`)
+        } else {
+            component = this.em.singleComponentWithFieldName(atypes, fieldName, `${sys.name}:${action.event}`);
+        }
         // find archetypes
-        let component = this.em.singleComponentWithFieldName(atypes, fieldName, `${sys.name}:${action.event}`);
+        let field = component.fields.find(f => f.name == fieldName);
+        if (field == null) throw new Error(`no field named "${fieldName}" in component`)
         // see if all entities have the same constant value
         let constValues = new Set<DataValue>();
         for (let e of entities) {
@@ -561,19 +593,29 @@ export class EntityScope {
             }
         }
         // TODO: offset > 0?
-        //let range = this.bss.getFieldRange(component, fieldName);
+        // TODO: don't mix const and init data
+        let range = this.bss.getFieldRange(component, fieldName) || this.rodata.getFieldRange(component, fieldName);
+        let eidofs = range.elo - entities[0].id;
         // TODO: dialect
-        let ident = `${component.name}_${fieldName}_b${bitofs}`;
-        if (action.select == 'once') {
+        let ident = this.dialect.fieldsymbol(component, field, bitofs);
+        if (qualified) {
+            return this.dialect.absolute(ident);
+        } else if (action.select == 'once') {
             if (entities.length != 1)
                 throw new Error(`can't choose multiple entities for ${fieldName} with select=once`);
-            return this.dialect.absolute(ident) // TODO? check there's only 1 entity?
+            return this.dialect.absolute(ident);
         } else {
-            return this.dialect.indexed_x(ident)
+            // TODO: right direction?
+            if (eidofs > 0) {
+                ident += '+' + eidofs;
+            } else if (eidofs < 0) {
+                ident += '' + eidofs;
+            }
+            return this.dialect.indexed_x(ident);
         }
     }
     entitiesMatching(atypes: ArchetypeMatch[]) {
-        let result = [];
+        let result : Entity[] = [];
         for (let e of this.entities) {
             for (let a of atypes) {
                 // TODO: what about subclasses?
@@ -646,6 +688,7 @@ export class EntityManager {
     components: { [name: string]: ComponentType } = {};
     systems: { [name: string]: System } = {};
     scopes: { [name: string]: EntityScope } = {};
+    symbols: { [name: string] : 'init' | 'const' } = {};
 
     constructor(public readonly dialect: Dialect_CA65) {
     }

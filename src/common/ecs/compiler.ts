@@ -92,7 +92,7 @@ export class ECSCompiler extends Tokenizer {
         this.compileError(`Unknown data type`); // TODO
     }
 
-    parseDataValue() : DataValue {
+    parseDataValue(field: DataField) : DataValue {
         let tok = this.peekToken();
         if (tok.type == 'integer') {
             return this.expectInteger();
@@ -102,9 +102,17 @@ export class ECSCompiler extends Tokenizer {
             return new Uint8Array(this.parseDataArray());
         }
         if (tok.str == '#') {
+            let reftype = field.dtype == 'ref' ? field as RefType : undefined;
             let e = this.parseEntityRef();
-            // TODO: entity ref types by query?
-            return e.id;
+            let id = e.id;
+            if (reftype) {
+                // TODO: make this a function? elo ehi etc?
+                let atypes = this.em.archetypesMatching(reftype.query);
+                let entities = this.currentScope.entitiesMatching(atypes);
+                if (entities.length == 0) this.compileError(`This entitiy doesn't seem to fit the reference type.`);
+                id -= entities[0].id;
+            }
+            return id;
         }
         this.compileError(`Unknown data value`); // TODO
     }
@@ -211,7 +219,9 @@ export class ECSCompiler extends Tokenizer {
                 let comps = this.em.componentsWithFieldName([{etype: e.etype, cmatch:e.etype.components}], name);
                 if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
                 if (comps.length > 1) this.compileError(`I found more than one field named "${name}" for this entity.`)
-                let value = this.parseDataValue();
+                let field = comps[0].fields.find(f => f.name == name);
+                if (!field) this.internalError();
+                let value = this.parseDataValue(field);
                 if (cmd == 'const') this.currentScope.setConstValue(e, comps[0], name, value);
                 if (cmd == 'init') this.currentScope.setInitValue(e, comps[0], name, value);
             } else {
@@ -235,7 +245,7 @@ export class ECSCompiler extends Tokenizer {
         return cref;
     }
 
-    parseEntityRef() : Entity {
+    parseEntityRef(reftype?: RefType) : Entity {
         this.expectToken('#');
         let name = this.expectIdent().str;
         let eref = this.currentScope.entities.find(e => e.name == name);

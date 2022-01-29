@@ -71,21 +71,21 @@ system SimpleKernel
     sbc {{<ypos}}
     sta {{$11}}
 
-    ldy {{<bitmap}} ; deref
-    lda Bitmap_bitmapdata_b0,y
+    ldy {{<bitmap}}         ; deref
+    lda {{<Bitmap.bitmapdata}},y
     sec
     sbc {{$11}}
     sta {{$0}},x
-    lda Bitmap_bitmapdata_b8,y
+    lda {{>Bitmap.bitmapdata}},y
     sbc #0
     sta {{$2}},x
 
     ldy {{<colormap}}
-    lda Colormap_colormapdata_b0,y
+    lda {{<Colormap.colormapdata}},y
     sec
     sbc {{$11}}
     sta {{$4}},x
-    lda Colormap_colormapdata_b8,y
+    lda {{>Colormap.colormapdata}},y
     sbc #0
     sta {{$6}},x
 
@@ -273,7 +273,7 @@ scope Main
         init height = 8
         init xpos = 100
         init ypos = 60
-        init bitmap = 1
+        init bitmap = #Bitmap2
     end
 end
 
