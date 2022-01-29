@@ -220,6 +220,12 @@ export class SourceFileExport {
         for (let l of s.split('\n'))
             this.lines.push(l);
     }
+    debug_file(path: string) {
+        this.lines.push(` .dbg file, "${path}", 0, 0`);
+    }
+    debug_line(path: string, line: number) {
+        this.lines.push(` .dbg line, "${path}", ${line}`);
+    }
     toString() {
         return this.lines.join('\n');
     }

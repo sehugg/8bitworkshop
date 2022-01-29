@@ -183,7 +183,13 @@ export class ECSCompiler extends Tokenizer {
     }
 
     parseCode(): string {
-        return this.expectTokenTypes([TokenType.CodeFragment]).str;
+        let tok = this.expectTokenTypes([TokenType.CodeFragment]);
+        let code = tok.str;
+        let lines = code.split('\n');
+        for (let i=0; i<lines.length; i++) {
+            lines[i] = ` .dbg line, "${this.path}", ${tok.$loc.line+i}\n` + lines[i];
+        }
+        return lines.join('\n');
     }
     
     parseScope() : EntityScope {
@@ -263,6 +269,7 @@ export class ECSCompiler extends Tokenizer {
 
     export() {
         let src = new SourceFileExport();
+        src.debug_file(this.path);
         this.exportToFile(src);
         return src.toString();
     }

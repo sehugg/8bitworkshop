@@ -71,6 +71,7 @@ export class Tokenizer {
     includeEOL = false;
     errorOnCatchAll = false;
     codeFragment : string | null = null;
+    codeFragmentStart : SourceLocation | null = null;
 
     constructor() {
         this.lineno = 0;
@@ -110,9 +111,13 @@ export class Tokenizer {
                     switch (rule.type) {
                         case TokenType.CodeFragment:
                             if (this.codeFragment) {
-                                this._pushToken({ str: this.codeFragment, type: rule.type, $loc: loc }); //TODO: merge start/end
+                                let codeLoc = mergeLocs(this.codeFragmentStart, loc);
+                                this._pushToken({ str: this.codeFragment, type: rule.type, $loc: codeLoc }); //TODO: merge start/end
+                                this.codeFragmentStart = null;
                                 this.codeFragment = null;
                             } else {
+                                loc.line++;
+                                this.codeFragmentStart = loc;
                                 this.codeFragment = '';
                                 return; // don't add any more tokens (TODO: check for trash?)
                             }
