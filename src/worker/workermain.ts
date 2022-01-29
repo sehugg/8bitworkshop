@@ -151,7 +151,7 @@ var PLATFORM_PARAMS = {
     arch: '6502',
     define: ['__VECTOR__'],
     cfgfile: 'vector-color.cfg',
-    libargs: ['crt0.o', 'sim6502.lib'],
+    libargs: ['crt0.o', 'none.lib'],
     extra_link_files: ['crt0.o', 'vector-color.cfg'],
   },
   'sound_williams-z80': {
@@ -300,7 +300,7 @@ var PLATFORM_PARAMS = {
     arch: '6502',
     define: ['__ATARI7800__'],
     cfgfile: 'atari7800.cfg',
-    libargs: ['crt0.o', 'sim6502.lib'],
+    libargs: ['crt0.o', 'none.lib'],
     extra_link_files: ['crt0.o', 'atari7800.cfg'],
   },
   'c64': {
@@ -341,7 +341,7 @@ var PLATFORM_PARAMS = {
   'devel-6502': {
     arch: '6502',
     cfgfile: 'devel-6502.cfg',
-    libargs: ['crt0.o', 'sim6502.lib'],
+    libargs: ['crt0.o', 'none.lib'],
     extra_link_files: ['crt0.o', 'devel-6502.cfg'],
   },
   // https://github.com/cpcitor/cpc-dev-tool-chain
@@ -790,10 +790,10 @@ export function loadNative(modulename:string) {
 // mount the filesystem at /share
 export function setupFS(FS, name:string) {
   var WORKERFS = FS.filesystems['WORKERFS'];
-  if (name === '65-vector') name = '65-sim6502'; // TODO
-  if (name === '65-atari7800') name = '65-sim6502'; // TODO
-  if (name === '65-devel') name = '65-sim6502'; // TODO
-  if (name === '65-vcs') name = '65-sim6502'; // TODO
+  if (name === '65-vector') name = '65-none'; // TODO
+  if (name === '65-atari7800') name = '65-none'; // TODO
+  if (name === '65-devel') name = '65-none'; // TODO
+  if (name === '65-vcs') name = '65-none'; // TODO
   if (!fsMeta[name]) throw Error("No filesystem for '" + name + "'");
   FS.mkdir('/share');
   FS.mount(WORKERFS, {
@@ -1110,13 +1110,13 @@ var TOOL_PRELOADFS = {
   'ca65-nes': '65-nes',
   'cc65-atari8': '65-atari8',
   'ca65-atari8': '65-atari8',
-  'cc65-vector': '65-sim6502',
-  'ca65-vector': '65-sim6502',
-  'cc65-atari7800': '65-sim6502',
-  'ca65-atari7800': '65-sim6502',
-  'cc65-devel': '65-sim6502',
-  'ca65-devel': '65-sim6502',
-  'ca65-vcs': '65-sim6502',
+  'cc65-vector': '65-none',
+  'ca65-vector': '65-none',
+  'cc65-atari7800': '65-none',
+  'ca65-atari7800': '65-none',
+  'cc65-devel': '65-none',
+  'ca65-devel': '65-none',
+  'ca65-vcs': '65-none',
   'sdasz80': 'sdcc',
   'sdcc': 'sdcc',
   'sccz80': 'sccz80',
