@@ -120,6 +120,11 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
     super();
     this.loadBIOS(new lzgmini().decode(stringToByteArray(atob(APPLEIIGO_LZG))));
     this.connectCPUMemoryBus(this);
+    // This line is inappropriate for real ROMs, but was there for
+    // the APPLE][GO ROM, so keeping it only in the constructor, for
+    // that special case (in case it really is important for this
+    // address to be an RTS).
+    this.bios[0xD39A - (0x10000 - this.bios.length)] = 0x60;  // $d39a = RTS
   }
   saveState() : AppleIIState {
     // TODO: automagic
@@ -163,7 +168,6 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
           console.log("will load BIOS to end of memory anyway...");
       }
       this.bios = Uint8Array.from(data);
-      this.bios[0xD39A - (0x10000 - this.bios.length)] = 0x60;  // $d39a = RTS
       this.ram.set(this.bios, 0x10000 - this.bios.length);
       this.ram[0xbf00] = 0x4c; // fake DOS detect for C
       this.ram[0xbf6f] = 0x01; // fake DOS detect for C
