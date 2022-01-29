@@ -181,7 +181,7 @@ export class Tokenizer {
         let tok = this.consumeToken();
         let tokstr = tok.str;
         if (strlist.indexOf(tokstr) < 0) {
-            this.compileError(msg || `There should be a ${strlist.map((s) => `"${s}"`).join(' or ')} here, not "${tokstr}.`);
+            this.compileError(msg || `There should be a ${strlist.map((s) => `"${s}"`).join(' or ')} here, not "${tokstr}".`);
         }
         return tok;
     }

@@ -29,8 +29,6 @@
 // - converting assets to native formats?
 // - removing unused data
 
-import { Token } from "../tokenizer";
-
 function mksymbol(c: ComponentType, fieldName: string) {
     return c.name + '_' + fieldName;
 }
@@ -73,7 +71,6 @@ export interface System {
     name: string;
     actions: Action[];
     tempbytes?: number;
-    emits?: string[];
 }
 
 export interface Action {
@@ -81,6 +78,7 @@ export interface Action {
     event: string;
     query: Query;
     select: SelectType
+    emits?: string[];
 }
 
 export type SelectType = 'once' | 'each' | 'source';
@@ -130,6 +128,11 @@ interface ConstByte {
 interface ArchetypeMatch {
     etype: EntityArchetype;
     cmatch: ComponentType[];
+}
+
+interface ComponentFieldPair {
+    c: ComponentType;
+    f: DataField;
 }
 
 export class Dialect_CA65 {
@@ -297,6 +300,7 @@ export class EntityScope {
     code = new Segment();
     componentsInScope = new Set();
     tempOffset = 0;
+    tempSize = 0;
     maxTempBytes = 0;
     subroutines = new Set<string>();
 
@@ -415,7 +419,8 @@ export class EntityScope {
                 if (offset !== undefined && typeof initvalue === 'number') {
                     initbytes[offset] = initvalue; // TODO: > 8 bits?
                 } else {
-                    throw new Error(`cannot access ${scfname}`);
+                    // TODO: init arrays?
+                    throw new Error(`cannot initialize ${scfname}: ${offset} ${initvalue}`); // TODO??
                 }
             }
         }
@@ -431,11 +436,11 @@ export class EntityScope {
         return code;
     }
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        // TODO: check to make sure component exists
+        let c = this.em.singleComponentWithFieldName([{etype: e.etype, cmatch:[component]}], fieldName, "setConstValue");
         e.consts[mksymbol(component, fieldName)] = value;
     }
     setInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        // TODO: check to make sure component exists
+        let c = this.em.singleComponentWithFieldName([{etype: e.etype, cmatch:[component]}], fieldName, "setConstValue");
         e.inits[mkscopesymbol(this, component, fieldName)] = value;
     }
     generateCodeForEvent(event: string): string {
@@ -450,21 +455,21 @@ export class EntityScope {
         let emitcode: { [event: string]: string } = {};
         for (let sys of systems) {
             // TODO: does this work if multiple actions?
+            // TODO: should 'emits' be on action?
             if (sys.tempbytes) this.allocateTempBytes(sys.tempbytes);
-            if (sys.emits) {
-                for (let emit of sys.emits) {
-                    if (emitcode[emit]) {
-                        console.log(`already emitted for ${sys.name}:${event}`);
-                    }
-                    //console.log('>', emit);
-                    // TODO: cycles
-                    emitcode[emit] = this.generateCodeForEvent(emit);
-                    //console.log('<', emit, emitcode[emit].length);
-                }
-            }
-            if (sys.tempbytes) this.allocateTempBytes(-sys.tempbytes);
             for (let action of sys.actions) {
                 if (action.event == event) {
+                    if (action.emits) {
+                        for (let emit of action.emits) {
+                            if (emitcode[emit]) {
+                                console.log(`already emitted for ${sys.name}:${event}`);
+                            }
+                            //console.log('>', emit);
+                            // TODO: cycles
+                            emitcode[emit] = this.generateCodeForEvent(emit);
+                            //console.log('<', emit, emitcode[emit].length);
+                        }
+                    }
                     let code = this.replaceCode(action.text, sys, action);
                     s += this.dialect.comment(`<action ${sys.name}:${event}>`);
                     s += code;
@@ -472,12 +477,15 @@ export class EntityScope {
                     // TODO: check that this happens once?
                 }
             }
+            if (sys.tempbytes) this.allocateTempBytes(-sys.tempbytes);
         }
         return s;
     }
     allocateTempBytes(n: number) {
-        this.tempOffset += n;
-        this.maxTempBytes = Math.max(this.tempOffset, this.maxTempBytes);
+        if (n > 0) this.tempOffset = this.tempSize;
+        this.tempSize += n;
+        this.maxTempBytes = Math.max(this.tempSize, this.maxTempBytes);
+        if (n < 0) this.tempOffset = this.tempSize;
     }
     replaceCode(code: string, sys: System, action: Action): string {
         const re = /\{\{(.+?)\}\}/g;
@@ -512,9 +520,7 @@ export class EntityScope {
                 case '^': // reference
                     return this.includeSubroutine(rest);
                 default:
-                    //throw new Error(`unrecognized command ${cmd} in ${entire}`);
-                    console.log(`unrecognized command ${cmd} in ${entire}`);
-                    return entire;
+                    throw new Error(`unrecognized command ${cmd} in ${entire}`);
             }
         });
     }
@@ -536,10 +542,7 @@ export class EntityScope {
         atypes: ArchetypeMatch[], entities: Entity[],
         fieldName: string, bitofs: number): string {
         // find archetypes
-        let component = this.em.componentWithFieldName(atypes, fieldName);
-        if (!component) {
-            throw new Error(`cannot find component with field "${fieldName}" in ${sys.name}:${action.event}`);
-        }
+        let component = this.em.singleComponentWithFieldName(atypes, fieldName, `${sys.name}:${action.event}`);
         // see if all entities have the same constant value
         let constValues = new Set<DataValue>();
         for (let e of entities) {
@@ -583,7 +586,7 @@ export class EntityScope {
         return result;
     }
     getSystems(events: string[]) {
-        let result = [];
+        let result : System[] = [];
         for (let sys of Object.values(this.em.systems)) {
             if (this.systemListensTo(sys, events)) {
                 result.push(sys);
@@ -684,19 +687,31 @@ export class EntityManager {
         });
         return result;
     }
-    componentWithFieldName(atypes: ArchetypeMatch[], fieldName: string) {
+    componentsWithFieldName(atypes: ArchetypeMatch[], fieldName: string) {
         // TODO???
+        let comps = new Set<ComponentType>();
         for (let at of atypes) {
             for (let c of at.cmatch) {
                 for (let f of c.fields) {
                     if (f.name == fieldName)
-                        return c;
+                        comps.add(c);
                 }
             }
         }
+        return Array.from(comps);
     }
     getComponentByName(name: string): ComponentType {
         return this.components[name];
+    }
+    singleComponentWithFieldName(atypes: ArchetypeMatch[], fieldName: string, where: string) {
+        let components = this.componentsWithFieldName(atypes, fieldName);
+        if (components.length == 0) {
+            throw new Error(`cannot find component with field "${fieldName}" in ${where}`);
+        }
+        if (components.length > 1) {
+            throw new Error(`ambiguous field name "${fieldName}" in ${where}`);
+        }
+        return components[0];
     }
     toJSON() {
         return JSON.stringify({

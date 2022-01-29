@@ -18,11 +18,13 @@ export class ECSCompiler extends Tokenizer {
         super();
         //this.includeEOL = true;
         this.setTokenRules([
-            { type: TokenType.Ident, regex: /[$A-Za-z_][A-Za-z0-9_-]*/ },
+            { type: TokenType.Ident, regex: /[A-Za-z_][A-Za-z0-9_]*/ },
             { type: TokenType.CodeFragment, regex: /---/ },
             { type: ECSTokenType.Ellipsis, regex: /\.\./ },
-            { type: ECSTokenType.Operator, regex: /[=,:(){}\[\]]/ },
+            { type: ECSTokenType.Operator, regex: /[#=,:(){}\[\]]/ },
             { type: ECSTokenType.QuotedString, regex: /".*?"/ },
+            { type: ECSTokenType.Integer, regex: /[-]?0x[A-Fa-f0-9]+/ },
+            { type: ECSTokenType.Integer, regex: /[-]?\$[A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[-]?\d+/ },
             { type: TokenType.Ignore, regex: /\s+/ },
         ]);
@@ -91,14 +93,33 @@ export class ECSCompiler extends Tokenizer {
     }
 
     parseDataValue() : DataValue {
-        if (this.peekToken().type == 'integer') {
+        let tok = this.peekToken();
+        if (tok.type == 'integer') {
             return this.expectInteger();
+        }
+        if (tok.str == '[') {
+            // TODO: 16-bit?
+            return new Uint8Array(this.parseDataArray());
+        }
+        if (tok.str == '#') {
+            let e = this.parseEntityRef();
+            // TODO: entity ref types by query?
+            return e.id;
         }
         this.compileError(`Unknown data value`); // TODO
     }
 
+    parseDataArray() {
+        this.expectToken('[');
+        let arr = this.parseList(this.expectInteger, ',');
+        this.expectToken(']');
+        return arr;
+    }
+
     expectInteger(): number {
-        let i = parseInt(this.consumeToken().str);
+        let s = this.consumeToken().str;
+        if (s.startsWith('$')) s = '0x' + s.substring(1);
+        let i = parseInt(s);
         if (isNaN(i)) this.compileError('There should be an integer here.');
         return i;
     }
@@ -123,12 +144,19 @@ export class ECSCompiler extends Tokenizer {
     parseAction(): Action {
         let event = this.expectIdent().str;
         this.expectToken('do');
-        let select = this.expectTokens(['once', 'each']).str as SelectType; // TODO: type check?
+        let select = this.expectTokens(['once', 'each', 'source']).str as SelectType; // TODO: type check?
         let query = this.parseQuery();
+        let emits;
+        if (this.peekToken().str == 'emit') {
+            this.consumeToken();
+            this.expectToken('(');
+            emits = this.parseEventList();
+            this.expectToken(')');
+        }
         let text = this.parseCode();
         return { text, event, query, select };
     }
-
+    
     parseQuery() {
         let q: Query = { include: [] };
         this.expectToken('[');
@@ -140,6 +168,10 @@ export class ECSCompiler extends Tokenizer {
 
     parseEvent() {
         return this.expectIdent().str;
+    }
+
+    parseEventList() {
+        return this.parseList(this.parseEvent, ",");
     }
 
     parseCode(): string {
@@ -173,14 +205,15 @@ export class ECSCompiler extends Tokenizer {
         let cmd;
         while ((cmd = this.consumeToken().str) != 'end') {
             // TODO: check data types
-            if (cmd == 'const') {
+            if (cmd == 'const' || cmd == 'init') {
                 let name = this.expectIdent().str;
                 this.expectToken('=');
-                e.consts[name] = this.parseDataValue();
-            } else if (cmd == 'init') {
-                let name = this.expectIdent().str;
-                this.expectToken('=');
-                e.inits[name] = this.parseDataValue();
+                let comps = this.em.componentsWithFieldName([{etype: e.etype, cmatch:e.etype.components}], name);
+                if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
+                if (comps.length > 1) this.compileError(`I found more than one field named "${name}" for this entity.`)
+                let value = this.parseDataValue();
+                if (cmd == 'const') this.currentScope.setConstValue(e, comps[0], name, value);
+                if (cmd == 'init') this.currentScope.setInitValue(e, comps[0], name, value);
             } else {
                 this.compileError(`Unexpected scope keyword: ${cmd}`);
             }
@@ -200,6 +233,14 @@ export class ECSCompiler extends Tokenizer {
         let cref = this.em.getComponentByName(name);
         if (!cref) this.compileError(`I couldn't find a component named "${name}".`)
         return cref;
+    }
+
+    parseEntityRef() : Entity {
+        this.expectToken('#');
+        let name = this.expectIdent().str;
+        let eref = this.currentScope.entities.find(e => e.name == name);
+        if (!eref) this.compileError(`I couldn't find an entity named "${name}" in this scope.`)
+        return eref;
     }
 
     exportToFile(src: SourceFileExport) {

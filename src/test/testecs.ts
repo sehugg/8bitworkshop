@@ -23,6 +23,7 @@ const TEMPLATE2_a = `
     lda SWCHA
     sta {{$0}}
 `
+
 const TEMPLATE2_b = `
     asl {{$0}}
     bcs {{@SkipMoveRight}}
@@ -308,18 +309,18 @@ function testECS() {
     // https://docs.unity3d.com/Packages/com.unity.entities@0.17/manual/ecs_systems.html
     em.defineSystem({
         name: 'frameloop',
-        emits: ['preframe', 'kernel', 'postframe'],
         actions: [
-            { text: TEMPLATE1, event: 'start', select: 'once', query: { include: ['kernel'] } }
+            { text: TEMPLATE1, event: 'start', select: 'once', query: { include: ['kernel'] },
+                emits: ['preframe', 'kernel', 'postframe'] }
         ]
     })
     em.defineSystem({
         name: 'joyread',
         tempbytes: 1,
-        emits: ['joyup', 'joydown', 'joyleft', 'joyright', 'joybutton'],
         actions: [
             { text: TEMPLATE2_a, event: 'postframe', select: 'once', query: { include: ['player'] } },
-            { text: TEMPLATE2_b, event: 'postframe', select: 'each', query: { include: ['player'] } }
+            { text: TEMPLATE2_b, event: 'postframe', select: 'each', query: { include: ['player'] },
+                emits: ['joyup', 'joydown', 'joyleft', 'joyright', 'joybutton'] }
         ]
     });
     em.defineSystem({
@@ -406,17 +407,19 @@ Label:
 ---
 end
 
+comment ---
+
+---
+
 scope Root
 
     entity kernel [Kernel]
-        const lines = 100
+        const lines = 0xc0
+        const lines = $c0
     end
 
     entity player1 [HasBitmap]
-        const plyrindex = 0
-        init height = 8
-        init xpos = 100
-        init ypos = 100
+        init bitmap = 1
     end
 
 end
@@ -433,6 +436,7 @@ end
             console.log(err);
         }
         console.log(c.tokens);
+        throw e;
     }
 }
 

@@ -14,16 +14,18 @@ class ECSMain {
             let text = readFileSync(path, 'utf-8');
             try {
                 this.compiler.parseFile(text, path);
-            } catch (e) {
-                console.log(e);
-                for (let err of this.compiler.errors) {
-                    console.log(`${err.path}:${err.line}:${err.start}: ${err.msg}`);
+                if (this.compiler.errors.length == 0) {
+                    let file = new SourceFileExport();
+                    this.compiler.exportToFile(file);
+                    console.log(file.toString());
                 }
+            } catch (e) {
+                console.error(e);
+            }
+            for (let err of this.compiler.errors) {
+                console.error(`${err.path}:${err.line}:${err.start}: ${err.msg}`);
             }
         }
-        let file = new SourceFileExport();
-        this.compiler.exportToFile(file);
-        console.log(file.toString());
     }
 }
 
