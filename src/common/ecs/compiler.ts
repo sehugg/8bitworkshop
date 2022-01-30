@@ -152,7 +152,7 @@ export class ECSCompiler extends Tokenizer {
     parseAction(): Action {
         let event = this.expectIdent().str;
         this.expectToken('do');
-        let select = this.expectTokens(['once', 'each', 'source']).str as SelectType; // TODO: type check?
+        let select = this.expectTokens(['once', 'foreach', 'source']).str as SelectType; // TODO: type check?
         let query = this.parseQuery();
         let emits;
         if (this.peekToken().str == 'emit') {
@@ -183,6 +183,7 @@ export class ECSCompiler extends Tokenizer {
     }
 
     parseCode(): string {
+        // TODO: add $loc
         let tok = this.expectTokenTypes([TokenType.CodeFragment]);
         let code = tok.str;
         let lines = code.split('\n');

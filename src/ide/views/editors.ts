@@ -36,6 +36,7 @@ const MODEDEFS = {
   markdown: { lineWrap: true },
   fastbasic: { noGutters: true },
   basic: { noLineNumbers: true, noGutters: true }, // TODO: not used?
+  ecs: { theme: 'mbo', isAsm: false },
 }
 
 export var textMapFunctions = {

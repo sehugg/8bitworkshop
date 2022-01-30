@@ -97,7 +97,7 @@ export interface Action {
     emits?: string[];
 }
 
-export type SelectType = 'once' | 'each' | 'source';
+export type SelectType = 'once' | 'foreach' | 'source';
 
 export type DataValue = number | boolean | Uint8Array | Uint16Array;
 
@@ -154,11 +154,11 @@ interface ComponentFieldPair {
 export class Dialect_CA65 {
     readonly ASM_ITERATE_EACH = `
     ldx #0
-{{@__each}}:
+@__each:
     {{code}}
     inx
     cpx #{{ecount}}
-    bne {{@__each}}
+    bne @__each
 `;
     readonly INIT_FROM_ARRAY = `
     ldy #{{nbytes}}
@@ -254,13 +254,15 @@ class Segment {
         this.codefrags.push(code);
     }
     allocateBytes(name: string, bytes: number) {
-        if (this.symbols[name]) return this.symbols[name]; // TODO: check size
-        let ofs = this.size;
-        this.symbols[name] = ofs;
-        if (!this.ofs2sym.has(ofs))
-            this.ofs2sym.set(ofs, []);
-        this.ofs2sym.get(ofs)?.push(name);
-        this.size += bytes;
+        let ofs = this.symbols[name];
+        if (ofs == null) {
+            ofs = this.size;
+            this.symbols[name] = ofs;
+            if (!this.ofs2sym.has(ofs))
+                this.ofs2sym.set(ofs, []);
+            this.ofs2sym.get(ofs)?.push(name);
+            this.size += bytes;
+        }
         return ofs;
     }
     // TODO: optimize shared data
@@ -388,7 +390,7 @@ export class EntityScope {
             // variable size? make it a pointer
             if (bits == 0) bits = 16; // TODO?
             let rangelen = (f.ehi - f.elo + 1);
-            let bytesperelem = Math.ceil(bits / 8) * rangelen;
+            let bytesperelem = Math.ceil(bits / 8);
             // TODO: packing bits
             // TODO: split arrays
             f.access = [];
@@ -419,7 +421,7 @@ export class EntityScope {
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
                     segment.initdata[loofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 0 };
                     segment.initdata[hiofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 8 };
-                // TODO: } else if (v instanceof Uint16Array) {
+                    // TODO: } else if (v instanceof Uint16Array) {
                 } else if (typeof v === 'number') {
                     // more than 1 entity, add an array
                     // TODO: what if > 8 bits?
@@ -428,6 +430,7 @@ export class EntityScope {
                         let datasym = this.dialect.fieldsymbol(c, f, 0);
                         let base = segment.allocateBytes(datasym, entcount);
                         segment.initdata[base + e.id - fieldrange.elo] = v;
+                        //console.error(cfname, datasym, base, e.id, fieldrange.elo, entcount, v);
                     }
                 } else {
                     throw new ECSError(`unhandled constant ${e.id}:${cfname}`);
@@ -524,17 +527,20 @@ export class EntityScope {
     }
     replaceCode(code: string, sys: System, action: Action): string {
         const re = /\{\{(.+?)\}\}/g;
-        let label = sys.name + '_' + action.event;
+        let label = `${sys.name}__${action.event}`;
         let atypes = this.em.archetypesMatching(action.query);
         let entities = this.entitiesMatching(atypes);
         // TODO: detect cycles
         // TODO: "source"?
         // TODO: what if only 1 item?
-        if (action.select == 'each') {
+        if (action.select == 'foreach') {
             code = this.wrapCodeInLoop(code, sys, action, entities);
             //console.log(sys.name, action.event, ents);
             //frag = this.iterateCode(frag);
         }
+        // replace @labels
+        code = code.replace(/@(\w+)\b/g, (s: string, a: string) => `${label}__${a}`);
+        // replace {{...}} tags
         return code.replace(re, (entire, group: string) => {
             let cmd = group.charAt(0);
             let rest = group.substring(1);

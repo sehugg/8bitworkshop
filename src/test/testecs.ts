@@ -3,7 +3,7 @@ import { ECSCompiler } from "../common/ecs/compiler";
 import { Dialect_CA65, EntityManager, SourceFileExport } from "../common/ecs/ecs";
 
 const TEMPLATE1 = `
-{{@NextFrame}}:
+@NextFrame:
     FRAME_START
     {{!preframe}}
     KERNEL_START
@@ -15,74 +15,12 @@ const TEMPLATE1 = `
     bcs @NoStart
     jmp Start
 @NoStart:
-    jmp {{@NextFrame}}
+    jmp @NextFrame
 `;
 
-// TODO: two sticks?
-const TEMPLATE2_a = `
-    lda SWCHA
-    sta {{$0}}
-`
-
-const TEMPLATE2_b = `
-    asl {{$0}}
-    bcs {{@SkipMoveRight}}
-    {{!joyright}}
-{{@SkipMoveRight}}:
-    asl {{$0}}
-    bcs {{@SkipMoveLeft}}
-    {{!joyleft}}
-{{@SkipMoveLeft}}:
-    asl {{$0}}
-    bcs {{@SkipMoveDown}}
-    {{!joydown}}
-{{@SkipMoveDown}}:
-    asl {{$0}}
-    bcs {{@SkipMoveUp}}
-    {{!joyup}}
-{{@SkipMoveUp}}:
-`;
-
-const TEMPLATE3_L = `
-    lda {{<xpos}}
-    sec
-    sbc #1
-    bcc {{@nomove}}
-    sta {{<xpos}}
-{{@nomove}}:
-`;
-
-const TEMPLATE3_R = `
-    lda {{<xpos}}
-    clc
-    adc #1
-    cmp #150
-    bcs {{@nomove}}
-    sta {{<xpos}}
-{{@nomove}}:
-`;
-
-const TEMPLATE3_U = `
-    lda {{<ypos}}
-    sec
-    sbc #1
-    bcc {{@nomove}}
-    sta {{<ypos}}
-{{@nomove}}:
-`;
-
-const TEMPLATE3_D = `
-    lda {{<ypos}}
-    clc
-    adc #1
-    cmp #150
-    bcs {{@nomove}}
-    sta {{<ypos}}
-{{@nomove}}:
-`;
 
 const TEMPLATE4_S1 = `
-.macro {{@KernelSetup}} ent,ofs
+.macro @KernelSetup ent,ofs
     lda #192 ; TODO: numlines
     sec
     sbc ypos_ypos_b0+ent
@@ -113,8 +51,8 @@ const TEMPLATE4_S1 = `
 .endmacro
 `
 const TEMPLATE4_S2 = `
-    {{@KernelSetup}} 0,0
-    {{@KernelSetup}} 1,6
+    @KernelSetup 0,0
+    @KernelSetup 1,6
 `
 
 // https://atariage.com/forums/topic/75982-skipdraw-and-graphics/?tab=comments#comment-928232
@@ -261,12 +199,6 @@ function testECS() {
             { name: 'ypos', dtype: 'int', lo: 0, hi: 255 }
         ]
     })
-    let c_xyvel = em.defineComponent({
-        name: 'xyvel', fields: [
-            { name: 'xvel', dtype: 'int', lo: -8, hi: 7 },
-            { name: 'yvel', dtype: 'int', lo: -8, hi: 7 }
-        ]
-    })
 
     // init -> [start] -> frameloop
     // frameloop -> [preframe] [kernel] [postframe]
@@ -299,7 +231,7 @@ function testECS() {
         name: 'set_xpos',
         actions: [
             {
-                text: SET_XPOS, event: 'preframe', select: 'each', query: {
+                text: SET_XPOS, event: 'preframe', select: 'foreach', query: {
                     include: ['sprite', 'xpos']
                 },
             },
@@ -314,29 +246,6 @@ function testECS() {
                 emits: ['preframe', 'kernel', 'postframe'] }
         ]
     })
-    em.defineSystem({
-        name: 'joyread',
-        tempbytes: 1,
-        actions: [
-            { text: TEMPLATE2_a, event: 'postframe', select: 'once', query: { include: ['player'] } },
-            { text: TEMPLATE2_b, event: 'postframe', select: 'each', query: { include: ['player'] },
-                emits: ['joyup', 'joydown', 'joyleft', 'joyright', 'joybutton'] }
-        ]
-    });
-    em.defineSystem({
-        name: 'move_x',
-        actions: [
-            { text: TEMPLATE3_L, event: 'joyleft', select: 'source', query: { include: ['player', 'xpos'] }, },
-            { text: TEMPLATE3_R, event: 'joyright', select: 'source', query: { include: ['player', 'xpos'] }, },
-        ]
-    });
-    em.defineSystem({
-        name: 'move_y',
-        actions: [
-            { text: TEMPLATE3_U, event: 'joyup', select: 'source', query: { include: ['player', 'ypos'] } },
-            { text: TEMPLATE3_D, event: 'joydown', select: 'source', query: { include: ['player', 'ypos'] } },
-        ]
-    });
     em.defineSystem({
         name: 'SetHorizPos',
         actions: [

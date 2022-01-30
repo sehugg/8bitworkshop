@@ -114,7 +114,8 @@ const TOOL_TO_SOURCE_STYLE = {
   'silice': 'verilog',
   'wiz': 'text/x-wiz',
   'vasmarm': 'vasm',
-  'armips': 'vasm'
+  'armips': 'vasm',
+  'ecs': 'ecs',
 }
 
 const TOOL_TO_HELPURL = {
