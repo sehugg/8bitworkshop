@@ -33,6 +33,7 @@
 // for page cross, temp storage, etc
 // should references be zero-indexed to a field, or global?
 // should we limit # of entities passed to systems? min-max
+// join thru a reference? load both x and y
 
 import { SourceLocated, SourceLocation } from "../workertypes";
 
@@ -92,12 +93,14 @@ export interface System {
 export interface Action {
     text: string;
     event: string;
-    query: Query;
     select: SelectType
+    query: Query;
+    join?: Query;
+    limit?: number;
     emits?: string[];
 }
 
-export type SelectType = 'once' | 'foreach' | 'source';
+export type SelectType = 'once' | 'foreach' | 'source' | 'join';
 
 export type DataValue = number | boolean | Uint8Array | Uint16Array;
 
@@ -160,6 +163,17 @@ export class Dialect_CA65 {
     cpx #{{ecount}}
     bne @__each
 `;
+
+readonly ASM_ITERATE_JOIN = `
+    ldy #0
+@__each:
+    ldx {{joinfield}},y
+    {{code}}
+    iny
+    cpy #{{ecount}}
+    bne @__each
+`;
+
     readonly INIT_FROM_ARRAY = `
     ldy #{{nbytes}}
 :   lda {{src}}-1,y
@@ -345,18 +359,19 @@ export class EntityScope {
     }
     newEntity(etype: EntityArchetype): Entity {
         // TODO: add parent ID? lock parent scope?
+        // TODO: name identical check?
         let id = this.entities.length;
+        etype = this.em.addArchetype(etype);
         let entity: Entity = { id, etype, consts: {}, inits: {} };
-        this.em.archtypes.add(etype);
         for (let c of etype.components) {
             this.componentsInScope.add(c.name);
         }
         this.entities.push(entity);
         return entity;
     }
-    *iterateFields() {
-        for (let i = 0; i < this.entities.length; i++) {
-            let e = this.entities[i];
+    *iterateEntityFields(entities: Entity[]) {
+        for (let i = 0; i < entities.length; i++) {
+            let e = entities[i];
             for (let c of e.etype.components) {
                 for (let f of c.fields) {
                     yield { i, e, c, f, v: e.consts[mksymbol(c, f.name)] };
@@ -364,8 +379,77 @@ export class EntityScope {
             }
         }
     }
+    *iterateArchetypeFields(arch: ArchetypeMatch[], filter?: (c:ComponentType,f:DataField) => boolean) {
+        for (let i = 0; i < arch.length; i++) {
+            let a = arch[i];
+            for (let c of a.etype.components) {
+                for (let f of c.fields) {
+                    if (!filter || filter(c,f))
+                        yield { i, c, f };
+                }
+            }
+        }
+    }
+    entitiesMatching(atypes: ArchetypeMatch[]) {
+        let result : Entity[] = [];
+        for (let e of this.entities) {
+            for (let a of atypes) {
+                // TODO: what about subclasses?
+                // TODO: very scary identity ocmpare
+                if (e.etype === a.etype) {
+                    result.push(e);
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+    getSystems(events: string[]) {
+        let result : System[] = [];
+        for (let sys of Object.values(this.em.systems)) {
+            if (this.systemListensTo(sys, events)) {
+                result.push(sys);
+            }
+        }
+        return result;
+    }
+    systemListensTo(sys: System, events: string[]) {
+        for (let action of sys.actions) {
+            if (action.event != null && events.includes(action.event)) {
+                let archs = this.em.archetypesMatching(action.query);
+                for (let arch of archs) {
+                    for (let ctype of arch.cmatch) {
+                        if (this.hasComponent(ctype)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    hasComponent(ctype: ComponentType) {
+        return this.componentsInScope.has(ctype.name);
+    }
+    getJoinField(atypes: ArchetypeMatch[], jtypes: ArchetypeMatch[]) : ComponentFieldPair {
+        let refs = Array.from(this.iterateArchetypeFields(atypes, (c,f) => f.dtype == 'ref'));
+        if (refs.length == 0) throw new ECSError(`cannot find join fields`);
+        if (refs.length > 1) throw new ECSError(`cannot join multiple fields`);
+        // TODO: check to make sure join works
+        return refs[0]; // TODO
+        /* TODO
+        let match = refs.map(ref => this.em.archetypesMatching((ref.f as RefType).query));
+        for (let ref of refs) {
+            let m = this.em.archetypesMatching((ref.f as RefType).query);
+            for (let a of m) {
+                if (jtypes.includes(a.etype)) {
+                    console.log(a,m);
+                }
+            }
+        }
+        */
+    }
     buildSegments() {
-        let iter = this.iterateFields();
+        let iter = this.iterateEntityFields(this.entities);
         for (var o = iter.next(); o.value; o = iter.next()) {
             let { i, e, c, f, v } = o.value;
             let segment = v === undefined ? this.bss : this.rodata;
@@ -404,7 +488,7 @@ export class EntityScope {
         }
     }
     allocateROData(segment: Segment) {
-        let iter = this.iterateFields();
+        let iter = this.iterateEntityFields(this.entities);
         for (var o = iter.next(); o.value; o = iter.next()) {
             let { i, e, c, f, v } = o.value;
             let cfname = mksymbol(c, f.name);
@@ -441,7 +525,7 @@ export class EntityScope {
     }
     allocateInitData(segment: Segment) {
         let initbytes = new Uint8Array(segment.size);
-        let iter = this.iterateFields();
+        let iter = this.iterateEntityFields(this.entities);
         for (var o = iter.next(); o.value; o = iter.next()) {
             let { i, e, c, f, v } = o.value;
             let scfname = mkscopesymbol(this, c, f.name);
@@ -526,7 +610,7 @@ export class EntityScope {
         if (n < 0) this.tempOffset = this.tempSize;
     }
     replaceCode(code: string, sys: System, action: Action): string {
-        const re = /\{\{(.+?)\}\}/g;
+        const tag_re = /\{\{(.+?)\}\}/g;
         let label = `${sys.name}__${action.event}`;
         let atypes = this.em.archetypesMatching(action.query);
         let entities = this.entitiesMatching(atypes);
@@ -534,14 +618,22 @@ export class EntityScope {
         // TODO: "source"?
         // TODO: what if only 1 item?
         if (action.select == 'foreach') {
-            code = this.wrapCodeInLoop(code, sys, action, entities);
-            //console.log(sys.name, action.event, ents);
-            //frag = this.iterateCode(frag);
+            code = this.wrapCodeInLoop(code, action, entities);
         }
+        if (action.select == 'join' && action.join) {
+            let jtypes = this.em.archetypesMatching(action.join);
+            let jentities = this.entitiesMatching(jtypes);
+            let joinfield = this.getJoinField(atypes, jtypes);
+            // TODO: what if only 1 item?
+            code = this.wrapCodeInLoop(code, action, entities, joinfield);
+            atypes = jtypes;
+            entities = jentities;
+        }
+        if (entities.length == 0) throw new ECSError(`action ${label} doesn't match any entities`);
         // replace @labels
         code = code.replace(/@(\w+)\b/g, (s: string, a: string) => `${label}__${a}`);
         // replace {{...}} tags
-        return code.replace(re, (entire, group: string) => {
+        return code.replace(tag_re, (entire, group: string) => {
             let cmd = group.charAt(0);
             let rest = group.substring(1);
             switch (cmd) {
@@ -569,14 +661,22 @@ export class EntityScope {
         this.subroutines.add(symbol);
         return symbol;
     }
-    wrapCodeInLoop(code: string, sys: System, action: Action, ents: Entity[]): string {
+    wrapCodeInLoop(code: string, action: Action, ents: Entity[], joinfield?: ComponentFieldPair): string {
         // TODO: check ents
         // TODO: check segment bounds
+        // TODO: what if 0 or 1 entitites?
         let s = this.dialect.ASM_ITERATE_EACH;
-        s = s.replace('{{elo}}', ents[0].id.toString());
-        s = s.replace('{{ehi}}', ents[ents.length - 1].id.toString());
-        s = s.replace('{{ecount}}', ents.length.toString());
+        if (joinfield) s = this.dialect.ASM_ITERATE_JOIN;
+        if (action.limit) {
+            ents = ents.slice(0, action.limit);
+        }
+        s = s.replace('{{elo}}', () => ents[0].id.toString());
+        s = s.replace('{{ehi}}', () => ents[ents.length - 1].id.toString());
+        s = s.replace('{{ecount}}', () => ents.length.toString());
         s = s.replace('{{code}}', code);
+        if (joinfield) {
+            s = s.replace('{{joinfield}}', () => this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0));
+        }
         return s;
     }
     generateCodeForField(sys: System, action: Action,
@@ -586,8 +686,8 @@ export class EntityScope {
         var component : ComponentType;
         var qualified = false;
         // is qualified field?
-        if (fieldName.indexOf('.') > 0) {
-            let [cname,fname] = fieldName.split('.');
+        if (fieldName.indexOf(':') > 0) {
+            let [cname,fname] = fieldName.split(':');
             component = this.em.getComponentByName(cname);
             fieldName = fname;
             qualified = true;
@@ -638,45 +738,6 @@ export class EntityScope {
             return this.dialect.indexed_x(ident);
         }
     }
-    entitiesMatching(atypes: ArchetypeMatch[]) {
-        let result : Entity[] = [];
-        for (let e of this.entities) {
-            for (let a of atypes) {
-                // TODO: what about subclasses?
-                if (e.etype == a.etype) {
-                    result.push(e);
-                    break;
-                }
-            }
-        }
-        return result;
-    }
-    getSystems(events: string[]) {
-        let result : System[] = [];
-        for (let sys of Object.values(this.em.systems)) {
-            if (this.systemListensTo(sys, events)) {
-                result.push(sys);
-            }
-        }
-        return result;
-    }
-    systemListensTo(sys: System, events: string[]) {
-        for (let action of sys.actions) {
-            if (action.event != null && events.includes(action.event)) {
-                let archs = this.em.archetypesMatching(action.query);
-                for (let arch of archs) {
-                    for (let ctype of arch.cmatch) {
-                        if (this.hasComponent(ctype)) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    hasComponent(ctype: ComponentType) {
-        return this.componentsInScope.has(ctype.name);
-    }
     analyzeEntities() {
         this.buildSegments();
         this.allocateSegment(this.bss, false);
@@ -708,7 +769,7 @@ export class EntityScope {
 }
 
 export class EntityManager {
-    archtypes = new Set<EntityArchetype>();
+    archetypes: { [key: string]: EntityArchetype } = {};
     components: { [name: string]: ComponentType } = {};
     systems: { [name: string]: System } = {};
     scopes: { [name: string]: EntityScope } = {};
@@ -730,6 +791,13 @@ export class EntityManager {
         if (this.systems[system.name]) throw new ECSError(`system ${system.name} already defined`);
         return this.systems[system.name] = system;
     }
+    addArchetype(atype: EntityArchetype) : EntityArchetype {
+        let key = atype.components.map(c => c.name).join(',');
+        if (this.archetypes[key])
+            return this.archetypes[key];
+        else
+            return this.archetypes[key] = atype;
+    }
     componentsMatching(q: Query, etype: EntityArchetype) {
         let list = [];
         for (let c of etype.components) {
@@ -746,12 +814,12 @@ export class EntityManager {
     }
     archetypesMatching(q: Query) {
         let result: ArchetypeMatch[] = [];
-        this.archtypes.forEach(etype => {
+        for (let etype of Object.values(this.archetypes)) {
             let cmatch = this.componentsMatching(q, etype);
             if (cmatch.length > 0) {
                 result.push({ etype, cmatch });
             }
-        });
+        }
         return result;
     }
     componentsWithFieldName(atypes: ArchetypeMatch[], fieldName: string) {

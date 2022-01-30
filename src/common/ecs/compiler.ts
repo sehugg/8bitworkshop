@@ -152,9 +152,15 @@ export class ECSCompiler extends Tokenizer {
     parseAction(): Action {
         let event = this.expectIdent().str;
         this.expectToken('do');
-        let select = this.expectTokens(['once', 'foreach', 'source']).str as SelectType; // TODO: type check?
+        let select = this.expectTokens(['once', 'foreach', 'source', 'join']).str as SelectType; // TODO: type check?
         let query = this.parseQuery();
+        let join = select == 'join' && this.parseQuery();
         let emits;
+        let limit;
+        if (this.peekToken().str == 'limit') {
+            this.consumeToken();
+            limit = this.expectInteger();
+        }
         if (this.peekToken().str == 'emit') {
             this.consumeToken();
             this.expectToken('(');
@@ -162,7 +168,8 @@ export class ECSCompiler extends Tokenizer {
             this.expectToken(')');
         }
         let text = this.parseCode();
-        return { text, event, query, select };
+        let action = { text, event, query, join, select, limit };
+        return action;
     }
     
     parseQuery() {
@@ -222,12 +229,12 @@ export class ECSCompiler extends Tokenizer {
             // TODO: check data types
             if (cmd == 'const' || cmd == 'init') {
                 let name = this.expectIdent().str;
-                this.expectToken('=');
                 let comps = this.em.componentsWithFieldName([{etype: e.etype, cmatch:e.etype.components}], name);
                 if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
                 if (comps.length > 1) this.compileError(`I found more than one field named "${name}" for this entity.`)
                 let field = comps[0].fields.find(f => f.name == name);
                 if (!field) this.internalError();
+                this.expectToken('=');
                 let value = this.parseDataValue(field);
                 if (cmd == 'const') this.currentScope.setConstValue(e, comps[0], name, value);
                 if (cmd == 'init') this.currentScope.setInitValue(e, comps[0], name, value);

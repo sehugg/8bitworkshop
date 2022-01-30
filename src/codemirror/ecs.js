@@ -19,8 +19,8 @@
     var directives_list = [
       'component', 'system', 'entity', 'scope', 'end',
       'const', 'init', 'locals',
-      'on', 'do', 'emit',
-      'once', 'foreach', 'source',
+      'on', 'do', 'emit', 'limit',
+      'once', 'foreach', 'source', 'join'
     ];
     var keywords_list = [
       'processor',

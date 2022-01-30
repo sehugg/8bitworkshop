@@ -18,13 +18,16 @@ export function assembleECS(step: BuildStep): BuildStepResult {
                 throw e;
             }
         }
-        //var listings: CodeListingMap = {};
-        putWorkFile(destpath, compiler.export().toString());
+        let outtext = compiler.export().toString();
+        putWorkFile(destpath, outtext);
+        var listings: CodeListingMap = {};
+        listings[destpath] = {lines:[], text:outtext} // TODO
     }
     return {
         nexttool: "ca65",
         path: destpath,
         args: [destpath],
         files: [destpath, 'vcs-ca65.h'], //TODO
+        listings
     };
 }

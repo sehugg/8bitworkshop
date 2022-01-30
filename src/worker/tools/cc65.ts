@@ -216,7 +216,7 @@ export function linkLD65(step: BuildStep): BuildStepResult {
             if (fn.endsWith('.lst')) {
                 var lstout = FS.readFile(fn, { encoding: 'utf8' });
                 lstout = lstout.split('\n\n')[1] || lstout; // remove header
-                var asmlines = parseCA65Listing(lstout, symbolmap, params, false);
+                var asmlines = []; // TODO: parseCA65Listing(lstout, symbolmap, params, false);
                 var srclines = parseCA65Listing(lstout, symbolmap, params, true);
                 putWorkFile(fn, lstout);
                 // TODO: you have to get rid of all source lines to get asm listing
