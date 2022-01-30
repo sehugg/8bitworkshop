@@ -53,7 +53,7 @@ function mkscopesymbol(s: EntityScope, c: ComponentType, fieldName: string) {
     return s.name + '_' + c.name + '_' + fieldName;
 }
 
-export interface Entity {
+export interface Entity extends SourceLocated {
     id: number;
     name?: string;
     etype: EntityArchetype;
@@ -71,7 +71,7 @@ export interface EntityArchetype {
     components: ComponentType[];
 }
 
-export interface ComponentType {
+export interface ComponentType extends SourceLocated {
     name: string;
     fields: DataField[];
     optional?: boolean;
@@ -84,13 +84,13 @@ export interface Query {
     updates?: string[];
 }
 
-export interface System {
+export interface System extends SourceLocated {
     name: string;
     actions: Action[];
     tempbytes?: number;
 }
 
-export interface Action {
+export interface Action extends SourceLocated {
     text: string;
     event: string;
     select: SelectType
@@ -158,26 +158,28 @@ export class Dialect_CA65 {
     readonly ASM_ITERATE_EACH = `
     ldx #0
 @__each:
-    {{code}}
+    {{%code}}
     inx
-    cpx #{{ecount}}
+    cpx #{{%ecount}}
     bne @__each
+@__exit:
 `;
 
 readonly ASM_ITERATE_JOIN = `
     ldy #0
 @__each:
-    ldx {{joinfield}},y
-    {{code}}
+    ldx {{%joinfield}},y
+    {{%code}}
     iny
-    cpy #{{ecount}}
+    cpy #{{%ecount}}
     bne @__each
+@__exit:
 `;
 
     readonly INIT_FROM_ARRAY = `
-    ldy #{{nbytes}}
-:   lda {{src}}-1,y
-    sta {{dest}}-1,y
+    ldy #{{%nbytes}}
+:   lda {{%src}}-1,y
+    sta {{%dest}}-1,y
     dey
     bne :-
 `
@@ -337,7 +339,8 @@ function getPackedFieldSize(f: DataType, constValue?: DataValue): number {
     return 0;
 }
 
-export class EntityScope {
+export class EntityScope implements SourceLocated {
+    $loc: SourceLocation;
     childScopes: EntityScope[] = [];
     entities: Entity[] = [];
     bss = new Segment();
@@ -430,10 +433,11 @@ export class EntityScope {
     hasComponent(ctype: ComponentType) {
         return this.componentsInScope.has(ctype.name);
     }
-    getJoinField(atypes: ArchetypeMatch[], jtypes: ArchetypeMatch[]) : ComponentFieldPair {
+    getJoinField(action: Action, atypes: ArchetypeMatch[], jtypes: ArchetypeMatch[]) : ComponentFieldPair {
         let refs = Array.from(this.iterateArchetypeFields(atypes, (c,f) => f.dtype == 'ref'));
-        if (refs.length == 0) throw new ECSError(`cannot find join fields`);
-        if (refs.length > 1) throw new ECSError(`cannot join multiple fields`);
+        // TODO: better error message
+        if (refs.length == 0) throw new ECSError(`cannot find join fields`, action);
+        if (refs.length > 1) throw new ECSError(`cannot join multiple fields`, action);
         // TODO: check to make sure join works
         return refs[0]; // TODO
         /* TODO
@@ -546,23 +550,23 @@ export class EntityScope {
         let bufofs = this.rodata.allocateInitData(bufsym, initbytes);
         let code = this.dialect.INIT_FROM_ARRAY;
         //TODO: function to repalce from dict?
-        code = code.replace('{{nbytes}}', initbytes.length.toString())
-        code = code.replace('{{src}}', bufsym);
-        code = code.replace('{{dest}}', segment.getOriginSymbol());
+        code = code.replace('{{%nbytes}}', initbytes.length.toString())
+        code = code.replace('{{%src}}', bufsym);
+        code = code.replace('{{%dest}}', segment.getOriginSymbol());
         return code;
     }
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
         let c = this.em.singleComponentWithFieldName([{etype: e.etype, cmatch:[component]}], fieldName, "setConstValue");
         e.consts[mksymbol(component, fieldName)] = value;
         if (this.em.symbols[mksymbol(component, fieldName)] == 'init')
-            throw new ECSError(`Can't mix const and init values for a component field`);
+            throw new ECSError(`Can't mix const and init values for a component field`, e);
         this.em.symbols[mksymbol(component, fieldName)] = 'const';
     }
     setInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
         let c = this.em.singleComponentWithFieldName([{etype: e.etype, cmatch:[component]}], fieldName, "setInitValue");
         e.inits[mkscopesymbol(this, component, fieldName)] = value;
         if (this.em.symbols[mksymbol(component, fieldName)] == 'const')
-            throw new ECSError(`Can't mix const and init values for a component field`);
+            throw new ECSError(`Can't mix const and init values for a component field`, e);
         this.em.symbols[mksymbol(component, fieldName)] = 'init';
     }
     generateCodeForEvent(event: string): string {
@@ -611,29 +615,43 @@ export class EntityScope {
     }
     replaceCode(code: string, sys: System, action: Action): string {
         const tag_re = /\{\{(.+?)\}\}/g;
+        const label_re = /@(\w+)\b/g;
+        
         let label = `${sys.name}__${action.event}`;
         let atypes = this.em.archetypesMatching(action.query);
         let entities = this.entitiesMatching(atypes);
+        if (entities.length == 0) throw new ECSError(`action ${label} doesn't match any entities`, action); // TODO
         // TODO: detect cycles
         // TODO: "source"?
         // TODO: what if only 1 item?
+        let props : {[name: string] : string} = {};
         if (action.select == 'foreach') {
             code = this.wrapCodeInLoop(code, action, entities);
         }
         if (action.select == 'join' && action.join) {
             let jtypes = this.em.archetypesMatching(action.join);
             let jentities = this.entitiesMatching(jtypes);
-            let joinfield = this.getJoinField(atypes, jtypes);
+            let joinfield = this.getJoinField(action, atypes, jtypes);
             // TODO: what if only 1 item?
+            // TODO: should be able to access fields via Y reg
             code = this.wrapCodeInLoop(code, action, entities, joinfield);
             atypes = jtypes;
             entities = jentities;
+            props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0);
         }
-        if (entities.length == 0) throw new ECSError(`action ${label} doesn't match any entities`);
+        props['%efullcount'] = entities.length.toString();
+        if (action.limit) {
+            entities = entities.slice(0, action.limit);
+        }
+        if (entities.length == 0) throw new ECSError(`action ${label} doesn't match any entities`); // TODO 
+        // define properties
+        props['%elo'] = entities[0].id.toString();
+        props['%ehi'] = entities[entities.length - 1].id.toString();
+        props['%ecount'] = entities.length.toString();
         // replace @labels
-        code = code.replace(/@(\w+)\b/g, (s: string, a: string) => `${label}__${a}`);
+        code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
         // replace {{...}} tags
-        return code.replace(tag_re, (entire, group: string) => {
+        code = code.replace(tag_re, (entire, group: string) => {
             let cmd = group.charAt(0);
             let rest = group.substring(1);
             switch (cmd) {
@@ -642,7 +660,7 @@ export class EntityScope {
                 case '.': // auto label
                 case '@': // auto label
                     return `${label}_${rest}`;
-                case '$': // temp byte
+                case '$': // temp byte (TODO: check to make sure not overflowing)
                     return `TEMP+${this.tempOffset}+${rest}`;
                 case '=':
                     // TODO?
@@ -653,9 +671,12 @@ export class EntityScope {
                 case '^': // subroutine reference
                     return this.includeSubroutine(rest);
                 default:
-                    throw new ECSError(`unrecognized command ${cmd} in ${entire}`);
+                    let value = props[group];
+                    if (value) return value;
+                    else throw new ECSError(`unrecognized command {{${group}}} in ${entire}`);
             }
         });
+        return code;
     }
     includeSubroutine(symbol: string): string {
         this.subroutines.add(symbol);
@@ -667,16 +688,7 @@ export class EntityScope {
         // TODO: what if 0 or 1 entitites?
         let s = this.dialect.ASM_ITERATE_EACH;
         if (joinfield) s = this.dialect.ASM_ITERATE_JOIN;
-        if (action.limit) {
-            ents = ents.slice(0, action.limit);
-        }
-        s = s.replace('{{elo}}', () => ents[0].id.toString());
-        s = s.replace('{{ehi}}', () => ents[ents.length - 1].id.toString());
-        s = s.replace('{{ecount}}', () => ents.length.toString());
-        s = s.replace('{{code}}', code);
-        if (joinfield) {
-            s = s.replace('{{joinfield}}', () => this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0));
-        }
+        s = s.replace('{{%code}}', code);
         return s;
     }
     generateCodeForField(sys: System, action: Action,

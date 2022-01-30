@@ -101,9 +101,10 @@ export class Tokenizer {
                     // add token to list
                     switch (rule.type) {
                         case TokenType.CodeFragment:
-                            if (this.codeFragment) {
+                            // TODO: empty code fragment doesn't work
+                            if (this.codeFragment != null) {
                                 let codeLoc = mergeLocs(this.codeFragmentStart, loc);
-                                this._pushToken({ str: this.codeFragment, type: rule.type, $loc: codeLoc }); //TODO: merge start/end
+                                this._pushToken({ str: this.codeFragment, type: rule.type, $loc: codeLoc });
                                 this.codeFragmentStart = null;
                                 this.codeFragment = null;
                             } else {
@@ -121,6 +122,7 @@ export class Tokenizer {
                             if (this.codeFragment == null) {
                                 this._pushToken({ str: s, type: rule.type, $loc: loc });
                             }
+                        case TokenType.Comment:
                         case TokenType.Ignore:
                             break;
                     }

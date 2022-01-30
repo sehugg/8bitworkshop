@@ -1,4 +1,5 @@
 import { ECSCompiler } from "../../common/ecs/compiler";
+import { ECSError } from "../../common/ecs/ecs";
 import { CompileError } from "../../common/tokenizer";
 import { CodeListingMap } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, getWorkFileAsString, putWorkFile, staleFiles } from "../workermain";
@@ -11,17 +12,20 @@ export function assembleECS(step: BuildStep): BuildStepResult {
         let code = getWorkFileAsString(step.path);
         try {
             compiler.parseFile(code, step.path);
+            let outtext = compiler.export().toString();
+            putWorkFile(destpath, outtext);
+            var listings: CodeListingMap = {};
+            listings[destpath] = {lines:[], text:outtext} // TODO
         } catch (e) {
-            if (e instanceof CompileError) {
+            if (e instanceof ECSError) {
+                compiler.addError(e.message, e.$loc);
+                return { errors: compiler.errors };
+            } else if (e instanceof CompileError) {
                 return { errors: compiler.errors };
             } else {
                 throw e;
             }
         }
-        let outtext = compiler.export().toString();
-        putWorkFile(destpath, outtext);
-        var listings: CodeListingMap = {};
-        listings[destpath] = {lines:[], text:outtext} // TODO
     }
     return {
         nexttool: "ca65",

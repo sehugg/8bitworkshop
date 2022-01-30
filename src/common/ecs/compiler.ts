@@ -1,5 +1,6 @@
 
 import { Tokenizer, TokenType } from "../tokenizer";
+import { SourceLocated } from "../workertypes";
 import { Action, ArrayType, ComponentType, DataField, DataType, DataValue, Dialect_CA65, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SourceFileExport, System } from "./ecs";
 
 export enum ECSTokenType {
@@ -18,7 +19,6 @@ export class ECSCompiler extends Tokenizer {
         super();
         //this.includeEOL = true;
         this.setTokenRules([
-            { type: TokenType.Ident, regex: /[A-Za-z_][A-Za-z0-9_]*/ },
             { type: TokenType.CodeFragment, regex: /---/ },
             { type: ECSTokenType.Ellipsis, regex: /\.\./ },
             { type: ECSTokenType.Operator, regex: /[#=,:(){}\[\]]/ },
@@ -26,15 +26,23 @@ export class ECSCompiler extends Tokenizer {
             { type: ECSTokenType.Integer, regex: /[-]?0x[A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[-]?\$[A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[-]?\d+/ },
+            { type: TokenType.Ident, regex: /[A-Za-z_][A-Za-z0-9_]*/ },
             { type: TokenType.Ignore, regex: /\s+/ },
         ]);
         this.errorOnCatchAll = true;
+    }
+
+    annotate<T extends SourceLocated>(fn: () => T) {
+        let tok = this.peekToken();
+        let obj = fn();
+        if (obj) (obj as SourceLocated).$loc = tok.$loc;
+        return obj;
     }
     
     parseFile(text: string, path: string) {
         this.tokenizeFile(text, path);
         while (!this.isEOF()) {
-            this.parseTopLevel();
+            this.annotate(() => this.parseTopLevel());
         }
     }
 
@@ -137,9 +145,10 @@ export class ECSCompiler extends Tokenizer {
         let actions: Action[] = [];
         let system: System = { name, actions };
         let cmd;
-        while ((cmd = this.consumeToken().str) != 'end') {
+        while ((cmd = this.expectTokens(['on','locals','end']).str) != 'end') {
             if (cmd == 'on') {
-                actions.push(this.parseAction());
+                let action = this.annotate(() => this.parseAction());
+                actions.push(action);
             } else if (cmd == 'locals') {
                 system.tempbytes = this.expectInteger();
             } else {
@@ -150,6 +159,7 @@ export class ECSCompiler extends Tokenizer {
     }
 
     parseAction(): Action {
+        // TODO: unused events?
         let event = this.expectIdent().str;
         this.expectToken('do');
         let select = this.expectTokens(['once', 'foreach', 'source', 'join']).str as SelectType; // TODO: type check?
@@ -159,6 +169,7 @@ export class ECSCompiler extends Tokenizer {
         let limit;
         if (this.peekToken().str == 'limit') {
             this.consumeToken();
+            if (!['foreach', 'join'].includes(select)) this.compileError(`A "${select}" query can't include a limit.`);
             limit = this.expectInteger();
         }
         if (this.peekToken().str == 'emit') {
@@ -205,11 +216,12 @@ export class ECSCompiler extends Tokenizer {
         let scope = this.em.newScope(name, this.currentScope);
         this.currentScope = scope;
         let cmd;
-        while ((cmd = this.consumeToken().str) != 'end') {
+        while ((cmd = this.expectTokens(['entity', 'comment', 'end']).str) != 'end') {
             if (cmd == 'entity') {
-                this.parseEntity();
-            } else {
-                this.compileError(`Unexpected scope keyword: ${cmd}`);
+                this.annotate(() => this.parseEntity());
+            }
+            if (cmd == 'comment') {
+                this.expectTokenTypes([TokenType.CodeFragment]);
             }
         }
         this.currentScope = scope.parent;
@@ -225,22 +237,18 @@ export class ECSCompiler extends Tokenizer {
         let e = this.currentScope.newEntity(etype);
         e.name = name;
         let cmd;
-        while ((cmd = this.consumeToken().str) != 'end') {
+        while ((cmd = this.expectTokens(['const', 'init', 'end']).str) != 'end') {
             // TODO: check data types
-            if (cmd == 'const' || cmd == 'init') {
-                let name = this.expectIdent().str;
-                let comps = this.em.componentsWithFieldName([{etype: e.etype, cmatch:e.etype.components}], name);
-                if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
-                if (comps.length > 1) this.compileError(`I found more than one field named "${name}" for this entity.`)
-                let field = comps[0].fields.find(f => f.name == name);
-                if (!field) this.internalError();
-                this.expectToken('=');
-                let value = this.parseDataValue(field);
-                if (cmd == 'const') this.currentScope.setConstValue(e, comps[0], name, value);
-                if (cmd == 'init') this.currentScope.setInitValue(e, comps[0], name, value);
-            } else {
-                this.compileError(`Unexpected scope keyword: ${cmd}`);
-            }
+            let name = this.expectIdent().str;
+            let comps = this.em.componentsWithFieldName([{etype: e.etype, cmatch:e.etype.components}], name);
+            if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
+            if (comps.length > 1) this.compileError(`I found more than one field named "${name}" for this entity.`)
+            let field = comps[0].fields.find(f => f.name == name);
+            if (!field) this.internalError();
+            this.expectToken('=');
+            let value = this.parseDataValue(field);
+            if (cmd == 'const') this.currentScope.setConstValue(e, comps[0], name, value);
+            if (cmd == 'init') this.currentScope.setInitValue(e, comps[0], name, value);
         }
         return e;
     }
