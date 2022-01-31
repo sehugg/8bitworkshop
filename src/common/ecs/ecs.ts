@@ -77,7 +77,7 @@ export interface ComponentType extends SourceLocated {
     optional?: boolean;
 }
 
-export interface Query {
+export interface Query extends SourceLocated {
     include: string[]; // TODO: make ComponentType
     listen?: string[];
     exclude?: string[];
@@ -407,37 +407,14 @@ export class EntityScope implements SourceLocated {
         }
         return result;
     }
-    getSystems(events: string[]) {
-        let result : System[] = [];
-        for (let sys of Object.values(this.em.systems)) {
-            if (this.systemListensTo(sys, events)) {
-                result.push(sys);
-            }
-        }
-        return result;
-    }
-    systemListensTo(sys: System, events: string[]) {
-        for (let action of sys.actions) {
-            if (action.event != null && events.includes(action.event)) {
-                let archs = this.em.archetypesMatching(action.query);
-                for (let arch of archs) {
-                    for (let ctype of arch.cmatch) {
-                        if (this.hasComponent(ctype)) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
     hasComponent(ctype: ComponentType) {
         return this.componentsInScope.has(ctype.name);
     }
     getJoinField(action: Action, atypes: ArchetypeMatch[], jtypes: ArchetypeMatch[]) : ComponentFieldPair {
         let refs = Array.from(this.iterateArchetypeFields(atypes, (c,f) => f.dtype == 'ref'));
         // TODO: better error message
-        if (refs.length == 0) throw new ECSError(`cannot find join fields`, action);
-        if (refs.length > 1) throw new ECSError(`cannot join multiple fields`, action);
+        if (refs.length == 0) throw new ECSError(`cannot find join fields`, action.query);
+        if (refs.length > 1) throw new ECSError(`cannot join multiple fields`, action.query);
         // TODO: check to make sure join works
         return refs[0]; // TODO
         /* TODO
@@ -572,8 +549,8 @@ export class EntityScope implements SourceLocated {
     generateCodeForEvent(event: string): string {
         // find systems that respond to event
         // and have entities in this scope
-        let systems = this.getSystems([event]);
-        if (systems.length == 0) {
+        let systems = this.em.event2system[event];
+        if (!systems || systems.length == 0) {
             console.log(`; warning: no system responds to ${event}`); // TODO: warning
         }
         let s = '';
@@ -620,7 +597,6 @@ export class EntityScope implements SourceLocated {
         let label = `${sys.name}__${action.event}`;
         let atypes = this.em.archetypesMatching(action.query);
         let entities = this.entitiesMatching(atypes);
-        if (entities.length == 0) throw new ECSError(`action ${label} doesn't match any entities`, action); // TODO
         // TODO: detect cycles
         // TODO: "source"?
         // TODO: what if only 1 item?
@@ -631,6 +607,8 @@ export class EntityScope implements SourceLocated {
         if (action.select == 'join' && action.join) {
             let jtypes = this.em.archetypesMatching(action.join);
             let jentities = this.entitiesMatching(jtypes);
+            if (jentities.length == 0)
+                throw new ECSError(`join query for ${label} doesn't match any entities`, action.join); // TODO 
             let joinfield = this.getJoinField(action, atypes, jtypes);
             // TODO: what if only 1 item?
             // TODO: should be able to access fields via Y reg
@@ -643,7 +621,8 @@ export class EntityScope implements SourceLocated {
         if (action.limit) {
             entities = entities.slice(0, action.limit);
         }
-        if (entities.length == 0) throw new ECSError(`action ${label} doesn't match any entities`); // TODO 
+        if (entities.length == 0)
+            throw new ECSError(`query for ${label} doesn't match any entities`, action.query); // TODO 
         // define properties
         props['%elo'] = entities[0].id.toString();
         props['%ehi'] = entities[entities.length - 1].id.toString();
@@ -786,6 +765,7 @@ export class EntityManager {
     systems: { [name: string]: System } = {};
     scopes: { [name: string]: EntityScope } = {};
     symbols: { [name: string] : 'init' | 'const' } = {};
+    event2system: { [name: string]: System[] } = {};
 
     constructor(public readonly dialect: Dialect_CA65) {
     }
@@ -801,6 +781,12 @@ export class EntityManager {
     }
     defineSystem(system: System) {
         if (this.systems[system.name]) throw new ECSError(`system ${system.name} already defined`);
+        for (let a of system.actions) {
+            let event = a.event;
+            let list = this.event2system[event];
+            if (list == null) list = this.event2system[event] = [];
+            if (!list.includes(system)) list.push(system);
+        }
         return this.systems[system.name] = system;
     }
     addArchetype(atype: EntityArchetype) : EntityArchetype {

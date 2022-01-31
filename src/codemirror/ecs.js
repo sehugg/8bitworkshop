@@ -37,6 +37,7 @@
     var opcodes = /^[a-z][a-z][a-z]\b/i;
     var numbers = /^(0x[\da-f]+|[\da-f]+h|[0-7]+o|[01]+b|\d+d?)\b/i;
     var tags = /^\{\{.*\}\}/;
+    var comment = /\/\/.*/;
     var mlcomment = /^---.+?---\b/i;
 
     return {
@@ -51,6 +52,9 @@
 
         if (stream.match(tags)) {
           return 'meta';
+        }
+        if (stream.match(comment)) {
+          return 'comment';
         }
 
         var w;

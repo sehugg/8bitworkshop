@@ -1,5 +1,5 @@
 
-import { Tokenizer, TokenType } from "../tokenizer";
+import { mergeLocs, Tokenizer, TokenType } from "../tokenizer";
 import { SourceLocated } from "../workertypes";
 import { Action, ArrayType, ComponentType, DataField, DataType, DataValue, Dialect_CA65, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SourceFileExport, System } from "./ecs";
 
@@ -27,6 +27,7 @@ export class ECSCompiler extends Tokenizer {
             { type: ECSTokenType.Integer, regex: /[-]?\$[A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[-]?\d+/ },
             { type: TokenType.Ident, regex: /[A-Za-z_][A-Za-z0-9_]*/ },
+            { type: TokenType.Ignore, regex: /\/\/.*/ },
             { type: TokenType.Ignore, regex: /\s+/ },
         ]);
         this.errorOnCatchAll = true;
@@ -185,10 +186,11 @@ export class ECSCompiler extends Tokenizer {
     
     parseQuery() {
         let q: Query = { include: [] };
-        this.expectToken('[');
+        let start = this.expectToken('[');
         q.include = this.parseList(this.parseComponentRef, ',').map(c => c.name);
         // TODO: other params
-        this.expectToken(']');
+        let end = this.expectToken(']');
+        q.$loc = mergeLocs(start.$loc, end.$loc);
         return q;
     }
 
