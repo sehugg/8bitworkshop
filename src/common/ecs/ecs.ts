@@ -155,6 +155,7 @@ interface ComponentFieldPair {
 }
 
 export class Dialect_CA65 {
+
     readonly ASM_ITERATE_EACH = `
     ldx #0
 @__each:
@@ -211,6 +212,12 @@ Start:
     }
     datasymbol(component: ComponentType, field: DataField, eid: number) {
         return `${component.name}_${field.name}_e${eid}`;
+    }
+    code() {
+        return `.code\n`;
+    }
+    bss() {
+        return `.bss\n`;
     }
 }
 
@@ -350,7 +357,7 @@ export class EntityScope implements SourceLocated {
     tempOffset = 0;
     tempSize = 0;
     maxTempBytes = 0;
-    subroutines = new Set<string>();
+    resources = new Set<string>();
 
     constructor(
         public readonly em: EntityManager,
@@ -505,6 +512,7 @@ export class EntityScope implements SourceLocated {
         //console.log(segment.initdata)
     }
     allocateInitData(segment: Segment) {
+        if (segment.size == 0) return ''; // TODO: warning for no init data?
         let initbytes = new Uint8Array(segment.size);
         let iter = this.iterateEntityFields(this.entities);
         for (var o = iter.next(); o.value; o = iter.next()) {
@@ -551,9 +559,11 @@ export class EntityScope implements SourceLocated {
         // and have entities in this scope
         let systems = this.em.event2system[event];
         if (!systems || systems.length == 0) {
-            console.log(`; warning: no system responds to ${event}`); // TODO: warning
+            // TODO: error or warning?
+            console.log(`warning: no system responds to "${event}"`); return '';
+            //throw new ECSError(`warning: no system responds to "${event}"`);
         }
-        let s = '';
+        let s = this.dialect.code();
         //s += `\n; event ${event}\n`;
         let emitcode: { [event: string]: string } = {};
         for (let sys of systems) {
@@ -594,7 +604,7 @@ export class EntityScope implements SourceLocated {
         const tag_re = /\{\{(.+?)\}\}/g;
         const label_re = /@(\w+)\b/g;
         
-        let label = `${sys.name}__${action.event}`;
+        let label = `${sys.name}__${action.event}`; // TODO: better label that won't conflict (seq?)
         let atypes = this.em.archetypesMatching(action.query);
         let entities = this.entitiesMatching(atypes);
         // TODO: detect cycles
@@ -647,8 +657,8 @@ export class EntityScope implements SourceLocated {
                     return this.generateCodeForField(sys, action, atypes, entities, rest, 0);
                 case '>': // high byte
                     return this.generateCodeForField(sys, action, atypes, entities, rest, 8);
-                case '^': // subroutine reference
-                    return this.includeSubroutine(rest);
+                case '^': // resource reference
+                    return this.includeResource(rest);
                 default:
                     let value = props[group];
                     if (value) return value;
@@ -657,8 +667,8 @@ export class EntityScope implements SourceLocated {
         });
         return code;
     }
-    includeSubroutine(symbol: string): string {
-        this.subroutines.add(symbol);
+    includeResource(symbol: string): string {
+        this.resources.add(symbol);
         return symbol;
     }
     wrapCodeInLoop(code: string, action: Action, ents: Entity[], joinfield?: ComponentFieldPair): string {
@@ -742,7 +752,7 @@ export class EntityScope implements SourceLocated {
         this.code.addCodeFragment(initcode);
         let start = this.generateCodeForEvent('start');
         this.code.addCodeFragment(start);
-        for (let sub of Array.from(this.subroutines.values())) {
+        for (let sub of Array.from(this.resources.values())) {
             let code = this.generateCodeForEvent(sub);
             this.code.addCodeFragment(code);
         }

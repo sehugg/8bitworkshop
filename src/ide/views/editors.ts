@@ -208,7 +208,7 @@ export class SourceEditor implements ProjectView {
     if (!info.path || this.path.endsWith(info.path)) {
       var numLines = this.editor.lineCount();
       var line = info.line-1;
-      if (line < 0 || line >= numLines) line = 0;
+      if (isNaN(line) || line < 0 || line >= numLines) line = 0;
       this.addErrorMarker(line, info.msg);
       if (info.start != null) {
         var markOpts = {className:"mark-error", inclusiveLeft:true};

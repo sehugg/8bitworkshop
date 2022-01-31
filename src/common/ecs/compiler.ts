@@ -49,7 +49,7 @@ export class ECSCompiler extends Tokenizer {
 
     parseTopLevel() {
         //this.skipBlankLines();
-        let tok = this.expectTokens(['component', 'system', 'scope', 'comment']);
+        let tok = this.expectTokens(['component', 'system', 'scope', 'resource', 'comment']);
         if (tok.str == 'component') {
             return this.em.defineComponent(this.parseComponentDefinition());
         }
@@ -58,6 +58,9 @@ export class ECSCompiler extends Tokenizer {
         }
         if (tok.str == 'scope') {
             return this.parseScope();
+        }
+        if (tok.str == 'resource') {
+            return this.em.defineSystem(this.parseResource());
         }
         if (tok.str == 'comment') {
             this.expectTokenTypes([TokenType.CodeFragment]);
@@ -94,9 +97,13 @@ export class ECSCompiler extends Tokenizer {
             return { dtype: 'ref', query: this.parseQuery() } as RefType;
         }
         if (this.peekToken().str == 'array') {
+            let range : IntType;
             this.expectToken('array');
+            if (this.peekToken().type == ECSTokenType.Integer) {
+                range = this.parseDataType() as IntType;
+            }
             this.expectToken('of');
-            return { dtype: 'array', elem: this.parseDataType() } as ArrayType;
+            return { dtype: 'array', range, elem: this.parseDataType() } as ArrayType;
         }
         this.compileError(`Unknown data type`); // TODO
     }
@@ -157,6 +164,20 @@ export class ECSCompiler extends Tokenizer {
             }
         }
         return system;
+    }
+
+    parseResource(): System {
+        let name = this.expectIdent().str;
+        let query = this.parseQuery();
+        let tempbytes;
+        if (this.peekToken().str == 'locals') {
+            this.consumeToken();
+            tempbytes = this.expectInteger();
+        }
+        let text = this.parseCode();
+        let select : SelectType = 'once';
+        let action : Action = { text, event: name, query, select };
+        return { name, tempbytes, actions: [action] };
     }
 
     parseAction(): Action {
