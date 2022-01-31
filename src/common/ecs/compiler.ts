@@ -97,13 +97,13 @@ export class ECSCompiler extends Tokenizer {
             return { dtype: 'ref', query: this.parseQuery() } as RefType;
         }
         if (this.peekToken().str == 'array') {
-            let range : IntType;
+            let index : IntType;
             this.expectToken('array');
             if (this.peekToken().type == ECSTokenType.Integer) {
-                range = this.parseDataType() as IntType;
+                index = this.parseDataType() as IntType;
             }
             this.expectToken('of');
-            return { dtype: 'array', range, elem: this.parseDataType() } as ArrayType;
+            return { dtype: 'array', index, elem: this.parseDataType() } as ArrayType;
         }
         this.compileError(`Unknown data type`); // TODO
     }

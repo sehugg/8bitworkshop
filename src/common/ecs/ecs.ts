@@ -1,39 +1,44 @@
+/*
+entity scopes contain entities, and are nested
+also contain segments (code, bss, rodata)
+components and systems are global
+component fields are stored in arrays, range of entities, can be bit-packed
+some values can be constant, are stored in rodata (or loaded immediate)
+optional components? on or off
+union components? either X or Y or Z...
 
-// entity scopes contain entities, and are nested
-// also contain segments (code, bss, rodata)
-// components and systems are global
-// component fields are stored in arrays, range of entities, can be bit-packed
-// some values can be constant, are stored in rodata (or loaded immediate)
-// optional components? on or off
-// union components? either X or Y or Z...
-//
-// systems receive and send events, execute code on entities
-// systems are generated on a per-scope basis
-// system queries can only contain entities from self and parent scopes
-// starting from the 'init' event walk the event tree
-// include systems that have at least 1 entity in scope (except init?)
-//
-// when entering scope, entities are initialized (zero or init w/ data)
-// to change scope, fire event w/ scope name
-// - how to handle bank-switching?
-//
-// helps with:
-// - rapid prototyping w/ reasonable defaults
-// - deconstructing objects into arrays
-// - packing/unpacking bitfields
-// - initializing objects
-// - building lookup tables
-// - selecting and iterating objects
-// - managing events
-// - managing memory and scope
-// - converting assets to native formats?
-// - removing unused data
-//
-// it's more convenient to have loops be zero-indexed
-// for page cross, temp storage, etc
-// should references be zero-indexed to a field, or global?
-// should we limit # of entities passed to systems? min-max
-// join thru a reference? load both x and y
+systems receive and send events, execute code on entities
+systems are generated on a per-scope basis
+system queries can only contain entities from self and parent scopes
+starting from the 'init' event walk the event tree
+include systems that have at least 1 entity in scope (except init?)
+
+when entering scope, entities are initialized (zero or init w/ data)
+to change scope, fire event w/ scope name
+- how to handle bank-switching?
+
+helps with:
+- rapid prototyping w/ reasonable defaults
+- deconstructing objects into arrays
+- packing/unpacking bitfields
+- initializing objects
+- building lookup tables
+- selecting and iterating objects
+- managing events
+- managing memory and scope
+- converting assets to native formats?
+- removing unused data
+
+it's more convenient to have loops be zero-indexed
+for page cross, temp storage, etc
+should references be zero-indexed to a field, or global?
+should we limit # of entities passed to systems? min-max
+join thru a reference? load both x and y
+
+
+
+*/
+
 
 import { SourceLocated, SourceLocation } from "../workertypes";
 
@@ -230,9 +235,9 @@ export class SourceFileExport {
     }
     segment(seg: string, segtype: 'rodata' | 'bss') {
         if (segtype == 'bss') {
-            this.lines.push(`.segment "ZEROPAGE"`); // TODO
+            this.lines.push(`.zeropage`); // TODO
         } else {
-            this.lines.push(`.segment "CODE"`); // TODO
+            this.lines.push(`.code`); // TODO
         }
     }
     label(sym: string) {
@@ -333,11 +338,19 @@ function getFieldBits(f: IntType) {
     return Math.ceil(Math.log2(n));
 }
 
+function getFieldLength(f: DataType) {
+    if (f.dtype == 'int') {
+        return f.hi - f.lo + 1;
+    } else {
+        return 1; //TODO?
+    }
+}
+
 function getPackedFieldSize(f: DataType, constValue?: DataValue): number {
     if (f.dtype == 'int') {
         return getFieldBits(f);
     } if (f.dtype == 'array' && f.index) {
-        return getPackedFieldSize(f.index) * getPackedFieldSize(f.elem);
+        return 0; // TODO? getFieldLength(f.index) * getPackedFieldSize(f.elem);
     } if (f.dtype == 'array' && constValue != null && Array.isArray(constValue)) {
         return constValue.length * getPackedFieldSize(f.elem);
     } if (f.dtype == 'ref') {
@@ -437,11 +450,15 @@ export class EntityScope implements SourceLocated {
         */
     }
     buildSegments() {
+        // build FieldArray for each component/field pair
+        // they will be different for bss/rodata segments
         let iter = this.iterateEntityFields(this.entities);
         for (var o = iter.next(); o.value; o = iter.next()) {
             let { i, e, c, f, v } = o.value;
-            let segment = v === undefined ? this.bss : this.rodata;
+            // constants and array pointers go into rodata
+            let segment = v === undefined && f.dtype != 'array' ? this.bss : this.rodata;
             let cfname = mksymbol(c, f.name);
+            // determine range of indices for entities
             let array = segment.fieldranges[cfname];
             if (!array) {
                 array = segment.fieldranges[cfname] = { component: c, field: f, elo: i, ehi: i };
@@ -452,27 +469,28 @@ export class EntityScope implements SourceLocated {
         }
     }
     allocateSegment(segment: Segment, readonly: boolean) {
-        let fields = Object.values(segment.fieldranges);
+        let fields : FieldArray[] = Object.values(segment.fieldranges);
         // TODO: fields.sort((a, b) => (a.ehi - a.elo + 1) * getPackedFieldSize(a.field));
-        let f;
+        let f : FieldArray | undefined;
         while (f = fields.pop()) {
-            let name = mksymbol(f.component, f.field.name);
+            let rangelen = (f.ehi - f.elo + 1);
+            let alloc = !readonly;
             // TODO: doesn't work for packed arrays too well
             let bits = getPackedFieldSize(f.field);
             // variable size? make it a pointer
             if (bits == 0) bits = 16; // TODO?
-            let rangelen = (f.ehi - f.elo + 1);
             let bytesperelem = Math.ceil(bits / 8);
             // TODO: packing bits
             // TODO: split arrays
-            f.access = [];
+            let access = [];
             for (let i = 0; i < bits; i += 8) {
                 let symbol = this.dialect.fieldsymbol(f.component, f.field, i);
-                f.access.push({ symbol, bit: 0, width: 8 }); // TODO
-                if (!readonly) {
+                access.push({ symbol, bit: 0, width: 8 }); // TODO
+                if (alloc) {
                     segment.allocateBytes(symbol, rangelen * bytesperelem); // TODO
                 }
             }
+            f.access = access;
         }
     }
     allocateROData(segment: Segment) {
@@ -481,14 +499,28 @@ export class EntityScope implements SourceLocated {
             let { i, e, c, f, v } = o.value;
             let cfname = mksymbol(c, f.name);
             let fieldrange = segment.fieldranges[cfname];
-            if (v !== undefined) {
-                let entcount = fieldrange.ehi - fieldrange.elo + 1;
+            let entcount = fieldrange ? fieldrange.ehi - fieldrange.elo + 1 : 0;
+            if (v === undefined) {
+                // this is not a constant
+                // is it an array?
+                if (f.dtype == 'array' && f.index) {
+                    let datasym = this.dialect.datasymbol(c, f, e.id);
+                    let offset = this.bss.allocateBytes(datasym, getFieldLength(f.index));
+                    let ptrlosym = this.dialect.fieldsymbol(c, f, 0);
+                    let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
+                    let loofs = segment.allocateBytes(ptrlosym, entcount);
+                    let hiofs = segment.allocateBytes(ptrhisym, entcount);
+                    segment.initdata[loofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 0 };
+                    segment.initdata[hiofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 8 };
+                }
+            } else {
+                // this is a constant
                 // is it a byte array?
                 if (v instanceof Uint8Array) {
                     let datasym = this.dialect.datasymbol(c, f, e.id);
+                    segment.allocateInitData(datasym, v);
                     let ptrlosym = this.dialect.fieldsymbol(c, f, 0);
                     let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
-                    segment.allocateInitData(datasym, v);
                     let loofs = segment.allocateBytes(ptrlosym, entcount);
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
                     segment.initdata[loofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 0 };
@@ -523,6 +555,11 @@ export class EntityScope implements SourceLocated {
                 let offset = segment.getSegmentByteOffset(c, f.name, 0, e.id);
                 if (offset !== undefined && typeof initvalue === 'number') {
                     initbytes[offset] = initvalue; // TODO: > 8 bits?
+                } else if (initvalue instanceof Uint8Array) {
+                    // TODO???
+                    let datasym = this.dialect.datasymbol(c, f, e.id);
+                    let ofs = this.bss.symbols[datasym];
+                    initbytes.set(initvalue, ofs);
                 } else {
                     // TODO: init arrays?
                     throw new ECSError(`cannot initialize ${scfname}: ${offset} ${initvalue}`); // TODO??
@@ -557,7 +594,7 @@ export class EntityScope implements SourceLocated {
     generateCodeForEvent(event: string): string {
         // find systems that respond to event
         // and have entities in this scope
-        let systems = this.em.event2system[event];
+        let systems = this.em.event2systems[event];
         if (!systems || systems.length == 0) {
             // TODO: error or warning?
             console.log(`warning: no system responds to "${event}"`); return '';
@@ -583,6 +620,7 @@ export class EntityScope implements SourceLocated {
                             //console.log('<', emit, emitcode[emit].length);
                         }
                     }
+                    // TODO: use Tokenizer so error msgs are better
                     let code = this.replaceCode(action.text, sys, action);
                     s += this.dialect.comment(`<action ${sys.name}:${event}>`);
                     s += code;
@@ -650,7 +688,11 @@ export class EntityScope implements SourceLocated {
                 case '@': // auto label
                     return `${label}_${rest}`;
                 case '$': // temp byte (TODO: check to make sure not overflowing)
-                    return `TEMP+${this.tempOffset}+${rest}`;
+                    let tempinc = parseInt(rest);
+                    if (isNaN(tempinc)) throw new ECSError(`bad temporary offset`, action);
+                    if (!sys.tempbytes) throw new ECSError(`this system has no locals`, action);
+                    if (tempinc < 0 || tempinc >= sys.tempbytes) throw new ECSError(`this system only has ${sys.tempbytes} locals`, action);
+                    return `TEMP+${this.tempOffset}+${tempinc}`;
                 case '=':
                     // TODO?
                 case '<': // low byte
@@ -775,7 +817,8 @@ export class EntityManager {
     systems: { [name: string]: System } = {};
     scopes: { [name: string]: EntityScope } = {};
     symbols: { [name: string] : 'init' | 'const' } = {};
-    event2system: { [name: string]: System[] } = {};
+    event2systems: { [name: string]: System[] } = {};
+    name2cfpairs: { [name: string]: ComponentFieldPair[]} = {};
 
     constructor(public readonly dialect: Dialect_CA65) {
     }
@@ -787,14 +830,19 @@ export class EntityManager {
     }
     defineComponent(ctype: ComponentType) {
         if (this.components[ctype.name]) throw new ECSError(`component ${ctype.name} already defined`);
+        for (let field of ctype.fields) {
+            let list = this.name2cfpairs[field.name];
+            if (!list) list = this.name2cfpairs[field.name] = [];
+            list.push({c: ctype, f: field});
+        }
         return this.components[ctype.name] = ctype;
     }
     defineSystem(system: System) {
         if (this.systems[system.name]) throw new ECSError(`system ${system.name} already defined`);
         for (let a of system.actions) {
             let event = a.event;
-            let list = this.event2system[event];
-            if (list == null) list = this.event2system[event] = [];
+            let list = this.event2systems[event];
+            if (list == null) list = this.event2systems[event] = [];
             if (!list.includes(system)) list.push(system);
         }
         return this.systems[system.name] = system;
@@ -848,6 +896,7 @@ export class EntityManager {
     }
     singleComponentWithFieldName(atypes: ArchetypeMatch[], fieldName: string, where: string) {
         let components = this.componentsWithFieldName(atypes, fieldName);
+        // TODO: use name2cfpairs?
         if (components.length == 0) {
             throw new ECSError(`cannot find component with field "${fieldName}" in ${where}`);
         }
