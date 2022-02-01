@@ -293,7 +293,10 @@ function testCompiler() {
     let c = new ECSCompiler();
     try {
         c.parseFile(`
-
+        // comment
+        /*
+        mju,fjeqowfjqewiofjqe
+        */
 component Kernel
     lines: 0..255
     bgcolor: 0..255

@@ -8,6 +8,7 @@ export enum ECSTokenType {
     Operator = 'delimiter',
     QuotedString = 'quoted-string',
     Integer = 'integer',
+    CodeFragment = 'code-fragment',
 }
 
 export class ECSCompiler extends Tokenizer {
@@ -19,15 +20,16 @@ export class ECSCompiler extends Tokenizer {
         super();
         //this.includeEOL = true;
         this.setTokenRules([
-            { type: TokenType.CodeFragment, regex: /---/ },
             { type: ECSTokenType.Ellipsis, regex: /\.\./ },
             { type: ECSTokenType.Operator, regex: /[#=,:(){}\[\]]/ },
             { type: ECSTokenType.QuotedString, regex: /".*?"/ },
+            { type: ECSTokenType.CodeFragment, regex: /---.*?---/ },
             { type: ECSTokenType.Integer, regex: /[-]?0x[A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[-]?\$[A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[-]?\d+/ },
             { type: TokenType.Ident, regex: /[A-Za-z_][A-Za-z0-9_]*/ },
-            { type: TokenType.Ignore, regex: /\/\/.*/ },
+            { type: TokenType.Ignore, regex: /\/\/.*?[\n\r]/ },
+            { type: TokenType.Ignore, regex: /\/\*.*?\*\// },
             { type: TokenType.Ignore, regex: /\s+/ },
         ]);
         this.errorOnCatchAll = true;
@@ -43,7 +45,11 @@ export class ECSCompiler extends Tokenizer {
     parseFile(text: string, path: string) {
         this.tokenizeFile(text, path);
         while (!this.isEOF()) {
-            this.annotate(() => this.parseTopLevel());
+            let top = this.parseTopLevel();
+            if (top) {
+                let t = top;
+                this.annotate(() => t); // TODO? typescript bug?
+            }
         }
     }
 
@@ -63,7 +69,7 @@ export class ECSCompiler extends Tokenizer {
             return this.em.defineSystem(this.parseResource());
         }
         if (tok.str == 'comment') {
-            this.expectTokenTypes([TokenType.CodeFragment]);
+            this.expectTokenTypes([ECSTokenType.CodeFragment]);
             return;
         }
         this.compileError(`Unexpected top-level keyword: ${tok.str}`);
@@ -97,7 +103,7 @@ export class ECSCompiler extends Tokenizer {
             return { dtype: 'ref', query: this.parseQuery() } as RefType;
         }
         if (this.peekToken().str == 'array') {
-            let index : IntType;
+            let index : IntType | undefined = undefined;
             this.expectToken('array');
             if (this.peekToken().type == ECSTokenType.Integer) {
                 index = this.parseDataType() as IntType;
@@ -105,7 +111,7 @@ export class ECSCompiler extends Tokenizer {
             this.expectToken('of');
             return { dtype: 'array', index, elem: this.parseDataType() } as ArrayType;
         }
-        this.compileError(`Unknown data type`); // TODO
+        this.internalError(); throw new Error();
     }
 
     parseDataValue(field: DataField) : DataValue {
@@ -123,6 +129,9 @@ export class ECSCompiler extends Tokenizer {
             let id = e.id;
             if (reftype) {
                 // TODO: make this a function? elo ehi etc?
+                if (!this.currentScope) {
+                    this.compileError("This type can only exist inside of a scope."); throw new Error()
+                };
                 let atypes = this.em.archetypesMatching(reftype.query);
                 let entities = this.currentScope.entitiesMatching(atypes);
                 if (entities.length == 0) this.compileError(`This entitiy doesn't seem to fit the reference type.`);
@@ -130,7 +139,7 @@ export class ECSCompiler extends Tokenizer {
             }
             return id;
         }
-        this.compileError(`Unknown data value`); // TODO
+        this.internalError(); throw new Error();
     }
 
     parseDataArray() {
@@ -186,7 +195,8 @@ export class ECSCompiler extends Tokenizer {
         this.expectToken('do');
         let select = this.expectTokens(['once', 'foreach', 'source', 'join']).str as SelectType; // TODO: type check?
         let query = this.parseQuery();
-        let join = select == 'join' && this.parseQuery();
+        let join = undefined;
+        if (select == 'join') join = this.parseQuery();
         let emits;
         let limit;
         if (this.peekToken().str == 'limit') {
@@ -225,8 +235,8 @@ export class ECSCompiler extends Tokenizer {
 
     parseCode(): string {
         // TODO: add $loc
-        let tok = this.expectTokenTypes([TokenType.CodeFragment]);
-        let code = tok.str;
+        let tok = this.expectTokenTypes([ECSTokenType.CodeFragment]);
+        let code = tok.str.substring(3, tok.str.length-3);
         let lines = code.split('\n');
         for (let i=0; i<lines.length; i++) {
             lines[i] = ` .dbg line, "${this.path}", ${tok.$loc.line+i}\n` + lines[i];
@@ -236,7 +246,7 @@ export class ECSCompiler extends Tokenizer {
     
     parseScope() : EntityScope {
         let name = this.expectIdent().str;
-        let scope = this.em.newScope(name, this.currentScope);
+        let scope = this.em.newScope(name, this.currentScope || undefined);
         this.currentScope = scope;
         let cmd;
         while ((cmd = this.expectTokens(['entity', 'comment', 'end']).str) != 'end') {
@@ -244,14 +254,15 @@ export class ECSCompiler extends Tokenizer {
                 this.annotate(() => this.parseEntity());
             }
             if (cmd == 'comment') {
-                this.expectTokenTypes([TokenType.CodeFragment]);
+                this.expectTokenTypes([ECSTokenType.CodeFragment]);
             }
         }
-        this.currentScope = scope.parent;
+        this.currentScope = scope.parent || null;
         return scope;
     }
 
     parseEntity() : Entity {
+        if (!this.currentScope) { this.internalError(); throw new Error(); }
         let name = '';
         if (this.peekToken().type == TokenType.Ident) {
             name = this.expectIdent().str;
@@ -267,7 +278,7 @@ export class ECSCompiler extends Tokenizer {
             if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
             if (comps.length > 1) this.compileError(`I found more than one field named "${name}" for this entity.`)
             let field = comps[0].fields.find(f => f.name == name);
-            if (!field) this.internalError();
+            if (!field) { this.internalError(); throw new Error(); }
             this.expectToken('=');
             let value = this.parseDataValue(field);
             if (cmd == 'const') this.currentScope.setConstValue(e, comps[0], name, value);
@@ -291,10 +302,14 @@ export class ECSCompiler extends Tokenizer {
     }
 
     parseEntityRef(reftype?: RefType) : Entity {
+        if (!this.currentScope) { this.internalError(); throw new Error(); }
         this.expectToken('#');
         let name = this.expectIdent().str;
         let eref = this.currentScope.entities.find(e => e.name == name);
-        if (!eref) this.compileError(`I couldn't find an entity named "${name}" in this scope.`)
+        if (!eref) {
+            this.compileError(`I couldn't find an entity named "${name}" in this scope.`)
+            throw new Error();
+        }
         return eref;
     }
 

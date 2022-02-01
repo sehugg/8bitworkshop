@@ -26,7 +26,6 @@ export enum TokenType {
     Ident = 'ident',
     Comment = 'comment',
     Ignore = 'ignore',
-    CodeFragment = 'code-fragment',
     CatchAll = 'catch-all',
 }
 
@@ -49,79 +48,78 @@ function re_escape(rule: TokenRule): string {
     return `(${rule.regex.source})`;
 }
 
-export class Tokenizer {
+export class TokenizerRuleSet {
     rules: TokenRule[];
     regex: RegExp;
+    constructor(rules: TokenRule[]) {
+        this.rules = rules.concat(CATCH_ALL_RULES);
+        var pattern = this.rules.map(re_escape).join('|');
+        this.regex = new RegExp(pattern, "gs"); // global, dotall
+    }
+}
+
+export class Tokenizer {
+    ruleset: TokenizerRuleSet;
+    lineindex: number[];
     path: string;
     lineno: number;
     tokens: Token[];
     lasttoken: Token;
     errors: WorkerError[];
     curlabel: string;
-    eol: Token;
-    includeEOL = false;
+    eof: Token;
     errorOnCatchAll = false;
-    codeFragment : string | null = null;
-    codeFragmentStart : SourceLocation | null = null;
 
     constructor() {
-        this.lineno = 0;
         this.errors = [];
+        this.lineno = 0;
+        this.lineindex = [];
+        this.tokens = [];
+    }
+    setTokenRuleSet(ruleset: TokenizerRuleSet) {
+        this.ruleset = ruleset;
     }
     setTokenRules(rules: TokenRule[]) {
-        this.rules = rules.concat(CATCH_ALL_RULES);
-        var pattern = this.rules.map(re_escape).join('|');
-        this.regex = new RegExp(pattern, "g");
+        this.setTokenRuleSet(new TokenizerRuleSet(rules));
     }
     tokenizeFile(contents: string, path: string) {
         this.path = path;
-        this.tokens = []; // can't have errors until this is set
-        let txtlines = contents.split(/\n|\r\n?/);
-        txtlines.forEach((line) => this._tokenize(line));
-        this._pushToken({ type: TokenType.EOF, str: "", $loc: { path: this.path, line: this.lineno } });
+        let m;
+        let re = /\n|\r\n?/g;
+        this.lineindex.push(0);
+        while (m = re.exec(contents)) {
+            this.lineindex.push(m.index);
+        }
+        this._tokenize(contents);
+        this.eof = { type: TokenType.EOF, str: "", $loc: { path: this.path, line: this.lineno } };
+        this.pushToken(this.eof);
     }
-    tokenizeLine(line: string) : void {
-        this.lineno++;
-        this._tokenize(line);
-    }
-    _tokenize(line: string): void {
-        this.lineno++;
-        this.eol = { type: TokenType.EOL, str: "", $loc: { path: this.path, line: this.lineno, start: line.length } };
+    _tokenize(text: string): void {
         // iterate over each token via re_toks regex
         let m: RegExpMatchArray;
-        while (m = this.regex.exec(line)) {
+        this.lineno = 0;
+        while (m = this.ruleset.regex.exec(text)) {
             let found = false;
+            // find line #
+            while (m.index >= this.lineindex[this.lineno]) {
+                this.lineno++;
+            }
             // find out which capture group was matched, and thus token type
-            for (let i = 0; i < this.rules.length; i++) {
+            let rules = this.ruleset.rules;
+            for (let i = 0; i < rules.length; i++) {
                 let s: string = m[i + 1];
                 if (s != null) {
                     found = true;
                     let loc = { path: this.path, line: this.lineno, start: m.index, end: m.index + s.length };
-                    let rule = this.rules[i];
+                    let rule = rules[i];
                     // add token to list
                     switch (rule.type) {
-                        case TokenType.CodeFragment:
-                            // TODO: empty code fragment doesn't work
-                            if (this.codeFragment != null) {
-                                let codeLoc = mergeLocs(this.codeFragmentStart, loc);
-                                this._pushToken({ str: this.codeFragment, type: rule.type, $loc: codeLoc });
-                                this.codeFragmentStart = null;
-                                this.codeFragment = null;
-                            } else {
-                                loc.line++;
-                                this.codeFragmentStart = loc;
-                                this.codeFragment = '';
-                                return; // don't add any more tokens (TODO: check for trash?)
-                            }
-                            break;
                         case TokenType.CatchAll:
-                            if (this.errorOnCatchAll && this.codeFragment == null) {
+                            if (this.errorOnCatchAll) {
                                 this.compileError(`I didn't expect the character "${m[0]}" here.`);
                             }
                         default:
-                            if (this.codeFragment == null) {
-                                this._pushToken({ str: s, type: rule.type, $loc: loc });
-                            }
+                            this.pushToken({ str: s, type: rule.type, $loc: loc });
                         case TokenType.Comment:
                         case TokenType.Ignore:
                             break;
@@ -133,14 +131,8 @@ export class Tokenizer {
                 this.compileError(`Could not parse token: <<${m[0]}>>`)
             }
         }
-        if (this.includeEOL) {
-            this._pushToken(this.eol);
-        }
-        if (this.codeFragment != null) {
-            this.codeFragment += line + '\n';
-        }
     }
-    _pushToken(token: Token) {
+    pushToken(token: Token) {
         this.tokens.push(token);
     }
     addError(msg: string, loc?: SourceLocation) {
@@ -161,10 +153,10 @@ export class Tokenizer {
     }
     peekToken(lookahead?: number): Token {
         let tok = this.tokens[lookahead || 0];
-        return tok ? tok : this.eol;
+        return tok ? tok : this.eof;
     }
     consumeToken(): Token {
-        let tok = this.lasttoken = (this.tokens.shift() || this.eol);
+        let tok = this.lasttoken = (this.tokens.shift() || this.eof);
         return tok;
     }
     expectToken(str: string, msg?: string): Token {

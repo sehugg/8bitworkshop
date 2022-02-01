@@ -38,7 +38,7 @@
     var numbers = /^(0x[\da-f]+|[\da-f]+h|[0-7]+o|[01]+b|\d+d?)\b/i;
     var tags = /^\{\{.*\}\}/;
     var comment = /\/\/.*/;
-    var mlcomment = /^---.+?---\b/i;
+    var mlcomment = /\/\*.*?\*\//s; // TODO
 
     return {
       startState: function () {
@@ -54,6 +54,9 @@
           return 'meta';
         }
         if (stream.match(comment)) {
+          return 'comment';
+        }
+        if (stream.match(mlcomment)) {
           return 'comment';
         }
 
