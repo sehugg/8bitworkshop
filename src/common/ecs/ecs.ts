@@ -38,6 +38,13 @@ join thru a reference? load both x and y
 code fragments can be parameterized like macros
 if two fragments are identical, do a JSR
 (do we have to look for labels?)
+should events have parameters? e.g. addscore X Y Z
+how are Z80 arrays working?
+https://forums.nesdev.org/viewtopic.php?f=20&t=14691
+https://www.cpcwiki.eu/forum/programming/trying-not-to-use-ix/msg133416/#msg133416
+
+how to select two between two entities with once? like scoreboard
+maybe stack-based interpreter?
 
 */
 
@@ -383,12 +390,16 @@ function getPackedFieldSize(f: DataType, constValue?: DataValue): number {
 class ActionEval {
     em;
     dialect;
+    atypes;
+    entities;
     constructor(
         readonly scope: EntityScope,
         readonly sys: System,
         readonly action: Action) {
         this.em = scope.em;
         this.dialect = scope.em.dialect;
+        this.atypes = this.em.archetypesMatching(action.query);
+        this.entities = this.scope.entitiesMatching(this.atypes);
     }
     codeToString(): string {
         const tag_re = /\{\{(.+?)\}\}/g;
@@ -397,77 +408,78 @@ class ActionEval {
         let action = this.action;
         let sys = this.sys;
         let code = action.text;
-        
         let label = `${sys.name}__${action.event}`; // TODO: better label that won't conflict (seq?)
-        let atypes = this.em.archetypesMatching(action.query);
-        let entities = this.scope.entitiesMatching(atypes);
         // TODO: detect cycles
         // TODO: "source"?
         // TODO: what if only 1 item?
         let props: { [name: string]: string } = {};
         if (action.select == 'foreach') {
-            code = this.wrapCodeInLoop(code, action, entities);
+            code = this.wrapCodeInLoop(code, action, this.entities);
         }
         if (action.select == 'join' && action.join) {
             let jtypes = this.em.archetypesMatching(action.join);
             let jentities = this.scope.entitiesMatching(jtypes);
             if (jentities.length == 0)
                 throw new ECSError(`join query for ${label} doesn't match any entities`, action.join); // TODO 
-            let joinfield = this.getJoinField(action, atypes, jtypes);
+            let joinfield = this.getJoinField(action, this.atypes, jtypes);
             // TODO: what if only 1 item?
             // TODO: should be able to access fields via Y reg
-            code = this.wrapCodeInLoop(code, action, entities, joinfield);
-            atypes = jtypes;
-            entities = jentities;
+            code = this.wrapCodeInLoop(code, action, this.entities, joinfield);
+            this.atypes = jtypes;
+            this.entities = jentities;
             props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0);
         }
-        props['%efullcount'] = entities.length.toString();
+        props['%efullcount'] = this.entities.length.toString();
         if (action.limit) {
-            entities = entities.slice(0, action.limit);
+            this.entities = this.entities.slice(0, action.limit);
         }
-        if (entities.length == 0)
+        if (this.entities.length == 0)
             throw new ECSError(`query for ${label} doesn't match any entities`, action.query); // TODO 
         // define properties
-        props['%elo'] = entities[0].id.toString();
-        props['%ehi'] = entities[entities.length - 1].id.toString();
-        props['%ecount'] = entities.length.toString();
+        props['%elo'] = this.entities[0].id.toString();
+        props['%ehi'] = this.entities[this.entities.length - 1].id.toString();
+        props['%ecount'] = this.entities.length.toString();
         // replace @labels
         code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
         // replace {{...}} tags
         code = code.replace(tag_re, (entire, group: string) => {
+            let toks = group.split(/\s+/);
+            if (toks.length == 0) throw new ECSError(`empty command`, action);
             let cmd = group.charAt(0);
             let rest = group.substring(1);
             switch (cmd) {
-                case '!': // emit event
-                    return this.scope.generateCodeForEvent(rest);
-                case '.': // auto label
-                case '@': // auto label
-                    return `${label}_${rest}`;
-                case '$': // temp byte (TODO: check to make sure not overflowing)
-                    let tempinc = parseInt(rest);
-                    if (isNaN(tempinc)) throw new ECSError(`bad temporary offset`, action);
-                    if (!sys.tempbytes) throw new ECSError(`this system has no locals`, action);
-                    if (tempinc < 0 || tempinc >= sys.tempbytes) throw new ECSError(`this system only has ${sys.tempbytes} locals`, action);
-                    return `TEMP+${this.scope.tempOffset}+${tempinc}`;
-                case '=':
-                // TODO?
-                case '<': // low byte
-                    return this.generateCodeForField(sys, action, atypes, entities, rest, 0);
-                case '>': // high byte
-                    return this.generateCodeForField(sys, action, atypes, entities, rest, 8);
-                case '(': // higher byte (TODO)
-                    return this.generateCodeForField(sys, action, atypes, entities, rest, 16);
-                case ')': // higher byte (TODO)
-                    return this.generateCodeForField(sys, action, atypes, entities, rest, 24);
-                case '^': // resource reference
-                    return this.scope.includeResource(rest);
+                case '!': return this.__emit([rest]);
+                case '$': return this.__local([rest]);
+                case '^': return this.__use([rest]);
+                case '<': return this.__byte([rest, '0']);
+                case '>': return this.__byte([rest, '8']);
                 default:
-                    let value = props[group];
+                    let value = props[toks[0]];
                     if (value) return value;
-                    else throw new ECSError(`unrecognized command {{${group}}} in ${entire}`);
+                    let fn = (this as any)['__' + toks[0]];
+                    if (fn) return fn.bind(this)(toks.slice(1));
+                    throw new ECSError(`unrecognized command {{${toks[0]}}}`, action);
             }
         });
         return code;
+    }
+    __byte(args: string[]) {
+        let fieldName = args[0];
+        let bitofs = parseInt(args[1] || '0');
+        return this.generateCodeForField(this.sys, this.action, this.atypes, this.entities, fieldName, bitofs);
+    }
+    __use(args: string[]) {
+        return this.scope.includeResource(args[0]);
+    }
+    __emit(args: string[]) {
+        return this.scope.generateCodeForEvent(args[0]);
+    }
+    __local(args: string[]) {
+        let tempinc = parseInt(args[0]);
+        if (isNaN(tempinc)) throw new ECSError(`bad temporary offset`, this.action);
+        if (!this.sys.tempbytes) throw new ECSError(`this system has no locals`, this.action);
+        if (tempinc < 0 || tempinc >= this.sys.tempbytes) throw new ECSError(`this system only has ${this.sys.tempbytes} locals`, this.action);
+        return `TEMP+${this.scope.tempOffset}+${tempinc}`;
     }
     wrapCodeInLoop(code: string, action: Action, ents: Entity[], joinfield?: ComponentFieldPair): string {
         // TODO: check ents
@@ -523,7 +535,7 @@ class ActionEval {
             return this.dialect.absolute(ident);
         } else if (action.select == 'once') {
             if (entities.length != 1)
-                throw new ECSError(`can't choose multiple entities for ${fieldName} with select=once`);
+                throw new ECSError(`can't choose multiple entities for ${fieldName} with select=once`, action);
             return this.dialect.absolute(ident);
         } else {
             // TODO: right direction?

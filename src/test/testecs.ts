@@ -5,7 +5,7 @@ import { Dialect_CA65, EntityManager, SourceFileExport } from "../common/ecs/ecs
 const TEMPLATE1 = `
 @NextFrame:
     FRAME_START
-    {{!preframe}}
+    {{emit preframe}}
     KERNEL_START
     {{!kernel}}
     KERNEL_END
@@ -24,7 +24,7 @@ const TEMPLATE4_S1 = `
     lda #192 ; TODO: numlines
     sec
     sbc ypos_ypos_b0+ent
-    sta {{$5}}+ofs
+    sta {{local 5}}+ofs
 
     ldy hasbitmap_bitmap_b0+ent
     lda bitmap_bitmapdata_b0,y
@@ -59,9 +59,9 @@ const TEMPLATE4_S2 = `
 // https://atariage.com/forums/topic/129683-advice-on-a-masking-kernel/
 // https://atariage.com/forums/topic/128147-having-trouble-with-2-free-floating-player-graphics/?tab=comments#comment-1547059
 const TEMPLATE4_K = `
-    lda {{<bgcolor}}
+    lda {{byte bgcolor}}
     sta COLUBK
-    ldy {{<lines}}
+    ldy {{byte lines}}
 @LVScan:
     lda {{$4}} ; height
     dcp {{$5}}
@@ -91,10 +91,10 @@ const TEMPLATE4_K = `
 `;
 
 const SET_XPOS = `
-    lda {{<xpos}}
-    ldy {{<plyrindex}}
+    lda {{byte xpos}}
+    ldy {{byte plyrindex}}
     sta HMCLR
-    jsr {{^SetHorizPos}}
+    jsr {{use SetHorizPos}}
 `
 
 const SETHORIZPOS = `
