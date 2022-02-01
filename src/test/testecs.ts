@@ -207,7 +207,7 @@ function testECS() {
     // TODO: check names for identifierness
     em.defineSystem({
         name: 'kernel_simple',
-        tempbytes: 8,
+        tempbytes: 12,
         actions: [
             {
                 text: TEMPLATE4_S1, event: 'preframe', select: 'once', query: {

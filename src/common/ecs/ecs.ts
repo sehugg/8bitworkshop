@@ -316,15 +316,28 @@ class Segment {
     getFieldRange(component: ComponentType, fieldName: string) {
         return this.fieldranges[mksymbol(component, fieldName)];
     }
-    getSegmentByteOffset(component: ComponentType, fieldName: string, bitofs: number, entityID: number) {
+    getByteOffset(range: FieldArray, access: FieldAccess, entityID: number) {
+        let ofs = this.symbols[access.symbol];
+        if (ofs !== undefined) {
+            return ofs + entityID - range.elo;
+        }
+        // TODO: show entity name?
+        throw new ECSError(`cannot find field access for ${access.symbol}`);
+    }
+    getSegmentByteOffset(component: ComponentType, fieldName: string, entityID: number, bitofs: number, width: number) {
         let range = this.getFieldRange(component, fieldName);
         if (range && range.access) {
-            let a = range.access[0]; // TODO: bitofs
-            let ofs = this.symbols[a.symbol];
-            if (ofs !== undefined) {
-                return ofs + entityID - range.elo;
+            for (let a of range.access) {
+                if (a.bit == bitofs && a.width == width) {
+                    let ofs = this.symbols[a.symbol];
+                    if (ofs !== undefined) {
+                        return ofs + entityID - range.elo;
+                    }
+                }
             }
         }
+        // TODO: show entity name?
+        throw new ECSError(`cannot find field offset for ${component.name}:${fieldName} entity #${entityID} bits ${bitofs} ${width}`)
     }
     getOriginSymbol() {
         let a = this.ofs2sym.get(0);
@@ -485,9 +498,9 @@ export class EntityScope implements SourceLocated {
             let access = [];
             for (let i = 0; i < bits; i += 8) {
                 let symbol = this.dialect.fieldsymbol(f.component, f.field, i);
-                access.push({ symbol, bit: 0, width: 8 }); // TODO
+                access.push({ symbol, bit: i, width: 8 }); // TODO
                 if (alloc) {
-                    segment.allocateBytes(symbol, rangelen * bytesperelem); // TODO
+                    segment.allocateBytes(symbol, rangelen); // TODO
                 }
             }
             f.access = access;
@@ -498,11 +511,12 @@ export class EntityScope implements SourceLocated {
         for (var o = iter.next(); o.value; o = iter.next()) {
             let { i, e, c, f, v } = o.value;
             let cfname = mksymbol(c, f.name);
-            let fieldrange = segment.fieldranges[cfname];
-            let entcount = fieldrange ? fieldrange.ehi - fieldrange.elo + 1 : 0;
+            let range = segment.fieldranges[cfname];
+            let entcount = range ? range.ehi - range.elo + 1 : 0;
+            // is this a constant value?
             if (v === undefined) {
                 // this is not a constant
-                // is it an array?
+                // is it a bounded array? (TODO)
                 if (f.dtype == 'array' && f.index) {
                     let datasym = this.dialect.datasymbol(c, f, e.id);
                     let offset = this.bss.allocateBytes(datasym, getFieldLength(f.index));
@@ -510,8 +524,8 @@ export class EntityScope implements SourceLocated {
                     let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
                     let loofs = segment.allocateBytes(ptrlosym, entcount);
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
-                    segment.initdata[loofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 0 };
-                    segment.initdata[hiofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 8 };
+                    segment.initdata[loofs + e.id - range.elo] = { symbol: datasym, bitofs: 0 };
+                    segment.initdata[hiofs + e.id - range.elo] = { symbol: datasym, bitofs: 8 };
                 }
             } else {
                 // this is a constant
@@ -523,19 +537,20 @@ export class EntityScope implements SourceLocated {
                     let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
                     let loofs = segment.allocateBytes(ptrlosym, entcount);
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
-                    segment.initdata[loofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 0 };
-                    segment.initdata[hiofs + e.id - fieldrange.elo] = { symbol: datasym, bitofs: 8 };
+                    segment.initdata[loofs + e.id - range.elo] = { symbol: datasym, bitofs: 0 };
+                    segment.initdata[hiofs + e.id - range.elo] = { symbol: datasym, bitofs: 8 };
                     // TODO: } else if (v instanceof Uint16Array) {
                 } else if (typeof v === 'number') {
                     // more than 1 entity, add an array
-                    // TODO: what if > 8 bits?
-                    // TODO: what if mix of var, const, and init values?
-                    if (fieldrange.ehi > fieldrange.elo) {
-                        let datasym = this.dialect.fieldsymbol(c, f, 0);
-                        let base = segment.allocateBytes(datasym, entcount);
-                        segment.initdata[base + e.id - fieldrange.elo] = v;
-                        //console.error(cfname, datasym, base, e.id, fieldrange.elo, entcount, v);
+                    if (range.ehi > range.elo) {
+                        if (!range.access) throw new ECSError(`no access for field ${cfname}`)
+                        let base = segment.allocateBytes(range.access[0].symbol, range.ehi-range.elo+1);
+                        for (let a of range.access) {
+                            let ofs = segment.getByteOffset(range, a, e.id);
+                            segment.initdata[ofs] = v;
+                        }
                     }
+                    // TODO: what if mix of var, const, and init values?
                 } else {
                     throw new ECSError(`unhandled constant ${e.id}:${cfname}`);
                 }
@@ -552,9 +567,14 @@ export class EntityScope implements SourceLocated {
             let scfname = mkscopesymbol(this, c, f.name);
             let initvalue = e.inits[scfname];
             if (initvalue !== undefined) {
-                let offset = segment.getSegmentByteOffset(c, f.name, 0, e.id);
-                if (offset !== undefined && typeof initvalue === 'number') {
-                    initbytes[offset] = initvalue; // TODO: > 8 bits?
+                let range = segment.getFieldRange(c, f.name);
+                if (!range) throw new ECSError(`no range`, e);
+                if (!range.access) throw new ECSError(`no range access`, e);
+                if (typeof initvalue === 'number') {
+                    for (let a of range.access) {
+                        let offset = segment.getByteOffset(range, a, e.id);
+                        initbytes[offset] = (initvalue >> a.bit) & ((1 << a.width)-1);
+                    }
                 } else if (initvalue instanceof Uint8Array) {
                     // TODO???
                     let datasym = this.dialect.datasymbol(c, f, e.id);
@@ -562,7 +582,7 @@ export class EntityScope implements SourceLocated {
                     initbytes.set(initvalue, ofs);
                 } else {
                     // TODO: init arrays?
-                    throw new ECSError(`cannot initialize ${scfname}: ${offset} ${initvalue}`); // TODO??
+                    throw new ECSError(`cannot initialize ${scfname} = ${initvalue}`); // TODO??
                 }
             }
         }
@@ -699,6 +719,10 @@ export class EntityScope implements SourceLocated {
                     return this.generateCodeForField(sys, action, atypes, entities, rest, 0);
                 case '>': // high byte
                     return this.generateCodeForField(sys, action, atypes, entities, rest, 8);
+                case '(': // higher byte (TODO)
+                    return this.generateCodeForField(sys, action, atypes, entities, rest, 16);
+                case ')': // higher byte (TODO)
+                    return this.generateCodeForField(sys, action, atypes, entities, rest, 24);
                 case '^': // resource reference
                     return this.includeResource(rest);
                 default:
@@ -753,9 +777,7 @@ export class EntityScope implements SourceLocated {
             // TODO: what about symbols?
             // TODO: use dialect
             if (typeof value === 'number') {
-                if (bitofs == 0) return `#<${value}`;
-                if (bitofs == 8) return `#>${value}`;
-                // TODO: bitofs?
+                return `#${(value >> bitofs) & 0xff}`;
             }
         }
         // TODO: offset > 0?
