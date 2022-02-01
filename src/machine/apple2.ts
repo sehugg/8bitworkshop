@@ -1,6 +1,6 @@
 
 import { MOS6502, MOS6502State } from "../common/cpu/MOS6502";
-import { Bus, BasicScanlineMachine, SavesState } from "../common/devices";
+import { Bus, BasicScanlineMachine, SavesState, AcceptsBIOS } from "../common/devices";
 import { KeyFlags } from "../common/emu"; // TODO
 import { hex, lzgmini, stringToByteArray, RGBA, printFlags } from "../common/util";
 
@@ -33,7 +33,7 @@ interface SlotDevice extends Bus {
    readConst(address: number) : number;
 }
 
-export class AppleII extends BasicScanlineMachine {
+export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
 
    // approx: http://www.cs.columbia.edu/~sedwards/apple2fpga/
   cpuFrequency = 1022727;
@@ -66,17 +66,47 @@ export class AppleII extends BasicScanlineMachine {
   // fake disk drive that loads program into RAM
   fakeDrive : SlotDevice = {
     readROM: (a) => {
-      switch (a) {
-        // JMP VM_BASE
-        case 0: {
-          // load program into RAM
-          if (this.rom)
-            this.ram.set(this.rom.slice(HDR_SIZE), PGM_BASE);
-          return 0x4c;
-        }
-        case 1: return VM_BASE&0xff;
-        case 2: return (VM_BASE>>8)&0xff;
-        default: return 0;
+      var pc = this.cpu.getPC();
+      if (pc >= 0xC600 && pc < 0xC700) {
+          // We're reading code to EXECUTE.
+          // Load the built program directly into memory, and "read"
+          // a JMP directly to it.
+          //console.log(`fakeDrive (EXEC): ${a.toString(16)}`);
+          switch (a) {
+            // JMP VM_BASE
+            case 0:
+              // SHOULD load program into RAM here, but have to do it
+              // below instead.
+              return 0;
+            case 1: return VM_BASE&0xff;
+            case 2: return (VM_BASE>>8)&0xff;
+            default: return 0;
+          }
+      }
+      else {
+          // We're reading code, but not executing it.
+          // This is probably the Monitor routine to identify whether
+          // this slot is a Disk ][ drive, so... give it what it wants.
+          //console.log(`fakeDrive (NOEX): ${a.toString(16)}`);
+          switch (a) {
+            case 0:
+              // Actually, if we get here, we probably ARE being
+              // executed. For some reason, the instruction at $C600
+              // gets read for execution, BEFORE the PC gets set to
+              // the correct location. So we handle loading the program
+              // into RAM and returning the JMP here, instead of above
+              // where it would otherwise belong.
+              if (this.rom) {
+                  console.log(`Loading program into Apple ][ RAM at \$${PGM_BASE.toString(16)}`);
+                  this.ram.set(this.rom.slice(HDR_SIZE), PGM_BASE);
+              }
+              return 0x4c; // JMP
+            case 1: return 0x20;
+            case 3: return 0x00;
+            case 5: return 0x03;
+            case 7: return 0x3c;
+            default: return 0;
+          }
       }
     },
     readConst: (a) => {
@@ -88,12 +118,13 @@ export class AppleII extends BasicScanlineMachine {
 
   constructor() {
     super();
-    this.bios = new lzgmini().decode(stringToByteArray(atob(APPLEIIGO_LZG)));
-    this.bios[0x39a] = 0x60; // $d39a = RTS
-    this.ram.set(this.bios, 0xd000);
-    this.ram[0xbf00] = 0x4c; // fake DOS detect for C
-    this.ram[0xbf6f] = 0x01; // fake DOS detect for C
+    this.loadBIOS(new lzgmini().decode(stringToByteArray(atob(APPLEIIGO_LZG))));
     this.connectCPUMemoryBus(this);
+    // This line is inappropriate for real ROMs, but was there for
+    // the APPLE][GO ROM, so keeping it only in the constructor, for
+    // that special case (in case it really is important for this
+    // address to be an RTS).
+    this.bios[0xD39A - (0x10000 - this.bios.length)] = 0x60;  // $d39a = RTS
   }
   saveState() : AppleIIState {
     // TODO: automagic
@@ -131,6 +162,16 @@ export class AppleII extends BasicScanlineMachine {
   loadControlsState(s:AppleIIControlsState) {
     this.kbdlatch = s.kbdlatch;
   }
+  loadBIOS(data, title?) {
+      if (data.length != 0x3000) {
+          console.log(`apple2 loadBIOS !!!WARNING!!!: BIOS wants length 0x3000, but BIOS '${title}' has length 0x${data.length.toString(16)}`);
+          console.log("will load BIOS to end of memory anyway...");
+      }
+      this.bios = Uint8Array.from(data);
+      this.ram.set(this.bios, 0x10000 - this.bios.length);
+      this.ram[0xbf00] = 0x4c; // fake DOS detect for C
+      this.ram[0xbf6f] = 0x01; // fake DOS detect for C
+  }
   loadROM(data) {
     if (data.length == 35*16*256) { // is it a disk image?
       var diskii = new DiskII(this, data);
@@ -145,6 +186,8 @@ export class AppleII extends BasicScanlineMachine {
     this.auxRAMselected = false;
     this.auxRAMbank = 1;
     this.writeinhibit = true;
+    this.ram.fill(0, 0x300, 0x400); // Clear soft-reset vector
+                                    // (force hard reset)
     this.skipboot();
   }
   skipboot() {
@@ -164,7 +207,7 @@ export class AppleII extends BasicScanlineMachine {
          return this.ram[address];
       } else if (address >= 0xd000) {
          if (!this.auxRAMselected)
-            return this.bios[address - 0xd000];
+            return this.bios[address - (0x10000 - this.bios.length)];
          else if (address >= 0xe000)
             return this.ram[address];
          else
@@ -296,13 +339,32 @@ export class AppleII extends BasicScanlineMachine {
     } else if (flags & KeyFlags.KeyDown) {
       code = 0;
       switch (key) {
-        case 8:  code=8; break; // left
+        case 8:
+          code=8; // left
+          if (flags & KeyFlags.Ctrl) {
+            // (possibly) soft reset
+            this.cpu.reset();
+            return;
+          }
+          break;
         case 13: code=13; break; // return
         case 27: code=27; break; // escape
         case 37: code=8; break; // left
         case 39: code=21; break; // right
         case 38: code=11; break; // up
         case 40: code=10; break; // down
+        default:
+          if (flags & KeyFlags.Ctrl) {
+            code = key;
+            if (code >= 0x61 && code <= 0x7a)
+              code -= 32;
+            if (key >= 65 && code < 65+26) {
+                code -= 64; // ctrl
+            }
+            else {
+              code = 0;
+            }
+          }
       }
       if (code)
         this.kbdlatch = (code | 0x80) & 0xff;
