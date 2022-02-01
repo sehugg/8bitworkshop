@@ -173,7 +173,7 @@ export class Dialect_CA65 {
 @__exit:
 `;
 
-readonly ASM_ITERATE_JOIN = `
+    readonly ASM_ITERATE_JOIN = `
     ldy #0
 @__each:
     ldx {{%joinfield}},y
@@ -380,6 +380,182 @@ function getPackedFieldSize(f: DataType, constValue?: DataValue): number {
     return 0;
 }
 
+class ActionEval {
+    em;
+    dialect;
+    constructor(
+        readonly scope: EntityScope,
+        readonly sys: System,
+        readonly action: Action) {
+        this.em = scope.em;
+        this.dialect = scope.em.dialect;
+    }
+    codeToString(): string {
+        const tag_re = /\{\{(.+?)\}\}/g;
+        const label_re = /@(\w+)\b/g;
+
+        let action = this.action;
+        let sys = this.sys;
+        let code = action.text;
+        
+        let label = `${sys.name}__${action.event}`; // TODO: better label that won't conflict (seq?)
+        let atypes = this.em.archetypesMatching(action.query);
+        let entities = this.scope.entitiesMatching(atypes);
+        // TODO: detect cycles
+        // TODO: "source"?
+        // TODO: what if only 1 item?
+        let props: { [name: string]: string } = {};
+        if (action.select == 'foreach') {
+            code = this.wrapCodeInLoop(code, action, entities);
+        }
+        if (action.select == 'join' && action.join) {
+            let jtypes = this.em.archetypesMatching(action.join);
+            let jentities = this.scope.entitiesMatching(jtypes);
+            if (jentities.length == 0)
+                throw new ECSError(`join query for ${label} doesn't match any entities`, action.join); // TODO 
+            let joinfield = this.getJoinField(action, atypes, jtypes);
+            // TODO: what if only 1 item?
+            // TODO: should be able to access fields via Y reg
+            code = this.wrapCodeInLoop(code, action, entities, joinfield);
+            atypes = jtypes;
+            entities = jentities;
+            props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0);
+        }
+        props['%efullcount'] = entities.length.toString();
+        if (action.limit) {
+            entities = entities.slice(0, action.limit);
+        }
+        if (entities.length == 0)
+            throw new ECSError(`query for ${label} doesn't match any entities`, action.query); // TODO 
+        // define properties
+        props['%elo'] = entities[0].id.toString();
+        props['%ehi'] = entities[entities.length - 1].id.toString();
+        props['%ecount'] = entities.length.toString();
+        // replace @labels
+        code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
+        // replace {{...}} tags
+        code = code.replace(tag_re, (entire, group: string) => {
+            let cmd = group.charAt(0);
+            let rest = group.substring(1);
+            switch (cmd) {
+                case '!': // emit event
+                    return this.scope.generateCodeForEvent(rest);
+                case '.': // auto label
+                case '@': // auto label
+                    return `${label}_${rest}`;
+                case '$': // temp byte (TODO: check to make sure not overflowing)
+                    let tempinc = parseInt(rest);
+                    if (isNaN(tempinc)) throw new ECSError(`bad temporary offset`, action);
+                    if (!sys.tempbytes) throw new ECSError(`this system has no locals`, action);
+                    if (tempinc < 0 || tempinc >= sys.tempbytes) throw new ECSError(`this system only has ${sys.tempbytes} locals`, action);
+                    return `TEMP+${this.scope.tempOffset}+${tempinc}`;
+                case '=':
+                // TODO?
+                case '<': // low byte
+                    return this.generateCodeForField(sys, action, atypes, entities, rest, 0);
+                case '>': // high byte
+                    return this.generateCodeForField(sys, action, atypes, entities, rest, 8);
+                case '(': // higher byte (TODO)
+                    return this.generateCodeForField(sys, action, atypes, entities, rest, 16);
+                case ')': // higher byte (TODO)
+                    return this.generateCodeForField(sys, action, atypes, entities, rest, 24);
+                case '^': // resource reference
+                    return this.scope.includeResource(rest);
+                default:
+                    let value = props[group];
+                    if (value) return value;
+                    else throw new ECSError(`unrecognized command {{${group}}} in ${entire}`);
+            }
+        });
+        return code;
+    }
+    wrapCodeInLoop(code: string, action: Action, ents: Entity[], joinfield?: ComponentFieldPair): string {
+        // TODO: check ents
+        // TODO: check segment bounds
+        // TODO: what if 0 or 1 entitites?
+        let s = this.dialect.ASM_ITERATE_EACH;
+        if (joinfield) s = this.dialect.ASM_ITERATE_JOIN;
+        s = s.replace('{{%code}}', code);
+        return s;
+    }
+    generateCodeForField(sys: System, action: Action,
+        atypes: ArchetypeMatch[], entities: Entity[],
+        fieldName: string, bitofs: number): string {
+
+        var component: ComponentType;
+        var qualified = false;
+        // is qualified field?
+        if (fieldName.indexOf(':') > 0) {
+            let [cname, fname] = fieldName.split(':');
+            component = this.em.getComponentByName(cname);
+            fieldName = fname;
+            qualified = true;
+            if (component == null) throw new ECSError(`no component named "${cname}"`)
+        } else {
+            component = this.em.singleComponentWithFieldName(atypes, fieldName, `${sys.name}:${action.event}`);
+        }
+        // find archetypes
+        let field = component.fields.find(f => f.name == fieldName);
+        if (field == null) throw new ECSError(`no field named "${fieldName}" in component`)
+        // see if all entities have the same constant value
+        let constValues = new Set<DataValue>();
+        for (let e of entities) {
+            let constVal = e.consts[mksymbol(component, fieldName)];
+            constValues.add(constVal); // constVal === undefined is allowed
+        }
+        // is it a constant?
+        if (constValues.size == 1) {
+            let value = constValues.values().next().value as DataValue;
+            // TODO: what about symbols?
+            // TODO: use dialect
+            if (typeof value === 'number') {
+                return `#${(value >> bitofs) & 0xff}`;
+            }
+        }
+        // TODO: offset > 0?
+        // TODO: don't mix const and init data
+        let range = this.scope.bss.getFieldRange(component, fieldName) || this.scope.rodata.getFieldRange(component, fieldName);
+        if (!range) throw new ECSError(`couldn't find field for ${component.name}:${fieldName}, maybe no entities?`); // TODO
+        let eidofs = range.elo - entities[0].id;
+        // TODO: dialect
+        let ident = this.dialect.fieldsymbol(component, field, bitofs);
+        if (qualified) {
+            return this.dialect.absolute(ident);
+        } else if (action.select == 'once') {
+            if (entities.length != 1)
+                throw new ECSError(`can't choose multiple entities for ${fieldName} with select=once`);
+            return this.dialect.absolute(ident);
+        } else {
+            // TODO: right direction?
+            if (eidofs > 0) {
+                ident += '+' + eidofs;
+            } else if (eidofs < 0) {
+                ident += '' + eidofs;
+            }
+            return this.dialect.indexed_x(ident);
+        }
+    }
+    getJoinField(action: Action, atypes: ArchetypeMatch[], jtypes: ArchetypeMatch[]): ComponentFieldPair {
+        let refs = Array.from(this.scope.iterateArchetypeFields(atypes, (c, f) => f.dtype == 'ref'));
+        // TODO: better error message
+        if (refs.length == 0) throw new ECSError(`cannot find join fields`, action.query);
+        if (refs.length > 1) throw new ECSError(`cannot join multiple fields`, action.query);
+        // TODO: check to make sure join works
+        return refs[0]; // TODO
+        /* TODO
+        let match = refs.map(ref => this.em.archetypesMatching((ref.f as RefType).query));
+        for (let ref of refs) {
+            let m = this.em.archetypesMatching((ref.f as RefType).query);
+            for (let a of m) {
+                if (jtypes.includes(a.etype)) {
+                    console.log(a,m);
+                }
+            }
+        }
+        */
+    }
+}
+
 export class EntityScope implements SourceLocated {
     $loc: SourceLocation;
     childScopes: EntityScope[] = [];
@@ -423,19 +599,19 @@ export class EntityScope implements SourceLocated {
             }
         }
     }
-    *iterateArchetypeFields(arch: ArchetypeMatch[], filter?: (c:ComponentType,f:DataField) => boolean) {
+    *iterateArchetypeFields(arch: ArchetypeMatch[], filter?: (c: ComponentType, f: DataField) => boolean) {
         for (let i = 0; i < arch.length; i++) {
             let a = arch[i];
             for (let c of a.etype.components) {
                 for (let f of c.fields) {
-                    if (!filter || filter(c,f))
+                    if (!filter || filter(c, f))
                         yield { i, c, f };
                 }
             }
         }
     }
     entitiesMatching(atypes: ArchetypeMatch[]) {
-        let result : Entity[] = [];
+        let result: Entity[] = [];
         for (let e of this.entities) {
             for (let a of atypes) {
                 // TODO: what about subclasses?
@@ -450,25 +626,6 @@ export class EntityScope implements SourceLocated {
     }
     hasComponent(ctype: ComponentType) {
         return this.componentsInScope.has(ctype.name);
-    }
-    getJoinField(action: Action, atypes: ArchetypeMatch[], jtypes: ArchetypeMatch[]) : ComponentFieldPair {
-        let refs = Array.from(this.iterateArchetypeFields(atypes, (c,f) => f.dtype == 'ref'));
-        // TODO: better error message
-        if (refs.length == 0) throw new ECSError(`cannot find join fields`, action.query);
-        if (refs.length > 1) throw new ECSError(`cannot join multiple fields`, action.query);
-        // TODO: check to make sure join works
-        return refs[0]; // TODO
-        /* TODO
-        let match = refs.map(ref => this.em.archetypesMatching((ref.f as RefType).query));
-        for (let ref of refs) {
-            let m = this.em.archetypesMatching((ref.f as RefType).query);
-            for (let a of m) {
-                if (jtypes.includes(a.etype)) {
-                    console.log(a,m);
-                }
-            }
-        }
-        */
     }
     buildSegments() {
         // build FieldArray for each component/field pair
@@ -490,9 +647,9 @@ export class EntityScope implements SourceLocated {
         }
     }
     allocateSegment(segment: DataSegment, readonly: boolean) {
-        let fields : FieldArray[] = Object.values(segment.fieldranges);
+        let fields: FieldArray[] = Object.values(segment.fieldranges);
         // TODO: fields.sort((a, b) => (a.ehi - a.elo + 1) * getPackedFieldSize(a.field));
-        let f : FieldArray | undefined;
+        let f: FieldArray | undefined;
         while (f = fields.pop()) {
             let rangelen = (f.ehi - f.elo + 1);
             let alloc = !readonly;
@@ -552,7 +709,7 @@ export class EntityScope implements SourceLocated {
                     // more than 1 entity, add an array
                     if (range.ehi > range.elo) {
                         if (!range.access) throw new ECSError(`no access for field ${cfname}`)
-                        let base = segment.allocateBytes(range.access[0].symbol, range.ehi-range.elo+1);
+                        let base = segment.allocateBytes(range.access[0].symbol, range.ehi - range.elo + 1);
                         for (let a of range.access) {
                             let ofs = segment.getByteOffset(range, a, e.id);
                             segment.initdata[ofs] = v;
@@ -581,7 +738,7 @@ export class EntityScope implements SourceLocated {
                 if (typeof initvalue === 'number') {
                     for (let a of range.access) {
                         let offset = segment.getByteOffset(range, a, e.id);
-                        initbytes[offset] = (initvalue >> a.bit) & ((1 << a.width)-1);
+                        initbytes[offset] = (initvalue >> a.bit) & ((1 << a.width) - 1);
                     }
                 } else if (initvalue instanceof Uint8Array) {
                     // TODO???
@@ -606,14 +763,14 @@ export class EntityScope implements SourceLocated {
         return code;
     }
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        let c = this.em.singleComponentWithFieldName([{etype: e.etype, cmatch:[component]}], fieldName, "setConstValue");
+        let c = this.em.singleComponentWithFieldName([{ etype: e.etype, cmatch: [component] }], fieldName, "setConstValue");
         e.consts[mksymbol(component, fieldName)] = value;
         if (this.em.symbols[mksymbol(component, fieldName)] == 'init')
             throw new ECSError(`Can't mix const and init values for a component field`, e);
         this.em.symbols[mksymbol(component, fieldName)] = 'const';
     }
     setInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        let c = this.em.singleComponentWithFieldName([{etype: e.etype, cmatch:[component]}], fieldName, "setInitValue");
+        let c = this.em.singleComponentWithFieldName([{ etype: e.etype, cmatch: [component] }], fieldName, "setInitValue");
         e.inits[mkscopesymbol(this, component, fieldName)] = value;
         if (this.em.symbols[mksymbol(component, fieldName)] == 'const')
             throw new ECSError(`Can't mix const and init values for a component field`, e);
@@ -649,9 +806,9 @@ export class EntityScope implements SourceLocated {
                         }
                     }
                     // TODO: use Tokenizer so error msgs are better
-                    let code = this.replaceCode(action.text, sys, action);
-                    s += this.dialect.comment(`<action ${sys.name}:${event}>`);
-                    s += code;
+                    let codeeval = new ActionEval(this, sys, action);
+                    s += this.dialect.comment(`<action ${sys.name}:${event}>`); // TODO
+                    s += codeeval.codeToString();
                     s += this.dialect.comment(`</action ${sys.name}:${event}>`);
                     // TODO: check that this happens once?
                 }
@@ -666,150 +823,9 @@ export class EntityScope implements SourceLocated {
         this.maxTempBytes = Math.max(this.tempSize, this.maxTempBytes);
         if (n < 0) this.tempOffset = this.tempSize;
     }
-    replaceCode(code: string, sys: System, action: Action): string {
-        const tag_re = /\{\{(.+?)\}\}/g;
-        const label_re = /@(\w+)\b/g;
-        
-        let label = `${sys.name}__${action.event}`; // TODO: better label that won't conflict (seq?)
-        let atypes = this.em.archetypesMatching(action.query);
-        let entities = this.entitiesMatching(atypes);
-        // TODO: detect cycles
-        // TODO: "source"?
-        // TODO: what if only 1 item?
-        let props : {[name: string] : string} = {};
-        if (action.select == 'foreach') {
-            code = this.wrapCodeInLoop(code, action, entities);
-        }
-        if (action.select == 'join' && action.join) {
-            let jtypes = this.em.archetypesMatching(action.join);
-            let jentities = this.entitiesMatching(jtypes);
-            if (jentities.length == 0)
-                throw new ECSError(`join query for ${label} doesn't match any entities`, action.join); // TODO 
-            let joinfield = this.getJoinField(action, atypes, jtypes);
-            // TODO: what if only 1 item?
-            // TODO: should be able to access fields via Y reg
-            code = this.wrapCodeInLoop(code, action, entities, joinfield);
-            atypes = jtypes;
-            entities = jentities;
-            props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0);
-        }
-        props['%efullcount'] = entities.length.toString();
-        if (action.limit) {
-            entities = entities.slice(0, action.limit);
-        }
-        if (entities.length == 0)
-            throw new ECSError(`query for ${label} doesn't match any entities`, action.query); // TODO 
-        // define properties
-        props['%elo'] = entities[0].id.toString();
-        props['%ehi'] = entities[entities.length - 1].id.toString();
-        props['%ecount'] = entities.length.toString();
-        // replace @labels
-        code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
-        // replace {{...}} tags
-        code = code.replace(tag_re, (entire, group: string) => {
-            let cmd = group.charAt(0);
-            let rest = group.substring(1);
-            switch (cmd) {
-                case '!': // emit event
-                    return this.generateCodeForEvent(rest);
-                case '.': // auto label
-                case '@': // auto label
-                    return `${label}_${rest}`;
-                case '$': // temp byte (TODO: check to make sure not overflowing)
-                    let tempinc = parseInt(rest);
-                    if (isNaN(tempinc)) throw new ECSError(`bad temporary offset`, action);
-                    if (!sys.tempbytes) throw new ECSError(`this system has no locals`, action);
-                    if (tempinc < 0 || tempinc >= sys.tempbytes) throw new ECSError(`this system only has ${sys.tempbytes} locals`, action);
-                    return `TEMP+${this.tempOffset}+${tempinc}`;
-                case '=':
-                    // TODO?
-                case '<': // low byte
-                    return this.generateCodeForField(sys, action, atypes, entities, rest, 0);
-                case '>': // high byte
-                    return this.generateCodeForField(sys, action, atypes, entities, rest, 8);
-                case '(': // higher byte (TODO)
-                    return this.generateCodeForField(sys, action, atypes, entities, rest, 16);
-                case ')': // higher byte (TODO)
-                    return this.generateCodeForField(sys, action, atypes, entities, rest, 24);
-                case '^': // resource reference
-                    return this.includeResource(rest);
-                default:
-                    let value = props[group];
-                    if (value) return value;
-                    else throw new ECSError(`unrecognized command {{${group}}} in ${entire}`);
-            }
-        });
-        return code;
-    }
     includeResource(symbol: string): string {
         this.resources.add(symbol);
         return symbol;
-    }
-    wrapCodeInLoop(code: string, action: Action, ents: Entity[], joinfield?: ComponentFieldPair): string {
-        // TODO: check ents
-        // TODO: check segment bounds
-        // TODO: what if 0 or 1 entitites?
-        let s = this.dialect.ASM_ITERATE_EACH;
-        if (joinfield) s = this.dialect.ASM_ITERATE_JOIN;
-        s = s.replace('{{%code}}', code);
-        return s;
-    }
-    generateCodeForField(sys: System, action: Action,
-        atypes: ArchetypeMatch[], entities: Entity[],
-        fieldName: string, bitofs: number): string {
-        
-        var component : ComponentType;
-        var qualified = false;
-        // is qualified field?
-        if (fieldName.indexOf(':') > 0) {
-            let [cname,fname] = fieldName.split(':');
-            component = this.em.getComponentByName(cname);
-            fieldName = fname;
-            qualified = true;
-            if (component == null) throw new ECSError(`no component named "${cname}"`)
-        } else {
-            component = this.em.singleComponentWithFieldName(atypes, fieldName, `${sys.name}:${action.event}`);
-        }
-        // find archetypes
-        let field = component.fields.find(f => f.name == fieldName);
-        if (field == null) throw new ECSError(`no field named "${fieldName}" in component`)
-        // see if all entities have the same constant value
-        let constValues = new Set<DataValue>();
-        for (let e of entities) {
-            let constVal = e.consts[mksymbol(component, fieldName)];
-            constValues.add(constVal); // constVal === undefined is allowed
-        }
-        // is it a constant?
-        if (constValues.size == 1) {
-            let value = constValues.values().next().value as DataValue;
-            // TODO: what about symbols?
-            // TODO: use dialect
-            if (typeof value === 'number') {
-                return `#${(value >> bitofs) & 0xff}`;
-            }
-        }
-        // TODO: offset > 0?
-        // TODO: don't mix const and init data
-        let range = this.bss.getFieldRange(component, fieldName) || this.rodata.getFieldRange(component, fieldName);
-        if (!range) throw new ECSError(`couldn't find field for ${component.name}:${fieldName}, maybe no entities?`); // TODO
-        let eidofs = range.elo - entities[0].id;
-        // TODO: dialect
-        let ident = this.dialect.fieldsymbol(component, field, bitofs);
-        if (qualified) {
-            return this.dialect.absolute(ident);
-        } else if (action.select == 'once') {
-            if (entities.length != 1)
-                throw new ECSError(`can't choose multiple entities for ${fieldName} with select=once`);
-            return this.dialect.absolute(ident);
-        } else {
-            // TODO: right direction?
-            if (eidofs > 0) {
-                ident += '+' + eidofs;
-            } else if (eidofs < 0) {
-                ident += '' + eidofs;
-            }
-            return this.dialect.indexed_x(ident);
-        }
     }
     analyzeEntities() {
         this.buildSegments();
@@ -847,9 +863,9 @@ export class EntityManager {
     components: { [name: string]: ComponentType } = {};
     systems: { [name: string]: System } = {};
     scopes: { [name: string]: EntityScope } = {};
-    symbols: { [name: string] : 'init' | 'const' } = {};
+    symbols: { [name: string]: 'init' | 'const' } = {};
     event2systems: { [name: string]: System[] } = {};
-    name2cfpairs: { [name: string]: ComponentFieldPair[]} = {};
+    name2cfpairs: { [name: string]: ComponentFieldPair[] } = {};
 
     constructor(public readonly dialect: Dialect_CA65) {
     }
@@ -864,7 +880,7 @@ export class EntityManager {
         for (let field of ctype.fields) {
             let list = this.name2cfpairs[field.name];
             if (!list) list = this.name2cfpairs[field.name] = [];
-            list.push({c: ctype, f: field});
+            list.push({ c: ctype, f: field });
         }
         return this.components[ctype.name] = ctype;
     }
@@ -878,7 +894,7 @@ export class EntityManager {
         }
         return this.systems[system.name] = system;
     }
-    addArchetype(atype: EntityArchetype) : EntityArchetype {
+    addArchetype(atype: EntityArchetype): EntityArchetype {
         let key = atype.components.map(c => c.name).join(',');
         if (this.archetypes[key])
             return this.archetypes[key];
