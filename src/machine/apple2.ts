@@ -339,13 +339,32 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
     } else if (flags & KeyFlags.KeyDown) {
       code = 0;
       switch (key) {
-        case 8:  code=8; break; // left
+        case 8:
+          code=8; // left
+          if (flags & KeyFlags.Ctrl) {
+            // (possibly) soft reset
+            this.cpu.reset();
+            return;
+          }
+          break;
         case 13: code=13; break; // return
         case 27: code=27; break; // escape
         case 37: code=8; break; // left
         case 39: code=21; break; // right
         case 38: code=11; break; // up
         case 40: code=10; break; // down
+        default:
+          if (flags & KeyFlags.Ctrl) {
+            code = key;
+            if (code >= 0x61 && code <= 0x7a)
+              code -= 32;
+            if (key >= 65 && code < 65+26) {
+                code -= 64; // ctrl
+            }
+            else {
+              code = 0;
+            }
+          }
       }
       if (code)
         this.kbdlatch = (code | 0x80) & 0xff;
