@@ -35,7 +35,9 @@ should references be zero-indexed to a field, or global?
 should we limit # of entities passed to systems? min-max
 join thru a reference? load both x and y
 
-
+code fragments can be parameterized like macros
+if two fragments are identical, do a JSR
+(do we have to look for labels?)
 
 */
 
@@ -233,11 +235,11 @@ export class SourceFileExport {
     comment(text: string) {
         this.lines.push(';' + text);
     }
-    segment(seg: string, segtype: 'rodata' | 'bss') {
+    segment(seg: string, segtype: 'rodata' | 'bss' | 'code') {
         if (segtype == 'bss') {
             this.lines.push(`.zeropage`); // TODO
         } else {
-            this.lines.push(`.code`); // TODO
+            this.lines.push(`.code`);
         }
     }
     label(sym: string) {
@@ -270,17 +272,26 @@ export class SourceFileExport {
     }
 }
 
-class Segment {
-    symbols: { [sym: string]: number } = {};
-    ofs2sym = new Map<number, string[]>();
-    fieldranges: { [cfname: string]: FieldArray } = {};
-    size: number = 0;
-    initdata: (number | ConstByte | undefined)[] = [];
+class CodeSegment {
     codefrags: string[] = [];
 
     addCodeFragment(code: string) {
         this.codefrags.push(code);
     }
+    dump(file: SourceFileExport) {
+        for (let code of this.codefrags) {
+            file.text(code);
+        }
+    }
+}
+
+class DataSegment {
+    symbols: { [sym: string]: number } = {};
+    ofs2sym = new Map<number, string[]>();
+    fieldranges: { [cfname: string]: FieldArray } = {};
+    size: number = 0;
+    initdata: (number | ConstByte | undefined)[] = [];
+
     allocateBytes(name: string, bytes: number) {
         let ofs = this.symbols[name];
         if (ofs == null) {
@@ -301,9 +312,6 @@ class Segment {
         }
     }
     dump(file: SourceFileExport) {
-        for (let code of this.codefrags) {
-            file.text(code);
-        }
         for (let i = 0; i < this.size; i++) {
             let syms = this.ofs2sym.get(i);
             if (syms) {
@@ -376,9 +384,9 @@ export class EntityScope implements SourceLocated {
     $loc: SourceLocation;
     childScopes: EntityScope[] = [];
     entities: Entity[] = [];
-    bss = new Segment();
-    rodata = new Segment();
-    code = new Segment();
+    bss = new DataSegment();
+    rodata = new DataSegment();
+    code = new CodeSegment();
     componentsInScope = new Set();
     tempOffset = 0;
     tempSize = 0;
@@ -481,7 +489,7 @@ export class EntityScope implements SourceLocated {
             //console.log(i,array,cfname);
         }
     }
-    allocateSegment(segment: Segment, readonly: boolean) {
+    allocateSegment(segment: DataSegment, readonly: boolean) {
         let fields : FieldArray[] = Object.values(segment.fieldranges);
         // TODO: fields.sort((a, b) => (a.ehi - a.elo + 1) * getPackedFieldSize(a.field));
         let f : FieldArray | undefined;
@@ -506,7 +514,7 @@ export class EntityScope implements SourceLocated {
             f.access = access;
         }
     }
-    allocateROData(segment: Segment) {
+    allocateROData(segment: DataSegment) {
         let iter = this.iterateEntityFields(this.entities);
         for (var o = iter.next(); o.value; o = iter.next()) {
             let { i, e, c, f, v } = o.value;
@@ -558,7 +566,7 @@ export class EntityScope implements SourceLocated {
         }
         //console.log(segment.initdata)
     }
-    allocateInitData(segment: Segment) {
+    allocateInitData(segment: DataSegment) {
         if (segment.size == 0) return ''; // TODO: warning for no init data?
         let initbytes = new Uint8Array(segment.size);
         let iter = this.iterateEntityFields(this.entities);
@@ -826,8 +834,9 @@ export class EntityScope implements SourceLocated {
         file.segment(`${this.name}_DATA`, 'bss');
         if (this.maxTempBytes) this.bss.allocateBytes('TEMP', this.maxTempBytes);
         this.bss.dump(file);
-        file.segment(`${this.name}_CODE`, 'rodata');
+        file.segment(`${this.name}_RODATA`, 'rodata');
         this.rodata.dump(file);
+        //file.segment(`${this.name}_CODE`, 'code');
         this.code.dump(file);
         file.text(this.dialect.FOOTER); // TODO
     }
