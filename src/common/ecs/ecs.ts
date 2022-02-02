@@ -1,4 +1,5 @@
 /*
+
 entity scopes contain entities, and are nested
 also contain segments (code, bss, rodata)
 components and systems are global
@@ -46,6 +47,12 @@ https://www.cpcwiki.eu/forum/programming/trying-not-to-use-ix/msg133416/#msg1334
 how to select two between two entities with once? like scoreboard
 maybe stack-based interpreter?
 
+can you query specific entities? merge with existing queries?
+bigints?
+source/if query?
+
+crazy idea -- full expansion, then relooper
+
 */
 
 
@@ -92,10 +99,10 @@ export interface ComponentType extends SourceLocated {
 }
 
 export interface Query extends SourceLocated {
-    include: string[]; // TODO: make ComponentType
-    listen?: string[];
-    exclude?: string[];
-    updates?: string[];
+    include: ComponentType[]; // TODO: make ComponentType
+    listen?: ComponentType[];
+    exclude?: ComponentType[];
+    updates?: ComponentType[];
 }
 
 export interface System extends SourceLocated {
@@ -191,6 +198,29 @@ export class Dialect_CA65 {
 @__exit:
 `;
 
+// TODO: lo/hi side of range?
+    readonly ASM_FILTER_RANGE_X = `
+    cpx #{{%xofs}}
+    bcc @__skip
+    cpx #{{%xofs}}+{{%ecount}}
+    bcs @__skip
+    {{%code}}
+@__skip:
+`
+
+// TODO
+    readonly ASM_MAP_RANGES = `
+    txa
+    pha
+    lda {{%mapping}},x
+    bmi @__mapskip
+    tax
+    {{%code}}
+@__mapskip:
+    pla
+    tax
+`;
+
     readonly INIT_FROM_ARRAY = `
     ldy #{{%nbytes}}
 :   lda {{%src}}-1,y
@@ -218,8 +248,16 @@ Start:
     absolute(ident: string) {
         return ident;
     }
-    indexed_x(ident: string) {
-        return ident + ',x';
+    addOffset(ident: string, offset: number) {
+        if (offset > 0) return `${ident}+${offset}`;
+        if (offset < 0) return `${ident}-${-offset}`;
+        return ident;
+    }
+    indexed_x(ident: string, offset: number) {
+        return this.addOffset(ident, offset) + ',x';
+    }
+    indexed_y(ident: string, offset: number) {
+        return this.addOffset(ident, offset) + ',y';
     }
     fieldsymbol(component: ComponentType, field: DataField, bitofs: number) {
         return `${component.name}_${field.name}_b${bitofs}`;
@@ -387,19 +425,92 @@ function getPackedFieldSize(f: DataType, constValue?: DataValue): number {
     return 0;
 }
 
+class QueryResult {
+    atypes: ArchetypeMatch[];
+    entities: Entity[];
+    scope;
+
+    constructor(scope: EntityScope, query?: Query, a?: ArchetypeMatch[], e?: Entity[]) {
+        this.scope = scope;
+        if (query) {
+            this.atypes = scope.em.archetypesMatching(query);
+            this.entities = scope.entitiesMatching(this.atypes);
+        } else if (a && e) {
+            this.atypes = a;
+            this.entities = e;
+        }
+    }
+    contains(c: ComponentType, f: DataField, where: SourceLocated) {
+        // TODO: action for error msg
+        return this.scope.em.singleComponentWithFieldName(this.atypes, f.name, where);
+    }
+    intersection(qr: QueryResult) {
+        let ents = this.entities.filter(e => qr.entities.includes(e));
+        let atypes = this.atypes.filter(a1 => qr.atypes.find(a2 => a2.etype == a1.etype));
+        return new QueryResult(this.scope, undefined, atypes, ents);
+    }
+    isContiguous() {
+        if (this.entities.length == 0) return true;
+        let id = this.entities[0].id;
+        for (let i=1; i<this.entities.length; i++) {
+            if (this.entities[i].id != ++id) return false;
+        }
+        return true;
+    }
+}
+
+class ActionState {
+    x: QueryResult | null = null;
+    y: QueryResult | null = null;
+    xofs: number = 0;
+    yofs: number = 0;
+}
+
 class ActionEval {
     em;
     dialect;
-    atypes;
-    entities;
+    qr : QueryResult;
+    jr : QueryResult | undefined;
+    oldState;
+
     constructor(
         readonly scope: EntityScope,
         readonly sys: System,
         readonly action: Action) {
         this.em = scope.em;
         this.dialect = scope.em.dialect;
-        this.atypes = this.em.archetypesMatching(action.query);
-        this.entities = this.scope.entitiesMatching(this.atypes);
+        this.qr = new QueryResult(scope, action.query);
+        this.oldState = scope.state;
+    }
+    begin() {
+        let state = this.scope.state = Object.assign({}, this.scope.state);
+        // TODO: generalize to other cpus/langs
+        switch (this.action.select) {
+            case 'foreach':
+                if (state.x && state.y) throw new ECSError('no more index registers', this.action);
+                if (state.x) state.y = this.qr;
+                else state.x = this.qr;
+                break;
+            case 'join':
+                if (state.x || state.y) throw new ECSError('no free index registers for join', this.action);
+                state.y = this.qr;
+                if (this.action.join) {
+                    this.jr = new QueryResult(this.scope, this.action.join);
+                    state.x = this.jr;
+                }
+                break;
+            case 'source':
+                if (!state.x) throw new ECSError('expected index register', this.action);
+                let int = state.x.intersection(this.qr);
+                if (int.entities.length == 0) throw new ECSError('queries do not intersect', this.action);
+                let indofs = int.entities[0].id - state.x.entities[0].id;
+                state.xofs += indofs;
+                state.x = int;
+                break;
+        }
+    }
+    end() {
+        this.scope.state = this.oldState;
     }
     codeToString(): string {
         const tag_re = /\{\{(.+?)\}\}/g;
@@ -414,31 +525,37 @@ class ActionEval {
         // TODO: what if only 1 item?
         let props: { [name: string]: string } = {};
         if (action.select == 'foreach') {
-            code = this.wrapCodeInLoop(code, action, this.entities);
+            code = this.wrapCodeInLoop(code, action, this.qr.entities);
         }
-        if (action.select == 'join' && action.join) {
-            let jtypes = this.em.archetypesMatching(action.join);
-            let jentities = this.scope.entitiesMatching(jtypes);
+        if (action.select == 'join' && this.jr) {
+            let jentities = this.jr.entities;
             if (jentities.length == 0)
                 throw new ECSError(`join query for ${label} doesn't match any entities`, action.join); // TODO 
-            let joinfield = this.getJoinField(action, this.atypes, jtypes);
+            let joinfield = this.getJoinField(action, this.qr.atypes, this.jr.atypes);
             // TODO: what if only 1 item?
             // TODO: should be able to access fields via Y reg
-            code = this.wrapCodeInLoop(code, action, this.entities, joinfield);
-            this.atypes = jtypes;
-            this.entities = jentities;
-            props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0);
+            code = this.wrapCodeInLoop(code, action, this.qr.entities, joinfield);
+            props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0); //TODO?
+            this.qr = this.jr; // TODO?
         }
-        props['%efullcount'] = this.entities.length.toString();
+        if (action.select == 'source') {
+            // TODO: what if not needed
+            code = this.wrapCodeInFilter(code);
+        }
+        let entities = this.qr.entities;
+        props['%efullcount'] = entities.length.toString();
         if (action.limit) {
-            this.entities = this.entities.slice(0, action.limit);
+            entities = entities.slice(0, action.limit);
         }
-        if (this.entities.length == 0)
+        if (entities.length == 0)
             throw new ECSError(`query for ${label} doesn't match any entities`, action.query); // TODO 
         // define properties
-        props['%elo'] = this.entities[0].id.toString();
-        props['%ehi'] = this.entities[this.entities.length - 1].id.toString();
-        props['%ecount'] = this.entities.length.toString();
+        props['%elo'] = entities[0].id.toString();
+        props['%ehi'] = entities[entities.length - 1].id.toString();
+        props['%ecount'] = entities.length.toString();
+        props['%xofs'] = this.scope.state.xofs.toString();
+        props['%yofs'] = this.scope.state.yofs.toString();
+        this.qr.entities = entities;
         // replace @labels
         code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
         // replace {{...}} tags
@@ -466,7 +583,7 @@ class ActionEval {
     __byte(args: string[]) {
         let fieldName = args[0];
         let bitofs = parseInt(args[1] || '0');
-        return this.generateCodeForField(this.sys, this.action, this.atypes, this.entities, fieldName, bitofs);
+        return this.generateCodeForField(this.sys, this.action, this.qr, fieldName, bitofs);
     }
     __use(args: string[]) {
         return this.scope.includeResource(args[0]);
@@ -490,8 +607,13 @@ class ActionEval {
         s = s.replace('{{%code}}', code);
         return s;
     }
-    generateCodeForField(sys: System, action: Action,
-        atypes: ArchetypeMatch[], entities: Entity[],
+    wrapCodeInFilter(code: string) {
+        // TODO: what if not needed?
+        let s = this.dialect.ASM_FILTER_RANGE_X;
+        s = s.replace('{{%code}}', code);
+        return s;
+    }
+    generateCodeForField(sys: System, action: Action, qr: QueryResult,
         fieldName: string, bitofs: number): string {
 
         var component: ComponentType;
@@ -504,14 +626,15 @@ class ActionEval {
             qualified = true;
             if (component == null) throw new ECSError(`no component named "${cname}"`)
         } else {
-            component = this.em.singleComponentWithFieldName(atypes, fieldName, `${sys.name}:${action.event}`);
+            component = this.em.singleComponentWithFieldName(qr.atypes, fieldName, action);
         }
         // find archetypes
         let field = component.fields.find(f => f.name == fieldName);
         if (field == null) throw new ECSError(`no field named "${fieldName}" in component`)
         // see if all entities have the same constant value
+        // TODO: should be done somewhere else?
         let constValues = new Set<DataValue>();
-        for (let e of entities) {
+        for (let e of qr.entities) {
             let constVal = e.consts[mksymbol(component, fieldName)];
             constValues.add(constVal); // constVal === undefined is allowed
         }
@@ -528,23 +651,34 @@ class ActionEval {
         // TODO: don't mix const and init data
         let range = this.scope.bss.getFieldRange(component, fieldName) || this.scope.rodata.getFieldRange(component, fieldName);
         if (!range) throw new ECSError(`couldn't find field for ${component.name}:${fieldName}, maybe no entities?`); // TODO
-        let eidofs = range.elo - entities[0].id;
+        let eidofs = range.elo - qr.entities[0].id; // TODO
         // TODO: dialect
         let ident = this.dialect.fieldsymbol(component, field, bitofs);
         if (qualified) {
             return this.dialect.absolute(ident);
         } else if (action.select == 'once') {
-            if (entities.length != 1)
+            if (qr.entities.length != 1)
                 throw new ECSError(`can't choose multiple entities for ${fieldName} with select=once`, action);
             return this.dialect.absolute(ident);
         } else {
-            // TODO: right direction?
-            if (eidofs > 0) {
-                ident += '+' + eidofs;
-            } else if (eidofs < 0) {
-                ident += '' + eidofs;
+            // TODO: eidofs?
+            let ir;
+            if (this.scope.state.x?.intersection(this.qr)) {
+                ir = this.scope.state.x;
+                eidofs -= this.scope.state.xofs;
             }
-            return this.dialect.indexed_x(ident);
+            else if (this.scope.state.y?.intersection(this.qr)) {
+                ir = this.scope.state.y;
+                eidofs -= this.scope.state.yofs;
+            }
+            if (!ir) throw new ECSError(`no intersection for index register`, action);
+            if (ir.entities.length == 0) throw new ECSError(`no common entities for index register`, action);
+            if (!ir.isContiguous()) throw new ECSError(`entities in query are not contiguous`, action);
+            if (ir == this.scope.state.x)
+                return this.dialect.indexed_x(ident, eidofs);
+            if (ir == this.scope.state.y)
+                return this.dialect.indexed_y(ident, eidofs);
+            throw new ECSError(`cannot find "${component.name}:${field.name}" in state`, action);
         }
     }
     getJoinField(action: Action, atypes: ArchetypeMatch[], jtypes: ArchetypeMatch[]): ComponentFieldPair {
@@ -580,6 +714,7 @@ export class EntityScope implements SourceLocated {
     tempSize = 0;
     maxTempBytes = 0;
     resources = new Set<string>();
+    state = new ActionState();
 
     constructor(
         public readonly em: EntityManager,
@@ -719,12 +854,12 @@ export class EntityScope implements SourceLocated {
                     // TODO: } else if (v instanceof Uint16Array) {
                 } else if (typeof v === 'number') {
                     // more than 1 entity, add an array
-                    if (range.ehi > range.elo) {
+                    if (entcount > 1) {
                         if (!range.access) throw new ECSError(`no access for field ${cfname}`)
-                        let base = segment.allocateBytes(range.access[0].symbol, range.ehi - range.elo + 1);
                         for (let a of range.access) {
+                            segment.allocateBytes(a.symbol, entcount);
                             let ofs = segment.getByteOffset(range, a, e.id);
-                            segment.initdata[ofs] = v;
+                            segment.initdata[ofs] = (v >> a.bit) & 0xff;
                         }
                     }
                     // TODO: what if mix of var, const, and init values?
@@ -775,14 +910,14 @@ export class EntityScope implements SourceLocated {
         return code;
     }
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        let c = this.em.singleComponentWithFieldName([{ etype: e.etype, cmatch: [component] }], fieldName, "setConstValue");
+        let c = this.em.singleComponentWithFieldName([{ etype: e.etype, cmatch: [component] }], fieldName, e);
         e.consts[mksymbol(component, fieldName)] = value;
         if (this.em.symbols[mksymbol(component, fieldName)] == 'init')
             throw new ECSError(`Can't mix const and init values for a component field`, e);
         this.em.symbols[mksymbol(component, fieldName)] = 'const';
     }
     setInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        let c = this.em.singleComponentWithFieldName([{ etype: e.etype, cmatch: [component] }], fieldName, "setInitValue");
+        let c = this.em.singleComponentWithFieldName([{ etype: e.etype, cmatch: [component] }], fieldName, e);
         e.inits[mkscopesymbol(this, component, fieldName)] = value;
         if (this.em.symbols[mksymbol(component, fieldName)] == 'const')
             throw new ECSError(`Can't mix const and init values for a component field`, e);
@@ -819,10 +954,12 @@ export class EntityScope implements SourceLocated {
                     }
                     // TODO: use Tokenizer so error msgs are better
                     let codeeval = new ActionEval(this, sys, action);
+                    codeeval.begin();
                     s += this.dialect.comment(`<action ${sys.name}:${event}>`); // TODO
                     s += codeeval.codeToString();
                     s += this.dialect.comment(`</action ${sys.name}:${event}>`);
                     // TODO: check that this happens once?
+                    codeeval.end();
                 }
             }
             if (sys.tempbytes) this.allocateTempBytes(-sys.tempbytes);
@@ -916,12 +1053,11 @@ export class EntityManager {
     componentsMatching(q: Query, etype: EntityArchetype) {
         let list = [];
         for (let c of etype.components) {
-            let cname = c.name;
-            if (q.exclude?.includes(cname)) {
+            if (q.exclude?.includes(c)) {
                 return [];
             }
             // TODO: 0 includes == all entities?
-            if (q.include.length == 0 || q.include.includes(cname)) {
+            if (q.include.length == 0 || q.include.includes(c)) {
                 list.push(c);
             }
         }
@@ -953,14 +1089,14 @@ export class EntityManager {
     getComponentByName(name: string): ComponentType {
         return this.components[name];
     }
-    singleComponentWithFieldName(atypes: ArchetypeMatch[], fieldName: string, where: string) {
+    singleComponentWithFieldName(atypes: ArchetypeMatch[], fieldName: string, where: SourceLocated) {
         let components = this.componentsWithFieldName(atypes, fieldName);
         // TODO: use name2cfpairs?
         if (components.length == 0) {
-            throw new ECSError(`cannot find component with field "${fieldName}" in ${where}`);
+            throw new ECSError(`cannot find component with field "${fieldName}"`, where);
         }
         if (components.length > 1) {
-            throw new ECSError(`ambiguous field name "${fieldName}" in ${where}`);
+            throw new ECSError(`ambiguous field name "${fieldName}"`, where);
         }
         return components[0];
     }

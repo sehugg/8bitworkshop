@@ -169,16 +169,6 @@ function testECS() {
             //TODO: optional?
         ]
     })
-    let c_hasbitmap = em.defineComponent({
-        name: 'hasbitmap', fields: [
-            { name: 'bitmap', dtype: 'ref', query: { include: ['bitmap'] } },
-        ]
-    })
-    let c_hascolormap = em.defineComponent({
-        name: 'hascolormap', fields: [
-            { name: 'colormap', dtype: 'ref', query: { include: ['colormap'] } },
-        ]
-    })
     let c_bitmap = em.defineComponent({
         name: 'bitmap', fields: [
             { name: 'bitmapdata', dtype: 'array', elem: { dtype: 'int', lo: 0, hi: 255 } }
@@ -187,6 +177,16 @@ function testECS() {
     let c_colormap = em.defineComponent({
         name: 'colormap', fields: [
             { name: 'colormapdata', dtype: 'array', elem: { dtype: 'int', lo: 0, hi: 255 } }
+        ]
+    })
+    let c_hasbitmap = em.defineComponent({
+        name: 'hasbitmap', fields: [
+            { name: 'bitmap', dtype: 'ref', query: { include: [c_bitmap] } },
+        ]
+    })
+    let c_hascolormap = em.defineComponent({
+        name: 'hascolormap', fields: [
+            { name: 'colormap', dtype: 'ref', query: { include: [c_colormap] } },
         ]
     })
     let c_xpos = em.defineComponent({
@@ -211,18 +211,18 @@ function testECS() {
         actions: [
             {
                 text: TEMPLATE4_S1, event: 'preframe', select: 'once', query: {
-                    include: ['kernel']
+                    include: [c_kernel]
                 }
             },
             {
                 // TODO: should include kernel for numlines
                 text: TEMPLATE4_S2, event: 'preframe', select: 'once', query: {
-                    include: ['sprite', 'hasbitmap', 'hascolormap', 'ypos'],
+                    include: [c_sprite, c_hasbitmap, c_hascolormap, c_ypos],
                 },
             },
             {
                 text: TEMPLATE4_K, event: 'kernel', select: 'once', query: {
-                    include: ['kernel']
+                    include: [c_kernel]
                 }
             },
         ]
@@ -232,7 +232,7 @@ function testECS() {
         actions: [
             {
                 text: SET_XPOS, event: 'preframe', select: 'foreach', query: {
-                    include: ['sprite', 'xpos']
+                    include: [c_sprite, c_xpos]
                 },
             },
             //{ text:SETHORIZPOS },
@@ -242,14 +242,14 @@ function testECS() {
     em.defineSystem({
         name: 'frameloop',
         actions: [
-            { text: TEMPLATE1, event: 'start', select: 'once', query: { include: ['kernel'] },
+            { text: TEMPLATE1, event: 'start', select: 'once', query: { include: [c_kernel] },
                 emits: ['preframe', 'kernel', 'postframe'] }
         ]
     })
     em.defineSystem({
         name: 'SetHorizPos',
         actions: [
-            { text: SETHORIZPOS, event: 'SetHorizPos', select: 'once', query: { include: ['xpos'] } },
+            { text: SETHORIZPOS, event: 'SetHorizPos', select: 'once', query: { include: [c_xpos] } },
         ]
     });
 

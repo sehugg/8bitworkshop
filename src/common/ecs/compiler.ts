@@ -21,12 +21,12 @@ export class ECSCompiler extends Tokenizer {
         //this.includeEOL = true;
         this.setTokenRules([
             { type: ECSTokenType.Ellipsis, regex: /\.\./ },
-            { type: ECSTokenType.Operator, regex: /[#=,:(){}\[\]]/ },
             { type: ECSTokenType.QuotedString, regex: /".*?"/ },
             { type: ECSTokenType.CodeFragment, regex: /---.*?---/ },
             { type: ECSTokenType.Integer, regex: /[-]?0x[A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[-]?\$[A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[-]?\d+/ },
+            { type: ECSTokenType.Operator, regex: /[#=,:(){}\[\]\-]/ },
             { type: TokenType.Ident, regex: /[A-Za-z_][A-Za-z0-9_]*/ },
             { type: TokenType.Ignore, regex: /\/\/.*?[\n\r]/ },
             { type: TokenType.Ignore, regex: /\/\*.*?\*\// },
@@ -218,10 +218,16 @@ export class ECSCompiler extends Tokenizer {
     parseQuery() {
         let q: Query = { include: [] };
         let start = this.expectToken('[');
-        q.include = this.parseList(this.parseComponentRef, ',').map(c => c.name);
+        q.include = this.parseList(this.parseComponentRef, ',');
+        this.expectToken(']');
+        if (this.peekToken().str == '-') {
+            this.consumeToken();
+            this.expectToken('[');
+            q.exclude = this.parseList(this.parseComponentRef, ',');
+            this.expectToken(']');
+        }
         // TODO: other params
-        let end = this.expectToken(']');
-        q.$loc = mergeLocs(start.$loc, end.$loc);
+        q.$loc = mergeLocs(start.$loc, this.lasttoken.$loc);
         return q;
     }
 
