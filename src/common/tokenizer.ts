@@ -110,7 +110,8 @@ export class Tokenizer {
                 let s: string = m[i + 1];
                 if (s != null) {
                     found = true;
-                    let loc = { path: this.path, line: this.lineno, start: m.index, end: m.index + s.length };
+                    let col = m.index - (this.lineindex[this.lineno-1] || -1) - 1;
+                    let loc = { path: this.path, line: this.lineno, start: col, end: col + s.length };
                     let rule = rules[i];
                     // add token to list
                     switch (rule.type) {

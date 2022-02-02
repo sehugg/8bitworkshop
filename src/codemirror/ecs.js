@@ -17,7 +17,7 @@
     var keywords1, keywords2;
 
     var directives_list = [
-      'component', 'system', 'entity', 'scope', 'end',
+      'end', 'component', 'system', 'entity', 'scope', 'using',
       'const', 'init', 'locals',
       'on', 'do', 'emit', 'limit',
       'once', 'foreach', 'source', 'join'

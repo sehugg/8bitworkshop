@@ -255,7 +255,10 @@ export class ECSCompiler extends Tokenizer {
         let scope = this.em.newScope(name, this.currentScope || undefined);
         this.currentScope = scope;
         let cmd;
-        while ((cmd = this.expectTokens(['entity', 'comment', 'end']).str) != 'end') {
+        while ((cmd = this.expectTokens(['using', 'entity', 'comment', 'end']).str) != 'end') {
+            if (cmd == 'using') {
+                this.parseScopeUsing();
+            }
             if (cmd == 'entity') {
                 this.annotate(() => this.parseEntity());
             }
@@ -265,6 +268,13 @@ export class ECSCompiler extends Tokenizer {
         }
         this.currentScope = scope.parent || null;
         return scope;
+    }
+
+    parseScopeUsing() {
+        let syslist = this.parseList(this.parseSystemRef, ',');
+        for (let sys of syslist) {
+            this.currentScope?.systems.push(sys);
+        }
     }
 
     parseEntity() : Entity {
@@ -319,12 +329,15 @@ export class ECSCompiler extends Tokenizer {
         return eref;
     }
 
+    parseSystemRef() : System {
+        let name = this.expectIdent().str;
+        let sys = this.em.getSystemByName(name);
+        if (!sys) this.compileError(`I couldn't find a system named "${name}".`, this.lasttoken.$loc);
+        return sys;
+    }
+
     exportToFile(src: SourceFileExport) {
-        for (let scope of Object.values(this.em.scopes)) {
-            scope.analyzeEntities();
-            scope.generateCode();
-            scope.dump(src);
-        }
+        this.em.exportToFile(src);
     }
 
     export() {

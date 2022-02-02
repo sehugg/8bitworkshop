@@ -230,6 +230,7 @@ export class Dialect_CA65 {
 `
     readonly HEADER = `
 .include "vcs-ca65.h"
+.code
 `
     readonly FOOTER = `
 .segment "VECTORS"
@@ -237,7 +238,7 @@ VecNMI:    .word Start
 VecReset:  .word Start
 VecBRK:    .word Start
 `
-    readonly TEMPLATE_INIT = `
+    readonly TEMPLATE_INIT_MAIN = `
 Start:
     CLEAN_START
 `
@@ -502,6 +503,7 @@ class ActionEval {
             case 'source':
                 if (!state.x) throw new ECSError('expected index register', this.action);
                 let int = state.x.intersection(this.qr);
+                // TODO: what if we filter 0 entities?
                 if (int.entities.length == 0) throw new ECSError('queries do not intersect', this.action);
                 let indofs = int.entities[0].id - state.x.entities[0].id;
                 state.xofs += indofs;
@@ -705,6 +707,7 @@ class ActionEval {
 export class EntityScope implements SourceLocated {
     $loc: SourceLocation;
     childScopes: EntityScope[] = [];
+    systems: System[] = [];
     entities: Entity[] = [];
     bss = new DataSegment();
     rodata = new DataSegment();
@@ -909,6 +912,7 @@ export class EntityScope implements SourceLocated {
         code = code.replace('{{%dest}}', segment.getOriginSymbol());
         return code;
     }
+    // TODO: check type/range of value
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
         let c = this.em.singleComponentWithFieldName([{ etype: e.etype, cmatch: [component] }], fieldName, e);
         e.consts[mksymbol(component, fieldName)] = value;
@@ -935,6 +939,7 @@ export class EntityScope implements SourceLocated {
         let s = this.dialect.code();
         //s += `\n; event ${event}\n`;
         let emitcode: { [event: string]: string } = {};
+        systems = systems.filter(s => this.systems.includes(s));
         for (let sys of systems) {
             // TODO: does this work if multiple actions?
             // TODO: should 'emits' be on action?
@@ -984,7 +989,10 @@ export class EntityScope implements SourceLocated {
     }
     generateCode() {
         this.tempOffset = this.maxTempBytes = 0;
-        this.code.addCodeFragment(this.dialect.TEMPLATE_INIT);
+        // TODO: main scope?
+        if (this.name.toLowerCase() == 'main') {
+            this.code.addCodeFragment(this.dialect.TEMPLATE_INIT_MAIN);
+        }
         let initcode = this.allocateInitData(this.bss);
         this.code.addCodeFragment(initcode);
         let start = this.generateCodeForEvent('start');
@@ -995,7 +1003,6 @@ export class EntityScope implements SourceLocated {
         }
     }
     dump(file: SourceFileExport) {
-        file.text(this.dialect.HEADER); // TODO
         file.segment(`${this.name}_DATA`, 'bss');
         if (this.maxTempBytes) this.bss.allocateBytes('TEMP', this.maxTempBytes);
         this.bss.dump(file);
@@ -1003,7 +1010,6 @@ export class EntityScope implements SourceLocated {
         this.rodata.dump(file);
         //file.segment(`${this.name}_CODE`, 'code');
         this.code.dump(file);
-        file.text(this.dialect.FOOTER); // TODO
     }
 }
 
@@ -1013,8 +1019,8 @@ export class EntityManager {
     systems: { [name: string]: System } = {};
     scopes: { [name: string]: EntityScope } = {};
     symbols: { [name: string]: 'init' | 'const' } = {};
-    event2systems: { [name: string]: System[] } = {};
-    name2cfpairs: { [name: string]: ComponentFieldPair[] } = {};
+    event2systems: { [event: string]: System[] } = {};
+    name2cfpairs: { [cfname: string]: ComponentFieldPair[] } = {};
 
     constructor(public readonly dialect: Dialect_CA65) {
     }
@@ -1089,6 +1095,9 @@ export class EntityManager {
     getComponentByName(name: string): ComponentType {
         return this.components[name];
     }
+    getSystemByName(name: string): System {
+        return this.systems[name];
+    }
     singleComponentWithFieldName(atypes: ArchetypeMatch[], fieldName: string, where: SourceLocated) {
         let components = this.componentsWithFieldName(atypes, fieldName);
         // TODO: use name2cfpairs?
@@ -1105,5 +1114,14 @@ export class EntityManager {
             components: this.components,
             systems: this.systems
         })
+    }
+    exportToFile(file: SourceFileExport) {
+        file.text(this.dialect.HEADER); // TODO
+        for (let scope of Object.values(this.scopes)) {
+            scope.analyzeEntities();
+            scope.generateCode();
+            scope.dump(file);
+        }
+        file.text(this.dialect.FOOTER); // TODO
     }
 }
