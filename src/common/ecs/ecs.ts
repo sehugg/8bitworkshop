@@ -56,6 +56,7 @@ crazy idea -- full expansion, then relooper
 */
 
 
+import { throws } from "assert";
 import { SourceLocated, SourceLocation } from "../workertypes";
 
 export class ECSError extends Error {
@@ -230,16 +231,19 @@ export class Dialect_CA65 {
 `
     readonly HEADER = `
 .include "vcs-ca65.h"
+.define PAL 0
 .code
 `
     readonly FOOTER = `
 .segment "VECTORS"
-VecNMI:    .word Start
-VecReset:  .word Start
-VecBRK:    .word Start
+VecNMI:    .word Main::__NMI
+VecReset:  .word Main::__Reset
+VecBRK:    .word Main::__BRK
 `
     readonly TEMPLATE_INIT_MAIN = `
-Start:
+__NMI:
+__Reset:
+__BRK:
     CLEAN_START
 `
 
@@ -312,6 +316,14 @@ export class SourceFileExport {
     }
     debug_line(path: string, line: number) {
         this.lines.push(` .dbg line, "${path}", ${line}`);
+    }
+    startScope(name: string) {
+        this.lines.push(` .scope ${name}`)
+    }
+    endScope(name: string) {
+        this.lines.push(` .endscope`)
+        this.lines.push(`${name}__Start = ${name}::__Start`)
+        // TODO: scope__start = scope::start
     }
     toString() {
         return this.lines.join('\n');
@@ -1003,13 +1015,22 @@ export class EntityScope implements SourceLocated {
         }
     }
     dump(file: SourceFileExport) {
+        this.analyzeEntities();
+        this.generateCode();
+        file.startScope(this.name);
         file.segment(`${this.name}_DATA`, 'bss');
         if (this.maxTempBytes) this.bss.allocateBytes('TEMP', this.maxTempBytes);
         this.bss.dump(file);
         file.segment(`${this.name}_RODATA`, 'rodata');
         this.rodata.dump(file);
         //file.segment(`${this.name}_CODE`, 'code');
+        file.label('__Start');
         this.code.dump(file);
+        for (let subscope of this.childScopes) {
+            // TODO: overlay child BSS segments
+            subscope.dump(file);
+        }
+        file.endScope(this.name);
     }
 }
 
@@ -1017,7 +1038,7 @@ export class EntityManager {
     archetypes: { [key: string]: EntityArchetype } = {};
     components: { [name: string]: ComponentType } = {};
     systems: { [name: string]: System } = {};
-    scopes: { [name: string]: EntityScope } = {};
+    topScopes: { [name: string]: EntityScope } = {};
     symbols: { [name: string]: 'init' | 'const' } = {};
     event2systems: { [event: string]: System[] } = {};
     name2cfpairs: { [cfname: string]: ComponentFieldPair[] } = {};
@@ -1026,8 +1047,8 @@ export class EntityManager {
     }
     newScope(name: string, parent?: EntityScope) {
         let scope = new EntityScope(this, this.dialect, name, parent);
-        if (this.scopes[name]) throw new ECSError(`scope ${name} already defined`);
-        this.scopes[name] = scope;
+        if (this.topScopes[name]) throw new ECSError(`scope ${name} already defined`);
+        if (!parent) this.topScopes[name] = scope;
         return scope;
     }
     defineComponent(ctype: ComponentType) {
@@ -1117,9 +1138,7 @@ export class EntityManager {
     }
     exportToFile(file: SourceFileExport) {
         file.text(this.dialect.HEADER); // TODO
-        for (let scope of Object.values(this.scopes)) {
-            scope.analyzeEntities();
-            scope.generateCode();
+        for (let scope of Object.values(this.topScopes)) {
             scope.dump(file);
         }
         file.text(this.dialect.FOOTER); // TODO

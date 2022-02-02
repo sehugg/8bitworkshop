@@ -255,12 +255,15 @@ export class ECSCompiler extends Tokenizer {
         let scope = this.em.newScope(name, this.currentScope || undefined);
         this.currentScope = scope;
         let cmd;
-        while ((cmd = this.expectTokens(['using', 'entity', 'comment', 'end']).str) != 'end') {
+        while ((cmd = this.expectTokens(['using', 'entity', 'scope', 'comment', 'end']).str) != 'end') {
             if (cmd == 'using') {
                 this.parseScopeUsing();
             }
             if (cmd == 'entity') {
                 this.annotate(() => this.parseEntity());
+            }
+            if (cmd == 'scope') {
+                this.annotate(() => this.parseScope());
             }
             if (cmd == 'comment') {
                 this.expectTokenTypes([ECSTokenType.CodeFragment]);
