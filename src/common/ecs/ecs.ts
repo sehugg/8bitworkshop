@@ -267,8 +267,8 @@ __BRK:
     comment(s: string) {
         return `\n;;; ${s}\n`;
     }
-    absolute(ident: string) {
-        return ident;
+    absolute(ident: string, offset?: number) {
+        return this.addOffset(ident, offset || 0);
     }
     addOffset(ident: string, offset: number) {
         if (offset > 0) return `${ident}+${offset}`;
@@ -698,16 +698,26 @@ class ActionEval {
         const qr = this.jr || this.qr; // TODO: why not both!
 
         var component: ComponentType;
-        var qualified = false;
+        var baseLookup = false;
+        let entities: Entity[];
         // is qualified field?
-        if (fieldName.indexOf(':') > 0) {
+        if (fieldName.indexOf('.') > 0) {
+            let [entname, fname] = fieldName.split('.');
+            let ent = this.scope.getEntityByName(entname);
+            if (ent == null) throw new ECSError(`no entity named "${entname}" in this scope`, action);
+            component = this.em.singleComponentWithFieldName(this.qr.atypes, fname, action);
+            fieldName = fname;
+            entities = [ent];
+        } else if (fieldName.indexOf(':') > 0) {
             let [cname, fname] = fieldName.split(':');
             component = this.em.getComponentByName(cname);
-            fieldName = fname;
-            qualified = true;
             if (component == null) throw new ECSError(`no component named "${cname}"`, action)
+            entities = this.entities;
+            fieldName = fname;
+            baseLookup = true;
         } else {
             component = this.em.singleComponentWithFieldName(qr.atypes, fieldName, action);
+            entities = this.entities;
         }
         // find archetypes
         let field = component.fields.find(f => f.name == fieldName);
@@ -716,7 +726,7 @@ class ActionEval {
         // TODO: should be done somewhere else?
         let constValues = new Set<DataValue>();
         let isConst = false;
-        for (let e of this.entities) {
+        for (let e of entities) {
             let constVal = e.consts[mksymbol(component, fieldName)];
             if (constVal !== undefined) isConst = true;
             constValues.add(constVal); // constVal === undefined is allowed
@@ -739,10 +749,10 @@ class ActionEval {
         if (!range) throw new ECSError(`couldn't find field for ${component.name}:${fieldName}, maybe no entities?`); // TODO
         // TODO: dialect
         let ident = this.dialect.fieldsymbol(component, field, bitofs);
-        if (qualified) {
+        if (baseLookup) {
             return this.dialect.absolute(ident);
-        } else if (this.entities.length == 1) {
-            return this.dialect.absolute(ident);
+        } else if (entities.length == 1) {
+            return this.dialect.absolute(ident, entities[0].id - qr.entities[0].id);
         } else {
             let eidofs = range.elo - qr.entities[0].id; // TODO
             // TODO: eidofs?
@@ -829,6 +839,9 @@ export class EntityScope implements SourceLocated {
     }
     addAction(action: Action) {
         this.events.push(action);
+    }
+    getEntityByName(name: string) {
+        return this.entities.find(e => e.name == name);
     }
     *iterateEntityFields(entities: Entity[]) {
         for (let i = 0; i < entities.length; i++) {
