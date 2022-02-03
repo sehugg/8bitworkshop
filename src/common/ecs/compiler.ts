@@ -13,10 +13,11 @@ export enum ECSTokenType {
 
 export class ECSCompiler extends Tokenizer {
 
-    em = new EntityManager(new Dialect_CA65()); // TODO
     currentScope: EntityScope | null = null;
 
-    constructor() {
+    constructor(
+        public readonly em: EntityManager)
+    {
         super();
         //this.includeEOL = true;
         this.setTokenRules([
@@ -53,9 +54,17 @@ export class ECSCompiler extends Tokenizer {
         }
     }
 
+    getImportFile: (path: string) => string;
+
+    importFile(path: string) {
+        let text = this.getImportFile && this.getImportFile(path);
+        if (!text) this.compileError(`I can't find the import file "${path}".`);
+        new ECSCompiler(this.em).parseFile(path, text);
+    }
+
     parseTopLevel() {
         //this.skipBlankLines();
-        let tok = this.expectTokens(['component', 'system', 'scope', 'resource', 'comment']);
+        let tok = this.expectTokens(['component', 'system', 'scope', 'resource', 'import', 'demo', 'comment']);
         if (tok.str == 'component') {
             return this.em.defineComponent(this.parseComponentDefinition());
         }
@@ -67,6 +76,16 @@ export class ECSCompiler extends Tokenizer {
         }
         if (tok.str == 'resource') {
             return this.em.defineSystem(this.parseResource());
+        }
+        if (tok.str == 'import') {
+            let tok = this.expectTokenTypes([ECSTokenType.QuotedString]);
+            let path = tok.str.substring(1, tok.str.length-1);
+            return this.importFile(path);
+        }
+        if (tok.str == 'demo') {
+            let scope = this.parseScope();
+            scope.isDemo = true;
+            return scope;
         }
         if (tok.str == 'comment') {
             this.expectTokenTypes([ECSTokenType.CodeFragment]);
@@ -253,6 +272,7 @@ export class ECSCompiler extends Tokenizer {
     parseScope() : EntityScope {
         let name = this.expectIdent().str;
         let scope = this.em.newScope(name, this.currentScope || undefined);
+        scope.filePath = this.path;
         this.currentScope = scope;
         let cmd;
         while ((cmd = this.expectTokens(['using', 'entity', 'scope', 'comment', 'end']).str) != 'end') {

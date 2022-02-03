@@ -150,6 +150,7 @@ export class CodeProject {
       files.push(dir + '/' + fn);
   }
 
+  // TODO: use tool id to parse files, not platform
   parseIncludeDependencies(text:string):string[] {
     let files = [];
     let m;
@@ -199,12 +200,17 @@ export class CodeProject {
         this.pushAllFiles(files, m[2]);
       }
       // for wiz
-      let re5 = /^\s*(import|embed)\s+"(.+?)";/gmi;
+      let re5 = /^\s*(import|embed)\s*"(.+?)";/gmi;
       while (m = re5.exec(text)) {
         if (m[1] == 'import')
           this.pushAllFiles(files, m[2] + ".wiz");
         else
           this.pushAllFiles(files, m[2]);
+      }
+      // for ecs
+      let re6 = /^\s*(import)\s*"(.+?)"/gmi;
+      while (m = re6.exec(text)) {
+        this.pushAllFiles(files, m[2]);
       }
     }
     return files;

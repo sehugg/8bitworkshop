@@ -1,11 +1,15 @@
 import { ECSCompiler } from "../../common/ecs/compiler";
-import { ECSError } from "../../common/ecs/ecs";
+import { Dialect_CA65, ECSError, EntityManager } from "../../common/ecs/ecs";
 import { CompileError } from "../../common/tokenizer";
 import { CodeListingMap } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, getWorkFileAsString, putWorkFile, staleFiles } from "../workermain";
 
 export function assembleECS(step: BuildStep): BuildStepResult {
-    let compiler = new ECSCompiler();
+    let em = new EntityManager(new Dialect_CA65()); // TODO
+    let compiler = new ECSCompiler(em);
+    compiler.getImportFile = (path: string) => {
+        return getWorkFileAsString(path);
+    }
     gatherFiles(step, { mainFilePath: "main.ecs" });
     var destpath = step.prefix + '.ca65';
     if (staleFiles(step, [destpath])) {

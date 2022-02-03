@@ -290,7 +290,8 @@ function testECS() {
 }
 
 function testCompiler() {
-    let c = new ECSCompiler();
+    let em = new EntityManager(new Dialect_CA65()); // TODO
+    let c = new ECSCompiler(em);
     try {
         c.parseFile(`
         // comment

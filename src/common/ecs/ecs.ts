@@ -56,7 +56,6 @@ crazy idea -- full expansion, then relooper
 */
 
 
-import { throws } from "assert";
 import { SourceLocated, SourceLocation } from "../workertypes";
 
 export class ECSError extends Error {
@@ -730,6 +729,8 @@ export class EntityScope implements SourceLocated {
     maxTempBytes = 0;
     resources = new Set<string>();
     state = new ActionState();
+    isDemo = false;
+    filePath = '';
 
     constructor(
         public readonly em: EntityManager,
@@ -1139,7 +1140,10 @@ export class EntityManager {
     exportToFile(file: SourceFileExport) {
         file.text(this.dialect.HEADER); // TODO
         for (let scope of Object.values(this.topScopes)) {
-            scope.dump(file);
+            // TODO: demos
+            if (!scope.isDemo) {
+                scope.dump(file);
+            }
         }
         file.text(this.dialect.FOOTER); // TODO
     }

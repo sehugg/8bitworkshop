@@ -171,7 +171,7 @@ export class Tokenizer {
     expectTokens(strlist: string[], msg?: string): Token {
         let tok = this.consumeToken();
         let tokstr = tok.str;
-        if (strlist.indexOf(tokstr) < 0) {
+        if (!strlist.includes(tokstr)) {
             this.compileError(msg || `There should be a ${strlist.map((s) => `"${s}"`).join(' or ')} here, not "${tokstr}".`);
         }
         return tok;
