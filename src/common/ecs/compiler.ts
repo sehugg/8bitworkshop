@@ -294,7 +294,7 @@ export class ECSCompiler extends Tokenizer {
         scope.filePath = this.path;
         this.currentScope = scope;
         let cmd;
-        while ((cmd = this.expectTokens(['using', 'entity', 'scope', 'comment', 'end']).str) != 'end') {
+        while ((cmd = this.expectTokens(['end', 'using', 'entity', 'scope', 'comment', 'on']).str) != 'end') {
             if (cmd == 'using') {
                 this.parseScopeUsing();
             }
@@ -307,6 +307,9 @@ export class ECSCompiler extends Tokenizer {
             if (cmd == 'comment') {
                 this.expectTokenTypes([ECSTokenType.CodeFragment]);
             }
+            if (cmd == 'on') {
+                this.currentScope.addAction(this.annotate(() => this.parseAction()));
+            }
         }
         this.currentScope = scope.parent || null;
         return scope;
@@ -315,7 +318,7 @@ export class ECSCompiler extends Tokenizer {
     parseScopeUsing() {
         let syslist = this.parseList(this.parseSystemRef, ',');
         for (let sys of syslist) {
-            this.currentScope?.systems.push(sys);
+            this.currentScope?.addUsingSystem(sys);
         }
     }
 

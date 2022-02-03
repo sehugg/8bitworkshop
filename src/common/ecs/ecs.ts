@@ -647,6 +647,14 @@ class ActionEval {
         let bitofs = parseInt(args[1] || '0');
         return this.generateCodeForField(fieldName, bitofs, canwrite);
     }
+    __index(args: string[]) {
+        let ident = args[0]; // TODO?
+        if (this.entities.length == 1) {
+            return this.dialect.absolute(ident);
+        } else {
+            return this.dialect.indexed_x(ident, 0); //TODO?
+        }
+    }
     __use(args: string[]) {
         return this.scope.includeResource(args[0]);
     }
@@ -685,7 +693,7 @@ class ActionEval {
         }
         return code;
     }
-    generateCodeForField(fieldName: string, bitofs: number, canwrite: boolean): string {
+    generateCodeForField(fieldName: string, bitofs: number, canWrite: boolean): string {
         const action = this.action;
         const qr = this.jr || this.qr; // TODO: why not both!
 
@@ -707,12 +715,14 @@ class ActionEval {
         // see if all entities have the same constant value
         // TODO: should be done somewhere else?
         let constValues = new Set<DataValue>();
+        let isConst = false;
         for (let e of this.entities) {
             let constVal = e.consts[mksymbol(component, fieldName)];
+            if (constVal !== undefined) isConst = true;
             constValues.add(constVal); // constVal === undefined is allowed
         }
         // can't write to constant
-        if (constValues.size > 0 && canwrite)
+        if (isConst && canWrite)
             throw new ECSError(`can't write to constant field ${fieldName}`, action);
         // is it a constant?
         if (constValues.size == 1) {
@@ -781,6 +791,7 @@ export class EntityScope implements SourceLocated {
     childScopes: EntityScope[] = [];
     systems: System[] = [];
     entities: Entity[] = [];
+    events: Action[] = [];
     bss = new DataSegment();
     rodata = new DataSegment();
     code = new CodeSegment();
@@ -812,6 +823,12 @@ export class EntityScope implements SourceLocated {
         }
         this.entities.push(entity);
         return entity;
+    }
+    addUsingSystem(system: System) {
+        this.systems.push(system);
+    }
+    addAction(action: Action) {
+        this.events.push(action);
     }
     *iterateEntityFields(entities: Entity[]) {
         for (let i = 0; i < entities.length; i++) {
@@ -1057,10 +1074,17 @@ export class EntityScope implements SourceLocated {
         return symbol;
     }
     analyzeEntities() {
+        this.buildLocalSystem();
         this.buildSegments();
         this.allocateSegment(this.bss, false);
         this.allocateSegment(this.rodata, true);
         this.allocateROData(this.rodata);
+    }
+    buildLocalSystem() {
+        if (this.events.length) {
+            let sys : System = { name: this.name, actions: this.events };
+            this.addUsingSystem(this.em.defineSystem(sys));
+        }
     }
     generateCode() {
         this.tempOffset = this.maxTempBytes = 0;
