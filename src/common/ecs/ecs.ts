@@ -111,7 +111,7 @@ export interface System extends SourceLocated {
     tempbytes?: number;
 }
 
-export type SelectType = 'once' | 'foreach' | 'join' | 'with' | 'select';
+export type SelectType = 'once' | 'foreach' | 'join' | 'with' | 'if' | 'select';
 
 export interface ActionBase extends SourceLocated {
     select: SelectType;
@@ -125,7 +125,7 @@ export interface ActionOnce extends ActionBase {
 }
 
 export interface ActionWithQuery extends ActionBase {
-    select: 'foreach' | 'join' | 'with' | 'select'
+    select: 'foreach' | 'join' | 'with' | 'if' | 'select'
     query: Query
     limit?: number
 }
@@ -529,14 +529,20 @@ class ActionEval {
                 this.jr = new QueryResult(this.scope, (this.action as ActionWithJoin).join);
                 state.x = this.jr;
                 break;
+            case 'if':
             case 'with':
                 if (state.x) {
                     let int = state.x.intersection(this.qr);
-                    // TODO: what if we filter 0 entities?
-                    if (int.entities.length == 0) throw new ECSError('queries do not intersect', this.action);
-                    let indofs = int.entities[0].id - state.x.entities[0].id;
-                    state.xofs += indofs; // TODO: should merge with filter
-                    state.x = int;
+                    if (int.entities.length == 0) {
+                        if (this.action.select == 'with')
+                            throw new ECSError('queries do not intersect', this.action);
+                        else
+                            break;
+                    } else {
+                        let indofs = int.entities[0].id - state.x.entities[0].id;
+                        state.xofs += indofs; // TODO: should merge with filter
+                        state.x = int;
+                    }
                 } else {
                     if (this.qr.entities.length != 1)
                         throw new ECSError(`query outside of loop must match exactly one entity`, this.action);
@@ -566,7 +572,7 @@ class ActionEval {
             if (action.select == 'join' && this.jr) {
                 let jentities = this.jr.entities;
                 if (jentities.length == 0)
-                    throw new ECSError(`join query doesn't match any entities`, action); // TODO 
+                    throw new ECSError(`join query doesn't match any entities`, (action as ActionWithJoin).join); // TODO 
                 let joinfield = this.getJoinField(action, this.qr.atypes, this.jr.atypes);
                 // TODO: what if only 1 item?
                 // TODO: should be able to access fields via Y reg
@@ -580,11 +586,16 @@ class ActionEval {
             if (action.limit) {
                 entities = entities.slice(0, action.limit);
             }
+            if (entities.length == 0 && action.select == 'if')
+                return '';
             if (entities.length == 0)
                 throw new ECSError(`query doesn't match any entities`, action.query); // TODO 
             this.qr.entities = entities;
             // filter entities from loop?
             if (action.select == 'with' && entities.length > 1) {
+                code = this.wrapCodeInFilter(code);
+            }
+            if (action.select == 'if' && entities.length > 1) {
                 code = this.wrapCodeInFilter(code);
             }
             // define properties

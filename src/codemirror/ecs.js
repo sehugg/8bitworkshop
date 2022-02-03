@@ -20,14 +20,14 @@
       'end', 'component', 'system', 'entity', 'scope', 'using', 'demo',
       'const', 'init', 'locals',
       'on', 'do', 'emit', 'limit',
-      'once', 'foreach', 'with', 'join'
+      'once', 'foreach', 'with', 'join', 'if',
     ];
     var keywords_list = [
       'processor',
       'byte', 'word', 'long',
       'include', 'seg', 'dc', 'ds', 'dv', 'hex', 'err', 'org', 'rorg', 'echo', 'rend',
       'align', 'subroutine', 'equ', 'eqm', 'set', 'mac', 'endm', 'mexit', 'ifconst',
-      'ifnconst', 'if', 'else', 'endif', 'eif', 'repeat', 'repend'
+      'ifnconst', 'else', 'endif', 'eif', 'repeat', 'repend'
     ];
 
     var directives = new Map();

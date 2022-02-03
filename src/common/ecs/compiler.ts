@@ -212,7 +212,7 @@ export class ECSCompiler extends Tokenizer {
         let event = this.expectIdent().str;
         this.expectToken('do');
         let select = this.expectTokens(
-            ['once', 'foreach', 'join', 'with', 'select']).str as SelectType; // TODO: type check?
+            ['once', 'foreach', 'join', 'with', 'if', 'select']).str as SelectType; // TODO: type check?
         let query = undefined;
         let join = undefined;
         if (select != 'once') {
