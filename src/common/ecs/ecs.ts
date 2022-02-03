@@ -801,7 +801,6 @@ export class EntityScope implements SourceLocated {
     childScopes: EntityScope[] = [];
     systems: System[] = [];
     entities: Entity[] = [];
-    events: Action[] = [];
     bss = new DataSegment();
     rodata = new DataSegment();
     code = new CodeSegment();
@@ -836,9 +835,6 @@ export class EntityScope implements SourceLocated {
     }
     addUsingSystem(system: System) {
         this.systems.push(system);
-    }
-    addAction(action: Action) {
-        this.events.push(action);
     }
     getEntityByName(name: string) {
         return this.entities.find(e => e.name == name);
@@ -1087,17 +1083,10 @@ export class EntityScope implements SourceLocated {
         return symbol;
     }
     analyzeEntities() {
-        this.buildLocalSystem();
         this.buildSegments();
         this.allocateSegment(this.bss, false);
         this.allocateSegment(this.rodata, true);
         this.allocateROData(this.rodata);
-    }
-    buildLocalSystem() {
-        if (this.events.length) {
-            let sys : System = { name: this.name, actions: this.events };
-            this.addUsingSystem(this.em.defineSystem(sys));
-        }
     }
     generateCode() {
         this.tempOffset = this.maxTempBytes = 0;
