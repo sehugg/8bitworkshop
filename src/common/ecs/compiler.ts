@@ -229,8 +229,8 @@ export class ECSCompiler extends Tokenizer {
         let limit;
         if (this.peekToken().str == 'limit') {
             this.consumeToken();
-            if (!['foreach', 'join'].includes(select)) this.compileError(`A "${select}" query can't include a limit.`);
-            limit = this.expectInteger();
+            if (!query) { this.compileError(`A "${select}" query can't include a limit.`); }
+            else query.limit = this.expectInteger();
         }
         if (this.peekToken().str == 'emit') {
             this.consumeToken();
@@ -239,7 +239,7 @@ export class ECSCompiler extends Tokenizer {
             this.expectToken(')');
         }
         let text = this.parseCode();
-        let action = { text, event, query, join, select, limit };
+        let action = { text, event, query, join, select };
         return action as Action;
     }
     

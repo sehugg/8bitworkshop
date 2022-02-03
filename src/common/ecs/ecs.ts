@@ -103,6 +103,7 @@ export interface Query extends SourceLocated {
     listen?: ComponentType[];
     exclude?: ComponentType[];
     updates?: ComponentType[];
+    limit?: number;
 }
 
 export interface System extends SourceLocated {
@@ -127,7 +128,6 @@ export interface ActionOnce extends ActionBase {
 export interface ActionWithQuery extends ActionBase {
     select: 'foreach' | 'join' | 'with' | 'if' | 'select'
     query: Query
-    limit?: number
 }
 
 export interface ActionWithJoin extends ActionWithQuery {
@@ -455,7 +455,7 @@ function getPackedFieldSize(f: DataType, constValue?: DataValue): number {
     return 0;
 }
 
-class QueryResult {
+class EntitySet {
     atypes: ArchetypeMatch[];
     entities: Entity[];
     scope;
@@ -465,6 +465,9 @@ class QueryResult {
         if (query) {
             this.atypes = scope.em.archetypesMatching(query);
             this.entities = scope.entitiesMatching(this.atypes);
+            if (query.limit) {
+                this.entities = this.entities.slice(0, query.limit);
+            }
         } else if (a && e) {
             this.atypes = a;
             this.entities = e;
@@ -474,10 +477,10 @@ class QueryResult {
         // TODO: action for error msg
         return this.scope.em.singleComponentWithFieldName(this.atypes, f.name, where);
     }
-    intersection(qr: QueryResult) {
+    intersection(qr: EntitySet) {
         let ents = this.entities.filter(e => qr.entities.includes(e));
         let atypes = this.atypes.filter(a1 => qr.atypes.find(a2 => a2.etype == a1.etype));
-        return new QueryResult(this.scope, undefined, atypes, ents);
+        return new EntitySet(this.scope, undefined, atypes, ents);
     }
     isContiguous() {
         if (this.entities.length == 0) return true;
@@ -489,9 +492,10 @@ class QueryResult {
     }
 }
 
-class ActionState {
-    x: QueryResult | null = null;
-    y: QueryResult | null = null;
+// todo: generalize
+class ActionCPUState {
+    x: EntitySet | null = null;
+    y: EntitySet | null = null;
     xofs: number = 0;
     yofs: number = 0;
 }
@@ -499,9 +503,10 @@ class ActionState {
 class ActionEval {
     em;
     dialect;
-    qr: QueryResult;
-    jr: QueryResult | undefined;
-    oldState;
+    qr: EntitySet;
+    jr: EntitySet | undefined;
+    oldState : ActionCPUState;
+    entities : Entity[];
 
     constructor(
         readonly scope: EntityScope,
@@ -512,8 +517,12 @@ class ActionEval {
         this.dialect = scope.em.dialect;
         this.oldState = scope.state;
         let q = (action as ActionWithQuery).query;
-        if (q) this.qr = new QueryResult(scope, q);
-        else this.qr = new QueryResult(scope, undefined, [], []);
+        if (q) this.qr = new EntitySet(scope, q);
+        else this.qr = new EntitySet(scope, undefined, [], []);
+        this.entities = this.qr.entities;
+        let query = (this.action as ActionWithQuery).query;
+        if (query && this.entities.length == 0)
+            throw new ECSError(`query doesn't match any entities`, query); // TODO 
     }
     begin() {
         let state = this.scope.state = Object.assign({}, this.scope.state);
@@ -526,12 +535,13 @@ class ActionEval {
                 break;
             case 'join':
                 if (state.x || state.y) throw new ECSError('no free index registers for join', this.action);
+                this.jr = new EntitySet(this.scope, (this.action as ActionWithJoin).join);
                 state.y = this.qr;
-                this.jr = new QueryResult(this.scope, (this.action as ActionWithJoin).join);
                 state.x = this.jr;
                 break;
             case 'if':
             case 'with':
+                // TODO: what if not in X because 1 element?
                 if (state.x) {
                     let int = state.x.intersection(this.qr);
                     if (int.entities.length == 0) {
@@ -543,6 +553,7 @@ class ActionEval {
                         let indofs = int.entities[0].id - state.x.entities[0].id;
                         state.xofs += indofs; // TODO: should merge with filter
                         state.x = int;
+                        this.entities = int.entities; // TODO?
                     }
                 } else {
                     if (this.qr.entities.length != 1)
@@ -557,6 +568,9 @@ class ActionEval {
     codeToString(): string {
         const tag_re = /\{\{(.+?)\}\}/g;
         const label_re = /@(\w+)\b/g;
+
+        if (this.entities.length == 0 && this.action.select == 'if')
+           return '';
 
         let action = this.action;
         let sys = this.sys;
@@ -576,19 +590,10 @@ class ActionEval {
                 // TODO: should be able to access fields via Y reg
                 code = this.wrapCodeInLoop(code, action, this.qr.entities, joinfield);
                 props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0); //TODO?
-                this.qr = this.jr; // TODO?
             }
             // select subset of entities
-            let entities = this.qr.entities;
-            let fullEntityCount = entities.length.toString();
-            if (action.limit) {
-                entities = entities.slice(0, action.limit);
-            }
-            if (entities.length == 0 && action.select == 'if')
-                return '';
-            if (entities.length == 0)
-                throw new ECSError(`query doesn't match any entities`, action.query); // TODO 
-            this.qr.entities = entities;
+            let fullEntityCount = this.qr.entities.length; //entities.length.toString();
+            let entities = this.entities;
             // filter entities from loop?
             if (action.select == 'with' && entities.length > 1) {
                 code = this.wrapCodeInFilter(code);
@@ -603,7 +608,7 @@ class ActionEval {
             props['%elo'] = entities[0].id.toString();
             props['%ehi'] = entities[entities.length - 1].id.toString();
             props['%ecount'] = entities.length.toString();
-            props['%efullcount'] = fullEntityCount;
+            props['%efullcount'] = fullEntityCount.toString();
             props['%xofs'] = this.scope.state.xofs.toString();
             props['%yofs'] = this.scope.state.yofs.toString();
         }
@@ -640,7 +645,7 @@ class ActionEval {
     getset(args: string[], canwrite: boolean) {
         let fieldName = args[0];
         let bitofs = parseInt(args[1] || '0');
-        return this.generateCodeForField(this.sys, this.action, this.qr, fieldName, bitofs, canwrite);
+        return this.generateCodeForField(fieldName, bitofs, canwrite);
     }
     __use(args: string[]) {
         return this.scope.includeResource(args[0]);
@@ -666,8 +671,8 @@ class ActionEval {
     }
     wrapCodeInFilter(code: string) {
         // TODO: :-p
-        let ents = this.qr.entities;
-        let ents2 = this.oldState.x?.entities;
+        const ents = this.entities;
+        const ents2 = this.oldState.x?.entities;
         if (ents && ents2) {
             let lo = ents[0].id;
             let hi = ents[ents.length - 1].id;
@@ -680,8 +685,9 @@ class ActionEval {
         }
         return code;
     }
-    generateCodeForField(sys: System, action: Action, qr: QueryResult,
-        fieldName: string, bitofs: number, canwrite: boolean): string {
+    generateCodeForField(fieldName: string, bitofs: number, canwrite: boolean): string {
+        const action = this.action;
+        const qr = this.jr || this.qr; // TODO: why not both!
 
         var component: ComponentType;
         var qualified = false;
@@ -701,7 +707,7 @@ class ActionEval {
         // see if all entities have the same constant value
         // TODO: should be done somewhere else?
         let constValues = new Set<DataValue>();
-        for (let e of qr.entities) {
+        for (let e of this.entities) {
             let constVal = e.consts[mksymbol(component, fieldName)];
             constValues.add(constVal); // constVal === undefined is allowed
         }
@@ -725,17 +731,17 @@ class ActionEval {
         let ident = this.dialect.fieldsymbol(component, field, bitofs);
         if (qualified) {
             return this.dialect.absolute(ident);
-        } else if (qr.entities.length == 1) {
+        } else if (this.entities.length == 1) {
             return this.dialect.absolute(ident);
         } else {
             let eidofs = range.elo - qr.entities[0].id; // TODO
             // TODO: eidofs?
             let ir;
-            if (this.scope.state.x?.intersection(this.qr)) {
+            if (this.scope.state.x?.intersection(qr)) {
                 ir = this.scope.state.x;
                 eidofs -= this.scope.state.xofs;
             }
-            else if (this.scope.state.y?.intersection(this.qr)) {
+            else if (this.scope.state.y?.intersection(qr)) {
                 ir = this.scope.state.y;
                 eidofs -= this.scope.state.yofs;
             }
@@ -783,7 +789,7 @@ export class EntityScope implements SourceLocated {
     tempSize = 0;
     maxTempBytes = 0;
     resources = new Set<string>();
-    state = new ActionState();
+    state = new ActionCPUState();
     isDemo = false;
     filePath = '';
 
@@ -864,6 +870,7 @@ export class EntityScope implements SourceLocated {
             //console.log(i,array,cfname);
         }
     }
+    // TODO: cull unused entity fields
     allocateSegment(segment: DataSegment, readonly: boolean) {
         let fields: FieldArray[] = Object.values(segment.fieldranges);
         // TODO: fields.sort((a, b) => (a.ehi - a.elo + 1) * getPackedFieldSize(a.field));
