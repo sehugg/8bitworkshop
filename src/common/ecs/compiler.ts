@@ -1,7 +1,7 @@
 
 import { mergeLocs, Tokenizer, TokenType } from "../tokenizer";
 import { SourceLocated } from "../workertypes";
-import { Action, ArrayType, ComponentType, DataField, DataType, DataValue, Dialect_CA65, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SourceFileExport, System } from "./ecs";
+import { Action, ArrayType, ComponentType, DataField, DataType, DataValue, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SourceFileExport, System } from "./ecs";
 
 export enum ECSTokenType {
     Ellipsis = 'ellipsis',
@@ -196,7 +196,6 @@ export class ECSCompiler extends Tokenizer {
 
     parseResource(): System {
         let name = this.expectIdent().str;
-        let query = this.parseQuery();
         let tempbytes;
         if (this.peekToken().str == 'locals') {
             this.consumeToken();
@@ -204,7 +203,7 @@ export class ECSCompiler extends Tokenizer {
         }
         let text = this.parseCode();
         let select : SelectType = 'once';
-        let action : Action = { text, event: name, query, select };
+        let action : Action = { text, event: name, select };
         return { name, tempbytes, actions: [action] };
     }
 
@@ -212,10 +211,17 @@ export class ECSCompiler extends Tokenizer {
         // TODO: unused events?
         let event = this.expectIdent().str;
         this.expectToken('do');
-        let select = this.expectTokens(['once', 'foreach', 'source', 'join']).str as SelectType; // TODO: type check?
-        let query = this.parseQuery();
+        let select = this.expectTokens(
+            ['once', 'foreach', 'join', 'with', 'select']).str as SelectType; // TODO: type check?
+        let query = undefined;
         let join = undefined;
-        if (select == 'join') join = this.parseQuery();
+        if (select != 'once') {
+            query = this.parseQuery();
+        }
+        if (select == 'join') {
+            this.expectToken('with');
+            join = this.parseQuery();
+        }
         let emits;
         let limit;
         if (this.peekToken().str == 'limit') {
@@ -231,7 +237,7 @@ export class ECSCompiler extends Tokenizer {
         }
         let text = this.parseCode();
         let action = { text, event, query, join, select, limit };
-        return action;
+        return action as Action;
     }
     
     parseQuery() {

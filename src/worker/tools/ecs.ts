@@ -11,6 +11,7 @@ export function assembleECS(step: BuildStep): BuildStepResult {
         return getWorkFileAsString(path);
     }
     gatherFiles(step, { mainFilePath: "main.ecs" });
+    if (step.mainfile) em.mainPath = step.path;
     var destpath = step.prefix + '.ca65';
     if (staleFiles(step, [destpath])) {
         let code = getWorkFileAsString(step.path);

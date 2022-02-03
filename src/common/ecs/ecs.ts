@@ -111,17 +111,31 @@ export interface System extends SourceLocated {
     tempbytes?: number;
 }
 
-export interface Action extends SourceLocated {
-    text: string;
+export type SelectType = 'once' | 'foreach' | 'join' | 'with' | 'select';
+
+export interface ActionBase extends SourceLocated {
+    select: SelectType;
     event: string;
-    select: SelectType
-    query: Query;
-    join?: Query;
-    limit?: number;
+    text: string;
     emits?: string[];
 }
 
-export type SelectType = 'once' | 'foreach' | 'source' | 'join';
+export interface ActionOnce extends ActionBase {
+    select: 'once'
+}
+
+export interface ActionWithQuery extends ActionBase {
+    select: 'foreach' | 'join' | 'with' | 'select'
+    query: Query
+    limit?: number
+}
+
+export interface ActionWithJoin extends ActionWithQuery {
+    select: 'join'
+    join?: Query
+}
+
+export type Action = ActionWithQuery | ActionWithJoin | ActionOnce;
 
 export type DataValue = number | boolean | Uint8Array | Uint16Array;
 
@@ -491,8 +505,10 @@ class ActionEval {
         readonly action: Action) {
         this.em = scope.em;
         this.dialect = scope.em.dialect;
-        this.qr = new QueryResult(scope, action.query);
         this.oldState = scope.state;
+        let q = (action as ActionWithQuery).query;
+        if (q) this.qr = new QueryResult(scope, q);
+        else this.qr = new QueryResult(scope, undefined, [], []);
     }
     begin() {
         let state = this.scope.state = Object.assign({}, this.scope.state);
@@ -506,19 +522,21 @@ class ActionEval {
             case 'join':
                 if (state.x || state.y) throw new ECSError('no free index registers for join', this.action);
                 state.y = this.qr;
-                if (this.action.join) {
-                    this.jr = new QueryResult(this.scope, this.action.join);
-                    state.x = this.jr;
-                }
+                this.jr = new QueryResult(this.scope, (this.action as ActionWithJoin).join);
+                state.x = this.jr;
                 break;
-            case 'source':
-                if (!state.x) throw new ECSError('expected index register', this.action);
-                let int = state.x.intersection(this.qr);
-                // TODO: what if we filter 0 entities?
-                if (int.entities.length == 0) throw new ECSError('queries do not intersect', this.action);
-                let indofs = int.entities[0].id - state.x.entities[0].id;
-                state.xofs += indofs;
-                state.x = int;
+            case 'with':
+                if (state.x) {
+                    let int = state.x.intersection(this.qr);
+                    // TODO: what if we filter 0 entities?
+                    if (int.entities.length == 0) throw new ECSError('queries do not intersect', this.action);
+                    let indofs = int.entities[0].id - state.x.entities[0].id;
+                    state.xofs += indofs;
+                    state.x = int;
+                } else {
+                    if (this.qr.entities.length != 1)
+                        throw new ECSError(`query outside of loop must match exactly one entity`, this.action);
+                }
                 break;
         }
     }
@@ -532,43 +550,46 @@ class ActionEval {
         let action = this.action;
         let sys = this.sys;
         let code = action.text;
-        let label = `${sys.name}__${action.event}`; // TODO: better label that won't conflict (seq?)
-        // TODO: detect cycles
-        // TODO: "source"?
-        // TODO: what if only 1 item?
+        let label = `${sys.name}__${action.event}__${this.em.seq++}`; // TODO: better label that won't conflict (seq?)
         let props: { [name: string]: string } = {};
-        if (action.select == 'foreach') {
-            code = this.wrapCodeInLoop(code, action, this.qr.entities);
-        }
-        if (action.select == 'join' && this.jr) {
-            let jentities = this.jr.entities;
-            if (jentities.length == 0)
-                throw new ECSError(`join query for ${label} doesn't match any entities`, action.join); // TODO 
-            let joinfield = this.getJoinField(action, this.qr.atypes, this.jr.atypes);
+        if (action.select != 'once') {
+            // TODO: detect cycles
+            // TODO: "source"?
             // TODO: what if only 1 item?
-            // TODO: should be able to access fields via Y reg
-            code = this.wrapCodeInLoop(code, action, this.qr.entities, joinfield);
-            props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0); //TODO?
-            this.qr = this.jr; // TODO?
+            if (action.select == 'foreach') {
+                code = this.wrapCodeInLoop(code, action, this.qr.entities);
+            }
+            if (action.select == 'join' && this.jr) {
+                let jentities = this.jr.entities;
+                if (jentities.length == 0)
+                    throw new ECSError(`join query doesn't match any entities`, action); // TODO 
+                let joinfield = this.getJoinField(action, this.qr.atypes, this.jr.atypes);
+                // TODO: what if only 1 item?
+                // TODO: should be able to access fields via Y reg
+                code = this.wrapCodeInLoop(code, action, this.qr.entities, joinfield);
+                props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0); //TODO?
+                this.qr = this.jr; // TODO?
+            }
+            let entities = this.qr.entities;
+            props['%efullcount'] = entities.length.toString();
+            if (action.limit) {
+                entities = entities.slice(0, action.limit);
+            }
+            if (entities.length == 0)
+                throw new ECSError(`query doesn't match any entities`, action.query); // TODO 
+            // filter entities from loop?
+            if (action.select == 'with' && entities.length > 1) {
+                // TODO: what if not needed
+                code = this.wrapCodeInFilter(code);
+            }
+            // define properties
+            props['%elo'] = entities[0].id.toString();
+            props['%ehi'] = entities[entities.length - 1].id.toString();
+            props['%ecount'] = entities.length.toString();
+            props['%xofs'] = this.scope.state.xofs.toString();
+            props['%yofs'] = this.scope.state.yofs.toString();
+            this.qr.entities = entities;
         }
-        if (action.select == 'source') {
-            // TODO: what if not needed
-            code = this.wrapCodeInFilter(code);
-        }
-        let entities = this.qr.entities;
-        props['%efullcount'] = entities.length.toString();
-        if (action.limit) {
-            entities = entities.slice(0, action.limit);
-        }
-        if (entities.length == 0)
-            throw new ECSError(`query for ${label} doesn't match any entities`, action.query); // TODO 
-        // define properties
-        props['%elo'] = entities[0].id.toString();
-        props['%ehi'] = entities[entities.length - 1].id.toString();
-        props['%ecount'] = entities.length.toString();
-        props['%xofs'] = this.scope.state.xofs.toString();
-        props['%yofs'] = this.scope.state.yofs.toString();
-        this.qr.entities = entities;
         // replace @labels
         code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
         // replace {{...}} tags
@@ -664,16 +685,14 @@ class ActionEval {
         // TODO: don't mix const and init data
         let range = this.scope.bss.getFieldRange(component, fieldName) || this.scope.rodata.getFieldRange(component, fieldName);
         if (!range) throw new ECSError(`couldn't find field for ${component.name}:${fieldName}, maybe no entities?`); // TODO
-        let eidofs = range.elo - qr.entities[0].id; // TODO
         // TODO: dialect
         let ident = this.dialect.fieldsymbol(component, field, bitofs);
         if (qualified) {
             return this.dialect.absolute(ident);
-        } else if (action.select == 'once') {
-            if (qr.entities.length != 1)
-                throw new ECSError(`can't choose multiple entities for ${fieldName} with select=once`, action);
+        } else if (qr.entities.length == 1) {
             return this.dialect.absolute(ident);
         } else {
+            let eidofs = range.elo - qr.entities[0].id; // TODO
             // TODO: eidofs?
             let ir;
             if (this.scope.state.x?.intersection(this.qr)) {
@@ -697,8 +716,8 @@ class ActionEval {
     getJoinField(action: Action, atypes: ArchetypeMatch[], jtypes: ArchetypeMatch[]): ComponentFieldPair {
         let refs = Array.from(this.scope.iterateArchetypeFields(atypes, (c, f) => f.dtype == 'ref'));
         // TODO: better error message
-        if (refs.length == 0) throw new ECSError(`cannot find join fields`, action.query);
-        if (refs.length > 1) throw new ECSError(`cannot join multiple fields`, action.query);
+        if (refs.length == 0) throw new ECSError(`cannot find join fields`, action);
+        if (refs.length > 1) throw new ECSError(`cannot join multiple fields`, action);
         // TODO: check to make sure join works
         return refs[0]; // TODO
         /* TODO
@@ -1043,6 +1062,8 @@ export class EntityManager {
     symbols: { [name: string]: 'init' | 'const' } = {};
     event2systems: { [event: string]: System[] } = {};
     name2cfpairs: { [cfname: string]: ComponentFieldPair[] } = {};
+    mainPath: string = '';
+    seq = 1;
 
     constructor(public readonly dialect: Dialect_CA65) {
     }
@@ -1140,8 +1161,7 @@ export class EntityManager {
     exportToFile(file: SourceFileExport) {
         file.text(this.dialect.HEADER); // TODO
         for (let scope of Object.values(this.topScopes)) {
-            // TODO: demos
-            if (!scope.isDemo) {
+            if (!scope.isDemo || scope.filePath == this.mainPath) {
                 scope.dump(file);
             }
         }

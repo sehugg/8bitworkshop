@@ -17,10 +17,10 @@
     var keywords1, keywords2;
 
     var directives_list = [
-      'end', 'component', 'system', 'entity', 'scope', 'using',
+      'end', 'component', 'system', 'entity', 'scope', 'using', 'demo',
       'const', 'init', 'locals',
       'on', 'do', 'emit', 'limit',
-      'once', 'foreach', 'source', 'join'
+      'once', 'foreach', 'with', 'join'
     ];
     var keywords_list = [
       'processor',

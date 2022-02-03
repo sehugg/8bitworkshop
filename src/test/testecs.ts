@@ -210,18 +210,18 @@ function testECS() {
         tempbytes: 12,
         actions: [
             {
-                text: TEMPLATE4_S1, event: 'preframe', select: 'once', query: {
+                text: TEMPLATE4_S1, event: 'preframe', select: 'with', query: {
                     include: [c_kernel]
                 }
             },
             {
                 // TODO: should include kernel for numlines
-                text: TEMPLATE4_S2, event: 'preframe', select: 'once', query: {
+                text: TEMPLATE4_S2, event: 'preframe', select: 'with', query: {
                     include: [c_sprite, c_hasbitmap, c_hascolormap, c_ypos],
                 },
             },
             {
-                text: TEMPLATE4_K, event: 'kernel', select: 'once', query: {
+                text: TEMPLATE4_K, event: 'kernel', select: 'with', query: {
                     include: [c_kernel]
                 }
             },
@@ -242,14 +242,14 @@ function testECS() {
     em.defineSystem({
         name: 'frameloop',
         actions: [
-            { text: TEMPLATE1, event: 'start', select: 'once', query: { include: [c_kernel] },
+            { text: TEMPLATE1, event: 'start', select: 'with', query: { include: [c_kernel] },
                 emits: ['preframe', 'kernel', 'postframe'] }
         ]
     })
     em.defineSystem({
         name: 'SetHorizPos',
         actions: [
-            { text: SETHORIZPOS, event: 'SetHorizPos', select: 'once', query: { include: [c_xpos] } },
+            { text: SETHORIZPOS, event: 'SetHorizPos', select: 'with', query: { include: [c_xpos] } },
         ]
     });
 
