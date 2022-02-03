@@ -212,14 +212,18 @@ export class Dialect_CA65 {
 @__exit:
 `;
 
-// TODO: lo/hi side of range?
-    readonly ASM_FILTER_RANGE_X = `
+    readonly ASM_FILTER_RANGE_LO_X = `
     cpx #{{%xofs}}
-    bcc @__skip
-    cpx #{{%xofs}}+{{%ecount}}
-    bcs @__skip
+    bcc @__skipxlo
     {{%code}}
-@__skip:
+@__skipxlo:
+`
+
+    readonly ASM_FILTER_RANGE_HI_X = `
+    cpx #{{%xofs}}+{{%ecount}}
+    bcs @__skipxhi
+    {{%code}}
+@__skipxhi:
 `
 
 // TODO
@@ -531,7 +535,7 @@ class ActionEval {
                     // TODO: what if we filter 0 entities?
                     if (int.entities.length == 0) throw new ECSError('queries do not intersect', this.action);
                     let indofs = int.entities[0].id - state.x.entities[0].id;
-                    state.xofs += indofs;
+                    state.xofs += indofs; // TODO: should merge with filter
                     state.x = int;
                 } else {
                     if (this.qr.entities.length != 1)
@@ -570,25 +574,26 @@ class ActionEval {
                 props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0); //TODO?
                 this.qr = this.jr; // TODO?
             }
+            // select subset of entities
             let entities = this.qr.entities;
-            props['%efullcount'] = entities.length.toString();
+            let fullEntityCount = entities.length.toString();
             if (action.limit) {
                 entities = entities.slice(0, action.limit);
             }
             if (entities.length == 0)
                 throw new ECSError(`query doesn't match any entities`, action.query); // TODO 
+            this.qr.entities = entities;
             // filter entities from loop?
             if (action.select == 'with' && entities.length > 1) {
-                // TODO: what if not needed
                 code = this.wrapCodeInFilter(code);
             }
             // define properties
             props['%elo'] = entities[0].id.toString();
             props['%ehi'] = entities[entities.length - 1].id.toString();
             props['%ecount'] = entities.length.toString();
+            props['%efullcount'] = fullEntityCount;
             props['%xofs'] = this.scope.state.xofs.toString();
             props['%yofs'] = this.scope.state.yofs.toString();
-            this.qr.entities = entities;
         }
         // replace @labels
         code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
@@ -642,10 +647,20 @@ class ActionEval {
         return s;
     }
     wrapCodeInFilter(code: string) {
-        // TODO: what if not needed?
-        let s = this.dialect.ASM_FILTER_RANGE_X;
-        s = s.replace('{{%code}}', code);
-        return s;
+        // TODO: :-p
+        let ents = this.qr.entities;
+        let ents2 = this.oldState.x?.entities;
+        if (ents && ents2) {
+            let lo = ents[0].id;
+            let hi = ents[ents.length-1].id;
+            let lo2 = ents2[0].id;
+            let hi2 = ents2[ents2.length-1].id;
+            if (lo != lo2)
+                code = this.dialect.ASM_FILTER_RANGE_LO_X.replace('{{%code}}', code);
+            if (hi != hi2)
+                code = this.dialect.ASM_FILTER_RANGE_HI_X.replace('{{%code}}', code);
+        }
+        return code;
     }
     generateCodeForField(sys: System, action: Action, qr: QueryResult,
         fieldName: string, bitofs: number): string {
