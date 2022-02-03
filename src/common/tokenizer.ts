@@ -172,7 +172,7 @@ export class Tokenizer {
         let tok = this.consumeToken();
         let tokstr = tok.str;
         if (!strlist.includes(tokstr)) {
-            this.compileError(msg || `There should be a ${strlist.map((s) => `"${s}"`).join(' or ')} here, not "${tokstr}".`);
+            this.compileError(msg || `These keywords are valid here: ${strlist.join(', ')}`);
         }
         return tok;
     }

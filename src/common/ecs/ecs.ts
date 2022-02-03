@@ -226,7 +226,7 @@ export class Dialect_CA65 {
 @__skipxhi:
 `
 
-// TODO
+    // TODO
     readonly ASM_MAP_RANGES = `
     txa
     pha
@@ -482,7 +482,7 @@ class QueryResult {
     isContiguous() {
         if (this.entities.length == 0) return true;
         let id = this.entities[0].id;
-        for (let i=1; i<this.entities.length; i++) {
+        for (let i = 1; i < this.entities.length; i++) {
             if (this.entities[i].id != ++id) return false;
         }
         return true;
@@ -499,14 +499,15 @@ class ActionState {
 class ActionEval {
     em;
     dialect;
-    qr : QueryResult;
-    jr : QueryResult | undefined;
+    qr: QueryResult;
+    jr: QueryResult | undefined;
     oldState;
 
     constructor(
         readonly scope: EntityScope,
         readonly sys: System,
-        readonly action: Action) {
+        readonly action: Action)
+    {
         this.em = scope.em;
         this.dialect = scope.em.dialect;
         this.oldState = scope.state;
@@ -535,7 +536,7 @@ class ActionEval {
                     let int = state.x.intersection(this.qr);
                     if (int.entities.length == 0) {
                         if (this.action.select == 'with')
-                            throw new ECSError('queries do not intersect', this.action);
+                            throw new ECSError('no entities match this query', this.action);
                         else
                             break;
                     } else {
@@ -566,9 +567,6 @@ class ActionEval {
             // TODO: detect cycles
             // TODO: "source"?
             // TODO: what if only 1 item?
-            if (action.select == 'foreach') {
-                code = this.wrapCodeInLoop(code, action, this.qr.entities);
-            }
             if (action.select == 'join' && this.jr) {
                 let jentities = this.jr.entities;
                 if (jentities.length == 0)
@@ -598,6 +596,9 @@ class ActionEval {
             if (action.select == 'if' && entities.length > 1) {
                 code = this.wrapCodeInFilter(code);
             }
+            if (action.select == 'foreach' && entities.length > 1) {
+                code = this.wrapCodeInLoop(code, action, this.qr.entities);
+            }
             // define properties
             props['%elo'] = entities[0].id.toString();
             props['%ehi'] = entities[entities.length - 1].id.toString();
@@ -613,13 +614,13 @@ class ActionEval {
             let toks = group.split(/\s+/);
             if (toks.length == 0) throw new ECSError(`empty command`, action);
             let cmd = group.charAt(0);
-            let rest = group.substring(1);
+            let rest = group.substring(1).trim();
             switch (cmd) {
                 case '!': return this.__emit([rest]);
                 case '$': return this.__local([rest]);
                 case '^': return this.__use([rest]);
-                case '<': return this.__byte([rest, '0']);
-                case '>': return this.__byte([rest, '8']);
+                case '<': return this.__get([rest, '0']);
+                case '>': return this.__get([rest, '8']);
                 default:
                     let value = props[toks[0]];
                     if (value) return value;
@@ -630,10 +631,16 @@ class ActionEval {
         });
         return code;
     }
-    __byte(args: string[]) {
+    __get(args: string[]) {
+        return this.getset(args, false);
+    }
+    __set(args: string[]) {
+        return this.getset(args, true);
+    }
+    getset(args: string[], canwrite: boolean) {
         let fieldName = args[0];
         let bitofs = parseInt(args[1] || '0');
-        return this.generateCodeForField(this.sys, this.action, this.qr, fieldName, bitofs);
+        return this.generateCodeForField(this.sys, this.action, this.qr, fieldName, bitofs, canwrite);
     }
     __use(args: string[]) {
         return this.scope.includeResource(args[0]);
@@ -663,9 +670,9 @@ class ActionEval {
         let ents2 = this.oldState.x?.entities;
         if (ents && ents2) {
             let lo = ents[0].id;
-            let hi = ents[ents.length-1].id;
+            let hi = ents[ents.length - 1].id;
             let lo2 = ents2[0].id;
-            let hi2 = ents2[ents2.length-1].id;
+            let hi2 = ents2[ents2.length - 1].id;
             if (lo != lo2)
                 code = this.dialect.ASM_FILTER_RANGE_LO_X.replace('{{%code}}', code);
             if (hi != hi2)
@@ -674,7 +681,7 @@ class ActionEval {
         return code;
     }
     generateCodeForField(sys: System, action: Action, qr: QueryResult,
-        fieldName: string, bitofs: number): string {
+        fieldName: string, bitofs: number, canwrite: boolean): string {
 
         var component: ComponentType;
         var qualified = false;
@@ -684,13 +691,13 @@ class ActionEval {
             component = this.em.getComponentByName(cname);
             fieldName = fname;
             qualified = true;
-            if (component == null) throw new ECSError(`no component named "${cname}"`)
+            if (component == null) throw new ECSError(`no component named "${cname}"`, action)
         } else {
             component = this.em.singleComponentWithFieldName(qr.atypes, fieldName, action);
         }
         // find archetypes
         let field = component.fields.find(f => f.name == fieldName);
-        if (field == null) throw new ECSError(`no field named "${fieldName}" in component`)
+        if (field == null) throw new ECSError(`no field named "${fieldName}" in component`, action);
         // see if all entities have the same constant value
         // TODO: should be done somewhere else?
         let constValues = new Set<DataValue>();
@@ -698,6 +705,9 @@ class ActionEval {
             let constVal = e.consts[mksymbol(component, fieldName)];
             constValues.add(constVal); // constVal === undefined is allowed
         }
+        // can't write to constant
+        if (constValues.size > 0 && canwrite)
+            throw new ECSError(`can't write to constant field ${fieldName}`, action);
         // is it a constant?
         if (constValues.size == 1) {
             let value = constValues.values().next().value as DataValue;
@@ -1089,6 +1099,7 @@ export class EntityManager {
     event2systems: { [event: string]: System[] } = {};
     name2cfpairs: { [cfname: string]: ComponentFieldPair[] } = {};
     mainPath: string = '';
+    imported: { [path: string]: boolean } = {};
     seq = 1;
 
     constructor(public readonly dialect: Dialect_CA65) {

@@ -57,9 +57,12 @@ export class ECSCompiler extends Tokenizer {
     getImportFile: (path: string) => string;
 
     importFile(path: string) {
-        let text = this.getImportFile && this.getImportFile(path);
-        if (!text) this.compileError(`I can't find the import file "${path}".`);
-        new ECSCompiler(this.em).parseFile(path, text);
+        if (!this.em.imported[path]) { // already imported?
+            let text = this.getImportFile && this.getImportFile(path);
+            if (!text) this.compileError(`I can't find the import file "${path}".`);
+            new ECSCompiler(this.em).parseFile(path, text);
+            this.em.imported[path] = true;
+        }
     }
 
     parseTopLevel() {
@@ -243,17 +246,27 @@ export class ECSCompiler extends Tokenizer {
     parseQuery() {
         let q: Query = { include: [] };
         let start = this.expectToken('[');
-        q.include = this.parseList(this.parseComponentRef, ',');
+        this.parseList(() => this.parseQueryItem(q), ',');
         this.expectToken(']');
-        if (this.peekToken().str == '-') {
-            this.consumeToken();
-            this.expectToken('[');
-            q.exclude = this.parseList(this.parseComponentRef, ',');
-            this.expectToken(']');
-        }
         // TODO: other params
         q.$loc = mergeLocs(start.$loc, this.lasttoken.$loc);
         return q;
+    }
+
+    parseQueryItem(q: Query) {
+        let prefix = this.peekToken();
+        if (prefix.type != TokenType.Ident) {
+            this.consumeToken();
+        }
+        let cref = this.parseComponentRef();
+        if (prefix.type == TokenType.Ident) {
+            q.include.push(cref);
+        } else if (prefix.str == '-') {
+            if (!q.exclude) q.exclude = [];
+            q.exclude.push(cref);
+        } else {
+            this.compileError(`Query components may be preceded only by a '-'.`);
+        }
     }
 
     parseEvent() {
