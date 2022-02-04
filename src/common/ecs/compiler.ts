@@ -286,8 +286,10 @@ export class ECSCompiler extends Tokenizer {
         let tok = this.expectTokenTypes([ECSTokenType.CodeFragment]);
         let code = tok.str.substring(3, tok.str.length-3);
         let lines = code.split('\n');
+        let re = /^\s*(;|\/\/|$)/; // ignore comments and blank lines
         for (let i=0; i<lines.length; i++) {
-            lines[i] = ` .dbg line, "${this.path}", ${tok.$loc.line+i}\n` + lines[i];
+            if (!lines[i].match(re))
+                lines[i] = this.em.dialect.debug_line(this.path, tok.$loc.line+i) + '\n' + lines[i];
         }
         return lines.join('\n');
     }
@@ -338,7 +340,9 @@ export class ECSCompiler extends Tokenizer {
         let e = this.currentScope.newEntity(etype);
         e.name = name;
         let cmd;
-        while ((cmd = this.expectTokens(['const', 'init', 'end']).str) != 'end') {
+        // TODO: remove init?
+        while ((cmd = this.expectTokens(['const', 'init', 'var', 'end']).str) != 'end') {
+            if (cmd == 'var') cmd = 'init';
             // TODO: check data types
             let name = this.expectIdent().str;
             let comps = this.em.componentsWithFieldName([{etype: e.etype, cmatch:e.etype.components}], name);
@@ -396,9 +400,9 @@ export class ECSCompiler extends Tokenizer {
 
     export() {
         let src = new SourceFileExport();
-        src.debug_file(this.path);
+        src.line(this.em.dialect.debug_file(this.path));
         for (let path of Object.keys(this.em.imported))
-            src.debug_file(path);
+            src.line(this.em.dialect.debug_file(path));
         this.exportToFile(src);
         return src.toString();
     }

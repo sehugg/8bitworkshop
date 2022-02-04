@@ -292,54 +292,53 @@ __BRK:
     bss() {
         return `.bss\n`;
     }
+    debug_file(path: string) {
+        return `.dbg file, "${path}", 0, 0`
+    }
+    debug_line(path: string, line: number) {
+        return `.dbg line, "${path}", ${line}`
+    }
+    startScope(name: string) {
+        return `.scope ${name}`
+    }
+    endScope(name: string) {
+        return `.endscope\n${name}__Start = ${name}::__Start`
+        // TODO: scope__start = scope::start
+    }
+    segment(seg: string, segtype: 'rodata' | 'bss' | 'code') {
+        if (segtype == 'bss') {
+            return `.zeropage`; // TODO
+        } else {
+            return `.code`;
+        }
+    }
+    label(sym: string) {
+        return `${sym}:`;
+    }
+    byte(b: number | ConstByte | undefined) {
+        if (b === undefined) {
+            return `.res 1`
+        } else if (typeof b === 'number') {
+            if (b < 0 || b > 255) throw new ECSError(`out of range byte ${b}`);
+            return `.byte ${b}`
+        } else {
+            if (b.bitofs == 0) return `.byte <${b.symbol}`
+            else if (b.bitofs == 8) return `.byte >${b.symbol}`
+            else return `.byte (${b.symbol} >> ${b.bitofs})` // TODO?
+        }
+    }
 }
 
 // TODO: merge with Dialect?
 export class SourceFileExport {
     lines: string[] = [];
 
-    comment(text: string) {
-        this.lines.push(';' + text);
-    }
-    segment(seg: string, segtype: 'rodata' | 'bss' | 'code') {
-        if (segtype == 'bss') {
-            this.lines.push(`.zeropage`); // TODO
-        } else {
-            this.lines.push(`.code`);
-        }
-    }
-    label(sym: string) {
-        this.lines.push(`${sym}:`);
-    }
-    byte(b: number | ConstByte | undefined) {
-        if (b === undefined) {
-            this.lines.push(` .res 1`);
-        } else if (typeof b === 'number') {
-            if (b < 0 || b > 255) throw new ECSError(`out of range byte ${b}`);
-            this.lines.push(` .byte ${b}`)
-        } else {
-            if (b.bitofs == 0) this.lines.push(` .byte <${b.symbol}`)
-            else if (b.bitofs == 8) this.lines.push(` .byte >${b.symbol}`)
-            else this.lines.push(` .byte (${b.symbol} >> ${b.bitofs})`) // TODO?
-        }
+    line(s: string) {
+        this.text(s);
     }
     text(s: string) {
         for (let l of s.split('\n'))
             this.lines.push(l);
-    }
-    debug_file(path: string) {
-        this.lines.push(` .dbg file, "${path}", 0, 0`);
-    }
-    debug_line(path: string, line: number) {
-        this.lines.push(` .dbg line, "${path}", ${line}`);
-    }
-    startScope(name: string) {
-        this.lines.push(` .scope ${name}`)
-    }
-    endScope(name: string) {
-        this.lines.push(` .endscope`)
-        this.lines.push(`${name}__Start = ${name}::__Start`)
-        // TODO: scope__start = scope::start
     }
     toString() {
         return this.lines.join('\n');
@@ -385,13 +384,14 @@ class DataSegment {
             this.initdata[ofs + i] = bytes[i];
         }
     }
-    dump(file: SourceFileExport) {
+    dump(file: SourceFileExport, dialect: Dialect_CA65) {
         for (let i = 0; i < this.size; i++) {
             let syms = this.ofs2sym.get(i);
             if (syms) {
-                for (let sym of syms) file.label(sym);
+                for (let sym of syms)
+                    file.line(dialect.label(sym));
             }
-            file.byte(this.initdata[i]);
+            file.line(dialect.byte(this.initdata[i]));
         }
     }
     // TODO: move cfname functions in here too
@@ -1116,20 +1116,21 @@ export class EntityScope implements SourceLocated {
     dump(file: SourceFileExport) {
         this.analyzeEntities();
         this.generateCode();
-        file.startScope(this.name);
-        file.segment(`${this.name}_DATA`, 'bss');
+        let dialect = this.dialect;
+        file.line(dialect.startScope(this.name));
+        file.line(dialect.segment(`${this.name}_DATA`, 'bss'));
         if (this.maxTempBytes) this.bss.allocateBytes('TEMP', this.maxTempBytes);
-        this.bss.dump(file);
-        file.segment(`${this.name}_RODATA`, 'rodata');
-        this.rodata.dump(file);
+        this.bss.dump(file, dialect);
+        file.line(dialect.segment(`${this.name}_RODATA`, 'rodata'));
+        this.rodata.dump(file, dialect);
         //file.segment(`${this.name}_CODE`, 'code');
-        file.label('__Start');
+        file.line(dialect.label('__Start'));
         this.code.dump(file);
         for (let subscope of this.childScopes) {
             // TODO: overlay child BSS segments
             subscope.dump(file);
         }
-        file.endScope(this.name);
+        file.line(dialect.endScope(this.name));
     }
 }
 
