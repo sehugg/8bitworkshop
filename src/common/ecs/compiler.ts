@@ -60,8 +60,14 @@ export class ECSCompiler extends Tokenizer {
         if (!this.em.imported[path]) { // already imported?
             let text = this.getImportFile && this.getImportFile(path);
             if (!text) this.compileError(`I can't find the import file "${path}".`);
-            new ECSCompiler(this.em).parseFile(path, text);
             this.em.imported[path] = true;
+            let comp = new ECSCompiler(this.em);
+            try {
+                comp.parseFile(text, path);
+            } catch (e) {
+                for (e of comp.errors) this.errors.push(e);
+                throw e;
+            }
         }
     }
 
@@ -390,6 +396,8 @@ export class ECSCompiler extends Tokenizer {
     export() {
         let src = new SourceFileExport();
         src.debug_file(this.path);
+        for (let path of Object.keys(this.em.imported))
+            src.debug_file(path);
         this.exportToFile(src);
         return src.toString();
     }

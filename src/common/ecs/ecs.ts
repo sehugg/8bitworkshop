@@ -1138,13 +1138,16 @@ export class EntityManager {
     constructor(public readonly dialect: Dialect_CA65) {
     }
     newScope(name: string, parent?: EntityScope) {
+        let existing = this.topScopes[name];
+        if (existing && !existing.isDemo)
+            throw new ECSError(`scope ${name} already defined`, existing);
         let scope = new EntityScope(this, this.dialect, name, parent);
-        if (this.topScopes[name]) throw new ECSError(`scope ${name} already defined`);
         if (!parent) this.topScopes[name] = scope;
         return scope;
     }
     defineComponent(ctype: ComponentType) {
-        if (this.components[ctype.name]) throw new ECSError(`component ${ctype.name} already defined`);
+        let existing = this.components[ctype.name];
+        if (existing) throw new ECSError(`component ${ctype.name} already defined`, existing);
         for (let field of ctype.fields) {
             let list = this.name2cfpairs[field.name];
             if (!list) list = this.name2cfpairs[field.name] = [];
@@ -1153,7 +1156,8 @@ export class EntityManager {
         return this.components[ctype.name] = ctype;
     }
     defineSystem(system: System) {
-        if (this.systems[system.name]) throw new ECSError(`system ${system.name} already defined`);
+        let existing = this.systems[system.name];
+        if (existing) throw new ECSError(`system ${system.name} already defined`, existing);
         for (let a of system.actions) {
             let event = a.event;
             let list = this.event2systems[event];

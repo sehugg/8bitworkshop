@@ -1,10 +1,10 @@
 import { readFileSync } from "fs";
 import { ECSCompiler } from "./compiler";
-import { SourceFileExport } from "./ecs";
+import { Dialect_CA65, EntityManager, SourceFileExport } from "./ecs";
 
 class ECSMain {
 
-    compiler = new ECSCompiler();
+    compiler = new ECSCompiler(new EntityManager(new Dialect_CA65())); // TODO
 
     constructor(readonly args: string[]) {
     }
