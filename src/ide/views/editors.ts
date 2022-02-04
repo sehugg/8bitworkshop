@@ -273,6 +273,7 @@ export class SourceEditor implements ProjectView {
     this.editor.clearGutter("gutter-clock");
     var lstlines = this.sourcefile.lines || [];
     for (var info of lstlines) {
+      //if (info.path && info.path != this.path) continue;
       if (info.offset >= 0) {
         this.setGutter("gutter-offset", info.line-1, hex(info.offset&0xffff,4));
       }
@@ -574,7 +575,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
   refreshListing() {
     // lookup corresponding assemblyfile for this file, using listing
     var lst = current_project.getListingForFile(this.path);
-    // TODO?
+    // TODO? 
     this.assemblyfile = lst && (lst.assemblyfile || lst.sourcefile);
   }
 
@@ -584,6 +585,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
     if (!this.assemblyfile) return;
     var asmtext = this.assemblyfile.text;
     var disasmview = this.getDisasmView();
+    // TODO: sometimes it picks one without a text file
     disasmview.setValue(asmtext);
     // go to PC
     if (!platform.saveState) return;

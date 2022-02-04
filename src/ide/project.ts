@@ -408,6 +408,10 @@ export class CodeProject {
     var listings = this.getListings();
     var onlyfile = null;
     for (var lstfn in listings) {
+      if (lstfn == path)
+        return listings[lstfn];
+    }
+    for (var lstfn in listings) {
       onlyfile = lstfn;
       if (getFilenamePrefix(lstfn) == fnprefix) {
         return listings[lstfn];

@@ -1,5 +1,5 @@
 
-import { getRootBasePlatform } from "../../common/util";
+import { getFilenamePrefix, getRootBasePlatform } from "../../common/util";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
 import { re_crlf, BuildStepResult, anyTargetChanged, execMain, gatherFiles, msvcErrorMatcher, populateEntry, populateExtraFiles, populateFiles, print_fn, putWorkFile, setupFS, staleFiles, BuildStep, emglobal, loadNative, moduleInstFn, fixParamsWithDefines, store, makeErrorMatcher } from "../workermain";
 import { EmscriptenModule } from "../workermain"
@@ -18,14 +18,15 @@ import { EmscriptenModule } from "../workermain"
 00B726  1  xx xx        IBSECSZ: .res 2
 00BA2F  1  2A 2B E8 2C   HEX "2A2BE82C2D2E2F303132F0F133343536"
 */
-function parseCA65Listing(code: string, symbols, params, dbg: boolean) {
+function parseCA65Listing(code: string, symbols, params, dbg: boolean, listings?: CodeListingMap) {
     var segofs = 0;
     var offset = 0;
     var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+(\w+), "([^"]+)", (.+)/;
     var funcLineMatch = /"(\w+)", (\w+), "(\w+)"/;
     var insnLineMatch = /^([0-9A-F]+)([r]?)\s{1,2}(\d+)\s{1,2}([0-9A-Frx ]{11})\s+(.*)/;
     var segMatch = /[.]segment\s+"(\w+)"/i;
-    var lines = [];
+    var origlines = [];
+    var lines = origlines;
     var linenum = 0;
     let curpath = '';
     // TODO: only does .c functions, not all .s files
@@ -35,6 +36,12 @@ function parseCA65Listing(code: string, symbols, params, dbg: boolean) {
             var dbgtype = dbgm[4];
             offset = parseInt(dbgm[1], 16);
             curpath = dbgm[5];
+            // new file?
+            if (curpath && listings) {
+                let l = listings[curpath];
+                if (!l) l = listings[curpath] = {lines:[]};
+                lines = l.lines;
+            }
             if (dbgtype == 'func') {
                 var funcm = funcLineMatch.exec(dbgm[6]);
                 if (funcm) {
@@ -93,7 +100,7 @@ function parseCA65Listing(code: string, symbols, params, dbg: boolean) {
             }
         }
     }
-    return lines;
+    return origlines;
 }
 
 export function assembleCA65(step: BuildStep): BuildStepResult {
@@ -220,13 +227,10 @@ export function linkLD65(step: BuildStep): BuildStepResult {
                 var lstout = FS.readFile(fn, { encoding: 'utf8' });
                 lstout = lstout.split('\n\n')[1] || lstout; // remove header
                 var asmlines = []; // TODO: parseCA65Listing(lstout, symbolmap, params, false);
-                var srclines = parseCA65Listing(lstout, symbolmap, params, true);
+                var srclines = parseCA65Listing(lstout, symbolmap, params, true, listings);
                 putWorkFile(fn, lstout);
-                // TODO: multiple source files
-                // TODO: you have to get rid of all source lines to get asm listing
                 listings[fn] = {
-                    asmlines: srclines.length ? asmlines : null,
-                    lines: srclines.length ? srclines : asmlines,
+                    lines: [],
                     text: lstout
                 };
             }
