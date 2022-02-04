@@ -53,6 +53,8 @@ source/if query?
 
 crazy idea -- full expansion, then relooper
 
+how to avoid cycle crossing for critical code and data?
+
 */
 
 
@@ -555,7 +557,7 @@ class ActionEval {
                         state.x = int;
                         this.entities = int.entities; // TODO?
                     }
-                } else {
+                } else if (this.action.select == 'with') {
                     if (this.qr.entities.length != 1)
                         throw new ECSError(`query outside of loop must match exactly one entity`, this.action);
                 }
@@ -752,13 +754,12 @@ class ActionEval {
         if (!range) throw new ECSError(`couldn't find field for ${component.name}:${fieldName}, maybe no entities?`); // TODO
         // TODO: dialect
         let ident = this.dialect.fieldsymbol(component, field, bitofs);
+        let eidofs = qr.entities.length && qr.entities[0].id - range.elo; // TODO: negative?
         if (baseLookup) {
             return this.dialect.absolute(ident);
         } else if (entities.length == 1) {
-            return this.dialect.absolute(ident, entities[0].id - qr.entities[0].id);
+            return this.dialect.absolute(ident, eidofs);
         } else {
-            let eidofs = range.elo - qr.entities[0].id; // TODO
-            // TODO: eidofs?
             let ir;
             if (this.scope.state.x?.intersection(qr)) {
                 ir = this.scope.state.x;
