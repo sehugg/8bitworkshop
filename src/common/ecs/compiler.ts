@@ -232,7 +232,6 @@ export class ECSCompiler extends Tokenizer {
             join = this.parseQuery();
         }
         let emits;
-        let limit;
         if (this.peekToken().str == 'limit') {
             this.consumeToken();
             if (!query) { this.compileError(`A "${select}" query can't include a limit.`); }
@@ -350,6 +349,9 @@ export class ECSCompiler extends Tokenizer {
             if (!field) { this.internalError(); throw new Error(); }
             this.expectToken('=');
             let value = this.parseDataValue(field);
+            let symtype = this.currentScope.isConstOrInit(comps[0], name);
+            if (symtype && symtype != cmd)
+                this.compileError(`I can't mix const and init values for a given field in a scope.`);
             if (cmd == 'const') this.currentScope.setConstValue(e, comps[0], name, value);
             if (cmd == 'init') this.currentScope.setInitValue(e, comps[0], name, value);
         }

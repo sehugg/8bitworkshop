@@ -100,9 +100,7 @@ export interface ComponentType extends SourceLocated {
 
 export interface Query extends SourceLocated {
     include: ComponentType[]; // TODO: make ComponentType
-    listen?: ComponentType[];
     exclude?: ComponentType[];
-    updates?: ComponentType[];
     limit?: number;
 }
 
@@ -520,9 +518,9 @@ class ActionEval {
         if (q) this.qr = new EntitySet(scope, q);
         else this.qr = new EntitySet(scope, undefined, [], []);
         this.entities = this.qr.entities;
-        let query = (this.action as ActionWithQuery).query;
-        if (query && this.entities.length == 0)
-            throw new ECSError(`query doesn't match any entities`, query); // TODO 
+        //let query = (this.action as ActionWithQuery).query;
+        //TODO? if (query && this.entities.length == 0)
+            //throw new ECSError(`query doesn't match any entities`, query); // TODO 
     }
     begin() {
         let state = this.scope.state = Object.assign({}, this.scope.state);
@@ -569,7 +567,8 @@ class ActionEval {
         const tag_re = /\{\{(.+?)\}\}/g;
         const label_re = /@(\w+)\b/g;
 
-        if (this.entities.length == 0 && this.action.select == 'if')
+        const allowEmpty = ['if','foreach','join'];
+        if (this.entities.length == 0 && allowEmpty.includes(this.action.select))
            return '';
 
         let action = this.action;
@@ -581,10 +580,11 @@ class ActionEval {
             // TODO: detect cycles
             // TODO: "source"?
             // TODO: what if only 1 item?
+            // TODO: what if join is subset of items?
             if (action.select == 'join' && this.jr) {
                 let jentities = this.jr.entities;
-                if (jentities.length == 0)
-                    throw new ECSError(`join query doesn't match any entities`, (action as ActionWithJoin).join); // TODO 
+                if (jentities.length == 0) return '';
+                    // TODO? throw new ECSError(`join query doesn't match any entities`, (action as ActionWithJoin).join); // TODO 
                 let joinfield = this.getJoinField(action, this.qr.atypes, this.jr.atypes);
                 // TODO: what if only 1 item?
                 // TODO: should be able to access fields via Y reg
@@ -801,6 +801,7 @@ export class EntityScope implements SourceLocated {
     childScopes: EntityScope[] = [];
     systems: System[] = [];
     entities: Entity[] = [];
+    fieldtypes: { [name: string]: 'init' | 'const' } = {};
     bss = new DataSegment();
     rodata = new DataSegment();
     code = new CodeSegment();
@@ -1017,16 +1018,15 @@ export class EntityScope implements SourceLocated {
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
         let c = this.em.singleComponentWithFieldName([{ etype: e.etype, cmatch: [component] }], fieldName, e);
         e.consts[mksymbol(component, fieldName)] = value;
-        if (this.em.symbols[mksymbol(component, fieldName)] == 'init')
-            throw new ECSError(`Can't mix const and init values for a component field`, e);
-        this.em.symbols[mksymbol(component, fieldName)] = 'const';
+        this.fieldtypes[mksymbol(component, fieldName)] = 'const';
     }
     setInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
         let c = this.em.singleComponentWithFieldName([{ etype: e.etype, cmatch: [component] }], fieldName, e);
         e.inits[mkscopesymbol(this, component, fieldName)] = value;
-        if (this.em.symbols[mksymbol(component, fieldName)] == 'const')
-            throw new ECSError(`Can't mix const and init values for a component field`, e);
-        this.em.symbols[mksymbol(component, fieldName)] = 'init';
+        this.fieldtypes[mksymbol(component, fieldName)] = 'init';
+    }
+    isConstOrInit(component: ComponentType, fieldName: string) : 'const' | 'init' {
+        return this.fieldtypes[mksymbol(component, fieldName)];
     }
     generateCodeForEvent(event: string): string {
         // find systems that respond to event
@@ -1128,7 +1128,6 @@ export class EntityManager {
     components: { [name: string]: ComponentType } = {};
     systems: { [name: string]: System } = {};
     topScopes: { [name: string]: EntityScope } = {};
-    symbols: { [name: string]: 'init' | 'const' } = {};
     event2systems: { [event: string]: System[] } = {};
     name2cfpairs: { [cfname: string]: ComponentFieldPair[] } = {};
     mainPath: string = '';

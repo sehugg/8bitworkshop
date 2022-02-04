@@ -27,12 +27,14 @@ function parseCA65Listing(code: string, symbols, params, dbg: boolean) {
     var segMatch = /[.]segment\s+"(\w+)"/i;
     var lines = [];
     var linenum = 0;
+    let curpath = '';
     // TODO: only does .c functions, not all .s files
     for (var line of code.split(re_crlf)) {
         var dbgm = dbgLineMatch.exec(line);
         if (dbgm && dbgm[1]) {
             var dbgtype = dbgm[4];
             offset = parseInt(dbgm[1], 16);
+            curpath = dbgm[5];
             if (dbgtype == 'func') {
                 var funcm = funcLineMatch.exec(dbgm[6]);
                 if (funcm) {
@@ -45,9 +47,9 @@ function parseCA65Listing(code: string, symbols, params, dbg: boolean) {
             }
         }
         if (dbg && dbgm && dbgtype == 'line') {
-            //console.log(dbgm[6], offset, segofs);
+            //console.log(dbgm[5], dbgm[6], offset, segofs);
             lines.push({
-                // TODO: sourcefile
+                path: dbgm[5],
                 line: parseInt(dbgm[6]),
                 offset: offset + segofs,
                 insns: null
@@ -65,6 +67,7 @@ function parseCA65Listing(code: string, symbols, params, dbg: boolean) {
                     linenum--;
                 } else if (!dbg) {
                     lines.push({
+                        path: curpath,
                         line: linenum,
                         offset: offset + segofs,
                         insns: insns,
@@ -219,6 +222,7 @@ export function linkLD65(step: BuildStep): BuildStepResult {
                 var asmlines = []; // TODO: parseCA65Listing(lstout, symbolmap, params, false);
                 var srclines = parseCA65Listing(lstout, symbolmap, params, true);
                 putWorkFile(fn, lstout);
+                // TODO: multiple source files
                 // TODO: you have to get rid of all source lines to get asm listing
                 listings[fn] = {
                     asmlines: srclines.length ? asmlines : null,
