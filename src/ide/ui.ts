@@ -2372,13 +2372,6 @@ function setPlatformUI() {
 }
 
 export function getPlatformAndRepo() {
-  // add default platform?
-  // TODO: do this after repo_id
-  platform_id = qs.platform || userPrefs.getLastPlatformID();
-  if (!platform_id) {
-    if (isEmbed) fatalError(`The 'platform' must be specified when embed=1`);
-    platform_id = qs.platform = "vcs";
-  }
   // lookup repository for this platform
   repo_id = qs.repo || userPrefs.getLastRepoID();
   if (hasLocalStorage && repo_id && repo_id !== '/') {
@@ -2392,8 +2385,14 @@ export function getPlatformAndRepo() {
       requestPersistPermission(true, true);
     }
   } else {
+    platform_id = qs.platform || userPrefs.getLastPlatformID();
     repo_id = '';
     delete qs.repo;
+  }
+  // add default platform
+  if (!platform_id) {
+    if (isEmbed) fatalError(`The 'platform' must be specified when embed=1`);
+    platform_id = qs.platform = "vcs";
   }
 }
 
