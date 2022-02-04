@@ -251,7 +251,8 @@ export class Dialect_CA65 {
 `
     readonly FOOTER = `
 .segment "VECTORS"
-VecNMI:    .word Main::__NMI
+Return:    .word $6060
+VecNMI:
 VecReset:  .word Main::__Reset
 VecBRK:    .word Main::__BRK
 `
@@ -505,6 +506,7 @@ class ActionEval {
     jr: EntitySet | undefined;
     oldState : ActionCPUState;
     entities : Entity[];
+    tmplabel = '';
 
     constructor(
         readonly scope: EntityScope,
@@ -666,7 +668,8 @@ class ActionEval {
         if (isNaN(tempinc)) throw new ECSError(`bad temporary offset`, this.action);
         if (!this.sys.tempbytes) throw new ECSError(`this system has no locals`, this.action);
         if (tempinc < 0 || tempinc >= this.sys.tempbytes) throw new ECSError(`this system only has ${this.sys.tempbytes} locals`, this.action);
-        return `TEMP+${this.scope.tempOffset}+${tempinc}`;
+        return `${this.tmplabel}+${tempinc}`;
+        //return `TEMP+${this.scope.tempOffset}+${tempinc}`;
     }
     wrapCodeInLoop(code: string, action: Action, ents: Entity[], joinfield?: ComponentFieldPair): string {
         // TODO: check ents
@@ -1044,7 +1047,12 @@ export class EntityScope implements SourceLocated {
         for (let sys of systems) {
             // TODO: does this work if multiple actions?
             // TODO: should 'emits' be on action?
-            if (sys.tempbytes) this.allocateTempBytes(sys.tempbytes);
+            // TODO: share storage
+            //if (sys.tempbytes) this.allocateTempBytes(sys.tempbytes);
+            let tmplabel = `${sys.name}_tmp`;
+            if (sys.tempbytes) this.bss.allocateBytes(tmplabel, sys.tempbytes);
+            //this.allocateTempBytes(1);
+            let numActions = 0;
             for (let action of sys.actions) {
                 if (action.event == event) {
                     if (action.emits) {
@@ -1060,15 +1068,17 @@ export class EntityScope implements SourceLocated {
                     }
                     // TODO: use Tokenizer so error msgs are better
                     let codeeval = new ActionEval(this, sys, action);
+                    codeeval.tmplabel = tmplabel;
                     codeeval.begin();
                     s += this.dialect.comment(`<action ${sys.name}:${event}>`); // TODO
                     s += codeeval.codeToString();
                     s += this.dialect.comment(`</action ${sys.name}:${event}>`);
                     // TODO: check that this happens once?
                     codeeval.end();
+                    numActions++;
                 }
             }
-            if (sys.tempbytes) this.allocateTempBytes(-sys.tempbytes);
+            // TODO: if (sys.tempbytes && numActions) this.allocateTempBytes(-sys.tempbytes);
         }
         return s;
     }

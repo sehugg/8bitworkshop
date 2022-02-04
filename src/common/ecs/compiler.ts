@@ -65,8 +65,7 @@ export class ECSCompiler extends Tokenizer {
             try {
                 comp.parseFile(text, path);
             } catch (e) {
-                for (e of comp.errors) this.errors.push(e);
-                throw e;
+                for (var err of comp.errors) this.errors.push(err);
             }
         }
     }
