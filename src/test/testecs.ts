@@ -242,8 +242,7 @@ function testECS() {
     em.defineSystem({
         name: 'frameloop',
         actions: [
-            { text: TEMPLATE1, event: 'start', select: 'with', query: { include: [c_kernel] },
-                emits: ['preframe', 'kernel', 'postframe'] }
+            { text: TEMPLATE1, event: 'start', select: 'with', query: { include: [c_kernel] } }
         ]
     })
     em.defineSystem({
@@ -313,7 +312,7 @@ end
 
 system SimpleKernel
 locals 8
-on preframe do once [Kernel] --- JUNK_AT_END
+on preframe do with [Kernel] --- JUNK_AT_END
     lda #5
     sta #6
 Label:

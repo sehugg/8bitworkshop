@@ -17,8 +17,8 @@
     var keywords1, keywords2;
 
     var directives_list = [
-      'end', 'component', 'system', 'entity', 'scope', 'using', 'demo',
-      'const', 'init', 'locals',
+      'end', 'component', 'system', 'entity', 'scope', 'using', 'demo', 'decode',
+      'const', 'locals', 'var',
       'on', 'do', 'emit', 'limit',
       'once', 'foreach', 'with', 'join', 'if',
     ];
@@ -34,7 +34,7 @@
     directives_list.forEach(function (s) { directives.set(s, 'def'); });
     keywords_list.forEach(function (s) { directives.set(s, 'keyword'); });
 
-    var opcodes = /^[a-z][a-z][a-z]\b/i;
+    var opcodes = /^\s[a-z][a-z][a-z]\s/i;
     var numbers = /^(0x[\da-f]+|[\da-f]+h|[0-7]+o|[01]+b|\d+d?)\b/i;
     var tags = /^\{\{.*\}\}/;
     var comment = /\/\/.*/;

@@ -51,6 +51,8 @@ can you query specific entities? merge with existing queries?
 bigints?
 source/if query?
 
+only worry about intersection when non-contiguous ranges?
+
 crazy idea -- full expansion, then relooper
 
 how to avoid cycle crossing for critical code and data?
@@ -119,7 +121,6 @@ export interface ActionBase extends SourceLocated {
     select: SelectType;
     event: string;
     text: string;
-    emits?: string[];
 }
 
 export interface ActionOnce extends ActionBase {
@@ -675,7 +676,8 @@ class ActionEval {
         return this.scope.includeResource(args[0]);
     }
     __emit(args: string[]) {
-        return this.scope.generateCodeForEvent(args[0]);
+        let event = args[0];
+        return this.scope.generateCodeForEvent(event);
     }
     __local(args: string[]) {
         let tempinc = parseInt(args[0]);
@@ -1058,11 +1060,9 @@ export class EntityScope implements SourceLocated {
         }
         let s = this.dialect.code();
         //s += `\n; event ${event}\n`;
-        let emitcode: { [event: string]: string } = {};
         systems = systems.filter(s => this.systems.includes(s));
         for (let sys of systems) {
             // TODO: does this work if multiple actions?
-            // TODO: should 'emits' be on action?
             // TODO: share storage
             //if (sys.tempbytes) this.allocateTempBytes(sys.tempbytes);
             let tmplabel = `${sys.name}_tmp`;
@@ -1071,18 +1071,8 @@ export class EntityScope implements SourceLocated {
             let numActions = 0;
             for (let action of sys.actions) {
                 if (action.event == event) {
-                    if (action.emits) {
-                        for (let emit of action.emits) {
-                            if (emitcode[emit]) {
-                                console.log(`already emitted for ${sys.name}:${event}`);
-                            }
-                            //console.log('>', emit);
-                            // TODO: cycles
-                            emitcode[emit] = this.generateCodeForEvent(emit);
-                            //console.log('<', emit, emitcode[emit].length);
-                        }
-                    }
                     // TODO: use Tokenizer so error msgs are better
+                    // TODO: keep event tree
                     let codeeval = new ActionEval(this, sys, action);
                     codeeval.tmplabel = tmplabel;
                     codeeval.begin();

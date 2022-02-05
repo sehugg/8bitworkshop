@@ -1,6 +1,7 @@
 
 import { mergeLocs, Tokenizer, TokenType } from "../tokenizer";
 import { SourceLocated } from "../workertypes";
+import { newDecoder } from "./decoder";
 import { Action, ArrayType, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SourceFileExport, System } from "./ecs";
 
 export enum ECSTokenType {
@@ -142,7 +143,7 @@ export class ECSCompiler extends Tokenizer {
             }
             return { dtype: 'array', index, elem, baseoffset } as ArrayType;
         }
-        this.internalError(); throw new Error();
+        this.compileError(`I expected a data type here.`); throw new Error();
     }
 
     parseDataValue(field: DataField) : DataValue {
@@ -170,7 +171,7 @@ export class ECSCompiler extends Tokenizer {
             }
             return id;
         }
-        this.internalError(); throw new Error();
+        this.compileError(`I expected a ${field.dtype} here.`); throw new Error();
     }
 
     parseDataArray() {
@@ -234,17 +235,12 @@ export class ECSCompiler extends Tokenizer {
             this.expectToken('with');
             join = this.parseQuery();
         }
-        let emits;
-        if (this.peekToken().str == 'limit') {
-            this.consumeToken();
+        if (this.ifToken('limit')) {
             if (!query) { this.compileError(`A "${select}" query can't include a limit.`); }
             else query.limit = this.expectInteger();
         }
-        if (this.peekToken().str == 'emit') {
-            this.consumeToken();
-            this.expectToken('(');
-            emits = this.parseEventList();
-            this.expectToken(')');
+        if (this.ifToken('cyclecritical')) {
+            // TODO
         }
         let text = this.parseCode();
         let action = { text, event, query, join, select };
@@ -336,33 +332,54 @@ export class ECSCompiler extends Tokenizer {
 
     parseEntity() : Entity {
         if (!this.currentScope) { this.internalError(); throw new Error(); }
-        let name = '';
+        let entname = '';
         if (this.peekToken().type == TokenType.Ident) {
-            name = this.expectIdent().str;
+            entname = this.expectIdent().str;
         }
         let etype = this.parseEntityArchetype();
-        let e = this.currentScope.newEntity(etype);
-        e.name = name;
+        let entity = this.currentScope.newEntity(etype);
+        entity.name = entname;
         let cmd;
         // TODO: remove init?
-        while ((cmd = this.expectTokens(['const', 'init', 'var', 'end']).str) != 'end') {
+        while ((cmd = this.expectTokens(['const', 'init', 'var', 'decode', 'end']).str) != 'end') {
             if (cmd == 'var') cmd = 'init';
-            // TODO: check data types
-            let name = this.expectIdent().str;
-            let comps = this.em.componentsWithFieldName([{etype: e.etype, cmatch:e.etype.components}], name);
-            if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
-            if (comps.length > 1) this.compileError(`I found more than one field named "${name}" for this entity.`)
-            let field = comps[0].fields.find(f => f.name == name);
-            if (!field) { this.internalError(); throw new Error(); }
-            this.expectToken('=');
-            let value = this.parseDataValue(field);
-            let symtype = this.currentScope.isConstOrInit(comps[0], name);
-            if (symtype && symtype != cmd)
-                this.compileError(`I can't mix const and init values for a given field in a scope.`);
-            if (cmd == 'const') this.currentScope.setConstValue(e, comps[0], name, value);
-            if (cmd == 'init') this.currentScope.setInitValue(e, comps[0], name, value);
+            if (cmd == 'init' || cmd == 'const') {
+                // TODO: check data types
+                let name = this.expectIdent().str;
+                this.setEntityProperty(entity, name, cmd, (field) : DataValue => {
+                    this.expectToken('=');
+                    return this.parseDataValue(field);
+                });
+            } else if (cmd == 'decode') {
+                let decoderid = this.expectIdent().str;
+                let code = this.expectTokenTypes([ECSTokenType.CodeFragment]).str;
+                code = code.substring(3, code.length-3);
+                let decoder = newDecoder(decoderid, code);
+                if (!decoder) { this.compileError(`I can't find a "${decoderid}" decoder.`); throw new Error() }
+                let result = decoder.parse();
+                for (let entry of Object.entries(result.properties)) {
+                    this.setEntityProperty(entity, entry[0], 'const', (field) : DataValue => {
+                        return entry[1];
+                    });
+                }
+            }
         }
-        return e;
+        return entity;
+    }
+
+    setEntityProperty(e: Entity, name: string, cmd: 'init' | 'const', valuefn: (field: DataField) => DataValue) {
+        if (!this.currentScope) { this.internalError(); throw new Error(); }
+        let comps = this.em.componentsWithFieldName([{etype: e.etype, cmatch:e.etype.components}], name);
+        if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
+        if (comps.length > 1) this.compileError(`I found more than one field named "${name}" for this entity.`)
+        let field = comps[0].fields.find(f => f.name == name);
+        if (!field) { this.internalError(); throw new Error(); }
+        let value = valuefn(field);
+        let symtype = this.currentScope.isConstOrInit(comps[0], name);
+        if (symtype && symtype != cmd)
+            this.compileError(`I can't mix const and init values for a given field in a scope.`);
+        if (cmd == 'const') this.currentScope.setConstValue(e, comps[0], name, value);
+        if (cmd == 'init') this.currentScope.setInitValue(e, comps[0], name, value);
     }
 
     parseEntityArchetype() : EntityArchetype {
