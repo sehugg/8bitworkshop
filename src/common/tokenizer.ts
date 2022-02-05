@@ -160,6 +160,9 @@ export class Tokenizer {
         let tok = this.lasttoken = (this.tokens.shift() || this.eof);
         return tok;
     }
+    ifToken(match: string): Token | undefined {
+        if (this.peekToken().str == match) return this.consumeToken();
+    }
     expectToken(str: string, msg?: string): Token {
         let tok = this.consumeToken();
         let tokstr = tok.str;

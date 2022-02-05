@@ -1,7 +1,7 @@
 
 import { mergeLocs, Tokenizer, TokenType } from "../tokenizer";
 import { SourceLocated } from "../workertypes";
-import { Action, ArrayType, ComponentType, DataField, DataType, DataValue, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SourceFileExport, System } from "./ecs";
+import { Action, ArrayType, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SourceFileExport, System } from "./ecs";
 
 export enum ECSTokenType {
     Ellipsis = 'ellipsis',
@@ -129,14 +129,18 @@ export class ECSCompiler extends Tokenizer {
         if (this.peekToken().str == '[') {
             return { dtype: 'ref', query: this.parseQuery() } as RefType;
         }
-        if (this.peekToken().str == 'array') {
+        if (this.ifToken('array')) {
             let index : IntType | undefined = undefined;
-            this.expectToken('array');
             if (this.peekToken().type == ECSTokenType.Integer) {
                 index = this.parseDataType() as IntType;
             }
             this.expectToken('of');
-            return { dtype: 'array', index, elem: this.parseDataType() } as ArrayType;
+            let elem = this.parseDataType();
+            let baseoffset;
+            if (this.ifToken('baseoffset')) {
+                baseoffset = this.expectInteger();
+            }
+            return { dtype: 'array', index, elem, baseoffset } as ArrayType;
         }
         this.internalError(); throw new Error();
     }

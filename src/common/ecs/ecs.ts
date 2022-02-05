@@ -58,6 +58,7 @@ how to avoid cycle crossing for critical code and data?
 */
 
 
+import { data } from "jquery";
 import { SourceLocated, SourceLocation } from "../workertypes";
 
 export class ECSError extends Error {
@@ -153,6 +154,7 @@ export interface ArrayType {
     dtype: 'array'
     elem: DataType
     index?: DataType
+    baseoffset?: number
 }
 
 export interface RefType {
@@ -651,8 +653,18 @@ class ActionEval {
         let bitofs = parseInt(args[1] || '0');
         return this.generateCodeForField(fieldName, bitofs, canwrite);
     }
+    __base(args: string[]) {
+        // TODO: refactor into generateCode..
+        let fieldName = args[0];
+        let bitofs = parseInt(args[1] || '0');
+        let component = this.em.singleComponentWithFieldName(this.qr.atypes, fieldName, this.action);
+        let field = component.fields.find(f => f.name == fieldName);
+        if (field == null) throw new ECSError(`no field named "${fieldName}" in component`, this.action);
+        return this.dialect.fieldsymbol(component, field, bitofs);
+    }
     __index(args: string[]) {
-        let ident = args[0]; // TODO?
+        // TODO: check select type and if we actually have an index...
+        let ident = args[0];
         if (this.entities.length == 1) {
             return this.dialect.absolute(ident);
         } else {
@@ -727,6 +739,7 @@ class ActionEval {
         // find archetypes
         let field = component.fields.find(f => f.name == fieldName);
         if (field == null) throw new ECSError(`no field named "${fieldName}" in component`, action);
+        let ident = this.dialect.fieldsymbol(component, field, bitofs);
         // see if all entities have the same constant value
         // TODO: should be done somewhere else?
         let constValues = new Set<DataValue>();
@@ -753,7 +766,6 @@ class ActionEval {
         let range = this.scope.bss.getFieldRange(component, fieldName) || this.scope.rodata.getFieldRange(component, fieldName);
         if (!range) throw new ECSError(`couldn't find field for ${component.name}:${fieldName}, maybe no entities?`); // TODO
         // TODO: dialect
-        let ident = this.dialect.fieldsymbol(component, field, bitofs);
         let eidofs = qr.entities.length && qr.entities[0].id - range.elo; // TODO: negative?
         if (baseLookup) {
             return this.dialect.absolute(ident);
@@ -940,24 +952,27 @@ export class EntityScope implements SourceLocated {
                 // is it a bounded array? (TODO)
                 if (f.dtype == 'array' && f.index) {
                     let datasym = this.dialect.datasymbol(c, f, e.id);
-                    let offset = this.bss.allocateBytes(datasym, getFieldLength(f.index));
+                    let databytes = getFieldLength(f.index);
+                    let offset = this.bss.allocateBytes(datasym, databytes);
                     let ptrlosym = this.dialect.fieldsymbol(c, f, 0);
                     let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
                     let loofs = segment.allocateBytes(ptrlosym, entcount);
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
+                    if (f.baseoffset) datasym = `(${datasym}+${f.baseoffset})`;
                     segment.initdata[loofs + e.id - range.elo] = { symbol: datasym, bitofs: 0 };
                     segment.initdata[hiofs + e.id - range.elo] = { symbol: datasym, bitofs: 8 };
                 }
             } else {
                 // this is a constant
                 // is it a byte array?
-                if (v instanceof Uint8Array) {
+                if (v instanceof Uint8Array && f.dtype == 'array') {
                     let datasym = this.dialect.datasymbol(c, f, e.id);
                     segment.allocateInitData(datasym, v);
                     let ptrlosym = this.dialect.fieldsymbol(c, f, 0);
                     let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
                     let loofs = segment.allocateBytes(ptrlosym, entcount);
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
+                    if (f.baseoffset) datasym = `(${datasym}+${f.baseoffset})`;
                     segment.initdata[loofs + e.id - range.elo] = { symbol: datasym, bitofs: 0 };
                     segment.initdata[hiofs + e.id - range.elo] = { symbol: datasym, bitofs: 8 };
                     // TODO: } else if (v instanceof Uint16Array) {
