@@ -244,24 +244,6 @@ export class Dialect_CA65 {
     dey
     bne :-
 `
-    HEADER = `
-.include "vcs-ca65.h"
-.define PAL 0
-.code
-`
-    FOOTER = `
-.segment "VECTORS"
-Return:    .word $6060
-VecNMI:
-VecReset:  .word Main::__Reset
-VecBRK:    .word Main::__BRK
-`
-    TEMPLATE_INIT_MAIN = `
-__NMI:
-__Reset:
-__BRK:
-    CLEAN_START
-`
 
     comment(s: string) {
         return `\n;;; ${s}\n`;
@@ -688,6 +670,9 @@ class ActionEval {
         return `${this.tmplabel}+${tempinc}`;
         //return `TEMP+${this.scope.tempOffset}+${tempinc}`;
     }
+    __bss_init(args: string[]) {
+        return this.scope.allocateInitData(this.scope.bss);
+    }
     wrapCodeInLoop(code: string, action: Action, ents: Entity[], joinfield?: ComponentFieldPair): string {
         // TODO: check ents
         // TODO: check segment bounds
@@ -1106,14 +1091,15 @@ export class EntityScope implements SourceLocated {
         this.allocateROData(this.rodata);
     }
     generateCode() {
+        let isMainScope = this.parent == null;
         this.tempOffset = this.maxTempBytes = 0;
-        // TODO: main scope?
-        if (this.name.toLowerCase() == 'main') {
-            this.code.addCodeFragment(this.dialect.TEMPLATE_INIT_MAIN);
+        let start;
+        if (isMainScope) {
+            this.addUsingSystem(this.em.getSystemByName('Init')); //TODO: what if none?
+            start = this.generateCodeForEvent('main_init');
+        } else {
+            start = this.generateCodeForEvent('start');
         }
-        let initcode = this.allocateInitData(this.bss);
-        this.code.addCodeFragment(initcode);
-        let start = this.generateCodeForEvent('start');
         this.code.addCodeFragment(start);
         for (let sub of Array.from(this.resources.values())) {
             let code = this.generateCodeForEvent(sub);
@@ -1123,6 +1109,9 @@ export class EntityScope implements SourceLocated {
     dump(file: SourceFileExport) {
         this.analyzeEntities();
         this.generateCode();
+        this.dumpCodeTo(file);
+    }
+    private dumpCodeTo(file: SourceFileExport) {
         let dialect = this.dialect;
         file.line(dialect.startScope(this.name));
         file.line(dialect.segment(`${this.name}_DATA`, 'bss'));
@@ -1250,12 +1239,10 @@ export class EntityManager {
         })
     }
     exportToFile(file: SourceFileExport) {
-        file.text(this.dialect.HEADER); // TODO
         for (let scope of Object.values(this.topScopes)) {
             if (!scope.isDemo || scope.filePath == this.mainPath) {
                 scope.dump(file);
             }
         }
-        file.text(this.dialect.FOOTER); // TODO
     }
 }

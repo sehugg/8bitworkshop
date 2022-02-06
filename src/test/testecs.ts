@@ -370,8 +370,6 @@ describe('Compiler', function() {
     let files = readdirSync(testdir).filter(f => f.endsWith('.ecs'));
     files.forEach((ecspath) => {
         let dialect = new Dialect_CA65();
-        dialect.HEADER = '';
-        dialect.FOOTER = '';
         let em = new EntityManager(dialect);
         let compiler = new ECSCompiler(em);
         let code = readFileSync(testdir + ecspath, 'utf-8');
