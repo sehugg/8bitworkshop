@@ -182,11 +182,6 @@ interface ConstByte {
     bitofs: number;
 }
 
-interface ArchetypeMatch {
-    etype: EntityArchetype;
-    cmatch: ComponentType[];
-}
-
 interface ComponentFieldPair {
     c: ComponentType;
     f: DataField;
@@ -466,11 +461,11 @@ function getPackedFieldSize(f: DataType, constValue?: DataValue): number {
 }
 
 class EntitySet {
-    atypes: ArchetypeMatch[];
+    atypes: EntityArchetype[];
     entities: Entity[];
     scope;
 
-    constructor(scope: EntityScope, query?: Query, a?: ArchetypeMatch[], e?: Entity[]) {
+    constructor(scope: EntityScope, query?: Query, a?: EntityArchetype[], e?: Entity[]) {
         this.scope = scope;
         if (query) {
             this.atypes = scope.em.archetypesMatching(query);
@@ -489,7 +484,7 @@ class EntitySet {
     }
     intersection(qr: EntitySet) {
         let ents = this.entities.filter(e => qr.entities.includes(e));
-        let atypes = this.atypes.filter(a1 => qr.atypes.find(a2 => a2.etype == a1.etype));
+        let atypes = this.atypes.filter(a1 => qr.atypes.find(a2 => a2 == a1));
         return new EntitySet(this.scope, undefined, atypes, ents);
     }
     isContiguous() {
@@ -799,7 +794,7 @@ class ActionEval {
             throw new ECSError(`cannot find "${component.name}:${field.name}" in state`, action);
         }
     }
-    getJoinField(action: Action, atypes: ArchetypeMatch[], jtypes: ArchetypeMatch[]): ComponentFieldPair {
+    getJoinField(action: Action, atypes: EntityArchetype[], jtypes: EntityArchetype[]): ComponentFieldPair {
         let refs = Array.from(this.scope.iterateArchetypeFields(atypes, (c, f) => f.dtype == 'ref'));
         // TODO: better error message
         if (refs.length == 0) throw new ECSError(`cannot find join fields`, action);
@@ -874,10 +869,10 @@ export class EntityScope implements SourceLocated {
             }
         }
     }
-    *iterateArchetypeFields(arch: ArchetypeMatch[], filter?: (c: ComponentType, f: DataField) => boolean) {
+    *iterateArchetypeFields(arch: EntityArchetype[], filter?: (c: ComponentType, f: DataField) => boolean) {
         for (let i = 0; i < arch.length; i++) {
             let a = arch[i];
-            for (let c of a.etype.components) {
+            for (let c of a.components) {
                 for (let f of c.fields) {
                     if (!filter || filter(c, f))
                         yield { i, c, f };
@@ -885,13 +880,13 @@ export class EntityScope implements SourceLocated {
             }
         }
     }
-    entitiesMatching(atypes: ArchetypeMatch[]) {
+    entitiesMatching(atypes: EntityArchetype[]) {
         let result: Entity[] = [];
         for (let e of this.entities) {
             for (let a of atypes) {
                 // TODO: what about subclasses?
                 // TODO: very scary identity ocmpare
-                if (e.etype === a.etype) {
+                if (e.etype === a) {
                     result.push(e);
                     break;
                 }
@@ -1043,12 +1038,12 @@ export class EntityScope implements SourceLocated {
     }
     // TODO: check type/range of value
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        let c = this.em.singleComponentWithFieldName([{ etype: e.etype, cmatch: [component] }], fieldName, e);
+        let c = this.em.singleComponentWithFieldName([e.etype], fieldName, e);
         e.consts[mksymbol(component, fieldName)] = value;
         this.fieldtypes[mksymbol(component, fieldName)] = 'const';
     }
     setInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        let c = this.em.singleComponentWithFieldName([{ etype: e.etype, cmatch: [component] }], fieldName, e);
+        let c = this.em.singleComponentWithFieldName([e.etype], fieldName, e);
         e.inits[mkscopesymbol(this, component, fieldName)] = value;
         this.fieldtypes[mksymbol(component, fieldName)] = 'init';
     }
@@ -1209,20 +1204,20 @@ export class EntityManager {
         return list.length == q.include.length ? list : [];
     }
     archetypesMatching(q: Query) {
-        let result: ArchetypeMatch[] = [];
+        let result = new Set<EntityArchetype>();
         for (let etype of Object.values(this.archetypes)) {
             let cmatch = this.componentsMatching(q, etype);
             if (cmatch.length > 0) {
-                result.push({ etype, cmatch });
+                result.add(etype);
             }
         }
-        return result;
+        return Array.from(result.values());
     }
-    componentsWithFieldName(atypes: ArchetypeMatch[], fieldName: string) {
+    componentsWithFieldName(atypes: EntityArchetype[], fieldName: string) {
         // TODO???
         let comps = new Set<ComponentType>();
         for (let at of atypes) {
-            for (let c of at.cmatch) {
+            for (let c of at.components) {
                 for (let f of c.fields) {
                     if (f.name == fieldName)
                         comps.add(c);
@@ -1237,7 +1232,7 @@ export class EntityManager {
     getSystemByName(name: string): System {
         return this.systems[name];
     }
-    singleComponentWithFieldName(atypes: ArchetypeMatch[], fieldName: string, where: SourceLocated) {
+    singleComponentWithFieldName(atypes: EntityArchetype[], fieldName: string, where: SourceLocated) {
         let components = this.componentsWithFieldName(atypes, fieldName);
         // TODO: use name2cfpairs?
         if (components.length == 0) {

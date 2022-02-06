@@ -369,7 +369,7 @@ export class ECSCompiler extends Tokenizer {
 
     setEntityProperty(e: Entity, name: string, cmd: 'init' | 'const', valuefn: (field: DataField) => DataValue) {
         if (!this.currentScope) { this.internalError(); throw new Error(); }
-        let comps = this.em.componentsWithFieldName([{etype: e.etype, cmatch:e.etype.components}], name);
+        let comps = this.em.componentsWithFieldName([e.etype], name);
         if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
         if (comps.length > 1) this.compileError(`I found more than one field named "${name}" for this entity.`)
         let field = comps[0].fields.find(f => f.name == name);
