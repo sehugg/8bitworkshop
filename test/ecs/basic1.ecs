@@ -1,0 +1,16 @@
+        // comment
+        /*
+        mju,fjeqowfjqewiofjqe
+        */
+component Kernel
+    lines: 0..255
+    bgcolor: 0..255
+end
+
+component Bitmap
+    data: array of 0..255
+end
+
+component HasBitmap
+    bitmap: [Bitmap]
+end

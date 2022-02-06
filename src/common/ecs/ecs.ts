@@ -194,7 +194,7 @@ interface ComponentFieldPair {
 
 export class Dialect_CA65 {
 
-    readonly ASM_ITERATE_EACH = `
+    ASM_ITERATE_EACH = `
     ldx #0
 @__each:
     {{%code}}
@@ -204,7 +204,7 @@ export class Dialect_CA65 {
 @__exit:
 `;
 
-    readonly ASM_ITERATE_JOIN = `
+    ASM_ITERATE_JOIN = `
     ldy #0
 @__each:
     ldx {{%joinfield}},y
@@ -215,14 +215,14 @@ export class Dialect_CA65 {
 @__exit:
 `;
 
-    readonly ASM_FILTER_RANGE_LO_X = `
+    ASM_FILTER_RANGE_LO_X = `
     cpx #{{%xofs}}
     bcc @__skipxlo
     {{%code}}
 @__skipxlo:
 `
 
-    readonly ASM_FILTER_RANGE_HI_X = `
+    ASM_FILTER_RANGE_HI_X = `
     cpx #{{%xofs}}+{{%ecount}}
     bcs @__skipxhi
     {{%code}}
@@ -230,7 +230,7 @@ export class Dialect_CA65 {
 `
 
     // TODO
-    readonly ASM_MAP_RANGES = `
+    ASM_MAP_RANGES = `
     txa
     pha
     lda {{%mapping}},x
@@ -242,26 +242,26 @@ export class Dialect_CA65 {
     tax
 `;
 
-    readonly INIT_FROM_ARRAY = `
+    INIT_FROM_ARRAY = `
     ldy #{{%nbytes}}
 :   lda {{%src}}-1,y
     sta {{%dest}}-1,y
     dey
     bne :-
 `
-    readonly HEADER = `
+    HEADER = `
 .include "vcs-ca65.h"
 .define PAL 0
 .code
 `
-    readonly FOOTER = `
+    FOOTER = `
 .segment "VECTORS"
 Return:    .word $6060
 VecNMI:
 VecReset:  .word Main::__Reset
 VecBRK:    .word Main::__BRK
 `
-    readonly TEMPLATE_INIT_MAIN = `
+    TEMPLATE_INIT_MAIN = `
 __NMI:
 __Reset:
 __BRK:
@@ -431,6 +431,12 @@ class DataSegment {
         if (!a) throw new ECSError('getOriginSymbol(): no symbol at offset 0'); // TODO
         return a[0];
     }
+}
+
+class UninitDataSegment extends DataSegment {
+}
+
+class ConstDataSegment extends DataSegment {
 }
 
 function getFieldBits(f: IntType) {
@@ -820,8 +826,8 @@ export class EntityScope implements SourceLocated {
     systems: System[] = [];
     entities: Entity[] = [];
     fieldtypes: { [name: string]: 'init' | 'const' } = {};
-    bss = new DataSegment();
-    rodata = new DataSegment();
+    bss = new UninitDataSegment();
+    rodata = new ConstDataSegment();
     code = new CodeSegment();
     componentsInScope = new Set();
     tempOffset = 0;

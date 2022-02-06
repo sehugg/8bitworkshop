@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from "fs";
 import { describe } from "mocha";
 import { ECSCompiler } from "../common/ecs/compiler";
 import { Dialect_CA65, EntityManager, SourceFileExport } from "../common/ecs/ecs";
@@ -361,5 +362,22 @@ describe('Tokenizer', function() {
     });
     it('Should use Compiler', function() {
         testCompiler();
+    });
+});
+
+describe('Compiler', function() {
+    let testdir = './test/ecs/';
+    let files = readdirSync(testdir).filter(f => f.endsWith('.ecs'));
+    files.forEach((ecspath) => {
+        let dialect = new Dialect_CA65();
+        dialect.HEADER = '';
+        dialect.FOOTER = '';
+        let em = new EntityManager(dialect);
+        let compiler = new ECSCompiler(em);
+        let code = readFileSync(testdir + ecspath, 'utf-8');
+        compiler.parseFile(code, ecspath);
+        let out = new SourceFileExport();
+        em.exportToFile(out);
+        console.log(out.toString());
     });
 });
