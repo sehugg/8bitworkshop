@@ -171,7 +171,7 @@ export class Tokenizer {
         }
         return tok;
     }
-    expectTokens(strlist: string[], msg?: string): Token {
+    expectTokens(strlist: readonly string[], msg?: string): Token {
         let tok = this.consumeToken();
         let tokstr = tok.str;
         if (!strlist.includes(tokstr)) {

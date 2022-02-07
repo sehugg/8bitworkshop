@@ -16,6 +16,7 @@ export function assembleECS(step: BuildStep): BuildStepResult {
     if (staleFiles(step, [destpath])) {
         let code = getWorkFileAsString(step.path);
         try {
+            compiler.debuginfo = true;
             compiler.parseFile(code, step.path);
             let outtext = compiler.export().toString();
             putWorkFile(destpath, outtext);

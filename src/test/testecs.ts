@@ -1,4 +1,6 @@
-import { readdirSync, readFileSync } from "fs";
+import assert from "assert";
+import { execFileSync } from "child_process";
+import { readdirSync, readFileSync, writeFileSync } from "fs";
 import { describe } from "mocha";
 import { ECSCompiler } from "../common/ecs/compiler";
 import { Dialect_CA65, EntityManager, SourceFileExport } from "../common/ecs/ecs";
@@ -338,7 +340,7 @@ scope Root
 end
 
 `, 'foo.txt');
-        console.log('json', c.em.toJSON());
+        //console.log('json', c.em.toJSON());
         let src = new SourceFileExport();
         c.exportToFile(src);
         // TODO: test?
@@ -368,14 +370,27 @@ describe('Tokenizer', function() {
 describe('Compiler', function() {
     let testdir = './test/ecs/';
     let files = readdirSync(testdir).filter(f => f.endsWith('.ecs'));
-    files.forEach((ecspath) => {
+    files.forEach((ecsfn) => {
+        let goodfn = ecsfn.replace('.ecs','.txt')
+        let srcpath = testdir + ecsfn;
+        let destpath = testdir + goodfn;
         let dialect = new Dialect_CA65();
         let em = new EntityManager(dialect);
+        em.mainPath = srcpath;
         let compiler = new ECSCompiler(em);
-        let code = readFileSync(testdir + ecspath, 'utf-8');
-        compiler.parseFile(code, ecspath);
+        compiler.getImportFile = (path: string) => {
+            return readFileSync(testdir + path, 'utf-8');
+        }
+        let code = readFileSync(srcpath, 'utf-8');
+        compiler.parseFile(code, srcpath);
         let out = new SourceFileExport();
         em.exportToFile(out);
-        console.log(out.toString());
+        let outtxt = out.toString();
+        let goodtxt = readFileSync(destpath, 'utf-8');
+        if (outtxt.trim() != goodtxt.trim()) {
+            writeFileSync('/tmp/' + goodfn, outtxt, 'utf-8');
+            execFileSync('/usr/bin/diff', [srcpath, destpath]);
+            throw new Error(ecsfn + ' did not match test file');
+        }
     });
 });

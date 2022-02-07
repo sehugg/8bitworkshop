@@ -1,0 +1,241 @@
+.scope Main
+.zeropage
+PFColor_pfcolor_b0:
+.res 1
+.res 1
+Local_tmp:
+.res 1
+.code
+KernelSection_lines_b0:
+.byte 2
+.byte 2
+.byte 2
+.byte 2
+.byte 10
+.byte 50
+.byte 50
+.byte 10
+BGColor_bgcolor_b0:
+.byte 24
+.byte 22
+.byte 20
+.byte 18
+.byte 20
+.byte 20
+.byte 22
+.byte 24
+Playfield_pf_b0:
+.byte 68
+.byte 68
+.byte 36
+.byte 0
+Playfield_pf_b8:
+.byte 82
+.byte 34
+.byte 1
+.byte 0
+Playfield_pf_b16:
+.byte 18
+.byte 17
+.byte 0
+.byte 0
+Main__INITDATA:
+.byte 0
+.byte 0
+__Start:
+.code
+
+;;; start action Init main_init
+
+.include "vcs-ca65.h"
+.define PAL 0
+__NMI:
+__Reset:
+__BRK:
+    CLEAN_START
+
+    ldy #2
+:   lda Main__INITDATA-1,y
+    sta PFColor_pfcolor_b0-1,y
+    dey
+    bne :-
+	; initialize data segment
+.code
+
+;;; start action FrameLoop start
+
+FrameLoop__start__2__NextFrame:
+    FRAME_START
+    .code
+
+;;; start action StaticKernel preframe
+
+    .code
+
+;;; start action StaticKernel kernelsetup
+
+    lda #24
+    sta COLUBK
+
+;;; end action StaticKernel kernelsetup
+
+;;; start action StaticKernel kernelsetup
+
+    cpx #0+2
+    bcs StaticKernel__kernelsetup__5____skipxhi
+    
+    cpx #0
+    bcc StaticKernel__kernelsetup__5____skipxlo
+    
+    lda PFColor_pfcolor_b0,x
+    sta COLUPF
+
+StaticKernel__kernelsetup__5____skipxlo:
+
+StaticKernel__kernelsetup__5____skipxhi:
+
+;;; end action StaticKernel kernelsetup
+
+;;; start action StaticKernel kernelsetup
+
+    cpx #0+4
+    bcs StaticKernel__kernelsetup__6____skipxhi
+    
+    cpx #0
+    bcc StaticKernel__kernelsetup__6____skipxlo
+    
+    lda Playfield_pf_b0,x
+    sta PF0
+    lda Playfield_pf_b8,x
+    sta PF1
+    lda Playfield_pf_b16,x
+    sta PF2
+
+StaticKernel__kernelsetup__6____skipxlo:
+
+StaticKernel__kernelsetup__6____skipxhi:
+
+;;; end action StaticKernel kernelsetup
+
+
+;;; end action StaticKernel preframe
+
+    KERNEL_START
+    .code
+
+;;; start action StaticKernel kernel
+
+    ldx #0
+StaticKernel__kernel__7____each:
+    
+    sta WSYNC
+    .code
+
+;;; start action StaticKernel kernelsetup
+
+    lda BGColor_bgcolor_b0,x
+    sta COLUBK
+
+;;; end action StaticKernel kernelsetup
+
+;;; start action StaticKernel kernelsetup
+
+    cpx #5+2
+    bcs StaticKernel__kernelsetup__9____skipxhi
+    
+    cpx #5
+    bcc StaticKernel__kernelsetup__9____skipxlo
+    
+    lda PFColor_pfcolor_b0-5,x
+    sta COLUPF
+
+StaticKernel__kernelsetup__9____skipxlo:
+
+StaticKernel__kernelsetup__9____skipxhi:
+
+;;; end action StaticKernel kernelsetup
+
+;;; start action StaticKernel kernelsetup
+
+    cpx #4
+    bcc StaticKernel__kernelsetup__10____skipxlo
+    
+    lda Playfield_pf_b0-4,x
+    sta PF0
+    lda Playfield_pf_b8-4,x
+    sta PF1
+    lda Playfield_pf_b16-4,x
+    sta PF2
+
+StaticKernel__kernelsetup__10____skipxlo:
+
+;;; end action StaticKernel kernelsetup
+
+    ldy KernelSection_lines_b0,x
+StaticKernel__kernel__7__loop:
+    sta WSYNC
+    
+    dey
+    bne StaticKernel__kernel__7__loop
+    
+
+    inx
+    cpx #8
+    bne StaticKernel__kernel__7____each
+StaticKernel__kernel__7____exit:
+
+;;; end action StaticKernel kernel
+
+    KERNEL_END
+    .code
+
+;;; start action JoyButton postframe
+
+    lda INPT4	;read button input
+    bmi JoyButton__postframe__11__NotPressed
+    .code
+
+;;; start action Local joybutton
+
+    inc Local_tmp+0
+    inc PFColor_pfcolor_b0
+    
+;;; end action Local joybutton
+
+JoyButton__postframe__11__NotPressed:
+
+;;; end action JoyButton postframe
+
+    FRAME_END
+    .code
+
+;;; start action ResetSwitch nextframe
+
+    lsr SWCHB	      ; test Game Reset switch
+    bcs ResetSwitch__nextframe__13__NoStart
+    .code
+
+;;; start action ResetConsole resetswitch
+
+    jmp Main::__Reset ; jump to Reset handler
+
+;;; end action ResetConsole resetswitch
+
+ResetSwitch__nextframe__13__NoStart:
+
+;;; end action ResetSwitch nextframe
+
+    jmp FrameLoop__start__2__NextFrame    ; loop to next frame
+
+;;; end action FrameLoop start
+	; start main routine
+.segment "VECTORS"
+Return:    .word $6060
+VecNMI:
+VecReset:  .word Main::__Reset
+VecBRK:    .word Main::__BRK
+
+;;; end action Init main_init
+
+.endscope
+Main__Start = Main::__Start

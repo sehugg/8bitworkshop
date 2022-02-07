@@ -115,7 +115,9 @@ export interface System extends SourceLocated {
     tempbytes?: number;
 }
 
-export type SelectType = 'once' | 'foreach' | 'join' | 'with' | 'if' | 'select';
+export const SELECT_TYPE = ['once', 'foreach', 'join', 'with', 'if', 'select'] as const;
+
+export type SelectType = typeof SELECT_TYPE[number];
 
 export interface ActionBase extends SourceLocated {
     select: SelectType;
@@ -1062,9 +1064,9 @@ export class EntityScope implements SourceLocated {
                     let codeeval = new ActionEval(this, sys, action);
                     codeeval.tmplabel = tmplabel;
                     codeeval.begin();
-                    s += this.dialect.comment(`<action ${sys.name}:${event}>`); // TODO
+                    s += this.dialect.comment(`start action ${sys.name} ${event}`); // TODO
                     s += codeeval.codeToString();
-                    s += this.dialect.comment(`</action ${sys.name}:${event}>`);
+                    s += this.dialect.comment(`end action ${sys.name} ${event}`);
                     // TODO: check that this happens once?
                     codeeval.end();
                     numActions++;

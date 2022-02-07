@@ -2,7 +2,7 @@
 import { mergeLocs, Tokenizer, TokenType } from "../tokenizer";
 import { SourceLocated } from "../workertypes";
 import { newDecoder } from "./decoder";
-import { Action, ArrayType, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SourceFileExport, System } from "./ecs";
+import { Action, ArrayType, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System } from "./ecs";
 
 export enum ECSTokenType {
     Ellipsis = 'ellipsis',
@@ -15,6 +15,7 @@ export enum ECSTokenType {
 export class ECSCompiler extends Tokenizer {
 
     currentScope: EntityScope | null = null;
+    debuginfo = false;
 
     constructor(
         public readonly em: EntityManager)
@@ -63,6 +64,7 @@ export class ECSCompiler extends Tokenizer {
             if (!text) this.compileError(`I can't find the import file "${path}".`);
             this.em.imported[path] = true;
             let comp = new ECSCompiler(this.em);
+            comp.debuginfo = this.debuginfo; // TODO: clone compiler
             try {
                 comp.parseFile(text, path);
             } catch (e) {
@@ -224,11 +226,12 @@ export class ECSCompiler extends Tokenizer {
         // TODO: unused events?
         let event = this.expectIdent().str;
         this.expectToken('do');
-        let select = this.expectTokens(
-            ['once', 'foreach', 'join', 'with', 'if', 'select']).str as SelectType; // TODO: type check?
+        let select = this.expectTokens(SELECT_TYPE).str as SelectType; // TODO: type check?
         let query = undefined;
         let join = undefined;
-        if (select != 'once') {
+        if (select == 'once') {
+            if (this.peekToken().str == '[') this.compileError(`A "${select}" query can't include a query.`)
+        } else {
             query = this.parseQuery();
         }
         if (select == 'join') {
@@ -273,12 +276,12 @@ export class ECSCompiler extends Tokenizer {
         }
     }
 
-    parseEvent() {
+    parseEventName() {
         return this.expectIdent().str;
     }
 
     parseEventList() {
-        return this.parseList(this.parseEvent, ",");
+        return this.parseList(this.parseEventName, ",");
     }
 
     parseCode(): string {
@@ -286,12 +289,16 @@ export class ECSCompiler extends Tokenizer {
         let tok = this.expectTokenTypes([ECSTokenType.CodeFragment]);
         let code = tok.str.substring(3, tok.str.length-3);
         let lines = code.split('\n');
-        let re = /^\s*(;|\/\/|$)/; // ignore comments and blank lines
+        if (this.debuginfo) this.addDebugInfo(lines, tok.$loc.line);
+        return lines.join('\n');
+    }
+
+    addDebugInfo(lines: string[], startline: number) {
+        const re = /^\s*(;|\/\/|$)/; // ignore comments and blank lines
         for (let i=0; i<lines.length; i++) {
             if (!lines[i].match(re))
-                lines[i] = this.em.dialect.debug_line(this.path, tok.$loc.line+i) + '\n' + lines[i];
+                lines[i] = this.em.dialect.debug_line(this.path, startline+i) + '\n' + lines[i];
         }
-        return lines.join('\n');
     }
     
     parseScope() : EntityScope {
