@@ -59,8 +59,6 @@ how to avoid cycle crossing for critical code and data?
 
 */
 
-
-import { data } from "jquery";
 import { SourceLocated, SourceLocation } from "../workertypes";
 
 export class ECSError extends Error {
@@ -132,6 +130,7 @@ export interface ActionOnce extends ActionBase {
 export interface ActionWithQuery extends ActionBase {
     select: 'foreach' | 'join' | 'with' | 'if' | 'select'
     query: Query
+    direction?: 'asc' | 'desc'
 }
 
 export interface ActionWithJoin extends ActionWithQuery {
@@ -191,7 +190,7 @@ interface ComponentFieldPair {
 
 export class Dialect_CA65 {
 
-    ASM_ITERATE_EACH = `
+    ASM_ITERATE_EACH_ASC = `
     ldx #0
 @__each:
     {{%code}}
@@ -201,7 +200,16 @@ export class Dialect_CA65 {
 @__exit:
 `;
 
-    ASM_ITERATE_JOIN = `
+    ASM_ITERATE_EACH_DESC = `
+    ldx #{{%ecount}}-1
+@__each:
+    {{%code}}
+    dex
+    bpl @__each
+@__exit:
+`;
+
+    ASM_ITERATE_JOIN_ASC = `
     ldy #0
 @__each:
     ldx {{%joinfield}},y
@@ -209,6 +217,16 @@ export class Dialect_CA65 {
     iny
     cpy #{{%ecount}}
     bne @__each
+@__exit:
+`;
+
+    ASM_ITERATE_JOIN_DESC = `
+    ldy #{{%ecount}}-1
+@__each:
+    ldx {{%joinfield}},y
+    {{%code}}
+    dey
+    bpl @__each
 @__exit:
 `;
 
@@ -490,8 +508,8 @@ class ActionCPUState {
 }
 
 class ActionEval {
-    em;
-    dialect;
+    em : EntityManager;
+    dialect : Dialect_CA65;
     qr: EntitySet;
     jr: EntitySet | undefined;
     oldState : ActionCPUState;
@@ -675,12 +693,14 @@ class ActionEval {
     __bss_init(args: string[]) {
         return this.scope.allocateInitData(this.scope.bss);
     }
-    wrapCodeInLoop(code: string, action: Action, ents: Entity[], joinfield?: ComponentFieldPair): string {
+    wrapCodeInLoop(code: string, action: ActionWithQuery, ents: Entity[], joinfield?: ComponentFieldPair): string {
         // TODO: check ents
         // TODO: check segment bounds
         // TODO: what if 0 or 1 entitites?
-        let s = this.dialect.ASM_ITERATE_EACH;
-        if (joinfield) s = this.dialect.ASM_ITERATE_JOIN;
+        // TODO: check > 127 or > 255
+        let dir = action.direction;
+        let s = dir == 'desc' ? this.dialect.ASM_ITERATE_EACH_DESC : this.dialect.ASM_ITERATE_EACH_ASC;
+        if (joinfield) s = dir == 'desc' ? this.dialect.ASM_ITERATE_JOIN_DESC : this.dialect.ASM_ITERATE_JOIN_ASC;
         s = s.replace('{{%code}}', code);
         return s;
     }

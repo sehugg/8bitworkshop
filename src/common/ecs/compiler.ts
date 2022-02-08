@@ -2,7 +2,7 @@
 import { mergeLocs, Tokenizer, TokenType } from "../tokenizer";
 import { SourceLocated } from "../workertypes";
 import { newDecoder } from "./decoder";
-import { Action, ArrayType, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System } from "./ecs";
+import { Action, ActionWithJoin, ArrayType, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System } from "./ecs";
 
 export enum ECSTokenType {
     Ellipsis = 'ellipsis',
@@ -224,13 +224,16 @@ export class ECSCompiler extends Tokenizer {
 
     parseAction(): Action {
         // TODO: unused events?
-        let event = this.expectIdent().str;
+        const event = this.expectIdent().str;
         this.expectToken('do');
-        let select = this.expectTokens(SELECT_TYPE).str as SelectType; // TODO: type check?
+        const all_modifiers = ['cyclecritical','asc','desc']; // TODO
+        const modifiers = this.parseModifiers(all_modifiers);
+        // TODO: include modifiers in error msg
+        const select = this.expectTokens(SELECT_TYPE).str as SelectType; // TODO: type check?
         let query = undefined;
         let join = undefined;
         if (select == 'once') {
-            if (this.peekToken().str == '[') this.compileError(`A "${select}" query can't include a query.`)
+            if (this.peekToken().str == '[') this.compileError(`A "${select}" action can't include a query.`)
         } else {
             query = this.parseQuery();
         }
@@ -242,12 +245,12 @@ export class ECSCompiler extends Tokenizer {
             if (!query) { this.compileError(`A "${select}" query can't include a limit.`); }
             else query.limit = this.expectInteger();
         }
-        if (this.ifToken('cyclecritical')) {
-            // TODO
-        }
         let text = this.parseCode();
-        let action = { text, event, query, join, select };
-        return action as Action;
+        let direction = undefined;
+        if (modifiers['asc']) direction = 'asc';
+        else if (modifiers['desc']) direction = 'desc';
+        let action = { text, event, query, join, select, direction };
+        return action as ActionWithJoin;
     }
     
     parseQuery() {
