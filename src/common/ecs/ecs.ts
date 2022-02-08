@@ -107,6 +107,11 @@ export interface Query extends SourceLocated {
     limit?: number;
 }
 
+export class SystemStats {
+    tempstartseq: number | undefined;
+    tempendseq: number | undefined;
+}
+
 export interface System extends SourceLocated {
     name: string;
     actions: Action[];
@@ -116,6 +121,10 @@ export interface System extends SourceLocated {
 export const SELECT_TYPE = ['once', 'foreach', 'join', 'with', 'if', 'select'] as const;
 
 export type SelectType = typeof SELECT_TYPE[number];
+
+export class ActionStats {
+    callcount: number = 0;
+}
 
 export interface ActionBase extends SourceLocated {
     select: SelectType;
@@ -687,6 +696,7 @@ class ActionEval {
         if (isNaN(tempinc)) throw new ECSError(`bad temporary offset`, this.action);
         if (!this.sys.tempbytes) throw new ECSError(`this system has no locals`, this.action);
         if (tempinc < 0 || tempinc >= this.sys.tempbytes) throw new ECSError(`this system only has ${this.sys.tempbytes} locals`, this.action);
+        this.scope.updateTempLiveness(this.sys);
         return `${this.tmplabel}+${tempinc}`;
         //return `TEMP+${this.scope.tempOffset}+${tempinc}`;
     }
@@ -828,10 +838,13 @@ export class EntityScope implements SourceLocated {
     systems: System[] = [];
     entities: Entity[] = [];
     fieldtypes: { [name: string]: 'init' | 'const' } = {};
+    sysstats = new Map<System, SystemStats>();
+    actionstats = new Map<Action, ActionStats>();
     bss = new UninitDataSegment();
     rodata = new ConstDataSegment();
     code = new CodeSegment();
     componentsInScope = new Set();
+    eventSeq = 0;
     tempOffset = 0;
     tempSize = 0;
     maxTempBytes = 0;
@@ -861,6 +874,7 @@ export class EntityScope implements SourceLocated {
         return entity;
     }
     addUsingSystem(system: System) {
+        if (!system) throw new Error();
         this.systems.push(system);
     }
     getEntityByName(name: string) {
@@ -1063,9 +1077,12 @@ export class EntityScope implements SourceLocated {
         let systems = this.em.event2systems[event];
         if (!systems || systems.length == 0) {
             // TODO: error or warning?
-            console.log(`warning: no system responds to "${event}"`); return '';
             //throw new ECSError(`warning: no system responds to "${event}"`);
+            console.log(`warning: no system responds to "${event}"`);
+            return '';
         }
+        this.eventSeq++;
+        // generate code
         let s = this.dialect.code();
         //s += `\n; event ${event}\n`;
         systems = systems.filter(s => this.systems.includes(s));
@@ -1089,6 +1106,7 @@ export class EntityScope implements SourceLocated {
                     s += this.dialect.comment(`end action ${sys.name} ${event}`);
                     // TODO: check that this happens once?
                     codeeval.end();
+                    this.getActionStats(action).callcount++;
                     numActions++;
                 }
             }
@@ -1101,6 +1119,32 @@ export class EntityScope implements SourceLocated {
         this.tempSize += n;
         this.maxTempBytes = Math.max(this.tempSize, this.maxTempBytes);
         if (n < 0) this.tempOffset = this.tempSize;
+    }
+    getSystemStats(sys: System) : SystemStats {
+        let stats = this.sysstats.get(sys);
+        if (!stats) {
+            stats = new SystemStats();
+            this.sysstats.set(sys, stats);
+        }
+        return stats;
+    }
+    getActionStats(action: Action) : ActionStats {
+        let stats = this.actionstats.get(action);
+        if (!stats) {
+            stats = new ActionStats();
+            this.actionstats.set(action, stats);
+        }
+        return stats;
+    }
+    updateTempLiveness(sys: System) {
+        let stats = this.getSystemStats(sys);
+        let n = this.eventSeq;
+        if (stats.tempstartseq && stats.tempendseq) {
+            stats.tempstartseq = Math.min(stats.tempstartseq, n);
+            stats.tempendseq = Math.max(stats.tempendseq, n);
+        } else {
+            stats.tempstartseq = stats.tempendseq = n;
+        }
     }
     includeResource(symbol: string): string {
         this.resources.add(symbol);
@@ -1116,8 +1160,9 @@ export class EntityScope implements SourceLocated {
         let isMainScope = this.parent == null;
         this.tempOffset = this.maxTempBytes = 0;
         let start;
-        if (isMainScope) {
-            this.addUsingSystem(this.em.getSystemByName('Init')); //TODO: what if none?
+        let initsys = this.em.getSystemByName('Init');
+        if (isMainScope && initsys) {
+            this.addUsingSystem(initsys); //TODO: what if none?
             start = this.generateCodeForEvent('main_init');
         } else {
             start = this.generateCodeForEvent('start');
@@ -1126,6 +1171,15 @@ export class EntityScope implements SourceLocated {
         for (let sub of Array.from(this.resources.values())) {
             let code = this.generateCodeForEvent(sub);
             this.code.addCodeFragment(code);
+        }
+        //this.showStats();
+    }
+    showStats() {
+        for (let sys of this.systems) {
+            console.log(sys.name, this.getSystemStats(sys));
+        }
+        for (let action of Array.from(this.actionstats.keys())) {
+            console.log(action.event, this.getActionStats(action));
         }
     }
     dump(file: SourceFileExport) {

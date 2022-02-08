@@ -1,7 +1,8 @@
 import assert from "assert";
-import { execFileSync } from "child_process";
+import { execFileSync, spawnSync } from "child_process";
 import { readdirSync, readFileSync, writeFileSync } from "fs";
 import { describe } from "mocha";
+import { Bin, Packer } from "../common/ecs/binpack";
 import { ECSCompiler } from "../common/ecs/compiler";
 import { Dialect_CA65, EntityManager, SourceFileExport } from "../common/ecs/ecs";
 
@@ -389,8 +390,24 @@ describe('Compiler', function() {
         let goodtxt = readFileSync(destpath, 'utf-8');
         if (outtxt.trim() != goodtxt.trim()) {
             writeFileSync('/tmp/' + goodfn, outtxt, 'utf-8');
-            execFileSync('/usr/bin/diff', [srcpath, destpath]);
+            console.log(spawnSync('/usr/bin/diff', [srcpath, destpath], {encoding:'utf-8'}).stdout);
             throw new Error(ecsfn + ' did not match test file');
         }
     });
 });
+
+describe('Box Packer', function() {
+    it('Should pack boxes', function() {
+        let packer = new Packer();
+        let bin1 = new Bin({ left:0, top:0, right:10, bottom:10 });
+        packer.bins.push(bin1);
+        packer.boxes.push({ width: 5, height: 5 });
+        packer.boxes.push({ width: 5, height: 5 });
+        packer.boxes.push({ width: 5, height: 5 });
+        packer.boxes.push({ width: 5, height: 5 });
+        if (!packer.pack()) throw new Error('cannot pack')
+        console.log(packer.boxes);
+        console.log(packer.bins[0].free)
+    });
+});
+
