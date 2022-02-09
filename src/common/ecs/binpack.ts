@@ -66,16 +66,26 @@ export class Bin {
         return result;
     }
     fits(b: Box) {
-        if (!boxesIntersect(this.binbounds, b)) return false;
-        if (this.getBoxes(b, 1).length > 0) return false;
+        if (!boxesIntersect(this.binbounds, b)) {
+            if (debug) console.log('out of bounds!', b.left,b.top,b.right,b.bottom);
+            return false;
+        }
+        if (this.getBoxes(b, 1).length > 0) {
+            if (debug) console.log('intersect!', b.left,b.top,b.right,b.bottom);
+            return false;
+        }
         return true;
     }
-    bestFit(b: Box) : Box | null {
+    bestFit(b: BoxConstraints) : Box | null {
         let bestscore = 0;
         let best = null;
         for (let f of this.free) {
-            let dx = (f.right - f.left) - (b.right - b.left);
-            let dy = (f.bottom - f.top) - (b.bottom - b.top);
+            if (b.left != null && b.left < f.left) continue;
+            if (b.left != null && b.left + b.width > f.right) continue;
+            if (b.top != null && b.top < f.top) continue;
+            if (b.top != null && b.top + b.height > f.bottom) continue;
+            let dx = (f.right - f.left) - b.width;
+            let dy = (f.bottom - f.top) - b.height;
             if (dx >= 0 && dy >= 0) {
                 let score = 1 / (1 + dx + dy);
                 if (score > bestscore) {
@@ -85,8 +95,26 @@ export class Bin {
         }
         return best;
     }
+    anyFit(b: BoxConstraints) : Box | null {
+        let bestscore = 0;
+        let best = null;
+        for (let f of this.free) {
+            let box : Box = { 
+                left: b.left != null ? b.left : f.left, 
+                right: f.left + b.width,
+                top: b.top != null ? b.top : f.top,
+                bottom: f.top + b.height };
+            if (this.fits(box)) {
+                let score = 1 / (1 + box.left + box.top);
+                if (score > bestscore) {
+                    best = f;
+                }
+            }
+        }
+        return best;
+    }
     add(b: PlacedBox) {
-        if (debug) console.log('added',b.left,b.top,b.right,b.bottom);
+        if (debug) console.log('added', b.left,b.top,b.right,b.bottom);
         if (!this.fits(b)) {
             //console.log('collided with', this.getBoxes(b, 1));
             throw new Error(`bad fit ${b.left} ${b.top} ${b.right} ${b.bottom}`)
@@ -141,19 +169,29 @@ export class Packer {
         return true;
     }
     bestPlacement(b: BoxConstraints) : PlacedBox | null {
-        let left = b.left != null ? b.left : 0;
-        let top = b.top != null ? b.top : 0;
-        let right = left + b.width;
-        let bottom = top + b.height;
         for (let bin of this.bins) {
             let place : BoxPlacement = BoxPlacement.TopLeft; //TODO
-            let box = { left, top, right, bottom };
-            let parent = bin.bestFit(box);
+            let parent = bin.bestFit(b);
+            if (!parent) {
+                parent = bin.anyFit(b);
+                if (debug) console.log('anyfit',parent?.left,parent?.top);
+            }
             if (parent) {
-                box.left = parent.left;
-                box.top = parent.top;
-                box.right = parent.left + b.width;
-                box.bottom = parent.top + b.height;
+                let box = {
+                    left: parent.left,
+                    top: parent.top,
+                    right: parent.left + b.width,
+                    bottom: parent.top + b.height
+                };
+                if (b.left != null) {
+                    box.left = b.left;
+                    box.right = b.left + b.width;
+                }
+                if (b.top != null) {
+                    box.top = b.top;
+                    box.bottom = b.top + b.height;
+                }
+                if (debug) console.log('place',box.left,box.top,box.right,box.bottom,parent?.left,parent?.top);
                 /*
                 if (place == BoxPlacement.BottomLeft || place == BoxPlacement.BottomRight) {
                     box.top = parent.bottom - (box.bottom - box.top);
@@ -165,6 +203,7 @@ export class Packer {
                 return { parent, place, bin, ...box };
             }
         }
+        if (debug) console.log('cannot place!',  b.left,b.top,b.width,b.height);
         return null;
     }
 }

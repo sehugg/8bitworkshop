@@ -60,6 +60,7 @@ how to avoid cycle crossing for critical code and data?
 */
 
 import { SourceLocated, SourceLocation } from "../workertypes";
+import { Bin, Packer } from "./binpack";
 
 export class ECSError extends Error {
     $loc: SourceLocation;
@@ -1150,6 +1151,29 @@ export class EntityScope implements SourceLocated {
         this.resources.add(symbol);
         return symbol;
     }
+    allocateTempVars() {
+        let pack = new Packer();
+        let maxTempBytes = 128; // TODO
+        pack.bins.push(new Bin({ left:0, top:0, bottom: this.eventSeq+1, right: maxTempBytes }));
+        for (let sys of this.systems) {
+            let stats = this.getSystemStats(sys);
+            if (sys.tempbytes && stats.tempstartseq && stats.tempendseq) {
+                let v = {
+                    sys,
+                    top: stats.tempstartseq,
+                    bottom: stats.tempendseq+1,
+                    width: sys.tempbytes,
+                    height: stats.tempendseq - stats.tempstartseq + 1,
+                };
+                pack.boxes.push(v);
+            }
+        }
+        if (!pack.pack()) console.log('cannot pack temporary local vars'); // TODO
+        console.log('tempvars', pack);
+        for (let b of pack.boxes) {
+            console.log((b as any).sys.name, b.box);
+        }
+    }
     analyzeEntities() {
         this.buildSegments();
         this.allocateSegment(this.bss, false);
@@ -1173,6 +1197,7 @@ export class EntityScope implements SourceLocated {
             this.code.addCodeFragment(code);
         }
         //this.showStats();
+        this.allocateTempVars();
     }
     showStats() {
         for (let sys of this.systems) {
