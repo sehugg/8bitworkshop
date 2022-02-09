@@ -284,8 +284,6 @@ function testECS() {
 
     //console.log(em.archetypesMatching({ include:['xpos','ypos']})[0])
 
-    root.analyzeEntities();
-    root.generateCode();
     let src = new SourceFileExport();
     root.dump(src);
     //console.log(src.toString());
@@ -372,26 +370,28 @@ describe('Compiler', function() {
     let testdir = './test/ecs/';
     let files = readdirSync(testdir).filter(f => f.endsWith('.ecs'));
     files.forEach((ecsfn) => {
-        let goodfn = ecsfn.replace('.ecs','.txt')
-        let srcpath = testdir + ecsfn;
-        let destpath = testdir + goodfn;
+        let asmfn = ecsfn.replace('.ecs','.asm');
+        let goodfn = ecsfn.replace('.ecs','.txt');
+        let ecspath = testdir + ecsfn;
+        let goodpath = testdir + goodfn;
         let dialect = new Dialect_CA65();
         let em = new EntityManager(dialect);
-        em.mainPath = srcpath;
+        em.mainPath = ecspath;
         let compiler = new ECSCompiler(em);
         compiler.getImportFile = (path: string) => {
             return readFileSync(testdir + path, 'utf-8');
         }
-        let code = readFileSync(srcpath, 'utf-8');
-        compiler.parseFile(code, srcpath);
+        let code = readFileSync(ecspath, 'utf-8');
+        compiler.parseFile(code, ecspath);
         let out = new SourceFileExport();
         em.exportToFile(out);
         let outtxt = out.toString();
-        let goodtxt = readFileSync(destpath, 'utf-8');
+        let goodtxt = readFileSync(goodpath, 'utf-8');
         if (outtxt.trim() != goodtxt.trim()) {
-            writeFileSync('/tmp/' + goodfn, outtxt, 'utf-8');
-            console.log(spawnSync('/usr/bin/diff', [srcpath, destpath], {encoding:'utf-8'}).stdout);
-            throw new Error(ecsfn + ' did not match test file');
+            let asmpath = '/tmp/' + asmfn;
+            writeFileSync(asmpath, outtxt, 'utf-8');
+            console.log(spawnSync('/usr/bin/diff', [asmpath, goodpath], {encoding:'utf-8'}).stdout);
+            throw new Error(`files different; to fix: cp ${asmpath} ${goodpath}`);
         }
     });
 });
@@ -418,13 +418,30 @@ describe('Box Packer', function() {
             ]
         );
     });
-    it('Should pack temp vars', function() {
+    it('Should pack top-aligned boxes', function() {
+        testPack(
+            [
+                new Bin({ left:0, top:0, right:10, bottom:10 })
+            ], [
+                { width: 5, height: 7, top: 0 },
+                { width: 5, height: 7, top: 1 },
+                { width: 5, height: 1 },
+                { width: 5, height: 1 },
+                { width: 5, height: 3 },
+                { width: 5, height: 1 },
+            ]
+        );
+    });
+    it('Should pack top-aligned boxes', function() {
         testPack(
             [
                 new Bin({ left:0, top:0, right:10, bottom:10 })
             ], [
                 { width: 3, height: 7, top: 0 },
                 { width: 3, height: 7, top: 1 },
+                { width: 3, height: 7, top: 2 },
+                { width: 5, height: 1 },
+                { width: 3, height: 1 },
             ]
         );
     });

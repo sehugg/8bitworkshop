@@ -22,7 +22,7 @@ export interface Box {
 
 export interface PlacedBox extends Box {
     bin: Bin;
-    parent: Box;
+    parents: Box[];
     place: BoxPlacement;
 }
 
@@ -30,33 +30,22 @@ function boxesIntersect(a: Box, b: Box) : boolean {
     return !(b.left >= a.right || b.right <= a.left || b.top >= a.bottom || b.bottom <= a.top);
 }
 
-function getBoxPlacements(b: PlacedBox) {
-    let posns : BoxPlacement[];
-    let snugw = b.right - b.left == b.parent.right - b.parent.left;
-    let snugh = b.bottom - b.top == b.parent.bottom - b.parent.top;
-    if (snugw && snugh) {
-        posns = [BoxPlacement.TopLeft];
-    } else if (snugw && !snugh) {
-        posns = [BoxPlacement.TopLeft, BoxPlacement.BottomLeft];
-    } else if (!snugw && snugh) {
-        posns = [BoxPlacement.TopLeft, BoxPlacement.TopRight];
-    } else {
-        posns = [BoxPlacement.TopLeft, BoxPlacement.TopRight,
-            BoxPlacement.BottomLeft, BoxPlacement.BottomRight];
-    }
-    return posns;
+function boxesContain(a: Box, b: Box) : boolean {
+    return b.left >= a.left && b.top >= a.top && b.right <= a.right && b.bottom <= a.bottom;
 }
 
 export class Bin {
     boxes: Box[] = [];
     free: Box[] = [];
+    extents: Box = {left:0,top:0,right:0,bottom:0};
 
     constructor(public readonly binbounds: Box) {
         this.free.push(binbounds);
     }
-    getBoxes(bounds: Box, limit: number) : Box[] {
+    getBoxes(bounds: Box, limit: number, boxes?: Box[]) : Box[] {
         let result = [];
-        for (let box of this.boxes) {
+        if (!boxes) boxes = this.boxes;
+        for (let box of boxes) {
             //console.log(bounds, box, boxesIntersect(bounds, box))
             if (boxesIntersect(bounds, box)) {
                 result.push(box);
@@ -66,7 +55,7 @@ export class Bin {
         return result;
     }
     fits(b: Box) {
-        if (!boxesIntersect(this.binbounds, b)) {
+        if (!boxesContain(this.binbounds, b)) {
             if (debug) console.log('out of bounds!', b.left,b.top,b.right,b.bottom);
             return false;
         }
@@ -90,6 +79,7 @@ export class Bin {
                 let score = 1 / (1 + dx + dy);
                 if (score > bestscore) {
                     best = f;
+                    if (score == 1) break;
                 }
             }
         }
@@ -108,56 +98,51 @@ export class Bin {
                 let score = 1 / (1 + box.left + box.top);
                 if (score > bestscore) {
                     best = f;
+                    if (score == 1) break;
                 }
             }
         }
         return best;
     }
     add(b: PlacedBox) {
-        if (debug) console.log('added', b.left,b.top,b.right,b.bottom);
+        if (debug) console.log('add', b.left,b.top,b.right,b.bottom);
         if (!this.fits(b)) {
             //console.log('collided with', this.getBoxes(b, 1));
             throw new Error(`bad fit ${b.left} ${b.top} ${b.right} ${b.bottom}`)
         }
         // add box to list
         this.boxes.push(b);
+        this.extents.right = Math.max(this.extents.right, b.right);
+        this.extents.bottom = Math.max(this.extents.bottom, b.bottom);
         // delete bin
-        let i = this.free.indexOf(b.parent);
-        if (i < 0) throw new Error('cannot find parent');
-        if (debug) console.log('removed',b.parent.left,b.parent.top,b.parent.right,b.parent.bottom);
-        this.free.splice(i, 1);
-        // split into new bins
-        switch (b.place) {
-            case BoxPlacement.TopLeft:
-                this.addFree( { top: b.top, left: b.right, bottom: b.bottom, right: b.parent.right } );
-                this.addFree( { top: b.bottom, left: b.parent.left, bottom: b.parent.bottom, right: b.parent.right } );
-                break;
-            case BoxPlacement.TopRight:
-                this.addFree( { top: b.top, left: b.parent.left, bottom: b.bottom, right: b.left } );
-                this.addFree( { top: b.bottom, left: b.parent.left, bottom: b.parent.bottom, right: b.parent.right } );
-                break;
-            case BoxPlacement.BottomLeft:
-                this.addFree( { top: b.parent.top, left: b.parent.left, bottom: b.top, right: b.parent.right } );
-                this.addFree( { top: b.top, left: b.right, bottom: b.parent.bottom, right: b.parent.right } );
-                break;
-            case BoxPlacement.BottomRight:
-                this.addFree( { top: b.parent.top, left: b.parent.left, bottom: b.top, right: b.parent.right } );
-                this.addFree( { top: b.top, left: b.parent.left, bottom: b.parent.bottom, right: b.left } );
-                break;
+        for (let p of b.parents) {
+            let i = this.free.indexOf(p);
+            if (i < 0) throw new Error('cannot find parent');
+            if (debug) console.log('removed',p.left,p.top,p.right,p.bottom);
+            this.free.splice(i, 1);
+            // split into new bins
+            // make long columns
+            this.addFree(p.left, p.top, b.left, p.bottom);
+            this.addFree(b.right, p.top, p.right, p.bottom);
+            // make top caps
+            this.addFree(b.left, p.top, b.right, b.top);
+            this.addFree(b.left, b.bottom, b.right, p.bottom);
         }
     }
-    addFree(b: Box) {
-        if (b.bottom > b.top && b.right > b.left) {
+    addFree(left: number, top: number, right: number, bottom: number) {
+        if (bottom > top && right > left) {
+            let b = { left, top, right, bottom };
             if (debug) console.log('free',b.left,b.top,b.right,b.bottom);
             this.free.push(b);
         }
-        // TODO: merge free boxes
+        // TODO: merge free boxes?
     }
 }
 
 export class Packer {
     bins : Bin[] = [];
     boxes : BoxConstraints[] = [];
+    defaultPlacement : BoxPlacement = BoxPlacement.TopLeft; //TODO
 
     pack() : boolean {
         for (let bc of this.boxes) {
@@ -170,13 +155,15 @@ export class Packer {
     }
     bestPlacement(b: BoxConstraints) : PlacedBox | null {
         for (let bin of this.bins) {
-            let place : BoxPlacement = BoxPlacement.TopLeft; //TODO
             let parent = bin.bestFit(b);
+            let approx = false;
             if (!parent) {
                 parent = bin.anyFit(b);
+                approx = true;
                 if (debug) console.log('anyfit',parent?.left,parent?.top);
             }
             if (parent) {
+                let place = this.defaultPlacement;
                 let box = {
                     left: parent.left,
                     top: parent.top,
@@ -191,16 +178,21 @@ export class Packer {
                     box.top = b.top;
                     box.bottom = b.top + b.height;
                 }
-                if (debug) console.log('place',box.left,box.top,box.right,box.bottom,parent?.left,parent?.top);
-                /*
                 if (place == BoxPlacement.BottomLeft || place == BoxPlacement.BottomRight) {
-                    box.top = parent.bottom - (box.bottom - box.top);
+                    let h = box.bottom - box.top;
+                    box.top = parent.bottom - h;
+                    box.bottom = parent.bottom;
                 }
                 if (place == BoxPlacement.TopRight || place == BoxPlacement.BottomRight) {
-                    box.left = parent.right - (box.right - box.left);
+                    let w = box.right - box.left;
+                    box.left = parent.right - w;
+                    box.right = parent.right;
                 }
-                */
-                return { parent, place, bin, ...box };
+                if (debug) console.log('place',box.left,box.top,box.right,box.bottom,parent?.left,parent?.top);
+                let parents = [parent];
+                // if approx match, might overlap multiple free boxes
+                if (approx) parents = bin.getBoxes(box, 100, bin.free);
+                return { parents, place, bin, ...box };
             }
         }
         if (debug) console.log('cannot place!',  b.left,b.top,b.width,b.height);

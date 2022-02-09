@@ -226,10 +226,10 @@ export class ECSCompiler extends Tokenizer {
         // TODO: unused events?
         const event = this.expectIdent().str;
         this.expectToken('do');
-        const all_modifiers = ['cyclecritical','asc','desc']; // TODO
-        const modifiers = this.parseModifiers(all_modifiers);
         // TODO: include modifiers in error msg
         const select = this.expectTokens(SELECT_TYPE).str as SelectType; // TODO: type check?
+        const all_modifiers = ['cyclecritical','asc','desc']; // TODO
+        const modifiers = this.parseModifiers(all_modifiers);
         let query = undefined;
         let join = undefined;
         if (select == 'once') {

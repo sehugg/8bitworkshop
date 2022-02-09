@@ -3,8 +3,9 @@
 PFColor_pfcolor_b0:
 .res 1
 .res 1
-Local_tmp:
+TEMP:
 .res 1
+Local__tmp = TEMP+0
 .code
 KernelSection_lines_b0:
 .byte 2
@@ -197,7 +198,7 @@ StaticKernel__kernel__7____exit:
 
 ;;; start action Local joybutton
 
-    inc Local_tmp+0
+    inc Local__tmp+0
     inc PFColor_pfcolor_b0
     
 ;;; end action Local joybutton

@@ -339,6 +339,12 @@ export class Dialect_CA65 {
             else return `.byte (${b.symbol} >> ${b.bitofs})` // TODO?
         }
     }
+    tempLabel(sys: System) {
+        return `${sys.name}__tmp`;
+    }
+    equate(symbol: string, value: string): string {
+        return `${symbol} = ${value}`;
+    }
 }
 
 // TODO: merge with Dialect?
@@ -372,6 +378,7 @@ class CodeSegment {
 
 class DataSegment {
     symbols: { [sym: string]: number } = {};
+    equates: { [sym: string]: string } = {};
     ofs2sym = new Map<number, string[]>();
     fieldranges: { [cfname: string]: FieldArray } = {};
     size: number = 0;
@@ -397,6 +404,7 @@ class DataSegment {
         }
     }
     dump(file: SourceFileExport, dialect: Dialect_CA65) {
+        // TODO: fewer lines
         for (let i = 0; i < this.size; i++) {
             let syms = this.ofs2sym.get(i);
             if (syms) {
@@ -404,6 +412,9 @@ class DataSegment {
                     file.line(dialect.label(sym));
             }
             file.line(dialect.byte(this.initdata[i]));
+        }
+        for (let [symbol,value] of Object.entries(this.equates)) {
+            file.line(dialect.equate(symbol, value));
         }
     }
     // TODO: move cfname functions in here too
@@ -699,7 +710,6 @@ class ActionEval {
         if (tempinc < 0 || tempinc >= this.sys.tempbytes) throw new ECSError(`this system only has ${this.sys.tempbytes} locals`, this.action);
         this.scope.updateTempLiveness(this.sys);
         return `${this.tmplabel}+${tempinc}`;
-        //return `TEMP+${this.scope.tempOffset}+${tempinc}`;
     }
     __bss_init(args: string[]) {
         return this.scope.allocateInitData(this.scope.bss);
@@ -846,9 +856,6 @@ export class EntityScope implements SourceLocated {
     code = new CodeSegment();
     componentsInScope = new Set();
     eventSeq = 0;
-    tempOffset = 0;
-    tempSize = 0;
-    maxTempBytes = 0;
     resources = new Set<string>();
     state = new ActionCPUState();
     isDemo = false;
@@ -1088,13 +1095,7 @@ export class EntityScope implements SourceLocated {
         //s += `\n; event ${event}\n`;
         systems = systems.filter(s => this.systems.includes(s));
         for (let sys of systems) {
-            // TODO: does this work if multiple actions?
-            // TODO: share storage
-            //if (sys.tempbytes) this.allocateTempBytes(sys.tempbytes);
-            let tmplabel = `${sys.name}_tmp`;
-            if (sys.tempbytes) this.bss.allocateBytes(tmplabel, sys.tempbytes);
-            //this.allocateTempBytes(1);
-            let numActions = 0;
+            let tmplabel = this.dialect.tempLabel(sys);
             for (let action of sys.actions) {
                 if (action.event == event) {
                     // TODO: use Tokenizer so error msgs are better
@@ -1108,18 +1109,10 @@ export class EntityScope implements SourceLocated {
                     // TODO: check that this happens once?
                     codeeval.end();
                     this.getActionStats(action).callcount++;
-                    numActions++;
                 }
             }
-            // TODO: if (sys.tempbytes && numActions) this.allocateTempBytes(-sys.tempbytes);
         }
         return s;
-    }
-    allocateTempBytes(n: number) {
-        if (n > 0) this.tempOffset = this.tempSize;
-        this.tempSize += n;
-        this.maxTempBytes = Math.max(this.tempSize, this.maxTempBytes);
-        if (n < 0) this.tempOffset = this.tempSize;
     }
     getSystemStats(sys: System) : SystemStats {
         let stats = this.sysstats.get(sys);
@@ -1151,10 +1144,11 @@ export class EntityScope implements SourceLocated {
         this.resources.add(symbol);
         return symbol;
     }
-    allocateTempVars() {
+    private allocateTempVars() {
         let pack = new Packer();
-        let maxTempBytes = 128; // TODO
-        pack.bins.push(new Bin({ left:0, top:0, bottom: this.eventSeq+1, right: maxTempBytes }));
+        let maxTempBytes = 128 - this.bss.size; // TODO: multiple data segs
+        let bssbin = new Bin({ left:0, top:0, bottom: this.eventSeq+1, right: maxTempBytes });
+        pack.bins.push(bssbin);
         for (let sys of this.systems) {
             let stats = this.getSystemStats(sys);
             if (sys.tempbytes && stats.tempstartseq && stats.tempendseq) {
@@ -1170,19 +1164,23 @@ export class EntityScope implements SourceLocated {
         }
         if (!pack.pack()) console.log('cannot pack temporary local vars'); // TODO
         console.log('tempvars', pack);
-        for (let b of pack.boxes) {
-            console.log((b as any).sys.name, b.box);
+        if (bssbin.extents.right > 0) {
+            this.bss.allocateBytes('TEMP', bssbin.extents.right);
+            for (let b of pack.boxes) {
+                let sys : System = (b as any).sys;
+                console.log(sys.name, b.box?.left);
+                this.bss.equates[this.dialect.tempLabel(sys)] = `TEMP+${b.box?.left}`;
+            }
         }
     }
-    analyzeEntities() {
+    private analyzeEntities() {
         this.buildSegments();
         this.allocateSegment(this.bss, false);
         this.allocateSegment(this.rodata, true);
         this.allocateROData(this.rodata);
     }
-    generateCode() {
+    private generateCode() {
         let isMainScope = this.parent == null;
-        this.tempOffset = this.maxTempBytes = 0;
         let start;
         let initsys = this.em.getSystemByName('Init');
         if (isMainScope && initsys) {
@@ -1197,7 +1195,6 @@ export class EntityScope implements SourceLocated {
             this.code.addCodeFragment(code);
         }
         //this.showStats();
-        this.allocateTempVars();
     }
     showStats() {
         for (let sys of this.systems) {
@@ -1207,16 +1204,10 @@ export class EntityScope implements SourceLocated {
             console.log(action.event, this.getActionStats(action));
         }
     }
-    dump(file: SourceFileExport) {
-        this.analyzeEntities();
-        this.generateCode();
-        this.dumpCodeTo(file);
-    }
     private dumpCodeTo(file: SourceFileExport) {
         let dialect = this.dialect;
         file.line(dialect.startScope(this.name));
         file.line(dialect.segment(`${this.name}_DATA`, 'bss'));
-        if (this.maxTempBytes) this.bss.allocateBytes('TEMP', this.maxTempBytes);
         this.bss.dump(file, dialect);
         file.line(dialect.segment(`${this.name}_RODATA`, 'rodata'));
         this.rodata.dump(file, dialect);
@@ -1228,6 +1219,12 @@ export class EntityScope implements SourceLocated {
             subscope.dump(file);
         }
         file.line(dialect.endScope(this.name));
+    }
+    dump(file: SourceFileExport) {
+        this.analyzeEntities();
+        this.generateCode();
+        this.allocateTempVars();
+        this.dumpCodeTo(file);
     }
 }
 
