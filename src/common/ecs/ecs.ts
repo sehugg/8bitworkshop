@@ -55,7 +55,10 @@ only worry about intersection when non-contiguous ranges?
 
 crazy idea -- full expansion, then relooper
 
-how to avoid cycle crossing for critical code and data?
+how to avoid cycle crossing for critical code and data? bin packing
+
+system define order, action order, entity order, using order?
+what happens when a system must be nested inside another? like display kernels
 
 */
 
@@ -150,7 +153,7 @@ export interface ActionWithJoin extends ActionWithQuery {
 
 export type Action = ActionWithQuery | ActionWithJoin | ActionOnce;
 
-export type DataValue = number | boolean | Uint8Array | Uint16Array;
+export type DataValue = number | boolean | Uint8Array | Uint16Array | Uint32Array;
 
 export type DataField = { name: string } & DataType;
 
@@ -206,7 +209,7 @@ export class Dialect_CA65 {
     {{%code}}
     inx
     cpx #{{%ecount}}
-    bne @__each
+    jne @__each
 @__exit:
 `;
 
@@ -215,7 +218,7 @@ export class Dialect_CA65 {
 @__each:
     {{%code}}
     dex
-    bpl @__each
+    jpl @__each
 @__exit:
 `;
 
@@ -226,7 +229,7 @@ export class Dialect_CA65 {
     {{%code}}
     iny
     cpy #{{%ecount}}
-    bne @__each
+    jne @__each
 @__exit:
 `;
 
@@ -236,20 +239,20 @@ export class Dialect_CA65 {
     ldx {{%joinfield}},y
     {{%code}}
     dey
-    bpl @__each
+    jpl @__each
 @__exit:
 `;
 
     ASM_FILTER_RANGE_LO_X = `
     cpx #{{%xofs}}
-    bcc @__skipxlo
+    jcc @__skipxlo
     {{%code}}
 @__skipxlo:
 `
 
     ASM_FILTER_RANGE_HI_X = `
     cpx #{{%xofs}}+{{%ecount}}
-    bcs @__skipxhi
+    jcs @__skipxhi
     {{%code}}
 @__skipxhi:
 `
@@ -259,7 +262,7 @@ export class Dialect_CA65 {
     txa
     pha
     lda {{%mapping}},x
-    bmi @__mapskip
+    jmi @__mapskip
     tax
     {{%code}}
 @__mapskip:
@@ -295,8 +298,8 @@ export class Dialect_CA65 {
     fieldsymbol(component: ComponentType, field: DataField, bitofs: number) {
         return `${component.name}_${field.name}_b${bitofs}`;
     }
-    datasymbol(component: ComponentType, field: DataField, eid: number) {
-        return `${component.name}_${field.name}_e${eid}`;
+    datasymbol(component: ComponentType, field: DataField, eid: number, bitofs: number) {
+        return `${component.name}_${field.name}_e${eid}_b${bitofs}`;
     }
     code() {
         return `.code\n`;
@@ -522,6 +525,7 @@ class EntitySet {
 
 // todo: generalize
 class ActionCPUState {
+    loops: EntitySet[] = [];
     x: EntitySet | null = null;
     y: EntitySet | null = null;
     xofs: number = 0;
@@ -561,12 +565,14 @@ class ActionEval {
                 if (state.x && state.y) throw new ECSError('no more index registers', this.action);
                 if (state.x) state.y = this.qr;
                 else state.x = this.qr;
+                state.loops = state.loops.concat([this.qr]);
                 break;
             case 'join':
                 if (state.x || state.y) throw new ECSError('no free index registers for join', this.action);
                 this.jr = new EntitySet(this.scope, (this.action as ActionWithJoin).join);
                 state.y = this.qr;
                 state.x = this.jr;
+                state.loops = state.loops.concat([this.qr]);
                 break;
             case 'if':
             case 'with':
@@ -625,11 +631,16 @@ class ActionEval {
             // select subset of entities
             let fullEntityCount = this.qr.entities.length; //entities.length.toString();
             let entities = this.entities;
+            let loops = this.scope.state.loops;
+            let loopents = loops[loops.length-1]?.entities;
+            // TODO: let loopreduce = !loopents || entities.length < loopents.length;
+            //console.log(action.event, entities.length, loopents.length);
             // filter entities from loop?
-            if (action.select == 'with' && entities.length > 1) {
+            // TODO: when to ignore if entities.length == 1 and not in for loop?
+            if (action.select == 'with') {
                 code = this.wrapCodeInFilter(code);
             }
-            if (action.select == 'if' && entities.length > 1) {
+            if (action.select == 'if') {
                 code = this.wrapCodeInFilter(code);
             }
             if (action.select == 'foreach' && entities.length > 1) {
@@ -678,14 +689,23 @@ class ActionEval {
         let bitofs = parseInt(args[1] || '0');
         return this.generateCodeForField(fieldName, bitofs, canwrite);
     }
-    __base(args: string[]) {
-        // TODO: refactor into generateCode..
+    parseFieldArgs(args: string[]) {
         let fieldName = args[0];
         let bitofs = parseInt(args[1] || '0');
         let component = this.em.singleComponentWithFieldName(this.qr.atypes, fieldName, this.action);
         let field = component.fields.find(f => f.name == fieldName);
         if (field == null) throw new ECSError(`no field named "${fieldName}" in component`, this.action);
+        return { component, field, bitofs };
+    }
+    __base(args: string[]) {
+        let { component, field, bitofs } = this.parseFieldArgs(args);
         return this.dialect.fieldsymbol(component, field, bitofs);
+    }
+    __data(args: string[]) {
+        let { component, field, bitofs } = this.parseFieldArgs(args);
+        if (this.qr.entities.length != 1) throw new ECSError(`data command operates on exactly one entity`); // TODO?
+        let eid = this.qr.entities[0].id; // TODO?
+        return this.dialect.datasymbol(component, field, eid, bitofs);
     }
     __index(args: string[]) {
         // TODO: check select type and if we actually have an index...
@@ -798,6 +818,7 @@ class ActionEval {
         if (!range) throw new ECSError(`couldn't find field for ${component.name}:${fieldName}, maybe no entities?`); // TODO
         // TODO: dialect
         let eidofs = qr.entities.length && qr.entities[0].id - range.elo; // TODO: negative?
+        // TODO: array field baseoffset?
         if (baseLookup) {
             return this.dialect.absolute(ident);
         } else if (entities.length == 1) {
@@ -983,11 +1004,13 @@ export class EntityScope implements SourceLocated {
                 // this is not a constant
                 // is it a bounded array? (TODO)
                 if (f.dtype == 'array' && f.index) {
-                    let datasym = this.dialect.datasymbol(c, f, e.id);
+                    let datasym = this.dialect.datasymbol(c, f, e.id, 0);
                     let databytes = getFieldLength(f.index);
                     let offset = this.bss.allocateBytes(datasym, databytes);
+                    // TODO? this.allocatePointerArray(c, f, datasym, entcount);
                     let ptrlosym = this.dialect.fieldsymbol(c, f, 0);
                     let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
+                    // TODO: what if we don't need a pointer array?
                     let loofs = segment.allocateBytes(ptrlosym, entcount);
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
                     if (f.baseoffset) datasym = `(${datasym}+${f.baseoffset})`;
@@ -997,8 +1020,9 @@ export class EntityScope implements SourceLocated {
             } else {
                 // this is a constant
                 // is it a byte array?
+                //TODO? if (ArrayBuffer.isView(v) && f.dtype == 'array') {
                 if (v instanceof Uint8Array && f.dtype == 'array') {
-                    let datasym = this.dialect.datasymbol(c, f, e.id);
+                    let datasym = this.dialect.datasymbol(c, f, e.id, 0);
                     segment.allocateInitData(datasym, v);
                     let ptrlosym = this.dialect.fieldsymbol(c, f, 0);
                     let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
@@ -1007,7 +1031,6 @@ export class EntityScope implements SourceLocated {
                     if (f.baseoffset) datasym = `(${datasym}+${f.baseoffset})`;
                     segment.initdata[loofs + e.id - range.elo] = { symbol: datasym, bitofs: 0 };
                     segment.initdata[hiofs + e.id - range.elo] = { symbol: datasym, bitofs: 8 };
-                    // TODO: } else if (v instanceof Uint16Array) {
                 } else if (typeof v === 'number') {
                     // more than 1 entity, add an array
                     if (entcount > 1) {
@@ -1020,7 +1043,8 @@ export class EntityScope implements SourceLocated {
                     }
                     // TODO: what if mix of var, const, and init values?
                 } else {
-                    throw new ECSError(`unhandled constant ${e.id}:${cfname}`);
+                    // TODO: bad error message - should say "wrong type, should be array"
+                    throw new ECSError(`unhandled constant ${e.id}:${cfname} -- ${typeof v}`);
                 }
             }
         }
@@ -1044,8 +1068,8 @@ export class EntityScope implements SourceLocated {
                         initbytes[offset] = (initvalue >> a.bit) & ((1 << a.width) - 1);
                     }
                 } else if (initvalue instanceof Uint8Array) {
-                    // TODO???
-                    let datasym = this.dialect.datasymbol(c, f, e.id);
+                    // TODO: 16/32...
+                    let datasym = this.dialect.datasymbol(c, f, e.id, 0);
                     let ofs = this.bss.symbols[datasym];
                     initbytes.set(initvalue, ofs);
                 } else {
@@ -1095,13 +1119,12 @@ export class EntityScope implements SourceLocated {
         //s += `\n; event ${event}\n`;
         systems = systems.filter(s => this.systems.includes(s));
         for (let sys of systems) {
-            let tmplabel = this.dialect.tempLabel(sys);
             for (let action of sys.actions) {
                 if (action.event == event) {
                     // TODO: use Tokenizer so error msgs are better
                     // TODO: keep event tree
                     let codeeval = new ActionEval(this, sys, action);
-                    codeeval.tmplabel = tmplabel;
+                    codeeval.tmplabel = this.dialect.tempLabel(sys);
                     codeeval.begin();
                     s += this.dialect.comment(`start action ${sys.name} ${event}`); // TODO
                     s += codeeval.codeToString();

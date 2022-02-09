@@ -83,10 +83,10 @@ FrameLoop__start__2__NextFrame:
 ;;; start action StaticKernel kernelsetup
 
     cpx #0+2
-    bcs StaticKernel__kernelsetup__5____skipxhi
+    jcs StaticKernel__kernelsetup__5____skipxhi
     
     cpx #0
-    bcc StaticKernel__kernelsetup__5____skipxlo
+    jcc StaticKernel__kernelsetup__5____skipxlo
     
     lda PFColor_pfcolor_b0,x
     sta COLUPF
@@ -100,10 +100,10 @@ StaticKernel__kernelsetup__5____skipxhi:
 ;;; start action StaticKernel kernelsetup
 
     cpx #0+4
-    bcs StaticKernel__kernelsetup__6____skipxhi
+    jcs StaticKernel__kernelsetup__6____skipxhi
     
     cpx #0
-    bcc StaticKernel__kernelsetup__6____skipxlo
+    jcc StaticKernel__kernelsetup__6____skipxlo
     
     lda Playfield_pf_b0,x
     sta PF0
@@ -142,10 +142,10 @@ StaticKernel__kernel__7____each:
 ;;; start action StaticKernel kernelsetup
 
     cpx #5+2
-    bcs StaticKernel__kernelsetup__9____skipxhi
+    jcs StaticKernel__kernelsetup__9____skipxhi
     
     cpx #5
-    bcc StaticKernel__kernelsetup__9____skipxlo
+    jcc StaticKernel__kernelsetup__9____skipxlo
     
     lda PFColor_pfcolor_b0-5,x
     sta COLUPF
@@ -159,7 +159,7 @@ StaticKernel__kernelsetup__9____skipxhi:
 ;;; start action StaticKernel kernelsetup
 
     cpx #4
-    bcc StaticKernel__kernelsetup__10____skipxlo
+    jcc StaticKernel__kernelsetup__10____skipxlo
     
     lda Playfield_pf_b0-4,x
     sta PF0
@@ -182,7 +182,7 @@ StaticKernel__kernel__7__loop:
 
     inx
     cpx #8
-    bne StaticKernel__kernel__7____each
+    jne StaticKernel__kernel__7____each
 StaticKernel__kernel__7____exit:
 
 ;;; end action StaticKernel kernel

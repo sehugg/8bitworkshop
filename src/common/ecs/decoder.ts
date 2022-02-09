@@ -103,6 +103,34 @@ export class VCSVersatilePlayfieldDecoder extends LineDecoder {
     }
 }
 
+export class VCSBitmap48Decoder extends LineDecoder {
+    parse() {
+        let height = this.lines.length;
+        let bitmap0 = new Uint8Array(height);
+        let bitmap1 = new Uint8Array(height);
+        let bitmap2 = new Uint8Array(height);
+        let bitmap3 = new Uint8Array(height);
+        let bitmap4 = new Uint8Array(height);
+        let bitmap5 = new Uint8Array(height);
+        for (let i=0; i<height; i++) {
+            let toks = this.lines[height - 1 - i];
+            this.assertTokens(toks, 1);
+            bitmap0[i] = this.decodeBits(toks[0].slice(0,8), 8, true);
+            bitmap1[i] = this.decodeBits(toks[0].slice(8,16), 8, true);
+            bitmap2[i] = this.decodeBits(toks[0].slice(16,24), 8, true);
+            bitmap3[i] = this.decodeBits(toks[0].slice(24,32), 8, true);
+            bitmap4[i] = this.decodeBits(toks[0].slice(32,40), 8, true);
+            bitmap5[i] = this.decodeBits(toks[0].slice(40,48), 8, true);
+        }
+        return {
+            properties: {
+                bitmap0, bitmap1, bitmap2, bitmap3, bitmap4, bitmap5,
+                height: height-1
+            }
+        }
+    }
+}
+
 export function newDecoder(name: string, text: string) : LineDecoder | undefined {
     let cons = (DECODERS as any)[name];
     if (cons) return new cons(text);
@@ -111,4 +139,5 @@ export function newDecoder(name: string, text: string) : LineDecoder | undefined
 const DECODERS = {
     'vcs_sprite': VCSSpriteDecoder,
     'vcs_versatile': VCSVersatilePlayfieldDecoder,
+    'vcs_bitmap48': VCSBitmap48Decoder,
 }
