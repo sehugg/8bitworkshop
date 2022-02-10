@@ -1,11 +1,6 @@
 .scope Main
 .zeropage
-SpriteSlot_sprite_b0:
-.res 1
-.res 1
-.res 1
-.res 1
-HasYpos_ypos_b0:
+HasBitmap_bitmap_b0:
 .res 1
 .res 1
 .res 1
@@ -15,12 +10,17 @@ HasXpos_xpos_b0:
 .res 1
 .res 1
 .res 1
+HasYpos_ypos_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+SpriteSlot_sprite_b0:
+.res 1
+.res 1
+.res 1
+.res 1
 HasColormap_colormap_b0:
-.res 1
-.res 1
-.res 1
-.res 1
-HasBitmap_bitmap_b0:
 .res 1
 .res 1
 .res 1
@@ -44,6 +44,10 @@ Joystick__tmp = TEMP+0
 SpriteShuffler__tmp = TEMP+1
 SpriteHider__tmp = TEMP+3
 .code
+KernelSection_lines_b0:
+.byte 192
+BGColor_bgcolor_b0:
+.byte 162
 Bitmap_bitmapdata_e1_b0:
 .byte 1
 .byte 1
@@ -90,25 +94,25 @@ Sprite_plyrflags_b0:
 .byte 0
 .byte 0
 Main__INITDATA:
+.byte 1
 .byte 0
 .byte 1
-.byte 2
-.byte 3
-.byte 150
-.byte 60
-.byte 90
-.byte 150
+.byte 0
 .byte 50
 .byte 100
 .byte 80
 .byte 40
-.byte 0
-.byte 0
-.byte 0
+.byte 150
+.byte 60
+.byte 90
+.byte 150
 .byte 0
 .byte 1
+.byte 2
+.byte 3
 .byte 0
-.byte 1
+.byte 0
+.byte 0
 .byte 0
 __Start:
 .code
@@ -125,7 +129,7 @@ __BRK:
 
     ldy #20
 :   lda Main__INITDATA-1,y
-    sta SpriteSlot_sprite_b0-1,y
+    sta HasBitmap_bitmap_b0-1,y
     dey
     bne :-
 	; initialize data segment

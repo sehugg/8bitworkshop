@@ -566,7 +566,7 @@ class ActionEval {
                     }
                 } else if (this.action.select == 'with') {
                     if (this.qr.entities.length != 1)
-                        throw new ECSError(`query outside of loop must match exactly one entity`, this.action);
+                        throw new ECSError(`${this.sys.name} query outside of loop must match exactly one entity`, this.action); //TODO
                 }
                 break;
         }
@@ -946,6 +946,7 @@ export class EntityScope implements SourceLocated {
         // TODO: fields.sort((a, b) => (a.ehi - a.elo + 1) * getPackedFieldSize(a.field));
         for (let f of fields) {
             if (this.fieldtypes[mksymbol(f.component, f.field.name)] == type) {
+                //console.log(f.component.name, f.field.name, type);
                 let rangelen = (f.ehi - f.elo + 1);
                 // TODO: doesn't work for packed arrays too well
                 let bits = getPackedFieldSize(f.field);
@@ -971,27 +972,14 @@ export class EntityScope implements SourceLocated {
         for (var o = iter.next(); o.value; o = iter.next()) {
             let { i, e, c, f, v } = o.value;
             let cfname = mksymbol(c, f.name);
-            let range = segment.fieldranges[cfname];
-            let entcount = range ? range.ehi - range.elo + 1 : 0;
-            // is this a constant value?
-            if (v === undefined) {
-                // this is not a constant
-                // is it a bounded array? (TODO)
-                if (f.dtype == 'array' && f.index) {
-                    let datasym = this.dialect.datasymbol(c, f, e.id, 0);
-                    let databytes = getFieldLength(f.index);
-                    let offset = this.bss.allocateBytes(datasym, databytes);
-                    // TODO? this.allocatePointerArray(c, f, datasym, entcount);
-                    let ptrlosym = this.dialect.fieldsymbol(c, f, 0);
-                    let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
-                    // TODO: what if we don't need a pointer array?
-                    let loofs = segment.allocateBytes(ptrlosym, entcount);
-                    let hiofs = segment.allocateBytes(ptrhisym, entcount);
-                    if (f.baseoffset) datasym = `(${datasym}+${f.baseoffset})`;
-                    segment.initdata[loofs + e.id - range.elo] = { symbol: datasym, bitofs: 0 };
-                    segment.initdata[hiofs + e.id - range.elo] = { symbol: datasym, bitofs: 8 };
-                }
-            } else {
+            // TODO: what if mix of var, const, and init values?
+            if (this.fieldtypes[cfname] == 'const') {
+                let range = segment.fieldranges[cfname];
+                let entcount = range ? range.ehi - range.elo + 1 : 0;
+                if (v == null && f.dtype == 'int') v = 0;
+                if (v == null && f.dtype == 'ref') v = 0;
+                if (v == null && f.dtype == 'array') throw new ECSError(`no default value for array ${cfname}`)
+                //console.log(c.name, f.name, '#'+e.id, '=', v);
                 // this is a constant
                 // is it a byte array?
                 //TODO? if (ArrayBuffer.isView(v) && f.dtype == 'array') {
@@ -1007,7 +995,8 @@ export class EntityScope implements SourceLocated {
                     segment.initdata[hiofs + e.id - range.elo] = { symbol: datasym, bitofs: 8 };
                 } else if (typeof v === 'number') {
                     // more than 1 entity, add an array
-                    if (entcount > 1) {
+                    // TODO: infer need for array by usage
+                    /*if (entcount > 1)*/ {
                         if (!range.access) throw new ECSError(`no access for field ${cfname}`)
                         for (let a of range.access) {
                             segment.allocateBytes(a.symbol, entcount);
@@ -1015,7 +1004,20 @@ export class EntityScope implements SourceLocated {
                             segment.initdata[ofs] = (v >> a.bit) & 0xff;
                         }
                     }
-                    // TODO: what if mix of var, const, and init values?
+                } else if (v == null && f.dtype == 'array' && f.index) {
+                    // TODO
+                    let datasym = this.dialect.datasymbol(c, f, e.id, 0);
+                    let databytes = getFieldLength(f.index);
+                    let offset = this.bss.allocateBytes(datasym, databytes);
+                    // TODO? this.allocatePointerArray(c, f, datasym, entcount);
+                    let ptrlosym = this.dialect.fieldsymbol(c, f, 0);
+                    let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
+                    // TODO: what if we don't need a pointer array?
+                    let loofs = segment.allocateBytes(ptrlosym, entcount);
+                    let hiofs = segment.allocateBytes(ptrhisym, entcount);
+                    if (f.baseoffset) datasym = `(${datasym}+${f.baseoffset})`;
+                    segment.initdata[loofs + e.id - range.elo] = { symbol: datasym, bitofs: 0 };
+                    segment.initdata[hiofs + e.id - range.elo] = { symbol: datasym, bitofs: 8 };
                 } else {
                     // TODO: bad error message - should say "wrong type, should be array"
                     throw new ECSError(`unhandled constant ${e.id}:${cfname} -- ${typeof v}`);
@@ -1172,8 +1174,8 @@ export class EntityScope implements SourceLocated {
     }
     private analyzeEntities() {
         this.buildSegments();
-        this.allocateSegment(this.bss, true, undefined);   // uninitialized vars
         this.allocateSegment(this.bss, true, 'init');  // initialized vars
+        this.allocateSegment(this.bss, true, undefined);   // uninitialized vars
         this.allocateSegment(this.rodata, false, 'const'); // constants
         this.allocateROData(this.rodata);
     }
