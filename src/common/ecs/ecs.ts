@@ -59,6 +59,17 @@ export interface System extends SourceLocated {
     tempbytes?: number;
 }
 
+export interface SystemInstanceParameters {
+    refEntity?: Entity;
+    refField?: ComponentFieldPair;
+}
+
+export interface SystemInstance extends SourceLocated {
+    system: System;
+    params: SystemInstanceParameters;
+    id: number;
+}
+
 export const SELECT_TYPE = ['once', 'foreach', 'join', 'with', 'if', 'select'] as const;
 
 export type SelectType = typeof SELECT_TYPE[number];
@@ -166,7 +177,7 @@ interface ConstByte {
     bitofs: number;
 }
 
-interface ComponentFieldPair {
+export interface ComponentFieldPair {
     c: ComponentType;
     f: DataField;
 }
@@ -225,6 +236,11 @@ export class Dialect_CA65 {
     jcs @__skipxhi
     {{%code}}
 @__skipxhi:
+`
+
+    ASM_LOOKUP_REF_X = `
+    ldx {{%reffield}}
+    {{%code}}
 `
 
     // TODO
@@ -312,8 +328,8 @@ export class Dialect_CA65 {
             else return `.byte (${b.symbol} >> ${b.bitofs})` // TODO?
         }
     }
-    tempLabel(sys: System) {
-        return `${sys.name}__tmp`;
+    tempLabel(inst: SystemInstance) {
+        return `${inst.system.name}__${inst.id}__tmp`; // TODO: multiple instances?
     }
     equate(symbol: string, value: string): string {
         return `${symbol} = ${value}`;
@@ -517,15 +533,25 @@ class ActionEval {
 
     constructor(
         readonly scope: EntityScope,
-        readonly sys: System,
+        readonly instance: SystemInstance,
         readonly action: Action)
     {
         this.em = scope.em;
         this.dialect = scope.em.dialect;
         this.oldState = scope.state;
+        this.tmplabel = this.dialect.tempLabel(this.instance);
         let q = (action as ActionWithQuery).query;
         if (q) this.qr = new EntitySet(scope, q);
         else this.qr = new EntitySet(scope, undefined, [], []);
+        // TODO? error if none?
+        if (instance.params.refEntity && instance.params.refField) {
+            let rf = instance.params.refField;
+            if (rf.f.dtype == 'ref') {
+                let rq = rf.f.query;
+                this.qr = this.qr.intersection(new EntitySet(scope, rq));
+                //console.log('with', instance.params, rq, this.qr);
+            }
+        }
         this.entities = this.qr.entities;
         //let query = (this.action as ActionWithQuery).query;
         //TODO? if (query && this.entities.length == 0)
@@ -565,8 +591,11 @@ class ActionEval {
                         this.entities = int.entities; // TODO?
                     }
                 } else if (this.action.select == 'with') {
-                    if (this.qr.entities.length != 1)
-                        throw new ECSError(`${this.sys.name} query outside of loop must match exactly one entity`, this.action); //TODO
+                    if (this.instance.params.refEntity && this.instance.params.refField) {
+                        state.x = this.qr;
+                        // ???
+                    } else if (this.qr.entities.length != 1)
+                        throw new ECSError(`${this.instance.system.name} query outside of loop must match exactly one entity`, this.action); //TODO
                 }
                 break;
         }
@@ -583,7 +612,7 @@ class ActionEval {
            return '';
 
         let action = this.action;
-        let sys = this.sys;
+        let sys = this.instance.system;
         let code = action.text;
         let label = `${sys.name}__${action.event}__${this.em.seq++}`; // TODO: better label that won't conflict (seq?)
         let props: { [name: string]: string } = {};
@@ -612,7 +641,18 @@ class ActionEval {
             // filter entities from loop?
             // TODO: when to ignore if entities.length == 1 and not in for loop?
             if (action.select == 'with') {
-                code = this.wrapCodeInFilter(code);
+                // TODO? when to load x?
+                if (this.instance.params.refEntity && this.instance.params.refField) {
+                    let re = this.instance.params.refEntity;
+                    let rf = this.instance.params.refField;
+                    code = this.wrapCodeInRefLookup(code);
+                    // TODO: only fetches 1st entity in list, need offset
+                    let range = this.scope.bss.getFieldRange(rf.c, rf.f.name) || this.scope.rodata.getFieldRange(rf.c, rf.f.name);
+                    let eidofs = re.id - range.elo;
+                    props['%reffield'] = `${this.dialect.fieldsymbol(rf.c, rf.f, 0)}+${eidofs}`;
+                } else {
+                    code = this.wrapCodeInFilter(code);
+                }
             }
             if (action.select == 'if') {
                 code = this.wrapCodeInFilter(code);
@@ -699,10 +739,11 @@ class ActionEval {
     }
     __local(args: string[]) {
         let tempinc = parseInt(args[0]);
+        let tempbytes = this.instance.system.tempbytes;
         if (isNaN(tempinc)) throw new ECSError(`bad temporary offset`, this.action);
-        if (!this.sys.tempbytes) throw new ECSError(`this system has no locals`, this.action);
-        if (tempinc < 0 || tempinc >= this.sys.tempbytes) throw new ECSError(`this system only has ${this.sys.tempbytes} locals`, this.action);
-        this.scope.updateTempLiveness(this.sys);
+        if (!tempbytes) throw new ECSError(`this system has no locals`, this.action);
+        if (tempinc < 0 || tempinc >= tempbytes) throw new ECSError(`this system only has ${tempbytes} locals`, this.action);
+        this.scope.updateTempLiveness(this.instance);
         return `${this.tmplabel}+${tempinc}`;
     }
     __bss_init(args: string[]) {
@@ -733,6 +774,10 @@ class ActionEval {
             if (hi != hi2)
                 code = this.dialect.ASM_FILTER_RANGE_HI_X.replace('{{%code}}', code);
         }
+        return code;
+    }
+    wrapCodeInRefLookup(code: string) {
+        code = this.dialect.ASM_LOOKUP_REF_X.replace('{{%code}}', code);
         return code;
     }
     generateCodeForField(fieldName: string, bitofs: number, canWrite: boolean): string {
@@ -841,10 +886,10 @@ class ActionEval {
 export class EntityScope implements SourceLocated {
     $loc: SourceLocation;
     childScopes: EntityScope[] = [];
-    systems: System[] = [];
+    instances: SystemInstance[] = [];
     entities: Entity[] = [];
     fieldtypes: { [name: string]: 'init' | 'const' } = {};
-    sysstats = new Map<System, SystemStats>();
+    sysstats = new Map<SystemInstance, SystemStats>();
     actionstats = new Map<Action, ActionStats>();
     bss = new UninitDataSegment();
     rodata = new ConstDataSegment();
@@ -876,9 +921,14 @@ export class EntityScope implements SourceLocated {
         this.entities.push(entity);
         return entity;
     }
-    addUsingSystem(system: System) {
-        if (!system) throw new Error();
-        this.systems.push(system);
+    newSystemInstance(inst: SystemInstance) {
+        if (!inst) throw new Error();
+        inst.id = this.instances.length+1;
+        this.instances.push(inst);
+        return inst;
+    }
+    newSystemInstanceWithDefaults(system: System) {
+        return this.newSystemInstance({ system, params: {}, id:0 });
     }
     getEntityByName(name: string) {
         return this.entities.find(e => e.name == name);
@@ -1093,18 +1143,18 @@ export class EntityScope implements SourceLocated {
         // generate code
         let s = this.dialect.code();
         //s += `\n; event ${event}\n`;
-        systems = systems.filter(s => this.systems.includes(s));
-        for (let sys of systems) {
+        let instances = this.instances.filter(inst => systems.includes(inst.system));
+        for (let inst of instances) {
+            let sys = inst.system;
             for (let action of sys.actions) {
                 if (action.event == event) {
                     // TODO: use Tokenizer so error msgs are better
                     // TODO: keep event tree
-                    let codeeval = new ActionEval(this, sys, action);
-                    codeeval.tmplabel = this.dialect.tempLabel(sys);
+                    let codeeval = new ActionEval(this, inst, action);
                     codeeval.begin();
-                    s += this.dialect.comment(`start action ${sys.name} ${event}`); // TODO
+                    s += this.dialect.comment(`start action ${sys.name} ${inst.id} ${event}`); // TODO
                     s += codeeval.codeToString();
-                    s += this.dialect.comment(`end action ${sys.name} ${event}`);
+                    s += this.dialect.comment(`end action ${sys.name} ${inst.id} ${event}`);
                     // TODO: check that this happens once?
                     codeeval.end();
                     this.getActionStats(action).callcount++;
@@ -1113,11 +1163,11 @@ export class EntityScope implements SourceLocated {
         }
         return s;
     }
-    getSystemStats(sys: System) : SystemStats {
-        let stats = this.sysstats.get(sys);
+    getSystemStats(inst: SystemInstance) : SystemStats {
+        let stats = this.sysstats.get(inst);
         if (!stats) {
             stats = new SystemStats();
-            this.sysstats.set(sys, stats);
+            this.sysstats.set(inst, stats);
         }
         return stats;
     }
@@ -1129,8 +1179,8 @@ export class EntityScope implements SourceLocated {
         }
         return stats;
     }
-    updateTempLiveness(sys: System) {
-        let stats = this.getSystemStats(sys);
+    updateTempLiveness(inst: SystemInstance) {
+        let stats = this.getSystemStats(inst);
         let n = this.eventSeq;
         if (stats.tempstartseq && stats.tempendseq) {
             stats.tempstartseq = Math.min(stats.tempstartseq, n);
@@ -1148,14 +1198,14 @@ export class EntityScope implements SourceLocated {
         let maxTempBytes = 128 - this.bss.size; // TODO: multiple data segs
         let bssbin = new Bin({ left:0, top:0, bottom: this.eventSeq+1, right: maxTempBytes });
         pack.bins.push(bssbin);
-        for (let sys of this.systems) {
-            let stats = this.getSystemStats(sys);
-            if (sys.tempbytes && stats.tempstartseq && stats.tempendseq) {
+        for (let instance of this.instances) {
+            let stats = this.getSystemStats(instance);
+            if (instance.system.tempbytes && stats.tempstartseq && stats.tempendseq) {
                 let v = {
-                    sys,
+                    inst: instance,
                     top: stats.tempstartseq,
                     bottom: stats.tempendseq+1,
-                    width: sys.tempbytes,
+                    width: instance.system.tempbytes,
                     height: stats.tempendseq - stats.tempstartseq + 1,
                 };
                 pack.boxes.push(v);
@@ -1166,9 +1216,9 @@ export class EntityScope implements SourceLocated {
         if (bssbin.extents.right > 0) {
             this.bss.allocateBytes('TEMP', bssbin.extents.right);
             for (let b of pack.boxes) {
-                let sys : System = (b as any).sys;
-                console.log(sys.name, b.box?.left);
-                this.bss.equates[this.dialect.tempLabel(sys)] = `TEMP+${b.box?.left}`;
+                let inst : SystemInstance = (b as any).inst;
+                console.log(inst.system.name, b.box?.left);
+                this.bss.equates[this.dialect.tempLabel(inst)] = `TEMP+${b.box?.left}`;
             }
         }
     }
@@ -1184,7 +1234,7 @@ export class EntityScope implements SourceLocated {
         let start;
         let initsys = this.em.getSystemByName('Init');
         if (isMainScope && initsys) {
-            this.addUsingSystem(initsys); //TODO: what if none?
+            this.newSystemInstanceWithDefaults(initsys); //TODO: what if none?
             start = this.generateCodeForEvent('main_init');
         } else {
             start = this.generateCodeForEvent('start');
@@ -1197,8 +1247,9 @@ export class EntityScope implements SourceLocated {
         //this.showStats();
     }
     showStats() {
-        for (let sys of this.systems) {
-            console.log(sys.name, this.getSystemStats(sys));
+        for (let inst of this.instances) {
+            // TODO?
+            console.log(inst.system.name, this.getSystemStats(inst));
         }
         for (let action of Array.from(this.actionstats.keys())) {
             console.log(action.event, this.getActionStats(action));

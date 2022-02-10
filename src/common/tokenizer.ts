@@ -118,7 +118,7 @@ export class Tokenizer {
                     switch (rule.type) {
                         case TokenType.CatchAll:
                             if (this.errorOnCatchAll) {
-                                this.compileError(`I didn't expect the character "${m[0]}" here.`);
+                                this.compileError(`I didn't expect the character "${m[0]}" here.`, loc);
                             }
                         default:
                             this.pushToken({ str: s, type: rule.type, $loc: loc });

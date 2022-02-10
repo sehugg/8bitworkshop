@@ -39,10 +39,10 @@ TEMP:
 .res 1
 .res 1
 .res 1
-Kernel2Sprite__tmp = TEMP+0
-Joystick__tmp = TEMP+0
-SpriteShuffler__tmp = TEMP+1
-SpriteHider__tmp = TEMP+3
+Kernel2Sprite__2__tmp = TEMP+0
+Joystick__3__tmp = TEMP+0
+SpriteShuffler__8__tmp = TEMP+1
+SpriteHider__9__tmp = TEMP+3
 .code
 KernelSection_lines_b0:
 .byte 192
@@ -117,7 +117,7 @@ Main__INITDATA:
 __Start:
 .code
 
-;;; start action Init main_init
+;;; start action Init 10 main_init
 
 .include "vcs-ca65.h"
 .macpack longbranch
@@ -135,20 +135,20 @@ __BRK:
 	; initialize data segment
 .code
 
-;;; start action FrameLoop start
+;;; start action FrameLoop 1 start
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
     .code
 
-;;; start action Kernel2Sprite preframe
+;;; start action Kernel2Sprite 2 preframe
 
 .define KLINES #192
 .define KPAD 32
 
-;;; end action Kernel2Sprite preframe
+;;; end action Kernel2Sprite 2 preframe
 
-;;; start action Kernel2Sprite preframe
+;;; start action Kernel2Sprite 2 preframe
 
     ldy #0
 Kernel2Sprite__preframe__4____each:
@@ -162,76 +162,76 @@ Kernel2Sprite__preframe__4____each:
     lda KLINES+KPAD
     sec
     sbc HasYpos_ypos_b0,x
-    sta Kernel2Sprite__tmp+11
+    sta Kernel2Sprite__2__tmp+11
 ; calculate bitmap pointer
-    stx Kernel2Sprite__tmp+12		; save X (Sprite index)
+    stx Kernel2Sprite__2__tmp+12		; save X (Sprite index)
     lda HasBitmap_bitmap_b0,x     ; deref bitmap
     tax
     lda Bitmap_bitmapdata_b0,x
     sec
-    sbc Kernel2Sprite__tmp+11
-    sta Kernel2Sprite__tmp+0,y	; Y = sprite slot index
+    sbc Kernel2Sprite__2__tmp+11
+    sta Kernel2Sprite__2__tmp+0,y	; Y = sprite slot index
     lda Bitmap_bitmapdata_b8,x
     sbc #0
-    sta Kernel2Sprite__tmp+2,y
+    sta Kernel2Sprite__2__tmp+2,y
 ; get bitmap height
     lda Bitmap_height_b0,x
-    sta Kernel2Sprite__tmp+8,y
+    sta Kernel2Sprite__2__tmp+8,y
 ; calculate colormap pointer
-    ldx Kernel2Sprite__tmp+12		; restore X
+    ldx Kernel2Sprite__2__tmp+12		; restore X
     lda HasColormap_colormap_b0,x	; deref colormap
     tax
     lda Colormap_colormapdata_b0,x
     sec
-    sbc Kernel2Sprite__tmp+11
-    sta Kernel2Sprite__tmp+4,y
+    sbc Kernel2Sprite__2__tmp+11
+    sta Kernel2Sprite__2__tmp+4,y
     lda Colormap_colormapdata_b8,x
     sbc #0
-    sta Kernel2Sprite__tmp+6,y
+    sta Kernel2Sprite__2__tmp+6,y
 ; save ypos
-    ldx Kernel2Sprite__tmp+12		; restore X
+    ldx Kernel2Sprite__2__tmp+12		; restore X
     lda HasYpos_ypos_b0,x
-    sta Kernel2Sprite__tmp+10,y
+    sta Kernel2Sprite__2__tmp+10,y
 
     iny
     cpy #2
     jne Kernel2Sprite__preframe__4____each
 Kernel2Sprite__preframe__4____exit:
 
-;;; end action Kernel2Sprite preframe
+;;; end action Kernel2Sprite 2 preframe
 
-;;; start action Kernel2Sprite preframe
+;;; start action Kernel2Sprite 2 preframe
 
 ; L0 L1 H0 H1 -> L0 H0 L1 H1
-    lda Kernel2Sprite__tmp+1
-    ldy Kernel2Sprite__tmp+2
-    sty Kernel2Sprite__tmp+1
-    sta Kernel2Sprite__tmp+2
-    lda Kernel2Sprite__tmp+5
-    ldy Kernel2Sprite__tmp+6
-    sty Kernel2Sprite__tmp+5
-    sta Kernel2Sprite__tmp+6
+    lda Kernel2Sprite__2__tmp+1
+    ldy Kernel2Sprite__2__tmp+2
+    sty Kernel2Sprite__2__tmp+1
+    sta Kernel2Sprite__2__tmp+2
+    lda Kernel2Sprite__2__tmp+5
+    ldy Kernel2Sprite__2__tmp+6
+    sty Kernel2Sprite__2__tmp+5
+    sta Kernel2Sprite__2__tmp+6
 
-;;; end action Kernel2Sprite preframe
+;;; end action Kernel2Sprite 2 preframe
 
-;;; start action Kernel2Sprite preframe
+;;; start action Kernel2Sprite 2 preframe
 
     lda #162
     sta COLUBK
 
-;;; end action Kernel2Sprite preframe
+;;; end action Kernel2Sprite 2 preframe
 
-;;; start action Kernel2Sprite preframe
+;;; start action Kernel2Sprite 2 preframe
 
-;;; end action Kernel2Sprite preframe
+;;; end action Kernel2Sprite 2 preframe
 
-;;; start action SetXPos preframe
+;;; start action SetXPos 6 preframe
 
     sta HMCLR
 
-;;; end action SetXPos preframe
+;;; end action SetXPos 6 preframe
 
-;;; start action SetXPos preframe
+;;; start action SetXPos 6 preframe
 
     ldy #0
 SetXPos__preframe__8____each:
@@ -240,7 +240,7 @@ SetXPos__preframe__8____each:
     lda HasXpos_xpos_b0,x
     .code
 
-;;; start action SetHorizPos SetHorizPos
+;;; start action SetHorizPos 7 SetHorizPos
 
 ; SetHorizPos routine
 ; A = X coordinate
@@ -259,7 +259,7 @@ SetHorizPos__SetHorizPos__9__DivideLoop:
     sta RESP0,y	; fix coarse position
     sta HMP0,y	; set fine offset
 
-;;; end action SetHorizPos SetHorizPos
+;;; end action SetHorizPos 7 SetHorizPos
 
 
     iny
@@ -267,61 +267,61 @@ SetHorizPos__SetHorizPos__9__DivideLoop:
     jne SetXPos__preframe__8____each
 SetXPos__preframe__8____exit:
 
-;;; end action SetXPos preframe
+;;; end action SetXPos 6 preframe
 
-;;; start action SetXPos preframe
+;;; start action SetXPos 6 preframe
 
-;;; end action SetXPos preframe
+;;; end action SetXPos 6 preframe
 
-;;; start action SetXPos preframe
+;;; start action SetXPos 6 preframe
 
     sta WSYNC
     sta HMOVE
 
-;;; end action SetXPos preframe
+;;; end action SetXPos 6 preframe
 
     KERNEL_START
     .code
 
-;;; start action Kernel2Sprite kernel
+;;; start action Kernel2Sprite 2 kernel
 
     ldy #0
     sty VDELP0
     iny
     sta VDELP1
 
-;;; end action Kernel2Sprite kernel
+;;; end action Kernel2Sprite 2 kernel
 
-;;; start action Kernel2Sprite kernel
+;;; start action Kernel2Sprite 2 kernel
 
 ; define macro for each line
     .macro Kernel2Sprite__kernel__12__DrawLine do_wsync
     .local DoDraw1
     .local DoDraw2
 ; draw player 0
-    lda Kernel2Sprite__tmp+8 ; height
-    dcp Kernel2Sprite__tmp+10 ; ypos
+    lda Kernel2Sprite__2__tmp+8 ; height
+    dcp Kernel2Sprite__2__tmp+10 ; ypos
     bcs DoDraw1
     lda #0
     .byte $2C
 DoDraw1:
-    lda (Kernel2Sprite__tmp+0),y
+    lda (Kernel2Sprite__2__tmp+0),y
     .if do_wsync
     sta WSYNC
     .endif
     sta GRP0
-    lda (Kernel2Sprite__tmp+4),y
+    lda (Kernel2Sprite__2__tmp+4),y
     sta COLUP0
 ; draw player 1
-    lda Kernel2Sprite__tmp+9 ; height
-    dcp Kernel2Sprite__tmp+11 ; ypos
+    lda Kernel2Sprite__2__tmp+9 ; height
+    dcp Kernel2Sprite__2__tmp+11 ; ypos
     bcs DoDraw2
     lda #0
     .byte $2C
 DoDraw2:
-    lda (Kernel2Sprite__tmp+2),y
+    lda (Kernel2Sprite__2__tmp+2),y
     sta GRP1
-    lda (Kernel2Sprite__tmp+6),y
+    lda (Kernel2Sprite__2__tmp+6),y
     sta COLUP1
     .endmacro
     
@@ -329,9 +329,9 @@ DoDraw2:
 Kernel2Sprite__kernel__12__LVScan:
     .code
 
-;;; start action Kernel2Sprite scanline1
+;;; start action Kernel2Sprite 2 scanline1
 
-;;; end action Kernel2Sprite scanline1
+;;; end action Kernel2Sprite 2 scanline1
 
     Kernel2Sprite__kernel__12__DrawLine 1 ; macro: draw scanline w/ WSYNC
     dey		; next scanline
@@ -341,9 +341,9 @@ Kernel2Sprite__kernel__12__LVScan:
     dey		; next scanline
     bne Kernel2Sprite__kernel__12__LVScan	; repeat until out of lines
 
-;;; end action Kernel2Sprite kernel
+;;; end action Kernel2Sprite 2 kernel
 
-;;; start action Kernel2Sprite kernel
+;;; start action Kernel2Sprite 2 kernel
 
     lda #0
     sta GRP0
@@ -351,29 +351,29 @@ Kernel2Sprite__kernel__12__LVScan:
     sta GRP0
     sta GRP1
 
-;;; end action Kernel2Sprite kernel
+;;; end action Kernel2Sprite 2 kernel
 
     KERNEL_END
     .code
 
-;;; start action Joystick postframe
+;;; start action Joystick 3 postframe
 
 ; 2 control inputs share a single byte, 4 bits each
     lda SWCHA
-    sta Joystick__tmp+0
+    sta Joystick__3__tmp+0
 
-;;; end action Joystick postframe
+;;; end action Joystick 3 postframe
 
-;;; start action Joystick postframe
+;;; start action Joystick 3 postframe
 
     ldx #0
 Joystick__postframe__15____each:
     
-    asl Joystick__tmp+0
+    asl Joystick__3__tmp+0
     bcs Joystick__postframe__15__SkipMoveRight
     .code
 
-;;; start action MoveJoyX joyright
+;;; start action MoveJoyX 4 joyright
 
     lda HasXpos_xpos_b0,x
     clc
@@ -383,14 +383,14 @@ Joystick__postframe__15____each:
     sta HasXpos_xpos_b0,x
 MoveJoyX__joyright__16__nomove:
 
-;;; end action MoveJoyX joyright
+;;; end action MoveJoyX 4 joyright
 
 Joystick__postframe__15__SkipMoveRight:
-    asl Joystick__tmp+0
+    asl Joystick__3__tmp+0
     bcs Joystick__postframe__15__SkipMoveLeft
     .code
 
-;;; start action MoveJoyX joyleft
+;;; start action MoveJoyX 4 joyleft
 
     lda HasXpos_xpos_b0,x
     sec
@@ -399,14 +399,14 @@ Joystick__postframe__15__SkipMoveRight:
     sta HasXpos_xpos_b0,x
 MoveJoyX__joyleft__17__nomove:
 
-;;; end action MoveJoyX joyleft
+;;; end action MoveJoyX 4 joyleft
 
 Joystick__postframe__15__SkipMoveLeft:
-    asl Joystick__tmp+0
+    asl Joystick__3__tmp+0
     bcs Joystick__postframe__15__SkipMoveDown
     .code
 
-;;; start action MoveJoyY joydown
+;;; start action MoveJoyY 5 joydown
 
     lda HasYpos_ypos_b0,x
     clc
@@ -416,14 +416,14 @@ Joystick__postframe__15__SkipMoveLeft:
     sta HasYpos_ypos_b0,x
 MoveJoyY__joydown__18__nomove:
 
-;;; end action MoveJoyY joydown
+;;; end action MoveJoyY 5 joydown
 
 Joystick__postframe__15__SkipMoveDown:
-    asl Joystick__tmp+0
+    asl Joystick__3__tmp+0
     bcs Joystick__postframe__15__SkipMoveUp
     .code
 
-;;; start action MoveJoyY joyup
+;;; start action MoveJoyY 5 joyup
 
     lda HasYpos_ypos_b0,x
     sec
@@ -432,7 +432,7 @@ Joystick__postframe__15__SkipMoveDown:
     sta HasYpos_ypos_b0,x
 MoveJoyY__joyup__19__nomove:
 
-;;; end action MoveJoyY joyup
+;;; end action MoveJoyY 5 joyup
 
 Joystick__postframe__15__SkipMoveUp:
 
@@ -441,15 +441,15 @@ Joystick__postframe__15__SkipMoveUp:
     jne Joystick__postframe__15____each
 Joystick__postframe__15____exit:
 
-;;; end action Joystick postframe
+;;; end action Joystick 3 postframe
 
-;;; start action SpriteShuffler postframe
+;;; start action SpriteShuffler 8 postframe
 
 ; load two sprite slots at left side of array
 	lda SpriteSlot_sprite_b0
-        sta SpriteShuffler__tmp+0
+        sta SpriteShuffler__8__tmp+0
 	lda SpriteSlot_sprite_b0+1
-        sta SpriteShuffler__tmp+1
+        sta SpriteShuffler__8__tmp+1
 ; move two slots to the left
         ldx #0
 SpriteShuffler__postframe__20__loop:
@@ -459,21 +459,21 @@ SpriteShuffler__postframe__20__loop:
         cpx #4-2
         bne SpriteShuffler__postframe__20__loop
 ; store two sprite slots at right side of array
-        lda SpriteShuffler__tmp+0
+        lda SpriteShuffler__8__tmp+0
 	sta SpriteSlot_sprite_b0+4-2
-        lda SpriteShuffler__tmp+1
+        lda SpriteShuffler__8__tmp+1
 	sta SpriteSlot_sprite_b0+4-1
 
-;;; end action SpriteShuffler postframe
+;;; end action SpriteShuffler 8 postframe
 
-;;; start action SpriteHider postframe
+;;; start action SpriteHider 9 postframe
 
 	lda #4-1
-        sta SpriteHider__tmp+0
+        sta SpriteHider__9__tmp+0
 
-;;; end action SpriteHider postframe
+;;; end action SpriteHider 9 postframe
 
-;;; start action SpriteHider postframe
+;;; start action SpriteHider 9 postframe
 
     ldy #0
 SpriteHider__postframe__22____each:
@@ -485,12 +485,12 @@ SpriteHider__postframe__22____each:
 ; swap this sprite slot with slot at end of array
 	lda SpriteSlot_sprite_b0,y
         pha
-        ldx SpriteHider__tmp+0	; clobbers X, but no longer used
+        ldx SpriteHider__9__tmp+0	; clobbers X, but no longer used
 	lda SpriteSlot_sprite_b0,x
 	sta SpriteSlot_sprite_b0,y
         pla
 	sta SpriteSlot_sprite_b0,x
-        dec SpriteHider__tmp+0
+        dec SpriteHider__9__tmp+0
 SpriteHider__postframe__22__skip:
 
     iny
@@ -498,14 +498,14 @@ SpriteHider__postframe__22__skip:
     jne SpriteHider__postframe__22____each
 SpriteHider__postframe__22____exit:
 
-;;; end action SpriteHider postframe
+;;; end action SpriteHider 9 postframe
 
     FRAME_END
     .code
 
     jmp FrameLoop__start__2__NextFrame    ; loop to next frame
 
-;;; end action FrameLoop start
+;;; end action FrameLoop 1 start
 	; start main routine
 .segment "VECTORS"
 Return:    .word $6060
@@ -513,7 +513,7 @@ VecNMI:
 VecReset:  .word Main::__Reset
 VecBRK:    .word Main::__BRK
 
-;;; end action Init main_init
+;;; end action Init 10 main_init
 
 .endscope
 Main__Start = Main::__Start

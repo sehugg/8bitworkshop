@@ -5,7 +5,7 @@ PFColor_pfcolor_b0:
 .res 1
 TEMP:
 .res 1
-Local__tmp = TEMP+0
+Local__6__tmp = TEMP+0
 .code
 KernelSection_lines_b0:
 .byte 2
@@ -46,7 +46,7 @@ Main__INITDATA:
 __Start:
 .code
 
-;;; start action Init main_init
+;;; start action Init 7 main_init
 
 .include "vcs-ca65.h"
 .define PAL 0
@@ -63,24 +63,24 @@ __BRK:
 	; initialize data segment
 .code
 
-;;; start action FrameLoop start
+;;; start action FrameLoop 1 start
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
     .code
 
-;;; start action StaticKernel preframe
+;;; start action StaticKernel 4 preframe
 
     .code
 
-;;; start action StaticKernel kernelsetup
+;;; start action StaticKernel 4 kernelsetup
 
     lda #24
     sta COLUBK
 
-;;; end action StaticKernel kernelsetup
+;;; end action StaticKernel 4 kernelsetup
 
-;;; start action StaticKernel kernelsetup
+;;; start action StaticKernel 4 kernelsetup
 
     cpx #0+2
     jcs StaticKernel__kernelsetup__5____skipxhi
@@ -95,9 +95,9 @@ StaticKernel__kernelsetup__5____skipxlo:
 
 StaticKernel__kernelsetup__5____skipxhi:
 
-;;; end action StaticKernel kernelsetup
+;;; end action StaticKernel 4 kernelsetup
 
-;;; start action StaticKernel kernelsetup
+;;; start action StaticKernel 4 kernelsetup
 
     cpx #0+4
     jcs StaticKernel__kernelsetup__6____skipxhi
@@ -116,15 +116,15 @@ StaticKernel__kernelsetup__6____skipxlo:
 
 StaticKernel__kernelsetup__6____skipxhi:
 
-;;; end action StaticKernel kernelsetup
+;;; end action StaticKernel 4 kernelsetup
 
 
-;;; end action StaticKernel preframe
+;;; end action StaticKernel 4 preframe
 
     KERNEL_START
     .code
 
-;;; start action StaticKernel kernel
+;;; start action StaticKernel 4 kernel
 
     ldx #0
 StaticKernel__kernel__7____each:
@@ -132,14 +132,14 @@ StaticKernel__kernel__7____each:
     sta WSYNC
     .code
 
-;;; start action StaticKernel kernelsetup
+;;; start action StaticKernel 4 kernelsetup
 
     lda BGColor_bgcolor_b0,x
     sta COLUBK
 
-;;; end action StaticKernel kernelsetup
+;;; end action StaticKernel 4 kernelsetup
 
-;;; start action StaticKernel kernelsetup
+;;; start action StaticKernel 4 kernelsetup
 
     cpx #5+2
     jcs StaticKernel__kernelsetup__9____skipxhi
@@ -154,9 +154,9 @@ StaticKernel__kernelsetup__9____skipxlo:
 
 StaticKernel__kernelsetup__9____skipxhi:
 
-;;; end action StaticKernel kernelsetup
+;;; end action StaticKernel 4 kernelsetup
 
-;;; start action StaticKernel kernelsetup
+;;; start action StaticKernel 4 kernelsetup
 
     cpx #4
     jcc StaticKernel__kernelsetup__10____skipxlo
@@ -170,7 +170,7 @@ StaticKernel__kernelsetup__9____skipxhi:
 
 StaticKernel__kernelsetup__10____skipxlo:
 
-;;; end action StaticKernel kernelsetup
+;;; end action StaticKernel 4 kernelsetup
 
     ldy KernelSection_lines_b0,x
 StaticKernel__kernel__7__loop:
@@ -185,50 +185,50 @@ StaticKernel__kernel__7__loop:
     jne StaticKernel__kernel__7____each
 StaticKernel__kernel__7____exit:
 
-;;; end action StaticKernel kernel
+;;; end action StaticKernel 4 kernel
 
     KERNEL_END
     .code
 
-;;; start action JoyButton postframe
+;;; start action JoyButton 5 postframe
 
     lda INPT4	;read button input
     bmi JoyButton__postframe__11__NotPressed
     .code
 
-;;; start action Local joybutton
+;;; start action Local 6 joybutton
 
-    inc Local__tmp+0
+    inc Local__6__tmp+0
     inc PFColor_pfcolor_b0
     
-;;; end action Local joybutton
+;;; end action Local 6 joybutton
 
 JoyButton__postframe__11__NotPressed:
 
-;;; end action JoyButton postframe
+;;; end action JoyButton 5 postframe
 
     FRAME_END
     .code
 
-;;; start action ResetSwitch nextframe
+;;; start action ResetSwitch 2 nextframe
 
     lsr SWCHB	      ; test Game Reset switch
     bcs ResetSwitch__nextframe__13__NoStart
     .code
 
-;;; start action ResetConsole resetswitch
+;;; start action ResetConsole 3 resetswitch
 
     jmp Main::__Reset ; jump to Reset handler
 
-;;; end action ResetConsole resetswitch
+;;; end action ResetConsole 3 resetswitch
 
 ResetSwitch__nextframe__13__NoStart:
 
-;;; end action ResetSwitch nextframe
+;;; end action ResetSwitch 2 nextframe
 
     jmp FrameLoop__start__2__NextFrame    ; loop to next frame
 
-;;; end action FrameLoop start
+;;; end action FrameLoop 1 start
 	; start main routine
 .segment "VECTORS"
 Return:    .word $6060
@@ -236,7 +236,7 @@ VecNMI:
 VecReset:  .word Main::__Reset
 VecBRK:    .word Main::__BRK
 
-;;; end action Init main_init
+;;; end action Init 7 main_init
 
 .endscope
 Main__Start = Main::__Start

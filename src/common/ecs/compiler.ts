@@ -2,7 +2,7 @@
 import { mergeLocs, Token, Tokenizer, TokenType } from "../tokenizer";
 import { SourceLocated, SourceLocation } from "../workertypes";
 import { newDecoder } from "./decoder";
-import { Action, ActionOwner, ActionNode, ActionWithJoin, ArrayType, CodeLiteralNode, CodePlaceholderNode, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System } from "./ecs";
+import { Action, ActionOwner, ActionNode, ActionWithJoin, ArrayType, CodeLiteralNode, CodePlaceholderNode, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System, SystemInstance, SystemInstanceParameters, ComponentFieldPair } from "./ecs";
 
 export enum ECSTokenType {
     Ellipsis = 'ellipsis',
@@ -37,7 +37,7 @@ export class ECSCompiler extends Tokenizer {
             { type: ECSTokenType.Integer, regex: /[-]?\$[A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[-]?\d+/ },
             { type: ECSTokenType.Integer, regex: /[%][01]+/ },
-            { type: ECSTokenType.Operator, regex: /[#=,:(){}\[\]\-]/ },
+            { type: ECSTokenType.Operator, regex: /[.#=,:(){}\[\]\-]/ },
             { type: TokenType.Ident, regex: /[A-Za-z_][A-Za-z0-9_]*/ },
             { type: TokenType.Ignore, regex: /\/\/.*?[\n\r]/ },
             { type: TokenType.Ignore, regex: /\/\*.*?\*\// },
@@ -300,12 +300,11 @@ export class ECSCompiler extends Tokenizer {
         // TODO: add $loc
         let tok = this.expectTokenTypes([ECSTokenType.CodeFragment]);
         let code = tok.str.substring(3, tok.str.length-3);
-        /*
-        let lines = code.split('\n');
         // TODO: add after parsing maybe?
+        let lines = code.split('\n');
         if (this.debuginfo) this.addDebugInfo(lines, tok.$loc.line);
         code = lines.join('\n');
-        */
+        
         let acomp = new ECSActionCompiler(context);
         let nodes = acomp.parseFile(code, this.path);
         // TODO: return nodes
@@ -342,7 +341,7 @@ export class ECSCompiler extends Tokenizer {
             if (cmd == 'system') {
                 let sys = this.annotate(() => this.parseSystem());
                 this.em.defineSystem(sys);
-                this.currentScope.addUsingSystem(sys);
+                this.currentScope.newSystemInstanceWithDefaults(sys);
             }
         }
         this.currentScope = scope.parent || null;
@@ -350,9 +349,9 @@ export class ECSCompiler extends Tokenizer {
     }
 
     parseScopeUsing() {
-        let syslist = this.parseList(this.parseSystemRef, ',');
-        for (let sys of syslist) {
-            this.currentScope?.addUsingSystem(sys);
+        let instlist = this.parseList(this.parseSystemInstanceRef, ',');
+        for (let inst of instlist) {
+            this.currentScope?.newSystemInstance(inst);
         }
     }
 
@@ -374,21 +373,21 @@ export class ECSCompiler extends Tokenizer {
             if (cmd == 'init' || cmd == 'const') {
                 // TODO: check data types
                 let name = this.expectIdent().str;
-                let { component, field } = this.getEntityField(entity, name);
-                let symtype = this.currentScope.isConstOrInit(component, name);
+                let { c, f } = this.getEntityField(entity, name);
+                let symtype = this.currentScope.isConstOrInit(c, name);
                 if (symtype && symtype != cmd)
                     this.compileError(`I can't mix const and init values for a given field in a scope.`);
                 this.expectToken('=');
-                let valueOrRef = this.parseDataValue(field);
+                let valueOrRef = this.parseDataValue(f);
                 if ((valueOrRef as ForwardRef).token != null) {
                     this.deferred.push(() => {
                         let refvalue = this.resolveEntityRef(scope, valueOrRef as ForwardRef);
-                        if (cmd == 'const') scope.setConstValue(entity, component, name, refvalue);
-                        if (cmd == 'init') scope.setInitValue(entity, component, name, refvalue);
+                        if (cmd == 'const') scope.setConstValue(entity, c, name, refvalue);
+                        if (cmd == 'init') scope.setInitValue(entity, c, name, refvalue);
                     });
                 } else {
-                    if (cmd == 'const') scope.setConstValue(entity, component, name, valueOrRef as DataValue);
-                    if (cmd == 'init') scope.setInitValue(entity, component, name, valueOrRef as DataValue);
+                    if (cmd == 'const') scope.setConstValue(entity, c, name, valueOrRef as DataValue);
+                    if (cmd == 'init') scope.setInitValue(entity, c, name, valueOrRef as DataValue);
                 }
             } else if (cmd == 'decode') {
                 let decoderid = this.expectIdent().str;
@@ -398,15 +397,15 @@ export class ECSCompiler extends Tokenizer {
                 if (!decoder) { this.compileError(`I can't find a "${decoderid}" decoder.`); throw new Error() }
                 let result = decoder.parse();
                 for (let entry of Object.entries(result.properties)) {
-                    let { component, field } = this.getEntityField(entity, entry[0]);
-                    scope.setConstValue(entity, component, field.name, entry[1]);
+                    let { c, f } = this.getEntityField(entity, entry[0]);
+                    scope.setConstValue(entity, c, f.name, entry[1]);
                 }
             }
         }
         return entity;
     }
 
-    getEntityField(e: Entity, name: string) {
+    getEntityField(e: Entity, name: string) : ComponentFieldPair {
         if (!this.currentScope) { this.internalError(); throw new Error(); }
         let comps = this.em.componentsWithFieldName([e.etype], name);
         if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
@@ -414,7 +413,7 @@ export class ECSCompiler extends Tokenizer {
         let component = comps[0];
         let field = component.fields.find(f => f.name == name);
         if (!field) { this.internalError(); throw new Error(); }
-        return { component, field };
+        return { c: component, f: field };
     }
 
     parseEntityArchetype() : EntityArchetype {
@@ -431,14 +430,18 @@ export class ECSCompiler extends Tokenizer {
         return cref;
     }
 
-    resolveEntityRef(scope: EntityScope, ref: ForwardRef) : number {
-        let name = ref.token.str;
+    findEntityByName(scope: EntityScope, token: Token) {
+        let name = token.str;
         let eref = scope.entities.find(e => e.name == name);
         if (!eref) {
-            this.compileError(`I couldn't find an entity named "${name}" in this scope.`, ref.token.$loc)
+            this.compileError(`I couldn't find an entity named "${name}" in this scope.`, token.$loc)
             throw new Error();
         }
-        let id = eref.id;
+        return eref;
+    }
+
+    resolveEntityRef(scope: EntityScope, ref: ForwardRef) : number {
+        let id = this.findEntityByName(scope, ref.token).id;
         if (ref.reftype) {
             // TODO: make this a function? elo ehi etc?
             let atypes = this.em.archetypesMatching(ref.reftype.query);
@@ -450,11 +453,29 @@ export class ECSCompiler extends Tokenizer {
         return id;
     }
     
-    parseSystemRef() : System {
+    parseSystemInstanceRef() : SystemInstance {
         let name = this.expectIdent().str;
-        let sys = this.em.getSystemByName(name);
-        if (!sys) this.compileError(`I couldn't find a system named "${name}".`, this.lasttoken.$loc);
-        return sys;
+        let system = this.em.getSystemByName(name);
+        if (!system) this.compileError(`I couldn't find a system named "${name}".`, this.lasttoken.$loc);
+        let params = {};
+        if (this.peekToken().str == 'with') {
+            this.consumeToken();
+            params = this.parseSystemInstanceParameters();
+        }
+        let inst = { system, params, id: 0 };
+        return inst;
+    }
+
+    parseSystemInstanceParameters() : SystemInstanceParameters {
+        let scope = this.currentScope;
+        if (scope == null) throw new Error();
+        this.expectToken('#');
+        let entname = this.expectIdent();
+        this.expectToken('.');
+        let fieldname = this.expectIdent();
+        let entity = this.findEntityByName(scope, entname);
+        let cf = this.getEntityField(entity, fieldname.str);
+        return { refEntity: entity, refField: cf };
     }
 
     exportToFile(src: SourceFileExport) {
