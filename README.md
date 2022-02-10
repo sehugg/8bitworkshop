@@ -19,6 +19,8 @@ npm i
 npm run build
 ```
 
+To use GitHub integration locally, download the Firebase config file, e.g. https://8bitworkshop.com/v[version]/config.js
+
 ### Start Server
 
 Start a web server on http://localhost:8000/ while TypeScript compiles in the background:
@@ -102,3 +104,4 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * https://github.com/sehugg/8bitworkshop-compilers
 * https://github.com/sehugg/8bit-tools
 * https://github.com/sehugg/awesome-8bitgamedev
+

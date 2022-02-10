@@ -69,6 +69,7 @@ export class Tokenizer {
     curlabel: string;
     eof: Token;
     errorOnCatchAll = false;
+    deferred: (() => void)[] = [];
 
     constructor() {
         this.errors = [];
@@ -229,5 +230,10 @@ export class Tokenizer {
         } while (sep.str == delim);
         this.pushbackToken(sep);
         return list;
+    }
+    runDeferred() {
+        while (this.deferred.length) {
+            this.deferred.shift()();
+        }
     }
 }

@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from "child_process";
 import { readdirSync, readFileSync, writeFileSync } from "fs";
 import { describe } from "mocha";
 import { Bin, BoxConstraints, Packer } from "../common/ecs/binpack";
-import { ECSCompiler } from "../common/ecs/compiler";
+import { ECSActionCompiler, ECSCompiler } from "../common/ecs/compiler";
 import { Dialect_CA65, EntityManager, SourceFileExport } from "../common/ecs/ecs";
 
 const TEMPLATE1 = `
@@ -344,6 +344,7 @@ end
         c.exportToFile(src);
         // TODO: test?
         //console.log(src.toString());
+        return em;
     } catch (e) {
         console.log(e);
         for (let err of c.errors) {

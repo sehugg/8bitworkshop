@@ -1,0 +1,240 @@
+
+//#resource "vcs-ca65.h"
+
+system Init
+  on main_init do once
+---
+.include "vcs-ca65.h"
+.macpack longbranch
+.define PAL 0
+__NMI:
+__Reset:
+__BRK:
+    CLEAN_START
+{{bss_init}}	; initialize data segment
+{{!start}}	; start main routine
+.segment "VECTORS"
+Return:    .word $6060
+VecNMI:
+VecReset:  .word Main::__Reset
+VecBRK:    .word Main::__BRK
+---
+end
+
+component Player
+end
+
+component KernelSection
+  lines: 1..255
+end
+
+component BGColor
+  bgcolor: 0..255
+end
+
+component PFColor
+  pfcolor: 0..255
+end
+
+component Playfield
+   pf: 0..0xffffff
+end
+
+component AsymPlayfield
+   pfleft: 0..0xffffff
+   pfright: 0..0xffffff
+end
+
+component VersatilePlayfield
+  data: array of 0..255 baseoffset -1
+end
+
+system FrameLoop
+  on start do once 
+---
+@NextFrame:
+    FRAME_START
+    {{emit preframe}}
+    KERNEL_START
+    {{emit kernel}}
+    KERNEL_END
+    {{emit postframe}}
+    FRAME_END
+    {{emit nextframe}}
+    jmp @NextFrame    ; loop to next frame
+---
+end
+
+system ResetSwitch
+    on nextframe do once
+---
+    lsr SWCHB	      ; test Game Reset switch
+    bcs @NoStart
+    {{!resetswitch}}
+@NoStart:
+---
+end
+
+system ResetConsole
+    on resetswitch do once
+---
+    jmp Main::__Reset ; jump to Reset handler
+---
+end
+
+system JoyButton
+    on postframe do foreach [Player]
+---
+    lda {{index INPT4}}	;read button input
+    bmi @NotPressed
+    {{emit joybutton}}
+@NotPressed:
+---
+end
+
+system Joystick
+    locals 1
+    on postframe do once
+---
+; 2 control inputs share a single byte, 4 bits each
+    lda SWCHA
+    sta {{$0}}
+---
+    on postframe do foreach [Player]
+---
+    asl {{$0}}
+    bcs @SkipMoveRight
+    {{!joyright}}
+@SkipMoveRight:
+    asl {{$0}}
+    bcs @SkipMoveLeft
+    {{!joyleft}}
+@SkipMoveLeft:
+    asl {{$0}}
+    bcs @SkipMoveDown
+    {{!joydown}}
+@SkipMoveDown:
+    asl {{$0}}
+    bcs @SkipMoveUp
+    {{!joyup}}
+@SkipMoveUp:
+---
+end
+
+system SetHorizPos
+    on SetHorizPos do once
+---
+; SetHorizPos routine
+; A = X coordinate
+; Y = player number (0 or 1)
+    sta WSYNC	; start a new line
+    sec		    ; set carry flag
+    nop
+@DivideLoop:
+    sbc #15		; subtract 15
+    bcs @DivideLoop	; branch until negative
+    eor #7		; calculate fine offset
+    asl
+    asl
+    asl
+    asl
+    sta RESP0,y	; fix coarse position
+    sta HMP0,y	; set fine offset
+---
+end
+
+
+system StaticKernel
+  on preframe do foreach [KernelSection] limit 1
+---
+    {{!kernelsetup}}
+---
+  on kernel do foreach [KernelSection]
+---
+    sta WSYNC
+    {{!kernelsetup}}
+    {{!kerneldraw}}
+    {{!kerneldone}}
+---
+  on kerneldraw do with [KernelSection]
+---
+    ldy {{<lines}}
+@loop:
+    sta WSYNC
+    {{!scanline}}
+    dey
+    bne @loop
+---
+  on kernelsetup do if [BGColor]
+---
+    lda {{<bgcolor}}
+    sta COLUBK
+---
+  on kernelsetup do if [PFColor]
+---
+    lda {{get pfcolor}}
+    sta COLUPF
+---
+  on kernelsetup do if [Playfield]
+---
+    lda {{get pf 0}}
+    sta PF0
+    lda {{get pf 8}}
+    sta PF1
+    lda {{get pf 16}}
+    sta PF2
+---
+end
+
+///
+
+demo Main
+  using FrameLoop, ResetSwitch, ResetConsole
+  using StaticKernel, JoyButton
+  entity [Player]
+  end
+  entity [KernelSection,BGColor]
+    const lines = 2
+    const bgcolor = $18
+  end
+  entity [KernelSection,BGColor]
+    const lines = 2
+    const bgcolor = $16
+  end
+  entity [KernelSection,BGColor]
+    const lines = 2
+    const bgcolor = $14
+  end
+  entity [KernelSection,BGColor]
+    const lines = 2
+    const bgcolor = $12
+  end
+  entity  [KernelSection,BGColor,Playfield]
+    const lines = 10
+    const bgcolor = $14
+    const pf = 0x125244
+  end
+  entity Trees [KernelSection,BGColor,PFColor,Playfield]
+    const lines = 50
+    const bgcolor = $14
+    const pf = 0x112244
+  end
+  entity  [KernelSection,BGColor,PFColor,Playfield]
+    const lines = 50
+    const bgcolor = $16
+    const pf = 0x124
+  end
+  entity [KernelSection,BGColor,Playfield]
+    const lines = 10
+    const bgcolor = $18
+    const pf = 0
+  end
+  
+  system Local
+    locals 1
+    on joybutton do foreach [PFColor] limit 1 ---
+    inc {{$0}}
+    inc {{set Trees.pfcolor}}
+    ---
+  end
+end

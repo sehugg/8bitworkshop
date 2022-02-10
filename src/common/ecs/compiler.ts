@@ -1,8 +1,8 @@
 
-import { mergeLocs, Tokenizer, TokenType } from "../tokenizer";
-import { SourceLocated } from "../workertypes";
+import { mergeLocs, Token, Tokenizer, TokenType } from "../tokenizer";
+import { SourceLocated, SourceLocation } from "../workertypes";
 import { newDecoder } from "./decoder";
-import { Action, ActionWithJoin, ArrayType, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System } from "./ecs";
+import { Action, ActionOwner, ActionNode, ActionWithJoin, ArrayType, CodeLiteralNode, CodePlaceholderNode, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System } from "./ecs";
 
 export enum ECSTokenType {
     Ellipsis = 'ellipsis',
@@ -10,11 +10,18 @@ export enum ECSTokenType {
     QuotedString = 'quoted-string',
     Integer = 'integer',
     CodeFragment = 'code-fragment',
+    Placeholder = 'placeholder',
+}
+
+interface ForwardRef {
+    reftype: RefType | undefined
+    token: Token
 }
 
 export class ECSCompiler extends Tokenizer {
 
     currentScope: EntityScope | null = null;
+    currentContext: ActionOwner | null = null;
     debuginfo = false;
 
     constructor(
@@ -26,9 +33,10 @@ export class ECSCompiler extends Tokenizer {
             { type: ECSTokenType.Ellipsis, regex: /\.\./ },
             { type: ECSTokenType.QuotedString, regex: /".*?"/ },
             { type: ECSTokenType.CodeFragment, regex: /---.*?---/ },
-            { type: ECSTokenType.Integer, regex: /[-]?0x[A-Fa-f0-9]+/ },
+            { type: ECSTokenType.Integer, regex: /[-]?0[xX][A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[-]?\$[A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[-]?\d+/ },
+            { type: ECSTokenType.Integer, regex: /[%][01]+/ },
             { type: ECSTokenType.Operator, regex: /[#=,:(){}\[\]\-]/ },
             { type: TokenType.Ident, regex: /[A-Za-z_][A-Za-z0-9_]*/ },
             { type: TokenType.Ignore, regex: /\/\/.*?[\n\r]/ },
@@ -54,6 +62,7 @@ export class ECSCompiler extends Tokenizer {
                 this.annotate(() => t); // TODO? typescript bug?
             }
         }
+        this.runDeferred();
     }
 
     getImportFile: (path: string) => string;
@@ -108,6 +117,7 @@ export class ECSCompiler extends Tokenizer {
     parseComponentDefinition(): ComponentType {
         let name = this.expectIdent().str;
         let fields = [];
+        this.em.deferComponent(name);
         while (this.peekToken().str != 'end') {
             fields.push(this.parseComponentField());
         }
@@ -148,7 +158,7 @@ export class ECSCompiler extends Tokenizer {
         this.compileError(`I expected a data type here.`); throw new Error();
     }
 
-    parseDataValue(field: DataField) : DataValue {
+    parseDataValue(field: DataField) : DataValue | ForwardRef {
         let tok = this.peekToken();
         if (tok.type == 'integer') {
             return this.expectInteger();
@@ -158,20 +168,10 @@ export class ECSCompiler extends Tokenizer {
             return new Uint8Array(this.parseDataArray());
         }
         if (tok.str == '#') {
+            this.consumeToken();
             let reftype = field.dtype == 'ref' ? field as RefType : undefined;
-            let e = this.parseEntityRef();
-            let id = e.id;
-            if (reftype) {
-                // TODO: make this a function? elo ehi etc?
-                if (!this.currentScope) {
-                    this.compileError("This type can only exist inside of a scope."); throw new Error()
-                };
-                let atypes = this.em.archetypesMatching(reftype.query);
-                let entities = this.currentScope.entitiesMatching(atypes);
-                if (entities.length == 0) this.compileError(`This entitiy doesn't seem to fit the reference type.`);
-                id -= entities[0].id;
-            }
-            return id;
+            let token = this.expectIdent();
+            return { reftype, token };
         }
         this.compileError(`I expected a ${field.dtype} here.`); throw new Error();
     }
@@ -185,8 +185,13 @@ export class ECSCompiler extends Tokenizer {
 
     expectInteger(): number {
         let s = this.consumeToken().str;
-        if (s.startsWith('$')) s = '0x' + s.substring(1);
-        let i = parseInt(s);
+        let i : number;
+        if (s.startsWith('$'))
+            i = parseInt(s.substring(1), 16); // hex $...
+        else if (s.startsWith('%'))
+            i = parseInt(s.substring(1), 2); // binary %...
+        else
+            i = parseInt(s); // default base 10 or 16 (0x...)
         if (isNaN(i)) this.compileError('There should be an integer here.');
         return i;
     }
@@ -198,7 +203,7 @@ export class ECSCompiler extends Tokenizer {
         let cmd;
         while ((cmd = this.expectTokens(['on','locals','end']).str) != 'end') {
             if (cmd == 'on') {
-                let action = this.annotate(() => this.parseAction());
+                let action = this.annotate(() => this.parseAction(system));
                 actions.push(action);
             } else if (cmd == 'locals') {
                 system.tempbytes = this.expectInteger();
@@ -216,13 +221,16 @@ export class ECSCompiler extends Tokenizer {
             this.consumeToken();
             tempbytes = this.expectInteger();
         }
-        let text = this.parseCode();
+        let system : System = { name, tempbytes, actions: [] };
+        let context : ActionOwner = { scope: null, system };
+        let text = this.parseCode(context);
         let select : SelectType = 'once';
         let action : Action = { text, event: name, select };
-        return { name, tempbytes, actions: [action] };
+        system.actions.push(action);
+        return system;
     }
 
-    parseAction(): Action {
+    parseAction(system: System): Action {
         // TODO: unused events?
         const event = this.expectIdent().str;
         this.expectToken('do');
@@ -245,7 +253,8 @@ export class ECSCompiler extends Tokenizer {
             if (!query) { this.compileError(`A "${select}" query can't include a limit.`); }
             else query.limit = this.expectInteger();
         }
-        let text = this.parseCode();
+        let context : ActionOwner = { scope: null, system };
+        let text = this.parseCode(context);
         let direction = undefined;
         if (modifiers['asc']) direction = 'asc';
         else if (modifiers['desc']) direction = 'desc';
@@ -287,13 +296,20 @@ export class ECSCompiler extends Tokenizer {
         return this.parseList(this.parseEventName, ",");
     }
 
-    parseCode(): string {
+    parseCode(context: ActionOwner): string { // TODOActionNode[] {
         // TODO: add $loc
         let tok = this.expectTokenTypes([ECSTokenType.CodeFragment]);
         let code = tok.str.substring(3, tok.str.length-3);
+        /*
         let lines = code.split('\n');
+        // TODO: add after parsing maybe?
         if (this.debuginfo) this.addDebugInfo(lines, tok.$loc.line);
-        return lines.join('\n');
+        code = lines.join('\n');
+        */
+        let acomp = new ECSActionCompiler(context);
+        let nodes = acomp.parseFile(code, this.path);
+        // TODO: return nodes
+        return code;
     }
 
     addDebugInfo(lines: string[], startline: number) {
@@ -342,6 +358,7 @@ export class ECSCompiler extends Tokenizer {
 
     parseEntity() : Entity {
         if (!this.currentScope) { this.internalError(); throw new Error(); }
+        const scope = this.currentScope;
         let entname = '';
         if (this.peekToken().type == TokenType.Ident) {
             entname = this.expectIdent().str;
@@ -349,17 +366,30 @@ export class ECSCompiler extends Tokenizer {
         let etype = this.parseEntityArchetype();
         let entity = this.currentScope.newEntity(etype);
         entity.name = entname;
-        let cmd;
+        let cmd2 : string;
         // TODO: remove init?
-        while ((cmd = this.expectTokens(['const', 'init', 'var', 'decode', 'end']).str) != 'end') {
+        while ((cmd2 = this.expectTokens(['const', 'init', 'var', 'decode', 'end']).str) != 'end') {
+            let cmd = cmd2; // put in scope
             if (cmd == 'var') cmd = 'init';
             if (cmd == 'init' || cmd == 'const') {
                 // TODO: check data types
                 let name = this.expectIdent().str;
-                this.setEntityProperty(entity, name, cmd, (field) : DataValue => {
-                    this.expectToken('=');
-                    return this.parseDataValue(field);
-                });
+                let { component, field } = this.getEntityField(entity, name);
+                let symtype = this.currentScope.isConstOrInit(component, name);
+                if (symtype && symtype != cmd)
+                    this.compileError(`I can't mix const and init values for a given field in a scope.`);
+                this.expectToken('=');
+                let valueOrRef = this.parseDataValue(field);
+                if ((valueOrRef as ForwardRef).token != null) {
+                    this.deferred.push(() => {
+                        let refvalue = this.resolveEntityRef(scope, valueOrRef as ForwardRef);
+                        if (cmd == 'const') scope.setConstValue(entity, component, name, refvalue);
+                        if (cmd == 'init') scope.setInitValue(entity, component, name, refvalue);
+                    });
+                } else {
+                    if (cmd == 'const') scope.setConstValue(entity, component, name, valueOrRef as DataValue);
+                    if (cmd == 'init') scope.setInitValue(entity, component, name, valueOrRef as DataValue);
+                }
             } else if (cmd == 'decode') {
                 let decoderid = this.expectIdent().str;
                 let code = this.expectTokenTypes([ECSTokenType.CodeFragment]).str;
@@ -368,28 +398,23 @@ export class ECSCompiler extends Tokenizer {
                 if (!decoder) { this.compileError(`I can't find a "${decoderid}" decoder.`); throw new Error() }
                 let result = decoder.parse();
                 for (let entry of Object.entries(result.properties)) {
-                    this.setEntityProperty(entity, entry[0], 'const', (field) : DataValue => {
-                        return entry[1];
-                    });
+                    let { component, field } = this.getEntityField(entity, entry[0]);
+                    scope.setConstValue(entity, component, field.name, entry[1]);
                 }
             }
         }
         return entity;
     }
 
-    setEntityProperty(e: Entity, name: string, cmd: 'init' | 'const', valuefn: (field: DataField) => DataValue) {
+    getEntityField(e: Entity, name: string) {
         if (!this.currentScope) { this.internalError(); throw new Error(); }
         let comps = this.em.componentsWithFieldName([e.etype], name);
         if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
         if (comps.length > 1) this.compileError(`I found more than one field named "${name}" for this entity.`)
-        let field = comps[0].fields.find(f => f.name == name);
+        let component = comps[0];
+        let field = component.fields.find(f => f.name == name);
         if (!field) { this.internalError(); throw new Error(); }
-        let value = valuefn(field);
-        let symtype = this.currentScope.isConstOrInit(comps[0], name);
-        if (symtype && symtype != cmd)
-            this.compileError(`I can't mix const and init values for a given field in a scope.`);
-        if (cmd == 'const') this.currentScope.setConstValue(e, comps[0], name, value);
-        if (cmd == 'init') this.currentScope.setInitValue(e, comps[0], name, value);
+        return { component, field };
     }
 
     parseEntityArchetype() : EntityArchetype {
@@ -406,18 +431,25 @@ export class ECSCompiler extends Tokenizer {
         return cref;
     }
 
-    parseEntityRef(reftype?: RefType) : Entity {
-        if (!this.currentScope) { this.internalError(); throw new Error(); }
-        this.expectToken('#');
-        let name = this.expectIdent().str;
-        let eref = this.currentScope.entities.find(e => e.name == name);
+    resolveEntityRef(scope: EntityScope, ref: ForwardRef) : number {
+        let name = ref.token.str;
+        let eref = scope.entities.find(e => e.name == name);
         if (!eref) {
-            this.compileError(`I couldn't find an entity named "${name}" in this scope.`)
+            this.compileError(`I couldn't find an entity named "${name}" in this scope.`, ref.token.$loc)
             throw new Error();
         }
-        return eref;
+        let id = eref.id;
+        if (ref.reftype) {
+            // TODO: make this a function? elo ehi etc?
+            let atypes = this.em.archetypesMatching(ref.reftype.query);
+            let entities = scope.entitiesMatching(atypes);
+            if (entities.length == 0)
+                this.compileError(`This entity doesn't seem to fit the reference type.`, ref.token.$loc);
+            id -= entities[0].id;
+        }
+        return id;
     }
-
+    
     parseSystemRef() : System {
         let name = this.expectIdent().str;
         let sys = this.em.getSystemByName(name);
@@ -436,5 +468,33 @@ export class ECSCompiler extends Tokenizer {
             src.line(this.em.dialect.debug_file(path));
         this.exportToFile(src);
         return src.toString();
+    }
+}
+
+export class ECSActionCompiler extends Tokenizer {
+    constructor(
+        public readonly context: ActionOwner)
+    {
+        super();
+        this.setTokenRules([
+            { type: ECSTokenType.Placeholder, regex: /\{\{.*?\}\}/ },
+            { type: TokenType.CatchAll, regex: /[^{\n]+\n*/ },
+        ]);
+        this.errorOnCatchAll = false;
+    }
+
+    parseFile(text: string, path: string) {
+        this.tokenizeFile(text, path);
+        let nodes = [];
+        while (!this.isEOF()) {
+            let tok = this.consumeToken();
+            if (tok.type == ECSTokenType.Placeholder) {
+                let args = tok.str.substring(2, tok.str.length-2).split(/\s+/);
+                nodes.push(new CodePlaceholderNode(this.context, tok.$loc, args));
+            } else if (tok.type == TokenType.CatchAll) {
+                nodes.push(new CodeLiteralNode(this.context, tok.$loc, tok.str));
+            }
+        }
+        return nodes;
     }
 }

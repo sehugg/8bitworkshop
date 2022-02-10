@@ -1,66 +1,3 @@
-/*
-
-entity scopes contain entities, and are nested
-also contain segments (code, bss, rodata)
-components and systems are global
-component fields are stored in arrays, range of entities, can be bit-packed
-some values can be constant, are stored in rodata (or loaded immediate)
-optional components? on or off
-union components? either X or Y or Z...
-
-systems receive and send events, execute code on entities
-systems are generated on a per-scope basis
-system queries can only contain entities from self and parent scopes
-starting from the 'init' event walk the event tree
-include systems that have at least 1 entity in scope (except init?)
-
-when entering scope, entities are initialized (zero or init w/ data)
-to change scope, fire event w/ scope name
-- how to handle bank-switching?
-
-helps with:
-- rapid prototyping w/ reasonable defaults
-- deconstructing objects into arrays
-- packing/unpacking bitfields
-- initializing objects
-- building lookup tables
-- selecting and iterating objects
-- managing events
-- managing memory and scope
-- converting assets to native formats?
-- removing unused data
-
-it's more convenient to have loops be zero-indexed
-for page cross, temp storage, etc
-should references be zero-indexed to a field, or global?
-should we limit # of entities passed to systems? min-max
-join thru a reference? load both x and y
-
-code fragments can be parameterized like macros
-if two fragments are identical, do a JSR
-(do we have to look for labels?)
-should events have parameters? e.g. addscore X Y Z
-how are Z80 arrays working?
-https://forums.nesdev.org/viewtopic.php?f=20&t=14691
-https://www.cpcwiki.eu/forum/programming/trying-not-to-use-ix/msg133416/#msg133416
-
-how to select two between two entities with once? like scoreboard
-maybe stack-based interpreter?
-
-can you query specific entities? merge with existing queries?
-bigints?
-source/if query?
-
-only worry about intersection when non-contiguous ranges?
-
-crazy idea -- full expansion, then relooper
-
-how to avoid cycle crossing for critical code and data? bin packing
-
-system define order, action order, entity order, using order?
-what happens when a system must be nested inside another? like display kernels
-
-*/
 
 import { SourceLocated, SourceLocation } from "../workertypes";
 import { Bin, Packer } from "./binpack";
@@ -129,6 +66,39 @@ export type SelectType = typeof SELECT_TYPE[number];
 export class ActionStats {
     callcount: number = 0;
 }
+
+export interface ActionOwner {
+    system: System
+    scope: EntityScope | null
+}
+
+export class ActionNode implements SourceLocated {
+    constructor(
+        public readonly owner: ActionOwner,
+        public readonly $loc: SourceLocation
+    ) { }
+}
+
+export class CodeLiteralNode extends ActionNode {
+    constructor(
+        owner: ActionOwner,
+        $loc: SourceLocation,
+        public readonly text: string
+    ) {
+        super(owner, $loc);
+    }
+}
+
+export class CodePlaceholderNode extends ActionNode {
+    constructor(
+        owner: ActionOwner,
+        $loc: SourceLocation,
+        public readonly args: string[]
+    ) {
+        super(owner, $loc);
+    }
+}
+
 
 export interface ActionBase extends SourceLocated {
     select: SelectType;
@@ -530,6 +500,10 @@ class ActionCPUState {
     y: EntitySet | null = null;
     xofs: number = 0;
     yofs: number = 0;
+}
+
+class ActionContext {
+    
 }
 
 class ActionEval {
@@ -1272,15 +1246,24 @@ export class EntityManager {
         if (!parent) this.topScopes[name] = scope;
         return scope;
     }
+    deferComponent(name: string) {
+        this.components[name] = { name, fields: [] };
+    }
     defineComponent(ctype: ComponentType) {
         let existing = this.components[ctype.name];
-        if (existing) throw new ECSError(`component ${ctype.name} already defined`, existing);
+        if (existing && existing.fields.length > 0)
+            throw new ECSError(`component ${ctype.name} already defined`, existing);
         for (let field of ctype.fields) {
             let list = this.name2cfpairs[field.name];
             if (!list) list = this.name2cfpairs[field.name] = [];
             list.push({ c: ctype, f: field });
         }
-        return this.components[ctype.name] = ctype;
+        if (existing) {
+            existing.fields = ctype.fields;
+            return existing;
+        } else {
+            return this.components[ctype.name] = ctype;
+        }
     }
     defineSystem(system: System) {
         let existing = this.systems[system.name];
