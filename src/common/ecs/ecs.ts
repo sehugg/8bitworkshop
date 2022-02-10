@@ -941,29 +941,29 @@ export class EntityScope implements SourceLocated {
         }
     }
     // TODO: cull unused entity fields
-    allocateSegment(segment: DataSegment, readonly: boolean) {
+    allocateSegment(segment: DataSegment, alloc: boolean, type: 'init' | 'const' | undefined) {
         let fields: FieldArray[] = Object.values(segment.fieldranges);
         // TODO: fields.sort((a, b) => (a.ehi - a.elo + 1) * getPackedFieldSize(a.field));
-        let f: FieldArray | undefined;
-        while (f = fields.pop()) {
-            let rangelen = (f.ehi - f.elo + 1);
-            let alloc = !readonly;
-            // TODO: doesn't work for packed arrays too well
-            let bits = getPackedFieldSize(f.field);
-            // variable size? make it a pointer
-            if (bits == 0) bits = 16; // TODO?
-            let bytesperelem = Math.ceil(bits / 8);
-            // TODO: packing bits
-            // TODO: split arrays
-            let access = [];
-            for (let i = 0; i < bits; i += 8) {
-                let symbol = this.dialect.fieldsymbol(f.component, f.field, i);
-                access.push({ symbol, bit: i, width: 8 }); // TODO
-                if (alloc) {
-                    segment.allocateBytes(symbol, rangelen); // TODO
+        for (let f of fields) {
+            if (this.fieldtypes[mksymbol(f.component, f.field.name)] == type) {
+                let rangelen = (f.ehi - f.elo + 1);
+                // TODO: doesn't work for packed arrays too well
+                let bits = getPackedFieldSize(f.field);
+                // variable size? make it a pointer
+                if (bits == 0) bits = 16; // TODO?
+                let bytesperelem = Math.ceil(bits / 8);
+                // TODO: packing bits
+                // TODO: split arrays
+                let access = [];
+                for (let i = 0; i < bits; i += 8) {
+                    let symbol = this.dialect.fieldsymbol(f.component, f.field, i);
+                    access.push({ symbol, bit: i, width: 8 }); // TODO
+                    if (alloc) {
+                        segment.allocateBytes(symbol, rangelen); // TODO
+                    }
                 }
+                f.access = access;
             }
-            f.access = access;
         }
     }
     allocateROData(segment: DataSegment) {
@@ -1034,8 +1034,8 @@ export class EntityScope implements SourceLocated {
             let initvalue = e.inits[scfname];
             if (initvalue !== undefined) {
                 let range = segment.getFieldRange(c, f.name);
-                if (!range) throw new ECSError(`no range`, e);
-                if (!range.access) throw new ECSError(`no range access`, e);
+                if (!range) throw new ECSError(`no init range for ${scfname}`, e);  
+                if (!range.access) throw new ECSError(`no init range access for ${scfname}`, e);
                 if (typeof initvalue === 'number') {
                     for (let a of range.access) {
                         let offset = segment.getByteOffset(range, a, e.id);
@@ -1172,8 +1172,9 @@ export class EntityScope implements SourceLocated {
     }
     private analyzeEntities() {
         this.buildSegments();
-        this.allocateSegment(this.bss, false);
-        this.allocateSegment(this.rodata, true);
+        this.allocateSegment(this.bss, true, undefined);   // uninitialized vars
+        this.allocateSegment(this.bss, true, 'init');  // initialized vars
+        this.allocateSegment(this.rodata, false, 'const'); // constants
         this.allocateROData(this.rodata);
     }
     private generateCode() {
