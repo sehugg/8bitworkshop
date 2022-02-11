@@ -2,7 +2,7 @@
 import { mergeLocs, Token, Tokenizer, TokenType } from "../tokenizer";
 import { SourceLocated, SourceLocation } from "../workertypes";
 import { newDecoder } from "./decoder";
-import { Action, ActionOwner, ActionNode, ActionWithJoin, ArrayType, CodeLiteralNode, CodePlaceholderNode, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System, SystemInstance, SystemInstanceParameters, ComponentFieldPair } from "./ecs";
+import { Action, ActionContext, ActionNode, ActionWithJoin, ArrayType, CodeLiteralNode, CodePlaceholderNode, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System, SystemInstance, SystemInstanceParameters, ComponentFieldPair } from "./ecs";
 
 export enum ECSTokenType {
     Ellipsis = 'ellipsis',
@@ -21,7 +21,7 @@ interface ForwardRef {
 export class ECSCompiler extends Tokenizer {
 
     currentScope: EntityScope | null = null;
-    currentContext: ActionOwner | null = null;
+    currentContext: ActionContext | null = null;
     debuginfo = false;
 
     constructor(
@@ -222,7 +222,7 @@ export class ECSCompiler extends Tokenizer {
             tempbytes = this.expectInteger();
         }
         let system : System = { name, tempbytes, actions: [] };
-        let context : ActionOwner = { scope: null, system };
+        let context : ActionContext = { scope: null, system };
         let text = this.parseCode(context);
         let select : SelectType = 'once';
         let action : Action = { text, event: name, select };
@@ -253,7 +253,7 @@ export class ECSCompiler extends Tokenizer {
             if (!query) { this.compileError(`A "${select}" query can't include a limit.`); }
             else query.limit = this.expectInteger();
         }
-        let context : ActionOwner = { scope: null, system };
+        let context : ActionContext = { scope: null, system };
         let text = this.parseCode(context);
         let direction = undefined;
         if (modifiers['asc']) direction = 'asc';
@@ -296,7 +296,7 @@ export class ECSCompiler extends Tokenizer {
         return this.parseList(this.parseEventName, ",");
     }
 
-    parseCode(context: ActionOwner): string { // TODOActionNode[] {
+    parseCode(context: ActionContext): string { // TODOActionNode[] {
         // TODO: add $loc
         let tok = this.expectTokenTypes([ECSTokenType.CodeFragment]);
         let code = tok.str.substring(3, tok.str.length-3);
@@ -494,7 +494,7 @@ export class ECSCompiler extends Tokenizer {
 
 export class ECSActionCompiler extends Tokenizer {
     constructor(
-        public readonly context: ActionOwner)
+        public readonly context: ActionContext)
     {
         super();
         this.setTokenRules([

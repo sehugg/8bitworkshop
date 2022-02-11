@@ -74,25 +74,23 @@ export const SELECT_TYPE = ['once', 'foreach', 'join', 'with', 'if', 'select'] a
 
 export type SelectType = typeof SELECT_TYPE[number];
 
-export class ActionStats {
-    callcount: number = 0;
-}
-
-export interface ActionOwner {
+export interface ActionContext {
     system: System
     scope: EntityScope | null
 }
 
 export class ActionNode implements SourceLocated {
     constructor(
-        public readonly owner: ActionOwner,
+        public readonly owner: ActionContext,
         public readonly $loc: SourceLocation
     ) { }
+
+    children?: ActionNode[];
 }
 
 export class CodeLiteralNode extends ActionNode {
     constructor(
-        owner: ActionOwner,
+        owner: ActionContext,
         $loc: SourceLocation,
         public readonly text: string
     ) {
@@ -102,12 +100,21 @@ export class CodeLiteralNode extends ActionNode {
 
 export class CodePlaceholderNode extends ActionNode {
     constructor(
-        owner: ActionOwner,
+        owner: ActionContext,
         $loc: SourceLocation,
         public readonly args: string[]
     ) {
         super(owner, $loc);
     }
+}
+
+class QueryNode extends ActionNode {
+}
+
+class WrapperNode extends ActionNode {
+}
+
+class LoopNode extends ActionNode {
 }
 
 
@@ -518,10 +525,6 @@ class ActionCPUState {
     yofs: number = 0;
 }
 
-class ActionContext {
-    
-}
-
 class ActionEval {
     em : EntityManager;
     dialect : Dialect_CA65;
@@ -541,8 +544,10 @@ class ActionEval {
         this.oldState = scope.state;
         this.tmplabel = this.dialect.tempLabel(this.instance);
         let q = (action as ActionWithQuery).query;
-        if (q) this.qr = new EntitySet(scope, q);
-        else this.qr = new EntitySet(scope, undefined, [], []);
+        if (q)
+            this.qr = new EntitySet(scope, q);
+        else
+            this.qr = new EntitySet(scope, undefined, [], []);
         // TODO? error if none?
         if (instance.params.refEntity && instance.params.refField) {
             let rf = instance.params.refField;
@@ -890,7 +895,6 @@ export class EntityScope implements SourceLocated {
     entities: Entity[] = [];
     fieldtypes: { [name: string]: 'init' | 'const' } = {};
     sysstats = new Map<SystemInstance, SystemStats>();
-    actionstats = new Map<Action, ActionStats>();
     bss = new UninitDataSegment();
     rodata = new ConstDataSegment();
     code = new CodeSegment();
@@ -1157,7 +1161,6 @@ export class EntityScope implements SourceLocated {
                     s += this.dialect.comment(`end action ${sys.name} ${inst.id} ${event}`);
                     // TODO: check that this happens once?
                     codeeval.end();
-                    this.getActionStats(action).callcount++;
                 }
             }
         }
@@ -1168,14 +1171,6 @@ export class EntityScope implements SourceLocated {
         if (!stats) {
             stats = new SystemStats();
             this.sysstats.set(inst, stats);
-        }
-        return stats;
-    }
-    getActionStats(action: Action) : ActionStats {
-        let stats = this.actionstats.get(action);
-        if (!stats) {
-            stats = new ActionStats();
-            this.actionstats.set(action, stats);
         }
         return stats;
     }
@@ -1250,9 +1245,6 @@ export class EntityScope implements SourceLocated {
         for (let inst of this.instances) {
             // TODO?
             console.log(inst.system.name, this.getSystemStats(inst));
-        }
-        for (let action of Array.from(this.actionstats.keys())) {
-            console.log(action.event, this.getActionStats(action));
         }
     }
     private dumpCodeTo(file: SourceFileExport) {
