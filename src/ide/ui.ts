@@ -187,8 +187,8 @@ class UserPrefs {
   getLastPlatformID() {
     return hasLocalStorage && !isEmbed && localStorage.getItem("__lastplatform");
   }
-  getLastRepoID() {
-    return hasLocalStorage && !isEmbed && localStorage.getItem("__lastrepo_" + platform_id);
+  getLastRepoID(platform: string) {
+    return hasLocalStorage && !isEmbed && platform && localStorage.getItem("__lastrepo_" + platform);
   }
   shouldCompleteTour() {
     return hasLocalStorage && !isEmbed && !localStorage.getItem("8bitworkshop.hello");
@@ -2372,20 +2372,25 @@ function setPlatformUI() {
 }
 
 export function getPlatformAndRepo() {
-  // lookup repository for this platform
-  repo_id = qs.repo || userPrefs.getLastRepoID();
+  // lookup repository for this platform (TODO: enable cross-platform repos)
+  platform_id = qs.platform || userPrefs.getLastPlatformID();
+  repo_id = qs.repo;
+  // only look at cached repo_id if file= is not present, so back button works
+  if (!qs.repo && !qs.file)
+     repo_id = userPrefs.getLastRepoID(platform_id);
+  // are we in a repo?
   if (hasLocalStorage && repo_id && repo_id !== '/') {
     var repo = getRepos()[repo_id];
+    // override query string params w/ repo settings
     if (repo) {
       qs.repo = repo_id;
-      if (repo.platform_id && !qs.platform)
+      if (repo.platform_id)
         qs.platform = platform_id = repo.platform_id;
-      if (!qs.file)
+      if (!qs.file && repo.mainPath)
         qs.file = repo.mainPath;
-      requestPersistPermission(true, true);
+      //requestPersistPermission(true, true);
     }
   } else {
-    platform_id = qs.platform || userPrefs.getLastPlatformID();
     repo_id = '';
     delete qs.repo;
   }
