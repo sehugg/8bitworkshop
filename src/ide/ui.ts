@@ -2383,8 +2383,9 @@ export function getPlatformAndRepo() {
     var repo = getRepos()[repo_id];
     // override query string params w/ repo settings
     if (repo) {
+      console.log(platform_id, qs, repo);
       qs.repo = repo_id;
-      if (repo.platform_id)
+      if (repo.platform_id && !qs.platform)
         qs.platform = platform_id = repo.platform_id;
       if (!qs.file && repo.mainPath)
         qs.file = repo.mainPath;
