@@ -1,0 +1,27 @@
+.scope Main
+.zeropage
+Xpos_x_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+.code
+__Start:
+.code
+
+;;; start action move 1 start
+
+    ldx #0
+move__start__1____each:
+    
+    lda Xpos_x_b0+2,x
+    
+    inx
+    cpx #2
+    jne move__start__1____each
+move__start__1____exit:
+
+;;; end action move 1 start
+
+.endscope
+Main__Start = Main::__Start

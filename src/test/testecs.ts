@@ -1,6 +1,6 @@
 
 import { spawnSync } from "child_process";
-import { readdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { describe } from "mocha";
 import { Bin, BoxConstraints, Packer } from "../common/ecs/binpack";
 import { ECSCompiler } from "../common/ecs/compiler";
@@ -19,11 +19,9 @@ component Kernel
     lines: 0..255
     bgcolor: 0..255
 end
-
 component Bitmap
     data: array of 0..255
 end
-
 component HasBitmap
     bitmap: [Bitmap]
 end
@@ -42,16 +40,19 @@ comment ---
 ---
 
 scope Root
-
     entity kernel [Kernel]
         const lines = 0xc0
-        const lines = $c0
+        //const lines = $c0
     end
-
+    entity nobmp [Bitmap]
+        const data = [4]
+    end
+    entity bmp [Bitmap]
+        const data = [1,2,3]
+    end
     entity player1 [HasBitmap]
-        init bitmap = 1
+            init bitmap = #bmp
     end
-
 end
 
 `, 'foo.txt');
@@ -59,7 +60,7 @@ end
         let src = new SourceFileExport();
         c.exportToFile(src);
         // TODO: test?
-        //console.log(src.toString());
+        console.log(src.toString());
         return em;
     } catch (e) {
         console.log(e);
@@ -97,10 +98,11 @@ describe('Compiler', function() {
         }
         let code = readFileSync(ecspath, 'utf-8');
         compiler.parseFile(code, ecspath);
+        // TODO: errors
         let out = new SourceFileExport();
         em.exportToFile(out);
         let outtxt = out.toString();
-        let goodtxt = readFileSync(goodpath, 'utf-8');
+        let goodtxt = existsSync(goodpath) ? readFileSync(goodpath, 'utf-8') : '';
         if (outtxt.trim() != goodtxt.trim()) {
             let asmpath = '/tmp/' + asmfn;
             writeFileSync(asmpath, outtxt, 'utf-8');
@@ -115,8 +117,8 @@ function testPack(bins: Bin[], boxes: BoxConstraints[]) {
     for (let bin of bins) packer.bins.push(bin);
     for (let bc of boxes) packer.boxes.push(bc);
     if (!packer.pack()) throw new Error('cannot pack')
-    console.log(packer.boxes);
-    console.log(packer.bins[0].free)
+    //console.log(packer.boxes);
+    //console.log(packer.bins[0].free)
 }
 
 describe('Box Packer', function() {

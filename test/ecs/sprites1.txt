@@ -48,6 +48,12 @@ KernelSection_lines_b0:
 .byte 192
 BGColor_bgcolor_b0:
 .byte 162
+Bitmap_bitmapdata_b0:
+.byte <(Bitmap_bitmapdata_e1_b0+31)
+.byte <(Bitmap_bitmapdata_e2_b0+31)
+Bitmap_bitmapdata_b8:
+.byte >(Bitmap_bitmapdata_e1_b0+31)
+.byte >(Bitmap_bitmapdata_e2_b0+31)
 Bitmap_bitmapdata_e1_b0:
 .byte 1
 .byte 1
@@ -57,12 +63,6 @@ Bitmap_bitmapdata_e1_b0:
 .byte 31
 .byte 63
 .byte 127
-Bitmap_bitmapdata_b0:
-.byte <(Bitmap_bitmapdata_e1_b0+31)
-.byte <(Bitmap_bitmapdata_e2_b0+31)
-Bitmap_bitmapdata_b8:
-.byte >(Bitmap_bitmapdata_e1_b0+31)
-.byte >(Bitmap_bitmapdata_e2_b0+31)
 Bitmap_height_b0:
 .byte 8
 .byte 8
@@ -75,6 +75,10 @@ Bitmap_bitmapdata_e2_b0:
 .byte 255
 .byte 62
 .byte 24
+Colormap_colormapdata_b0:
+.byte <(Colormap_colormapdata_e3_b0+31)
+Colormap_colormapdata_b8:
+.byte >(Colormap_colormapdata_e3_b0+31)
 Colormap_colormapdata_e3_b0:
 .byte 6
 .byte 3
@@ -84,10 +88,6 @@ Colormap_colormapdata_e3_b0:
 .byte 14
 .byte 31
 .byte 63
-Colormap_colormapdata_b0:
-.byte <(Colormap_colormapdata_e3_b0+31)
-Colormap_colormapdata_b8:
-.byte >(Colormap_colormapdata_e3_b0+31)
 Sprite_plyrflags_b0:
 .byte 0
 .byte 3

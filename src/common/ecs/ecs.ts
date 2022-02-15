@@ -23,6 +23,7 @@ export interface Entity extends SourceLocated {
     name?: string;
     etype: EntityArchetype;
     consts: { [component_field: string]: DataValue };
+    // TODO: need scope scoping?
     inits: { [scope_component_field: string]: DataValue };
 }
 
@@ -143,7 +144,7 @@ export type Action = ActionWithQuery | ActionWithJoin | ActionOnce;
 
 export type DataValue = number | boolean | Uint8Array | Uint16Array | Uint32Array;
 
-export type DataField = { name: string } & DataType;
+export type DataField = { name: string; $loc: SourceLocation } & DataType;
 
 export type DataType = IntType | ArrayType | RefType;
 
@@ -418,27 +419,14 @@ class DataSegment {
         return this.fieldranges[mksymbol(component, fieldName)];
     }
     getByteOffset(range: FieldArray, access: FieldAccess, entityID: number) {
+        if (entityID < range.elo) throw new ECSError(`entity ID ${entityID} too low for ${access.symbol}`);
+        if (entityID > range.ehi) throw new ECSError(`entity ID ${entityID} too high for ${access.symbol}`);
         let ofs = this.symbols[access.symbol];
         if (ofs !== undefined) {
             return ofs + entityID - range.elo;
         }
         // TODO: show entity name?
         throw new ECSError(`cannot find field access for ${access.symbol}`);
-    }
-    getSegmentByteOffset(component: ComponentType, fieldName: string, entityID: number, bitofs: number, width: number) {
-        let range = this.getFieldRange(component, fieldName);
-        if (range && range.access) {
-            for (let a of range.access) {
-                if (a.bit == bitofs && a.width == width) {
-                    let ofs = this.symbols[a.symbol];
-                    if (ofs !== undefined) {
-                        return ofs + entityID - range.elo;
-                    }
-                }
-            }
-        }
-        // TODO: show entity name?
-        throw new ECSError(`cannot find field offset for ${component.name}:${fieldName} entity #${entityID} bits ${bitofs} ${width}`)
     }
     getOriginSymbol() {
         let a = this.ofs2sym.get(0);
@@ -516,13 +504,59 @@ class EntitySet {
     }
 }
 
+class IndexRegister {
+    lo: number | null;
+    hi: number | null;
+    offset = 0;
+    elo: number;
+    ehi: number;
+    eset: EntitySet | undefined;
+
+    constructor(
+        public readonly scope: EntityScope,
+        eset?: EntitySet
+    ) {
+        this.elo = 0;
+        this.ehi = scope.entities.length - 1;
+        this.lo = null;
+        this.hi = null;
+        if (eset) { this.narrowInPlace(eset); }
+    }
+    entityCount() {
+        return this.ehi - this.elo + 1;
+    }
+    narrow(eset: EntitySet): IndexRegister {
+        let i = new IndexRegister(this.scope);
+        i.narrowInPlace(eset);
+        return i;
+    }
+    narrowInPlace(eset: EntitySet) {
+        if (this.scope != eset.scope) throw new ECSError(`scope mismatch`);
+        if (!eset.isContiguous()) throw new ECSError(`entities are not contiguous`);
+        let newelo = eset.entities[0].id;
+        let newehi = eset.entities[eset.entities.length - 1].id;
+        if (this.elo > newelo) throw new ECSError(`cannot narrow to new range, elo`);
+        if (this.ehi < newehi) throw new ECSError(`cannot narrow to new range, ehi`);
+        if (this.lo == null || this.hi == null) {
+            this.lo = 0;
+            this.hi = newehi - newelo + 1;
+        } else {
+            this.offset += newelo - this.elo;
+        }
+        this.elo = newelo;
+        this.ehi = newehi;
+        this.eset = eset;
+    }
+}
+
 // todo: generalize
 class ActionCPUState {
-    loops: EntitySet[] = [];
     x: EntitySet | null = null;
     y: EntitySet | null = null;
     xofs: number = 0;
     yofs: number = 0;
+    xreg: IndexRegister | null = null;
+    yreg: IndexRegister | null = null;
 }
 
 class ActionEval {
@@ -537,7 +571,8 @@ class ActionEval {
     constructor(
         readonly scope: EntityScope,
         readonly instance: SystemInstance,
-        readonly action: Action)
+        readonly action: Action,
+        readonly eventargs: string[])
     {
         this.em = scope.em;
         this.dialect = scope.em.dialect;
@@ -570,14 +605,12 @@ class ActionEval {
                 if (state.x && state.y) throw new ECSError('no more index registers', this.action);
                 if (state.x) state.y = this.qr;
                 else state.x = this.qr;
-                state.loops = state.loops.concat([this.qr]);
                 break;
             case 'join':
                 if (state.x || state.y) throw new ECSError('no free index registers for join', this.action);
                 this.jr = new EntitySet(this.scope, (this.action as ActionWithJoin).join);
                 state.y = this.qr;
                 state.x = this.jr;
-                state.loops = state.loops.concat([this.qr]);
                 break;
             case 'if':
             case 'with':
@@ -639,8 +672,6 @@ class ActionEval {
             // select subset of entities
             let fullEntityCount = this.qr.entities.length; //entities.length.toString();
             let entities = this.entities;
-            let loops = this.scope.state.loops;
-            let loopents = loops[loops.length-1]?.entities;
             // TODO: let loopreduce = !loopents || entities.length < loopents.length;
             //console.log(action.event, entities.length, loopents.length);
             // filter entities from loop?
@@ -652,7 +683,7 @@ class ActionEval {
                     let rf = this.instance.params.refField;
                     code = this.wrapCodeInRefLookup(code);
                     // TODO: only fetches 1st entity in list, need offset
-                    let range = this.scope.bss.getFieldRange(rf.c, rf.f.name) || this.scope.rodata.getFieldRange(rf.c, rf.f.name);
+                    let range = this.scope.getFieldRange(rf.c, rf.f.name);
                     let eidofs = re.id - range.elo;
                     props['%reffield'] = `${this.dialect.fieldsymbol(rf.c, rf.f, 0)}+${eidofs}`;
                 } else {
@@ -680,13 +711,15 @@ class ActionEval {
             let toks = group.split(/\s+/);
             if (toks.length == 0) throw new ECSError(`empty command`, action);
             let cmd = group.charAt(0);
-            let rest = group.substring(1).trim();
+            let arg0 = toks[0].substring(1).trim();
+            let args = [arg0].concat(toks.slice(1));
             switch (cmd) {
-                case '!': return this.__emit([rest]);
-                case '$': return this.__local([rest]);
-                case '^': return this.__use([rest]);
-                case '<': return this.__get([rest, '0']);
-                case '>': return this.__get([rest, '8']);
+                case '!': return this.__emit(args);
+                case '$': return this.__local(args);
+                case '^': return this.__use(args);
+                case '#': return this.__arg(args);
+                case '<': return this.__get([arg0, '0']);
+                case '>': return this.__get([arg0, '8']);
                 default:
                     let value = props[toks[0]];
                     if (value) return value;
@@ -740,7 +773,8 @@ class ActionEval {
     }
     __emit(args: string[]) {
         let event = args[0];
-        return this.scope.generateCodeForEvent(event);
+        let eventargs = args.slice(1);
+        return this.scope.generateCodeForEvent(event, eventargs);
     }
     __local(args: string[]) {
         let tempinc = parseInt(args[0]);
@@ -750,6 +784,10 @@ class ActionEval {
         if (tempinc < 0 || tempinc >= tempbytes) throw new ECSError(`this system only has ${tempbytes} locals`, this.action);
         this.scope.updateTempLiveness(this.instance);
         return `${this.tmplabel}+${tempinc}`;
+    }
+    __arg(args: string[]) {
+        let index = parseInt(args[0] || '0');
+        return this.eventargs[index] || '';
     }
     __bss_init(args: string[]) {
         return this.scope.allocateInitData(this.scope.bss);
@@ -791,15 +829,17 @@ class ActionEval {
 
         var component: ComponentType;
         var baseLookup = false;
+        var entityLookup = false;
         let entities: Entity[];
         // is qualified field?
         if (fieldName.indexOf('.') > 0) {
             let [entname, fname] = fieldName.split('.');
             let ent = this.scope.getEntityByName(entname);
             if (ent == null) throw new ECSError(`no entity named "${entname}" in this scope`, action);
-            component = this.em.singleComponentWithFieldName(this.qr.atypes, fname, action);
+            component = this.em.singleComponentWithFieldName([ent.etype], fname, action);
             fieldName = fname;
             entities = [ent];
+            entityLookup = true;
         } else if (fieldName.indexOf(':') > 0) {
             let [cname, fname] = fieldName.split(':');
             component = this.em.getComponentByName(cname);
@@ -838,10 +878,13 @@ class ActionEval {
         }
         // TODO: offset > 0?
         // TODO: don't mix const and init data
-        let range = this.scope.bss.getFieldRange(component, fieldName) || this.scope.rodata.getFieldRange(component, fieldName);
+        let range = this.scope.getFieldRange(component, field.name);
         if (!range) throw new ECSError(`couldn't find field for ${component.name}:${fieldName}, maybe no entities?`); // TODO
         // TODO: dialect
+        // TODO: doesnt work for entity.field
         let eidofs = qr.entities.length && qr.entities[0].id - range.elo; // TODO: negative?
+        if (entityLookup)
+            eidofs = entities[0].id - range.elo;
         // TODO: array field baseoffset?
         if (baseLookup) {
             return this.dialect.absolute(ident);
@@ -982,8 +1025,11 @@ export class EntityScope implements SourceLocated {
         for (var o = iter.next(); o.value; o = iter.next()) {
             let { i, e, c, f, v } = o.value;
             // constants and array pointers go into rodata
-            let segment = v === undefined && f.dtype != 'array' ? this.bss : this.rodata;
             let cfname = mksymbol(c, f.name);
+            let ftype = this.fieldtypes[cfname];
+            let segment = ftype == 'const' ? this.rodata : this.bss;
+            if (v === undefined && ftype == 'const')
+                throw new ECSError(`no value for const field ${cfname}`, e);
             // determine range of indices for entities
             let array = segment.fieldranges[cfname];
             if (!array) {
@@ -991,7 +1037,7 @@ export class EntityScope implements SourceLocated {
             } else {
                 array.ehi = i;
             }
-            //console.log(i,array,cfname);
+            //console.log(i,e.name,array,cfname);
         }
     }
     // TODO: cull unused entity fields
@@ -1032,18 +1078,20 @@ export class EntityScope implements SourceLocated {
                 let entcount = range ? range.ehi - range.elo + 1 : 0;
                 if (v == null && f.dtype == 'int') v = 0;
                 if (v == null && f.dtype == 'ref') v = 0;
-                if (v == null && f.dtype == 'array') throw new ECSError(`no default value for array ${cfname}`)
+                if (v == null && f.dtype == 'array')
+                    throw new ECSError(`no default value for array ${cfname}`, e);
                 //console.log(c.name, f.name, '#'+e.id, '=', v);
                 // this is a constant
                 // is it a byte array?
                 //TODO? if (ArrayBuffer.isView(v) && f.dtype == 'array') {
                 if (v instanceof Uint8Array && f.dtype == 'array') {
-                    let datasym = this.dialect.datasymbol(c, f, e.id, 0);
-                    segment.allocateInitData(datasym, v);
                     let ptrlosym = this.dialect.fieldsymbol(c, f, 0);
                     let ptrhisym = this.dialect.fieldsymbol(c, f, 8);
                     let loofs = segment.allocateBytes(ptrlosym, entcount);
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
+                    let datasym = this.dialect.datasymbol(c, f, e.id, 0);
+                    // TODO: share shared data
+                    segment.allocateInitData(datasym, v);
                     if (f.baseoffset) datasym = `(${datasym}+${f.baseoffset})`;
                     segment.initdata[loofs + e.id - range.elo] = { symbol: datasym, bitofs: 0 };
                     segment.initdata[hiofs + e.id - range.elo] = { symbol: datasym, bitofs: 8 };
@@ -1056,8 +1104,8 @@ export class EntityScope implements SourceLocated {
                             segment.allocateBytes(a.symbol, entcount);
                             let ofs = segment.getByteOffset(range, a, e.id);
                             // TODO: this happens if you forget a const field on an object?
-                            if (e.id < range.elo) throw new ECSError(c.name + ' ' + f.name);
-                            if (typeof segment.initdata[ofs] !== 'undefined') throw new ECSError(ofs+"");
+                            if (e.id < range.elo) throw new ECSError('entity out of range ' + c.name + ' ' + f.name, e);
+                            if (segment.initdata[ofs] !== undefined) throw new ECSError('initdata already set ' + ofs), e;
                             segment.initdata[ofs] = (v >> a.bit) & 0xff;
                         }
                     }
@@ -1122,21 +1170,31 @@ export class EntityScope implements SourceLocated {
         code = code.replace('{{%dest}}', segment.getOriginSymbol());
         return code;
     }
+    getFieldRange(c: ComponentType, fn: string) {
+        return this.bss.getFieldRange(c, fn) || this.rodata.getFieldRange(c, fn);
+    }
     // TODO: check type/range of value
     setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        let c = this.em.singleComponentWithFieldName([e.etype], fieldName, e);
-        e.consts[mksymbol(component, fieldName)] = value;
-        this.fieldtypes[mksymbol(component, fieldName)] = 'const';
+        this.setConstInitValue(e, component, fieldName, value, 'const');
     }
     setInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        let c = this.em.singleComponentWithFieldName([e.etype], fieldName, e);
-        e.inits[mkscopesymbol(this, component, fieldName)] = value;
-        this.fieldtypes[mksymbol(component, fieldName)] = 'init';
+        this.setConstInitValue(e, component, fieldName, value, 'init');
+    }
+    setConstInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue,
+        type: 'const'|'init') {
+        this.em.singleComponentWithFieldName([e.etype], fieldName, e);
+        let cfname = mksymbol(component, fieldName);
+        let ecfname = mkscopesymbol(this, component, fieldName);
+        if (e.consts[cfname] !== undefined) throw new ECSError(`"${fieldName}" is already defined as a constant`, e);
+        if (e.inits[ecfname] !== undefined) throw new ECSError(`"${fieldName}" is already defined as a`, e);
+        if (type == 'const') e.consts[cfname] = value;
+        if (type == 'init') e.inits[ecfname] = value;
+        this.fieldtypes[cfname] = type;
     }
     isConstOrInit(component: ComponentType, fieldName: string) : 'const' | 'init' {
         return this.fieldtypes[mksymbol(component, fieldName)];
     }
-    generateCodeForEvent(event: string): string {
+    generateCodeForEvent(event: string, args?: string[]): string {
         // find systems that respond to event
         // and have entities in this scope
         let systems = this.em.event2systems[event];
@@ -1150,14 +1208,16 @@ export class EntityScope implements SourceLocated {
         // generate code
         let s = this.dialect.code();
         //s += `\n; event ${event}\n`;
+        let eventCount = 0;
         let instances = this.instances.filter(inst => systems.includes(inst.system));
         for (let inst of instances) {
             let sys = inst.system;
             for (let action of sys.actions) {
                 if (action.event == event) {
+                    eventCount++;
                     // TODO: use Tokenizer so error msgs are better
                     // TODO: keep event tree
-                    let codeeval = new ActionEval(this, inst, action);
+                    let codeeval = new ActionEval(this, inst, action, args || []);
                     codeeval.begin();
                     s += this.dialect.comment(`start action ${sys.name} ${inst.id} ${event}`); // TODO
                     s += codeeval.codeToString();
@@ -1166,6 +1226,9 @@ export class EntityScope implements SourceLocated {
                     codeeval.end();
                 }
             }
+        }
+        if (eventCount == 0) {
+            console.log(`warning: event ${event} not handled`);
         }
         return s;
     }
@@ -1210,7 +1273,7 @@ export class EntityScope implements SourceLocated {
             }
         }
         if (!pack.pack()) console.log('cannot pack temporary local vars'); // TODO
-        console.log('tempvars', pack);
+        //console.log('tempvars', pack);
         if (bssbin.extents.right > 0) {
             this.bss.allocateBytes('TEMP', bssbin.extents.right);
             for (let b of pack.boxes) {

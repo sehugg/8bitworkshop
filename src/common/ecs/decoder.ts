@@ -1,4 +1,5 @@
-import { threadId } from "worker_threads";
+
+import { SourceLocation } from "../workertypes";
 import { DataValue, ECSError } from "./ecs";
 
 export interface DecoderResult {
@@ -6,7 +7,8 @@ export interface DecoderResult {
 }
 
 abstract class LineDecoder {
-    lines : string[][];
+    curline: number = 0; // for debugging, zero-indexed
+    lines : string[][]; // array of token arrays
 
     constructor(
         text: string
@@ -41,6 +43,12 @@ abstract class LineDecoder {
         return v;
     }
 
+    getErrorLocation($loc: SourceLocation): SourceLocation {
+        // TODO: blank lines mess this up
+        $loc.line += this.curline + 1;
+        return $loc;
+    }
+
     abstract parse() : DecoderResult;
 }
 
@@ -50,7 +58,8 @@ export class VCSSpriteDecoder extends LineDecoder {
         let bitmapdata = new Uint8Array(height);
         let colormapdata = new Uint8Array(height);
         for (let i=0; i<height; i++) {
-            let toks = this.lines[height - 1 - i];
+            this.curline = height - 1 - i;
+            let toks = this.lines[this.curline];
             this.assertTokens(toks, 2);
             bitmapdata[i] = this.decodeBits(toks[0], 8, true);
             colormapdata[i] = this.hex(toks[1]);
@@ -68,7 +77,8 @@ export class VCSPlayfieldDecoder extends LineDecoder {
         let height = this.lines.length;
         let pf = new Uint32Array(height);
         for (let i=0; i<height; i++) {
-            let toks = this.lines[height - 1 - i];
+            this.curline = height - 1 - i;
+            let toks = this.lines[this.curline];
             this.assertTokens(toks, 1);
             let pf0 = this.decodeBits(toks[0].substring(0,4), 4, false) << 4;
             let pf1 = this.decodeBits(toks[0].substring(4,12), 8, true);
@@ -87,14 +97,21 @@ export class VCSPlayfieldDecoder extends LineDecoder {
 export class VCSVersatilePlayfieldDecoder extends LineDecoder {
     parse() {
         let height = this.lines.length;
-        let data = new Uint8Array(192) //height * 2); TODO
+        let data = new Uint8Array(height * 2);
         data.fill(0x3f);
         // pf0 pf1 pf2 colupf colubk ctrlpf trash
         const regs = [0x0d, 0x0e, 0x0f, 0x08, 0x09, 0x0a, 0x3f];
         let prev = [0,0,0,0,0,0,0];
         let cur  = [0,0,0,0,0,0,0];
         for (let i=0; i<height; i++) {
-            let toks = this.lines[i];
+            let dataofs = height*2 - i*2;
+            this.curline = i;
+            let toks = this.lines[this.curline];
+            if (toks.length == 2) {
+                data[dataofs - 1] = this.hex(toks[0]);
+                data[dataofs - 2] = this.hex(toks[1]);
+                continue;
+            }
             this.assertTokens(toks, 4);
             cur[0] = this.decodeBits(toks[0].substring(0,4), 4, false) << 4;
             cur[1] = this.decodeBits(toks[0].substring(4,12), 8, true);
@@ -112,8 +129,8 @@ export class VCSVersatilePlayfieldDecoder extends LineDecoder {
                 throw new ECSError(`More than one register change in line ${i+1}: [${changed}]`);
             }
             let chgidx = changed.length ? changed[0] : regs.length-1;
-            data[height*2 - i*2 - 1] = regs[chgidx];
-            data[height*2 - i*2 - 2] = cur[chgidx];
+            data[dataofs - 1] = regs[chgidx];
+            data[dataofs - 2] = cur[chgidx];
             prev[chgidx] = cur[chgidx];
         }
         return {
@@ -134,7 +151,8 @@ export class VCSBitmap48Decoder extends LineDecoder {
         let bitmap4 = new Uint8Array(height);
         let bitmap5 = new Uint8Array(height);
         for (let i=0; i<height; i++) {
-            let toks = this.lines[height - 1 - i];
+            this.curline = height - 1 - i;
+            let toks = this.lines[this.curline];
             this.assertTokens(toks, 1);
             bitmap0[i] = this.decodeBits(toks[0].slice(0,8), 8, true);
             bitmap1[i] = this.decodeBits(toks[0].slice(8,16), 8, true);

@@ -129,7 +129,7 @@ export class ECSCompiler extends Tokenizer {
         let name = this.expectIdent();
         this.expectToken(':', 'I expected either a ":" or "end" here.'); // TODO
         let type = this.parseDataType();
-        return { name: name.str, ...type };
+        return { name: name.str, $loc: name.$loc, ...type };
     }
 
     parseDataType(): DataType {
@@ -369,7 +369,7 @@ export class ECSCompiler extends Tokenizer {
         // TODO: remove init?
         while ((cmd2 = this.expectTokens(['const', 'init', 'var', 'decode', 'end']).str) != 'end') {
             let cmd = cmd2; // put in scope
-            if (cmd == 'var') cmd = 'init';
+            if (cmd == 'var') cmd = 'init'; // TODO: remove?
             if (cmd == 'init' || cmd == 'const') {
                 // TODO: check data types
                 let name = this.expectIdent().str;
@@ -391,14 +391,20 @@ export class ECSCompiler extends Tokenizer {
                 }
             } else if (cmd == 'decode') {
                 let decoderid = this.expectIdent().str;
-                let code = this.expectTokenTypes([ECSTokenType.CodeFragment]).str;
+                let codetok = this.expectTokenTypes([ECSTokenType.CodeFragment]);
+                let code = codetok.str;
                 code = code.substring(3, code.length-3);
                 let decoder = newDecoder(decoderid, code);
                 if (!decoder) { this.compileError(`I can't find a "${decoderid}" decoder.`); throw new Error() }
-                let result = decoder.parse();
+                let result;
+                try {
+                    result = decoder.parse();
+                } catch (e) {
+                    throw new ECSError(e.message, decoder.getErrorLocation(codetok.$loc));
+                }
                 for (let entry of Object.entries(result.properties)) {
                     let { c, f } = this.getEntityField(entity, entry[0]);
-                    scope.setConstValue(entity, c, f.name, entry[1]);
+                    scope.setConstValue(entity, c, f.name, entry[1] as DataValue);
                 }
             }
         }
