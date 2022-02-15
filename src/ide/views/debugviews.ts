@@ -704,7 +704,7 @@ export class ScanlineIOView extends ProbeViewBaseBase {
           var sym = platform.debugSymbols.addr2symbol[addr];
           if (sym) line[-1] = sym;
           break;
-        case ProbeFlags.MEM_WRITE:
+        //case ProbeFlags.MEM_WRITE:
         case ProbeFlags.IO_READ:
         case ProbeFlags.IO_WRITE:
         case ProbeFlags.VRAM_READ:
