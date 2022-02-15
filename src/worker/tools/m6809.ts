@@ -132,9 +132,11 @@ export function assembleLWASM(step: BuildStep): BuildStepResult {
     gatherFiles(step, { mainFilePath: "main.s" });
     var objpath = step.prefix + ".o";
     var lstpath = step.prefix + ".lst";
+    const isRaw = step.path.endsWith('.asm');
     if (staleFiles(step, [objpath, lstpath])) {
         var objout, lstout;
-        var args = ['-9', '--obj', '-I/share/asminc', '-o' + objpath, '-l' + lstpath, step.path];
+        var args = ['-9', '-I/share/asminc', '-o' + objpath, '-l' + lstpath, step.path];
+        args.push(isRaw ? '-r' : '--obj');
         var LWASM: EmscriptenModule = emglobal.lwasm({
             instantiateWasm: moduleInstFn('lwasm'),
             noInitialRun: true,
@@ -153,6 +155,11 @@ export function assembleLWASM(step: BuildStep): BuildStepResult {
         lstout = FS.readFile(lstpath, { encoding: 'utf8' });
         putWorkFile(objpath, objout);
         putWorkFile(lstpath, lstout);
+        if (isRaw) {
+            return {
+                output: objout
+            };
+        }
     }
     return {
         linktool: "lwlink",
