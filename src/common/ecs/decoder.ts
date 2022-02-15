@@ -63,6 +63,27 @@ export class VCSSpriteDecoder extends LineDecoder {
     }
 }
 
+export class VCSPlayfieldDecoder extends LineDecoder {
+    parse() {
+        let height = this.lines.length;
+        let pf = new Uint32Array(height);
+        for (let i=0; i<height; i++) {
+            let toks = this.lines[height - 1 - i];
+            this.assertTokens(toks, 1);
+            let pf0 = this.decodeBits(toks[0].substring(0,4), 4, false) << 4;
+            let pf1 = this.decodeBits(toks[0].substring(4,12), 8, true);
+            let pf2 = this.decodeBits(toks[0].substring(12,20), 8, false);
+            pf[i] = (pf0 << 0) | (pf1 << 8) | (pf2 << 16);
+        }
+        return {
+            properties: {
+                pf
+            }
+        }
+    }
+}
+
+
 export class VCSVersatilePlayfieldDecoder extends LineDecoder {
     parse() {
         let height = this.lines.length;
@@ -138,6 +159,7 @@ export function newDecoder(name: string, text: string) : LineDecoder | undefined
 
 const DECODERS = {
     'vcs_sprite': VCSSpriteDecoder,
+    'vcs_playfield': VCSPlayfieldDecoder,
     'vcs_versatile': VCSVersatilePlayfieldDecoder,
     'vcs_bitmap48': VCSBitmap48Decoder,
 }

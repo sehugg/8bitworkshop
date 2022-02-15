@@ -1055,6 +1055,9 @@ export class EntityScope implements SourceLocated {
                         for (let a of range.access) {
                             segment.allocateBytes(a.symbol, entcount);
                             let ofs = segment.getByteOffset(range, a, e.id);
+                            // TODO: this happens if you forget a const field on an object?
+                            if (e.id < range.elo) throw new ECSError(c.name + ' ' + f.name);
+                            if (typeof segment.initdata[ofs] !== 'undefined') throw new ECSError(ofs+"");
                             segment.initdata[ofs] = (v >> a.bit) & 0xff;
                         }
                     }
