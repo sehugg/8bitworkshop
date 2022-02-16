@@ -106,7 +106,7 @@ describe('Compiler', function() {
         if (outtxt.trim() != goodtxt.trim()) {
             let asmpath = '/tmp/' + asmfn;
             writeFileSync(asmpath, outtxt, 'utf-8');
-            console.log(spawnSync('/usr/bin/diff', [asmpath, goodpath], {encoding:'utf-8'}).stdout);
+            console.log(spawnSync('/usr/bin/diff', [goodpath, asmpath], {encoding:'utf-8'}).stdout);
             throw new Error(`files different; to fix: cp ${asmpath} ${goodpath}`);
         }
     });

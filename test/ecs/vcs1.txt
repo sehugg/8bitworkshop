@@ -82,39 +82,9 @@ FrameLoop__start__2__NextFrame:
 
 ;;; start action StaticKernel 4 kernelsetup
 
-    cpx #0+2
-    jcs StaticKernel__kernelsetup__5____skipxhi
-    
-    cpx #0
-    jcc StaticKernel__kernelsetup__5____skipxlo
-    
-    lda PFColor_pfcolor_b0,x
-    sta COLUPF
-
-StaticKernel__kernelsetup__5____skipxlo:
-
-StaticKernel__kernelsetup__5____skipxhi:
-
 ;;; end action StaticKernel 4 kernelsetup
 
 ;;; start action StaticKernel 4 kernelsetup
-
-    cpx #0+4
-    jcs StaticKernel__kernelsetup__6____skipxhi
-    
-    cpx #0
-    jcc StaticKernel__kernelsetup__6____skipxlo
-    
-    lda Playfield_pf_b0,x
-    sta PF0
-    lda Playfield_pf_b8,x
-    sta PF1
-    lda Playfield_pf_b16,x
-    sta PF2
-
-StaticKernel__kernelsetup__6____skipxlo:
-
-StaticKernel__kernelsetup__6____skipxhi:
 
 ;;; end action StaticKernel 4 kernelsetup
 
@@ -127,7 +97,7 @@ StaticKernel__kernelsetup__6____skipxhi:
 ;;; start action StaticKernel 4 kernel
 
     ldx #0
-StaticKernel__kernel__7____each:
+StaticKernel__kernel__5____each:
     
     sta WSYNC
     .code
@@ -142,24 +112,24 @@ StaticKernel__kernel__7____each:
 ;;; start action StaticKernel 4 kernelsetup
 
     cpx #5+2
-    jcs StaticKernel__kernelsetup__9____skipxhi
+    jcs StaticKernel__kernelsetup__7____skipxhi
     
     cpx #5
-    jcc StaticKernel__kernelsetup__9____skipxlo
+    jcc StaticKernel__kernelsetup__7____skipxlo
     
     lda PFColor_pfcolor_b0-5,x
     sta COLUPF
 
-StaticKernel__kernelsetup__9____skipxlo:
+StaticKernel__kernelsetup__7____skipxlo:
 
-StaticKernel__kernelsetup__9____skipxhi:
+StaticKernel__kernelsetup__7____skipxhi:
 
 ;;; end action StaticKernel 4 kernelsetup
 
 ;;; start action StaticKernel 4 kernelsetup
 
     cpx #4
-    jcc StaticKernel__kernelsetup__10____skipxlo
+    jcc StaticKernel__kernelsetup__8____skipxlo
     
     lda Playfield_pf_b0-4,x
     sta PF0
@@ -168,22 +138,22 @@ StaticKernel__kernelsetup__9____skipxhi:
     lda Playfield_pf_b16-4,x
     sta PF2
 
-StaticKernel__kernelsetup__10____skipxlo:
+StaticKernel__kernelsetup__8____skipxlo:
 
 ;;; end action StaticKernel 4 kernelsetup
 
     ldy KernelSection_lines_b0,x
-StaticKernel__kernel__7__loop:
+StaticKernel__kernel__5__loop:
     sta WSYNC
     
     dey
-    bne StaticKernel__kernel__7__loop
+    bne StaticKernel__kernel__5__loop
     
 
     inx
     cpx #8
-    jne StaticKernel__kernel__7____each
-StaticKernel__kernel__7____exit:
+    jne StaticKernel__kernel__5____each
+StaticKernel__kernel__5____exit:
 
 ;;; end action StaticKernel 4 kernel
 
@@ -193,7 +163,7 @@ StaticKernel__kernel__7____exit:
 ;;; start action JoyButton 5 postframe
 
     lda INPT4	;read button input
-    bmi JoyButton__postframe__11__NotPressed
+    bmi JoyButton__postframe__9__NotPressed
     .code
 
 ;;; start action Local 6 joybutton
@@ -203,7 +173,7 @@ StaticKernel__kernel__7____exit:
     
 ;;; end action Local 6 joybutton
 
-JoyButton__postframe__11__NotPressed:
+JoyButton__postframe__9__NotPressed:
 
 ;;; end action JoyButton 5 postframe
 
@@ -213,7 +183,7 @@ JoyButton__postframe__11__NotPressed:
 ;;; start action ResetSwitch 2 nextframe
 
     lsr SWCHB	      ; test Game Reset switch
-    bcs ResetSwitch__nextframe__13__NoStart
+    bcs ResetSwitch__nextframe__11__NoStart
     .code
 
 ;;; start action ResetConsole 3 resetswitch
@@ -222,7 +192,7 @@ JoyButton__postframe__11__NotPressed:
 
 ;;; end action ResetConsole 3 resetswitch
 
-ResetSwitch__nextframe__13__NoStart:
+ResetSwitch__nextframe__11__NoStart:
 
 ;;; end action ResetSwitch 2 nextframe
 

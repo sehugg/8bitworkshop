@@ -525,36 +525,43 @@ class IndexRegister {
     entityCount() {
         return this.ehi - this.elo + 1;
     }
-    narrow(eset: EntitySet): IndexRegister {
-        let i = new IndexRegister(this.scope);
-        i.narrowInPlace(eset);
-        return i;
+    clone() {
+        return Object.assign(new IndexRegister(this.scope), this);
     }
-    narrowInPlace(eset: EntitySet) {
-        if (this.scope != eset.scope) throw new ECSError(`scope mismatch`);
-        if (!eset.isContiguous()) throw new ECSError(`entities are not contiguous`);
-        let newelo = eset.entities[0].id;
-        let newehi = eset.entities[eset.entities.length - 1].id;
-        if (this.elo > newelo) throw new ECSError(`cannot narrow to new range, elo`);
-        if (this.ehi < newehi) throw new ECSError(`cannot narrow to new range, ehi`);
-        if (this.lo == null || this.hi == null) {
-            this.lo = 0;
-            this.hi = newehi - newelo + 1;
+    narrow(eset: EntitySet, action?: SourceLocated) {
+        let i = this.clone();
+        return i.narrowInPlace(eset, action) ? i : null;
+    }
+    narrowInPlace(eset: EntitySet, action?: SourceLocated): boolean {
+        if (this.scope != eset.scope) throw new ECSError(`scope mismatch`, action);
+        if (!eset.isContiguous()) throw new ECSError(`entities are not contiguous`, action);
+        if (this.eset) {
+            this.eset = this.eset.intersection(eset);
         } else {
+            this.eset = eset;
+        }
+        if (this.eset.entities.length == 0) {
+            return false;
+        }
+        let newelo = this.eset.entities[0].id;
+        let newehi = this.eset.entities[this.eset.entities.length - 1].id;
+        if (this.lo === null || this.hi === null) {
+            this.lo = 0;
+            this.hi = newehi - newelo;
+            this.offset = 0;
+        } else {
+            if (action) console.log((action as any).event, this.offset, newelo, this.elo);
             this.offset += newelo - this.elo;
         }
         this.elo = newelo;
         this.ehi = newehi;
-        this.eset = eset;
+        if (action) console.log((action as any).event, this.offset, this.elo, this.ehi, newelo, newehi);
+        return true;
     }
 }
 
 // todo: generalize
 class ActionCPUState {
-    x: EntitySet | null = null;
-    y: EntitySet | null = null;
-    xofs: number = 0;
-    yofs: number = 0;
     xreg: IndexRegister | null = null;
     yreg: IndexRegister | null = null;
 }
@@ -602,35 +609,37 @@ class ActionEval {
         // TODO: generalize to other cpus/langs
         switch (this.action.select) {
             case 'foreach':
-                if (state.x && state.y) throw new ECSError('no more index registers', this.action);
-                if (state.x) state.y = this.qr;
-                else state.x = this.qr;
+                if (state.xreg && state.yreg) throw new ECSError('no more index registers', this.action);
+                if (state.xreg) state.yreg = new IndexRegister(this.scope, this.qr);
+                else state.xreg = new IndexRegister(this.scope, this.qr);
                 break;
             case 'join':
-                if (state.x || state.y) throw new ECSError('no free index registers for join', this.action);
+                if (state.xreg || state.yreg) throw new ECSError('no free index registers for join', this.action);
                 this.jr = new EntitySet(this.scope, (this.action as ActionWithJoin).join);
-                state.y = this.qr;
-                state.x = this.jr;
+                state.xreg = new IndexRegister(this.scope, this.jr);
+                state.yreg = new IndexRegister(this.scope, this.qr);
                 break;
             case 'if':
             case 'with':
                 // TODO: what if not in X because 1 element?
-                if (state.x) {
-                    let int = state.x.intersection(this.qr);
-                    if (int.entities.length == 0) {
-                        if (this.action.select == 'with')
-                            throw new ECSError('no entities match this query', this.action);
-                        else
-                            break;
+                if (state.xreg && state.xreg.eset) {
+                    state.xreg = state.xreg.narrow(this.qr, this.action);
+                    if (state.xreg == null || state.xreg.eset?.entities == null) {
+                        if (this.action.select == 'if') {
+                            this.entities = [];
+                            break; // "if" failed
+                        } else {
+                            throw new ECSError(`no entities in statement`, this.action);
+                        }
                     } else {
-                        let indofs = int.entities[0].id - state.x.entities[0].id;
-                        state.xofs += indofs; // TODO: should merge with filter
-                        state.x = int;
-                        this.entities = int.entities; // TODO?
+                        this.entities = state.xreg.eset.entities; // TODO?
                     }
                 } else if (this.action.select == 'with') {
                     if (this.instance.params.refEntity && this.instance.params.refField) {
-                        state.x = this.qr;
+                        if (state.xreg)
+                            state.xreg.eset = this.qr;
+                        else
+                            state.xreg = new IndexRegister(this.scope, this.qr);
                         // ???
                     } else if (this.qr.entities.length != 1)
                         throw new ECSError(`${this.instance.system.name} query outside of loop must match exactly one entity`, this.action); //TODO
@@ -701,8 +710,9 @@ class ActionEval {
             props['%ehi'] = entities[entities.length - 1].id.toString();
             props['%ecount'] = entities.length.toString();
             props['%efullcount'] = fullEntityCount.toString();
-            props['%xofs'] = this.scope.state.xofs.toString();
-            props['%yofs'] = this.scope.state.yofs.toString();
+            // TODO
+            props['%xofs'] = (this.scope.state.xreg?.offset || 0).toString();
+            props['%yofs'] = (this.scope.state.yreg?.offset || 0).toString();
         }
         // replace @labels
         code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
@@ -806,7 +816,7 @@ class ActionEval {
     wrapCodeInFilter(code: string) {
         // TODO: :-p
         const ents = this.entities;
-        const ents2 = this.oldState.x?.entities;
+        const ents2 = this.oldState.xreg?.eset?.entities;
         if (ents && ents2) {
             let lo = ents[0].id;
             let hi = ents[ents.length - 1].id;
@@ -892,20 +902,24 @@ class ActionEval {
             return this.dialect.absolute(ident, eidofs);
         } else {
             let ir;
-            if (this.scope.state.x?.intersection(qr)) {
-                ir = this.scope.state.x;
-                eidofs -= this.scope.state.xofs;
+            let int;
+            let xreg = this.scope.state.xreg;
+            let yreg = this.scope.state.yreg;
+            if (xreg && (int = xreg.eset?.intersection(qr))) {
+                //console.log('x',qr.entities[0].id,xreg.elo,int.entities[0].id,xreg.offset);
+                ir = xreg.eset;
+                eidofs -= xreg.offset;
             }
-            else if (this.scope.state.y?.intersection(qr)) {
-                ir = this.scope.state.y;
-                eidofs -= this.scope.state.yofs;
+            else if (yreg && (int = yreg.eset?.intersection(qr))) {
+                ir = yreg.eset;
+                eidofs -= yreg.offset;
             }
             if (!ir) throw new ECSError(`no intersection for index register`, action);
             if (ir.entities.length == 0) throw new ECSError(`no common entities for index register`, action);
             if (!ir.isContiguous()) throw new ECSError(`entities in query are not contiguous`, action);
-            if (ir == this.scope.state.x)
+            if (ir == this.scope.state.xreg?.eset)
                 return this.dialect.indexed_x(ident, eidofs);
-            if (ir == this.scope.state.y)
+            if (ir == this.scope.state.yreg?.eset)
                 return this.dialect.indexed_y(ident, eidofs);
             throw new ECSError(`cannot find "${component.name}:${field.name}" in state`, action);
         }
