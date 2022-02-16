@@ -507,7 +507,6 @@ class EntitySet {
 class IndexRegister {
     lo: number | null;
     hi: number | null;
-    offset = 0;
     elo: number;
     ehi: number;
     eset: EntitySet | undefined;
@@ -548,15 +547,18 @@ class IndexRegister {
         if (this.lo === null || this.hi === null) {
             this.lo = 0;
             this.hi = newehi - newelo;
-            this.offset = 0;
+            this.elo = newelo;
+            this.ehi = newehi;
         } else {
-            if (action) console.log((action as any).event, this.offset, newelo, this.elo);
-            this.offset += newelo - this.elo;
+            //if (action) console.log((action as any).event, this.elo, '-', this.ehi, '->', newelo, '..', newehi);
+            this.lo += newelo - this.elo;
+            this.hi += newehi - this.ehi;
         }
-        this.elo = newelo;
-        this.ehi = newehi;
-        if (action) console.log((action as any).event, this.offset, this.elo, this.ehi, newelo, newehi);
         return true;
+    }
+    // TODO: removegi
+    offset() {
+        return this.lo || 0;
     }
 }
 
@@ -711,8 +713,8 @@ class ActionEval {
             props['%ecount'] = entities.length.toString();
             props['%efullcount'] = fullEntityCount.toString();
             // TODO
-            props['%xofs'] = (this.scope.state.xreg?.offset || 0).toString();
-            props['%yofs'] = (this.scope.state.yreg?.offset || 0).toString();
+            props['%xofs'] = (this.scope.state.xreg?.offset() || 0).toString();
+            props['%yofs'] = (this.scope.state.yreg?.offset() || 0).toString();
         }
         // replace @labels
         code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
@@ -772,10 +774,11 @@ class ActionEval {
     __index(args: string[]) {
         // TODO: check select type and if we actually have an index...
         let ident = args[0];
+        let index = parseInt(args[1] || '0');
         if (this.entities.length == 1) {
             return this.dialect.absolute(ident);
         } else {
-            return this.dialect.indexed_x(ident, 0); //TODO?
+            return this.dialect.indexed_x(ident, index); //TODO?
         }
     }
     __use(args: string[]) {
@@ -814,7 +817,7 @@ class ActionEval {
         return s;
     }
     wrapCodeInFilter(code: string) {
-        // TODO: :-p
+        // TODO: :-p filters too often?
         const ents = this.entities;
         const ents2 = this.oldState.xreg?.eset?.entities;
         if (ents && ents2) {
@@ -892,29 +895,37 @@ class ActionEval {
         if (!range) throw new ECSError(`couldn't find field for ${component.name}:${fieldName}, maybe no entities?`); // TODO
         // TODO: dialect
         // TODO: doesnt work for entity.field
-        let eidofs = qr.entities.length && qr.entities[0].id - range.elo; // TODO: negative?
-        if (entityLookup)
-            eidofs = entities[0].id - range.elo;
         // TODO: array field baseoffset?
         if (baseLookup) {
             return this.dialect.absolute(ident);
         } else if (entities.length == 1) {
+            let eidofs = qr.entities.length && qr.entities[0].id - range.elo; // TODO: negative?
+            if (entityLookup)
+                eidofs = entities[0].id - range.elo;
             return this.dialect.absolute(ident, eidofs);
         } else {
             let ir;
             let int;
+            let eidofs;
             let xreg = this.scope.state.xreg;
             let yreg = this.scope.state.yreg;
             if (xreg && (int = xreg.eset?.intersection(qr))) {
-                //console.log('x',qr.entities[0].id,xreg.elo,int.entities[0].id,xreg.offset);
+                //console.log(eidofs,'x',qr.entities[0].id,xreg.elo,int.entities[0].id,xreg.offset(),range.elo);
                 ir = xreg.eset;
-                eidofs -= xreg.offset;
-            }
-            else if (yreg && (int = yreg.eset?.intersection(qr))) {
+                //eidofs -= xreg.offset();
+                //eidofs -= int.entities[0].id - xreg.elo;
+                eidofs = xreg.elo - range.elo;
+            } else if (yreg && (int = yreg.eset?.intersection(qr))) {
                 ir = yreg.eset;
-                eidofs -= yreg.offset;
+                //eidofs -= yreg.offset();
+                eidofs = yreg.elo - range.elo;
+            } else {
+                ir = null;
+                eidofs = 0;
             }
-            if (!ir) throw new ECSError(`no intersection for index register`, action);
+            if (!ir) {
+                throw new ECSError(`no intersection for index register`, action);
+            }
             if (ir.entities.length == 0) throw new ECSError(`no common entities for index register`, action);
             if (!ir.isContiguous()) throw new ECSError(`entities in query are not contiguous`, action);
             if (ir == this.scope.state.xreg?.eset)
@@ -1292,7 +1303,7 @@ export class EntityScope implements SourceLocated {
             this.bss.allocateBytes('TEMP', bssbin.extents.right);
             for (let b of pack.boxes) {
                 let inst : SystemInstance = (b as any).inst;
-                console.log(inst.system.name, b.box?.left);
+                //console.log(inst.system.name, b.box?.left);
                 this.bss.equates[this.dialect.tempLabel(inst)] = `TEMP+${b.box?.left}`;
             }
         }

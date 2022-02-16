@@ -85,30 +85,32 @@ describe('Compiler', function() {
     let testdir = './test/ecs/';
     let files = readdirSync(testdir).filter(f => f.endsWith('.ecs'));
     files.forEach((ecsfn) => {
-        let asmfn = ecsfn.replace('.ecs','.asm');
-        let goodfn = ecsfn.replace('.ecs','.txt');
-        let ecspath = testdir + ecsfn;
-        let goodpath = testdir + goodfn;
-        let dialect = new Dialect_CA65();
-        let em = new EntityManager(dialect);
-        em.mainPath = ecspath;
-        let compiler = new ECSCompiler(em);
-        compiler.getImportFile = (path: string) => {
-            return readFileSync(testdir + path, 'utf-8');
-        }
-        let code = readFileSync(ecspath, 'utf-8');
-        compiler.parseFile(code, ecspath);
-        // TODO: errors
-        let out = new SourceFileExport();
-        em.exportToFile(out);
-        let outtxt = out.toString();
-        let goodtxt = existsSync(goodpath) ? readFileSync(goodpath, 'utf-8') : '';
-        if (outtxt.trim() != goodtxt.trim()) {
-            let asmpath = '/tmp/' + asmfn;
-            writeFileSync(asmpath, outtxt, 'utf-8');
-            console.log(spawnSync('/usr/bin/diff', [goodpath, asmpath], {encoding:'utf-8'}).stdout);
-            throw new Error(`files different; to fix: cp ${asmpath} ${goodpath}`);
-        }
+        it('Should compile ' + ecsfn, function() {
+            let asmfn = ecsfn.replace('.ecs','.asm');
+            let goodfn = ecsfn.replace('.ecs','.txt');
+            let ecspath = testdir + ecsfn;
+            let goodpath = testdir + goodfn;
+            let dialect = new Dialect_CA65();
+            let em = new EntityManager(dialect);
+            em.mainPath = ecspath;
+            let compiler = new ECSCompiler(em);
+            compiler.getImportFile = (path: string) => {
+                return readFileSync(testdir + path, 'utf-8');
+            }
+            let code = readFileSync(ecspath, 'utf-8');
+            compiler.parseFile(code, ecspath);
+            // TODO: errors
+            let out = new SourceFileExport();
+            em.exportToFile(out);
+            let outtxt = out.toString();
+            let goodtxt = existsSync(goodpath) ? readFileSync(goodpath, 'utf-8') : '';
+            if (outtxt.trim() != goodtxt.trim()) {
+                let asmpath = '/tmp/' + asmfn;
+                writeFileSync(asmpath, outtxt, 'utf-8');
+                console.log(spawnSync('/usr/bin/diff', [goodpath, asmpath], {encoding:'utf-8'}).stdout);
+                throw new Error(`files different; to fix: cp ${asmpath} ${goodpath}`);
+            }
+        });
     });
 });
 
