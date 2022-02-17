@@ -338,6 +338,7 @@ export class ECSCompiler extends Tokenizer {
             if (cmd == 'comment') {
                 this.expectTokenTypes([ECSTokenType.CodeFragment]);
             }
+            // TODO: need to make these local names, otherwise we get "duplicate name"
             if (cmd == 'system') {
                 let sys = this.annotate(() => this.parseSystem());
                 this.em.defineSystem(sys);
@@ -350,7 +351,13 @@ export class ECSCompiler extends Tokenizer {
 
     parseScopeUsing() {
         let instlist = this.parseList(this.parseSystemInstanceRef, ',');
+        let params = {};
+        if (this.peekToken().str == 'with') {
+            this.consumeToken();
+            params = this.parseSystemInstanceParameters();
+        }
         for (let inst of instlist) {
+            inst.params = params;
             this.currentScope?.newSystemInstance(inst);
         }
     }
@@ -464,10 +471,6 @@ export class ECSCompiler extends Tokenizer {
         let system = this.em.getSystemByName(name);
         if (!system) this.compileError(`I couldn't find a system named "${name}".`, this.lasttoken.$loc);
         let params = {};
-        if (this.peekToken().str == 'with') {
-            this.consumeToken();
-            params = this.parseSystemInstanceParameters();
-        }
         let inst = { system, params, id: 0 };
         return inst;
     }
@@ -475,6 +478,9 @@ export class ECSCompiler extends Tokenizer {
     parseSystemInstanceParameters() : SystemInstanceParameters {
         let scope = this.currentScope;
         if (scope == null) throw new Error();
+        if (this.peekToken().str == '[') {
+            return { query: this.parseQuery() };
+        }
         this.expectToken('#');
         let entname = this.expectIdent();
         this.expectToken('.');

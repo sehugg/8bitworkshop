@@ -61,6 +61,7 @@ export interface System extends SourceLocated {
 }
 
 export interface SystemInstanceParameters {
+    query?: Query;
     refEntity?: Entity;
     refField?: ComponentFieldPair;
 }
@@ -600,6 +601,8 @@ class ActionEval {
                 this.qr = this.qr.intersection(new EntitySet(scope, rq));
                 //console.log('with', instance.params, rq, this.qr);
             }
+        } else if (instance.params.query) {
+            this.qr = this.qr.intersection(new EntitySet(scope, instance.params.query));
         }
         this.entities = this.qr.entities;
         //let query = (this.action as ActionWithQuery).query;
@@ -767,9 +770,17 @@ class ActionEval {
     }
     __data(args: string[]) {
         let { component, field, bitofs } = this.parseFieldArgs(args);
-        if (this.qr.entities.length != 1) throw new ECSError(`data command operates on exactly one entity`); // TODO?
+        if (this.qr.entities.length != 1) throw new ECSError(`data operates on exactly one entity`, this.action); // TODO?
         let eid = this.qr.entities[0].id; // TODO?
         return this.dialect.datasymbol(component, field, eid, bitofs);
+    }
+    __const(args: string[]) {
+        let { component, field, bitofs } = this.parseFieldArgs(args);
+        if (this.qr.entities.length != 1) throw new ECSError(`const operates on exactly one entity`, this.action); // TODO?
+        let constVal = this.qr.entities[0].consts[mksymbol(component, field.name)];
+        if (constVal === undefined)  throw new ECSError(`field is not constant`, this.action); // TODO?
+        if (typeof constVal !== 'number')  throw new ECSError(`field is not numeric`, this.action); // TODO?
+        return constVal << bitofs;
     }
     __index(args: string[]) {
         // TODO: check select type and if we actually have an index...
