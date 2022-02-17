@@ -386,13 +386,16 @@ class DataSegment {
         let ofs = this.symbols[name];
         if (ofs == null) {
             ofs = this.size;
-            this.symbols[name] = ofs;
-            if (!this.ofs2sym.has(ofs))
-                this.ofs2sym.set(ofs, []);
-            this.ofs2sym.get(ofs)?.push(name);
+            this.declareSymbol(name, ofs);
             this.size += bytes;
         }
         return ofs;
+    }
+    declareSymbol(name: string, ofs: number) {
+        this.symbols[name] = ofs;
+        if (!this.ofs2sym.has(ofs))
+            this.ofs2sym.set(ofs, []);
+        this.ofs2sym.get(ofs)?.push(name);
     }
     // TODO: optimize shared data
     allocateInitData(name: string, bytes: Uint8Array) {
@@ -1311,11 +1314,12 @@ export class EntityScope implements SourceLocated {
         if (!pack.pack()) console.log('cannot pack temporary local vars'); // TODO
         //console.log('tempvars', pack);
         if (bssbin.extents.right > 0) {
-            this.bss.allocateBytes('TEMP', bssbin.extents.right);
+            let tempofs = this.bss.allocateBytes('TEMP', bssbin.extents.right);
             for (let b of pack.boxes) {
                 let inst : SystemInstance = (b as any).inst;
                 //console.log(inst.system.name, b.box?.left);
-                this.bss.equates[this.dialect.tempLabel(inst)] = `TEMP+${b.box?.left}`;
+                if (b.box) this.bss.declareSymbol(this.dialect.tempLabel(inst), tempofs + b.box.left);
+                //this.bss.equates[this.dialect.tempLabel(inst)] = `TEMP+${b.box?.left}`;
             }
         }
     }

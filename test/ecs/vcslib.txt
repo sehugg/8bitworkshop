@@ -4,8 +4,8 @@ PFColor_pfcolor_b0:
 .res 1
 .res 1
 TEMP:
+Local__6__tmp:
 .res 1
-Local__6__tmp = TEMP+0
 .code
 KernelSection_lines_b0:
 .byte 2

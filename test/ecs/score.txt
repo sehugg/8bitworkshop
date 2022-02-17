@@ -16,6 +16,7 @@ BCDScore2_digits_b0:
 .res 1
 .res 1
 TEMP:
+Kernel6Digit__2__tmp:
 .res 1
 .res 1
 .res 1
@@ -31,11 +32,10 @@ TEMP:
 .res 1
 .res 1
 .res 1
+Kernel2Digit__4__tmp:
 .res 1
 .res 1
 .res 1
-Kernel6Digit__2__tmp = TEMP+0
-Kernel2Digit__4__tmp = TEMP+15
 .code
 Main__INITDATA:
 .byte 86

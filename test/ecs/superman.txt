@@ -28,6 +28,8 @@ Room_gfx_b0:
 .res 1
 .res 1
 TEMP:
+Kernel2Sprite__2__tmp:
+Joystick__3__tmp:
 .res 1
 .res 1
 .res 1
@@ -41,11 +43,9 @@ TEMP:
 .res 1
 .res 1
 .res 1
+VersatilePlayfield__10__tmp:
 .res 1
 .res 1
-Kernel2Sprite__2__tmp = TEMP+0
-Joystick__3__tmp = TEMP+0
-VersatilePlayfield__10__tmp = TEMP+13
 .code
 KernelSection_lines_b0:
 .byte 192

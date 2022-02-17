@@ -1,9 +1,9 @@
 .scope Main
 .zeropage
 TEMP:
+Kernel48Pixel__2__tmp:
 .res 1
 .res 1
-Kernel48Pixel__2__tmp = TEMP+0
 .code
 KernelSection_lines_b0:
 .byte 10
