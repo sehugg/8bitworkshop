@@ -142,5 +142,4 @@ scopes are banks!
 banks need to duplicate code and/or rodata
 - don't split critical code across banks
 need bank trampoline macro
-
-events might need args
+nested scopes for game modes? (title / demo / play)

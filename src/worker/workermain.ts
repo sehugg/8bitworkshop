@@ -127,9 +127,17 @@ var PLATFORM_PARAMS = {
     data_start: 0x9800,
     data_size: 0x2800,
     stack_end: 0xc000,
-    //extra_compile_args: ['--vectrex'],
     extra_link_files: ['williams.scr', 'libcmoc-crt-vec.a', 'libcmoc-std-vec.a'],
     extra_link_args: ['-swilliams.scr', '-lcmoc-crt-vec', '-lcmoc-std-vec'],
+    extra_compile_files: ['assert.h','cmoc.h','stdarg.h','vectrex.h','stdlib.h','bios.h'],
+  },
+  'williams-defender': {
+    arch: '6809',
+    code_start: 0x0,
+    rom_size: 0xc000,
+    data_start: 0x9800,
+    data_size: 0x2800,
+    stack_end: 0xc000,
   },
   'williams-z80': {
     arch: 'z80',

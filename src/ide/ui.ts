@@ -188,8 +188,8 @@ class UserPrefs {
   getLastPlatformID() {
     return hasLocalStorage && !isEmbed && localStorage.getItem("__lastplatform");
   }
-  getLastRepoID() {
-    return hasLocalStorage && !isEmbed && localStorage.getItem("__lastrepo_" + platform_id);
+  getLastRepoID(platform: string) {
+    return hasLocalStorage && !isEmbed && platform && localStorage.getItem("__lastrepo_" + platform);
   }
   shouldCompleteTour() {
     return hasLocalStorage && !isEmbed && !localStorage.getItem("8bitworkshop.hello");
@@ -1829,8 +1829,10 @@ function _addIncludeFile() {
     addFileToProject("Include", ".inc", (s) => { return '\t.include "'+s+'"' });
   else if (tool == 'verilator')
     addFileToProject("Verilog", ".v", (s) => { return '`include "'+s+'"' });
-    else if (tool == 'wiz')
+  else if (tool == 'wiz')
     addFileToProject("Include", ".wiz", (s) => { return 'import "'+s+'";' });
+  else if (tool == 'ecs')
+    addFileToProject("Include", ".ecs", (s) => { return 'import "'+s+'"' });
   else
     alertError("Can't add include file to this project type (" + tool + ")");
 }
@@ -2373,28 +2375,33 @@ function setPlatformUI() {
 }
 
 export function getPlatformAndRepo() {
-  // add default platform?
-  // TODO: do this after repo_id
+  // lookup repository for this platform (TODO: enable cross-platform repos)
   platform_id = qs.platform || userPrefs.getLastPlatformID();
-  if (!platform_id) {
-    if (isEmbed) fatalError(`The 'platform' must be specified when embed=1`);
-    platform_id = qs.platform = "vcs";
-  }
-  // lookup repository for this platform
-  repo_id = qs.repo || userPrefs.getLastRepoID();
+  repo_id = qs.repo;
+  // only look at cached repo_id if file= is not present, so back button works
+  if (!qs.repo && !qs.file)
+     repo_id = userPrefs.getLastRepoID(platform_id);
+  // are we in a repo?
   if (hasLocalStorage && repo_id && repo_id !== '/') {
     var repo = getRepos()[repo_id];
+    // override query string params w/ repo settings
     if (repo) {
+      console.log(platform_id, qs, repo);
       qs.repo = repo_id;
       if (repo.platform_id && !qs.platform)
         qs.platform = platform_id = repo.platform_id;
-      if (!qs.file)
+      if (!qs.file && repo.mainPath)
         qs.file = repo.mainPath;
-      requestPersistPermission(true, true);
+      //requestPersistPermission(true, true);
     }
   } else {
     repo_id = '';
     delete qs.repo;
+  }
+  // add default platform
+  if (!platform_id) {
+    if (isEmbed) fatalError(`The 'platform' must be specified when embed=1`);
+    platform_id = qs.platform = "vcs";
   }
 }
 
