@@ -198,7 +198,7 @@ FrameLoop__start__2__NextFrame:
 ;;; start action StaticKernel 3 kernel
 
     ldx #0
-StaticKernel__kernel__5____each:
+StaticKernel__kernel__9____each:
     
     sta WSYNC
     .code
@@ -206,10 +206,10 @@ StaticKernel__kernel__5____each:
 ;;; start action Kernel48Pixel 2 kernelsetup
 
     cpx #2+1
-    jcs Kernel48Pixel__kernelsetup__6____skipxhi
+    jcs Kernel48Pixel__kernelsetup__10____skipxhi
     
     cpx #2
-    jcc Kernel48Pixel__kernelsetup__6____skipxlo
+    jcc Kernel48Pixel__kernelsetup__10____skipxlo
     
         lda #14
         sta Kernel48Pixel__2__tmp+0	; scanline counter
@@ -234,27 +234,27 @@ StaticKernel__kernel__5____each:
         sta VDELP0	; we need the VDEL registers
         sta VDELP1	; so we can do our 4-store trick
 
-Kernel48Pixel__kernelsetup__6____skipxlo:
+Kernel48Pixel__kernelsetup__10____skipxlo:
 
-Kernel48Pixel__kernelsetup__6____skipxhi:
+Kernel48Pixel__kernelsetup__10____skipxhi:
 
 ;;; end action Kernel48Pixel 2 kernelsetup
 
 ;;; start action Kernel48Pixel 2 kernelsetup
 
     cpx #2+1
-    jcs Kernel48Pixel__kernelsetup__7____skipxhi
+    jcs Kernel48Pixel__kernelsetup__11____skipxhi
     
     cpx #2
-    jcc Kernel48Pixel__kernelsetup__7____skipxlo
+    jcc Kernel48Pixel__kernelsetup__11____skipxlo
     
     lda #252
     sta COLUP0
     sta COLUP1
 
-Kernel48Pixel__kernelsetup__7____skipxlo:
+Kernel48Pixel__kernelsetup__11____skipxlo:
 
-Kernel48Pixel__kernelsetup__7____skipxhi:
+Kernel48Pixel__kernelsetup__11____skipxhi:
 
 ;;; end action Kernel48Pixel 2 kernelsetup
 
@@ -268,17 +268,17 @@ Kernel48Pixel__kernelsetup__7____skipxhi:
 ;;; start action StaticKernel 3 kernelsetup
 
     cpx #2+1
-    jcs StaticKernel__kernelsetup__9____skipxhi
+    jcs StaticKernel__kernelsetup__13____skipxhi
     
     cpx #2
-    jcc StaticKernel__kernelsetup__9____skipxlo
+    jcc StaticKernel__kernelsetup__13____skipxlo
     
     lda #252
     sta COLUPF
 
-StaticKernel__kernelsetup__9____skipxlo:
+StaticKernel__kernelsetup__13____skipxlo:
 
-StaticKernel__kernelsetup__9____skipxhi:
+StaticKernel__kernelsetup__13____skipxhi:
 
 ;;; end action StaticKernel 3 kernelsetup
 
@@ -291,14 +291,14 @@ StaticKernel__kernelsetup__9____skipxhi:
 ;;; start action Kernel48Pixel 2 kerneldraw
 
     cpx #2+1
-    jcs Kernel48Pixel__kerneldraw__10____skipxhi
+    jcs Kernel48Pixel__kerneldraw__15____skipxhi
     
     cpx #2
-    jcc Kernel48Pixel__kerneldraw__10____skipxlo
+    jcc Kernel48Pixel__kerneldraw__15____skipxlo
     
   	txa
         pha
-Kernel48Pixel__kerneldraw__10__Loop:
+Kernel48Pixel__kerneldraw__15__Loop:
 	ldy Kernel48Pixel__2__tmp+0	; counts backwards
         sta WSYNC	; sync to next scanline
         lda Bitmap48_bitmap0_e2_b0,y	; load B0 (1st sprite byte)
@@ -317,24 +317,24 @@ Kernel48Pixel__kerneldraw__10__Loop:
         sty GRP1	; B5 -> [GRP1]; B4 -> GRP0
         sta GRP0	; ?? -> [GRP0]; B5 -> GRP1
         dec Kernel48Pixel__2__tmp+0	; go to next line
-	bpl Kernel48Pixel__kerneldraw__10__Loop	; repeat until < 0
+	bpl Kernel48Pixel__kerneldraw__15__Loop	; repeat until < 0
         pla
         tax
 
-Kernel48Pixel__kerneldraw__10____skipxlo:
+Kernel48Pixel__kerneldraw__15____skipxlo:
 
-Kernel48Pixel__kerneldraw__10____skipxhi:
+Kernel48Pixel__kerneldraw__15____skipxhi:
 
 ;;; end action Kernel48Pixel 2 kerneldraw
 
 ;;; start action StaticKernel 3 kerneldraw
 
     ldy KernelSection_lines_b0,x
-StaticKernel__kerneldraw__11__loop:
+StaticKernel__kerneldraw__16__loop:
     sta WSYNC
     
     dey
-    bne StaticKernel__kerneldraw__11__loop
+    bne StaticKernel__kerneldraw__16__loop
 
 ;;; end action StaticKernel 3 kerneldraw
 
@@ -342,8 +342,8 @@ StaticKernel__kerneldraw__11__loop:
 
     inx
     cpx #5
-    jne StaticKernel__kernel__5____each
-StaticKernel__kernel__5____exit:
+    jne StaticKernel__kernel__9____each
+StaticKernel__kernel__9____exit:
 
 ;;; end action StaticKernel 3 kernel
 

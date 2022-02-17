@@ -124,6 +124,7 @@ export interface ActionBase extends SourceLocated {
     select: SelectType;
     event: string;
     text: string;
+    critical?: boolean;
 }
 
 export interface ActionOnce extends ActionBase {
@@ -315,9 +316,11 @@ export class Dialect_CA65 {
         return `.endscope\n${name}__Start = ${name}::__Start`
         // TODO: scope__start = scope::start
     }
-    segment(seg: string, segtype: 'rodata' | 'bss' | 'code') {
+    segment(segtype: 'rodata' | 'bss' | 'code') {
         if (segtype == 'bss') {
-            return `.zeropage`; // TODO
+            return `.zeropage`;
+        } else if (segtype == 'rodata') {
+            return '.rodata'; // TODO?
         } else {
             return `.code`;
         }
@@ -342,6 +345,12 @@ export class Dialect_CA65 {
     }
     equate(symbol: string, value: string): string {
         return `${symbol} = ${value}`;
+    }
+    call(symbol: string) {
+        return ` jsr ${symbol}`;
+    }
+    return() {
+        return ' rts';
     }
 }
 
@@ -580,6 +589,7 @@ class ActionEval {
     oldState : ActionCPUState;
     entities : Entity[];
     tmplabel = '';
+    label : string;
 
     constructor(
         readonly scope: EntityScope,
@@ -611,6 +621,7 @@ class ActionEval {
         //let query = (this.action as ActionWithQuery).query;
         //TODO? if (query && this.entities.length == 0)
             //throw new ECSError(`query doesn't match any entities`, query); // TODO 
+        this.label = `${this.instance.system.name}__${action.event}__${this.em.seq++}`;
     }
     begin() {
         let state = this.scope.state = Object.assign({}, this.scope.state);
@@ -659,17 +670,22 @@ class ActionEval {
         this.scope.state = this.oldState;
     }
     codeToString(): string {
-        const tag_re = /\{\{(.+?)\}\}/g;
-        const label_re = /@(\w+)\b/g;
-
         const allowEmpty = ['if','foreach','join'];
         if (this.entities.length == 0 && allowEmpty.includes(this.action.select))
            return '';
 
         let action = this.action;
         let sys = this.instance.system;
+        let { code, props } = this.getCodeAndProps(action);
+        // replace @labels
+        code = this.replaceLabels(code, this.label);
+        // replace {{...}} tags
+        // TODO: use nodes instead
+        code = this.replaceTags(code, action, props);
+        return code;
+    }
+    private getCodeAndProps(action: Action) {
         let code = action.text;
-        let label = `${sys.name}__${action.event}__${this.em.seq++}`; // TODO: better label that won't conflict (seq?)
         let props: { [name: string]: string } = {};
         if (action.select != 'once') {
             // TODO: detect cycles
@@ -677,8 +693,8 @@ class ActionEval {
             // TODO: what if only 1 item?
             // TODO: what if join is subset of items?
             if (action.select == 'join' && this.jr) {
-                let jentities = this.jr.entities;
-                if (jentities.length == 0) return '';
+                //let jentities = this.jr.entities;
+                // TODO? if (jentities.length == 0) return '';
                     // TODO? throw new ECSError(`join query doesn't match any entities`, (action as ActionWithJoin).join); // TODO 
                 let joinfield = this.getJoinField(action, this.qr.atypes, this.jr.atypes);
                 // TODO: what if only 1 item?
@@ -722,12 +738,14 @@ class ActionEval {
             props['%xofs'] = (this.scope.state.xreg?.offset() || 0).toString();
             props['%yofs'] = (this.scope.state.yreg?.offset() || 0).toString();
         }
-        // replace @labels
-        code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
-        // replace {{...}} tags
+        return { code, props };
+    }
+    private replaceTags(code: string, action: Action, props: { [name: string]: string; }) {
+        const tag_re = /\{\{(.+?)\}\}/g;
         code = code.replace(tag_re, (entire, group: string) => {
             let toks = group.split(/\s+/);
-            if (toks.length == 0) throw new ECSError(`empty command`, action);
+            if (toks.length == 0)
+                throw new ECSError(`empty command`, action);
             let cmd = group.charAt(0);
             let arg0 = toks[0].substring(1).trim();
             let args = [arg0].concat(toks.slice(1));
@@ -740,14 +758,22 @@ class ActionEval {
                 case '>': return this.__get([arg0, '8']);
                 default:
                     let value = props[toks[0]];
-                    if (value) return value;
+                    if (value)
+                        return value;
                     let fn = (this as any)['__' + toks[0]];
-                    if (fn) return fn.bind(this)(toks.slice(1));
+                    if (fn)
+                        return fn.bind(this)(toks.slice(1));
                     throw new ECSError(`unrecognized command {{${toks[0]}}}`, action);
             }
         });
         return code;
     }
+    private replaceLabels(code: string, label: string) {
+        const label_re = /@(\w+)\b/g;
+        code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
+        return code;
+    }
+
     __get(args: string[]) {
         return this.getset(args, false);
     }
@@ -1245,7 +1271,7 @@ export class EntityScope implements SourceLocated {
         }
         this.eventSeq++;
         // generate code
-        let s = this.dialect.code();
+        let code = this.dialect.code();
         //s += `\n; event ${event}\n`;
         let eventCount = 0;
         let instances = this.instances.filter(inst => systems.includes(inst.system));
@@ -1258,9 +1284,25 @@ export class EntityScope implements SourceLocated {
                     // TODO: keep event tree
                     let codeeval = new ActionEval(this, inst, action, args || []);
                     codeeval.begin();
+                    let s = '';
                     s += this.dialect.comment(`start action ${sys.name} ${inst.id} ${event}`); // TODO
-                    s += codeeval.codeToString();
+                    if (action.critical) {
+                        // TODO: bin-packing, share identical code
+                        let sublabel = `${codeeval.label}__sub`;
+                        let lines = [
+                            this.dialect.segment('rodata'),
+                            this.dialect.label(sublabel),
+                            codeeval.codeToString(),
+                            this.dialect.return(),
+                            this.dialect.code(),
+                            this.dialect.call(sublabel)
+                        ];
+                        s += lines.join('\n');
+                    } else {
+                        s += codeeval.codeToString();
+                    }
                     s += this.dialect.comment(`end action ${sys.name} ${inst.id} ${event}`);
+                    code += s;
                     // TODO: check that this happens once?
                     codeeval.end();
                 }
@@ -1269,7 +1311,7 @@ export class EntityScope implements SourceLocated {
         if (eventCount == 0) {
             console.log(`warning: event ${event} not handled`);
         }
-        return s;
+        return code;
     }
     getSystemStats(inst: SystemInstance) : SystemStats {
         let stats = this.sysstats.get(inst);
@@ -1356,9 +1398,9 @@ export class EntityScope implements SourceLocated {
     private dumpCodeTo(file: SourceFileExport) {
         let dialect = this.dialect;
         file.line(dialect.startScope(this.name));
-        file.line(dialect.segment(`${this.name}_DATA`, 'bss'));
+        file.line(dialect.segment('bss'));
         this.bss.dump(file, dialect);
-        file.line(dialect.segment(`${this.name}_RODATA`, 'rodata'));
+        file.line(dialect.segment('code')); // TODO: rodata for aligned?
         this.rodata.dump(file, dialect);
         //file.segment(`${this.name}_CODE`, 'code');
         file.line(dialect.label('__Start'));

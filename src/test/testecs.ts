@@ -150,7 +150,7 @@ describe('Box Packer', function() {
             ]
         );
     });
-    it('Should pack top-aligned boxes', function() {
+    it('Should pack unaligned boxes', function() {
         testPack(
             [
                 new Bin({ left:0, top:0, right:10, bottom:10 })
@@ -160,6 +160,21 @@ describe('Box Packer', function() {
                 { width: 3, height: 7, top: 2 },
                 { width: 5, height: 1 },
                 { width: 3, height: 1 },
+            ]
+        );
+    });
+    it('Should pack multiple bins', function() {
+        testPack(
+            [
+                new Bin({ left:0, top:0, right:10, bottom:10 }),
+                new Bin({ left:0, top:0, right:10, bottom:10 })
+            ], [
+
+                { width: 5, height: 10 },
+                { width: 5, height: 10 },
+                { width: 5, height: 5 },
+                { width: 5, height: 10 },
+                { width: 5, height: 5 },
             ]
         );
     });

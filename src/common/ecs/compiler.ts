@@ -236,7 +236,7 @@ export class ECSCompiler extends Tokenizer {
         this.expectToken('do');
         // TODO: include modifiers in error msg
         const select = this.expectTokens(SELECT_TYPE).str as SelectType; // TODO: type check?
-        const all_modifiers = ['cyclecritical','asc','desc']; // TODO
+        const all_modifiers = ['critical','asc','desc']; // TODO
         const modifiers = this.parseModifiers(all_modifiers);
         let query = undefined;
         let join = undefined;
@@ -259,6 +259,7 @@ export class ECSCompiler extends Tokenizer {
         if (modifiers['asc']) direction = 'asc';
         else if (modifiers['desc']) direction = 'desc';
         let action = { text, event, query, join, select, direction };
+        if (modifiers['critical']) (action as ActionWithJoin).critical = true;
         return action as ActionWithJoin;
     }
     
