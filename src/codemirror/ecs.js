@@ -31,14 +31,15 @@
     ];
 
     var directives = new Map();
-    directives_list.forEach(function (s) { directives.set(s, 'def'); });
-    keywords_list.forEach(function (s) { directives.set(s, 'keyword'); });
+    directives_list.forEach(function (s) { directives.set(s, 'keyword'); });
+    keywords_list.forEach(function (s) { directives.set(s, 'def'); });
 
     var opcodes = /^\s[a-z][a-z][a-z]\s/i;
-    var numbers = /^(0x[\da-f]+|[\da-f]+h|[0-7]+o|[01]+b|\d+d?)\b/i;
+    var numbers = /^(0x[\da-f]+|[$][\da-f]+|[\da-f]+h|[0-7]+o|[01]+b|\d+d?)\b/i;
     var tags = /^\{\{.*\}\}/;
-    var comment = /\/\/.*/;
-    var mlcomment = /\/\*.*?\*\//s; // TODO
+    var comment = /^\/\/.*$/;
+    var mlcomment = /^\/\*.*?\*\//s; // TODO
+    var codedelim = /^---/;
 
     return {
       startState: function () {
@@ -59,6 +60,10 @@
         if (stream.match(mlcomment)) {
           return 'comment';
         }
+        if (stream.match(codedelim)) {
+          state.context = state.context ^ 1;
+          return null;
+        }
 
         var w;
         if (stream.eatWhile(/\w/)) {
@@ -68,13 +73,13 @@
           if (style)
             return style;
 
-          if (opcodes.test(w)) {
-            return 'keyword';
-          } else if (numbers.test(w)) {
+          if (numbers.test(w)) {
             return 'number';
           } else if (w == 'comment') {
             stream.match(mlcomment);
             return 'comment';
+          } else {
+            return state.context ? 'variable-2' : null;
           }
         } else if (stream.eat(';')) {
           stream.skipToEnd();
