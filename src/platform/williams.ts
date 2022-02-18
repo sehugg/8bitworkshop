@@ -98,7 +98,7 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
 
   var iowrite_defender = newAddressDecoder([
     [0x0, 0xf, 0xf, setPalette],
-    [0x3fc, 0x3ff, 0, function(a, v) { if (v == 0x38) watchdog_counter = INITIAL_WATCHDOG; }],
+    [0x3fc, 0x3ff, 0, function(a, v) { if (v == 0x38) watchdog_counter = INITIAL_WATCHDOG; watchdog_enabled=true; }],
     [0x400, 0x5ff, 0x1ff, function(a, v) { nvram.mem[a] = v; }],
     [0xc02, 0xc02, 0x1, function(a, v) { if (worker) worker.postMessage({ command: v & 0x3f }); }],
     [0xc00, 0xc07, 0x7, function(a, v) { pia6821[a] = v; }],
@@ -145,7 +145,7 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
     //[0x80c, 0x80f, 0x3,   function(a,v) { console.log('iowrite',a+4); }], // TODO: sound
     [0x900, 0x9ff, 0, function(a, v) { banksel = v & 0x1; }],
     [0xa00, 0xa07, 0x7, setBlitter],
-    [0xbff, 0xbff, 0, function(a, v) { if (v == 0x39) watchdog_counter = INITIAL_WATCHDOG; }],
+    [0xbff, 0xbff, 0, function(a, v) { if (v == 0x39) { watchdog_counter = INITIAL_WATCHDOG; watchdog_enabled=true; } }],
     [0xc00, 0xfff, 0x3ff, function(a, v) { nvram.mem[a] = v; }],
     //[0x0,   0xfff, 0,     function(a,v) { console.log('iowrite',hex(a),hex(v)); }],
   ]);
@@ -418,6 +418,7 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
   this.reset = function() {
     cpu.reset();
     watchdog_counter = INITIAL_WATCHDOG;
+    watchdog_enabled = false;
     banksel = 1;
   }
   this.scaleCPUFrequency = function(scale) {

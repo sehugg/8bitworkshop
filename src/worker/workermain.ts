@@ -127,9 +127,11 @@ var PLATFORM_PARAMS = {
     data_start: 0x9800,
     data_size: 0x2800,
     stack_end: 0xc000,
+    set_stack_end: 0xc000,
     extra_link_files: ['williams.scr', 'libcmoc-crt-vec.a', 'libcmoc-std-vec.a'],
     extra_link_args: ['-swilliams.scr', '-lcmoc-crt-vec', '-lcmoc-std-vec'],
-    extra_compile_files: ['assert.h','cmoc.h','stdarg.h','vectrex.h','stdlib.h','bios.h'],
+    extra_compile_files: ['assert.h','cmoc.h','stdarg.h','stdlib.h'],
+    //extra_compile_args: ['--vectrex'],
   },
   'williams-defender': {
     arch: '6809',

@@ -116,6 +116,9 @@ export function compileCMOC(step: BuildStep): BuildStepResult {
         if (errors.length)
             return { errors: errors };
         var asmout = FS.readFile(destpath, { encoding: 'utf8' });
+        if (step.params.set_stack_end)
+            asmout = asmout.replace('stack space in bytes', `\n lds #${step.params.set_stack_end}\n`)
+        console.log(asmout);
         putWorkFile(destpath, asmout);
     }
     return {
@@ -240,6 +243,8 @@ export function linkLWLINK(step: BuildStep): BuildStepResult {
                 // * Line //threed.c:117: init of variable e
                 var srclines = parseSourceLines(lstout, /Line .+?:(\d+)/i, /^([0-9A-F]{4})/i);
                 putWorkFile(fn, lstout);
+                // strip out left margin
+                lstout = lstout.split('\n').map(l => l.substring(0,15) + l.substring(56)).join('\n')
                 // TODO: you have to get rid of all source lines to get asm listing
                 listings[fn] = {
                     asmlines: srclines.length ? asmlines : null,
