@@ -775,6 +775,7 @@ class ActionEval {
                 case '$': return this.__local(args);
                 case '^': return this.__use(args);
                 case '#': return this.__arg(args);
+                case '&': return this.__eid(args);
                 case '<': return this.__get([arg0, '0']);
                 case '>': return this.__get([arg0, '8']);
                 default:
@@ -841,6 +842,11 @@ class ActionEval {
         } else {
             return this.dialect.indexed_x(ident, index); //TODO?
         }
+    }
+    __eid(args: string[]) {
+        let e = this.scope.getEntityByName(args[0] || '?');
+        if (!e) throw new ECSError(`can't find entity named "${args[0]}"`, this.action);
+        return e.id.toString();
     }
     __use(args: string[]) {
         return this.scope.includeResource(args[0]);
