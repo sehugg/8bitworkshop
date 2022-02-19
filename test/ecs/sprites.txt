@@ -28,11 +28,11 @@ SpriteSlot_sprite_b0:
 TEMP:
 Kernel2Sprite__2__tmp:
 Joystick__3__tmp:
+SpriteHider__9__tmp:
 .res 1
 SpriteShuffler__8__tmp:
 .res 1
 .res 1
-SpriteHider__9__tmp:
 .res 1
 .res 1
 .res 1

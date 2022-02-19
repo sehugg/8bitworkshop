@@ -7,6 +7,7 @@ export interface BoxConstraints {
     width: number;
     height: number;
     box?: PlacedBox;
+    label?: string;
 }
 
 enum BoxPlacement {
@@ -76,9 +77,10 @@ export class Bin {
             let dx = (f.right - f.left) - b.width;
             let dy = (f.bottom - f.top) - b.height;
             if (dx >= 0 && dy >= 0) {
-                let score = 1 / (1 + dx + dy);
+                let score = 1 / (1 + dx + dy + f.left * 0.001);
                 if (score > bestscore) {
                     best = f;
+                    bestscore = score;
                     if (score == 1) break;
                 }
             }
@@ -188,7 +190,7 @@ export class Packer {
                     box.left = parent.right - w;
                     box.right = parent.right;
                 }
-                if (debug) console.log('place',box.left,box.top,box.right,box.bottom,parent?.left,parent?.top);
+                if (debug) console.log('place',b.label,box.left,box.top,box.right,box.bottom,parent?.left,parent?.top);
                 let parents = [parent];
                 // if approx match, might overlap multiple free boxes
                 if (approx) parents = bin.getBoxes(box, 100, bin.free);
@@ -197,5 +199,41 @@ export class Packer {
         }
         if (debug) console.log('cannot place!',  b.left,b.top,b.width,b.height);
         return null;
+    }
+    toSVG() {
+        let s = '';
+        let r = {width:100,height:70}
+        for (let bin of this.bins) {
+            r.width = Math.max(r.width, bin.binbounds.right);
+            r.height = Math.max(r.height, bin.binbounds.bottom);
+        }
+        s += `<svg viewBox="0 0 ${r.width} ${r.height}" xmlns="http://www.w3.org/2000/svg"><style><![CDATA[text {font: 1px sans-serif;}]]></style>`;
+        for (let bin of this.bins) {
+            let be = bin.extents;
+            s += '<g>'
+            s += `<rect width="${be.right-be.left}" height="${be.bottom-be.top}" stroke="black" stroke-width="0.5" fill="none"/>`;
+            let textx = be.right+1;
+            let texty = 0;
+            for (let box of this.boxes) {
+                let b = box.box;
+                if (b) {
+                    if (b.bin == bin) s += `<rect width="${b.right-b.left}" height="${b.bottom-b.top}" x="${b.left}" y="${b.top}" stroke="black" stroke-width="0.25" fill="#ccc"/>`;
+                    if (b.top == texty) textx += 10; else textx = be.right+1;
+                    texty = b.top;
+                    if (box.label) s += `<text x="${textx}" y="${texty}" height="1">${box.label}</text>`;
+                }
+            }
+            /*
+            for (let b of bin.free) {
+                s += `<rect width="${b.right-b.left}" height="${b.bottom-b.top}" x="${b.left}" y="${b.top}" stroke="red" stroke-width="0.1" fill="none"/>`;
+            }
+            */
+            s += '</g>'
+        }
+        s += `</svg>`;
+        return s;
+    }
+    toSVGUrl() {
+        return `data:image/svg+xml;base64,${btoa(this.toSVG())}`;
     }
 }

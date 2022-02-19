@@ -1389,6 +1389,7 @@ export class EntityScope implements SourceLocated {
                     bottom: stats.tempendseq+1,
                     width: instance.system.tempbytes,
                     height: stats.tempendseq - stats.tempstartseq + 1,
+                    label: instance.system.name
                 };
                 pack.boxes.push(v);
             }
@@ -1404,6 +1405,7 @@ export class EntityScope implements SourceLocated {
                 //this.bss.equates[this.dialect.tempLabel(inst)] = `TEMP+${b.box?.left}`;
             }
         }
+        console.log(pack.toSVGUrl());
     }
     private analyzeEntities() {
         this.buildSegments();
@@ -1439,6 +1441,7 @@ export class EntityScope implements SourceLocated {
     }
     replaceSubroutines(code: string) {
         // TODO: bin-packing for critical code
+        // TODO: doesn't work with nested subroutines?
         let allsubs : string[] = [];
         for (let stats of Object.values(this.eventStats)) {
             if (stats.count > 1) {
