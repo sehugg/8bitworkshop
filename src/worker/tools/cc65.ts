@@ -1,7 +1,7 @@
 
 import { getFilenamePrefix, getRootBasePlatform } from "../../common/util";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { re_crlf, BuildStepResult, anyTargetChanged, execMain, gatherFiles, msvcErrorMatcher, populateEntry, populateExtraFiles, populateFiles, print_fn, putWorkFile, setupFS, staleFiles, BuildStep, emglobal, loadNative, moduleInstFn, fixParamsWithDefines, store, makeErrorMatcher } from "../workermain";
+import { re_crlf, BuildStepResult, anyTargetChanged, execMain, gatherFiles, msvcErrorMatcher, populateEntry, populateExtraFiles, populateFiles, print_fn, putWorkFile, setupFS, staleFiles, BuildStep, emglobal, loadNative, moduleInstFn, fixParamsWithDefines, store, makeErrorMatcher, getWorkFileAsString } from "../workermain";
 import { EmscriptenModule } from "../workermain"
 
 
@@ -128,8 +128,12 @@ export function assembleCA65(step: BuildStep): BuildStepResult {
             args.unshift.apply(args, ["-D", "__MAIN__=1"]);
         }
         execMain(step, CA65, args);
-        if (errors.length)
-            return { errors: errors };
+        if (errors.length) {
+            // TODO?
+            let listings : CodeListingMap = {};
+            listings[step.path] = { lines:[], text:getWorkFileAsString(step.path) };
+            return { errors, listings };
+        }
         objout = FS.readFile(objpath, { encoding: 'binary' });
         lstout = FS.readFile(lstpath, { encoding: 'utf8' });
         putWorkFile(objpath, objout);
