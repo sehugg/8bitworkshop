@@ -627,8 +627,6 @@ Main__INITDATA:
 .byte 0
 .byte 0
 __Start:
-.code
-
 
 ;;; start action Init 11 main_init
 
@@ -646,16 +644,12 @@ __BRK:
     dey
     bne :-
 	; initialize data segment
-.code
-
 
 ;;; start action FrameLoop 1 start
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
-    .code
-
-
+    
 ;;; start action Kernel2Sprite 2 preframe
 
 .define KLINES #192
@@ -768,9 +762,7 @@ SetXPos__preframe__9____each:
     ldx SpriteSlot_sprite_b0,y
     
     lda HasXpos_xpos_b0,x
-    .code
-
-
+    
 ;;; start action SetHorizPos 9 SetHorizPos
 
 ; SetHorizPos routine
@@ -824,9 +816,7 @@ SetXPos__preframe__9____exit:
 ;;; end action VersatilePlayfield 10 preframe
 
     KERNEL_START
-    .code
-
-
+    
 ;;; start action Kernel2Sprite 2 kernel
 
     ldy #0
@@ -840,9 +830,7 @@ SetXPos__preframe__9____exit:
     
     ldy #192
 Kernel2Sprite__kernel__15__LVScan:
-    .code
-
-
+    
 ;;; start action Kernel2Sprite 2 scanline
 
 ; draw player 0
@@ -896,9 +884,7 @@ Kernel2Sprite__scanline__16__DoDraw2:
 ;;; end action VersatilePlayfield 10 scanline
 
     dey		; next scanline
-    .code
-
-
+    
 ;;; start action Kernel2Sprite 2 scanline
 
 ; draw player 0
@@ -967,9 +953,7 @@ Kernel2Sprite__scanline__20__DoDraw2:
 ;;; end action Kernel2Sprite 2 kernel
 
     KERNEL_END
-    .code
-
-
+    
 ;;; start action Joystick 3 postframe
 
 ; 2 control inputs share a single byte, 4 bits each
@@ -982,9 +966,7 @@ Kernel2Sprite__scanline__20__DoDraw2:
 
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__26__SkipMoveRight
-    .code
-
-
+    
 ;;; start action JoyFaceDirection 4 joyright
 
     lda Sprite_plyrflags_b0
@@ -1000,9 +982,7 @@ Kernel2Sprite__scanline__20__DoDraw2:
     adc #2
     cmp #142
     jcc SuperFly__joyright__28__nomove
-    .code
-
-
+    
 ;;; start action SuperFly 5 goeast
 
     ldy Location_room_b0
@@ -1020,9 +1000,7 @@ SuperFly__joyright__28__nomove:
 Joystick__postframe__26__SkipMoveRight:
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__26__SkipMoveLeft
-    .code
-
-
+    
 ;;; start action JoyFaceDirection 4 joyleft
 
     lda Sprite_plyrflags_b0
@@ -1037,9 +1015,7 @@ Joystick__postframe__26__SkipMoveRight:
     sec
     sbc #2
     jcs SuperFly__joyleft__31__nomove
-    .code
-
-
+    
 ;;; start action SuperFly 5 gowest
 
     ldy Location_room_b0
@@ -1057,9 +1033,7 @@ SuperFly__joyleft__31__nomove:
 Joystick__postframe__26__SkipMoveLeft:
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__26__SkipMoveDown
-    .code
-
-
+    
 ;;; start action SuperFly 5 joydown
 
     lda HasYpos_ypos_b0
@@ -1067,9 +1041,7 @@ Joystick__postframe__26__SkipMoveLeft:
     adc #2
     cmp #220
     jcc SuperFly__joydown__33__nomove
-    .code
-
-
+    
 ;;; start action SuperFly 5 gosouth
 
     ldy Location_room_b0
@@ -1087,18 +1059,14 @@ SuperFly__joydown__33__nomove:
 Joystick__postframe__26__SkipMoveDown:
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__26__SkipMoveUp
-    .code
-
-
+    
 ;;; start action SuperFly 5 joyup
 
     lda HasYpos_ypos_b0
     sec
     sbc #2
     jcs SuperFly__joyup__35__nomove
-    .code
-
-
+    
 ;;; start action SuperFly 5 gonorth
 
     ldy Location_room_b0
@@ -1122,9 +1090,7 @@ Joystick__postframe__26__SkipMoveUp:
     ldx #0
 BadMove__postframe__37____each:
     
-  .code
-
-
+  
 ;;; start action JoyFaceDirection 4 joyright
 
     lda Sprite_plyrflags_b0+1,x
@@ -1140,9 +1106,7 @@ BadMove__postframe__37____each:
     adc #1
     cmp #142
     jcc SuperFly__joyright__39__nomove
-    .code
-
-
+    
 ;;; start action SuperFly 5 goeast
 
     ldy Location_room_b0+1,x
@@ -1199,9 +1163,7 @@ RoomShuffle__postframe__41__exit:
 ;;; end action VersatilePlayfield 10 postframe
 
     FRAME_END
-    .code
-
-
+    
     jmp FrameLoop__start__2__NextFrame    ; loop to next frame
 
 ;;; end action FrameLoop 1 start

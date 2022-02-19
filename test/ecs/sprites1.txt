@@ -115,8 +115,6 @@ Main__INITDATA:
 .byte 0
 .byte 0
 __Start:
-.code
-
 
 ;;; start action Init 10 main_init
 
@@ -134,16 +132,12 @@ __BRK:
     dey
     bne :-
 	; initialize data segment
-.code
-
 
 ;;; start action FrameLoop 1 start
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
-    .code
-
-
+    
 ;;; start action Kernel2Sprite 2 preframe
 
 .define KLINES #192
@@ -241,9 +235,7 @@ SetXPos__preframe__9____each:
     ldx SpriteSlot_sprite_b0,y
     
     lda HasXpos_xpos_b0,x
-    .code
-
-
+    
 ;;; start action SetHorizPos 7 SetHorizPos
 
 ; SetHorizPos routine
@@ -285,9 +277,7 @@ SetXPos__preframe__9____exit:
 ;;; end action SetXPos 6 preframe
 
     KERNEL_START
-    .code
-
-
+    
 ;;; start action Kernel2Sprite 2 kernel
 
     ldy #0
@@ -332,18 +322,14 @@ DoDraw2:
     
     ldy #192
 Kernel2Sprite__kernel__14__LVScan:
-    .code
-
-
+    
 ;;; start action Kernel2Sprite 2 scanline1
 
 ;;; end action Kernel2Sprite 2 scanline1
 
     Kernel2Sprite__kernel__14__DrawLine 1 ; macro: draw scanline w/ WSYNC
     dey		; next scanline
-    .code
-
-
+    
     Kernel2Sprite__kernel__14__DrawLine 0 ; macro: draw scanline no WSYNC
     dey		; next scanline
     bne Kernel2Sprite__kernel__14__LVScan	; repeat until out of lines
@@ -361,9 +347,7 @@ Kernel2Sprite__kernel__14__LVScan:
 ;;; end action Kernel2Sprite 2 kernel
 
     KERNEL_END
-    .code
-
-
+    
 ;;; start action Joystick 3 postframe
 
 ; 2 control inputs share a single byte, 4 bits each
@@ -379,9 +363,7 @@ Joystick__postframe__18____each:
     
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__18__SkipMoveRight
-    .code
-
-
+    
 ;;; start action MoveJoyX 4 joyright
 
     lda HasXpos_xpos_b0,x
@@ -397,9 +379,7 @@ MoveJoyX__joyright__19__nomove:
 Joystick__postframe__18__SkipMoveRight:
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__18__SkipMoveLeft
-    .code
-
-
+    
 ;;; start action MoveJoyX 4 joyleft
 
     lda HasXpos_xpos_b0,x
@@ -414,9 +394,7 @@ MoveJoyX__joyleft__20__nomove:
 Joystick__postframe__18__SkipMoveLeft:
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__18__SkipMoveDown
-    .code
-
-
+    
 ;;; start action MoveJoyY 5 joydown
 
     lda HasYpos_ypos_b0,x
@@ -432,9 +410,7 @@ MoveJoyY__joydown__21__nomove:
 Joystick__postframe__18__SkipMoveDown:
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__18__SkipMoveUp
-    .code
-
-
+    
 ;;; start action MoveJoyY 5 joyup
 
     lda HasYpos_ypos_b0,x
@@ -513,9 +489,7 @@ SpriteHider__postframe__25____exit:
 ;;; end action SpriteHider 9 postframe
 
     FRAME_END
-    .code
-
-
+    
     jmp FrameLoop__start__2__NextFrame    ; loop to next frame
 
 ;;; end action FrameLoop 1 start

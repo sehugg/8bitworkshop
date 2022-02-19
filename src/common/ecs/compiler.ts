@@ -237,7 +237,6 @@ export class ECSCompiler extends Tokenizer {
         // TODO: include modifiers in error msg
         const select = this.expectTokens(SELECT_TYPE).str as SelectType; // TODO: type check?
         const all_modifiers = ['critical','asc','desc']; // TODO
-        const modifiers = this.parseModifiers(all_modifiers);
         let query = undefined;
         let join = undefined;
         if (select == 'once') {
@@ -253,12 +252,18 @@ export class ECSCompiler extends Tokenizer {
             if (!query) { this.compileError(`A "${select}" query can't include a limit.`); }
             else query.limit = this.expectInteger();
         }
+        const modifiers = this.parseModifiers(all_modifiers);
+        let fitbytes = undefined;
+        if (this.ifToken('fit')) {
+            fitbytes = this.expectInteger();
+        }
         let context : ActionContext = { scope: null, system };
+        // parse --- code ---
         let text = this.parseCode(context);
         let direction = undefined;
         if (modifiers['asc']) direction = 'asc';
         else if (modifiers['desc']) direction = 'desc';
-        let action = { text, event, query, join, select, direction };
+        let action = { text, event, query, join, select, direction, fitbytes };
         if (modifiers['critical']) (action as ActionWithJoin).critical = true;
         return action as ActionWithJoin;
     }

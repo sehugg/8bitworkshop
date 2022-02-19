@@ -7,8 +7,6 @@ Xpos_x_b0:
 .res 1
 .code
 __Start:
-.code
-
 
 ;;; start action move 1 start
 

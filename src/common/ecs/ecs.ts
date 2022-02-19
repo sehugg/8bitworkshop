@@ -125,6 +125,7 @@ export interface ActionBase extends SourceLocated {
     event: string;
     text: string;
     critical?: boolean;
+    fitbytes?: number;
 }
 
 export interface ActionOnce extends ActionBase {
@@ -297,12 +298,6 @@ export class Dialect_CA65 {
     datasymbol(component: ComponentType, field: DataField, eid: number, bitofs: number) {
         return `${component.name}_${field.name}_e${eid}_b${bitofs}`;
     }
-    code() {
-        return `.code\n`;
-    }
-    bss() {
-        return `.bss\n`;
-    }
     debug_file(path: string) {
         return `.dbg file, "${path}", 0, 0`
     }
@@ -315,6 +310,22 @@ export class Dialect_CA65 {
     endScope(name: string) {
         return `.endscope\n${name}__Start = ${name}::__Start`
         // TODO: scope__start = scope::start
+    }
+    align(value: number) {
+        return `.align ${value}`;
+    }
+    alignSegmentStart() {
+        return this.label('__ALIGNORIGIN');
+    }
+    warningIfMoreThan(bytes: number, startlabel: string) {
+        return `
+.assert (* - ${startlabel}) <= ${bytes}, error, "${startlabel} does not fit in ${bytes} bytes!"`
+    }
+    alignIfLessThan(bytes: number) {
+        return `
+.if <(* - __ALIGNORIGIN) > 256-${bytes}
+.align $100
+.endif`
     }
     segment(segtype: 'rodata' | 'bss' | 'code') {
         if (segtype == 'bss') {
@@ -590,6 +601,7 @@ class ActionEval {
     entities : Entity[];
     tmplabel = '';
     label : string;
+    //used = new Set<string>(); // TODO
 
     constructor(
         readonly scope: EntityScope,
@@ -842,6 +854,7 @@ class ActionEval {
     __arg(args: string[]) {
         let argindex = parseInt(args[0] || '0');
         let argvalue = this.eventargs[argindex] || '';
+        //this.used.add(`arg_${argindex}_${argvalue}`);
         return argvalue;
     }
     __bss_init(args: string[]) {
@@ -996,6 +1009,22 @@ class ActionEval {
         }
         */
     }
+    isSubroutineSized(code: string) {
+        // TODO?
+        if (code.length > 20000) return false;
+        if (code.split('.dbg line').length >= 4) return true;
+        return false;
+    }
+}
+
+class EventCodeStats {
+    constructor(
+        public readonly inst: SystemInstance,
+        public readonly action: Action,
+        public readonly code: string,
+        public readonly symbol: string,
+    ) { }
+    count = 0;
 }
 
 export class EntityScope implements SourceLocated {
@@ -1009,11 +1038,14 @@ export class EntityScope implements SourceLocated {
     rodata = new ConstDataSegment();
     code = new CodeSegment();
     componentsInScope = new Set();
-    eventSeq = 0;
     resources = new Set<string>();
     state = new ActionCPUState();
     isDemo = false;
     filePath = '';
+
+    eventSeq : number;
+    eventStats : { [key:string] : EventCodeStats };
+    inCritical = 0;
 
     constructor(
         public readonly em: EntityManager,
@@ -1276,7 +1308,7 @@ export class EntityScope implements SourceLocated {
         }
         this.eventSeq++;
         // generate code
-        let code = this.dialect.code() + '\n';
+        let code = '';
         if (codelabel) { code += this.dialect.label(codelabel) + '\n'; }
         let eventCount = 0;
         let instances = this.instances.filter(inst => systems.includes(inst.system));
@@ -1289,23 +1321,22 @@ export class EntityScope implements SourceLocated {
                     // TODO: keep event tree
                     let codeeval = new ActionEval(this, inst, action, args || []);
                     codeeval.begin();
+                    if (action.critical) this.inCritical++;
+                    let eventcode = codeeval.codeToString();
+                    if (action.critical) this.inCritical--;
+                    if (!this.inCritical && codeeval.isSubroutineSized(eventcode)) {
+                        // TODO: label rewriting messes this up
+                        let estats = this.eventStats[eventcode];
+                        if (!estats) {
+                            estats = this.eventStats[eventcode] = new EventCodeStats(
+                                inst, action, eventcode, codeeval.label);
+                        }
+                        estats.count++;
+                        if (action.critical) estats.count++; // always make critical event subroutines
+                    }
                     let s = '';
                     s += this.dialect.comment(`start action ${sys.name} ${inst.id} ${event}`); // TODO
-                    if (action.critical) {
-                        // TODO: bin-packing, share identical code
-                        let sublabel = `${codeeval.label}__sub`;
-                        let lines = [
-                            this.dialect.segment('rodata'),
-                            this.dialect.label(sublabel),
-                            codeeval.codeToString(),
-                            this.dialect.return(),
-                            this.dialect.code(),
-                            this.dialect.call(sublabel)
-                        ];
-                        s += lines.join('\n');
-                    } else {
-                        s += codeeval.codeToString();
-                    }
+                    s += eventcode;
                     s += this.dialect.comment(`end action ${sys.name} ${inst.id} ${event}`);
                     code += s;
                     // TODO: check that this happens once?
@@ -1378,6 +1409,8 @@ export class EntityScope implements SourceLocated {
         this.allocateROData(this.rodata);
     }
     private generateCode() {
+        this.eventSeq = 0;
+        this.eventStats = {};
         let isMainScope = this.parent == null;
         let start;
         let initsys = this.em.getSystemByName('Init');
@@ -1387,6 +1420,7 @@ export class EntityScope implements SourceLocated {
         } else {
             start = this.generateCodeForEvent('start');
         }
+        start = this.replaceSubroutines(start);
         this.code.addCodeFragment(start);
         for (let sub of Array.from(this.resources.values())) {
             if (!this.getSystemInstanceNamed(sub)) {
@@ -1395,9 +1429,39 @@ export class EntityScope implements SourceLocated {
                 this.newSystemInstanceWithDefaults(sys);
             }
             let code = this.generateCodeForEvent(sub, [], sub);
-            this.code.addCodeFragment(code);
+            this.code.addCodeFragment(code); // TODO: should be rodata?
         }
         //this.showStats();
+    }
+    replaceSubroutines(code: string) {
+        // TODO: bin-packing for critical code
+        let allsubs : string[] = [];
+        for (let stats of Object.values(this.eventStats)) {
+            if (stats.count > 1) {
+                if (allsubs.length == 0) {
+                    allsubs = [
+                        this.dialect.segment('rodata'),
+                        this.dialect.alignSegmentStart()
+                    ]
+                } else if (stats.action.fitbytes) {
+                    allsubs.push(this.dialect.alignIfLessThan(stats.action.fitbytes));
+                }
+                code = (code as any).replaceAll(stats.code, this.dialect.call(stats.symbol));
+                let substart = stats.symbol;
+                let sublines = [
+                    this.dialect.segment('rodata'),
+                    this.dialect.label(substart),
+                    stats.code,
+                    this.dialect.return(),
+                ];
+                if (stats.action.fitbytes) {
+                    sublines.push(this.dialect.warningIfMoreThan(stats.action.fitbytes, substart));
+                }
+                allsubs = allsubs.concat(sublines);
+            }
+        }
+        code += allsubs.join('\n');
+        return code;
     }
     showStats() {
         for (let inst of this.instances) {

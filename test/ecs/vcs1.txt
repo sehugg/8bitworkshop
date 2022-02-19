@@ -44,8 +44,6 @@ Main__INITDATA:
 .byte 0
 .byte 0
 __Start:
-.code
-
 
 ;;; start action Init 7 main_init
 
@@ -62,21 +60,15 @@ __BRK:
     dey
     bne :-
 	; initialize data segment
-.code
-
 
 ;;; start action FrameLoop 1 start
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
-    .code
-
-
+    
 ;;; start action StaticKernel 4 preframe
 
-    .code
-
-
+    
 ;;; start action StaticKernel 4 kernelsetup
 
     lda #24
@@ -96,18 +88,14 @@ FrameLoop__start__2__NextFrame:
 ;;; end action StaticKernel 4 preframe
 
     KERNEL_START
-    .code
-
-
+    
 ;;; start action StaticKernel 4 kernel
 
     ldx #0
 StaticKernel__kernel__7____each:
     
     sta WSYNC
-    .code
-
-
+    
 ;;; start action StaticKernel 4 kernelsetup
 
     lda BGColor_bgcolor_b0,x
@@ -164,16 +152,12 @@ StaticKernel__kernel__7____exit:
 ;;; end action StaticKernel 4 kernel
 
     KERNEL_END
-    .code
-
-
+    
 ;;; start action JoyButton 5 postframe
 
     lda INPT4	;read button input
     bmi JoyButton__postframe__11__NotPressed
-    .code
-
-
+    
 ;;; start action Local 6 joybutton
 
     inc Local__6__tmp+0
@@ -186,16 +170,12 @@ JoyButton__postframe__11__NotPressed:
 ;;; end action JoyButton 5 postframe
 
     FRAME_END
-    .code
-
-
+    
 ;;; start action ResetSwitch 2 nextframe
 
     lsr SWCHB	      ; test Game Reset switch
     bcs ResetSwitch__nextframe__13__NoStart
-    .code
-
-
+    
 ;;; start action ResetConsole 3 resetswitch
 
     jmp Main::__Reset ; jump to Reset handler

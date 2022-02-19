@@ -48,8 +48,6 @@ Main__INITDATA:
 .byte 36
 .byte 86
 __Start:
-.code
-
 
 ;;; start action Init 9 main_init
 
@@ -67,16 +65,12 @@ __BRK:
     dey
     bne :-
 	; initialize data segment
-.code
-
 
 ;;; start action FrameLoop 1 start
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
-    .code
-
-
+    
 ;;; start action Kernel6Digit 2 preframe
 
 Digit0 = Kernel6Digit__2__tmp+0
@@ -128,9 +122,7 @@ Kernel6Digit__preframe__3__Loop:
 ;;; end action Kernel6Digit 2 preframe
 
     KERNEL_START
-    .code
-
-
+    
 ;;; start action Kernel6Digit 2 kernel
 
         lda PFColor_pfcolor_b0
@@ -222,9 +214,7 @@ Kernel6Digit__kernel__5__BigLoop:
 Kernel2Digit__kernel__7__Loop:
 	ldx #0
 	sta WSYNC
-        .code
-
-
+        
 ;;; start action Kernel2Digit 4 compute2digit
 
         lda Kernel2Digit__4__tmp+1		; load 1st pf
@@ -236,9 +226,7 @@ Kernel2Digit__kernel__7__Loop:
 	asl
         asl
         asl
-        .code
-
-
+        
 ;;; start action Kernel2Digit 4 fetchdigit
 
         adc Kernel2Digit__4__tmp+0
@@ -256,9 +244,7 @@ Kernel2Digit__kernel__7__Loop:
         and #$f0
         lsr
         sty PF1			; store 2nd pf
-        .code
-
-
+        
 ;;; start action Kernel2Digit 4 fetchdigit
 
         adc Kernel2Digit__4__tmp+0
@@ -275,9 +261,7 @@ Kernel2Digit__kernel__7__Loop:
 ;;; end action Kernel2Digit 4 compute2digit
 
         inx
-        .code
-
-
+        
 ;;; start action Kernel2Digit 4 compute2digit
 
         lda Kernel2Digit__4__tmp+1		; load 1st pf
@@ -289,9 +273,7 @@ Kernel2Digit__kernel__7__Loop:
 	asl
         asl
         asl
-        .code
-
-
+        
 ;;; start action Kernel2Digit 4 fetchdigit
 
         adc Kernel2Digit__4__tmp+0
@@ -309,9 +291,7 @@ Kernel2Digit__kernel__7__Loop:
         and #$f0
         lsr
         sty PF1			; store 2nd pf
-        .code
-
-
+        
 ;;; start action Kernel2Digit 4 fetchdigit
 
         adc Kernel2Digit__4__tmp+0
@@ -336,21 +316,15 @@ Kernel2Digit__kernel__7__Loop:
 ;;; end action Kernel2Digit 4 kernel
 
     KERNEL_END
-    .code
-
-
+    
 ;;; start action JoyButton 6 postframe
 
     lda INPT4	;read button input
     bmi JoyButton__postframe__14__NotPressed
-    .code
-
-
+    
 ;;; start action IncScore 8 joybutton
 
-    .code
-
-
+    
 ;;; start action BCDMath 7 AddBCD4
 
 .ifnblank $0210
@@ -382,9 +356,7 @@ JoyButton__postframe__14__NotPressed:
 ;;; end action JoyButton 6 postframe
 
     FRAME_END
-    .code
-
-
+    
     jmp FrameLoop__start__2__NextFrame    ; loop to next frame
 
 ;;; end action FrameLoop 1 start
@@ -396,8 +368,6 @@ VecReset:  .word Main::__Reset
 VecBRK:    .word Main::__BRK
 
 ;;; end action Init 9 main_init
-
-.code
 
 FontTable:
 
@@ -412,8 +382,6 @@ FontTable:
         .byte $00,$3c,$66,$66,$3c,$66,$66,$3c,$00,$3c,$66,$06,$3e,$66,$66,$3c
 
 ;;; end action FontTable 3 FontTable
-
-.code
 
 FontTablePF:
 
