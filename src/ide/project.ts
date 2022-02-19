@@ -1,5 +1,5 @@
 
-import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult, WorkerOutputResult, isUnchanged, isOutputResult, WorkerMessage, WorkerItemUpdate } from "../common/workertypes";
+import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult, WorkerOutputResult, isUnchanged, isOutputResult, WorkerMessage, WorkerItemUpdate, WorkerErrorResult, isErrorResult } from "../common/workertypes";
 import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform, getWithBinary } from "../common/util";
 import { Platform } from "../common/baseplatform";
 import localforage from "localforage";
@@ -129,6 +129,8 @@ export class CodeProject {
     }
     if (data && isOutputResult(data)) {
       this.processBuildResult(data);
+    } else if (isErrorResult(data)) {
+      this.processBuildListings(data);
     }
     this.callbackBuildResult(data);
   }
@@ -376,7 +378,7 @@ export class CodeProject {
     this.sendBuild();
   }
 
-  processBuildResult(data: WorkerOutputResult<any>) {
+  processBuildListings(data: WorkerOutputResult<any> | WorkerErrorResult) {
     // TODO: link listings with source files
     if (data.listings) {
       this.listings = data.listings;
@@ -388,6 +390,14 @@ export class CodeProject {
           lst.assemblyfile = new SourceFile(lst.asmlines, lst.text);
       }
     }
+  }
+
+  processBuildResult(data: WorkerOutputResult<any>) {
+    this.processBuildListings(data);
+    this.processBuildSegments(data);
+  }
+
+  processBuildSegments(data: WorkerOutputResult<any>) {
     // save and sort segment list
     var segs = (this.platform.getMemoryMap && this.platform.getMemoryMap()["main"]) || [];
     if (data.segments) { segs = segs.concat(data.segments || []); }

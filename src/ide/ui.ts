@@ -323,7 +323,7 @@ function refreshWindowList() {
     for (var lstfn in listings) {
       var lst = listings[lstfn];
       // add listing if source/assembly file exists and has text
-      if ((lst.assemblyfile && lst.assemblyfile.text) || (lst.sourcefile && lst.sourcefile.text)) {
+      if ((lst.assemblyfile && lst.assemblyfile.text) || (lst.sourcefile && lst.sourcefile.text) || lst.text) {
         addWindowItem(lstfn, getFilenameForPath(lstfn), (path) => {
           return new ListingView(path);
         });
