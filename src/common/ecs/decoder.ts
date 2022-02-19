@@ -22,9 +22,10 @@ abstract class LineDecoder {
         let b = 0;
         for (let i=0; i<n; i++) {
             let bit;
-            if (s.charAt(i) == 'x') bit = 1;
-            else if (s.charAt(i) == '.') bit = 0;
-            else throw new ECSError('need x or .');
+            let ch = s.charAt(i);
+            if (ch == 'x' || ch == 'X' || ch == '1') bit = 1;
+            else if (ch == '.' || ch == '0') bit = 0;
+            else throw new ECSError('need x or . (or 0 or 1)');
             if (bit) {
                 if (msbfirst) b |= 1 << (n-1-i);
                 else b |= 1 << i;

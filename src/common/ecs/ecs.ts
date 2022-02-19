@@ -323,7 +323,7 @@ export class Dialect_CA65 {
     }
     warningIfMoreThan(bytes: number, startlabel: string) {
         return `
-.assert (* - ${startlabel}) <= ${bytes}, error, "${startlabel} does not fit in ${bytes} bytes!"`
+.assert (* - ${startlabel}) <= ${bytes}, error, .sprintf("${startlabel} does not fit in ${bytes} bytes, it took %d!", (* - ${startlabel}))`
     }
     alignIfLessThan(bytes: number) {
         return `
