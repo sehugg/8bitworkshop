@@ -144,6 +144,7 @@ Bitmap48_height_b0:
 __Start:
 .code
 
+
 ;;; start action Init 4 main_init
 
 .include "vcs-ca65.h"
@@ -156,15 +157,18 @@ __BRK:
 	; initialize data segment
 .code
 
+
 ;;; start action FrameLoop 1 start
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
     .code
 
+
 ;;; start action StaticKernel 3 preframe
 
     .code
+
 
 ;;; start action Kernel48Pixel 2 kernelsetup
 
@@ -195,6 +199,7 @@ FrameLoop__start__2__NextFrame:
     KERNEL_START
     .code
 
+
 ;;; start action StaticKernel 3 kernel
 
     ldx #0
@@ -202,6 +207,7 @@ StaticKernel__kernel__9____each:
     
     sta WSYNC
     .code
+
 
 ;;; start action Kernel48Pixel 2 kernelsetup
 
@@ -288,6 +294,7 @@ StaticKernel__kernelsetup__13____skipxhi:
 
     .code
 
+
 ;;; start action Kernel48Pixel 2 kerneldraw
 
     cpx #2+1
@@ -350,8 +357,10 @@ StaticKernel__kernel__9____exit:
     KERNEL_END
     .code
 
+
     FRAME_END
     .code
+
 
     jmp FrameLoop__start__2__NextFrame    ; loop to next frame
 

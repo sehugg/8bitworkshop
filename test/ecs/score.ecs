@@ -137,7 +137,6 @@ end
 
 resource FontTable ---
 ; Font table for digits 0-9 (8x8 pixels)
-FontTable:
 ;;{w:8,h:8,count:10,brev:1,flip:1};;
 	.byte $00,$3c,$66,$66,$76,$6e,$66,$3c,$00,$7e,$18,$18,$18,$38,$18,$18
         .byte $00,$7e,$60,$30,$0c,$06,$66,$3c,$00,$3c,$66,$06,$1c,$06,$66,$3c
@@ -211,7 +210,6 @@ end
 
 resource FontTablePF ---
 ; Font table for digits 0-9 (4x8 pixels)
-FontTablePF:
 ;;{w:8,h:8,count:10,brev:1,flip:1};;
         .byte $00,$00,$EE,$AA,$AA,$AA,$EE,$00
         .byte $00,$00,$22,$22,$22,$22,$22,$00
@@ -228,7 +226,6 @@ FontTablePF:
 
 resource FontTablePFFancy ---
 ; Font table for digits 0-9 (4x8 pixels)
-FontTablePFFancy:
 ;;{w:8,h:8,count:10,brev:1,flip:1};;
         .byte $00,$44,$AA,$AA,$AA,$AA,$AA,$44
         .byte $00,$EE,$44,$44,$44,$44,$CC,$44

@@ -46,6 +46,7 @@ Main__INITDATA:
 __Start:
 .code
 
+
 ;;; start action Init 7 main_init
 
 .include "vcs-ca65.h"
@@ -63,15 +64,18 @@ __BRK:
 	; initialize data segment
 .code
 
+
 ;;; start action FrameLoop 1 start
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
     .code
 
+
 ;;; start action StaticKernel 4 preframe
 
     .code
+
 
 ;;; start action StaticKernel 4 kernelsetup
 
@@ -94,6 +98,7 @@ FrameLoop__start__2__NextFrame:
     KERNEL_START
     .code
 
+
 ;;; start action StaticKernel 4 kernel
 
     ldx #0
@@ -101,6 +106,7 @@ StaticKernel__kernel__7____each:
     
     sta WSYNC
     .code
+
 
 ;;; start action StaticKernel 4 kernelsetup
 
@@ -160,11 +166,13 @@ StaticKernel__kernel__7____exit:
     KERNEL_END
     .code
 
+
 ;;; start action JoyButton 5 postframe
 
     lda INPT4	;read button input
     bmi JoyButton__postframe__11__NotPressed
     .code
+
 
 ;;; start action Local 6 joybutton
 
@@ -180,11 +188,13 @@ JoyButton__postframe__11__NotPressed:
     FRAME_END
     .code
 
+
 ;;; start action ResetSwitch 2 nextframe
 
     lsr SWCHB	      ; test Game Reset switch
     bcs ResetSwitch__nextframe__13__NoStart
     .code
+
 
 ;;; start action ResetConsole 3 resetswitch
 

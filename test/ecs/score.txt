@@ -50,6 +50,7 @@ Main__INITDATA:
 __Start:
 .code
 
+
 ;;; start action Init 9 main_init
 
 .include "vcs-ca65.h"
@@ -68,11 +69,13 @@ __BRK:
 	; initialize data segment
 .code
 
+
 ;;; start action FrameLoop 1 start
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
     .code
+
 
 ;;; start action Kernel6Digit 2 preframe
 
@@ -126,6 +129,7 @@ Kernel6Digit__preframe__3__Loop:
 
     KERNEL_START
     .code
+
 
 ;;; start action Kernel6Digit 2 kernel
 
@@ -220,6 +224,7 @@ Kernel2Digit__kernel__7__Loop:
 	sta WSYNC
         .code
 
+
 ;;; start action Kernel2Digit 4 compute2digit
 
         lda Kernel2Digit__4__tmp+1		; load 1st pf
@@ -232,6 +237,7 @@ Kernel2Digit__kernel__7__Loop:
         asl
         asl
         .code
+
 
 ;;; start action Kernel2Digit 4 fetchdigit
 
@@ -251,6 +257,7 @@ Kernel2Digit__kernel__7__Loop:
         lsr
         sty PF1			; store 2nd pf
         .code
+
 
 ;;; start action Kernel2Digit 4 fetchdigit
 
@@ -270,6 +277,7 @@ Kernel2Digit__kernel__7__Loop:
         inx
         .code
 
+
 ;;; start action Kernel2Digit 4 compute2digit
 
         lda Kernel2Digit__4__tmp+1		; load 1st pf
@@ -282,6 +290,7 @@ Kernel2Digit__kernel__7__Loop:
         asl
         asl
         .code
+
 
 ;;; start action Kernel2Digit 4 fetchdigit
 
@@ -301,6 +310,7 @@ Kernel2Digit__kernel__7__Loop:
         lsr
         sty PF1			; store 2nd pf
         .code
+
 
 ;;; start action Kernel2Digit 4 fetchdigit
 
@@ -328,15 +338,18 @@ Kernel2Digit__kernel__7__Loop:
     KERNEL_END
     .code
 
+
 ;;; start action JoyButton 6 postframe
 
     lda INPT4	;read button input
     bmi JoyButton__postframe__14__NotPressed
     .code
 
+
 ;;; start action IncScore 8 joybutton
 
     .code
+
 
 ;;; start action BCDMath 7 AddBCD4
 
@@ -371,6 +384,7 @@ JoyButton__postframe__14__NotPressed:
     FRAME_END
     .code
 
+
     jmp FrameLoop__start__2__NextFrame    ; loop to next frame
 
 ;;; end action FrameLoop 1 start
@@ -385,10 +399,11 @@ VecBRK:    .word Main::__BRK
 
 .code
 
+FontTable:
+
 ;;; start action FontTable 3 FontTable
 
 ; Font table for digits 0-9 (8x8 pixels)
-FontTable:
 ;;{w:8,h:8,count:10,brev:1,flip:1};;
 	.byte $00,$3c,$66,$66,$76,$6e,$66,$3c,$00,$7e,$18,$18,$18,$38,$18,$18
         .byte $00,$7e,$60,$30,$0c,$06,$66,$3c,$00,$3c,$66,$06,$1c,$06,$66,$3c
@@ -400,10 +415,11 @@ FontTable:
 
 .code
 
+FontTablePF:
+
 ;;; start action FontTablePF 5 FontTablePF
 
 ; Font table for digits 0-9 (4x8 pixels)
-FontTablePF:
 ;;{w:8,h:8,count:10,brev:1,flip:1};;
         .byte $00,$00,$EE,$AA,$AA,$AA,$EE,$00
         .byte $00,$00,$22,$22,$22,$22,$22,$00

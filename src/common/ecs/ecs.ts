@@ -624,9 +624,12 @@ class ActionEval {
         this.label = `${this.instance.system.name}__${action.event}__${this.em.seq++}`;
     }
     begin() {
-        let state = this.scope.state = Object.assign({}, this.scope.state);
+        let state = this.scope.state = Object.assign(new ActionCPUState(), this.scope.state);
         // TODO: generalize to other cpus/langs
         switch (this.action.select) {
+            case 'once':
+                state.xreg = state.yreg = null;
+                break;
             case 'foreach':
                 if (state.xreg && state.yreg) throw new ECSError('no more index registers', this.action);
                 if (state.xreg) state.yreg = new IndexRegister(this.scope, this.qr);
@@ -674,14 +677,12 @@ class ActionEval {
         if (this.entities.length == 0 && allowEmpty.includes(this.action.select))
            return '';
 
-        let action = this.action;
-        let sys = this.instance.system;
-        let { code, props } = this.getCodeAndProps(action);
+        let { code, props } = this.getCodeAndProps(this.action);
         // replace @labels
         code = this.replaceLabels(code, this.label);
         // replace {{...}} tags
         // TODO: use nodes instead
-        code = this.replaceTags(code, action, props);
+        code = this.replaceTags(code, this.action, props);
         return code;
     }
     private getCodeAndProps(action: Action) {
@@ -839,8 +840,9 @@ class ActionEval {
         return `${this.tmplabel}+${tempinc}`;
     }
     __arg(args: string[]) {
-        let index = parseInt(args[0] || '0');
-        return this.eventargs[index] || '';
+        let argindex = parseInt(args[0] || '0');
+        let argvalue = this.eventargs[argindex] || '';
+        return argvalue;
     }
     __bss_init(args: string[]) {
         return this.scope.allocateInitData(this.scope.bss);
@@ -1041,6 +1043,9 @@ export class EntityScope implements SourceLocated {
     }
     newSystemInstanceWithDefaults(system: System) {
         return this.newSystemInstance({ system, params: {}, id:0 });
+    }
+    getSystemInstanceNamed(name: string) {
+        return this.instances.find(sys => sys.system.name == name);
     }
     getEntityByName(name: string) {
         return this.entities.find(e => e.name == name);
@@ -1259,7 +1264,7 @@ export class EntityScope implements SourceLocated {
     isConstOrInit(component: ComponentType, fieldName: string) : 'const' | 'init' {
         return this.fieldtypes[mksymbol(component, fieldName)];
     }
-    generateCodeForEvent(event: string, args?: string[]): string {
+    generateCodeForEvent(event: string, args?: string[], codelabel?: string): string {
         // find systems that respond to event
         // and have entities in this scope
         let systems = this.em.event2systems[event];
@@ -1271,8 +1276,8 @@ export class EntityScope implements SourceLocated {
         }
         this.eventSeq++;
         // generate code
-        let code = this.dialect.code();
-        //s += `\n; event ${event}\n`;
+        let code = this.dialect.code() + '\n';
+        if (codelabel) { code += this.dialect.label(codelabel) + '\n'; }
         let eventCount = 0;
         let instances = this.instances.filter(inst => systems.includes(inst.system));
         for (let inst of instances) {
@@ -1384,7 +1389,12 @@ export class EntityScope implements SourceLocated {
         }
         this.code.addCodeFragment(start);
         for (let sub of Array.from(this.resources.values())) {
-            let code = this.generateCodeForEvent(sub);
+            if (!this.getSystemInstanceNamed(sub)) {
+                let sys = this.em.getSystemByName(sub);
+                if (!sys) throw new ECSError(`cannot find resource named "${sub}"`);
+                this.newSystemInstanceWithDefaults(sys);
+            }
+            let code = this.generateCodeForEvent(sub, [], sub);
             this.code.addCodeFragment(code);
         }
         //this.showStats();
