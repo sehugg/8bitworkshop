@@ -317,6 +317,10 @@ export class Dialect_CA65 {
     alignSegmentStart() {
         return this.label('__ALIGNORIGIN');
     }
+    warningIfPageCrossed(startlabel: string) {
+        return `
+.assert >(${startlabel}) = >(*), error, "${startlabel} crosses a page boundary!"`
+    }
     warningIfMoreThan(bytes: number, startlabel: string) {
         return `
 .assert (* - ${startlabel}) <= ${bytes}, error, "${startlabel} does not fit in ${bytes} bytes!"`
@@ -1454,6 +1458,9 @@ export class EntityScope implements SourceLocated {
                     stats.code,
                     this.dialect.return(),
                 ];
+                if (stats.action.critical) {
+                    sublines.push(this.dialect.warningIfPageCrossed(substart));
+                }
                 if (stats.action.fitbytes) {
                     sublines.push(this.dialect.warningIfMoreThan(stats.action.fitbytes, substart));
                 }
