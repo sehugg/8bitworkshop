@@ -643,7 +643,6 @@ __BRK:
     sta Location_room_b0-1,y
     dey
     bne :-
-	; initialize data segment
 
 ;;; start action FrameLoop 1 start
 

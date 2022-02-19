@@ -86,7 +86,6 @@ demo TitleDemo
     system Advance
       on joybutton do once
       ---
-      FRAME_END
       jmp Title2__Start
       ---
     end
@@ -166,19 +165,19 @@ demo TitleDemo
 
     entity [KernelSection, BGColor]
       const lines = 60
-      const bgcolor = $50
+        var bgcolor = 0x10
     end
 
     entity [KernelSection, BGColor]
       const lines = 10
-      const bgcolor = $52
+        var bgcolor = 0x30
     end
 
 // convert -size 48x -gravity center label:"6502\nECS" pbm: | pnmtopnm -plain
     entity [KernelSection, BGColor, PFColor, Bitmap48]
         const lines = 2
-        const bgcolor = 0x54
-        const pfcolor = 0xec
+        var pfcolor = 0xec
+        var bgcolor = 0x30
         decode vcs_bitmap48 ---
 000000000000000000000000000000000000000000011000
 000000000000000000000000000000000000000000011000
@@ -229,13 +228,24 @@ demo TitleDemo
 
     entity [KernelSection, BGColor]
       const lines = 10
-      const bgcolor = $52
+        var bgcolor = 0x30
     end
 
     entity [KernelSection, BGColor]
       const lines = 10
-      const bgcolor = $50
+        var bgcolor = 0x50
     end
+
+system Colors
+    on postframe do foreach [PFColor]
+---
+    inc {{set pfcolor}}
+    bne :+
+    inc {{set bgcolor}}
+    inc {{set bgcolor}}
+:
+---
+end
 
   end
 

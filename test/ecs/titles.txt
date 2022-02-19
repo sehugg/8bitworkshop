@@ -12,7 +12,6 @@ __NMI:
 __Reset:
 __BRK:
     CLEAN_START
-	; initialize data segment
 
 ;;; start action Demo 1 start
 
@@ -500,7 +499,6 @@ StaticKernel__kernel__10____exit:
     
 ;;; start action Advance 5 joybutton
 
-      FRAME_END
       jmp Title2__Start
       
 ;;; end action Advance 5 joybutton
@@ -519,6 +517,14 @@ JoyButton__postframe__18__NotPressed:
 Title__Start = Title::__Start
 .scope Title2
 .zeropage
+BGColor_bgcolor_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+PFColor_pfcolor_b0:
+.res 1
 TEMP:
 Kernel48Pixel__2__tmp:
 .res 1
@@ -530,14 +536,6 @@ KernelSection_lines_b0:
 .byte 2
 .byte 10
 .byte 10
-BGColor_bgcolor_b0:
-.byte 80
-.byte 82
-.byte 84
-.byte 82
-.byte 80
-PFColor_pfcolor_b0:
-.byte 236
 Bitmap48_bitmap0_b0:
 .byte <Bitmap48_bitmap0_e2_b0
 Bitmap48_bitmap0_b8:
@@ -834,7 +832,20 @@ Bitmap48_bitmap5_e2_b0:
 .byte 24
 Bitmap48_height_b0:
 .byte 43
+Title2__INITDATA:
+.byte 16
+.byte 48
+.byte 48
+.byte 48
+.byte 80
+.byte 236
 __Start:
+
+    ldy #6
+:   lda Title2__INITDATA-1,y
+    sta BGColor_bgcolor_b0-1,y
+    dey
+    bne :-
 
 ;;; start action FrameLoop 1 start
 
@@ -854,7 +865,7 @@ FrameLoop__start__20__NextFrame:
 
 ;;; start action StaticKernel 3 kernelsetup
 
-    lda #80
+    lda BGColor_bgcolor_b0
     sta COLUBK
 
 ;;; end action StaticKernel 3 kernelsetup
@@ -924,7 +935,7 @@ Kernel48Pixel__kernelsetup__28____skipxhi:
     cpx #2
     jcc Kernel48Pixel__kernelsetup__29____skipxlo
     
-    lda #236
+    lda PFColor_pfcolor_b0
     sta COLUP0
     sta COLUP1
 
@@ -949,7 +960,7 @@ Kernel48Pixel__kernelsetup__29____skipxhi:
     cpx #2
     jcc StaticKernel__kernelsetup__31____skipxlo
     
-    lda #236
+    lda PFColor_pfcolor_b0
     sta COLUPF
 
 StaticKernel__kernelsetup__31____skipxlo:
@@ -1024,6 +1035,16 @@ StaticKernel__kernel__27____exit:
 
     KERNEL_END
     
+;;; start action Colors 4 postframe
+
+    inc PFColor_pfcolor_b0
+    bne :+
+    inc BGColor_bgcolor_b0+2
+    inc BGColor_bgcolor_b0+2
+:
+
+;;; end action Colors 4 postframe
+
     FRAME_END
     
     jmp FrameLoop__start__20__NextFrame    ; loop to next frame

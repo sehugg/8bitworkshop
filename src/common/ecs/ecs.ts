@@ -865,9 +865,6 @@ class ActionEval {
         //this.used.add(`arg_${argindex}_${argvalue}`);
         return argvalue;
     }
-    __bss_init(args: string[]) {
-        return this.scope.allocateInitData(this.scope.bss);
-    }
     wrapCodeInLoop(code: string, action: ActionWithQuery, ents: Entity[], joinfield?: ComponentFieldPair): string {
         // TODO: check ents
         // TODO: check segment bounds
@@ -1317,7 +1314,13 @@ export class EntityScope implements SourceLocated {
         this.eventSeq++;
         // generate code
         let code = '';
+        // is there a label? generate it first
         if (codelabel) { code += this.dialect.label(codelabel) + '\n'; }
+        // if "start" event, initialize data segment
+        if (event == 'start') {
+            code += this.allocateInitData(this.bss);
+        }
+        // iterate all instances and generate matching events
         let eventCount = 0;
         let instances = this.instances.filter(inst => systems.includes(inst.system));
         for (let inst of instances) {
@@ -1446,6 +1449,7 @@ export class EntityScope implements SourceLocated {
     replaceSubroutines(code: string) {
         // TODO: bin-packing for critical code
         // TODO: doesn't work with nested subroutines?
+        // TODO: doesn't work between scopes
         let allsubs : string[] = [];
         for (let stats of Object.values(this.eventStats)) {
             if (stats.count > 1) {

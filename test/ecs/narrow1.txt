@@ -6,7 +6,18 @@ Xpos_x_b0:
 .res 1
 .res 1
 .code
+Main__INITDATA:
+.byte 0
+.byte 50
+.byte 100
+.byte 150
 __Start:
+
+    ldy #4
+:   lda Main__INITDATA-1,y
+    sta Xpos_x_b0-1,y
+    dey
+    bne :-
 
 ;;; start action move 1 start
 
