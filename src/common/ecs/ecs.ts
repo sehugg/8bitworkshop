@@ -72,7 +72,7 @@ export interface SystemInstance extends SourceLocated {
     id: number;
 }
 
-export const SELECT_TYPE = ['once', 'foreach', 'join', 'with', 'if', 'select'] as const;
+export const SELECT_TYPE = ['once', 'foreach', 'join', 'with', 'if', 'select', 'unroll'] as const;
 
 export type SelectType = typeof SELECT_TYPE[number];
 
@@ -133,7 +133,7 @@ export interface ActionOnce extends ActionBase {
 }
 
 export interface ActionWithQuery extends ActionBase {
-    select: 'foreach' | 'join' | 'with' | 'if' | 'select'
+    select: 'foreach' | 'join' | 'with' | 'if' | 'select' | 'unroll'
     query: Query
     direction?: 'asc' | 'desc'
 }
@@ -647,6 +647,7 @@ class ActionEval {
                 state.xreg = state.yreg = null;
                 break;
             case 'foreach':
+            case 'unroll':
                 if (state.xreg && state.yreg) throw new ECSError('no more index registers', this.action);
                 if (state.xreg) state.yreg = new IndexRegister(this.scope, this.qr);
                 else state.xreg = new IndexRegister(this.scope, this.qr);
@@ -689,7 +690,7 @@ class ActionEval {
         this.scope.state = this.oldState;
     }
     codeToString(): string {
-        const allowEmpty = ['if','foreach','join'];
+        const allowEmpty = ['if','foreach','unroll','join'];
         if (this.entities.length == 0 && allowEmpty.includes(this.action.select))
            return '';
 
@@ -745,6 +746,9 @@ class ActionEval {
             }
             if (action.select == 'foreach' && entities.length > 1) {
                 code = this.wrapCodeInLoop(code, action, this.qr.entities);
+            }
+            if (action.select == 'unroll' && entities.length > 1) {
+                throw new ECSError('unroll is not yet implemented');
             }
             // define properties
             props['%elo'] = entities[0].id.toString();
