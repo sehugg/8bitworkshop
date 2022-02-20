@@ -46,6 +46,7 @@ export interface ComponentType extends SourceLocated {
 export interface Query extends SourceLocated {
     include: ComponentType[]; // TODO: make ComponentType
     exclude?: ComponentType[];
+    entities?: Entity[];
     limit?: number;
 }
 
@@ -503,10 +504,18 @@ class EntitySet {
     constructor(scope: EntityScope, query?: Query, a?: EntityArchetype[], e?: Entity[]) {
         this.scope = scope;
         if (query) {
-            this.atypes = scope.em.archetypesMatching(query);
-            this.entities = scope.entitiesMatching(this.atypes);
-            if (query.limit) {
-                this.entities = this.entities.slice(0, query.limit);
+            if (query.entities) {
+                this.entities = query.entities.slice(0);
+                this.atypes = [];
+                for (let e of this.entities)
+                    if (!this.atypes.includes(e.etype))
+                        this.atypes.push(e.etype);
+            } else {
+                this.atypes = scope.em.archetypesMatching(query);
+                this.entities = scope.entitiesMatching(this.atypes);
+                if (query.limit) {
+                    this.entities = this.entities.slice(0, query.limit);
+                }
             }
         } else if (a && e) {
             this.atypes = a;
@@ -751,8 +760,10 @@ class ActionEval {
                 throw new ECSError('unroll is not yet implemented');
             }
             // define properties
-            props['%elo'] = entities[0].id.toString();
-            props['%ehi'] = entities[entities.length - 1].id.toString();
+            if (entities.length) {
+                props['%elo'] = entities[0].id.toString();
+                props['%ehi'] = entities[entities.length - 1].id.toString();
+            }
             props['%ecount'] = entities.length.toString();
             props['%efullcount'] = fullEntityCount.toString();
             // TODO

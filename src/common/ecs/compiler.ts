@@ -170,10 +170,14 @@ export class ECSCompiler extends Tokenizer {
         if (tok.str == '#') {
             this.consumeToken();
             let reftype = field.dtype == 'ref' ? field as RefType : undefined;
-            let token = this.expectIdent();
-            return { reftype, token };
+            return this.parseEntityForwardRef(reftype);
         }
         this.compileError(`I expected a ${field.dtype} here.`); throw new Error();
+    }
+
+    parseEntityForwardRef(reftype?: RefType) : ForwardRef {
+        let token = this.expectIdent();
+        return { reftype, token };
     }
 
     parseDataArray() {
@@ -283,12 +287,22 @@ export class ECSCompiler extends Tokenizer {
         if (prefix.type != TokenType.Ident) {
             this.consumeToken();
         }
-        let cref = this.parseComponentRef();
         if (prefix.type == TokenType.Ident) {
+            let cref = this.parseComponentRef();
             q.include.push(cref);
         } else if (prefix.str == '-') {
+            let cref = this.parseComponentRef();
             if (!q.exclude) q.exclude = [];
             q.exclude.push(cref);
+        } else if (prefix.str == '#') {
+            const scope = this.currentScope;
+            if (scope == null) { this.internalError(); throw new Error(); }
+            let eref = this.parseEntityForwardRef();
+            this.deferred.push(() => {
+                let refvalue = this.resolveEntityRef(scope, eref);
+                if (!q.entities) q.entities = [];
+                q.entities.push(scope.entities[refvalue]);
+            });
         } else {
             this.compileError(`Query components may be preceded only by a '-'.`);
         }
