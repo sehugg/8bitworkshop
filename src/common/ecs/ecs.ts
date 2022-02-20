@@ -309,8 +309,11 @@ export class Dialect_CA65 {
         return `.scope ${name}`
     }
     endScope(name: string) {
-        return `.endscope\n${name}__Start = ${name}::__Start`
+        return `.endscope\n${this.scopeSymbol(name)} = ${name}::__Start`
         // TODO: scope__start = scope::start
+    }
+    scopeSymbol(name: string) {
+        return `${name}__Start`;
     }
     align(value: number) {
         return `.align ${value}`;
@@ -364,6 +367,9 @@ export class Dialect_CA65 {
     }
     call(symbol: string) {
         return ` jsr ${symbol}`;
+    }
+    jump(symbol: string) {
+        return ` jmp ${symbol}`;
     }
     return() {
         return ' rts';
@@ -662,6 +668,8 @@ class ActionEval {
                 else state.xreg = new IndexRegister(this.scope, this.qr);
                 break;
             case 'join':
+                // TODO: Joins don't work in superman (arrays offset?)
+                // ignore the join query, use the ref
                 if (state.xreg || state.yreg) throw new ECSError('no free index registers for join', this.action);
                 this.jr = new EntitySet(this.scope, (this.action as ActionWithJoin).join);
                 state.xreg = new IndexRegister(this.scope, this.jr);
@@ -882,6 +890,10 @@ class ActionEval {
         //this.used.add(`arg_${argindex}_${argvalue}`);
         return argvalue;
     }
+    __start(args: string[]) {
+        let startSymbol = this.dialect.scopeSymbol(args[0]);
+        return this.dialect.jump(startSymbol);
+    }
     wrapCodeInLoop(code: string, action: ActionWithQuery, ents: Entity[], joinfield?: ComponentFieldPair): string {
         // TODO: check ents
         // TODO: check segment bounds
@@ -976,9 +988,8 @@ class ActionEval {
         if (baseLookup) {
             return this.dialect.absolute(ident);
         } else if (entities.length == 1) {
-            let eidofs = qr.entities.length && qr.entities[0].id - range.elo; // TODO: negative?
-            if (entityLookup)
-                eidofs = entities[0].id - range.elo;
+            // TODO: qr or this.entites?
+            let eidofs = entities[0].id - range.elo; // TODO: negative?
             return this.dialect.absolute(ident, eidofs);
         } else {
             let ir;
@@ -1298,15 +1309,17 @@ export class EntityScope implements SourceLocated {
         return this.bss.getFieldRange(c, fn) || this.rodata.getFieldRange(c, fn);
     }
     // TODO: check type/range of value
-    setConstValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        this.setConstInitValue(e, component, fieldName, value, 'const');
+    setConstValue(e: Entity, component: ComponentType, field: DataField, value: DataValue) {
+        this.setConstInitValue(e, component, field, value, 'const');
     }
-    setInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue) {
-        this.setConstInitValue(e, component, fieldName, value, 'init');
+    setInitValue(e: Entity, component: ComponentType, field: DataField, value: DataValue) {
+        this.setConstInitValue(e, component, field, value, 'init');
     }
-    setConstInitValue(e: Entity, component: ComponentType, fieldName: string, value: DataValue,
-        type: 'const'|'init') {
-        this.em.singleComponentWithFieldName([e.etype], fieldName, e);
+    setConstInitValue(e: Entity, component: ComponentType, field: DataField, value: DataValue,
+        type: 'const'|'init')
+    {
+        this.checkValueType(field, value);
+        let fieldName = field.name;
         let cfname = mksymbol(component, fieldName);
         let ecfname = mkscopesymbol(this, component, fieldName);
         if (e.consts[cfname] !== undefined) throw new ECSError(`"${fieldName}" is already defined as a constant`, e);
@@ -1317,6 +1330,24 @@ export class EntityScope implements SourceLocated {
     }
     isConstOrInit(component: ComponentType, fieldName: string) : 'const' | 'init' {
         return this.fieldtypes[mksymbol(component, fieldName)];
+    }
+    checkValueType(field: DataField, value: DataValue) {
+        if (field.dtype == 'array') {
+            if (!(value instanceof Uint8Array))
+                throw new ECSError(`This "${field.name}" value should be an array.`);
+        } else if (typeof value !== 'number') {
+            throw new ECSError(`This "${field.name}" ${field.dtype} value should be an number.`);
+        } else {
+            if (field.dtype == 'int') {
+                if (value < field.lo || value > field.hi)
+                    throw new ECSError(`This "${field.name}" value is out of range, should be between ${field.lo} and ${field.hi}.`);
+            } else if (field.dtype == 'ref') {
+                // TODO: allow override if number
+                let eset = new EntitySet(this, field.query);
+                if (value < 0 || value >= eset.entities.length)
+                    throw new ECSError(`This "${field.name}" value is out of range for this ref type.`);
+            }
+        }
     }
     generateCodeForEvent(event: string, args?: string[], codelabel?: string): string {
         // find systems that respond to event

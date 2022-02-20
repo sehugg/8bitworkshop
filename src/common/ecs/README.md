@@ -143,3 +143,11 @@ banks need to duplicate code and/or rodata
 - don't split critical code across banks
 need bank trampoline macro
 nested scopes for game modes? (title / demo / play)
+
+critical data fields
+if accessed in critical section, make critical
+ignore arrays that aren't referenced
+
+use DASM for multipass?
+
+default values for component fields
