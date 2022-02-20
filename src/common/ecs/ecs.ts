@@ -156,6 +156,7 @@ export interface IntType {
     dtype: 'int'
     lo: number
     hi: number
+    defvalue?: number
 }
 
 export interface ArrayType {
@@ -1088,15 +1089,18 @@ export class EntityScope implements SourceLocated {
     ) {
         parent?.childScopes.push(this);
     }
-    newEntity(etype: EntityArchetype): Entity {
+    newEntity(etype: EntityArchetype, name: string): Entity {
         // TODO: add parent ID? lock parent scope?
         // TODO: name identical check?
+        if (name && this.getEntityByName(name))
+            throw new ECSError(`already an entity named "${name}"`);
         let id = this.entities.length;
         etype = this.em.addArchetype(etype);
         let entity: Entity = { id, etype, consts: {}, inits: {} };
         for (let c of etype.components) {
             this.componentsInScope.add(c.name);
         }
+        entity.name = name;
         this.entities.push(entity);
         return entity;
     }
@@ -1172,7 +1176,14 @@ export class EntityScope implements SourceLocated {
             } else {
                 array.ehi = i;
             }
-            //console.log(i,e.name,array,cfname);
+            // set default values for entity/field
+            if (ftype == 'init') {
+                if (f.dtype == 'int' && f.defvalue !== undefined) {
+                    let ecfname = mkscopesymbol(this, c, f.name);
+                    if (e.inits[ecfname] == null)
+                        this.setInitValue(e, c, f, f.defvalue);
+                }
+            }
         }
     }
     // TODO: cull unused entity fields
@@ -1323,7 +1334,7 @@ export class EntityScope implements SourceLocated {
         let cfname = mksymbol(component, fieldName);
         let ecfname = mkscopesymbol(this, component, fieldName);
         if (e.consts[cfname] !== undefined) throw new ECSError(`"${fieldName}" is already defined as a constant`, e);
-        if (e.inits[ecfname] !== undefined) throw new ECSError(`"${fieldName}" is already defined as a`, e);
+        if (e.inits[ecfname] !== undefined) throw new ECSError(`"${fieldName}" is already defined as a variable`, e);
         if (type == 'const') e.consts[cfname] = value;
         if (type == 'init') e.inits[ecfname] = value;
         this.fieldtypes[cfname] = type;

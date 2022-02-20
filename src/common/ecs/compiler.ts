@@ -139,7 +139,12 @@ export class ECSCompiler extends Tokenizer {
             let lo = this.expectInteger();
             this.expectToken('..');
             let hi = this.expectInteger();
-            return { dtype: 'int', lo, hi } as IntType;
+            // TODO: use default value?
+            let defvalue;
+            if (this.ifToken('default')) {
+                defvalue = this.expectInteger();
+            }
+            return { dtype: 'int', lo, hi, defvalue } as IntType;
         }
         if (this.peekToken().str == '[') {
             return { dtype: 'ref', query: this.parseQuery() } as RefType;
@@ -392,8 +397,7 @@ export class ECSCompiler extends Tokenizer {
             entname = this.expectIdent().str;
         }
         let etype = this.parseEntityArchetype();
-        let entity = this.currentScope.newEntity(etype);
-        entity.name = entname;
+        let entity = this.currentScope.newEntity(etype, entname);
         let cmd2: string;
         // TODO: remove init?
         while ((cmd2 = this.expectTokens(['const', 'init', 'var', 'decode', 'end']).str) != 'end') {
