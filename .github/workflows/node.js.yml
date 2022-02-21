@@ -29,10 +29,11 @@ jobs:
     - run: git submodule init
     - run: git submodule update
     - run: npm ci
-    - run: make distro
+    - run: npm run build --if-present
     - run: npm test
       env:
         TEST8BIT_GITHUB_TOKEN: ${{ secrets.TEST8BIT_GITHUB_TOKEN }}
+    - run: make distro
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@v4.2.5
       with:

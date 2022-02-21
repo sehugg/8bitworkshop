@@ -1,6 +1,6 @@
 # 8bitworkshop
 
-![example workflow](https://github.com/sehugg/8bitworkshop/actions/workflows/node.js.yml/badge.svg)
+![Build Status](https://github.com/sehugg/8bitworkshop/actions/workflows/node.js.yml/badge.svg)
 
 
 ## Use Online
