@@ -642,7 +642,7 @@ async function getGithubService() {
     // load firebase
     await loadScript('https://www.gstatic.com/firebasejs/8.8.1/firebase-app.js');
     await loadScript('https://www.gstatic.com/firebasejs/8.8.1/firebase-auth.js');
-    await loadScript('./config.js');
+    await loadScript('https://8bitworkshop.com/config.js');
     // get github API key from cookie
     // TODO: move to service?
     var ghkey = getCookie('__github_key');
