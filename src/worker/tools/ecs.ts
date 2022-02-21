@@ -2,7 +2,7 @@ import { ECSCompiler } from "../../common/ecs/compiler";
 import { Dialect_CA65, ECSError, EntityManager } from "../../common/ecs/ecs";
 import { CompileError } from "../../common/tokenizer";
 import { CodeListingMap } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, getWorkFileAsString, putWorkFile, staleFiles } from "../workermain";
+import { BuildStep, BuildStepResult, fixParamsWithDefines, gatherFiles, getWorkFileAsString, putWorkFile, staleFiles } from "../workermain";
 
 export function assembleECS(step: BuildStep): BuildStepResult {
     let em = new EntityManager(new Dialect_CA65()); // TODO
@@ -15,6 +15,7 @@ export function assembleECS(step: BuildStep): BuildStepResult {
     var destpath = step.prefix + '.ca65';
     if (staleFiles(step, [destpath])) {
         let code = getWorkFileAsString(step.path);
+        fixParamsWithDefines(step.path, step.params);
         try {
             compiler.debuginfo = true;
             compiler.parseFile(code, step.path);
@@ -37,7 +38,7 @@ export function assembleECS(step: BuildStep): BuildStepResult {
         nexttool: "ca65",
         path: destpath,
         args: [destpath],
-        files: [destpath, 'vcs-ca65.h'], //TODO
+        files: [destpath].concat(step.files),
         listings
     };
 }

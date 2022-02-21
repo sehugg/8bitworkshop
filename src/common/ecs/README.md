@@ -156,3 +156,31 @@ take up at least one byte if stateful
 might need free list
 need jump table?
 you'd like to change "mode" from any event
+
+need constant folding, set arrays from other exprs
+
+a = [Sprite,-Player]
+foreach a do begin
+  xpos = ypos
+end
+
+    on gowest do with x:[Location]
+---
+    ldy {{<room}}
+    lda {{<Room:west}},y
+    sta {{<room}}
+---
+    on preframe do
+    with y=[SpriteSlot] limit 2
+    with x=y.sprite
+---
+    lda {{<xpos}}
+    {{!SetHorizPos}}
+---
+    on preframe do
+    foreach x=[Missile,HasXpos]
+---
+    lda {{<xpos}}
+    ldy {{<index}}
+    {{!SetHorizPos}}
+---

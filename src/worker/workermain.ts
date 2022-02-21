@@ -1135,7 +1135,8 @@ var TOOL_PRELOADFS = {
   'fastbasic': '65-atari8',
   'silice': 'Silice',
   'wiz': 'wiz',
-  'ecs': '65-none', // TODO: support multiple platforms
+  'ecs-vcs': '65-none', // TODO: support multiple platforms
+  'ecs-nes': '65-nes', // TODO: support multiple platforms
 }
 
 //const waitFor = delay => new Promise(resolve => setTimeout(resolve, delay)); // for testing
