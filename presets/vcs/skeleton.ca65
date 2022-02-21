@@ -1,0 +1,30 @@
+
+.include "vcs-ca65.h"
+
+.zeropage
+Temp:		.byte 0
+
+.segment "CODE"
+
+Reset:
+	CLEAN_START
+
+NextFrame:
+	FRAME_START
+        
+        lda #$80
+        sta COLUBK
+        
+        KERNEL_START
+        
+        KERNEL_END
+
+	FRAME_END
+        
+	jmp NextFrame
+
+
+.segment "VECTORS"
+VecNMI:    .word Reset
+VecReset:  .word Reset
+VecBRK:    .word Reset

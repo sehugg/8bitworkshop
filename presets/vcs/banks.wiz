@@ -1,0 +1,2 @@
+bank rom @ 0xF000 : [constdata; 4096];
+bank ram @ 0x80 : [vardata; 128];

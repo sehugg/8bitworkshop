@@ -1,0 +1,80 @@
+ASxxxx Assembler V02.00 + NoICE + SDCC mods  (Zilog Z80 / Hitachi HD64180 / ZX-Next / eZ80), page 1.
+Hexadecimal [24-Bits]
+
+
+
+                                      1 ; crt0.s for ZX Spectrum
+                                      2 
+                                      3 	.module crt0
+                                      4 	.globl _main
+                                      5 	.globl ___sdcc_call_hl
+                                      6 	.globl l__DATA
+                                      7 	.globl s__DATA
+                                      8 	.globl s__INITIALIZED
+                                      9 	.globl s__INITIALIZER
+                                     10 	.globl l__INITIALIZER
+                                     11 
+                                     12 	; Ordering of segments for the linker - copied from sdcc crt0.s
+                                     13 	.area	_CODE
+                                     14 	.area	_INITIALIZER
+                                     15 	.area	_HOME
+                                     16 	.area	_GSINIT
+                                     17 	.area	_GSFINAL
+                                     18 	.area	_DATA
+                                     19 	.area	_INITIALIZED
+                                     20 	.area	_BSEG
+                                     21 	.area	_BSS
+                                     22 	.area	_HEAP
+                                     23 
+                                     24 	.area	_CODE
+                                     25 
+      000000                         26 _Start:
+                                     27 	;di
+                                     28 	;im	1
+                                     29 	; stack pointer already set by BIOS
+      000000 CD 00 00         [17]   30 	call gsinit			; Initialize global and static variables.
+      000003 CD 00 00         [17]   31 	call _main
+      000006 C7               [11]   32 	rst 0x0				; Restart when main() returns.
+                                     33 
+                                     34 	.area   _GSINIT
+      000000                         35 gsinit::
+                                     36 
+                                     37 	; Implicitly zeroed global and static variables.
+      000000 01 00 00         [10]   38 	ld	bc, #l__DATA
+      000003 78               [ 4]   39 	ld	a, b
+      000004 B1               [ 4]   40 	or	a, c
+      000005 28 0F            [12]   41 	jr	Z, zeroed_data
+      000007 21 00 00         [10]   42 	ld	hl, #s__DATA
+      00000A 36 00            [10]   43 	ld	(hl), #0x00
+      00000C 0B               [ 6]   44 	dec	bc
+      00000D 78               [ 4]   45 	ld	a, b
+      00000E B1               [ 4]   46 	or	a, c
+      00000F 28 05            [12]   47 	jr	Z, zeroed_data
+      000011 5D               [ 4]   48 	ld	e, l
+      000012 54               [ 4]   49 	ld	d, h
+      000013 13               [ 6]   50 	inc	de
+      000014 ED B0            [21]   51 	ldir
+      000016                         52 zeroed_data:
+                                     53 
+                                     54 	; Explicitly initialized global variables.
+      000016 01 00 00         [10]   55 	ld	bc, #l__INITIALIZER
+ASxxxx Assembler V02.00 + NoICE + SDCC mods  (Zilog Z80 / Hitachi HD64180 / ZX-Next / eZ80), page 2.
+Hexadecimal [24-Bits]
+
+
+
+      000019 78               [ 4]   56 	ld	a, b
+      00001A B1               [ 4]   57 	or	a, c
+      00001B 28 08            [12]   58 	jr	Z, gsinit_static
+      00001D 11 00 00         [10]   59 	ld	de, #s__INITIALIZED
+      000020 21 00 00         [10]   60 	ld	hl, #s__INITIALIZER
+      000023 ED B0            [21]   61 	ldir
+                                     62 
+      000025                         63 gsinit_static:
+                                     64 	; Explicitly initialized static variables inserted by compiler here.
+                                     65 
+                                     66 	.area   _GSFINAL
+      000000 C9               [10]   67 	ret
+                                     68 
+                                     69 	.area _HOME
+                                     70 

@@ -1,0 +1,39 @@
+
+Constant Story "My Story Name";
+
+Constant Headline
+           "^This is My Story^
+             By New Writer (2020)^";
+
+Constant MAX_SCORE 100;
+
+Release 1;
+
+Include "Parser";
+Include "VerbLib";
+
+!-------------------------------------------------------------------------------
+! Initialise
+!-------------------------------------------------------------------------------
+
+[ Initialise;
+
+  location = Main_Lobby;
+
+];
+
+! ----------------------------------------------------------------------------
+! Locations
+! ----------------------------------------------------------------------------
+
+Object Main_Lobby "Main Lobby"
+    with  description
+          "You are in the main lobby.",
+    has   light;
+
+! ----------------------------------------------------------------------------
+! Grammar
+! ----------------------------------------------------------------------------
+
+Include "Grammar";
+

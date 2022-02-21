@@ -1,0 +1,75 @@
+import "msx";
+
+bank rom @ 0x4000 : [constdata; 0x4000];
+bank ram @ 0xE000 : [vardata; 0x2000];
+
+in ram {}
+
+in rom {
+    // FIXME: add support for MSX ROM header format directly in Wiz.
+    namespace header {
+        const id = "AB";
+        const init_handler = main;
+        const statement_handler = 0u16;
+        const expansion_handler = 0u16;
+        const basic_start = 0u16;
+        const padding = [0u8; 6];
+    }
+
+    #[fallthrough] func main() {
+        interrupt = false;
+
+        // Set border color.
+        msx.bios.border_color = a = msx.vdp.color.BLACK;
+        msx.bios.vdp_apply_colors();
+
+        // Init screen mode.
+        load_inc_repeat(
+            de = <>:&msx.bios.screen_2_nametable,
+            hl = <>:&screen_init_data,
+            bc = sizeof(typeof(screen_init_data)));
+        msx.bios.init_screen_2(
+            msx.bios.screen_2_nametable,
+            msx.bios.screen_2_tile_color_table,
+            msx.bios.screen_2_tile_pattern_table,
+            msx.bios.screen_2_sprite_attribute_table,
+            msx.bios.screen_2_sprite_pattern_table
+        );
+
+        // Disable the screen so we can access VRAM. (Initializing the screen mode also enables the screen).
+        msx.bios.disable_screen();
+        // Load tileset colors.
+        let COLOR_ATTRIBUTE = (msx.vdp.color.WHITE << 4) | msx.vdp.color.LIGHT_BLUE;
+        msx.bios.vdp_vram_fill_block(msx.vdp.screen2.TILESET_COLOR_RAM_ADDRESS, COLOR_ATTRIBUTE, msx.vdp.screen2.TILESET_COLOR_RAM_SIZE);
+        // Load tileset patterns.
+        msx.bios.vdp_vram_write_block(msx.vdp.screen2.TILESET_PATTERN_BANK_TOP_ADDRESS, &bkg_tileset[0], sizeof(typeof(bkg_tileset)));
+        msx.bios.vdp_vram_write_block(msx.vdp.screen2.TILESET_PATTERN_BANK_MIDDLE_ADDRESS, &bkg_tileset[0], sizeof(typeof(bkg_tileset)));
+        msx.bios.vdp_vram_write_block(msx.vdp.screen2.TILESET_PATTERN_BANK_BOTTOM_ADDRESS, &bkg_tileset[0], sizeof(typeof(bkg_tileset)));
+        // Clear nametable.
+        msx.bios.vdp_vram_fill_block(msx.vdp.screen2.NAMETABLE_ADDRESS, 0, msx.vdp.screen2.NAMETABLE_SIZE);
+        // Write text to nametable.
+        let START_OFFSET_Y = 8;
+        let START_OFFSET_X = 10;
+        let MESSAGE_DEST_ADDRESS = msx.vdp.screen2.NAMETABLE_ADDRESS + START_OFFSET_Y * 32 + START_OFFSET_X;
+        msx.bios.vdp_vram_write_block(MESSAGE_DEST_ADDRESS, &message[0], sizeof(typeof(message)));
+        // Turn screen on.
+        msx.bios.enable_screen();
+
+        interrupt = true;
+
+        while true {
+            halt();
+        }
+    }
+
+    const screen_init_data : [u16] = [
+        msx.vdp.screen2.NAMETABLE_ADDRESS,
+        msx.vdp.screen2.TILESET_COLOR_RAM_ADDRESS,
+        msx.vdp.screen2.TILESET_PATTERN_RAM_ADDRESS,
+        msx.vdp.screen2.SPRITE_ATTRIBUTE_ADDRESS,
+        msx.vdp.screen2.SPRITE_PATTERN_ADDRESS,
+    ];
+
+    const message = "HELLO  WORLD";
+    const bkg_tileset = embed "hello_tiles.chr";
+}

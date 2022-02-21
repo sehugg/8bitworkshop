@@ -1,0 +1,34 @@
+
+//#resource "astrocade.inc"
+#include "aclib.h"
+//#link "aclib.s"
+#include "acbios.h"
+//#link "acbios.s"
+//#link "hdr_autostart.s"
+
+#include <stdlib.h>
+#include <string.h>
+
+/*{pal:"astrocade",layout:"astrocade"}*/
+const byte palette[8] = {
+  0x77, 0xD4, 0x35, 0x01,
+  0x07, 0xD4, 0x35, 0x01,
+};
+
+void main(void) {
+  // setup palette
+  set_palette(palette);
+  // set screen height
+  // set horizontal color split (position / 4)
+  // set interrupt status
+  SYS_SETOUT(89*2, 23, 0);
+  // clear screen
+  SYS_FILL(0x4000, 89*40, 0);
+  // display standard characters
+  display_string(2, 2, OPT_ON(1), "HELLO, WORLD!!");
+  // infinite loop
+  activate_interrupts();
+  while (1) {
+    sleep(1);
+  }
+}

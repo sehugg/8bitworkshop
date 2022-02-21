@@ -1,0 +1,413 @@
+
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; The sprite retrigger trick relies on a behavior when the
+; NUSIZ register is set to display multiple copies of objects
+; (usually two). Basically, if the RESPx register is strobed
+; multiple times on a given scanline, the first (leftmost) copy
+; of the object will be hidden, and the TIA will draw the other
+; copy. You can keep strobing the register to output multiple
+; copies on the same scanline.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	org  $f000
+
+CurRow		equ $8f
+NumRows		equ 5
+EnemyRows0	equ $80
+EnemyYpos0	equ $85
+EnemyXofs0	equ $8a
+
+Temp		equ $90
+MissileY0	equ $91
+MissileY1	equ $92
+MissileX0	equ $93
+BaseX		equ $94
+
+ZPRoutine	equ $a0
+ZPWrites	equ ZPRoutine+(KernelStores-KernelStart)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+Start
+	CLEAN_START
+
+; Copy Grid Kernel routine into RAM so we can modify it.
+	ldx #KernelEnd-KernelStart-1
+CopyRoutineLoop
+	lda KernelStart,x
+        sta ZPRoutine,x
+        dex
+        bpl CopyRoutineLoop
+; Set up interlocuters
+        lda #$ff
+        sta EnemyRows0+4
+        sta EnemyRows0+3
+        sta EnemyRows0+2
+        sta EnemyRows0+1
+        sta EnemyRows0+0
+        lda #190
+        sta EnemyYpos0+4
+        lda #170
+        sta EnemyYpos0+3
+        lda #150
+        sta EnemyYpos0+2
+        lda #130
+        sta EnemyYpos0+1
+        lda #110
+        sta EnemyYpos0+0
+        lda #40
+        sta MissileY0
+        lda #50
+        sta MissileY1
+        lda #65
+        sta BaseX
+        lda #$df
+        sta COLUPF	; use the ball for the player's missile
+; Try out the Grid Kernel (not neccessary except for the IDE to get timing)
+	ldy #0		; just one line
+	jsr KernelStart
+
+NextFrame
+	VERTICAL_SYNC
+; VBLANK
+	TIMER_SETUP 37
+        jsr ReadControls
+        jsr MoveMissiles
+        TIMER_WAIT
+; Main frame
+	TIMER_SETUP 192
+        jsr DrawEnemyFormation
+        jsr DrawBelowFormation
+        jsr DrawPlayerBase
+        lda #$10
+        sta COLUBK	; set ground color, just in time!
+        lda #0
+        sta ENABL
+        sta ENAM1	; turn off missile and ball
+; Overscan
+	TIMER_SETUP 29
+        TIMER_WAIT
+        lda #0
+        sta COLUBK	; clear ground color
+; Jump to next frame
+        jmp NextFrame
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Draw all lines of the enemy formation.
+DrawEnemyFormation
+        lda #4
+        sta CurRow
+; We're going to use the timer to wait for the
+; scanline to approach the next row of enemies.
+; We'll draw any missiles while we're waiting.
+WaitForRow
+	jsr DrawMissiles
+        ldx CurRow
+        lda EnemyYpos0,x
+        cmp INTIM
+        bcc WaitForRow
+ ; We've reached the right scanline, so we'll
+; set up the NUSIZ registers and clear collisions.
+        lda #1		; two copies, close for NUSIZ
+        sta NUSIZ0
+        sta NUSIZ1
+        sta CXCLR	; clear collisions
+; WSYNC and draw the row of sprites.
+        sta WSYNC
+        jsr DrawFormation
+; See if any of the player objects collided with ball.
+        lda CXP0FB
+        ora CXP1FB
+        and #$c0
+        beq NoCollision
+; We've got a collision, now we need to see where it is.
+; Our grid spacing is 12 pixels, so we need to divide by 12.
+; We'll have to account for the X offset of the sprites, too.
+	lda MissileX0
+        ldx #$ff
+        sec
+        sbc #13
+DivideBy12
+	inx
+        sbc #12
+        bcs DivideBy12
+        txa
+; Now we lookup the bitmask to use, and erase the
+; bit that corresponds to the enemy.
+        tax
+        lda PowersOf2,x
+        eor #$ff
+        ldx CurRow
+        and EnemyRows0,x
+        sta EnemyRows0,x
+; Now we destroy the missile too.
+        lda #0
+        sta MissileY0
+NoCollision
+        dec CurRow
+        bpl WaitForRow
+        lda #0		; turn off two-copy mode
+        sta NUSIZ0
+        sta NUSIZ1
+        rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ;;
+; Draw a line of the formation.
+; First we'll modify the routine in RAM,
+; then we'll transfer control to it.
+DrawFormation
+        ldx CurRow
+        lda EnemyRows0,x
+        ldx #1	; start at KernelStores+1
+ShiftLoop
+        ldy #RESP0
+        ror
+        bcs NoClearEnemy0
+        ldy #$30	; no-op
+NoClearEnemy0
+        sty ZPWrites,x
+        inx
+        inx
+        ldy #RESP1
+        ror
+        bcs NoClearEnemy1
+        ldy #$30	; no-op
+NoClearEnemy1
+        sty ZPWrites,x
+        inx
+        inx
+        cpx #16		; 8*2 bytes
+        bcc ShiftLoop
+; Now we jump to our newly-modified kernel in RAM
+; to draw the row of sprites.
+        ldy EnemyColorFrame0	; get height -> Y
+        jsr ZPRoutine		; draw sprites
+        rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; The Grid Kernel, which we'll copy into RAM at the
+; start of the program. We'll use the "STA RESPn,x"
+; instruction since it takes up 4 cycles, which gives
+; us a horizontal spacing of 12 pixels.
+KernelStart
+KernelLoop
+	lda EnemyFrame0,y	; load bitmap
+	sta WSYNC
+        ldx EnemyColorFrame0,y	; load color
+        sta GRP0
+        sta GRP1
+        stx COLUP0
+        stx COLUP1
+        ldx #0		; so we can do the STA RESPn,x variant
+KernelStores
+; These STAs are meant to be modified
+        sta RESP0,x
+        sta RESP1,x
+        sta RESP0,x
+        sta RESP1,x
+        sta RESP0,x
+        sta RESP1,x
+        sta RESP0,x
+        sta RESP1,x
+; End of modifiable section
+        dey		; also acts as 2-cycle delay
+        stx.w GRP0	; clear player 0 bitmap (4-cycle version)
+        sta RESP0	; reset player 0 position
+        stx GRP1	; clear player 1 bitmap
+        sta RESP1	; reset player 1 position
+        bpl KernelLoop	; repeat until Y < 0
+        rts
+KernelEnd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Draw the empty space in between interlocuters
+; and the base, which consists of missiles.
+DrawBelowFormation
+	lda #$FF	; set missile colors
+        sta COLUP0
+        sta COLUP1
+        jsr DrawMissiles
+	lda INTIM
+        cmp #17		; are we close to the bottom?
+        bcs DrawBelowFormation
+        sta WSYNC	; exit in a known state
+	rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Read the timer to see if we should draw either
+; or both missiles.
+; We do this in constant time by using the carry flag of
+; the CMP operation.
+DrawMissiles
+	lda INTIM	; load timer value
+        pha
+        sec
+        sbc MissileY0
+        cmp #8		; within 8 lines of missile?
+        lda #3		; bit 1 now set
+        adc #0		; if carry set, bit 1 cleared
+        sta ENABL	; enable/disable ball
+	pla
+        sec
+        sbc MissileY1
+        cmp #8		; within 8 lines of missile?
+        lda #3		; bit 1 now set
+        adc #0		; if carry set, bit 1 cleared
+        sta ENAM1	; enable/disable missile
+        rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Draw the player's base
+DrawPlayerBase
+	lda BaseX
+        ldx #0
+        jsr SetHorizPos	; first set the horizontal position
+	ldy ColorFrame0	; get sprite height
+DrawBaseLoop
+	lda Frame0,y
+        ldx ColorFrame0,y
+        sta WSYNC
+        sta GRP0
+        stx COLUP0
+        dey
+        bpl DrawBaseLoop ; repeat until Y < 0
+        rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Move missiles
+; Missile 0 moves up, missile 1 moves down.
+MoveMissiles
+	lda MissileY0
+        beq NoMoveMiss0
+        inc MissileY0
+NoMoveMiss0
+	lda MissileY1
+        beq NoMoveMiss1
+        dec MissileY1
+NoMoveMiss1
+	rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Move player and shoot missiles with joystick/button
+ReadControls
+	ldx BaseX
+	bit SWCHA	; read joystick
+        bvs NoMoveLeft	; bit 7 set?
+        lda #%0
+        sta REFP0	; reset sprite flip
+        dex
+        bne NoMoveRight
+NoMoveLeft
+	bmi NoMoveRight	; bit 6 set?
+        lda #%1000
+        sta REFP0	; set sprite flip
+	inx
+        bmi NoStoreX
+NoMoveRight
+	stx BaseX
+NoStoreX
+; Shoot a missile when fire button pressed
+	bit INPT4	; read button
+        bmi NoFireButton ; bit 7 set?
+        lda #10
+        sta MissileY0	; reset missile
+        lda BaseX
+        clc
+        adc #6
+        sta MissileX0
+        ldx #4
+        jsr SetHorizPos	; set ball X pos to player's X
+NoFireButton
+	rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Set horizontal position of object
+SetHorizPos
+        sta HMCLR
+        sta WSYNC       ; start a new line
+        sec             ; set carry flag
+DivideLoop
+        sbc #15         ; subtract 15
+        bcs DivideLoop  ; branch until negative
+        eor #7          ; calculate fine offset
+        asl
+        asl
+        asl
+        asl
+        sta HMP0,x      ; set fine offset
+        sta RESP0,x     ; fix coarse position
+        sta WSYNC
+        sta HMOVE
+        rts             ; return to caller 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Make sure the bitmap tables used by the Grid Kernel
+; do not cross page boundaries, because if so the CPU will
+; add an extra cycle and mess up our timing!
+	org $ff00
+
+;; Enemy cat-head graphics data
+;;{w:8,h:8,brev:1,flip:1};;
+EnemyFrame0
+	.byte #0
+        .byte #%00111100;$AE
+        .byte #%01000010;$AE
+        .byte #%11100111;$AE
+        .byte #%11111111;$AC
+        .byte #%10011001;$8E
+        .byte #%01111110;$8E
+        .byte #%11000011;$98
+        .byte #%10000001;$98
+;;{pal:"vcs"};;
+EnemyColorFrame0
+	.byte #8	; height
+        .byte #$AE;
+        .byte #$AC;
+        .byte #$A8;
+        .byte #$AC;
+        .byte #$8E;
+        .byte #$8E;
+        .byte #$98;
+        .byte #$94;
+;; Player graphics data, such bitmap
+;;{w:8,h:10,brev:1,flip:1};;
+Frame0
+	.byte #0
+        .byte #%11111111;$0E
+        .byte #%11111111;$0E
+        .byte #%11101111;$0E
+        .byte #%10010111;$0E
+        .byte #%10011111;$FE
+        .byte #%11111111;$FE
+        .byte #%11010111;$FE
+        .byte #%01111110;$FA
+        .byte #%00111110;$FA
+        .byte #%01000001;$FA
+;;{pal:"vcs"};;
+ColorFrame0
+	.byte #10	; height
+        .byte #$0E;
+        .byte #$0E;
+        .byte #$0E;
+        .byte #$0E;
+        .byte #$FE;
+        .byte #$FE;
+        .byte #$FE;
+        .byte #$FA;
+        .byte #$FA;
+        .byte #$FA;
+;;
+PowersOf2
+	.byte #$1,#$2,#$4,#$8,#$10,#$20,#$40,#$80
+
+; Epilogue
+	org $fffc
+        .word Start
+        .word Start

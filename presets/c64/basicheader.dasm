@@ -1,0 +1,10 @@
+
+	processor 6502
+        .org	$07FF
+	.word	$0801        ; two-byte start address
+	.org 	$0801        ; start of BASIC program
+
+        .word BASIC_END, 10  ; Next line and current line number
+        .byte $9e," 2064",0  ; SYS 2064
+BASIC_END:
+	.word 0              ; End of program

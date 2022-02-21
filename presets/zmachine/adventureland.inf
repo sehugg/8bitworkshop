@@ -1,0 +1,873 @@
+! ----------------------------------------------------------------------------
+!  Adventureland 961111             One of the standard Inform 6 example games
+!
+!                                             Designed by Scott Adams: c. 1979
+!                                                   Ported to Inform: 16.10.94
+!                                                  Slightly corrected: 11.5.96
+!                    Modernised to Inform 6 and library 6/1 or later: 11.11.96
+! ----------------------------------------------------------------------------
+
+Constant Story "ADVENTURELAND";
+Constant Headline
+           "^An Interactive Classic by Scott Adams (circa 1979/80)^";
+
+Release 1;
+Serial "961111";
+
+Constant MAX_CARRIED = 6;
+Constant MAX_SCORE = 100;
+
+Replace BurnSub;
+
+Include "Parser";
+Include "VerbLib";
+
+Global genie_gifts;
+Global dark_warning;
+
+Class Treasure
+ with depositpoints 7,
+      after
+      [; Take: if (location==Inside_Stump) "Taken!";
+         Drop: if (location==Inside_Stump) "Safely deposited.";
+      ];
+
+Class Sign
+ with name "sign",
+      short_name
+      [;  print "sign reads- ", (object) self; rtrue;
+      ],
+  has static;
+
+Class ScottRoom
+ with initial
+      [;  give self ~visited;
+      ],
+      describe
+      [ i c d;  print (string) self.description;
+          print "^^Obvious exits: ";
+          for (i=n_to: i<=d_to: i++)
+              if (self.i ~= 0) c++;
+          if (c==0) print "none!";
+          else
+          {   for (i=n_to: i<=d_to: i++)
+                  if (self.i ~= 0)
+                  {   if (d++>0) print ", ";
+                      if (i==n_to) print "North";
+                      if (i==s_to) print "South";
+                      if (i==e_to) print "East";
+                      if (i==w_to) print "West";
+                      if (i==u_to) print "Up";
+                      if (i==d_to) print "Down";
+                  }
+              print ".";
+          }
+          new_line;
+          c=0; d=0;
+          objectloop (i in self)
+              if (i ~= player) { c++; give i concealed; }
+          if (c==0) rtrue;
+          print "^You can also see: ";
+          objectloop (i in self)
+              if (i ~= player)
+              {   if (d++>0) print " - "; PrintShortName(i);
+              }
+          new_line; rtrue;
+      ];
+
+[ GamePreRoutine i c d;
+   if (action~=##Inv) rfalse;
+   c=0; d=0;
+   objectloop (i in player) c++;
+   if (c==0) "You're carrying nothing.";
+   print "You're carrying:^";
+   objectloop (i in player)
+   {   if (d++>0) print " - "; PrintShortName(i);
+   }
+   new_line; rtrue;
+];
+
+[ GamePostRoutine i;
+    if (action==##Look)
+        objectloop (i in location)
+            if (i ~= player && i has concealed)
+                give i ~concealed;
+    rfalse;
+];
+
+! ----------------------------------------------------------------------------
+!   Into Adventureland...
+! ----------------------------------------------------------------------------
+
+ScottRoom Lake_Shore "Lakeside"
+  with description "You're on the shore of a lake.",
+       n_to Forest,  s_to Lake_Shore,  w_to Dismal_Swamp,
+       d_to Quicksand,
+       before
+       [;  Swim: "Below you and before the lake is quicksand.";
+       ],
+  has  light;
+Object -> water "water"
+  with name "water", article "some",
+       before
+       [; Drink: "Boy, that really hit the spot.";
+          Take: if (bottle notin player)
+                    "You have nothing in which to carry the water.";
+                <<Fill bottle>>;
+          Insert: if (second == bottle) <<Fill bottle>>;
+                    "You have nothing in which to carry the water.";
+          Receive: if (noun == bottle) <<Fill bottle>>;
+                remove noun; CDefArt(noun); " washes away into the lake.";
+       ],
+  has  scenery;
+Treasure -> "*GOLDEN FISH*"
+  with name "gold" "golden" "fish",
+       each_turn
+       [;  if (self notin player) rfalse;
+           if (net notin player && random(100) <= 75)
+           {   move self to Lake_Shore;
+               "^The fish escape back to the lake.";
+           }
+           if ((water_in_the_bottle notin bottle
+                || bottle notin player) && random(100)<=50)
+           {   remove self; move dead_fish to player;
+               "^Too dry. Fish die.";
+           }
+       ];
+Object -> axe "rusty axe (magic word- BUNYON -on it)"
+  with name "rusty" "axe",
+       description "The magic word BUNYON is written on the haft.";
+Sign -> "NO SWIMMING ALLOWED";
+Object dead_fish "dead fish"
+  with name "dead" "fish"
+  has  edible;
+
+ScottRoom Quicksand "Bog"
+  with description "You're in a quick-sand bog.",
+       before
+       [;  Swim: if (child(player)==nothing)
+                 {   PlayerTo(Lake_Shore); rtrue; }
+                 "Something's too heavy.";
+       ],
+  has  light;
+Treasure -> ox "*SMALL STATUE OF A BLUE OX*"
+  with name "ox" "blue" "small" "statue";
+
+ScottRoom Forest "Forest"
+  with description "You're in a forest.",
+       n_to Forest,  s_to Forest,  e_to Sunny_Meadow,  w_to Forest,
+       u_to trees
+  has  light;
+Object -> trees "trees"
+  with name "tree" "trees",
+       before
+       [;   Climb: <<Enter self>>;
+       ],
+       door_to Up_Oak, door_dir u_to
+  has  open door static;
+
+ScottRoom Up_Oak "Branch"
+  with description "You're in a branch on the top of an old oak tree.^
+                    To the east you see a meadow beyond a lake.",
+       d_to Forest,
+  has  light;
+
+ScottRoom Sunny_Meadow "Meadow"
+  with description "You're in a sunny meadow.",
+       n_to Lake_Shore,  s_to Dismal_Swamp,  e_to Lake_Shore,
+       w_to Forest,
+  has  light;
+Object -> dragon "sleeping Dragon"
+  with name "dragon" "sleeping" "sleepy",
+       before
+       [;  WakeOther: deadflag=1; "The dragon wakes!";
+       ],
+       life
+       [;  Order, Answer, Ask: "Shh! You don't want to wake the dragon.";
+           Give:    "The dragon is too drowsy to notice.";
+           ThrowAt: if (noun==axe)
+                    {   move axe to location; "The dragon isn't bothered."; }
+       ],
+       each_turn
+       [;  if (mud in location && random(100)<=50)
+           {   deadflag=1;
+               "Dragon smells something - awakens - attacks you!";
+           }
+       ],
+  has  animate;
+Sign -> "IN SOME CASES MUD IS GOOD, IN OTHERS...";
+Treasure eggs "*DRAGON EGGS* (very rare)"
+  with name "dragon" "eggs" "very" "rare", depositpoints 12;
+Object gore "smoking hole - pieces of dragon and gore"
+  with name "gore" "hole" "dragon" "smoking"
+  has  static;
+
+ScottRoom Hidden_Grove "Grove"
+  with description "You're in a hidden grove.",
+       n_to Forest,  e_to Dismal_Swamp,  w_to Forest,
+  has  light;
+Treasure -> "*JEWELLED FRUIT*"
+  with name "jewelled" "jewel" "fruit",
+       after
+       [;  Eat: "Boy that really hit the spot!"; ],
+  has  edible;
+Sign -> "PAUL'S PLACE";
+
+ScottRoom Dismal_Swamp "Dismal Swamp"
+  with description "You're in a dismal swamp.",
+       n_to Sunny_Meadow,  s_to Dismal_Swamp,  e_to Dismal_Swamp,
+       w_to Hidden_Grove,  in_to 0,            u_to cypress_tree
+  has  light;
+Object -> cypress_tree "cypress tree"
+  with name "cypress" "tree",
+       before
+       [;   Climb: <<Enter self>>;
+            Cut:    if (axe notin player) rfalse;
+                    remove self; move tree_remains to Dismal_Swamp;
+                    Dismal_Swamp.in_to = tree_remains;
+                    Dismal_Swamp.u_to = 0;
+                    print "TIMBER..";
+                    if (keys in Tree_Top)
+                    {   remove keys;
+                        ". Something fell from the treetop and vanished!";
+                    }
+                    ".";
+       ],
+       door_to Tree_Top, door_dir u_to
+  has  open door static;
+
+Object -> mud "evil smelling mud"
+  with name "evil" "smelling" "mud", article "some",
+       after
+       [ f; Take:
+                if (infected_bites in player) { remove infected_bites; f=1; }
+                if (chigger_bites in player)  { remove chigger_bites; f=1; }
+                if (f==1) "Boy that really hit the spot!";
+       ],
+       each_turn
+       [;  if (self notin player) rtrue;
+           if (random(100)<=5 &&
+               (bottle notin player || water_in_the_bottle notin bottle))
+           {   move self to Dismal_Swamp;
+               "The mud dried up and fell off.";
+           }
+       ];
+
+Object -> gas "swamp gas"
+  with name "swamp" "gas", article "some",
+       before
+       [;  Take:
+               if (distended_bladder in player) "Bladder full already.";
+               if (wine_bladder notin player) "You have nothing suitable.";
+               <<Insert self wine_bladder>>;
+           Insert:
+               if (second == distended_bladder) "The bladder's full.";
+               if (second ~= wine_bladder)
+                   "That won't hold gas.";
+               move distended_bladder to player; remove wine_bladder;
+               itobj = distended_bladder;
+               "The bladder distends with swamp gas.";
+       ],
+  has  static;
+Object -> slime "floating patch of oily slime"
+  with name "patch" "oil" "slime" "oily",
+       before
+       [;  Take: brass_lantern.time_left=125; give brass_lantern general;
+                 remove self; move brass_lantern to player;
+                 "Magic oil attracts magic lamp. Lamp is now full.";
+       ],
+  has  static;
+Object -> chiggers "chiggers"
+  with name "chiggers", article "a swarm of",
+       daemon
+       [;  if (chigger_bites in player && mud notin player && random(100)<=10)
+           {   remove chigger_bites; move infected_bites to player;
+               "^Your chigger bites are now infected.";
+           }
+           if (infected_bites in player && random(100)<=8)
+           {   deadflag=1;
+               "^The bites have rotted your whole body.";
+           }
+           if (infected_bites notin player
+               && chigger_bites notin player
+               && slime in location && mud notin player
+               && random(100)<=5)
+           {   move chigger_bites to player;
+               "^You're bitten by chiggers.";
+           }
+           if (infected_bites notin player
+               && chigger_bites notin player
+               && chiggers in player
+               && random(100)<=30)
+           {   move chigger_bites to player;
+               "^You're bitten by chiggers.";
+           }
+       ];
+Object chigger_bites "chigger bites"
+  with name "chigger" "bites", article "some",
+       before [; "The bites are annoying. Perhaps medicine would help?"; ];
+Object infected_bites "infected chigger bites"
+  with name "chigger" "bites" "infected", article "some",
+       before [; "The bites are frightening. Get medicine!"; ];
+
+Object tree_remains "hollow stump and remains of a felled tree"
+  with name "tree" "stump" "hollow" "remains",
+       door_to Inside_Stump, door_dir in_to
+  has  open door static;
+
+ScottRoom Tree_Top "Tree Top"
+  with description "You're in the top of a tall cypress tree.",
+       d_to Dismal_Swamp,
+  has  light;
+
+Object -> "spider web with writing on it"
+  with name "spider" "web" "writing",
+       description "~CHOP IT DOWN!~",
+       before
+       [;  Take: deadflag=1; "You're bitten by a spider.";
+       ];
+Object -> keys "ring of skeleton keys"
+  with name "keys" "ring" "skeleton" "keyring";
+
+ScottRoom Inside_Stump "Inside Stump"
+  with description "You're in a large hollow damp stump in the swamp.",
+       n_to Dismal_Swamp,  s_to Dismal_Swamp,  e_to Dismal_Swamp,
+       w_to Dismal_Swamp,  u_to Dismal_Swamp,  d_to Root_Chamber,
+  has  light;
+Sign -> "LEAVE TREASURE HERE - (say 'SCORE')";
+Object -> bottle "the bottle"
+  with name "bottle" "jar" "flask",
+       short_name
+       [;  if (water_in_the_bottle in self) { print "bottle of water"; rtrue; }
+           if (bees in self) { print "bottle of bees"; rtrue; }
+           print "empty bottle"; rtrue;
+       ],
+       before
+       [ x; LetGo:
+             if (noun in bottle)
+                 "You're holding that already (in the bottle).";
+         Receive:
+             if (noun==water or bees) <<Fill self>>;
+             "That won't go in the bottle.";
+         Fill:
+             if (child(bottle)~=0)
+               "The bottle is full already.";
+             if (water in location)
+             {   move water_in_the_bottle to bottle;
+                 "The bottle is now full of water.";
+             }
+             if (bees in location)
+             {   move bees to bottle;
+                 "The bottle is now full of bees.";
+             }
+             "There is nothing here with which to fill the bottle.";
+         Empty: if (child(bottle)==0) "The bottle is already empty!";
+             x=child(bottle);
+             remove x;
+             if (x==bees)
+             {   move x to location; "You release the bees.";
+             }
+             "Your bottle is now empty and the ground is now wet.";
+       ],
+  has  container open;
+
+Object -> brass_lantern "old fashioned lamp"
+  with name "lamp" "fashioned" "lamp", article "an",
+       power 125,
+       time_left 0,
+       daemon
+       [ t; if (self hasnt on) { StopDaemon(self); rtrue; }
+          t=--(self.power);
+          if (t==0) give self ~on ~light;
+          if (self in player or location)
+          {   if (t==0) "Your lamp has run out of power.";
+              if (t==30) "Your lamp is getting dim.";
+          }
+       ],
+       before
+       [; Examine: print "It is a shiny brass lamp";
+                if (self hasnt on)
+                    ". It is not currently lit.";
+                if (self.power < 30)
+                    ", glowing dimly.";
+                ", glowing brightly.";
+          Burn: <<SwitchOn self>>;
+          Rub:  if (self has on) "No! It's too hot.";
+                if (self hasnt general) "Nothing happens.";
+                switch(++genie_gifts)
+                {   1: move ring to location;
+                       "A glowing genie appears -
+                        drops something - then vanishes.";
+                    2: move bracelet to location;
+                       "A glowing genie appears -
+                        drops something - then vanishes.";
+                    3: if (ring in Inside_Stump)
+                           score=score-ring.depositpoints;
+                       remove ring; move player to Misty_Room;
+                       "A genie appears - says ~boy you're selfish~ - takes
+                        something - then vanishes!";
+                    4: if (bracelet in Inside_Stump)
+                           score=score-bracelet.depositpoints;
+                       remove bracelet; move player to Misty_Room;
+                       "A genie appears - says ~boy you're selfish~ - takes
+                        something - then vanishes!";
+                    default: "Nothing happens.";
+                }
+          SwitchOn: if (self.power <= 0) "It's run out.";
+          Receive, Open:
+                "You can't put things in the lamp.";
+       ],
+       after
+       [; SwitchOn: give self light; StartDaemon(self);
+              "Flameless lamp now on.";
+          SwitchOff: give self ~light;
+       ],
+  has  switchable;
+
+Treasure ring "*DIAMOND RING*"
+  with name "diamond" "ring";
+Treasure bracelet "*DIAMOND BRACELET*"
+  with name "diamond" "bracelet";
+
+Object water_in_the_bottle "bottled water" bottle
+  with name "bottled" "water" "h2o", article "some",
+       before
+       [; Drink:  remove water_in_the_bottle; <<Drink water>>;
+       ],
+       description "It looks like ordinary water to me.";
+
+ScottRoom Root_Chamber "Root Chamber"
+  with description "You're in a root chamber under the stump.",
+       u_to Inside_Stump,  d_to dark_hole,
+  has  light;
+Object -> dark_hole "dark hole"
+  with description "Leading below.",
+       door_dir d_to,
+       door_to Semidark_Hole
+  has  open door static;
+Treasure -> "*POT OF RUBIES*"
+  with name "pot" "of" "rubies";
+
+ScottRoom Semidark_Hole "Hole"
+  with description "You're in a semi-dark hole by the root chamber.",
+       u_to Root_Chamber, d_to root_door
+  has  light;
+Object -> root_door "the door"
+  with name "door",
+       short_name
+       [;  if (self has locked) { print "locked door"; rtrue; }
+           if (self has open)
+           {   print "open door with a hallway beyond"; rtrue; }
+           print "closed door"; rtrue;
+       ],
+       before
+       [;  ThrowAt:
+               if (second==axe)
+               {   give self ~locked ~lockable ~openable open;
+                   "Lock shatters!";
+               }
+       ],
+       door_to Long_Hall, door_dir d_to, with_key keys
+  has  static door openable lockable locked;
+
+ScottRoom Long_Hall "Hall"
+  with description "You're in a long down-sloping hall.",
+       u_to Semidark_Hole,  d_to Large_Cavern;
+
+ScottRoom Large_Cavern "Cavern"
+  with description "You're in a large cavern.",
+       n_to Hive,  s_to Royal_Anteroom,  w_to Memory_RAM,
+       u_to Long_Hall,  d_to Maze1;
+
+ScottRoom Hive "Octagonal Hive"
+  with description "You're in a large 8-sided room.",
+       s_to Large_Cavern;
+Treasure -> "*ROYAL HONEY*"
+  with name "royal" "honey", article "some",
+       before
+       [;  Take:
+               if (bees in location && mud notin player)
+               {   deadflag=1; "Bees sting you."; }
+           Drop:
+               if (bear in location)
+               {   remove self; give bear general;
+                   "The bear eats the honey and falls asleep.";
+               }
+       ],
+  has  edible;
+Object -> bees "large African bees"
+  with name "large" "african" "bees", article "a swarm of",
+       before
+       [;  Take:
+               if (mud notin player)
+               {   deadflag=1; "Bees sting you."; }
+               if (bottle in player) <<Fill bottle>>;
+               "You have nothing to carry the bees in.";
+           Drop:
+               if (self in bottle
+                   && dragon in location)
+               {   move self to location;
+                   move eggs to location; remove dragon;
+                   "The bees attack the dragon which gets up and flies away...";
+               }
+               if (self in bottle
+                   && bear in location)
+               {   move self to location;
+                   give bear ~general; deadflag=1;
+                   "Bees madden the bear. Bear then attacks you!";
+               }
+       ],
+       each_turn
+       [;  #IFNDEF DEBUG;
+           !  A completely unfair rule! And in the original the bees are lost.
+           if (self in bottle && random(100)<=8)
+           {   move self to Hive; "^The bees in the bottle all suffocated."; }
+           #ENDIF;
+           if (self in bottle) rfalse;
+           if (self in location && mud notin player && mud notin location &&
+               random(100)<=8)
+           {   deadflag=1; "Bees sting you."; }
+       ];
+
+ScottRoom Royal_Anteroom "Anteroom"
+  with description "You're in a royal anteroom.",
+       n_to Large_Cavern,  u_to Royal_Chamber;
+Object -> wine_bladder "empty wine bladder"
+  with name "empty" "wine" "bladder",
+       before
+       [;  Fill: if (gas notin location)
+                     "The bladder could only just hold a vapour nowadays.";
+                 <<Insert gas self>>;
+       ];
+Object distended_bladder "distended gas bladder"
+  with name "distended" "gas" "bladder",
+       before
+       [;  Open: move wine_bladder to parent(self); remove self;
+                 "Gas dissipates!";
+       ];
+
+ScottRoom Maze1 "Maze"
+  with description "You're in a maze of pits.",
+       n_to Maze2,  s_to Maze4,  e_to Maze4,  d_to Maze2;
+
+ScottRoom Maze2 "Maze"
+  with description "You're in a maze of pits.",
+       w_to Maze3,  u_to Maze1;
+Object -> flint_and_steel "flint and steel"
+  with name "flint" "steel";
+
+ScottRoom Maze3 "Maze"
+  with description "You're in a maze of pits.",
+       n_to Maze6,  s_to Maze1,  e_to Maze2,  w_to Maze5,
+       u_to Maze5,  d_to Maze6;
+Object -> "scratchings"
+  with name "scratchings", article "strange",
+       short_name "strange scratchings on rock reveals- ALADDIN WAS HERE",
+  has  static;
+
+ScottRoom Maze4 "Maze"
+  with description "You're in a maze of pits.",
+       n_to Maze1,  e_to Maze2,  w_to Maze1,  u_to Maze2;
+
+ScottRoom Maze5 "Maze"
+  with description "You're in a maze of pits.",
+       s_to Maze6,  u_to Maze3,  d_to Maze6;
+
+ScottRoom Maze6 "Maze"
+  with description "You're in a maze of pits.",
+       n_to Maze6,  s_to Maze1,  e_to Maze1,  w_to Maze4,
+       u_to Maze3,  d_to Chasm_Bottom;
+Treasure -> rug "*THICK PERSIAN RUG*"
+  with name "thick" "persian" "rug" "carpet";
+Object -> "arrow pointing down"
+  with name "arrow"
+  has  static;
+
+ScottRoom Chasm_Bottom "Chasm"
+  with description "You're in a bottom of a chasm. Above 2 ledges.
+                    One has a bricked up window.",
+       u_to Maze6;
+Treasure -> net "*GOLDEN NET*"
+  with name "gold" "golden" "net";
+Sign -> "MAGIC WORD IS AWAY. X LA -(rest of sign is missing)";
+Object -> lava "the lava"
+  with name "stream" "of" "lava",
+       short_name
+       [;  print "stream of lava";
+           if (self has general) print " with a brick dam";
+           rtrue;
+       ],
+       description
+       [;  if (self hasnt general)
+             "There's something there all right! Maybe you should go there?";
+           "Just more dammed lava.";
+       ],
+       before
+       [;  Enter, Push, Pull, Take: "NO! It's too hot.";
+       ],
+  has  static;
+Treasure firestone "*FIRESTONE* (cold now)"
+  with name "firestone", depositpoints 11;
+
+ScottRoom Narrow_Ledge_1 "Ledge"
+  with description "You're on a narrow ledge by a chasm.
+                    Across the chasm is a throne room.",
+       before
+       [;  Jump: if (firebricks in player)
+                 {   deadflag=1; "Oh no! Something was too heavy!"; }
+                 print "You leap across the chasm...^";
+                 PlayerTo(Narrow_Ledge_2); rtrue;
+       ],
+       w_to Royal_Chamber;
+
+ScottRoom Royal_Chamber "Royal Chamber"
+  with description "You're in the Royal Chamber.",
+       d_to Royal_Anteroom, e_to 0;
+Object -> bricked_window "bricked-up window"
+  with name "window" "bricked" "brick" "bricks"
+  has  static;
+Object holed_window "bricked up window with a hole in it - beyond is a ledge"
+  with name "window" "bricked" "hole" "ledge",
+       door_dir e_to, door_to Narrow_Ledge_1
+  has  static door open;
+Object firebricks "loose fire bricks"
+  with name "loose" "fire" "bricks", article "some",
+       after
+       [;  Take: "Taken. (Heavy!)";
+           Drop: if (location~=Chasm_Bottom) rfalse;
+                 remove self; give lava general;
+                 move firestone to location;
+                 "The bricks dam the lava, revealing a *FIRESTONE*!";
+       ];
+
+ScottRoom Narrow_Ledge_2 "Ledge"
+  with description
+          "You're on a narrow ledge by the throne room-across chasm-ledge.",
+       before
+       [;  Sing:
+           if (bear in location && bear hasnt general)
+           {   move dead_bear to Chasm_Bottom;
+               remove bear;
+               "The bear got startled and fell off the ledge!";
+           }
+           Jump: print "You leap across the chasm...^";
+                 PlayerTo(Narrow_Ledge_1); rtrue;
+       ],
+       e_to
+       [;  if (bear in location && bear hasnt general)
+               "The bear won't let you!";
+           return Throne_Room;
+       ];
+Treasure -> mirror "*MAGIC MIRROR*"
+  with name "magic" "mirror",
+       side_up 0,
+       before
+       [;  Take:
+               if (bear in location && bear hasnt general)
+                   "The bear won't let you!";
+       ],
+       after
+       [;  Drop:
+             if (rug in location)
+             {   print "Mirror lands softly on the rug - lights up and says:^";
+                 self.side_up++;
+                 if (self.side_up % 2 == 1)
+                   "*DRAGON STINGS* and fades. I don't get it - hope you do.";
+                 "Don't waste *HONEY*. Get mad instead. Dam lava!";
+             }
+             remove self; move broken_glass to location;
+             "The mirror hits the floor and shatters into a million pieces!";
+       ];
+Object -> bear "the bear"
+  with name "thin" "black" "bear",
+       short_name
+       [;  if (self has general) { print "sleeping bear"; rtrue; }
+           print "thin black bear"; rtrue;
+       ],
+       before
+       [;  WakeOther: give self ~general; "The bear rouses!^";
+       ],
+       life
+       [;  Ask, Order, Answer: <<Sing>>;
+           Attack, ThrowAt:
+               if (self has general) <WakeOther self>;
+               remove mirror; move broken_glass to location;
+               "Oh no...Bear dodges...CRASH!";
+       ],
+  has  animate;
+Object broken_glass "broken glass"
+  with name "broken" "glass" "jagged" "fragments", article "some";
+Object dead_bear "dead bear"
+  with name "dead" "bear" "black" "thin"
+  has  static;
+
+ScottRoom Throne_Room "Throne Room"
+  with description "You're in a throne room.",
+       w_to Narrow_Ledge_2;
+Treasure -> "*GOLD CROWN*"
+  with name "gold" "golden" "crown";
+
+ScottRoom Real_Trouble "Trouble!"
+  with description
+           "I think you're in real trouble. Here's a guy with a pitchfork!^^
+            You lost *ALL* treasures.",
+       initial
+       [;  deadflag=3;
+       ],
+  has  light;
+
+ScottRoom Memory_RAM "Ugly Place"
+  with description
+          "You're in the memory RAM of an IBM-PC. You took a wrong turn!",
+       e_to Large_Cavern,
+  has  light;
+Sign -> "To the Architects - TSURRIS";
+
+ScottRoom Misty_Room "Misty Room"
+  with description "You're in a large misty room with strange letters
+                    over the exits.",
+       s_to Real_Trouble,  e_to Forest,  w_to Real_Trouble,
+       u_to Up_Oak,  d_to Real_Trouble,
+  has  light;
+Sign -> "LIMBO. FIND RIGHT EXIT AND LIVE AGAIN!";
+
+! ----------------------------------------------------------------------------
+!   A soupcon of code
+! ----------------------------------------------------------------------------
+
+[ Initialise;
+  location=Forest; score = 0;
+
+  StartDaemon(chiggers);
+
+  "^^^^^A voice booms out ...^
+  Treasures have an * in their name. Say 'SCORE'^
+  If you need a hint on something, try 'HELP'.^";
+];
+
+[ TimePasses i;
+  if (location ~= Inside_Stump) rfalse;
+
+  score=0;
+  objectloop (i in Inside_Stump && i ofclass Treasure)
+      score = score + i.depositpoints;
+
+  if (score ~= 100) rfalse;
+
+  deadflag=2;
+  "Congratulations! By finding and depositing all 13 *TREASURES*, you
+   have solved Scott Adams's ~Adventureland~ and it remains only to say
+   that...";
+];
+
+[ AfterLife;
+   if (deadflag==3) { deadflag=1; rfalse; }
+   remove chigger_bites; remove infected_bites;
+   deadflag=0; PlayerTo(Misty_Room);
+];
+
+[ PrintRank; "."; ];
+
+[ DarkToDark;
+  if (dark_warning==0)
+  {   dark_warning=1; "It is now pitch dark.
+                       If you proceed you will likely fall into a pit.";
+  }
+  if (random(4) == 1)
+  {   deadflag=1;
+      "You fell into a pit and broke every bone in your body!";
+  }
+  rfalse;
+];
+
+[ BunyonSub;
+  if (axe notin player) "Nothing happens.";
+  if (ox in player or location)
+  {   move ox to Hidden_Grove;
+      move axe to Hidden_Grove;
+      "Something you're holding vibrated and...";
+  }
+  if (player notin Quicksand)
+  {   move axe to Hidden_Grove;
+      print "Something you're holding vibrated and...";
+      <<Inv>>;
+  }
+  "Nothing happens.";
+];
+
+[ TsurrisSub;
+  if (location ~= Memory_RAM) "Nothing happens.";
+  "A voice booms out...^
+   May all your teeth but one fall out, and may that one give you toothache.^
+   (You can't help feeling you have stumbled on a private quarrel which is
+    nothing to do with your game.)";
+];
+
+[ BurnSub;
+  if (flint_and_steel notin player)
+      "You have nothing to strike a light with.";
+  if (noun==gas) "Gas needs to be contained before it will burn.";
+  if (noun==distended_bladder)
+  {   if (noun in player)
+      {   remove noun; deadflag=1; "Gas bladder blew up in your hands!";
+      }
+      remove noun;
+      print "Gas bladder blew up!^";
+      if (dragon in location)
+      {   remove dragon; move gore to location;
+          "The dragon has been blown to bits!";
+      }
+      if (bricked_window in location)
+      {   remove bricked_window;
+          move holed_window to location; move firebricks to location;
+          Royal_Chamber.e_to = holed_window;
+          "The bricked window has been blown to bits!";
+      }
+      rtrue;
+  }
+  "That won't ignite.";
+];
+
+[ HelpSub;
+   print "A voice booms out...^";
+   print "Try:  LOOK,JUMP,SWIM,CLIMB,THROW,FIND,GO,TAKE,INVENTORY,SCORE.^";
+   if (chigger_bites in player || infected_bites in player)
+       "Medicine is good for bites.";
+   if (location == Quicksand) "You may need magic words here.";
+   if (location == Sunny_Meadow)
+       "Only 3 things will wake the dragon. One of them is dangerous!";
+   if (location == Hive)
+       "Read the sign in the meadow!";
+   if (location == Maze1 or Maze2 or Maze3
+       || location == Maze4 or Maze5 or Maze6)
+       "You may need magic words here.";
+   if (location == Royal_Chamber) "Blow it up. Try the swamp.";
+];
+
+[ AwaySub;
+  if (rug notin player || location~=Maze3) "Nothing happens.";
+  print "Something you're holding vibrates, and...^";
+  PlayerTo(Sunny_Meadow);
+];
+
+[ FindSub;
+  "A voice booms out...^Find it yourself.";
+];
+
+! ----------------------------------------------------------------------------
+!   Grammar: the usual grammar and some extensions
+! ----------------------------------------------------------------------------
+
+Include "Grammar";
+
+Extend "cut"
+                * "up" noun                      -> Cut
+                * "down" noun                    -> Cut;
+
+Verb "bunyon"   *                                -> Bunyon;
+Verb "away"     *                                -> Away;
+Verb "tsurris"  *                                -> Tsurris;
+Verb "help"     *                                -> Help;
+Verb "find"     * special                        -> Find;
+
+! ----------------------------------------------------------------------------

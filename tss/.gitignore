@@ -1,0 +1,10 @@
+build
+data
+log
+tmp
+.c9revisions
+.class
+.checkstyle
+.idea
+.project
+.DS_Store

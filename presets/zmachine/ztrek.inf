@@ -1,0 +1,1815 @@
+!*************************************************************************
+!**
+!**  Super Z Trek: Star Trek for the Z Machine
+!**
+!**  Ported to Inform by John Menichelli
+!**
+!*************************************************************************
+
+!** The Star Trek game has been around since the dawn of personal computers. 
+!** This version, written in Inform by John Menichelli, is just the latest 
+!** incarnation of this classic game. If you have any questions, comments 
+!** or bug reports, please email them to me at menichel@@0064pixi.com. This 
+!** program and its source code are in the public domain.
+!**
+!** This version is based on the C port of an old BASIC program. The C version
+!** was written by Chris Nystrom and is available from:
+!** 
+!** http://www.cfi.org/pub/ccn/startrek
+!**
+!** You can contact the author of C port at:
+!**
+!** Chris Nystrom
+!** 1013 Prairie Dove Circle
+!** Austin, Texas  78758
+!**
+!** E-Mail: chris@gnu.ai.mit.edu, nystrom@cactus.org, or ccn@cfi.org
+
+!** The original Super Star Trek game comes from the book "BASIC Computer 
+!** Games" edited by David Ahl of Creative Computing fame. It was published 
+!** in 1978 by Workman Publishing, 1 West 39 Street, New York, New York, 
+!** and the ISBN is: 0-89489-052-3.
+!**
+!** Here is the original BASIC header:
+!**
+!** SUPER STARTREK - MAY 16, 1978 - REQUIRES 24K MEMORY
+!**
+!**        **** STAR TREK ****        ****
+!** SIMULATION OF A MISSION OF THE STARSHIP ENTERPRISE,
+!** AS SEEN ON THE STAR TREK TV SHOW.
+!** ORIGINAL PROGRAM BY MIKE MAYFIELD, MODIFIED VERSION
+!** PUBLISHED IN DEC'S "101 BASIC GAMES", BY DAVE AHL.
+!** MODIFICATIONS TO THE LATTER (PLUS DEBUGGING) BY BOB
+!** LEEDOM - APRIL & DECEMBER 1974,
+!** WITH A LITTLE HELP FROM HIS FRIENDS . . .
+!** COMMENTS, EPITHETS, AND SUGGESTIONS SOLICITED --
+!** SEND TO:  R. C. LEEDOM
+!**           WESTINGHOUSE DEFENSE & ELECTRONICS SYSTEMS CNTR.
+!**           BOX 746, M.S. 338
+!**           BALTIMORE, MD  21203
+!**
+!** CONVERTED TO MICROSOFT 8 K BASIC 3/16/78 BY JOHN BORDERS
+!** LINE NUMBERS FROM VERSION STREK7 OF 1/12/75 PRESERVED AS
+!** MUCH AS POSSIBLE WHILE USING MULTIPLE STATMENTS PER LINE
+!**
+!** Notes on the Inform version:
+!**
+!** Since Inform only works with integers, this version eliminates the
+!** guesswork involved in moving and firing torpedoes. To make up for
+!** this, the torpedo algorithm gives the torped a random chance to miss,
+!** which increases as the range increases.
+
+!** Constants
+
+Constant MAX_TORPS 10;
+Constant KLINGON_POWER 200;
+Constant MAX_POWER 3000;
+Constant SCREEN_SIZE 6;
+Constant ENTERPRISE 1;
+Constant KLINGON 2;
+Constant BASE 3;
+Constant STAR 4;
+Constant WARP_ENGINES 0;
+Constant SHORT_RANGE 1;
+Constant LONG_RANGE 2;
+Constant PHASER_CONTROL 3;
+Constant PHOTON_TUBES 4;
+Constant DAMAGE_CONTROL 5;
+Constant SHIELD_CONTROL 6;
+Constant LIBRARY_COMPUTER 7;
+
+!** Global Variables 
+
+Global trek_docked_flag;                ! 1 or 2 if Enterprise is docked
+Global trek_current_energy;             ! Current energy 
+Global trek_shield_value;               ! Current shield value 
+Global trek_torp_capacity = MAX_TORPS;  ! Photon torpedo capacity 
+Global trek_torps_remaining;            ! Photon torpedoes left 
+Global trek_max_speed;                  ! Maximum allowed speed
+Global trek_end_of_time;                ! End of time/game
+Global trek_current_date;               ! Current stardate 
+Global trek_total_bases;                ! Total starbases
+Global trek_total_klingons;             ! Klingons at start 
+Global trek_klingons_left;              ! Total Klingons left 
+Global trek_quadrant_position;          ! These two variables are used 
+Global trek_sector_position;            ! to calculate the quadrant and 
+                                        ! sector location of the Enterprise
+!** Arrays
+
+Array trek_long_range_galaxy --> 64;    ! Holds long range scan data
+Array trek_galaxy_history --> 64;       ! Hold history of all long and short 
+                                        ! range scans
+Array trek_temp_array --> 64;           ! Used for printing long range scans
+Array trek_sector -> 64;                ! Sector data array
+Array trek_damage_array -> 8;           ! Damage Array
+Array trek_klingon_array -> 3;          ! Array used to track Klingon damage;
+Array text_array -> 60;                 ! Input array for keyboard entry
+
+! Main Program 
+
+[ Main ;
+   PlayTrek();
+];
+
+[ PlayTrek ;
+   TrekIntro();
+   Initialize();
+   EndScreen();
+];
+
+[ TrekIntro ;
+   font off;
+   box "************************************"
+       "*                                  *"
+       "*                                  *"
+       "*       * * Super Z Trek * *       *"
+       "*                                  *"
+       "*                                  *"
+       "************************************";
+
+   print "^^^";
+   print "Press any key to begin...";
+
+   Pause();
+];
+
+[ Initialize i j bases stars klingons;
+
+   ! Initialize time 
+
+   trek_current_date = (20 + random(10)) * 1000;
+   trek_end_of_time = (25 + random(10)) * 10;
+
+  ! Setup What Exists in Galaxy 
+
+   for (i = 0: i < 64: i++)
+      trek_galaxy_history-->i = 999;
+
+   for (i = 0: i < 64: i++)
+   {
+      j = random(100);
+      switch(j)
+	 {
+	    98 to 99: klingons = 3;
+         95 to 97: klingons = 2;
+         81 to 94: klingons = 1;
+         default:  klingons = 0;
+      }
+	
+      trek_klingons_left = trek_klingons_left + klingons;
+
+	 if (random(100) > 96)
+	    bases = 1;
+	 else
+	    bases = 0;
+
+      trek_total_bases = trek_total_bases + bases;
+
+      stars = random(8);
+
+      trek_long_range_galaxy-->i = (klingons * 100) + 
+                                   (bases * 10)     + 
+                                    stars;
+   }
+
+   if (trek_total_bases == 0)
+   {
+      i = random(64) - 1;
+      j = trek_long_range_galaxy-->i;
+      j = j + 10;
+      trek_long_range_galaxy-->i = j;
+      trek_total_bases++;
+   }
+
+   if (trek_klingons_left > trek_end_of_time / 10)
+     trek_end_of_time = (trek_klingons_left + 1) * 10;
+
+   trek_total_klingons = trek_klingons_left;
+
+  ! Initialize Enterprise 
+
+   trek_docked_flag = 0;
+   trek_current_energy = MAX_POWER;
+   trek_torps_remaining = trek_torp_capacity;
+   trek_shield_value = 0;
+   trek_max_speed = 8;
+   trek_quadrant_position = random(64) - 1;
+   trek_sector_position = random(64) - 1;
+ 
+   for (i = 0: i < 8: i++)
+      trek_damage_array->i = 5;
+
+   MissionBrief();
+   SetScreen();
+   NewQuadrant();
+   UpdateStatus();
+   ShortRangeScan();
+   MainMenu();
+];
+
+[ NewQuadrant i j k b s ;
+   trek_galaxy_history-->trek_quadrant_position = 
+   trek_long_range_galaxy-->trek_quadrant_position;
+
+   for (i = 0: i < 3: i++)
+      trek_klingon_array->i = KLINGON_POWER;
+
+   i = trek_long_range_galaxy-->trek_quadrant_position;
+
+   k = i / 100;                     ! Klingons
+   b = i / 10 - (10 * k);           ! Bases
+   s = i - (100 * k) - (10 * b);    ! Stars
+
+   for (i = 0: i < 64: i++)
+      trek_sector->i = 0;
+
+   trek_sector->trek_sector_position = ENTERPRISE;
+
+   for (i = 1: i <= k: i++)         ! Position Klingons
+   {
+.Retry1;
+      j = random(64) - 1;
+      if (trek_sector->j ~= 0)
+         jump Retry1;
+      else
+         trek_sector->j = KLINGON;
+   }
+
+   for (i = 1: i <= b: i++)         ! Position base
+   {
+.Retry2;
+      j = random(64) - 1;
+      if (trek_sector->j ~= 0)
+         jump Retry2;
+      else
+         trek_sector->j = BASE;
+   }
+
+   for (i = 1: i <= s: i++)         ! Position stars
+   {
+.Retry3;
+      j = random(64) - 1;
+      if (trek_sector->j ~= 0) 
+         jump Retry3;
+      else
+         trek_sector->j = STAR;
+   }
+];
+
+
+[ SetScreen i j;
+   @erase_window $ffff;
+   @split_window SCREEN_SIZE;
+   @set_window 1;
+   style reverse;
+   j = SCREEN_SIZE;
+   for (i = 1 : i <= j: i++)
+   {
+      @set_cursor i 1;
+      spaces (0->33)-1;
+   }
+   style roman;
+];
+
+[ MissionBrief ;
+   @erase_window $ffff;
+   new_line;
+   new_line;
+   print "To:      Captain, USS Enterprise, NCC-1701^^";
+   
+   print "From:    Starfleet Command^^";
+   
+   print "Subject: War Warning^^";
+   
+   print "1. Approximately three (3) hours ago, warships of the Imperial 
+          Klingon Empire Navy crossed the border into Federation space. These 
+          vessels have destroyed all outposts and ships in their path and 
+          have not answered any hails.^^";
+
+   print "2. Therefore, effective immediately, a state of war exists between 
+          the United Federation of Planets and the Imperial Klingon 
+          Empire.^^";
+
+   print "3. As the Enterprise is the only vessel available in this portion
+          of the galaxy, your orders are as follows:^^";
+
+   print "4. Engage and destroy any and all Klingon vessels you encounter
+          within your designated patrol zone. Long range sensor scans indicate 
+          a total of ", trek_klingons_left, " Klingon battlecruisers 
+          in your area.^^";
+
+   print "5. Starfleet Operations calculates that it will take 
+          approximately ", trek_end_of_time / 10, " days to mobilize our 
+          forces and begin sending reinforcements to the front. We need you 
+          to hold off the invading Klingon fleet until those reinforcements 
+          arrive.^^";
+
+   print "6. Good luck and good hunting.^^";
+   
+   print "[Press any key to accept command]";
+
+   Pause();
+];
+
+[ UpdateStatus i;
+   @set_window 1;
+
+   @set_cursor 1 1;
+   style reverse;
+   for (i = 1: i <= 2: i++) {
+      @set_cursor i 1;
+      spaces (0->33)-1; }
+
+   @set_cursor 1 1;
+   print "Current Date:                   Days Remaining:";
+   @set_cursor 2 1;
+   print "Klingons Remaining:               Bases Remaining:";
+   @set_cursor 3 1;
+   print "Shield Value:           Total Energy Remaining:";
+   
+   @set_cursor 5 1;
+   print "1: Nav     2: SRS     3: LRS      4: Phaser  5: Torp";
+   @set_cursor 6 1;
+   print "6: Shield  7: Damage  8: Library  9: Help    0: Quit";
+   
+   @set_cursor 1 15;
+   print (trek_current_date / 10), ".", (trek_current_date % 10);
+   
+   if (trek_end_of_time < 100)
+      @set_cursor 1 50;
+   else
+      @set_cursor 1 49;
+
+   print trek_end_of_time / 10, ".", trek_end_of_time % 10;
+   
+   @set_cursor 2 21;
+   print trek_klingons_left;
+   @set_cursor 2 52;
+   print trek_total_bases;
+   
+   @set_cursor 3 15;
+   print trek_shield_value;
+   i = trek_current_energy + trek_shield_value;
+   @set_cursor 3 49;
+
+   switch(i)
+   {
+      0 to 9     : print "   ", i;
+      10 to 99   : print "  ", i;
+      100 to 999 : print " ", i;
+      default    : print i;
+   }
+
+   style roman;
+
+   @set_window 0;
+];
+
+[ MainMenu i ;
+   for (::)
+   {
+      @read_char 1 -> i;
+
+      switch(i)
+      {
+         '0' : break;
+         '1' : CourseControl();
+         '2' : ShortRangeScan();
+         '3' : LongRangeScan();
+         '4' : PhaserControl();
+         '5' : PhotonTorps();
+         '6' : ShieldControl();
+         '7' : DamageControl();
+         '8' : Library();
+         '9' : Help();
+      }            
+   if (i == '0') break;
+   }
+];
+
+[ CourseControl i course speed;
+   PrintCompass();
+   
+   print "^Enter course (1-8): ";
+   @read_char 1 -> i;
+   
+   if (i < '1' || i > '8')
+      "^Lt. Sulu reports: ~Incorrect course data, sir!~^";
+
+   course = i - 48;
+   print course;
+
+   trek_max_speed = trek_damage_array->WARP_ENGINES;
+   trek_max_speed = trek_max_speed + 3;
+   print "^^Enter warp speed (1-", trek_max_speed, "): ";
+   @read_char 1 -> i;
+   speed = i - 48;
+   
+   if (speed < 1)
+      "^Lt. Sulu reports: ~Incorrect speed, sir!~^^";
+
+   if (speed > trek_max_speed)
+      "^Chief Engineer Scott reports: ~The engines won't take more than warp ",
+       trek_max_speed, "!~^^";
+
+   if (speed * 10 > trek_current_energy + trek_shield_value)
+      "^Chief Engineer Scott reports: ~We don't have enough energy power to go 
+       that fast!~^^";
+
+   trek_current_energy = trek_current_energy - (speed * 10);
+
+   print speed, "^^";
+
+  if (trek_current_energy < 0)
+  {
+     print "^Shield Control supplies energy to complete the maneuver.^";
+
+     trek_shield_value = trek_shield_value + trek_current_energy;
+     trek_current_energy = 0;
+
+     if (trek_shield_value < 0)
+        trek_shield_value = 0;
+
+   }
+   CompleteManeuver(course, speed);
+   if (trek_current_energy + trek_shield_value <= 0)
+      OutOfEnergy();
+];
+
+[ CompleteManeuver course speed i j xs ys xq yq;
+   xs = (trek_sector_position % 8) + 1;
+   ys = 8 - (trek_sector_position / 8);
+
+   xq = (trek_quadrant_position % 8) + 1;
+   yq = 8 - (trek_quadrant_position / 8);
+
+   j = trek_sector_position;
+
+   for (i = 1: i <= speed: i++)
+   {
+
+      if (OutOfBounds(course) == 1)
+      {
+            print "^Movement aborted - you may not leave your designated 
+                   patrol area.^";
+            break;
+      }
+
+      switch(course)
+      {
+         1: ys++;
+         2: xs++; ys++;
+         3: xs++;
+         4: xs++; ys--;
+         5: ys--;
+         6: ys--; xs--;
+         7: xs--;
+         8: xs--; ys++;
+      }
+
+      if (xs < 1 || xs > 8 || ys < 1 || ys > 8)
+      {
+         if (xs < 1) { xs = 8; xq--; }
+         if (xs > 8) { xs = 1; xq++; }
+         if (ys < 1) { ys = 8; yq--; }
+         if (ys > 8) { ys = 1; yq++; }
+         
+         j = (8 * (8 - ys)) + xs - 1;
+         trek_sector_position = j;
+         trek_quadrant_position = (8 * (8 - yq)) + xq - 1;
+         if (trek_docked_flag > 0)
+            trek_docked_flag = 0;
+         NewQuadrant();
+      }
+      else
+      {
+         j = (8 * (8 - ys)) + xs - 1;
+
+         if (trek_sector->j == KLINGON or STAR) ! You can pass through a base
+         {
+            print "^Movement aborted due to improper navigation.^";
+            break;
+         }
+         if (trek_sector->j == BASE)
+         {
+            if (i == speed)
+            {
+               print "^The Enterprise is now docked.^";
+               trek_docked_flag = 1;
+               trek_sector->trek_sector_position = 0;
+               trek_sector_position = j;
+!               jump DoneMoving;
+            }
+            else
+               continue;
+         }
+         else
+         {
+            trek_sector->j = ENTERPRISE;
+            if (trek_docked_flag > 0)
+            {
+               trek_docked_flag = 0;
+               trek_sector->trek_sector_position = BASE;
+            }
+            else
+               trek_sector->trek_sector_position = 0;
+
+            trek_sector_position = j;
+         }
+      }
+   }
+!.DoneMoving;
+   trek_current_date = trek_current_date + speed;
+   trek_end_of_time = trek_end_of_time - speed;
+   if (trek_end_of_time <= 0)
+      EndOfTime();
+   UpdateStatus();
+   DamageRepair();
+   UpdateStatus();
+   ShortRangeScan();
+];
+
+[ OutOfBounds course xs ys xq yq;
+   xs = (trek_sector_position % 8) + 1;
+   ys = 8 - (trek_sector_position / 8);
+
+   xq = (trek_quadrant_position % 8) + 1;
+   yq = 8 - (trek_quadrant_position / 8);
+
+   if (xq == 1 && yq == 1 && xs == 1 && ys == 1) ! Lower left corner
+   {
+      if (course == 4 or 5 or 6 or 7 or 8)
+         return 1;
+      else
+         return 0;
+   }
+
+   if (xq == 8 && yq == 8 && xs == 8 && ys == 8) ! Upper right corner
+   {
+      if (course == 1 or 2 or 3 or 4 or 8)
+         return 1;
+      else
+         return 0;
+   }
+
+   if (xq == 8 && yq == 1 && xs == 8 && ys == 1) ! Lower right corner
+   {
+      if (course == 2 or 3 or 4 or 5 or 6)
+         return 1;
+      else
+         return 0;
+   }
+
+   if (xq == 1 && yq == 8 && xs == 1 && ys == 8) ! Upper left corner
+   {
+      if (course == 1 or 2 or 6 or 7 or 8)
+         return 1;
+      else
+         return 0;
+   }
+
+   if (xq == 1 && xs == 1) ! Left edge
+   {
+      if (course == 6 or 7 or 8)
+         return 1;
+      else
+         return 0;
+   }
+
+   if (xq == 8 && xs == 8) ! Right Edge
+   {
+      if (course == 2 or 3 or 4)
+         return 1;
+      else
+         return 0;
+   }
+
+   if (yq == 8 && ys == 8) ! Top edge
+   {
+      if (course == 1 or 2 or 8)
+         return 1;
+      else
+         return 0;
+   }
+
+   if (yq == 1 && ys == 1) ! Bottom edge
+   {
+      if (course == 4 or 5 or 6)
+         return 1;
+      else
+         return 0;
+   }
+
+   return 0;
+];
+
+[ PrintCompass ;
+   new_line;
+   print " 8  1  2^";
+   print "  @@0092 | /^";
+   print "7  -+-  3^";
+   print "  / | @@0092^";
+   print " 6  5  4^";
+];
+
+[ ShortRangeScan x y ;
+   if (trek_damage_array->SHORT_RANGE < 5)
+      "^Short Range Sensors are inoperative.^";
+
+   ! Determine Quadrant
+
+   x = (trek_quadrant_position % 8) + 1;
+   y = 8 - (trek_quadrant_position / 8);
+
+   print "^Short range scan of quadrant ";
+   print x, ", ", y, " (";
+   PrintQuadrantName(x, y);
+   print ")^^";
+
+   print "     1   2   3   4   5   6   7   8^";
+   print "    --- --- --- --- --- --- --- ---^";
+   for (x = 0: x < 64: x++)
+   {
+      if (x % 8 == 0)
+      {
+         print " ";
+         print 8 - (x/8);
+         print ":";
+      }
+
+      switch (trek_sector->x)
+      { 
+         0 : print "  . ";
+         1 : print " +E+";
+         2 : print " +K+";
+         3 : if (trek_docked_flag == 0)
+                print " >B<";
+             else
+                print " >D<";
+         4 : print "  # ";
+      }
+      
+      if ((x + 1) % 8 == 0)
+         print "^";
+   }
+
+   y = 0;
+   for (x = 1: x < 64: x++)
+      if (trek_sector->x == 2) y++;
+
+   print "^Alert Condition: ";
+
+   if (y > 0)
+      print "Red^";
+   else if (trek_current_energy * 10 < MAX_POWER)
+      print "Yellow^";
+   else
+      print "Green^";
+
+];
+
+[ LongRangeScan i j temp_pos;
+   if (trek_damage_array->LONG_RANGE < 5)
+      "^Long Range Sensors are inoperative.^";
+
+   for (i = 0: i < 64: i++)
+      trek_temp_array-->i = 999;
+
+   temp_pos = trek_quadrant_position;
+
+   if (temp_pos == 0)   ! Upper left
+   {
+      trek_temp_array-->0 = trek_long_range_galaxy-->0;
+      trek_temp_array-->1 = trek_long_range_galaxy-->1;
+      trek_temp_array-->8 = trek_long_range_galaxy-->8;
+      trek_temp_array-->9 = trek_long_range_galaxy-->9;
+
+      trek_galaxy_history-->0 = trek_long_range_galaxy-->0;
+      trek_galaxy_history-->1 = trek_long_range_galaxy-->1;
+      trek_galaxy_history-->8 = trek_long_range_galaxy-->8;
+      trek_galaxy_history-->9 = trek_long_range_galaxy-->9;
+
+      jump Printit;
+   }
+   
+   if (temp_pos == 7)   ! Upper right
+   {
+      trek_temp_array-->6  = trek_long_range_galaxy-->6;
+      trek_temp_array-->7  = trek_long_range_galaxy-->7;
+      trek_temp_array-->14 = trek_long_range_galaxy-->14;
+      trek_temp_array-->15 = trek_long_range_galaxy-->15;
+
+      trek_galaxy_history-->6  = trek_long_range_galaxy-->6;
+      trek_galaxy_history-->7  = trek_long_range_galaxy-->7;
+      trek_galaxy_history-->14 = trek_long_range_galaxy-->14;
+      trek_galaxy_history-->15 = trek_long_range_galaxy-->15;
+
+      jump Printit;
+   }
+
+   if (temp_pos == 56)  ! Lower left
+   {
+      trek_temp_array-->48 = trek_long_range_galaxy-->48;
+      trek_temp_array-->49 = trek_long_range_galaxy-->49;
+      trek_temp_array-->56 = trek_long_range_galaxy-->56;
+      trek_temp_array-->57 = trek_long_range_galaxy-->57;
+
+      trek_galaxy_history-->48 = trek_long_range_galaxy-->48;
+      trek_galaxy_history-->49 = trek_long_range_galaxy-->49;
+      trek_galaxy_history-->56 = trek_long_range_galaxy-->56;
+      trek_galaxy_history-->57 = trek_long_range_galaxy-->57;
+
+      jump Printit;
+   }
+
+   if (temp_pos == 63)  ! Lower right
+   {
+      trek_temp_array-->54 = trek_long_range_galaxy-->54;
+      trek_temp_array-->55 = trek_long_range_galaxy-->55;
+      trek_temp_array-->62 = trek_long_range_galaxy-->62;
+      trek_temp_array-->63 = trek_long_range_galaxy-->63;
+
+      trek_galaxy_history-->54 = trek_long_range_galaxy-->54;
+      trek_galaxy_history-->55 = trek_long_range_galaxy-->55;
+      trek_galaxy_history-->62 = trek_long_range_galaxy-->62;
+      trek_galaxy_history-->63 = trek_long_range_galaxy-->63;
+
+      jump Printit;
+   }
+
+   if (temp_pos < 8)    ! Top edge
+   {
+      trek_temp_array-->temp_pos     = trek_long_range_galaxy-->temp_pos;
+      trek_temp_array-->(temp_pos-1) = trek_long_range_galaxy-->(temp_pos-1);
+      trek_temp_array-->(temp_pos+1) = trek_long_range_galaxy-->(temp_pos+1);
+      trek_temp_array-->(temp_pos+7) = trek_long_range_galaxy-->(temp_pos+7);
+      trek_temp_array-->(temp_pos+8) = trek_long_range_galaxy-->(temp_pos+8);
+      trek_temp_array-->(temp_pos+9) = trek_long_range_galaxy-->(temp_pos+9);
+
+      trek_galaxy_history-->temp_pos     = trek_long_range_galaxy-->temp_pos;
+      trek_galaxy_history-->(temp_pos-1) = trek_long_range_galaxy-->(temp_pos-1);
+      trek_galaxy_history-->(temp_pos+1) = trek_long_range_galaxy-->(temp_pos+1);
+      trek_galaxy_history-->(temp_pos+7) = trek_long_range_galaxy-->(temp_pos+7);
+      trek_galaxy_history-->(temp_pos+8) = trek_long_range_galaxy-->(temp_pos+8);
+      trek_galaxy_history-->(temp_pos+9) = trek_long_range_galaxy-->(temp_pos+9);
+
+      jump Printit;
+   }
+
+   if (temp_pos > 55)   ! Bottom edge
+   {
+      trek_temp_array-->temp_pos     = trek_long_range_galaxy-->temp_pos;
+      trek_temp_array-->(temp_pos-1) = trek_long_range_galaxy-->(temp_pos-1);
+      trek_temp_array-->(temp_pos+1) = trek_long_range_galaxy-->(temp_pos+1);
+      trek_temp_array-->(temp_pos-7) = trek_long_range_galaxy-->(temp_pos-7);
+      trek_temp_array-->(temp_pos-8) = trek_long_range_galaxy-->(temp_pos-8);
+      trek_temp_array-->(temp_pos-9) = trek_long_range_galaxy-->(temp_pos-9);
+
+      trek_galaxy_history-->temp_pos     = trek_long_range_galaxy-->temp_pos;
+      trek_galaxy_history-->(temp_pos-1) = trek_long_range_galaxy-->(temp_pos-1);
+      trek_galaxy_history-->(temp_pos+1) = trek_long_range_galaxy-->(temp_pos+1);
+      trek_galaxy_history-->(temp_pos-7) = trek_long_range_galaxy-->(temp_pos-7);
+      trek_galaxy_history-->(temp_pos-8) = trek_long_range_galaxy-->(temp_pos-8);
+      trek_galaxy_history-->(temp_pos-9) = trek_long_range_galaxy-->(temp_pos-9);
+
+      jump Printit;
+   }
+
+   if (temp_pos % 8 == 0)  ! Left edge
+   {
+      trek_temp_array-->temp_pos     = trek_long_range_galaxy-->temp_pos;
+      trek_temp_array-->(temp_pos-8) = trek_long_range_galaxy-->(temp_pos-8);
+      trek_temp_array-->(temp_pos+8) = trek_long_range_galaxy-->(temp_pos+8);
+      trek_temp_array-->(temp_pos-7) = trek_long_range_galaxy-->(temp_pos-7);
+      trek_temp_array-->(temp_pos+1) = trek_long_range_galaxy-->(temp_pos+1);
+      trek_temp_array-->(temp_pos+9) = trek_long_range_galaxy-->(temp_pos+9);
+
+      trek_galaxy_history-->temp_pos     = trek_long_range_galaxy-->temp_pos;
+      trek_galaxy_history-->(temp_pos-8) = trek_long_range_galaxy-->(temp_pos-8);
+      trek_galaxy_history-->(temp_pos+8) = trek_long_range_galaxy-->(temp_pos+8);
+      trek_galaxy_history-->(temp_pos-7) = trek_long_range_galaxy-->(temp_pos-7);
+      trek_galaxy_history-->(temp_pos+1) = trek_long_range_galaxy-->(temp_pos+1);
+      trek_galaxy_history-->(temp_pos+9) = trek_long_range_galaxy-->(temp_pos+9);
+
+      jump Printit;
+   }
+   if ((temp_pos+1) % 8 == 0)  ! Right edge
+   {
+      trek_temp_array-->temp_pos     = trek_long_range_galaxy-->temp_pos;
+      trek_temp_array-->(temp_pos-8) = trek_long_range_galaxy-->(temp_pos-8);
+      trek_temp_array-->(temp_pos+8) = trek_long_range_galaxy-->(temp_pos+8);
+      trek_temp_array-->(temp_pos+7) = trek_long_range_galaxy-->(temp_pos+7);
+      trek_temp_array-->(temp_pos-1) = trek_long_range_galaxy-->(temp_pos-1);
+      trek_temp_array-->(temp_pos-9) = trek_long_range_galaxy-->(temp_pos-9);
+
+      trek_galaxy_history-->temp_pos     = trek_long_range_galaxy-->temp_pos;
+      trek_galaxy_history-->(temp_pos-8) = trek_long_range_galaxy-->(temp_pos-8);
+      trek_galaxy_history-->(temp_pos+8) = trek_long_range_galaxy-->(temp_pos+8);
+      trek_galaxy_history-->(temp_pos+7) = trek_long_range_galaxy-->(temp_pos+7);
+      trek_galaxy_history-->(temp_pos-1) = trek_long_range_galaxy-->(temp_pos-1);
+      trek_galaxy_history-->(temp_pos-9) = trek_long_range_galaxy-->(temp_pos-9);
+
+      jump Printit;
+   }
+
+   ! Everything else
+
+   trek_temp_array-->temp_pos     = trek_long_range_galaxy-->temp_pos;
+   trek_temp_array-->(temp_pos-9) = trek_long_range_galaxy-->(temp_pos-9);
+   trek_temp_array-->(temp_pos-8) = trek_long_range_galaxy-->(temp_pos-8);
+   trek_temp_array-->(temp_pos-7) = trek_long_range_galaxy-->(temp_pos-7);
+   trek_temp_array-->(temp_pos-1) = trek_long_range_galaxy-->(temp_pos-1);
+   trek_temp_array-->(temp_pos+1) = trek_long_range_galaxy-->(temp_pos+1);
+   trek_temp_array-->(temp_pos+7) = trek_long_range_galaxy-->(temp_pos+7);
+   trek_temp_array-->(temp_pos+8) = trek_long_range_galaxy-->(temp_pos+8);
+   trek_temp_array-->(temp_pos+9) = trek_long_range_galaxy-->(temp_pos+9);
+
+   trek_galaxy_history-->temp_pos     = trek_long_range_galaxy-->temp_pos;
+   trek_galaxy_history-->(temp_pos-9) = trek_long_range_galaxy-->(temp_pos-9);
+   trek_galaxy_history-->(temp_pos-8) = trek_long_range_galaxy-->(temp_pos-8);
+   trek_galaxy_history-->(temp_pos-7) = trek_long_range_galaxy-->(temp_pos-7);
+   trek_galaxy_history-->(temp_pos-1) = trek_long_range_galaxy-->(temp_pos-1);
+   trek_galaxy_history-->(temp_pos+1) = trek_long_range_galaxy-->(temp_pos+1);
+   trek_galaxy_history-->(temp_pos+7) = trek_long_range_galaxy-->(temp_pos+7);
+   trek_galaxy_history-->(temp_pos+8) = trek_long_range_galaxy-->(temp_pos+8);
+   trek_galaxy_history-->(temp_pos+9) = trek_long_range_galaxy-->(temp_pos+9);
+
+.Printit;
+   new_line;
+   new_line;
+   
+   print "                 Long Range Scan Results^^";
+   print "      1     2     3     4     5     6     7     8^";
+   print "    ----- ----- ----- ----- ----- ----- ----- -----^";
+   
+   for (i = 0: i < 64: i++)
+   {
+      if (i%8 == 0)
+      {
+         print " ";
+         print 8 - i/8;
+         print ":";
+      }
+
+      j = trek_temp_array-->i;
+
+      print " ";
+
+      if (i == temp_pos)
+         style reverse;
+      else
+         style roman;
+
+      switch(j)
+      {
+         0 to 9   : print " 00"; print j;
+         10 to 98 : print " 0";  print j;
+         999      : print " ***";
+         default  : print " "; print j;
+      }
+
+      print " ";
+
+      style roman;
+
+   if (i%8 == 7)
+      print "^";
+   }
+];
+
+[ TextToNumber n x len mul tot;
+    text_array -> 0 = 60;
+    read text_array 0;
+
+    if (text_array->1 > 4)
+       return -1;
+
+    x = 0;
+    len = text_array->1;
+
+    if (len == 4) mul=1000;
+    if (len == 3) mul=100;
+    if (len == 2) mul=10;
+    if (len == 1) mul=1;
+
+    tot = 0;
+
+    for (n = 0: n < len: n++)
+    {
+       if (text_array->(n+2) > 47 && text_array->(n+2) < 58)
+       {
+          x = text_array->(n+2);
+          x = x - 48;
+          tot = tot + mul * x;
+          mul = mul/10;
+       }
+       else
+          return -1;
+    }
+    return tot;
+];
+
+[ PhaserControl i j k x1 y1 x2 y2 z rng dmg;
+   if (trek_damage_array->PHASER_CONTROL < 5)
+      "^Science Officer Spock reports: ~Phasers are inoperative, Captain.~^";
+
+   k = trek_long_range_galaxy-->trek_quadrant_position;
+
+   k = k / 100;                     ! Klingons
+
+   if (k == 0)
+      "^Science Officer Spock reports: ~Sensors show no enemy ships in this 
+       quadrant~^";
+
+   if (trek_damage_array->LIBRARY_COMPUTER < 5)
+      print "^Science Officer Spock reports: ~Computer failure will hamper 
+             accuracy, Captain.~^";
+
+   print "^Phasers locked on target. Energy available = ", 
+          trek_current_energy + trek_shield_value;
+
+   print "^Enter number of units to fire: ";
+
+   i = TextToNumber();
+
+   if (i <= 0)
+      "^Science Officer Spock reports: ~Phaser fire aborted.~^";
+   
+   if (i > trek_current_energy)
+      "^Science Officer Spock reports: ~Insufficient energy for that 
+       attack.~^";
+
+   trek_current_energy = trek_current_energy - i;
+
+   if (trek_damage_array->LIBRARY_COMPUTER < 5) ! Computer damage affects targeting
+      i = i * trek_damage_array->LIBRARY_COMPUTER / 5;
+
+   i = i / k; ! Divide the energy between each target
+
+   x1 = (trek_sector_position % 8) + 1;
+   y1 = 8 - (trek_sector_position / 8);
+
+   k = -1;
+
+   for (j = 0: j < 64: j++)
+   {
+      if (trek_sector->j == KLINGON)
+      {
+         k++;
+         x2 = (j % 8) + 1;
+         y2 = 8 - (j / 8);
+
+         rng = Range(x1, y1, x2, y2);
+
+         dmg = i;
+            
+         dmg = dmg * 10 / (rng + random(5) - 1);
+
+         z = trek_klingon_array->k;
+
+         if (dmg <= 0)
+            "^Science Officer Spock reports: ~Sensors show no damage to 
+             the Klingon battlecruiser at ", x2, ", ", y2, ".~^";
+
+         if (dmg >= z)
+         {
+            print "^Science Officer Spock reports: ~The Klingon battlecruiser
+                   at ", x2, ", ", y2, " has been destroyed.~^";
+            trek_klingon_array->k = 0;
+            trek_sector->j = 0;
+            trek_klingons_left--;
+            if (trek_klingons_left == 0)
+               WonGame();
+
+            z = trek_long_range_galaxy-->trek_quadrant_position;
+            z = z - 100;
+            trek_long_range_galaxy-->trek_quadrant_position = z;
+            if (z / 100 == 0)
+               ShortRangeScan();
+            UpdateStatus();
+         }
+
+         else
+         {
+            z = z - dmg;
+            trek_klingon_array->k = z;
+            print "^Science Officer Spock reports: ~Sensors show that the 
+                   Klingon battlecruiser at ", x2, ", ", y2, " suffered a ", 
+                   dmg, " unit hit.~^";
+         }
+      }
+   }
+   KlingonsShoot();
+];
+
+[ PhotonTorps course i x1 y1 x2 y2 z index ;
+   if (trek_torps_remaining == 0)
+      "^Ensign Chekov reports: ~All photon torpedoes expended, sir!~^";
+
+   if (trek_damage_array->PHOTON_TUBES < 5)
+      "^Ensign Chekov reports: ~Photon torpedo tubes not operational, sir!~^";
+
+   i = trek_long_range_galaxy-->trek_quadrant_position;
+
+   i = i / 100;                     ! Klingons
+
+   if (i == 0)
+      "^Ensign Chekov reports: ~There are no Klingons in this quadrant, sir!~^";
+
+   trek_torps_remaining--;
+   x1 = (trek_sector_position % 8) + 1;
+   y1 = 8 - (trek_sector_position / 8);
+
+   PrintCompass();
+
+   print "^Enter torpedo course (1-8): ";
+   
+   @read_char 1 -> i;
+   
+   if (i < '1' || i > '8')
+      "^Ensign Chekov reports: ~Incorrect course data, sir!~^";
+
+   course = i - 48;
+
+   print course, "^";
+
+   for (i = 1: i < 8: i++)
+   {
+      switch(course)
+      {
+         1: y1++;
+         2: x1++; y1++;
+         3: x1++;
+         4: x1++; y1--;
+         5: y1--;
+         6: y1--; x1--;
+         7: x1--;
+         8: x1--; y1++;
+      }
+
+      if (x1 < 1 || x1 > 8 || y1 < 1 || y1 > 8)
+      {
+         print "^Ensign Chekov reports: ~The torpedo missed, sir!~^";
+         break;
+      }
+   
+      index = (8 * (8 - y1)) + x1 - 1;
+   
+      if (trek_sector->index == KLINGON)
+      {
+         x2 = (trek_sector_position % 8) + 1;
+         y2 = 8 - (trek_sector_position / 8);
+         
+         z = Range(x1, y1, x2, y2);
+         
+         z = z / 15;
+         
+         if (random(10) - 1 < z)
+         {
+            print "^Ensign Chekov reports: ~The torpedo missed, sir!~^";
+            break;
+         }
+         else
+         {
+            trek_sector->index = 0;
+            trek_klingons_left--;
+            if (trek_klingons_left == 0)
+               WonGame();
+            z = trek_long_range_galaxy-->trek_quadrant_position;
+            z = z - 100;
+            trek_long_range_galaxy-->trek_quadrant_position = z;
+            print "^Ensign Chekov reports: ~The Klingon battlecruiser in 
+                   sector ", x2, ", ", y2, " has been destroyed, sir!~^";
+            UpdateStatus();
+            ShortRangeScan();
+            break;
+         }
+      }
+
+      if (trek_sector->index == BASE)
+      {
+         print "^Ensign Chekov reports: ~You destroyed a base, sir!~^";
+         trek_total_bases--;
+         z = trek_long_range_galaxy-->trek_quadrant_position;
+         z = z - 10;
+         trek_long_range_galaxy-->trek_quadrant_position = z;
+         
+         if (trek_total_bases == 0 && 
+             trek_klingons_left <= (trek_current_date / 10) - 
+                                   trek_end_of_time / 10)
+         {
+            print "That does it, Captain!! You are hereby relieved of command 
+                   and sentenced to 99 stardates of hard labor on Cygnus 12!! ";
+            LoseGame();
+         }
+
+         if (trek_docked_flag > 0) ! Undock
+         {
+            trek_docked_flag = 0;
+            trek_sector->trek_sector_position = ENTERPRISE;
+            ShortRangeScan();
+         }
+
+         break;
+      }
+
+      if (trek_sector->index == STAR)
+      {
+         print "^Ensign Chekov reports: ~The star absorbed the torpedo's 
+                energy, sir!~^";
+         break;
+      }
+   }
+   KlingonsShoot();
+];
+
+[ DamageControl ;
+   new_line;
+   new_line;
+   print "System                    Status^";
+   print "-------------------------------------^";
+
+   print "Warp Engines              ";
+   if (trek_damage_array->WARP_ENGINES == 5)
+      print "Operational^"; 
+   else 
+      print "Damaged^";
+
+   print "Short Range Sensors       ";
+   if (trek_damage_array->SHORT_RANGE == 5)
+      print "Operational^";
+   else
+      print "Damaged^";
+
+   print "Long Range Sensors        ";
+   if (trek_damage_array->LONG_RANGE == 5)
+      print "Operational^";
+   else
+      print "Damaged^";
+
+   print "Phaser Control            ";
+   if (trek_damage_array->PHASER_CONTROL == 5)
+      print "Operational^";
+   else 
+      print "Damaged^";
+
+   print "Photon Torpedo Tubes      ";
+   if (trek_damage_array->PHOTON_TUBES == 5)
+      print "Operational^";
+   else
+      print "Damaged^";
+
+   print "Damage Control            ";
+   if (trek_damage_array->DAMAGE_CONTROL == 5)
+      print "Operational^";
+   else
+      print "Damaged^";
+
+   print "Shield Control            ";
+   if (trek_damage_array->SHIELD_CONTROL == 5)
+      print "Operational^";
+   else
+      print "Damaged^";
+
+   print "Library-Computer          ";
+   if (trek_damage_array->LIBRARY_COMPUTER == 5)
+      print "Operational^";
+   else
+      print "Damaged^";
+];
+
+[ ShieldControl i;
+   if (trek_damage_array->SHIELD_CONTROL < 5)
+      "Shield Control is inoperative.";
+
+   print "^Total energy available = ", trek_current_energy + trek_shield_value;
+
+   print "^Input number of units to shields: ";
+
+   i = TextToNumber();
+
+   if (i == -1)
+      "^Shield Control reports: ~Invalid request - shields unchanged.~^";
+   
+   if (i == trek_shield_value)
+      "^<Shields Unchanged>^";
+
+   if (i >= trek_current_energy + trek_shield_value)
+       "^Shield Control reports: ~There is insufficient energy available - 
+        shields unchanged.~^";
+
+   trek_current_energy = trek_current_energy + trek_shield_value - i;
+   trek_shield_value = i;
+
+   print "^Shield Control reports: ~Shields now at ", trek_shield_value, 
+          " units per your command.~^";
+   UpdateStatus();
+];
+
+[ Library i;
+   if (trek_damage_array->LIBRARY_COMPUTER < 5)
+      "^The Library Computer is inoperative.^";
+
+   print "^Choose which library-computer function you wish to use:^^";
+   print "1: Galactic Record^";
+   print "2: Status Report^";
+   print "3: Exit^^";
+   print "Enter choice: ";
+
+   @read_char 1 -> i;
+   print i - 48, "^";
+   switch(i)
+   {
+      '1' : GalacticRecord();
+      '2' : StatusReport();
+      '3' : "^Library-computer exited.^^";
+      default: "^Invalid choice.^";
+   }
+];
+
+[ GalacticRecord i j;
+   new_line;
+   new_line;
+   
+   print "                        The Galaxy^^";
+   print "      1     2     3     4     5     6     7     8^";
+   print "    ----- ----- ----- ----- ----- ----- ----- -----^";
+   
+   for (i = 0: i < 64: i++)
+   {
+      if (i%8 == 0)
+      {
+         print " ";
+         print 8 - i/8;
+         print ":";
+      }
+
+      j = trek_galaxy_history-->i;
+
+      print " ";
+
+      if (i == trek_quadrant_position)
+         style reverse;
+      else
+         style roman;
+
+      switch(j)
+      {
+         0 to 9   : print " 00"; print j;
+         10 to 98 : print " 0";  print j;
+         999      : print " ***";
+         default  : print " "; print j;
+      }
+
+      print " ";
+
+      style roman;
+
+   if (i%8 == 7)
+      print "^";
+   }
+];
+
+[ StatusReport i j x y;
+   for (i = 1: i < 64: i++)
+      if (trek_sector->i == KLINGON) j++;
+
+   print "^Status Report:^^";
+
+   print "Startdate: ", (trek_current_date / 10), ".", 
+          (trek_current_date % 10), "^^";
+
+   print "Time remaining in mission: ", trek_end_of_time / 10, ".", 
+          trek_end_of_time % 10, " days^^";
+
+   x = (trek_quadrant_position % 8) + 1;
+   y = 8 - (trek_quadrant_position / 8);
+
+   print "Position:^^";
+   print "   Quadrant: ", x, ", ", y, " (";
+   PrintQuadrantName(x, y);
+   print ")^^";
+
+   x = (trek_sector_position % 8) + 1;
+   y = 8 - (trek_sector_position / 8);
+
+   print "   Sector:   ",  x, ", ", y, "^^";
+
+   print "Alert Condition: ";
+
+   if (j > 0)
+      print "Red^^";
+   else if (trek_current_energy * 10 < MAX_POWER)
+      print "Yellow^^";
+   else
+      print "Green^^";
+
+   print "Klingon warships remaining: ", trek_klingons_left, "^^";
+
+   print "Total bases remaining: ", trek_total_bases, "^^";
+
+   print "Total energy remaining: ", trek_current_energy + 
+          trek_shield_value, "^^";
+
+   print "Current shield setting: ", trek_shield_value, "^^";
+
+   print "Total torpedoes remaining: ", trek_torps_remaining, "^";
+];
+
+[ KlingonsShoot i j k x1 y1 x2 y2 rng dmg;
+   i = trek_long_range_galaxy-->trek_quadrant_position;
+
+   i = i / 100;                     ! Klingons
+
+   if (i == 0) return;
+
+   if (trek_docked_flag > 0)
+      "^Starbase shields protect the Enterprise^^";
+
+   j = -1;
+   for (k = 0: k < 64: k++)
+   {
+      if (trek_sector->k == KLINGON)
+      {
+         j++;
+         x1 = (k % 8) + 1;
+         y1 = 8 - (k / 8);
+            
+         x2 = (trek_sector_position % 8) + 1;
+         y2 = 8 - (trek_sector_position / 8);
+
+         rng = Range(x1, y1, x2, y2);
+
+         dmg = trek_klingon_array->j;
+
+         x2 = trek_klingon_array->j;
+
+         x2 = x2 * 2 / 3; ! Reduce available Klingon energy by 1/3
+         
+         trek_klingon_array->j = x2;
+
+         dmg = dmg * 10 / (rng + random(5) - 1); 
+
+         print "^The Klingon battlecruiser at ", x1, ", ", y1,
+               " fires on you for ", dmg, " units of damage.^";
+
+         if (dmg > trek_shield_value)
+         {
+            ShipDestroyed();
+         }
+         else
+         {
+            trek_shield_value = trek_shield_value - dmg;
+            print "^Shield energy is down to ", trek_shield_value, 
+                  " units.^";
+            if (dmg >= 20)
+            {
+               if (random(10) < 7 || (dmg * 10 / trek_shield_value > 2))
+               {
+                  dmg = random(8) - 1;
+                  if (trek_damage_array->dmg > 0)
+                  {
+                     x2 = trek_damage_array->dmg;
+                     x2--;
+                     trek_damage_array->dmg = x2;
+                  }
+                  print "^Damage control reports: ~";
+                  switch(dmg)
+                  {
+                     0 :  print "The warp engines were";
+                     1 :  print "The short range sensors were";
+                     2 :  print "The long range sensors were";
+                     3 :  print "Phaser controls were";
+                     4 :  print "The photon torpedo tubes were";
+                     5 :  print "Damage control was";
+                     6 :  print "Shield control was";
+                     7 :  print "The library-computer was";
+                  }
+                  print " damaged in the attack.~^";
+               }
+            }
+         }
+      }
+   }
+   KlingonsMove();
+   UpdateStatus();
+   ShortRangeScan();
+];
+
+[ KlingonsMove i j k;
+   j = 0;
+   for (i = 0: i < 64: i++)
+   {
+      if (trek_sector->i == KLINGON)
+      {
+         j++;                  ! Count the number of Klingons in the sector
+         trek_sector->i = 0;   ! and zero their location
+      }
+   }
+
+   for (i = 1: i <= j: i++)   ! Position Klingons
+   {
+.Retry4;
+      k = random(64) - 1;
+      if (trek_sector->k ~= 0)
+         jump Retry4;
+      else
+         trek_sector->k = KLINGON;
+   }
+
+   if (trek_klingon_array->0 == 0)     ! "Garbage collect" the damage array
+      trek_klingon_array->0 = trek_klingon_array->1;
+
+   if (trek_klingon_array->1 == 0)
+      trek_klingon_array->1 = trek_klingon_array->2;
+];
+
+[ DamageRepair i j k;
+   if (trek_docked_flag == 1) ! Docked
+   {
+      trek_docked_flag = 2;
+      trek_current_energy = MAX_POWER;
+      trek_torps_remaining = trek_torp_capacity;
+      if (trek_shield_value > 0)
+         print "^Shields dropped for docking purposes.^";
+
+      trek_shield_value = 0;
+
+      j = 0;
+      for (i = 0: i < 8: i++)
+      {
+         if (trek_damage_array->i < 5)
+         j = j + (5 - trek_damage_array->i);
+      }
+      
+      if (j > 0)
+      {
+         print "^Technicians are standing by to effect repairs to your ship.
+                These repairs will take ", j / 10, ".", j % 10, " days to
+                complete. Will you authorize the repair order? (Y/N) ";
+
+         @read_char->k;
+         if (k == 'Y' or 'y')
+         {
+            trek_current_date = trek_current_date + j;
+            trek_end_of_time = trek_end_of_time - j;
+            if (trek_end_of_time <= 0)
+               EndOfTime();
+            for (i = 0: i < 8: i++)
+               trek_damage_array->i = 5;
+            print "^";
+         }
+         else
+            "^";
+      }
+   }
+   else
+   {
+      k = trek_damage_array->DAMAGE_CONTROL;
+      for (i = 0: i < 8: i++)
+      {
+         if (trek_damage_array->i < 5 && random(20) < k)
+         {
+            j = trek_damage_array->i;
+            j++;
+            trek_damage_array->i = j;
+            print "^Damage control reports: ~The ";
+            switch(i)
+            {
+               0 : print "warp engines have";
+               1 : print "short range sensors have";
+               2 : print "long range sensors have";
+               3 : print "phaser control system has";
+               4 : print "photon torpedo tubes have";
+               5 : print "damage control system has";
+               6 : print "shield control system has";
+               7 : print "library-computer has";
+            }
+            if (j < 5)
+               print " been partially repaired.~^";
+            else
+               print " been completely repaired.~^";
+         }
+      }
+   }
+];
+
+[ PrintQuadrantName x y;
+   if (x == 1 or 2)
+   {
+      if (y == 1 or 2)
+         print "Antares";
+      if (y == 3 or 4)
+         print "Rigel";
+      if (y == 5 or 6)
+         print "Procyon";
+      if (y == 7 or 8)
+         print "Vega";
+   }
+   if (x == 3 or 4)
+   {
+      if (y == 1 or 2)
+         print "Canopus";
+      if (y == 3 or 4)
+         print "Altair";
+      if (y == 5 or 6)
+         print "Sagittarius";
+      if (y == 7 or 8)
+         print "Pollux";
+   }
+   if (x == 5 or 6)
+   {
+      if (y == 1 or 2)
+         print "Sirius";
+      if (y == 3 or 4)
+         print "Deneb";
+      if (y == 5 or 6)
+         print "Capella";
+      if (y == 7 or 8)
+         print "Betelgeuse";
+   }
+   if (x == 7 or 8)
+   {
+      if (y == 1 or 2)
+         print "Aldebaran";
+      if (y == 3 or 4)
+         print "Regulus";
+      if (y == 5 or 6)
+         print "Arcturus";
+      if (y == 7 or 8)
+         print "Spica";
+   }
+
+   if (x == 1 or 3 or 5 or 7)
+   {
+      if (y == 1 or 3 or 5 or 7)
+         print " I";
+      else
+         print " III";
+   }
+
+   if (x == 2 or 4 or 6 or 8)
+   {
+      if (y == 1 or 3 or 5 or 7)
+         print " II";
+      else
+         print " IV";
+   }
+];
+
+[ Range x1 y1 x2 y2 delta_x delta_y result;
+   delta_x = (x1 - x2) * 10;
+   delta_x = delta_x * delta_x;
+
+   delta_y = (y1 - y2) * 10;
+   delta_y = delta_y * delta_y;
+
+   result = SquareRoot(delta_x + delta_y);
+
+  return result;
+];
+
+! Brute force approach to finding the square root of a number
+
+[ SquareRoot a b;
+   for (b = 1: b <= 110: b++)
+   {
+      if (b * b > a)
+         return (b - 1);
+   }
+];
+
+[ ShipDestroyed ;
+   print "The Enterprise has been destroyed. You have failed. ";
+   LoseGame();
+];
+
+[ OutOfEnergy ;
+   print "^You've stranded yourself in space without enough energy to get to
+          a base! ";
+   LoseGame();
+];
+
+[ EndOfTime ;
+   print "You've run out of time, Captain! ";
+   LoseGame();
+];
+
+[ LoseGame ;
+   print "It is stardate ", (trek_current_date / 10), ".", 
+          (trek_current_date % 10), ". ";
+
+   print "There ";
+
+   if (trek_klingons_left == 1)
+      print "was ";
+   else
+      print "were ";
+   print trek_klingons_left, " Klingon battlecruiser";
+
+   if (trek_klingons_left ~= 1)
+      print "s";
+
+   print " left at the end of your mission.^^";
+
+   print "[Press any key to continue.]^";
+   Pause();
+   EndScreen();
+];
+
+[ WonGame ;
+   print "Congratulations, Captain! You have destroyed the last Klingon 
+          battlecruiser in your patrol area.^^";
+          
+   print "[Press any key to continue.]^";
+   Pause();
+   EndScreen();
+];
+
+[ EndScreen ;
+   @set_cursor 1 1;
+   @split_window 0;
+   @erase_window $ffff;
+
+   print "^Thanks for playing Super Z Trek.^^";
+   @quit;
+];
+
+[ Pause dummy;
+	@read_char 1 dummy;
+	return dummy;
+];
+
+[ Help i;
+   print "^Choose which file to read:^^";
+   print "1: How To Play Super Z Trek^";
+   print "2: About This Game^";
+   print "3: Exit^^";
+   print "Enter choice: ";
+
+   @read_char 1 -> i;
+   print i - 48, "^";
+   switch(i)
+   {
+      '1' : HowToPlay();
+      '2' : About();
+      '3' : "^Library-computer exited.^^";
+      default: "^Invalid choice.^";
+   }
+];
+
+[ HowToPlay ;
+   print "^Welcome to Super Z Trek, the classic computer game ported to the 
+          Z machine.^^";
+
+   print "The Z Trek galaxy is divided into an 8 x 8 quadrant grid, and each 
+          quadrant is further divided into an 8 x 8 sector grid.^^";
+
+   print "You will be assigned a starting point somewhere in the galaxy to 
+          begin a tour of duty as captain of the starship Enterprise. Your 
+          mission: to seek out and destroy a fleet of Klingon warships which 
+          have invaded the United Federation of Planets.^^";
+
+   print "COMMANDS^^";
+   
+   print "The menu bar at the top of the screen displays information about the
+          current game and a list of allowable commands. Each command (numbered
+          '1' through '0') is activated by pressing the appropriate key. Each
+          key only has to be pressed once; you do not have to press 'Enter'
+          to complete the command. Each command is described below.^^";
+
+   print "1. Nav: This command is used to move the Enterprise around the 
+          galaxy. Two additional pieces of information are required to 
+          complete this command: course and speed. Course is an integer
+          from 1 to 8, as follows:^^";
+
+   PrintCompass();
+   
+   print "^As with the command keys, only one keypress is required to enter
+          the course.^^";
+
+   print "The second entry is the speed, which is also an integer. The
+          Enterprise's speed ranges from 1 up to a maximum of 8, but this
+          maximum may be reduced due to damage to the warp engines. Speed is 
+          entered in the same way as course, with only one keypress 
+          required.^^";
+
+   print "If you wish to abort the movement command, enter an invalid value
+          for either the course or speed.^^";
+
+   print "2. SRS: This command prints out the results of a Short Range Sensor
+          scan. The print out shows what occupies the Enterprise's current 
+          quadrant. The symbols used are:^^";
+
+   print "     +E+ = Your starship's position^";
+   print "     +K+ = Klingon battlecruiser^";
+   print "     >B< = Federation starbase (Refuel/Repair/Re-Arm here)^";
+   print "     >D< = Federation starbase with the Enterprise docked^";
+   print "      #  = Star^";
+   print "      .  = Empty space^^";
+
+   print "3. LRS: This shows shows conditions in space for one quadrant on 
+          each side of the Enterprise (which is in the middle of the scan 
+          in reverse video). The scan is coded in the form ~###~ where the 
+          units digit is the number of stars, the tens digit is the number
+          of starbases, and the hundreds digit is the number of Klingons.^^";
+
+   print "Example: 207 = 2 Klingons, No Starbases, and 7 stars.^^";
+
+   print "4. Phaser: Allows you to destroy the Klingon battlecruisers by 
+          zapping them with suitably large units of energy to deplete their 
+          shield power. With this command, you must enter the number of units
+          of energy you want to fire, then press the 'Enter' key. The amount 
+          of energy you use will be divided evenly between all of the Klingons
+          in the quadrant.^^";
+
+   print "5. Torp: This commands fires one photon torpedo at one Klingon
+          ship. You will have to enter the torpedo's course, which is the 
+          same used in movement. If you hit the Klingon vessel, it is 
+          destroyed and cannot fire back at you. If you miss, you are subject 
+          to the disrupter fire of all other Klingons in the quadrant.^^";
+
+   print "Note: Since Inform only works with integers, this version 
+          eliminates the guesswork involved in moving and firing torpedoes. 
+          To make up for this, the torpedo algorithm gives the torpedo a 
+          random chance to miss, which increases as the range increases.^^";
+
+   print "6. Shield: This command defines the number of energy units to be 
+          assigned to the shields. Energy for the shields is taken from the 
+          ship's total energy. 
+          If the Enterprise is hit and the shield value is reduced to zero or 
+          less, the Enterprise is destroyed. Don't forget to put energy into 
+          the shields before entering combat! Note that the ~Total Energy 
+          Remaining~ heading on the menu bar includes shield energy.^^";
+
+   print "7. Damage: This command shows the state of repair of all devices, 
+          either ~Operational~ or ~Damaged.~ If a device is damaged, the 
+          ship's crew will attempt to repair it each time the ship moves.
+          All damaged may be repaired while docked at a starbase. To dock,
+          simply move into the same sector as the starbase.^^";
+
+   print "8. Library: The library-computer has two functions: ^^";
+   
+   print "Function 1: Cumulative Galactic Record. This shows computer 
+          memory of the results of all previous short and long range sensor 
+          scans.^^";
+
+   print "Function 2: Status Report. This function shows the number of 
+          Klingons, stardates, and starbases remaining in the game.^^";
+
+   print "9. Help: Brings up the help menu.^^";
+
+   print "0. Quit: Quits the game.^^";
+
+];
+
+[ About ;
+   print "^The Star Trek game has been around since the dawn of personal 
+          computers. This version, written in Inform by John Menichelli, 
+          is just the latest incarnation of this classic game. If you 
+          have any questions, comments or bug reports, please email them to 
+          me at menichel@@0064pixi.com. This program and its source code are 
+          in the public domain.^^";
+
+   print "The Inform version is based on the C port of an old BASIC program. 
+          The C version was written by Chris Nystrom and is available 
+          from:^^";
+
+   print "http://www.cfi.org/pub/ccn/startrek^^";
+
+   print "You can contact the author of the C port at:^^";
+   
+   print "Chris Nystrom^
+          1013 Prairie Dove Circle^
+          Austin, Texas  78758^^
+          E-Mail: chris@@0064gnu.ai.mit.edu, nystrom@@0064cactus.org, 
+          or ccn@@0064cfi.org^^";
+
+   print "The original Super Star Trek game comes from the book ~BASIC 
+          Computer Games~ edited by David Ahl of Creative Computing fame. It 
+          was published in 1978 by Workman Publishing, 1 West 39 Street, 
+          New York, New York, and the ISBN is: 0-89489-052-3.^^";
+
+   print "Here is the original BASIC header:^^";
+
+   print "SUPER STARTREK - MAY 16, 1978 - REQUIRES 24K MEMORY^^";
+
+   print "      **** STAR TREK ****^";
+
+   print "SIMULATION OF A MISSION OF THE STARSHIP ENTERPRISE,^";
+   print "AS SEEN ON THE STAR TREK TV SHOW.^";
+   print "ORIGINAL PROGRAM BY MIKE MAYFIELD, MODIFIED VERSION^";
+   print "PUBLISHED IN DEC'S ~101 BASIC GAMES~, BY DAVE AHL.^";
+   print "MODIFICATIONS TO THE LATTER (PLUS DEBUGGING) BY BOB^";
+   print "LEEDOM - APRIL & DECEMBER 1974,^";
+   print "WITH A LITTLE HELP FROM HIS FRIENDS . . .^";
+   print "COMMENTS, EPITHETS, AND SUGGESTIONS SOLICITED --^";
+   print "SEND TO:  R. C. LEEDOM^";
+   print "          WESTINGHOUSE DEFENSE & ELECTRONICS SYSTEMS CNTR.^";
+   print "          BOX 746, M.S. 338^";
+   print "          BALTIMORE, MD  21203^^";
+
+   print "CONVERTED TO MICROSOFT 8 K BASIC 3/16/78 BY JOHN BORDERS^";
+   print "LINE NUMBERS FROM VERSION STREK7 OF 1/12/75 PRESERVED AS^";
+   print "MUCH AS POSSIBLE WHILE USING MULTIPLE STATMENTS PER LINE^^";
+];

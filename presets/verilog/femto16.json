@@ -1,0 +1,43 @@
+
+{
+  "name":"femto16",
+  "width":16,
+  "vars":{
+    "reg":{"bits":3, "toks":["ax", "bx", "cx", "dx", "ex", "fx", "sp", "ip"]},
+    "unop":{"bits":3, "toks":["zero","loada","inc","dec","asl","lsr","rol","ror"]},
+    "binop":{"bits":3, "toks":["or","and","xor","mov","add","sub","adc","sbb"]},
+    "imm5":{"bits":5},
+    "imm8":{"bits":8},
+    "imm16":{"bits":16},
+    "rel8":{"bits":8, "iprel":true, "ipofs":1}
+  },
+  "rules":[
+    {"fmt":"~binop ~reg,~reg",   "bits":["00000",1,"01",0,2]},
+    {"fmt":"~unop ~reg",         "bits":["00000",1,"00",0,"000"]},
+    {"fmt":"~binop ~reg,[~reg]", "bits":["00001",1,"01",0,2]},
+    {"fmt":"mov [~reg],~reg",    "bits":["01010",1,"00000",0]},
+
+    {"fmt":"mov ~reg,[~imm8]",   "bits":["00101",0,1]},
+    {"fmt":"mov [~imm8],~reg",   "bits":["00110",1,0]},
+    {"fmt":"~binop ~reg,#~imm8", "bits":["11",0,1,2]},
+    {"fmt":"~binop ~reg,@~imm16","bits":["00011",1,"01",0,"000",2]},
+    {"fmt":"~binop ~reg,[~imm16]", "bits":["01011",1,"01",0,"000",2]},
+
+    {"fmt":"push ~reg",          "bits":["01010",0,"00000","110"]},
+    {"fmt":"pop ~reg",           "bits":["01001",0,"00001","110"]},
+    {"fmt":"rts",                "bits":["01001","111","00001","110"]},
+    {"fmt":"mov ~reg,[~reg+~imm5]", "bits":["01001",0,2,1]},
+    {"fmt":"jsr ~reg",           "bits":["01110","111","00",0,"110"]},
+    {"fmt":"jsrex ~imm16",       "bits":["0001110001011000",0,"0111011100100110"]},
+    {"fmt":"jmp ~imm16",         "bits":["0001111101011000",0]},
+
+    {"fmt":"bcc ~rel8",          "bits":["10000001",0]},
+    {"fmt":"bcs ~rel8",          "bits":["10001001",0]},
+    {"fmt":"bnz ~rel8",          "bits":["10000010",0]},
+    {"fmt":"bz ~rel8",           "bits":["10001010",0]},
+    {"fmt":"bpl ~rel8",          "bits":["10000100",0]},
+    {"fmt":"bmi ~rel8",          "bits":["10001100",0]},
+
+    {"fmt":"reset",              "bits":["1011100011111111"]}
+  ]
+}

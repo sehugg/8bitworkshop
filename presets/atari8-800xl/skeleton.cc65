@@ -1,0 +1,15 @@
+
+#include <conio.h>
+#include <atari.h>
+
+void main() {
+  // clear the screen
+  clrscr();
+  // position the cursor, output text
+  gotoxy(0,1);
+  // print some text
+  cputs("Hello Atari 8-bit World!\r\n");
+  // cartridge ROMs do not exit, so loop forever
+  while (1) {
+  }
+}

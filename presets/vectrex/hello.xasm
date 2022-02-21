@@ -1,0 +1,45 @@
+; http://vide.malban.de/help/vectrex-tutorial-ii-starting-with-bios
+;***************************************************************************
+; DEFINE SECTION
+;***************************************************************************
+		USE	vectrex.inc		; include file
+
+; start of vectrex memory with cartridge name...
+                ORG     0
+;***************************************************************************
+; HEADER SECTION 
+;***************************************************************************
+		FCC     "g GCE 1982"
+                DB      $80      	        ; 'g' is copyright sign
+                DW      music1                  ; music from the rom
+                DB      $F8
+                DB	$50
+                DB	$20
+                DB	-$56     ; height, width, rel y, rel x
+                                                ; (from 0,0)
+                FCC     "HELLO WORLD PROG 1"
+                DB      $80                     ; some game information,
+                                                ; ending with $80
+                DB      0                       ; end of game header
+;***************************************************************************
+; CODE SECTION
+;***************************************************************************
+; here the cartridge program starts off
+main:
+                JSR     Wait_Recal              ; Vectrex BIOS recalibration
+                JSR     Intensity_5F            ; Sets the intensity of the
+                                                ; vector beam to $5f
+                LDU     #hello    		 ; address of string
+                LDA     #$10                    ; Text position relative Y
+                LDB     #-$50                   ; Text position relative X
+                JSR     Print_Str_d             ; Vectrex BIOS print routine
+                BRA     main                    ; and repeat forever
+;***************************************************************************
+; DATA SECTION
+;***************************************************************************
+hello:
+                FCC  "HELLO WORLD"              ; only capital letters
+                DB   $80                        ; $80 is end of string
+;***************************************************************************
+                END  main
+;***************************************************************************

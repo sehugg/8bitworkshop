@@ -1,0 +1,218 @@
+
+	processor 6502
+
+;;;
+;;; Apple ][ Delta Modulation Sample Playback
+;;;
+;;; This is the same technique used in the NES
+;;; for DMC samples, but adapted for the Apple ][.
+;;; Basically: Every 1 bit increases the signal
+;;; by 1 step, every 0 bit decreases by 1 step.
+;;; The signal is clipped on the top and bottom.
+;;;
+;;; The NES has a 6-bit DAC, but we only have a
+;;; PWM-encoded signal. We have 13 different
+;;; routines to generate pulses ranging from 4 to
+;;; 14 microseconds long, with a 29-30 microsecond
+;;; interval (when we reach 50% duty cycle we just
+;;; invert the signal)
+;;;
+;;; Every 8 bits we have to fetch a new byte
+;;; and increment the pointer. To avoid a high-
+;;; frequency tone, we generate another pulse
+;;; (the same width as the last) in this macro.
+;;;
+;;; also see http://michaeljmahon.com/RTSynth.html
+;;; and https://github.com/oliverschmidt/Play-BTc
+;;;
+
+; uninitialized zero-page variables
+	seg.u ZEROPAGE	
+	org $0
+PWMBUF	.ds 2
+PWMLEN  .ds 1
+TRASH	.ds 1
+
+; speaker toggle
+SPKR    equ $c030
+
+; max pulse width = PULWID*2+4 cycles
+PULWID = 6
+
+; sleep {1} cycles
+; must be multiple of 2
+ MAC SLEEP2
+.CYCLES     SET {1}
+                IF .CYCLES == 1
+                    ECHO "MACRO ERROR: 'SLEEP': Duration must be > 1"
+                    ERR
+                ENDIF
+                IF .CYCLES >= 12
+                    jsr HandyRTS
+.CYCLES             SET .CYCLES - 12
+                ENDIF
+                REPEAT .CYCLES / 2
+                    nop
+                REPEND
+            ENDM
+ ENDM
+
+; pulse macro
+; flip speaker, wait N*2 cycles
+; flip again, wait (MAX-N)*2 cycles
+; total = 8 + PULWID*2 cycles
+ MAC PULSE
+ sta SPKR
+ SLEEP2 {1}*2
+ sta SPKR
+ SLEEP2 (PULWID-{1})*2
+ ENDM
+
+; shift next bit into carry flag
+; load next byte and increment
+; pointer if needed
+; {1} : index of previous routine
+; {2} : index of current routine
+; we also interleave a speaker pulse in this routine
+; using macros (these are the IF/ENDIF blocks)
+ MAC NEXTPULSE
+ lsr		; next bit -> carry flag
+ dex		; bit count == 0?
+ bne .noinc	; skip inc/reload cycle
+                ; total pulse = 15 + PULWID*2 cycles
+   IF {2} > 0
+     sta SPKR
+   ELSE
+     SLEEP2 8   ; no SPKR toggle, take up 8 cycles
+   ENDIF
+   IF {2} == 1
+     sta SPKR
+   ENDIF
+ 
+; increment pointer lo byte
+ iny		; 2-1 = 1
+ 
+   IF {2} == 2
+     sta SPKR
+   ENDIF
+ 
+ bne .noinchi	; 4
+; increment pointer hi byte
+ inc PWMBUF+1
+ dec PWMLEN
+ bne .noinchi
+ rts		; end of sound data
+.noinchi
+
+   IF {2} == 3
+     sta SPKR
+   ENDIF
+ 
+; reset X counter
+ ldx #8		; 6
+ 
+   IF {2} == 4 || {2} == 5
+     sta SPKR
+   ENDIF
+ 
+; fetch new byte
+ lda (PWMBUF),y ; 11
+ 
+  ; a few NOPs to match the normal pulse width
+  ; (inx, lsr, branch)
+   IF {2} == 6
+     sta SPKR
+     nop
+   ENDIF
+   IF {2} >= 7
+     nop
+     sta SPKR
+   ENDIF
+  ; make up cycles we missed
+   SLEEP2 PULWID*2-6
+ 
+.noinc
+; carry flag still valid from lsr
+ bcc LVLS{1}
+ ENDM
+
+;;; start of code
+	seg CODE
+	org $803	; starting address
+
+Start
+        lda #>(SAMPLE_END-SAMPLES)+1
+        sta PWMLEN
+	lda #<SAMPLES
+        sta PWMBUF
+        lda #>SAMPLES
+        sta PWMBUF+1
+        jsr Play
+        jmp Start
+; handy RTS for wasting 6+6 cycles
+HandyRTS
+	rts
+
+; each pulse takes PULWID*2+18(-1) cycles
+; every 8 bits, the last pulse is repeated
+; 1022727 / 29.5 / (9/8) = 30817 Hz
+; Y = PWMBUF lo address
+; PWMBUF+0 = 0
+Play
+	ldy PWMBUF
+        lda #0
+        sta PWMBUF
+	ldx #8
+        lda (PWMBUF),y
+; each label emits a pulse at a duty cycle
+; from 0 (silent) to 7
+; if bit is 1, falls through to next highest level
+; otherwise, jumps back to previous level
+LVLS0
+	SLEEP2 PULWID*2+8 ; sleep, don't click
+        NEXTPULSE 0,0
+LVLS1
+	PULSE 0
+        NEXTPULSE 0,1
+LVLS2
+	PULSE 1
+        NEXTPULSE 1,2
+LVLS3
+	PULSE 2
+        NEXTPULSE 2,3
+LVLS4
+	PULSE 3
+        NEXTPULSE 3,4
+LVLS5
+	PULSE 4
+        NEXTPULSE 4,5
+LVLS6
+LVLS6INV equ *+3 ; skip STA SPKR to invert signal
+	PULSE 5
+        NEXTPULSE 5,6
+        bcs LVLS7INV ; 1 = invert signal
+LVLS7
+LVLS7INV equ *+3 ; skip STA SPKR to invert signal
+	PULSE 4
+        NEXTPULSE 6INV,5 ; 0 = invert signal
+LVLS8
+	PULSE 3
+        NEXTPULSE 7,4
+LVLS9
+	PULSE 2
+        NEXTPULSE 8,3
+LVLS10
+	PULSE 1
+        NEXTPULSE 9,2
+LVLS11
+	PULSE 0
+        NEXTPULSE 10,1
+LVLS12
+	SLEEP2 PULWID*2+8 ; sleep, don't click
+        NEXTPULSE 11,0
+        bcs LVLS12	; if 1, stay at highest level
+
+; delta-encoded samples
+SAMPLES
+ .incbin "springchicken.dat12.bin" ; "Spring Chicken" by BryanTeoh
+SAMPLE_END

@@ -1,0 +1,417 @@
+
+;                              
+; LZ4FH uncompression for 6502 
+; By Andy McFadden             
+; Version 1.0.1, August 2015   
+;                              
+; Refactored for size & speed  
+; by Peter Ferrie.             
+;                              
+; Developed with Merlin-16     
+; Ported to DASM by Steven Hugg 
+; Apache 2.0 license           
+; http://www.apache.org/licenses/LICENSE-2.0
+;                              
+
+	processor 6502
+
+	org   $0803
+
+;
+; Constants
+;
+lz4fh_magic equ $66       ;ascii 'f'
+tok_empty   equ 253
+tok_eod     equ 254
+
+;
+; Variable storage
+;
+srcptr   equ   $3c        ;2b a1l
+dstptr   equ   $3e        ;2b a1h
+copyptr  equ   $00        ;2b
+savmix   equ   $02        ;1b
+savlen   equ   $03        ;1b
+
+;
+; ROM routines
+;
+bell     equ   $ff3a
+monitor  equ   $ff69
+
+entry
+	sta $c050
+        sta $c052
+        sta $c057
+        jsr ClrScr
+        jsr UnpackLZ4FH
+.endless
+	jmp .endless
+        
+
+UnpackLZ4FH:
+         lda   #<LZDATA     ;copy source address to zero page
+         sta   srcptr
+         lda   #>LZDATA
+         sta   srcptr+1
+         lda   #0     ;copy destination address to zero page
+         sta   dstptr
+         lda   #$20
+         sta   dstptr+1
+         sta   _desthi+1
+
+ 	 ldy   #$00
+         lda   (srcptr),y
+         cmp   #lz4fh_magic ;does magic match?
+         beq   goodmagic
+
+fail
+         jsr   bell
+         jmp   monitor
+
+; These stubs increment the high byte and then jump
+; back.  This saves a cycle because branch-not-taken
+; becomes the common case.  We assume that we're not
+; unpacking data at $FFxx, so BNE is branch-always.
+hi2
+         inc   srcptr+1
+         bne   nohi2
+
+hi3
+         inc   srcptr+1
+         clc
+         bcc   nohi3
+
+hi4
+         inc   dstptr+1
+         bne   nohi4
+
+notempty
+         cmp   #tok_eod
+         bne   fail
+         rts              ;success!
+
+; handle "special" match values (value in A)
+specialmatch
+         cmp   #tok_empty
+         bne   notempty
+
+         tya              ;empty match, advance srcptr
+         adc   srcptr     ; past and jump to main loop
+         sta   srcptr
+         bcc   mainloop
+         inc   srcptr+1
+         bne   mainloop
+
+hi5
+         inc   srcptr+1
+         clc
+         bcc   nohi5
+
+goodmagic
+         inc   srcptr
+         bne   mainloop
+         inc   srcptr+1
+
+mainloop
+; Get the mixed-length byte and handle the literal.
+         ldy   #$00
+         lda   (srcptr),y ;get mixed-length byte
+         sta   savmix
+         lsr             ;get the literal length
+         lsr   
+         lsr   
+         lsr   
+         beq   noliteral
+         cmp   #$0f       ;sets carry for >= 15
+         bne   shortlit
+
+         inc   srcptr
+         beq   hi2
+nohi2
+         lda   (srcptr),y ;get length extension
+         adc   #14        ;(carry set) add 15 - will not exceed 255
+
+; at this point, srcptr holds the address of the "mix"
+; word or the length extension, and dstptr holds the
+; address of the next output location.  So we want to
+; read from (srcptr),y+1 and write to (dstptr),y.
+; we can do this by sticking the DEY between the LDa
+; and STa.
+;
+; We could save a couple of cycles by substituting
+; addr,y in place of (dp),y, but the added setup cost
+; would only benefit longer literal strings.
+shortlit tax
+         tay
+.litloop
+         lda   (srcptr),y ;5
+         dey              ;2  if len is 255, copy 0-254
+         sta   (dstptr),y ;6
+         bne   .litloop   ;3 -> 16 cycles/byte
+
+; advance srcptr by savlen+1, and dstptr by savlen
+         txa
+         sec              ;this gets us the +1
+         adc   srcptr
+         sta   srcptr
+         bcs   hi3
+nohi3                     ;carry cleared by hi3
+         txa
+         adc   dstptr
+         sta   dstptr
+         bcs   hi4
+nohi4
+         dey              ;Y=0; DEY so next INY goes to 0
+
+; Handle match.  Y holds an offset into srcptr such
+; that we need to increment it once to get the next
+; interesting byte.
+noliteral
+         lda   savmix
+         and   #$0f
+         cmp   #$0f
+         bcc   .shortmatch ;BCC
+
+         iny
+         lda   (srcptr),y ;get length extension
+         cmp   #237       ;"normal" values are 0-236
+         bcs   specialmatch ;BCS
+         adc   #15        ;will not exceed 255
+
+; Put the destination address into copyptr.
+.shortmatch
+         adc   #4         ;min match; won't exceed 255
+         sta   savlen     ;save match len for later
+         tax              ;and keep it in X
+         iny
+         lda   (srcptr),y ;match offset, lo
+         sta   copyptr
+         iny
+         lda   (srcptr),y ;match offset, hi
+_desthi  ora   #$00       ;OR in hi-res page
+         sta   copyptr+1
+
+; advance srcptr past the encoded match while we still
+; remember how many bytes it took to encode.  Y is
+; indexing the last value used, so we want to go
+; advance srcptr by Y+1.
+
+         tya
+         sec
+         adc   srcptr
+         sta   srcptr
+         bcs   hi5
+nohi5                     ;hi5 clears carry
+
+; Copy the match.  The length is in X.  Note this
+; must be a forward copy so overlapped data works.
+;
+; We know the match is at least 4 bytes long, so
+; we could save a few cycles by not doing the
+; aDC #4 earlier, and unrolling the first 4
+; load/store operations here.
+         ldy   #$00
+.copyloop
+         lda   (copyptr),y ;5
+         sta   (dstptr),y ;6
+         iny              ;2
+         dex              ;2
+         bne   .copyloop  ;3 -> 18 cycles/byte
+
+; advance dstptr past copied data
+         lda   dstptr
+         adc   savlen     ;carry is clear
+         sta   dstptr
+         bcc   mainloop
+         inc   dstptr+1
+         bne   mainloop   ;always (not unpacking at $FFxx)
+
+ClrScr:
+	lda #$20
+        sta .clrloop+2
+	ldy #0
+        lda #0
+.clrloop sta $2000,y
+	iny
+        bne .clrloop
+        inc .clrloop+2
+        ldx .clrloop+2
+        cpx #$40
+        bne .clrloop
+        rts
+
+LZDATA:
+; WORLDMAP file
+ hex 661f7f1400002001002900b040014019
+ hex 0000007c000008290041030600032a00
+ hex 43065433002900980000403f00002603
+ hex 0059005102000000202a000668000249
+ hex 002f0100128100134080001536770011
+ hex 042900213c6429001a0f9f006760004b
+ hex 0000025900536000000008e2002f3066
+ hex 27740025043c5900170ca30083106040
+ hex 1370472102a5005a1000000018810014
+ hex 0357014f0600071c2674005844780300
+ hex 007800140ce0004510000004a3005a20
+ hex 781f0030810014017f003f0818000e73
+ hex 00430c003010350137700106a2000958
+ hex 00576003044003f201420a607c0fa600
+ hex 121e290017059d000a2c020875001030
+ hex 6e0134000e075900617c7f01007c0157
+ hex 011306590010222c005a0e0c20030c9a
+ hex 002270063d021220400192030c000440
+ hex 01000660d90008ad021b30d8010f0176
+ hex 00f2031e18400100400700067f1f6a38
+ hex 0c4001000f630150387e00002c0c034a
+ hex 39005000810022700f3f0014014a005f
+ hex 604001000c017e004f330000600ceb02
+ hex 2400042c026230005c1b00422802162c
+ hex 49002d1f0380001403bc0113082a021f
+ hex 401580000f2178005001006000403800
+ hex 133e5601223e029b02477805541fa100
+ hex 6f7e03007e0702425a002a3200b10021
+ hex 204428001a079f007a30004e00000208
+ hex 6d0204ea002f1c22267400260e06ad02
+ hex 04ea000141016830003f647c204c013a
+ hex 1000005a00190885030f1077002d7001
+ hex 9c0029047cdc0104c404762038007031
+ hex 0006cb012c0e30570523016080002f78
+ hex 0f0ef20153381800781fb50037304003
+ hex a20019092e024702040001f201750e40
+ hex 1738004001c3002770079d002f400105
+ hex 6902581f0000637109027702407b7f07
+ hex 0010c304aa3360034001023860000e9a
+ hex 00130f210212234001210206cd021a02
+ hex d8000440050a9b000f01770012707f00
+ hex a37c71004f2008400040014803401e00
+ hex 00070c031d332c034630060006c20412
+ hex 404c001f08017e001f3e0ee802340660
+ hex 07a700621800761e004e7b0016244900
+ hex 5c0703011800d90124003cc2032f4001
+ hex 4ccc0311402c04210c03c40012303606
+ hex 22000cec052a7400a10038380f0a5900
+ hex 110691030348030f2973001c13b00424
+ hex 7c01b500431e704301a6007a10004c01
+ hex 0000049d00130c6b001f0627f3043a0a
+ hex 030c300513303f057f10006e07002006
+ hex 094d05140cb3001f021373004d401f7f
+ hex 019d051a0cb303250001330535730f03
+ hex a3006a6003600018009b001f3017e903
+ hex 537830037801350136607101a2002a40
+ hex 0d59001706df006200001c0033604e00
+ hex 0288022850015c060f06e80267010060
+ hex 3f5f038103857f466a7d0d001000d800
+ hex ba4013205e4101037840010e81002518
+ hex 3c9e0200e3022f420307cd061f1810e8
+ hex 0634400107df00523078410070d10060
+ hex 40471f0000034f001d132c0346600700
+ hex 0cd60212604c004f180040011fd60373
+ hex 40073000400118c20343460300789a07
+ hex 151e4a005a0e420108039b0045030000
+ hex 68c2071f004fcc074240134004750002
+ hex 72080367054a481b0700a10038000e08
+ hex 590014045501000c030f2973002a1100
+ hex b100246001b40044701b1066cd083a18
+ hex 0000d80805d70c4f4000000227f30436
+ hex 3b010cb30a02d10804e10a5766050020
+ hex 044d011c3059051f04186a097f607f7f
+ hex 417f00400b9c09044c0902e700451e78
+ hex 0160cc095a00400008006b021f1007e9
+ hex 021c1c2e0b4460030e0f350d205b0310
+ hex 0603ce090aad06560606600300c00242
+ hex 140020204e0002580018589c091f6009
+ hex 680a45010f037c58006966434f3a6d39
+ hex 970a8c19307e4001014000ac0a227020
+ hex 49001223e100226300cd020f01d3061f
+ hex 0c11e80324410fdf0280103c41001c00
+ hex 7e016900137f4b004c200f6071810012
+ hex 04980b2418783a096f40010010004020
+ hex d50382600c1f0000077c1f900723043a
+ hex c30235016c1f4a00241e42ef0508b503
+ hex 234007d10c1f604dcb0b00e805101653
+ hex 0a1570240a0367013a685101a0002c38
+ hex 3006020336001340640e0f2477003a40
+ hex 1104b1002238033401644003100c1027
+ hex cd084d0f000003b0071f062feb0c1725
+ hex ac0a17303a0d5a300840630f4a0d1c20
+ hex 5905140633010f107205933f00784118
+ hex 007041038e071403a6051a005b10255e
+ hex 013301560c40006001a5105f070c0040
+ hex 0114dc0d2a76012e0200390a14073501
+ hex 01ad06102e2d004a03003c0e310f3704
+ hex 700f3f0e303c0020a50605bd0c186cdb
+ hex 001f2006e8021107290d2506065f0786
+ hex 0f583f0f60007000d800321f103ea70e
+ hex 2a1c009a0018273e0a40003f00001703
+ hex 1f0400d3062f300410e8032438479c02
+ hex 901c1c644101060003011e06133a4b00
+ hex 4e300b30012e0f01a70033704f0f5101
+ hex 0027132f006020d50382266c0100002f
+ hex 3c70d10823042e590026314821065d3c
+ hex 5e007818b00723000c3a091f204dcb0b
+ hex 1178470e560320000400c80311100f06
+ hex 2a7300a0002a6e388100150867104f01
+ hex 0040702774003a601807b100237c0145
+ hex 066306101c506101ce0900e7100acf03
+ hex 23010071091f0129f1083567010b5900
+ hex 17203a0d8f607f1f0378066006094d11
+ hex 1302ea012f40010e7300406001004e22
+ hex 0f137f58002f4c0701a6115638007833
+ hex 01b3004640072001a5002a0404fe0a2f
+ hex 001c06e902393803073103775e61637e
+ hex 037f01d702aa403b0040016002600700
+ hex 0702370c071f3f0e31680020d7143260
+ hex 677daa000759001f2007e70201210270
+ hex 6a037c07001c003d1292180e106c0c40
+ hex 036001520e70601f00007c300ea70e4a
+ hex 030138008100192c71024f7301000804
+ hex cf123f600c0e0fe903246c44db04e37e
+ hex 040c000102004101001860033e4b003d
+ hex 700a1880004506000003340d13184803
+ hex 2f38301fd503307c3f361006023c0242
+ hex 10000c66290036033f0c210a5e287000
+ hex 7870b0131338c0020f4eca1300571430
+ hex 3440011b0f069902121c9f120a9f003a
+ hex 404f28a911181867141f582774003a20
+ hex 7801b1001236380364037e0c187070cc
+ hex 1116306d1106780023600362012f0432
+ hex 2674003946410ddd00240018b5066710
+ hex 0040074003cd180f0758150f0ff20121
+ hex 7c0332182340738b02147da515190631
+ hex 0323000ce805022b1636072003a50058
+ hex 3c0700000f5c021f0605690220406f2e
+ hex 0d163d3403517347637f01c504160836
+ hex 0379400130062003007800471848055c
+ hex bf0231580130cd0231387c4728001812
+ hex 5b161f100b6816f3040e00000c703f00
+ hex 1c780770030630587c030660cd08613c
+ hex 700300602fa6124a4701280081003728
+ hex 7003a300511e01000841d0121d039700
+ hex 1f0810e803244747c600606f7c180001
+ hex 03210f440e70011c4703131fa0170a5b
+ hex 002406003a0d130c6c0c2f6f1f1fd503
+ hex 1106591a232006650804701948062c64
+ hex 0122142a60438000140167001f6050c8
+ hex 1313002c1808b3002f783f0241182a40
+ hex 69d602173067102f604c2774003a3c28
+ hex 00b1001203400177406319184021034d
+ hex 013a080002db011530610d1f1627f418
+ hex 2a61069e001708e00d07ca010e551114
+ hex 032c022f08700ff201430403601fd10c
+ hex 64707f03007818a5001a02ae19053c02
+ hex 1103c20023201ea5005906000078012b
+ hex 0a3f4000020569022060063801263f03
+ hex 5e0146076307011b1200510410018b0b
+ hex 490420070c7800577058044006c00221
+ hex 0118cd02410c70010306030f135b1a14
+ hex 040c0ad0130e0007007c1c7e7f215e3b
+ hex 0e3c0612786c01500e407f793ca70e3d
+ hex 6d00780406277e017c0032010078cf1a
+ hex 0d80000030001f300d6b031406ac0662
+ hex 6039403c0003a81d157849003f401706
+ hex 012d1b1504340d1f0628cc0331030013
+ hex c21821000cbc0c130c711536047c6621
+ hex 0a005a062c0343b1031a006a000f1500
+ hex 000ffe                          
+ 

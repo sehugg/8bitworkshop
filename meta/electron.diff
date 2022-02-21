@@ -1,0 +1,195 @@
+--- index.html	2022-01-22 20:17:39.000000000 -0600
++++ electron.html	2022-01-24 15:54:13.000000000 -0600
+@@ -3,18 +3,7 @@
+ 
+ <head>
+ <title>8bitworkshop IDE</title>
+-<link rel="manifest" href="manifest.json">
+-<meta name="googlebot" content="noindex" />
+-<meta name="mobile-web-app-capable" content="yes">
+-<meta name="apple-mobile-web-app-capable" content="yes">
+-<meta name="application-name" content="8bitworkshop">
+-<meta name="apple-mobile-web-app-title" content="8bitworkshop">
+-<meta name="theme-color" content="#ffffff">
+-<meta name="msapplication-navbutton-color" content="#ffffff">
+-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+-<meta name="msapplication-starturl" content="/redir.html">
+ <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
+-<link rel="apple-touch-icon" href="/images/icon.png">
+ <style type="text/css" media="screen">
+ body {
+   overflow: hidden;
+@@ -47,9 +36,6 @@
+     <ul class="dropdown-menu dropdown-menu-left" aria-labelledby="dropdownMenuButton" style="left:auto">
+       <li><a class="dropdown-item" href="#" id="item_new_file">New Project...</a></li>
+       <li><a class="dropdown-item" href="#" id="item_upload_file">Upload...</a></li>
+-      <!--
+-        <li><a class="dropdown-item" href="#" id="item_open_directory">Open Local Directory...</a></li>
+-      -->
+       <hr>
+       <li class="dropdown dropdown-submenu">
+         <a tabindex="-1" href="#">File</a>
+@@ -60,26 +46,6 @@
+           <hr>
+           <li><a class="dropdown-item" href="#" id="item_addfile_include">Add Include File...</a></li>
+           <li><a class="dropdown-item" href="#" id="item_addfile_link">Add Linked File...</a></li>
+-          <hr>
+-          <!--
+-          <li><a class="dropdown-item" href="#" id="item_switch_https" style="display:none">Switch to HTTPS...</a></li>
+-          -->
+-          <li><a class="dropdown-item" href="#" id="item_request_persist">Request Local Storage Permissions</a></li>
+-        </ul>
+-      </li>
+-      <li class="dropdown dropdown-submenu">
+-        <a tabindex="-1" href="#">Sync</a>
+-        <ul class="dropdown-menu">
+-          <li><a class="dropdown-item" href="#" id="item_github_login">Sign in to Github...</a></li>
+-          <li><a class="dropdown-item" href="#" id="item_github_logout">Log out</a></li>
+-          <hr>
+-          <li><a class="dropdown-item" href="#" id="item_github_import">Import Project from GitHub...</a></li>
+-          <li><a class="dropdown-item" href="#" id="item_github_pull">Pull Latest from Repository</a></li>
+-          <hr>
+-          <li><a class="dropdown-item" href="#" id="item_github_publish">Publish Project on GitHub...</a></li>
+-          <li><a class="dropdown-item" href="#" id="item_github_push">Push Changes to Repository...</a></li>
+-          <hr>
+-          <li><a class="dropdown-item" href="#" id="item_repo_delete">Delete Local Repository...</a></li>
+         </ul>
+       </li>
+       <li class="dropdown dropdown-submenu">
+@@ -105,35 +71,6 @@
+           <li><a class="dropdown-item" href="#" id="item_debug_expr">Break Expression...</a></li>
+         </ul>
+       </li>
+-      <li class="dropdown dropdown-submenu">
+-        <a tabindex="-1" href="#">Tools</a>
+-        <ul class="dropdown-menu">
+-          <li><a class="dropdown-item" target="_8bws_tools" href="https://8bitworkshop.com/dithertron/">Dithertron Image Converter</a></li>
+-          <li><a class="dropdown-item" target="_8bws_tools" href="https://8bitworkshop.com/bitmapfontgenerator/">Bitmap Font Generator</a></li>
+-          <li><a class="dropdown-item" target="_8bws_tools" href="http://tomeko.net/online_tools/file_to_hex.php?lang=en">Binary File to Hex Converter</a></li>
+-          <li class="dropdown dropdown-submenu">
+-             <a tabindex="-1" href="#">Atari 2600</a>
+-             <ul class="dropdown-menu">
+-              <li><a class="dropdown-item" target="_8bws_tools" href="https://alienbill.com/2600/playerpalnext.html">playerpal 2600</a></li>
+-              <li><a class="dropdown-item" target="_8bws_tools" href="https://alienbill.com/2600/playfieldpal.html">playfieldpal 2600</a></li>
+-             </ul>
+-          </li>
+-        </ul>
+-      </li>
+-      <hr>
+-      <li class="dropdown dropdown-submenu">
+-        <a tabindex="-1" href="#">About</a>
+-        <ul class="dropdown-menu">
+-          <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/">Website</a></li>
+-          <li><a class="dropdown-item" target="_8bws_about" href="https://twitter.com/8bitworkshop">Twitter</a></li>
+-          <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/docs/blog.html">Latest News</a></li>
+-          <li><a class="dropdown-item" target="_8bws_about" href="https://github.com/sehugg/8bitworkshop/issues/new">Report an Issue</a></li>
+-          <li><a class="dropdown-item" target="_8bws_about" href="https://8bitworkshop.com/docs/docs/ide.html">User Manual</a></li>
+-        </ul>
+-      </li>
+-      <!--
+-      <hr><li><a class="dropdown-item" href="/redir.html">Use Latest Version</a></li>
+-      -->
+     </ul>
+   </span>
+ 
+@@ -279,24 +216,21 @@
+   <div class="emulator disable-select" id="emulator">
+     <!-- replay slider -->
+     <div id="replaydiv" class="replaydiv" style="display:none;color:#ccc;text-align:left">
+-     <div style="display:grid; grid-template-columns: 3em 3em auto 1em 3em; grid-gap: 1em">
+-      <!-- first row -->
++     <div style="display:grid; grid-template-columns: 3em 3em auto 3em; grid-gap: 1em">
+       <button id="replay_back" class="btn" title="Back one frame"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
+       <div>
+         Frame<br>
+         <span id="replay_frame" style="width:3em">-</span>
+       </div>
+       <input type="range" min="0" max="0" value="0" class="slider" id="replayslider">
+-      <div>&nbsp;</div>
+       <button id="replay_fwd" class="btn" title="Ahead one frame"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
+-      <!-- second row -->
++
+       <button id="clock_back" class="btn" title="Back one step"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
+       <div>
+         Step<br>
+         <span id="replay_clock" style="width:3em">-</span>
+       </div>
+       <input type="range" min="0" max="0" value="0" class="slider" id="clockslider">
+-      <div>&nbsp;</div>
+       <button id="clock_fwd" class="btn" title="Forward one step"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
+      </div>
+     </div>
+@@ -451,73 +385,6 @@
+     </div>
+   </div>
+ </div>
+-<div id="importGithubModal" class="modal fade">
+-  <div class="modal-dialog modal-md" role="document">
+-    <div class="modal-content">
+-      <div class="modal-header">
+-        <h3 class="modal-title">Import Project from GitHub</h3>
+-      </div>
+-      <div class="modal-body">
+-        <p>Enter the GitHub repository URL:</p>
+-        <p><input id="importGithubURL" size="60" placeholder="https://github.com/user/repo"></input></p>
+-        <p>If the project is compatible with 8bitworkshop, it should build automatically.</p>
+-        <p>Otherwise, some work may be required -- make sure you've selected the correct platform.</p>
+-        <p>Source files must be in the root folder of the repository.</p>
+-        <p><button type="button" class="btn btn-primary" id="importGithubButton">Import Project</button></p>
+-      </div>
+-      <div class="modal-footer">
+-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+-      </div>
+-    </div>
+-  </div>
+-</div>
+-<div id="publishGithubModal" class="modal fade">
+-  <div class="modal-dialog modal-md" role="document">
+-    <div class="modal-content">
+-      <div class="modal-header">
+-        <h3 class="modal-title">Publish Project on GitHub</h3>
+-      </div>
+-      <div class="modal-body">
+-        <p>This will migrate your existing project to a new GitHub repository.</p>
+-        <p>https://github.com/username/&nbsp;<input id="githubRepoName" size="35" placeholder="Enter a project name"></input></p>
+-        <p><input id="githubRepoDesc" size="60" placeholder="Enter a project description"></input></p>
+-        <p>Your repository will be <select id="githubRepoPrivate">
+-          <option value="public">Public</option>
+-          <option value="private">Private</option>
+-        </select></p>
+-        <p>License: <select id="githubRepoLicense">
+-          <option value="">Will decide later / all rights reserved</option>
+-          <option value="cc0-1.0">CC Zero (public domain, remix-friendly)</option>
+-          <option value="mit">MIT (must preserve notices)</option>
+-          <option value="cc-by-4.0">CC BY (must attribute)</option>
+-          <option value="cc-by-sa-4.0">CC BY-SA (must attribute, use same license)</option>
+-          <option value="gpl-3.0">GPL v3 (must publish source)</option>
+-        </select></p>
+-        <p><button type="button" class="btn btn-primary" id="publishGithubButton">Upload Project</button></p>
+-        <p>Your existing file will be moved to a new folder in the IDE.</p>
+-      </div>
+-      <div class="modal-footer">
+-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+-      </div>
+-    </div>
+-  </div>
+-</div>
+-<div id="pushGithubModal" class="modal fade">
+-  <div class="modal-dialog modal-md" role="document">
+-    <div class="modal-content">
+-      <div class="modal-header">
+-        <h3 class="modal-title">Push Project Changes to GitHub</h3>
+-      </div>
+-      <div class="modal-body">
+-        <p><input id="githubCommitMsg" size="50" placeholder="Enter a commit message"></input></p>
+-        <p><button type="button" class="btn btn-primary" id="pushGithubButton">Push Changes</button></p>
+-      </div>
+-      <div class="modal-footer">
+-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+-      </div>
+-    </div>
+-  </div>
+-</div>
+ 
+ <script src="jquery/jquery.min.js"></script>
+ 

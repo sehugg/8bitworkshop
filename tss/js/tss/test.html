@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Test Page for T'Sound System in JavaScript (Web Audio API / Audio Data API)</title>
+    <!-- range type input tag emulation for Firefox -->
+    <!--script language="JavaScript" src="https://github.com/fryn/html5slider/raw/master/html5slider.js"></script-->
+    <!-- include components -->
+    <link href='https://fonts.googleapis.com/css?family=Exo' rel='stylesheet' type='text/css'>
+    <link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/cupertino/jquery-ui.css" rel="stylesheet" type="text/css"/>
+    <script language="JavaScript">var exports = {};</script>
+    <script language="JavaScript" src="https://www.google.com/jsapi"></script>
+    <script language="JavaScript" src="/lib/flotr2.min.js"></script>
+    <script language="JavaScript" src="../Log.js"></script>
+    <script language="JavaScript" src="Format.js"></script>
+    <script language="JavaScript" src="TString.js"></script>
+    <script language="JavaScript" src="AudioLooper.js"></script>
+    <script language="JavaScript" src="BiquadFilterChannel.js"></script>
+    <script language="JavaScript" src="MasterChannel.js"></script>
+    <script language="JavaScript" src="SimpleSlaveChannel.js"></script>
+    <script language="JavaScript" src="PsgDeviceChannel.js"></script>
+    <script language="JavaScript" src="SccDeviceChannel.js"></script>
+    <script language="JavaScript" src="PsglogPlayer.js"></script>
+    <script language="JavaScript" src="VgmPlayer.js"></script>
+    <script language="JavaScript" src="Mp3PlayerChannel.js"></script>
+    <script language="JavaScript" src="TssChannel.js"></script>
+    <script language="JavaScript" src="TssCompiler.js"></script>
+    <script language="JavaScript" src="TsdPlayer.js"></script>
+    <script language="JavaScript" src="MidiChannel.js"></script>
+    <script language="JavaScript" src="SimpleMidiChannel.js"></script>
+    <script language="JavaScript" src="WebMidiLinkMidiChannel.js"></script>
+    <script language="JavaScript" src="WebMidiChannel.js"></script>
+    <script language="JavaScript" src="SmfPlayer.js"></script>
+    <script language="JavaScript" src="SoundFont2.js"></script>
+    <script language="JavaScript" src="FmChannel.js"></script>
+    <script language="JavaScript" src="OpnDeviceChannel.js"></script>
+    <script language="JavaScript" src="S98Player.js"></script>
+    <script language="JavaScript" src="OtisDeviceChannel.js"></script>
+    <script language="JavaScript" src="OtisMidiChannel.js"></script>
+    <script language="JavaScript" src="FrequencyConversionChannel.js"></script>
+    <script language="JavaScript" src="F3SampleFormat.js"></script>
+    <script language="JavaScript" src="ModulePlayer.js"></script>
+    <!-- control callback scripts -->
+    <script language="JavaScript">
+        google.load("jquery", "1.7.1");
+        google.load("jqueryui", "1.8.16");
+        function activate() {
+            if (looper && !looper.isActive())
+                looper.activate();
+        }
+        function testxstop() {
+            if (test != undefined) {
+                Log.getLog().info("TEST" + test + " STOP");
+                filter.setChannel(null);
+                test = undefined;
+            }
+        }
+        function testxflash(flash, div, callback) {
+            flash--;
+            if (flash & 1)
+                div.style.backgroundColor = "#888888";
+            else
+                div.style.backgroundColor = "#000000";
+            if (0 != flash)
+                setTimeout(callback, 50);
+            return flash;
+        }
+        function testxprog(e, prog) {
+            var percent = 100 * e.loaded / e.total;
+            var msg = "|";
+            for (var i = 0; i < 100; i++) {
+                if (percent < i)
+                    msg += "-";
+                else
+                    msg += "o";
+            }
+            msg += "| " + e.loaded + "/" + e.total;
+            Log.getLog().info(msg);
+            prog.innerText = msg;
+        }
+ 
+        function test0start() {
+            activate();
+            Log.getLog().info("TEST 0 START");
+            filter.setChannel(master0);
+            test = 0;
+        }
+        function test1start() {
+            activate();
+            Log.getLog().info("TEST 1 START");
+            // TODO: assign descriptor
+            filter.setChannel(master1);
+            test = 1;
+        }
+        function test2change(value) {
+            activate();
+            if (2 != test) {
+                Log.getLog().info("TEST 2 START");
+                filter.setChannel(master2);
+                test = 2;
+            }
+            simplex.freq = value;
+            var hz = document.getElementById("test2hz");
+            hz.firstChild.nodeValue = value + " Hz";
+        }
+        function test3start() {
+            activate();
+            Log.getLog().info("TEST 3 START");
+            psgdev3.writeRegister( 7, 0x38);
+            psgdev3.writeRegister( 8, 0x0f);
+            psgdev3.writeRegister( 9, 0x0f);
+            psgdev3.writeRegister(10, 0x0f);
+            psgdev3.writeRegister( 1, 0x01);
+            psgdev3.writeRegister( 0, 0xc2);
+            psgdev3.writeRegister( 3, 0x01);
+            psgdev3.writeRegister( 2, 0xc4);
+            psgdev3.writeRegister( 5, 0x01);
+            psgdev3.writeRegister( 4, 0xc6);
+            Log.getLog().info(psgdev3);
+            filter.setChannel(master3);
+            test = 3;
+        }
+        function test4start() {
+            activate();
+            Log.getLog().info("TEST 4 START");
+            xh_req4.send();
+            test = 4;
+        }
+        function test4draw() {
+            var vol = new Int32Array(3);
+            vol[0] = player4.psg.readRegister(8);
+            vol[1] = player4.psg.readRegister(9);
+            vol[2] = player4.psg.readRegister(10);
+
+            pos = 0;
+            for (var y = 0; y < h4; y++) {
+                for (var x = 0; x < w4; x++) {
+                    if ((y < 4) || (y > (4 + 16))) {
+                        bmp4[pos++] = 0;
+                        bmp4[pos++] = 0;
+                        bmp4[pos++] = 0;
+                        bmp4[pos++] = 255;
+                    } else {
+                        if ((x < 4) || (x > (4 + 30)) || ((x - 3) % 10) < 2) {
+                            bmp4[pos++] = 0;
+                            bmp4[pos++] = 0;
+                            bmp4[pos++] = 0;
+                            bmp4[pos++] = 255;
+                        } else {
+                            var v = vol[~~((x - 4) / 10)];
+                            bmp4[pos++] = (v < (h4 - y - 4))? 0: ((h4 - y - 4) >= 10)? 255: 0;
+                            bmp4[pos++] = (v < (h4 - y - 4))? 0: ((h4 - y - 4) <= 10)? 255: 0;
+                            bmp4[pos++] = 0;
+                            bmp4[pos++] = 255;
+                        }
+                    }
+                }
+            }
+            ctx4.putImageData(img4, 0, 0);
+        }
+        function test5flash() {
+            flash = testxflash(flash, div5, test5flash);
+        }
+        function test5prog(e) {
+            testxprog(e, prog5);
+        }
+        function test5start(e) {
+            activate();
+            test5prog(e);
+            player5.play(reader.result);
+            filter.setChannel(master5);
+            test = 5;
+        }
+        function test6flash() {
+            flash = testxflash(flash, div6, test6flash);
+        }
+        function test6prog(e) {
+            testxprog(e, prog6);
+        }
+        function test6start(e) {
+            activate();
+            test6prog(e);
+            player6.play(reader.result);
+            filter.setChannel(master6);
+            test = 6;
+        }
+        function test7flash() {
+            flash = testxflash(flash, div7, test7flash);
+        }
+        function test7prog(e) {
+            testxprog(e, prog7);
+        }
+        function test7start(e) {
+            activate();
+            if (e) {
+                test7prog(e);
+                player7.play(reader.result);
+            } else {
+                player7.play(xh_res7);
+            }
+            filter.setChannel(master7);
+            test = 7;
+        }
+        function test7sel() {
+            var select = document.getElementById("test7sel");
+            var index = select.selectedIndex;
+            return select.options[index].value;
+        }
+        function test7xhr() {
+            xh_req7.open("get", "../../data/" + test7sel(), true);
+            xh_req7.responseType = "arraybuffer";
+            xh_req7.send();
+        }
+        function test8start() {
+            activate();
+            var src = document.getElementById("test8tss");
+            var tsc = new TssCompiler();
+            player8.play(tsc.compile(src.value));
+            filter.setChannel(master8);
+            test = 8;
+        }
+        function test8dl() {
+            var src = document.getElementById("test8tss");
+            var tsc = new TssCompiler();
+            var bb = new WebKitBlobBuilder();
+            bb.append(tsc.compile(src.value));
+            var blob = bb.getBlob();
+            var url = webkitURL.createObjectURL(blob);
+            open(url, false);
+        }
+        function test9flash() {
+            flash = testxflash(flash, div9, test9flash);
+        }
+        function test9prog(e) {
+            testxprog(e, prog9);
+        }
+        function test9start(e) {
+            activate();
+            test9prog(e);
+            display9.processSystemReset();
+            for (var i = 0; i < 16; i++)
+                note9[i] = 0;
+            player9.play(reader.result);
+            filter.setChannel(master9);
+            test = 9;
+        }
+        function test9stop() {
+            display9.processSystemReset();
+            for (var i = 0; i < 16; i++) {
+                var event = MidiChannel.createEvent([0xb0 + i, 0x78, 0x00]);
+                display9.processEvents(event);
+            }
+            testxstop();
+        }
+        function test9wml() {
+            var device = window.open(
+                    "http://www.g200kg.com/en/docs/gmplayer/",
+                    "GMPlayer",
+                    "width=566,height=444");
+            display9 = new DisplayMidiChannel(
+                    new WebMidiLinkMidiChannel(device));
+            player9.setDevice(SmfPlayer.TRACK_DEFAULT, display9);
+            player9.setMasterChannel(master9);
+        }
+        function test9midi() {
+            display9 = new DisplayMidiChannel(
+                    new WebMidiChannel(WebMidiChannel.outputs[3]));
+            player9.setDevice(SmfPlayer.TRACK_DEFAULT, display9);
+            player9.setMasterChannel(master9);
+        }
+        function test11flash() {
+            flash = testxflash(flash, div11, test11flash);
+        }
+        function test11prog(e) {
+            testxprog(e, prog11);
+        }
+        function test11start(e) {
+            activate();
+            test11prog(e);
+            var sf2 = new SoundFont2();
+            sf2.load(reader.result);
+            test = 11;
+        }
+        function test12flash() {
+            flash = testxflash(flash, div12, test12flash);
+        }
+        function test12prog(e) {
+            testxprog(e, prog12);
+        }
+        function test12start(e) {
+            activate();
+            test12prog(e);
+            player12.play(reader.result);
+            filter.setChannel(master12);
+            test = 12;
+        }
+        function test13flash() {
+            flash = testxflash(flash, div13, test13flash);
+        }
+        function test13prog(e) {
+            testxprog(e, prog13);
+        }
+        function test13start(e) {
+            activate();
+            test13prog(e);
+            player13.play(player13.load(reader.result));
+            filter.setChannel(master13);
+            test = 13;
+        }
+    </script>
+</head>
+<body>
+
+<!-- Web MIDI API Polyfill by Chris Wilson -->
+<!--
+<div id="MIDIPlugin" style="position:absolute; visibility:hidden"></div>
+<script language="JavaScript" src="https://raw.github.com/cwilso/WebMIDIAPIShim/master/lib/WebMIDIAPI.js"></script>
+-->
+<script>WebMidiChannel.initialize();</script>
+
+<p>Source code is available on <a href="http://code.google.com/p/tss/">Google Code</a></p>
+<p>Enable Web Audio API on Chrome at chrome://flags or just use FileFox 4 or later</p>
+<hr>
+<p class="title">Filter Type</p>
+<button class="biquad" name="LPF">LPF</button>
+<button class="biquad" name="HPF">HPF</button>
+<button class="biquad" name="BPF">BPF</button>
+<button class="biquad" name="BEF">BEF</button>
+<button class="biquad" name="APF">APF</button>
+<button class="biquad" name="PEQ">EQ</button>
+<button class="biquad" name="LOS">Low Shelf</button>
+<button class="biquad" name="HIS">High Shelf</button>
+<p class="title">Cutoff Frequency</p>
+<div id="frequency" style="width: 400px; margin-left: 50px;"></div>
+<p class="title">Resonance</p>
+<div id="resonance" style="width: 400px; margin-left: 50px;"></div>
+<p class="title">Preview</p>
+<div id="container" style="margin-left: 50px;"></div>
+<br>
+<hr>
+<p class="title">0. Play 440Hz</p>
+<button onclick="test0start()">START</button>
+<button onclick="testxstop()">STOP</button>
+<hr>
+<p class="title">1. Play 440Hz/550Hz/660Hz</p>
+<button onclick="test1start()">START</button>
+<button onclick="testxstop()">STOP</button>
+<hr>
+<p class="title">2. Play with slider</p>
+<input type="range" min="1" max="4096" value="440" style="width: 100%" onchange="test2change(value)">
+<pre id="test2hz">440 Hz</pre>
+<hr>
+<p class="title">3. AY-3-8910 emulation test</p>
+<button onclick="test3start()">START</button>
+<button onclick="testxstop()">STOP</button>
+<hr>
+<p class="title">4. PSG Log REPLAY</p>
+<button onclick="test4start()">START</button>
+<button onclick="testxstop()">STOP</button>
+<canvas id="test4canvas" width="38" height="24"></canvas>
+<hr>
+<a name="vgm"></a>
+<p class="title">5. VGM Player</p>
+<button onclick="testxstop()">STOP</button>
+<div id="test5drop" style="width: 100%; height: 100pt; background-color: #000000; color: #ffffff;">
+    <pre>DRAG VGM FILE TO HERE</pre>
+    <pre id="test5info"></pre>
+    <pre id="test5prog"></pre>
+</div>
+<hr>
+<p class="title">6. MP3 Player [work in progress]</p>
+<button onclick="testxstop()">STOP</button>
+<div id="test6drop" style="width: 100%; height: 100pt; background-color: #000000; color: #ffffff;">
+    <pre>DRAG MP3 FILE TO HERE</pre>
+    <pre id="test6info"></pre>
+    <pre id="test6prog"></pre>
+</div>
+<hr>
+<a name="tsd"></a>
+<p class="title">7. TSD Player</p>
+<button onclick="testxstop()">STOP</button>
+<select id="test7sel" onchange="test7xhr()">
+    <option value="G2_8.tsd">GRANDIS2 Phylliida - Mother Planet -
+    <option value="GRADIUS_GENERATION_STAGE1.tsd">GRADIUS GENERATION Stage 1
+    <option value="lain.tsd">main theme of lain for PlayStation
+    <option value="SALAMANDER_BOSS.TSD" selected>沙羅曼蛇 BOSS戦
+    <option value="GRA2_KUTYUSEN.TSD">GRADIUS2 空中戦
+    <option value="GRADIUS2_ST3.TSD">GRADIUS2 Stage 3
+    <option value="DARIUS_GAIDEN_FAKE.TSD">DARIUS外伝 FAKE
+    <option value="ANTARCTIC_ST1.TSD">夢大陸アドベンチャー Stage 1
+    <option value="ANTARCTIC_ST5.TSD">夢大陸アドベンチャー Stage 5
+    <option value="GRADIUS_ST1.TSD">GRADIUS Stage 1
+</select>
+<div id="test7drop" style="width: 100%; height: 100pt; background-color: #000000; color: #ffffff;">
+    <pre>DRAG TSD FILE TO HERE</pre>
+    <pre id="test7info"></pre>
+    <pre id="test7prog"></pre>
+</div>
+<hr>
+<a name="tss"></a>
+<p class="title">8. TSS Player</p>
+<button onclick="test8start()">Compile & Play</button>
+<button onclick="test8dl()">Compile & Download</button>
+<button onclick="testxstop()">STOP</button>
+<form><textarea id="test8tss" rows="20" style="width: 100%; background-color: #000000; color: #ffffff;">
+{ You can edit this form, then compile it from "Compile & Play" button. }
+#TITLE &lt;SALAMANDER - BOSS BGM -&gt;
+#CHANNEL 11
+#A	t200 %3 @1 v3 l4 q1 o5 s1 @o1,0 mp30,16,2,8 $
+	[&lt;c8&gt;f8&lt;c8&gt;f.&lt; c&gt;f&lt;c&gt; f2.&lt;c2.&gt; f8&lt;c8&gt;f8&lt;c.&gt; f&lt;c&gt;f&lt; c2.&gt;f2.
+	b8e8b8e. beb e2.b2. e8b8e8b. ebe b2.&lt;e2.&gt;]
+	l8 &lt;[cc4f4g^2 gga-4.b-4. | &gt;ff4b-4&lt;c^2 &gt;fga-4.b-4.&lt;] ff4b-4&lt;c^2.^2.
+#B	t200 %3 @17 v7 l4 q1 o4 s1 @i5,0 @o1,0 mp30,16,2,8 $
+	[&lt;c8&gt;f8&lt;c8&gt;f.&lt; c&gt;f&lt;c&gt; f2.&lt;c2.&gt; f8&lt;c8&gt;f8&lt;c.&gt; f&lt;c&gt;f&lt; c2.&gt;f2.
+	b8e8b8e. beb e2.b2. e8b8e8b. ebe b2.&lt;e2.&gt;]
+	l8 &lt;[cc4f4g^2 gga-4.b-4. | &gt;ff4b-4&lt;c^2 &gt;fga-4.b-4.&lt;] ff4b-4&lt;c^2.^2.
+#C	t200 %3 @16 v8 l4 q13 o4 s32 p3 @i5,0 mp30,16,2,8 $
+	[&lt;c8&gt;f8&lt;c8&gt;f.&lt; c&gt;f&lt;c&gt; f2.&lt;c2.&gt; f8&lt;c8&gt;f8&lt;c.&gt; f&lt;c&gt;f&lt; c2.&gt;f2.
+	b8e8b8e. beb e2.b2. e8b8e8b. ebe b2.&lt;e2.&gt;]
+	l8 &lt;[cc4f4g^2 gga-4.b-4. | &gt;ff4b-4&lt;c^2 &gt;fga-4.b-4.&lt;] ff4b-4&lt;c^2.^2.
+#D	t200 %3 @1 v3 l4 q1 o5 s1 k2 r8. @o1,0 mp30,16,2,8 $
+	[&lt;c8&gt;f8&lt;c8&gt;f.&lt; c&gt;f&lt;c&gt; f2.&lt;c2.&gt; f8&lt;c8&gt;f8&lt;c.&gt; f&lt;c&gt;f&lt; c2.&gt;f2.
+	b8e8b8e. beb e2.b2. e8b8e8b. ebe b2.&lt;e2.&gt;]
+	l8 &lt;[cc4f4g^2 gga-4.b-4. | &gt;ff4b-4&lt;c^2 &gt;fga-4.b-4.&lt;] ff4b-4&lt;c^2.^2.
+#E	t200 %3 @17 v8 l4 q1 o4 s1 k1 r8. @i5,0 @o1,0 mp30,16,2,8 $
+	[&lt;c8&gt;f8&lt;c8&gt;f.&lt; c&gt;f&lt;c&gt; f2.&lt;c2.&gt; f8&lt;c8&gt;f8&lt;c.&gt; f&lt;c&gt;f&lt; c2.&gt;f2.
+	b8e8b8e. beb e2.b2. e8b8e8b. ebe b2.&lt;e2.&gt;]
+	l8 &lt;[cc4f4g^2 gga-4.b-4. | &gt;ff4b-4&lt;c^2 &gt;fga-4.b-4.&lt;] ff4b-4&lt;c^2.^2.
+#F	t200 %3 @16 v5 l4 q13 o4 s32 k1 r8. p3 @i5,0 mp30,16,2,8 $
+	[&lt;c8&gt;f8&lt;c8&gt;f.&lt; c&gt;f&lt;c&gt; f2.&lt;c2.&gt; f8&lt;c8&gt;f8&lt;c.&gt; f&lt;c&gt;f&lt; c2.&gt;f2.
+	b8e8b8e. beb e2.b2. e8b8e8b. ebe b2.&lt;e2.&gt;]
+	l8 &lt;[cc4f4g^2 gga-4.b-4. | &gt;ff4b-4&lt;c^2 &gt;fga-4.b-4.&lt;] ff4b-4&lt;c^2.^2.
+#G	t200 %3 @1 $ v12 l8 q1 s1 o6 p2
+	[6fga-b-a-g] fga-b-&lt;c&gt;b-a-b-a-ga-f
+	[6ef+gagf+] ef+gabagagf+gf+
+	[6fga-b-a-g] fga-b-&lt;c&gt;b-a-b-a-ga-f
+	[6ef+gagf+] ef+gabagagf+gf+
+	v10 q1 s1 o4 l8
+	[gg4b-4&lt;c^2 cde-4.d4. | cc4e-4f^2 cde-4.f4.&gt;] cc4e-4f^2.^2.
+#H	t200 %3 @16 $ v6 l8 q1 s8 o6 p2
+	[6fga-b-a-g] fga-b-&lt;c&gt;b-a-b-a-ga-f
+	[6ef+gagf+] ef+gabagagf+gf+
+	[6fga-b-a-g] fga-b-&lt;c&gt;b-a-b-a-ga-f
+	[6ef+gagf+] ef+gabagagf+gf+
+	v7 q13 s32 o4 l8
+	[gg4b-4&lt;c^2 cde-4.d4. | cc4e-4f^2 cde-4.f4.&gt;] cc4e-4f^2.^2.
+#I	t200 %3 @1 v8 l8 q1 s9 o2 p2 $
+	[4f&lt;fe-fcf&gt;b-&lt;fcfef&gt;]
+	[4e&lt;ede&gt;b&lt;e&gt;a&lt;e&gt;b&lt;ede&gt;]
+	[4f&lt;fe-fcf&gt;b-&lt;fcfef&gt;]
+	[4e&lt;ede&gt;b&lt;e&gt;a&lt;e&gt;b&lt;ede&gt;]&lt;
+	[c&lt;c&gt;cgb-&lt;c&gt;c&lt;c&gt;c&lt;c&gt;c&lt;c&gt; &gt;a-&lt;a-&gt;a-&lt;b-&gt;b-&lt;b-&gt;
+	f&lt;f&gt;f&lt;ce-f&gt;f&lt;f&gt;f&lt;f&gt;f&lt;f&gt; | a-&lt;a-&gt;a-&lt;b-&gt;b-&lt;b-]
+	f&lt;f&gt;f&lt;f&gt;f&lt;f
+#J	t200 %3 @16 v8 l8 q1 s8 o3 p2 $
+	[4f&lt;fe-fcf&gt;b-&lt;fcfef&gt;]
+	[4e&lt;ede&gt;b&lt;e&gt;a&lt;e&gt;b&lt;ede&gt;]
+	[4f&lt;fe-fcf&gt;b-&lt;fcfef&gt;]
+	[4e&lt;ede&gt;b&lt;e&gt;a&lt;e&gt;b&lt;ede&gt;]&lt;
+	[c&lt;c&gt;cgb-&lt;c&gt;c&lt;c&gt;c&lt;c&gt;c&lt;c&gt; &gt;a-&lt;a-&gt;a-&lt;b-&gt;b-&lt;b-&gt;
+	f&lt;f&gt;f&lt;ce-f&gt;f&lt;f&gt;f&lt;f&gt;f&lt;f&gt; | a-&lt;a-&gt;a-&lt;b-&gt;b-&lt;b-]
+	f&lt;f&gt;f&lt;f&gt;f&lt;f
+#K	t200 %3 v15 q1 s32,-10 l8 $
+	[o4 ffrffr&lt;f4r4&gt;fr ffrffr&lt;f4r4&gt;r4
+	ffrffr&lt;f4r4&gt;fr ffrffr&lt;dd&gt;brgr
+	ffrffr&lt;f4r4&gt;fr ffrffr&lt;f4r4&gt;r4
+	ffrffr&lt;f4r4&gt;fr &lt;dddd&gt;f4bbbbf4]
+	[f4&lt;f&gt;f4&lt;f&gt;f&lt;ff&gt;f&lt;f&gt;f ff&lt;f&gt;ff&lt;f&gt;
+	f4&lt;f&gt;f4&lt;f&gt;f&lt;ff&gt;f&lt;f&gt;f | &lt;dd&gt;gbdf]
+	l16 &lt;dddd&gt;bbbbgggg
+#END</textarea></form>
+<hr>
+<a name="smf"></a>
+<p class="title">9. SMF Player / Virtual Instrument Interface Test</p>
+<button onclick="test9stop()">STOP</button>
+<span style="background-color: #000000;">
+<span id="test9ch0">*</span>
+<span id="test9ch1">*</span>
+<span id="test9ch2">*</span>
+<span id="test9ch3">*</span>
+<span id="test9ch4">*</span>
+<span id="test9ch5">*</span>
+<span id="test9ch6">*</span>
+<span id="test9ch7">*</span>
+<span id="test9ch8">*</span>
+<span id="test9ch9">*</span>
+<span id="test9ch10">*</span>
+<span id="test9ch11">*</span>
+<span id="test9ch12">*</span>
+<span id="test9ch13">*</span>
+<span id="test9ch14">*</span>
+<span id="test9ch15">*</span>
+</span>
+<button onclick="test9wml()">WebMidiLink</button>
+<button onclick="test9midi()">Web MIDI API</button>
+<button onclick="document.getElementById('MIDIPlugin').removeChild(document.getElementById('MIDIPlugin').childNodes[0]); WebMidiChannel.initialized = false; WebMidiChannel.initialize(); test9midi();">Reset WebMIDIAPIShim</button>
+<div id="test9drop" style="width: 100%; height: 100pt; background-color: #000000; color: #ffffff;">
+    <pre>DRAG SMF FILE TO HERE</pre>
+    <pre id="test9info"></pre>
+    <pre id="test9prog"></pre>
+</div>
+<hr>
+<a name="midi"></a>
+<p class="title">10. Software MIDI Keyboard / Virtual Instrument Interface Test</p>
+<div id="test10midi" tabindex="0" style="width: 100%; height: 70pt; background-color: #000000; color: #ffffff;">
+    <pre>Activate this area, then play instrument with keyboard.</pre>
+    <pre>  S D   G H J</pre>
+    <pre> Z X C V B N M</pre>
+</div>
+<hr>
+<a name="sf2"></a>
+<p class="title">11. Sound Font 2 Test [work in progress]</p>
+<div id="test11drop" tabindex="0" style="width: 100%; height: 100pt; background-color: #000000; color: #ffffff;">
+    <pre>DRAG SF2 FILE TO HERE</pre>
+    <pre id="test11info"></pre>
+    <pre id="test11prog"></pre>
+</div>
+<hr>
+<a name="s98"></a>
+<p class="title">12. S98 Player [work in progress]</p>
+<button onclick="testxstop()">STOP</button>
+<div id="test12drop" tabindex="0" style="width: 100%; height: 100pt; background-color: #000000; color: #ffffff;">
+    <pre>DRAG S98 FILE TO HERE</pre>
+    <pre id="test12info"></pre>
+    <pre id="test12prog"></pre>
+</div>
+<hr>
+<a name="mod"></a>
+<p class="title">13. MOD Player [work in progress]</p>
+<button onclick="testxstop()">STOP</button>
+<div id="test13drop" tabindex="0" style="width: 100%; height: 100pt; background-color: #000000; color: #ffffff;">
+    <pre>DRAG MOD FILE TO HERE</pre>
+    <pre id="test13info"></pre>
+    <pre id="test13prog"></pre>
+</div>
+<hr>
+<hr>
+<pre>*** LOG (reversed order) ***</pre>
+<div id="log"></div>
+<script language="JavaScript">
+    Log.setLog(new Log("log", true));
+    var test = 0;
+    var looper = new AudioLooper(512);
+    var filter = new BiquadFilterChannel();
+    looper.setChannel(filter);
+
+    // TEST 0
+    var master0 = new MasterChannel();
+    var simple0 = new SimpleSlaveChannel(440);
+    master0.addChannel(simple0);
+
+    // TEST 1
+    var master1 = new MasterChannel();
+    var simple1 = new SimpleSlaveChannel(440);
+    var simple2 = new SimpleSlaveChannel(550);
+    var simple3 = new SimpleSlaveChannel(660);
+    master1.addChannel(simple1);
+    master1.addChannel(simple2);
+    master1.addChannel(simple3);
+
+    // TEST 2
+    var master2 = new MasterChannel();
+    var simplex = new SimpleSlaveChannel(440);
+    master2.addChannel(simplex);
+
+    // TEST 3
+    var master3 = new MasterChannel();
+    var psgdev3 = new PsgDeviceChannel();
+    psgdev3.setMode(PsgDeviceChannel.MODE_SIGNED);
+    psgdev3.setDevice(PsgDeviceChannel.DEVICE_AY_3_8910);
+    master3.addChannel(psgdev3);
+
+    // TEST 4
+    var xh_res4 = null;
+    var xh_req4 = new XMLHttpRequest();
+    xh_req4.open("get", "../../data/psglog.1", true);
+    xh_req4.responseType = "arraybuffer";
+    xh_req4.onload = function () {
+        Log.getLog().info("TEST4 XHR done.");
+        if (xh_req4.response instanceof ArrayBuffer) {
+            Log.getLog().info("  as ArrayBuffer (response).");
+            xh_res4 = xh_req4.response;
+        } else if (xh_req4.mozResponseArrayBuffer instanceof ArrayBuffer) {
+            Log.getLog().info("  as ArrayBuffer (mozResponseArrayBuffer).");
+            xh_res4 = xh_req4.mozResponseArrayBuffer;
+        }
+        if (xh_res4 == null) {
+            Log.getLog().warn("XHR4 not ready");
+            return;
+        }
+        player4.play(xh_res4);
+        var i;
+        for (i = 0; i < 350; i++) {
+            player4.updateDevice();
+        }
+        for (i = 0; i < 1050; i++) {
+            player4.updateDevice();
+        }
+        filter.setChannel(master4);
+    };
+    var master4 = new MasterChannel();
+    master4.setVolume(1);
+    var player4 = new PsglogPlayer();
+    player4.setMasterChannel(master4);
+    var canvas4 = document.getElementById("test4canvas");
+    var w4 = canvas4.getAttributeNode("width").value;
+    var h4 = canvas4.getAttributeNode("height").value;
+    var ctx4 = canvas4.getContext("2d");
+    var img4 = ctx4.getImageData(0, 0, w4, h4);
+    var bmp4 = img4.data;
+    for (var pos = 0; pos < w4 * h4 * 4; pos += 4) {
+        bmp4[pos + 0] = 255; // R
+        bmp4[pos + 1] = 255; // G
+        bmp4[pos + 2] = 255; // B
+        bmp4[pos + 3] = 255; // A
+    }
+    player4.updateOriginal = player4.updateDevice;
+    player4.updateDevice = function () {
+        this.updateOriginal();
+        test4draw();
+    };
+
+    // TEST 5
+    var div5 = document.getElementById("test5drop");
+    var info5 = document.getElementById("test5info");
+    var prog5 = document.getElementById("test5prog");
+    var master5 = new MasterChannel();
+    var player5 = new VgmPlayer();
+    player5.setMasterChannel(master5);
+
+    // TEST 6
+    var div6 = document.getElementById("test6drop");
+    var info6 = document.getElementById("test6info");
+    var prog6 = document.getElementById("test6prog");
+    var master6 = new MasterChannel();
+    var player6 = new Mp3PlayerChannel();
+    master6.addChannel(player6);
+
+    // TEST 7
+    var xh_res7 = null;
+    var xh_req7 = new XMLHttpRequest();
+    xh_req7.open("get", "../../data/" + test7sel(), true);
+    xh_req7.responseType = "arraybuffer";
+    xh_req7.onload = function () {
+        Log.getLog().info("TEST7 XHR done.");
+        if (xh_req7.response instanceof ArrayBuffer) {
+            Log.getLog().info("  as ArrayBuffer (response).");
+            xh_res7 = xh_req7.response;
+        } else if (xh_req7.mozResponseArrayBuffer instanceof ArrayBuffer) {
+            Log.getLog().info("  as ArrayBuffer (mozResponseArrayBuffer).");
+            xh_res7 = xh_req7.mozResponseArrayBuffer;
+        }
+        player7.play(xh_res7);
+        filter.setChannel(master7);
+    };
+    var div7 = document.getElementById("test7drop");
+    var info7 = document.getElementById("test7info");
+    var prog7 = document.getElementById("test7prog");
+    var master7 = new MasterChannel();
+    master7.setVolume(1);
+    var player7 = new TsdPlayer();
+    player7.setMasterChannel(master7);
+
+    // TEST 8
+    var master8 = new MasterChannel();
+    master8.setVolume(1);
+    var player8 = new TsdPlayer();
+    player8.setMasterChannel(master8);
+
+    // TEST 9
+    var vol9 = [
+            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64 ];
+    var note9 = [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ];
+    var div9 = document.getElementById("test9drop");
+    var info9 = document.getElementById("test9info");
+    var prog9 = document.getElementById("test9prog");
+    var master9 = new MasterChannel();
+    master9.setVolume(1);
+    var player9 = new SmfPlayer();
+    function DisplayMidiChannel (device) {
+        this.device = device;
+        this.buffer = null;
+    }
+    DisplayMidiChannel.prototype = new MidiChannel();
+    DisplayMidiChannel.prototype.constructor = DisplayMidiChannel;
+    DisplayMidiChannel.prototype.processNoteOn = function (ch, note, v) {
+        vol9[ch] = v;
+        note9[ch]++;
+        this.device.processNoteOn(ch, note, v);
+    };
+    DisplayMidiChannel.prototype.processNoteOff = function (ch, note, v) {
+        note9[ch]--;
+        if (note9[ch] <= 0) {
+            note9[ch] = 0;
+            vol9[ch] = 16;
+        }
+        this.device.processNoteOff(ch, note, v);
+    };
+    DisplayMidiChannel.prototype.processKeyPressure =
+            function (ch, note, pressure) {
+        this.device.processKeyPressure(ch, note, pressure);
+    };
+    DisplayMidiChannel.prototype.processControlChange =
+            function (ch, number, value) {
+        this.device.processControlChange(ch, number, value);
+    };
+    DisplayMidiChannel.prototype.processProgramChange = function (ch, number) {
+        this.device.processProgramChange(ch, number);
+    };
+    DisplayMidiChannel.prototype.processChannelPressure =
+            function (ch, pressure) {
+        this.device.processChannelPressure(ch, pressure);
+    };
+    DisplayMidiChannel.prototype.processPitchBend = function (ch, bend) {
+        this.device.processPitchBend(ch, bend);
+    };
+    DisplayMidiChannel.prototype.processSystemExclusive = function (sysex) {
+        this.device.processSystemExclusive(sysex);
+    };
+    DisplayMidiChannel.prototype.processSystemCommonMessage =
+            function (common) {
+        this.device.processSystemCommonMessage(common);
+    };
+    DisplayMidiChannel.prototype.processSystemRealtimeMessage =
+            function (realtime) {
+        this.device.processSystemRealtimeMessage(realtime);
+    };
+    DisplayMidiChannel.prototype.processSystemReset = function () {
+        this.device.processSystemReset();
+    };
+    DisplayMidiChannel.prototype.processMetaData = function (meta) {
+        this.device.processMetaData(meta);
+    };
+    DisplayMidiChannel.prototype.setBufferLength = function (length) {
+        if (this.device.setBufferLength)
+            this.device.setBufferLength(length);
+        else
+            this.buffer = new Int32Array(length);
+    };
+    DisplayMidiChannel.prototype.getBuffer = function () {
+        if (this.device.getBuffer)
+            return this.device.getBuffer();
+        return this.buffer;
+    };
+    DisplayMidiChannel.prototype.generate = function (length) {
+        if (this.device.generate)
+            this.device.generate(length);
+    };
+    var display9 = new DisplayMidiChannel(new SimpleMidiChannel());
+    player9.setDevice(SmfPlayer.TRACK_DEFAULT, display9);
+    player9.setMasterChannel(master9);
+
+    function volumeCallback() {
+        for (var i = 0; i < 16; i++) {
+            if (0 == vol9[i])
+                continue;
+            vol9[i]--;
+            var v = vol9[i] >> 3;
+            if (v > 16)
+                v = 16;
+            var name = "#test9ch" + i;
+            var c = v.toString(16);
+            $(name).css("color", "#" + c + c + c + c + c + c);
+        }
+    }
+    setInterval(volumeCallback, 10);
+
+    // TEST 10
+    var master10 = new MasterChannel();
+    //var device10 = new SimpleMidiChannel();
+    var device10 = new OtisMidiChannel();
+    var xh_req10 = new XMLHttpRequest();
+    xh_req10.open("get", "../../../log/d87-01.bin", true);
+    xh_req10.responseType = "arraybuffer";
+    xh_req10.onload = function () {
+        device10.setROM(0, new Int8Array(xh_req10.response));
+    };
+    xh_req10.send();
+    var xh_req10b = new XMLHttpRequest();
+    xh_req10b.open("get", "../../../log/d87-02.bin", true);
+    xh_req10b.responseType = "arraybuffer";
+    xh_req10b.onload = function () {
+        device10.setROM(1, new Int8Array(xh_req10b.response));
+    };
+    xh_req10b.send();
+    var xh_req10c = new XMLHttpRequest();
+    xh_req10c.open("get", "../../../log/voice_dg.json", true);
+    xh_req10c.onload = function () {
+        if (xh_req10c.status == 200) {
+            device10.setVoice(JSON.parse(xh_req10c.response));
+        }
+    };
+    xh_req10c.send();
+    master10.setVolume(1);
+    master10.addChannel(device10);
+    
+    player8.setMIDI(0, device10);
+    
+    var codeToNote = {
+        90: 72,  // C
+        83: 73,  // C#
+        88: 74,  // D
+        68: 75,  // D#
+        67: 76,  // E
+        86: 77,  // F
+        71: 78,  // F#
+        66: 79,  // G
+        72: 80,  // G#
+        78: 81,  // A
+        74: 82,  // A#
+        77: 83   // B
+    };
+    var noteOn = [];
+    var progNum = 0;
+    $('#test10midi').keydown(function(e) {
+        if (188 == e.keyCode) {
+            progNum++;
+            device10.processProgramChange(0, progNum);
+            return;
+        } else if (190 == e.keyCode) {
+            progNum--;
+            device10.processProgramChange(0, progNum);
+            return;
+        }
+        var note = codeToNote[e.keyCode];
+        if (!note)
+            return;
+        if (noteOn[note])
+            return;
+        noteOn[note] = true;
+        if (9 == test) {
+            display9.processNoteOn(0, note, 100);
+        } else {
+            if (10 != test) {
+                filter.setChannel(master10);
+                test = 10;
+            }
+            device10.processNoteOn(0, note, 100);
+        }
+    });
+    $('#test10midi').keyup(function(e) {
+        var note = codeToNote[e.keyCode];
+        if (!note)
+            return;
+        noteOn[note] = false;
+        if (9 == test) {
+            display9.processNoteOff(0, note, 0);
+        } else {
+            if (10 != test) {
+                filter.setChannel(master10);
+                test = 10;
+            }
+            device10.processNoteOff(0, note, 0);
+        }
+    });
+    if (navigator.requestMIDIAccess) {
+        navigator.requestMIDIAccess({'sysex': true}).then(function (access) {
+            for (var input of access.inputs.values()) {
+                input.onmidimessage = function (e) {
+                    if (10 != test) {
+                        filter.setChannel(master10);
+                        test = 10;
+                    }
+                    device10.processEvents(MidiChannel.createEvent(e.data));
+                };
+            }
+        }, function (error) { console.log(error); });
+    }
+
+    // TEST 11
+    var div11 = document.getElementById("test11drop");
+    var info11 = document.getElementById("test11info");
+    var prog11 = document.getElementById("test11prog");
+
+    // TEST 12
+    var div12 = document.getElementById("test12drop");
+    var info12 = document.getElementById("test12info");
+    var prog12 = document.getElementById("test12prog");
+    var master12 = new MasterChannel();
+    master12.setVolume(1);
+    var player12 = new S98Player();
+    player12.setMasterChannel(master12);
+
+    // TEST 13
+    var div13 = document.getElementById("test13drop");
+    var info13 = document.getElementById("test13info");
+    var prog13 = document.getElementById("test13prog");
+    var master13 = new MasterChannel();
+    master13.setVolume(1);
+    var player13 = new ModulePlayer();
+    player13.setMasterChannel(master13);
+    // for debug.
+    var xh_res13 = null;
+    var xh_req13 = new XMLHttpRequest();
+    xh_req13.open("get", "jmix/test.mod", true);
+    xh_req13.responseType = "arraybuffer";
+    xh_req13.onload = function () {
+        Log.getLog().info("TEST13 XHR done.");
+        if (xh_req13.response instanceof ArrayBuffer) {
+            Log.getLog().info("  as ArrayBuffer (response).");
+            player13.play(player13.load(xh_req13.response));
+            filter.setChannel(master13);
+        }
+    };
+    xh_req13.send();
+
+    // TEST 5, 6, 7, 9, 11, 12, and 13
+    function isParent(id, node) {
+        while (node) {
+            if (node.id == id)
+                return true;
+            node = node.parentNode;
+        }
+        return false;
+    }
+    var parents = [
+            "test5drop", "test6drop", "test7drop", "test9drop", "test11drop",
+            "test12drop", "test13drop"
+    ];
+    var divs = [ div5, div6, div7, div9, div11, div12, div13 ];
+    window.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        for (var i = 0; parents[i]; i++) {
+            if (isParent(parents[i], e.target))
+                divs[i].style.backgroundColor = "#888888";
+            else
+                divs[i].style.backgroundColor = "#000000";
+        }
+    }, false);
+    var flash = 0;
+    var reader = null;
+    var infos = [ info5, info6, info7, info9, info11, info12, info13 ];
+    var tests = [
+            test5flash, test6flash, test7flash, test9flash, test11flash,
+            test12flash, test13flash
+    ];
+    var progs = [
+            test5prog, test6prog, test7prog, test9prog, test11prog,
+            test12prog, test13prog
+    ];
+    var kicks = [
+            test5start, test6start, test7start, test9start, test11start,
+            test12start, test13start
+    ];
+    window.addEventListener("drop", function (e) {
+        for (var i = 0; parents[i]; i++) {
+            if (!isParent(parents[i], e.target))
+                continue;
+            e.preventDefault();
+            var file = e.dataTransfer.files[0];
+            var msg = "";
+            msg += "  Name: " + file.name + "\n";
+            msg += "  Data: " + file.lastModifiedDate + "\n";
+            msg += "  Size: " + file.size + "\n";
+            msg += "  Type: ";
+            if (file.type)
+                msg += file.type;
+            else
+                msg += "Unknown";
+            infos[i].innerText = msg;
+            flash  = 5;
+            setTimeout(tests[i], 50);
+            reader = new FileReader();
+            reader.onloadstart = progs[i];
+            reader.onprogress = progs[i];
+            reader.onload = kicks[i];
+            reader.readAsArrayBuffer(file);
+            break;
+        }
+    }, false);
+    $(function () {
+        var calcXposFromFrequency = function (frequency) {
+            var xPos = 500 * Math.log(frequency) / Math.log(22050) - 100;
+            return (xPos < 0) ? 0 : xPos;
+        };
+        var calcFrequencyFromXpos = function (x) {
+            var n = (x + 100) / 500 * Math.log(22050);
+            return Math.pow(Math.E, n);
+        };
+        var dB = function (ratio) {
+            if (ratio < 1.0e-10)
+                ratio = 1.0e-10;
+            return 10 * Math.log(ratio) / Math.LN10;
+        };
+        var drawPreview = function (data) {
+            var container = $('#container').get(0);
+            var tickPoints = [20, 40, 100, 200, 400, 1000, 2000, 6000, 20000];
+            var tickNames =
+                    ['20', '40', '100', '200', '400', '1k', '2k', '6k', '20k [Hz]'];
+            var xTicks = [];
+            for (var i in tickPoints) {
+                var xPos = calcXposFromFrequency(tickPoints[i]);
+                xTicks.push([xPos, tickNames[i]]);
+            }
+            var graph = Flotr.draw(container, [data], {
+                xaxis: {
+                    ticks: xTicks,
+                    max: 400
+                },
+                yaxis: {
+                    ticks: [[-20, ''], -10, 0, 10, [20, '[dB]']],
+                    max: 20,
+                    min: -20
+                }
+            });
+        };
+        var redrawPreview = function () {
+            var rawFrequency = $('#frequency').slider("option", "value");
+            var rawResonance = $('#resonance').slider("option", "value");
+            var frequency = 22050 * Math.pow(2, (rawFrequency - 500) / 50);
+            var resonance = rawResonance / 100;  // 1-1000 => 0.01-10.00
+            filter.setParameter(window.filterType, frequency, resonance, 20);
+            var data = [];
+            var x;
+            for (x = 0; x <= 400; x++) {
+                var f = calcFrequencyFromXpos(x);
+                var v = filter.magnitudeResponse(f);
+                var y = dB(v);
+                data.push([x, y]);
+            }
+            drawPreview(data);
+        };
+        $('p').css({
+            fontFamily: 'Exo, sans-serif'
+        });
+        $('p.title').css({
+            border: '1px solid #999',
+            borderRightColor: '#333',
+            borderBottomColor: '#333',
+            color: '#333',
+            width: '500px'
+        });
+        $('#frequency').slider({
+            value: 500,
+            min: 0,
+            max: 500
+        }).bind("slide", redrawPreview);
+        $('#resonance').slider({
+            value: 100,
+            min: 1,
+            max: 1000
+        }).bind("slide", redrawPreview);
+        $('#container').css({
+            width: '400px',
+            height: '200px'
+        });
+        $('button.biquad').css({
+            fontSize: '10px'
+        }).button().click(function() {
+                    window.filterType = this.getAttribute('name');
+                    redrawPreview();
+                });
+        window.filterType = BiquadFilterChannel.TYPE_LPF;
+        redrawPreview();
+    });
+</script>
+</body>
+</html>

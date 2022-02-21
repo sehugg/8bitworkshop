@@ -1,0 +1,15 @@
+
+#include <stdlib.h>
+#include <string.h>
+#include <cv.h>
+#include <cvu.h>
+
+#include "common.h"
+//#link "common.c"
+
+void main() {
+  vdp_setup();
+  cv_set_vint_handler(&vint_handler);
+  cv_set_screen_active(true);
+  while(1) { }
+}

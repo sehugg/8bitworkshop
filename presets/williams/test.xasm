@@ -1,0 +1,28 @@
+
+palette	equ	$c000
+vidmem	equ	$0
+wdogx39	equ	$cbff
+
+Start:
+	ldx	#0
+Loop:
+        lda	>PALCONST,x
+        sta	palette,x
+        leax	1,x
+        cpx	#16
+        bne	Loop
+        
+	ldx	#0
+Loop2:
+        lda	#$39
+        sta	wdogx39
+        stx	,x
+        leax	1,x
+        cpx	#$9800
+        bne	Loop2
+        
+	jmp	Loop	; endless loop
+
+PALCONST:
+	fcb	$1,$2,$4,$8,$10,$20,$40,$80
+	fcb	$88,$c0,$e0,$f0,$f8,$fc,$fe,$ff

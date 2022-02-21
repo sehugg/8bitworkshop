@@ -1,0 +1,21 @@
+{
+  "name": "tss",
+  "version": "0.94.3",
+  "homepage": "https://github.com/toyoshim/tss",
+  "authors": [
+    "Takashi Toyoshima <toyoshim@gmail.com>"
+  ],
+  "description": "Chiptune Sound Library - T'SoundSystem",
+  "license": "New BSD",
+  "ignore": [
+    "**/.*",
+    "java",
+    "js/polymer/build.sh",
+    "js/polymer/head.js",
+    "js/polymer/tail.js",
+    "js/tss/*.html"
+  ],
+  "devDependencies": {
+    "uglify-js": "~1.3.5"
+  }
+}

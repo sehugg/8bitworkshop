@@ -1,0 +1,82 @@
+
+	processor 6502
+	include "vcs.h"
+	include "macro.h"
+	include "xmacro.h"
+
+	org  $f000
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; To output a PAL signal, you need the following:
+;
+; - 3 scanlines of VSYNC
+; - 45 blank lines
+; - 228 visible scanlines
+; - 36 blank lines
+;
+; Total = 312 lines (vs 262 for NTSC)
+;
+; PAL runs at 50 Hz (vs 60 Hz for NTSC)
+; so your game will run more slowly.
+; Since you have extra cycles to play with, you could just
+; call your position update routine twice every five frames.
+;
+; Note also that PAL has different colors than NTSC.
+; (See http://www.randomterrain.com/atari-2600-memories-tia-color-charts.html)
+;
+; The TIMER_SETUP macro only goes up to 215 lines,
+; so for the PAL visible frame you would need to use
+; multiple sections (say 215 + 13 = 228) or count manually
+; like we do in this example.
+;
+; Many VCS games use conditional defines
+; (IFCONST and IFNCONST in DASM)
+; to switch between NTSC and PAL constants.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; background color
+BGColor	equ $81
+
+; Start of program, init registers and clear memory
+Start	CLEAN_START
+
+NextFrame
+; 01 + 3 lines of VSYNC
+	VERTICAL_SYNC
+; Now we need 44 lines of VBLANK...
+	TIMER_SETUP 44
+        TIMER_WAIT
+; Re-enable output (disable VBLANK)
+	lda #0
+        sta VBLANK
+; 228 PAL scanlines are visible
+; We'll draw some rainbows
+	ldx #228
+	lda BGColor	; load the background color out of RAM
+ScanLoop
+	adc #1		; add 1 to the current background color in A
+	sta COLUBK	; set the background color
+	sta WSYNC	; WSYNC doesn't care what value is stored
+	dex
+	bne ScanLoop
+
+; 36 lines of overscan to complete the frame
+	TIMER_SETUP 36
+; Enable VBLANK again
+	lda #2
+        sta VBLANK
+        TIMER_WAIT
+	
+; The next frame will start with current color value - 1
+; to get a downwards scrolling effect
+	dec BGColor
+
+; Go back and do another frame
+	jmp NextFrame
+
+; 6502 vectors
+	org $fffc
+	.word Start
+	.word Start

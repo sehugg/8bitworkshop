@@ -1,0 +1,159 @@
+
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This example draws a scoreboard using the playfield
+; and a 4x5 font. We encode the left and right digits in a
+; single byte, so we just mask one side or the other, and
+; combine them into a 8-bit byte to draw a digit.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	seg.u Variables
+        org $80
+
+Score0	byte	; BCD score of player 0
+Score1	byte	; BCD score of player 1
+FontBuf	ds 10	; 2x5 array of playfield bytes
+Temp	byte
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	seg Code
+	org $f000
+        
+Start
+	CLEAN_START
+        lda #$09
+        sta Score0
+        lda #$42
+        sta Score1
+
+NextFrame
+	VERTICAL_SYNC
+	TIMER_SETUP 37
+	lda Score0
+        ldx #0
+	jsr GetBCDBitmap
+	lda Score1
+        ldx #5
+	jsr GetBCDBitmap
+        TIMER_WAIT
+	TIMER_SETUP 192
+
+; Draw 192 scanlines.
+
+; First, we'll draw the scoreboard.
+; Put the playfield into score mode (bit 2) which gives
+; two different colors for the left/right side of
+; the playfield (given by COLUP0 and COLUP1).
+        lda #%00010010	; score mode + 2 pixel ball
+        sta CTRLPF
+        lda #$48
+        sta COLUP0	; set color for left
+        lda #$a8
+        sta COLUP1	; set color for right
+; Now we draw all four digits.
+	ldy #0		; Y will contain the frame Y coordinate
+ScanLoop1a
+	sta WSYNC
+        tya
+        lsr		; divide Y by two for double-height lines
+        tax		; -> X
+        lda FontBuf+0,x
+        sta PF1		; set left score bitmap
+        SLEEP 28
+        lda FontBuf+5,x
+        sta PF1		; set right score bitmap
+        iny
+        cpy #10
+        bcc ScanLoop1a
+
+; Clear the playfield
+        lda #0
+	sta WSYNC
+        sta PF1
+; Turn playfield reflection off (and turn score mode off)
+        lda #%00010100	; no reflection + ball priority + 2 pixel ball
+        sta CTRLPF
+
+        TIMER_WAIT
+	TIMER_SETUP 29
+        TIMER_WAIT
+        jmp NextFrame
+
+; Fetches bitmap data for two digits of a
+; BCD-encoded number, storing it in addresses
+; FontBuf+x to FontBuf+4+x.
+GetBCDBitmap subroutine
+; First fetch the bytes for the 1st digit
+	pha		; save original BCD number
+        and #$0F	; mask out the least significant digit
+        sta Temp
+        asl
+        asl
+        adc Temp	; multiply by 5
+        tay		; -> Y
+        lda #5
+        sta Temp	; count down from 5
+.loop1
+        lda DigitsBitmap,y
+        and #$0F	; mask out leftmost digit
+        sta FontBuf,x	; store leftmost digit
+        iny
+        inx
+        dec Temp
+        bne .loop1
+; Now do the 2nd digit
+        pla		; restore original BCD number
+        lsr
+        lsr
+        lsr
+        lsr		; shift right by 4 (in BCD, divide by 10)
+        sta Temp
+        asl
+        asl
+        adc Temp	; multiply by 5
+        tay		; -> Y
+        dex
+        dex
+        dex
+        dex
+        dex		; subtract 5 from X (reset to original)
+        lda #5
+        sta Temp	; count down from 5
+.loop2
+        lda DigitsBitmap,y
+        and #$F0	; mask out leftmost digit
+        ora FontBuf,x	; combine left and right digits
+        sta FontBuf,x	; store combined digits
+        iny
+        inx
+        dec Temp
+        bne .loop2
+	rts
+
+	org $FF00
+
+; Bitmap pattern for digits
+DigitsBitmap ;;{w:8,h:5,count:10,brev:1};;
+        .byte $EE,$AA,$AA,$AA,$EE
+        .byte $22,$22,$22,$22,$22
+        .byte $EE,$22,$EE,$88,$EE
+        .byte $EE,$22,$66,$22,$EE
+        .byte $AA,$AA,$EE,$22,$22
+        .byte $EE,$88,$EE,$22,$EE
+        .byte $EE,$88,$EE,$AA,$EE
+        .byte $EE,$22,$22,$22,$22
+        .byte $EE,$AA,$EE,$AA,$EE
+        .byte $EE,$AA,$EE,$22,$EE
+;;end
+
+; Epilogue
+	org $fffc
+        .word Start
+        .word Start

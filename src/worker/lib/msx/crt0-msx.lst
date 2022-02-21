@@ -1,0 +1,75 @@
+                              1 ; crt0.s for Colecovision cart
+                              2 
+                              3 	.module crt0
+                              4 	.globl _main
+                              5 	.globl ___sdcc_call_hl
+                              6 
+                              7 	; Ordering of segments for the linker - copied from sdcc crt0.s
+                              8 	.area	_CODE
+                              9 	.area	_INITIALIZER
+                             10 	.area	_HOME
+                             11 	.area	_GSINIT
+                             12 	.area	_GSFINAL
+                             13 	.area	_DATA
+                             14 	.area	_INITIALIZED
+                             15 	.area	_BSEG
+                             16 	.area	_BSS
+                             17 	.area	_HEAP
+                             18 
+                             19 	.area	_CODE
+                             20 ; MSX cartridge header @ 0x4000 - 0x400f
+   0000 41 42                21 	.dw 0x4241
+   0002r10r00                22         .dw _Start
+   0004r10r00                23         .dw _Start
+   0006 00 00                24         .dw 0
+   0008 00 00                25         .dw 0
+   000A 00 00                26         .dw 0
+   000C 00 00                27         .dw 0
+   000E 00 00                28         .dw 0
+                             29 
+   0010                      30 _Start:
+   0010 F3            [ 4]   31 	di
+   0011 31 00 E0      [10]   32 	ld sp, #0xe000			; Set stack pointer directly above top of memory.
+   0014 ED 56         [ 8]   33 	im	1
+                             34 
+   0016 CDr00r00      [17]   35 	call gsinit			; Initialize global and static variables.
+   0019 CDr00r00      [17]   36 	call _main
+   001C C7            [11]   37 	rst 0x0				; Restart when main() returns.
+                             38 
+                             39 	.area   _GSINIT
+   0000                      40 gsinit::
+                             41 
+                             42 	; Implicitly zeroed global and static variables.
+   0000 01r00r00      [10]   43 	ld	bc, #l__DATA
+   0003 78            [ 4]   44 	ld	a, b
+   0004 B1            [ 4]   45 	or	a, c
+   0005 28 0F         [12]   46 	jr	Z, zeroed_data
+   0007 21r00r00      [10]   47 	ld	hl,	#s__DATA
+   000A 36 00         [10]   48 	ld	(hl), #0x00
+   000C 0B            [ 6]   49 	dec	bc
+   000D 78            [ 4]   50 	ld	a, b
+   000E B1            [ 4]   51 	or	a, c
+   000F 28 05         [12]   52 	jr	Z, zeroed_data
+   0011 5D            [ 4]   53 	ld	e, l
+   0012 54            [ 4]   54 	ld	d, h
+   0013 13            [ 6]   55 	inc	de
+   0014 ED B0         [21]   56 	ldir
+   0016                      57 zeroed_data:
+                             58 
+                             59 	; Explicitly initialized global variables.
+   0016 01r00r00      [10]   60 	ld	bc, #l__INITIALIZER
+   0019 78            [ 4]   61 	ld	a, b
+   001A B1            [ 4]   62 	or	a, c
+   001B 28 08         [12]   63 	jr	Z, gsinit_static
+   001D 11r00r00      [10]   64 	ld	de, #s__INITIALIZED
+   0020 21r00r00      [10]   65 	ld	hl, #s__INITIALIZER
+   0023 ED B0         [21]   66 	ldir
+                             67 
+   0025                      68 gsinit_static:
+                             69 	; Explicitly initialized static variables inserted by compiler here.
+                             70 
+                             71 	.area   _GSFINAL
+   0000 C9            [10]   72 	ret
+                             73 
+                             74 	.area _HOME
+                             75 

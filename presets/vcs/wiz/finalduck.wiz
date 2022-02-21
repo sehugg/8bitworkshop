@@ -1,0 +1,702 @@
+import "vcs";
+import "banks";
+
+in ram {
+    var t0, t1, t2, t3, t4, t5, t6, t7 : u8;
+
+    var joy : u8;
+    var fire : [u8; 2];
+    var unpress : [u8; 2];
+    var score : [u8; 2];
+    var water_color : u8;
+    
+    namespace winner {
+        var x, y : u8;
+    }
+
+    namespace voice {
+        var index : [u8; 2];
+        var length : [u8; 2];
+    }
+
+    namespace game {
+        let SCORE_X = 50;
+        let START_X = 30;
+        let START_Y = 40;
+        let WINNER_X = 45;
+        let WINNER_X2 = 160 - 45 + 5;
+        let LEFT_EDGE = 16;
+        let RIGHT_EDGE = 160 - 16;
+        let COLOR_WATER_START = 0xA2;
+        let COLOR_P1 = 0xFF;
+        let COLOR_P2 = 0x8F;
+        let COLOR_BREAD = 0x28;
+
+        let DETUNE_P2 = 2;
+    }
+
+    namespace sprite {
+        let PLAYER1 = 0;
+        let PLAYER2 = 1;
+        let MISSILE1 = 2;
+        let MISSILE2 = 3;
+        let BALL = 4;
+        let COUNT = 5;
+
+        var x : [u8; COUNT];
+        var y : [u8; COUNT];
+        var data : [u8; COUNT];
+        var gfx_ptr : [*const u8; COUNT];
+    }
+
+    namespace player1 {
+        let index = sprite.PLAYER1;
+
+        var x @ &sprite.x[index] : u8;
+        var y @ &sprite.y[index] : u8;
+        var reflect @ &sprite.data[index] : u8;
+        var gfx_ptr @ &sprite.gfx_ptr[index] : *const u8;
+    }
+
+    namespace player2 {
+        let index = sprite.PLAYER2;
+        
+        var x @ &sprite.x[index] : u8;
+        var y @ &sprite.y[index] : u8;
+        var reflect @ &sprite.data[index] : u8;
+        var gfx_ptr @ &sprite.gfx_ptr[index] : *const u8;
+    }
+
+    namespace missile1 {
+        let index = sprite.MISSILE1;
+        
+        var x @ &sprite.x[index] : u8;
+        var y @ &sprite.y[index] : u8;
+        var speed @ &sprite.data[index] : u8;
+        var gfx_ptr @ &sprite.gfx_ptr[index] : *const u8;
+    }
+
+    namespace missile2 {
+        let index = sprite.MISSILE2;
+        
+        var x @ &sprite.x[index] : u8;
+        var y @ &sprite.y[index] : u8;
+        var speed @ &sprite.data[index] : u8;
+        var gfx_ptr @ &sprite.gfx_ptr[index] : *const u8;
+    }
+
+    namespace ball {
+        let index = sprite.BALL;
+        
+        var x @ &sprite.x[index] : u8;
+        var y @ &sprite.y[index] : u8;
+        var gfx_ptr @ &sprite.gfx_ptr[index] : *const u8;
+    }
+}
+
+in rom {
+    import "random";
+
+    func main() {
+        nointerrupt = true;
+        decimal = false;
+        s = x = 0xFF;
+        a = 0;
+
+        vcs.pattern.missile1 = a;
+        vcs.pattern.missile2 = a;
+        vcs.pattern.player1 = a;
+        vcs.pattern.player2 = a;
+        vcs.pattern.playfield1 = a;
+        vcs.pattern.playfield2 = a;
+        vcs.pattern.playfield3 = a;
+        vcs.color.bg = a;
+        vcs.color.fg = a;
+        vcs.color.player1 = a = game.COLOR_P1;
+        vcs.color.player2 = a = game.COLOR_P2;
+        vcs.color.fg = a = game.COLOR_BREAD;
+        vcs.color.bg = a = 0x00;
+        vcs.control.player1 = a = vcs.control.PLAYER_SINGLE | vcs.control.MISSILE_4PX;
+        vcs.control.player2 = a = vcs.control.PLAYER_SINGLE | vcs.control.MISSILE_4PX;
+        vcs.control.playfield = a = vcs.control.BALL_4PX;
+
+        player1.x = a = game.START_X;
+        player1.y = a = game.START_Y;
+        player1.reflect = a = vcs.reflect.ENABLE;
+        player2.x = a = 160 - player1.x;
+        player2.y = a = game.START_Y;
+        player2.reflect = a = player1.reflect ^ vcs.reflect.ENABLE;
+        ball.x = a = 84;
+        ball.y = a = game.START_Y;
+        missile1.x = a = 30;
+        missile1.y = a = 200;
+        missile1.speed = a = 0;
+        missile2.x = a = 160 - 30;
+        missile2.y = a = 200;
+        missile2.speed = a = 0;
+        water_color = a = game.COLOR_WATER_START;
+        vcs.hmove.clear = a;
+
+        score[0] = a = 0;
+        score[1] = a = 0;
+        voice.length[0] = a = 0;
+        voice.length[1] = a = 0;
+        winner.x = a = game.WINNER_X;
+        winner.y = a = 8;
+
+        a = vcs.timer.value;
+        if zero {
+            a += 1;
+        }
+
+        random.lo = a;
+        random.hi = a;
+
+        voice.index[0] = a = &sfx.intro as u8;
+        voice.length[0] = a = sfx.intro.len;
+
+        while true {
+            vcs.sync.vsync = a = vcs.sync.VSYNC_START;
+            inline for let i in 1 .. 3 {
+                vcs.sync.wsync = a;
+            }
+            vcs.timer.set64 = a = 43;
+            vcs.sync.vsync = a = 0;
+
+            vcs.io.ddr_a = a = 0;
+            joy = a = vcs.io.port_a;
+            fire[0] = a = vcs.io.triggers[0] & vcs.io.TRIGGER_JOY_FIRE;
+            fire[1] = a = vcs.io.triggers[1] & vcs.io.TRIGGER_JOY_FIRE;
+
+            random.next();
+
+            a = ball.y;
+            if a >= 100 {
+                spawn_bread();
+            } else {
+                x = sprite.PLAYER1;
+                move_player_sprite();
+                joy = a = joy << 4;
+                x = sprite.PLAYER2;
+                move_player_sprite();
+                x = sprite.MISSILE1;
+                move_missile_sprite();
+                x = sprite.MISSILE2;
+                move_missile_sprite();
+            }
+
+            inline for let i in 0 .. 1 {
+                a = voice.length[i];
+                if !zero {
+                    x = voice.index[i];
+                    vcs.audio.volumes[i] = a = sfx.volume_data[x];
+                    vcs.audio.frequencies[i] = a = ((sfx.data[x] & 0xF0) >>> 4) + (i * game.DETUNE_P2);
+                    vcs.audio.tones[i] = a = sfx.data[x] & 0x0F;
+                    voice.index[i]++;
+                    voice.length[i]--;
+                } else {
+                    vcs.audio.volumes[i] = a = 0;
+                }
+            }
+
+            <:player1.gfx_ptr = a = score[0] << 3;
+            >:player1.gfx_ptr = a = >:&graphic.digits;
+            <:player2.gfx_ptr = a = score[1] << 3;
+            >:player2.gfx_ptr = a = >:&graphic.digits;
+            <:ball.gfx_ptr = a = <:&graphic.dot - winner.y;
+            >:ball.gfx_ptr = a = >:&graphic.dot -# 0;
+            <:missile1.gfx_ptr = a = <:&graphic.dot - missile1.y;
+            >:missile1.gfx_ptr = a = >:&graphic.dot -# 0;
+            <:missile2.gfx_ptr = a = <:&graphic.dot - missile2.y;
+            >:missile2.gfx_ptr = a = >:&graphic.dot -# 0;
+
+            do { a = vcs.timer.value; } while !zero;
+            vcs.sync.vblank = a = 0;
+            a = game.SCORE_X;
+            x = sprite.PLAYER1;
+            position_sprite();
+            a = 160 - game.SCORE_X;
+            x = sprite.PLAYER2;
+            position_sprite();
+            a = winner.x;
+            x = sprite.BALL;
+            position_sprite();
+            vcs.sync.wsync = a;
+            vcs.reflect.player1 = a = 0;
+            vcs.reflect.player2 = a;
+
+            x = 0;
+            do {
+                vcs.sync.wsync = a;
+                x++;
+                vcs.sync.wsync = a;
+                y = a = x >>> 1;
+                vcs.pattern.player1 = a = player1.gfx_ptr[y];
+                vcs.pattern.player2 = a = player2.gfx_ptr[y];
+                vcs.pattern.ball = a = ball.gfx_ptr[y];
+                x++;
+
+                vcs.sync.wsync = a;
+            } while x < 16;
+
+            push(a = x);
+
+            x = 0;
+            do { 
+                a = sprite.x[x];
+                position_sprite();
+                x++;
+            } while x != sprite.COUNT;
+
+            <:player1.gfx_ptr = a = <:&graphic.duck - player1.y;
+            >:player1.gfx_ptr = a = >:&graphic.duck -# 0;
+            <:player2.gfx_ptr = a = <:&graphic.duck - player2.y;
+            >:player2.gfx_ptr = a = >:&graphic.duck -# 0;
+            <:ball.gfx_ptr = a = <:&graphic.dot - ball.y;
+            >:ball.gfx_ptr = a = >:&graphic.dot -# 0;
+            vcs.sync.wsync = a;
+            vcs.color.bg = a = water_color;
+            vcs.reflect.player1 = a = player1.reflect;
+            vcs.reflect.player2 = a = player2.reflect;
+
+            x = a = pop();
+
+            do {
+                vcs.sync.wsync = a;
+                y = a = x >>> 1;
+
+                vcs.pattern.player1 = a = player1.gfx_ptr[y];
+                vcs.pattern.player2 = a = player2.gfx_ptr[y];
+                vcs.pattern.ball = a = ball.gfx_ptr[y];
+
+                vcs.sync.wsync = a;
+                vcs.pattern.missile1 = a = missile1.gfx_ptr[y];
+                vcs.pattern.missile2 = a = missile2.gfx_ptr[y];
+
+                x++;
+                x++;
+            } while x < 187;
+
+            vcs.sync.wsync = a;
+            a = 0;
+            vcs.pattern.player1 = a;
+            vcs.pattern.player2 = a;
+            vcs.pattern.missile1 = a;
+            vcs.pattern.missile2 = a;
+            vcs.pattern.ball = a;
+            vcs.pattern.playfield1 = a;
+            vcs.pattern.playfield2 = a;
+            vcs.pattern.playfield3 = a;
+            vcs.color.bg = a;
+            vcs.sync.vblank = a = vcs.sync.VBLANK_RESET_TRIGGER | vcs.sync.VBLANK_START;
+            inline for let i in 1 .. 30 {
+                vcs.sync.wsync = a;
+            }
+        }
+    }
+
+    // Arguments:
+    //      a = position
+    func position_sprite() {
+        vcs.hmove.clear = a;
+        vcs.sync.wsync = a;
+
+        carry = true;
+        do {
+            a -#= 15;
+        } while carry;
+
+        y = a;
+        vcs.hmove.players[x] = a = ((&fine_adjust as u16 - 0xF1) as *u8)[y];
+        vcs.reset.players[x] = a;
+        vcs.sync.wsync = a;
+        vcs.hmove.apply = a;
+        inline for let i in 1 .. 6 {
+            nop();
+        }
+    }
+
+    // Arguments:
+    //      x = sprite index
+    func move_player_sprite() {
+        y = joy;
+        if { a = y & vcs.io.PORT_A_JOY_LEFT; } && zero {
+            a = sprite.x[x] - 1;
+            if a < game.LEFT_EDGE {
+                a = game.LEFT_EDGE;
+            }
+            sprite.x[x] = a;
+            sprite.data[x] = a = 0;
+        } else if { a = y & vcs.io.PORT_A_JOY_RIGHT; } && zero {
+            a = sprite.x[x] + 1;
+            if a >= game.RIGHT_EDGE {
+                a = game.RIGHT_EDGE;
+            }
+            sprite.x[x] = a;
+            sprite.data[x] = a = vcs.reflect.ENABLE;
+        }
+
+        if { a = y & vcs.io.PORT_A_JOY_UP; } && zero { 
+            sprite.y[x] = a = sprite.y[x] - 1;
+            if !carry {
+                sprite.y[x] = a = 94;
+            }
+        } else if { a = y & vcs.io.PORT_A_JOY_DOWN; } && zero {
+            a = sprite.y[x] + 1;
+            if a >= 94 {
+                sprite.y[x] = a = 0;
+            }
+            sprite.y[x] = a;
+        }
+
+        if { a = fire[x]; } && zero {
+            if { a = unpress[x]; } && zero {
+                unpress[x] = a = 1;
+                check_bread();
+                if { a = t5; } && zero {
+                    shoot_missile();
+                }
+            }
+        } else {
+            unpress[x] = a = 0;
+        }
+
+        check_enemy_missile();
+    }
+
+    // Arguments:
+    //      x = sprite index
+    func move_missile_sprite() {
+        a = sprite.data[x];
+        if !zero {
+            a = sprite.x[x] + sprite.data[x];
+            if a < game.LEFT_EDGE {
+                sprite.y[x] = a = 200;
+                sprite.data[x] = a = 0;
+            } else if a >= game.RIGHT_EDGE {
+                sprite.y[x] = a = 200;
+                sprite.data[x] = a = 0;
+            } else {
+                sprite.x[x] = a;
+            }    
+        }
+    }
+
+    func spawn_bread() {
+        random.next();
+        a = random.lo;
+        goto spawn_failed if a < 32;
+        goto spawn_failed if a >= 160 - 32;
+        ball.x = a;
+
+        a = random.hi;
+        goto spawn_failed if a < 28;
+        goto spawn_failed if a >= 84;
+        ball.y = a;
+
+        return;
+
+    spawn_failed:
+        ball.y = a = 200;
+    }
+
+    func check_bread() {
+        t0 = a = ball.x + 8;
+        t1 = a = sprite.x[x] + 17;
+        t2 = a = ball.y + 6;
+        t3 = a = sprite.y[x] + 8;
+
+        t5 = a = 0;
+        if { a = sprite.x[x]; } && a < t0 {
+            if { a = ball.x + 2; } && a < t1 {
+                if { a = sprite.y[x] + 1; } && a < t2 {
+                    if { a = ball.y; } && a < t3 {
+                        t5 = a = 1;
+                        ball.y = a = 200;
+
+                        if { a = score[x]; } && a < 9 {
+                            score[x]++;
+                            voice.index[x] = a = &sfx.score as u8;
+                            voice.length[x] = a = sfx.score.len;
+                        } else {
+                            score[0] = a = 0;
+                            score[1] = a = 0;
+                            sprite.x[0] = a = game.START_X;
+                            sprite.y[0] = a = game.START_Y;
+                            sprite.x[1] = a = 160 - game.START_X;
+                            sprite.y[1] = a = game.START_Y;
+
+                            random.next();
+                            a = random.lo & 0xF0 | 0x2;
+                            if a == water_color {
+                                a = a + 0x10;
+                            }
+                            water_color = a;
+
+                            winner.y = a = 0;
+                            winner.x = a = game.WINNER_X;
+                            if x == 1 {
+                                winner.x = a = game.WINNER_X2;
+                            }
+
+                            voice.index[x] = a = &sfx.win as u8;
+                            voice.length[x] = a = sfx.win.len;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    func shoot_missile() {
+        y = a = x + 2;
+        if { a = sprite.data[y]; } && !zero {
+            return;
+        }
+
+        voice.index[x] = a = &sfx.shoot as u8;
+        voice.length[x] = a = sfx.shoot.len;
+
+        sprite.x[y] = a = sprite.x[x];
+        sprite.y[y] = a = sprite.y[x] + 1;
+        if { a = sprite.data[x]; } && zero {
+            a = (0x4 ^ 0xFF) + 1;
+        } else {
+            a = 0x4;
+        }
+        sprite.data[y] = a;
+    }
+
+    func check_enemy_missile() {
+        y = a = x ^ 1 + 2;
+        t0 = a = sprite.x[y] + 8;
+        t1 = a = sprite.x[x] + 17;
+        t2 = a = sprite.y[y] + 6;
+        t3 = a = sprite.y[x] + 14;
+
+        t5 = a = 0;
+        ^if { a = sprite.x[x]; } && a < t0 {
+            if { a = sprite.x[y] + 2; } && a < t1 {
+                if { a = sprite.y[x] + 1; } && a < t2 {
+                    if { a = sprite.y[y]; } && a < t3 {
+                        t5 = a = 1;
+
+                        a = sprite.x[x] + sprite.data[y] + sprite.data[y] + sprite.data[y] + sprite.data[y];
+                        if a < game.LEFT_EDGE {
+                            a = game.LEFT_EDGE;
+                        } else if a >= game.RIGHT_EDGE {
+                            a = game.RIGHT_EDGE;
+                        }
+                        sprite.x[x] = a;
+
+                        voice.index[x] = a = &sfx.hurt as u8;
+                        voice.length[x] = a = sfx.hurt.len;
+
+                        random.next();
+                        t6 = a = random.lo & 0x7 + 4;
+                        if { a = random.hi & 0x1; } && zero {
+                            sprite.y[x] = a = sprite.y[x] + t6;
+                        } else {
+                            sprite.y[x] = a = sprite.y[x] - t6;
+                        }
+
+                        sprite.y[y] = a = 200;
+                        sprite.data[y] = a = 0;
+                        if { a = score[x]; } && a != 0 {                            
+                            if { a = random.hi & 0x6; } && zero {
+                                score[x]--;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    namespace graphic {
+        let DOT_PATTERN = [
+            2,
+            2,
+            2,
+            2
+        ];
+        let DUCK_PATTERN = [
+            0b00011100_u8,
+            0b00101010_u8,
+            0b00101010_u8,
+            0b11111110_u8,
+            0b00011100_u8,
+            0b00111111_u8,
+            0b00111111_u8,
+            0b00011110_u8,
+        ];
+
+        const @ 0xF600 : [u8] = [0u8; 256];
+        const dot @ 0xF700 : [u8] = DOT_PATTERN ~ [0u8; 256 - DOT_PATTERN.len];
+        
+        const @ 0xF800 : [u8] = [0u8; 256];
+        const duck @ 0xF900 : [u8] = DUCK_PATTERN ~ [0u8; 256 - DUCK_PATTERN.len];
+
+        const digits @ 0xFA00 : [u8] = [
+            0b00111000,
+            0b01000100,
+            0b01000100,
+            0b01000100,
+            0b01000100,
+            0b01000100,
+            0b00111000,
+            0b00000000,
+        
+            0b00010000,
+            0b00110000,
+            0b00010000,
+            0b00010000,
+            0b00010000,
+            0b00010000,
+            0b00111000,
+            0b00000000,
+
+            0b00111000,
+            0b01000100,
+            0b00000100,
+            0b00011000,
+            0b00100000,
+            0b01000000,
+            0b01111100,
+            0b00000000,
+
+            0b00111000,
+            0b01000100,
+            0b00000100,
+            0b00011000,
+            0b00000100,
+            0b01000100,
+            0b00111000,
+            0b00000000,
+
+            0b01001000,
+            0b01001000,
+            0b01001000,
+            0b01111100,
+            0b00001000,
+            0b00001000,
+            0b00001000,
+            0b00000000,
+
+            0b01111100,
+            0b01000000,
+            0b01000000,
+            0b01111000,
+            0b00000100,
+            0b00000100,
+            0b01111000,
+            0b00000000,
+
+            0b00111000,
+            0b01000000,
+            0b01000000,
+            0b01111000,
+            0b01000100,
+            0b01000100,
+            0b00111000,
+            0b00000000,
+
+            0b01111100,
+            0b00000100,
+            0b00001000,
+            0b00001000,
+            0b00010000,
+            0b00010000,
+            0b00010000,
+            0b00000000,
+
+            0b00111000,
+            0b01000100,
+            0b01000100,
+            0b00111000,
+            0b01000100,
+            0b01000100,
+            0b00111000,
+            0b00000000,
+
+            0b00111000,
+            0b01000100,
+            0b01000100,
+            0b00111100,
+            0b00000100,
+            0b00001000,
+            0b00110000,
+            0b00000000,
+        ];
+    }
+}
+
+
+in rom @ 0xFB00 {
+    const fine_adjust : [u8] = [
+        0b01110000, 0b01100000, 0b01010000, 0b01000000, 0b00110000, 0b00100000, 0b00010000,
+        0b00000000,
+        0b11110000, 0b11100000, 0b11010000, 0b11000000, 0b10110000, 0b10100000, 0b10010000,
+    ];
+
+    namespace sfx {
+        const volume_data : [u8] = [
+            0xF, 0xF, 0xF, 0xF, 0xF, 0x7, 0x4, 0x0,
+            0xF, 0xF, 0xF, 0xF, 0xF, 0x7, 0x4, 0x0,
+            0xF, 0xF, 0xF, 0xF, 0x1, 0x1, 0x1, 0x1,
+        ];
+    }
+}
+
+in rom @ 0xFC00 {
+    namespace sfx {
+        let Bb8 = 0b0001;
+        let E8 = 0b0010;
+        let Bb7 = 0b0011;
+        let G7 = 0b0100;
+        let E7 = 0b0101;
+        let Bb6 = 0b0111;
+        let A6 = 0b1000;
+        let G6 = 0b1001;
+        let E6 = 0b1011;
+        let C6 = 0b1110;
+        let Bb5 = 0b1111;
+        let NOTE(pitch, instrument, length) = [(pitch << 4) | instrument; length];
+        let REST(length) = [0; length];
+
+        const data : [u8] = [];
+        const shoot : [u8] = [((13 - i) << 4) | 0x7 for let i in 0 .. 7];
+        const hurt : [u8] = [((((i / 2) >> 2) + ((i / 2) & 0xF) << 4) | 0x3) * (1 - i % 2) for let i in 0 .. 15];
+        const score : [u8] = [(7 - i) << 4 | 0xC for let i in 1 .. 3] ~ [(i >> 1) << 4 | 0xC for let i in 1 .. 7];
+
+        let WIN_INSTRUMENT = 10;
+        let INTRO_INSTRUMENT = 10;
+
+        const win : [u8] =
+            NOTE(Bb6, WIN_INSTRUMENT, 4)
+            ~ NOTE(G6, WIN_INSTRUMENT, 8)
+            ~ NOTE(A6, WIN_INSTRUMENT, 8)
+            ~ NOTE(G6, WIN_INSTRUMENT, 8)
+            ~ NOTE(E7, WIN_INSTRUMENT, 8);
+
+        const intro : [u8] =
+            NOTE(E7, INTRO_INSTRUMENT, 8)
+            ~ NOTE(Bb6, INTRO_INSTRUMENT, 8)
+            ~ NOTE(G6, INTRO_INSTRUMENT, 8)
+            ~ NOTE(A6, INTRO_INSTRUMENT, 8)
+            ~ NOTE(Bb6, INTRO_INSTRUMENT, 8)
+            ~ NOTE(E7, INTRO_INSTRUMENT, 8)
+            ~ NOTE(A6, INTRO_INSTRUMENT, 8)
+            ~ NOTE(Bb6, INTRO_INSTRUMENT, 8)
+            ~ NOTE(E6, INTRO_INSTRUMENT, 4)
+            ~ REST(4)
+            ~ NOTE(E6, INTRO_INSTRUMENT, 4)
+            ~ REST(4)
+            ~ NOTE(E7, INTRO_INSTRUMENT, 8);
+    }
+}
+
+in rom @ 0xFFFA {
+    const = [main, main, main];
+}
+

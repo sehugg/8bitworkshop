@@ -1,0 +1,11 @@
+section .text
+org 100h
+
+mov dx,msg		; DX = string address
+mov ah,9		; 9 = "draw string"
+int 21h
+mov ah,4Ch		; 4ch = "exit to OS"
+int 21h			
+
+section .data
+msg db 'Hello, World!',0Dh,0Ah,'$'

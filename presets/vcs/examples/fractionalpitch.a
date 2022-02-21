@@ -1,0 +1,481 @@
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Playing music on the Atari VCS can be challenging since
+;; the frequencies rarely line up with the desired notes of a
+;; musical scale, and if they do, they're likely out of tune.
+;; There are only 32 divisors to configure pitch for a channel,
+;; and three possible base clocks that produce square tones --
+;; a total of 96 possible frequencies.
+;;
+;; This demo implements fractional frequencies by duty cycling
+;; the frequency divisor.
+;; This extends the number of audible pitches to 768.
+;;
+;; We have a lookup table with AUDF, AUDC, and a duty cycle
+;; bitmask for each note. Every 2 msec, we rotate the bitmask
+;; and add the next bit to the divisor -- cycling between
+;; two neighboring divisors.
+;;
+;; The pitches are modulated 8 times per frame, but could
+;; be reduced to 1 or 2 times per frame, but "vibrato"
+;; would be more apparent.
+;;
+;; The song file format is simple:
+;; - High bit set: delay (0-126)
+;; - High bit clear: note (0-63)
+;; - $FF: done
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+
+	org  $f000
+
+Chan0dur	equ	$e0	; current note duration channel 0
+Chan1dur	equ	$e1	; current note duration channel 1
+Chan0note	equ	$e2	; current note pitch channel 0
+Chan1note	equ	$e3	; current note pitch channel 1
+Chan0duty	equ	$e4	; current duty bits channel 0
+Chan1duty	equ	$e5	; current duty bits channel 1
+DurationTimer	equ	$e6	; duration until next cmd
+CurChannel	equ	$e7	; next channel to add note
+SongPtr		equ	$e8	; ptr to next song byte
+
+BitmapY		equ	$f0	; next line of bitmap
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	MAC PULSE
+        TIMER_SETUP 35
+        jsr DutyCycle	; cycle notes
+        jsr Pulse	; decrement duration timer
+        lda Chan0note
+        sta COLUBK
+        lda Chan1note
+        sta COLUPF
+        jsr DrawBitmap	; draw ~34 lines of bitmap
+        ENDM
+
+	MAC DUTYCYCLE
+        TIMER_SETUP 34
+        jsr DutyCycle	; cycle notes
+        jsr DrawBitmap	; draw ~33 lines of bitmap
+        ENDM
+
+Start
+	CLEAN_START
+        jsr ResetTrack
+
+NextFrame
+	VERTICAL_SYNC
+        lda #$d0
+        sta BitmapY	; top of bitmap
+; 35*2 + 34*6 = 274 lines (264 b/c we exit timer early)
+        PULSE
+        DUTYCYCLE
+        DUTYCYCLE
+        DUTYCYCLE
+        PULSE
+        DUTYCYCLE
+        DUTYCYCLE
+        DUTYCYCLE
+        lda #0
+        sta COLUBK
+        jmp NextFrame
+
+DrawBitmap
+	ldy BitmapY
+ScanLoop
+; WSYNC and store playfield registers
+	sta WSYNC
+	lda PFBitmap0,y
+        sta PF0		; store first playfield byte
+	lda PFBitmap1,y
+        sta PF1		; store 2nd byte
+	lda PFBitmap2,y
+        sta PF2		; store 3rd byte
+; Here's the asymmetric part -- by this time the TIA clock
+; is far enough that we can rewrite the same PF registers
+; and display new data on the right side of the screen
+        nop
+        nop
+        nop		; pause to let playfield finish drawing
+	lda PFBitmap3,y
+        sta PF0		; store 4th byte
+	lda PFBitmap4,y
+        sta PF1		; store 5th byte
+	lda PFBitmap5,y
+        sta PF2		; store 6th byte
+        dey
+        lda INTIM
+        cmp #2
+        bcs ScanLoop	; repeat until all scanlines drawn
+        TIMER_WAIT
+        sty BitmapY
+        lda #0
+        sta PF0
+        sta PF1
+        sta PF2
+        rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Table of AUDF base values for each note
+FREQZ	.byte 30, 30, 30, 30, 30, 28, 26, 25, 23, 22, 21, 19, 18, 17, 16, 15, 14, 13, 12, 12, 11, 10, 10, 9, 8, 8, 7, 7, 6, 6, 5, 5, 30, 29, 27, 25, 24, 22, 21, 20, 19, 18, 16, 15, 15, 14, 13, 12, 11, 11, 10, 31, 29, 27, 25, 24, 23, 21, 20, 19, 18, 16, 15, 15
+; Table of duty-cycle bits for each note
+DUTYZ	.byte 247, 247, 247, 247, 1, 73, 219, 1, 219, 73, 0, 219, 181, 85, 85, 85, 181, 219, 247, 1, 73, 181, 0, 73, 219, 17, 219, 17, 219, 73, 247, 85, 247, 1, 85, 247, 73, 247, 181, 17, 1, 0, 247, 247, 0, 1, 17, 73, 181, 0, 17, 0, 1, 85, 247, 73, 0, 181, 73, 1, 0, 247, 247, 0
+; Table of AUDC values for each note
+TONEZ	.byte 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
+
+; Cycle the pitches of each channel
+DutyCycle
+; set playfield colors
+        lda	Chan0duty
+        ora	#$07
+        sta	COLUBK
+        lda	Chan1duty
+        and	#$f0
+        sta	COLUPF
+; update channel 0
+        ldx	#0
+        jsr	MusicFrame
+; update channel 1
+        ldx	#1
+        jsr	MusicFrame
+        rts
+
+; Play a note
+; X = channel (0,1)
+; Y = note index (0-63)
+PlayNote
+	lda	FREQZ,y
+        sta	Chan0note,x
+	lda	DUTYZ,y
+        sta	Chan0duty,x
+        lda	TONEZ,y
+        sta	AUDC0,x
+        lda	#31
+        sta	Chan0dur,x
+        lda	#15
+        sta	AUDV0,x
+        rts
+
+; Reset to start of song
+ResetTrack
+        lda	#<NOTEZ
+        sta	SongPtr+0
+        lda	#>NOTEZ
+        sta	SongPtr+1
+        rts
+
+; Called 2x per frame
+; Decrement the volumes for each channel
+; Also decrement next-note timer, fetch next note
+Pulse
+	lda	Chan0dur
+        beq	NoDec0
+        lsr
+        sta	AUDV0
+        dec	Chan0dur
+NoDec0
+	lda	Chan1dur
+        beq	NoDec1
+        lsr
+        sta	AUDV1
+        dec	Chan1dur
+NoDec1
+        lda	DurationTimer
+        beq	NextData
+        dec	DurationTimer
+        rts
+
+; Timer ran out, so fetch next note
+NextData
+	ldx	#0
+        lda	(SongPtr,x)
+        bmi	LoadDuration
+; < $80, play next note
+        ldx	CurChannel	; next channel
+        tay
+        jsr	PlayNote
+        inx
+        txa
+        and	#1
+        sta	CurChannel	; inc next channel
+        jmp	IncDataPtr
+; >= $80, load next duration
+LoadDuration
+	cmp	#$ff		; $ff = end of song
+        beq	ResetTrack
+        and	#$7f
+        asl
+        sta	DurationTimer	; store duration * 2
+IncDataPtr
+; increment song pointer
+	inc	SongPtr
+        bne	NoIncHi
+	inc	SongPtr+1
+NoIncHi
+        rts
+
+; Update channel pitch in AUDF0
+MusicFrame
+; 8-bit rotation of duty cycle bits
+	lda	Chan0duty,x
+        asl
+        bcc	NoCarry
+        ora	#1
+NoCarry
+	sta	Chan0duty,x
+	lda	Chan0note,x
+; If next bit is set, add 1 to AUDF0 
+        adc	#0
+        sta	AUDF0,x
+VolZero
+	rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MUSIC DATA - "The Easy Winners" by Scott Joplin
+
+NOTEZ
+	hex 2a1e983327a431258c2f238c2e228c2c
+	hex 208c2a1e98281c8c271b9825198c2317
+	hex 8c22128c238c258c278c281e8c2a1c8c
+	hex 2c1b8c2e198c2f17981e9812981e982f
+	hex 17983327981298361e9838178c368c1e
+	hex 8c388c33128c388c361e983d108c3b8c
+	hex 208c378c3b108c3d8c3b288c368c1798
+	hex 2a1e8c2c8c2e128c2f8c311e8c328c33
+	hex 1798331e981298331e9838178c368c27
+	hex 8c388c36188c368c33219836198c2e8c
+	hex 228c368c2f198c368c2f25982e1e981c
+	hex 981b8c2a8c2e258c348c331798331e98
+	hex 129833279838178c368c1e8c388c3612
+	hex 8c388c331e983d108c3b8c208c3d8c3b
+	hex 1c8c3b8c381c8c3f8c1b8c338c37228c
+	hex 3a8c3f0f983a8c3b8c3d108c3b8c208c
+	hex 3d8c38108c3d8c3b288c368c178c348c
+	hex 361e8c348c33178c368c278c368c3012
+	hex 8c348c1e8c368c34128c338c281e982f
+	hex 1e981298149816983317983327981298
+	hex 331e9838178c368c1e8c388c36128c38
+	hex 8c331e983d108c3b8c208c3d8c3b108c
+	hex 3d8c38288c368c17982a1e8c2c8c2e12
+	hex 8c2f8c311e8c328c331798331e981298
+	hex 361e9838178c368c278c328c36188c36
+	hex 8c36219836198c2e8c228c368c35198c
+	hex 368c2f2598361e981c981b8c2a8c2e25
+	hex 8c348c2f1798331e981298361e983817
+	hex 8c368c1e8c328c36128c388c361e983d
+	hex 108c388c288c3d8c3b1c8c3b8c3d1c8c
+	hex 378c1b8c338c37168c3a8c3f1b983a8c
+	hex 3b8c3d108c3b8c208c3d8c3b108c3d8c
+	hex 38288c368c178c388c361e8c348c2f17
+	hex 8c368c278c368c36128c348c1e8c308c
+	hex 34128c338c311e982f179812982f0b98
+	hex 2a8c2b8c2c128c2d8c2e288c2e8c168c
+	hex 368c341e8c318c2c198c2d8c2e288c2e
+	hex 8c198c318c2c1a8c2e8c2f1b8c2a8c2c
+	hex 278c2e8c2f128c308c311e8c328c3323
+	hex 8c328c331e8c338c128c368c311e8c33
+	hex 8c34258c3d8c1e8c338c34128c3d8c1e
+	hex 8c338c34258c3d8c1e8c3b8c3a128c38
+	hex 8c36168c348c33178c3b8c278c328c33
+	hex 128c3b8c1e8c328c33178c3b8c278c38
+	hex 8c36128c338c311e8c2f8c2e148c2f8c
+	hex 302a8c308c188c368c33208c308c2e1b
+	hex 8c2f8c302a8c308c148c338c38208c33
+	hex 8c31198c308c31288c2c8c1c8c308c31
+	hex 208c348c38198c338c34208c318c258c
+	hex 2c8c288c258c261d8c29208c2c238c2f
+	hex 268c32298c322998322998358c388c32
+	hex 8c3eb03f8c3b8c368c338c338c2f8c27
+	hex 8c2a8c28128c288c128c2f8c17982a8c
+	hex 2b8c2c128c2d8c2e288c318c168c368c
+	hex 341e8c318c2c198c2d8c2e288c2e8c19
+	hex 8c318c2c1a8c2e8c2f1b8c2a8c2c278c
+	hex 2e8c2f128c308c311e8c328c33178c32
+	hex 8c33278c338c128c368c311e8c338c34
+	hex 198c3d8c288c338c34128c3d8c1e8c33
+	hex 8c34198c3d8c288c3b8c3a128c388c36
+	hex 168c348c33178c3b8c278c328c33128c
+	hex 3b8c1e8c328c33178c3b8c278c388c36
+	hex 128c338c311e8c2f8c2e148c2f8c302a
+	hex 8c308c188c368c33208c308c2e1b8c2f
+	hex 8c302a8c308c148c338c38208c338c31
+	hex 198c308c31288c2c8c1c8c308c31208c
+	hex 348c38198c338c34208c318c258c2c8c
+	hex 288c258c261d8c29208c2c238c2f268c
+	hex 32298c322998322998358c2f8c3b8c3e
+	hex b03f8c3b8c368c338c338c2f8c278c2a
+	hex 8c281e8c288c128c2f8c17982a983317
+	hex 98331e981298331e9838178c368c1e8c
+	hex 388c36128c388c3327983d108c3b8c20
+	hex 8c3d8c3b108c378c3b208c368c17982a
+	hex 1e8c2c8c2e128c2f8c311e8c328c3317
+	hex 983327981298361e9838178c338c278c
+	hex 388c36188c368c36219836198c318c22
+	hex 8c368c2f198c368c2f2598361e981c98
+	hex 1b8c2a8c2e258c348c331798331e9812
+	hex 9836279838178c338c1e8c388c36128c
+	hex 388c361e983d108c388c208c3d8c3b1c
+	hex 8c3b8c3d1c8c378c1b8c338c37228c3a
+	hex 8c3f0f983a8c3b8c37108c3b8c208c3d
+	hex 8c3b1c8c3d8c3b208c338c178c388c36
+	hex 1e8c348c2f238c368c1e8c368c36128c
+	hex 348c1e8c368c311e8c338c3112982f17
+	hex 9812982f0bb03428983428a42f238c34
+	hex 288c362a8c38982ca42f8c348c388c2f
+	hex 8c3698338c178c338c2d17982c1c9810
+	hex 9812982f148c308c31158c398c2d8c36
+	hex 8c301e8c398c1f8c368c2f208c348c38
+	hex 2c8c3d8c1c8c3b8c38238c348c33178c
+	hex 3b8c362d8c338c311e8c338c1f8c2f8c
+	hex 34208c348c381c8c3b8c238c3d8c3b14
+	hex 8c388c31158c398c258c368c302a8c39
+	hex 8c1f8c368c2f208c348c38238c3d8c1c
+	hex 8c3b8c382c8c348c36198c388c36288c
+	hex 348c33128c348c2e8c318c2f2398321d
+	hex 8c361e8c3317982f209831218c398c25
+	hex 8c368c301e8c398c1f8c368c2c8c2f8c
+	hex 34238c388c3d1c8c3b8c38238c348c33
+	hex 238c3b8c36238c338c311e8c338c1f8c
+	hex 2f8c2c8c348c381c8c3b8c38178c3d8c
+	hex 3b148c388c31158c398c258c368c301e
+	hex 8c398c218c368c208c2f8c341c8c388c
+	hex 3d238c3b8c381c8c2f8c2e198c318c12
+	hex 982d0b8c33982c8c1c98381c8c348c36
+	hex 178c388c2f148c308c31158c398c2d8c
+	hex 368c301e8c398c1f8c368c2f208c348c
+	hex 382c8c3d8c1c8c3b8c38238c348c3317
+	hex 8c3b8c362d8c338c311e8c338c1f8c2f
+	hex 8c34208c348c381c8c3b8c238c3d8c3b
+	hex 148c388c31158c398c258c368c302a8c
+	hex 398c1f8c368c2f208c348c38238c3d8c
+	hex 288c3b8c38238c348c36198c388c3628
+	hex 8c348c331e8c348c288c318c2f239832
+	hex 1d8c331e8c3b17982f289831158c398c
+	hex 258c368c301e8c398c2b8c368c208c2f
+	hex 8c34238c388c3d1c8c3b8c382c8c348c
+	hex 33178c3b8c36238c338c311e8c338c2b
+	hex 8c2f8c208c348c381c8c3b8c38178c3d
+	hex 8c32148c388c31218c398c198c368c30
+	hex 1e8c398c218c368c208c2f8c34288c38
+	hex 8c3d178c3b8c381c8c2f8c2e198c318c
+	hex 12982d178c36982c8c1098179834108c
+	hex 2f8c318c3e8c331e982f238c318c2398
+	hex 23983312982f238c318c1e8c2f178c31
+	hex 168c33158c3414983b2c8c318c1c9823
+	hex 983414983b2c8c318c1c981d981e983d
+	hex 2d8c3b8c179823981b983d2d8c338c17
+	hex 9823981c983d2c8c348c179823981c98
+	hex 3d2c8c3b8c208c2f8c311f8c328c3f1e
+	hex 982f2d8c318c179823983f12982f2d8c
+	hex 318c128c2f178c3d168c33158c342098
+	hex 2f238c3d8c1c9823982c8c348c381c8c
+	hex 3b8c38178c3d8c32148c388c31158c39
+	hex 8c258c368c301e8c398c218c368c208c
+	hex 2f8c341c8c388c3d238c3b8c381c8c2f
+	hex 8c2e198c318c12982d178c36982c8c2c
+	hex 1098179834208c2f8c3d1f8c328c332a
+	hex 982f238c3d8c17982398331e982f238c
+	hex 3d8c128c2f178c31168c33218c381498
+	hex 2f238c318c1c982c983814982f238c31
+	hex 8c1c9829981e983d238c338c17982d98
+	hex 1b983d238c338c17982d981c983d238c
+	hex 348c17982c981c983d238c3b8c208c2f
+	hex 8c312b8c328c3f1e982f238c318c1798
+	hex 2d983f12982f238c318c128c3b238c31
+	hex 168c33158c3414982f238c3d8c289823
+	hex 98208c348c381c8c3b8c38238c3d8c3b
+	hex 148c388c31158c398c198c368c301e8c
+	hex 398c2d8c368c208c2f8c341c8c388c3d
+	hex 178c3b8c381c8c2f8c2e258c318c1298
+	hex 2d0b8c33982c8c2c109817983410ff        
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; BITMAP DATA - Bob
+
+PFBitmap0
+        hex 000000808080c0c0c0c0c0e0e0e0e0e0
+        hex e0e0e020000040c0c0c0808080000000
+        hex 00000000000000000000000000000000
+        hex 00000000000000000000000000000000
+        hex 00000000000000000000000000000000
+        hex 00000000000000000000800000008000
+        hex 80000000800000008000800080000000
+        hex 00000000800080008000800080008000
+        hex 80008000800080008000000000000000
+        hex 00000000000000000000000000000000
+        hex 00000000000000000000000000000000
+PFBitmap1
+        hex 0000c0e0e0f0f0f8b8f8b8bcbcbcbcbe
+        hex be3e7ebf7f7f7f7fbfb7b7d3a3030101
+        hex 01010100020001020201060306050505
+        hex 0d020e0b0a0d0a0e0a0a1e0e0f1e0f0e
+        hex 1f0e0c0c0c0c08080828686028205040
+        hex b040d08068c0d0c0d1e0d0e0d0e5d0e6
+        hex dae6d3f5d7f9eafcfcfcfafffbfbfdf8
+        hex f9f8fcf0fcf8faf8f8f8fcf1fcf1fcf8
+        hex f4f8fcf8f4f8fcf9f4f8fdfdfdfefdff
+        hex ffffff7fff7f7f7f7f3f3f3f3f3e3f1f
+        hex 1f0f0f0f0f0707030301010000000000
+PFBitmap2
+        hex 000000000000000000000000000000f0
+        hex f8f8fc3cbc16bc173b5f3b9b3b377b37
+        hex 776ff7effffffe7e7e3cfc78fcfc3c7c
+        hex fc3e1c1e0c0ecefcfefefffefffefdfd
+        hex fd79fa7a7a502c282830102060002040
+        hex 2040c02040514247466c4870c833e672
+        hex f6777f7f78793fba1c3c1f1f1f0f1782
+        hex 00200000890020008110400000200000
+        hex 400000200000800001a0cafafefbfeff
+        hex ffffffffffffffffbfffbfdf5bd55944
+        hex 4d696f2f7fbffffffffffffefe200000
+PFBitmap3
+        hex 00000000000000000000000000c0f0f0
+        hex f0f0a050004000000000000000000010
+        hex 4000b070b0f0a04000100010f0408000
+        hex 50800000000050f0c080101030303070
+        hex 70f0e0e080000040004000a000004000
+        hex 000000000000000000000000004000c0
+        hex 80c0c080808000400000000000008000
+        hex 00000000800040000040000000004000
+        hex 00004000008000001070f0f0f0f0f0f0
+        hex f0f0f0f0d0f0b0c090c08080c0404040
+        hex 60406070a070f0f0f0f0f0f0f0000000
+PFBitmap4
+        hex 000000000000000000000000000080c0
+        hex c06060e0303010380818080c040c0406
+        hex 04064606820342038303010341014101
+        hex 41614160703130f9f8fc787d060f0e1f
+        hex 0a1b1a199090a060a040000000000000
+        hex 00000000000008101820202010149a11
+        hex d9fffefea2f8a8c040f97f7f7f3e1c10
+        hex 00000000000000400800000080000000
+        hex 00880000000000000000008080c0f0f8
+        hex 7cfeffffffffffbfbf5d3f5d177d972d
+        hex b62ea3afb3aff7fffefefcf8e0000000
+PFBitmap5
+        hex 00000000000000000000000000000000
+        hex 00000000000000000000000000000000
+        hex 00000000000000000000000000000100
+        hex 01000101030103020301030203020302
+        hex 03050301030202000200101808200800
+        hex 1028201030102830303832383a703a78
+        hex 3a78327a3a793a793b7b797a7d7a397c
+        hex 7b7c7d797d797d797c797a787c78687a
+        hex 6c787c7a687c6c7c3c7c7c3c7e3c7e3e
+        hex 3e3e3e3f3f1f1f1f1f0f0f0f0703030b
+        hex 03070101010100000000000000000000
+        
+; Epilogue
+	org $fffc
+        .word Start
+        .word Start
+        

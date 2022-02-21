@@ -1,0 +1,141 @@
+
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This example draws a moving line using 16-bit fixed-point
+; math and a missile object.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        seg.u Variables
+	org $80
+
+Temp	.byte
+X1	.byte	; start X coordinate of line
+Y1	.byte	; start Y coordinate of line
+Y2	.byte	; end Y coordinate of line
+Slope	.word	; 16-bit slope
+XFrac	.byte	; X fractional
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	seg Code
+        org $f000
+
+Start
+	CLEAN_START
+        
+        lda #80
+        sta X1
+        lda #80
+        sta Y1
+        lda #120
+        sta Y2
+        lda #0
+        sta Slope
+        lda #0
+        sta Slope+1
+
+NextFrame
+	VERTICAL_SYNC
+
+	TIMER_SETUP 37
+; Set missile 0 X start position
+	lda X1	; starting X
+        ldx #2	; missile 0
+	jsr SetHorizPos
+        sta WSYNC
+        sta HMOVE
+	TIMER_WAIT
+
+        lda #$54
+        sta COLUP0
+        ldy #0
+        sty XFrac
+ScanLoop
+	cpy Y1
+        bcc NoLine	; out of bounds (< Y1)?
+        cpy Y2
+        bcs NoLine	; out of bounds (> Y2)?
+; Add slope to X fractional error
+	lda XFrac
+	clc
+        adc Slope	; this sets carry flag
+        sta XFrac
+        lda Slope+1
+        adc #7		; 7 + carry flag
+        tax		; -> X
+        lda DotWidths,x	; lookup register for missile width
+        sta Temp	; -> Temp
+        lda HMoveTable,x ; lookup HMOVE register for X offset
+        sta WSYNC
+        sta HMOVE	; apply moves on previous scanline
+	ldx #2
+        stx ENAM0	; enable missile
+        ldx Temp
+        stx NUSIZ0	; set missile width
+        sta HMM0	; set HMM0 for next scanline
+NextScan
+	iny
+        cpy #192
+        bcc ScanLoop	; any more scanlines?
+        beq DoneLine	; branch always taken
+NoLine
+        sta WSYNC
+	lda #0
+        sta ENAM0	; hide missile
+        jmp NextScan
+DoneLine
+
+	TIMER_SETUP 29
+
+; Change slope of line
+        lda Slope
+        clc
+        adc #3
+        sta Slope
+        lda Slope+1
+        adc #0
+        cmp #2
+        bmi NoLineReset
+        lda #$fe
+NoLineReset
+        sta Slope+1
+
+	TIMER_WAIT
+
+	jmp NextFrame
+
+SetHorizPos subroutine
+	sta WSYNC	; start a new line
+        bit 0		; waste 3 cycles
+	sec		; set carry flag
+DivideLoop
+	sbc #15		; subtract 15
+	bcs DivideLoop	; branch until negative
+	eor #7		; calculate fine offset
+	asl
+	asl
+	asl
+	asl
+	sta RESP0,x	; fix coarse position
+	sta HMP0,x	; set fine offset
+	rts		; return to caller
+
+; HMOVE table from -7 to +8
+HMoveTable
+	hex 7060504030201000f0e0d0c0b0a09080
+
+; Table for NUSIZ registers
+DotWidths
+	hex 40403030201000000010203030404040
+
+; Epilogue
+	org $fffc
+        .word Start
+        .word Start
+	

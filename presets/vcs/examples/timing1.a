@@ -1,0 +1,105 @@
+
+	processor 6502
+	include "vcs.h"
+	include "macro.h"
+
+	org  $f000
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; We're going to try to animate sprites horizontally.
+; Remember, we have to pause the CPU until the exact moment the
+; scanline hits the desired horizontal position of the sprite.
+; Since we can't hard-code the SLEEP macro we'll have to do it
+; dynamically somehow. But since the TIA beam is racing so much
+; faster than the CPU clock, we'll have to be clever.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+counter	equ $81
+
+start	CLEAN_START
+
+nextframe
+	VERTICAL_SYNC
+	
+; 37 lines of VBLANK
+	ldx #35
+lvblank	sta WSYNC
+	dex
+	bne lvblank
+
+; This will be the 36th VBLANK. We'll use up some of this scanline's
+; time to set up for the next line, where we'll set the sprite position.
+; For now the position will be in CPU clocks, not TIA clocks.
+; We're going to use 'counter' as the horiz. position, load into A.
+
+	lda counter
+	ror		; divide frame counter by 4 to slow animation
+	ror
+	and #$3f	; now in range (0-63)
+	sta WSYNC	; wait for next line
+
+; This is the 37th VBLANK where we'll set the sprite position.
+; We've got our desired horizontal position in A.
+; First we divide it by 4. We'll need it later in our delay loop.
+; But we'll use the remainder bits to add cycles.
+
+; The first bit will add either 0 or 1 CPU cycles.
+	lsr		; shift right, bit 0 goes into carry flag
+	bcs delay1	; branch to next insn if carry set - adds +1 cycle
+delay1
+; The second bit will add either 0 or 2 CPU cycles.
+	lsr
+	bcc delay2	; branch if carry clear - subtract -1 cycle
+	bcs delay2	; guaranteed to succeed - adds +3 cycles
+delay2
+; So now we've used the remainder of our divide-by-4 operations to
+; add between 0 and 3 CPU cycles (0-9 TIA clocks).
+; The next loop takes 5 CPU cycles per iteration (15 TIA clocks).
+	tax		; transfer A to X
+delayx  dex		; decrement X
+	bpl delayx	; branch while X is non-negative
+	sta RESP0	; set position of sprite #1
+	sta WSYNC	; end of 37th line
+
+; The TIA clocks 3 pixels for every 1 CPU clock.
+; So our final sprite position is C + (X%4)*3 + (X/4)*15
+; (C is the fixed # of instruction clocks)
+
+; We've lost a bit of resolution in our positioning, since we
+; divided the horizontal position by 4 but our tightest loop takes
+; 5 cycles per iteration. We'll achieve finer control later using
+; some additional TIA registers.
+
+; Now draw the 192 scanlines, drawing the sprite.
+; We've already set its horizontal position for the entire frame.
+	ldx #192
+	lda #0		; changes every scanline
+	ldy counter	; changes every frame
+lvscan
+	sta WSYNC	; wait for next scanline
+	sta COLUBK	; set the background color
+	sta GRP0	; set sprite 0 pixels
+	adc #1		; increment A to cycle through colors and bitmaps
+	dex
+	bne lvscan
+	
+; Clear the background color and sprites before overscan
+	stx COLUBK
+	stx GRP0
+; 30 lines of overscan
+	ldx #30
+lvover	sta WSYNC
+	dex
+	bne lvover
+	
+; Cycle the sprite colors for the next frame
+	inc counter
+	lda counter
+	sta COLUP0
+	jmp nextframe
+	
+	org $fffc
+	.word start
+	.word start

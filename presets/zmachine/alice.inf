@@ -1,0 +1,469 @@
+! Through the Looking-Glass
+! An Inform tutorial by Gareth Rees
+! All rights given away
+! Version 3
+!
+! 5/1/2003 - Updated to Inform 6.21 Library 6/10
+!
+
+Constant Story "THROUGH THE LOOKING GLASS";
+Constant Headline "^An Interactive Tutorial^by Gareth Rees^";
+
+Include "parser";
+Include "verblib";
+Include "grammar";
+
+[ Initialise;
+    location = Drawing_Room;
+    StartDaemon(white_kitten);
+    StartDaemon(black_kitten);
+    print "^^^^^It's a cold winter day outside, but in the
+        looking-glass house it's summer. All you need to do is
+        pretend there's a way of getting through into it
+        somehow...^^";
+];
+
+[ UntangleSub; "What curious ideas you have!"; ];
+
+[ ReflectSub;
+    if (second ~= mirror) "What a strange idea!";
+    if (noun == hearth or mirror || (player notin mantelpiece &&
+        player notin armchair))
+        "You can't see that in the looking-glass.";
+    print "The looking-glass ";
+    if (noun == player) print "Alice";
+    else PrintShortName(noun);
+    if (player in mantelpiece) " looks very misty and blurred.";
+    print " looks just like the real ";
+    if (noun == player) print "Alice";
+    else PrintShortName(noun);
+    " only all reversed, left for right.";
+];
+
+Extend "look"
+    * "at" noun "in" noun -> Reflect;
+
+Extend "examine"
+    * noun "in" noun -> Reflect;
+
+Verb "roll" "untangle" "wind"
+    * noun -> Untangle
+    * "up" noun -> Untangle
+    * noun "up" -> Untangle;
+
+Object  Drawing_Room "Drawing room"
+ has    light
+ with   name "snow",
+        description "The gentle sound of snow against the window pane
+            suggests that it's cold outside, and you're glad to be
+            here in the warmth. The drawing-room is reflected in the
+            large looking-glass on the wall above the mantelpiece,
+            and a very comfortable room it is too, with a warm
+            hearth, a soft rug and an arm-chair that you can curl up
+            and sleep in.",
+        before [;
+            if (player in mantelpiece && (action == ##Exit ||
+                (action == ##Go && noun == d_obj or out_obj)))
+                "That's not the way to get down from a mantelpiece!";
+            if (player in mantelpiece &&
+                action ~= ##Examine or ##Enter or ##Go &&
+                action ~= ##ThrownAt or ##ThrowAt or ##Reflect)
+                if ((noun > 0 && noun notin mantelpiece &&
+                    noun ~= mantelpiece or mirror && noun notin player) ||
+                    (second > 0 && second notin mantelpiece &&
+                    second ~= mantelpiece or mirror && second notin player))
+                    "Not from up here you can't!";
+        ];
+
+Object  red_queen "red queen"
+ has    female
+ with   name "red" "queen",
+        describe [;
+            if (white_kitten.state == 1 || black_kitten.state == 1)
+                rtrue;
+        ],
+        description "She's a fierce little chess piece.",
+        after [;
+         Take:
+            if (white_kitten.state == 1)
+                white_kitten.state = 3;
+            if (black_kitten.state == 1)
+                black_kitten.state = 3;
+         PutOn,Transfer,Insert:
+            if (second == chess_board)
+                "Alone on the chess board, the red queen is monarch of
+                all she surveys.";
+        ];
+
+Object  chess_board "chess board" Drawing_Room
+ has    supporter
+ with   name "chess" "board" "checker" "chequer" "chessboard",
+        initial "An abandoned chess board lies on the floor.",
+        description "It's left here from the game you were playing
+            just now, but the pieces are all missing - the kittens
+            will insist on playing with them.";
+
+Object  hearth "hearth" Drawing_Room
+ has    scenery
+ with   name "hearth" "fire" "place" "fireplace";
+
+Object  rug "rug" Drawing_Room
+ has    concealed static supporter enterable
+        ! general if you've found the red queen under it
+ with   name "hearthrug" "hearth-rug" "rug" "indian" "arabian" "beautiful"
+            "soft",
+        description "It's a beautiful rug, made in some far off
+            country, perhaps India or Araby, wherever those might
+            be.",
+        before [;
+         Take: "The rug is much too large and heavy for you to carry.";
+         Push,Pull: "But a hearth-rug is meant to be next to the
+            hearth!";
+         LookUnder:
+            if (player in mantelpiece || player in armchair)
+                "You're unable to reach the rug from here.";
+            if (player in self)
+                "You try to lift up a corner of the rug, but fail. After
+                a while, you realise that this is because you are
+                standing on it. How curious the world is!";
+            if (self hasnt general) {
+                give self general;
+                move red_queen to player;
+                "You lift up a corner of the rug and, peering
+                underneath, discover the red queen from the chess
+                set.";
+            }
+        ];
+
+Object  armchair "arm-chair" Drawing_Room
+ has    static concealed supporter enterable
+        ! general if its by the mantelpiece
+ with   name "arm" "chair" "armchair" "arm-chair",
+        description [;
+            print "It's a huge arm-chair, the perfect place for a kitten
+                or a little girl to curl up in and doze. It has been
+                pushed over to the ";
+            if (self has general) "fireplace.";
+            "window.";
+        ],
+        before [ i;
+         Push,Pull:
+            if (player notin Drawing_Room)
+                print_ret "You'll have to get off ", (the) parent(player),
+                    " first.";
+            if (white_kitten in player || black_kitten in player)
+                "Not with a kitten in your arms!";
+            if (white_kitten.state == 3) i = white_kitten;
+            else if (black_kitten.state == 3) i = black_kitten;
+            if (i ~= 0)
+                print_ret "You are about to start moving the chair when you
+                    notice that ", (the) i, " is right in the way. It's a
+                    good thing you spotted it, or you would have squashed
+                    flat the poor little thing.";
+            if (self has general) {
+                give self ~general;
+                "You push the arm-chair away from the hearth.";
+            }
+            give self general;
+            "You push the arm-chair over to the hearth.";
+         Climb,Enter:
+            move player to armchair;
+            "You jump into the warm and comfortable arm-chair.";
+        ];
+
+Object  mantelpiece "mantelpiece" Drawing_Room
+ has    concealed supporter enterable
+ with   name "mantel" "mantelpiece",
+        description "It's higher off the ground than your head, but
+            it looks wide enough and sturdy enough to support you.",
+        before [;
+         Enter,Climb:
+            if (player notin armchair)
+                "The mantelpiece is much too high to climb up onto.";
+            if (armchair hasnt general)
+                "You can't reach the mantelpiece from here.";
+            if (children(player) > 0)
+                "Your hands are too full.";
+            move player to mantelpiece;
+            "You scramble up onto the mantelpiece.";
+         PutOn,LetGo:
+            if (player notin self && (player notin armchair ||
+                armchair hasnt general))
+                "The mantelpiece is so high that you can't reach.";
+        ];
+
+Object  mirror "looking-glass" Drawing_Room
+ has    static concealed
+ with   name "mirror" "looking" "glass" "looking-glass",
+        description [;
+            if (player in mantelpiece)
+                "Strangely, the glass is beginning to melt away,
+                just like a bright silvery mist.";
+            if (player in armchair)
+                "In the looking-glass you can see the drawing-room of
+                the looking-glass house. What you can see is very
+                much the same as this drawing-room, only all
+                reversed, left for right. But you are sure that out
+                of the corners of the glass, where you can't see, the
+                looking-glass world is quite different from yours.";
+            "In the looking-glass you can see the ceiling of the
+            drawing-room of the looking-glass house. It looks much
+            the same as the ceiling of your drawing-room.";
+        ],
+        before [;
+            if (action ~= ##Examine or ##ThrownAt or ##Reflect &&
+                player notin mantelpiece)
+                "You can't reach the looking-glass from where you're
+                standing.";
+         Touch,Pull,Push:
+            "Your hand goes right through the silvery mist!";
+         ThrownAt: "You don't want seven years' bad luck, do you?";
+         Enter:
+            ! Really, move Alice to the looking-glass house.
+            deadflag = 2;
+            "Your hand goes right through the silvery mist, and in
+            another moment the rest of you follows, and you are
+            through the glass...";
+        ];
+
+Object  worsted "ball of worsted" Drawing_Room
+        ! general if its in a tangle
+ with   name "ball" "of" "worsted" "fine" "blue" "wool",
+        describe [;
+            if (white_kitten.state ~= 2 &&
+                black_kitten.state ~= 2)
+                "^A discarded ball of worsted lies on the floor here.";
+            rtrue;
+        ],
+        description [;
+            if (self has general)
+                "It's in a terrible tangle. All that time you spent
+                rolling it up, and now look at it!";
+            "It's a ball of fine blue wool, all rolled up in preparation
+            for some embroidery.";
+        ],
+        before [;
+         Untangle:
+            give self ~general;
+            "You're as quick as can be at rolling up balls of wool,
+            though you say so yourself! Soon it's neat and tidy again.";
+        ],
+        after [;
+         Take:
+            if (white_kitten.state == 2)
+                white_kitten.state = 3;
+            if (black_kitten.state == 2)
+                black_kitten.state = 3;
+        ];
+
+Object  chess_pieces "chess pieces" Drawing_Room
+ has    scenery
+ with   parse_name [ w colour n;
+            w = NextWord();
+            if (w == 'white' or 'red') {
+                n ++;
+                colour = w;
+                w = NextWord();
+            }
+            if (w == 'pawn' or 'rook' or 'castle' ||
+                w == 'knight' or 'horse' or 'bishop' ||
+                w == 'king' || (w == 'queen' &&
+                (colour == 'white' || rug hasnt general))) return n + 1;
+            return 0;
+        ],
+        before [;
+            "Alas, that chess piece seems to be missing. Those
+            naughty kittens!";
+        ];
+
+Object  window "window" Drawing_Room
+ has    scenery
+ with   name "window" "pane",
+        description "Outside the window it's snowing gently, and you're
+            glad to be in here in the warmth.",
+        before [;
+         Open: "You wouldn't want to catch a chill, would you?  Better
+            leave the window shut.";
+         Search: <<Examine self>>;
+        ];
+
+Property other_kitten;
+Property state; ! 1=red queen, 2=ball of wool, 3=arm-chair, 0=held
+
+Class   Kitten_Class
+ has    animate
+        ! general if it's been described this turn
+ with   parse_name [ w ok n;
+            do {
+                ok = 0;
+                w = NextWord();
+                if (w == 'kittens' or 'cats') {
+                    ok = 1; n++; parser_action=##PluralFound;
+                }
+                if (w == 'kitten' or 'kitty' or 'cat' ||
+                    w == ((self.&name)-->0)) {
+                    ok = 1; n++;
+                }
+            } until (ok == 0);
+            return n;
+        ],
+        state 3,
+        describe [ i;
+            switch (self.state) {
+             1: print_ret "^A ", (name) self, " is playing with the red
+                    queen.";
+             2: print_ret "^A ", (name) self, " is playing with a ball of
+                    worsted.";
+             3: if (self has general) rtrue;
+                if ((self.other_kitten).state == 3) {
+                    i = self.other_kitten;
+                    give i general;
+                    "^Two kittens, one white and one black, are playing
+                    together by the arm-chair.";
+                }
+                print_ret "^A ", (name) self, " is playing by the
+                    arm-chair.";
+             default: rtrue;
+            }
+        ],
+        description [;
+            print_ret "What a beautiful kitten ", (the) self, " is. Why,
+                it's quite definitely your favourite of the pair, and
+                much prettier than that naughty ", (name)
+                self.other_kitten, ".";
+        ],
+        life [;
+         Ask,Answer,Order:
+            print_ret (The) self, " twitches its whiskers and looks at
+                you with such a clever expression that you are certain it
+                understands every word you are saying.";
+         Kiss:
+            print_ret "You give ", (the) self, " a little kiss on its
+                nose, and it looks sweetly and demurely at you.";
+         Attack: "You would never do such a beastly thing to such
+            a defenceless little animal!";
+         Show:
+            print_ret (The) self, " bats a paw at ", (the) noun, ".";
+         Give,ThrowAt:
+            if (noun ~= red_queen or worsted) {
+                if (action == ##ThrowAt) {
+                    move noun to Drawing_Room;
+                    print "You toss ", (the) noun, " onto the floor, but ",
+                        (the) self;
+                }
+                else print (The) self;
+                print_ret " just examines ", (the) noun, " with a
+                    quizzical expression.";
+            }
+            print "You toss ", (the) noun, " onto the floor and ", (the) self;
+            if (self in player)
+                print " squirms out of your grasp and";
+            move noun to Drawing_Room;
+            move self to Drawing_Room;
+            print " scampers after it";
+            if (noun == worsted) {
+                give worsted general;
+                self.state = 2;
+                print ", quickly turning the neat ball into a tangle";
+            }
+            else self.state = 1;
+            ".";
+        ],
+        before [;
+         Take:
+            if (self.other_kitten in player)
+                "You can't hold two kittens at once!";
+            self.state = 0;
+            move self to player;
+            print_ret "You pick up ", (the) self, ". What a beautiful
+                creature it is!";
+        ],
+        after [;
+         Drop:
+            self.state = 3;
+            move self to Drawing_Room;
+            print_ret (The) self, " squirms out of your arms and scampers
+                away.";
+         Transfer,PutOn,Insert:
+            self.state = 3;
+            print (The) self, " jumps off ", (the) parent(self);
+            move self to Drawing_Room;
+            ", landing lightly on the floor before scampering away.";
+        ],
+        daemon [ i;
+            give self ~general;
+            self.number = 1 - self.number;
+            if (self.number == 1 || random(3) == 2) rtrue;
+            new_line;
+            print (The) self;
+            switch (self.state) {
+             0: switch(random(5)) {
+                 1: " mews plaintively.";
+                 2: " purrs quietly to itself.";
+                 3: " purrs contentedly to itself.";
+                 4: " rubs its ears against you.";
+                 5: move self to Drawing_Room;
+                    self.state = 3;
+                    " squirms out of your arms and scampers away.";
+                }
+             1: switch (random(5)) {
+                 1: " bats at the red queen with its paw.";
+                 2: " stops playing and sits up, pretending to be
+                    innocent of any kittenish tendancies.";
+                 3: " knocks the red queen across the floor and chases
+                    after it.";
+                 4: " stops to wash itself.";
+                 5: " bites the red queen and shakes it to make sure that
+                    it's dead.";
+                }
+             2: give worsted general;
+                switch (random(5)) {
+                 1: " bats at the ball of worsted with its paw.";
+                 2: " pushes the ball of worsted across the floor and
+                    chases after it.";
+                 3: " leaps onto the ball of worsted and grapples bravely
+                    with it.";
+                 4: " jumps into the ball of worsted and gets tangled up
+                    in a mess of threads.";
+                 5: " stops playing and scratches its ears.";
+                }
+             3: if ((self.other_kitten).state == 3 && random(2) == 1) {
+                    i = random(5);
+                    switch (i) {
+                     1: print " chases after ";
+                     2: print " jumps on top of ";
+                     3: print " washes ";
+                     4: print " scampers around the arm-chair and ";
+                     5: print " bats at ";
+                    }
+                    print (the) self.other_kitten;
+                    switch (i) {
+                     1,3: ".";
+                     2: " and they roll around on the floor.";
+                     4: " chases after it.";
+                     5: " with its paw.";
+                    }
+                }
+                switch (random(5)) {
+                 1: " scampers after a speck of dust.";
+                 2: " rolls around on the floor.";
+                 3: " sits up and washes its tail.";
+                 4: " scratches its head on the arm-chair.";
+                 5: " chases its tail.";
+                }
+            }
+        ];
+
+Object  white_kitten "white kitten" Drawing_Room
+ class  Kitten_Class
+ with   name "white",
+        number 0,
+        other_kitten black_kitten;
+
+Object  black_kitten "black kitten" Drawing_Room
+ class  Kitten_Class
+ with   name "black",
+        number 1,
+        other_kitten white_kitten;
+
+End;

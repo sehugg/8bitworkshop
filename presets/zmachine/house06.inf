@@ -1,0 +1,384 @@
+! ------------------------------------------------------------------------------
+! Inform for New Writers
+!
+! The House - Version 6
+!
+! Last Modified: David Cornelson - 31-Jan-1998
+!
+! This work is freely offered to the Public Domain. - DAC 12-12-2015
+!
+! ------------------------------------------------------------------------------
+
+Constant Story "The House";
+
+Constant Headline
+           "^Inform for New Writers^
+             The House - Version 6^
+             By New Writer (1998) - Last Compiled: 31-Jan-1998^";
+
+Constant MAX_SCORE 100;
+Serial "980131";
+
+Release 1;
+
+Include "Parser";
+Include "VerbLib";
+
+!-------------------------------------------------------------------------------
+! Initialise
+!
+!-------------------------------------------------------------------------------
+
+!
+! VERSION 6 - Adding a non-playing character or daemon to your game
+!
+! We are going to add a little pink Jarbigruen to our game, His name is Snark
+! and he tends to be a little inquisitive. In this version of 'The House', he
+! won't really 'do' anything but sit in your arms and blabber a few
+! phrases, which of course you can add to at your discretion.
+!
+! The first thing to do is create the object for Snark. We're going to put him
+! in the mailbox. This means that after the '-> Mailbox' object, we need to add
+! '-> -> Snark' to tell Inform that he is a child object of the mailbox.
+!
+! The Snark daemon will be started the first time you open the mailbox.
+
+[ Initialise;
+
+    location        = Sidewalk;
+
+];
+
+[ PrintRank;
+  print ", earning you the rank of ";
+  if (score >= 100) "the greatest.";
+  if (score >= 80) "above average.";
+  if (score >= 60) "average.";
+  if (score >= 40) "below average.";
+  if (score >= 20) "the barely living.";
+  "the living dead.";
+];
+
+! ----------------------------------------------------------------------------
+! Locations
+!
+! In this section we will define our locations. These are "Objects" to Inform.
+!
+! ----------------------------------------------------------------------------
+
+Object Sidewalk "Sidewalk"
+    with  description
+          "You are standing on the sidewalk in front of a house to the west.",
+    w_to  Front_Porch,
+    has   light;
+
+Object -> Mailbox "mailbox"
+    with    name "mailbox" "box",
+
+    !
+    ! The 'before' property is used to 'catch' verb commands before Inform
+    ! handles them. In this case, we're going to catch the verb 'Open'.
+    !
+    ! If Snark is in the Mailbox (which he is at the initial start of the
+    ! game) then we execute some special code.
+    !
+    ! We are writing a 'function'. Remember that functions may have arguments
+    ! which would be defined before the semi-colon. This is important to
+    ! Inform so don't forget to begin the 'before' function with the bracket
+    ! AND the semi-colon.
+    !
+    ! Each verb you intend to 'catch' is started simply by the verb followed
+    ! by a colon. The verb's execution ends with the next verb or at the end
+    ! of the function.
+    !
+    before  [;  Open:   !
+                        ! This function has a special behavior if Snark is
+				! in the mailbox, which he is in the beginning.
+                        !
+				if (Snark in Mailbox) {
+
+                            StartDaemon(Snark);
+                            move Snark to player;
+                            give Mailbox open;
+
+                            print "~Hey! It's about time! Why are you piddling
+                            around out there? Don't you know I need air? Who
+                            do you think you are anyway, some big adventurer
+                            or something? Pullllease!~, exclaims a small pink
+                            thing from the mailbox.^^~Hi. I'm Snark, the
+                            Jarbigruen!~, he cries in a high-pitched voice
+                            and then leaps from the mailbox into your
+                            arms.^";
+                            rtrue;
+                        }
+                        !
+                        ! This is where the default behavior is executed for
+                        ! the verb open. We don't have to 'do' anything and
+                        ! Inform will know to execute the default processing.
+                        !
+            ],
+    when_open   "There is an open mailbox here.",
+    when_closed "There is a closed mailbox here.",
+    has     static container openable;
+
+! SNARK, THE JARBIGRUEN
+!
+! Snark has a lot of different names you can refer to him with so we have to
+! put these in the 'name' property. Each name is separated by a space.
+!
+Object -> -> Snark "small pink Jarbigruen"
+    with    name "snark" "jarbigruen" "alien" "monster" "thing",
+            description
+            "Snark, a little pink Jarbigruen, stands approximately ten
+             centimeters tall, has two legs, two arms with tiny little hands,
+             a wide-eyed face, and a tuft of yellowish hair on his head.",
+
+            !
+            ! We want Snark to stay with the player so we catch a 'drop'
+            ! and 'Insert' before Inform can let that happen.
+            !
+            ! Except if it's the couch...that's handled differently...
+            !
+    before  [; Drop,Insert: if (second == Evil_Couch) {
+                                print "You drop Snark onto the couch and the
+                                       cushions begin to smother him slowly,
+                                       until he completely disappears. After
+                                       a few seconds you hear strange noises
+                                       and, ** POP **, a pink ball is spit out
+                                       of the couch back into your arms!^^
+                                       Snark looks up at you and winks,
+                                       ~Jarbigruen's don't go down very easy,
+                                       I guess.~^";
+                                rtrue;
+                             }
+                             print "~Hey! I'm not going anywhere without you!~,
+                                    Snark says.^";
+                             rtrue;
+            ],
+
+            !
+            ! The daemon property is central to handling the characterization
+            ! of Snark, the Jarbigruen. For each turn the player takes, this
+            ! property is called.
+            !
+            ! We're not going to do anything complex at this point. Just to
+            ! show that Snark is alive and kinking, we're going to add random
+            ! conversation from Snark. We're also adding the 'switch' statement.
+            !
+            ! The 'switch' statement is used to differentiate different values
+            ! of a variable or expression. For each possible value, you can
+            ! code a different set of instructions.
+            !
+            ! The random(10) function will return, randomly, a number from
+            ! 1 to 10. You can make this number anything you like.
+            !
+            ! We're only giving Snark responses for half of the random numbers
+            ! so he isn't talking all of the time.
+            !
+    daemon  [;   switch (random(10)) {
+                     1: "Snark says, ~Isn't it great to be here!~";
+                     3: "Snark looks up at you with a glint in his eye and
+                         tickles you.";
+                     5: "Snark says, ~You are an excellent adventurer!~";
+                     7: "Snark cries, ~Stop it! Your holding me too tight!~";
+                     9: "Snark rifles through your pockets and sighs,
+                         ~Got any candy?~";
+                 }
+            ],
+    has     animate;
+
+Attribute legible;
+
+Object -> -> Letter "letter"
+    with    name "letter" "paper",
+            description
+            "The letter is a simple page of notebook paper.",
+    before  [; Consult,Read: "The letter contains a vague story about an evil couch,
+                              but you can't make out anymore detail. Interesting
+                              little tidbit though.";
+               Tear: remove Letter;
+                     "You rip the letter into tiny pieces that blow away in the wind.";
+            ]
+    has     legible;
+
+Object Front_Porch "Front Porch"
+    with  description
+          "This is the front porch of the house. There are two doors
+           leading inside. The door on the left leads west and the
+           door on the right leads northwest.",
+    e_to  Sidewalk,
+    w_to  Left_Front_Door,
+    in_to Left_Front_Door,
+    nw_to Right_Front_Door,
+    has   light;
+
+!
+! I've added the attribute 'open' to both of the doors. I figured we'd
+! had that lesson and there was no need to repeat it. Both doors will
+! be open at the start of the game. You can still close them and lock
+! the right one with the key though.
+!
+Object -> Left_Front_Door "left front door"
+    with    name "left" "front" "door",
+            description
+            "The left front door is made of brass.",
+    when_open    "The left front door is open.",
+    when_closed  "The left front door is closed.",
+    door_to      Foyer,
+    door_dir     w_to,
+    has          static door openable open;
+
+Object Right_Front_Door "right front door"
+    with    name "right" "front" "door",
+            description
+            "The right front door is made of wood.",
+    when_open    "The right front door is open.",
+    when_closed    "The right front door is closed.",
+    door_to        [; if (location==Front_Porch) return Den; return Front_Porch; ],
+    door_dir    [; if (location==Front_Porch) return nw_to; return se_to; ],
+    found_in    Front_Porch Den,
+    with_key    right_key,
+    has            static door openable lockable locked open;
+
+Object Den "Den"
+    with    description
+            "You are in the den of the house. The living room is west of hear
+             and the front porch is to the southeast.",
+    se_to    Right_Front_Door,
+    out_to   Right_Front_Door,
+    w_to     Living_Room,
+    has      light;
+
+Object -> Rock "rock"
+    with    name "rock",
+            description
+            "It's smooth and flat, perfect for skipping in a pond.",
+    before    [;    Insert,PutOn,ThrowAt:
+                        if (second==Evil_Couch) rfalse; ! Allow the rock to be eaten by couch
+                        if (second==Pond) {
+                            print "The rock skips across the water several times and sinks.
+                                   Amazingly, after a few moments, the rock washes up at
+                                   your feet. Wow, what an undertow!^";
+                            move Rock to Backyard;
+                            rtrue;
+                         } else {
+                             print "You can't throw the rock at ",(the) second, ".^";
+                            rtrue;
+                         }
+            ];
+
+Object Living_Room "Living Room"
+    with    name "living" "room",
+            description
+            "This is the living room of the house. The den is to the east.",
+    e_to    Den,
+    has     light;
+
+!
+! And here is our evil couch. Anything put on or in the couch will be
+! 'eaten', including you. In fact, by setting the 'deadflag' to 1,
+! Inform is informed to 'end' the game because you have died.
+!
+! Notice we used the 'before' property and the 'Enter' and 'Receive'
+! verbs to handle the action.
+!
+Object -> Evil_Couch "couch"
+    with    name "couch" "sofa",
+    when_open "There is a filthy, worn down couch here.",
+    before  [;  Enter: deadflag=1;
+                       "You are eaten by the couch. As you flail for your last few
+                        seconds, you see Snark beating on the couch trying to save
+                        you, to no avail.";
+                Receive: remove noun;
+                         "The couch eats ", (the) noun, " and belches.";
+            ],
+    has     static container open enterable;
+
+Object Foyer "Foyer"
+    with  description
+          "You are standing in the foyer of the house. It seems as though
+           you can go up a staircase, northwest, or back out the front
+           door to the east.",
+    out_to Front_Porch,
+    e_to   Front_Porch,
+    nw_to  Hallway,
+    u_to   Upper_Hallway,
+    has    light;
+
+Object Hallway "Hallway"
+    with   description
+           "You are in the hallway on the first floor of the house. The
+            foyer is southeast and the kitchen is west of here.",
+    se_to  Foyer,
+    w_to   Kitchen,
+    has    light;
+
+Object Kitchen "Kitchen"
+    with   description
+           "This is the kitchen of the house. A hallway can be seen to the
+            east and an open doorway to the west leads out to the backyard.",
+    e_to    Hallway,
+    w_to    Backyard,
+    out_to    Backyard,
+    has        light;
+
+Object Backyard "Backyard"
+    with    name "yard",
+            description
+            "This is the backyard behind the house. There is a pond here.",
+    e_to    Kitchen,
+    in_to    Kitchen,
+    has        light;
+
+Object -> Pond "pond"
+    with    name "pond" "water",
+            description
+            "It's a small pond, but wide enough to skip rocks.",
+    has        static concealed container open;
+
+Object Upper_Hallway "Upper Hallway"
+    with   description
+           "This is the second floor hallway. Rooms can be seen north and
+            south and a staircase leads down.",
+    n_to   North_Bedroom,
+    s_to   South_Bedroom,
+    d_to   Foyer,
+    has    light;
+
+Object North_Bedroom "North Bedroom"
+    with   description
+           "This is a bedroom on the north side of the house.",
+    s_to   Upper_Hallway,
+    has    light;
+
+Object -> right_key "right key" with name "right" "key", article "the";
+
+Object South_Bedroom "South Bedroom"
+    with   description
+           "This is a bedroom on the south side of the house.",
+    n_to   Upper_Hallway,
+    has    light;
+
+! ----------------------------------------------------------------------------
+!
+! Functions
+!
+! ----------------------------------------------------------------------------
+
+[ ReadSub; <<Examine noun>>; ];
+
+[ TearSub; "You can't tear that"; ];
+
+! ----------------------------------------------------------------------------
+! Grammar
+!
+! The grammar section includes the file "Grammar" and will later include
+! extensions to the standard grammar library.
+!
+! ----------------------------------------------------------------------------
+
+Include "Grammar";
+
+Extend "read" first * legible                         -> Read;
+
+Verb "tear" * noun                                    -> Tear;

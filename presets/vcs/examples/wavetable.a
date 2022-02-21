@@ -1,0 +1,428 @@
+
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This example drives the VCS audio DAC directly to generate
+; 4-voice music. Unfortunately, the CPU is 100% utilized so
+; we can't display anything.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	seg.u   Variables
+	org	$80
+
+; 16-bit wavetable offset
+Cycle0Lo	byte
+Cycle1Lo	byte
+Cycle2Lo	byte
+Cycle3Lo	byte
+Cycle0Hi	byte
+Cycle1Hi	byte
+Cycle2Hi	byte
+Cycle3Hi	byte
+; 16-bit wavetable delta
+Delta0Lo	byte
+Delta1Lo	byte
+Delta2Lo	byte
+Delta3Lo	byte
+Delta0Hi	byte
+Delta1Hi	byte
+Delta2Hi	byte
+Delta3Hi	byte
+; 8-bit wavetable offset (volume)
+WaveOfs0	byte
+WaveOfs1	byte
+WaveOfs2	byte
+WaveOfs3	byte
+
+SongPtr		word	; ptr to next song byte
+DurationTimer	byte	; duration until next song byte
+CurChannel	byte	; next channel to write
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	seg Code
+	org  $f000
+
+; Macro that decrements volume for a channel
+	MAC DECVOLUME
+	lda	WaveOfs0+{1}
+        sec
+        beq	.ChannelOff
+        sbc	#$20
+.ChannelOff
+	sta	WaveOfs0+{1}
+        ENDM
+
+
+Start
+	CLEAN_START
+        lda #$FF
+        sta COLUPF
+        sta ENABL
+        jsr ResetTrack
+NextFrame
+        DECVOLUME 0
+        jsr Pulse
+        jsr PlayFrame
+        DECVOLUME 1
+        jsr Pulse
+        jsr PlayFrame
+        DECVOLUME 2
+        jsr Pulse
+        jsr PlayFrame
+        DECVOLUME 3
+        jsr Pulse
+        jsr PlayFrame
+        jmp NextFrame
+
+; Play a frame's worth of samples
+PlayFrame
+	TIMER_SETUP 212
+TimerLoop1
+	jsr NextSamples
+        lda INTIM
+        cmp #3
+        bcs TimerLoop1
+        rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Macro that mixes two software voices
+; and sets the volume for one TIA audio channel.
+; Usage: NEXTSAMPLEPAIR {audiochannel} {voice1} {voice2}
+	MAC NEXTSAMPLEPAIR
+; Get first channel phase, put in X
+        lda Cycle0Lo+{2}
+        clc
+        adc Delta0Lo+{2}
+	sta Cycle0Lo+{2}
+        lda Cycle0Hi+{2}
+        adc Delta0Hi+{2}
+	sta Cycle0Hi+{2}
+        and #$1F
+        clc
+        adc WaveOfs0+{2}
+        tax
+; Get second channel phase, put in Y
+        lda Cycle0Lo+{3}
+        clc
+        adc Delta0Lo+{3}
+	sta Cycle0Lo+{3}
+        lda Cycle0Hi+{3}
+        adc Delta0Hi+{3}
+	sta Cycle0Hi+{3}
+        and #$1F
+        clc
+        adc WaveOfs0+{3}
+        tay
+; Lookup wavetable entry and sum
+        lda Wavetable,y
+        clc
+        adc Wavetable,x
+; Divide by 2 and store to volume register
+        lsr
+;        sta COLUBK
+        sta AUDV0+{1}
+        ENDM
+
+NextSamples
+	NEXTSAMPLEPAIR 0,0,1	; mix voices 0 and 1
+	NEXTSAMPLEPAIR 1,2,3	; mix voices 2 and 3
+        rts
+
+; Play a note
+; X = channel (0,1)
+; Y = note index (0-63)
+PlayNote
+	tya
+        asl
+        tay
+        lda	NoteDeltas,y
+        sta	Delta0Lo,x
+        lda	NoteDeltas+1,y
+        sta	Delta0Hi,x
+        lda	#$e0
+        sta	WaveOfs0,x
+        rts
+
+; Reset to start of song
+ResetTrack
+        lda	#<NOTEZ
+        sta	SongPtr+0
+        lda	#>NOTEZ
+        sta	SongPtr+1
+        rts
+
+; Called every frame
+; Decrement next-note timer, fetch next note
+Pulse
+        lda	DurationTimer
+        beq	NextData
+        dec	DurationTimer
+        rts
+
+; Timer ran out, so fetch next note
+NextData
+	jsr	NextSamples
+	ldx	#0
+        lda	(SongPtr,x)	; get next song byte
+        bmi	LoadDuration
+; < $80, so play next note
+        ldx	CurChannel	; load next channel #
+        tay
+        jsr	PlayNote	; play note
+        inx
+        txa
+        and	#3
+        sta	CurChannel	; inc to next channel
+        jmp	IncDataPtr
+; >= $80 so load next duration
+LoadDuration
+	cmp	#$ff
+        beq	ResetTrack	; $ff = end of song
+        and	#$7f
+        asl
+        sta	DurationTimer	; store duration * 2
+IncDataPtr
+; increment song pointer
+	inc	SongPtr
+        bne	NoIncHi
+	inc	SongPtr+1
+NoIncHi
+        rts
+
+; 32-byte wavetable
+	align $100
+Wavetable
+        hex 00000000 00000000 00000000 00000000
+        hex 00000000 00000000 00000000 00000000
+	hex 04040404 04040404 04040404 04040404
+        hex 04040404 04040404 00000000 00000000
+	hex 06060606 06060606 06060606 06060606
+        hex 06060606 06060606 00000000 00000000
+	hex 08080808 08080808 08080808 08080808
+        hex 08080808 08080808 00000000 00000000
+	hex 0b0b0b0b 0b0b0b0b 0b0b0b0b 0b0b0b0b
+        hex 0b0b0b0b 0b0b0b0b 0b0b0b0b 00000000
+	hex 0d0d0d0d 0d0d0d0d 0d0d0d0d 0d0d0d0d
+        hex 0d0d0d0d 0d0d0d0d 00000000 00000000
+	hex 0f0f0f0f 0f0f0f0f 0f0f0f0f 0f0f0f0f
+        hex 0f0f0f0f 00000000 00000000 00000000
+	hex 0f0f0f0f 0f0f0f0f 0f0f0f0f 0f0f0f0f
+        hex 00000000 00000000 00000000 00000000
+;	hex 00010203 04050607 08090a0b 0c0d0e0f
+;	hex 0f0e0d0c 0b0a0908 07060504 03020100
+
+; Table of note periods
+NoteDeltas
+	word 17, 18, 19, 20, 22, 23, 24, 26, 27, 29, 31, 32, 
+	word 34, 36, 39, 41, 43, 46, 49, 51, 54, 58, 61, 65, 
+	word 69, 73, 77, 82, 86, 92, 97, 103, 109, 115, 122, 130, 
+	word 137, 145, 154, 163, 173, 183, 194, 206, 218, 231, 245, 259, 
+	word 274, 291, 308, 326, 346, 366, 388, 411, 436, 462, 489, 518, 
+	word 549, 582, 616, 653, 692, 733, 776, 823, 871, 923, 978, 1036, 
+	word 1098, 1163, 1232, 1306, 1383, 1466, 1553, 1645, 1743, 1847, 1956, 2073, 
+	word 2196, 2327, 2465, 2611, 2767, 2931, 3106, 3290, 3486, 3693, 3913, 4145, 
+	word 4392, 4653, 4930, 5223, 5533, 5862, 6211, 6580, 6972, 7386, 7825, 8291, 
+	word 8784, 9306, 9859, 10446, 11067, 11725, 12422, 13161, 13943, 14772, 15651, 16582, 
+	word 17568, 18612, 19719, 20891, 22134, 23450, 24844, 26322,
+
+NOTEZ
+	hex 358a378a333f8a303c943e328a3a2e94
+	hex 35298a372b8a33278a30249432268a2e
+	hex 2294291d8a2b1f8a271b8a2418941a26
+	hex 8a18248a17238a1622a83a35322e9429
+	hex 26228a2a8a2b1b8a338a221f278a2b8a
+	hex 332216942b2725228a338a2014942724
+	hex 941f138a3f37338a383527228a39368a
+	hex 3a37168a3f37338a353822278a3a378a
+	hex 168a3e35328a38352622943f33371b94
+	hex 1f22279427221f942926228a2a8a2b1b
+	hex 8a338a1f22278a2b8a332216942b2725
+	hex 228a338a2014942427941f13943c3330
+	hex 1e8a3a332e8a39332d1d8a3c308a3f33
+	hex 1d248a378a1d8a358a3f3327218a3c30
+	hex 8a353826229422169424189429261a8a
+	hex 2a8a2b1b8a338a27221f8a2b8a331622
+	hex 942b2725228a338a201494272494131f
+	hex 8a3f33378a383527228a39368a373a16
+	hex 8a3f37338a383527228a3a378a168a3e
+	hex 35328a38352026943f37331b9427221f
+	hex 942b2722943f338a358a37271b8a3f33
+	hex 8a352b22278a378a25198a3f338a352b
+	hex 27228a3f338a3724188a3f338a352c27
+	hex 248a378a23178a3f338a352c27238a3f
+	hex 338a3a3722168a3f37338a38352b278a
+	hex 3a378a168a3e32358a35382622943f33
+	hex 371b9422169424189429261a8a2a8a2b
+	hex 1b8a338a27221f8a2b8a332216942b25
+	hex 22278a338a2014942724941f138a3f37
+	hex 338a353827228a39368a3a37168a3f37
+	hex 338a383527228a3a378a168a3e35328a
+	hex 353820229437333f1b9427221f942722
+	hex 1f942926228a2a8a2b1b8a338a221f27
+	hex 8a2b8a332216942b2725228a338a2014
+	hex 942724941f13943c33301e8a3a332e8a
+	hex 2d33391d8a3c308a3f3327248a378a1d
+	hex 8a358a333f27248a3c308a3835262294
+	hex 22169424189429261a8a2a8a2b1b8a33
+	hex 8a22271f8a2b8a332216942b2725228a
+	hex 338a2014942427941f138a3f37338a38
+	hex 3527228a36398a3a37168a3f37338a38
+	hex 3527228a373a8a168a3e35328a383522
+	hex 209433373f1b9427221f9422272b943f
+	hex 338a358a37271b8a3f338a352b27228a
+	hex 378a25198a3f338a352b22278a3f338a
+	hex 3724188a333f8a352c27248a378a2317
+	hex 8a3f338a352c27238a3f338a3a372216
+	hex 8a3f37338a38352b278a373a8a168a3e
+	hex 35328a383522269433373f2794221694
+	hex 1b0f8a372b338a382c358a39362d8a3a
+	hex 372e0f943c37302b8a3a2e378a168a37
+	hex 332b8a2c38352b8a39362d8a3a372e1b
+	hex 943c3730278a2e373a8a168a378a3327
+	hex 2b228a2e8a30148a328a332c27248a35
+	hex 8a37208a358a332c27238a358a2e1f8a
+	hex 378a382b27228a3a8a3c168a3a8a3722
+	hex 2b278a388a3a372e1b943c30372b8a3a
+	hex 372e8a168a37332b8a382c35228a3936
+	hex 2d8a3a372e1b943c37302b8a2e373a8a
+	hex 1f8a3a8a3c1e8a3d8a3e3a351d8a3e35
+	hex 3a8a2229268a3e33398a1d8a3c8a3933
+	hex 29278a358a3a322926942014941f138a
+	hex 372b338a38352c1d8a39362d8a2e3a37
+	hex 1b943c3730228a3a372e8a168a332b37
+	hex 8a38352c2b8a39362d8a3a372e1b9430
+	hex 373c2b8a3a2e378a168a378a332b2722
+	hex 8a2e8a30148a328a332c27248a358a37
+	hex 208a358a33232c278a358a331f942b22
+	hex 27941b8a2e8a2d2b27258a2e8a332c27
+	hex 2494302c27248a338a21242a278a308a
+	hex 332a27248a308a2e2b27228a338a372b
+	hex 22278a3a8a2b27228a378a332b27228a
+	hex 2e8a302d1d2794332d241d94372c2622
+	hex 8a352c8a26228a332b8a271b94221694
+	hex 1f138a3f378a381d118a398a3a372e1b
+	hex 943c3037228a3a372e8a168a37332b8a
+	hex 382c352b8a39362d8a3a372e1b943c37
+	hex 302b8a2e373a8a168a378a332b27228a
+	hex 2e8a30148a328a332c27248a358a3720
+	hex 8a358a3323272c8a358a2e1f8a378a38
+	hex 272b228a3a8a3c168a3a8a372b27228a
+	hex 388a3a372e1b943c30372b8a3a372e8a
+	hex 168a37332b8a382c352b8a39362d8a3a
+	hex 372e1b943c3730228a2e373a8a1f8a3a
+	hex 8a3c1e8a3d8a3e3a351d8a3e353a8a29
+	hex 26228a3e33398a1d8a3c8a393327248a
+	hex 358a3a322926942014941f138a372b33
+	hex 8a38352c118a39362d8a2e3a371b943c
+	hex 37302b8a3a372e8a168a332b378a3835
+	hex 2c2b8a39362d8a3a372e1b94303c372b
+	hex 8a372e3a8a168a378a332b27228a2e8a
+	hex 30148a328a3327242c8a358a37208a35
+	hex 8a332c27238a358a331f942b2722941b
+	hex 8a2e8a2d2b27258a2e8a332c27249430
+	hex 2c20278a338a2a2724218a308a332a27
+	hex 248a308a2e2b22278a338a372b27228a
+	hex 3a8a2b27228a378a332b22278a2e8a30
+	hex 2d271d94332d241d94372c26228a352c
+	hex 8a26228a332b8a271b942216941b0f94
+	hex 298a2a8a2b1b8a338a271f228a2b8a33
+	hex 2216942b2725228a338a201494272494
+	hex 1f138a3f37338a383527228a39368a3a
+	hex 37168a3f37338a383527228a3a378a16
+	hex 8a3e35328a38352220943f37331b9427
+	hex 221f94221f27942926228a2a8a2b1b8a
+	hex 338a27221f8a2b8a332216942b272225
+	hex 8a338a2014942724941f1394333c301e
+	hex 8a3a332e8a39332d1d8a3c308a3f3327
+	hex 248a378a1d8a358a3f3327248a3c308a
+	hex 353826229422169424189429261a8a2a
+	hex 8a2b1b8a338a1f22278a2b8a33221694
+	hex 2b2725228a338a2014942427941f138a
+	hex 3f37338a383527228a39368a373a168a
+	hex 3f33378a353827228a3a378a168a3e35
+	hex 328a38352622943f37331b9427221f94
+	hex 222b27943f338a358a37271b8a3f338a
+	hex 352b27228a378a25198a333f8a352722
+	hex 2b8a3f338a3724188a3f338a352c2724
+	hex 8a378a23178a3f338a3523272c8a3f33
+	hex 8a3a3716228a33373f8a38352b278a3a
+	hex 378a168a32353e8a38352622943f3733
+	hex 27942216943f37331ba8383c148a3b8a
+	hex 3c382427941b943f3c382c94383d1994
+	hex 312c29258a308a31208a338a352c2529
+	hex 943835118a378a38352c299418943c38
+	hex 352494353a3d16942e25298a2d8a2e1d
+	hex 8a308a3129258a3a8a352519943a2529
+	hex 8a358a22168a3a8a3523179433241894
+	hex 24272c94381d942c292494371f8a3b8a
+	hex 3e26292b8a8a238a8a3e2b29268a3f8a
+	hex 3c2b2724a83d22272b941b943c38148a
+	hex 3b8a383c2c27941b943f3c382c943d38
+	hex 1994312c25298a308a31208a338a352c
+	hex 2925943835118a378a38352c24941894
+	hex 353c382c943d3a3516942e29258a2d8a
+	hex 2e1d8a308a3129258a3a8a352519943a
+	hex 29258a358a16228a3a8a352317943324
+	hex 188a20148a1f138a111d8a38322f1c9e
+	hex 388a3c33301b8a3f338a2c27248a3a31
+	hex 8a271b8a338a35311b0f8a378a383020
+	hex 1494328a338a358a378a388a3a8a3c38
+	hex 148a3b8a383c2c27941b943f3c382c94
+	hex 3d381994312c29258a308a31208a338a
+	hex 35292c25943835118a378a38352c2994
+	hex 18943c35382c94353d3a16942e29258a
+	hex 2d8a2e1d8a308a3129258a3a8a352519
+	hex 943a29258a358a22168a3a8a35231794
+	hex 332418942c272494381d942c29249437
+	hex 1f8a3b8a3e262b298a8a238a8a3e2b29
+	hex 268a3f8a3c2b2724a83d2b2722941b94
+	hex 3c38148a3b8a383c242c941b943f3c38
+	hex 2c943d381994312c29258a308a31208a
+	hex 338a352c2925943538118a378a38352c
+	hex 299418943c383524943d3a3516942e25
+	hex 298a2d8a2e1d8a308a3129258a3a8a35
+	hex 2519943a29258a358a22168a3a8a3523
+	hex 17943324188a20148a1f138a1d118a38
+	hex 322f1c9e388a30333c1b8a3f338a2c27
+	hex 248a3a318a271b8a338a35311b0f8a37
+	hex 8a30382014a83f3c3814a83320272494
+	hex 302c27248a338a2a2724218a308a332a
+	hex 21248a308a2e2b27228a338a3722272b
+	hex 8a3a8a2b27228a378a332b27228a2e8a
+	hex 302d271d94332d241d94372c26228a35
+	hex 2c8a26228a332b8a271ba833373a3fa8
+	hex 2c2914942b2820248a2c298a188a2b28
+	hex 8a292c242094148a308a2c3524208a30
+	hex 8a33188a358a3324208a308a2e2b1b94
+	hex 2d2a27228a2e2b8a168a2d2a8a2e2b1f
+	hex 27941b8a338a372e27228a338a35168a
+	hex 378a351f22278a338a35321694343126
+	hex 228a35328a1a8a34318a323526229416
+	hex 8a388a3c3222268a388a3a1d8a3c8a3a
+	hex 2622208a388a3f3327218a3f338a3f33
+	hex 2721a83c332721943a331f27942e2b8a
+	hex 2e2b8a2e2b942b2e942c2914942b2824
+	hex 208a2c298a188a2b288a2c2924209414
+	hex 8a308a352c20248a308a33188a358a33
+	hex 24208a308a2e2b1b942a2d27228a2e2b
+	hex 8a168a2d2a8a2e2b1f27941b8a338a37
+	hex 2e271f8a338a35168a378a3527221f8a
+	hex 338a3020148a2f8a301d118a3a308a1f
+	hex 138a38308a20148a33308a372e22168a
+	hex 368a37222b278a3c8a2a27218a3f8a3a
+	hex 2b27228a378a332d182494332d1d1194
+	hex 372c32228a35322c8a261a8a332e2b8a
+	hex 271b942b2e8a2e2b8a2e2b942e2b942c
+	hex 1b942216943f3a3733ff
+
+; Epilogue
+	org $fffc
+        .word Start
+        .word Start

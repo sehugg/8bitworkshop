@@ -1,0 +1,13 @@
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <conio.h>
+
+int main (void)
+{
+  printf("\nHello! Press a key to reboot...\n");
+  cgetc();
+  return EXIT_SUCCESS;
+}
+

@@ -1,0 +1,252 @@
+
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+	org  $f000
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This program demonstrates a VCS music player based on tracks
+; and patterns. A pattern is a list of variable-length notes,
+; each of which is defined by a pitch and duration.
+; There are two tracks, one for each audio channel.
+; Each track consists of a list of patterns, each entry being
+; a byte offset into the Patterns array.
+;
+; The patterns in the tracks are played in-order until one ends,
+; and then both tracks are restarted. It's up to the composer
+; to make sure the durations in each track line up properly.
+;
+; Patterns consist of NOTE or TONE commands. TONE sets the
+; tone of the channel (the AUDCx register) and NOTE plays a note
+; with a duration taken from a lookup table.
+; TONE 0 ends a pattern.
+;
+; Both channels share the same logical array for tracks and patterns,
+; so both tracks can take up to 255 bytes total, and all patterns
+; can use up to 255 bytes total.
+; The music player uses 8 bytes of RAM (not counting stack).
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+Trk0idx		equ	$e0	; offset into tracks for channel 0
+Trk1idx		equ	$e1	; offset into tracks for channel 1
+Pat0idx		equ	$e2	; offset into patterns for channel 0
+Pat1idx		equ	$e3	; offset into patterns for channel 1
+Chan0dur	equ	$e4	; current note duration channel 0
+Chan1dur	equ	$e5	; current note duration channel 1
+Chan0note	equ	$e6	; current note pitch channel 0
+Chan1note	equ	$e7	; current note pitch channel 1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Usage: NOTE pitch duration
+; Plays a note in a pattern.
+; pitch = 0-31
+; duration = 1-7, uses DurFrames lookup table
+	MAC NOTE
+.pitch	SET {1}
+.durat	SET {2}
+	.byte (.pitch+(.durat<<5))
+        ENDM
+
+; Usage: TONE tone
+; Changes the tone in a pattern.
+; tone = 1-15
+	MAC TONE
+.tone	SET {1}
+	.byte .tone
+        ENDM
+
+; Usage: PATTERN address
+; Plays a pattern in a track.
+	MAC PATTERN
+.addr	SET {1}
+	.byte (.addr-Patterns)
+        ENDM
+        
+; Usage: ENDTRACK
+; Marks the end of a track.
+        MAC ENDTRACK
+        .byte 0
+        ENDM
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+Start
+	CLEAN_START
+        jsr ResetTrack
+
+NextFrame
+	VERTICAL_SYNC
+	TIMER_SETUP 37
+        ldx #0
+        jsr MusicFrame
+        ldx #1
+        jsr MusicFrame
+        TIMER_WAIT
+	TIMER_SETUP 192
+        TIMER_WAIT
+	TIMER_SETUP 29
+        TIMER_WAIT
+        jmp NextFrame
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ResetTrack
+	lda #0
+        sta Trk0idx
+        sta Pat0idx
+        sta Pat1idx
+        sta Chan0dur
+        sta Chan1dur
+        lda #Track1-Track0
+        sta Trk1idx
+NextPattern
+	ldy Trk0idx,x
+	lda Track0,y
+        beq ResetTrack
+        sta Pat0idx,x
+        inc Trk0idx,x
+MusicFrame
+	dec Chan0dur,x		; decrement note duration
+        bpl PlayNote		; only load if duration < 0
+TryAgain
+	ldy Pat0idx,x		; load index into pattern table
+	lda Patterns,y		; load pattern code
+        beq NextPattern		; end of pattern?
+        inc Pat0idx,x		; increment pattern index for next time
+        pha			; save A for later
+        clc			; clear carry for ROL
+        rol
+        rol
+        rol
+        rol			; rotate A left by 4 (same as ROR by 5)
+        and #7			; only take top 3 bits
+        beq NoteTone		; duration zero? tone instruction
+        tay			; Y = duration
+        lda DurFrames,y		; look up in duration table
+        sta Chan0dur,x		; save note duration
+        pla			; pop saved value into A
+        and #$1f		; extract first 5 bits
+        sta Chan0note,x		; store as note value
+PlayNote
+	lda Chan0note,x		; get note pitch for channel
+	sta AUDF0,x		; store frequency register
+	lda Chan0dur,x		; get note duration remaining
+        clc
+        ror			; divide by 2
+        cmp #16
+        bcc NoHighVol
+        lda #15			; make sure no greater than 15 (max)
+NoHighVol
+	sta AUDV0,x		; store volume register
+	rts
+; This routine is called for duration 0 (TONE) codes
+NoteTone
+	pla
+        and #$f
+        beq NextPattern
+        sta AUDC0,x
+        jmp TryAgain
+
+
+Patterns
+	TONE 0		; byte 0 of patterns array is unused
+
+Pattern00
+	TONE 3
+	NOTE 16,4
+	NOTE 2,4
+	NOTE 16,4
+	NOTE 30,4
+	NOTE 16,4
+	NOTE 4,4
+	NOTE 30,4
+	NOTE 16,4
+        TONE 0
+
+Pattern10
+        TONE 6
+        NOTE 6,4
+        TONE 12
+        NOTE 16,4
+        NOTE 18,4
+        NOTE 19,4
+        NOTE 22,4
+        NOTE 23,4
+        NOTE 26,4
+        NOTE 23,4
+        NOTE 26,4
+        NOTE 23,4
+        NOTE 26,4
+        NOTE 23,4
+        NOTE 22,6
+        TONE 0
+Pattern11
+        TONE 6
+        NOTE 6,6
+        NOTE 6,4
+        TONE 12
+        NOTE 16,4
+        NOTE 18,4
+        NOTE 19,4
+        NOTE 22,4
+        NOTE 23,4
+        NOTE 26,4
+        NOTE 23,4
+        NOTE 26,4
+        NOTE 26,4
+        NOTE 22,7
+        TONE 11
+        NOTE 0,7
+        NOTE 0,2
+        TONE 0
+Pattern12
+        TONE 11
+        NOTE 0,5
+	TONE 12
+        NOTE 18,5
+        NOTE 18,3
+        NOTE 18,5
+        NOTE 16,6
+        NOTE 19,5
+        NOTE 22,3
+        TONE 6
+        NOTE 4,5
+        NOTE 4,4
+        TONE 12
+        NOTE 11,5
+        NOTE 11,3
+        NOTE 11,5
+        NOTE 10,6
+        NOTE 10,4
+        NOTE 17,3
+        NOTE 17,5
+        NOTE 16,5
+        TONE 0
+
+Track0
+	PATTERN Pattern00
+	PATTERN Pattern00
+	PATTERN Pattern00
+	PATTERN Pattern00
+	PATTERN Pattern00
+	PATTERN Pattern00
+	PATTERN Pattern12
+        ENDTRACK
+Track1
+	PATTERN Pattern10
+	PATTERN Pattern11
+	PATTERN Pattern10
+	PATTERN Pattern12
+        ENDTRACK
+
+DurFrames
+	.byte 0,4,8,12,16,24,32,48
+
+; Epilogue
+	org $fffc
+        .word Start
+        .word Start

@@ -1,0 +1,131 @@
+
+#include <string.h>
+
+typedef unsigned char byte;
+typedef unsigned short word;
+typedef signed char sbyte;
+
+word __at(0xa000) dvgram[0x1000];
+byte __at(0x8840) _dvgstart;
+
+volatile int __at(0x8100) mathbox_sum;
+sbyte __at(0x8102) mathbox_arg1;
+sbyte __at(0x8103) mathbox_arg2;
+byte __at(0x810f) mathbox_go_mul;
+
+volatile byte __at (0x8000) input0;
+volatile byte __at (0x8001) input1;
+volatile byte __at (0x8002) input2;
+volatile byte __at (0x800f) vidframe;
+byte __at (0x8980) watchdog;
+
+#define LEFT1 !(input1 & 0x8)
+#define RIGHT1 !(input1 & 0x4)
+#define UP1 !(input1 & 0x10)
+#define DOWN1 !(input1 & 0x20)
+#define FIRE1 !(input1 & 0x2)
+#define BOMB1 !(input1 & 0x1)
+#define COIN1 (input0 & 0x2)
+#define COIN2 (input0 & 0x1)
+#define START1 (input2 & 0x20)
+#define START2 (input2 & 0x40)
+
+//
+
+void main();
+
+void start() {
+__asm
+        LD      SP,#0x0
+        DI
+; copy initialized data
+        LD    BC, #l__INITIALIZER
+        LD    A, B
+        LD    DE, #s__INITIALIZED
+        LD    HL, #s__INITIALIZER
+        LDIR
+__endasm;
+  main();
+}
+
+// VECTOR ROUTINES
+
+int dvgwrofs; // write offset for DVG buffer
+
+inline word ___swapw(word j) {
+  return ((j << 8) | (j >> 8));
+}
+
+inline void dvgreset() {
+  dvgwrofs = 0;
+}
+
+inline void dvgstart() {
+  _dvgstart = 0;
+}
+
+void dvgwrite(word w) {
+  dvgram[dvgwrofs++] = w;
+}
+
+inline void VCTR(int dx, int dy, byte bright) {
+  dvgwrite((dy & 0x1fff));
+  dvgwrite(((bright & 7) << 13) | (dx & 0x1fff));
+}
+
+inline void SVEC(signed char dx, signed char dy, byte bright) {
+  dvgwrite(0x4000 | (dx & 0x1f) | ((bright&7)<<5) | ((dy & 0x1f)<<8));
+}
+
+inline void JSRL(word offset) {
+  dvgwrite(0xa000 | offset);
+}
+
+inline void JMPL(word offset) {
+  dvgwrite(0xe000 | offset);
+}
+
+inline void RTSL() {
+  dvgwrite(0xc000);
+}
+
+inline void CNTR() {
+  dvgwrite(0x8000);
+}
+
+inline void HALT() {
+  dvgwrite(0x2000);
+}
+
+inline void STAT(byte rgb, byte intens) {
+  dvgwrite(0x6000 | ((intens & 0xf)<<4) | (rgb & 7));
+}
+
+inline void STAT_sparkle(byte intens) {
+  dvgwrite(0x6800 | ((intens & 0xf)<<4));
+}
+
+inline void SCAL(word scale) {
+  dvgwrite(0x7000 | scale);
+}
+
+enum {
+  BLACK, BLUE, GREEN, CYAN, RED, MAGENTA, YELLOW, WHITE
+} Color;
+
+void main() {
+  memset(dvgram, 0x20, sizeof(dvgram)); // HALTs
+  while (1) {
+    dvgreset();
+    CNTR();
+    VCTR(100,0,1);
+    VCTR(0,100,2);
+    VCTR(-100,0,3);
+    VCTR(0,-100,4);
+    CNTR();
+    HALT();
+    dvgstart();
+    watchdog=0;
+  }
+  main();
+}

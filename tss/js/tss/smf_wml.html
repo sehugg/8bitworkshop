@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SMF Player with WebMidiLink</title>
+    <link href='http://fonts.googleapis.com/css?family=Strait' rel='stylesheet' type='text/css'>
+    <script language="JavaScript">
+        var exports = {};
+        var devices;
+        SynthListCallback = function (list) {
+            devices = list;
+        };
+    </script>
+    <script language="JavaScript" src="http://www.google.com/jsapi"></script>
+    <script language="JavaScript" src="http://yuri.twintail.org/lib/flotr2.min.js"></script>
+    <script language="JavaScript" src="../Log.js"></script>
+    <script language="JavaScript" src="MidiChannel.js"></script>
+    <script language="JavaScript" src="WebMidiLinkMidiChannel.js"></script>
+    <script language="JavaScript" src="SmfPlayer.js"></script>
+    <script language="JavaScript" src="TimerMasterChannel.js"></script>
+    <script language="JavaScript" src="http://www.g200kg.com/webmidilink/synthlist.js"></script>
+    <style type="text/css"><!--
+    body {
+        font-family: 'Strait', sans-seif;
+    }
+    --></style>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            ////////////////////////////////////////////////////////////////////////////////
+            // MIDI indicator class definition.
+            function DisplayMidiChannel (device) {
+                this.device = device;
+                this.volume = [ 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64 ];
+                this.note = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ];
+            }
+            DisplayMidiChannel.prototype = new MidiChannel();
+            DisplayMidiChannel.prototype.constructor = DisplayMidiChannel;
+            DisplayMidiChannel.prototype.processNoteOn = function (ch, note, v) {
+                this.volume[ch] = v;
+                this.note[ch]++;
+                this.device.processNoteOn(ch, note, v);
+            };
+            DisplayMidiChannel.prototype.processNoteOff = function (ch, note, v) {
+                this.note[ch]--;
+                if (this.note[ch] <= 0) {
+                    this.note[ch] = 0;
+                    this.volume[ch] = 16;
+                }
+                this.device.processNoteOff(ch, note, v);
+            };
+            DisplayMidiChannel.prototype.processKeyPressure =
+                    function (ch, note, pressure) {
+                this.device.processKeyPressure(ch, note, pressure);
+            };
+            DisplayMidiChannel.prototype.processControlChange =
+                    function (ch, number, value) {
+                this.device.processControlChange(ch, number, value);
+            };
+            DisplayMidiChannel.prototype.processProgramChange = function (ch, number) {
+                this.device.processProgramChange(ch, number);
+            };
+            DisplayMidiChannel.prototype.processChannelPressure =
+                    function (ch, pressure) {
+                this.device.processChannelPressure(ch, pressure);
+            };
+            DisplayMidiChannel.prototype.processPitchBend = function (ch, bend) {
+                this.device.processPitchBend(ch, bend);
+            };
+            DisplayMidiChannel.prototype.processSystemExclusive = function (sysex) {
+                this.device.processSystemExclusive(sysex);
+            };
+            DisplayMidiChannel.prototype.processSystemCommonMessage =
+                    function (common) {
+                this.device.processSystemCommonMessage(common);
+            };
+            DisplayMidiChannel.prototype.processSystemRealtimeMessage =
+                    function (realtime) {
+                this.device.processSystemRealtimeMessage(realtime);
+            };
+            DisplayMidiChannel.prototype.processSystemReset = function () {
+                this.device.processSystemReset();
+            };
+            DisplayMidiChannel.prototype.processMetaData = function (meta) {
+                this.device.processMetaData(meta);
+            };
+            DisplayMidiChannel.prototype.setBufferLength = function (length) {
+                if (this.device.setBufferLength)
+                    this.device.setBufferLength(length);
+                else
+                    this.buffer = new Int32Array(length);
+            };
+            DisplayMidiChannel.prototype.getBuffer = function () {
+                if (this.device.getBuffer)
+                    return this.device.getBuffer();
+                return this.buffer;
+            };
+            DisplayMidiChannel.prototype.generate = function (length) {
+                if (this.device.generate)
+                    this.device.generate(length);
+            };
+
+            ////////////////////////////////////////////////////////////////////////////////
+            // Link DisplayMidiChannel to HTML5 GUI.
+            smf = new SmfPlayer();
+            wml = document.getElementById("wml").contentWindow;
+            midi = new DisplayMidiChannel(new WebMidiLinkMidiChannel(wml));
+            smf.setDevice(SmfPlayer.TRACK_DEFAULT, midi);
+            smf.setMasterChannel(
+                    new TimerMasterChannel(TimerMasterChannel.MODE_DEFAULT));
+            setInterval(function () {
+                for (var i = 0; i < 16; i++) {
+                    if (0 == midi.volume[i])
+                        continue;
+                    midi.volume[i]--;
+                    var v = midi.volume[i] >> 3;
+                    if (v > 16)
+                        v = 16;
+                    var c = v.toString(16);
+                    var color = "#" + c + c + c + c + c + c;
+                    document.getElementById("ch" + i).style.color = color;
+                }
+            }, 10);
+
+            ////////////////////////////////////////////////////////////////////////////////
+            // Drag and drop handling.
+            document.getElementById("dndbox").addEventListener("dragover", function (e) {
+                e.preventDefault();
+            }, false);
+            document.getElementById("dndbox").addEventListener("dragenter", function (e) {
+                e.preventDefault();
+                if (e.target.id == "dndbox")
+                    document.getElementById("dndbox").style.backgroundColor = "#888888";
+            }, false);
+            document.getElementById("dndbox").addEventListener("dragleave", function (e) {
+                e.preventDefault();
+                if (e.target.id == "dndbox")
+                    document.getElementById("dndbox").style.backgroundColor = "#000000";
+            }, false);
+            document.getElementById("dndbox").addEventListener("drop", function (e) {
+                console.log(e);
+                e.preventDefault();
+                document.getElementById("dndbox").style.backgroundColor = "#000000";
+                var file = e.dataTransfer.files[0];
+                var info = "";
+                info += "  Name: " + file.name + "\n";
+                info += "  Data: " + file.lastModifiedDate + "\n";
+                info += "  Size: " + file.size + "\n";
+                info += "  Type: ";
+                if (file.type)
+                    info += file.type;
+                else
+                    info += "Unknown";
+                document.getElementById("dndinfo").innerText = info;
+                var reader = new FileReader();
+                var bar = function (e, prog) {
+                    var percent = 100 * e.loaded / e.total;
+                    var load = "|";
+                    for (var i = 0; i < 100; i++) {
+                        if (percent < i)
+                            load += "-";
+                        else
+                            load += "o";
+                    }
+                    load += "| " + e.loaded + "/" + e.total;
+                    document.getElementById("dndload").innerText = load;
+                };
+                reader.onloadstart = bar;
+                reader.onprogress = bar;
+                reader.onload = function () {
+                    smf.stop();
+                    var port = document.getElementById("wml").contentWindow;
+                    for (var i = 0; i < 16; ++i) {
+                        var command = "midi,b" + i.toString(16) + ",78,0";
+                        port.postMessage(command, "*");
+                    }
+                    smf.play(reader.result);
+                };
+                reader.readAsArrayBuffer(file);
+            }, false);
+
+            ////////////////////////////////////////////////////////////////////////////////
+            // Install WebMidiLink devices.
+            var select = document.getElementById("wml_menu");
+            var options = select.options;
+            for (var i = 0; i < devices.length; ++i) {
+                options[i] = new Option("[" + devices[i].name + " : " + devices[i].description + "] by " + devices[i].author);
+                if (devices[i].name == "GMPlayer")
+                    select.selectedIndex = i;
+            }
+            select.addEventListener("change", function (e) {
+                var index = e.srcElement.selectedIndex;
+                document.getElementById("wml").src = devices[index].url;
+            }, false);
+
+            document.getElementById("wml").contentWindow.addEventListener("DOMContentLoaded", function () {
+            }, false);
+
+            ////////////////////////////////////////////////////////////////////////////////
+            // Load default SMF.
+            var xhr = new XMLHttpRequest();
+            xhr.open("get", "default.mid", true);
+            xhr.responseType = "arraybuffer";
+            xhr.onload = function () {
+                smf.play(xhr.response);
+            };
+            xhr.send();
+        });
+    </script>
+</head>
+<body>
+<h1>SMF Player with WebMidiLink</h1>
+<span style="background-color: #000000;">
+<span id="ch0">*</span>
+<span id="ch1">*</span>
+<span id="ch2">*</span>
+<span id="ch3">*</span>
+<span id="ch4">*</span>
+<span id="ch5">*</span>
+<span id="ch6">*</span>
+<span id="ch7">*</span>
+<span id="ch8">*</span>
+<span id="ch9">*</span>
+<span id="ch10">*</span>
+<span id="ch11">*</span>
+<span id="ch12">*</span>
+<span id="ch13">*</span>
+<span id="ch14">*</span>
+<span id="ch15">*</span>
+</span>
+<div id="dndbox" style="width: 100%; height: 100pt; background-color: #000000; color: #ffffff;">
+    <pre>DRAG SMF FILE TO HERE</pre>
+    <pre id="dndinfo"></pre>
+    <pre id="dndload"></pre>
+</div>
+<select id="wml_menu"></select>
+<hr/>
+<iframe id="wml" src="http://www.g200kg.com/en/docs/gmplayer/" width="100%" height="500"></iframe>
+</body>
+</html>

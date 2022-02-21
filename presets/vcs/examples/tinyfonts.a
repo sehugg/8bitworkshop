@@ -1,0 +1,207 @@
+
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+	seg.u Variables
+        org $80
+
+Temp		byte
+WriteOfs	byte	; offset into dest. array FontBuf	
+WriteShift	byte	; which nibble to write into
+LoopCount	byte	; counts scanline when drawing
+StrPtr		word	; pointer to text string
+StrLen 		byte	; counts chars when building string
+
+FontBuf		ds 30	; 30-byte buffer for generated bitmap
+
+THREE_COPIES    equ %011 ; for NUSIZ registers
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	seg Code
+	org $f000
+
+Start
+	CLEAN_START
+
+NextFrame
+	VERTICAL_SYNC
+
+	TIMER_SETUP 37
+        lda #4
+        sta LoopCount
+        lda #$80
+        sta COLUBK
+        lda #$18
+        sta COLUP0
+        lda #$28
+        sta COLUP1
+        lda #THREE_COPIES
+        sta NUSIZ0
+        sta NUSIZ1
+        sta WSYNC
+        SLEEP 20
+        sta RESP0
+        sta RESP1
+        lda #$10
+        sta HMP1
+        sta WSYNC
+        sta HMOVE
+        SLEEP 24
+        sta HMCLR
+        lda #1
+        sta VDELP0
+        sta VDELP1
+        TIMER_WAIT
+
+	TIMER_SETUP 192
+
+; Build the 48x5 bitmap in memory
+	lda #<String0
+        sta StrPtr
+        lda #>String0
+        sta StrPtr+1
+        jsr BuildLine
+; Display the resulting 48x5 bitmap
+	sta WSYNC
+	SLEEP 40	; start near end of scanline
+BigLoop
+	ldy LoopCount	; counts backwards
+        lda FontBuf+0,y	; load B0 (1st sprite byte)
+        sta GRP0	; B0 -> [GRP0]
+        lda FontBuf+5,y	; load B1 -> A
+        sta GRP1	; B1 -> [GRP1], B0 -> GRP0
+        sta WSYNC	; sync to next scanline
+        lda FontBuf+10,y	; load B2 -> A
+        sta GRP0	; B2 -> [GRP0], B1 -> GRP1
+        lda FontBuf+25,y	; load B5 -> A
+        sta Temp	; B5 -> temp
+        ldx FontBuf+20,y	; load B4 -> X
+        lda FontBuf+15,y	; load B3 -> A
+        ldy Temp	; load B5 -> Y
+        sta GRP1	; B3 -> [GRP1]; B2 -> GRP0
+        stx GRP0	; B4 -> [GRP0]; B3 -> GRP1
+        sty GRP1	; B5 -> [GRP1]; B4 -> GRP0
+        sta GRP0	; ?? -> [GRP0]; B5 -> GRP1
+        dec LoopCount	; go to next line
+	bpl BigLoop	; repeat until < 0
+        
+        lda #0
+        sta GRP0
+        sta GRP1
+        sta GRP0
+        sta GRP1
+
+        TIMER_WAIT
+
+	TIMER_SETUP 30
+        TIMER_WAIT
+        jmp NextFrame
+
+; Create the 48x5 bitmap of a line of text, using
+; 8 characters pointed to by StrPtr.
+; The bitmap is stored in a 30-byte array starting at FontBuf.
+BuildLine subroutine
+	lda #0
+        sta WriteOfs	; offset into dest. array FontBuf
+        sta WriteShift	; which nibble to write to (0=hi, $FF=lo)
+	lda #11
+        sta StrLen	; start at 11th character, go in reverse
+.CharLoop
+        ldy StrLen
+        lda (StrPtr),y	; load next character
+        sec
+        sbc #32		; subtract 32 (1st char is Space)
+; Get offset into FontTable.
+; We use the Carry flag to track which nibble we
+; read from. It alternates with every line.
+	sta Temp
+        asl
+        asl
+        adc Temp	; multiply by 5
+        ror	; divide by 2 and set carry flag
+        tay	; font table byte offset -> Y
+        	; and bit offset -> Carry flag
+; Write the character to FontBuf
+	lda #5
+        sta Temp	; write 5 lines
+	ldx WriteOfs	; starting offset into FontBuf
+; We use the earlier carry bit from the division by 2
+; to track which nibble (4-bit half) we're in.
+.Loop
+        lda FontTable,y
+        bcc .CClear	; carry clear, so low nibble 
+        lsr
+        lsr
+        lsr
+        lsr	; shift high nibble into low nibble
+        iny	; go to next font table byte
+        clc	; clear carry bit
+        hex 04	; NOP aa (skips next instruction)
+.CClear
+	sec	; set carry bit
+.CSet
+	and #$0f	; isolate low nibble
+; Now we have to write the nibble we just loaded.
+; Depending on the value of WriteShift, we may store this
+; directly in memory or we may combine it with a previously
+; stored value.
+        bit WriteShift
+        bpl .Shift	; WriteShift clear, so shift output
+        ora FontBuf,x	; combine with previously stored nibble
+        jmp .NoShift
+.Shift
+        php		; save flags (we only care about Carry flag)
+        asl
+        asl
+        asl
+        asl		; shift low nibble to high nibble
+        plp		; restore flags
+.NoShift
+        sta FontBuf,x	; store result
+        inx		; go to next output line
+        dec Temp
+        bne .Loop	; repeat until all lines done
+.SkipChar
+; Our next write target will be the next nibble (4 bits).
+; If we've already done the high nibble, skip ahead 5 bytes.
+	lda WriteShift
+        eor #$FF
+        sta WriteShift
+        bne .NoIncOfs
+        lda WriteOfs
+        clc
+        adc #5
+        sta WriteOfs
+.NoIncOfs
+; Repeat until we run out of characters.
+	dec StrLen
+        bpl .CharLoop
+	rts
+
+        align $100 ; make sure data doesn't cross page boundary
+
+; Packed font table. Each character consists of 5 nibbles
+; (4 bits each) packed into bytes. So each character is
+; actually 2.5 bytes long.
+FontTable:
+	hex 00004040445500505757626313244153
+        hex 67460400424442224225052027002400
+        hex 70000004004024115655232226471266
+        hex 21611157656174574743247157576771
+        hex 75040440020221247170002421242071
+        hex 43575275255656364434565576747444
+        hex 47377534555775227252115165554744
+        hex 54755775772555254456365725655766
+        hex 21342222375555225555775555522522
+        hex 55471277447421047011712500700000
+
+String0:
+	dc "UOY EREHT IH"
+
+; Epilogue
+	org $fffc
+        .word Start
+        .word Start

@@ -1,0 +1,139 @@
+
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This example demonstrates 48-pixel sprites.
+; We'll use a technique similar to the Asynchronous Playfields
+; trick -- reprogramming the TIA registers on-the-fly, writing
+; to each register multiple times during the scanline. If we
+; time our writes carefully, we'll be able to draw six unique
+; sprites per scanline, for example to draw a six-digit
+; scoreboard, or one large 48-pixel sprite.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	seg.u Variables
+        org $80
+
+Temp		byte
+LoopCount	byte
+
+THREE_COPIES    equ %011
+
+	seg Code
+	org $f000
+
+Start
+	CLEAN_START
+
+NextFrame
+	VERTICAL_SYNC
+
+	TIMER_SETUP 37
+        lda #64
+        sta LoopCount	; scanline counter
+        lda #$ff
+        sta COLUBK	; background color
+        lda #$22
+        sta COLUP0	; show how players alternate
+        lda #$12
+        sta COLUP1	; by having different colors
+        lda #THREE_COPIES
+        sta NUSIZ0
+        sta NUSIZ1	; both players have 3 copies
+        sta WSYNC
+        SLEEP 20
+        sta RESP0	; position 1st player
+        sta RESP1	; ...and 2nd player
+        lda #$10
+        sta HMP1	; 1 pixel to the left
+        sta WSYNC
+        sta HMOVE	; apply HMOVE
+        SLEEP 24	; sleep 24 cycles
+        sta HMCLR	; clear HMOVE registers
+        lda #1
+        sta VDELP0	; we need the VDEL registers
+        sta VDELP1	; so we can do our 4-store trick
+        TIMER_WAIT
+
+	TIMER_SETUP 192
+
+	SLEEP 40	; start near end of scanline
+BigLoop
+	ldy LoopCount	; counts backwards
+        lda Bitmap0,y	; load B0 (1st sprite byte)
+        sta GRP0	; B0 -> [GRP0]
+        lda Bitmap1,y	; load B1 -> A
+        sta GRP1	; B1 -> [GRP1], B0 -> GRP0
+        sta WSYNC	; sync to next scanline
+        lda Bitmap2,y	; load B2 -> A
+        sta GRP0	; B2 -> [GRP0], B1 -> GRP1
+        lda Bitmap5,y	; load B5 -> A
+        sta Temp	; B5 -> temp
+        ldx Bitmap4,y	; load B4 -> X
+        lda Bitmap3,y	; load B3 -> A
+        ldy Temp	; load B5 -> Y
+        sta GRP1	; B3 -> [GRP1]; B2 -> GRP0
+        stx GRP0	; B4 -> [GRP0]; B3 -> GRP1
+        sty GRP1	; B5 -> [GRP1]; B4 -> GRP0
+        sta GRP0	; ?? -> [GRP0]; B5 -> GRP1
+        dec LoopCount	; go to next line
+	bpl BigLoop	; repeat until < 0
+
+        TIMER_WAIT
+
+	TIMER_SETUP 29
+        TIMER_WAIT
+        jmp NextFrame
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Bitmap data, six columns
+
+	align $100	; ensure we start on a page boundary
+;;{w:8,h:65,count:6,brev:1,flip:1};;
+Bitmap0
+	hex 00
+	hex 00000000000000000000000000000000
+	hex 00000000000000000000000000000001
+	hex 01010205040402040404040404040404
+	hex 040404060203000107df7f1f0f000000
+Bitmap1
+	hex 00
+	hex 0000073f1f0303000000000000010704
+	hex 0808101010101412120a0a1e75c38000
+	hex 0000076260e0e0e0c0c0e0e0c0c00000
+	hex 00000000408170feffffffffc7030000
+Bitmap2
+	hex 00
+	hex 007ffffcf0e0c0404040404020bb7608
+	hex 000402020809094f494949fa07010000
+	hex 00000000006070f0f0f0c0e0e0e0e0e0
+	hex 400000000010a06010e0e0f1ffff7f00
+Bitmap3
+	hex 00
+	hex 3effff07010000000000302159878184
+	hex 848efeffffff9f0f0e9c7c0402c12010
+	hex 08040207050000000002020104070f0f
+	hex 0f070703030707070f1f7efcf8f0c000
+Bitmap4
+	hex 00
+	hex 00f0f0fffff0404040404080641e02c3
+	hex 4242c3e2e2f4fcfc787838787cfa3131
+	hex 6102021cf840c04042a022c14080c4c3
+	hex c0c0c0c0808090900010180c04243800
+Bitmap5
+	hex 00
+	hex 000000fcfefc1c0c040402020202040c
+	hex f800e01804040402020101010111e192
+	hex dc700000000000000000000080808000
+	hex 00000000000000000000000000000000
+;;
+
+; Epilogue
+	org $fffc
+        .word Start
+        .word Start

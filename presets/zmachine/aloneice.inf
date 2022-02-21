@@ -1,0 +1,458 @@
+! -----------------------------------------------------------------------------
+Constant Story "Alone on The Ice";
+
+Constant Headline
+           "^Inform for New Writers^
+             ~Alone on The Ice~ - a sample game/tutorial
+             by Ethan Dicks - Last Compiled: 23-Feb-1998^";
+
+Release 1;
+Serial "980223";
+
+!   The game is meant to be experimented with, so we always define:
+Constant DEBUG;
+
+! --------------------------------------------------------------------------
+
+! Put your "replaces" here to re-write parts of the Inform libraries
+
+Include "Parser";
+
+! --------------------------------------------------------------------------
+! Out on the open ice, every object that might be dropped out there needs to
+! have a property to store its "coordinate".  Forgetting this could cause
+! serious bugs.
+Property ICELOC 0; ! coordinate of Object in ice field.
+
+! --------------------------------------------------------------------------
+
+Include "VerbLib";
+
+! --------------------------------------------------------------------------
+!
+! It all starts here --+
+!                      |
+!                      v
+[ Initialise;
+  location = HUT1;
+
+thedark.description = "There is nothing here but whiteness.  If you move
+from this spot, you are likely to be hopelessly lost";
+
+  "You awake from a dreamless sleep to silence.  You look around the room
+   for Tom, your campmate; he isn't here.  Of all the places to go for a
+   walk by yourself, the middle of the Antarctic plateau isn't one of them.
+   Despite your training to stay put and wait for him to come back, you
+   decide to go after him.  It's just the two of you here, and no planes
+   due for weeks.";
+];
+
+! --------------------------------------------------------------------------
+!
+! Things - the elements of our interactive world
+!
+! --------------------------------------------------------------------------
+
+Object HUT1 "A small scientific observation hut"
+with description "This cramped insulated box has been your home for
+     several months now.  There is little in here but
+     some equipment for monitoring the weather and two
+     cots.",
+n_to DOOR1,
+has light;
+
+!----
+Object -> DOOR1 "freezer door" ! An ordinary two-sided door (as implemented
+! in the Inform Designer's Manual, chpt. 12).
+with description "There is a door in the wall of the hut, nearly as wide
+    as the wall.  It is large, white and heavy.  It does
+    not appear to have a doornob, as such, but more of a
+    plunger like you'd find on the inside of a meat locker.",
+name "white" "freezer" "door",
+when_closed [; rfalse; ],
+when_open "The door has been carelessly left open and the cold,
+   antarctic wind is blowing into the hut, unabated.",
+door_to  [; if (location==CAMP14) return HUT1; return CAMP14; ],
+door_dir [; if (location==CAMP14) return n_to; return s_to; ],
+found_in HUT1 CAMP14,
+has static door openable;
+
+!----
+Object -> NOTE "goodbye note"
+with initial "There is a piece of paper taped to the door here.",
+inven "A note from your campmate.",
+name "note" "paper" "piece",
+ICELOC 0,
+before [; Examine: "The paper appears torn hastily from a notebook, the
+     writing nearly illegible.  It reads:^^Went to get
+     some smokes.  Be back soon.^^^^             --Tom";
+],
+
+has ~static; ! make sure it's portable
+
+!----
+Object -> BOOK "survival guide"
+with name "book" "survival" "guide",
+initial "A survival guide lies discarded in the corner.",
+ICELOC 0,
+before [; Examine: "It's a standard issue guide to survival in Antarctica.
+     You got it on your first day here.  On the back cover
+     is a list of important safety tips:
+     ^   Black flags mark hazards - do not approach.
+     ^   Orange flags mean safe travel.
+     ^   Stick to the flagged routes.
+     ^   Travel in pairs (I guess Tom forgot that one).
+     ^   In a white-out, sit down and wait it out.^";
+],
+has ~static; ! make sure it's portable
+
+!----
+Object CAMP14 "Weather Observation Post 14"
+with description "Behind the sign that reads, ~The United States Welcomes
+     you to Observation Post 14,~ lies your camp: an orange
+     eight-foot by eight-foot box that you call home.  There
+     is a line of orange trail-marker flags heading off in
+     the distance to the north.  The rest is whiteness",
+s_to DOOR1,
+n_to
+  [;
+      ! Drop the player at the starting poing
+      PlayerTo(ICE,1); ! Put the player in the "ice room" Object
+      IGOTO(52); ! Set the starting location (middle of the south edge)
+      rtrue; ! Tell the parser that it worked.
+  ],
+has light;
+
+!----
+Object CAMP9 "Weather Observation Post 9"
+with description "This is another field camp, the sign here tells you,
+     ~The United States Welcomes you to Observation Post 9~.
+     The flagged route goes south from here.",
+n_to DOOR2,
+s_to
+  [;
+      ! Drop the player at the starting poing
+      PlayerTo(ICE,1); ! Put the player in the "ice room" Object
+      IGOTO(12); ! Set the starting location (middle of the north edge)
+      rtrue; ! Tell the parser that it worked.
+  ],
+has light;
+
+!----
+Object HUT2 "A small scientific observation hut"
+with description "This looks like a duplicate of your own observation hut,
+     down to the scuff marks on the floor.",
+
+s_to ICE2,
+n_to DOOR2,
+has light;
+
+!----
+Object -> DOOR2 "freezer door" ! An ordinary two-sided door (as implemented
+! in the Inform Designer's Manual, chpt. 12).
+with description "There is a familiar looking door in the wall of the hut,
+     with a familiar looking opening plunger.",
+name "white" "freezer" "door",
+when_closed [; rfalse; ],
+when_open "The door has been carelessly left open and the cold,
+   antarctic wind is blowing into the hut, unabated.",
+door_to  [; if (location==CAMP9) return HUT2; return CAMP9; ],
+door_dir [; if (location==CAMP9) return n_to; return s_to; ],
+found_in HUT2 CAMP9,
+has static door openable;
+
+!----
+Object -> TOM "your campmate, Tom"
+with name "Tom",
+description "Tom, the only other person for a hundred miles, is here,
+     smoking the foulest smelling cigarettes you have ever
+     smelled - Penguin Slims",
+has proper animate;
+
+! In order to create the illusion of an enormous expanse of rooms without
+! having to create one object per location, we simulate a large area with
+! two real rooms and an array.  One room (ICE) contains the Player object
+! at all times.  The other (ICE2), is a temporary holding area for the
+! objects that are located in various places throughout the virtual space.
+! We use the "ICELOC" property to remember where in the greater area an
+! object was the last time the Player saw it.
+!
+Object ICE "Out on the open ice"
+with name "ICE",
+description
+  [; IWHERE(); ],
+
+  before
+   [; Go:
+! Check to see if we are at an exit space, otherwise, just move
+! around the virtual area.
+return IEXIT();
+   ],
+
+  ! Since we don't move from object to object, all roads lead back here.  The
+  ! only way out is through specially marked spaces.
+  n_to ICE, s_to ICE, e_to ICE, w_to ICE,
+  ne_to ICE, nw_to ICE, se_to ICE, u_to ICE, sw_to ICE,
+  d_to ICE,
+
+  has light static container;
+
+! We need a place to stash things that get left out on the ice
+Object ICE2 "Ice Box" with name "ICE2", description "Ice Box", has light;
+
+! ----------------------------------------
+! Let's leave a trail for Player to follow
+!
+Class Flag
+with description "trail flag",
+name "marker" "flag" "bamboo" "pole",
+initial
+  [;
+     "There is ", (a) self, " trail-marker flag here, fluttering
+      at the end of a bamboo pole";
+  ],
+After
+  [; Take: print "You pull the flag from the snow"; ],
+
+has ~static; ! Let's let the player pick up and move the flags around.
+
+! Now, create several instances of the flags and stick them in the holding room
+Class Orange_Flag  class Flag with name "orange", article "an";
+Class Black_Flag  class Flag with name "black", article "a";
+
+Orange_Flag O1 "orange flag" ICE2 with plural "orange flags", ICELOC 12;
+Orange_Flag O2 "orange flag" ICE2 with plural "orange flags", ICELOC 20;
+Orange_Flag O3 "orange flag" ICE2 with plural "orange flags", ICELOC 28;
+Orange_Flag O4 "orange flag" ICE2 with plural "orange flags", ICELOC 36;
+Orange_Flag O5 "orange flag" ICE2 with plural "orange flags", ICELOC 44;
+Orange_Flag O6 "orange flag" ICE2 with plural "orange flags", ICELOC 52;
+
+Black_Flag BL1 "black flag" ICE2 with plural "black flags", ICELOC 53;
+Black_Flag BL2 "black flag" ICE2 with plural "black flags", ICELOC 45;
+Black_Flag BL3 "black flag" ICE2 with plural "black flags", ICELOC 37;
+Black_Flag BL4 "black flag" ICE2 with plural "black flags", ICELOC 29;
+! ----------------------------------------
+
+Global IPLAYER=52; ! Current location of Player on the ice
+
+!----------
+! Virtual room array
+! This array is a grid representation of the ice field.  Different numbers
+! represent the kind of terrain found in a particular "location".  To make
+! life easier for the programmer, positive numbers are inaccessible, zero
+! is flat and level, and negative numbers are used for features such as exits
+! and moveable ice blocks (not implemented in this tutorial).
+!
+! It's best to list this out in table form:
+!    1 is impassable barrier (crevasse)
+!   -1 is movable block of ice (Not Implemented Yet)
+!   -2 is the passage to the north exit
+!   -3 is the passage to the south exit
+
+Array IVEC --> 0 1   1   1 (-2)  1   1   1   1
+1   0   0   0   0   0   0   1
+1   0   0   0   0   0   0   1
+1   0   0   0   0   1   0   1
+1   0   0   0   0   1   0   1
+1   0   0   0   0   1   0   1
+1   0   0   0   0   1   0   1
+1   1   1 (-3)  1   1   1;
+
+! Note the north-south crevasse to the east of the expected path of the Player.
+
+! ----------------------------------------
+! Walking around on the ice field
+
+! NB: n_obj is 7.  The array has dummy entries to match the array element
+!     number with the direction object number.  The elements/directions
+!     follow the order N, S, E, W, NE, NW, SE, SW.  If this changes, this
+!     array and it's supporting code must be redesigned.  This may not
+!     be the best way to do this, but it does work.
+!
+! These numbers are based on an 8x8 grid.  A grid of a different size would
+! generate different numbers (i.e., a 4x4 grid would see -4 for -8, -3 for
+! -7, -5 for -9, etc.)
+Array IEXITS --> 0 0 0 0 0 0 0 (-8) 8 1 (-1) (-7) (-9) 9 7;
+
+!
+! IEXIT - let the player exit the ice field
+!
+[ IEXIT;
+  ! Check to see if the player is in the right place and moving in the right
+  ! direction (up).
+  if (IPLAYER==12 or 52) {
+    ! Is there a way up here? (N.B.: for this example, there always is).
+    if ((IVEC-->(IPLAYER + IEXITS-->noun)) == -2) {
+print "You scramble up the trail and onto the plateau.^";
+give ICE ~visited;
+Playerto(CAMP9,2);
+rtrue;
+      }
+      else if ((IVEC-->(IPLAYER + IEXITS-->noun)) == -3) {
+print "You scramble up the trail and back to camp.^";
+give ICE ~visited;
+Playerto(CAMP14,2);
+rtrue;
+      }
+  }
+
+  if (noun==u_obj) {
+      print "There is nothing but flat, featureless ice here.  Nothing to
+     climb";
+      return 3;
+  }
+
+  ! Don't let them go down, ever.
+  if (noun==d_obj) {
+    print "That's not a good idea.";
+    return 3;
+  }
+
+  ! If the intended space is empty, let the player move there
+  if (IVEC-->(IPLAYER + IEXITS-->noun)==0) {
+    return IGOTO(IPLAYER + IEXITS-->noun);
+  }
+
+  ! There must be a barrier.  Stop them from moving.
+  print "In the nick of time, you step back from the edge of a yawning
+crevasse.";
+  return 3;
+];
+
+
+!------
+! "Move" to new ice room
+
+[ IGOTO FX x y;
+
+  ! Forget we were ever here.  This keeps the descriptions fresh.
+  give ICE ~visited;
+
+  ! Move stuff out of the old location into the storage space
+  x = child(ICE);
+  while (x) {
+    y=sibling(x);
+    if ( (x hasnt concealed) && (x ~= Player) ) {
+      x.ICELOC=IPLAYER; ! Remember where it came from
+      move x to ICE2; ! Stash it
+    }
+    x = y;
+  }
+
+  ! "move" player to the new location
+  IPLAYER=FX;
+
+  ! Pull stuff from the storage space to the new location, if it belongs here
+  x = child(ICE2);
+  while (x) {
+    y=sibling(x);
+    ! see if this Object belongs in our new location
+    if (x.ICELOC == IPLAYER) {
+      x.ICELOC=0; ! Forget where it used to be
+      move x to ICE; ! Put it back in here
+    }
+    x = y;
+  }
+
+  <Look>;
+  give ICE ~visited;
+  return 3;
+];
+
+! ----------------------------------------
+!
+! Describe location out on the open ice.
+!
+[ IWHERE N W S E num_crevasse crevasse_dir;
+  N = IVEC-->(IPLAYER - 8);
+  S = IVEC-->(IPLAYER + 8);
+  E = IVEC-->(IPLAYER + 1);
+  W = IVEC-->(IPLAYER - 1);
+
+!  print "This is Ice Room #", IPLAYER, ".^";
+
+  ! See if Player is somewhere safe or not
+  if ( ON_FLAGGED_ROUTE(IPLAYER) )
+print "You are on the flagged route.  ";
+  else
+print "You are out on the open ice, a dangerous thing.  ";
+
+  ! Count the crevasses and remember which direction they are in
+  if (N == 1) { num_crevasse++; crevasse_dir = crevasse_dir + 1; }
+  if (S == 1) { num_crevasse++; crevasse_dir = crevasse_dir + 2; }
+  if (E == 1) { num_crevasse++; crevasse_dir = crevasse_dir + 4; }
+  if (W == 1) { num_crevasse++; crevasse_dir = crevasse_dir + 8; }
+
+  ! If there are any crevasses, warn Player
+  if (num_crevasse) {
+print "There ";
+if (num_crevasse == 1) ! How many?
+print "is a crevasse to the ";
+else
+print "are crevasses to the ";
+
+if (N == 1) {
+print "north";
+num_crevasse--;
+if (num_crevasse == 1)
+print " and ";
+else if (num_crevasse > 1)
+print ", ";
+}
+
+if (S == 1) {
+print "south";
+num_crevasse--;
+if (num_crevasse == 1)
+print " and ";
+else if (num_crevasse > 1)
+print ", ";
+}
+
+if (E == 1) {
+print "east";
+num_crevasse--;
+if (num_crevasse == 1)
+print " and ";
+else if (num_crevasse > 1)
+print ", ";
+}
+
+if (W == 1)
+print "west";
+
+print ".";
+  }
+
+  print "^";
+
+  ! Let's thrown in a colorful phrase, just for fun...
+  if (IPLAYER==36)
+    print "(If Nowhere has a Middle, this is it.)^";
+
+  ! Describe the exits, if present
+  if (N==-2)
+    print "There is a plateau to the north here.  There appears to be a way to
+   scramble up to it that avoids the crevasse.";
+
+  if (S==-3)
+    print "You can see your camp up and to the south.^";
+
+];
+
+!
+! Check to see if Player is on the route
+!
+! To-do: Check for an undisturbed flag along the route
+!
+[ ON_FLAGGED_ROUTE location;
+  if (location == 12 or 20 or 28 or 36 or 44 or 52)
+rtrue;
+
+  rfalse;
+];
+
+!----
+! Define verbs here...
+
+Include "Grammar";

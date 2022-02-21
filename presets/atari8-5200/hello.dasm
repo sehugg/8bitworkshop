@@ -1,0 +1,121 @@
+
+; Atari 5200 "Hello World" sample code
+; Written by Daniel Boris (danlb_2000@yahoo.com)
+; Modified by Steven Hugg @8bitworkshop
+; Assemble with DASM
+;
+
+        processor 6502
+
+	include "atari5200.inc"
+
+        org     $4000           ;Start of cartridge area
+        sei                     ;Disable interrupts
+        cld                     ;Clear decimal mode
+Start
+        ldx     #$00
+        lda     #$00
+crloop1    
+        sta     $00,x           ;Clear zero page
+        sta     $D400,x         ;Clear ANTIC
+        sta     $C000,x         ;Clear GTIA
+        sta     $E800,x         ;Clear POKEY
+        dex
+        bne     crloop1
+        ldy     #$00            ;Clear Ram
+        lda     #$02            ;Start at $0200
+        sta     $81             
+        lda     #$00
+        sta     $80
+crloop2
+        lda     #$00            
+crloop3
+        sta     ($80),y         ;Store data
+        iny                     ;Next byte
+        bne     crloop3         ;Branch if not done page
+        inc     $81             ;Next page
+        lda     $81
+        cmp     #$40            ;Check if end of RAM
+        bne     crloop2         ;Branch if not
+
+        ldx     #$2f
+dlloop                          ;Create Display List
+        lda     dlist,x         ;Get byte
+        sta     $1000,x         ;Copy to RAM
+        dex                     ;next byte
+        bpl     dlloop
+        
+        lda     #$03            ;point IRQ vector
+        sta     $200            ;to BIOS routine
+        lda     #$FC
+        sta     $201
+        lda     #$B8            ;point VBI vector
+        sta     $202            ;to BIOS routine
+        lda     #$FC
+        sta     $203
+        lda     #$B2            ;point Deferred VBI
+        sta     $204            ;to BIOS routine
+        lda     #$FC
+        sta     $205
+        lda     #$06
+        sta     CHACTL          ;Set Character Control
+        lda     #$84            ;Set color PF2
+        sta     COLOR0+2             
+        sta     COLOR0+4	; bakground
+        lda     #$0F            ;Set color PF1
+        sta     COLOR0+1
+        lda	#$3f
+        sta     COLOR0+0
+        lda	#$58
+        sta     COLOR0+3
+        lda     #$00            ;Set Display list pointer
+        sta     SDLSTL		;Shadow DLISTL
+        sta     DLISTL
+        lda     #$10
+        sta     SDLSTH		;Shadow DLISTH
+        sta     DLISTH
+        lda     #$f8            ;Set Charcter Set Base
+        sta     CHBASE
+        lda     #$22            ;Enable DMA
+        sta     SDMCTL		;Shadow DMACTL
+        lda     #$40            ;Enable NMI
+        sta     NMIEN
+
+print
+        ldy     #$00           
+        cld
+prloop
+        lda     text1,y         ;Get character
+        beq	wait
+        cmp	#$60
+        bcs	lower
+        sec
+        sbc     #$20            ;Convert to ATASCII
+lower
+        sta     $1800,y         ;Store in video memory
+        iny                     ;Next character
+        bne     prloop
+wait
+	nop
+        jmp     wait
+
+        ;Display list data (starts at $1000)
+dlist   .byte	$70,$70,$70        ;24 blank scanlines
+	.byte	$42,$00,$18,$02    ;mode 2 @ $1800
+	.byte	$43,$00,$18,$02    ;mode 3 @ $1800
+	.byte	$44,$00,$18,$02    ;mode 4 @ $1800
+	.byte	$45,$00,$18,$02    ;mode 5 @ $1800
+	.byte	$46,$00,$18,$06    ;mode 6 @ $1800
+	.byte	$47,$00,$18,$06    ;mode 7 @ $1800
+        .byte   $41,$00,$10	   ;JMP -> $1000
+
+        ;Text data
+         org    $b100
+text1   .byte   "Hello World! "
+	.byte	$a1,$a2,$a3
+	.byte	0
+
+        org     $bffd
+        .byte   $FF         ;Don't display Atari logo
+        .byte   $00,$40     ;Start code at $4000
+

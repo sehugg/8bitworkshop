@@ -1,0 +1,9 @@
+# For the iCE40HX-1K iCEstick
+
+set_io reset 99
+set_io hsync 98
+set_io vsync 97
+set_io rgb[0] 96
+set_io rgb[1] 95
+set_io rgb[2] 94
+set_io clk 21

@@ -1,0 +1,121 @@
+
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; The VCS only supports 4096 bytes of address space for
+; cartridge ROMs, but you can use 8192 or more bytes by
+; using a bank-switching scheme. This lets you map segments
+; of address space to multiple ROM segments.
+;
+; This example demonstrates standard Atari bank-switching, 
+; which just lets you switch multiple segments into the main
+; $1000 bytes of cartridge ROM. Because all bytes must be
+; switched at once, this forces you to build a trampoline --
+; a segment of code that remains valid during the bank-switch
+; process.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        seg.u Variables
+	org $80
+
+Temp	.byte
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Macro that implements Bank Switching trampoline
+; X = bank number
+; A = hi byte of destination PC
+; Y = lo byte of destination PC
+	MAC BANK_SWITCH_TRAMPOLINE
+        pha             ; push hi byte
+        tya             ; Y -> A
+        pha             ; push lo byte
+        lda $1FF8,x     ; do the bank switch
+        rts             ; return to target
+        ENDM
+
+; Macro that performs bank switch
+        MAC BANK_SWITCH
+.Bank	SET {1}
+.Addr	SET {2}
+	lda #>(.Addr-1)
+        ldy #<(.Addr-1)
+        ldx #.Bank
+        jmp BankSwitch
+        ENDM
+
+; Bank prologue that handles reset
+; no matter which bank is selected at powerup
+; it switches to bank 0 and jumps to Reset_0
+	MAC BANK_PROLOGUE
+        lda #>(Reset_0-1)
+        ldy #<(Reset_0-1)
+        ldx #$ff
+        txs		; set up stack pointer
+        inx		; X = 0
+        ENDM
+
+; Bank epilogue -- 6502 vectors
+	MAC BANK_VECTORS
+	.word Start      ; NMI
+	.word Start      ; RESET
+	.word Start	 ; BRK
+        ENDM
+
+	seg Code
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; BANK 0
+
+	org  $1000
+	rorg $1000
+;----The following code is the same on both banks----
+Start
+	BANK_PROLOGUE
+BankSwitch
+	BANK_SWITCH_TRAMPOLINE
+;----End of bank-identical code----
+Reset_0
+	CLEAN_START
+        lda #$30
+        sta COLUBK	; make the screen red
+        bit INPT4	; test button
+        bmi Reset_0	; button not pressed, repeat
+; Switch to Bank 2 routine
+        lda #>(Main_1-1)
+        ldy #<(Main_1-1)
+        ldx #1
+        jmp BankSwitch
+
+; Bank 0 epilogue
+	org  $1FFA
+	rorg $FFFA
+	BANK_VECTORS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; BANK 1
+
+	org  $2000
+	rorg $1000
+;----The following code is the same on both banks----
+Start
+	BANK_PROLOGUE
+BankSwitch
+	BANK_SWITCH_TRAMPOLINE
+;----End of bank-identical code----
+Main_1
+	inc Temp
+        lda Temp
+        sta COLUBK	; make rainbows
+        bit INPT4	; test button
+        bpl Main_1	; button is pressed, repeat
+        BANK_SWITCH 0,Reset_0
+
+; Bank 1 epilogue
+	org  $2FFA
+	rorg $FFFA
+	BANK_VECTORS

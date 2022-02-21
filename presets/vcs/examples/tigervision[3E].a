@@ -1,0 +1,77 @@
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; 64K Tigervision bank-switching example
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+TIA_BASE_ADDRESS = $40	; use TIA mirrors @ $40-$7F
+
+	processor 6502
+        include "vcs.h"
+        include "macro.h"
+        include "xmacro.h"
+
+        seg.u Variables
+	org $80
+
+Temp	.byte
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Macro that performs bank switch
+
+        MAC BANK_SWITCH
+.Bank	SET {1}
+        ldx #.Bank
+        stx $3F
+        ENDM
+
+	seg Code
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; BANK 0 ($1000-$17ff)
+
+	org  $1000
+	rorg $1000
+Main_1
+	inc Temp
+        lda Temp
+        sta COLUBK	; make rainbows
+        bit INPT4	; test button
+        bpl Main_1	; button is pressed, repeat
+        rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; BANK 1 ($1000-$17ff)
+
+	org  $1800
+	rorg $1000
+Main_2
+        lda Temp
+        eor #2
+        sta Temp
+        sta WSYNC
+        sta WSYNC
+        sta COLUBK
+        bit INPT4	; test button
+        bmi Main_2	; button not pressed, repeat
+        rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Last 2K bank ($1800-$1fff)
+
+	org  $10800
+	rorg $1800
+Start
+	CLEAN_START
+        BANK_SWITCH 0
+        jsr Main_1
+        BANK_SWITCH 1
+        jsr Main_2
+        jmp Start
+
+; Epilogue (CPU vectors)
+	org  $10FFA
+	rorg $10FFA
+	.word Start      ; NMI
+	.word Start      ; RESET
+	.word Start	 ; BRK
