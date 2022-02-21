@@ -8,7 +8,6 @@
         .export         __STARTUP__ : absolute = 1      ; Mark as startup
         .import         zerobss, callmain
         .import         initlib, donelib, copydata
-        .import         exit
         .import         __PRGRAM_START__, __PRGRAM_SIZE__   ; Linker generated
 ;        .import         __STACKSIZE__                   ; Linker generated
 
@@ -30,7 +29,7 @@ start:
 _exit:  pha
         jsr     donelib
         pla
-        jmp     exit
+        jmp     start
 
 nmi:
 	inc	$0

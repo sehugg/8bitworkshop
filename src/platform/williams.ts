@@ -432,6 +432,10 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
   ] } };
 }
 
+var Williams6809Platform = function(mainElement) {
+  this.__proto__ = new WilliamsPlatform(mainElement, null, false);
+}
+
 var WilliamsZ80Platform = function(mainElement) {
   this.__proto__ = new WilliamsPlatform(mainElement, BaseZ80Platform, false);
 
@@ -462,7 +466,7 @@ var WilliamsDefenderPlatform = function(mainElement) {
 ] } };
 }
 
-PLATFORMS['williams'] = WilliamsPlatform;
+PLATFORMS['williams'] = Williams6809Platform;
 PLATFORMS['williams-defender'] = WilliamsDefenderPlatform;
 PLATFORMS['williams-z80'] = WilliamsZ80Platform;
 
