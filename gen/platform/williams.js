@@ -416,6 +416,9 @@ var WilliamsPlatform = function (mainElement, proto, isDefender) {
             ] };
     };
 };
+var Williams6809Platform = function (mainElement) {
+    this.__proto__ = new WilliamsPlatform(mainElement, null, false);
+};
 var WilliamsZ80Platform = function (mainElement) {
     this.__proto__ = new WilliamsPlatform(mainElement, baseplatform_1.BaseZ80Platform, false);
     // Z80 @ 4 MHz
@@ -444,7 +447,7 @@ var WilliamsDefenderPlatform = function (mainElement) {
             ] };
     };
 };
-emu_1.PLATFORMS['williams'] = WilliamsPlatform;
+emu_1.PLATFORMS['williams'] = Williams6809Platform;
 emu_1.PLATFORMS['williams-defender'] = WilliamsDefenderPlatform;
 emu_1.PLATFORMS['williams-z80'] = WilliamsZ80Platform;
 // http://seanriddle.com/willhard.html

@@ -30,6 +30,7 @@ declare var $ : JQueryStatic; // use browser jquery
 
 interface UIQueryString {
   platform? : string;
+  options?: string;
   repo? : string;
   file? : string;
   electron? : string;
@@ -2213,7 +2214,9 @@ function installGAHooks() {
 
 async function startPlatform() {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
-  platform = new PLATFORMS[platform_id]($("#emuscreen")[0]);
+  let emudiv = $("#emuscreen")[0];
+  let options = decodeQueryString(qs.options || '');
+  platform = new PLATFORMS[platform_id](emudiv, options);
   setPlatformUI();
   stateRecorder = new StateRecorderImpl(platform);
   PRESETS = platform.getPresets ? platform.getPresets() : [];

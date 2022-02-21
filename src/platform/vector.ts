@@ -270,7 +270,7 @@ var AtariColorVectorPlatform = function(mainElement) {
         clock++;
         if (--nmicount == 0) {
           //console.log("NMI", cpu.saveState());
-          var n = cpu.setIRQAndWait(); // TODO: only if I flag set
+          var n = cpu.setIRQ(); // TODO: only if I flag set
           clock += n;
           nmicount = cpuCyclesPerNMI - n;
           //console.log(n, clock, nmicount);

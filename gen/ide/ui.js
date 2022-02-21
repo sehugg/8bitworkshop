@@ -2154,7 +2154,9 @@ function installGAHooks() {
 async function startPlatform() {
     if (!emu_1.PLATFORMS[exports.platform_id])
         throw Error("Invalid platform '" + exports.platform_id + "'.");
-    exports.platform = new emu_1.PLATFORMS[exports.platform_id]($("#emuscreen")[0]);
+    let emudiv = $("#emuscreen")[0];
+    let options = (0, util_1.decodeQueryString)(exports.qs.options || '');
+    exports.platform = new emu_1.PLATFORMS[exports.platform_id](emudiv, options);
     setPlatformUI();
     stateRecorder = new recorder_1.StateRecorderImpl(exports.platform);
     PRESETS = exports.platform.getPresets ? exports.platform.getPresets() : [];

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MOS6502 = exports.MOS6502Interrupts = void 0;
+exports.MOS6502 = exports.MOS6502Interrupts = exports._MOS6502 = void 0;
 // Copyright 2015 by Paulo Augusto Peccin. See license.txt distributed with this file.
 var _MOS6502 = function () {
     var self = this;
@@ -2034,6 +2034,7 @@ var _MOS6502 = function () {
         return T == 0;
     };
 };
+exports._MOS6502 = _MOS6502;
 var MOS6502Interrupts;
 (function (MOS6502Interrupts) {
     MOS6502Interrupts[MOS6502Interrupts["None"] = 0] = "None";
@@ -2043,7 +2044,7 @@ var MOS6502Interrupts;
 ;
 class MOS6502 {
     constructor() {
-        this.cpu = new _MOS6502();
+        this.cpu = new exports._MOS6502();
         this.interruptType = MOS6502Interrupts.None;
         // TODO: metadata
         // TODO: disassembler

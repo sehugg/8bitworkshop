@@ -10,6 +10,7 @@ const audio_1 = require("./audio");
 const recorder_1 = require("./recorder");
 const wasmplatform_1 = require("./wasmplatform");
 const _6809_1 = require("./cpu/6809");
+const MOS6502_1 = require("./cpu/MOS6502");
 ;
 ;
 class DebugSymbols {
@@ -307,7 +308,7 @@ class Base6502Platform extends BaseDebugPlatform {
     ;
     isStable() { return !this.getCPUState()['T']; }
     newCPU(membus) {
-        var cpu = new jt.M6502();
+        var cpu = new MOS6502_1._MOS6502();
         cpu.connectBus(membus);
         return cpu;
     }
