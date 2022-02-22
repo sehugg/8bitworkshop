@@ -41,7 +41,6 @@ export function assembleXASM6809(step: BuildStep): BuildStepResult {
         return { errors: errors };
     var aout = FS.readFile(binpath, { encoding: 'binary' });
     if (aout.length == 0) {
-        console.log(alst);
         errors.push({ line: 0, msg: "Empty output file" });
         return { errors: errors };
     }
@@ -118,7 +117,6 @@ export function compileCMOC(step: BuildStep): BuildStepResult {
         var asmout = FS.readFile(destpath, { encoding: 'utf8' });
         if (step.params.set_stack_end)
             asmout = asmout.replace('stack space in bytes', `\n lds #${step.params.set_stack_end}\n`)
-        console.log(asmout);
         putWorkFile(destpath, asmout);
     }
     return {
