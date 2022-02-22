@@ -60,6 +60,8 @@ Bitmap_bitmapdata_b8:
 .byte >(Bitmap_bitmapdata_e2_b0+31)
 .byte >(Bitmap_bitmapdata_e3_b0+31)
 Bitmap_bitmapdata_e1_b0:
+Colormap_colormapdata_e1_b0:
+VersatilePlayfield_data_e4_b0:
 .byte 0
 Bitmap_height_b0:
 .byte 0
@@ -73,8 +75,6 @@ Colormap_colormapdata_b8:
 .byte >(Colormap_colormapdata_e1_b0+31)
 .byte >(Colormap_colormapdata_e2_b0+31)
 .byte >(Colormap_colormapdata_e3_b0+31)
-Colormap_colormapdata_e1_b0:
-.byte 0
 Bitmap_bitmapdata_e2_b0:
 .byte 128
 .byte 192
@@ -203,8 +203,6 @@ VersatilePlayfield_data_b8:
 .byte >(VersatilePlayfield_data_e4_b0+-1)
 .byte >(VersatilePlayfield_data_e5_b0+-1)
 .byte >(VersatilePlayfield_data_e6_b0+-1)
-VersatilePlayfield_data_e4_b0:
-.byte 0
 VersatilePlayfield_data_e5_b0:
 .byte 0
 .byte 63

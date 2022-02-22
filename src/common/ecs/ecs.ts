@@ -44,7 +44,7 @@ export interface ComponentType extends SourceLocated {
 }
 
 export interface Query extends SourceLocated {
-    include: ComponentType[]; // TODO: make ComponentType
+    include: ComponentType[];
     exclude?: ComponentType[];
     entities?: Entity[];
     limit?: number;
@@ -256,19 +256,6 @@ export class Dialect_CA65 {
     {{%code}}
 `
 
-    // TODO
-    ASM_MAP_RANGES = `
-    txa
-    pha
-    lda {{%mapping}},x
-    jmi @__mapskip
-    tax
-    {{%code}}
-@__mapskip:
-    pla
-    tax
-`;
-
     INIT_FROM_ARRAY = `
     ldy #{{%nbytes}}
 :   lda {{%src}}-1,y
@@ -311,7 +298,6 @@ export class Dialect_CA65 {
     }
     endScope(name: string) {
         return `.endscope\n${this.scopeSymbol(name)} = ${name}::__Start`
-        // TODO: scope__start = scope::start
     }
     scopeSymbol(name: string) {
         return `${name}__Start`;
@@ -340,7 +326,7 @@ export class Dialect_CA65 {
         if (segtype == 'bss') {
             return `.zeropage`;
         } else if (segtype == 'rodata') {
-            return '.rodata'; // TODO?
+            return '.rodata';
         } else {
             return `.code`;
         }
@@ -357,11 +343,11 @@ export class Dialect_CA65 {
         } else {
             if (b.bitofs == 0) return `.byte <${b.symbol}`
             else if (b.bitofs == 8) return `.byte >${b.symbol}`
-            else return `.byte (${b.symbol} >> ${b.bitofs})` // TODO?
+            else return `.byte ((${b.symbol} >> ${b.bitofs})&255)`
         }
     }
     tempLabel(inst: SystemInstance) {
-        return `${inst.system.name}__${inst.id}__tmp`; // TODO: multiple instances?
+        return `${inst.system.name}__${inst.id}__tmp`;
     }
     equate(symbol: string, value: string): string {
         return `${symbol} = ${value}`;
@@ -429,11 +415,24 @@ class DataSegment {
             this.ofs2sym.set(ofs, []);
         this.ofs2sym.get(ofs)?.push(name);
     }
-    // TODO: optimize shared data
+    findExistingInitData(bytes: Uint8Array) {
+        for (let i=0; i<this.size - bytes.length; i++) {
+            for (var j=0; j<bytes.length; j++) {
+                if (this.initdata[i+j] !== bytes[j]) break;
+            }
+            if (j == bytes.length) return i;
+        }
+        return -1;
+    }
     allocateInitData(name: string, bytes: Uint8Array) {
-        let ofs = this.allocateBytes(name, bytes.length);
-        for (let i = 0; i < bytes.length; i++) {
-            this.initdata[ofs + i] = bytes[i];
+        let ofs = this.findExistingInitData(bytes);
+        if (ofs >= 0) {
+            this.declareSymbol(name, ofs);
+        } else {
+            ofs = this.allocateBytes(name, bytes.length);
+            for (let i = 0; i < bytes.length; i++) {
+                this.initdata[ofs + i] = bytes[i];
+            }
         }
     }
     dump(file: SourceFileExport, dialect: Dialect_CA65) {
@@ -461,7 +460,6 @@ class DataSegment {
         if (ofs !== undefined) {
             return ofs + entityID - range.elo;
         }
-        // TODO: show entity name?
         throw new ECSError(`cannot find field access for ${access.symbol}`);
     }
     getOriginSymbol() {
@@ -1175,6 +1173,8 @@ export class EntityScope implements SourceLocated {
                 array = segment.fieldranges[cfname] = { component: c, field: f, elo: i, ehi: i };
             } else {
                 array.ehi = i;
+                if (array.ehi - array.elo + 1 >= 256)
+                    throw new ECSError(`too many entities have field ${cfname}, limit is 256`);
             }
             // set default values for entity/field
             if (ftype == 'init') {
@@ -1236,7 +1236,6 @@ export class EntityScope implements SourceLocated {
                     let loofs = segment.allocateBytes(ptrlosym, entcount);
                     let hiofs = segment.allocateBytes(ptrhisym, entcount);
                     let datasym = this.dialect.datasymbol(c, f, e.id, 0);
-                    // TODO: share shared data
                     segment.allocateInitData(datasym, v);
                     if (f.baseoffset) datasym = `(${datasym}+${f.baseoffset})`;
                     segment.initdata[loofs + e.id - range.elo] = { symbol: datasym, bitofs: 0 };
@@ -1278,7 +1277,7 @@ export class EntityScope implements SourceLocated {
         //console.log(segment.initdata)
     }
     allocateInitData(segment: DataSegment) {
-        if (segment.size == 0) return ''; // TODO: warning for no init data?
+        if (segment.size == 0) return '';
         let initbytes = new Uint8Array(segment.size);
         let iter = this.iterateEntityFields(this.entities);
         for (var o = iter.next(); o.value; o = iter.next()) {
@@ -1319,7 +1318,6 @@ export class EntityScope implements SourceLocated {
     getFieldRange(c: ComponentType, fn: string) {
         return this.bss.getFieldRange(c, fn) || this.rodata.getFieldRange(c, fn);
     }
-    // TODO: check type/range of value
     setConstValue(e: Entity, component: ComponentType, field: DataField, value: DataValue) {
         this.setConstInitValue(e, component, field, value, 'const');
     }
@@ -1329,7 +1327,7 @@ export class EntityScope implements SourceLocated {
     setConstInitValue(e: Entity, component: ComponentType, field: DataField, value: DataValue,
         type: 'const'|'init')
     {
-        this.checkValueType(field, value);
+        this.checkFieldValue(field, value);
         let fieldName = field.name;
         let cfname = mksymbol(component, fieldName);
         let ecfname = mkscopesymbol(this, component, fieldName);
@@ -1342,7 +1340,7 @@ export class EntityScope implements SourceLocated {
     isConstOrInit(component: ComponentType, fieldName: string) : 'const' | 'init' {
         return this.fieldtypes[mksymbol(component, fieldName)];
     }
-    checkValueType(field: DataField, value: DataValue) {
+    checkFieldValue(field: DataField, value: DataValue) {
         if (field.dtype == 'array') {
             if (!(value instanceof Uint8Array))
                 throw new ECSError(`This "${field.name}" value should be an array.`);
