@@ -3,7 +3,11 @@
 #define _WILLIAMS_H
 
 typedef unsigned char byte;
+typedef unsigned char bool;
+typedef signed char sbyte;
 typedef unsigned short word;
+
+enum { false=0, true=1 };
 
 byte* palette = 0xc000;
 byte* nvram = 0xcc00;
@@ -15,6 +19,8 @@ byte* nvram = 0xcc00;
 #define rom_select *((byte*)0xc900)
 #define video_counter *((byte*)0xcb00)
 #define watchdog0x39 *((byte*)0xcbff)
+
+#define WATCHDOG (watchdog0x39 = 0x39)
 
 // switch flags
 
@@ -85,16 +91,27 @@ void blit_copy(byte x1, byte y1, byte w, byte h, const byte* data);
 
 void blit_copy_solid(byte x1, byte y1, byte w, byte h, const byte* data, byte solid);
 
-void draw_sprite(const byte* data, byte x, byte y);
+void blit_sprite(const byte* data, byte x, byte y);
 
-void draw_sprite_solid(const byte* data, byte x, byte y, byte color);
+void blit_sprite_solid(const byte* data, byte x, byte y, byte color);
 
-void erase_sprite_rect(const byte* data, byte x, byte y);
+void unblit_sprite_rect(const byte* data, byte x, byte y);
 
-void draw_sprite_strided(const byte* data, byte x, byte y, byte stride);
+void blit_sprite_strided(const byte* data, byte x, byte y, byte stride);
+
+void unblit_sprite_strided(const byte* data, byte x, byte y, byte stride);
 
 // x1: 0-303
 // y1: 0-255
-void blit_pixel(word xx, byte y, byte color);
+void draw_pixel(word xx, byte y, byte color);
+
+void draw_solid(word x, byte y, byte w, byte h, byte color);
+
+void draw_vline(word x, byte y, byte h, byte color);
+
+void draw_copy_solid(word x, byte y, byte w, byte h, const byte* data, byte solid);
+
+// BCD
+asm word bcd_add(word a, word b);
 
 #endif

@@ -220,7 +220,11 @@ export function linkLWLINK(step: BuildStep): BuildStepResult {
             if (toks[0] == 'Symbol:') {
                 let ident = toks[1];
                 let ofs = parseInt(toks[4], 16);
-                if (ident && ofs >= 0 && !ident.startsWith("l_") && !/^L\d+$/.test(ident)) {
+                if (ident && ofs >= 0 
+                  && !ident.startsWith("l_") 
+                  //&& !/^L\d+$/.test(ident)
+                  && !ident.startsWith('funcsize_')
+                  && !ident.startsWith('funcend_')) {
                     symbolmap[ident] = ofs;
                 }
             }
@@ -232,14 +236,22 @@ export function linkLWLINK(step: BuildStep): BuildStepResult {
             }
         }
         // build listings
+        const re_segment = /\s*SECTION\s+(\w+)/i;
+        const re_function = /\s*([0-9a-f]+).+?(\w+)\s+EQU\s+[*]/i;
         var listings: CodeListingMap = {};
         for (var fn of step.files) {
             if (fn.endsWith('.lst')) {
                 // TODO
                 var lstout = FS.readFile(fn, { encoding: 'utf8' });
-                var asmlines = parseListing(lstout, /^([0-9A-F]+)\s+([0-9A-F]+)\s+[(]\s*(.+?)[)]:(\d+) (.*)/i, 4, 1, 2, 3);
+                var asmlines = parseListing(lstout, /^([0-9A-F]+)\s+([0-9A-F]+)\s+[(]\s*(.+?)[)]:(\d+) (.*)/i, 4, 1, 2, 3, re_function, re_segment);
+                for (let l of asmlines) {
+                    l.offset += symbolmap[l.func] || 0;
+                }
                 // * Line //threed.c:117: init of variable e
-                var srclines = parseSourceLines(lstout, /Line .+?:(\d+)/i, /^([0-9A-F]{4})/i);
+                var srclines = parseSourceLines(lstout, /Line .+?:(\d+)/i, /^([0-9A-F]{4})/i, re_function, re_segment);
+                for (let l of srclines) {
+                    l.offset += symbolmap[l.func] || 0;
+                }
                 putWorkFile(fn, lstout);
                 // strip out left margin
                 lstout = lstout.split('\n').map(l => l.substring(0,15) + l.substring(56)).join('\n')
