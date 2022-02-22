@@ -29,12 +29,14 @@ jobs:
     - run: npm run build --if-present
   test:
     needs: build
+    runs-on: ubuntu-latest
     steps:
     - run: npm test
       env:
         TEST8BIT_GITHUB_TOKEN: ${{ secrets.TEST8BIT_GITHUB_TOKEN }}
   deploy:
     needs: test
+    runs-on: ubuntu-latest
     steps:
     - run: make distro
     - name: Deploy
