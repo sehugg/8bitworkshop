@@ -15,6 +15,7 @@ var WilliamsPlatform = function(mainElement, proto, options) {
   var self = this;
   this.__proto__ = new (proto ? proto : Base6809Platform)();
 
+  options = options || {};
   var isDefender = options.isDefender;
   var SCREEN_HEIGHT = 304;
   var SCREEN_WIDTH = 256;
