@@ -860,10 +860,22 @@ exports.extractErrors = extractErrors;
 exports.re_crlf = /\r?\n/;
 //    1   %line 16+1 hello.asm
 exports.re_lineoffset = /\s*(\d+)\s+[%]line\s+(\d+)\+(\d+)\s+(.+)/;
-function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles) {
+function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles, funcMatch, segMatch) {
     var lines = [];
     var lineofs = 0;
+    var segment = '';
+    var func = '';
+    var funcbase = 0;
     code.split(exports.re_crlf).forEach((line, lineindex) => {
+        let segm = segMatch && segMatch.exec(line);
+        if (segm) {
+            segment = segm[1];
+        }
+        let funcm = funcMatch && funcMatch.exec(line);
+        if (funcm) {
+            funcbase = parseInt(funcm[1], 16);
+            func = funcm[2];
+        }
         var linem = lineMatch.exec(line);
         if (linem && linem[1]) {
             var linenum = iline < 0 ? lineindex : parseInt(linem[iline]);
@@ -874,10 +886,12 @@ function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles) {
             if (insns) {
                 lines.push({
                     line: linenum + lineofs,
-                    offset: offset,
-                    insns: insns,
-                    cycles: cycles,
-                    iscode: iscode
+                    offset: offset - funcbase,
+                    insns,
+                    cycles,
+                    iscode,
+                    segment,
+                    func
                 });
             }
         }
@@ -892,10 +906,22 @@ function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles) {
     return lines;
 }
 exports.parseListing = parseListing;
-function parseSourceLines(code, lineMatch, offsetMatch) {
+function parseSourceLines(code, lineMatch, offsetMatch, funcMatch, segMatch) {
     var lines = [];
     var lastlinenum = 0;
+    var segment = '';
+    var func = '';
+    var funcbase = 0;
     for (var line of code.split(exports.re_crlf)) {
+        let segm = segMatch && segMatch.exec(line);
+        if (segm) {
+            segment = segm[1];
+        }
+        let funcm = funcMatch && funcMatch.exec(line);
+        if (funcm) {
+            funcbase = parseInt(funcm[1], 16);
+            func = funcm[2];
+        }
         var linem = lineMatch.exec(line);
         if (linem && linem[1]) {
             lastlinenum = parseInt(linem[1]);
@@ -906,7 +932,9 @@ function parseSourceLines(code, lineMatch, offsetMatch) {
                 var offset = parseInt(linem[1], 16);
                 lines.push({
                     line: lastlinenum,
-                    offset: offset,
+                    offset: offset - funcbase,
+                    segment,
+                    func
                 });
                 lastlinenum = 0;
             }

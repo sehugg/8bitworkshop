@@ -7,6 +7,8 @@ export interface SourceLocation {
   path?: string; // TODO: make mandatory?
   start?: number;
   end?: number;
+  segment?:string;
+  func?:string;
 }
 
 // actually it's a kind of SourceSnippet .. can have multiple per line

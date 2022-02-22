@@ -67,13 +67,13 @@ int main(void) {
   for (i=0; i<152; i++) {
     vidmem[0][i] = 16;
     vidmem[i][2] = 32;
-    blit_pixel(i, i, 0x77);
-    blit_pixel(i+1, i, 0x33);
+    draw_pixel(i, i, 0x77);
+    draw_pixel(i+1, i, 0x33);
   }
   while (1) {
     watchdog0x39 = 0x39;
-    draw_sprite(sprite1, 35, 20);
-    draw_sprite_solid(sprite1, 55, 20, 0x24);
+    blit_sprite(sprite1, 35, 20);
+    blit_sprite_solid(sprite1, 55, 20, 0x24);
     blit_solid(75, 20, 40, 20, 0x35);
     draw_string("HELLO WORLD", 20, 5, 0x88);
   }

@@ -10,9 +10,11 @@ var WILLIAMS_PRESETS = [
     { id: 'game1.c', name: 'Raster Paranoia Game' },
     { id: 'bitmap_rle.c', name: 'RLE Bitmap' },
 ];
-var WilliamsPlatform = function (mainElement, proto, isDefender) {
+var WilliamsPlatform = function (mainElement, proto, options) {
     var self = this;
     this.__proto__ = new (proto ? proto : baseplatform_1.Base6809Platform)();
+    options = options || {};
+    var isDefender = options.isDefender;
     var SCREEN_HEIGHT = 304;
     var SCREEN_WIDTH = 256;
     var cpu, ram, rom, nvram;
@@ -287,7 +289,8 @@ var WilliamsPlatform = function (mainElement, proto, isDefender) {
         worker = new Worker("./src/common/audio/z80worker.js");
         workerchannel = new audio_1.WorkerSoundChannel(worker);
         audio.master.addChannel(workerchannel);
-        video = new emu_1.RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, { rotate: -90 });
+        let rotate = options.rotate == null ? -90 : parseFloat(options.rotate);
+        video = new emu_1.RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, { rotate });
         video.create();
         $(video.canvas).click(function (e) {
             var x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
@@ -416,11 +419,11 @@ var WilliamsPlatform = function (mainElement, proto, isDefender) {
             ] };
     };
 };
-var Williams6809Platform = function (mainElement) {
-    this.__proto__ = new WilliamsPlatform(mainElement, null, false);
+var Williams6809Platform = function (mainElement, options) {
+    this.__proto__ = new WilliamsPlatform(mainElement, null, options);
 };
-var WilliamsZ80Platform = function (mainElement) {
-    this.__proto__ = new WilliamsPlatform(mainElement, baseplatform_1.BaseZ80Platform, false);
+var WilliamsZ80Platform = function (mainElement, options) {
+    this.__proto__ = new WilliamsPlatform(mainElement, baseplatform_1.BaseZ80Platform, options);
     // Z80 @ 4 MHz
     // also scale bitblt clocks
     this.scaleCPUFrequency(4);
@@ -436,8 +439,8 @@ var WilliamsZ80Platform = function (mainElement) {
             + " f:" + (0, util_1.hex)(blt[0]) + " s:" + (0, util_1.hex)(blt[1]);
     };
 };
-var WilliamsDefenderPlatform = function (mainElement) {
-    this.__proto__ = new WilliamsPlatform(mainElement, null, true);
+var WilliamsDefenderPlatform = function (mainElement, options) {
+    this.__proto__ = new WilliamsPlatform(mainElement, null, { isDefender: true });
     this.getMemoryMap = function () {
         return { main: [
                 { name: 'NVRAM', start: 0x400, size: 0x200, type: 'ram' },

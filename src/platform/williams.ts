@@ -11,10 +11,12 @@ var WILLIAMS_PRESETS = [
   { id: 'bitmap_rle.c', name: 'RLE Bitmap' },
 ];
 
-var WilliamsPlatform = function(mainElement, proto, isDefender) {
+var WilliamsPlatform = function(mainElement, proto, options) {
   var self = this;
   this.__proto__ = new (proto ? proto : Base6809Platform)();
 
+  options = options || {};
+  var isDefender = options.isDefender;
   var SCREEN_HEIGHT = 304;
   var SCREEN_WIDTH = 256;
 
@@ -302,7 +304,8 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
     workerchannel = new WorkerSoundChannel(worker);
     audio.master.addChannel(workerchannel);
 
-    video = new RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, { rotate: -90 });
+    let rotate = options.rotate == null ? -90 : parseFloat(options.rotate);
+    video = new RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, { rotate });
     video.create();
     $(video.canvas).click(function(e) {
       var x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
@@ -432,12 +435,12 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
   ] } };
 }
 
-var Williams6809Platform = function(mainElement) {
-  this.__proto__ = new WilliamsPlatform(mainElement, null, false);
+var Williams6809Platform = function(mainElement, options) {
+  this.__proto__ = new WilliamsPlatform(mainElement, null, options);
 }
 
-var WilliamsZ80Platform = function(mainElement) {
-  this.__proto__ = new WilliamsPlatform(mainElement, BaseZ80Platform, false);
+var WilliamsZ80Platform = function(mainElement, options) {
+  this.__proto__ = new WilliamsPlatform(mainElement, BaseZ80Platform, options);
 
   // Z80 @ 4 MHz
   // also scale bitblt clocks
@@ -456,8 +459,8 @@ var WilliamsZ80Platform = function(mainElement) {
   }
 }
 
-var WilliamsDefenderPlatform = function(mainElement) {
-  this.__proto__ = new WilliamsPlatform(mainElement, null, true);
+var WilliamsDefenderPlatform = function(mainElement, options) {
+  this.__proto__ = new WilliamsPlatform(mainElement, null, {isDefender:true});
   this.getMemoryMap = function() { return { main:[
     {name:'NVRAM',start:0x400,size:0x200,type:'ram'},
     {name:'Video RAM',start:0x0000,size:0xc000,type:'ram'},

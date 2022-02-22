@@ -10212,7 +10212,6 @@
       return { errors };
     var aout = FS.readFile(binpath, { encoding: "binary" });
     if (aout.length == 0) {
-      console.log(alst);
       errors.push({ line: 0, msg: "Empty output file" });
       return { errors };
     }
@@ -10285,7 +10284,6 @@
         asmout = asmout.replace("stack space in bytes", `
  lds #${step.params.set_stack_end}
 `);
-      console.log(asmout);
       putWorkFile(destpath, asmout);
     }
     return {
@@ -10380,7 +10378,7 @@
         if (toks[0] == "Symbol:") {
           let ident = toks[1];
           let ofs = parseInt(toks[4], 16);
-          if (ident && ofs >= 0 && !ident.startsWith("l_") && !/^L\d+$/.test(ident)) {
+          if (ident && ofs >= 0 && !ident.startsWith("l_") && !ident.startsWith("funcsize_") && !ident.startsWith("funcend_")) {
             symbolmap[ident] = ofs;
           }
         } else if (toks[0] == "Section:") {
@@ -10390,12 +10388,20 @@
           segments.push({ name: seg, start: segstart, size: segsize });
         }
       }
+      const re_segment = /\s*SECTION\s+(\w+)/i;
+      const re_function = /\s*([0-9a-f]+).+?(\w+)\s+EQU\s+[*]/i;
       var listings = {};
       for (var fn of step.files) {
         if (fn.endsWith(".lst")) {
           var lstout = FS.readFile(fn, { encoding: "utf8" });
-          var asmlines = parseListing(lstout, /^([0-9A-F]+)\s+([0-9A-F]+)\s+[(]\s*(.+?)[)]:(\d+) (.*)/i, 4, 1, 2, 3);
-          var srclines = parseSourceLines(lstout, /Line .+?:(\d+)/i, /^([0-9A-F]{4})/i);
+          var asmlines = parseListing(lstout, /^([0-9A-F]+)\s+([0-9A-F]+)\s+[(]\s*(.+?)[)]:(\d+) (.*)/i, 4, 1, 2, 3, re_function, re_segment);
+          for (let l of asmlines) {
+            l.offset += symbolmap[l.func] || 0;
+          }
+          var srclines = parseSourceLines(lstout, /Line .+?:(\d+)/i, /^([0-9A-F]{4})/i, re_function, re_segment);
+          for (let l of srclines) {
+            l.offset += symbolmap[l.func] || 0;
+          }
           putWorkFile(fn, lstout);
           lstout = lstout.split("\n").map((l) => l.substring(0, 15) + l.substring(56)).join("\n");
           listings[fn] = {
@@ -23712,10 +23718,22 @@ ${super.toString()}
   }
   var re_crlf = /\r?\n/;
   var re_lineoffset = /\s*(\d+)\s+[%]line\s+(\d+)\+(\d+)\s+(.+)/;
-  function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles) {
+  function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles, funcMatch, segMatch) {
     var lines = [];
     var lineofs = 0;
+    var segment = "";
+    var func = "";
+    var funcbase = 0;
     code.split(re_crlf).forEach((line, lineindex) => {
+      let segm = segMatch && segMatch.exec(line);
+      if (segm) {
+        segment = segm[1];
+      }
+      let funcm = funcMatch && funcMatch.exec(line);
+      if (funcm) {
+        funcbase = parseInt(funcm[1], 16);
+        func = funcm[2];
+      }
       var linem = lineMatch.exec(line);
       if (linem && linem[1]) {
         var linenum = iline < 0 ? lineindex : parseInt(linem[iline]);
@@ -23726,10 +23744,12 @@ ${super.toString()}
         if (insns) {
           lines.push({
             line: linenum + lineofs,
-            offset: offset2,
+            offset: offset2 - funcbase,
             insns,
             cycles,
-            iscode
+            iscode,
+            segment,
+            func
           });
         }
       } else {
@@ -23741,10 +23761,22 @@ ${super.toString()}
     });
     return lines;
   }
-  function parseSourceLines(code, lineMatch, offsetMatch) {
+  function parseSourceLines(code, lineMatch, offsetMatch, funcMatch, segMatch) {
     var lines = [];
     var lastlinenum = 0;
+    var segment = "";
+    var func = "";
+    var funcbase = 0;
     for (var line of code.split(re_crlf)) {
+      let segm = segMatch && segMatch.exec(line);
+      if (segm) {
+        segment = segm[1];
+      }
+      let funcm = funcMatch && funcMatch.exec(line);
+      if (funcm) {
+        funcbase = parseInt(funcm[1], 16);
+        func = funcm[2];
+      }
       var linem = lineMatch.exec(line);
       if (linem && linem[1]) {
         lastlinenum = parseInt(linem[1]);
@@ -23754,7 +23786,9 @@ ${super.toString()}
           var offset2 = parseInt(linem[1], 16);
           lines.push({
             line: lastlinenum,
-            offset: offset2
+            offset: offset2 - funcbase,
+            segment,
+            func
           });
           lastlinenum = 0;
         }
