@@ -1,0 +1,31 @@
+
+component KernelSection
+  lines: 1..255
+end
+
+component BGColor
+  color: 0..255
+end
+
+component FGColor
+  color: 0..255
+end
+
+demo Main
+  entity [KernelSection,BGColor]
+    const lines = 2
+    const color = $18
+  end
+  entity [KernelSection,BGColor,FGColor]
+    const lines = 2
+    const color = $16
+  end
+  entity [KernelSection,FGColor]
+    const lines = 2
+    const color = $16
+  end
+  entity [KernelSection,FGColor]
+    const lines = 2
+    const color = $16
+  end
+end

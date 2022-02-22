@@ -98,11 +98,19 @@ describe('Compiler', function() {
                 return readFileSync(testdir + path, 'utf-8');
             }
             let code = readFileSync(ecspath, 'utf-8');
-            compiler.parseFile(code, ecspath);
-            // TODO: errors
-            let out = new SourceFileExport();
-            em.exportToFile(out);
-            let outtxt = out.toString();
+            var outtxt = '';
+            try {
+                compiler.parseFile(code, ecspath);
+                // TODO: errors
+                let out = new SourceFileExport();
+                em.exportToFile(out);
+                outtxt = out.toString();
+            } catch (e) {
+                outtxt = e.toString();
+                console.log(e);
+            }
+            if (compiler.errors.length)
+                outtxt = compiler.errors.map(e => `${e.line}:${e.msg}`).join('\n');
             let goodtxt = existsSync(goodpath) ? readFileSync(goodpath, 'utf-8') : '';
             if (outtxt.trim() != goodtxt.trim()) {
                 let asmpath = '/tmp/' + asmfn;

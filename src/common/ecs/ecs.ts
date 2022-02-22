@@ -1594,19 +1594,20 @@ export class EntityManager {
     }
     defineComponent(ctype: ComponentType) {
         let existing = this.components[ctype.name];
+        // we can defer component definitions, just declare a component with 0 fields?
         if (existing && existing.fields.length > 0)
             throw new ECSError(`component ${ctype.name} already defined`, existing);
+        if (existing) {
+            existing.fields = ctype.fields;
+            ctype = existing;
+        }
         for (let field of ctype.fields) {
             let list = this.name2cfpairs[field.name];
             if (!list) list = this.name2cfpairs[field.name] = [];
             list.push({ c: ctype, f: field });
         }
-        if (existing) {
-            existing.fields = ctype.fields;
-            return existing;
-        } else {
-            return this.components[ctype.name] = ctype;
-        }
+        this.components[ctype.name] = ctype;
+        return ctype;
     }
     defineSystem(system: System) {
         let existing = this.systems[system.name];
@@ -1669,15 +1670,15 @@ export class EntityManager {
         return this.systems[name];
     }
     singleComponentWithFieldName(atypes: EntityArchetype[], fieldName: string, where: SourceLocated) {
-        let components = this.componentsWithFieldName(atypes, fieldName);
-        // TODO: use name2cfpairs?
-        if (components.length == 0) {
+        let cfpairs = this.name2cfpairs[fieldName];
+        let filtered = cfpairs.filter(cf => atypes.find(a => a.components.includes(cf.c)));
+        if (filtered.length == 0) {
             throw new ECSError(`cannot find component with field "${fieldName}"`, where);
         }
-        if (components.length > 1) {
+        if (filtered.length > 1) {
             throw new ECSError(`ambiguous field name "${fieldName}"`, where);
         }
-        return components[0];
+        return filtered[0].c;
     }
     toJSON() {
         return JSON.stringify({
