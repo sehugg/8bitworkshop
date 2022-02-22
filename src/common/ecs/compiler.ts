@@ -139,11 +139,16 @@ export class ECSCompiler extends Tokenizer {
             let lo = this.expectInteger();
             this.expectToken('..');
             let hi = this.expectInteger();
+            this.checkLowerLimit(lo, -0x80000000, "lower int range");
+            this.checkUpperLimit(hi, 0x7fffffff, "upper int range");
+            this.checkUpperLimit(hi-lo, 0xffffffff, "int range");
+            this.checkLowerLimit(hi, lo, "int range");
             // TODO: use default value?
             let defvalue;
             if (this.ifToken('default')) {
                 defvalue = this.expectInteger();
             }
+            // TODO: check types
             return { dtype: 'int', lo, hi, defvalue } as IntType;
         }
         if (this.peekToken().str == '[') {
@@ -159,16 +164,66 @@ export class ECSCompiler extends Tokenizer {
             let baseoffset;
             if (this.ifToken('baseoffset')) {
                 baseoffset = this.expectInteger();
+                this.checkLowerLimit(baseoffset, -32768, "base offset");
+                this.checkUpperLimit(baseoffset, 32767, "base offset");
             }
             return { dtype: 'array', index, elem, baseoffset } as ArrayType;
+        }
+        if (this.ifToken('enum')) {
+            this.expectToken('[');
+            let enumtoks = this.parseList(this.parseEnumIdent, ',');
+            this.expectToken(']');
+            if (enumtoks.length == 0) this.compileError(`must define at least one enum`);
+            let lo = 0;
+            let hi = enumtoks.length-1;
+            this.checkLowerLimit(hi, 0, "enum count");
+            this.checkUpperLimit(hi, 255, "enum count");
+            let enums : {[name:string]:number} = {};
+            for (let i=0; i<=hi; i++)
+                enums[enumtoks[i].str] = i;
+            // TODO: use default value?
+            let defvalue;
+            if (this.ifToken('default')) {
+                defvalue = this.expectInteger();
+            }
+            return { dtype: 'int', lo, hi, defvalue, enums } as IntType;
         }
         this.compileError(`I expected a data type here.`); throw new Error();
     }
 
+    parseEnumIdent() {
+        let tok = this.expectTokenTypes([TokenType.Ident]);
+        return tok;
+    }
+    parseEnumValue(tok: Token, field: IntType) {
+        if (!field.enums) throw new ECSError(`field is not an enum`);
+        let value = field.enums[tok.str];
+        if (value == null) throw new ECSError(`unknown enum "${tok.str}"`);
+        return value;
+    }
+
     parseDataValue(field: DataField): DataValue | ForwardRef {
         let tok = this.peekToken();
-        if (tok.type == 'integer') {
+        if (tok.type == ECSTokenType.Integer) {
             return this.expectInteger();
+        }
+        if (tok.type == TokenType.Ident && field.dtype == 'int') {
+            return this.parseEnumValue(this.consumeToken(), field);
+        }
+        if (tok.type == TokenType.Ident) {
+            let entity = this.currentScope?.getEntityByName(tok.str);
+            if (!entity)
+                this.compileError('no entity named "${tok.str}"');
+            else {
+                this.consumeToken();
+                this.expectToken('.');
+                let fieldName = this.expectIdent().str;
+                let constValue = this.currentScope?.getConstValue(entity, fieldName);
+                if (constValue == null)
+                    throw new ECSError(`"${fieldName}" is not defined as a constant`, entity);
+                else
+                    return constValue;
+            }
         }
         if (tok.str == '[') {
             // TODO: 16-bit?
@@ -303,7 +358,10 @@ export class ECSCompiler extends Tokenizer {
             q.exclude.push(cref);
         } else if (prefix.str == '#') {
             const scope = this.currentScope;
-            if (scope == null) { this.internalError(); throw new Error(); }
+            if (scope == null) {
+                this.compileError('You can only reference specific entities inside of a scope.');
+                throw new Error();
+            }
             let eref = this.parseEntityForwardRef();
             this.deferred.push(() => {
                 let refvalue = this.resolveEntityRef(scope, eref);
@@ -537,7 +595,16 @@ export class ECSCompiler extends Tokenizer {
         this.exportToFile(src);
         return src.toString();
     }
+
+    checkUpperLimit(value: number, upper: number, what: string) {
+        if (value > upper) this.compileError(`This ${what} is too high; must be ${upper} or less`);
+    }
+    checkLowerLimit(value: number, lower: number, what: string) {
+        if (value < lower) this.compileError(`This ${what} is too low; must be ${lower} or more`);
+    }
 }
+
+///
 
 export class ECSActionCompiler extends Tokenizer {
     constructor(

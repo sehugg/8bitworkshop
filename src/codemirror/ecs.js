@@ -19,6 +19,7 @@
     var directives_list = [
       'end', 'component', 'system', 'entity', 'scope', 'using', 'demo', 'decode', 'resource',
       'const', 'locals', 'var',
+      'enum', 'default', 'array', 'baseoffset', 'critical',
       'on', 'do', 'emit', 'limit',
       'once', 'foreach', 'with', 'join', 'if',
     ];

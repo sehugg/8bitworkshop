@@ -157,6 +157,7 @@ export interface IntType {
     lo: number
     hi: number
     defvalue?: number
+    enums?: { [name: string] : number }
 }
 
 export interface ArrayType {
@@ -415,6 +416,7 @@ class DataSegment {
             this.ofs2sym.set(ofs, []);
         this.ofs2sym.get(ofs)?.push(name);
     }
+    // TODO: ordering should not matter, but it does
     findExistingInitData(bytes: Uint8Array) {
         for (let i=0; i<this.size - bytes.length; i++) {
             for (var j=0; j<bytes.length; j++) {
@@ -475,7 +477,9 @@ class UninitDataSegment extends DataSegment {
 class ConstDataSegment extends DataSegment {
 }
 
+// TODO: none of this makes sense
 function getFieldBits(f: IntType) {
+    //let n = Math.abs(f.lo) + f.hi + 1;
     let n = f.hi - f.lo + 1;
     return Math.ceil(Math.log2(n));
 }
@@ -1340,6 +1344,11 @@ export class EntityScope implements SourceLocated {
     isConstOrInit(component: ComponentType, fieldName: string) : 'const' | 'init' {
         return this.fieldtypes[mksymbol(component, fieldName)];
     }
+    getConstValue(entity: Entity, fieldName: string) {
+        let component = this.em.singleComponentWithFieldName([entity.etype], fieldName, entity);
+        let cfname = mksymbol(component, fieldName);
+        return entity.consts[cfname];
+    }
     checkFieldValue(field: DataField, value: DataValue) {
         if (field.dtype == 'array') {
             if (!(value instanceof Uint8Array))
@@ -1671,9 +1680,10 @@ export class EntityManager {
     }
     singleComponentWithFieldName(atypes: EntityArchetype[], fieldName: string, where: SourceLocated) {
         let cfpairs = this.name2cfpairs[fieldName];
+        if (!cfpairs) throw new ECSError(`cannot find field named "${fieldName}"`, where);
         let filtered = cfpairs.filter(cf => atypes.find(a => a.components.includes(cf.c)));
         if (filtered.length == 0) {
-            throw new ECSError(`cannot find component with field "${fieldName}"`, where);
+            throw new ECSError(`cannot find component with field "${fieldName}" in this context`, where);
         }
         if (filtered.length > 1) {
             throw new ECSError(`ambiguous field name "${fieldName}"`, where);
