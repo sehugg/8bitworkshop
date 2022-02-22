@@ -33,3 +33,9 @@ jobs:
     - run: npm test
       env:
         TEST8BIT_GITHUB_TOKEN: ${{ secrets.TEST8BIT_GITHUB_TOKEN }}
+    - run: make distro
+    - name: Deploy
+      uses: JamesIves/github-pages-deploy-action@v4.2.5
+      with:
+        branch: gh-pages
+        folder: tmp/dist

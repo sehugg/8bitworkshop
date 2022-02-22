@@ -13,6 +13,7 @@ import { SampledAudio } from "./audio";
 import { ProbeRecorder } from "./recorder";
 import { BaseWASMMachine } from "./wasmplatform";
 import { CPU6809 } from "./cpu/6809";
+import { _MOS6502 } from "./cpu/MOS6502";
 
 ///
 
@@ -449,7 +450,7 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
   abstract readAddress(addr:number) : number;
 
   newCPU(membus : MemoryBus) {
-    var cpu = new jt.M6502();
+    var cpu = new _MOS6502();
     cpu.connectBus(membus);
     return cpu;
   }

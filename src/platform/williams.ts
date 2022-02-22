@@ -11,10 +11,11 @@ var WILLIAMS_PRESETS = [
   { id: 'bitmap_rle.c', name: 'RLE Bitmap' },
 ];
 
-var WilliamsPlatform = function(mainElement, proto, isDefender) {
+var WilliamsPlatform = function(mainElement, proto, options) {
   var self = this;
   this.__proto__ = new (proto ? proto : Base6809Platform)();
 
+  var isDefender = options.isDefender;
   var SCREEN_HEIGHT = 304;
   var SCREEN_WIDTH = 256;
 
@@ -98,7 +99,7 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
 
   var iowrite_defender = newAddressDecoder([
     [0x0, 0xf, 0xf, setPalette],
-    [0x3fc, 0x3ff, 0, function(a, v) { if (v == 0x38) watchdog_counter = INITIAL_WATCHDOG; }],
+    [0x3fc, 0x3ff, 0, function(a, v) { if (v == 0x38) watchdog_counter = INITIAL_WATCHDOG; watchdog_enabled=true; }],
     [0x400, 0x5ff, 0x1ff, function(a, v) { nvram.mem[a] = v; }],
     [0xc02, 0xc02, 0x1, function(a, v) { if (worker) worker.postMessage({ command: v & 0x3f }); }],
     [0xc00, 0xc07, 0x7, function(a, v) { pia6821[a] = v; }],
@@ -145,7 +146,7 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
     //[0x80c, 0x80f, 0x3,   function(a,v) { console.log('iowrite',a+4); }], // TODO: sound
     [0x900, 0x9ff, 0, function(a, v) { banksel = v & 0x1; }],
     [0xa00, 0xa07, 0x7, setBlitter],
-    [0xbff, 0xbff, 0, function(a, v) { if (v == 0x39) watchdog_counter = INITIAL_WATCHDOG; }],
+    [0xbff, 0xbff, 0, function(a, v) { if (v == 0x39) { watchdog_counter = INITIAL_WATCHDOG; watchdog_enabled=true; } }],
     [0xc00, 0xfff, 0x3ff, function(a, v) { nvram.mem[a] = v; }],
     //[0x0,   0xfff, 0,     function(a,v) { console.log('iowrite',hex(a),hex(v)); }],
   ]);
@@ -302,7 +303,8 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
     workerchannel = new WorkerSoundChannel(worker);
     audio.master.addChannel(workerchannel);
 
-    video = new RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, { rotate: -90 });
+    let rotate = options.rotate == null ? -90 : parseFloat(options.rotate);
+    video = new RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, { rotate });
     video.create();
     $(video.canvas).click(function(e) {
       var x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
@@ -418,6 +420,7 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
   this.reset = function() {
     cpu.reset();
     watchdog_counter = INITIAL_WATCHDOG;
+    watchdog_enabled = false;
     banksel = 1;
   }
   this.scaleCPUFrequency = function(scale) {
@@ -431,8 +434,12 @@ var WilliamsPlatform = function(mainElement, proto, isDefender) {
   ] } };
 }
 
-var WilliamsZ80Platform = function(mainElement) {
-  this.__proto__ = new WilliamsPlatform(mainElement, BaseZ80Platform, false);
+var Williams6809Platform = function(mainElement, options) {
+  this.__proto__ = new WilliamsPlatform(mainElement, null, options);
+}
+
+var WilliamsZ80Platform = function(mainElement, options) {
+  this.__proto__ = new WilliamsPlatform(mainElement, BaseZ80Platform, options);
 
   // Z80 @ 4 MHz
   // also scale bitblt clocks
@@ -451,8 +458,8 @@ var WilliamsZ80Platform = function(mainElement) {
   }
 }
 
-var WilliamsDefenderPlatform = function(mainElement) {
-  this.__proto__ = new WilliamsPlatform(mainElement, null, true);
+var WilliamsDefenderPlatform = function(mainElement, options) {
+  this.__proto__ = new WilliamsPlatform(mainElement, null, {isDefender:true});
   this.getMemoryMap = function() { return { main:[
     {name:'NVRAM',start:0x400,size:0x200,type:'ram'},
     {name:'Video RAM',start:0x0000,size:0xc000,type:'ram'},
@@ -461,7 +468,7 @@ var WilliamsDefenderPlatform = function(mainElement) {
 ] } };
 }
 
-PLATFORMS['williams'] = WilliamsPlatform;
+PLATFORMS['williams'] = Williams6809Platform;
 PLATFORMS['williams-defender'] = WilliamsDefenderPlatform;
 PLATFORMS['williams-z80'] = WilliamsZ80Platform;
 

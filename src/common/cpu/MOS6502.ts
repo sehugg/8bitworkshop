@@ -3,7 +3,7 @@ import { CPU, Bus, ClockBased, SavesState, Interruptable } from "../devices";
 
 // Copyright 2015 by Paulo Augusto Peccin. See license.txt distributed with this file.
 
-var _MOS6502 = function() {
+export var _MOS6502 = function() {
     var self = this;
 
     this.powerOn = function() {

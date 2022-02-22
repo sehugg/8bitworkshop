@@ -1,12 +1,12 @@
 # 8bitworkshop
 
-![example workflow](https://github.com/sehugg/8bitworkshop/actions/workflows/node.js.yml/badge.svg)
+![Build Status](https://github.com/sehugg/8bitworkshop/actions/workflows/node.js.yml/badge.svg)
 
 
 ## Use Online
 
 * Latest release: https://8bitworkshop.com/
-* Dev build: https://8bitworkshop.com/dev/
+* Latest Github build: https://sehugg.github.io/8bitworkshop/
 
 ## Install Locally
 
@@ -35,11 +35,11 @@ make tsweb
 npm test
 ```
 
-Note: Github tests may fail due to lack of permissions.
+Note: Github tests may fail due to lack of API key.
 
 ## License
 
-Copyright © 2016-2021 [Steven Hugg](https://github.com/sehugg).
+Copyright © 2016-2022 [Steven Hugg](https://github.com/sehugg).
 
 This project is [GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE) licensed.
 

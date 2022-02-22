@@ -30,6 +30,7 @@ declare var $ : JQueryStatic; // use browser jquery
 
 interface UIQueryString {
   platform? : string;
+  options?: string;
   repo? : string;
   file? : string;
   electron? : string;
@@ -643,7 +644,7 @@ async function getGithubService() {
     // load firebase
     await loadScript('https://www.gstatic.com/firebasejs/8.8.1/firebase-app.js');
     await loadScript('https://www.gstatic.com/firebasejs/8.8.1/firebase-auth.js');
-    await loadScript('./config.js');
+    await loadScript('https://8bitworkshop.com/config.js');
     // get github API key from cookie
     // TODO: move to service?
     var ghkey = getCookie('__github_key');
@@ -2216,7 +2217,9 @@ function installGAHooks() {
 
 async function startPlatform() {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
-  platform = new PLATFORMS[platform_id]($("#emuscreen")[0]);
+  let emudiv = $("#emuscreen")[0];
+  let options = decodeQueryString(qs.options || '');
+  platform = new PLATFORMS[platform_id](emudiv, options);
   setPlatformUI();
   stateRecorder = new StateRecorderImpl(platform);
   PRESETS = platform.getPresets ? platform.getPresets() : [];

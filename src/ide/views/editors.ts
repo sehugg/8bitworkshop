@@ -77,6 +77,12 @@ export class SourceEditor implements ProjectView {
     return div;
   }
 
+  setVisible(showing: boolean): void {
+    if (showing) {
+      this.editor.focus(); // so that keyboard works when moving between files
+    }
+  }
+
   newEditor(parent:HTMLElement, isAsmOverride?:boolean) {
     var modedef = MODEDEFS[this.mode] || MODEDEFS.default;
     var isAsm = isAsmOverride || modedef.isAsm;
@@ -602,5 +608,5 @@ export class ListingView extends DisassemblerView implements ProjectView {
       }
     }
   }
-}
 
+}
