@@ -1,0 +1,20 @@
+;https://www.pagetable.com/?p=926
+ processor 6502
+ org $fff
+ .word $1001
+ .word basic
+basic:
+ .word 0
+start:
+ ldy #0
+Loop:
+ lda MSG,y
+ beq Wait
+ JSR $FFD2
+ iny
+ bne Loop
+Wait:
+ jmp Wait
+MSG:
+ .byte "HELLO WORLD"
+ .byte 0
