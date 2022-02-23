@@ -3,7 +3,7 @@
 .code
 __Start:
 
-;;; start action Init 2 main_init
+;;; start action Init__main_init__1
 
 .include "vcs-ca65.h"
 .macpack longbranch
@@ -13,11 +13,11 @@ __Reset:
 __BRK:
     CLEAN_START
 
-;;; start action Demo 1 start
+;;; start action Demo__start__2
 
     jmp Title__Start
     
-;;; end action Demo 1 start
+;;; end action Demo__start__2
 	; start main routine
 .segment "VECTORS"
 Return:    .word $6060
@@ -25,7 +25,7 @@ VecNMI:
 VecReset:  .word Main::__Reset
 VecBRK:    .word Main::__BRK
 
-;;; end action Init 2 main_init
+;;; end action Init__main_init__1
 
 .scope Title
 .zeropage
@@ -304,50 +304,50 @@ Bitmap48_height_b0:
 .byte 36
 __Start:
 
-;;; start action FrameLoop 1 start
+;;; start action FrameLoop__start__3
 
 FrameLoop__start__3__NextFrame:
     FRAME_START
     
-;;; start action StaticKernel 3 preframe
+;;; start action StaticKernel__preframe__4
 
     
-;;; start action Kernel48Pixel 2 kernelsetup
+;;; start action Kernel48Pixel__kernelsetup__5
 
-;;; end action Kernel48Pixel 2 kernelsetup
+;;; end action Kernel48Pixel__kernelsetup__5
 
-;;; start action Kernel48Pixel 2 kernelsetup
+;;; start action Kernel48Pixel__kernelsetup__6
 
-;;; end action Kernel48Pixel 2 kernelsetup
+;;; end action Kernel48Pixel__kernelsetup__6
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__7
 
     lda #160
     sta COLUBK
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__7
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__8
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__8
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__9
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__9
 
 
-;;; end action StaticKernel 3 preframe
+;;; end action StaticKernel__preframe__4
 
     KERNEL_START
     
-;;; start action StaticKernel 3 kernel
+;;; start action StaticKernel__kernel__10
 
     ldx #0
 StaticKernel__kernel__10____each:
     
     sta WSYNC
     
-;;; start action Kernel48Pixel 2 kernelsetup
+;;; start action Kernel48Pixel__kernelsetup__11
 
     cpx #2+1
     jcs Kernel48Pixel__kernelsetup__11____skipxhi
@@ -382,9 +382,9 @@ Kernel48Pixel__kernelsetup__11____skipxlo:
 
 Kernel48Pixel__kernelsetup__11____skipxhi:
 
-;;; end action Kernel48Pixel 2 kernelsetup
+;;; end action Kernel48Pixel__kernelsetup__11
 
-;;; start action Kernel48Pixel 2 kernelsetup
+;;; start action Kernel48Pixel__kernelsetup__12
 
     cpx #2+1
     jcs Kernel48Pixel__kernelsetup__12____skipxhi
@@ -400,16 +400,16 @@ Kernel48Pixel__kernelsetup__12____skipxlo:
 
 Kernel48Pixel__kernelsetup__12____skipxhi:
 
-;;; end action Kernel48Pixel 2 kernelsetup
+;;; end action Kernel48Pixel__kernelsetup__12
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__13
 
     lda BGColor_bgcolor_b0,x
     sta COLUBK
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__13
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__14
 
     cpx #2+1
     jcs StaticKernel__kernelsetup__14____skipxhi
@@ -424,14 +424,61 @@ StaticKernel__kernelsetup__14____skipxlo:
 
 StaticKernel__kernelsetup__14____skipxhi:
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__14
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__15
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__15
 
     
-;;; start action Kernel48Pixel 2 kerneldraw
+ jsr Kernel48Pixel__kerneldraw__16
+
+;;; start action StaticKernel__kerneldraw__17
+
+    ldy KernelSection_lines_b0,x
+StaticKernel__kerneldraw__17__loop:
+    sta WSYNC
+    
+    dey
+    bne StaticKernel__kerneldraw__17__loop
+
+;;; end action StaticKernel__kerneldraw__17
+
+    
+
+    inx
+    cpx #5
+    jne StaticKernel__kernel__10____each
+StaticKernel__kernel__10____exit:
+
+;;; end action StaticKernel__kernel__10
+
+    KERNEL_END
+    
+;;; start action JoyButton__postframe__18
+
+    lda INPT4	;read button input
+    bmi JoyButton__postframe__18__NotPressed
+    
+;;; start action Advance__joybutton__19
+
+      jmp Title2__Start
+      
+;;; end action Advance__joybutton__19
+
+JoyButton__postframe__18__NotPressed:
+
+;;; end action JoyButton__postframe__18
+
+    FRAME_END
+    
+    jmp FrameLoop__start__3__NextFrame    ; loop to next frame
+
+;;; end action FrameLoop__start__3
+.rodata
+__ALIGNORIGIN:
+.rodata
+Kernel48Pixel__kerneldraw__16:
 
     cpx #2+1
     jcs Kernel48Pixel__kerneldraw__16____skipxhi
@@ -468,51 +515,11 @@ Kernel48Pixel__kerneldraw__16____skipxlo:
 
 Kernel48Pixel__kerneldraw__16____skipxhi:
 
-;;; end action Kernel48Pixel 2 kerneldraw
+ rts
 
-;;; start action StaticKernel 3 kerneldraw
+.assert >(Kernel48Pixel__kerneldraw__16) = >(*), error, "Kernel48Pixel__kerneldraw__16 crosses a page boundary!"
 
-    ldy KernelSection_lines_b0,x
-StaticKernel__kerneldraw__17__loop:
-    sta WSYNC
-    
-    dey
-    bne StaticKernel__kerneldraw__17__loop
-
-;;; end action StaticKernel 3 kerneldraw
-
-    
-
-    inx
-    cpx #5
-    jne StaticKernel__kernel__10____each
-StaticKernel__kernel__10____exit:
-
-;;; end action StaticKernel 3 kernel
-
-    KERNEL_END
-    
-;;; start action JoyButton 4 postframe
-
-    lda INPT4	;read button input
-    bmi JoyButton__postframe__18__NotPressed
-    
-;;; start action Advance 5 joybutton
-
-      jmp Title2__Start
-      
-;;; end action Advance 5 joybutton
-
-JoyButton__postframe__18__NotPressed:
-
-;;; end action JoyButton 4 postframe
-
-    FRAME_END
-    
-    jmp FrameLoop__start__3__NextFrame    ; loop to next frame
-
-;;; end action FrameLoop 1 start
-
+.assert (* - Kernel48Pixel__kerneldraw__16) <= 63, error, .sprintf("Kernel48Pixel__kerneldraw__16 does not fit in 63 bytes, it took %d!", (* - Kernel48Pixel__kerneldraw__16))
 .endscope
 Title__Start = Title::__Start
 .scope Title2
@@ -847,50 +854,50 @@ __Start:
     dey
     bne :-
 
-;;; start action FrameLoop 1 start
+;;; start action FrameLoop__start__20
 
 FrameLoop__start__20__NextFrame:
     FRAME_START
     
-;;; start action StaticKernel 3 preframe
+;;; start action StaticKernel__preframe__21
 
     
-;;; start action Kernel48Pixel 2 kernelsetup
+;;; start action Kernel48Pixel__kernelsetup__22
 
-;;; end action Kernel48Pixel 2 kernelsetup
+;;; end action Kernel48Pixel__kernelsetup__22
 
-;;; start action Kernel48Pixel 2 kernelsetup
+;;; start action Kernel48Pixel__kernelsetup__23
 
-;;; end action Kernel48Pixel 2 kernelsetup
+;;; end action Kernel48Pixel__kernelsetup__23
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__24
 
     lda BGColor_bgcolor_b0
     sta COLUBK
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__24
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__25
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__25
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__26
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__26
 
 
-;;; end action StaticKernel 3 preframe
+;;; end action StaticKernel__preframe__21
 
     KERNEL_START
     
-;;; start action StaticKernel 3 kernel
+;;; start action StaticKernel__kernel__27
 
     ldx #0
 StaticKernel__kernel__27____each:
     
     sta WSYNC
     
-;;; start action Kernel48Pixel 2 kernelsetup
+;;; start action Kernel48Pixel__kernelsetup__28
 
     cpx #2+1
     jcs Kernel48Pixel__kernelsetup__28____skipxhi
@@ -925,9 +932,9 @@ Kernel48Pixel__kernelsetup__28____skipxlo:
 
 Kernel48Pixel__kernelsetup__28____skipxhi:
 
-;;; end action Kernel48Pixel 2 kernelsetup
+;;; end action Kernel48Pixel__kernelsetup__28
 
-;;; start action Kernel48Pixel 2 kernelsetup
+;;; start action Kernel48Pixel__kernelsetup__29
 
     cpx #2+1
     jcs Kernel48Pixel__kernelsetup__29____skipxhi
@@ -943,16 +950,16 @@ Kernel48Pixel__kernelsetup__29____skipxlo:
 
 Kernel48Pixel__kernelsetup__29____skipxhi:
 
-;;; end action Kernel48Pixel 2 kernelsetup
+;;; end action Kernel48Pixel__kernelsetup__29
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__30
 
     lda BGColor_bgcolor_b0,x
     sta COLUBK
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__30
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__31
 
     cpx #2+1
     jcs StaticKernel__kernelsetup__31____skipxhi
@@ -967,14 +974,56 @@ StaticKernel__kernelsetup__31____skipxlo:
 
 StaticKernel__kernelsetup__31____skipxhi:
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__31
 
-;;; start action StaticKernel 3 kernelsetup
+;;; start action StaticKernel__kernelsetup__32
 
-;;; end action StaticKernel 3 kernelsetup
+;;; end action StaticKernel__kernelsetup__32
 
     
-;;; start action Kernel48Pixel 2 kerneldraw
+ jsr Kernel48Pixel__kerneldraw__33
+
+;;; start action StaticKernel__kerneldraw__34
+
+    ldy KernelSection_lines_b0,x
+StaticKernel__kerneldraw__34__loop:
+    sta WSYNC
+    
+    dey
+    bne StaticKernel__kerneldraw__34__loop
+
+;;; end action StaticKernel__kerneldraw__34
+
+    
+
+    inx
+    cpx #5
+    jne StaticKernel__kernel__27____each
+StaticKernel__kernel__27____exit:
+
+;;; end action StaticKernel__kernel__27
+
+    KERNEL_END
+    
+;;; start action Colors__postframe__35
+
+    inc PFColor_pfcolor_b0
+    bne :+
+    inc BGColor_bgcolor_b0+2
+    inc BGColor_bgcolor_b0+2
+:
+
+;;; end action Colors__postframe__35
+
+    FRAME_END
+    
+    jmp FrameLoop__start__20__NextFrame    ; loop to next frame
+
+;;; end action FrameLoop__start__20
+.rodata
+__ALIGNORIGIN:
+.rodata
+Kernel48Pixel__kerneldraw__33:
 
     cpx #2+1
     jcs Kernel48Pixel__kerneldraw__33____skipxhi
@@ -1011,46 +1060,11 @@ Kernel48Pixel__kerneldraw__33____skipxlo:
 
 Kernel48Pixel__kerneldraw__33____skipxhi:
 
-;;; end action Kernel48Pixel 2 kerneldraw
+ rts
 
-;;; start action StaticKernel 3 kerneldraw
+.assert >(Kernel48Pixel__kerneldraw__33) = >(*), error, "Kernel48Pixel__kerneldraw__33 crosses a page boundary!"
 
-    ldy KernelSection_lines_b0,x
-StaticKernel__kerneldraw__34__loop:
-    sta WSYNC
-    
-    dey
-    bne StaticKernel__kerneldraw__34__loop
-
-;;; end action StaticKernel 3 kerneldraw
-
-    
-
-    inx
-    cpx #5
-    jne StaticKernel__kernel__27____each
-StaticKernel__kernel__27____exit:
-
-;;; end action StaticKernel 3 kernel
-
-    KERNEL_END
-    
-;;; start action Colors 4 postframe
-
-    inc PFColor_pfcolor_b0
-    bne :+
-    inc BGColor_bgcolor_b0+2
-    inc BGColor_bgcolor_b0+2
-:
-
-;;; end action Colors 4 postframe
-
-    FRAME_END
-    
-    jmp FrameLoop__start__20__NextFrame    ; loop to next frame
-
-;;; end action FrameLoop 1 start
-
+.assert (* - Kernel48Pixel__kerneldraw__33) <= 63, error, .sprintf("Kernel48Pixel__kerneldraw__33 does not fit in 63 bytes, it took %d!", (* - Kernel48Pixel__kerneldraw__33))
 .endscope
 Title2__Start = Title2::__Start
 .endscope

@@ -623,6 +623,7 @@ class ActionEval {
     entities : Entity[];
     tmplabel = '';
     label : string;
+    seq : number;
     //used = new Set<string>(); // TODO
 
     constructor(
@@ -655,7 +656,8 @@ class ActionEval {
         //let query = (this.action as ActionWithQuery).query;
         //TODO? if (query && this.entities.length == 0)
             //throw new ECSError(`query doesn't match any entities`, query); // TODO 
-        this.label = `${this.instance.system.name}__${action.event}__${this.em.seq++}`;
+        this.seq = this.em.seq++;
+        this.label = `${this.instance.system.name}__${action.event}__${this.seq}`;
     }
     begin() {
         let state = this.scope.state = Object.assign(new ActionCPUState(), this.scope.state);
@@ -1048,7 +1050,7 @@ class ActionEval {
     isSubroutineSized(code: string) {
         // TODO?
         if (code.length > 20000) return false;
-        if (code.split('.dbg line').length >= 4) return true;
+        if (code.split('\n ').length >= 4) return true; // TODO: :^/
         return false;
     }
 }
@@ -1057,10 +1059,10 @@ class EventCodeStats {
     constructor(
         public readonly inst: SystemInstance,
         public readonly action: Action,
-        public readonly code: string,
-        public readonly symbol: string,
+        public readonly eventcode: string
     ) { }
-    count = 0;
+    labels : string[] = [];
+    count : number = 0;
 }
 
 export class EntityScope implements SourceLocated {
@@ -1080,7 +1082,7 @@ export class EntityScope implements SourceLocated {
     filePath = '';
 
     eventSeq : number;
-    eventStats : { [key:string] : EventCodeStats };
+    eventCodeStats : { [code:string] : EventCodeStats };
     inCritical = 0;
 
     constructor(
@@ -1402,19 +1404,21 @@ export class EntityScope implements SourceLocated {
                     let eventcode = codeeval.codeToString();
                     if (action.critical) this.inCritical--;
                     if (!this.inCritical && codeeval.isSubroutineSized(eventcode)) {
+                        let normcode = this.normalizeCode(eventcode, action);
                         // TODO: label rewriting messes this up
-                        let estats = this.eventStats[eventcode];
+                        let estats = this.eventCodeStats[normcode];
                         if (!estats) {
-                            estats = this.eventStats[eventcode] = new EventCodeStats(
-                                inst, action, eventcode, codeeval.label);
+                            estats = this.eventCodeStats[normcode] = new EventCodeStats(
+                                inst, action, eventcode);
                         }
+                        estats.labels.push(codeeval.label);
                         estats.count++;
                         if (action.critical) estats.count++; // always make critical event subroutines
                     }
                     let s = '';
-                    s += this.dialect.comment(`start action ${sys.name} ${inst.id} ${event}`); // TODO
+                    s += this.dialect.comment(`start action ${codeeval.label}`);
                     s += eventcode;
-                    s += this.dialect.comment(`end action ${sys.name} ${inst.id} ${event}`);
+                    s += this.dialect.comment(`end action ${codeeval.label}`);
                     code += s;
                     // TODO: check that this happens once?
                     codeeval.end();
@@ -1424,6 +1428,11 @@ export class EntityScope implements SourceLocated {
         if (eventCount == 0) {
             console.log(`warning: event ${event} not handled`);
         }
+        return code;
+    }
+    normalizeCode(code: string, action: Action) {
+        // TODO: use dialect to help with this
+        code = code.replace(/(\w+__\w+__)(\d+)(\w+)/g, (z,a,b,c) => a+c);
         return code;
     }
     getSystemStats(inst: SystemInstance) : SystemStats {
@@ -1489,7 +1498,7 @@ export class EntityScope implements SourceLocated {
     }
     private generateCode() {
         this.eventSeq = 0;
-        this.eventStats = {};
+        this.eventCodeStats = {};
         let isMainScope = this.parent == null;
         let start;
         let initsys = this.em.getSystemByName('Init');
@@ -1517,7 +1526,7 @@ export class EntityScope implements SourceLocated {
         // TODO: doesn't work with nested subroutines?
         // TODO: doesn't work between scopes
         let allsubs : string[] = [];
-        for (let stats of Object.values(this.eventStats)) {
+        for (let stats of Object.values(this.eventCodeStats)) {
             if (stats.count > 1) {
                 if (allsubs.length == 0) {
                     allsubs = [
@@ -1527,12 +1536,22 @@ export class EntityScope implements SourceLocated {
                 } else if (stats.action.fitbytes) {
                     allsubs.push(this.dialect.alignIfLessThan(stats.action.fitbytes));
                 }
-                code = (code as any).replaceAll(stats.code, this.dialect.call(stats.symbol));
-                let substart = stats.symbol;
+                let subcall = this.dialect.call(stats.labels[0]);
+                for (let label of stats.labels) {
+                    // TODO: use dialect
+                    let startdelim = `;;; start action ${label}`
+                    let enddelim = `;;; end action ${label}`
+                    let istart = code.indexOf(startdelim);
+                    let iend = code.indexOf(enddelim, istart);
+                    if (istart >= 0 && iend > istart) {
+                        code = code.substring(0, istart) + subcall + code.substring(iend + enddelim.length);
+                    }
+                }
+                let substart = stats.labels[0];
                 let sublines = [
                     this.dialect.segment('rodata'),
                     this.dialect.label(substart),
-                    stats.code,
+                    stats.eventcode,
                     this.dialect.return(),
                 ];
                 if (stats.action.critical) {

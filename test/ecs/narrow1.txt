@@ -19,7 +19,7 @@ __Start:
     dey
     bne :-
 
-;;; start action move 1 start
+;;; start action move__start__1
 
     ldx #0
 move__start__1____each:
@@ -31,7 +31,7 @@ move__start__1____each:
     jne move__start__1____each
 move__start__1____exit:
 
-;;; end action move 1 start
+;;; end action move__start__1
 
 .endscope
 Main__Start = Main::__Start

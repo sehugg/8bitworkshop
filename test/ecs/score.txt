@@ -49,7 +49,7 @@ Main__INITDATA:
 .byte 86
 __Start:
 
-;;; start action Init 9 main_init
+;;; start action Init__main_init__1
 
 .include "vcs-ca65.h"
 .macpack longbranch
@@ -65,12 +65,12 @@ __BRK:
     dey
     bne :-
 
-;;; start action FrameLoop 1 start
+;;; start action FrameLoop__start__2
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
     
-;;; start action Kernel6Digit 2 preframe
+;;; start action Kernel6Digit__preframe__3
 
 Digit0 = Kernel6Digit__2__tmp+0
 Digit1 = Kernel6Digit__2__tmp+2
@@ -118,11 +118,11 @@ Kernel6Digit__preframe__3__Loop:
         dey		; next BCD value
         bpl Kernel6Digit__preframe__3__Loop	; repeat until < 0
 
-;;; end action Kernel6Digit 2 preframe
+;;; end action Kernel6Digit__preframe__3
 
     KERNEL_START
     
-;;; start action Kernel6Digit 2 kernel
+;;; start action Kernel6Digit__kernel__4
 
         lda PFColor_pfcolor_b0
         sta COLUP0
@@ -146,9 +146,9 @@ Kernel6Digit__preframe__3__Loop:
         sta VDELP0
         sta VDELP1
 
-;;; end action Kernel6Digit 2 kernel
+;;; end action Kernel6Digit__kernel__4
 
-;;; start action Kernel6Digit 2 kernel
+;;; start action Kernel6Digit__kernel__5
 
 ; Display the resulting 48x8 bitmap
 ; using the Digit0-5 pointers.
@@ -191,9 +191,9 @@ Kernel6Digit__kernel__5__BigLoop:
         sta GRP1
         sta COLUBK
 
-;;; end action Kernel6Digit 2 kernel
+;;; end action Kernel6Digit__kernel__5
 
-;;; start action Kernel2Digit 4 kernel
+;;; start action Kernel2Digit__kernel__6
 
 	lda #$02
         sta CTRLPF
@@ -204,9 +204,9 @@ Kernel6Digit__kernel__5__BigLoop:
         lda PFColor_pfcolor_b0+1
         sta COLUP1
 
-;;; end action Kernel2Digit 4 kernel
+;;; end action Kernel2Digit__kernel__6
 
-;;; start action Kernel2Digit 4 kernel
+;;; start action Kernel2Digit__kernel__7
 
 	lda #7
         sta Kernel2Digit__4__tmp+0
@@ -214,7 +214,7 @@ Kernel2Digit__kernel__7__Loop:
 	ldx #0
 	sta WSYNC
         
-;;; start action Kernel2Digit 4 compute2digit
+;;; start action Kernel2Digit__compute2digit__8
 
         lda Kernel2Digit__4__tmp+1		; load 1st pf
         sta PF1			; store 1st pf
@@ -226,14 +226,14 @@ Kernel2Digit__kernel__7__Loop:
         asl
         asl
         
-;;; start action Kernel2Digit 4 fetchdigit
+;;; start action Kernel2Digit__fetchdigit__9
 
         adc Kernel2Digit__4__tmp+0
 	tay
         ; TODO: select your own?
 	lda FontTablePF,y
 
-;;; end action Kernel2Digit 4 fetchdigit
+;;; end action Kernel2Digit__fetchdigit__9
 
         and #$0f
         ldy Kernel2Digit__4__tmp+2		; load 2nd pf
@@ -244,24 +244,24 @@ Kernel2Digit__kernel__7__Loop:
         lsr
         sty PF1			; store 2nd pf
         
-;;; start action Kernel2Digit 4 fetchdigit
+;;; start action Kernel2Digit__fetchdigit__10
 
         adc Kernel2Digit__4__tmp+0
 	tay
         ; TODO: select your own?
 	lda FontTablePF,y
 
-;;; end action Kernel2Digit 4 fetchdigit
+;;; end action Kernel2Digit__fetchdigit__10
 
         and #$f0
         ora Kernel2Digit__4__tmp+1 + 0
         sta Kernel2Digit__4__tmp+1 + 0
 
-;;; end action Kernel2Digit 4 compute2digit
+;;; end action Kernel2Digit__compute2digit__8
 
         inx
         
-;;; start action Kernel2Digit 4 compute2digit
+;;; start action Kernel2Digit__compute2digit__11
 
         lda Kernel2Digit__4__tmp+1		; load 1st pf
         sta PF1			; store 1st pf
@@ -273,14 +273,14 @@ Kernel2Digit__kernel__7__Loop:
         asl
         asl
         
-;;; start action Kernel2Digit 4 fetchdigit
+;;; start action Kernel2Digit__fetchdigit__12
 
         adc Kernel2Digit__4__tmp+0
 	tay
         ; TODO: select your own?
 	lda FontTablePF,y
 
-;;; end action Kernel2Digit 4 fetchdigit
+;;; end action Kernel2Digit__fetchdigit__12
 
         and #$0f
         ldy Kernel2Digit__4__tmp+2		; load 2nd pf
@@ -291,20 +291,20 @@ Kernel2Digit__kernel__7__Loop:
         lsr
         sty PF1			; store 2nd pf
         
-;;; start action Kernel2Digit 4 fetchdigit
+;;; start action Kernel2Digit__fetchdigit__13
 
         adc Kernel2Digit__4__tmp+0
 	tay
         ; TODO: select your own?
 	lda FontTablePF,y
 
-;;; end action Kernel2Digit 4 fetchdigit
+;;; end action Kernel2Digit__fetchdigit__13
 
         and #$f0
         ora Kernel2Digit__4__tmp+1 + 1
         sta Kernel2Digit__4__tmp+1 + 1
 
-;;; end action Kernel2Digit 4 compute2digit
+;;; end action Kernel2Digit__compute2digit__11
 
 ; playfield
 	dec Kernel2Digit__4__tmp+0
@@ -312,19 +312,19 @@ Kernel2Digit__kernel__7__Loop:
 ;        dex
 ;        stx PF1
 
-;;; end action Kernel2Digit 4 kernel
+;;; end action Kernel2Digit__kernel__7
 
     KERNEL_END
     
-;;; start action JoyButton 6 postframe
+;;; start action JoyButton__postframe__14
 
     lda INPT4	;read button input
     bmi JoyButton__postframe__14__NotPressed
     
-;;; start action IncScore 8 joybutton
+;;; start action IncScore__joybutton__15
 
     
-;;; start action BCDMath 7 AddBCD4
+;;; start action BCDMath__AddBCD4__16
 
 .ifnblank $0210
     lda #<$0210
@@ -345,20 +345,20 @@ Kernel2Digit__kernel__7__Loop:
         sta BCDScore6_digits_b16
         cld	; exit BCD mode
 
-;;; end action BCDMath 7 AddBCD4
+;;; end action BCDMath__AddBCD4__16
 
 
-;;; end action IncScore 8 joybutton
+;;; end action IncScore__joybutton__15
 
 JoyButton__postframe__14__NotPressed:
 
-;;; end action JoyButton 6 postframe
+;;; end action JoyButton__postframe__14
 
     FRAME_END
     
     jmp FrameLoop__start__2__NextFrame    ; loop to next frame
 
-;;; end action FrameLoop 1 start
+;;; end action FrameLoop__start__2
 	; start main routine
 .segment "VECTORS"
 Return:    .word $6060
@@ -366,11 +366,11 @@ VecNMI:
 VecReset:  .word Main::__Reset
 VecBRK:    .word Main::__BRK
 
-;;; end action Init 9 main_init
+;;; end action Init__main_init__1
 
 FontTable:
 
-;;; start action FontTable 3 FontTable
+;;; start action FontTable__FontTable__17
 
 ; Font table for digits 0-9 (8x8 pixels)
 ;;{w:8,h:8,count:10,brev:1,flip:1};;
@@ -380,11 +380,11 @@ FontTable:
         .byte $00,$3c,$66,$66,$7c,$60,$66,$3c,$00,$18,$18,$18,$18,$0c,$66,$7e
         .byte $00,$3c,$66,$66,$3c,$66,$66,$3c,$00,$3c,$66,$06,$3e,$66,$66,$3c
 
-;;; end action FontTable 3 FontTable
+;;; end action FontTable__FontTable__17
 
 FontTablePF:
 
-;;; start action FontTablePF 5 FontTablePF
+;;; start action FontTablePF__FontTablePF__18
 
 ; Font table for digits 0-9 (4x8 pixels)
 ;;{w:8,h:8,count:10,brev:1,flip:1};;
@@ -400,7 +400,7 @@ FontTablePF:
         .byte $00,$00,$EE,$22,$EE,$AA,$EE,$00
 ;;
 
-;;; end action FontTablePF 5 FontTablePF
+;;; end action FontTablePF__FontTablePF__18
 
 .endscope
 Main__Start = Main::__Start

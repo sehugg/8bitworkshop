@@ -45,7 +45,7 @@ Main__INITDATA:
 .byte 0
 __Start:
 
-;;; start action Init 7 main_init
+;;; start action Init__main_init__1
 
 .include "vcs-ca65.h"
 .define PAL 0
@@ -60,49 +60,49 @@ __BRK:
     dey
     bne :-
 
-;;; start action FrameLoop 1 start
+;;; start action FrameLoop__start__2
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
     
-;;; start action StaticKernel 4 preframe
+;;; start action StaticKernel__preframe__3
 
     
-;;; start action StaticKernel 4 kernelsetup
+;;; start action StaticKernel__kernelsetup__4
 
     lda #24
     sta COLUBK
 
-;;; end action StaticKernel 4 kernelsetup
+;;; end action StaticKernel__kernelsetup__4
 
-;;; start action StaticKernel 4 kernelsetup
+;;; start action StaticKernel__kernelsetup__5
 
-;;; end action StaticKernel 4 kernelsetup
+;;; end action StaticKernel__kernelsetup__5
 
-;;; start action StaticKernel 4 kernelsetup
+;;; start action StaticKernel__kernelsetup__6
 
-;;; end action StaticKernel 4 kernelsetup
+;;; end action StaticKernel__kernelsetup__6
 
 
-;;; end action StaticKernel 4 preframe
+;;; end action StaticKernel__preframe__3
 
     KERNEL_START
     
-;;; start action StaticKernel 4 kernel
+;;; start action StaticKernel__kernel__7
 
     ldx #0
 StaticKernel__kernel__7____each:
     
     sta WSYNC
     
-;;; start action StaticKernel 4 kernelsetup
+;;; start action StaticKernel__kernelsetup__8
 
     lda BGColor_bgcolor_b0,x
     sta COLUBK
 
-;;; end action StaticKernel 4 kernelsetup
+;;; end action StaticKernel__kernelsetup__8
 
-;;; start action StaticKernel 4 kernelsetup
+;;; start action StaticKernel__kernelsetup__9
 
     cpx #5+2
     jcs StaticKernel__kernelsetup__9____skipxhi
@@ -117,9 +117,9 @@ StaticKernel__kernelsetup__9____skipxlo:
 
 StaticKernel__kernelsetup__9____skipxhi:
 
-;;; end action StaticKernel 4 kernelsetup
+;;; end action StaticKernel__kernelsetup__9
 
-;;; start action StaticKernel 4 kernelsetup
+;;; start action StaticKernel__kernelsetup__10
 
     cpx #4
     jcc StaticKernel__kernelsetup__10____skipxlo
@@ -133,7 +133,7 @@ StaticKernel__kernelsetup__9____skipxhi:
 
 StaticKernel__kernelsetup__10____skipxlo:
 
-;;; end action StaticKernel 4 kernelsetup
+;;; end action StaticKernel__kernelsetup__10
 
     ldy KernelSection_lines_b0,x
 StaticKernel__kernel__7__loop:
@@ -148,46 +148,46 @@ StaticKernel__kernel__7__loop:
     jne StaticKernel__kernel__7____each
 StaticKernel__kernel__7____exit:
 
-;;; end action StaticKernel 4 kernel
+;;; end action StaticKernel__kernel__7
 
     KERNEL_END
     
-;;; start action JoyButton 5 postframe
+;;; start action JoyButton__postframe__11
 
     lda INPT4	;read button input
     bmi JoyButton__postframe__11__NotPressed
     
-;;; start action Local 6 joybutton
+;;; start action Local__joybutton__12
 
     inc Local__6__tmp+0
     inc PFColor_pfcolor_b0
     
-;;; end action Local 6 joybutton
+;;; end action Local__joybutton__12
 
 JoyButton__postframe__11__NotPressed:
 
-;;; end action JoyButton 5 postframe
+;;; end action JoyButton__postframe__11
 
     FRAME_END
     
-;;; start action ResetSwitch 2 nextframe
+;;; start action ResetSwitch__nextframe__13
 
     lsr SWCHB	      ; test Game Reset switch
     bcs ResetSwitch__nextframe__13__NoStart
     
-;;; start action ResetConsole 3 resetswitch
+;;; start action ResetConsole__resetswitch__14
 
     jmp Main::__Reset ; jump to Reset handler
 
-;;; end action ResetConsole 3 resetswitch
+;;; end action ResetConsole__resetswitch__14
 
 ResetSwitch__nextframe__13__NoStart:
 
-;;; end action ResetSwitch 2 nextframe
+;;; end action ResetSwitch__nextframe__13
 
     jmp FrameLoop__start__2__NextFrame    ; loop to next frame
 
-;;; end action FrameLoop 1 start
+;;; end action FrameLoop__start__2
 	; start main routine
 .segment "VECTORS"
 Return:    .word $6060
@@ -195,7 +195,7 @@ VecNMI:
 VecReset:  .word Main::__Reset
 VecBRK:    .word Main::__BRK
 
-;;; end action Init 7 main_init
+;;; end action Init__main_init__1
 
 .endscope
 Main__Start = Main::__Start

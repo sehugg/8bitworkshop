@@ -628,7 +628,7 @@ Main__INITDATA:
 .byte 0
 __Start:
 
-;;; start action Init 11 main_init
+;;; start action Init__main_init__1
 
 .include "vcs-ca65.h"
 .macpack longbranch
@@ -644,12 +644,12 @@ __BRK:
     dey
     bne :-
 
-;;; start action FrameLoop 1 start
+;;; start action FrameLoop__start__2
 
 FrameLoop__start__2__NextFrame:
     FRAME_START
     
-;;; start action Kernel2Sprite 2 preframe
+;;; start action Kernel2Sprite__preframe__3
 
 .define KLINES #192
 .define KPAD 32
@@ -664,9 +664,9 @@ FrameLoop__start__2__NextFrame:
     sta Kernel2Sprite__2__tmp+6
     sta Kernel2Sprite__2__tmp+7
 
-;;; end action Kernel2Sprite 2 preframe
+;;; end action Kernel2Sprite__preframe__3
 
-;;; start action Kernel2Sprite 2 preframe
+;;; start action Kernel2Sprite__preframe__4
 
     ldy #0
 Kernel2Sprite__preframe__4____each:
@@ -720,9 +720,9 @@ Kernel2Sprite__preframe__4__nosprite:
     jne Kernel2Sprite__preframe__4____each
 Kernel2Sprite__preframe__4____exit:
 
-;;; end action Kernel2Sprite 2 preframe
+;;; end action Kernel2Sprite__preframe__4
 
-;;; start action Kernel2Sprite 2 preframe
+;;; start action Kernel2Sprite__preframe__5
 
 ; shuffle pointers into (MSB, LSB) byte order
 ; L0 L1 H0 H1 -> L0 H0 L1 H1
@@ -735,26 +735,26 @@ Kernel2Sprite__preframe__4____exit:
     sty Kernel2Sprite__2__tmp+5
     sta Kernel2Sprite__2__tmp+6
 
-;;; end action Kernel2Sprite 2 preframe
+;;; end action Kernel2Sprite__preframe__5
 
-;;; start action Kernel2Sprite 2 preframe
+;;; start action Kernel2Sprite__preframe__6
 
     lda #162
     sta COLUBK
 
-;;; end action Kernel2Sprite 2 preframe
+;;; end action Kernel2Sprite__preframe__6
 
-;;; start action Kernel2Sprite 2 preframe
+;;; start action Kernel2Sprite__preframe__7
 
-;;; end action Kernel2Sprite 2 preframe
+;;; end action Kernel2Sprite__preframe__7
 
-;;; start action SetXPos 8 preframe
+;;; start action SetXPos__preframe__8
 
     sta HMCLR
 
-;;; end action SetXPos 8 preframe
+;;; end action SetXPos__preframe__8
 
-;;; start action SetXPos 8 preframe
+;;; start action SetXPos__preframe__9
 
     ldy #0
 SetXPos__preframe__9____each:
@@ -762,7 +762,7 @@ SetXPos__preframe__9____each:
     
     lda HasXpos_xpos_b0,x
     
-;;; start action SetHorizPos 9 SetHorizPos
+;;; start action SetHorizPos__SetHorizPos__10
 
 ; SetHorizPos routine
 ; A = X coordinate
@@ -781,7 +781,7 @@ SetHorizPos__SetHorizPos__10__DivideLoop:
     sta RESP0,y	; fix coarse position
     sta HMP0,y	; set fine offset
 
-;;; end action SetHorizPos 9 SetHorizPos
+;;; end action SetHorizPos__SetHorizPos__10
 
 
     iny
@@ -789,20 +789,20 @@ SetHorizPos__SetHorizPos__10__DivideLoop:
     jne SetXPos__preframe__9____each
 SetXPos__preframe__9____exit:
 
-;;; end action SetXPos 8 preframe
+;;; end action SetXPos__preframe__9
 
-;;; start action SetXPos 8 preframe
+;;; start action SetXPos__preframe__11
 
-;;; end action SetXPos 8 preframe
+;;; end action SetXPos__preframe__11
 
-;;; start action SetXPos 8 preframe
+;;; start action SetXPos__preframe__12
 
     sta WSYNC
     sta HMOVE
 
-;;; end action SetXPos 8 preframe
+;;; end action SetXPos__preframe__12
 
-;;; start action VersatilePlayfield 10 preframe
+;;; start action VersatilePlayfield__preframe__13
 
     ldx Location_room_b0+0
     
@@ -812,25 +812,25 @@ SetXPos__preframe__9____exit:
     sta VersatilePlayfield__10__tmp+1
 
 
-;;; end action VersatilePlayfield 10 preframe
+;;; end action VersatilePlayfield__preframe__13
 
     KERNEL_START
     
-;;; start action Kernel2Sprite 2 kernel
+;;; start action Kernel2Sprite__kernel__14
 
     ldy #0
     sty VDELP0
     iny
     sta VDELP1
 
-;;; end action Kernel2Sprite 2 kernel
+;;; end action Kernel2Sprite__kernel__14
 
-;;; start action Kernel2Sprite 2 kernel
+;;; start action Kernel2Sprite__kernel__15
     
     ldy #192
 Kernel2Sprite__kernel__15__LVScan:
     
-;;; start action Kernel2Sprite 2 scanline
+;;; start action Kernel2Sprite__scanline__16
 
 ; draw player 0
     lda Kernel2Sprite__2__tmp+8 ; height
@@ -858,33 +858,33 @@ Kernel2Sprite__scanline__16__DoDraw2:
     lda (Kernel2Sprite__2__tmp+6),y
     sta COLUP1
 
-;;; end action Kernel2Sprite 2 scanline
+;;; end action Kernel2Sprite__scanline__16
 
-;;; start action Kernel2Sprite 2 scanline
+;;; start action Kernel2Sprite__scanline__17
 
-;;; end action Kernel2Sprite 2 scanline
+;;; end action Kernel2Sprite__scanline__17
 
-;;; start action VersatilePlayfield 10 scanline
+;;; start action VersatilePlayfield__scanline__18
 
 .if 0 = 0
     lda (VersatilePlayfield__10__tmp+0),y
     tax
 .endif
 
-;;; end action VersatilePlayfield 10 scanline
+;;; end action VersatilePlayfield__scanline__18
 
-;;; start action VersatilePlayfield 10 scanline
+;;; start action VersatilePlayfield__scanline__19
 
 .if 0 = 1
     lda (VersatilePlayfield__10__tmp+0),y
     sta $00,x
 .endif
 
-;;; end action VersatilePlayfield 10 scanline
+;;; end action VersatilePlayfield__scanline__19
 
     dey		; next scanline
     
-;;; start action Kernel2Sprite 2 scanline
+;;; start action Kernel2Sprite__scanline__20
 
 ; draw player 0
     lda Kernel2Sprite__2__tmp+8 ; height
@@ -912,36 +912,36 @@ Kernel2Sprite__scanline__20__DoDraw2:
     lda (Kernel2Sprite__2__tmp+6),y
     sta COLUP1
 
-;;; end action Kernel2Sprite 2 scanline
+;;; end action Kernel2Sprite__scanline__20
 
-;;; start action Kernel2Sprite 2 scanline
+;;; start action Kernel2Sprite__scanline__21
 
-;;; end action Kernel2Sprite 2 scanline
+;;; end action Kernel2Sprite__scanline__21
 
-;;; start action VersatilePlayfield 10 scanline
+;;; start action VersatilePlayfield__scanline__22
 
 .if 1 = 0
     lda (VersatilePlayfield__10__tmp+0),y
     tax
 .endif
 
-;;; end action VersatilePlayfield 10 scanline
+;;; end action VersatilePlayfield__scanline__22
 
-;;; start action VersatilePlayfield 10 scanline
+;;; start action VersatilePlayfield__scanline__23
 
 .if 1 = 1
     lda (VersatilePlayfield__10__tmp+0),y
     sta $00,x
 .endif
 
-;;; end action VersatilePlayfield 10 scanline
+;;; end action VersatilePlayfield__scanline__23
 
     dey		; next scanline
     bne Kernel2Sprite__kernel__15__LVScan	; repeat until out of lines
 
-;;; end action Kernel2Sprite 2 kernel
+;;; end action Kernel2Sprite__kernel__15
 
-;;; start action Kernel2Sprite 2 kernel
+;;; start action Kernel2Sprite__kernel__24
 
     lda #0
     sta GRP0
@@ -949,32 +949,32 @@ Kernel2Sprite__scanline__20__DoDraw2:
     sta GRP0
     sta GRP1
 
-;;; end action Kernel2Sprite 2 kernel
+;;; end action Kernel2Sprite__kernel__24
 
     KERNEL_END
     
-;;; start action Joystick 3 postframe
+;;; start action Joystick__postframe__25
 
 ; 2 control inputs share a single byte, 4 bits each
     lda SWCHA
     sta Joystick__3__tmp+0
 
-;;; end action Joystick 3 postframe
+;;; end action Joystick__postframe__25
 
-;;; start action Joystick 3 postframe
+;;; start action Joystick__postframe__26
 
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__26__SkipMoveRight
     
-;;; start action JoyFaceDirection 4 joyright
+;;; start action JoyFaceDirection__joyright__27
 
     lda Sprite_plyrflags_b0
     and #$f7
     sta Sprite_plyrflags_b0
 
-;;; end action JoyFaceDirection 4 joyright
+;;; end action JoyFaceDirection__joyright__27
 
-;;; start action SuperFly 5 joyright
+;;; start action SuperFly__joyright__28
 
     lda HasXpos_xpos_b0
     clc
@@ -982,58 +982,58 @@ Kernel2Sprite__scanline__20__DoDraw2:
     cmp #142
     jcc SuperFly__joyright__28__nomove
     
-;;; start action SuperFly 5 goeast
+;;; start action SuperFly__goeast__29
 
     ldy Location_room_b0
     lda Room_east_b0,y
     sta Location_room_b0
 
-;;; end action SuperFly 5 goeast
+;;; end action SuperFly__goeast__29
 
     lda #2
 SuperFly__joyright__28__nomove:
     sta HasXpos_xpos_b0
 
-;;; end action SuperFly 5 joyright
+;;; end action SuperFly__joyright__28
 
 Joystick__postframe__26__SkipMoveRight:
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__26__SkipMoveLeft
     
-;;; start action JoyFaceDirection 4 joyleft
+;;; start action JoyFaceDirection__joyleft__30
 
     lda Sprite_plyrflags_b0
     ora #$08
     sta Sprite_plyrflags_b0
 
-;;; end action JoyFaceDirection 4 joyleft
+;;; end action JoyFaceDirection__joyleft__30
 
-;;; start action SuperFly 5 joyleft
+;;; start action SuperFly__joyleft__31
 
     lda HasXpos_xpos_b0
     sec
     sbc #2
     jcs SuperFly__joyleft__31__nomove
     
-;;; start action SuperFly 5 gowest
+;;; start action SuperFly__gowest__32
 
     ldy Location_room_b0
     lda Room_west_b0,y
     sta Location_room_b0
 
-;;; end action SuperFly 5 gowest
+;;; end action SuperFly__gowest__32
 
     lda #142
 SuperFly__joyleft__31__nomove:
     sta HasXpos_xpos_b0
 
-;;; end action SuperFly 5 joyleft
+;;; end action SuperFly__joyleft__31
 
 Joystick__postframe__26__SkipMoveLeft:
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__26__SkipMoveDown
     
-;;; start action SuperFly 5 joydown
+;;; start action SuperFly__joydown__33
 
     lda HasYpos_ypos_b0
     clc
@@ -1041,64 +1041,64 @@ Joystick__postframe__26__SkipMoveLeft:
     cmp #220
     jcc SuperFly__joydown__33__nomove
     
-;;; start action SuperFly 5 gosouth
+;;; start action SuperFly__gosouth__34
 
     ldy Location_room_b0
     lda Room_south_b0,y
     sta Location_room_b0
 
-;;; end action SuperFly 5 gosouth
+;;; end action SuperFly__gosouth__34
 
     lda #2
 SuperFly__joydown__33__nomove:
     sta HasYpos_ypos_b0
 
-;;; end action SuperFly 5 joydown
+;;; end action SuperFly__joydown__33
 
 Joystick__postframe__26__SkipMoveDown:
     asl Joystick__3__tmp+0
     bcs Joystick__postframe__26__SkipMoveUp
     
-;;; start action SuperFly 5 joyup
+;;; start action SuperFly__joyup__35
 
     lda HasYpos_ypos_b0
     sec
     sbc #2
     jcs SuperFly__joyup__35__nomove
     
-;;; start action SuperFly 5 gonorth
+;;; start action SuperFly__gonorth__36
 
     ldy Location_room_b0
     lda Room_north_b0,y
     sta Location_room_b0
 
-;;; end action SuperFly 5 gonorth
+;;; end action SuperFly__gonorth__36
 
     lda #200
 SuperFly__joyup__35__nomove:
     sta HasYpos_ypos_b0
 
-;;; end action SuperFly 5 joyup
+;;; end action SuperFly__joyup__35
 
 Joystick__postframe__26__SkipMoveUp:
 
-;;; end action Joystick 3 postframe
+;;; end action Joystick__postframe__26
 
-;;; start action BadMove 6 postframe
+;;; start action BadMove__postframe__37
 
     ldx #0
 BadMove__postframe__37____each:
     
   
-;;; start action JoyFaceDirection 4 joyright
+;;; start action JoyFaceDirection__joyright__38
 
     lda Sprite_plyrflags_b0+1,x
     and #$f7
     sta Sprite_plyrflags_b0+1,x
 
-;;; end action JoyFaceDirection 4 joyright
+;;; end action JoyFaceDirection__joyright__38
 
-;;; start action SuperFly 5 joyright
+;;; start action SuperFly__joyright__39
 
     lda HasXpos_xpos_b0+1,x
     clc
@@ -1106,19 +1106,19 @@ BadMove__postframe__37____each:
     cmp #142
     jcc SuperFly__joyright__39__nomove
     
-;;; start action SuperFly 5 goeast
+;;; start action SuperFly__goeast__40
 
     ldy Location_room_b0+1,x
     lda Room_east_b0,y
     sta Location_room_b0+1,x
 
-;;; end action SuperFly 5 goeast
+;;; end action SuperFly__goeast__40
 
     lda #2
 SuperFly__joyright__39__nomove:
     sta HasXpos_xpos_b0+1,x
 
-;;; end action SuperFly 5 joyright
+;;; end action SuperFly__joyright__39
 
   
     inx
@@ -1126,9 +1126,9 @@ SuperFly__joyright__39__nomove:
     jne BadMove__postframe__37____each
 BadMove__postframe__37____exit:
 
-;;; end action BadMove 6 postframe
+;;; end action BadMove__postframe__37
 
-;;; start action RoomShuffle 7 postframe
+;;; start action RoomShuffle__postframe__41
 
     ldy 4
     ldx SpriteSlot_sprite_b0+1
@@ -1150,22 +1150,22 @@ RoomShuffle__postframe__41__norecycle:
 RoomShuffle__postframe__41__exit:
     stx SpriteSlot_sprite_b0+1
     
-;;; end action RoomShuffle 7 postframe
+;;; end action RoomShuffle__postframe__41
 
-;;; start action VersatilePlayfield 10 postframe
+;;; start action VersatilePlayfield__postframe__42
 
     lda #0
     sta PF0
     sta PF1
     sta PF2
 
-;;; end action VersatilePlayfield 10 postframe
+;;; end action VersatilePlayfield__postframe__42
 
     FRAME_END
     
     jmp FrameLoop__start__2__NextFrame    ; loop to next frame
 
-;;; end action FrameLoop 1 start
+;;; end action FrameLoop__start__2
 	; start main routine
 .segment "VECTORS"
 Return:    .word $6060
@@ -1173,7 +1173,7 @@ VecNMI:
 VecReset:  .word Main::__Reset
 VecBRK:    .word Main::__BRK
 
-;;; end action Init 11 main_init
+;;; end action Init__main_init__1
 
 .endscope
 Main__Start = Main::__Start
