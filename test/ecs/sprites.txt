@@ -1,3 +1,19 @@
+EVENT__main_init = 1
+EVENT__start = 1
+EVENT__nextframe = 1
+EVENT__resetswitch = 1
+EVENT__postframe = 1
+EVENT__SetHorizPos = 1
+EVENT__preframe = 1
+EVENT__kernel = 1
+EVENT__kerneldraw = 1
+EVENT__kernelsetup = 1
+EVENT__joybutton = 1
+EVENT__scanline = 1
+EVENT__joyleft = 1
+EVENT__joyright = 1
+EVENT__joyup = 1
+EVENT__joydown = 1
 .scope Main
 .zeropage
 HasBitmap_bitmap_b0:

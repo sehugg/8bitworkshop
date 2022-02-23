@@ -353,6 +353,10 @@ export class Dialect_CA65 {
     equate(symbol: string, value: string): string {
         return `${symbol} = ${value}`;
     }
+    define(symbol: string, value?: string): string {
+        if (value) return `.define ${symbol} ${value}`;
+        else return `.define ${symbol}`;
+    }
     call(symbol: string) {
         return ` jsr ${symbol}`;
     }
@@ -1008,6 +1012,7 @@ class ActionEval {
                 //eidofs -= xreg.offset();
                 //eidofs -= int.entities[0].id - xreg.elo;
                 eidofs = xreg.elo - range.elo;
+                // TODO? if (xreg.ehi > range.ehi) throw new ECSError(`field "${field.name}" could overflow`, action);
             } else if (yreg && (int = yreg.eset?.intersection(qr))) {
                 ir = yreg.eset;
                 //eidofs -= yreg.offset();
@@ -1716,6 +1721,9 @@ export class EntityManager {
         })
     }
     exportToFile(file: SourceFileExport) {
+        for (let event of Object.keys(this.event2systems)) {
+            file.line(this.dialect.equate(`EVENT__${event}`, '1'))
+        }
         for (let scope of Object.values(this.topScopes)) {
             if (!scope.isDemo || scope.filePath == this.mainPath) {
                 scope.dump(file);
