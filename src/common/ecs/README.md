@@ -184,3 +184,8 @@ end
     ldy {{<index}}
     {{!SetHorizPos}}
 ---
+
+Slice PNGs into sprites
+Maybe output decoder text
+
+Action priorities - before, after

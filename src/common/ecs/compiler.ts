@@ -22,10 +22,11 @@ export class ECSCompiler extends Tokenizer {
 
     currentScope: EntityScope | null = null;
     currentContext: ActionContext | null = null;
-    debuginfo = false;
+    includeDebugInfo = false;
 
     constructor(
-        public readonly em: EntityManager) {
+        public readonly em: EntityManager,
+        public readonly isMainFile: boolean) {
         super();
         //this.includeEOL = true;
         this.setTokenRules([
@@ -71,8 +72,8 @@ export class ECSCompiler extends Tokenizer {
             let text = this.getImportFile && this.getImportFile(path);
             if (!text) this.compileError(`I can't find the import file "${path}".`);
             this.em.imported[path] = true;
-            let comp = new ECSCompiler(this.em);
-            comp.debuginfo = this.debuginfo; // TODO: clone compiler
+            let comp = new ECSCompiler(this.em, false);
+            comp.includeDebugInfo = this.includeDebugInfo; // TODO: clone compiler
             try {
                 comp.parseFile(text, path);
             } catch (e) {
@@ -103,17 +104,32 @@ export class ECSCompiler extends Tokenizer {
             return this.importFile(path);
         }
         if (tok.str == 'demo') {
-            let scope = this.parseScope();
-            scope.isDemo = true;
-            // TODO: make required
-            if (this.peekToken().str == 'demo') this.expectToken('demo');
-            return scope;
+            if (this.isMainFile) {
+                let scope = this.parseScope();
+                scope.isDemo = true;
+                this.expectToken('demo');
+                return scope;
+            } else {
+                this.skipDemo(); // don't even parse it, just skip it
+                return;
+            }
         }
         if (tok.str == 'comment') {
             this.expectTokenTypes([ECSTokenType.CodeFragment]);
             return;
         }
         this.compileError(`Unexpected top-level keyword: ${tok.str}`);
+    }
+
+    skipDemo() {
+        var tok;
+        while ((tok = this.consumeToken()) && !this.isEOF()) {
+            if (tok.str == 'end' && this.peekToken().str == 'demo') {
+                this.consumeToken();
+                return;
+            }
+        }
+        throw new ECSError(`Expected "end demo" after a "demo" declaration.`);
     }
 
     parseComponentDefinition(): ComponentType {
@@ -387,7 +403,7 @@ export class ECSCompiler extends Tokenizer {
         let code = tok.str.substring(3, tok.str.length - 3);
         // TODO: add after parsing maybe?
         let lines = code.split('\n');
-        if (this.debuginfo) this.addDebugInfo(lines, tok.$loc.line);
+        if (this.includeDebugInfo) this.addDebugInfo(lines, tok.$loc.line);
         code = lines.join('\n');
 
         let acomp = new ECSActionCompiler(context);

@@ -8,7 +8,7 @@ import { Dialect_CA65, EntityManager, SourceFileExport } from "../common/ecs/ecs
 
 function testCompiler() {
     let em = new EntityManager(new Dialect_CA65()); // TODO
-    let c = new ECSCompiler(em);
+    let c = new ECSCompiler(em, true);
     try {
         c.parseFile(`
         // comment
@@ -93,7 +93,7 @@ describe('Compiler', function() {
             let dialect = new Dialect_CA65();
             let em = new EntityManager(dialect);
             em.mainPath = ecspath;
-            let compiler = new ECSCompiler(em);
+            let compiler = new ECSCompiler(em, true);
             compiler.getImportFile = (path: string) => {
                 return readFileSync(testdir + path, 'utf-8');
             }

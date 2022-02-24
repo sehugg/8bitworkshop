@@ -1149,6 +1149,11 @@ export class EntityScope implements SourceLocated {
             }
         }
     }
+    *iterateChildScopes() {
+        for (let scope of this.childScopes) {
+            yield scope;
+        }
+    }
     entitiesMatching(atypes: EntityArchetype[]) {
         let result: Entity[] = [];
         for (let e of this.entities) {
@@ -1543,8 +1548,8 @@ export class EntityScope implements SourceLocated {
                 let subcall = this.dialect.call(stats.labels[0]);
                 for (let label of stats.labels) {
                     // TODO: use dialect
-                    let startdelim = `;;; start action ${label}`
-                    let enddelim = `;;; end action ${label}`
+                    let startdelim = this.dialect.comment(`start action ${label}`);
+                    let enddelim = this.dialect.comment(`end action ${label}`);
                     let istart = code.indexOf(startdelim);
                     let iend = code.indexOf(enddelim, istart);
                     if (istart >= 0 && iend > istart) {
@@ -1729,10 +1734,23 @@ export class EntityManager {
             }
         }
     }
+    *iterateScopes() {
+        for (let scope of Object.values(this.topScopes)) {
+            yield scope;
+            scope.iterateChildScopes();
+        }
+    }
     getDebugTree() : {} {
         let scopes = this.topScopes;
         let components = this.components;
+        let fields = this.name2cfpairs;
         let systems = this.systems;
-        return { scopes, components, systems };
+        let events = this.event2systems;
+        let entities : {[key:string]:Entity} = {};
+        for (let scope of Array.from(this.iterateScopes())) {
+            for (let e of scope.entities)
+                entities[e.name || '#'+e.id.toString()] = e;
+        }
+        return { scopes, components, fields, systems, events, entities };
     }
 }

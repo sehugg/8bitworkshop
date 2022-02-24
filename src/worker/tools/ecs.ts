@@ -6,7 +6,7 @@ import { BuildStep, BuildStepResult, fixParamsWithDefines, gatherFiles, getWorkF
 
 export function assembleECS(step: BuildStep): BuildStepResult {
     let em = new EntityManager(new Dialect_CA65()); // TODO
-    let compiler = new ECSCompiler(em);
+    let compiler = new ECSCompiler(em, true);
     compiler.getImportFile = (path: string) => {
         return getWorkFileAsString(path);
     }
@@ -17,7 +17,7 @@ export function assembleECS(step: BuildStep): BuildStepResult {
         let code = getWorkFileAsString(step.path);
         fixParamsWithDefines(step.path, step.params);
         try {
-            compiler.debuginfo = true;
+            compiler.includeDebugInfo = true;
             compiler.parseFile(code, step.path);
             let outtext = compiler.export().toString();
             putWorkFile(destpath, outtext);
