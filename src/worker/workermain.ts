@@ -424,6 +424,7 @@ export interface BuildStep extends WorkerBuildStep {
   code?
   prefix?
   maxts?
+  debuginfo?
 };
 
 ///
@@ -511,6 +512,11 @@ class Builder {
       }
       if (step.result) {
         (step.result as any).params = step.params; // TODO: type check
+        if (step.debuginfo) {
+          let r = step.result as any; // TODO
+          if (!r.debuginfo) r.debuginfo = {};
+          Object.assign(r.debuginfo, step.debuginfo);
+        }
         // errors? return them
         if ('errors' in step.result && step.result.errors.length) {
           applyDefaultErrorPath(step.result.errors, step.path);
@@ -522,6 +528,7 @@ class Builder {
         }
         // combine files with a link tool?
         if ('linktool' in step.result) {
+          // add to existing link step
           if (linkstep) {
             linkstep.files = linkstep.files.concat(step.result.files);
             linkstep.args = linkstep.args.concat(step.result.args);
@@ -533,6 +540,7 @@ class Builder {
               args:step.result.args
             };
           }
+          linkstep.debuginfo = step.debuginfo; // TODO: multiple debuginfos
         }
         // process with another tool?
         if ('nexttool' in step.result) {

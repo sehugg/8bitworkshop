@@ -1410,7 +1410,6 @@ export class EntityScope implements SourceLocated {
                     if (action.critical) this.inCritical--;
                     if (!this.inCritical && codeeval.isSubroutineSized(eventcode)) {
                         let normcode = this.normalizeCode(eventcode, action);
-                        // TODO: label rewriting messes this up
                         let estats = this.eventCodeStats[normcode];
                         if (!estats) {
                             estats = this.eventCodeStats[normcode] = new EventCodeStats(
@@ -1729,5 +1728,11 @@ export class EntityManager {
                 scope.dump(file);
             }
         }
+    }
+    getDebugTree() : {} {
+        let scopes = this.topScopes;
+        let components = this.components;
+        let systems = this.systems;
+        return { scopes, components, systems };
     }
 }

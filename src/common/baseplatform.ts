@@ -223,7 +223,10 @@ export abstract class BasePlatform {
     return inspectSymbol((this as any) as Platform, sym);
   }
   getDebugTree() : {} {
-    return this.saveState();
+    var o : any = { };
+    o.state = this.saveState();
+    if (this.debugSymbols.debuginfo) o.debuginfo = this.debugSymbols.debuginfo;
+    return o;
   }
   readFile(path: string) : FileData {
     return this.internalFiles[path];

@@ -23,6 +23,7 @@ export function assembleECS(step: BuildStep): BuildStepResult {
             putWorkFile(destpath, outtext);
             var listings: CodeListingMap = {};
             listings[destpath] = {lines:[], text:outtext} // TODO
+            var debuginfo = compiler.em.getDebugTree();
         } catch (e) {
             if (e instanceof ECSError) {
                 compiler.addError(e.message, e.$loc);
@@ -33,12 +34,13 @@ export function assembleECS(step: BuildStep): BuildStepResult {
                 throw e;
             }
         }
+        return {
+            nexttool: "ca65",
+            path: destpath,
+            args: [destpath],
+            files: [destpath].concat(step.files),
+            listings,
+            debuginfo
+        };
     }
-    return {
-        nexttool: "ca65",
-        path: destpath,
-        args: [destpath],
-        files: [destpath].concat(step.files),
-        listings
-    };
 }
