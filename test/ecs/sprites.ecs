@@ -436,5 +436,6 @@ demo Main
     	init sprite = #Sprite3
     end
 
-end
+end demo
+
 

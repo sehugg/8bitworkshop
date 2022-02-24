@@ -32,6 +32,7 @@ export enum TokenType {
 export class Token implements SourceLocated {
     str: string;
     type: string;
+    eol: boolean;   // end of line?
     $loc: SourceLocation;
 }
 
@@ -92,7 +93,7 @@ export class Tokenizer {
             this.lineindex.push(m.index);
         }
         this._tokenize(contents);
-        this.eof = { type: TokenType.EOF, str: "", $loc: { path: this.path, line: this.lineno } };
+        this.eof = { type: TokenType.EOF, str: "", eol: true, $loc: { path: this.path, line: this.lineno } };
         this.pushToken(this.eof);
     }
     _tokenize(text: string): void {
@@ -121,7 +122,12 @@ export class Tokenizer {
                                 this.compileError(`I didn't expect the character "${m[0]}" here.`, loc);
                             }
                         default:
-                            this.pushToken({ str: s, type: rule.type, $loc: loc });
+                            this.pushToken({ str: s, type: rule.type, $loc: loc, eol: false });
+                            break;
+                        case TokenType.EOL:
+                            // set EOL for last token
+                            if (this.tokens.length)
+                                this.tokens[this.tokens.length-1].eol = true;
                         case TokenType.Comment:
                         case TokenType.Ignore:
                             break;

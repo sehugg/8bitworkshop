@@ -41,6 +41,7 @@ export class ECSCompiler extends Tokenizer {
             { type: TokenType.Ident, regex: /[A-Za-z_][A-Za-z0-9_]*/ },
             { type: TokenType.Ignore, regex: /\/\/.*?[\n\r]/ },
             { type: TokenType.Ignore, regex: /\/\*.*?\*\// },
+            { type: TokenType.EOL, regex: /[\n\r]+/ },
             { type: TokenType.Ignore, regex: /\s+/ },
         ]);
         this.errorOnCatchAll = true;

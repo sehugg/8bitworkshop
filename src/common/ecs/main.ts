@@ -4,7 +4,7 @@ import { Dialect_CA65, EntityManager, SourceFileExport } from "./ecs";
 
 class ECSMain {
 
-    compiler = new ECSCompiler(new EntityManager(new Dialect_CA65())); // TODO
+    compiler = new ECSCompiler(new EntityManager(new Dialect_CA65()), true); // TODO
 
     constructor(readonly args: string[]) {
     }

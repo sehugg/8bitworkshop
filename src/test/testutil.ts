@@ -143,6 +143,7 @@ describe('Tokenizer', function () {
       { type: 'delim', regex: /[\(\)\{\}\[\]]/ },
       { type: 'qstring', regex: /".*?"/ },
       { type: 'integer', regex: /[-]?\d+/ },
+      { type: 'eol', regex: /\n+/ },
       { type: 'ignore', regex: /\s+/ },
     ]);
     t.tokenizeFile("a\n{\"key\" value\n \"number\" 531\n\n \"f\" (fn [x] (+ x 2))}\n", "test.file");
@@ -150,6 +151,8 @@ describe('Tokenizer', function () {
       'ident delim qstring ident qstring integer qstring delim ident delim ident delim delim catch-all ident integer delim delim delim eof');
     assert.strictEqual(t.tokens.map(t => t.str).join(' '),
       'a { "key" value "number" 531 "f" ( fn [ x ] ( + x 2 ) ) } ');
+    assert.strictEqual(t.tokens.filter(t => t.eol).map(t => t.str).join(' '),
+      'a value 531 } ');
     assert.strictEqual(t.tokens.map(t => t.$loc.line).join(' '),
       '1 2 2 2 3 3 5 5 5 5 5 5 5 5 5 5 5 5 5 6');
     assert.strictEqual(20, t.tokens.length);

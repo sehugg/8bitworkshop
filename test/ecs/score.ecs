@@ -293,4 +293,5 @@ demo Main
     {{!AddBCD4 $0210}}
 ---
   end
-end
+end demo
+

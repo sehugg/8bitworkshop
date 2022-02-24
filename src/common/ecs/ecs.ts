@@ -1548,9 +1548,9 @@ export class EntityScope implements SourceLocated {
                 }
                 let subcall = this.dialect.call(stats.labels[0]);
                 for (let label of stats.labels) {
-                    // TODO: use dialect
-                    let startdelim = this.dialect.comment(`start action ${label}`);
-                    let enddelim = this.dialect.comment(`end action ${label}`);
+                    // TODO: need to trim()?
+                    let startdelim = this.dialect.comment(`start action ${label}`).trim();
+                    let enddelim = this.dialect.comment(`end action ${label}`).trim();
                     let istart = code.indexOf(startdelim);
                     let iend = code.indexOf(enddelim, istart);
                     if (istart >= 0 && iend > istart) {

@@ -28,4 +28,4 @@ demo Main
     const lines = 2
     const color = $16
   end
-end
+end demo

@@ -1,20 +1,13 @@
-EVENT__main_init = 1
 EVENT__start = 1
-EVENT__nextframe = 1
-EVENT__resetswitch = 1
-EVENT__postframe = 1
-EVENT__SetHorizPos = 1
 EVENT__preframe = 1
 EVENT__kernel = 1
-EVENT__kerneldraw = 1
-EVENT__kernelsetup = 1
-EVENT__joybutton = 1
 EVENT__FontTable = 1
 EVENT__compute2digit = 1
 EVENT__fetchdigit = 1
 EVENT__FontTablePF = 1
-EVENT__FontTablePFFancy = 1
+EVENT__postframe = 1
 EVENT__AddBCD4 = 1
+EVENT__joybutton = 1
 .scope Main
 .zeropage
 BCDScore6_digits_b0:
