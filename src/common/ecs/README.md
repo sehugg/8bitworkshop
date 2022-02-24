@@ -187,5 +187,5 @@ end
 
 Slice PNGs into sprites
 Maybe output decoder text
-
 Action priorities - before, after
+Generate C symbols
