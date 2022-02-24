@@ -1181,8 +1181,9 @@ export class EntityScope implements SourceLocated {
             // constants and array pointers go into rodata
             let cfname = mksymbol(c, f.name);
             let ftype = this.fieldtypes[cfname];
-            let segment = ftype == 'const' ? this.rodata : this.bss;
-            if (v === undefined && ftype == 'const')
+            let isConst = ftype == 'const';
+            let segment = isConst ? this.rodata : this.bss;
+            if (v === undefined && isConst)
                 throw new ECSError(`no value for const field ${cfname}`, e);
             // determine range of indices for entities
             let array = segment.fieldranges[cfname];
@@ -1194,11 +1195,12 @@ export class EntityScope implements SourceLocated {
                     throw new ECSError(`too many entities have field ${cfname}, limit is 256`);
             }
             // set default values for entity/field
-            if (ftype == 'init') {
+            if (!isConst) {
                 if (f.dtype == 'int' && f.defvalue !== undefined) {
                     let ecfname = mkscopesymbol(this, c, f.name);
-                    if (e.inits[ecfname] == null)
+                    if (e.inits[ecfname] == null) {
                         this.setInitValue(e, c, f, f.defvalue);
+                    }
                 }
             }
         }
