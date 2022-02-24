@@ -1117,6 +1117,7 @@ export class EntityScope implements SourceLocated {
         if (!inst) throw new Error();
         inst.id = this.instances.length+1;
         this.instances.push(inst);
+        this.em.registerSystemEvents(inst.system);
         return inst;
     }
     newSystemInstanceWithDefaults(system: System) {
@@ -1649,13 +1650,15 @@ export class EntityManager {
     defineSystem(system: System) {
         let existing = this.systems[system.name];
         if (existing) throw new ECSError(`system ${system.name} already defined`, existing);
+        return this.systems[system.name] = system;
+    }
+    registerSystemEvents(system: System) {
         for (let a of system.actions) {
             let event = a.event;
             let list = this.event2systems[event];
             if (list == null) list = this.event2systems[event] = [];
             if (!list.includes(system)) list.push(system);
         }
-        return this.systems[system.name] = system;
     }
     addArchetype(atype: EntityArchetype): EntityArchetype {
         let key = atype.components.map(c => c.name).join(',');
