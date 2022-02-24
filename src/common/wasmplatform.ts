@@ -59,22 +59,22 @@ export abstract class BaseWASMMachine {
   }
   async fetchWASM() {
     var wasmResponse = await fetch('res/'+this.prefix+'.wasm');
-    if (wasmResponse.status == 200) {
+    if (wasmResponse.status == 200 || (wasmResponse as any as Blob).size) {
       var wasmBinary = await wasmResponse.arrayBuffer();
       var wasmCompiled = await WebAssembly.compile(wasmBinary);
       var wasmResult = await WebAssembly.instantiate(wasmCompiled, this.getImports(wasmCompiled));
       this.instance = wasmResult;
       this.exports = wasmResult.exports;
-    }
+    } else throw new Error('could not load WASM file');
   }
   async fetchBIOS() {
     var biosResponse = await fetch('res/'+this.prefix+'.bios');
-    if (biosResponse.status == 200) {
+    if (biosResponse.status == 200 || (biosResponse as any as Blob).size) {
       var biosBinary = await biosResponse.arrayBuffer();
       this.biosptr = this.exports.malloc(biosBinary.byteLength);
       this.biosarr = new Uint8Array(this.exports.memory.buffer, this.biosptr, biosBinary.byteLength);
       this.loadBIOS(new Uint8Array(biosBinary));
-    }
+    } else throw new Error('could not load BIOS file');
   }
   async initWASM() {
     // init machine instance
