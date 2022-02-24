@@ -1,5 +1,4 @@
 
-import { loadScript } from "../common/util";
 import { WasmFs } from "@wasmer/wasmfs";
 import { CpuState, EmuState } from "./baseplatform";
 import { CPU, SampledAudioSink, ProbeAll, NullProbe } from "./devices";
@@ -60,18 +59,22 @@ export abstract class BaseWASMMachine {
   }
   async fetchWASM() {
     var wasmResponse = await fetch('res/'+this.prefix+'.wasm');
-    var wasmBinary = await wasmResponse.arrayBuffer();
-    var wasmCompiled = await WebAssembly.compile(wasmBinary);
-    var wasmResult = await WebAssembly.instantiate(wasmCompiled, this.getImports(wasmCompiled));
-    this.instance = wasmResult;
-    this.exports = wasmResult.exports;
+    if (wasmResponse.status == 200 || (wasmResponse as any as Blob).size) {
+      var wasmBinary = await wasmResponse.arrayBuffer();
+      var wasmCompiled = await WebAssembly.compile(wasmBinary);
+      var wasmResult = await WebAssembly.instantiate(wasmCompiled, this.getImports(wasmCompiled));
+      this.instance = wasmResult;
+      this.exports = wasmResult.exports;
+    } else throw new Error('could not load WASM file');
   }
   async fetchBIOS() {
     var biosResponse = await fetch('res/'+this.prefix+'.bios');
-    var biosBinary = await biosResponse.arrayBuffer();
-    this.biosptr = this.exports.malloc(biosBinary.byteLength);
-    this.biosarr = new Uint8Array(this.exports.memory.buffer, this.biosptr, biosBinary.byteLength);
-    this.loadBIOS(new Uint8Array(biosBinary));
+    if (biosResponse.status == 200 || (biosResponse as any as Blob).size) {
+      var biosBinary = await biosResponse.arrayBuffer();
+      this.biosptr = this.exports.malloc(biosBinary.byteLength);
+      this.biosarr = new Uint8Array(this.exports.memory.buffer, this.biosptr, biosBinary.byteLength);
+      this.loadBIOS(new Uint8Array(biosBinary));
+    } else throw new Error('could not load BIOS file');
   }
   async initWASM() {
     // init machine instance
@@ -143,11 +146,12 @@ export abstract class BaseWASMMachine {
   getAudioParams() {
     return {sampleRate:44100, stereo:false};
   }
+  videoOffsetBytes = 0;
   connectVideo(pixels:Uint32Array) : void {
     this.pixel_dest = pixels;
     var pixbuf = this.exports.machine_get_pixel_buffer(this.sys); // save video pointer
-    this.pixel_src = new Uint32Array(this.exports.memory.buffer, pixbuf, pixels.length);
     console.log('connectVideo', pixbuf, pixels.length);
+    this.pixel_src = new Uint32Array(this.exports.memory.buffer, pixbuf+this.videoOffsetBytes, pixels.length);
   }
   syncVideo() {
     if (this.exports.machine_update_video) {

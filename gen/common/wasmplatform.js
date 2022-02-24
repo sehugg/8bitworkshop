@@ -27,6 +27,7 @@ const emu_1 = require("./emu");
 class BaseWASMMachine {
     constructor(prefix) {
         this.maxROMSize = 0x40000;
+        this.videoOffsetBytes = 0;
         this.prefix = prefix;
         var self = this;
         this.cpu = {
@@ -50,18 +51,26 @@ class BaseWASMMachine {
     }
     async fetchWASM() {
         var wasmResponse = await fetch('res/' + this.prefix + '.wasm');
-        var wasmBinary = await wasmResponse.arrayBuffer();
-        var wasmCompiled = await WebAssembly.compile(wasmBinary);
-        var wasmResult = await WebAssembly.instantiate(wasmCompiled, this.getImports(wasmCompiled));
-        this.instance = wasmResult;
-        this.exports = wasmResult.exports;
+        if (wasmResponse.status == 200 || wasmResponse.size) {
+            var wasmBinary = await wasmResponse.arrayBuffer();
+            var wasmCompiled = await WebAssembly.compile(wasmBinary);
+            var wasmResult = await WebAssembly.instantiate(wasmCompiled, this.getImports(wasmCompiled));
+            this.instance = wasmResult;
+            this.exports = wasmResult.exports;
+        }
+        else
+            throw new Error('could not load WASM file');
     }
     async fetchBIOS() {
         var biosResponse = await fetch('res/' + this.prefix + '.bios');
-        var biosBinary = await biosResponse.arrayBuffer();
-        this.biosptr = this.exports.malloc(biosBinary.byteLength);
-        this.biosarr = new Uint8Array(this.exports.memory.buffer, this.biosptr, biosBinary.byteLength);
-        this.loadBIOS(new Uint8Array(biosBinary));
+        if (biosResponse.status == 200 || biosResponse.size) {
+            var biosBinary = await biosResponse.arrayBuffer();
+            this.biosptr = this.exports.malloc(biosBinary.byteLength);
+            this.biosarr = new Uint8Array(this.exports.memory.buffer, this.biosptr, biosBinary.byteLength);
+            this.loadBIOS(new Uint8Array(biosBinary));
+        }
+        else
+            throw new Error('could not load BIOS file');
     }
     async initWASM() {
         // init machine instance
@@ -137,8 +146,8 @@ class BaseWASMMachine {
     connectVideo(pixels) {
         this.pixel_dest = pixels;
         var pixbuf = this.exports.machine_get_pixel_buffer(this.sys); // save video pointer
-        this.pixel_src = new Uint32Array(this.exports.memory.buffer, pixbuf, pixels.length);
         console.log('connectVideo', pixbuf, pixels.length);
+        this.pixel_src = new Uint32Array(this.exports.memory.buffer, pixbuf + this.videoOffsetBytes, pixels.length);
     }
     syncVideo() {
         if (this.exports.machine_update_video) {

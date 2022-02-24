@@ -327,6 +327,13 @@ var PLATFORM_PARAMS = {
         libargs: ['c64.lib'],
         //extra_link_files: ['c64-cart.cfg'],
     },
+    'vic20': {
+        arch: '6502',
+        define: ['__CBM__', '__VIC20__'],
+        cfgfile: 'vic20.cfg',
+        libargs: ['vic20.lib'],
+        //extra_link_files: ['c64-cart.cfg'],
+    },
     'kim1': {
         arch: '6502',
     },
@@ -1120,6 +1127,8 @@ var TOOL_PRELOADFS = {
     'ca65-apple2': '65-apple2',
     'cc65-c64': '65-c64',
     'ca65-c64': '65-c64',
+    'cc65-vic20': '65-vic20',
+    'ca65-vic20': '65-vic20',
     'cc65-nes': '65-nes',
     'ca65-nes': '65-nes',
     'cc65-atari8': '65-atari8',

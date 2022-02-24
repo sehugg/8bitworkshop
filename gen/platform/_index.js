@@ -47,6 +47,7 @@ function importPlatform(name) {
         case "vector": return Promise.resolve().then(() => __importStar(require("../platform/vector")));
         case "vectrex": return Promise.resolve().then(() => __importStar(require("../platform/vectrex")));
         case "verilog": return Promise.resolve().then(() => __importStar(require("../platform/verilog")));
+        case "vic20": return Promise.resolve().then(() => __importStar(require("../platform/vic20")));
         case "vicdual": return Promise.resolve().then(() => __importStar(require("../platform/vicdual")));
         case "williams": return Promise.resolve().then(() => __importStar(require("../platform/williams")));
         case "x86": return Promise.resolve().then(() => __importStar(require("../platform/x86")));
