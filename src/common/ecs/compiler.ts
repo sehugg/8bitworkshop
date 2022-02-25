@@ -2,7 +2,7 @@
 import { mergeLocs, Token, Tokenizer, TokenType } from "../tokenizer";
 import { SourceLocated, SourceLocation } from "../workertypes";
 import { newDecoder } from "./decoder";
-import { Action, ActionContext, ActionNode, ActionWithJoin, ArrayType, CodeLiteralNode, CodePlaceholderNode, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System, SystemInstance, SystemInstanceParameters, ComponentFieldPair, Expr, ExprBase, ForwardRef, isLiteral, EntitySetField, LExpr } from "./ecs";
+import { Action, ActionContext, ActionNode, ActionWithJoin, ArrayType, CodeLiteralNode, CodePlaceholderNode, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System, SystemInstance, SystemInstanceParameters, ComponentFieldPair, Expr, ExprBase, ForwardRef, isLiteral, EntityFieldOp, LExpr, Statement } from "./ecs";
 
 export enum ECSTokenType {
     Ellipsis = 'ellipsis',
@@ -349,10 +349,9 @@ export class ECSCompiler extends Tokenizer {
             tempbytes = this.parseIntegerConstant();
         }
         let system: System = { name, tempbytes, actions: [] };
-        let context: ActionContext = { scope: null, system };
-        let text = this.parseCode(context);
         let select: SelectType = 'once';
-        let action: Action = { text, event: name, select };
+        let expr = this.parseBlockStatement();
+        let action: Action = { expr, event: name, select };
         system.actions.push(action);
         return system;
     }
@@ -384,13 +383,11 @@ export class ECSCompiler extends Tokenizer {
         if (this.ifToken('fit')) {
             fitbytes = this.parseIntegerConstant();
         }
-        let context: ActionContext = { scope: null, system };
-        // parse --- code ---
-        let text = this.parseCode(context);
         let direction = undefined;
         if (modifiers['asc']) direction = 'asc';
         else if (modifiers['desc']) direction = 'desc';
-        let action = { text, event, query, join, select, direction, fitbytes };
+        let expr = this.parseBlockStatement();
+        let action = { expr, event, query, join, select, direction, fitbytes };
         if (modifiers['critical']) (action as ActionWithJoin).critical = true;
         return action as ActionWithJoin;
     }
@@ -441,7 +438,7 @@ export class ECSCompiler extends Tokenizer {
         return this.parseList(this.parseEventName, ",");
     }
 
-    parseCode(context: ActionContext): string { // TODOActionNode[] {
+    parseCode(): string { // TODOActionNode[] {
         // TODO: add $loc
         let tok = this.expectTokenTypes([ECSTokenType.CodeFragment]);
         let code = tok.str.substring(3, tok.str.length - 3);
@@ -450,8 +447,8 @@ export class ECSCompiler extends Tokenizer {
         if (this.includeDebugInfo) this.addDebugInfo(lines, tok.$loc.line);
         code = lines.join('\n');
 
-        let acomp = new ECSActionCompiler(context);
-        let nodes = acomp.parseFile(code, this.path);
+        //let acomp = new ECSActionCompiler(context);
+        //let nodes = acomp.parseFile(code, this.path);
         // TODO: return nodes
         return code;
     }
@@ -694,8 +691,8 @@ export class ECSCompiler extends Tokenizer {
             }
             var opfn = getOperator(op.str).f;
             // use logical operators instead of bitwise?
-            if (op.str == 'AND') opfn = 'land';
-            if (op.str == 'OR') opfn = 'lor';
+            if (op.str == 'and') opfn = 'land';
+            if (op.str == 'or') opfn = 'lor';
             var valtype = this.exprTypeForOp(opfn, left, right, op);
             left = { valtype:valtype, op:opfn, left: left, right: right };
         }
@@ -710,7 +707,7 @@ export class ECSCompiler extends Tokenizer {
                 let valtype : IntType = { dtype: 'int', lo: value, hi: value };
                 return { valtype, value };
             case TokenType.Ident:
-                if (tok.str == 'NOT') {
+                if (tok.str == 'not') {
                     let expr = this.parsePrimary();
                     let valtype : IntType = { dtype: 'int', lo: 0, hi: 1 };
                     return { valtype, op: 'lnot', expr: expr };
@@ -752,7 +749,7 @@ export class ECSCompiler extends Tokenizer {
                     if (!this.currentScope) throw this.compileError(`This operation only works inside of a scope.`);
                     let atypes = this.em.archetypesMatching({ include: [component] })
                     let entities = this.currentScope.entitiesMatching(atypes);
-                    return { entities, field } as EntitySetField;
+                    return { entities, field } as EntityFieldOp;
                 }
                 // entity.field
                 if (this.ifToken('.')) {
@@ -764,7 +761,7 @@ export class ECSCompiler extends Tokenizer {
                     let field = component.fields.find(f => f.name == ftok.str);
                     if (!field) throw this.compileError(`There is no "${ftok.str}" field in this entity.`);
                     let entities = [entity];
-                    return { entities, field } as EntitySetField;
+                    return { entities, field } as EntityFieldOp;
                 }
                 let args : Expr[] = [];
                 if (this.ifToken('(')) {
@@ -795,6 +792,22 @@ export class ECSCompiler extends Tokenizer {
     }
     parseExprList(): Expr[] {
         return this.parseList(this.parseExpr, ',');
+    }
+    parseBlockStatement(): Statement {
+        let valtype : IntType = { dtype:'int', lo:0, hi: 0 }
+        if (this.peekToken().type == ECSTokenType.CodeFragment) {
+            return { valtype, code: this.parseCode() };
+        }
+        let cmd = this.expectTokens(['end','begin']);
+        if (cmd.str == 'begin') {
+            let stmts = [];
+            while (this.peekToken().str != 'end') {
+                stmts.push(this.parseBlockStatement());
+            }
+            this.expectToken('end');
+            return { valtype, stmts };
+        }
+        throw this.internalError();
     }
 }
 

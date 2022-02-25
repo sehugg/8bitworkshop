@@ -78,6 +78,7 @@ export const SELECT_TYPE = ['once', 'foreach', 'join', 'with', 'if', 'select', '
 
 export type SelectType = typeof SELECT_TYPE[number];
 
+// TODO?
 export interface ActionContext {
     system: System
     scope: EntityScope | null
@@ -112,20 +113,10 @@ export class CodePlaceholderNode extends ActionNode {
     }
 }
 
-class QueryNode extends ActionNode {
-}
-
-class WrapperNode extends ActionNode {
-}
-
-class LoopNode extends ActionNode {
-}
-
-
 export interface ActionBase extends SourceLocated {
     select: SelectType;
     event: string;
-    text: string;
+    expr: Statement;
     critical?: boolean;
     fitbytes?: number;
 }
@@ -204,18 +195,17 @@ export interface ForwardRef extends SourceLocated {
     token: Token
 }
 
-export type LExpr = IndOp | EntitySetField;
-export type ExprTypes = BinOp | UnOp | Literal | ForwardRef | LExpr;
-export type Expr = ExprTypes; // & SourceLocated;
+export type LExpr = IndOp | EntityFieldOp;
+export type Statement = InlineCode | BlockExpr;
+export type Expr = BinOp | UnOp | Literal | ForwardRef | LExpr | Statement;
 export type Opcode = string;
-export type Value = DataValue;
 
 export interface ExprBase extends SourceLocated {
     valtype: DataType;
 }
 
 export interface Literal extends ExprBase {
-    value: Value;
+    value: DataValue;
 }
 
 export interface LiteralInt extends Literal {
@@ -239,9 +229,32 @@ export interface IndOp extends ExprBase {
     args: Expr[];
 }
 
-export interface EntitySetField extends ExprBase {
+export interface CondOp extends ExprBase {
+    cond: Expr;
+    iftrue?: Expr;
+    iffalse?: Expr;
+}
+
+export interface BlockExpr extends ExprBase {
+    loop?: boolean;
+    stmts: Expr[];
+}
+
+export interface BranchOp extends ExprBase {
+    branch: BlockExpr;
+}
+
+export interface EntityFieldOp extends ExprBase {
     entities: Entity[];
     field: DataField;
+}
+
+export interface EntityContextOp extends ExprBase {
+    entities: Entity[];
+}
+
+export interface InlineCode extends ExprBase {
+    code: string;
 }
 
 export function isLiteral(arg: Expr): arg is Literal {
@@ -258,6 +271,12 @@ export function isBinOp(arg: Expr): arg is BinOp {
 }
 export function isUnOp(arg: Expr): arg is UnOp {
     return (arg as any).op != null && (arg as any).expr != null;
+}
+export function isBlockStmt(arg: Expr): arg is BlockExpr {
+    return (arg as any).stmts != null;
+}
+export function isInlineCode(arg: Expr): arg is InlineCode {
+    return (arg as any).code != null;
 }
 
 
@@ -796,7 +815,7 @@ class ActionEval {
         return code;
     }
     private getCodeAndProps(action: Action) {
-        let code = action.text;
+        let code = this.exprToCode(action.expr);
         let props: { [name: string]: string } = {};
         if (action.select != 'once') {
             // TODO: detect cycles
@@ -1124,6 +1143,15 @@ class ActionEval {
         if (code.length > 20000) return false;
         if (code.split('\n ').length >= 4) return true; // TODO: :^/
         return false;
+    }
+    exprToCode(expr: Expr) : string {
+        if (isBlockStmt(expr)) {
+            return expr.stmts.map(node => this.exprToCode(node)).join('\n');
+        }
+        if (isInlineCode(expr)) {
+            return expr.code;
+        }
+        throw new ECSError(`cannot convert expression to code`, expr);
     }
 }
 
