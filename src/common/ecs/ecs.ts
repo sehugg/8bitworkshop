@@ -1,4 +1,5 @@
 
+import { Token } from "../tokenizer";
 import { SourceLocated, SourceLocation } from "../workertypes";
 import { Bin, Packer } from "./binpack";
 
@@ -195,6 +196,72 @@ export interface ComponentFieldPair {
     c: ComponentType;
     f: DataField;
 }
+
+// Expressions
+
+export interface ForwardRef extends SourceLocated {
+    reftype: RefType | undefined
+    token: Token
+}
+
+export type LExpr = IndOp | EntitySetField;
+export type ExprTypes = BinOp | UnOp | Literal | ForwardRef | LExpr;
+export type Expr = ExprTypes; // & SourceLocated;
+export type Opcode = string;
+export type Value = DataValue;
+
+export interface ExprBase extends SourceLocated {
+    valtype: DataType;
+}
+
+export interface Literal extends ExprBase {
+    value: Value;
+}
+
+export interface LiteralInt extends Literal {
+    value: number;
+    valtype: IntType;
+}
+
+export interface BinOp extends ExprBase {
+    op: Opcode;
+    left: Expr;
+    right: Expr;
+}
+
+export interface UnOp extends ExprBase {
+    op: 'neg' | 'lnot' | 'bnot';
+    expr: Expr;
+}
+
+export interface IndOp extends ExprBase {
+    name: string;
+    args: Expr[];
+}
+
+export interface EntitySetField extends ExprBase {
+    entities: Entity[];
+    field: DataField;
+}
+
+export function isLiteral(arg: Expr): arg is Literal {
+    return (arg as any).value != null;
+}
+export function isLiteralInt(arg: Expr): arg is LiteralInt {
+    return isLiteral(arg) && arg.valtype.dtype == 'int';
+}
+export function isLookup(arg: Expr): arg is IndOp {
+    return (arg as any).name != null;
+}
+export function isBinOp(arg: Expr): arg is BinOp {
+    return (arg as any).op != null && (arg as any).left != null && (arg as any).right != null;
+}
+export function isUnOp(arg: Expr): arg is UnOp {
+    return (arg as any).op != null && (arg as any).expr != null;
+}
+
+
+/// DIALECT
 
 export class Dialect_CA65 {
 
@@ -1757,5 +1824,51 @@ export class EntityManager {
                 entities[e.name || '#'+e.id.toString()] = e;
         }
         return { scopes, components, fields, systems, events, entities };
+    }
+
+    // expression stuff
+
+    evalExpr(expr: Expr, scope: EntityScope | null) : Expr {
+        if (isLiteral(expr)) return expr;
+        if (isBinOp(expr) || isUnOp(expr)) {
+            var fn = (this as any)['evalop__' + expr.op];
+            if (!fn) throw new ECSError(`no eval function for "${expr.op}"`);
+        }
+        if (isBinOp(expr)) {
+            expr.left = this.evalExpr(expr.left, scope);
+            expr.right = this.evalExpr(expr.right, scope);
+            let e = fn(expr.left, expr.right);
+            return e || expr;
+        }
+        if (isUnOp(expr)) {
+            expr.expr = this.evalExpr(expr.expr, scope);
+            let e = fn(expr.expr);
+            return e || expr;
+        }
+        return expr;
+    }
+    evalop__neg(arg: Expr) : Expr | undefined {
+        if (isLiteralInt(arg)) {
+            let valtype : IntType = { dtype:'int',
+                lo: -arg.valtype.hi,
+                hi: arg.valtype.hi };
+            return { valtype, value: -arg.value };
+        }
+    }
+    evalop__add(left: Expr, right: Expr) : Expr | undefined {
+        if (isLiteralInt(left) && isLiteralInt(right)) {
+            let valtype : IntType = { dtype:'int', 
+                lo: left.valtype.lo + right.valtype.lo, 
+                hi: left.valtype.hi + right.valtype.hi };
+            return { valtype, value: left.value + right.value };
+        }
+    }
+    evalop__sub(left: Expr, right: Expr) : Expr | undefined {
+        if (isLiteralInt(left) && isLiteralInt(right)) {
+            let valtype : IntType = { dtype:'int', 
+                lo: left.valtype.lo - right.valtype.hi, 
+                hi: left.valtype.hi - right.valtype.lo };
+            return { valtype, value: left.value - right.value };
+        }
     }
 }

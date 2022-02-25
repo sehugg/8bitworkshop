@@ -149,15 +149,17 @@ export class Tokenizer {
         this.errors.push({ path: loc.path, line: loc.line, label: this.curlabel, start: loc.start, end: loc.end, msg: msg });
     }
     internalError() {
-        this.compileError("Internal error.");
+        return this.compileError("Internal error.");
     }
     notImplementedError() {
-        this.compileError("Not yet implemented.");
+        return this.compileError("Not yet implemented.");
     }
-    compileError(msg: string, loc?: SourceLocation, loc2?: SourceLocation) {
+    compileError(msg: string, loc?: SourceLocation, loc2?: SourceLocation) : CompileError {
         this.addError(msg, loc);
         //if (loc2 != null) this.addError(`...`, loc2);
-        throw new CompileError(msg, loc);
+        let e = new CompileError(msg, loc);
+        throw e;
+        return e;
     }
     peekToken(lookahead?: number): Token {
         let tok = this.tokens[lookahead || 0];

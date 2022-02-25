@@ -2,21 +2,64 @@
 import { mergeLocs, Token, Tokenizer, TokenType } from "../tokenizer";
 import { SourceLocated, SourceLocation } from "../workertypes";
 import { newDecoder } from "./decoder";
-import { Action, ActionContext, ActionNode, ActionWithJoin, ArrayType, CodeLiteralNode, CodePlaceholderNode, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System, SystemInstance, SystemInstanceParameters, ComponentFieldPair } from "./ecs";
+import { Action, ActionContext, ActionNode, ActionWithJoin, ArrayType, CodeLiteralNode, CodePlaceholderNode, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System, SystemInstance, SystemInstanceParameters, ComponentFieldPair, Expr, ExprBase, ForwardRef, isLiteral, EntitySetField, LExpr } from "./ecs";
 
 export enum ECSTokenType {
     Ellipsis = 'ellipsis',
-    Operator = 'delimiter',
+    Operator = 'operator',
+    Relational = 'relational',
     QuotedString = 'quoted-string',
     Integer = 'integer',
     CodeFragment = 'code-fragment',
     Placeholder = 'placeholder',
 }
 
-interface ForwardRef {
-    reftype: RefType | undefined
-    token: Token
+const OPERATORS = {
+    'IMP':  {f:'bimp',p:4},
+    'EQV':  {f:'beqv',p:5},
+    'XOR':  {f:'bxor',p:6},
+    'OR':   {f:'bor',p:7}, // or "lor" for logical
+    'AND':  {f:'band',p:8}, // or "land" for logical
+    '||':   {f:'lor',p:17}, // not used
+    '&&':   {f:'land',p:18}, // not used
+    '=':    {f:'eq',p:50},
+    '==':   {f:'eq',p:50},
+    '<>':   {f:'ne',p:50},
+    '><':   {f:'ne',p:50},
+    '!=':   {f:'ne',p:50},
+    '#':    {f:'ne',p:50},
+    '<':    {f:'lt',p:50},
+    '>':    {f:'gt',p:50},
+    '<=':   {f:'le',p:50},
+    '>=':   {f:'ge',p:50},
+    'MIN':  {f:'min',p:75},
+    'MAX':  {f:'max',p:75},
+    '+':    {f:'add',p:100},
+    '-':    {f:'sub',p:100},
+};
+
+function getOperator(op: string) {
+    return (OPERATORS as any)[op];
 }
+
+function getPrecedence(tok: Token): number {
+    switch (tok.type) {
+        case ECSTokenType.Operator:
+        case ECSTokenType.Relational:
+        case TokenType.Ident:
+            let op = getOperator(tok.str);
+            if (op) return op.p;
+    }
+    return -1;
+}
+
+// is token an end of statement marker? (":" or end of line)
+function isEOS(tok: Token) {
+    return tok.type == TokenType.EOL || tok.type == TokenType.Comment
+        || tok.str == ':' || tok.str == 'ELSE'; // TODO: only ELSE if ifElse==true
+}
+
+///
 
 export class ECSCompiler extends Tokenizer {
 
@@ -33,11 +76,12 @@ export class ECSCompiler extends Tokenizer {
             { type: ECSTokenType.Ellipsis, regex: /\.\./ },
             { type: ECSTokenType.QuotedString, regex: /".*?"/ },
             { type: ECSTokenType.CodeFragment, regex: /---.*?---/ },
-            { type: ECSTokenType.Integer, regex: /[-]?0[xX][A-Fa-f0-9]+/ },
-            { type: ECSTokenType.Integer, regex: /[-]?\$[A-Fa-f0-9]+/ },
-            { type: ECSTokenType.Integer, regex: /[-]?\d+/ },
+            { type: ECSTokenType.Integer, regex: /0[xX][A-Fa-f0-9]+/ },
+            { type: ECSTokenType.Integer, regex: /\$[A-Fa-f0-9]+/ },
             { type: ECSTokenType.Integer, regex: /[%][01]+/ },
-            { type: ECSTokenType.Operator, regex: /[.#=,:(){}\[\]\-]/ },
+            { type: ECSTokenType.Integer, regex: /\d+/ },
+            { type: ECSTokenType.Relational, regex: /[=<>][=<>]?/ },
+            { type: ECSTokenType.Operator, regex: /[.#,:(){}\[\]\-\+]/ },
             { type: TokenType.Ident, regex: /[A-Za-z_][A-Za-z0-9_]*/ },
             { type: TokenType.Ignore, regex: /\/\/.*?[\n\r]/ },
             { type: TokenType.Ignore, regex: /\/\*.*?\*\// },
@@ -153,9 +197,9 @@ export class ECSCompiler extends Tokenizer {
 
     parseDataType(): DataType {
         if (this.peekToken().type == 'integer') {
-            let lo = this.expectInteger();
+            let lo = this.parseIntegerConstant();
             this.expectToken('..');
-            let hi = this.expectInteger();
+            let hi = this.parseIntegerConstant();
             this.checkLowerLimit(lo, -0x80000000, "lower int range");
             this.checkUpperLimit(hi, 0x7fffffff, "upper int range");
             this.checkUpperLimit(hi-lo, 0xffffffff, "int range");
@@ -163,7 +207,7 @@ export class ECSCompiler extends Tokenizer {
             // TODO: use default value?
             let defvalue;
             if (this.ifToken('default')) {
-                defvalue = this.expectInteger();
+                defvalue = this.parseIntegerConstant();
             }
             // TODO: check types
             return { dtype: 'int', lo, hi, defvalue } as IntType;
@@ -180,7 +224,7 @@ export class ECSCompiler extends Tokenizer {
             let elem = this.parseDataType();
             let baseoffset;
             if (this.ifToken('baseoffset')) {
-                baseoffset = this.expectInteger();
+                baseoffset = this.parseIntegerConstant();
                 this.checkLowerLimit(baseoffset, -32768, "base offset");
                 this.checkUpperLimit(baseoffset, 32767, "base offset");
             }
@@ -201,11 +245,11 @@ export class ECSCompiler extends Tokenizer {
             // TODO: use default value?
             let defvalue;
             if (this.ifToken('default')) {
-                defvalue = this.expectInteger();
+                defvalue = this.parseIntegerConstant();
             }
             return { dtype: 'int', lo, hi, defvalue, enums } as IntType;
         }
-        this.compileError(`I expected a data type here.`); throw new Error();
+        throw this.compileError(`I expected a data type here.`);
     }
 
     parseEnumIdent() {
@@ -221,9 +265,7 @@ export class ECSCompiler extends Tokenizer {
 
     parseDataValue(field: DataField): DataValue | ForwardRef {
         let tok = this.peekToken();
-        if (tok.type == ECSTokenType.Integer) {
-            return this.expectInteger();
-        }
+        // TODO: move to expr
         if (tok.type == TokenType.Ident && field.dtype == 'int') {
             return this.parseEnumValue(this.consumeToken(), field);
         }
@@ -251,7 +293,9 @@ export class ECSCompiler extends Tokenizer {
             let reftype = field.dtype == 'ref' ? field as RefType : undefined;
             return this.parseEntityForwardRef(reftype);
         }
-        this.compileError(`I expected a ${field.dtype} here.`); throw new Error();
+        // TODO?
+        return this.parseIntegerConstant();
+        // TODO: throw this.compileError(`I expected a ${field.dtype} here.`);
     }
 
     parseEntityForwardRef(reftype?: RefType): ForwardRef {
@@ -261,7 +305,7 @@ export class ECSCompiler extends Tokenizer {
 
     parseDataArray() {
         this.expectToken('[');
-        let arr = this.parseList(this.expectInteger, ',');
+        let arr = this.parseList(this.parseIntegerConstant, ',');
         this.expectToken(']');
         return arr;
     }
@@ -289,7 +333,7 @@ export class ECSCompiler extends Tokenizer {
                 let action = this.annotate(() => this.parseAction(system));
                 actions.push(action);
             } else if (cmd == 'locals') {
-                system.tempbytes = this.expectInteger();
+                system.tempbytes = this.parseIntegerConstant();
             } else {
                 this.compileError(`Unexpected system keyword: ${cmd}`);
             }
@@ -302,7 +346,7 @@ export class ECSCompiler extends Tokenizer {
         let tempbytes;
         if (this.peekToken().str == 'locals') {
             this.consumeToken();
-            tempbytes = this.expectInteger();
+            tempbytes = this.parseIntegerConstant();
         }
         let system: System = { name, tempbytes, actions: [] };
         let context: ActionContext = { scope: null, system };
@@ -333,12 +377,12 @@ export class ECSCompiler extends Tokenizer {
         }
         if (this.ifToken('limit')) {
             if (!query) { this.compileError(`A "${select}" query can't include a limit.`); }
-            else query.limit = this.expectInteger();
+            else query.limit = this.parseIntegerConstant();
         }
         const modifiers = this.parseModifiers(all_modifiers);
         let fitbytes = undefined;
         if (this.ifToken('fit')) {
-            fitbytes = this.expectInteger();
+            fitbytes = this.parseIntegerConstant();
         }
         let context: ActionContext = { scope: null, system };
         // parse --- code ---
@@ -376,8 +420,7 @@ export class ECSCompiler extends Tokenizer {
         } else if (prefix.str == '#') {
             const scope = this.currentScope;
             if (scope == null) {
-                this.compileError('You can only reference specific entities inside of a scope.');
-                throw new Error();
+                throw this.compileError('You can only reference specific entities inside of a scope.');
             }
             let eref = this.parseEntityForwardRef();
             this.deferred.push(() => {
@@ -465,7 +508,7 @@ export class ECSCompiler extends Tokenizer {
     }
 
     parseEntity(): Entity {
-        if (!this.currentScope) { this.internalError(); throw new Error(); }
+        if (!this.currentScope) { throw this.internalError(); }
         const scope = this.currentScope;
         let entname = '';
         if (this.peekToken().type == TokenType.Ident) {
@@ -515,7 +558,7 @@ export class ECSCompiler extends Tokenizer {
         let code = codetok.str;
         code = code.substring(3, code.length - 3);
         let decoder = newDecoder(decoderid, code);
-        if (!decoder) { this.compileError(`I can't find a "${decoderid}" decoder.`); throw new Error() }
+        if (!decoder) { throw this.compileError(`I can't find a "${decoderid}" decoder.`); }
         let result;
         try {
             result = decoder.parse();
@@ -529,13 +572,13 @@ export class ECSCompiler extends Tokenizer {
     }
 
     getEntityField(e: Entity, name: string): ComponentFieldPair {
-        if (!this.currentScope) { this.internalError(); throw new Error(); }
+        if (!this.currentScope) { throw this.internalError(); }
         let comps = this.em.componentsWithFieldName([e.etype], name);
         if (comps.length == 0) this.compileError(`I couldn't find a field named "${name}" for this entity.`)
         if (comps.length > 1) this.compileError(`I found more than one field named "${name}" for this entity.`)
         let component = comps[0];
         let field = component.fields.find(f => f.name == name);
-        if (!field) { this.internalError(); throw new Error(); }
+        if (!field) { throw this.internalError(); }
         return { c: component, f: field };
     }
 
@@ -557,8 +600,7 @@ export class ECSCompiler extends Tokenizer {
         let name = token.str;
         let eref = scope.entities.find(e => e.name == name);
         if (!eref) {
-            this.compileError(`I couldn't find an entity named "${name}" in this scope.`, token.$loc)
-            throw new Error();
+            throw this.compileError(`I couldn't find an entity named "${name}" in this scope.`, token.$loc)
         }
         return eref;
     }
@@ -570,7 +612,7 @@ export class ECSCompiler extends Tokenizer {
             let atypes = this.em.archetypesMatching(ref.reftype.query);
             let entities = scope.entitiesMatching(atypes);
             if (entities.length == 0)
-                this.compileError(`This entity doesn't seem to fit the reference type.`, ref.token.$loc);
+                throw this.compileError(`This entity doesn't seem to fit the reference type.`, ref.token.$loc);
             id -= entities[0].id;
         }
         return id;
@@ -579,7 +621,7 @@ export class ECSCompiler extends Tokenizer {
     parseSystemInstanceRef(): SystemInstance {
         let name = this.expectIdent().str;
         let system = this.em.getSystemByName(name);
-        if (!system) this.compileError(`I couldn't find a system named "${name}".`, this.lasttoken.$loc);
+        if (!system) throw this.compileError(`I couldn't find a system named "${name}".`, this.lasttoken.$loc);
         let params = {};
         let inst = { system, params, id: 0 };
         return inst;
@@ -587,7 +629,7 @@ export class ECSCompiler extends Tokenizer {
 
     parseSystemInstanceParameters(): SystemInstanceParameters {
         let scope = this.currentScope;
-        if (scope == null) throw new Error();
+        if (scope == null) throw this.internalError();
         if (this.peekToken().str == '[') {
             return { query: this.parseQuery() };
         }
@@ -618,6 +660,141 @@ export class ECSCompiler extends Tokenizer {
     }
     checkLowerLimit(value: number, lower: number, what: string) {
         if (value < lower) this.compileError(`This ${what} is too low; must be ${lower} or more`);
+    }
+
+    // expression stuff
+
+    parseConstant(): DataValue {
+        let expr = this.parseExpr();
+        expr = this.em.evalExpr(expr, this.currentScope);
+        if (isLiteral(expr)) return expr.value;
+        throw this.compileError('This expression is not a constant.');
+    }
+    parseIntegerConstant(): number {
+        let value = this.parseConstant();
+        if (typeof value === 'number') return value;
+        throw this.compileError('This expression is not an integer.');
+    }
+    parseExpr(): Expr {
+        var startloc = this.peekToken().$loc;
+        var expr = this.parseExpr1(this.parsePrimary(), 0);
+        var endloc = this.lasttoken.$loc;
+        expr.$loc = mergeLocs(startloc, endloc);
+        return expr;
+    }
+    parseExpr1(left: Expr, minPred: number): Expr {
+        let look = this.peekToken();
+        while (getPrecedence(look) >= minPred) {
+            let op = this.consumeToken();
+            let right: Expr = this.parsePrimary();
+            look = this.peekToken();
+            while (getPrecedence(look) > getPrecedence(op)) {
+                right = this.parseExpr1(right, getPrecedence(look));
+                look = this.peekToken();
+            }
+            var opfn = getOperator(op.str).f;
+            // use logical operators instead of bitwise?
+            if (op.str == 'AND') opfn = 'land';
+            if (op.str == 'OR') opfn = 'lor';
+            var valtype = this.exprTypeForOp(opfn, left, right, op);
+            left = { valtype:valtype, op:opfn, left: left, right: right };
+        }
+        return left;
+    }
+    parsePrimary(): Expr {
+        let tok = this.consumeToken();
+        switch (tok.type) {
+            case ECSTokenType.Integer:
+                this.pushbackToken(tok);
+                let value = this.expectInteger();
+                let valtype : IntType = { dtype: 'int', lo: value, hi: value };
+                return { valtype, value };
+            case TokenType.Ident:
+                if (tok.str == 'NOT') {
+                    let expr = this.parsePrimary();
+                    let valtype : IntType = { dtype: 'int', lo: 0, hi: 1 };
+                    return { valtype, op: 'lnot', expr: expr };
+                } else {
+                    this.pushbackToken(tok);
+                    return this.parseVarSubscriptOrFunc();
+                }
+            case ECSTokenType.Operator:
+                if (tok.str == '(') {
+                    let expr = this.parseExpr();
+                    this.expectToken(')', `There should be another expression or a ")" here.`);
+                    return expr;
+                } else if (tok.str == '-') {
+                    let expr = this.parsePrimary(); // TODO: -2^2=-4 and -2-2=-4
+                    let valtype = (expr as ExprBase).valtype;
+                    if (valtype?.dtype == 'int') {
+                        let hi = Math.abs(valtype.hi);
+                        let negtype : IntType = { dtype: 'int', lo: -hi, hi: hi };
+                        return { valtype: negtype, op: 'neg', expr: expr };
+                    }
+                } else if (tok.str == '+') {
+                    return this.parsePrimary(); // ignore unary +
+                }
+            default:
+                throw this.compileError(`The expression is incomplete.`);
+        }
+    }
+    parseVarSubscriptOrFunc(): LExpr {
+        var tok = this.consumeToken();
+        switch (tok.type) {
+            case TokenType.Ident:
+                // component:field
+                if (this.ifToken(':')) {
+                    let ftok = this.consumeToken();
+                    let component = this.em.getComponentByName(tok.str);
+                    if (!component) throw this.compileError(`A component named "${tok.str}" has not been defined.`);
+                    let field = component.fields.find(f => f.name == ftok.str);
+                    if (!field) throw this.compileError(`There is no "${ftok.str}" field in the ${tok.str} component.`);
+                    if (!this.currentScope) throw this.compileError(`This operation only works inside of a scope.`);
+                    let atypes = this.em.archetypesMatching({ include: [component] })
+                    let entities = this.currentScope.entitiesMatching(atypes);
+                    return { entities, field } as EntitySetField;
+                }
+                // entity.field
+                if (this.ifToken('.')) {
+                    let ftok = this.consumeToken();
+                    if (!this.currentScope) throw this.compileError(`This operation only works inside of a scope.`);
+                    let entity = this.currentScope.getEntityByName(tok.str);
+                    if (!entity) throw this.compileError(`An entity named "${tok.str}" has not been defined.`);
+                    let component = this.em.singleComponentWithFieldName([entity.etype], ftok.str, ftok);
+                    let field = component.fields.find(f => f.name == ftok.str);
+                    if (!field) throw this.compileError(`There is no "${ftok.str}" field in this entity.`);
+                    let entities = [entity];
+                    return { entities, field } as EntitySetField;
+                }
+                let args : Expr[] = [];
+                if (this.ifToken('(')) {
+                    args = this.parseExprList();
+                    this.expectToken(')', `There should be another expression or a ")" here.`);
+                }
+                var loc = mergeLocs(tok.$loc, this.lasttoken.$loc);
+                var valtype = this.exprTypeForSubscript(tok.str, args, loc);
+                return { valtype: valtype, name: tok.str, args: args, $loc:loc };
+            default:
+                throw this.compileError(`There should be a variable name here.`);
+        }
+    }
+    parseLexpr(): LExpr {
+        var lexpr = this.parseVarSubscriptOrFunc();
+        //this.vardefs[lexpr.name] = lexpr;
+        //this.validateVarName(lexpr);
+        return lexpr;
+    }
+    exprTypeForOp(fnname: string, left: Expr, right: Expr, optok: Token) : DataType {
+        return { dtype: 'int', lo:0, hi:255 }; // TODO?
+    }
+    exprTypeForSubscript(fnname: string, args: Expr[], loc: SourceLocation) : DataType {
+        return { dtype: 'int', lo:0, hi:255 }; // TODO?
+    }
+    parseLexprList(): LExpr[] {
+        return this.parseList(this.parseLexpr, ',');
+    }
+    parseExprList(): Expr[] {
+        return this.parseList(this.parseExpr, ',');
     }
 }
 
