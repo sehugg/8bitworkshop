@@ -44,7 +44,7 @@ system Kernel48Pixel
     sta COLUP0
     sta COLUP1
 ---
-  on kerneldraw do if [Bitmap48] critical fit 63
+  on kerneldraw do critical fit 63 if [Bitmap48] 
 ---
   	txa
         pha

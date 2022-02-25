@@ -17,11 +17,12 @@
     var keywords1, keywords2;
 
     var directives_list = [
-      'end', 'component', 'system', 'entity', 'scope', 'using', 'demo', 'decode', 'resource',
+      'begin', 'end',
+      'component', 'system', 'entity', 'scope', 'using', 'demo', 'decode', 'resource',
       'const', 'locals', 'var',
-      'enum', 'default', 'array', 'baseoffset', 'critical',
+      'enum', 'default', 'array', 'baseoffset', 'critical', 'fit', 'asc', 'desc',
       'on', 'do', 'emit', 'limit',
-      'once', 'foreach', 'with', 'join', 'if',
+      'once', 'foreach', 'with', 'join', 'if', 'select', 'unroll',
     ];
     var keywords_list = [
       'processor',

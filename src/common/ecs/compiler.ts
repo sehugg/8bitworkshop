@@ -2,7 +2,7 @@
 import { mergeLocs, Token, Tokenizer, TokenType } from "../tokenizer";
 import { SourceLocated, SourceLocation } from "../workertypes";
 import { newDecoder } from "./decoder";
-import { Action, ActionContext, ActionNode, ActionWithJoin, ArrayType, CodeLiteralNode, CodePlaceholderNode, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System, SystemInstance, SystemInstanceParameters, ComponentFieldPair, Expr, ExprBase, ForwardRef, isLiteral, EntityFieldOp, LExpr, Statement } from "./ecs";
+import { Action, ActionContext, ArrayType, CodeLiteralNode, CodePlaceholderNode, ComponentType, DataField, DataType, DataValue, ECSError, Entity, EntityArchetype, EntityManager, EntityScope, IntType, Query, RefType, SelectType, SELECT_TYPE, SourceFileExport, System, SystemInstance, SystemInstanceParameters, ComponentFieldPair, Expr, ExprBase, ForwardRef, isLiteral, EntityFieldOp, LExpr, Statement, QueryExpr } from "./ecs";
 
 export enum ECSTokenType {
     Ellipsis = 'ellipsis',
@@ -349,9 +349,8 @@ export class ECSCompiler extends Tokenizer {
             tempbytes = this.parseIntegerConstant();
         }
         let system: System = { name, tempbytes, actions: [] };
-        let select: SelectType = 'once';
         let expr = this.parseBlockStatement();
-        let action: Action = { expr, event: name, select };
+        let action: Action = { expr, event: name };
         system.actions.push(action);
         return system;
     }
@@ -360,36 +359,14 @@ export class ECSCompiler extends Tokenizer {
         // TODO: unused events?
         const event = this.expectIdent().str;
         this.expectToken('do');
-        // TODO: include modifiers in error msg
-        const select = this.expectTokens(SELECT_TYPE).str as SelectType; // TODO: type check?
-        const all_modifiers = ['critical', 'asc', 'desc']; // TODO
-        let query = undefined;
-        let join = undefined;
-        if (select == 'once') {
-            if (this.peekToken().str == '[') this.compileError(`A "${select}" action can't include a query.`)
-        } else {
-            query = this.parseQuery();
-        }
-        if (select == 'join') {
-            this.expectToken('with');
-            join = this.parseQuery();
-        }
-        if (this.ifToken('limit')) {
-            if (!query) { this.compileError(`A "${select}" query can't include a limit.`); }
-            else query.limit = this.parseIntegerConstant();
-        }
-        const modifiers = this.parseModifiers(all_modifiers);
         let fitbytes = undefined;
-        if (this.ifToken('fit')) {
-            fitbytes = this.parseIntegerConstant();
-        }
-        let direction = undefined;
-        if (modifiers['asc']) direction = 'asc';
-        else if (modifiers['desc']) direction = 'desc';
+        let critical = undefined;
+        if (this.ifToken('critical')) critical = true;
+        if (this.ifToken('fit')) fitbytes = this.parseIntegerConstant();
         let expr = this.parseBlockStatement();
-        let action = { expr, event, query, join, select, direction, fitbytes };
-        if (modifiers['critical']) (action as ActionWithJoin).critical = true;
-        return action as ActionWithJoin;
+        //query, join, select, direction, 
+        let action : Action = { expr, event, fitbytes, critical };
+        return action as Action;
     }
 
     parseQuery() {
@@ -794,12 +771,11 @@ export class ECSCompiler extends Tokenizer {
         return this.parseList(this.parseExpr, ',');
     }
     parseBlockStatement(): Statement {
-        let valtype : IntType = { dtype:'int', lo:0, hi: 0 }
+        let valtype : IntType = { dtype:'int', lo:0, hi: 0 } // TODO?
         if (this.peekToken().type == ECSTokenType.CodeFragment) {
             return { valtype, code: this.parseCode() };
         }
-        let cmd = this.expectTokens(['end','begin']);
-        if (cmd.str == 'begin') {
+        if (this.ifToken('begin')) {
             let stmts = [];
             while (this.peekToken().str != 'end') {
                 stmts.push(this.parseBlockStatement());
@@ -807,7 +783,37 @@ export class ECSCompiler extends Tokenizer {
             this.expectToken('end');
             return { valtype, stmts };
         }
-        throw this.internalError();
+        let cmd = this.peekToken();
+        if (SELECT_TYPE.includes(cmd.str as any)) {
+            return this.parseQueryStatement();
+        }
+        throw this.compileError(`There should be a statement or "end" here.`, cmd.$loc);
+    }
+    parseQueryStatement() : QueryExpr {
+        // TODO: include modifiers in error msg
+        const select = this.expectTokens(SELECT_TYPE).str as SelectType; // TODO: type check?
+        let query = undefined;
+        let join = undefined;
+        if (select == 'once') {
+            if (this.peekToken().str == '[') this.compileError(`A "${select}" action can't include a query.`)
+        } else {
+            query = this.parseQuery();
+        }
+        if (select == 'join') {
+            this.expectToken('with');
+            join = this.parseQuery();
+        }
+        if (this.ifToken('limit')) {
+            if (!query) { this.compileError(`A "${select}" query can't include a limit.`); }
+            else query.limit = this.parseIntegerConstant();
+        }
+        const all_modifiers = ['asc', 'desc']; // TODO
+        const modifiers = this.parseModifiers(all_modifiers);
+        let direction = undefined;
+        if (modifiers['asc']) direction = 'asc';
+        else if (modifiers['desc']) direction = 'desc';
+        let body = this.parseBlockStatement();
+        return { select, query, join, direction, stmts: [body], loop: select == 'foreach' } as QueryExpr;
     }
 }
 

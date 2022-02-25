@@ -189,3 +189,25 @@ Slice PNGs into sprites
 Maybe output decoder text
 Action priorities - before, after
 Generate C symbols
+
+
+QUERIES
+- when to intersect / union / start over
+  - with vs. foreach limit 1 (at top level)
+  - once vs begin/end
+  - mapping of regs vs working set
+- debug info into source code (and make listing work)
+
+    // subtract one when player wraps around vertically
+    on ymoved do begin
+      ---
+      lda {{<ypos}}
+      bne @nowrap
+      ---
+      select [#PlayerScore] ---
+    {{!SubBCD2 1}}}
+      ---
+      ---
+@nowrap:
+      ---
+    end

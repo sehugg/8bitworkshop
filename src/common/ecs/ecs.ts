@@ -113,30 +113,12 @@ export class CodePlaceholderNode extends ActionNode {
     }
 }
 
-export interface ActionBase extends SourceLocated {
-    select: SelectType;
+export interface Action extends SourceLocated {
     event: string;
     expr: Statement;
     critical?: boolean;
     fitbytes?: number;
 }
-
-export interface ActionOnce extends ActionBase {
-    select: 'once'
-}
-
-export interface ActionWithQuery extends ActionBase {
-    select: 'foreach' | 'join' | 'with' | 'if' | 'select' | 'unroll'
-    query: Query
-    direction?: 'asc' | 'desc'
-}
-
-export interface ActionWithJoin extends ActionWithQuery {
-    select: 'join'
-    join?: Query
-}
-
-export type Action = ActionWithQuery | ActionWithJoin | ActionOnce;
 
 export type DataValue = number | boolean | Uint8Array | Uint16Array | Uint32Array;
 
@@ -196,7 +178,7 @@ export interface ForwardRef extends SourceLocated {
 }
 
 export type LExpr = IndOp | EntityFieldOp;
-export type Statement = InlineCode | BlockExpr;
+export type Statement = InlineCode | BlockExpr | QueryExpr;
 export type Expr = BinOp | UnOp | Literal | ForwardRef | LExpr | Statement;
 export type Opcode = string;
 
@@ -235,11 +217,6 @@ export interface CondOp extends ExprBase {
     iffalse?: Expr;
 }
 
-export interface BlockExpr extends ExprBase {
-    loop?: boolean;
-    stmts: Expr[];
-}
-
 export interface BranchOp extends ExprBase {
     branch: BlockExpr;
 }
@@ -256,6 +233,19 @@ export interface EntityContextOp extends ExprBase {
 export interface InlineCode extends ExprBase {
     code: string;
 }
+
+export interface BlockExpr extends ExprBase {
+    loop?: boolean;
+    stmts: Expr[];
+}
+
+export interface QueryExpr extends BlockExpr {
+    select: SelectType
+    query: Query
+    direction?: 'asc' | 'desc'
+    join?: Query
+}
+
 
 export function isLiteral(arg: Expr): arg is Literal {
     return (arg as any).value != null;
@@ -277,6 +267,9 @@ export function isBlockStmt(arg: Expr): arg is BlockExpr {
 }
 export function isInlineCode(arg: Expr): arg is InlineCode {
     return (arg as any).code != null;
+}
+export function isQueryExpr(arg: Expr): arg is QueryExpr {
+    return (arg as any).query != null;
 }
 
 
@@ -630,6 +623,12 @@ class EntitySet {
         let atypes = this.atypes.filter(a1 => qr.atypes.find(a2 => a2 == a1));
         return new EntitySet(this.scope, undefined, atypes, ents);
     }
+    union(qr: EntitySet) {
+        // TODO: remove dups
+        let ents = this.entities.concat(qr.entities);
+        let atypes = this.atypes.concat(qr.atypes);
+        return new EntitySet(this.scope, undefined, atypes, ents);
+    }
     isContiguous() {
         if (this.entities.length == 0) return true;
         let id = this.entities[0].id;
@@ -700,6 +699,8 @@ class IndexRegister {
 
 // todo: generalize
 class ActionCPUState {
+    working: EntitySet;
+    props: {[key: string] : string};
     xreg: IndexRegister | null = null;
     yreg: IndexRegister | null = null;
 }
@@ -707,10 +708,6 @@ class ActionCPUState {
 class ActionEval {
     em : EntityManager;
     dialect : Dialect_CA65;
-    qr: EntitySet;
-    jr: EntitySet | undefined;
-    oldState : ActionCPUState;
-    entities : Entity[];
     tmplabel = '';
     label : string;
     seq : number;
@@ -724,25 +721,7 @@ class ActionEval {
     {
         this.em = scope.em;
         this.dialect = scope.em.dialect;
-        this.oldState = scope.state;
         this.tmplabel = this.dialect.tempLabel(this.instance);
-        let q = (action as ActionWithQuery).query;
-        if (q)
-            this.qr = new EntitySet(scope, q);
-        else
-            this.qr = new EntitySet(scope, undefined, [], []);
-        // TODO? error if none?
-        if (instance.params.refEntity && instance.params.refField) {
-            let rf = instance.params.refField;
-            if (rf.f.dtype == 'ref') {
-                let rq = rf.f.query;
-                this.qr = this.qr.intersection(new EntitySet(scope, rq));
-                //console.log('with', instance.params, rq, this.qr);
-            }
-        } else if (instance.params.query) {
-            this.qr = this.qr.intersection(new EntitySet(scope, instance.params.query));
-        }
-        this.entities = this.qr.entities;
         //let query = (this.action as ActionWithQuery).query;
         //TODO? if (query && this.entities.length == 0)
             //throw new ECSError(`query doesn't match any entities`, query); // TODO 
@@ -750,130 +729,12 @@ class ActionEval {
         this.label = `${this.instance.system.name}__${action.event}__${this.seq}`;
     }
     begin() {
-        let state = this.scope.state = Object.assign(new ActionCPUState(), this.scope.state);
-        // TODO: generalize to other cpus/langs
-        switch (this.action.select) {
-            case 'once':
-                state.xreg = state.yreg = null;
-                break;
-            case 'foreach':
-            case 'unroll':
-                if (state.xreg && state.yreg) throw new ECSError('no more index registers', this.action);
-                if (state.xreg) state.yreg = new IndexRegister(this.scope, this.qr);
-                else state.xreg = new IndexRegister(this.scope, this.qr);
-                break;
-            case 'join':
-                // TODO: Joins don't work in superman (arrays offset?)
-                // ignore the join query, use the ref
-                if (state.xreg || state.yreg) throw new ECSError('no free index registers for join', this.action);
-                this.jr = new EntitySet(this.scope, (this.action as ActionWithJoin).join);
-                state.xreg = new IndexRegister(this.scope, this.jr);
-                state.yreg = new IndexRegister(this.scope, this.qr);
-                break;
-            case 'if':
-            case 'with':
-                // TODO: what if not in X because 1 element?
-                if (state.xreg && state.xreg.eset) {
-                    state.xreg = state.xreg.narrow(this.qr, this.action);
-                    if (state.xreg == null || state.xreg.eset?.entities == null) {
-                        if (this.action.select == 'if') {
-                            this.entities = [];
-                            break; // "if" failed
-                        } else {
-                            throw new ECSError(`no entities in statement`, this.action);
-                        }
-                    } else {
-                        this.entities = state.xreg.eset.entities; // TODO?
-                    }
-                } else if (this.action.select == 'with') {
-                    if (this.instance.params.refEntity && this.instance.params.refField) {
-                        if (state.xreg)
-                            state.xreg.eset = this.qr;
-                        else
-                            state.xreg = new IndexRegister(this.scope, this.qr);
-                        // ???
-                    } else if (this.qr.entities.length != 1)
-                        throw new ECSError(`${this.instance.system.name} query outside of loop must match exactly one entity`, this.action); //TODO
-                }
-                break;
-        }
     }
     end() {
-        this.scope.state = this.oldState;
     }
     codeToString(): string {
-        const allowEmpty = ['if','foreach','unroll','join'];
-        if (this.entities.length == 0 && allowEmpty.includes(this.action.select))
-           return '';
-
-        let { code, props } = this.getCodeAndProps(this.action);
-        // replace @labels
-        code = this.replaceLabels(code, this.label);
-        // replace {{...}} tags
-        // TODO: use nodes instead
-        code = this.replaceTags(code, this.action, props);
+        let code = this.exprToCode(this.action.expr);
         return code;
-    }
-    private getCodeAndProps(action: Action) {
-        let code = this.exprToCode(action.expr);
-        let props: { [name: string]: string } = {};
-        if (action.select != 'once') {
-            // TODO: detect cycles
-            // TODO: "source"?
-            // TODO: what if only 1 item?
-            // TODO: what if join is subset of items?
-            if (action.select == 'join' && this.jr) {
-                //let jentities = this.jr.entities;
-                // TODO? if (jentities.length == 0) return '';
-                    // TODO? throw new ECSError(`join query doesn't match any entities`, (action as ActionWithJoin).join); // TODO 
-                let joinfield = this.getJoinField(action, this.qr.atypes, this.jr.atypes);
-                // TODO: what if only 1 item?
-                // TODO: should be able to access fields via Y reg
-                code = this.wrapCodeInLoop(code, action, this.qr.entities, joinfield);
-                props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0); //TODO?
-            }
-            // select subset of entities
-            let fullEntityCount = this.qr.entities.length; //entities.length.toString();
-            let entities = this.entities;
-            // TODO: let loopreduce = !loopents || entities.length < loopents.length;
-            //console.log(action.event, entities.length, loopents.length);
-            // filter entities from loop?
-            // TODO: when to ignore if entities.length == 1 and not in for loop?
-            if (action.select == 'with') {
-                // TODO? when to load x?
-                if (this.instance.params.refEntity && this.instance.params.refField) {
-                    let re = this.instance.params.refEntity;
-                    let rf = this.instance.params.refField;
-                    code = this.wrapCodeInRefLookup(code);
-                    // TODO: only fetches 1st entity in list, need offset
-                    let range = this.scope.getFieldRange(rf.c, rf.f.name);
-                    let eidofs = re.id - range.elo;
-                    props['%reffield'] = `${this.dialect.fieldsymbol(rf.c, rf.f, 0)}+${eidofs}`;
-                } else {
-                    code = this.wrapCodeInFilter(code);
-                }
-            }
-            if (action.select == 'if') {
-                code = this.wrapCodeInFilter(code);
-            }
-            if (action.select == 'foreach' && entities.length > 1) {
-                code = this.wrapCodeInLoop(code, action, this.qr.entities);
-            }
-            if (action.select == 'unroll' && entities.length > 1) {
-                throw new ECSError('unroll is not yet implemented');
-            }
-            // define properties
-            if (entities.length) {
-                props['%elo'] = entities[0].id.toString();
-                props['%ehi'] = entities[entities.length - 1].id.toString();
-            }
-            props['%ecount'] = entities.length.toString();
-            props['%efullcount'] = fullEntityCount.toString();
-            // TODO
-            props['%xofs'] = (this.scope.state.xreg?.offset() || 0).toString();
-            props['%yofs'] = (this.scope.state.yreg?.offset() || 0).toString();
-        }
-        return { code, props };
     }
     private replaceTags(code: string, action: Action, props: { [name: string]: string; }) {
         const tag_re = /\{\{(.+?)\}\}/g;
@@ -924,7 +785,7 @@ class ActionEval {
     parseFieldArgs(args: string[]) {
         let fieldName = args[0];
         let bitofs = parseInt(args[1] || '0');
-        let component = this.em.singleComponentWithFieldName(this.qr.atypes, fieldName, this.action);
+        let component = this.em.singleComponentWithFieldName(this.scope.state.working.atypes, fieldName, this.action);
         let field = component.fields.find(f => f.name == fieldName);
         if (field == null) throw new ECSError(`no field named "${fieldName}" in component`, this.action);
         return { component, field, bitofs };
@@ -935,14 +796,16 @@ class ActionEval {
     }
     __data(args: string[]) {
         let { component, field, bitofs } = this.parseFieldArgs(args);
-        if (this.qr.entities.length != 1) throw new ECSError(`data operates on exactly one entity`, this.action); // TODO?
-        let eid = this.qr.entities[0].id; // TODO?
+        let entities = this.scope.state.working.entities;
+        if (entities.length != 1) throw new ECSError(`data operates on exactly one entity`, this.action); // TODO?
+        let eid = entities[0].id; // TODO?
         return this.dialect.datasymbol(component, field, eid, bitofs);
     }
     __const(args: string[]) {
         let { component, field, bitofs } = this.parseFieldArgs(args);
-        if (this.qr.entities.length != 1) throw new ECSError(`const operates on exactly one entity`, this.action); // TODO?
-        let constVal = this.qr.entities[0].consts[mksymbol(component, field.name)];
+        let entities = this.scope.state.working.entities;
+        if (entities.length != 1) throw new ECSError(`const operates on exactly one entity`, this.action); // TODO?
+        let constVal = entities[0].consts[mksymbol(component, field.name)];
         if (constVal === undefined)  throw new ECSError(`field is not constant`, this.action); // TODO?
         if (typeof constVal !== 'number')  throw new ECSError(`field is not numeric`, this.action); // TODO?
         return constVal << bitofs;
@@ -951,7 +814,8 @@ class ActionEval {
         // TODO: check select type and if we actually have an index...
         let ident = args[0];
         let index = parseInt(args[1] || '0');
-        if (this.entities.length == 1) {
+        let entities = this.scope.state.working.entities;
+        if (entities.length == 1) {
             return this.dialect.absolute(ident);
         } else {
             return this.dialect.indexed_x(ident, index); //TODO?
@@ -989,40 +853,9 @@ class ActionEval {
         let startSymbol = this.dialect.scopeSymbol(args[0]);
         return this.dialect.jump(startSymbol);
     }
-    wrapCodeInLoop(code: string, action: ActionWithQuery, ents: Entity[], joinfield?: ComponentFieldPair): string {
-        // TODO: check ents
-        // TODO: check segment bounds
-        // TODO: what if 0 or 1 entitites?
-        // TODO: check > 127 or > 255
-        let dir = action.direction;
-        let s = dir == 'desc' ? this.dialect.ASM_ITERATE_EACH_DESC : this.dialect.ASM_ITERATE_EACH_ASC;
-        if (joinfield) s = dir == 'desc' ? this.dialect.ASM_ITERATE_JOIN_DESC : this.dialect.ASM_ITERATE_JOIN_ASC;
-        s = s.replace('{{%code}}', code);
-        return s;
-    }
-    wrapCodeInFilter(code: string) {
-        // TODO: :-p filters too often?
-        const ents = this.entities;
-        const ents2 = this.oldState.xreg?.eset?.entities;
-        if (ents && ents2) {
-            let lo = ents[0].id;
-            let hi = ents[ents.length - 1].id;
-            let lo2 = ents2[0].id;
-            let hi2 = ents2[ents2.length - 1].id;
-            if (lo != lo2)
-                code = this.dialect.ASM_FILTER_RANGE_LO_X.replace('{{%code}}', code);
-            if (hi != hi2)
-                code = this.dialect.ASM_FILTER_RANGE_HI_X.replace('{{%code}}', code);
-        }
-        return code;
-    }
-    wrapCodeInRefLookup(code: string) {
-        code = this.dialect.ASM_LOOKUP_REF_X.replace('{{%code}}', code);
-        return code;
-    }
     generateCodeForField(fieldName: string, bitofs: number, canWrite: boolean): string {
         const action = this.action;
-        const qr = this.jr || this.qr; // TODO: why not both!
+        const qr = this.scope.state.working;
 
         var component: ComponentType;
         var baseLookup = false;
@@ -1041,12 +874,12 @@ class ActionEval {
             let [cname, fname] = fieldName.split(':');
             component = this.em.getComponentByName(cname);
             if (component == null) throw new ECSError(`no component named "${cname}"`, action)
-            entities = this.entities;
+            entities = this.scope.state.working.entities;
             fieldName = fname;
             baseLookup = true;
         } else {
             component = this.em.singleComponentWithFieldName(qr.atypes, fieldName, action);
-            entities = this.entities;
+            entities = this.scope.state.working.entities;
         }
         // find archetypes
         let field = component.fields.find(f => f.name == fieldName);
@@ -1145,13 +978,220 @@ class ActionEval {
         return false;
     }
     exprToCode(expr: Expr) : string {
+        if (isQueryExpr(expr)) {
+            return this.queryExprToCode(expr);
+        }
         if (isBlockStmt(expr)) {
-            return expr.stmts.map(node => this.exprToCode(node)).join('\n');
+            return this.blockStmtToCode(expr);
         }
         if (isInlineCode(expr)) {
-            return expr.code;
+            return this.evalInlineCode(expr.code);
         }
         throw new ECSError(`cannot convert expression to code`, expr);
+    }
+    evalInlineCode(code: string) {
+        let props = this.scope.state.props || {};
+        // replace @labels
+        code = this.replaceLabels(code, this.label);
+        // replace {{...}} tags
+        // TODO: use nodes instead
+        code = this.replaceTags(code, this.action, props);
+        return code;
+    }
+    blockStmtToCode(expr: BlockExpr) {
+        return expr.stmts.map(node => this.exprToCode(node)).join('\n');
+    }
+    queryExprToCode(qexpr: QueryExpr) : string {
+        //console.log('query', this.action.event, qexpr.select, qexpr.query.include);
+        let q = this.startQuery(qexpr);
+        const allowEmpty = ['if','foreach','unroll','join'];
+        if (q.working.entities.length == 0 && allowEmpty.includes(qexpr.select)) {
+            //console.log('empty', this.action.event);
+            this.endQuery(q);
+            return '';
+        } else {
+            this.scope.state.working = q.working;
+            this.scope.state.props = q.props;
+            //console.log('begin', this.action.event, this.scope.state);
+            q.code = this.evalInlineCode(q.code);
+            let body = this.blockStmtToCode(qexpr);
+            this.endQuery(q);
+            //console.log('end', this.action.event, this.scope.state);
+            body = q.code.replace('%%CODE%%', body);
+            return body;
+        }
+    }
+    startQuery(qexpr: QueryExpr) {
+        let oldState = this.scope.state;
+        let state = this.scope.state = Object.assign(new ActionCPUState(), oldState);
+        const action = this.action;
+        const scope = this.scope;
+        const instance = this.instance;
+        let select = qexpr.select;
+        let q = qexpr.query;
+        let qr;
+        let jr;
+        if (q)
+            qr = new EntitySet(scope, q);
+        else
+            qr = new EntitySet(scope, undefined, [], []);
+        // TODO? error if none?
+        if (instance.params.refEntity && instance.params.refField) {
+            let rf = instance.params.refField;
+            if (rf.f.dtype == 'ref') {
+                let rq = rf.f.query;
+                qr = qr.intersection(new EntitySet(scope, rq));
+                //console.log('with', instance.params, rq, this.qr);
+            }
+        } else if (instance.params.query) {
+            qr = qr.intersection(new EntitySet(scope, instance.params.query));
+        }
+        let entities = qr.entities;
+        // TODO: generalize to other cpus/langs
+        switch (select) {
+            case 'once':
+                // TODO: how is this different from begin/end?
+                //state.xreg = state.yreg = null;
+                break;
+            case 'foreach':
+            case 'unroll':
+                if (state.xreg && state.yreg) throw new ECSError('no more index registers', action);
+                if (state.xreg) state.yreg = new IndexRegister(scope, qr);
+                else state.xreg = new IndexRegister(scope, qr);
+                break;
+            case 'join':
+                // TODO: Joins don't work in superman (arrays offset?)
+                // ignore the join query, use the ref
+                if (state.xreg || state.yreg) throw new ECSError('no free index registers for join', action);
+                jr = new EntitySet(scope, qexpr.join);
+                state.xreg = new IndexRegister(scope, jr);
+                state.yreg = new IndexRegister(scope, qr);
+                break;
+            case 'if':
+            case 'with':
+                // TODO: what if not in X because 1 element?
+                if (state.xreg && state.xreg.eset) {
+                    state.xreg = state.xreg.narrow(qr, action);
+                    if (state.xreg == null || state.xreg.eset?.entities == null) {
+                        if (select == 'if') {
+                            entities = [];
+                            break; // "if" failed
+                        } else {
+                            throw new ECSError(`no entities in statement`, action);
+                        }
+                    } else {
+                        entities = state.xreg.eset.entities; // TODO?
+                    }
+                } else if (select == 'with') {
+                    if (instance.params.refEntity && instance.params.refField) {
+                        if (state.xreg)
+                            state.xreg.eset = qr;
+                        else
+                            state.xreg = new IndexRegister(scope, qr);
+                        // ???
+                    } else if (qr.entities.length != 1) {
+                        throw new ECSError(`${instance.system.name} query outside of loop must match exactly one entity`, action); //TODO
+                    }
+                }
+                break;
+        }
+        //
+        let code = '%%CODE%%';
+        let props: { [name: string]: string } = {};
+        // TODO: detect cycles
+        // TODO: "source"?
+        // TODO: what if only 1 item?
+        // TODO: what if join is subset of items?
+        if (select == 'join' && jr) {
+            //let jentities = this.jr.entities;
+            // TODO? 
+                // TODO? throw new ECSError(`join query doesn't match any entities`, (action as ActionWithJoin).join); // TODO 
+            //console.log('join', qr, jr);
+            if (qr.entities.length) {
+                let joinfield = this.getJoinField(action, qr.atypes, jr.atypes);
+                // TODO: what if only 1 item?
+                // TODO: should be able to access fields via Y reg
+                code = this.wrapCodeInLoop(code, qexpr, qr.entities, joinfield);
+                props['%joinfield'] = this.dialect.fieldsymbol(joinfield.c, joinfield.f, 0); //TODO?
+            }
+        }
+        // select subset of entities
+        let fullEntityCount = qr.entities.length; //entities.length.toString();
+        // TODO: let loopreduce = !loopents || entities.length < loopents.length;
+        //console.log(action.event, entities.length, loopents.length);
+        // filter entities from loop?
+        // TODO: when to ignore if entities.length == 1 and not in for loop?
+        if (select == 'with') {
+            // TODO? when to load x?
+            if (this.instance.params.refEntity && this.instance.params.refField) {
+                let re = this.instance.params.refEntity;
+                let rf = this.instance.params.refField;
+                code = this.wrapCodeInRefLookup(code);
+                // TODO: only fetches 1st entity in list, need offset
+                let range = this.scope.getFieldRange(rf.c, rf.f.name);
+                let eidofs = re.id - range.elo;
+                props['%reffield'] = `${this.dialect.fieldsymbol(rf.c, rf.f, 0)}+${eidofs}`;
+            } else {
+                code = this.wrapCodeInFilter(code, qr, oldState);
+            }
+        }
+        if (select == 'if') {
+            code = this.wrapCodeInFilter(code, qr, oldState);
+        }
+        if (select == 'foreach' && entities.length > 1) {
+            code = this.wrapCodeInLoop(code, qexpr, qr.entities);
+        }
+        if (select == 'unroll' && entities.length > 1) {
+            throw new ECSError('unroll is not yet implemented');
+        }
+        // define properties
+        if (entities.length) {
+            props['%elo'] = entities[0].id.toString();
+            props['%ehi'] = entities[entities.length - 1].id.toString();
+        }
+        props['%ecount'] = entities.length.toString();
+        props['%efullcount'] = fullEntityCount.toString();
+        // TODO
+        props['%xofs'] = (this.scope.state.xreg?.offset() || 0).toString();
+        props['%yofs'] = (this.scope.state.yreg?.offset() || 0).toString();
+        let working = jr ? jr.union(qr) : qr;
+        working.entities = entities; // TODO? not good...
+        //console.log('working', action.event, working.entities.length, entities.length);
+        return { working, oldState, props, code };
+    }
+    endQuery(q : { oldState: ActionCPUState }) {
+        this.scope.state = q.oldState;
+    }
+    wrapCodeInLoop(code: string, qexpr: QueryExpr, ents: Entity[], joinfield?: ComponentFieldPair): string {
+        // TODO: check ents
+        // TODO: check segment bounds
+        // TODO: what if 0 or 1 entitites?
+        // TODO: check > 127 or > 255
+        let dir = qexpr.direction;
+        let s = dir == 'desc' ? this.dialect.ASM_ITERATE_EACH_DESC : this.dialect.ASM_ITERATE_EACH_ASC;
+        if (joinfield) s = dir == 'desc' ? this.dialect.ASM_ITERATE_JOIN_DESC : this.dialect.ASM_ITERATE_JOIN_ASC;
+        s = s.replace('{{%code}}', code);
+        return s;
+    }
+    wrapCodeInFilter(code: string, qr: EntitySet, oldState: ActionCPUState) {
+        // TODO: :-p filters too often?
+        const ents = this.scope.state.xreg?.eset?.entities;
+        const ents2 = oldState.xreg?.eset?.entities;
+        if (ents && ents.length && ents2) {
+            let lo = ents[0].id;
+            let hi = ents[ents.length - 1].id;
+            let lo2 = ents2[0].id;
+            let hi2 = ents2[ents2.length - 1].id;
+            if (lo != lo2)
+                code = this.dialect.ASM_FILTER_RANGE_LO_X.replace('{{%code}}', code);
+            if (hi != hi2)
+                code = this.dialect.ASM_FILTER_RANGE_HI_X.replace('{{%code}}', code);
+        }
+        return code;
+    }
+    wrapCodeInRefLookup(code: string) {
+        code = this.dialect.ASM_LOOKUP_REF_X.replace('{{%code}}', code);
+        return code;
     }
 }
 
@@ -1177,7 +1217,7 @@ export class EntityScope implements SourceLocated {
     code = new CodeSegment();
     componentsInScope = new Set();
     resources = new Set<string>();
-    state = new ActionCPUState();
+    state;
     isDemo = false;
     filePath = '';
 
@@ -1192,6 +1232,8 @@ export class EntityScope implements SourceLocated {
         public readonly parent: EntityScope | undefined
     ) {
         parent?.childScopes.push(this);
+        this.state = new ActionCPUState();
+        this.state.working = new EntitySet(this, undefined, [], []);
     }
     newEntity(etype: EntityArchetype, name: string): Entity {
         // TODO: add parent ID? lock parent scope?
