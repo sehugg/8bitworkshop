@@ -27,6 +27,11 @@ export function assembleECS(step: BuildStep): BuildStepResult {
         } catch (e) {
             if (e instanceof ECSError) {
                 compiler.addError(e.message, e.$loc);
+                for (let obj of e.$sources) {
+                    let name = (obj as any).event;
+                    if (name == 'start') break;
+                    compiler.addError(`... ${name}`, obj.$loc); // TODO?
+                }
                 return { errors: compiler.errors };
             } else if (e instanceof CompileError) {
                 return { errors: compiler.errors };

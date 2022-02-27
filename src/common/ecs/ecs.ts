@@ -3,8 +3,10 @@ import { Token } from "../tokenizer";
 import { SourceLocated, SourceLocation } from "../workertypes";
 import { Bin, Packer } from "./binpack";
 
-export class ECSError extends Error {
+export class ECSError extends Error implements SourceLocated {
     $loc: SourceLocation;
+    $sources: SourceLocated[] = [];
+
     constructor(msg: string, obj?: SourceLocation | SourceLocated) {
         super(msg);
         Object.setPrototypeOf(this, ECSError.prototype);
@@ -834,7 +836,12 @@ class ActionEval {
     __emit(args: string[]) {
         let event = args[0];
         let eventargs = args.slice(1);
-        return this.scope.generateCodeForEvent(event, eventargs);
+        try {
+            return this.scope.generateCodeForEvent(event, eventargs);
+        } catch (e) {
+            if (e.$sources) e.$sources.push(this.action);
+            throw e;
+        }
     }
     __local(args: string[]) {
         let tempinc = parseInt(args[0]);
@@ -1053,6 +1060,7 @@ class ActionEval {
             case 'once':
                 // TODO: how is this different from begin/end?
                 //state.xreg = state.yreg = null;
+                //state.working = new EntitySet(scope, undefined, [], []);
                 break;
             case 'foreach':
             case 'unroll':
@@ -1077,7 +1085,7 @@ class ActionEval {
                         if (select == 'if') {
                             qr.entities = []; // "if" failed
                         } else {
-                            throw new ECSError(`no entities in statement`, action);
+                            throw new ECSError(`no entities match query`, qexpr);
                         }
                     } else {
                         // TODO: must be a better way...

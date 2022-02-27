@@ -92,9 +92,11 @@ export class ECSCompiler extends Tokenizer {
     }
 
     annotate<T extends SourceLocated>(fn: () => T) {
-        let tok = this.peekToken();
+        let start = this.peekToken();
         let obj = fn();
-        if (obj) (obj as SourceLocated).$loc = tok.$loc;
+        let end = this.lasttoken;
+        let $loc = end ? mergeLocs(start.$loc, end.$loc) : start.$loc;
+        if (obj) (obj as SourceLocated).$loc = $loc;
         return obj;
     }
 
@@ -349,7 +351,7 @@ export class ECSCompiler extends Tokenizer {
             tempbytes = this.parseIntegerConstant();
         }
         let system: System = { name, tempbytes, actions: [] };
-        let expr = this.parseBlockStatement();
+        let expr = this.annotate(() => this.parseBlockStatement());
         let action: Action = { expr, event: name };
         system.actions.push(action);
         return system;
@@ -363,7 +365,7 @@ export class ECSCompiler extends Tokenizer {
         let critical = undefined;
         if (this.ifToken('critical')) critical = true;
         if (this.ifToken('fit')) fitbytes = this.parseIntegerConstant();
-        let expr = this.parseBlockStatement();
+        let expr = this.annotate(() => this.parseBlockStatement());
         //query, join, select, direction, 
         let action : Action = { expr, event, fitbytes, critical };
         return action as Action;
@@ -770,6 +772,7 @@ export class ECSCompiler extends Tokenizer {
     parseExprList(): Expr[] {
         return this.parseList(this.parseExpr, ',');
     }
+    // TODO: annotate with location
     parseBlockStatement(): Statement {
         let valtype : IntType = { dtype:'int', lo:0, hi: 0 } // TODO?
         if (this.peekToken().type == ECSTokenType.CodeFragment) {
@@ -778,7 +781,7 @@ export class ECSCompiler extends Tokenizer {
         if (this.ifToken('begin')) {
             let stmts = [];
             while (this.peekToken().str != 'end') {
-                stmts.push(this.parseBlockStatement());
+                stmts.push(this.annotate(() => this.parseBlockStatement()));
             }
             this.expectToken('end');
             return { valtype, stmts };
@@ -812,7 +815,7 @@ export class ECSCompiler extends Tokenizer {
         let direction = undefined;
         if (modifiers['asc']) direction = 'asc';
         else if (modifiers['desc']) direction = 'desc';
-        let body = this.parseBlockStatement();
+        let body = this.annotate(() => this.parseBlockStatement());
         return { select, query, join, direction, stmts: [body], loop: select == 'foreach' } as QueryExpr;
     }
 }
