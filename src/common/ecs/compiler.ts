@@ -795,6 +795,7 @@ export class ECSCompiler extends Tokenizer {
     parseQueryStatement() : QueryExpr {
         // TODO: include modifiers in error msg
         const select = this.expectTokens(SELECT_TYPE).str as SelectType; // TODO: type check?
+        let all = this.ifToken('all') != null;
         let query = undefined;
         let join = undefined;
         if (select == 'once') {
@@ -816,7 +817,7 @@ export class ECSCompiler extends Tokenizer {
         if (modifiers['asc']) direction = 'asc';
         else if (modifiers['desc']) direction = 'desc';
         let body = this.annotate(() => this.parseBlockStatement());
-        return { select, query, join, direction, stmts: [body], loop: select == 'foreach' } as QueryExpr;
+        return { select, query, join, direction, all, stmts: [body], loop: select == 'foreach' } as QueryExpr;
     }
 }
 
