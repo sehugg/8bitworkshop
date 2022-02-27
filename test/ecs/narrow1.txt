@@ -23,14 +23,14 @@ __Start:
 ;;; start action move__start__1
 
     ldx #0
-move__start__1____each:
+move__start__2____each:
     
     lda Xpos_x_b0+2,x
     
     inx
     cpx #2
-    jne move__start__1____each
-move__start__1____exit:
+    jne move__start__2____each
+move__start__2____exit:
 
 ;;; end action move__start__1
 

@@ -75,12 +75,12 @@ __BRK:
     dey
     bne :-
 
-;;; start action FrameLoop__start__2
+;;; start action FrameLoop__start__3
 
-FrameLoop__start__2__NextFrame:
+FrameLoop__start__4__NextFrame:
     FRAME_START
     
-;;; start action Kernel6Digit__preframe__3
+;;; start action Kernel6Digit__preframe__5
 
 Digit0 = Kernel6Digit__2__tmp+0
 Digit1 = Kernel6Digit__2__tmp+2
@@ -88,20 +88,20 @@ Digit2 = Kernel6Digit__2__tmp+4
 Digit3 = Kernel6Digit__2__tmp+6
 Digit4 = Kernel6Digit__2__tmp+8
 Digit5 = Kernel6Digit__2__tmp+10
-Kernel6Digit__preframe__3__BCD0  = Kernel6Digit__2__tmp+12
-Kernel6Digit__preframe__3__BCD1  = Kernel6Digit__2__tmp+13
-Kernel6Digit__preframe__3__BCD2  = Kernel6Digit__2__tmp+14
+Kernel6Digit__preframe__7__BCD0  = Kernel6Digit__2__tmp+12
+Kernel6Digit__preframe__7__BCD1  = Kernel6Digit__2__tmp+13
+Kernel6Digit__preframe__7__BCD2  = Kernel6Digit__2__tmp+14
 
 	lda BCDScore6_digits_b0
-        sta Kernel6Digit__preframe__3__BCD0
+        sta Kernel6Digit__preframe__7__BCD0
 	lda BCDScore6_digits_b8
-        sta Kernel6Digit__preframe__3__BCD1
+        sta Kernel6Digit__preframe__7__BCD1
 	lda BCDScore6_digits_b16
-        sta Kernel6Digit__preframe__3__BCD2
+        sta Kernel6Digit__preframe__7__BCD2
 	ldx #0	; leftmost bitmap
         ldy #2	; start from most-sigificant BCD value
-Kernel6Digit__preframe__3__Loop:
-        lda Kernel6Digit__preframe__3__BCD0,y	; get BCD value
+Kernel6Digit__preframe__7__Loop:
+        lda Kernel6Digit__preframe__7__BCD0,y	; get BCD value
         and #$f0	; isolate high nibble (* 16)
         lsr		; shift right 1 bit (* 8)
         clc
@@ -112,7 +112,7 @@ Kernel6Digit__preframe__3__Loop:
         sta Digit0+1,x	; store pointer hi byte
         inx
         inx		; next bitmap pointer
-        lda Kernel6Digit__preframe__3__BCD0,y	; get BCD value (again)
+        lda Kernel6Digit__preframe__7__BCD0,y	; get BCD value (again)
         and #$f		; isolate low nibble
         asl
         asl
@@ -126,13 +126,13 @@ Kernel6Digit__preframe__3__Loop:
         inx
         inx		; next bitmap pointer
         dey		; next BCD value
-        bpl Kernel6Digit__preframe__3__Loop	; repeat until < 0
+        bpl Kernel6Digit__preframe__7__Loop	; repeat until < 0
 
-;;; end action Kernel6Digit__preframe__3
+;;; end action Kernel6Digit__preframe__5
 
     KERNEL_START
     
-;;; start action Kernel6Digit__kernel__4
+;;; start action Kernel6Digit__kernel__8
 
         lda PFColor_pfcolor_b0
         sta COLUP0
@@ -156,23 +156,23 @@ Kernel6Digit__preframe__3__Loop:
         sta VDELP0
         sta VDELP1
 
-;;; end action Kernel6Digit__kernel__4
+;;; end action Kernel6Digit__kernel__8
 
-;;; start action Kernel6Digit__kernel__5
+;;; start action Kernel6Digit__kernel__11
 
 ; Display the resulting 48x8 bitmap
 ; using the Digit0-5 pointers.
-Kernel6Digit__kernel__5__LoopCount = Kernel6Digit__2__tmp+12
-Kernel6Digit__kernel__5__Temp = Kernel6Digit__2__tmp+13
+Kernel6Digit__kernel__13__LoopCount = Kernel6Digit__2__tmp+12
+Kernel6Digit__kernel__13__Temp = Kernel6Digit__2__tmp+13
 
 	lda BGColor_bgcolor_b0
 	sta WSYNC
         sta COLUBK
         lda #7
-        sta Kernel6Digit__kernel__5__LoopCount
+        sta Kernel6Digit__kernel__13__LoopCount
         SLEEPR 20	; TODO?
-Kernel6Digit__kernel__5__BigLoop:
-	ldy Kernel6Digit__kernel__5__LoopCount	; counts backwards
+Kernel6Digit__kernel__13__BigLoop:
+	ldy Kernel6Digit__kernel__13__LoopCount	; counts backwards
         lda (Digit0),y	; load B0 (1st sprite byte)
         sta GRP0	; B0 -> [GRP0]
         lda (Digit1),y	; load B1 -> A
@@ -181,17 +181,17 @@ Kernel6Digit__kernel__5__BigLoop:
         lda (Digit2),y	; load B2 -> A
         sta GRP0	; B2 -> [GRP0], B1 -> GRP1
         lda (Digit5),y	; load B5 -> A
-        sta Kernel6Digit__kernel__5__Temp	; B5 -> temp
+        sta Kernel6Digit__kernel__13__Temp	; B5 -> temp
         lda (Digit4),y	; load B4
         tax		; -> X
         lda (Digit3),y	; load B3 -> A
-        ldy Kernel6Digit__kernel__5__Temp	; load B5 -> Y
+        ldy Kernel6Digit__kernel__13__Temp	; load B5 -> Y
         sta GRP1	; B3 -> [GRP1]; B2 -> GRP0
         stx GRP0	; B4 -> [GRP0]; B3 -> GRP1
         sty GRP1	; B5 -> [GRP1]; B4 -> GRP0
         sta GRP0	; ?? -> [GRP0]; B5 -> GRP1
-        dec Kernel6Digit__kernel__5__LoopCount	; go to next line
-	bpl Kernel6Digit__kernel__5__BigLoop	; repeat until < 0
+        dec Kernel6Digit__kernel__13__LoopCount	; go to next line
+	bpl Kernel6Digit__kernel__13__BigLoop	; repeat until < 0
         
         lda #0		; clear the sprite registers
         sta WSYNC
@@ -201,9 +201,9 @@ Kernel6Digit__kernel__5__BigLoop:
         sta GRP1
         sta COLUBK
 
-;;; end action Kernel6Digit__kernel__5
+;;; end action Kernel6Digit__kernel__11
 
-;;; start action Kernel2Digit__kernel__6
+;;; start action Kernel2Digit__kernel__14
 
 	lda #$02
         sta CTRLPF
@@ -214,17 +214,17 @@ Kernel6Digit__kernel__5__BigLoop:
         lda PFColor_pfcolor_b0+1
         sta COLUP1
 
-;;; end action Kernel2Digit__kernel__6
+;;; end action Kernel2Digit__kernel__14
 
-;;; start action Kernel2Digit__kernel__7
+;;; start action Kernel2Digit__kernel__17
 
 	lda #7
         sta Kernel2Digit__4__tmp+0
-Kernel2Digit__kernel__7__Loop:
+Kernel2Digit__kernel__19__Loop:
 	ldx #0
 	sta WSYNC
         
-;;; start action Kernel2Digit__compute2digit__8
+;;; start action Kernel2Digit__compute2digit__20
 
         lda Kernel2Digit__4__tmp+1		; load 1st pf
         sta PF1			; store 1st pf
@@ -236,14 +236,14 @@ Kernel2Digit__kernel__7__Loop:
         asl
         asl
         
-;;; start action Kernel2Digit__fetchdigit__9
+;;; start action Kernel2Digit__fetchdigit__22
 
         adc Kernel2Digit__4__tmp+0
 	tay
         ; TODO: select your own?
 	lda FontTablePF,y
 
-;;; end action Kernel2Digit__fetchdigit__9
+;;; end action Kernel2Digit__fetchdigit__22
 
         and #$0f
         ldy Kernel2Digit__4__tmp+2		; load 2nd pf
@@ -254,24 +254,24 @@ Kernel2Digit__kernel__7__Loop:
         lsr
         sty PF1			; store 2nd pf
         
-;;; start action Kernel2Digit__fetchdigit__10
+;;; start action Kernel2Digit__fetchdigit__24
 
         adc Kernel2Digit__4__tmp+0
 	tay
         ; TODO: select your own?
 	lda FontTablePF,y
 
-;;; end action Kernel2Digit__fetchdigit__10
+;;; end action Kernel2Digit__fetchdigit__24
 
         and #$f0
         ora Kernel2Digit__4__tmp+1 + 0
         sta Kernel2Digit__4__tmp+1 + 0
 
-;;; end action Kernel2Digit__compute2digit__8
+;;; end action Kernel2Digit__compute2digit__20
 
         inx
         
-;;; start action Kernel2Digit__compute2digit__11
+;;; start action Kernel2Digit__compute2digit__26
 
         lda Kernel2Digit__4__tmp+1		; load 1st pf
         sta PF1			; store 1st pf
@@ -283,14 +283,14 @@ Kernel2Digit__kernel__7__Loop:
         asl
         asl
         
-;;; start action Kernel2Digit__fetchdigit__12
+;;; start action Kernel2Digit__fetchdigit__28
 
         adc Kernel2Digit__4__tmp+0
 	tay
         ; TODO: select your own?
 	lda FontTablePF,y
 
-;;; end action Kernel2Digit__fetchdigit__12
+;;; end action Kernel2Digit__fetchdigit__28
 
         and #$0f
         ldy Kernel2Digit__4__tmp+2		; load 2nd pf
@@ -301,40 +301,40 @@ Kernel2Digit__kernel__7__Loop:
         lsr
         sty PF1			; store 2nd pf
         
-;;; start action Kernel2Digit__fetchdigit__13
+;;; start action Kernel2Digit__fetchdigit__30
 
         adc Kernel2Digit__4__tmp+0
 	tay
         ; TODO: select your own?
 	lda FontTablePF,y
 
-;;; end action Kernel2Digit__fetchdigit__13
+;;; end action Kernel2Digit__fetchdigit__30
 
         and #$f0
         ora Kernel2Digit__4__tmp+1 + 1
         sta Kernel2Digit__4__tmp+1 + 1
 
-;;; end action Kernel2Digit__compute2digit__11
+;;; end action Kernel2Digit__compute2digit__26
 
 ; playfield
 	dec Kernel2Digit__4__tmp+0
-        bpl Kernel2Digit__kernel__7__Loop
+        bpl Kernel2Digit__kernel__19__Loop
 ;        dex
 ;        stx PF1
 
-;;; end action Kernel2Digit__kernel__7
+;;; end action Kernel2Digit__kernel__17
 
     KERNEL_END
     
-;;; start action JoyButton__postframe__14
+;;; start action JoyButton__postframe__32
 
     lda INPT4	;read button input
-    bmi JoyButton__postframe__14__NotPressed
+    bmi JoyButton__postframe__34__NotPressed
     
-;;; start action IncScore__joybutton__15
+;;; start action IncScore__joybutton__35
 
     
-;;; start action BCDMath__AddBCD4__16
+;;; start action BCDMath__AddBCD4__38
 
 .ifnblank $0210
     lda #<$0210
@@ -355,20 +355,20 @@ Kernel2Digit__kernel__7__Loop:
         sta BCDScore6_digits_b16
         cld	; exit BCD mode
 
-;;; end action BCDMath__AddBCD4__16
+;;; end action BCDMath__AddBCD4__38
 
 
-;;; end action IncScore__joybutton__15
+;;; end action IncScore__joybutton__35
 
-JoyButton__postframe__14__NotPressed:
+JoyButton__postframe__34__NotPressed:
 
-;;; end action JoyButton__postframe__14
+;;; end action JoyButton__postframe__32
 
     FRAME_END
     
-    jmp FrameLoop__start__2__NextFrame    ; loop to next frame
+    jmp FrameLoop__start__4__NextFrame    ; loop to next frame
 
-;;; end action FrameLoop__start__2
+;;; end action FrameLoop__start__3
 	; start main routine
 .segment "VECTORS"
 Return:    .word $6060
@@ -380,7 +380,7 @@ VecBRK:    .word Main::__BRK
 
 FontTable:
 
-;;; start action FontTable__FontTable__17
+;;; start action FontTable__FontTable__41
 
 ; Font table for digits 0-9 (8x8 pixels)
 ;;{w:8,h:8,count:10,brev:1,flip:1};;
@@ -390,11 +390,11 @@ FontTable:
         .byte $00,$3c,$66,$66,$7c,$60,$66,$3c,$00,$18,$18,$18,$18,$0c,$66,$7e
         .byte $00,$3c,$66,$66,$3c,$66,$66,$3c,$00,$3c,$66,$06,$3e,$66,$66,$3c
 
-;;; end action FontTable__FontTable__17
+;;; end action FontTable__FontTable__41
 
 FontTablePF:
 
-;;; start action FontTablePF__FontTablePF__18
+;;; start action FontTablePF__FontTablePF__43
 
 ; Font table for digits 0-9 (4x8 pixels)
 ;;{w:8,h:8,count:10,brev:1,flip:1};;
@@ -410,7 +410,7 @@ FontTablePF:
         .byte $00,$00,$EE,$22,$EE,$AA,$EE,$00
 ;;
 
-;;; end action FontTablePF__FontTablePF__18
+;;; end action FontTablePF__FontTablePF__43
 
 .endscope
 Main__Start = Main::__Start

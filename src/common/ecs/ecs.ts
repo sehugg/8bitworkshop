@@ -765,8 +765,10 @@ class ActionEval {
         });
         return code;
     }
-    private replaceLabels(code: string, label: string) {
+    private replaceLabels(code: string) {
         const label_re = /@(\w+)\b/g;
+        let seq = this.em.seq++;
+        let label = `${this.instance.system.name}__${this.action.event}__${seq}`;
         code = code.replace(label_re, (s: string, a: string) => `${label}__${a}`);
         return code;
     }
@@ -992,7 +994,7 @@ class ActionEval {
     evalInlineCode(code: string) {
         let props = this.scope.state.props || {};
         // replace @labels
-        code = this.replaceLabels(code, this.label);
+        code = this.replaceLabels(code);
         // replace {{...}} tags
         // TODO: use nodes instead
         code = this.replaceTags(code, this.action, props);
@@ -1046,7 +1048,6 @@ class ActionEval {
         } else if (instance.params.query) {
             qr = qr.intersection(new EntitySet(scope, instance.params.query));
         }
-        let entities = qr.entities;
         // TODO: generalize to other cpus/langs
         switch (select) {
             case 'once':
@@ -1074,13 +1075,13 @@ class ActionEval {
                     state.xreg = state.xreg.narrow(qr, action);
                     if (state.xreg == null || state.xreg.eset?.entities == null) {
                         if (select == 'if') {
-                            entities = [];
-                            break; // "if" failed
+                            qr.entities = []; // "if" failed
                         } else {
                             throw new ECSError(`no entities in statement`, action);
                         }
                     } else {
-                        entities = state.xreg.eset.entities; // TODO?
+                        // TODO: must be a better way...
+                        qr.entities = state.xreg.eset.entities;
                     }
                 } else if (select == 'with') {
                     if (instance.params.refEntity && instance.params.refField) {
@@ -1096,6 +1097,7 @@ class ActionEval {
                 break;
         }
         //
+        let entities = qr.entities;
         let code = '%%CODE%%';
         let props: { [name: string]: string } = {};
         // TODO: detect cycles
@@ -1155,7 +1157,6 @@ class ActionEval {
         props['%xofs'] = (this.scope.state.xreg?.offset() || 0).toString();
         props['%yofs'] = (this.scope.state.yreg?.offset() || 0).toString();
         let working = jr ? jr.union(qr) : qr;
-        working.entities = entities; // TODO? not good...
         //console.log('working', action.event, working.entities.length, entities.length);
         return { working, oldState, props, code };
     }
@@ -1581,7 +1582,7 @@ export class EntityScope implements SourceLocated {
     }
     normalizeCode(code: string, action: Action) {
         // TODO: use dialect to help with this
-        code = code.replace(/(\w+__\w+__)(\d+)(\w+)/g, (z,a,b,c) => a+c);
+        code = code.replace(/\b(\w+__\w+__)(\d+)__(\w+)\b/g, (z,a,b,c) => a+c);
         return code;
     }
     getSystemStats(inst: SystemInstance) : SystemStats {
@@ -1687,7 +1688,6 @@ export class EntityScope implements SourceLocated {
                 }
                 let subcall = this.dialect.call(stats.labels[0]);
                 for (let label of stats.labels) {
-                    // TODO: need to trim()?
                     let startdelim = this.dialect.comment(`start action ${label}`).trim();
                     let enddelim = this.dialect.comment(`end action ${label}`).trim();
                     let istart = code.indexOf(startdelim);
