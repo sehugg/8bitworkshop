@@ -1,0 +1,69 @@
+
+component VersatilePlayfield
+  data: array of 0..255 baseoffset -1
+end
+
+system VersatilePlayfield
+    locals 2
+    on preframe do with [VersatilePlayfield]
+---
+    lda {{<data}}
+    sta {{$0}}
+    lda {{>data}}
+    sta {{$1}}
+---
+    on scanline do once
+---
+.if {{arg 0}} = 0
+    lda ({{local 0}}),y
+    tax
+.endif
+---
+    on scanline do once
+---
+.if {{arg 0}} = 1
+    lda ({{local 0}}),y
+    sta $00,x
+.endif
+---
+    on postframe do once
+---
+    lda #0
+    sta PF0
+    sta PF1
+    sta PF2
+---
+  on checkplatform do with [HasXpos,HasYpos]
+  ---
+  lda {{<xpos}}
+  clc
+  adc #6
+  lsr
+  lsr
+  tay
+  lda {{^PFCollideMask}},y
+  pha
+  lda {{^PFCollideReg}},y
+  pha
+  lda #176	; TODO: adjust for kernel size
+  sec
+  sbc {{<ypos}}
+  and #$fe
+  tay
+  ; TODO: use system local pointer
+  pla
+  cmp ({{$0}}),y	; match register?
+  bne @nostop1
+  dey
+  pla
+  and ({{$0}}),y	; mask bitmap?
+  beq @nostop
+  {{!platformstopped}}
+  jmp @done
+@nostop1:
+  pla
+@nostop:
+  {{!platformnotstopped}}
+@done:
+  ---
+end

@@ -13,10 +13,12 @@ __BRK:
     CLEAN_START
 {{!start}}	; start main routine
 .segment "VECTORS"
-Return:    .word $6060
+ZeroByte:  .byte $00
+Return:    .byte $60
 VecNMI:
-VecReset:  .word Main::__Reset
-VecBRK:    .word Main::__BRK
+VecReset:  .word __Reset
+VecBRK:    .word __BRK
+.code
 ---
 end
 
@@ -24,11 +26,15 @@ component Player
 end
 
 component KernelSection
-  lines: 1..255
+  lines: 1..255 default 1
 end
 
 component BGColor
   bgcolor: 0..255
+end
+
+component FGColor
+  fgcolor: 0..255
 end
 
 component PFColor
@@ -44,32 +50,28 @@ component AsymPlayfield
    pfright: 0..0xffffff
 end
 
-component VersatilePlayfield
-  data: array of 0..255 baseoffset -1
-end
-
 system FrameLoop
   on start do once 
 ---
+    {{emit preframeloop}}
 @NextFrame:
+    FRAME_END
+    {{emit prevsync}}
     FRAME_START
     {{emit preframe}}
+    {{emit prekernel}}
     KERNEL_START
     {{emit kernel}}
     KERNEL_END
+    {{emit postkernel}}
     {{emit postframe}}
-    FRAME_END
-    {{emit nextframe}}
     jmp @NextFrame    ; loop to next frame
 ---
-end
-
-system ResetSwitch
-    on nextframe do once
+    on postframe do once
 ---
     lsr SWCHB	      ; test Game Reset switch
     bcs @NoStart
-    {{!resetswitch}}
+    {{emit resetswitch}}
 @NoStart:
 ---
 end
@@ -99,58 +101,71 @@ system Joystick
     lda SWCHA
     sta {{$0}}
 ---
-    on postframe do foreach [Player]
+    on postframe do foreach [Player] limit 2
 ---
     asl {{$0}}
+.ifdef EVENT__joyright
     bcs @SkipMoveRight
     {{!joyright}}
 @SkipMoveRight:
+.endif
     asl {{$0}}
+.ifdef EVENT__joyleft
     bcs @SkipMoveLeft
     {{!joyleft}}
 @SkipMoveLeft:
+.endif
     asl {{$0}}
+.ifdef EVENT__joydown
     bcs @SkipMoveDown
     {{!joydown}}
 @SkipMoveDown:
+.endif
     asl {{$0}}
+.ifdef EVENT__joyup
     bcs @SkipMoveUp
     {{!joyup}}
 @SkipMoveUp:
+.endif
 ---
 end
 
 system SetHorizPos
-    on SetHorizPos do once
+    on SetHorizPos do critical fit 22 once 
 ---
 ; SetHorizPos routine
 ; A = X coordinate
 ; Y = player number (0 or 1)
-    sta WSYNC	; start a new line
-    sec		    ; set carry flag
-    nop
-@DivideLoop:
+    sec		    	; set carry flag
+    sta WSYNC		; start a new line
+:
     sbc #15		; subtract 15
-    bcs @DivideLoop	; branch until negative
+    bcs :-		; branch until negative
     eor #7		; calculate fine offset
     asl
     asl
     asl
     asl
-    sta RESP0,y	; fix coarse position
     sta HMP0,y	; set fine offset
+    sta RESP0,y	; fix coarse position
+    sta WSYNC   ; won't overrun if X < 150
 ---
 end
 
 
-system StaticKernel
+system StandardKernel
+  on wsync do once
+---
+    sta WSYNC
+---
   on preframe do foreach [KernelSection] limit 1
 ---
+    {{!wsync}}
     {{!kernelsetup}}
 ---
   on kernel do foreach [KernelSection]
 ---
-    sta WSYNC
+    {{!wsync}}
     {{!kernelsetup}}
     {{!kerneldraw}}
     {{!kerneldone}}
@@ -159,7 +174,8 @@ system StaticKernel
 ---
     ldy {{<lines}}
 @loop:
-    sta WSYNC
+    {{!prescanline}}
+    {{!wsync}}
     {{!scanline}}
     dey
     bne @loop
@@ -185,11 +201,92 @@ system StaticKernel
 ---
 end
 
+component SimpleCollidable
+  lastx: 0..255
+  lasty: 0..255
+end
+
+system SimpleCollision
+  on postframe do with [SimpleCollidable]
+  ---
+  lda CXP0FB
+  bpl @nocollide
+  lda {{<lastx}}
+  sta {{<xpos}}
+  lda {{<lasty}}
+  sta {{<ypos}}
+@nocollide:
+  ---
+  on ymoved do with [SimpleCollidable]
+  ---
+  lda {{<xpos}}
+  sta {{<lastx}}
+  lda {{<ypos}}
+  sta {{<lasty}}
+  ---
+end
+
+component FrameCount
+  frame: 0..255
+end
+
+system FrameCounter
+  on postframe do with [FrameCount]
+---
+  inc {{set frame}}
+.ifdef EVENT__frame256
+  jne @noframe256
+  {{emit frame256}}
+@noframe256:
+.endif
+---
+// TODO: only .if responds to events
+   on postframe do with [FrameCount]
+   ---
+   jmp @go
+.ifdef EVENT__frame4
+@frame4:
+   {{emit frame4}}
+   jmp @done
+.endif
+.ifdef EVENT__frame8
+@frame8:
+   {{emit frame8}}
+   jmp @done
+.endif
+.ifdef EVENT__frame16
+@frame16:
+   {{emit frame16}}
+   jmp @done
+.endif
+@go:
+   lda {{get frame}}
+.ifdef EVENT__frame16
+   and #15
+   jeq @frame16
+.endif
+.ifdef EVENT__frame8
+   and #7
+   cmp #3
+   jeq @frame8
+.endif
+.ifdef EVENT__frame4
+   and #3
+   cmp #1
+   jeq @frame4
+.endif
+@done:
+   ---
+end
+
+
+
 ///
 
 demo Main
-  using FrameLoop, ResetSwitch, ResetConsole
-  using StaticKernel, JoyButton
+  using FrameLoop, ResetConsole
+  using StandardKernel, JoyButton
+  
   entity [Player]
   end
   entity [KernelSection,BGColor]
@@ -218,7 +315,7 @@ demo Main
     const bgcolor = $14
     const pf = 0x112244
   end
-  entity  [KernelSection,BGColor,PFColor,Playfield]
+  entity Trees2 [KernelSection,BGColor,PFColor,Playfield]
     const lines = 50
     const bgcolor = $16
     const pf = 0x124
@@ -236,5 +333,6 @@ demo Main
     inc {{set Trees.pfcolor}}
     ---
   end
+  
 end demo
 

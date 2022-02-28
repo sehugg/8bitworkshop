@@ -1,8 +1,8 @@
 EVENT__start = 1
+EVENT__postframe = 1
 EVENT__preframe = 1
 EVENT__kernel = 1
 EVENT__scanline = 1
-EVENT__postframe = 1
 EVENT__joyleft = 1
 EVENT__joyright = 1
 EVENT__gowest = 1
@@ -11,16 +11,17 @@ EVENT__gonorth = 1
 EVENT__gosouth = 1
 EVENT__joyup = 1
 EVENT__joydown = 1
+EVENT__prekernel = 1
 EVENT__SetHorizPos = 1
+EVENT__checkplatform = 1
 .scope Main
 .zeropage
-Location_room_b0:
-.res 1
-.res 1
-.res 1
-.res 1
 Sprite_plyrflags_b0:
 .res 1
+.res 1
+.res 1
+.res 1
+Location_room_b0:
 .res 1
 .res 1
 .res 1
@@ -28,9 +29,7 @@ HasXpos_xpos_b0:
 .res 1
 .res 1
 .res 1
-.res 1
 HasYpos_ypos_b0:
-.res 1
 .res 1
 .res 1
 .res 1
@@ -62,7 +61,7 @@ VersatilePlayfield__10__tmp:
 .res 1
 .code
 KernelSection_lines_b0:
-.byte 192
+.byte 190
 BGColor_bgcolor_b0:
 .byte 162
 Bitmap_bitmapdata_b0:
@@ -603,39 +602,34 @@ VersatilePlayfield_data_e6_b0:
 .byte 10
 .byte 112
 .byte 9
-HasBitmap_bitmap_b0:
+Sprite_bitmap_b0:
+.byte 0
 .byte 1
-.byte 2
 .byte 2
 .byte 2
 HasColormap_colormap_b0:
 .byte 1
 .byte 2
 .byte 2
-.byte 2
 Moving_speed_b0:
 .byte 2
 .byte 1
 .byte 1
-.byte 1
 Main__INITDATA:
-.byte 2
-.byte 2
-.byte 2
-.byte 1
+.byte 0
 .byte 5
 .byte 0
 .byte 0
-.byte 0
+.byte 2
+.byte 2
+.byte 2
 .byte 40
+.byte 70
 .byte 100
-.byte 100
-.byte 50
 .byte 30
-.byte 30
+.byte 70
 .byte 60
-.byte 90
-.byte 0
+.byte 1
 .byte 0
 .byte 0
 .byte 0
@@ -652,31 +646,29 @@ __Reset:
 __BRK:
     CLEAN_START
 
-    ldy #21
+    ldy #18
 :   lda Main__INITDATA-1,y
-    sta Location_room_b0-1,y
+    sta Sprite_plyrflags_b0-1,y
     dey
     bne :-
 
 ;;; start action FrameLoop__start__3
 
+    
 FrameLoop__start__4__NextFrame:
+    FRAME_END
+    
     FRAME_START
     
 ;;; start action Kernel2Sprite__preframe__5
 
-.define KLINES #192
+; TODOO: can store KLINES in memory?
+.define KLINES #190
 .define KPAD 32
 ; set height to zero in case no sprites
     lda #0
     sta Kernel2Sprite__2__tmp+8
     sta Kernel2Sprite__2__tmp+9
-; set temp value so we don't read bitmap from h/w registers
-    lda #$F0
-    sta Kernel2Sprite__2__tmp+2
-    sta Kernel2Sprite__2__tmp+3
-    sta Kernel2Sprite__2__tmp+6
-    sta Kernel2Sprite__2__tmp+7
 
 ;;; end action Kernel2Sprite__preframe__5
 
@@ -686,21 +678,20 @@ FrameLoop__start__4__NextFrame:
 Kernel2Sprite__preframe__9____each:
     ldx SpriteSlot_sprite_b0,y
     
-; flags set according to sprite slot value
-; skip sprite if negative
-    jmi Kernel2Sprite__preframe__10__nosprite
 ; set player object flags
     lda Sprite_plyrflags_b0,x
     sta NUSIZ0,y
     sta REFP0,y
 ; calculate screen height - ypos
-    lda KLINES+KPAD
+    lda KLINES
+    clc
+    adc KPAD
     sec
-    sbc HasYpos_ypos_b0,x
+    sbc HasYpos_ypos_b0-1,x
     sta Kernel2Sprite__2__tmp+11
 ; calculate bitmap pointer
     stx Kernel2Sprite__2__tmp+12		; save X (Sprite index)
-    lda HasBitmap_bitmap_b0,x     ; deref bitmap
+    lda Sprite_bitmap_b0,x     ; deref bitmap
     tax
     lda Bitmap_bitmapdata_b0,x
     sec
@@ -714,7 +705,7 @@ Kernel2Sprite__preframe__9____each:
     sta Kernel2Sprite__2__tmp+8,y
 ; calculate colormap pointer
     ldx Kernel2Sprite__2__tmp+12		; restore X
-    lda HasColormap_colormap_b0,x	; deref colormap
+    lda HasColormap_colormap_b0-1,x	; deref colormap
     tax
     lda Colormap_colormapdata_b0,x
     sec
@@ -725,9 +716,8 @@ Kernel2Sprite__preframe__9____each:
     sta Kernel2Sprite__2__tmp+6,y
 ; save ypos
     ldx Kernel2Sprite__2__tmp+12		; restore X
-    lda HasYpos_ypos_b0,x
+    lda HasYpos_ypos_b0-1,x
     sta Kernel2Sprite__2__tmp+10,y
-Kernel2Sprite__preframe__10__nosprite:
 
     iny
     cpy #2
@@ -764,59 +754,27 @@ Kernel2Sprite__preframe__9____exit:
 
 ;;; start action SetXPos__preframe__17
 
-    sta HMCLR
-
-;;; end action SetXPos__preframe__17
-
-;;; start action SetXPos__preframe__19
-
     ldy #0
-SetXPos__preframe__20____each:
+SetXPos__preframe__18____each:
     ldx SpriteSlot_sprite_b0,y
     
-    lda HasXpos_xpos_b0,x
+    lda HasXpos_xpos_b0-1,x
     
-;;; start action SetHorizPos__SetHorizPos__22
-
-; SetHorizPos routine
-; A = X coordinate
-; Y = player number (0 or 1)
-    sta WSYNC	; start a new line
-    sec		    ; set carry flag
-    nop
-SetHorizPos__SetHorizPos__23__DivideLoop:
-    sbc #15		; subtract 15
-    bcs SetHorizPos__SetHorizPos__23__DivideLoop	; branch until negative
-    eor #7		; calculate fine offset
-    asl
-    asl
-    asl
-    asl
-    sta RESP0,y	; fix coarse position
-    sta HMP0,y	; set fine offset
-
-;;; end action SetHorizPos__SetHorizPos__22
+ jsr SetHorizPos__SetHorizPos__20
 
 
     iny
     cpy #2
-    jne SetXPos__preframe__20____each
-SetXPos__preframe__20____exit:
+    jne SetXPos__preframe__18____each
+SetXPos__preframe__18____exit:
 
-;;; end action SetXPos__preframe__19
+;;; end action SetXPos__preframe__17
 
-;;; start action SetXPos__preframe__24
+;;; start action SetXPos__preframe__22
 
-;;; end action SetXPos__preframe__24
+;;; end action SetXPos__preframe__22
 
-;;; start action SetXPos__preframe__25
-
-    sta WSYNC
-    sta HMOVE
-
-;;; end action SetXPos__preframe__25
-
-;;; start action VersatilePlayfield__preframe__27
+;;; start action VersatilePlayfield__preframe__23
 
     ldx Location_room_b0+0
     
@@ -826,136 +784,32 @@ SetXPos__preframe__20____exit:
     sta VersatilePlayfield__10__tmp+1
 
 
-;;; end action VersatilePlayfield__preframe__27
+;;; end action VersatilePlayfield__preframe__23
+
+    
+;;; start action SetXPos__prekernel__26
+
+    sta WSYNC
+    sta HMOVE
+    SLEEPR 24
+    sta HMCLR
+
+;;; end action SetXPos__prekernel__26
 
     KERNEL_START
     
-;;; start action Kernel2Sprite__kernel__30
+;;; start action Kernel2Sprite__kernel__28
 
     ldy #0
     sty VDELP0
     iny
-    sta VDELP1
+    sty VDELP1
 
-;;; end action Kernel2Sprite__kernel__30
+;;; end action Kernel2Sprite__kernel__28
 
-;;; start action Kernel2Sprite__kernel__33
-    
-    ldy #192
-Kernel2Sprite__kernel__35__LVScan:
-    
-;;; start action Kernel2Sprite__scanline__36
+ jsr Kernel2Sprite__kernel__31
 
-; draw player 0
-    lda Kernel2Sprite__2__tmp+8 ; height
-    dcp Kernel2Sprite__2__tmp+10 ; ypos
-    bcs Kernel2Sprite__scanline__37__DoDraw1
-    lda #0
-    .byte $2C
-Kernel2Sprite__scanline__37__DoDraw1:
-    lda (Kernel2Sprite__2__tmp+0),y
-    .if 0 = 0
-    sta WSYNC
-    .endif
-    sta GRP0
-    lda (Kernel2Sprite__2__tmp+4),y
-    sta COLUP0
-; draw player 1
-    lda Kernel2Sprite__2__tmp+9 ; height
-    dcp Kernel2Sprite__2__tmp+11 ; ypos
-    bcs Kernel2Sprite__scanline__37__DoDraw2
-    lda #0
-    .byte $2C
-Kernel2Sprite__scanline__37__DoDraw2:
-    lda (Kernel2Sprite__2__tmp+2),y
-    sta GRP1
-    lda (Kernel2Sprite__2__tmp+6),y
-    sta COLUP1
-
-;;; end action Kernel2Sprite__scanline__36
-
-;;; start action Kernel2Sprite__scanline__38
-
-;;; end action Kernel2Sprite__scanline__38
-
-;;; start action VersatilePlayfield__scanline__39
-
-.if 0 = 0
-    lda (VersatilePlayfield__10__tmp+0),y
-    tax
-.endif
-
-;;; end action VersatilePlayfield__scanline__39
-
-;;; start action VersatilePlayfield__scanline__41
-
-.if 0 = 1
-    lda (VersatilePlayfield__10__tmp+0),y
-    sta $00,x
-.endif
-
-;;; end action VersatilePlayfield__scanline__41
-
-    dey		; next scanline
-    
-;;; start action Kernel2Sprite__scanline__43
-
-; draw player 0
-    lda Kernel2Sprite__2__tmp+8 ; height
-    dcp Kernel2Sprite__2__tmp+10 ; ypos
-    bcs Kernel2Sprite__scanline__44__DoDraw1
-    lda #0
-    .byte $2C
-Kernel2Sprite__scanline__44__DoDraw1:
-    lda (Kernel2Sprite__2__tmp+0),y
-    .if 1 = 0
-    sta WSYNC
-    .endif
-    sta GRP0
-    lda (Kernel2Sprite__2__tmp+4),y
-    sta COLUP0
-; draw player 1
-    lda Kernel2Sprite__2__tmp+9 ; height
-    dcp Kernel2Sprite__2__tmp+11 ; ypos
-    bcs Kernel2Sprite__scanline__44__DoDraw2
-    lda #0
-    .byte $2C
-Kernel2Sprite__scanline__44__DoDraw2:
-    lda (Kernel2Sprite__2__tmp+2),y
-    sta GRP1
-    lda (Kernel2Sprite__2__tmp+6),y
-    sta COLUP1
-
-;;; end action Kernel2Sprite__scanline__43
-
-;;; start action Kernel2Sprite__scanline__45
-
-;;; end action Kernel2Sprite__scanline__45
-
-;;; start action VersatilePlayfield__scanline__46
-
-.if 1 = 0
-    lda (VersatilePlayfield__10__tmp+0),y
-    tax
-.endif
-
-;;; end action VersatilePlayfield__scanline__46
-
-;;; start action VersatilePlayfield__scanline__48
-
-.if 1 = 1
-    lda (VersatilePlayfield__10__tmp+0),y
-    sta $00,x
-.endif
-
-;;; end action VersatilePlayfield__scanline__48
-
-    dey		; next scanline
-    bne Kernel2Sprite__kernel__35__LVScan	; repeat until out of lines
-
-;;; end action Kernel2Sprite__kernel__33
-
-;;; start action Kernel2Sprite__kernel__50
+;;; start action Kernel2Sprite__kernel__48
 
     lda #0
     sta GRP0
@@ -963,10 +817,20 @@ Kernel2Sprite__scanline__44__DoDraw2:
     sta GRP0
     sta GRP1
 
-;;; end action Kernel2Sprite__kernel__50
+;;; end action Kernel2Sprite__kernel__48
 
     KERNEL_END
     
+    
+;;; start action FrameLoop__postframe__50
+
+    lsr SWCHB	      ; test Game Reset switch
+    bcs FrameLoop__postframe__51__NoStart
+    
+FrameLoop__postframe__51__NoStart:
+
+;;; end action FrameLoop__postframe__50
+
 ;;; start action Joystick__postframe__52
 
 ; 2 control inputs share a single byte, 4 bits each
@@ -978,13 +842,14 @@ Kernel2Sprite__scanline__44__DoDraw2:
 ;;; start action Joystick__postframe__54
 
     asl Joystick__3__tmp+0
+.ifdef EVENT__joyright
     bcs Joystick__postframe__56__SkipMoveRight
     
 ;;; start action JoyFaceDirection__joyright__57
 
-    lda Sprite_plyrflags_b0
+    lda Sprite_plyrflags_b0+1
     and #$f7
-    sta Sprite_plyrflags_b0
+    sta Sprite_plyrflags_b0+1
 
 ;;; end action JoyFaceDirection__joyright__57
 
@@ -1011,14 +876,16 @@ SuperFly__joyright__62__nomove:
 ;;; end action SuperFly__joyright__60
 
 Joystick__postframe__56__SkipMoveRight:
+.endif
     asl Joystick__3__tmp+0
+.ifdef EVENT__joyleft
     bcs Joystick__postframe__56__SkipMoveLeft
     
 ;;; start action JoyFaceDirection__joyleft__66
 
-    lda Sprite_plyrflags_b0
+    lda Sprite_plyrflags_b0+1
     ora #$08
-    sta Sprite_plyrflags_b0
+    sta Sprite_plyrflags_b0+1
 
 ;;; end action JoyFaceDirection__joyleft__66
 
@@ -1044,7 +911,9 @@ SuperFly__joyleft__71__nomove:
 ;;; end action SuperFly__joyleft__69
 
 Joystick__postframe__56__SkipMoveLeft:
+.endif
     asl Joystick__3__tmp+0
+.ifdef EVENT__joydown
     bcs Joystick__postframe__56__SkipMoveDown
     
 ;;; start action SuperFly__joydown__75
@@ -1070,7 +939,9 @@ SuperFly__joydown__77__nomove:
 ;;; end action SuperFly__joydown__75
 
 Joystick__postframe__56__SkipMoveDown:
+.endif
     asl Joystick__3__tmp+0
+.ifdef EVENT__joyup
     bcs Joystick__postframe__56__SkipMoveUp
     
 ;;; start action SuperFly__joyup__81
@@ -1095,6 +966,7 @@ SuperFly__joyup__83__nomove:
 ;;; end action SuperFly__joyup__81
 
 Joystick__postframe__56__SkipMoveUp:
+.endif
 
 ;;; end action Joystick__postframe__54
 
@@ -1106,9 +978,9 @@ BadMove__postframe__88____each:
   
 ;;; start action JoyFaceDirection__joyright__90
 
-    lda Sprite_plyrflags_b0+1,x
+    lda Sprite_plyrflags_b0+2,x
     and #$f7
-    sta Sprite_plyrflags_b0+1,x
+    sta Sprite_plyrflags_b0+2,x
 
 ;;; end action JoyFaceDirection__joyright__90
 
@@ -1136,7 +1008,7 @@ SuperFly__joyright__95__nomove:
 
   
     inx
-    cpx #3
+    cpx #2
     jne BadMove__postframe__88____each
 BadMove__postframe__88____exit:
 
@@ -1144,23 +1016,24 @@ BadMove__postframe__88____exit:
 
 ;;; start action RoomShuffle__postframe__99
 
-    ldy 4
+    ldy #3-1
     ldx SpriteSlot_sprite_b0+1
-    bmi RoomShuffle__postframe__101__empty		; empty slot, load 1st entry
+    beq RoomShuffle__postframe__101__empty		; empty slot, load 1st entry
 RoomShuffle__postframe__101__loop:
     inx
-    cpx 4
+    cpx #3+1
     bcc RoomShuffle__postframe__101__norecycle
 ; TODO: need to get index of specific entity
 RoomShuffle__postframe__101__empty:
-    ldx #1	; skip null sprite and super dude?
+    ldx #2	; skip null sprite and player
 RoomShuffle__postframe__101__norecycle:
-    lda Location_room_b0,x
+; TODO: should automatically index
+    lda Location_room_b0-1,x
     cmp Location_room_b0
     beq RoomShuffle__postframe__101__exit
     dey
     bne RoomShuffle__postframe__101__loop
-    ldx #$ff
+    ldx #0	; null sprite
 RoomShuffle__postframe__101__exit:
     stx SpriteSlot_sprite_b0+1
     
@@ -1175,19 +1048,163 @@ RoomShuffle__postframe__101__exit:
 
 ;;; end action VersatilePlayfield__postframe__102
 
-    FRAME_END
-    
     jmp FrameLoop__start__4__NextFrame    ; loop to next frame
 
 ;;; end action FrameLoop__start__3
 	; start main routine
 .segment "VECTORS"
-Return:    .word $6060
+ZeroByte:  .byte $00
+Return:    .byte $60
 VecNMI:
-VecReset:  .word Main::__Reset
-VecBRK:    .word Main::__BRK
+VecReset:  .word __Reset
+VecBRK:    .word __BRK
+.code
 
 ;;; end action Init__main_init__1
+.rodata
+__ALIGNORIGIN:
+.rodata
+SetHorizPos__SetHorizPos__20:
 
+; SetHorizPos routine
+; A = X coordinate
+; Y = player number (0 or 1)
+    sec		    	; set carry flag
+    sta WSYNC		; start a new line
+:
+    sbc #15		; subtract 15
+    bcs :-		; branch until negative
+    eor #7		; calculate fine offset
+    asl
+    asl
+    asl
+    asl
+    sta HMP0,y	; set fine offset
+    sta RESP0,y	; fix coarse position
+    sta WSYNC   ; won't overrun if X < 150
+
+ rts
+
+.assert >(SetHorizPos__SetHorizPos__20) = >(*), error, "SetHorizPos__SetHorizPos__20 crosses a page boundary!"
+
+.assert (* - SetHorizPos__SetHorizPos__20) <= 22, error, .sprintf("SetHorizPos__SetHorizPos__20 does not fit in 22 bytes, it took %d!", (* - SetHorizPos__SetHorizPos__20))
+.rodata
+Kernel2Sprite__kernel__31:
+    
+    ldy #190
+Kernel2Sprite__kernel__33__LVScan:
+    
+;;; start action Kernel2Sprite__scanline__34
+
+; draw player 0
+    lda Kernel2Sprite__2__tmp+8 ; height
+    dcp Kernel2Sprite__2__tmp+10 ; ypos
+    bcs Kernel2Sprite__scanline__35__DoDraw1
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__35__DoDraw1:
+    lda (Kernel2Sprite__2__tmp+0),y
+;    .if 0 = 0 ; TODO: configurable?
+    sta WSYNC
+;    .endif
+    sta GRP0
+    lda (Kernel2Sprite__2__tmp+4),y
+    sta COLUP0
+; draw player 1
+    lda Kernel2Sprite__2__tmp+9 ; height
+    dcp Kernel2Sprite__2__tmp+11 ; ypos
+    bcs Kernel2Sprite__scanline__35__DoDraw2
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__35__DoDraw2:
+    lda (Kernel2Sprite__2__tmp+2),y
+    sta GRP1
+    lda (Kernel2Sprite__2__tmp+6),y
+    sta COLUP1
+
+;;; end action Kernel2Sprite__scanline__34
+
+;;; start action Kernel2Sprite__scanline__36
+
+;;; end action Kernel2Sprite__scanline__36
+
+;;; start action VersatilePlayfield__scanline__37
+
+.if 0 = 0
+    lda (VersatilePlayfield__10__tmp+0),y
+    tax
+.endif
+
+;;; end action VersatilePlayfield__scanline__37
+
+;;; start action VersatilePlayfield__scanline__39
+
+.if 0 = 1
+    lda (VersatilePlayfield__10__tmp+0),y
+    sta $00,x
+.endif
+
+;;; end action VersatilePlayfield__scanline__39
+
+    dey		; next scanline
+    
+;;; start action Kernel2Sprite__scanline__41
+
+; draw player 0
+    lda Kernel2Sprite__2__tmp+8 ; height
+    dcp Kernel2Sprite__2__tmp+10 ; ypos
+    bcs Kernel2Sprite__scanline__42__DoDraw1
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__42__DoDraw1:
+    lda (Kernel2Sprite__2__tmp+0),y
+;    .if 1 = 0 ; TODO: configurable?
+    sta WSYNC
+;    .endif
+    sta GRP0
+    lda (Kernel2Sprite__2__tmp+4),y
+    sta COLUP0
+; draw player 1
+    lda Kernel2Sprite__2__tmp+9 ; height
+    dcp Kernel2Sprite__2__tmp+11 ; ypos
+    bcs Kernel2Sprite__scanline__42__DoDraw2
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__42__DoDraw2:
+    lda (Kernel2Sprite__2__tmp+2),y
+    sta GRP1
+    lda (Kernel2Sprite__2__tmp+6),y
+    sta COLUP1
+
+;;; end action Kernel2Sprite__scanline__41
+
+;;; start action Kernel2Sprite__scanline__43
+
+;;; end action Kernel2Sprite__scanline__43
+
+;;; start action VersatilePlayfield__scanline__44
+
+.if 1 = 0
+    lda (VersatilePlayfield__10__tmp+0),y
+    tax
+.endif
+
+;;; end action VersatilePlayfield__scanline__44
+
+;;; start action VersatilePlayfield__scanline__46
+
+.if 1 = 1
+    lda (VersatilePlayfield__10__tmp+0),y
+    sta $00,x
+.endif
+
+;;; end action VersatilePlayfield__scanline__46
+
+    dey		; next scanline
+    bne Kernel2Sprite__kernel__33__LVScan	; repeat until out of lines
+
+ rts
+
+.assert >(Kernel2Sprite__kernel__31) = >(*), error, "Kernel2Sprite__kernel__31 crosses a page boundary!"
 .endscope
 Main__Start = Main::__Start

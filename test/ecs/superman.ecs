@@ -3,6 +3,8 @@
 
 import "vcslib.ecs"
 import "sprites.ecs"
+import "kernel2.ecs"
+import "versatile.ecs"
 
 // https://csanyk.com/2014/02/topology-metropolis-superman-atari-2600/
 
@@ -116,23 +118,24 @@ end
   system RoomShuffle
     on postframe do select [Location,Sprite]
     ---
-    ldy {{%ecount}}
+    ldy #{{%ecount}}-1
     ldx {{<Slot1.sprite}}
-    bmi @empty		; empty slot, load 1st entry
+    beq @empty		; empty slot, load 1st entry
 @loop:
     inx
-    cpx {{%ecount}}
+    cpx #{{%ecount}}+1
     bcc @norecycle
 ; TODO: need to get index of specific entity
 @empty:
-    ldx #1	; skip null sprite and super dude?
+    ldx #2	; skip null sprite and player
 @norecycle:
-    lda {{<Location:room}},x
+; TODO: should automatically index
+    lda {{<Location:room}}-1,x
     cmp {{<Superdude.room}}
     beq @exit
     dey
     bne @loop
-    ldx #$ff
+    ldx #0	; null sprite
 @exit:
     stx {{<Slot1.sprite}}
     ---
@@ -152,14 +155,14 @@ using SetXPos, SetHorizPos
 //using SpriteShuffler, SpriteHider
 
 entity Kernel [KernelSection, BGColor]
-  const lines = 192
+  const lines = 190
   const bgcolor = 0xa2
 end
 
-  entity NullShape [Bitmap,Colormap]
+  entity Blank [Bitmap,Colormap]
   decode vcs_sprite
   ---
-........ 00
+  ........ 00
   ---
   end
 
@@ -452,14 +455,10 @@ x.x.x.x.x.x.x.x.x.x. .. 06 ..
   ---
   end
 
-/*
-  entity NullSprite [Location,Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,Player]
-    var ypos = 224
-    const bitmap = #BexButhor1
-    const colormap = #BexButhor1
-    const plyrflags = $00
+  entity NullSprite [Sprite]
+    const bitmap = #Blank
+    //var plyrflags = $00
   end
-*/
 
   entity Superdude [Location,Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,Player,Moving]
     var room = #OutsideDailyPlanet
@@ -470,11 +469,11 @@ x.x.x.x.x.x.x.x.x.x. .. 06 ..
     var plyrflags = $05
     const speed = 2
   end
-  
+
   entity BexButhor [Location,Sprite,HasXpos,HasYpos,HasBitmap,HasColormap,Enemy,Moving]
     var room = #OutsideDailyPlanet
-    var xpos = 100
-    var ypos = 30
+    var xpos = 70
+    var ypos = 70
     const bitmap = #BexButhor1
     const colormap = #BexButhor1
     var plyrflags = $00
@@ -491,6 +490,7 @@ x.x.x.x.x.x.x.x.x.x. .. 06 ..
     const speed = 1
   end
 
+  /*
   entity KBexButhor [Location,Sprite,HasXpos,HasYpos,HasBitmap,HasColormap,Enemy,Moving]
     var room = #InsideDailyPlanet
     var xpos = 50
@@ -499,27 +499,16 @@ x.x.x.x.x.x.x.x.x.x. .. 06 ..
     const colormap = #BexButhor1
     var plyrflags = $00
     const speed = 1
-  end
+  end*/
   
     entity Slot0 [SpriteSlot]
   	var sprite = #Superdude
     end
     entity Slot1 [SpriteSlot]
-    	var sprite = 0 // $ff
+    	var sprite = #NullSprite
     end
 
 using VersatilePlayfield with #Superdude.room
 
 end
 
-
-/*
-InsideDailyPlanetDS
-   .word SubwayGraphics
-   .byte WHITE - 2
-   .byte BLUE + 10
-   .byte <GreenSubwayDS             ; pointer to north room
-   .byte <BlueSubwayDS              ; pointer to east room
-   .byte <YellowSubwayDS            ; pointer to south room
-   .byte <PinkSubwayDS              ; pointer to west room
-*/

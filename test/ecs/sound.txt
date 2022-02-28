@@ -1,0 +1,174 @@
+EVENT__start = 1
+EVENT__postframe = 1
+EVENT__preframe = 1
+EVENT__playsound = 1
+EVENT__preframeloop = 1
+.scope SoundDemo
+.zeropage
+SoundChannel_sfx_b0:
+.res 1
+.res 1
+SoundChannel_timer_b0:
+.res 1
+.res 1
+TEMP:
+SoundEngine__2__tmp:
+.res 1
+.res 1
+.res 1
+.code
+SoundEffect_duration_b0:
+.byte 11
+SoundEffect_sounddata_b0:
+.byte <SoundEffect_sounddata_e0_b0
+SoundEffect_sounddata_b8:
+.byte >SoundEffect_sounddata_e0_b0
+SoundEffect_sounddata_e0_b0:
+.byte 2
+.byte 3
+.byte 4
+.byte 8
+.byte 16
+.byte 32
+.byte 16
+.byte 32
+.byte 16
+.byte 8
+.byte 168
+SoundDemo__INITDATA:
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+__Start:
+
+;;; start action Init__main_init__1
+
+.include "vcs-ca65.h"
+.macpack longbranch
+.define PAL 0
+__NMI:
+__Reset:
+__BRK:
+    CLEAN_START
+
+    ldy #4
+:   lda SoundDemo__INITDATA-1,y
+    sta SoundChannel_sfx_b0-1,y
+    dey
+    bne :-
+
+;;; start action FrameLoop__start__3
+
+    
+;;; start action Test__preframeloop__5
+
+    
+;;; start action SoundEngine__playsound__7
+
+; arg 0 = sound channel
+  ldy #0
+; arg 1 = sound effect #
+  lda #0
+  sta SoundChannel_sfx_b0,y
+  tax
+  
+;;; end action SoundEngine__playsound__7
+
+;;; start action SoundEngine__playsound__10
+
+  lda SoundEffect_duration_b0,x
+  
+;;; end action SoundEngine__playsound__10
+
+;;; start action SoundEngine__playsound__13
+
+  sta SoundChannel_timer_b0,y
+; arg 2 = base volume
+  lda #15
+  sta AUDV0,y
+  
+;;; end action SoundEngine__playsound__13
+
+    
+;;; end action Test__preframeloop__5
+
+FrameLoop__start__4__NextFrame:
+    FRAME_END
+    
+    FRAME_START
+    
+;;; start action SoundEngine__preframe__16
+
+    ldy #0
+SoundEngine__preframe__17____each:
+    ldx SoundChannel_sfx_b0,y
+    
+  lda SoundChannel_timer_b0,y
+  jeq SoundEngine__preframe__18__nosound
+  sec
+  sbc #1
+  sta SoundChannel_timer_b0,y
+  pha
+  lda SoundEffect_sounddata_b0,x
+  sta SoundEngine__2__tmp+0
+  lda SoundEffect_sounddata_b8,x
+  sta SoundEngine__2__tmp+1		; save pointer to sound data
+  sty SoundEngine__2__tmp+2		; save Y (sound channel #)
+  pla
+  tay
+  lda (SoundEngine__2__tmp+0),y	; get sound data
+  bpl SoundEngine__preframe__18__setfreq		; hi bit clear = just freq
+  ldy SoundEngine__2__tmp+2
+  lsr			; right shift (/ 2)
+  bcs SoundEngine__preframe__18__setvol		; lo bit set = volume
+  sta AUDC0,y		; lo bit clear = control
+  lsr			; also set freq (/ 2)
+SoundEngine__preframe__18__setfreq:
+  ldy SoundEngine__2__tmp+2
+  sta AUDF0,y		; set frequency
+  jmp SoundEngine__preframe__18__done
+SoundEngine__preframe__18__nosound:
+  lda #0
+SoundEngine__preframe__18__setvol:
+  sta AUDV0,y		; set volume
+SoundEngine__preframe__18__done:
+  
+    iny
+    cpy #2
+    jne SoundEngine__preframe__17____each
+SoundEngine__preframe__17____exit:
+
+;;; end action SoundEngine__preframe__16
+
+    
+    KERNEL_START
+    
+    KERNEL_END
+    
+    
+;;; start action FrameLoop__postframe__19
+
+    lsr SWCHB	      ; test Game Reset switch
+    bcs FrameLoop__postframe__20__NoStart
+    
+FrameLoop__postframe__20__NoStart:
+
+;;; end action FrameLoop__postframe__19
+
+    jmp FrameLoop__start__4__NextFrame    ; loop to next frame
+
+;;; end action FrameLoop__start__3
+	; start main routine
+.segment "VECTORS"
+ZeroByte:  .byte $00
+Return:    .byte $60
+VecNMI:
+VecReset:  .word __Reset
+VecBRK:    .word __BRK
+.code
+
+;;; end action Init__main_init__1
+
+.endscope
+SoundDemo__Start = SoundDemo::__Start

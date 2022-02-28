@@ -1,0 +1,587 @@
+EVENT__start = 1
+EVENT__postframe = 1
+EVENT__preframe = 1
+EVENT__kernel = 1
+EVENT__scanline = 1
+EVENT__joyleft = 1
+EVENT__joyright = 1
+EVENT__joyup = 1
+EVENT__joydown = 1
+EVENT__prekernel = 1
+EVENT__SetHorizPos = 1
+.scope Main
+.zeropage
+Sprite_bitmap_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+HasColormap_colormap_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+HasXpos_xpos_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+HasYpos_ypos_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+SpriteSlot_sprite_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+TEMP:
+Kernel2Sprite__2__tmp:
+Joystick__3__tmp:
+SpriteHider__9__tmp:
+.res 1
+SpriteShuffler__8__tmp:
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.code
+KernelSection_lines_b0:
+.byte 192
+BGColor_bgcolor_b0:
+.byte 162
+Bitmap_bitmapdata_b0:
+.byte <(Bitmap_bitmapdata_e1_b0+31)
+.byte <(Bitmap_bitmapdata_e2_b0+31)
+Bitmap_bitmapdata_b8:
+.byte >(Bitmap_bitmapdata_e1_b0+31)
+.byte >(Bitmap_bitmapdata_e2_b0+31)
+Bitmap_bitmapdata_e1_b0:
+.byte 1
+.byte 1
+.byte 3
+.byte 7
+.byte 15
+.byte 31
+.byte 63
+.byte 127
+.byte 0
+Bitmap_height_b0:
+.byte 8
+.byte 8
+Bitmap_bitmapdata_e2_b0:
+.byte 24
+.byte 62
+.byte 255
+.byte 255
+.byte 255
+.byte 255
+.byte 62
+.byte 24
+.byte 0
+Colormap_colormapdata_b0:
+.byte <(Colormap_colormapdata_e3_b0+31)
+Colormap_colormapdata_b8:
+.byte >(Colormap_colormapdata_e3_b0+31)
+Colormap_colormapdata_e3_b0:
+.byte 2
+.byte 4
+.byte 6
+.byte 8
+.byte 10
+.byte 12
+.byte 14
+.byte 14
+.byte 14
+Sprite_plyrflags_b0:
+.byte 0
+.byte 3
+.byte 2
+.byte 0
+Main__INITDATA:
+.byte 1
+.byte 0
+.byte 1
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 50
+.byte 100
+.byte 80
+.byte 40
+.byte 150
+.byte 60
+.byte 90
+.byte 150
+.byte 0
+.byte 1
+.byte 2
+.byte 3
+__Start:
+
+;;; start action Init__main_init__1
+
+.include "vcs-ca65.h"
+.macpack longbranch
+.define PAL 0
+__NMI:
+__Reset:
+__BRK:
+    CLEAN_START
+
+    ldy #20
+:   lda Main__INITDATA-1,y
+    sta Sprite_bitmap_b0-1,y
+    dey
+    bne :-
+
+;;; start action FrameLoop__start__3
+
+    
+FrameLoop__start__4__NextFrame:
+    FRAME_END
+    
+    FRAME_START
+    
+;;; start action Kernel2Sprite__preframe__5
+
+; TODOO: can store KLINES in memory?
+.define KLINES #192
+.define KPAD 32
+; set height to zero in case no sprites
+    lda #0
+    sta Kernel2Sprite__2__tmp+8
+    sta Kernel2Sprite__2__tmp+9
+
+;;; end action Kernel2Sprite__preframe__5
+
+;;; start action Kernel2Sprite__preframe__8
+
+    ldy #0
+Kernel2Sprite__preframe__9____each:
+    ldx SpriteSlot_sprite_b0,y
+    
+; set player object flags
+    lda Sprite_plyrflags_b0,x
+    sta NUSIZ0,y
+    sta REFP0,y
+; calculate screen height - ypos
+    lda KLINES
+    clc
+    adc KPAD
+    sec
+    sbc HasYpos_ypos_b0,x
+    sta Kernel2Sprite__2__tmp+11
+; calculate bitmap pointer
+    stx Kernel2Sprite__2__tmp+12		; save X (Sprite index)
+    lda Sprite_bitmap_b0,x     ; deref bitmap
+    tax
+    lda Bitmap_bitmapdata_b0,x
+    sec
+    sbc Kernel2Sprite__2__tmp+11
+    sta Kernel2Sprite__2__tmp+0,y	; Y = sprite slot index
+    lda Bitmap_bitmapdata_b8,x
+    sbc #0
+    sta Kernel2Sprite__2__tmp+2,y
+; get bitmap height
+    lda Bitmap_height_b0,x
+    sta Kernel2Sprite__2__tmp+8,y
+; calculate colormap pointer
+    ldx Kernel2Sprite__2__tmp+12		; restore X
+    lda HasColormap_colormap_b0,x	; deref colormap
+    tax
+    lda Colormap_colormapdata_b0,x
+    sec
+    sbc Kernel2Sprite__2__tmp+11
+    sta Kernel2Sprite__2__tmp+4,y
+    lda Colormap_colormapdata_b8,x
+    sbc #0
+    sta Kernel2Sprite__2__tmp+6,y
+; save ypos
+    ldx Kernel2Sprite__2__tmp+12		; restore X
+    lda HasYpos_ypos_b0,x
+    sta Kernel2Sprite__2__tmp+10,y
+
+    iny
+    cpy #2
+    jne Kernel2Sprite__preframe__9____each
+Kernel2Sprite__preframe__9____exit:
+
+;;; end action Kernel2Sprite__preframe__8
+
+;;; start action Kernel2Sprite__preframe__11
+
+; shuffle pointers into (MSB, LSB) byte order
+; L0 L1 H0 H1 -> L0 H0 L1 H1
+    lda Kernel2Sprite__2__tmp+1
+    ldy Kernel2Sprite__2__tmp+2
+    sty Kernel2Sprite__2__tmp+1
+    sta Kernel2Sprite__2__tmp+2
+    lda Kernel2Sprite__2__tmp+5
+    ldy Kernel2Sprite__2__tmp+6
+    sty Kernel2Sprite__2__tmp+5
+    sta Kernel2Sprite__2__tmp+6
+
+;;; end action Kernel2Sprite__preframe__11
+
+;;; start action Kernel2Sprite__preframe__13
+
+    lda #162
+    sta COLUBK
+
+;;; end action Kernel2Sprite__preframe__13
+
+;;; start action Kernel2Sprite__preframe__16
+
+;;; end action Kernel2Sprite__preframe__16
+
+;;; start action SetXPos__preframe__17
+
+    ldy #0
+SetXPos__preframe__18____each:
+    ldx SpriteSlot_sprite_b0,y
+    
+    lda HasXpos_xpos_b0,x
+    
+ jsr SetHorizPos__SetHorizPos__20
+
+
+    iny
+    cpy #2
+    jne SetXPos__preframe__18____each
+SetXPos__preframe__18____exit:
+
+;;; end action SetXPos__preframe__17
+
+;;; start action SetXPos__preframe__22
+
+;;; end action SetXPos__preframe__22
+
+    
+;;; start action SetXPos__prekernel__23
+
+    sta WSYNC
+    sta HMOVE
+    SLEEPR 24
+    sta HMCLR
+
+;;; end action SetXPos__prekernel__23
+
+    KERNEL_START
+    
+;;; start action Kernel2Sprite__kernel__25
+
+    ldy #0
+    sty VDELP0
+    iny
+    sty VDELP1
+
+;;; end action Kernel2Sprite__kernel__25
+
+ jsr Kernel2Sprite__kernel__28
+
+;;; start action Kernel2Sprite__kernel__37
+
+    lda #0
+    sta GRP0
+    sta GRP1
+    sta GRP0
+    sta GRP1
+
+;;; end action Kernel2Sprite__kernel__37
+
+    KERNEL_END
+    
+    
+;;; start action FrameLoop__postframe__39
+
+    lsr SWCHB	      ; test Game Reset switch
+    bcs FrameLoop__postframe__40__NoStart
+    
+FrameLoop__postframe__40__NoStart:
+
+;;; end action FrameLoop__postframe__39
+
+;;; start action Joystick__postframe__41
+
+; 2 control inputs share a single byte, 4 bits each
+    lda SWCHA
+    sta Joystick__3__tmp+0
+
+;;; end action Joystick__postframe__41
+
+;;; start action Joystick__postframe__43
+
+    ldx #0
+Joystick__postframe__44____each:
+    
+    asl Joystick__3__tmp+0
+.ifdef EVENT__joyright
+    bcs Joystick__postframe__45__SkipMoveRight
+    
+;;; start action MoveJoyX__joyright__46
+
+    lda HasXpos_xpos_b0,x
+    clc
+    adc #1
+    cmp #150
+    bcs MoveJoyX__joyright__48__nomove
+    sta HasXpos_xpos_b0,x
+MoveJoyX__joyright__48__nomove:
+
+;;; end action MoveJoyX__joyright__46
+
+Joystick__postframe__45__SkipMoveRight:
+.endif
+    asl Joystick__3__tmp+0
+.ifdef EVENT__joyleft
+    bcs Joystick__postframe__45__SkipMoveLeft
+    
+;;; start action MoveJoyX__joyleft__49
+
+    lda HasXpos_xpos_b0,x
+    sec
+    sbc #1
+    bcc MoveJoyX__joyleft__51__nomove
+    sta HasXpos_xpos_b0,x
+MoveJoyX__joyleft__51__nomove:
+
+;;; end action MoveJoyX__joyleft__49
+
+Joystick__postframe__45__SkipMoveLeft:
+.endif
+    asl Joystick__3__tmp+0
+.ifdef EVENT__joydown
+    bcs Joystick__postframe__45__SkipMoveDown
+    
+;;; start action MoveJoyY__joydown__52
+
+    lda HasYpos_ypos_b0,x
+    clc
+    adc #1
+    cmp #220
+    bcs MoveJoyY__joydown__54__nomove
+    sta HasYpos_ypos_b0,x
+MoveJoyY__joydown__54__nomove:
+
+;;; end action MoveJoyY__joydown__52
+
+Joystick__postframe__45__SkipMoveDown:
+.endif
+    asl Joystick__3__tmp+0
+.ifdef EVENT__joyup
+    bcs Joystick__postframe__45__SkipMoveUp
+    
+;;; start action MoveJoyY__joyup__55
+
+    lda HasYpos_ypos_b0,x
+    sec
+    sbc #1
+    bcc MoveJoyY__joyup__57__nomove
+    sta HasYpos_ypos_b0,x
+MoveJoyY__joyup__57__nomove:
+
+;;; end action MoveJoyY__joyup__55
+
+Joystick__postframe__45__SkipMoveUp:
+.endif
+
+    inx
+    cpx #2
+    jne Joystick__postframe__44____each
+Joystick__postframe__44____exit:
+
+;;; end action Joystick__postframe__43
+
+;;; start action SpriteShuffler__postframe__58
+
+; load two sprite slots at left side of array
+	lda SpriteSlot_sprite_b0
+        sta SpriteShuffler__8__tmp+0
+	lda SpriteSlot_sprite_b0+1
+        sta SpriteShuffler__8__tmp+1
+; move two slots to the left
+        ldx #0
+SpriteShuffler__postframe__60__loop:
+	lda SpriteSlot_sprite_b0+2,x
+	sta SpriteSlot_sprite_b0,x
+	inx
+        cpx #4-2
+        bne SpriteShuffler__postframe__60__loop
+; store two sprite slots at right side of array
+        lda SpriteShuffler__8__tmp+0
+	sta SpriteSlot_sprite_b0+4-2
+        lda SpriteShuffler__8__tmp+1
+	sta SpriteSlot_sprite_b0+4-1
+
+;;; end action SpriteShuffler__postframe__58
+
+;;; start action SpriteHider__postframe__61
+
+	lda #4-1
+        sta SpriteHider__9__tmp+0
+
+;;; end action SpriteHider__postframe__61
+
+;;; start action SpriteHider__postframe__64
+
+    ldy #0
+SpriteHider__postframe__65____each:
+    ldx SpriteSlot_sprite_b0,y
+    
+	lda HasYpos_ypos_b0,x
+        cmp #192
+        bcc SpriteHider__postframe__66__skip
+; swap this sprite slot with slot at end of array
+	lda SpriteSlot_sprite_b0,y
+        pha
+        ldx SpriteHider__9__tmp+0	; clobbers X, but no longer used
+	lda SpriteSlot_sprite_b0,x
+	sta SpriteSlot_sprite_b0,y
+        pla
+	sta SpriteSlot_sprite_b0,x
+        dec SpriteHider__9__tmp+0
+SpriteHider__postframe__66__skip:
+
+    iny
+    cpy #2
+    jne SpriteHider__postframe__65____each
+SpriteHider__postframe__65____exit:
+
+;;; end action SpriteHider__postframe__64
+
+    jmp FrameLoop__start__4__NextFrame    ; loop to next frame
+
+;;; end action FrameLoop__start__3
+	; start main routine
+.segment "VECTORS"
+ZeroByte:  .byte $00
+Return:    .byte $60
+VecNMI:
+VecReset:  .word __Reset
+VecBRK:    .word __BRK
+.code
+
+;;; end action Init__main_init__1
+.rodata
+__ALIGNORIGIN:
+.rodata
+SetHorizPos__SetHorizPos__20:
+
+; SetHorizPos routine
+; A = X coordinate
+; Y = player number (0 or 1)
+    sec		    	; set carry flag
+    sta WSYNC		; start a new line
+:
+    sbc #15		; subtract 15
+    bcs :-		; branch until negative
+    eor #7		; calculate fine offset
+    asl
+    asl
+    asl
+    asl
+    sta HMP0,y	; set fine offset
+    sta RESP0,y	; fix coarse position
+    sta WSYNC   ; won't overrun if X < 150
+
+ rts
+
+.assert >(SetHorizPos__SetHorizPos__20) = >(*), error, "SetHorizPos__SetHorizPos__20 crosses a page boundary!"
+
+.assert (* - SetHorizPos__SetHorizPos__20) <= 22, error, .sprintf("SetHorizPos__SetHorizPos__20 does not fit in 22 bytes, it took %d!", (* - SetHorizPos__SetHorizPos__20))
+.rodata
+Kernel2Sprite__kernel__28:
+    
+    ldy #192
+Kernel2Sprite__kernel__30__LVScan:
+    
+;;; start action Kernel2Sprite__scanline__31
+
+; draw player 0
+    lda Kernel2Sprite__2__tmp+8 ; height
+    dcp Kernel2Sprite__2__tmp+10 ; ypos
+    bcs Kernel2Sprite__scanline__32__DoDraw1
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__32__DoDraw1:
+    lda (Kernel2Sprite__2__tmp+0),y
+;    .if 0 = 0 ; TODO: configurable?
+    sta WSYNC
+;    .endif
+    sta GRP0
+    lda (Kernel2Sprite__2__tmp+4),y
+    sta COLUP0
+; draw player 1
+    lda Kernel2Sprite__2__tmp+9 ; height
+    dcp Kernel2Sprite__2__tmp+11 ; ypos
+    bcs Kernel2Sprite__scanline__32__DoDraw2
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__32__DoDraw2:
+    lda (Kernel2Sprite__2__tmp+2),y
+    sta GRP1
+    lda (Kernel2Sprite__2__tmp+6),y
+    sta COLUP1
+
+;;; end action Kernel2Sprite__scanline__31
+
+;;; start action Kernel2Sprite__scanline__33
+
+;;; end action Kernel2Sprite__scanline__33
+
+    dey		; next scanline
+    
+;;; start action Kernel2Sprite__scanline__34
+
+; draw player 0
+    lda Kernel2Sprite__2__tmp+8 ; height
+    dcp Kernel2Sprite__2__tmp+10 ; ypos
+    bcs Kernel2Sprite__scanline__35__DoDraw1
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__35__DoDraw1:
+    lda (Kernel2Sprite__2__tmp+0),y
+;    .if 1 = 0 ; TODO: configurable?
+    sta WSYNC
+;    .endif
+    sta GRP0
+    lda (Kernel2Sprite__2__tmp+4),y
+    sta COLUP0
+; draw player 1
+    lda Kernel2Sprite__2__tmp+9 ; height
+    dcp Kernel2Sprite__2__tmp+11 ; ypos
+    bcs Kernel2Sprite__scanline__35__DoDraw2
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__35__DoDraw2:
+    lda (Kernel2Sprite__2__tmp+2),y
+    sta GRP1
+    lda (Kernel2Sprite__2__tmp+6),y
+    sta COLUP1
+
+;;; end action Kernel2Sprite__scanline__34
+
+;;; start action Kernel2Sprite__scanline__36
+
+;;; end action Kernel2Sprite__scanline__36
+
+    dey		; next scanline
+    bne Kernel2Sprite__kernel__30__LVScan	; repeat until out of lines
+
+ rts
+
+.assert >(Kernel2Sprite__kernel__28) = >(*), error, "Kernel2Sprite__kernel__28 crosses a page boundary!"
+.endscope
+Main__Start = Main::__Start

@@ -1,11 +1,11 @@
 EVENT__start = 1
-EVENT__nextframe = 1
+EVENT__postframe = 1
 EVENT__resetswitch = 1
+EVENT__wsync = 1
 EVENT__preframe = 1
 EVENT__kernel = 1
 EVENT__kerneldraw = 1
 EVENT__kernelsetup = 1
-EVENT__postframe = 1
 EVENT__joybutton = 1
 .scope Main
 .zeropage
@@ -13,7 +13,7 @@ PFColor_pfcolor_b0:
 .res 1
 .res 1
 TEMP:
-Local__6__tmp:
+Local__5__tmp:
 .res 1
 .code
 KernelSection_lines_b0:
@@ -72,67 +72,84 @@ __BRK:
 
 ;;; start action FrameLoop__start__3
 
+    
 FrameLoop__start__4__NextFrame:
+    FRAME_END
+    
     FRAME_START
     
-;;; start action StaticKernel__preframe__5
+;;; start action StandardKernel__preframe__5
 
     
-;;; start action StaticKernel__kernelsetup__8
+;;; start action StandardKernel__wsync__8
+
+    sta WSYNC
+
+;;; end action StandardKernel__wsync__8
+
+    
+;;; start action StandardKernel__kernelsetup__10
 
     lda #24
     sta COLUBK
 
-;;; end action StaticKernel__kernelsetup__8
+;;; end action StandardKernel__kernelsetup__10
 
-;;; start action StaticKernel__kernelsetup__11
+;;; start action StandardKernel__kernelsetup__13
 
-;;; end action StaticKernel__kernelsetup__11
+;;; end action StandardKernel__kernelsetup__13
 
-;;; start action StaticKernel__kernelsetup__12
+;;; start action StandardKernel__kernelsetup__14
 
-;;; end action StaticKernel__kernelsetup__12
+;;; end action StandardKernel__kernelsetup__14
 
 
-;;; end action StaticKernel__preframe__5
+;;; end action StandardKernel__preframe__5
 
+    
     KERNEL_START
     
-;;; start action StaticKernel__kernel__13
+;;; start action StandardKernel__kernel__15
 
     ldx #0
-StaticKernel__kernel__14____each:
+StandardKernel__kernel__16____each:
     
+    
+;;; start action StandardKernel__wsync__18
+
     sta WSYNC
+
+;;; end action StandardKernel__wsync__18
+
     
-;;; start action StaticKernel__kernelsetup__16
+;;; start action StandardKernel__kernelsetup__20
 
     lda BGColor_bgcolor_b0,x
     sta COLUBK
 
-;;; end action StaticKernel__kernelsetup__16
+;;; end action StandardKernel__kernelsetup__20
 
-;;; start action StaticKernel__kernelsetup__19
+;;; start action StandardKernel__kernelsetup__23
 
     cpx #5+2
-    jcs StaticKernel__kernelsetup__20____skipxhi
+    jcs StandardKernel__kernelsetup__24____skipxhi
     
     cpx #5
-    jcc StaticKernel__kernelsetup__20____skipxlo
+    jcc StandardKernel__kernelsetup__24____skipxlo
     
     lda PFColor_pfcolor_b0-5,x
     sta COLUPF
 
-StaticKernel__kernelsetup__20____skipxlo:
+StandardKernel__kernelsetup__24____skipxlo:
 
-StaticKernel__kernelsetup__20____skipxhi:
+StandardKernel__kernelsetup__24____skipxhi:
 
-;;; end action StaticKernel__kernelsetup__19
+;;; end action StandardKernel__kernelsetup__23
 
-;;; start action StaticKernel__kernelsetup__22
+;;; start action StandardKernel__kernelsetup__26
 
     cpx #4
-    jcc StaticKernel__kernelsetup__23____skipxlo
+    jcc StandardKernel__kernelsetup__27____skipxlo
     
     lda Playfield_pf_b0-4,x
     sta PF0
@@ -141,55 +158,45 @@ StaticKernel__kernelsetup__20____skipxhi:
     lda Playfield_pf_b16-4,x
     sta PF2
 
-StaticKernel__kernelsetup__23____skipxlo:
+StandardKernel__kernelsetup__27____skipxlo:
 
-;;; end action StaticKernel__kernelsetup__22
+;;; end action StandardKernel__kernelsetup__26
 
     
-;;; start action StaticKernel__kerneldraw__25
+;;; start action StandardKernel__kerneldraw__29
 
     ldy KernelSection_lines_b0,x
-StaticKernel__kerneldraw__27__loop:
+StandardKernel__kerneldraw__31__loop:
+    
+    
+;;; start action StandardKernel__wsync__32
+
     sta WSYNC
+
+;;; end action StandardKernel__wsync__32
+
     
     dey
-    bne StaticKernel__kerneldraw__27__loop
+    bne StandardKernel__kerneldraw__31__loop
 
-;;; end action StaticKernel__kerneldraw__25
+;;; end action StandardKernel__kerneldraw__29
 
     
 
     inx
     cpx #8
-    jne StaticKernel__kernel__14____each
-StaticKernel__kernel__14____exit:
+    jne StandardKernel__kernel__16____each
+StandardKernel__kernel__16____exit:
 
-;;; end action StaticKernel__kernel__13
+;;; end action StandardKernel__kernel__15
 
     KERNEL_END
     
-;;; start action JoyButton__postframe__28
-
-    lda INPT4	;read button input
-    bmi JoyButton__postframe__30__NotPressed
     
-;;; start action Local__joybutton__31
-
-    inc Local__6__tmp+0
-    inc PFColor_pfcolor_b0
-    
-;;; end action Local__joybutton__31
-
-JoyButton__postframe__30__NotPressed:
-
-;;; end action JoyButton__postframe__28
-
-    FRAME_END
-    
-;;; start action ResetSwitch__nextframe__34
+;;; start action FrameLoop__postframe__34
 
     lsr SWCHB	      ; test Game Reset switch
-    bcs ResetSwitch__nextframe__35__NoStart
+    bcs FrameLoop__postframe__35__NoStart
     
 ;;; start action ResetConsole__resetswitch__36
 
@@ -197,19 +204,37 @@ JoyButton__postframe__30__NotPressed:
 
 ;;; end action ResetConsole__resetswitch__36
 
-ResetSwitch__nextframe__35__NoStart:
+FrameLoop__postframe__35__NoStart:
 
-;;; end action ResetSwitch__nextframe__34
+;;; end action FrameLoop__postframe__34
+
+;;; start action JoyButton__postframe__38
+
+    lda INPT4	;read button input
+    bmi JoyButton__postframe__40__NotPressed
+    
+;;; start action Local__joybutton__41
+
+    inc Local__5__tmp+0
+    inc PFColor_pfcolor_b0
+    
+;;; end action Local__joybutton__41
+
+JoyButton__postframe__40__NotPressed:
+
+;;; end action JoyButton__postframe__38
 
     jmp FrameLoop__start__4__NextFrame    ; loop to next frame
 
 ;;; end action FrameLoop__start__3
 	; start main routine
 .segment "VECTORS"
-Return:    .word $6060
+ZeroByte:  .byte $00
+Return:    .byte $60
 VecNMI:
-VecReset:  .word Main::__Reset
-VecBRK:    .word Main::__BRK
+VecReset:  .word __Reset
+VecBRK:    .word __BRK
+.code
 
 ;;; end action Init__main_init__1
 

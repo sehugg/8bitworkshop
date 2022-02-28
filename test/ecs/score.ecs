@@ -4,7 +4,8 @@
 import "vcslib.ecs"
 
 component BCDScore2
-   digits: 0..0xff
+   digits: 0..$ff
+   scorecolor: 0..$ff
 end
 
 component BCDScore4
@@ -89,7 +90,9 @@ Digit5 = {{$10}}
         sta VDELP0
         sta VDELP1
 ---
-    on kernel do with [BCDScore6,BGColor]
+    on kernel do
+    critical fit 72
+    with [BCDScore6,BGColor] 
 ---
 ; Display the resulting 48x8 bitmap
 ; using the Digit0-5 pointers.
@@ -102,7 +105,7 @@ Digit5 = {{$10}}
         lda #7
         sta @LoopCount
         SLEEPR 20	; TODO?
-@BigLoop:
+:
 	ldy @LoopCount	; counts backwards
         lda (Digit0),y	; load B0 (1st sprite byte)
         sta GRP0	; B0 -> [GRP0]
@@ -122,7 +125,7 @@ Digit5 = {{$10}}
         sty GRP1	; B5 -> [GRP1]; B4 -> GRP0
         sta GRP0	; ?? -> [GRP0]; B5 -> GRP1
         dec @LoopCount	; go to next line
-	bpl @BigLoop	; repeat until < 0
+	bpl :-		; repeat until < 0
         
         lda #0		; clear the sprite registers
         sta WSYNC
@@ -147,18 +150,26 @@ resource FontTable ---
 
 system Kernel2Digit
     locals 3
-    on kernel do select [BCDScore2,PFColor]
+    on preframe do once
+---
+   lda #0
+   sta {{$1}}
+   sta {{$2}}
+---
+    on kernel do select [BCDScore2]
 ---
 	lda #$02
         sta CTRLPF
 ; TODO: should be constants
 ; and it's wrong, too!
-        lda {{<PFColor:pfcolor}}+0
+        lda {{<BCDScore2:scorecolor}}+0
         sta COLUP0
-        lda {{<PFColor:pfcolor}}+1
+        lda {{<BCDScore2:scorecolor}}+1
         sta COLUP1
 ---
-    on kernel do select [BCDScore2]
+    on kernel do
+    critical fit 98
+    select [BCDScore2] 
 ---
 	lda #7
         sta {{$0}}
@@ -166,11 +177,15 @@ system Kernel2Digit
 	ldx #0
 	sta WSYNC
         {{!compute2digit 0}}
+.if {{%ecount}}>1
         inx
         {{!compute2digit 1}}
+.else
+        {{!compute2digit 0}}
+.endif
 ; playfield
 	dec {{$0}}
-        bpl @Loop
+        jpl @Loop
 ;        dex
 ;        stx PF1
 ---
@@ -242,12 +257,15 @@ resource FontTablePFFancy ---
 
 system BCDMath
 	locals 1
-	on AddBCD4 do with [BCDScore6]
+        on AddBCD4 do once
 ---
 .ifnblank {{arg 0}}
     lda #<{{arg 0}}
     ldy #>{{arg 0}}
 .endif
+---
+	on AddBCD4 do with [BCDScore6]
+---
 ; Adds value to 6-BCD-digit score.
 ; A = 1st BCD digit
 ; Y = 2nd BCD digit
@@ -263,13 +281,53 @@ system BCDMath
         sta {{set digits 16}}
         cld	; exit BCD mode
 ---
+	on AddBCD2 do once
+---
+.ifnblank {{arg 0}}
+    lda #<{{arg 0}}
+.endif
+---
+	on SubBCD2 do once
+---
+.ifnblank {{arg 0}}
+    lda #<{{arg 0}}
+.endif
+---
+	on AddBCD2 do with [BCDScore2]
+---
+        sed	; enter BCD mode
+        clc	; clear carry
+        adc {{get digits}}
+        sta {{set digits}}
+        cld	; exit BCD mode
+	bcc :+
+	lda #$99
+	sta {{set digits}}
+:
+---
+ 	on SubBCD2 do with [BCDScore2]
+---
+; TODO?
+        tay
+        lda {{get digits}}
+        sty {{set digits}}
+        sed	; enter BCD mode
+        sec	; set carry
+        sbc {{get digits}}
+        sta {{set digits}}
+        cld	; exit BCD mode
+	bcs :+
+	lda #0
+	sta {{set digits}}
+:
+---
 end
 
 demo Main
 
     using FrameLoop
-    using Kernel6Digit, FontTable
-    using Kernel2Digit, FontTablePF
+    using Kernel6Digit
+    using Kernel2Digit
     using JoyButton, BCDMath
     
     entity [Player,BCDScore6,PFColor,BGColor]
@@ -278,13 +336,13 @@ demo Main
         init bgcolor = $02
     end
 
-    entity [BCDScore2,PFColor]
+    entity [BCDScore2]
     	init digits = 0x24
-        init pfcolor = $ce
+        init scorecolor = $ce
     end
-    entity [BCDScore2,PFColor]
+    entity [BCDScore2]
     	init digits = 0x56
-        init pfcolor = $3e
+        init scorecolor = $3e
     end
 
   system IncScore

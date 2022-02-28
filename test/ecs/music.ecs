@@ -1,0 +1,189 @@
+
+//#resource "vcs-ca65.h"
+
+import "vcslib.ecs"
+
+component Song
+  songdata: array of 0..255
+end
+
+// TODO: merge with SoundChannel
+component MusicChannel
+  duration: 0..255
+  note: 0..255
+  duty: 0..255
+end
+
+component MusicPlayer
+  timer: 0..255 default 255
+  channel: [MusicChannel]
+  songptr: 0..65535
+  volume: 0..15 default 15
+  tempo: 0..255 default 7
+end
+
+
+// Table of AUDF base values for each note
+resource FREQZ ---
+  .byte 30, 30, 30, 30, 30, 28, 26, 25, 23, 22, 21, 19, 18, 17, 16, 15, 14, 13, 12, 12, 11, 10, 10, 9, 8, 8, 7, 7, 6, 6, 5, 5, 30, 29, 27, 25, 24, 22, 21, 20, 19, 18, 16, 15, 15, 14, 13, 12, 11, 11, 10, 31, 29, 27, 25, 24, 23, 21, 20, 19, 18, 16, 15, 15
+---
+// Table of duty-cycle bits for each note
+resource DUTYZ ---
+  .byte 247, 247, 247, 247, 1, 73, 219, 1, 219, 73, 0, 219, 181, 85, 85, 85, 181, 219, 247, 1, 73, 181, 0, 73, 219, 17, 219, 17, 219, 73, 247, 85, 247, 1, 85, 247, 73, 247, 181, 17, 1, 0, 247, 247, 0, 1, 17, 73, 181, 0, 17, 0, 1, 85, 247, 73, 0, 181, 73, 1, 0, 247, 247, 0
+---
+// Table of AUDC values for each note
+resource TONEZ ---
+  .byte 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
+---
+
+system MusicPlayer
+  on preframe do once
+  ---
+  {{!musicpulse}}	; update song
+  {{!musicframe}}	; update registers
+  ---
+  on prekernel do once
+  ---
+  {{!musicframe}}	; update registers
+  ---
+  on postkernel do once
+  ---
+  {{!musicframe}}	; update registers
+  ---
+  on postframe do once
+  ---
+  {{!musicframe}}	; update registers
+  ---
+  // TODO: unroll?
+  on musicframe do foreach [MusicChannel]
+  ---
+; Update channel pitch in AUDF0
+; 8-bit rotation of duty cycle bits
+	lda	{{get duration}}
+        beq	:++
+	lda	{{set duty}}
+        asl
+        bcc	:+
+        ora	#1
+:	sta	{{set duty}}
+	lda	{{get note}}
+        beq	:+
+; If next bit is set, add 1 to AUDF0 
+        adc	#0
+        sta	AUDF0,x
+:
+  ---
+  on musicpulse do foreach [MusicChannel]
+  ---
+; Decrement the volumes for each channel
+; Also decrement next-note timer, fetch next note
+	lda	{{get duration}}
+        beq	:+
+        lsr
+        sta	AUDV0,x
+        dec	{{set duration}}
+:
+---
+  on musicpulse do with [MusicPlayer]
+  ---
+        lda	{{get timer}}
+        bmi	@Done
+        beq	@NextData
+        dec	{{set timer}}
+        jmp	@Done
+; Timer ran out, so fetch next note
+@NextData:
+	ldx	#0
+        lda	({{get songptr}},x)
+        bmi	@LoadDuration
+; < $80, play next note
+        ldx	{{get channel}}	; next channel
+        tay
+        {{!musicnote}}
+        inx
+        txa
+        and	#1
+        sta	{{set channel}}	; inc next channel
+        jmp	@IncDataPtr
+; >= $80, load next duration
+@LoadDuration:
+	cmp	#$ff		; $ff = end of song
+        bne	@NoResetTrack
+        sta     {{set timer}}
+        {{!musicdone}}
+        jmp     @Done
+@NoResetTrack:
+        and	#$7f
+;        asl
+        sta	{{set timer}}	; store duration * 2
+@IncDataPtr:
+; increment song pointer
+	inc	{{set songptr 0}}
+        bne	@Done
+	inc	{{set songptr 8}}
+@Done:
+  ---
+  // TODO: should use "with"?
+  on musicnote do select all [MusicChannel]
+  ---
+; Play a note
+; X = channel (0,1)
+; Y = note index (0-63)
+	lda	{{^FREQZ}},y
+        sta	{{base note}},x
+	lda	{{^DUTYZ}},y
+        sta	{{base duty}},x
+        lda	{{^TONEZ}},y
+        sta	AUDC0,x
+; TODO: consts?
+        lda	{{get MusicPlayer:tempo}}
+        sta	{{base duration}},x
+        lda	{{get MusicPlayer:volume}}
+        sta	AUDV0,x
+  ---
+  on playmusic do foreach [MusicPlayer] limit 1
+  ---
+  lda	#<{{arg 0}}
+  sta	{{set songptr 0}}
+  lda	#>{{arg 0}}
+  sta	{{set songptr 8}}
+  lda   #0
+  sta   {{set timer}}
+  ---
+  on stopmusic do foreach [MusicPlayer] limit 1
+  ---
+  lda   #$ff
+  sta   {{set timer}}
+  ---
+end
+
+///
+
+demo music
+  using FrameLoop
+  using MusicPlayer
+  entity [MusicChannel] end
+  entity [MusicChannel] end
+  entity MusicPlayer [MusicPlayer]
+    const volume = 10
+    const tempo = 31
+  end
+  system music
+    on musicdone do with [MusicPlayer]
+    ---
+    ; TODO: nested exprs
+    ; {{!playmusic ^SampleMusic}}
+    ;{{^SampleMusic}}
+    {{!playmusic SampleMusic}}
+    ---
+    on preframeloop do once
+    ---
+    {{!musicdone}}
+    ---
+  end
+end demo
+
+resource SampleMusic ---
+ .byte $35,$41,$8a,$37,$43,$8a,$33,$3f,$8a,$30,$3c,$94,$3e,$32,$8a,$3a,$2e,$94,$35,$29,$8a,$37,$2b,$8a,$33,$27,$8a,$30,$24,$94,$32,$26,$8a,$2e,$22,$94,$29,$1d,$8a,$2b,$1f,$8a,$27,$1b,$8a,$24,$18,$94,$1a,$26,$8a,$18,$24,$8a,$17,$23,$8a,$16,$22,$a8,$3a,$35,$ff
+---
+
