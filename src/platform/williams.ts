@@ -15,7 +15,7 @@ var WilliamsPlatform = function(mainElement, proto, options) {
   var self = this;
   this.__proto__ = new (proto ? proto : Base6809Platform)();
 
-  var isDefender = options.isDefender;
+  var isDefender = options?.isDefender;
   var SCREEN_HEIGHT = 304;
   var SCREEN_WIDTH = 256;
 
@@ -303,7 +303,7 @@ var WilliamsPlatform = function(mainElement, proto, options) {
     workerchannel = new WorkerSoundChannel(worker);
     audio.master.addChannel(workerchannel);
 
-    let rotate = options.rotate == null ? -90 : parseFloat(options.rotate);
+    let rotate = options?.rotate == null ? -90 : parseFloat(options.rotate);
     video = new RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, { rotate });
     video.create();
     $(video.canvas).click(function(e) {

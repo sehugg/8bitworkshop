@@ -230,11 +230,12 @@ export function linkLD65(step: BuildStep): BuildStepResult {
             if (fn.endsWith('.lst')) {
                 var lstout = FS.readFile(fn, { encoding: 'utf8' });
                 lstout = lstout.split('\n\n')[1] || lstout; // remove header
-                var asmlines = []; // TODO: parseCA65Listing(lstout, symbolmap, params, false);
-                var srclines = parseCA65Listing(lstout, symbolmap, params, true, listings);
+                var asmlines = parseCA65Listing(lstout, symbolmap, params, false);
+                var srclines = parseCA65Listing(lstout, symbolmap, params, true); // TODO: listings param for ecs
                 putWorkFile(fn, lstout);
                 listings[fn] = {
-                    lines: [],
+                    asmlines: srclines.length ? asmlines : null,
+                    lines: srclines.length ? srclines : asmlines,
                     text: lstout
                 };
             }

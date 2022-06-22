@@ -225,7 +225,7 @@ export abstract class BasePlatform {
   getDebugTree() : {} {
     var o : any = { };
     o.state = this.saveState();
-    if (this.debugSymbols.debuginfo) o.debuginfo = this.debugSymbols.debuginfo;
+    if (this.debugSymbols?.debuginfo) o.debuginfo = this.debugSymbols.debuginfo;
     return o;
   }
   readFile(path: string) : FileData {
