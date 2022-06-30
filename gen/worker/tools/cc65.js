@@ -16,21 +16,31 @@ const workermain_1 = require("../workermain");
 00B726  1  xx xx        IBSECSZ: .res 2
 00BA2F  1  2A 2B E8 2C   HEX "2A2BE82C2D2E2F303132F0F133343536"
 */
-function parseCA65Listing(code, symbols, params, dbg) {
+function parseCA65Listing(code, symbols, params, dbg, listings) {
     var segofs = 0;
     var offset = 0;
     var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+(\w+), "([^"]+)", (.+)/;
     var funcLineMatch = /"(\w+)", (\w+), "(\w+)"/;
     var insnLineMatch = /^([0-9A-F]+)([r]?)\s{1,2}(\d+)\s{1,2}([0-9A-Frx ]{11})\s+(.*)/;
     var segMatch = /[.]segment\s+"(\w+)"/i;
-    var lines = [];
+    var origlines = [];
+    var lines = origlines;
     var linenum = 0;
+    let curpath = '';
     // TODO: only does .c functions, not all .s files
     for (var line of code.split(workermain_1.re_crlf)) {
         var dbgm = dbgLineMatch.exec(line);
         if (dbgm && dbgm[1]) {
             var dbgtype = dbgm[4];
             offset = parseInt(dbgm[1], 16);
+            curpath = dbgm[5];
+            // new file?
+            if (curpath && listings) {
+                let l = listings[curpath];
+                if (!l)
+                    l = listings[curpath] = { lines: [] };
+                lines = l.lines;
+            }
             if (dbgtype == 'func') {
                 var funcm = funcLineMatch.exec(dbgm[6]);
                 if (funcm) {
@@ -43,9 +53,9 @@ function parseCA65Listing(code, symbols, params, dbg) {
             }
         }
         if (dbg && dbgm && dbgtype == 'line') {
-            //console.log(dbgm[6], offset, segofs);
+            //console.log(dbgm[5], dbgm[6], offset, segofs);
             lines.push({
-                // TODO: sourcefile
+                path: dbgm[5],
                 line: parseInt(dbgm[6]),
                 offset: offset + segofs,
                 insns: null
@@ -65,6 +75,7 @@ function parseCA65Listing(code, symbols, params, dbg) {
                 }
                 else if (!dbg) {
                     lines.push({
+                        path: curpath,
                         line: linenum,
                         offset: offset + segofs,
                         insns: insns,
@@ -92,7 +103,7 @@ function parseCA65Listing(code, symbols, params, dbg) {
             }
         }
     }
-    return lines;
+    return origlines;
 }
 function assembleCA65(step) {
     (0, workermain_1.loadNative)("ca65");
@@ -119,8 +130,12 @@ function assembleCA65(step) {
             args.unshift.apply(args, ["-D", "__MAIN__=1"]);
         }
         (0, workermain_1.execMain)(step, CA65, args);
-        if (errors.length)
-            return { errors: errors };
+        if (errors.length) {
+            // TODO?
+            let listings = {};
+            listings[step.path] = { lines: [], text: (0, workermain_1.getWorkFileAsString)(step.path) };
+            return { errors, listings };
+        }
         objout = FS.readFile(objpath, { encoding: 'binary' });
         lstout = FS.readFile(lstpath, { encoding: 'utf8' });
         (0, workermain_1.putWorkFile)(objpath, objout);
@@ -134,6 +149,7 @@ function assembleCA65(step) {
 }
 exports.assembleCA65 = assembleCA65;
 function linkLD65(step) {
+    var _a;
     (0, workermain_1.loadNative)("ld65");
     var params = step.params;
     (0, workermain_1.gatherFiles)(step);
@@ -219,15 +235,26 @@ function linkLD65(step) {
             if (fn.endsWith('.lst')) {
                 var lstout = FS.readFile(fn, { encoding: 'utf8' });
                 lstout = lstout.split('\n\n')[1] || lstout; // remove header
-                var asmlines = parseCA65Listing(lstout, symbolmap, params, false);
-                var srclines = parseCA65Listing(lstout, symbolmap, params, true);
                 (0, workermain_1.putWorkFile)(fn, lstout);
-                // TODO: you have to get rid of all source lines to get asm listing
-                listings[fn] = {
-                    asmlines: srclines.length ? asmlines : null,
-                    lines: srclines.length ? srclines : asmlines,
-                    text: lstout
-                };
+                console.log(step);
+                let isECS = ((_a = step.debuginfo) === null || _a === void 0 ? void 0 : _a.entities) != null; // TODO
+                if (isECS) {
+                    var asmlines = [];
+                    var srclines = parseCA65Listing(lstout, symbolmap, params, true, listings);
+                    listings[fn] = {
+                        lines: [],
+                        text: lstout
+                    };
+                }
+                else {
+                    var asmlines = parseCA65Listing(lstout, symbolmap, params, false);
+                    var srclines = parseCA65Listing(lstout, symbolmap, params, true); // TODO: listings param for ecs
+                    listings[fn] = {
+                        asmlines: srclines.length ? asmlines : null,
+                        lines: srclines.length ? srclines : asmlines,
+                        text: lstout
+                    };
+                }
             }
         }
         return {

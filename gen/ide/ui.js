@@ -84,7 +84,8 @@ const TOOL_TO_SOURCE_STYLE = {
     'silice': 'verilog',
     'wiz': 'text/x-wiz',
     'vasmarm': 'vasm',
-    'armips': 'vasm'
+    'armips': 'vasm',
+    'ecs': 'ecs',
 };
 const TOOL_TO_HELPURL = {
     'dasm': 'https://github.com/dasm-assembler/dasm/blob/master/docs/dasm.pdf',
@@ -281,7 +282,7 @@ function refreshWindowList() {
         for (var lstfn in listings) {
             var lst = listings[lstfn];
             // add listing if source/assembly file exists and has text
-            if ((lst.assemblyfile && lst.assemblyfile.text) || (lst.sourcefile && lst.sourcefile.text)) {
+            if ((lst.assemblyfile && lst.assemblyfile.text) || (lst.sourcefile && lst.sourcefile.text) || lst.text) {
                 addWindowItem(lstfn, (0, util_1.getFilenameForPath)(lstfn), (path) => {
                     return new editors_1.ListingView(path);
                 });
@@ -1774,6 +1775,8 @@ function _addIncludeFile() {
         addFileToProject("Verilog", ".v", (s) => { return '`include "' + s + '"'; });
     else if (tool == 'wiz')
         addFileToProject("Include", ".wiz", (s) => { return 'import "' + s + '";'; });
+    else if (tool == 'ecs')
+        addFileToProject("Include", ".ecs", (s) => { return 'import "' + s + '"'; });
     else
         alertError("Can't add include file to this project type (" + tool + ")");
 }

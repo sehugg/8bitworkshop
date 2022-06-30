@@ -1,0 +1,231 @@
+
+//#resource "vcs-ca65.h"
+
+import "vcslib.ecs"
+import "sprites.ecs"
+
+system Kernel2Sprite
+    locals 13
+    on preframe do with [KernelSection]
+---
+; TODOO: can store KLINES in memory?
+.define KLINES {{<lines}}
+.define KPAD 32
+; set height to zero in case no sprites
+    lda #0
+    sta {{$8}}
+    sta {{$9}}
+---
+    on preframe do join 
+    	[SpriteSlot] with
+    	[Sprite] limit 2
+---
+; set player object flags
+    lda {{<plyrflags}}
+    sta NUSIZ0,y
+    sta REFP0,y
+; calculate screen height - ypos
+    lda KLINES
+    clc
+    adc KPAD
+    sec
+    sbc {{<ypos}}
+    sta {{$11}}
+; calculate bitmap pointer
+    stx {{$12}}		; save X (Sprite index)
+    lda {{<bitmap}}     ; deref bitmap
+    tax
+    lda {{<Bitmap:bitmapdata}},x
+    sec
+    sbc {{$11}}
+    sta {{$0}},y	; Y = sprite slot index
+    lda {{>Bitmap:bitmapdata}},x
+    sbc #0
+    sta {{$2}},y
+; get bitmap height
+    lda {{<Bitmap:height}},x
+    sta {{$8}},y
+; calculate colormap pointer
+    ldx {{$12}}		; restore X
+    lda {{<colormap}}	; deref colormap
+    tax
+    lda {{<Colormap:colormapdata}},x
+    sec
+    sbc {{$11}}
+    sta {{$4}},y
+    lda {{>Colormap:colormapdata}},x
+    sbc #0
+    sta {{$6}},y
+; save ypos
+    ldx {{$12}}		; restore X
+    lda {{<ypos}}
+    sta {{$10}},y
+---
+    on preframe do once
+---
+; shuffle pointers into (MSB, LSB) byte order
+; L0 L1 H0 H1 -> L0 H0 L1 H1
+    lda {{$1}}
+    ldy {{$2}}
+    sty {{$1}}
+    sta {{$2}}
+    lda {{$5}}
+    ldy {{$6}}
+    sty {{$5}}
+    sta {{$6}}
+---
+    on preframe do if [KernelSection,BGColor]
+---
+    lda {{<bgcolor}}
+    sta COLUBK
+---
+    on preframe do if [Missile,HasYpos]
+---
+    lda KLINES
+    sec
+    sbc {{<ypos}}
+    sta {{$12}}
+---
+    on kernel do with [KernelSection]
+---
+    ldy #0
+    sty VDELP0
+    iny
+    sty VDELP1
+---
+    on kernel do critical with [KernelSection] 
+---    
+    ldy {{<lines}}
+@LVScan:
+    {{!scanline 0}}
+    dey		; next scanline
+    {{!scanline 1}}
+    dey		; next scanline
+    bne @LVScan	; repeat until out of lines
+---
+    on scanline do once
+---
+; draw player 0
+    lda {{$8}} ; height
+    dcp {{$10}} ; ypos
+    bcs @DoDraw1
+    lda #0
+    .byte $2C
+@DoDraw1:
+    lda ({{$0}}),y
+;    .if {{#0}} = 0 ; TODO: configurable?
+    sta WSYNC
+;    .endif
+    sta GRP0
+    lda ({{$4}}),y
+    sta COLUP0
+; draw player 1
+    lda {{$9}} ; height
+    dcp {{$11}} ; ypos
+    bcs @DoDraw2
+    lda #0
+    .byte $2C
+@DoDraw2:
+    lda ({{$2}}),y
+    sta GRP1
+    lda ({{$6}}),y
+    sta COLUP1
+---
+    on kernel do once
+---
+    lda #0
+    sta GRP0
+    sta GRP1
+    sta GRP0
+    sta GRP1
+---
+    on scanline do if [Missile,HasYpos]
+---
+    cpy {{$12}}
+    php
+    pla
+    sta ENAM0
+---
+end
+
+///
+
+demo Main
+
+    using FrameLoop, Kernel2Sprite
+    using Joystick, MoveJoyX, MoveJoyY
+    using SetXPos, SetHorizPos
+    using SpriteShuffler, SpriteHider
+
+    entity Kernel [KernelSection, BGColor]
+        const lines = 192
+        const bgcolor = 0xa2
+    end
+    
+    entity Bitmap1 [Bitmap]
+        const bitmapdata = [1, 1, 3, 7, 15, 31, 63, 127, 0]
+        const height = 8
+    end
+    
+    entity Bitmap2 [Bitmap]
+        const bitmapdata = [$18,$3e,$ff,$ff,$ff,$ff,$3e,$18, 0]
+        const height = 8
+    end
+    
+    entity Colormap1 [Colormap]
+        const colormapdata = [2, 4, 6, 8, 10, 12, 14, 14, 14]
+    end
+    
+    entity Sprite0 [Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,Player]
+        init xpos = 50
+        init ypos = 150
+        init bitmap = #Bitmap2
+        init colormap = #Colormap1
+        const plyrflags = 0
+    end
+    
+    entity Sprite1 [Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,Player]
+        init xpos = 100
+        init ypos = 60
+        init bitmap = #Bitmap1
+        init colormap = #Colormap1
+        const plyrflags = 3
+    end
+
+    entity Sprite2 [Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,Player]
+        init xpos = 80
+        init ypos = 90
+        init bitmap = #Bitmap2
+        init colormap = #Colormap1
+        const plyrflags = 2
+    end
+
+    entity Sprite3 [Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,Player]
+        init xpos = 40
+        init ypos = 150
+        init bitmap = #Bitmap1
+        init colormap = #Colormap1
+        const plyrflags = 0
+    end
+    /*
+    entity [Missile,HasXpos,HasYpos]
+        init xpos = 70
+        init ypos = 70
+    end
+    */
+    entity Slot0 [SpriteSlot]
+    	init sprite = #Sprite0
+    end
+    entity Slot1 [SpriteSlot]
+    	init sprite = #Sprite1
+    end
+    entity Slot2 [SpriteSlot]
+    	init sprite = #Sprite2
+    end
+    entity Slot3 [SpriteSlot]
+    	init sprite = #Sprite3
+    end
+
+end demo
+
+

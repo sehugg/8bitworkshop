@@ -14,7 +14,7 @@ var WilliamsPlatform = function (mainElement, proto, options) {
     var self = this;
     this.__proto__ = new (proto ? proto : baseplatform_1.Base6809Platform)();
     options = options || {};
-    var isDefender = options.isDefender;
+    var isDefender = options === null || options === void 0 ? void 0 : options.isDefender;
     var SCREEN_HEIGHT = 304;
     var SCREEN_WIDTH = 256;
     var cpu, ram, rom, nvram;
@@ -289,7 +289,7 @@ var WilliamsPlatform = function (mainElement, proto, options) {
         worker = new Worker("./src/common/audio/z80worker.js");
         workerchannel = new audio_1.WorkerSoundChannel(worker);
         audio.master.addChannel(workerchannel);
-        let rotate = options.rotate == null ? -90 : parseFloat(options.rotate);
+        let rotate = (options === null || options === void 0 ? void 0 : options.rotate) == null ? -90 : parseFloat(options.rotate);
         video = new emu_1.RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, { rotate });
         video.create();
         $(video.canvas).click(function (e) {

@@ -59,6 +59,8 @@ function getToolForFilename_vcs(fn) {
         return "bataribasic";
     if (fn.endsWith(".ca65"))
         return "ca65";
+    if (fn.endsWith(".ecs"))
+        return "ecs";
     return "dasm";
 }
 class VCSPlatform extends baseplatform_1.BasePlatform {

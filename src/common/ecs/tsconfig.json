@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "noImplicitThis": true,
+        "noImplicitAny": true,
+        "preserveConstEnums": true,
+        "alwaysStrict": true,
+        "strictNullChecks": true,
+    }
+}

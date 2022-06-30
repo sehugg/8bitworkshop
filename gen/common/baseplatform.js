@@ -71,7 +71,12 @@ class BasePlatform {
         return inspectSymbol(this, sym);
     }
     getDebugTree() {
-        return this.saveState();
+        var _a;
+        var o = {};
+        o.state = this.saveState();
+        if ((_a = this.debugSymbols) === null || _a === void 0 ? void 0 : _a.debuginfo)
+            o.debuginfo = this.debugSymbols.debuginfo;
+        return o;
     }
     readFile(path) {
         return this.internalFiles[path];
@@ -288,6 +293,8 @@ function getToolForFilename_6502(fn) {
         return "acme";
     if (fn.endsWith(".wiz"))
         return "wiz";
+    if (fn.endsWith(".ecs"))
+        return "ecs";
     return "dasm"; // .a
 }
 exports.getToolForFilename_6502 = getToolForFilename_6502;

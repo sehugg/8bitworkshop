@@ -113,6 +113,9 @@ class CodeProject {
         if (data && (0, workertypes_1.isOutputResult)(data)) {
             this.processBuildResult(data);
         }
+        else if ((0, workertypes_1.isErrorResult)(data)) {
+            this.processBuildListings(data);
+        }
         this.callbackBuildResult(data);
     }
     preloadWorker(path) {
@@ -130,6 +133,7 @@ class CodeProject {
         if (dir.length > 0 && dir != 'local') // TODO
             files.push(dir + '/' + fn);
     }
+    // TODO: use tool id to parse files, not platform
     parseIncludeDependencies(text) {
         let files = [];
         let m;
@@ -181,12 +185,17 @@ class CodeProject {
                 this.pushAllFiles(files, m[2]);
             }
             // for wiz
-            let re5 = /^\s*(import|embed)\s+"(.+?)";/gmi;
+            let re5 = /^\s*(import|embed)\s*"(.+?)";/gmi;
             while (m = re5.exec(text)) {
                 if (m[1] == 'import')
                     this.pushAllFiles(files, m[2] + ".wiz");
                 else
                     this.pushAllFiles(files, m[2]);
+            }
+            // for ecs
+            let re6 = /^\s*(import)\s*"(.+?)"/gmi;
+            while (m = re6.exec(text)) {
+                this.pushAllFiles(files, m[2]);
             }
         }
         return files;
@@ -352,7 +361,7 @@ class CodeProject {
             this.callbackBuildStatus(true);
         this.sendBuild();
     }
-    processBuildResult(data) {
+    processBuildListings(data) {
         // TODO: link listings with source files
         if (data.listings) {
             this.listings = data.listings;
@@ -364,6 +373,12 @@ class CodeProject {
                     lst.assemblyfile = new workertypes_1.SourceFile(lst.asmlines, lst.text);
             }
         }
+    }
+    processBuildResult(data) {
+        this.processBuildListings(data);
+        this.processBuildSegments(data);
+    }
+    processBuildSegments(data) {
         // save and sort segment list
         var segs = (this.platform.getMemoryMap && this.platform.getMemoryMap()["main"]) || [];
         if (data.segments) {
@@ -383,6 +398,10 @@ class CodeProject {
         var fnprefix = (0, util_1.getFilenamePrefix)(this.stripLocalPath(path));
         var listings = this.getListings();
         var onlyfile = null;
+        for (var lstfn in listings) {
+            if (lstfn == path)
+                return listings[lstfn];
+        }
         for (var lstfn in listings) {
             onlyfile = lstfn;
             if ((0, util_1.getFilenamePrefix)(lstfn) == fnprefix) {

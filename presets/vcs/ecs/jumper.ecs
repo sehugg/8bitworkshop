@@ -1,0 +1,687 @@
+
+//#resource "vcs-ca65.h"
+
+import "vcslib.ecs"
+import "sprites.ecs"
+import "score.ecs"
+import "sound.ecs"
+import "velocity.ecs"
+import "kernel2.ecs"
+import "random.ecs"
+import "versatile.ecs"
+import "music.ecs"
+
+// TODO: not yet used
+component Activity
+  activity: enum [Standing,Walking,Jumping]
+end
+
+component Enemy
+end
+
+component Gravity
+end
+
+component Jumper
+end
+
+system MoveJoyVel
+    // dampen velocity
+    on frame8 do with [HasXpos]
+---
+    lda {{<xvel}}
+    lsr
+    clc
+    adc #4
+    sta {{<xvel}}
+---
+    // move left and right
+    on joyleft do with [HasXpos]
+---
+    lda {{<xvel}}
+    sec
+    sbc #1
+    cmp #2
+    bcc @nomove
+    sta {{<xvel}}
+@nomove:
+---
+    on joyright do with [HasXpos]
+---
+    lda {{<xvel}}
+    clc
+    adc #1
+    cmp #14
+    bcs @nomove
+    sta {{<xvel}}
+@nomove:
+---
+end
+
+system Gravity
+  on frame8 do foreach [Gravity]
+  ---
+  lda {{get bitmap}}
+  cmp #{{&DudeStanding1}}-{{&Blank}}+1
+  bcc @skip
+  lda {{<yvel}}
+  cmp #14
+  bcs @nofall
+  clc
+  adc #2
+  bne @done
+@nofall:
+  lda #15
+@done:
+  sta {{<yvel}}
+@skip:
+  ---
+  on xmoved do with [TinyVelY]
+  ---
+  lda {{<yvel}}
+  cmp #7
+  bcc @nodown
+  {{!checkplatform}}
+@nodown:
+  ---
+  on ymoved do with [TinyVelY]
+  ---
+  lda {{<yvel}}
+  cmp #7
+  bcc @nodown
+  {{!checkplatform}}
+@nodown:
+  ---
+  on joybutton do with [Player]
+  ---
+  ; TODO
+  lda {{get bitmap}}
+  cmp #{{&DudeStanding1}}-{{&Blank}}+1
+  bcs @nojump
+  lda #0
+  sta {{get yvel}}
+  lda #{{&DudeJumping1}}-{{&Blank}}
+  sta {{set bitmap}}
+  {{!playsound 0 1 5}}
+@nojump:
+  ---
+end
+
+system PlatformJumper
+  on platformstopped do with [Jumper]
+  ---
+  lda {{<ypos}}
+  and #$fe
+  sta {{<ypos}}
+  ---
+  on platformstopped do if [Player]
+  ---
+  lda {{<yvel}}
+  cmp #8
+  beq @skip
+  lda #8
+  sta {{<yvel}}
+  lda #{{&DudeStanding1}}-{{&Blank}}
+  sta {{set bitmap}}
+  {{!playsound 0 2 5}}
+@skip:
+  ---
+  on platformnotstopped do if [Player]
+  ---
+  lda #{{&DudeJumping1}}-{{&Blank}}
+  sta {{set bitmap}}
+  ---
+end
+
+resource PFCollideMask ---
+ .byte $10,$20,$40,$80			; PF0
+ .byte $80,$40,$20,$10,$08,$04,$02,$01  ; PF1
+ .byte $01,$02,$04,$08,$10,$20,$40,$80  ; PF2
+ .byte $80,$40,$20,$10,$08,$04,$02,$01  ; PF2
+ .byte $01,$02,$04,$08,$10,$20,$40,$80  ; PF1
+ .byte $80,$40,$20,$10			; PF0
+---
+resource PFCollideReg ---
+ .byte $d,$d,$d,$d
+ .byte $e,$e,$e,$e,$e,$e,$e,$e
+ .byte $f,$f,$f,$f,$f,$f,$f,$f
+ .byte $f,$f,$f,$f,$f,$f,$f,$f
+ .byte $e,$e,$e,$e,$e,$e,$e,$e
+ .byte $d,$d,$d,$d
+---
+
+
+system EnemyMotion
+  on stopped do if [Enemy]
+  ---
+  lda #5
+  sta {{<yvel}}
+  ---
+  on frame16 do foreach [Enemy]
+  ---
+  lda {{<xvel}}
+  adc {{<Les.xpos}}
+  and #15
+  sta {{<xvel}}
+  ---
+end
+
+system EnemyCollider
+  on preframe do once
+  ---
+  sta CXCLR
+  ---
+  on postframe do once
+  ---
+  lda CXPPMM
+  bpl @nocollide
+  {{!enemyspawn}}
+@nocollide:
+  ---
+  on enemyspawn do once
+  ---
+  {{!nextrand8}}
+  and #$e0
+  clc
+  adc {{get Les.xpos}}
+  and #$7f
+  clc
+  adc #10
+  sta {{set Rock.xpos}}
+  
+  {{!nextrand8}}
+  and #$20
+  clc
+  adc {{get Les.ypos}}
+  and #$7f
+  clc
+  adc #24
+  sta {{set Rock.ypos}}
+  
+  ; TODO:
+  ;inc {{set Rock.bitmap}}
+  ---
+end
+
+system EnemyDifficulty
+  locals 1
+  on preframe do foreach [Enemy]
+  ---
+  {{!nextrand8}}
+  lsr
+  lsr
+  cmp {{get PlayerScore.digits}}
+  bcs @nomove
+; run away from player
+  lda {{get xpos}}
+  cmp #2
+  bcc @nox
+  cmp #140
+  bcs @nox
+  sec
+  sbc {{get Les.xpos}}
+  bcc @xdec
+  inc {{set xpos}}
+  inc {{set xpos}}
+@xdec:
+  dec {{set xpos}}
+@nox:
+; move Y a bit
+  lda {{get ypos}}
+  cmp #40
+  bcc @nomove
+  cmp #170
+  bcs @nomove
+  sec
+  sbc {{get Les.ypos}}
+  bcc @ydec
+  inc {{set ypos}}
+  inc {{set ypos}}
+@ydec:
+  dec {{set ypos}}
+@nomove:
+  ---
+end
+
+//
+
+scope Main
+
+    using FrameLoop, ResetConsole
+    using Kernel2Digit, BCDMath
+    using Kernel2Sprite
+    using SetXPos, SetHorizPos
+    using TinyMover
+    using Gravity
+    using VersatilePlayfield
+    using PlatformJumper
+
+    using FrameCounter
+    entity FrameCount [FrameCount]
+    end
+
+// TODO: this has to be after FrameCounter
+// for velocity damping to work correctly
+// but "after" keyword might be better
+    using Joystick, JoyButton, MoveJoyVel with [Player]
+    
+    using EnemyCollider
+    using EnemyDifficulty
+
+    entity Level1 [VersatilePlayfield]
+  decode vcs_versatile
+  ---
+.................... .. .. ..
+.................... .. .. 01
+.................... e8 .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+............xxx..... .. .. ..
+.............x...... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.........xxx........ .. .. ..
+..........xx........ .. .. ..
+...........x........ .. .. ..
+.................... .. .. ..
+.................... 18 .. ..
+.................... .. .. ..
+xxxx................ .. .. ..
+xxx................. .. .. ..
+xx.................. .. .. ..
+x................... .. .. ..
+.................... .. .. ..
+.................... 28 .. ..
+.................... .. .. ..
+....xxxxxx.......... .. .. ..
+......xxxx.......... .. .. ..
+........x........... .. .. ..
+.................... .. .. ..
+............xxx..... .. .. ..
+.............xx..xxx .. .. ..
+..............x...xx .. .. ..
+..................xx .. .. ..
+...................x .. .. ..
+...................x .. .. ..
+.................... .. .. ..
+.................... 38 .. ..
+.....xxxx........... .. .. ..
+......xxx........... .. .. ..
+.......xx........... .. .. ..
+........x........... .. .. ..
+.................... .. .. ..
+.................... 48 .. ..
+............xxx..... .. .. ..
+.............xx..... .. .. ..
+..............x..... .. .. ..
+.................... .. .. ..
+.................... 58 .. ..
+..................xx .. .. ..
+.................xxx .. .. ..
+................xxxx .. .. ..
+..................xx .. .. ..
+...................x .. .. ..
+.................... .. .. ..
+.................... .. 82 ..
+.................... .. .. ..
+.................... .. 84 ..
+.................... .. .. ..
+.................... .. 86 ..
+.................... .. .. ..
+.................... 68 .. ..
+............xxxxxx.. .. .. ..
+............xxxxxx.. .. .. ..
+--- end
+
+    entity Blank [Bitmap,Colormap]
+        decode vcs_sprite
+        ---
+        ........ 00
+        ---
+    end
+    entity DudeStanding1 [Bitmap,Colormap,Activity]
+        const activity = Standing
+        decode vcs_sprite
+        --- 
+        ..xxx... f8
+        .xxxxx.. f8
+        x.xxxx.. f8
+        .xxx.x.. f8
+        x.xxxxx. f8
+        x.xxxx.. f8
+        ..xx.... f8
+        ..xxxx.. f8
+        ...xxx.. f8
+        ...xx... f8
+        ...xx... f8
+        ..xxx... 38
+        ..xxx... 48
+        .x.xxx.. 58
+        x..xxx.. 68
+        x..xx.x. 78
+        x..xx..x 88
+        ...xxx.. 98
+        ..xxxx.. 98
+        ..x..x.. 98
+        ..x..xx. 98
+        .xx...x. 98
+        .x....x. 98
+        .x....x. f8
+        xx....xx f8
+        ---
+    end
+    entity DudeJumping1 [Bitmap,Colormap,Activity]
+        const activity = Jumping
+        const colormapdata = DudeStanding1.colormapdata
+        decode vcs_bitmap
+        ---
+        x.xxx...
+        .xxxxx..
+        x.xxxx..
+        .xxx.x..
+        ..xxxxx.
+        ..xxxx..
+        ..xx....
+        ..xxx...
+        ...xxx..
+        ...xx...
+        x..xx...
+        x.xxx..x
+        x.xxx.x.
+        .x.xxx..
+        ...xx...
+        ...xx...
+        ...xx...
+        ...xxx..
+        ..xxxx..
+        .xx..xx.
+        .x....x.
+        .x....x.
+        .x....x.
+        .x....x.
+        xx....xx
+        ---
+    end
+    
+    entity Coin1 [Bitmap,Colormap]
+      decode vcs_sprite
+        ---
+        00001000 ca
+        01001001 dc
+        00100010 ee
+        00000000 0e
+        00011110 0e
+        00100011 ee
+        01000101 ee
+        10001001 ee
+        11111001 ee
+        11101001 ee
+        11011001 ee
+        11111001 dc
+        11111001 ca
+        11011010 ca
+        10111100 ca
+        01111000 ca
+        ---
+    end
+    entity Coin2 [Bitmap,Colormap]
+      decode vcs_sprite
+        ---
+        ..xxxx.. ca
+        .xxxxxx. dc
+        xxxxxxxx ee
+        x..xx..x 0e
+        xx.xx.xx 0e
+        xxxxxxxx ee
+        xxxxxxxx ee
+        .xx..xx. ee
+        .xxxxxx. ee
+        .xx..xx. ee
+        ..xxxx.. dc
+        ...xx... ca
+        ........ ca
+        ---
+    end
+
+  entity Empty [Sprite,HasBitmap,HasColormap]
+    const bitmap = #Blank
+    const colormap = #Blank
+  end
+
+  entity Les [Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,TinyVelX,TinyVelY,Player,Jumper,Gravity]
+    var xpos = 73
+    var ypos = 90
+    var bitmap = #DudeJumping1
+    const colormap = #DudeStanding1
+    var plyrflags = $00
+    var xvel = 8
+    var yvel = 7
+  end
+
+  entity Rock [Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,Enemy]
+    var bitmap = #Coin1
+    const colormap = #Coin1
+    var xpos = 73
+    var ypos = 140
+  end
+
+  entity PlayerScore [BCDScore2]
+    var scorecolor = $ca
+  end
+  entity TimerScore [BCDScore2]
+    var scorecolor = $0e
+    var digits = $00
+  end
+
+  entity Kernel [KernelSection, BGColor]
+    const lines = 174
+    var bgcolor = $80
+  end
+
+  entity Slot0 [SpriteSlot]
+    var sprite = #Les
+  end
+  entity Slot1 [SpriteSlot]
+    var sprite = #Rock
+  end
+
+  // SOUNDS
+
+  using SoundEngine
+
+  entity SFXNull [SoundEffect]
+    const duration = 0
+    const sounddata = [0]
+  end
+  entity SFXJump [SoundEffect]
+    const duration = 14
+    const sounddata = [
+    $81,$83,$85,
+    $10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+    $a8]
+  end
+  entity SFXBounce [SoundEffect]
+    const duration = 10
+    const sounddata = [
+    $02,$03,$04,$08,$10,$20,$40,$20,$10,
+    $a4]
+  end
+  entity SFXScore [SoundEffect]
+    const duration = 11
+    const sounddata = [
+    $02,$03,$04,$08,$10,$20,$10,$20,$10,$08,
+    $a2]
+  end
+  entity SFXScore2 [SoundEffect]
+    const duration = 11
+    const sounddata = [
+    $02,$03,$04,$08,$10,$20,$10,$20,$10,$08,
+    $a8]
+  end
+
+  // TODO: make sfx have priority over music?
+  entity SFX1 [SoundChannel] end
+  entity SFX2 [SoundChannel] end
+  
+  // MUSIC
+
+  using MusicPlayer
+  entity MusicPlayer [MusicPlayer]
+    const volume = 10
+    const tempo = 31
+  end
+  entity Music1 [MusicChannel] end
+  entity Music2 [MusicChannel] end
+
+  //
+  
+  using Random
+  system GameManager
+    // start the game? set timer to 99
+    // but only if timer = 0 and score = 0
+    on joybutton do select [#TimerScore]
+    ---
+    lda {{<digits}}
+    bne @skip
+    lda {{<PlayerScore.digits}}
+    bne @skip
+    lda #$99
+    sta {{<digits}}
+@skip:
+    ---
+    // decrease the timer every 16 frames
+    on frame16 do foreach [#TimerScore]
+    ---
+    lda {{<digits}}
+    beq @done
+    {{!SubBCD2 1}}
+    lda {{<digits}}
+    bne @done
+    {{!timerexpired}}
+@done:
+    ---
+    // add score for each new spawn
+    on enemyspawn do begin
+      foreach [#PlayerScore]
+      ---
+      {{!AddBCD2 1}}
+      {{!playsound 1 3 10}}
+      ---
+      // add timer for each new spawn
+      foreach [#TimerScore]
+      ---
+      {{!AddBCD2 10}}
+      ---
+    end
+    // subtract one when player wraps around vertically
+    on ymoved do begin
+      ---
+      lda {{<yvel}}
+      cmp #7
+      bcc @nowrap
+      lda {{<ypos}}
+      cmp #2
+      bcs @nowrap
+      {{!playerwrapped}}
+      inc {{set ypos}}
+@nowrap:
+      ---
+    end
+    // TODO: doesn't work yet
+    on playerwrapped do with [#PlayerScore]
+    ---
+    {{!SubBCD2 1}}
+    ---
+    // each frame, game is either running or stopped
+    on preframe do once
+    ---
+    lda {{<TimerScore.digits}}
+    bne @gameon
+    {{!gamestopped}}
+    jmp @done
+@gameon:
+    {{!gamerunning}}
+@done:
+    ---
+    // stop everything when game is stopped
+    // TODO: if "Sprite" it overwrites array elements
+    on gamestopped do foreach [TinyVelX,TinyVelY]
+//    on gamestopped do foreach [Sprite]
+    ---
+    lda #8
+    sta {{set xvel}}
+    sta {{set yvel}}
+    ---
+    // set colors when game is stopped
+    on gamestopped do once
+    ---
+    lda #$4c
+    sta {{set TimerScore.scorecolor}}
+    lda #$02
+    sta {{set Kernel.bgcolor}}
+    ---
+    // set colors when game is running
+    on gamerunning do once 
+    ---
+    lda #$0a
+    sta {{set TimerScore.scorecolor}}
+    lda #$80
+    sta {{set Kernel.bgcolor}}
+; blink when timer is close to zero
+    lda {{get TimerScore.digits}}
+    cmp #$20
+    bcs @nocolor
+    lda {{get FrameCount:frame}}
+    lsr
+    lsr
+    and #$07
+    ora #$40
+    sta {{set Kernel.bgcolor}}
+@nocolor:
+    ---
+    // play music when timer expires
+    on timerexpired do once
+    ---
+    ;{{^SampleMusic}}
+    {{!playmusic SampleMusic}}
+    ---
+    on xxx_preframeloop do once
+    ---
+    ;{{^IntroMusic}}
+    {{!playmusic IntroMusic}}
+    ---
+  end
+  
+  entity [Random8] end
+end
+
+// TODO: use byte array too?
+resource IntroMusic ---
+ .byte $27,$90,$2c,$8f,$2f,$8f,$33,$8f,$38,$8f,$3b,$8f,$20,$23,$88,$3a,$83,$38,$82,$37,$83,$38,$20,$ff
+---

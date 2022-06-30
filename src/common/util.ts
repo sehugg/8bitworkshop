@@ -482,7 +482,7 @@ export function getBasePlatform(platform : string) : string {
 }
 
 // get platform ID without - specialization
-export function getRootPlatform(platform : string) : string {
+function getRootPlatform(platform : string) : string {
   return platform.split('-')[0];
 }
 

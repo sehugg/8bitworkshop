@@ -482,6 +482,12 @@ class Builder {
             }
             if (step.result) {
                 step.result.params = step.params; // TODO: type check
+                if (step.debuginfo) {
+                    let r = step.result; // TODO
+                    if (!r.debuginfo)
+                        r.debuginfo = {};
+                    Object.assign(r.debuginfo, step.debuginfo);
+                }
                 // errors? return them
                 if ('errors' in step.result && step.result.errors.length) {
                     applyDefaultErrorPath(step.result.errors, step.path);
@@ -493,6 +499,7 @@ class Builder {
                 }
                 // combine files with a link tool?
                 if ('linktool' in step.result) {
+                    // add to existing link step
                     if (linkstep) {
                         linkstep.files = linkstep.files.concat(step.result.files);
                         linkstep.args = linkstep.args.concat(step.result.args);
@@ -505,6 +512,7 @@ class Builder {
                             args: step.result.args
                         };
                     }
+                    linkstep.debuginfo = step.debuginfo; // TODO: multiple debuginfos
                 }
                 // process with another tool?
                 if ('nexttool' in step.result) {
@@ -1085,7 +1093,7 @@ const m6502 = __importStar(require("./tools/m6502"));
 const z80 = __importStar(require("./tools/z80"));
 const x86 = __importStar(require("./tools/x86"));
 const arm = __importStar(require("./tools/arm"));
-const script = __importStar(require("./tools/script"));
+const ecs = __importStar(require("./tools/ecs"));
 var TOOLS = {
     'dasm': dasm.assembleDASM,
     //'acme': assembleACME,
@@ -1120,7 +1128,8 @@ var TOOLS = {
     'wiz': misc.compileWiz,
     'armips': arm.assembleARMIPS,
     'vasmarm': arm.assembleVASMARM,
-    'js': script.runJavascript,
+    //'js': script.runJavascript,
+    'ecs': ecs.assembleECS,
 };
 var TOOL_PRELOADFS = {
     'cc65-apple2': '65-apple2',
@@ -1148,6 +1157,8 @@ var TOOL_PRELOADFS = {
     'fastbasic': '65-atari8',
     'silice': 'Silice',
     'wiz': 'wiz',
+    'ecs-vcs': '65-none',
+    'ecs-nes': '65-nes', // TODO: support multiple platforms
 };
 //const waitFor = delay => new Promise(resolve => setTimeout(resolve, delay)); // for testing
 async function handleMessage(data) {
