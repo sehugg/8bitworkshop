@@ -1,0 +1,1529 @@
+EVENT__start = 1
+EVENT__postframe = 1
+EVENT__wsync = 1
+EVENT__preframe = 1
+EVENT__kernel = 1
+EVENT__kerneldraw = 1
+EVENT__kernelsetup = 1
+EVENT__joybutton = 1
+.scope TitleDemo
+.zeropage
+.code
+__Start:
+
+;;; start action Init__main_init__1
+
+.include "vcs-ca65.h"
+.macpack longbranch
+.define PAL 0
+__NMI:
+__Reset:
+__BRK:
+    CLEAN_START
+
+;;; start action Demo__start__3
+
+     jmp Title__Start
+    
+;;; end action Demo__start__3
+	; start main routine
+.segment "VECTORS"
+ZeroByte:  .byte $00
+Return:    .byte $60
+VecNMI:
+VecReset:  .word __Reset
+VecBRK:    .word __BRK
+.code
+
+;;; end action Init__main_init__1
+
+.scope Title
+.zeropage
+TEMP:
+Kernel48Pixel__3__tmp:
+.res 1
+.res 1
+Kernel48Pixel__4__tmp:
+.res 1
+.res 1
+.code
+KernelSection_lines_b0:
+.byte 30
+.byte 10
+.byte 2
+.byte 2
+.byte 10
+.byte 10
+BGColor_bgcolor_b0:
+.byte 160
+.byte 162
+.byte 164
+.byte 164
+.byte 162
+.byte 160
+PFColor_pfcolor_b0:
+.byte 252
+.byte 140
+Bitmap48_bitmap0_b0:
+.byte <Bitmap48_bitmap0_e3_b0
+.byte <Bitmap48_bitmap0_e4_b0
+Bitmap48_bitmap0_b8:
+.byte >Bitmap48_bitmap0_e3_b0
+.byte >Bitmap48_bitmap0_e4_b0
+Bitmap48_bitmap0_e3_b0:
+.byte 0
+.byte 0
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 3
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 3
+.byte 15
+.byte 12
+.byte 24
+.byte 24
+.byte 24
+.byte 24
+.byte 28
+.byte 31
+.byte 27
+.byte 24
+.byte 24
+.byte 12
+.byte 15
+.byte 3
+Bitmap48_bitmap1_b0:
+.byte <Bitmap48_bitmap1_e3_b0
+.byte <Bitmap48_bitmap1_e4_b0
+Bitmap48_bitmap1_b8:
+.byte >Bitmap48_bitmap1_e3_b0
+.byte >Bitmap48_bitmap1_e4_b0
+Bitmap48_bitmap1_e3_b0:
+.byte 0
+.byte 0
+.byte 255
+.byte 255
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 254
+.byte 254
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 255
+.byte 255
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 192
+.byte 225
+.byte 51
+.byte 51
+.byte 48
+.byte 48
+.byte 48
+.byte 112
+.byte 225
+.byte 193
+.byte 1
+.byte 49
+.byte 49
+.byte 225
+.byte 193
+Bitmap48_bitmap2_b0:
+.byte <Bitmap48_bitmap2_e3_b0
+.byte <Bitmap48_bitmap2_e4_b0
+Bitmap48_bitmap2_b8:
+.byte >Bitmap48_bitmap2_e3_b0
+.byte >Bitmap48_bitmap2_e4_b0
+Bitmap48_bitmap2_e3_b0:
+.byte 0
+.byte 0
+.byte 3
+.byte 15
+.byte 28
+.byte 24
+.byte 56
+.byte 48
+.byte 48
+.byte 48
+.byte 48
+.byte 48
+.byte 56
+.byte 24
+.byte 28
+.byte 15
+.byte 3
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 248
+.byte 252
+.byte 14
+.byte 6
+.byte 6
+.byte 6
+.byte 6
+.byte 14
+.byte 252
+.byte 248
+.byte 128
+.byte 128
+.byte 128
+.byte 254
+.byte 254
+Bitmap48_bitmap3_b0:
+.byte <Bitmap48_bitmap3_e3_b0
+.byte <Bitmap48_bitmap3_e4_b0
+Bitmap48_bitmap3_b8:
+.byte >Bitmap48_bitmap3_e3_b0
+.byte >Bitmap48_bitmap3_e4_b0
+Bitmap48_bitmap3_e3_b0:
+.byte 0
+.byte 0
+.byte 224
+.byte 248
+.byte 28
+.byte 12
+.byte 14
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 4
+.byte 12
+.byte 28
+.byte 248
+.byte 224
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 31
+.byte 63
+.byte 49
+.byte 96
+.byte 96
+.byte 96
+.byte 96
+.byte 96
+.byte 96
+.byte 96
+.byte 96
+.byte 96
+.byte 49
+.byte 63
+.byte 15
+Bitmap48_bitmap4_b0:
+.byte <Bitmap48_bitmap4_e3_b0
+.byte <Bitmap48_bitmap4_e4_b0
+Bitmap48_bitmap4_b8:
+.byte >Bitmap48_bitmap4_e3_b0
+.byte >Bitmap48_bitmap4_e4_b0
+Bitmap48_bitmap4_e3_b0:
+.byte 0
+.byte 0
+.byte 31
+.byte 127
+.byte 96
+.byte 192
+.byte 192
+.byte 0
+.byte 1
+.byte 31
+.byte 62
+.byte 112
+.byte 192
+.byte 192
+.byte 96
+.byte 127
+.byte 31
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 15
+.byte 143
+.byte 142
+.byte 199
+.byte 195
+.byte 193
+.byte 192
+.byte 192
+.byte 192
+.byte 192
+.byte 192
+.byte 204
+.byte 142
+.byte 135
+.byte 3
+Bitmap48_bitmap5_b0:
+.byte <Bitmap48_bitmap5_e3_b0
+.byte <Bitmap48_bitmap5_e4_b0
+Bitmap48_bitmap5_b8:
+.byte >Bitmap48_bitmap5_e3_b0
+.byte >Bitmap48_bitmap5_e4_b0
+Bitmap48_bitmap5_e3_b0:
+.byte 0
+.byte 0
+.byte 128
+.byte 192
+.byte 224
+.byte 96
+.byte 96
+.byte 96
+.byte 224
+.byte 192
+.byte 0
+.byte 0
+.byte 0
+.byte 96
+.byte 224
+.byte 192
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 248
+.byte 248
+.byte 0
+.byte 0
+.byte 128
+.byte 192
+.byte 224
+.byte 112
+.byte 48
+.byte 24
+.byte 24
+.byte 24
+.byte 24
+.byte 240
+.byte 224
+Bitmap48_height_b0:
+.byte 36
+.byte 24
+Bitmap48_bitmap0_e4_b0:
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 24
+.byte 36
+.byte 100
+.byte 97
+.byte 97
+.byte 36
+.byte 36
+.byte 28
+.byte 0
+.byte 0
+Bitmap48_bitmap1_e4_b0:
+.byte 0
+.byte 15
+.byte 4
+.byte 4
+.byte 3
+.byte 1
+.byte 0
+.byte 0
+.byte 4
+.byte 4
+.byte 3
+.byte 0
+.byte 2
+.byte 2
+.byte 2
+.byte 115
+.byte 146
+.byte 138
+.byte 138
+.byte 138
+.byte 138
+.byte 147
+.byte 115
+.byte 0
+.byte 0
+Bitmap48_bitmap2_e4_b0:
+.byte 0
+.byte 206
+.byte 18
+.byte 17
+.byte 49
+.byte 177
+.byte 241
+.byte 113
+.byte 83
+.byte 218
+.byte 142
+.byte 0
+.byte 8
+.byte 4
+.byte 4
+.byte 198
+.byte 70
+.byte 38
+.byte 42
+.byte 41
+.byte 41
+.byte 121
+.byte 209
+.byte 0
+.byte 0
+Bitmap48_bitmap3_e4_b0:
+.byte 0
+.byte 255
+.byte 65
+.byte 65
+.byte 48
+.byte 24
+.byte 12
+.byte 4
+.byte 77
+.byte 77
+.byte 56
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 34
+.byte 34
+.byte 34
+.byte 34
+.byte 34
+.byte 34
+.byte 50
+.byte 186
+.byte 0
+.byte 2
+Bitmap48_bitmap4_e4_b0:
+.byte 0
+.byte 240
+.byte 0
+.byte 0
+.byte 128
+.byte 96
+.byte 48
+.byte 16
+.byte 16
+.byte 48
+.byte 224
+.byte 0
+.byte 120
+.byte 72
+.byte 4
+.byte 61
+.byte 77
+.byte 77
+.byte 197
+.byte 197
+.byte 77
+.byte 77
+.byte 53
+.byte 1
+.byte 1
+Bitmap48_bitmap5_e4_b0:
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 16
+.byte 22
+.byte 20
+.byte 20
+.byte 20
+.byte 20
+.byte 164
+.byte 238
+.byte 4
+.byte 4
+__Start:
+
+;;; start action FrameLoop__start__5
+
+    
+FrameLoop__start__6__NextFrame:
+    FRAME_END
+    
+    FRAME_START
+    
+;;; start action StandardKernel__preframe__7
+
+    
+;;; start action StandardKernel__wsync__10
+
+    sta WSYNC
+
+;;; end action StandardKernel__wsync__10
+
+    
+;;; start action StandardKernel__kernelsetup__12
+
+    lda #160
+    sta COLUBK
+
+;;; end action StandardKernel__kernelsetup__12
+
+;;; start action StandardKernel__kernelsetup__15
+
+;;; end action StandardKernel__kernelsetup__15
+
+;;; start action StandardKernel__kernelsetup__16
+
+;;; end action StandardKernel__kernelsetup__16
+
+;;; start action Kernel48Pixel__kernelsetup__17
+
+;;; end action Kernel48Pixel__kernelsetup__17
+
+;;; start action Kernel48Pixel__kernelsetup__18
+
+;;; end action Kernel48Pixel__kernelsetup__18
+
+;;; start action Kernel48Pixel__kernelsetup__19
+
+;;; end action Kernel48Pixel__kernelsetup__19
+
+;;; start action Kernel48Pixel__kernelsetup__20
+
+;;; end action Kernel48Pixel__kernelsetup__20
+
+;;; start action Kernel48Pixel__kernelsetup__21
+
+;;; end action Kernel48Pixel__kernelsetup__21
+
+;;; start action Kernel48Pixel__kernelsetup__22
+
+;;; end action Kernel48Pixel__kernelsetup__22
+
+
+;;; end action StandardKernel__preframe__7
+
+    
+    KERNEL_START
+    
+;;; start action StandardKernel__kernel__23
+
+    ldx #0
+StandardKernel__kernel__24____each:
+    
+    
+;;; start action StandardKernel__wsync__26
+
+    sta WSYNC
+
+;;; end action StandardKernel__wsync__26
+
+    
+;;; start action StandardKernel__kernelsetup__28
+
+    lda BGColor_bgcolor_b0,x
+    sta COLUBK
+
+;;; end action StandardKernel__kernelsetup__28
+
+;;; start action StandardKernel__kernelsetup__31
+
+    cpx #2+2
+    jcs StandardKernel__kernelsetup__32____skipxhi
+    
+    cpx #2
+    jcc StandardKernel__kernelsetup__32____skipxlo
+    
+    lda PFColor_pfcolor_b0-2,x
+    sta COLUPF
+
+StandardKernel__kernelsetup__32____skipxlo:
+
+StandardKernel__kernelsetup__32____skipxhi:
+
+;;; end action StandardKernel__kernelsetup__31
+
+;;; start action StandardKernel__kernelsetup__34
+
+;;; end action StandardKernel__kernelsetup__34
+
+;;; start action Kernel48Pixel__kernelsetup__35
+
+    cpx #2+1
+    jcs Kernel48Pixel__kernelsetup__36____skipxhi
+    
+    cpx #2
+    jcc Kernel48Pixel__kernelsetup__36____skipxlo
+    
+        lda #36
+        sta Kernel48Pixel__3__tmp+0	; scanline counter
+  
+Kernel48Pixel__kernelsetup__36____skipxlo:
+
+Kernel48Pixel__kernelsetup__36____skipxhi:
+
+;;; end action Kernel48Pixel__kernelsetup__35
+
+;;; start action Kernel48Pixel__kernelsetup__38
+
+    cpx #2+1
+    jcs Kernel48Pixel__kernelsetup__39____skipxhi
+    
+    cpx #2
+    jcc Kernel48Pixel__kernelsetup__39____skipxlo
+    
+        lda #$22
+        sta COLUP0	; show how players alternate
+        lda #$12
+        sta COLUP1	; by having different colors
+        lda #3
+        sta NUSIZ0
+        sta NUSIZ1	; both players have 3 copies
+        sta WSYNC
+        SLEEPH 35
+        sta RESP0	; position 1st player
+        sta RESP1	; ...and 2nd player
+        lda #$10
+        sta HMP1	; 1 pixel to the left
+        sta WSYNC
+        sta HMOVE	; apply HMOVE
+        lda #1
+        sta VDELP0	; we need the VDEL registers
+        sta VDELP1	; so we can do our 4-store trick
+        SLEEPH 24-8	; sleep 24 cycles
+        sta HMCLR	; clear HMOVE registers
+
+Kernel48Pixel__kernelsetup__39____skipxlo:
+
+Kernel48Pixel__kernelsetup__39____skipxhi:
+
+;;; end action Kernel48Pixel__kernelsetup__38
+
+;;; start action Kernel48Pixel__kernelsetup__41
+
+    cpx #2+1
+    jcs Kernel48Pixel__kernelsetup__42____skipxhi
+    
+    cpx #2
+    jcc Kernel48Pixel__kernelsetup__42____skipxlo
+    
+    lda #252
+    sta COLUP0
+    sta COLUP1
+
+Kernel48Pixel__kernelsetup__42____skipxlo:
+
+Kernel48Pixel__kernelsetup__42____skipxhi:
+
+;;; end action Kernel48Pixel__kernelsetup__41
+
+;;; start action Kernel48Pixel__kernelsetup__44
+
+    cpx #3+1
+    jcs Kernel48Pixel__kernelsetup__45____skipxhi
+    
+    cpx #3
+    jcc Kernel48Pixel__kernelsetup__45____skipxlo
+    
+        lda #24
+        sta Kernel48Pixel__4__tmp+0	; scanline counter
+  
+Kernel48Pixel__kernelsetup__45____skipxlo:
+
+Kernel48Pixel__kernelsetup__45____skipxhi:
+
+;;; end action Kernel48Pixel__kernelsetup__44
+
+;;; start action Kernel48Pixel__kernelsetup__47
+
+    cpx #3+1
+    jcs Kernel48Pixel__kernelsetup__48____skipxhi
+    
+    cpx #3
+    jcc Kernel48Pixel__kernelsetup__48____skipxlo
+    
+        lda #$22
+        sta COLUP0	; show how players alternate
+        lda #$12
+        sta COLUP1	; by having different colors
+        lda #3
+        sta NUSIZ0
+        sta NUSIZ1	; both players have 3 copies
+        sta WSYNC
+        SLEEPH 35
+        sta RESP0	; position 1st player
+        sta RESP1	; ...and 2nd player
+        lda #$10
+        sta HMP1	; 1 pixel to the left
+        sta WSYNC
+        sta HMOVE	; apply HMOVE
+        lda #1
+        sta VDELP0	; we need the VDEL registers
+        sta VDELP1	; so we can do our 4-store trick
+        SLEEPH 24-8	; sleep 24 cycles
+        sta HMCLR	; clear HMOVE registers
+
+Kernel48Pixel__kernelsetup__48____skipxlo:
+
+Kernel48Pixel__kernelsetup__48____skipxhi:
+
+;;; end action Kernel48Pixel__kernelsetup__47
+
+;;; start action Kernel48Pixel__kernelsetup__50
+
+    cpx #3+1
+    jcs Kernel48Pixel__kernelsetup__51____skipxhi
+    
+    cpx #3
+    jcc Kernel48Pixel__kernelsetup__51____skipxlo
+    
+    lda #140
+    sta COLUP0
+    sta COLUP1
+
+Kernel48Pixel__kernelsetup__51____skipxlo:
+
+Kernel48Pixel__kernelsetup__51____skipxhi:
+
+;;; end action Kernel48Pixel__kernelsetup__50
+
+    
+;;; start action StandardKernel__kerneldraw__53
+
+    ldy KernelSection_lines_b0,x
+StandardKernel__kerneldraw__55__loop:
+    
+    
+;;; start action StandardKernel__wsync__56
+
+    sta WSYNC
+
+;;; end action StandardKernel__wsync__56
+
+    
+    dey
+    bne StandardKernel__kerneldraw__55__loop
+
+;;; end action StandardKernel__kerneldraw__53
+
+ jsr Kernel48Pixel__kerneldraw__58
+
+ jsr Kernel48Pixel__kerneldraw__63
+
+    
+
+    inx
+    cpx #6
+    jne StandardKernel__kernel__24____each
+StandardKernel__kernel__24____exit:
+
+;;; end action StandardKernel__kernel__23
+
+    KERNEL_END
+    
+    
+;;; start action FrameLoop__postframe__68
+
+    lsr SWCHB	      ; test Game Reset switch
+    bcs FrameLoop__postframe__69__NoStart
+    
+FrameLoop__postframe__69__NoStart:
+
+;;; end action FrameLoop__postframe__68
+
+;;; start action JoyButton__postframe__70
+
+    lda INPT4	;read button input
+    bmi JoyButton__postframe__72__NotPressed
+    
+;;; start action Advance__joybutton__73
+
+      jmp Title2__Start
+      
+;;; end action Advance__joybutton__73
+
+JoyButton__postframe__72__NotPressed:
+
+;;; end action JoyButton__postframe__70
+
+    jmp FrameLoop__start__6__NextFrame    ; loop to next frame
+
+;;; end action FrameLoop__start__5
+.rodata
+__ALIGNORIGIN:
+.rodata
+Kernel48Pixel__kerneldraw__58:
+
+    cpx #2+1
+    jcs Kernel48Pixel__kerneldraw__59____skipxhi
+    
+    cpx #2
+    jcc Kernel48Pixel__kerneldraw__59____skipxlo
+    
+  	txa
+        pha
+:
+	ldy Kernel48Pixel__3__tmp+0	; counts backwards
+        
+;;; start action StandardKernel__wsync__61
+
+    sta WSYNC
+
+;;; end action StandardKernel__wsync__61
+	; sync to next scanline
+        lda Bitmap48_bitmap0_e3_b0,y	; load B0 (1st sprite byte)
+        sta GRP0	; B0 -> [GRP0]
+        lda Bitmap48_bitmap1_e3_b0,y	; load B1 -> A
+        sta GRP1	; B1 -> [GRP1], B0 -> GRP0
+        lda Bitmap48_bitmap2_e3_b0,y	; load B2 -> A
+        sta GRP0	; B2 -> [GRP0], B1 -> GRP1
+        lda Bitmap48_bitmap5_e3_b0,y	; load B5 -> A
+        sta Kernel48Pixel__3__tmp+1	; B5 -> temp
+        ldx Bitmap48_bitmap4_e3_b0,y	; load B4 -> X
+        lda Bitmap48_bitmap3_e3_b0,y	; load B3 -> A
+        ldy Kernel48Pixel__3__tmp+1	; load B5 -> Y
+        sta GRP1	; B3 -> [GRP1]; B2 -> GRP0
+        stx GRP0	; B4 -> [GRP0]; B3 -> GRP1
+        sty GRP1	; B5 -> [GRP1]; B4 -> GRP0
+        sta GRP0	; ?? -> [GRP0]; B5 -> GRP1
+        dec Kernel48Pixel__3__tmp+0	; go to next line
+	bpl :-		; repeat until < 0
+        pla
+        tax
+
+Kernel48Pixel__kerneldraw__59____skipxlo:
+
+Kernel48Pixel__kerneldraw__59____skipxhi:
+
+ rts
+
+.assert >(Kernel48Pixel__kerneldraw__58) = >(*), error, "Kernel48Pixel__kerneldraw__58 crosses a page boundary!"
+
+.assert (* - Kernel48Pixel__kerneldraw__58) <= 63, error, .sprintf("Kernel48Pixel__kerneldraw__58 does not fit in 63 bytes, it took %d!", (* - Kernel48Pixel__kerneldraw__58))
+
+.if <(* - __ALIGNORIGIN) > 256-63
+.align $100
+.endif
+.rodata
+Kernel48Pixel__kerneldraw__63:
+
+    cpx #3+1
+    jcs Kernel48Pixel__kerneldraw__64____skipxhi
+    
+    cpx #3
+    jcc Kernel48Pixel__kerneldraw__64____skipxlo
+    
+  	txa
+        pha
+:
+	ldy Kernel48Pixel__4__tmp+0	; counts backwards
+        
+;;; start action StandardKernel__wsync__66
+
+    sta WSYNC
+
+;;; end action StandardKernel__wsync__66
+	; sync to next scanline
+        lda Bitmap48_bitmap0_e4_b0,y	; load B0 (1st sprite byte)
+        sta GRP0	; B0 -> [GRP0]
+        lda Bitmap48_bitmap1_e4_b0,y	; load B1 -> A
+        sta GRP1	; B1 -> [GRP1], B0 -> GRP0
+        lda Bitmap48_bitmap2_e4_b0,y	; load B2 -> A
+        sta GRP0	; B2 -> [GRP0], B1 -> GRP1
+        lda Bitmap48_bitmap5_e4_b0,y	; load B5 -> A
+        sta Kernel48Pixel__4__tmp+1	; B5 -> temp
+        ldx Bitmap48_bitmap4_e4_b0,y	; load B4 -> X
+        lda Bitmap48_bitmap3_e4_b0,y	; load B3 -> A
+        ldy Kernel48Pixel__4__tmp+1	; load B5 -> Y
+        sta GRP1	; B3 -> [GRP1]; B2 -> GRP0
+        stx GRP0	; B4 -> [GRP0]; B3 -> GRP1
+        sty GRP1	; B5 -> [GRP1]; B4 -> GRP0
+        sta GRP0	; ?? -> [GRP0]; B5 -> GRP1
+        dec Kernel48Pixel__4__tmp+0	; go to next line
+	bpl :-		; repeat until < 0
+        pla
+        tax
+
+Kernel48Pixel__kerneldraw__64____skipxlo:
+
+Kernel48Pixel__kerneldraw__64____skipxhi:
+
+ rts
+
+.assert >(Kernel48Pixel__kerneldraw__63) = >(*), error, "Kernel48Pixel__kerneldraw__63 crosses a page boundary!"
+
+.assert (* - Kernel48Pixel__kerneldraw__63) <= 63, error, .sprintf("Kernel48Pixel__kerneldraw__63 does not fit in 63 bytes, it took %d!", (* - Kernel48Pixel__kerneldraw__63))
+.endscope
+Title__Start = Title::__Start
+.scope Title2
+.zeropage
+KernelSection_lines_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+BGColor_bgcolor_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+PFColor_pfcolor_b0:
+.res 1
+TEMP:
+Kernel48Pixel__2__tmp:
+.res 1
+.res 1
+.code
+Bitmap48_bitmap0_b0:
+.byte <Bitmap48_bitmap0_e2_b0
+Bitmap48_bitmap0_b8:
+.byte >Bitmap48_bitmap0_e2_b0
+Bitmap48_bitmap0_e2_b0:
+.byte 0
+.byte 1
+.byte 1
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 7
+.byte 31
+.byte 24
+.byte 0
+.byte 7
+.byte 15
+.byte 24
+.byte 24
+.byte 24
+.byte 24
+.byte 24
+.byte 24
+.byte 24
+.byte 15
+.byte 7
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+Bitmap48_bitmap1_b0:
+.byte <Bitmap48_bitmap1_e2_b0
+Bitmap48_bitmap1_b8:
+.byte >Bitmap48_bitmap1_e2_b0
+Bitmap48_bitmap1_e2_b0:
+.byte 0
+.byte 192
+.byte 224
+.byte 96
+.byte 96
+.byte 97
+.byte 99
+.byte 102
+.byte 102
+.byte 102
+.byte 102
+.byte 102
+.byte 102
+.byte 103
+.byte 99
+.byte 97
+.byte 0
+.byte 0
+.byte 96
+.byte 96
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 192
+.byte 224
+.byte 96
+.byte 48
+.byte 176
+.byte 241
+.byte 115
+.byte 51
+.byte 51
+.byte 51
+.byte 51
+.byte 51
+.byte 115
+.byte 241
+.byte 176
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+Bitmap48_bitmap2_b0:
+.byte <Bitmap48_bitmap2_e2_b0
+Bitmap48_bitmap2_b8:
+.byte >Bitmap48_bitmap2_e2_b0
+Bitmap48_bitmap2_e2_b0:
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 240
+.byte 248
+.byte 12
+.byte 12
+.byte 12
+.byte 12
+.byte 12
+.byte 12
+.byte 12
+.byte 248
+.byte 240
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 248
+.byte 252
+.byte 6
+.byte 6
+.byte 6
+.byte 6
+.byte 6
+.byte 6
+.byte 14
+.byte 252
+.byte 248
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+Bitmap48_bitmap3_b0:
+.byte <Bitmap48_bitmap3_e2_b0
+Bitmap48_bitmap3_b8:
+.byte >Bitmap48_bitmap3_e2_b0
+Bitmap48_bitmap3_e2_b0:
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 222
+.byte 243
+.byte 225
+.byte 193
+.byte 193
+.byte 193
+.byte 193
+.byte 193
+.byte 225
+.byte 255
+.byte 222
+.byte 192
+.byte 192
+.byte 192
+.byte 192
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 31
+.byte 63
+.byte 96
+.byte 96
+.byte 96
+.byte 96
+.byte 96
+.byte 96
+.byte 96
+.byte 63
+.byte 31
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+Bitmap48_bitmap4_b0:
+.byte <Bitmap48_bitmap4_e2_b0
+Bitmap48_bitmap4_b8:
+.byte >Bitmap48_bitmap4_e2_b0
+Bitmap48_bitmap4_e2_b0:
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 12
+.byte 12
+.byte 128
+.byte 128
+.byte 140
+.byte 140
+.byte 140
+.byte 140
+.byte 140
+.byte 12
+.byte 12
+.byte 12
+.byte 12
+.byte 12
+.byte 12
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 3
+.byte 135
+.byte 204
+.byte 204
+.byte 204
+.byte 204
+.byte 204
+.byte 204
+.byte 204
+.byte 135
+.byte 3
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+Bitmap48_bitmap5_b0:
+.byte <Bitmap48_bitmap5_e2_b0
+Bitmap48_bitmap5_b8:
+.byte >Bitmap48_bitmap5_e2_b0
+Bitmap48_bitmap5_e2_b0:
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 216
+.byte 248
+.byte 56
+.byte 24
+.byte 24
+.byte 24
+.byte 24
+.byte 24
+.byte 56
+.byte 248
+.byte 216
+.byte 24
+.byte 24
+.byte 24
+.byte 24
+Bitmap48_height_b0:
+.byte 43
+Title2__INITDATA:
+.byte 60
+.byte 30
+.byte 2
+.byte 20
+.byte 20
+.byte 16
+.byte 48
+.byte 48
+.byte 48
+.byte 80
+.byte 236
+__Start:
+
+    ldy #11
+:   lda Title2__INITDATA-1,y
+    sta KernelSection_lines_b0-1,y
+    dey
+    bne :-
+
+;;; start action FrameLoop__start__75
+
+    
+FrameLoop__start__76__NextFrame:
+    FRAME_END
+    
+    FRAME_START
+    
+;;; start action StandardKernel__preframe__77
+
+    
+;;; start action StandardKernel__wsync__80
+
+    sta WSYNC
+
+;;; end action StandardKernel__wsync__80
+
+    
+;;; start action Kernel48Pixel__kernelsetup__82
+
+;;; end action Kernel48Pixel__kernelsetup__82
+
+;;; start action Kernel48Pixel__kernelsetup__83
+
+;;; end action Kernel48Pixel__kernelsetup__83
+
+;;; start action Kernel48Pixel__kernelsetup__84
+
+;;; end action Kernel48Pixel__kernelsetup__84
+
+;;; start action StandardKernel__kernelsetup__85
+
+    lda BGColor_bgcolor_b0
+    sta COLUBK
+
+;;; end action StandardKernel__kernelsetup__85
+
+;;; start action StandardKernel__kernelsetup__88
+
+;;; end action StandardKernel__kernelsetup__88
+
+;;; start action StandardKernel__kernelsetup__89
+
+;;; end action StandardKernel__kernelsetup__89
+
+
+;;; end action StandardKernel__preframe__77
+
+    
+    KERNEL_START
+    
+;;; start action StandardKernel__kernel__90
+
+    ldx #0
+StandardKernel__kernel__91____each:
+    
+    
+;;; start action StandardKernel__wsync__93
+
+    sta WSYNC
+
+;;; end action StandardKernel__wsync__93
+
+    
+;;; start action Kernel48Pixel__kernelsetup__95
+
+    cpx #2+1
+    jcs Kernel48Pixel__kernelsetup__96____skipxhi
+    
+    cpx #2
+    jcc Kernel48Pixel__kernelsetup__96____skipxlo
+    
+        lda #43
+        sta Kernel48Pixel__2__tmp+0	; scanline counter
+  
+Kernel48Pixel__kernelsetup__96____skipxlo:
+
+Kernel48Pixel__kernelsetup__96____skipxhi:
+
+;;; end action Kernel48Pixel__kernelsetup__95
+
+;;; start action Kernel48Pixel__kernelsetup__98
+
+    cpx #2+1
+    jcs Kernel48Pixel__kernelsetup__99____skipxhi
+    
+    cpx #2
+    jcc Kernel48Pixel__kernelsetup__99____skipxlo
+    
+        lda #$22
+        sta COLUP0	; show how players alternate
+        lda #$12
+        sta COLUP1	; by having different colors
+        lda #3
+        sta NUSIZ0
+        sta NUSIZ1	; both players have 3 copies
+        sta WSYNC
+        SLEEPH 35
+        sta RESP0	; position 1st player
+        sta RESP1	; ...and 2nd player
+        lda #$10
+        sta HMP1	; 1 pixel to the left
+        sta WSYNC
+        sta HMOVE	; apply HMOVE
+        lda #1
+        sta VDELP0	; we need the VDEL registers
+        sta VDELP1	; so we can do our 4-store trick
+        SLEEPH 24-8	; sleep 24 cycles
+        sta HMCLR	; clear HMOVE registers
+
+Kernel48Pixel__kernelsetup__99____skipxlo:
+
+Kernel48Pixel__kernelsetup__99____skipxhi:
+
+;;; end action Kernel48Pixel__kernelsetup__98
+
+;;; start action Kernel48Pixel__kernelsetup__101
+
+    cpx #2+1
+    jcs Kernel48Pixel__kernelsetup__102____skipxhi
+    
+    cpx #2
+    jcc Kernel48Pixel__kernelsetup__102____skipxlo
+    
+    lda PFColor_pfcolor_b0
+    sta COLUP0
+    sta COLUP1
+
+Kernel48Pixel__kernelsetup__102____skipxlo:
+
+Kernel48Pixel__kernelsetup__102____skipxhi:
+
+;;; end action Kernel48Pixel__kernelsetup__101
+
+;;; start action StandardKernel__kernelsetup__104
+
+    lda BGColor_bgcolor_b0,x
+    sta COLUBK
+
+;;; end action StandardKernel__kernelsetup__104
+
+;;; start action StandardKernel__kernelsetup__107
+
+    cpx #2+1
+    jcs StandardKernel__kernelsetup__108____skipxhi
+    
+    cpx #2
+    jcc StandardKernel__kernelsetup__108____skipxlo
+    
+    lda PFColor_pfcolor_b0
+    sta COLUPF
+
+StandardKernel__kernelsetup__108____skipxlo:
+
+StandardKernel__kernelsetup__108____skipxhi:
+
+;;; end action StandardKernel__kernelsetup__107
+
+;;; start action StandardKernel__kernelsetup__110
+
+;;; end action StandardKernel__kernelsetup__110
+
+    
+ jsr Kernel48Pixel__kerneldraw__111
+
+;;; start action StandardKernel__kerneldraw__116
+
+    ldy KernelSection_lines_b0,x
+StandardKernel__kerneldraw__118__loop:
+    
+    
+;;; start action StandardKernel__wsync__119
+
+    sta WSYNC
+
+;;; end action StandardKernel__wsync__119
+
+    
+    dey
+    bne StandardKernel__kerneldraw__118__loop
+
+;;; end action StandardKernel__kerneldraw__116
+
+    
+
+    inx
+    cpx #5
+    jne StandardKernel__kernel__91____each
+StandardKernel__kernel__91____exit:
+
+;;; end action StandardKernel__kernel__90
+
+    KERNEL_END
+    
+    
+;;; start action FrameLoop__postframe__121
+
+    lsr SWCHB	      ; test Game Reset switch
+    bcs FrameLoop__postframe__122__NoStart
+    
+FrameLoop__postframe__122__NoStart:
+
+;;; end action FrameLoop__postframe__121
+
+;;; start action Colors__postframe__123
+
+    inc PFColor_pfcolor_b0
+    bne :+
+    inc BGColor_bgcolor_b0+2
+:
+
+;;; end action Colors__postframe__123
+
+;;; start action Colors__postframe__126
+
+    ldx #0
+Colors__postframe__127____each:
+    
+    dec KernelSection_lines_b0,x
+    bne :+
+    lda #1
+    sta KernelSection_lines_b0,x
+:
+
+    inx
+    cpx #5
+    jne Colors__postframe__127____each
+Colors__postframe__127____exit:
+
+;;; end action Colors__postframe__126
+
+    jmp FrameLoop__start__76__NextFrame    ; loop to next frame
+
+;;; end action FrameLoop__start__75
+.rodata
+__ALIGNORIGIN:
+.rodata
+Kernel48Pixel__kerneldraw__111:
+
+    cpx #2+1
+    jcs Kernel48Pixel__kerneldraw__112____skipxhi
+    
+    cpx #2
+    jcc Kernel48Pixel__kerneldraw__112____skipxlo
+    
+  	txa
+        pha
+:
+	ldy Kernel48Pixel__2__tmp+0	; counts backwards
+        
+;;; start action StandardKernel__wsync__114
+
+    sta WSYNC
+
+;;; end action StandardKernel__wsync__114
+	; sync to next scanline
+        lda Bitmap48_bitmap0_e2_b0,y	; load B0 (1st sprite byte)
+        sta GRP0	; B0 -> [GRP0]
+        lda Bitmap48_bitmap1_e2_b0,y	; load B1 -> A
+        sta GRP1	; B1 -> [GRP1], B0 -> GRP0
+        lda Bitmap48_bitmap2_e2_b0,y	; load B2 -> A
+        sta GRP0	; B2 -> [GRP0], B1 -> GRP1
+        lda Bitmap48_bitmap5_e2_b0,y	; load B5 -> A
+        sta Kernel48Pixel__2__tmp+1	; B5 -> temp
+        ldx Bitmap48_bitmap4_e2_b0,y	; load B4 -> X
+        lda Bitmap48_bitmap3_e2_b0,y	; load B3 -> A
+        ldy Kernel48Pixel__2__tmp+1	; load B5 -> Y
+        sta GRP1	; B3 -> [GRP1]; B2 -> GRP0
+        stx GRP0	; B4 -> [GRP0]; B3 -> GRP1
+        sty GRP1	; B5 -> [GRP1]; B4 -> GRP0
+        sta GRP0	; ?? -> [GRP0]; B5 -> GRP1
+        dec Kernel48Pixel__2__tmp+0	; go to next line
+	bpl :-		; repeat until < 0
+        pla
+        tax
+
+Kernel48Pixel__kerneldraw__112____skipxlo:
+
+Kernel48Pixel__kerneldraw__112____skipxhi:
+
+ rts
+
+.assert >(Kernel48Pixel__kerneldraw__111) = >(*), error, "Kernel48Pixel__kerneldraw__111 crosses a page boundary!"
+
+.assert (* - Kernel48Pixel__kerneldraw__111) <= 63, error, .sprintf("Kernel48Pixel__kerneldraw__111 does not fit in 63 bytes, it took %d!", (* - Kernel48Pixel__kerneldraw__111))
+.endscope
+Title2__Start = Title2::__Start
+.endscope
+TitleDemo__Start = TitleDemo::__Start

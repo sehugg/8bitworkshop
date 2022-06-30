@@ -1,0 +1,1210 @@
+EVENT__start = 1
+EVENT__postframe = 1
+EVENT__preframe = 1
+EVENT__kernel = 1
+EVENT__scanline = 1
+EVENT__joyleft = 1
+EVENT__joyright = 1
+EVENT__gowest = 1
+EVENT__goeast = 1
+EVENT__gonorth = 1
+EVENT__gosouth = 1
+EVENT__joyup = 1
+EVENT__joydown = 1
+EVENT__prekernel = 1
+EVENT__SetHorizPos = 1
+EVENT__checkplatform = 1
+.scope Main
+.zeropage
+Sprite_plyrflags_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+Location_room_b0:
+.res 1
+.res 1
+.res 1
+HasXpos_xpos_b0:
+.res 1
+.res 1
+.res 1
+HasYpos_ypos_b0:
+.res 1
+.res 1
+.res 1
+SpriteSlot_sprite_b0:
+.res 1
+.res 1
+Room_gfx_b0:
+.res 1
+.res 1
+.res 1
+TEMP:
+Kernel2Sprite__2__tmp:
+Joystick__3__tmp:
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+VersatilePlayfield__10__tmp:
+.res 1
+.res 1
+.code
+KernelSection_lines_b0:
+.byte 190
+BGColor_bgcolor_b0:
+.byte 162
+Bitmap_bitmapdata_b0:
+.byte <(Bitmap_bitmapdata_e1_b0+31)
+.byte <(Bitmap_bitmapdata_e2_b0+31)
+.byte <(Bitmap_bitmapdata_e3_b0+31)
+Bitmap_bitmapdata_b8:
+.byte >(Bitmap_bitmapdata_e1_b0+31)
+.byte >(Bitmap_bitmapdata_e2_b0+31)
+.byte >(Bitmap_bitmapdata_e3_b0+31)
+Bitmap_bitmapdata_e1_b0:
+Colormap_colormapdata_e1_b0:
+VersatilePlayfield_data_e4_b0:
+.byte 0
+Bitmap_height_b0:
+.byte 0
+.byte 17
+.byte 27
+Colormap_colormapdata_b0:
+.byte <(Colormap_colormapdata_e1_b0+31)
+.byte <(Colormap_colormapdata_e2_b0+31)
+.byte <(Colormap_colormapdata_e3_b0+31)
+Colormap_colormapdata_b8:
+.byte >(Colormap_colormapdata_e1_b0+31)
+.byte >(Colormap_colormapdata_e2_b0+31)
+.byte >(Colormap_colormapdata_e3_b0+31)
+Bitmap_bitmapdata_e2_b0:
+.byte 128
+.byte 192
+.byte 192
+.byte 224
+.byte 224
+.byte 112
+.byte 116
+.byte 62
+.byte 61
+.byte 28
+.byte 28
+.byte 12
+.byte 22
+.byte 39
+.byte 70
+.byte 134
+.byte 6
+.byte 3
+Colormap_colormapdata_e2_b0:
+.byte 70
+.byte 70
+.byte 134
+.byte 134
+.byte 134
+.byte 136
+.byte 134
+.byte 134
+.byte 134
+.byte 134
+.byte 136
+.byte 70
+.byte 72
+.byte 72
+.byte 72
+.byte 72
+.byte 84
+.byte 82
+Bitmap_bitmapdata_e3_b0:
+.byte 14
+.byte 14
+.byte 12
+.byte 12
+.byte 12
+.byte 12
+.byte 12
+.byte 12
+.byte 14
+.byte 30
+.byte 31
+.byte 63
+.byte 63
+.byte 63
+.byte 62
+.byte 62
+.byte 44
+.byte 46
+.byte 46
+.byte 47
+.byte 46
+.byte 46
+.byte 38
+.byte 32
+.byte 40
+.byte 48
+.byte 96
+.byte 128
+Colormap_colormapdata_e3_b0:
+.byte 4
+.byte 4
+.byte 198
+.byte 198
+.byte 198
+.byte 200
+.byte 200
+.byte 200
+.byte 38
+.byte 40
+.byte 40
+.byte 40
+.byte 40
+.byte 40
+.byte 42
+.byte 42
+.byte 70
+.byte 72
+.byte 72
+.byte 72
+.byte 72
+.byte 72
+.byte 70
+.byte 4
+.byte 4
+.byte 4
+.byte 4
+.byte 4
+Room_fgcolor_b0:
+.byte 0
+.byte 12
+.byte 12
+Room_bgcolor_b0:
+.byte 0
+.byte 18
+.byte 18
+Room_north_b0:
+.byte 0
+.byte 1
+.byte 1
+Room_east_b0:
+.byte 0
+.byte 2
+.byte 1
+Room_south_b0:
+.byte 0
+.byte 1
+.byte 1
+Room_west_b0:
+.byte 0
+.byte 2
+.byte 1
+VersatilePlayfield_data_b0:
+.byte <(VersatilePlayfield_data_e4_b0+-1)
+.byte <(VersatilePlayfield_data_e5_b0+-1)
+.byte <(VersatilePlayfield_data_e6_b0+-1)
+VersatilePlayfield_data_b8:
+.byte >(VersatilePlayfield_data_e4_b0+-1)
+.byte >(VersatilePlayfield_data_e5_b0+-1)
+.byte >(VersatilePlayfield_data_e6_b0+-1)
+VersatilePlayfield_data_e5_b0:
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 255
+.byte 14
+.byte 85
+.byte 14
+.byte 24
+.byte 9
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 6
+.byte 8
+.byte 0
+.byte 63
+.byte 255
+.byte 15
+.byte 247
+.byte 15
+.byte 128
+.byte 15
+.byte 0
+.byte 63
+.byte 193
+.byte 15
+.byte 227
+.byte 15
+.byte 0
+.byte 63
+.byte 247
+.byte 15
+.byte 200
+.byte 9
+.byte 0
+.byte 10
+.byte 255
+.byte 15
+.byte 255
+.byte 14
+.byte 240
+.byte 13
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 56
+.byte 9
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 247
+.byte 15
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 246
+.byte 15
+.byte 0
+.byte 63
+.byte 70
+.byte 9
+.byte 240
+.byte 15
+.byte 0
+.byte 63
+.byte 176
+.byte 15
+.byte 127
+.byte 14
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 107
+.byte 14
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 68
+.byte 9
+.byte 240
+.byte 15
+.byte 0
+.byte 63
+.byte 176
+.byte 15
+.byte 127
+.byte 14
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 107
+.byte 14
+.byte 240
+.byte 15
+.byte 80
+.byte 9
+.byte 176
+.byte 15
+.byte 127
+.byte 14
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 107
+.byte 14
+.byte 240
+.byte 15
+.byte 112
+.byte 15
+.byte 48
+.byte 15
+.byte 16
+.byte 15
+.byte 144
+.byte 15
+.byte 96
+.byte 13
+.byte 127
+.byte 14
+.byte 96
+.byte 9
+.byte 0
+.byte 63
+.byte 208
+.byte 15
+.byte 144
+.byte 15
+.byte 16
+.byte 15
+.byte 48
+.byte 15
+.byte 112
+.byte 15
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 240
+.byte 15
+.byte 224
+.byte 15
+.byte 120
+.byte 14
+.byte 192
+.byte 15
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 8
+.byte 8
+.byte 1
+.byte 10
+.byte 192
+.byte 9
+VersatilePlayfield_data_e6_b0:
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 63
+.byte 6
+.byte 9
+.byte 24
+.byte 9
+.byte 0
+.byte 63
+.byte 85
+.byte 15
+.byte 170
+.byte 14
+.byte 80
+.byte 13
+.byte 6
+.byte 9
+.byte 6
+.byte 8
+.byte 8
+.byte 8
+.byte 255
+.byte 14
+.byte 247
+.byte 14
+.byte 128
+.byte 14
+.byte 0
+.byte 63
+.byte 193
+.byte 14
+.byte 227
+.byte 14
+.byte 0
+.byte 63
+.byte 247
+.byte 14
+.byte 200
+.byte 9
+.byte 0
+.byte 10
+.byte 255
+.byte 15
+.byte 255
+.byte 14
+.byte 240
+.byte 13
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 56
+.byte 9
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 247
+.byte 15
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 246
+.byte 15
+.byte 0
+.byte 63
+.byte 70
+.byte 9
+.byte 240
+.byte 15
+.byte 0
+.byte 63
+.byte 176
+.byte 15
+.byte 127
+.byte 14
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 107
+.byte 14
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 68
+.byte 9
+.byte 240
+.byte 15
+.byte 0
+.byte 63
+.byte 176
+.byte 15
+.byte 127
+.byte 14
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 107
+.byte 14
+.byte 240
+.byte 15
+.byte 80
+.byte 9
+.byte 176
+.byte 15
+.byte 127
+.byte 14
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 107
+.byte 14
+.byte 240
+.byte 15
+.byte 112
+.byte 15
+.byte 48
+.byte 15
+.byte 16
+.byte 15
+.byte 144
+.byte 15
+.byte 96
+.byte 13
+.byte 127
+.byte 14
+.byte 96
+.byte 9
+.byte 0
+.byte 63
+.byte 208
+.byte 15
+.byte 144
+.byte 15
+.byte 16
+.byte 15
+.byte 48
+.byte 15
+.byte 112
+.byte 15
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 240
+.byte 15
+.byte 224
+.byte 15
+.byte 120
+.byte 14
+.byte 192
+.byte 15
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 0
+.byte 63
+.byte 168
+.byte 8
+.byte 1
+.byte 10
+.byte 112
+.byte 9
+Sprite_bitmap_b0:
+.byte 0
+.byte 1
+.byte 2
+.byte 2
+HasColormap_colormap_b0:
+.byte 1
+.byte 2
+.byte 2
+Moving_speed_b0:
+.byte 2
+.byte 1
+.byte 1
+Main__INITDATA:
+.byte 0
+.byte 5
+.byte 0
+.byte 0
+.byte 2
+.byte 2
+.byte 2
+.byte 40
+.byte 70
+.byte 100
+.byte 30
+.byte 70
+.byte 60
+.byte 1
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+__Start:
+
+;;; start action Init__main_init__1
+
+.include "vcs-ca65.h"
+.macpack longbranch
+.define PAL 0
+__NMI:
+__Reset:
+__BRK:
+    CLEAN_START
+
+    ldy #18
+:   lda Main__INITDATA-1,y
+    sta Sprite_plyrflags_b0-1,y
+    dey
+    bne :-
+
+;;; start action FrameLoop__start__3
+
+    
+FrameLoop__start__4__NextFrame:
+    FRAME_END
+    
+    FRAME_START
+    
+;;; start action Kernel2Sprite__preframe__5
+
+; TODOO: can store KLINES in memory?
+.define KLINES #190
+.define KPAD 32
+; set height to zero in case no sprites
+    lda #0
+    sta Kernel2Sprite__2__tmp+8
+    sta Kernel2Sprite__2__tmp+9
+
+;;; end action Kernel2Sprite__preframe__5
+
+;;; start action Kernel2Sprite__preframe__8
+
+    ldy #0
+Kernel2Sprite__preframe__9____each:
+    ldx SpriteSlot_sprite_b0,y
+    
+; set player object flags
+    lda Sprite_plyrflags_b0,x
+    sta NUSIZ0,y
+    sta REFP0,y
+; calculate screen height - ypos
+    lda KLINES
+    clc
+    adc KPAD
+    sec
+    sbc HasYpos_ypos_b0-1,x
+    sta Kernel2Sprite__2__tmp+11
+; calculate bitmap pointer
+    stx Kernel2Sprite__2__tmp+12		; save X (Sprite index)
+    lda Sprite_bitmap_b0,x     ; deref bitmap
+    tax
+    lda Bitmap_bitmapdata_b0,x
+    sec
+    sbc Kernel2Sprite__2__tmp+11
+    sta Kernel2Sprite__2__tmp+0,y	; Y = sprite slot index
+    lda Bitmap_bitmapdata_b8,x
+    sbc #0
+    sta Kernel2Sprite__2__tmp+2,y
+; get bitmap height
+    lda Bitmap_height_b0,x
+    sta Kernel2Sprite__2__tmp+8,y
+; calculate colormap pointer
+    ldx Kernel2Sprite__2__tmp+12		; restore X
+    lda HasColormap_colormap_b0-1,x	; deref colormap
+    tax
+    lda Colormap_colormapdata_b0,x
+    sec
+    sbc Kernel2Sprite__2__tmp+11
+    sta Kernel2Sprite__2__tmp+4,y
+    lda Colormap_colormapdata_b8,x
+    sbc #0
+    sta Kernel2Sprite__2__tmp+6,y
+; save ypos
+    ldx Kernel2Sprite__2__tmp+12		; restore X
+    lda HasYpos_ypos_b0-1,x
+    sta Kernel2Sprite__2__tmp+10,y
+
+    iny
+    cpy #2
+    jne Kernel2Sprite__preframe__9____each
+Kernel2Sprite__preframe__9____exit:
+
+;;; end action Kernel2Sprite__preframe__8
+
+;;; start action Kernel2Sprite__preframe__11
+
+; shuffle pointers into (MSB, LSB) byte order
+; L0 L1 H0 H1 -> L0 H0 L1 H1
+    lda Kernel2Sprite__2__tmp+1
+    ldy Kernel2Sprite__2__tmp+2
+    sty Kernel2Sprite__2__tmp+1
+    sta Kernel2Sprite__2__tmp+2
+    lda Kernel2Sprite__2__tmp+5
+    ldy Kernel2Sprite__2__tmp+6
+    sty Kernel2Sprite__2__tmp+5
+    sta Kernel2Sprite__2__tmp+6
+
+;;; end action Kernel2Sprite__preframe__11
+
+;;; start action Kernel2Sprite__preframe__13
+
+    lda #162
+    sta COLUBK
+
+;;; end action Kernel2Sprite__preframe__13
+
+;;; start action Kernel2Sprite__preframe__16
+
+;;; end action Kernel2Sprite__preframe__16
+
+;;; start action SetXPos__preframe__17
+
+    ldy #0
+SetXPos__preframe__18____each:
+    ldx SpriteSlot_sprite_b0,y
+    
+    lda HasXpos_xpos_b0-1,x
+    
+ jsr SetHorizPos__SetHorizPos__20
+
+
+    iny
+    cpy #2
+    jne SetXPos__preframe__18____each
+SetXPos__preframe__18____exit:
+
+;;; end action SetXPos__preframe__17
+
+;;; start action SetXPos__preframe__22
+
+;;; end action SetXPos__preframe__22
+
+;;; start action VersatilePlayfield__preframe__23
+
+    ldx Location_room_b0+0
+    
+    lda VersatilePlayfield_data_b0,x
+    sta VersatilePlayfield__10__tmp+0
+    lda VersatilePlayfield_data_b8,x
+    sta VersatilePlayfield__10__tmp+1
+
+
+;;; end action VersatilePlayfield__preframe__23
+
+    
+;;; start action SetXPos__prekernel__26
+
+    sta WSYNC
+    sta HMOVE
+    SLEEPR 24
+    sta HMCLR
+
+;;; end action SetXPos__prekernel__26
+
+    KERNEL_START
+    
+;;; start action Kernel2Sprite__kernel__28
+
+    ldy #0
+    sty VDELP0
+    iny
+    sty VDELP1
+
+;;; end action Kernel2Sprite__kernel__28
+
+ jsr Kernel2Sprite__kernel__31
+
+;;; start action Kernel2Sprite__kernel__48
+
+    lda #0
+    sta GRP0
+    sta GRP1
+    sta GRP0
+    sta GRP1
+
+;;; end action Kernel2Sprite__kernel__48
+
+    KERNEL_END
+    
+    
+;;; start action FrameLoop__postframe__50
+
+    lsr SWCHB	      ; test Game Reset switch
+    bcs FrameLoop__postframe__51__NoStart
+    
+FrameLoop__postframe__51__NoStart:
+
+;;; end action FrameLoop__postframe__50
+
+;;; start action Joystick__postframe__52
+
+; 2 control inputs share a single byte, 4 bits each
+    lda SWCHA
+    sta Joystick__3__tmp+0
+
+;;; end action Joystick__postframe__52
+
+;;; start action Joystick__postframe__54
+
+    asl Joystick__3__tmp+0
+.ifdef EVENT__joyright
+    bcs Joystick__postframe__56__SkipMoveRight
+    
+;;; start action JoyFaceDirection__joyright__57
+
+    lda Sprite_plyrflags_b0+1
+    and #$f7
+    sta Sprite_plyrflags_b0+1
+
+;;; end action JoyFaceDirection__joyright__57
+
+;;; start action SuperFly__joyright__60
+
+    lda HasXpos_xpos_b0
+    clc
+    adc #2
+    cmp #142
+    jcc SuperFly__joyright__62__nomove
+    
+;;; start action SuperFly__goeast__63
+
+    ldy Location_room_b0
+    lda Room_east_b0,y
+    sta Location_room_b0
+
+;;; end action SuperFly__goeast__63
+
+    lda #2
+SuperFly__joyright__62__nomove:
+    sta HasXpos_xpos_b0
+
+;;; end action SuperFly__joyright__60
+
+Joystick__postframe__56__SkipMoveRight:
+.endif
+    asl Joystick__3__tmp+0
+.ifdef EVENT__joyleft
+    bcs Joystick__postframe__56__SkipMoveLeft
+    
+;;; start action JoyFaceDirection__joyleft__66
+
+    lda Sprite_plyrflags_b0+1
+    ora #$08
+    sta Sprite_plyrflags_b0+1
+
+;;; end action JoyFaceDirection__joyleft__66
+
+;;; start action SuperFly__joyleft__69
+
+    lda HasXpos_xpos_b0
+    sec
+    sbc #2
+    jcs SuperFly__joyleft__71__nomove
+    
+;;; start action SuperFly__gowest__72
+
+    ldy Location_room_b0
+    lda Room_west_b0,y
+    sta Location_room_b0
+
+;;; end action SuperFly__gowest__72
+
+    lda #142
+SuperFly__joyleft__71__nomove:
+    sta HasXpos_xpos_b0
+
+;;; end action SuperFly__joyleft__69
+
+Joystick__postframe__56__SkipMoveLeft:
+.endif
+    asl Joystick__3__tmp+0
+.ifdef EVENT__joydown
+    bcs Joystick__postframe__56__SkipMoveDown
+    
+;;; start action SuperFly__joydown__75
+
+    lda HasYpos_ypos_b0
+    clc
+    adc #2
+    cmp #220
+    jcc SuperFly__joydown__77__nomove
+    
+;;; start action SuperFly__gosouth__78
+
+    ldy Location_room_b0
+    lda Room_south_b0,y
+    sta Location_room_b0
+
+;;; end action SuperFly__gosouth__78
+
+    lda #2
+SuperFly__joydown__77__nomove:
+    sta HasYpos_ypos_b0
+
+;;; end action SuperFly__joydown__75
+
+Joystick__postframe__56__SkipMoveDown:
+.endif
+    asl Joystick__3__tmp+0
+.ifdef EVENT__joyup
+    bcs Joystick__postframe__56__SkipMoveUp
+    
+;;; start action SuperFly__joyup__81
+
+    lda HasYpos_ypos_b0
+    sec
+    sbc #2
+    jcs SuperFly__joyup__83__nomove
+    
+;;; start action SuperFly__gonorth__84
+
+    ldy Location_room_b0
+    lda Room_north_b0,y
+    sta Location_room_b0
+
+;;; end action SuperFly__gonorth__84
+
+    lda #200
+SuperFly__joyup__83__nomove:
+    sta HasYpos_ypos_b0
+
+;;; end action SuperFly__joyup__81
+
+Joystick__postframe__56__SkipMoveUp:
+.endif
+
+;;; end action Joystick__postframe__54
+
+;;; start action BadMove__postframe__87
+
+    ldx #0
+BadMove__postframe__88____each:
+    
+  
+;;; start action JoyFaceDirection__joyright__90
+
+    lda Sprite_plyrflags_b0+2,x
+    and #$f7
+    sta Sprite_plyrflags_b0+2,x
+
+;;; end action JoyFaceDirection__joyright__90
+
+;;; start action SuperFly__joyright__93
+
+    lda HasXpos_xpos_b0+1,x
+    clc
+    adc #1
+    cmp #142
+    jcc SuperFly__joyright__95__nomove
+    
+;;; start action SuperFly__goeast__96
+
+    ldy Location_room_b0+1,x
+    lda Room_east_b0,y
+    sta Location_room_b0+1,x
+
+;;; end action SuperFly__goeast__96
+
+    lda #2
+SuperFly__joyright__95__nomove:
+    sta HasXpos_xpos_b0+1,x
+
+;;; end action SuperFly__joyright__93
+
+  
+    inx
+    cpx #2
+    jne BadMove__postframe__88____each
+BadMove__postframe__88____exit:
+
+;;; end action BadMove__postframe__87
+
+;;; start action RoomShuffle__postframe__99
+
+    ldy #3-1
+    ldx SpriteSlot_sprite_b0+1
+    beq RoomShuffle__postframe__101__empty		; empty slot, load 1st entry
+RoomShuffle__postframe__101__loop:
+    inx
+    cpx #3+1
+    bcc RoomShuffle__postframe__101__norecycle
+; TODO: need to get index of specific entity
+RoomShuffle__postframe__101__empty:
+    ldx #2	; skip null sprite and player
+RoomShuffle__postframe__101__norecycle:
+; TODO: should automatically index
+    lda Location_room_b0-1,x
+    cmp Location_room_b0
+    beq RoomShuffle__postframe__101__exit
+    dey
+    bne RoomShuffle__postframe__101__loop
+    ldx #0	; null sprite
+RoomShuffle__postframe__101__exit:
+    stx SpriteSlot_sprite_b0+1
+    
+;;; end action RoomShuffle__postframe__99
+
+;;; start action VersatilePlayfield__postframe__102
+
+    lda #0
+    sta PF0
+    sta PF1
+    sta PF2
+
+;;; end action VersatilePlayfield__postframe__102
+
+    jmp FrameLoop__start__4__NextFrame    ; loop to next frame
+
+;;; end action FrameLoop__start__3
+	; start main routine
+.segment "VECTORS"
+ZeroByte:  .byte $00
+Return:    .byte $60
+VecNMI:
+VecReset:  .word __Reset
+VecBRK:    .word __BRK
+.code
+
+;;; end action Init__main_init__1
+.rodata
+__ALIGNORIGIN:
+.rodata
+SetHorizPos__SetHorizPos__20:
+
+; SetHorizPos routine
+; A = X coordinate
+; Y = player number (0 or 1)
+    sec		    	; set carry flag
+    sta WSYNC		; start a new line
+:
+    sbc #15		; subtract 15
+    bcs :-		; branch until negative
+    eor #7		; calculate fine offset
+    asl
+    asl
+    asl
+    asl
+    sta HMP0,y	; set fine offset
+    sta RESP0,y	; fix coarse position
+    sta WSYNC   ; won't overrun if X < 150
+
+ rts
+
+.assert >(SetHorizPos__SetHorizPos__20) = >(*), error, "SetHorizPos__SetHorizPos__20 crosses a page boundary!"
+
+.assert (* - SetHorizPos__SetHorizPos__20) <= 22, error, .sprintf("SetHorizPos__SetHorizPos__20 does not fit in 22 bytes, it took %d!", (* - SetHorizPos__SetHorizPos__20))
+.rodata
+Kernel2Sprite__kernel__31:
+    
+    ldy #190
+Kernel2Sprite__kernel__33__LVScan:
+    
+;;; start action Kernel2Sprite__scanline__34
+
+; draw player 0
+    lda Kernel2Sprite__2__tmp+8 ; height
+    dcp Kernel2Sprite__2__tmp+10 ; ypos
+    bcs Kernel2Sprite__scanline__35__DoDraw1
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__35__DoDraw1:
+    lda (Kernel2Sprite__2__tmp+0),y
+;    .if 0 = 0 ; TODO: configurable?
+    sta WSYNC
+;    .endif
+    sta GRP0
+    lda (Kernel2Sprite__2__tmp+4),y
+    sta COLUP0
+; draw player 1
+    lda Kernel2Sprite__2__tmp+9 ; height
+    dcp Kernel2Sprite__2__tmp+11 ; ypos
+    bcs Kernel2Sprite__scanline__35__DoDraw2
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__35__DoDraw2:
+    lda (Kernel2Sprite__2__tmp+2),y
+    sta GRP1
+    lda (Kernel2Sprite__2__tmp+6),y
+    sta COLUP1
+
+;;; end action Kernel2Sprite__scanline__34
+
+;;; start action Kernel2Sprite__scanline__36
+
+;;; end action Kernel2Sprite__scanline__36
+
+;;; start action VersatilePlayfield__scanline__37
+
+.if 0 = 0
+    lda (VersatilePlayfield__10__tmp+0),y
+    tax
+.endif
+
+;;; end action VersatilePlayfield__scanline__37
+
+;;; start action VersatilePlayfield__scanline__39
+
+.if 0 = 1
+    lda (VersatilePlayfield__10__tmp+0),y
+    sta $00,x
+.endif
+
+;;; end action VersatilePlayfield__scanline__39
+
+    dey		; next scanline
+    
+;;; start action Kernel2Sprite__scanline__41
+
+; draw player 0
+    lda Kernel2Sprite__2__tmp+8 ; height
+    dcp Kernel2Sprite__2__tmp+10 ; ypos
+    bcs Kernel2Sprite__scanline__42__DoDraw1
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__42__DoDraw1:
+    lda (Kernel2Sprite__2__tmp+0),y
+;    .if 1 = 0 ; TODO: configurable?
+    sta WSYNC
+;    .endif
+    sta GRP0
+    lda (Kernel2Sprite__2__tmp+4),y
+    sta COLUP0
+; draw player 1
+    lda Kernel2Sprite__2__tmp+9 ; height
+    dcp Kernel2Sprite__2__tmp+11 ; ypos
+    bcs Kernel2Sprite__scanline__42__DoDraw2
+    lda #0
+    .byte $2C
+Kernel2Sprite__scanline__42__DoDraw2:
+    lda (Kernel2Sprite__2__tmp+2),y
+    sta GRP1
+    lda (Kernel2Sprite__2__tmp+6),y
+    sta COLUP1
+
+;;; end action Kernel2Sprite__scanline__41
+
+;;; start action Kernel2Sprite__scanline__43
+
+;;; end action Kernel2Sprite__scanline__43
+
+;;; start action VersatilePlayfield__scanline__44
+
+.if 1 = 0
+    lda (VersatilePlayfield__10__tmp+0),y
+    tax
+.endif
+
+;;; end action VersatilePlayfield__scanline__44
+
+;;; start action VersatilePlayfield__scanline__46
+
+.if 1 = 1
+    lda (VersatilePlayfield__10__tmp+0),y
+    sta $00,x
+.endif
+
+;;; end action VersatilePlayfield__scanline__46
+
+    dey		; next scanline
+    bne Kernel2Sprite__kernel__33__LVScan	; repeat until out of lines
+
+ rts
+
+.assert >(Kernel2Sprite__kernel__31) = >(*), error, "Kernel2Sprite__kernel__31 crosses a page boundary!"
+.endscope
+Main__Start = Main::__Start

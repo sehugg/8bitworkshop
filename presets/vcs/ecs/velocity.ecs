@@ -1,0 +1,155 @@
+
+//#resource "vcs-ca65.h"
+
+import "vcslib.ecs"
+import "sprites.ecs"
+
+component TinyVelX
+// TODO: -8..7? packed?
+  xvel: 0..15 default 8
+end
+component TinyVelY
+// TODO: -8..7? packed?
+  yvel: 0..15 default 8
+end
+
+system TinyMover
+  locals 1
+  on postframe do foreach [HasXpos,TinyVelX]
+---
+  lda {{<FrameCount:frame}}
+  and #7		; reduce frame # to 0..7
+  tay
+  lda {{^VMaskTable}},y	; lookup frame bit mask
+  ldy {{<xvel}}		; xvel from 0..15
+  and {{^VAndTable}},y	; mask with velocity table
+  jeq @nomove		; no bits set? no move
+  lda {{^DeltaVTable}},y	; lookup position delta
+  clc
+  adc {{<xpos}}		; add to coordinate
+  sta {{<xpos}}		; store to coordinate
+  {{!xmoved}}		; maybe modify it?
+@nomove:
+---
+  on postframe do foreach [HasXpos,TinyVelY]
+---
+  lda {{<FrameCount:frame}}
+  and #7		; reduce frame # to 0..7
+  tay
+  lda {{^VMaskTable}},y	; lookup frame bit mask
+  ldy {{<yvel}}		; xvel from 0..15
+  and {{^VAndTable}},y	; mask with velocity table
+  jeq @nomove		; no bits set? no move
+  lda {{^DeltaVTable}},y	; lookup position delta
+  clc
+  adc {{<ypos}}		; add to coordinate
+  sta {{<ypos}}		; store to coordinate
+  {{!ymoved}}		; maybe modify it?
+@nomove:
+---// set player reflection bit
+   on xmoved do with [Sprite]
+   ---
+   pha
+   lda {{<plyrflags}}
+   and #255-8
+   ora {{^VReflectTab}},y
+   sta {{<plyrflags}}
+   and #7
+   tay
+   lda {{^VXLimitTab}},y
+   sta {{$0}}
+   pla
+   ---
+// TODO: x/y limits should be properties
+   on xmoved do with [HasXpos]
+   ---
+   cmp #2
+   jcc @left
+   cmp {{$0}}
+   jcc @skip
+@right:
+   {{!xlimit_right}}
+   jne @skip
+@left:
+   {{!xlimit_left}}
+@skip:
+   ---
+   on xlimit_right do with [HasXpos]
+   ---
+   lda {{$0}}
+   sta {{<xpos}}
+   ---
+   on xlimit_left do with [HasXpos]
+   ---
+   lda #2
+   sta {{<xpos}}
+   ---
+
+end
+
+resource DeltaVTable ---
+; this table tells us which direction to move
+; for each of the 16 velocity values (-1, 0 or +1)
+	.byte $fe,$fe,$ff,$ff,$ff,$ff,$ff,$00
+        .byte $00,$01,$01,$01,$01,$01,$02,$02
+---
+
+resource VAndTable ---
+; this table contains a bitmask for each of the 16
+; velocity values -- it's ANDed with a global shift
+; register that tells us which frames to update position
+
+	.byte %11111111 ;16/8
+        .byte %01110111 ;12/8
+	.byte %11111111 ;8/8
+        .byte %01110111 ;6/8
+        .byte %10101010 ;4/8
+        .byte %01010010 ;3/8
+        .byte %10001000 ;2/8
+        .byte %00000000 ;0
+        .byte %00000000 ;0
+        .byte %10001000 ;2/8
+        .byte %01010010 ;3/8
+        .byte %10101010 ;4/8
+        .byte %01110111 ;6/8
+	.byte %11111111 ;8/8
+        .byte %01110111 ;12/8
+	.byte %11111111 ;16/8
+---
+
+resource VMaskTable ---
+	.byte %00000001
+	.byte %00000010
+	.byte %00000100
+	.byte %00001000
+	.byte %00010000
+	.byte %00100000
+	.byte %01000000
+	.byte %10000000
+---
+
+resource VReflectTab ---
+	.byte 8,8,8,8,8,8,8,8
+        .byte 0,0,0,0,0,0,0,0
+---
+
+/*
+if 000,         X               one copy
+if 001,         X X             two copies, close
+if 010,         X   X           two copies, medium
+if 011,         X X X           three copies, close
+if 100,         X       X       Two copies, far
+if 101,         XX              one copy, double width
+if 110,         X   X   X       3 copies, medium
+if 111,         XXXX            one copy, quad width
+*/
+resource VXLimitTab ---
+	.byte 152-8*1
+        .byte 152-8*3
+        .byte 152-8*5
+        .byte 152-8*5
+        .byte 152-8*9
+        .byte 152-8*2
+        .byte 152-8*9
+        .byte 152-8*4
+---

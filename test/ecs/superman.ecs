@@ -1,0 +1,514 @@
+
+//#resource "vcs-ca65.h"
+
+import "vcslib.ecs"
+import "sprites.ecs"
+import "kernel2.ecs"
+import "versatile.ecs"
+
+// https://csanyk.com/2014/02/topology-metropolis-superman-atari-2600/
+
+component RoomGraphics
+  graphics: array 0..8 of 0..255
+end
+
+component Room
+  fgcolor:  0..255
+  bgcolor:  0..255
+  gfx:     [VersatilePlayfield]
+  north:   [Room]
+  east:    [Room]
+  south:   [Room]
+  west:    [Room]
+end
+
+component Location
+  room: [Room]
+end
+
+component Enemy
+end
+
+component Moving
+  speed: 1..15
+end
+
+
+system SuperFly
+    on gowest do with [Location]
+---
+    ldy {{<room}}
+    lda {{<Room:west}},y
+    sta {{<room}}
+---
+    on goeast do with [Location]
+---
+    ldy {{<room}}
+    lda {{<Room:east}},y
+    sta {{<room}}
+---
+    on gonorth do with [Location]
+---
+    ldy {{<room}}
+    lda {{<Room:north}},y
+    sta {{<room}}
+---
+    on gosouth do with [Location]
+---
+    ldy {{<room}}
+    lda {{<Room:south}},y
+    sta {{<room}}
+---
+    on joyleft do with [Location,HasXpos,Moving]
+---
+    lda {{<xpos}}
+    sec
+    sbc {{<speed}}
+    jcs @nomove
+    {{!gowest}}
+    lda #142
+@nomove:
+    sta {{<xpos}}
+---
+    on joyright do with [Location,HasXpos,Moving]
+---
+    lda {{<xpos}}
+    clc
+    adc {{<speed}}
+    cmp #142
+    jcc @nomove
+    {{!goeast}}
+    lda #2
+@nomove:
+    sta {{<xpos}}
+---
+    on joyup do with [Location,HasYpos,Moving]
+---
+    lda {{<ypos}}
+    sec
+    sbc {{<speed}}
+    jcs @nomove
+    {{!gonorth}}
+    lda #200
+@nomove:
+    sta {{<ypos}}
+---
+    on joydown do with [Location,HasYpos,Moving]
+---
+    lda {{<ypos}}
+    clc
+    adc {{<speed}}
+    cmp #220
+    jcc @nomove
+    {{!gosouth}}
+    lda #2
+@nomove:
+    sta {{<ypos}}
+---
+end
+
+system BadMove
+  on postframe do foreach [Enemy]
+  ---
+  {{!joyright}}
+  ---
+end
+
+
+  system RoomShuffle
+    on postframe do select [Location,Sprite]
+    ---
+    ldy #{{%ecount}}-1
+    ldx {{<Slot1.sprite}}
+    beq @empty		; empty slot, load 1st entry
+@loop:
+    inx
+    cpx #{{%ecount}}+1
+    bcc @norecycle
+; TODO: need to get index of specific entity
+@empty:
+    ldx #2	; skip null sprite and player
+@norecycle:
+; TODO: should automatically index
+    lda {{<Location:room}}-1,x
+    cmp {{<Superdude.room}}
+    beq @exit
+    dey
+    bne @loop
+    ldx #0	; null sprite
+@exit:
+    stx {{<Slot1.sprite}}
+    ---
+  end
+
+
+
+scope Main
+
+using FrameLoop, Kernel2Sprite
+using Joystick, JoyFaceDirection
+using SuperFly
+using BadMove
+using RoomShuffle
+//using MoveJoyX, MoveJoyY
+using SetXPos, SetHorizPos
+//using SpriteShuffler, SpriteHider
+
+entity Kernel [KernelSection, BGColor]
+  const lines = 190
+  const bgcolor = 0xa2
+end
+
+  entity Blank [Bitmap,Colormap]
+  decode vcs_sprite
+  ---
+  ........ 00
+  ---
+  end
+
+  entity Superdude1 [Bitmap,Colormap]
+  decode vcs_sprite
+  ---
+  ......xx 52
+  .....xx. 54
+  x....xx. 48
+  .x...xx. 48
+  ..x..xxx 48
+  ...x.xx. 48
+  ....xx.. 46
+  ...xxx.. 88
+  ...xxx.. 86
+  ..xxxx.x 86
+  ..xxxxx. 86
+  .xxx.x.. 86
+  .xxx.... 88
+  xxx..... 86
+  xxx..... 86
+  xx...... 86
+  xx...... 46
+  x....... 46
+  ---
+  end
+
+  entity BexButhor1 [Bitmap,Colormap]
+  decode vcs_sprite
+  ---
+  x....... 04
+  .xx..... 04
+  ..xx.... 04
+  ..x.x... 04
+  ..x..... 04
+  ..x..xx. 46
+  ..x.xxx. 48
+  ..x.xxx. 48
+  ..x.xxxx 48
+  ..x.xxx. 48
+  ..x.xxx. 48
+  ..x.xx.. 46
+  ..xxxxx. 2a
+  ..xxxxx. 2a
+  ..xxxxxx 28
+  ..xxxxxx 28
+  ..xxxxxx 28
+  ...xxxxx 28
+  ...xxxx. 28
+  ....xxx. 26
+  ....xx.. c8
+  ....xx.. c8
+  ....xx.. c8
+  ....xx.. c6
+  ....xx.. c6
+  ....xx.. c6
+  ....xxx. 04
+  ....xxx. 04
+  ---
+  end
+
+  entity NullRoom [Room,VersatilePlayfield]
+    const fgcolor = $0
+    const bgcolor = $0
+    const north = #NullRoom
+    const south = #NullRoom
+    const east = #NullRoom
+    const west = #NullRoom
+    const data = [0]
+  end
+
+  entity InsideDailyPlanet [Room,VersatilePlayfield]
+    const fgcolor = $0c
+    const bgcolor = $12
+    const north = #InsideDailyPlanet
+    const south = #InsideDailyPlanet
+    const east = #OutsideDailyPlanet
+    const west = #OutsideDailyPlanet
+  decode vcs_versatile
+  ---
+.................... .. c0 ..
+.................... .. .. 01
+.................... 08 .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+..................xx .. .. ..
+.....xxxx.........xx .. .. ..
+.....xxxx........xxx .. .. ..
+.....xxxx.......xxxx .. .. ..
+.....xxxx.......xxxx .. .. ..
+.....xxxx.......xxxx .. .. ..
+.....xxxx.......xxx. .. .. ..
+.....xxxx.......xx.. .. .. ..
+.....xxxx.......x... .. .. ..
+.....xxxx.......x..x .. .. ..
+.....xxxx.......x.xx .. .. ..
+.....xxxx.......x.xx .. .. ..
+.....xxxx.......x.xx .. 60 ..
+.....xxxxxxx....x.xx .. .. ..
+.xx..xxxxxxx....x.xx .. .. ..
+.xx..xxxxxxx....x..x .. .. ..
+.xx..xxxxxxx....x... .. .. ..
+.xx..xxxxxxx....xx.. .. .. ..
+.xx..xxxxxxx....xxx. .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xx.x .. .. ..
+.xx..xxxxxxx....xx.x .. 50 ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xx.x .. .. ..
+.xx..xxxxxxx....xx.x .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. 44 ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xx.x .. .. ..
+.xx..xxxxxxx....xx.x .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. 46 ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx.xx.xxxx .. .. ..
+.xx..xxxxxxx.xx.xxxx .. .. ..
+.xx..xxxxxxx.xx.xxxx .. .. ..
+.xx..xxxxxxx.xx.xxxx .. .. ..
+.xx..xxxxxxx.xx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. 38 ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+xxxx.xxxxxxxxxx.xxxx .. .. ..
+xxxxxxxxxxxxxxx.xxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. 00
+xxxxxxxxxxxxxxxxxxxx .. c8 ..
+xxxxxxxxxxxxxxx.xxxx .. .. ..
+xxxxxxxxxxxxxxx.xxxx .. .. ..
+xxxxxxxxxxxxxx...xxx .. .. ..
+xxxxxxxxxxxxx.....xx .. .. ..
+xxxxxxxxxxxxx.....xx .. .. ..
+xxxxxxxxxxxx.......x .. .. ..
+xxxxxxxxxxxxxxx.xxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx 08 .. ..
+xxxxxxxxxxxxxxxxxxxx 06 .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. 18 ..
+xxxx.x.x.x.xxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+  ---
+  end
+
+// xxxxxxx....xxxxxx...
+// xxx...x.x...xxxx..xx
+// xxx.x....x....xx....
+
+  entity OutsideDailyPlanet [Room,VersatilePlayfield]
+    const fgcolor = $0c
+    const bgcolor = $12
+    const north = #InsideDailyPlanet
+    const south = #InsideDailyPlanet
+    const east = #InsideDailyPlanet
+    const west = #InsideDailyPlanet
+//9f9f 9f 0c fc 3e 38 46 44 506070a0000000
+    decode vcs_versatile
+    ---
+.................... .. 70 ..
+.................... .. .. 01
+.................... a8 .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+.................... .. .. ..
+..................xx .. .. ..
+.....xxxx.........xx .. .. ..
+.....xxxx........xxx .. .. ..
+.....xxxx.......xxxx .. .. ..
+.....xxxx.......xxxx .. .. ..
+.....xxxx.......xxxx .. .. ..
+.....xxxx.......xxx. .. .. ..
+.....xxxx.......xx.. .. .. ..
+.....xxxx.......x... .. .. ..
+.....xxxx.......x..x .. .. ..
+.....xxxx.......x.xx .. .. ..
+.....xxxx.......x.xx .. .. ..
+.....xxxx.......x.xx .. 60 ..
+.....xxxxxxx....x.xx .. .. ..
+.xx..xxxxxxx....x.xx .. .. ..
+.xx..xxxxxxx....x..x .. .. ..
+.xx..xxxxxxx....x... .. .. ..
+.xx..xxxxxxx....xx.. .. .. ..
+.xx..xxxxxxx....xxx. .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xx.x .. .. ..
+.xx..xxxxxxx....xx.x .. 50 ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xx.x .. .. ..
+.xx..xxxxxxx....xx.x .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. 44 ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xx.x.xx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xx.x .. .. ..
+.xx..xxxxxxx....xx.x .. .. ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx....xxxx .. 46 ..
+.xx..xxxxxxx....xxxx .. .. ..
+.xx..xxxxxxx.xx.xxxx .. .. ..
+.xx..xxxxxxx.xx.xxxx .. .. ..
+.xx..xxxxxxx.xx.xxxx .. .. ..
+.xx..xxxxxxx.xx.xxxx .. .. ..
+.xx..xxxxxxx.xx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. 38 ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+.xx..xxxxxxxxxx.xxxx .. .. ..
+xxxx.xxxxxxxxxx.xxxx .. .. ..
+xxxxxxxxxxxxxxx.xxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. 00
+xxxxxxxxxxxxxxxxxxxx .. c8 ..
+xxxxxxxx.xxxxxxxxxxx .. .. ..
+xxxxxxxx.xxxxxxxxxxx .. .. ..
+xxxxxxx...xxxxxxxxxx .. .. ..
+xxxxxx.....xxxxxxxxx .. .. ..
+xxxxxx.....xxxxxxxxx .. .. ..
+xxxxx.......xxxxxxxx .. .. ..
+xxxxxxxx.xxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx .. .. ..
+xxxxxxxxxxxxxxxxxxxx 08 .. ..
+xxxxxxxxxxxxxxxxxxxx 06 .. ..
+xxxxxxxxxxxxxxxxxxxx .. 06 ..
+x.x.xxxxxxxxxxxxxxxx .. .. ..
+x.x.x.x.x.x.xxxxxxxx .. .. ..
+x.x.x.x.x.x.x.x.x.x. .. .. ..
+x.x.x.x.x.x.x.x.x.x. .. .. ..
+x.x.x.x.x.x.x.x.x.x. .. 18 ..
+x.x.x.x.x.x.x.x.x.x. .. 06 ..
+3f 3f
+3f 3f
+3f 3f
+3f 3f
+3f 3f
+3f 3f
+3f 3f
+3f 3f
+  ---
+  end
+
+  entity NullSprite [Sprite]
+    const bitmap = #Blank
+    //var plyrflags = $00
+  end
+
+  entity Superdude [Location,Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,Player,Moving]
+    var room = #OutsideDailyPlanet
+    var xpos = 40
+    var ypos = 30
+    const bitmap = #Superdude1
+    const colormap = #Superdude1
+    var plyrflags = $05
+    const speed = 2
+  end
+
+  entity BexButhor [Location,Sprite,HasXpos,HasYpos,HasBitmap,HasColormap,Enemy,Moving]
+    var room = #OutsideDailyPlanet
+    var xpos = 70
+    var ypos = 70
+    const bitmap = #BexButhor1
+    const colormap = #BexButhor1
+    var plyrflags = $00
+    const speed = 1
+  end
+
+  entity JBexButhor [Location,Sprite,HasXpos,HasYpos,HasBitmap,HasColormap,Enemy,Moving]
+    var room = #OutsideDailyPlanet
+    var xpos = 100
+    var ypos = 60
+    const bitmap = #BexButhor1
+    const colormap = #BexButhor1
+    var plyrflags = $00
+    const speed = 1
+  end
+
+  /*
+  entity KBexButhor [Location,Sprite,HasXpos,HasYpos,HasBitmap,HasColormap,Enemy,Moving]
+    var room = #InsideDailyPlanet
+    var xpos = 50
+    var ypos = 90
+    const bitmap = #BexButhor1
+    const colormap = #BexButhor1
+    var plyrflags = $00
+    const speed = 1
+  end*/
+  
+    entity Slot0 [SpriteSlot]
+  	var sprite = #Superdude
+    end
+    entity Slot1 [SpriteSlot]
+    	var sprite = #NullSprite
+    end
+
+using VersatilePlayfield with #Superdude.room
+
+end
+

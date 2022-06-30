@@ -1,0 +1,510 @@
+EVENT__start = 1
+EVENT__postframe = 1
+EVENT__preframe = 1
+EVENT__kernel = 1
+EVENT__compute2digit = 1
+EVENT__fetchdigit = 1
+EVENT__AddBCD4 = 1
+EVENT__AddBCD2 = 1
+EVENT__SubBCD2 = 1
+EVENT__joybutton = 1
+.scope Main
+.zeropage
+BCDScore6_digits_b0:
+.res 1
+BCDScore6_digits_b8:
+.res 1
+BCDScore6_digits_b16:
+.res 1
+PFColor_pfcolor_b0:
+.res 1
+BGColor_bgcolor_b0:
+.res 1
+BCDScore2_digits_b0:
+.res 1
+.res 1
+BCDScore2_scorecolor_b0:
+.res 1
+.res 1
+TEMP:
+Kernel6Digit__2__tmp:
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+.res 1
+Kernel2Digit__3__tmp:
+.res 1
+.res 1
+.res 1
+.code
+Main__INITDATA:
+.byte 86
+.byte 52
+.byte 18
+.byte 60
+.byte 2
+.byte 36
+.byte 86
+.byte 206
+.byte 62
+__Start:
+
+;;; start action Init__main_init__1
+
+.include "vcs-ca65.h"
+.macpack longbranch
+.define PAL 0
+__NMI:
+__Reset:
+__BRK:
+    CLEAN_START
+
+    ldy #9
+:   lda Main__INITDATA-1,y
+    sta BCDScore6_digits_b0-1,y
+    dey
+    bne :-
+
+;;; start action FrameLoop__start__3
+
+    
+FrameLoop__start__4__NextFrame:
+    FRAME_END
+    
+    FRAME_START
+    
+;;; start action Kernel6Digit__preframe__5
+
+Digit0 = Kernel6Digit__2__tmp+0
+Digit1 = Kernel6Digit__2__tmp+2
+Digit2 = Kernel6Digit__2__tmp+4
+Digit3 = Kernel6Digit__2__tmp+6
+Digit4 = Kernel6Digit__2__tmp+8
+Digit5 = Kernel6Digit__2__tmp+10
+Kernel6Digit__preframe__7__BCD0  = Kernel6Digit__2__tmp+12
+Kernel6Digit__preframe__7__BCD1  = Kernel6Digit__2__tmp+13
+Kernel6Digit__preframe__7__BCD2  = Kernel6Digit__2__tmp+14
+
+	lda BCDScore6_digits_b0
+        sta Kernel6Digit__preframe__7__BCD0
+	lda BCDScore6_digits_b8
+        sta Kernel6Digit__preframe__7__BCD1
+	lda BCDScore6_digits_b16
+        sta Kernel6Digit__preframe__7__BCD2
+	ldx #0	; leftmost bitmap
+        ldy #2	; start from most-sigificant BCD value
+Kernel6Digit__preframe__7__Loop:
+        lda Kernel6Digit__preframe__7__BCD0,y	; get BCD value
+        and #$f0	; isolate high nibble (* 16)
+        lsr		; shift right 1 bit (* 8)
+        clc
+        adc #<FontTable
+        sta Digit0,x	; store pointer lo byte
+        lda #>FontTable
+        adc #0
+        sta Digit0+1,x	; store pointer hi byte
+        inx
+        inx		; next bitmap pointer
+        lda Kernel6Digit__preframe__7__BCD0,y	; get BCD value (again)
+        and #$f		; isolate low nibble
+        asl
+        asl
+        asl		; * 8
+        clc
+        adc #<FontTable
+        sta Digit0,x	; store pointer lo byte
+        lda #>FontTable
+        adc #0
+        sta Digit0+1,x	; store pointer hi byte
+        inx
+        inx		; next bitmap pointer
+        dey		; next BCD value
+        bpl Kernel6Digit__preframe__7__Loop	; repeat until < 0
+
+;;; end action Kernel6Digit__preframe__5
+
+;;; start action Kernel2Digit__preframe__8
+
+   lda #0
+   sta Kernel2Digit__3__tmp+1
+   sta Kernel2Digit__3__tmp+2
+
+;;; end action Kernel2Digit__preframe__8
+
+    
+    KERNEL_START
+    
+;;; start action Kernel6Digit__kernel__10
+
+        lda PFColor_pfcolor_b0
+        sta COLUP0
+        sta COLUP1
+        lda #3
+        sta NUSIZ0
+        sta NUSIZ1
+; set horizontal position of player objects
+        sta WSYNC
+        sta HMCLR
+        SLEEPR 24
+        sta RESP0
+        sta RESP1
+        lda #$10
+        sta HMP1
+        sta WSYNC
+        sta HMOVE
+        SLEEPR 24	; wait 24 cycles between write to HMOVE and HMxxx
+        sta HMCLR
+        lda #1
+        sta VDELP0
+        sta VDELP1
+
+;;; end action Kernel6Digit__kernel__10
+
+ jsr Kernel6Digit__kernel__13
+
+;;; start action Kernel2Digit__kernel__16
+
+	lda #$02
+        sta CTRLPF
+; TODO: should be constants
+; and it's wrong, too!
+        lda BCDScore2_scorecolor_b0+0
+        sta COLUP0
+        lda BCDScore2_scorecolor_b0+1
+        sta COLUP1
+
+;;; end action Kernel2Digit__kernel__16
+
+ jsr Kernel2Digit__kernel__19
+
+    KERNEL_END
+    
+    
+;;; start action FrameLoop__postframe__40
+
+    lsr SWCHB	      ; test Game Reset switch
+    bcs FrameLoop__postframe__41__NoStart
+    
+FrameLoop__postframe__41__NoStart:
+
+;;; end action FrameLoop__postframe__40
+
+;;; start action JoyButton__postframe__42
+
+    lda INPT4	;read button input
+    bmi JoyButton__postframe__44__NotPressed
+    
+;;; start action IncScore__joybutton__45
+
+    
+;;; start action BCDMath__AddBCD4__48
+
+.ifnblank $0210
+    lda #<$0210
+    ldy #>$0210
+.endif
+
+;;; end action BCDMath__AddBCD4__48
+
+;;; start action BCDMath__AddBCD4__50
+
+; Adds value to 6-BCD-digit score.
+; A = 1st BCD digit
+; Y = 2nd BCD digit
+        sed	; enter BCD mode
+        clc	; clear carry
+        adc BCDScore6_digits_b0
+        sta BCDScore6_digits_b0
+        tya
+        adc BCDScore6_digits_b8
+        sta BCDScore6_digits_b8
+        lda BCDScore6_digits_b16
+        adc #0
+        sta BCDScore6_digits_b16
+        cld	; exit BCD mode
+
+;;; end action BCDMath__AddBCD4__50
+
+
+;;; end action IncScore__joybutton__45
+
+JoyButton__postframe__44__NotPressed:
+
+;;; end action JoyButton__postframe__42
+
+    jmp FrameLoop__start__4__NextFrame    ; loop to next frame
+
+;;; end action FrameLoop__start__3
+	; start main routine
+.segment "VECTORS"
+ZeroByte:  .byte $00
+Return:    .byte $60
+VecNMI:
+VecReset:  .word __Reset
+VecBRK:    .word __BRK
+.code
+
+;;; end action Init__main_init__1
+.rodata
+__ALIGNORIGIN:
+.rodata
+Kernel6Digit__kernel__13:
+
+; Display the resulting 48x8 bitmap
+; using the Digit0-5 pointers.
+Kernel6Digit__kernel__15__LoopCount = Kernel6Digit__2__tmp+12
+Kernel6Digit__kernel__15__Temp = Kernel6Digit__2__tmp+13
+
+	lda BGColor_bgcolor_b0
+	sta WSYNC
+        sta COLUBK
+        lda #7
+        sta Kernel6Digit__kernel__15__LoopCount
+        SLEEPR 20	; TODO?
+:
+	ldy Kernel6Digit__kernel__15__LoopCount	; counts backwards
+        lda (Digit0),y	; load B0 (1st sprite byte)
+        sta GRP0	; B0 -> [GRP0]
+        lda (Digit1),y	; load B1 -> A
+        sta GRP1	; B1 -> [GRP1], B0 -> GRP0
+        sta WSYNC	; sync to next scanline
+        lda (Digit2),y	; load B2 -> A
+        sta GRP0	; B2 -> [GRP0], B1 -> GRP1
+        lda (Digit5),y	; load B5 -> A
+        sta Kernel6Digit__kernel__15__Temp	; B5 -> temp
+        lda (Digit4),y	; load B4
+        tax		; -> X
+        lda (Digit3),y	; load B3 -> A
+        ldy Kernel6Digit__kernel__15__Temp	; load B5 -> Y
+        sta GRP1	; B3 -> [GRP1]; B2 -> GRP0
+        stx GRP0	; B4 -> [GRP0]; B3 -> GRP1
+        sty GRP1	; B5 -> [GRP1]; B4 -> GRP0
+        sta GRP0	; ?? -> [GRP0]; B5 -> GRP1
+        dec Kernel6Digit__kernel__15__LoopCount	; go to next line
+	bpl :-		; repeat until < 0
+        
+        lda #0		; clear the sprite registers
+        sta WSYNC
+        sta GRP0
+        sta GRP1
+        sta GRP0
+        sta GRP1
+        sta COLUBK
+
+ rts
+
+.assert >(Kernel6Digit__kernel__13) = >(*), error, "Kernel6Digit__kernel__13 crosses a page boundary!"
+
+.assert (* - Kernel6Digit__kernel__13) <= 72, error, .sprintf("Kernel6Digit__kernel__13 does not fit in 72 bytes, it took %d!", (* - Kernel6Digit__kernel__13))
+
+.if <(* - __ALIGNORIGIN) > 256-98
+.align $100
+.endif
+.rodata
+Kernel2Digit__kernel__19:
+
+	lda #7
+        sta Kernel2Digit__3__tmp+0
+Kernel2Digit__kernel__21__Loop:
+	ldx #0
+	sta WSYNC
+        
+;;; start action Kernel2Digit__compute2digit__22
+
+        lda Kernel2Digit__3__tmp+1		; load 1st pf
+        sta PF1			; store 1st pf
+; first digit
+	lda BCDScore2_digits_b0 + 0
+        pha
+        and #$0f
+	asl
+        asl
+        asl
+        
+;;; start action Kernel2Digit__fetchdigit__24
+
+        adc Kernel2Digit__3__tmp+0
+	tay
+        ; TODO: select your own?
+	lda FontTablePF,y
+
+;;; end action Kernel2Digit__fetchdigit__24
+
+        and #$0f
+        ldy Kernel2Digit__3__tmp+2		; load 2nd pf
+        sta Kernel2Digit__3__tmp+1 + 0
+; second digit
+        pla
+        and #$f0
+        lsr
+        sty PF1			; store 2nd pf
+        
+;;; start action Kernel2Digit__fetchdigit__26
+
+        adc Kernel2Digit__3__tmp+0
+	tay
+        ; TODO: select your own?
+	lda FontTablePF,y
+
+;;; end action Kernel2Digit__fetchdigit__26
+
+        and #$f0
+        ora Kernel2Digit__3__tmp+1 + 0
+        sta Kernel2Digit__3__tmp+1 + 0
+
+;;; end action Kernel2Digit__compute2digit__22
+
+.if 2>1
+        inx
+        
+;;; start action Kernel2Digit__compute2digit__28
+
+        lda Kernel2Digit__3__tmp+1		; load 1st pf
+        sta PF1			; store 1st pf
+; first digit
+	lda BCDScore2_digits_b0 + 1
+        pha
+        and #$0f
+	asl
+        asl
+        asl
+        
+;;; start action Kernel2Digit__fetchdigit__30
+
+        adc Kernel2Digit__3__tmp+0
+	tay
+        ; TODO: select your own?
+	lda FontTablePF,y
+
+;;; end action Kernel2Digit__fetchdigit__30
+
+        and #$0f
+        ldy Kernel2Digit__3__tmp+2		; load 2nd pf
+        sta Kernel2Digit__3__tmp+1 + 1
+; second digit
+        pla
+        and #$f0
+        lsr
+        sty PF1			; store 2nd pf
+        
+;;; start action Kernel2Digit__fetchdigit__32
+
+        adc Kernel2Digit__3__tmp+0
+	tay
+        ; TODO: select your own?
+	lda FontTablePF,y
+
+;;; end action Kernel2Digit__fetchdigit__32
+
+        and #$f0
+        ora Kernel2Digit__3__tmp+1 + 1
+        sta Kernel2Digit__3__tmp+1 + 1
+
+;;; end action Kernel2Digit__compute2digit__28
+
+.else
+        
+;;; start action Kernel2Digit__compute2digit__34
+
+        lda Kernel2Digit__3__tmp+1		; load 1st pf
+        sta PF1			; store 1st pf
+; first digit
+	lda BCDScore2_digits_b0 + 0
+        pha
+        and #$0f
+	asl
+        asl
+        asl
+        
+;;; start action Kernel2Digit__fetchdigit__36
+
+        adc Kernel2Digit__3__tmp+0
+	tay
+        ; TODO: select your own?
+	lda FontTablePF,y
+
+;;; end action Kernel2Digit__fetchdigit__36
+
+        and #$0f
+        ldy Kernel2Digit__3__tmp+2		; load 2nd pf
+        sta Kernel2Digit__3__tmp+1 + 0
+; second digit
+        pla
+        and #$f0
+        lsr
+        sty PF1			; store 2nd pf
+        
+;;; start action Kernel2Digit__fetchdigit__38
+
+        adc Kernel2Digit__3__tmp+0
+	tay
+        ; TODO: select your own?
+	lda FontTablePF,y
+
+;;; end action Kernel2Digit__fetchdigit__38
+
+        and #$f0
+        ora Kernel2Digit__3__tmp+1 + 0
+        sta Kernel2Digit__3__tmp+1 + 0
+
+;;; end action Kernel2Digit__compute2digit__34
+
+.endif
+; playfield
+	dec Kernel2Digit__3__tmp+0
+        jpl Kernel2Digit__kernel__21__Loop
+;        dex
+;        stx PF1
+
+ rts
+
+.assert >(Kernel2Digit__kernel__19) = >(*), error, "Kernel2Digit__kernel__19 crosses a page boundary!"
+
+.assert (* - Kernel2Digit__kernel__19) <= 98, error, .sprintf("Kernel2Digit__kernel__19 does not fit in 98 bytes, it took %d!", (* - Kernel2Digit__kernel__19))
+FontTable:
+
+;;; start action FontTable__FontTable__53
+
+; Font table for digits 0-9 (8x8 pixels)
+;;{w:8,h:8,count:10,brev:1,flip:1};;
+	.byte $00,$3c,$66,$66,$76,$6e,$66,$3c,$00,$7e,$18,$18,$18,$38,$18,$18
+        .byte $00,$7e,$60,$30,$0c,$06,$66,$3c,$00,$3c,$66,$06,$1c,$06,$66,$3c
+        .byte $00,$06,$06,$7f,$66,$1e,$0e,$06,$00,$3c,$66,$06,$06,$7c,$60,$7e
+        .byte $00,$3c,$66,$66,$7c,$60,$66,$3c,$00,$18,$18,$18,$18,$0c,$66,$7e
+        .byte $00,$3c,$66,$66,$3c,$66,$66,$3c,$00,$3c,$66,$06,$3e,$66,$66,$3c
+
+;;; end action FontTable__FontTable__53
+
+FontTablePF:
+
+;;; start action FontTablePF__FontTablePF__55
+
+; Font table for digits 0-9 (4x8 pixels)
+;;{w:8,h:8,count:10,brev:1,flip:1};;
+        .byte $00,$00,$EE,$AA,$AA,$AA,$EE,$00
+        .byte $00,$00,$22,$22,$22,$22,$22,$00
+        .byte $00,$00,$EE,$88,$EE,$22,$EE,$00
+        .byte $00,$00,$EE,$22,$66,$22,$EE,$00
+        .byte $00,$00,$22,$22,$EE,$AA,$AA,$00
+        .byte $00,$00,$EE,$22,$EE,$88,$EE,$00
+        .byte $00,$00,$EE,$AA,$EE,$88,$EE,$00
+        .byte $00,$00,$22,$22,$22,$22,$EE,$00
+        .byte $00,$00,$EE,$AA,$EE,$AA,$EE,$00
+        .byte $00,$00,$EE,$22,$EE,$AA,$EE,$00
+;;
+
+;;; end action FontTablePF__FontTablePF__55
+
+.endscope
+Main__Start = Main::__Start

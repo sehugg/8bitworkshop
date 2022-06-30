@@ -475,11 +475,12 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   }
 
   getMemoryMap = function() { return { main:[
-      //{name:'Work RAM',start:0x0,size:0x800,type:'ram'},
+      {name:'Zero Page RAM',start:0x0,size:0x100,type:'ram'},
       {name:'OAM Buffer',start:0x200,size:0x100,type:'ram'},
+      {name:'Work RAM',start:0x300,size:0x1000-0x300,type:'ram'},
       {name:'PPU Registers',start:0x2000,last:0x2008,size:0x2000,type:'io'},
       {name:'APU Registers',start:0x4000,last:0x4020,size:0x2000,type:'io'},
-      {name:'Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
+      {name:'Optional Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
   ] } };
 
   showHelp(tool:string, ident:string) {

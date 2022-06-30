@@ -1,0 +1,148 @@
+
+//#resource "vcs-ca65.h"
+
+import "vcslib.ecs"
+import "sprites.ecs"
+import "kernel2.ecs"
+import "score.ecs"
+
+demo Main
+
+    using FrameLoop, Kernel2Sprite
+    using Joystick, MoveJoyX, MoveJoyY
+    using SetXPos, SetHorizPos
+    using SpriteShuffler, SpriteHider
+
+    using Kernel6Digit
+    using JoyButton, BCDMath
+    
+    entity Score [BCDScore6, PFColor, BGColor]
+        const pfcolor = $3c
+        const bgcolor = $02
+    end
+
+    entity Kernel [KernelSection, BGColor]
+        const lines = 168
+        const bgcolor = 0xa0
+    end
+    
+    entity Weird [Bitmap,Colormap]
+        decode vcs_sprite
+        ---
+        .x...... 12
+        .xx..... 14
+        .xxx.... 16
+        .xxxx... 18
+        .xxxxx.. 1a
+        .xxxxxx. 1c
+        .xxx.xxx 1e
+        .x.x.x.x 18
+        ---
+    end
+
+    entity Cool [Bitmap,Colormap]
+        decode vcs_sprite
+        ---
+        ...xx... 48
+        ..xxxx.. 4a
+        .xxxxxx. 4c
+        xxxxxxxx 4e
+        x..xx..x 4e
+        x.xxx.xx 4e
+        xxxxxxxx 4e
+        xxxxxxxx 4e
+        xxxxxxxx 4e
+        xx....xx 4e
+        xxxxxxxx 4e
+        .xxxxxx. 4c
+        ..xxxx.. 4a
+        ---
+    end
+
+    entity Cool2 [Bitmap,Colormap]
+        decode vcs_sprite
+        ---
+        ...xx... 48
+        ..xxxx.. 4a
+        .xxxxxx. 4c
+        xxxxxxxx 8e
+        x..xx..x ce
+        x..xx..x ce
+        xxxxxxxx ce
+        xxxxxxxx 4e
+        xxxxxxxx 4e
+        xx.xx.xx 4e
+        xxx..xxx 4e
+        .xxxxxx. 4c
+        ..xxxx.. 4a
+        ---
+    end
+
+    entity Bitmap1 [Bitmap]
+        const bitmapdata = [1, 1, 3, 7, 15, 31, 63, 255]
+        const height = 8
+    end
+    
+    entity Bitmap2 [Bitmap]
+        const bitmapdata = [$18,$3e,$ff,$ff,$ff,$ff,$3e,$18]
+        const height = 8
+    end
+    
+    entity Colormap1 [Colormap]
+        const colormapdata = [6, 3, 6, 9, 12, 14, 31, 63]
+    end
+
+    entity Sprite0 [Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,Player]
+        var xpos = 50
+        var ypos = 150
+        var bitmap = #Cool
+        var colormap = #Cool
+        const plyrflags = 0
+    end
+    
+    entity Sprite1 [Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,Player]
+        var xpos = 100
+        var ypos = 60
+        var bitmap = #Cool2
+        var colormap = #Cool2
+        const plyrflags = 3
+    end
+
+    entity Sprite2 [Sprite,HasBitmap,HasColormap,HasXpos,HasYpos]
+        var xpos = 80
+        var ypos = 90
+        var bitmap = #Weird
+        var colormap = #Weird
+        const plyrflags = 0
+    end
+
+    entity Sprite3 [Sprite,HasBitmap,HasColormap,HasXpos,HasYpos]
+        var xpos = 40
+        var ypos = 150
+        var bitmap = #Weird
+        var colormap = #Weird
+        const plyrflags = 0
+    end
+
+    entity Slot0 [SpriteSlot]
+    	var sprite = #Sprite0
+    end
+    entity Slot1 [SpriteSlot]
+    	var sprite = #Sprite1
+    end
+    entity Slot2 [SpriteSlot]
+    	var sprite = #Sprite2
+    end
+    entity Slot3 [SpriteSlot]
+    	var sprite = #Sprite3
+    end
+        
+    system Enemies
+      on postframe do foreach [Sprite,HasYpos,-Player]
+      ---
+      inc {{set ypos}}
+;      inc {{set ypos}}
+      ---
+    end
+
+end demo

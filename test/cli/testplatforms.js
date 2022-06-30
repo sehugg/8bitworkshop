@@ -196,9 +196,9 @@ async function testPlatform(platid, romname, maxframes, callback) {
       assert.equal(clks, proberec.countClocks());
     }
     // debug tree
-    if (platform.getDebugTree) {
+    if (platform.getDebugTree != null) {
       var dbgtree = platform.getDebugTree();
-      JSON.stringify(dbgtree);
+      if (dbgtree != null) JSON.stringify(dbgtree);
     }
     // misc
     assert.ok(platform.getDefaultExtension().startsWith('.'));

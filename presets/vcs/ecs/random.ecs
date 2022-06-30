@@ -1,0 +1,35 @@
+
+component Random8
+  seed: 0..255 default 1 // TODO: default = 1, or seed?
+end
+
+system Random
+  on nextrand8 do foreach [Random8]
+  ---
+  lda {{<seed}}
+  lsr
+  bcc :+
+  eor #$d4
+:
+  sta {{<seed}}
+  ---
+  on prevrand8 do foreach [Random8]
+  ---
+  lda {{<seed}}
+  asl
+  bcc :+
+  eor #$a9
+:
+  sta {{<seed}}
+  ---
+  /* add entropy via joystick inputs */
+  on preframe do foreach [Random8]
+  ---
+  lda {{<seed}}
+  eor SWCHA
+  beq :+
+  sta {{<seed}}
+:
+  ---
+end
+

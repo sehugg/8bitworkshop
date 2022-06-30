@@ -1,0 +1,177 @@
+
+//#resource "vcs-ca65.h"
+
+import "vcslib.ecs"
+
+component Bitmap
+    bitmapdata: array of 0..255 baseoffset 31
+    height: 0..255
+end
+
+// TODO: remove?
+component HasBitmap
+end
+
+component Colormap
+    colormapdata: array of 0..255 baseoffset 31
+end
+
+component HasColormap
+    colormap: [Colormap]
+end
+
+component Sprite
+    bitmap: [Bitmap]
+    plyrflags: 0..63
+end
+
+component HasXpos
+    xpos: 0..255
+end
+
+component HasYpos
+    ypos: 0..255
+end
+
+component Missile
+    index: 2..3
+end
+
+component SpriteSlot
+    sprite: [Sprite] // TODO: HasBitmap?
+end
+
+system JoyFaceDirection
+    on joyleft do with [Sprite]
+---
+    lda {{<plyrflags}}
+    ora #$08
+    sta {{<plyrflags}}
+---
+    on joyright do with [Sprite]
+---
+    lda {{<plyrflags}}
+    and #$f7
+    sta {{<plyrflags}}
+---
+end
+
+system MoveJoyX
+    on joyleft do with [HasXpos]
+---
+    lda {{<xpos}}
+    sec
+    sbc #1
+    bcc @nomove
+    sta {{<xpos}}
+@nomove:
+---
+    on joyright do with [HasXpos]
+---
+    lda {{<xpos}}
+    clc
+    adc #1
+    cmp #150
+    bcs @nomove
+    sta {{<xpos}}
+@nomove:
+---
+end
+
+system MoveJoyY
+    on joyup do with [HasYpos]
+---
+    lda {{<ypos}}
+    sec
+    sbc #1
+    bcc @nomove
+    sta {{<ypos}}
+@nomove:
+---
+    on joydown do with [HasYpos]
+---
+    lda {{<ypos}}
+    clc
+    adc #1
+    cmp #220
+    bcs @nomove
+    sta {{<ypos}}
+@nomove:
+---
+end
+
+system SetXPos
+    on preframe do join [SpriteSlot] with [Sprite]
+    limit 2
+---
+    lda {{<xpos}}
+    {{!SetHorizPos}}
+---
+    on preframe do foreach [Missile,HasXpos]
+---
+    lda {{<xpos}}
+    ldy {{<index}}
+    {{!SetHorizPos}}
+---
+    on prekernel do once
+---
+    sta WSYNC
+    sta HMOVE
+    SLEEPR 24
+    sta HMCLR
+---
+end
+
+system SpriteShuffler
+	locals 2
+	on postframe do select [SpriteSlot]
+---
+; load two sprite slots at left side of array
+	lda {{<SpriteSlot:sprite}}
+        sta {{$0}}
+	lda {{<SpriteSlot:sprite}}+1
+        sta {{$1}}
+; move two slots to the left
+        ldx #0
+@loop:
+	lda {{<SpriteSlot:sprite}}+2,x
+	sta {{<SpriteSlot:sprite}},x
+	inx
+        cpx #{{%ecount}}-2
+        bne @loop
+; store two sprite slots at right side of array
+        lda {{$0}}
+	sta {{<SpriteSlot:sprite}}+{{%ecount}}-2
+        lda {{$1}}
+	sta {{<SpriteSlot:sprite}}+{{%ecount}}-1
+---
+end
+
+system SpriteHider
+	locals 1
+	on postframe do select [SpriteSlot]
+---
+	lda #{{%efullcount}}-1
+        sta {{$0}}
+---
+	on postframe do
+        join [SpriteSlot]
+        with [Sprite,HasYpos]
+        limit 2
+---
+	lda {{<ypos}}
+        cmp #192
+        bcc @skip
+; swap this sprite slot with slot at end of array
+	lda {{<SpriteSlot:sprite}},y
+        pha
+        ldx {{$0}}	; clobbers X, but no longer used
+	lda {{<SpriteSlot:sprite}},x
+	sta {{<SpriteSlot:sprite}},y
+        pla
+	sta {{<SpriteSlot:sprite}},x
+        dec {{$0}}
+@skip:
+---
+end
+

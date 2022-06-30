@@ -1,0 +1,28 @@
+
+component Xpos
+  x: 0..255
+end
+component Player
+end
+component Enemy
+end
+
+scope Main
+  entity foo [Xpos]
+  end
+  entity p [Xpos,Player]
+    init x = 50
+  end
+  entity e1 [Xpos,Enemy]
+    init x = 100
+  end
+  entity e2 [Xpos,Enemy]
+    init x = 150
+  end
+  system move
+    on start do foreach [Enemy]
+    ---
+    lda {{<x}}
+    ---
+  end
+end

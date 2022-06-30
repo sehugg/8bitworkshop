@@ -1,0 +1,105 @@
+
+//#resource "vcs-ca65.h"
+
+import "vcslib.ecs"
+
+component SoundEffect
+  duration: 0..255
+  sounddata: array of 0..255
+end
+
+component SoundChannel
+  sfx: [SoundEffect]
+  timer: 0..255
+end
+
+// TODO
+component SoundPriority
+  priority: 0..15
+end
+
+system SoundEngine
+  locals 3
+  on preframe do 
+  join [SoundChannel]
+  with [SoundEffect]
+  ---
+  lda {{base timer}},y
+  jeq @nosound
+  sec
+  sbc #1
+  sta {{base timer}},y
+  pha
+  lda {{<sounddata}}
+  sta {{$0}}
+  lda {{>sounddata}}
+  sta {{$1}}		; save pointer to sound data
+  sty {{$2}}		; save Y (sound channel #)
+  pla
+  tay
+  lda ({{$0}}),y	; get sound data
+  bpl @setfreq		; hi bit clear = just freq
+  ldy {{$2}}
+  lsr			; right shift (/ 2)
+  bcs @setvol		; lo bit set = volume
+  sta AUDC0,y		; lo bit clear = control
+  lsr			; also set freq (/ 2)
+@setfreq:
+  ldy {{$2}}
+  sta AUDF0,y		; set frequency
+  jmp @done
+@nosound:
+  lda #0
+@setvol:
+  sta AUDV0,y		; set volume
+@done:
+  ---
+  // TODO: need to pass sound entity as arg
+  on playsound do select [SoundChannel]
+  ---
+; arg 0 = sound channel
+  ldy #{{arg 0}}
+; arg 1 = sound effect #
+  lda #{{arg 1}}
+  sta {{base sfx}},y
+  tax
+  ---
+  // TODO: shouldn't need to split up like this...
+  on playsound do select [SoundEffect]
+  ---
+  lda {{base duration}},x
+  ---
+  on playsound do select [SoundChannel]
+  ---
+  sta {{base timer}},y
+; arg 2 = base volume
+  lda #{{arg 2}}
+  sta AUDV0,y
+  ---
+end
+
+// TODO: default entities?
+
+
+demo SoundDemo
+  using FrameLoop, SoundEngine
+  
+  entity SFXScore [SoundEffect]
+    const duration = 11
+    const sounddata = [
+    $02,$03,$04,$08,$10,$20,$10,$20,$10,$08,
+    $a8]
+  end
+
+  // TODO: make sfx have priority?
+  entity SFX1 [SoundChannel] end
+  entity SFX2 [SoundChannel] end
+  
+  system Test
+    on preframeloop do once
+    ---
+    {{!playsound 0 0 15}}
+    ---
+  end
+end demo
+

@@ -1,0 +1,42 @@
+
+component RoomGraphics
+  graphics: array 0..8 of 0..255
+end
+
+component Room
+  fgcolor:  0..255
+  bgcolor:  0..255
+  north:   [Room]
+  east:    [Room]
+  south:   [Room]
+  west:    [Room]
+end
+
+component Location
+  room: [Room]
+end
+
+scope Main
+/*
+  entity NullRoom [Room]
+  end
+*/
+  entity InsideDailyPlanet [Room]
+    const fgcolor = $0c
+    const bgcolor = $12
+    const north = #InsideDailyPlanet
+    const south = #InsideDailyPlanet
+    const east = #OutsideDailyPlanet
+    const west = #InsideDailyPlanet
+  end
+
+  entity OutsideDailyPlanet [Room]
+    const fgcolor = $0c
+    const bgcolor = $12
+    const north = #InsideDailyPlanet
+    const south = #InsideDailyPlanet
+    const east = #InsideDailyPlanet
+    const west = #OutsideDailyPlanet
+  end
+
+end

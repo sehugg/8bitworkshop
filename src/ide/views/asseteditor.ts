@@ -175,6 +175,12 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         var meta = {defs:metadefs,width:width*8,height:height*8};
         result.push({fileid:id,label:ident,meta:meta});
       }
+      // TODO: look for decode <ident> --- ... ---
+      /*
+      var re3 = /\bdecode\s+(\w+)\s*---(.+?)---/gims;
+      while (m = re3.exec(data)) {
+      }
+      */
       return result;
     }
   

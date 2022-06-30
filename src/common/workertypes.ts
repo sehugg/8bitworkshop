@@ -19,6 +19,15 @@ export interface SourceLine extends SourceLocation {
   cycles?:number;
 }
 
+// objects that have source code position info
+export interface SourceLocated {
+  $loc?: SourceLocation;
+}
+// statements also have the 'offset' (pc) field from SourceLine
+export interface SourceLineLocated {
+  $loc?: SourceLine;
+}
+
 export class SourceFile {
   lines: SourceLine[];
   text: string;

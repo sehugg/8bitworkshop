@@ -1,5 +1,5 @@
 
-import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult, WorkerOutputResult, isUnchanged, isOutputResult, WorkerMessage, WorkerItemUpdate } from "../common/workertypes";
+import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult, WorkerOutputResult, isUnchanged, isOutputResult, WorkerMessage, WorkerItemUpdate, WorkerErrorResult, isErrorResult } from "../common/workertypes";
 import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform, getWithBinary } from "../common/util";
 import { Platform } from "../common/baseplatform";
 import localforage from "localforage";
@@ -129,6 +129,8 @@ export class CodeProject {
     }
     if (data && isOutputResult(data)) {
       this.processBuildResult(data);
+    } else if (isErrorResult(data)) {
+      this.processBuildListings(data);
     }
     this.callbackBuildResult(data);
   }
@@ -150,6 +152,7 @@ export class CodeProject {
       files.push(dir + '/' + fn);
   }
 
+  // TODO: use tool id to parse files, not platform
   parseIncludeDependencies(text:string):string[] {
     let files = [];
     let m;
@@ -199,12 +202,17 @@ export class CodeProject {
         this.pushAllFiles(files, m[2]);
       }
       // for wiz
-      let re5 = /^\s*(import|embed)\s+"(.+?)";/gmi;
+      let re5 = /^\s*(import|embed)\s*"(.+?)";/gmi;
       while (m = re5.exec(text)) {
         if (m[1] == 'import')
           this.pushAllFiles(files, m[2] + ".wiz");
         else
           this.pushAllFiles(files, m[2]);
+      }
+      // for ecs
+      let re6 = /^\s*(import)\s*"(.+?)"/gmi;
+      while (m = re6.exec(text)) {
+        this.pushAllFiles(files, m[2]);
       }
     }
     return files;
@@ -370,7 +378,7 @@ export class CodeProject {
     this.sendBuild();
   }
 
-  processBuildResult(data: WorkerOutputResult<any>) {
+  processBuildListings(data: WorkerOutputResult<any> | WorkerErrorResult) {
     // TODO: link listings with source files
     if (data.listings) {
       this.listings = data.listings;
@@ -382,6 +390,14 @@ export class CodeProject {
           lst.assemblyfile = new SourceFile(lst.asmlines, lst.text);
       }
     }
+  }
+
+  processBuildResult(data: WorkerOutputResult<any>) {
+    this.processBuildListings(data);
+    this.processBuildSegments(data);
+  }
+
+  processBuildSegments(data: WorkerOutputResult<any>) {
     // save and sort segment list
     var segs = (this.platform.getMemoryMap && this.platform.getMemoryMap()["main"]) || [];
     if (data.segments) { segs = segs.concat(data.segments || []); }
@@ -401,6 +417,10 @@ export class CodeProject {
     var fnprefix = getFilenamePrefix(this.stripLocalPath(path));
     var listings = this.getListings();
     var onlyfile = null;
+    for (var lstfn in listings) {
+      if (lstfn == path)
+        return listings[lstfn];
+    }
     for (var lstfn in listings) {
       onlyfile = lstfn;
       if (getFilenamePrefix(lstfn) == fnprefix) {

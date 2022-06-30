@@ -1,0 +1,38 @@
+EVENT__start = 1
+.scope Main
+.zeropage
+Xpos_x_b0:
+.res 1
+.res 1
+.res 1
+.res 1
+.code
+Main__INITDATA:
+.byte 0
+.byte 50
+.byte 100
+.byte 150
+__Start:
+
+    ldy #4
+:   lda Main__INITDATA-1,y
+    sta Xpos_x_b0-1,y
+    dey
+    bne :-
+
+;;; start action move__start__1
+
+    ldx #0
+move__start__2____each:
+    
+    lda Xpos_x_b0+2,x
+    
+    inx
+    cpx #2
+    jne move__start__2____each
+move__start__2____exit:
+
+;;; end action move__start__1
+
+.endscope
+Main__Start = Main::__Start

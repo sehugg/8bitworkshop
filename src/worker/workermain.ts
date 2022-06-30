@@ -431,6 +431,7 @@ export interface BuildStep extends WorkerBuildStep {
   code?
   prefix?
   maxts?
+  debuginfo?
 };
 
 ///
@@ -518,6 +519,11 @@ class Builder {
       }
       if (step.result) {
         (step.result as any).params = step.params; // TODO: type check
+        if (step.debuginfo) {
+          let r = step.result as any; // TODO
+          if (!r.debuginfo) r.debuginfo = {};
+          Object.assign(r.debuginfo, step.debuginfo);
+        }
         // errors? return them
         if ('errors' in step.result && step.result.errors.length) {
           applyDefaultErrorPath(step.result.errors, step.path);
@@ -529,6 +535,7 @@ class Builder {
         }
         // combine files with a link tool?
         if ('linktool' in step.result) {
+          // add to existing link step
           if (linkstep) {
             linkstep.files = linkstep.files.concat(step.result.files);
             linkstep.args = linkstep.args.concat(step.result.args);
@@ -540,6 +547,7 @@ class Builder {
               args:step.result.args
             };
           }
+          linkstep.debuginfo = step.debuginfo; // TODO: multiple debuginfos
         }
         // process with another tool?
         if ('nexttool' in step.result) {
@@ -1102,6 +1110,7 @@ import * as z80 from './tools/z80'
 import * as x86 from './tools/x86'
 import * as arm from './tools/arm'
 import * as script from './tools/script'
+import * as ecs from './tools/ecs'
 
 var TOOLS = {
   'dasm': dasm.assembleDASM,
@@ -1137,7 +1146,8 @@ var TOOLS = {
   'wiz': misc.compileWiz,
   'armips': arm.assembleARMIPS,
   'vasmarm': arm.assembleVASMARM,
-  'js': script.runJavascript,
+  //'js': script.runJavascript,
+  'ecs': ecs.assembleECS,
 }
 
 var TOOL_PRELOADFS = {
@@ -1166,6 +1176,8 @@ var TOOL_PRELOADFS = {
   'fastbasic': '65-atari8',
   'silice': 'Silice',
   'wiz': 'wiz',
+  'ecs-vcs': '65-none', // TODO: support multiple platforms
+  'ecs-nes': '65-nes', // TODO: support multiple platforms
 }
 
 //const waitFor = delay => new Promise(resolve => setTimeout(resolve, delay)); // for testing

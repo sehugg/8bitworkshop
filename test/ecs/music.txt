@@ -1,0 +1,333 @@
+EVENT__start = 1
+EVENT__postframe = 1
+EVENT__preframe = 1
+EVENT__prekernel = 1
+EVENT__postkernel = 1
+EVENT__musicframe = 1
+EVENT__musicpulse = 1
+EVENT__musicnote = 1
+EVENT__playmusic = 1
+EVENT__stopmusic = 1
+EVENT__musicdone = 1
+EVENT__preframeloop = 1
+.scope music
+.zeropage
+MusicPlayer_timer_b0:
+.res 1
+MusicChannel_duration_b0:
+.res 1
+.res 1
+MusicChannel_note_b0:
+.res 1
+.res 1
+MusicChannel_duty_b0:
+.res 1
+.res 1
+MusicPlayer_channel_b0:
+.res 1
+MusicPlayer_songptr_b0:
+.res 1
+MusicPlayer_songptr_b8:
+.res 1
+.code
+MusicPlayer_volume_b0:
+.byte 10
+MusicPlayer_tempo_b0:
+.byte 31
+music__INITDATA:
+.byte 255
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+.byte 0
+__Start:
+
+;;; start action Init__main_init__1
+
+.include "vcs-ca65.h"
+.macpack longbranch
+.define PAL 0
+__NMI:
+__Reset:
+__BRK:
+    CLEAN_START
+
+    ldy #10
+:   lda music__INITDATA-1,y
+    sta MusicPlayer_timer_b0-1,y
+    dey
+    bne :-
+
+;;; start action FrameLoop__start__3
+
+    
+;;; start action music__preframeloop__5
+
+    
+;;; start action music__musicdone__7
+
+    ; TODO: nested exprs
+    ; 
+ jsr MusicPlayer__playmusic__10
+
+    ;SampleMusic
+    
+ jsr MusicPlayer__playmusic__13
+
+    
+;;; end action music__musicdone__7
+
+    
+;;; end action music__preframeloop__5
+
+FrameLoop__start__4__NextFrame:
+    FRAME_END
+    
+    FRAME_START
+    
+;;; start action MusicPlayer__preframe__16
+
+  
+;;; start action MusicPlayer__musicpulse__18
+
+    ldx #0
+MusicPlayer__musicpulse__19____each:
+    
+; Decrement the volumes for each channel
+; Also decrement next-note timer, fetch next note
+	lda	MusicChannel_duration_b0,x
+        beq	:+
+        lsr
+        sta	AUDV0,x
+        dec	MusicChannel_duration_b0,x
+:
+
+    inx
+    cpx #2
+    jne MusicPlayer__musicpulse__19____each
+MusicPlayer__musicpulse__19____exit:
+
+;;; end action MusicPlayer__musicpulse__18
+
+;;; start action MusicPlayer__musicpulse__21
+
+        lda	MusicPlayer_timer_b0
+        bmi	MusicPlayer__musicpulse__23__Done
+        beq	MusicPlayer__musicpulse__23__NextData
+        dec	MusicPlayer_timer_b0
+        jmp	MusicPlayer__musicpulse__23__Done
+; Timer ran out, so fetch next note
+MusicPlayer__musicpulse__23__NextData:
+	ldx	#0
+        lda	(MusicPlayer_songptr_b0,x)
+        bmi	MusicPlayer__musicpulse__23__LoadDuration
+; < $80, play next note
+        ldx	MusicPlayer_channel_b0	; next channel
+        tay
+        
+;;; start action MusicPlayer__musicnote__24
+
+; Play a note
+; X = channel (0,1)
+; Y = note index (0-63)
+	lda	FREQZ,y
+        sta	MusicChannel_note_b0,x
+	lda	DUTYZ,y
+        sta	MusicChannel_duty_b0,x
+        lda	TONEZ,y
+        sta	AUDC0,x
+; TODO: consts?
+        lda	MusicPlayer_tempo_b0
+        sta	MusicChannel_duration_b0,x
+        lda	MusicPlayer_volume_b0
+        sta	AUDV0,x
+  
+;;; end action MusicPlayer__musicnote__24
+
+        inx
+        txa
+        and	#1
+        sta	MusicPlayer_channel_b0	; inc next channel
+        jmp	MusicPlayer__musicpulse__23__IncDataPtr
+; >= $80, load next duration
+MusicPlayer__musicpulse__23__LoadDuration:
+	cmp	#$ff		; $ff = end of song
+        bne	MusicPlayer__musicpulse__23__NoResetTrack
+        sta     MusicPlayer_timer_b0
+        
+;;; start action music__musicdone__27
+
+    ; TODO: nested exprs
+    ; 
+ jsr MusicPlayer__playmusic__10
+
+    ;SampleMusic
+    
+ jsr MusicPlayer__playmusic__13
+
+    
+;;; end action music__musicdone__27
+
+        jmp     MusicPlayer__musicpulse__23__Done
+MusicPlayer__musicpulse__23__NoResetTrack:
+        and	#$7f
+;        asl
+        sta	MusicPlayer_timer_b0	; store duration * 2
+MusicPlayer__musicpulse__23__IncDataPtr:
+; increment song pointer
+	inc	MusicPlayer_songptr_b0
+        bne	MusicPlayer__musicpulse__23__Done
+	inc	MusicPlayer_songptr_b8
+MusicPlayer__musicpulse__23__Done:
+  
+;;; end action MusicPlayer__musicpulse__21
+	; update song
+  
+ jsr MusicPlayer__musicframe__36
+	; update registers
+  
+;;; end action MusicPlayer__preframe__16
+
+    
+;;; start action MusicPlayer__prekernel__39
+
+  
+ jsr MusicPlayer__musicframe__36
+	; update registers
+  
+;;; end action MusicPlayer__prekernel__39
+
+    KERNEL_START
+    
+    KERNEL_END
+    
+;;; start action MusicPlayer__postkernel__44
+
+  
+ jsr MusicPlayer__musicframe__36
+	; update registers
+  
+;;; end action MusicPlayer__postkernel__44
+
+    
+;;; start action FrameLoop__postframe__49
+
+    lsr SWCHB	      ; test Game Reset switch
+    bcs FrameLoop__postframe__50__NoStart
+    
+FrameLoop__postframe__50__NoStart:
+
+;;; end action FrameLoop__postframe__49
+
+;;; start action MusicPlayer__postframe__51
+
+  
+ jsr MusicPlayer__musicframe__36
+	; update registers
+  
+;;; end action MusicPlayer__postframe__51
+
+    jmp FrameLoop__start__4__NextFrame    ; loop to next frame
+
+;;; end action FrameLoop__start__3
+	; start main routine
+.segment "VECTORS"
+ZeroByte:  .byte $00
+Return:    .byte $60
+VecNMI:
+VecReset:  .word __Reset
+VecBRK:    .word __BRK
+.code
+
+;;; end action Init__main_init__1
+.rodata
+__ALIGNORIGIN:
+.rodata
+MusicPlayer__playmusic__10:
+
+  lda	#<^SampleMusic
+  sta	MusicPlayer_songptr_b0
+  lda	#>^SampleMusic
+  sta	MusicPlayer_songptr_b8
+  lda   #0
+  sta   MusicPlayer_timer_b0
+  
+ rts
+.rodata
+MusicPlayer__playmusic__13:
+
+  lda	#<SampleMusic
+  sta	MusicPlayer_songptr_b0
+  lda	#>SampleMusic
+  sta	MusicPlayer_songptr_b8
+  lda   #0
+  sta   MusicPlayer_timer_b0
+  
+ rts
+.rodata
+MusicPlayer__musicframe__36:
+
+    ldx #0
+MusicPlayer__musicframe__37____each:
+    
+; Update channel pitch in AUDF0
+; 8-bit rotation of duty cycle bits
+	lda	MusicChannel_duration_b0,x
+        beq	:++
+	lda	MusicChannel_duty_b0,x
+        asl
+        bcc	:+
+        ora	#1
+:	sta	MusicChannel_duty_b0,x
+	lda	MusicChannel_note_b0,x
+        beq	:+
+; If next bit is set, add 1 to AUDF0 
+        adc	#0
+        sta	AUDF0,x
+:
+  
+    inx
+    cpx #2
+    jne MusicPlayer__musicframe__37____each
+MusicPlayer__musicframe__37____exit:
+
+ rts
+SampleMusic:
+
+;;; start action SampleMusic__SampleMusic__56
+
+ .byte $35,$41,$8a,$37,$43,$8a,$33,$3f,$8a,$30,$3c,$94,$3e,$32,$8a,$3a,$2e,$94,$35,$29,$8a,$37,$2b,$8a,$33,$27,$8a,$30,$24,$94,$32,$26,$8a,$2e,$22,$94,$29,$1d,$8a,$2b,$1f,$8a,$27,$1b,$8a,$24,$18,$94,$1a,$26,$8a,$18,$24,$8a,$17,$23,$8a,$16,$22,$a8,$3a,$35,$ff
+
+;;; end action SampleMusic__SampleMusic__56
+
+FREQZ:
+
+;;; start action FREQZ__FREQZ__58
+
+  .byte 30, 30, 30, 30, 30, 28, 26, 25, 23, 22, 21, 19, 18, 17, 16, 15, 14, 13, 12, 12, 11, 10, 10, 9, 8, 8, 7, 7, 6, 6, 5, 5, 30, 29, 27, 25, 24, 22, 21, 20, 19, 18, 16, 15, 15, 14, 13, 12, 11, 11, 10, 31, 29, 27, 25, 24, 23, 21, 20, 19, 18, 16, 15, 15
+
+;;; end action FREQZ__FREQZ__58
+
+DUTYZ:
+
+;;; start action DUTYZ__DUTYZ__60
+
+  .byte 247, 247, 247, 247, 1, 73, 219, 1, 219, 73, 0, 219, 181, 85, 85, 85, 181, 219, 247, 1, 73, 181, 0, 73, 219, 17, 219, 17, 219, 73, 247, 85, 247, 1, 85, 247, 73, 247, 181, 17, 1, 0, 247, 247, 0, 1, 17, 73, 181, 0, 17, 0, 1, 85, 247, 73, 0, 181, 73, 1, 0, 247, 247, 0
+
+;;; end action DUTYZ__DUTYZ__60
+
+TONEZ:
+
+;;; start action TONEZ__TONEZ__62
+
+  .byte 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
+
+;;; end action TONEZ__TONEZ__62
+
+.endscope
+music__Start = music::__Start

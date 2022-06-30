@@ -266,3 +266,16 @@ LINESD12 = 16
 	SLEEP cycles
 .endif
 .endmacro
+
+;-----------------------------------------------------------
+; SLEEPH - sleep macro that uses PHA/PLA for 12 cycle delays
+
+.macro SLEEPH cycles
+.if cycles >= 9 || cycles = 7
+	pha
+	pla
+	SLEEPH (cycles-7)
+.else
+	SLEEP cycles
+.endif
+.endmacro
