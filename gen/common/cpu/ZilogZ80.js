@@ -908,7 +908,7 @@ function FastZ80(coreParameter) {
         flags.C = (result & 0x10000) ? 1 : 0;
         flags.H = (((ix & 0xfff) + (operand & 0xfff)) & 0x1000) ? 1 : 0;
         update_xy_flags((result & 0xff00) >>> 8);
-        ix = result;
+        ix = result & 0xffff;
     };
     ///////////////////////////////////////////////////////////////////////////////
     /// This table contains the implementations for the instructions that weren't
