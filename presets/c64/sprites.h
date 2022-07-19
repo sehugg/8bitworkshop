@@ -3,6 +3,8 @@
 
 #include "common.h"
 
+#define DEFAULT_SCREEN ((void*)0x400)
+
 typedef struct {
   byte spr_ena;        /* Enable sprites */
   byte spr_hi_x;       /* High bits of X coordinate */
@@ -22,9 +24,10 @@ typedef struct {
 
 extern SpriteShadow sprshad;
 
+void sprite_clear(void);
 void sprite_update(char* screenram);
 void sprite_shape(char* vicbank, byte index, const char* sprite_data);
 void sprite_draw(byte i, word x, byte y, byte shape);
-void sprite_clear(void);
+byte sprite_get_closest_collision(byte i, byte spr_coll);
 
 #endif

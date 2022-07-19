@@ -1,0 +1,85 @@
+
+; music and SFX from GoatTracker 2 sample files
+; http://sourceforge.net/projects/goattracker2
+
+.segment "SIDFILE"
+
+.incbin "sidmusic1.bin"
+
+.segment "LOWCODE"
+
+.global _sid_init, _sid_update, _sid_sfx
+.global _sid_start
+
+_sid_init:
+        jmp $1000
+
+_sid_update:
+	jmp $1003
+
+_sid_sfx:
+	tax
+        lda sfxtbllo,x     ;Address in A,Y
+        ldy sfxtblhi,x
+        ldx #$0e           ;Channel index in X
+        jmp $1006          ;(0, 7 or 14)
+
+SID_IRQ:
+	jsr $1003
+	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+	JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
+
+_sid_start:
+        SEI                  ; set interrupt bit, make the CPU ignore interrupt requests
+        LDA #%01111111       ; switch off interrupt signals from CIA-1
+        STA $DC0D
+
+        AND $D011            ; clear most significant bit of VIC's raster register
+        STA $D011
+
+        LDA $DC0D            ; acknowledge pending interrupts from CIA-1
+        LDA $DD0D            ; acknowledge pending interrupts from CIA-2
+
+        LDA #210             ; set rasterline where interrupt shall occur
+        STA $D012
+
+        LDA #<SID_IRQ            ; set interrupt vectors, pointing to interrupt service routine below
+        STA $0314
+        LDA #>SID_IRQ
+        STA $0315
+
+        LDA #%00000001       ; enable raster interrupt signals from VIC
+        STA $D01A
+
+        CLI                  ; clear interrupt flag, allowing the CPU to respond to interrupt requests
+        RTS
+
+
+sfxtbllo:       .byte <arpeggio2
+                .byte <arpeggio1
+                .byte <gunshot
+                .byte <explosion
+
+sfxtblhi:       .byte >arpeggio2
+                .byte >arpeggio1
+                .byte >gunshot
+                .byte >explosion
+
+arpeggio2:
+        .byte $00,$89,$04,$A2,$41,$A2,$A2,$A6,$A6,$A6,$40,$A9,$A9,$A9,$A2,$A2
+        .byte $A2,$A6,$A6,$A6,$A9,$A9,$A9,$A2,$A2,$A2,$A6,$A6,$A6,$A9,$A9,$A9
+        .byte $A2,$A2,$A2,$A6,$A6,$A6,$A9,$A9,$A9,$00
+        
+arpeggio1:
+        .byte $0A,$00,$02,$A0,$41,$A0,$A0,$A4,$A4,$A4,$A7,$A7,$A7,$A0,$A0,$A0
+        .byte $A4,$A4,$A4,$A7,$A7,$A7,$A0,$A0,$A0,$A4,$A4,$A4,$A7,$A7,$A7,$A0
+        .byte $A0,$A0,$A4,$A4,$A4,$A7,$A7,$A7,$00
+        
+gunshot:
+        .byte $00,$F9,$08,$C4,$81,$A8,$41,$C0,$81,$BE,$BC,$80,$BA,$B8,$B6,$B4
+        .byte $B2,$B0,$AE,$AC,$AA,$A8,$A6,$A4,$A2,$A0,$9E,$9C,$9A,$98,$96,$94
+        .byte $92,$90,$00
+
+explosion:
+        .byte $00,$FA,$08,$B8,$81,$A4,$41,$A0,$B4,$81,$98,$92,$9C,$90,$95,$9E
+        .byte $92,$80,$94,$8F,$8E,$8D,$8C,$8B,$8A,$89,$88,$87,$86,$84,$00

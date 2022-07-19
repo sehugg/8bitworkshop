@@ -17,8 +17,18 @@
 #include "sprites.h"
 //#link "sprites.c"
 
-// indices of sound effects (0..3)
-typedef enum { SND_START, SND_HIT, SND_COIN, SND_JUMP } SFXIndex;
+//#resource "c64-sid.cfg"
+#define CFGFILE c64-sid.cfg
+
+//#resource "sidmusic1.bin"
+//#link "sidplaysfx.ca65"
+#include "sidplaysfx.h"
+
+// indices of sound effects
+#define SND_JUMP 0
+#define SND_HIT 2
+#define SND_COIN 1
+#define SND_FALL 3
 
 ///// DEFINES
 
@@ -469,7 +479,7 @@ void draw_actor(byte i) {
 void refresh_actors() {
   byte i;
   yscroll = BOTTOM_Y + scroll_fine_y + (START_ORIGIN_Y - origin_y)*8;
-  sprite_clear();
+  sprshad.spr_ena = 0; // make all sprites invisible
   for (i=0; i<MAX_ACTORS; i++)
     draw_actor(i);
   animate_explosion();
@@ -541,6 +551,7 @@ void move_actor(struct Actor* actor, byte joystick, bool scroll) {
         actor->yvel = 15;
         if (joystick & JOY_LEFT_MASK) actor->xvel = -1;
         if (joystick & JOY_RIGHT_MASK) actor->xvel = 1;
+        if (scroll) sid_sfx(SND_JUMP);
       } else if (joystick & JOY_LEFT_MASK) {
         actor->x--;
         actor->dir = 1;
@@ -605,6 +616,7 @@ void move_actor(struct Actor* actor, byte joystick, bool scroll) {
   if (actor->state == WALKING && 
       is_in_gap(actor->x, floors[actor->level].gap)) {
     fall_down(actor);
+    if (scroll) sid_sfx(SND_FALL);
   }
 }
 
@@ -626,11 +638,11 @@ void pickup_object(Actor* actor) {
       if (objtype == ITEM_MINE) {
         // we hit a mine, fall down
         fall_down(actor);
-        //sfx_play(SND_HIT,0);
+        sid_sfx(SND_HIT);
       } else {
         // we picked up an object, add to score
         //score = bcd_add(score, 1);
-        //sfx_play(SND_COIN,0);
+        sid_sfx(SND_COIN);
       }
     }
   }
@@ -717,6 +729,9 @@ void play_scene() {
   create_actors_on_floor(2);
   refresh_screen();
   
+  sid_init(1);
+  sid_start();
+  
   while (actors[0].level != MAX_FLOORS-1) {
     refresh_actors();
     move_player();
@@ -728,6 +743,7 @@ void play_scene() {
     if (VIC.spr_coll & 0x01) {
       if (actors[0].level > 0 && check_collision(&actors[0])) {
         fall_down(&actors[0]);
+        sid_sfx(SND_HIT);
       }
     }
     if (swap_needed) sprite_update(hidbuf);

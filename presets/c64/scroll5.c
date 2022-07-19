@@ -73,13 +73,16 @@ void main(void) {
   
   // infinite loop
   while (1) {
+    static char speed = 1;
     // get joystick bits
     char joy = joy_read(0);
+    // speed up scrolling while button pressed
+    speed = JOY_BTN_1(joy) ? 2 : 1;
     // move sprite based on arrow keys
-    if (JOY_LEFT(joy)) scroll_horiz(-1);
-    if (JOY_UP(joy)) scroll_vert(-1);
-    if (JOY_RIGHT(joy)) scroll_horiz(1);
-    if (JOY_DOWN(joy)) scroll_vert(1);
+    if (JOY_LEFT(joy)) scroll_horiz(-speed);
+    if (JOY_UP(joy)) scroll_vert(-speed);
+    if (JOY_RIGHT(joy)) scroll_horiz(speed);
+    if (JOY_DOWN(joy)) scroll_vert(speed);
     // animate sprite in shadow sprite ram
     sprite_draw(0, n++, 70, 32);
     // wait for vblank

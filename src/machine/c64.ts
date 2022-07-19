@@ -122,7 +122,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
     this.exports.machine_load_state(this.sys, this.stateptr);
   }
   getVideoParams() {
-   return {width:392, height:272, overscan:true, videoFrequency:50};
+   return {width:392, height:272, overscan:true, videoFrequency:50, aspect:392/272*0.9365};
   }
   setKeyInput(key: number, code: number, flags: number): void {
     // TODO: handle shifted keys

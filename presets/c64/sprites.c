@@ -4,6 +4,10 @@
 
 SpriteShadow sprshad;
 
+void sprite_clear(void) {
+  memset(&sprshad, 0, sizeof(sprshad));
+}
+
 void sprite_update(char* vicbank) {
   memcpy(vicbank + 0x3f8, sprshad.spr_shapes, 8);
   VIC.spr_ena = sprshad.spr_ena;
@@ -38,7 +42,25 @@ void sprite_draw(byte i, word x, byte y, byte shape) {
   sprshad.spr_shapes[i] = shape;
 }
 
-void sprite_clear(void) {
-  sprshad.spr_ena = 0;
+byte sprite_get_closest_collision(byte i, byte spr_coll) {
+  byte j;
+  byte jmask = 1;
+  byte dx,dy;
+  if (spr_coll & BITS[i]) {
+    spr_coll ^= BITS[i];
+    for (j=0; j<8; j++, jmask<<=1) {
+      if (spr_coll & jmask) {
+        // TODO?
+        dx = sprshad.spr_pos[i].x - sprshad.spr_pos[j].x + 24;
+        if (dx < 48) {
+          dy = sprshad.spr_pos[i].y - sprshad.spr_pos[j].y + 21;
+          if (dy < 42) {
+            return j;
+          }
+        }
+      }
+    }
+  } else {
+    return 0xff;
+  }
 }
-
