@@ -5,6 +5,16 @@
 #include <c64.h>
 #include <joystick.h>
 
+//#resource "c64-sid.cfg"
+#define CFGFILE c64-sid.cfg
+
+//#resource "sidmusic1.bin"
+//#link "sidplaysfx.ca65"
+#include "sidplaysfx.h"
+
+//#link "rasterirq.ca65"
+#include "rasterirq.h"
+
 #include "bcd.h"
 //#link "bcd.c"
 
@@ -16,13 +26,6 @@
 
 #include "sprites.h"
 //#link "sprites.c"
-
-//#resource "c64-sid.cfg"
-#define CFGFILE c64-sid.cfg
-
-//#resource "sidmusic1.bin"
-//#link "sidplaysfx.ca65"
-#include "sidplaysfx.h"
 
 // indices of sound effects
 #define SND_JUMP 0
@@ -755,6 +758,16 @@ void play_scene() {
   blimp_pickup_scene();
 }
 
+// main display list
+void game_displaylist(void) {
+  VIC.bordercolor = 2;
+  sid_update();
+  VIC.bordercolor = 0;
+//  DLIST_NEXT(42);
+//  VIC.bordercolor = 3;
+  DLIST_RESTART(20);
+}
+
 // main program
 void main() {
   byte i;
@@ -767,14 +780,16 @@ void main() {
     sprite_shape(hidbuf, 32+i, SPRITE_DATA[i]);
   }
   sprshad.spr_mcolor = 0xff;
-  sprshad.spr_mcolor0 = 0x0f;
-  sprshad.spr_mcolor1 = 0x00;
+  VIC.spr_mcolor0 = 0x0f;
+  VIC.spr_mcolor1 = 0x00;
   // select character set 2
   VIC.addr = 0x15;
   // start scrolling @ bottom of level
   origin_y = START_ORIGIN_Y;
   // install joystick
   joy_install (joy_static_stddrv);
+  // setup display list
+  DLIST_SETUP(game_displaylist);
   // main game loop
   while (1) {
     make_floors();

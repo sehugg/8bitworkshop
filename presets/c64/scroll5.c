@@ -17,26 +17,29 @@
 #include "sprites.h"
 //#link "sprites.c"
 
-static void draw_cell(byte x, byte y) {
+static void draw_cell(word ofs, byte x, byte y) {
   byte xx = x + origin_x;
   byte yy = y + origin_y;
   byte ch = xx ^ yy;
-  word ofs = x+y*COLS;
   hidbuf[ofs] = ch; // character
   colorbuf[ofs] = ch; // color
 }
 
 void scroll_draw_column(byte col) {
   byte y;
+  word ofs = col;
   for (y=0; y<ROWS; y++) {
-    draw_cell(col, y);
+    draw_cell(ofs, col, y);
+    ofs += COLS;
   }
 }
 
 void scroll_draw_row(byte row) {
   byte x;
+  word ofs = row * COLS;
   for (x=0; x<COLS; x++) {
-    draw_cell(x, row);
+    draw_cell(ofs, x, row);
+    ++ofs;
   }
 }
 
@@ -51,15 +54,42 @@ const char SPRITE1[3*21] = {
   0x00,0x3E,0x00,0x00,0x3E,0x00,0x00,0x1C,0x00
 };
 
+int playerx = 0;
+int playery = 0;
+int camerax = 0;
+int cameray = 0;
+
+void update_player() {
+  sprite_draw(0, playerx-camerax+160, playery-cameray+140, 32);
+}
+
+void camera_follow(byte moving) {
+  int dx, dy;
+  dx = camerax - playerx;
+  dy = cameray - playery;
+  if (moving && abs(dx) < 32 && abs(dy) < 32) return;
+  dx >>= 4;
+  dy >>= 4;
+  if (dx) {
+    if (dx > 8) dx = 8;
+    else if (dx < -8) dx = -8;
+    camerax -= dx;
+    scroll_horiz(dx);
+  }
+  if (dy) {
+    if (dy > 8) dy = 8;
+    else if (dy < -8) dy = -8;
+    cameray -= dy;
+    scroll_vert(dy);
+  }
+}
+
 void main(void) {
-  byte n = 0;
   
   clrscr();
   printf("\r\n\r\n\r\n                           Hello World!");
-  printf("\r\n\r\n\r\n                  This is how we scroll");
-  printf("\r\n\r\n\r\n               But color RAM can't move");
-  printf("\r\n\r\n\r\n        So we have to use a temp buffer");
-  printf("\r\n\r\n\r\n               And copy it just in time");
+  printf("\r\n\r\n\r\n               Use the joystick to move");
+  printf("\r\n\r\n\r\n             And the camera will follow");
 
   // setup scrolling library
   scroll_setup();
@@ -67,30 +97,39 @@ void main(void) {
   // setup sprite library and copy sprite to VIC bank
   sprite_clear();
   sprite_shape(hidbuf, 32, SPRITE1);
+  sprshad.spr_color[0] = 13;
 
   // install the joystick driver
   joy_install (joy_static_stddrv);
-  
+
   // infinite loop
-  while (1) {
-    static char speed = 1;
+   while (1) {
+    static char speed;
+    static char joy;
+    static bool slowframe = false;
     // get joystick bits
-    char joy = joy_read(0);
+    joy = joy_read(0);
     // speed up scrolling while button pressed
-    speed = JOY_BTN_1(joy) ? 2 : 1;
+    speed = JOY_BTN_1(joy) ? 3 : 1;
+    // if we copied screen memory last frame,
+    // double speed of player for this frame
+    if (slowframe) speed *= 2;
     // move sprite based on arrow keys
-    if (JOY_LEFT(joy)) scroll_horiz(-speed);
-    if (JOY_UP(joy)) scroll_vert(-speed);
-    if (JOY_RIGHT(joy)) scroll_horiz(speed);
-    if (JOY_DOWN(joy)) scroll_vert(speed);
+    if (JOY_LEFT(joy)) playerx -= speed;
+    if (JOY_RIGHT(joy)) playerx += speed;
+    if (JOY_UP(joy)) playery -= speed;
+    if (JOY_DOWN(joy)) playery += speed;
+    // move the camera?
+    camera_follow(joy);
+    slowframe = swap_needed;
     // animate sprite in shadow sprite ram
-    sprite_draw(0, n++, 70, 32);
+    update_player();
     // wait for vblank
     wait_vblank();
+    // then update sprite registers
+    sprite_update(visbuf);
     // update scroll registers
     // and swap screens if we must
     scroll_update();
-    // then update sprite registers
-    sprite_update(visbuf);
   }
 }

@@ -43,7 +43,7 @@ void move_sprites(void) {
   byte i;
   for (i=0; i<8; i++) {
     //VIC.bordercolor = i;
-    sprite_draw(i, (xpos[i]>>7)+0x80, (ypos[i]>>8)+0x80, 32);
+    sprite_draw(i, (xpos[i]>>7)+0x80, (ypos[i]>>8)+0x80, 255);
     // update position
     xpos[i] += xvel[i];
     ypos[i] += yvel[i];
@@ -134,12 +134,12 @@ void main(void) {
 
   // setup sprite library and copy sprite to VIC bank
   sprite_clear();
-  sprite_shape((void*)0x400, 32/2, SPRITEMC);
+  sprite_shape((void*)0x0, 255, SPRITEMC);
   
   // set colors
   sprshad.spr_mcolor = 0xff;
-  sprshad.spr_mcolor0 = 4;
-  sprshad.spr_mcolor1 = 7;
+  VIC.spr_mcolor0 = 4;
+  VIC.spr_mcolor1 = 7;
 
   // set sprite initial positions
   init_sprites();

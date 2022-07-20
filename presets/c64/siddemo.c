@@ -12,7 +12,6 @@
 //#link "sidplaysfx.ca65"
 #include "sidplaysfx.h"
 
-
 void main(void) {
   clrscr();
   cursor(0);
@@ -27,6 +26,6 @@ void main(void) {
       sid_sfx(joy & 3);
     }
     waitvsync();
-    //sid_update();
+    sid_update();
   }
 }

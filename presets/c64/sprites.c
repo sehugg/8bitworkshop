@@ -8,18 +8,16 @@ void sprite_clear(void) {
   memset(&sprshad, 0, sizeof(sprshad));
 }
 
-void sprite_update(char* vicbank) {
-  memcpy(vicbank + 0x3f8, sprshad.spr_shapes, 8);
-  VIC.spr_ena = sprshad.spr_ena;
-  VIC.spr_hi_x = sprshad.spr_hi_x;
+void sprite_update(char* screenmem) {
+  memcpy(screenmem + 0x3f8, sprshad.spr_shapes, 8);
   memcpy(VIC.spr_pos, sprshad.spr_pos, 16);
   memcpy(VIC.spr_color, sprshad.spr_color, 8);
+  VIC.spr_ena = sprshad.spr_ena;
+  VIC.spr_hi_x = sprshad.spr_hi_x;
   VIC.spr_exp_x = sprshad.spr_exp_x;
   VIC.spr_exp_y = sprshad.spr_exp_y;
   VIC.spr_bg_prio = sprshad.spr_bg_prio;
   VIC.spr_mcolor = sprshad.spr_mcolor;
-  VIC.spr_mcolor0 = sprshad.spr_mcolor0;
-  VIC.spr_mcolor1 = sprshad.spr_mcolor1;
 }
 
 void sprite_shape(char* vicbank, byte index, const char* sprite_data) {

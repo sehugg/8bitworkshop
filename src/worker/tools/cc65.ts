@@ -129,9 +129,9 @@ export function assembleCA65(step: BuildStep): BuildStepResult {
         }
         execMain(step, CA65, args);
         if (errors.length) {
-            // TODO?
             let listings : CodeListingMap = {};
-            listings[step.path] = { lines:[], text:getWorkFileAsString(step.path) };
+            // TODO? change extension to .lst
+            //listings[step.path] = { lines:[], text:getWorkFileAsString(step.path) };
             return { errors, listings };
         }
         objout = FS.readFile(objpath, { encoding: 'binary' });

@@ -23,7 +23,7 @@ void scroll_setup(void);
 void scroll_horiz(sbyte delta_x);
 void scroll_vert(sbyte delta_y);
 
-// call this after vblank
+// call this right after vblank
 void scroll_update(void);
 
 // caller must implement these two

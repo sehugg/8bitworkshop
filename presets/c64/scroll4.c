@@ -8,183 +8,92 @@
 #include <stdint.h>
 #include <joystick.h>
 
-typedef uint8_t byte;
-typedef uint16_t word;
-typedef int8_t sbyte;
+#include "common.h"
+//#link "common.c"
 
-#define COLS 40
-#define ROWS 25
+#include "scrolling.h"
+//#link "scrolling.c"
 
-void raster_wait(unsigned char line) {
-  while (VIC.rasterline < line) ;
-}
+#include "sprites.h"
+//#link "sprites.c"
 
-void wait_vblank() {
-  raster_wait(255); // TODO
-}
-
-sbyte scroll_fine_x;
-sbyte scroll_fine_y;
-byte origin_x;
-byte origin_y;
-byte curbuf;
-byte* scrnbuf[2];	// screen buffer(s)
-byte tempbuf[COLS*ROWS];
-
-void draw_cell(byte x, byte y) {
+static void draw_cell(word ofs, byte x, byte y) {
   byte xx = x + origin_x;
   byte yy = y + origin_y;
   byte ch = xx ^ yy;
-  word ofs = x+y*COLS;
-  scrnbuf[curbuf][ofs] = ch; // character
-  tempbuf[ofs] = ch; // color
+  hidbuf[ofs] = ch; // character
+  colorbuf[ofs] = ch; // color
 }
 
 void scroll_draw_column(byte col) {
   byte y;
+  word ofs = col;
   for (y=0; y<ROWS; y++) {
-    draw_cell(col, y);
+    draw_cell(ofs, col, y);
+    ofs += COLS;
   }
 }
 
 void scroll_draw_row(byte row) {
   byte x;
+  word ofs = row * COLS;
   for (x=0; x<COLS; x++) {
-    draw_cell(x, row);
+    draw_cell(ofs, x, row);
+    ++ofs;
   }
 }
 
-void scroll_update_regs() {
-  VIC.ctrl1 = (VIC.ctrl1 & 0xf8) | scroll_fine_y;
-  VIC.ctrl2 = (VIC.ctrl2 & 0xf8) | scroll_fine_x;
-}
-
-void scroll_swap() {
-  // swap hidden and visible buffers
-  curbuf ^= 1;
-  // wait for vblank and update registers
-  wait_vblank();
-  scroll_update_regs();
-  VIC.addr = (VIC.addr & 0xf) | (curbuf ? 0x00 : 0x10);
-}
-
-void scroll_copy() {
-  // copy temp buf to color ram
-  memcpy(COLOR_RAM, tempbuf, COLS*ROWS);
-  // copy visible buffer to hidden buffer
-  memcpy(scrnbuf[curbuf], scrnbuf[curbuf^1], COLS*ROWS);
-}
-
-// TODO: left and up can be faster, b/c we can copy color ram downward
-
-void scroll_left() {
-  memcpy(scrnbuf[curbuf], scrnbuf[curbuf^1]+1, COLS*ROWS-1);
-  ++origin_x;
-  memcpy(tempbuf, COLOR_RAM+1, COLS*ROWS-1);
-  scroll_draw_column(COLS-1);
-  scroll_swap();
-  scroll_copy();
-}
-
-void scroll_up() {
-  memcpy(scrnbuf[curbuf], scrnbuf[curbuf^1]+COLS, COLS*(ROWS-1));
-  ++origin_y;
-  memcpy(tempbuf, COLOR_RAM+COLS, COLS*(ROWS-1));
-  scroll_draw_row(ROWS-1);
-  scroll_swap();
-  scroll_copy();
-}
-
-void scroll_right() {
-  memcpy(scrnbuf[curbuf]+1, scrnbuf[curbuf^1], COLS*ROWS-1);
-  --origin_x;
-  memcpy(tempbuf+1, COLOR_RAM, COLS*ROWS-1);
-  scroll_draw_column(0);
-  scroll_swap();
-  scroll_copy();
-}
-
-void scroll_down() {
-  memcpy(scrnbuf[curbuf]+COLS, scrnbuf[curbuf^1], COLS*(ROWS-1));
-  --origin_y;
-  memcpy(tempbuf+COLS, COLOR_RAM, COLS*(ROWS-1));
-  scroll_draw_row(0);
-  scroll_swap();
-  scroll_copy();
-}
-
-void scroll_horiz(sbyte delta_x) {
-  scroll_fine_x += delta_x;
-  while (scroll_fine_x < 0) {
-    scroll_fine_x += 8;
-    scroll_left();
-  }
-  while (scroll_fine_x >= 8) {
-    scroll_fine_x -= 8;
-    scroll_right();
-  }
-}
-
-void scroll_vert(sbyte delta_y) {
-  scroll_fine_y += delta_y;
-  while (scroll_fine_y < 0) {
-    scroll_fine_y += 8;
-    scroll_up();
-  }
-  while (scroll_fine_y >= 8) {
-    scroll_fine_y -= 8;
-    scroll_down();
-  }
-}
-
-void scroll_setup() {
-  scroll_fine_x = 0;
-  scroll_fine_y = 0;
-  origin_x = 0x80;
-  origin_y = 0x80;
-  curbuf = 0;
-  // get screen buffer addresses
-  scrnbuf[0] = (byte*) 0x8000;
-  scrnbuf[1] = (byte*) 0x8400;
-  // copy existing text to screen 0
-  memcpy(scrnbuf[0], (byte*)0x400, COLS*ROWS);
-  // copy screen 1 to screen 0
-  memcpy(scrnbuf[1], scrnbuf[0], COLS*ROWS);
-  
-  // set VIC bank ($4000-$7FFF)
-  // https://www.c64-wiki.com/wiki/VIC_bank
-  CIA2.pra = 0x01;
-  
-  VIC.ctrl1 = 0x10; // 24 lines
-  VIC.ctrl2 = 0x00; // 38 columns
-}
+/*{w:24,h:21,bpp:1,brev:1}*/
+const char SPRITE1[3*21] = {
+  0x00,0x7F,0x00,0x01,0xFF,0xC0,0x03,0xFF,0xE0,
+  0x03,0xE7,0xE0,0x07,0xD9,0xF0,0x07,0xDF,0xF0,
+  0x07,0xD9,0xF0,0x03,0xE7,0xE0,0x03,0xFF,0xE0,
+  0x03,0xFF,0xE0,0x02,0xFF,0xA0,0x01,0x7F,0x40,
+  0x01,0x3E,0x40,0x00,0x9C,0x80,0x00,0x9C,0x80,
+  0x00,0x49,0x00,0x00,0x49,0x00,0x00,0x3E,0x00,
+  0x00,0x3E,0x00,0x00,0x3E,0x00,0x00,0x1C,0x00
+};
 
 void main(void) {
-  sbyte n =0;
-
+  byte n = 0;
+  
   clrscr();
   printf("\r\n\r\n\r\n                           Hello World!");
   printf("\r\n\r\n\r\n                  This is how we scroll");
   printf("\r\n\r\n\r\n               But color RAM can't move");
   printf("\r\n\r\n\r\n        So we have to use a temp buffer");
   printf("\r\n\r\n\r\n               And copy it just in time");
-  
+
+  // setup scrolling library
   scroll_setup();
+
+  // setup sprite library and copy sprite to VIC bank
+  sprite_clear();
+  sprite_shape(hidbuf, 32, SPRITE1);
 
   // install the joystick driver
   joy_install (joy_static_stddrv);
   
   // infinite loop
   while (1) {
+    static char speed = 1;
     // get joystick bits
     char joy = joy_read(0);
+    // speed up scrolling while button pressed
+    speed = JOY_BTN_1(joy) ? 2 : 1;
     // move sprite based on arrow keys
-    if (JOY_LEFT(joy)) scroll_horiz(-1);
-    if (JOY_UP(joy)) scroll_vert(-1);
-    if (JOY_RIGHT(joy)) scroll_horiz(1);
-    if (JOY_DOWN(joy)) scroll_vert(1);
-    // update regs
+    if (JOY_LEFT(joy)) scroll_horiz(-speed);
+    if (JOY_UP(joy)) scroll_vert(-speed);
+    if (JOY_RIGHT(joy)) scroll_horiz(speed);
+    if (JOY_DOWN(joy)) scroll_vert(speed);
+    // animate sprite in shadow sprite ram
+    sprite_draw(0, n++, 70, 32);
+    // wait for vblank
     wait_vblank();
-    scroll_update_regs();
+    // update scroll registers
+    // and swap screens if we must
+    scroll_update();
+    // then update sprite registers
+    sprite_update(visbuf);
   }
 }
