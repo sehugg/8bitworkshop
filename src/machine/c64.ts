@@ -1,8 +1,7 @@
 
-import { MOS6502, MOS6502State } from "../common/cpu/MOS6502";
-import { BasicMachine, RasterFrameBased, Bus, ProbeAll, Probeable, NullProbe } from "../common/devices";
-import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt, dumpRAM } from "../common/emu";
-import { lzgmini, stringToByteArray, hex, rgb2bgr } from "../common/util";
+import { Probeable } from "../common/devices";
+import { dumpRAM, KeyFlags } from "../common/emu";
+import { hex, lpad } from "../common/util";
 
 // https://www.c64-wiki.com/wiki/C64
 // http://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt
@@ -78,7 +77,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
   }
   advanceFrame(trap: TrapCondition) : number {
     // TODO: does this sync with VSYNC?
-    var scanline = this.exports.machine_get_raster_line(this.sys);
+    var scanline = this.getRasterLine();
     var clocks = Math.floor((this.numTotalScanlines - scanline) * (19656+295) / this.numTotalScanlines);
     var probing = this.probe != null;
     if (probing) this.exports.machine_reset_probe_buffer();
@@ -107,12 +106,21 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
   }
   saveState() {
     this.exports.machine_save_state(this.sys, this.stateptr);
-    for (var i=0; i<this.statearr.length; i++)
-      if (this.statearr[i] == 0x9e && this.statearr[i+1] == 0x32 && this.statearr[i+2] == 0x30) console.log(i-0x805);
+    let cia1 = this.getDebugStateOffset(1);
+    let cia2 = this.getDebugStateOffset(2);
+    let vic = this.getDebugStateOffset(3);
+    let sid = this.getDebugStateOffset(4);
+    let ramofs = this.getDebugStateOffset(5);
+    let pla = this.getDebugStateOffset(9);
     return {
       c:this.getCPUState(),
       state:this.statearr.slice(0),
-      ram:this.statearr.slice(16636, 16636+0x200), // ZP and stack
+      ram:this.statearr.slice(ramofs, ramofs+0x10000),
+      cia1:this.statearr.slice(cia1, cia1+64),
+      cia2:this.statearr.slice(cia2, cia2+64),
+      vic:this.statearr.slice(vic+1, vic+1+64),
+      sid:this.statearr.slice(sid, sid+32),
+      pla:this.statearr.slice(pla, pla+16)
     };
   }
   loadState(state) : void {
@@ -156,6 +164,72 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
       this.joymask1 &= ~mask2;
     }
     this.exports.c64_joystick(this.sys, this.joymask0, this.joymask1);
+  }
+  getRasterLine() {
+    return this.exports.machine_get_raster_line(this.sys);
+  }
+  getDebugStateOffset(index: number) {
+    var p = this.exports.machine_get_debug_pointer(this.sys, index);
+    return p - this.sys;
+  }
+  getDebugCategories() {
+    return ['CPU','ZPRAM','Stack','PLA','CIA','VIC','SID'];
+  }
+  getDebugInfo(category:string, state:any) {
+    switch (category) {
+      case 'PLA': {
+        let s = "";
+        let iomapped = state.pla[0];
+        let port = state.pla[3];
+        s += `$0000 - $9FFF  RAM\n`;
+        s += `$A000 - $BFFF  ${(port&3)==3 ? 'BASIC ROM' : 'RAM'}\n`;
+        s += `$C000 - $CFFF  RAM\n`;
+        s += `$D000 - $DFFF  ${iomapped ? 'I/O' : (port&3)!=0 ? 'CHAR ROM' : 'RAM'}\n`;
+        s += `$E000 - $FFFF  ${(port&2)==2 ? 'KERNAL ROM' : 'RAM'}\n`;
+        return s;
+      }
+      case 'CIA': {
+        let s = "";
+        for (let i=0; i<2; i++) {
+          let m = i ? state.cia2 : state.cia1;
+          s += `CIA ${i+1}\n`;
+          s += ` A: Data ${hex(m[0])}  DDR ${hex(m[1])}  Input ${hex(m[2])}`;
+          s += `  Timer ${hex(m[10]+m[11]*256, 4)}\n`;
+          s += ` B: Data ${hex(m[4])}  DDR ${hex(m[5])}  Input ${hex(m[6])}`;
+          s += `  Timer ${hex(m[10+10]+m[11+10]*256, 4)}\n`;
+          //s += ` IMR ${hex(m[48])}  ICR ${hex(m[50])}\n`
+        }
+        return s;
+      }
+      case 'VIC': {
+        let m = state.vic;
+        let s = '';
+        let vicbank = ((state.cia2[0] & 3) ^ 3) * 0x4000;
+        let charmem = vicbank + (state.vic[0x18] & 14) * 0x400;
+        let screen = vicbank + (state.vic[0x18] >> 4) * 0x400;
+        let isbitmap = state.vic[0x11] & 0x20;
+        let ischar = (state.cia2[0]&1)==1 && (state.vic[0x18]&12)==4;
+        s += `Scanline: ${lpad(this.getRasterLine(),3)}    `;
+        if (state.vic[0x11] & 0x20) s += ' BITMAP'; else s += ' CHAR';
+        if (state.vic[0x16] & 0x10) s += ' MULTICOLOR';
+        if (state.vic[0x11] & 0x40) s += ' EXTENDED';
+        s += "\n";
+        s += `VIC Bank: $${hex(vicbank,4)}   Scrn: $${hex(screen,4)}   `;
+        if (isbitmap) s += `Bitmap: $${hex(charmem&0xe000,4)}`
+        else if (ischar) s += `Char: ROM`;
+        else s += `Char: $${hex(charmem,4)}`;
+        s += "\n";
+        s += `Scroll X:${state.vic[0x16] & 7} Y:${state.vic[0x11] & 7}\n`;
+        s += dumpRAM(m, 0xd000, 64);
+        return s;
+      }
+      case 'SID': {
+        let m = state.sid;
+        let s = ''
+        s += dumpRAM(m, 0xd400, 32);
+        return s;
+      }
+    }
   }
 
 }

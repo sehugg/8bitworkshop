@@ -73,13 +73,16 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
   }
   advanceFrame(trap: TrapCondition) : number {
     // TODO: does this sync with VSYNC?
-    var scanline = this.exports.machine_get_raster_line(this.sys);
+    var scanline = this.getRasterLine();
     var clocks = Math.floor((this.numTotalScanlines - scanline) * (19656+295+32) / this.numTotalScanlines);
     var probing = this.probe != null;
     if (probing) this.exports.machine_reset_probe_buffer();
     clocks = super.advanceFrameClock(trap, clocks);
     if (probing) this.copyProbeData();
     return clocks;
+  }
+  getRasterLine() {
+    return this.exports.machine_get_raster_line(this.sys);
   }
   getCPUState() {
     this.exports.machine_save_cpu_state(this.sys, this.cpustateptr);
