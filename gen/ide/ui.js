@@ -1086,6 +1086,15 @@ async function _downloadProjectZipFile(e) {
         (0, file_saver_1.saveAs)(content, getCurrentMainFilename() + "-" + (0, util_1.getBasePlatform)(exports.platform_id) + ".zip");
     });
 }
+function _downloadSymFile(e) {
+    let symfile = exports.platform.getDebugSymbolFile && exports.platform.getDebugSymbolFile();
+    if (!symfile) {
+        alertError("This project does not have debug information.");
+        return;
+    }
+    var prefix = (0, util_1.getFilenamePrefix)(getCurrentMainFilename());
+    (0, file_saver_1.saveAs)(symfile.blob, prefix + symfile.extension, { autoBom: false });
+}
 async function _downloadAllFilesZipFile(e) {
     var zip = await newJSZip();
     var keys = await store.keys();
@@ -1848,6 +1857,7 @@ function setupDebugControls() {
     $("#item_download_rom").click(_downloadROMImage);
     $("#item_download_file").click(_downloadSourceFile);
     $("#item_download_zip").click(_downloadProjectZipFile);
+    $("#item_download_sym").click(_downloadSymFile);
     $("#item_download_allzip").click(_downloadAllFilesZipFile);
     $("#item_record_video").click(_recordVideo);
     if (exports.platform_id.startsWith('apple2') || exports.platform_id.startsWith('vcs')) // TODO: look for function
