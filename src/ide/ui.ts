@@ -1142,37 +1142,14 @@ async function _downloadProjectZipFile(e) {
 }
 
 function _downloadSymFile(e) {
-  var sym = platform.debugSymbols.addr2symbol;
-  var text = "";
-  $.each(sym, function(k, v) {
-    let symType;
-    if (k < 0x2000) {
-      k = k % 0x800;
-      symType = "R";
-    } else if (k < 0x6000) symType = "G";
-    else if (k < 0x8000) {
-      k = k - 0x6000;
-      symType = "S";
-    } else { 
-      k = k - 0x8000;
-      symType = "P";
-    }
-    let addr = Number(k).toString(16).padStart(4, '0').toUpperCase();
-    // Mesen doesn't allow lables to start with digits
-    if (v[0] >= '0' && v[0] <= '9') {
-    v = "L" + v;
-    }
-    // nor does it allow dots
-    v = v.replaceAll('.', '_');
-    text += `${symType}:${addr}:${v}\n`;
-  });
-  
+  let symfile = platform.getDebugSymbolFile && platform.getDebugSymbolFile();
+  if (!symfile) {
+    alertError("This project does not have debug information.");
+    return;
+  }  
   var prefix = getFilenamePrefix(getCurrentMainFilename());
-  var blob = new Blob([text], {type:"text/plain;charset=utf-8"});
-  saveAs(blob, prefix + ".mlb", {autoBom:false});
-
+  saveAs(symfile.blob, prefix + symfile.extension, {autoBom:false});
 }
-
 
 async function _downloadAllFilesZipFile(e) {
   var zip = await newJSZip();
