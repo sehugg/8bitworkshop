@@ -486,6 +486,37 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   showHelp(tool:string, ident:string) {
     window.open("https://8bitworkshop.com/docs/platforms/nes/", "_help"); // TODO
   }
+
+  getDebugSymbolFile() {
+    var sym = this.debugSymbols.addr2symbol;
+    var text = "";
+    $.each(sym, function(k, v) {
+      let symType;
+      if (k < 0x2000) {
+        k = k % 0x800;
+        symType = "R";
+      } else if (k < 0x6000) symType = "G";
+      else if (k < 0x8000) {
+        k = k - 0x6000;
+        symType = "S";
+      } else { 
+        k = k - 0x8000;
+        symType = "P";
+      }
+      let addr = Number(k).toString(16).padStart(4, '0').toUpperCase();
+      // Mesen doesn't allow lables to start with digits
+      if (v[0] >= '0' && v[0] <= '9') {
+      v = "L" + v;
+      }
+      // nor does it allow dots
+      v = (v as any).replaceAll('.', '_');
+      text += `${symType}:${addr}:${v}\n`;
+    });
+    return {
+      extension:".mlb", 
+      blob: new Blob([text], {type:"text/plain"})
+    };
+  }
 }
 
 /// MAME support
@@ -522,6 +553,7 @@ class NESMAMEPlatform extends BaseMAME6502Platform implements Platform {
   getToolForFilename = getToolForFilename_6502;
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtension() { return ".c"; };
+
 }
 
 ///
