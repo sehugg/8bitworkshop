@@ -138,22 +138,36 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
     // convert to c64
     var mask = 0;
     var mask2 = 0;
-    if (key == 37) { key = 0x8; mask = 0x4; } // LEFT
-    if (key == 38) { key = 0xb; mask = 0x1; } // UP
-    if (key == 39) { key = 0x9; mask = 0x8; } // RIGHT
-    if (key == 40) { key = 0xa; mask = 0x2; } // DOWN
-    if (key == 32) { mask = 0x10; } // FIRE
-    /* player 2 (TODO)
-    if (key == 65) { key = 65; mask2 = 0x4; } // LEFT
-    if (key == 87) { key = 87; mask2 = 0x1; } // UP
-    if (key == 68) { key = 68; mask2 = 0x8; } // RIGHT
-    if (key == 83) { key = 83; mask2 = 0x2; } // DOWN
-    if (key == 69) { mask2 = 0x10; } // FIRE
-    */
-    if (key == 113) { key = 0xf1; } // F2
-    if (key == 115) { key = 0xf3; } // F4
-    if (key == 119) { key = 0xf5; } // F8
-    if (key == 121) { key = 0xf7; } // F10
+    switch (key) {
+      case 32: mask = 0x10; break;
+      case 37: key = 0x8; mask = 0x4; break; // LEFT
+      case 38: key = 0xb; mask = 0x1; break; // UP
+      case 39: key = 0x9; mask = 0x8; break; // RIGHT
+      case 40: key = 0xa; mask = 0x2; break; // DOWN
+      case 113: key = 0xf1; break; // F2
+      case 115: key = 0xf3; break; // F4
+      case 119: key = 0xf5; break; // F8
+      case 121: key = 0xf7; break; // F10
+      case 188: key = flags & KeyFlags.Shift ? 0x3c : 0x2e; break; // < .
+      case 190: key = flags & KeyFlags.Shift ? 0x3e : 0x2c; break; // > ,
+      case 191: key = flags & KeyFlags.Shift ? 0x3f : 0x2f; break; // ? /
+      case 222: key = flags & KeyFlags.Shift ? 0x22 : 0x27; break; // " '
+      case 219: key = flags & KeyFlags.Shift ? 0x7b : 0x5b; break; // [
+      case 221: key = flags & KeyFlags.Shift ? 0x7d : 0x5d; break; // ]
+      case 48: if (flags & KeyFlags.Shift) key = 0x29; break; // )
+      case 49: if (flags & KeyFlags.Shift) key = 0x21; break; // !
+      case 50: if (flags & KeyFlags.Shift) key = 0x40; break; // @
+      case 51: if (flags & KeyFlags.Shift) key = 0x23; break; // #
+      case 52: if (flags & KeyFlags.Shift) key = 0x24; break; // $
+      case 53: if (flags & KeyFlags.Shift) key = 0x25; break; // %
+      case 54: if (flags & KeyFlags.Shift) key = 0x5e; break; // ^
+      case 55: if (flags & KeyFlags.Shift) key = 0x26; break; // &
+      case 56: if (flags & KeyFlags.Shift) key = 0x2a; break; // *
+      case 57: if (flags & KeyFlags.Shift) key = 0x28; break; // (
+      case 59: if (flags & KeyFlags.Shift) key = 0x3a; break; // ;
+      case 61: if (flags & KeyFlags.Shift) key = 0x2b; break; // +
+      case 173: key = flags & KeyFlags.Shift ? 0x5f : 0x2d; break; // _ -
+    }
     if (flags & KeyFlags.KeyDown) {
       this.exports.machine_key_down(this.sys, key);
       this.joymask0 |= mask;
@@ -216,7 +230,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
         s += "\n";
         s += `VIC Bank: $${hex(vicbank,4)}   Scrn: $${hex(screen,4)}   `;
         if (isbitmap) s += `Bitmap: $${hex(charmem&0xe000,4)}`
-        else if (ischar) s += `Char: ROM`;
+        else if (ischar) s += `Char: ROM $${hex(charmem,4)}`;
         else s += `Char: $${hex(charmem,4)}`;
         s += "\n";
         s += `Scroll X:${state.vic[0x16] & 7} Y:${state.vic[0x11] & 7}\n`;
