@@ -33,7 +33,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
     super.reset();
     // clear keyboard
     for (var ch=0; ch<128; ch++) {
-      this.setKeyInput(ch, 0, KeyFlags.KeyUp);
+      this.exports.machine_key_up(this.sys, ch);
     }
     // load rom
     if (this.romptr && this.romlen) {
