@@ -1,27 +1,6 @@
 
-#include <stdio.h>
-#include <conio.h>
-#include <c64.h>
-#include <cbm_petscii_charmap.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <joystick.h>
-
-typedef uint8_t byte;
-typedef uint16_t word;
-typedef int8_t sbyte;
-
-#define COLS 40
-#define ROWS 25
-
-void raster_wait(unsigned char line) {
-  while (VIC.rasterline < line) ;
-}
-
-void wait_vblank() {
-  raster_wait(255); // TODO
-}
+#include "common.h"
+//#link "common.c"
 
 sbyte scroll_fine_x = 0;
 sbyte scroll_fine_y = 0;
@@ -129,7 +108,7 @@ void main(void) {
     if (JOY_RIGHT(joy)) scroll_horiz(1);
     if (JOY_DOWN(joy)) scroll_vert(1);
     // update regs
-    wait_vblank();
+    waitvsync();
     scroll_update_regs();
   }
 }

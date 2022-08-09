@@ -1,25 +1,19 @@
 
-#include <stdlib.h>
-#include <string.h>
-
-#include <c64.h>
-#include <joystick.h>
-
 //#resource "c64-sid.cfg"
 #define CFGFILE c64-sid.cfg
 
+#include "common.h"
+//#link "common.c"
+
+#include "sidplaysfx.h"
 //#resource "sidmusic1.bin"
 //#link "sidplaysfx.ca65"
-#include "sidplaysfx.h"
 
-//#link "rasterirq.ca65"
 #include "rasterirq.h"
+//#link "rasterirq.ca65"
 
 #include "bcd.h"
 //#link "bcd.c"
-
-#include "common.h"
-//#link "common.c"
 
 #include "scrolling.h"
 //#link "scrolling.c"

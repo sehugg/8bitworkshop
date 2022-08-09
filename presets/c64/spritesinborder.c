@@ -1,9 +1,4 @@
   
-#include <stdio.h>
-#include <conio.h>
-#include <c64.h>
-#include <cbm_petscii_charmap.h>
-
 //#link "common.c"
 #include "common.h"
 
@@ -12,6 +7,8 @@
 
 //#link "sprites.c"
 #include "sprites.h"
+
+#include <cbm_petscii_charmap.h>
 
 /*{w:24,h:21,bpp:1,brev:1}*/
 const char spriteshape[3*21] = {

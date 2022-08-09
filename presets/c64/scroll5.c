@@ -1,13 +1,4 @@
 
-#include <stdio.h>
-#include <conio.h>
-#include <c64.h>
-#include <cbm_petscii_charmap.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <joystick.h>
-
 #include "common.h"
 //#link "common.c"
 
@@ -124,8 +115,8 @@ void main(void) {
     slowframe = swap_needed;
     // animate sprite in shadow sprite ram
     update_player();
-    // wait for vblank
-    wait_vblank();
+    // wait for end of frame
+    waitvsync();
     // then update sprite registers
     sprite_update(visbuf);
     // update scroll registers

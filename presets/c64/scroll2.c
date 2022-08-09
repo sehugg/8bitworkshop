@@ -1,17 +1,6 @@
 
-#include <stdio.h>
-#include <conio.h>
-#include <c64.h>
-#include <cbm_petscii_charmap.h>
-#include <string.h>
-#include <stdlib.h>
-
-typedef unsigned char byte;
-typedef unsigned short word;
-
-void rasterWait(unsigned char line) {
-  while (VIC.rasterline < line) ;
-}
+#include "common.h"
+//#link "common.c"
 
 byte x = 0;	// x scroll position
 byte y = 0;	// y scroll position
@@ -49,7 +38,7 @@ void main(void) {
     src = scrnbuf[frame&1] + (x&7)*128;
     dst = scrnbuf[frame&1^1] + (x&7)*128;
     // wait for vsync
-    rasterWait(255);
+    waitvsync();
     // scroll hidden buffer
     memcpy(dst, src+1, 128);
     // every 8 pixels, switch farmes

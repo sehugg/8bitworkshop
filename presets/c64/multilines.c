@@ -1,8 +1,3 @@
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <c64.h>
-#include <peekpoke.h>
 
 #include "common.h"
 //#link "common.c"

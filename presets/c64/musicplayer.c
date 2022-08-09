@@ -3,10 +3,6 @@
 A simple music player.
 */
 
-#include <string.h>
-#include <c64.h>
-#include <_sid.h>
-
 #include "common.h"
 //#link "common.c"
 

@@ -1,9 +1,6 @@
 
-#include <stdio.h>
-#include <conio.h>
-#include <c64.h>
-#include <cbm_petscii_charmap.h>
-#include <joystick.h>
+#include "common.h"
+//#link "common.c"
 
 //#resource "c64-sid.cfg"
 #define CFGFILE c64-sid.cfg

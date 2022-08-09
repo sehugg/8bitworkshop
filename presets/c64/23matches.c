@@ -1,10 +1,5 @@
 
-#include <conio.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <peekpoke.h>
-#include <string.h>
-#include <c64.h>
+#include "common.h"
 #include <cbm_petscii_charmap.h>
 
 int matches;	// number of matches remaining

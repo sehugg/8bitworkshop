@@ -1,8 +1,14 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
-#include <c64.h>
+#include <conio.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <peekpoke.h>
+#include <string.h>
+#include <c64.h>
+#include <joystick.h>
 
 typedef uint8_t byte;
 typedef uint16_t word;
@@ -14,8 +20,9 @@ typedef enum { false, true } bool;
 
 #define DEFAULT_SCREEN ((void*)0x400)
 
+#define wait_vblank waitvsync
+
 void raster_wait(byte line);
-void wait_vblank(void);
 
 char* get_vic_bank_start(void);
 

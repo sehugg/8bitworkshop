@@ -1,17 +1,6 @@
 
-#include <stdio.h>
-#include <conio.h>
-#include <c64.h>
-#include <cbm_petscii_charmap.h>
-#include <string.h>
-#include <stdlib.h>
-
-typedef unsigned char byte;
-typedef unsigned short word;
-
-void rasterWait(unsigned char line) {
-  while (VIC.rasterline < line) ;
-}
+#include "common.h"
+//#link "common.c"
 
 byte x = 0;	// x scroll position
 byte y = 0;	// y scroll position
@@ -39,7 +28,7 @@ void main(void) {
     VIC.ctrl2 = VIC.ctrl2 & 0xf8;
     VIC.ctrl2 |= (x & 7);
     // wait for vsync
-    rasterWait(255);
+    waitvsync();
     // every 8 pixels, move screen cells
     if ((x & 7) == 0) {
       memcpy(scrnbuf, scrnbuf+1, 40*8-1);

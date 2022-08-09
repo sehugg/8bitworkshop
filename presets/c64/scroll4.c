@@ -1,13 +1,4 @@
 
-#include <stdio.h>
-#include <conio.h>
-#include <c64.h>
-#include <cbm_petscii_charmap.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <joystick.h>
-
 #include "common.h"
 //#link "common.c"
 
@@ -92,7 +83,7 @@ void main(void) {
     sprite_draw(0, n++, 70, 192);
     sprite_draw(0, 172, 145, 192);
     // wait for vblank
-    wait_vblank();
+    waitvsync();
     // update scroll registers
     // and swap screens if we must
     scroll_update();

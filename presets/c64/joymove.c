@@ -1,12 +1,5 @@
 
-#include <conio.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <peekpoke.h>
-#include <string.h>
-#include <c64.h>
-#include <cbm_petscii_charmap.h>
-#include <joystick.h>
+#include "common.h"
 
 /*{w:24,h:21,bpp:1,brev:1,count:1}*/
 const char SPRITE_DATA[64] = {
