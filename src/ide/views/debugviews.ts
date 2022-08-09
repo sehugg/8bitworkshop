@@ -415,7 +415,7 @@ export abstract class ProbeViewBaseBase {
       case ProbeFlags.IO_WRITE:		return 0xc00180;
       case ProbeFlags.VRAM_READ:	return 0x808001;
       case ProbeFlags.VRAM_WRITE:	return 0x4080c0;
-      case ProbeFlags.INTERRUPT:	return 0xcfcfcf;
+      case ProbeFlags.INTERRUPT:	return 0x3fbf3f;
       case ProbeFlags.ILLEGAL:		return 0x3f3fff;
       default:				            return 0;
     }
