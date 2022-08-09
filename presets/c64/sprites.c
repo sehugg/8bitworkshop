@@ -20,12 +20,14 @@ void sprite_update(char* screenmem) {
   VIC.spr_mcolor = sprshad.spr_mcolor;
 }
 
-void sprite_shape(char* vicbank, byte index, const char* sprite_data) {
-  memcpy(vicbank + index*64, sprite_data, 64);
+void sprite_shape(byte index, const char* sprite_data) {
+  memcpy(get_vic_bank_start() + index * 64, 
+         sprite_data, 
+         64);
 }
 
 const byte BITS[8] = {
-  0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
+  0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80
 };
 
 void sprite_draw(byte i, word x, byte y, byte shape) {

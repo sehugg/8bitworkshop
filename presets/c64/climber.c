@@ -385,8 +385,9 @@ void refresh_floor(byte floor) {
 
 byte explode_timer = 0;
 
+#define SPRITE_SHAPE_FIRST 192
 #define SPRITE_XPLODE 7
-#define SHAPE_XPLODE0 (32+10)
+#define SHAPE_XPLODE0 (SPRITE_SHAPE_FIRST+10)
 #define NUM_XPLODE_SHAPES 3
 
 void explode(int x, byte y) {
@@ -459,7 +460,7 @@ void draw_actor(byte i) {
     a->onscreen = 0;
     return; // offscreen vertically
   }
-  name = 32 + (a->state - WALKING);
+  name = SPRITE_SHAPE_FIRST + (a->state - WALKING);
   switch (a->state) {
     case INACTIVE:
       a->onscreen = 0;
@@ -760,9 +761,9 @@ void play_scene() {
 
 // main display list
 void game_displaylist(void) {
-  VIC.bordercolor = 2;
+//  VIC.bordercolor = 2;
   sid_update();
-  VIC.bordercolor = 0;
+//  VIC.bordercolor = 0;
 //  DLIST_NEXT(42);
 //  VIC.bordercolor = 3;
   DLIST_RESTART(20);
@@ -777,7 +778,7 @@ void main() {
   // set up sprites
   sprite_clear();
   for (i=0; i<NUM_SPRITE_PATTERNS; i++) {
-    sprite_shape(hidbuf, 32+i, SPRITE_DATA[i]);
+    sprite_shape(SPRITE_SHAPE_FIRST+i, SPRITE_DATA[i]);
   }
   sprshad.spr_mcolor = 0xff;
   VIC.spr_mcolor0 = 0x0f;

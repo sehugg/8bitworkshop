@@ -44,6 +44,7 @@ async function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
             }
             assert.ok(err.msg);
           }
+          if (nerrors != msg.errors.length) console.log(msg);
           assert.equal(nerrors, msg.errors.length);
         } else {
           assert.equal(nerrors||0, 0);
@@ -242,7 +243,7 @@ describe('Worker', function() {
   });
   it('should compile C64 cc65 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/c64/skeleton.cc65'));
-    compile('cc65', csource, 'c64.wasm', done, 2663, 2, 0);
+    compile('cc65', csource, 'c64.wasm', done, 3001, 3, 0);
   });
   it('should compile zmachine inform6 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/zmachine/skeleton.inform6'));

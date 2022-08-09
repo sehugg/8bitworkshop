@@ -4,6 +4,7 @@
 #include <c64.h>
 #include <cbm_petscii_charmap.h>
 
+//#link "common.c"
 #include "common.h"
 
 //#link "rasterirq.ca65"
@@ -25,6 +26,7 @@ const char spriteshape[3*21] = {
 
 void dlist_example(void) {
   static byte i = 0;
+  
   VIC.bordercolor = 6;
   VIC.bordercolor = 5;
   VIC.ctrl1 = 0x18;
@@ -50,13 +52,13 @@ void main(void) {
   clrscr();
 
   sprite_clear();
-  sprite_shape((void*)0x400, 32/2, spriteshape);
+  sprite_shape(192, spriteshape);
   
   // set colors
   sprshad.spr_exp_x = 0xff;
   for (i=0; i<8; i++) {
     sprshad.spr_color[i] = i+3;
-    sprite_draw(i, i*38+24, 248, 32);
+    sprite_draw(i, i*38+24, 248, 192);
   }
   // TODO: can't do in IRQ
 

@@ -78,7 +78,13 @@ DLIST_ACK:
   clc
   rts
 .else
-  JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
+  pla
+  tay
+  pla
+  tax
+  pla
+  rti          ; return from interrupt
+;  JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
 .endif
 
 NullDlist:

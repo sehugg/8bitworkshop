@@ -30,4 +30,19 @@ void scroll_update(void);
 void scroll_draw_column(byte col);
 void scroll_draw_row(byte row);
 
+
+/* incremental scrolling library */
+extern int pixofs_x;		// X scroll pixel offset
+extern int pixofs_y;		// Y scroll pixel offset
+
+void scroll_start(byte dir);
+void scroll_finish(void);
+void scroll_refresh(void);
+
+#define SCROLL_LEFT 1
+#define SCROLL_RIGHT 2
+#define SCROLL_UP 4
+#define SCROLL_DOWN 8
+
+
 #endif

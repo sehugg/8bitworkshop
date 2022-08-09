@@ -115,7 +115,6 @@ void scroll_left(void) {
   ++origin_x;
   scroll_draw_column(COLS-1);
   swap_needed = true;
-  VIC.bordercolor = 0;
 }
 
 void scroll_up(void) {
@@ -171,7 +170,7 @@ void scroll_vert(sbyte delta_y) {
 
 void scroll_setup(void) {
   scroll_fine_x = scroll_fine_y = 0;
-  origin_x = origin_y = 0x80;
+  origin_x = origin_y = 0;
   swap_needed = true;
   copy_needed = true;
 

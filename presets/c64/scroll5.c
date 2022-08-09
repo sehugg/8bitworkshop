@@ -60,7 +60,7 @@ int camerax = 0;
 int cameray = 0;
 
 void update_player() {
-  sprite_draw(0, playerx-camerax+160, playery-cameray+140, 32);
+  sprite_draw(0, playerx-camerax+160, playery-cameray+140, 192);
 }
 
 void camera_follow(byte moving) {
@@ -96,7 +96,7 @@ void main(void) {
 
   // setup sprite library and copy sprite to VIC bank
   sprite_clear();
-  sprite_shape(hidbuf, 32, SPRITE1);
+  sprite_shape(192, SPRITE1);
   sprshad.spr_color[0] = 13;
 
   // install the joystick driver

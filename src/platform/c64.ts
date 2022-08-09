@@ -9,6 +9,7 @@ const C64_PRESETS = [
   {id:'eliza.c', name:'Eliza (C)'},
   {id:'tgidemo.c', name:'TGI Graphics Demo (C)'},
   {id:'upandaway.c', name:'Up, Up and Away (C)'},
+  {id:'sprite_test.c', name:'Sprite Setup (C)'},
   {id:'joymove.c', name:'Joystick Movement (C)'},
   {id:'siegegame.c', name:'Siege Game (C)'},
   {id:'scroll1.c', name:'Scrolling 1 (C)'},

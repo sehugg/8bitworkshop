@@ -32,15 +32,17 @@ const char SPRITE_MC_DATA[64] = {
 };
 
 void main(void) {
+  // clear the screen
+  clrscr();
   // copy sprite pattern to RAM address 0x3800
   memcpy((char*)0x3800, SPRITE_DATA, sizeof(SPRITE_DATA));
-  // set sprite shape entry (224)
+  // set sprite #0 shape entry (224)
   POKE(0x400 + 0x3f8, 0x3800 / 64);
-  // set X and Y coordinate
+  // set X and Y coordinate for sprite #0
   VIC.spr_pos[0].x = 172;
   VIC.spr_pos[0].y = 145;
-  // set color
+  // set color for sprite #0
   VIC.spr_color[0] = COLOR_GREEN;
-  // enable sprite 0
+  // enable sprite #0
   VIC.spr_ena = 0b00000001;
 }

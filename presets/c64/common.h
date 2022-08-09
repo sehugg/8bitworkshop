@@ -12,7 +12,11 @@ typedef enum { false, true } bool;
 #define COLS 40
 #define ROWS 25
 
-void raster_wait(unsigned char line);
+#define DEFAULT_SCREEN ((void*)0x400)
+
+void raster_wait(byte line);
 void wait_vblank(void);
+
+char* get_vic_bank_start(void);
 
 #endif
