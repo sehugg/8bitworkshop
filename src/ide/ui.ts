@@ -14,7 +14,7 @@ import { StateRecorderImpl } from "../common/recorder";
 import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
 import Split = require('split.js');
 import { importPlatform } from "../platform/_index";
-import { DisassemblerView, ListingView, SourceEditor } from "./views/editors";
+import { DisassemblerView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor } from "./views/editors";
 import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterPCHeatMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
 import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
@@ -80,11 +80,16 @@ var store : LocalForage;			// persistent store
 export var compparams;			// received build params from worker
 export var lastDebugState : EmuState;	// last debug state (object)
 
+type DebugCommandType = null 
+  | 'toline' | 'step' | 'stepout' | 'stepover' 
+  | 'tovsync' | 'stepback' | 'restart';
+
 var lastDebugInfo;		// last debug info (CPU text)
 var debugCategory;		// current debug category
 var debugTickPaused = false;
 var recorderActive = false;
-var lastViewClicked = null;
+var lastViewClicked : string = null;
+var lastDebugCommand : DebugCommandType = null;
 var errorWasRuntime = false;
 var lastBreakExpr = "c.PC == 0x6000";
 
@@ -1425,30 +1430,40 @@ function checkRunReady() {
 }
 
 function openRelevantListing(state: EmuState) {
-  // if we clicked on another window, retain it
-  if (lastViewClicked != null) return;
+  // if we clicked on a specific tool, don't switch windows
+  if (lastViewClicked && lastViewClicked.startsWith('#')) return;
+  // don't switch windows for specific debug commands
+  if (['toline','restart','tovsync','stepover'].includes(lastDebugCommand)) return;
   // has to support disassembly, at least
   if (!platform.disassemble) return;
   // search through listings
-  var listings = current_project.getListings();
-  var bestid = "#disasm";
-  var bestscore = 32;
+  let listings = current_project.getListings();
+  let bestid = "#disasm";
+  let bestscore = 256;
   if (listings) {
-    var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
-    for (var lstfn in listings) {
-      var lst = listings[lstfn];
-      var file = lst.assemblyfile || lst.sourcefile;
+    let pc = state.c ? (state.c.EPC || state.c.PC) : 0;
+    for (let lstfn in listings) {
+      let lst = listings[lstfn];
+      let file = lst.assemblyfile || lst.sourcefile;
       // pick either listing or source file
-      var wndid = current_project.filename2path[lstfn] || lstfn;
+      let wndid = current_project.filename2path[lstfn] || lstfn;
       if (file == lst.sourcefile) wndid = projectWindows.findWindowWithFilePrefix(lstfn);
       // does this window exist?
       if (projectWindows.isWindow(wndid)) {
-        var res = file && file.findLineForOffset(pc, 32); // TODO: const
-        if (res && pc-res.offset < bestscore) {
-          bestid = wndid;
-          bestscore = pc-res.offset;
+        // find the source line at the PC or closely before it
+        let srcline1 = file && file.findLineForOffset(pc, PC_LINE_LOOKAHEAD);
+        if (srcline1) {
+          // try to find the next line and bound the PC
+          let srcline2 = file.lines[srcline1.line+1];
+          if (!srcline2 || pc < srcline2.offset) {
+            let score = pc - srcline1.offset;
+            if (score < bestscore) {
+              bestid = wndid;
+              bestscore = score;
+            }
+          }
+          //console.log(hex(pc,4), srcline1, srcline2, wndid, lstfn, bestid, bestscore);
         }
-        //console.log(hex(pc,4), wndid, lstfn, bestid, bestscore);
       }
     }
   }
@@ -1464,15 +1479,18 @@ function uiDebugCallback(state: EmuState) {
   debugTickPaused = true;
 }
 
-function setupDebugCallback(btnid? : string) {
-  if (platform.setupDebug) platform.setupDebug((state:EmuState, msg:string) => {
-    uiDebugCallback(state);
-    setDebugButtonState(btnid||"pause", "stopped");
-    msg && showErrorAlert([{msg:"STOPPED: " + msg, line:0}], true);
-  });
+function setupDebugCallback(btnid? : DebugCommandType) {
+  if (platform.setupDebug) {
+    platform.setupDebug((state:EmuState, msg:string) => {
+      uiDebugCallback(state);
+      setDebugButtonState(btnid||"pause", "stopped");
+      msg && showErrorAlert([{msg:"STOPPED: " + msg, line:0}], true);
+    });
+    lastDebugCommand = btnid;
+  }
 }
 
-function setupBreakpoint(btnid? : string) {
+function setupBreakpoint(btnid? : DebugCommandType) {
   if (!checkRunReady()) return;
   _disableRecording();
   setupDebugCallback(btnid);

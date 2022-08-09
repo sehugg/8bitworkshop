@@ -52,7 +52,7 @@ export class SourceFile {
     }
   }
   // TODO: smarter about looking for source lines between two addresses
-  findLineForOffset(PC:number, lookbehind:number) {
+  findLineForOffset(PC:number, lookbehind:number) : SourceLine {
     if (this.offset2loc) {
       for (var i=0; i<=lookbehind; i++) {
         var loc = this.offset2loc[PC];
