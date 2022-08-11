@@ -49,7 +49,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
         // advance BIOS a few frames
         this.exports.machine_exec(this.sys, 250000);
         // type in command (SYS 2061)
-        var cmd = "SYS "+this.prgstart+"\r";
+        var cmd = "\rSYS "+this.prgstart+"\r";
         for (var i=0; i<cmd.length; i++) {
           var key = cmd.charCodeAt(i);
           this.exports.machine_exec(this.sys, 20000);
