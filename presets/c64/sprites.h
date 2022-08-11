@@ -3,7 +3,7 @@
 
 #include "common.h"
 
-typedef struct {
+typedef struct SpriteShadow {
   struct {
     byte x;              /* X coordinate */
     byte y;              /* Y coordinate */
@@ -18,12 +18,25 @@ typedef struct {
   byte spr_shapes[8];	/* sprite shapes */
 } SpriteShadow;
 
+/* sprite shadow buffer */
 extern SpriteShadow sprshad;
 
-void sprite_clear(void);
-void sprite_update(char* screenmem);
-void sprite_shape(byte index, const char* sprite_data);
-void sprite_draw(byte i, word x, byte y, byte shape);
-byte sprite_get_closest_collision(byte i, byte spr_coll);
+/* set one or more sprite patterns from a byte array */
+void sprite_set_shapes(const void* sprite_data, 
+                       byte index, 
+                       byte count);
+/* clear all sprites from shadow buffer */
+void sprite_clear();
+/* draw a sprite into shadow buffer */
+void sprite_draw(byte index, word x, byte y, byte shape);
+/* update sprite registers */
+void sprite_update(byte* screenmem);
+
+/* get the closest sprite collision
+   given the set of collision flags */
+byte sprite_get_closest_collision(byte index, byte spr_coll);
+
+// bit lookup table
+extern const byte BITS[8];
 
 #endif

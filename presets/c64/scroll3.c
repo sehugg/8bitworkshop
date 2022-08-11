@@ -2,44 +2,44 @@
 #include "common.h"
 //#link "common.c"
 
+#include <cbm_petscii_charmap.h>
+
 sbyte scroll_fine_x = 0;
 sbyte scroll_fine_y = 0;
-byte curbuf = 0;
 byte* scrnbuf[2];	// screen buffer(s)
+byte hidbuf = 0;
 
 void scroll_update_regs() {
-  VIC.ctrl1 = (VIC.ctrl1 & 0xf8) | scroll_fine_y;
-  VIC.ctrl2 = (VIC.ctrl2 & 0xf8) | scroll_fine_x;
+  SET_SCROLL_X(scroll_fine_x);
+  SET_SCROLL_Y(scroll_fine_y);
 }
 
 void scroll_swap() {
   // swap hidden and visible buffers
-  curbuf ^= 1;
+  hidbuf ^= 1;
   // wait for vblank and update registers
-  wait_vblank();
+  waitvsync();
   scroll_update_regs();
-  VIC.addr = (VIC.addr & 0xf) | (curbuf ? 0x00 : 0x10);
-  // copy visible buffer to hidden buffer
-  memcpy(scrnbuf[curbuf], scrnbuf[curbuf^1], COLS*ROWS);
+  SET_VIC_SCREEN(hidbuf ? 0x8000 : 0x8400);
 }
 
 void scroll_left() {
-  memcpy(scrnbuf[curbuf], scrnbuf[curbuf^1]+1, COLS*ROWS-1);
+  memcpy(scrnbuf[hidbuf], scrnbuf[hidbuf^1]+1, COLS*ROWS-1);
   scroll_swap();
 }
 
 void scroll_right() {
-  memcpy(scrnbuf[curbuf]+1, scrnbuf[curbuf^1], COLS*ROWS-1);
+  memcpy(scrnbuf[hidbuf]+1, scrnbuf[hidbuf^1], COLS*ROWS-1);
   scroll_swap();
 }
 
 void scroll_up() {
-  memcpy(scrnbuf[curbuf], scrnbuf[curbuf^1]+COLS, COLS*(ROWS-1));
+  memcpy(scrnbuf[hidbuf], scrnbuf[hidbuf^1]+COLS, COLS*(ROWS-1));
   scroll_swap();
 }
 
 void scroll_down() {
-  memcpy(scrnbuf[curbuf]+COLS, scrnbuf[curbuf^1], COLS*(ROWS-1));
+  memcpy(scrnbuf[hidbuf]+COLS, scrnbuf[hidbuf^1], COLS*(ROWS-1));
   scroll_swap();
 }
 
@@ -71,29 +71,32 @@ void scroll_setup() {
   // get screen buffer addresses
   scrnbuf[0] = (byte*) 0x8000;
   scrnbuf[1] = (byte*) 0x8400;
+  
   // copy existing text to screen 0
   memcpy(scrnbuf[0], (byte*)0x400, COLS*ROWS);
   // copy screen 1 to screen 0
   memcpy(scrnbuf[1], scrnbuf[0], COLS*ROWS);
   
-  // set VIC bank ($4000-$7FFF)
+  // set VIC bank
   // https://www.c64-wiki.com/wiki/VIC_bank
-  CIA2.pra = 0x01;
-  
-  VIC.ctrl1 = 0x10; // 24 lines
-  VIC.ctrl2 = 0x00; // 38 columns
+  SET_VIC_BANK(0x8000);
+
+  VIC.ctrl1 &= ~0x08; // 24 lines
+  VIC.ctrl2 &= ~0x08; // 38 columns  
 }
 
 void main(void) {
 
   clrscr();
-  printf("\r\n\r\n\r\n                           Hello World!");
-  printf("\r\n\r\n\r\n                  This is how we scroll");
-  printf("\r\n\r\n\r\n                     One line at a time");
-  printf("\r\n\r\n\r\n           And now we have two buffers");
-  printf("\r\n\r\n\r\n                 To copy all the bytes ");
+  printf("\n\n\n                           Hello World!");
+  printf("\n\n\n                  This is how we scroll");
+  printf("\n\n\n            And now we have two buffers");
+  printf("\n\n\n            And can go in any direction");
+  printf("\n\n\n             But we are not incremental");
+  printf("\n\n\n   And have to pause to scroll and copy");
   
   scroll_setup();
+  VIC.bordercolor = COLOR_GRAY1;
 
   // install the joystick driver
   joy_install (joy_static_stddrv);

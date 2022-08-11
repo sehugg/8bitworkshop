@@ -77,7 +77,8 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
   }
   advanceFrame(trap: TrapCondition) : number {
     // TODO: does this sync with VSYNC?
-    var scanline = this.getRasterLine();
+    // TODO: ticks, not msec (machine_tick() has different rate then machine_exec())
+    var scanline = this.getRasterY();
     var clocks = Math.floor((this.numTotalScanlines - scanline) * (19656+295) / this.numTotalScanlines);
     var probing = this.probe != null;
     if (probing) this.exports.machine_reset_probe_buffer();
@@ -102,6 +103,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
       V:s[10] & 64,
       N:s[10] & 128,
       o:this.readConst(pc),
+      R:s[19] != 0x37, // bit 28 of PINS
     }
   }
   saveState() {
@@ -179,7 +181,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
     }
     this.exports.c64_joystick(this.sys, this.joymask0, this.joymask1);
   }
-  getRasterLine() {
+  getRasterY() {
     return this.exports.machine_get_raster_line(this.sys);
   }
   getDebugStateOffset(index: number) {
@@ -223,7 +225,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
         let screen = vicbank + (state.vic[0x18] >> 4) * 0x400;
         let isbitmap = state.vic[0x11] & 0x20;
         let ischar = (state.cia2[0]&1)==1 && (state.vic[0x18]&12)==4;
-        s += `Scanline: ${lpad(this.getRasterLine(),3)}    `;
+        s += `Scanline: ${lpad(this.getRasterY(),3)}    `;
         if (state.vic[0x11] & 0x20) s += ' BITMAP'; else s += ' CHAR';
         if (state.vic[0x16] & 0x10) s += ' MULTICOLOR';
         if (state.vic[0x11] & 0x40) s += ' EXTENDED';

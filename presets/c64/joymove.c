@@ -13,18 +13,6 @@ const char SPRITE_DATA[64] = {
  0x00,0x0f,0xf8,0x00,0x0f,0xff,0x80,0x03,
 };
 
-/*{w:12,h:21,bpp:2,brev:1,count:1,aspect:2}*/
-const char SPRITE_MC_DATA[64] = {
- 0x0a,0xaa,0x80,0x0a,0xaa,0x80,0x2a,0xaa,
- 0xa0,0x2a,0xaa,0xa0,0xaa,0xaa,0xaa,0xff,
- 0xd5,0x40,0x0d,0xd7,0x40,0x3d,0xd5,0x54,
- 0x37,0x55,0x54,0x37,0x55,0x54,0x35,0x55,
- 0x00,0x3a,0xa0,0x00,0xea,0xa8,0x00,0xab,
- 0xaa,0x00,0xab,0xaa,0x00,0xab,0xaa,0x80,
- 0xaa,0xea,0x80,0xaa,0xaa,0x80,0x0f,0xfc,
- 0x00,0x0f,0xfc,0x00,0x0f,0xff,0xc0,0x83,
-};
-
 void main(void) {
   // variables
   int x = 172;	// sprite X position (16-bit)
@@ -32,33 +20,40 @@ void main(void) {
   char bgcoll;	// sprite background collision flags
   char joy;	// joystick flags
 
-  // install the joystick driver
-  joy_install (joy_static_stddrv);
   // copy sprite pattern to RAM address 0x3800
   memcpy((char*)0x3800, SPRITE_DATA, sizeof(SPRITE_DATA));
   // set sprite #0 shape entry (224)
-  POKE(0x400 + 0x3f8, 0x3800 / 64);
+  POKE(0x400 + 0x3f8 + 0, 0x3800 / 64);
+  // set position and color
+  VIC.spr_pos[0].x = 172;
+  VIC.spr_pos[0].y = 145;
+  VIC.spr_color[0] = COLOR_GREEN;
   // enable sprite #0
   VIC.spr_ena = 0b00000001;
+  
+  // install the joystick driver
+  joy_install (joy_static_stddrv);
   
   // loop forever
   while (1) {
     // get joystick bits
     joy = joy_read(0);
     // move sprite based on joystick
-    if (JOY_LEFT(joy)) --x;
-    if (JOY_UP(joy)) --y;
-    if (JOY_RIGHT(joy)) ++x;
-    if (JOY_DOWN(joy)) ++y;
+    if (JOY_LEFT(joy)) { x -= 1; }   // move left 1 pixel
+    if (JOY_RIGHT(joy)) { x += 1; }  // move right 1 pixel
+    if (JOY_UP(joy)) { y -= 1; }     // move up 1 pixel
+    if (JOY_DOWN(joy)) { y += 1; }   // move down 1 pixel
+    // wait for end of frame
+    waitvsync();
     // set sprite registers based on position
-    VIC.spr0_x = x;
-    VIC.spr0_y = y;
-    VIC.spr_hi_x = (x & 256) ? 1 : 0; // set X hi bit?
+    VIC.spr_pos[0].x = x;
+    VIC.spr_pos[0].y = y;
+    // set X coordinate high bit
+    VIC.spr_hi_x = (x & 0x100) ? 1 : 0;
     // grab and reset collision flags
     bgcoll = VIC.spr_bg_coll;
     // change color when we collide with background
-    VIC.spr0_color = (bgcoll & 1) ? 10 : 3;
-    // wait for end of frame
-    waitvsync();
+    VIC.spr_color[0] = (bgcoll & 1) ?
+      COLOR_LIGHTRED : COLOR_CYAN;
   }
 }

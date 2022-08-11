@@ -243,6 +243,7 @@ describe('Worker', function() {
   });
   it('should compile C64 cc65 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/c64/skeleton.cc65'));
+    csource = csource.replace('#include "','//');
     compile('cc65', csource, 'c64.wasm', done, 3001, 3, 0);
   });
   it('should compile zmachine inform6 skeleton', function(done) {

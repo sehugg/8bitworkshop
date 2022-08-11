@@ -8,6 +8,8 @@
 #include "sprites.h"
 //#link "sprites.c"
 
+#include <cbm_petscii_charmap.h>
+
 static void draw_cell(word ofs, byte x, byte y) {
   byte xx = x + origin_x;
   byte yy = y + origin_y;
@@ -84,10 +86,11 @@ void main(void) {
 
   // setup scrolling library
   scroll_setup();
+  VIC.bordercolor = 12;
 
   // setup sprite library and copy sprite to VIC bank
   sprite_clear();
-  sprite_shape(192, SPRITE1);
+  sprite_set_shapes(SPRITE1, 192, 1);
   sprshad.spr_color[0] = 13;
 
   // install the joystick driver

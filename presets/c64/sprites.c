@@ -8,7 +8,7 @@ void sprite_clear(void) {
   memset(&sprshad, 0, sizeof(sprshad));
 }
 
-void sprite_update(char* screenmem) {
+void sprite_update(byte* screenmem) {
   memcpy(screenmem + 0x3f8, sprshad.spr_shapes, 8);
   memcpy(VIC.spr_pos, sprshad.spr_pos, 16);
   memcpy(VIC.spr_color, sprshad.spr_color, 8);
@@ -20,10 +20,13 @@ void sprite_update(char* screenmem) {
   VIC.spr_mcolor = sprshad.spr_mcolor;
 }
 
-void sprite_shape(byte index, const char* sprite_data) {
+void sprite_set_shapes(const void* sprite_data,
+                       byte index,
+                       byte count) 
+{
   memcpy(get_vic_bank_start() + index * 64, 
          sprite_data, 
-         64);
+         64 * count);
 }
 
 const byte BITS[8] = {

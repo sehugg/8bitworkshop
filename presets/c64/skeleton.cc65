@@ -7,6 +7,9 @@
 #include <c64.h>
 #include <cbm_petscii_charmap.h>
 
+#include "common.h"
+//#link "common.c"
+
 void main(void) {
   clrscr();
   printf("\nHello World!\n");

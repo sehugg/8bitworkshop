@@ -4,18 +4,18 @@ USE_INTERRUPTOR = 0
 .segment "DATA"
 
 StartDlist: .word NullDlist-1
-NextDlist: .word NullDlist-1
+NextDlist:  .word NullDlist-1
 
 .segment "CODE"
 
-.global _dlist_setup
+.global ___dlist_setup
 .global DLIST_IRQ_NEXT
 .global DLIST_IRQ_RESTART
 .if USE_INTERRUPTOR
 .interruptor DLIST_IRQ
 .endif
 
-_dlist_setup:
+___dlist_setup:
   SEI                  ; set interrupt bit, make the CPU ignore interrupt requests
   
   sta StartDlist+0     ; save XA as pointer to start of dlist

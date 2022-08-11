@@ -34,6 +34,8 @@ void scroll_draw_row(byte row);
 /* incremental scrolling library */
 extern int pixofs_x;		// X scroll pixel offset
 extern int pixofs_y;		// Y scroll pixel offset
+extern sbyte fine_correct_x;
+extern sbyte fine_correct_y;
 
 void scroll_start(byte dir);
 void scroll_finish(void);

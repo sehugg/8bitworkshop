@@ -16,8 +16,12 @@ const char SPRITEMC[3*21] = {
   0x00,0x77,0x40,0x00,0x5D,0x40,0x00,0x15,0x00
 };
 
-int xpos[8];
-int ypos[8];
+#define SPRITE_SHAPE 192
+
+// X/Y position arrays
+int xpos[8];		// fixed point 9.7
+int ypos[8];		// fixed point 8.8
+// X/Y velocity arrays
 int xvel[8];
 int yvel[8];
 
@@ -25,7 +29,7 @@ void init_sprites(void) {
   byte i;
   // setup sprite positions
   for (i=0; i<8; i++) {
-    xpos[i] = ((i & 3) * 0x2000) - 0x1000;
+    xpos[i] = ((i & 3) * 0x2000) - 0x3000;
     ypos[i] = (i * 0x1000) - 0x3000;
     sprshad.spr_color[i] = i | 8;
   }
@@ -35,7 +39,10 @@ void move_sprites(void) {
   byte i;
   for (i=0; i<8; i++) {
     //VIC.bordercolor = i;
-    sprite_draw(i, (xpos[i]>>7)+0x80, (ypos[i]>>8)+0x80, 192);
+    sprite_draw(i,
+      (xpos[i] >> 7) + 172,
+      (ypos[i] >> 8) + 145, 
+      SPRITE_SHAPE);
     // update position
     xpos[i] += xvel[i];
     ypos[i] += yvel[i];
@@ -71,11 +78,11 @@ void collide_sprites(byte spr_coll) {
   }
 }
 
-void iterategame1(void) {
+void iterate_game(void) {
   byte spr_coll;
-
+  
   // wait for vblank
-  wait_vblank();
+  waitvsync();
   // grab and reset sprite-sprite collision flags
   spr_coll = VIC.spr_coll;
   // then update sprite registers from shadow RAM
@@ -89,36 +96,6 @@ void iterategame1(void) {
   collide_sprites(spr_coll);
 }
 
-void iterategame2(void) {
-  byte spr_coll;
-
-  // FIRST FRAME: move and update velocity
-  wait_vblank();
-  // grab and reset sprite-sprite collision flags
-  spr_coll = VIC.spr_coll;
-  // then update sprite registers from shadow RAM
-  sprite_update(DEFAULT_SCREEN);
-  // draw sprites into shadow ram
-  // and update posiitons
-  move_sprites();
-  // and update velocities
-  update_sprites();
-
-  // SECOND FRAME: move and process collisions
-  wait_vblank();
-  // grab and reset sprite-sprite collision flags
-  // combine with previous frame flags
-  spr_coll |= VIC.spr_coll;
-  // then update sprite registers from shadow RAM
-  sprite_update(DEFAULT_SCREEN);
-  // draw sprites into shadow ram
-  // and update posiitons
-  move_sprites();
-  // if any flags are set in the collision register,
-  // process sprite collisions
-  collide_sprites(spr_coll);
-}
-
 void main(void) {
   
   clrscr();
@@ -126,7 +103,7 @@ void main(void) {
 
   // setup sprite library and copy sprite to VIC bank
   sprite_clear();
-  sprite_shape(192, SPRITEMC);
+  sprite_set_shapes(SPRITEMC, SPRITE_SHAPE, 1);
   
   // set colors
   sprshad.spr_mcolor = 0xff;
@@ -138,7 +115,7 @@ void main(void) {
   
   // game loop
   while (1) {
-    iterategame2();
+    iterate_game();
   }
 }
 

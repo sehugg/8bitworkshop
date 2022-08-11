@@ -15,14 +15,14 @@ byte copy_needed;
 
 //
 
-void scroll_swap(void) {
+void scroll_swap() {
   byte* tmp;
   // swap hidden and visible buffers
   tmp = hidbuf;
   hidbuf = visbuf;
   visbuf = tmp;
   // set VIC bank address
-  VIC.addr = (VIC.addr & 0xf) | (((word)visbuf >> 8) << 2);
+  SET_VIC_SCREEN((word)visbuf);
 }
 
 void copy_color_ram_slow() {
@@ -95,9 +95,9 @@ void copy_if_needed() {
   }
 }
 
-void scroll_update(void) {
-  VIC.ctrl1 = (VIC.ctrl1 & 0xf8) | scroll_fine_y;
-  VIC.ctrl2 = (VIC.ctrl2 & 0xf8) | scroll_fine_x;
+void scroll_update() {
+  SET_SCROLL_X(scroll_fine_x);
+  SET_SCROLL_Y(scroll_fine_y);
   if (swap_needed) {
     scroll_swap();
     copy_color_ram_fast();
@@ -108,7 +108,7 @@ void scroll_update(void) {
   }
 }
 
-void scroll_left(void) {
+void scroll_left() {
   copy_if_needed();
   memmove(hidbuf, hidbuf+1, COLS*ROWS-1);
   memmove(colorbuf, colorbuf+1, COLS*ROWS-1);
@@ -117,7 +117,7 @@ void scroll_left(void) {
   swap_needed = true;
 }
 
-void scroll_up(void) {
+void scroll_up() {
   copy_if_needed();
   memmove(hidbuf, hidbuf+COLS, COLS*(ROWS-1));
   memmove(colorbuf, colorbuf+COLS, COLS*(ROWS-1));
@@ -126,7 +126,7 @@ void scroll_up(void) {
   swap_needed = true;
 }
 
-void scroll_right(void) {
+void scroll_right() {
   copy_if_needed();
   memmove(hidbuf+1, hidbuf, COLS*ROWS-1);
   memmove(colorbuf+1, colorbuf, COLS*ROWS-1);
@@ -135,7 +135,7 @@ void scroll_right(void) {
   swap_needed = true;
 }
 
-void scroll_down(void) {
+void scroll_down() {
   copy_if_needed();
   memmove(hidbuf+COLS, hidbuf, COLS*(ROWS-1));
   memmove(colorbuf+COLS, colorbuf, COLS*(ROWS-1));
@@ -168,7 +168,7 @@ void scroll_vert(sbyte delta_y) {
   }
 }
 
-void scroll_setup(void) {
+void scroll_setup() {
   scroll_fine_x = scroll_fine_y = 0;
   origin_x = origin_y = 0;
   swap_needed = true;
@@ -185,7 +185,7 @@ void scroll_setup(void) {
   
   // set VIC bank ($8000-$BFFF)
   // https://www.c64-wiki.com/wiki/VIC_bank
-  CIA2.pra = 0x01;
+  SET_VIC_BANK(0x8000);
 
   // set up 24 line / 38 column mode to hide edges
   VIC.ctrl1 &= ~0x08; // 24 lines

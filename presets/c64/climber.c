@@ -69,7 +69,7 @@ const byte ITEM_CHARS[3][4] = {
 #define NUM_SPRITE_PATTERNS 13
 
 /*{w:12,h:21,bpp:2,brev:1,count:13,aspect:2}*/
-const char SPRITE_DATA[NUM_SPRITE_PATTERNS][3*21] = {
+const char SPRITE_DATA[NUM_SPRITE_PATTERNS][64] = {
   // left direction
   {
   0x00,0x00,0x00,0x00,0xA8,0x00,0x02,0xEA,0x00,
@@ -765,15 +765,11 @@ void game_displaylist(void) {
 
 // main program
 void main() {
-  byte i;
-  
   // set up scrolling
   scroll_setup();
   // set up sprites
   sprite_clear();
-  for (i=0; i<NUM_SPRITE_PATTERNS; i++) {
-    sprite_shape(SPRITE_SHAPE_FIRST+i, SPRITE_DATA[i]);
-  }
+  sprite_set_shapes(SPRITE_DATA, SPRITE_SHAPE_FIRST, NUM_SPRITE_PATTERNS);
   sprshad.spr_mcolor = 0xff;
   VIC.spr_mcolor0 = 0x0f;
   VIC.spr_mcolor1 = 0x00;

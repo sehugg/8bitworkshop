@@ -37,6 +37,7 @@ _sid_start:
         bne skipstop
 _sid_stop:
 	lda #$00
+        sta $d418
 skipstop:
         sta _sid_playing
         rts

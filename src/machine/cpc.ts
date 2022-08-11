@@ -58,7 +58,7 @@ export class CPC_WASMMachine extends BaseWASMMachine implements Machine {
     }
   }
   advanceFrame(trap: TrapCondition) : number {
-    var scanline = this.getRasterLine();
+    var scanline = this.getRasterY();
     var clocks = Math.floor((this.numTotalScanlines - scanline) * 19965 / this.numTotalScanlines);
     var probing = this.probe != null;
     if (probing) this.exports.machine_reset_probe_buffer();
@@ -66,7 +66,7 @@ export class CPC_WASMMachine extends BaseWASMMachine implements Machine {
     if (probing) this.copyProbeData();
     return clocks;
   }
-  getRasterLine() {
+  getRasterY() {
     return this.exports.machine_get_raster_line(this.sys);
   }
   /*

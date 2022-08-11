@@ -21,21 +21,28 @@ const char spriteshape[3*21] = {
   0x00,0x3E,0x00,0x00,0x3E,0x00,0x00,0x1C,0x00
 };
 
+byte scroll_x = 0;
+
 void dlist_example(void) {
-  static byte i = 0;
-  
   VIC.bordercolor = 6;
   VIC.bordercolor = 5;
   VIC.ctrl1 = 0x18;
+  VIC.ctrl2 = VIC.ctrl2 & 0xf8;
+  VIC.ctrl2 |= (scroll_x & 7);
   DLIST_NEXT(150);
 
 //  VIC.ctrl1 = 5 | 0x18;
 
   VIC.bordercolor = 2;
+  sprshad.spr_pos[0].y += 1;
+  scroll_x++;
+  VIC.addr ^= 0xf0;
+  VIC.ctrl2 = VIC.ctrl2 & 0xf8;
   DLIST_NEXT(0xf9);
 
   VIC.ctrl1 = 0x10;
   VIC.bordercolor = 3;
+  VIC.addr ^= 0xf0;
   DLIST_NEXT(0xfc);
   
   VIC.ctrl1 = 0x18;
@@ -49,7 +56,7 @@ void main(void) {
   clrscr();
 
   sprite_clear();
-  sprite_shape(192, spriteshape);
+  sprite_set_shapes(spriteshape, 192, 1);
   
   // set colors
   sprshad.spr_exp_x = 0xff;
@@ -61,8 +68,8 @@ void main(void) {
 
   DLIST_SETUP(dlist_example);
   while (1) {
-    sprshad.spr_pos[0].y += 1;
+    waitvsync();
     sprite_update(DEFAULT_SCREEN);
-    printf("Hello World! ");
+    printf("Raster IRQ-driven display list! ");
   }
 }
