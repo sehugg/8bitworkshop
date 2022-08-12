@@ -54,7 +54,7 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
           var key = cmd.charCodeAt(i);
           this.exports.machine_exec(this.sys, 20000);
           this.exports.machine_key_down(this.sys, key);
-          this.exports.machine_exec(this.sys, 20000);
+          this.exports.machine_exec(this.sys, 5000);
           this.exports.machine_key_up(this.sys, key);
         }
         // advance clock until program starts
