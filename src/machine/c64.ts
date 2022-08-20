@@ -79,11 +79,12 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
     // TODO: does this sync with VSYNC?
     // TODO: ticks, not msec (machine_tick() has different rate then machine_exec())
     var scanline = this.getRasterY();
-    var clocks = Math.floor((this.numTotalScanlines - scanline) * (19656+295) / this.numTotalScanlines);
+    var clocks = Math.floor((this.numTotalScanlines - scanline) * 19656 / this.numTotalScanlines);
     var probing = this.probe != null;
     if (probing) this.exports.machine_reset_probe_buffer();
     clocks = super.advanceFrameClock(trap, clocks);
     if (probing) this.copyProbeData();
+    //console.log(clocks, this.getRasterY());
     return clocks;
   }
   getCPUState() {

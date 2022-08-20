@@ -74,7 +74,7 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
   advanceFrame(trap: TrapCondition) : number {
     // TODO: does this sync with VSYNC?
     var scanline = this.getRasterY();
-    var clocks = Math.floor((this.numTotalScanlines - scanline) * (19656+295+32) / this.numTotalScanlines);
+    var clocks = Math.floor((this.numTotalScanlines - scanline) * 19656 / this.numTotalScanlines);
     var probing = this.probe != null;
     if (probing) this.exports.machine_reset_probe_buffer();
     clocks = super.advanceFrameClock(trap, clocks);

@@ -59,7 +59,7 @@ export class CPC_WASMMachine extends BaseWASMMachine implements Machine {
   }
   advanceFrame(trap: TrapCondition) : number {
     var scanline = this.getRasterY();
-    var clocks = Math.floor((this.numTotalScanlines - scanline) * 19965 / this.numTotalScanlines);
+    var clocks = Math.floor((this.numTotalScanlines - scanline) * (4000000/50) / this.numTotalScanlines);
     var probing = this.probe != null;
     if (probing) this.exports.machine_reset_probe_buffer();
     clocks = super.advanceFrameClock(trap, clocks);
