@@ -1,7 +1,7 @@
 
 MAX_MSPRITES = 28
 
-MIN_Y_SPACING = 33
+MIN_Y_SPACING = 35
 
 DEBUG = 1
 
@@ -179,6 +179,7 @@ bailout_line: .res 1
 .global _msprite_color
 .global _msprite_shape
 .global _msprite_flags
+.global _msprite_last_y
 
 _msprite_order: .res MAX_MSPRITES
 _msprite_x_lo:  .res MAX_MSPRITES
@@ -187,6 +188,7 @@ _msprite_y:     .res MAX_MSPRITES
 _msprite_color: .res MAX_MSPRITES
 _msprite_shape: .res MAX_MSPRITES
 _msprite_flags: .res MAX_MSPRITES
+_msprite_last_y:.res 1
 
 .global _msprite_x_frac
 .global _msprite_xvel_lo
