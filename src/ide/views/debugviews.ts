@@ -310,6 +310,7 @@ export abstract class ProbeViewBaseBase {
   cumulativeData : boolean = false;
   cyclesPerLine : number;
   totalScanlines : number;
+  sp : number; // stack pointer
 
   abstract tick() : void;
 
@@ -378,6 +379,9 @@ export abstract class ProbeViewBaseBase {
         case ProbeFlags.SCANLINE:	row++; col=0; break;
         case ProbeFlags.FRAME:		row=0; col=0; break;
         case ProbeFlags.CLOCKS:		col += addr; clk += addr; break;
+        case ProbeFlags.SP_PUSH:
+        case ProbeFlags.SP_POP:
+          this.sp = addr;
         default:
           eventfn(op, addr, col, row, clk, value);
           break;
@@ -591,6 +595,19 @@ export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectV
   drawEvent(op, addr, col, row) {
     var iofs = col + row * this.canvas.width;
     var rgb = this.getOpRGB(op);
+    if (!rgb) return;
+    var data = this.datau32[iofs];
+    data = data | rgb | 0xff000000;
+    this.datau32[iofs] = data;
+  }
+}
+
+export class RasterStackMapView extends ProbeBitmapViewBase implements ProjectView {
+
+  drawEvent(op, addr, col, row) {
+    var iofs = col + row * this.canvas.width;
+    var rgb = this.getOpRGB(op);
+    rgb = (0x1f3f7f << (this.sp & 15)) & 0xffffff;
     if (!rgb) return;
     var data = this.datau32[iofs];
     data = data | rgb | 0xff000000;
