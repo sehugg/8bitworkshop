@@ -226,17 +226,21 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
         let screen = vicbank + (state.vic[0x18] >> 4) * 0x400;
         let isbitmap = state.vic[0x11] & 0x20;
         let ischar = (state.cia2[0]&1)==1 && (state.vic[0x18]&12)==4;
-        s += `Scanline: ${lpad(this.getRasterY(),3)}    `;
+        let rasterX = state.state[0xf4];
+        let rasterY = this.getRasterY();
+        s += 'Mode:';
         if (state.vic[0x11] & 0x20) s += ' BITMAP'; else s += ' CHAR';
         if (state.vic[0x16] & 0x10) s += ' MULTICOLOR';
         if (state.vic[0x11] & 0x40) s += ' EXTENDED';
+        s += "\n";
+        s += `Raster: (${lpad(rasterX,3)}, ${lpad(rasterY,3)})     `;
+        s += `Scroll: (${state.vic[0x16] & 7}, ${state.vic[0x11] & 7})`;
         s += "\n";
         s += `VIC Bank: $${hex(vicbank,4)}   Scrn: $${hex(screen,4)}   `;
         if (isbitmap) s += `Bitmap: $${hex(charmem&0xe000,4)}`
         else if (ischar) s += `Char: ROM $${hex(charmem,4)}`;
         else s += `Char: $${hex(charmem,4)}`;
         s += "\n";
-        s += `Scroll X:${state.vic[0x16] & 7} Y:${state.vic[0x11] & 7}\n`;
         s += dumpRAM(m, 0xd000, 64);
         return s;
       }

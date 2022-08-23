@@ -15,7 +15,7 @@ import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
 import Split = require('split.js');
 import { importPlatform } from "../platform/_index";
 import { DisassemblerView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor } from "./views/editors";
-import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterPCHeatMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
+import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterPCHeatMapView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
 import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
@@ -366,6 +366,9 @@ function refreshWindowList() {
     // TODO: only if raster
     addWindowItem("#crtheatmap", "CRT Probe", () => {
       return new RasterPCHeatMapView();
+    });
+    addWindowItem("#stackheatmap", "Stack Activity", () => {
+      return new RasterStackMapView();
     });
     addWindowItem("#probelog", "Probe Log", () => {
       return new ProbeLogView();

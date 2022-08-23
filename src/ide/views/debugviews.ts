@@ -370,6 +370,7 @@ export abstract class ProbeViewBaseBase {
     var row=0;
     var col=0;
     var clk=0;
+    this.sp = 0;
     for (var i=0; i<p.idx; i++) {
       var word = p.buf[i];
       var addr = word & 0xffff;
@@ -410,7 +411,7 @@ export abstract class ProbeViewBaseBase {
     return s;
   }
   
-  getOpRGB(op:number) : number {
+  getOpRGB(op:number, addr:number) : number {
     switch (op) {
       case ProbeFlags.EXECUTE:		return 0x018001;
       case ProbeFlags.MEM_READ:		return 0x800101;
@@ -550,7 +551,7 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
   }
   
   drawEvent(op, addr, col, row) {
-    var rgb = this.getOpRGB(op);
+    var rgb = this.getOpRGB(op, addr);
     if (!rgb) return;
     var x = addr & 0xff;
     var y = (addr >> 8) & 0xff;
@@ -593,25 +594,32 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
 export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectView {
 
   drawEvent(op, addr, col, row) {
-    var iofs = col + row * this.canvas.width;
-    var rgb = this.getOpRGB(op);
+    var rgb = this.getOpRGB(op, addr);
     if (!rgb) return;
-    var data = this.datau32[iofs];
-    data = data | rgb | 0xff000000;
-    this.datau32[iofs] = data;
+    var iofs = col + row * this.canvas.width;
+    var data = rgb | 0xff000000;
+    this.datau32[iofs] |= data;
   }
 }
 
 export class RasterStackMapView extends ProbeBitmapViewBase implements ProjectView {
 
+  interrupt: number;
+
   drawEvent(op, addr, col, row) {
-    var iofs = col + row * this.canvas.width;
-    var rgb = this.getOpRGB(op);
-    rgb = (0x1f3f7f << (this.sp & 15)) & 0xffffff;
-    if (!rgb) return;
-    var data = this.datau32[iofs];
-    data = data | rgb | 0xff000000;
-    this.datau32[iofs] = data;
+    var rgb;
+    rgb = (0x030609 * (this.sp & 7)) | 0x404040;
+    if (op == ProbeFlags.INTERRUPT) this.interrupt = 1;
+    if (this.interrupt == 1 && op == ProbeFlags.SP_PUSH) this.interrupt = addr;
+    if (this.interrupt > 1 && this.sp > this.interrupt) this.interrupt = 0;
+    if (this.interrupt) rgb |= 0x800000;
+    if (op == ProbeFlags.EXECUTE) {
+      var iofs = col + row * this.canvas.width;
+      var data = rgb | 0xff000000;
+      while (iofs >= 0 && !(this.datau32[iofs] & 0xffffff)) {
+        this.datau32[iofs--] = data;
+      }
+    }
   }
 }
 
