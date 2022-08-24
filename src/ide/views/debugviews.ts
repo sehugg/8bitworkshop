@@ -304,6 +304,8 @@ export class MemoryMapView implements ProjectView {
 
 // TODO: clear buffer when scrubbing
 
+const OPAQUE_BLACK = 0xff000000;
+
 export abstract class ProbeViewBaseBase {
   probe : ProbeRecorder;
   tooldiv : HTMLElement;
@@ -375,7 +377,7 @@ export abstract class ProbeViewBaseBase {
       var word = p.buf[i];
       var addr = word & 0xffff;
       var value = (word >> 16) & 0xff;
-      var op = word & 0xff000000;
+      var op = word & OPAQUE_BLACK;
       switch (op) {
         case ProbeFlags.SCANLINE:	row++; col=0; break;
         case ProbeFlags.FRAME:		row=0; col=0; break;
@@ -524,14 +526,17 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
 
   refresh() {
     this.tick();
-    this.datau32.fill(0xff000000);
+    this.datau32.fill(OPAQUE_BLACK);
   }
   tick() {
     super.tick();
+    this.drawImage();
+  }
+  drawImage() {
     this.ctx.putImageData(this.imageData, 0, 0);
   }
   clear() {
-    this.datau32.fill(0xff000000);
+    this.datau32.fill(OPAQUE_BLACK);
   }
 }
 
@@ -546,7 +551,7 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
       var v = platform.readAddress(i);
       var rgb = (v >> 2) | (v & 0x1f);
       rgb |= (rgb<<8) | (rgb<<16);
-      this.datau32[i] = rgb | 0xff000000;
+      this.datau32[i] = rgb | OPAQUE_BLACK;
     }
   }
   
@@ -556,7 +561,7 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
     var x = addr & 0xff;
     var y = (addr >> 8) & 0xff;
     var data = this.datau32[addr & 0xffff];
-    data = data | rgb | 0xff000000;
+    data = data | rgb | OPAQUE_BLACK;
     this.datau32[addr & 0xffff] = data;
   }
   
@@ -597,27 +602,57 @@ export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectV
     var rgb = this.getOpRGB(op, addr);
     if (!rgb) return;
     var iofs = col + row * this.canvas.width;
-    var data = rgb | 0xff000000;
+    var data = rgb | OPAQUE_BLACK;
     this.datau32[iofs] |= data;
+  }
+
+  drawImage() {
+    // fill in the gaps
+    let last = OPAQUE_BLACK;
+    for (let i=0; i<this.datau32.length; i++) {
+      if (this.datau32[i] == OPAQUE_BLACK) {
+        this.datau32[i] = last;
+      } else {
+        last = this.datau32[i];
+      }
+    }
+    super.drawImage();
   }
 }
 
-export class RasterStackMapView extends ProbeBitmapViewBase implements ProjectView {
+export class RasterStackMapView extends RasterPCHeatMapView implements ProjectView {
 
-  interrupt: number;
+  interrupt: number = 0;
+  rgb: number = 0;
+  lastpc: number = 0;
 
   drawEvent(op, addr, col, row) {
-    var rgb;
-    rgb = (0x030609 * (this.sp & 7)) | 0x404040;
+    var iofs = col + row * this.canvas.width;
+    // track interrupts
     if (op == ProbeFlags.INTERRUPT) this.interrupt = 1;
     if (this.interrupt == 1 && op == ProbeFlags.SP_PUSH) this.interrupt = addr;
     if (this.interrupt > 1 && this.sp > this.interrupt) this.interrupt = 0;
-    if (this.interrupt) rgb |= 0x800000;
-    if (op == ProbeFlags.EXECUTE) {
-      var iofs = col + row * this.canvas.width;
-      var data = rgb | 0xff000000;
-      while (iofs >= 0 && !(this.datau32[iofs] & 0xffffff)) {
-        this.datau32[iofs--] = data;
+    // track writes
+    if (op == ProbeFlags.MEM_WRITE) { this.rgb |= 0x00002f; }
+    if (op == ProbeFlags.VRAM_WRITE) { this.rgb |= 0x003f80; }
+    if (op == ProbeFlags.IO_WRITE) { this.rgb |= 0x1f3f80; }
+    if (op == ProbeFlags.IO_READ) { this.rgb |= 0x001f00; }
+      // draw pixels?
+    if (op == ProbeFlags.ILLEGAL) {
+      this.datau32[iofs] = 0xff0f0f0f;
+    } else {
+      let data = this.rgb;
+      if (op == ProbeFlags.EXECUTE) {
+        let sp = this.sp & 15;
+        if (sp >= 8) sp = 16-sp;
+        if (Math.abs(this.lastpc) - addr > 16) { sp += 1; }
+        if (Math.abs(this.lastpc) - addr > 256) { sp += 1; }
+        data = this.rgb = (0x080808 * sp) + 0x202020;
+        this.lastpc = addr;
+      }
+      if (this.interrupt) { data |= 0x800040; }
+      if (this.datau32[iofs] == OPAQUE_BLACK) {
+        this.datau32[iofs] = data | OPAQUE_BLACK;
       }
     }
   }
@@ -697,7 +732,7 @@ export class ScanlineIOView extends ProbeViewBaseBase {
       var opaddr = line[i];
       if (opaddr !== undefined) {
         var addr = opaddr & 0xffff;
-        var op = op & 0xff000000;
+        var op = op & OPAQUE_BLACK;
         if (op == ProbeFlags.EXECUTE) {
           s += ',';
         } else {

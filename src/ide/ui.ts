@@ -365,9 +365,7 @@ function refreshWindowList() {
     });
     // TODO: only if raster
     addWindowItem("#crtheatmap", "CRT Probe", () => {
-      return new RasterPCHeatMapView();
-    });
-    addWindowItem("#stackheatmap", "Stack Activity", () => {
+      //return new RasterPCHeatMapView();
       return new RasterStackMapView();
     });
     addWindowItem("#probelog", "Probe Log", () => {
