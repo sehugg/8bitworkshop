@@ -43,13 +43,13 @@
   SID.voice.ctrl = (SID.voice.ctrl & 1) | (options)
 
 // play a quick square wave pulse
-#define SID_PULSE_DECAY(voice, period) \
+#define SID_PULSE_DECAY(voice, freq) \
   SID_STOP(voice) \
-  SID_FREQ(voice,period); \
+  SID_FREQ(voice,freq); \
   SID_PULSEWIDTH(voice,0x200); \
   SID_ADSR(voice,8,8,0,4); \
   SID_WAVE(voice,SID_SQUARE|SID_GATE); \
 
 // play a tone if one is not already playing
-#define PLAY_TONE(period) \
-  if (!SID.read3) { SID_PULSE_DECAY(v3, (period)) }
+#define SID_PLAY_TONE(freq) \
+  if (!SID.read3) { SID_PULSE_DECAY(v3, (freq)) }

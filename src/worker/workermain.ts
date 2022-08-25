@@ -1178,6 +1178,7 @@ var TOOL_PRELOADFS = {
   'wiz': 'wiz',
   'ecs-vcs': '65-none', // TODO: support multiple platforms
   'ecs-nes': '65-nes', // TODO: support multiple platforms
+  'ecs-c64': '65-c64', // TODO: support multiple platforms
 }
 
 //const waitFor = delay => new Promise(resolve => setTimeout(resolve, delay)); // for testing

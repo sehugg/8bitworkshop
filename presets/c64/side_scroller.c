@@ -255,7 +255,7 @@ void detect_player_collision(byte bgcoll, byte sprcoll) {
     player_vel_y = -JUMP_VELOCITY;
     player_x -= 1;
     sprshad.spr_color[PLAYER_INDEX] = COLOR_LIGHTRED;
-    PLAY_TONE(500);
+    SID_PLAY_TONE(500);
     if (score != 0) { add_score(0x9999); } // BCD -1
     update_scoreboard();
   } else {
@@ -264,7 +264,7 @@ void detect_player_collision(byte bgcoll, byte sprcoll) {
   // did we hit powerup?
   if (hit_powerup) {
     sprshad.spr_color[POWERUP_INDEX] += 1; // cycle colors
-    PLAY_TONE(8000);
+    SID_PLAY_TONE(8000);
     add_score(1);
     update_scoreboard();
   }

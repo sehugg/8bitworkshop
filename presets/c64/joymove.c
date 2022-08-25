@@ -16,9 +16,9 @@ const char SPRITE_DATA[64] = {
 void main(void) {
   // variables
   int x = 172;	// sprite X position (16-bit)
-  char y = 145; // sprite Y position (8-bit)
-  char bgcoll;	// sprite background collision flags
-  char joy;	// joystick flags
+  byte y = 145; // sprite Y position (8-bit)
+  byte bgcoll;	// sprite background collision flags
+  byte joy;	// joystick flags
 
   // copy sprite pattern to RAM address 0x3800
   memcpy((char*)0x3800, SPRITE_DATA, sizeof(SPRITE_DATA));

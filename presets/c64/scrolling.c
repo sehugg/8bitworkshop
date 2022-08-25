@@ -108,7 +108,7 @@ void scroll_update() {
   }
 }
 
-void scroll_left() {
+static void scroll_left() {
   copy_if_needed();
   memmove(hidbuf, hidbuf+1, COLS*ROWS-1);
   memmove(colorbuf, colorbuf+1, COLS*ROWS-1);
@@ -117,7 +117,7 @@ void scroll_left() {
   swap_needed = true;
 }
 
-void scroll_up() {
+static void scroll_up() {
   copy_if_needed();
   memmove(hidbuf, hidbuf+COLS, COLS*(ROWS-1));
   memmove(colorbuf, colorbuf+COLS, COLS*(ROWS-1));
@@ -126,7 +126,7 @@ void scroll_up() {
   swap_needed = true;
 }
 
-void scroll_right() {
+static void scroll_right() {
   copy_if_needed();
   memmove(hidbuf+1, hidbuf, COLS*ROWS-1);
   memmove(colorbuf+1, colorbuf, COLS*ROWS-1);
@@ -135,7 +135,7 @@ void scroll_right() {
   swap_needed = true;
 }
 
-void scroll_down() {
+static void scroll_down() {
   copy_if_needed();
   memmove(hidbuf+COLS, hidbuf, COLS*(ROWS-1));
   memmove(colorbuf+COLS, colorbuf, COLS*(ROWS-1));
@@ -166,6 +166,11 @@ void scroll_vert(sbyte delta_y) {
     scroll_fine_y -= 8;
     scroll_down();
   }
+}
+
+void scroll_xy(sbyte delta_x, sbyte delta_y) {
+  if (delta_x) scroll_horiz(delta_x);
+  if (delta_y) scroll_vert(delta_y);
 }
 
 void scroll_setup() {

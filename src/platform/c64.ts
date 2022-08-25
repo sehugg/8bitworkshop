@@ -21,6 +21,7 @@ const C64_PRESETS = [
   {id:'fullscrollgame.c', name:'Full-Scrolling Game'},
   {id:'test_multiplex.c', name:'Sprite Retriggering'},
   {id:'test_multispritelib.c', name:'Sprite Multiplexing Library'},
+  {id:'scrolling_text.c', name:'Big Scrolling Text'},
   {id:'mcbitmap.c', name:'Multicolor Bitmap Mode'},
   //{id:'mandel.c', name:'Mandelbrot Fractal'},
   {id:'musicplayer.c', name:'Music Player'},

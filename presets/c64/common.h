@@ -37,7 +37,7 @@ typedef enum { false, true } bool; // boolean
   CIA2.pra = (CIA2.pra & ~3) | (((((_addr)>>8)&0xc0)>>6)^3);
 
 // set VIC character memory (given the start address)
-#define SET_VIC_CHAR(_addr) \
+#define SET_VIC_BITMAP(_addr) \
   VIC.addr = (VIC.addr & 0b11110001) | ((((_addr)>>8)&0x38)>>2);
 
 // set VIC screen memory (given the start address)

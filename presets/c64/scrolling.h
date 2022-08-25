@@ -20,6 +20,7 @@ extern byte swap_needed;	// TRUE if scroll_update() swaps
 void scroll_setup(void);
 
 // scroll in X or Y directions
+void scroll_xy(sbyte delta_x, sbyte delta_y);
 void scroll_horiz(sbyte delta_x);
 void scroll_vert(sbyte delta_y);
 

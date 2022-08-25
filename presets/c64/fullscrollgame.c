@@ -48,21 +48,21 @@
 #define FLAG_LADDER 4
 
 
+// level map data
+extern const byte charset_data[];
+extern const byte charset_attrib_data[];
+extern const byte chartileset_data[];
+extern const byte chartileset_colour_data[];
+extern const byte chartileset_tag_data[];
+extern const byte map_data[];
+
 
 static byte framecount;
 static byte framemask;
 
 const byte BITMASKS[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
 
-extern const byte charset_data[];
-extern const byte charset_attrib_data[];
-extern const byte chartileset_data[];
-extern const byte chartileset_colour_data[];
-extern const byte chartileset_tag_data[];
-extern const byte* map_row_pointers[];
-
 static byte tileflagmap[MAP_ROWS*MAP_COLS];
-
 static byte tileindex;
 static byte tilechar;
 
@@ -74,8 +74,8 @@ static bool get_cell_at(byte world_x, byte world_y) {
   if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) {
     return false;
   } else {
-    tileindex = map_row_pointers[row][col];
-    tilechar = chartileset_data[xofs + yofs*4 + tileindex*16];
+    tileindex = map_data[col + row * MAP_ROWS];
+    tilechar = chartileset_data[xofs + (yofs + tileindex*4)*4];
     return true;
   }
 }
@@ -283,12 +283,15 @@ typedef struct Actor {
 
 Actor actors[MAX_ACTORS];
 
-Actor* player = &actors[0];
+Actor* const player = &actors[0];
 
-void draw_actor(register Actor* actor) {
-  word xpos = actor->xx;
-  word ypos = actor->yy;
+void draw_actor(register Actor* actor, byte index) {
   byte shape = 240;
+  word xpos = actor->xx + pixofs_x + fine_correct_x + ACTOR_OFFSET_X;
+  word ypos = actor->yy + pixofs_y + fine_correct_y + ACTOR_OFFSET_Y;
+  if (xpos > 320 || ypos > 250) {
+    ypos = 255;
+  }
   switch (actor->state) {
     case STANDING:
       if (actor->xvel && actor->xx & 4) shape += 4;
@@ -303,10 +306,7 @@ void draw_actor(register Actor* actor) {
       if (actor->yy & 2) shape += 5;
       break;
   }
-  sprite_draw(0,
-              xpos + pixofs_x + fine_correct_x + ACTOR_OFFSET_X,
-              ypos + pixofs_y + fine_correct_y + ACTOR_OFFSET_Y,
-              shape);
+  sprite_draw(index, xpos, ypos, shape);
 }
 
 const char velocity_bitmasks[8] = {
@@ -531,10 +531,51 @@ void camera_follow(register Actor* actor) {
   }
 }
 
+void control_enemy(struct Actor* enemy) {
+  byte control = 0;
+  int pdx = player->xx - enemy->xx;
+  int pdy = player->yy - enemy->yy;
+  if (pdy > 0) {
+    control |= JOY_DOWN_MASK;
+  } else if (pdy < 0) {
+    control |= JOY_UP_MASK;
+  }
+  if (pdx < -32) {
+    control |= JOY_LEFT_MASK;
+  } else if (pdx > 32) {
+     control |= JOY_RIGHT_MASK;
+  }
+  control_actor(enemy, control);
+}
+
+void next_frame() {
+  char joy;
+  // increment frame counter
+  framemask = BITMASKS[++framecount & 7];
+  // get joystick bits
+  joy = joy_read(0);
+  // move player
+  control_actor(player, joy);
+  // move enemy
+  control_enemy(&actors[1]);
+  // move the camera if needed
+  camera_follow(player);
+  // animate sprites in shadow sprite ram
+  draw_actor(&actors[0], 0);
+  draw_actor(&actors[1], 1);
+  // wait for vblank
+  wait_vblank();
+  // then update sprite registers
+  sprite_update(visbuf);
+  // do scrolling stuff each frame
+  scroll_update();
+}
+
 void setup_sprites(void) {
   sprite_clear();
   sprite_set_shapes(SPRITE_DATA, 240, NUM_SPRITE_PATTERNS);
   sprshad.spr_color[0] = COLOR_WHITE;
+  sprshad.spr_color[1] = COLOR_LIGHTRED;
   sprshad.spr_mcolor = 0xff;
   VIC.spr_mcolor0 = 12;
   VIC.spr_mcolor1 = 14;
@@ -550,26 +591,6 @@ void setup_charset() {
   // select character set @ 0x8800
   VIC.addr = 0x12;
   memcpy((char*)0x8800, charset_data, 0x800);
-}
-
-void next_frame() {
-  char joy;
-  // increment frame counter
-  framemask = BITMASKS[++framecount & 7];
-  // get joystick bits
-  joy = joy_read(0);
-  // move player
-  control_actor(player, joy);
-  // move the camera if needed
-  camera_follow(player);
-  // animate sprite in shadow sprite ram
-  draw_actor(player);
-  // wait for vblank
-  wait_vblank();
-  // then update sprite registers
-  sprite_update(visbuf);
-  // do scrolling stuff each frame
-  scroll_update();
 }
 
 void main(void) {
@@ -608,6 +629,7 @@ void main(void) {
   player->state = JUMPING;
   */
 //  actor_set_position(player, 63, 63, STANDING);
+  actors[1].xx = 128;
 
   // infinite loop
   while (1) {

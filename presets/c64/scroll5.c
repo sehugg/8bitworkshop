@@ -67,14 +67,13 @@ void camera_follow(byte moving) {
     if (dx > 8) dx = 8;
     else if (dx < -8) dx = -8;
     camerax -= dx;
-    scroll_horiz(dx);
   }
   if (dy) {
     if (dy > 8) dy = 8;
     else if (dy < -8) dy = -8;
     cameray -= dy;
-    scroll_vert(dy);
   }
+  scroll_xy(dx, dy);
 }
 
 void main(void) {
