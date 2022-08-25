@@ -1,7 +1,7 @@
 
-import { Probeable } from "../common/devices";
+import { AcceptsPaddleInput, Probeable } from "../common/devices";
 import { dumpRAM, KeyFlags } from "../common/emu";
-import { hex, lpad } from "../common/util";
+import { clamp, hex, lpad } from "../common/util";
 
 // https://www.c64-wiki.com/wiki/C64
 // http://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt
@@ -15,7 +15,8 @@ import { Machine } from "../common/baseplatform";
 import { TrapCondition } from "../common/devices";
 import { BaseWASMMachine } from "../common/wasmplatform";
 
-export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeable {
+export class C64_WASMMachine extends BaseWASMMachine 
+  implements Machine, Probeable, AcceptsPaddleInput {
 
   numTotalScanlines = 312;
   cpuCyclesPerLine = 63;
@@ -23,6 +24,8 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
   prgstart : number;
   joymask0 = 0;
   joymask1 = 0;
+  lightpen_x = 0;
+  lightpen_y = 0;
 
   loadBIOS(srcArray: Uint8Array) {
     var patch1ofs = 0xea24 - 0xe000 + 0x3000;
@@ -251,6 +254,18 @@ export class C64_WASMMachine extends BaseWASMMachine implements Machine, Probeab
         return s;
       }
     }
+  }
+
+  setPaddleInput(controller: number, value: number): void {
+    if (controller == 0) this.lightpen_x = value;
+    if (controller == 1) this.lightpen_y = value;
+    const x1 = 22;
+    const y1 = 36;
+    const x2 = 228;
+    const y2 = 220;
+    let x = clamp(0, 255, (this.lightpen_x - x1) / (x2 - x1) * 160 + 24);
+    let y = clamp(0, 255, (this.lightpen_y - y1) / (y2 - y1) * 200 + 50);
+    this.exports.machine_set_mouse(this.sys, x, y);
   }
 
 }
