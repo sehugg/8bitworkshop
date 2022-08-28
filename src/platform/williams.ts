@@ -1,8 +1,11 @@
 
-import { Platform, BaseZ80Platform, Base6809Platform } from "../common/baseplatform";
+import { Platform, BaseZ80Platform, Base6809Platform, Base6809MachinePlatform } from "../common/baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../common/emu";
 import { hex } from "../common/util";
 import { MasterAudio, WorkerSoundChannel } from "../common/audio";
+import { WilliamsMachine } from "../machine/williams";
+
+// https://www.arcade-museum.com/manuals-videogames/D/Defender.pdf
 
 var WILLIAMS_PRESETS = [
   { id: 'gfxtest.c', name: 'Graphics Test' },
@@ -469,7 +472,23 @@ var WilliamsDefenderPlatform = function(mainElement, options) {
 ] } };
 }
 
-PLATFORMS['williams'] = Williams6809Platform;
+class NewWilliamsPlatform extends Base6809MachinePlatform<WilliamsMachine> implements Platform {
+
+  newMachine()          { return new WilliamsMachine(false); }
+  getPresets()          { return WILLIAMS_PRESETS; }
+  getDefaultExtension() { return ".c"; };
+  readAddress(a)        { return this.machine.readConst(a); }
+  getMemoryMap() { 
+    return { main:[
+      {name:'Video RAM',start:0x0000,size:0xc000,type:'ram'},
+      {name:'I/O Registers',start:0xc000,size:0xc00,type:'io'},
+      {name:'NVRAM',start:0xcc00,size:0x400,type:'ram'},
+      {name:'ROM',start:0xd000,size:0x3000,type:'rom'},
+    ] } };
+}
+
+PLATFORMS['williams'] = NewWilliamsPlatform;
+PLATFORMS['williams.old'] = Williams6809Platform;
 PLATFORMS['williams-defender'] = WilliamsDefenderPlatform;
 PLATFORMS['williams-z80'] = WilliamsZ80Platform;
 
