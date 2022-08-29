@@ -388,6 +388,7 @@ var PLATFORM_PARAMS = {
 };
 
 PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];
+PLATFORM_PARAMS['sms-gg-libcv'] = PLATFORM_PARAMS['sms-sms-libcv'];
 
 var _t1;
 export function starttime() { _t1 = new Date(); }
@@ -1060,6 +1061,8 @@ export function preprocessMCPP(step:BuildStep, filesys:string) {
   if (step.mainfile) {
     args.unshift.apply(args, ["-D", "__MAIN__"]);
   }
+  let platform_def = (platform.toUpperCase() as any).replaceAll(/[^a-zA-Z0-9]/g,'_');
+  args.unshift.apply(args, ["-D", `__PLATFORM_${platform_def}__`]);
   if (params.extra_preproc_args) {
     args.push.apply(args, params.extra_preproc_args);
   }

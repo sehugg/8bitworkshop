@@ -1013,3 +1013,30 @@ export class SMSVDP extends TMS9918A {
     }
 };
 
+export class GameGearVDP extends SMSVDP {
+    cram = new Uint8Array(64); // color RAM
+    cram_latch = 0;
+
+    writeData(value: number) {
+        if (this.writeToCRAM) {
+            //console.log(hex(this.addressRegister), hex(value), hex(this.cram_latch));
+            if (this.addressRegister & 1) { // odd address?
+                let rgb4 = this.cram_latch + (value << 8);
+                let rgba = RGBA((rgb4&15)*17, ((rgb4>>4)&15)*17, ((rgb4>>8)&15)*17);
+                let palindex = this.addressRegister & (this.cram.length-1);
+                this.cram[palindex-1] = this.cram_latch;
+                this.cram[palindex] = value;
+                this.cpalette[palindex >> 1] = rgba;
+                this.prefetchByte = value;
+                this.addressRegister &= this.ramMask;
+                this.redrawRequired = true;
+            } else {
+                this.cram_latch = value; // even address
+            }
+            this.addressRegister++;
+        } else {
+            super.writeData(value);
+        }
+        this.latch = false;
+    }
+}
