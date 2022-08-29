@@ -1,11 +1,9 @@
 
-import { Z80, Z80State } from "../common/cpu/ZilogZ80";
-import { BasicScanlineMachine } from "../common/devices";
 import { BaseZ80VDPBasedMachine } from "./vdp_z80";
-import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler } from "../common/emu";
-import { hex, lzgmini, stringToByteArray } from "../common/util";
-import { TssChannelAdapter, MasterAudio, SN76489_Audio } from "../common/audio";
-import { TMS9918A, SMSVDP } from "../common/video/tms9918a";
+import { newAddressDecoder, padBytes, Keys, makeKeycodeMap } from "../common/emu";
+import { hex } from "../common/util";
+import { MasterAudio, SN76489_Audio } from "../common/audio";
+import { SMSVDP, GameGearVDP } from "../common/video/tms9918a";
 
 // http://www.smspower.org/Development/Index
 // http://www.smspower.org/uploads/Development/sg1000.txt
@@ -28,6 +26,7 @@ var SG1000_KEYCODE_MAP = makeKeycodeMap([
   [Keys.P2_A,     1, 0x4],
   [Keys.P2_B,     1, 0x8],
   [Keys.VK_BACK_SLASH,    1, 0x10], // reset
+  [Keys.VK_ENTER,    1, 0x80], // start/pause
 ]);
 
 export class SG1000 extends BaseZ80VDPBasedMachine {
@@ -61,33 +60,41 @@ export class SG1000 extends BaseZ80VDPBasedMachine {
   setMemoryControl(v:number) { }
   setIOPortControl(v:number) { }
 
+  readIO(addr:number) {
+    switch (addr & 0xc1) {
+      case 0x40: return this.getVCounter();
+      case 0x41: return this.getHCounter();
+      case 0x80: return this.vdp.readData();
+      case 0x81: return this.vdp.readStatus();
+      case 0xc0: return this.inputs[0] ^ 0xff;
+      case 0xc1: return this.inputs[1] ^ 0xff;
+    }
+    return 0;
+  }
+
+  writeIO(addr:number, val:number) {
+    switch (addr & 0xc1) {
+      case 0x00: return this.setMemoryControl(val);
+      case 0x01: return this.setIOPortControl(val);
+      case 0x40:
+      case 0x41: return this.psg.setData(val);
+      case 0x80: return this.vdp.writeData(val);
+      case 0x81: return this.vdp.writeAddress(val);
+    }
+  }
+
   newIOBus() {
     return {
       read: (addr:number) => {
         addr &= 0xff;
         //console.log('IO read', hex(addr,4));
-        switch (addr & 0xc1) {
-          case 0x40: return this.getVCounter();
-          case 0x41: return this.getHCounter();
-          case 0x80: return this.vdp.readData();
-          case 0x81: return this.vdp.readStatus();
-          case 0xc0: return this.inputs[0] ^ 0xff;
-          case 0xc1: return this.inputs[1] ^ 0xff;
-        }
-        return 0;
+        return this.readIO(addr);
       },
       write: (addr:number, val:number) => {
         addr &= 0xff;
         val &= 0xff;
         //console.log('IO write', hex(addr,4), hex(val,2));
-        switch (addr & 0xc1) {
-          case 0x00: return this.setMemoryControl(val);
-          case 0x01: return this.setIOPortControl(val);
-          case 0x40:
-          case 0x41: return this.psg.setData(val);
-          case 0x80: return this.vdp.writeData(val);
-          case 0x81: return this.vdp.writeAddress(val);
-        }
+        this.writeIO(addr, val);
       }
     };
   }
@@ -223,3 +230,17 @@ export class SMS extends SG1000 {
   }
 }
 
+// https://segaretro.org/images/1/16/Sega_Game_Gear_Hardware_Reference_Manual.pdf
+export class GameGear extends SMS {
+  newVDP(frameData, cru, flicker) {
+    return new GameGearVDP(frameData, cru, flicker);
+  }
+  readIO(addr:number) {
+    switch (addr & 0xc1) {
+      case 0x00: return (~this.inputs[1] & 0x80) | 0x40;
+      case 0xdc: return this.inputs[0] ^ 0xff;
+      case 0xdd: return this.inputs[1] ^ 0xff;
+    }
+    return super.readIO(addr);
+  }
+}

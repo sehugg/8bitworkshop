@@ -1,5 +1,5 @@
 
-import { SG1000, SMS } from "../machine/sms";
+import { GameGear, SG1000, SMS } from "../machine/sms";
 import { Platform, BaseZ80MachinePlatform } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 
@@ -46,7 +46,17 @@ class SMSPlatform extends BaseZ80MachinePlatform<SMS> implements Platform {
   readVRAMAddress(a)    { return this.machine.readVRAMAddress(a); }
 }
 
+class GameGearPlatform extends BaseZ80MachinePlatform<GameGear> implements Platform {
+
+  newMachine()          { return new GameGear(); }
+  getPresets()          { return SMS_PRESETS; }
+  getDefaultExtension() { return ".c"; };
+  readAddress(a)        { return this.machine.read(a); }
+  readVRAMAddress(a)    { return this.machine.readVRAMAddress(a); }
+}
+
 ///
 
 PLATFORMS['sms-sg1000-libcv'] = SG1000Platform;
 PLATFORMS['sms-sms-libcv'] = SMSPlatform;
+PLATFORMS['sms-gg-libcv'] = GameGearPlatform;
