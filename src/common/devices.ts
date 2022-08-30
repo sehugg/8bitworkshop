@@ -308,6 +308,7 @@ export abstract class BasicMachine extends BasicHeadlessMachine implements Sampl
   abstract sampleRate : number;
   overscan : boolean = false;
   rotate : number = 0;
+  aspectRatio : number = 1.0;
   
   pixels : Uint32Array;
   audio : SampledAudioSink;
@@ -321,7 +322,11 @@ export abstract class BasicMachine extends BasicHeadlessMachine implements Sampl
     this.audio = audio;
   }
   getVideoParams() : VideoParams {
-    return {width:this.canvasWidth, height:this.numVisibleScanlines, overscan:this.overscan, rotate:this.rotate};
+    return {width:this.canvasWidth,
+           height:this.numVisibleScanlines,
+           aspect:this.aspectRatio,
+           overscan:this.overscan,
+           rotate:this.rotate};
   }
   connectVideo(pixels:Uint32Array) : void {
     this.pixels = pixels;

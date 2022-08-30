@@ -271,6 +271,13 @@ var PLATFORM_PARAMS = {
     libargs: ['atari.lib', '-D', '__CARTFLAGS__=4'],
     fastbasic_cfgfile: 'fastbasic-cart.cfg',
   },
+  'atari8-800': {
+    arch: '6502',
+    define: ['__ATARI__'],
+    cfgfile: 'atari-cart.cfg',
+    libargs: ['atari.lib', '-D', '__CARTFLAGS__=4'],
+    fastbasic_cfgfile: 'fastbasic-cart.cfg',
+  },
   'atari8-5200': {
     arch: '6502',
     define: ['__ATARI5200__'],

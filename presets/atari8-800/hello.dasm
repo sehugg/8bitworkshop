@@ -1,4 +1,4 @@
-
+ 		
 ; Atari 8-bit "Hello World" sample code
 ; Written by Daniel Boris (danlb_2000@yahoo.com)
 ; Modified by Steven Hugg @8bitworkshop
@@ -10,7 +10,7 @@
 	include "atari.inc"
 
         org     $a000           ;Start of left cartridge area
-Start
+Start	
         ldx     #(dlistend-dlist)
 dlloop                          ;Create Display List
         lda     dlist,x         ;Get byte
@@ -20,15 +20,16 @@ dlloop                          ;Create Display List
         
         lda     #$06
         sta     CHACTL          ;Set Character Control
-        lda     #$84            ;Set color PF2
-        sta     COLOR0+2             
-        sta     COLOR0+4	; bakground
-        lda     #$0F            ;Set color PF1
-        sta     COLOR0+1
-        lda	#$3f
+        lda	#$28
         sta     COLOR0+0
+        lda     #$0F
+        sta     COLOR0+1
+        lda     #$d6
+        sta     COLOR0+2             
         lda	#$58
         sta     COLOR0+3
+        lda     #$84
+        sta     COLOR0+4	; bakground
         lda     #$00            ;Set Display list pointer
         sta     SDLSTL		;Shadow DLISTL
         lda     #$10
@@ -36,6 +37,7 @@ dlloop                          ;Create Display List
         lda     #$e0            ;Set Charcter Set Base
         sta     CHBAS
         lda     #$22            ;Enable DMA
+        lda     #$21
         sta     SDMCTL		;Shadow DMACTL
 
 print
@@ -53,23 +55,38 @@ lower
         iny                     ;Next character
         bne     prloop
 wait
+	lda $d40b
+        lda $d20f
+        sta COLBK
 	nop
         jmp     wait
 
         ;Display list data (starts at $1000)
-dlist   .byte	$70,$70,$70        ;24 blank scanlines
-	.byte	$42,$00,$18,$02    ;mode 2 @ $1800
-	.byte	$43,$00,$18,$02    ;mode 3 @ $1800
-	.byte	$44,$00,$18,$02    ;mode 4 @ $1800
-	.byte	$45,$00,$18,$02    ;mode 5 @ $1800
-	.byte	$46,$00,$18,$06    ;mode 6 @ $1800
-	.byte	$47,$00,$18,$06    ;mode 7 @ $1800
+dlist   .byte	$70,$70        ;16 blank scanlines
+	.byte	$42,$00,$18,$02,$70    ;mode 2 @ $1800
+	.byte	$43,$00,$18,$70    ;mode 3 @ $1800
+	.byte	$44,$00,$18,$70    ;mode 4 @ $1800
+	.byte	$45,$00,$18,$70    ;mode 5 @ $1800
+	.byte	$46,$00,$18,$70    ;mode 6 @ $1800
+	.byte	$47,$00,$18,$70    ;mode 7 @ $1800
+	.byte	$48,$00,$18,$08,$70    ;mode 2 @ $1800
+	.byte	$49,$00,$18,$70    ;mode 3 @ $1800
+	.byte	$4a,$00,$18,$70    ;mode 4 @ $1800
+	.byte	$4b,$00,$18,$70    ;mode 5 @ $1800
+	.byte	$4c,$00,$18,$70    ;mode 6 @ $1800
+	.byte	$4d,$00,$18,$70    ;mode 7 @ $1800
+	.byte	$4e,$00,$18,$70    ;mode 7 @ $1800
+	.byte	$4f,$00,$18,$70    ;mode 7 @ $1800
         .byte   $41,$00,$10	   ;JMP -> $1000
 dlistend
 
         ;Text data
-text1   .byte   "Hello World! "
+text1   .byte   "Hejjo World! "
 	.byte	$a1,$a2,$a3
+        .repeat 40
+	.byte	32
+        .repend
+        .byte   "oops!"
 	.byte	0
 
 	;Cartridge footer

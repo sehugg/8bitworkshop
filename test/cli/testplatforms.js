@@ -40,7 +40,6 @@ var _sms = require('gen/platform/sms.js');
 var _c64 = require('gen/platform/c64.js');
 var _vectrex = require('gen/platform/vectrex.js');
 var _zx = require('gen/platform/zx.js');
-var _atari8 = require('gen/platform/atari8.js');
 var util = require('gen/common/util.js');
 util.loadScript = function(s) { console.log('tried to load',s); } // for vcs
 
@@ -360,13 +359,11 @@ describe('Platform Replay', () => {
       }
     });
   });
-  /*
-  it('Should run atari 800xl', async () => {
-    await testPlatform('atari8-800xl', 'siegegame.bin', 92, (platform, frameno) => {
+  it('Should run atari800', async () => {
+    await testPlatform('atari8-800', 'siegegame.bin', 92, (platform, frameno) => {
       if (frameno == 62) {
         keycallback(Keys.VK_DOWN.c, Keys.VK_DOWN.c, 1);
       }
     });
   });
-  */
 });
