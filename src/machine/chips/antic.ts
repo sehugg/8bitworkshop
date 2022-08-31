@@ -48,14 +48,13 @@ export const MODE_SHIFT = [0, 0, 1, 1, 2, 2, 2, 2, 8, 4, 4, 2, 2, 2, 2, 1];
 
 export class ANTIC {
     read: (address: number) => number;	// bus read function
+    nmi: () => void; // generate NMI
 
     regs = new Uint8Array(0x10);				// registers
 
-    pfwidth: number;				// playfield width
     left: number;
     right: number;					// left/right clocks for mode
 
-    nmiPending: boolean = false;
     dma_enabled: boolean = false;
     dliop: number = 0;    // dli operation
     mode: number = 0;			// current mode
@@ -78,9 +77,11 @@ export class ANTIC {
     dmaidx: number = 0;
     output: number = 0;
     dramrefresh = false;
+    vscroll = 0;
 
-    constructor(readfn) {
+    constructor(readfn, nmifn) {
         this.read = readfn; // bus read function
+        this.nmi = nmifn; // NMI function
     }
     reset() {
         this.regs.fill(0);
@@ -103,24 +104,22 @@ export class ANTIC {
     static stateToLongString(state): string {
         let s = "";
         s += "H: " + lpad(state.h, 3) + "  V: " + lpad(state.v, 3) + "\n";
-        s += "DLIOp: " + hex(state.dliop, 2) + "  Lines: " + state.yofs + "/" + state.linesleft + "\n";
+        s += "DLIOp: " + hex(state.dliop, 2) + "  Lines: " + state.yofs + "/" + state.linesleft;
+        s += "   DMA " + (state.dma_enabled ? "ON " : "off") + "\n";
         s += "Addr: " + hex(state.scanaddr, 4) + "\n";
         s += dumpRAM(state.regs, 0, 16).replace('$00', 'Regs');
         return s;
     }
     setReg(a: number, v: number) {
-        this.regs[a] = v;
         switch (a) {
             case WSYNC:
                 this.regs[WSYNC] = 0xff;
-                break;
-            case DMACTL:
-                this.pfwidth = this.regs[DMACTL] & 3;
-                break;
+                return; // this is readonly (we reset it)
             case NMIRES:
                 this.regs[NMIST] = 0x1f;
-                break;
+                return; // this is readonly, don't mess with it
         }
+        this.regs[a] = v;
     }
     readReg(a: number) {
         switch (a) {
@@ -144,7 +143,8 @@ export class ANTIC {
                 this.mode = this.period = 0;
                 // JVB (Jump and wait for Vertical Blank)
                 if (this.dliop & 0x40) {
-                    this.linesleft = (248 - this.v) & 0xff; // TODO?
+                    this.linesleft = 1; //(248 - this.v) & 0xff; // TODO?
+                    this.dma_enabled = false;
                 }
             } else if (this.lms) {
                 this.scanaddr = this.dlarg_lo + (this.dlarg_hi << 8);
@@ -152,12 +152,24 @@ export class ANTIC {
             }
             this.startaddr = this.scanaddr;
         }
+        // horiz scroll
         // TODO: gtia fine scroll?
-        let pfwidth = this.pfwidth;
+        let effwidth = this.regs[DMACTL] & 3;
         let hscroll = (this.dliop & 0x10) ? (this.regs[HSCROL] & 15) >> 1 : 0;
-        if ((this.dliop & 0x10) && pfwidth < 3) pfwidth++;
-        this.left = PF_LEFT[pfwidth] + hscroll;
-        this.right = PF_RIGHT[pfwidth] + hscroll;
+        if ((this.dliop & 0x10) && effwidth < 3) effwidth++;
+        this.left = PF_LEFT[effwidth] + hscroll;
+        this.right = PF_RIGHT[effwidth] + hscroll;
+        // vertical scroll
+        let vscrol = this.regs[VSCROL] & 0xf;
+        if ((this.dliop & 0x20) ^ this.vscroll) {
+            if (this.vscroll) {
+                this.linesleft -= vscrol;
+            } else {
+                this.linesleft -= vscrol;
+                this.yofs += vscrol;
+            }
+            this.vscroll ^= 0x20;
+        }
     }
 
     nextLine() {
@@ -171,10 +183,10 @@ export class ANTIC {
     }
 
     triggerNMI(mask: number) {
-        if (this.regs[NMIEN] & mask) {
-            this.nmiPending = true;
-        }
         this.regs[NMIST] = mask | 0x1f;
+        if (this.regs[NMIEN] & mask) {
+            this.nmi();
+        }
     }
 
     nextInsn(): number {
@@ -194,23 +206,22 @@ export class ANTIC {
     }
 
     dlDMAEnabled() { return this.regs[DMACTL] & 0b100000; }
-    pmDMAEnabled() { return this.regs[DMACTL] & 0b001100; }
 
     isVisibleScanline() {
         return this.v >= 8 && this.v < 248;
     }
     isPlayfieldDMAEnabled() {
-        return this.dlDMAEnabled() && !this.linesleft;
+        return this.dma_enabled && !this.linesleft;
     }
     isPlayerDMAEnabled() {
-        return this.regs[DMACTL] & 0b1000;
+        return this.dma_enabled && this.regs[DMACTL] & 0b1000;
     }
     isMissileDMAEnabled() {
-        return this.regs[DMACTL] & 0b1100;
+        return this.dma_enabled && this.regs[DMACTL] & 0b1100;
     }
 
     clockPulse(): boolean {
-        let dma = this.regs[WSYNC] != 0;
+        let did_dma = this.regs[WSYNC] != 0;
         if (!this.isVisibleScanline()) {
             this.doVBlank();
         } else {
@@ -218,7 +229,7 @@ export class ANTIC {
                 case 0:
                     if (this.isMissileDMAEnabled()) {
                         this.doPlayerMissileDMA(3);
-                        dma = true;
+                        did_dma = true;
                     }
                     break;
                 case 1:
@@ -230,37 +241,38 @@ export class ANTIC {
                         this.mode = op & 0xf;
                         this.dliop = op;
                         this.yofs = 0;
-                        dma = true;
+                        did_dma = true;
                     }
                     break;
                 case 2: case 3: case 4: case 5:
                     if (this.isPlayerDMAEnabled()) {
                         this.doPlayerMissileDMA(this.h + 2);
-                        dma = true;
+                        did_dma = true;
                     }
                     break;
                 case 6:
                 case 7:
-                    if (this.yofs == 0 && this.isPlayfieldDMAEnabled() && (this.jmp || this.lms)) { // read extra bytes?
+                    if (this.isPlayfieldDMAEnabled() && this.yofs == 0 && (this.jmp || this.lms)) {
                         if (this.h == 6) this.dlarg_lo = this.nextInsn();
                         if (this.h == 7) this.dlarg_hi = this.nextInsn();
-                        dma = true;
-                    }
-                    break;
-                case 9:
-                    if (this.yofs == 0) {
-                        this.processDLIEntry();
+                        did_dma = true;
                     }
                     break;
                 case 8:
+                    // TODO? is this at cycle 8?
+                    if (this.yofs == 0) {
+                        this.processDLIEntry();
+                    }
                     if (this.dliop & 0x80) { // TODO: what if DLI disabled?
                         if (this.linesleft == 1) {
                             this.triggerNMI(0x80); // DLI interrupt
                         }
                     }
                     break;
+                case 9:
+                    break;
                 case 111:
-                    this.nextLine();
+                    if (this.dma_enabled) this.nextLine();
                     ++this.v;
                     break;
             }
@@ -276,24 +288,24 @@ export class ANTIC {
                 if (this.dmaclock & 1) {
                     if (this.mode < 8 && this.yofs == 0) { // only read chars on 1st line
                         this.linebuf[this.dmaidx] = this.nextScreen(); // read char name
-                        dma = candma;
+                        did_dma = candma;
                     }
                     this.dmaidx++;
                 } else if (this.dmaclock & 8) {
                     this.ch = this.linebuf[this.dmaidx - 4 / this.period]; // latch char
                     this.readBitmapData(); // read bitmap
-                    dma = candma;
+                    did_dma = candma;
                 }
                 this.output = this.h >= this.left + 3 && this.h <= this.right + 2 ? 4 : 0;
             }
         }
         if (this.h < 19 || this.h > 102) this.output = 2;
         this.incHorizCounter();
-        if (!dma && this.dramrefresh) {
+        if (!did_dma && this.dramrefresh) {
             this.dramrefresh = false;
-            dma = true;
+            did_dma = true;
         }
-        return dma;
+        return did_dma;
     }
     incHorizCounter() {
         ++this.h;
@@ -302,7 +314,7 @@ export class ANTIC {
             case 25 + 4 * 5: case 25 + 4 * 6: case 25 + 4 * 7: case 25 + 4 * 8:
                 this.dramrefresh = true;
                 break;
-            case 105:
+            case 103:
                 this.regs[WSYNC] = 0; // TODO: dram refresh delay to 106?
                 break;
             case 114:
@@ -315,6 +327,9 @@ export class ANTIC {
         if (this.h == 111) { this.v++; }
         if (this.v == 248 && this.h == 0) { this.triggerNMI(0x40); } // VBI
         if (this.v == 262 && this.h == 112) { this.v = 0; }
+        if (this.v == 7 && this.h == 113) { 
+            this.dma_enabled = this.dlDMAEnabled() != 0;
+        }
         this.output = 2; // blank
     }
 
@@ -322,11 +337,11 @@ export class ANTIC {
         let oneline = this.regs[DMACTL] & 0x10;
         let pmaddr = this.regs[PMBASE] << 8;
         if (oneline) {
-            pmaddr &= 0b1111100000000000;
+            pmaddr &= 0xf800;
             pmaddr |= section << 8;
             pmaddr |= this.v & 0xff;
         } else {
-            pmaddr &= 0b111111000000000;
+            pmaddr &= 0xfc00;
             pmaddr |= section << 7;
             pmaddr |= this.v >> 1;
         }

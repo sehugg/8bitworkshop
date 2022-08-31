@@ -282,7 +282,7 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   setDebugCondition(debugCond : DebugCondition) {
     this.setBreakpoint('debug', debugCond);
   }
-  restartDebugging() {
+  resetDebugging() {
     if (this.debugSavedState) {
       this.loadState(this.debugSavedState);
     } else {
@@ -291,6 +291,9 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.debugClock = 0;
     this.debugCallback = this.getDebugCallback();
     this.debugBreakState = null;
+  }
+  restartDebugging() {
+    this.resetDebugging();
     this.resume();
   }
   preFrame() {
@@ -865,7 +868,8 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   }
 
   advance(novideo:boolean) {
-    var steps = this.machine.advanceFrame(this.getDebugCallback());
+    let trap = this.getDebugCallback();
+    var steps = this.machine.advanceFrame(trap);
     if (!novideo && this.video) this.video.updateFrame();
     if (!novideo && this.serialVisualizer) this.serialVisualizer.refresh();
     return steps;

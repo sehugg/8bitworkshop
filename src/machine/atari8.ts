@@ -2,14 +2,15 @@ import { newPOKEYAudio, TssChannelAdapter } from "../common/audio";
 import { EmuState, Machine } from "../common/baseplatform";
 import { MOS6502 } from "../common/cpu/MOS6502";
 import { AcceptsKeyInput, AcceptsPaddleInput, AcceptsROM, BasicScanlineMachine, FrameBased, Probeable, RasterFrameBased, TrapCondition, VideoSource } from "../common/devices";
-import { dumpRAM, KeyFlags, Keys, makeKeycodeMap, newAddressDecoder, newKeyboardHandler } from "../common/emu";
+import { dumpRAM, EmuHalt, KeyFlags, Keys, makeKeycodeMap, newAddressDecoder, newKeyboardHandler } from "../common/emu";
 import { hex, lpad, lzgmini, rgb2bgr, safe_extend, stringToByteArray } from "../common/util";
 import { BaseWASIMachine } from "../common/wasmplatform";
 import { ANTIC, MODE_SHIFT } from "./chips/antic";
 import { CONSOL, GTIA, TRIG0 } from "./chips/gtia";
+import { POKEY } from "./chips/pokey";
 
 const ATARI8_KEYMATRIX_INTL_NOSHIFT = [
-  Keys.VK_L, Keys.VK_J, Keys.VK_SEMICOLON, Keys.VK_F1, Keys.VK_F2, Keys.VK_K, Keys.VK_SLASH, Keys.VK_TILDE,
+  Keys.VK_L, Keys.VK_J, Keys.VK_SEMICOLON, Keys.VK_F1, Keys.VK_F2, Keys.VK_K, Keys.VK_BACK_SLASH, Keys.VK_TILDE,
   Keys.VK_O, null, Keys.VK_P, Keys.VK_U, Keys.VK_ENTER, Keys.VK_I, Keys.VK_MINUS, Keys.VK_EQUALS,
   Keys.VK_V, Keys.VK_F8, Keys.VK_C, Keys.VK_F3, Keys.VK_F4, Keys.VK_B, Keys.VK_X, Keys.VK_Z,
   Keys.VK_4, null, Keys.VK_3, Keys.VK_6, Keys.VK_ESCAPE, Keys.VK_5, Keys.VK_2, Keys.VK_1,
@@ -62,15 +63,15 @@ export class Atari800 extends BasicScanlineMachine {
   rom: Uint8Array;
   bios: Uint8Array;
   bus;
-  pokey;
+  audio_pokey;
   audioadapter;
   antic: ANTIC;
   gtia: GTIA;
+  irq_pokey: POKEY;
   inputs = new Uint8Array(4);
   linergb = new Uint32Array(this.canvasWidth);
   lastdmabyte = 0;
   keycode = 0;
-  irqstatus = 0;
   cart_80 = false;
   cart_a0 = false;
   // TODO: save/load vars
@@ -83,10 +84,11 @@ export class Atari800 extends BasicScanlineMachine {
     this.bus = this.newBus();
     this.connectCPUMemoryBus(this.bus);
     // create support chips
-    this.antic = new ANTIC(this.readDMA.bind(this));
+    this.antic = new ANTIC(this.readDMA.bind(this), this.antic_nmi.bind(this));
     this.gtia = new GTIA();
-    this.pokey = newPOKEYAudio(1);
-    this.audioadapter = new TssChannelAdapter(this.pokey.pokey1, this.audioOversample, this.sampleRate);
+    this.irq_pokey = new POKEY(this.pokey_irq.bind(this), () => this.antic.h);
+    this.audio_pokey = newPOKEYAudio(1);
+    this.audioadapter = new TssChannelAdapter(this.audio_pokey.pokey1, this.audioOversample, this.sampleRate);
     this.handler = newKeyboardHandler(
       this.inputs, ATARI8_KEYCODE_MAP, this.getKeyboardFunction(), true);
   }
@@ -123,7 +125,6 @@ export class Atari800 extends BasicScanlineMachine {
     this.antic.reset();
     this.gtia.reset();
     this.keycode = 0;
-    this.irqstatus = 0;
   }
 
   read(a) {
@@ -144,34 +145,35 @@ export class Atari800 extends BasicScanlineMachine {
     this.bus.write(a, v);
   }
   readPokey(a: number) {
-    //console.log(hex(a), hex(this.saveState().c.PC));
-    switch (a) {
+    switch (a & 0xf) {
       case 9: // KBCODE
         return this.keycode & 0xff;
-      case 14: // IRQST
-        return this.irqstatus ^ 0xff;
       case 15: // SKSTAT
         return ((~this.keycode >> 6) & 0x4) | ((~this.keycode >> 3) & 0x8) | 0x12;
       default:
-        return 0xff;
+        return this.irq_pokey.read(a);
     }
   }
   readPIA(a: number) {
     if (a == 0 || a == 1) { return ~this.inputs[a]; }
   }
   writePokey(a, v) {
-    switch (a) {
-      //case 13: this.sendIRQ(0x18); break; // serial output ready IRQ (TODO)
-      case 14: this.irqstatus = 0; break;
-    }
-    this.pokey.pokey1.setRegister(a, v);
+    this.audio_pokey.pokey1.setRegister(a, v);
+    this.irq_pokey.write(a, v);
   }
 
   startScanline() {
+    // TODO: if (this.antic.h != 0) throw new Error(this.antic.h+"");
+    //if (this.cpu.isHalted()) throw new EmuHalt("CPU HALTED");
+    // set GTIA switch inputs
+    this.gtia.sync();
     for (let i = 0; i < 4; i++)
       this.gtia.readregs[TRIG0 + i] = (~this.inputs[2] >> i) & 1;
     this.gtia.readregs[CONSOL] = ~this.inputs[3] & this.gtia.regs[CONSOL];
+    // advance POKEY audio
     this.audio && this.audioadapter.generate(this.audio);
+    // advance POKEY IRQ timers
+    this.irq_pokey.advanceScanline();
   }
 
   drawScanline() {
@@ -184,15 +186,10 @@ export class Atari800 extends BasicScanlineMachine {
   advanceCPU(): number {
     // update ANTIC
     if (this.antic.clockPulse()) {
+      // ANTIC DMA cycle, update GTIA
+      this.gtia.updateGfx(this.antic.h - 1, this.lastdmabyte); // HALT pin
       this.probe.logClocks(1);
-      // DMA cycle
     } else {
-      // update CPU, NMI?
-      if (this.antic.nmiPending) {
-        this.cpu.NMI();
-        this.probe.logInterrupt(1);
-        this.antic.nmiPending = false;
-      }
       super.advanceCPU();
     }
     // update GTIA
@@ -204,7 +201,6 @@ export class Atari800 extends BasicScanlineMachine {
       this.gtia.clockPulse2();
       this.linergb[xofs++] = this.gtia.rgb;
     }
-    this.gtia.updateGfx(this.antic.h - 1, this.lastdmabyte);
     let xofs = this.antic.h * 4 - this.firstVisibleClock;
     let bp = MODE_SHIFT[this.antic.mode];
     if (bp < 8 || (xofs & 4) == 0) { this.gtia.an = this.antic.shiftout(); }
@@ -223,10 +219,10 @@ export class Atari800 extends BasicScanlineMachine {
     this.ram.set(state.ram);
     this.antic.loadState(state.antic);
     this.gtia.loadState(state.gtia);
+    this.irq_pokey.loadState(state.pokey);
     this.loadControlsState(state);
     this.lastdmabyte = state.lastdmabyte;
     this.keycode = state.keycode;
-    this.irqstatus = state.irqstatus;
   }
   saveState() {
     return {
@@ -234,10 +230,10 @@ export class Atari800 extends BasicScanlineMachine {
       ram: this.ram.slice(0),
       antic: this.antic.saveState(),
       gtia: this.gtia.saveState(),
+      pokey: this.irq_pokey.saveState(),
       inputs: this.inputs.slice(0),
       lastdmabyte: this.lastdmabyte,
       keycode: this.keycode, // TODO: inputs?
-      irqstatus: this.irqstatus,
     };
   }
   loadControlsState(state) {
@@ -258,12 +254,7 @@ export class Atari800 extends BasicScanlineMachine {
     switch (category) {
       case 'ANTIC': return ANTIC.stateToLongString(state.antic);
       case 'GTIA': return GTIA.stateToLongString(state.gtia);
-      case 'POKEY': {
-        let s = '';
-        for (let i = 0; i < 16; i++) { s += hex(this.readPokey(i)) + ' '; }
-        s += "\nIRQ Status: " + hex(this.irqstatus) + "\n";
-        return s;
-      }
+      case 'POKEY': return POKEY.stateToLongString(state.pokey);
     }
   }
   getKeyboardFunction() {
@@ -271,7 +262,7 @@ export class Atari800 extends BasicScanlineMachine {
       if (flags & (KeyFlags.KeyDown | KeyFlags.KeyUp)) {
         var keymap = ATARI8_KEYMATRIX_INTL_NOSHIFT;
         if (key == Keys.VK_F9.c) {
-          this.sendIRQ(0x80); // break IRQ
+          this.irq_pokey.generateIRQ(0x80); // break IRQ
           return true;
         }
         for (var i = 0; i < keymap.length; i++) {
@@ -281,7 +272,7 @@ export class Atari800 extends BasicScanlineMachine {
             if (flags & KeyFlags.Ctrl) { this.keycode |= 0x80; }
             if (flags & KeyFlags.KeyDown) {
               this.keycode |= 0x100;
-              this.sendIRQ(0x40); // key pressed IRQ
+              this.irq_pokey.generateIRQ(0x40); // key pressed IRQ
               console.log(o, key, code, flags, hex(this.keycode));
               return true;
             }
@@ -290,15 +281,15 @@ export class Atari800 extends BasicScanlineMachine {
       };
     }
   }
-  sendIRQ(mask: number) {
-    // irq enabled?
-    if (this.pokey.pokey1.getRegister(0xe) & mask) {
-      this.irqstatus = mask;
-      this.cpu.IRQ();
-      this.probe.logInterrupt(2);
-      // TODO? if (this.antic.h == 4) { console.log("NMI blocked!"); }
-    }
+  pokey_irq() {
+    this.cpu.IRQ();
+    this.probe.logInterrupt(2);
   }
+  antic_nmi() {
+    this.cpu.NMI();
+    this.probe.logInterrupt(1);
+  }
+
   loadROM(rom: Uint8Array) {
     // TODO: support other than 8 KB carts
     // support 4/8/16/32 KB carts

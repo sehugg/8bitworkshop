@@ -549,6 +549,7 @@ Use tick() and refresh(), not callbacks
 Show current datum when using READ
 Use https://codemirror.net/doc/manual.html#markText
 Reset doesn't break @ start unless debugging tools expanded
+Single-step can un-sync frame/scanline timing
 
 
 PORTING CC65 TO IDE
