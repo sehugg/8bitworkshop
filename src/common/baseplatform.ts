@@ -894,21 +894,19 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   pause() {
     this.timer.stop();
     this.audio && this.audio.stop();
-    // i guess for runToVsync()?
-    if (this.probeRecorder) {
-      this.probeRecorder.singleFrame = true;
-    }
-  }
-  // so probe views stick around TODO: must be a better way?
-  runToVsync() {
-    if (this.probeRecorder) {
-      this.probeRecorder.clear();
-      this.probeRecorder.singleFrame = false;
-    }
-    super.runToVsync();
   }
 
-// TODO: reset target clock counter
+  // so probe views stick around TODO: must be a better way?
+  runToVsync() {
+    this.restartDebugging();
+    var flag = false;
+    this.runEval( () : boolean => {
+      if (this.getRasterScanline() > 0) flag = true;
+      else return flag;
+    });
+  }
+
+  // TODO: reset target clock counter
   getRasterScanline() {
     return isRaster(this.machine) && this.machine.getRasterY();
   }

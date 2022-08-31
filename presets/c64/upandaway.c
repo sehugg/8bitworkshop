@@ -1,11 +1,7 @@
 // ported from
 // https://odensskjegg.home.blog/2018/12/29/recreating-the-commodore-64-user-guide-code-samples-in-cc65-part-three-sprites/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <conio.h>
-#include <peekpoke.h>
-#include <c64.h>
+#include "common.h"
 
 /*{w:24,h:21,bpp:1,brev:1}*/
 const char sprite[3*21] = {

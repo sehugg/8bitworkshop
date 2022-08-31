@@ -53,7 +53,9 @@ export enum KeyFlags {
 export function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
   canvas.onkeydown = (e) => {
     callback(e.which, 0, KeyFlags.KeyDown|_metakeyflags(e));
-    if (e.ctrlKey || e.which == 8 || e.which == 9 || e.which == 27) { // eat backspace, tab, escape keys
+    // eat backspace, tab, escape, slash, ' keys
+    if (e.ctrlKey || e.which == 8 || e.which == 9 || e.which == 27 
+    || e.which == 191 || e.which == 191 || e.which == 222) { 
       e.preventDefault();
     }
   };

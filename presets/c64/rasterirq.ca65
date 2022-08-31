@@ -1,0 +1,92 @@
+
+USE_INTERRUPTOR = 0
+
+.segment "DATA"
+
+StartDlist: .word NullDlist-1
+NextDlist:  .word NullDlist-1
+
+.segment "CODE"
+
+.global ___dlist_setup
+.global DLIST_IRQ_NEXT
+.global DLIST_IRQ_RESTART
+.if USE_INTERRUPTOR
+.interruptor DLIST_IRQ
+.endif
+
+___dlist_setup:
+  SEI                  ; set interrupt bit, make the CPU ignore interrupt requests
+  
+  sta StartDlist+0     ; save XA as pointer to start of dlist
+  stx StartDlist+1
+  
+  LDA #%01111111       ; switch off interrupt signals from CIA-1
+  STA $DC0D
+
+  AND $D011            ; clear most significant bit of VIC's raster register
+  STA $D011
+
+  LDA $DC0D            ; acknowledge pending interrupts from CIA-1
+  LDA $DD0D            ; acknowledge pending interrupts from CIA-2
+
+  LDA #252             ; set rasterline where interrupt shall occur
+  STA $D012
+
+.if !USE_INTERRUPTOR
+  LDA #<DLIST_IRQ            ; set interrupt vectors, pointing to interrupt service routine below
+  STA $0314
+  LDA #>DLIST_IRQ
+  STA $0315
+.endif
+
+  LDA #%00000001       ; enable raster interrupt signals from VIC
+  STA $D01A
+  cli
+  rts
+
+DLIST_IRQ:
+DLIST_CALL:
+  lda NextDlist+1
+  pha
+  lda NextDlist+0
+  pha
+  rts
+
+DLIST_IRQ_RESTART:
+  sta $d012
+  lda StartDlist+0
+  sta NextDlist+0
+  lda StartDlist+1
+  sta NextDlist+1
+  bne DLIST_ACK
+
+DLIST_IRQ_STOP:
+  lda #0        ; disable raster interrupt signals from VIC
+  sta $D01A
+  bne DLIST_ACK
+        
+DLIST_IRQ_NEXT:
+  sta $d012
+  pla
+  sta NextDlist+0
+  pla
+  sta NextDlist+1
+DLIST_ACK:
+  ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+.if USE_INTERRUPTOR
+  clc
+  rts
+.else
+  pla
+  tay
+  pla
+  tax
+  pla
+  rti          ; return from interrupt
+;  JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
+.endif
+
+NullDlist:
+  lda #252
+  jmp DLIST_IRQ_RESTART

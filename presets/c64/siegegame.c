@@ -3,33 +3,20 @@ Text-based version of a Blockade-style game.
 For more information, see "Making Arcade Games in C".
 */
 
-#include <stdlib.h>
-#include <string.h>
-#include <joystick.h>
-#include <conio.h>
-#include <c64.h>
-#include <cbm_petscii_charmap.h>
-#include <peekpoke.h>
-
-#define COLS 40
-#define ROWS 24
-
-typedef unsigned char byte;
-typedef signed char sbyte;
-typedef unsigned short word;
+#include "common.h"
 
 // BASL = text address of cursor position
 static byte** BASL = (byte**) 0xD1;
 
-byte getchar(byte x, byte y) {
+// get the character at a specfic x/y position
+byte readcharxy(byte x, byte y) {
   gotoxy(x,y);		// set cursor position
   return (*BASL)[x];	// lookup value @ cursor address
 }
 
 void delay(byte count) {
   while (count--) {
-    word i;
-    for (i=0; i<200; i++) ;
+    waitvsync();
   }
 }
 
@@ -115,7 +102,7 @@ void move_player(Player* p) {
   cputcxy(p->x, p->y, p->tail_attr);
   p->x += DIR_X[p->dir];
   p->y += DIR_Y[p->dir];
-  if ((getchar(p->x, p->y) & 0x7f) != ' ')
+  if ((readcharxy(p->x, p->y) & 0x7f) != ' ')
     p->collided = 1;
   draw_player(p);
 }
@@ -141,7 +128,8 @@ byte ai_try_dir(Player* p, dir_t dir, byte shift) {
   dir &= 3;
   x = p->x + (DIR_X[dir] << shift);
   y = p->y + (DIR_Y[dir] << shift);
-  if (x < COLS && y < ROWS && (getchar(x, y) & 0x7f) == ' ') {
+  if (x < COLS && y < ROWS 
+      && (readcharxy(x, y) & 0x7f) == ' ') {
     p->dir = dir;
     return 1;
   } else {

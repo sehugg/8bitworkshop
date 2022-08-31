@@ -3,10 +3,6 @@
 A simple music player.
 */
 
-#include <string.h>
-#include <c64.h>
-#include <_sid.h>
-
 #include "common.h"
 //#link "common.c"
 
@@ -20,9 +16,7 @@ const int note_table_pal[96] = {
 // SID utility routines
 
 void sid_init() {
-  SID.flt_freq = 0xff;
-  SID.flt_ctrl = 0xff;
-  SID.amp = 0xff;
+  SID.amp = 0x0f; // volume 15, no filters
 }
 
 #define SID_PULSE_DECAY(voice, period) \

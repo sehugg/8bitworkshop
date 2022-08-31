@@ -12,18 +12,17 @@
 
 #include "common.h"
 
-//#link "multilines.c"
-
-void setup_bitmap_multi();
-void set_pixel(byte x, byte y, byte color);
+//#link "mcbitmap.c"
+#include "mcbitmap.h"
 
 /* Graphics definitions */
 #define SCREEN_X        160
 #define SCREEN_Y        192
 #define MAXCOL          16
 
-#define maxiterations   16
+#define maxiterations   64
 #define fpshift         (10)
+#define fpone           (1<<fpshift)
 #define tofp(_x)        ((_x)<<fpshift)
 #define fromfp(_x)      ((_x)>>fpshift)
 #define fpabs(_x)       (abs(_x))
@@ -71,10 +70,11 @@ void mandelbrot (signed short x1, signed short y1, signed short x2,
             if (count == maxiterations) {
               color = (0);
             } else {
-              color = COLORS[count % MAXCOL];
+              color = count < MAXCOL 
+                ? COLORS[count]
+                : COLORS[MAXCOL-1];
+              set_pixel(x, y, color);
             }
-            /* Set pixel */
-            set_pixel(x, y, color);
         }
     }
 }
@@ -85,11 +85,11 @@ int main (void)
     VIC.bgcolor0 = 0x00;
 
     /* Calc mandelbrot set */
-    mandelbrot (tofp (-2), tofp (-2), tofp (2), tofp (2));
+    mandelbrot (-fpone/2, -fpone, 0, -fpone/2);
 
     /* Fetch the character from the keyboard buffer and discard it */
     cgetc ();
-
+  
     /* Done */
     return EXIT_SUCCESS;
 }

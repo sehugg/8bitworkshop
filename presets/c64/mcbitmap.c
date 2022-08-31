@@ -1,36 +1,35 @@
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <c64.h>
-#include <peekpoke.h>
 
 #include "common.h"
 //#link "common.c"
 
+#include "mcbitmap.h"
+
 void setup_bitmap_multi() {
   VIC.ctrl1 = 0x38;
   VIC.ctrl2 = 0x18;
-  // set VIC bank ($4000-$7FFF)
-  // https://www.c64-wiki.com/wiki/VIC_bank
-  CIA2.pra = 0x02;
-  // set VIC screen to $6000
-  VIC.addr = 0x80;
-  // clear bitmap and screen RAM
-  memset((void*)0x4000, 0, 0x2000);
-  memset((void*)0xd800, 0, 40*25);
+  SET_VIC_BANK(MCB_BITMAP);
+  SET_VIC_BITMAP(MCB_BITMAP);
+  SET_VIC_SCREEN(MCB_COLORS);
+  memset((void*)MCB_BITMAP, 0, 0x2000);
+  memset((void*)MCB_COLORS, 0, 0x800);
+  memset(COLOR_RAM, 0, 40*25);
 }
 
 const byte PIXMASK[4] = { ~0xc0, ~0x30, ~0x0c, ~0x03 };
 const byte PIXSHIFT[4] = { 6, 4, 2, 0 };
 
 byte is_pixel(byte x, byte y) {
-  word ofs = ((x>>2)*8 + (y>>3)*320) | (y&7) | 0x4000;
-  return PEEK(ofs) & ~PIXMASK[x & 3];
+  word ofs = ((x>>2)*8 + (y>>3)*320) | (y&7) | MCB_BITMAP;
+  byte pixvalue;
+  ENABLE_HIMEM();
+  pixvalue = PEEK(ofs);
+  DISABLE_HIMEM();
+  return pixvalue & ~PIXMASK[x & 3];;
 }
 
 void set_pixel(byte x, byte y, byte color) {
   word ofs,b,cram,sram;
-  byte ccol,scol;
+  byte ccol,scol,used;
   byte val;
   
   if (x >= 160 || y >= 192) return;
@@ -40,35 +39,44 @@ void set_pixel(byte x, byte y, byte color) {
   if (color == VIC.bgcolor0) {
     val = 0;
   } else {
+    // calculate character (and color RAM) offset
     cram = ((x>>2) + (y>>3)*40);
-    sram = cram | 0x6000;
+    sram = cram | MCB_COLORS;
     cram |= 0xd800;
+    // read color ram, screen memory, and used bits
+    ENABLE_HIMEM();
     ccol = PEEK(cram);
     scol = PEEK(sram);
-    // color RAM contains unused bits (0x10 and 0x20)
+    used = PEEK(sram | 0x400);
+    DISABLE_HIMEM();
     // unused in lower nibble of screen RAM? (value 2)
-    if (color == (scol & 0xf) || !(ccol & 0x10)) {
+    if (color == (scol & 0xf) || !(used & 0x10)) {
       val = 2;
       scol = (scol & 0xf0) | color;
-      ccol |= 0x10;
+      used |= 0x10;
       POKE(sram, scol);
     // unused in upper nibble of screen RAM? (value 1)
-    } else if (color == (scol >> 4) || !(ccol & 0x20)) {
+    } else if (color == (scol >> 4) || !(used & 0x20)) {
       val = 1;
       scol = (scol & 0xf) | (color << 4);
-      ccol |= 0x20;
+      used |= 0x20;
       POKE(sram, scol);
     // all other colors in use, use color RAM
     } else {
       val = 3;
-      ccol = 0x30 | color;
+      used |= 0x40;
+      ccol = color;
+      POKE(cram, ccol);
     }
-    POKE(cram, ccol);
+    // write to unused bit
+    POKE(sram | 0x400, used);
   }
   
-  ofs = ((x>>2)*8 + (y>>3)*320) | (y&7) | 0x4000;
+  ofs = ((x>>2)*8 + (y>>3)*320) | (y&7) | MCB_BITMAP;
   x &= 3;
+  ENABLE_HIMEM();
   b = PEEK(ofs) & PIXMASK[x];
+  DISABLE_HIMEM();
   if (val) {
     b |= val << PIXSHIFT[x];
   }
@@ -91,6 +99,7 @@ void draw_line(int x0, int y0, int x1, int y1, byte color) {
   }
 }
 
+// support recursion
 #pragma static-locals(push,off)
 byte flood_fill(byte x, byte y, byte color) {
   register byte x1 = x;

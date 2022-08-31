@@ -292,9 +292,9 @@ div.emuspacer {
   padding: 20px;
   background: #000;
   margin-top:40px;
-  margin-left:5%;
-  margin-right:5%;
-  width:90%;
+  margin-left:3%;
+  margin-right:3%;
+  width:94%;
   pointer-events:auto;
 }
 .emuvideo:focus {

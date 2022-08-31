@@ -20,14 +20,32 @@ extern byte swap_needed;	// TRUE if scroll_update() swaps
 void scroll_setup(void);
 
 // scroll in X or Y directions
+void scroll_xy(sbyte delta_x, sbyte delta_y);
 void scroll_horiz(sbyte delta_x);
 void scroll_vert(sbyte delta_y);
 
-// call this after vblank
+// call this right after vblank
 void scroll_update(void);
 
 // caller must implement these two
 void scroll_draw_column(byte col);
 void scroll_draw_row(byte row);
+
+
+/* incremental scrolling library */
+extern int pixofs_x;		// X scroll pixel offset
+extern int pixofs_y;		// Y scroll pixel offset
+extern sbyte fine_correct_x;
+extern sbyte fine_correct_y;
+
+void scroll_start(byte dir);
+void scroll_finish(void);
+void scroll_refresh(void);
+
+#define SCROLL_LEFT 1
+#define SCROLL_RIGHT 2
+#define SCROLL_UP 4
+#define SCROLL_DOWN 8
+
 
 #endif
