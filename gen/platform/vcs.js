@@ -386,7 +386,9 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
             bus.oldWrite = bus.write;
             bus.write = function (a, v) {
                 this.oldWrite(a, v);
-                if (a < 0x80)
+                if (a == 0x02)
+                    probe.logIllegal(a); // WSYNC
+                else if (a < 0x80)
                     probe.logIOWrite(a, v);
                 else if (a > 0x280 && a < 0x300)
                     probe.logIOWrite(a, v);

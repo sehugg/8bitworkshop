@@ -20,7 +20,7 @@ export class ZX_WASMMachine extends BaseWASMMachine implements Machine {
   reset() {
     super.reset();
     // advance bios
-    this.exports.machine_exec(this.sys, 500000); // TODO?
+    this.exports.machine_exec(this.sys, 2000000);
     // load rom (Z80 header: https://worldofspectrum.org/faq/reference/z80format.htm)
     if (this.romptr && this.romlen) {
       // TODO
@@ -41,7 +41,7 @@ export class ZX_WASMMachine extends BaseWASMMachine implements Machine {
     //var scanline = this.exports.machine_get_raster_line(this.sys);
     var probing = this.probe != null;
     if (probing) this.exports.machine_reset_probe_buffer();
-    var clocks = super.advanceFrameClock(trap, Math.floor(1000000 / 50)); // TODO: use ticks, not msec
+    var clocks = super.advanceFrameClock(trap, Math.floor(3500000 / 50));
     if (probing) this.copyProbeData();
     return clocks;
   }

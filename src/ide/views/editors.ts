@@ -23,6 +23,9 @@ function createTextSpan(text:string, className:string) : HTMLElement {
 
 /////
 
+// look ahead this many bytes when finding source lines for a PC
+export const PC_LINE_LOOKAHEAD = 64;
+
 const MAX_ERRORS = 200;
 
 const MODEDEFS = {
@@ -384,7 +387,7 @@ export class SourceEditor implements ProjectView {
         cpustate = platform.getCPUState();
       if (cpustate) {
         var EPC = (cpustate && (cpustate.EPC || cpustate.PC));
-        var res = this.sourcefile.findLineForOffset(EPC, 15);
+        var res = this.sourcefile.findLineForOffset(EPC, PC_LINE_LOOKAHEAD);
         return res;
       }
     }
@@ -598,7 +601,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
     var state = lastDebugState || platform.saveState();
     var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
     if (pc >= 0 && this.assemblyfile) {
-      var res = this.assemblyfile.findLineForOffset(pc, 15);
+      var res = this.assemblyfile.findLineForOffset(pc, PC_LINE_LOOKAHEAD);
       if (res) {
         // set cursor while debugging
         if (moveCursor) {

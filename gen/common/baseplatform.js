@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BaseZ80MachinePlatform = exports.Base6502MachinePlatform = exports.BaseMachinePlatform = exports.hasSerialIO = exports.hasBIOS = exports.hasProbe = exports.isRaster = exports.hasPaddleInput = exports.hasJoyInput = exports.hasKeyInput = exports.hasAudio = exports.hasVideo = exports.lookupSymbol = exports.dumpStackToString = exports.Base6809Platform = exports.getToolForFilename_6809 = exports.cpuStateToLongString_6809 = exports.getToolForFilename_z80 = exports.BaseZ80Platform = exports.cpuStateToLongString_Z80 = exports.getOpcodeMetadata_6502 = exports.cpuStateToLongString_6502 = exports.Base6502Platform = exports.getToolForFilename_6502 = exports.inspectSymbol = exports.BaseDebugPlatform = exports.BasePlatform = exports.BreakpointList = exports.isDebuggable = exports.DebugSymbols = void 0;
+exports.Base6809MachinePlatform = exports.BaseZ80MachinePlatform = exports.Base6502MachinePlatform = exports.BaseMachinePlatform = exports.hasSerialIO = exports.hasBIOS = exports.hasProbe = exports.isRaster = exports.hasPaddleInput = exports.hasJoyInput = exports.hasKeyInput = exports.hasAudio = exports.hasVideo = exports.lookupSymbol = exports.dumpStackToString = exports.Base6809Platform = exports.getToolForFilename_6809 = exports.cpuStateToLongString_6809 = exports.getToolForFilename_z80 = exports.BaseZ80Platform = exports.cpuStateToLongString_Z80 = exports.getOpcodeMetadata_6502 = exports.cpuStateToLongString_6502 = exports.Base6502Platform = exports.getToolForFilename_6502 = exports.inspectSymbol = exports.BaseDebugPlatform = exports.BasePlatform = exports.BreakpointList = exports.isDebuggable = exports.DebugSymbols = void 0;
 const emu_1 = require("./emu");
 const util_1 = require("./util");
 const disasm6502_1 = require("./cpu/disasm6502");
@@ -532,7 +532,7 @@ class Base6809Platform extends BaseZ80Platform {
 }
 exports.Base6809Platform = Base6809Platform;
 //TODO: how to get stack_end?
-function dumpStackToString(platform, mem, start, end, sp, jsrop) {
+function dumpStackToString(platform, mem, start, end, sp, jsrop, bigendian) {
     var s = "";
     var nraw = 0;
     //s = dumpRAM(mem.slice(start,start+end+1), start, end-start+1);
@@ -547,6 +547,9 @@ function dumpStackToString(platform, mem, start, end, sp, jsrop) {
         // see if there's a JSR on the stack here
         // TODO: make work with roms and memory maps
         var addr = read(sp) + read(sp + 1) * 256;
+        if (bigendian) {
+            addr = ((addr & 0xff) << 8) | ((addr & 0xff00) >> 8);
+        }
         var jsrofs = jsrop == 0x20 ? -2 : -3; // 6502 vs Z80
         var opcode = read(addr + jsrofs); // might be out of bounds
         if (opcode == jsrop) { // JSR
@@ -738,18 +741,17 @@ class BaseMachinePlatform extends BaseDebugPlatform {
     pause() {
         this.timer.stop();
         this.audio && this.audio.stop();
-        // i guess for runToVsync()?
-        if (this.probeRecorder) {
-            this.probeRecorder.singleFrame = true;
-        }
     }
     // so probe views stick around TODO: must be a better way?
     runToVsync() {
-        if (this.probeRecorder) {
-            this.probeRecorder.clear();
-            this.probeRecorder.singleFrame = false;
-        }
-        super.runToVsync();
+        this.restartDebugging();
+        var flag = false;
+        this.runEval(() => {
+            if (this.getRasterScanline() > 0)
+                flag = true;
+            else
+                return flag;
+        });
     }
     // TODO: reset target clock counter
     getRasterScanline() {
@@ -814,7 +816,6 @@ class BaseZ80MachinePlatform extends BaseMachinePlatform {
                 var end = start + 0xff;
                 if (sp == 0)
                     sp = 0x10000;
-                console.log(sp, start, end);
                 return dumpStackToString(this, [], start, end, sp, 0xcd);
             }
             default: return isDebuggable(this.machine) && this.machine.getDebugInfo(category, state);
@@ -825,6 +826,37 @@ class BaseZ80MachinePlatform extends BaseMachinePlatform {
     }
 }
 exports.BaseZ80MachinePlatform = BaseZ80MachinePlatform;
+class Base6809MachinePlatform extends BaseMachinePlatform {
+    constructor() {
+        super(...arguments);
+        this.getToolForFilename = getToolForFilename_6809;
+    }
+    getDebugCategories() {
+        if (isDebuggable(this.machine))
+            return this.machine.getDebugCategories();
+        else
+            return ['CPU', 'Stack'];
+    }
+    getDebugInfo(category, state) {
+        switch (category) {
+            case 'CPU': return cpuStateToLongString_6809(state.c);
+            case 'Stack': {
+                var sp = (state.c.SP - 1) & 0xffff;
+                var start = sp & 0xff00;
+                var end = start + 0xff;
+                if (sp == 0)
+                    sp = 0x10000;
+                return dumpStackToString(this, [], start, end, sp, 0x17, true);
+            }
+            default: return super.getDebugInfo(category, state);
+        }
+    }
+    disassemble(pc, read) {
+        // TODO: don't create new CPU
+        return Object.create((0, _6809_1.CPU6809)()).disasm(read(pc), read(pc + 1), read(pc + 2), read(pc + 3), read(pc + 4), pc);
+    }
+}
+exports.Base6809MachinePlatform = Base6809MachinePlatform;
 ///
 class SerialIOVisualizer {
     constructor(parentElement, device) {

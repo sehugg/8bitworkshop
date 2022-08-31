@@ -271,6 +271,13 @@ var PLATFORM_PARAMS = {
     libargs: ['atari.lib', '-D', '__CARTFLAGS__=4'],
     fastbasic_cfgfile: 'fastbasic-cart.cfg',
   },
+  'atari8-800': {
+    arch: '6502',
+    define: ['__ATARI__'],
+    cfgfile: 'atari-cart.cfg',
+    libargs: ['atari.lib', '-D', '__CARTFLAGS__=4'],
+    fastbasic_cfgfile: 'fastbasic-cart.cfg',
+  },
   'atari8-5200': {
     arch: '6502',
     define: ['__ATARI5200__'],
@@ -388,6 +395,7 @@ var PLATFORM_PARAMS = {
 };
 
 PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];
+PLATFORM_PARAMS['sms-gg-libcv'] = PLATFORM_PARAMS['sms-sms-libcv'];
 
 var _t1;
 export function starttime() { _t1 = new Date(); }
@@ -1060,6 +1068,8 @@ export function preprocessMCPP(step:BuildStep, filesys:string) {
   if (step.mainfile) {
     args.unshift.apply(args, ["-D", "__MAIN__"]);
   }
+  let platform_def = (platform.toUpperCase() as any).replaceAll(/[^a-zA-Z0-9]/g,'_');
+  args.unshift.apply(args, ["-D", `__PLATFORM_${platform_def}__`]);
   if (params.extra_preproc_args) {
     args.push.apply(args, params.extra_preproc_args);
   }
@@ -1178,6 +1188,7 @@ var TOOL_PRELOADFS = {
   'wiz': 'wiz',
   'ecs-vcs': '65-none', // TODO: support multiple platforms
   'ecs-nes': '65-nes', // TODO: support multiple platforms
+  'ecs-c64': '65-c64', // TODO: support multiple platforms
 }
 
 //const waitFor = delay => new Promise(resolve => setTimeout(resolve, delay)); // for testing

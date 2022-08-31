@@ -1785,7 +1785,7 @@ var _MOS6502 = function () {
                 pushToStack((PC >>> 8) & 0xff);
             },
             function () { pushToStack(PC & 0xff); },
-            function () { pushToStack(getStatusBits()); },
+            function () { pushToStack(getStatusBits() & ~0x10); },
             function () { AD = bus.read(IRQ_VECTOR); },
             function () { AD |= bus.read(IRQ_VECTOR + 1) << 8; },
             function () { PC = AD; fetchNextOpcode(); }
@@ -1801,7 +1801,7 @@ var _MOS6502 = function () {
                 pushToStack((PC >>> 8) & 0xff);
             },
             function () { pushToStack(PC & 0xff); },
-            function () { pushToStack(getStatusBits()); },
+            function () { pushToStack(getStatusBits() & ~0x10); },
             function () { AD = bus.read(NMI_VECTOR); },
             function () { AD |= bus.read(NMI_VECTOR + 1) << 8; },
             function () { PC = AD; fetchNextOpcode(); }

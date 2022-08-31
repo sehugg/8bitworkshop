@@ -233,6 +233,10 @@ var POKEYDeviceChannel = function () {
             }
         }
     };
+    this.getRegister = function (addr) {
+        addr &= 0xf;
+        return regs[addr];
+    };
     this.setTIARegister = function (addr, value) {
         switch (addr) {
             case 0x17:

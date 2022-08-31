@@ -53,7 +53,9 @@ export enum KeyFlags {
 export function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
   canvas.onkeydown = (e) => {
     callback(e.which, 0, KeyFlags.KeyDown|_metakeyflags(e));
-    if (e.ctrlKey || e.which == 8 || e.which == 9 || e.which == 27) { // eat backspace, tab, escape keys
+    // eat backspace, tab, escape, slash, ' keys
+    if (e.ctrlKey || e.which == 8 || e.which == 9 || e.which == 27 
+    || e.which == 191 || e.which == 191 || e.which == 222) { 
       e.preventDefault();
     }
   };
@@ -368,6 +370,7 @@ export const Keys = {
     GP_D:     {c: 67,  n: "C",     plyr:0, button:3},
     SELECT:   {c: 220, n: "\\",    plyr:0, button:8},
     START:    {c: 13,  n: "Enter", plyr:0, button:9},
+    OPTION:   {c: 9,   n: "Tab",   plyr:0, button:10},
     // gamepad and keyboard (player 1)
     P2_UP:       {c: 87, n: "W",  plyr:1, yaxis:-1},
     P2_DOWN:     {c: 83, n: "S",  plyr:1, yaxis:1},

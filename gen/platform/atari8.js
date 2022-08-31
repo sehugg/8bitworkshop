@@ -22,7 +22,7 @@ const ATARI8_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.VK_ENTER, 0, 0],
 ]);
 const Atari800_MemoryMap = { main: [
-        { name: 'RAM', start: 0x0, size: 0x10000, type: 'ram' },
+        { name: 'RAM', start: 0x0, size: 0xc000, type: 'ram' },
         { name: 'Left Cartridge ROM', start: 0xa000, size: 0x2000, type: 'rom' },
         { name: 'GTIA', start: 0xd000, size: 0x20, type: 'io' },
         { name: 'POKEY', start: 0xd200, size: 0x10, type: 'io' },
@@ -30,7 +30,7 @@ const Atari800_MemoryMap = { main: [
         { name: 'ANTIC', start: 0xd400, size: 0x10, type: 'io' },
         { name: 'Cartridge Control Line', start: 0xd600, size: 0x100, type: 'io' },
         { name: 'ROM', start: 0xd800, size: 0x800, type: 'rom' },
-        { name: 'ATARI Character Set', start: 0xe000, size: 0x400, type: 'rom' },
+        { name: 'Character Set', start: 0xe000, size: 0x400, type: 'rom' },
         { name: 'ROM', start: 0xe400, size: 0x1c00, type: 'rom' },
     ] };
 function getToolForFilename_Atari8(fn) {
@@ -141,29 +141,6 @@ class Atari5200MAMEPlatform extends Atari8MAMEPlatform {
     start() {
     }
 }
-///
-// Altirra Superkernel ROM (http://www.virtualdub.org/altirra.html) compiled with MADS
-const ALTIRRA_SUPERKERNEL_LZG = `
-TFpHAAAIAAAABJGU01hQARcZHSUAACUFGCUBABgAAGZmZh2IZv9mJUEAGD5gPAZ8HVBsGDBmRgAcNhw4
-b2Y7HagdoA4cGBgcDgAAcDgYGDhwHSA8/zwdehgYfhkFGh1EMCWhfhkGYx0IAAAGDBgwYEAAADxmbnZm
-PB0MHTgYHRs8Zh0RJeF+DBgMHVAMHDxsfgwdCGB8Bh1IPGB8ZiXifh15MB1oPB2IPGY+Bgw4GQRVGQNx
-JeMwHV4YDAYZBHclQWAdBhgwYBkEYBkC6Dxmbm5gPh0nHT9+ZgAAfGZ8ZmZ8HVBgYBkCUHhsZmZseBkD
-eGBgHXwl4h04PmBgbmYdMB1uGSIrfhkiOR0YBiUBHXAdLR0zAAAdJR2wY3d/a2NjHRB2fn5uHRA8HS4d
-YBkCZhkCSB1IbDYdyB1wPGA8BgYdGBkDUBkkkGZmfiXkPB0IY2Nrf3cZAkhmPB0zJeMdoH4ZAtcdIB4d
-bx4AAEAZAuoGAAB4HUh4AAAIHDYdLiUF/wAANn9/PhwIGSLHHx8lgQMlBR0D+PgZRA/4+Bkk5CXjAwcO
-HDhw4MDA4HA4HA4HAwEDBw8fP3//HRgADyUBgMDg8Pj8/v8dRB1M8CUBJeL/HZolBh3GHZQcHHd3CBwd
-RxkDeBkGFR0D//8diDx+fn48GQUu///AJQUdhxkjEx0gGQVEJQIZA8AdCHhgeGB+GQL4GDwZIjoZA0l+
-GSIwGDB+MBlDFwx+DCXjPH4dkAA8Bj4ZIshgGUJYfB1IYGBgPBkiyD5mHVAAPGZ+HUgOGD4ZBJ8dTwZ8
-HehmAAAYADgYGB1oGSP6PB0QbBkj+B0OHZAAZn9/axkich1nHRAZI+kdUBkm+RkDSAYdSBlDWAAZY3EA
-ABliPxgOHXglARkCgBkl+ABja38+Nh1IPBgZY2kdVwwZQqEZZDgZAtAYPBljzyUCAH54fG5mBgAIGDh4
-OBgIABAYHB4cGBAAbAACSKkgLA7o0A1FAI0O6KUlgmwQAjAPqYAZCQkMAnAPqUAZCQkIAmodLfAZCi0S
-AmokAPASGQ5EFAKpARkODBYCKhkOCxgZEAsaAopIur0BASkQ0ANsDgJoqmhA////aKgdQUiKSJhI5gLQ
-COYBpQQwAuYEpQPQ5aUFjQLUpQaNA9SlB40A1KAAJAQQAqQBogiYVQidEsDKEPeiB70A6JURyhD4jQvo
-bAQC////GQJBrQnoSikPqr0T/WwKAv8LAAoOCQgHDQYFBAwDAgEsD9SND9QQA2wGAmwCAnjYov+arf2/
-yf/QA2z+v6IAqQCVAJ0AwJ0A1J0A6OjQ8qn4jQnUogu9lf6dAAIZAmtPvc39nQAQHUMTvei/nVAdQ6kQ
-hQypD4UNqQCFDiVhDyVhEKkEjRvAogq9wh0nIB1cIoUHqcCNDtQdFQWpIIUGqQKND+ipwIUZIhapeMUC
-0Pxs/r9wcHBCABCCB0HC/SFsdGlycmEAFRIQEAAyLy0AK2VybmVsGWpyJQMub3cAcGxheWluZxoZDxUZ
-a58lHiUcJQkD/Lj8svyh/gL9svxI5gzQBBkiJhkj9SUfJR8lHiUBI/0x/QD8`;
 /// WASM Atari8 platform
 class Atari8WASMPlatform extends baseplatform_1.Base6502MachinePlatform {
     constructor() {
@@ -189,8 +166,55 @@ class Atari8WASMPlatform extends baseplatform_1.Base6502MachinePlatform {
 }
 class Atari800WASMPlatform extends Atari8WASMPlatform {
 }
+////
+class Atari800Platform extends baseplatform_1.Base6502MachinePlatform {
+    constructor() {
+        super(...arguments);
+        this.getToolForFilename = getToolForFilename_Atari8;
+        this.biosPath = 'res/altirra/kernel.rom';
+    }
+    newMachine() { return new atari8_1.Atari800(); }
+    getPresets() { return Atari800_PRESETS; }
+    getDefaultExtension() { return ".c"; }
+    ;
+    readAddress(a) { return this.machine.readConst(a); }
+    getMemoryMap() { return Atari800_MemoryMap; }
+    showHelp() {
+        // TODO
+    }
+    getROMExtension(rom) {
+        // TODO
+        if (rom && rom[0] == 0x01 && rom[1] == 0x08)
+            return ".prg";
+        else
+            return ".bin";
+    }
+    async start() {
+        let bios = await this.loadKernel();
+        await super.start();
+        this.machine.loadBIOS(bios);
+    }
+    async loadKernel() {
+        var biosResponse = await fetch(this.biosPath);
+        if (biosResponse.status == 200 || biosResponse.size) {
+            var biosBinary = await biosResponse.arrayBuffer();
+            return new Uint8Array(biosBinary);
+        }
+        else
+            throw new Error('could not load BIOS file');
+    }
+}
+class Atari5200Platform extends Atari800Platform {
+    constructor() {
+        super(...arguments);
+        this.biosPath = 'res/altirra/superkernel.rom';
+    }
+    newMachine() { return new atari8_1.Atari5200(); }
+}
 ///
-emu_1.PLATFORMS['atari8-800xl.mame'] = Atari800MAMEPlatform;
+emu_1.PLATFORMS['atari8-800.xlmame'] = Atari800MAMEPlatform;
 emu_1.PLATFORMS['atari8-5200.mame'] = Atari5200MAMEPlatform;
-emu_1.PLATFORMS['atari8-800xl'] = Atari800WASMPlatform;
+emu_1.PLATFORMS['atari8-800.xlwasm'] = Atari800WASMPlatform;
+emu_1.PLATFORMS['atari8-800'] = Atari800Platform;
+emu_1.PLATFORMS['atari8-5200'] = Atari5200Platform;
 //# sourceMappingURL=atari8.js.map

@@ -18,7 +18,7 @@ import { EmscriptenModule } from "../workermain"
 00B726  1  xx xx        IBSECSZ: .res 2
 00BA2F  1  2A 2B E8 2C   HEX "2A2BE82C2D2E2F303132F0F133343536"
 */
-function parseCA65Listing(code: string, symbols, params, dbg: boolean, listings?: CodeListingMap) {
+function parseCA65Listing(code: string, symbols, segments, params, dbg: boolean, listings?: CodeListingMap) {
     var segofs = 0;
     var offset = 0;
     var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+(\w+), "([^"]+)", (.+)/;
@@ -62,17 +62,14 @@ function parseCA65Listing(code: string, symbols, params, dbg: boolean, listings?
                 insns: null
             });
         }
+        linenum++;
         var linem = insnLineMatch.exec(line);
         var topfile = linem && linem[3] == '1';
-        if (topfile) linenum++;
         if (topfile && linem[1]) {
             var offset = parseInt(linem[1], 16);
             var insns = linem[4].trim();
             if (insns.length) {
-                // take back one to honor the long .byte line
-                if (linem[5].length == 0) {
-                    linenum--;
-                } else if (!dbg) {
+                if (!dbg) {
                     lines.push({
                         path: curpath,
                         line: linenum,
@@ -83,14 +80,7 @@ function parseCA65Listing(code: string, symbols, params, dbg: boolean, listings?
                 }
             } else {
                 var sym = linem[5];
-                var segm = sym && segMatch.exec(sym);
-                if (segm && segm[1]) {
-                    var symofs = symbols['__' + segm[1] + '_RUN__'];
-                    if (typeof symofs === 'number') {
-                        segofs = symofs;
-                        //console.log(sym, segofs, symofs, '-', offset);
-                    }
-                } else if (sym.endsWith(':') && !sym.startsWith('@')) {
+                if (sym.endsWith(':') && !sym.startsWith('@')) {
                     var symofs = symbols[sym.substring(0, sym.length - 1)];
                     if (typeof symofs === 'number') {
                         segofs = symofs - offset;
@@ -129,9 +119,9 @@ export function assembleCA65(step: BuildStep): BuildStepResult {
         }
         execMain(step, CA65, args);
         if (errors.length) {
-            // TODO?
             let listings : CodeListingMap = {};
-            listings[step.path] = { lines:[], text:getWorkFileAsString(step.path) };
+            // TODO? change extension to .lst
+            //listings[step.path] = { lines:[], text:getWorkFileAsString(step.path) };
             return { errors, listings };
         }
         objout = FS.readFile(objpath, { encoding: 'binary' });
@@ -175,7 +165,8 @@ export function linkLD65(step: BuildStep): BuildStepResult {
             '-C', cfgfile,
             '-Ln', 'main.vice',
             //'--dbgfile', 'main.dbg', // TODO: get proper line numbers
-            '-o', 'main', '-m', 'main.map'].concat(step.args, libargs);
+            '-o', 'main',
+            '-m', 'main.map'].concat(step.args, libargs);
         //console.log(args);
         execMain(step, LD65, args);
         if (errors.length)
@@ -202,27 +193,27 @@ export function linkLD65(step: BuildStep): BuildStepResult {
                 }
             }
         }
-        // build segment map
-        var seg_re = /^__(\w+)_SIZE__$/;
         // TODO: move to Platform class
         var segments = [];
         segments.push({ name: 'CPU Stack', start: 0x100, size: 0x100, type: 'ram' });
         segments.push({ name: 'CPU Vectors', start: 0xfffa, size: 0x6, type: 'rom' });
         // TODO: CHR, banks, etc
-        for (let ident in symbolmap) {
-            let m = seg_re.exec(ident);
-            if (m) {
+        let re_seglist = /(\w+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)/;
+        let parseseglist = false;
+        let m;
+        for (let s of mapout.split('\n')) {
+            if (parseseglist && (m = re_seglist.exec(s))) {
                 let seg = m[1];
-                let segstart = symbolmap['__' + seg + '_RUN__'] || symbolmap['__' + seg + '_START__'];
-                let segsize = symbolmap['__' + seg + '_SIZE__'];
-                let seglast = symbolmap['__' + seg + '_LAST__'];
-                if (segstart >= 0 && segsize > 0 && !seg.startsWith('PRG') && seg != 'RAM') { // TODO
-                    var type = null;
-                    if (seg.startsWith('CODE') || seg == 'STARTUP' || seg == 'RODATA' || seg.endsWith('ROM')) type = 'rom';
-                    else if (seg == 'ZP' || seg == 'DATA' || seg == 'BSS' || seg.endsWith('RAM')) type = 'ram';
-                    segments.push({ name: seg, start: segstart, size: segsize, last: seglast, type: type });
-                }
+                let start = parseInt(m[2], 16);
+                let size = parseInt(m[4], 16);
+                let type = '';
+                // TODO: better id of ram/rom
+                if (seg.startsWith('CODE') || seg == 'STARTUP' || seg == 'RODATA' || seg.endsWith('ROM')) type = 'rom';
+                else if (seg == 'ZP' || seg == 'DATA' || seg == 'BSS' || seg.endsWith('RAM')) type = 'ram';
+                segments.push({ name: seg, start, size, type });
             }
+            if (s == 'Segment list:') parseseglist = true;
+            if (s == '') parseseglist = false;
         }
         // build listings
         var listings: CodeListingMap = {};
@@ -235,14 +226,14 @@ export function linkLD65(step: BuildStep): BuildStepResult {
                 let isECS = step.debuginfo?.entities != null; // TODO
                 if (isECS) {
                     var asmlines = [];
-                    var srclines = parseCA65Listing(lstout, symbolmap, params, true, listings);
+                    var srclines = parseCA65Listing(lstout, symbolmap, segments, params, true, listings);
                     listings[fn] = {
                         lines: [],
                         text: lstout
                     }
                 } else {
-                    var asmlines = parseCA65Listing(lstout, symbolmap, params, false);
-                    var srclines = parseCA65Listing(lstout, symbolmap, params, true); // TODO: listings param for ecs
+                    var asmlines = parseCA65Listing(lstout, symbolmap, segments, params, false);
+                    var srclines = parseCA65Listing(lstout, symbolmap, segments, params, true); // TODO: listings param for ecs
                     listings[fn] = {
                         asmlines: srclines.length ? asmlines : null,
                         lines: srclines.length ? srclines : asmlines,

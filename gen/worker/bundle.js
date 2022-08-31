@@ -2616,7 +2616,7 @@
   }
 
   // src/worker/tools/cc65.ts
-  function parseCA65Listing(code, symbols, params, dbg, listings) {
+  function parseCA65Listing(code, symbols, segments, params, dbg, listings) {
     var segofs = 0;
     var offset = 0;
     var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+(\w+), "([^"]+)", (.+)/;
@@ -2657,17 +2657,14 @@
           insns: null
         });
       }
+      linenum++;
       var linem = insnLineMatch.exec(line);
       var topfile = linem && linem[3] == "1";
-      if (topfile)
-        linenum++;
       if (topfile && linem[1]) {
         var offset = parseInt(linem[1], 16);
         var insns = linem[4].trim();
         if (insns.length) {
-          if (linem[5].length == 0) {
-            linenum--;
-          } else if (!dbg) {
+          if (!dbg) {
             lines.push({
               path: curpath,
               line: linenum,
@@ -2678,13 +2675,7 @@
           }
         } else {
           var sym = linem[5];
-          var segm = sym && segMatch.exec(sym);
-          if (segm && segm[1]) {
-            var symofs = symbols["__" + segm[1] + "_RUN__"];
-            if (typeof symofs === "number") {
-              segofs = symofs;
-            }
-          } else if (sym.endsWith(":") && !sym.startsWith("@")) {
+          if (sym.endsWith(":") && !sym.startsWith("@")) {
             var symofs = symbols[sym.substring(0, sym.length - 1)];
             if (typeof symofs === "number") {
               segofs = symofs - offset;
@@ -2721,7 +2712,6 @@
       execMain(step, CA65, args);
       if (errors.length) {
         let listings = {};
-        listings[step.path] = { lines: [], text: getWorkFileAsString(step.path) };
         return { errors, listings };
       }
       objout = FS.readFile(objpath, { encoding: "binary" });
@@ -2796,26 +2786,28 @@
           }
         }
       }
-      var seg_re = /^__(\w+)_SIZE__$/;
       var segments = [];
       segments.push({ name: "CPU Stack", start: 256, size: 256, type: "ram" });
       segments.push({ name: "CPU Vectors", start: 65530, size: 6, type: "rom" });
-      for (let ident in symbolmap) {
-        let m = seg_re.exec(ident);
-        if (m) {
+      let re_seglist = /(\w+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)/;
+      let parseseglist = false;
+      let m;
+      for (let s2 of mapout.split("\n")) {
+        if (parseseglist && (m = re_seglist.exec(s2))) {
           let seg = m[1];
-          let segstart = symbolmap["__" + seg + "_RUN__"] || symbolmap["__" + seg + "_START__"];
-          let segsize = symbolmap["__" + seg + "_SIZE__"];
-          let seglast = symbolmap["__" + seg + "_LAST__"];
-          if (segstart >= 0 && segsize > 0 && !seg.startsWith("PRG") && seg != "RAM") {
-            var type = null;
-            if (seg.startsWith("CODE") || seg == "STARTUP" || seg == "RODATA" || seg.endsWith("ROM"))
-              type = "rom";
-            else if (seg == "ZP" || seg == "DATA" || seg == "BSS" || seg.endsWith("RAM"))
-              type = "ram";
-            segments.push({ name: seg, start: segstart, size: segsize, last: seglast, type });
-          }
+          let start = parseInt(m[2], 16);
+          let size = parseInt(m[4], 16);
+          let type = "";
+          if (seg.startsWith("CODE") || seg == "STARTUP" || seg == "RODATA" || seg.endsWith("ROM"))
+            type = "rom";
+          else if (seg == "ZP" || seg == "DATA" || seg == "BSS" || seg.endsWith("RAM"))
+            type = "ram";
+          segments.push({ name: seg, start, size, type });
         }
+        if (s2 == "Segment list:")
+          parseseglist = true;
+        if (s2 == "")
+          parseseglist = false;
       }
       var listings = {};
       for (var fn of step.files) {
@@ -2827,14 +2819,14 @@
           let isECS = ((_a = step.debuginfo) == null ? void 0 : _a.entities) != null;
           if (isECS) {
             var asmlines = [];
-            var srclines = parseCA65Listing(lstout, symbolmap, params, true, listings);
+            var srclines = parseCA65Listing(lstout, symbolmap, segments, params, true, listings);
             listings[fn] = {
               lines: [],
               text: lstout
             };
           } else {
-            var asmlines = parseCA65Listing(lstout, symbolmap, params, false);
-            var srclines = parseCA65Listing(lstout, symbolmap, params, true);
+            var asmlines = parseCA65Listing(lstout, symbolmap, segments, params, false);
+            var srclines = parseCA65Listing(lstout, symbolmap, segments, params, true);
             listings[fn] = {
               asmlines: srclines.length ? asmlines : null,
               lines: srclines.length ? srclines : asmlines,
@@ -8996,6 +8988,13 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       libargs: ["atari.lib", "-D", "__CARTFLAGS__=4"],
       fastbasic_cfgfile: "fastbasic-cart.cfg"
     },
+    "atari8-800": {
+      arch: "6502",
+      define: ["__ATARI__"],
+      cfgfile: "atari-cart.cfg",
+      libargs: ["atari.lib", "-D", "__CARTFLAGS__=4"],
+      fastbasic_cfgfile: "fastbasic-cart.cfg"
+    },
     "atari8-5200": {
       arch: "6502",
       define: ["__ATARI5200__"],
@@ -9108,6 +9107,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
   };
   PLATFORM_PARAMS["sms-sms-libcv"] = PLATFORM_PARAMS["sms-sg1000-libcv"];
+  PLATFORM_PARAMS["sms-gg-libcv"] = PLATFORM_PARAMS["sms-sms-libcv"];
   var _t1;
   function starttime() {
     _t1 = new Date();
@@ -9691,6 +9691,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     if (step.mainfile) {
       args.unshift.apply(args, ["-D", "__MAIN__"]);
     }
+    let platform_def = platform.toUpperCase().replaceAll(/[^a-zA-Z0-9]/g, "_");
+    args.unshift.apply(args, ["-D", `__PLATFORM_${platform_def}__`]);
     if (params.extra_preproc_args) {
       args.push.apply(args, params.extra_preproc_args);
     }
@@ -9782,7 +9784,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "silice": "Silice",
     "wiz": "wiz",
     "ecs-vcs": "65-none",
-    "ecs-nes": "65-nes"
+    "ecs-nes": "65-nes",
+    "ecs-c64": "65-c64"
   };
   async function handleMessage(data) {
     if (data.preload) {

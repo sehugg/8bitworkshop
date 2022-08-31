@@ -1,15 +1,19 @@
 
-#include <stdlib.h>
-#include <string.h>
-
-#include <c64.h>
-#include <joystick.h>
-
-#include "bcd.h"
-//#link "bcd.c"
+//#resource "c64-sid.cfg"
+#define CFGFILE c64-sid.cfg
 
 #include "common.h"
 //#link "common.c"
+
+#include "sidplaysfx.h"
+//#resource "sidmusic1.bin"
+//#link "sidplaysfx.ca65"
+
+#include "rasterirq.h"
+//#link "rasterirq.ca65"
+
+#include "bcd.h"
+//#link "bcd.c"
 
 #include "scrolling.h"
 //#link "scrolling.c"
@@ -17,8 +21,11 @@
 #include "sprites.h"
 //#link "sprites.c"
 
-// indices of sound effects (0..3)
-typedef enum { SND_START, SND_HIT, SND_COIN, SND_JUMP } SFXIndex;
+// indices of sound effects
+#define SND_JUMP 0
+#define SND_HIT 2
+#define SND_COIN 1
+#define SND_FALL 3
 
 ///// DEFINES
 
@@ -62,7 +69,7 @@ const byte ITEM_CHARS[3][4] = {
 #define NUM_SPRITE_PATTERNS 13
 
 /*{w:12,h:21,bpp:2,brev:1,count:13,aspect:2}*/
-const char SPRITE_DATA[NUM_SPRITE_PATTERNS][3*21] = {
+const char SPRITE_DATA[NUM_SPRITE_PATTERNS][64] = {
   // left direction
   {
   0x00,0x00,0x00,0x00,0xA8,0x00,0x02,0xEA,0x00,
@@ -372,8 +379,9 @@ void refresh_floor(byte floor) {
 
 byte explode_timer = 0;
 
+#define SPRITE_SHAPE_FIRST 192
 #define SPRITE_XPLODE 7
-#define SHAPE_XPLODE0 (32+10)
+#define SHAPE_XPLODE0 (SPRITE_SHAPE_FIRST+10)
 #define NUM_XPLODE_SHAPES 3
 
 void explode(int x, byte y) {
@@ -446,7 +454,7 @@ void draw_actor(byte i) {
     a->onscreen = 0;
     return; // offscreen vertically
   }
-  name = 32 + (a->state - WALKING);
+  name = SPRITE_SHAPE_FIRST + (a->state - WALKING);
   switch (a->state) {
     case INACTIVE:
       a->onscreen = 0;
@@ -469,7 +477,7 @@ void draw_actor(byte i) {
 void refresh_actors() {
   byte i;
   yscroll = BOTTOM_Y + scroll_fine_y + (START_ORIGIN_Y - origin_y)*8;
-  sprite_clear();
+  sprshad.spr_ena = 0; // make all sprites invisible
   for (i=0; i<MAX_ACTORS; i++)
     draw_actor(i);
   animate_explosion();
@@ -541,6 +549,7 @@ void move_actor(struct Actor* actor, byte joystick, bool scroll) {
         actor->yvel = 15;
         if (joystick & JOY_LEFT_MASK) actor->xvel = -1;
         if (joystick & JOY_RIGHT_MASK) actor->xvel = 1;
+        if (scroll) sid_sfx(SND_JUMP);
       } else if (joystick & JOY_LEFT_MASK) {
         actor->x--;
         actor->dir = 1;
@@ -605,6 +614,7 @@ void move_actor(struct Actor* actor, byte joystick, bool scroll) {
   if (actor->state == WALKING && 
       is_in_gap(actor->x, floors[actor->level].gap)) {
     fall_down(actor);
+    if (scroll) sid_sfx(SND_FALL);
   }
 }
 
@@ -626,11 +636,11 @@ void pickup_object(Actor* actor) {
       if (objtype == ITEM_MINE) {
         // we hit a mine, fall down
         fall_down(actor);
-        //sfx_play(SND_HIT,0);
+        sid_sfx(SND_HIT);
       } else {
         // we picked up an object, add to score
         //score = bcd_add(score, 1);
-        //sfx_play(SND_COIN,0);
+        sid_sfx(SND_COIN);
       }
     }
   }
@@ -717,6 +727,9 @@ void play_scene() {
   create_actors_on_floor(2);
   refresh_screen();
   
+  sid_init(1);
+  sid_start();
+  
   while (actors[0].level != MAX_FLOORS-1) {
     refresh_actors();
     move_player();
@@ -728,6 +741,7 @@ void play_scene() {
     if (VIC.spr_coll & 0x01) {
       if (actors[0].level > 0 && check_collision(&actors[0])) {
         fall_down(&actors[0]);
+        sid_sfx(SND_HIT);
       }
     }
     if (swap_needed) sprite_update(hidbuf);
@@ -739,26 +753,34 @@ void play_scene() {
   blimp_pickup_scene();
 }
 
+// main display list
+void game_displaylist(void) {
+//  VIC.bordercolor = 2;
+  sid_update();
+//  VIC.bordercolor = 0;
+//  DLIST_NEXT(42);
+//  VIC.bordercolor = 3;
+  DLIST_RESTART(20);
+}
+
 // main program
 void main() {
-  byte i;
-  
   // set up scrolling
   scroll_setup();
   // set up sprites
   sprite_clear();
-  for (i=0; i<NUM_SPRITE_PATTERNS; i++) {
-    sprite_shape(hidbuf, 32+i, SPRITE_DATA[i]);
-  }
+  sprite_set_shapes(SPRITE_DATA, SPRITE_SHAPE_FIRST, NUM_SPRITE_PATTERNS);
   sprshad.spr_mcolor = 0xff;
-  sprshad.spr_mcolor0 = 0x0f;
-  sprshad.spr_mcolor1 = 0x00;
+  VIC.spr_mcolor0 = 0x0f;
+  VIC.spr_mcolor1 = 0x00;
   // select character set 2
   VIC.addr = 0x15;
   // start scrolling @ bottom of level
   origin_y = START_ORIGIN_Y;
   // install joystick
   joy_install (joy_static_stddrv);
+  // setup display list
+  DLIST_SETUP(game_displaylist);
   // main game loop
   while (1) {
     make_floors();

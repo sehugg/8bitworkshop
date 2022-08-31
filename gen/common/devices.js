@@ -112,6 +112,7 @@ class BasicMachine extends BasicHeadlessMachine {
         super(...arguments);
         this.overscan = false;
         this.rotate = 0;
+        this.aspectRatio = 1.0;
     }
     getAudioParams() {
         return { sampleRate: this.sampleRate, stereo: false };
@@ -120,7 +121,11 @@ class BasicMachine extends BasicHeadlessMachine {
         this.audio = audio;
     }
     getVideoParams() {
-        return { width: this.canvasWidth, height: this.numVisibleScanlines, overscan: this.overscan, rotate: this.rotate };
+        return { width: this.canvasWidth,
+            height: this.numVisibleScanlines,
+            aspect: this.aspectRatio,
+            overscan: this.overscan,
+            rotate: this.rotate };
     }
     connectVideo(pixels) {
         this.pixels = pixels;

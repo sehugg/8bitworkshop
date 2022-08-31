@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ProbeSymbolView = exports.ScanlineIOView = exports.ProbeLogView = exports.RasterPCHeatMapView = exports.AddressHeatMapView = exports.ProbeViewBaseBase = exports.MemoryMapView = exports.BinaryFileView = exports.VRAMMemoryView = exports.MemoryView = void 0;
+exports.ProbeSymbolView = exports.ScanlineIOView = exports.ProbeLogView = exports.RasterStackMapView = exports.RasterPCHeatMapView = exports.AddressHeatMapView = exports.ProbeViewBaseBase = exports.MemoryMapView = exports.BinaryFileView = exports.VRAMMemoryView = exports.MemoryView = void 0;
 const baseviews_1 = require("./baseviews");
 const ui_1 = require("../ui");
 const util_1 = require("../../common/util");
@@ -289,6 +289,7 @@ class MemoryMapView {
 exports.MemoryMapView = MemoryMapView;
 ///
 // TODO: clear buffer when scrubbing
+const OPAQUE_BLACK = 0xff000000;
 class ProbeViewBaseBase {
     constructor() {
         this.cumulativeData = false;
@@ -347,11 +348,12 @@ class ProbeViewBaseBase {
         var row = 0;
         var col = 0;
         var clk = 0;
+        this.sp = 0;
         for (var i = 0; i < p.idx; i++) {
             var word = p.buf[i];
             var addr = word & 0xffff;
             var value = (word >> 16) & 0xff;
-            var op = word & 0xff000000;
+            var op = word & OPAQUE_BLACK;
             switch (op) {
                 case recorder_1.ProbeFlags.SCANLINE:
                     row++;
@@ -365,6 +367,9 @@ class ProbeViewBaseBase {
                     col += addr;
                     clk += addr;
                     break;
+                case recorder_1.ProbeFlags.SP_PUSH:
+                case recorder_1.ProbeFlags.SP_POP:
+                    this.sp = addr;
                 default:
                     eventfn(op, addr, col, row, clk, value);
                     break;
@@ -415,7 +420,7 @@ class ProbeViewBaseBase {
             s += " = $" + (0, util_1.hex)(value, 2);
         return s;
     }
-    getOpRGB(op) {
+    getOpRGB(op, addr) {
         switch (op) {
             case recorder_1.ProbeFlags.EXECUTE: return 0x018001;
             case recorder_1.ProbeFlags.MEM_READ: return 0x800101;
@@ -424,7 +429,7 @@ class ProbeViewBaseBase {
             case recorder_1.ProbeFlags.IO_WRITE: return 0xc00180;
             case recorder_1.ProbeFlags.VRAM_READ: return 0x808001;
             case recorder_1.ProbeFlags.VRAM_WRITE: return 0x4080c0;
-            case recorder_1.ProbeFlags.INTERRUPT: return 0xcfcfcf;
+            case recorder_1.ProbeFlags.INTERRUPT: return 0x3fbf3f;
             case recorder_1.ProbeFlags.ILLEGAL: return 0x3f3fff;
             default: return 0;
         }
@@ -519,14 +524,17 @@ class ProbeBitmapViewBase extends ProbeViewBase {
     }
     refresh() {
         this.tick();
-        this.datau32.fill(0xff000000);
+        this.datau32.fill(OPAQUE_BLACK);
     }
     tick() {
         super.tick();
+        this.drawImage();
+    }
+    drawImage() {
         this.ctx.putImageData(this.imageData, 0, 0);
     }
     clear() {
-        this.datau32.fill(0xff000000);
+        this.datau32.fill(OPAQUE_BLACK);
     }
 }
 class AddressHeatMapView extends ProbeBitmapViewBase {
@@ -538,17 +546,17 @@ class AddressHeatMapView extends ProbeBitmapViewBase {
             var v = ui_1.platform.readAddress(i);
             var rgb = (v >> 2) | (v & 0x1f);
             rgb |= (rgb << 8) | (rgb << 16);
-            this.datau32[i] = rgb | 0xff000000;
+            this.datau32[i] = rgb | OPAQUE_BLACK;
         }
     }
     drawEvent(op, addr, col, row) {
-        var rgb = this.getOpRGB(op);
+        var rgb = this.getOpRGB(op, addr);
         if (!rgb)
             return;
         var x = addr & 0xff;
         var y = (addr >> 8) & 0xff;
         var data = this.datau32[addr & 0xffff];
-        data = data | rgb | 0xff000000;
+        data = data | rgb | OPAQUE_BLACK;
         this.datau32[addr & 0xffff] = data;
     }
     getTooltipText(x, y) {
@@ -586,16 +594,86 @@ class AddressHeatMapView extends ProbeBitmapViewBase {
 exports.AddressHeatMapView = AddressHeatMapView;
 class RasterPCHeatMapView extends ProbeBitmapViewBase {
     drawEvent(op, addr, col, row) {
-        var iofs = col + row * this.canvas.width;
-        var rgb = this.getOpRGB(op);
+        var rgb = this.getOpRGB(op, addr);
         if (!rgb)
             return;
-        var data = this.datau32[iofs];
-        data = data | rgb | 0xff000000;
-        this.datau32[iofs] = data;
+        var iofs = col + row * this.canvas.width;
+        var data = rgb | OPAQUE_BLACK;
+        this.datau32[iofs] |= data;
+    }
+    drawImage() {
+        // fill in the gaps
+        let last = OPAQUE_BLACK;
+        for (let i = 0; i < this.datau32.length; i++) {
+            if (this.datau32[i] == OPAQUE_BLACK) {
+                this.datau32[i] = last;
+            }
+            else {
+                last = this.datau32[i];
+            }
+        }
+        super.drawImage();
     }
 }
 exports.RasterPCHeatMapView = RasterPCHeatMapView;
+class RasterStackMapView extends RasterPCHeatMapView {
+    constructor() {
+        super(...arguments);
+        this.interrupt = 0;
+        this.rgb = 0;
+        this.lastpc = 0;
+    }
+    drawEvent(op, addr, col, row) {
+        var iofs = col + row * this.canvas.width;
+        // track interrupts
+        if (op == recorder_1.ProbeFlags.INTERRUPT)
+            this.interrupt = 1;
+        if (this.interrupt == 1 && op == recorder_1.ProbeFlags.SP_PUSH)
+            this.interrupt = addr;
+        if (this.interrupt > 1 && this.sp > this.interrupt)
+            this.interrupt = 0;
+        // track writes
+        if (op == recorder_1.ProbeFlags.MEM_WRITE) {
+            this.rgb |= 0x00002f;
+        }
+        if (op == recorder_1.ProbeFlags.VRAM_WRITE) {
+            this.rgb |= 0x003f80;
+        }
+        if (op == recorder_1.ProbeFlags.IO_WRITE) {
+            this.rgb |= 0x1f3f80;
+        }
+        if (op == recorder_1.ProbeFlags.IO_READ) {
+            this.rgb |= 0x001f00;
+        }
+        // draw pixels?
+        if (op == recorder_1.ProbeFlags.ILLEGAL || op == recorder_1.ProbeFlags.VRAM_READ) {
+            this.datau32[iofs] = 0xff0f0f0f;
+        }
+        else {
+            let data = this.rgb;
+            if (op == recorder_1.ProbeFlags.EXECUTE) {
+                let sp = this.sp & 15;
+                if (sp >= 8)
+                    sp = 16 - sp;
+                if (Math.abs(this.lastpc) - addr > 16) {
+                    sp += 1;
+                }
+                if (Math.abs(this.lastpc) - addr > 256) {
+                    sp += 1;
+                }
+                data = this.rgb = (0x080808 * sp) + 0x202020;
+                this.lastpc = addr;
+            }
+            if (this.interrupt) {
+                data |= 0x800040;
+            }
+            if (this.datau32[iofs] == OPAQUE_BLACK) {
+                this.datau32[iofs] = data | OPAQUE_BLACK;
+            }
+        }
+    }
+}
+exports.RasterStackMapView = RasterStackMapView;
 class ProbeLogView extends ProbeViewBaseBase {
     constructor() {
         super(...arguments);
@@ -671,7 +749,7 @@ class ScanlineIOView extends ProbeViewBaseBase {
             var opaddr = line[i];
             if (opaddr !== undefined) {
                 var addr = opaddr & 0xffff;
-                var op = op & 0xff000000;
+                var op = op & OPAQUE_BLACK;
                 if (op == recorder_1.ProbeFlags.EXECUTE) {
                     s += ',';
                 }

@@ -671,7 +671,7 @@ export abstract class Base6809Platform extends BaseZ80Platform {
 
 
 //TODO: how to get stack_end?
-export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], start:number, end:number, sp:number, jsrop:number) : string {
+export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], start:number, end:number, sp:number, jsrop:number, bigendian?:boolean) : string {
   var s = "";
   var nraw = 0;
   //s = dumpRAM(mem.slice(start,start+end+1), start, end-start+1);
@@ -684,6 +684,7 @@ export function dumpStackToString(platform:Platform, mem:Uint8Array|number[], st
     // see if there's a JSR on the stack here
     // TODO: make work with roms and memory maps
     var addr = read(sp) + read(sp+1)*256;
+    if (bigendian) { addr = ((addr & 0xff) << 8) | ((addr & 0xff00) >> 8) }
     var jsrofs = jsrop==0x20 ? -2 : -3; // 6502 vs Z80
     var opcode = read(addr + jsrofs); // might be out of bounds
     if (opcode == jsrop) { // JSR
@@ -893,21 +894,19 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   pause() {
     this.timer.stop();
     this.audio && this.audio.stop();
-    // i guess for runToVsync()?
-    if (this.probeRecorder) {
-      this.probeRecorder.singleFrame = true;
-    }
-  }
-  // so probe views stick around TODO: must be a better way?
-  runToVsync() {
-    if (this.probeRecorder) {
-      this.probeRecorder.clear();
-      this.probeRecorder.singleFrame = false;
-    }
-    super.runToVsync();
   }
 
-// TODO: reset target clock counter
+  // so probe views stick around TODO: must be a better way?
+  runToVsync() {
+    this.restartDebugging();
+    var flag = false;
+    this.runEval( () : boolean => {
+      if (this.getRasterScanline() > 0) flag = true;
+      else return flag;
+    });
+  }
+
+  // TODO: reset target clock counter
   getRasterScanline() {
     return isRaster(this.machine) && this.machine.getRasterY();
   }
@@ -970,7 +969,6 @@ export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMach
         var start = sp & 0xff00;
         var end = start + 0xff;
         if (sp == 0) sp = 0x10000;
-        console.log(sp,start,end);
         return dumpStackToString(<Platform><any>this, [], start, end, sp, 0xcd);
       }
       default: return isDebuggable(this.machine) && this.machine.getDebugInfo(category, state);
@@ -980,6 +978,35 @@ export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMach
     return disassembleZ80(pc, read(pc), read(pc+1), read(pc+2), read(pc+3));
   }
 
+}
+
+export abstract class Base6809MachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
+
+  getToolForFilename    = getToolForFilename_6809;
+
+  getDebugCategories() {
+    if (isDebuggable(this.machine))
+      return this.machine.getDebugCategories();
+    else
+      return ['CPU','Stack'];
+  }
+  getDebugInfo(category:string, state:EmuState) : string {
+    switch (category) {
+      case 'CPU':   return cpuStateToLongString_6809(state.c);
+      case 'Stack': {
+        var sp = (state.c.SP-1) & 0xffff;
+        var start = sp & 0xff00;
+        var end = start + 0xff;
+        if (sp == 0) sp = 0x10000;
+        return dumpStackToString(<Platform><any>this, [], start, end, sp, 0x17, true);
+      }
+      default: return super.getDebugInfo(category, state);
+    }
+  }
+  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
+    // TODO: don't create new CPU
+    return Object.create(CPU6809()).disasm(read(pc), read(pc+1), read(pc+2), read(pc+3), read(pc+4), pc);
+  }
 }
 
 ///

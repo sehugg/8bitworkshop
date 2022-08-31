@@ -1,0 +1,479 @@
+mads 2.1.0
+Source: source/SuperKernel/main.xasm
+     1 				;	Altirra - Atari 800/800XL/5200 emulator
+     2 				;	5200 OS ROM replacement
+     3 				;	Copyright (C) 2008-2010 Avery Lee
+     4 				;
+     5 				;	Copying and distribution of this file, with or without modification,
+     6 				;	are permitted in any medium without royalty provided the copyright
+     7 				;	notice and this notice are preserved.  This file is offered as-is,
+     8 				;	without any warranty.
+     9
+    10 						opt		h-o+f+
+    11
+    12 						icl		'includes.xasm'
+Source: source/SuperKernel/includes.xasm
+     1 				;	Altirra - Atari 800/800XL/5200 emulator
+     2 				;	5200 OS ROM replacement
+     3 				;	Copyright (C) 2008-2016 Avery Lee
+     4 				;
+     5 				;	Copying and distribution of this file, with or without modification,
+     6 				;	are permitted in any medium without royalty provided the copyright
+     7 				;	notice and this notice are preserved.  This file is offered as-is,
+     8 				;	without any warranty.
+     9
+    10 = C010			trig0	equ	$c010
+    11 = C011			trig1	equ	$c011
+    12 = C012			trig2	equ	$c012
+    13 = C012			colpm0	equ	$c012
+    14 = C013			trig3	equ	$c013
+    15 = C013			colpm1	equ	$c013
+    16 = C014			colpm2	equ	$c014
+    17 = C015			colpm3	equ	$c015
+    18 = C016			colpf0	equ	$c016
+    19 = C017			colpf1	equ	$c017
+    20 = C018			colpf2	equ	$c018
+    21 = C019			colpf3	equ	$c019
+    22 = C01A			colbk	equ	$c01a
+    23 = C01B			prior	equ	$c01b
+    24 = C01F			consol	equ	$c01f
+    25 = E800			pot0	equ	$e800
+    26 = E800			audf1	equ	$e800
+    27 = E801			pot1	equ	$e801
+    28 = E801			audc1	equ	$e801
+    29 = E802			pot2	equ	$e802
+    30 = E802			audf2	equ	$e802
+    31 = E803			pot3	equ	$e803
+    32 = E803			audc2	equ	$e803
+    33 = E804			pot4	equ	$e804
+    34 = E804			audf3	equ	$e804
+    35 = E805			pot5	equ	$e805
+    36 = E805			audc3	equ	$e805
+    37 = E806			pot6	equ	$e806
+    38 = E806			audf4	equ	$e806
+    39 = E807			pot7	equ	$e807
+    40 = E807			audc4	equ	$e807
+    41 = E808			audctl	equ	$e808
+    42 = E809			kbcode	equ	$e809
+    43 = E80A			skres	equ	$e80a
+    44 = E80B			potgo	equ	$e80b
+    45 = E80D			serin	equ	$e80d
+    46 = E80D			serout	equ	$e80d
+    47 = E80E			irqen	equ	$e80e
+    48 = E80E			irqst	equ	$e80e
+    49 = E80F			skctl	equ	$e80f
+    50 = D400			dmactl	equ	$d400
+    51 = D401			chactl	equ	$d401
+    52 = D402			dlistl	equ	$d402
+    53 = D403			dlisth	equ	$d403
+    54 = D404			hscrol	equ	$d404
+    55 = D405			vscrol	equ	$d405
+    56 = D409			chbase	equ	$d409
+    57 = D40A			wsync	equ	$d40a
+    58 = D40E			nmien	equ	$d40e
+    59 = D40F			nmist	equ	$d40f
+    60 = D40F			nmires	equ	$d40f
+    61
+    62 = 0000			pokmsk	equ		$00
+    63 = 0001			rtclok	equ		$01
+    64 				;		equ		$02
+    65 = 0003			critic	equ		$03
+    66 = 0004			atract	equ		$04
+    67 = 0005			sdlstl	equ		$05
+    68 = 0006			sdlsth	equ		$06
+    69 = 0007			sdmctl	equ		$07
+    70 = 0008			pcolr0	equ		$08
+    71 = 0009			pcolr1	equ		$09
+    72 = 000A			pcolr2	equ		$0a
+    73 = 000B			pcolr3	equ		$0b
+    74 = 000C			color0	equ		$0c
+    75 = 000D			color1	equ		$0d
+    76 = 000E			color2	equ		$0e
+    77 = 000F			color3	equ		$0f
+    78 = 0010			color4	equ		$10
+    79 = 0011			paddl0	equ		$11
+    80 = 0012			paddl1	equ		$12
+    81 = 0013			paddl2	equ		$13
+    82 = 0014			paddl3	equ		$14
+    83 = 0015			paddl4	equ		$15
+    84 = 0016			paddl5	equ		$16
+    85 = 0017			paddl6	equ		$17
+    86 = 0018			paddl7	equ		$18
+    87 				 
+    88 = 0200			vimirq	equ		$0200		;IRQ immediate vector
+    89 = 0202			vvblki	equ		$0202		;VBI immediate vector
+    90 = 0204			vvblkd	equ		$0204		;VBI deferred vector
+    91 = 0206			vdslst	equ		$0206		;display list vector
+    92 = 0208			vkybdi	equ		$0208		;keyboard immediate vector
+    93 = 020A			vkybdf	equ		$020a		;keyboard deferred vector
+    94 = 020C			vtrigr	equ		$020c		;soft-trigger vector (BREAK key)
+    95 = 020E			vbrkop	equ		$020e		;BRK opcode vector
+    96 = 0210			vserin	equ		$0210		;serial input ready vector
+    97 = 0212			vseror	equ		$0212		;serial output ready vector
+    98 = 0214			vseroc	equ		$0214		;serial output complete vector
+    99 = 0216			vtimr1	equ		$0216		;POKEY timer #1 vector
+   100 = 0218			vtimr2	equ		$0218		;POKEY timer #2 vector
+   101 = 021A			vtimr4	equ		$021a		;POKEY timer #4 vector
+   102
+   103 = 021E			jveck	equ		$021e
+    13
+    14 						org		$f800
+    15 F800 00 00 00 00 00 00 + 		ins		'atarifont.bin',$0,$400
+    16
+    17 				;=========================================================================
+    18 FC00			.proc	irq
+    19 FC00 6C 00 02				jmp		(vimirq)
+    20 				.endp
+    21
+    22 				;=========================================================================
+    23 				;Must be at $FC03 for Montezuma's Revenge to work.
+    24 FC03					org		$fc03
+    25 FC03			.proc	sysirq
+    26 FC03 48					pha
+    27 						
+    28 						;We test interrupts in this order:
+    29 						;	20 -> VSERIN
+    30 						;	80 -> VTRIGR
+    31 						;	40 -> VKYBDI
+    32 						;	10 -> VSEROR
+    33 						;	08 -> VSEROC
+    34 						;	01 -> VTIMR1
+    35 						;	02 -> VTIMR2
+    36 						;	04 -> VTIMR4
+    37 						;	VBRKOP
+    38 						;
+    39 						;Note that there is a complication with VSEROC, since it is not
+    40 						;masked by POKEY. We must only dispatch it if it is enabled in
+    41 						;POKMSK.
+    42 FC04 A9 20				lda		#$20
+    43 FC06 2C 0E E8				bit		irqst
+    44 FC09 D0 0D				bne		not_serin
+    45 FC0B 45 00				eor		pokmsk
+    46 FC0D 8D 0E E8				sta		irqen
+    47 FC10 A5 00				lda		pokmsk
+    48 FC12 8D 0E E8				sta		irqen
+    49 FC15 6C 10 02				jmp		(vserin)
+    50 FC18			not_serin:
+    51 FC18 30 0F				bmi		not_trigr
+    52 FC1A A9 80				lda		#$80
+    53 FC1C 45 00				eor		pokmsk
+    54 FC1E 8D 0E E8				sta		irqen
+    55 FC21 A5 00				lda		pokmsk
+    56 FC23 8D 0E E8				sta		irqen
+    57 FC26 6C 0C 02				jmp		(vtrigr)
+    58 FC29			not_trigr:
+    59 FC29 70 0F				bvs		not_kybd
+    60 FC2B A9 40				lda		#$40
+    61 FC2D 45 00				eor		pokmsk
+    62 FC2F 8D 0E E8				sta		irqen
+    63 FC32 A5 00				lda		pokmsk
+    64 FC34 8D 0E E8				sta		irqen
+    65 FC37 6C 08 02				jmp		(vkybdi)
+    66 FC3A			not_kybd:
+    67 FC3A 6A					ror
+    68 FC3B 2C 0E E8				bit		irqen
+    69 FC3E F0 0D				beq		not_seror
+    70 FC40 45 00				eor		pokmsk
+    71 FC42 8D 0E E8				sta		irqen
+    72 FC45 A5 00				lda		pokmsk
+    73 FC47 8D 0E E8				sta		irqen
+    74 FC4A 6C 12 02				jmp		(vseror)
+    75 FC4D			not_seror:
+    76 FC4D 6A					ror
+    77 FC4E 24 00				bit		pokmsk
+    78 FC50 F0 12				beq		not_seroc
+    79 FC52 2C 0E E8				bit		irqen
+    80 FC55 D0 0D				bne		not_seroc
+    81 FC57 45 00				eor		pokmsk
+    82 FC59 8D 0E E8				sta		irqen
+    83 FC5C A5 00				lda		pokmsk
+    84 FC5E 8D 0E E8				sta		irqen
+    85 FC61 6C 14 02				jmp		(vseroc)
+    86 FC64			not_seroc:
+    87 FC64 A9 01				lda		#$01
+    88 FC66 2C 0E E8				bit		irqst
+    89 FC69 D0 0D				bne		not_timr1
+    90 FC6B 45 00				eor		pokmsk
+    91 FC6D 8D 0E E8				sta		irqen
+    92 FC70 A5 00				lda		pokmsk
+    93 FC72 8D 0E E8				sta		irqen
+    94 FC75 6C 16 02				jmp		(vtimr1)
+    95 FC78			not_timr1:
+    96 FC78 2A					rol
+    97 FC79 2C 0E E8				bit		irqst
+    98 FC7C D0 0D				bne		not_timr2
+    99 FC7E 45 00				eor		pokmsk
+   100 FC80 8D 0E E8				sta		irqen
+   101 FC83 A5 00				lda		pokmsk
+   102 FC85 8D 0E E8				sta		irqen
+   103 FC88 6C 18 02				jmp		(vtimr2)
+   104 FC8B			not_timr2:
+   105 FC8B 2A					rol
+   106 FC8C 2C 0E E8				bit		irqst
+   107 FC8F D0 0D				bne		not_timr4
+   108 FC91 45 00				eor		pokmsk
+   109 FC93 8D 0E E8				sta		irqen
+   110 FC96 A5 00				lda		pokmsk
+   111 FC98 8D 0E E8				sta		irqen
+   112 FC9B 6C 1A 02				jmp		(vtimr4)
+   113 FC9E			not_timr4:
+   114 FC9E 8A					txa
+   115 FC9F 48					pha
+   116 FCA0 BA					tsx
+   117 FCA1 BD 01 01				lda		$0101,x
+   118 FCA4 29 10				and		#$10
+   119 FCA6 D0 03				bne		wtf
+   120 FCA8 6C 0E 02				jmp		(vbrkop)
+   121 FCAB			wtf:
+   122 FCAB 68					pla
+   123 FCAC AA					tax
+   124 FCAD 68					pla
+   125 FCAE 40					rti
+   126 				.endp
+   127
+   128 				;=========================================================================
+   129 				;Must be at $FCB2 for Congo Bongo to work (grrr... damn SEGA)
+   130 FCAF					org		$fcb2
+   131 FCB2			.proc	xitvbl
+   132 FCB2 68					pla
+   133 FCB3 A8					tay
+   134 FCB4 68					pla
+   135 FCB5 AA					tax
+   136 FCB6 68					pla
+   137 FCB7 40					rti
+   138 				.endp
+   139
+   140 				;=========================================================================
+   141 				;Must be at $FCB8 for Montezuma's Revenge to work.
+   142 FCB8					org		$fcb8
+   143 FCB8			.proc	sysvbl
+   144 FCB8 48					pha
+   145 FCB9 8A					txa
+   146 FCBA 48					pha
+   147 FCBB 98					tya
+   148 FCBC 48					pha
+   149 						
+   150 FCBD E6 02				inc		rtclok+1
+   151 FCBF D0 08				bne		rtnocarry
+   152 FCC1 E6 01				inc		rtclok
+   153 FCC3 A5 04				lda		atract
+   154 FCC5 30 02				bmi		rtnocarry
+   155 FCC7 E6 04				inc		atract
+   156 FCC9			rtnocarry:
+   157
+   158 FCC9 A5 03				lda		critic
+   159 FCCB D0 E5				bne		xitvbl
+   160
+   161 FCCD A5 05 8D 02 D4			mva		sdlstl	dlistl
+   162 FCD2 A5 06 8D 03 D4			mva		sdlsth	dlisth
+   163 FCD7 A5 07 8D 00 D4			mva		sdmctl	dmactl
+   164
+   165 						;copy and attract colors
+   166 FCDC A0 00				ldy		#0
+   167 FCDE 24 04				bit		atract
+   168 FCE0 10 02 A4 01				spl:ldy	rtclok
+   169 						
+   170 FCE4 A2 08				ldx		#8
+   171 FCE6			colorloop:
+   172 FCE6 98					tya
+   173 FCE7 55 08				eor		pcolr0,x
+   174 FCE9 9D 12 C0				sta		colpm0,x
+   175 FCEC CA					dex
+   176 FCED 10 F7				bpl		colorloop
+   177 						
+   178 						;update pots
+   179 FCEF A2 07				ldx		#7
+   180 FCF1			potloop:
+   181 FCF1 BD 00 E8				lda		pot0,x
+   182 FCF4 95 11				sta		paddl0,x
+   183 FCF6 CA					dex
+   184 FCF7 10 F8				bpl		potloop
+   185 FCF9 8D 0B E8				sta		potgo
+   186 						
+   187 						;run deferred
+   188 FCFC 6C 04 02				jmp		(vvblkd)
+   189 				.endp
+   190
+   191 				;=========================================================================
+   192 				; System keyboard handler
+   193 				;
+   194 				; MUST be at $FD02 for Blueprint to work.
+   195 				;
+   196 FCFF					org		$fd02
+   197 FD02			.proc	syskbd
+   198 FD02 8A					txa
+   199 FD03 48					pha
+   200 FD04 98					tya
+   201 FD05 48					pha
+   202 FD06 AD 09 E8				lda		kbcode
+   203 FD09 4A					lsr
+   204 FD0A 29 0F				and		#$0f
+   205 FD0C AA					tax
+   206 FD0D BD 13 FD				lda		keytable,x
+   207 FD10 6C 0A 02				jmp		(vkybdf)
+   208 				.endp
+   209
+   210 				;=========================================================================
+   211 				;Keyboard translation table
+   212 				;
+   213 				;MUST be at $FD13 for Congo Bongo to work.
+   214 				;
+   215 FD13					org		$fd13
+   216 FD13			keytable:
+   217 FD13 FF 0B 00 0A 0E 09 + 		dta		$ff,$0b,$00,$0a,$0e,$09,$08,$07,$0d,$06,$05,$04,$0c,$03,$02,$01
+   218
+   219 				;=========================================================================
+   220 				; NMI handler
+   221 				;
+   222 FD23			.proc	nmi
+   223 FD23 2C 0F D4				bit		nmist
+   224 						
+   225 						;This is pretty useless, but the stock 5200 OS does it, and it
+   226 						;affects DLI timing -- in particular, it can cause DLIs ported
+   227 						;from the 400/800 OS to fail.
+   228 FD26 8D 0F D4				sta		nmires
+   229 						
+   230 FD29 10 03 6C 06 02			spl:jmp	(vdslst)
+   231 FD2E 6C 02 02				jmp		(vvblki)
+   232 				.endp
+   233
+   234 				;=========================================================================
+   235 				; RESET handler
+   236 				;
+   237 FD31			.proc	reset
+   238 						;initialize CPU
+   239 FD31 78					sei
+   240 FD32 D8					cld
+   241 FD33 A2 FF				ldx		#$ff
+   242 FD35 9A					txs
+   243 						
+   244 						;check for diagnostic cartridge
+   245 FD36 AD FD BF				lda		$bffd
+   246 FD39 C9 FF				cmp		#$ff
+   247 FD3B D0 03				bne		notdiag
+   248 FD3D 6C FE BF				jmp		($bffe)
+   249 FD40			notdiag:
+   250
+   251 						;zero hardware registers and page zero
+   252 FD40 A2 00				ldx		#0
+   253 FD42 A9 00				lda		#0
+   254 FD44			zeroloop:
+   255 FD44 95 00				sta		$00,x
+   256 FD46 9D 00 C0				sta		$c000,x
+   257 FD49 9D 00 D4				sta		$d400,x
+   258 FD4C 9D 00 E8				sta		$e800,x
+   259 FD4F E8					inx
+   260 FD50 D0 F2				bne		zeroloop
+   261 						
+   262 						;init hardware display
+   263 FD52 A9 F8 8D 09 D4			mva		#$f8 chbase
+   264 						
+   265 						;initialize vectors
+   266 FD57 A2 0B				ldx		#$0b
+   267 FD59			vecloop:
+   268 FD59 BD 95 FE				lda		irqtable,x
+   269 FD5C 9D 00 02				sta		$0200,x
+   270 FD5F CA					dex
+   271 FD60 10 F7				bpl		vecloop
+   272 						
+   273 						;set up default display
+   274 FD62 A2 4F				ldx		#79
+   275 FD64			pfcopyloop:
+   276 FD64 BD CD FD				lda		playfield,x
+   277 FD67 9D 00 10				sta		$1000,x
+   278 FD6A CA					dex
+   279 FD6B 10 F7				bpl		pfcopyloop
+   280 						
+   281 FD6D A2 13				ldx		#19
+   282 FD6F			namecopyloop:
+   283 FD6F BD E8 BF				lda		$bfe8,x
+   284 FD72 9D 50 10				sta		$1050,x
+   285 FD75 CA					dex
+   286 FD76 10 F7				bpl		namecopyloop
+   287 						
+   288 						;PF0 is the flashing color, while PF1 is white. PF2 and PF3 are black.
+   289 						;In fact, PF3 must be black in order for the Defender title to appear
+   290 						;properly.
+   291 FD78 A9 10 85 0C				mva		#$10 color0
+   292 FD7C A9 0F 85 0D				mva		#$0F color1
+   293 FD80 A9 00 85 0E				mva		#$00 color2
+   294 FD84 A9 00 85 0F				mva		#$00 color3
+   295 FD88 A9 00 85 10				mva		#$00 color4
+   296 FD8C A9 04 8D 1B C0			mva		#$04 prior
+   297 						
+   298 						;move display list; must be at $2000 for Miniature Golf to work
+   299 FD91 A2 0A				ldx		#playfield-dlist-1
+   300 FD93			dlcopy:
+   301 FD93 BD C2 FD				lda		dlist,x
+   302 FD96 9D 00 20				sta		$2000,x
+   303 FD99 CA					dex
+   304 FD9A 10 F7				bpl		dlcopy
+   305 						
+   306 FD9C A9 22 85 07				mva		#$22 sdmctl
+   307 FDA0 A9 C0 8D 0E D4			mva		#$c0 nmien
+   308 FDA5 A9 00 85 05 A9 20 + 		mwa		#$2000 sdlstl
+   309 						
+   310 						;enable key input
+   311 FDAD A9 02 8D 0F E8			mva		#$02 skctl
+   312 FDB2 A9 C0				lda		#$c0
+   313 FDB4 85 00				sta		pokmsk
+   314 FDB6 8D 0E E8				sta		irqen
+   315 						
+   316 						;wait two seconds (four is too long)
+   317 FDB9 A9 78				lda		#120
+   318 FDBB C5 02 D0 FC				cmp:rne	rtclok+1
+   319 						
+   320 						;invoke cartridge
+   321 FDBF 6C FE BF				jmp		($bffe)
+   322 						
+   323 FDC2			dlist:
+   324 FDC2 70					dta		$70
+   325 FDC3 70					dta		$70
+   326 FDC4 70					dta		$70
+   327 FDC5 42 00 10				dta		$42,a($1000)
+   328 FDC8 82					dta		$82
+   329 FDC9 07					dta		$07
+   330 FDCA 41 C2 FD				dta		$41,a(dlist)
+   331 						
+   332 FDCD			playfield:
+   333 				;				  0123456789012345678901234567890123456789
+   334 FDCD 21 6C 74 69 72 72 + 		dta		d"Altirra 5200 ROM Kernel                 "
+   335 FDF5 2E 6F 77 00 70 6C + 		dta		d"Now playing:                            "
+   336 				.endp
+   337
+   338 				;=========================================================================
+   339 				; Default IRQ table
+   340 				;
+   341 				; MUST be at $FE95 for Pitfall! to work.
+   342 				;
+   343 FE1D					org		$fe95
+   344 FE95			irqtable:
+   345 FE95 03 FC				dta		a(sysirq)	;vimirq = $fc03
+   346 FE97 B8 FC				dta		a(sysvbl)	;vvblki = $fcb8
+   347 FE99 B2 FC				dta		a(xitvbl)	;vvblkd
+   348 FE9B A1 FE				dta		a(sysdli)	;vdslst = $fea1
+   349 FE9D 02 FD				dta		a(syskbd)	;vkybdi
+   350 FE9F B2 FC				dta		a(xitvbl)	;vkybdf
+   351
+   352 				;=========================================================================
+   353 				;Must be at $FEA1 for A.E.
+   354 FEA1					org		$fea1
+   355 FEA1			.proc	sysdli
+   356 FEA1 48					pha
+   357 						
+   358 						;cycle color PF0, but avoid going through grayscales
+   359 FEA2 E6 0C				inc		color0
+   360 FEA4 D0 04				bne		noroll
+   361 FEA6 A9 10				lda		#$10
+   362 FEA8 85 0C				sta		color0
+   363 FEAA			noroll:
+   364 FEAA 68					pla
+   365 FEAB 40					rti
+   366 				.endp
+   367
+   368 				;=========================================================================
+   369
+   370 FEAC					org		$fffa
+   371 FFFA 23 FD				dta		a(nmi)
+   372 FFFC 31 FD				dta		a(reset)
+   373 FFFE 00 FC				dta		a(irq)

@@ -55,8 +55,8 @@ class CPC_WASMMachine extends wasmplatform_1.BaseWASMMachine {
         }
     }
     advanceFrame(trap) {
-        var scanline = this.exports.machine_get_raster_line(this.sys);
-        var clocks = Math.floor((this.numTotalScanlines - scanline) * 19965 / this.numTotalScanlines);
+        var scanline = this.getRasterY();
+        var clocks = Math.floor((this.numTotalScanlines - scanline) * (4000000 / 50) / this.numTotalScanlines);
         var probing = this.probe != null;
         if (probing)
             this.exports.machine_reset_probe_buffer();
@@ -64,6 +64,9 @@ class CPC_WASMMachine extends wasmplatform_1.BaseWASMMachine {
         if (probing)
             this.copyProbeData();
         return clocks;
+    }
+    getRasterY() {
+        return this.exports.machine_get_raster_line(this.sys);
     }
     /*
       z80_tick_t tick_cb; // 0

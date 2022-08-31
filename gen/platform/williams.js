@@ -4,6 +4,8 @@ const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
 const audio_1 = require("../common/audio");
+const williams_1 = require("../machine/williams");
+// https://www.arcade-museum.com/manuals-videogames/D/Defender.pdf
 var WILLIAMS_PRESETS = [
     { id: 'gfxtest.c', name: 'Graphics Test' },
     { id: 'sprites.c', name: 'Sprite Test' },
@@ -450,7 +452,24 @@ var WilliamsDefenderPlatform = function (mainElement, options) {
             ] };
     };
 };
-emu_1.PLATFORMS['williams'] = Williams6809Platform;
+class NewWilliamsPlatform extends baseplatform_1.Base6809MachinePlatform {
+    newMachine() { return new williams_1.WilliamsMachine(false); }
+    getPresets() { return WILLIAMS_PRESETS; }
+    getDefaultExtension() { return ".c"; }
+    ;
+    readAddress(a) { return this.machine.readConst(a); }
+    getMemoryMap() {
+        return { main: [
+                { name: 'Video RAM', start: 0x0000, size: 0xc000, type: 'ram' },
+                { name: 'I/O Registers', start: 0xc000, size: 0xc00, type: 'io' },
+                { name: 'NVRAM', start: 0xcc00, size: 0x400, type: 'ram' },
+                { name: 'ROM', start: 0xd000, size: 0x3000, type: 'rom' },
+            ] };
+    }
+    ;
+}
+emu_1.PLATFORMS['williams'] = NewWilliamsPlatform;
+emu_1.PLATFORMS['williams.old'] = Williams6809Platform;
 emu_1.PLATFORMS['williams-defender'] = WilliamsDefenderPlatform;
 emu_1.PLATFORMS['williams-z80'] = WilliamsZ80Platform;
 // http://seanriddle.com/willhard.html

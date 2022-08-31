@@ -71,8 +71,8 @@ class VIC20_WASMMachine extends wasmplatform_1.BaseWASMMachine {
     }
     advanceFrame(trap) {
         // TODO: does this sync with VSYNC?
-        var scanline = this.exports.machine_get_raster_line(this.sys);
-        var clocks = Math.floor((this.numTotalScanlines - scanline) * (19656 + 295 + 32) / this.numTotalScanlines);
+        var scanline = this.getRasterY();
+        var clocks = Math.floor((this.numTotalScanlines - scanline) * 19656 / this.numTotalScanlines);
         var probing = this.probe != null;
         if (probing)
             this.exports.machine_reset_probe_buffer();
@@ -80,6 +80,9 @@ class VIC20_WASMMachine extends wasmplatform_1.BaseWASMMachine {
         if (probing)
             this.copyProbeData();
         return clocks;
+    }
+    getRasterY() {
+        return this.exports.machine_get_raster_line(this.sys);
     }
     getCPUState() {
         this.exports.machine_save_cpu_state(this.sys, this.cpustateptr);

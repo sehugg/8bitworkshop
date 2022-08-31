@@ -10,7 +10,7 @@
  * GNU General Public License v2.0
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SMSVDP = exports.TMS9918A = void 0;
+exports.GameGearVDP = exports.SMSVDP = exports.TMS9918A = void 0;
 const util_1 = require("../util");
 const devices_1 = require("../devices");
 var TMS9918A_Mode;
@@ -930,4 +930,36 @@ class SMSVDP extends TMS9918A {
 }
 exports.SMSVDP = SMSVDP;
 ;
+class GameGearVDP extends SMSVDP {
+    constructor() {
+        super(...arguments);
+        this.cram = new Uint8Array(64); // color RAM
+        this.cram_latch = 0;
+    }
+    writeData(value) {
+        if (this.writeToCRAM) {
+            //console.log(hex(this.addressRegister), hex(value), hex(this.cram_latch));
+            if (this.addressRegister & 1) { // odd address?
+                let rgb4 = this.cram_latch + (value << 8);
+                let rgba = (0, util_1.RGBA)((rgb4 & 15) * 17, ((rgb4 >> 4) & 15) * 17, ((rgb4 >> 8) & 15) * 17);
+                let palindex = this.addressRegister & (this.cram.length - 1);
+                this.cram[palindex - 1] = this.cram_latch;
+                this.cram[palindex] = value;
+                this.cpalette[palindex >> 1] = rgba;
+                this.prefetchByte = value;
+                this.addressRegister &= this.ramMask;
+                this.redrawRequired = true;
+            }
+            else {
+                this.cram_latch = value; // even address
+            }
+            this.addressRegister++;
+        }
+        else {
+            super.writeData(value);
+        }
+        this.latch = false;
+    }
+}
+exports.GameGearVDP = GameGearVDP;
 //# sourceMappingURL=tms9918a.js.map

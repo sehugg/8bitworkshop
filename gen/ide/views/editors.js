@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ListingView = exports.DisassemblerView = exports.SourceEditor = exports.textMapFunctions = void 0;
+exports.ListingView = exports.DisassemblerView = exports.SourceEditor = exports.textMapFunctions = exports.PC_LINE_LOOKAHEAD = void 0;
 const baseviews_1 = require("./baseviews");
 const ui_1 = require("../ui");
 const util_1 = require("../../common/util");
@@ -17,6 +17,8 @@ function createTextSpan(text, className) {
     return span;
 }
 /////
+// look ahead this many bytes when finding source lines for a PC
+exports.PC_LINE_LOOKAHEAD = 64;
 const MAX_ERRORS = 200;
 const MODEDEFS = {
     default: { theme: 'mbo' },
@@ -349,7 +351,7 @@ class SourceEditor {
                 cpustate = ui_1.platform.getCPUState();
             if (cpustate) {
                 var EPC = (cpustate && (cpustate.EPC || cpustate.PC));
-                var res = this.sourcefile.findLineForOffset(EPC, 15);
+                var res = this.sourcefile.findLineForOffset(EPC, exports.PC_LINE_LOOKAHEAD);
                 return res;
             }
         }
@@ -548,7 +550,7 @@ class ListingView extends DisassemblerView {
         var state = ui_1.lastDebugState || ui_1.platform.saveState();
         var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
         if (pc >= 0 && this.assemblyfile) {
-            var res = this.assemblyfile.findLineForOffset(pc, 15);
+            var res = this.assemblyfile.findLineForOffset(pc, exports.PC_LINE_LOOKAHEAD);
             if (res) {
                 // set cursor while debugging
                 if (moveCursor) {

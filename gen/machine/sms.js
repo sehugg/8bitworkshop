@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SMS = exports.SG1000 = void 0;
+exports.GameGear = exports.SMS = exports.SG1000 = void 0;
 const vdp_z80_1 = require("./vdp_z80");
 const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
@@ -24,7 +24,8 @@ var SG1000_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.P2_RIGHT, 1, 0x2],
     [emu_1.Keys.P2_A, 1, 0x4],
     [emu_1.Keys.P2_B, 1, 0x8],
-    [emu_1.Keys.VK_BACK_SLASH, 1, 0x10], // reset
+    [emu_1.Keys.VK_BACK_SLASH, 1, 0x10],
+    [emu_1.Keys.VK_ENTER, 1, 0x80], // start/pause
 ]);
 class SG1000 extends vdp_z80_1.BaseZ80VDPBasedMachine {
     constructor() {
@@ -50,33 +51,39 @@ class SG1000 extends vdp_z80_1.BaseZ80VDPBasedMachine {
     getHCounter() { return 0; }
     setMemoryControl(v) { }
     setIOPortControl(v) { }
+    readIO(addr) {
+        switch (addr & 0xc1) {
+            case 0x40: return this.getVCounter();
+            case 0x41: return this.getHCounter();
+            case 0x80: return this.vdp.readData();
+            case 0x81: return this.vdp.readStatus();
+            case 0xc0: return this.inputs[0] ^ 0xff;
+            case 0xc1: return this.inputs[1] ^ 0xff;
+        }
+        return 0;
+    }
+    writeIO(addr, val) {
+        switch (addr & 0xc1) {
+            case 0x00: return this.setMemoryControl(val);
+            case 0x01: return this.setIOPortControl(val);
+            case 0x40:
+            case 0x41: return this.psg.setData(val);
+            case 0x80: return this.vdp.writeData(val);
+            case 0x81: return this.vdp.writeAddress(val);
+        }
+    }
     newIOBus() {
         return {
             read: (addr) => {
                 addr &= 0xff;
                 //console.log('IO read', hex(addr,4));
-                switch (addr & 0xc1) {
-                    case 0x40: return this.getVCounter();
-                    case 0x41: return this.getHCounter();
-                    case 0x80: return this.vdp.readData();
-                    case 0x81: return this.vdp.readStatus();
-                    case 0xc0: return this.inputs[0] ^ 0xff;
-                    case 0xc1: return this.inputs[1] ^ 0xff;
-                }
-                return 0;
+                return this.readIO(addr);
             },
             write: (addr, val) => {
                 addr &= 0xff;
                 val &= 0xff;
                 //console.log('IO write', hex(addr,4), hex(val,2));
-                switch (addr & 0xc1) {
-                    case 0x00: return this.setMemoryControl(val);
-                    case 0x01: return this.setIOPortControl(val);
-                    case 0x40:
-                    case 0x41: return this.psg.setData(val);
-                    case 0x80: return this.vdp.writeData(val);
-                    case 0x81: return this.vdp.writeAddress(val);
-                }
+                this.writeIO(addr, val);
             }
         };
     }
@@ -204,4 +211,19 @@ class SMS extends SG1000 {
     }
 }
 exports.SMS = SMS;
+// https://segaretro.org/images/1/16/Sega_Game_Gear_Hardware_Reference_Manual.pdf
+class GameGear extends SMS {
+    newVDP(frameData, cru, flicker) {
+        return new tms9918a_1.GameGearVDP(frameData, cru, flicker);
+    }
+    readIO(addr) {
+        switch (addr & 0xc1) {
+            case 0x00: return (~this.inputs[1] & 0x80) | 0x40;
+            case 0xdc: return this.inputs[0] ^ 0xff;
+            case 0xdd: return this.inputs[1] ^ 0xff;
+        }
+        return super.readIO(addr);
+    }
+}
+exports.GameGear = GameGear;
 //# sourceMappingURL=sms.js.map

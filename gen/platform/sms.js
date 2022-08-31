@@ -42,7 +42,16 @@ class SMSPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     readAddress(a) { return this.machine.read(a); }
     readVRAMAddress(a) { return this.machine.readVRAMAddress(a); }
 }
+class GameGearPlatform extends baseplatform_1.BaseZ80MachinePlatform {
+    newMachine() { return new sms_1.GameGear(); }
+    getPresets() { return exports.SMS_PRESETS; }
+    getDefaultExtension() { return ".c"; }
+    ;
+    readAddress(a) { return this.machine.read(a); }
+    readVRAMAddress(a) { return this.machine.readVRAMAddress(a); }
+}
 ///
 emu_1.PLATFORMS['sms-sg1000-libcv'] = SG1000Platform;
 emu_1.PLATFORMS['sms-sms-libcv'] = SMSPlatform;
+emu_1.PLATFORMS['sms-gg-libcv'] = GameGearPlatform;
 //# sourceMappingURL=sms.js.map

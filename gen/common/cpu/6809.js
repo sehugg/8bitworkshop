@@ -2645,7 +2645,8 @@ function CPU6809() {
             }
             return f;
         },
-        disasm: disasm
+        disasm: disasm,
+        isStable: function () { return true; }
     };
 }
 exports.CPU6809 = CPU6809;

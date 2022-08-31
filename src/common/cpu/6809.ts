@@ -2456,7 +2456,8 @@ return {
         }
         return f;
     },
-    disasm: disasm
+    disasm: disasm,
+    isStable: function() { return true; }
 };
 
 };

@@ -142,6 +142,8 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
         // insert debug hook
         this.nes.cpu._emulate = this.nes.cpu.emulate;
         this.nes.cpu.emulate = () => {
+            if (this.nes.cpu.irqRequested)
+                this.probe.logInterrupt(this.nes.cpu.irqType || 0);
             this.probe.logExecute(this.nes.cpu.REG_PC + 1, this.nes.cpu.REG_SP);
             var cycles = this.nes.cpu._emulate();
             this.evalDebugCondition();

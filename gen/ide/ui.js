@@ -55,6 +55,7 @@ var debugCategory; // current debug category
 var debugTickPaused = false;
 var recorderActive = false;
 var lastViewClicked = null;
+var lastDebugCommand = null;
 var errorWasRuntime = false;
 var lastBreakExpr = "c.PC == 0x6000";
 // TODO: codemirror multiplex support?
@@ -317,7 +318,8 @@ function refreshWindowList() {
         });
         // TODO: only if raster
         addWindowItem("#crtheatmap", "CRT Probe", () => {
-            return new debugviews_1.RasterPCHeatMapView();
+            //return new RasterPCHeatMapView();
+            return new debugviews_1.RasterStackMapView();
         });
         addWindowItem("#probelog", "Probe Log", () => {
             return new debugviews_1.ProbeLogView();
@@ -1365,33 +1367,44 @@ function checkRunReady() {
         return true;
 }
 function openRelevantListing(state) {
-    // if we clicked on another window, retain it
-    if (lastViewClicked != null)
+    // if we clicked on a specific tool, don't switch windows
+    if (lastViewClicked && lastViewClicked.startsWith('#'))
+        return;
+    // don't switch windows for specific debug commands
+    if (['toline', 'restart', 'tovsync', 'stepover'].includes(lastDebugCommand))
         return;
     // has to support disassembly, at least
     if (!exports.platform.disassemble)
         return;
     // search through listings
-    var listings = exports.current_project.getListings();
-    var bestid = "#disasm";
-    var bestscore = 32;
+    let listings = exports.current_project.getListings();
+    let bestid = "#disasm";
+    let bestscore = 256;
     if (listings) {
-        var pc = state.c ? (state.c.EPC || state.c.PC) : 0;
-        for (var lstfn in listings) {
-            var lst = listings[lstfn];
-            var file = lst.assemblyfile || lst.sourcefile;
+        let pc = state.c ? (state.c.EPC || state.c.PC) : 0;
+        for (let lstfn in listings) {
+            let lst = listings[lstfn];
+            let file = lst.assemblyfile || lst.sourcefile;
             // pick either listing or source file
-            var wndid = exports.current_project.filename2path[lstfn] || lstfn;
+            let wndid = exports.current_project.filename2path[lstfn] || lstfn;
             if (file == lst.sourcefile)
                 wndid = exports.projectWindows.findWindowWithFilePrefix(lstfn);
             // does this window exist?
             if (exports.projectWindows.isWindow(wndid)) {
-                var res = file && file.findLineForOffset(pc, 32); // TODO: const
-                if (res && pc - res.offset < bestscore) {
-                    bestid = wndid;
-                    bestscore = pc - res.offset;
+                // find the source line at the PC or closely before it
+                let srcline1 = file && file.findLineForOffset(pc, editors_1.PC_LINE_LOOKAHEAD);
+                if (srcline1) {
+                    // try to find the next line and bound the PC
+                    let srcline2 = file.lines[srcline1.line + 1];
+                    if (!srcline2 || pc < srcline2.offset) {
+                        let score = pc - srcline1.offset;
+                        if (score < bestscore) {
+                            bestid = wndid;
+                            bestscore = score;
+                        }
+                    }
+                    //console.log(hex(pc,4), srcline1, srcline2, wndid, lstfn, bestid, bestscore);
                 }
-                //console.log(hex(pc,4), wndid, lstfn, bestid, bestscore);
             }
         }
     }
@@ -1406,12 +1419,14 @@ function uiDebugCallback(state) {
     debugTickPaused = true;
 }
 function setupDebugCallback(btnid) {
-    if (exports.platform.setupDebug)
+    if (exports.platform.setupDebug) {
         exports.platform.setupDebug((state, msg) => {
             uiDebugCallback(state);
             setDebugButtonState(btnid || "pause", "stopped");
             msg && showErrorAlert([{ msg: "STOPPED: " + msg, line: 0 }], true);
         });
+        lastDebugCommand = btnid;
+    }
 }
 function setupBreakpoint(btnid) {
     if (!checkRunReady())

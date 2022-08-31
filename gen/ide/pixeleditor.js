@@ -100,12 +100,13 @@ function convertWordsToImages(words, fmt) {
     var mask = (1 << bpp) - 1;
     var pofs = fmt.pofs || wordsperline * height * count;
     var skip = fmt.skip || 0;
+    var wpimg = fmt.wpimg || wordsperline * height;
     var images = [];
     for (var n = 0; n < count; n++) {
         var imgdata = [];
         for (var y = 0; y < height; y++) {
             var yp = fmt.flip ? height - 1 - y : y;
-            var ofs0 = n * wordsperline * height + yp * wordsperline;
+            var ofs0 = wpimg * n + yp * wordsperline;
             var shift = 0;
             for (var x = 0; x < width; x++) {
                 var color = 0;
@@ -144,19 +145,20 @@ function convertImagesToWords(images, fmt) {
     var mask = (1 << bpp) - 1;
     var pofs = fmt.pofs || wordsperline * height * count;
     var skip = fmt.skip || 0;
+    var wpimg = fmt.wpimg || wordsperline * height;
     var words;
     if (nplanes > 0 && fmt.sl) // TODO?
-        words = new Uint8Array(wordsperline * height * count);
+        words = new Uint8Array(wpimg * count);
     else if (bitsperword <= 8)
-        words = new Uint8Array(wordsperline * height * count * nplanes);
+        words = new Uint8Array(wpimg * count * nplanes);
     else
-        words = new Uint32Array(wordsperline * height * count * nplanes);
+        words = new Uint32Array(wpimg * count * nplanes);
     for (var n = 0; n < count; n++) {
         var imgdata = images[n];
         var i = 0;
         for (var y = 0; y < height; y++) {
             var yp = fmt.flip ? height - 1 - y : y;
-            var ofs0 = n * wordsperline * height + yp * wordsperline;
+            var ofs0 = n * wpimg + yp * wordsperline;
             var shift = 0;
             for (var x = 0; x < width; x++) {
                 var color = imgdata[i++];
@@ -379,7 +381,7 @@ class TextDataNode extends CodeProjectDataNode {
     }
     updateLeft() {
         if (this.right.words.length != this.words.length)
-            throw Error("Expected " + this.right.words.length + " bytes; image has " + this.words.length);
+            throw Error("Cannot put " + this.right.words.length + " image bytes into array of " + this.words.length + " bytes");
         this.words = this.right.words;
         // TODO: reload editors?
         var datastr = this.text.substring(this.start, this.end);
@@ -916,7 +918,13 @@ class PixEditor extends Viewer {
     }
     commit() {
         this.updateImage();
-        this.left.refreshLeft();
+        try {
+            this.left.refreshLeft();
+        }
+        catch (e) {
+            console.log(e);
+            alert(`Could not update source code. ${e}`);
+        }
     }
     remapPixels(mapfn) {
         var i = 0;
