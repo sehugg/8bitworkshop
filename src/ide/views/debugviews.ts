@@ -638,7 +638,7 @@ export class RasterStackMapView extends RasterPCHeatMapView implements ProjectVi
     if (op == ProbeFlags.IO_WRITE) { this.rgb |= 0x1f3f80; }
     if (op == ProbeFlags.IO_READ) { this.rgb |= 0x001f00; }
       // draw pixels?
-    if (op == ProbeFlags.ILLEGAL) {
+    if (op == ProbeFlags.ILLEGAL || op == ProbeFlags.VRAM_READ) {
       this.datau32[iofs] = 0xff0f0f0f;
     } else {
       let data = this.rgb;

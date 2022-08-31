@@ -14,7 +14,7 @@ import { StateRecorderImpl } from "../common/recorder";
 import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
 import Split = require('split.js');
 import { importPlatform } from "../platform/_index";
-import { DisassemblerView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor } from "./views/editors";
+import { DisassemblerView, ListingView, PC_LINE_LOOKAHEAD , SourceEditor } from "./views/editors";
 import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterPCHeatMapView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
 import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
