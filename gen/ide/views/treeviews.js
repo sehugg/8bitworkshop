@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FrameCallsView = exports.CallStackView = exports.DebugBrowserView = exports.StateBrowserView = exports.TreeViewBase = void 0;
 const emu_1 = require("../../common/emu");
-const recorder_1 = require("../../common/recorder");
+const probe_1 = require("../../common/probe");
 const util_1 = require("../../common/util");
 const ui_1 = require("../ui");
 const debugviews_1 = require("./debugviews");
@@ -238,9 +238,9 @@ class CallStackView extends debugviews_1.ProbeViewBaseBase {
         // TODO: we don't capture every frame, so if we don't start @ the top frame we may have problems
         this.redraw((op, addr, col, row, clk, value) => {
             switch (op) {
-                case recorder_1.ProbeFlags.SP_POP:
+                case probe_1.ProbeFlags.SP_POP:
                     this.newRoot(this.lastpc, this.lastsp);
-                case recorder_1.ProbeFlags.SP_PUSH:
+                case probe_1.ProbeFlags.SP_PUSH:
                     if (this.stack.length) {
                         let top = this.stack[this.stack.length - 1];
                         var delta = this.lastsp - addr;
@@ -253,7 +253,7 @@ class CallStackView extends debugviews_1.ProbeViewBaseBase {
                     }
                     this.lastsp = addr;
                     break;
-                case recorder_1.ProbeFlags.EXECUTE:
+                case probe_1.ProbeFlags.EXECUTE:
                     // TODO: better check for CALL/RET opcodes
                     if (Math.abs(addr - this.lastpc) >= 4) { // make sure we're jumping a distance (TODO)
                         if (this.jsr && this.stack.length) {
@@ -301,7 +301,7 @@ class FrameCallsView extends debugviews_1.ProbeViewBaseBase {
         var frame = {};
         this.redraw((op, addr, col, row, clk, value) => {
             switch (op) {
-                case recorder_1.ProbeFlags.EXECUTE:
+                case probe_1.ProbeFlags.EXECUTE:
                     let sym = this.addr2symbol(addr);
                     if (sym) {
                         if (!frame[sym]) {

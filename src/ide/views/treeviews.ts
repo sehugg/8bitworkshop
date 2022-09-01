@@ -1,5 +1,5 @@
 import { dumpRAM } from "../../common/emu";
-import { ProbeFlags } from "../../common/recorder";
+import { ProbeFlags } from "../../common/probe";
 import { hex } from "../../common/util";
 import { platform } from "../ui";
 import { ProjectView } from "./baseviews";

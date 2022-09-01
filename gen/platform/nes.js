@@ -5,7 +5,7 @@ const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
 const analysis_1 = require("../common/analysis");
 const audio_1 = require("../common/audio");
-const recorder_1 = require("../common/recorder");
+const probe_1 = require("../common/probe");
 const devices_1 = require("../common/devices");
 const Mousetrap = require("mousetrap");
 const jsnes = require("../../jsnes");
@@ -456,7 +456,7 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
         return s;
     }
     startProbing() {
-        var rec = new recorder_1.ProbeRecorder(this);
+        var rec = new probe_1.ProbeRecorder(this);
         this.connectProbe(rec);
         return rec;
     }

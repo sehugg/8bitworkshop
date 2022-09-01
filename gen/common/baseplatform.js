@@ -7,7 +7,7 @@ const disasm6502_1 = require("./cpu/disasm6502");
 const disasmz80_1 = require("./cpu/disasmz80");
 const ZilogZ80_1 = require("./cpu/ZilogZ80");
 const audio_1 = require("./audio");
-const recorder_1 = require("./recorder");
+const probe_1 = require("./probe");
 const wasmplatform_1 = require("./wasmplatform");
 const _6809_1 = require("./cpu/6809");
 const MOS6502_1 = require("./cpu/MOS6502");
@@ -130,7 +130,7 @@ class BaseDebugPlatform extends BasePlatform {
     setDebugCondition(debugCond) {
         this.setBreakpoint('debug', debugCond);
     }
-    restartDebugging() {
+    resetDebugging() {
         if (this.debugSavedState) {
             this.loadState(this.debugSavedState);
         }
@@ -140,6 +140,9 @@ class BaseDebugPlatform extends BasePlatform {
         this.debugClock = 0;
         this.debugCallback = this.getDebugCallback();
         this.debugBreakState = null;
+    }
+    restartDebugging() {
+        this.resetDebugging();
         this.resume();
     }
     preFrame() {
@@ -673,7 +676,7 @@ class BaseMachinePlatform extends BaseDebugPlatform {
             this.video.setupMouseEvents();
         }
         if (hasProbe(m)) {
-            this.probeRecorder = new recorder_1.ProbeRecorder(m);
+            this.probeRecorder = new probe_1.ProbeRecorder(m);
             this.startProbing = () => {
                 m.connectProbe(this.probeRecorder);
                 return this.probeRecorder;
@@ -712,7 +715,8 @@ class BaseMachinePlatform extends BaseDebugPlatform {
         }
     }
     advance(novideo) {
-        var steps = this.machine.advanceFrame(this.getDebugCallback());
+        let trap = this.getDebugCallback();
+        var steps = this.machine.advanceFrame(trap);
         if (!novideo && this.video)
             this.video.updateFrame();
         if (!novideo && this.serialVisualizer)

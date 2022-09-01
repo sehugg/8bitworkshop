@@ -2023,13 +2023,16 @@ var _MOS6502 = function () {
         PC = (PC - 1) & 0xffff;
     };
     this.setIRQ = function () {
-        instruction = IRQ();
-        T = 1;
-        PC = (PC - 1) & 0xffff;
+        if (!I) { // only if not disabled
+            instruction = IRQ();
+            T = 1;
+            PC = (PC - 1) & 0xffff;
+        }
     };
     this.getSP = function () { return SP; };
     this.getPC = function () { return (PC - 1) & 0xffff; };
     this.getT = function () { return T; };
+    this.isHalted = function () { return opcodes[opcode] == "uKIL"; };
     this.isPCStable = function () {
         return T == 0;
     };
@@ -2076,7 +2079,9 @@ class MOS6502 {
         this.interruptType = 0;
     }
     interrupt(itype) {
-        this.interruptType = itype;
+        if (this.interruptType != MOS6502Interrupts.NMI) {
+            this.interruptType = itype;
+        }
     }
     NMI() {
         this.interrupt(MOS6502Interrupts.NMI);
@@ -2089,6 +2094,9 @@ class MOS6502 {
     }
     getPC() {
         return this.cpu.getPC();
+    }
+    isHalted() {
+        return this.cpu.isHalted();
     }
     saveState() {
         var s = this.cpu.saveState();

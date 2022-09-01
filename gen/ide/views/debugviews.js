@@ -6,7 +6,7 @@ const ui_1 = require("../ui");
 const util_1 = require("../../common/util");
 const vlist_1 = require("../../common/vlist");
 const emu_1 = require("../../common/emu");
-const recorder_1 = require("../../common/recorder");
+const probe_1 = require("../../common/probe");
 const baseplatform_1 = require("../../common/baseplatform");
 ///
 function ignoreSymbol(sym) {
@@ -355,20 +355,20 @@ class ProbeViewBaseBase {
             var value = (word >> 16) & 0xff;
             var op = word & OPAQUE_BLACK;
             switch (op) {
-                case recorder_1.ProbeFlags.SCANLINE:
+                case probe_1.ProbeFlags.SCANLINE:
                     row++;
                     col = 0;
                     break;
-                case recorder_1.ProbeFlags.FRAME:
+                case probe_1.ProbeFlags.FRAME:
                     row = 0;
                     col = 0;
                     break;
-                case recorder_1.ProbeFlags.CLOCKS:
+                case probe_1.ProbeFlags.CLOCKS:
                     col += addr;
                     clk += addr;
                     break;
-                case recorder_1.ProbeFlags.SP_PUSH:
-                case recorder_1.ProbeFlags.SP_POP:
+                case probe_1.ProbeFlags.SP_PUSH:
+                case probe_1.ProbeFlags.SP_POP:
                     this.sp = addr;
                 default:
                     eventfn(op, addr, col, row, clk, value);
@@ -379,58 +379,58 @@ class ProbeViewBaseBase {
     opToString(op, addr, value) {
         var s = "";
         switch (op) {
-            case recorder_1.ProbeFlags.EXECUTE:
+            case probe_1.ProbeFlags.EXECUTE:
                 s = "Exec";
                 break;
-            case recorder_1.ProbeFlags.MEM_READ:
+            case probe_1.ProbeFlags.MEM_READ:
                 s = "Read";
                 break;
-            case recorder_1.ProbeFlags.MEM_WRITE:
+            case probe_1.ProbeFlags.MEM_WRITE:
                 s = "Write";
                 break;
-            case recorder_1.ProbeFlags.IO_READ:
+            case probe_1.ProbeFlags.IO_READ:
                 s = "IO Read";
                 break;
-            case recorder_1.ProbeFlags.IO_WRITE:
+            case probe_1.ProbeFlags.IO_WRITE:
                 s = "IO Write";
                 break;
-            case recorder_1.ProbeFlags.VRAM_READ:
+            case probe_1.ProbeFlags.VRAM_READ:
                 s = "VRAM Read";
                 break;
-            case recorder_1.ProbeFlags.VRAM_WRITE:
+            case probe_1.ProbeFlags.VRAM_WRITE:
                 s = "VRAM Write";
                 break;
-            case recorder_1.ProbeFlags.INTERRUPT:
+            case probe_1.ProbeFlags.INTERRUPT:
                 s = "Interrupt";
                 break;
-            case recorder_1.ProbeFlags.ILLEGAL:
+            case probe_1.ProbeFlags.ILLEGAL:
                 s = "Error";
                 break;
-            case recorder_1.ProbeFlags.SP_PUSH:
+            case probe_1.ProbeFlags.SP_PUSH:
                 s = "Stack Push";
                 break;
-            case recorder_1.ProbeFlags.SP_POP:
+            case probe_1.ProbeFlags.SP_POP:
                 s = "Stack Pop";
                 break;
             default: return "";
         }
         if (typeof addr == 'number')
             s += " " + this.addr2str(addr);
-        if ((op & recorder_1.ProbeFlags.HAS_VALUE) && typeof value == 'number')
+        if ((op & probe_1.ProbeFlags.HAS_VALUE) && typeof value == 'number')
             s += " = $" + (0, util_1.hex)(value, 2);
         return s;
     }
     getOpRGB(op, addr) {
         switch (op) {
-            case recorder_1.ProbeFlags.EXECUTE: return 0x018001;
-            case recorder_1.ProbeFlags.MEM_READ: return 0x800101;
-            case recorder_1.ProbeFlags.MEM_WRITE: return 0x010180;
-            case recorder_1.ProbeFlags.IO_READ: return 0x018080;
-            case recorder_1.ProbeFlags.IO_WRITE: return 0xc00180;
-            case recorder_1.ProbeFlags.VRAM_READ: return 0x808001;
-            case recorder_1.ProbeFlags.VRAM_WRITE: return 0x4080c0;
-            case recorder_1.ProbeFlags.INTERRUPT: return 0x3fbf3f;
-            case recorder_1.ProbeFlags.ILLEGAL: return 0x3f3fff;
+            case probe_1.ProbeFlags.EXECUTE: return 0x018001;
+            case probe_1.ProbeFlags.MEM_READ: return 0x800101;
+            case probe_1.ProbeFlags.MEM_WRITE: return 0x010180;
+            case probe_1.ProbeFlags.IO_READ: return 0x018080;
+            case probe_1.ProbeFlags.IO_WRITE: return 0xc00180;
+            case probe_1.ProbeFlags.VRAM_READ: return 0x808001;
+            case probe_1.ProbeFlags.VRAM_WRITE: return 0x4080c0;
+            case probe_1.ProbeFlags.INTERRUPT: return 0x3fbf3f;
+            case probe_1.ProbeFlags.ILLEGAL: return 0x3f3fff;
             default: return 0;
         }
     }
@@ -499,13 +499,13 @@ class ProbeBitmapViewBase extends ProbeViewBase {
         var lastcol = -1;
         this.redraw((op, addr, col, row, clk, value) => {
             switch (op) {
-                case recorder_1.ProbeFlags.EXECUTE:
+                case probe_1.ProbeFlags.EXECUTE:
                     lastroutine = this.addr2symbol(addr) || lastroutine;
                     break;
-                case recorder_1.ProbeFlags.SP_PUSH:
+                case probe_1.ProbeFlags.SP_PUSH:
                     symstack.push(lastroutine);
                     break;
-                case recorder_1.ProbeFlags.SP_POP:
+                case probe_1.ProbeFlags.SP_POP:
                     lastroutine = symstack.pop();
                     break;
             }
@@ -568,14 +568,14 @@ class AddressHeatMapView extends ProbeBitmapViewBase {
         var symstack = [];
         this.redraw((op, addr, col, row, clk, value) => {
             switch (op) {
-                case recorder_1.ProbeFlags.EXECUTE:
+                case probe_1.ProbeFlags.EXECUTE:
                     pc = addr;
                     lastroutine = this.addr2symbol(addr) || lastroutine;
                     break;
-                case recorder_1.ProbeFlags.SP_PUSH:
+                case probe_1.ProbeFlags.SP_PUSH:
                     symstack.push(lastroutine);
                     break;
-                case recorder_1.ProbeFlags.SP_POP:
+                case probe_1.ProbeFlags.SP_POP:
                     lastroutine = symstack.pop();
                     break;
             }
@@ -626,32 +626,32 @@ class RasterStackMapView extends RasterPCHeatMapView {
     drawEvent(op, addr, col, row) {
         var iofs = col + row * this.canvas.width;
         // track interrupts
-        if (op == recorder_1.ProbeFlags.INTERRUPT)
+        if (op == probe_1.ProbeFlags.INTERRUPT)
             this.interrupt = 1;
-        if (this.interrupt == 1 && op == recorder_1.ProbeFlags.SP_PUSH)
+        if (this.interrupt == 1 && op == probe_1.ProbeFlags.SP_PUSH)
             this.interrupt = addr;
         if (this.interrupt > 1 && this.sp > this.interrupt)
             this.interrupt = 0;
         // track writes
-        if (op == recorder_1.ProbeFlags.MEM_WRITE) {
+        if (op == probe_1.ProbeFlags.MEM_WRITE) {
             this.rgb |= 0x00002f;
         }
-        if (op == recorder_1.ProbeFlags.VRAM_WRITE) {
+        if (op == probe_1.ProbeFlags.VRAM_WRITE) {
             this.rgb |= 0x003f80;
         }
-        if (op == recorder_1.ProbeFlags.IO_WRITE) {
+        if (op == probe_1.ProbeFlags.IO_WRITE) {
             this.rgb |= 0x1f3f80;
         }
-        if (op == recorder_1.ProbeFlags.IO_READ) {
+        if (op == probe_1.ProbeFlags.IO_READ) {
             this.rgb |= 0x001f00;
         }
         // draw pixels?
-        if (op == recorder_1.ProbeFlags.ILLEGAL || op == recorder_1.ProbeFlags.VRAM_READ) {
+        if (op == probe_1.ProbeFlags.ILLEGAL || op == probe_1.ProbeFlags.VRAM_READ) {
             this.datau32[iofs] = 0xff0f0f0f;
         }
         else {
             let data = this.rgb;
-            if (op == recorder_1.ProbeFlags.EXECUTE) {
+            if (op == probe_1.ProbeFlags.EXECUTE) {
                 let sp = this.sp & 15;
                 if (sp >= 8)
                     sp = 16 - sp;
@@ -713,7 +713,7 @@ class ProbeLogView extends ProbeViewBaseBase {
                 this.dumplines[clk] = line;
             }
             switch (op) {
-                case recorder_1.ProbeFlags.EXECUTE:
+                case probe_1.ProbeFlags.EXECUTE:
                     if (ui_1.platform.disassemble) {
                         var disasm = ui_1.platform.disassemble(addr, ui_1.platform.readAddress.bind(ui_1.platform));
                         line.asm = disasm && disasm.line;
@@ -750,7 +750,7 @@ class ScanlineIOView extends ProbeViewBaseBase {
             if (opaddr !== undefined) {
                 var addr = opaddr & 0xffff;
                 var op = op & OPAQUE_BLACK;
-                if (op == recorder_1.ProbeFlags.EXECUTE) {
+                if (op == probe_1.ProbeFlags.EXECUTE) {
                     s += ',';
                 }
                 else {
@@ -780,16 +780,16 @@ class ScanlineIOView extends ProbeViewBaseBase {
                 this.dumplines[row] = line = [];
             }
             switch (op) {
-                case recorder_1.ProbeFlags.EXECUTE:
+                case probe_1.ProbeFlags.EXECUTE:
                     var sym = ui_1.platform.debugSymbols.addr2symbol[addr];
                     if (sym)
                         line[-1] = sym;
                     break;
                 //case ProbeFlags.MEM_WRITE:
-                case recorder_1.ProbeFlags.IO_READ:
-                case recorder_1.ProbeFlags.IO_WRITE:
-                case recorder_1.ProbeFlags.VRAM_READ:
-                case recorder_1.ProbeFlags.VRAM_WRITE:
+                case probe_1.ProbeFlags.IO_READ:
+                case probe_1.ProbeFlags.IO_WRITE:
+                case probe_1.ProbeFlags.VRAM_READ:
+                case probe_1.ProbeFlags.VRAM_WRITE:
                     line[col] = op | addr;
                     break;
             }
@@ -833,11 +833,11 @@ class ProbeSymbolView extends ProbeViewBaseBase {
         var c;
         if (line != null) {
             s = (0, util_1.lpad)(sym, 35)
-                + getop(recorder_1.ProbeFlags.MEM_READ)
-                + getop(recorder_1.ProbeFlags.MEM_WRITE);
-            if (line[recorder_1.ProbeFlags.EXECUTE])
+                + getop(probe_1.ProbeFlags.MEM_READ)
+                + getop(probe_1.ProbeFlags.MEM_WRITE);
+            if (line[probe_1.ProbeFlags.EXECUTE])
                 c = 'seg_code';
-            else if (line[recorder_1.ProbeFlags.IO_READ] || line[recorder_1.ProbeFlags.IO_WRITE])
+            else if (line[probe_1.ProbeFlags.IO_READ] || line[probe_1.ProbeFlags.IO_WRITE])
                 c = 'seg_io';
             else
                 c = 'seg_data';

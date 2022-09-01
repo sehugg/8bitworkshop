@@ -5,7 +5,7 @@ const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
 const analysis_1 = require("../common/analysis");
 const disasm6502_1 = require("../common/cpu/disasm6502");
-const recorder_1 = require("../common/recorder");
+const probe_1 = require("../common/probe");
 const devices_1 = require("../common/devices");
 const mameplatform_1 = require("../common/mameplatform");
 const VCS_PRESETS = [
@@ -355,7 +355,7 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
     }
     startProbing() {
         var self = this;
-        var rec = new recorder_1.ProbeRecorder(this);
+        var rec = new probe_1.ProbeRecorder(this);
         this.connectProbe(rec);
         var probe = this.probe;
         // intercept CPU clock pulse

@@ -4,7 +4,7 @@ const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
 const audio_1 = require("../common/audio");
-const recorder_1 = require("../common/recorder");
+const probe_1 = require("../common/probe");
 const devices_1 = require("../common/devices");
 // emulator from https://github.com/raz0red/jsvecx
 // https://roadsidethoughts.com/vectrex/vectrex-memory-map.htm
@@ -910,7 +910,7 @@ class VectrexPlatform extends baseplatform_1.Base6809Platform {
         }
     }
     startProbing() {
-        var rec = new recorder_1.ProbeRecorder(this);
+        var rec = new probe_1.ProbeRecorder(this);
         this.connectProbe(rec);
         return rec;
     }

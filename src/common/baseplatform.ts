@@ -10,7 +10,7 @@ import { Z80 } from "./cpu/ZilogZ80";
 import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsBIOS, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, HasSerialIO, SerialIOInterface, AcceptsJoyInput } from "./devices";
 import { Probeable, RasterFrameBased, AcceptsPaddleInput } from "./devices";
 import { SampledAudio } from "./audio";
-import { ProbeRecorder } from "./recorder";
+import { ProbeRecorder } from "./probe";
 import { BaseWASMMachine } from "./wasmplatform";
 import { CPU6809 } from "./cpu/6809";
 import { _MOS6502 } from "./cpu/MOS6502";
@@ -282,7 +282,7 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   setDebugCondition(debugCond : DebugCondition) {
     this.setBreakpoint('debug', debugCond);
   }
-  restartDebugging() {
+  resetDebugging() {
     if (this.debugSavedState) {
       this.loadState(this.debugSavedState);
     } else {
@@ -291,6 +291,9 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.debugClock = 0;
     this.debugCallback = this.getDebugCallback();
     this.debugBreakState = null;
+  }
+  restartDebugging() {
+    this.resetDebugging();
     this.resume();
   }
   preFrame() {
@@ -865,7 +868,8 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   }
 
   advance(novideo:boolean) {
-    var steps = this.machine.advanceFrame(this.getDebugCallback());
+    let trap = this.getDebugCallback();
+    var steps = this.machine.advanceFrame(trap);
     if (!novideo && this.video) this.video.updateFrame();
     if (!novideo && this.serialVisualizer) this.serialVisualizer.refresh();
     return steps;
