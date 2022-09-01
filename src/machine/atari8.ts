@@ -247,6 +247,9 @@ export class Atari800 extends BasicScanlineMachine {
   getRasterScanline() {
     return this.antic.v;
   }
+  getRasterLineClock() {
+    return this.antic.h;
+  }
   getDebugCategories() {
     return ['CPU', 'Stack', 'ANTIC', 'GTIA', 'POKEY'];
   }
