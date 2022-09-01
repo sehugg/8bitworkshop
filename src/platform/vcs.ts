@@ -4,7 +4,7 @@ import { PLATFORMS, dumpRAM, EmuHalt, RasterVideo, __createCanvas } from "../com
 import { hex, loadScript, lpad, tobin } from "../common/util";
 import { CodeAnalyzer_vcs } from "../common/analysis";
 import { disassemble6502 } from "../common/cpu/disasm6502";
-import { ProbeRecorder } from "../common/recorder";
+import { ProbeRecorder } from "../common/probe";
 import { NullProbe, ProbeAll } from "../common/devices";
 import { BaseMAME6502Platform } from "../common/mameplatform";
 

@@ -10,7 +10,7 @@ import { Z80 } from "./cpu/ZilogZ80";
 import { Bus, Resettable, FrameBased, VideoSource, SampledAudioSource, AcceptsROM, AcceptsBIOS, AcceptsKeyInput, SavesState, SavesInputState, HasCPU, HasSerialIO, SerialIOInterface, AcceptsJoyInput } from "./devices";
 import { Probeable, RasterFrameBased, AcceptsPaddleInput } from "./devices";
 import { SampledAudio } from "./audio";
-import { ProbeRecorder } from "./recorder";
+import { ProbeRecorder } from "./probe";
 import { BaseWASMMachine } from "./wasmplatform";
 import { CPU6809 } from "./cpu/6809";
 import { _MOS6502 } from "./cpu/MOS6502";

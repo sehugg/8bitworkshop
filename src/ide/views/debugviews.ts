@@ -5,7 +5,7 @@ import { platform, compparams, current_project, projectWindows } from "../ui";
 import { hex, lpad, rpad } from "../../common/util";
 import { VirtualList } from "../../common/vlist";
 import { getMousePos, getVisibleEditorLineHeight, VirtualTextLine, VirtualTextScroller } from "../../common/emu";
-import { ProbeFlags, ProbeRecorder } from "../../common/recorder";
+import { ProbeFlags, ProbeRecorder } from "../../common/probe";
 import { BaseZ80MachinePlatform, BaseZ80Platform } from "../../common/baseplatform";
 
 ///

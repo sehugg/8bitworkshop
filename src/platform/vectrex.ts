@@ -3,7 +3,7 @@ import { Platform, BaseZ80Platform, Base6502Platform, Base6809Platform } from ".
 import { PLATFORMS, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, VectorVideo, Keys, makeKeycodeMap } from "../common/emu";
 import { hex, lzgmini, stringToByteArray, safe_extend } from "../common/util";
 import { MasterAudio, AY38910_Audio } from "../common/audio";
-import { ProbeRecorder } from "../common/recorder";
+import { ProbeRecorder } from "../common/probe";
 import { NullProbe, Probeable, ProbeAll } from "../common/devices";
 
 // emulator from https://github.com/raz0red/jsvecx

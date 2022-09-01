@@ -4,7 +4,7 @@ import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeK
 import { hex, byteArrayToString } from "../common/util";
 import { CodeAnalyzer_nes } from "../common/analysis";
 import { SampleAudio } from "../common/audio";
-import { ProbeRecorder } from "../common/recorder";
+import { ProbeRecorder } from "../common/probe";
 import { NullProbe, Probeable, ProbeAll } from "../common/devices";
 import Mousetrap = require('mousetrap');
 import jsnes = require('../../jsnes');
