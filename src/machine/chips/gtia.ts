@@ -21,7 +21,7 @@ const COLPF2 = 0x18;
 const COLPF3 = 0x19;
 const COLBK = 0x1a;
 const PRIOR = 0x1b;
-const VDELAY = 0x1c;
+const VDELAY = 0x1c; // TODO
 const GRACTL = 0x1d;
 const HITCLR = 0x1e;
 const CONSPK = 0x1f;
@@ -33,10 +33,30 @@ const P0PL = 0xc;
 export const TRIG0 = 0x10;
 export const CONSOL = 0x1f;
 
+const PRIOR_TABLE : number[] = [
+  0,1,2,3, 7,7,7,7, 8,8,8,8, 4,5,6,7,   // 0001 - 0
+  0,1,2,3, 7,7,7,7, 8,8,8,8, 4,5,6,7,   // 0001
+  0,1,6,7, 5,5,5,5, 8,8,8,8, 2,3,4,5,   // 0010 - 2
+  0,1,6,7, 5,5,5,5, 8,8,8,8, 2,3,4,5,   // 0010
+  4,5,6,7, 3,3,3,3, 8,8,8,8, 0,1,2,3,   // 0100 - 4
+  4,5,6,7, 3,3,3,3, 8,8,8,8, 0,1,2,3,   // 0100
+  4,5,6,7, 3,3,3,3, 8,8,8,8, 0,1,2,3,   // 0100
+  4,5,6,7, 3,3,3,3, 8,8,8,8, 0,1,2,3,   // 0100
+  2,3,4,5, 7,7,7,7, 8,8,8,8, 0,1,6,7,   // 1000 - 8
+  2,3,4,5, 7,7,7,7, 8,8,8,8, 0,1,6,7,   // 1000
+  2,3,4,5, 7,7,7,7, 8,8,8,8, 0,1,6,7,   // 1000
+  2,3,4,5, 7,7,7,7, 8,8,8,8, 0,1,6,7,   // 1000
+  2,3,4,5, 7,7,7,7, 8,8,8,8, 0,1,6,7,   // 1000
+  2,3,4,5, 7,7,7,7, 8,8,8,8, 0,1,6,7,   // 1000
+  2,3,4,5, 7,7,7,7, 8,8,8,8, 0,1,6,7,   // 1000
+  2,3,4,5, 7,7,7,7, 8,8,8,8, 0,1,6,7,   // 1000
+];
+
 export class GTIA {
     regs = new Uint8Array(0x20);
     readregs = new Uint8Array(0x20);
     shiftregs = new Uint32Array(8);
+    priortab = new Uint8Array(12);
 
     count = 0;
     an = 0;
@@ -57,18 +77,17 @@ export class GTIA {
     }
     setReg(a: number, v: number) {
         switch (a) {
-            case CONSOL:
-                v = (v & 15) ^ 15; // 0 = input, 1 = pull down
-                break;
             case HITCLR:
-                for (let i = 0; i < 16; i++) {
-                    this.readregs[i] = 0;
-                }
+                this.readregs.fill(0, 0, 16);
                 return;
         }
         this.regs[a] = v;
     }
     readReg(a: number) {
+        switch (a) {
+            case CONSOL:
+                return this.readregs[a] & ~this.regs[CONSPK];
+        }
         return this.readregs[a];
     }
     sync() {
@@ -111,10 +130,27 @@ export class GTIA {
         }
         this.rgb = COLORS_RGBA[col];
     }
+    anySpriteActive() {
+        return this.shiftregs[0] | this.shiftregs[1] | this.shiftregs[2]
+          | this.shiftregs[3] | this.shiftregs[4] | this.shiftregs[5]
+          | this.shiftregs[6] | this.shiftregs[7];
+    }
     processPlayerMissile() {
-        let topobj = -1;
+        // no p/m gfx, no collisions in blank area, but shift and trigger anyway
+        if (this.an == 2 || !this.anySpriteActive()) {
+            for (let i = 0; i < 8; i++) {
+                this.shiftObject(i);
+            }
+            this.pmcol = -1;
+            return;
+        }
+        // compute gfx and collisions for players/missiles
+        let priobias = (this.regs[PRIOR] & 15) << 4; // TODO
+        let topprio = PRIOR_TABLE[(this.an & 7) + 8 + priobias];
         let pfset = this.an - 4; // TODO?
+        let topobj = -1;
         let ppmask = 0;
+        let ppcount = 0;
         // players
         for (let i = 0; i < 4; i++) {
             let bit = this.shiftObject(i);
@@ -123,13 +159,14 @@ export class GTIA {
                     this.readregs[P0PF + i] |= 1 << pfset;
                 }
                 ppmask |= 1 << i;
-                topobj = i;
+                ppcount++;
+                let prio = PRIOR_TABLE[i + priobias];
+                if (prio < topprio) {
+                    topobj = i;
+                    topprio = prio;
+                }
             }
         }
-        this.readregs[P0PL + 0] |= ppmask & ~1;
-        this.readregs[P0PL + 1] |= ppmask & ~2;
-        this.readregs[P0PL + 2] |= ppmask & ~4;
-        this.readregs[P0PL + 3] |= ppmask & ~8;
         // missiles
         for (let i = 0; i < 4; i++) {
             let bit = this.shiftObject(i + 4);
@@ -138,15 +175,26 @@ export class GTIA {
                     this.readregs[M0PF + i] |= 1 << pfset;
                 }
                 this.readregs[M0PL + i] |= ppmask;
-                topobj = i + 4;
+                let prio = PRIOR_TABLE[i + 4 + priobias];
+                if (prio < topprio) {
+                    topobj = i + 4;
+                    topprio = prio;
+                }
             }
+        }
+        // set player-player collision flags
+        if (ppcount > 1) {
+            this.readregs[P0PL + 0] |= ppmask & ~1;
+            this.readregs[P0PL + 1] |= ppmask & ~2;
+            this.readregs[P0PL + 2] |= ppmask & ~4;
+            this.readregs[P0PL + 3] |= ppmask & ~8;
         }
         this.pmcol = topobj >= 0 ? this.getObjectColor(topobj) : -1;
     }
     shiftObject(i: number) {
         let bit = (this.shiftregs[i] & 0x80000000) != 0;
         this.shiftregs[i] <<= 1;
-        if (this.regs[HPOSP0 + i] - 7 == this.count) {
+        if (this.regs[HPOSP0 + i] - 1 == this.count) {
             this.triggerObject(i);
         }
         return bit;
